@@ -31,5 +31,5 @@
 - Next step:
   - 继续只沿 strict L0 线推进，不把 sidecar 或 SIMD 工作重新混回当前 worktree
   - 在没有新的明确 L0 候选前，优先维护稳定路线图、模块文档和验证口径，而不是继续扩模块
-  - 集成分支已经建立并通过 Linux/macOS 路径 fresh gate；仓库内 `tools/lazbuild.bat` bootstrap 已补齐，但 Windows smoke 仍卡在外部 Windows `lazbuild` 可执行缺失
+  - 集成分支已经建立并通过 Linux/macOS 路径 fresh gate；仓库内 `tools/lazbuild.bat` bootstrap 已补齐，且能清晰拒绝 Unix `LAZBUILD_EXE`，但 Windows smoke 仍卡在外部 Windows `lazbuild.exe` 缺失
 - Last updated: `2026-04-09`

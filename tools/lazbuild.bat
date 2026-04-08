@@ -3,6 +3,7 @@ setlocal ENABLEEXTENSIONS ENABLEDELAYEDEXPANSION
 
 set "SCRIPT_PATH=%~f0"
 set "LAZBUILD_PATH="
+set "LAZBUILD_EXT="
 set "LAZARUSDIR_PATH="
 set "HAS_LAZARUSDIR=0"
 
@@ -43,6 +44,13 @@ if not defined LAZBUILD_PATH if exist "C:\Lazarus\lazbuild.exe" set "LAZBUILD_PA
 if not defined LAZBUILD_PATH (
   echo [ERROR] lazbuild not found. Set LAZBUILD_EXE or install Lazarus.
   exit /b 127
+)
+
+for %%D in ("%LAZBUILD_PATH%") do set "LAZBUILD_EXT=%%~xD"
+if /I not "%LAZBUILD_EXT%"==".exe" if /I not "%LAZBUILD_EXT%"==".bat" if /I not "%LAZBUILD_EXT%"==".cmd" if /I not "%LAZBUILD_EXT%"==".com" (
+  echo [ERROR] LAZBUILD_EXE points to a non-Windows executable: %LAZBUILD_PATH%
+  echo [ERROR] Use lazbuild.exe from a Windows Lazarus install or put lazbuild.exe in PATH.
+  exit /b 126
 )
 
 if defined FAFAFA_LAZARUSDIR if exist "%FAFAFA_LAZARUSDIR%\lcl" set "LAZARUSDIR_PATH=%FAFAFA_LAZARUSDIR%"

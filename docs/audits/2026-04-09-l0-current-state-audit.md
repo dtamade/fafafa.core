@@ -124,6 +124,8 @@ L0 当前真正还缺的是硬化项，而不是模块数：
 - 结果：PASS；`tools/lazbuild.bat` 已存在，且 `wine cmd /c` 可调用到 bootstrap
 - `wine cmd /c "cd /d Z:\\...\\tests\\fafafa.core.platform && BuildOrTest.bat test"`
 - 结果：已进入构建步骤，但 `logs\\build.txt` 为 `[ERROR] lazbuild not found. Set LAZBUILD_EXE or install Lazarus.`
+- `wine cmd /c "set LAZBUILD_EXE=Z:\\opt\\fpcupdeluxe\\lazarus\\lazbuild && ... && BuildOrTest.bat build"`
+- 结果：wrapper 明确以 `code=126` 报错：`LAZBUILD_EXE points to a non-Windows executable`
 
 ## Remaining Risks
 
@@ -131,5 +133,5 @@ L0 当前真正还缺的是硬化项，而不是模块数：
 - 临时 branch `l0-sidecar-handoff-20260409` 只是 sidecar 交接面，不应再并回当前 L0 实施面。
 - SIMD 仍由 SIMD owner 负责；L0 这里只处理边界和非 SIMD contract。
 - Windows `.bat` 路径与 shell 路径在 mem runner 上仍有行为差异；这更像合并前的 confidence gap，而不是当前 L0 边界 blocker。
-- 当前 Linux 环境虽然有 `wine`，且仓库内已经补齐 `tools/lazbuild.bat` bootstrap，但仍没有 Windows `lazbuild` 可执行，所以 `.bat` smoke 现在先卡在外部 toolchain 环境层，而不是卡在 strict L0 模块逻辑。
+- 当前 Linux 环境虽然有 `wine`，且仓库内已经补齐 `tools/lazbuild.bat` bootstrap，但仍没有 Windows `lazbuild.exe`；wrapper 现在能清晰拒绝 Unix 路径，因此 `.bat` smoke 仍先卡在外部 toolchain 环境层，而不是卡在 strict L0 模块逻辑。
 - `atomic` 早先只出现过一次未复现的聚合波动；当前没有足够证据支持生产代码修复，若后续再次出现应优先保留失败日志并锁定具体 testcase 顺序。

@@ -142,8 +142,9 @@ tests\fafafa.core.mem\BuildOrTest.bat test
 - `bash tests/test_windows_lazbuild_bootstrap.sh`
   - 结果：PASS；`tools/lazbuild.bat` 已存在，且在 `wine cmd /c` 下可进入 bootstrap 逻辑
 - 已尝试在当前 Linux 环境下通过 `wine cmd /c` 跑 `tests\\fafafa.core.platform\\BuildOrTest.bat test`
-- 结果：已进入构建步骤，但停在 `logs\\build.txt` 的 `[ERROR] lazbuild not found. Set LAZBUILD_EXE or install Lazarus.`
-- 失败原因已经从“缺少 `tools\\lazbuild.bat`”收敛为“当前环境没有可供 `.bat` 路径使用的 Windows `lazbuild` 可执行”
+- 结果：已进入构建步骤；在默认环境下停在 `logs\\build.txt` 的 `[ERROR] lazbuild not found. Set LAZBUILD_EXE or install Lazarus.`
+- 额外验证：若把 `LAZBUILD_EXE` 指到 Unix 路径 `Z:\\opt\\fpcupdeluxe\\lazarus\\lazbuild`，当前 wrapper 会以 `code=126` 明确报错：`LAZBUILD_EXE points to a non-Windows executable`
+- 失败原因已经从“缺少 `tools\\lazbuild.bat`”收敛为“当前环境没有可供 `.bat` 路径使用的 Windows `lazbuild.exe`”
 - 因此，这一轮还不能把 Windows smoke 记成已完成；当前只能把它记成外部 Windows Lazarus toolchain blocker
 
 ## 当前不要做的事
