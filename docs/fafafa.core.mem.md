@@ -61,6 +61,12 @@
 2. 再看 [`docs/fafafa.core.mem.guide.md`](./fafafa.core.mem.guide.md)
 3. 需要理解组织方式时看 [`docs/fafafa.core.mem.architecture.md`](./fafafa.core.mem.architecture.md)
 
+如果你只关心 strict L0 allocator contract：
+
+1. 回到 `docs/fafafa.core.l0.foundation.md`
+2. 再看 `src/fafafa.core.mem.allocator.base.pas`
+3. 最后用 `tests/fafafa.core.mem.allocator.foundation/README.md` 确认当前 low-level facade 的验证入口
+
 如果你要验证现状：
 
 1. 看 `tests/fafafa.core.mem/README.md`

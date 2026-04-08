@@ -1,20 +1,14 @@
 # fafafa.core.result Tests
 
-这个目录是 `result` 模块当前测试入口。它负责说明主测试工程、当前 runner，以及 Windows root wrapper 和历史实现脚本之间的关系。
+这个目录是 `result` 模块当前测试入口。它负责说明主测试工程和当前 runner，不再保留历史 Windows wrapper/alias 分层。
 
 ## 当前 source-of-truth
 
 1. `docs/fafafa.core.result.md`
 2. `tests/fafafa.core.result/BuildOrTest.sh`
 3. `tests/fafafa.core.result/BuildOrTest.bat`
-4. `tests/fafafa.core.result/buildOrTest.bat`
-5. `tests/fafafa.core.result/fafafa.core.result.test.lpi`
-6. `tests/fafafa.core.result/tests_result.lpi`
-
-补充说明：
-
-- 仓库根 `tests/run_all_tests.bat` 当前只会递归发现 `BuildOrTest.bat` / `BuildAndTest.bat`
-- 这里的大写 `BuildOrTest.bat` 是 Windows root wrapper，小写 `buildOrTest.bat` 继续承载具体实现
+4. `tests/fafafa.core.result/fafafa.core.result.test.lpi`
+5. `tests/fafafa.core.result/tests_result.lpi`
 
 ## 当前测试集合
 
@@ -55,12 +49,6 @@
 - `check` / `test` 会检查 build log 中当前模块相关 `src/` 的 warning / hint；`test` 还会检查 heaptrc 泄漏输出
 
 ### BuildOrTest.bat
-
-- 当前是 Windows root wrapper
-- 会委托给 `buildOrTest.bat`
-- 目的是让 `tests/run_all_tests.bat` 可以发现 `result` 模块当前入口
-
-### buildOrTest.bat
 
 - 构建目标：`fafafa.core.result.test.lpi`
 - 产物：`bin\\fafafa.core.result.test[.exe]`

@@ -24,6 +24,7 @@
 - `tests/fafafa.core.atomic/Test_fafafa.core.atomic.core.contract.pas` 会锁定 `atomic.core` 的最小 L0 contract。
 - `tests/fafafa.core.atomic/Test_fafafa.core.atomic.compat.contract.pas` 会继续锁定这部分 compat surface，防止兼容桥接被无意打断。
 - 如果某个 API 只有在 `atomic.compat` 里才存在，应默认把它视作 legacy surface，而不是 today contract 的推荐写法。
+- 下文保留的大段 API 手册只作为 reference appendix；如果和上面的入口约定冲突，以上面的 today contract 描述为准。
 
 ## 当前分层
 
@@ -35,6 +36,8 @@
   - 承载 typed wrapper。
 - `fafafa.core.atomic.compat`
   - 承载 legacy pointer RMW overload 与旧 helper 命名。
+
+## Reference Appendix
 
 现代化、高性能、跨平台的 FreePascal 原子操作库，提供无锁编程的基础设施。
 

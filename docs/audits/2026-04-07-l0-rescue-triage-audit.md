@@ -1,5 +1,8 @@
 # 2026-04-07 L0 Rescue Triage Audit
 
+> 这份审计记录的是 `2026-04-07` 的 rescue triage 结论。
+> 当前 active L0 triage 以 `docs/audits/2026-04-09-l0-current-state-audit.md` 为准。
+
 ## 结论先行
 
 这次审计回答的是一个很具体的问题：`PR #6` 合并之后，L0 还应该继续做什么，哪些东西绝对不要再通过 L0 这条线带回主线。

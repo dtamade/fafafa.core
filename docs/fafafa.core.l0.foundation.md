@@ -68,7 +68,7 @@ L0 不负责以下事情：
 | 前置条件 helper | `fafafa.core.contracts` | 统一承载 strict L0 的 precondition helper，给 `option` / `result` / allocator contract 复用 |
 | 可空语义 | `fafafa.core.option.base`, `fafafa.core.option` | `Option<T>` 是框架级基础语义，而不是某个服务模块的附属品 |
 | 结果语义 | `fafafa.core.result`, `fafafa.core.result.facade` | `Result<T, E>` 是错误传播和组合的基础表达方式 |
-| 视图表达 | `fafafa.core.span` | 提供最小只读单段、不拥有内存的基础视图 contract，给 collections / bytes 等上层复用 |
+| 视图表达 | `fafafa.core.span` | 提供最小只读单段 / 双段、不拥有内存的基础视图 contract，给 collections / bytes 等上层复用 |
 | 位级基础 | `fafafa.core.bits` | 对齐、幂次判断和基础整数布局辅助属于所有上层都可能复用的 bit-level 语义 |
 | 平台表达 | `fafafa.core.platform` | OS family、arch、pointer width 与 native endian 这类静态平台表达是 `simd` / `sync` / `io` 的共同底座，但不应混成 system probe |
 | 布局契约 | `fafafa.core.layout` | `TMemLayout`、`TAllocCaps` 与默认对齐 / cache line / page size 都是跨 allocator / bytes / collections 共享的底层布局合同 |
@@ -94,9 +94,11 @@ L0 不负责以下事情：
   - 负责 `memory_order_t`、`cpu_pause`、`atomic_thread_fence`、`atomic_signal_fence`
   - 负责 `atomic_tagged_ptr_t` 的 packing helper：`atomic_tagged_ptr`、`atomic_tagged_ptr_get_ptr`、`atomic_tagged_ptr_get_tag`、`atomic_tagged_ptr_next`
 - `fafafa.core.span`
-  - 负责最小只读单段 `TReadOnlySpan<T>`
-  - 当前稳定 API：`FromPointer`、`Count`、`IsEmpty`、`Get`、`TryGet`、`GetPtr`、`SubSpan`
-  - 明确不承载 `Span2`、`GetBlock`、deque 双段视图和容器 `SliceView` 裁剪语义
+  - 负责最小只读 `TReadOnlySpan<T>` 与 `TReadOnlySpan2<T>`
+  - 当前稳定 API：
+    - `TReadOnlySpan<T>`：`FromPointer`、`Count`、`IsEmpty`、`Get`、`TryGet`、`GetPtr`、`SubSpan`
+    - `TReadOnlySpan2<T>`：`FromTwo`、`ASpan`、`BSpan`、`Count`、`IsEmpty`、`Get`、`TryGet`、`GetPtr`、`GetBlock`、`SubSpan`
+  - 明确不承载容器 `SliceView` 裁剪语义、`MakeContiguous`、容量策略或更宽的 segmented-container policy
 
 同时，旧入口已经明确降为 compat / consumer：
 
@@ -118,7 +120,7 @@ L0 不负责以下事情：
 | `fafafa.core.sync*`, `fafafa.core.thread*`, `fafafa.core.time*` | 是上层系统服务，不是最小底层契约 |
 | `fafafa.core.lockfree*` | 尽管底层，但属于高级并发数据结构，不是所有模块都必须依赖的基础语言 |
 | `fafafa.core.result.collect` | 依赖 `fafafa.core.collections.vec`，已经跨出 L0 |
-| `fafafa.core.collections.slice` 中的 `TReadOnlySpan2<T>` / `GetBlock` / 容器 `SliceView` 行为 | 双段和容器视图仍属于 collections 域，不应借 `span` 之名直接并入 strict L0 |
+| `fafafa.core.collections.slice` 中的容器 `SliceView` 行为 | collections 里的 today container semantics 仍属于 Layer 1，不应借 `span` 之名直接并入 strict L0 |
 | `fafafa.core.mem.allocator.foundation` | 仍然保留为 mem 域低层 convenience facade，但不再定义 strict L0 边界 |
 | `fafafa.core.mem.allocator.rtlAllocator` / `callbackAllocator` | 小而实用，但它们是具体 backend，不再算 strict L0 contract 本体 |
 | `fafafa.core.mem.allocator.mimalloc` | 依赖可选后端，不应和基础契约绑定 |
@@ -179,11 +181,9 @@ L0 继续保持 `fafafa.core` 现有的开发范式，但要求更严格。
 
 ## L0 后续仍可评估的能力
 
-在 `bits/platform/layout/endian/contracts/span` 已经落地之后，后续只有在满足“RTL-only、跨模块通用、语义非常基础、API 面可控”时，以下能力才适合继续考虑进入 L0：
+在 `bits/platform/layout/endian/contracts/span/span2` 已经落地之后，当前没有新的明确准入候选。
 
-- `segmented span / span2`
-
-这里的 `segmented span / span2` 指的是 deque / ring-buffer 双段视图方向，不代表今天的 `fafafa.core.span` 还处于未准入状态。
+后续若要继续扩张 strict L0，仍然必须满足“RTL-only、跨模块通用、语义非常基础、API 面可控”的前提。
 
 ## L0 准入清单
 
