@@ -63,25 +63,25 @@
 #### Windows
 ```cmd
 # 运行所有测试
-buildOrTest.bat
+BuildOrTest.bat
 
 # 仅构建
-buildOrTest.bat build
+BuildOrTest.bat build
 
 # 清理构建产物
-buildOrTest.bat clean
+BuildOrTest.bat clean
 ```
 
 #### Linux/macOS
 ```bash
 # 运行所有测试
-./buildOrTest.sh
+./BuildOrTest.sh
 
 # 仅构建
-./buildOrTest.sh build
+./BuildOrTest.sh build
 
 # 清理构建产物
-./buildOrTest.sh clean
+./BuildOrTest.sh clean
 ```
 
 ### 运行特定测试类
@@ -177,7 +177,7 @@ bin\fafafa.core.sync.mutex.parkinglot.test.exe --suite=TTestCase_Performance --v
 - name: Run Parking Lot Mutex Tests
   run: |
     cd tests/fafafa.core.sync.mutex.parkinglot
-    ./buildOrTest.sh
+    ./BuildOrTest.sh
 ```
 
 ## 🤝 贡献指南

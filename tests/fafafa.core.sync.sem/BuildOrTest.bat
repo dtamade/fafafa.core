@@ -43,7 +43,7 @@ if "%1"=="test" (
     )
 ) else (
     echo.
-    echo To run tests, use: buildOrTest.bat test
+    echo To run tests, use: BuildOrTest.bat test
 )
 
 echo.

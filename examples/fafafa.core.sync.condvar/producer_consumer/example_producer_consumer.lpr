@@ -91,7 +91,7 @@ var
   T1, T2: TThread;
 begin
   Mutex := MakeMutex;
-  Cond := MakeConditionVariable;
+  Cond := MakeCondVar;
   Done := False; SetLength(Queue, 0);
 
   T1 := TProducerThread.Create(True);

@@ -30,7 +30,7 @@
     </RequiredPackages>
     <Units>
       <Unit>
-        <Filename Value="bin/example_cond_vs_event"/>
+        <Filename Value="example_cond_vs_event.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>

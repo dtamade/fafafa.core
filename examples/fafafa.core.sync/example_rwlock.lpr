@@ -1,7 +1,8 @@
 program example_rwlock;
 
-{$CODEPAGE UTF8}
 {$mode objfpc}{$H+}
+{$IFDEF WINDOWS}{$CODEPAGE UTF8}{$ENDIF}
+{$I ..\..\src\fafafa.core.settings.inc}
 
 uses
   {$IFDEF UNIX}
@@ -11,41 +12,44 @@ uses
   fafafa.core.sync;
 
 var
-  RW: IReadWriteLock;
-  SharedValue: Integer = 0;
+  GRWLock: IRWLock;
+  GSharedValue: Integer = 0;
 
-function ReaderThreadProc(Data: Pointer): PtrInt;
+function ReaderThreadProc(aData: Pointer): PtrInt;
 var
-  i: Integer;
+  LIndex: Integer;
 begin
-  for i := 1 to 5 do
+  for LIndex := 1 to 5 do
   begin
-    RW.AcquireRead;
+    GRWLock.AcquireRead;
     try
-      WriteLn('Reader ', PtrUInt(Data), ' read SharedValue=', SharedValue);
+      WriteLn('Reader ', PtrUInt(aData), ' read SharedValue=', GSharedValue);
     finally
-      RW.ReleaseRead;
+      GRWLock.ReleaseRead;
     end;
     Sleep(50);
   end;
   Result := 0;
 end;
 
-function WriterThreadProc(Data: Pointer): PtrInt;
+function WriterThreadProc(aData: Pointer): PtrInt;
 var
-  ok: Boolean;
-  i: Integer;
+  LOk: Boolean;
+  LIndex: Integer;
 begin
-  for i := 1 to 5 do
+  if aData <> nil then
+    WriteLn('Writer thread tag=', PtrUInt(aData));
+
+  for LIndex := 1 to 5 do
   begin
-    ok := RW.TryAcquireWrite(50);
-    if ok then
+    LOk := GRWLock.TryAcquireWrite(50);
+    if LOk then
     begin
       try
-        Inc(SharedValue);
-        WriteLn('Writer updated SharedValue to ', SharedValue);
+        Inc(GSharedValue);
+        WriteLn('Writer updated SharedValue to ', GSharedValue);
       finally
-        RW.ReleaseWrite;
+        GRWLock.ReleaseWrite;
       end;
     end
     else
@@ -56,16 +60,17 @@ begin
 end;
 
 var
-  T1, T2, TW: TThreadID;
+  LT1: TThreadID;
+  LT2: TThreadID;
+  LTW: TThreadID;
 
 begin
-  RW := TReadWriteLock.Create;
-  BeginThread(@ReaderThreadProc, Pointer(1), T1);
-  BeginThread(@ReaderThreadProc, Pointer(2), T2);
-  BeginThread(@WriterThreadProc, nil, TW);
+  GRWLock := MakeRWLock;
+  BeginThread(@ReaderThreadProc, Pointer(1), LT1);
+  BeginThread(@ReaderThreadProc, Pointer(2), LT2);
+  BeginThread(@WriterThreadProc, nil, LTW);
 
   // 简单等待线程结束（示例化，真实项目应 Join）
   Sleep(1500);
-  WriteLn('Final SharedValue=', SharedValue);
+  WriteLn('Final SharedValue=', GSharedValue);
 end.
-

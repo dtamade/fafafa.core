@@ -11,7 +11,6 @@ if ! command -v "${LAZBUILD_BIN}" >/dev/null 2>&1; then
   exit 1
 fi
 
-# Deterministic outputs
 rm -rf ./bin ./lib/*-*/
 mkdir -p ./bin ./lib
 
@@ -27,8 +26,8 @@ echo "=== Building fafafa.core.sync.event Examples ==="
 echo
 
 for example in "${EXAMPLES[@]}"; do
-  echo "[BUILD] ${LAZBUILD_BIN} --build-mode=Default ${example}.lpi"
-  "${LAZBUILD_BIN}" --build-mode=Default "${example}.lpi"
+  echo "[BUILD] ${LAZBUILD_BIN} ${example}.lpi"
+  "${LAZBUILD_BIN}" "${example}.lpi"
 done
 
 echo

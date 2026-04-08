@@ -5,6 +5,10 @@
 - 超时后返回 False，不会阻塞
 
 构建：
-- Windows: 双击 `buildOrTest.bat`
-- Linux: 进入该目录执行 `lazbuild example_timeout.lpi`
+- Windows: `BuildOrRun.bat build`
+- Linux: `./BuildOrRun.sh build`
+
+运行：
+- Windows: `BuildOrRun.bat`
+- Linux: `./BuildOrRun.sh`
 

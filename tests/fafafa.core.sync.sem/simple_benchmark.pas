@@ -32,7 +32,7 @@ begin
   WriteLn('=== 基本操作性能测试 ===');
   WriteLn(Format('迭代次数: %d', [Iterations]));
   
-  Sem := MakeSemaphore(1, 1);
+  Sem := MakeSem(1, 1);
   
   StartTime := GetCurrentTimeMs;
   for i := 1 to Iterations do
@@ -59,7 +59,7 @@ begin
   WriteLn('=== 超时行为性能测试 ===');
   WriteLn('测试次数: 1000');
   
-  Sem := MakeSemaphore(0, 1); // 初始为0，确保超时
+  Sem := MakeSem(0, 1); // 初始为0，确保超时
   
   StartTime := GetCurrentTimeMs;
   for i := 1 to 1000 do
@@ -86,7 +86,7 @@ begin
   BatchSize := 5;
   WriteLn(Format('批量大小: %d, 测试次数: 1000', [BatchSize]));
   
-  Sem := MakeSemaphore(BatchSize, BatchSize);
+  Sem := MakeSem(BatchSize, BatchSize);
   
   StartTime := GetCurrentTimeMs;
   for i := 1 to 1000 do

@@ -16,7 +16,7 @@ const
 
 var
   M: IMutex;
-  CV: IConditionVariable;
+  CV: ICondVar;
   Q: array of Integer;
   ProducersDone: Integer;
 
@@ -127,7 +127,7 @@ end;
 var i: Integer; Prod: array[1..N_PROD] of TProducer; Cons: array[1..N_CONS] of TConsumer;
 begin
   M := MakeMutex;
-  CV := MakeConditionVariable;
+  CV := MakeCondVar;
   SetLength(Q, 0);
   ProducersDone := 0;
 

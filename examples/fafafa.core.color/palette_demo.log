@@ -1,0 +1,19 @@
+== Mix comparison (t=0.5) ==
+sRGB  : #D1849C
+Linear: #D1849C
+OKLab : #D1849C
+OKLCH : #D2849C
+
+== Palette sampling ==
+Equal 3-stop t=0.6 (sRGB): #00CC33
+Positions [10,20,70], t=15 norm: #808000
+Struct API (OKLCH, t=0.5): #00FF00
+
+== Strategy API ==
+From JSON t=0.2: #00FF00
+Loaded strategy: count=3, mode=3
+Load strategy ok: count=3
+Strategy Sample t=0.2: #00FF00
+Strategy Deserialize t=0.2: #00FF00
+Validate failed after append: positions length mismatch: 3 vs 4
+Validate OK. Colors=4

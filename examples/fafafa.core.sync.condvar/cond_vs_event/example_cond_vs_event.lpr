@@ -56,7 +56,7 @@ begin
   M := MakeMutex;
   CV := MakeCondVar;
   E := MakeEvent(False{AutoReset}, False{Initial});
-  S := MakeSemaphore(0, 3);
+  S := MakeSem(0, 3);
   Ready := False;
 
   // 启动等待线程

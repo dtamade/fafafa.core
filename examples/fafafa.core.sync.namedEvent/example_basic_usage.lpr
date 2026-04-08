@@ -1,7 +1,8 @@
-{$CODEPAGE UTF8}
 program example_basic_usage;
 
 {$mode objfpc}{$H+}
+{$IFDEF WINDOWS}{$CODEPAGE UTF8}{$ENDIF}
+{$I ..\..\src\fafafa.core.settings.inc}
 
 uses
   {$IFDEF UNIX}
@@ -15,112 +16,85 @@ var
   LEvent: INamedEvent;
   LGuard: INamedEventGuard;
 begin
-  WriteLn('=== 基本使用示例 ===');
-  
-  // 创建命名事件
-  LEvent := MakeNamedEvent('BasicExample');
-  WriteLn('✓ 创建事件: ', LEvent.GetName);
-  if LEvent.IsManualReset then
-    WriteLn('  事件类型: 手动重置')
-  else
-    WriteLn('  事件类型: 自动重置');
-  
-  // 非阻塞检查（应该返回 nil）
+  WriteLn('=== Basic Usage ===');
+
+  LEvent := CreateNamedEvent('BasicExample', False, False);
+  WriteLn('[OK] Created event: ', LEvent.GetName);
+  WriteLn('  Manual reset: ', BoolToStr(LEvent.IsManualReset, True));
+
   LGuard := LEvent.TryWait;
   if Assigned(LGuard) then
-    WriteLn('❌ 意外：事件应该未触发')
+    WriteLn('[FAIL] Event should not be signaled yet')
   else
-    WriteLn('✓ 事件未触发（符合预期）');
-  
-  // 触发事件
-  LEvent.SetEvent;
-  WriteLn('✓ 事件已触发');
-  
-  // 现在应该能获取到事件
+    WriteLn('[OK] Event is not signaled yet');
+
+  LEvent.Signal;
+  WriteLn('[OK] Event signaled');
+
   LGuard := LEvent.TryWait;
   if Assigned(LGuard) then
   begin
-    WriteLn('✓ 成功获取事件');
-    WriteLn('  守卫名称: ', LGuard.GetName);
-    if LGuard.IsSignaled then
-      WriteLn('  守卫状态: 已触发')
-    else
-      WriteLn('  守卫状态: 未触发');
-    LGuard := nil; // 释放守卫
+    WriteLn('[OK] Guard acquired: ', LGuard.GetName);
+    WriteLn('  Guard signaled: ', BoolToStr(LGuard.IsSignaled, True));
   end
   else
-    WriteLn('❌ 获取事件失败');
-    
+    WriteLn('[FAIL] Expected guard after signal');
+
   WriteLn;
 end;
 
 procedure DemoManualResetEvent;
 var
   LEvent: INamedEvent;
-  LGuard1, LGuard2: INamedEventGuard;
+  LGuard1: INamedEventGuard;
+  LGuard2: INamedEventGuard;
 begin
-  WriteLn('=== 手动重置事件示例 ===');
-  
-  // 创建手动重置事件
-  LEvent := MakeManualResetNamedEvent('ManualExample', False);
-  WriteLn('✓ 创建手动重置事件: ', LEvent.GetName);
-  
-  // 触发事件
-  LEvent.SetEvent;
-  WriteLn('✓ 事件已触发');
-  
-  // 多个等待者都能获取
+  WriteLn('=== Manual Reset Event ===');
+
+  LEvent := CreateNamedEvent('ManualExample', True, False);
+  LEvent.Signal;
+
   LGuard1 := LEvent.TryWait;
   LGuard2 := LEvent.TryWait;
-  
+
   if Assigned(LGuard1) and Assigned(LGuard2) then
-    WriteLn('✓ 多个等待者都成功获取事件（手动重置特性）')
+    WriteLn('[OK] Manual reset event stays signaled for multiple waiters')
   else
-    WriteLn('❌ 手动重置事件行为异常');
-    
-  // 重置事件
-  LEvent.ResetEvent;
-  WriteLn('✓ 事件已重置');
-  
-  // 现在应该获取不到
-  LGuard1 := LEvent.TryWait;
-  if not Assigned(LGuard1) then
-    WriteLn('✓ 重置后无法获取事件（符合预期）')
+    WriteLn('[FAIL] Manual reset event did not stay signaled');
+
+  LEvent.Reset;
+  if not Assigned(LEvent.TryWait) then
+    WriteLn('[OK] Reset cleared the event')
   else
-    WriteLn('❌ 重置后仍能获取事件');
-    
+    WriteLn('[FAIL] Reset should clear the event');
+
   WriteLn;
 end;
 
 procedure DemoAutoResetEvent;
 var
   LEvent: INamedEvent;
-  LGuard1, LGuard2: INamedEventGuard;
+  LGuard1: INamedEventGuard;
+  LGuard2: INamedEventGuard;
 begin
-  WriteLn('=== 自动重置事件示例 ===');
-  
-  // 创建自动重置事件
-  LEvent := MakeAutoResetNamedEvent('AutoExample', False);
-  WriteLn('✓ 创建自动重置事件: ', LEvent.GetName);
-  
-  // 触发事件
-  LEvent.SetEvent;
-  WriteLn('✓ 事件已触发');
-  
-  // 第一个等待者能获取
+  WriteLn('=== Auto Reset Event ===');
+
+  LEvent := CreateNamedEvent('AutoExample', False, False);
+  LEvent.Signal;
+
   LGuard1 := LEvent.TryWait;
-  if Assigned(LGuard1) then
-    WriteLn('✓ 第一个等待者成功获取事件')
-  else
-    WriteLn('❌ 第一个等待者获取失败');
-    
-  // 第二个等待者应该获取不到（自动重置）
   LGuard2 := LEvent.TryWait;
-  if not Assigned(LGuard2) then
-    WriteLn('✓ 第二个等待者无法获取（自动重置特性）')
+
+  if Assigned(LGuard1) then
+    WriteLn('[OK] First waiter acquired auto-reset event')
   else
-    WriteLn('❌ 自动重置事件行为异常');
-    
+    WriteLn('[FAIL] First waiter should acquire auto-reset event');
+
+  if not Assigned(LGuard2) then
+    WriteLn('[OK] Second waiter sees auto-reset event already consumed')
+  else
+    WriteLn('[FAIL] Auto-reset event should only release one waiter');
+
   WriteLn;
 end;
 
@@ -131,77 +105,71 @@ var
   LStartTime: TDateTime;
   LElapsed: Double;
 begin
-  WriteLn('=== 超时机制示例 ===');
-  
-  LEvent := MakeNamedEvent('TimeoutExample');
-  WriteLn('✓ 创建事件: ', LEvent.GetName);
-  
-  // 测试短超时
-  WriteLn('测试 100ms 超时...');
+  WriteLn('=== Timeout Usage ===');
+
+  LEvent := CreateNamedEvent('TimeoutExample', False, False);
+
   LStartTime := Now;
   LGuard := LEvent.TryWaitFor(100);
   LElapsed := (Now - LStartTime) * 24 * 60 * 60 * 1000;
-  
+
   if not Assigned(LGuard) then
-    WriteLn('✓ 超时返回 nil，耗时: ', FormatFloat('0.0', LElapsed), ' ms')
+    WriteLn('[OK] 100ms timeout returned nil after ', FormatFloat('0.0', LElapsed), ' ms')
   else
-    WriteLn('❌ 应该超时但返回了守卫');
-    
-  // 测试零超时
-  WriteLn('测试零超时...');
+    WriteLn('[FAIL] 100ms timeout should not succeed');
+
   LStartTime := Now;
   LGuard := LEvent.TryWaitFor(0);
   LElapsed := (Now - LStartTime) * 24 * 60 * 60 * 1000;
-  
+
   if not Assigned(LGuard) then
-    WriteLn('✓ 零超时立即返回，耗时: ', FormatFloat('0.0', LElapsed), ' ms')
+    WriteLn('[OK] 0ms timeout returned nil after ', FormatFloat('0.0', LElapsed), ' ms')
   else
-    WriteLn('❌ 零超时应该立即返回 nil');
-    
+    WriteLn('[FAIL] 0ms timeout should return nil immediately');
+
   WriteLn;
 end;
 
 procedure DemoErrorHandling;
 begin
-  WriteLn('=== 错误处理示例 ===');
-  
+  WriteLn('=== Error Handling ===');
+
   try
-    MakeNamedEvent('');
-    WriteLn('❌ 应该抛出异常但没有');
+    CreateNamedEvent('');
+    WriteLn('[FAIL] Empty name should raise');
   except
-    on E: Exception do
-      WriteLn('✓ 空名称正确抛出异常: ', E.Message);
+    on LError: Exception do
+      WriteLn('[OK] Empty name raised: ', LError.Message);
   end;
-  
+
   try
-    MakeNamedEvent('Test/Invalid');
-    WriteLn('❌ 应该抛出异常但没有');
+    CreateNamedEvent('Test/Invalid');
+    WriteLn('[FAIL] Invalid name should raise');
   except
-    on E: Exception do
-      WriteLn('✓ 无效字符正确抛出异常: ', E.Message);
+    on LError: Exception do
+      WriteLn('[OK] Invalid name raised: ', LError.Message);
   end;
-  
+
   WriteLn;
 end;
 
 begin
-  WriteLn('fafafa.core.sync.namedEvent 基本使用示例');
-  WriteLn('==========================================');
+  WriteLn('fafafa.core.sync.namedEvent basic usage');
+  WriteLn('=======================================');
   WriteLn;
-  
+
   try
     DemoBasicUsage;
     DemoManualResetEvent;
     DemoAutoResetEvent;
     DemoTimeoutUsage;
     DemoErrorHandling;
-    
-    WriteLn('🎉 所有示例运行完成！');
+    WriteLn('[OK] All named event demos completed');
   except
-    on E: Exception do
+    on LError: Exception do
     begin
-      WriteLn('❌ 示例运行出错: ', E.ClassName, ': ', E.Message);
-      ExitCode := 1;
+      WriteLn('[FAIL] Demo error: ', LError.ClassName, ': ', LError.Message);
+      Halt(1);
     end;
   end;
 end.

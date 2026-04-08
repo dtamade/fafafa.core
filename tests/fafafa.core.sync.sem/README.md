@@ -17,7 +17,7 @@ This directory contains unit tests for the `fafafa.core.sync.sem` module (semaph
 - `minimal.lpr` - Basic compilation test
 
 ### Build Scripts
-- `buildOrTest.bat` - Original build and test script
+- `BuildOrTest.bat` - Build and test script
 - `run_tests.bat` - Enhanced test runner with detailed output
 - `build_only.bat` - Build-only script
 - `debug_build.bat` - Debug build with verbose output
@@ -60,7 +60,7 @@ The test suite covers:
 
 #### Method 1: Using build script
 ```batch
-buildOrTest.bat test
+BuildOrTest.bat test
 ```
 
 #### Method 2: Using enhanced runner

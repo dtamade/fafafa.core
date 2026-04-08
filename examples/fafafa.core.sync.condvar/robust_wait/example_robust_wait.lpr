@@ -10,7 +10,7 @@ uses
 
 var
   M: IMutex;
-  CV: IConditionVariable;
+  CV: ICondVar;
   Ready: Boolean;
   Attempts: Integer;
 
@@ -43,7 +43,7 @@ end;
 
 begin
   M := MakeMutex;
-  CV := MakeConditionVariable;
+  CV := MakeCondVar;
   Ready := False; Attempts := 0;
 
   with TThread.CreateAnonymousThread(@Worker) do

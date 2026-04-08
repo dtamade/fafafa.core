@@ -5,7 +5,24 @@ cd /d "%~dp0"
 set "ACTION=%~1"
 if "%ACTION%"=="" set "ACTION=run"
 
-set "LAZBUILD=lazbuild"
+if /I not "%ACTION%"=="build" if /I not "%ACTION%"=="run" (
+  echo [ERROR] Unsupported action: %ACTION%
+  echo Usage: %~nx0 [build^|run]
+  exit /b 2
+)
+
+if "%LAZBUILD%"=="" set "LAZBUILD=lazbuild"
+
+where "%LAZBUILD%" >nul 2>nul
+if errorlevel 1 (
+  echo [ERROR] lazbuild not found in PATH
+  exit /b 1
+)
+
+if exist "bin" rmdir /s /q "bin"
+if exist "lib" rmdir /s /q "lib"
+mkdir "bin"
+mkdir "lib"
 
 echo === Building fafafa.core.sync Examples ===
 echo.
@@ -15,8 +32,8 @@ set "EXAMPLES=example_sync example_autolock example_condvar example_condvar_broa
 
 rem Build all examples
 for %%e in (%EXAMPLES%) do (
-  echo [BUILD] %LAZBUILD% --build-mode=Release %%e.lpi
-  %LAZBUILD% --build-mode=Release "%%e.lpi"
+  echo [BUILD] %LAZBUILD% %%e.lpi ^(project default mode^)
+  call "%LAZBUILD%" "%%e.lpi"
   if errorlevel 1 exit /b 1
 )
 
@@ -24,7 +41,11 @@ echo.
 echo === All examples built successfully! ===
 echo.
 
-if /I "%ACTION%"=="run" (
+if /I "%ACTION%"=="build" (
+  echo [INFO] Build-only mode.
+  if "%FAFAFA_INTERACTIVE%"=="1" pause
+  exit /b 0
+) else (
   echo === Running Examples ===
   echo.
 
@@ -33,15 +54,7 @@ if /I "%ACTION%"=="run" (
       echo [RUN] bin\%%e.exe
       "bin\%%e.exe"
       echo.
-    ) else (
-      echo [WARN] Executable not found: bin\%%e.exe
-    )
-  )
-) else (
-  echo [INFO] Build-only mode ^(%ACTION%^)
-  echo You can run the examples manually:
-  for %%e in (%EXAMPLES%) do (
-    echo   bin\%%e.exe
+    ) else echo [WARN] Executable not found: bin\%%e.exe
   )
 )
 

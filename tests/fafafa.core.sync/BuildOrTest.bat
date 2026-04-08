@@ -1,96 +1,44 @@
 @echo off
 setlocal
-set "SCRIPT_DIR=%~dp0"
+cd /d "%~dp0"
 
-echo ========================================
-echo fafafa.core.sync Test Build Script
-echo ========================================
+set "ACTION=%~1"
+set "LAZBUILD_BIN=%LAZBUILD%"
+if "%LAZBUILD_BIN%"=="" set "LAZBUILD_BIN=lazbuild"
+set "PROJECT_LPI=tests_sync.lpi"
+set "TEST_BIN=bin\tests_sync"
 
-set PROJECT_NAME=tests_sync
-set "PROJECT_FILE=%SCRIPT_DIR%%PROJECT_NAME%.lpi"
-set "OUTPUT_DIR=%SCRIPT_DIR%bin"
-set "OUTPUT_FILE=%OUTPUT_DIR%\%PROJECT_NAME%.exe"
-
-:: Check if lazbuild is available
-where lazbuild >nul 2>&1
-if %errorlevel% neq 0 (
-    echo Error: lazbuild command not found
-    echo Please ensure Lazarus is properly installed and added to PATH
-    exit /b 1
+where "%LAZBUILD_BIN%" >nul 2>nul
+if errorlevel 1 (
+  echo [ERROR] lazbuild not found in PATH
+  exit /b 1
 )
 
-:: Create output directory
-if not exist "%OUTPUT_DIR%" (
-    mkdir "%OUTPUT_DIR%"
-)
+if exist "bin" rmdir /s /q "bin"
+if exist "lib" rmdir /s /q "lib"
+mkdir "bin"
+mkdir "lib"
 
-:: Clean previous build
-if exist "%OUTPUT_FILE%" (
-    del "%OUTPUT_FILE%"
-)
+echo [BUILD] %LAZBUILD_BIN% %PROJECT_LPI%
+call "%LAZBUILD_BIN%" "%PROJECT_LPI%"
+if errorlevel 1 exit /b 1
 
-echo.
-echo Building test project...
-echo Project file: %PROJECT_FILE%
-echo Output file: %OUTPUT_FILE%
-echo.
+if /I "%ACTION%"=="test" goto run_tests
+if /I "%ACTION%"=="run" goto run_tests
 
-:: Build Debug version
-lazbuild --build-mode=Debug "%PROJECT_FILE%"
-if %errorlevel% neq 0 (
-    echo.
-    echo Build failed!
-    exit /b 1
-)
-
-echo.
-echo Build successful!
-
-:: Check if we should run tests
-if "%1"=="test" goto run_tests
-if "%1"=="run" goto run_tests
-
-echo.
-echo Usage:
-echo   "%~nx0"    - Build only
-echo   "%~nx0" test  - Build and run tests
-echo   "%~nx0" run   - Build and run tests
-echo.
+echo [INFO] build-only mode (%ACTION%)
 exit /b 0
 
 :run_tests
-echo.
-echo ========================================
-echo Running tests...
-echo ========================================
-echo.
-
-if not exist "%OUTPUT_FILE%" (
-    echo Error: Executable file not found %OUTPUT_FILE%
-    exit /b 1
+echo [RUN] %TEST_BIN%
+if exist "%TEST_BIN%" (
+  "%TEST_BIN%" --all --format=plain --progress
+  exit /b %errorlevel%
+)
+if exist "%TEST_BIN%.exe" (
+  "%TEST_BIN%.exe" --all --format=plain --progress
+  exit /b %errorlevel%
 )
 
-:: Run tests with flags and capture logs
-:: 1) human-friendly log with progress
-"%OUTPUT_FILE%" --all --progress -u > "%OUTPUT_DIR%\last-run.txt" 2>&1
-set TEST_RESULT=%errorlevel%
-:: 2) machine-readable XML report (always regenerate)
-"%OUTPUT_FILE%" --all --format=xml > "%OUTPUT_DIR%\results.xml" 2>&1
-
-:: Show quick console log tail
-for /f "usebackq delims=" %%L in ("%OUTPUT_DIR%\last-run.txt") do set "LASTLINE=%%L"
-if defined LASTLINE echo Last line: !LASTLINE!
-
-echo.
-echo ========================================
-if %TEST_RESULT% equ 0 (
-    echo All tests passed!
-) else (
-    echo Tests failed, exit code: %TEST_RESULT%
-    echo See %OUTPUT_DIR%\last-run.txt and results.xml for details.
-)
-echo ========================================
-
-:: Only pause in interactive mode
-if "%FAFAFA_INTERACTIVE%"=="1" pause
-exit /b %TEST_RESULT%
+echo [ERROR] test executable not found: %TEST_BIN%[.exe]
+exit /b 100

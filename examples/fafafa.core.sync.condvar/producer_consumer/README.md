@@ -6,6 +6,10 @@
 - 结束时 Broadcast 唤醒所有等待者退出
 
 构建：
-- Windows: 双击 `buildOrTest.bat`
-- Linux: 进入该目录执行 `lazbuild example_producer_consumer.lpi`
+- Windows: `BuildOrRun.bat build`
+- Linux: `./BuildOrRun.sh build`
+
+运行：
+- Windows: `BuildOrRun.bat`
+- Linux: `./BuildOrRun.sh`
 

@@ -316,27 +316,31 @@ begin
   // 线程 1: 持有 M1，尝试获取 M2
   TThread.CreateAnonymousThread(procedure
   begin
-    M1.Acquire;
-    try
-      Sleep(50);  // 给线程 2 时间获取 M2
-      Thread1GotM2 := M2.TryAcquire(200);  // 超时获取 M2
-    finally
-      M1.Release;
-      Thread1Completed := True;
-    end;
+      M1.Acquire;
+      try
+        Sleep(50);  // 给线程 2 时间获取 M2
+        Thread1GotM2 := M2.TryAcquire(200);  // 超时获取 M2
+        if Thread1GotM2 then
+          M2.Release;
+      finally
+        M1.Release;
+        Thread1Completed := True;
+      end;
   end).Start;
 
   // 线程 2: 持有 M2，尝试获取 M1
   TThread.CreateAnonymousThread(procedure
   begin
-    M2.Acquire;
-    try
-      Sleep(50);  // 给线程 1 时间获取 M1
-      Thread2GotM1 := M1.TryAcquire(200);  // 超时获取 M1
-    finally
-      M2.Release;
-      Thread2Completed := True;
-    end;
+      M2.Acquire;
+      try
+        Sleep(50);  // 给线程 1 时间获取 M1
+        Thread2GotM1 := M1.TryAcquire(200);  // 超时获取 M1
+        if Thread2GotM1 then
+          M1.Release;
+      finally
+        M2.Release;
+        Thread2Completed := True;
+      end;
   end).Start;
 
   // 等待两个线程完成

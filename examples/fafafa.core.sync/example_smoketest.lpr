@@ -1,185 +1,226 @@
 program example_smoketest;
 
-{$CODEPAGE UTF8}
 {$mode objfpc}{$H+}
+{$IFDEF WINDOWS}{$CODEPAGE UTF8}{$ENDIF}
+{$I ..\..\src\fafafa.core.settings.inc}
 
 uses
   {$IFDEF UNIX}
   cthreads,
   {$ENDIF}
-  Classes, SysUtils, DateUtils,
+  Classes, SysUtils,
   fafafa.core.sync;
 
-function AssertTrue(const Cond: Boolean; const Msg: string): Boolean;
+function AssertTrue(const aCond: Boolean; const aMsg: string): Boolean;
 begin
-  if not Cond then
-    WriteLn('FAIL: ', Msg)
+  if not aCond then
+    WriteLn('FAIL: ', aMsg)
   else
-    WriteLn('OK:   ', Msg);
-  Result := Cond;
+    WriteLn('OK:   ', aMsg);
+
+  Result := aCond;
 end;
 
-// ---- Global state and thread procs (avoid nested procs for BeginThread) ----
 var
-  G_Mutex: TMutex;
-  G_MutexHeldDone: TEvent;
+  GMutex: IMutex;
+  GMutexHeldDone: IEvent;
 
-function Mutex_HolderThread(Data: Pointer): PtrInt;
+function MutexHolderThread(aData: Pointer): PtrInt;
 begin
-  G_Mutex.Acquire;
+  if aData <> nil then
+    WriteLn('Mutex holder tag=', PtrUInt(aData));
+
+  GMutex.Acquire;
   try
     Sleep(120);
   finally
-    G_Mutex.Release;
+    GMutex.Release;
   end;
-  G_MutexHeldDone.SetEvent;
+
+  GMutexHeldDone.SetEvent;
   Result := 0;
 end;
 
 var
-  G_Lock: TMutex;
-  G_Cond: TConditionVariable;
-  G_Ready, G_Done: TEvent;
-  G_WReady: TEvent;
-  G_WDoneCount: Integer = 0;
+  GLock: IMutex;
+  GCondVar: ICondVar;
+  GReady: IEvent;
+  GDone: IEvent;
+  GWReady: IEvent;
+  GWDoneCount: Integer = 0;
 
-function Cond_Worker(Data: Pointer): PtrInt;
+function CondWorker(aData: Pointer): PtrInt;
+var
+  LOk: Boolean;
 begin
-  G_Lock.Acquire;
+  if aData <> nil then
+    WriteLn('Cond worker tag=', PtrUInt(aData));
+
+  GLock.Acquire;
   try
-    G_Ready.SetEvent;
-    G_Cond.Wait(G_Lock);
+    GReady.SetEvent;
+    LOk := GCondVar.Wait(GLock, 1000);
+    if not LOk then
+      WriteLn('Cond worker timed out');
   finally
-    G_Lock.Release;
+    GLock.Release;
   end;
-  G_Done.SetEvent;
+
+  GDone.SetEvent;
   Result := 0;
 end;
 
-function Cond_Waiter(Data: Pointer): PtrInt;
+function CondWaiter(aData: Pointer): PtrInt;
+var
+  LOk: Boolean;
 begin
-  G_Lock.Acquire;
+  if aData <> nil then
+    WriteLn('Cond waiter tag=', PtrUInt(aData));
+
+  GLock.Acquire;
   try
-    Inc(G_WDoneCount); // reuse as entered count before wait
-    if G_WDoneCount = 2 then G_WReady.SetEvent;
-    G_Cond.Wait(G_Lock);
+    Inc(GWDoneCount);
+    if GWDoneCount = 2 then
+      GWReady.SetEvent;
+
+    LOk := GCondVar.Wait(GLock, 1000);
+    if not LOk then
+      WriteLn('Cond waiter timed out');
   finally
-    G_Lock.Release;
+    GLock.Release;
   end;
-  G_Done.SetEvent;
+
+  GDone.SetEvent;
   Result := 0;
 end;
 
 var
-  G_RW: TReadWriteLock;
+  GRWLock: IRWLock;
 
-function RW_ReaderProc(Data: Pointer): PtrInt;
+function RWReaderProc(aData: Pointer): PtrInt;
 begin
-  G_RW.AcquireRead;
+  if aData <> nil then
+    WriteLn('RW reader tag=', PtrUInt(aData));
+
+  GRWLock.AcquireRead;
   try
     Sleep(100);
   finally
-    G_RW.ReleaseRead;
+    GRWLock.ReleaseRead;
   end;
+
   Result := 0;
 end;
 
-// ---- Tests ----
 function SmokeTestMutex: Boolean;
 var
-  Th: TThreadID;
-  Step1, Step2, Step3: Boolean;
+  LThreadId: TThreadID;
+  LStep1: Boolean;
+  LStep2: Boolean;
+  LStep3: Boolean;
 begin
   Result := True;
-  G_Mutex := TMutex.Create;
 
-  // Reentrant acquire
-  G_Mutex.Acquire;
-  Step1 := G_Mutex.TryAcquire; // reentrant
-  G_Mutex.Release; G_Mutex.Release;
-  Result := Result and AssertTrue(Step1, 'Mutex reentrant TryAcquire works');
+  GMutex := MakeMutex;
 
-  // Free acquire with timeout
-  Step2 := G_Mutex.TryAcquire(10);
-  if Step2 then G_Mutex.Release;
-  Result := Result and AssertTrue(Step2, 'Mutex TryAcquire(timeout) when free works');
+  LStep1 := GMutex.TryAcquire(10);
+  if LStep1 then
+    GMutex.Release;
+  Result := Result and AssertTrue(LStep1, 'Mutex TryAcquire(timeout) when free works');
 
-  // Compete with another thread
-  G_MutexHeldDone := TEvent.Create(False, False);
-  BeginThread(@Mutex_HolderThread, nil, Th);
+  GMutexHeldDone := MakeEvent(False, False);
+  BeginThread(@MutexHolderThread, nil, LThreadId);
   Sleep(10);
-  Step3 := not G_Mutex.TryAcquire(50);
-  Result := Result and AssertTrue(Step3, 'Mutex TryAcquire(timeout) times out when held by another thread');
-  // wait release then ensure we can acquire
-  G_MutexHeldDone.WaitFor(1000);
-  Result := Result and AssertTrue(G_Mutex.TryAcquire(200), 'Mutex TryAcquire after holder releases');
-  if G_Mutex.IsLocked then G_Mutex.Release;
+
+  LStep2 := not GMutex.TryAcquire(50);
+  Result := Result and AssertTrue(LStep2, 'Mutex TryAcquire(timeout) times out when held by another thread');
+
+  GMutexHeldDone.WaitFor(1000);
+  LStep3 := GMutex.TryAcquire(200);
+  Result := Result and AssertTrue(LStep3, 'Mutex TryAcquire after holder releases');
+  if LStep3 then
+    GMutex.Release;
 end;
 
 function SmokeTestCondVar: Boolean;
-var Th, W1, W2: TThreadID; ok1, ok2: Boolean;
+var
+  LWorkerThread: TThreadID;
+  LWaiter1: TThreadID;
+  LWaiter2: TThreadID;
+  LOk1: Boolean;
+  LOk2: Boolean;
 begin
   Result := True;
-  G_Lock := TMutex.Create;
-  G_Cond := TConditionVariable.Create;
-  G_Ready := TEvent.Create(False, False);
-  G_Done := TEvent.Create(False, False);
-  G_WReady := TEvent.Create(False, False);
-  G_WDoneCount := 0;
 
-  BeginThread(@Cond_Worker, nil, Th);
-  // wait until worker started and is waiting
-  G_Ready.WaitFor(1000);
+  GLock := MakeMutex;
+  GCondVar := MakeCondVar;
+  GReady := MakeEvent(False, False);
+  GDone := MakeEvent(False, False);
+  GWReady := MakeEvent(False, False);
+  GWDoneCount := 0;
+
+  BeginThread(@CondWorker, nil, LWorkerThread);
+  GReady.WaitFor(1000);
   Sleep(50);
-  G_Cond.Signal;
-  ok1 := (G_Done.WaitFor(1000) = wrSignaled);
+  GCondVar.Signal;
+  LOk1 := GDone.WaitFor(1000) = wrSignaled;
 
-  // Broadcast to multiple waiters
-  G_Done.ResetEvent; G_WReady.ResetEvent; G_WDoneCount := 0;
-  BeginThread(@Cond_Waiter, nil, W1);
-  BeginThread(@Cond_Waiter, nil, W2);
-  G_WReady.WaitFor(1000); // both entered (count reached 2)
+  GDone.ResetEvent;
+  GWReady.ResetEvent;
+  GWDoneCount := 0;
+
+  BeginThread(@CondWaiter, Pointer(1), LWaiter1);
+  BeginThread(@CondWaiter, Pointer(2), LWaiter2);
+  GWReady.WaitFor(1000);
   Sleep(50);
-  G_Cond.Broadcast;
-  ok2 := (G_Done.WaitFor(1000) = wrSignaled);
+  GCondVar.Broadcast;
+  LOk2 := GDone.WaitFor(1000) = wrSignaled;
 
-  Result := Result and AssertTrue(ok1, 'CondVar Signal wakes waiter');
-  Result := Result and AssertTrue(ok2, 'CondVar Broadcast wakes waiters');
+  Result := Result and AssertTrue(LOk1, 'CondVar Signal wakes waiter');
+  Result := Result and AssertTrue(LOk2, 'CondVar Broadcast wakes waiters');
 end;
 
 function SmokeTestRWLock: Boolean;
 var
-  Reader1, Reader2: TThreadID;
-  TryFailWhileReaders, TryOkAfter: Boolean;
+  LReader1: TThreadID;
+  LReader2: TThreadID;
+  LTryFailWhileReaders: Boolean;
+  LTryOkAfter: Boolean;
 begin
   Result := True;
-  G_RW := TReadWriteLock.Create;
 
-  BeginThread(@RW_ReaderProc, Pointer(1), Reader1);
-  BeginThread(@RW_ReaderProc, Pointer(2), Reader2);
+  GRWLock := MakeRWLock;
+
+  BeginThread(@RWReaderProc, Pointer(1), LReader1);
+  BeginThread(@RWReaderProc, Pointer(2), LReader2);
   Sleep(10);
 
-  TryFailWhileReaders := not G_RW.TryAcquireWrite(50);
-  Result := Result and AssertTrue(TryFailWhileReaders, 'RWLock TryAcquireWrite fails while readers active');
+  LTryFailWhileReaders := not GRWLock.TryAcquireWrite(50);
+  Result := Result and AssertTrue(LTryFailWhileReaders, 'RWLock TryAcquireWrite fails while readers active');
 
   Sleep(150);
-  TryOkAfter := G_RW.TryAcquireWrite(200);
-  Result := Result and AssertTrue(TryOkAfter, 'RWLock TryAcquireWrite succeeds after readers done');
-  if TryOkAfter then G_RW.ReleaseWrite;
+  LTryOkAfter := GRWLock.TryAcquireWrite(200);
+  Result := Result and AssertTrue(LTryOkAfter, 'RWLock TryAcquireWrite succeeds after readers finish');
+  if LTryOkAfter then
+    GRWLock.ReleaseWrite;
 end;
 
 var
-  AllOk: Boolean;
+  LAllOk: Boolean;
 begin
-  AllOk := True;
+  LAllOk := True;
   WriteLn('--- Smoke tests for fafafa.core.sync ---');
-  AllOk := AllOk and SmokeTestMutex;
-  AllOk := AllOk and SmokeTestCondVar;
-  AllOk := AllOk and SmokeTestRWLock;
-  if AllOk then begin
-    WriteLn('ALL OK'); Halt(0);
-  end else begin
-    WriteLn('SOME TESTS FAILED'); Halt(1);
-  end;
-end.
 
+  LAllOk := LAllOk and SmokeTestMutex;
+  LAllOk := LAllOk and SmokeTestCondVar;
+  LAllOk := LAllOk and SmokeTestRWLock;
+
+  if LAllOk then
+  begin
+    WriteLn('ALL OK');
+    Halt(0);
+  end;
+
+  WriteLn('SOME TESTS FAILED');
+  Halt(1);
+end.

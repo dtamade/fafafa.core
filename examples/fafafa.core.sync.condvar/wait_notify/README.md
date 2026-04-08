@@ -5,6 +5,10 @@
 - 主线程设置条件并 Signal 唤醒
 
 构建：
-- Windows: 双击 `buildOrTest.bat`
-- Linux: 进入该目录执行 `lazbuild example_wait_notify.lpi`
+- Windows: `BuildOrRun.bat build`
+- Linux: `./BuildOrRun.sh build`
+
+运行：
+- Windows: `BuildOrRun.bat`
+- Linux: `./BuildOrRun.sh`
 

@@ -1,41 +1,44 @@
 program example_autolock;
 
-{$CODEPAGE UTF8}
 {$mode objfpc}{$H+}
+{$IFDEF WINDOWS}{$CODEPAGE UTF8}{$ENDIF}
+{$I ..\..\src\fafafa.core.settings.inc}
 
 uses
   {$IFDEF UNIX}
   cthreads,
   {$ENDIF}
-  Classes, SysUtils,
-  fafafa.core.base,
+  SysUtils,
   fafafa.core.sync;
 
 procedure DemoAutoLock;
 var
-  LMutex: ILock;
-  guard: TAutoLock;
+  LMutex: IMutex;
+  LGuard: ILockGuard;
+  LAcquired: Boolean;
 begin
-  WriteLn('=== AutoLock 示例 ===');
-  LMutex := TMutex.Create;
-  WriteLn('进入作用域，创建 guard...');
-  guard := TAutoLock.Create(LMutex);
-  try
-    WriteLn('作用域中：IsLocked=', BoolToStr(LMutex.IsLocked, 'True', 'False'));
-  finally
-    guard.Free;
-  end;
-  WriteLn('离开作用域：IsLocked=', BoolToStr(LMutex.IsLocked, 'True', 'False'));
+  WriteLn('=== AutoLock / Guard 示例 ===');
+
+  LMutex := MakeMutex;
+  LGuard := LMutex.Lock;
+  WriteLn('进入作用域后 Guard.IsLocked = ', BoolToStr(Assigned(LGuard) and LGuard.IsLocked, True));
+
+  LGuard := nil;
+
+  LAcquired := LMutex.TryAcquire;
+  WriteLn('离开作用域后 TryAcquire = ', BoolToStr(LAcquired, True));
+  if LAcquired then
+    LMutex.Release;
 end;
 
 begin
   try
     DemoAutoLock;
   except
-    on E: Exception do begin
-      WriteLn('异常: ', E.Message);
+    on LError: Exception do
+    begin
+      WriteLn('异常: ', LError.Message);
       Halt(1);
     end;
   end;
 end.
-

@@ -17,7 +17,7 @@ Type
     procedure Test_MakeCondVar;
   end;
 
-  // IConditionVariable 行为测试
+  // ICondVar 行为测试
   TTestCase_ICondVar = class(TTestCase)
   private
     FCond: ICondVar;
@@ -81,10 +81,10 @@ var
   Cond: ICondVar;
 begin
   Cond := MakeCondVar;
-  AssertNotNull('MakeConditionVariable should return non-nil', Cond);
+  AssertNotNull('MakeCondVar should return non-nil', Cond);
 end;
 
-{ TTestCase_IConditionVariable }
+{ TTestCase_ICondVar }
 
 procedure TTestCase_ICondVar.SetUp;
 begin

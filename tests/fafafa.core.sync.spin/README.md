@@ -8,8 +8,8 @@ Unit tests for `fafafa.core.sync.spin` module.
 
 ### Windows
 ```batch
-buildOrTest.bat          # Build only
-buildOrTest.bat test     # Build and run tests
+BuildOrTest.bat          # Build only
+BuildOrTest.bat test     # Build and run tests
 ```
 
 ### Linux Cross-compilation
@@ -50,6 +50,6 @@ chmod +x bin/fafafa.core.sync.spin.test
 - `fafafa.core.sync.spin.test.lpr` - Test program main file
 - `fafafa.core.sync.spin.test.lpi` - Lazarus project file
 - `fafafa.core.sync.spin.testcase.pas` - Test cases
-- `buildOrTest.bat` - Windows build script
+- `BuildOrTest.bat` - Windows build script
 - `buildLinux.bat` - Linux cross-compilation script
 - `build.sh` - Linux native build script

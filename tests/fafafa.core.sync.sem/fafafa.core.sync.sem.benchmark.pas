@@ -118,7 +118,7 @@ end;
 constructor TSemaphoreBenchmark.Create(AInitialCount, AMaxCount: Integer; AIterations: Integer; AThreadCount: Integer);
 begin
   inherited Create;
-  FSemaphore := MakeSemaphore(AInitialCount, AMaxCount);
+  FSemaphore := MakeSem(AInitialCount, AMaxCount);
   FIterations := AIterations;
   FThreadCount := AThreadCount;
   SetLength(FResults, FThreadCount);

@@ -1,6 +1,6 @@
 # fafafa.core.sync examples
 
-This folder contains small, runnable examples for the sync module: Mutex/AutoLock, Semaphore, RWLock, ConditionVariable.
+This folder contains small, runnable examples for the sync module: Mutex/Guard, Semaphore, RWLock, CondVar.
 
 ## Build all
 
@@ -11,12 +11,12 @@ The binaries will be placed under `../../bin`.
 
 ## Projects included
 
-- example_sync.lpi              – existing comprehensive example
-- example_autolock.lpi          – RAII with TAutoLock
-- example_semaphore.lpi         – ISemaphore Acquire/TryAcquire/Release
-- example_rwlock.lpi            – IReadWriteLock with 2 readers + 1 writer
-- example_condvar.lpi           – IConditionVariable signal (1 producer + 1 consumer)
-- example_condvar_broadcast.lpi – IConditionVariable broadcast (1 producer + N consumers)
+- example_sync.lpi              – compact facade smoke example
+- example_autolock.lpi          – RAII with `ILockGuard`
+- example_sem.lpi               – `ISem` Acquire/TryAcquire/Release
+- example_rwlock.lpi            – `IRWLock` with 2 readers + 1 writer
+- example_condvar.lpi           – `ICondVar` signal (1 producer + 1 consumer)
+- example_condvar_broadcast.lpi – `ICondVar` broadcast (1 producer + N consumers)
 
 ## Windows feature toggles (compile‑time)
 
@@ -37,7 +37,7 @@ Available toggles (commented out by default to preserve current behavior):
     - If a provider is not available, the implementation falls back to the existing semaphore/event path
 
 - `FAFAFA_SYNC_USE_SRWLOCK`
-  - Use native Windows SRWLOCK for IReadWriteLock
+  - Use native Windows SRWLOCK for `IRWLock`
   - Writer lock is non‑recursive (same as current semantics)
   - How to enable: open `src/fafafa.core.settings.inc` and uncomment the define
   - Notes:
@@ -53,4 +53,3 @@ Available toggles (commented out by default to preserve current behavior):
 
 - If Lazarus/FPC cannot find units from `src`, ensure the project `.lpi` has search paths including `..\\..\\src` (already set in the example projects)
 - If you enable toggles but your toolchain lacks certain Windows symbols, the module declares minimal external symbols conditionally to keep builds working
-

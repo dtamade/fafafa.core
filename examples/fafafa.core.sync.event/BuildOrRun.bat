@@ -1,75 +1,63 @@
 @echo off
-setlocal
+setlocal enabledelayedexpansion
 cd /d "%~dp0"
 
-set ACTION=%1
-if "%ACTION%"=="" set ACTION=run
+set "ACTION=%~1"
+if "%ACTION%"=="" set "ACTION=run"
+
+if /I not "%ACTION%"=="build" if /I not "%ACTION%"=="run" (
+  echo [ERROR] Unsupported action: %ACTION%
+  echo Usage: %~nx0 [build^|run]
+  exit /b 2
+)
+
+if "%LAZBUILD%"=="" set "LAZBUILD=lazbuild"
+
+where "%LAZBUILD%" >nul 2>nul
+if errorlevel 1 (
+  echo [ERROR] lazbuild not found in PATH
+  exit /b 1
+)
+
+if exist "bin" rmdir /s /q "bin"
+if exist "lib" rmdir /s /q "lib"
+mkdir "bin"
+mkdir "lib"
+
+set "EXAMPLES=example_auto_vs_manual example_basic_usage example_producer_consumer example_thread_coordination example_timeout_handling"
 
 echo === Building fafafa.core.sync.event Examples ===
 echo.
 
-echo [BUILD] lazbuild --build-mode=Default example_auto_vs_manual.lpi
-lazbuild --build-mode=Default example_auto_vs_manual.lpi
-if errorlevel 1 exit /b 1
-
-echo [BUILD] lazbuild --build-mode=Default example_basic_usage.lpi
-lazbuild --build-mode=Default example_basic_usage.lpi
-if errorlevel 1 exit /b 1
-
-echo [BUILD] lazbuild --build-mode=Default example_producer_consumer.lpi
-lazbuild --build-mode=Default example_producer_consumer.lpi
-if errorlevel 1 exit /b 1
-
-echo [BUILD] lazbuild --build-mode=Default example_thread_coordination.lpi
-lazbuild --build-mode=Default example_thread_coordination.lpi
-if errorlevel 1 exit /b 1
-
-echo [BUILD] lazbuild --build-mode=Default example_timeout_handling.lpi
-lazbuild --build-mode=Default example_timeout_handling.lpi
-if errorlevel 1 exit /b 1
+for %%e in (%EXAMPLES%) do (
+  echo [BUILD] %LAZBUILD% %%e.lpi ^(project default mode^)
+  call "%LAZBUILD%" "%%e.lpi"
+  if errorlevel 1 exit /b 1
+)
 
 echo.
 echo === Build completed successfully! ===
 echo.
 
-if "%ACTION%"=="build" (
-  echo Build-only mode. Skipping execution.
+if /I "%ACTION%"=="build" (
+  echo [INFO] Build-only mode.
+  if "%FAFAFA_INTERACTIVE%"=="1" pause
   exit /b 0
 )
 
 echo === Running Examples ===
 echo.
 
-if exist "bin\example_auto_vs_manual.exe" (
-  echo [RUN] bin\example_auto_vs_manual.exe
-  bin\example_auto_vs_manual.exe
-  echo.
-)
-
-if exist "bin\example_basic_usage.exe" (
-  echo [RUN] bin\example_basic_usage.exe
-  bin\example_basic_usage.exe
-  echo.
-)
-
-if exist "bin\example_producer_consumer.exe" (
-  echo [RUN] bin\example_producer_consumer.exe
-  bin\example_producer_consumer.exe
-  echo.
-)
-
-if exist "bin\example_thread_coordination.exe" (
-  echo [RUN] bin\example_thread_coordination.exe
-  bin\example_thread_coordination.exe
-  echo.
-)
-
-if exist "bin\example_timeout_handling.exe" (
-  echo [RUN] bin\example_timeout_handling.exe
-  bin\example_timeout_handling.exe
-  echo.
+for %%e in (%EXAMPLES%) do (
+  if exist "bin\%%e.exe" (
+    echo [RUN] bin\%%e.exe
+    "bin\%%e.exe"
+    if errorlevel 1 exit /b 1
+    echo.
+  ) else echo [WARN] Executable not found: bin\%%e.exe
 )
 
 echo === All examples completed! ===
 
 if "%FAFAFA_INTERACTIVE%"=="1" pause
+exit /b 0

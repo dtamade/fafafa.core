@@ -7,23 +7,43 @@ FAKE_BIN="${TMPDIR_ROOT}/fake-bin"
 mkdir -p "${FAKE_BIN}"
 
 SHELL_TARGETS=(
+  "${ROOT}/examples/fafafa.core.sync/BuildOrRun.sh"
+  "${ROOT}/examples/fafafa.core.sync.condvar/BuildOrRun.sh"
+  "${ROOT}/examples/fafafa.core.sync.event/BuildOrRun.sh"
+  "${ROOT}/examples/fafafa.core.sync.mutex/BuildOrRun.sh"
   "${ROOT}/examples/fafafa.core.sync.namedMutex/BuildAndRun.sh"
   "${ROOT}/examples/fafafa.core.sync.namedCondvar/BuildAndRun.sh"
+  "${ROOT}/examples/fafafa.core.sync.namedEvent/BuildAndRun.sh"
   "${ROOT}/examples/fafafa.core.sync.namedSemaphore/BuildAndRun.sh"
   "${ROOT}/examples/fafafa.core.sync.rwlock/BuildAndRun.sh"
   "${ROOT}/examples/fafafa.core.sync.namedRWLock/BuildAndRun.sh"
   "${ROOT}/examples/fafafa.core.sync.namedBarrier/BuildOrRun.sh"
+  "${ROOT}/examples/fafafa.core.sync.spin/BuildOrRun.sh"
 )
 
 BAT_TARGETS=(
+  "${ROOT}/examples/fafafa.core.sync/BuildOrRun.bat"
+  "${ROOT}/examples/fafafa.core.sync.condvar/BuildOrRun.bat"
+  "${ROOT}/examples/fafafa.core.sync.event/BuildOrRun.bat"
+  "${ROOT}/examples/fafafa.core.sync.mutex/BuildOrRun.bat"
   "${ROOT}/examples/fafafa.core.sync.namedMutex/BuildAndRun.bat"
   "${ROOT}/examples/fafafa.core.sync.namedCondvar/BuildAndRun.bat"
+  "${ROOT}/examples/fafafa.core.sync.namedEvent/BuildAndRun.bat"
   "${ROOT}/examples/fafafa.core.sync.namedSemaphore/BuildAndRun.bat"
   "${ROOT}/examples/fafafa.core.sync.rwlock/BuildAndRun.bat"
   "${ROOT}/examples/fafafa.core.sync.namedRWLock/BuildAndRun.bat"
   "${ROOT}/examples/fafafa.core.sync/RunRwLock.bat"
   "${ROOT}/examples/fafafa.core.sync/BuildAllExamples.bat"
+  "${ROOT}/examples/fafafa.core.sync.spin/BuildOrRun.bat"
   "${ROOT}/examples/fafafa.core.socket/build_examples.bat"
+)
+
+DELETED_ALIAS_TARGETS=(
+  "${ROOT}/examples/fafafa.core.sync.mutex/buildOrRun.bat"
+  "${ROOT}/examples/fafafa.core.sync.namedEvent/BuildOrRun.bat"
+  "${ROOT}/examples/fafafa.core.sync.namedEvent/BuildOrRun.sh"
+  "${ROOT}/examples/fafafa.core.sync.namedRWLock/BuildOrRun.bat"
+  "${ROOT}/examples/fafafa.core.sync.namedRWLock/BuildOrRun.sh"
 )
 
 DOC_TARGETS=(
@@ -196,6 +216,28 @@ for LTarget in "${BAT_TARGETS[@]}"; do
     echo "[FAIL] batch runner still forces Debug mode: ${LTarget}" >&2
     exit 1
   fi
+
+  if grep -Fq -- '--build-mode=Release' "${LTarget}"; then
+    echo "[FAIL] batch runner still forces Release mode: ${LTarget}" >&2
+    exit 1
+  fi
+
+  if grep -Fq -- '--build-mode=Default' "${LTarget}"; then
+    echo "[FAIL] batch runner still forces Default mode: ${LTarget}" >&2
+    exit 1
+  fi
+
+  if grep -Fq -- 'set /p' "${LTarget}"; then
+    echo "[FAIL] batch runner still uses interactive input: ${LTarget}" >&2
+    exit 1
+  fi
+done
+
+for LTarget in "${DELETED_ALIAS_TARGETS[@]}"; do
+  if [[ -e "${LTarget}" ]]; then
+    echo "[FAIL] stale example alias still exists: ${LTarget}" >&2
+    exit 1
+  fi
 done
 
 if grep -Fq -- '--build-mode=Release' "${ROOT}/examples/fafafa.core.socket/build_examples.bat"; then
@@ -220,6 +262,11 @@ fi
 
 if grep -Fq 'example_semaphore.lpi' "${ROOT}/examples/fafafa.core.sync/BuildAllExamples.bat"; then
   echo "[FAIL] stale sync example name remains in BuildAllExamples.bat" >&2
+  exit 1
+fi
+
+if grep -Fq 'example_semaphore.lpi' "${ROOT}/examples/fafafa.core.sync/README.md"; then
+  echo "[FAIL] stale sync example name remains in examples/fafafa.core.sync/README.md" >&2
   exit 1
 fi
 
@@ -250,4 +297,4 @@ for LTarget in "${SHELL_TARGETS[@]}"; do
   fi
 done
 
-echo "[PASS] L0 sync example runners and socket docs are aligned with default-mode behavior"
+echo "[PASS] L0 sync example runners are aligned with current default-mode and alias hygiene"
