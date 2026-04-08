@@ -30,6 +30,7 @@
   - 根目录 `main` 工作树仍然是用户脏状态，不能直接作为执行面
   - sidecar sync/fs/socket runner 改动已转移到临时 branch `l0-sidecar-handoff-20260409`，后续需由对应 owner 接手
   - SIMD-only 残留仍需要由 SIMD owner 继续维护，L0 这里只保留边界与 handoff 说明
+  - `bash tests/test_windows_lazbuild_smoke_preflight.sh` 当前会以 `code=31` 失败；缺的不是仓库脚本，而是外部 Windows `lazbuild.exe`
 - Next step:
   - 继续只沿 strict L0 线推进，不把 sidecar 或 SIMD 工作重新混回当前 worktree
   - 在没有新的明确 L0 候选前，优先维护稳定路线图、模块文档和验证口径，而不是继续扩模块
