@@ -6,12 +6,13 @@
 
 1. `docs/fafafa.core.platform.md`
 2. `docs/fafafa.core.l0.foundation.md`
-3. `docs/ARCHITECTURE_LAYERS.md`
-4. `src/fafafa.core.platform.pas`
-5. `tests/fafafa.core.platform/BuildOrTest.sh`
-6. `tests/fafafa.core.platform/BuildOrTest.bat`
-7. `tests/fafafa.core.platform/fafafa.core.platform.test.lpi`
-8. `tests/fafafa.core.platform/fafafa.core.platform.testcase.pas`
+3. `docs/fafafa.core.l0.roadmap.md`
+4. `docs/ARCHITECTURE_LAYERS.md`
+5. `src/fafafa.core.platform.pas`
+6. `tests/fafafa.core.platform/BuildOrTest.sh`
+7. `tests/fafafa.core.platform/BuildOrTest.bat`
+8. `tests/fafafa.core.platform/fafafa.core.platform.test.lpi`
+9. `tests/fafafa.core.platform/fafafa.core.platform.testcase.pas`
 
 ## 当前推荐入口
 

@@ -6,11 +6,12 @@
 
 1. `docs/fafafa.core.bits.md`
 2. `docs/fafafa.core.l0.foundation.md`
-3. `docs/ARCHITECTURE_LAYERS.md`
-4. `tests/fafafa.core.bits/BuildOrTest.sh`
-5. `tests/fafafa.core.bits/BuildOrTest.bat`
-6. `tests/fafafa.core.bits/fafafa.core.bits.test.lpi`
-7. `tests/fafafa.core.bits/fafafa.core.bits.testcase.pas`
+3. `docs/fafafa.core.l0.roadmap.md`
+4. `docs/ARCHITECTURE_LAYERS.md`
+5. `tests/fafafa.core.bits/BuildOrTest.sh`
+6. `tests/fafafa.core.bits/BuildOrTest.bat`
+7. `tests/fafafa.core.bits/fafafa.core.bits.test.lpi`
+8. `tests/fafafa.core.bits/fafafa.core.bits.testcase.pas`
 
 ## 当前测试集合
 

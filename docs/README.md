@@ -15,6 +15,12 @@
 - 工程规范：`docs/standards/ENGINEERING_STANDARDS.md`
 - 命名规范：`docs/standards/NAMING_CONVENTION_PROJECT.md`
 
+## L0 当前导航
+
+- L0 的稳定文档栈固定为：`docs/ARCHITECTURE_LAYERS.md` + `docs/fafafa.core.l0.foundation.md` + `docs/fafafa.core.l0.roadmap.md` + 最新 `docs/audits/*l0*.md`
+- strict L0 模块入口统一收在 `docs/INDEX.md` 的 `Strict L0 模块入口` 区段
+- dated `docs/plans/*l0*.md` 只保留批次 closeout 语境，不再承担长期导航
+
 ## 文档放置约定（清理后的结构）
 
 - **模块文档（主入口）**：`docs/fafafa.core.<module>.md`

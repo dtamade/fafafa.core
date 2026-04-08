@@ -1,6 +1,7 @@
 # 2026-04-08 L0 Tail Docs Closeout
 
 > Status: completed in `l0-main-tail-cleanup-20260408` after fresh verification.
+> 当前 L0 长期路线图入口已固定为 `docs/fafafa.core.l0.roadmap.md`；本页只保留这一批 dated closeout 语境。
 
 ## 目标
 

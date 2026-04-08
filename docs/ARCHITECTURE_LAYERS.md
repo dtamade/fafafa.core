@@ -4,7 +4,7 @@
 
 > 注意：
 > `docs/legacy/phase0/PHASE0_*.md` 记录的是历史阶段和 API 冻结语境，不再作为当前 Layer 分配的唯一依据。
-> 当前 L0 的详细定义以 `docs/fafafa.core.l0.foundation.md` 为准。
+> 当前 L0 的详细定义以 `docs/fafafa.core.l0.foundation.md` 为准；后续推进顺序以 `docs/fafafa.core.l0.roadmap.md` 为准。
 
 ## 分层总览
 

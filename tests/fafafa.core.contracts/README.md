@@ -6,11 +6,12 @@
 
 1. `docs/fafafa.core.contracts.md`
 2. `docs/fafafa.core.l0.foundation.md`
-3. `docs/ARCHITECTURE_LAYERS.md`
-4. `tests/fafafa.core.contracts/BuildOrTest.sh`
-5. `tests/fafafa.core.contracts/BuildOrTest.bat`
-6. `tests/fafafa.core.contracts/fafafa.core.contracts.test.lpi`
-7. `tests/fafafa.core.contracts/fafafa.core.contracts.testcase.pas`
+3. `docs/fafafa.core.l0.roadmap.md`
+4. `docs/ARCHITECTURE_LAYERS.md`
+5. `tests/fafafa.core.contracts/BuildOrTest.sh`
+6. `tests/fafafa.core.contracts/BuildOrTest.bat`
+7. `tests/fafafa.core.contracts/fafafa.core.contracts.test.lpi`
+8. `tests/fafafa.core.contracts/fafafa.core.contracts.testcase.pas`
 
 ## 当前测试集合
 

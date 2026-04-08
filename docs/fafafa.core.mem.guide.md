@@ -1,19 +1,23 @@
 # fafafa.core.mem 使用指南
 
 这份指南只讲当前还适合直接继承的用法，不再重复历史 closeout、固定性能数字或过时目录结构。
+strict L0 allocator contract 的权威边界和推进顺序以 `docs/fafafa.core.l0.foundation.md`、`docs/fafafa.core.l0.roadmap.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准；本页只负责 mem 域 today usage。
 
 ## 当前 source-of-truth
 
 先看：
 
-1. `docs/fafafa.core.mem.md`
-2. `src/fafafa.core.mem.allocator.base.pas`
-3. `src/fafafa.core.mem.allocator.foundation.pas`
-4. `src/fafafa.core.mem.pas`
-5. `src/fafafa.core.mem.allocator.pas`
-6. `src/fafafa.core.mem.memPool.pas`
-7. `src/fafafa.core.mem.stackPool.pas`
-8. `src/fafafa.core.mem.pool.slab.pas`
+1. `docs/fafafa.core.l0.foundation.md`
+2. `docs/fafafa.core.l0.roadmap.md`
+3. `docs/ARCHITECTURE_LAYERS.md`
+4. `docs/fafafa.core.mem.md`
+5. `src/fafafa.core.mem.allocator.base.pas`
+6. `src/fafafa.core.mem.allocator.foundation.pas`
+7. `src/fafafa.core.mem.pas`
+8. `src/fafafa.core.mem.allocator.pas`
+9. `src/fafafa.core.mem.memPool.pas`
+10. `src/fafafa.core.mem.stackPool.pas`
+11. `src/fafafa.core.mem.pool.slab.pas`
 
 ## 先选哪一层
 

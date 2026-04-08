@@ -1,5 +1,8 @@
 # 2026-04-08 L0 Tail Docs Audit
 
+> 这是一份 dated audit。
+> 当前 L0 长期入口现已固定为 `docs/ARCHITECTURE_LAYERS.md`、`docs/fafafa.core.l0.foundation.md` 和 `docs/fafafa.core.l0.roadmap.md`；本页只保留 2026-04-08 当时的审计语境。
+
 ## 结论先行
 
 这轮审计回答的是一个更窄的问题：在 `PR #7` 合并之后，strict non-SIMD L0 的 `docs/` 根层还剩哪些污染面，以及这些尾项应该怎么收口。

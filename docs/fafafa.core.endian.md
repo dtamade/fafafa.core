@@ -1,15 +1,17 @@
 # fafafa.core.endian — 端序语义与 ByteSwap 基础能力
 
-> 当前 strict L0 语义以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
+> 当前 strict L0 边界以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准；后续推进顺序以 `docs/fafafa.core.l0.roadmap.md` 为准。
 > `fafafa.core.endian` 属于 strict non-SIMD L0，负责独立的端序语义，而不是继续埋在 `bytes` consumer 里。
 
 ## 当前 source-of-truth
 
 1. `docs/fafafa.core.l0.foundation.md`
-2. `docs/ARCHITECTURE_LAYERS.md`
-3. `src/fafafa.core.endian.pas`
-4. `tests/fafafa.core.endian/README.md`
-5. `tests/fafafa.core.endian/BuildOrTest.sh`
+2. `docs/fafafa.core.l0.roadmap.md`
+3. `docs/ARCHITECTURE_LAYERS.md`
+4. `src/fafafa.core.endian.pas`
+5. `tests/fafafa.core.endian/README.md`
+6. `tests/fafafa.core.endian/BuildOrTest.sh`
+7. `tests/fafafa.core.endian/BuildOrTest.bat`
 
 ## 当前兼容策略
 

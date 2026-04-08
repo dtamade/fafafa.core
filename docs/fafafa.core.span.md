@@ -1,16 +1,18 @@
 # fafafa.core.span — 最小只读视图合同
 
-> 当前 strict L0 语义以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
+> 当前 strict L0 边界以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准；后续推进顺序以 `docs/fafafa.core.l0.roadmap.md` 为准。
 > `fafafa.core.span` 属于 strict non-SIMD L0，负责一个足够小、可长期稳定复用的只读视图表达层。
 
 ## 当前 source-of-truth
 
 1. `docs/fafafa.core.l0.foundation.md`
-2. `docs/ARCHITECTURE_LAYERS.md`
-3. `src/fafafa.core.span.pas`
-4. `tests/fafafa.core.span/README.md`
-5. `tests/fafafa.core.span/BuildOrTest.sh`
-6. `tests/fafafa.core.span/fafafa.core.span.testcase.pas`
+2. `docs/fafafa.core.l0.roadmap.md`
+3. `docs/ARCHITECTURE_LAYERS.md`
+4. `src/fafafa.core.span.pas`
+5. `tests/fafafa.core.span/README.md`
+6. `tests/fafafa.core.span/BuildOrTest.sh`
+7. `tests/fafafa.core.span/BuildOrTest.bat`
+8. `tests/fafafa.core.span/fafafa.core.span.testcase.pas`
 
 ## 当前切法
 

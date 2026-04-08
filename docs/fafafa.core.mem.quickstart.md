@@ -1,16 +1,20 @@
 # fafafa.core.mem 快速入门
 
 这份 quickstart 只保留当前最短上手路径。
+如果你只关心 strict L0 allocator contract，请先回 `docs/fafafa.core.l0.foundation.md`、`docs/fafafa.core.l0.roadmap.md` 和 `docs/ARCHITECTURE_LAYERS.md`；本页只负责 mem 域上手导航。
 
 ## 当前 source-of-truth
 
-1. `docs/fafafa.core.mem.md`
-2. `docs/fafafa.core.mem.guide.md`
-3. `src/fafafa.core.mem.allocator.base.pas`
-4. `src/fafafa.core.mem.allocator.foundation.pas`
-5. `src/fafafa.core.mem.pas`
-6. `tests/fafafa.core.mem/README.md`
-7. `examples/fafafa.core.mem/README.md`
+1. `docs/fafafa.core.l0.foundation.md`
+2. `docs/fafafa.core.l0.roadmap.md`
+3. `docs/ARCHITECTURE_LAYERS.md`
+4. `docs/fafafa.core.mem.md`
+5. `docs/fafafa.core.mem.guide.md`
+6. `src/fafafa.core.mem.allocator.base.pas`
+7. `src/fafafa.core.mem.allocator.foundation.pas`
+8. `src/fafafa.core.mem.pas`
+9. `tests/fafafa.core.mem/README.md`
+10. `examples/fafafa.core.mem/README.md`
 
 ## 5 分钟上手
 

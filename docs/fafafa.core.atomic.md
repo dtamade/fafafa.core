@@ -1,18 +1,20 @@
 # fafafa.core.atomic
 
-> 当前 strict L0 语义以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
+> 当前 strict L0 边界以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准；后续推进顺序以 `docs/fafafa.core.l0.roadmap.md` 为准。
 > `fafafa.core.atomic.core`、`fafafa.core.atomic.base`、`fafafa.core.atomic`、`fafafa.core.atomic.compat` 都属于 strict non-SIMD L0，但 `atomic.compat` 只承担 legacy compatibility surface，不是新代码的主入口。
 
 ## 当前 source-of-truth
 
 1. `docs/fafafa.core.l0.foundation.md`
-2. `docs/ARCHITECTURE_LAYERS.md`
-3. `src/fafafa.core.atomic.core.pas`
-4. `src/fafafa.core.atomic.base.pas`
-5. `src/fafafa.core.atomic.pas`
-6. `src/fafafa.core.atomic.compat.pas`
-7. `tests/fafafa.core.atomic/README.md`
-8. `tests/fafafa.core.atomic/BuildOrTest.sh`
+2. `docs/fafafa.core.l0.roadmap.md`
+3. `docs/ARCHITECTURE_LAYERS.md`
+4. `src/fafafa.core.atomic.core.pas`
+5. `src/fafafa.core.atomic.base.pas`
+6. `src/fafafa.core.atomic.pas`
+7. `src/fafafa.core.atomic.compat.pas`
+8. `tests/fafafa.core.atomic/README.md`
+9. `tests/fafafa.core.atomic/BuildOrTest.sh`
+10. `tests/fafafa.core.atomic/BuildOrTest.bat`
 
 ## 当前入口约定
 

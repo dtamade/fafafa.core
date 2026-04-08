@@ -44,6 +44,40 @@ L0 的目标不是继续变大，而是继续变准。
 
 这条边界以 `docs/fafafa.core.l0.foundation.md` 为准；本页不重复定义模块 API，只定义后续推进方式。
 
+## 当前 L0 文档地图
+
+当前稳定的 L0 文档面可以直接按下面导航：
+
+- 核心文档组
+  - `docs/ARCHITECTURE_LAYERS.md`
+  - `docs/fafafa.core.l0.foundation.md`
+  - `docs/fafafa.core.l0.roadmap.md`
+  - `docs/audits/2026-04-09-l0-current-state-audit.md`
+- 模块文档
+  - `docs/fafafa.core.base.md`
+  - `docs/fafafa.core.contracts.md`
+  - `docs/fafafa.core.option.md`
+  - `docs/fafafa.core.result.md`
+  - `docs/fafafa.core.span.md`
+  - `docs/fafafa.core.bits.md`
+  - `docs/fafafa.core.platform.md`
+  - `docs/fafafa.core.layout.md`
+  - `docs/fafafa.core.endian.md`
+  - `docs/fafafa.core.atomic.md`
+  - `docs/fafafa.core.mem.md`
+- 对应测试入口
+  - `tests/fafafa.core.base/README.md`
+  - `tests/fafafa.core.contracts/README.md`
+  - `tests/fafafa.core.option/README.md`
+  - `tests/fafafa.core.result/README.md`
+  - `tests/fafafa.core.span/README.md`
+  - `tests/fafafa.core.bits/README.md`
+  - `tests/fafafa.core.platform/README.md`
+  - `tests/fafafa.core.layout/README.md`
+  - `tests/fafafa.core.endian/README.md`
+  - `tests/fafafa.core.atomic/README.md`
+  - `tests/fafafa.core.mem.allocator.foundation/README.md`
+
 ## 当前不在路线图里的事情
 
 以下主题当前不属于 strict L0 扩张目标：

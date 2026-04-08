@@ -1,15 +1,19 @@
 # fafafa.core.mem Tests
 
 这个目录是 mem 域当前测试入口。它负责告诉你应该跑哪套工程、脚本实际做了什么，以及哪些文件只是辅助 runner 或历史残留。
+strict L0 allocator contract 的权威边界和推进顺序仍以 `docs/fafafa.core.l0.foundation.md`、`docs/fafafa.core.l0.roadmap.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准；这里不替代那组三份稳定文档。
 
 ## 当前 source-of-truth
 
-1. `docs/fafafa.core.mem.md`
-2. `tests/fafafa.core.mem.allocator.foundation/README.md`
-3. `tests/fafafa.core.mem/tests_mem.lpi`
-4. `tests/fafafa.core.mem/tests_mem_allocator_only.lpi`
-5. `tests/fafafa.core.mem/BuildOrTest.bat`
-6. `tests/fafafa.core.mem/BuildOrTest.sh`
+1. `docs/fafafa.core.l0.foundation.md`
+2. `docs/fafafa.core.l0.roadmap.md`
+3. `docs/ARCHITECTURE_LAYERS.md`
+4. `docs/fafafa.core.mem.md`
+5. `tests/fafafa.core.mem.allocator.foundation/README.md`
+6. `tests/fafafa.core.mem/tests_mem.lpi`
+7. `tests/fafafa.core.mem/tests_mem_allocator_only.lpi`
+8. `tests/fafafa.core.mem/BuildOrTest.bat`
+9. `tests/fafafa.core.mem/BuildOrTest.sh`
 
 ## 当前测试集合
 
