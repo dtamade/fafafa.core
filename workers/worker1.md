@@ -10,7 +10,7 @@
   - 保持当前执行面只包含 strict L0 与 L0 控制面，不再混入 sync/fs/socket runner sidecar
   - 维持 `span2` 已进入 strict L0 之后的边界，不再继续无根据扩张 L0 面
   - 维护 `foundation + roadmap + audit` 这组三件套，避免 dated plan 再次上浮成 current-entry
-  - 持续校验 L0 hygiene、历史文档准确性与 `atomic` 测试稳定性
+  - 持续校验 L0 hygiene、历史文档准确性、聚合 gate 稳定性与 merge readiness
 - Source of truth:
   - `docs/fafafa.core.l0.foundation.md`
   - `docs/fafafa.core.l0.roadmap.md`
@@ -20,12 +20,8 @@
   - `docs/fafafa.core.atomic.md`
   - `docs/fafafa.core.result.md`
 - Fresh verification:
-  - `bash tests/fafafa.core.span/BuildOrTest.sh test`
-  - 结果：PASS
   - `STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation fafafa.core.platform`
   - 结果：PASS，`11/11`
-  - `tests/fafafa.core.atomic/bin/tests_atomic --all --format=plain` × `8`
-  - 结果：PASS，`8/8`
   - `git diff --check`
   - 结果：PASS
 - Risks / blockers:
@@ -35,4 +31,5 @@
 - Next step:
   - 继续只沿 strict L0 线推进，不把 sidecar 或 SIMD 工作重新混回当前 worktree
   - 在没有新的明确 L0 候选前，优先维护稳定路线图、模块文档和验证口径，而不是继续扩模块
+  - 若进入合并阶段，先保持当前 worktree 不再引入额外主题，再单独处理主线集成窗口和必要的 Windows smoke
 - Last updated: `2026-04-09`
