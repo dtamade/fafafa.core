@@ -1,7 +1,7 @@
 # fafafa.core strict L0 收口清单（历史记录）
 
 > 该文件已从根 `docs/` 归档到 `docs/legacy/l0/`，避免和 today contract 文档混淆。
-> 当前 strict non-SIMD L0 的总边界以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
+> 当前 strict non-SIMD L0 的总边界以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准；后续推进顺序以 `docs/fafafa.core.l0.roadmap.md` 为准。
 > 本页只保留 2026-03 那一轮 `span/contracts/bits/layout/endian` 收口阶段的历史语境，不再作为 today checklist。
 
 ## 这份记录还剩什么价值
@@ -18,5 +18,6 @@
 
 1. `docs/fafafa.core.l0.foundation.md`
 2. `docs/ARCHITECTURE_LAYERS.md`
-3. `docs/fafafa.core.platform.md`
-4. `docs/fafafa.core.span.md`
+3. `docs/fafafa.core.l0.roadmap.md`
+4. `docs/fafafa.core.platform.md`
+5. `docs/fafafa.core.span.md`

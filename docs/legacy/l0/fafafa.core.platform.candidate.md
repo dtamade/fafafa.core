@@ -2,7 +2,7 @@
 
 > 该文件已从根 `docs/` 归档到 `docs/legacy/l0/`，避免和 today contract 文档混淆。
 > 本页保留 2026-03-26 之前的候选审查语境。
-> `fafafa.core.platform` 已在后续收口中以最小静态表达层形态落地，请以 `docs/fafafa.core.platform.md`、`docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
+> `fafafa.core.platform` 已在后续收口中以最小静态表达层形态落地，请以 `docs/fafafa.core.platform.md`、`docs/fafafa.core.l0.foundation.md`、`docs/ARCHITECTURE_LAYERS.md` 和 `docs/fafafa.core.l0.roadmap.md` 为准。
 
 ## 当前结论
 

@@ -18,6 +18,20 @@
 - 示例总览：`docs/EXAMPLES.md`
 - 变更日志：`docs/CHANGELOG.md`
 
+## Strict L0 模块入口
+
+- `docs/fafafa.core.base.md`
+- `docs/fafafa.core.contracts.md`
+- `docs/fafafa.core.option.md`
+- `docs/fafafa.core.result.md`
+- `docs/fafafa.core.span.md`
+- `docs/fafafa.core.bits.md`
+- `docs/fafafa.core.platform.md`
+- `docs/fafafa.core.layout.md`
+- `docs/fafafa.core.endian.md`
+- `docs/fafafa.core.atomic.md`
+- `docs/fafafa.core.mem.md`
+
 ## 模块文档入口
 
 模块主文档使用统一命名：

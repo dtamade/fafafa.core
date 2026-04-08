@@ -6,11 +6,12 @@
 
 1. `docs/fafafa.core.span.md`
 2. `docs/fafafa.core.l0.foundation.md`
-3. `docs/ARCHITECTURE_LAYERS.md`
-4. `tests/fafafa.core.span/BuildOrTest.sh`
-5. `tests/fafafa.core.span/BuildOrTest.bat`
-6. `tests/fafafa.core.span/fafafa.core.span.test.lpi`
-7. `tests/fafafa.core.span/fafafa.core.span.testcase.pas`
+3. `docs/fafafa.core.l0.roadmap.md`
+4. `docs/ARCHITECTURE_LAYERS.md`
+5. `tests/fafafa.core.span/BuildOrTest.sh`
+6. `tests/fafafa.core.span/BuildOrTest.bat`
+7. `tests/fafafa.core.span/fafafa.core.span.test.lpi`
+8. `tests/fafafa.core.span/fafafa.core.span.testcase.pas`
 
 ## 当前测试集合
 

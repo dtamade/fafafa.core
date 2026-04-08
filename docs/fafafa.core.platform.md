@@ -1,15 +1,17 @@
 # fafafa.core.platform — 最小静态平台表达
 
-> 当前 strict L0 语义以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
+> 当前 strict L0 边界以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准；后续推进顺序以 `docs/fafafa.core.l0.roadmap.md` 为准。
 > `fafafa.core.platform` 属于 strict non-SIMD L0，只负责静态平台表达，不承载 system probe 或 runtime capability 语义。
 
 ## 当前 source-of-truth
 
 1. `docs/fafafa.core.l0.foundation.md`
-2. `docs/ARCHITECTURE_LAYERS.md`
-3. `src/fafafa.core.platform.pas`
-4. `tests/fafafa.core.platform/README.md`
-5. `tests/fafafa.core.platform/BuildOrTest.sh`
+2. `docs/fafafa.core.l0.roadmap.md`
+3. `docs/ARCHITECTURE_LAYERS.md`
+4. `src/fafafa.core.platform.pas`
+5. `tests/fafafa.core.platform/README.md`
+6. `tests/fafafa.core.platform/BuildOrTest.sh`
+7. `tests/fafafa.core.platform/BuildOrTest.bat`
 
 ## 目标
 

@@ -1,11 +1,15 @@
 # fafafa.core.mem
 
+> `fafafa.core.mem` 是 mem 域导航文档，不是 strict L0 总定义。
+> strict L0 只保留 allocator contract；权威边界以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准，后续推进顺序以 `docs/fafafa.core.l0.roadmap.md` 为准。
+
 `fafafa.core.mem` 当前负责内存操作、allocator 生态和几类可直接复用的池实现。strict L0 只保留其中的 allocator contract；这个根文档只负责定锚 source-of-truth、模块边界和阅读顺序，不再继续承担“第二套大全手册”。
 
 ## 当前 source-of-truth
 
 按下面顺序理解当前 mem 域：
 
+<<<<<<< HEAD
 1. `src/fafafa.core.mem.allocator.base.pas`
 2. `src/fafafa.core.mem.allocator.foundation.pas`
 3. `src/fafafa.core.mem.pas`
@@ -19,6 +23,23 @@
 11. `tests/fafafa.core.mem/README.md`
 12. `examples/fafafa.core.mem/README.md`
 13. `docs/mem/README.md`
+=======
+1. `docs/fafafa.core.l0.foundation.md`
+2. `docs/fafafa.core.l0.roadmap.md`
+3. `docs/ARCHITECTURE_LAYERS.md`
+4. `src/fafafa.core.mem.allocator.base.pas`
+5. `src/fafafa.core.mem.allocator.foundation.pas`
+6. `src/fafafa.core.mem.pas`
+7. `src/fafafa.core.mem.allocator.pas`
+8. `src/fafafa.core.mem.memPool.pas`
+9. `src/fafafa.core.mem.stackPool.pas`
+10. `src/fafafa.core.mem.pool.slab.pas`
+11. `src/fafafa.core.mem.interfaces.pas`
+12. `src/fafafa.core.mem.stats.pas`
+13. `tests/fafafa.core.mem.allocator.foundation/README.md`
+14. `tests/fafafa.core.mem/README.md`
+15. `examples/fafafa.core.mem/README.md`
+>>>>>>> 377533a7 (docs(l0): normalize roadmap and module navigation)
 
 ## 当前模块结构
 

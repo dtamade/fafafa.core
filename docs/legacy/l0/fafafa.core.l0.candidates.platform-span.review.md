@@ -2,7 +2,7 @@
 
 > 该文件已从根 `docs/` 归档到 `docs/legacy/l0/`，避免和 today contract 文档混淆。
 > 本页保留 2026-03-26 候选审查阶段的结论。
-> today contract 请以 `docs/fafafa.core.l0.foundation.md`、`docs/ARCHITECTURE_LAYERS.md`、`docs/fafafa.core.platform.md` 和 `docs/fafafa.core.span.md` 为准。
+> today contract 请以 `docs/fafafa.core.l0.foundation.md`、`docs/ARCHITECTURE_LAYERS.md`、`docs/fafafa.core.l0.roadmap.md`、`docs/fafafa.core.platform.md` 和 `docs/fafafa.core.span.md` 为准。
 > 更新：自 `2026-04-09` 起，`TReadOnlySpan2<T>` 与 `GetBlock` 已通过后续收口进入 strict L0；本页正文只保留 2026-03-26 当时的候选审查语境。
 
 ## 当前状态

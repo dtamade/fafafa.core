@@ -1,14 +1,18 @@
 # fafafa.core.result Tests
 
-这个目录是 `result` 模块当前测试入口。它负责说明主测试工程和当前 runner，不再保留历史 Windows wrapper/alias 分层。
+这个目录是 `fafafa.core.result` 当前测试入口。它负责锁定 strict non-SIMD L0 `result` 模块的 today contract，不再把历史 Windows wrapper/alias 分层误当成额外语义。
 
 ## 当前 source-of-truth
 
 1. `docs/fafafa.core.result.md`
-2. `tests/fafafa.core.result/BuildOrTest.sh`
-3. `tests/fafafa.core.result/BuildOrTest.bat`
-4. `tests/fafafa.core.result/fafafa.core.result.test.lpi`
-5. `tests/fafafa.core.result/tests_result.lpi`
+2. `docs/fafafa.core.l0.foundation.md`
+3. `docs/fafafa.core.l0.roadmap.md`
+4. `docs/ARCHITECTURE_LAYERS.md`
+5. `tests/fafafa.core.result/BuildOrTest.sh`
+6. `tests/fafafa.core.result/BuildOrTest.bat`
+7. `tests/fafafa.core.result/fafafa.core.result.test.lpi`
+8. `tests/fafafa.core.result/tests_result.lpi`
+9. `tests/fafafa.core.result/fafafa.core.result.testcase.pas`
 
 ## 当前测试集合
 

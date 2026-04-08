@@ -1,16 +1,19 @@
 # fafafa.core.result — 结果类型（Result<T,E>）
 
-> 当前 strict L0 语义以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
+> 当前 strict L0 边界以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准；后续推进顺序以 `docs/fafafa.core.l0.roadmap.md` 为准。
 > `fafafa.core.result` / `fafafa.core.result.facade` 属于 strict non-SIMD L0；`fafafa.core.result.collect` 因依赖 collections 不属于 strict L0。
+> 用法示例请看 `docs/fafafa.core.result.guide.md`；若示例与源码冲突，以源码和当前测试入口为准。
 
 ## 当前 source-of-truth
 
 1. `docs/fafafa.core.l0.foundation.md`
-2. `docs/ARCHITECTURE_LAYERS.md`
-3. `src/fafafa.core.result.pas`
-4. `src/fafafa.core.result.facade.pas`
-5. `tests/fafafa.core.result/README.md`
-6. `tests/fafafa.core.result/BuildOrTest.sh`
+2. `docs/fafafa.core.l0.roadmap.md`
+3. `docs/ARCHITECTURE_LAYERS.md`
+4. `src/fafafa.core.result.pas`
+5. `src/fafafa.core.result.facade.pas`
+6. `tests/fafafa.core.result/README.md`
+7. `tests/fafafa.core.result/BuildOrTest.sh`
+8. `tests/fafafa.core.result/BuildOrTest.bat`
 
 ## 当前兼容策略
 

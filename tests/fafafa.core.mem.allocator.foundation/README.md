@@ -1,18 +1,21 @@
 # fafafa.core.mem.allocator.foundation Tests
 
-这个目录是 `fafafa.core.mem.allocator.foundation` 的当前测试入口。它负责说明 mem 域低层 allocator facade 的 root runner、Windows wrapper，以及它和 `tests/fafafa.core.mem/`、`tests/fafafa.core.mem.manager.rtl/` 之间的边界。
+这个目录是 `fafafa.core.mem.allocator.foundation` 的当前测试入口。它负责验证 strict L0 allocator contract 在 mem 域低层 facade 中的 today 形态，并说明 root runner、Windows wrapper 与更宽 mem 域测试之间的边界。
 
 ## 当前 source-of-truth
 
 1. `docs/fafafa.core.l0.foundation.md`
-2. `docs/ARCHITECTURE_LAYERS.md`
-3. `docs/fafafa.core.mem.md`
-4. `src/fafafa.core.mem.allocator.base.pas`
-5. `src/fafafa.core.mem.allocator.foundation.pas`
-6. `tests/fafafa.core.mem.allocator.foundation/BuildOrTest.sh`
-7. `tests/fafafa.core.mem.allocator.foundation/BuildOrTest.bat`
-8. `tests/fafafa.core.mem.allocator.foundation/buildOrTest.bat`
-9. `tests/fafafa.core.mem.allocator.foundation/fafafa.core.mem.allocator.foundation.test.lpi`
+2. `docs/fafafa.core.l0.roadmap.md`
+3. `docs/ARCHITECTURE_LAYERS.md`
+4. `docs/fafafa.core.mem.md`
+5. `src/fafafa.core.mem.allocator.base.pas`
+6. `src/fafafa.core.mem.allocator.foundation.pas`
+7. `tests/fafafa.core.mem.allocator.foundation/BuildOrTest.sh`
+8. `tests/fafafa.core.mem.allocator.foundation/BuildOrTest.bat`
+9. `tests/fafafa.core.mem.allocator.foundation/buildOrTest.bat`
+10. `tests/fafafa.core.mem.allocator.foundation/fafafa.core.mem.allocator.foundation.test.lpi`
+11. `tests/fafafa.core.mem.allocator.foundation/test_allocator_foundation_contract.pas`
+12. `tests/fafafa.core.mem.allocator.foundation/test_allocator_foundation_runtime.pas`
 
 ## 当前测试集合
 

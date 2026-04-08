@@ -1,7 +1,7 @@
 # fafafa.core.base 使用指南
 
 > 这是一份使用指南，不是 `fafafa.core.base` 的 today contract source-of-truth。
-> 当前权威边界和 API 以 `docs/fafafa.core.base.md`、`src/fafafa.core.base.pas` 和 `tests/fafafa.core.base/README.md` 为准。
+> 当前权威边界和 API 以 `docs/fafafa.core.base.md`、`docs/fafafa.core.l0.foundation.md`、`docs/fafafa.core.l0.roadmap.md`、`docs/ARCHITECTURE_LAYERS.md` 和 `tests/fafafa.core.base/README.md` 为准。
 
 ## 概述
 

@@ -1,15 +1,18 @@
 # fafafa.core.base — 基础约定与统一别名
 
-> 当前 strict L0 语义以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
+> 当前 strict L0 边界以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准；后续推进顺序以 `docs/fafafa.core.l0.roadmap.md` 为准。
 > `fafafa.core.base` 是 strict non-SIMD L0 的基础语义单元，不应承载容器、IO、线程或服务层语义。
+> 用法示例请看 `docs/fafafa.core.base.guide.md`；若示例与源码冲突，以源码和当前测试入口为准。
 
 ## 当前 source-of-truth
 
 1. `docs/fafafa.core.l0.foundation.md`
-2. `docs/ARCHITECTURE_LAYERS.md`
-3. `src/fafafa.core.base.pas`
-4. `tests/fafafa.core.base/README.md`
-5. `tests/fafafa.core.base/BuildOrTest.sh`
+2. `docs/fafafa.core.l0.roadmap.md`
+3. `docs/ARCHITECTURE_LAYERS.md`
+4. `src/fafafa.core.base.pas`
+5. `tests/fafafa.core.base/README.md`
+6. `tests/fafafa.core.base/BuildOrTest.sh`
+7. `tests/fafafa.core.base/BuildOrTest.bat`
 
 ## 概述
 
