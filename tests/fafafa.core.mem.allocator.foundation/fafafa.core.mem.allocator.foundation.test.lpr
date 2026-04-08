@@ -2,6 +2,7 @@
 program fafafa_core_mem_allocator_foundation_test;
 
 {$mode objfpc}{$H+}
+{$I ../../src/fafafa.core.settings.inc}
 
 uses
   {$IFDEF UNIX}

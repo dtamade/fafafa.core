@@ -1,6 +1,7 @@
 program test_option_basic;
 
 {$mode objfpc}{$H+}
+{$I ../../src/fafafa.core.settings.inc}
 
 uses
   SysUtils,
