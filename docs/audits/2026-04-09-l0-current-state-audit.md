@@ -111,6 +111,7 @@ L0 当前真正还缺的是硬化项，而不是模块数：
 - 不要直接在用户脏的根 `main` 工作树上做最终合并动作
 - 如果要给主线更高置信度，合并前最好补一次 Windows 路径 smoke
 - 在没有新候选审查之前，不要再把更多模块并入 strict L0
+- 具体执行单见 `docs/plans/2026-04-09-l0-mainline-merge-checklist.md`
 
 ## Verification Snapshot
 

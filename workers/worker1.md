@@ -31,5 +31,5 @@
 - Next step:
   - 继续只沿 strict L0 线推进，不把 sidecar 或 SIMD 工作重新混回当前 worktree
   - 在没有新的明确 L0 候选前，优先维护稳定路线图、模块文档和验证口径，而不是继续扩模块
-  - 若进入合并阶段，先保持当前 worktree 不再引入额外主题，再单独处理主线集成窗口和必要的 Windows smoke
+  - 若进入合并阶段，按 `docs/plans/2026-04-09-l0-mainline-merge-checklist.md` 先建立干净 integration worktree，再处理主线集成窗口和必要的 Windows smoke
 - Last updated: `2026-04-09`
