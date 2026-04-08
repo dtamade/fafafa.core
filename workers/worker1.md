@@ -3,14 +3,14 @@
 - Owner: Codex
 - Scope: strict non-SIMD L0 的当前真相固化、质量加固与控制面同步
 - Status: `active`
-- Branch: `l0-main-tail-cleanup-20260408`
+- Branch: `l0-mainline-integration-20260409`
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
-- Base commit: `06d4dfd1`
+- Base commit: `origin/main`
 - Current focus:
-  - 保持当前执行面只包含 strict L0 与 L0 控制面，不再混入 sync/fs/socket runner sidecar
+  - 在当前唯一的 L0 worktree 上维护基于 `origin/main` 的 integration branch
+  - 保持 `l0-main-tail-cleanup-20260408-final` 作为已保存的 strict L0 源分支 tip
   - 维持 `span2` 已进入 strict L0 之后的边界，不再继续无根据扩张 L0 面
-  - 维护 `foundation + roadmap + audit` 这组三件套，避免 dated plan 再次上浮成 current-entry
-  - 持续校验 L0 hygiene、历史文档准确性、聚合 gate 稳定性与 merge readiness
+  - 持续校验集成分支上的 L0 hygiene、聚合 gate 稳定性与 merge readiness
 - Source of truth:
   - `docs/fafafa.core.l0.foundation.md`
   - `docs/fafafa.core.l0.roadmap.md`
@@ -31,5 +31,5 @@
 - Next step:
   - 继续只沿 strict L0 线推进，不把 sidecar 或 SIMD 工作重新混回当前 worktree
   - 在没有新的明确 L0 候选前，优先维护稳定路线图、模块文档和验证口径，而不是继续扩模块
-  - 若进入合并阶段，按 `docs/plans/2026-04-09-l0-mainline-merge-checklist.md` 在当前唯一的 L0 worktree 里切 integration branch，再处理主线集成窗口和必要的 Windows smoke
+  - 集成分支已经建立并通过 Linux/macOS 路径 fresh gate；下一步是决定是否补最小 Windows smoke
 - Last updated: `2026-04-09`

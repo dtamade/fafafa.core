@@ -17,13 +17,14 @@
 ## 当前执行面
 
 - 当前 L0 worktree：`/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
-- 当前 L0 branch：`l0-main-tail-cleanup-20260408`
+- 当前 integration branch：`l0-mainline-integration-20260409`
+- 当前已保存的源分支 tip：`l0-main-tail-cleanup-20260408-final`
 - 当前 L0 HEAD：执行本清单前请用 `git rev-parse --short HEAD` 重新确认
 - 当前 L0 分叉点：`d5187ea4`（`merge-base HEAD origin/main`）
 
 ## 当前验证状态
 
-以下结果已经在 L0 worktree fresh 执行：
+以下结果已经在当前 integration branch 上 fresh 执行：
 
 Run:
 
@@ -109,6 +110,13 @@ git -C .claude/worktrees/l0-main-promotion-20260407 cherry-pick 8570356a^..l0-ma
 STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation fafafa.core.platform
 git diff --check
 ```
+
+当前状态：
+
+- 上述 integration branch 已建立
+- strict L0 聚合 gate 已 fresh 通过，`11/11`
+- `git diff --check` 已通过
+- 当前还没有 fresh Windows smoke 结果
 
 ## Windows smoke 建议
 

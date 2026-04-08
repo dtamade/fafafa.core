@@ -104,6 +104,7 @@ L0 当前真正还缺的是硬化项，而不是模块数：
 - 边界已经固定在 `foundation + roadmap + audit`
 - strict L0 模块文档和测试 README 已按统一口径收口
 - 当前 worktree 已从 sidecar 污染中分离
+- 基于 `origin/main` 的 integration branch 已建立
 - fresh strict L0 聚合 gate 通过
 
 当前还不应跳过的事情：
@@ -118,6 +119,7 @@ L0 当前真正还缺的是硬化项，而不是模块数：
 - `STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation fafafa.core.platform`
 - 上述聚合 gate 当前 fresh 结果：PASS，`11/11`
 - `git diff --check`：PASS
+- 当前执行分支：`l0-mainline-integration-20260409`
 
 ## Remaining Risks
 
