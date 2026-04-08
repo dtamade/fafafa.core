@@ -1,5 +1,10 @@
 # 2026-04-09 L0 Kernel Span2 Closeout
 
+> Status: completed historical batch.
+>
+> 当前 strict non-SIMD L0 的稳定路线图以 `docs/fafafa.core.l0.roadmap.md` 为准。
+> 本页只保留 `span2` 准入这一轮 batch 的执行 closeout 语境。
+
 ## Goal
 
 在不扩张到 container/service 语义的前提下，把 `span2` 以最小 read-only segmented view contract 形式纳入 strict non-SIMD L0，并同步收口当前 L0 控制面。

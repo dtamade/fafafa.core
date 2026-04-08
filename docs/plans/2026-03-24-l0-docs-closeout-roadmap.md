@@ -2,7 +2,7 @@
 
 > Status: completed historical batch.
 >
-> 当前 L0 follow-up 以 `docs/plans/2026-04-07-l0-rescue-split-closeout.md` 为准。
+> 当前 stable L0 roadmap 以 `docs/fafafa.core.l0.roadmap.md` 为准。
 > 当时的根目录执行镜像已归档到 `plans/archive/2026-04-07-mainline-working-set/`。
 
 **Goal:** 为当前 `fafafa.core` 建立一份长期有效的 L0 文档治理路线图，先收紧根入口和模块域 source-of-truth，再做全仓 residual docs sweep，最后完成根级验收。

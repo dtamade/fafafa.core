@@ -9,13 +9,13 @@
 - Current focus:
   - 保持当前执行面只包含 strict L0 与 L0 控制面，不再混入 sync/fs/socket runner sidecar
   - 维持 `span2` 已进入 strict L0 之后的边界，不再继续无根据扩张 L0 面
-  - 收紧 `atomic` / `result` / `mem allocator` 的 today contract 与 compat 叙述
+  - 维护 `foundation + roadmap + audit` 这组三件套，避免 dated plan 再次上浮成 current-entry
   - 持续校验 L0 hygiene、历史文档准确性与 `atomic` 测试稳定性
 - Source of truth:
   - `docs/fafafa.core.l0.foundation.md`
+  - `docs/fafafa.core.l0.roadmap.md`
   - `docs/ARCHITECTURE_LAYERS.md`
   - `docs/audits/2026-04-09-l0-current-state-audit.md`
-  - `docs/plans/2026-04-09-l0-kernel-span2-closeout.md`
   - `docs/fafafa.core.span.md`
   - `docs/fafafa.core.atomic.md`
   - `docs/fafafa.core.result.md`
@@ -34,5 +34,5 @@
   - SIMD-only 残留仍需要由 SIMD owner 继续维护，L0 这里只保留边界与 handoff 说明
 - Next step:
   - 继续只沿 strict L0 线推进，不把 sidecar 或 SIMD 工作重新混回当前 worktree
-  - 在没有新的明确 L0 候选前，优先做 hygiene / stability / source-of-truth 级收口，而不是继续扩模块
+  - 在没有新的明确 L0 候选前，优先维护稳定路线图、模块文档和验证口径，而不是继续扩模块
 - Last updated: `2026-04-09`

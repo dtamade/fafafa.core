@@ -6,9 +6,10 @@
 
 - 文档治理与放置规则：`docs/README.md`
 - 架构分层：`docs/ARCHITECTURE_LAYERS.md`
+- L0 稳定路线图：`docs/fafafa.core.l0.roadmap.md`
 - L0 详细定义：`docs/fafafa.core.l0.foundation.md`
-- L0 当前实施计划：`docs/plans/2026-04-09-l0-kernel-span2-closeout.md`
 - L0 当前审计：`docs/audits/2026-04-09-l0-current-state-audit.md`
+- 最近 L0 批次 closeout：`docs/plans/2026-04-09-l0-kernel-span2-closeout.md`
 - 工程规范：`docs/standards/ENGINEERING_STANDARDS.md`
 - 目录规范：`docs/standards/DIRECTORY_STANDARDS.md`
 - 命名规范：`docs/standards/NAMING_CONVENTION_PROJECT.md`
@@ -74,16 +75,17 @@
 
 1. `docs/standards/*.md`
 2. `docs/ARCHITECTURE_LAYERS.md`
-3. `docs/fafafa.core.<module>.md`
-4. 真实存在的领域子目录中的长期文档
-5. `docs/plans/`、`docs/reports/`、`docs/reviews/`
-6. `docs/legacy/` 与 `archive/reports/`
+3. `docs/fafafa.core.l0.foundation.md` / `docs/fafafa.core.l0.roadmap.md` 这类稳定主题入口
+4. `docs/fafafa.core.<module>.md`
+5. 真实存在的领域子目录中的长期文档
+6. `docs/audits/`、`docs/plans/`、`docs/reports/`、`docs/reviews/`
+7. `docs/legacy/` 与 `archive/reports/`
 
 ## 当前特别说明
 
 - `docs/Architecture.md` 这种歧义命名已经停止作为全局架构入口使用。
 - 历史 `PHASE0_*` 文档已归档到 `docs/legacy/phase0/`；当前 L0 以 `docs/fafafa.core.l0.foundation.md` 为准。
-- `docs/plans/2026-03-24-l0-docs-closeout-roadmap.md` 和 `docs/plans/2026-04-07-l0-rescue-split-closeout.md` 现在都属于历史阶段材料；当前 follow-up 以 `docs/plans/2026-04-09-l0-kernel-span2-closeout.md` 为准。
+- L0 的长期路线图现在固定为 `docs/fafafa.core.l0.roadmap.md`；dated `docs/plans/2026-03-24-l0-docs-closeout-roadmap.md`、`docs/plans/2026-04-07-l0-rescue-split-closeout.md` 和 `docs/plans/2026-04-09-l0-kernel-span2-closeout.md` 都只保留批次语境。
 - 根目录 `task_plan.md`、`findings.md`、`progress.md` 已从主线移除；最后一份快照归档在 `plans/archive/2026-04-07-mainline-working-set/`。
 - 当前 L0 协作入口见 `workers/worker1.md`，当前 triage 判断见 `docs/audits/2026-04-09-l0-current-state-audit.md`。
 - `docs/fafafa.core.span.md`、`docs/fafafa.core.contracts.md` 和 `docs/fafafa.core.platform.md` 现在都对应 strict L0 的实体入口。
