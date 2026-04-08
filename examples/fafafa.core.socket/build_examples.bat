@@ -6,10 +6,10 @@ echo fafafa.core.socket Example Build Script
 echo ========================================
 echo.
 
-set PROJECT_ROOT=%~dp0..\..
-set EXAMPLES_DIR=%~dp0
-set BIN_DIR=%EXAMPLES_DIR%bin
-set LIB_DIR=%EXAMPLES_DIR%lib
+set "PROJECT_ROOT=%~dp0..\.."
+set "EXAMPLES_DIR=%~dp0"
+set "BIN_DIR=%EXAMPLES_DIR%bin"
+set "LIB_DIR=%EXAMPLES_DIR%lib"
 
 echo Project Root: %PROJECT_ROOT%
 echo Examples Dir: %EXAMPLES_DIR%
@@ -17,179 +17,54 @@ echo Output Dir: %BIN_DIR%
 echo Lib Dir: %LIB_DIR%
 echo.
 
-REM Use tools\lazbuild.bat wrapper which falls back to PATH lazbuild
-set "LAZBUILD=%PROJECT_ROOT%\tools\lazbuild.bat"
-if not exist "%LAZBUILD%" (
-    echo Error: tools\lazbuild.bat not found
-    pause
-    exit /b 1
+if "%LAZBUILD%"=="" (
+  if exist "%PROJECT_ROOT%\tools\lazbuild.bat" (
+    set "LAZBUILD=%PROJECT_ROOT%\tools\lazbuild.bat"
+  ) else (
+    set "LAZBUILD=lazbuild"
+  )
 )
 
-REM Create output directories
-if not exist "%BIN_DIR%" (
-    echo Creating output directory: %BIN_DIR%
-    mkdir "%BIN_DIR%"
+if "%FPC%"=="" set "FPC=fpc"
+
+if not exist "%BIN_DIR%" mkdir "%BIN_DIR%"
+if not exist "%LIB_DIR%\fpc" mkdir "%LIB_DIR%\fpc"
+
+if exist "%LAZBUILD%" goto :have_lazbuild
+where "%LAZBUILD%" >nul 2>nul
+if errorlevel 1 (
+  echo Error: lazbuild not found: %LAZBUILD%
+  exit /b 1
 )
 
-if not exist "%LIB_DIR%" (
-    echo Creating lib directory: %LIB_DIR%
-    mkdir "%LIB_DIR%"
+:have_lazbuild
+where "%FPC%" >nul 2>nul
+if errorlevel 1 (
+  echo Error: fpc not found: %FPC%
+  exit /b 1
+)
+
+set "PROJECTS=example_socket.lpi echo_server.lpi echo_client.lpi udp_server.lpi udp_client.lpi example_echo_min_poll_nb.lpi"
+
+echo ========================================
+echo Building Lazarus projects
+echo ========================================
+for %%P in (%PROJECTS%) do (
+  echo [BUILD] %LAZBUILD% %EXAMPLES_DIR%%%P (project default mode)
+  call "%LAZBUILD%" "%EXAMPLES_DIR%%%P"
+  if errorlevel 1 exit /b 1
 )
 
 echo ========================================
-echo Building Debug Version
+echo Building standalone Pascal examples
 echo ========================================
-
-call "%LAZBUILD%" --build-mode=Debug "%EXAMPLES_DIR%example_socket.lpi"
-if %ERRORLEVEL% neq 0 (
-    echo Error: Debug build failed
-    pause
-    exit /b 1
-)
-call "%LAZBUILD%" --build-mode=Debug "%EXAMPLES_DIR%echo_server.lpi"
-if %ERRORLEVEL% neq 0 (
-    echo Debug mode missing for echo_server, trying default mode...
-    call "%LAZBUILD%" "%EXAMPLES_DIR%echo_server.lpi"
-    if %ERRORLEVEL% neq 0 (
-        echo Error: Build failed (echo_server)
-        pause
-        exit /b 1
-    )
-)
-call "%LAZBUILD%" --build-mode=Debug "%EXAMPLES_DIR%echo_client.lpi"
-if %ERRORLEVEL% neq 0 (
-    echo Debug mode missing for echo_client, trying default mode...
-    call "%LAZBUILD%" "%EXAMPLES_DIR%echo_client.lpi"
-    if %ERRORLEVEL% neq 0 (
-        echo Error: Build failed (echo_client)
-        pause
-        exit /b 1
-    )
-)
-call "%LAZBUILD%" --build-mode=Debug "%EXAMPLES_DIR%udp_server.lpi"
-if %ERRORLEVEL% neq 0 (
-    echo Debug mode missing for udp_server, trying default mode...
-    call "%LAZBUILD%" "%EXAMPLES_DIR%udp_server.lpi"
-    if %ERRORLEVEL% neq 0 (
-        echo Error: Build failed (udp_server)
-        pause
-        exit /b 1
-    )
-)
-call "%LAZBUILD%" --build-mode=Debug "%EXAMPLES_DIR%udp_client.lpi"
-if %ERRORLEVEL% neq 0 (
-    echo Debug mode missing for udp_client, trying default mode...
-    call "%LAZBUILD%" "%EXAMPLES_DIR%udp_client.lpi"
-    if %ERRORLEVEL% neq 0 (
-        echo Error: Build failed (udp_client)
-        pause
-        exit /b 1
-    )
-)
-call "%LAZBUILD%" --build-mode=Debug "%EXAMPLES_DIR%best_practices_nonblocking.pas"
-if %ERRORLEVEL% neq 0 (
-    echo Debug: falling back to default build for best_practices_nonblocking...
-    call "%LAZBUILD%" "%EXAMPLES_DIR%best_practices_nonblocking.pas"
-    if %ERRORLEVEL% neq 0 (
-        echo Error: Build failed (best_practices_nonblocking)
-        pause
-        exit /b 1
-    )
+for %%P in (best_practices_nonblocking.pas) do (
+  echo [BUILD] %FPC% %%P ^> %BIN_DIR%%%~nP.exe
+  call "%FPC%" -MObjFPC -Scghi -O1 -g -gl -l -vewnhibq -Fu"%PROJECT_ROOT%\src" -Fu"%EXAMPLES_DIR%" -FU"%LIB_DIR%\fpc" -FE"%BIN_DIR%" -o"%BIN_DIR%%%~nP.exe" "%EXAMPLES_DIR%%%P"
+  if errorlevel 1 exit /b 1
 )
 
-REM Build minimal nonblocking poller echo example (Debug)
-call "%LAZBUILD%" --build-mode=Debug "%EXAMPLES_DIR%example_echo_min_poll_nb.pas"
-if %ERRORLEVEL% neq 0 (
-    echo Debug: falling back to default build for example_echo_min_poll_nb...
-    call "%LAZBUILD%" "%EXAMPLES_DIR%example_echo_min_poll_nb.pas"
-    if %ERRORLEVEL% neq 0 (
-        echo Error: Build failed (example_echo_min_poll_nb)
-        pause
-        exit /b 1
-    )
-)
-
-
-
-echo Debug build successful!
-
-echo ========================================
-echo Building Release Version
-echo ========================================
-
-call "%LAZBUILD%" --build-mode=Release "%EXAMPLES_DIR%example_socket.lpi"
-if %ERRORLEVEL% neq 0 (
-    echo Error: Release build failed
-    pause
-    exit /b 1
-)
-call "%LAZBUILD%" --build-mode=Release "%EXAMPLES_DIR%echo_server.lpi"
-if %ERRORLEVEL% neq 0 (
-    echo Release mode missing for echo_server, trying default mode...
-    call "%LAZBUILD%" "%EXAMPLES_DIR%echo_server.lpi"
-    if %ERRORLEVEL% neq 0 (
-        echo Error: Build failed (echo_server)
-        pause
-        exit /b 1
-    )
-)
-call "%LAZBUILD%" --build-mode=Release "%EXAMPLES_DIR%echo_client.lpi"
-if %ERRORLEVEL% neq 0 (
-    echo Release mode missing for echo_client, trying default mode...
-    call "%LAZBUILD%" "%EXAMPLES_DIR%echo_client.lpi"
-    if %ERRORLEVEL% neq 0 (
-        echo Error: Build failed (echo_client)
-        pause
-        exit /b 1
-    )
-)
-call "%LAZBUILD%" --build-mode=Release "%EXAMPLES_DIR%udp_server.lpi"
-if %ERRORLEVEL% neq 0 (
-    echo Release mode missing for udp_server, trying default mode...
-    call "%LAZBUILD%" "%EXAMPLES_DIR%udp_server.lpi"
-    if %ERRORLEVEL% neq 0 (
-        echo Error: Build failed (udp_server)
-        pause
-        exit /b 1
-    )
-call "%LAZBUILD%" --build-mode=Release "%EXAMPLES_DIR%best_practices_nonblocking.pas"
-if %ERRORLEVEL% neq 0 (
-    echo Release: falling back to default build for best_practices_nonblocking...
-    call "%LAZBUILD%" "%EXAMPLES_DIR%best_practices_nonblocking.pas"
-    if %ERRORLEVEL% neq 0 (
-        echo Error: Build failed (best_practices_nonblocking)
-        pause
-        exit /b 1
-
-REM Build minimal nonblocking poller echo example (Release)
-call "%LAZBUILD%" --build-mode=Release "%EXAMPLES_DIR%example_echo_min_poll_nb.pas"
-if %ERRORLEVEL% neq 0 (
-    echo Release: falling back to default build for example_echo_min_poll_nb...
-    call "%LAZBUILD%" "%EXAMPLES_DIR%example_echo_min_poll_nb.pas"
-    if %ERRORLEVEL% neq 0 (
-        echo Error: Build failed (example_echo_min_poll_nb)
-        pause
-        exit /b 1
-    )
-)
-
-    )
-)
-
-)
-call "%LAZBUILD%" --build-mode=Release "%EXAMPLES_DIR%udp_client.lpi"
-if %ERRORLEVEL% neq 0 (
-    echo Release mode missing for udp_client, trying default mode...
-    call "%LAZBUILD%" "%EXAMPLES_DIR%udp_client.lpi"
-    if %ERRORLEVEL% neq 0 (
-        echo Error: Build failed (udp_client)
-        pause
-        exit /b 1
-    )
-)
-
-echo Release build successful!
-
+echo.
 echo ========================================
 echo Build Complete
 echo ========================================
@@ -215,4 +90,5 @@ echo   %BIN_DIR%\best_practices_nonblocking.exe --demo
 echo   %BIN_DIR%\example_echo_min_poll_nb.exe
 echo.
 
-pause
+if "%FAFAFA_INTERACTIVE%"=="1" pause
+exit /b 0

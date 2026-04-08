@@ -23,6 +23,7 @@ BAT_TARGETS=(
   "${ROOT}/examples/fafafa.core.sync.namedRWLock/BuildAndRun.bat"
   "${ROOT}/examples/fafafa.core.sync/RunRwLock.bat"
   "${ROOT}/examples/fafafa.core.sync/BuildAllExamples.bat"
+  "${ROOT}/examples/fafafa.core.socket/build_examples.bat"
 )
 
 DOC_TARGETS=(
@@ -196,6 +197,26 @@ for LTarget in "${BAT_TARGETS[@]}"; do
     exit 1
   fi
 done
+
+if grep -Fq -- '--build-mode=Release' "${ROOT}/examples/fafafa.core.socket/build_examples.bat"; then
+  echo "[FAIL] socket batch runner still forces Release mode" >&2
+  exit 1
+fi
+
+if grep -Fq 'falling back to default build' "${ROOT}/examples/fafafa.core.socket/build_examples.bat"; then
+  echo "[FAIL] socket batch runner still contains stale fallback wording" >&2
+  exit 1
+fi
+
+if grep -Fq 'Debug mode missing for' "${ROOT}/examples/fafafa.core.socket/build_examples.bat"; then
+  echo "[FAIL] socket batch runner still contains stale Debug fallback wording" >&2
+  exit 1
+fi
+
+if grep -Fq 'Release mode missing for' "${ROOT}/examples/fafafa.core.socket/build_examples.bat"; then
+  echo "[FAIL] socket batch runner still contains stale Release fallback wording" >&2
+  exit 1
+fi
 
 if grep -Fq 'example_semaphore.lpi' "${ROOT}/examples/fafafa.core.sync/BuildAllExamples.bat"; then
   echo "[FAIL] stale sync example name remains in BuildAllExamples.bat" >&2
