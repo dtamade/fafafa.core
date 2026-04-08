@@ -139,9 +139,12 @@ tests\fafafa.core.mem\BuildOrTest.bat test
 
 当前已知情况：
 
+- `bash tests/test_windows_lazbuild_bootstrap.sh`
+  - 结果：PASS；`tools/lazbuild.bat` 已存在，且在 `wine cmd /c` 下可进入 bootstrap 逻辑
 - 已尝试在当前 Linux 环境下通过 `wine cmd /c` 跑 `tests\\fafafa.core.platform\\BuildOrTest.bat test`
-- 失败原因不是 `platform` 模块测试失败，而是当前 integration branch 不包含 `tools\\lazbuild.bat`，且 Windows PATH 下也没有 `lazbuild`
-- 因此，这一轮还不能把 Windows smoke 记成已完成；当前只能把它记成环境 bootstrap blocker
+- 结果：已进入构建步骤，但停在 `logs\\build.txt` 的 `[ERROR] lazbuild not found. Set LAZBUILD_EXE or install Lazarus.`
+- 失败原因已经从“缺少 `tools\\lazbuild.bat`”收敛为“当前环境没有可供 `.bat` 路径使用的 Windows `lazbuild` 可执行”
+- 因此，这一轮还不能把 Windows smoke 记成已完成；当前只能把它记成外部 Windows Lazarus toolchain blocker
 
 ## 当前不要做的事
 
@@ -168,7 +171,7 @@ tests\fafafa.core.mem\BuildOrTest.bat test
 - 根 `main` 工作树是用户脏状态
 - 根 `main` 相对 `origin/main` 落后较多
 - 当前 branch 上存在一段不完全等于 strict L0 本体的 hygiene / runner 提交，需要明确是否同批带走
-- 当前 Linux 环境虽然有 `wine`，但没有可供 `.bat` 路径使用的 Windows `lazbuild` bootstrap；Windows smoke 暂时卡在环境层
+- 当前 Linux 环境虽然有 `wine`，也已经有 `tools\\lazbuild.bat` bootstrap，但仍没有可供 `.bat` 路径使用的 Windows `lazbuild` 可执行；Windows smoke 暂时卡在外部 toolchain 环境层
 
 ## 相关文档
 
