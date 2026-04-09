@@ -119,17 +119,25 @@ git diff --check
 - `bash tests/test_windows_lazbuild_bootstrap.sh` 已 fresh 通过
 - strict L0 聚合 gate 已 fresh 通过，`11/11`
 - `git diff --check` 已通过
-- 当前还没有 fresh 的 Windows 模块级 smoke 结果；目前只有 bootstrap contract 结果
+- 当前 fresh 的 Windows 模块级 smoke 已补齐到 runtime 层：最小 `wine` smoke 与 `.bat` runtime-only parity 都已有结果
 
 ## Windows smoke 建议
 
-当前已经有一条 fresh 的最小 Windows runtime smoke 路径；如果要在当前 Linux + `wine` 环境里复核，优先跑：
+当前已经有两条 fresh 的 Windows runtime 复核路径；如果要在当前 Linux + `wine` 环境里复核，优先按下面顺序跑：
 
 ```bash
 bash tests/test_windows_strict_l0_wine_smoke.sh
+bash tests/test_windows_strict_l0_batch_runtime_smoke.sh
 ```
 
-它当前覆盖：
+其中：
+
+- `bash tests/test_windows_strict_l0_wine_smoke.sh`
+  - 负责最小 Win64 `.exe` runtime smoke
+- `bash tests/test_windows_strict_l0_batch_runtime_smoke.sh`
+  - 负责 `.bat` runner runtime-only parity，要求 batch 入口在 `FAFAFA_SKIP_BUILD=1` 下跳过构建并消费预构建 `.exe`
+
+两条路径合起来当前覆盖：
 
 - `platform`
 - `atomic`
@@ -155,24 +163,25 @@ tests\fafafa.core.mem\BuildOrTest.bat test
 
 - `atomic` 是最敏感的低层 contract 之一
 - `platform` 是这轮新进入 strict L0 的静态表达层
-- `mem` / `mem.allocator.foundation` 在 `.bat` 与 shell 路径上仍存在 runner 行为差异
+- `mem` / `mem.allocator.foundation` 之前最容易暴露 `.bat` runtime 路径与 shell 路径之间的 runner 差异
 
 当前已知情况：
 
 - `bash tests/test_windows_strict_l0_wine_smoke.sh`
   - 结果：PASS
   - 明细：`platform` `5/5`、`atomic` `86/86`、`mem.allocator.foundation` `6/6`、`mem allocator-only` `13/13`
+- `bash tests/test_windows_strict_l0_batch_runtime_smoke.sh`
+  - 结果：PASS
+  - 明细：`platform`、`atomic`、`mem.allocator.foundation`、`mem allocator-only` 的 `.bat` runtime-only parity 已在 `FAFAFA_SKIP_BUILD=1` 下 fresh 通过
 - `bash tests/test_windows_lazbuild_bootstrap.sh`
   - 结果：PASS；`tools/lazbuild.bat` 已存在，且在 `wine cmd /c` 下可进入 bootstrap 逻辑
 - `bash tests/test_windows_lazbuild_smoke_preflight.sh`
   - 结果：当前环境预期 FAIL，`code=31`
   - 含义：`wine` 环境里没有可供 `.bat` runner 使用的 Windows `lazbuild.exe`
   - 当前输出会直接给出 `set LAZBUILD_EXE=C:\Lazarus\lazbuild.exe` 这类恢复命令，便于后续同学接手
-- 已尝试在当前 Linux 环境下通过 `wine cmd /c` 跑 `tests\\fafafa.core.platform\\BuildOrTest.bat test`
-- 结果：已进入构建步骤；在默认环境下停在 `logs\\build.txt` 的 `[ERROR] lazbuild not found. Set LAZBUILD_EXE or install Lazarus.`
 - 额外验证：若把 `LAZBUILD_EXE` 指到 Unix 路径 `Z:\\opt\\fpcupdeluxe\\lazarus\\lazbuild`，当前 wrapper 会以 `code=126` 明确报错：`LAZBUILD_EXE points to a non-Windows executable`
-- 失败原因已经从“缺少 `tools\\lazbuild.bat`”收敛为“当前环境没有可供 `.bat` 路径使用的 Windows `lazbuild.exe`”
-- 因此，这一轮已经可以把“最小 Windows runtime smoke”记成完成；当前剩下的是 `.bat` runner parity 仍依赖外部 Windows Lazarus toolchain
+- 失败原因已经从“缺少 `tools\\lazbuild.bat`”收敛为“当前环境没有可供 `.bat` build-path 使用的 Windows `lazbuild.exe`”
+- 因此，这一轮已经可以把“最小 Windows runtime smoke”和“.bat runtime-only parity”一起记成完成；当前剩下的是 native `.bat` build-path parity 仍依赖外部 Windows Lazarus toolchain
 
 ## 当前不要做的事
 
@@ -199,7 +208,7 @@ tests\fafafa.core.mem\BuildOrTest.bat test
 - 根 `main` 工作树是用户脏状态
 - 根 `main` 相对 `origin/main` 落后较多
 - 当前 branch 上存在一段不完全等于 strict L0 本体的 hygiene / runner 提交，需要明确是否同批带走
-- 当前 Linux 环境虽然有 `wine`，也已经有 `tools\\lazbuild.bat` bootstrap，并且最小 Windows runtime smoke 已经能通过；剩余差距是 `.bat` 路径仍没有可用的 Windows `lazbuild.exe`
+- 当前 Linux 环境虽然有 `wine`，也已经有 `tools\\lazbuild.bat` bootstrap，并且最小 Windows runtime smoke 与 `.bat` runtime-only parity 已经能通过；剩余差距是 native `.bat` build-path 仍没有可用的 Windows `lazbuild.exe`
 
 ## 相关文档
 
