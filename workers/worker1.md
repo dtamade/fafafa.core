@@ -8,7 +8,7 @@
 - Base commit: `origin/main`
 - Current focus:
   - 在当前唯一的 L0 worktree 上维护基于 `origin/main` 的 integration branch
-  - 保持 `l0-main-tail-cleanup-20260408-final` 作为已保存的 strict L0 源分支 tip
+  - 在需要 replay 当前 closeout 时，先把 `HEAD` 保存成 `l0-mainline-closeout-20260409` 这一类源分支 tip
   - 维持 `span2` 已进入 strict L0 之后的边界，不再继续无根据扩张 L0 面
   - 持续校验集成分支上的 L0 hygiene、聚合 gate 稳定性与 merge readiness
 - Source of truth:
@@ -26,6 +26,8 @@
   - 结果：PASS；`platform`、`atomic`、`mem.allocator.foundation`、`mem allocator-only` 的最小 `.bat` runtime-only smoke 已在 `FAFAFA_SKIP_BUILD=1` 下 fresh 通过
   - `bash tests/test_windows_strict_l0_batch_runtime_matrix.sh`
   - 结果：PASS；`base`、`contracts`、`bits`、`layout`、`endian`、`span`、`option`、`result`、`platform`、`atomic`、`mem.allocator.foundation`、`mem allocator-only` 的 `.bat` runtime-only parity 已在 `FAFAFA_SKIP_BUILD=1` 下 fresh 通过
+  - `bash tests/test_windows_strict_l0_batch_native_matrix_contract.sh`
+  - 结果：PASS；native Windows 12 模块 matrix driver 已接好，且当前 `wine` 环境下会对缺少 `lazbuild.exe` 的情况 fail-close
   - `bash tests/test_windows_lazbuild_bootstrap.sh`
   - 结果：PASS；bootstrap 已补齐，Unix `LAZBUILD_EXE` 会被清晰拒绝
   - `bash tests/test_windows_lazbuild_smoke_preflight_contract.sh`
@@ -38,9 +40,9 @@
   - 根目录 `main` 工作树仍然是用户脏状态，不能直接作为执行面
   - sidecar sync/fs/socket runner 改动已转移到临时 branch `l0-sidecar-handoff-20260409`，后续需由对应 owner 接手
   - SIMD-only 残留仍需要由 SIMD owner 继续维护，L0 这里只保留边界与 handoff 说明
-  - `bash tests/test_windows_lazbuild_smoke_preflight.sh` 当前仍会以 `code=31` 失败；缺的不是仓库脚本，也不是 runtime-only parity，而是 native `.bat` build-path 所需的外部 Windows `lazbuild.exe`
+  - `bash tests/test_windows_lazbuild_smoke_preflight.sh` 当前仍会以 `code=31` 失败；缺的不是仓库脚本，也不是 runtime-only parity，而是 dedicated Windows host 上 native `.bat` build-path 所需的外部 Windows `lazbuild.exe`
 - Next step:
   - 继续只沿 strict L0 线推进，不把 sidecar 或 SIMD 工作重新混回当前 worktree
   - 在没有新的明确 L0 候选前，优先维护稳定路线图、模块文档和验证口径，而不是继续扩模块
-  - 集成分支已经建立并通过 Linux/macOS 路径 fresh gate；当前最小 Windows runtime smoke、最小 `.bat` smoke 和扩展 `.bat` runtime-only parity matrix 也已通过，剩下只需在真实 Windows `lazbuild.exe` 条件下补 native build-path parity
+  - 集成分支已经建立并通过 Linux/macOS 路径 fresh gate；当前最小 Windows runtime smoke、最小 `.bat` smoke、扩展 `.bat` runtime-only parity matrix 以及 native lane script contract 也已通过，剩下只需在 dedicated Windows host 上执行 `tests\test_windows_strict_l0_batch_native_matrix.bat`
 - Last updated: `2026-04-09`

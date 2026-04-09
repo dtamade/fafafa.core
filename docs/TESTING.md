@@ -31,7 +31,7 @@
 
 ### strict L0 的 Windows runtime 复核
 
-如果你当前关心的是 strict non-SIMD L0 在 Windows 路径上的复核，不要直接从“原生 `.bat` 构建完全对称”这个前提出发。当前仓库已经分成三条不同的复核链路：
+如果你当前关心的是 strict non-SIMD L0 在 Windows 路径上的复核，不要直接从“原生 `.bat` 构建完全对称”这个前提出发。当前仓库已经分成四条不同的复核链路：
 
 - 最小 Win64 `.exe` runtime smoke
   - Linux/macOS：`bash tests/test_windows_strict_l0_wine_smoke.sh`
@@ -39,12 +39,15 @@
   - Linux/macOS：`bash tests/test_windows_strict_l0_batch_runtime_smoke.sh`
 - 扩展 `.bat` runtime-only parity matrix
   - Linux/macOS：`bash tests/test_windows_strict_l0_batch_runtime_matrix.sh`
+- native Windows `.bat` build-path parity matrix
+  - Windows：`tests\test_windows_strict_l0_batch_native_matrix.bat`
 
 当前建议顺序：
 
 1. 先跑 `bash tests/test_windows_strict_l0_wine_smoke.sh`
 2. 再跑 `bash tests/test_windows_strict_l0_batch_runtime_smoke.sh`
 3. 最后跑 `bash tests/test_windows_strict_l0_batch_runtime_matrix.sh`
+4. 如果要补齐最终 Windows build-path 证据，再到专用 Windows 主机执行 `tests\test_windows_strict_l0_batch_native_matrix.bat`
 
 这三条链路解决的是不同问题：
 
@@ -54,6 +57,8 @@
   - 确认最早暴露差异的 4 个 `.bat` 入口在 `FAFAFA_SKIP_BUILD=1` 下能跳过构建并消费预构建 `.exe`
 - `batch_runtime_matrix`
   - 确认当前 strict L0 的 12 个 `.bat` 入口都已经具备同样的 runtime-only parity
+- `batch_native_matrix`
+  - 确认同一组 12 个 `.bat` 入口在真实 Windows `lazbuild.exe` 条件下完成 native build + native test，而不是 runtime-only skip-build
 
 当前 matrix 覆盖：
 
@@ -78,6 +83,17 @@
 
 - 当前仓库已经完成 Windows runtime smoke 和 `.bat` runtime-only parity
 - 当前还没有完成的，是 native Windows `lazbuild.exe` 条件下的 `.bat` build-path parity
+
+如果你已经切到专用 Windows 主机，请直接参考：
+
+- `docs/plans/2026-04-09-l0-native-windows-matrix-runbook.md`
+
+这条 native lane 的约束很严格：
+
+- 它固定覆盖当前 strict L0 的 12 个 `.bat` 入口
+- 它不会设置 `FAFAFA_SKIP_BUILD=1`
+- 它会先校验 `tools\lazbuild.bat` 是否找到了真实 Windows `lazbuild.exe`
+- 只有这条 lane 在真实 Windows 主机 fresh 通过之后，native `.bat` build-path parity 才能记成完成
 
 ---
 

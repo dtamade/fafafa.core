@@ -5,7 +5,7 @@
 - 当前 strict non-SIMD L0 的权威边界仍以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
 - 当前 strict non-SIMD L0 的稳定路线图现在固定为 `docs/fafafa.core.l0.roadmap.md`。
 - `fafafa.core.span` 现在正式承载最小只读单段 `span` 与双段 `span2` contract。
-- 当前 L0 执行面已经切到当前唯一的 L0 worktree 上的 `l0-mainline-integration-20260409` 分支；`l0-main-tail-cleanup-20260408-final` 只保留为已保存的 strict L0 源分支 tip。
+- 当前 L0 执行面已经切到当前唯一的 L0 worktree 上的 `l0-mainline-integration-20260409` 分支；如需重放/重建 integration branch，应先把当前 `HEAD` 保存成 `l0-mainline-closeout-20260409` 这一类源分支 tip。
 - 原先混入该 worktree 的 sync/fs/socket runner sidecar 已安全转移到临时 branch `l0-sidecar-handoff-20260409`，不再阻塞 strict L0 继续推进。
 - 当前没有新的获批 L0 准入候选；“还缺什么”主要是 merge hygiene、跨平台验证一致性和 compat surface 继续收口，而不是再加模块。
 
@@ -57,8 +57,12 @@ L0 当前真正还缺的是硬化项，而不是模块数：
 - 当前环境现在还可以通过 `bash tests/test_windows_strict_l0_batch_runtime_smoke.sh` 完成最小 `.bat` runner runtime-only smoke：`platform`、`atomic`、`mem.allocator.foundation`、`mem allocator-only` 这 4 个入口会在 `FAFAFA_SKIP_BUILD=1` 下跳过构建、直接消费预构建 Win64 `.exe`，并在 `wine cmd /c` 下运行通过。
 - 当前环境还可以通过 `bash tests/test_windows_strict_l0_batch_runtime_matrix.sh` 完成扩展后的 `.bat` runner runtime-only parity matrix：`base`、`contracts`、`bits`、`layout`、`endian`、`span`、`option`、`result`，以及前面的 `platform`、`atomic`、`mem.allocator.foundation`、`mem allocator-only` 现在都能在 `FAFAFA_SKIP_BUILD=1` 下 fresh 通过。
 - 仓库内现在还提供 `bash tests/test_windows_lazbuild_smoke_preflight.sh` 作为 Windows `.bat` smoke 前置检查；它会把 `wine` 环境下缺少真实 Windows `lazbuild.exe` 的情况收敛成固定失败码，并直接打印 `LAZBUILD_EXE` 的恢复示例。
-- 当前仍然不对称的是 `.bat` build-path 本身；它依旧缺少真实 Windows `lazbuild.exe`，所以还不能把 native batch build parity 记成完成。
-- 因此，Windows runtime smoke 和 `.bat` runtime-only parity 已不再是当前 L0 的 blocker；剩下的 confidence gap 只在真实 Windows toolchain 下的 batch build-path parity。
+- 仓库内现在也已经提供 dedicated Windows host lane：
+  - `tests\test_windows_strict_l0_batch_native_matrix.bat`
+  - 它会固定覆盖 12 个 strict L0 `.bat` 入口，并明确拒绝 `FAFAFA_SKIP_BUILD=1`
+- 当前环境还能用 `bash tests/test_windows_strict_l0_batch_native_matrix_contract.sh` 锁死这条 native lane 的脚本 contract 和 fail-close 语义。
+- 当前仍然不对称的是 `.bat` build-path 本身；它依旧缺少 fresh 的 dedicated-Windows execution evidence，所以还不能把 native batch build parity 记成完成。
+- 因此，Windows runtime smoke、`.bat` runtime-only parity 和 native lane wiring 已不再是当前 L0 的 blocker；剩下的 confidence gap 只在真实 Windows toolchain 下的 batch build-path parity 证据。
 
 ### 3. Compat surface still needs continued discipline
 
@@ -133,8 +137,12 @@ L0 当前真正还缺的是硬化项，而不是模块数：
 - 结果：PASS；`platform`、`atomic`、`mem.allocator.foundation`、`mem allocator-only` 的 `.bat` runtime-only parity 已在 `FAFAFA_SKIP_BUILD=1` 下 fresh 通过
 - `bash tests/test_windows_strict_l0_batch_runtime_matrix.sh`
 - 结果：PASS；`base`、`contracts`、`bits`、`layout`、`endian`、`span`、`option`、`result`、`platform`、`atomic`、`mem.allocator.foundation`、`mem allocator-only` 的 `.bat` runtime-only parity 已在 `FAFAFA_SKIP_BUILD=1` 下 fresh 通过
+- `bash tests/test_windows_strict_l0_batch_native_matrix_contract.sh`
+- 结果：PASS；native Windows 12 模块 matrix driver 已在仓库内接好，并在当前 `wine` 环境下证明了缺少 `lazbuild.exe` 时会 fail-close
 - `bash tests/test_windows_lazbuild_smoke_preflight.sh`
 - 结果：当前环境预期 FAIL，`code=31`；原因是 `wine` 路径下没有可供 `.bat` runner 使用的 Windows `lazbuild.exe`，但输出已经包含 `set LAZBUILD_EXE=...` 和下一步命令
+- `tests\test_windows_strict_l0_batch_native_matrix.bat`
+- 结果：脚本已具备 dedicated Windows host 执行条件，但当前仓库内还没有 fresh native host pass 证据
 - `wine cmd /c "set LAZBUILD_EXE=Z:\\opt\\fpcupdeluxe\\lazarus\\lazbuild && ... && BuildOrTest.bat build"`
 - 结果：wrapper 明确以 `code=126` 报错：`LAZBUILD_EXE points to a non-Windows executable`
 
@@ -143,6 +151,6 @@ L0 当前真正还缺的是硬化项，而不是模块数：
 - 根 `main` 工作树仍然是用户脏状态，不应拿来直接承载 L0 收口。
 - 临时 branch `l0-sidecar-handoff-20260409` 只是 sidecar 交接面，不应再并回当前 L0 实施面。
 - SIMD 仍由 SIMD owner 负责；L0 这里只处理边界和非 SIMD contract。
-- Windows `.bat` 路径与 shell / cross-build 路径仍不完全对称；当前已补齐 runtime-only parity，但 native batch build-path parity 还没有完成。
-- 当前 Linux 环境虽然有 `wine`，且仓库内已经补齐 `tools/lazbuild.bat` bootstrap，但仍没有 Windows `lazbuild.exe`；因此剩余缺口仍先卡在外部 toolchain 环境层，而不是卡在 strict L0 模块逻辑。
+- Windows `.bat` 路径与 shell / cross-build 路径仍不完全对称；当前已补齐 runtime-only parity 和 native lane wiring，但 native batch build-path parity 还没有 dedicated Windows host pass evidence。
+- 当前 Linux 环境虽然有 `wine`，且仓库内已经补齐 `tools/lazbuild.bat` bootstrap 与 `tests\test_windows_strict_l0_batch_native_matrix.bat`，但仍没有 Windows `lazbuild.exe`；因此剩余缺口仍先卡在外部 toolchain 环境层，而不是卡在 strict L0 模块逻辑。
 - `atomic` 早先只出现过一次未复现的聚合波动；当前没有足够证据支持生产代码修复，若后续再次出现应优先保留失败日志并锁定具体 testcase 顺序。

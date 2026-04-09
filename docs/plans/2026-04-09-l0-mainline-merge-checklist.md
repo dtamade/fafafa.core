@@ -18,7 +18,7 @@
 
 - 当前 L0 worktree：`/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
 - 当前 integration branch：`l0-mainline-integration-20260409`
-- 当前已保存的源分支 tip：`l0-main-tail-cleanup-20260408-final`
+- 当前建议保存的源分支 tip：`l0-mainline-closeout-20260409`
 - 当前 L0 HEAD：执行本清单前请用 `git rev-parse --short HEAD` 重新确认
 - 当前 L0 分叉点：`d5187ea4`（`merge-base HEAD origin/main`）
 
@@ -31,6 +31,8 @@ Run:
 ```bash
 bash tests/test_windows_lazbuild_bootstrap.sh
 bash tests/test_windows_strict_l0_batch_runtime_matrix.sh
+bash tests/test_windows_strict_l0_batch_native_matrix_contract.sh
+bash tests/test_windows_lazbuild_smoke_preflight_contract.sh
 STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation fafafa.core.platform
 git diff --check
 ```
@@ -39,8 +41,22 @@ git diff --check
 
 - Windows `lazbuild` bootstrap contract：PASS
 - strict L0 Windows `.bat` runtime-only parity matrix：PASS
+- strict L0 Windows native `.bat` matrix driver contract：PASS
+- Windows smoke preflight recovery guidance contract：PASS
 - strict L0 聚合 gate：PASS，`11/11`
 - `git diff --check`：PASS
+
+另外一条还没有在当前 Linux 环境里变成“通过”的命令是：
+
+```bash
+bash tests/test_windows_lazbuild_smoke_preflight.sh
+```
+
+当前结果仍然是预期 fail-close：
+
+- `code=31`
+- 含义：当前环境没有真实 Windows `lazbuild.exe`
+- 这不再说明仓库内缺脚本；它只说明 dedicated Windows host evidence 还没采
 
 ## 先决定要带哪些提交
 
@@ -48,22 +64,37 @@ git diff --check
 
 ### A. strict L0 核心提交
 
-这是当前最值得保留为单独 merge slice 的序列：
+这是当前最值得保留为单独 merge slice 的序列；相比早先版本，这里已经把最新的 Windows verification / parity 收尾提交也纳入同一条 strict L0 核心线：
 
-- `8570356a` `build(l0): restore lazbuild bootstrap helper`
-- `06d4dfd1` `examples(l0): restore strict l0 entrypoints`
-- `fde7c4ff` `l0: admit span2 and refresh control plane`
-- `4e8774bf` `docs(l0): harden current-state control plane`
-- `9216f320` `test(l0): normalize settings include in test entrypoints`
-- `e1cf6577` `docs(l0): establish stable roadmap and doc stack`
-- `377533a7` `docs(l0): normalize roadmap and module navigation`
-- `58976e8a` `docs(l0): capture module gaps and merge readiness`
-- `26d937a6` `docs(l0): add mainline merge checklist`
+- `b4a33c46` `build(l0): restore lazbuild bootstrap helper`
+- `99e077c9` `examples(l0): restore strict l0 entrypoints`
+- `a9bbbd93` `l0: admit span2 and refresh control plane`
+- `a2096a56` `docs(l0): harden current-state control plane`
+- `66642e4e` `test(l0): normalize settings include in test entrypoints`
+- `5482fd81` `docs(l0): establish stable roadmap and doc stack`
+- `1507274f` `docs(l0): normalize roadmap and module navigation`
+- `5b149bfb` `docs(l0): capture module gaps and merge readiness`
+- `4fc28464` `docs(l0): add mainline merge checklist`
+- `e86430c7` `docs(l0): align merge checklist with single-worktree policy`
+- `346fcd44` `docs(l0): record integration branch readiness`
+- `14cb0eb5` `docs(l0): record windows smoke blocker`
+- `5c2c6e40` `build(l0): add windows lazbuild bootstrap`
+- `f8e2a09b` `build(l0): clarify windows lazbuild blocker`
+- `597cd2d7` `docs(l0): align audit and merge navigation`
+- `c145aa37` `docs(l0): refresh worker verification state`
+- `743af329` `test(l0): add windows smoke preflight`
+- `2bdbd479` `test(l0): print windows smoke recovery guidance`
+- `1c09a01a` `test(l0): add strict windows wine smoke`
+- `57faf2ef` `test(l0): add windows batch runtime parity smoke`
+- `c168fec7` `docs(l0): align readmes with batch parity smoke`
+- `c3e7011e` `test(l0): expand windows batch runtime parity matrix`
+- `062aa8e4` `docs(l0): document windows runtime verification paths`
 
 其中：
 
-- `fde7c4ff` 之后这一段是 strict L0 当前边界、测试入口、文档和控制面的核心收口
-- `8570356a` 与 `06d4dfd1` 是 supporting fix，主要保证 L0 相关构建入口和示例入口不掉链子
+- `a9bbbd93` 之后这一段是 strict L0 当前边界、测试入口、文档和控制面的核心收口
+- `b4a33c46` 与 `99e077c9` 是 supporting fix，主要保证 L0 相关构建入口和示例入口不掉链子
+- `5c2c6e40` 到 `062aa8e4` 这一段现在也要和前面的核心 slice 一起看，因为它们已经把 Windows runtime parity、preflight 和文档口径锁进了 strict L0 的收尾流程
 - 若在真正切 integration branch 前，当前 L0 branch 又新增了 L0-only 提交，保留保存后的 branch tip，并用范围 cherry-pick 一起带走，不要手工漏拣
 
 ### B. 更早的 hygiene / archive / runner 提交
@@ -103,9 +134,9 @@ Run:
 
 ```bash
 git fetch origin
-git -C .claude/worktrees/l0-main-promotion-20260407 branch l0-main-tail-cleanup-20260408-final HEAD
-git -C .claude/worktrees/l0-main-promotion-20260407 switch -c l0-mainline-integration-20260409 origin/main
-git -C .claude/worktrees/l0-main-promotion-20260407 cherry-pick 8570356a^..l0-main-tail-cleanup-20260408-final
+git -C .claude/worktrees/l0-main-promotion-20260407 branch l0-mainline-closeout-20260409 HEAD
+git -C .claude/worktrees/l0-main-promotion-20260407 switch -C l0-mainline-integration-20260409 origin/main
+git -C .claude/worktrees/l0-main-promotion-20260407 cherry-pick b4a33c46^..l0-mainline-closeout-20260409
 ```
 
 然后在当前 L0 worktree 的 integration branch 上跑：
@@ -154,6 +185,23 @@ bash tests/test_windows_strict_l0_batch_runtime_matrix.sh
 bash tests/test_windows_lazbuild_smoke_preflight.sh
 ```
 
+如果你已经拿到 dedicated Windows host，并且 `bash tests/test_windows_lazbuild_smoke_preflight.sh` 的结论也不再提示 `code=31/32` 这一类 toolchain blocker，就直接执行：
+
+```bat
+tests\test_windows_strict_l0_batch_native_matrix.bat
+```
+
+它会：
+
+- 在真实 Windows `cmd` 下先校验 `tools\lazbuild.bat` 是否找到了 `lazbuild.exe`
+- 固定覆盖 strict L0 的 12 个 `.bat` 入口
+- 明确拒绝 `FAFAFA_SKIP_BUILD=1`
+- 把日志写到 `tests\_windows_batch_native_matrix\`
+
+详细 runbook 见：
+
+- `docs/plans/2026-04-09-l0-native-windows-matrix-runbook.md`
+
 如果你手里有真实 Windows `lazbuild.exe`，确认 preflight 通过后，再跑：
 
 ```bat
@@ -186,9 +234,13 @@ tests\fafafa.core.mem\BuildOrTest.bat test
   - 结果：当前环境预期 FAIL，`code=31`
   - 含义：`wine` 环境里没有可供 `.bat` runner 使用的 Windows `lazbuild.exe`
   - 当前输出会直接给出 `set LAZBUILD_EXE=C:\Lazarus\lazbuild.exe` 这类恢复命令，便于后续同学接手
+- `bash tests/test_windows_strict_l0_batch_native_matrix_contract.sh`
+  - 结果：PASS；native Windows 12 模块 matrix driver 已在仓库内接好，且在当前 `wine` 环境下会对缺少 `lazbuild.exe` 的情况 fail-close
+- `tests\test_windows_strict_l0_batch_native_matrix.bat`
+  - 当前状态：脚本已就位，但 fresh 的 dedicated Windows host evidence 仍待补齐
 - 额外验证：若把 `LAZBUILD_EXE` 指到 Unix 路径 `Z:\\opt\\fpcupdeluxe\\lazarus\\lazbuild`，当前 wrapper 会以 `code=126` 明确报错：`LAZBUILD_EXE points to a non-Windows executable`
 - 失败原因已经从“缺少 `tools\\lazbuild.bat`”收敛为“当前环境没有可供 `.bat` build-path 使用的 Windows `lazbuild.exe`”
-- 因此，这一轮已经可以把“最小 Windows runtime smoke”“最小 `.bat` smoke”和“扩展 `.bat` runtime-only parity matrix”一起记成完成；当前剩下的是 native `.bat` build-path parity 仍依赖外部 Windows Lazarus toolchain
+- 因此，这一轮已经可以把“最小 Windows runtime smoke”“最小 `.bat` smoke”“扩展 `.bat` runtime-only parity matrix”和“native lane script wiring / fail-close contract”一起记成完成；当前剩下的是 dedicated Windows host 上的 native `.bat` build-path parity 证据仍依赖外部 Windows Lazarus toolchain
 
 ## 当前不要做的事
 
@@ -207,6 +259,7 @@ tests\fafafa.core.mem\BuildOrTest.bat test
 - `git diff --check` 通过
 - 没有把 SIMD owner 的工作混进来
 - Windows smoke 至少完成最小路径，或者明确记录为什么本轮暂不做
+- 如果目标是这轮就把 Windows `.bat` build-path parity 也一并收口，则必须在 dedicated Windows host fresh 跑过 `tests\test_windows_strict_l0_batch_native_matrix.bat`
 
 ## 当前 blocker
 
@@ -215,12 +268,13 @@ tests\fafafa.core.mem\BuildOrTest.bat test
 - 根 `main` 工作树是用户脏状态
 - 根 `main` 相对 `origin/main` 落后较多
 - 当前 branch 上存在一段不完全等于 strict L0 本体的 hygiene / runner 提交，需要明确是否同批带走
-- 当前 Linux 环境虽然有 `wine`，也已经有 `tools\\lazbuild.bat` bootstrap，并且最小 Windows runtime smoke 与 `.bat` runtime-only parity 已经能通过；剩余差距是 native `.bat` build-path 仍没有可用的 Windows `lazbuild.exe`
+- 当前 Linux 环境虽然有 `wine`，也已经有 `tools\\lazbuild.bat` bootstrap、runtime smoke、runtime-only parity 以及 native lane script wiring；剩余差距是 dedicated Windows host 上仍没有 fresh 采到 native `.bat` build-path evidence
 
 ## 相关文档
 
 - `docs/fafafa.core.l0.foundation.md`
 - `docs/fafafa.core.l0.roadmap.md`
 - `docs/audits/2026-04-09-l0-current-state-audit.md`
+- `docs/plans/2026-04-09-l0-native-windows-matrix-runbook.md`
 - `docs/plans/2026-04-09-l0-kernel-span2-closeout.md`
 - `workers/worker1.md`
