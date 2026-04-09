@@ -41,6 +41,8 @@
   - Linux/macOS：`bash tests/test_windows_strict_l0_batch_runtime_matrix.sh`
 - native Windows `.bat` build-path parity matrix
   - Windows：`tests\test_windows_strict_l0_batch_native_matrix.bat`
+  - Windows evidence collector：`tests\collect_windows_strict_l0_native_evidence.bat`
+  - Windows evidence verifier：`tests\verify_windows_strict_l0_native_evidence.bat tests\_windows_l0_native_evidence\<batch-id>`
 
 当前建议顺序：
 
@@ -48,6 +50,7 @@
 2. 再跑 `bash tests/test_windows_strict_l0_batch_runtime_smoke.sh`
 3. 最后跑 `bash tests/test_windows_strict_l0_batch_runtime_matrix.sh`
 4. 如果要补齐最终 Windows build-path 证据，再到专用 Windows 主机执行 `tests\test_windows_strict_l0_batch_native_matrix.bat`
+5. 如果要把 dedicated-host 结果收成标准 artifact，再执行 `tests\collect_windows_strict_l0_native_evidence.bat`
 
 这三条链路解决的是不同问题：
 
@@ -59,6 +62,8 @@
   - 确认当前 strict L0 的 12 个 `.bat` 入口都已经具备同样的 runtime-only parity
 - `batch_native_matrix`
   - 确认同一组 12 个 `.bat` 入口在真实 Windows `lazbuild.exe` 条件下完成 native build + native test，而不是 runtime-only skip-build
+- `native_evidence_collector`
+  - 把 native matrix 的结果、模块日志、环境信息和 source revision 固化成可归档 evidence 包
 
 当前 matrix 覆盖：
 
@@ -94,6 +99,7 @@
 - 它不会设置 `FAFAFA_SKIP_BUILD=1`
 - 它会先校验 `tools\lazbuild.bat` 是否找到了真实 Windows `lazbuild.exe`
 - 只有这条 lane 在真实 Windows 主机 fresh 通过之后，native `.bat` build-path parity 才能记成完成
+- 如果你要交付 evidence 包而不是只看终端输出，优先跑 `tests\collect_windows_strict_l0_native_evidence.bat`
 
 ---
 

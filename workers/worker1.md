@@ -28,6 +28,8 @@
   - 结果：PASS；`base`、`contracts`、`bits`、`layout`、`endian`、`span`、`option`、`result`、`platform`、`atomic`、`mem.allocator.foundation`、`mem allocator-only` 的 `.bat` runtime-only parity 已在 `FAFAFA_SKIP_BUILD=1` 下 fresh 通过
   - `bash tests/test_windows_strict_l0_batch_native_matrix_contract.sh`
   - 结果：PASS；native Windows 12 模块 matrix driver 已接好，且当前 `wine` 环境下会对缺少 `lazbuild.exe` 的情况 fail-close
+  - `bash tests/test_windows_strict_l0_native_evidence_contract.sh`
+  - 结果：PASS；native evidence collector / verifier / workflow 已接好，且当前 `wine` 环境下 collector 会对缺少 `lazbuild.exe` 的情况 fail-close
   - `bash tests/test_windows_lazbuild_bootstrap.sh`
   - 结果：PASS；bootstrap 已补齐，Unix `LAZBUILD_EXE` 会被清晰拒绝
   - `bash tests/test_windows_lazbuild_smoke_preflight_contract.sh`
@@ -44,5 +46,5 @@
 - Next step:
   - 继续只沿 strict L0 线推进，不把 sidecar 或 SIMD 工作重新混回当前 worktree
   - 在没有新的明确 L0 候选前，优先维护稳定路线图、模块文档和验证口径，而不是继续扩模块
-  - 集成分支已经建立并通过 Linux/macOS 路径 fresh gate；当前最小 Windows runtime smoke、最小 `.bat` smoke、扩展 `.bat` runtime-only parity matrix 以及 native lane script contract 也已通过，剩下只需在 dedicated Windows host 上执行 `tests\test_windows_strict_l0_batch_native_matrix.bat`
+  - 集成分支已经建立并通过 Linux/macOS 路径 fresh gate；当前最小 Windows runtime smoke、最小 `.bat` smoke、扩展 `.bat` runtime-only parity matrix、native lane script contract 以及 evidence artifact wiring 也已通过，剩下只需在 dedicated Windows host 或手工 dispatch `.github/workflows/l0-windows-native-evidence.yml` 上收 fresh native evidence
 - Last updated: `2026-04-09`

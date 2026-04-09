@@ -24,14 +24,19 @@
 
 - CMD：
   - `tests\test_windows_strict_l0_batch_native_matrix.bat`
+- 推荐的 evidence collector：
+  - `tests\collect_windows_strict_l0_native_evidence.bat`
+- collector 产物校验：
+  - `tests\verify_windows_strict_l0_native_evidence.bat tests\_windows_l0_native_evidence\<batch-id>`
 - PowerShell：
   - `cmd /c tests\test_windows_strict_l0_batch_native_matrix.bat`
+  - `cmd /c tests\collect_windows_strict_l0_native_evidence.bat`
 
 如果本机没有把 Lazarus 加进 PATH，可先显式设置：
 
 ```bat
 set LAZBUILD_EXE=C:\Lazarus\lazbuild.exe
-tests\test_windows_strict_l0_batch_native_matrix.bat
+tests\collect_windows_strict_l0_native_evidence.bat
 ```
 
 ## Coverage
@@ -69,6 +74,15 @@ native matrix 当前固定覆盖 12 个 strict L0 batch 入口：
 - `tests\_windows_batch_native_matrix\mem_allocator_foundation.log`
 - `tests\_windows_batch_native_matrix\mem_allocator_only.log`
 
+标准 evidence 包目录：
+
+- `tests\_windows_l0_native_evidence\<batch-id>\evidence.log`
+- `tests\_windows_l0_native_evidence\<batch-id>\native_matrix.log`
+- `tests\_windows_l0_native_evidence\<batch-id>\summary.md`
+- `tests\_windows_l0_native_evidence\<batch-id>\environment.txt`
+- `tests\_windows_l0_native_evidence\<batch-id>\source_revision.txt`
+- `tests\_windows_l0_native_evidence\<batch-id>\module-logs\*.log`
+
 通过标准：
 
 - `bootstrap.log` 能证明 `tools\lazbuild.bat` 找到并调用了真实 Windows `lazbuild.exe`
@@ -76,6 +90,14 @@ native matrix 当前固定覆盖 12 个 strict L0 batch 入口：
   - `[BUILD] OK`
   - `[TEST] OK`
   - `[LEAK] OK`
+- `summary.md` 显式写出 `- Result: PASS`
+- `source_revision.txt` 至少包含：
+  - `git_commit=...`
+  - `git_ref_hint=...`
+- `environment.txt` 至少包含：
+  - `host_os=Windows_NT`
+  - `tool_lazbuild_wrapper=...`
+  - `where_lazbuild_exe=...`
 - 所有模块日志都不允许出现：
   - `[BUILD] SKIPPED`
   - `lazbuild not found`
@@ -104,8 +126,14 @@ native matrix 当前固定覆盖 12 个 strict L0 batch 入口：
 
 - 仓库内现在已经具备 native lane 驱动：
   - `tests\test_windows_strict_l0_batch_native_matrix.bat`
+- 也已经具备 dedicated-host evidence helper：
+  - `tests\collect_windows_strict_l0_native_evidence.bat`
+  - `tests\verify_windows_strict_l0_native_evidence.bat`
+- GitHub Actions 手工入口也已经接好：
+  - `.github/workflows/l0-windows-native-evidence.yml`
 - Linux/macOS 当前能 fresh 复核的是：
   - `bash tests/test_windows_strict_l0_batch_native_matrix_contract.sh`
+  - `bash tests/test_windows_strict_l0_native_evidence_contract.sh`
   - 它只证明脚本 contract 和 fail-close 语义已锁定，不等于 native parity 已完成
 - 截至 `2026-04-09`，fresh dedicated-Windows evidence 仍待补齐
 - 在这条 lane 真正于 Windows 主机通过之前，不要把 native Windows `.bat` build-path parity 记成完成

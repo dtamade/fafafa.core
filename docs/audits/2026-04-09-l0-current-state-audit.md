@@ -60,7 +60,12 @@ L0 当前真正还缺的是硬化项，而不是模块数：
 - 仓库内现在也已经提供 dedicated Windows host lane：
   - `tests\test_windows_strict_l0_batch_native_matrix.bat`
   - 它会固定覆盖 12 个 strict L0 `.bat` 入口，并明确拒绝 `FAFAFA_SKIP_BUILD=1`
+- 仓库内也已经把这条 lane 的 evidence 包装与 hosted/manual workflow 入口接好：
+  - `tests\collect_windows_strict_l0_native_evidence.bat`
+  - `tests\verify_windows_strict_l0_native_evidence.bat`
+  - `.github/workflows/l0-windows-native-evidence.yml`
 - 当前环境还能用 `bash tests/test_windows_strict_l0_batch_native_matrix_contract.sh` 锁死这条 native lane 的脚本 contract 和 fail-close 语义。
+- 当前环境还能用 `bash tests/test_windows_strict_l0_native_evidence_contract.sh` 锁死 collector / verifier / workflow 这层 contract 和 fail-close 语义。
 - 当前仍然不对称的是 `.bat` build-path 本身；它依旧缺少 fresh 的 dedicated-Windows execution evidence，所以还不能把 native batch build parity 记成完成。
 - 因此，Windows runtime smoke、`.bat` runtime-only parity 和 native lane wiring 已不再是当前 L0 的 blocker；剩下的 confidence gap 只在真实 Windows toolchain 下的 batch build-path parity 证据。
 
@@ -139,10 +144,14 @@ L0 当前真正还缺的是硬化项，而不是模块数：
 - 结果：PASS；`base`、`contracts`、`bits`、`layout`、`endian`、`span`、`option`、`result`、`platform`、`atomic`、`mem.allocator.foundation`、`mem allocator-only` 的 `.bat` runtime-only parity 已在 `FAFAFA_SKIP_BUILD=1` 下 fresh 通过
 - `bash tests/test_windows_strict_l0_batch_native_matrix_contract.sh`
 - 结果：PASS；native Windows 12 模块 matrix driver 已在仓库内接好，并在当前 `wine` 环境下证明了缺少 `lazbuild.exe` 时会 fail-close
+- `bash tests/test_windows_strict_l0_native_evidence_contract.sh`
+- 结果：PASS；native evidence collector / verifier / workflow 已在仓库内接好，并在当前 `wine` 环境下证明了缺少 `lazbuild.exe` 时 collector 会 fail-close
 - `bash tests/test_windows_lazbuild_smoke_preflight.sh`
 - 结果：当前环境预期 FAIL，`code=31`；原因是 `wine` 路径下没有可供 `.bat` runner 使用的 Windows `lazbuild.exe`，但输出已经包含 `set LAZBUILD_EXE=...` 和下一步命令
 - `tests\test_windows_strict_l0_batch_native_matrix.bat`
 - 结果：脚本已具备 dedicated Windows host 执行条件，但当前仓库内还没有 fresh native host pass 证据
+- `tests\collect_windows_strict_l0_native_evidence.bat`
+- 结果：collector / artifact 目录格式已具备 dedicated Windows host 执行条件，但当前仓库内还没有 fresh native host artifact
 - `wine cmd /c "set LAZBUILD_EXE=Z:\\opt\\fpcupdeluxe\\lazarus\\lazbuild && ... && BuildOrTest.bat build"`
 - 结果：wrapper 明确以 `code=126` 报错：`LAZBUILD_EXE points to a non-Windows executable`
 
@@ -151,6 +160,6 @@ L0 当前真正还缺的是硬化项，而不是模块数：
 - 根 `main` 工作树仍然是用户脏状态，不应拿来直接承载 L0 收口。
 - 临时 branch `l0-sidecar-handoff-20260409` 只是 sidecar 交接面，不应再并回当前 L0 实施面。
 - SIMD 仍由 SIMD owner 负责；L0 这里只处理边界和非 SIMD contract。
-- Windows `.bat` 路径与 shell / cross-build 路径仍不完全对称；当前已补齐 runtime-only parity 和 native lane wiring，但 native batch build-path parity 还没有 dedicated Windows host pass evidence。
+- Windows `.bat` 路径与 shell / cross-build 路径仍不完全对称；当前已补齐 runtime-only parity、native lane wiring 和 evidence artifact wiring，但 native batch build-path parity 还没有 dedicated Windows host pass evidence。
 - 当前 Linux 环境虽然有 `wine`，且仓库内已经补齐 `tools/lazbuild.bat` bootstrap 与 `tests\test_windows_strict_l0_batch_native_matrix.bat`，但仍没有 Windows `lazbuild.exe`；因此剩余缺口仍先卡在外部 toolchain 环境层，而不是卡在 strict L0 模块逻辑。
 - `atomic` 早先只出现过一次未复现的聚合波动；当前没有足够证据支持生产代码修复，若后续再次出现应优先保留失败日志并锁定具体 testcase 顺序。
