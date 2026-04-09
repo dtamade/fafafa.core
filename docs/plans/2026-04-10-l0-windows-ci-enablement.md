@@ -30,19 +30,30 @@
 
 ## Required slice
 
-推荐先只把最小 CI registration slice 带到 `main`：
+不要再把 `c1b77313^..db4527cb` 当成可直接搬到 `origin/main` 的“最小 slice”。
+那四个提交只覆盖了 workflow/helper/verifier 的后半段；如果缺少更早的 lazbuild bootstrap、smoke preflight、batch runtime parity 和 native matrix closeout 依赖，注册到 `main` 后也跑不起来。
 
+当前对 `origin/main` 真正可运行的最小依赖链是：
+
+- `5c2c6e40` `build(l0): add windows lazbuild bootstrap`
+- `f8e2a09b` `build(l0): clarify windows lazbuild blocker`
+- `743af329` `test(l0): add windows smoke preflight`
+- `2bdbd479` `test(l0): print windows smoke recovery guidance`
+- `1c09a01a` `test(l0): add strict windows wine smoke`
+- `57faf2ef` `test(l0): add windows batch runtime parity smoke`
+- `c3e7011e` `test(l0): expand windows batch runtime parity matrix`
+- `1ca0af89` `test(l0): wire native windows batch closeout lane`
 - `c1b77313` `ci(l0): add windows native evidence collector`
 - `dd9b7421` `ci(l0): add github actions native evidence helper`
 - `0c7dcc96` `test(l0): avoid exec-bit dependency in gh helper`
 - `db4527cb` `test(l0): extract shell verifier for native evidence`
 
-为什么是这四个：
+为什么需要这 12 个：
 
-- `c1b77313`：引入 workflow、Windows collector、Windows verifier、基础文档
-- `dd9b7421`：引入 Linux x64 的 GH preflight / dispatch-download helper
-- `0c7dcc96`：修正 helper 对 exec-bit 的隐式依赖
-- `db4527cb`：把 shell-side artifact verifier 抽出来，形成完整的 Linux x64 复核链
+- `5c2c6e40` + `f8e2a09b`：先把 Windows lazbuild bootstrap 和 fail-close blocker 说明补齐，否则 native lane 连工具入口都不稳定
+- `743af329` + `2bdbd479` + `1c09a01a`：先具备 smoke preflight 与恢复提示，确保 Linux x64 / wine 侧能在 workflow 前把阻塞讲清楚
+- `57faf2ef` + `c3e7011e` + `1ca0af89`：补齐 batch runtime parity 和 native matrix closeout lane；这部分是 Windows workflow 真正调用的本地执行面
+- `c1b77313` + `dd9b7421` + `0c7dcc96` + `db4527cb`：最后才是 workflow、collector/verifier、GH preflight/helper 与 shell-side artifact verifier 的闭环
 
 下面两条是可选的 operator UX slice，不是 workflow 注册硬依赖：
 
@@ -58,7 +69,7 @@ Run:
 ```bash
 git fetch origin
 git switch -C l0-windows-ci-enablement origin/main
-git cherry-pick c1b77313^..db4527cb
+git cherry-pick 5c2c6e40 f8e2a09b 743af329 2bdbd479 1c09a01a 57faf2ef c3e7011e 1ca0af89 c1b77313 dd9b7421 0c7dcc96 db4527cb
 ```
 
 ### 2. 如果你希望把 today helper 一并带到 `main`

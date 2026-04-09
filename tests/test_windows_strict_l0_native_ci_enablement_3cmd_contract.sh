@@ -26,12 +26,13 @@ fi
 for LPatt in \
   '[CLOSEOUT] strict L0 Windows CI enablement' \
   'git switch -C l0-windows-ci-enablement origin/main' \
-  'git cherry-pick c1b77313^..db4527cb' \
+  'git cherry-pick 5c2c6e40 f8e2a09b 743af329 2bdbd479 1c09a01a 57faf2ef c3e7011e 1ca0af89 c1b77313 dd9b7421 0c7dcc96 db4527cb' \
   'git cherry-pick f8eb351c 08801ab1' \
   'gh pr create --base main --head l0-windows-ci-enablement' \
   'bash tests/preflight_windows_strict_l0_native_evidence_gh.sh' \
   'bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh L0-CHECK-CI' \
   'bash tests/test_windows_strict_l0_native_closeout_stack.sh' \
+  '不要再把 `c1b77313^..db4527cb` 当成最小 CI registration slice' \
   'code=22' \
   'Windows native parity'; do
   if ! printf '%s' "${OUTPUT}" | rg -n -F "${LPatt}" >/dev/null; then
