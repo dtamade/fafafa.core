@@ -20,6 +20,8 @@
   - `docs/fafafa.core.atomic.md`
   - `docs/fafafa.core.result.md`
 - Fresh verification:
+  - `bash tests/test_windows_strict_l0_wine_smoke.sh`
+  - 结果：PASS；`platform` `5/5`、`atomic` `86/86`、`mem.allocator.foundation` `6/6`、`mem allocator-only` `13/13`
   - `bash tests/test_windows_lazbuild_bootstrap.sh`
   - 结果：PASS；bootstrap 已补齐，Unix `LAZBUILD_EXE` 会被清晰拒绝
   - `bash tests/test_windows_lazbuild_smoke_preflight_contract.sh`
@@ -32,9 +34,9 @@
   - 根目录 `main` 工作树仍然是用户脏状态，不能直接作为执行面
   - sidecar sync/fs/socket runner 改动已转移到临时 branch `l0-sidecar-handoff-20260409`，后续需由对应 owner 接手
   - SIMD-only 残留仍需要由 SIMD owner 继续维护，L0 这里只保留边界与 handoff 说明
-  - `bash tests/test_windows_lazbuild_smoke_preflight.sh` 当前会以 `code=31` 失败；缺的不是仓库脚本，而是外部 Windows `lazbuild.exe`
+  - `bash tests/test_windows_lazbuild_smoke_preflight.sh` 当前仍会以 `code=31` 失败；缺的不是仓库脚本，而是 `.bat` runner 所需的外部 Windows `lazbuild.exe`
 - Next step:
   - 继续只沿 strict L0 线推进，不把 sidecar 或 SIMD 工作重新混回当前 worktree
   - 在没有新的明确 L0 候选前，优先维护稳定路线图、模块文档和验证口径，而不是继续扩模块
-  - 集成分支已经建立并通过 Linux/macOS 路径 fresh gate；仓库内 `tools/lazbuild.bat` bootstrap 已补齐，且能清晰拒绝 Unix `LAZBUILD_EXE`，但 Windows smoke 仍卡在外部 Windows `lazbuild.exe` 缺失
+  - 集成分支已经建立并通过 Linux/macOS 路径 fresh gate；当前最小 Windows runtime smoke 也已通过，但 `.bat` runner parity 仍卡在外部 Windows `lazbuild.exe` 缺失
 - Last updated: `2026-04-09`

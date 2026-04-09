@@ -49,13 +49,14 @@ L0 当前真正还缺的是硬化项，而不是模块数：
 - 当前 L0 worktree 已整理干净，但根 `main` 工作树仍然是用户脏状态。
 - 这意味着 L0 本身已经可以作为独立 merge candidate 准备审阅，但实际并回主线前仍需要一个明确的集成窗口。
 
-### 2. Cross-platform verification is not symmetric yet
+### 2. Windows `.bat` runner parity is not symmetric yet
 
 - 当前 fresh gate 是在 Linux/macOS shell 路径上完成的。
 - 仓库内的 Windows bootstrap 已补齐，并且 `bash tests/test_windows_lazbuild_bootstrap.sh` 已 fresh 通过。
+- 当前环境已经能通过 `bash tests/test_windows_strict_l0_wine_smoke.sh` 完成 strict L0 的最小 Windows runtime smoke：`platform`、`atomic`、`mem.allocator.foundation`、`mem allocator-only` 都能先交叉构建成 Win64 `.exe`，再在 `wine` 下运行通过。
 - 仓库内现在还提供 `bash tests/test_windows_lazbuild_smoke_preflight.sh` 作为 Windows `.bat` smoke 前置检查；它会把 `wine` 环境下缺少真实 Windows `lazbuild.exe` 的情况收敛成固定失败码，并直接打印 `LAZBUILD_EXE` 的恢复示例。
-- Windows `.bat` 路径，尤其是 mem 相关 runner，仍然还缺一份基于真实 Windows `lazbuild.exe` 的模块级 smoke。
-- 这不是当前 L0 文档治理的 blocker，但它仍然是合并到主线前应补的一项 confidence gap。
+- 当前仍然不对称的是 `.bat` runner 路径本身；它依旧缺少真实 Windows `lazbuild.exe`，所以不能把 batch 脚本级验证记成已完成。
+- 因此，Windows runtime smoke 已不再是当前 L0 的 blocker，但 `.bat` runner parity 仍然是一项剩余 confidence gap。
 
 ### 3. Compat surface still needs continued discipline
 
@@ -124,6 +125,8 @@ L0 当前真正还缺的是硬化项，而不是模块数：
 - 当前执行分支：`l0-mainline-integration-20260409`
 - `bash tests/test_windows_lazbuild_bootstrap.sh`
 - 结果：PASS；`tools/lazbuild.bat` 已存在，且 `wine cmd /c` 可调用到 bootstrap
+- `bash tests/test_windows_strict_l0_wine_smoke.sh`
+- 结果：PASS；`platform` `5/5`、`atomic` `86/86`、`mem.allocator.foundation` `6/6`、`mem allocator-only` `13/13`
 - `bash tests/test_windows_lazbuild_smoke_preflight.sh`
 - 结果：当前环境预期 FAIL，`code=31`；原因是 `wine` 路径下没有可供 `.bat` runner 使用的 Windows `lazbuild.exe`，但输出已经包含 `set LAZBUILD_EXE=...` 和下一步命令
 - `wine cmd /c "cd /d Z:\\...\\tests\\fafafa.core.platform && BuildOrTest.bat test"`
@@ -136,6 +139,6 @@ L0 当前真正还缺的是硬化项，而不是模块数：
 - 根 `main` 工作树仍然是用户脏状态，不应拿来直接承载 L0 收口。
 - 临时 branch `l0-sidecar-handoff-20260409` 只是 sidecar 交接面，不应再并回当前 L0 实施面。
 - SIMD 仍由 SIMD owner 负责；L0 这里只处理边界和非 SIMD contract。
-- Windows `.bat` 路径与 shell 路径在 mem runner 上仍有行为差异；这更像合并前的 confidence gap，而不是当前 L0 边界 blocker。
-- 当前 Linux 环境虽然有 `wine`，且仓库内已经补齐 `tools/lazbuild.bat` bootstrap，但仍没有 Windows `lazbuild.exe`；wrapper 现在能清晰拒绝 Unix 路径，因此 `.bat` smoke 仍先卡在外部 toolchain 环境层，而不是卡在 strict L0 模块逻辑。
+- Windows `.bat` 路径与 shell / cross-build 路径仍有行为差异；当前已经能完成最小 Win64 runtime smoke，但 batch script parity 还没有补齐。
+- 当前 Linux 环境虽然有 `wine`，且仓库内已经补齐 `tools/lazbuild.bat` bootstrap，但仍没有 Windows `lazbuild.exe`；因此 `.bat` runner 仍先卡在外部 toolchain 环境层，而不是卡在 strict L0 模块逻辑。
 - `atomic` 早先只出现过一次未复现的聚合波动；当前没有足够证据支持生产代码修复，若后续再次出现应优先保留失败日志并锁定具体 testcase 顺序。
