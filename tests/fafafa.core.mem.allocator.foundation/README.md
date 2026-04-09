@@ -56,13 +56,15 @@
 
 - 当前是 Windows root wrapper
 - 会委托给 `buildOrTest.bat`
-- 目的是让 `tests/run_all_tests.bat` 可以发现 strict L0 allocator 当前入口
+- 目的是让 `tests/run_all_tests.bat` 可以发现 strict L0 allocator 当前入口，并把 `FAFAFA_SKIP_BUILD=1` 这类 runtime-only 参数原样传下去
 
 ### buildOrTest.bat
 
 - 支持 `Debug` / `NoContracts` 两个 build mode
 - 产物：`bin\\fafafa.core.mem.allocator.foundation.test_debug[.exe]` 或 `bin\\fafafa.core.mem.allocator.foundation.test_nocontracts[.exe]`
 - 支持 `build` / `check` / `test` / `build-no-contracts` / `check-no-contracts` / `test-no-contracts` / `clean` / `rebuild`
+- `test` / `test-no-contracts` 当前会优先执行显式 `.exe`，再回退到无扩展名产物；这避免了 `wine cmd` 下多点号无扩展名文件的非零返回码噪音
+- 在 `FAFAFA_SKIP_BUILD=1` 时，`test` / `test-no-contracts` 会跳过构建，直接消费预构建 Win64 `.exe`；这个入口当前主要供 Windows `.bat` runtime-only parity smoke 使用
 
 ## 当前边界
 

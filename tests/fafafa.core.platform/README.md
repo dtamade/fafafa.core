@@ -19,6 +19,28 @@
 - Windows：`tests\\fafafa.core.platform\\BuildOrTest.bat test`
 - Linux/macOS：`bash tests/fafafa.core.platform/BuildOrTest.sh test`
 
+如果你只想复核 Windows `.bat` runtime-only parity：
+
+- Linux/macOS：`bash tests/test_windows_strict_l0_batch_runtime_smoke.sh`
+
+## 当前脚本行为
+
+### BuildOrTest.sh
+
+- 使用 `tools/lazbuild.sh` 或 PATH 中的 `lazbuild`
+- 构建目标：`fafafa.core.platform.test.lpi`
+- 产物：`bin/fafafa.core.platform.test[.exe]`
+- 支持 `build` / `check` / `test`
+- `check` / `test` 会检查 build log 中当前模块相关 `src/` 的 warning / hint；`test` 还会检查 heaptrc 泄漏输出
+
+### BuildOrTest.bat
+
+- 构建目标：`fafafa.core.platform.test.lpi`
+- 产物：`bin\\fafafa.core.platform.test[.exe]`
+- 支持 `build` / `check` / `test` / `clean` / `rebuild`
+- `test` 当前会优先执行 `bin\\fafafa.core.platform.test.exe`；只有 `.exe` 不存在时才回退到无扩展名产物
+- 在 `FAFAFA_SKIP_BUILD=1` 且 `ACTION=test` 时会跳过构建，直接进入 runtime 路径；这个入口当前主要供 Windows `.bat` runtime-only parity smoke 使用
+
 ## 当前边界
 
 - 这里只承认静态 target facts：OS、arch、pointer width、endianness、`Is64Bit`。

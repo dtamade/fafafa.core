@@ -62,6 +62,8 @@ strict L0 allocator contract 的权威边界和推进顺序仍以 `docs/fafafa.c
 - 支持 `Debug` / `NoContracts` 两个 build mode
 - 支持 `build` / `check` / `test` / `build-no-contracts` / `check-no-contracts` / `test-no-contracts`
 - `NoContracts` 模式当前只锁定 allocator smoke，不替代 full mem regression
+- `test` / `test-no-contracts` 当前会优先执行显式 `.exe`，再回退到无扩展名产物
+- 在 `FAFAFA_SKIP_BUILD=1` 时，`test` / `test-no-contracts` 会跳过构建，直接消费预构建 Win64 `.exe`；这个入口当前主要供 Windows `.bat` runtime-only parity smoke 使用
 
 ### BuildOrTest.sh
 
