@@ -32,6 +32,8 @@
   - 结果：PASS；native evidence collector / verifier / workflow 已接好，且当前 `wine` 环境下 collector 会对缺少 `lazbuild.exe` 的情况 fail-close
   - `bash tests/test_windows_strict_l0_native_evidence_gh_contract.sh`
   - 结果：PASS；GH preflight / dispatch-download helper 已接好，并锁定了 workflow-not-found 的 `code=22` fail-close 语义
+  - `bash tests/test_windows_strict_l0_native_evidence_shell_verifier_contract.sh`
+  - 结果：PASS；standalone shell verifier 已接好，并锁定了 CRLF 归一化和 expected commit fail-close 语义
   - `bash tests/test_windows_lazbuild_bootstrap.sh`
   - 结果：PASS；bootstrap 已补齐，Unix `LAZBUILD_EXE` 会被清晰拒绝
   - `bash tests/test_windows_lazbuild_smoke_preflight_contract.sh`
@@ -48,6 +50,6 @@
 - Next step:
   - 继续只沿 strict L0 线推进，不把 sidecar 或 SIMD 工作重新混回当前 worktree
   - 在没有新的明确 L0 候选前，优先维护稳定路线图、模块文档和验证口径，而不是继续扩模块
-  - 集成分支已经建立并通过 Linux/macOS 路径 fresh gate；当前最小 Windows runtime smoke、最小 `.bat` smoke、扩展 `.bat` runtime-only parity matrix、native lane script contract、evidence artifact wiring 以及 via-GitHub-Actions helper wiring 也已通过
+  - 集成分支已经建立并通过 Linux/macOS 路径 fresh gate；当前最小 Windows runtime smoke、最小 `.bat` smoke、扩展 `.bat` runtime-only parity matrix、native lane script contract、evidence artifact wiring、standalone shell verifier 以及 via-GitHub-Actions helper wiring 也已通过
   - 剩下只需在 dedicated Windows host 或已注册到 default branch 的 `.github/workflows/l0-windows-native-evidence.yml` 上收 fresh native evidence；在此之前，GH preflight 可能仍会以 `code=22` fail-close
 - Last updated: `2026-04-09`

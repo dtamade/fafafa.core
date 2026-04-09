@@ -43,6 +43,7 @@
   - Windows：`tests\test_windows_strict_l0_batch_native_matrix.bat`
   - Windows evidence collector：`tests\collect_windows_strict_l0_native_evidence.bat`
   - Windows evidence verifier：`tests\verify_windows_strict_l0_native_evidence.bat tests\_windows_l0_native_evidence\<batch-id>`
+  - Linux/macOS artifact verifier：`bash tests/verify_windows_strict_l0_native_evidence.sh [snapshot-root] [expected-commit] [expected-ref]`
   - Linux/macOS GH preflight：`bash tests/preflight_windows_strict_l0_native_evidence_gh.sh`
   - Linux/macOS GH helper：`bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh [batch-id] [run-id]`
 
@@ -68,7 +69,7 @@
 - `native_evidence_collector`
   - 把 native matrix 的结果、模块日志、环境信息和 source revision 固化成可归档 evidence 包
 - `native_evidence_via_github_actions`
-  - 从 Linux/macOS 侧执行 `gh` preflight、dispatch/download，并对下载回来的 evidence 包做 shell 侧 contract 校验
+  - 从 Linux/macOS 侧执行 `gh` preflight、dispatch/download，并调用 `verify_windows_strict_l0_native_evidence.sh` 对下载回来的 evidence 包做 shell 侧 contract 校验
 
 当前 matrix 覆盖：
 
@@ -107,6 +108,7 @@
 - 只有这条 lane 在真实 Windows 主机 fresh 通过之后，native `.bat` build-path parity 才能记成完成
 - 如果你要交付 evidence 包而不是只看终端输出，优先跑 `tests\collect_windows_strict_l0_native_evidence.bat`
 - 如果你要从 Linux/macOS 收集 hosted Windows artifact，`run_windows_strict_l0_native_evidence_via_github_actions.sh` 只能帮助 dispatch/download/复核 artifact；native parity 仍然只以 Windows-host collector + verifier 的 fresh 结果为准
+- 如果你已经手工拿到了 artifact 或 snapshot 目录，也可以直接执行 `bash tests/verify_windows_strict_l0_native_evidence.sh <snapshot-root> [expected-commit] [expected-ref]`
 
 ---
 

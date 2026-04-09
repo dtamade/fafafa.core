@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 PREFLIGHT_SCRIPT="${REPO_ROOT}/tests/preflight_windows_strict_l0_native_evidence_gh.sh"
 HELPER_SCRIPT="${REPO_ROOT}/tests/run_windows_strict_l0_native_evidence_via_github_actions.sh"
+SHELL_VERIFIER_SCRIPT="${REPO_ROOT}/tests/verify_windows_strict_l0_native_evidence.sh"
 
 fail() {
   echo "[FAIL] $1" >&2
@@ -26,6 +27,7 @@ require_literal_in_file() {
 
 [[ -f "${PREFLIGHT_SCRIPT}" ]] || fail "missing L0 native GH preflight script"
 [[ -f "${HELPER_SCRIPT}" ]] || fail "missing L0 native GH helper script"
+[[ -f "${SHELL_VERIFIER_SCRIPT}" ]] || fail "missing L0 native shell verifier script"
 
 require_literal_in_file "${PREFLIGHT_SCRIPT}" 'gh workflow list --all' \
   "preflight does not query workflow list"
@@ -50,14 +52,10 @@ require_literal_in_file "${HELPER_SCRIPT}" 'Workflow is not registered on GitHub
   "GH helper does not explain missing workflow registration"
 require_literal_in_file "${HELPER_SCRIPT}" 'GitHub only exposes workflow_dispatch for workflows present on the repository default branch.' \
   "GH helper does not explain default-branch workflow registration"
-require_literal_in_file "${HELPER_SCRIPT}" 'Snapshot root:' \
-  "GH helper does not print snapshot path"
-require_literal_in_file "${HELPER_SCRIPT}" 'Downloaded artifact contract verified on Linux shell' \
-  "GH helper does not perform Linux-side artifact contract verification"
-require_literal_in_file "${HELPER_SCRIPT}" 'where_lazbuild_exe.txt' \
-  "GH helper does not verify where_lazbuild evidence"
-require_literal_in_file "${HELPER_SCRIPT}" 'module-logs' \
-  "GH helper does not verify module log payloads"
+require_literal_in_file "${HELPER_SCRIPT}" 'verify_windows_strict_l0_native_evidence.sh' \
+  "GH helper does not invoke the shell verifier"
+require_literal_in_file "${HELPER_SCRIPT}" 'Missing shell verifier:' \
+  "GH helper does not fail-close when the shell verifier is absent"
 
 set +e
 OUTPUT="$(bash "${PREFLIGHT_SCRIPT}" 2>&1)"
