@@ -60,7 +60,7 @@ require_literal_in_file "${HELPER_SCRIPT}" 'module-logs' \
   "GH helper does not verify module log payloads"
 
 set +e
-OUTPUT="$("${PREFLIGHT_SCRIPT}" 2>&1)"
+OUTPUT="$(bash "${PREFLIGHT_SCRIPT}" 2>&1)"
 RC=$?
 set -e
 

@@ -582,12 +582,12 @@ if [[ -z "${LRunId}" ]]; then
   fi
 
   if [[ "${L0_NATIVE_EVIDENCE_PREFLIGHT:-1}" != "0" ]]; then
-    if [[ ! -x "${PREFLIGHT_SCRIPT}" ]]; then
+    if [[ ! -f "${PREFLIGHT_SCRIPT}" ]]; then
       echo "[L0-NATIVE-EVIDENCE-GH] Missing preflight script: ${PREFLIGHT_SCRIPT}"
       exit 2
     fi
     echo "[L0-NATIVE-EVIDENCE-GH] Preflight before dispatch"
-    "${PREFLIGHT_SCRIPT}" "${WORKFLOW_FILE}"
+    bash "${PREFLIGHT_SCRIPT}" "${WORKFLOW_FILE}"
   fi
 
   echo "[L0-NATIVE-EVIDENCE-GH] Dispatch workflow: ${WORKFLOW_FILE} (ref=${LRef}, head=${LHeadSha})"
