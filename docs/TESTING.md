@@ -17,9 +17,10 @@
 ---
 
 ### 先决条件
+
 - Windows：
   - 安装并能通过命令行调用的 Lazarus/FPC（lazbuild/fpc 在 PATH 上，或通过 tests/tools/lazbuild.bat 间接调用）
-  - 适配的目标工具链（x86_64-win64 等），与项目各 tests/*.lpi 配置一致
+  - 适配的目标工具链（x86_64-win64 等），与项目各 tests/\*.lpi 配置一致
 - Linux/macOS：
   - 可执行的 sh/bash 环境
   - 对应平台的 FPC/Lazarus 工具链（若运行依赖 .sh 的子模块）
@@ -28,7 +29,60 @@
 
 ---
 
+### strict L0 的 Windows runtime 复核
+
+如果你当前关心的是 strict non-SIMD L0 在 Windows 路径上的复核，不要直接从“原生 `.bat` 构建完全对称”这个前提出发。当前仓库已经分成三条不同的复核链路：
+
+- 最小 Win64 `.exe` runtime smoke
+  - Linux/macOS：`bash tests/test_windows_strict_l0_wine_smoke.sh`
+- 最小 `.bat` runtime-only smoke
+  - Linux/macOS：`bash tests/test_windows_strict_l0_batch_runtime_smoke.sh`
+- 扩展 `.bat` runtime-only parity matrix
+  - Linux/macOS：`bash tests/test_windows_strict_l0_batch_runtime_matrix.sh`
+
+当前建议顺序：
+
+1. 先跑 `bash tests/test_windows_strict_l0_wine_smoke.sh`
+2. 再跑 `bash tests/test_windows_strict_l0_batch_runtime_smoke.sh`
+3. 最后跑 `bash tests/test_windows_strict_l0_batch_runtime_matrix.sh`
+
+这三条链路解决的是不同问题：
+
+- `wine_smoke`
+  - 确认最小 strict L0 Win64 `.exe` 能交叉构建并在 `wine` 下运行
+- `batch_runtime_smoke`
+  - 确认最早暴露差异的 4 个 `.bat` 入口在 `FAFAFA_SKIP_BUILD=1` 下能跳过构建并消费预构建 `.exe`
+- `batch_runtime_matrix`
+  - 确认当前 strict L0 的 12 个 `.bat` 入口都已经具备同样的 runtime-only parity
+
+当前 matrix 覆盖：
+
+- `base`
+- `contracts`
+- `bits`
+- `layout`
+- `endian`
+- `span`
+- `option`
+- `result`
+- `platform`
+- `atomic`
+- `mem.allocator.foundation`
+- `mem allocator-only`
+
+如果你还要确认为什么 native Windows `.bat` build-path 还没有记成完成，再补下面这条 preflight：
+
+- Linux/macOS：`bash tests/test_windows_lazbuild_smoke_preflight.sh`
+
+这条 preflight 的意义不是让当前环境“变绿”，而是把缺少真实 Windows `lazbuild.exe` 的情况收敛成固定失败码和明确恢复命令。也就是说：
+
+- 当前仓库已经完成 Windows runtime smoke 和 `.bat` runtime-only parity
+- 当前还没有完成的，是 native Windows `lazbuild.exe` 条件下的 `.bat` build-path parity
+
+---
+
 ### 快速回归（建议每次提交前）
+
 仅运行常用关键模块，并在第一个失败处停止：
 
 - Windows（推荐）：
@@ -42,6 +96,7 @@
     - （更快，仅 Vec/VecDeque）：`STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.collections.vec fafafa.core.collections.vecdeque`
 
 说明：
+
 - 参数为“模块名”，由 `tests/` 下的**相对目录路径**推导：路径分隔符（`/` 或 `\`）会被转换为 `.`
   - 例：`tests/fafafa.core.json` → `fafafa.core.json`
   - 例：`tests/fafafa.core.collections/vec` → `fafafa.core.collections.vec`
@@ -51,10 +106,12 @@
 ---
 
 ### 全量回归（每日/版本发布前）
+
 - Windows：`tests\run_all_tests.bat`
 - Linux/macOS：`bash tests/run_all_tests.sh`
 
 不传参时，脚本会递归扫描并尝试执行所有符合规范的测试脚本：
+
 - Windows：`BuildOrTest.bat` / `BuildAndTest.bat`
 - Linux/macOS：`BuildOrTest.sh` / `BuildAndTest.sh`
 
@@ -63,6 +120,7 @@
 ---
 
 ### 输出位置与返回码
+
 - 汇总文件：
   - Windows：`tests/run_all_tests_summary.txt`
   - Linux/macOS：`tests/run_all_tests_summary_sh.txt`
@@ -79,6 +137,7 @@
 ---
 
 ### 过滤与失败即停
+
 - 仅运行指定模块（示例为 4 个关键模块）：
   - Windows：`tests\run_all_tests.bat fafafa.core.collections.vec fafafa.core.collections.vecdeque`
   - Linux/macOS：`bash tests/run_all_tests.sh fafafa.core.collections.vec fafafa.core.collections.vecdeque`
@@ -89,25 +148,31 @@
 ---
 
 ### 常见问题（FAQ）
-1) 控制台没有输出，但返回码为 0/非 0，如何查看详情？
+
+1. 控制台没有输出，但返回码为 0/非 0，如何查看详情？
+
 - 查看汇总与日志：
   - Windows：`tests/run_all_tests_summary.txt`、`tests/_run_all_logs/*.log`
   - Linux/macOS：`tests/run_all_tests_summary_sh.txt`、`tests/_run_all_logs_sh/*.log`
 
-2) 某些测试依赖 lazbuild 路径或工具链，构建失败？
-- 确保 Lazarus/FPC 安装完备，并在 PATH 上；或按 tests/*/BuildOrTest.bat 脚本内的工具路径调整
+2. 某些测试依赖 lazbuild 路径或工具链，构建失败？
+
+- 确保 Lazarus/FPC 安装完备，并在 PATH 上；或按 tests/\*/BuildOrTest.bat 脚本内的工具路径调整
 - 优先在本地先跑单一模块进行定位，例如：
   - `tests\fafafa.core.collections.arr\BuildOrTest.bat`
 
-3) 跑全量太慢？
+3. 跑全量太慢？
+
 - 提交前仅跑关键模块（如 `fafafa.core.collections.vec` / `fafafa.core.collections.vecdeque`）
 - 夜间/CI 跑全量，或分组并行（在 CI 编排层面并发多个 run_all_tests.sh/bat，分别过滤不同模块）
 
-4) 是否有“测试规范命名”？
+4. 是否有“测试规范命名”？
+
 - 子模块测试脚本建议采用以下之一：`BuildOrTest.bat` / `BuildAndTest.bat`（Windows），`BuildOrTest.sh` / `BuildAndTest.sh`（Linux/macOS）
 - 统一脚本会自动发现并执行上述命名脚本
 
-5) `run_all_tests` 一开始就失败，并提示 `src` hygiene？
+5. `run_all_tests` 一开始就失败，并提示 `src` hygiene？
+
 - 先直接运行：
   - Linux/macOS：`bash tests/check_repo_hygiene.sh`
   - Windows：`tests\check_repo_hygiene.bat`
@@ -116,6 +181,7 @@
 ---
 
 ### 建议的团队约定
+
 - 每次提交前：关键模块 + 失败即停
 - 每晚或合入前：全量回归
 - 失败模块：提交日志到评审或 CI 附件，提升可复现性
@@ -124,6 +190,7 @@
 ---
 
 ### 典型命令速查
+
 - Windows：
   - 关键模块（失败即停）：
     - `set STOP_ON_FAIL=1 && tests\run_all_tests.bat fafafa.core.collections`
@@ -135,4 +202,3 @@
     - `STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.collections`
   - 全量：
     - `bash tests/run_all_tests.sh`
-
