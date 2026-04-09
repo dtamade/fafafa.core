@@ -67,6 +67,8 @@ run_case "strict L0 native evidence GH helper contract" \
   bash "${REPO_ROOT}/tests/test_windows_strict_l0_native_evidence_gh_contract.sh"
 run_case "strict L0 native evidence shell verifier contract" \
   bash "${REPO_ROOT}/tests/test_windows_strict_l0_native_evidence_shell_verifier_contract.sh"
+run_case "strict L0 native closeout 3cmd contract" \
+  bash "${REPO_ROOT}/tests/test_windows_strict_l0_native_closeout_3cmd_contract.sh"
 
 probe_gh_preflight
 

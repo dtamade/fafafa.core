@@ -34,6 +34,8 @@
   - `bash tests/preflight_windows_strict_l0_native_evidence_gh.sh`
 - Linux/macOS GH helper：
   - `bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh [batch-id] [run-id]`
+- Linux/macOS 复制即跑 helper：
+  - `bash tests/print_windows_strict_l0_native_closeout_3cmd.sh [batch-id]`
 - Linux/macOS aggregate closeout stack：
   - `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
 - PowerShell：
@@ -54,7 +56,30 @@ via-GitHub-Actions helper 约束：
 - 默认 dispatch 模式会拒绝当前 worktree dirty 或 remote ref 与 local HEAD 不一致的场景
 - 若已经有可复用的 `run-id`，可传第二个参数旁路 dispatch；这时只会做 wait/download/Linux-side artifact 校验
 - Linux-side 校验只负责核对 artifact 结构和关键字段；默认由 `verify_windows_strict_l0_native_evidence.sh` 执行；native parity 是否完成，仍以 workflow 内 Windows `collect + verify` 的 fresh PASS 为准
+- `print_windows_strict_l0_native_closeout_3cmd.sh` 只负责输出今天这条 lane 的复制即跑命令；它不会替代真实 Windows evidence
 - `test_windows_strict_l0_native_closeout_stack.sh` 会把 bootstrap、preflight contract、native matrix contract、collector/verifier contract、GH helper contract、shell verifier contract 以及当前 GH preflight 状态串成单入口
+
+## Quick Start
+
+如果你只想先拿最短可执行入口，不想手工从 runbook 摘命令，先跑：
+
+```bash
+bash tests/print_windows_strict_l0_native_closeout_3cmd.sh
+```
+
+如果你手里已经有目标批次号，再显式传进去：
+
+```bash
+bash tests/print_windows_strict_l0_native_closeout_3cmd.sh L0-YYYYMMDD-native
+```
+
+这条 helper 会同时打印：
+
+- GH preflight
+- Linux/macOS GH helper 主路径
+- 手工 Windows collector / verifier 路径
+- Linux/macOS shell verifier 路径
+- 当前本地 aggregate closeout stack 路径
 
 ## Coverage
 

@@ -24,7 +24,9 @@
   - 如果需要 hosted/manual workflow 入口，仓库内现在也有：
     - `.github/workflows/l0-windows-native-evidence.yml`
     - `bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh [batch-id] [run-id]`
+    - `bash tests/print_windows_strict_l0_native_closeout_3cmd.sh [batch-id]`
   - `run_windows_strict_l0_native_evidence_via_github_actions.sh` 会先做 `gh` / workflow preflight、再 dispatch 或复用既有 run、下载 artifact，并调用 `verify_windows_strict_l0_native_evidence.sh` 在 Linux shell 上校验证据包结构
+  - `print_windows_strict_l0_native_closeout_3cmd.sh` 只负责打印 GH 主路径、手工 Windows 路径和 shell verifier 的复制即跑命令
   - 如果只是想在 Linux/macOS 上一次性复核当前本地 closeout stack，可直接执行 `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
   - 如果 workflow 还没有注册到仓库 default branch，当前预期由 `preflight_windows_strict_l0_native_evidence_gh.sh` 以 `code=22` fail-close，而不是假装可以 dispatch
   - 在缺少该工具链时，预期通过 preflight / native lane 自身 fail-close，而不是把 native build parity 误记成已完成
