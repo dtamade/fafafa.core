@@ -45,6 +45,8 @@
 - 构建目标：`fafafa.core.contracts.test.lpi`
 - 支持 `Debug` / `NoContracts` 两个 build mode
 - 支持 `build` / `check` / `test` / `build-no-contracts` / `check-no-contracts` / `test-no-contracts` / `clean` / `rebuild`
+- `test` / `test-no-contracts` 当前会优先执行显式 `.exe`；只有 `.exe` 不存在时才回退到无扩展名产物
+- 在 `FAFAFA_SKIP_BUILD=1` 时，`test` / `test-no-contracts` 会跳过构建，直接进入 runtime 路径；这个入口当前主要供 Windows `.bat` runtime-only parity smoke / matrix 使用
 
 ## 当前边界
 

@@ -54,7 +54,8 @@ L0 当前真正还缺的是硬化项，而不是模块数：
 - 当前 fresh gate 是在 Linux/macOS shell 路径上完成的。
 - 仓库内的 Windows bootstrap 已补齐，并且 `bash tests/test_windows_lazbuild_bootstrap.sh` 已 fresh 通过。
 - 当前环境已经能通过 `bash tests/test_windows_strict_l0_wine_smoke.sh` 完成 strict L0 的最小 Windows runtime smoke：`platform`、`atomic`、`mem.allocator.foundation`、`mem allocator-only` 都能先交叉构建成 Win64 `.exe`，再在 `wine` 下运行通过。
-- 当前环境现在还可以通过 `bash tests/test_windows_strict_l0_batch_runtime_smoke.sh` 完成 `.bat` runner 的 runtime-only parity：4 个 strict L0 batch 入口会在 `FAFAFA_SKIP_BUILD=1` 下跳过构建、直接消费预构建 Win64 `.exe`，并在 `wine cmd /c` 下运行通过。
+- 当前环境现在还可以通过 `bash tests/test_windows_strict_l0_batch_runtime_smoke.sh` 完成最小 `.bat` runner runtime-only smoke：`platform`、`atomic`、`mem.allocator.foundation`、`mem allocator-only` 这 4 个入口会在 `FAFAFA_SKIP_BUILD=1` 下跳过构建、直接消费预构建 Win64 `.exe`，并在 `wine cmd /c` 下运行通过。
+- 当前环境还可以通过 `bash tests/test_windows_strict_l0_batch_runtime_matrix.sh` 完成扩展后的 `.bat` runner runtime-only parity matrix：`base`、`contracts`、`bits`、`layout`、`endian`、`span`、`option`、`result`，以及前面的 `platform`、`atomic`、`mem.allocator.foundation`、`mem allocator-only` 现在都能在 `FAFAFA_SKIP_BUILD=1` 下 fresh 通过。
 - 仓库内现在还提供 `bash tests/test_windows_lazbuild_smoke_preflight.sh` 作为 Windows `.bat` smoke 前置检查；它会把 `wine` 环境下缺少真实 Windows `lazbuild.exe` 的情况收敛成固定失败码，并直接打印 `LAZBUILD_EXE` 的恢复示例。
 - 当前仍然不对称的是 `.bat` build-path 本身；它依旧缺少真实 Windows `lazbuild.exe`，所以还不能把 native batch build parity 记成完成。
 - 因此，Windows runtime smoke 和 `.bat` runtime-only parity 已不再是当前 L0 的 blocker；剩下的 confidence gap 只在真实 Windows toolchain 下的 batch build-path parity。
@@ -130,6 +131,8 @@ L0 当前真正还缺的是硬化项，而不是模块数：
 - 结果：PASS；`platform` `5/5`、`atomic` `86/86`、`mem.allocator.foundation` `6/6`、`mem allocator-only` `13/13`
 - `bash tests/test_windows_strict_l0_batch_runtime_smoke.sh`
 - 结果：PASS；`platform`、`atomic`、`mem.allocator.foundation`、`mem allocator-only` 的 `.bat` runtime-only parity 已在 `FAFAFA_SKIP_BUILD=1` 下 fresh 通过
+- `bash tests/test_windows_strict_l0_batch_runtime_matrix.sh`
+- 结果：PASS；`base`、`contracts`、`bits`、`layout`、`endian`、`span`、`option`、`result`、`platform`、`atomic`、`mem.allocator.foundation`、`mem allocator-only` 的 `.bat` runtime-only parity 已在 `FAFAFA_SKIP_BUILD=1` 下 fresh 通过
 - `bash tests/test_windows_lazbuild_smoke_preflight.sh`
 - 结果：当前环境预期 FAIL，`code=31`；原因是 `wine` 路径下没有可供 `.bat` runner 使用的 Windows `lazbuild.exe`，但输出已经包含 `set LAZBUILD_EXE=...` 和下一步命令
 - `wine cmd /c "set LAZBUILD_EXE=Z:\\opt\\fpcupdeluxe\\lazarus\\lazbuild && ... && BuildOrTest.bat build"`

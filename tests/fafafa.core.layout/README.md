@@ -44,6 +44,8 @@
 - 构建目标：`fafafa.core.layout.test.lpi`
 - 产物：`bin\\fafafa.core.layout.test[.exe]`
 - 支持 `build` / `check` / `test` / `clean` / `rebuild`
+- `test` 当前会优先执行 `bin\\fafafa.core.layout.test.exe`；只有 `.exe` 不存在时才回退到无扩展名产物
+- 在 `FAFAFA_SKIP_BUILD=1` 且 `ACTION=test` 时会跳过构建，直接进入 runtime 路径；这个入口当前主要供 Windows `.bat` runtime-only parity smoke / matrix 使用
 
 ## 当前边界
 

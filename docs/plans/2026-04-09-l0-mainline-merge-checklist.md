@@ -30,6 +30,7 @@ Run:
 
 ```bash
 bash tests/test_windows_lazbuild_bootstrap.sh
+bash tests/test_windows_strict_l0_batch_runtime_matrix.sh
 STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation fafafa.core.platform
 git diff --check
 ```
@@ -37,6 +38,7 @@ git diff --check
 当前结果：
 
 - Windows `lazbuild` bootstrap contract：PASS
+- strict L0 Windows `.bat` runtime-only parity matrix：PASS
 - strict L0 聚合 gate：PASS，`11/11`
 - `git diff --check`：PASS
 
@@ -119,15 +121,16 @@ git diff --check
 - `bash tests/test_windows_lazbuild_bootstrap.sh` 已 fresh 通过
 - strict L0 聚合 gate 已 fresh 通过，`11/11`
 - `git diff --check` 已通过
-- 当前 fresh 的 Windows 模块级 smoke 已补齐到 runtime 层：最小 `wine` smoke 与 `.bat` runtime-only parity 都已有结果
+- 当前 fresh 的 Windows 模块级 smoke 已补齐到 runtime 层：最小 `wine` smoke、最小 `.bat` smoke 和扩展后的 `.bat` runtime-only parity matrix 都已有结果
 
 ## Windows smoke 建议
 
-当前已经有两条 fresh 的 Windows runtime 复核路径；如果要在当前 Linux + `wine` 环境里复核，优先按下面顺序跑：
+当前已经有三条 fresh 的 Windows runtime 复核路径；如果要在当前 Linux + `wine` 环境里复核，优先按下面顺序跑：
 
 ```bash
 bash tests/test_windows_strict_l0_wine_smoke.sh
 bash tests/test_windows_strict_l0_batch_runtime_smoke.sh
+bash tests/test_windows_strict_l0_batch_runtime_matrix.sh
 ```
 
 其中：
@@ -135,14 +138,15 @@ bash tests/test_windows_strict_l0_batch_runtime_smoke.sh
 - `bash tests/test_windows_strict_l0_wine_smoke.sh`
   - 负责最小 Win64 `.exe` runtime smoke
 - `bash tests/test_windows_strict_l0_batch_runtime_smoke.sh`
-  - 负责 `.bat` runner runtime-only parity，要求 batch 入口在 `FAFAFA_SKIP_BUILD=1` 下跳过构建并消费预构建 `.exe`
+  - 负责最小 `.bat` runner runtime-only smoke，优先覆盖最早暴露差异的 4 个入口
+- `bash tests/test_windows_strict_l0_batch_runtime_matrix.sh`
+  - 负责扩展后的 `.bat` runner runtime-only parity matrix，覆盖当前 strict L0 的 12 个 batch 入口
 
-两条路径合起来当前覆盖：
+三条路径合起来当前覆盖：
 
-- `platform`
-- `atomic`
-- `mem.allocator.foundation`
-- `tests/fafafa.core.mem/BuildOrTest.bat` 对应的 `tests_mem_allocator_only`
+- 最小 Win64 `.exe` runtime smoke：`platform`、`atomic`、`mem.allocator.foundation`、`mem allocator-only`
+- 最小 `.bat` runtime-only smoke：`platform`、`atomic`、`mem.allocator.foundation`、`mem allocator-only`
+- 扩展 `.bat` runtime-only parity matrix：`base`、`contracts`、`bits`、`layout`、`endian`、`span`、`option`、`result`、`platform`、`atomic`、`mem.allocator.foundation`、`mem allocator-only`
 
 如果你还要专门确认 `.bat` runner 路径，再补下面这条 preflight：
 
@@ -173,6 +177,9 @@ tests\fafafa.core.mem\BuildOrTest.bat test
 - `bash tests/test_windows_strict_l0_batch_runtime_smoke.sh`
   - 结果：PASS
   - 明细：`platform`、`atomic`、`mem.allocator.foundation`、`mem allocator-only` 的 `.bat` runtime-only parity 已在 `FAFAFA_SKIP_BUILD=1` 下 fresh 通过
+- `bash tests/test_windows_strict_l0_batch_runtime_matrix.sh`
+  - 结果：PASS
+  - 明细：`base`、`contracts`、`bits`、`layout`、`endian`、`span`、`option`、`result`、`platform`、`atomic`、`mem.allocator.foundation`、`mem allocator-only` 的 `.bat` runtime-only parity 已在 `FAFAFA_SKIP_BUILD=1` 下 fresh 通过
 - `bash tests/test_windows_lazbuild_bootstrap.sh`
   - 结果：PASS；`tools/lazbuild.bat` 已存在，且在 `wine cmd /c` 下可进入 bootstrap 逻辑
 - `bash tests/test_windows_lazbuild_smoke_preflight.sh`
@@ -181,7 +188,7 @@ tests\fafafa.core.mem\BuildOrTest.bat test
   - 当前输出会直接给出 `set LAZBUILD_EXE=C:\Lazarus\lazbuild.exe` 这类恢复命令，便于后续同学接手
 - 额外验证：若把 `LAZBUILD_EXE` 指到 Unix 路径 `Z:\\opt\\fpcupdeluxe\\lazarus\\lazbuild`，当前 wrapper 会以 `code=126` 明确报错：`LAZBUILD_EXE points to a non-Windows executable`
 - 失败原因已经从“缺少 `tools\\lazbuild.bat`”收敛为“当前环境没有可供 `.bat` build-path 使用的 Windows `lazbuild.exe`”
-- 因此，这一轮已经可以把“最小 Windows runtime smoke”和“.bat runtime-only parity”一起记成完成；当前剩下的是 native `.bat` build-path parity 仍依赖外部 Windows Lazarus toolchain
+- 因此，这一轮已经可以把“最小 Windows runtime smoke”“最小 `.bat` smoke”和“扩展 `.bat` runtime-only parity matrix”一起记成完成；当前剩下的是 native `.bat` build-path parity 仍依赖外部 Windows Lazarus toolchain
 
 ## 当前不要做的事
 

@@ -53,7 +53,7 @@
 - 产物：`bin\\tests_atomic[.exe]`
 - 支持 `build` / `check` / `test` / `clean` / `rebuild`
 - `test` 当前会优先执行 `bin\\tests_atomic.exe`；只有 `.exe` 不存在时才回退到无扩展名产物
-- 在 `FAFAFA_SKIP_BUILD=1` 且 `ACTION=test` 时会跳过构建，直接进入 runtime 路径；这个入口当前主要供 Windows `.bat` runtime-only parity smoke 使用
+- 在 `FAFAFA_SKIP_BUILD=1` 且 `ACTION=test` 时会跳过构建，直接进入 runtime 路径；这个入口当前主要供 Windows `.bat` runtime-only parity smoke / matrix 使用
 
 ## 当前边界
 

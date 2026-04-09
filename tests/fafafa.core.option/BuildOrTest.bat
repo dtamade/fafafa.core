@@ -28,8 +28,15 @@ if exist "%TEST_LOG%" del /q "%TEST_LOG%" >nul 2>nul
 set "LZ_Q="
 if /i not "%FAFAFA_BUILD_QUIET%"=="0" set "LZ_Q=--quiet"
 
+set "SKIP_BUILD_FLAG=%FAFAFA_SKIP_BUILD: =%"
+set "SKIP_BUILD="
+if /i "%ACTION%"=="test" if /i "%SKIP_BUILD_FLAG%"=="1" set "SKIP_BUILD=1"
+
 set "EXIT_ERR=1"
-if exist "%LAZBUILD%" (
+if defined SKIP_BUILD (
+  echo [BUILD] SKIPPED ^(FAFAFA_SKIP_BUILD=1^)
+  set "EXIT_ERR=0"
+) else if exist "%LAZBUILD%" (
   echo [BUILD] Project: %PROJECT%
   call "%LAZBUILD%" %LZ_Q% --build-all "%PROJECT%" >"%BUILD_LOG%" 2>&1
   set "EXIT_ERR=!ERRORLEVEL!"
@@ -50,8 +57,11 @@ if not !EXIT_ERR! EQU 0 (
   goto :END
 )
 
+if defined SKIP_BUILD goto :AFTER_BUILD
+
 echo [BUILD] OK
 
+:AFTER_BUILD
 if /i "%ACTION%"=="check" (
   findstr /R %SRC_WARN_PATTERNS% "%BUILD_LOG%" >nul
   if !ERRORLEVEL! EQU 0 (
@@ -70,11 +80,11 @@ if /i "%ACTION%"=="build" (
 )
 
 if /i "%ACTION%"=="test" (
-  if exist "%TEST_EXECUTABLE%" (
-    "%TEST_EXECUTABLE%" --all --format=plain >"%TEST_LOG%" 2>&1
-    set "EXIT_ERR=!ERRORLEVEL!"
-  ) else if exist "%TEST_EXECUTABLE_ALT%" (
+  if exist "%TEST_EXECUTABLE_ALT%" (
     "%TEST_EXECUTABLE_ALT%" --all --format=plain >"%TEST_LOG%" 2>&1
+    set "EXIT_ERR=!ERRORLEVEL!"
+  ) else if exist "%TEST_EXECUTABLE%" (
+    "%TEST_EXECUTABLE%" --all --format=plain >"%TEST_LOG%" 2>&1
     set "EXIT_ERR=!ERRORLEVEL!"
   ) else (
     echo [ERROR] Test executable not found: %TEST_EXECUTABLE%[.exe]
