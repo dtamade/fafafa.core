@@ -153,6 +153,7 @@ tests\fafafa.core.mem\BuildOrTest.bat test
 - `bash tests/test_windows_lazbuild_smoke_preflight.sh`
   - 结果：当前环境预期 FAIL，`code=31`
   - 含义：`wine` 环境里没有可供 `.bat` runner 使用的 Windows `lazbuild.exe`
+  - 当前输出会直接给出 `set LAZBUILD_EXE=C:\Lazarus\lazbuild.exe` 这类恢复命令，便于后续同学接手
 - 已尝试在当前 Linux 环境下通过 `wine cmd /c` 跑 `tests\\fafafa.core.platform\\BuildOrTest.bat test`
 - 结果：已进入构建步骤；在默认环境下停在 `logs\\build.txt` 的 `[ERROR] lazbuild not found. Set LAZBUILD_EXE or install Lazarus.`
 - 额外验证：若把 `LAZBUILD_EXE` 指到 Unix 路径 `Z:\\opt\\fpcupdeluxe\\lazarus\\lazbuild`，当前 wrapper 会以 `code=126` 明确报错：`LAZBUILD_EXE points to a non-Windows executable`

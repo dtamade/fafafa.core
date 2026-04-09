@@ -19,6 +19,16 @@ pass() {
   echo "[PASS] $1"
 }
 
+print_windows_recovery_guidance() {
+  echo "[INFO] To unblock Windows module smoke, provide a real Windows lazbuild.exe."
+  echo "[INFO] Example CMD setup:"
+  echo "[INFO]   set LAZBUILD_EXE=C:\\Lazarus\\lazbuild.exe"
+  echo "[INFO]   rem or: set LAZBUILD_EXE=%ProgramFiles%\\Lazarus\\lazbuild.exe"
+  echo "[INFO] Then rerun:"
+  echo "[INFO]   bash tests/test_windows_lazbuild_smoke_preflight.sh"
+  echo "[INFO]   tests\\fafafa.core.platform\\BuildOrTest.bat test"
+}
+
 if [[ ! -f "${BOOTSTRAP_BAT}" ]]; then
   fail "missing Windows lazbuild bootstrap: ${BOOTSTRAP_BAT}" 1
 fi
@@ -51,11 +61,13 @@ fi
 
 if printf '%s' "${BOOTSTRAP_OUTPUT}" | rg -n "non-Windows executable" >/dev/null; then
   printf '%s\n' "${BOOTSTRAP_OUTPUT}" >&2
+  print_windows_recovery_guidance
   fail "LAZBUILD_EXE points to a non-Windows executable; use lazbuild.exe from a Windows Lazarus install" 32
 fi
 
 if printf '%s' "${BOOTSTRAP_OUTPUT}" | rg -n "\[ERROR\] lazbuild not found\. Set LAZBUILD_EXE or install Lazarus\." >/dev/null; then
   printf '%s\n' "${BOOTSTRAP_OUTPUT}" >&2
+  print_windows_recovery_guidance
   fail "Windows module smoke is blocked: no Windows lazbuild.exe is available to BuildOrTest.bat" 31
 fi
 

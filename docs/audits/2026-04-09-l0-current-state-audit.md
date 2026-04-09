@@ -53,7 +53,7 @@ L0 当前真正还缺的是硬化项，而不是模块数：
 
 - 当前 fresh gate 是在 Linux/macOS shell 路径上完成的。
 - 仓库内的 Windows bootstrap 已补齐，并且 `bash tests/test_windows_lazbuild_bootstrap.sh` 已 fresh 通过。
-- 仓库内现在还提供 `bash tests/test_windows_lazbuild_smoke_preflight.sh` 作为 Windows `.bat` smoke 前置检查；它会把 `wine` 环境下缺少真实 Windows `lazbuild.exe` 的情况收敛成固定失败码。
+- 仓库内现在还提供 `bash tests/test_windows_lazbuild_smoke_preflight.sh` 作为 Windows `.bat` smoke 前置检查；它会把 `wine` 环境下缺少真实 Windows `lazbuild.exe` 的情况收敛成固定失败码，并直接打印 `LAZBUILD_EXE` 的恢复示例。
 - Windows `.bat` 路径，尤其是 mem 相关 runner，仍然还缺一份基于真实 Windows `lazbuild.exe` 的模块级 smoke。
 - 这不是当前 L0 文档治理的 blocker，但它仍然是合并到主线前应补的一项 confidence gap。
 
@@ -125,7 +125,7 @@ L0 当前真正还缺的是硬化项，而不是模块数：
 - `bash tests/test_windows_lazbuild_bootstrap.sh`
 - 结果：PASS；`tools/lazbuild.bat` 已存在，且 `wine cmd /c` 可调用到 bootstrap
 - `bash tests/test_windows_lazbuild_smoke_preflight.sh`
-- 结果：当前环境预期 FAIL，`code=31`；原因是 `wine` 路径下没有可供 `.bat` runner 使用的 Windows `lazbuild.exe`
+- 结果：当前环境预期 FAIL，`code=31`；原因是 `wine` 路径下没有可供 `.bat` runner 使用的 Windows `lazbuild.exe`，但输出已经包含 `set LAZBUILD_EXE=...` 和下一步命令
 - `wine cmd /c "cd /d Z:\\...\\tests\\fafafa.core.platform && BuildOrTest.bat test"`
 - 结果：已进入构建步骤，但 `logs\\build.txt` 为 `[ERROR] lazbuild not found. Set LAZBUILD_EXE or install Lazarus.`
 - `wine cmd /c "set LAZBUILD_EXE=Z:\\opt\\fpcupdeluxe\\lazarus\\lazbuild && ... && BuildOrTest.bat build"`
