@@ -32,6 +32,8 @@
   - `bash tests/verify_windows_strict_l0_native_evidence.sh [snapshot-root] [expected-commit] [expected-ref]`
 - Linux/macOS GH preflight：
   - `bash tests/preflight_windows_strict_l0_native_evidence_gh.sh`
+- Linux/macOS CI enablement helper：
+  - `bash tests/print_windows_strict_l0_native_ci_enablement_3cmd.sh [batch-id]`
 - Linux/macOS GH helper：
   - `bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh [batch-id] [run-id]`
 - Linux/macOS 复制即跑 helper：
@@ -53,6 +55,7 @@ via-GitHub-Actions helper 约束：
 
 - 默认模式会先执行 `preflight_windows_strict_l0_native_evidence_gh.sh`
 - 如果 workflow 尚未出现在仓库 default branch，当前预期由 preflight 以 `code=22` fail-close
+- 如果你当前只有 Linux x64，且 preflight 仍是 `code=22`，先去执行 `docs/plans/2026-04-10-l0-windows-ci-enablement.md` 里的 registration checklist
 - 默认 dispatch 模式会拒绝当前 worktree dirty 或 remote ref 与 local HEAD 不一致的场景
 - 若已经有可复用的 `run-id`，可传第二个参数旁路 dispatch；这时只会做 wait/download/Linux-side artifact 校验
 - Linux-side 校验只负责核对 artifact 结构和关键字段；默认由 `verify_windows_strict_l0_native_evidence.sh` 执行；native parity 是否完成，仍以 workflow 内 Windows `collect + verify` 的 fresh PASS 为准
@@ -65,6 +68,12 @@ via-GitHub-Actions helper 约束：
 
 ```bash
 bash tests/print_windows_strict_l0_native_closeout_3cmd.sh
+```
+
+如果当前真正卡住的是 workflow 还没有注册到 `main`，先跑：
+
+```bash
+bash tests/print_windows_strict_l0_native_ci_enablement_3cmd.sh
 ```
 
 如果你手里已经有目标批次号，再显式传进去：

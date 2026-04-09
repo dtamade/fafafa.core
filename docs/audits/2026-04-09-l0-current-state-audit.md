@@ -66,15 +66,17 @@ L0 当前真正还缺的是硬化项，而不是模块数：
   - `.github/workflows/l0-windows-native-evidence.yml`
 - 仓库内现在还提供 Linux/macOS 侧的 GH preflight / helper：
   - `bash tests/preflight_windows_strict_l0_native_evidence_gh.sh`
+  - `bash tests/print_windows_strict_l0_native_ci_enablement_3cmd.sh`
   - `bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh`
   - `bash tests/print_windows_strict_l0_native_closeout_3cmd.sh`
   - `bash tests/verify_windows_strict_l0_native_evidence.sh`
   - `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
-  - 它们负责 fail-close 检查 workflow 是否已在 default branch 注册、打印 today source-of-truth handoff 命令，以及在 artifact 下载后做 shell 侧 contract 校验
+  - 它们负责 fail-close 检查 workflow 是否已在 default branch 注册、打印 CI registration / handoff 命令，以及在 artifact 下载后做 shell 侧 contract 校验
 - 当前环境还能用 `bash tests/test_windows_strict_l0_batch_native_matrix_contract.sh` 锁死这条 native lane 的脚本 contract 和 fail-close 语义。
 - 当前环境还能用 `bash tests/test_windows_strict_l0_native_evidence_contract.sh` 锁死 collector / verifier / workflow 这层 contract 和 fail-close 语义。
 - 当前环境还能用 `bash tests/test_windows_strict_l0_native_evidence_gh_contract.sh` 锁死 GH helper 这层 dispatch/download/fail-close contract。
 - 当前环境还能用 `bash tests/test_windows_strict_l0_native_evidence_shell_verifier_contract.sh` 锁死 Linux shell verifier 的 artifact contract 与 CRLF 容错语义。
+- 当前环境还能用 `bash tests/test_windows_strict_l0_native_ci_enablement_3cmd_contract.sh` 锁死 workflow registration helper 的 commit-slice 和后续 GH helper 提示合同。
 - 当前环境还能用 `bash tests/test_windows_strict_l0_native_closeout_3cmd_contract.sh` 锁死复制即跑 helper 的批次号替换和路径提示合同。
 - 当前若 `bash tests/preflight_windows_strict_l0_native_evidence_gh.sh` 返回 `code=22`，表示 workflow 还没有注册到 GitHub default branch；这是当前预期 fail-close，不等于 native parity 已补齐。
 - 当前仍然不对称的是 `.bat` build-path 本身；它依旧缺少 fresh 的 dedicated-Windows execution evidence，所以还不能把 native batch build parity 记成完成。
@@ -161,6 +163,8 @@ L0 当前真正还缺的是硬化项，而不是模块数：
 - 结果：当前环境预期 FAIL，`code=31`；原因是 `wine` 路径下没有可供 `.bat` runner 使用的 Windows `lazbuild.exe`，但输出已经包含 `set LAZBUILD_EXE=...` 和下一步命令
 - `bash tests/test_windows_strict_l0_native_closeout_3cmd_contract.sh`
 - 结果：PASS；复制即跑 helper 已能稳定打印 GH preflight、GH helper、手工 Windows collector/verifier、shell verifier 和 aggregate closeout stack 的 today 命令
+- `bash tests/test_windows_strict_l0_native_ci_enablement_3cmd_contract.sh`
+- 结果：PASS；CI enablement helper 已能稳定打印 default-branch registration slice、可选 operator UX slice、PR 命令和后续 Linux x64 GH helper 路径
 - `tests\test_windows_strict_l0_batch_native_matrix.bat`
 - 结果：脚本已具备 dedicated Windows host 执行条件，但当前仓库内还没有 fresh native host pass 证据
 - `tests\collect_windows_strict_l0_native_evidence.bat`

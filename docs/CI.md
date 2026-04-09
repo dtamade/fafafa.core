@@ -23,8 +23,10 @@
   - 这条 lane 固定覆盖 strict L0 的 12 个 `.bat` 入口，并明确拒绝 `FAFAFA_SKIP_BUILD=1`
   - 如果需要 hosted/manual workflow 入口，仓库内现在也有：
     - `.github/workflows/l0-windows-native-evidence.yml`
+    - `bash tests/print_windows_strict_l0_native_ci_enablement_3cmd.sh [batch-id]`
     - `bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh [batch-id] [run-id]`
     - `bash tests/print_windows_strict_l0_native_closeout_3cmd.sh [batch-id]`
+  - `print_windows_strict_l0_native_ci_enablement_3cmd.sh` 只负责打印把 workflow registration slice 推到 default branch `main` 的最短操作链
   - `run_windows_strict_l0_native_evidence_via_github_actions.sh` 会先做 `gh` / workflow preflight、再 dispatch 或复用既有 run、下载 artifact，并调用 `verify_windows_strict_l0_native_evidence.sh` 在 Linux shell 上校验证据包结构
   - `print_windows_strict_l0_native_closeout_3cmd.sh` 只负责打印 GH 主路径、手工 Windows 路径和 shell verifier 的复制即跑命令
   - 如果只是想在 Linux/macOS 上一次性复核当前本地 closeout stack，可直接执行 `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
@@ -36,6 +38,7 @@
 - 可以把 strict L0 的 Windows runtime smoke 和 `.bat` runtime-only parity 记成已完成
 - 可以把 native lane 的脚本接线、collector/verifier、workflow wiring、via-GitHub-Actions helper、contract 和 fail-close 语义记成已完成
 - 不要把 native Windows `.bat` build-path parity 记成已完成，除非 `tests\test_windows_strict_l0_batch_native_matrix.bat` 已经在真实 Windows `lazbuild.exe` 条件下 fresh 通过
+- 如果当前只有 Linux x64，先用 `bash tests/print_windows_strict_l0_native_ci_enablement_3cmd.sh` 推进 workflow registration，再回到 GH helper 主路径
 
 # Minimal Windows CI: FS only
 

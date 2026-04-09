@@ -46,6 +46,7 @@
   - Linux/macOS artifact verifier：`bash tests/verify_windows_strict_l0_native_evidence.sh [snapshot-root] [expected-commit] [expected-ref]`
   - Linux/macOS GH preflight：`bash tests/preflight_windows_strict_l0_native_evidence_gh.sh`
   - Linux/macOS GH helper：`bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh [batch-id] [run-id]`
+  - Linux/macOS CI enablement helper：`bash tests/print_windows_strict_l0_native_ci_enablement_3cmd.sh [batch-id]`
   - Linux/macOS 复制即跑 helper：`bash tests/print_windows_strict_l0_native_closeout_3cmd.sh [batch-id]`
   - Linux/macOS aggregate closeout stack：`bash tests/test_windows_strict_l0_native_closeout_stack.sh`
 
@@ -57,8 +58,9 @@
 4. 如果要补齐最终 Windows build-path 证据，再到专用 Windows 主机执行 `tests\test_windows_strict_l0_batch_native_matrix.bat`
 5. 如果要把 dedicated-host 结果收成标准 artifact，再执行 `tests\collect_windows_strict_l0_native_evidence.bat`
 6. 如果要从 Linux/macOS 触发或复用 GitHub Actions Windows run，再执行 `bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh`
-7. 如果你只想先拿到 today source-of-truth 的复制即跑命令，再执行 `bash tests/print_windows_strict_l0_native_closeout_3cmd.sh`
-8. 如果要一次性复核当前本地所有 native evidence 契约与 GH preflight 状态，再执行 `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
+7. 如果 workflow 还没注册到 default branch，先执行 `bash tests/print_windows_strict_l0_native_ci_enablement_3cmd.sh`
+8. 如果你只想先拿到 today source-of-truth 的复制即跑命令，再执行 `bash tests/print_windows_strict_l0_native_closeout_3cmd.sh`
+9. 如果要一次性复核当前本地所有 native evidence 契约与 GH preflight 状态，再执行 `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
 
 这三条链路解决的是不同问题：
 
@@ -74,6 +76,8 @@
   - 把 native matrix 的结果、模块日志、环境信息和 source revision 固化成可归档 evidence 包
 - `native_evidence_via_github_actions`
   - 从 Linux/macOS 侧执行 `gh` preflight、dispatch/download，并调用 `verify_windows_strict_l0_native_evidence.sh` 对下载回来的 evidence 包做 shell 侧 contract 校验
+- `native_ci_enablement_3cmd`
+  - 只负责把“如何先把 workflow 注册到 default branch main”打印成最短操作链
 - `native_closeout_3cmd`
   - 只负责打印当前 strict L0 Windows native evidence 的复制即跑入口，不会伪造真实 Windows pass evidence
 
@@ -105,6 +109,10 @@
 如果你已经切到专用 Windows 主机，请直接参考：
 
 - `docs/plans/2026-04-09-l0-native-windows-matrix-runbook.md`
+
+如果你当前只有 Linux x64，请先参考：
+
+- `docs/plans/2026-04-10-l0-windows-ci-enablement.md`
 
 这条 native lane 的约束很严格：
 
