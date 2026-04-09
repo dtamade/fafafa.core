@@ -68,6 +68,7 @@ L0 当前真正还缺的是硬化项，而不是模块数：
   - `bash tests/preflight_windows_strict_l0_native_evidence_gh.sh`
   - `bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh`
   - `bash tests/verify_windows_strict_l0_native_evidence.sh`
+  - `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
   - 它们负责 fail-close 检查 workflow 是否已在 default branch 注册、以及在 artifact 下载后做 shell 侧 contract 校验
 - 当前环境还能用 `bash tests/test_windows_strict_l0_batch_native_matrix_contract.sh` 锁死这条 native lane 的脚本 contract 和 fail-close 语义。
 - 当前环境还能用 `bash tests/test_windows_strict_l0_native_evidence_contract.sh` 锁死 collector / verifier / workflow 这层 contract 和 fail-close 语义。

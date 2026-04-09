@@ -35,6 +35,7 @@ bash tests/test_windows_strict_l0_batch_native_matrix_contract.sh
 bash tests/test_windows_strict_l0_native_evidence_contract.sh
 bash tests/test_windows_strict_l0_native_evidence_gh_contract.sh
 bash tests/test_windows_strict_l0_native_evidence_shell_verifier_contract.sh
+bash tests/test_windows_strict_l0_native_closeout_stack.sh
 bash tests/test_windows_lazbuild_smoke_preflight_contract.sh
 STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation fafafa.core.platform
 git diff --check
@@ -48,6 +49,7 @@ git diff --check
 - strict L0 Windows native evidence collector / verifier / workflow contract：PASS
 - strict L0 Windows native evidence GitHub Actions helper contract：PASS
 - strict L0 Windows native evidence shell verifier contract：PASS
+- strict L0 Windows native closeout stack：PASS
 - Windows smoke preflight recovery guidance contract：PASS
 - strict L0 聚合 gate：PASS，`11/11`
 - `git diff --check`：PASS
@@ -259,6 +261,8 @@ tests\fafafa.core.mem\BuildOrTest.bat test
   - 结果：PASS；Linux/macOS 侧的 GH preflight / dispatch-download helper 已接好，并会在 workflow 未注册到 GitHub default branch 时以 `code=22` fail-close
 - `bash tests/test_windows_strict_l0_native_evidence_shell_verifier_contract.sh`
   - 结果：PASS；Linux/macOS 侧的 standalone shell verifier 已接好，并锁定了 CRLF 归一化与 expected commit fail-close 语义
+- `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
+  - 结果：PASS；当前 strict L0 Windows native closeout 本地可验证项已经统一成单入口，并会同时打印当前 GH preflight 状态
 - `tests\test_windows_strict_l0_batch_native_matrix.bat`
   - 当前状态：脚本已就位，但 fresh 的 dedicated Windows host evidence 仍待补齐
 - `tests\collect_windows_strict_l0_native_evidence.bat`

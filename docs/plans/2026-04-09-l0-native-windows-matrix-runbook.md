@@ -34,6 +34,8 @@
   - `bash tests/preflight_windows_strict_l0_native_evidence_gh.sh`
 - Linux/macOS GH helper：
   - `bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh [batch-id] [run-id]`
+- Linux/macOS aggregate closeout stack：
+  - `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
 - PowerShell：
   - `cmd /c tests\test_windows_strict_l0_batch_native_matrix.bat`
   - `cmd /c tests\collect_windows_strict_l0_native_evidence.bat`
@@ -52,6 +54,7 @@ via-GitHub-Actions helper 约束：
 - 默认 dispatch 模式会拒绝当前 worktree dirty 或 remote ref 与 local HEAD 不一致的场景
 - 若已经有可复用的 `run-id`，可传第二个参数旁路 dispatch；这时只会做 wait/download/Linux-side artifact 校验
 - Linux-side 校验只负责核对 artifact 结构和关键字段；默认由 `verify_windows_strict_l0_native_evidence.sh` 执行；native parity 是否完成，仍以 workflow 内 Windows `collect + verify` 的 fresh PASS 为准
+- `test_windows_strict_l0_native_closeout_stack.sh` 会把 bootstrap、preflight contract、native matrix contract、collector/verifier contract、GH helper contract、shell verifier contract 以及当前 GH preflight 状态串成单入口
 
 ## Coverage
 
