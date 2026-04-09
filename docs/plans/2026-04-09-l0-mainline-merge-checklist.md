@@ -33,6 +33,7 @@ bash tests/test_windows_lazbuild_bootstrap.sh
 bash tests/test_windows_strict_l0_batch_runtime_matrix.sh
 bash tests/test_windows_strict_l0_batch_native_matrix_contract.sh
 bash tests/test_windows_strict_l0_native_evidence_contract.sh
+bash tests/test_windows_strict_l0_native_evidence_gh_contract.sh
 bash tests/test_windows_lazbuild_smoke_preflight_contract.sh
 STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation fafafa.core.platform
 git diff --check
@@ -44,6 +45,7 @@ git diff --check
 - strict L0 Windows `.bat` runtime-only parity matrix：PASS
 - strict L0 Windows native `.bat` matrix driver contract：PASS
 - strict L0 Windows native evidence collector / verifier / workflow contract：PASS
+- strict L0 Windows native evidence GitHub Actions helper contract：PASS
 - Windows smoke preflight recovery guidance contract：PASS
 - strict L0 聚合 gate：PASS，`11/11`
 - `git diff --check`：PASS
@@ -251,13 +253,17 @@ tests\fafafa.core.mem\BuildOrTest.bat test
   - 结果：PASS；native Windows 12 模块 matrix driver 已在仓库内接好，且在当前 `wine` 环境下会对缺少 `lazbuild.exe` 的情况 fail-close
 - `bash tests/test_windows_strict_l0_native_evidence_contract.sh`
   - 结果：PASS；native evidence collector、verifier 和 workflow 入口已接好，且当前 `wine` 环境下 collector 会对缺少 `lazbuild.exe` 的情况 fail-close
+- `bash tests/test_windows_strict_l0_native_evidence_gh_contract.sh`
+  - 结果：PASS；Linux/macOS 侧的 GH preflight / dispatch-download helper 已接好，并会在 workflow 未注册到 GitHub default branch 时以 `code=22` fail-close
 - `tests\test_windows_strict_l0_batch_native_matrix.bat`
   - 当前状态：脚本已就位，但 fresh 的 dedicated Windows host evidence 仍待补齐
 - `tests\collect_windows_strict_l0_native_evidence.bat`
   - 当前状态：evidence 包装入口已就位，但 fresh 的 dedicated Windows host artifact 仍待补齐
+- `bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh`
+  - 当前状态：helper 已能复用 GH workflow run、下载 artifact 并在 Linux shell 上校验 evidence 包结构；如果 workflow 尚未注册到 default branch，则当前预期仍是 fail-close
 - 额外验证：若把 `LAZBUILD_EXE` 指到 Unix 路径 `Z:\\opt\\fpcupdeluxe\\lazarus\\lazbuild`，当前 wrapper 会以 `code=126` 明确报错：`LAZBUILD_EXE points to a non-Windows executable`
 - 失败原因已经从“缺少 `tools\\lazbuild.bat`”收敛为“当前环境没有可供 `.bat` build-path 使用的 Windows `lazbuild.exe`”
-- 因此，这一轮已经可以把“最小 Windows runtime smoke”“最小 `.bat` smoke”“扩展 `.bat` runtime-only parity matrix”“native lane script wiring / fail-close contract”以及“native evidence artifact wiring”一起记成完成；当前剩下的是 dedicated Windows host 上的 native `.bat` build-path parity 证据仍依赖外部 Windows Lazarus toolchain
+- 因此，这一轮已经可以把“最小 Windows runtime smoke”“最小 `.bat` smoke”“扩展 `.bat` runtime-only parity matrix”“native lane script wiring / fail-close contract”“native evidence artifact wiring”以及“via-GitHub-Actions helper wiring”一起记成完成；当前剩下的是 dedicated Windows host 上的 native `.bat` build-path parity 证据仍依赖外部 Windows Lazarus toolchain
 
 ## 当前不要做的事
 

@@ -28,6 +28,10 @@
   - `tests\collect_windows_strict_l0_native_evidence.bat`
 - collector 产物校验：
   - `tests\verify_windows_strict_l0_native_evidence.bat tests\_windows_l0_native_evidence\<batch-id>`
+- Linux/macOS GH preflight：
+  - `bash tests/preflight_windows_strict_l0_native_evidence_gh.sh`
+- Linux/macOS GH helper：
+  - `bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh [batch-id] [run-id]`
 - PowerShell：
   - `cmd /c tests\test_windows_strict_l0_batch_native_matrix.bat`
   - `cmd /c tests\collect_windows_strict_l0_native_evidence.bat`
@@ -38,6 +42,14 @@
 set LAZBUILD_EXE=C:\Lazarus\lazbuild.exe
 tests\collect_windows_strict_l0_native_evidence.bat
 ```
+
+via-GitHub-Actions helper 约束：
+
+- 默认模式会先执行 `preflight_windows_strict_l0_native_evidence_gh.sh`
+- 如果 workflow 尚未出现在仓库 default branch，当前预期由 preflight 以 `code=22` fail-close
+- 默认 dispatch 模式会拒绝当前 worktree dirty 或 remote ref 与 local HEAD 不一致的场景
+- 若已经有可复用的 `run-id`，可传第二个参数旁路 dispatch；这时只会做 wait/download/Linux-side artifact 校验
+- Linux-side 校验只负责核对 artifact 结构和关键字段；native parity 是否完成，仍以 workflow 内 Windows `collect + verify` 的 fresh PASS 为准
 
 ## Coverage
 
@@ -131,9 +143,14 @@ native matrix 当前固定覆盖 12 个 strict L0 batch 入口：
   - `tests\verify_windows_strict_l0_native_evidence.bat`
 - GitHub Actions 手工入口也已经接好：
   - `.github/workflows/l0-windows-native-evidence.yml`
+- Linux/macOS 上也已经具备 hosted/manual workflow helper：
+  - `bash tests/preflight_windows_strict_l0_native_evidence_gh.sh`
+  - `bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh`
 - Linux/macOS 当前能 fresh 复核的是：
   - `bash tests/test_windows_strict_l0_batch_native_matrix_contract.sh`
   - `bash tests/test_windows_strict_l0_native_evidence_contract.sh`
+  - `bash tests/test_windows_strict_l0_native_evidence_gh_contract.sh`
   - 它只证明脚本 contract 和 fail-close 语义已锁定，不等于 native parity 已完成
+- 截至 `2026-04-09`，当前仓库上的 GH preflight 仍可能以 `code=22` 提示 workflow 尚未注册到 default branch；这是预期 fail-close，不应误记成 helper 已能实际 dispatch
 - 截至 `2026-04-09`，fresh dedicated-Windows evidence 仍待补齐
 - 在这条 lane 真正于 Windows 主机通过之前，不要把 native Windows `.bat` build-path parity 记成完成

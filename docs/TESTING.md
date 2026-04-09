@@ -43,6 +43,8 @@
   - Windows：`tests\test_windows_strict_l0_batch_native_matrix.bat`
   - Windows evidence collector：`tests\collect_windows_strict_l0_native_evidence.bat`
   - Windows evidence verifier：`tests\verify_windows_strict_l0_native_evidence.bat tests\_windows_l0_native_evidence\<batch-id>`
+  - Linux/macOS GH preflight：`bash tests/preflight_windows_strict_l0_native_evidence_gh.sh`
+  - Linux/macOS GH helper：`bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh [batch-id] [run-id]`
 
 当前建议顺序：
 
@@ -51,6 +53,7 @@
 3. 最后跑 `bash tests/test_windows_strict_l0_batch_runtime_matrix.sh`
 4. 如果要补齐最终 Windows build-path 证据，再到专用 Windows 主机执行 `tests\test_windows_strict_l0_batch_native_matrix.bat`
 5. 如果要把 dedicated-host 结果收成标准 artifact，再执行 `tests\collect_windows_strict_l0_native_evidence.bat`
+6. 如果要从 Linux/macOS 触发或复用 GitHub Actions Windows run，再执行 `bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh`
 
 这三条链路解决的是不同问题：
 
@@ -64,6 +67,8 @@
   - 确认同一组 12 个 `.bat` 入口在真实 Windows `lazbuild.exe` 条件下完成 native build + native test，而不是 runtime-only skip-build
 - `native_evidence_collector`
   - 把 native matrix 的结果、模块日志、环境信息和 source revision 固化成可归档 evidence 包
+- `native_evidence_via_github_actions`
+  - 从 Linux/macOS 侧执行 `gh` preflight、dispatch/download，并对下载回来的 evidence 包做 shell 侧 contract 校验
 
 当前 matrix 覆盖：
 
@@ -88,6 +93,7 @@
 
 - 当前仓库已经完成 Windows runtime smoke 和 `.bat` runtime-only parity
 - 当前还没有完成的，是 native Windows `lazbuild.exe` 条件下的 `.bat` build-path parity
+- 如果 `bash tests/preflight_windows_strict_l0_native_evidence_gh.sh` 当前返回 `code=22`，含义通常是 workflow 还没有注册到 GitHub default branch；这同样属于预期 fail-close，不等于 native parity 已完成
 
 如果你已经切到专用 Windows 主机，请直接参考：
 
@@ -100,6 +106,7 @@
 - 它会先校验 `tools\lazbuild.bat` 是否找到了真实 Windows `lazbuild.exe`
 - 只有这条 lane 在真实 Windows 主机 fresh 通过之后，native `.bat` build-path parity 才能记成完成
 - 如果你要交付 evidence 包而不是只看终端输出，优先跑 `tests\collect_windows_strict_l0_native_evidence.bat`
+- 如果你要从 Linux/macOS 收集 hosted Windows artifact，`run_windows_strict_l0_native_evidence_via_github_actions.sh` 只能帮助 dispatch/download/复核 artifact；native parity 仍然只以 Windows-host collector + verifier 的 fresh 结果为准
 
 ---
 
