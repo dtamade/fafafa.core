@@ -9,21 +9,6 @@
 
 按下面顺序理解当前 mem 域：
 
-<<<<<<< HEAD
-1. `src/fafafa.core.mem.allocator.base.pas`
-2. `src/fafafa.core.mem.allocator.foundation.pas`
-3. `src/fafafa.core.mem.pas`
-4. `src/fafafa.core.mem.allocator.pas`
-5. `src/fafafa.core.mem.memPool.pas`
-6. `src/fafafa.core.mem.stackPool.pas`
-7. `src/fafafa.core.mem.pool.slab.pas`
-8. `src/fafafa.core.mem.interfaces.pas`
-9. `src/fafafa.core.mem.stats.pas`
-10. `tests/fafafa.core.mem.allocator.foundation/README.md`
-11. `tests/fafafa.core.mem/README.md`
-12. `examples/fafafa.core.mem/README.md`
-13. `docs/mem/README.md`
-=======
 1. `docs/fafafa.core.l0.foundation.md`
 2. `docs/fafafa.core.l0.roadmap.md`
 3. `docs/ARCHITECTURE_LAYERS.md`
@@ -39,7 +24,6 @@
 13. `tests/fafafa.core.mem.allocator.foundation/README.md`
 14. `tests/fafafa.core.mem/README.md`
 15. `examples/fafafa.core.mem/README.md`
->>>>>>> 377533a7 (docs(l0): normalize roadmap and module navigation)
 
 ## 当前模块结构
 
