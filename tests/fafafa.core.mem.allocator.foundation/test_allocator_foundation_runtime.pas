@@ -52,6 +52,11 @@ begin
   System.FreeMem(aDst);
 end;
 
+procedure CreateCallbackAllocatorWithNilGetMem;
+begin
+  CreateCallbackAllocator(nil, @RuntimeAllocMem, @RuntimeReallocMem, @RuntimeFreeMem).Free;
+end;
+
 procedure ResetCallbackCounters;
 begin
   GGetMemCalls := 0;
@@ -128,10 +133,8 @@ var
   LAllocator: TCallbackAllocator;
 begin
   {$IFDEF FAFAFA_CORE_CONTRACTS}
-  AssertException('CreateCallbackAllocator should reject nil callbacks', EArgumentNil, procedure
-  begin
-    CreateCallbackAllocator(nil, @RuntimeAllocMem, @RuntimeReallocMem, @RuntimeFreeMem).Free;
-  end);
+  AssertException('CreateCallbackAllocator should reject nil callbacks', EArgumentNil,
+    @CreateCallbackAllocatorWithNilGetMem);
   {$ELSE}
   LAllocator := CreateCallbackAllocator(nil, @RuntimeAllocMem, @RuntimeReallocMem, @RuntimeFreeMem);
   try

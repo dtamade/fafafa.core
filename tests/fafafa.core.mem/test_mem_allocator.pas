@@ -49,6 +49,18 @@ implementation
 
 { TTestCase_RtlAllocator }
 
+procedure AssertRtlAllocatorFreeMemNilRaises;
+var
+  LAllocator: TRtlAllocator;
+begin
+  LAllocator := TRtlAllocator.Create;
+  try
+    LAllocator.FreeMem(nil);
+  finally
+    LAllocator.Free;
+  end;
+end;
+
 procedure TTestCase_RtlAllocator.Test_GetMem;
 var
   LAllocator: TRtlAllocator;
@@ -152,13 +164,9 @@ begin
     LAllocator.FreeMem(LMem);
 
     {$IFDEF FAFAFA_CORE_STRICT_NULL_FREE}
-    {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
     // 严格模式下：nil 指针释放应抛异常
-    AssertException('FreeMem with nil pointer should raise an exception', EArgumentNil, procedure
-    begin
-      LAllocator.FreeMem(nil);
-    end);
-    {$ENDIF}
+    AssertException('FreeMem with nil pointer should raise an exception', EArgumentNil,
+      @AssertRtlAllocatorFreeMemNilRaises);
     {$ENDIF}
   finally
     LAllocator.Free;
