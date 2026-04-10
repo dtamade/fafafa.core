@@ -7,6 +7,7 @@ if "%ACTION%"=="" set "ACTION=test"
 
 set "PROJECT=fafafa.core.contracts.test.lpi"
 set "CLEAN_DIRS=lib bin logs"
+set "LAZBUILD=..\..\tools\lazbuild.bat"
 set "SRC_WARN_PATTERNS=/C:\"src/.*fafafa.core.contracts.*Warning:\" /C:\"src/.*fafafa.core.contracts.*Hint:\" /C:\"\src\.*fafafa.core.contracts.*Warning:\" /C:\"\src\.*fafafa.core.contracts.*Hint:\""
 
 set "BUILD_MODE=Debug"
@@ -56,14 +57,18 @@ set "EXIT_ERR=1"
 if defined SKIP_BUILD (
   echo [BUILD] SKIPPED ^(FAFAFA_SKIP_BUILD=1^)
   set "EXIT_ERR=0"
+) else if exist "%LAZBUILD%" (
+  echo [BUILD] Project: %PROJECT% ^(mode=%BUILD_MODE%^)
+  call "%LAZBUILD%" %LZ_Q% --bm=%BUILD_MODE% --build-all "%PROJECT%" >"%BUILD_LOG%" 2>&1
+  set "EXIT_ERR=!ERRORLEVEL!"
 ) else (
   where lazbuild >nul 2>nul
-  if %ERRORLEVEL%==0 (
-  echo [BUILD] Project: %PROJECT% ^(mode=%BUILD_MODE%^)
-  lazbuild %LZ_Q% --bm=%BUILD_MODE% --build-all "%PROJECT%" >"%BUILD_LOG%" 2>&1
-  set "EXIT_ERR=!ERRORLEVEL!"
+  if !ERRORLEVEL! EQU 0 (
+    echo [BUILD] Project: %PROJECT% ^(mode=%BUILD_MODE%^)
+    lazbuild %LZ_Q% --bm=%BUILD_MODE% --build-all "%PROJECT%" >"%BUILD_LOG%" 2>&1
+    set "EXIT_ERR=!ERRORLEVEL!"
   ) else (
-    echo [ERROR] lazbuild not found in PATH.
+    echo [ERROR] tools\lazbuild.bat not found and lazbuild not in PATH.
     set "EXIT_ERR=1"
   )
 )
