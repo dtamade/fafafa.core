@@ -81,6 +81,13 @@
 - `native_closeout_3cmd`
   - 只负责打印当前 strict L0 Windows native evidence 的复制即跑入口，不会伪造真实 Windows pass evidence
 
+当前 today 状态：
+
+- workflow 已经注册在 default branch 上
+- GitHub Actions run `24224880061` 已在真实 Windows runner 上 fresh 收到 strict L0 native evidence `12/12` PASS
+- 因此，如果今天在 Linux x64 上要复核 strict L0 Windows 证据，默认先走 `bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh`
+- `print_windows_strict_l0_native_ci_enablement_3cmd.sh` 现在主要用于 workflow registration 漂移或 GH 环境异常排障，不再是当前主路径
+
 当前 matrix 覆盖：
 
 - `base`
@@ -104,7 +111,7 @@
 
 - 当前仓库已经完成 Windows runtime smoke 和 `.bat` runtime-only parity
 - 当前还没有完成的，是 native Windows `lazbuild.exe` 条件下的 `.bat` build-path parity
-- 如果 `bash tests/preflight_windows_strict_l0_native_evidence_gh.sh` 当前返回 `code=22`，含义通常是 workflow 还没有注册到 GitHub default branch；这同样属于预期 fail-close，不等于 native parity 已完成
+- 如果 `bash tests/preflight_windows_strict_l0_native_evidence_gh.sh` 返回 `code=22`，含义通常是 workflow registration 漂移或当前 GH 环境看不到 default-branch workflow；这属于 fail-close 诊断，不代表仓库 today 状态回退成“native parity 未接通”
 
 如果你已经切到专用 Windows 主机，请直接参考：
 
