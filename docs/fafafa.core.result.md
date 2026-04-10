@@ -21,6 +21,7 @@
 - `AndResult` / `OrResult` 继续保留为 deprecated compatibility API，用于平滑迁移。
 - 新代码应优先使用 `And_` / `Or_`；兼容 API 仍由当前测试入口覆盖，避免无意回归。
 - 除 `tests/fafafa.core.result/fafafa.core.result.testcase.pas` 的 legacy compat 覆盖外，仓库中不应再新增 `AndResult` / `OrResult` 调用点。
+- 如果历史文档或旧代码片段出现 `AndResult` / `OrResult`，应把它们视作迁移示例，而不是 today contract 的推荐写法。
 - 兼容测试会在 legacy 调用点附近局部抑制 deprecated warning，这样 build log 仍能把注意力集中在非兼容路径的真实回归上。
 
 ## 目标
@@ -43,6 +44,8 @@ begin
   WriteLn(R.UnwrapOr(0)); // 0
 end;
 ```
+
+新示例和新调用点默认都应使用 `And_` / `Or_`；不要把上面的快速开始和后文 API appendix 误读成在恢复 `AndResult` / `OrResult` 的 today 地位。
 
 ## API 总览
 
