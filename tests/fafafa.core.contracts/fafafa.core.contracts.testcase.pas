@@ -30,10 +30,13 @@ end;
 procedure TTestCoreContracts.Test_ContractsRequire_FalseCondition_MatchesBuildMode;
 begin
   {$IFDEF FAFAFA_CORE_CONTRACTS}
-  AssertException('ContractsRequire(False) should raise in contracts-enabled builds', EInvalidArgument, procedure
-  begin
+  try
     ContractsRequire(False, 'contracts failed');
-  end);
+    Fail('ContractsRequire(False) should raise in contracts-enabled builds');
+  except
+    on E: EInvalidArgument do
+      CheckEquals('contracts failed', E.Message);
+  end;
   {$ELSE}
   ContractsRequire(False, 'contracts failed');
   AssertTrue('NoContracts build should treat ContractsRequire as no-op', True);
