@@ -914,18 +914,20 @@ end;
 
 generic function ResultFromTry<T, E>(const Work: specialize TResultThunk<T>;
   const MapEx: specialize TResultFunc<Exception, E>): specialize TResult<T, E>;
+type
+  TResultTE = specialize TResult<T, E>;
 begin
   if Work = nil then
     ContractsRequireAssigned(Work <> nil, 'Work');
 
   try
-    Result := specialize TResult<T, E>.Ok(Work());
+    Result := TResultTE.Ok(Work());
   except
     on Ex: Exception do
     begin
       if MapEx = nil then
         ContractsRequireAssigned(MapEx <> nil, 'MapEx');
-      Result := specialize TResult<T, E>.Err(MapEx(Ex));
+      Result := TResultTE.Err(MapEx(Ex));
     end;
   end;
 end;
