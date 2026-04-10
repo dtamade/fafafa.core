@@ -16,6 +16,7 @@
   - `docs/fafafa.core.l0.roadmap.md`
   - `docs/ARCHITECTURE_LAYERS.md`
   - `docs/audits/2026-04-10-l0-current-state-audit.md`
+  - `docs/plans/2026-04-10-l0-mainline-merge-checklist.md`
   - `docs/fafafa.core.span.md`
   - `docs/fafafa.core.atomic.md`
   - `docs/fafafa.core.result.md`
