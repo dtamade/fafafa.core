@@ -311,13 +311,13 @@ tests\fafafa.core.mem\BuildOrTest.bat test
 - 根 `main` 工作树是用户脏状态
 - 根 `main` 相对 `origin/main` 落后较多
 - 当前 branch 上存在一段不完全等于 strict L0 本体的 hygiene / runner 提交，需要明确是否同批带走
-- 当前 Linux 环境虽然有 `wine`，也已经有 `tools\\lazbuild.bat` bootstrap、runtime smoke、runtime-only parity 以及 native lane script wiring；剩余差距是 dedicated Windows host 上仍没有 fresh 采到 native `.bat` build-path evidence
+- strict L0 的真实 Windows native evidence 已在 GitHub Actions run `24224880061` 上 fresh 通过；Windows parity 已不再是当前 blocker，剩下的是如何在不污染用户根 `main` 工作树的前提下安排集成窗口
 
 ## 相关文档
 
 - `docs/fafafa.core.l0.foundation.md`
 - `docs/fafafa.core.l0.roadmap.md`
-- `docs/audits/2026-04-09-l0-current-state-audit.md`
+- `docs/audits/2026-04-10-l0-current-state-audit.md`
 - `docs/plans/2026-04-09-l0-native-windows-matrix-runbook.md`
 - `docs/plans/2026-04-09-l0-kernel-span2-closeout.md`
 - `workers/worker1.md`

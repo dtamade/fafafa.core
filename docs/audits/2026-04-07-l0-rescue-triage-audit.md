@@ -1,7 +1,7 @@
 # 2026-04-07 L0 Rescue Triage Audit
 
 > 这份审计记录的是 `2026-04-07` 的 rescue triage 结论。
-> 当前 active L0 triage 以 `docs/audits/2026-04-09-l0-current-state-audit.md` 为准。
+> 当前 active L0 triage 以 `docs/audits/2026-04-10-l0-current-state-audit.md` 为准。
 
 ## 结论先行
 
@@ -118,13 +118,13 @@ git diff --check
 
 ## 批次决策
 
-| 批次 | 范围 | owner | 结论 |
-| --- | --- | --- | --- |
-| A | PR `#6` merge + merged-main verification | L0 | 完成 |
-| B | 主线控制面清污 | L0 | 本轮完成 |
-| C | 非 SIMD rescue 候选 | L0 | 后续拆批 |
-| D | SIMD / CI / evidence 残留 | SIMD owner | handoff |
-| E | 破坏当前验证入口的 rescue 删除集 | reject | 不接收 |
+| 批次 | 范围                                     | owner      | 结论     |
+| ---- | ---------------------------------------- | ---------- | -------- |
+| A    | PR `#6` merge + merged-main verification | L0         | 完成     |
+| B    | 主线控制面清污                           | L0         | 本轮完成 |
+| C    | 非 SIMD rescue 候选                      | L0         | 后续拆批 |
+| D    | SIMD / CI / evidence 残留                | SIMD owner | handoff  |
+| E    | 破坏当前验证入口的 rescue 删除集         | reject     | 不接收   |
 
 ## 当前主线入口
 

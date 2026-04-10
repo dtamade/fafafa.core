@@ -10,7 +10,7 @@
 1. `docs/ARCHITECTURE_LAYERS.md`
 2. `docs/fafafa.core.l0.foundation.md`
 3. `docs/fafafa.core.l0.roadmap.md`
-4. `docs/audits/2026-04-09-l0-current-state-audit.md`
+4. `docs/audits/2026-04-10-l0-current-state-audit.md`
 5. 对应模块文档，如 `docs/fafafa.core.span.md`、`docs/fafafa.core.atomic.md`
 
 dated `docs/plans/YYYY-MM-DD-*.md` 只保留执行批次和 closeout 语境，不再承担长期路线图职责。
@@ -52,7 +52,7 @@ L0 的目标不是继续变大，而是继续变准。
   - `docs/ARCHITECTURE_LAYERS.md`
   - `docs/fafafa.core.l0.foundation.md`
   - `docs/fafafa.core.l0.roadmap.md`
-  - `docs/audits/2026-04-09-l0-current-state-audit.md`
+  - `docs/audits/2026-04-10-l0-current-state-audit.md`
 - 模块文档
   - `docs/fafafa.core.base.md`
   - `docs/fafafa.core.contracts.md`

@@ -15,7 +15,7 @@
   - `docs/fafafa.core.l0.foundation.md`
   - `docs/fafafa.core.l0.roadmap.md`
   - `docs/ARCHITECTURE_LAYERS.md`
-  - `docs/audits/2026-04-09-l0-current-state-audit.md`
+  - `docs/audits/2026-04-10-l0-current-state-audit.md`
   - `docs/fafafa.core.span.md`
   - `docs/fafafa.core.atomic.md`
   - `docs/fafafa.core.result.md`
@@ -40,6 +40,8 @@
   - 结果：PASS；复制即跑 helper 已接好，并锁定了 batch-id 替换与 GH / Windows / shell 三条提示路径
   - `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
   - 结果：PASS；native closeout 本地可验证项已经统一成单入口，并会打印当前 GH preflight 状态
+  - `L0_NATIVE_EVIDENCE_POLL_MAX_TRIES=180 bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh L0-20260410-native-gha-r9`
+  - 结果：PASS；GitHub Actions run `24224880061` 已在真实 Windows runner 上 fresh 收到 strict L0 `12/12` native evidence
   - `bash tests/test_windows_lazbuild_bootstrap.sh`
   - 结果：PASS；bootstrap 已补齐，Unix `LAZBUILD_EXE` 会被清晰拒绝
   - `bash tests/test_windows_lazbuild_smoke_preflight_contract.sh`
@@ -52,10 +54,10 @@
   - 根目录 `main` 工作树仍然是用户脏状态，不能直接作为执行面
   - sidecar sync/fs/socket runner 改动已转移到临时 branch `l0-sidecar-handoff-20260409`，后续需由对应 owner 接手
   - SIMD-only 残留仍需要由 SIMD owner 继续维护，L0 这里只保留边界与 handoff 说明
-  - `bash tests/test_windows_lazbuild_smoke_preflight.sh` 当前仍会以 `code=31` 失败；缺的不是仓库脚本，也不是 runtime-only parity，而是 dedicated Windows host 上 native `.bat` build-path 所需的外部 Windows `lazbuild.exe`
+  - Linux `wine` 环境下的 `bash tests/test_windows_lazbuild_smoke_preflight.sh` 仍会以 `code=31` fail-close；这是本地缺少 Windows `lazbuild.exe` 的环境限制，不再是 strict L0 当前 blocker，因为真实 Windows native evidence 已经通过 GitHub Actions 收到 fresh PASS
 - Next step:
   - 继续只沿 strict L0 线推进，不把 sidecar 或 SIMD 工作重新混回当前 worktree
   - 在没有新的明确 L0 候选前，优先维护稳定路线图、模块文档和验证口径，而不是继续扩模块
   - 集成分支已经建立并通过 Linux/macOS 路径 fresh gate；当前最小 Windows runtime smoke、最小 `.bat` smoke、扩展 `.bat` runtime-only parity matrix、native lane script contract、evidence artifact wiring、standalone shell verifier、CI enablement helper、复制即跑 helper、aggregate closeout stack 以及 via-GitHub-Actions helper wiring 也已通过
-  - 剩下只需在 dedicated Windows host 或已注册到 default branch 的 `.github/workflows/l0-windows-native-evidence.yml` 上收 fresh native evidence；在此之前，GH preflight 可能仍会以 `code=22` fail-close
-- Last updated: `2026-04-09`
+  - 当前 strict L0 的真实 Windows native evidence 已经通过 GitHub Actions 收到 fresh PASS；下一步重点回到 merge hygiene、文档同步和 compat surface 控制
+- Last updated: `2026-04-10`

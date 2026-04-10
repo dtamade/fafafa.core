@@ -3,13 +3,32 @@
 > 这份清单只回答一件事：在当前只有 Linux x64 执行面的前提下，怎样把 strict L0 的 Windows native evidence lane 通过 GitHub Actions 真正打通。
 > 它不是新的长期路线图；L0 的长期边界仍以 `docs/fafafa.core.l0.foundation.md` 和 `docs/fafafa.core.l0.roadmap.md` 为准。
 
+## Status
+
+- 状态：`completed`
+- 完成提交：`b8adade0` `fix(l0): use run methods for allocator exception tests`
+- 真实 Windows evidence：
+  - GitHub Actions run `24224880061`
+  - `summary.md`：`Result: PASS`
+  - `native matrix`：`12/12`
+  - 本地快照：`tests/_windows_l0_native_evidence_gh/L0-20260410-native-gha-r9/`
+
 ## Goal
 
 - 先把 `.github/workflows/l0-windows-native-evidence.yml` 注册到 default branch `main`
 - 再从 Linux x64 触发 Windows CI 收集 strict L0 native evidence
 - 最后把下载回来的 artifact 回填到当前 L0 closeout 面
 
-## Why this is the current blocker
+## Outcome
+
+当前这条 enablement 线已经闭环：
+
+- workflow 已在 default branch 可见，GH preflight 不再停在 `WORKFLOW_NOT_FOUND`
+- Linux x64 侧的 dispatch/download helper 已经成功触发并回收 artifact
+- 真实 Windows runner 上的 `Collect native evidence` / `Verify native evidence` 已通过
+- 当前 strict L0 的 Windows native parity 已从“当前 blocker”降级为“已收证完成项”
+
+## Why this was the blocker
 
 当前仓库内的本地 closeout stack 已经具备：
 
@@ -18,15 +37,15 @@
 - GH preflight / dispatch-download helper contract
 - shell verifier contract
 
-但当前 preflight 仍然可能返回：
+在这条线打通之前，preflight 可能返回：
 
 - `WORKFLOW_NOT_FOUND`
 - `code=22`
 
-这说明：
+这说明当时缺的不是 L0 代码逻辑本身，而是：
 
 - L0 本地脚本已经够了
-- 真正缺的不是代码逻辑，而是 workflow 还没有在 default branch 注册
+- workflow 还没有在 default branch 注册，导致 Linux x64 无法直接收真实 Windows evidence
 
 ## Required slice
 
@@ -141,6 +160,13 @@ STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contract
 - `source_revision.txt` 明确写出 `git_commit=` 和 `git_ref_hint=`
 - `native_matrix.log` / `evidence.log` 体现 12 个 strict L0 `.bat` 入口的 fresh PASS
 - 模块日志没有 `[BUILD] SKIPPED`、`lazbuild not found`、`Test executable not found`
+
+当前实际结果：
+
+- 已满足；见 GitHub Actions run `24224880061`
+- `summary.md` 已记录 `Result: PASS`
+- `source_revision.txt` 已记录 `git_commit=b8adade028ee2011bb6868dc4b666ec7db71ece1`
+- `mem_allocator_foundation.log` 与 `mem_allocator_only.log` 都是 `BUILD/CHECK/TEST/LEAK OK`
 
 ## What not to do
 
