@@ -5,7 +5,7 @@
 - Status: `active`
 - Branch: `l0-mainline`
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
-- Base commit: `54a7ae056679c251a8a1f53442cfd20601b6f08f` (`origin/main`)
+- Base commit: `5eeb4a0c4c3065adcc74c7153d3c6a6fbe95f465` (`origin/main`)
 - Current focus:
   - 维持当前唯一 L0 worktree 跟随 `main`
   - 维持 strict L0 的 current-entry 文档、模块边界和验证口径一致
@@ -21,7 +21,9 @@
   - `docs/CI.md`
   - `tests/check_strict_l0_docs_consistency.sh`
   - `tests/run_strict_l0_maintenance_loop.sh`
+  - `tests/run_strict_l0_mainline_closeout.sh`
   - `tests/run_windows_strict_l0_native_evidence_via_github_actions.sh`
+  - `tests/update_strict_l0_current_state_docs.sh`
   - `docs/fafafa.core.span.md`
   - `docs/fafafa.core.atomic.md`
   - `docs/fafafa.core.result.md`
@@ -35,17 +37,19 @@
   - `bash tests/test_strict_l0_linux_ci_workflow_contract.sh`
   - 结果：PASS
   - `bash tests/test_windows_strict_l0_native_evidence_gh_contract.sh`
-  - 结果：PASS；`AUTH_REQUIRED/rc=21` 已有 deterministic contract 覆盖
+  - 结果：PASS
+  - `bash tests/test_windows_strict_l0_native_evidence_main_ref_contract.sh`
+  - 结果：PASS
   - `bash tests/run_strict_l0_maintenance_loop.sh`
-  - 结果：PASS；docs consistency、strict L0 gate、`git diff --check`、runtime matrix、native closeout stack 已由单入口 fresh 串通
+  - 结果：PASS
   - `git diff --check`
   - 结果：PASS
-  - `gh workflow run l0-linux-maintenance.yml --ref main`
-  - 结果：触发成功；GitHub Actions run `24283947269` 对 `main@54a7ae056679c251a8a1f53442cfd20601b6f08f` fresh PASS
-  - `gh workflow run l0-windows-native-evidence.yml --ref main`
-  - 结果：触发成功；GitHub Actions run `24284111799` 对 `main@54a7ae056679c251a8a1f53442cfd20601b6f08f` fresh 收到 strict L0 native evidence `12/12 PASS`
-  - `L0_NATIVE_EVIDENCE_EXPECT_COMMIT=54a7ae056679c251a8a1f53442cfd20601b6f08f L0_NATIVE_EVIDENCE_EXPECT_REF=main bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh L0-20260411-native-gha-r11 24284111799`
-  - 结果：PASS；artifact 已下载并在 Linux shell 上完成 contract 校验
+  - GitHub Actions `L0 Linux Maintenance` run `24284430625`
+  - 结果：PASS；head sha=`5eeb4a0c4c3065adcc74c7153d3c6a6fbe95f465`
+  - GitHub Actions `L0 Windows Native Evidence` run `24284111799`
+  - 结果：PASS；head sha=`54a7ae056679c251a8a1f53442cfd20601b6f08f`
+  - local Windows snapshot：
+  - `tests/_windows_l0_native_evidence_gh/L0-20260411-native-gha-r11/`
 - Retained local refs:
   - `l0-mainline`
   - `l0-mainline-closeout-20260411`
@@ -60,6 +64,7 @@
 - Next step:
   - 继续只沿 strict L0 线推进，不把 sidecar 或 SIMD 工作重新混回当前 worktree
   - Linux x64 上的日常维护默认走 `bash tests/run_strict_l0_maintenance_loop.sh`
-  - 需要 Linux GitHub-side fresh 证据时，使用 `gh workflow run l0-linux-maintenance.yml --ref main`
-  - 需要 Windows exact evidence 时，使用 GitHub Actions workflow + shell verifier，不在 Linux x64 本地伪造 native 结论
+  - 如需一波收口 Linux/Windows evidence 与 current-state docs，使用 `bash tests/run_strict_l0_mainline_closeout.sh`
+  - 如需只回填 current-state 文档，使用 `bash tests/update_strict_l0_current_state_docs.sh --apply --main-sha <main-sha> --linux-run-id <linux-run-id> --linux-run-sha <linux-run-sha> --windows-run-id <windows-run-id> --windows-run-sha <windows-run-sha> --windows-local-batch-id <batch-id>`
+  - 需要 Windows exact evidence 时，继续使用 GitHub Actions workflow + shell verifier，不在 Linux x64 本地伪造 native 结论
 - Last updated: `2026-04-11`

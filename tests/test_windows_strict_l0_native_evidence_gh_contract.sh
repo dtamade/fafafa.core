@@ -52,6 +52,8 @@ require_literal_in_file "${PREFLIGHT_SCRIPT}" 'RECENT_BILLING_BLOCK' \
 
 require_literal_in_file "${HELPER_SCRIPT}" 'gh workflow run' \
   "GH helper does not dispatch workflows"
+require_literal_in_file "${HELPER_SCRIPT}" 'lib_github_actions_workflow_runs.sh' \
+  "GH helper does not source the shared GH workflow helper"
 require_literal_in_file "${HELPER_SCRIPT}" 'gh run download' \
   "GH helper does not download workflow artifacts"
 require_literal_in_file "${HELPER_SCRIPT}" 'l0-windows-native-evidence.yml' \
@@ -60,6 +62,8 @@ require_literal_in_file "${HELPER_SCRIPT}" 'l0-windows-native-evidence' \
   "GH helper does not target the L0 artifact name"
 require_literal_in_file "${HELPER_SCRIPT}" 'Refuse dispatch: local worktree has uncommitted changes.' \
   "GH helper does not fail-close on dirty local state"
+require_literal_in_file "${HELPER_SCRIPT}" 'Refuse dispatch: target ref does not match current worktree HEAD.' \
+  "GH helper does not fail-close when target ref diverges from current worktree HEAD"
 require_literal_in_file "${HELPER_SCRIPT}" 'Workflow is not registered on GitHub Actions.' \
   "GH helper does not explain missing workflow registration"
 require_literal_in_file "${HELPER_SCRIPT}" 'GitHub only exposes workflow_dispatch for workflows present on the repository default branch.' \

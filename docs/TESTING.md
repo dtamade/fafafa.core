@@ -47,6 +47,30 @@ bash tests/run_strict_l0_maintenance_loop.sh
 
 只有当 strict L0 发生非文档代码/测试变化，或者有人明确要求 exact `HEAD` / merge commit 证据时，才继续走 GitHub Actions Windows native evidence 主路径。
 
+如果当前目标不是日常维护，而是 mainline closeout，一次性把 Linux maintenance、Windows exact evidence 和 current-state docs 串起来，当前单入口是：
+
+```bash
+bash tests/run_strict_l0_mainline_closeout.sh
+```
+
+只打印 closeout 命令链：
+
+```bash
+bash tests/run_strict_l0_mainline_closeout.sh --print-commands
+```
+
+完成收证后需要覆盖 current-state 审计、legacy closeout 和记工单 handoff 时：
+
+```bash
+bash tests/run_strict_l0_mainline_closeout.sh --apply-docs
+```
+
+如果你已经手头有 run id，只需要单独回填文档，也可以直接执行：
+
+```bash
+bash tests/update_strict_l0_current_state_docs.sh --apply --main-sha <main-sha> --linux-run-id <linux-run-id> --linux-run-sha <linux-run-sha> --windows-run-id <windows-run-id> --windows-run-sha <windows-run-sha> --windows-local-batch-id <batch-id>
+```
+
 如果你当前关心的是 strict non-SIMD L0 在 Windows 路径上的复核，不要直接从“原生 `.bat` 构建完全对称”这个前提出发。当前仓库已经分成四条不同的复核链路：
 
 - 最小 Win64 `.exe` runtime smoke
@@ -69,15 +93,16 @@ bash tests/run_strict_l0_maintenance_loop.sh
 当前建议顺序：
 
 1. 先跑 `bash tests/run_strict_l0_maintenance_loop.sh`
-2. 如果只想拆开看 Windows runtime 复核，再跑 `bash tests/test_windows_strict_l0_wine_smoke.sh`
-3. 再跑 `bash tests/test_windows_strict_l0_batch_runtime_smoke.sh`
-4. 最后跑 `bash tests/test_windows_strict_l0_batch_runtime_matrix.sh`
-5. 如果要补齐最终 Windows build-path 证据，再到专用 Windows 主机执行 `tests\test_windows_strict_l0_batch_native_matrix.bat`
-6. 如果要把 dedicated-host 结果收成标准 artifact，再执行 `tests\collect_windows_strict_l0_native_evidence.bat`
-7. 如果要从 Linux/macOS 触发或复用 GitHub Actions Windows run，再执行 `bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh`
-8. 如果 workflow 还没注册到 default branch，先执行 `bash tests/print_windows_strict_l0_native_ci_enablement_3cmd.sh`
-9. 如果你只想先拿到 today source-of-truth 的复制即跑命令，再执行 `bash tests/print_windows_strict_l0_native_closeout_3cmd.sh`
-10. 如果要一次性复核当前本地所有 native evidence 契约与 GH preflight 状态，再执行 `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
+2. 如果要做 `main` 上的一波 closeout，再跑 `bash tests/run_strict_l0_mainline_closeout.sh`
+3. 如果只想拆开看 Windows runtime 复核，再跑 `bash tests/test_windows_strict_l0_wine_smoke.sh`
+4. 再跑 `bash tests/test_windows_strict_l0_batch_runtime_smoke.sh`
+5. 最后跑 `bash tests/test_windows_strict_l0_batch_runtime_matrix.sh`
+6. 如果要补齐最终 Windows build-path 证据，再到专用 Windows 主机执行 `tests\test_windows_strict_l0_batch_native_matrix.bat`
+7. 如果要把 dedicated-host 结果收成标准 artifact，再执行 `tests\collect_windows_strict_l0_native_evidence.bat`
+8. 如果要从 Linux/macOS 触发或复用 GitHub Actions Windows run，再执行 `bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh`
+9. 如果 workflow 还没注册到 default branch，先执行 `bash tests/print_windows_strict_l0_native_ci_enablement_3cmd.sh`
+10. 如果你只想先拿到 today source-of-truth 的复制即跑命令，再执行 `bash tests/print_windows_strict_l0_native_closeout_3cmd.sh`
+11. 如果要一次性复核当前本地所有 native evidence 契约与 GH preflight 状态，再执行 `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
 
 如果你要在 GitHub Actions 上重复这条 Linux x64 维护回路，当前 manual/reusable workflow 是：
 

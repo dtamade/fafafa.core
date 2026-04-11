@@ -105,6 +105,38 @@ bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh <batch-id
 - 只有 Linux x64：本地只做 contract 复核，不伪造 native Windows 结论
 - Windows exact native evidence 只接受 GitHub Actions 或真实 Windows runner 产物，不接受 Linux x64 本地伪造结论
 
+## strict L0 mainline closeout 单入口
+
+如果这次不是日常 Linux 维护，而是要在 `main` 上做一波 closeout，把 Linux maintenance、Windows exact evidence 和 current-state docs 串起来，当前单入口是：
+
+```bash
+bash tests/run_strict_l0_mainline_closeout.sh
+```
+
+只想先看命令链而不真正触发时：
+
+```bash
+bash tests/run_strict_l0_mainline_closeout.sh --print-commands
+```
+
+需要在 closeout 完成后顺手回填 current-state 文档时，显式开启：
+
+```bash
+bash tests/run_strict_l0_mainline_closeout.sh --apply-docs
+```
+
+这个入口默认目标是 `main`，并固定做三件事：
+
+1. dispatch 或复用 `l0-linux-maintenance.yml`
+2. 调用 `bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh`
+3. 只有显式传入 `--apply-docs` 时，才调用 `bash tests/update_strict_l0_current_state_docs.sh`
+
+这里保持 fail-close 语义：
+
+- 默认不会在没有 fresh run id 的情况下偷偷改文档
+- Windows exact evidence 仍然只接受 GitHub Actions / 真实 Windows runner
+- 如果当前 `main` 只是 docs / control-plane-only 增量，也允许继续沿用上一轮 exact Windows evidence，并把锚点写清楚
+
 ## strict L0 Linux manual/reusable workflow
 
 如果你要在 GitHub Actions 上复用 Linux x64 的 strict L0 维护闭环，当前入口是：

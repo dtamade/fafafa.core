@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+SHARED_GH_RUN_HELPER="${SCRIPT_DIR}/lib_github_actions_workflow_runs.sh"
 WORKFLOW_FILE="${L0_NATIVE_EVIDENCE_WORKFLOW_FILE:-l0-windows-native-evidence.yml}"
 ARTIFACT_NAME="${L0_NATIVE_EVIDENCE_ARTIFACT_NAME:-l0-windows-native-evidence}"
 BATCH_ID="${1:-L0-$(date '+%Y%m%d')-gha}"
@@ -43,6 +44,13 @@ if [[ "${BATCH_ID}" == "-h" || "${BATCH_ID}" == "--help" ]]; then
   print_usage
   exit 0
 fi
+
+if [[ ! -f "${SHARED_GH_RUN_HELPER}" ]]; then
+  echo "[L0-NATIVE-EVIDENCE-GH] Missing shared GH workflow helper: ${SHARED_GH_RUN_HELPER}"
+  exit 2
+fi
+
+source "${SHARED_GH_RUN_HELPER}"
 
 require_cmd() {
   local aCmd="${1:-}"
@@ -106,122 +114,6 @@ run_workflow_dispatch() {
   return "${LRC}"
 }
 
-wait_for_run_completion() {
-  local aRunId="${1:-}"
-  local aPollSeconds="${2:-5}"
-  local aPollMaxTries="${3:-60}"
-  local LJson
-  local LStatus
-  local LConclusion
-  local LRunViewText
-
-  for ((LTry = 1; LTry <= aPollMaxTries; LTry++)); do
-    LJson="$(gh run view "${aRunId}" --json status,conclusion,url 2>/dev/null || true)"
-    if [[ -n "${LJson}" ]]; then
-      read -r LStatus LConclusion < <(python3 - "${LJson}" <<'PY'
-import json
-import sys
-
-raw = sys.argv[1].strip()
-if not raw:
-    print(" ")
-    sys.exit(0)
-
-obj = json.loads(raw)
-print(f"{obj.get('status','') or ''} {obj.get('conclusion','') or ''}")
-PY
-)
-      if [[ "${LStatus}" == "completed" ]]; then
-        if [[ "${LConclusion}" == "success" ]]; then
-          return 0
-        fi
-        echo "[L0-NATIVE-EVIDENCE-GH] Workflow failed: run=${aRunId}, conclusion=${LConclusion}"
-        LRunViewText="$(gh run view "${aRunId}" 2>&1 || true)"
-        [[ -n "${LRunViewText}" ]] && echo "${LRunViewText}"
-        if is_billing_block_output "${LRunViewText}"; then
-          echo "[L0-NATIVE-EVIDENCE-GH] Billing/runner block detected (exit=31)"
-          return 31
-        fi
-        return 1
-      fi
-    fi
-    sleep "${aPollSeconds}"
-  done
-
-  echo "[L0-NATIVE-EVIDENCE-GH] Timeout waiting for workflow run completion: ${aRunId}"
-  return 1
-}
-
-find_latest_run_id_for_dispatch() {
-  local aWorkflowFile="${1:-}"
-  local aHeadSha="${2:-}"
-  local aHeadBranch="${3:-}"
-  local aDispatchEpoch="${4:-0}"
-  local LJson
-
-  LJson="$(gh run list \
-    --workflow "${aWorkflowFile}" \
-    --limit 30 \
-    --json databaseId,headSha,headBranch,event,status,conclusion,createdAt 2>/dev/null || true)"
-
-  if [[ -z "${LJson}" ]]; then
-    return 0
-  fi
-
-  python3 - "${aHeadSha}" "${aHeadBranch}" "${aDispatchEpoch}" "${LJson}" <<'PY'
-import json
-import sys
-from datetime import datetime
-
-head_sha = sys.argv[1].strip().lower()
-head_branch = sys.argv[2].strip()
-dispatch_epoch = int(sys.argv[3] or "0")
-raw = sys.argv[4].strip()
-if not raw:
-    sys.exit(0)
-
-rows = json.loads(raw)
-best = None
-
-def to_epoch(created_at: str) -> int:
-    if not created_at:
-        return 0
-    try:
-        if created_at.endswith("Z"):
-            created_at = created_at[:-1] + "+00:00"
-        return int(datetime.fromisoformat(created_at).timestamp())
-    except Exception:
-        return 0
-
-for row in rows:
-    if row.get("event") != "workflow_dispatch":
-        continue
-    run_id = row.get("databaseId")
-    if run_id is None:
-        continue
-
-    row_sha = str(row.get("headSha", "")).strip().lower()
-    row_branch = str(row.get("headBranch", "")).strip()
-    row_epoch = to_epoch(str(row.get("createdAt", "")).strip())
-
-    if head_sha and row_sha == head_sha:
-        score = 0
-    elif head_branch and row_branch == head_branch:
-        score = 1
-    elif dispatch_epoch > 0 and row_epoch >= dispatch_epoch - 10:
-        score = 2
-    else:
-        continue
-
-    candidate = (score, -row_epoch, int(run_id))
-    if best is None or candidate < best:
-        best = candidate
-
-if best is not None:
-    print(best[2])
-PY
-}
-
 copy_downloaded_artifact() {
   local aSourceDir="${1:-}"
   local aTargetDir="${2:-}"
@@ -251,9 +143,11 @@ if [[ -z "${LRunId}" ]]; then
   if [[ -z "${LRef}" ]]; then
     LRef="$(git -C "${REPO_ROOT}" rev-parse HEAD)"
   fi
+  LCurrentBranch="$(git -C "${REPO_ROOT}" branch --show-current 2>/dev/null || true)"
+  LCurrentHeadSha="$(git -C "${REPO_ROOT}" rev-parse HEAD 2>/dev/null || true)"
   LHeadShaLocal="$(git -C "${REPO_ROOT}" rev-parse "${LRef}" 2>/dev/null || true)"
   LHeadShaRemote="$(git -C "${REPO_ROOT}" ls-remote --heads origin "${LRef}" 2>/dev/null | awk '{print $1}' | head -n 1 || true)"
-  LHeadSha="${LHeadShaRemote:-${LHeadShaLocal}}"
+  LHeadSha="${LHeadShaRemote:-${LHeadShaLocal:-${LCurrentHeadSha}}}"
   if [[ -z "${LExpectedCommit}" ]]; then
     LExpectedCommit="${LHeadSha}"
   fi
@@ -267,10 +161,13 @@ if [[ -z "${LRunId}" ]]; then
     exit 2
   fi
 
-  if [[ -n "${LHeadShaRemote}" && -n "${LHeadShaLocal}" && "${LHeadShaRemote}" != "${LHeadShaLocal}" ]]; then
-    echo "[L0-NATIVE-EVIDENCE-GH] Refuse dispatch: remote ref does not match local HEAD."
-    echo "[L0-NATIVE-EVIDENCE-GH] ref=${LRef} local=${LHeadShaLocal} remote=${LHeadShaRemote}"
-    echo "[L0-NATIVE-EVIDENCE-GH] Push the local closeout fixes first, then rerun the helper."
+  if [[ -n "${LHeadShaRemote}" && -n "${LCurrentHeadSha}" && "${LHeadShaRemote}" != "${LCurrentHeadSha}" ]]; then
+    echo "[L0-NATIVE-EVIDENCE-GH] Refuse dispatch: target ref does not match current worktree HEAD."
+    echo "[L0-NATIVE-EVIDENCE-GH] ref=${LRef} current_branch=${LCurrentBranch:-<detached>} current_head=${LCurrentHeadSha} remote=${LHeadShaRemote}"
+    if [[ -n "${LHeadShaLocal}" ]]; then
+      echo "[L0-NATIVE-EVIDENCE-GH] local_named_ref=${LHeadShaLocal}"
+    fi
+    echo "[L0-NATIVE-EVIDENCE-GH] Fast-forward/switch the current L0 worktree to the target ref, then rerun the helper."
     exit 2
   fi
 
@@ -291,7 +188,7 @@ if [[ -z "${LRunId}" ]]; then
   }
 
   for ((LTry = 1; LTry <= LPollMaxTries; LTry++)); do
-    LRunId="$(find_latest_run_id_for_dispatch "${WORKFLOW_FILE}" "${LHeadSha}" "${LRef}" "${LDispatchEpoch}")"
+    LRunId="$(gh_runlib_find_latest_dispatch_run_id "${WORKFLOW_FILE}" "${LHeadSha}" "${LRef}" "${LDispatchEpoch}" relaxed)"
     if [[ -n "${LRunId}" ]]; then
       break
     fi
@@ -307,10 +204,21 @@ if [[ -z "${LRunId}" ]]; then
 fi
 
 echo "[L0-NATIVE-EVIDENCE-GH] Watching run: ${LRunId}"
-wait_for_run_completion "${LRunId}" "${LPollSeconds}" "${LPollMaxTries}" || {
+if ! gh_runlib_wait_for_run_completion "${LRunId}" "${LPollSeconds}" "${LPollMaxTries}"; then
   LWaitRc=$?
-  exit "${LWaitRc}"
-}
+  if [[ "${LWaitRc}" == "10" ]]; then
+    echo "[L0-NATIVE-EVIDENCE-GH] Workflow failed: run=${LRunId}, conclusion=${GH_RUNLIB_LAST_CONCLUSION:-unknown}"
+    LRunViewText="$(gh run view "${LRunId}" 2>&1 || true)"
+    [[ -n "${LRunViewText}" ]] && echo "${LRunViewText}"
+    if is_billing_block_output "${LRunViewText}"; then
+      echo "[L0-NATIVE-EVIDENCE-GH] Billing/runner block detected (exit=31)"
+      exit 31
+    fi
+    exit 1
+  fi
+  echo "[L0-NATIVE-EVIDENCE-GH] Timeout waiting for workflow run completion: ${LRunId}"
+  exit 1
+fi
 
 LTempDir="$(mktemp -d)"
 cleanup() {
