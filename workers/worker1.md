@@ -1,64 +1,42 @@
 # worker1
 
 - Owner: Codex
-- Scope: strict non-SIMD L0 的当前真相固化、质量加固与控制面同步
+- Scope: strict non-SIMD L0 的当前真相固化、latest-mainline replay 后的控制面同步，以及最终主线集成前的 merge hygiene 维护
 - Status: `active`
-- Branch: `l0-mainline-integration-20260409`
+- Branch: `l0-mainline-integration-20260411`
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
-- Base commit: `origin/main`
+- Base commit: `0684af55` (`origin/main`)
 - Current focus:
-  - 在当前唯一的 L0 worktree 上维护基于 `origin/main` 的 integration branch
-  - 在需要 replay 当前 closeout 时，先把 `HEAD` 保存成 `l0-mainline-closeout-20260409` 这一类源分支 tip
-  - 维持 `span2` 已进入 strict L0 之后的边界，不再继续无根据扩张 L0 面
-  - 持续校验集成分支上的 L0 hygiene、聚合 gate 稳定性与 merge readiness
+  - 维持当前唯一 L0 worktree 上的 latest-mainline replay 结果，不把 unrelated 工作重新混回分支
+  - 维持 strict L0 的 current-entry 文档、模块边界和验证口径一致
+  - 在真正进入主线合并窗口前，只补必要的 merge hygiene；如果需要 commit-exact Windows artifact，再补 GH native evidence
 - Source of truth:
   - `docs/fafafa.core.l0.foundation.md`
   - `docs/fafafa.core.l0.roadmap.md`
   - `docs/ARCHITECTURE_LAYERS.md`
-  - `docs/audits/2026-04-10-l0-current-state-audit.md`
-  - `docs/plans/2026-04-10-l0-mainline-merge-checklist.md`
+  - `docs/audits/2026-04-11-l0-current-state-audit.md`
+  - `docs/plans/2026-04-11-l0-mainline-merge-checklist.md`
+  - `docs/plans/2026-04-11-l0-mainline-replay-execution-plan.md`
   - `docs/fafafa.core.span.md`
   - `docs/fafafa.core.atomic.md`
   - `docs/fafafa.core.result.md`
 - Fresh verification:
-  - `bash tests/test_windows_strict_l0_wine_smoke.sh`
-  - 结果：PASS；`platform` `5/5`、`atomic` `86/86`、`mem.allocator.foundation` `6/6`、`mem allocator-only` `13/13`
-  - `bash tests/test_windows_strict_l0_batch_runtime_smoke.sh`
-  - 结果：PASS；`platform`、`atomic`、`mem.allocator.foundation`、`mem allocator-only` 的最小 `.bat` runtime-only smoke 已在 `FAFAFA_SKIP_BUILD=1` 下 fresh 通过
-  - `bash tests/test_windows_strict_l0_batch_runtime_matrix.sh`
-  - 结果：PASS；`base`、`contracts`、`bits`、`layout`、`endian`、`span`、`option`、`result`、`platform`、`atomic`、`mem.allocator.foundation`、`mem allocator-only` 的 `.bat` runtime-only parity 已在 `FAFAFA_SKIP_BUILD=1` 下 fresh 通过
-  - `bash tests/test_windows_strict_l0_batch_native_matrix_contract.sh`
-  - 结果：PASS；native Windows 12 模块 matrix driver 已接好，且当前 `wine` 环境下会对缺少 `lazbuild.exe` 的情况 fail-close
-  - `bash tests/test_windows_strict_l0_native_evidence_contract.sh`
-  - 结果：PASS；native evidence collector / verifier / workflow 已接好，且当前 `wine` 环境下 collector 会对缺少 `lazbuild.exe` 的情况 fail-close
-  - `bash tests/test_windows_strict_l0_native_evidence_gh_contract.sh`
-  - 结果：PASS；GH preflight / dispatch-download helper 已接好，并锁定了 workflow-not-found 的 `code=22` fail-close 语义
-  - `bash tests/test_windows_strict_l0_native_evidence_shell_verifier_contract.sh`
-  - 结果：PASS；standalone shell verifier 已接好，并锁定了 CRLF 归一化和 expected commit fail-close 语义
-  - `bash tests/test_windows_strict_l0_native_ci_enablement_3cmd_contract.sh`
-  - 结果：PASS；CI enablement helper 已接好，并锁定了 default-branch registration slice 与 Linux x64 后续命令
-  - `bash tests/test_windows_strict_l0_native_closeout_3cmd_contract.sh`
-  - 结果：PASS；复制即跑 helper 已接好，并锁定了 batch-id 替换与 GH / Windows / shell 三条提示路径
-  - `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
-  - 结果：PASS；native closeout 本地可验证项已经统一成单入口，并会打印当前 GH preflight 状态
-  - `L0_NATIVE_EVIDENCE_POLL_MAX_TRIES=180 bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh L0-20260410-native-gha-r9`
-  - 结果：PASS；GitHub Actions run `24224880061` 已在真实 Windows runner 上 fresh 收到 strict L0 `12/12` native evidence
-  - `bash tests/test_windows_lazbuild_bootstrap.sh`
-  - 结果：PASS；bootstrap 已补齐，Unix `LAZBUILD_EXE` 会被清晰拒绝
-  - `bash tests/test_windows_lazbuild_smoke_preflight_contract.sh`
-  - 结果：PASS；preflight 在 `code=31` 时会打印 `LAZBUILD_EXE` 恢复命令
   - `STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation fafafa.core.platform`
   - 结果：PASS，`11/11`
   - `git diff --check`
   - 结果：PASS
+  - `bash tests/test_windows_strict_l0_batch_runtime_matrix.sh`
+  - 结果：PASS；`base`、`contracts`、`bits`、`layout`、`endian`、`span`、`option`、`result`、`platform`、`atomic`、`mem_allocator_foundation`、`mem_allocator_only` 全部 fresh 通过
+  - `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
+  - 结果：PASS；当前 GH preflight 为 `workflow=l0-windows-native-evidence.yml, state=active`
+  - `L0_NATIVE_EVIDENCE_POLL_MAX_TRIES=180 bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh L0-20260410-native-gha-r9`
+  - 结果：PASS；GitHub Actions run `24224880061` 已在真实 Windows runner 上收到 strict L0 `12/12` native evidence
 - Risks / blockers:
-  - 根目录 `main` 工作树仍然是用户脏状态，不能直接作为执行面
-  - sidecar sync/fs/socket runner 改动已转移到临时 branch `l0-sidecar-handoff-20260409`，后续需由对应 owner 接手
+  - 根目录 `main` 工作树仍然是用户脏状态，不能直接作为最终执行面
   - SIMD-only 残留仍需要由 SIMD owner 继续维护，L0 这里只保留边界与 handoff 说明
-  - Linux `wine` 环境下的 `bash tests/test_windows_lazbuild_smoke_preflight.sh` 仍会以 `code=31` fail-close；这是本地缺少 Windows `lazbuild.exe` 的环境限制，不再是 strict L0 当前 blocker，因为真实 Windows native evidence 已经通过 GitHub Actions 收到 fresh PASS
+  - 如果最终主线窗口要求 commit-exact Windows native artifact，仍需在推送当前分支后补 fresh GH run
 - Next step:
   - 继续只沿 strict L0 线推进，不把 sidecar 或 SIMD 工作重新混回当前 worktree
-  - 在没有新的明确 L0 候选前，优先维护稳定路线图、模块文档和验证口径，而不是继续扩模块
-  - 集成分支已经建立并通过 Linux/macOS 路径 fresh gate；当前最小 Windows runtime smoke、最小 `.bat` smoke、扩展 `.bat` runtime-only parity matrix、native lane script contract、evidence artifact wiring、standalone shell verifier、CI enablement helper、复制即跑 helper、aggregate closeout stack 以及 via-GitHub-Actions helper wiring 也已通过
-  - 当前 strict L0 的真实 Windows native evidence 已经通过 GitHub Actions 收到 fresh PASS；下一步重点回到 merge hygiene、文档同步和 compat surface 控制
-- Last updated: `2026-04-10`
+  - 如果当前分支只是继续在 L0 worktree 内整理文档和边界，不需要为了形式感重跑旧 replay 方案
+  - 如果准备真正并回主线，优先按 `docs/plans/2026-04-11-l0-mainline-merge-checklist.md` 从干净执行面推进
+- Last updated: `2026-04-11`

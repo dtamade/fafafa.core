@@ -12,7 +12,7 @@ L0 相关文档从现在起按固定分工维护：
    说明 L0 当前到底包含什么、不包含什么。
 3. `docs/fafafa.core.l0.roadmap.md`
    说明 L0 接下来该按什么原则继续推进。
-4. `docs/audits/2026-04-10-l0-current-state-audit.md`
+4. `docs/audits/2026-04-11-l0-current-state-audit.md`
    说明当前已验证的执行状态。
 5. `docs/plans/2026-04-09-l0-kernel-span2-closeout.md`
    只保留最近一轮 L0 batch 的执行 closeout 语境。

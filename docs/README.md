@@ -7,8 +7,9 @@
 - 文档总索引：`docs/INDEX.md`
 - L0 稳定路线图：`docs/fafafa.core.l0.roadmap.md`
 - L0 详细定义：`docs/fafafa.core.l0.foundation.md`
-- 当前 L0 审计：`docs/audits/2026-04-10-l0-current-state-audit.md`
-- 当前 L0 合并清单：`docs/plans/2026-04-10-l0-mainline-merge-checklist.md`
+- 当前 L0 审计：`docs/audits/2026-04-11-l0-current-state-audit.md`
+- 当前 L0 合并清单：`docs/plans/2026-04-11-l0-mainline-merge-checklist.md`
+- L0 replay 执行计划：`docs/plans/2026-04-11-l0-mainline-replay-execution-plan.md`
 - 最近 L0 批次 closeout：`docs/plans/2026-04-09-l0-kernel-span2-closeout.md`
 - 测试指南：`docs/TESTING.md`
 - CI 指南：`docs/CI.md`
