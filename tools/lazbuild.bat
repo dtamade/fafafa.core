@@ -34,9 +34,11 @@ if not defined LAZBUILD_PATH (
 if not defined LAZBUILD_PATH if defined ProgramFiles (
   if exist "%ProgramFiles%\Lazarus\lazbuild.exe" set "LAZBUILD_PATH=%ProgramFiles%\Lazarus\lazbuild.exe"
 )
-if not defined LAZBUILD_PATH if defined ProgramFiles(x86) (
-  if exist "%ProgramFiles(x86)%\Lazarus\lazbuild.exe" set "LAZBUILD_PATH=%ProgramFiles(x86)%\Lazarus\lazbuild.exe"
+if not defined LAZBUILD_PATH if defined ProgramW6432 (
+  if exist "%ProgramW6432%\Lazarus\lazbuild.exe" set "LAZBUILD_PATH=%ProgramW6432%\Lazarus\lazbuild.exe"
 )
+if not defined LAZBUILD_PATH if exist "C:\Program Files\Lazarus\lazbuild.exe" set "LAZBUILD_PATH=C:\Program Files\Lazarus\lazbuild.exe"
+if not defined LAZBUILD_PATH if exist "C:\Program Files (x86)\Lazarus\lazbuild.exe" set "LAZBUILD_PATH=C:\Program Files (x86)\Lazarus\lazbuild.exe"
 if not defined LAZBUILD_PATH if exist "C:\lazarus\lazbuild.exe" set "LAZBUILD_PATH=C:\lazarus\lazbuild.exe"
 if not defined LAZBUILD_PATH if exist "C:\Lazarus\lazbuild.exe" set "LAZBUILD_PATH=C:\Lazarus\lazbuild.exe"
 
