@@ -36,6 +36,10 @@ probe_gh_preflight() {
       echo "${LOutput}"
       info "GH preflight PASS"
       ;;
+    21)
+      echo "${LOutput}"
+      info "GH preflight currently fail-close at gh auth required"
+      ;;
     22)
       echo "${LOutput}"
       info "GH preflight currently fail-close at workflow-not-found (default-branch registration still pending)"

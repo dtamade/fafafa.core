@@ -39,12 +39,15 @@
 
 在这条线打通之前，preflight 可能返回：
 
+- `AUTH_REQUIRED`
+- `code=21`
 - `WORKFLOW_NOT_FOUND`
 - `code=22`
 
 这说明当时缺的不是 L0 代码逻辑本身，而是：
 
 - L0 本地脚本已经够了
+- 运行 preflight 的 Linux shell 可能还没有 `gh` 登录态
 - workflow 还没有在 default branch 注册，导致 Linux x64 无法直接收真实 Windows evidence
 
 ## Required slice
@@ -126,6 +129,7 @@ bash tests/preflight_windows_strict_l0_native_evidence_gh.sh
 
 - 返回 `rc=0`
 - 不再是 `WORKFLOW_NOT_FOUND`
+- 不再是 `AUTH_REQUIRED`
 
 ### 5. 从 Linux x64 触发 Windows evidence workflow
 
@@ -172,7 +176,7 @@ STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contract
 
 - 不要把 workflow 注册 PR 和 strict L0 主线 merge 混成同一件事
 - 不要把 SIMD worktree 的工作混入这条 enablement 线
-- 不要在 `code=22` 还没消失时假装 GH helper 已经可用
+- 不要在 `code=21/code=22` 还没消失时假装 GH helper 已经可用
 - 不要把“workflow 在 `main` 上可见”误写成“Windows native parity 已完成”
 
 ## Fast handoff

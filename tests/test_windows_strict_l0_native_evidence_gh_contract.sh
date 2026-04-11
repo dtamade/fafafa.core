@@ -16,6 +16,16 @@ info() {
   echo "[INFO] $1"
 }
 
+require_output_match() {
+  local aOutput="$1"
+  local aPattern="$2"
+  local aMessage="$3"
+  if ! printf '%s' "${aOutput}" | rg -n "${aPattern}" >/dev/null; then
+    printf '%s\n' "${aOutput}" >&2
+    fail "${aMessage}"
+  fi
+}
+
 require_literal_in_file() {
   local aFile="$1"
   local aPattern="$2"
@@ -33,6 +43,8 @@ require_literal_in_file "${PREFLIGHT_SCRIPT}" 'gh workflow list --all' \
   "preflight does not query workflow list"
 require_literal_in_file "${PREFLIGHT_SCRIPT}" 'gh auth status' \
   "preflight does not require gh auth"
+require_literal_in_file "${PREFLIGHT_SCRIPT}" 'AUTH_REQUIRED' \
+  "preflight does not expose auth-required failure"
 require_literal_in_file "${PREFLIGHT_SCRIPT}" 'WORKFLOW_NOT_FOUND' \
   "preflight does not expose workflow-not-found failure"
 require_literal_in_file "${PREFLIGHT_SCRIPT}" 'RECENT_BILLING_BLOCK' \
@@ -57,6 +69,30 @@ require_literal_in_file "${HELPER_SCRIPT}" 'verify_windows_strict_l0_native_evid
 require_literal_in_file "${HELPER_SCRIPT}" 'Missing shell verifier:' \
   "GH helper does not fail-close when the shell verifier is absent"
 
+LTmpDir="$(mktemp -d)"
+cat >"${LTmpDir}/gh" <<'EOF'
+#!/usr/bin/env bash
+if [[ "${1:-}" == "auth" && "${2:-}" == "status" ]]; then
+  exit 1
+fi
+echo "[stub-gh] unexpected invocation: $*" >&2
+exit 99
+EOF
+chmod +x "${LTmpDir}/gh"
+
+set +e
+AUTH_OUTPUT="$(PATH="${LTmpDir}:${PATH}" bash "${PREFLIGHT_SCRIPT}" 2>&1)"
+AUTH_RC=$?
+set -e
+rm -rf "${LTmpDir}"
+
+if [[ "${AUTH_RC}" != "21" ]]; then
+  printf '%s\n' "${AUTH_OUTPUT}" >&2
+  fail "stubbed auth-required preflight rc=${AUTH_RC}, expected 21"
+fi
+require_output_match "${AUTH_OUTPUT}" 'AUTH_REQUIRED|gh auth required' \
+  "stubbed auth-required preflight missing auth guidance"
+
 set +e
 OUTPUT="$(bash "${PREFLIGHT_SCRIPT}" 2>&1)"
 RC=$?
@@ -64,28 +100,24 @@ set -e
 
 case "${RC}" in
   0)
-    if ! printf '%s' "${OUTPUT}" | rg -n 'OK:' >/dev/null; then
-      printf '%s\n' "${OUTPUT}" >&2
-      fail "preflight passed without an OK marker"
-    fi
+    require_output_match "${OUTPUT}" 'OK:' \
+      "preflight passed without an OK marker"
+    ;;
+  21)
+    require_output_match "${OUTPUT}" 'AUTH_REQUIRED|gh auth required' \
+      "preflight rc=21 without auth-required guidance"
     ;;
   22)
-    if ! printf '%s' "${OUTPUT}" | rg -n 'WORKFLOW_NOT_FOUND|workflow not found' >/dev/null; then
-      printf '%s\n' "${OUTPUT}" >&2
-      fail "preflight rc=22 without workflow-not-found guidance"
-    fi
+    require_output_match "${OUTPUT}" 'WORKFLOW_NOT_FOUND|workflow not found' \
+      "preflight rc=22 without workflow-not-found guidance"
     ;;
   23)
-    if ! printf '%s' "${OUTPUT}" | rg -n 'WORKFLOW_DISABLED|workflow state is not active' >/dev/null; then
-      printf '%s\n' "${OUTPUT}" >&2
-      fail "preflight rc=23 without workflow-disabled guidance"
-    fi
+    require_output_match "${OUTPUT}" 'WORKFLOW_DISABLED|workflow state is not active' \
+      "preflight rc=23 without workflow-disabled guidance"
     ;;
   31)
-    if ! printf '%s' "${OUTPUT}" | rg -n 'RECENT_BILLING_BLOCK|billing' >/dev/null; then
-      printf '%s\n' "${OUTPUT}" >&2
-      fail "preflight rc=31 without billing-block guidance"
-    fi
+    require_output_match "${OUTPUT}" 'RECENT_BILLING_BLOCK|billing' \
+      "preflight rc=31 without billing-block guidance"
     ;;
   *)
     printf '%s\n' "${OUTPUT}" >&2

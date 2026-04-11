@@ -54,9 +54,11 @@ tests\collect_windows_strict_l0_native_evidence.bat
 via-GitHub-Actions helper 约束：
 
 - 默认模式会先执行 `preflight_windows_strict_l0_native_evidence_gh.sh`
-- 如果 workflow 没有出现在仓库 default branch，预期由 preflight 以 `code=22` fail-close
+- 如果当前 shell / runner 没有可用的 `gh` 登录态，预期由 preflight 以 `code=21` fail-close
+- 如果 workflow 没有出现在仓库 default branch，预期由 preflight 在 gh 已认证后以 `code=22` fail-close
 - 当前仓库 today 状态已经不是这样；default branch workflow 已注册，且 GitHub Actions run `24224880061` 已 fresh 通过
-- 如果你当前只有 Linux x64，且 preflight 重新退回 `code=22`，再去执行 `docs/plans/2026-04-10-l0-windows-ci-enablement.md` 里的 registration checklist，把它当成 registration drift 排障而不是 current baseline
+- 如果你当前只有 Linux x64，且 preflight 先退回 `code=21`，先补 `gh auth login` 或注入 token
+- 如果你当前只有 Linux x64，且 gh 已认证后 preflight 重新退回 `code=22`，再去执行 `docs/plans/2026-04-10-l0-windows-ci-enablement.md` 里的 registration checklist，把它当成 registration drift 排障而不是 current baseline
 - 默认 dispatch 模式会拒绝当前 worktree dirty 或 remote ref 与 local HEAD 不一致的场景
 - 若已经有可复用的 `run-id`，可传第二个参数旁路 dispatch；这时只会做 wait/download/Linux-side artifact 校验
 - Linux-side 校验只负责核对 artifact 结构和关键字段；默认由 `verify_windows_strict_l0_native_evidence.sh` 执行；native parity 是否完成，仍以 workflow 内 Windows `collect + verify` 的 fresh PASS 为准
@@ -193,5 +195,6 @@ native matrix 当前固定覆盖 12 个 strict L0 batch 入口：
   - `bash tests/test_windows_strict_l0_native_evidence_shell_verifier_contract.sh`
   - 它只证明脚本 contract 和 fail-close 语义已锁定，不等于 native parity 已完成
 - 截至 `2026-04-10`，GitHub Actions run `24224880061` 已通过 Windows-host `collect + verify`，artifact summary 记录 strict L0 native evidence `12/12` PASS
-- 当前若再出现 `code=22`，应把它视作 registration drift / GH 可见性异常，而不是 current baseline
+- 当前若再出现 `code=21`，应先把它视作本地/GitHub runner 缺少 `gh auth` 的环境问题
+- 当前若在 gh 已认证后再出现 `code=22`，应把它视作 registration drift / GH 可见性异常，而不是 current baseline
 - 当前 strict L0 的 Windows native evidence 已闭环；这份 runbook 主要保留 dedicated Windows host / artifact verifier / GH helper 的操作与失败语义

@@ -15,8 +15,14 @@ if ! rg -n "lazbuild" "${BOOTSTRAP_BAT}" >/dev/null; then
   exit 1
 fi
 
+if rg -n "ProgramFiles\\(x86\\)" "${BOOTSTRAP_BAT}" >/dev/null; then
+  echo "[FAIL] Windows lazbuild bootstrap must not reference ProgramFiles(x86) directly under cmd/wine" >&2
+  exit 1
+fi
+
 if command -v wine >/dev/null 2>&1; then
   WIN_REPO_ROOT="Z:\\$(printf '%s' "${REPO_ROOT}" | sed 's#^/##; s#/#\\\\#g')"
+  WIN_UNIX_EXE="Z:\\usr\\bin\\env"
   set +e
   OUTPUT="$(wine cmd /c "cd /d ${WIN_REPO_ROOT} && call tools\\lazbuild.bat --help" 2>&1)"
   RC=$?
@@ -28,7 +34,7 @@ if command -v wine >/dev/null 2>&1; then
     exit 1
   fi
 
-  if printf '%s' "${OUTPUT}" | rg -n "Can't recognize|not recognized as an internal or external command" >/dev/null; then
+  if printf '%s' "${OUTPUT}" | rg -n "Syntax error: unexpected \\(|Can't recognize|not recognized as an internal or external command" >/dev/null; then
     echo "[FAIL] Windows lazbuild bootstrap was not callable under wine cmd" >&2
     printf '%s\n' "${OUTPUT}" >&2
     exit 1
@@ -37,7 +43,7 @@ if command -v wine >/dev/null 2>&1; then
   echo "[INFO] wine invocation exit code: ${RC}"
 
   set +e
-  OUTPUT_UNIX_EXE="$(wine cmd /c "set LAZBUILD_EXE=Z:\\opt\\fpcupdeluxe\\lazarus\\lazbuild && cd /d ${WIN_REPO_ROOT} && call tools\\lazbuild.bat --help" 2>&1)"
+  OUTPUT_UNIX_EXE="$(wine cmd /c "set LAZBUILD_EXE=${WIN_UNIX_EXE} && cd /d ${WIN_REPO_ROOT} && call tools\\lazbuild.bat --help" 2>&1)"
   RC_UNIX_EXE=$?
   set -e
 
@@ -47,7 +53,7 @@ if command -v wine >/dev/null 2>&1; then
     exit 1
   fi
 
-  if printf '%s' "${OUTPUT_UNIX_EXE}" | rg -n "Can't recognize|not recognized as an internal or external command" >/dev/null; then
+  if printf '%s' "${OUTPUT_UNIX_EXE}" | rg -n "Syntax error: unexpected \\(|Can't recognize|not recognized as an internal or external command" >/dev/null; then
     echo "[FAIL] Windows lazbuild bootstrap leaked raw cmd execution error for Unix-path LAZBUILD_EXE" >&2
     printf '%s\n' "${OUTPUT_UNIX_EXE}" >&2
     exit 1

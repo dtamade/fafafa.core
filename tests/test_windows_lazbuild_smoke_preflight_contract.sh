@@ -4,6 +4,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 PREFLIGHT_SCRIPT="${REPO_ROOT}/tests/test_windows_lazbuild_smoke_preflight.sh"
+PREFLIGHT_STAGE="$(git -C "${REPO_ROOT}" ls-files --stage -- tests/test_windows_lazbuild_smoke_preflight.sh)"
+
+if ! printf '%s' "${PREFLIGHT_STAGE}" | rg -n '^100755 ' >/dev/null; then
+  echo "[FAIL] preflight script must be tracked as executable (git mode 100755): ${PREFLIGHT_SCRIPT}" >&2
+  printf '%s\n' "${PREFLIGHT_STAGE}" >&2
+  exit 1
+fi
 
 if [[ ! -x "${PREFLIGHT_SCRIPT}" ]]; then
   echo "[FAIL] missing executable preflight script: ${PREFLIGHT_SCRIPT}" >&2
