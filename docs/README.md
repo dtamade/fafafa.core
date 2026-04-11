@@ -8,8 +8,10 @@
 - L0 稳定路线图：`docs/fafafa.core.l0.roadmap.md`
 - L0 详细定义：`docs/fafafa.core.l0.foundation.md`
 - 当前 L0 审计：`docs/audits/2026-04-11-l0-current-state-audit.md`
-- 当前 L0 合并清单：`docs/plans/2026-04-11-l0-mainline-merge-checklist.md`
-- L0 replay 执行计划：`docs/plans/2026-04-11-l0-mainline-replay-execution-plan.md`
+- L0 post-merge 稳定化计划：`docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md`
+- 最近 L0 refs / CI closeout（历史）：`docs/legacy/l0/2026-04-11-l0-mainline-refs-and-ci-closeout.md`
+- 最近 L0 合并 closeout（历史）：`docs/legacy/l0/2026-04-11-l0-mainline-merge-checklist.md`
+- L0 replay 执行计划（历史）：`docs/legacy/l0/2026-04-11-l0-mainline-replay-execution-plan.md`
 - 最近 L0 批次 closeout：`docs/plans/2026-04-09-l0-kernel-span2-closeout.md`
 - 测试指南：`docs/TESTING.md`
 - CI 指南：`docs/CI.md`
@@ -21,7 +23,9 @@
 
 - L0 的稳定文档栈固定为：`docs/ARCHITECTURE_LAYERS.md` + `docs/fafafa.core.l0.foundation.md` + `docs/fafafa.core.l0.roadmap.md` + 最新 `docs/audits/*l0*.md`
 - strict L0 模块入口统一收在 `docs/INDEX.md` 的 `Strict L0 模块入口` 区段
-- dated `docs/plans/*l0*.md` 不承担长期导航；只有在对应批次或合并窗口里，才作为执行清单使用
+- strict L0 已经合并到 `main`；dated `docs/plans/*l0*.md` 现在只保留执行批次或历史 closeout 语境
+- 当前如果要继续沿 L0 维护，优先看最新 audit、roadmap、foundation 和 post-merge stabilization plan
+- Linux x64 的日常维护入口固定为：`bash tests/run_strict_l0_maintenance_loop.sh`
 
 ## 文档放置约定（清理后的结构）
 

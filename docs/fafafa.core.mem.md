@@ -114,6 +114,8 @@
 - `tests/fafafa.core.mem/BuildOrTest.sh` 当前实际构建的是 `tests_mem_allocator_only.lpi`。
 - `tests/fafafa.core.mem/BuildOrTest.bat` 当前构建的是 `tests_mem.lpi` 的 Debug 产物。
 - 脚本行为存在平台差异；需要精确判断时，以 `tests/fafafa.core.mem/README.md` 的脚本边界为准。
+- 如果你是在 Linux x64 上做 strict L0 日常维护，优先从 `bash tests/run_strict_l0_maintenance_loop.sh` 开始，而不是只单跑 allocator facade。
+- strict L0 的 exact Windows native evidence 只接受 GitHub Actions 或真实 Windows runner 产物。
 
 ## 当前边界
 

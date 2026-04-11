@@ -24,6 +24,7 @@
 
 - Windows：`tests\\fafafa.core.endian\\BuildOrTest.bat test`
 - Linux/macOS：`bash tests/fafafa.core.endian/BuildOrTest.sh test`
+- Linux x64 strict L0 日常维护：`bash tests/run_strict_l0_maintenance_loop.sh`
 
 如果你只想做构建检查：
 
@@ -53,3 +54,4 @@
 - `src/fafafa.core.bytes.pas` 当前会消费 `fafafa.core.endian` 并保留兼容别名，但 `endian` 的 today contract 以 `docs/fafafa.core.endian.md` 和当前测试入口为准。
 - 这里不承载 `platform` 或其他 L0 准入讨论；那不属于 `endian` 当前测试职责。
 - `bin/`、`lib/`、`logs/` 是产物目录，不属于合同本体。
+- exact Windows native evidence 只接受 GitHub Actions 或真实 Windows runner 产物。

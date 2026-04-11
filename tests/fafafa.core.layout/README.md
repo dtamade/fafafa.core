@@ -24,6 +24,7 @@
 
 - Windows：`tests\\fafafa.core.layout\\BuildOrTest.bat test`
 - Linux/macOS：`bash tests/fafafa.core.layout/BuildOrTest.sh test`
+- Linux x64 strict L0 日常维护：`bash tests/run_strict_l0_maintenance_loop.sh`
 
 如果你只想做构建检查：
 
@@ -53,3 +54,4 @@
 - `src/fafafa.core.mem.layout.pas` 继续承担 compat 角色，但布局合同的 today contract 以 `docs/fafafa.core.layout.md` 和当前测试入口为准。
 - 这里不承载 `platform` 或其他 L0 准入讨论；那不是 `layout` 当前测试入口的责任边界。
 - `bin/`、`lib/`、`logs/` 是产物目录，不属于合同本体。
+- exact Windows native evidence 只接受 GitHub Actions 或真实 Windows runner 产物。

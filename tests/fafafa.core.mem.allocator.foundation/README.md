@@ -31,6 +31,7 @@
 
 - Windows：`tests\\fafafa.core.mem.allocator.foundation\\BuildOrTest.bat test`
 - Linux/macOS：`bash tests/fafafa.core.mem.allocator.foundation/BuildOrTest.sh test`
+- Linux x64 strict L0 日常维护：`bash tests/run_strict_l0_maintenance_loop.sh`
 
 如果你要验证关闭 contracts 开关后的 smoke：
 
@@ -73,3 +74,4 @@
 - `tests/fafafa.core.mem/` 仍负责 broader mem 域入口；`tests/fafafa.core.mem.manager.rtl/` 仍负责 RTL allocator manager 的专项验证。
 - callback allocator 的 nil callback 行为跟随 `fafafa.core.contracts`：默认构建抛 `EArgumentNil`，`NoContracts` 下只保证 smoke 可运行，不再承诺 friendly exception。
 - 如果 README、脚本和工程文件冲突，以脚本与工程文件现状为准。
+- exact Windows native evidence 只接受 GitHub Actions 或真实 Windows runner 产物。

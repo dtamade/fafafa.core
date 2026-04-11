@@ -1,5 +1,7 @@
 # L0 Mainline Replay Execution Plan
 
+> 已归档到 `docs/legacy/l0/`。当前 strict non-SIMD L0 的 today contract 与 current-entry 请改看 `docs/fafafa.core.l0.foundation.md`、`docs/fafafa.core.l0.roadmap.md` 和 `docs/audits/2026-04-11-l0-current-state-audit.md`。
+> 历史执行计划：这份计划已经完成，对应结果已通过 PR `#9` 合并到 `main@f6585dd9`。
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** 在唯一的 L0 worktree 中，把 strict non-SIMD L0 的最新 closeout 状态安全地重建到最新 `origin/main` 之上，并产出与实际分支状态一致的 current-entry 文档。
@@ -17,7 +19,7 @@
 - Create: `task_plan.md`
 - Create: `findings.md`
 - Create: `progress.md`
-- Create: `docs/plans/2026-04-11-l0-mainline-replay-execution-plan.md`
+- Create: `docs/plans/2026-04-11-l0-mainline-replay-execution-plan.md`（当前归档路径：`docs/legacy/l0/2026-04-11-l0-mainline-replay-execution-plan.md`）
 
 **Step 1: 记录当前分支状态**
 
@@ -153,7 +155,7 @@ Expected: 只有当 replay 触及 strict L0 代码或测试且现有 Windows 证
 **Files:**
 
 - Create: `docs/audits/2026-04-11-l0-current-state-audit.md`
-- Create: `docs/plans/2026-04-11-l0-mainline-merge-checklist.md`
+- Create: `docs/plans/2026-04-11-l0-mainline-merge-checklist.md`（当前归档路径：`docs/legacy/l0/2026-04-11-l0-mainline-merge-checklist.md`）
 - Modify: `docs/README.md`
 - Modify: `docs/INDEX.md`
 - Modify: `docs/fafafa.core.l0.foundation.md`

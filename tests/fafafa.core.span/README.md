@@ -24,6 +24,7 @@
 
 - Windows：`tests\\fafafa.core.span\\BuildOrTest.bat test`
 - Linux/macOS：`bash tests/fafafa.core.span/BuildOrTest.sh test`
+- Linux x64 strict L0 日常维护：`bash tests/run_strict_l0_maintenance_loop.sh`
 
 ## 当前脚本行为
 
@@ -48,3 +49,4 @@
 - 这里锁定的是最小只读 `span` / `span2` contract，不替代 `collections.slice` 的 today semantics。
 - `collections.slice` 里的容器 `SliceView`、裁剪行为和更宽的 collections 语义仍属于 Layer 1，不在当前 L0 `span` 入口里。
 - `platform` 虽然也是 strict L0 模块，但有自己的独立测试入口，不属于这里的测试职责。
+- exact Windows native evidence 只接受 GitHub Actions 或真实 Windows runner 产物。

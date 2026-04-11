@@ -18,6 +18,7 @@
 
 - Windows：`tests\\fafafa.core.platform\\BuildOrTest.bat test`
 - Linux/macOS：`bash tests/fafafa.core.platform/BuildOrTest.sh test`
+- Linux x64 strict L0 日常维护：`bash tests/run_strict_l0_maintenance_loop.sh`
 
 如果你只想复核 Windows `.bat` runtime-only parity：
 
@@ -47,3 +48,4 @@
 - 这里只承认静态 target facts：OS、arch、pointer width、endianness、`Is64Bit`。
 - `fafafa.core.os` 里的 hostname、user、path、cpu count、page size、capability probe 不属于这里。
 - 如果 README、脚本和工程文件冲突，以脚本与工程文件现状为准。
+- exact Windows native evidence 只接受 GitHub Actions 或真实 Windows runner 产物。
