@@ -53,6 +53,7 @@
 - 只有当 gh 已认证后 preflight 仍退回 `code=22` 时，才回到 `bash tests/print_windows_strict_l0_native_ci_enablement_3cmd.sh` 排查 workflow registration 漂移
 - 如果当前变化只是 docs / control-plane 变更，不要为了形式感重跑 exact Windows native evidence
 - 只有当 strict L0 出现非文档代码/测试变化，或者有人明确要求 exact `HEAD` / merge commit 证据时，才需要重新触发 GH native evidence
+- 如需重新判断残留历史 L0 refs 是否还承载独立 patch history，使用 `bash tests/audit_strict_l0_retained_refs.sh`；它只给出审计结论，不直接删除 refs
 
 ## strict L0 post-merge 维护回路
 
