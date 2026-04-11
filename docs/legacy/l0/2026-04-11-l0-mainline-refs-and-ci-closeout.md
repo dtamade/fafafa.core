@@ -4,7 +4,7 @@
 
 ## Summary
 
-- 当前唯一 `L0` worktree 仍是 `l0-mainline`，当前 `HEAD` 为 `0970b629`。
+- 当前唯一 `L0` worktree 仍是 `l0-mainline`；本次 workflow 可见性探测使用的 probe commit 为 `0970b629`。
 - `origin/main` 仍停在 `f6585dd9`；为了让 GitHub 看见 `.github/workflows/l0-linux-maintenance.yml`，当前 `HEAD` 已推送到 `origin/l0-mainline`。
 - GitHub content API 已确认远端分支 `l0-mainline` 上存在 `.github/workflows/l0-linux-maintenance.yml`。
 - 但 `gh workflow run l0-linux-maintenance.yml --ref l0-mainline` 当前返回 `HTTP 404`；这说明 GitHub 还没有把这份新 workflow 注册成可 dispatch 的仓库级入口。

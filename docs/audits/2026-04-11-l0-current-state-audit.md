@@ -6,8 +6,8 @@
 
 - 当前 strict non-SIMD L0 的权威边界仍以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
 - 当前 strict non-SIMD L0 的稳定路线图仍固定为 `docs/fafafa.core.l0.roadmap.md`。
-- strict L0 的 latest-mainline replay 已经通过 PR `#9` 合并到 `main`；当前 `origin/main` 仍是 `f6585dd9`，当前唯一 L0 worktree 的 `HEAD` 已前进到 `0970b629`。
-- 当前唯一 L0 branch 仍是 `l0-mainline`；它继续以 `origin/main` 作为主线锚点，同时当前 `HEAD` 已推送到 `origin/l0-mainline`，以便 GitHub 看见新的 Linux maintenance workflow 文件。
+- strict L0 的 latest-mainline replay 已经通过 PR `#9` 合并到 `main`；当前 `origin/main` 仍是 `f6585dd9`，当前唯一 L0 worktree 仍在其上方继续承载 docs / control-plane closeout 提交。
+- 当前唯一 L0 branch 仍是 `l0-mainline`；它继续以 `origin/main` 作为主线锚点，同时用于 GitHub workflow 可见性探测的 push 已经把 probe commit `0970b629` 送到 `origin/l0-mainline`。
 - Linux x64 的 strict L0 日常维护现在已经固化为 `bash tests/run_strict_l0_maintenance_loop.sh`；它会串起 docs consistency、strict L0 gate、`git diff --check`、runtime matrix 和 native closeout stack。
 - post-merge 的 fresh Linux gate、`git diff --check`、Windows `.bat` runtime parity matrix 和 native closeout stack 都已重新通过。
 - `.github/workflows/l0-linux-maintenance.yml` 已经在 `origin/l0-mainline` 可见，但 `gh workflow run l0-linux-maintenance.yml --ref l0-mainline` 当前仍返回 `HTTP 404`；GitHub 只有在 workflow 文件进入 default branch 之后才会注册这条 dispatch 入口。
@@ -27,9 +27,9 @@
 
 - 当前 branch：`l0-mainline`
 - 当前 tracking：`origin/main`
-- 当前 `HEAD`：`0970b629`
+- 当前 `HEAD`：继续位于 `origin/main` 之上，仅包含 docs / control-plane closeout 增量
 - 当前 `origin/main`：`f6585dd9`
-- 当前 `origin/l0-mainline`：`0970b629`
+- 当前 `origin/l0-mainline`：至少包含 workflow 可见性 probe commit `0970b629`
 - 当前不再把 `docs/legacy/l0/2026-04-11-l0-mainline-merge-checklist.md` 或 `docs/legacy/l0/2026-04-11-l0-mainline-replay-execution-plan.md` 当 current-entry；它们现在只保留历史 closeout 语境。
 
 ### 3. Linux workflow is prepared remotely, but not yet dispatchable

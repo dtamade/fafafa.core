@@ -6,7 +6,6 @@
 - Branch: `l0-mainline`
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
 - Base commit: `f6585dd9` (`origin/main`)
-- Current head: `0970b629`
 - Current focus:
   - 维持当前唯一 L0 worktree 跟随 `main`，不再把 merge-prep 语境当 current-entry
   - 维持 strict L0 的 current-entry 文档、模块边界和验证口径一致
@@ -39,7 +38,7 @@
   - `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
   - 结果：PASS；当前 GH preflight 为 `workflow=l0-windows-native-evidence.yml, state=active`
   - `git push origin HEAD:refs/heads/l0-mainline`
-  - 结果：PASS；远端 `origin/l0-mainline` 已建立，当前 workflow 文件已可被 GitHub branch content endpoint 看到
+  - 结果：PASS；远端 `origin/l0-mainline` 已建立，probe commit `0970b629` 上的 workflow 文件已可被 GitHub branch content endpoint 看到
   - `gh workflow run l0-linux-maintenance.yml --ref l0-mainline`
   - 结果：FAIL；返回 `HTTP 404`，说明 workflow 还未进入 default branch，GitHub 尚未注册 dispatch 入口
   - `gh api 'repos/dtamade/fafafa.core/contents/.github/workflows/l0-linux-maintenance.yml?ref=l0-mainline'`
