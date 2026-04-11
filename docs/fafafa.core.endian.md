@@ -47,3 +47,5 @@
 - Linux/macOS：`bash tests/fafafa.core.endian/BuildOrTest.sh test`
 - Windows：`tests\\fafafa.core.endian\\BuildOrTest.bat test`
 - 当前测试入口会锁定 native 端序解析、`ResolveEndianness`、`IsLittleEndian/IsBigEndian` 关系和 `ByteSwap16/32/64` 的 involution 语义。
+- 如果你是在 Linux x64 上做 strict L0 日常维护，优先从 `bash tests/run_strict_l0_maintenance_loop.sh` 开始，而不是只单跑当前模块。
+- 如果你需要 exact Windows native evidence，当前只接受 GitHub Actions 或真实 Windows runner 产物。

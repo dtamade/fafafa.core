@@ -37,6 +37,8 @@
 
 - workflow 已经注册在 default branch 上
 - GitHub Actions run `24224880061` 已在真实 Windows runner 上 fresh 收到 strict L0 native evidence `12/12` PASS
+- GitHub Actions run `24278413198` 已对 `l0-mainline-integration-20260411` 的提交 `3ed04784` 收到 strict L0 native evidence `12/12` PASS
+- strict L0 已通过 PR `#9` 合并到 `main`；当前 mainline 仍可引用 `24278413198` 作为代码验证锚点，因为合并后的增量只包含 docs / control-plane 变化
 - 因此，`code=22` 现在只应被视作“registration drift / GH 环境异常”的诊断信号，而不是当前仓库的基线状态
 
 当前推荐口径：
@@ -46,6 +48,78 @@
 - 不要把 native Windows `.bat` build-path parity 记成已完成，除非 `tests\test_windows_strict_l0_batch_native_matrix.bat` 已经在真实 Windows `lazbuild.exe` 条件下 fresh 通过
 - 如果当前只有 Linux x64，优先直接走 `bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh`
 - 只有当 preflight 异常退回 `code=22` 时，才回到 `bash tests/print_windows_strict_l0_native_ci_enablement_3cmd.sh` 排查 workflow registration 漂移
+- 如果当前变化只是 docs / control-plane 变更，不要为了形式感重跑 exact Windows native evidence
+- 只有当 strict L0 出现非文档代码/测试变化，或者有人明确要求 exact `HEAD` / merge commit 证据时，才需要重新触发 GH native evidence
+
+## strict L0 post-merge 维护回路
+
+当前 strict non-SIMD L0 合并到 `main` 之后，Linux x64 上的最小维护闭环固定为：
+
+```bash
+bash tests/run_strict_l0_maintenance_loop.sh
+```
+
+这个入口固定按下面顺序执行：
+
+1. 跑 docs / control-plane consistency checker
+
+```bash
+bash tests/check_strict_l0_docs_consistency.sh
+```
+
+2. 跑 strict L0 聚合 gate
+
+```bash
+STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation fafafa.core.platform
+```
+
+3. 跑 hygiene
+
+```bash
+git diff --check
+```
+
+4. 跑 Windows runtime/control-plane contract
+
+```bash
+bash tests/test_windows_strict_l0_batch_runtime_matrix.sh
+bash tests/test_windows_strict_l0_native_closeout_stack.sh
+```
+
+5. 只在确实需要 exact Windows native evidence 时，再触发 GitHub Actions
+
+```bash
+L0_NATIVE_EVIDENCE_REF=<branch-or-ref> \
+L0_NATIVE_EVIDENCE_POLL_MAX_TRIES=180 \
+bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh <batch-id>
+```
+
+推荐判定规则：
+
+- docs-only / control-plane-only 变化：不重跑 exact evidence
+- strict L0 代码或测试有变化：重跑 exact evidence
+- 需要 exact `HEAD` / merge commit 证据：重跑 exact evidence
+- 只有 Linux x64：本地只做 contract 复核，不伪造 native Windows 结论
+- Windows exact native evidence 只接受 GitHub Actions 或真实 Windows runner 产物，不接受 Linux x64 本地伪造结论
+
+## strict L0 Linux manual/reusable workflow
+
+如果你要在 GitHub Actions 上复用 Linux x64 的 strict L0 维护闭环，当前入口是：
+
+- `.github/workflows/l0-linux-maintenance.yml`
+
+这个 workflow 固定做三件事：
+
+1. 安装 `fpc`、`lazarus`、`wine64`、`ripgrep`
+2. 先跑 `bash tests/test_strict_l0_docs_consistency_contract.sh` 和 `bash tests/test_strict_l0_stable_docs_no_sha_contract.sh`
+3. 再跑 `bash tests/run_strict_l0_maintenance_loop.sh`
+
+当前触发方式：
+
+- `workflow_dispatch`
+- `workflow_call`
+
+这条 Linux lane 只负责 strict L0 的 docs consistency、gate、runtime parity 和 native closeout contract 复核；它不替代 exact Windows native evidence lane。
 
 # Minimal Windows CI: FS only
 

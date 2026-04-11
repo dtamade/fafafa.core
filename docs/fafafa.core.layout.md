@@ -59,3 +59,5 @@
 - Linux/macOS：`bash tests/fafafa.core.layout/BuildOrTest.sh test`
 - Windows：`tests\\fafafa.core.layout\\BuildOrTest.bat test`
 - 当前测试入口会锁定 `TryNextPowerOfTwo`、`TMemLayout` 对齐归一化、`Extend/Pad` 语义与 `TAllocCaps.SupportsLayout` 行为。
+- 如果你是在 Linux x64 上做 strict L0 日常维护，优先从 `bash tests/run_strict_l0_maintenance_loop.sh` 开始，而不是只单跑当前模块。
+- 如果你需要 exact Windows native evidence，当前只接受 GitHub Actions 或真实 Windows runner 产物。

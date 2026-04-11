@@ -78,6 +78,13 @@ L0 的目标不是继续变大，而是继续变准。
   - `tests/fafafa.core.atomic/README.md`
   - `tests/fafafa.core.mem.allocator.foundation/README.md`
 
+## 当前 post-merge 姿态
+
+- strict non-SIMD L0 已经通过 PR `#9` 合并到 `main`
+- 当前唯一 L0 worktree 应保持在 `l0-mainline -> origin/main`
+- 当前 focus 不再是 replay / merge-prep，而是 current-entry 稳定性和 verification hardening
+- 当前没有新的明确 admission 候选；不要为了制造进展感继续扩张 L0 面
+
 ## 当前不在路线图里的事情
 
 以下主题当前不属于 strict L0 扩张目标：
@@ -117,6 +124,7 @@ L0 的目标不是继续变大，而是继续变准。
 - 建立稳定的 L0 文档组，不再让 dated closeout 充当长期导航
 - 保持 `foundation`、模块文档、`INDEX`、`README`、`worker` 叙述一致
 - 继续下沉或标记历史文档，避免历史候选结论重新上浮成 current-entry
+- 在主线合并完成之后，及时把 merge-prep 文档降级成历史 closeout，而不是继续让它们占据快速入口
 
 完成标准：
 
@@ -139,6 +147,9 @@ L0 的目标不是继续变大，而是继续变准。
 - `git diff --check` 持续为通过状态
 - strict L0 的源码和测试入口持续遵守 `settings.inc` 单源规则
 - compat surface 必须在模块文档里明确标注，不得伪装成 today recommended API
+- Windows exact native evidence 只接受 GitHub Actions 作为证据来源
+- 只有当 strict L0 出现非文档代码/测试变化，或有人明确要求 exact `HEAD` 证据时，才重新触发 GH native evidence
+- 当前日常维护闭环固定为：strict L0 gate + `git diff --check` + runtime matrix + native closeout stack
 
 ### Phase 4: candidate-driven admission only
 

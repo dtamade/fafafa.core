@@ -31,6 +31,22 @@
 
 ### strict L0 的 Windows runtime 复核
 
+如果你是在 Linux x64 上做 strict non-SIMD L0 的日常维护，默认不要手工拼命令，直接从下面这个单入口开始：
+
+```bash
+bash tests/run_strict_l0_maintenance_loop.sh
+```
+
+这个入口会固定串起：
+
+1. `bash tests/check_strict_l0_docs_consistency.sh`
+2. strict L0 聚合 gate
+3. `git diff --check`
+4. `bash tests/test_windows_strict_l0_batch_runtime_matrix.sh`
+5. `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
+
+只有当 strict L0 发生非文档代码/测试变化，或者有人明确要求 exact `HEAD` / merge commit 证据时，才继续走 GitHub Actions Windows native evidence 主路径。
+
 如果你当前关心的是 strict non-SIMD L0 在 Windows 路径上的复核，不要直接从“原生 `.bat` 构建完全对称”这个前提出发。当前仓库已经分成四条不同的复核链路：
 
 - 最小 Win64 `.exe` runtime smoke
@@ -52,15 +68,20 @@
 
 当前建议顺序：
 
-1. 先跑 `bash tests/test_windows_strict_l0_wine_smoke.sh`
-2. 再跑 `bash tests/test_windows_strict_l0_batch_runtime_smoke.sh`
-3. 最后跑 `bash tests/test_windows_strict_l0_batch_runtime_matrix.sh`
-4. 如果要补齐最终 Windows build-path 证据，再到专用 Windows 主机执行 `tests\test_windows_strict_l0_batch_native_matrix.bat`
-5. 如果要把 dedicated-host 结果收成标准 artifact，再执行 `tests\collect_windows_strict_l0_native_evidence.bat`
-6. 如果要从 Linux/macOS 触发或复用 GitHub Actions Windows run，再执行 `bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh`
-7. 如果 workflow 还没注册到 default branch，先执行 `bash tests/print_windows_strict_l0_native_ci_enablement_3cmd.sh`
-8. 如果你只想先拿到 today source-of-truth 的复制即跑命令，再执行 `bash tests/print_windows_strict_l0_native_closeout_3cmd.sh`
-9. 如果要一次性复核当前本地所有 native evidence 契约与 GH preflight 状态，再执行 `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
+1. 先跑 `bash tests/run_strict_l0_maintenance_loop.sh`
+2. 如果只想拆开看 Windows runtime 复核，再跑 `bash tests/test_windows_strict_l0_wine_smoke.sh`
+3. 再跑 `bash tests/test_windows_strict_l0_batch_runtime_smoke.sh`
+4. 最后跑 `bash tests/test_windows_strict_l0_batch_runtime_matrix.sh`
+5. 如果要补齐最终 Windows build-path 证据，再到专用 Windows 主机执行 `tests\test_windows_strict_l0_batch_native_matrix.bat`
+6. 如果要把 dedicated-host 结果收成标准 artifact，再执行 `tests\collect_windows_strict_l0_native_evidence.bat`
+7. 如果要从 Linux/macOS 触发或复用 GitHub Actions Windows run，再执行 `bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh`
+8. 如果 workflow 还没注册到 default branch，先执行 `bash tests/print_windows_strict_l0_native_ci_enablement_3cmd.sh`
+9. 如果你只想先拿到 today source-of-truth 的复制即跑命令，再执行 `bash tests/print_windows_strict_l0_native_closeout_3cmd.sh`
+10. 如果要一次性复核当前本地所有 native evidence 契约与 GH preflight 状态，再执行 `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
+
+如果你要在 GitHub Actions 上重复这条 Linux x64 维护回路，当前 manual/reusable workflow 是：
+
+- `.github/workflows/l0-linux-maintenance.yml`
 
 这三条链路解决的是不同问题：
 
@@ -112,6 +133,7 @@
 - 当前仓库已经完成 Windows runtime smoke 和 `.bat` runtime-only parity
 - 当前还没有完成的，是 native Windows `lazbuild.exe` 条件下的 `.bat` build-path parity
 - 如果 `bash tests/preflight_windows_strict_l0_native_evidence_gh.sh` 返回 `code=22`，含义通常是 workflow registration 漂移或当前 GH 环境看不到 default-branch workflow；这属于 fail-close 诊断，不代表仓库 today 状态回退成“native parity 未接通”
+- Windows exact evidence 仍然只接受 GitHub Actions 或真实 Windows host artifact；Linux x64 本地只能做 contract 复核
 
 如果你已经切到专用 Windows 主机，请直接参考：
 

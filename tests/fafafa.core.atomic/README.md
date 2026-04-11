@@ -32,6 +32,7 @@
 
 - Windows：`tests\\fafafa.core.atomic\\BuildOrTest.bat test`
 - Linux/macOS：`bash tests/fafafa.core.atomic/BuildOrTest.sh test`
+- Linux x64 strict L0 日常维护：`bash tests/run_strict_l0_maintenance_loop.sh`
 
 如果你只想做构建检查：
 
@@ -63,3 +64,4 @@
 - `VerifyMultiArchDocker.sh` 是多架构辅助脚本，不是仓库级 current entry。
 - 这个目录只覆盖 `atomic` 域当前根测试入口，不负责更高层模块的聚合 gate。
 - 如果 README、脚本和工程文件冲突，以脚本与工程文件现状为准。
+- exact Windows native evidence 只接受 GitHub Actions 或真实 Windows runner 产物。

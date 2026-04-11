@@ -1,0 +1,45 @@
+name: L0 Linux Maintenance
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  strict-l0-linux-maintenance:
+    runs-on: ubuntu-latest
+    name: Strict L0 Linux Maintenance
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install FreePascal + Lazarus + Wine
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fpc lazarus wine64 ripgrep
+
+      - name: Run strict L0 contract tests
+        run: |
+          bash tests/test_strict_l0_docs_consistency_contract.sh
+          bash tests/test_strict_l0_stable_docs_no_sha_contract.sh
+
+      - name: Run strict L0 maintenance loop
+        run: |
+          bash tests/run_strict_l0_maintenance_loop.sh
+
+      - name: Upload strict L0 logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: l0-linux-maintenance-logs
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            tests/_run_all_logs_sh
+            tests/_windows_batch_runtime_matrix
+            tests/_windows_l0_native_evidence_gh
+            tests/run_all_tests_summary_sh.txt

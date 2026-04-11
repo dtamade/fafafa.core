@@ -41,6 +41,12 @@
   - 承载 legacy pointer RMW overload 与旧 helper 命名。
   - 不应成为新代码的默认入口；只有 bridge、历史调用点和 compat 合同测试才应继续显式依赖它。
 
+## 当前维护入口
+
+- Linux x64 上的 strict L0 日常维护默认从 `bash tests/run_strict_l0_maintenance_loop.sh` 开始。
+- 如果只是看 `atomic` 域 today contract，可继续单跑 `bash tests/fafafa.core.atomic/BuildOrTest.sh test`。
+- exact Windows native evidence 只接受 GitHub Actions 或真实 Windows runner 产物；Linux x64 本地只做 contract 复核。
+
 ## Reference Appendix
 
 现代化、高性能、跨平台的 FreePascal 原子操作库，提供无锁编程的基础设施。

@@ -17,3 +17,5 @@
 - `fafafa.core.span.candidate.md`
 - `fafafa.core.l0.candidates.platform-span.review.md`
 - `fafafa.core.l0.merge-closeout.md`
+- `2026-04-11-l0-mainline-merge-checklist.md`
+- `2026-04-11-l0-mainline-replay-execution-plan.md`
