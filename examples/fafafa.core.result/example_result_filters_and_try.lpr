@@ -1,10 +1,9 @@
-{$CODEPAGE UTF8}
 program example_result_filters_and_try;
 
 {$mode objfpc}{$H+}
 {$modeswitch anonymousfunctions}
+{$IFDEF WINDOWS}{$CODEPAGE UTF8}{$ENDIF}
 {$I ../../src/fafafa.core.settings.inc}
-
 uses
   {$IFDEF UNIX}
   cthreads,

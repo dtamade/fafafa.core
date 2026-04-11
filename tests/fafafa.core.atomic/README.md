@@ -1,13 +1,16 @@
 # fafafa.core.atomic Tests
 
-这个目录是 `fafafa.core.atomic` 当前测试入口。它负责说明 shell / Windows 两条 root runner、当前测试工程，以及支持脚本和历史产物之间的边界。
+这个目录是 `fafafa.core.atomic` 当前测试入口。它负责锁定 strict non-SIMD L0 `atomic` 家族的 today contract，并说明 shell / Windows 两条 root runner与 compat surface 之间的边界。
 
 ## 当前 source-of-truth
 
 1. `docs/fafafa.core.atomic.md`
-2. `tests/fafafa.core.atomic/BuildOrTest.sh`
-3. `tests/fafafa.core.atomic/BuildOrTest.bat`
-4. `tests/fafafa.core.atomic/tests_atomic.lpi`
+2. `docs/fafafa.core.l0.foundation.md`
+3. `docs/fafafa.core.l0.roadmap.md`
+4. `docs/ARCHITECTURE_LAYERS.md`
+5. `tests/fafafa.core.atomic/BuildOrTest.sh`
+6. `tests/fafafa.core.atomic/BuildOrTest.bat`
+7. `tests/fafafa.core.atomic/tests_atomic.lpi`
 
 ## 当前测试集合
 
@@ -49,6 +52,8 @@
 - 构建目标：`tests_atomic.lpi`
 - 产物：`bin\\tests_atomic[.exe]`
 - 支持 `build` / `check` / `test` / `clean` / `rebuild`
+- `test` 当前会优先执行 `bin\\tests_atomic.exe`；只有 `.exe` 不存在时才回退到无扩展名产物
+- 在 `FAFAFA_SKIP_BUILD=1` 且 `ACTION=test` 时会跳过构建，直接进入 runtime 路径；这个入口当前主要供 Windows `.bat` runtime-only parity smoke / matrix 使用
 
 ## 当前边界
 

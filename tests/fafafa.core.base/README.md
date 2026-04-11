@@ -1,13 +1,17 @@
 # fafafa.core.base Tests
 
-这个目录是 `fafafa.core.base` 当前测试入口。它负责说明 root runner、当前测试工程，以及根测试目录与其他基础模块之间的边界。
+这个目录是 `fafafa.core.base` 当前测试入口。它负责锁定 strict non-SIMD L0 `base` 模块的 today contract，而不是替代更高层 consumer 或 guide 示例验证。
 
 ## 当前 source-of-truth
 
 1. `docs/fafafa.core.base.md`
-2. `tests/fafafa.core.base/BuildOrTest.sh`
-3. `tests/fafafa.core.base/BuildOrTest.bat`
-4. `tests/fafafa.core.base/fafafa.core.base.test.lpi`
+2. `docs/fafafa.core.l0.foundation.md`
+3. `docs/fafafa.core.l0.roadmap.md`
+4. `docs/ARCHITECTURE_LAYERS.md`
+5. `tests/fafafa.core.base/BuildOrTest.sh`
+6. `tests/fafafa.core.base/BuildOrTest.bat`
+7. `tests/fafafa.core.base/fafafa.core.base.test.lpi`
+8. `tests/fafafa.core.base/fafafa.core.base.testcase.pas`
 
 ## 当前测试集合
 
@@ -42,6 +46,8 @@
 - 构建目标：`fafafa.core.base.test.lpi`
 - 产物：`bin\\fafafa.core.base.test[.exe]`
 - 支持 `build` / `check` / `test` / `clean` / `rebuild`
+- `test` 当前会优先执行 `bin\\fafafa.core.base.test.exe`；只有 `.exe` 不存在时才回退到无扩展名产物
+- 在 `FAFAFA_SKIP_BUILD=1` 且 `ACTION=test` 时会跳过构建，直接进入 runtime 路径；这个入口当前主要供 Windows `.bat` runtime-only parity smoke / matrix 使用
 
 ## 当前边界
 

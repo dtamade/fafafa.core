@@ -1,18 +1,21 @@
 # fafafa.core.mem.allocator.foundation Tests
 
-这个目录是 `fafafa.core.mem.allocator.foundation` 的当前测试入口。它负责说明 mem 域低层 allocator facade 的 root runner、Windows wrapper，以及它和 `tests/fafafa.core.mem/`、`tests/fafafa.core.mem.manager.rtl/` 之间的边界。
+这个目录是 `fafafa.core.mem.allocator.foundation` 的当前测试入口。它负责验证 strict L0 allocator contract 在 mem 域低层 facade 中的 today 形态，并说明 root runner、Windows wrapper 与更宽 mem 域测试之间的边界。
 
 ## 当前 source-of-truth
 
 1. `docs/fafafa.core.l0.foundation.md`
-2. `docs/ARCHITECTURE_LAYERS.md`
-3. `docs/fafafa.core.mem.md`
-4. `src/fafafa.core.mem.allocator.base.pas`
-5. `src/fafafa.core.mem.allocator.foundation.pas`
-6. `tests/fafafa.core.mem.allocator.foundation/BuildOrTest.sh`
-7. `tests/fafafa.core.mem.allocator.foundation/BuildOrTest.bat`
-8. `tests/fafafa.core.mem.allocator.foundation/buildOrTest.bat`
-9. `tests/fafafa.core.mem.allocator.foundation/fafafa.core.mem.allocator.foundation.test.lpi`
+2. `docs/fafafa.core.l0.roadmap.md`
+3. `docs/ARCHITECTURE_LAYERS.md`
+4. `docs/fafafa.core.mem.md`
+5. `src/fafafa.core.mem.allocator.base.pas`
+6. `src/fafafa.core.mem.allocator.foundation.pas`
+7. `tests/fafafa.core.mem.allocator.foundation/BuildOrTest.sh`
+8. `tests/fafafa.core.mem.allocator.foundation/BuildOrTest.bat`
+9. `tests/fafafa.core.mem.allocator.foundation/buildOrTest.bat`
+10. `tests/fafafa.core.mem.allocator.foundation/fafafa.core.mem.allocator.foundation.test.lpi`
+11. `tests/fafafa.core.mem.allocator.foundation/test_allocator_foundation_contract.pas`
+12. `tests/fafafa.core.mem.allocator.foundation/test_allocator_foundation_runtime.pas`
 
 ## 当前测试集合
 
@@ -53,13 +56,15 @@
 
 - 当前是 Windows root wrapper
 - 会委托给 `buildOrTest.bat`
-- 目的是让 `tests/run_all_tests.bat` 可以发现 strict L0 allocator 当前入口
+- 目的是让 `tests/run_all_tests.bat` 可以发现 strict L0 allocator 当前入口，并把 `FAFAFA_SKIP_BUILD=1` 这类 runtime-only 参数原样传下去
 
 ### buildOrTest.bat
 
 - 支持 `Debug` / `NoContracts` 两个 build mode
 - 产物：`bin\\fafafa.core.mem.allocator.foundation.test_debug[.exe]` 或 `bin\\fafafa.core.mem.allocator.foundation.test_nocontracts[.exe]`
 - 支持 `build` / `check` / `test` / `build-no-contracts` / `check-no-contracts` / `test-no-contracts` / `clean` / `rebuild`
+- `test` / `test-no-contracts` 当前会优先执行显式 `.exe`，再回退到无扩展名产物；这避免了 `wine cmd` 下多点号无扩展名文件的非零返回码噪音
+- 在 `FAFAFA_SKIP_BUILD=1` 时，`test` / `test-no-contracts` 会跳过构建，直接消费预构建 Win64 `.exe`；这个入口当前主要供 Windows `.bat` runtime-only parity smoke / matrix 使用
 
 ## 当前边界
 

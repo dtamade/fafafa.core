@@ -2,7 +2,7 @@
 
 > Status: completed historical batch.
 >
-> 当前 follow-up 以 `docs/plans/2026-04-07-l0-rescue-split-closeout.md` 为准。
+> 当前 stable L0 roadmap 以 `docs/fafafa.core.l0.roadmap.md` 为准。
 > 本文中的 worker/worktree 说明只代表当时批次，不代表当前主线状态。
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.

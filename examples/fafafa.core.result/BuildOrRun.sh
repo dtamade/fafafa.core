@@ -36,23 +36,23 @@ resolve_lazbuild() {
 
 build_examples() {
   local LLazbuild
-  local project
+  local LProject
 
   LLazbuild="$(resolve_lazbuild)"
   echo "Building examples..."
-  for project in "${PROJECTS[@]}"; do
-    "${LLazbuild}" --build-all "${project}"
+  for LProject in "${PROJECTS[@]}"; do
+    "${LLazbuild}" --build-all "${LProject}"
   done
 }
 
 run_examples() {
-  local exe
+  local LExe
 
   echo "Running examples..."
-  for exe in ./bin/*; do
-    if [[ -x "${exe}" && -f "${exe}" ]]; then
-      echo "=== Running $(basename "${exe}") ==="
-      "${exe}"
+  for LExe in ./bin/*; do
+    if [[ -x "${LExe}" && -f "${LExe}" ]]; then
+      echo "=== Running $(basename "${LExe}") ==="
+      "${LExe}"
       echo
     fi
   done

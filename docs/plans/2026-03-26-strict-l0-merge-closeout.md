@@ -1,6 +1,7 @@
 # Strict L0 Merge Closeout Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+> 当前 strict non-SIMD L0 的长期路线图入口已固定为 `docs/fafafa.core.l0.roadmap.md`；本页只保留 2026-03-26 那一轮 merge closeout 设计语境。
 
 **Goal:** 把当前 strict non-SIMD L0 波次收口为可合并状态，补齐 README / 文档一致性，并输出最终 merge checklist。
 

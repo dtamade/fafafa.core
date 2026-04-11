@@ -1,5 +1,8 @@
 # 2026-04-07 L0 Rescue Split Closeout
 
+> 这份计划记录的是 `2026-04-07` 那一轮 rescue split closeout 的阶段语境。
+> 当前 stable L0 roadmap 以 `docs/fafafa.core.l0.roadmap.md` 为准；`docs/plans/2026-04-09-l0-kernel-span2-closeout.md` 只保留后续 batch 的执行 closeout 语境。
+
 ## 目标
 
 在 strict L0 已经 merge 到 `main` 的前提下，把主线控制面和 root 污染收干净，同时把 `l0-main-rescue` 压回“只可拆批、不可整合并”的状态。

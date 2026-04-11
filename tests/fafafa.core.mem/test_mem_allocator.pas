@@ -15,6 +15,8 @@ type
   { TTestCase_RtlAllocator }
 
   TTestCase_RtlAllocator = class(TTestCase)
+  private
+    procedure RaiseRtlAllocatorFreeMemNil;
   published
     procedure Test_GetMem;
     procedure Test_AllocMem;
@@ -26,6 +28,8 @@ type
   { TTestCase_CrtAllocator }
 
   TTestCase_CrtAllocator = class(TTestCase)
+  private
+    procedure RaiseCrtAllocatorFreeMemNil;
   published
     procedure Test_GetMem;
     procedure Test_AllocMem;
@@ -37,6 +41,12 @@ type
   { TTestCase_CallbackAllocator }
 
   TTestCase_CallbackAllocator = class(TTestCase)
+  private
+    procedure RaiseCallbackAllocatorFreeMemNil;
+    procedure RaiseCreateCallbackAllocatorWithNilGetMem;
+    procedure RaiseCreateCallbackAllocatorWithNilAllocMem;
+    procedure RaiseCreateCallbackAllocatorWithNilReallocMem;
+    procedure RaiseCreateCallbackAllocatorWithNilFreeMem;
   published
     procedure Test_GetMem;
     procedure Test_AllocMem;
@@ -48,6 +58,18 @@ type
 implementation
 
 { TTestCase_RtlAllocator }
+
+procedure TTestCase_RtlAllocator.RaiseRtlAllocatorFreeMemNil;
+var
+  LAllocator: TRtlAllocator;
+begin
+  LAllocator := TRtlAllocator.Create;
+  try
+    LAllocator.FreeMem(nil);
+  finally
+    LAllocator.Free;
+  end;
+end;
 
 procedure TTestCase_RtlAllocator.Test_GetMem;
 var
@@ -152,13 +174,9 @@ begin
     LAllocator.FreeMem(LMem);
 
     {$IFDEF FAFAFA_CORE_STRICT_NULL_FREE}
-    {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
     // 严格模式下：nil 指针释放应抛异常
-    AssertException('FreeMem with nil pointer should raise an exception', EArgumentNil, procedure
-    begin
-      LAllocator.FreeMem(nil);
-    end);
-    {$ENDIF}
+    AssertException('FreeMem with nil pointer should raise an exception', EArgumentNil,
+      @RaiseRtlAllocatorFreeMemNil);
     {$ENDIF}
   finally
     LAllocator.Free;
@@ -168,6 +186,18 @@ end;
 {$IFDEF FAFAFA_CORE_CRT_ALLOCATOR}
 
 { TTestCase_CrtAllocator }
+
+procedure TTestCase_CrtAllocator.RaiseCrtAllocatorFreeMemNil;
+var
+  LAllocator: TCrtAllocator;
+begin
+  LAllocator := TCrtAllocator.Create;
+  try
+    LAllocator.FreeMem(nil);
+  finally
+    LAllocator.Free;
+  end;
+end;
 
 procedure TTestCase_CrtAllocator.Test_GetMem;
 var
@@ -272,15 +302,10 @@ begin
     LAllocator.FreeMem(LMem);
 
     {$IFDEF FAFAFA_CORE_STRICT_NULL_FREE}
-    {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
     // 严格模式下：nil 指针释放应抛异常
     AssertException('FreeMem with nil pointer should raise an exception',
       EArgumentNil,
-      procedure
-      begin
-        LAllocator.FreeMem(nil);
-      end);
-    {$ENDIF}
+      @RaiseCrtAllocatorFreeMemNil);
     {$ENDIF}
   finally
     LAllocator.Free;
@@ -309,6 +334,38 @@ end;
 procedure DummyFreeMem(aDst: Pointer);
 begin
   System.FreeMem(aDst);
+end;
+
+procedure TTestCase_CallbackAllocator.RaiseCallbackAllocatorFreeMemNil;
+var
+  LAllocator: TCallbackAllocator;
+begin
+  LAllocator := CreateCallbackAllocator(@DummyGetMem, @DummyAllocMem, @DummyReallocMem, @DummyFreeMem);
+  try
+    LAllocator.FreeMem(nil);
+  finally
+    LAllocator.Free;
+  end;
+end;
+
+procedure TTestCase_CallbackAllocator.RaiseCreateCallbackAllocatorWithNilGetMem;
+begin
+  CreateCallbackAllocator(nil, @DummyAllocMem, @DummyReallocMem, @DummyFreeMem).Free;
+end;
+
+procedure TTestCase_CallbackAllocator.RaiseCreateCallbackAllocatorWithNilAllocMem;
+begin
+  CreateCallbackAllocator(@DummyGetMem, nil, @DummyReallocMem, @DummyFreeMem).Free;
+end;
+
+procedure TTestCase_CallbackAllocator.RaiseCreateCallbackAllocatorWithNilReallocMem;
+begin
+  CreateCallbackAllocator(@DummyGetMem, @DummyAllocMem, nil, @DummyFreeMem).Free;
+end;
+
+procedure TTestCase_CallbackAllocator.RaiseCreateCallbackAllocatorWithNilFreeMem;
+begin
+  CreateCallbackAllocator(@DummyGetMem, @DummyAllocMem, @DummyReallocMem, nil).Free;
 end;
 
 procedure TTestCase_CallbackAllocator.Test_GetMem;
@@ -403,7 +460,6 @@ end;
 procedure TTestCase_CallbackAllocator.Test_FreeMem;
 var
   LAllocator: TCallbackAllocator;
-  LTemp: TCallbackAllocator;
   LMem: Pointer;
 begin
   // 正常释放路径验证
@@ -416,61 +472,37 @@ begin
     LAllocator.Free;
   end;
 
-  // 异常路径单独验证，使用独立实例，避免与上面的 finally 干扰
-  LTemp := CreateCallbackAllocator(@DummyGetMem, @DummyAllocMem, @DummyReallocMem, @DummyFreeMem);
-  try
-    {$IFDEF FAFAFA_CORE_STRICT_NULL_FREE}
-    {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
-    AssertException('FreeMem with nil pointer should raise an exception',
-      EArgumentNil,
-      procedure
-      begin
-        LTemp.FreeMem(nil);
-      end);
-    {$ENDIF}
-    {$ENDIF}
-  finally
-    LTemp.Free;
-  end;
+  {$IFDEF FAFAFA_CORE_STRICT_NULL_FREE}
+  AssertException('FreeMem with nil pointer should raise an exception',
+    EArgumentNil,
+    @RaiseCallbackAllocatorFreeMemNil);
+  {$ENDIF}
 end;
 
 procedure TTestCase_CallbackAllocator.Test_Create_NilCallbacks;
 var
   LAllocator: TCallbackAllocator;
 begin
-  {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
   {$IFDEF FAFAFA_CORE_CONTRACTS}
   AssertException(
     'Creating TCallbackAllocator with nil GetMem callback should raise EArgumentNil',
     EArgumentNil,
-    procedure
-    begin
-      CreateCallbackAllocator(nil, @DummyAllocMem, @DummyReallocMem, @DummyFreeMem);
-    end);
+    @RaiseCreateCallbackAllocatorWithNilGetMem);
 
   AssertException(
     'Creating TCallbackAllocator with nil AllocMem callback should raise EArgumentNil',
     EArgumentNil,
-    procedure
-    begin
-      CreateCallbackAllocator(@DummyGetMem, nil, @DummyReallocMem, @DummyFreeMem);
-    end);
+    @RaiseCreateCallbackAllocatorWithNilAllocMem);
 
   AssertException(
     'Creating TCallbackAllocator with nil ReallocMem callback should raise EArgumentNil',
     EArgumentNil,
-    procedure
-    begin
-      CreateCallbackAllocator(@DummyGetMem, @DummyAllocMem, nil, @DummyFreeMem);
-    end);
+    @RaiseCreateCallbackAllocatorWithNilReallocMem);
 
   AssertException(
     'Creating TCallbackAllocator with nil FreeMem callback should raise EArgumentNil',
     EArgumentNil,
-    procedure
-    begin
-      CreateCallbackAllocator(@DummyGetMem, @DummyAllocMem, @DummyReallocMem, nil);
-    end);
+    @RaiseCreateCallbackAllocatorWithNilFreeMem);
   {$ELSE}
   LAllocator := CreateCallbackAllocator(nil, @DummyAllocMem, @DummyReallocMem, @DummyFreeMem);
   try
@@ -499,7 +531,6 @@ begin
   finally
     LAllocator.Free;
   end;
-  {$ENDIF}
   {$ENDIF}
 end;
 

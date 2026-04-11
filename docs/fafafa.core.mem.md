@@ -1,24 +1,29 @@
 # fafafa.core.mem
 
+> `fafafa.core.mem` 是 mem 域导航文档，不是 strict L0 总定义。
+> strict L0 只保留 allocator contract；权威边界以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准，后续推进顺序以 `docs/fafafa.core.l0.roadmap.md` 为准。
+
 `fafafa.core.mem` 当前负责内存操作、allocator 生态和几类可直接复用的池实现。strict L0 只保留其中的 allocator contract；这个根文档只负责定锚 source-of-truth、模块边界和阅读顺序，不再继续承担“第二套大全手册”。
 
 ## 当前 source-of-truth
 
 按下面顺序理解当前 mem 域：
 
-1. `src/fafafa.core.mem.allocator.base.pas`
-2. `src/fafafa.core.mem.allocator.foundation.pas`
-3. `src/fafafa.core.mem.pas`
-4. `src/fafafa.core.mem.allocator.pas`
-5. `src/fafafa.core.mem.memPool.pas`
-6. `src/fafafa.core.mem.stackPool.pas`
-7. `src/fafafa.core.mem.pool.slab.pas`
-8. `src/fafafa.core.mem.interfaces.pas`
-9. `src/fafafa.core.mem.stats.pas`
-10. `tests/fafafa.core.mem.allocator.foundation/README.md`
-11. `tests/fafafa.core.mem/README.md`
-12. `examples/fafafa.core.mem/README.md`
-13. `docs/mem/README.md`
+1. `docs/fafafa.core.l0.foundation.md`
+2. `docs/fafafa.core.l0.roadmap.md`
+3. `docs/ARCHITECTURE_LAYERS.md`
+4. `src/fafafa.core.mem.allocator.base.pas`
+5. `src/fafafa.core.mem.allocator.foundation.pas`
+6. `src/fafafa.core.mem.pas`
+7. `src/fafafa.core.mem.allocator.pas`
+8. `src/fafafa.core.mem.memPool.pas`
+9. `src/fafafa.core.mem.stackPool.pas`
+10. `src/fafafa.core.mem.pool.slab.pas`
+11. `src/fafafa.core.mem.interfaces.pas`
+12. `src/fafafa.core.mem.stats.pas`
+13. `tests/fafafa.core.mem.allocator.foundation/README.md`
+14. `tests/fafafa.core.mem/README.md`
+15. `examples/fafafa.core.mem/README.md`
 
 ## 当前模块结构
 
@@ -61,6 +66,18 @@
 2. 再看 [`docs/fafafa.core.mem.guide.md`](./fafafa.core.mem.guide.md)
 3. 需要理解组织方式时看 [`docs/fafafa.core.mem.architecture.md`](./fafafa.core.mem.architecture.md)
 
+如果你只关心 strict L0 allocator contract：
+
+1. 回到 `docs/fafafa.core.l0.foundation.md`
+2. 再看 `src/fafafa.core.mem.allocator.base.pas`
+3. 最后用 `tests/fafafa.core.mem.allocator.foundation/README.md` 确认当前 low-level facade 的验证入口
+
+这里的顺序是刻意的：
+
+- `fafafa.core.mem.allocator.base` 才是 strict L0 allocator contract 的 source-of-truth。
+- `fafafa.core.mem.allocator.foundation` 只是 mem 域 low-level facade，不是 strict L0 的默认导入起点。
+- `fafafa.core.mem.allocator` 也不应被误读成“只要在 L0 就默认从这个聚合入口开始”。
+
 如果你要验证现状：
 
 1. 看 `tests/fafafa.core.mem/README.md`
@@ -77,6 +94,7 @@
 - `fafafa.core.mem.allocator.base` 是 strict L0 allocator contract 的 source-of-truth。
 - `fafafa.core.mem.allocator.foundation` 是 mem 域低层 convenience facade，不再定义 strict L0 边界。
 - `fafafa.core.mem.allocator` 保留为兼容 / 扩展聚合入口，可继续暴露可选后端。
+- 如果新代码只需要 strict L0 allocator contract，默认从 `fafafa.core.mem.allocator.base` 开始，而不是从 `fafafa.core.mem`、`fafafa.core.mem.allocator.foundation` 或 `fafafa.core.mem.allocator` 开始。
 - `TMemPool`、`TStackPool`、`TSlabPool` 仍是当前最直接的池实现入口。
 - `fafafa.core.mem.interfaces` 是接口化预研，不应被误读为“所有池都已经统一切换到接口优先”。
 - `fafafa.core.mem.stats` 只提供只读快照，不应改变池行为。

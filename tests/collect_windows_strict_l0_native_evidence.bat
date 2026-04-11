@@ -121,6 +121,19 @@ if exist "%MATRIX_LOG_DIR%" (
   xcopy /Y /I /Q "%MATRIX_LOG_DIR%\*.log" "%MODULE_LOG_DIR%\" >nul 2>nul
 )
 
+call :COPY_CASE_DETAIL_LOGS "base" "tests\fafafa.core.base"
+call :COPY_CASE_DETAIL_LOGS "contracts" "tests\fafafa.core.contracts"
+call :COPY_CASE_DETAIL_LOGS "bits" "tests\fafafa.core.bits"
+call :COPY_CASE_DETAIL_LOGS "layout" "tests\fafafa.core.layout"
+call :COPY_CASE_DETAIL_LOGS "endian" "tests\fafafa.core.endian"
+call :COPY_CASE_DETAIL_LOGS "span" "tests\fafafa.core.span"
+call :COPY_CASE_DETAIL_LOGS "option" "tests\fafafa.core.option"
+call :COPY_CASE_DETAIL_LOGS "result" "tests\fafafa.core.result"
+call :COPY_CASE_DETAIL_LOGS "platform" "tests\fafafa.core.platform"
+call :COPY_CASE_DETAIL_LOGS "atomic" "tests\fafafa.core.atomic"
+call :COPY_CASE_DETAIL_LOGS "mem_allocator_foundation" "tests\fafafa.core.mem.allocator.foundation"
+call :COPY_CASE_DETAIL_LOGS "mem_allocator_only" "tests\fafafa.core.mem"
+
 call :CHECK_MODULE_LOG base.log
 call :CHECK_MODULE_LOG contracts.log
 call :CHECK_MODULE_LOG bits.log
@@ -207,4 +220,15 @@ exit /b 0
 :module_fail
 set /a FAIL_COUNT+=1
 >> "%EVIDENCE_LOG%" echo [L0-NATIVE] ModuleFail: %MODULE_FILE%
+exit /b 0
+
+:COPY_CASE_DETAIL_LOGS
+set "CASE_LABEL=%~1"
+set "CASE_DIR=%~2"
+if exist "%REPO_ROOT%\%CASE_DIR%\logs\build.txt" (
+  copy /Y "%REPO_ROOT%\%CASE_DIR%\logs\build.txt" "%MODULE_LOG_DIR%\%CASE_LABEL%.build.txt" >nul 2>nul
+)
+if exist "%REPO_ROOT%\%CASE_DIR%\logs\test.txt" (
+  copy /Y "%REPO_ROOT%\%CASE_DIR%\logs\test.txt" "%MODULE_LOG_DIR%\%CASE_LABEL%.test.txt" >nul 2>nul
+)
 exit /b 0
