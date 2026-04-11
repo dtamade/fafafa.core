@@ -1,6 +1,51 @@
 # CI for fafafa.core.lockfree
+
 > 当前策略：CI 暂时不自动运行，仅保留手动触发（workflow_dispatch）。如需恢复自动触发，请将 matrix 工作流的 on: 改回 push/pull_request。
 
+## strict L0 的 Windows 路径说明
+
+当前 CI / 手工验证里，strict non-SIMD L0 的 Windows 相关检查要分成两类看：
+
+- 已完成并可在 Linux + `wine` 环境复核的 runtime 证据
+  - `bash tests/test_windows_strict_l0_wine_smoke.sh`
+  - `bash tests/test_windows_strict_l0_batch_runtime_smoke.sh`
+  - `bash tests/test_windows_strict_l0_batch_runtime_matrix.sh`
+- 仍依赖真实 Windows Lazarus toolchain 的 native `.bat` build-path parity
+  - 这部分当前仍需要可用的 Windows `lazbuild.exe`
+  - fail-close preflight：
+    - `bash tests/test_windows_lazbuild_smoke_preflight.sh`
+    - `bash tests/preflight_windows_strict_l0_native_evidence_gh.sh`
+  - 真正的 dedicated Windows host lane：
+    - `tests\test_windows_strict_l0_batch_native_matrix.bat`
+    - `tests\collect_windows_strict_l0_native_evidence.bat`
+    - `tests\verify_windows_strict_l0_native_evidence.bat`
+    - `bash tests/verify_windows_strict_l0_native_evidence.sh [snapshot-root] [expected-commit] [expected-ref]`
+  - 这条 lane 固定覆盖 strict L0 的 12 个 `.bat` 入口，并明确拒绝 `FAFAFA_SKIP_BUILD=1`
+  - 如果需要 hosted/manual workflow 入口，仓库内现在也有：
+    - `.github/workflows/l0-windows-native-evidence.yml`
+    - `bash tests/print_windows_strict_l0_native_ci_enablement_3cmd.sh [batch-id]`
+    - `bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh [batch-id] [run-id]`
+    - `bash tests/print_windows_strict_l0_native_closeout_3cmd.sh [batch-id]`
+  - `print_windows_strict_l0_native_ci_enablement_3cmd.sh` 只负责打印把 workflow registration slice 推到 default branch `main` 的最短操作链
+  - `run_windows_strict_l0_native_evidence_via_github_actions.sh` 会先做 `gh` / workflow preflight、再 dispatch 或复用既有 run、下载 artifact，并调用 `verify_windows_strict_l0_native_evidence.sh` 在 Linux shell 上校验证据包结构
+  - `print_windows_strict_l0_native_closeout_3cmd.sh` 只负责打印 GH 主路径、手工 Windows 路径和 shell verifier 的复制即跑命令
+  - 如果只是想在 Linux/macOS 上一次性复核当前本地 closeout stack，可直接执行 `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
+  - 如果 workflow 没有注册到仓库 default branch，预期由 `preflight_windows_strict_l0_native_evidence_gh.sh` 以 `code=22` fail-close，而不是假装可以 dispatch
+  - 在缺少该工具链时，预期通过 preflight / native lane 自身 fail-close，而不是把 native build parity 误记成已完成
+
+当前 today 状态：
+
+- workflow 已经注册在 default branch 上
+- GitHub Actions run `24224880061` 已在真实 Windows runner 上 fresh 收到 strict L0 native evidence `12/12` PASS
+- 因此，`code=22` 现在只应被视作“registration drift / GH 环境异常”的诊断信号，而不是当前仓库的基线状态
+
+当前推荐口径：
+
+- 可以把 strict L0 的 Windows runtime smoke 和 `.bat` runtime-only parity 记成已完成
+- 可以把 native lane 的脚本接线、collector/verifier、workflow wiring、via-GitHub-Actions helper、contract 和 fail-close 语义记成已完成
+- 不要把 native Windows `.bat` build-path parity 记成已完成，除非 `tests\test_windows_strict_l0_batch_native_matrix.bat` 已经在真实 Windows `lazbuild.exe` 条件下 fresh 通过
+- 如果当前只有 Linux x64，优先直接走 `bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh`
+- 只有当 preflight 异常退回 `code=22` 时，才回到 `bash tests/print_windows_strict_l0_native_ci_enablement_3cmd.sh` 排查 workflow registration 漂移
 
 # Minimal Windows CI: FS only
 
@@ -18,14 +63,14 @@ name: FS Tests (Windows)
 on:
   push:
     paths:
-      - 'src/**'
-      - 'tests/fafafa.core.fs/**'
-      - 'scripts/test-fs-only.bat'
-      - '.github/workflows/fs-tests.yml'
+      - "src/**"
+      - "tests/fafafa.core.fs/**"
+      - "scripts/test-fs-only.bat"
+      - ".github/workflows/fs-tests.yml"
   pull_request:
     paths:
-      - 'src/**'
-      - 'tests/fafafa.core.fs/**'
+      - "src/**"
+      - "tests/fafafa.core.fs/**"
 
 jobs:
   fs-tests:
@@ -41,6 +86,7 @@ jobs:
 ```
 
 注意：
+
 - 若仓库已有自定义 lazbuild 安装方式，请将“Install Lazarus (choco)”替换为项目已有步骤或使用缓存
 - 该工作流仅作为示例，提交前可根据仓库策略调整触发路径与名称
 
@@ -56,6 +102,7 @@ jobs:
   - 输出最慢用例帮助定位性能回退：--top-slowest=5
 
 ### Windows（GitHub Actions 示例）
+
 ```yaml
 - name: Run tests (Runner best practices)
   shell: pwsh
@@ -67,6 +114,7 @@ jobs:
 ```
 
 ### Linux（GitHub Actions 示例）
+
 ```yaml
 - name: Run tests (Runner best practices)
   env:
@@ -78,6 +126,7 @@ jobs:
 ```
 
 ### 用例清单（供编排器/矩阵）
+
 - Windows：powershell -File scripts\list-tests.ps1 -Filter core -CI
 - Linux/macOS：./scripts/list-tests.sh core
 - 如需美化 JSON 或控制排序：
@@ -100,6 +149,7 @@ jobs:
   - `SIMD_QEMU_BUILD_POLICY=skip`：跳过构建，要求本地镜像已存在
 
 Linux/macOS 示例：
+
 ```bash
 # 推荐：主线 gate / qemu 证据链路
 SIMD_QEMU_BUILD_POLICY=if-missing \
@@ -180,21 +230,26 @@ bash tests/fafafa.core.simd/BuildOrTest.sh restore-nightly-evidence \
 ```
 
 ### 一键脚本
+
 - Windows（PowerShell）：`scripts/run-tests-ci.ps1`（默认 --ci --fail-on-skip --top-slowest=5，自动设置报告默认路径）
 - Linux/macOS（Bash）：`scripts/run-tests-ci.sh`（同上）
 
 ### 可选运行 LockFree 示例（严格工厂 demo）
+
 - PowerShell：scripts\run-tests-ci.ps1 -IncludeLockfreeExamples
 - Bash：INCLUDE_LOCKFREE_EXAMPLES=1 ./scripts/run-tests-ci.sh
 
 说明：
-- 该选项会调用 examples/fafafa.core.lockfree/BuildOrRun.* run，构建并运行 example + bench + strict demo
+
+- 该选项会调用 examples/fafafa.core.lockfree/BuildOrRun.\* run，构建并运行 example + bench + strict demo
 - 默认关闭，建议按需触发以控制 CI 时长
 
 - 在 GitHub Actions 中可直接调用上述脚本，或内联命令行
 
 #### GitHub Actions 示例（启用 LockFree 示例）
+
 - Windows（PowerShell）
+
 ```yaml
 jobs:
   tests-win:
@@ -210,6 +265,7 @@ jobs:
 ```
 
 - Linux（Bash）
+
 ```yaml
 jobs:
   tests-linux:
@@ -227,9 +283,6 @@ jobs:
           chmod +x scripts/run-tests-ci.sh
           ./scripts/run-tests-ci.sh
 ```
-
-
-
 
 ## Linux（最小化）
 
@@ -249,9 +302,6 @@ jobs:
 - Linux 手动：.github/workflows/fs-tests-linux.yml（名称：FS Tests (Linux Manual)）
 - 触发方式：在 GitHub 仓库 Actions 选项卡中选择对应工作流 → Run workflow
 - 适用场景：定位平台特异问题、复现单平台不稳定用例、临时验证环境变化
-
-
-
 
 此仓库包含 GitHub Actions 工作流，自动执行以下检查：
 
@@ -280,7 +330,6 @@ lazbuild --build-mode=Release examples/fafafa.core.lockfree/example_lockfree.lpi
 python scripts/generate_lockfree_api_md.py
 ```
 
-
 ## settings.inc 单源守护
 
 - 原则：仅维护 src/fafafa.core.settings.inc 为单一真源
@@ -297,6 +346,7 @@ call scripts\sync_settings_inc.bat || exit /b 1
 - 校验（可选强制）：同步后做一次一致性校验，防止遗漏
 
 Windows（PowerShell）：
+
 ```
 $src = "src/fafafa.core.settings.inc"
 $dst = "release/src/fafafa.core.settings.inc"
@@ -305,12 +355,11 @@ if ((Get-FileHash $src).Hash -ne (Get-FileHash $dst).Hash) { Write-Error "settin
 ```
 
 Linux（Bash）：
+
 ```
 if [ ! -f release/src/fafafa.core.settings.inc ]; then echo "Missing release/src/fafafa.core.settings.inc" >&2; exit 1; fi
 if ! cmp -s src/fafafa.core.settings.inc release/src/fafafa.core.settings.inc; then echo "settings.inc not synced" >&2; exit 1; fi
 ```
-
-
 
 ## Perf Summary（从日志生成摘要）
 
@@ -329,4 +378,3 @@ if ! cmp -s src/fafafa.core.settings.inc release/src/fafafa.core.settings.inc; t
   - `tests/fafafa.core.lockfree/Run_Micro_BatchMatrix_Quick.bat`（脚本末尾已自动归一化 + 摘要）
 
 附注：HashMap 选型指南请参阅 docs/topics/lockfree/README_LOCKFREE.md（开放寻址 OA 与分离链接 MM 的差异与选择）。
-

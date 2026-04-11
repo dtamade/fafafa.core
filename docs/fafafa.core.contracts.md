@@ -1,15 +1,17 @@
 # fafafa.core.contracts — strict L0 前置条件 Helper
 
-> 当前 strict L0 语义以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
+> 当前 strict L0 边界以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准；后续推进顺序以 `docs/fafafa.core.l0.roadmap.md` 为准。
 > `fafafa.core.contracts` 属于 strict non-SIMD L0，只负责统一前置条件 helper，不承载内部 invariant/assert 语义。
 
 ## 当前 source-of-truth
 
 1. `docs/fafafa.core.l0.foundation.md`
-2. `docs/ARCHITECTURE_LAYERS.md`
-3. `src/fafafa.core.contracts.pas`
-4. `tests/fafafa.core.contracts/README.md`
-5. `tests/fafafa.core.contracts/BuildOrTest.sh`
+2. `docs/fafafa.core.l0.roadmap.md`
+3. `docs/ARCHITECTURE_LAYERS.md`
+4. `src/fafafa.core.contracts.pas`
+5. `tests/fafafa.core.contracts/README.md`
+6. `tests/fafafa.core.contracts/BuildOrTest.sh`
+7. `tests/fafafa.core.contracts/BuildOrTest.bat`
 
 ## 目标
 

@@ -1,15 +1,19 @@
 # fafafa.core.mem Tests
 
 这个目录是 mem 域当前测试入口。它负责告诉你应该跑哪套工程、脚本实际做了什么，以及哪些文件只是辅助 runner 或历史残留。
+strict L0 allocator contract 的权威边界和推进顺序仍以 `docs/fafafa.core.l0.foundation.md`、`docs/fafafa.core.l0.roadmap.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准；这里不替代那组三份稳定文档。
 
 ## 当前 source-of-truth
 
-1. `docs/fafafa.core.mem.md`
-2. `tests/fafafa.core.mem.allocator.foundation/README.md`
-3. `tests/fafafa.core.mem/tests_mem.lpi`
-4. `tests/fafafa.core.mem/tests_mem_allocator_only.lpi`
-5. `tests/fafafa.core.mem/BuildOrTest.bat`
-6. `tests/fafafa.core.mem/BuildOrTest.sh`
+1. `docs/fafafa.core.l0.foundation.md`
+2. `docs/fafafa.core.l0.roadmap.md`
+3. `docs/ARCHITECTURE_LAYERS.md`
+4. `docs/fafafa.core.mem.md`
+5. `tests/fafafa.core.mem.allocator.foundation/README.md`
+6. `tests/fafafa.core.mem/tests_mem.lpi`
+7. `tests/fafafa.core.mem/tests_mem_allocator_only.lpi`
+8. `tests/fafafa.core.mem/BuildOrTest.bat`
+9. `tests/fafafa.core.mem/BuildOrTest.sh`
 
 ## 当前测试集合
 
@@ -58,6 +62,8 @@
 - 支持 `Debug` / `NoContracts` 两个 build mode
 - 支持 `build` / `check` / `test` / `build-no-contracts` / `check-no-contracts` / `test-no-contracts`
 - `NoContracts` 模式当前只锁定 allocator smoke，不替代 full mem regression
+- `test` / `test-no-contracts` 当前会优先执行显式 `.exe`，再回退到无扩展名产物
+- 在 `FAFAFA_SKIP_BUILD=1` 时，`test` / `test-no-contracts` 会跳过构建，直接消费预构建 Win64 `.exe`；这个入口当前主要供 Windows `.bat` runtime-only parity smoke / matrix 使用
 
 ### BuildOrTest.sh
 

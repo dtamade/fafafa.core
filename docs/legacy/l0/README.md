@@ -5,10 +5,11 @@
 当前 today contract 请优先看：
 
 1. `docs/fafafa.core.l0.foundation.md`
-2. `docs/ARCHITECTURE_LAYERS.md`
-3. `docs/fafafa.core.platform.md`
-4. `docs/fafafa.core.span.md`
-5. `docs/fafafa.core.mem.md`
+2. `docs/fafafa.core.l0.roadmap.md`
+3. `docs/ARCHITECTURE_LAYERS.md`
+4. `docs/fafafa.core.platform.md`
+5. `docs/fafafa.core.span.md`
+6. `docs/fafafa.core.mem.md`
 
 当前已归档的历史文档：
 

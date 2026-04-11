@@ -36,7 +36,7 @@ resolve_lazbuild() {
 
 build_examples() {
   local LLazbuild
-  local example
+  local LExample
 
   LLazbuild="$(resolve_lazbuild)"
   rm -rf ./bin ./lib/*-*/
@@ -45,9 +45,9 @@ build_examples() {
   echo "=== Building fafafa.core.atomic Examples ==="
   echo
 
-  for example in "${EXAMPLES[@]}"; do
-    echo "[BUILD] ${LLazbuild} --build-mode=Release ${example}.lpi"
-    "${LLazbuild}" --build-mode=Release "${example}.lpi"
+  for LExample in "${EXAMPLES[@]}"; do
+    echo "[BUILD] ${LLazbuild} --build-mode=Release ${LExample}.lpi"
+    "${LLazbuild}" --build-mode=Release "${LExample}.lpi"
   done
 
   echo
@@ -56,20 +56,22 @@ build_examples() {
 }
 
 run_examples() {
+  local LExample
+
   echo "=== Running Examples ==="
   echo
 
-  for example in "${EXAMPLES[@]}"; do
-    if [[ -x "bin/${example}" ]]; then
-      echo "[RUN] bin/${example}"
-      "bin/${example}"
+  for LExample in "${EXAMPLES[@]}"; do
+    if [[ -x "bin/${LExample}" ]]; then
+      echo "[RUN] bin/${LExample}"
+      "bin/${LExample}"
       echo
-    elif [[ -x "bin/${example}.exe" ]]; then
-      echo "[RUN] bin/${example}.exe"
-      "bin/${example}.exe"
+    elif [[ -x "bin/${LExample}.exe" ]]; then
+      echo "[RUN] bin/${LExample}.exe"
+      "bin/${LExample}.exe"
       echo
     else
-      echo "[WARN] Executable not found: bin/${example}[.exe]" >&2
+      echo "[WARN] Executable not found: bin/${LExample}[.exe]" >&2
     fi
   done
 }

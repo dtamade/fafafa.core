@@ -12,6 +12,8 @@ uses
 
 type
   TTestCase_AllocatorFoundationRuntime = class(TTestCase)
+  private
+    procedure RaiseCreateCallbackAllocatorWithNilGetMem;
   published
     procedure Test_GetRtlAllocator_ZeroSize_NoOp;
     procedure Test_GetRtlAllocator_ReallocNil_Allocates;
@@ -58,6 +60,11 @@ begin
   GAllocMemCalls := 0;
   GReallocMemCalls := 0;
   GFreeMemCalls := 0;
+end;
+
+procedure TTestCase_AllocatorFoundationRuntime.RaiseCreateCallbackAllocatorWithNilGetMem;
+begin
+  CreateCallbackAllocator(nil, @RuntimeAllocMem, @RuntimeReallocMem, @RuntimeFreeMem).Free;
 end;
 
 procedure TTestCase_AllocatorFoundationRuntime.Test_GetRtlAllocator_ZeroSize_NoOp;
@@ -128,10 +135,8 @@ var
   LAllocator: TCallbackAllocator;
 begin
   {$IFDEF FAFAFA_CORE_CONTRACTS}
-  AssertException('CreateCallbackAllocator should reject nil callbacks', EArgumentNil, procedure
-  begin
-    CreateCallbackAllocator(nil, @RuntimeAllocMem, @RuntimeReallocMem, @RuntimeFreeMem).Free;
-  end);
+  AssertException('CreateCallbackAllocator should reject nil callbacks', EArgumentNil,
+    @RaiseCreateCallbackAllocatorWithNilGetMem);
   {$ELSE}
   LAllocator := CreateCallbackAllocator(nil, @RuntimeAllocMem, @RuntimeReallocMem, @RuntimeFreeMem);
   try

@@ -1,56 +1,45 @@
 # worker1
 
 - Owner: Codex
-- Scope: strict non-SIMD L0 的 merged-main follow-up、rescue triage 与控制面清污
+- Scope: strict non-SIMD L0 的当前真相固化、latest-mainline replay 后的控制面同步，以及最终主线集成前的 merge hygiene 维护
 - Status: `active`
-- Branch: `l0-main-followup-20260407`
+- Branch: `l0-mainline-integration-20260411`
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
-- Base commit: `7b5e9e7f`
+- Base commit: `0684af55` (`origin/main`)
 - Current focus:
-  - 维持 strict L0 在 merged main 上稳定，不回退到旧 promotion 分支
-  - 将 `l0-main-rescue` 拆成可审查的小批次，而不是整树合并
-  - 清理主线控制面噪音：根目录 working-log、过期索引指针、过期 worker 指针、root 历史报告
-  - 继续守住 strict L0 边界，不混入 SIMD 实现线
+  - 维持当前唯一 L0 worktree 上的 latest-mainline replay 结果，不把 unrelated 工作重新混回分支
+  - 维持 strict L0 的 current-entry 文档、模块边界和验证口径一致
+  - 在真正进入主线合并窗口前，只补必要的 merge hygiene；当前分支的 commit-exact Windows artifact 已经补齐
 - Source of truth:
   - `docs/fafafa.core.l0.foundation.md`
-  - `docs/audits/2026-04-07-l0-rescue-triage-audit.md`
-  - `docs/plans/2026-04-07-l0-rescue-split-closeout.md`
-  - `plans/archive/2026-04-07-mainline-working-set/README.md`
+  - `docs/fafafa.core.l0.roadmap.md`
+  - `docs/ARCHITECTURE_LAYERS.md`
+  - `docs/audits/2026-04-11-l0-current-state-audit.md`
+  - `docs/plans/2026-04-11-l0-mainline-merge-checklist.md`
+  - `docs/plans/2026-04-11-l0-mainline-replay-execution-plan.md`
+  - `docs/fafafa.core.span.md`
+  - `docs/fafafa.core.atomic.md`
+  - `docs/fafafa.core.result.md`
 - Fresh verification:
   - `STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation fafafa.core.platform`
   - 结果：PASS，`11/11`
-  - `bash tests/fafafa.core.contracts/BuildOrTest.sh test-no-contracts`
-  - 结果：PASS
-  - `bash examples/fafafa.core.contracts/BuildOrRun.sh run`
-  - 结果：PASS
-  - `bash examples/fafafa.core.platform/BuildOrRun.sh run`
-  - 结果：PASS
-  - `bash examples/fafafa.core.atomic/BuildOrRun.sh build`
-  - 结果：PASS（保留现有 upstream warnings/hints，不构成本批 blocker）
-  - `bash examples/fafafa.core.base/BuildOrRun.sh build`
-  - 结果：PASS
-  - `bash examples/fafafa.core.option/BuildOrRun.sh build`
-  - 结果：PASS
-  - `bash examples/fafafa.core.result/BuildOrRun.sh build`
-  - 结果：PASS
-  - `bash tests/fafafa.core.mem.allocator.foundation/BuildOrTest.sh test`
-  - 结果：PASS
-  - `bash tests/fafafa.core.mem.allocator.foundation/BuildOrTest.sh test-no-contracts`
-  - 结果：PASS
-  - `bash tests/fafafa.core.mem/BuildOrTest.sh test`
-  - 结果：PASS
-  - `bash tests/fafafa.core.mem/BuildOrTest.sh test-no-contracts`
-  - 结果：PASS
-  - `bash tests/fafafa.core.time.tick/BuildOrTest.sh test`
-  - 结果：PASS
   - `git diff --check`
   - 结果：PASS
+  - `bash tests/test_windows_strict_l0_batch_runtime_matrix.sh`
+  - 结果：PASS；`base`、`contracts`、`bits`、`layout`、`endian`、`span`、`option`、`result`、`platform`、`atomic`、`mem_allocator_foundation`、`mem_allocator_only` 全部 fresh 通过
+  - `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
+  - 结果：PASS；当前 GH preflight 为 `workflow=l0-windows-native-evidence.yml, state=active`
+  - `L0_NATIVE_EVIDENCE_REF=l0-mainline-integration-20260411 L0_NATIVE_EVIDENCE_POLL_MAX_TRIES=180 bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh L0-20260411-native-gha-r10`
+  - 结果：PASS；GitHub Actions run `24278413198` 已对提交 `3ed047847b0bf871b265ded8e4a14c517b84b414` 收到 strict L0 `12/12` native evidence
+  - `L0_NATIVE_EVIDENCE_POLL_MAX_TRIES=180 bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh L0-20260410-native-gha-r9`
+  - 结果：PASS；GitHub Actions run `24224880061` 继续保留为历史 baseline evidence
 - Risks / blockers:
-  - 根目录 `main` 工作树仍然是用户脏状态且落后远端，不能直接作为执行面
-  - `l0-main-rescue` 仍混有大量 SIMD/CI/evidence 文件，不能 broad merge
-  - SIMD-only 残留仍需要由对应 owner 接手，L0 这里只保留边界与 handoff 说明
+  - 根目录 `main` 工作树仍然是用户脏状态，不能直接作为最终执行面
+  - SIMD-only 残留仍需要由 SIMD owner 继续维护，L0 这里只保留边界与 handoff 说明
+  - 当前 exact-evidence 绑定的是 `3ed04784`；如果分支继续新增非文档提交，仍需重新补 fresh GH run
 - Next step:
-  - 做最终 diff / verification 复核，确保当前批次可 review
-  - 保持 SIMD-only 残留只走 handoff，不通过 L0 线回流
-  - 等用户决定是合并这条 worktree，还是继续在此分支做下一轮非 SIMD 清污
-- Last updated: `2026-04-07`
+  - 继续只沿 strict L0 线推进，不把 sidecar 或 SIMD 工作重新混回当前 worktree
+  - 如果当前分支只是继续在 L0 worktree 内整理文档和边界，不需要为了形式感重跑旧 replay 方案
+  - 如果准备真正并回主线，优先按 `docs/plans/2026-04-11-l0-mainline-merge-checklist.md` 从干净执行面推进
+  - 当前可以直接把 run `24278413198` 作为这个 replay 分支的 commit-exact Windows native evidence 引用
+- Last updated: `2026-04-11`

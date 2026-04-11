@@ -1,15 +1,17 @@
 # fafafa.core.bits — 位级基础与对齐 Helper
 
-> 当前 strict L0 语义以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
+> 当前 strict L0 边界以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准；后续推进顺序以 `docs/fafafa.core.l0.roadmap.md` 为准。
 > `fafafa.core.bits` 属于 strict non-SIMD L0，负责全框架可复用的 bit-level helper，而不是 `math` 域的附属工具。
 
 ## 当前 source-of-truth
 
 1. `docs/fafafa.core.l0.foundation.md`
-2. `docs/ARCHITECTURE_LAYERS.md`
-3. `src/fafafa.core.bits.pas`
-4. `tests/fafafa.core.bits/README.md`
-5. `tests/fafafa.core.bits/BuildOrTest.sh`
+2. `docs/fafafa.core.l0.roadmap.md`
+3. `docs/ARCHITECTURE_LAYERS.md`
+4. `src/fafafa.core.bits.pas`
+5. `tests/fafafa.core.bits/README.md`
+6. `tests/fafafa.core.bits/BuildOrTest.sh`
+7. `tests/fafafa.core.bits/BuildOrTest.bat`
 
 ## 当前兼容策略
 

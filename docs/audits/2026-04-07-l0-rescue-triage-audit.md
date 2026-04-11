@@ -1,5 +1,8 @@
 # 2026-04-07 L0 Rescue Triage Audit
 
+> 这份审计记录的是 `2026-04-07` 的 rescue triage 结论。
+> 当前 active L0 triage 以 `docs/audits/2026-04-10-l0-current-state-audit.md` 为准。
+
 ## 结论先行
 
 这次审计回答的是一个很具体的问题：`PR #6` 合并之后，L0 还应该继续做什么，哪些东西绝对不要再通过 L0 这条线带回主线。
@@ -115,17 +118,17 @@ git diff --check
 
 ## 批次决策
 
-| 批次 | 范围 | owner | 结论 |
-| --- | --- | --- | --- |
-| A | PR `#6` merge + merged-main verification | L0 | 完成 |
-| B | 主线控制面清污 | L0 | 本轮完成 |
-| C | 非 SIMD rescue 候选 | L0 | 后续拆批 |
-| D | SIMD / CI / evidence 残留 | SIMD owner | handoff |
-| E | 破坏当前验证入口的 rescue 删除集 | reject | 不接收 |
+| 批次 | 范围                                     | owner      | 结论     |
+| ---- | ---------------------------------------- | ---------- | -------- |
+| A    | PR `#6` merge + merged-main verification | L0         | 完成     |
+| B    | 主线控制面清污                           | L0         | 本轮完成 |
+| C    | 非 SIMD rescue 候选                      | L0         | 后续拆批 |
+| D    | SIMD / CI / evidence 残留                | SIMD owner | handoff  |
+| E    | 破坏当前验证入口的 rescue 删除集         | reject     | 不接收   |
 
 ## 当前主线入口
 
 - L0 定义：`docs/fafafa.core.l0.foundation.md`
 - L0 审计：`docs/audits/2026-04-07-l0-rescue-triage-audit.md`
-- L0 路线图：`docs/plans/2026-04-07-l0-rescue-split-closeout.md`
+- L0 路线图：`docs/fafafa.core.l0.roadmap.md`
 - 当前 L0 worker：`workers/worker1.md`

@@ -1,18 +1,20 @@
 # fafafa.core.atomic
 
-> 当前 strict L0 语义以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
+> 当前 strict L0 边界以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准；后续推进顺序以 `docs/fafafa.core.l0.roadmap.md` 为准。
 > `fafafa.core.atomic.core`、`fafafa.core.atomic.base`、`fafafa.core.atomic`、`fafafa.core.atomic.compat` 都属于 strict non-SIMD L0，但 `atomic.compat` 只承担 legacy compatibility surface，不是新代码的主入口。
 
 ## 当前 source-of-truth
 
 1. `docs/fafafa.core.l0.foundation.md`
-2. `docs/ARCHITECTURE_LAYERS.md`
-3. `src/fafafa.core.atomic.core.pas`
-4. `src/fafafa.core.atomic.base.pas`
-5. `src/fafafa.core.atomic.pas`
-6. `src/fafafa.core.atomic.compat.pas`
-7. `tests/fafafa.core.atomic/README.md`
-8. `tests/fafafa.core.atomic/BuildOrTest.sh`
+2. `docs/fafafa.core.l0.roadmap.md`
+3. `docs/ARCHITECTURE_LAYERS.md`
+4. `src/fafafa.core.atomic.core.pas`
+5. `src/fafafa.core.atomic.base.pas`
+6. `src/fafafa.core.atomic.pas`
+7. `src/fafafa.core.atomic.compat.pas`
+8. `tests/fafafa.core.atomic/README.md`
+9. `tests/fafafa.core.atomic/BuildOrTest.sh`
+10. `tests/fafafa.core.atomic/BuildOrTest.bat`
 
 ## 当前入口约定
 
@@ -21,9 +23,11 @@
 - 需要 typed wrapper 时，优先使用 `fafafa.core.atomic.base`。
 - `fafafa.core.atomic.compat` 只保留旧指针 RMW overload、legacy tagged-pointer helper 命名和旧调用点兼容桥接。
 - 当前仓库主线 `src/` 调用点已经迁到 Pointer 原生 overload；`atomic.compat` 主要保留给历史调用点、bridge 和合同测试。
+- 新代码如果只是需要 today raw primitive、typed wrapper 或 core helper，不应默认把 `fafafa.core.atomic.compat` 放进 `uses`。
 - `tests/fafafa.core.atomic/Test_fafafa.core.atomic.core.contract.pas` 会锁定 `atomic.core` 的最小 L0 contract。
 - `tests/fafafa.core.atomic/Test_fafafa.core.atomic.compat.contract.pas` 会继续锁定这部分 compat surface，防止兼容桥接被无意打断。
 - 如果某个 API 只有在 `atomic.compat` 里才存在，应默认把它视作 legacy surface，而不是 today contract 的推荐写法。
+- 下文保留的大段 API 手册只作为 reference appendix；如果和上面的入口约定冲突，以上面的 today contract 描述为准。
 
 ## 当前分层
 
@@ -35,12 +39,16 @@
   - 承载 typed wrapper。
 - `fafafa.core.atomic.compat`
   - 承载 legacy pointer RMW overload 与旧 helper 命名。
+  - 不应成为新代码的默认入口；只有 bridge、历史调用点和 compat 合同测试才应继续显式依赖它。
+
+## Reference Appendix
 
 现代化、高性能、跨平台的 FreePascal 原子操作库，提供无锁编程的基础设施。
 
 ## 概述
 
 `fafafa.core.atomic` 提供了完整的原子操作 API，支持：
+
 - 基础原子操作（加载、存储、交换、比较交换）
 - 读-修改-写操作（fetch_add、fetch_and、fetch_or、fetch_xor）
 - 内存序控制（relaxed、consume、acquire、release、acq_rel、seq_cst）
@@ -56,6 +64,7 @@
 ## 内存序说明
 
 ### 内存序类型
+
 ```pascal
 type
   memory_order_t = (
@@ -69,6 +78,7 @@ type
 ```
 
 ### 使用建议
+
 - **mo_relaxed**：计数器、统计信息等无同步要求的场景
 - **mo_consume**：当前实现等价 `mo_acquire`，建议直接使用 `mo_acquire`
 - **mo_acquire/mo_release**：生产者-消费者模式、锁实现
@@ -78,6 +88,7 @@ type
 ## 基础 API
 
 ### 原子加载与存储
+
 ```pascal
 // 原子加载
 function atomic_load(var target: Int32): Int32; overload;
@@ -101,6 +112,7 @@ procedure atomic_store(var target: Pointer; value: Pointer; order: memory_order_
 ```
 
 ### 原子交换
+
 ```pascal
 // 原子交换：返回旧值，设置新值
 // （无 order 版本默认使用 seq_cst）
@@ -115,6 +127,7 @@ function atomic_exchange(var target: Pointer; desired: Pointer; order: memory_or
 ```
 
 ### 比较交换（CAS）
+
 ```pascal
 // 强比较交换：如果 target = expected，则设置为 desired，返回是否成功
 // （无 order 版本默认使用 seq_cst）
@@ -148,6 +161,7 @@ function atomic_compare_exchange_weak(
 ```
 
 ### 读-修改-写操作
+
 ```pascal
 // （无 order 版本默认使用 seq_cst）
 
@@ -174,6 +188,7 @@ function atomic_decrement(var target: Int32): Int32;
 ```
 
 ### 指针运算
+
 ```pascal
 // 指针偏移（字节为单位）
 function atomic_fetch_add(var target: Pointer; deltaBytes: PtrInt): Pointer;
@@ -222,26 +237,31 @@ function atomic_tagged_ptr_compare_exchange_weak(var target: atomic_tagged_ptr_t
 ## 性能特征
 
 ### 单线程性能（Win64，ns/op）
+
 - **基础操作**：7-13 ns/op（inc/dec/fetch_add）
 - **CAS 操作**：9-12 ns/op（compare_exchange）
 - **位运算**：10-15 ns/op（fetch_and/or/xor）
 
 ### 多线程扩展性
+
 - **低冲突场景**：接近线性扩展
 - **高冲突场景**：CAS 循环有退避机制，避免活锁
 
 ### 内存序开销
+
 - **mo_relaxed**：最低开销，接近普通内存访问
 - **mo_seq_cst**：额外 10-20% 开销，但提供最强保证
 
 ## 跨平台兼容性
 
 ### 支持平台
+
 - **Windows**：x86、x86_64（基于 Windows Interlocked API）
 - **Linux/macOS**：x86_64（基于 GCC/Clang 内建函数）
 - **其他平台**：通过 FPC RTL 的 System.InterlockedXXX 函数
 
 ### 平台差异
+
 - **32 位系统**：64 位操作可能有额外开销
 - **弱内存序架构**（ARM）：mo_relaxed 与 mo_seq_cst 差异更明显
 - **对齐要求**：某些平台要求自然对齐（通常自动满足）
@@ -249,6 +269,7 @@ function atomic_tagged_ptr_compare_exchange_weak(var target: atomic_tagged_ptr_t
 ## 使用建议
 
 ### 选择合适的内存序
+
 ```pascal
 // 简单计数器：使用 relaxed
 atomic_fetch_add(counter, 1, mo_relaxed);
@@ -262,6 +283,7 @@ if atomic_compare_exchange_strong(state, expected, new_state) then
 ```
 
 ### CAS 循环模式
+
 ```pascal
 // 使用 weak CAS 在循环中
 repeat
@@ -271,6 +293,7 @@ until atomic_compare_exchange_weak(target, old_val, new_val);
 ```
 
 ### ABA 问题解决
+
 ```pascal
 // 使用 tagged pointer
 var node_ptr: atomic_tagged_ptr_t;
@@ -294,6 +317,7 @@ until atomic_tagged_ptr_compare_exchange_weak(node_ptr, expected, desired);
 ## 常见使用模式
 
 ### 1. 简单计数器
+
 ```pascal
 var counter: Int32 = 0;
 
@@ -306,6 +330,7 @@ end;
 ```
 
 ### 2. 状态标志
+
 ```pascal
 var ready_flag: Int32 = 0;
 
@@ -326,6 +351,7 @@ end;
 ```
 
 ### 3. 无锁链表插入
+
 ```pascal
 type
   PNode = ^TNode;
@@ -352,6 +378,7 @@ end;
 ```
 
 ### 4. 引用计数
+
 ```pascal
 type
   TRefCounted = class
@@ -386,11 +413,13 @@ end;
 ## 性能优化建议
 
 ### 1. 选择合适的内存序
+
 - **高频操作**：优先使用 `mo_relaxed`
 - **同步点**：使用 `mo_acquire`/`mo_release`
 - **复杂逻辑**：使用 `mo_seq_cst`（默认）
 
 ### 2. 减少 CAS 冲突
+
 ```pascal
 // 避免：高冲突的 CAS 循环
 repeat
@@ -407,6 +436,7 @@ until atomic_compare_exchange_weak(shared_var, old_val, new_val);
 ```
 
 ### 3. 批量操作
+
 ```pascal
 // 避免：频繁的单次原子操作
 for i := 1 to 1000 do
@@ -422,6 +452,7 @@ atomic_fetch_add(counter, local_sum);
 ## 调试与测试
 
 ### 1. 启用调试检查
+
 ```pascal
 {$IFDEF DEBUG}
   // 在调试模式下可以添加额外检查
@@ -431,6 +462,7 @@ atomic_fetch_add(counter, local_sum);
 ```
 
 ### 2. 压力测试
+
 ```pascal
 // 多线程压力测试模板
 procedure StressTest;
@@ -461,6 +493,7 @@ end;
 ## 示例代码
 
 详细示例请参考 `examples/fafafa.core.atomic/` 目录：
+
 - `example_basic_operations.lpr` - 基础操作演示
 - `example_producer_consumer.lpr` - 生产者-消费者模式
 - `example_tagged_ptr_aba.lpr` - ABA 问题解决方案

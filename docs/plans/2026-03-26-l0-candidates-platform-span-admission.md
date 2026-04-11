@@ -1,6 +1,7 @@
 # strict L0 Candidates: platform / span Admission Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+> 当前 L0 长期路线图入口已固定为 `docs/fafafa.core.l0.roadmap.md`；本页只保留 2026-03-26 这轮 admission 设计的 dated 语境。
 
 > **Status update (2026-03-26):**
 > - `Task 1` 已完成审查，结论是 `platform` 继续 deferred；当前不进入 `Task 3`
