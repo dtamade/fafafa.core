@@ -22,6 +22,7 @@ fi
 
 if command -v wine >/dev/null 2>&1; then
   WIN_REPO_ROOT="Z:\\$(printf '%s' "${REPO_ROOT}" | sed 's#^/##; s#/#\\\\#g')"
+  WIN_UNIX_EXE="Z:\\usr\\bin\\env"
   set +e
   OUTPUT="$(wine cmd /c "cd /d ${WIN_REPO_ROOT} && call tools\\lazbuild.bat --help" 2>&1)"
   RC=$?
@@ -42,7 +43,7 @@ if command -v wine >/dev/null 2>&1; then
   echo "[INFO] wine invocation exit code: ${RC}"
 
   set +e
-  OUTPUT_UNIX_EXE="$(wine cmd /c "set LAZBUILD_EXE=Z:\\opt\\fpcupdeluxe\\lazarus\\lazbuild && cd /d ${WIN_REPO_ROOT} && call tools\\lazbuild.bat --help" 2>&1)"
+  OUTPUT_UNIX_EXE="$(wine cmd /c "set LAZBUILD_EXE=${WIN_UNIX_EXE} && cd /d ${WIN_REPO_ROOT} && call tools\\lazbuild.bat --help" 2>&1)"
   RC_UNIX_EXE=$?
   set -e
 
