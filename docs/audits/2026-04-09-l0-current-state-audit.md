@@ -78,7 +78,8 @@ L0 当前真正还缺的是硬化项，而不是模块数：
 - 当前环境还能用 `bash tests/test_windows_strict_l0_native_evidence_shell_verifier_contract.sh` 锁死 Linux shell verifier 的 artifact contract 与 CRLF 容错语义。
 - 当前环境还能用 `bash tests/test_windows_strict_l0_native_ci_enablement_3cmd_contract.sh` 锁死 workflow registration helper 的 commit-slice 和后续 GH helper 提示合同。
 - 当前环境还能用 `bash tests/test_windows_strict_l0_native_closeout_3cmd_contract.sh` 锁死复制即跑 helper 的批次号替换和路径提示合同。
-- 当前若 `bash tests/preflight_windows_strict_l0_native_evidence_gh.sh` 返回 `code=22`，表示 workflow 还没有注册到 GitHub default branch；这是当前预期 fail-close，不等于 native parity 已补齐。
+- 当前若 `bash tests/preflight_windows_strict_l0_native_evidence_gh.sh` 返回 `code=21`，表示当前 shell / runner 没有可用的 `gh` 登录态；这是环境侧 fail-close，不等于 native parity 已补齐。
+- 当前若 gh 已认证后 `bash tests/preflight_windows_strict_l0_native_evidence_gh.sh` 返回 `code=22`，表示 workflow 还没有注册到 GitHub default branch；这是当前预期 fail-close，不等于 native parity 已补齐。
 - 当前仍然不对称的是 `.bat` build-path 本身；它依旧缺少 fresh 的 dedicated-Windows execution evidence，所以还不能把 native batch build parity 记成完成。
 - 因此，Windows runtime smoke、`.bat` runtime-only parity、native lane wiring 和 via-GitHub-Actions helper wiring 已不再是当前 L0 的 blocker；剩下的 confidence gap 只在真实 Windows toolchain 下的 batch build-path parity 证据。
 

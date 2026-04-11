@@ -132,7 +132,8 @@ bash tests/run_strict_l0_maintenance_loop.sh
 
 - 当前仓库已经完成 Windows runtime smoke 和 `.bat` runtime-only parity
 - 当前还没有完成的，是 native Windows `lazbuild.exe` 条件下的 `.bat` build-path parity
-- 如果 `bash tests/preflight_windows_strict_l0_native_evidence_gh.sh` 返回 `code=22`，含义通常是 workflow registration 漂移或当前 GH 环境看不到 default-branch workflow；这属于 fail-close 诊断，不代表仓库 today 状态回退成“native parity 未接通”
+- 如果 `bash tests/preflight_windows_strict_l0_native_evidence_gh.sh` 返回 `code=21`，含义通常是当前 shell / runner 没有可用的 `gh` 登录态；先补认证，再继续判断 workflow 可见性
+- 如果 gh 已认证后 `bash tests/preflight_windows_strict_l0_native_evidence_gh.sh` 仍返回 `code=22`，含义通常是 workflow registration 漂移或当前 GH 环境看不到 default-branch workflow；这属于 fail-close 诊断，不代表仓库 today 状态回退成“native parity 未接通”
 - Windows exact evidence 仍然只接受 GitHub Actions 或真实 Windows host artifact；Linux x64 本地只能做 contract 复核
 
 如果你已经切到专用 Windows 主机，请直接参考：
