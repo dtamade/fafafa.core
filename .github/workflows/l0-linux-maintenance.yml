@@ -20,7 +20,18 @@ jobs:
       - name: Install FreePascal + Lazarus + Wine
         run: |
           sudo apt-get update
-          sudo apt-get install -y fpc lazarus wine64 ripgrep
+          sudo apt-get install -y \
+            fpc \
+            lazarus \
+            wine64 \
+            ripgrep \
+            fp-units-win-rtl \
+            fp-units-win-base \
+            fp-units-win-fcl \
+            fp-units-win-gfx \
+            fp-units-win-misc \
+            fp-units-win-multimedia \
+            fp-units-win-net
 
       - name: Run strict L0 contract tests
         run: |

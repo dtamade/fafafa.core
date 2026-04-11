@@ -18,6 +18,10 @@ rg -F "workflow_call:" "${WORKFLOW_FILE}" >/dev/null \
   || fail "workflow missing workflow_call trigger"
 rg -F "runs-on: ubuntu-latest" "${WORKFLOW_FILE}" >/dev/null \
   || fail "workflow missing ubuntu-latest runner"
+rg -F "fp-units-win-rtl" "${WORKFLOW_FILE}" >/dev/null \
+  || fail "workflow missing win64 rtl package install"
+rg -F "fp-units-win-fcl" "${WORKFLOW_FILE}" >/dev/null \
+  || fail "workflow missing win64 fcl package install"
 rg -F "bash tests/run_strict_l0_maintenance_loop.sh" "${WORKFLOW_FILE}" >/dev/null \
   || fail "workflow missing strict L0 maintenance loop command"
 
