@@ -1,17 +1,17 @@
 # worker1
 
 - Owner: Codex
-- Scope: strict non-SIMD L0 的 post-merge stabilization、current-entry 维护，以及 verification / hygiene hardening
+- Scope: strict non-SIMD L0 的 mainline 维护、verification / hygiene hardening，以及 docs / CI closeout
 - Status: `active`
 - Branch: `l0-mainline`
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
-- Base commit: `f6585dd9` (`origin/main`)
+- Base commit: `54a7ae056679c251a8a1f53442cfd20601b6f08f` (`origin/main`)
 - Current focus:
-  - 维持当前唯一 L0 worktree 跟随 `main`，不再把 merge-prep 语境当 current-entry
+  - 维持当前唯一 L0 worktree 跟随 `main`
   - 维持 strict L0 的 current-entry 文档、模块边界和验证口径一致
   - 只清理安全可删的本地 L0 refs，保留仍然承载独立历史的锚点
-  - 把 `l0-linux-maintenance.yml` 的 GitHub 侧真实可见性和 dispatch 限制写准，不伪造“已经可调度”的结论
-  - 把 Windows exact-evidence 与 Phase 3 verification 纪律固定成长期规则
+  - 把 Linux maintenance workflow 与 Windows exact-evidence lane 的 current-entry 命令、证据和 fail-close 语义写准
+  - 保持 Windows exact evidence 只能来自 GitHub Actions / 真实 Windows runner 这一纪律
 - Source of truth:
   - `docs/fafafa.core.l0.foundation.md`
   - `docs/fafafa.core.l0.roadmap.md`
@@ -21,42 +21,31 @@
   - `docs/CI.md`
   - `tests/check_strict_l0_docs_consistency.sh`
   - `tests/run_strict_l0_maintenance_loop.sh`
+  - `tests/run_windows_strict_l0_native_evidence_via_github_actions.sh`
   - `docs/fafafa.core.span.md`
   - `docs/fafafa.core.atomic.md`
   - `docs/fafafa.core.result.md`
 - Fresh verification:
   - `bash tests/check_strict_l0_docs_consistency.sh`
-  - 结果：PASS；`README`、`INDEX`、`CI`、`TESTING`、`worker1`、post-merge plan 与 legacy merge-prep 归档路径已对齐
+  - 结果：PASS
+  - `bash tests/test_strict_l0_docs_consistency_contract.sh`
+  - 结果：PASS
+  - `bash tests/test_strict_l0_stable_docs_no_sha_contract.sh`
+  - 结果：PASS
+  - `bash tests/test_strict_l0_linux_ci_workflow_contract.sh`
+  - 结果：PASS
+  - `bash tests/test_windows_strict_l0_native_evidence_gh_contract.sh`
+  - 结果：PASS；`AUTH_REQUIRED/rc=21` 已有 deterministic contract 覆盖
   - `bash tests/run_strict_l0_maintenance_loop.sh`
   - 结果：PASS；docs consistency、strict L0 gate、`git diff --check`、runtime matrix、native closeout stack 已由单入口 fresh 串通
-  - `STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation fafafa.core.platform`
-  - 结果：PASS，`11/11`
   - `git diff --check`
   - 结果：PASS
-  - `bash tests/test_windows_strict_l0_batch_runtime_matrix.sh`
-  - 结果：PASS；`base`、`contracts`、`bits`、`layout`、`endian`、`span`、`option`、`result`、`platform`、`atomic`、`mem_allocator_foundation`、`mem_allocator_only` 全部 fresh 通过
-  - `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
-  - 结果：PASS；当前 GH preflight 为 `workflow=l0-windows-native-evidence.yml, state=active`
-  - `git push origin HEAD:refs/heads/l0-mainline`
-  - 结果：PASS；远端 `origin/l0-mainline` 已建立，probe commit `0970b629` 上的 workflow 文件已可被 GitHub branch content endpoint 看到
-  - `gh workflow run l0-linux-maintenance.yml --ref l0-mainline`
-  - 结果：FAIL；返回 `HTTP 404`，说明 workflow 还未进入 default branch，GitHub 尚未注册 dispatch 入口
-  - `gh api 'repos/dtamade/fafafa.core/contents/.github/workflows/l0-linux-maintenance.yml?ref=l0-mainline'`
-  - 结果：PASS；远端 `l0-mainline` 上的 workflow 文件可见
-  - `gh api repos/dtamade/fafafa.core/actions/workflows/l0-linux-maintenance.yml`
-  - 结果：FAIL；返回 `HTTP 404`
-  - `git cherry -v HEAD l0-main-rescue`
-  - 结果：仍有独立 patch history，保留
-  - `git cherry -v HEAD l0-main-tail-cleanup-20260408-final`
-  - 结果：仍有独立 patch history，保留
-  - `git cherry -v HEAD l0-mainline-closeout-20260411`
-  - 结果：仍有独立 patch history，保留
-  - `git cherry -v HEAD l0-sidecar-handoff-20260409`
-  - 结果：仍有独立 patch history，保留
-  - `L0_NATIVE_EVIDENCE_REF=l0-mainline-integration-20260411 L0_NATIVE_EVIDENCE_POLL_MAX_TRIES=180 bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh L0-20260411-native-gha-r10`
-  - 结果：PASS；GitHub Actions run `24278413198` 已对提交 `3ed047847b0bf871b265ded8e4a14c517b84b414` 收到 strict L0 `12/12` native evidence
-  - `L0_NATIVE_EVIDENCE_POLL_MAX_TRIES=180 bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh L0-20260410-native-gha-r9`
-  - 结果：PASS；GitHub Actions run `24224880061` 继续保留为历史 baseline evidence
+  - `gh workflow run l0-linux-maintenance.yml --ref main`
+  - 结果：触发成功；GitHub Actions run `24283947269` 对 `main@54a7ae056679c251a8a1f53442cfd20601b6f08f` fresh PASS
+  - `gh workflow run l0-windows-native-evidence.yml --ref main`
+  - 结果：触发成功；GitHub Actions run `24284111799` 对 `main@54a7ae056679c251a8a1f53442cfd20601b6f08f` fresh 收到 strict L0 native evidence `12/12 PASS`
+  - `L0_NATIVE_EVIDENCE_EXPECT_COMMIT=54a7ae056679c251a8a1f53442cfd20601b6f08f L0_NATIVE_EVIDENCE_EXPECT_REF=main bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh L0-20260411-native-gha-r11 24284111799`
+  - 结果：PASS；artifact 已下载并在 Linux shell 上完成 contract 校验
 - Retained local refs:
   - `l0-mainline`
   - `l0-mainline-closeout-20260411`
@@ -65,12 +54,12 @@
   - `l0-main-tail-cleanup-20260408-final`
 - Risks / blockers:
   - 根目录 `main` 工作树仍然是用户脏状态，不能直接当作 L0 的当前执行面
-  - `l0-linux-maintenance.yml` 在进入 default branch 之前，GitHub 只会把它当成 branch 上的文件，不会给出可 dispatch 的 workflow endpoint
+  - 当前 4 个历史 L0 refs 仍承载独立 patch history，不能盲删
+  - 后续若 strict L0 再发生非文档代码或测试改动，仍需重新补 fresh Windows exact evidence
   - SIMD-only 残留仍由 SIMD owner 继续维护，L0 这里只保留边界与 handoff 说明
-  - 当前 exact-evidence 的代码锚点仍是 `3ed04784`；若后续出现非文档 strict L0 提交，仍需重新补 fresh GH run
 - Next step:
   - 继续只沿 strict L0 线推进，不把 sidecar 或 SIMD 工作重新混回当前 worktree
-  - 当前不要为了制造进展感而扩张 L0；若真有新候选，必须走 candidate-driven admission
   - Linux x64 上的日常维护默认走 `bash tests/run_strict_l0_maintenance_loop.sh`
-  - 后续所有 Windows exact-evidence 请求都通过 GitHub Actions 收证，不在 Linux x64 本地伪造 native 结论
+  - 需要 Linux GitHub-side fresh 证据时，使用 `gh workflow run l0-linux-maintenance.yml --ref main`
+  - 需要 Windows exact evidence 时，使用 GitHub Actions workflow + shell verifier，不在 Linux x64 本地伪造 native 结论
 - Last updated: `2026-04-11`

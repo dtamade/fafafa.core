@@ -36,9 +36,11 @@
 当前 today 状态：
 
 - workflow 已经注册在 default branch 上
+- GitHub Actions run `24283947269` 已对当前 `main` merge commit fresh 跑通 `L0 Linux Maintenance`
+- GitHub Actions run `24284111799` 已对当前 `main` merge commit fresh 收到 strict L0 Windows native evidence `12/12 PASS`
 - GitHub Actions run `24224880061` 已在真实 Windows runner 上 fresh 收到 strict L0 native evidence `12/12` PASS
 - GitHub Actions run `24278413198` 已对 `l0-mainline-integration-20260411` 的提交 `3ed04784` 收到 strict L0 native evidence `12/12` PASS
-- strict L0 已通过 PR `#9` 合并到 `main`；当前 mainline 仍可引用 `24278413198` 作为代码验证锚点，因为合并后的增量只包含 docs / control-plane 变化
+- strict L0 的最新控制面修复已通过 PR `#13` 合并到 `main`；当前 `main` 已同时具备 fresh Linux maintenance 证据和 fresh Windows native evidence
 - 因此，`code=21` 现在应先被视作“当前 shell / runner 没有 gh 登录态”，而 `code=22` 只应在 gh 已认证后被视作“registration drift / GH 环境异常”的诊断信号，而不是当前仓库的基线状态
 
 当前推荐口径：
@@ -123,15 +125,14 @@ bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh <batch-id
 手动触发命令：
 
 ```bash
-gh workflow run l0-linux-maintenance.yml --ref l0-mainline
+gh workflow run l0-linux-maintenance.yml --ref main
 ```
 
 注意：
 
-- GitHub 只有在 workflow 文件进入 default branch 之后，才会把这条新 workflow 注册成可 dispatch 的仓库级入口。
-- 因此在 pre-merge 阶段，即使 `.github/workflows/l0-linux-maintenance.yml` 已经存在于 `origin/l0-mainline`，`gh workflow run l0-linux-maintenance.yml --ref l0-mainline` 仍可能返回 `HTTP 404`。
-- 这不是认证问题，而是 workflow 还没有进入 default branch。
-- 在这一步完成之前，Linux x64 的 fresh 维护证据仍以 `bash tests/run_strict_l0_maintenance_loop.sh` 为准。
+- 当前这条 workflow 已经在 default branch 注册完成，`--ref main` 是 current-entry 用法。
+- 更早的 pre-merge 阶段里，`gh workflow run l0-linux-maintenance.yml --ref l0-mainline` 可能返回 `HTTP 404`；那是 workflow 尚未进入 default branch 的历史现象，不是当前 mainline blocker。
+- 即使现在 GitHub-side Linux lane 已可 dispatch，Linux x64 本地的最小维护闭环仍然固定为 `bash tests/run_strict_l0_maintenance_loop.sh`。
 
 这条 Linux lane 只负责 strict L0 的 docs consistency、gate、runtime parity 和 native closeout contract 复核；它不替代 exact Windows native evidence lane。
 
