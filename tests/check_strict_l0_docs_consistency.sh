@@ -53,6 +53,7 @@ REQUIRED_FILES=(
   "docs/audits/2026-04-11-l0-current-state-audit.md"
   "docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md"
   "docs/legacy/l0/README.md"
+  "docs/legacy/l0/2026-04-11-l0-mainline-refs-and-ci-closeout.md"
   "docs/legacy/l0/2026-04-11-l0-mainline-merge-checklist.md"
   "docs/legacy/l0/2026-04-11-l0-mainline-replay-execution-plan.md"
   "workers/worker1.md"
@@ -65,19 +66,25 @@ for LPath in "${REQUIRED_FILES[@]}"; do
 done
 
 require_literal "docs/README.md" "docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md"
+require_literal "docs/README.md" "docs/legacy/l0/2026-04-11-l0-mainline-refs-and-ci-closeout.md"
 require_literal "docs/README.md" "docs/legacy/l0/2026-04-11-l0-mainline-merge-checklist.md"
 require_literal "docs/README.md" "docs/legacy/l0/2026-04-11-l0-mainline-replay-execution-plan.md"
 reject_literal "docs/README.md" "docs/plans/2026-04-11-l0-mainline-merge-checklist.md"
 reject_literal "docs/README.md" "docs/plans/2026-04-11-l0-mainline-replay-execution-plan.md"
 
 require_literal "docs/INDEX.md" "docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md"
+require_literal "docs/INDEX.md" "docs/legacy/l0/2026-04-11-l0-mainline-refs-and-ci-closeout.md"
 require_literal "docs/INDEX.md" "docs/legacy/l0/2026-04-11-l0-mainline-merge-checklist.md"
 require_literal "docs/INDEX.md" "docs/legacy/l0/2026-04-11-l0-mainline-replay-execution-plan.md"
 reject_literal "docs/INDEX.md" "docs/plans/2026-04-11-l0-mainline-merge-checklist.md"
 reject_literal "docs/INDEX.md" "docs/plans/2026-04-11-l0-mainline-replay-execution-plan.md"
 
+require_literal "docs/legacy/l0/README.md" "2026-04-11-l0-mainline-refs-and-ci-closeout.md"
+
 require_literal "docs/CI.md" "bash tests/run_strict_l0_maintenance_loop.sh"
 require_literal "docs/CI.md" "GitHub Actions"
+require_literal "docs/CI.md" "gh workflow run l0-linux-maintenance.yml --ref l0-mainline"
+require_literal "docs/CI.md" "default branch"
 require_literal "docs/TESTING.md" "bash tests/run_strict_l0_maintenance_loop.sh"
 require_literal "docs/audits/2026-04-11-l0-current-state-audit.md" "GitHub Actions"
 require_literal "docs/fafafa.core.l0.roadmap.md" "Windows exact native evidence 只接受 GitHub Actions 作为证据来源"

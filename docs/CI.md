@@ -119,6 +119,19 @@ bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh <batch-id
 - `workflow_dispatch`
 - `workflow_call`
 
+手动触发命令：
+
+```bash
+gh workflow run l0-linux-maintenance.yml --ref l0-mainline
+```
+
+注意：
+
+- GitHub 只有在 workflow 文件进入 default branch 之后，才会把这条新 workflow 注册成可 dispatch 的仓库级入口。
+- 因此在 pre-merge 阶段，即使 `.github/workflows/l0-linux-maintenance.yml` 已经存在于 `origin/l0-mainline`，`gh workflow run l0-linux-maintenance.yml --ref l0-mainline` 仍可能返回 `HTTP 404`。
+- 这不是认证问题，而是 workflow 还没有进入 default branch。
+- 在这一步完成之前，Linux x64 的 fresh 维护证据仍以 `bash tests/run_strict_l0_maintenance_loop.sh` 为准。
+
 这条 Linux lane 只负责 strict L0 的 docs consistency、gate、runtime parity 和 native closeout contract 复核；它不替代 exact Windows native evidence lane。
 
 # Minimal Windows CI: FS only

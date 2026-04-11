@@ -6,10 +6,12 @@
 - Branch: `l0-mainline`
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
 - Base commit: `f6585dd9` (`origin/main`)
+- Current head: `0970b629`
 - Current focus:
   - 维持当前唯一 L0 worktree 跟随 `main`，不再把 merge-prep 语境当 current-entry
   - 维持 strict L0 的 current-entry 文档、模块边界和验证口径一致
   - 只清理安全可删的本地 L0 refs，保留仍然承载独立历史的锚点
+  - 把 `l0-linux-maintenance.yml` 的 GitHub 侧真实可见性和 dispatch 限制写准，不伪造“已经可调度”的结论
   - 把 Windows exact-evidence 与 Phase 3 verification 纪律固定成长期规则
 - Source of truth:
   - `docs/fafafa.core.l0.foundation.md`
@@ -36,6 +38,22 @@
   - 结果：PASS；`base`、`contracts`、`bits`、`layout`、`endian`、`span`、`option`、`result`、`platform`、`atomic`、`mem_allocator_foundation`、`mem_allocator_only` 全部 fresh 通过
   - `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
   - 结果：PASS；当前 GH preflight 为 `workflow=l0-windows-native-evidence.yml, state=active`
+  - `git push origin HEAD:refs/heads/l0-mainline`
+  - 结果：PASS；远端 `origin/l0-mainline` 已建立，当前 workflow 文件已可被 GitHub branch content endpoint 看到
+  - `gh workflow run l0-linux-maintenance.yml --ref l0-mainline`
+  - 结果：FAIL；返回 `HTTP 404`，说明 workflow 还未进入 default branch，GitHub 尚未注册 dispatch 入口
+  - `gh api 'repos/dtamade/fafafa.core/contents/.github/workflows/l0-linux-maintenance.yml?ref=l0-mainline'`
+  - 结果：PASS；远端 `l0-mainline` 上的 workflow 文件可见
+  - `gh api repos/dtamade/fafafa.core/actions/workflows/l0-linux-maintenance.yml`
+  - 结果：FAIL；返回 `HTTP 404`
+  - `git cherry -v HEAD l0-main-rescue`
+  - 结果：仍有独立 patch history，保留
+  - `git cherry -v HEAD l0-main-tail-cleanup-20260408-final`
+  - 结果：仍有独立 patch history，保留
+  - `git cherry -v HEAD l0-mainline-closeout-20260411`
+  - 结果：仍有独立 patch history，保留
+  - `git cherry -v HEAD l0-sidecar-handoff-20260409`
+  - 结果：仍有独立 patch history，保留
   - `L0_NATIVE_EVIDENCE_REF=l0-mainline-integration-20260411 L0_NATIVE_EVIDENCE_POLL_MAX_TRIES=180 bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh L0-20260411-native-gha-r10`
   - 结果：PASS；GitHub Actions run `24278413198` 已对提交 `3ed047847b0bf871b265ded8e4a14c517b84b414` 收到 strict L0 `12/12` native evidence
   - `L0_NATIVE_EVIDENCE_POLL_MAX_TRIES=180 bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh L0-20260410-native-gha-r9`
@@ -48,6 +66,7 @@
   - `l0-main-tail-cleanup-20260408-final`
 - Risks / blockers:
   - 根目录 `main` 工作树仍然是用户脏状态，不能直接当作 L0 的当前执行面
+  - `l0-linux-maintenance.yml` 在进入 default branch 之前，GitHub 只会把它当成 branch 上的文件，不会给出可 dispatch 的 workflow endpoint
   - SIMD-only 残留仍由 SIMD owner 继续维护，L0 这里只保留边界与 handoff 说明
   - 当前 exact-evidence 的代码锚点仍是 `3ed04784`；若后续出现非文档 strict L0 提交，仍需重新补 fresh GH run
 - Next step:

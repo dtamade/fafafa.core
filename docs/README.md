@@ -9,6 +9,7 @@
 - L0 详细定义：`docs/fafafa.core.l0.foundation.md`
 - 当前 L0 审计：`docs/audits/2026-04-11-l0-current-state-audit.md`
 - L0 post-merge 稳定化计划：`docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md`
+- 最近 L0 refs / CI closeout（历史）：`docs/legacy/l0/2026-04-11-l0-mainline-refs-and-ci-closeout.md`
 - 最近 L0 合并 closeout（历史）：`docs/legacy/l0/2026-04-11-l0-mainline-merge-checklist.md`
 - L0 replay 执行计划（历史）：`docs/legacy/l0/2026-04-11-l0-mainline-replay-execution-plan.md`
 - 最近 L0 批次 closeout：`docs/plans/2026-04-09-l0-kernel-span2-closeout.md`
