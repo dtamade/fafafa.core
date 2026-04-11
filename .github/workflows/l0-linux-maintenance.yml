@@ -19,11 +19,13 @@ jobs:
 
       - name: Install FreePascal + Lazarus + Wine
         run: |
+          sudo dpkg --add-architecture i386
           sudo apt-get update
           sudo apt-get install -y \
             fpc \
             lazarus \
             wine64 \
+            wine32:i386 \
             ripgrep \
             fp-units-win-rtl \
             fp-units-win-base \

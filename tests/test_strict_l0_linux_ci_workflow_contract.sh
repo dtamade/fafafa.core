@@ -18,6 +18,10 @@ rg -F "workflow_call:" "${WORKFLOW_FILE}" >/dev/null \
   || fail "workflow missing workflow_call trigger"
 rg -F "runs-on: ubuntu-latest" "${WORKFLOW_FILE}" >/dev/null \
   || fail "workflow missing ubuntu-latest runner"
+rg -F "dpkg --add-architecture i386" "${WORKFLOW_FILE}" >/dev/null \
+  || fail "workflow missing i386 multiarch enablement"
+rg -F "wine32:i386" "${WORKFLOW_FILE}" >/dev/null \
+  || fail "workflow missing wine32:i386 install"
 rg -F "fp-units-win-rtl" "${WORKFLOW_FILE}" >/dev/null \
   || fail "workflow missing win64 rtl package install"
 rg -F "fp-units-win-fcl" "${WORKFLOW_FILE}" >/dev/null \
