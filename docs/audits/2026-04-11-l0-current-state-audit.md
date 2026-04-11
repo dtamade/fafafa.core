@@ -6,9 +6,10 @@
 
 - 当前 strict non-SIMD L0 的权威边界仍以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
 - 当前 strict non-SIMD L0 的稳定路线图仍固定为 `docs/fafafa.core.l0.roadmap.md`。
-- strict L0 已在当前唯一的 L0 worktree 中完成对最新 `origin/main` 的 replay；当前集成分支为 `l0-mainline-integration-20260411`，`HEAD` 为 `78069dfc`。
+- strict L0 已在当前唯一的 L0 worktree 中完成对最新 `origin/main` 的 replay；当前集成分支为 `l0-mainline-integration-20260411`，对应 replay code commit 为 `78069dfc`。
 - 当前 `HEAD` 的 merge-base 已经等于最新 `origin/main` `0684af55`，之前“分支落后主线 2 个提交”的 merge hygiene blocker 已收口。
-- fresh Linux gate、`git diff --check`、Windows `.bat` runtime parity matrix 和 native closeout stack 都已在 replay 后重新通过。
+- replay 后的 fresh Linux gate、`git diff --check`、Windows `.bat` runtime parity matrix 和 native closeout stack 都已重新通过。
+- 当前还额外拿到了 commit-exact 的真实 Windows native evidence：GitHub Actions run `24278413198` 对分支 `l0-mainline-integration-20260411` 的提交 `3ed04784` 返回 `12/12 PASS`。
 
 ## What Changed Since 2026-04-10
 
@@ -48,13 +49,16 @@
 
 ## Windows Evidence Posture
 
-- 真实 Windows native evidence 仍以 GitHub Actions run `24224880061` 为当前代码证据锚点。
-- 对应 strict L0 代码修复锚点仍是 `b8adade0`。
-- 这次 `2026-04-11` replay 后没有重新触发 GH native evidence，原因是：
-  - replay 的目标是把已验证过的 strict L0 closeout 树重放到最新主线；
-  - 唯一手工冲突只发生在 native evidence collector 脚本，并且保留的是 closeout 侧已验证逻辑；
-  - 本地 `native_closeout_stack` 已在 replay 后 fresh 通过。
-- 如果后续真正进入主线合并窗口时需要“artifact 必须精确绑定到 `78069dfc`”这一层证据，再在分支推送后重新触发 GH native evidence 即可。
+- 历史 strict L0 Windows native baseline 仍保留在 GitHub Actions run `24224880061`，对应代码修复锚点 `b8adade0`。
+- 当前 latest-mainline replay 之后的 commit-exact Windows native evidence 已经补齐：
+  - GitHub Actions run：`24278413198`
+  - head branch：`l0-mainline-integration-20260411`
+  - head sha：`3ed047847b0bf871b265ded8e4a14c517b84b414`
+  - local snapshot：`tests/_windows_l0_native_evidence_gh/L0-20260411-native-gha-r10/`
+  - artifact batch：`L0-GHA-24278413198-1`
+  - result：`12/12 PASS`
+- 这次 shell verifier 已对下载回来的 artifact 做了 commit/ref 校验，因此当前不是“只有旧 run 24224880061 可引用”的状态。
+- `source_revision.txt` 里的 `git_tree_state=dirty` 来自 Windows runner checkout 时仓库内一批 unrelated tracked `.bat`/`.sh` 文件被标成 modified；artifact 自带的 `git_status_tracked.txt` 已记录这些路径。它没有改变 strict L0 evidence 的 commit/ref/result 结论，但说明这份证据包不应被误读成“整个仓库在 Windows host 上是 pristine checkout”。
 
 ## What Is Still Missing
 
@@ -63,10 +67,10 @@
 - 当前 L0 branch 已经是基于最新主线的干净集成面。
 - 但根目录 `main` 工作树仍然是用户脏状态，不应用来直接承载最后的合并动作。
 
-### 2. Commit-exact Windows evidence is optional, not today's blocker
+### 2. Commit-exact Windows evidence is now closed for the replayed branch
 
-- 当前 replay 分支已经具备 current control-plane 和 fresh 本地复核。
-- 如果后续流程要求“native artifact 必须精确绑定 replay commit `78069dfc`”，再补 fresh GH run；否则今天不需要因为这件事阻塞 L0 当前整理完成度。
+- 当前分支已经拿到对提交 `3ed04784` 的 commit-exact Windows native evidence。
+- 后续只有在当前分支继续新增非文档改动、或 `origin/main` 再次前进并触发新一轮 replay 时，才需要再补 fresh GH run。
 
 ### 3. SIMD and sidecar ownership remain unchanged
 
@@ -91,4 +95,4 @@
 
 - 根 `main` 工作树仍然是用户脏状态，不应拿来直接承载最后合并。
 - 若后续主线在当前分支之上继续前进，需要在新的 `origin/main` 上再次做一次轻量 replay，而不是退回旧的 2026-04-10 清单。
-- 如果最终主线合并政策要求 commit-exact 的 Windows native artifact，仍需在推送当前分支后重跑一次 GH native evidence。
+- 当前 commit-exact Windows native artifact 绑定的是 `3ed04784`。如果后续在这个分支上继续提交非文档改动，仍需重新触发 GH native evidence。

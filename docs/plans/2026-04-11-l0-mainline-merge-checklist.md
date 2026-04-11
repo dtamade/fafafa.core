@@ -8,10 +8,11 @@
 - 状态：`active`
 - 当前 L0 worktree：`/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
 - 当前 L0 branch：`l0-mainline-integration-20260411`
-- 当前 L0 `HEAD`：`78069dfc`
+- 当前 replay code commit：`78069dfc`
+- 当前 exact-evidence commit：`3ed04784`
 - 当前 `origin/main`：`0684af55`
 - 当前 merge-base：`0684af55`
-- 当前分支状态：`ahead 1, behind 0`
+- 当前分支状态：已经从最新 `origin/main` 拉起，并包含 replay + current-entry docs sync
 
 ## 先看结论
 
@@ -20,7 +21,7 @@
 当前 strict L0 的真实状态不是“还要再想一遍怎么把旧分支重放到主线”，而是：
 
 - 当前分支已经是最新 `origin/main` 之上的 L0 integration branch
-- replay 后的 Linux gate 和 Windows control-plane 复核都已经 fresh 通过
+- replay 后的 Linux gate、Windows control-plane 复核和 commit-exact Windows native evidence 都已经 fresh 通过
 - 当前剩余问题主要是“最后在哪个干净执行面完成真正合并”，而不是“L0 代码还没整理到最新主线”
 
 ## What Is Already Closed
@@ -31,14 +32,17 @@
 - strict L0 的 Linux/macOS 聚合 gate
 - strict L0 的 `.bat` runtime-only parity matrix
 - strict L0 的 native closeout stack
-- strict L0 的真实 Windows native evidence baseline
+- strict L0 的 commit-exact Windows native evidence
 
 当前 Windows 真实证据锚点：
 
-- GitHub Actions run：`24224880061`
-- 对应 strict L0 代码修复提交：`b8adade0`
+- 历史 baseline run：`24224880061`（代码修复锚点 `b8adade0`）
+- 当前 commit-exact run：`24278413198`
+- 对应 branch：`l0-mainline-integration-20260411`
+- 对应 commit：`3ed047847b0bf871b265ded8e4a14c517b84b414`
+- local snapshot：`tests/_windows_l0_native_evidence_gh/L0-20260411-native-gha-r10/`
+- artifact batch：`L0-GHA-24278413198-1`
 - artifact 结论：`12/12 PASS`
-- `2026-04-11` replay 没有再改 strict L0 的证明边界；唯一手工冲突只发生在 native evidence collector，并保留了 closeout 侧逻辑
 
 ## Current Merge Candidate Shape
 
@@ -47,7 +51,7 @@
 1. 把 `l0-mainline-integration-20260411` 作为唯一的 strict L0 review / merge-prep surface
 2. 不回到旧的 `l0-mainline-integration-20260409` 或 `2026-04-10` replay 方案
 3. 不在用户脏的根 `main` 工作树上直接做最终合并动作
-4. 只有在需要 commit-exact Windows artifact 时，才在推送当前分支后补 fresh GH native evidence
+4. 当前分支已经拿到 commit-exact Windows artifact；只有后续分支继续发生非文档变更时，才需要再次补 fresh GH native evidence
 
 这条路线满足：
 
@@ -74,18 +78,19 @@ Expected:
 - tracked 工作树干净
 - 不把本地 scratch / unrelated 变更混进去
 
-### 2. 如果需要 commit-exact Windows native evidence，再补一轮 GH run
+### 2. 使用当前 commit-exact Windows evidence 作为主线窗口证据
 
-Run:
+当前已经有：
 
-```bash
-L0_NATIVE_EVIDENCE_POLL_MAX_TRIES=180 bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh L0-20260411-native-gha
+```text
+run_id=24278413198
+head_branch=l0-mainline-integration-20260411
+head_sha=3ed047847b0bf871b265ded8e4a14c517b84b414
+snapshot=tests/_windows_l0_native_evidence_gh/L0-20260411-native-gha-r10/
+result=12/12 PASS
 ```
 
-解释：
-
-- 当前 worktree-only closeout 并不强制要求这一步
-- 只有当最终主线窗口要求“artifact 必须精确绑定 `78069dfc`”时，才值得补
+只有当这个分支继续新增非文档提交时，才需要重新触发 GH native evidence。
 
 ### 3. 最终合并时，只从干净执行面推进
 
@@ -100,20 +105,20 @@ L0_NATIVE_EVIDENCE_POLL_MAX_TRIES=180 bash tests/run_windows_strict_l0_native_ev
 下面这些条件同时满足，就说明当前 strict L0 已经具备进入真正主线集成窗口的条件：
 
 - 当前 integration branch 基于最新 `origin/main`
-- 当前 `HEAD` 相对 `origin/main` 是 `ahead 1, behind 0`
+- 当前分支已经包含 replay commit `78069dfc` 与 exact-evidence commit `3ed04784`
 - strict L0 聚合 gate 通过
 - `git diff --check` 通过
 - `.bat` runtime-only parity matrix 通过
 - `native_closeout_stack` 通过
 - 没有把 SIMD owner 的工作或 root `main` 的脏改动混进当前分支
-- 如果主线窗口要求 commit-exact Windows artifact，则 fresh GH native evidence 也通过
+- commit-exact Windows native evidence 已通过（run `24278413198`，commit `3ed04784`)
 
 ## Current Blockers
 
 今天的 blocker 只剩执行面选择和最终窗口纪律：
 
-- 根 `main` 工作树是用户脏状态
-- 当前分支尚未因为“commit-exact Windows artifact”而重跑 GH native evidence；这不是今天的 blocker，只是可选 final hardening
+- 根 `main` 工作树仍然是用户脏状态
+- 当前 exact-evidence 绑定的是 `3ed04784`；如果当前分支继续新增非文档提交，需要重新触发 GH native evidence
 
 ## What Not To Do
 

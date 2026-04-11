@@ -9,7 +9,7 @@
 - Current focus:
   - 维持当前唯一 L0 worktree 上的 latest-mainline replay 结果，不把 unrelated 工作重新混回分支
   - 维持 strict L0 的 current-entry 文档、模块边界和验证口径一致
-  - 在真正进入主线合并窗口前，只补必要的 merge hygiene；如果需要 commit-exact Windows artifact，再补 GH native evidence
+  - 在真正进入主线合并窗口前，只补必要的 merge hygiene；当前分支的 commit-exact Windows artifact 已经补齐
 - Source of truth:
   - `docs/fafafa.core.l0.foundation.md`
   - `docs/fafafa.core.l0.roadmap.md`
@@ -29,14 +29,17 @@
   - 结果：PASS；`base`、`contracts`、`bits`、`layout`、`endian`、`span`、`option`、`result`、`platform`、`atomic`、`mem_allocator_foundation`、`mem_allocator_only` 全部 fresh 通过
   - `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
   - 结果：PASS；当前 GH preflight 为 `workflow=l0-windows-native-evidence.yml, state=active`
+  - `L0_NATIVE_EVIDENCE_REF=l0-mainline-integration-20260411 L0_NATIVE_EVIDENCE_POLL_MAX_TRIES=180 bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh L0-20260411-native-gha-r10`
+  - 结果：PASS；GitHub Actions run `24278413198` 已对提交 `3ed047847b0bf871b265ded8e4a14c517b84b414` 收到 strict L0 `12/12` native evidence
   - `L0_NATIVE_EVIDENCE_POLL_MAX_TRIES=180 bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh L0-20260410-native-gha-r9`
-  - 结果：PASS；GitHub Actions run `24224880061` 已在真实 Windows runner 上收到 strict L0 `12/12` native evidence
+  - 结果：PASS；GitHub Actions run `24224880061` 继续保留为历史 baseline evidence
 - Risks / blockers:
   - 根目录 `main` 工作树仍然是用户脏状态，不能直接作为最终执行面
   - SIMD-only 残留仍需要由 SIMD owner 继续维护，L0 这里只保留边界与 handoff 说明
-  - 如果最终主线窗口要求 commit-exact Windows native artifact，仍需在推送当前分支后补 fresh GH run
+  - 当前 exact-evidence 绑定的是 `3ed04784`；如果分支继续新增非文档提交，仍需重新补 fresh GH run
 - Next step:
   - 继续只沿 strict L0 线推进，不把 sidecar 或 SIMD 工作重新混回当前 worktree
   - 如果当前分支只是继续在 L0 worktree 内整理文档和边界，不需要为了形式感重跑旧 replay 方案
   - 如果准备真正并回主线，优先按 `docs/plans/2026-04-11-l0-mainline-merge-checklist.md` 从干净执行面推进
+  - 当前可以直接把 run `24278413198` 作为这个 replay 分支的 commit-exact Windows native evidence 引用
 - Last updated: `2026-04-11`
