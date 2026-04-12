@@ -1,7 +1,7 @@
 # 2026-04-07 L0 Rescue Split Closeout
 
 > 这份计划记录的是 `2026-04-07` 那一轮 rescue split closeout 的阶段语境。
-> 当前 stable L0 roadmap 以 `docs/fafafa.core.l0.roadmap.md` 为准；`docs/plans/2026-04-09-l0-kernel-span2-closeout.md` 只保留后续 batch 的执行 closeout 语境。
+> 当前 stable L0 roadmap 以 `docs/fafafa.core.l0.roadmap.md` 为准；`docs/legacy/l0/2026-04-09-l0-kernel-span2-closeout.md` 只保留后续 batch 的执行 closeout 语境。
 
 ## 目标
 
@@ -79,7 +79,7 @@
 
 已完成：
 
-- 在 `docs/audits/2026-04-07-l0-rescue-triage-audit.md` 明确 SIMD / CI / evidence 残留不经 L0 线回流
+- 在 `docs/legacy/l0/2026-04-07-l0-rescue-triage-audit.md` 明确 SIMD / CI / evidence 残留不经 L0 线回流
 - 在 `docs/INDEX.md`、`workers/worker1.md`、`backlog.md` 固化 current-entry 与边界说明
 - 保持 `tests/fafafa.core.simd/**`、`.github/workflows/simd-*`、`docs/fafafa.core.simd*` 只做 handoff，不混入本批
 

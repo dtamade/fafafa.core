@@ -10,6 +10,7 @@
   - 维持当前唯一 L0 worktree 跟随 `main`
   - 维持 strict L0 的 current-entry 文档、模块边界和验证口径一致
   - 只清理安全可删的本地 L0 refs，保留仍然承载独立历史的锚点
+  - 继续吸收 retained refs 里 low-risk 的 superseded docs residue
   - 把 Linux maintenance workflow 与 Windows exact-evidence lane 的 current-entry 命令、证据和 fail-close 语义写准
   - 保持 Windows exact evidence 只能来自 GitHub Actions / 真实 Windows runner 这一纪律
 - Source of truth:
@@ -17,7 +18,8 @@
   - `docs/fafafa.core.l0.roadmap.md`
   - `docs/ARCHITECTURE_LAYERS.md`
   - `docs/audits/2026-04-11-l0-current-state-audit.md`
-  - `docs/audits/2026-04-12-l0-retained-refs-absorption-audit.md`
+  - `docs/audits/2026-04-12-l0-retained-refs-second-absorption-audit.md`
+  - `docs/legacy/l0/README.md`
   - `docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md`
   - `docs/CI.md`
   - `tests/check_strict_l0_docs_consistency.sh`
@@ -30,11 +32,25 @@
   - `docs/fafafa.core.atomic.md`
   - `docs/fafafa.core.result.md`
 - Fresh verification:
+  - `bash tests/test_strict_l0_retained_refs_inventory_contract.sh`
+  - 结果：PASS
+  - `bash tests/test_strict_l0_retained_refs_inventory_details_contract.sh`
+  - 结果：PASS
+  - `bash tests/test_strict_l0_legacy_docs_layout_contract.sh`
+  - 结果：PASS
   - `bash tests/check_strict_l0_docs_consistency.sh`
   - 结果：PASS
   - `bash tests/test_strict_l0_docs_consistency_contract.sh`
   - 结果：PASS
   - `bash tests/test_strict_l0_stable_docs_no_sha_contract.sh`
+  - 结果：PASS
+  - `bash tests/test_update_strict_l0_current_state_docs_contract.sh`
+  - 结果：PASS
+  - `bash tests/report_strict_l0_retained_refs_inventory.sh`
+  - 结果：PASS
+  - `bash tests/report_strict_l0_retained_refs_inventory.sh --details`
+  - 结果：PASS
+  - `bash tests/audit_strict_l0_retained_refs.sh`
   - 结果：PASS
   - `bash tests/test_strict_l0_linux_ci_workflow_contract.sh`
   - 结果：PASS
@@ -68,7 +84,9 @@
   - Linux x64 上的日常维护默认走 `bash tests/run_strict_l0_maintenance_loop.sh`
   - 如需重新判断 retained refs 是否还该保留，使用 `bash tests/audit_strict_l0_retained_refs.sh`
   - 如需先判断 retained refs 该优先吸收哪类 unique history，使用 `bash tests/report_strict_l0_retained_refs_inventory.sh`
+  - 如需直接看 retained refs 的代表性 unique commits / paths，使用 `bash tests/report_strict_l0_retained_refs_inventory.sh --details`
+  - fresh `--details` 已显示 sidecar / tail 的 docs-first 下一跳更偏向 `docs/README.md`、`docs/INDEX.md` 与 collections 域 dated docs，而不是再翻 superseded 的 L0 batch docs
   - 如需一波收口 Linux/Windows evidence 与 current-state docs，使用 `bash tests/run_strict_l0_mainline_closeout.sh`
   - 如需只回填 current-state 文档，使用 `bash tests/update_strict_l0_current_state_docs.sh --apply --main-sha <main-sha> --linux-run-id <linux-run-id> --linux-run-sha <linux-run-sha> --windows-run-id <windows-run-id> --windows-run-sha <windows-run-sha> --windows-local-batch-id <batch-id>`
   - 需要 Windows exact evidence 时，继续使用 GitHub Actions workflow + shell verifier，不在 Linux x64 本地伪造 native 结论
-- Last updated: `2026-04-11`
+- Last updated: `2026-04-12`

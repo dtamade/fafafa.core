@@ -87,6 +87,14 @@ bash tests/report_strict_l0_retained_refs_inventory.sh
 
 这个脚本会把 4 条 retained refs 的 unique history 按 `archive docs`、`current docs`、`code/tests`、`examples/build` 分类，并给出 `absorb-archive-first`、`review-code-before-absorb` 之类的建议，方便先做低风险吸收。
 
+如果你已经准备做下一波吸收，想先看代表性 unique commits 和路径样本，再跑：
+
+```bash
+bash tests/report_strict_l0_retained_refs_inventory.sh --details
+```
+
+这个模式会额外打印每条 retained ref 的 `sample_unique_commits=` 和各 bucket 的 representative path samples，方便快速判断这波应该先吸 docs 还是先停在 code/test review。
+
 如果你当前关心的是 strict non-SIMD L0 在 Windows 路径上的复核，不要直接从“原生 `.bat` 构建完全对称”这个前提出发。当前仓库已经分成四条不同的复核链路：
 
 - 最小 Win64 `.exe` runtime smoke

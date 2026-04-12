@@ -13,6 +13,16 @@
 
 当前已归档的历史文档：
 
+- `2026-03-26-l0-candidates-platform-span-admission.md`
+- `2026-03-26-strict-l0-merge-closeout.md`
+- `2026-03-27-l0-control-plane-closeout.md`
+- `2026-04-07-l0-rescue-triage-audit.md`
+- `2026-04-07-l0-rescue-split-closeout.md`
+- `2026-04-08-l0-tail-docs-audit.md`
+- `2026-04-09-l0-current-state-audit.md`
+- `2026-04-09-l0-kernel-span2-closeout.md`
+- `2026-04-09-l0-mainline-merge-checklist.md`
+- `2026-04-10-l0-current-state-audit.md`
 - `fafafa.core.platform.candidate.md`
 - `fafafa.core.span.candidate.md`
 - `fafafa.core.l0.candidates.platform-span.review.md`
@@ -20,3 +30,8 @@
 - `2026-04-11-l0-mainline-refs-and-ci-closeout.md`
 - `2026-04-11-l0-mainline-merge-checklist.md`
 - `2026-04-11-l0-mainline-replay-execution-plan.md`
+
+使用约定：
+
+- 当前 strict L0 的 today contract 只看 foundation / roadmap / current audit / current worker handoff。
+- 这里的 dated plan / audit / closeout 只用于追踪历史批次，不再承担 current-entry。

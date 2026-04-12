@@ -1,6 +1,7 @@
 # 2026-04-09 L0 Mainline Merge Checklist
 
 > 这是 strict non-SIMD L0 并回主线前的 dated checklist。
+> 已归档到 `docs/legacy/l0/`。
 > 当前 L0 的长期边界和推进顺序仍以 `docs/ARCHITECTURE_LAYERS.md`、`docs/fafafa.core.l0.foundation.md` 和 `docs/fafafa.core.l0.roadmap.md` 为准；本页只回答“真正合并到主线前，现在该怎么做”。
 
 ## 先看结论
@@ -317,7 +318,7 @@ tests\fafafa.core.mem\BuildOrTest.bat test
 
 - `docs/fafafa.core.l0.foundation.md`
 - `docs/fafafa.core.l0.roadmap.md`
-- `docs/audits/2026-04-10-l0-current-state-audit.md`
+- `docs/legacy/l0/2026-04-10-l0-current-state-audit.md`
 - `docs/plans/2026-04-09-l0-native-windows-matrix-runbook.md`
-- `docs/plans/2026-04-09-l0-kernel-span2-closeout.md`
+- `docs/legacy/l0/2026-04-09-l0-kernel-span2-closeout.md`
 - `workers/worker1.md`

@@ -1,7 +1,7 @@
 # 2026-04-07 L0 Rescue Triage Audit
 
 > 这份审计记录的是 `2026-04-07` 的 rescue triage 结论。
-> 当前 active L0 triage 以 `docs/audits/2026-04-10-l0-current-state-audit.md` 为准。
+> 已归档到 `docs/legacy/l0/`。当前 active L0 triage 请改看 `docs/audits/2026-04-11-l0-current-state-audit.md`。
 
 ## 结论先行
 
@@ -129,6 +129,6 @@ git diff --check
 ## 当前主线入口
 
 - L0 定义：`docs/fafafa.core.l0.foundation.md`
-- L0 审计：`docs/audits/2026-04-07-l0-rescue-triage-audit.md`
+- L0 审计：`docs/legacy/l0/2026-04-07-l0-rescue-triage-audit.md`
 - L0 路线图：`docs/fafafa.core.l0.roadmap.md`
 - 当前 L0 worker：`workers/worker1.md`

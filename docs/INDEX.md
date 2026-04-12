@@ -9,12 +9,9 @@
 - L0 稳定路线图：`docs/fafafa.core.l0.roadmap.md`
 - L0 详细定义：`docs/fafafa.core.l0.foundation.md`
 - L0 当前审计：`docs/audits/2026-04-11-l0-current-state-audit.md`
-- retained refs 吸收审计：`docs/audits/2026-04-12-l0-retained-refs-absorption-audit.md`
+- retained refs 第二波吸收审计：`docs/audits/2026-04-12-l0-retained-refs-second-absorption-audit.md`
 - L0 post-merge 稳定化计划：`docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md`
-- 最近 L0 refs / CI closeout（历史）：`docs/legacy/l0/2026-04-11-l0-mainline-refs-and-ci-closeout.md`
-- 最近 L0 合并 closeout（历史）：`docs/legacy/l0/2026-04-11-l0-mainline-merge-checklist.md`
-- L0 replay 执行计划（历史）：`docs/legacy/l0/2026-04-11-l0-mainline-replay-execution-plan.md`
-- 最近 L0 批次 closeout：`docs/plans/2026-04-09-l0-kernel-span2-closeout.md`
+- L0 历史批次 / 审计归档：`docs/legacy/l0/README.md`
 - 工程规范：`docs/standards/ENGINEERING_STANDARDS.md`
 - 目录规范：`docs/standards/DIRECTORY_STANDARDS.md`
 - 命名规范：`docs/standards/NAMING_CONVENTION_PROJECT.md`
@@ -104,8 +101,8 @@
 
 - `docs/Architecture.md` 这种歧义命名已经停止作为全局架构入口使用。
 - 历史 `PHASE0_*` 文档已归档到 `docs/legacy/phase0/`；当前 L0 以 `docs/fafafa.core.l0.foundation.md` 为准。
-- L0 的长期路线图现在固定为 `docs/fafafa.core.l0.roadmap.md`；dated `docs/plans/2026-03-24-l0-docs-closeout-roadmap.md`、`docs/plans/2026-04-07-l0-rescue-split-closeout.md` 和 `docs/plans/2026-04-09-l0-kernel-span2-closeout.md` 都只保留批次语境。
-- strict L0 已在 `main` 完成合并；`docs/legacy/l0/2026-04-11-l0-mainline-merge-checklist.md` 和 `docs/legacy/l0/2026-04-11-l0-mainline-replay-execution-plan.md` 现在都是历史 closeout 文档，不再是 current-entry。
+- L0 的长期路线图现在固定为 `docs/fafafa.core.l0.roadmap.md`；`docs/plans/2026-03-24-l0-docs-closeout-roadmap.md` 只保留更早一轮 docs 治理路线图语境，其他 superseded L0 批次计划/审计已统一下沉到 `docs/legacy/l0/README.md`。
+- strict L0 已在 `main` 完成合并；`docs/legacy/l0/README.md` 记录了更早的 merge checklist、batch closeout、dated current-state audit 和 rescue closeout 历史。
 - `docs/legacy/l0/2026-04-11-l0-mainline-refs-and-ci-closeout.md` 记录了当前残留 L0 refs 的审计结论，以及为什么这一步没有继续盲删历史 refs。
 - 当前如果要判断 strict L0 的真实状态，优先看 `docs/audits/2026-04-11-l0-current-state-audit.md`、`docs/fafafa.core.l0.roadmap.md` 和 `docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md`。
 - Linux x64 的 strict L0 日常维护入口固定为 `bash tests/run_strict_l0_maintenance_loop.sh`；它会串起 docs consistency、gate、`git diff --check`、runtime matrix 和 native closeout stack。
@@ -113,8 +110,9 @@
 - 如果你已经拿到 Linux / Windows run id，只需要回填 current-state 审计、legacy closeout 和 worker handoff，入口固定为 `bash tests/update_strict_l0_current_state_docs.sh --apply ...`。
 - 如果你要重新审计当前保留的历史 L0 refs 是否仍承载独立 patch history，入口固定为 `bash tests/audit_strict_l0_retained_refs.sh`；它只给 decision，不做删除。
 - 如果你要先判断 retained refs 该从哪类 unique history 开始吸收，入口固定为 `bash tests/report_strict_l0_retained_refs_inventory.sh`；它会把 unique history 按 archive docs / current docs / code/tests / examples-build 分类。
+- 如果你要直接看到每条 retained ref 的代表性 unique commits 和路径样本，使用 `bash tests/report_strict_l0_retained_refs_inventory.sh --details`。
 - 根目录 `task_plan.md`、`findings.md`、`progress.md` 已从主线移除；最后一份快照归档在 `plans/archive/2026-04-07-mainline-working-set/`。
-- 当前 L0 协作入口见 `workers/worker1.md`，当前 triage 判断见 `docs/audits/2026-04-11-l0-current-state-audit.md`。
+- 当前 L0 协作入口见 `workers/worker1.md`，当前 triage 判断见 `docs/audits/2026-04-11-l0-current-state-audit.md`，历史批次上下文见 `docs/legacy/l0/README.md`。
 - `docs/fafafa.core.span.md`、`docs/fafafa.core.contracts.md` 和 `docs/fafafa.core.platform.md` 现在都对应 strict L0 的实体入口。
 - 旧的 L0 candidate / merge-closeout 文档已经归档到 `docs/legacy/l0/`，不要再把那批候选结论当作 current-entry。
 - `fafafa.core.span` 现在同时承载最小 `span` / `span2` contract；但 `fafafa.core.collections.slice` 仍然不等同于 strict L0，不要把 collections 的容器 `SliceView` 语义误读成已下沉到 L0。

@@ -161,7 +161,7 @@ Windows 证据已经不在这组 blocker 里。
 
 - `docs/fafafa.core.l0.foundation.md`
 - `docs/fafafa.core.l0.roadmap.md`
-- `docs/audits/2026-04-10-l0-current-state-audit.md`
+- `docs/legacy/l0/2026-04-10-l0-current-state-audit.md`
 - `docs/plans/2026-04-10-l0-windows-ci-enablement.md`
 - `docs/plans/2026-04-09-l0-native-windows-matrix-runbook.md`
 - `workers/worker1.md`

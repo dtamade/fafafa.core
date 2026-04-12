@@ -1,6 +1,7 @@
 # 2026-04-10 L0 Current State Audit
 
-> 这份审计替代 `docs/audits/2026-04-09-l0-current-state-audit.md` 作为当前 strict non-SIMD L0 的最新状态说明。
+> 已归档到 `docs/legacy/l0/`。当前 strict non-SIMD L0 的 current-entry 请改看 `docs/audits/2026-04-11-l0-current-state-audit.md`。
+> 这份审计替代 `docs/legacy/l0/2026-04-09-l0-current-state-audit.md` 作为 `2026-04-10` 当时的最新状态说明。
 
 ## Summary
 

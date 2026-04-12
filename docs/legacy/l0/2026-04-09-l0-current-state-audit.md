@@ -1,5 +1,7 @@
 # 2026-04-09 L0 Current State Audit
 
+> 已归档到 `docs/legacy/l0/`。当前 strict non-SIMD L0 的 current-entry 请改看 `docs/audits/2026-04-11-l0-current-state-audit.md`。
+
 ## Summary
 
 - 当前 strict non-SIMD L0 的权威边界仍以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
@@ -140,7 +142,7 @@ L0 当前真正还缺的是硬化项，而不是模块数：
 - 不要直接在用户脏的根 `main` 工作树上做最终合并动作
 - 当前最小 Windows runtime smoke 与 `.bat` runtime-only parity 都已补齐；如果要再给主线更高置信度，剩下的是补真实 Windows `lazbuild.exe` 下的 batch build-path parity
 - 在没有新候选审查之前，不要再把更多模块并入 strict L0
-- 具体执行单见 `docs/plans/2026-04-09-l0-mainline-merge-checklist.md`，并继续遵守“只保留一个 L0 worktree”的约束
+- 具体执行单见 `docs/legacy/l0/2026-04-09-l0-mainline-merge-checklist.md`，并继续遵守“只保留一个 L0 worktree”的约束
 
 ## Verification Snapshot
 

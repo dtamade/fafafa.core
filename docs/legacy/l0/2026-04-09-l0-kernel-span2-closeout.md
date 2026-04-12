@@ -2,6 +2,7 @@
 
 > Status: completed historical batch.
 >
+> 已归档到 `docs/legacy/l0/`。
 > 当前 strict non-SIMD L0 的稳定路线图以 `docs/fafafa.core.l0.roadmap.md` 为准。
 > 本页只保留 `span2` 准入这一轮 batch 的执行 closeout 语境。
 
