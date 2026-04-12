@@ -30,7 +30,7 @@
   - `run_windows_strict_l0_native_evidence_via_github_actions.sh` 会先做 `gh` / workflow preflight、再 dispatch 或复用既有 run、下载 artifact，并调用 `verify_windows_strict_l0_native_evidence.sh` 在 Linux shell 上校验证据包结构
   - `print_windows_strict_l0_native_closeout_3cmd.sh` 只负责打印 GH 主路径、手工 Windows 路径和 shell verifier 的复制即跑命令
   - 如果只是想在 Linux/macOS 上一次性复核当前本地 closeout stack，可直接执行 `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
-  - `preflight_windows_strict_l0_native_evidence_gh.sh` 会先区分 `code=21`（`gh auth` 缺失）和 `code=22`（workflow 未注册到 default branch）；两者都必须 fail-close，而不是假装可以 dispatch
+  - `preflight_windows_strict_l0_native_evidence_gh.sh` 会先区分 `code=21`（`gh auth` 缺失）、`code=22`（workflow 未注册到 default branch），以及 `code=24`（`gh` API / 查询 / 解析失败）；这些都必须 fail-close，而不是假装可以 dispatch
   - 在缺少该工具链时，预期通过 preflight / native lane 自身 fail-close，而不是把 native build parity 误记成已完成
 
 当前 today 状态：
@@ -50,6 +50,7 @@
 - 不要把 native Windows `.bat` build-path parity 记成已完成，除非 `tests\test_windows_strict_l0_batch_native_matrix.bat` 已经在真实 Windows `lazbuild.exe` 条件下 fresh 通过
 - 如果当前只有 Linux x64，优先直接走 `bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh`
 - 如果 preflight 先退回 `code=21`，先补 `gh auth login` 或注入可用 token
+- 如果 gh 已认证后 preflight 退回 `code=24`，先把它当成 GH API / 查询 / 解析层的 fail-close，顺序重试或检查当前 `gh` / 网络 / rate-limit 状态，再决定是否继续 dispatch
 - 只有当 gh 已认证后 preflight 仍退回 `code=22` 时，才回到 `bash tests/print_windows_strict_l0_native_ci_enablement_3cmd.sh` 排查 workflow registration 漂移
 - 如果当前变化只是 docs / control-plane 变更，不要为了形式感重跑 exact Windows native evidence
 - 只有当 strict L0 出现非文档代码/测试变化，或者有人明确要求 exact `HEAD` / merge commit 证据时，才需要重新触发 GH native evidence

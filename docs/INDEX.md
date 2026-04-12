@@ -9,7 +9,7 @@
 - L0 稳定路线图：`docs/fafafa.core.l0.roadmap.md`
 - L0 详细定义：`docs/fafafa.core.l0.foundation.md`
 - L0 当前审计：`docs/audits/2026-04-11-l0-current-state-audit.md`
-- retained refs 第三波吸收审计：`docs/audits/2026-04-12-l0-retained-refs-third-absorption-audit.md`
+- retained refs 第四波吸收审计：`docs/audits/2026-04-12-l0-retained-refs-fourth-absorption-audit.md`
 - L0 post-merge 稳定化计划：`docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md`
 - L0 历史批次 / 审计归档：`docs/legacy/l0/README.md`
 - 工程规范：`docs/standards/ENGINEERING_STANDARDS.md`
@@ -123,6 +123,7 @@
 - 已完成的根目录修复报告已迁移到 `archive/reports/`。
 - collections / benchmarks 的阶段性 campaign 报告已迁移到 `archive/reports/docs-collections/` 与 `archive/reports/docs-benchmarks/`；原目录只保留归档指路页。
 - collections 域内带日期的 plan / status / review 也已下沉到 `docs/collections/legacy/README.md`；当前入口仍以 `docs/fafafa.core.collections.md` 与 `docs/collections/guides/` 为准。
+- examples current-entry 现在优先固定到各 domain 的 `examples/<module>/README.md`、`BuildOrRun*` 与 `.lpr` / `.lpi`；`bin/`、`lib/` 和本地 logs 不再当成稳定入口。
 - `docs/reports/` 根下 dated fix/checkpoint/verification/audit 报告已基本迁移到 `archive/reports/docs-root/`；当前只保留 `docs/reports/time/` 这样的主题子目录与说明页。
 - `UnChecked_Methods_Summary.md` 已从 `docs/reports/` 转正到 `docs/collections/guides/UnChecked_Methods_Summary.md`。
 - 一批 root-level 的阶段性模块完成/测试报告也已迁到 `archive/reports/docs-root/`；不要再把 `completion-report` / `test-report` / `week*` 日报留在 `docs/` 根目录。

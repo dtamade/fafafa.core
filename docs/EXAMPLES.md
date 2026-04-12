@@ -1,4 +1,47 @@
-# 示例总表（新增）
+# 示例总表
+
+## Strict L0 examples current-entry
+
+- 当前这一波 retained-refs triage 里，examples/build drift 的高 ROI 入口先收紧到：
+  - `examples/fafafa.core.base/README.md`
+  - `examples/fafafa.core.option/README.md`
+  - `examples/fafafa.core.env/README.md`
+  - `examples/fafafa.core.atomic/README.md`
+  - `examples/fafafa.core.json/README.md`
+  - `examples/fafafa.core.sync.mutex/README.md`
+- examples current-entry 的判断顺序固定为：
+  - README
+  - `BuildOrRun*` / `BuildOrTest*` 脚本
+  - `.lpr` / `.lpi` / `.pas` 示例源码
+- `bin/`、`lib/` 和本地 logs 只代表生成产物，不是 source-of-truth。
+- 如果 retained refs 的 `--details` 再次暴露 examples/build drift，优先先看 example source 和 build scripts，不要先从生成产物下手。
+
+## 本轮优先示例域
+
+- `fafafa.core.base`
+  - README：`examples/fafafa.core.base/README.md`
+  - Linux/macOS：`examples/fafafa.core.base/BuildOrRun.sh`
+  - Windows：`examples\fafafa.core.base\BuildOrRun.bat`
+- `fafafa.core.option`
+  - README：`examples/fafafa.core.option/README.md`
+  - Linux/macOS：`examples/fafafa.core.option/BuildOrRun.sh`
+  - Windows：`examples\fafafa.core.option\BuildOrRun.bat`
+- `fafafa.core.env`
+  - README：`examples/fafafa.core.env/README.md`
+  - Linux/macOS：`examples/fafafa.core.env/BuildOrRun.sh`
+  - Windows：`examples\fafafa.core.env\BuildOrRun.bat`
+- `fafafa.core.atomic`
+  - README：`examples/fafafa.core.atomic/README.md`
+  - Linux/macOS：`examples/fafafa.core.atomic/BuildOrRun.sh`
+  - Windows：`examples\fafafa.core.atomic\BuildOrRun.bat`
+- `fafafa.core.json`
+  - README：`examples/fafafa.core.json/README.md`
+  - Linux/macOS：`examples/fafafa.core.json/BuildOrRun.sh`
+  - Windows：`examples\fafafa.core.json\BuildOrRun.bat`
+- `fafafa.core.sync.mutex`
+  - README：`examples/fafafa.core.sync.mutex/README.md`
+  - Linux/macOS：`examples/fafafa.core.sync.mutex/BuildOrRun.sh`
+  - Windows：`examples\fafafa.core.sync.mutex\BuildOrRun.bat`
 
 - fafafa.core.os
   - example_basic：基础信息与 JSON 输出

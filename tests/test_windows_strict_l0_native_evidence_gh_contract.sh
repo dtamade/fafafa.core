@@ -119,6 +119,10 @@ case "${RC}" in
     require_output_match "${OUTPUT}" 'WORKFLOW_DISABLED|workflow state is not active' \
       "preflight rc=23 without workflow-disabled guidance"
     ;;
+  24)
+    require_output_match "${OUTPUT}" 'INVALID_ARGS|REPO_RESOLVE_FAILED|WORKFLOW_QUERY_FAILED|RUN_QUERY_FAILED|api/parse error|failed to' \
+      "preflight rc=24 without api/parse guidance"
+    ;;
   31)
     require_output_match "${OUTPUT}" 'RECENT_BILLING_BLOCK|billing' \
       "preflight rc=31 without billing-block guidance"

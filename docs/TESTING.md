@@ -95,6 +95,19 @@ bash tests/report_strict_l0_retained_refs_inventory.sh --details
 
 这个模式会额外打印每条 retained ref 的 `sample_unique_commits=` 和各 bucket 的 representative path samples，方便快速判断这波应该先吸 docs 还是先停在 code/test review。
 
+第四波之后，`--details` 的 examples/build drift 还会继续细分成：
+
+- `sample_example_source_paths=`
+- `sample_build_script_paths=`
+- `sample_generated_output_paths=`
+- `sample_test_artifact_paths=`
+
+这样你可以先判断这条 retained ref 暴露出来的到底是：
+
+- 还值得 review 的 example source
+- 只是 current-entry 该补 README 的 build scripts
+- 还是根本不该再混回 today contract 的生成产物 / 测试产物
+
 如果你当前关心的是 strict non-SIMD L0 在 Windows 路径上的复核，不要直接从“原生 `.bat` 构建完全对称”这个前提出发。当前仓库已经分成四条不同的复核链路：
 
 - 最小 Win64 `.exe` runtime smoke
@@ -182,6 +195,7 @@ bash tests/report_strict_l0_retained_refs_inventory.sh --details
 - 当前仓库已经完成 Windows runtime smoke 和 `.bat` runtime-only parity
 - 当前还没有完成的，是 native Windows `lazbuild.exe` 条件下的 `.bat` build-path parity
 - 如果 `bash tests/preflight_windows_strict_l0_native_evidence_gh.sh` 返回 `code=21`，含义通常是当前 shell / runner 没有可用的 `gh` 登录态；先补认证，再继续判断 workflow 可见性
+- 如果 gh 已认证后 `bash tests/preflight_windows_strict_l0_native_evidence_gh.sh` 返回 `code=24`，含义通常是 `gh` API / 查询 / 解析层的 fail-close；先顺序重试，必要时检查当前网络、GitHub 状态页、`gh auth status` 与 rate-limit，再决定是否继续 dispatch
 - 如果 gh 已认证后 `bash tests/preflight_windows_strict_l0_native_evidence_gh.sh` 仍返回 `code=22`，含义通常是 workflow registration 漂移或当前 GH 环境看不到 default-branch workflow；这属于 fail-close 诊断，不代表仓库 today 状态回退成“native parity 未接通”
 - Windows exact evidence 仍然只接受 GitHub Actions 或真实 Windows host artifact；Linux x64 本地只能做 contract 复核
 

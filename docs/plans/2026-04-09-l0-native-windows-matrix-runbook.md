@@ -55,9 +55,11 @@ via-GitHub-Actions helper 约束：
 
 - 默认模式会先执行 `preflight_windows_strict_l0_native_evidence_gh.sh`
 - 如果当前 shell / runner 没有可用的 `gh` 登录态，预期由 preflight 以 `code=21` fail-close
+- 如果 `gh` 查询 GitHub API / workflow list / repo metadata 时失败，预期由 preflight 以 `code=24` fail-close
 - 如果 workflow 没有出现在仓库 default branch，预期由 preflight 在 gh 已认证后以 `code=22` fail-close
 - 当前仓库 today 状态已经不是这样；default branch workflow 已注册，且 GitHub Actions run `24224880061` 已 fresh 通过
 - 如果你当前只有 Linux x64，且 preflight 先退回 `code=21`，先补 `gh auth login` 或注入 token
+- 如果你当前只有 Linux x64，且 gh 已认证后 preflight 退回 `code=24`，先把它当成 GH API / 查询层的 fail-close，顺序重试并检查 `gh auth status`、网络与 GitHub 服务状态，再决定是否 dispatch
 - 如果你当前只有 Linux x64，且 gh 已认证后 preflight 重新退回 `code=22`，再去执行 `docs/plans/2026-04-10-l0-windows-ci-enablement.md` 里的 registration checklist，把它当成 registration drift 排障而不是 current baseline
 - 默认 dispatch 模式会拒绝当前 worktree dirty 或 remote ref 与 local HEAD 不一致的场景
 - 若已经有可复用的 `run-id`，可传第二个参数旁路 dispatch；这时只会做 wait/download/Linux-side artifact 校验

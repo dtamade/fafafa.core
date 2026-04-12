@@ -48,6 +48,10 @@ probe_gh_preflight() {
       echo "${LOutput}"
       info "GH preflight currently fail-close at workflow-disabled"
       ;;
+    24)
+      echo "${LOutput}"
+      info "GH preflight currently fail-close at gh api/parse error"
+      ;;
     31)
       echo "${LOutput}"
       info "GH preflight currently fail-close at billing/runner block"

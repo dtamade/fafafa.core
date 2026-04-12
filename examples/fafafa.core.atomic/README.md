@@ -2,6 +2,16 @@
 
 本目录包含 `fafafa.core.atomic` 模块的完整使用示例，展示各种原子操作的实际应用场景。
 
+## Current entry
+
+- Linux/macOS：`examples/fafafa.core.atomic/BuildOrRun.sh`
+- Windows：`examples\fafafa.core.atomic\BuildOrRun.bat`
+- 主要示例源码：
+  - `examples/fafafa.core.atomic/example_basic_operations.lpr`
+  - `examples/fafafa.core.atomic/example_producer_consumer.lpr`
+  - `examples/fafafa.core.atomic/example_tagged_ptr_aba.lpr`
+  - `examples/fafafa.core.atomic/example_thread_counter.lpr`
+
 ## 示例列表
 
 ### 1. example_basic_operations.lpr
@@ -102,3 +112,8 @@ fpc -Fu../../src example_thread_counter.lpr
 - [fafafa.core.atomic API 文档](../../docs/fafafa.core.atomic.md)
 - [内存模型与原子操作理论](https://en.cppreference.com/w/cpp/atomic/memory_order)
 - [无锁编程最佳实践](https://www.1024cores.net/home/lock-free-algorithms)
+
+## Generated outputs
+
+- `bin/` 和 `lib/` 只代表本地构建结果，不是 source-of-truth。
+- current-entry 应回到 README、`BuildOrRun*` 脚本、`.lpr` / `.lpi` 源文件，而不是把生成产物当成稳定入口。

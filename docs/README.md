@@ -8,7 +8,7 @@
 - L0 稳定路线图：`docs/fafafa.core.l0.roadmap.md`
 - L0 详细定义：`docs/fafafa.core.l0.foundation.md`
 - 当前 L0 审计：`docs/audits/2026-04-11-l0-current-state-audit.md`
-- retained refs 第三波吸收审计：`docs/audits/2026-04-12-l0-retained-refs-third-absorption-audit.md`
+- retained refs 第四波吸收审计：`docs/audits/2026-04-12-l0-retained-refs-fourth-absorption-audit.md`
 - L0 post-merge 稳定化计划：`docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md`
 - L0 历史批次 / 审计归档：`docs/legacy/l0/README.md`
 - 测试指南：`docs/TESTING.md`
@@ -34,6 +34,7 @@
 - **执行批次计划**：放 `docs/plans/YYYY-MM-DD-*.md`，只描述某一轮 dated batch，不再承担长期 current-entry
 - **L0 历史批次 / 审计**：统一下沉到 `docs/legacy/l0/`
 - **Collections 历史 plans / status / reviews**：统一下沉到 `docs/collections/legacy/`
+- **Examples current-entry**：优先使用各 domain 的 `examples/<module>/README.md`、`BuildOrRun*` 和 `.lpr` / `.lpi`；`bin/` / `lib/` / 本地 logs 不作为 source-of-truth
 - **报告/复盘/审计/评审**：放 `docs/reports/`、`docs/audits/`、`docs/reviews/`（不要堆在 `docs/` 根目录）
 - **历史报告归档**：统一下沉到 `archive/reports/docs-root/`、`archive/reports/docs-collections/`、`archive/reports/docs-benchmarks/`；原目录只保留 README 指路页
 - **ADR**：`docs/adr/`

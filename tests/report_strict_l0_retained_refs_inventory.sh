@@ -18,6 +18,8 @@ Usage:
 
 This script inventories the unique history still carried by the retained
 strict L0 refs and buckets the touched paths for absorption planning.
+In --details mode it also splits example/build drift into example sources,
+build scripts, generated outputs, and test artifacts.
 EOF
 }
 
@@ -65,6 +67,68 @@ is_archive_docs_path() {
       return 0
       ;;
   esac
+
+  return 1
+}
+
+is_build_script_path() {
+  local aPath="$1"
+  local LBaseName
+  LBaseName="$(basename "${aPath}")"
+
+  case "${LBaseName}" in
+    BuildOrRun*.sh|BuildOrRun*.bat|BuildAndRun*.sh|BuildAndRun*.bat|BuildOrTest*.sh|BuildOrTest*.bat|\
+    build*.sh|build*.bat)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+is_generated_output_path() {
+  local aPath="$1"
+
+  case "${aPath}" in
+    examples/*/bin/*|examples/*/lib/*)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+is_test_artifact_path() {
+  local aPath="$1"
+  local LBaseName
+  local LExt
+
+  LBaseName="$(basename "${aPath}")"
+  LExt="${LBaseName##*.}"
+
+  case "${aPath}" in
+    tests/_run_all_logs_*/*|tests/*/bin/*|tests/*/lib/*|tests/*/logs/*)
+      return 0
+      ;;
+  esac
+
+  case "${LBaseName}" in
+    *_output.txt|build_log.txt|fpcdebug.txt|*.log)
+      return 0
+      ;;
+  esac
+
+  if [[ "${aPath}" == tests/* ]]; then
+    case "${LExt}" in
+      pas|lpr|lpi|md|sh|bat|res|txt|log)
+        ;;
+      *)
+        if [[ "${LBaseName}" != *.* ]]; then
+          return 0
+        fi
+        ;;
+    esac
+  fi
 
   return 1
 }
@@ -130,11 +194,19 @@ for LRef in "${RETAINED_REFS[@]}"; do
   LSampleDocsCurrentEntryPaths=()
   LSampleCodeOrTestsPaths=()
   LSampleExamplesOrBuildPaths=()
+  LSampleExampleSourcePaths=()
+  LSampleBuildScriptPaths=()
+  LSampleGeneratedOutputPaths=()
+  LSampleTestArtifactPaths=()
   LSampleOtherPaths=()
   LArchiveDocsPaths=0
   LDocsCurrentEntryPaths=0
   LCodeOrTestsPaths=0
   LExamplesOrBuildPaths=0
+  LExampleSourcePaths=0
+  LBuildScriptPaths=0
+  LGeneratedOutputPaths=0
+  LTestArtifactPaths=0
   LOtherPaths=0
 
   while IFS= read -r LCherryLine; do
@@ -165,10 +237,24 @@ for LRef in "${RETAINED_REFS[@]}"; do
         code_or_tests)
           LCodeOrTestsPaths=$((LCodeOrTestsPaths + 1))
           append_sample LSampleCodeOrTestsPaths "${LPath}" 3
+          if is_test_artifact_path "${LPath}"; then
+            LTestArtifactPaths=$((LTestArtifactPaths + 1))
+            append_sample LSampleTestArtifactPaths "${LPath}" 3
+          fi
           ;;
         examples_or_build)
           LExamplesOrBuildPaths=$((LExamplesOrBuildPaths + 1))
           append_sample LSampleExamplesOrBuildPaths "${LPath}" 3
+          if is_build_script_path "${LPath}"; then
+            LBuildScriptPaths=$((LBuildScriptPaths + 1))
+            append_sample LSampleBuildScriptPaths "${LPath}" 3
+          elif is_generated_output_path "${LPath}"; then
+            LGeneratedOutputPaths=$((LGeneratedOutputPaths + 1))
+            append_sample LSampleGeneratedOutputPaths "${LPath}" 3
+          else
+            LExampleSourcePaths=$((LExampleSourcePaths + 1))
+            append_sample LSampleExampleSourcePaths "${LPath}" 3
+          fi
           ;;
         *)
           LOtherPaths=$((LOtherPaths + 1))
@@ -194,6 +280,10 @@ for LRef in "${RETAINED_REFS[@]}"; do
   echo "docs_current_entry_paths=${LDocsCurrentEntryPaths}"
   echo "code_or_tests_paths=${LCodeOrTestsPaths}"
   echo "examples_or_build_paths=${LExamplesOrBuildPaths}"
+  echo "example_source_paths=${LExampleSourcePaths}"
+  echo "build_script_paths=${LBuildScriptPaths}"
+  echo "generated_output_paths=${LGeneratedOutputPaths}"
+  echo "test_artifact_paths=${LTestArtifactPaths}"
   echo "other_paths=${LOtherPaths}"
   echo "recommendation=${LRecommendation}"
 
@@ -212,6 +302,18 @@ for LRef in "${RETAINED_REFS[@]}"; do
     fi
     if (( ${#LSampleExamplesOrBuildPaths[@]} > 0 )); then
       echo "sample_examples_or_build_paths=$(join_samples LSampleExamplesOrBuildPaths)"
+    fi
+    if (( ${#LSampleExampleSourcePaths[@]} > 0 )); then
+      echo "sample_example_source_paths=$(join_samples LSampleExampleSourcePaths)"
+    fi
+    if (( ${#LSampleBuildScriptPaths[@]} > 0 )); then
+      echo "sample_build_script_paths=$(join_samples LSampleBuildScriptPaths)"
+    fi
+    if (( ${#LSampleGeneratedOutputPaths[@]} > 0 )); then
+      echo "sample_generated_output_paths=$(join_samples LSampleGeneratedOutputPaths)"
+    fi
+    if (( ${#LSampleTestArtifactPaths[@]} > 0 )); then
+      echo "sample_test_artifact_paths=$(join_samples LSampleTestArtifactPaths)"
     fi
     if (( ${#LSampleOtherPaths[@]} > 0 )); then
       echo "sample_other_paths=$(join_samples LSampleOtherPaths)"
