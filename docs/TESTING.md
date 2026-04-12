@@ -79,6 +79,14 @@ bash tests/audit_strict_l0_retained_refs.sh
 
 这个脚本只做 non-destructive audit：它会基于 `merge-base` 和 `git cherry -v HEAD <ref>` 给出 `same-tip`、`retain-unique-history`、`candidate-delete` 之类的判定，但不会直接执行删除。
 
+如果你当前关心的是“先吸收哪一类 retained history 最划算”，先跑：
+
+```bash
+bash tests/report_strict_l0_retained_refs_inventory.sh
+```
+
+这个脚本会把 4 条 retained refs 的 unique history 按 `archive docs`、`current docs`、`code/tests`、`examples/build` 分类，并给出 `absorb-archive-first`、`review-code-before-absorb` 之类的建议，方便先做低风险吸收。
+
 如果你当前关心的是 strict non-SIMD L0 在 Windows 路径上的复核，不要直接从“原生 `.bat` 构建完全对称”这个前提出发。当前仓库已经分成四条不同的复核链路：
 
 - 最小 Win64 `.exe` runtime smoke

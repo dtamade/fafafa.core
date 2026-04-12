@@ -8,6 +8,7 @@
 - L0 稳定路线图：`docs/fafafa.core.l0.roadmap.md`
 - L0 详细定义：`docs/fafafa.core.l0.foundation.md`
 - 当前 L0 审计：`docs/audits/2026-04-11-l0-current-state-audit.md`
+- retained refs 吸收审计：`docs/audits/2026-04-12-l0-retained-refs-absorption-audit.md`
 - L0 post-merge 稳定化计划：`docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md`
 - 最近 L0 refs / CI closeout（历史）：`docs/legacy/l0/2026-04-11-l0-mainline-refs-and-ci-closeout.md`
 - 最近 L0 合并 closeout（历史）：`docs/legacy/l0/2026-04-11-l0-mainline-merge-checklist.md`
@@ -35,6 +36,7 @@
 - **稳定路线图 / 主题设计**：优先使用长期可维护的主题入口，例如 `docs/fafafa.core.l0.roadmap.md`
 - **执行批次计划**：放 `docs/plans/YYYY-MM-DD-*.md`，只描述某一轮 dated batch，不再承担长期 current-entry
 - **报告/复盘/审计/评审**：放 `docs/reports/`、`docs/audits/`、`docs/reviews/`（不要堆在 `docs/` 根目录）
+- **历史报告归档**：统一下沉到 `archive/reports/docs-root/`、`archive/reports/docs-collections/`、`archive/reports/docs-benchmarks/`；原目录只保留 README 指路页
 - **ADR**：`docs/adr/`
 - **可复用片段**：`docs/partials/`
 - **执行日志 / scratch 计划**：不要长期留在仓库根目录；需要入库时，直接归档到 `plans/archive/`，稳定结论再提升到 `docs/plans/` 或 `docs/audits/`

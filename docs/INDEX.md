@@ -9,6 +9,7 @@
 - L0 稳定路线图：`docs/fafafa.core.l0.roadmap.md`
 - L0 详细定义：`docs/fafafa.core.l0.foundation.md`
 - L0 当前审计：`docs/audits/2026-04-11-l0-current-state-audit.md`
+- retained refs 吸收审计：`docs/audits/2026-04-12-l0-retained-refs-absorption-audit.md`
 - L0 post-merge 稳定化计划：`docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md`
 - 最近 L0 refs / CI closeout（历史）：`docs/legacy/l0/2026-04-11-l0-mainline-refs-and-ci-closeout.md`
 - 最近 L0 合并 closeout（历史）：`docs/legacy/l0/2026-04-11-l0-mainline-merge-checklist.md`
@@ -111,6 +112,7 @@
 - strict L0 在 `main` 上的一波收口入口固定为 `bash tests/run_strict_l0_mainline_closeout.sh`；需要实际覆盖 current-state 文档时显式加 `--apply-docs`。
 - 如果你已经拿到 Linux / Windows run id，只需要回填 current-state 审计、legacy closeout 和 worker handoff，入口固定为 `bash tests/update_strict_l0_current_state_docs.sh --apply ...`。
 - 如果你要重新审计当前保留的历史 L0 refs 是否仍承载独立 patch history，入口固定为 `bash tests/audit_strict_l0_retained_refs.sh`；它只给 decision，不做删除。
+- 如果你要先判断 retained refs 该从哪类 unique history 开始吸收，入口固定为 `bash tests/report_strict_l0_retained_refs_inventory.sh`；它会把 unique history 按 archive docs / current docs / code/tests / examples-build 分类。
 - 根目录 `task_plan.md`、`findings.md`、`progress.md` 已从主线移除；最后一份快照归档在 `plans/archive/2026-04-07-mainline-working-set/`。
 - 当前 L0 协作入口见 `workers/worker1.md`，当前 triage 判断见 `docs/audits/2026-04-11-l0-current-state-audit.md`。
 - `docs/fafafa.core.span.md`、`docs/fafafa.core.contracts.md` 和 `docs/fafafa.core.platform.md` 现在都对应 strict L0 的实体入口。

@@ -17,11 +17,13 @@
   - `docs/fafafa.core.l0.roadmap.md`
   - `docs/ARCHITECTURE_LAYERS.md`
   - `docs/audits/2026-04-11-l0-current-state-audit.md`
+  - `docs/audits/2026-04-12-l0-retained-refs-absorption-audit.md`
   - `docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md`
   - `docs/CI.md`
   - `tests/check_strict_l0_docs_consistency.sh`
   - `tests/run_strict_l0_maintenance_loop.sh`
   - `tests/run_strict_l0_mainline_closeout.sh`
+  - `tests/report_strict_l0_retained_refs_inventory.sh`
   - `tests/run_windows_strict_l0_native_evidence_via_github_actions.sh`
   - `tests/update_strict_l0_current_state_docs.sh`
   - `docs/fafafa.core.span.md`
@@ -65,6 +67,7 @@
   - 继续只沿 strict L0 线推进，不把 sidecar 或 SIMD 工作重新混回当前 worktree
   - Linux x64 上的日常维护默认走 `bash tests/run_strict_l0_maintenance_loop.sh`
   - 如需重新判断 retained refs 是否还该保留，使用 `bash tests/audit_strict_l0_retained_refs.sh`
+  - 如需先判断 retained refs 该优先吸收哪类 unique history，使用 `bash tests/report_strict_l0_retained_refs_inventory.sh`
   - 如需一波收口 Linux/Windows evidence 与 current-state docs，使用 `bash tests/run_strict_l0_mainline_closeout.sh`
   - 如需只回填 current-state 文档，使用 `bash tests/update_strict_l0_current_state_docs.sh --apply --main-sha <main-sha> --linux-run-id <linux-run-id> --linux-run-sha <linux-run-sha> --windows-run-id <windows-run-id> --windows-run-sha <windows-run-sha> --windows-local-batch-id <batch-id>`
   - 需要 Windows exact evidence 时，继续使用 GitHub Actions workflow + shell verifier，不在 Linux x64 本地伪造 native 结论
