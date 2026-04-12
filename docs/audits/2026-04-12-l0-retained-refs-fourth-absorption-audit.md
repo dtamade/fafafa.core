@@ -1,6 +1,7 @@
 # 2026-04-12 L0 Retained Refs Fourth Absorption Audit
 
 > 这份审计记录 strict non-SIMD L0 在 retained refs 清理前，继续把下一跳里已经浮出来的 `examples/build drift` 收敛成可执行的 inventory 和 current-entry 约束。
+> 当前 latest 入口已推进到 `docs/audits/2026-04-13-l0-retained-refs-fifth-absorption-audit.md`。
 
 ## Why this wave exists
 

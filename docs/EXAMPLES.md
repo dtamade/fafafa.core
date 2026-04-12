@@ -9,6 +9,8 @@
   - `examples/fafafa.core.atomic/README.md`
   - `examples/fafafa.core.json/README.md`
   - `examples/fafafa.core.sync.mutex/README.md`
+  - `examples/fafafa.core.result/README.md`
+  - `examples/fafafa.core.platform/README.md`
 - examples current-entry 的判断顺序固定为：
   - README
   - `BuildOrRun*` / `BuildOrTest*` 脚本
@@ -42,6 +44,14 @@
   - README：`examples/fafafa.core.sync.mutex/README.md`
   - Linux/macOS：`examples/fafafa.core.sync.mutex/BuildOrRun.sh`
   - Windows：`examples\fafafa.core.sync.mutex\BuildOrRun.bat`
+- `fafafa.core.result`
+  - README：`examples/fafafa.core.result/README.md`
+  - Linux/macOS：`examples/fafafa.core.result/BuildOrRun.sh`
+  - Windows：`examples\fafafa.core.result\BuildOrRun.bat`
+- `fafafa.core.platform`
+  - README：`examples/fafafa.core.platform/README.md`
+  - Linux/macOS：`examples/fafafa.core.platform/BuildOrRun.sh`
+  - Windows：`examples\fafafa.core.platform\BuildOrRun.bat`
 
 - fafafa.core.os
   - example_basic：基础信息与 JSON 输出

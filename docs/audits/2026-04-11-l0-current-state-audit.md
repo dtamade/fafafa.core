@@ -70,7 +70,7 @@
 - 如需重新审计残留历史 L0 refs 是否仍承载独立 patch history，当前标准入口是 `bash tests/audit_strict_l0_retained_refs.sh`；它只给 decision，不直接删除 refs。
 - 如需先判断 retained refs 该优先吸收哪一类 unique history，当前标准入口是 `bash tests/report_strict_l0_retained_refs_inventory.sh`；它会先给 absorb inventory，再决定下一批动作。
 - 如需直接看代表性 unique commits 和路径样本，再执行 `bash tests/report_strict_l0_retained_refs_inventory.sh --details`。
-- 第四波之后，`--details` 还会继续把 example source / build scripts / generated outputs / test artifacts 分开打印，方便继续做 examples/build triage。
+- 第五波之后，`--details` 还会继续把 `code_or_tests` 细分成 `src / test source / CI workflow / test artifact`，并把 examples/build drift 继续分成 example source / build scripts / generated outputs / test artifacts，方便继续做 retained-refs triage。
 - superseded 的 dated L0 plans / audits 现在统一下沉到 `docs/legacy/l0/`，不要再把那批文档当 current-entry。
 - collections 域里 superseded 的 dated plans / status / reviews 现在统一下沉到 `docs/collections/legacy/README.md`，不要再把 `docs/collections/plans/`、`docs/collections/status/`、`docs/collections/reviews/` 里的历史批次误判成 current-entry。
 - 当前保留的本地 L0 refs 只包括：

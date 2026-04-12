@@ -93,9 +93,23 @@ bash tests/report_strict_l0_retained_refs_inventory.sh
 bash tests/report_strict_l0_retained_refs_inventory.sh --details
 ```
 
-这个模式会额外打印每条 retained ref 的 `sample_unique_commits=` 和各 bucket 的 representative path samples，方便快速判断这波应该先吸 docs 还是先停在 code/test review。
+这个模式会额外打印每条 retained ref 的 `sample_unique_commits=` 和各 bucket 的 representative path samples，方便快速判断这波应该先吸 docs、examples 还是先停在 code/test review。
 
-第四波之后，`--details` 的 examples/build drift 还会继续细分成：
+第五波之后，`--details` 的 code/tests drift 也会继续细分成：
+
+- `sample_src_paths=`
+- `sample_test_source_paths=`
+- `sample_ci_workflow_paths=`
+- `sample_test_artifact_paths=`
+
+这样你可以先判断这条 retained ref 暴露出来的 `code_or_tests` 到底是：
+
+- 真实还要 review 的 `src/` 差异
+- 真实还要 review 的测试源码
+- 只是 control-plane / workflow 变化
+- 还是根本不该继续混回 today contract 的测试产物
+
+第五波之后，`--details` 的 examples/build drift 还会继续细分成：
 
 - `sample_example_source_paths=`
 - `sample_build_script_paths=`

@@ -9,7 +9,7 @@
 - L0 稳定路线图：`docs/fafafa.core.l0.roadmap.md`
 - L0 详细定义：`docs/fafafa.core.l0.foundation.md`
 - L0 当前审计：`docs/audits/2026-04-11-l0-current-state-audit.md`
-- retained refs 第四波吸收审计：`docs/audits/2026-04-12-l0-retained-refs-fourth-absorption-audit.md`
+- retained refs 第五波吸收审计：`docs/audits/2026-04-13-l0-retained-refs-fifth-absorption-audit.md`
 - L0 post-merge 稳定化计划：`docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md`
 - L0 历史批次 / 审计归档：`docs/legacy/l0/README.md`
 - 工程规范：`docs/standards/ENGINEERING_STANDARDS.md`
