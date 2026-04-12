@@ -1,5 +1,7 @@
 # Collections 新增实用容器规划
 
+> Historical note: 这是一份 2025-11-03 的阶段性新增容器规划。当前入口请优先看 `docs/fafafa.core.collections.md` 与当前 guides/design 文档。
+
 **规划日期**: 2025-11-03
 **目标**: 为fafafa.core.collections添加实用容器类型
 **依据**: 常见使用场景和其他语言标准库

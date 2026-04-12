@@ -53,6 +53,7 @@ REQUIRED_FILES=(
   "docs/audits/2026-04-11-l0-current-state-audit.md"
   "docs/audits/2026-04-12-l0-retained-refs-absorption-audit.md"
   "docs/audits/2026-04-12-l0-retained-refs-second-absorption-audit.md"
+  "docs/audits/2026-04-12-l0-retained-refs-third-absorption-audit.md"
   "docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md"
   "docs/legacy/l0/README.md"
   "docs/legacy/l0/2026-04-11-l0-mainline-refs-and-ci-closeout.md"
@@ -75,12 +76,14 @@ done
 
 require_literal "docs/README.md" "docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md"
 require_literal "docs/README.md" "docs/legacy/l0/README.md"
-require_literal "docs/README.md" "docs/audits/2026-04-12-l0-retained-refs-second-absorption-audit.md"
+require_literal "docs/README.md" "docs/audits/2026-04-12-l0-retained-refs-third-absorption-audit.md"
+reject_literal "docs/README.md" "docs/audits/2026-04-12-l0-retained-refs-second-absorption-audit.md"
 reject_literal "docs/README.md" "docs/plans/2026-04-09-l0-kernel-span2-closeout.md"
 
 require_literal "docs/INDEX.md" "docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md"
 require_literal "docs/INDEX.md" "docs/legacy/l0/README.md"
-require_literal "docs/INDEX.md" "docs/audits/2026-04-12-l0-retained-refs-second-absorption-audit.md"
+require_literal "docs/INDEX.md" "docs/audits/2026-04-12-l0-retained-refs-third-absorption-audit.md"
+reject_literal "docs/INDEX.md" "docs/audits/2026-04-12-l0-retained-refs-second-absorption-audit.md"
 reject_literal "docs/INDEX.md" "docs/plans/2026-04-09-l0-kernel-span2-closeout.md"
 
 require_literal "docs/legacy/l0/README.md" "2026-04-11-l0-mainline-refs-and-ci-closeout.md"

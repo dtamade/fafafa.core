@@ -5,12 +5,13 @@
 - Status: `active`
 - Branch: `l0-mainline`
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
-- Base commit: `5eeb4a0c4c3065adcc74c7153d3c6a6fbe95f465` (`origin/main`)
+- Base commit: `749fe5d147fd111e8f04e1b0daf2c73f5403f370` (`l0-mainline` current HEAD before this in-progress docs wave)
 - Current focus:
   - 维持当前唯一 L0 worktree 跟随 `main`
   - 维持 strict L0 的 current-entry 文档、模块边界和验证口径一致
   - 只清理安全可删的本地 L0 refs，保留仍然承载独立历史的锚点
   - 继续吸收 retained refs 里 low-risk 的 superseded docs residue
+  - 把 `collections` 域 dated docs 从 current-entry 邻域下沉到 `docs/collections/legacy/`
   - 把 Linux maintenance workflow 与 Windows exact-evidence lane 的 current-entry 命令、证据和 fail-close 语义写准
   - 保持 Windows exact evidence 只能来自 GitHub Actions / 真实 Windows runner 这一纪律
 - Source of truth:
@@ -18,8 +19,9 @@
   - `docs/fafafa.core.l0.roadmap.md`
   - `docs/ARCHITECTURE_LAYERS.md`
   - `docs/audits/2026-04-11-l0-current-state-audit.md`
-  - `docs/audits/2026-04-12-l0-retained-refs-second-absorption-audit.md`
+  - `docs/audits/2026-04-12-l0-retained-refs-third-absorption-audit.md`
   - `docs/legacy/l0/README.md`
+  - `docs/collections/legacy/README.md`
   - `docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md`
   - `docs/CI.md`
   - `tests/check_strict_l0_docs_consistency.sh`
@@ -32,9 +34,7 @@
   - `docs/fafafa.core.atomic.md`
   - `docs/fafafa.core.result.md`
 - Fresh verification:
-  - `bash tests/test_strict_l0_retained_refs_inventory_contract.sh`
-  - 结果：PASS
-  - `bash tests/test_strict_l0_retained_refs_inventory_details_contract.sh`
+  - `bash tests/test_strict_l0_collections_legacy_docs_layout_contract.sh`
   - 结果：PASS
   - `bash tests/test_strict_l0_legacy_docs_layout_contract.sh`
   - 结果：PASS
@@ -52,22 +52,10 @@
   - 结果：PASS
   - `bash tests/audit_strict_l0_retained_refs.sh`
   - 结果：PASS
-  - `bash tests/test_strict_l0_linux_ci_workflow_contract.sh`
-  - 结果：PASS
-  - `bash tests/test_windows_strict_l0_native_evidence_gh_contract.sh`
-  - 结果：PASS
-  - `bash tests/test_windows_strict_l0_native_evidence_main_ref_contract.sh`
-  - 结果：PASS
   - `bash tests/run_strict_l0_maintenance_loop.sh`
   - 结果：PASS
   - `git diff --check`
   - 结果：PASS
-  - GitHub Actions `L0 Linux Maintenance` run `24284430625`
-  - 结果：PASS；head sha=`5eeb4a0c4c3065adcc74c7153d3c6a6fbe95f465`
-  - GitHub Actions `L0 Windows Native Evidence` run `24284111799`
-  - 结果：PASS；head sha=`54a7ae056679c251a8a1f53442cfd20601b6f08f`
-  - local Windows snapshot：
-  - `tests/_windows_l0_native_evidence_gh/L0-20260411-native-gha-r11/`
 - Retained local refs:
   - `l0-mainline`
   - `l0-mainline-closeout-20260411`
@@ -78,6 +66,7 @@
   - 根目录 `main` 工作树仍然是用户脏状态，不能直接当作 L0 的当前执行面
   - 当前 4 个历史 L0 refs 仍承载独立 patch history，不能盲删
   - 后续若 strict L0 再发生非文档代码或测试改动，仍需重新补 fresh Windows exact evidence
+  - 当前这波仍是未提交的 docs-only 变更；在真正 merge 前应保持 `l0-mainline` 只承载这一组 L0 文档整理
   - SIMD-only 残留仍由 SIMD owner 继续维护，L0 这里只保留边界与 handoff 说明
 - Next step:
   - 继续只沿 strict L0 线推进，不把 sidecar 或 SIMD 工作重新混回当前 worktree
@@ -85,7 +74,7 @@
   - 如需重新判断 retained refs 是否还该保留，使用 `bash tests/audit_strict_l0_retained_refs.sh`
   - 如需先判断 retained refs 该优先吸收哪类 unique history，使用 `bash tests/report_strict_l0_retained_refs_inventory.sh`
   - 如需直接看 retained refs 的代表性 unique commits / paths，使用 `bash tests/report_strict_l0_retained_refs_inventory.sh --details`
-  - fresh `--details` 已显示 sidecar / tail 的 docs-first 下一跳更偏向 `docs/README.md`、`docs/INDEX.md` 与 collections 域 dated docs，而不是再翻 superseded 的 L0 batch docs
+  - fresh `--details` 现在已把 `collections` 域 dated docs 从下一跳里剥离出来；后续更高 ROI 的 docs-first 目标更偏向 sidecar / tail 上剩余的 examples/build drift
   - 如需一波收口 Linux/Windows evidence 与 current-state docs，使用 `bash tests/run_strict_l0_mainline_closeout.sh`
   - 如需只回填 current-state 文档，使用 `bash tests/update_strict_l0_current_state_docs.sh --apply --main-sha <main-sha> --linux-run-id <linux-run-id> --linux-run-sha <linux-run-sha> --windows-run-id <windows-run-id> --windows-run-sha <windows-run-sha> --windows-local-batch-id <batch-id>`
   - 需要 Windows exact evidence 时，继续使用 GitHub Actions workflow + shell verifier，不在 Linux x64 本地伪造 native 结论

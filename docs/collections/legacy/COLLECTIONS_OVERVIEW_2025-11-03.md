@@ -1,5 +1,7 @@
 # Collections 模块完善工作总览
 
+> Historical note: 这是一份 2025-11-03 的阶段性总览。当前入口请优先看 `docs/fafafa.core.collections.md`，历史批次导航统一从 `docs/collections/legacy/README.md` 进入。
+
 **日期**: 2025-11-03
 **任务**: fafafa.core.collections 模块维护与打磨
 **执行者**: Claude Code
@@ -27,12 +29,12 @@
 
 ### 主要文档
 
-1. **`docs/COLLECTIONS_REFINEMENT_PLAN.md`**
+1. **`docs/collections/legacy/COLLECTIONS_REFINEMENT_PLAN.md`**
    - 系统化的6-Phase完善计划
    - 预计12-15小时完成
    - 包含详细任务分解和成功指标
 
-2. **`docs/COLLECTIONS_CURRENT_STATUS_2025-11-03.md`**
+2. **`docs/collections/legacy/COLLECTIONS_CURRENT_STATUS_2025-11-03.md`**
    - 当前状态全面评估
    - 代码规模统计（40,105行）
    - 已完成工作和待办事项清单
@@ -43,13 +45,13 @@
    - 遇到的技术挑战分析
    - 后续行动建议
 
-4. **`docs/COLLECTIONS_CODE_QUALITY_REVIEW_2025-11-03.md`**
+4. **`docs/collections/legacy/COLLECTIONS_CODE_QUALITY_REVIEW_2025-11-03.md`**
    - 代码质量深度审查
    - 核心类型逐个分析（VecDeque, Vec, HashMap, TreeMap）
    - 具体改进建议（分P0/P1/P2优先级）
    - 代码质量评分（4.6/5.0）
 
-5. **`docs/COLLECTIONS_OVERVIEW_2025-11-03.md`** (本文档)
+5. **`docs/collections/legacy/COLLECTIONS_OVERVIEW_2025-11-03.md`** (本文档)
    - 工作总览和文档导航
    - 成果汇总
 
@@ -327,7 +329,7 @@ fafafa.core.mem.allocator.crtAllocator
 
 ### 规划类文档
 
-- **`COLLECTIONS_REFINEMENT_PLAN.md`** - 完善计划（6 Phases）
+- **`docs/collections/legacy/COLLECTIONS_REFINEMENT_PLAN.md`** - 完善计划（6 Phases）
 - **`COLLECTIONS_CURRENT_STATUS_2025-11-03.md`** - 当前状态评估
 - **`COLLECTIONS_WORK_SUMMARY_2025-11-03.md`** - 工作总结
 
@@ -460,13 +462,13 @@ bash tests/run_leak_tests.sh
 
 ```bash
 # 当前状态
-cat docs/COLLECTIONS_CURRENT_STATUS_2025-11-03.md
+cat docs/collections/legacy/COLLECTIONS_CURRENT_STATUS_2025-11-03.md
 
 # 完善计划
-cat docs/COLLECTIONS_REFINEMENT_PLAN.md
+cat docs/collections/legacy/COLLECTIONS_REFINEMENT_PLAN.md
 
 # 代码质量审查
-cat docs/COLLECTIONS_CODE_QUALITY_REVIEW_2025-11-03.md
+cat docs/collections/legacy/COLLECTIONS_CODE_QUALITY_REVIEW_2025-11-03.md
 ```
 
 ### 下一步行动
@@ -482,4 +484,4 @@ cat docs/COLLECTIONS_CODE_QUALITY_REVIEW_2025-11-03.md
 
 **致**: 未来的开发者
 
-本文档提供了Collections模块完善工作的完整视图。所有规划文档已就绪，可直接按照`COLLECTIONS_REFINEMENT_PLAN.md`执行后续工作。Collections模块已具备生产环境使用的质量标准，后续改进将进一步提升其完美度。
+本文档提供了 Collections 模块完善工作的完整视图。所有规划文档已就绪；如需回看当时的后续动作，请从 `docs/collections/legacy/COLLECTIONS_REFINEMENT_PLAN.md` 进入。Collections 模块当前的稳定入口仍以 `docs/fafafa.core.collections.md` 和 `docs/collections/guides/` 为准。

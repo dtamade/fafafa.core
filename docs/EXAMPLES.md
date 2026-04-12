@@ -28,7 +28,7 @@
 
   - 概览：docs/fafafa.core.collections.md
   - TVec：docs/fafafa.core.collections.vec.md
-  - TVecDeque：docs/fafafa.core.collections.vecdeque.md 或 docs/TVecDeque_Guide.md
+  - TVecDeque：docs/fafafa.core.collections.vecdeque.md 或 docs/collections/guides/TVecDeque_Guide.md
   - API 索引：docs/API_collections.md
 
 - 一键示例（Windows）

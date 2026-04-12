@@ -1,5 +1,7 @@
 # Collections 模块 API 一致性审查报告
 
+> Historical note: 这是一份 2025-11-03 的阶段性 collections 审查记录。当前入口请优先看 `docs/fafafa.core.collections.md` 与 `docs/collections/guides/`。
+
 **审查日期**: 2025-11-03
 **审查范围**: fafafa.core.collections 核心类型API
 **审查目标**: 确保API命名、行为、参数一致性

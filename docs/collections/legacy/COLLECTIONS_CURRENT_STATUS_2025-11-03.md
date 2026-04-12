@@ -1,5 +1,7 @@
 # Collections 模块当前状态报告
 
+> Historical note: 这是一份 2025-11-03 的阶段性状态快照。当前入口请优先看 `docs/fafafa.core.collections.md` 与 `docs/collections/legacy/README.md`。
+
 **生成时间**: 2025-11-03
 **负责人**: Claude Code
 **版本**: fafafa.core v0.9.x
@@ -288,7 +290,7 @@ TAllocator / TRtlAllocator / TCrtAllocator / TCallbackAllocator
 
 ## 🚧 待完成的工作
 
-根据 `COLLECTIONS_REFINEMENT_PLAN.md` (2025-11-03):
+根据 `docs/collections/legacy/COLLECTIONS_REFINEMENT_PLAN.md` (2025-11-03):
 
 ### Phase 1: 内存安全验证 (✅ 70%完成, ❌ 30%有bug)
 
@@ -405,13 +407,13 @@ TAllocator / TRtlAllocator / TCrtAllocator / TCallbackAllocator
 - `COLLECTIONS_QUALITY_IMPROVEMENT_COMPLETION_REPORT.md` - 质量改进完成报告
 - `COLLECTIONS_PERFORMANCE_ANALYSIS.md` - 性能分析
 - `COLLECTIONS_DECISION_TREE.md` - 容器选择决策树
-- `COLLECTIONS_REFINEMENT_PLAN.md` - 完善计划（本次制定）
+- `docs/collections/legacy/COLLECTIONS_REFINEMENT_PLAN.md` - 完善计划（本次制定）
 - `HASHMAP_HEAPTRC_REPORT.md` - HashMap 内存验证报告
 
 ### API 文档
 - `docs/fafafa.core.collections.vec.md` - Vec 指南
 - `docs/README_TVec.md` - TVec 快速上手
-- `docs/README_VecDeque.md` - VecDeque 参考
+- `docs/collections/guides/README_VecDeque.md` - VecDeque 参考
 
 ### 示例
 - `examples/collections/` - 12个实用示例

@@ -1,6 +1,7 @@
 # 2026-04-12 L0 Retained Refs Second Absorption Audit
 
 > 这份审计记录 strict non-SIMD L0 在 retained refs 清理前，继续吸收 superseded dated L0 docs residue 的第二波结果。
+> 当前最新波次请改看 `docs/audits/2026-04-12-l0-retained-refs-third-absorption-audit.md`。
 
 ## Why this wave exists
 

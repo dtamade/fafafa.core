@@ -1,5 +1,7 @@
 # FreePascal 集合框架 UnChecked 方法完整实现总结
 
+> 当前稳定入口已经固定为 `docs/collections/guides/UnChecked_Methods_Summary.md`。如果你是从旧的 `docs/reports/` 路径找过来的，请以这里为准。
+
 ## 🎯 项目概述
 
 本项目为 FreePascal 集合框架成功添加了完整的 UnChecked 方法系列，提供了高性能的无边界检查版本的算法方法。UnChecked 方法通过跳过边界检查，在性能关键的代码路径中提供显著的性能提升。

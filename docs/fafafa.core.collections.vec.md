@@ -117,6 +117,6 @@ end.
 ## 参考
 - 源码：src/fafafa.core.collections.vec.pas
 - 增长策略：src/fafafa.core.collections.base.pas
-- UnChecked 合同：docs/UnChecked_Methods_Summary.md
+- UnChecked 合同：docs/collections/guides/UnChecked_Methods_Summary.md
 - Best Practices：docs/partials/collections.best_practices.md（策略组合与测试建议）
 

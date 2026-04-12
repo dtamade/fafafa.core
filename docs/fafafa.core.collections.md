@@ -2,13 +2,21 @@
 
 ## 快速导航
 - Collections API 索引：docs/API_collections.md
+- Collections guides：docs/collections/guides/
 - TVec 模块文档：docs/fafafa.core.collections.vec.md
+- TVecDeque guide：docs/collections/guides/TVecDeque_Guide.md
+- Collections 历史批次归档：docs/collections/legacy/README.md
 
 
 > See also: 示例总表（TVec/TVecDeque）：docs/EXAMPLES.md#集合模块示例总表（TVec-/-TVecDeque）
 
 
 > Cross-platform, interface-first collection façade for FreePascal. Design aligns with modern libraries (Rust Vec/VecDeque, Go slices/maps idioms, Java Collections/Deque), with explicit Allocator and GrowthStrategy.
+
+## Current-entry and legacy
+- 当前 collections 的 today contract 以本页、`docs/fafafa.core.collections.vec.md`、`docs/fafafa.core.collections.vecdeque.md` 和 `docs/collections/guides/` 下的长期 guide 为准
+- 带日期或阶段性的 collections plan / status / review 已统一下沉到 `docs/collections/legacy/README.md`
+- retained-refs docs-first 吸收过程中，如果只是在找旧批次语境，不要回到 `docs/collections/plans/`、`docs/collections/status/`、`docs/collections/reviews/` 根层逐个翻
 
 ## Purpose
 - Provide consistent, interface-oriented collection APIs for framework users

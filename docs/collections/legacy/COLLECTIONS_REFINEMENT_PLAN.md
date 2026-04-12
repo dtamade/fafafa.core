@@ -1,5 +1,7 @@
 # Collections 模块完善与打磨计划
 
+> Historical note: 这是一份 2025-11-03 的阶段性完善计划。当前入口请优先看 `docs/fafafa.core.collections.md` 与 `docs/collections/legacy/README.md`。
+
 **制定时间**: 2025-11-03
 **项目**: fafafa.core.collections
 **目标**: 系统化完善维护打磨 collections 模块
@@ -14,7 +16,7 @@
 2. **性能基准**: HashMap/LinkedHashMap/TreeMap 性能对比完成
 3. **质量文档**: `COLLECTIONS_QUALITY_IMPROVEMENT_COMPLETION_REPORT.md` 已完成
 4. **示例代码**: 12个实用示例覆盖主要使用场景
-5. **决策树**: `COLLECTIONS_DECISION_TREE.md` 帮助用户选择容器
+5. **决策树**: `docs/collections/plans/COLLECTIONS_DECISION_TREE.md` 帮助用户选择容器
 
 ### 📊 代码规模统计
 
@@ -396,7 +398,7 @@ procedure PushBack(const AValue: T);
 
 - `docs/TESTING.md` - 测试指南
 - `docs/Architecture.md` - 架构设计
-- `docs/COLLECTIONS_DECISION_TREE.md` - 容器选择指南
+- `docs/collections/plans/COLLECTIONS_DECISION_TREE.md` - 容器选择指南
 - `docs/COLLECTIONS_QUALITY_IMPROVEMENT_COMPLETION_REPORT.md` - 已完成工作
 - `CLAUDE.md` - 项目开发指南
 

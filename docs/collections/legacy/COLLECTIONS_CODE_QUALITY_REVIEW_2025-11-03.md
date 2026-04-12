@@ -1,5 +1,7 @@
 # Collections 模块代码质量审查报告
 
+> Historical note: 这是一份 2025-11-03 的阶段性 collections 审查记录。当前入口请优先看 `docs/fafafa.core.collections.md` 与 `docs/collections/guides/`。
+
 **审查日期**: 2025-11-03
 **审查范围**: fafafa.core.collections 核心类型
 **审查方法**: 静态代码审查、API设计分析、最佳实践对照
