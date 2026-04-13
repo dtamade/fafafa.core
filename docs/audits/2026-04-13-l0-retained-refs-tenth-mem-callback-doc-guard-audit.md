@@ -72,9 +72,8 @@ fresh `closeout` test-doc residue 现在的结论应固定为：
 
 ## Fresh shortlist snapshot
 
-post-commit `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh` 结果：
+post-code-commit `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh` 结果（latest implementation head=`e7ca1fdf9bed0ffb130eb4195137f0518bc14f5d`）：
 
-- `current_head=e7ca1fdf9bed0ffb130eb4195137f0518bc14f5d`
 - `l0-mainline-closeout-20260411`
   - `review_candidate_paths=9`
   - `src_review_paths=2`
@@ -96,7 +95,7 @@ post-commit `bash tests/report_strict_l0_retained_refs_source_review_shortlist.s
 
 这说明：
 
-- 第十波把 `mem callback` 的 2 个 `src` 路径和 1 个 foundation test 路径真正吸进了 today mainline，因此 `closeout` 相对当前 `HEAD` 不再只是 6 个 stale test-doc 路径。
+- 第十波把 `mem callback` 的 2 个 `src` 路径和 1 个 foundation test 路径真正吸进了 today mainline，因此 `closeout` 相对 latest implementation head 不再只是 6 个 stale test-doc 路径。
 - 但 `closeout` 仍然带着显式 `dangerous_delete_paths=`，所以 today policy 依旧不是 absorb，而是保留 shortlist + no-downgrade guard。
 - `rescue` 的 today 结论没有变化，仍然必须保持 `source-review-first`，不能 broad merge。
 
@@ -113,9 +112,9 @@ post-commit `bash tests/report_strict_l0_retained_refs_source_review_shortlist.s
 - 本地只收 Linux x64 与 contract/gate 证据
 - Windows exact evidence 作为 push / remote-visible ref 之后的 CI 步骤
 - fresh ref 对比：
-  - local `HEAD=e7ca1fdf9bed0ffb130eb4195137f0518bc14f5d`
+  - local latest implementation head=`e7ca1fdf9bed0ffb130eb4195137f0518bc14f5d`
   - remote `l0-mainline=febc3093b3a32515babfd0217dbca3e7b8a15086`
-  - 因此当前 exact `HEAD` 证据仍需要先 push / 更新 remote ref，不能直接宣称已被 GitHub Actions 覆盖
+  - 因此当前 exact implementation-head 证据仍需要先 push / 更新 remote ref，不能直接宣称已被 GitHub Actions 覆盖
 
 ## Fresh verification
 
