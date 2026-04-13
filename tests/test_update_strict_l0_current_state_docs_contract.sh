@@ -45,12 +45,20 @@ rg -F "GitHub Actions \`L0 Windows Native Evidence\` run \`1002\`" "${AUDIT_FILE
   || fail "audit missing Windows native evidence run id"
 rg -F "TEST-L0-BATCH" "${AUDIT_FILE}" >/dev/null \
   || fail "audit missing local Windows snapshot batch id"
+rg -F "test_hygiene_candidate_paths=" "${AUDIT_FILE}" >/dev/null \
+  || fail "audit missing test hygiene candidate routing"
+rg -F "source_review_candidate_paths=" "${AUDIT_FILE}" >/dev/null \
+  || fail "audit missing source review candidate routing"
 rg -F "Base commit: \`1111111111111111111111111111111111111111\`" "${WORKER_FILE}" >/dev/null \
   || fail "worker handoff missing base commit"
 rg -F "GitHub Actions \`L0 Linux Maintenance\` run \`1001\`" "${WORKER_FILE}" >/dev/null \
   || fail "worker handoff missing Linux run"
 rg -F "GitHub Actions \`L0 Windows Native Evidence\` run \`1002\`" "${WORKER_FILE}" >/dev/null \
   || fail "worker handoff missing Windows run"
+rg -F "test_hygiene_candidate_paths=" "${WORKER_FILE}" >/dev/null \
+  || fail "worker handoff missing test hygiene candidate routing"
+rg -F "source_review_candidate_paths=" "${WORKER_FILE}" >/dev/null \
+  || fail "worker handoff missing source review candidate routing"
 rg -F "merge commit：\`1111111111111111111111111111111111111111\`" "${LEGACY_FILE}" >/dev/null \
   || fail "legacy closeout missing main merge commit"
 

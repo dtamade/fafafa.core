@@ -5,7 +5,7 @@
 - Status: `active`
 - Branch: `l0-mainline`
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
-- Base commit: `04dc11d19c677a6c3aa526252aebe39628dd405d` (`l0-mainline` current HEAD before this in-progress seventh-wave docs absorbability batch)
+- Base commit: `b1a3d4593c55a61a9da4da235eac1ae0a77e0409` (`l0-mainline` current HEAD before this in-progress eighth-wave focus-routing batch)
 - Current focus:
   - 维持当前唯一 L0 worktree 跟随 `main`
   - 维持 strict L0 的 current-entry 文档、模块边界和验证口径一致
@@ -16,6 +16,8 @@
   - 给 retained-refs inventory 增加 `next_focus=`，把 `sidecar/tail` 的下一跳固定成 `test-hygiene-first`
   - 把 docs residue 继续细分成 root/module/topic/guide/archive-pointer/collections-dated/legacy/report-topic
   - 给 retained-refs inventory 增加 `docs_absorb_candidate_paths=`，把 `sidecar/tail` 的 low-risk docs residue landing zone 写清楚
+  - 给 retained-refs inventory 增加 `test_hygiene_candidate_paths=`，把 `sidecar/tail` 的 hygiene 第一跳直接写出来
+  - 给 retained-refs inventory 增加 `source_review_candidate_paths=`，把 `closeout/rescue` 的 source-review 第一跳直接写出来
   - 把 examples/build drift 细分成 example source / build scripts / generated outputs / test artifacts
   - 把 Linux maintenance workflow 与 Windows exact-evidence lane 的 current-entry 命令、证据和 fail-close 语义写准
   - 保持 Windows exact evidence 只能来自 GitHub Actions / 真实 Windows runner 这一纪律
@@ -24,7 +26,7 @@
   - `docs/fafafa.core.l0.roadmap.md`
   - `docs/ARCHITECTURE_LAYERS.md`
   - `docs/audits/2026-04-11-l0-current-state-audit.md`
-  - `docs/audits/2026-04-13-l0-retained-refs-seventh-absorption-audit.md`
+  - `docs/audits/2026-04-13-l0-retained-refs-eighth-focus-routing-audit.md`
   - `docs/legacy/l0/README.md`
   - `docs/collections/legacy/README.md`
   - `docs/reports/README.md`
@@ -33,6 +35,7 @@
   - `docs/EXAMPLES.md`
   - `docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md`
   - `docs/plans/2026-04-13-l0-retained-refs-seventh-absorption-plan.md`
+  - `docs/plans/2026-04-13-l0-retained-refs-eighth-focus-routing-plan.md`
   - `docs/CI.md`
   - `tests/check_strict_l0_docs_consistency.sh`
   - `tests/run_strict_l0_maintenance_loop.sh`
@@ -41,6 +44,7 @@
   - `tests/test_strict_l0_retained_refs_inventory_code_tests_contract.sh`
   - `tests/test_strict_l0_retained_refs_inventory_test_hygiene_contract.sh`
   - `tests/test_strict_l0_retained_refs_inventory_docs_current_entry_contract.sh`
+  - `tests/test_strict_l0_retained_refs_inventory_focus_routing_contract.sh`
   - `tests/test_strict_l0_retained_refs_inventory_examples_build_contract.sh`
   - `tests/test_strict_l0_examples_build_docs_contract.sh`
   - `tests/run_windows_strict_l0_native_evidence_via_github_actions.sh`
@@ -58,6 +62,8 @@
   - `bash tests/test_strict_l0_retained_refs_inventory_test_hygiene_contract.sh`
   - 结果：PASS
   - `bash tests/test_strict_l0_retained_refs_inventory_docs_current_entry_contract.sh`
+  - 结果：PASS
+  - `bash tests/test_strict_l0_retained_refs_inventory_focus_routing_contract.sh`
   - 结果：PASS
   - `bash tests/test_strict_l0_retained_refs_inventory_examples_build_contract.sh`
   - 结果：PASS
@@ -103,7 +109,9 @@
   - 如需直接看 retained refs 的代表性 unique commits / paths，使用 `bash tests/report_strict_l0_retained_refs_inventory.sh --details`
   - fresh `--details` 现在已经把 `code_or_tests` 细分成 `src / test source / test code / test script / test doc / runtime record / control file / CI workflow / output artifact / binary artifact`，也把 docs residue 细分成 root/module/topic/guide/archive-pointer/collections-dated/legacy/report-topic
   - 当前 `sidecar` / `tail` 的 `next_focus=` 已固定为 `test-hygiene-first`
+  - 当前 `sidecar` / `tail` 的 `test_hygiene_candidate_paths=` 已经固定暴露出 runtime/control/output/binary hygiene surface
   - 当前 `sidecar` / `tail` 的 `docs_absorb_candidate_paths=` 已经固定暴露出 archive pointer / collections dated / legacy landing zone
+  - 当前 `closeout` / `rescue` 的 `source_review_candidate_paths=` 已经固定暴露出 `src / test source / CI / examples-build` review surface
   - `closeout` / `rescue` 继续保留给更高风险的 `source-review-first` 专项波次
   - 如需一波收口 Linux/Windows evidence 与 current-state docs，使用 `bash tests/run_strict_l0_mainline_closeout.sh`
   - 如需只回填 current-state 文档，使用 `bash tests/update_strict_l0_current_state_docs.sh --apply --main-sha <main-sha> --linux-run-id <linux-run-id> --linux-run-sha <linux-run-sha> --windows-run-id <windows-run-id> --windows-run-sha <windows-run-sha> --windows-local-batch-id <batch-id>`

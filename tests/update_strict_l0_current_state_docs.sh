@@ -152,6 +152,7 @@ audit_text = f"""# 2026-04-11 L0 Current State Audit
 - 当前唯一 L0 branch 仍是 `l0-mainline`，但它现在只是一个跟随 `origin/main` 的维护分支，不再承载未合并增量。
 - Linux x64 的 strict L0 日常维护继续固定为 `bash tests/run_strict_l0_maintenance_loop.sh`；对应 GitHub Actions workflow `l0-linux-maintenance.yml` 已进入 default branch，并已在 `main` fresh 通过。
 - strict L0 的 Windows native evidence 当前继续由 GitHub Actions run `{windows_run_id}` 提供 exact evidence，shell-side artifact verifier 已在 Linux x64 本地复核通过。
+- 第八波之后，retained-refs inventory 还会继续显式输出 `test_hygiene_candidate_paths=` 与 `source_review_candidate_paths=`，让 `sidecar/tail` 与 `closeout/rescue` 的当前下一跳直接可读。
 - 当前 4 个残留 L0 refs 仍承载独立 patch history；refs cleanup 结论继续保持显式 `no-op`。
 
 ## Mainline Closeout Snapshot
@@ -175,6 +176,8 @@ audit_text = f"""# 2026-04-11 L0 Current State Audit
 - `bash tests/test_strict_l0_docs_consistency_contract.sh`
   - 结果：PASS
 - `bash tests/test_strict_l0_stable_docs_no_sha_contract.sh`
+  - 结果：PASS
+- `bash tests/test_strict_l0_retained_refs_inventory_focus_routing_contract.sh`
   - 结果：PASS
 - `bash tests/test_strict_l0_linux_ci_workflow_contract.sh`
   - 结果：PASS
@@ -209,6 +212,7 @@ audit_text = f"""# 2026-04-11 L0 Current State Audit
 - 如需 GitHub-side Windows exact evidence，当前标准入口是 `l0-windows-native-evidence.yml`，并在下载后继续通过 `bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh <batch-id> <run-id>` 做 shell-side artifact 校验。
 - 如需重新审计残留历史 L0 refs 是否仍承载独立 patch history，当前标准入口是 `bash tests/audit_strict_l0_retained_refs.sh`；它只给 decision，不直接删除 refs。
 - 如需先判断 retained refs 该优先吸收哪一类 unique history，当前标准入口是 `bash tests/report_strict_l0_retained_refs_inventory.sh`；它会先给 absorb inventory，再决定下一批动作。
+- 第八波之后，如果 `next_focus=test-hygiene-first`，优先看 `test_hygiene_candidate_paths=`；如果 `next_focus=source-review-first`，优先看 `source_review_candidate_paths=`；docs residue 则继续看 `docs_absorb_candidate_paths=`。
 - 当前保留的本地 L0 refs 只包括：
   - `l0-mainline`
   - `l0-mainline-closeout-20260411`
@@ -285,12 +289,14 @@ worker_text = f"""# worker1
   - 维持 strict L0 的 current-entry 文档、模块边界和验证口径一致
   - 只清理安全可删的本地 L0 refs，保留仍然承载独立历史的锚点
   - 把 Linux maintenance workflow 与 Windows exact-evidence lane 的 current-entry 命令、证据和 fail-close 语义写准
+  - 把 retained-refs triage 的 `test_hygiene_candidate_paths=` / `source_review_candidate_paths=` 保持为 today contract
   - 保持 Windows exact evidence 只能来自 GitHub Actions / 真实 Windows runner 这一纪律
 - Source of truth:
   - `docs/fafafa.core.l0.foundation.md`
   - `docs/fafafa.core.l0.roadmap.md`
   - `docs/ARCHITECTURE_LAYERS.md`
   - `docs/audits/2026-04-11-l0-current-state-audit.md`
+  - `docs/audits/2026-04-13-l0-retained-refs-eighth-focus-routing-audit.md`
   - `docs/audits/2026-04-12-l0-retained-refs-absorption-audit.md`
   - `docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md`
   - `docs/CI.md`
@@ -298,6 +304,7 @@ worker_text = f"""# worker1
   - `tests/run_strict_l0_maintenance_loop.sh`
   - `tests/run_strict_l0_mainline_closeout.sh`
   - `tests/report_strict_l0_retained_refs_inventory.sh`
+  - `tests/test_strict_l0_retained_refs_inventory_focus_routing_contract.sh`
   - `tests/run_windows_strict_l0_native_evidence_via_github_actions.sh`
   - `tests/update_strict_l0_current_state_docs.sh`
   - `docs/fafafa.core.span.md`
@@ -309,6 +316,8 @@ worker_text = f"""# worker1
   - `bash tests/test_strict_l0_docs_consistency_contract.sh`
   - 结果：PASS
   - `bash tests/test_strict_l0_stable_docs_no_sha_contract.sh`
+  - 结果：PASS
+  - `bash tests/test_strict_l0_retained_refs_inventory_focus_routing_contract.sh`
   - 结果：PASS
   - `bash tests/test_strict_l0_linux_ci_workflow_contract.sh`
   - 结果：PASS
@@ -342,6 +351,9 @@ worker_text = f"""# worker1
   - Linux x64 上的日常维护默认走 `bash tests/run_strict_l0_maintenance_loop.sh`
   - 如需重新判断 retained refs 是否还该保留，使用 `bash tests/audit_strict_l0_retained_refs.sh`
   - 如需先判断 retained refs 该优先吸收哪类 unique history，使用 `bash tests/report_strict_l0_retained_refs_inventory.sh`
+  - 如果 `next_focus=test-hygiene-first`，优先看 `test_hygiene_candidate_paths=`
+  - 如果 `next_focus=source-review-first`，优先看 `source_review_candidate_paths=`
+  - docs residue 继续看 `docs_absorb_candidate_paths=`
   - 如需一波收口 Linux/Windows evidence 与 current-state docs，使用 `bash tests/run_strict_l0_mainline_closeout.sh`
   - 如需只回填 current-state 文档，使用 `bash tests/update_strict_l0_current_state_docs.sh --apply --main-sha <main-sha> --linux-run-id <linux-run-id> --linux-run-sha <linux-run-sha> --windows-run-id <windows-run-id> --windows-run-sha <windows-run-sha> --windows-local-batch-id <batch-id>`
   - 需要 Windows exact evidence 时，继续使用 GitHub Actions workflow + shell verifier，不在 Linux x64 本地伪造 native 结论

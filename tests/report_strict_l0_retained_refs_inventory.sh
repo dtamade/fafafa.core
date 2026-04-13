@@ -21,8 +21,8 @@ strict L0 refs and buckets the touched paths for absorption planning.
 In --details mode it also splits example/build drift into example sources,
 build scripts, generated outputs, and splits code/tests drift into src paths,
 real test sources, runtime records, control files, CI workflows, and test
-artifacts. It also prints docs absorbability buckets and next_focus= to make
-the next absorb wave explicit.
+artifacts. It also prints docs absorbability buckets, explicit focus-routing
+candidate buckets, and next_focus= to make the next absorb wave explicit.
 EOF
 }
 
@@ -364,6 +364,16 @@ is_test_artifact_path() {
   return 1
 }
 
+is_test_hygiene_candidate_path() {
+  local aPath="$1"
+
+  if is_test_runtime_record_path "${aPath}" || is_test_control_path "${aPath}" || is_test_artifact_path "${aPath}"; then
+    return 0
+  fi
+
+  return 1
+}
+
 is_test_source_path() {
   local aPath="$1"
 
@@ -376,6 +386,22 @@ is_test_source_path() {
         return 0
       fi
       return 1
+      ;;
+  esac
+
+  return 1
+}
+
+is_source_review_candidate_path() {
+  local aPath="$1"
+
+  if is_src_path "${aPath}" || is_ci_workflow_path "${aPath}" || is_test_source_path "${aPath}"; then
+    return 0
+  fi
+
+  case "${aPath}" in
+    examples/*|*/BuildOrRun.sh|*/BuildOrRun.bat|*/BuildOrTest.sh|*/BuildOrTest.bat)
+      return 0
       ;;
   esac
 
@@ -458,6 +484,7 @@ for LRef in "${RETAINED_REFS[@]}"; do
   LSampleTestDocPaths=()
   LSampleTestRuntimeRecordPaths=()
   LSampleTestControlPaths=()
+  LSampleTestHygieneCandidatePaths=()
   LSampleCiWorkflowPaths=()
   LSampleExamplesOrBuildPaths=()
   LSampleExampleSourcePaths=()
@@ -486,6 +513,7 @@ for LRef in "${RETAINED_REFS[@]}"; do
   LTestDocPaths=0
   LTestRuntimeRecordPaths=0
   LTestControlPaths=0
+  LTestHygieneCandidatePaths=0
   LCiWorkflowPaths=0
   LExamplesOrBuildPaths=0
   LExampleSourcePaths=0
@@ -494,6 +522,8 @@ for LRef in "${RETAINED_REFS[@]}"; do
   LTestArtifactPaths=0
   LTestOutputArtifactPaths=0
   LTestBinaryArtifactPaths=0
+  LSourceReviewCandidatePaths=0
+  LSampleSourceReviewCandidatePaths=()
   LOtherPaths=0
 
   while IFS= read -r LCherryLine; do
@@ -561,18 +591,28 @@ for LRef in "${RETAINED_REFS[@]}"; do
           if is_src_path "${LPath}"; then
             LSrcPaths=$((LSrcPaths + 1))
             append_sample LSampleSrcPaths "${LPath}" 3
+            LSourceReviewCandidatePaths=$((LSourceReviewCandidatePaths + 1))
+            append_sample LSampleSourceReviewCandidatePaths "${LPath}" 3
           elif is_ci_workflow_path "${LPath}"; then
             LCiWorkflowPaths=$((LCiWorkflowPaths + 1))
             append_sample LSampleCiWorkflowPaths "${LPath}" 3
+            LSourceReviewCandidatePaths=$((LSourceReviewCandidatePaths + 1))
+            append_sample LSampleSourceReviewCandidatePaths "${LPath}" 3
           elif is_test_runtime_record_path "${LPath}"; then
             LTestRuntimeRecordPaths=$((LTestRuntimeRecordPaths + 1))
             append_sample LSampleTestRuntimeRecordPaths "${LPath}" 3
+            LTestHygieneCandidatePaths=$((LTestHygieneCandidatePaths + 1))
+            append_sample LSampleTestHygieneCandidatePaths "${LPath}" 3
           elif is_test_control_path "${LPath}"; then
             LTestControlPaths=$((LTestControlPaths + 1))
             append_sample LSampleTestControlPaths "${LPath}" 3
+            LTestHygieneCandidatePaths=$((LTestHygieneCandidatePaths + 1))
+            append_sample LSampleTestHygieneCandidatePaths "${LPath}" 3
           elif is_test_artifact_path "${LPath}"; then
             LTestArtifactPaths=$((LTestArtifactPaths + 1))
             append_sample LSampleTestArtifactPaths "${LPath}" 3
+            LTestHygieneCandidatePaths=$((LTestHygieneCandidatePaths + 1))
+            append_sample LSampleTestHygieneCandidatePaths "${LPath}" 3
             if is_test_output_artifact_path "${LPath}"; then
               LTestOutputArtifactPaths=$((LTestOutputArtifactPaths + 1))
               append_sample LSampleTestOutputArtifactPaths "${LPath}" 3
@@ -583,6 +623,8 @@ for LRef in "${RETAINED_REFS[@]}"; do
           elif is_test_source_path "${LPath}"; then
             LTestSourcePaths=$((LTestSourcePaths + 1))
             append_sample LSampleTestSourcePaths "${LPath}" 3
+            LSourceReviewCandidatePaths=$((LSourceReviewCandidatePaths + 1))
+            append_sample LSampleSourceReviewCandidatePaths "${LPath}" 3
             if is_test_code_path "${LPath}"; then
               LTestCodePaths=$((LTestCodePaths + 1))
               append_sample LSampleTestCodePaths "${LPath}" 3
@@ -598,6 +640,8 @@ for LRef in "${RETAINED_REFS[@]}"; do
         examples_or_build)
           LExamplesOrBuildPaths=$((LExamplesOrBuildPaths + 1))
           append_sample LSampleExamplesOrBuildPaths "${LPath}" 3
+          LSourceReviewCandidatePaths=$((LSourceReviewCandidatePaths + 1))
+          append_sample LSampleSourceReviewCandidatePaths "${LPath}" 3
           if is_build_script_path "${LPath}"; then
             LBuildScriptPaths=$((LBuildScriptPaths + 1))
             append_sample LSampleBuildScriptPaths "${LPath}" 3
@@ -660,8 +704,10 @@ for LRef in "${RETAINED_REFS[@]}"; do
   echo "test_doc_paths=${LTestDocPaths}"
   echo "test_runtime_record_paths=${LTestRuntimeRecordPaths}"
   echo "test_control_paths=${LTestControlPaths}"
+  echo "test_hygiene_candidate_paths=${LTestHygieneCandidatePaths}"
   echo "ci_workflow_paths=${LCiWorkflowPaths}"
   echo "examples_or_build_paths=${LExamplesOrBuildPaths}"
+  echo "source_review_candidate_paths=${LSourceReviewCandidatePaths}"
   echo "example_source_paths=${LExampleSourcePaths}"
   echo "build_script_paths=${LBuildScriptPaths}"
   echo "generated_output_paths=${LGeneratedOutputPaths}"
@@ -733,6 +779,9 @@ for LRef in "${RETAINED_REFS[@]}"; do
     if (( ${#LSampleTestControlPaths[@]} > 0 )); then
       echo "sample_test_control_paths=$(join_samples LSampleTestControlPaths)"
     fi
+    if (( ${#LSampleTestHygieneCandidatePaths[@]} > 0 )); then
+      echo "sample_test_hygiene_candidate_paths=$(join_samples LSampleTestHygieneCandidatePaths)"
+    fi
     if (( ${#LSampleCiWorkflowPaths[@]} > 0 )); then
       echo "sample_ci_workflow_paths=$(join_samples LSampleCiWorkflowPaths)"
     fi
@@ -756,6 +805,9 @@ for LRef in "${RETAINED_REFS[@]}"; do
     fi
     if (( ${#LSampleTestBinaryArtifactPaths[@]} > 0 )); then
       echo "sample_test_binary_artifact_paths=$(join_samples LSampleTestBinaryArtifactPaths)"
+    fi
+    if (( ${#LSampleSourceReviewCandidatePaths[@]} > 0 )); then
+      echo "sample_source_review_candidate_paths=$(join_samples LSampleSourceReviewCandidatePaths)"
     fi
     if (( ${#LSampleOtherPaths[@]} > 0 )); then
       echo "sample_other_paths=$(join_samples LSampleOtherPaths)"

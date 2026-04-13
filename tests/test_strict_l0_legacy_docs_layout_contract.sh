@@ -62,8 +62,8 @@ done
 
 require_literal "docs/README.md" "docs/legacy/l0/README.md"
 require_literal "docs/INDEX.md" "docs/legacy/l0/README.md"
-require_literal "docs/README.md" "docs/audits/2026-04-13-l0-retained-refs-seventh-absorption-audit.md"
-require_literal "docs/INDEX.md" "docs/audits/2026-04-13-l0-retained-refs-seventh-absorption-audit.md"
+require_literal "docs/README.md" "docs/audits/2026-04-13-l0-retained-refs-eighth-focus-routing-audit.md"
+require_literal "docs/INDEX.md" "docs/audits/2026-04-13-l0-retained-refs-eighth-focus-routing-audit.md"
 require_literal "docs/legacy/l0/README.md" "2026-04-10-l0-current-state-audit.md"
 require_literal "docs/legacy/l0/README.md" "2026-04-09-l0-kernel-span2-closeout.md"
 require_literal "docs/legacy/l0/README.md" "2026-03-26-strict-l0-merge-closeout.md"

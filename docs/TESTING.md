@@ -174,6 +174,37 @@ bash tests/report_strict_l0_retained_refs_inventory.sh --details
 
 也就是说，`sidecar/tail` 在继续保持 `next_focus=test-hygiene-first` 的同时，它们后续最值得优先吸收的低风险 docs residue 也已经不是未知数了。
 
+第八波之后，`--details` 还会继续给出：
+
+- `test_hygiene_candidate_paths=`
+- `sample_test_hygiene_candidate_paths=`
+- `source_review_candidate_paths=`
+- `sample_source_review_candidate_paths=`
+
+这两个 bucket 的 today contract 固定为：
+
+- `test_hygiene_candidate_paths=`
+  - runtime records
+  - control files
+  - output artifacts
+  - binary artifacts
+- `source_review_candidate_paths=`
+  - `src`
+  - real test source
+  - CI workflow
+  - examples/build drift
+
+这意味着 retained-refs triage 的 today 顺序进一步固定为：
+
+1. 先看 `recommendation=`
+2. 再看 `next_focus=`
+3. 如果是 `test-hygiene-first`，优先看 `test_hygiene_candidate_paths=`
+4. 如果是 `source-review-first`，优先看 `source_review_candidate_paths=`
+5. docs residue 则继续看 `docs_absorb_candidate_paths=`
+6. 最后再用对应 `sample_*` 看 representative paths
+
+也就是说，`sidecar/tail` 的第一跳不再只是一个方向标签，而是已经有显式的 hygiene candidate surface；`closeout/rescue` 的 source-review-first 也不再需要人工把 `src` / test source / CI / examples-build 重新拼起来。
+
 如果你当前关心的是 strict non-SIMD L0 在 Windows 路径上的复核，不要直接从“原生 `.bat` 构建完全对称”这个前提出发。当前仓库已经分成四条不同的复核链路：
 
 - 最小 Win64 `.exe` runtime smoke
