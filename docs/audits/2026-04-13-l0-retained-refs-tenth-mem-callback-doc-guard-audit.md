@@ -101,20 +101,19 @@ post-code-commit `bash tests/report_strict_l0_retained_refs_source_review_shortl
 
 ## Windows exact evidence status for this local wave
 
-这轮包含了非文档代码 / 测试变化，因此 exact Windows native evidence 纪律没有放松：
+这轮包含了非文档代码 / 测试变化，因此 exact Windows native evidence 纪律没有放松；不同的是，这个 blocker 现在已经按 branch-scoped pre-merge closeout 方式被补齐：
 
 - Windows exact native evidence 仍只接受 GitHub Actions / 真实 Windows runner
-- 但当前 `l0-mainline` 是本地 worktree 维护分支，`git branch -vv` 显示它仍跟随 `origin/main`
-- 如果本地第十波 `HEAD` 还没有 remote-visible ref，就不应在 Linux x64 本地伪造“exact Windows pass”
+- 当前 local / remote `l0-mainline` 已对齐到 `bb2c4104f098699a9f387800b0688a11a12661c9`
+- GitHub Actions `L0 Windows Native Evidence` run `24349338362` 已对这个 branch-visible head 收到 exact evidence
+- Linux shell-side artifact verifier 也已对 `tests/_windows_l0_native_evidence_gh/L0-20260413-l0-premerge-ci-windows/` 复核通过
 
-因此，这轮的正确处理方式是：
+这说明：
 
-- 本地只收 Linux x64 与 contract/gate 证据
-- Windows exact evidence 作为 push / remote-visible ref 之后的 CI 步骤
-- fresh ref 对比：
-  - local latest implementation head=`e7ca1fdf9bed0ffb130eb4195137f0518bc14f5d`
-  - remote `l0-mainline=febc3093b3a32515babfd0217dbca3e7b8a15086`
-  - 因此当前 exact implementation-head 证据仍需要先 push / 更新 remote ref，不能直接宣称已被 GitHub Actions 覆盖
+- 之前“remote `l0-mainline` 落后于 local head，不能宣称 exact Windows coverage”的 blocker 已解除
+- 当前 exact Windows evidence 现在覆盖的是 `bb2c4104...` 这个 pre-merge branch head
+- 由于 `e7ca1fdf...` 之后新增的是 docs / control-plane-only 提交，因此第十波 implementation head 也包含在这个 branch-visible evidence 之内
+- 但这仍然不是 merged `main` closeout；`update_strict_l0_current_state_docs.sh` 继续只留给真正的 `origin/main` 合并收口
 
 ## Fresh verification
 
@@ -132,6 +131,12 @@ post-code-commit `bash tests/report_strict_l0_retained_refs_source_review_shortl
   - 结果：PASS
 - `bash tests/run_strict_l0_maintenance_loop.sh`
   - 结果：PASS
+- GitHub Actions `L0 Linux Maintenance` run `24349423066`
+  - head sha：`bb2c4104f098699a9f387800b0688a11a12661c9`
+  - 结果：PASS
+- GitHub Actions `L0 Windows Native Evidence` run `24349338362`
+  - head sha：`bb2c4104f098699a9f387800b0688a11a12661c9`
+  - 结果：`12/12 PASS`
 - `git diff --check`
   - 结果：PASS
 
@@ -155,4 +160,4 @@ post-code-commit `bash tests/report_strict_l0_retained_refs_source_review_shortl
 1. 保持 `closeout/rescue` 的 shortlist-first，而不是 broad merge
 2. 如果继续吸收 `rescue`，优先挑非 SIMD、小而可验证的 `src` / test source patch
 3. 当前若再发生非文档代码 / 测试变化，Linux x64 继续先跑 `bash tests/run_strict_l0_maintenance_loop.sh`
-4. exact Windows native evidence 继续只在 remote-visible ref 上通过 CI 收集
+4. exact Windows native evidence 继续只在 remote-visible ref 上通过 CI 收集；当前 `l0-mainline` pre-merge head 已收齐，但 merged `main` closeout 仍需按 merge 后语义单独记录
