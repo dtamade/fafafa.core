@@ -5,13 +5,16 @@
 - Status: `active`
 - Branch: `l0-mainline`
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
-- Base commit: `5630af5fa95c66e6359b3566aee3ff7e6a61a8b6` (`l0-mainline` current HEAD before this in-progress ninth-wave hygiene/shortlist batch)
+- Base commit: `8b27f9baf0310735911f09fa5d62b662d2bd7966` (`l0-mainline` current HEAD before this in-progress tenth-wave mem-callback/doc-guard batch)
 - Current focus:
   - 维持当前唯一 L0 worktree 跟随 `main`
   - 维持 strict L0 的 current-entry 文档、模块边界和验证口径一致
   - 只清理安全可删的本地 L0 refs，保留仍然承载独立历史的锚点
   - 把 `sidecar/tail` 里低风险的 tracked test-hygiene residue 真正从主线清掉
   - 把 `closeout/rescue` 继续收束到 shortlist-first，而不是 broad absorb
+  - 对 `callbackAllocator` 做最小 current-entry hardening，只吸收低风险 mem rescue 语义
+  - 明确把 `closeout` 里 6 个 test README residue 定性为 stale downgrade，而不是新的 docs absorb 目标
+  - 给 `closeout` test README 增加 no-downgrade contract，避免旧 retained ref 反向删掉 current-entry 的 maintenance/evidence 说明
   - 把 `code_or_tests` drift 细分成 `src` / `test source` / `test runtime/control residue` / `CI workflow` / `test artifact`
   - 把 `test source` 继续细分成 `test code` / `test script` / `test doc`
   - 给 retained-refs inventory 增加 `next_focus=`，把 `sidecar/tail` 的下一跳固定成 `test-hygiene-first`
@@ -29,6 +32,7 @@
   - `docs/ARCHITECTURE_LAYERS.md`
   - `docs/audits/2026-04-11-l0-current-state-audit.md`
   - `docs/audits/2026-04-13-l0-retained-refs-ninth-hygiene-shortlist-audit.md`
+  - `docs/audits/2026-04-13-l0-retained-refs-tenth-mem-callback-doc-guard-audit.md`
   - `docs/legacy/l0/README.md`
   - `docs/collections/legacy/README.md`
   - `docs/reports/README.md`
@@ -39,6 +43,7 @@
   - `docs/plans/2026-04-13-l0-retained-refs-seventh-absorption-plan.md`
   - `docs/plans/2026-04-13-l0-retained-refs-eighth-focus-routing-plan.md`
   - `docs/plans/2026-04-13-l0-retained-refs-ninth-hygiene-shortlist-plan.md`
+  - `docs/plans/2026-04-13-l0-retained-refs-tenth-mem-callback-doc-guard-plan.md`
   - `docs/CI.md`
   - `tests/check_strict_l0_docs_consistency.sh`
   - `tests/run_strict_l0_maintenance_loop.sh`
@@ -52,6 +57,7 @@
   - `tests/test_strict_l0_retained_refs_inventory_focus_routing_contract.sh`
   - `tests/test_strict_l0_retained_refs_inventory_examples_build_contract.sh`
   - `tests/test_strict_l0_retained_refs_source_review_shortlist_contract.sh`
+  - `tests/test_strict_l0_retained_refs_closeout_test_docs_no_downgrade_contract.sh`
   - `tests/test_strict_l0_examples_build_docs_contract.sh`
   - `tests/run_windows_strict_l0_native_evidence_via_github_actions.sh`
   - `tests/update_strict_l0_current_state_docs.sh`
@@ -74,6 +80,8 @@
   - `bash tests/test_strict_l0_retained_refs_hygiene_absorption_contract.sh`
   - 结果：PASS
   - `bash tests/test_strict_l0_retained_refs_source_review_shortlist_contract.sh`
+  - 结果：PASS
+  - `bash tests/test_strict_l0_retained_refs_closeout_test_docs_no_downgrade_contract.sh`
   - 结果：PASS
   - `bash tests/test_strict_l0_retained_refs_inventory_examples_build_contract.sh`
   - 结果：PASS
@@ -133,6 +141,7 @@
   - 当前 `closeout` / `rescue` 的 `source_review_candidate_paths=` 已经固定暴露出 `src / test source / CI / examples-build` review surface
   - 当前 `closeout` / `rescue` 的 shortlist 入口固定为 `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh`
   - shortlist 会继续显式暴露 `review_candidate_paths=` / `simd_out_of_scope_paths=` / `dangerous_delete_paths=` / `reject_wholesale_absorb=`
+  - 当前 `closeout` 那 6 个 test-doc residue 已明确确认为 stale downgrade；先用 `bash tests/test_strict_l0_retained_refs_closeout_test_docs_no_downgrade_contract.sh` 锁住主线 current-entry，不再尝试 docs absorb
   - `closeout` / `rescue` 继续保留给更高风险的 `source-review-first` 专项波次，不做 broad absorb
   - 如需一波收口 Linux/Windows evidence 与 current-state docs，使用 `bash tests/run_strict_l0_mainline_closeout.sh`
   - 如需只回填 current-state 文档，使用 `bash tests/update_strict_l0_current_state_docs.sh --apply --main-sha <main-sha> --linux-run-id <linux-run-id> --linux-run-sha <linux-run-sha> --windows-run-id <windows-run-id> --windows-run-sha <windows-run-sha> --windows-local-batch-id <batch-id>`

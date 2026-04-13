@@ -244,6 +244,26 @@ bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh
 4. 只要看到 `dangerous_delete_paths>0` 或 `reject_wholesale_absorb=yes`，就拒绝整包吸收
 5. `simd_out_of_scope_paths=` 则继续交回 SIMD owner，而不是混进 L0 波次
 
+第十波之后，`closeout` 里那 6 个 `test_doc_review_paths=` 也已经完成一次 fresh 人工复核：它们不是应当吸收到主线的补强内容，而是会反向删掉 current-entry 里已经建立好的 maintenance / exact-evidence 说明。因此当前增加了一个显式 no-downgrade 护栏：
+
+```bash
+bash tests/test_strict_l0_retained_refs_closeout_test_docs_no_downgrade_contract.sh
+```
+
+这条 contract 的 today 语义固定为：
+
+- `tests/fafafa.core.atomic/README.md` 继续把 heaptrc / logs 视为本地运行期产物，而不是 tracked 支持材料
+- `tests/fafafa.core.endian/README.md`
+- `tests/fafafa.core.layout/README.md`
+- `tests/fafafa.core.mem.allocator.foundation/README.md`
+- `tests/fafafa.core.platform/README.md`
+- `tests/fafafa.core.span/README.md`
+
+都必须继续保留：
+
+- Linux x64 strict L0 日常维护入口：`bash tests/run_strict_l0_maintenance_loop.sh`
+- exact Windows native evidence 只接受 GitHub Actions 或真实 Windows runner
+
 如果你当前关心的是 strict non-SIMD L0 在 Windows 路径上的复核，不要直接从“原生 `.bat` 构建完全对称”这个前提出发。当前仓库已经分成四条不同的复核链路：
 
 - 最小 Win64 `.exe` runtime smoke

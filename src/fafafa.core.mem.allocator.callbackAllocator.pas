@@ -44,11 +44,11 @@ implementation
 
 constructor TCallbackAllocator.Init(aGetMem: TGetMemCallback; aAllocMem: TAllocMemCallback; aReallocMem: TReallocMemCallback; aFreeMem: TFreeMemCallback);
 begin
-  inherited Create;
   ContractsRequireAssigned(aGetMem <> nil, 'aGetMem');
   ContractsRequireAssigned(aAllocMem <> nil, 'aAllocMem');
   ContractsRequireAssigned(aReallocMem <> nil, 'aReallocMem');
   ContractsRequireAssigned(aFreeMem <> nil, 'aFreeMem');
+  inherited Create;
   FGetMemCallback     := aGetMem;
   FAllocMemCallback   := aAllocMem;
   FReallocMemCallback := aReallocMem;
