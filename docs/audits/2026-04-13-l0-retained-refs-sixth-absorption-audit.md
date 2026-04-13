@@ -1,5 +1,6 @@
 # 2026-04-13 L0 Retained Refs Sixth Absorption Audit
 
+> 当前 latest 入口已推进到 `docs/audits/2026-04-13-l0-retained-refs-seventh-absorption-audit.md`。
 > 这份审计记录 strict non-SIMD L0 在 retained refs 清理前，继续把 `sidecar/tail` 下一跳里的 tests drift 从“混着源码、记录和产物”收紧成更可执行的 inventory 与 next-focus contract。
 
 ## Why this wave exists

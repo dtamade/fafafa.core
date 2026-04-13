@@ -11,6 +11,18 @@
 - `docs/collections/guides/README_VecDeque.md`
 - `docs/collections/guides/UnChecked_Methods_Summary.md`
 
+## Retained-Refs Landing Zone
+
+第七波 retained-refs absorbability 之后，如果 `l0-sidecar-handoff-20260409` 或 `l0-main-tail-cleanup-20260408-final` 继续暴露：
+
+- `docs/collections/plans/COLLECTIONS_REFINEMENT_PLAN.md`
+- `docs/collections/status/COLLECTIONS_CURRENT_STATUS_2025-11-03.md`
+- `docs/collections/status/COLLECTIONS_OVERVIEW_2025-11-03.md`
+
+应优先把它们理解成“已存在稳定 landing zone 的低风险 collections dated docs residue”，而不是 today current-entry。
+
+也就是说，retained-refs inventory 里的这批路径现在应优先落到这里的 legacy 语境，再决定是否还需要更进一步的 source review。
+
 ## Archived plans
 
 - `docs/collections/legacy/COLLECTIONS_REFINEMENT_PLAN.md`

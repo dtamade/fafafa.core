@@ -21,7 +21,8 @@ strict L0 refs and buckets the touched paths for absorption planning.
 In --details mode it also splits example/build drift into example sources,
 build scripts, generated outputs, and splits code/tests drift into src paths,
 real test sources, runtime records, control files, CI workflows, and test
-artifacts. It also prints next_focus= to make the next absorb wave explicit.
+artifacts. It also prints docs absorbability buckets and next_focus= to make
+the next absorb wave explicit.
 EOF
 }
 
@@ -96,6 +97,115 @@ is_generated_output_path() {
       return 0
       ;;
   esac
+
+  return 1
+}
+
+is_docs_root_entry_path() {
+  local aPath="$1"
+
+  case "${aPath}" in
+    docs/README.md|docs/INDEX.md|docs/EXAMPLES.md)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+is_docs_module_path() {
+  local aPath="$1"
+
+  case "${aPath}" in
+    docs/fafafa.core*.md)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+is_docs_topic_path() {
+  local aPath="$1"
+
+  case "${aPath}" in
+    docs/topics/*)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+is_docs_guide_path() {
+  local aPath="$1"
+
+  case "${aPath}" in
+    docs/collections/guides/*)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+is_docs_archive_pointer_path() {
+  local aPath="$1"
+
+  case "${aPath}" in
+    docs/reports/README.md|docs/collections/reports/README.md|docs/benchmarks/reports/README.md)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+is_docs_collections_dated_path() {
+  local aPath="$1"
+
+  case "${aPath}" in
+    docs/collections/plans/*|docs/collections/status/*|docs/collections/reviews/*)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+is_docs_legacy_path() {
+  local aPath="$1"
+
+  case "${aPath}" in
+    docs/legacy/*)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+is_docs_report_topic_path() {
+  local aPath="$1"
+
+  case "${aPath}" in
+    docs/reports/*)
+      if is_docs_archive_pointer_path "${aPath}"; then
+        return 1
+      fi
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+is_docs_absorb_candidate_path() {
+  local aPath="$1"
+
+  if is_docs_archive_pointer_path "${aPath}" || is_docs_collections_dated_path "${aPath}" || is_docs_legacy_path "${aPath}"; then
+    return 0
+  fi
 
   return 1
 }
@@ -331,6 +441,15 @@ for LRef in "${RETAINED_REFS[@]}"; do
   LSampleUniqueCommits=()
   LSampleArchiveDocsPaths=()
   LSampleDocsCurrentEntryPaths=()
+  LSampleDocsRootEntryPaths=()
+  LSampleDocsModulePaths=()
+  LSampleDocsTopicPaths=()
+  LSampleDocsGuidePaths=()
+  LSampleDocsArchivePointerPaths=()
+  LSampleDocsCollectionsDatedPaths=()
+  LSampleDocsLegacyPaths=()
+  LSampleDocsReportTopicPaths=()
+  LSampleDocsAbsorbCandidatePaths=()
   LSampleCodeOrTestsPaths=()
   LSampleSrcPaths=()
   LSampleTestSourcePaths=()
@@ -350,6 +469,15 @@ for LRef in "${RETAINED_REFS[@]}"; do
   LSampleOtherPaths=()
   LArchiveDocsPaths=0
   LDocsCurrentEntryPaths=0
+  LDocsRootEntryPaths=0
+  LDocsModulePaths=0
+  LDocsTopicPaths=0
+  LDocsGuidePaths=0
+  LDocsArchivePointerPaths=0
+  LDocsCollectionsDatedPaths=0
+  LDocsLegacyPaths=0
+  LDocsReportTopicPaths=0
+  LDocsAbsorbCandidatePaths=0
   LCodeOrTestsPaths=0
   LSrcPaths=0
   LTestSourcePaths=0
@@ -384,6 +512,40 @@ for LRef in "${RETAINED_REFS[@]}"; do
         continue
       fi
       LSeenPaths["${LPath}"]=1
+
+      if [[ "${LPath}" == docs/* ]]; then
+        if is_docs_root_entry_path "${LPath}"; then
+          LDocsRootEntryPaths=$((LDocsRootEntryPaths + 1))
+          append_sample LSampleDocsRootEntryPaths "${LPath}" 3
+        elif is_docs_module_path "${LPath}"; then
+          LDocsModulePaths=$((LDocsModulePaths + 1))
+          append_sample LSampleDocsModulePaths "${LPath}" 3
+        elif is_docs_topic_path "${LPath}"; then
+          LDocsTopicPaths=$((LDocsTopicPaths + 1))
+          append_sample LSampleDocsTopicPaths "${LPath}" 3
+        elif is_docs_guide_path "${LPath}"; then
+          LDocsGuidePaths=$((LDocsGuidePaths + 1))
+          append_sample LSampleDocsGuidePaths "${LPath}" 3
+        elif is_docs_archive_pointer_path "${LPath}"; then
+          LDocsArchivePointerPaths=$((LDocsArchivePointerPaths + 1))
+          append_sample LSampleDocsArchivePointerPaths "${LPath}" 3
+        elif is_docs_collections_dated_path "${LPath}"; then
+          LDocsCollectionsDatedPaths=$((LDocsCollectionsDatedPaths + 1))
+          append_sample LSampleDocsCollectionsDatedPaths "${LPath}" 3
+        elif is_docs_legacy_path "${LPath}"; then
+          LDocsLegacyPaths=$((LDocsLegacyPaths + 1))
+          append_sample LSampleDocsLegacyPaths "${LPath}" 3
+        elif is_docs_report_topic_path "${LPath}"; then
+          LDocsReportTopicPaths=$((LDocsReportTopicPaths + 1))
+          append_sample LSampleDocsReportTopicPaths "${LPath}" 3
+        fi
+
+        if is_docs_absorb_candidate_path "${LPath}"; then
+          LDocsAbsorbCandidatePaths=$((LDocsAbsorbCandidatePaths + 1))
+          append_sample LSampleDocsAbsorbCandidatePaths "${LPath}" 3
+        fi
+      fi
+
       case "$(classify_path "${LPath}")" in
         archive_docs)
           LArchiveDocsPaths=$((LArchiveDocsPaths + 1))
@@ -481,6 +643,15 @@ for LRef in "${RETAINED_REFS[@]}"; do
   echo "unique_commit_count=${#LUniqueCommits[@]}"
   echo "archive_docs_paths=${LArchiveDocsPaths}"
   echo "docs_current_entry_paths=${LDocsCurrentEntryPaths}"
+  echo "docs_root_entry_paths=${LDocsRootEntryPaths}"
+  echo "docs_module_paths=${LDocsModulePaths}"
+  echo "docs_topic_paths=${LDocsTopicPaths}"
+  echo "docs_guide_paths=${LDocsGuidePaths}"
+  echo "docs_archive_pointer_paths=${LDocsArchivePointerPaths}"
+  echo "docs_collections_dated_paths=${LDocsCollectionsDatedPaths}"
+  echo "docs_legacy_paths=${LDocsLegacyPaths}"
+  echo "docs_report_topic_paths=${LDocsReportTopicPaths}"
+  echo "docs_absorb_candidate_paths=${LDocsAbsorbCandidatePaths}"
   echo "code_or_tests_paths=${LCodeOrTestsPaths}"
   echo "src_paths=${LSrcPaths}"
   echo "test_source_paths=${LTestSourcePaths}"
@@ -510,6 +681,33 @@ for LRef in "${RETAINED_REFS[@]}"; do
     fi
     if (( ${#LSampleDocsCurrentEntryPaths[@]} > 0 )); then
       echo "sample_docs_current_entry_paths=$(join_samples LSampleDocsCurrentEntryPaths)"
+    fi
+    if (( ${#LSampleDocsRootEntryPaths[@]} > 0 )); then
+      echo "sample_docs_root_entry_paths=$(join_samples LSampleDocsRootEntryPaths)"
+    fi
+    if (( ${#LSampleDocsModulePaths[@]} > 0 )); then
+      echo "sample_docs_module_paths=$(join_samples LSampleDocsModulePaths)"
+    fi
+    if (( ${#LSampleDocsTopicPaths[@]} > 0 )); then
+      echo "sample_docs_topic_paths=$(join_samples LSampleDocsTopicPaths)"
+    fi
+    if (( ${#LSampleDocsGuidePaths[@]} > 0 )); then
+      echo "sample_docs_guide_paths=$(join_samples LSampleDocsGuidePaths)"
+    fi
+    if (( ${#LSampleDocsArchivePointerPaths[@]} > 0 )); then
+      echo "sample_docs_archive_pointer_paths=$(join_samples LSampleDocsArchivePointerPaths)"
+    fi
+    if (( ${#LSampleDocsCollectionsDatedPaths[@]} > 0 )); then
+      echo "sample_docs_collections_dated_paths=$(join_samples LSampleDocsCollectionsDatedPaths)"
+    fi
+    if (( ${#LSampleDocsLegacyPaths[@]} > 0 )); then
+      echo "sample_docs_legacy_paths=$(join_samples LSampleDocsLegacyPaths)"
+    fi
+    if (( ${#LSampleDocsReportTopicPaths[@]} > 0 )); then
+      echo "sample_docs_report_topic_paths=$(join_samples LSampleDocsReportTopicPaths)"
+    fi
+    if (( ${#LSampleDocsAbsorbCandidatePaths[@]} > 0 )); then
+      echo "sample_docs_absorb_candidate_paths=$(join_samples LSampleDocsAbsorbCandidatePaths)"
     fi
     if (( ${#LSampleCodeOrTestsPaths[@]} > 0 )); then
       echo "sample_code_or_tests_paths=$(join_samples LSampleCodeOrTestsPaths)"

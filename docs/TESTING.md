@@ -146,6 +146,34 @@ bash tests/report_strict_l0_retained_refs_inventory.sh --details
 
 其中 `sidecar` / `tail` 这种仍然混着 archive docs 与 test residue 的 retained refs，当前会继续保留 `recommendation=` 的高层吸收建议，同时用 `next_focus=test-hygiene-first` 把下一跳 code/test triage 写死。
 
+第七波之后，`--details` 的 docs residue 还会继续细分成：
+
+- `sample_docs_root_entry_paths=`
+- `sample_docs_module_paths=`
+- `sample_docs_topic_paths=`
+- `sample_docs_guide_paths=`
+- `sample_docs_archive_pointer_paths=`
+- `sample_docs_collections_dated_paths=`
+- `sample_docs_legacy_paths=`
+- `sample_docs_report_topic_paths=`
+- `sample_docs_absorb_candidate_paths=`
+
+这样你可以继续判断 retained refs 里暴露出来的 docs residue 到底是：
+
+- 仍然活跃的 root/module/topic/guide current-entry
+- 已经有稳定 landing zone 的 archive pointer
+- 已经该回到 legacy 语境的 collections dated docs
+- 已经落在 legacy 下的历史 L0 文档
+- 还是仍然属于 live report topic 的主题文档
+
+第七波之后，`docs_absorb_candidate_paths=` 的 today contract 固定为：
+
+- archive pointers
+- collections dated docs
+- legacy docs
+
+也就是说，`sidecar/tail` 在继续保持 `next_focus=test-hygiene-first` 的同时，它们后续最值得优先吸收的低风险 docs residue 也已经不是未知数了。
+
 如果你当前关心的是 strict non-SIMD L0 在 Windows 路径上的复核，不要直接从“原生 `.bat` 构建完全对称”这个前提出发。当前仓库已经分成四条不同的复核链路：
 
 - 最小 Win64 `.exe` runtime smoke

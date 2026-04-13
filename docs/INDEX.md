@@ -9,7 +9,7 @@
 - L0 稳定路线图：`docs/fafafa.core.l0.roadmap.md`
 - L0 详细定义：`docs/fafafa.core.l0.foundation.md`
 - L0 当前审计：`docs/audits/2026-04-11-l0-current-state-audit.md`
-- retained refs 第六波吸收审计：`docs/audits/2026-04-13-l0-retained-refs-sixth-absorption-audit.md`
+- retained refs 第七波吸收审计：`docs/audits/2026-04-13-l0-retained-refs-seventh-absorption-audit.md`
 - L0 post-merge 稳定化计划：`docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md`
 - L0 历史批次 / 审计归档：`docs/legacy/l0/README.md`
 - 工程规范：`docs/standards/ENGINEERING_STANDARDS.md`
@@ -105,14 +105,15 @@
 - strict L0 已在 `main` 完成合并；`docs/legacy/l0/README.md` 记录了更早的 merge checklist、batch closeout、dated current-state audit 和 rescue closeout 历史。
 - `docs/legacy/l0/2026-04-11-l0-mainline-refs-and-ci-closeout.md` 记录了当前残留 L0 refs 的审计结论，以及为什么这一步没有继续盲删历史 refs。
 - 当前如果要判断 strict L0 的真实状态，优先看 `docs/audits/2026-04-11-l0-current-state-audit.md`、`docs/fafafa.core.l0.roadmap.md` 和 `docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md`。
-- 当前 retained-refs latest absorption 入口固定为 `docs/audits/2026-04-13-l0-retained-refs-sixth-absorption-audit.md`。
+- 当前 retained-refs latest absorption 入口固定为 `docs/audits/2026-04-13-l0-retained-refs-seventh-absorption-audit.md`。
 - Linux x64 的 strict L0 日常维护入口固定为 `bash tests/run_strict_l0_maintenance_loop.sh`；它会串起 docs consistency、gate、`git diff --check`、runtime matrix 和 native closeout stack。
 - strict L0 在 `main` 上的一波收口入口固定为 `bash tests/run_strict_l0_mainline_closeout.sh`；需要实际覆盖 current-state 文档时显式加 `--apply-docs`。
 - 如果你已经拿到 Linux / Windows run id，只需要回填 current-state 审计、legacy closeout 和 worker handoff，入口固定为 `bash tests/update_strict_l0_current_state_docs.sh --apply ...`。
 - 如果你要重新审计当前保留的历史 L0 refs 是否仍承载独立 patch history，入口固定为 `bash tests/audit_strict_l0_retained_refs.sh`；它只给 decision，不做删除。
 - 如果你要先判断 retained refs 该从哪类 unique history 开始吸收，入口固定为 `bash tests/report_strict_l0_retained_refs_inventory.sh`；它会把 unique history 按 archive docs / current docs / code/tests / examples-build 分类。
 - 如果你要直接看到每条 retained ref 的代表性 unique commits 和路径样本，使用 `bash tests/report_strict_l0_retained_refs_inventory.sh --details`。
-- 第六波之后，`--details` 还会额外给出 `next_focus=`，并把 tests drift 继续拆成 real test source、runtime records、control files、output artifacts 和 binary artifacts。
+- 第七波之后，`--details` 还会继续给出 `next_focus=` 与 `docs_absorb_candidate_paths=`，并把 docs residue 继续拆成 root entry、module docs、topics/guides、archive pointers、collections dated docs、legacy docs 和 report topics。
+- 第七波之后，`sidecar/tail` 这两条 retained refs 的 low-risk docs residue landing zone 继续固定到 `docs/collections/legacy/README.md` 与几份 `docs/*/reports/README.md` 指路页。
 - 根目录 `task_plan.md`、`findings.md`、`progress.md` 已从主线移除；最后一份快照归档在 `plans/archive/2026-04-07-mainline-working-set/`。
 - 当前 L0 协作入口见 `workers/worker1.md`，当前 triage 判断见 `docs/audits/2026-04-11-l0-current-state-audit.md`，历史批次上下文见 `docs/legacy/l0/README.md`。
 - `docs/fafafa.core.span.md`、`docs/fafafa.core.contracts.md` 和 `docs/fafafa.core.platform.md` 现在都对应 strict L0 的实体入口。
