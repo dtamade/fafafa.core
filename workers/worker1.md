@@ -5,27 +5,15 @@
 - Status: `active`
 - Branch: `l0-mainline`
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
-- Latest implementation HEAD: `e7ca1fdf9bed0ffb130eb4195137f0518bc14f5d` (`feat(l0): absorb tenth mem callback doc-guard wave`)
+- Base commit: `b9c613fa9abdf40e7bea15d2cee71c70d915faec` (`origin/main`)
 - Current focus:
   - 维持当前唯一 L0 worktree 跟随 `main`
   - 维持 strict L0 的 current-entry 文档、模块边界和验证口径一致
-  - 把当前 `l0-mainline` branch head 推成 remote-visible ref，并收齐 pre-merge Linux / Windows CI evidence
   - 只清理安全可删的本地 L0 refs，保留仍然承载独立历史的锚点
-  - 把 `sidecar/tail` 里低风险的 tracked test-hygiene residue 真正从主线清掉
-  - 把 `closeout/rescue` 继续收束到 shortlist-first，而不是 broad absorb
-  - 对 `callbackAllocator` 做最小 current-entry hardening，只吸收低风险 mem rescue 语义
-  - 明确把 `closeout` 里 6 个 test README residue 定性为 stale downgrade，而不是新的 docs absorb 目标
-  - 给 `closeout` test README 增加 no-downgrade contract，避免旧 retained ref 反向删掉 current-entry 的 maintenance/evidence 说明
-  - 把 `code_or_tests` drift 细分成 `src` / `test source` / `test runtime/control residue` / `CI workflow` / `test artifact`
-  - 把 `test source` 继续细分成 `test code` / `test script` / `test doc`
-  - 给 retained-refs inventory 增加 `next_focus=`，把 `sidecar/tail` 的下一跳固定成 `test-hygiene-first`
-  - 把 docs residue 继续细分成 root/module/topic/guide/archive-pointer/collections-dated/legacy/report-topic
-  - 给 retained-refs inventory 增加 `docs_absorb_candidate_paths=`，把 `sidecar/tail` 的 low-risk docs residue landing zone 写清楚
-  - 给 retained-refs inventory 增加 `test_hygiene_candidate_paths=`，把 `sidecar/tail` 的 hygiene 第一跳直接写出来
-  - 给 retained-refs inventory 增加 `source_review_candidate_paths=`，把 `closeout/rescue` 的 source-review 第一跳直接写出来
-  - 给 `closeout/rescue` 补 `report_strict_l0_retained_refs_source_review_shortlist.sh`，显式拆出 `review_candidate_paths=` / `simd_out_of_scope_paths=` / `dangerous_delete_paths=`
-  - 把 examples/build drift 细分成 example source / build scripts / generated outputs / test artifacts
+  - 保持 merged-main current-state 文档显式写清：latest exact Windows native evidence 仍锚定 `main@bb2c4104f098699a9f387800b0688a11a12661c9`，而不是误写成已经在 `b9c613fa9abdf40e7bea15d2cee71c70d915faec` 上重跑
   - 把 Linux maintenance workflow 与 Windows exact-evidence lane 的 current-entry 命令、证据和 fail-close 语义写准
+  - 把 retained-refs triage 的 `test_hygiene_candidate_paths=` / `source_review_candidate_paths=` / `docs_absorb_candidate_paths=` 保持为 today contract
+  - 把 `sidecar/tail` 已吸收的 hygiene residue 与 `closeout/rescue` 的 shortlist-first 语义保持为 today contract，并继续拒绝 `dangerous_delete_paths=` 场景下的 wholesale absorb
   - 保持 Windows exact evidence 只能来自 GitHub Actions / 真实 Windows runner 这一纪律
 - Source of truth:
   - `docs/fafafa.core.l0.foundation.md`
@@ -35,6 +23,7 @@
   - `docs/audits/2026-04-13-l0-premerge-ci-evidence-audit.md`
   - `docs/audits/2026-04-13-l0-retained-refs-ninth-hygiene-shortlist-audit.md`
   - `docs/audits/2026-04-13-l0-retained-refs-tenth-mem-callback-doc-guard-audit.md`
+  - `docs/audits/2026-04-12-l0-retained-refs-absorption-audit.md`
   - `docs/legacy/l0/README.md`
   - `docs/collections/legacy/README.md`
   - `docs/reports/README.md`
@@ -70,36 +59,6 @@
   - `examples/fafafa.core.result/README.md`
   - `examples/fafafa.core.platform/README.md`
 - Fresh verification:
-  - `bash tests/test_strict_l0_retained_refs_inventory_details_contract.sh`
-  - 结果：PASS
-  - `bash tests/test_strict_l0_retained_refs_inventory_code_tests_contract.sh`
-  - 结果：PASS
-  - `bash tests/test_strict_l0_retained_refs_inventory_test_hygiene_contract.sh`
-  - 结果：PASS
-  - `bash tests/test_strict_l0_retained_refs_inventory_docs_current_entry_contract.sh`
-  - 结果：PASS
-  - `bash tests/test_strict_l0_retained_refs_inventory_focus_routing_contract.sh`
-  - 结果：PASS
-  - `bash tests/test_strict_l0_retained_refs_hygiene_absorption_contract.sh`
-  - 结果：PASS
-  - `bash tests/test_strict_l0_retained_refs_source_review_shortlist_contract.sh`
-  - 结果：PASS
-  - `bash tests/fafafa.core.mem.allocator.foundation/BuildOrTest.sh test`
-  - 结果：PASS
-  - `bash tests/fafafa.core.mem.allocator.foundation/BuildOrTest.sh test-no-contracts`
-  - 结果：PASS
-  - `bash tests/fafafa.core.mem/BuildOrTest.sh test`
-  - 结果：PASS
-  - `bash tests/fafafa.core.mem/BuildOrTest.sh test-no-contracts`
-  - 结果：PASS
-  - `bash tests/test_strict_l0_retained_refs_closeout_test_docs_no_downgrade_contract.sh`
-  - 结果：PASS
-  - `bash tests/test_strict_l0_retained_refs_inventory_examples_build_contract.sh`
-  - 结果：PASS
-  - `bash tests/test_strict_l0_examples_build_docs_contract.sh`
-  - 结果：PASS
-  - `bash tests/test_strict_l0_legacy_docs_layout_contract.sh`
-  - 结果：PASS
   - `bash tests/check_strict_l0_docs_consistency.sh`
   - 结果：PASS
   - `bash tests/test_strict_l0_docs_consistency_contract.sh`
@@ -114,22 +73,34 @@
   - 结果：PASS
   - `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh`
   - 结果：PASS
-  - `bash tests/fafafa.core.atomic/BuildOrTest.sh check`
-  - 结果：PASS
-  - `bash tests/fafafa.core.archiver/BuildOrTest.sh build`
-  - 结果：PASS
-  - `bash tests/fafafa.core.sync.barrier/BuildOrTest.sh build`
-  - 结果：PASS
   - `bash tests/audit_strict_l0_retained_refs.sh`
+  - 结果：PASS
+  - `bash tests/test_strict_l0_retained_refs_inventory_focus_routing_contract.sh`
+  - 结果：PASS
+  - `bash tests/test_strict_l0_retained_refs_hygiene_absorption_contract.sh`
+  - 结果：PASS
+  - `bash tests/test_strict_l0_retained_refs_source_review_shortlist_contract.sh`
+  - 结果：PASS
+  - `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh`
+  - 结果：PASS
+  - `bash tests/test_strict_l0_linux_ci_workflow_contract.sh`
+  - 结果：PASS
+  - `bash tests/test_windows_strict_l0_native_evidence_gh_contract.sh`
+  - 结果：PASS
+  - `bash tests/test_windows_strict_l0_native_evidence_main_ref_contract.sh`
   - 结果：PASS
   - `bash tests/run_strict_l0_maintenance_loop.sh`
   - 结果：PASS
   - GitHub Actions `L0 Linux Maintenance` run `24349423066`
-  - 结果：PASS（head=`bb2c4104f098699a9f387800b0688a11a12661c9`）
-  - GitHub Actions `L0 Windows Native Evidence` run `24349338362`
-  - 结果：PASS；`12/12 PASS`（head=`bb2c4104f098699a9f387800b0688a11a12661c9`）
+  - 结果：PASS；pre-merge branch head=`bb2c4104f098699a9f387800b0688a11a12661c9`
   - `git diff --check`
   - 结果：PASS
+  - GitHub Actions `L0 Linux Maintenance` run `24355797501`
+  - 结果：PASS；head sha=`b9c613fa9abdf40e7bea15d2cee71c70d915faec`
+  - GitHub Actions `L0 Windows Native Evidence` run `24349338362`
+  - 结果：PASS；head sha=`bb2c4104f098699a9f387800b0688a11a12661c9`
+  - local Windows snapshot：
+  - `tests/_windows_l0_native_evidence_gh/L0-20260413-l0-premerge-ci-windows/`
 - Retained local refs:
   - `l0-mainline`
   - `l0-mainline-closeout-20260411`
@@ -139,30 +110,23 @@
 - Risks / blockers:
   - 根目录 `main` 工作树仍然是用户脏状态，不能直接当作 L0 的当前执行面
   - 当前 4 个历史 L0 refs 仍承载独立 patch history，不能盲删
-  - 当前 pre-merge branch evidence 已收齐，但这仍然不是 merged `main` closeout；不要过早把 branch evidence 改写成 main-state 文档
   - 后续若 strict L0 再发生非文档代码或测试改动，仍需重新补 fresh Windows exact evidence
-  - 当前这波以 retained-refs hygiene + shortlist-first closeout 为主；在真正 merge 前应保持 `l0-mainline` 只承载这一组 L0 变更
+  - `update_strict_l0_current_state_docs.sh` 必须继续与 today contracts 同步，不能再把 `--details` / shortlist-first / docs landing-zone 语义压缩掉
   - SIMD-only 残留仍由 SIMD owner 继续维护，L0 这里只保留边界与 handoff 说明
 - Next step:
   - 继续只沿 strict L0 线推进，不把 sidecar 或 SIMD 工作重新混回当前 worktree
-  - 先做 merge-ready final verification / integrate，不再继续推进新的 rescue absorb 批次
   - Linux x64 上的日常维护默认走 `bash tests/run_strict_l0_maintenance_loop.sh`
   - 如需重新判断 retained refs 是否还该保留，使用 `bash tests/audit_strict_l0_retained_refs.sh`
   - 如需先判断 retained refs 该优先吸收哪类 unique history，使用 `bash tests/report_strict_l0_retained_refs_inventory.sh`
   - 如需直接看 retained refs 的代表性 unique commits / paths，使用 `bash tests/report_strict_l0_retained_refs_inventory.sh --details`
-  - fresh `--details` 现在已经把 `code_or_tests` 细分成 `src / test source / test code / test script / test doc / runtime record / control file / CI workflow / output artifact / binary artifact`，也把 docs residue 细分成 root/module/topic/guide/archive-pointer/collections-dated/legacy/report-topic
-  - 当前 `sidecar` / `tail` 的 `next_focus=` 已固定为 `test-hygiene-first`
-  - 当前 `sidecar` / `tail` 的 `test_hygiene_candidate_paths=` 已经固定暴露出 runtime/control/output/binary hygiene surface
-  - 当前主线已经真实清掉 `archiver/atomic/fs/sync.barrier` 里一批 tracked hygiene residue，并用局部 `.gitignore` 接住这些运行期产物
-  - 当前 `sidecar` / `tail` 的 `docs_absorb_candidate_paths=` 已经固定暴露出 archive pointer / collections dated / legacy landing zone
-  - 当前 `closeout` / `rescue` 的 `source_review_candidate_paths=` 已经固定暴露出 `src / test source / CI / examples-build` review surface
-  - 当前 `closeout` / `rescue` 的 shortlist 入口固定为 `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh`
-  - shortlist 会继续显式暴露 `review_candidate_paths=` / `simd_out_of_scope_paths=` / `dangerous_delete_paths=` / `reject_wholesale_absorb=`
-  - 当前 `closeout` 那 6 个 test-doc residue 已明确确认为 stale downgrade；先用 `bash tests/test_strict_l0_retained_refs_closeout_test_docs_no_downgrade_contract.sh` 锁住主线 current-entry，不再尝试 docs absorb
-  - fresh post-commit shortlist 现在显示 `closeout=9`（`2 src + 1 test code + 6 test docs`）且 `dangerous_delete_paths=47`，`rescue=73` 且 `dangerous_delete_paths=60`；因此两条 retained refs 仍然只能 shortlist-first
-  - 当前 **CI-covered branch head** 是 `bb2c4104f098699a9f387800b0688a11a12661c9`；本地 docs 记录头已在其上新增 docs-only closeout 提交，但 exact Windows native evidence 继续锚定这个 branch-visible code/test head；merged `main` closeout 仍需在 merge 后单独记录
-  - `closeout` / `rescue` 继续保留给更高风险的 `source-review-first` 专项波次，不做 broad absorb
+  - 如需把 `closeout/rescue` 的 source-review 候选与危险删除拆开，使用 `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh`
+  - 如果 `next_focus=test-hygiene-first`，优先看 `test_hygiene_candidate_paths=`
+  - 如果 `next_focus=source-review-first`，优先看 `source_review_candidate_paths=`
+  - docs residue 继续看 `docs_absorb_candidate_paths=`
+  - 只要看到 `dangerous_delete_paths=` 或 `reject_wholesale_absorb=yes`，继续拒绝整包吸收
+  - 当前 `sidecar` / `tail` 的 `next_focus=` 仍固定暴露为 `test-hygiene-first`
+  - 当前 `closeout` 继续是 `2 src + 1 test code + 6 stale test docs + dangerous_delete_paths=48`，`rescue` 继续是 `source-review-first` 且 `dangerous_delete_paths=61`
   - 如需一波收口 Linux/Windows evidence 与 current-state docs，使用 `bash tests/run_strict_l0_mainline_closeout.sh`
   - 如需只回填 current-state 文档，使用 `bash tests/update_strict_l0_current_state_docs.sh --apply --main-sha <main-sha> --linux-run-id <linux-run-id> --linux-run-sha <linux-run-sha> --windows-run-id <windows-run-id> --windows-run-sha <windows-run-sha> --windows-local-batch-id <batch-id>`
   - 需要 Windows exact evidence 时，继续使用 GitHub Actions workflow + shell verifier，不在 Linux x64 本地伪造 native 结论
-- Last updated: `2026-04-13`
+- Last updated: `2026-04-14`

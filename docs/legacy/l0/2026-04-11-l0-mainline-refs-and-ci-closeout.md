@@ -11,20 +11,21 @@
 
 ## Final Resolution
 
-- 当前 main merge commit：`5eeb4a0c4c3065adcc74c7153d3c6a6fbe95f465`
-- GitHub Actions `L0 Linux Maintenance` run `24284430625`
-  - head sha：`5eeb4a0c4c3065adcc74c7153d3c6a6fbe95f465`
+- 当前 main merge commit：`b9c613fa9abdf40e7bea15d2cee71c70d915faec`
+- GitHub Actions `L0 Linux Maintenance` run `24355797501`
+  - head sha：`b9c613fa9abdf40e7bea15d2cee71c70d915faec`
   - 结果：PASS
-- GitHub Actions `L0 Windows Native Evidence` run `24284111799`
-  - head sha：`54a7ae056679c251a8a1f53442cfd20601b6f08f`
+- GitHub Actions `L0 Windows Native Evidence` run `24349338362`
+  - head sha：`bb2c4104f098699a9f387800b0688a11a12661c9`
   - 结果：`12/12 PASS`
 - Linux shell verifier snapshot：
-  - `tests/_windows_l0_native_evidence_gh/L0-20260411-native-gha-r11/`
+  - `tests/_windows_l0_native_evidence_gh/L0-20260413-l0-premerge-ci-windows/`
 
 这说明：
 
 - mainline Linux workflow 已可 dispatch 并 fresh 通过
 - Windows exact evidence 也已收齐
+- 当前 `main` 已推进到 `b9c613fa9abdf40e7bea15d2cee71c70d915faec`，但 latest exact Windows native evidence 仍锚定 `main@bb2c4104f098699a9f387800b0688a11a12661c9`；由于这两者之间只剩 docs / control-plane-only 变更，因此当前 closeout 复用该 exact evidence。
 - 这份文档现在只保留 pre-merge `HTTP 404` 的历史解释与 refs no-op 审计背景
 
 ## Retained Refs
@@ -43,4 +44,4 @@
 
 - 它只描述 workflow 进入 default branch 之前的历史状态
 - 当前 mainline Linux workflow 已可 dispatch 并 fresh 通过
-- 当前 latest Windows exact evidence run 是 `24284111799`
+- 当前 latest Windows exact evidence run 是 `24349338362`
