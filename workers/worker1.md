@@ -5,7 +5,7 @@
 - Status: `active`
 - Branch: `l0-mainline`
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
-- Base commit: `8b27f9baf0310735911f09fa5d62b662d2bd7966` (`l0-mainline` current HEAD before this in-progress tenth-wave mem-callback/doc-guard batch)
+- Current HEAD: `e7ca1fdf9bed0ffb130eb4195137f0518bc14f5d` (`feat(l0): absorb tenth mem callback doc-guard wave`)
 - Current focus:
   - 维持当前唯一 L0 worktree 跟随 `main`
   - 维持 strict L0 的 current-entry 文档、模块边界和验证口径一致
@@ -81,6 +81,14 @@
   - 结果：PASS
   - `bash tests/test_strict_l0_retained_refs_source_review_shortlist_contract.sh`
   - 结果：PASS
+  - `bash tests/fafafa.core.mem.allocator.foundation/BuildOrTest.sh test`
+  - 结果：PASS
+  - `bash tests/fafafa.core.mem.allocator.foundation/BuildOrTest.sh test-no-contracts`
+  - 结果：PASS
+  - `bash tests/fafafa.core.mem/BuildOrTest.sh test`
+  - 结果：PASS
+  - `bash tests/fafafa.core.mem/BuildOrTest.sh test-no-contracts`
+  - 结果：PASS
   - `bash tests/test_strict_l0_retained_refs_closeout_test_docs_no_downgrade_contract.sh`
   - 结果：PASS
   - `bash tests/test_strict_l0_retained_refs_inventory_examples_build_contract.sh`
@@ -142,6 +150,8 @@
   - 当前 `closeout` / `rescue` 的 shortlist 入口固定为 `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh`
   - shortlist 会继续显式暴露 `review_candidate_paths=` / `simd_out_of_scope_paths=` / `dangerous_delete_paths=` / `reject_wholesale_absorb=`
   - 当前 `closeout` 那 6 个 test-doc residue 已明确确认为 stale downgrade；先用 `bash tests/test_strict_l0_retained_refs_closeout_test_docs_no_downgrade_contract.sh` 锁住主线 current-entry，不再尝试 docs absorb
+  - fresh post-commit shortlist 现在显示 `closeout=9`（`2 src + 1 test code + 6 test docs`）且 `dangerous_delete_paths=47`，`rescue=73` 且 `dangerous_delete_paths=60`；因此两条 retained refs 仍然只能 shortlist-first
+  - 当前 local `HEAD=e7ca1fdf9bed0ffb130eb4195137f0518bc14f5d`，但 remote `l0-mainline=febc3093b3a32515babfd0217dbca3e7b8a15086`；exact Windows native evidence 继续等待 push / remote-visible ref 更新
   - `closeout` / `rescue` 继续保留给更高风险的 `source-review-first` 专项波次，不做 broad absorb
   - 如需一波收口 Linux/Windows evidence 与 current-state docs，使用 `bash tests/run_strict_l0_mainline_closeout.sh`
   - 如需只回填 current-state 文档，使用 `bash tests/update_strict_l0_current_state_docs.sh --apply --main-sha <main-sha> --linux-run-id <linux-run-id> --linux-run-sha <linux-run-sha> --windows-run-id <windows-run-id> --windows-run-sha <windows-run-sha> --windows-local-batch-id <batch-id>`

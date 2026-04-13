@@ -17,6 +17,7 @@
 - 第八波之后，retained-refs inventory 还会继续显式输出 `test_hygiene_candidate_paths=` 与 `source_review_candidate_paths=`，让 `sidecar/tail` 和 `closeout/rescue` 的当前下一跳直接可读。
 - 第九波之后，`sidecar/tail` 的一批 tracked hygiene residue 已经从主线真实清掉；`closeout/rescue` 继续通过 `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh` 暴露 `review_candidate_paths=` / `simd_out_of_scope_paths=` / `dangerous_delete_paths=`。
 - 第十波之后，`mem allocator callback` 的低风险 rescue 语义已经在主线内做了小型 current-entry hardening；`closeout` 的 6 个 test README candidate 也已被明确确认为 stale downgrade，并由 no-downgrade contract 锁住。
+- 第十波提交 `e7ca1fdf9bed0ffb130eb4195137f0518bc14f5d` 之后，fresh shortlist 继续显示 `closeout` 不能整包吸收：它现在是 `2 src + 1 test code + 6 stale test docs + dangerous_delete_paths=47`，`rescue` 仍是 `source-review-first`。
 - 当前 4 个残留 L0 refs 仍承载独立 patch history；refs cleanup 结论继续保持显式 `no-op`。
 
 ## Mainline Closeout Snapshot

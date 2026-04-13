@@ -70,6 +70,36 @@ fresh `closeout` test-doc residue 现在的结论应固定为：
 - 不 broad restore
 - 用 no-downgrade contract 锁住主线
 
+## Fresh shortlist snapshot
+
+post-commit `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh` 结果：
+
+- `current_head=e7ca1fdf9bed0ffb130eb4195137f0518bc14f5d`
+- `l0-mainline-closeout-20260411`
+  - `review_candidate_paths=9`
+  - `src_review_paths=2`
+  - `test_code_review_paths=1`
+  - `test_doc_review_paths=6`
+  - `simd_out_of_scope_paths=0`
+  - `dangerous_delete_paths=47`
+  - `reject_wholesale_absorb=yes`
+- `l0-main-rescue`
+  - `review_candidate_paths=73`
+  - `src_review_paths=10`
+  - `test_code_review_paths=29`
+  - `test_script_review_paths=16`
+  - `test_doc_review_paths=12`
+  - `examples_build_review_paths=6`
+  - `simd_out_of_scope_paths=30`
+  - `dangerous_delete_paths=60`
+  - `reject_wholesale_absorb=yes`
+
+这说明：
+
+- 第十波把 `mem callback` 的 2 个 `src` 路径和 1 个 foundation test 路径真正吸进了 today mainline，因此 `closeout` 相对当前 `HEAD` 不再只是 6 个 stale test-doc 路径。
+- 但 `closeout` 仍然带着显式 `dangerous_delete_paths=`，所以 today policy 依旧不是 absorb，而是保留 shortlist + no-downgrade guard。
+- `rescue` 的 today 结论没有变化，仍然必须保持 `source-review-first`，不能 broad merge。
+
 ## Windows exact evidence status for this local wave
 
 这轮包含了非文档代码 / 测试变化，因此 exact Windows native evidence 纪律没有放松：
@@ -82,6 +112,10 @@ fresh `closeout` test-doc residue 现在的结论应固定为：
 
 - 本地只收 Linux x64 与 contract/gate 证据
 - Windows exact evidence 作为 push / remote-visible ref 之后的 CI 步骤
+- fresh ref 对比：
+  - local `HEAD=e7ca1fdf9bed0ffb130eb4195137f0518bc14f5d`
+  - remote `l0-mainline=febc3093b3a32515babfd0217dbca3e7b8a15086`
+  - 因此当前 exact `HEAD` 证据仍需要先 push / 更新 remote ref，不能直接宣称已被 GitHub Actions 覆盖
 
 ## Fresh verification
 
