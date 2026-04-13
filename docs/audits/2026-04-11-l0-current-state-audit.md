@@ -15,6 +15,7 @@
 - 第六波之后，retained-refs inventory 还会继续把 tests drift 细分成 test code / scripts / docs / runtime records / control files / output artifacts / binary artifacts，并显式输出 `next_focus=`。
 - 第七波之后，retained-refs inventory 还会继续把 docs residue 细分成 root/module/topic/guide/archive-pointer/collections-dated/legacy/report-topic，并显式输出 `docs_absorb_candidate_paths=`。
 - 第八波之后，retained-refs inventory 还会继续显式输出 `test_hygiene_candidate_paths=` 与 `source_review_candidate_paths=`，让 `sidecar/tail` 和 `closeout/rescue` 的当前下一跳直接可读。
+- 第九波之后，`sidecar/tail` 的一批 tracked hygiene residue 已经从主线真实清掉；`closeout/rescue` 继续通过 `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh` 暴露 `review_candidate_paths=` / `simd_out_of_scope_paths=` / `dangerous_delete_paths=`。
 - 当前 4 个残留 L0 refs 仍承载独立 patch history；refs cleanup 结论继续保持显式 `no-op`。
 
 ## Mainline Closeout Snapshot
@@ -44,6 +45,12 @@
 - `bash tests/test_strict_l0_retained_refs_inventory_docs_current_entry_contract.sh`
   - 结果：PASS
 - `bash tests/test_strict_l0_retained_refs_inventory_focus_routing_contract.sh`
+  - 结果：PASS
+- `bash tests/test_strict_l0_retained_refs_hygiene_absorption_contract.sh`
+  - 结果：PASS
+- `bash tests/test_strict_l0_retained_refs_source_review_shortlist_contract.sh`
+  - 结果：PASS
+- `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh`
   - 结果：PASS
 - `bash tests/test_strict_l0_linux_ci_workflow_contract.sh`
   - 结果：PASS
@@ -82,6 +89,8 @@
 - 第六波之后，`--details` 还会继续把 `code_or_tests` 细分成 `src / test source / test code / test script / test doc / runtime record / control file / CI workflow / output artifact / binary artifact`，并显式输出 `next_focus=`，方便继续做 retained-refs triage。
 - 第七波之后，`--details` 还会继续给出 `docs_absorb_candidate_paths=`，把 sidecar/tail 上已经有稳定 landing zone 的 low-risk docs residue 直接暴露出来。
 - 第八波之后，`--details` 还会继续给出 `test_hygiene_candidate_paths=` 与 `source_review_candidate_paths=`，把 `sidecar/tail` 的 hygiene 第一跳和 `closeout/rescue` 的 source-review 第一跳一起显式化。
+- 第九波之后，如果 `next_focus=source-review-first`，当前标准入口改为 `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh`；它会继续显式给出 `review_candidate_paths=`、`simd_out_of_scope_paths=`、`dangerous_delete_paths=` 与 `reject_wholesale_absorb=`。
+- 第九波之后，`tests/fafafa.core.archiver/last-run.txt`、`tests/fafafa.core.atomic/tests_atomic`、`tests/fafafa.core.sync.barrier/*_output.txt` 与 `tests/fafafa.core.fs/performance-data/*latest*` 这类 residue 已不再属于主线 tracked surface。
 - superseded 的 dated L0 plans / audits 现在统一下沉到 `docs/legacy/l0/`，不要再把那批文档当 current-entry。
 - collections 域里 superseded 的 dated plans / status / reviews 现在统一下沉到 `docs/collections/legacy/README.md`，不要再把 `docs/collections/plans/`、`docs/collections/status/`、`docs/collections/reviews/` 里的历史批次误判成 current-entry。
 - 当前保留的本地 L0 refs 只包括：

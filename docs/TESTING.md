@@ -205,6 +205,45 @@ bash tests/report_strict_l0_retained_refs_inventory.sh --details
 
 也就是说，`sidecar/tail` 的第一跳不再只是一个方向标签，而是已经有显式的 hygiene candidate surface；`closeout/rescue` 的 source-review-first 也不再需要人工把 `src` / test source / CI / examples-build 重新拼起来。
 
+第九波之后，这批 hygiene surface 里已经有一段被真实吸收到主线：
+
+- `tests/fafafa.core.archiver/last-run.txt`
+- `tests/fafafa.core.atomic/tests_atomic`
+- `tests/fafafa.core.atomic/atomic_heaptrc_full_output.txt`
+- `tests/fafafa.core.sync.barrier/*_output.txt`
+- `tests/fafafa.core.fs/performance-data/latest.txt`
+- `tests/fafafa.core.fs/performance-data/perf_*latest.txt`
+- 一批 dated perf snapshots
+
+对应目录现在已有局部 `.gitignore`，这些 runtime/output/binary residue 不再应该被重新跟踪。
+
+如果你当前遇到的是 `next_focus=source-review-first`，除了 inventory 之外，继续使用：
+
+```bash
+bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh
+```
+
+这条命令会继续显式输出：
+
+- `review_candidate_paths=`
+- `src_review_paths=`
+- `test_code_review_paths=`
+- `test_script_review_paths=`
+- `test_doc_review_paths=`
+- `ci_review_paths=`
+- `examples_build_review_paths=`
+- `simd_out_of_scope_paths=`
+- `dangerous_delete_paths=`
+- `reject_wholesale_absorb=`
+
+也就是说，第九波之后的 retained-refs triage 进一步固定为：
+
+1. inventory `--details` 负责看方向与 candidate surface
+2. `test-hygiene-first` 先吃真实 hygiene residue
+3. `source-review-first` 立刻跑 shortlist
+4. 只要看到 `dangerous_delete_paths>0` 或 `reject_wholesale_absorb=yes`，就拒绝整包吸收
+5. `simd_out_of_scope_paths=` 则继续交回 SIMD owner，而不是混进 L0 波次
+
 如果你当前关心的是 strict non-SIMD L0 在 Windows 路径上的复核，不要直接从“原生 `.bat` 构建完全对称”这个前提出发。当前仓库已经分成四条不同的复核链路：
 
 - 最小 Win64 `.exe` runtime smoke

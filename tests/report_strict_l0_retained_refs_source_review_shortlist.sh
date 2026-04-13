@@ -1,0 +1,278 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+RETAINED_REFS=(
+  "l0-mainline-closeout-20260411"
+  "l0-main-rescue"
+)
+
+print_usage() {
+  cat <<'EOF'
+Usage:
+  bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh
+
+This script reports a shortlist-first review surface for retained strict L0 refs
+that are still marked source-review-first. It never deletes refs or applies
+their diffs. It only separates review candidates from dangerous deletions.
+EOF
+}
+
+append_sample() {
+  local -n aArrayRef="$1"
+  local aValue="$2"
+  local aLimit="$3"
+  local LExisting
+
+  for LExisting in "${aArrayRef[@]}"; do
+    if [[ "${LExisting}" == "${aValue}" ]]; then
+      return 0
+    fi
+  done
+
+  if (( ${#aArrayRef[@]} < aLimit )); then
+    aArrayRef+=("${aValue}")
+  fi
+}
+
+join_samples() {
+  local -n aArrayRef="$1"
+  local LJoined=""
+  local LValue
+
+  for LValue in "${aArrayRef[@]}"; do
+    if [[ -n "${LJoined}" ]]; then
+      LJoined+=" | "
+    fi
+    LJoined+="${LValue}"
+  done
+
+  printf '%s' "${LJoined}"
+}
+
+is_src_path() {
+  [[ "$1" == src/* ]]
+}
+
+is_test_doc_path() {
+  case "$1" in
+    tests/*.md|tests/*/*.md|tests/*/*/*.md)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+is_test_script_path() {
+  case "$1" in
+    tests/*/BuildOrTest.sh|tests/*/BuildOrTest.bat|tests/*/buildOrTest.bat|tests/*/buildOrTest.sh|tests/*/*.bat|tests/*/*.sh|tests/*/*/*.bat|tests/*/*/*.sh)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+is_test_code_path() {
+  case "$1" in
+    tests/*/*.pas|tests/*/*.lpr|tests/*/*.lpi|tests/*/*/*.pas|tests/*/*/*.lpr|tests/*/*/*.lpi)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+is_ci_review_path() {
+  [[ "$1" == .github/workflows/* ]]
+}
+
+is_simd_out_of_scope_path() {
+  case "$1" in
+    .github/workflows/simd-*|docs/fafafa.core.simd*|docs/plans/*simd*|tests/fafafa.core.simd*|src/fafafa.core.simd*)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+is_examples_build_review_path() {
+  case "$1" in
+    examples/*/BuildOrRun.sh|examples/*/BuildOrRun.bat|examples/*/*.pas|examples/*/*.lpr|examples/*/*.lpi|examples/*/*/*.pas|examples/*/*/*.lpr|examples/*/*/*.lpi)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+is_dangerous_delete_path() {
+  local aStatus="$1"
+  local aPath="$2"
+
+  if [[ "${aStatus}" != "D" ]]; then
+    return 1
+  fi
+
+  case "${aPath}" in
+    .github/workflows/l0-*|docs/README.md|docs/INDEX.md|docs/TESTING.md|docs/audits/*|docs/legacy/l0/*|workers/worker1.md|tests/run_strict_l0_*|tests/check_strict_l0_docs_consistency.sh|tests/report_strict_l0_retained_refs_*|tests/update_strict_l0_current_state_docs.sh|tests/test_strict_l0_*|examples/*)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+case "${1:-}" in
+  --help|-h)
+    print_usage
+    exit 0
+    ;;
+  "")
+    ;;
+  *)
+    echo "[FAIL] unknown argument: ${1}" >&2
+    print_usage >&2
+    exit 2
+    ;;
+esac
+
+LHeadSha="$(git -C "${REPO_ROOT}" rev-parse HEAD)"
+echo "[INFO] strict L0 retained refs source-review shortlist"
+echo "[INFO] current_head=${LHeadSha}"
+
+for LRef in "${RETAINED_REFS[@]}"; do
+  LRefSha="$(git -C "${REPO_ROOT}" rev-parse "${LRef}")"
+  LReviewCandidatePaths=0
+  LSrcReviewPaths=0
+  LTestCodeReviewPaths=0
+  LTestScriptReviewPaths=0
+  LTestDocReviewPaths=0
+  LCiReviewPaths=0
+  LExamplesBuildReviewPaths=0
+  LSimdOutOfScopePaths=0
+  LDangerousDeletePaths=0
+  LRejectWholesaleAbsorb="no"
+
+  LSampleReviewCandidatePaths=()
+  LSampleSrcReviewPaths=()
+  LSampleTestCodeReviewPaths=()
+  LSampleTestScriptReviewPaths=()
+  LSampleTestDocReviewPaths=()
+  LSampleCiReviewPaths=()
+  LSampleExamplesBuildReviewPaths=()
+  LSampleSimdOutOfScopePaths=()
+  LSampleDangerousDeletePaths=()
+
+  while IFS=$'\t' read -r LStatus LPath; do
+    [[ -n "${LStatus}" ]] || continue
+    [[ -n "${LPath}" ]] || continue
+
+    if is_dangerous_delete_path "${LStatus}" "${LPath}"; then
+      LDangerousDeletePaths=$((LDangerousDeletePaths + 1))
+      LRejectWholesaleAbsorb="yes"
+      append_sample LSampleDangerousDeletePaths "${LPath}" 3
+      continue
+    fi
+
+    if is_simd_out_of_scope_path "${LPath}"; then
+      LSimdOutOfScopePaths=$((LSimdOutOfScopePaths + 1))
+      append_sample LSampleSimdOutOfScopePaths "${LPath}" 3
+      continue
+    fi
+
+    if is_src_path "${LPath}"; then
+      LReviewCandidatePaths=$((LReviewCandidatePaths + 1))
+      LSrcReviewPaths=$((LSrcReviewPaths + 1))
+      append_sample LSampleReviewCandidatePaths "${LPath}" 3
+      append_sample LSampleSrcReviewPaths "${LPath}" 3
+      continue
+    fi
+
+    if is_test_doc_path "${LPath}"; then
+      LReviewCandidatePaths=$((LReviewCandidatePaths + 1))
+      LTestDocReviewPaths=$((LTestDocReviewPaths + 1))
+      append_sample LSampleReviewCandidatePaths "${LPath}" 3
+      append_sample LSampleTestDocReviewPaths "${LPath}" 3
+      continue
+    fi
+
+    if is_test_script_path "${LPath}"; then
+      LReviewCandidatePaths=$((LReviewCandidatePaths + 1))
+      LTestScriptReviewPaths=$((LTestScriptReviewPaths + 1))
+      append_sample LSampleReviewCandidatePaths "${LPath}" 3
+      append_sample LSampleTestScriptReviewPaths "${LPath}" 3
+      continue
+    fi
+
+    if is_test_code_path "${LPath}"; then
+      LReviewCandidatePaths=$((LReviewCandidatePaths + 1))
+      LTestCodeReviewPaths=$((LTestCodeReviewPaths + 1))
+      append_sample LSampleReviewCandidatePaths "${LPath}" 3
+      append_sample LSampleTestCodeReviewPaths "${LPath}" 3
+      continue
+    fi
+
+    if is_ci_review_path "${LPath}"; then
+      LReviewCandidatePaths=$((LReviewCandidatePaths + 1))
+      LCiReviewPaths=$((LCiReviewPaths + 1))
+      append_sample LSampleReviewCandidatePaths "${LPath}" 3
+      append_sample LSampleCiReviewPaths "${LPath}" 3
+      continue
+    fi
+
+    if is_examples_build_review_path "${LPath}"; then
+      LReviewCandidatePaths=$((LReviewCandidatePaths + 1))
+      LExamplesBuildReviewPaths=$((LExamplesBuildReviewPaths + 1))
+      append_sample LSampleReviewCandidatePaths "${LPath}" 3
+      append_sample LSampleExamplesBuildReviewPaths "${LPath}" 3
+      continue
+    fi
+  done < <(git -C "${REPO_ROOT}" diff --name-status "HEAD..${LRef}" || true)
+
+  echo "== ${LRef} =="
+  echo "ref_sha=${LRefSha}"
+  echo "review_candidate_paths=${LReviewCandidatePaths}"
+  echo "src_review_paths=${LSrcReviewPaths}"
+  echo "test_code_review_paths=${LTestCodeReviewPaths}"
+  echo "test_script_review_paths=${LTestScriptReviewPaths}"
+  echo "test_doc_review_paths=${LTestDocReviewPaths}"
+  echo "ci_review_paths=${LCiReviewPaths}"
+  echo "examples_build_review_paths=${LExamplesBuildReviewPaths}"
+  echo "simd_out_of_scope_paths=${LSimdOutOfScopePaths}"
+  echo "dangerous_delete_paths=${LDangerousDeletePaths}"
+  echo "reject_wholesale_absorb=${LRejectWholesaleAbsorb}"
+
+  if (( ${#LSampleReviewCandidatePaths[@]} > 0 )); then
+    echo "sample_review_candidate_paths=$(join_samples LSampleReviewCandidatePaths)"
+  fi
+  if (( ${#LSampleSrcReviewPaths[@]} > 0 )); then
+    echo "sample_src_review_paths=$(join_samples LSampleSrcReviewPaths)"
+  fi
+  if (( ${#LSampleTestCodeReviewPaths[@]} > 0 )); then
+    echo "sample_test_code_review_paths=$(join_samples LSampleTestCodeReviewPaths)"
+  fi
+  if (( ${#LSampleTestScriptReviewPaths[@]} > 0 )); then
+    echo "sample_test_script_review_paths=$(join_samples LSampleTestScriptReviewPaths)"
+  fi
+  if (( ${#LSampleTestDocReviewPaths[@]} > 0 )); then
+    echo "sample_test_doc_review_paths=$(join_samples LSampleTestDocReviewPaths)"
+  fi
+  if (( ${#LSampleCiReviewPaths[@]} > 0 )); then
+    echo "sample_ci_review_paths=$(join_samples LSampleCiReviewPaths)"
+  fi
+  if (( ${#LSampleExamplesBuildReviewPaths[@]} > 0 )); then
+    echo "sample_examples_build_review_paths=$(join_samples LSampleExamplesBuildReviewPaths)"
+  fi
+  if (( ${#LSampleSimdOutOfScopePaths[@]} > 0 )); then
+    echo "sample_simd_out_of_scope_paths=$(join_samples LSampleSimdOutOfScopePaths)"
+  fi
+  if (( ${#LSampleDangerousDeletePaths[@]} > 0 )); then
+    echo "sample_dangerous_delete_paths=$(join_samples LSampleDangerousDeletePaths)"
+  fi
+done
+
+echo "[PASS] strict L0 retained refs source-review shortlist completed"

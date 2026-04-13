@@ -49,6 +49,10 @@ rg -F "test_hygiene_candidate_paths=" "${AUDIT_FILE}" >/dev/null \
   || fail "audit missing test hygiene candidate routing"
 rg -F "source_review_candidate_paths=" "${AUDIT_FILE}" >/dev/null \
   || fail "audit missing source review candidate routing"
+rg -F "report_strict_l0_retained_refs_source_review_shortlist.sh" "${AUDIT_FILE}" >/dev/null \
+  || fail "audit missing source-review shortlist command"
+rg -F "dangerous_delete_paths=" "${AUDIT_FILE}" >/dev/null \
+  || fail "audit missing dangerous delete shortlist routing"
 rg -F "Base commit: \`1111111111111111111111111111111111111111\`" "${WORKER_FILE}" >/dev/null \
   || fail "worker handoff missing base commit"
 rg -F "GitHub Actions \`L0 Linux Maintenance\` run \`1001\`" "${WORKER_FILE}" >/dev/null \
@@ -59,6 +63,10 @@ rg -F "test_hygiene_candidate_paths=" "${WORKER_FILE}" >/dev/null \
   || fail "worker handoff missing test hygiene candidate routing"
 rg -F "source_review_candidate_paths=" "${WORKER_FILE}" >/dev/null \
   || fail "worker handoff missing source review candidate routing"
+rg -F "report_strict_l0_retained_refs_source_review_shortlist.sh" "${WORKER_FILE}" >/dev/null \
+  || fail "worker handoff missing source-review shortlist command"
+rg -F "dangerous_delete_paths=" "${WORKER_FILE}" >/dev/null \
+  || fail "worker handoff missing dangerous delete shortlist routing"
 rg -F "merge commit：\`1111111111111111111111111111111111111111\`" "${LEGACY_FILE}" >/dev/null \
   || fail "legacy closeout missing main merge commit"
 
