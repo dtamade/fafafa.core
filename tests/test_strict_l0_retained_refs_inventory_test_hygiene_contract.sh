@@ -34,7 +34,7 @@ case "${LArgs[0]:-}" in
   rev-parse)
     case "${LArgs[1]:-}" in
       HEAD)
-        echo "cccccccccccccccccccccccccccccccccccccccc"
+        echo "dddddddddddddddddddddddddddddddddddddddd"
         exit 0
         ;;
     esac
@@ -43,25 +43,25 @@ case "${LArgs[0]:-}" in
     case "${LArgs[3]:-}" in
       l0-mainline-closeout-20260411)
         cat <<'OUT'
-+ 1111111 src drift batch
++ 1111111 closeout source review
 OUT
         exit 0
         ;;
       l0-sidecar-handoff-20260409)
         cat <<'OUT'
-+ 2222222 test source batch
++ 2222222 sidecar test hygiene split
 OUT
         exit 0
         ;;
       l0-main-rescue)
         cat <<'OUT'
-+ 3333333 workflow batch
++ 3333333 rescue current docs review
 OUT
         exit 0
         ;;
       l0-main-tail-cleanup-20260408-final)
         cat <<'OUT'
-+ 4444444 test artifact batch
++ 4444444 tail archive first
 OUT
         exit 0
         ;;
@@ -71,27 +71,33 @@ OUT
     case "${LArgs[3]:-}" in
       1111111)
         cat <<'OUT'
-src/fafafa.core.result.pas
+src/fafafa.core.option.pas
+tests/fafafa.core.option/fafafa.core.option.testcase.pas
 OUT
         exit 0
         ;;
       2222222)
         cat <<'OUT'
-tests/fafafa.core.result/README.md
-tests/fafafa.core.result/fafafa.core.result.testcase.pas
+tests/fafafa.core.fs.async/test_async_basic.pas
+tests/fafafa.core.fs/BuildOrRunPerf.sh
+tests/fafafa.core.atomic/README.md
+tests/fafafa.core.archiver/last-run.txt
+tests/fafafa.core.fs/performance-data/latest.txt
+tests/fafafa.core.sync.barrier/.gitignore
+tests/fafafa.core.sync.barrier/test_output.txt
+tests/fafafa.core.atomic/tests_atomic
 OUT
         exit 0
         ;;
       3333333)
         cat <<'OUT'
-.github/workflows/l0-linux-maintenance.yml
+docs/fafafa.core.option.md
 OUT
         exit 0
         ;;
       4444444)
         cat <<'OUT'
-tests/_run_all_logs_sh/fafafa.core.result.log
-tests/fafafa.core.sync.barrier/barrier_heaptrc_output.txt
+archive/reports/docs-root/COMPILATION_FIX_REPORT.md
 OUT
         exit 0
         ;;
@@ -109,40 +115,41 @@ OUTPUT="$(
   bash "${TARGET_SCRIPT}" --details 2>&1
 )" || {
   printf '%s\n' "${OUTPUT}" >&2
-  fail "retained refs inventory code/tests mode failed under contract stubs"
+  fail "retained refs inventory test-hygiene mode failed under contract stubs"
 }
 
 for LPatt in \
-  'current_head=cccccccccccccccccccccccccccccccccccccccc' \
+  'current_head=dddddddddddddddddddddddddddddddddddddddd' \
   '== l0-mainline-closeout-20260411 ==' \
-  'src_paths=1' \
   'test_code_paths=1' \
   'next_focus=source-review-first' \
   '== l0-sidecar-handoff-20260409 ==' \
-  'test_source_paths=2' \
+  'test_source_paths=3' \
   'test_code_paths=1' \
+  'test_script_paths=1' \
   'test_doc_paths=1' \
-  'next_focus=source-review-first' \
-  '== l0-main-rescue ==' \
-  'ci_workflow_paths=1' \
-  'next_focus=source-review-first' \
-  '== l0-main-tail-cleanup-20260408-final ==' \
-  'test_artifact_paths=2' \
-  'test_output_artifact_paths=2' \
+  'test_runtime_record_paths=2' \
+  'test_control_paths=1' \
+  'test_output_artifact_paths=1' \
+  'test_binary_artifact_paths=1' \
   'next_focus=test-hygiene-first' \
-  'sample_src_paths=src/fafafa.core.result.pas' \
-  'sample_test_source_paths=tests/fafafa.core.result/README.md | tests/fafafa.core.result/fafafa.core.result.testcase.pas' \
-  'sample_test_code_paths=tests/fafafa.core.result/fafafa.core.result.testcase.pas' \
-  'sample_test_doc_paths=tests/fafafa.core.result/README.md' \
-  'sample_ci_workflow_paths=.github/workflows/l0-linux-maintenance.yml' \
-  'sample_test_artifact_paths=tests/_run_all_logs_sh/fafafa.core.result.log | tests/fafafa.core.sync.barrier/barrier_heaptrc_output.txt' \
-  'sample_test_output_artifact_paths=tests/_run_all_logs_sh/fafafa.core.result.log | tests/fafafa.core.sync.barrier/barrier_heaptrc_output.txt' \
+  'sample_test_code_paths=tests/fafafa.core.fs.async/test_async_basic.pas' \
+  'sample_test_script_paths=tests/fafafa.core.fs/BuildOrRunPerf.sh' \
+  'sample_test_doc_paths=tests/fafafa.core.atomic/README.md' \
+  'sample_test_runtime_record_paths=tests/fafafa.core.archiver/last-run.txt | tests/fafafa.core.fs/performance-data/latest.txt' \
+  'sample_test_control_paths=tests/fafafa.core.sync.barrier/.gitignore' \
+  'sample_test_output_artifact_paths=tests/fafafa.core.sync.barrier/test_output.txt' \
+  'sample_test_binary_artifact_paths=tests/fafafa.core.atomic/tests_atomic' \
+  '== l0-main-rescue ==' \
+  'next_focus=current-docs-first' \
+  '== l0-main-tail-cleanup-20260408-final ==' \
+  'next_focus=archive-docs-first' \
   '[PASS] strict L0 retained refs inventory completed'; do
   printf '%s' "${OUTPUT}" | rg -n -F "${LPatt}" >/dev/null \
     || {
       printf '%s\n' "${OUTPUT}" >&2
-      fail "retained refs inventory code/tests output missing literal: ${LPatt}"
+      fail "retained refs inventory test-hygiene output missing literal: ${LPatt}"
     }
 done
 
-echo "[PASS] strict L0 retained refs inventory code/tests contract verified"
+echo "[PASS] strict L0 retained refs inventory test-hygiene contract verified"

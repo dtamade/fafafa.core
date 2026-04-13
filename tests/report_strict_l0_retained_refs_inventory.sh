@@ -20,7 +20,8 @@ This script inventories the unique history still carried by the retained
 strict L0 refs and buckets the touched paths for absorption planning.
 In --details mode it also splits example/build drift into example sources,
 build scripts, generated outputs, and splits code/tests drift into src paths,
-test sources, CI workflows, and test artifacts.
+real test sources, runtime records, control files, CI workflows, and test
+artifacts. It also prints next_focus= to make the next absorb wave explicit.
 EOF
 }
 
@@ -123,13 +124,94 @@ is_ci_workflow_path() {
   return 1
 }
 
-is_test_artifact_path() {
+is_test_control_path() {
   local aPath="$1"
   local LBaseName
-  local LExt
 
   LBaseName="$(basename "${aPath}")"
-  LExt="${LBaseName##*.}"
+
+  if [[ "${aPath}" == tests/* && "${LBaseName}" == ".gitignore" ]]; then
+    return 0
+  fi
+
+  return 1
+}
+
+is_test_runtime_record_path() {
+  local aPath="$1"
+  local LBaseName
+
+  LBaseName="$(basename "${aPath}")"
+
+  if is_test_control_path "${aPath}"; then
+    return 1
+  fi
+
+  case "${aPath}" in
+    tests/*/performance-data/*)
+      return 0
+      ;;
+  esac
+
+  case "${LBaseName}" in
+    last-run.txt|latest.txt|perf_*.txt)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+is_test_code_path() {
+  local aPath="$1"
+  local LBaseName
+
+  LBaseName="$(basename "${aPath}")"
+
+  case "${LBaseName}" in
+    *.pas|*.lpr|*.lpi|*.inc|*.lfm|*.res)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+is_test_script_path() {
+  local aPath="$1"
+  local LBaseName
+
+  LBaseName="$(basename "${aPath}")"
+
+  case "${LBaseName}" in
+    *.sh|*.bat)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+is_test_doc_path() {
+  local aPath="$1"
+  local LBaseName
+
+  LBaseName="$(basename "${aPath}")"
+
+  case "${LBaseName}" in
+    *.md)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+is_test_output_artifact_path() {
+  local aPath="$1"
+  local LBaseName
+
+  LBaseName="$(basename "${aPath}")"
 
   case "${aPath}" in
     tests/_run_all_logs_*/*|tests/*/bin/*|tests/*/lib/*|tests/*/logs/*)
@@ -138,21 +220,35 @@ is_test_artifact_path() {
   esac
 
   case "${LBaseName}" in
-    *_output.txt|build_log.txt|fpcdebug.txt|*.log)
+    *_output.txt|build_log.txt|fpcdebug.txt|*.log|*heaptrc*)
       return 0
       ;;
   esac
 
-  if [[ "${aPath}" == tests/* ]]; then
-    case "${LExt}" in
-      pas|lpr|lpi|md|sh|bat|res|txt|log)
-        ;;
-      *)
-        if [[ "${LBaseName}" != *.* ]]; then
-          return 0
-        fi
-        ;;
-    esac
+  return 1
+}
+
+is_test_binary_artifact_path() {
+  local aPath="$1"
+  local LBaseName
+
+  LBaseName="$(basename "${aPath}")"
+
+  if [[ "${aPath}" == tests/* && "${LBaseName}" != *.* ]]; then
+    return 0
+  fi
+
+  return 1
+}
+
+is_test_artifact_path() {
+  local aPath="$1"
+  if is_test_runtime_record_path "${aPath}" || is_test_control_path "${aPath}"; then
+    return 1
+  fi
+
+  if is_test_output_artifact_path "${aPath}" || is_test_binary_artifact_path "${aPath}"; then
+    return 0
   fi
 
   return 1
@@ -163,10 +259,13 @@ is_test_source_path() {
 
   case "${aPath}" in
     tests/*)
-      if is_test_artifact_path "${aPath}"; then
+      if is_test_artifact_path "${aPath}" || is_test_runtime_record_path "${aPath}" || is_test_control_path "${aPath}"; then
         return 1
       fi
-      return 0
+      if is_test_code_path "${aPath}" || is_test_script_path "${aPath}" || is_test_doc_path "${aPath}"; then
+        return 0
+      fi
+      return 1
       ;;
   esac
 
@@ -235,24 +334,38 @@ for LRef in "${RETAINED_REFS[@]}"; do
   LSampleCodeOrTestsPaths=()
   LSampleSrcPaths=()
   LSampleTestSourcePaths=()
+  LSampleTestCodePaths=()
+  LSampleTestScriptPaths=()
+  LSampleTestDocPaths=()
+  LSampleTestRuntimeRecordPaths=()
+  LSampleTestControlPaths=()
   LSampleCiWorkflowPaths=()
   LSampleExamplesOrBuildPaths=()
   LSampleExampleSourcePaths=()
   LSampleBuildScriptPaths=()
   LSampleGeneratedOutputPaths=()
   LSampleTestArtifactPaths=()
+  LSampleTestOutputArtifactPaths=()
+  LSampleTestBinaryArtifactPaths=()
   LSampleOtherPaths=()
   LArchiveDocsPaths=0
   LDocsCurrentEntryPaths=0
   LCodeOrTestsPaths=0
   LSrcPaths=0
   LTestSourcePaths=0
+  LTestCodePaths=0
+  LTestScriptPaths=0
+  LTestDocPaths=0
+  LTestRuntimeRecordPaths=0
+  LTestControlPaths=0
   LCiWorkflowPaths=0
   LExamplesOrBuildPaths=0
   LExampleSourcePaths=0
   LBuildScriptPaths=0
   LGeneratedOutputPaths=0
   LTestArtifactPaths=0
+  LTestOutputArtifactPaths=0
+  LTestBinaryArtifactPaths=0
   LOtherPaths=0
 
   while IFS= read -r LCherryLine; do
@@ -289,12 +402,35 @@ for LRef in "${RETAINED_REFS[@]}"; do
           elif is_ci_workflow_path "${LPath}"; then
             LCiWorkflowPaths=$((LCiWorkflowPaths + 1))
             append_sample LSampleCiWorkflowPaths "${LPath}" 3
+          elif is_test_runtime_record_path "${LPath}"; then
+            LTestRuntimeRecordPaths=$((LTestRuntimeRecordPaths + 1))
+            append_sample LSampleTestRuntimeRecordPaths "${LPath}" 3
+          elif is_test_control_path "${LPath}"; then
+            LTestControlPaths=$((LTestControlPaths + 1))
+            append_sample LSampleTestControlPaths "${LPath}" 3
           elif is_test_artifact_path "${LPath}"; then
             LTestArtifactPaths=$((LTestArtifactPaths + 1))
             append_sample LSampleTestArtifactPaths "${LPath}" 3
+            if is_test_output_artifact_path "${LPath}"; then
+              LTestOutputArtifactPaths=$((LTestOutputArtifactPaths + 1))
+              append_sample LSampleTestOutputArtifactPaths "${LPath}" 3
+            elif is_test_binary_artifact_path "${LPath}"; then
+              LTestBinaryArtifactPaths=$((LTestBinaryArtifactPaths + 1))
+              append_sample LSampleTestBinaryArtifactPaths "${LPath}" 3
+            fi
           elif is_test_source_path "${LPath}"; then
             LTestSourcePaths=$((LTestSourcePaths + 1))
             append_sample LSampleTestSourcePaths "${LPath}" 3
+            if is_test_code_path "${LPath}"; then
+              LTestCodePaths=$((LTestCodePaths + 1))
+              append_sample LSampleTestCodePaths "${LPath}" 3
+            elif is_test_script_path "${LPath}"; then
+              LTestScriptPaths=$((LTestScriptPaths + 1))
+              append_sample LSampleTestScriptPaths "${LPath}" 3
+            elif is_test_doc_path "${LPath}"; then
+              LTestDocPaths=$((LTestDocPaths + 1))
+              append_sample LSampleTestDocPaths "${LPath}" 3
+            fi
           fi
           ;;
         examples_or_build)
@@ -329,6 +465,18 @@ for LRef in "${RETAINED_REFS[@]}"; do
     LRecommendation="review-current-docs-before-absorb"
   fi
 
+  if [[ "${#LUniqueCommits[@]}" == "0" ]]; then
+    LNextFocus="none"
+  elif [[ "${LTestRuntimeRecordPaths}" != "0" || "${LTestControlPaths}" != "0" || "${LTestArtifactPaths}" != "0" ]]; then
+    LNextFocus="test-hygiene-first"
+  elif [[ "${LArchiveDocsPaths}" != "0" ]]; then
+    LNextFocus="archive-docs-first"
+  elif [[ "${LSrcPaths}" != "0" || "${LTestSourcePaths}" != "0" || "${LCiWorkflowPaths}" != "0" || "${LExamplesOrBuildPaths}" != "0" ]]; then
+    LNextFocus="source-review-first"
+  else
+    LNextFocus="current-docs-first"
+  fi
+
   echo "== ${LRef} =="
   echo "unique_commit_count=${#LUniqueCommits[@]}"
   echo "archive_docs_paths=${LArchiveDocsPaths}"
@@ -336,14 +484,22 @@ for LRef in "${RETAINED_REFS[@]}"; do
   echo "code_or_tests_paths=${LCodeOrTestsPaths}"
   echo "src_paths=${LSrcPaths}"
   echo "test_source_paths=${LTestSourcePaths}"
+  echo "test_code_paths=${LTestCodePaths}"
+  echo "test_script_paths=${LTestScriptPaths}"
+  echo "test_doc_paths=${LTestDocPaths}"
+  echo "test_runtime_record_paths=${LTestRuntimeRecordPaths}"
+  echo "test_control_paths=${LTestControlPaths}"
   echo "ci_workflow_paths=${LCiWorkflowPaths}"
   echo "examples_or_build_paths=${LExamplesOrBuildPaths}"
   echo "example_source_paths=${LExampleSourcePaths}"
   echo "build_script_paths=${LBuildScriptPaths}"
   echo "generated_output_paths=${LGeneratedOutputPaths}"
   echo "test_artifact_paths=${LTestArtifactPaths}"
+  echo "test_output_artifact_paths=${LTestOutputArtifactPaths}"
+  echo "test_binary_artifact_paths=${LTestBinaryArtifactPaths}"
   echo "other_paths=${LOtherPaths}"
   echo "recommendation=${LRecommendation}"
+  echo "next_focus=${LNextFocus}"
 
   if [[ "${LDetailsMode}" == "1" ]]; then
     if (( ${#LSampleUniqueCommits[@]} > 0 )); then
@@ -364,6 +520,21 @@ for LRef in "${RETAINED_REFS[@]}"; do
     if (( ${#LSampleTestSourcePaths[@]} > 0 )); then
       echo "sample_test_source_paths=$(join_samples LSampleTestSourcePaths)"
     fi
+    if (( ${#LSampleTestCodePaths[@]} > 0 )); then
+      echo "sample_test_code_paths=$(join_samples LSampleTestCodePaths)"
+    fi
+    if (( ${#LSampleTestScriptPaths[@]} > 0 )); then
+      echo "sample_test_script_paths=$(join_samples LSampleTestScriptPaths)"
+    fi
+    if (( ${#LSampleTestDocPaths[@]} > 0 )); then
+      echo "sample_test_doc_paths=$(join_samples LSampleTestDocPaths)"
+    fi
+    if (( ${#LSampleTestRuntimeRecordPaths[@]} > 0 )); then
+      echo "sample_test_runtime_record_paths=$(join_samples LSampleTestRuntimeRecordPaths)"
+    fi
+    if (( ${#LSampleTestControlPaths[@]} > 0 )); then
+      echo "sample_test_control_paths=$(join_samples LSampleTestControlPaths)"
+    fi
     if (( ${#LSampleCiWorkflowPaths[@]} > 0 )); then
       echo "sample_ci_workflow_paths=$(join_samples LSampleCiWorkflowPaths)"
     fi
@@ -381,6 +552,12 @@ for LRef in "${RETAINED_REFS[@]}"; do
     fi
     if (( ${#LSampleTestArtifactPaths[@]} > 0 )); then
       echo "sample_test_artifact_paths=$(join_samples LSampleTestArtifactPaths)"
+    fi
+    if (( ${#LSampleTestOutputArtifactPaths[@]} > 0 )); then
+      echo "sample_test_output_artifact_paths=$(join_samples LSampleTestOutputArtifactPaths)"
+    fi
+    if (( ${#LSampleTestBinaryArtifactPaths[@]} > 0 )); then
+      echo "sample_test_binary_artifact_paths=$(join_samples LSampleTestBinaryArtifactPaths)"
     fi
     if (( ${#LSampleOtherPaths[@]} > 0 )); then
       echo "sample_other_paths=$(join_samples LSampleOtherPaths)"

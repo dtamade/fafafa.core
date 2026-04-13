@@ -12,6 +12,7 @@
 - strict L0 的 Windows native evidence 当前继续由 GitHub Actions run `24284111799` 提供 exact evidence，shell-side artifact verifier 已在 Linux x64 本地复核通过。
 - collections 域里 dated 的 plans / status / reviews 已进一步下沉到 `docs/collections/legacy/README.md`；当前 collections 入口继续固定为 `docs/fafafa.core.collections.md` 与 `docs/collections/guides/`。
 - examples current-entry 也已进一步收紧到各 domain README、`BuildOrRun*` 和 `.lpr` / `.lpi`；`bin/`、`lib/` 与本地 logs 不再作为 today contract 的入口。
+- 第六波之后，retained-refs inventory 还会继续把 tests drift 细分成 test code / scripts / docs / runtime records / control files / output artifacts / binary artifacts，并显式输出 `next_focus=`。
 - 当前 4 个残留 L0 refs 仍承载独立 patch history；refs cleanup 结论继续保持显式 `no-op`。
 
 ## Mainline Closeout Snapshot
@@ -35,6 +36,8 @@
 - `bash tests/test_strict_l0_docs_consistency_contract.sh`
   - 结果：PASS
 - `bash tests/test_strict_l0_stable_docs_no_sha_contract.sh`
+  - 结果：PASS
+- `bash tests/test_strict_l0_retained_refs_inventory_test_hygiene_contract.sh`
   - 结果：PASS
 - `bash tests/test_strict_l0_linux_ci_workflow_contract.sh`
   - 结果：PASS
@@ -70,7 +73,7 @@
 - 如需重新审计残留历史 L0 refs 是否仍承载独立 patch history，当前标准入口是 `bash tests/audit_strict_l0_retained_refs.sh`；它只给 decision，不直接删除 refs。
 - 如需先判断 retained refs 该优先吸收哪一类 unique history，当前标准入口是 `bash tests/report_strict_l0_retained_refs_inventory.sh`；它会先给 absorb inventory，再决定下一批动作。
 - 如需直接看代表性 unique commits 和路径样本，再执行 `bash tests/report_strict_l0_retained_refs_inventory.sh --details`。
-- 第五波之后，`--details` 还会继续把 `code_or_tests` 细分成 `src / test source / CI workflow / test artifact`，并把 examples/build drift 继续分成 example source / build scripts / generated outputs / test artifacts，方便继续做 retained-refs triage。
+- 第六波之后，`--details` 还会继续把 `code_or_tests` 细分成 `src / test source / test code / test script / test doc / runtime record / control file / CI workflow / output artifact / binary artifact`，并显式输出 `next_focus=`，方便继续做 retained-refs triage。
 - superseded 的 dated L0 plans / audits 现在统一下沉到 `docs/legacy/l0/`，不要再把那批文档当 current-entry。
 - collections 域里 superseded 的 dated plans / status / reviews 现在统一下沉到 `docs/collections/legacy/README.md`，不要再把 `docs/collections/plans/`、`docs/collections/status/`、`docs/collections/reviews/` 里的历史批次误判成 current-entry。
 - 当前保留的本地 L0 refs 只包括：

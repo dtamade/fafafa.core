@@ -1,5 +1,6 @@
 # 2026-04-13 L0 Retained Refs Fifth Absorption Audit
 
+> 当前 latest 入口已推进到 `docs/audits/2026-04-13-l0-retained-refs-sixth-absorption-audit.md`。
 > 这份审计记录 strict non-SIMD L0 在 retained refs 清理前，继续把下一跳里已经浮出来的 `code/tests drift`、`examples current-entry` 和 `test-artifact hygiene` 收敛成可执行的 inventory 与 today contract。
 
 ## Why this wave exists
