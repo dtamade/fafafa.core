@@ -104,13 +104,13 @@ post-code-commit `bash tests/report_strict_l0_retained_refs_source_review_shortl
 这轮包含了非文档代码 / 测试变化，因此 exact Windows native evidence 纪律没有放松；不同的是，这个 blocker 现在已经按 branch-scoped pre-merge closeout 方式被补齐：
 
 - Windows exact native evidence 仍只接受 GitHub Actions / 真实 Windows runner
-- 当前 local / remote `l0-mainline` 已对齐到 `bb2c4104f098699a9f387800b0688a11a12661c9`
+- 当前 **CI-covered branch head** 是 `bb2c4104f098699a9f387800b0688a11a12661c9`
 - GitHub Actions `L0 Windows Native Evidence` run `24349338362` 已对这个 branch-visible head 收到 exact evidence
 - Linux shell-side artifact verifier 也已对 `tests/_windows_l0_native_evidence_gh/L0-20260413-l0-premerge-ci-windows/` 复核通过
 
 这说明：
 
-- 之前“remote `l0-mainline` 落后于 local head，不能宣称 exact Windows coverage”的 blocker 已解除
+- 之前“remote `l0-mainline` 落后于代码 / 测试 head，不能宣称 exact Windows coverage”的 blocker 已解除
 - 当前 exact Windows evidence 现在覆盖的是 `bb2c4104...` 这个 pre-merge branch head
 - 由于 `e7ca1fdf...` 之后新增的是 docs / control-plane-only 提交，因此第十波 implementation head 也包含在这个 branch-visible evidence 之内
 - 但这仍然不是 merged `main` closeout；`update_strict_l0_current_state_docs.sh` 继续只留给真正的 `origin/main` 合并收口

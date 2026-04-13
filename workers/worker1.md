@@ -160,7 +160,7 @@
   - shortlist 会继续显式暴露 `review_candidate_paths=` / `simd_out_of_scope_paths=` / `dangerous_delete_paths=` / `reject_wholesale_absorb=`
   - 当前 `closeout` 那 6 个 test-doc residue 已明确确认为 stale downgrade；先用 `bash tests/test_strict_l0_retained_refs_closeout_test_docs_no_downgrade_contract.sh` 锁住主线 current-entry，不再尝试 docs absorb
   - fresh post-commit shortlist 现在显示 `closeout=9`（`2 src + 1 test code + 6 test docs`）且 `dangerous_delete_paths=47`，`rescue=73` 且 `dangerous_delete_paths=60`；因此两条 retained refs 仍然只能 shortlist-first
-  - 当前 local / remote `l0-mainline` 已对齐到 `bb2c4104f098699a9f387800b0688a11a12661c9`；exact Windows native evidence 已对这个 branch-visible head 收齐，但 merged `main` closeout 仍需在 merge 后单独记录
+  - 当前 **CI-covered branch head** 是 `bb2c4104f098699a9f387800b0688a11a12661c9`；本地 docs 记录头已在其上新增 docs-only closeout 提交，但 exact Windows native evidence 继续锚定这个 branch-visible code/test head；merged `main` closeout 仍需在 merge 后单独记录
   - `closeout` / `rescue` 继续保留给更高风险的 `source-review-first` 专项波次，不做 broad absorb
   - 如需一波收口 Linux/Windows evidence 与 current-state docs，使用 `bash tests/run_strict_l0_mainline_closeout.sh`
   - 如需只回填 current-state 文档，使用 `bash tests/update_strict_l0_current_state_docs.sh --apply --main-sha <main-sha> --linux-run-id <linux-run-id> --linux-run-sha <linux-run-sha> --windows-run-id <windows-run-id> --windows-run-sha <windows-run-sha> --windows-local-batch-id <batch-id>`

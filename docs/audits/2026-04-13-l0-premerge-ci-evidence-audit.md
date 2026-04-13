@@ -5,8 +5,9 @@
 ## Scope
 
 - 当前分支仍然是 `l0-mainline`
-- 当前 local / remote branch head 已对齐到 `bb2c4104f098699a9f387800b0688a11a12661c9`
-- 这轮证据只覆盖 branch-visible head，不覆盖 merged `origin/main` 的后续语义
+- 当前 **CI-covered branch head** 是 `bb2c4104f098699a9f387800b0688a11a12661c9`
+- 当前这份 audit 所在的本地 docs 记录头比该 CI-covered head 又多了一笔 docs-only 提交；因此这里固定记录“已被 CI 覆盖的 branch head”，不把 docs bookkeeping 误写成新的 exact-evidence head
+- 这轮证据只覆盖 branch-visible code/test head，不覆盖 merged `origin/main` 的后续语义
 
 ## Why this audit exists
 
@@ -29,7 +30,7 @@
 
 ## What this proves
 
-- 当前 `l0-mainline` 已经不再受“remote ref 落后于 local head”的 blocker 影响
+- 当前 `l0-mainline` 的代码 / 测试 head 已经不再受“remote ref 落后于 local head”的 blocker 影响
 - Linux maintenance 与 Windows exact native evidence 现在都已经覆盖同一个 branch-visible head：`bb2c4104...`
 - 因为 `e7ca1fdf...` 之后新增的是 docs / control-plane-only 提交，所以第十波 implementation wave 也被这次 branch evidence 一并覆盖
 
