@@ -53,8 +53,14 @@ rg -F "docs_absorb_candidate_paths=" "${AUDIT_FILE}" >/dev/null \
   || fail "audit missing docs absorb candidate routing"
 rg -F "report_strict_l0_retained_refs_source_review_shortlist.sh" "${AUDIT_FILE}" >/dev/null \
   || fail "audit missing source-review shortlist command"
+rg -F "report_strict_l0_retained_refs_sidecar_tail_overlap.sh" "${AUDIT_FILE}" >/dev/null \
+  || fail "audit missing sidecar-tail overlap command"
 rg -F "dangerous_delete_paths=" "${AUDIT_FILE}" >/dev/null \
   || fail "audit missing dangerous delete shortlist routing"
+rg -F "sidecar_only_commit_count=" "${AUDIT_FILE}" >/dev/null \
+  || fail "audit missing sidecar overlap count"
+rg -F "tail_only_commit_count=" "${AUDIT_FILE}" >/dev/null \
+  || fail "audit missing tail overlap count"
 rg -F "仍锚定 \`main@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\`" "${AUDIT_FILE}" >/dev/null \
   || fail "audit missing merged-main Windows mismatch posture"
 rg -F "Base commit: \`1111111111111111111111111111111111111111\`" "${WORKER_FILE}" >/dev/null \
@@ -71,8 +77,14 @@ rg -F "docs_absorb_candidate_paths=" "${WORKER_FILE}" >/dev/null \
   || fail "worker handoff missing docs absorb candidate routing"
 rg -F "report_strict_l0_retained_refs_source_review_shortlist.sh" "${WORKER_FILE}" >/dev/null \
   || fail "worker handoff missing source-review shortlist command"
+rg -F "report_strict_l0_retained_refs_sidecar_tail_overlap.sh" "${WORKER_FILE}" >/dev/null \
+  || fail "worker handoff missing sidecar-tail overlap command"
 rg -F "dangerous_delete_paths=" "${WORKER_FILE}" >/dev/null \
   || fail "worker handoff missing dangerous delete shortlist routing"
+rg -F "sidecar_only_commit_count=" "${WORKER_FILE}" >/dev/null \
+  || fail "worker handoff missing sidecar overlap count"
+rg -F "tail_only_commit_count=" "${WORKER_FILE}" >/dev/null \
+  || fail "worker handoff missing tail overlap count"
 rg -F "仍锚定 \`main@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\`" "${WORKER_FILE}" >/dev/null \
   || fail "worker handoff missing merged-main Windows mismatch posture"
 rg -F "merge commit：\`1111111111111111111111111111111111111111\`" "${LEGACY_FILE}" >/dev/null \

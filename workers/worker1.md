@@ -14,6 +14,7 @@
   - 把 Linux maintenance workflow 与 Windows exact-evidence lane 的 current-entry 命令、证据和 fail-close 语义写准
   - 把 retained-refs triage 的 `test_hygiene_candidate_paths=` / `source_review_candidate_paths=` / `docs_absorb_candidate_paths=` 保持为 today contract
   - 把 `sidecar/tail` 已吸收的 hygiene residue 与 `closeout/rescue` 的 shortlist-first 语义保持为 today contract，并继续拒绝 `dangerous_delete_paths=` 场景下的 wholesale absorb
+  - 把 `sidecar/tail` 的 merged-main 之后 pairwise cleanup readiness 固定到 `bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh`
   - 保持 Windows exact evidence 只能来自 GitHub Actions / 真实 Windows runner 这一纪律
   - 保留 `docs/audits/2026-04-14-l0-premerge-branch-evidence-audit.md` 作为历史 closeout，不再把 pre-merge branch evidence 当 current-entry
 - Source of truth:
@@ -22,6 +23,7 @@
   - `docs/ARCHITECTURE_LAYERS.md`
   - `docs/audits/2026-04-11-l0-current-state-audit.md`
   - `docs/audits/2026-04-14-l0-premerge-branch-evidence-audit.md`
+  - `docs/audits/2026-04-14-l0-retained-refs-sidecar-tail-postmerge-audit.md`
   - `docs/audits/2026-04-13-l0-premerge-ci-evidence-audit.md`
   - `docs/audits/2026-04-13-l0-retained-refs-ninth-hygiene-shortlist-audit.md`
   - `docs/audits/2026-04-13-l0-retained-refs-tenth-mem-callback-doc-guard-audit.md`
@@ -34,6 +36,7 @@
   - `docs/EXAMPLES.md`
   - `docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md`
   - `docs/plans/2026-04-14-l0-mainline-main-closeout-wave.md`
+  - `docs/plans/2026-04-14-l0-retained-refs-sidecar-tail-postmerge-plan.md`
   - `docs/plans/2026-04-13-l0-retained-refs-seventh-absorption-plan.md`
   - `docs/plans/2026-04-13-l0-retained-refs-eighth-focus-routing-plan.md`
   - `docs/plans/2026-04-13-l0-retained-refs-ninth-hygiene-shortlist-plan.md`
@@ -44,7 +47,9 @@
   - `tests/run_strict_l0_maintenance_loop.sh`
   - `tests/run_strict_l0_mainline_closeout.sh`
   - `tests/report_strict_l0_retained_refs_inventory.sh`
+  - `tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh`
   - `tests/report_strict_l0_retained_refs_source_review_shortlist.sh`
+  - `tests/test_strict_l0_retained_refs_sidecar_hygiene_contract.sh`
   - `tests/test_strict_l0_retained_refs_hygiene_absorption_contract.sh`
   - `tests/test_strict_l0_retained_refs_inventory_code_tests_contract.sh`
   - `tests/test_strict_l0_retained_refs_inventory_test_hygiene_contract.sh`
@@ -52,6 +57,7 @@
   - `tests/test_strict_l0_retained_refs_inventory_focus_routing_contract.sh`
   - `tests/test_strict_l0_retained_refs_inventory_examples_build_contract.sh`
   - `tests/test_strict_l0_retained_refs_source_review_shortlist_contract.sh`
+  - `tests/test_strict_l0_retained_refs_sidecar_tail_overlap_contract.sh`
   - `tests/test_strict_l0_retained_refs_closeout_test_docs_no_downgrade_contract.sh`
   - `tests/test_strict_l0_examples_build_docs_contract.sh`
   - `tests/run_windows_strict_l0_native_evidence_via_github_actions.sh`
@@ -73,6 +79,16 @@
   - `bash tests/report_strict_l0_retained_refs_inventory.sh`
   - 结果：PASS
   - `bash tests/report_strict_l0_retained_refs_inventory.sh --details`
+  - 结果：PASS
+  - `bash tests/test_strict_l0_retained_refs_sidecar_hygiene_contract.sh`
+  - 结果：PASS
+  - `bash tests/fafafa.core.env/BuildOrTest.sh build`
+  - 结果：PASS
+  - `bash tests/fafafa.core.mem.manager.rtl/BuildOrTest.sh check`
+  - 结果：PASS
+  - `bash tests/test_strict_l0_retained_refs_sidecar_tail_overlap_contract.sh`
+  - 结果：PASS
+  - `bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh`
   - 结果：PASS
   - `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh`
   - 结果：PASS
@@ -122,12 +138,14 @@
   - 如需重新判断 retained refs 是否还该保留，使用 `bash tests/audit_strict_l0_retained_refs.sh`
   - 如需先判断 retained refs 该优先吸收哪类 unique history，使用 `bash tests/report_strict_l0_retained_refs_inventory.sh`
   - 如需直接看 retained refs 的代表性 unique commits / paths，使用 `bash tests/report_strict_l0_retained_refs_inventory.sh --details`
+  - 如需判断 `sidecar/tail` 在 merged-main 之后还能不能删、各自还剩什么 exclusive batch，使用 `bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh`
   - 如需把 `closeout/rescue` 的 source-review 候选与危险删除拆开，使用 `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh`
   - 如果 `next_focus=test-hygiene-first`，优先看 `test_hygiene_candidate_paths=`
   - 如果 `next_focus=source-review-first`，优先看 `source_review_candidate_paths=`
   - docs residue 继续看 `docs_absorb_candidate_paths=`
   - 只要看到 `dangerous_delete_paths=` 或 `reject_wholesale_absorb=yes`，继续拒绝整包吸收
-  - 当前 `sidecar` / `tail` 的 `next_focus=` 仍固定暴露为 `test-hygiene-first`
+  - 当前 `sidecar` / `tail` 的 inventory `next_focus=` 仍固定暴露为 `test-hygiene-first`，但 post-merge ref cleanup readiness 先看 overlap 报表
+  - fresh overlap 结果是 `sidecar_only_commit_count=1`、`tail_only_commit_count=8`，并且 `sidecar_safe_delete_now=no`、`tail_safe_delete_now=no`
   - 当前 `closeout` 继续是 `2 src + 1 test code + 6 stale test docs + dangerous_delete_paths=48`，`rescue` 继续是 `source-review-first` 且 `dangerous_delete_paths=61`
   - 如需一波收口 Linux/Windows evidence 与 current-state docs，使用 `bash tests/run_strict_l0_mainline_closeout.sh`
   - 如需只回填 current-state 文档，使用 `bash tests/update_strict_l0_current_state_docs.sh --apply --main-sha <main-sha> --linux-run-id <linux-run-id> --linux-run-sha <linux-run-sha> --windows-run-id <windows-run-id> --windows-run-sha <windows-run-sha> --windows-local-batch-id <batch-id>`

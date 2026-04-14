@@ -264,6 +264,53 @@ bash tests/test_strict_l0_retained_refs_closeout_test_docs_no_downgrade_contract
 - Linux x64 strict L0 日常维护入口：`bash tests/run_strict_l0_maintenance_loop.sh`
 - exact Windows native evidence 只接受 GitHub Actions 或真实 Windows runner
 
+第 2026-04-14 波之后，`sidecar/tail` 还新增了一条 post-merge pairwise overlap 入口：
+
+```bash
+bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh
+```
+
+这条命令的 today contract 是：
+
+- 它不替代 inventory，也不替代 `closeout/rescue` 的 shortlist
+- 它只回答 `sidecar/tail` 这两条 ref 在 merged-main 之后：
+  - shared merge-base 是什么
+  - 各自还剩多少 exclusive commits
+  - 各自 exclusive paths 更像 docs / src / test code / runner 还是 worker/control-plane
+  - `sidecar_safe_delete_now=` / `tail_safe_delete_now=` 当前是否为 `yes`
+
+它会继续显式输出：
+
+- `sidecar_tail_merge_base=`
+- `sidecar_only_commit_count=`
+- `tail_only_commit_count=`
+- `sidecar_safe_delete_now=`
+- `tail_safe_delete_now=`
+- `pairwise_decision=`
+- `pairwise_cleanup_readiness=`
+
+也就是说，第 2026-04-14 波之后：
+
+1. `bash tests/report_strict_l0_retained_refs_inventory.sh --details` 继续负责 absorb class / candidate surface
+2. `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh` 继续只处理 `closeout/rescue`
+3. `bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh` 继续只处理 `sidecar/tail` 的 post-merge delete readiness / exclusive batch 判断
+
+同时，这一波又真实吸掉了一小段 sidecar hygiene residue，并通过下面这条 contract 锁住：
+
+```bash
+bash tests/test_strict_l0_retained_refs_sidecar_hygiene_contract.sh
+```
+
+它当前固定验证：
+
+- `tests/fafafa.core.env/.gitignore`
+- `tests/fafafa.core.mem.manager.rtl/.gitignore`
+- `tests/fafafa.core.env/build_log.txt`
+- `tests/fafafa.core.env/fpcdebug.txt`
+- `tests/fafafa.core.mem.manager.rtl/mem_manager_heaptrc_output.txt`
+
+已经不再属于主线 tracked surface。
+
 如果你当前关心的是 strict non-SIMD L0 在 Windows 路径上的复核，不要直接从“原生 `.bat` 构建完全对称”这个前提出发。当前仓库已经分成四条不同的复核链路：
 
 - 最小 Win64 `.exe` runtime smoke

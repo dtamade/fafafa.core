@@ -18,6 +18,8 @@
 - 第八波之后，retained-refs inventory 还会继续显式输出 `test_hygiene_candidate_paths=` 与 `source_review_candidate_paths=`，让 `sidecar/tail` 和 `closeout/rescue` 的当前下一跳直接可读。
 - 第九波之后，`sidecar/tail` 的一批 tracked hygiene residue 已经从主线真实清掉；`closeout/rescue` 继续通过 `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh` 暴露 `review_candidate_paths=` / `simd_out_of_scope_paths=` / `dangerous_delete_paths=` / `reject_wholesale_absorb=`。
 - 第十波之后，`mem allocator callback` 的低风险 rescue 语义已经在主线内做了小型 current-entry hardening；`closeout` 的 6 个 test README candidate 也已被明确确认为 stale downgrade，并由 no-downgrade contract 锁住。
+- 第 2026-04-14 波之后，`sidecar` 又吸收了一小段仍未覆盖的 runtime hygiene：`tests/fafafa.core.env/build_log.txt`、`tests/fafafa.core.env/fpcdebug.txt` 与 `tests/fafafa.core.mem.manager.rtl/mem_manager_heaptrc_output.txt` 已不再属于主线 tracked surface。
+- 第 2026-04-14 波之后，如果当前问题是 `sidecar/tail` 在 merged-main 之后还能不能删、各自还剩什么 exclusive batch，标准入口固定为 `bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh`；fresh 结果是 `sidecar_only_commit_count=1`、`tail_only_commit_count=8`，且 `sidecar_safe_delete_now=no`、`tail_safe_delete_now=no`。
 - fresh shortlist 继续显示 `closeout` 不能整包吸收：它当前仍是 `2 src + 1 test code + 6 stale test docs + dangerous_delete_paths=48`；`rescue` 仍是 `source-review-first` 且 `dangerous_delete_paths=61`。
 - 当前 4 个残留 L0 refs 仍承载独立 patch history；refs cleanup 结论继续保持显式 `no-op`。
 
@@ -50,6 +52,16 @@
 - `bash tests/report_strict_l0_retained_refs_inventory.sh --details`
   - 结果：PASS
 - `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh`
+  - 结果：PASS
+- `bash tests/test_strict_l0_retained_refs_sidecar_hygiene_contract.sh`
+  - 结果：PASS
+- `bash tests/fafafa.core.env/BuildOrTest.sh build`
+  - 结果：PASS
+- `bash tests/fafafa.core.mem.manager.rtl/BuildOrTest.sh check`
+  - 结果：PASS
+- `bash tests/test_strict_l0_retained_refs_sidecar_tail_overlap_contract.sh`
+  - 结果：PASS
+- `bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh`
   - 结果：PASS
 - `bash tests/audit_strict_l0_retained_refs.sh`
   - 结果：PASS
@@ -98,7 +110,9 @@
 - 第八波之后，如果 `next_focus=test-hygiene-first`，优先看 `test_hygiene_candidate_paths=`；如果 `next_focus=source-review-first`，优先看 `source_review_candidate_paths=`；docs residue 则继续看 `docs_absorb_candidate_paths=`。
 - 第九波之后，如果 `next_focus=source-review-first`，当前标准入口是 `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh`；它会继续显式输出 `review_candidate_paths=`、`simd_out_of_scope_paths=`、`dangerous_delete_paths=` 与 `reject_wholesale_absorb=`。
 - 第十波之后，如果 `closeout` 仍只剩 test-doc residue，先跑 `bash tests/test_strict_l0_retained_refs_closeout_test_docs_no_downgrade_contract.sh`，确认这些 README 没有把 current-entry 反向降级。
+- 第 2026-04-14 波之后，如果当前问题从 absorb class 变成了 `sidecar/tail` pairwise cleanup readiness，当前标准入口是 `bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh`；它会继续显式输出 `sidecar_only_commit_count=`、`tail_only_commit_count=`、`sidecar_safe_delete_now=`、`tail_safe_delete_now=` 与 `pairwise_cleanup_readiness=`。
 - 第九波之后，`tests/fafafa.core.archiver/last-run.txt`、`tests/fafafa.core.atomic/tests_atomic`、`tests/fafafa.core.sync.barrier/*_output.txt` 与 `tests/fafafa.core.fs/performance-data/*latest*` 这类 residue 已不再属于主线 tracked surface。
+- 第 2026-04-14 波之后，`tests/fafafa.core.env/build_log.txt`、`tests/fafafa.core.env/fpcdebug.txt` 与 `tests/fafafa.core.mem.manager.rtl/mem_manager_heaptrc_output.txt` 也已从主线 tracked surface 移除，并由对应目录下的 `.gitignore` 接住。
 - superseded 的 dated L0 plans / audits 现在统一下沉到 `docs/legacy/l0/`，不要再把那批文档当 current-entry。
 - collections 域里 superseded 的 dated plans / status / reviews 现在统一下沉到 `docs/collections/legacy/README.md`，不要再把 `docs/collections/plans/`、`docs/collections/status/`、`docs/collections/reviews/` 里的历史批次误判成 current-entry。
 - 当前保留的本地 L0 refs 只包括：

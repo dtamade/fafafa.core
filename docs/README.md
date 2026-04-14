@@ -8,7 +8,7 @@
 - L0 稳定路线图：`docs/fafafa.core.l0.roadmap.md`
 - L0 详细定义：`docs/fafafa.core.l0.foundation.md`
 - 当前 L0 审计：`docs/audits/2026-04-11-l0-current-state-audit.md`
-- retained refs 第十波 mem callback / doc-guard 审计：`docs/audits/2026-04-13-l0-retained-refs-tenth-mem-callback-doc-guard-audit.md`
+- retained refs post-merge sidecar/tail 审计：`docs/audits/2026-04-14-l0-retained-refs-sidecar-tail-postmerge-audit.md`
 - L0 post-merge 稳定化计划：`docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md`
 - L0 历史批次 / 审计归档：`docs/legacy/l0/README.md`
 - 测试指南：`docs/TESTING.md`
@@ -25,6 +25,7 @@
 - 当前如果要继续沿 L0 维护，优先看最新 audit、roadmap、foundation 和 post-merge stabilization plan
 - Linux x64 的日常维护入口固定为：`bash tests/run_strict_l0_maintenance_loop.sh`
 - 当前 retained-refs triage 继续固定为：先看 `next_focus=`，再看 `test_hygiene_candidate_paths=` / `source_review_candidate_paths=` / `docs_absorb_candidate_paths=`；如果是 `source-review-first`，继续跑 `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh`
+- 如果当前问题是 `sidecar/tail` 在 merged-main 之后还能不能删、各自还剩什么 exclusive batch，标准入口切到：`bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh`
 
 ## 文档放置约定（清理后的结构）
 
