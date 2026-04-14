@@ -49,10 +49,14 @@ rg -F "test_hygiene_candidate_paths=" "${AUDIT_FILE}" >/dev/null \
   || fail "audit missing test hygiene candidate routing"
 rg -F "source_review_candidate_paths=" "${AUDIT_FILE}" >/dev/null \
   || fail "audit missing source review candidate routing"
+rg -F "docs_absorb_candidate_paths=" "${AUDIT_FILE}" >/dev/null \
+  || fail "audit missing docs absorb candidate routing"
 rg -F "report_strict_l0_retained_refs_source_review_shortlist.sh" "${AUDIT_FILE}" >/dev/null \
   || fail "audit missing source-review shortlist command"
 rg -F "dangerous_delete_paths=" "${AUDIT_FILE}" >/dev/null \
   || fail "audit missing dangerous delete shortlist routing"
+rg -F "仍锚定 \`main@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\`" "${AUDIT_FILE}" >/dev/null \
+  || fail "audit missing merged-main Windows mismatch posture"
 rg -F "Base commit: \`1111111111111111111111111111111111111111\`" "${WORKER_FILE}" >/dev/null \
   || fail "worker handoff missing base commit"
 rg -F "GitHub Actions \`L0 Linux Maintenance\` run \`1001\`" "${WORKER_FILE}" >/dev/null \
@@ -63,11 +67,19 @@ rg -F "test_hygiene_candidate_paths=" "${WORKER_FILE}" >/dev/null \
   || fail "worker handoff missing test hygiene candidate routing"
 rg -F "source_review_candidate_paths=" "${WORKER_FILE}" >/dev/null \
   || fail "worker handoff missing source review candidate routing"
+rg -F "docs_absorb_candidate_paths=" "${WORKER_FILE}" >/dev/null \
+  || fail "worker handoff missing docs absorb candidate routing"
 rg -F "report_strict_l0_retained_refs_source_review_shortlist.sh" "${WORKER_FILE}" >/dev/null \
   || fail "worker handoff missing source-review shortlist command"
 rg -F "dangerous_delete_paths=" "${WORKER_FILE}" >/dev/null \
   || fail "worker handoff missing dangerous delete shortlist routing"
+rg -F "仍锚定 \`main@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\`" "${WORKER_FILE}" >/dev/null \
+  || fail "worker handoff missing merged-main Windows mismatch posture"
 rg -F "merge commit：\`1111111111111111111111111111111111111111\`" "${LEGACY_FILE}" >/dev/null \
   || fail "legacy closeout missing main merge commit"
+rg -F "仍锚定 \`main@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\`" "${LEGACY_FILE}" >/dev/null \
+  || fail "legacy closeout missing merged-main Windows mismatch posture"
+rg -F "TEST-L0-BATCH" "${LEGACY_FILE}" >/dev/null \
+  || fail "legacy closeout missing Windows snapshot path"
 
 echo "[PASS] strict L0 current-state docs updater contract verified"

@@ -2,14 +2,14 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-SHARED_GH_RUN_HELPER="${SCRIPT_DIR}/lib_github_actions_workflow_runs.sh"
+REPO_ROOT="${L0_MAINLINE_CLOSEOUT_REPO_ROOT:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
+SHARED_GH_RUN_HELPER="${L0_MAINLINE_CLOSEOUT_SHARED_GH_RUN_HELPER:-${SCRIPT_DIR}/lib_github_actions_workflow_runs.sh}"
 LINUX_WORKFLOW_FILE="${L0_MAINLINE_CLOSEOUT_LINUX_WORKFLOW_FILE:-l0-linux-maintenance.yml}"
 MAIN_REF="${L0_MAINLINE_CLOSEOUT_MAIN_REF:-main}"
 BATCH_ID="${L0_MAINLINE_CLOSEOUT_BATCH_ID:-L0-$(date '+%Y%m%d')-mainline-closeout}"
 WINDOWS_LOCAL_BATCH_ID="${L0_MAINLINE_CLOSEOUT_WINDOWS_LOCAL_BATCH_ID:-${BATCH_ID}-windows}"
-WINDOWS_HELPER_SCRIPT="${SCRIPT_DIR}/run_windows_strict_l0_native_evidence_via_github_actions.sh"
-DOCS_UPDATER_SCRIPT="${SCRIPT_DIR}/update_strict_l0_current_state_docs.sh"
+WINDOWS_HELPER_SCRIPT="${L0_MAINLINE_CLOSEOUT_WINDOWS_HELPER_SCRIPT:-${SCRIPT_DIR}/run_windows_strict_l0_native_evidence_via_github_actions.sh}"
+DOCS_UPDATER_SCRIPT="${L0_MAINLINE_CLOSEOUT_DOCS_UPDATER_SCRIPT:-${SCRIPT_DIR}/update_strict_l0_current_state_docs.sh}"
 
 APPLY_DOCS=0
 PRINT_COMMANDS=0
@@ -35,6 +35,10 @@ Options:
   --windows-sha <sha>       Override the exact Windows evidence SHA recorded in docs
 
 Environment:
+  L0_MAINLINE_CLOSEOUT_REPO_ROOT             Override repo/doc root used by docs apply
+  L0_MAINLINE_CLOSEOUT_SHARED_GH_RUN_HELPER  Override shared GH workflow helper path
+  L0_MAINLINE_CLOSEOUT_WINDOWS_HELPER_SCRIPT Override Windows native evidence helper path
+  L0_MAINLINE_CLOSEOUT_DOCS_UPDATER_SCRIPT   Override current-state docs updater path
   L0_MAINLINE_CLOSEOUT_MAIN_REF              Target ref (default: main)
   L0_MAINLINE_CLOSEOUT_BATCH_ID              Closeout batch id prefix
   L0_MAINLINE_CLOSEOUT_WINDOWS_LOCAL_BATCH_ID Local snapshot batch id for Windows helper
@@ -89,7 +93,7 @@ done
 print_commands() {
   printf '%s\n' "gh workflow run ${LINUX_WORKFLOW_FILE} --ref ${MAIN_REF}"
   printf '%s\n' "L0_NATIVE_EVIDENCE_REF=${MAIN_REF} bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh ${WINDOWS_LOCAL_BATCH_ID}"
-  printf '%s\n' "bash tests/update_strict_l0_current_state_docs.sh --apply --main-sha <main-sha> --linux-run-id <linux-run-id> --windows-run-id <windows-run-id> --windows-local-batch-id ${WINDOWS_LOCAL_BATCH_ID}"
+  printf '%s\n' "bash tests/update_strict_l0_current_state_docs.sh --apply --main-sha <main-sha> --linux-run-id <linux-run-id> --linux-run-sha <linux-run-sha> --windows-run-id <windows-run-id> --windows-run-sha <windows-run-sha> --windows-local-batch-id ${WINDOWS_LOCAL_BATCH_ID}"
 }
 
 if [[ "${PRINT_COMMANDS}" == "1" ]]; then
