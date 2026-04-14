@@ -217,3 +217,12 @@ Expected:
 
 - `tail` 独占面积进一步缩小
 - 当前 worktree 完成这一波收口，准备进入下一轮 retained-refs triage
+
+---
+
+## Execution Closeout Notes
+
+- `Task 2` 结论：`docs/control-plane` tail commits 经过逐个复核后判定为 stale，不能按 tail 版本回灌；当前 `HEAD` 已经以 `2026-04-11` current-state audit、`2026-04-14` retained-refs postmerge audit、`post-merge stabilization plan` 和 `docs/legacy/l0/README.md` 为 today control plane，故本任务按“reviewed and intentionally skipped”收口。
+- `Task 3` 结论：`9216f320` 的 test entrypoint `settings.inc` normalization 已经完整存在于当前 `HEAD`；对 atomic/base/bits/contracts/endian/layout/option/result/span 入口的 diff 为 `no-op`，因此本任务按“already absorbed”收口，不再重复 cherry-pick。
+- `Task 4` 结论：`src/fafafa.core.span.pas` 及其直接耦合测试相对 `l0-main-tail-cleanup-20260408-final` 已经是空 diff；唯一仍值得对齐的 source delta 是 `src/fafafa.core.atomic.base.pas` 中 `TAtomicPtr.CompareExchangeStrong/Weak` 的 generic-template 注释，这一波只吸收该最小 comment-only 对齐，不做行为修改。
+- 本 wave 的最终策略保持不变：`shortlist-first`、`no broad absorb`、`simd out of scope`、`Windows exact native evidence only via CI / real Windows runner`。
