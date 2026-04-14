@@ -35,6 +35,15 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate
 - `check`：编译卫生 + 基础 runner parity；现在还会 fresh 编译 `NEON/RISCVV` 的 opt-in `--list-suites` 路径，并带上 `check_riscvv_abi_shape.py`，专门防止 non-x86 opt-in compile drift / RISCVV hidden-result-pointer ABI 漂移再次躲过默认门禁
 - 两个 `--suite`：最关键的 dispatch / direct 回归
 - `gate`：日常改动使用的快门禁 / 基础门禁
+- 如果你改的是 `runtime / cpuinfo / dataplane / façade` 这一层接口边界，优先再补两条：
+
+```bash
+FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_RuntimeAPI
+FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DataPlane
+```
+
+- `TTestCase_RuntimeAPI`：验证 canonical/legacy façade、`runtime` / `cpuinfo` 语义边界，以及 control-plane wrapper 一致性
+- `TTestCase_DataPlane`：验证 data-plane published snapshot、direct dispatch 与 public ABI binding 一致性
 - 如果你改的是当前 x86 bounded frontier 的实现证明面，优先再补一条：
 
 ```bash

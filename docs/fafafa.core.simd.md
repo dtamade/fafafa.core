@@ -2,7 +2,7 @@
 
 > 这页负责讲清模块全貌、阅读顺序和维护边界。
 >
-> 如果你只想查公开 API，请优先看 `docs/fafafa.core.simd.api.md`；如果你只想落地维护，请优先看 `docs/fafafa.core.simd.map.md`、`docs/fafafa.core.simd.maintenance.md` 和 `docs/fafafa.core.simd.checklist.md`。
+> 如果你只想查公开 API，请优先看 `docs/fafafa.core.simd.api.md` 和 `docs/fafafa.core.simd.interface.md`；如果你只想落地维护，请优先看 `docs/fafafa.core.simd.map.md`、`docs/fafafa.core.simd.maintenance.md` 和 `docs/fafafa.core.simd.checklist.md`。
 
 ## 概述
 
@@ -26,6 +26,7 @@
 
 - **使用者入口**：`src/fafafa.core.simd.README.md`
 - **公开 API 参考**：`docs/fafafa.core.simd.api.md`
+- **接口分层与 canonical/legacy 名称矩阵**：`docs/fafafa.core.simd.interface.md`
 - **public ABI wrapper**：`docs/fafafa.core.simd.publicabi.md`
 - **public ABI 稳定承诺**：`docs/fafafa.core.simd.publicabi.stability.md`
 - **阅读地图**：`docs/fafafa.core.simd.map.md`
@@ -37,7 +38,7 @@
 ## 示例定位
 
 - `examples/simd_ops_demo.lpr`：更贴近当前公开 API 的实际用法，适合作为教程入口
-- `examples/example_simd_dispatch.pas`：概念演示（conceptual demo），重点是解释“按 CPU 特性挑选实现”的思路，不代表真实后端注册或派发接线方式
+- `examples/example_simd_dispatch.pas`：概念演示（conceptual demo）；现在会显式区分 `CPU-supported` 与 `current runtime backend`，避免再把两层语义混写成同一个 “backend”
 
 ## Stable / Experimental 边界
 
@@ -56,14 +57,15 @@
 
 - `supported_on_cpu`：CPU/OS 语义上支持。推荐入口：`cpuinfo` 的 `GetSupportedBackendList` / `GetBestSupportedBackend`
 - `registered`：当前二进制里已经注册。入口：`GetRegisteredBackendList` / `IsBackendRegisteredInBinary`
-- `dispatchable`：CPU/OS 支持 + 已注册 + `BackendInfo.Available=True`。入口：`GetDispatchableBackendList` / `GetAvailableBackendList`
-- `active`：当前真正生效的 backend。入口：`GetCurrentBackend` / `GetCurrentBackendInfo`
+- `dispatchable`：CPU/OS 支持 + 已注册 + `BackendInfo.Available=True`。入口：`GetDispatchableBackendList`（`GetAvailableBackendList` 仅兼容保留）
+- `active`：当前真正生效的 backend。入口：`GetCurrentRuntimeSnapshot` / `GetCurrentBackend` / `GetCurrentBackendInfo`
 
 这四层里最容易混的是前两层与第三层：
 
 - `cpuinfo` 的 `GetSupportedBackendList` 只说明 “这台机器支持”
 - `GetAvailableBackends` / `GetBestBackendOnCPU` 继续保留，但仅作为兼容别名理解
-- façade 的 `GetAvailableBackendList` 才说明 “这份二进制现在真的可派发”
+- façade / runtime 的 `GetDispatchableBackendList` 才说明 “这份二进制现在真的可派发”
+- façade 现在也直接提供 canonical convenience wrapper `GetCPUInfo`；legacy `GetCPUInformation` 仅为兼容保留
 
 ## 架构设计
 
@@ -370,7 +372,7 @@ function AsciiIEqual(a, b: Pointer; len: SizeUInt): Boolean;
 **说明**：只对 ASCII 字母进行大小写转换，非 ASCII 字节直接比较
 **优化**：x86_64 使用 SSE2/AVX2，AArch64 使用 NEON
 实现与配置（以代码为准）
-- 后端选择/强制：使用 `fafafa.core.simd.dispatch` 的 `SetActiveBackend` / `TrySetActiveBackend` / `ResetToAutomaticBackend`。
+- 后端选择/强制：公开 control-plane 推荐使用 `fafafa.core.simd.runtime` 的 `TrySetCurrentBackend` / `SetCurrentBackend` / `ResetCurrentBackendSelection`；`dispatch` 层入口保留给更低层维护与测试。
 - VectorAsm 开关：编译期定义 `SIMD_VECTOR_ASM_DISABLED`；运行时可调用 `SetVectorAsmEnabled`（支持初始化后切换，并触发 backend 重建；建议用于启动/测试阶段，而非业务热路径并发写切换）。
   - 对 `SSE* / AVX*` 这类 runtime-gated backend，会在重建时切换 fast path / fallback 能力位。
   - 对当前 `NEON / RISCVV` asm build，runtime 关闭后会重建为 scalar-backed table，以避免保留 stale asm dispatch；这条路径仍需在 arm64 / riscv64 asm-ready 主机上补 fresh execution evidence。

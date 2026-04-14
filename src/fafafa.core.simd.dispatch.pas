@@ -25,7 +25,8 @@ procedure SetActiveBackend(backend: TSimdBackend);
 // ✅ P1: 新增函数 - 允许调用者检查是否成功
 function TrySetActiveBackend(backend: TSimdBackend): Boolean;
 
-// Check if a backend is available on current CPU
+// Low-level compatibility alias for cpuinfo.IsBackendSupportedOnCPU.
+// New public call sites should prefer fafafa.core.simd.cpuinfo.
 function IsBackendAvailableOnCPU(backend: TSimdBackend): Boolean;
 
 // Check if a backend is both CPU-supported and dispatchable in this binary.
@@ -961,7 +962,7 @@ end;
 
 function GetCurrentDispatchPublishedState: PSimdDispatchPublishedState; inline;
 begin
-  Result := PSimdDispatchPublishedState(atomic_load_ptr(g_CurrentDispatchStatePtr, mo_acquire));
+  Result := PSimdDispatchPublishedState(atomic_load(g_CurrentDispatchStatePtr, mo_acquire));
 end;
 
 function GetCurrentPublishedDispatchTable: PSimdDispatchTable; inline;
@@ -977,7 +978,7 @@ end;
 
 function GetPublishedBackendDispatchState(const aBackend: TSimdBackend): PSimdDispatchPublishedState; inline;
 begin
-  Result := PSimdDispatchPublishedState(atomic_load_ptr(g_BackendDispatchStatePtrs[aBackend], mo_acquire));
+  Result := PSimdDispatchPublishedState(atomic_load(g_BackendDispatchStatePtrs[aBackend], mo_acquire));
 end;
 
 function GetPublishedBackendDispatchTable(const aBackend: TSimdBackend): PSimdDispatchTable; inline;
@@ -999,30 +1000,79 @@ begin
   g_CurrentDispatchOwnedHead := Result;
 end;
 
+function DispatchTableMetadataEquals(const aLeft, aRight: TSimdDispatchTable): Boolean; inline;
+begin
+  Result := (aLeft.Backend = aRight.Backend) and
+    (aLeft.BackendInfo.Backend = aRight.BackendInfo.Backend) and
+    (aLeft.BackendInfo.Name = aRight.BackendInfo.Name) and
+    (aLeft.BackendInfo.Description = aRight.BackendInfo.Description) and
+    (aLeft.BackendInfo.Available = aRight.BackendInfo.Available) and
+    (aLeft.BackendInfo.Priority = aRight.BackendInfo.Priority) and
+    (aLeft.BackendInfo.Capabilities = aRight.BackendInfo.Capabilities);
+end;
+
+function DispatchTableSlotPointersEqual(const aLeft, aRight: TSimdDispatchTable): Boolean;
+var
+  LOffset: PtrUInt;
+  LSize: SizeUInt;
+  LLeftSlots: PByte;
+  LRightSlots: PByte;
+begin
+  {$PUSH}{$WARN 4055 OFF} // pointer-sized offset math over immutable dispatch snapshots
+  LOffset := PtrUInt(@aLeft.AddF32x4) - PtrUInt(@aLeft);
+  LLeftSlots := PByte(PtrUInt(@aLeft) + LOffset);
+  LRightSlots := PByte(PtrUInt(@aRight) + LOffset);
+  {$POP}
+  LSize := SizeOf(TSimdDispatchTable) - LOffset;
+  if LSize = 0 then
+    Exit(True);
+  Result := CompareByte(LLeftSlots^, LRightSlots^, LSize) = 0;
+end;
+
+function DispatchTablesEquivalent(const aLeft, aRight: TSimdDispatchTable): Boolean; inline;
+begin
+  Result := DispatchTableMetadataEquals(aLeft, aRight) and
+    DispatchTableSlotPointersEqual(aLeft, aRight);
+end;
+
+function FindPublishedDispatchStateByTable(
+  const aDispatchTable: TSimdDispatchTable): PSimdDispatchPublishedState;
+begin
+  Result := g_CurrentDispatchOwnedHead;
+  while Result <> nil do
+  begin
+    if DispatchTablesEquivalent(Result^.Table, aDispatchTable) then
+      Exit;
+    Result := Result^.NextOwned;
+  end;
+end;
+
 procedure PublishBackendDispatchTable(const aBackend: TSimdBackend; const aDispatchTable: TSimdDispatchTable);
 var
   LState: PSimdDispatchPublishedState;
 begin
-  LState := CreateDispatchPublishedState;
-  LState^.Table := aDispatchTable;
-  atomic_store_ptr(g_BackendDispatchStatePtrs[aBackend], Pointer(LState), mo_release);
+  LState := FindPublishedDispatchStateByTable(aDispatchTable);
+  if LState = nil then
+  begin
+    LState := CreateDispatchPublishedState;
+    LState^.Table := aDispatchTable;
+  end;
+  atomic_store(g_BackendDispatchStatePtrs[aBackend], Pointer(LState), mo_release);
 end;
 
-procedure PublishCurrentDispatchTable(const aDispatchTable: PSimdDispatchTable);
-var
-  LState: PSimdDispatchPublishedState;
+procedure PublishCurrentDispatchState(const aState: PSimdDispatchPublishedState);
 begin
-  if aDispatchTable = nil then
+  if aState = nil then
   begin
     g_CurrentDispatch := nil;
-    atomic_store_ptr(g_CurrentDispatchStatePtr, nil, mo_release);
+    atomic_store(g_CurrentDispatchStatePtr, nil, mo_release);
     Exit;
   end;
 
-  LState := CreateDispatchPublishedState;
-  LState^.Table := aDispatchTable^;
-  g_CurrentDispatch := @LState^.Table;
-  atomic_store_ptr(g_CurrentDispatchStatePtr, Pointer(LState), mo_release);
+  // The active/current dispatch view does not need its own cloned publication:
+  // the selected backend snapshot is already immutable and process-owned.
+  g_CurrentDispatch := @aState^.Table;
+  atomic_store(g_CurrentDispatchStatePtr, Pointer(aState), mo_release);
 end;
 
 procedure FinalizeDispatchPublishedStates;
@@ -1030,7 +1080,7 @@ var
   LState: PSimdDispatchPublishedState;
   LNext: PSimdDispatchPublishedState;
 begin
-  atomic_store_ptr(g_CurrentDispatchStatePtr, nil, mo_release);
+  atomic_store(g_CurrentDispatchStatePtr, nil, mo_release);
   g_CurrentDispatch := nil;
   LState := g_CurrentDispatchOwnedHead;
   g_CurrentDispatchOwnedHead := nil;
@@ -1094,8 +1144,8 @@ procedure DoInitializeDispatch;
 var
   LBestBackend: TSimdBackend;
   LBackend: TSimdBackend;
-  LBestDispatchTable: PSimdDispatchTable;
-  LCandidateDispatchTable: PSimdDispatchTable;
+  LBestDispatchState: PSimdDispatchPublishedState;
+  LCandidateDispatchState: PSimdDispatchPublishedState;
   LBackendSupportedOnCPU: array[TSimdBackend] of Boolean;
   LIndex: Integer;
   LOldState: LongInt;
@@ -1126,7 +1176,7 @@ begin
     if g_BackendForced then
     begin
       LBestBackend := g_ForcedBackend;
-      LBestDispatchTable := nil;
+      LBestDispatchState := nil;
 
       // Forced backend must be:
       //   - registered in this binary
@@ -1138,45 +1188,47 @@ begin
           LBestBackend := sbScalar
         else
         begin
-          LBestDispatchTable := GetPublishedBackendDispatchTable(LBestBackend);
-          if (LBestDispatchTable = nil) or (not LBestDispatchTable^.BackendInfo.Available) then
+          LBestDispatchState := GetPublishedBackendDispatchState(LBestBackend);
+          if (LBestDispatchState = nil) or
+             (not LBestDispatchState^.Table.BackendInfo.Available) then
             LBestBackend := sbScalar;
         end;
       end;
 
       if LBestBackend = sbScalar then
-        LBestDispatchTable := GetPublishedBackendDispatchTable(sbScalar);
+        LBestDispatchState := GetPublishedBackendDispatchState(sbScalar);
     end
     else
     begin
       LBestBackend := sbScalar;
-      LBestDispatchTable := GetPublishedBackendDispatchTable(sbScalar);
+      LBestDispatchState := GetPublishedBackendDispatchState(sbScalar);
 
       for LIndex := Low(SIMD_BACKEND_PRIORITY_ORDER) to High(SIMD_BACKEND_PRIORITY_ORDER) do
       begin
         LBackend := SIMD_BACKEND_PRIORITY_ORDER[LIndex];
         if LBackendSupportedOnCPU[LBackend] then
         begin
-          LCandidateDispatchTable := GetPublishedBackendDispatchTable(LBackend);
-          if (LCandidateDispatchTable <> nil) and LCandidateDispatchTable^.BackendInfo.Available then
+          LCandidateDispatchState := GetPublishedBackendDispatchState(LBackend);
+          if (LCandidateDispatchState <> nil) and
+             LCandidateDispatchState^.Table.BackendInfo.Available then
           begin
             LBestBackend := LBackend;
-            LBestDispatchTable := LCandidateDispatchTable;
+            LBestDispatchState := LCandidateDispatchState;
             Break;
           end;
         end;
       end;
     end;
 
-    // Publish the exact snapshot selected above so readers never observe a
-    // newer backend-state rewrite under the same backend id.
-    if LBestDispatchTable <> nil then
+    // Publish the exact backend snapshot selected above so readers never observe
+    // a newer backend-state rewrite under the same backend id.
+    if LBestDispatchState <> nil then
     begin
-      PublishCurrentDispatchTable(LBestDispatchTable);
+      PublishCurrentDispatchState(LBestDispatchState);
     end
     else
     begin
-      PublishCurrentDispatchTable(nil);
+      PublishCurrentDispatchState(nil);
     end;
 
     g_DispatchInitialized := True;

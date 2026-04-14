@@ -44,6 +44,29 @@
 7. **public ABI hard guard**
    - `check_public_abi_signature.py` 会对 public ABI wrapper 的 Pascal 声明、ABI 常量、backend/capability ID 映射，以及 `publicabi_smoke.h` consumer contract 做 machine-readable 校验
    - `gate` / `gate-strict` 默认已带上 `publicabi-signature` step，用来防止 public ABI wrapper 被无意改坏
+8. **runtime / cpuinfo / dataplane 接口封边**
+   - `TSimdBackendArray` 现在归 `fafafa.core.simd.base` 所有，`cpuinfo` / `runtime` 只返回这个共享容器类型
+   - `fafafa.core.simd` 现在直接重导出 canonical `GetCPUInfo`；`GetCPUInformation` 降级为兼容别名
+   - data-plane published snapshot 不再在复用旧节点时重写内容；同一 dispatch 只会重新发布既有 immutable snapshot
+   - `example_simd_dispatch` 与接口文档现在显式区分 `CPU-supported` 和 `current runtime backend`
+
+## 2026-04-15 runtime / cpuinfo closeout facts
+
+- bounded frontier：`runtime / cpuinfo / dataplane / façade wrapper / docs-example alignment`
+- fresh targeted suites：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_RuntimeAPI` -> `[TEST] OK`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DataPlane` -> `[TEST] OK`
+- fresh fast gate：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` -> `[CHECK] OK`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` -> `[GATE] OK`
+- fresh host-local strict closeout：
+  - `SIMD_QEMU_PLATFORMS='linux/arm64 linux/riscv64' SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local` -> `[CLOSEOUT-HOST-LOCAL] OK`
+  - qemu runtime summary: [qemu-multiarch-20260415-010346-869191/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260415-010346-869191/summary.md)
+  - qemu cpuinfo summary: [qemu-multiarch-20260415-011042-887472/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260415-011042-887472/summary.md)
+- 当前结论：
+  - 接口层 canonical/legacy 口径已经封边：`cpuinfo` 只回答 CPU/OS capability，`runtime` 负责 active/registered/dispatchable/control-plane
+  - data-plane published snapshot 的不可变语义已经落到实现上，不再依赖“复用节点但内容刚好相同”的隐式假设
+  - Windows evidence 仍保持为独立外部边界；这轮 host-local closeout 没有伪装成 Windows 完成
 
 ## 现在可以怎么理解这个模块
 

@@ -328,6 +328,8 @@ type
     sbRISCVV    // ⚠️ EXPERIMENTAL - 实验性后端，API 可能变更
   );
 
+  TSimdBackendArray = array of TSimdBackend;
+
   TSimdCapability = (
     scBasicArithmetic,
     scComparison,

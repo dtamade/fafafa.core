@@ -8,6 +8,7 @@ interface
 uses
   fafafa.core.simd.base,
   fafafa.core.simd.dispatch,
+  fafafa.core.simd.runtime,
   fafafa.core.simd.cpuinfo,
   fafafa.core.simd.cpuinfo.base,
   fafafa.core.simd.utils      // ✅ Shuffle, Blend, Convert operations
@@ -1094,6 +1095,7 @@ implementation
 
 uses
   fafafa.core.atomic,
+  fafafa.core.simd.dataplane,
   fafafa.core.simd.memutils;
 
 type
@@ -1112,17 +1114,26 @@ var
 
 procedure RebindSimdFacadeFastPaths;
 var
-  LDispatch: PSimdDispatchTable;
+  LDataPlane: PSimdDataPlane;
 begin
-  LDispatch := GetDispatchTable;
-  if LDispatch = nil then
+  LDataPlane := GetCurrentSimdDataPlane;
+  if LDataPlane = nil then
     Exit;
 
-  atomic_store_ptr(g_FastVecF32x4AddPtr, Pointer(LDispatch^.AddF32x4), mo_release);
-  atomic_store_ptr(g_FastVecI16x32AddPtr, Pointer(LDispatch^.AddI16x32), mo_release);
-  atomic_store_ptr(g_FastVecU32x16MulPtr, Pointer(LDispatch^.MulU32x16), mo_release);
-  atomic_store_ptr(g_FastVecU64x8AddPtr, Pointer(LDispatch^.AddU64x8), mo_release);
-  atomic_store_ptr(g_FastVecU8x64MaxPtr, Pointer(LDispatch^.MaxU8x64), mo_release);
+  atomic_store(g_FastVecF32x4AddPtr, LDataPlane^.VecF32x4AddPtr, mo_release);
+  atomic_store(g_FastVecI16x32AddPtr, LDataPlane^.VecI16x32AddPtr, mo_release);
+  atomic_store(g_FastVecU32x16MulPtr, LDataPlane^.VecU32x16MulPtr, mo_release);
+  atomic_store(g_FastVecU64x8AddPtr, LDataPlane^.VecU64x8AddPtr, mo_release);
+  atomic_store(g_FastVecU8x64MaxPtr, LDataPlane^.VecU8x64MaxPtr, mo_release);
+end;
+
+procedure InvalidateSimdFacadeFastPaths;
+begin
+  atomic_store(g_FastVecF32x4AddPtr, nil, mo_release);
+  atomic_store(g_FastVecI16x32AddPtr, nil, mo_release);
+  atomic_store(g_FastVecU32x16MulPtr, nil, mo_release);
+  atomic_store(g_FastVecU64x8AddPtr, nil, mo_release);
+  atomic_store(g_FastVecU8x64MaxPtr, nil, mo_release);
 end;
 
 function LoadSimdFacadeFastPath(var aFuncPtr: Pointer): Pointer; inline;
@@ -1130,7 +1141,7 @@ begin
   // Use the platform default load order on the hot path:
   // x86/x86_64 stays relaxed (no compiler-barrier call), while weakly ordered
   // targets still get acquire semantics through fafafa.core.atomic defaults.
-  Result := atomic_load_ptr(aFuncPtr);
+  Result := atomic_load(aFuncPtr);
 end;
 
 // === High-Level Vector Operations Implementation ===
@@ -2580,12 +2591,18 @@ var dispatch: PSimdDispatchTable;
     LCount: Integer;
 begin
   LCount := count;
-  if (LCount < 0) or (LCount >= 32) then
+  if LCount < 0 then
   begin
-    Result.i[0] := 0;
-    Result.i[1] := 0;
-    Result.i[2] := 0;
-    Result.i[3] := 0;
+    Result := a;
+    Exit;
+  end;
+
+  if LCount >= 32 then
+  begin
+    if a.i[0] < 0 then Result.i[0] := -1 else Result.i[0] := 0;
+    if a.i[1] < 0 then Result.i[1] := -1 else Result.i[1] := 0;
+    if a.i[2] < 0 then Result.i[2] := -1 else Result.i[2] := 0;
+    if a.i[3] < 0 then Result.i[3] := -1 else Result.i[3] := 0;
     Exit;
   end;
 
@@ -3894,10 +3911,19 @@ var dispatch: PSimdDispatchTable;
     LCount: Integer;
 begin
   LCount := count;
-  if (LCount < 0) or (LCount >= 32) then
+  if LCount < 0 then
+  begin
+    Result := a;
+    Exit;
+  end;
+
+  if LCount >= 32 then
   begin
     for i := 0 to 7 do
-      Result.i[i] := 0;
+      if a.i[i] < 0 then
+        Result.i[i] := -1
+      else
+        Result.i[i] := 0;
     Exit;
   end;
 
@@ -6449,10 +6475,19 @@ var dispatch: PSimdDispatchTable;
     LCount: Integer;
 begin
   LCount := count;
-  if (LCount < 0) or (LCount >= 32) then
+  if LCount < 0 then
+  begin
+    Result := a;
+    Exit;
+  end;
+
+  if LCount >= 32 then
   begin
     for i := 0 to 15 do
-      Result.i[i] := 0;
+      if a.i[i] < 0 then
+        Result.i[i] := -1
+      else
+        Result.i[i] := 0;
     Exit;
   end;
 
@@ -7485,14 +7520,15 @@ end;
 
 initialization
   InitializeSimdPublicApiBinding;
-  AddDispatchChangedHook(@RebindSimdFacadeFastPaths);
+  AddDispatchChangedHook(@InvalidateSimdFacadeFastPaths);
   RebindSimdFacadeFastPaths;
-  AddDispatchChangedHook(@RebindSimdPublicApi);
-  RebindSimdPublicApi;
+  AddDispatchChangedHook(@InvalidateSimdPublicApiBinding);
+  if GetCurrentSimdPublicApiBindingState = nil then
+    RebindSimdPublicApi;
 
 finalization
-  RemoveDispatchChangedHook(@RebindSimdPublicApi);
-  RemoveDispatchChangedHook(@RebindSimdFacadeFastPaths);
+  RemoveDispatchChangedHook(@InvalidateSimdPublicApiBinding);
+  RemoveDispatchChangedHook(@InvalidateSimdFacadeFastPaths);
   FinalizeSimdPublicApiBinding;
 
 end.

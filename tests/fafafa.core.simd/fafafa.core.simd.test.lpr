@@ -19,6 +19,8 @@ uses
   fafafa.core.simd.vecf64x4.testcase,
   fafafa.core.simd.ieee754.testcase,
   fafafa.core.simd.dispatchapi.testcase,
+  fafafa.core.simd.dataplane.testcase,
+  fafafa.core.simd.runtime.testcase,
   fafafa.core.simd.dispatchslots.testcase,
   fafafa.core.simd.publicabi.testcase,
   fafafa.core.simd.edgecases.testcase,
@@ -195,6 +197,8 @@ begin
   HandleSuite('TTestCase_NonX86IEEE754', TTestCase_NonX86IEEE754.Suite, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_NonX86BackendParity', TTestCase_NonX86BackendParity.Suite, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_DispatchAPI', TTestCase_DispatchAPI.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_DataPlane', TTestCase_DataPlane.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_RuntimeAPI', TTestCase_RuntimeAPI.Suite, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_X86MaskedFmaContract', TTestCase_X86MaskedFmaContract.Suite, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_RISCVVMaskedOpsContract', TTestCase_RISCVVMaskedOpsContract.Suite, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_RISCVFallbackDispatchContract', TTestCase_RISCVFallbackDispatchContract.Suite, aListOnly, aTargetSuite);

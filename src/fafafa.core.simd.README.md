@@ -7,6 +7,8 @@
 如果你是第一次进入这个模块，建议按下面顺序读：
 
 - **想直接使用公开 API**：先看 `docs/fafafa.core.simd.api.md`，再看 `examples/simd_ops_demo.lpr`
+- **想先把接口边界看清楚**：看 `docs/fafafa.core.simd.interface.md`
+- **想切 runtime backend / 看 control-plane**：默认可直接用 `fafafa.core.simd` 里的 `GetCPUInfo` / `GetCurrentRuntimeSnapshot` / `TrySetCurrentBackend` / `SetCurrentBackend` / `ResetCurrentBackendSelection`；如果想按层导入，再看 `src/fafafa.core.simd.runtime.pas`
 - **想看 external/public ABI wrapper**：看 `docs/fafafa.core.simd.publicabi.md`
   - Linux smoke：`bash tests/fafafa.core.simd.publicabi/BuildOrTest.sh test`
   - Windows smoke：`tests\fafafa.core.simd.publicabi\BuildOrTest.bat test`
@@ -30,7 +32,7 @@
 
 先看结论：`fafafa.core.simd` 的**公开 façade** 可以按稳定入口来理解，`TSimdDispatchTable` 当前只应视为**仓库内稳定 dispatch contract**，不是 public binary ABI；后端成熟度也并不完全相同。
 
-- **稳定面**：`fafafa.core.simd` / `fafafa.core.simd.api` 对外暴露的公开 façade，以及 `TSimdDispatchTable` 这类已明确写入稳定约束的 in-repo dispatch contract
+- **稳定面**：`fafafa.core.simd` / `fafafa.core.simd.api` / `fafafa.core.simd.runtime` 对外暴露的公开 façade，以及 `TSimdDispatchTable` 这类已明确写入稳定约束的 in-repo dispatch contract
 - **后端成熟度有差异**：`Scalar`、`SSE2`、`AVX2`、`NEON` 更接近当前默认维护主线；`AVX-512` 受构建配置和验证范围影响；`sbRISCVV` 仍应视为 experimental / 受限成熟度后端
 - **`sbRISCVV` 现在是显式 opt-in**：即使平台满足，`fafafa.core.simd` 也不会默认接线 `riscvv`；只有定义 `SIMD_EXPERIMENTAL_RISCVV` 时才会把它接入 umbrella unit
 - **experimental intrinsics 默认隔离**：实验性 intrinsics 已有默认入口隔离检查，不属于默认 stable surface；默认入口链路不会把这些实验单元直接暴露成常规公开入口
@@ -172,37 +174,42 @@ Mask4FirstSet(mask) // 第一个为 true 的索引
 ## 后端管理
 
 ```pascal
+uses fafafa.core.simd.runtime;
+
 // 获取当前后端
-backend := GetActiveBackend;  // 返回 TSimdBackend 枚举
+backend := GetCurrentBackend;  // 返回 TSimdBackend 枚举
 
 // 强制使用特定后端
-SetActiveBackend(sbAVX2);
+SetCurrentBackend(sbAVX2);
 
 // 四层状态语义：
 // supported_on_cpu  -> GetSupportedBackendList / GetBestSupportedBackend (cpuinfo 推荐名)
 // registered        -> GetRegisteredBackendList / IsBackendRegisteredInBinary
-// dispatchable      -> GetDispatchableBackendList / GetAvailableBackendList
-// active            -> GetCurrentBackend / GetActiveBackend
+// dispatchable      -> GetDispatchableBackendList
+// active            -> GetCurrentRuntimeSnapshot.CurrentBackend / GetCurrentBackend
 
 // 查询当前二进制里已经注册的后端（不等同于 CPU 一定支持）
 backends := GetRegisteredBackendList;
 ok := IsBackendRegisteredInBinary(sbAVX2);
 
 // 查询当前二进制里真正可派发的后端（CPU 支持 + 已注册 + 标记可用）
-backends := GetAvailableBackendList;
-backends := GetDispatchableBackendList;  // 语义更明确的等价入口
+backends := GetDispatchableBackendList;
+
+// 恢复 automatic selection
+ResetCurrentBackendSelection;
 
 // 查询 CPU/OS 支持的后端（不保证当前二进制一定会选中它）
 backends := GetSupportedBackendList;
-backends := GetAvailableBackends;  // cpuinfo 语义：supported-on-cpu
 best := GetBestSupportedBackend;
-best := GetBestBackendOnCPU;       // 兼容旧名
 
 // 获取后端信息
 info := GetBackendInfo(sbSSE2);
 WriteLn(info.Name);          // 'SSE2'
 WriteLn(info.Description);   // 'x86-64 SSE2 SIMD implementation'
 ```
+
+兼容入口 `GetCPUInformation`、`GetAvailableBackendList`、`GetAvailableBackends`、`GetBestBackendOnCPU`、`TryForceBackend`、`ForceBackend`、`ResetBackendSelection` 仍然可用，但新代码更推荐使用上面的 canonical 名称。
+更底层的 `IsBackendAvailableOnCPU` / `GetActiveBackend` / `SetActiveBackend` / `ResetToAutomaticBackend` 继续存在于 `fafafa.core.simd.dispatch`，主要面向维护和测试，不再作为默认 control-plane 入口推荐。
 
 ## 对齐内存分配
 

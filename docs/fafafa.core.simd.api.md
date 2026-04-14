@@ -4,13 +4,22 @@
 >
 > 本文档以代码为准；不包含“审计报告/测试计数”等不可自动验证的断言。
 >
-> 本文档描述的是 `fafafa.core.simd` / `fafafa.core.simd.api` 对外公开的 façade。像 `TSimdDispatchTable`、`TSimdBackendOps`、后端 `*_Scalar` / `*_AVX2` / `*_SSE2` 之类符号，属于实现细节或后端扩展接口，不是常规使用入口。
+> 本文档描述的是 `fafafa.core.simd` / `fafafa.core.simd.api` / `fafafa.core.simd.runtime` 对外公开的分层 façade。像 `TSimdDispatchTable`、`TSimdBackendOps`、后端 `*_Scalar` / `*_AVX2` / `*_SSE2` 之类符号，属于实现细节或后端扩展接口，不是常规使用入口。
 >
 > 这里的“稳定”首先指公开 façade，与仓库内已声明稳定的 dispatch contract；并不表示每个 backend 都具有同样的成熟度或验证深度。特别是 `sbRISCVV` 仍应视为 experimental / 受限成熟度后端。
 
 ## 概述
 
 `fafafa.core.simd` 是一个跨平台 SIMD 抽象层，支持多后端自动调度。
+
+推荐按下面分层理解公开入口：
+
+- `fafafa.core.simd`: 向量/数学 façade + 少量 canonical convenience wrapper（如 `GetCPUInfo`）
+- `fafafa.core.simd.api`: mem/text/stat façade
+- `fafafa.core.simd.runtime`: runtime/control-plane 视图与后端切换
+- `fafafa.core.simd.cpuinfo`: CPU/OS capability 视图
+
+如果你要先把 canonical API 与兼容别名区分清楚，先看 `docs/fafafa.core.simd.interface.md`。
 
 ### 支持的后端
 
@@ -176,11 +185,13 @@ end;
 ### 自动选择
 
 ```pascal
-uses fafafa.core.simd;
+uses
+  fafafa.core.simd,
+  fafafa.core.simd.runtime;
 
 begin
-  // 获取当前后端
-  WriteLn(GetActiveBackend);  // sbAVX2, sbSSE2, sbScalar 等
+  // 获取当前 runtime backend
+  WriteLn(GetCurrentBackend);  // sbAVX2, sbSSE2, sbScalar 等
 end;
 ```
 
@@ -191,41 +202,56 @@ end;
 supported := GetSupportedBackendList;
 
 // 2) registered: 只看当前二进制里有没有注册这个 backend
+// 推荐来自 fafafa.core.simd.runtime
 registered := GetRegisteredBackendList;
 ok := IsBackendRegisteredInBinary(sbAVX2);
 
 // 3) dispatchable: CPU 支持 + 已注册 + BackendInfo.Available=True
+// 推荐来自 fafafa.core.simd.runtime
 dispatchable := GetDispatchableBackendList;
-dispatchable := GetAvailableBackendList; // 兼容别名
 
 // 4) active: 当前真正生效的 backend
-active := GetCurrentBackend;
+// 推荐来自 fafafa.core.simd.runtime
+snapshot := GetCurrentRuntimeSnapshot;
+active := snapshot.CurrentBackend;
 ```
 
-`GetSupportedBackendList`（来自 `cpuinfo`，`GetAvailableBackends` 为兼容别名）和 `GetAvailableBackendList`（来自 façade）不是同一语义：
+`GetSupportedBackendList`（来自 `cpuinfo`，`GetAvailableBackends` 为兼容别名）和 `GetDispatchableBackendList`（来自 `runtime`，`GetAvailableBackendList` 为兼容别名）不是同一语义：
 - 前者是 `supported_on_cpu`
 - 后者是 `dispatchable`
 
 ### 强制后端
 
 ```pascal
+uses fafafa.core.simd;
+
 // 强制使用特定后端（用于测试）
-SetActiveBackend(sbScalar);
+SetCurrentBackend(sbScalar);
 
 // 恢复自动选择
-ResetToAutomaticBackend;
+ResetCurrentBackendSelection;
 ```
+
+`fafafa.core.simd` 现在直接重导出了更清晰的 control-plane 入口：
+
+- `GetCPUInfo`
+- `GetCurrentRuntimeSnapshot`
+- `TrySetCurrentBackend`
+- `SetCurrentBackend`
+- `ResetCurrentBackendSelection`
+
+如果你想按层细分导入，仍然可以直接使用 `fafafa.core.simd.runtime`。兼容入口 `TryForceBackend` / `ForceBackend` / `ResetBackendSelection` 继续保留，但属于 legacy façade alias。
 
 ### 线程安全
 
-对外语义上，dispatch 初始化是线程安全的；但**运行时切换后端**更适合发生在启动阶段、测试阶段，或者受控切换点，而不是高并发热路径中。调用方应把 `SetActiveBackend` / `ResetToAutomaticBackend` 视为“控制面操作”，不要把它们当作普通数据面 API 高频调用。
+对外语义上，dispatch 初始化是线程安全的；但**运行时切换后端**更适合发生在启动阶段、测试阶段，或者受控切换点，而不是高并发热路径中。调用方应把 `SetCurrentBackend` / `ResetCurrentBackendSelection` 视为“控制面操作”，不要把它们当作普通数据面 API 高频调用。
 
 更具体地说：
 
 - `GetCurrentBackend`
 - `GetCurrentBackendInfo`
 - `GetDispatchTable`
-- `GetAvailableBackendList`
+- `GetDispatchableBackendList`
 - `GetBestDispatchableBackend`
 
 这些 helper/getter 各自都会返回一份**已发布的单次 snapshot**。单个调用内部不应暴露 torn snapshot 或 half-rebuilt state。
@@ -233,8 +259,8 @@ ResetToAutomaticBackend;
 但这不等于承诺“两个独立 helper 调用在并发 control-plane 写入下会自动原子配对”。如果别的线程正在同时执行：
 
 - `RegisterBackend(...)`
-- `SetActiveBackend(...)`
-- `ResetToAutomaticBackend`
+- `SetCurrentBackend(...)`
+- `ResetCurrentBackendSelection`
 - `SetVectorAsmEnabled(...)`
 
 那么分两次读出来的结果可能分别对应两个不同的已发布 snapshot。这是文档边界，不是默认 bug。

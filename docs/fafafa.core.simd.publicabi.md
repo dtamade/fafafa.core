@@ -103,27 +103,29 @@
 
 这张表的核心语义是：
 
-- 初始化/切换后端时，内部通过 dispatch hook 重绑
+- 初始化/切换后端时，dispatch hook 会先发布最新 target dispatch
 - 调用方拿到表后可以缓存
-- 正常 data-plane 调用直接走已绑定函数指针
+- table 里的函数指针始终是稳定的 `cdecl` ABI 入口
+- `GetSimdPublicApi` 和这些入口会在需要时 lazy refresh 到最新 published binding
 
 也就是说，**不会在每次外部调用时重复查内部 dispatch table**。
 
-只有极少数兜底路径，才会回读当前 dispatch table。
+只有初始化尚未完成等极少数兜底路径，才会回读当前 dispatch table。
 
 ### Snapshot Boundary
 
 这里要把边界说死：
 
 - `GetSimdPublicApi` 的单次返回值承诺是**单份 published snapshot**
-- 这个 snapshot 内部的 `ActiveBackendId / ActiveFlags / function pointers` 应当彼此自洽
+- 这个 snapshot 里的 `ActiveBackendId / ActiveFlags` 是冻结的 metadata
+- `function pointers` 是稳定的 `cdecl` ABI 入口，不应被当成 backend 指纹
 - 但它**不承诺**和另一个独立时刻调用的 `GetCurrentBackend` / `GetCurrentBackendInfo` 自动组成跨调用原子配对
 
 也就是说，如果有并发 control-plane 写入正在发生：
 
+- `SetCurrentBackend(...)`
+- `ResetCurrentBackendSelection`
 - `RegisterBackend(...)`
-- `SetActiveBackend(...)`
-- `ResetToAutomaticBackend`
 - `SetVectorAsmEnabled(...)`
 
 那么两次独立 getter 观察到的是两个不同 published snapshot，并不自动构成 bug。
@@ -140,6 +142,13 @@
 - `GetCurrentBackend`
 - `GetCurrentBackendInfo`
 - `TryGetSimdBackendPodInfo(current_backend, ...)`
+
+另外要注意一条实现边界：
+
+- 旧的 cached table 仍然可以安全调用
+- 但 control-plane 发生变化后，旧 table 里的函数指针会跟随最新 published data-plane
+- 如果你需要**最新 metadata**，请重新调用 `GetSimdPublicApi`
+- 如果你需要比较 backend 是否变化，不要比较函数指针地址，比较 `ActiveBackendId / ActiveFlags`
 
 ### 热点路径建议
 

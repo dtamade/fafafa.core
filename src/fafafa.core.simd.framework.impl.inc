@@ -1,29 +1,21 @@
+function GetCPUInfo: TCPUInfo;
+begin
+  Result := fafafa.core.simd.cpuinfo.GetCPUInfo;
+end;
+
 function GetCurrentBackend: TSimdBackend;
 begin
-  Result := GetActiveBackend;
+  Result := fafafa.core.simd.runtime.GetCurrentBackend;
 end;
 
 function GetCurrentBackendInfo: TSimdBackendInfo;
-var
-  LDispatch: PSimdDispatchTable;
-  LCanonicalInfo: TSimdBackendInfo;
 begin
-  LDispatch := GetDispatchTable;
-  if LDispatch <> nil then
-  begin
-    Result := LDispatch^.BackendInfo;
-    Result.Backend := LDispatch^.Backend;
-    if (Result.Name = '') or (Result.Description = '') then
-    begin
-      LCanonicalInfo := GetBackendInfo(LDispatch^.Backend);
-      if Result.Name = '' then
-        Result.Name := LCanonicalInfo.Name;
-      if Result.Description = '' then
-        Result.Description := LCanonicalInfo.Description;
-    end;
-  end
-  else
-    Result := GetBackendInfo(GetActiveBackend);
+  Result := fafafa.core.simd.runtime.GetCurrentBackendInfo;
+end;
+
+function GetCurrentRuntimeSnapshot: TSimdRuntimeSnapshot;
+begin
+  Result := fafafa.core.simd.runtime.GetCurrentRuntimeSnapshot;
 end;
 
 function GetCPUInformation: TCPUInfo;
@@ -33,64 +25,67 @@ end;
 
 function GetSupportedBackendList: TSimdBackendArray;
 begin
-  Result := GetSupportedBackends;
+  Result := fafafa.core.simd.cpuinfo.GetSupportedBackendList;
 end;
 
 function GetBestSupportedBackend: TSimdBackend;
 begin
-  Result := GetBestBackendOnCPU;
+  Result := fafafa.core.simd.cpuinfo.GetBestSupportedBackend;
 end;
 
 function IsBackendRegisteredInBinary(aBackend: TSimdBackend): Boolean;
 begin
-  Result := IsBackendRegistered(aBackend);
+  Result := fafafa.core.simd.runtime.IsBackendRegisteredInBinary(aBackend);
 end;
 
 function GetRegisteredBackendList: TSimdBackendArray;
-var
-  LBackend: TSimdBackend;
-  LCount: Integer;
 begin
-  Result := nil;
-  SetLength(Result, Ord(High(TSimdBackend)) - Ord(Low(TSimdBackend)) + 1);
-  LCount := 0;
-  for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
-    if IsBackendRegisteredInBinary(LBackend) then
-    begin
-      Result[LCount] := LBackend;
-      Inc(LCount);
-    end;
-  SetLength(Result, LCount);
+  Result := fafafa.core.simd.runtime.GetRegisteredBackendList;
 end;
 
 function GetDispatchableBackendList: TSimdBackendArray;
 begin
-  Result := GetDispatchableBackends;
+  Result := fafafa.core.simd.runtime.GetDispatchableBackendList;
 end;
 
 function GetBestDispatchableBackend: TSimdBackend;
 begin
-  Result := fafafa.core.simd.dispatch.GetBestDispatchableBackend;
+  Result := fafafa.core.simd.runtime.GetBestDispatchableBackend;
 end;
 
 function GetAvailableBackendList: TSimdBackendArray;
 begin
-  Result := GetDispatchableBackendList;
+  Result := fafafa.core.simd.runtime.GetAvailableBackendList;
+end;
+
+function TrySetCurrentBackend(aBackend: TSimdBackend): Boolean;
+begin
+  Result := fafafa.core.simd.runtime.TrySetCurrentBackend(aBackend);
+end;
+
+procedure SetCurrentBackend(aBackend: TSimdBackend);
+begin
+  fafafa.core.simd.runtime.SetCurrentBackend(aBackend);
+end;
+
+procedure ResetCurrentBackendSelection;
+begin
+  fafafa.core.simd.runtime.ResetCurrentBackendSelection;
 end;
 
 function TryForceBackend(aBackend: TSimdBackend): Boolean;
 begin
-  Result := TrySetActiveBackend(aBackend);
+  Result := TrySetCurrentBackend(aBackend);
 end;
 
-procedure ForceBackend(backend: TSimdBackend);
+procedure ForceBackend(aBackend: TSimdBackend);
 begin
-  SetActiveBackend(backend);
+  SetCurrentBackend(aBackend);
 end;
 
 procedure ResetBackendSelection;
 begin
-  ResetToAutomaticBackend;
+  ResetCurrentBackendSelection;
 end;
 
 function AllocateAligned(size: NativeUInt; alignment: NativeUInt): Pointer;

@@ -54,7 +54,10 @@ type
     procedure Test_PublicApi_CachedTable_RemainsCallable_Across_Rebind;
     procedure Test_PublicApi_CachedTable_Preserves_PreviousSnapshot_Metadata_Across_Rebind;
     procedure Test_PublicApi_Table_Refreshes_AfterBackendSwitch;
-    procedure Test_PublicApi_Table_Rebinds_DataPlane_FunctionPointers_AfterBackendSwitch;
+    procedure Test_PublicApi_Table_Uses_Stable_Cdecl_EntryPoints_AfterBackendSwitch;
+    procedure Test_PublicApi_CachedTable_Cdecl_EntryPoints_Follow_CurrentDataPlane_After_ReRegister;
+    procedure Test_PublicApi_BackendRoundTrip_Reuses_PreviouslyPublishedMetadataTable;
+    procedure Test_PublicApi_VectorAsmRoundTrip_Reuses_PreviouslyPublishedMetadataTable;
     procedure Test_PublicApi_BackendPodInfo_Flags_AreSelfConsistent;
     procedure Test_PublicAbi_BackendText_Getters_Refresh_After_RegisterBackend;
     procedure Test_PublicAbi_BackendText_Getters_PreviousPointers_RemainValid_After_Refresh;
@@ -62,6 +65,7 @@ type
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_DoNotUnderclaim_X86MaskedOps;
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_AVX2Shuffle_WhenNativeSlotsPresent;
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Clear_X86Shuffle_WhenVectorAsmDisabled;
+    procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Keep_X86IntegerOps_When_AlwaysOn_NarrowSlots_Remain_NonScalar;
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_AVX512FMA_WhenNativeSlotsPresent;
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_AVX512Shuffle_WhenNativeSlotsPresent;
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Clear_AVX512VectorAsmGatedBits_WhenVectorAsmDisabled;
@@ -102,6 +106,16 @@ type
   end;
 
 implementation
+
+function PublicAbiSyntheticMemEqualAlwaysTrue(aA, aB: Pointer; aLen: SizeUInt): LongBool;
+begin
+  Result := True;
+end;
+
+function PublicAbiSyntheticMemEqualAlwaysFalse(aA, aB: Pointer; aLen: SizeUInt): LongBool;
+begin
+  Result := False;
+end;
 
 var
   GPublicAbiHookDisableBackendEnabled: Boolean = False;
@@ -818,7 +832,7 @@ begin
     Ord(GetCurrentBackend), Integer(GetSimdPublicApi^.ActiveBackendId));
 end;
 
-procedure TTestCase_PublicAbi.Test_PublicApi_Table_Rebinds_DataPlane_FunctionPointers_AfterBackendSwitch;
+procedure TTestCase_PublicAbi.Test_PublicApi_Table_Uses_Stable_Cdecl_EntryPoints_AfterBackendSwitch;
 var
   LApiBefore: PFafafaSimdPublicApi;
   LApiAfter: PFafafaSimdPublicApi;
@@ -876,14 +890,161 @@ begin
     AssertTrue('Underlying dispatch slot should actually change in data-plane rebind test',
       GetDispatchTableFuncPointer(LDispatchBefore, LSlotIndex) <>
       GetDispatchTableFuncPointer(LDispatchAfter, LSlotIndex));
-    AssertTrue('Fresh public API table should publish rebound function pointer for ' +
+    AssertTrue('Public API should keep a stable cdecl ABI entry point for ' +
       GetPublicApiFuncName(LSlotIndex),
-      GetPublicApiFuncPointer(LApiBefore, LSlotIndex) <>
+      GetPublicApiFuncPointer(LApiBefore, LSlotIndex) =
       GetPublicApiFuncPointer(LApiAfter, LSlotIndex));
   finally
     if GetCurrentBackend <> LOriginalBackend then
       AssertTrue('Restoring original active backend should succeed after data-plane rebind test',
         RestoreOriginalActiveBackend(LOriginalBackend));
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_PublicAbi.Test_PublicApi_CachedTable_Cdecl_EntryPoints_Follow_CurrentDataPlane_After_ReRegister;
+var
+  LBackend: TSimdBackend;
+  LOriginalTable: TSimdDispatchTable;
+  LModifiedTable: TSimdDispatchTable;
+  LApiBefore: PFafafaSimdPublicApi;
+  LApiAfter: PFafafaSimdPublicApi;
+  LBufferA: array[0..7] of Byte;
+  LBufferB: array[0..7] of Byte;
+begin
+  LBackend := GetCurrentBackend;
+  AssertTrue('Current backend should be registered before public ABI re-register test',
+    TryGetRegisteredBackendDispatchTable(LBackend, LOriginalTable));
+
+  FillChar(LBufferA, SizeOf(LBufferA), $11);
+  FillChar(LBufferB, SizeOf(LBufferB), $22);
+  LApiBefore := GetSimdPublicApi;
+  AssertNotNull('Public API table should be assigned before public ABI re-register test', LApiBefore);
+
+  LModifiedTable := LOriginalTable;
+  LModifiedTable.MemEqual := @PublicAbiSyntheticMemEqualAlwaysTrue;
+  RegisterBackend(LBackend, LModifiedTable);
+  try
+    AssertTrue('Cached cdecl entry point should observe the latest rebound MemEqual=true slot',
+      LApiBefore^.MemEqual(@LBufferA[0], @LBufferB[0], SizeUInt(Length(LBufferA))));
+
+    LModifiedTable := LOriginalTable;
+    LModifiedTable.MemEqual := @PublicAbiSyntheticMemEqualAlwaysFalse;
+    RegisterBackend(LBackend, LModifiedTable);
+    try
+      LApiAfter := GetSimdPublicApi;
+      AssertNotNull('Public API table should stay assigned after re-register', LApiAfter);
+      AssertTrue('Public API should keep the same MemEqual cdecl entry point across re-register',
+        Pointer(LApiBefore^.MemEqual) = Pointer(LApiAfter^.MemEqual));
+      AssertTrue('Cached cdecl entry point should track the current rebound MemEqual=false slot',
+        not LApiBefore^.MemEqual(@LBufferA[0], @LBufferB[0], SizeUInt(Length(LBufferA))));
+      AssertTrue('Freshly fetched cdecl entry point should track the current rebound MemEqual=false slot',
+        not LApiAfter^.MemEqual(@LBufferA[0], @LBufferB[0], SizeUInt(Length(LBufferA))));
+    finally
+      RegisterBackend(LBackend, LOriginalTable);
+    end;
+  finally
+    RegisterBackend(LBackend, LOriginalTable);
+  end;
+end;
+
+procedure TTestCase_PublicAbi.Test_PublicApi_BackendRoundTrip_Reuses_PreviouslyPublishedMetadataTable;
+var
+  LApiInitial: PFafafaSimdPublicApi;
+  LApiMiddle: PFafafaSimdPublicApi;
+  LApiFinal: PFafafaSimdPublicApi;
+  LOriginalBackend: TSimdBackend;
+  LTargetBackend: TSimdBackend;
+  LDispatchable: TSimdBackendArray;
+  LFoundDifferent: Boolean;
+  LIndex: Integer;
+begin
+  LApiInitial := GetSimdPublicApi;
+  AssertNotNull('Public API table should be assigned before public ABI round-trip test', LApiInitial);
+  LOriginalBackend := GetCurrentBackend;
+  LTargetBackend := LOriginalBackend;
+  LFoundDifferent := False;
+
+  LDispatchable := GetDispatchableBackendList;
+  for LIndex := 0 to High(LDispatchable) do
+    if LDispatchable[LIndex] <> LOriginalBackend then
+    begin
+      LTargetBackend := LDispatchable[LIndex];
+      LFoundDifferent := True;
+      Break;
+    end;
+
+  if not LFoundDifferent then
+    Exit;
+
+  try
+    AssertTrue('TrySetActiveBackend(target) should succeed in public ABI round-trip test',
+      TrySetActiveBackend(LTargetBackend));
+    LApiMiddle := GetSimdPublicApi;
+    AssertNotNull('Public API table should be assigned for target backend in round-trip test', LApiMiddle);
+    AssertTrue('public ABI round-trip test should publish a different metadata table for the target backend',
+      PtrUInt(LApiMiddle) <> PtrUInt(LApiInitial));
+
+    AssertTrue('TrySetActiveBackend(original) should succeed in public ABI round-trip test',
+      TrySetActiveBackend(LOriginalBackend));
+    LApiFinal := GetSimdPublicApi;
+    AssertNotNull('Public API table should be assigned after switching back in round-trip test', LApiFinal);
+
+    AssertTrue('round-trip back to the original dispatch should reuse the original public ABI metadata table',
+      PtrUInt(LApiFinal) = PtrUInt(LApiInitial));
+    AssertEquals('reused public ABI table should expose the restored active backend metadata',
+      Ord(LOriginalBackend), Integer(LApiFinal^.ActiveBackendId));
+  finally
+    if GetCurrentBackend <> LOriginalBackend then
+      AssertTrue('restoring original backend should succeed after public ABI round-trip test',
+        RestoreOriginalActiveBackend(LOriginalBackend));
+  end;
+end;
+
+procedure TTestCase_PublicAbi.Test_PublicApi_VectorAsmRoundTrip_Reuses_PreviouslyPublishedMetadataTable;
+var
+  LApiInitial: PFafafaSimdPublicApi;
+  LApiMiddle: PFafafaSimdPublicApi;
+  LApiFinal: PFafafaSimdPublicApi;
+  LInitialBackend: TSimdBackend;
+  LMiddleBackend: TSimdBackend;
+  LOldVectorAsm: Boolean;
+begin
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LInitialBackend := GetCurrentBackend;
+    if LInitialBackend = sbScalar then
+      Exit;
+
+    LApiInitial := GetSimdPublicApi;
+    AssertNotNull('Public API table should be assigned before vector-asm round-trip test', LApiInitial);
+    AssertEquals('Initial public API table should expose the current backend before vector-asm round-trip test',
+      Ord(LInitialBackend), Integer(LApiInitial^.ActiveBackendId));
+
+    SetVectorAsmEnabled(False);
+    LMiddleBackend := GetCurrentBackend;
+    LApiMiddle := GetSimdPublicApi;
+    AssertNotNull('Public API table should stay assigned after disabling vector asm', LApiMiddle);
+
+    if LMiddleBackend = LInitialBackend then
+      Exit;
+
+    AssertTrue('Disabling vector asm should publish a different public ABI metadata table for the fallback backend',
+      PtrUInt(LApiMiddle) <> PtrUInt(LApiInitial));
+
+    SetVectorAsmEnabled(True);
+    LApiFinal := GetSimdPublicApi;
+    AssertNotNull('Public API table should stay assigned after re-enabling vector asm', LApiFinal);
+
+    AssertEquals('Re-enabling vector asm should restore the original automatic backend for public ABI',
+      Ord(LInitialBackend), Integer(LApiFinal^.ActiveBackendId));
+    AssertTrue('Vector-asm round-trip should reuse the original published public ABI metadata table',
+      PtrUInt(LApiFinal) = PtrUInt(LApiInitial));
+  finally
     SetVectorAsmEnabled(LOldVectorAsm);
     ResetToAutomaticBackend;
   end;
@@ -1333,6 +1494,69 @@ begin
 
       AssertTrue('Public ABI CapabilityBits should clear scShuffle when representative shuffle slots are scalar for backend=' + IntToStr(Ord(LBackend)),
         (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) = 0);
+    end;
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
+procedure TTestCase_PublicAbi.Test_PublicApi_BackendPodInfo_CapabilityBits_Keep_X86IntegerOps_When_AlwaysOn_NarrowSlots_Remain_NonScalar;
+var
+  LBackend: TSimdBackend;
+  LScalarTable: TSimdDispatchTable;
+  LBackendTable: TSimdDispatchTable;
+  LInfo: TFafafaSimdBackendPodInfo;
+  LHasNonScalarAlwaysOnIntegerSlots: Boolean;
+  LOldVectorAsm: Boolean;
+
+  function IsAlwaysOnNarrowIntegerBackend(const aBackend: TSimdBackend): Boolean;
+  begin
+    case aBackend of
+      sbSSE2, sbSSE3, sbSSSE3, sbSSE41, sbSSE42:
+        Exit(True);
+      else
+        Exit(False);
+    end;
+  end;
+
+  procedure ObserveRepresentativeSlot(aScalarSlot, aBackendSlot: Pointer);
+  begin
+    if aBackendSlot <> aScalarSlot then
+      LHasNonScalarAlwaysOnIntegerSlots := True;
+  end;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    SetVectorAsmEnabled(False);
+    AssertFalse('Vector asm should be disabled for always-on x86 integer public ABI rebuild test', IsVectorAsmEnabled);
+
+    for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
+    begin
+      if not IsAlwaysOnNarrowIntegerBackend(LBackend) then
+        Continue;
+      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+        Continue;
+      if not TryGetSimdBackendPodInfo(LBackend, LInfo) then
+        Continue;
+
+      LHasNonScalarAlwaysOnIntegerSlots := False;
+      ObserveRepresentativeSlot(Pointer(LScalarTable.AddI16x8), Pointer(LBackendTable.AddI16x8));
+      ObserveRepresentativeSlot(Pointer(LScalarTable.AndI16x8), Pointer(LBackendTable.AndI16x8));
+      ObserveRepresentativeSlot(Pointer(LScalarTable.CmpEqI16x8), Pointer(LBackendTable.CmpEqI16x8));
+      ObserveRepresentativeSlot(Pointer(LScalarTable.AddU8x16), Pointer(LBackendTable.AddU8x16));
+      ObserveRepresentativeSlot(Pointer(LScalarTable.MaxU8x16), Pointer(LBackendTable.MaxU8x16));
+
+      if not LHasNonScalarAlwaysOnIntegerSlots then
+        Continue;
+
+      AssertTrue('Public ABI CapabilityBits should keep scIntegerOps while always-on narrow integer slots remain non-scalar after vector asm disable for backend=' +
+        IntToStr(Ord(LBackend)),
+        (LInfo.CapabilityBits and (UInt64(1) shl Ord(scIntegerOps))) <> 0);
     end;
   finally
     SetVectorAsmEnabled(LOldVectorAsm);

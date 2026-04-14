@@ -84,6 +84,7 @@ public ABI wrapper 继续沿用当前已经统一的四层语义：
 - 调用方可以缓存这个 table
 - table 中的函数指针是 `cdecl`
 - 正常 data-plane 路径不会每次再去查内部 `TSimdDispatchTable`
+- 函数指针是稳定 ABI 入口，而不是 backend 专属地址标签
 
 也就是说，public wrapper 不是“再包一层重复分发”。
 
@@ -91,12 +92,15 @@ public ABI wrapper 继续沿用当前已经统一的四层语义：
 
 当前语义是：
 
-- backend 变化后，内部通过 dispatch hook 重绑 public API table
+- backend 变化后，dispatch hook 先发布新的 target dispatch
+- 下一次 `GetSimdPublicApi` 或 public-ABI `cdecl` entrypoint 调用时，会 lazy refresh 到最新 binding
 - `GetSimdPublicApi` 返回的是当前最新绑定 snapshot
 
 调用方如果长时间缓存 table，应该把它理解成：
 
-- **拿到的 snapshot 在进程内可继续安全调用**
+- **拿到的 metadata snapshot 在进程内可继续安全读取**
+- **函数指针在进程内可继续安全调用**
+- **control-plane 变化后，旧 table 的函数指针会跟随最新 published data-plane**
 - **backend 切换后如需最新 metadata，应重新取表**
 
 不要把当前实现理解成“拿一次就永远不会变，且地址恒定不变”。
