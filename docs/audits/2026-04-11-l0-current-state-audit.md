@@ -6,10 +6,11 @@
 
 - 当前 strict non-SIMD L0 的权威边界仍以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
 - 当前 strict non-SIMD L0 的稳定路线图仍固定为 `docs/fafafa.core.l0.roadmap.md`。
-- 当前 `origin/main` 与唯一 L0 worktree 已同步到 merge commit `b9c613fa9abdf40e7bea15d2cee71c70d915faec`。
+- 当前这份 current-state audit 固定记录的 latest merged-main evidence head 是 `c4fcfcf744b87cb1f8b67ad84beccce6b22b9af8`。
+- 后续 docs / handoff bookkeeping head 允许继续领先于该 evidence head，但只能是 docs / control-plane-only 增量。
 - 当前唯一 L0 branch 仍是 `l0-mainline`，但它现在只是一个跟随 `origin/main` 的维护分支，不再承载未合并增量。
 - Linux x64 的 strict L0 日常维护继续固定为 `bash tests/run_strict_l0_maintenance_loop.sh`；对应 GitHub Actions workflow `l0-linux-maintenance.yml` 已进入 default branch，并已在 `main` fresh 通过。
-- strict L0 的 Windows native evidence 当前继续由 GitHub Actions run `24349338362` 提供 exact evidence，shell-side artifact verifier 已在 Linux x64 本地复核通过。
+- strict L0 的 Windows native evidence 当前继续由 GitHub Actions run `24379333706` 提供 exact evidence，shell-side artifact verifier 已在 Linux x64 本地复核通过。
 - collections 域里 dated 的 plans / status / reviews 已进一步下沉到 `docs/collections/legacy/README.md`；当前 collections 入口继续固定为 `docs/fafafa.core.collections.md` 与 `docs/collections/guides/`。
 - examples current-entry 也已进一步收紧到各 domain README、`BuildOrRun*` 和 `.lpr` / `.lpi`；`bin/`、`lib/` 与本地 logs 不再作为 today contract 的入口。
 - 第六波之后，retained-refs inventory 还会继续把 tests drift 细分成 test code / scripts / docs / runtime records / control files / output artifacts / binary artifacts，并显式输出 `next_focus=`。
@@ -22,17 +23,17 @@
 
 ## Mainline Closeout Snapshot
 
-- 当前 main merge commit：`b9c613fa9abdf40e7bea15d2cee71c70d915faec`
-- GitHub Actions `L0 Linux Maintenance` run `24355797501`
-  - head sha：`b9c613fa9abdf40e7bea15d2cee71c70d915faec`
+- 当前 latest merged-main evidence head：`c4fcfcf744b87cb1f8b67ad84beccce6b22b9af8`
+- GitHub Actions `L0 Linux Maintenance` run `24377364840`
+  - head sha：`c4fcfcf744b87cb1f8b67ad84beccce6b22b9af8`
   - 结果：PASS
-- GitHub Actions `L0 Windows Native Evidence` run `24349338362`
-  - head sha：`bb2c4104f098699a9f387800b0688a11a12661c9`
+- GitHub Actions `L0 Windows Native Evidence` run `24379333706`
+  - head sha：`c4fcfcf744b87cb1f8b67ad84beccce6b22b9af8`
   - 结果：`12/12 PASS`
 - Linux shell verifier local snapshot：
-  - `tests/_windows_l0_native_evidence_gh/L0-20260413-l0-premerge-ci-windows/`
+  - `tests/_windows_l0_native_evidence_gh/L0-20260414-mainline-closeout-windows/`
 
-- 当前 `origin/main` 已推进到 `b9c613fa9abdf40e7bea15d2cee71c70d915faec`；最新 exact Windows native evidence 仍锚定 `main@bb2c4104f098699a9f387800b0688a11a12661c9`，两者之间的差异应继续保持为 docs / control-plane-only 增量。
+- 当前最新的 exact Windows native evidence 已直接对当前 `main@c4fcfcf744b87cb1f8b67ad84beccce6b22b9af8` 收证。
 
 ## Fresh Verification
 
@@ -68,9 +69,9 @@
   - 结果：PASS
 - `git diff --check`
   - 结果：PASS
-- GitHub Actions `L0 Linux Maintenance` run `24355797501`
+- GitHub Actions `L0 Linux Maintenance` run `24377364840`
   - 结果：PASS
-- GitHub Actions `L0 Windows Native Evidence` run `24349338362`
+- GitHub Actions `L0 Windows Native Evidence` run `24379333706`
   - 结果：PASS；`12/12`
 
 ## Current L0 Surface
@@ -111,5 +112,5 @@
 
 - 根目录 `main` 工作树仍然是用户脏状态，不应把它误当成 L0 的当前执行面。
 - 当前保留的 4 个历史 L0 refs 仍未被证明完全冗余，因此不能盲删。
-- 后续若 strict L0 再发生非文档代码或测试改动，仍应重新收 fresh Windows exact evidence，而不是复用 `24349338362`；Linux x64 本地只能继续做 shell-side artifact verifier，不能伪造 exact Windows native 结论。
+- 后续若 strict L0 再发生非文档代码或测试改动，仍应重新收 fresh Windows exact evidence，而不是复用 `24379333706`；Linux x64 本地只能继续做 shell-side artifact verifier，不能伪造 exact Windows native 结论。
 - SIMD owner 与 sidecar handoff 的职责边界没有变化；L0 这里不应重新吸收那些工作。

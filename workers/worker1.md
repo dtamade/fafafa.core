@@ -5,20 +5,17 @@
 - Status: `active`
 - Branch: `l0-mainline`
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
-- Base commit: `adfc21ae964fe25f41f3a032c7eafb1eb8c52d8a` (`origin/main`)
+- Base commit: `c4fcfcf744b87cb1f8b67ad84beccce6b22b9af8` (`origin/main`)
 - Current focus:
-  - 维持当前唯一 L0 worktree 在 `l0-mainline` 上做 branch-scoped pre-merge closeout，不把 branch evidence 误写成 merged `main` current-state
+  - 维持当前唯一 L0 worktree 跟随 `main`
   - 维持 strict L0 的 current-entry 文档、模块边界和验证口径一致
   - 只清理安全可删的本地 L0 refs，保留仍然承载独立历史的锚点
-  - 把本波 `atomic` today contract、post-merge closeout contract、workflow control-plane noise reduction 和 handoff 文档一起收口
-  - 保持 merged-main current-state 文档显式写清：latest exact Windows native evidence 仍锚定 `main@bb2c4104f098699a9f387800b0688a11a12661c9`，而不是误写成已经在 `adfc21ae964fe25f41f3a032c7eafb1eb8c52d8a` 上重跑
-  - 记录当前 branch-scoped exact head evidence：`l0-mainline@334219275c1d9474b310ac74e1f6f03a7a8ab488`
-  - 把 Linux maintenance workflow 与 Windows exact-evidence lane 的 current-entry 命令、证据和 fail-close 语义写准，并降低 Node20 / checkout-post 控制面噪音
-  - 保持 repo checkout hygiene：移除 stale `3rd/mimalloc` gitlink，并把 broken submodule metadata fail-close 检查接进 maintenance loop
+  - 保持 merged-main current-state 文档显式写清：latest exact Windows native evidence 已直接锚定 current evidence head `main@c4fcfcf744b87cb1f8b67ad84beccce6b22b9af8`；后续 docs / handoff bookkeeping 允许继续领先，但只能是 docs / control-plane-only
+  - 把 Linux maintenance workflow 与 Windows exact-evidence lane 的 current-entry 命令、证据和 fail-close 语义写准
   - 把 retained-refs triage 的 `test_hygiene_candidate_paths=` / `source_review_candidate_paths=` / `docs_absorb_candidate_paths=` 保持为 today contract
   - 把 `sidecar/tail` 已吸收的 hygiene residue 与 `closeout/rescue` 的 shortlist-first 语义保持为 today contract，并继续拒绝 `dangerous_delete_paths=` 场景下的 wholesale absorb
-  - 把 `fafafa.core.span` 当前最小 `TReadOnlySpan2<T>` cut 与 future `segmented span` 候选方向的文档口径切清
   - 保持 Windows exact evidence 只能来自 GitHub Actions / 真实 Windows runner 这一纪律
+  - 保留 `docs/audits/2026-04-14-l0-premerge-branch-evidence-audit.md` 作为历史 closeout，不再把 pre-merge branch evidence 当 current-entry
 - Source of truth:
   - `docs/fafafa.core.l0.foundation.md`
   - `docs/fafafa.core.l0.roadmap.md`
@@ -35,9 +32,8 @@
   - `docs/collections/reports/README.md`
   - `docs/benchmarks/reports/README.md`
   - `docs/EXAMPLES.md`
-  - `docs/plans/2026-04-14-l0-productivity-wave.md`
-  - `docs/plans/2026-04-14-l0-segmented-span-evaluation-plan.md`
   - `docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md`
+  - `docs/plans/2026-04-14-l0-mainline-main-closeout-wave.md`
   - `docs/plans/2026-04-13-l0-retained-refs-seventh-absorption-plan.md`
   - `docs/plans/2026-04-13-l0-retained-refs-eighth-focus-routing-plan.md`
   - `docs/plans/2026-04-13-l0-retained-refs-ninth-hygiene-shortlist-plan.md`
@@ -45,7 +41,6 @@
   - `docs/plans/2026-04-13-l0-premerge-ci-closeout-plan.md`
   - `docs/CI.md`
   - `tests/check_strict_l0_docs_consistency.sh`
-  - `tests/check_repo_submodule_hygiene.sh`
   - `tests/run_strict_l0_maintenance_loop.sh`
   - `tests/run_strict_l0_mainline_closeout.sh`
   - `tests/report_strict_l0_retained_refs_inventory.sh`
@@ -59,8 +54,6 @@
   - `tests/test_strict_l0_retained_refs_source_review_shortlist_contract.sh`
   - `tests/test_strict_l0_retained_refs_closeout_test_docs_no_downgrade_contract.sh`
   - `tests/test_strict_l0_examples_build_docs_contract.sh`
-  - `tests/test_repo_submodule_hygiene_guard.sh`
-  - `tests/test_strict_l0_maintenance_loop_contract.sh`
   - `tests/run_windows_strict_l0_native_evidence_via_github_actions.sh`
   - `tests/update_strict_l0_current_state_docs.sh`
   - `docs/fafafa.core.span.md`
@@ -71,23 +64,11 @@
 - Fresh verification:
   - `bash tests/check_strict_l0_docs_consistency.sh`
   - 结果：PASS
-  - `bash tests/check_repo_submodule_hygiene.sh`
-  - 结果：PASS
-  - `bash tests/fafafa.core.atomic/BuildOrTest.sh test`
-  - 结果：PASS
-  - `bash tests/test_repo_submodule_hygiene_guard.sh`
-  - 结果：PASS
-  - `bash tests/test_strict_l0_maintenance_loop_contract.sh`
-  - 结果：PASS
   - `bash tests/test_strict_l0_docs_consistency_contract.sh`
   - 结果：PASS
   - `bash tests/test_strict_l0_stable_docs_no_sha_contract.sh`
   - 结果：PASS
   - `bash tests/test_update_strict_l0_current_state_docs_contract.sh`
-  - 结果：PASS
-  - `bash tests/test_strict_l0_mainline_closeout_contract.sh`
-  - 结果：PASS
-  - `bash tests/test_strict_l0_mainline_closeout_postmerge_contract.sh`
   - 结果：PASS
   - `bash tests/report_strict_l0_retained_refs_inventory.sh`
   - 结果：PASS
@@ -113,22 +94,16 @@
   - 结果：PASS
   - `bash tests/run_strict_l0_maintenance_loop.sh`
   - 结果：PASS
-  - GitHub Actions `L0 Linux Maintenance` run `24375118487`
-  - 结果：PASS；pre-merge branch head=`334219275c1d9474b310ac74e1f6f03a7a8ab488`
-  - GitHub Actions `L0 Windows Native Evidence` run `24375119781`
-  - 结果：PASS；head sha=`334219275c1d9474b310ac74e1f6f03a7a8ab488`
-  - local Windows snapshot：
-  - `tests/_windows_l0_native_evidence_gh/L0-20260414-l0-premerge-atomic-windows-r2/`
   - GitHub Actions `L0 Linux Maintenance` run `24349423066`
   - 结果：PASS；pre-merge branch head=`bb2c4104f098699a9f387800b0688a11a12661c9`
   - `git diff --check`
   - 结果：PASS
-  - GitHub Actions `L0 Linux Maintenance` run `24355797501`
-  - 结果：PASS；head sha=`b9c613fa9abdf40e7bea15d2cee71c70d915faec`
-  - GitHub Actions `L0 Windows Native Evidence` run `24349338362`
-  - 结果：PASS；head sha=`bb2c4104f098699a9f387800b0688a11a12661c9`
+  - GitHub Actions `L0 Linux Maintenance` run `24377364840`
+  - 结果：PASS；head sha=`c4fcfcf744b87cb1f8b67ad84beccce6b22b9af8`
+  - GitHub Actions `L0 Windows Native Evidence` run `24379333706`
+  - 结果：PASS；head sha=`c4fcfcf744b87cb1f8b67ad84beccce6b22b9af8`
   - local Windows snapshot：
-  - `tests/_windows_l0_native_evidence_gh/L0-20260413-l0-premerge-ci-windows/`
+  - `tests/_windows_l0_native_evidence_gh/L0-20260414-mainline-closeout-windows/`
 - Retained local refs:
   - `l0-mainline`
   - `l0-mainline-closeout-20260411`
@@ -138,16 +113,12 @@
 - Risks / blockers:
   - 根目录 `main` 工作树仍然是用户脏状态，不能直接当作 L0 的当前执行面
   - 当前 4 个历史 L0 refs 仍承载独立 patch history，不能盲删
-  - 当前 `l0-mainline` 已拿到 branch-scoped exact evidence，但 merged `main` current-state docs 还不能提前回填；真正 merge 后仍需按 merged-main 语义决定是否跑 closeout backfill
   - 后续若 strict L0 再发生非文档代码或测试改动，仍需重新补 fresh Windows exact evidence
   - `update_strict_l0_current_state_docs.sh` 必须继续与 today contracts 同步，不能再把 `--details` / shortlist-first / docs landing-zone 语义压缩掉
-  - `fafafa.core.span` 当前最小 `TReadOnlySpan2<T>` cut 与 future `segmented span` 候选方向很容易被混写，文档必须继续保持明确切边界
   - SIMD-only 残留仍由 SIMD owner 继续维护，L0 这里只保留边界与 handoff 说明
 - Next step:
   - 继续只沿 strict L0 线推进，不把 sidecar 或 SIMD 工作重新混回当前 worktree
   - Linux x64 上的日常维护默认走 `bash tests/run_strict_l0_maintenance_loop.sh`
-  - 本波如果继续 current-entry 收口，优先复用 `docs/plans/2026-04-14-l0-productivity-wave.md`
-  - 如果把当前 `l0-mainline@33421927...` 合到 `main`，再执行 `bash tests/run_strict_l0_mainline_closeout.sh --apply-docs`
   - 如需重新判断 retained refs 是否还该保留，使用 `bash tests/audit_strict_l0_retained_refs.sh`
   - 如需先判断 retained refs 该优先吸收哪类 unique history，使用 `bash tests/report_strict_l0_retained_refs_inventory.sh`
   - 如需直接看 retained refs 的代表性 unique commits / paths，使用 `bash tests/report_strict_l0_retained_refs_inventory.sh --details`
