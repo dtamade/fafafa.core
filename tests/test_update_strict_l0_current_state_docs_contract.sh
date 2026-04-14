@@ -49,6 +49,8 @@ rg -F "test_hygiene_candidate_paths=" "${AUDIT_FILE}" >/dev/null \
   || fail "audit missing test hygiene candidate routing"
 rg -F "source_review_candidate_paths=" "${AUDIT_FILE}" >/dev/null \
   || fail "audit missing source review candidate routing"
+rg -F "review_skip_paths=" "${AUDIT_FILE}" >/dev/null \
+  || fail "audit missing source review skip routing"
 rg -F "docs_absorb_candidate_paths=" "${AUDIT_FILE}" >/dev/null \
   || fail "audit missing docs absorb candidate routing"
 rg -F "report_strict_l0_retained_refs_source_review_shortlist.sh" "${AUDIT_FILE}" >/dev/null \
@@ -79,6 +81,8 @@ rg -F "test_hygiene_candidate_paths=" "${WORKER_FILE}" >/dev/null \
   || fail "worker handoff missing test hygiene candidate routing"
 rg -F "source_review_candidate_paths=" "${WORKER_FILE}" >/dev/null \
   || fail "worker handoff missing source review candidate routing"
+rg -F "review_skip_paths=" "${WORKER_FILE}" >/dev/null \
+  || fail "worker handoff missing source review skip routing"
 rg -F "docs_absorb_candidate_paths=" "${WORKER_FILE}" >/dev/null \
   || fail "worker handoff missing docs absorb candidate routing"
 rg -F "report_strict_l0_retained_refs_source_review_shortlist.sh" "${WORKER_FILE}" >/dev/null \

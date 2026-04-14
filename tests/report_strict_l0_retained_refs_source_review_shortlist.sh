@@ -15,7 +15,8 @@ Usage:
 
 This script reports a shortlist-first review surface for retained strict L0 refs
 that are still marked source-review-first. It never deletes refs or applies
-their diffs. It only separates review candidates from dangerous deletions.
+their diffs. It separates fresh review candidates, already-reviewed skip
+hotspots, and dangerous deletions.
 EOF
 }
 
@@ -126,6 +127,52 @@ is_dangerous_delete_path() {
   return 1
 }
 
+is_review_skip_path() {
+  local aRef="$1"
+  local aPath="$2"
+
+  case "${aRef}:${aPath}" in
+    l0-mainline-closeout-20260411:.github/workflows/l0-windows-native-evidence.yml|\
+    l0-mainline-closeout-20260411:src/fafafa.core.atomic.base.pas|\
+    l0-mainline-closeout-20260411:src/fafafa.core.atomic.pas|\
+    l0-mainline-closeout-20260411:src/fafafa.core.mem.allocator.callbackAllocator.pas|\
+    l0-mainline-closeout-20260411:tests/lib_github_actions_workflow_runs.sh|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.atomic/README.md|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.atomic/Test_fafafa.core.atomic.compat.contract.pas|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.atomic/Test_fafafa.core.atomic.pas|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.endian/README.md|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.layout/README.md|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.mem.allocator.foundation/README.md|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.mem.allocator.foundation/test_allocator_foundation_runtime.pas|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.platform/README.md|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.span/README.md|\
+    l0-main-rescue:.github/workflows/l0-windows-native-evidence.yml|\
+    l0-main-rescue:src/fafafa.core.atomic.base.pas|\
+    l0-main-rescue:src/fafafa.core.atomic.pas|\
+    l0-main-rescue:src/fafafa.core.mem.allocator.callbackAllocator.pas|\
+    l0-main-rescue:tests/lib_github_actions_workflow_runs.sh|\
+    l0-main-rescue:tests/fafafa.core.atomic/BuildOrTest.bat|\
+    l0-main-rescue:tests/fafafa.core.atomic/README.md|\
+    l0-main-rescue:tests/fafafa.core.atomic/Test_fafafa.core.atomic.base.pas|\
+    l0-main-rescue:tests/fafafa.core.atomic/Test_fafafa.core.atomic.compat.contract.pas|\
+    l0-main-rescue:tests/fafafa.core.atomic/Test_fafafa.core.atomic.pas|\
+    l0-main-rescue:tests/fafafa.core.endian/README.md|\
+    l0-main-rescue:tests/fafafa.core.layout/README.md|\
+    l0-main-rescue:tests/fafafa.core.mem.allocator.foundation/BuildOrTest.sh|\
+    l0-main-rescue:tests/fafafa.core.mem.allocator.foundation/README.md|\
+    l0-main-rescue:tests/fafafa.core.mem.allocator.foundation/buildOrTest.bat|\
+    l0-main-rescue:tests/fafafa.core.mem.allocator.foundation/fafafa.core.mem.allocator.foundation.test.lpi|\
+    l0-main-rescue:tests/fafafa.core.mem.allocator.foundation/fafafa.core.mem.allocator.foundation.test.lpr|\
+    l0-main-rescue:tests/fafafa.core.mem.allocator.foundation/test_allocator_foundation_runtime.pas|\
+    l0-main-rescue:tests/fafafa.core.platform/README.md|\
+    l0-main-rescue:tests/fafafa.core.span/README.md)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
 case "${1:-}" in
   --help|-h)
     print_usage
@@ -147,6 +194,7 @@ echo "[INFO] current_head=${LHeadSha}"
 for LRef in "${RETAINED_REFS[@]}"; do
   LRefSha="$(git -C "${REPO_ROOT}" rev-parse "${LRef}")"
   LReviewCandidatePaths=0
+  LReviewSkipPaths=0
   LSrcReviewPaths=0
   LTestCodeReviewPaths=0
   LTestScriptReviewPaths=0
@@ -158,6 +206,7 @@ for LRef in "${RETAINED_REFS[@]}"; do
   LRejectWholesaleAbsorb="no"
 
   LSampleReviewCandidatePaths=()
+  LSampleReviewSkipPaths=()
   LSampleSrcReviewPaths=()
   LSampleTestCodeReviewPaths=()
   LSampleTestScriptReviewPaths=()
@@ -181,6 +230,12 @@ for LRef in "${RETAINED_REFS[@]}"; do
     if is_simd_out_of_scope_path "${LPath}"; then
       LSimdOutOfScopePaths=$((LSimdOutOfScopePaths + 1))
       append_sample LSampleSimdOutOfScopePaths "${LPath}" 3
+      continue
+    fi
+
+    if is_review_skip_path "${LRef}" "${LPath}"; then
+      LReviewSkipPaths=$((LReviewSkipPaths + 1))
+      append_sample LSampleReviewSkipPaths "${LPath}" 3
       continue
     fi
 
@@ -236,6 +291,7 @@ for LRef in "${RETAINED_REFS[@]}"; do
   echo "== ${LRef} =="
   echo "ref_sha=${LRefSha}"
   echo "review_candidate_paths=${LReviewCandidatePaths}"
+  echo "review_skip_paths=${LReviewSkipPaths}"
   echo "src_review_paths=${LSrcReviewPaths}"
   echo "test_code_review_paths=${LTestCodeReviewPaths}"
   echo "test_script_review_paths=${LTestScriptReviewPaths}"
@@ -248,6 +304,9 @@ for LRef in "${RETAINED_REFS[@]}"; do
 
   if (( ${#LSampleReviewCandidatePaths[@]} > 0 )); then
     echo "sample_review_candidate_paths=$(join_samples LSampleReviewCandidatePaths)"
+  fi
+  if (( ${#LSampleReviewSkipPaths[@]} > 0 )); then
+    echo "sample_review_skip_paths=$(join_samples LSampleReviewSkipPaths)"
   fi
   if (( ${#LSampleSrcReviewPaths[@]} > 0 )); then
     echo "sample_src_review_paths=$(join_samples LSampleSrcReviewPaths)"

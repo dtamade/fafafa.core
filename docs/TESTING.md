@@ -234,6 +234,7 @@ bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh
 这条命令会继续显式输出：
 
 - `review_candidate_paths=`
+- `review_skip_paths=`
 - `src_review_paths=`
 - `test_code_review_paths=`
 - `test_script_review_paths=`
@@ -249,8 +250,9 @@ bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh
 1. inventory `--details` 负责看方向与 candidate surface
 2. `test-hygiene-first` 先吃真实 hygiene residue
 3. `source-review-first` 立刻跑 shortlist
-4. 只要看到 `dangerous_delete_paths>0` 或 `reject_wholesale_absorb=yes`，就拒绝整包吸收
-5. `simd_out_of_scope_paths=` 则继续交回 SIMD owner，而不是混进 L0 波次
+4. `review_skip_paths=` 代表这些热点已经完成 fresh 复核，当前应跳过，不再重复当成新的吸收入口
+5. 只要看到 `dangerous_delete_paths>0` 或 `reject_wholesale_absorb=yes`，就拒绝整包吸收
+6. `simd_out_of_scope_paths=` 则继续交回 SIMD owner，而不是混进 L0 波次
 
 第十波之后，`closeout` 里那 6 个 `test_doc_review_paths=` 也已经完成一次 fresh 人工复核：它们不是应当吸收到主线的补强内容，而是会反向删掉 current-entry 里已经建立好的 maintenance / exact-evidence 说明。因此当前增加了一个显式 no-downgrade 护栏：
 

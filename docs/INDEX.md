@@ -116,7 +116,7 @@
 - 第七波之后，`sidecar/tail` 这两条 retained refs 的 low-risk docs residue landing zone 继续固定到 `docs/collections/legacy/README.md` 与几份 `docs/*/reports/README.md` 指路页。
 - 第八波之后，`--details` 还会继续给出 `test_hygiene_candidate_paths=` 与 `source_review_candidate_paths=`，把 `sidecar/tail` 和 `closeout/rescue` 的当前下一跳直接暴露出来。
 - 第九波之后，`sidecar/tail` 的一批 tracked test-hygiene residue 已经从主线真实清掉；如果 `closeout/rescue` 继续是 `source-review-first`，当前标准入口固定为 `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh`。
-- 第九波之后，shortlist 还会继续显式给出 `review_candidate_paths=`、`simd_out_of_scope_paths=`、`dangerous_delete_paths=` 与 `reject_wholesale_absorb=`，帮助拒绝 broad absorb。
+- 第九波之后，shortlist 还会继续显式给出 `review_candidate_paths=`、`review_skip_paths=`、`simd_out_of_scope_paths=`、`dangerous_delete_paths=` 与 `reject_wholesale_absorb=`，帮助拒绝 broad absorb；其中 `review_skip_paths=` 专门承接已经完成 fresh 复核的 stale/no-op hotspot，避免重复人工审查。
 - 第 2026-04-14 波之后，如果你当前关心的是 `sidecar/tail` 在 merged-main 之后还能不能删、各自还剩什么 exclusive batch，当前标准入口固定为 `bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh`。
 - fresh overlap 已固定说明：`sidecar_only_commit_count=1`、`tail_only_commit_count=8`，并且 `sidecar_safe_delete_now=no`、`tail_safe_delete_now=no`。
 - 根目录 `task_plan.md`、`findings.md`、`progress.md` 已从主线移除；最后一份快照归档在 `plans/archive/2026-04-07-mainline-working-set/`。
