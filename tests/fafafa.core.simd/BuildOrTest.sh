@@ -24,6 +24,8 @@ LOG_DIR="${OUTPUT_ROOT}/logs"
 BUILD_LOG="${LOG_DIR}/build.txt"
 TEST_LOG="${LOG_DIR}/test.txt"
 COVERAGE_SCRIPT="${ROOT}/check_intrinsics_coverage.py"
+HELPER_SEMANTICS_SCRIPT="${ROOT}/check_nonx86_helper_semantics.py"
+KEY_SLOT_AUDIT_SCRIPT="${ROOT}/check_nonx86_key_slot_audit.py"
 INTERFACE_COMPLETENESS_SCRIPT="${ROOT}/check_interface_implementation_completeness.py"
 DISPATCH_CONTRACT_SIGNATURE_SCRIPT="${ROOT}/check_dispatch_contract_signature.py"
 PUBLIC_ABI_SIGNATURE_SCRIPT="${ROOT}/check_public_abi_signature.py"
@@ -34,6 +36,10 @@ SUITE_MANIFEST_CHECK_SCRIPT="${ROOT}/check_suite_manifest_sync.py"
 DISPATCH_PREINIT_SMOKE_SRC="${ROOT}/fafafa.core.simd.dispatch_preinit_smoke.pas"
 EXPERIMENTAL_INTRINSICS_SCRIPT="${ROOT}/check_intrinsics_experimental_status.py"
 WIRING_SYNC_SCRIPT="${ROOT}/check_nonx86_wiring_sync.py"
+REGISTER_TRUTHFULNESS_SCRIPT="${ROOT}/check_nonx86_register_truthfulness.py"
+NONX86_NATIVE_EVIDENCE_VERIFY_SCRIPT="${ROOT}/verify_nonx86_native_evidence.py"
+NONX86_NATIVE_EVIDENCE_IMPORT_SCRIPT="${ROOT}/import_nonx86_native_evidence_artifacts.sh"
+RISCVV_ABI_SHAPE_SCRIPT="${ROOT}/check_riscvv_abi_shape.py"
 QEMU_EXPERIMENTAL_REPORT_SCRIPT="${ROOT}/report_qemu_experimental_blockers.py"
 QEMU_EXPERIMENTAL_BASELINE_SCRIPT="${ROOT}/check_experimental_failure_baseline.py"
 INTERFACE_COMPLETENESS_JSON_LOG="${LOG_DIR}/interface_completeness.json"
@@ -46,6 +52,20 @@ ADAPTER_SYNC_LOG="${LOG_DIR}/backend_adapter_sync.txt"
 ADAPTER_SYNC_JSON_LOG="${LOG_DIR}/backend_adapter_sync.json"
 WIRING_SYNC_LOG="${LOG_DIR}/wiring_sync.txt"
 WIRING_SYNC_JSON_LOG="${LOG_DIR}/wiring_sync.json"
+REGISTER_TRUTHFULNESS_NEON_LOG="${LOG_DIR}/register_truthfulness_neon.txt"
+REGISTER_TRUTHFULNESS_NEON_JSON_LOG="${LOG_DIR}/register_truthfulness_neon.json"
+REGISTER_TRUTHFULNESS_RISCVV_LOG="${LOG_DIR}/register_truthfulness_riscvv.txt"
+REGISTER_TRUTHFULNESS_RISCVV_JSON_LOG="${LOG_DIR}/register_truthfulness_riscvv.json"
+HELPER_SEMANTICS_LOG="${LOG_DIR}/helper_semantics.txt"
+KEY_SLOT_AUDIT_LOG="${LOG_DIR}/nonx86_key_slot_audit.txt"
+KEY_SLOT_AUDIT_JSON_LOG="${LOG_DIR}/nonx86_key_slot_audit.json"
+X86_IMPL_SMOKE_LOG="${LOG_DIR}/x86_impl_smoke.txt"
+NONX86_IMPL_SMOKE_LOG="${LOG_DIR}/nonx86_impl_smoke.txt"
+NONX86_IMPL_AUDIT_LOG="${LOG_DIR}/nonx86_impl_audit.txt"
+NONX86_NATIVE_EVIDENCE_LOG="${LOG_DIR}/nonx86_native_evidence.txt"
+NONX86_NATIVE_EVIDENCE_JSON_LOG="${LOG_DIR}/nonx86_native_evidence.json"
+RISCVV_ABI_SHAPE_LOG="${LOG_DIR}/riscvv_abi_shape.txt"
+RISCVV_ABI_SHAPE_JSON_LOG="${LOG_DIR}/riscvv_abi_shape.json"
 GATE_SUMMARY_LOG="${LOG_DIR}/gate_summary.md"
 GATE_SUMMARY_JSON_LOG="${LOG_DIR}/gate_summary.json"
 GATE_SUMMARY_EXPORT_SCRIPT="${ROOT}/export_gate_summary_json.py"
@@ -476,6 +496,12 @@ nonx86_optin_output_root() {
   fi
 }
 
+nonx86_impl_audit_output_root() {
+  # Implementation-shape audit tests resolve ../../../src from ParamStr(0),
+  # so the targeted suite must keep the binary rooted under tests/fafafa.core.simd/bin2.
+  echo "${ROOT}"
+}
+
 run_clean() {
   local -a LPaths
 
@@ -700,6 +726,8 @@ check_windows_runner_parity() {
   LAllowedShellOnly=(
     evidence-linux
     native-evidence
+    verify-nonx86-native-evidence
+    import-nonx86-native-evidence
     restore-nightly-evidence
     freeze-status
     freeze-status-linux
@@ -723,6 +751,12 @@ check_windows_runner_parity() {
     'if /I "%ACTION%"=="cpuinfo-lazy-repeat" goto :cpuinfo_lazy_repeat'
     'if /I "%ACTION%"=="gate" goto :gate'
     'if /I "%ACTION%"=="gate-strict" goto :gate_strict'
+    'if /I "%ACTION%"=="impl-smoke-nonx86" goto :impl_smoke_nonx86'
+    'if /I "%ACTION%"=="impl-audit-nonx86" goto :impl_audit_nonx86'
+    'if /I "%ACTION%"=="key-slot-audit" goto :key_slot_audit'
+    'if /I "%ACTION%"=="closeout-host-local" goto :closeout_host_local'
+    'if /I "%ACTION%"=="import-nonx86-native-evidence" goto :import_nonx86_native_evidence'
+    'if /I "%ACTION%"=="closeout-host-local-from-import" goto :closeout_host_local_from_import'
     'if /I "%ACTION%"=="interface-completeness" goto :interface_completeness'
     'if /I "%ACTION%"=="contract-signature" goto :contract_signature'
     'if /I "%ACTION%"=="publicabi-signature" goto :publicabi_signature'
@@ -750,6 +784,7 @@ check_windows_runner_parity() {
     'if /I "%ACTION%"=="finalize-win-evidence" goto :finalize_win_evidence'
     'if /I "%ACTION%"=="win-closeout-3cmd" goto :win_closeout_3cmd'
     'if /I "%ACTION%"=="win-closeout-finalize" goto :win_closeout_finalize'
+    'if /I "%ACTION%"=="impl-smoke-x86" goto :impl_smoke_x86'
     'set "NORMALIZED_TEST_ARGS=!NORMALIZED_TEST_ARGS! %1"'
     'if /I "%ACTION%"=="wiring-sync" goto :wiring_sync'
     'if /I "%ACTION%"=="gate-summary" goto :gate_summary'
@@ -758,7 +793,8 @@ check_windows_runner_parity() {
     'if /I "%ACTION%"=="gate-summary-inject" goto :gate_summary_inject'
     'if /I "%ACTION%"=="gate-summary-rollback" goto :gate_summary_rollback'
     'if /I "%ACTION%"=="gate-summary-backups" goto :gate_summary_backups'
-    'echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|interface-completeness^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]'
+    'echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|key-slot-audit^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]'
+    'echo [IMPL-SMOKE-X86] Running: bash %ROOT%BuildOrTest.sh impl-smoke-x86 %NORMALIZED_TEST_ARGS%'
     'findstr /r /c:"src\fafafa\.core\.simd\..*Warning:" /c:"src\fafafa\.core\.simd\..*Hint:" "%BUILD_LOG%" | findstr /v /c:"src\fafafa.core.simd.intrinsics.avx2.pas" >nul 2>nul'
     'call :register_include_check'
     ':register_include_check'
@@ -2133,12 +2169,16 @@ check_riscvv_opcode_lane_contract_guard() {
 check_nonx86_native_evidence_runner_guard() {
   local LShell
   local LHelper
+  local LImportScript
+  local LVerifyScript
   local LPattern
   local LMissing
   local -a LShellRequired
 
   LShell="${ROOT}/BuildOrTest.sh"
   LHelper="${ROOT}/collect_nonx86_native_evidence.sh"
+  LImportScript="${ROOT}/import_nonx86_native_evidence_artifacts.sh"
+  LVerifyScript="${ROOT}/verify_nonx86_native_evidence.py"
   LMissing=0
 
   if [[ ! -f "${LShell}" ]]; then
@@ -2149,21 +2189,58 @@ check_nonx86_native_evidence_runner_guard() {
     echo "[CHECK] Missing non-x86 native evidence helper: ${LHelper}"
     return 1
   fi
+  if [[ ! -f "${LImportScript}" ]]; then
+    echo "[CHECK] Missing non-x86 native evidence import helper: ${LImportScript}"
+    return 1
+  fi
+  if [[ ! -f "${LVerifyScript}" ]]; then
+    echo "[CHECK] Missing non-x86 native evidence verifier: ${LVerifyScript}"
+    return 1
+  fi
 
   LShellRequired=(
     'run_nonx86_native_evidence() {'
     'LNativeEvidenceScript="${NONX86_NATIVE_EVIDENCE_SCRIPT:-${ROOT}/collect_nonx86_native_evidence.sh}"'
     'echo "[NATIVE-EVIDENCE] Missing collector: ${LNativeEvidenceScript}"'
     'bash "${LNativeEvidenceScript}" "$@"'
+    'run_nonx86_native_evidence_verify() {'
+    'LRoot="${SIMD_NONX86_NATIVE_EVIDENCE_ROOT:-${ROOT}/logs}"'
+    'echo "[NONX86-NATIVE-VERIFY] FAILED (python3 runtime not found; non-x86 native evidence verify requires python3)"'
+    'run_import_nonx86_native_evidence() {'
+    'LImportScript="${ROOT}/import_nonx86_native_evidence_artifacts.sh"'
+    'import-nonx86-native-evidence)'
+    'run_import_nonx86_native_evidence "$@"'
+    'run_closeout_host_local_from_import() {'
+    'LImportedEvidenceRoot="${SIMD_NONX86_NATIVE_EVIDENCE_IMPORT_DEST:-${ROOT}/fixtures/native-evidence}"'
+    'closeout-host-local-from-import)'
+    'run_closeout_host_local_from_import "$@"'
+    'verify-nonx86-native-evidence)'
+    'run_nonx86_native_evidence_verify "$@"'
     'native-evidence)'
     'run_nonx86_native_evidence "$@"'
-    'native-evidence|'
+    'native-evidence|verify-nonx86-native-evidence|import-nonx86-native-evidence|closeout-host-local-from-import|'
     'echo "Native host env: SIMD_NATIVE_EVIDENCE_RUNNER=canonical|direct-fpc, SIMD_NATIVE_EVIDENCE_ENABLE_BACKEND_ASM=1"'
   )
 
   for LPattern in "${LShellRequired[@]}"; do
     if ! grep -F -- "${LPattern}" "${LShell}" >/dev/null; then
       echo "[CHECK] non-x86 native evidence runner guard missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  if ! grep -F -- 'Usage: import_nonx86_native_evidence_artifacts.sh [--backend neon|riscvv|all] <source-dir> [source-dir...]' "${LImportScript}" >/dev/null; then
+    echo "[CHECK] non-x86 native evidence import helper missing usage banner"
+    LMissing=1
+  fi
+  for LPattern in \
+    'DEST_ROOT="${SIMD_NONX86_NATIVE_EVIDENCE_IMPORT_DEST:-${ROOT}/fixtures/native-evidence}"' \
+    'python3 "${VERIFY_SCRIPT}" --root "${DEST_ROOT}" --backend "${REQUESTED_BACKEND}" --summary-line' \
+    'native-evidence-neon-*' \
+    'native-evidence-riscvv-*'
+  do
+    if ! grep -F -- "${LPattern}" "${LImportScript}" >/dev/null; then
+      echo "[CHECK] non-x86 native evidence import helper missing pattern: ${LPattern}"
       LMissing=1
     fi
   done
@@ -2177,11 +2254,108 @@ check_nonx86_native_evidence_runner_guard() {
     LMissing=1
   fi
 
+  for LPattern in     'run_step runtime_parity'     'bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NonX86BackendParity,TTestCase_DataPlane'     'bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --vector-asm --suite=TTestCase_NonX86BackendParity,TTestCase_DataPlane'     '## Runtime Parity (TTestCase_NonX86BackendParity,TTestCase_DataPlane)'
+  do
+    if ! grep -F -- "${LPattern}" "${LHelper}" >/dev/null; then
+      echo "[CHECK] non-x86 native evidence helper missing runtime parity pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
   if [[ "${LMissing}" != "0" ]]; then
     return 1
   fi
 
   echo "[CHECK] OK (non-x86 native evidence runner guard present)"
+}
+
+check_qemu_nonx86_evidence_runner_guard() {
+  local LFpcRunner
+  local LQemuRunner
+  local LQemuFunction
+  local LPattern
+  local LMissing
+  local -a LFpcRequired
+  local -a LQemuFunctionRequired
+  local -a LQemuFileRequired
+  local -a LQemuFunctionForbidden
+
+  LFpcRunner="${ROOT}/docker/run_fpc_tests.sh"
+  LQemuRunner="${ROOT}/docker/run_multiarch_qemu.sh"
+  LMissing=0
+
+  for LPattern in "${LFpcRunner}" "${LQemuRunner}"; do
+    if [[ ! -f "${LPattern}" ]]; then
+      echo "[CHECK] Missing QEMU non-x86 evidence runner guard target: ${LPattern}"
+      return 1
+    fi
+  done
+
+  LFpcRequired=(
+    'OUTPUT_ROOT="${SIMD_OUTPUT_ROOT:-$(pwd)}"'
+    'BIN_DIR="${OUTPUT_ROOT}/bin2"'
+    'UNIT_DIR="${OUTPUT_ROOT}/lib2/${TARGET}"'
+    'LOG_DIR="${OUTPUT_ROOT}/logs"'
+    'echo "[FPC] output_root=${OUTPUT_ROOT}"'
+    'if "${BIN}" "$@" >"${TEST_LOG}" 2>&1; then'
+  )
+  LQemuFunctionRequired=(
+    'build_nonx86_evidence_cmd() {'
+    'LQemuOutputRoot="/tmp/fafafa-simd-qemu-nonx86-${aArchTag}";'
+    'export SIMD_OUTPUT_ROOT="\${LQemuOutputRoot}";'
+    'bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_NonX86IEEE754 &&'
+    'LTestBin="\${SIMD_OUTPUT_ROOT}/bin2/fafafa.core.simd.test";'
+    'LDirectParityLog="\${SIMD_OUTPUT_ROOT}/logs/direct_nonx86_runtime_parity.txt";'
+    '--suite=TTestCase_NonX86BackendParity,TTestCase_DataPlane'
+    'bash tests/fafafa.core.simd/run_backend_benchmarks.sh'
+  )
+  LQemuFileRequired=(
+    'if [[ "${SCENARIO}" == "nonx86-evidence" ]]; then'
+    'container_cmd="$(build_nonx86_evidence_cmd "${arch_tag}")"'
+  )
+  LQemuFunctionForbidden=(
+    'bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_NonX86BackendParity'
+  )
+
+  for LPattern in "${LFpcRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LFpcRunner}" >/dev/null; then
+      echo "[CHECK] QEMU FPC runner missing output-isolation pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  LQemuFunction="$(sed -n '/^build_nonx86_evidence_cmd()/,/^}/p' "${LQemuRunner}")"
+  if [[ -z "${LQemuFunction}" ]]; then
+    echo "[CHECK] QEMU non-x86 evidence helper function missing: build_nonx86_evidence_cmd"
+    LMissing=1
+  fi
+
+  for LPattern in "${LQemuFunctionRequired[@]}"; do
+    if ! printf '%s\n' "${LQemuFunction}" | grep -F -- "${LPattern}" >/dev/null; then
+      echo "[CHECK] QEMU non-x86 evidence helper missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  for LPattern in "${LQemuFileRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LQemuRunner}" >/dev/null; then
+      echo "[CHECK] QEMU non-x86 evidence scenario wiring missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  for LPattern in "${LQemuFunctionForbidden[@]}"; do
+    if printf '%s\n' "${LQemuFunction}" | grep -F -- "${LPattern}" >/dev/null; then
+      echo "[CHECK] QEMU non-x86 evidence helper still rebuilds parity via run_fpc_tests.sh: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  if [[ "${LMissing}" != "0" ]]; then
+    return 1
+  fi
+
+  echo "[CHECK] OK (QEMU non-x86 evidence runner guard present)"
 }
 
 check_restore_nightly_evidence_runner_guard() {
@@ -2225,8 +2399,7 @@ check_restore_nightly_evidence_runner_guard() {
     echo "[CHECK] nightly evidence restore helper missing usage contract"
     LMissing=1
   fi
-  if ! grep -F -- 'tests/fafafa.core.simd/BuildOrTest.sh freeze-status' "${LHelper}" >/dev/null || \
-     ! grep -F -- 'tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize' "${LHelper}" >/dev/null; then
+  if ! grep -F -- 'tests/fafafa.core.simd/BuildOrTest.sh freeze-status' "${LHelper}" >/dev/null ||      ! grep -F -- 'tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize' "${LHelper}" >/dev/null; then
     echo "[CHECK] nightly evidence restore helper missing canonical restore targets"
     LMissing=1
   fi
@@ -3776,9 +3949,11 @@ gate_step_build_check() {
   check_windows_bash_helper_runner_guard || return $?
   check_riscvv_opcode_lane_contract_guard || return $?
   check_nonx86_native_evidence_runner_guard || return $?
+  check_qemu_nonx86_evidence_runner_guard || return $?
   check_restore_nightly_evidence_runner_guard || return $?
   check_qemu_experimental_python_helper_guard || return $?
   check_python_checker_runtime_guard || return $?
+  run_riscvv_abi_shape_check || return $?
   check_publicabi_output_isolation || return $?
   check_publicabi_shell_export_guard || return $?
   check_isolated_clean_coverage || return $?
@@ -3839,6 +4014,8 @@ gate_step_simd_avx2_fallback() {
 
 gate_step_cross_backend_parity() {
   run_tests --suite=TTestCase_DispatchAPI || return $?
+  check_heap_leaks || return $?
+  run_tests --suite=TTestCase_DataPlane || return $?
   check_heap_leaks || return $?
   run_tests --suite=TTestCase_DirectDispatch || return $?
   check_heap_leaks || return $?
@@ -3929,6 +4106,245 @@ gate_step_evidence_verify() {
   verify_windows_evidence_if_present || return $?
 }
 
+run_nonx86_helper_semantics_check() {
+  local LLog
+  local LMainRC
+  local LSummaryLine
+
+  if [[ ! -f "${HELPER_SEMANTICS_SCRIPT}" ]]; then
+    echo "[HELPER-SEMANTICS] Missing checker: ${HELPER_SEMANTICS_SCRIPT}"
+    return 2
+  fi
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "[HELPER-SEMANTICS] FAILED (python3 runtime not found; helper semantics check requires python3)"
+    return 2
+  fi
+
+  LLog="${SIMD_HELPER_SEMANTICS_LOG_FILE:-${HELPER_SEMANTICS_LOG}}"
+
+  echo "[HELPER-SEMANTICS] Running: python3 ${HELPER_SEMANTICS_SCRIPT} --summary-line"
+  : > "${LLog}"
+  python3 "${HELPER_SEMANTICS_SCRIPT}" --summary-line 2>&1 | tee "${LLog}"
+  LMainRC="${PIPESTATUS[0]}"
+
+  LSummaryLine="$(grep -E '^NONX86_HELPER_SEMANTICS_SUMMARY ' "${LLog}" | tail -n 1 || true)"
+  if [[ -n "${LSummaryLine}" ]]; then
+    echo "[HELPER-SEMANTICS] Summary: ${LSummaryLine#NONX86_HELPER_SEMANTICS_SUMMARY }"
+  fi
+
+  return "${LMainRC}"
+}
+
+run_nonx86_key_slot_audit_check() {
+  local LLog
+  local LJsonLog
+  local LMainRC
+  local LSummaryLine
+
+  if [[ ! -f "${KEY_SLOT_AUDIT_SCRIPT}" ]]; then
+    echo "[KEY-SLOT-AUDIT] Missing checker: ${KEY_SLOT_AUDIT_SCRIPT}"
+    return 2
+  fi
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "[KEY-SLOT-AUDIT] FAILED (python3 runtime not found; key-slot audit requires python3)"
+    return 2
+  fi
+
+  LLog="${SIMD_KEY_SLOT_AUDIT_LOG_FILE:-${KEY_SLOT_AUDIT_LOG}}"
+  LJsonLog="${SIMD_KEY_SLOT_AUDIT_JSON_FILE:-${KEY_SLOT_AUDIT_JSON_LOG}}"
+
+  echo "[KEY-SLOT-AUDIT] Running: python3 ${KEY_SLOT_AUDIT_SCRIPT} --summary-line"
+  : > "${LLog}"
+  python3 "${KEY_SLOT_AUDIT_SCRIPT}" --summary-line 2>&1 | tee "${LLog}"
+  LMainRC="${PIPESTATUS[0]}"
+
+  if [[ "${SIMD_KEY_SLOT_AUDIT_JSON:-1}" != "0" ]]; then
+    if python3 "${KEY_SLOT_AUDIT_SCRIPT}" --json > "${LJsonLog}"; then
+      echo "[KEY-SLOT-AUDIT] JSON snapshot: ${LJsonLog}"
+    else
+      echo "[KEY-SLOT-AUDIT] WARN: failed to snapshot JSON: ${LJsonLog}"
+    fi
+  fi
+
+  LSummaryLine="$(grep -E '^NONX86_KEY_SLOT_AUDIT_SUMMARY ' "${LLog}" | tail -n 1 || true)"
+  if [[ -n "${LSummaryLine}" ]]; then
+    echo "[KEY-SLOT-AUDIT] Summary: ${LSummaryLine#NONX86_KEY_SLOT_AUDIT_SUMMARY }"
+  fi
+
+  return "${LMainRC}"
+}
+
+run_nonx86_impl_audit_step() {
+  local LAuditLog
+  local LStep
+  local LRC
+
+  LAuditLog="${1:-}"
+  LStep="${2:-unknown-step}"
+  shift 2 || true
+
+  echo "[NONX86-IMPL-AUDIT] >>> ${LStep}" | tee -a "${LAuditLog}"
+  "$@" 2>&1 | tee -a "${LAuditLog}"
+  LRC="${PIPESTATUS[0]}"
+  if [[ "${LRC}" != "0" ]]; then
+    echo "[NONX86-IMPL-AUDIT] <<< ${LStep}: failed rc=${LRC}" | tee -a "${LAuditLog}"
+    return "${LRC}"
+  fi
+  echo "[NONX86-IMPL-AUDIT] <<< ${LStep}: ok" | tee -a "${LAuditLog}"
+}
+
+run_nonx86_wiring_sync_smoke_check() {
+  SIMD_WIRING_SYNC_STRICT_EXTRA=0 run_wiring_sync
+}
+
+run_nonx86_impl_smoke_step() {
+  local LSmokeLog
+  local LStep
+  local LRC
+
+  LSmokeLog="${1:-}"
+  LStep="${2:-unknown-step}"
+  shift 2 || true
+
+  echo "[NONX86-IMPL-SMOKE] >>> ${LStep}" | tee -a "${LSmokeLog}"
+  "$@" 2>&1 | tee -a "${LSmokeLog}"
+  LRC="${PIPESTATUS[0]}"
+  if [[ "${LRC}" != "0" ]]; then
+    echo "[NONX86-IMPL-SMOKE] <<< ${LStep}: failed rc=${LRC}" | tee -a "${LSmokeLog}"
+    return "${LRC}"
+  fi
+  echo "[NONX86-IMPL-SMOKE] <<< ${LStep}: ok" | tee -a "${LSmokeLog}"
+}
+
+run_x86_impl_smoke_step() {
+  local LSmokeLog
+  local LStep
+  local LRC
+
+  LSmokeLog="${1:-}"
+  LStep="${2:-unknown-step}"
+  shift 2 || true
+
+  echo "[X86-IMPL-SMOKE] >>> ${LStep}" | tee -a "${LSmokeLog}"
+  "$@" 2>&1 | tee -a "${LSmokeLog}"
+  LRC="${PIPESTATUS[0]}"
+  if [[ "${LRC}" != "0" ]]; then
+    echo "[X86-IMPL-SMOKE] <<< ${LStep}: failed rc=${LRC}" | tee -a "${LSmokeLog}"
+    return "${LRC}"
+  fi
+  echo "[X86-IMPL-SMOKE] <<< ${LStep}: ok" | tee -a "${LSmokeLog}"
+}
+
+run_x86_impl_smoke() {
+  local LSmokeLog
+  local LTargetedOutputRoot
+  local LStepCount
+
+  LSmokeLog="${SIMD_X86_IMPL_SMOKE_LOG_FILE:-${X86_IMPL_SMOKE_LOG}}"
+  LTargetedOutputRoot="${SIMD_X86_IMPL_SMOKE_OUTPUT_ROOT:-$(nonx86_impl_audit_output_root)}"
+  LStepCount=1
+
+  mkdir -p "$(dirname "${LSmokeLog}")" "${LTargetedOutputRoot}"
+  : > "${LSmokeLog}"
+
+  echo "[X86-IMPL-SMOKE] log=${LSmokeLog}" | tee -a "${LSmokeLog}"
+  echo "[X86-IMPL-SMOKE] targeted_output_root=${LTargetedOutputRoot}" | tee -a "${LSmokeLog}"
+
+  # DispatchAPI carries the current bounded x86 proof set, and these tests
+  # resolve ../../../src from ParamStr(0), so the smoke keeps bin2 rooted here.
+  run_x86_impl_smoke_step "${LSmokeLog}" "dispatchapi-bounded-frontier" \
+    env FAFAFA_BUILD_MODE="${FAFAFA_BUILD_MODE:-Release}" \
+        SIMD_OUTPUT_ROOT="${LTargetedOutputRoot}" \
+        bash "${ROOT}/BuildOrTest.sh" test --suite=TTestCase_DispatchAPI || return $?
+
+  echo "X86_IMPL_SMOKE_SUMMARY steps=${LStepCount} targeted_output_root=${LTargetedOutputRoot} status=ok" | tee -a "${LSmokeLog}"
+}
+
+run_nonx86_impl_smoke() {
+  local LSmokeLog
+  local LTargetedOutputRoot
+  local LStepCount
+
+  LSmokeLog="${SIMD_NONX86_IMPL_SMOKE_LOG_FILE:-${NONX86_IMPL_SMOKE_LOG}}"
+  LTargetedOutputRoot="${SIMD_NONX86_IMPL_SMOKE_OUTPUT_ROOT:-$(nonx86_impl_audit_output_root)}"
+  LStepCount=6
+
+  mkdir -p "$(dirname "${LSmokeLog}")" "${LTargetedOutputRoot}"
+  : > "${LSmokeLog}"
+
+  echo "[NONX86-IMPL-SMOKE] log=${LSmokeLog}" | tee -a "${LSmokeLog}"
+  echo "[NONX86-IMPL-SMOKE] targeted_output_root=${LTargetedOutputRoot}" | tee -a "${LSmokeLog}"
+
+  run_nonx86_impl_smoke_step "${LSmokeLog}" "helper-semantics" run_nonx86_helper_semantics_check || return $?
+  run_nonx86_impl_smoke_step "${LSmokeLog}" "key-slot-audit" run_nonx86_key_slot_audit_check || return $?
+  run_nonx86_impl_smoke_step "${LSmokeLog}" "wiring-sync" run_nonx86_wiring_sync_smoke_check || return $?
+  run_nonx86_impl_smoke_step "${LSmokeLog}" "register-truthfulness-neon" run_register_truthfulness_backend neon 1 || return $?
+  run_nonx86_impl_smoke_step "${LSmokeLog}" "register-truthfulness-riscvv" run_register_truthfulness_backend riscvv 1 || return $?
+  run_nonx86_impl_smoke_step "${LSmokeLog}" "nonx86-backend-parity" \
+    env FAFAFA_BUILD_MODE="Release" \
+        SIMD_OUTPUT_ROOT="${LTargetedOutputRoot}" \
+        bash "${ROOT}/BuildOrTest.sh" test --suite=TTestCase_NonX86BackendParity || return $?
+
+  echo "NONX86_IMPL_SMOKE_SUMMARY steps=${LStepCount} targeted_output_root=${LTargetedOutputRoot} status=ok" | tee -a "${LSmokeLog}"
+}
+
+run_nonx86_impl_audit() {
+  local LAuditLog
+  local LTargetedOutputRoot
+  local LNativeEvidenceMode
+  local LNativeEvidenceStatus
+  local LStepCount
+
+  LAuditLog="${SIMD_NONX86_IMPL_AUDIT_LOG_FILE:-${NONX86_IMPL_AUDIT_LOG}}"
+  LTargetedOutputRoot="${SIMD_NONX86_IMPL_AUDIT_OUTPUT_ROOT:-$(nonx86_impl_audit_output_root)}"
+  LNativeEvidenceMode="${SIMD_IMPL_AUDIT_VERIFY_NONX86_NATIVE_EVIDENCE:-auto}"
+  LNativeEvidenceStatus="skip"
+  LStepCount=6
+
+  mkdir -p "$(dirname "${LAuditLog}")" "${LTargetedOutputRoot}"
+  : > "${LAuditLog}"
+
+  echo "[NONX86-IMPL-AUDIT] log=${LAuditLog}" | tee -a "${LAuditLog}"
+  echo "[NONX86-IMPL-AUDIT] targeted_output_root=${LTargetedOutputRoot}" | tee -a "${LAuditLog}"
+
+  run_nonx86_impl_audit_step "${LAuditLog}" "helper-semantics" run_nonx86_helper_semantics_check || return $?
+  run_nonx86_impl_audit_step "${LAuditLog}" "wiring-sync" env SIMD_OUTPUT_ROOT="${OUTPUT_ROOT}" SIMD_WIRING_SYNC_STRICT_EXTRA="${SIMD_WIRING_SYNC_STRICT_EXTRA:-1}" bash "${ROOT}/BuildOrTest.sh" wiring-sync || return $?
+  run_nonx86_impl_audit_step "${LAuditLog}" "riscvv-abi-shape" run_riscvv_abi_shape_check || return $?
+  run_nonx86_impl_audit_step "${LAuditLog}" "register-truthfulness-neon" run_register_truthfulness_backend neon 1 || return $?
+  run_nonx86_impl_audit_step "${LAuditLog}" "register-truthfulness-riscvv" run_register_truthfulness_backend riscvv 1 || return $?
+  run_nonx86_impl_audit_step "${LAuditLog}" "key-slot-audit" run_nonx86_key_slot_audit_check || return $?
+
+  case "${LNativeEvidenceMode}" in
+    auto)
+      if [[ -n "${SIMD_NONX86_NATIVE_EVIDENCE_ROOT:-}" ]]; then
+        run_nonx86_impl_audit_step "${LAuditLog}" "nonx86-native-evidence-verify" run_nonx86_native_evidence_verify || return $?
+        LNativeEvidenceStatus="verified"
+        LStepCount=$(( LStepCount + 1 ))
+      else
+        echo "[NONX86-IMPL-AUDIT] SKIP nonx86-native-evidence-verify (set SIMD_NONX86_NATIVE_EVIDENCE_ROOT=... to enable)" | tee -a "${LAuditLog}"
+      fi
+      ;;
+    1|true|yes|required)
+      run_nonx86_impl_audit_step "${LAuditLog}" "nonx86-native-evidence-verify" run_nonx86_native_evidence_verify || return $?
+      LNativeEvidenceStatus="verified"
+      LStepCount=$(( LStepCount + 1 ))
+      ;;
+    0|false|no|skip)
+      echo "[NONX86-IMPL-AUDIT] SKIP nonx86-native-evidence-verify (SIMD_IMPL_AUDIT_VERIFY_NONX86_NATIVE_EVIDENCE=${LNativeEvidenceMode})" | tee -a "${LAuditLog}"
+      ;;
+    *)
+      echo "[NONX86-IMPL-AUDIT] Unsupported SIMD_IMPL_AUDIT_VERIFY_NONX86_NATIVE_EVIDENCE=${LNativeEvidenceMode}"
+      return 2
+      ;;
+  esac
+
+  run_nonx86_impl_audit_step "${LAuditLog}" "targeted-release-suites"     env FAFAFA_BUILD_MODE="${FAFAFA_BUILD_MODE:-Release}"         SIMD_OUTPUT_ROOT="${LTargetedOutputRoot}"         SIMD_ENABLE_NEON_BACKEND=1         SIMD_ENABLE_RISCVV_BACKEND=1         bash "${ROOT}/BuildOrTest.sh" test --suite=TTestCase_DispatchAPI,TTestCase_DirectDispatch,TTestCase_DataPlane || return $?
+
+  echo "NONX86_IMPL_AUDIT_SUMMARY steps=${LStepCount} native_evidence=${LNativeEvidenceStatus} targeted_output_root=${LTargetedOutputRoot} status=ok" | tee -a "${LAuditLog}"
+}
+
 run_wiring_sync() {
   if [[ ! -f "${WIRING_SYNC_SCRIPT}" ]]; then
     echo "[WIRING-SYNC] Missing checker: ${WIRING_SYNC_SCRIPT}"
@@ -3979,6 +4395,127 @@ run_wiring_sync() {
   fi
 
   return "${LMainRC}"
+}
+
+collect_register_truthfulness_summary() {
+  local -a LParts
+  local LSummary
+
+  LParts=()
+
+  if [[ -f "${REGISTER_TRUTHFULNESS_NEON_LOG}" ]]; then
+    LSummary="$(grep -E '^NONX86_REGISTER_TRUTHFULNESS_SUMMARY ' "${REGISTER_TRUTHFULNESS_NEON_LOG}" | tail -n 1 | sed -e 's/^NONX86_REGISTER_TRUTHFULNESS_SUMMARY //' || true)"
+    if [[ -n "${LSummary}" ]]; then
+      LParts+=("neon:${LSummary}")
+    fi
+  fi
+
+  if [[ -f "${REGISTER_TRUTHFULNESS_RISCVV_LOG}" ]]; then
+    LSummary="$(grep -E '^NONX86_REGISTER_TRUTHFULNESS_SUMMARY ' "${REGISTER_TRUTHFULNESS_RISCVV_LOG}" | tail -n 1 | sed -e 's/^NONX86_REGISTER_TRUTHFULNESS_SUMMARY //' || true)"
+    if [[ -n "${LSummary}" ]]; then
+      LParts+=("riscvv:${LSummary}")
+    fi
+  fi
+
+  if [[ "${#LParts[@]}" == "0" ]]; then
+    echo ""
+    return 0
+  fi
+
+  (
+    IFS=' | '
+    echo "${LParts[*]}"
+  )
+}
+
+run_register_truthfulness_backend() {
+  local LBackend
+  local LStrict
+  local LLog
+  local LJsonLog
+  local LMainRC
+  local LSummaryLine
+  local -a LArgs
+
+  LBackend="${1:-}"
+  LStrict="${2:-0}"
+
+  if [[ ! -f "${REGISTER_TRUTHFULNESS_SCRIPT}" ]]; then
+    echo "[REG-TRUTH] Missing checker: ${REGISTER_TRUTHFULNESS_SCRIPT}"
+    return 2
+  fi
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "[REG-TRUTH] FAILED (python3 runtime not found; register truthfulness check requires python3)"
+    return 2
+  fi
+
+  case "${LBackend}" in
+    neon)
+      LLog="${REGISTER_TRUTHFULNESS_NEON_LOG}"
+      LJsonLog="${REGISTER_TRUTHFULNESS_NEON_JSON_LOG}"
+      ;;
+    riscvv)
+      LLog="${REGISTER_TRUTHFULNESS_RISCVV_LOG}"
+      LJsonLog="${REGISTER_TRUTHFULNESS_RISCVV_JSON_LOG}"
+      ;;
+    *)
+      echo "[REG-TRUTH] Unsupported backend: ${LBackend}"
+      return 2
+      ;;
+  esac
+
+  LArgs=(--backend "${LBackend}" --summary-line)
+  if [[ "${LStrict}" != "0" ]]; then
+    LArgs+=("--strict")
+  fi
+
+  echo "[REG-TRUTH] Running: python3 ${REGISTER_TRUTHFULNESS_SCRIPT} ${LArgs[*]}"
+  : > "${LLog}"
+  python3 "${REGISTER_TRUTHFULNESS_SCRIPT}" "${LArgs[@]}" 2>&1 | tee "${LLog}"
+  LMainRC="${PIPESTATUS[0]}"
+
+  if [[ "${SIMD_REGISTER_TRUTHFULNESS_JSON:-1}" != "0" ]]; then
+    local -a LJsonArgs
+    LJsonArgs=(--backend "${LBackend}" --json)
+    if [[ "${LStrict}" != "0" ]]; then
+      LJsonArgs+=("--strict")
+    fi
+    if python3 "${REGISTER_TRUTHFULNESS_SCRIPT}" "${LJsonArgs[@]}" > "${LJsonLog}"; then
+      echo "[REG-TRUTH] JSON snapshot (${LBackend}): ${LJsonLog}"
+    else
+      echo "[REG-TRUTH] WARN: failed to snapshot JSON (${LBackend}): ${LJsonLog}"
+    fi
+  fi
+
+  LSummaryLine="$(grep -E '^NONX86_REGISTER_TRUTHFULNESS_SUMMARY ' "${LLog}" | tail -n 1 || true)"
+  if [[ -n "${LSummaryLine}" ]]; then
+    echo "[REG-TRUTH] Summary (${LBackend}): ${LSummaryLine#NONX86_REGISTER_TRUTHFULNESS_SUMMARY }"
+  fi
+
+  return "${LMainRC}"
+}
+
+run_register_truthfulness_check() {
+  local LStrict
+  local LRan
+
+  LStrict="${1:-0}"
+  LRan=0
+
+  if [[ "${SIMD_ENABLE_NEON_BACKEND:-0}" == "1" ]]; then
+    run_register_truthfulness_backend "neon" "${LStrict}" || return $?
+    LRan=1
+  fi
+
+  if [[ "${SIMD_ENABLE_RISCVV_BACKEND:-0}" == "1" ]]; then
+    run_register_truthfulness_backend "riscvv" "${LStrict}" || return $?
+    LRan=1
+  fi
+
+  if [[ "${LRan}" == "0" ]]; then
+    echo "[REG-TRUTH] SKIP (enable SIMD_ENABLE_NEON_BACKEND=1 or SIMD_ENABLE_RISCVV_BACKEND=1)"
+  fi
 }
 
 run_perf_smoke() {
@@ -4209,6 +4746,7 @@ run_gate() {
   LGateParitySuites="${SIMD_GATE_PARITY_SUITES:-1}"
   LGateWiringSync="${SIMD_GATE_WIRING_SYNC:-1}"
   LGateCoverage="${SIMD_GATE_COVERAGE:-1}"
+  LGateRequireNonX86NativeEvidence="${SIMD_GATE_REQUIRE_NONX86_NATIVE_EVIDENCE:-0}"
   LGateProfile="${SIMD_GATE_PROFILE:-fast-gate}"
   LEvidenceLog="${ROOT}/logs/windows_b07_gate.log"
 
@@ -4216,7 +4754,7 @@ run_gate() {
     reset_gate_summary
   fi
 
-  append_gate_summary "gate" "START" "profile=${LGateProfile}; mode=${MODE}; interface-completeness=${LGateInterfaceCompleteness}; contract-signature=${LGateContractSignature}; publicabi-signature=${LGatePublicAbiSignature}; publicabi-smoke=${LGatePublicAbiSmoke}; adapter-sync-pascal=${LGateAdapterSyncPascal}; adapter-sync=${LGateAdapterSync}; parity-suites=${LGateParitySuites}; wiring=${LGateWiringSync}; coverage=${LGateCoverage}; perf=${SIMD_GATE_PERF_SMOKE:-0}; experimental=${SIMD_GATE_EXPERIMENTAL:-1}; experimental-tests=${SIMD_GATE_EXPERIMENTAL_TESTS:-0}; nonx86-ieee754=${SIMD_GATE_NONX86_IEEE754:-0}; cpuinfo-lazy-repeat=${SIMD_GATE_CPUINFO_LAZY_REPEAT:-0}; qemu-nonx86-evidence=${SIMD_GATE_QEMU_NONX86_EVIDENCE:-0}; qemu-cpuinfo-nonx86-evidence=${SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE:-0}; qemu-cpuinfo-nonx86-full-evidence=${SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE:-0}; qemu-cpuinfo-nonx86-full-repeat=${SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT:-0}; qemu-arch-matrix=${SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE:-0}; require-win-evidence=${SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE:-0}; concurrent-repeat=${SIMD_GATE_CONCURRENT_REPEAT:-0}" "-" "START" "${BUILD_LOG}; ${TEST_LOG}; ${SIMD_WIRING_SYNC_LOG_FILE:-${WIRING_SYNC_LOG}}"
+  append_gate_summary "gate" "START" "profile=${LGateProfile}; mode=${MODE}; interface-completeness=${LGateInterfaceCompleteness}; contract-signature=${LGateContractSignature}; publicabi-signature=${LGatePublicAbiSignature}; publicabi-smoke=${LGatePublicAbiSmoke}; adapter-sync-pascal=${LGateAdapterSyncPascal}; adapter-sync=${LGateAdapterSync}; parity-suites=${LGateParitySuites}; wiring=${LGateWiringSync}; coverage=${LGateCoverage}; perf=${SIMD_GATE_PERF_SMOKE:-0}; experimental=${SIMD_GATE_EXPERIMENTAL:-1}; experimental-tests=${SIMD_GATE_EXPERIMENTAL_TESTS:-0}; nonx86-ieee754=${SIMD_GATE_NONX86_IEEE754:-0}; cpuinfo-lazy-repeat=${SIMD_GATE_CPUINFO_LAZY_REPEAT:-0}; qemu-nonx86-evidence=${SIMD_GATE_QEMU_NONX86_EVIDENCE:-0}; qemu-cpuinfo-nonx86-evidence=${SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE:-0}; qemu-cpuinfo-nonx86-full-evidence=${SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE:-0}; qemu-cpuinfo-nonx86-full-repeat=${SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT:-0}; qemu-arch-matrix=${SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE:-0}; require-nonx86-native-evidence=${LGateRequireNonX86NativeEvidence}; require-win-evidence=${SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE:-0}; concurrent-repeat=${SIMD_GATE_CONCURRENT_REPEAT:-0}" "-" "START" "${BUILD_LOG}; ${TEST_LOG}; ${SIMD_WIRING_SYNC_LOG_FILE:-${WIRING_SYNC_LOG}}; ${SIMD_RISCVV_ABI_SHAPE_LOG_FILE:-${RISCVV_ABI_SHAPE_LOG}}; ${SIMD_NONX86_NATIVE_EVIDENCE_LOG_FILE:-${NONX86_NATIVE_EVIDENCE_LOG}}"
 
   if [[ "${LGateProfile}" == "release-gate" ]]; then
     echo "[GATE] Profile: release-gate (发布/closeout 完整门禁)"
@@ -4338,6 +4876,30 @@ run_gate() {
   else
     echo "[GATE] SKIP optional wiring-sync (set SIMD_GATE_WIRING_SYNC=1 to enable)"
     append_gate_summary "wiring-sync" "SKIP" "SIMD_GATE_WIRING_SYNC=0" "-" "SKIP" "-"
+  fi
+
+  if [[ "${SIMD_ENABLE_NEON_BACKEND:-0}" == "1" || "${SIMD_ENABLE_RISCVV_BACKEND:-0}" == "1" ]]; then
+    echo "[GATE] Optional register-truthfulness enabled"
+    LWiringStartMs="$(now_ms)"
+    if run_register_truthfulness_check "1"; then
+      LWiringEndMs="$(now_ms)"
+      LWiringDurationMs="$(( LWiringEndMs - LWiringStartMs ))"
+      LWiringEvent="$(gate_step_event "${LWiringDurationMs}")"
+      LWiringSummary="$(collect_register_truthfulness_summary)"
+      append_gate_summary "register-truthfulness" "PASS" "${LWiringSummary:-summary-missing}" "${LWiringDurationMs}" "${LWiringEvent}" "${REGISTER_TRUTHFULNESS_NEON_LOG}; ${REGISTER_TRUTHFULNESS_RISCVV_LOG}"
+    else
+      LWiringRC=$?
+      LWiringEndMs="$(now_ms)"
+      LWiringDurationMs="$(( LWiringEndMs - LWiringStartMs ))"
+      LWiringSummary="$(collect_register_truthfulness_summary)"
+      append_gate_summary "register-truthfulness" "FAIL" "rc=${LWiringRC}; ${LWiringSummary:-run-failed}" "${LWiringDurationMs}" "FAILED" "${REGISTER_TRUTHFULNESS_NEON_LOG}; ${REGISTER_TRUTHFULNESS_RISCVV_LOG}"
+      LGateEndMs="$(now_ms)"
+      LGateDurationMs="$(( LGateEndMs - LGateStartMs ))"
+      append_gate_summary "gate" "FAIL" "failed-step=register-truthfulness" "${LGateDurationMs}" "FAILED"
+      return "${LWiringRC}"
+    fi
+  else
+    append_gate_summary "register-truthfulness" "SKIP" "no non-x86 opt-in backend enabled" "-" "SKIP" "-"
   fi
 
   echo "[GATE] 2/6 SIMD list suites"
@@ -4536,6 +5098,20 @@ run_gate() {
     append_gate_summary "qemu-arch-matrix-evidence" "SKIP" "SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0" "-" "SKIP" "${ROOT}/logs/qemu-multiarch-*"
   fi
 
+  LNonX86NativeEvidenceRoot="$(nonx86_native_evidence_root)"
+  echo "[GATE] Non-x86 native evidence verify (optional unless SIMD_GATE_REQUIRE_NONX86_NATIVE_EVIDENCE=1)"
+  if [[ "${LGateRequireNonX86NativeEvidence}" != "0" || -n "${SIMD_NONX86_NATIVE_EVIDENCE_ROOT:-}" ]] || nonx86_native_evidence_root_has_entries "${LNonX86NativeEvidenceRoot}"; then
+    if ! run_gate_step "nonx86-native-evidence-verify" "native non-x86 evidence verify passed" "native non-x86 evidence verify failed" "${SIMD_NONX86_NATIVE_EVIDENCE_LOG_FILE:-${NONX86_NATIVE_EVIDENCE_LOG}}; ${SIMD_NONX86_NATIVE_EVIDENCE_JSON_FILE:-${NONX86_NATIVE_EVIDENCE_JSON_LOG}}" run_nonx86_native_evidence_verify; then
+      LGateEndMs="$(now_ms)"
+      LGateDurationMs="$(( LGateEndMs - LGateStartMs ))"
+      append_gate_summary "gate" "FAIL" "failed-step=nonx86-native-evidence-verify" "${LGateDurationMs}" "FAILED"
+      return 1
+    fi
+  else
+    echo "[GATE] SKIP non-x86 native evidence verify (root not present: ${LNonX86NativeEvidenceRoot})"
+    append_gate_summary "nonx86-native-evidence-verify" "SKIP" "non-x86 native evidence root missing (optional in gate): ${LNonX86NativeEvidenceRoot}" "-" "SKIP" "${SIMD_NONX86_NATIVE_EVIDENCE_LOG_FILE:-${NONX86_NATIVE_EVIDENCE_LOG}}"
+  fi
+
   echo "[GATE] Evidence verify (windows log optional unless SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1)"
   if [[ -f "${LEvidenceLog}" ]]; then
     if [[ "${SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE:-0}" != "0" ]]; then
@@ -4580,7 +5156,7 @@ run_gate() {
 
 run_gate_strict() {
   echo "[GATE] Running gate-strict as release-gate profile"
-  echo "[GATE] Note: release-gate adds stronger evidence, but experimental paths still keep a separate maturity boundary"
+  echo "[GATE] Note: release-gate adds stronger evidence; QEMU non-x86 runtime evidence is the default closeout proof when no native hardware is available"
   require_release_gate_prereqs || return $?
   SIMD_GATE_INTERFACE_COMPLETENESS=1 \
   SIMD_GATE_CONTRACT_SIGNATURE=1 \
@@ -4600,7 +5176,8 @@ run_gate_strict() {
   SIMD_GATE_EXPERIMENTAL_TESTS="${SIMD_GATE_EXPERIMENTAL_TESTS:-1}" \
   SIMD_GATE_NONX86_IEEE754=1 \
   SIMD_GATE_CPUINFO_LAZY_REPEAT="${SIMD_GATE_CPUINFO_LAZY_REPEAT:-3}" \
-  SIMD_GATE_QEMU_NONX86_EVIDENCE=0 \
+  SIMD_GATE_QEMU_NONX86_EVIDENCE="${SIMD_GATE_QEMU_NONX86_EVIDENCE:-1}" \
+  SIMD_GATE_REQUIRE_NONX86_NATIVE_EVIDENCE="${SIMD_GATE_REQUIRE_NONX86_NATIVE_EVIDENCE:-0}" \
   SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE="${SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE:-1}" \
   SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE="${SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE:-0}" \
   SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT="${SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT:-0}" \
@@ -4880,6 +5457,161 @@ run_nonx86_native_evidence() {
   bash "${LNativeEvidenceScript}" "$@"
 }
 
+run_import_nonx86_native_evidence() {
+  local LImportScript
+
+  LImportScript="${NONX86_NATIVE_EVIDENCE_IMPORT_SCRIPT:-${ROOT}/import_nonx86_native_evidence_artifacts.sh}"
+
+  if [[ ! -f "${LImportScript}" ]]; then
+    echo "[IMPORT] Missing non-x86 native evidence import helper: ${LImportScript}"
+    return 2
+  fi
+
+  bash "${LImportScript}" "$@"
+}
+
+run_closeout_host_local_from_import() {
+  local LImportedEvidenceRoot
+
+  LImportedEvidenceRoot="${SIMD_NONX86_NATIVE_EVIDENCE_IMPORT_DEST:-${ROOT}/fixtures/native-evidence}"
+
+  run_import_nonx86_native_evidence "$@" || return $?
+  SIMD_NONX86_NATIVE_EVIDENCE_ROOT="${LImportedEvidenceRoot}" run_closeout_host_local
+}
+
+nonx86_native_evidence_root() {
+  echo "${SIMD_NONX86_NATIVE_EVIDENCE_ROOT:-${ROOT}/logs}"
+}
+
+nonx86_native_evidence_root_has_entries() {
+  local LRoot
+
+  LRoot="${1:-}"
+  if [[ -z "${LRoot}" || ! -d "${LRoot}" ]]; then
+    return 1
+  fi
+
+  if compgen -G "${LRoot}/native-evidence-neon-*" >/dev/null; then
+    return 0
+  fi
+  if compgen -G "${LRoot}/native-evidence-riscvv-*" >/dev/null; then
+    return 0
+  fi
+
+  return 1
+}
+
+run_closeout_host_local() {
+  echo "[CLOSEOUT-HOST-LOCAL] 1/2 impl-audit-nonx86"
+  run_nonx86_impl_audit || return $?
+
+  echo "[CLOSEOUT-HOST-LOCAL] 2/2 gate-strict (qemu-nonx86 required, native-evidence optional)"
+  SIMD_GATE_QEMU_NONX86_EVIDENCE="${SIMD_GATE_QEMU_NONX86_EVIDENCE:-1}" \
+  SIMD_GATE_REQUIRE_NONX86_NATIVE_EVIDENCE="${SIMD_GATE_REQUIRE_NONX86_NATIVE_EVIDENCE:-0}" \
+  SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE="${SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE:-0}" \
+  run_gate_strict || return $?
+
+  echo "[CLOSEOUT-HOST-LOCAL] OK"
+}
+
+run_nonx86_native_evidence_verify() {
+  local LRoot
+  local LLog
+  local LJsonLog
+  local LMainRC
+  local LSummaryLine
+  local -a LArgs
+  local -a LJsonArgs
+
+  if [[ ! -f "${NONX86_NATIVE_EVIDENCE_VERIFY_SCRIPT}" ]]; then
+    echo "[NONX86-NATIVE-VERIFY] Missing verifier: ${NONX86_NATIVE_EVIDENCE_VERIFY_SCRIPT}"
+    return 2
+  fi
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "[NONX86-NATIVE-VERIFY] FAILED (python3 runtime not found; non-x86 native evidence verify requires python3)"
+    return 2
+  fi
+
+  LRoot="${SIMD_NONX86_NATIVE_EVIDENCE_ROOT:-${ROOT}/logs}"
+  LLog="${SIMD_NONX86_NATIVE_EVIDENCE_LOG_FILE:-${NONX86_NATIVE_EVIDENCE_LOG}}"
+  LJsonLog="${SIMD_NONX86_NATIVE_EVIDENCE_JSON_FILE:-${NONX86_NATIVE_EVIDENCE_JSON_LOG}}"
+
+  if [[ "$#" -eq 0 ]]; then
+    LArgs=(--root "${LRoot}" --backend "${SIMD_NONX86_NATIVE_EVIDENCE_BACKEND:-all}" --summary-line)
+  else
+    LArgs=("$@")
+  fi
+
+  echo "[NONX86-NATIVE-VERIFY] Running: python3 ${NONX86_NATIVE_EVIDENCE_VERIFY_SCRIPT} ${LArgs[*]}"
+  : > "${LLog}"
+  python3 "${NONX86_NATIVE_EVIDENCE_VERIFY_SCRIPT}" "${LArgs[@]}" 2>&1 | tee "${LLog}"
+  LMainRC="${PIPESTATUS[0]}"
+
+  if [[ "${SIMD_NONX86_NATIVE_EVIDENCE_JSON:-1}" != "0" ]]; then
+    if [[ "$#" -eq 0 ]]; then
+      LJsonArgs=(--root "${LRoot}" --backend "${SIMD_NONX86_NATIVE_EVIDENCE_BACKEND:-all}" --json)
+    else
+      LJsonArgs=("$@")
+      if ! array_contains "--json" "${LJsonArgs[@]}"; then
+        LJsonArgs+=(--json)
+      fi
+    fi
+    if python3 "${NONX86_NATIVE_EVIDENCE_VERIFY_SCRIPT}" "${LJsonArgs[@]}" > "${LJsonLog}"; then
+      echo "[NONX86-NATIVE-VERIFY] JSON snapshot: ${LJsonLog}"
+    else
+      echo "[NONX86-NATIVE-VERIFY] WARN: failed to snapshot JSON: ${LJsonLog}"
+    fi
+  fi
+
+  LSummaryLine="$(grep -E '^NONX86_NATIVE_EVIDENCE_SUMMARY ' "${LLog}" | tail -n 1 || true)"
+  if [[ -n "${LSummaryLine}" ]]; then
+    echo "[NONX86-NATIVE-VERIFY] Summary: ${LSummaryLine#NONX86_NATIVE_EVIDENCE_SUMMARY }"
+  fi
+
+  return "${LMainRC}"
+}
+
+run_riscvv_abi_shape_check() {
+  local LLog
+  local LJsonLog
+  local LMainRC
+  local LSummaryLine
+
+  if [[ ! -f "${RISCVV_ABI_SHAPE_SCRIPT}" ]]; then
+    echo "[RISCVV-ABI] Missing checker: ${RISCVV_ABI_SHAPE_SCRIPT}"
+    return 2
+  fi
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "[RISCVV-ABI] FAILED (python3 runtime not found; riscvv ABI shape check requires python3)"
+    return 2
+  fi
+
+  LLog="${SIMD_RISCVV_ABI_SHAPE_LOG_FILE:-${RISCVV_ABI_SHAPE_LOG}}"
+  LJsonLog="${SIMD_RISCVV_ABI_SHAPE_JSON_FILE:-${RISCVV_ABI_SHAPE_JSON_LOG}}"
+
+  echo "[RISCVV-ABI] Running: python3 ${RISCVV_ABI_SHAPE_SCRIPT} --summary-line"
+  : > "${LLog}"
+  python3 "${RISCVV_ABI_SHAPE_SCRIPT}" --summary-line 2>&1 | tee "${LLog}"
+  LMainRC="${PIPESTATUS[0]}"
+
+  if [[ "${SIMD_RISCVV_ABI_SHAPE_JSON:-1}" != "0" ]]; then
+    if python3 "${RISCVV_ABI_SHAPE_SCRIPT}" --json > "${LJsonLog}"; then
+      echo "[RISCVV-ABI] JSON snapshot: ${LJsonLog}"
+    else
+      echo "[RISCVV-ABI] WARN: failed to snapshot JSON: ${LJsonLog}"
+    fi
+  fi
+
+  LSummaryLine="$(grep -E '^RISCVV_ABI_SHAPE_SUMMARY ' "${LLog}" | tail -n 1 || true)"
+  if [[ -n "${LSummaryLine}" ]]; then
+    echo "[RISCVV-ABI] Summary: ${LSummaryLine#RISCVV_ABI_SHAPE_SUMMARY }"
+  fi
+
+  return "${LMainRC}"
+}
+
 run_restore_nightly_evidence() {
   local LRestoreScript
 
@@ -5081,9 +5813,13 @@ case "${ACTION}" in
   check_windows_bash_helper_runner_guard
   check_riscvv_opcode_lane_contract_guard
   check_nonx86_native_evidence_runner_guard
+  check_qemu_nonx86_evidence_runner_guard
   check_restore_nightly_evidence_runner_guard
   check_qemu_experimental_python_helper_guard
   check_python_checker_runtime_guard
+  run_nonx86_helper_semantics_check
+  run_nonx86_key_slot_audit_check
+  run_riscvv_abi_shape_check
     check_publicabi_output_isolation
     check_publicabi_shell_export_guard
     check_isolated_clean_coverage
@@ -5104,6 +5840,7 @@ case "${ACTION}" in
     else
       echo "[CHECK] SKIP optional wiring-sync (set SIMD_CHECK_WIRING_SYNC=1 to enable)"
     fi
+    run_register_truthfulness_check "0"
     if [[ "${SIMD_CHECK_EXPERIMENTAL:-1}" != "0" ]]; then
       echo "[CHECK] Experimental intrinsics isolation"
       run_intrinsics_experimental_status
@@ -5147,6 +5884,18 @@ case "${ACTION}" in
   gate-strict)
     echo "[GATE] Running release-gate profile (发布/closeout 完整门禁)"
     run_gate_strict
+    ;;
+  impl-smoke-x86)
+    run_x86_impl_smoke
+    ;;
+  impl-smoke-nonx86)
+    run_nonx86_impl_smoke
+    ;;
+  impl-audit-nonx86)
+    run_nonx86_impl_audit
+    ;;
+  closeout-host-local)
+    run_closeout_host_local
     ;;
   interface-completeness)
     run_interface_completeness
@@ -5243,6 +5992,9 @@ case "${ACTION}" in
   experimental-intrinsics-tests)
     run_experimental_intrinsics_tests
     ;;
+  key-slot-audit)
+    run_nonx86_key_slot_audit_check
+    ;;
   wiring-sync)
     run_wiring_sync
     ;;
@@ -5251,6 +6003,15 @@ case "${ACTION}" in
     ;;
   native-evidence)
     run_nonx86_native_evidence "$@"
+    ;;
+  import-nonx86-native-evidence)
+    run_import_nonx86_native_evidence "$@"
+    ;;
+  closeout-host-local-from-import)
+    run_closeout_host_local_from_import "$@"
+    ;;
+  verify-nonx86-native-evidence)
+    run_nonx86_native_evidence_verify "$@"
     ;;
   restore-nightly-evidence)
     run_restore_nightly_evidence "$@"
@@ -5289,14 +6050,22 @@ case "${ACTION}" in
     run_freeze_status_rehearsal "$@"
     ;;
   *)
-    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|interface-completeness|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|restore-nightly-evidence|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
+    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|impl-smoke-x86|impl-smoke-nonx86|impl-audit-nonx86|key-slot-audit|closeout-host-local|import-nonx86-native-evidence|closeout-host-local-from-import|interface-completeness|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|verify-nonx86-native-evidence|restore-nightly-evidence|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
     echo "  Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks."
     echo "  gate/gate-strict PASS is not blanket release-grade approval for every experimental path."
     echo "  gate         Fast/base gate for routine SIMD changes"
     echo "  gate-strict  Release/closeout gate with perf, repeats, and evidence checks"
+    echo "  impl-smoke-x86  Lightweight bounded x86 implementation smoke via DispatchAPI frontier proofs"
+    echo "  impl-smoke-nonx86  Lightweight daily non-x86 implementation smoke"
+    echo "  impl-audit-nonx86  Aggregate implementation-side non-x86 audit"
+    echo "  key-slot-audit  Audit non-x86 key wide slots for implementation ownership"
+    echo "  closeout-host-local  Host-local strict closeout (non-x86 native evidence fail-close, windows evidence optional)"
+    echo "  import-nonx86-native-evidence  Import external arm64/riscv64 native evidence into fixtures/ and verify it"
+    echo "  closeout-host-local-from-import  Import external arm64/riscv64 native evidence, verify it, then run host-local strict closeout"
     echo "Suggested flow: check -> targeted suites -> gate; use gate-strict before release/closeout."
     echo "QEMU env: SIMD_QEMU_BUILD_POLICY=always|if-missing|skip (default: if-missing)"
     echo "Native host env: SIMD_NATIVE_EVIDENCE_RUNNER=canonical|direct-fpc, SIMD_NATIVE_EVIDENCE_ENABLE_BACKEND_ASM=1"
+    echo "Native evidence env: SIMD_NONX86_NATIVE_EVIDENCE_ROOT=tests/fafafa.core.simd/fixtures/native-evidence (override verify root)"
     echo "Isolation env: SIMD_OUTPUT_ROOT=/tmp/simd-run-123 (override bin2/lib2/logs root)"
     echo "Build env: SIMD_ENABLE_NEON_BACKEND=1 (compile NEON backend into the test binary for opt-in verification/fallback coverage)"
     echo "Build env: SIMD_ENABLE_RISCVV_BACKEND=1 (compile RISCV-V backend into the test binary for opt-in verification/fallback coverage)"
