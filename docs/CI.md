@@ -72,26 +72,39 @@ bash tests/run_strict_l0_maintenance_loop.sh
 bash tests/check_strict_l0_docs_consistency.sh
 ```
 
-2. 跑 strict L0 聚合 gate
+2. 跑 active shell runner contract
+
+```bash
+bash tests/test_active_shell_runners.sh
+```
+
+3. 跑 strict L0 聚合 gate
 
 ```bash
 STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation fafafa.core.platform
 ```
 
-3. 跑 hygiene
+4. 跑 hygiene
 
 ```bash
 git diff --check
 ```
 
-4. 跑 Windows runtime/control-plane contract
+5. 跑 Windows runtime/control-plane contract
 
 ```bash
 bash tests/test_windows_strict_l0_batch_runtime_matrix.sh
 bash tests/test_windows_strict_l0_native_closeout_stack.sh
 ```
 
-5. 只在确实需要 exact Windows native evidence 时，再触发 GitHub Actions
+如果当前只是在 Linux x64 上收 `tail` 的 shell/runner hygiene，小步验证入口固定为：
+
+```bash
+bash tests/test_active_shell_runners.sh
+bash tests/test_fs_perf_shell_scripts.sh
+```
+
+6. 只在确实需要 exact Windows native evidence 时，再触发 GitHub Actions
 
 ```bash
 L0_NATIVE_EVIDENCE_REF=<branch-or-ref> \

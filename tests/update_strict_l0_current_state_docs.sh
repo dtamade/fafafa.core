@@ -161,6 +161,7 @@ audit_text = f"""# 2026-04-11 L0 Current State Audit
 - 第十波之后，`mem allocator callback` 的低风险 rescue 语义已经在主线内做了小型 current-entry hardening；`closeout` 的 6 个 test README candidate 也已被明确确认为 stale downgrade，并由 no-downgrade contract 锁住。
 - 第 2026-04-14 波之后，`sidecar` 又吸收了一小段未覆盖的 runtime hygiene：`tests/fafafa.core.env/build_log.txt`、`tests/fafafa.core.env/fpcdebug.txt` 与 `tests/fafafa.core.mem.manager.rtl/mem_manager_heaptrc_output.txt` 已不再属于主线 tracked surface。
 - 第 2026-04-14 波之后，如果当前问题是 `sidecar/tail` 在 merged-main 之后还能不能删、各自还剩什么 exclusive batch，标准入口固定为 `bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh`；fresh 结果是 `sidecar_only_commit_count=1`、`tail_only_commit_count=8`，且 `sidecar_safe_delete_now=no`、`tail_safe_delete_now=no`。
+- 当前如果继续沿 `test-hygiene-first` 收 `tail` 小批次，最高 ROI cluster 固定为 `tests/cleanup_orphan_dirs.sh` + `tests/fafafa.core.fs/{{ArchivePerfResult,BuildOrRunPerf,BuildOrRunResolvePerf,BuildOrRunPerfAll}}.sh`；标准本地 contract 入口是 `bash tests/test_active_shell_runners.sh` 与 `bash tests/test_fs_perf_shell_scripts.sh`。
 - fresh shortlist 继续显示 `closeout` 不能整包吸收：它当前仍是 `2 src + 1 test code + 6 stale test docs + dangerous_delete_paths=48`；`rescue` 仍是 `source-review-first` 且 `dangerous_delete_paths=61`。
 - 当前 4 个残留 L0 refs 仍承载独立 patch history；refs cleanup 结论继续保持显式 `no-op`。
 
@@ -193,6 +194,10 @@ audit_text = f"""# 2026-04-11 L0 Current State Audit
 - `bash tests/report_strict_l0_retained_refs_inventory.sh --details`
   - 结果：PASS
 - `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh`
+  - 结果：PASS
+- `bash tests/test_active_shell_runners.sh`
+  - 结果：PASS
+- `bash tests/test_fs_perf_shell_scripts.sh`
   - 结果：PASS
 - `bash tests/test_strict_l0_retained_refs_sidecar_hygiene_contract.sh`
   - 结果：PASS
@@ -249,6 +254,7 @@ audit_text = f"""# 2026-04-11 L0 Current State Audit
 - 第六波之后，`--details` 还会继续把 `code_or_tests` 细分成 `src / test source / test code / test script / test doc / runtime record / control file / CI workflow / output artifact / binary artifact`，并显式输出 `next_focus=`，方便继续做 retained-refs triage。
 - 第七波之后，`--details` 还会继续给出 `docs_absorb_candidate_paths=`，把 sidecar/tail 上已经有稳定 landing zone 的 low-risk docs residue 直接暴露出来。
 - 第八波之后，如果 `next_focus=test-hygiene-first`，优先看 `test_hygiene_candidate_paths=`；如果 `next_focus=source-review-first`，优先看 `source_review_candidate_paths=`；docs residue 则继续看 `docs_absorb_candidate_paths=`。
+- 当前若继续做 `tail` 的 shell/runner hygiene，小批次优先收 `tests/cleanup_orphan_dirs.sh` 与 `tests/fafafa.core.fs/{{ArchivePerfResult,BuildOrRunPerf,BuildOrRunResolvePerf,BuildOrRunPerfAll}}.sh`，先跑 `bash tests/test_active_shell_runners.sh` 与 `bash tests/test_fs_perf_shell_scripts.sh`，不要 broad absorb。
 - 第九波之后，如果 `next_focus=source-review-first`，当前标准入口是 `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh`；它会继续显式输出 `review_candidate_paths=`、`simd_out_of_scope_paths=`、`dangerous_delete_paths=` 与 `reject_wholesale_absorb=`。
 - 第十波之后，如果 `closeout` 仍只剩 test-doc residue，先跑 `bash tests/test_strict_l0_retained_refs_closeout_test_docs_no_downgrade_contract.sh`，确认这些 README 没有把 current-entry 反向降级。
 - 第 2026-04-14 波之后，如果当前问题从 absorb class 变成了 `sidecar/tail` pairwise cleanup readiness，当前标准入口是 `bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh`；它会继续显式输出 `sidecar_only_commit_count=`、`tail_only_commit_count=`、`sidecar_safe_delete_now=`、`tail_safe_delete_now=` 与 `pairwise_cleanup_readiness=`。
@@ -335,6 +341,7 @@ worker_text = f"""# worker1
   - 保持 merged-main current-state 文档显式写清：latest exact Windows native evidence 仍锚定 `main@{windows_run_sha}`，而不是误写成已经在 `{main_sha}` 上重跑
   - 把 Linux maintenance workflow 与 Windows exact-evidence lane 的 current-entry 命令、证据和 fail-close 语义写准
   - 把 retained-refs triage 的 `test_hygiene_candidate_paths=` / `source_review_candidate_paths=` / `docs_absorb_candidate_paths=` 保持为 today contract
+  - 把 `tail` 当前最高 ROI 的 shell/runner hygiene cluster 固定到 `tests/cleanup_orphan_dirs.sh` 与 `tests/fafafa.core.fs/{{ArchivePerfResult,BuildOrRunPerf,BuildOrRunResolvePerf,BuildOrRunPerfAll}}.sh`，并优先用 `bash tests/test_active_shell_runners.sh` / `bash tests/test_fs_perf_shell_scripts.sh` 守住 LF、`bash -n` 与入口协议
   - 把 `sidecar/tail` 已吸收的 hygiene residue 与 `closeout/rescue` 的 shortlist-first 语义保持为 today contract，并继续拒绝 `dangerous_delete_paths=` 场景下的 wholesale absorb
   - 把 `sidecar/tail` 的 merged-main 之后 pairwise cleanup readiness 固定到 `bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh`
   - 保持 Windows exact evidence 只能来自 GitHub Actions / 真实 Windows runner 这一纪律
@@ -370,6 +377,8 @@ worker_text = f"""# worker1
   - `tests/report_strict_l0_retained_refs_source_review_shortlist.sh`
   - `tests/test_strict_l0_retained_refs_sidecar_hygiene_contract.sh`
   - `tests/test_strict_l0_retained_refs_hygiene_absorption_contract.sh`
+  - `tests/test_active_shell_runners.sh`
+  - `tests/test_fs_perf_shell_scripts.sh`
   - `tests/test_strict_l0_retained_refs_inventory_code_tests_contract.sh`
   - `tests/test_strict_l0_retained_refs_inventory_test_hygiene_contract.sh`
   - `tests/test_strict_l0_retained_refs_inventory_docs_current_entry_contract.sh`
@@ -397,9 +406,13 @@ worker_text = f"""# worker1
   - 结果：PASS
   - `bash tests/report_strict_l0_retained_refs_inventory.sh`
   - 结果：PASS
-  - `bash tests/report_strict_l0_retained_refs_inventory.sh --details`
+- `bash tests/report_strict_l0_retained_refs_inventory.sh --details`
   - 结果：PASS
-  - `bash tests/test_strict_l0_retained_refs_sidecar_hygiene_contract.sh`
+- `bash tests/test_active_shell_runners.sh`
+  - 结果：PASS
+- `bash tests/test_fs_perf_shell_scripts.sh`
+  - 结果：PASS
+- `bash tests/test_strict_l0_retained_refs_sidecar_hygiene_contract.sh`
   - 结果：PASS
   - `bash tests/fafafa.core.env/BuildOrTest.sh build`
   - 结果：PASS
@@ -458,8 +471,9 @@ worker_text = f"""# worker1
   - 如需先判断 retained refs 该优先吸收哪类 unique history，使用 `bash tests/report_strict_l0_retained_refs_inventory.sh`
   - 如需直接看 retained refs 的代表性 unique commits / paths，使用 `bash tests/report_strict_l0_retained_refs_inventory.sh --details`
   - 如需判断 `sidecar/tail` 在 merged-main 之后还能不能删、各自还剩什么 exclusive batch，使用 `bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh`
-  - 如需把 `closeout/rescue` 的 source-review 候选与危险删除拆开，使用 `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh`
-  - 如果 `next_focus=test-hygiene-first`，优先看 `test_hygiene_candidate_paths=`
+- 如需把 `closeout/rescue` 的 source-review 候选与危险删除拆开，使用 `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh`
+- 当前若继续沿 `test-hygiene-first` 往前推，优先收 `tests/cleanup_orphan_dirs.sh` 与 `tests/fafafa.core.fs/{{ArchivePerfResult,BuildOrRunPerf,BuildOrRunResolvePerf,BuildOrRunPerfAll}}.sh` 这组 tail shell/runner hygiene，小步验证入口固定为 `bash tests/test_active_shell_runners.sh` 与 `bash tests/test_fs_perf_shell_scripts.sh`
+- 如果 `next_focus=test-hygiene-first`，优先看 `test_hygiene_candidate_paths=`
   - 如果 `next_focus=source-review-first`，优先看 `source_review_candidate_paths=`
   - docs residue 继续看 `docs_absorb_candidate_paths=`
   - 只要看到 `dangerous_delete_paths=` 或 `reject_wholesale_absorb=yes`，继续拒绝整包吸收

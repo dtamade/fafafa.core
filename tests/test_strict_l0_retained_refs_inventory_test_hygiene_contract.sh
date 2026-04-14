@@ -80,6 +80,10 @@ OUT
         cat <<'OUT'
 tests/fafafa.core.fs.async/test_async_basic.pas
 tests/fafafa.core.fs/BuildOrRunPerf.sh
+tests/fafafa.core.fs/ArchivePerfResult.sh
+tests/fafafa.core.fs/BuildOrRunResolvePerf.sh
+tests/fafafa.core.fs/BuildOrRunPerfAll.sh
+tests/cleanup_orphan_dirs.sh
 tests/fafafa.core.atomic/README.md
 tests/fafafa.core.archiver/last-run.txt
 tests/fafafa.core.fs/performance-data/latest.txt
@@ -124,9 +128,9 @@ for LPatt in \
   'test_code_paths=1' \
   'next_focus=source-review-first' \
   '== l0-sidecar-handoff-20260409 ==' \
-  'test_source_paths=3' \
+  'test_source_paths=7' \
   'test_code_paths=1' \
-  'test_script_paths=1' \
+  'test_script_paths=5' \
   'test_doc_paths=1' \
   'test_runtime_record_paths=2' \
   'test_control_paths=1' \
@@ -134,7 +138,7 @@ for LPatt in \
   'test_binary_artifact_paths=1' \
   'next_focus=test-hygiene-first' \
   'sample_test_code_paths=tests/fafafa.core.fs.async/test_async_basic.pas' \
-  'sample_test_script_paths=tests/fafafa.core.fs/BuildOrRunPerf.sh' \
+  'sample_test_script_paths=tests/fafafa.core.fs/BuildOrRunPerf.sh | tests/fafafa.core.fs/ArchivePerfResult.sh | tests/fafafa.core.fs/BuildOrRunResolvePerf.sh' \
   'sample_test_doc_paths=tests/fafafa.core.atomic/README.md' \
   'sample_test_runtime_record_paths=tests/fafafa.core.archiver/last-run.txt | tests/fafafa.core.fs/performance-data/latest.txt' \
   'sample_test_control_paths=tests/fafafa.core.sync.barrier/.gitignore' \

@@ -55,6 +55,12 @@ rg -F "report_strict_l0_retained_refs_source_review_shortlist.sh" "${AUDIT_FILE}
   || fail "audit missing source-review shortlist command"
 rg -F "report_strict_l0_retained_refs_sidecar_tail_overlap.sh" "${AUDIT_FILE}" >/dev/null \
   || fail "audit missing sidecar-tail overlap command"
+rg -F "tests/cleanup_orphan_dirs.sh" "${AUDIT_FILE}" >/dev/null \
+  || fail "audit missing tail shell hygiene cleanup cluster"
+rg -F "tests/test_active_shell_runners.sh" "${AUDIT_FILE}" >/dev/null \
+  || fail "audit missing active shell runner contract"
+rg -F "tests/test_fs_perf_shell_scripts.sh" "${AUDIT_FILE}" >/dev/null \
+  || fail "audit missing fs perf shell contract"
 rg -F "dangerous_delete_paths=" "${AUDIT_FILE}" >/dev/null \
   || fail "audit missing dangerous delete shortlist routing"
 rg -F "sidecar_only_commit_count=" "${AUDIT_FILE}" >/dev/null \
@@ -79,6 +85,12 @@ rg -F "report_strict_l0_retained_refs_source_review_shortlist.sh" "${WORKER_FILE
   || fail "worker handoff missing source-review shortlist command"
 rg -F "report_strict_l0_retained_refs_sidecar_tail_overlap.sh" "${WORKER_FILE}" >/dev/null \
   || fail "worker handoff missing sidecar-tail overlap command"
+rg -F "tests/cleanup_orphan_dirs.sh" "${WORKER_FILE}" >/dev/null \
+  || fail "worker handoff missing tail shell hygiene cleanup cluster"
+rg -F "tests/test_active_shell_runners.sh" "${WORKER_FILE}" >/dev/null \
+  || fail "worker handoff missing active shell runner contract"
+rg -F "tests/test_fs_perf_shell_scripts.sh" "${WORKER_FILE}" >/dev/null \
+  || fail "worker handoff missing fs perf shell contract"
 rg -F "dangerous_delete_paths=" "${WORKER_FILE}" >/dev/null \
   || fail "worker handoff missing dangerous delete shortlist routing"
 rg -F "sidecar_only_commit_count=" "${WORKER_FILE}" >/dev/null \

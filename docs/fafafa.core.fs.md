@@ -934,16 +934,20 @@ end;
 - 真实路径解析（realpath）会触发系统调用并可能进行磁盘访问，在大目录/频繁调用时成本较高
 - 缓存建议：对同一父目录多次解析可自行缓存父级结果，减少重复 realpath
 - 基准脚本：
-  - Windows/Linux：tests/fafafa.core.fs/BuildOrRunResolvePerf.(bat|sh)
+  - Windows：`tests\fafafa.core.fs\BuildOrRunPerf.bat resolve [root] [iters]`
+  - Linux/macOS：`bash tests/fafafa.core.fs/BuildOrRunResolvePerf.sh [root] [iters]`
   - 产物目录：tests/fafafa.core.fs/performance-data/
 
   - 性能评估建议在静音环境运行，避免杀毒/索引服务干扰
 
-- 快速操作（纯批处理，推荐）：
-  - Resolve 专项：tests\\fafafa.core.fs\\BuildOrRunResolvePerf.bat [root] [iters]
-  - Walk 专项：tests\\fafafa.core.fs\\BuildOrRunWalkPerf.bat
-  - 汇总一键：tests\\fafafa.core.fs\\BuildOrRunPerfAll.bat（自动与 baseline 对比并输出 CSV 摘要）
-  - 基线更新：将 perf_resolve_latest.txt/ perf_walk_latest.txt 覆盖为对应 baseline 文件
+- 快速操作：
+  - Windows Resolve：`tests\fafafa.core.fs\BuildOrRunPerf.bat resolve [root] [iters]`
+  - Windows Walk：`tests\fafafa.core.fs\BuildOrRunWalkPerf.bat`
+  - Windows 汇总：`tests\fafafa.core.fs\BuildOrRunPerf.bat all [root] [iters]`
+  - Linux/macOS Resolve：`bash tests/fafafa.core.fs/BuildOrRunResolvePerf.sh [root] [iters]`
+  - Linux/macOS Walk：`bash tests/fafafa.core.fs/BuildOrRunPerf.sh walk [root] [depth] [fanout] [files]`
+  - Linux/macOS 汇总：`bash tests/fafafa.core.fs/BuildOrRunPerfAll.sh [root] [iters] [depth] [fanout] [files]`
+  - 基线更新：将 `perf_resolve_latest.txt` / `perf_walk_latest.txt` 覆盖为对应 baseline 文件
 
 
 ## 🧪 测试覆盖
@@ -1069,9 +1073,15 @@ end;
 
 ## 📊 性能特性
 
-- 一键基准与归档：tests/fafafa.core.fs/BuildOrRunPerf.(bat|sh)、ArchivePerfResult.(bat|sh)
-  - 默认 64MB 顺序读写（128KB 块）、4KB 随机读 5000 次
-  - 结果归档至 tests/fafafa.core.fs/performance-data/；可设 baseline.txt 对比
+- 一键基准与归档：
+  - 基础 benchmark：`tests/fafafa.core.fs/BuildOrRunPerf.(bat|sh)`、`ArchivePerfResult.(bat|sh)`
+  - Resolve：Windows 用 `BuildOrRunPerf.bat resolve`，Linux/macOS 用 `BuildOrRunResolvePerf.sh`
+  - 汇总：Windows 用 `BuildOrRunPerf.bat all`，Linux/macOS 用 `BuildOrRunPerfAll.sh`
+  - 结果统一归档到 `tests/fafafa.core.fs/performance-data/`
+
+- 测试残留清理入口：
+  - `bash tests/cleanup_orphan_dirs.sh`
+  - 如需隔离验证或局部清理，可用 `bash tests/cleanup_orphan_dirs.sh --root <dir>`
 
 - **零拷贝**: 直接操作系统缓冲区，避免不必要的内存拷贝
 - **批量操作**: 支持大块数据的高效读写

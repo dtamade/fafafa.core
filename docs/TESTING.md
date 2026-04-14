@@ -40,10 +40,18 @@ bash tests/run_strict_l0_maintenance_loop.sh
 这个入口会固定串起：
 
 1. `bash tests/check_strict_l0_docs_consistency.sh`
-2. strict L0 聚合 gate
-3. `git diff --check`
-4. `bash tests/test_windows_strict_l0_batch_runtime_matrix.sh`
-5. `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
+2. `bash tests/test_active_shell_runners.sh`
+3. strict L0 聚合 gate
+4. `git diff --check`
+5. `bash tests/test_windows_strict_l0_batch_runtime_matrix.sh`
+6. `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
+
+如果当前目标是 `tail` 的 shell/runner hygiene 小批次，而不是 broad absorb，优先先跑：
+
+```bash
+bash tests/test_active_shell_runners.sh
+bash tests/test_fs_perf_shell_scripts.sh
+```
 
 只有当 strict L0 发生非文档代码/测试变化，或者有人明确要求 exact `HEAD` / merge commit 证据时，才继续走 GitHub Actions Windows native evidence 主路径。
 
