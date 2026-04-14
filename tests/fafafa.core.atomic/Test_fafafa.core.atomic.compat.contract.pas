@@ -20,6 +20,7 @@ type
   published
     procedure Test_api_compat_compile_contract;
     procedure Test_api_compat_runtime_smoke;
+    procedure Test_api_compat_bridge_coexists_with_main_pointer_cas;
   end;
 
 procedure TTestCase_AtomicCompatContract.Test_api_compat_compile_contract;
@@ -121,6 +122,30 @@ begin
   CheckTrue(ok, 'compat tagged CAS should succeed');
   CheckEquals(PtrUInt(256), PtrUInt(atomic_tagged_ptr_get_ptr(tagged)));
   CheckEquals(2, atomic_tagged_ptr_get_tag(tagged));
+end;
+
+procedure TTestCase_AtomicCompatContract.Test_api_compat_bridge_coexists_with_main_pointer_cas;
+var
+  p: Pointer;
+  expectedMain: Pointer;
+  expectedCompat: Pointer;
+  ok: Boolean;
+begin
+  p := Pointer(PtrUInt(64));
+
+  expectedMain := Pointer(PtrUInt(64));
+  CheckTrue(
+    atomic_compare_exchange_strong(p, expectedMain, Pointer(PtrUInt(96)), mo_release),
+    'main pointer CAS should keep release-order single-order contract'
+  );
+  CheckEquals(PtrUInt(96), PtrUInt(p));
+  CheckEquals(PtrUInt(64), PtrUInt(expectedMain));
+
+  expectedCompat := Pointer(PtrUInt(64));
+  ok := fafafa.core.atomic.compat.atomic_compare_exchange_strong_ptr(p, expectedCompat, Pointer(PtrUInt(128)));
+  CheckFalse(ok, 'compat bridge should still see the updated pointer value from main CAS');
+  CheckEquals(PtrUInt(96), PtrUInt(expectedCompat));
+  CheckEquals(PtrUInt(96), PtrUInt(p));
 end;
 
 procedure RegisterAtomicCompatContractTests;

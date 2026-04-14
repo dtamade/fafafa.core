@@ -618,6 +618,32 @@ begin
   _consume_memory_order(aFailureOrder);
 end;
 
+function _cas_single_success_order(const aOrder: memory_order_t): memory_order_t; inline;
+begin
+  if aOrder = mo_consume then
+    Result := mo_acquire
+  else
+    Result := aOrder;
+end;
+
+function _cas_single_failure_order(const aOrder: memory_order_t): memory_order_t; inline;
+begin
+  case _cas_single_success_order(aOrder) of
+    mo_relaxed:
+      Result := mo_relaxed;
+    mo_acquire:
+      Result := mo_acquire;
+    mo_release:
+      Result := mo_relaxed;
+    mo_acq_rel:
+      Result := mo_acquire;
+    mo_seq_cst:
+      Result := mo_seq_cst;
+  else
+    Result := mo_relaxed;
+  end;
+end;
+
 //┌────────────────────────────────────────────────────────────────────────────┐
 //│       Phase 1: 32 位 x86 上的 64 位原子操作底层实现                      │
 //└────────────────────────────────────────────────────────────────────────────┘
@@ -1846,26 +1872,50 @@ end;
 function atomic_compare_exchange_strong(var aObj: Int32; var aExpected: Int32; aDesired: Int32;
   aOrder: memory_order_t): Boolean;
 begin
-  Result := atomic_compare_exchange_strong(aObj, aExpected, aDesired, aOrder, aOrder);
+  Result := atomic_compare_exchange_strong(
+    aObj,
+    aExpected,
+    aDesired,
+    _cas_single_success_order(aOrder),
+    _cas_single_failure_order(aOrder)
+  );
 end;
 
 function atomic_compare_exchange_strong(var aObj: UInt32; var aExpected: UInt32; aDesired: UInt32;
   aOrder: memory_order_t): Boolean;
 begin
-  Result := atomic_compare_exchange_strong(aObj, aExpected, aDesired, aOrder, aOrder);
+  Result := atomic_compare_exchange_strong(
+    aObj,
+    aExpected,
+    aDesired,
+    _cas_single_success_order(aOrder),
+    _cas_single_failure_order(aOrder)
+  );
 end;
 
 {$IFDEF CPU64}
 function atomic_compare_exchange_strong(var aObj: PtrInt; var aExpected: PtrInt; aDesired: PtrInt;
   aOrder: memory_order_t): Boolean;
 begin
-  Result := atomic_compare_exchange_strong(aObj, aExpected, aDesired, aOrder, aOrder);
+  Result := atomic_compare_exchange_strong(
+    aObj,
+    aExpected,
+    aDesired,
+    _cas_single_success_order(aOrder),
+    _cas_single_failure_order(aOrder)
+  );
 end;
 
 function atomic_compare_exchange_strong(var aObj: PtrUInt; var aExpected: PtrUInt; aDesired: PtrUInt;
   aOrder: memory_order_t): Boolean;
 begin
-  Result := atomic_compare_exchange_strong(aObj, aExpected, aDesired, aOrder, aOrder);
+  Result := atomic_compare_exchange_strong(
+    aObj,
+    aExpected,
+    aDesired,
+    _cas_single_success_order(aOrder),
+    _cas_single_failure_order(aOrder)
+  );
 end;
 {$ENDIF}
 
@@ -1873,46 +1923,88 @@ end;
 function atomic_compare_exchange_strong_64(var aObj: Int64; var aExpected: Int64; aDesired: Int64;
   aOrder: memory_order_t): Boolean;
 begin
-  Result := atomic_compare_exchange_strong_64(aObj, aExpected, aDesired, aOrder, aOrder);
+  Result := atomic_compare_exchange_strong_64(
+    aObj,
+    aExpected,
+    aDesired,
+    _cas_single_success_order(aOrder),
+    _cas_single_failure_order(aOrder)
+  );
 end;
 
 function atomic_compare_exchange_strong_64(var aObj: UInt64; var aExpected: UInt64; aDesired: UInt64;
   aOrder: memory_order_t): Boolean;
 begin
-  Result := atomic_compare_exchange_strong_64(aObj, aExpected, aDesired, aOrder, aOrder);
+  Result := atomic_compare_exchange_strong_64(
+    aObj,
+    aExpected,
+    aDesired,
+    _cas_single_success_order(aOrder),
+    _cas_single_failure_order(aOrder)
+  );
 end;
 {$ENDIF}
 
 function atomic_compare_exchange_strong(var aObj: Pointer; var aExpected: Pointer; aDesired: Pointer;
   aOrder: memory_order_t): Boolean;
 begin
-  Result := atomic_compare_exchange_strong(aObj, aExpected, aDesired, aOrder, aOrder);
+  Result := atomic_compare_exchange_strong(
+    aObj,
+    aExpected,
+    aDesired,
+    _cas_single_success_order(aOrder),
+    _cas_single_failure_order(aOrder)
+  );
 end;
 
 // weak 版本 - 单内存序
 function atomic_compare_exchange_weak(var aObj: Int32; var aExpected: Int32; aDesired: Int32;
   aOrder: memory_order_t): Boolean;
 begin
-  Result := atomic_compare_exchange_weak(aObj, aExpected, aDesired, aOrder, aOrder);
+  Result := atomic_compare_exchange_weak(
+    aObj,
+    aExpected,
+    aDesired,
+    _cas_single_success_order(aOrder),
+    _cas_single_failure_order(aOrder)
+  );
 end;
 
 function atomic_compare_exchange_weak(var aObj: UInt32; var aExpected: UInt32; aDesired: UInt32;
   aOrder: memory_order_t): Boolean;
 begin
-  Result := atomic_compare_exchange_weak(aObj, aExpected, aDesired, aOrder, aOrder);
+  Result := atomic_compare_exchange_weak(
+    aObj,
+    aExpected,
+    aDesired,
+    _cas_single_success_order(aOrder),
+    _cas_single_failure_order(aOrder)
+  );
 end;
 
 {$IFDEF CPU64}
 function atomic_compare_exchange_weak(var aObj: PtrInt; var aExpected: PtrInt; aDesired: PtrInt;
   aOrder: memory_order_t): Boolean;
 begin
-  Result := atomic_compare_exchange_weak(aObj, aExpected, aDesired, aOrder, aOrder);
+  Result := atomic_compare_exchange_weak(
+    aObj,
+    aExpected,
+    aDesired,
+    _cas_single_success_order(aOrder),
+    _cas_single_failure_order(aOrder)
+  );
 end;
 
 function atomic_compare_exchange_weak(var aObj: PtrUInt; var aExpected: PtrUInt; aDesired: PtrUInt;
   aOrder: memory_order_t): Boolean;
 begin
-  Result := atomic_compare_exchange_weak(aObj, aExpected, aDesired, aOrder, aOrder);
+  Result := atomic_compare_exchange_weak(
+    aObj,
+    aExpected,
+    aDesired,
+    _cas_single_success_order(aOrder),
+    _cas_single_failure_order(aOrder)
+  );
 end;
 {$ENDIF}
 
@@ -1920,20 +2012,38 @@ end;
 function atomic_compare_exchange_weak_64(var aObj: Int64; var aExpected: Int64; aDesired: Int64;
   aOrder: memory_order_t): Boolean;
 begin
-  Result := atomic_compare_exchange_weak_64(aObj, aExpected, aDesired, aOrder, aOrder);
+  Result := atomic_compare_exchange_weak_64(
+    aObj,
+    aExpected,
+    aDesired,
+    _cas_single_success_order(aOrder),
+    _cas_single_failure_order(aOrder)
+  );
 end;
 
 function atomic_compare_exchange_weak_64(var aObj: UInt64; var aExpected: UInt64; aDesired: UInt64;
   aOrder: memory_order_t): Boolean;
 begin
-  Result := atomic_compare_exchange_weak_64(aObj, aExpected, aDesired, aOrder, aOrder);
+  Result := atomic_compare_exchange_weak_64(
+    aObj,
+    aExpected,
+    aDesired,
+    _cas_single_success_order(aOrder),
+    _cas_single_failure_order(aOrder)
+  );
 end;
 {$ENDIF}
 
 function atomic_compare_exchange_weak(var aObj: Pointer; var aExpected: Pointer; aDesired: Pointer;
   aOrder: memory_order_t): Boolean;
 begin
-  Result := atomic_compare_exchange_weak(aObj, aExpected, aDesired, aOrder, aOrder);
+  Result := atomic_compare_exchange_weak(
+    aObj,
+    aExpected,
+    aDesired,
+    _cas_single_success_order(aOrder),
+    _cas_single_failure_order(aOrder)
+  );
 end;
 
 function atomic_increment(var aObj: Int32): Int32;

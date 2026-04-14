@@ -1346,7 +1346,6 @@ var
 begin
   LExp := Pointer(AExpected);
 
-  // NOTE: This is a generic template; avoid referencing implementation-only helpers.
   if AOrder = mo_consume then
     LSuccessOrder := mo_acquire
   else
@@ -1375,7 +1374,6 @@ var
 begin
   LExp := Pointer(AExpected);
 
-  // NOTE: This is a generic template; avoid referencing implementation-only helpers.
   if AOrder = mo_consume then
     LSuccessOrder := mo_acquire
   else
