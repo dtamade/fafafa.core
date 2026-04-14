@@ -204,6 +204,19 @@ L0 继续保持 `fafafa.core` 现有的开发范式，但要求更严格。
 
 后续若要继续扩张 strict L0，仍然必须满足“RTL-only、跨模块通用、语义非常基础、API 面可控”的前提。
 
+当前唯一仍值得保留在评估列表里的话题，是 `fafafa.core.span` 之外更宽的 `segmented span` 方向。
+
+这里说的 future `segmented span`，指的是 deque / ring-buffer 双段只读视图方向的后续扩张候选。
+
+它不等于否认 `fafafa.core.span` 里今天已经落地的最小 `TReadOnlySpan2<T>` cut，也不代表 `fafafa.core.span` 还处于候选状态。
+
+今天对它的最严格约束是：
+
+- 它只能作为 evaluation topic 存在，不能被写成已经 admission
+- 它如果成立，也只能承载“最小双段只读视图 contract”，不能顺带把容器切片、deque policy、cursor helper 一起拉进 strict L0
+- 它必须先证明自己是多个上层域都会自然复用的基础表达，而不是某个 consumer 的局部便利 API
+- 只要它仍然主要依赖 `collections.slice`、deque block 布局或特定容器假设，它就还不该进入 strict L0
+
 ## L0 准入清单
 
 一个新能力只有在全部满足时才应该进入 L0：

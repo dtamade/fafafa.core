@@ -23,6 +23,7 @@
   - 双段 `span2`
   - 不拥有内存
   - 只表达视图 contract
+- 这里的当前 `span2` 指 `fafafa.core.span` 已经落地的最小 `TReadOnlySpan2<T>` cut；`roadmap` / `evaluation plan` 里提到的 future `segmented span` 话题，指的是 deque / ring-buffer 语境下更宽的双段视图扩张，不是要否认这里这组 today API。
 - 这样做的目的，是把最基础、最稳定的只读视图合同独立出来，给 `collections`、`bytes` 和其他上层模块复用。
 
 ## 目标
@@ -82,6 +83,7 @@
   - 容量策略、ring-buffer policy 或 deque 容器语义
   - 可写 span
   - 任意 N 段泛化
+- 后续如果讨论 future `segmented span`，也只能在当前这个最小 `span2` cut 之外单独评估，不得把 deque / ring-buffer 的 consumer convenience 借机抬升成 strict L0 current-entry。
 - `collections.slice` 仍然保留 collections 域 today semantics，尤其是容器 `SliceView` 与 collections 绑定行为。
 
 ## 测试

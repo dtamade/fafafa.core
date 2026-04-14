@@ -83,7 +83,8 @@ L0 的目标不是继续变大，而是继续变准。
 - strict non-SIMD L0 已经通过 PR `#9` 合并到 `main`
 - 当前唯一 L0 worktree 应保持在 `l0-mainline -> origin/main`
 - 当前 focus 不再是 replay / merge-prep，而是 current-entry 稳定性和 verification hardening
-- 当前没有新的明确 admission 候选；不要为了制造进展感继续扩张 L0 面
+- 当前没有新的 admission 批次；不要为了制造进展感继续扩张 L0 面
+- 唯一仍值得保留在路线图里的候选话题，是面向 deque / ring-buffer 语境的更宽 `segmented span` 方向；它现在只处于 evaluation-only 状态，不是 admission in progress，也不等于否认 `fafafa.core.span` 里今天已经落地的最小 `TReadOnlySpan2<T>` cut
 
 ## 当前不在路线图里的事情
 
@@ -110,7 +111,7 @@ L0 的目标不是继续变大，而是继续变准。
 
 - `contracts`、`bits`、`layout`、`endian` 进入 strict L0
 - `platform` 以最小静态表达层进入 strict L0
-- `span` / `span2` 以最小只读 view contract 进入 strict L0
+- `fafafa.core.span` 以最小只读 view contract 进入 strict L0；当前模块内已经落地的 `TReadOnlySpan2<T>` 也只按“最小双段只读 cut”来理解，而不是更宽的 segmented-span 扩张许可
 - `atomic` / `result` / `mem allocator contract` 的 today contract 已重新定锚
 
 ### Phase 2: source-of-truth hardening
@@ -155,7 +156,16 @@ L0 的目标不是继续变大，而是继续变准。
 
 状态：`conditional`
 
-当前没有新的明确准入候选。
+当前没有新的 admission-in-progress 候选。
+
+唯一保留在路线图中的候选话题，是 `fafafa.core.span` 之外更宽的 `segmented span` 方向。它当前只满足“值得写设计、值得审查”，还不满足“应立刻实现 / 应立刻准入”；今天已经落地在 `fafafa.core.span` 里的最小 `TReadOnlySpan2<T>` cut 仍按 current-entry 对待，不应和这个未来候选方向混写。
+
+只有在它能够同时证明下面这些条件时，才值得从 evaluation 进入新的 admission 批次：
+
+- 不依赖 `collections.slice` 的容器切片行为才能成立
+- 不把 deque / ring-buffer 的 policy、block layout 和 consumer convenience 一起带进 strict L0
+- 可以被多个上层域自然复用，而不是只解决 deque 双段视图这一个 consumer 问题
+- 可以定义成小而硬的双段只读 contract，并补齐代码、测试、模块文档、foundation、roadmap 和 audit
 
 后续只有在出现真正满足条件的新主题时，才进入新的 admission 批次。准入必须同时满足：
 
