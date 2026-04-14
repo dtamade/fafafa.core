@@ -20,6 +20,7 @@ STRICT_L0_MODULES=(
 
 print_commands() {
   printf '%s\n' "bash tests/check_strict_l0_docs_consistency.sh"
+  printf '%s\n' "bash tests/check_repo_submodule_hygiene.sh"
   printf '%s\n' "STOP_ON_FAIL=1 bash tests/run_all_tests.sh ${STRICT_L0_MODULES[*]}"
   printf '%s\n' "git diff --check"
   printf '%s\n' "bash tests/test_windows_strict_l0_batch_runtime_matrix.sh"
@@ -63,6 +64,8 @@ esac
 
 run_case "strict L0 docs consistency" \
   bash "${REPO_ROOT}/tests/check_strict_l0_docs_consistency.sh"
+run_case "strict L0 repo submodule metadata hygiene" \
+  bash "${REPO_ROOT}/tests/check_repo_submodule_hygiene.sh"
 run_case "strict L0 aggregate gate" \
   env STOP_ON_FAIL=1 bash "${REPO_ROOT}/tests/run_all_tests.sh" "${STRICT_L0_MODULES[@]}"
 run_case "strict L0 diff hygiene" \

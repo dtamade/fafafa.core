@@ -14,6 +14,8 @@ OUTPUT="$(bash "${TARGET_SCRIPT}" --print-commands 2>&1)" || fail "maintenance l
 
 printf '%s\n' "${OUTPUT}" | rg -F "check_strict_l0_docs_consistency.sh" >/dev/null \
   || fail "maintenance loop did not print docs consistency step"
+printf '%s\n' "${OUTPUT}" | rg -F "check_repo_submodule_hygiene.sh" >/dev/null \
+  || fail "maintenance loop did not print submodule hygiene step"
 printf '%s\n' "${OUTPUT}" | rg -F "git diff --check" >/dev/null \
   || fail "maintenance loop did not print git diff step"
 printf '%s\n' "${OUTPUT}" | rg -F "tests/run_all_tests.sh" >/dev/null \
