@@ -40,12 +40,14 @@ bash tests/run_strict_l0_maintenance_loop.sh
 这个入口会固定串起：
 
 1. `bash tests/check_strict_l0_docs_consistency.sh`
-2. `bash tests/test_active_shell_runners.sh`
-3. `bash tests/test_strict_l0_examples_build_docs_contract.sh`
-4. strict L0 聚合 gate
-5. `git diff --check`
-6. `bash tests/test_windows_strict_l0_batch_runtime_matrix.sh`
-7. `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
+2. `bash tests/check_repo_submodule_hygiene.sh`
+3. `bash tests/test_active_shell_runners.sh`
+4. `bash tests/test_strict_l0_examples_build_docs_contract.sh`
+5. `bash tests/test_strict_l0_examples_smoke_contract.sh`
+6. strict L0 聚合 gate
+7. `git diff --check`
+8. `bash tests/test_windows_strict_l0_batch_runtime_matrix.sh`
+9. `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
 
 其中 `bash tests/test_strict_l0_examples_build_docs_contract.sh` 现在除了校验 README / `docs/EXAMPLES.md` 的 current-entry 指针，还会固定守住：
 
@@ -54,6 +56,14 @@ bash tests/run_strict_l0_maintenance_loop.sh
 - 不能带 CRLF
 - 必须能通过 `bash -n`
 - working tree 与 git index 都必须保持 executable / `100755`
+
+而 `bash tests/test_strict_l0_examples_smoke_contract.sh` 会进一步固定守住当前 strict L0 examples current-entry 的 fresh Linux/macOS build smoke：
+
+- `examples/fafafa.core.atomic/BuildOrRun.sh build`
+- `examples/fafafa.core.env/BuildOrRun.sh build quickstart`
+- `examples/fafafa.core.platform/BuildOrRun.sh build`
+- `examples/fafafa.core.json/BuildOrRun.sh build`
+- `examples/fafafa.core.sync.mutex/BuildOrRun.sh build`
 
 如果当前目标是 `tail` 的 shell/runner hygiene 小批次，而不是 broad absorb，优先先跑：
 

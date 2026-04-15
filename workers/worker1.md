@@ -18,6 +18,7 @@
   - 把 retained-refs triage 的 `test_hygiene_candidate_paths=` / `source_review_candidate_paths=` / `docs_absorb_candidate_paths=` 保持为 today contract
   - 把 `tail` 的 `tests/cleanup_orphan_dirs.sh` + `tests/fafafa.core.fs/{ArchivePerfResult,BuildOrRunPerf,BuildOrRunResolvePerf,BuildOrRunPerfAll}.sh` + `tests/fafafa.core.fs/README-perf.md` 固定为 current-HEAD-ahead / no-absorb 结论，只用 `bash tests/test_active_shell_runners.sh` / `bash tests/test_fs_perf_shell_scripts.sh` 守住 today contract，不再按 tail 版本回灌
   - 把 `tail` 的 residual runner/source 小撮也固定为 no-absorb：`src/fafafa.core.atomic.base.pas` 与 `src/fafafa.core.span.pas` 只剩 no-op residue，`tests/fafafa.core.option/BuildOrTest.bat` 与 `tests/fafafa.core.result/BuildOrTest.bat` 则只允许 today 版本继续由 `bash tests/test_l0_option_result_runner_hygiene.sh` 守住
+  - 把 strict L0 examples current-entry 的 fresh build smoke 固定到 `bash tests/test_strict_l0_examples_smoke_contract.sh`，当前固定覆盖 `atomic`、`env quickstart`、`platform`、`json` 与 `sync.mutex`
   - 把 `closeout` 的 `mem allocator + fs perf wrapper/README` stale cluster、`rescue` 的 `mem/result/span + base/bits/contracts/result/span test-entry` stale cluster，以及 `rescue` 的 examples/runner/doc stale cluster 一并固定到 `review_skip_paths=`，不要再重复人工吸收
   - 把 `closeout/rescue` shortlist 已清空这一状态固定成 today contract；并明确 `tests/fafafa.core.fs.async/*` / `tests/fafafa.core.socket.async/*` 这组 retained-ref 逆向 async runner diff 只属于 already-absorbed/stale skip，`Test_vecdeque_span.pas` 也只是 stale dead test code，不再把它们误判成可吸收候选；如果 shortlist 继续是 0，下一跳回到 `sidecar/tail` overlap 或 inventory
   - 把 `sidecar/tail` 已吸收的 hygiene residue 与 `closeout/rescue` 的 shortlist-first 语义保持为 today contract，并继续拒绝 `dangerous_delete_paths=` 场景下的 wholesale absorb
@@ -80,6 +81,7 @@
   - `tests/test_strict_l0_retained_refs_sidecar_tail_overlap_contract.sh`
   - `tests/test_strict_l0_retained_refs_closeout_test_docs_no_downgrade_contract.sh`
   - `tests/test_strict_l0_examples_build_docs_contract.sh`
+  - `tests/test_strict_l0_examples_smoke_contract.sh`
   - `tests/run_windows_strict_l0_native_evidence_via_github_actions.sh`
   - `tests/update_strict_l0_current_state_docs.sh`
   - `docs/fafafa.core.span.md`
@@ -103,6 +105,8 @@
 - `bash tests/test_active_shell_runners.sh`
   - 结果：PASS
 - `bash tests/test_fs_perf_shell_scripts.sh`
+  - 结果：PASS
+- `bash tests/test_strict_l0_examples_smoke_contract.sh`
   - 结果：PASS
 - `bash tests/test_l0_option_result_runner_hygiene.sh`
   - 结果：PASS

@@ -112,7 +112,7 @@
 - `tail` residual runner/source no-absorb 入口继续固定为 `docs/audits/2026-04-15-l0-tail-residual-runner-source-no-absorb-audit.md`。
 - `sidecar` async runner slice 入口继续固定为 `docs/audits/2026-04-15-l0-sidecar-async-runner-slice-audit.md`。
 - `closeout/rescue` 的 source-review clearout 入口继续固定为 `docs/audits/2026-04-15-l0-closeout-rescue-final-source-review-clearout-audit.md`。
-- Linux x64 的 strict L0 日常维护入口固定为 `bash tests/run_strict_l0_maintenance_loop.sh`；它会串起 docs consistency、active shell runners、examples/build current-entry contract、gate、`git diff --check`、runtime matrix 和 native closeout stack。
+- Linux x64 的 strict L0 日常维护入口固定为 `bash tests/run_strict_l0_maintenance_loop.sh`；它会串起 `bash tests/check_strict_l0_docs_consistency.sh`、`bash tests/check_repo_submodule_hygiene.sh`、`bash tests/test_active_shell_runners.sh`（active shell runners）、`bash tests/test_strict_l0_examples_build_docs_contract.sh`、`bash tests/test_strict_l0_examples_smoke_contract.sh`、gate、`git diff --check`、runtime matrix 和 native closeout stack。
 - strict L0 在 `main` 上的一波收口入口固定为 `bash tests/run_strict_l0_mainline_closeout.sh`；需要实际覆盖 current-state 文档时显式加 `--apply-docs`。
 - 如果你已经拿到 Linux / Windows run id，只需要回填 current-state 审计、legacy closeout 和 worker handoff，入口固定为 `bash tests/update_strict_l0_current_state_docs.sh --apply ...`。
 - 如果你要重新审计当前保留的历史 L0 refs 是否仍承载独立 patch history，入口固定为 `bash tests/audit_strict_l0_retained_refs.sh`；它只给 decision，不做删除。

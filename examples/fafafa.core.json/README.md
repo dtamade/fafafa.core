@@ -6,12 +6,10 @@
 
 - Linux/macOS：
   - `examples/fafafa.core.json/BuildOrRun.sh`
-  - `examples/fafafa.core.json/BuildOrRun_Min.sh`
 - Windows：
   - `examples\fafafa.core.json\BuildOrRun.bat`
-  - `examples\fafafa.core.json\BuildOrRun_Min.bat`
-  - `examples\fafafa.core.json\BuildOrRun_NoExcept.bat`
 - 主要示例源码：
+  - `examples/fafafa.core.json/example_json.lpr`
   - `examples/fafafa.core.json/example_json_read_traverse.lpr`
   - `examples/fafafa.core.json/example_json_pointer_min.lpr`
   - `examples/fafafa.core.json/example_json_patch_min.lpr`
@@ -84,6 +82,9 @@ examples\fafafa.core.json\bin\example_fluent_min.exe
   - 无异常（No-Exception）用法示例：以整数错误码返回结果，避免异常路径
 
 ### 独立构建/运行 No-Exception 示例
+
+> 当前它们不属于 strict L0 examples current-entry。
+> 如果这里再次失败，优先把问题归类为 JSON source-layer blocker，而不是 current-entry runner 漂移。
 
 Windows:
 ```
