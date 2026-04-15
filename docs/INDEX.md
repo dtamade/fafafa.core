@@ -13,7 +13,7 @@
 - tail residual runner/source no-absorb 审计：`docs/audits/2026-04-15-l0-tail-residual-runner-source-no-absorb-audit.md`
 - sidecar async runner slice 审计：`docs/audits/2026-04-15-l0-sidecar-async-runner-slice-audit.md`
 - retained refs post-merge sidecar/tail 审计：`docs/audits/2026-04-14-l0-retained-refs-sidecar-tail-postmerge-audit.md`
-- L0 post-merge 稳定化计划：`docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md`
+- L0 当前延续计划：`docs/plans/2026-04-16-l0-mainline-continuation-plan.md`
 - L0 历史批次 / 审计归档：`docs/legacy/l0/README.md`
 - 工程规范：`docs/standards/ENGINEERING_STANDARDS.md`
 - 目录规范：`docs/standards/DIRECTORY_STANDARDS.md`
@@ -107,7 +107,7 @@
 - L0 的长期路线图现在固定为 `docs/fafafa.core.l0.roadmap.md`；`docs/plans/2026-03-24-l0-docs-closeout-roadmap.md` 只保留更早一轮 docs 治理路线图语境，其他 superseded L0 批次计划/审计已统一下沉到 `docs/legacy/l0/README.md`。
 - strict L0 已在 `main` 完成合并；`docs/legacy/l0/README.md` 记录了更早的 merge checklist、batch closeout、dated current-state audit 和 rescue closeout 历史。
 - `docs/legacy/l0/2026-04-11-l0-mainline-refs-and-ci-closeout.md` 记录了当前残留 L0 refs 的审计结论，以及为什么这一步没有继续盲删历史 refs。
-- 当前如果要判断 strict L0 的真实状态，优先看 `docs/audits/2026-04-11-l0-current-state-audit.md`、`docs/fafafa.core.l0.roadmap.md` 和 `docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md`。
+- 当前如果要判断 strict L0 的真实状态，优先看 `docs/audits/2026-04-11-l0-current-state-audit.md`、`docs/fafafa.core.l0.roadmap.md` 和 `docs/plans/2026-04-16-l0-mainline-continuation-plan.md`。
 - 当前 retained-refs latest review closeout 入口固定为 `docs/audits/2026-04-15-l0-tail-shell-runner-head-ahead-no-absorb-audit.md`。
 - `tail` residual runner/source no-absorb 入口继续固定为 `docs/audits/2026-04-15-l0-tail-residual-runner-source-no-absorb-audit.md`。
 - `sidecar` async runner slice 入口继续固定为 `docs/audits/2026-04-15-l0-sidecar-async-runner-slice-audit.md`。

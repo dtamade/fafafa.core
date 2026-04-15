@@ -13,7 +13,7 @@
 - sidecar async runner slice 审计：`docs/audits/2026-04-15-l0-sidecar-async-runner-slice-audit.md`
 - closeout/rescue source-review final clearout 审计：`docs/audits/2026-04-15-l0-closeout-rescue-final-source-review-clearout-audit.md`
 - retained refs post-merge sidecar/tail 审计：`docs/audits/2026-04-14-l0-retained-refs-sidecar-tail-postmerge-audit.md`
-- L0 post-merge 稳定化计划：`docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md`
+- L0 当前延续计划：`docs/plans/2026-04-16-l0-mainline-continuation-plan.md`
 - L0 历史批次 / 审计归档：`docs/legacy/l0/README.md`
 - 测试指南：`docs/TESTING.md`
 - CI 指南：`docs/CI.md`
@@ -26,7 +26,7 @@
 - L0 的稳定文档栈固定为：`docs/ARCHITECTURE_LAYERS.md` + `docs/fafafa.core.l0.foundation.md` + `docs/fafafa.core.l0.roadmap.md` + 最新 `docs/audits/*l0*.md`
 - strict L0 模块入口统一收在 `docs/INDEX.md` 的 `Strict L0 模块入口` 区段
 - strict L0 已经合并到 `main`；superseded 的 dated L0 plans/audits 统一下沉到 `docs/legacy/l0/`
-- 当前如果要继续沿 L0 维护，优先看最新 audit、roadmap、foundation 和 post-merge stabilization plan
+- 当前如果要继续沿 L0 维护，优先看最新 audit、roadmap、foundation 和当前 continuation plan
 - 当前 retained-refs stale-review 收口入口固定为：`docs/audits/2026-04-15-l0-closeout-rescue-final-source-review-clearout-audit.md`
 - 当前 tail shell/runner no-absorb 收口入口固定为：`docs/audits/2026-04-15-l0-tail-shell-runner-head-ahead-no-absorb-audit.md`
 - 当前 tail residual runner/source no-absorb 收口入口固定为：`docs/audits/2026-04-15-l0-tail-residual-runner-source-no-absorb-audit.md`

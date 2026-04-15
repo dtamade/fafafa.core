@@ -31,7 +31,7 @@ Options:
   --skip-windows            Skip Windows native evidence dispatch/reuse
   --linux-run-id <id>       Reuse an existing Linux maintenance run
   --windows-run-id <id>     Reuse an existing Windows native evidence run
-  --main-sha <sha>          Override the current main SHA recorded in docs
+  --main-sha <sha>          Override the current local main SHA recorded in docs
   --windows-sha <sha>       Override the exact Windows evidence SHA recorded in docs
 
 Environment:
@@ -93,7 +93,7 @@ done
 print_commands() {
   printf '%s\n' "gh workflow run ${LINUX_WORKFLOW_FILE} --ref ${MAIN_REF}"
   printf '%s\n' "L0_NATIVE_EVIDENCE_REF=${MAIN_REF} bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh ${WINDOWS_LOCAL_BATCH_ID}"
-  printf '%s\n' "bash tests/update_strict_l0_current_state_docs.sh --apply --main-sha <main-sha> --linux-run-id <linux-run-id> --linux-run-sha <linux-run-sha> --windows-run-id <windows-run-id> --windows-run-sha <windows-run-sha> --windows-local-batch-id ${WINDOWS_LOCAL_BATCH_ID}"
+  printf '%s\n' "bash tests/update_strict_l0_current_state_docs.sh --apply --main-sha <main-sha> --origin-main-sha <origin-main-sha> --worktree-sha <worktree-sha> --linux-run-id <linux-run-id> --linux-run-sha <linux-run-sha> --windows-run-id <windows-run-id> --windows-run-sha <windows-run-sha> --windows-local-batch-id ${WINDOWS_LOCAL_BATCH_ID}"
 }
 
 if [[ "${PRINT_COMMANDS}" == "1" ]]; then
@@ -121,22 +121,28 @@ require_cmd gh
 require_cmd git
 require_cmd python3
 
-MAIN_SHA="${MAIN_SHA_OVERRIDE:-$(git -C "${REPO_ROOT}" ls-remote --heads origin "${MAIN_REF}" 2>/dev/null | awk '{print $1}' | head -n 1 || true)}"
-if [[ -z "${MAIN_SHA}" ]]; then
+ORIGIN_MAIN_SHA="$(git -C "${REPO_ROOT}" ls-remote --heads origin "${MAIN_REF}" 2>/dev/null | awk '{print $1}' | head -n 1 || true)"
+if [[ -z "${ORIGIN_MAIN_SHA}" ]]; then
   echo "[L0-MAINLINE-CLOSEOUT] Failed to resolve remote SHA for ref=${MAIN_REF}" >&2
   exit 2
 fi
+
+LOCAL_MAIN_SHA="${MAIN_SHA_OVERRIDE:-$(git -C "${REPO_ROOT}" rev-parse --verify "refs/heads/${MAIN_REF}^{commit}" 2>/dev/null | head -n 1 || true)}"
+LOCAL_MAIN_SHA="${LOCAL_MAIN_SHA:-${ORIGIN_MAIN_SHA}}"
+
+WORKTREE_SHA="$(git -C "${REPO_ROOT}" rev-parse HEAD 2>/dev/null | head -n 1 || true)"
+WORKTREE_SHA="${WORKTREE_SHA:-${LOCAL_MAIN_SHA}}"
 
 LPollSeconds="${L0_MAINLINE_CLOSEOUT_POLL_SECONDS:-5}"
 LPollMaxTries="${L0_MAINLINE_CLOSEOUT_POLL_MAX_TRIES:-120}"
 
 if [[ "${SKIP_LINUX}" != "1" ]]; then
   if [[ -z "${LINUX_RUN_ID}" ]]; then
-    echo "[L0-MAINLINE-CLOSEOUT] Dispatch Linux maintenance workflow: ${LINUX_WORKFLOW_FILE} (ref=${MAIN_REF}, head=${MAIN_SHA})"
+    echo "[L0-MAINLINE-CLOSEOUT] Dispatch Linux maintenance workflow: ${LINUX_WORKFLOW_FILE} (ref=${MAIN_REF}, head=${ORIGIN_MAIN_SHA})"
     LDispatchEpoch="$(date +%s)"
     gh workflow run "${LINUX_WORKFLOW_FILE}" --ref "${MAIN_REF}"
     for ((LTry = 1; LTry <= LPollMaxTries; LTry++)); do
-      LINUX_RUN_ID="$(gh_runlib_find_latest_dispatch_run_id "${LINUX_WORKFLOW_FILE}" "${MAIN_SHA}" "${MAIN_REF}" "${LDispatchEpoch}" strict)"
+      LINUX_RUN_ID="$(gh_runlib_find_latest_dispatch_run_id "${LINUX_WORKFLOW_FILE}" "${ORIGIN_MAIN_SHA}" "${MAIN_REF}" "${LDispatchEpoch}" strict)"
       if [[ -n "${LINUX_RUN_ID}" ]]; then
         break
       fi
@@ -164,7 +170,7 @@ LINUX_RUN_SHA=""
 if [[ -n "${LINUX_RUN_ID}" ]]; then
   LINUX_RUN_SHA="$(gh_runlib_get_run_head_sha "${LINUX_RUN_ID}")"
 fi
-LINUX_RUN_SHA="${LINUX_RUN_SHA:-${MAIN_SHA}}"
+LINUX_RUN_SHA="${LINUX_RUN_SHA:-${ORIGIN_MAIN_SHA}}"
 
 if [[ "${SKIP_WINDOWS}" != "1" ]]; then
   LWindowsHelperLog="$(mktemp)"
@@ -173,7 +179,7 @@ if [[ "${SKIP_WINDOWS}" != "1" ]]; then
   if [[ -z "${WINDOWS_RUN_ID}" ]]; then
     set +e
     L0_NATIVE_EVIDENCE_REF="${MAIN_REF}" \
-    L0_NATIVE_EVIDENCE_EXPECT_COMMIT="${WINDOWS_SHA_OVERRIDE:-${MAIN_SHA}}" \
+    L0_NATIVE_EVIDENCE_EXPECT_COMMIT="${WINDOWS_SHA_OVERRIDE:-${ORIGIN_MAIN_SHA}}" \
     L0_NATIVE_EVIDENCE_EXPECT_REF="${MAIN_REF}" \
     bash "${WINDOWS_HELPER_SCRIPT}" "${WINDOWS_LOCAL_BATCH_ID}" 2>&1 | tee "${LWindowsHelperLog}"
     LWindowsRc=${PIPESTATUS[0]}
@@ -183,7 +189,7 @@ if [[ "${SKIP_WINDOWS}" != "1" ]]; then
     fi
     WINDOWS_RUN_ID="$(rg -o 'Watching run: [0-9]+' "${LWindowsHelperLog}" | tail -n 1 | awk '{print $3}')"
   else
-    L0_NATIVE_EVIDENCE_EXPECT_COMMIT="${WINDOWS_SHA_OVERRIDE:-${MAIN_SHA}}" \
+    L0_NATIVE_EVIDENCE_EXPECT_COMMIT="${WINDOWS_SHA_OVERRIDE:-${ORIGIN_MAIN_SHA}}" \
     L0_NATIVE_EVIDENCE_EXPECT_REF="${MAIN_REF}" \
     bash "${WINDOWS_HELPER_SCRIPT}" "${WINDOWS_LOCAL_BATCH_ID}" "${WINDOWS_RUN_ID}"
   fi
@@ -198,7 +204,7 @@ WINDOWS_RUN_SHA="${WINDOWS_SHA_OVERRIDE:-}"
 if [[ -z "${WINDOWS_RUN_SHA}" && -n "${WINDOWS_RUN_ID}" ]]; then
   WINDOWS_RUN_SHA="$(gh_runlib_get_run_head_sha "${WINDOWS_RUN_ID}")"
 fi
-WINDOWS_RUN_SHA="${WINDOWS_RUN_SHA:-${MAIN_SHA}}"
+WINDOWS_RUN_SHA="${WINDOWS_RUN_SHA:-${ORIGIN_MAIN_SHA}}"
 
 if [[ "${APPLY_DOCS}" == "1" ]]; then
   if [[ -z "${LINUX_RUN_ID}" ]]; then
@@ -212,17 +218,21 @@ if [[ "${APPLY_DOCS}" == "1" ]]; then
   bash "${DOCS_UPDATER_SCRIPT}" \
     --apply \
     --target-root "${REPO_ROOT}" \
-    --main-sha "${MAIN_SHA}" \
+    --main-sha "${LOCAL_MAIN_SHA}" \
+    --origin-main-sha "${ORIGIN_MAIN_SHA}" \
+    --worktree-sha "${WORKTREE_SHA}" \
     --linux-run-id "${LINUX_RUN_ID}" \
-    --linux-run-sha "${LINUX_RUN_SHA:-${MAIN_SHA}}" \
+    --linux-run-sha "${LINUX_RUN_SHA:-${ORIGIN_MAIN_SHA}}" \
     --windows-run-id "${WINDOWS_RUN_ID}" \
-    --windows-run-sha "${WINDOWS_RUN_SHA:-${MAIN_SHA}}" \
+    --windows-run-sha "${WINDOWS_RUN_SHA:-${ORIGIN_MAIN_SHA}}" \
     --windows-local-batch-id "${WINDOWS_LOCAL_BATCH_ID}"
 fi
 
 echo "[PASS] strict L0 mainline closeout finished"
 echo "[INFO] main_ref=${MAIN_REF}"
-echo "[INFO] main_sha=${MAIN_SHA}"
+echo "[INFO] local_main_sha=${LOCAL_MAIN_SHA}"
+echo "[INFO] origin_main_sha=${ORIGIN_MAIN_SHA}"
+echo "[INFO] worktree_sha=${WORKTREE_SHA}"
 [[ -n "${LINUX_RUN_ID}" ]] && echo "[INFO] linux_run_id=${LINUX_RUN_ID}"
 [[ -n "${WINDOWS_RUN_ID}" ]] && echo "[INFO] windows_run_id=${WINDOWS_RUN_ID}"
 echo "[INFO] windows_local_batch_id=${WINDOWS_LOCAL_BATCH_ID}"

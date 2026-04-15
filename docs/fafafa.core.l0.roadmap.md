@@ -81,7 +81,7 @@ L0 的目标不是继续变大，而是继续变准。
 ## 当前 post-merge 姿态
 
 - strict non-SIMD L0 已经通过 PR `#9` 合并到 `main`
-- 当前唯一 L0 worktree 应保持在 `l0-mainline -> origin/main`
+- 当前唯一 L0 worktree 仍固定为 `l0-mainline`；today head 以 `docs/audits/2026-04-11-l0-current-state-audit.md` 里记录的本地 `main` / `origin/main` / worktree `HEAD` 三者区分为准，不要再简化写成 `l0-mainline -> origin/main`
 - 当前 focus 不再是 replay / merge-prep，而是 current-entry 稳定性和 verification hardening
 - 当前没有新的 admission 批次；不要为了制造进展感继续扩张 L0 面
 - 唯一仍值得保留在路线图里的候选话题，是面向 deque / ring-buffer 语境的更宽 `segmented span` 方向；它现在只处于 evaluation-only 状态，不是 admission in progress，也不等于否认 `fafafa.core.span` 里今天已经落地的最小 `TReadOnlySpan2<T>` cut

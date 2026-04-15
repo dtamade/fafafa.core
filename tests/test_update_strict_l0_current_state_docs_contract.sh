@@ -103,11 +103,62 @@ rg -F "tail_only_commit_count=" "${WORKER_FILE}" >/dev/null \
   || fail "worker handoff missing tail overlap count"
 rg -F "仍锚定 \`main@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\`" "${WORKER_FILE}" >/dev/null \
   || fail "worker handoff missing merged-main Windows mismatch posture"
+rg -F "docs/plans/2026-04-16-l0-mainline-continuation-plan.md" "${WORKER_FILE}" >/dev/null \
+  || fail "worker handoff missing continuation plan source-of-truth entry"
+rg -F -- "--origin-main-sha <origin-main-sha> --worktree-sha <worktree-sha>" "${WORKER_FILE}" >/dev/null \
+  || fail "worker handoff missing split main/origin/worktree updater command"
 rg -F "merge commit：\`1111111111111111111111111111111111111111\`" "${LEGACY_FILE}" >/dev/null \
   || fail "legacy closeout missing main merge commit"
 rg -F "仍锚定 \`main@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\`" "${LEGACY_FILE}" >/dev/null \
   || fail "legacy closeout missing merged-main Windows mismatch posture"
 rg -F "TEST-L0-BATCH" "${LEGACY_FILE}" >/dev/null \
   || fail "legacy closeout missing Windows snapshot path"
+
+LTmpDirDiverged="$(mktemp -d)"
+trap 'rm -rf "${LTmpDir}" "${LTmpDirDiverged}"' EXIT
+
+mkdir -p "${LTmpDirDiverged}/docs/audits" "${LTmpDirDiverged}/docs/legacy/l0" "${LTmpDirDiverged}/workers"
+
+bash "${TARGET_SCRIPT}" \
+  --apply \
+  --target-root "${LTmpDirDiverged}" \
+  --main-sha "1111111111111111111111111111111111111111" \
+  --origin-main-sha "2222222222222222222222222222222222222222" \
+  --worktree-sha "3333333333333333333333333333333333333333" \
+  --linux-run-id "2001" \
+  --linux-run-sha "1111111111111111111111111111111111111111" \
+  --windows-run-id "2002" \
+  --windows-run-sha "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" \
+  --windows-local-batch-id "TEST-L0-DIVERGED" >/dev/null 2>&1 \
+  || fail "docs updater failed to apply diverged main/origin sample data"
+
+DIVERGED_AUDIT_FILE="${LTmpDirDiverged}/docs/audits/2026-04-11-l0-current-state-audit.md"
+DIVERGED_LEGACY_FILE="${LTmpDirDiverged}/docs/legacy/l0/2026-04-11-l0-mainline-refs-and-ci-closeout.md"
+DIVERGED_WORKER_FILE="${LTmpDirDiverged}/workers/worker1.md"
+
+[[ -f "${DIVERGED_AUDIT_FILE}" ]] || fail "diverged audit missing"
+[[ -f "${DIVERGED_LEGACY_FILE}" ]] || fail "diverged legacy closeout missing"
+[[ -f "${DIVERGED_WORKER_FILE}" ]] || fail "diverged worker handoff missing"
+
+rg -F "当前本地 \`main\` head 是 \`1111111111111111111111111111111111111111\`。" "${DIVERGED_AUDIT_FILE}" >/dev/null \
+  || fail "diverged audit missing local main head"
+rg -F "当前 \`origin/main\` head 是 \`2222222222222222222222222222222222222222\`。" "${DIVERGED_AUDIT_FILE}" >/dev/null \
+  || fail "diverged audit missing origin/main head"
+rg -F "当前唯一 L0 worktree \`l0-mainline\` 目前位于 \`3333333333333333333333333333333333333333\`；相对本地 \`main@1111111111111111111111111111111111111111\` 仍承载待整理的本地 L0 增量。" "${DIVERGED_AUDIT_FILE}" >/dev/null \
+  || fail "diverged audit missing worktree-vs-main line"
+rg -F "当前本地 \`main\` 已推进到 \`1111111111111111111111111111111111111111\`；当前 \`origin/main\` 仍在 \`2222222222222222222222222222222222222222\`；最新 exact Windows native evidence 仍锚定 \`main@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\`。" "${DIVERGED_AUDIT_FILE}" >/dev/null \
+  || fail "diverged audit missing local-vs-origin-vs-windows posture"
+rg -F "Base commit: \`1111111111111111111111111111111111111111\` (\`main\`)" "${DIVERGED_WORKER_FILE}" >/dev/null \
+  || fail "diverged worker missing local main base commit"
+rg -F "Remote main head: \`2222222222222222222222222222222222222222\` (\`origin/main\`)" "${DIVERGED_WORKER_FILE}" >/dev/null \
+  || fail "diverged worker missing origin/main head"
+rg -F "当前本地 \`main@1111111111111111111111111111111111111111\`、\`origin/main@2222222222222222222222222222222222222222\` 与当前 worktree head \`3333333333333333333333333333333333333333\` 明确区分" "${DIVERGED_WORKER_FILE}" >/dev/null \
+  || fail "diverged worker missing split head focus line"
+rg -F "当前本地 main merge commit：\`1111111111111111111111111111111111111111\`" "${DIVERGED_LEGACY_FILE}" >/dev/null \
+  || fail "diverged legacy closeout missing local main merge commit"
+rg -F "当前 \`origin/main\` head：\`2222222222222222222222222222222222222222\`" "${DIVERGED_LEGACY_FILE}" >/dev/null \
+  || fail "diverged legacy closeout missing origin/main head"
+rg -F "当前本地 \`main\` 已推进到 \`1111111111111111111111111111111111111111\`；当前 \`origin/main\` 仍在 \`2222222222222222222222222222222222222222\`；latest exact Windows native evidence 仍锚定 \`main@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\`" "${DIVERGED_LEGACY_FILE}" >/dev/null \
+  || fail "diverged legacy closeout missing local-vs-origin posture"
 
 echo "[PASS] strict L0 current-state docs updater contract verified"

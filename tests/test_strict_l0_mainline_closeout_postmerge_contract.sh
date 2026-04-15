@@ -14,7 +14,7 @@ fail() {
 require_literal() {
   local aFile="${1:-}"
   local aLiteral="${2:-}"
-  rg -F "${aLiteral}" "${aFile}" >/dev/null || fail "missing literal in ${aFile}: ${aLiteral}"
+  rg -F -- "${aLiteral}" "${aFile}" >/dev/null || fail "missing literal in ${aFile}: ${aLiteral}"
 }
 
 [[ -f "${TARGET_SCRIPT}" ]] || fail "missing strict L0 mainline closeout script"
@@ -37,6 +37,8 @@ LAuditFile="${LTmpRepo}/docs/audits/2026-04-11-l0-current-state-audit.md"
 LLegacyFile="${LTmpRepo}/docs/legacy/l0/2026-04-11-l0-mainline-refs-and-ci-closeout.md"
 LWorkerFile="${LTmpRepo}/workers/worker1.md"
 LMainSha="1111111111111111111111111111111111111111"
+LOriginMainSha="2222222222222222222222222222222222222222"
+LWorktreeSha="3333333333333333333333333333333333333333"
 LWindowsSha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 LBatchId="TEST-POSTMERGE-BATCH"
 
@@ -89,11 +91,21 @@ chmod +x "${LMockBin}/gh"
 cat > "${LMockBin}/git" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
-if [[ "\${1:-}" == "-C" && "\${3:-}" == "ls-remote" ]]; then
-  printf '%s\trefs/heads/main\n' "${LMainSha}"
-  exit 0
+if [[ "\${1:-}" == "-C" ]]; then
+  shift 2
 fi
-exit 0
+case "\${1:-}" in
+  ls-remote)
+    printf '%s\trefs/heads/main\n' "${LOriginMainSha}"
+    ;;
+  rev-parse)
+    if [[ "\${2:-}" == "--verify" && "\${3:-}" == "refs/heads/main^{commit}" ]]; then
+      printf '%s\n' "${LMainSha}"
+    elif [[ "\${2:-}" == "HEAD" ]]; then
+      printf '%s\n' "${LWorktreeSha}"
+    fi
+    ;;
+esac
 EOF
 chmod +x "${LMockBin}/git"
 
@@ -117,6 +129,10 @@ printf '%s\n' "${LPrintOutput}" | rg -F -- "--linux-run-sha <linux-run-sha>" >/d
   || fail "print-commands missing linux run sha placeholder"
 printf '%s\n' "${LPrintOutput}" | rg -F -- "--windows-run-sha <windows-run-sha>" >/dev/null \
   || fail "print-commands missing windows run sha placeholder"
+printf '%s\n' "${LPrintOutput}" | rg -F -- "--origin-main-sha <origin-main-sha>" >/dev/null \
+  || fail "print-commands missing origin/main sha placeholder"
+printf '%s\n' "${LPrintOutput}" | rg -F -- "--worktree-sha <worktree-sha>" >/dev/null \
+  || fail "print-commands missing worktree sha placeholder"
 
 PATH="${LMockBin}:$PATH" \
 L0_MAINLINE_CLOSEOUT_REPO_ROOT="${LTmpRepo}" \
@@ -140,6 +156,9 @@ bash "${TARGET_SCRIPT}" \
 require_literal "${LAuditFile}" "GitHub Actions \`L0 Linux Maintenance\` run \`7001\`"
 require_literal "${LAuditFile}" "GitHub Actions \`L0 Windows Native Evidence\` run \`8002\`"
 require_literal "${LAuditFile}" "仍锚定 \`main@${LWindowsSha}\`"
+require_literal "${LAuditFile}" "当前本地 \`main\` head：\`${LMainSha}\`"
+require_literal "${LAuditFile}" "当前 \`origin/main\` head：\`${LOriginMainSha}\`"
+require_literal "${LAuditFile}" "当前 L0 worktree head：\`${LWorktreeSha}\`"
 require_literal "${LAuditFile}" "docs_absorb_candidate_paths="
 require_literal "${LAuditFile}" "test_hygiene_candidate_paths="
 require_literal "${LAuditFile}" "source_review_candidate_paths="
@@ -147,9 +166,13 @@ require_literal "${LAuditFile}" "dangerous_delete_paths="
 require_literal "${LAuditFile}" "reject_wholesale_absorb="
 
 require_literal "${LLegacyFile}" "HTTP 404"
-require_literal "${LLegacyFile}" "当前 \`main\` 已推进到 \`${LMainSha}\`，但 latest exact Windows native evidence 仍锚定 \`main@${LWindowsSha}\`"
+require_literal "${LLegacyFile}" "当前本地 \`main\` 已推进到 \`${LMainSha}\`；当前 \`origin/main\` 仍在 \`${LOriginMainSha}\`；latest exact Windows native evidence 仍锚定 \`main@${LWindowsSha}\`"
 
 require_literal "${LWorkerFile}" "仍锚定 \`main@${LWindowsSha}\`"
+require_literal "${LWorkerFile}" "Remote main head: \`${LOriginMainSha}\` (\`origin/main\`)"
+require_literal "${LWorkerFile}" "Current HEAD: \`${LWorktreeSha}\`"
+require_literal "${LWorkerFile}" "docs/plans/2026-04-16-l0-mainline-continuation-plan.md"
+require_literal "${LWorkerFile}" "--origin-main-sha <origin-main-sha> --worktree-sha <worktree-sha>"
 require_literal "${LWorkerFile}" "docs_absorb_candidate_paths="
 require_literal "${LWorkerFile}" "test_hygiene_candidate_paths="
 require_literal "${LWorkerFile}" "source_review_candidate_paths="
