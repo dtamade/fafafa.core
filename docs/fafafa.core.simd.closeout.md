@@ -33,8 +33,9 @@
    - 明确 experimental intrinsics 默认不属于 stable surface
 
 5. **adapter wiring 校验增强**
-   - `backend.adapter.map.inc` 现在被明确为 adapter-managed slots 的事实真相源
+   - `backend.adapter.map.csv` 现在是 adapter-managed slots 的声明式事实真相源，`backend.adapter.map.inc` 由它生成
    - `adapter-sync` 除了校验 `backend.iface <-> backend.adapter`，还会校验：
+     - CSV spec 与 checked-in generated include 是否漂移
      - 映射里引用的 slot 是否真实存在于 `TSimdDispatchTable`
      - 这些 slot 是否被 `FillBaseDispatchTable` 覆盖
 
@@ -432,7 +433,7 @@ tests\fafafa.core.simd\buildOrTest.bat gate-strict
 
 - 把 `gate` 当成发布放行的唯一依据
 - 把 stable façade 误读成“所有 backend 都同等稳定”
-- 在 `backend.adapter.map.inc` 之外重复维护 adapter 映射
+- 在 `backend.adapter.map.csv` / generated include 之外重复维护 adapter 映射
 - 改了 dispatch slot，却忘了看 adapter-sync / base-fill 覆盖
 - 在 `SSE2` 上继续激进物理拆分
 

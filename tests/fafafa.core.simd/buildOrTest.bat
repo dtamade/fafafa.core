@@ -234,6 +234,15 @@ findstr /r /c:"src\fafafa\.core\.simd\..*Warning:" /c:"src\fafafa\.core\.simd\..
 if not errorlevel 1 echo [CHECK] Ignoring experimental intrinsics hints from src\fafafa.core.simd.intrinsics.avx2.pas
 echo [CHECK] OK (no SIMD-unit warnings/hints on stable path)
 
+echo [CHECK] Backend adapter sync ^(python-only^)
+set "SIMD_ADAPTER_SYNC_SKIP_BUILD=1"
+set "SIMD_ADAPTER_SYNC_PASCAL_SMOKE=0"
+call :adapter_sync
+set "ADAPTER_SYNC_RC=%ERRORLEVEL%"
+set "SIMD_ADAPTER_SYNC_SKIP_BUILD="
+set "SIMD_ADAPTER_SYNC_PASCAL_SMOKE="
+if not "%ADAPTER_SYNC_RC%"=="0" exit /b %ADAPTER_SYNC_RC%
+
 call :register_include_check
 if errorlevel 1 exit /b 1
 
@@ -478,8 +487,12 @@ if errorlevel 1 exit /b 1
 exit /b 0
 
 :adapter_sync
-call :build
-if errorlevel 1 exit /b 1
+if /I "%SIMD_ADAPTER_SYNC_SKIP_BUILD%"=="1" (
+  echo [ADAPTER-SYNC] SKIP build ^(SIMD_ADAPTER_SYNC_SKIP_BUILD=1^)
+) else (
+  call :build
+  if errorlevel 1 exit /b 1
+)
 
 if /I "%SIMD_ADAPTER_SYNC_PASCAL_SMOKE%"=="0" (
   echo [ADAPTER-SYNC] SKIP Pascal smoke ^(SIMD_ADAPTER_SYNC_PASCAL_SMOKE=0^)
@@ -500,7 +513,7 @@ if /I "%SIMD_ADAPTER_SYNC_STRICT%"=="0" set "ADAPTER_SYNC_NO_STRICT=--no-strict"
 where py >nul 2>nul
 if not errorlevel 1 (
   echo [ADAPTER-SYNC] Running: py -3 %ADAPTER_SYNC_SCRIPT% --summary-line %ADAPTER_SYNC_NO_STRICT%
-  echo [ADAPTER-SYNC] Checker now also verifies dispatch slot existence and FillBaseDispatchTable coverage.
+  echo [ADAPTER-SYNC] Checker now also verifies CSV spec ^<-> generated include drift, dispatch slot existence, and FillBaseDispatchTable coverage.
   py -3 "%ADAPTER_SYNC_SCRIPT%" --summary-line %ADAPTER_SYNC_NO_STRICT%
   exit /b %ERRORLEVEL%
 )
@@ -508,7 +521,7 @@ if not errorlevel 1 (
 where python >nul 2>nul
 if not errorlevel 1 (
   echo [ADAPTER-SYNC] Running: python %ADAPTER_SYNC_SCRIPT% --summary-line %ADAPTER_SYNC_NO_STRICT%
-  echo [ADAPTER-SYNC] Checker now also verifies dispatch slot existence and FillBaseDispatchTable coverage.
+  echo [ADAPTER-SYNC] Checker now also verifies CSV spec ^<-> generated include drift, dispatch slot existence, and FillBaseDispatchTable coverage.
   python "%ADAPTER_SYNC_SCRIPT%" --summary-line %ADAPTER_SYNC_NO_STRICT%
   exit /b %ERRORLEVEL%
 )

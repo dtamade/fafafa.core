@@ -3686,7 +3686,11 @@ check_windows_experimental_direct_runner_guard() {
 }
 
 run_backend_adapter_sync() {
-  build_project || return $?
+  if [[ "${SIMD_ADAPTER_SYNC_SKIP_BUILD:-0}" == "1" ]]; then
+    echo "[ADAPTER-SYNC] SKIP build (SIMD_ADAPTER_SYNC_SKIP_BUILD=1)"
+  else
+    build_project || return $?
+  fi
 
   if [[ "${SIMD_ADAPTER_SYNC_PASCAL_SMOKE:-1}" != "0" ]]; then
     run_backend_adapter_sync_pascal || return $?
@@ -3719,6 +3723,7 @@ run_backend_adapter_sync() {
   fi
 
   echo "[ADAPTER-SYNC] Running: python3 ${ADAPTER_SYNC_SCRIPT} ${LArgs[*]}"
+  echo "[ADAPTER-SYNC] Checker also verifies CSV spec <-> generated include drift, dispatch slot existence, and FillBaseDispatchTable coverage."
   : > "${LSyncLog}"
   python3 "${ADAPTER_SYNC_SCRIPT}" "${LArgs[@]}" 2>&1 | tee "${LSyncLog}"
   LMainRC="${PIPESTATUS[0]}"
@@ -5793,6 +5798,8 @@ case "${ACTION}" in
   check)
     build_project
   check_build_log
+  echo "[CHECK] Backend adapter sync (python-only)"
+  SIMD_ADAPTER_SYNC_SKIP_BUILD=1 SIMD_ADAPTER_SYNC_PASCAL_SMOKE=0 run_backend_adapter_sync
   check_windows_runner_parity
   check_avx512_optin_runner_guard
   check_nonx86_optin_runner_guard
