@@ -5,14 +5,14 @@
 - Status: `active`
 - Branch: `l0-mainline`
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
-- Base commit: `ecf3f2febf684ede313ba92e8aa30a8544d0e462` (`origin/main`)
-- Current HEAD: `35689d91c5e7cb0ba859f5400aeb991b19510946`
-- Latest merged-main exact evidence head: `c4fcfcf744b87cb1f8b67ad84beccce6b22b9af8`
+- Base commit: `b8b5f719349bc68fc63da7fe51318af8a6af229f` (`origin/main`)
+- Current HEAD: `b8b5f719349bc68fc63da7fe51318af8a6af229f`
+- Latest merged-main exact evidence head: `b8b5f719349bc68fc63da7fe51318af8a6af229f`
 - Current focus:
   - 维持当前唯一 L0 worktree 跟随 `main`
   - 维持 strict L0 的 current-entry 文档、模块边界和验证口径一致
   - 只清理安全可删的本地 L0 refs，保留仍然承载独立历史的锚点
-  - 保持 merged-main current-state 文档显式写清：latest exact Windows native evidence 仍锚定 `main@c4fcfcf744b87cb1f8b67ad84beccce6b22b9af8`；并把当前 `origin/main@ecf3f2febf684ede313ba92e8aa30a8544d0e462` 与当前 worktree head `35689d91c5e7cb0ba859f5400aeb991b19510946` 明确区分，避免把未合并 L0 增量误写成已经进 main。
+  - 保持 merged-main current-state 文档显式写清：latest exact Windows native evidence 仍锚定 `main@b8b5f719349bc68fc63da7fe51318af8a6af229f`；当前 `origin/main` / worktree head 仍记录为 `b8b5f719349bc68fc63da7fe51318af8a6af229f`。
   - 把 Linux maintenance workflow 与 Windows exact-evidence lane 的 current-entry 命令、证据和 fail-close 语义写准
   - 把 retained-refs triage 的 `test_hygiene_candidate_paths=` / `source_review_candidate_paths=` / `docs_absorb_candidate_paths=` 保持为 today contract
   - 把 `tail` 的 `tests/cleanup_orphan_dirs.sh` + `tests/fafafa.core.fs/{ArchivePerfResult,BuildOrRunPerf,BuildOrRunResolvePerf,BuildOrRunPerfAll}.sh` + `tests/fafafa.core.fs/README-perf.md` 固定为 current-HEAD-ahead / no-absorb 结论，只用 `bash tests/test_active_shell_runners.sh` / `bash tests/test_fs_perf_shell_scripts.sh` 守住 today contract，不再按 tail 版本回灌
@@ -23,7 +23,6 @@
   - 把 `sidecar` 的唯一 exclusive mixed batch 限定成 small-cut 推进：当前只吸收 `tests/fafafa.core.fs.async/*` 与 `tests/fafafa.core.socket.async/*` 这组 async runner hygiene，并用 `bash tests/test_l0_async_test_runner_hygiene.sh` 守住 today contract；`examples/fafafa.core.sync*` / `examples/fafafa.core.sync.condvar*` 继续 defer
   - 把 `docs/collections/legacy/README.md`、`docs/reports/README.md`、`docs/collections/reports/README.md`、`docs/benchmarks/reports/README.md` 与 `docs/legacy/l0/README.md` 这些 landing-zone docs 保持为 today contract，不吸收 `sidecar` 的旧 pointer 版本
   - 把 `sidecar/tail` 的 merged-main 之后 pairwise cleanup readiness 固定到 `bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh`
-  - 把当前 branch-scoped pre-merge evidence 锚定到 `l0-mainline@35689d91c5e7cb0ba859f5400aeb991b19510946`：Linux x64 继续只认本地 `bash tests/run_strict_l0_maintenance_loop.sh`，Windows exact evidence 则认 GitHub Actions run `24459867453`
   - 保持 Windows exact evidence 只能来自 GitHub Actions / 真实 Windows runner 这一纪律
 - Source of truth:
   - `docs/fafafa.core.l0.foundation.md`
@@ -34,7 +33,6 @@
   - `docs/audits/2026-04-15-l0-tail-residual-runner-source-no-absorb-audit.md`
   - `docs/audits/2026-04-15-l0-sidecar-async-runner-slice-audit.md`
   - `docs/audits/2026-04-15-l0-closeout-rescue-final-source-review-clearout-audit.md`
-  - `docs/audits/2026-04-15-l0-premerge-branch-evidence-audit.md`
   - `docs/audits/2026-04-14-l0-closeout-rescue-stale-skip-audit.md`
   - `docs/audits/2026-04-14-l0-rescue-examples-docs-stale-skip-audit.md`
   - `docs/audits/2026-04-14-l0-retained-refs-sidecar-tail-postmerge-audit.md`
@@ -138,20 +136,16 @@
   - 结果：PASS
   - `bash tests/run_strict_l0_maintenance_loop.sh`
   - 结果：PASS
-  - GitHub Actions `L0 Windows Native Evidence` run `24459867453`
-  - 结果：PASS；head sha=`35689d91c5e7cb0ba859f5400aeb991b19510946`
-  - local Windows snapshot：
-  - `tests/_windows_l0_native_evidence_gh/L0-20260415-l0-premerge-retained-closeout-windows/`
   - GitHub Actions `L0 Linux Maintenance` run `24349423066`
   - 结果：PASS；pre-merge branch head=`bb2c4104f098699a9f387800b0688a11a12661c9`
   - `git diff --check`
   - 结果：PASS
-  - GitHub Actions `L0 Linux Maintenance` run `24377364840`
-  - 结果：PASS；head sha=`c4fcfcf744b87cb1f8b67ad84beccce6b22b9af8`
-  - GitHub Actions `L0 Windows Native Evidence` run `24379333706`
-  - 结果：PASS；head sha=`c4fcfcf744b87cb1f8b67ad84beccce6b22b9af8`
+  - GitHub Actions `L0 Linux Maintenance` run `24463267969`
+  - 结果：PASS；head sha=`b8b5f719349bc68fc63da7fe51318af8a6af229f`
+  - GitHub Actions `L0 Windows Native Evidence` run `24463558794`
+  - 结果：PASS；head sha=`b8b5f719349bc68fc63da7fe51318af8a6af229f`
   - local Windows snapshot：
-  - `tests/_windows_l0_native_evidence_gh/L0-20260414-mainline-closeout-windows/`
+  - `tests/_windows_l0_native_evidence_gh/L0-20260415-mainline-postmerge-closeout-windows/`
 - Retained local refs:
   - `l0-mainline`
   - `l0-mainline-closeout-20260411`
