@@ -152,6 +152,19 @@ is_review_skip_path() {
     l0-mainline-closeout-20260411:tests/fafafa.core.mem.allocator.foundation/test_allocator_foundation_runtime.pas|\
     l0-mainline-closeout-20260411:tests/fafafa.core.platform/README.md|\
     l0-mainline-closeout-20260411:tests/fafafa.core.span/README.md|\
+    l0-mainline-closeout-20260411:examples/fafafa.core.env/BuildOrRun.sh|\
+    l0-mainline-closeout-20260411:examples/fafafa.core.json/BuildOrRun.sh|\
+    l0-mainline-closeout-20260411:examples/fafafa.core.platform/BuildOrRun.sh|\
+    l0-mainline-closeout-20260411:examples/fafafa.core.sync.mutex/BuildOrRun.sh|\
+    l0-main-rescue:tests/fafafa.core.fs.async/BuildOrTest.bat|\
+    l0-main-rescue:tests/fafafa.core.fs.async/README.md|\
+    l0-main-rescue:tests/fafafa.core.fs.async/buildOrTest.bat|\
+    l0-main-rescue:tests/fafafa.core.fs.async/run_async_tests.lpr|\
+    l0-main-rescue:tests/fafafa.core.fs.async/test_async_basic.pas|\
+    l0-main-rescue:tests/fafafa.core.fs.async/test_simple.pas|\
+    l0-main-rescue:tests/fafafa.core.socket.async/BuildOrTest.bat|\
+    l0-main-rescue:tests/fafafa.core.socket.async/BuildOrTest.sh|\
+    l0-main-rescue:tests/fafafa.core.socket.async/buildOrTest.bat|\
     l0-main-rescue:.github/workflows/l0-windows-native-evidence.yml|\
     l0-main-rescue:src/fafafa.core.atomic.base.pas|\
     l0-main-rescue:src/fafafa.core.atomic.pas|\
@@ -162,9 +175,13 @@ is_review_skip_path() {
     l0-main-rescue:examples/fafafa.core.atomic/BuildOrRun.sh|\
     l0-main-rescue:examples/fafafa.core.base/BuildOrRun.sh|\
     l0-main-rescue:examples/fafafa.core.base/example_base.lpr|\
+    l0-main-rescue:examples/fafafa.core.env/BuildOrRun.sh|\
+    l0-main-rescue:examples/fafafa.core.json/BuildOrRun.sh|\
     l0-main-rescue:examples/fafafa.core.option/BuildOrRun.sh|\
+    l0-main-rescue:examples/fafafa.core.platform/BuildOrRun.sh|\
     l0-main-rescue:examples/fafafa.core.result/BuildOrRun.sh|\
     l0-main-rescue:examples/fafafa.core.result/example_result_filters_and_try.lpr|\
+    l0-main-rescue:examples/fafafa.core.sync.mutex/BuildOrRun.sh|\
     l0-main-rescue:tests/lib_github_actions_workflow_runs.sh|\
     l0-main-rescue:tests/fafafa.core.atomic/BuildOrTest.bat|\
     l0-main-rescue:tests/fafafa.core.atomic/README.md|\
