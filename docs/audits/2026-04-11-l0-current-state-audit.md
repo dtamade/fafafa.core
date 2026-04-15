@@ -7,8 +7,9 @@
 - 当前 strict non-SIMD L0 的权威边界仍以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
 - 当前 strict non-SIMD L0 的稳定路线图仍固定为 `docs/fafafa.core.l0.roadmap.md`。
 - 当前这份 current-state audit 固定记录的 latest merged-main exact evidence head 是 `b8b5f719349bc68fc63da7fe51318af8a6af229f`。
-- 当前 `origin/main` 与唯一 L0 worktree 当前都在 `b8b5f719349bc68fc63da7fe51318af8a6af229f`。
-- 当前唯一 L0 branch 仍是 `l0-mainline`，它现在只是一个跟随 `origin/main` 的维护分支，不再承载未合并增量。
+- 当前本地 `main` head 是 `a25acfe4f56bfd021e860aabe09e3cc392ef01ab`。
+- 当前 `origin/main` head 是 `84adcf9047b7af1c73528768578755c56cb362e2`。
+- 当前唯一 L0 branch 仍是 `l0-mainline`；当前 worktree head 与本地 `main@a25acfe4f56bfd021e860aabe09e3cc392ef01ab` 一致，它现在是一个跟随本地 merged-main 的维护分支。
 - Linux x64 的 strict L0 日常维护继续固定为 `bash tests/run_strict_l0_maintenance_loop.sh`；对应 GitHub Actions workflow `l0-linux-maintenance.yml` 已进入 default branch，并已在 `main` fresh 通过。
 - strict L0 的 Windows native evidence 当前继续由 GitHub Actions run `24463558794` 提供 exact evidence，shell-side artifact verifier 已在 Linux x64 本地复核通过。
 - collections 域里 dated 的 plans / status / reviews 已进一步下沉到 `docs/collections/legacy/README.md`；当前 collections 入口继续固定为 `docs/fafafa.core.collections.md` 与 `docs/collections/guides/`。
@@ -33,8 +34,9 @@
 ## Mainline Closeout Snapshot
 
 - 当前 latest merged-main exact evidence head：`b8b5f719349bc68fc63da7fe51318af8a6af229f`
-- 当前 `origin/main` head：`b8b5f719349bc68fc63da7fe51318af8a6af229f`
-- 当前 L0 worktree head：`b8b5f719349bc68fc63da7fe51318af8a6af229f`
+- 当前本地 `main` head：`a25acfe4f56bfd021e860aabe09e3cc392ef01ab`
+- 当前 `origin/main` head：`84adcf9047b7af1c73528768578755c56cb362e2`
+- 当前 L0 worktree head：`a25acfe4f56bfd021e860aabe09e3cc392ef01ab`
 - GitHub Actions `L0 Linux Maintenance` run `24463267969`
   - head sha：`b8b5f719349bc68fc63da7fe51318af8a6af229f`
   - 结果：PASS
@@ -44,7 +46,7 @@
 - Linux shell verifier local snapshot：
   - `tests/_windows_l0_native_evidence_gh/L0-20260415-mainline-postmerge-closeout-windows/`
 
-- 当前最新的 exact Windows native evidence 已直接对当前 `main@b8b5f719349bc68fc63da7fe51318af8a6af229f` 收证。
+- 当前本地 `main` 已推进到 `a25acfe4f56bfd021e860aabe09e3cc392ef01ab`；当前 `origin/main` 仍在 `84adcf9047b7af1c73528768578755c56cb362e2`；最新 exact Windows native evidence 仍锚定 `main@b8b5f719349bc68fc63da7fe51318af8a6af229f`。只有在确认 current `main` 相对该证据头没有新增 strict L0 代码或测试入口变化时，才应继续把差异理解为 docs / control-plane-only 增量。
 
 ## Fresh Verification
 
@@ -115,7 +117,7 @@
 
 ## Current Maintenance Rules
 
-- 当前唯一 L0 worktree 应继续保持在 `l0-mainline -> origin/main`。
+- 当前唯一 L0 worktree 仍固定为 `l0-mainline`；当前 head 与本地 `main@a25acfe4f56bfd021e860aabe09e3cc392ef01ab` 一致，而 `origin/main` 仍停在 `84adcf9047b7af1c73528768578755c56cb362e2`。不要把这条维护分支误写成继续单纯跟随远端。
 - Linux x64 上的日常维护默认走 `bash tests/run_strict_l0_maintenance_loop.sh`。
 - 如需 GitHub-side Linux 证据，当前标准命令是 `gh workflow run l0-linux-maintenance.yml --ref main`。
 - 如需 GitHub-side Windows exact evidence，当前标准入口是 `l0-windows-native-evidence.yml`，并在下载后继续通过 `bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh <batch-id> <run-id>` 做 shell-side artifact 校验。
