@@ -41,10 +41,19 @@ bash tests/run_strict_l0_maintenance_loop.sh
 
 1. `bash tests/check_strict_l0_docs_consistency.sh`
 2. `bash tests/test_active_shell_runners.sh`
-3. strict L0 聚合 gate
-4. `git diff --check`
-5. `bash tests/test_windows_strict_l0_batch_runtime_matrix.sh`
-6. `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
+3. `bash tests/test_strict_l0_examples_build_docs_contract.sh`
+4. strict L0 聚合 gate
+5. `git diff --check`
+6. `bash tests/test_windows_strict_l0_batch_runtime_matrix.sh`
+7. `bash tests/test_windows_strict_l0_native_closeout_stack.sh`
+
+其中 `bash tests/test_strict_l0_examples_build_docs_contract.sh` 现在除了校验 README / `docs/EXAMPLES.md` 的 current-entry 指针，还会固定守住：
+
+- strict L0 当前公开的 Linux/macOS `BuildOrRun.sh` 入口必须存在
+- shebang 必须是 bash
+- 不能带 CRLF
+- 必须能通过 `bash -n`
+- working tree 与 git index 都必须保持 executable / `100755`
 
 如果当前目标是 `tail` 的 shell/runner hygiene 小批次，而不是 broad absorb，优先先跑：
 

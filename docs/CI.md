@@ -76,19 +76,25 @@ bash tests/check_strict_l0_docs_consistency.sh
 bash tests/test_active_shell_runners.sh
 ```
 
-3. 跑 strict L0 聚合 gate
+3. 跑 examples/build current-entry contract
+
+```bash
+bash tests/test_strict_l0_examples_build_docs_contract.sh
+```
+
+4. 跑 strict L0 聚合 gate
 
 ```bash
 STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation fafafa.core.platform
 ```
 
-4. 跑 hygiene
+5. 跑 hygiene
 
 ```bash
 git diff --check
 ```
 
-5. 跑 Windows runtime/control-plane contract
+6. 跑 Windows runtime/control-plane contract
 
 ```bash
 bash tests/test_windows_strict_l0_batch_runtime_matrix.sh

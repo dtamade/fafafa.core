@@ -15,4 +15,3 @@ if [[ -x "$EXE" || -f "$EXE" ]]; then
 else
   echo "[RUN] NOT_FOUND $EXE"; exit 1
 fi
-
