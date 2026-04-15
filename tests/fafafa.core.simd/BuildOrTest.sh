@@ -61,6 +61,7 @@ KEY_SLOT_AUDIT_LOG="${LOG_DIR}/nonx86_key_slot_audit.txt"
 KEY_SLOT_AUDIT_JSON_LOG="${LOG_DIR}/nonx86_key_slot_audit.json"
 X86_IMPL_SMOKE_LOG="${LOG_DIR}/x86_impl_smoke.txt"
 NONX86_IMPL_SMOKE_LOG="${LOG_DIR}/nonx86_impl_smoke.txt"
+IMPL_FULL_AUDIT_LOG="${LOG_DIR}/impl_full_audit.txt"
 NONX86_IMPL_AUDIT_LOG="${LOG_DIR}/nonx86_impl_audit.txt"
 NONX86_NATIVE_EVIDENCE_LOG="${LOG_DIR}/nonx86_native_evidence.txt"
 NONX86_NATIVE_EVIDENCE_JSON_LOG="${LOG_DIR}/nonx86_native_evidence.json"
@@ -785,6 +786,7 @@ check_windows_runner_parity() {
     'if /I "%ACTION%"=="win-closeout-3cmd" goto :win_closeout_3cmd'
     'if /I "%ACTION%"=="win-closeout-finalize" goto :win_closeout_finalize'
     'if /I "%ACTION%"=="impl-smoke-x86" goto :impl_smoke_x86'
+    'if /I "%ACTION%"=="impl-audit-full" goto :impl_audit_full'
     'set "NORMALIZED_TEST_ARGS=!NORMALIZED_TEST_ARGS! %1"'
     'if /I "%ACTION%"=="wiring-sync" goto :wiring_sync'
     'if /I "%ACTION%"=="gate-summary" goto :gate_summary'
@@ -793,7 +795,8 @@ check_windows_runner_parity() {
     'if /I "%ACTION%"=="gate-summary-inject" goto :gate_summary_inject'
     'if /I "%ACTION%"=="gate-summary-rollback" goto :gate_summary_rollback'
     'if /I "%ACTION%"=="gate-summary-backups" goto :gate_summary_backups'
-    'echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|key-slot-audit^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]'
+    'echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-full^|impl-audit-nonx86^|key-slot-audit^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]'
+    'echo [IMPL-AUDIT-FULL] Running: bash %ROOT%BuildOrTest.sh impl-audit-full %NORMALIZED_TEST_ARGS%'
     'echo [IMPL-SMOKE-X86] Running: bash %ROOT%BuildOrTest.sh impl-smoke-x86 %NORMALIZED_TEST_ARGS%'
     'findstr /r /c:"src\fafafa\.core\.simd\..*Warning:" /c:"src\fafafa\.core\.simd\..*Hint:" "%BUILD_LOG%" | findstr /v /c:"src\fafafa.core.simd.intrinsics.avx2.pas" >nul 2>nul'
     'call :register_include_check'
@@ -4295,6 +4298,53 @@ run_nonx86_impl_smoke() {
   echo "NONX86_IMPL_SMOKE_SUMMARY steps=${LStepCount} targeted_output_root=${LTargetedOutputRoot} status=ok" | tee -a "${LSmokeLog}"
 }
 
+run_impl_full_audit_step() {
+  local LAuditLog
+  local LStep
+  local LRC
+
+  LAuditLog="${1:-}"
+  LStep="${2:-unknown-step}"
+  shift 2 || true
+
+  echo "[IMPL-AUDIT-FULL] >>> ${LStep}" | tee -a "${LAuditLog}"
+  "$@" 2>&1 | tee -a "${LAuditLog}"
+  LRC="${PIPESTATUS[0]}"
+  if [[ "${LRC}" != "0" ]]; then
+    echo "[IMPL-AUDIT-FULL] <<< ${LStep}: failed rc=${LRC}" | tee -a "${LAuditLog}"
+    return "${LRC}"
+  fi
+  echo "[IMPL-AUDIT-FULL] <<< ${LStep}: ok" | tee -a "${LAuditLog}"
+}
+
+run_impl_full_audit() {
+  local LAuditLog
+  local LTargetedOutputRoot
+  local LStepCount
+
+  LAuditLog="${SIMD_IMPL_FULL_AUDIT_LOG_FILE:-${IMPL_FULL_AUDIT_LOG}}"
+  LTargetedOutputRoot="${SIMD_IMPL_FULL_AUDIT_OUTPUT_ROOT:-$(nonx86_impl_audit_output_root)}"
+  LStepCount=2
+
+  mkdir -p "$(dirname "${LAuditLog}")" "${LTargetedOutputRoot}"
+  : > "${LAuditLog}"
+
+  echo "[IMPL-AUDIT-FULL] log=${LAuditLog}" | tee -a "${LAuditLog}"
+  echo "[IMPL-AUDIT-FULL] targeted_output_root=${LTargetedOutputRoot}" | tee -a "${LAuditLog}"
+
+  run_impl_full_audit_step "${LAuditLog}" "x86-bounded-frontier" \
+    env FAFAFA_BUILD_MODE="${FAFAFA_BUILD_MODE:-Release}" \
+        SIMD_X86_IMPL_SMOKE_OUTPUT_ROOT="${LTargetedOutputRoot}" \
+        bash "${ROOT}/BuildOrTest.sh" impl-smoke-x86 || return $?
+
+  run_impl_full_audit_step "${LAuditLog}" "nonx86-implementation-audit" \
+    env FAFAFA_BUILD_MODE="${FAFAFA_BUILD_MODE:-Release}" \
+        SIMD_NONX86_IMPL_AUDIT_OUTPUT_ROOT="${LTargetedOutputRoot}" \
+        bash "${ROOT}/BuildOrTest.sh" impl-audit-nonx86 || return $?
+
+  echo "SIMD_IMPL_AUDIT_FULL_SUMMARY steps=${LStepCount} targeted_output_root=${LTargetedOutputRoot} status=ok" | tee -a "${LAuditLog}"
+}
+
 run_nonx86_impl_audit() {
   local LAuditLog
   local LTargetedOutputRoot
@@ -5507,8 +5557,8 @@ nonx86_native_evidence_root_has_entries() {
 }
 
 run_closeout_host_local() {
-  echo "[CLOSEOUT-HOST-LOCAL] 1/2 impl-audit-nonx86"
-  run_nonx86_impl_audit || return $?
+  echo "[CLOSEOUT-HOST-LOCAL] 1/2 impl-audit-full (x86 bounded frontier + non-x86 implementation audit)"
+  run_impl_full_audit || return $?
 
   echo "[CLOSEOUT-HOST-LOCAL] 2/2 gate-strict (qemu-nonx86 required, native-evidence optional)"
   SIMD_GATE_QEMU_NONX86_EVIDENCE="${SIMD_GATE_QEMU_NONX86_EVIDENCE:-1}" \
@@ -5898,6 +5948,9 @@ case "${ACTION}" in
   impl-smoke-nonx86)
     run_nonx86_impl_smoke
     ;;
+  impl-audit-full)
+    run_impl_full_audit
+    ;;
   impl-audit-nonx86)
     run_nonx86_impl_audit
     ;;
@@ -6057,16 +6110,17 @@ case "${ACTION}" in
     run_freeze_status_rehearsal "$@"
     ;;
   *)
-    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|impl-smoke-x86|impl-smoke-nonx86|impl-audit-nonx86|key-slot-audit|closeout-host-local|import-nonx86-native-evidence|closeout-host-local-from-import|interface-completeness|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|verify-nonx86-native-evidence|restore-nightly-evidence|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
+    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|impl-smoke-x86|impl-smoke-nonx86|impl-audit-full|impl-audit-nonx86|key-slot-audit|closeout-host-local|import-nonx86-native-evidence|closeout-host-local-from-import|interface-completeness|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|verify-nonx86-native-evidence|restore-nightly-evidence|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
     echo "  Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks."
     echo "  gate/gate-strict PASS is not blanket release-grade approval for every experimental path."
     echo "  gate         Fast/base gate for routine SIMD changes"
     echo "  gate-strict  Release/closeout gate with perf, repeats, and evidence checks"
     echo "  impl-smoke-x86  Lightweight bounded x86 implementation smoke via DispatchAPI frontier proofs"
     echo "  impl-smoke-nonx86  Lightweight daily non-x86 implementation smoke"
+    echo "  impl-audit-full  Full implementation deep audit: x86 bounded frontier plus non-x86 implementation audit"
     echo "  impl-audit-nonx86  Aggregate implementation-side non-x86 audit"
     echo "  key-slot-audit  Audit non-x86 key wide slots for implementation ownership"
-    echo "  closeout-host-local  Host-local strict closeout (non-x86 native evidence fail-close, windows evidence optional)"
+    echo "  closeout-host-local  Host-local strict closeout (qemu non-x86 required, native evidence optional, windows evidence optional)"
     echo "  import-nonx86-native-evidence  Import external arm64/riscv64 native evidence into fixtures/ and verify it"
     echo "  closeout-host-local-from-import  Import external arm64/riscv64 native evidence, verify it, then run host-local strict closeout"
     echo "Suggested flow: check -> targeted suites -> gate; use gate-strict before release/closeout."

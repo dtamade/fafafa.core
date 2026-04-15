@@ -1,5 +1,25 @@
 # Progress Log
 
+## Session: 2026-04-15
+
+### Phase 79: SIMD implementation closeout formalization
+- **Status:** complete
+- Actions taken:
+  - 复核 `tests/fafafa.core.simd/BuildOrTest.sh`、`tests/fafafa.core.simd/buildOrTest.bat`、`docs/fafafa.core.simd.closeout.md`、`docs/fafafa.core.simd.checklist.md`、`docs/fafafa.core.simd.implementation-matrix.md`，确认 `impl-audit-full` 已正式成为实现深审主入口
+  - 新增并固化 `impl-audit-full`：固定顺序 `impl-smoke-x86 -> impl-audit-nonx86`，并让 `closeout-host-local` 复用该顺序而不是绕过 x86 bounded frontier
+  - 修正 shell/batch help 文案里过时的 `closeout-host-local` 描述，使其与当前真实语义一致：`qemu non-x86 required / native evidence optional / windows evidence optional`
+  - 回填最新 2026-04-15 证据链到 closeout / implementation matrix，补上 `SIMD_IMPL_AUDIT_FULL_SUMMARY` 与 formalized closeout rerun 的 QEMU summary 路径
+  - fresh 运行 `git diff --check -- tests/fafafa.core.simd/BuildOrTest.sh tests/fafafa.core.simd/buildOrTest.bat docs/fafafa.core.simd.checklist.md docs/fafafa.core.simd.implementation-matrix.md docs/fafafa.core.simd.closeout.md`
+  - fresh 运行 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-full`
+  - fresh 运行 `SIMD_QEMU_PLATFORMS='linux/arm64 linux/riscv64' SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local`
+- Files created/modified:
+  - `tests/fafafa.core.simd/BuildOrTest.sh` (modified)
+  - `tests/fafafa.core.simd/buildOrTest.bat` (modified)
+  - `docs/fafafa.core.simd.checklist.md` (modified)
+  - `docs/fafafa.core.simd.closeout.md` (modified)
+  - `docs/fafafa.core.simd.implementation-matrix.md` (modified)
+  - `progress.md` (modified)
+
 ## Session: 2026-03-27
 
 ### Phase 78: repo hygiene guard

@@ -51,6 +51,13 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-smoke-
 ```
 
 - `impl-smoke-x86`：固定重跑当前 x86 bounded frontier 的 `DispatchAPI` proof 集合；它不是 full closeout，只是把 `AVX512 shift boundary`、`AVX2 wide select`、`AVX2 wide FMA composition` 这几类高价值证明收成单条高频入口
+- 如果你做的是一轮完整的实现深审，而不是只看单边 frontiers，优先直接跑：
+
+```bash
+FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-full
+```
+
+- `impl-audit-full`：固定顺序是 `impl-smoke-x86 -> impl-audit-nonx86`；它把当前 x86 bounded frontier 和 non-x86 implementation audit 串成一条正式命令，避免再靠聊天或手工拼命令记忆流程
 - 如果你改了 `TSimdBackendInfo` / `TSimdDispatchTable` 的声明本身，再额外跑：
 
 ```bash
@@ -75,7 +82,7 @@ bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
 SIMD_QEMU_PLATFORMS='linux/arm64 linux/riscv64' SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local
 ```
 
-`closeout-host-local` 的固定顺序是 `impl-audit-nonx86 -> gate-strict`。当前口径下，它默认会把 `qemu-nonx86-evidence` 打开，并把 `SIMD_GATE_REQUIRE_NONX86_NATIVE_EVIDENCE` 降到 `0`；也就是说，在没有真实 `arm64/riscv64` 硬件时，`linux/arm64 + linux/riscv64` 的 QEMU runtime evidence 就是当前 closeout 的充分证明。
+`closeout-host-local` 的固定顺序是 `impl-audit-full -> gate-strict`。其中 `impl-audit-full` 会先显式复验当前 x86 bounded frontier，再跑 non-x86 implementation audit；当前口径下，它默认会把 `qemu-nonx86-evidence` 打开，并把 `SIMD_GATE_REQUIRE_NONX86_NATIVE_EVIDENCE` 降到 `0`；也就是说，在没有真实 `arm64/riscv64` 硬件时，`linux/arm64 + linux/riscv64` 的 QEMU runtime evidence 就是当前 closeout 的充分证明。
 `gate-strict` 会在 `gate` 的基础上额外打开 repeat、coverage/wiring strict、non-x86 / evidence 等更重的检查，更适合发布前或阶段性收口时运行。当前默认 release-gate 口径是 `SIMD_GATE_QEMU_NONX86_EVIDENCE=1`、`SIMD_GATE_REQUIRE_NONX86_NATIVE_EVIDENCE=0`；native evidence 仍可作为附加证据导入和校验，但没有硬件时，不再把 native host 当成 blocker。
 当前默认 `gate` 已包含 `contract-signature` 与 `publicabi-signature` 结构护栏；如果仓库内 dispatch contract 或 public ABI wrapper 漂移，会直接在 gate 红掉。
 当前默认 `check/gate` 也会把 non-x86 opt-in smoke 放到隔离子目录 `nonx86.optin/neon`、`nonx86.optin/riscvv` 下做 fresh `--list-suites` 编译验证；如果只想单独复验这层，也可以直接跑：
