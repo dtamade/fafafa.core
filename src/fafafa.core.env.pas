@@ -1174,20 +1174,24 @@ begin
   if S <> '' then Exit(S);
   // fallback to home
   S := env_home_dir; if S <> '' then Exit(S + PathDelim + 'AppData' + PathDelim + 'Roaming');
-  {$ELSEIF DEFINED(ANDROID)}
-  S := _android_files_dir;
-  if S <> '' then Exit(S);
-  // fallback to XDG
-  S := env_get('XDG_CONFIG_HOME');
-  if S <> '' then Exit(S);
-  S := env_home_dir; if S <> '' then Exit(S + PathDelim + '.config');
-  {$ELSEIF DEFINED(DARWIN)}
-  S := env_home_dir;
-  if S <> '' then Exit(S + PathDelim + 'Library' + PathDelim + 'Application Support');
   {$ELSE}
-  S := env_get('XDG_CONFIG_HOME');
-  if S <> '' then Exit(S);
-  S := env_home_dir; if S <> '' then Exit(S + PathDelim + '.config');
+    {$IFDEF ANDROID}
+    S := _android_files_dir;
+    if S <> '' then Exit(S);
+    // fallback to XDG
+    S := env_get('XDG_CONFIG_HOME');
+    if S <> '' then Exit(S);
+    S := env_home_dir; if S <> '' then Exit(S + PathDelim + '.config');
+    {$ELSE}
+      {$IFDEF DARWIN}
+      S := env_home_dir;
+      if S <> '' then Exit(S + PathDelim + 'Library' + PathDelim + 'Application Support');
+      {$ELSE}
+      S := env_get('XDG_CONFIG_HOME');
+      if S <> '' then Exit(S);
+      S := env_home_dir; if S <> '' then Exit(S + PathDelim + '.config');
+      {$ENDIF}
+    {$ENDIF}
   {$ENDIF}
   Result := '';
 end;
@@ -1201,20 +1205,24 @@ begin
   if S <> '' then Exit(S);
   // fallback
   S := env_home_dir; if S <> '' then Exit(S + PathDelim + 'AppData' + PathDelim + 'Local');
-  {$ELSEIF DEFINED(ANDROID)}
-  S := _android_cache_dir;
-  if S <> '' then Exit(S);
-  // fallback to XDG
-  S := env_get('XDG_CACHE_HOME');
-  if S <> '' then Exit(S);
-  S := env_home_dir; if S <> '' then Exit(S + PathDelim + '.cache');
-  {$ELSEIF DEFINED(DARWIN)}
-  S := env_home_dir;
-  if S <> '' then Exit(S + PathDelim + 'Library' + PathDelim + 'Caches');
   {$ELSE}
-  S := env_get('XDG_CACHE_HOME');
-  if S <> '' then Exit(S);
-  S := env_home_dir; if S <> '' then Exit(S + PathDelim + '.cache');
+    {$IFDEF ANDROID}
+    S := _android_cache_dir;
+    if S <> '' then Exit(S);
+    // fallback to XDG
+    S := env_get('XDG_CACHE_HOME');
+    if S <> '' then Exit(S);
+    S := env_home_dir; if S <> '' then Exit(S + PathDelim + '.cache');
+    {$ELSE}
+      {$IFDEF DARWIN}
+      S := env_home_dir;
+      if S <> '' then Exit(S + PathDelim + 'Library' + PathDelim + 'Caches');
+      {$ELSE}
+      S := env_get('XDG_CACHE_HOME');
+      if S <> '' then Exit(S);
+      S := env_home_dir; if S <> '' then Exit(S + PathDelim + '.cache');
+      {$ENDIF}
+    {$ENDIF}
   {$ENDIF}
   Result := '';
 end;
@@ -1422,7 +1430,8 @@ begin
     Inc(P);
   end;
 end;
-{$ELSEIF DEFINED(WINDOWS)}
+{$ELSE}
+  {$IFDEF WINDOWS}
 var
   P, PStart: PWideChar;
   S: UnicodeString;
@@ -1449,7 +1458,7 @@ begin
     if PStart <> nil then FreeEnvironmentStringsW(PStart);
   end;
 end;
-{$ELSE}
+  {$ELSE}
 var
   Lst: TStringList;
 begin
@@ -1462,6 +1471,7 @@ begin
     Lst.Free;
   end;
 end;
+  {$ENDIF}
 {$ENDIF}
 
 function env_get_bool(const AName: string; ADefault: Boolean): Boolean;
@@ -1720,20 +1730,32 @@ function env_os: string; inline;
 begin
   {$IFDEF WINDOWS}
   Result := 'Windows';
-  {$ELSEIF DEFINED(ANDROID)}
-  Result := 'Android';
-  {$ELSEIF DEFINED(DARWIN)}
-  Result := 'Darwin';
-  {$ELSEIF DEFINED(LINUX)}
-  Result := 'Linux';
-  {$ELSEIF DEFINED(FREEBSD)}
-  Result := 'FreeBSD';
-  {$ELSEIF DEFINED(OPENBSD)}
-  Result := 'OpenBSD';
-  {$ELSEIF DEFINED(NETBSD)}
-  Result := 'NetBSD';
   {$ELSE}
-  Result := 'Unknown';
+    {$IFDEF ANDROID}
+    Result := 'Android';
+    {$ELSE}
+      {$IFDEF DARWIN}
+      Result := 'Darwin';
+      {$ELSE}
+        {$IFDEF LINUX}
+        Result := 'Linux';
+        {$ELSE}
+          {$IFDEF FREEBSD}
+          Result := 'FreeBSD';
+          {$ELSE}
+            {$IFDEF OPENBSD}
+            Result := 'OpenBSD';
+            {$ELSE}
+              {$IFDEF NETBSD}
+              Result := 'NetBSD';
+              {$ELSE}
+              Result := 'Unknown';
+              {$ENDIF}
+            {$ENDIF}
+          {$ENDIF}
+        {$ENDIF}
+      {$ENDIF}
+    {$ENDIF}
   {$ENDIF}
 end;
 
@@ -1741,18 +1763,32 @@ function env_arch: string; inline;
 begin
   {$IFDEF CPUX86_64}
   Result := 'x86_64';
-  {$ELSEIF DEFINED(CPUAARCH64)}
-  Result := 'aarch64';
-  {$ELSEIF DEFINED(CPUI386) OR DEFINED(CPU386)}
-  Result := 'i386';
-  {$ELSEIF DEFINED(CPUARM)}
-  Result := 'arm';
-  {$ELSEIF DEFINED(CPUPOWERPC64)}
-  Result := 'powerpc64';
-  {$ELSEIF DEFINED(CPURISCV64)}
-  Result := 'riscv64';
   {$ELSE}
-  Result := 'unknown';
+    {$IFDEF CPUAARCH64}
+    Result := 'aarch64';
+    {$ELSE}
+      {$IFDEF CPUI386}
+      Result := 'i386';
+      {$ELSE}
+        {$IFDEF CPU386}
+        Result := 'i386';
+        {$ELSE}
+          {$IFDEF CPUARM}
+          Result := 'arm';
+          {$ELSE}
+            {$IFDEF CPUPOWERPC64}
+            Result := 'powerpc64';
+            {$ELSE}
+              {$IFDEF CPURISCV64}
+              Result := 'riscv64';
+              {$ELSE}
+              Result := 'unknown';
+              {$ENDIF}
+            {$ENDIF}
+          {$ENDIF}
+        {$ENDIF}
+      {$ENDIF}
+    {$ENDIF}
   {$ENDIF}
 end;
 

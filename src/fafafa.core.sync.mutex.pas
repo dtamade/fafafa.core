@@ -173,10 +173,12 @@ function MakeMutex: IMutex;
 begin
   {$IFDEF WINDOWS}
     Result := fafafa.core.sync.mutex.windows.MakeMutex();
-  {$ELSEIF DEFINED(UNIX)}
-    Result := fafafa.core.sync.mutex.unix.MakeMutex();
   {$ELSE}
+    {$IFDEF UNIX}
+    Result := fafafa.core.sync.mutex.unix.MakeMutex();
+    {$ELSE}
     {$ERROR 'Unsupported platform for fafafa.core.sync.mutex'}
+    {$ENDIF}
   {$ENDIF}
 end;
 
