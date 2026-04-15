@@ -11,7 +11,8 @@
 
 ## Final Resolution
 
-- 当前 main merge commit：`b8b5f719349bc68fc63da7fe51318af8a6af229f`
+- 当前本地 main merge commit：`a25acfe4f56bfd021e860aabe09e3cc392ef01ab`
+- 当前 `origin/main` head：`84adcf9047b7af1c73528768578755c56cb362e2`
 - GitHub Actions `L0 Linux Maintenance` run `24463267969`
   - head sha：`b8b5f719349bc68fc63da7fe51318af8a6af229f`
   - 结果：PASS
@@ -25,7 +26,7 @@
 
 - mainline Linux workflow 已可 dispatch 并 fresh 通过
 - Windows exact evidence 也已收齐
-- 当前 `main` 已推进到 `b8b5f719349bc68fc63da7fe51318af8a6af229f`，但 latest exact Windows native evidence 仍锚定 `main@b8b5f719349bc68fc63da7fe51318af8a6af229f`；由于这两者之间只剩 docs / control-plane-only 变更，因此当前 closeout 复用该 exact evidence。
+- 当前本地 `main` 已推进到 `a25acfe4f56bfd021e860aabe09e3cc392ef01ab`；当前 `origin/main` 仍在 `84adcf9047b7af1c73528768578755c56cb362e2`；latest exact Windows native evidence 仍锚定 `main@b8b5f719349bc68fc63da7fe51318af8a6af229f`。只有在确认 current `main` 相对该证据头没有新增 strict L0 代码或测试入口变化时，才应继续把差异理解为 docs / control-plane-only 增量。
 - 这份文档现在只保留 pre-merge `HTTP 404` 的历史解释与 refs no-op 审计背景
 
 ## Retained Refs
