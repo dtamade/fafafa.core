@@ -1,8 +1,8 @@
 # SIMD Interface/Implementation Completeness Report
 
-- generated_at: 2026-03-20T04:18:35
+- generated_at: 2026-04-10T07:45:44
 - dispatch_slots_total: `558`
-- strict: `False`
+- strict: `True`
 - strict_level: `p2`
 - analyzer: `heuristic token/assignment scan (not semantic proof)`
 
@@ -15,9 +15,9 @@
 - sse41: `28/558`
 - sse42: `1/558`
 - avx2: `491/558`
-- avx512: `187/558`
-- neon: `558/558`
-- riscvv: `558/558`
+- avx512: `183/558`
+- neon: `528/558`
+- riscvv: `543/558`
 
 ## Severity Summary
 

@@ -1,10 +1,13 @@
 procedure RegisterSSE3Backend;
 var
   dispatchTable: TSimdDispatchTable;
+  LUseVectorAsm: Boolean;
 begin
   // Only register if SSE3 is available
   if not HasSSE3 then
     Exit;
+
+  LUseVectorAsm := IsVectorAsmEnabled;
 
   // ✅ 使用 CloneDispatchTable 从 SSE2 继承实现
   // 这比从标量基线开始更高效
@@ -22,16 +25,15 @@ begin
     Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, scReduction,
                      scLoadStore];
     Include(Capabilities, scMaskedOps);
-    if IsVectorAsmEnabled then
+    Include(Capabilities, scIntegerOps);
+    if LUseVectorAsm then
       Include(Capabilities, scShuffle);
-    if IsVectorAsmEnabled then
-      Include(Capabilities, scIntegerOps);
-    Available := IsVectorAsmEnabled;
+    Available := LUseVectorAsm;
     Priority := GetSimdBackendPriorityValue(sbSSE3);
   end;
 
   // SSE3 improvements: faster reductions via HADD
-  if IsVectorAsmEnabled then
+  if LUseVectorAsm then
   begin
     // Override reduction operations with SSE3 HADD versions (faster)
     dispatchTable.ReduceAddF32x4 := @SSE3ReduceAddF32x4;

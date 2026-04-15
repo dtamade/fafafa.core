@@ -8,6 +8,7 @@ interface
 uses
   fafafa.core.simd.base,
   fafafa.core.simd.dispatch,
+  fafafa.core.simd.runtime,
   fafafa.core.simd.cpuinfo,
   fafafa.core.simd.cpuinfo.base,
   fafafa.core.simd.utils      // ✅ Shuffle, Blend, Convert operations
@@ -2580,12 +2581,18 @@ var dispatch: PSimdDispatchTable;
     LCount: Integer;
 begin
   LCount := count;
-  if (LCount < 0) or (LCount >= 32) then
+  if LCount < 0 then
   begin
-    Result.i[0] := 0;
-    Result.i[1] := 0;
-    Result.i[2] := 0;
-    Result.i[3] := 0;
+    Result := a;
+    Exit;
+  end;
+
+  if LCount >= 32 then
+  begin
+    if a.i[0] < 0 then Result.i[0] := -1 else Result.i[0] := 0;
+    if a.i[1] < 0 then Result.i[1] := -1 else Result.i[1] := 0;
+    if a.i[2] < 0 then Result.i[2] := -1 else Result.i[2] := 0;
+    if a.i[3] < 0 then Result.i[3] := -1 else Result.i[3] := 0;
     Exit;
   end;
 
@@ -3894,10 +3901,19 @@ var dispatch: PSimdDispatchTable;
     LCount: Integer;
 begin
   LCount := count;
-  if (LCount < 0) or (LCount >= 32) then
+  if LCount < 0 then
+  begin
+    Result := a;
+    Exit;
+  end;
+
+  if LCount >= 32 then
   begin
     for i := 0 to 7 do
-      Result.i[i] := 0;
+      if a.i[i] < 0 then
+        Result.i[i] := -1
+      else
+        Result.i[i] := 0;
     Exit;
   end;
 
@@ -6449,10 +6465,19 @@ var dispatch: PSimdDispatchTable;
     LCount: Integer;
 begin
   LCount := count;
-  if (LCount < 0) or (LCount >= 32) then
+  if LCount < 0 then
+  begin
+    Result := a;
+    Exit;
+  end;
+
+  if LCount >= 32 then
   begin
     for i := 0 to 15 do
-      Result.i[i] := 0;
+      if a.i[i] < 0 then
+        Result.i[i] := -1
+      else
+        Result.i[i] := 0;
     Exit;
   end;
 

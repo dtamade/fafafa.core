@@ -1,10 +1,13 @@
 procedure RegisterSSSE3Backend;
 var
   dispatchTable: TSimdDispatchTable;
+  LUseVectorAsm: Boolean;
 begin
   // Only register if SSSE3 is available
   if not HasSSSE3 then
     Exit;
+
+  LUseVectorAsm := IsVectorAsmEnabled;
 
   // ✅ 使用 CloneDispatchTable 从 SSE3 继承实现
   dispatchTable := Default(TSimdDispatchTable);
@@ -22,16 +25,15 @@ begin
     Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, scReduction,
                      scLoadStore];
     Include(Capabilities, scMaskedOps);
-    if IsVectorAsmEnabled then
+    Include(Capabilities, scIntegerOps);
+    if LUseVectorAsm then
       Include(Capabilities, scShuffle);
-    if IsVectorAsmEnabled then
-      Include(Capabilities, scIntegerOps);
-    Available := IsVectorAsmEnabled;
+    Available := LUseVectorAsm;
     Priority := GetSimdBackendPriorityValue(sbSSSE3);
   end;
 
   // SSSE3 improvements
-  if IsVectorAsmEnabled then
+  if LUseVectorAsm then
   begin
     // ✅ PABS instructions for integer absolute value
     // Note: These operations are not yet in the dispatch table

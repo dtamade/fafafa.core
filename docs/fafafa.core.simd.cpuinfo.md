@@ -64,6 +64,9 @@ function IsBackendSupportedOnCPU(aBackend: TSimdBackend): Boolean;
 // 获取 CPU/OS 语义下支持的后端列表（按优先级排序，推荐名称）
 function GetSupportedBackendList: TSimdBackendArray;
 
+// 兼容别名（等价于 GetSupportedBackendList）
+function GetSupportedBackends: TSimdBackendArray;
+
 // 向后兼容别名（等价于 GetSupportedBackendList）
 function GetAvailableBackends: TSimdBackendArray;
 
@@ -226,37 +229,39 @@ end;
 
 ### CPU 最佳后端 vs 当前 active 后端
 
-`GetBestSupportedBackend` / `GetBestBackendOnCPU` 只反映“当前 CPU/OS 能用的最优后端”，不会因为 `SetActiveBackend` 被强制切换而变化。
+`GetBestSupportedBackend` / `GetBestBackendOnCPU` 只反映“当前 CPU/OS 能用的最优后端”，不会因为 runtime control-plane 被强制切换而变化。
 
 ```pascal
 uses
   fafafa.core.simd.base,
   fafafa.core.simd.cpuinfo,
-  fafafa.core.simd.dispatch;
+  fafafa.core.simd.runtime;
 
 var
   LBestOnCPU: TSimdBackend;
 begin
   LBestOnCPU := GetBestSupportedBackend;
 
-  SetActiveBackend(sbScalar); // 仅影响当前 dispatch 路径
-  // 这里仍然是 CPU 能力上的最优后端，不会变成 sbScalar
-  Assert(GetBestSupportedBackend = LBestOnCPU);
+  if TrySetCurrentBackend(sbScalar) then
+  try
+    // 这里仍然是 CPU 能力上的最优后端，不会变成 sbScalar
+    Assert(GetBestSupportedBackend = LBestOnCPU);
+  finally
+    ResetCurrentBackendSelection;
+  end;
 end;
 ```
 
-### 后端选择
+### CPU capability 分支
 
 ```pascal
 uses
   fafafa.core.simd.base,
-  fafafa.core.simd.cpuinfo,
-  fafafa.core.simd.dispatch;
+  fafafa.core.simd.cpuinfo;
 
 var
   backends: TSimdBackendArray;
   backend: TSimdBackend;
-  info: TSimdBackendInfo;
   i: Integer;
 begin
   // 获取 CPU/OS 语义下所有支持的后端
@@ -266,35 +271,34 @@ begin
   for i := 0 to Length(backends) - 1 do
   begin
     backend := backends[i];
-    info := fafafa.core.simd.dispatch.GetBackendInfo(backend);
-    WriteLn('  ', info.Name, ' (Priority: ', info.Priority, ')');
+    WriteLn('  backend enum = ', Ord(backend));
   end;
   
   // 注意：GetAvailableBackends 只是向后兼容别名；
   // 这里的语义始终是“CPU/OS 支持”，不是“当前二进制可派发”。
   // 若要查询“当前二进制真正可派发”的后端，请使用
-  // fafafa.core.simd / fafafa.core.simd.dispatch 提供的 dispatchable 视图。
+  // fafafa.core.simd / fafafa.core.simd.runtime 提供的 dispatchable 视图。
   // 若要查询“当前二进制是否已注册某个 backend”，请使用
   // fafafa.core.simd.GetRegisteredBackendList / IsBackendRegisteredInBinary。
 
-  // 选择特定后端
+  // 基于 CPU capability 决定“是否值得走某条优化分支”
   if IsBackendSupportedOnCPU(sbAVX2) then
   begin
-    WriteLn('Using AVX2 backend');
-    // 使用 AVX2 实现
+    WriteLn('CPU/OS allows AVX2-specific optimization path');
+    // 这里只说明“CPU/OS 支持”，不代表 runtime 当前 active backend 已经是 AVX2
   end
   else if IsBackendSupportedOnCPU(sbSSE2) then
   begin
-    WriteLn('Using SSE2 backend');
-    // 使用 SSE2 实现
+    WriteLn('CPU/OS allows SSE2-specific optimization path');
   end
   else
   begin
-    WriteLn('Using scalar backend');
-    // 使用标量实现
+    WriteLn('Only scalar-safe path is guaranteed');
   end;
 end;
 ```
+
+如果你要查询**当前 runtime 真正已经选中的 backend**，或者要切换 control-plane，请改用 `fafafa.core.simd.runtime` 的 `GetCurrentRuntimeSnapshot` / `GetCurrentBackend` / `TrySetCurrentBackend`。
 
 ## 线程安全
 

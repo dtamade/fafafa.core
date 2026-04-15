@@ -1,10 +1,13 @@
 procedure RegisterSSE41Backend;
 var
   dispatchTable: TSimdDispatchTable;
+  LUseVectorAsm: Boolean;
 begin
   // Only register if SSE4.1 is available
   if not HasSSE41 then
     Exit;
+
+  LUseVectorAsm := IsVectorAsmEnabled;
 
   // ✅ 使用 CloneDispatchTable 从 SSSE3 继承实现
   dispatchTable := Default(TSimdDispatchTable);
@@ -23,16 +26,15 @@ begin
     Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, scReduction,
                      scLoadStore];
     Include(Capabilities, scMaskedOps);
-    if IsVectorAsmEnabled then
+    Include(Capabilities, scIntegerOps);
+    if LUseVectorAsm then
       Include(Capabilities, scShuffle);
-    if IsVectorAsmEnabled then
-      Include(Capabilities, scIntegerOps);
-    Available := IsVectorAsmEnabled;
+    Available := LUseVectorAsm;
     Priority := GetSimdBackendPriorityValue(sbSSE41);
   end;
 
   // SSE4.1 provides major improvements
-  if IsVectorAsmEnabled then
+  if LUseVectorAsm then
   begin
     // ✅ CRITICAL: Override 32-bit integer multiply with PMULLD
     // This is a huge improvement over SSE2's workaround!

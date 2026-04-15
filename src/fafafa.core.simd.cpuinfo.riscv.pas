@@ -333,6 +333,8 @@ var
 begin
   aVendor := '';
   aModel := '';
+  LVendorFromCompat := '';
+  LModelFromCompat := '';
   Result := False;
 
   if ReadDeviceTreeTextFromPaths(MODEL_PATHS, LModelText) then

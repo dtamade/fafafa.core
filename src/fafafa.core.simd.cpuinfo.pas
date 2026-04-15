@@ -27,8 +27,10 @@ uses
 // 纯门面模式：委托给平台特定的实现模块
 
 type
-  // Array type for backend list
-  TSimdBackendArray = array of TSimdBackend;
+  // Compatibility re-export: the shared backend-list container now lives in
+  // fafafa.core.simd.base so cpuinfo/runtime can return the same canonical type
+  // without making cpuinfo the owner of this shared container symbol.
+  TSimdBackendArray = fafafa.core.simd.base.TSimdBackendArray;
 
 // === 公共门面 API ===
 
@@ -41,15 +43,14 @@ function DetectCPUArchitecture: TCPUArch;
 // Feature query helpers (quick checks)
 function HasFeature(feature: TGenericFeature): Boolean;
 function IsBackendSupportedOnCPU(aBackend: TSimdBackend): Boolean;
-function GetSupportedBackends: TSimdBackendArray;
-function GetSupportedBackendList: TSimdBackendArray; // preferred alias
-function GetAvailableBackends: TSimdBackendArray; // alias for backward compatibility
+function GetSupportedBackendList: TSimdBackendArray; // preferred canonical name
+function GetSupportedBackends: TSimdBackendArray; // compatibility alias
+function GetAvailableBackends: TSimdBackendArray; // compatibility alias with legacy ambiguous naming
 
 // Get best backend allowed by current CPU/OS capabilities.
-function GetBestBackendOnCPU: TSimdBackend;
-function GetBestSupportedBackend: TSimdBackend; // preferred alias
-// Backward-compatible alias.
-function GetBestBackend: TSimdBackend;
+function GetBestSupportedBackend: TSimdBackend; // preferred canonical name
+function GetBestBackendOnCPU: TSimdBackend; // compatibility alias
+function GetBestBackend: TSimdBackend; // compatibility alias
 
 // Cache and lifecycle helpers
 procedure ResetCPUInfo; // safe reset for re-initialization
@@ -637,7 +638,7 @@ begin
   if cpuInfo.Arch = caARM then
     Result := cpuInfo.ARM
   else
-    FillChar(Result, SizeOf(Result), 0);
+    Result := Default(TARMFeatures);
 end;
 {$ENDIF}
 
@@ -646,11 +647,10 @@ function GetRISCVCPUInfo: TRISCVFeatures;
 var
   cpuInfo: TCPUInfo;
 begin
+  Result := Default(TRISCVFeatures);
   cpuInfo := GetCPUInfo;
   if cpuInfo.Arch = caRISCV then
-    Result := cpuInfo.RISCV
-  else
-    FillChar(Result, SizeOf(Result), 0);
+    Result := cpuInfo.RISCV;
 end;
 {$ENDIF}
 

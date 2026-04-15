@@ -1061,6 +1061,15 @@ asm
 end;
 
 // --- U32x8 Operations (8×UInt32, 2×128-bit) ---
+//
+// ABI note (AArch64/FPC as exercised by the current NEON native evidence):
+// - TVecU32x8 is lowered here as four 64-bit chunks by value:
+//   a.lo -> x0..x1, b.lo -> x2..x3, a.hi -> x4..x5, b.hi -> x6..x7.
+// - The 256-bit result is returned as two packed 128-bit halves split across
+//   x0..x1 (lo) and x2..x3 (hi).
+// Keep the load/compute/store order symmetric; "simplifying" this to the
+// hidden-result-pointer shape used by some signed wide records would silently
+// break lane order/return shape for this family.
 
 // U32x8 加法 (2×add v.4s)
 function NEONAddU32x8(const a, b: TVecU32x8): TVecU32x8; assembler; nostackframe;
@@ -1323,6 +1332,12 @@ asm
 end;
 
 // --- U64x4 Operations (4×UInt64, 2×128-bit) ---
+//
+// ABI note: this family follows the same by-value split-return pattern as
+// U32x8 above, but each 128-bit half contains 2×UInt64 lanes (v?.2d).
+// The first half is packed/unpacked through x0..x3, the second half through
+// x4..x7 on input, and the result comes back in x0..x3. Preserve that half
+// pairing exactly; the current dataplane/direct-dispatch probes depend on it.
 
 // U64x4 加法 (2×add v.2d)
 function NEONAddU64x4(const a, b: TVecU64x4): TVecU64x4; assembler; nostackframe;

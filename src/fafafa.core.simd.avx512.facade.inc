@@ -514,19 +514,7 @@ asm
 @done:
 end;
 
-// === 以下函数使用 AVX2 实现或回退到 Scalar ===
-
-function Utf8Validate_AVX512(p: Pointer; len: SizeUInt): Boolean;
-begin
-  // UTF-8 验证逻辑复杂，暂时使用 AVX2 实现
-  Result := Utf8Validate_AVX2(p, len);
-end;
-
-procedure MemReverse_AVX512(p: Pointer; len: SizeUInt);
-begin
-  // 内存反转使用 AVX2 实现
-  MemReverse_AVX2(p, len);
-end;
+// Utf8Validate/MemReverse reuse the cloned AVX2 slots from RegisterAVX512Backend.
 
 // AsciiIEqual_AVX512 - 使用 AVX-512 进行大小写不敏感的 ASCII 比较
 // 算法：将两个字符串都转换为小写后比较
@@ -1065,4 +1053,3 @@ asm
   vzeroupper
 @done:
 end;
-

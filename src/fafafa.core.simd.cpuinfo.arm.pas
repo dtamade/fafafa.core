@@ -49,13 +49,9 @@ procedure MergeARMFeaturesFromLinuxHWCAP(var aFeatures: TARMFeatures;
 
 implementation
 
-{$IFDEF UNIX}
+{$IFDEF LINUX}
 uses
-  BaseUnix
-  {$IFDEF LINUX}
-  , Classes
-  {$ENDIF}
-  ;
+  Classes;
 {$ENDIF}
 
 // === Linux /proc/cpuinfo Parsing ===
@@ -164,6 +160,7 @@ procedure MergeARMFeaturesFromLinuxHWCAP(var aFeatures: TARMFeatures;
   const aHWCAP, aHWCAP2: QWord);
 {$IFDEF LINUX}
 const
+  {$IFDEF CPUAARCH64}
   // AArch64 HWCAP bits (linux uapi asm/hwcap.h).
   ARM64_HWCAP_FP    = QWord(1) shl 0;
   ARM64_HWCAP_ASIMD = QWord(1) shl 1;
@@ -172,7 +169,7 @@ const
   ARM64_HWCAP_SHA1  = QWord(1) shl 5;
   ARM64_HWCAP_SHA2  = QWord(1) shl 6;
   ARM64_HWCAP_SVE   = QWord(1) shl 22;
-
+  {$ELSE}
   // ARM32 HWCAP/HWCAP2 bits (linux uapi asm/hwcap.h).
   ARM_HWCAP_VFP    = QWord(1) shl 6;
   ARM_HWCAP_NEON   = QWord(1) shl 12;
@@ -182,6 +179,7 @@ const
   ARM_HWCAP2_PMULL = QWord(1) shl 1;
   ARM_HWCAP2_SHA1  = QWord(1) shl 2;
   ARM_HWCAP2_SHA2  = QWord(1) shl 3;
+  {$ENDIF}
 {$ENDIF}
 begin
   {$IFDEF LINUX}
@@ -631,6 +629,8 @@ begin
   aVendor := '';
   aModel := '';
   Result := False;
+  LVendorFromCompat := '';
+  LModelFromCompat := '';
 
   if ReadARMDeviceTreeTextFromPaths(MODEL_PATHS, LModelText) then
     aModel := NormalizeARMFieldValue(LModelText);

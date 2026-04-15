@@ -13,9 +13,10 @@ TARGET_CPU="$(fpc -iTP)"
 TARGET_OS="$(fpc -iTO)"
 TARGET="${TARGET_CPU}-${TARGET_OS}"
 
-BIN_DIR="bin2"
-UNIT_DIR="lib2/${TARGET}"
-LOG_DIR="logs"
+OUTPUT_ROOT="${SIMD_OUTPUT_ROOT:-$(pwd)}"
+BIN_DIR="${OUTPUT_ROOT}/bin2"
+UNIT_DIR="${OUTPUT_ROOT}/lib2/${TARGET}"
+LOG_DIR="${OUTPUT_ROOT}/logs"
 
 BUILD_LOG="${LOG_DIR}/fpc_build_${TARGET}.txt"
 TEST_LOG="${LOG_DIR}/fpc_test_${TARGET}.txt"
@@ -51,6 +52,7 @@ mkdir -p "${BIN_DIR}" "${UNIT_DIR}" "${LOG_DIR}"
 normalize_mode
 
 echo "[FPC] version=$(fpc -iV) target=${TARGET} mode=${MODE}"
+echo "[FPC] output_root=${OUTPUT_ROOT}"
 if [[ -n "${FPC_EXTRA_DEFINES_STRING}" ]]; then
   echo "[FPC] extra-defines=${FPC_EXTRA_DEFINES_STRING}"
 fi
@@ -107,7 +109,7 @@ fi
 echo "[TEST] Running: ${BIN} $*"
 : >"${TEST_LOG}"
 
-if "./${BIN}" "$@" >"${TEST_LOG}" 2>&1; then
+if "${BIN}" "$@" >"${TEST_LOG}" 2>&1; then
   echo "[TEST] OK"
 else
   rc=$?

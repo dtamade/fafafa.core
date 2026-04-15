@@ -33,8 +33,9 @@
    - 明确 experimental intrinsics 默认不属于 stable surface
 
 5. **adapter wiring 校验增强**
-   - `backend.adapter.map.inc` 现在被明确为 adapter-managed slots 的事实真相源
+   - `backend.adapter.map.csv` 现在是 adapter-managed slots 的声明式事实真相源，`backend.adapter.map.inc` 由它生成
    - `adapter-sync` 除了校验 `backend.iface <-> backend.adapter`，还会校验：
+     - CSV spec 与 checked-in generated include 是否漂移
      - 映射里引用的 slot 是否真实存在于 `TSimdDispatchTable`
      - 这些 slot 是否被 `FillBaseDispatchTable` 覆盖
 
@@ -44,6 +45,36 @@
 7. **public ABI hard guard**
    - `check_public_abi_signature.py` 会对 public ABI wrapper 的 Pascal 声明、ABI 常量、backend/capability ID 映射，以及 `publicabi_smoke.h` consumer contract 做 machine-readable 校验
    - `gate` / `gate-strict` 默认已带上 `publicabi-signature` step，用来防止 public ABI wrapper 被无意改坏
+8. **runtime / cpuinfo / dataplane 接口封边**
+   - `TSimdBackendArray` 现在归 `fafafa.core.simd.base` 所有，`cpuinfo` / `runtime` 只返回这个共享容器类型
+   - `fafafa.core.simd` 现在直接重导出 canonical `GetCPUInfo`；`GetCPUInformation` 降级为兼容别名
+   - data-plane published snapshot 不再在复用旧节点时重写内容；同一 dispatch 只会重新发布既有 immutable snapshot
+   - `example_simd_dispatch` 与接口文档现在显式区分 `CPU-supported` 和 `current runtime backend`
+
+## 2026-04-15 runtime / cpuinfo closeout facts
+
+- bounded frontier：`runtime / cpuinfo / dataplane / façade wrapper / docs-example alignment`
+- fresh targeted suites：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_RuntimeAPI` -> `[TEST] OK`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DataPlane` -> `[TEST] OK`
+- fresh fast gate：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` -> `[CHECK] OK`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` -> `[GATE] OK`
+- fresh implementation deep audit：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-full` -> `SIMD_IMPL_AUDIT_FULL_SUMMARY steps=2 targeted_output_root=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-freeze-closeout-20260415/tests/fafafa.core.simd status=ok`
+  - log: `/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-freeze-closeout-20260415/tests/fafafa.core.simd/logs/impl_full_audit.txt`
+- fresh host-local strict closeout：
+  - `SIMD_QEMU_PLATFORMS='linux/arm64 linux/riscv64' SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local` -> `[CLOSEOUT-HOST-LOCAL] OK`
+  - qemu runtime summary: [qemu-multiarch-20260415-010346-869191/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260415-010346-869191/summary.md)
+  - qemu cpuinfo summary: [qemu-multiarch-20260415-011042-887472/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260415-011042-887472/summary.md)
+- post-formalization host-local strict closeout rerun：
+  - `SIMD_QEMU_PLATFORMS='linux/arm64 linux/riscv64' SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local` -> `[CLOSEOUT-HOST-LOCAL] OK`
+  - qemu runtime summary: [qemu-multiarch-20260415-231755-781545/summary.md](/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-freeze-closeout-20260415/tests/fafafa.core.simd/logs/qemu-multiarch-20260415-231755-781545/summary.md)
+  - qemu cpuinfo summary: [qemu-multiarch-20260415-232437-788450/summary.md](/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-freeze-closeout-20260415/tests/fafafa.core.simd/logs/qemu-multiarch-20260415-232437-788450/summary.md)
+- 当前结论：
+  - 接口层 canonical/legacy 口径已经封边：`cpuinfo` 只回答 CPU/OS capability，`runtime` 负责 active/registered/dispatchable/control-plane
+  - data-plane published snapshot 的不可变语义已经落到实现上，不再依赖“复用节点但内容刚好相同”的隐式假设
+  - Windows evidence 仍保持为独立外部边界；这轮 host-local closeout 没有伪装成 Windows 完成
 
 ## 现在可以怎么理解这个模块
 
@@ -65,6 +96,95 @@
 - 维护者不能把“façade stable”误读成“所有 backend 都同样成熟、同样覆盖、同样适合发布级承诺”
 - 默认门禁会保护主链路，但不会自动替你证明“所有 experimental 路径都已发布级保证”
 
+## 2026-04-11 implementation audit snapshot / 2026-04-14 implementation closeout wave
+
+这一轮实现层收口的 fresh 证据，应该按下面的边界理解：
+
+- `NONX86_HELPER_SEMANTICS_SUMMARY`：source checker 已覆盖 helper/native-evidence，以及 compare/mask / shift/bitwise / arithmetic/minmax 的 source-side 语义矩阵
+- `NEON hygiene source truth`：`check_nonx86_helper_semantics.py` 现在还会 fail-close 锁定 `src/fafafa.core.simd.neon.pas` 里的 `ShiftLeftI32x16` / `ShiftRightArithI64x4` invalid-count fallback、`NEONShiftLeftI64x4Asm` 的 `uxtw  x1, w1`，以及 `NEONSelectF32x4` 的逐 lane mask 选择逻辑
+- `NONX86_KEY_SLOT_AUDIT_SUMMARY`：key wide slot 已按 `backend_owned` / `reuse_base_scalar` 两类契约审计，避免把“故意继承 base scalar”的实现误报成缺口，也避免 backend-owned 槽位悄悄退回 wrapper/scalar
+- `WIRING_SYNC_SUMMARY`：non-x86 wiring slot 名单已收敛到 `AssertNonX86DispatchTableWiringGroupsAssigned`，legacy/grouped 两个测试入口不再各自维护一份 60-slot 名单
+- `NONX86_REGISTER_TRUTHFULNESS_SUMMARY`：`neon` / `riscvv` strict 模式通过
+- `RISCVV facade/register hygiene`：`riscvv.facade.inc` 现在明确把 scalar-pass-through facade helper 留在 base scalar slot，不再伪造 backend-local 包装层；其中 `RISCVVShiftLeftU32x8` / `RISCVVShiftRightU32x8` 现在也显式回到 `ScalarShiftLeftU32x8` / `ScalarShiftRightU32x8`，作为这一轮 `facade hygiene` 的 source truth 一部分固定下来。`riscvv.register.inc` 里的 `ExtractI64x4` / `ExtractI32x8` / `ExtractI32x16` 继续保留显式 asm-gated 结构，因为 `register-truthfulness` 把这种分支形状也视为 ownership 真相的一部分。当前 fresh 结果是 `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=riscvv ... miswired=0 strict=1`，以及 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=riscvv slots=10 issues=0 status=ok`
+- `RISCVV_ABI_SHAPE_SUMMARY`：宽向量 direct-return asm 已统一回到 hidden-result-pointer ABI 形状，`a0` 只保留 Result 指针语义
+- `NONX86_NATIVE_EVIDENCE_SUMMARY`：native non-x86 evidence verifier 已有正式入口，可在 `x86_64` 上对归档 evidence 做 fail-close 校验
+- `docs/fafafa.core.simd.implementation-matrix.md`：当前 implementation 主线的 working ledger，固定记录 backend/slot/契约/source truth/runtime evidence/next action，避免下轮再回到“看起来好像没问题”的散点审查
+- `docs/plans/2026-04-14-simd-only-patch-bundle.md`：当前 `simd` 收口波次的 patch bundle 清单，明确区分“x86 bounded frontier 最小集”和“SIMD 主线完整集合”，避免在脏工作区里把非 SIMD 改动误混进提交
+- `impl-smoke-x86`：当前 x86 bounded frontier 的高频 smoke 入口，固定重跑 `DispatchAPI` 里已经补齐的 `AVX512 shift boundary` / `AVX2 wide select` / `AVX2 wide FMA composition` proof；它只负责快速确认 x86 证明面没有 fresh 漂移，不替代 `closeout-host-local`
+- `DataPlane wide snapshot`：`Test_DataPlane_WideBitwiseShiftSnapshot_Follows_CurrentDispatchSemantics` / `Test_DataPlane_WideArithmeticMinMaxSnapshot_Follows_CurrentDispatchSemantics` 已覆盖 `I64x8 bitwise` 与 wide arithmetic/minmax 的高价值 dataplane 快照，不再只盯抽样老点位
+- `qemu-nonx86-evidence`：`linux/arm64` / `linux/riscv64` fresh 通过；runner 现在固定使用隔离 `SIMD_OUTPUT_ROOT`，单次 build 后复用 binary 继续跑 `TTestCase_NonX86BackendParity,TTestCase_DataPlane` 与 backend bench，已规避旧链路里 `arm64` 重复 full rebuild 触发的 `ppca64` `FIRSTCALLPARAN` ICE
+- `NONX86_IMPL_AUDIT_SUMMARY`：新的聚合实现审计入口已把 helper semantics、key-slot audit、wiring-sync、RISCVV ABI shape、register truthfulness strict 和 targeted release suite 收成单条命令
+- `SIMD_IMPL_AUDIT_FULL_SUMMARY`：实现深审主入口现在会固定先复验 `impl-smoke-x86` 的 bounded frontier proof，再继续 `impl-audit-nonx86`；后续不再建议手工记忆“先 x86 还是先 non-x86”
+- `impl-smoke-nonx86`：新增轻量日常入口，定位是高频实现回归；它只负责尽快暴露 non-x86 source/runtime contract 的 fresh 漂移，不替代 `impl-audit-nonx86` 的完整实现审计，也不替代 `closeout-host-local` 的 strict closeout 证明
+- `AVX2 public ABI capability contract`：x86 bounded frontier 这一轮没有挖到新的实现红点，收口点转为接口证据补齐。`DispatchAPI` 现在显式覆盖 `sbAVX2` 的 `scFMA` / `scShuffle` 正向暴露，以及 `SetVectorAsmEnabled(False)` 后 public ABI `CapabilityBits` 清零契约；后续不再需要从 registered-table 的 `BackendInfo.Capabilities` 间接推断 public ABI 是否同步
+- `x86 implementation frontier`：这一轮 bounded implementation 专审没有 fresh 复现新的 AVX512 / AVX2 实现 bug，但把最薄弱的实现证明面补强了：
+  - `AVX512 U32x16/U64x8`：`DispatchAPI` 新增 `Test_AVX512_U32x16_U64x8_ShiftBoundary_Contracts`，把 `shift boundary` 的 source truth（invalid-count guard + zero-fill）和运行时 `0 / width-1 / width` parity 一起钉住
+  - `AVX2 wide implementation`：`DispatchAPI` 新增 `Test_AVX2_WideSelect_Parity_WithScalar_When_VectorAsmEnabled`，把 `SelectF32x16` / `SelectF64x8` 从原来的 `dispatch == facade` 自证，升级为对 `ScalarSelectF32x16` / `ScalarSelectF64x8` 的直接 parity proof
+  - `AVX2 wide FMA composition`：`DispatchAPI` 新增 `Test_AVX2_WideFma_ExactInputs_FollowsHalfComposition`，把 `FmaF32x16` / `FmaF64x8` 明确钉在 `register source truth + AVX2FmaF32x8/F64x4 lo/hi composition + exact-input runtime parity` 上，不再只停留在 wide facade 自证
+  - 当前结论应按 “fresh green + proof strengthened + stop condition met” 理解，而不是再继续发散翻 x86 全家桶
+- implementation aggregate audit：
+
+```bash
+FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-full
+```
+
+- host-local strict closeout：
+
+```bash
+SIMD_QEMU_PLATFORMS='linux/arm64 linux/riscv64' SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local
+```
+
+- latest fresh QEMU non-x86 evidence：
+  - runtime summary: [qemu-multiarch-20260415-231755-781545/summary.md](/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-freeze-closeout-20260415/tests/fafafa.core.simd/logs/qemu-multiarch-20260415-231755-781545/summary.md)
+  - cpuinfo summary: [qemu-multiarch-20260415-232437-788450/summary.md](/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-freeze-closeout-20260415/tests/fafafa.core.simd/logs/qemu-multiarch-20260415-232437-788450/summary.md)
+
+- legacy targeted parity smoke 仍保留为显式诊断入口：`TTestCase_NonX86BackendParity,TTestCase_DirectDispatch,TTestCase_DataPlane`
+
+- full gate：
+
+```bash
+FAFAFA_BUILD_MODE=Release SIMD_ENABLE_NEON_BACKEND=1 SIMD_ENABLE_RISCVV_BACKEND=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate
+```
+
+这一轮不只是补注释。当前 worktree 已经落地了经 `release + impl-audit + QEMU evidence` 支撑的 `ABI / wiring / shift` 修正：`riscvv.pas` 的 hidden-result-pointer ABI 形状、`riscvv.register.inc` / `riscvv.facade.inc` 的 ownership/wiring 收口，以及 `neon.pas` 的 shift/select hygiene 都已经进入 fresh green 状态。
+
+这批结果当前证明的是：`x86_64` 主机上的 source/runtime contract、dispatch wiring、scalar parity 没看到 fresh 漂移。
+`impl-audit-full` / `impl-audit-nonx86` / `closeout-host-local` 现在把 x86 bounded frontier、host-local implementation audit 与 strict closeout 固化成正式入口；其中 `closeout-host-local` 的固定顺序已经显式收敛到 `impl-audit-full -> gate-strict`。
+QEMU non-x86 runtime evidence 现在就是当前 non-x86 收口主线的一部分。
+当前项目口径下，只要 `qemu-nonx86-evidence` 在 `linux/arm64` / `linux/riscv64` fresh 通过，就把它作为当前 arm64 / riscv64 closeout 的充分证明；这轮最新 fresh 证据就是上面的 `qemu-multiarch-20260415-231755-781545` / `qemu-multiarch-20260415-232437-788450`。没有硬件时，不再把 native host 当成 blocker。native host evidence 仍可补充，但不再是这轮收口的前置条件。
+
+## Task 2 / Task 3 closeout facts (2026-04-14 fresh)
+
+- `Task 2 / shift-bitwise`：
+  - helper semantics：`NONX86_HELPER_SEMANTICS_SUMMARY checks=41 status=ok`
+  - implementation audit：`NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - qemu runtime summary: [qemu-multiarch-20260414-083827-1057268/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260414-083827-1057268/summary.md)
+  - closeout runtime summary: [qemu-multiarch-20260414-085109-1103235/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260414-085109-1103235/summary.md)
+  - closeout cpuinfo summary: [qemu-multiarch-20260414-085836-1128552/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260414-085836-1128552/summary.md)
+  - 当前结论：boundary semantics、invalid-count fallback 和 data-plane snapshot 已具备 fresh closeout 证据；下一轮只需要 `hold green`
+- `Task 3 / arithmetic-minmax-mul`：
+  - targeted release suites：`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_DirectDispatch,TTestCase_DataPlane` -> `[TEST] OK`
+  - helper semantics：`NONX86_HELPER_SEMANTICS_SUMMARY checks=41 status=ok`
+  - implementation audit：`NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - qemu runtime summary: [qemu-multiarch-20260414-083827-1057268/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260414-083827-1057268/summary.md)
+  - closeout runtime summary: [qemu-multiarch-20260414-085109-1103235/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260414-085109-1103235/summary.md)
+  - closeout cpuinfo summary: [qemu-multiarch-20260414-085836-1128552/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260414-085836-1128552/summary.md)
+  - 这轮直接证据：
+    - `DispatchAPI`：`MulI32x8` / `MulU32x8` low-32 truncation probe，`AddU32x8` / `AddU64x4` / `SubU64x4` lane-tag probe
+    - `DirectDispatch` / `DataPlane`：wide arithmetic/minmax 与 dataplane snapshot 已覆盖当前高 ROI family
+  - 当前结论：`arithmetic/minmax/mul` 已具备 fresh closeout 证据；下一轮只需要 `hold green`
+- `NEON hygiene`：
+  - `src/fafafa.core.simd.neon.pas` 当前除了 Task 2 主线，还顺带收了 `shift/select/facade hygiene`
+  - 这部分现在已经是 green，但如果后续想把提交历史切得更干净，建议单列成 `NEON shift/select hygiene` 一组，而不是再和 `RISCVV ABI` 收口混写
+- `RISCVV facade/register hygiene`：
+  - `src/fafafa.core.simd.riscvv.facade.inc` / `src/fafafa.core.simd.riscvv.register.inc` 这一轮只做了结构收口，不改 public API / ABI，也不改 key-slot ownership 结论
+  - `RISCVVShiftLeftU32x8` / `RISCVVShiftRightU32x8` 现在显式回到 `ScalarShiftLeftU32x8` / `ScalarShiftRightU32x8`；这不是“暂时能跑”的宽松写法，而是当前 `RISCVV facade hygiene` 明确锁定的 source truth
+  - fresh checker 证明 `ExtractI64x4` / `ExtractI32x8` / `ExtractI32x16` 不能随手折叠成 unconditional binding；当前必须保留显式 asm-gated 结构，`register-truthfulness` 才会继续认定它们是对的
+  - 当前 fresh 结果：`NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=riscvv assignments=467 ... miswired=0 strict=1`，`NONX86_KEY_SLOT_AUDIT_SUMMARY backends=riscvv slots=10 issues=0 status=ok`
+- 对 `x86_64` worktree 来说：
+  - `checker ok` 和 `compile/list-suites ok` 仍不能代替 fresh non-x86 runtime evidence
+  - 文档里要继续把 “source-side proof” 和 “QEMU/native runtime proof” 分开写
+
 ## 推荐回归命令矩阵
 
 ### Linux / macOS
@@ -72,25 +192,26 @@
 #### 日常改动
 
 Run:
-
 ```bash
-bash tests/fafafa.core.simd/BuildOrTest.sh check
-bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI
-bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DirectDispatch
-bash tests/fafafa.core.simd/BuildOrTest.sh gate
+FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-smoke-x86
+FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-smoke-nonx86
+FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check
+FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI
+FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DirectDispatch
+FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate
 ```
 
 这组命令适合：
-
 - 文档同步
 - façade 小修
 - dispatch / cpuinfo 的局部修改
 - backend 小范围修正
 
+其中 `impl-smoke-x86` 负责当前 x86 bounded frontier 的高频证明回归，`impl-smoke-nonx86` 负责 non-x86 helper semantics / wiring ownership / targeted parity 的高频回归；要做完整实现审计或 strict closeout，仍然分别看 `impl-audit-full` / `closeout-host-local`。
+
 #### `cpuinfo` 便携路径
 
 Run:
-
 ```bash
 bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --suite=TTestCase_PlatformSpecific
 bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --suite=TTestCase_LazyCPUInfo
@@ -99,7 +220,6 @@ bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --suite=TTestCase_LazyCP
 #### `cpuinfo.x86` 样本驱动路径
 
 Run:
-
 ```bash
 bash tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh test --suite=TTestCase_SampleDriven
 bash tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh test --suite=TTestCase_Global
@@ -108,7 +228,6 @@ bash tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh test --suite=TTestCase_Gl
 #### adapter wiring / experimental boundary
 
 Run:
-
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh adapter-sync
 bash tests/fafafa.core.simd/BuildOrTest.sh experimental-intrinsics
@@ -116,31 +235,63 @@ bash tests/fafafa.core.simd/BuildOrTest.sh experimental-intrinsics
 
 #### 发布前 / closeout
 
-Run:
+如果目标是当前 Linux/macOS worktree 的 host-local strict closeout，优先直接跑：
 
+Run:
+```bash
+SIMD_QEMU_PLATFORMS='linux/arm64 linux/riscv64' SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local
+```
+
+`closeout-host-local` 的固定顺序是 `impl-audit-full -> gate-strict`。其中 `impl-audit-full` 会先复验 `impl-smoke-x86` 的 bounded frontier proof，再继续 `impl-audit-nonx86`；当前默认它会把 `SIMD_GATE_QEMU_NONX86_EVIDENCE=1` 打开，并把 `SIMD_GATE_REQUIRE_NONX86_NATIVE_EVIDENCE=0` 降为可选，同时继续把 Windows evidence requirement 降到可选，因此适合当前 `x86_64` 主机上的实现层阶段收口。
+如果目标是完整发布门禁 / Windows closeout 主线，再跑：
+
+Run:
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
 ```
 
 `gate-strict` 是发布门禁，不是日常快门禁。它会补上更重的 repeat 与结构一致性路径。
-当前默认口径会强制 coverage / wiring / interface-completeness / adapter-sync / `cpuinfo-lazy-repeat` / `qemu-cpuinfo-nonx86-evidence` / Windows evidence 等发布前检查；仍然保持显式可选的只包括 `qemu-nonx86-evidence`、`qemu-cpuinfo-nonx86-full-evidence`、`qemu-cpuinfo-nonx86-full-repeat`、`qemu-arch-matrix-evidence` 与 `perf-smoke`，需要通过对应 `SIMD_GATE_*` 开关开启。
+默认它会强制 coverage / wiring / repeat / non-x86 / Windows evidence 等 closeout 检查；其中 non-x86 运行证明当前默认走 `SIMD_GATE_QEMU_NONX86_EVIDENCE=1`，而 `SIMD_GATE_REQUIRE_NONX86_NATIVE_EVIDENCE=0` 只保留为可选附加证据。`perf-smoke` 仍是显式可选项，除非你设置 `SIMD_GATE_PERF_SMOKE=1`，或者走 `evidence-linux` 这条固定会把 perf 带进去的证据链。
+
+如果 fresh `arm64/riscv64` native evidence 已经从外部机器拷回当前 worktree，不要再手工 `cp`/猜目录；直接用：
+
+```bash
+bash tests/fafafa.core.simd/BuildOrTest.sh import-nonx86-native-evidence /path/to/native-evidence-drop
+```
+
+它会把最新的 `native-evidence-neon-*` / `native-evidence-riscvv-*` 导入到 `tests/fafafa.core.simd/fixtures/native-evidence`，并立刻跑 `verify-nonx86-native-evidence`。导入绿了之后，再执行：
+
+```bash
+SIMD_QEMU_PLATFORMS='linux/arm64 linux/riscv64' SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local
+```
+
+如果你只是想把当前 `fixtures/native-evidence` 再过一遍 importer/verifier，不必手工 `cp` 到别处；现在直接把该目录当 source root 传给 `import-nonx86-native-evidence` 也是安全的，脚本会识别为 verify-only no-op，而不会自删 source。verifier 若失败，也会直接带出具体 `backend`、`summary.md` 和 `environment.txt` 路径。
+为了防止把演练产物误当真证据回灌，importer / verifier 现在还会拒绝 synthetic 或 repackaged evidence：例如 `summary.md` header 时间戳和目录名不一致，或者 summary 里还残留 `/tmp/simd-import-smoke` 这类 import-smoke marker，都会直接 fail-close。
+
+如果你不想分两步，当前 worktree 也已经有一键入口：
+
+```bash
+bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local-from-import /path/to/native-evidence-drop
+```
 
 如果你是在 Linux 上做 dry-run、对比不同脚本口径，或者同一轮里要并发跑 `gate` / `gate-strict` / `evidence-linux`，建议显式设置 `SIMD_OUTPUT_ROOT`，避免互相覆盖默认 `bin2/lib2/logs`。
 
 Run:
-
 ```bash
-SIMD_OUTPUT_ROOT=/tmp/simd-closeout-123 bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
+SIMD_OUTPUT_ROOT=/tmp/simd-closeout-123 \
+SIMD_NONX86_NATIVE_EVIDENCE_ROOT=tests/fafafa.core.simd/fixtures/native-evidence \
+SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 \
+FAFAFA_BUILD_MODE=Release \
+bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
 ```
 
 或者：
-
 ```bash
 SIMD_OUTPUT_ROOT=/tmp/simd-closeout-123 bash tests/fafafa.core.simd/BuildOrTest.sh evidence-linux
 ```
 
 这类隔离运行适合预演和并发回归，但**不会替代** Windows 实机 evidence。真正收口应优先走 `win-evidence-via-gh` / `win-closeout-finalize` 主线；`finalize-win-evidence` 只保留给拆分诊断或低层脚本调用。
-`perf-smoke`、`qemu-nonx86-evidence`、`qemu-cpuinfo-nonx86-full-evidence`、`qemu-cpuinfo-nonx86-full-repeat` 与 `qemu-arch-matrix-evidence` 仍保留为显式可选项；如果你要把这些重证据也纳入发布门禁，可先设置对应 `SIMD_GATE_*` 开关再运行。
+`perf-smoke`、QEMU / Windows evidence 仍保留为显式可选项；如果你要把这些重证据也纳入发布门禁，可先设置对应 `SIMD_GATE_*` 开关再运行。
 它也会把 `wiring-sync`、`interface-completeness`、`adapter-sync` 这类结构一致性检查一起带上。
 
 ### Windows
@@ -148,7 +299,6 @@ SIMD_OUTPUT_ROOT=/tmp/simd-closeout-123 bash tests/fafafa.core.simd/BuildOrTest.
 #### 日常改动
 
 Run:
-
 ```bat
 tests\fafafa.core.simd\buildOrTest.bat check
 tests\fafafa.core.simd\buildOrTest.bat test --suite=TTestCase_DispatchAPI
@@ -159,7 +309,6 @@ tests\fafafa.core.simd\buildOrTest.bat gate
 #### `cpuinfo` 便携路径
 
 Run:
-
 ```bat
 tests\fafafa.core.simd.cpuinfo\buildOrTest.bat test --suite=TTestCase_PlatformSpecific
 tests\fafafa.core.simd.cpuinfo\buildOrTest.bat test --suite=TTestCase_LazyCPUInfo
@@ -168,7 +317,6 @@ tests\fafafa.core.simd.cpuinfo\buildOrTest.bat test --suite=TTestCase_LazyCPUInf
 #### `cpuinfo.x86` 样本驱动路径
 
 Run:
-
 ```bat
 tests\fafafa.core.simd.cpuinfo.x86\buildOrTest.bat test --suite=TTestCase_SampleDriven
 tests\fafafa.core.simd.cpuinfo.x86\buildOrTest.bat test --suite=TTestCase_Global
@@ -177,7 +325,6 @@ tests\fafafa.core.simd.cpuinfo.x86\buildOrTest.bat test --suite=TTestCase_Global
 #### adapter wiring / experimental boundary
 
 Run:
-
 ```bat
 tests\fafafa.core.simd\buildOrTest.bat adapter-sync
 tests\fafafa.core.simd\buildOrTest.bat experimental-intrinsics
@@ -186,7 +333,6 @@ tests\fafafa.core.simd\buildOrTest.bat experimental-intrinsics
 #### 发布前 / closeout
 
 Run:
-
 ```bat
 tests\fafafa.core.simd\buildOrTest.bat gate-strict
 ```
@@ -238,24 +384,21 @@ tests\fafafa.core.simd\buildOrTest.bat gate-strict
    Windows 日志一旦到位，按这个顺序收口：
 
    Run:
-
    ```bat
    tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify
    ```
 
    Then run the required fail-close cross gate:
-
    ```bash
    FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate
    ```
 
    Then:
-
    ```bash
    FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-YYYYMMDD-152
    ```
 
-   这里不能直接从 `evidence-win-verify` 跳到 `win-closeout-finalize`，因为 native batch evidence 不会生成 fresh `gate_summary.md/json`；如果少了这步 cross gate，`freeze-status` 现在会以 `cross_gate_not_older_than_windows_evidence` 明确拒绝，而不是再误吃旧摘要给出假绿。
+   这里不能直接从 `evidence-win-verify` 跳到 `win-closeout-finalize`，因为 native batch evidence 不会生成 fresh `gate_summary.md/json`；如果少了这步 cross gate，`freeze-status` 看到的仍可能是旧摘要。
 
    如果你只是在拆分诊断 closeout helper，才单独使用：
 
@@ -271,107 +414,6 @@ tests\fafafa.core.simd\buildOrTest.bat gate-strict
 5. **`perf-smoke` 仍是环境敏感证据**
    - 适合在固定机器 / 固定基线下显式开启
    - 不再作为默认 `gate-strict` 阻塞项；需要时请设置 `SIMD_GATE_PERF_SMOKE=1`
-
-## 2026-04-02 Closeout Addendum
-
-- Windows 实机 evidence 已在 `SIMD-20260402-152` 批次闭环，并通过 `win-evidence-via-gh` 旁路归档到 canonical `logs/`；对应 GitHub Actions run id 为 `23889752534`。
-- 全量 closeout 口径已在 Linux 侧重跑：
-  ```bash
-  FAFAFA_BUILD_MODE=Release \
-  SIMD_PERF_VECTOR_ASM=auto \
-  SIMD_GATE_PERF_SMOKE=1 \
-  SIMD_GATE_QEMU_NONX86_EVIDENCE=1 \
-  SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 \
-  SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 \
-  SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 \
-  SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=1 \
-  SIMD_QEMU_CPUINFO_REPEAT_ROUNDS=3 \
-  bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
-  ```
-- 结果：canonical `tests/fafafa.core.simd/logs/gate_summary.md` 已刷新为 `gate PASS @ 2026-04-02 23:31:59`，且 `perf-smoke`、`qemu-nonx86-evidence`、`qemu-cpuinfo-nonx86-evidence`、`qemu-cpuinfo-nonx86-full-evidence`、`qemu-cpuinfo-nonx86-full-repeat`、`qemu-arch-matrix-evidence` 全 PASS。
-- 强约束冻结判定已复验：
-  ```bash
-  SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=1 \
-  SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 \
-  SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 \
-  SIMD_FREEZE_REQUIRE_CPUINFO_LAZY_REPEAT=1 \
-  FAFAFA_BUILD_MODE=Release \
-  bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status
-  ```
-- 结果：`tests/fafafa.core.simd/logs/freeze_status.json` 现为 `ready=true`、`freeze_ready=true`、`mainline_ready=true`、`cross_ready=true`。
-- 2026-04-03 又补跑了一轮 compiler-ready `qemu-nonx86-experimental-asm`：`linux/arm64`、`linux/riscv64` 全 PASS，且 `qemu-experimental-baseline-check --latest` 为 `errors=0, warnings=0`，`qemu-experimental-report --latest` 显示 `parsed_errors=0`。
-- 2026-04-03 fresh ARM64 NEON native evidence 已补齐过一轮历史 run：GitHub Actions run `23911571289`（head `3836e4cee60f0a78858d9605a0a8ee9a6cdf86e7`）产出的 artifact `simd-arm64-neon-evidence/native-evidence-neon-20260402-164750/` 中，`DispatchAPI + PublicAbi` 已恢复为 `[TEST] OK`，对应当时那轮 native wide-float slot wiring 修复。注意：这条 run 早于 `source_revision.txt` 产物锚点支持，当前严格来源校验应以 2026-04-05 addendum 里的新 run 为准。
-- 2026-04-05 RISCVV native evidence 的执行载体也已补齐：仓库新增 `.github/workflows/simd-riscvv-native-evidence.yml`。截至 2026-04-06，这条 enhanced evidence lane 的 workflow 注册已经闭环；当前 fresh artifact 仍待 `Linux+riscv64` native runner 真正在线产出。
-- 2026-04-03 同步完成了一轮 fresh Linux/Windows evidence refresh：Windows batch `SIMD-20260403-152`（GitHub Actions run `23914427193`）已通过 verifier；回灌的 fail-close `gate` 已刷新为 `gate PASS @ 2026-04-03 02:13:10`，随后 `freeze-status` 再次回到 `ready=true`、`mainline_ready=true`、`cross_ready=true`。
-- 后续只有在 dispatch contract / public ABI / Windows evidence payload 变化时，才需要重收 Windows closeout evidence。`native-evidence` 与 `qemu-nonx86-experimental-asm` 继续作为增强证据，不纳入当前 freeze 硬门禁。
-
-## 2026-04-05 Closeout Addendum
-
-- `gate` / `gate-strict` 的 `adapter-sync` python-only 分支已做真正的 checker-only 收敛：
-  - Linux shell runner 新增 `run_backend_adapter_sync_checker_only()`，`gate_step_adapter_sync_python_only()` 不再隐式回调 `build_project`
-  - Windows batch runner 同步切到 `:adapter_sync_checker_only`
-  - `tests/fafafa.core.simd/BuildOrTest.sh` 现有 runtime guard，专门防止 python-only 路径再次偷偷触发第二次 Lazarus build
-- 这次修复的实际收益是把 `gate` / `gate-strict` 的 adapter-sync 步骤收敛成真正的“结构对账”，不再因为重复 build 把偶发 linker 问题伪装成 adapter-sync 失败。
-- `cpuinfo` 的 QEMU closeout 链也完成了一轮实质性 hardening：
-  - 根因是 `tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh` 之前把不同 target 都编到共享 `bin/` 路径，QEMU bind-mount 执行时会放大成 `Text file busy` / 可执行映射不稳定
-  - 当前 runner 已改为 target-specific `bin/${TRIPLET}` / `lib/${TRIPLET}`，并为 QEMU 场景启用 `SIMD_CPUINFO_RUNTIME_COPY=1`
-  - `tests/fafafa.core.simd/BuildOrTest.sh` 也新增了 `check_cpuinfo_qemu_isolation_guard()`，避免这条隔离契约再次回退
-- ARM64 NEON enhanced evidence 已补到带 source anchor 的 fresh run：
-  - GitHub Actions run `23995214071`
-  - head commit：`bb061475c721d776690721a7751dff099ca6597e`
-  - helper 现支持 `SIMD_NATIVE_EVIDENCE_EXPECT_COMMIT`、`SIMD_NATIVE_EVIDENCE_EXPECT_REF`、`SIMD_NATIVE_EVIDENCE_REQUIRE_SOURCE_REVISION`
-  - 复验时可以强制要求 artifact 内存在 `source_revision.txt`，并校验 `git_commit/git_ref_hint`
-  - 历史 run `23911571289` 仍可保留作功能性参考，但它早于 `source_revision.txt` 产物锚点，不再适合作严格来源校验样本
-- RISCVV native evidence 的现状需要明确分成“三层”：
-  - 仓库内 workflow 文件已经存在：`.github/workflows/simd-riscvv-native-evidence.yml`
-  - 截至 2026-04-06，GitHub default branch 上的 workflow 注册已经恢复，`gh workflow view simd-riscvv-native-evidence.yml --ref main --yaml` 可直接查看定义
-  - 当前剩余 blocker 是 runner inventory：`gh api repos/dtamade/fafafa.core/actions/runners` 返回 `{"total_count":0,"runners":[]}`，所以 canonical run `24005074684` 会一直停在 `queued`
-  - `run_nonx86_native_evidence_via_github_actions.sh` 现在会把这类场景 fail-close 成明确运维诊断：`No matching self-hosted runner available for labels: self-hosted, Linux, riscv64`
-  - 这不是实现逻辑失败，而是 repo 侧 self-hosted runner 供给未满足；因此 RISCVV enhanced evidence 继续保留为非 freeze 硬门禁项
-- native/windows via-gh helper 的 artifact 选择也已改成 fail-close：
-  - 如果下载快照里出现重复同名必需文件，helper 不再“取第一个”
-  - `run_nonx86_native_evidence_via_github_actions.sh` 会拒绝重复的 `summary.md` / `dispatch_publicabi.log` / `source_revision.txt`
-  - `run_windows_b07_closeout_via_github_actions.sh` 会拒绝重复的 `windows_b07_gate.log` / `gate_summary.md` / `gate_summary.json`
-  - 这样旧文件混在 artifact 下载目录里时，不会再误吃 stale 文件给出假绿
-- `restore-nightly-evidence` 的 canonical file 语义也已补强：
-  - `restore_nightly_evidence_artifacts.sh` 现在会保留 `gate_summary.*` 与 `windows_b07_gate.log` 的原始 mtime
-  - 同时会拒绝重复同名必需文件，而不是沿用“多命中取第一个”
-  - 原因是 `freeze-status` 依赖这些文件的 mtime 做 freshness 和 ordering 判定；如果 restore 把时间戳刷成“现在”，会制造假新鲜度
-- 2026-04-05 还补了一轮 fresh closeout 验证：
-  - `bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict`
-  - 结果：canonical `tests/fafafa.core.simd/logs/gate_summary.md` 已刷新为 `gate PASS @ 2026-04-05 15:48:03`
-  - 关键 cross 证据：`qemu-cpuinfo-nonx86-evidence PASS @ 2026-04-05 15:48:03`，对应摘要 `tests/fafafa.core.simd/logs/qemu-multiarch-20260405-154057-1022104/summary.md`
-  - 随后 `bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 也再次返回 `ready=True`、`mainline-ready=True`、`cross-ready=True`
-- 2026-04-05 还对 optional heavy CPUInfo QEMU 路径补做了 fresh replay：
-  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh qemu-cpuinfo-nonx86-full-evidence`
-  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh qemu-cpuinfo-nonx86-full-repeat`
-  - 结果：`tests/fafafa.core.simd/logs/qemu-multiarch-20260405-161147-1097510/summary.md` 与 `tests/fafafa.core.simd/logs/qemu-multiarch-20260405-161729-1111280/summary.md` 均显示 `linux/arm/v7`、`linux/arm64`、`linux/riscv64` 全 PASS，说明隔离 hardening 对 heavy path 也成立
-- `freeze-status --json` 的 stdout 合同也已补正：
-  - `tests/fafafa.core.simd/evaluate_simd_freeze_status.py --json` 现在只向 stdout 输出纯 JSON
-  - 人类可读的 `[FREEZE] ...` 摘要改走 stderr，不再破坏自动化直接 `json.loads(stdout)` 的消费路径
-- `freeze-status` 的手工 Windows closeout 语义也进一步收紧：
-  - 新增 required check：`cross_gate_not_older_than_windows_evidence`
-  - 含义：cross gate 对应的 `gate_summary.md` 不得早于当前 `windows_b07_gate.log`
-  - 这样即使源码没变、旧 gate 仍在 freshness 窗口内，只要你少跑了那一步 fail-close cross gate，`freeze-status` 也会 fail-close，而不是沿用旧 cross gate 假装当前 Windows evidence 已纳入冻结判定
-- `freeze-status` 现在还会拒绝 stale closeout summary：
-  - 新增 required check：`windows_closeout_not_older_than_windows_evidence`
-  - 含义：`windows_b07_closeout_summary.md` 必须晚于或等于当前 `windows_b07_gate.log`
-  - 这样即使 summary 文本仍然写着 `- Result: PASS`、verifier 也仍然通过，只要 summary 没有在最新 Windows evidence 之后重新生成，freeze 仍会 fail-close
-- canonical Windows closeout 摘要也已通过 `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-20260403-152` 重新写回：
-  - `tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`
-  - 生成时间：`2026-04-05 15:26:32 +0800`
-- 2026-04-05 23:24:39 还补齐了一轮 strongest closeout baseline：
-  - 命令：`FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_CPUINFO_LAZY_REPEAT=5 SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
-  - 结果：canonical `tests/fafafa.core.simd/logs/gate_summary.md` 已刷新为 `gate PASS @ 2026-04-05 23:24:39`
-  - 关键 cross 证据：
-    - `tests/fafafa.core.simd/logs/qemu-multiarch-20260405-225600-2895543/summary.md`（cpuinfo-nonx86-evidence）
-    - `tests/fafafa.core.simd/logs/qemu-multiarch-20260405-230214-2912595/summary.md`（cpuinfo-nonx86-full-evidence）
-    - `tests/fafafa.core.simd/logs/qemu-multiarch-20260405-230747-2933907/summary.md`（cpuinfo-nonx86-full-repeat）
-  - 同一份 latest gate summary 内还包含 `cpuinfo-lazy-repeat=PASS (rounds=5)`，因此强约束 required steps 已在 single freshest baseline 中闭环
-- 随后的 strongest `freeze-status` 也再次通过：
-  - `SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 SIMD_FREEZE_REQUIRE_CPUINFO_LAZY_REPEAT=1 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
-  - 结果：`tests/fafafa.core.simd/logs/freeze_status.json` 现为 `ready=True`、`freeze_ready=True`、`mainline_ready=True`、`cross_ready=True`
-- 当前 freeze baseline 没变：freshest Windows closeout baseline 仍是 2026-04-03 的 `SIMD-20260403-152` + fail-close cross gate；2026-04-05 这一轮主要是 Linux gate 重验、QEMU cpuinfo 隔离 hardening 与 native-evidence helper 契约补强，不需要重复收 Windows 证据。
 
 ## 收口后的主线优先级
 
@@ -399,7 +441,7 @@ tests\fafafa.core.simd\buildOrTest.bat gate-strict
 
 - 把 `gate` 当成发布放行的唯一依据
 - 把 stable façade 误读成“所有 backend 都同等稳定”
-- 在 `backend.adapter.map.inc` 之外重复维护 adapter 映射
+- 在 `backend.adapter.map.csv` / generated include 之外重复维护 adapter 映射
 - 改了 dispatch slot，却忘了看 adapter-sync / base-fill 覆盖
 - 在 `SSE2` 上继续激进物理拆分
 

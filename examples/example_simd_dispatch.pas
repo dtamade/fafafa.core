@@ -10,7 +10,8 @@ uses
   fafafa.core.simd.base,
   fafafa.core.simd.cpuinfo.base,
   fafafa.core.simd.cpuinfo,
-  fafafa.core.simd.dispatch;
+  fafafa.core.simd.dispatch,
+  fafafa.core.simd.runtime;
 
 type
   // Function pointer for vector addition
@@ -41,7 +42,7 @@ begin
     result[i+3] := a[i+3] + b[i+3];
     Inc(i, 4);
   end;
-  
+
   // Handle remaining elements
   while i < count do
   begin
@@ -70,7 +71,7 @@ begin
     result[i+7] := a[i+7] + b[i+7];
     Inc(i, 8);
   end;
-  
+
   // Handle remaining elements
   while i < count do
   begin
@@ -79,30 +80,30 @@ begin
   end;
 end;
 
-// === Dynamic Dispatch Based on CPU Features ===
+// === Dynamic Dispatch Based on Current Runtime Backend ===
 function SelectVectorAddImplementation: TVectorAddFunc;
 var
-  bestBackend: TSimdBackend;
-  cpuInfo: TCPUInfo;
+  LRuntimeBackend: TSimdBackend;
+  LCPUInfo: TCPUInfo;
 begin
-  bestBackend := GetBestBackend;
-  cpuInfo := GetCPUInfo;
-  
+  LRuntimeBackend := GetCurrentBackend;
+  LCPUInfo := GetCPUInfo;
+
   WriteLn('CPU Detection Results:');
-  WriteLn('  Vendor: ', cpuInfo.Vendor);
-  WriteLn('  Model: ', cpuInfo.Model);
-  WriteLn('  Best SIMD Backend: ', GetBackendInfo(bestBackend).Name);
+  WriteLn('  Vendor: ', LCPUInfo.Vendor);
+  WriteLn('  Model: ', LCPUInfo.Model);
+  WriteLn('  Current Runtime Backend: ', GetBackendInfo(LRuntimeBackend).Name);
   WriteLn;
-  
-  case bestBackend of
-    sbAVX2:
+
+  case LRuntimeBackend of
+    sbAVX512, sbAVX2:
       begin
-        WriteLn('  → Using AVX2 optimized implementation');
+        WriteLn('  → Using AVX2-class optimized implementation');
         Result := @VectorAdd_AVX2;
       end;
-    sbSSE2:
+    sbSSE42, sbSSE41, sbSSSE3, sbSSE3, sbSSE2:
       begin
-        WriteLn('  → Using SSE2 optimized implementation');
+        WriteLn('  → Using SSE2-class optimized implementation');
         Result := @VectorAdd_SSE2;
       end;
     else
@@ -114,7 +115,7 @@ begin
 end;
 
 // === Benchmark Function ===
-procedure BenchmarkVectorAdd(impl: TVectorAddFunc; const name: string; 
+procedure BenchmarkVectorAdd(impl: TVectorAddFunc; const name: string;
                             const a, b: PSingle; result: PSingle; count: Integer);
 const
   ITERATIONS = 1000;
@@ -125,15 +126,15 @@ var
   throughput: Double;
 begin
   Write(Format('  %-20s: ', [name]));
-  
+
   startTime := Now;
   for i := 1 to ITERATIONS do
     impl(a, b, result, count);
   endTime := Now;
-  
+
   elapsed := MilliSecondsBetween(endTime, startTime);
   throughput := (count * ITERATIONS * SizeOf(Single) * 3) / (elapsed / 1000) / (1024 * 1024); // MB/s
-  
+
   WriteLn(Format('%8.2f ms | %8.2f MB/s', [elapsed, throughput]));
 end;
 
@@ -144,28 +145,28 @@ type
     R, G, B, A: Byte;
   end;
   PPixel = ^TPixel;
-  
+
 var
   width, height: Integer;
   pixelCount: Integer;
   image1, image2, result: array of TPixel;
   i: Integer;
   startTime, endTime: TDateTime;
-  backend: TSimdBackend;
+  LRuntimeBackend: TSimdBackend;
 begin
   WriteLn('=== Image Processing Example ===');
   WriteLn('Scenario: Alpha blending two 1920x1080 images');
   WriteLn;
-  
+
   width := 1920;
   height := 1080;
   pixelCount := width * height;
-  
+
   // Allocate memory for images
   SetLength(image1, pixelCount);
   SetLength(image2, pixelCount);
   SetLength(result, pixelCount);
-  
+
   // Initialize with random data
   Randomize;
   for i := 0 to pixelCount - 1 do
@@ -174,21 +175,23 @@ begin
     image1[i].G := Random(256);
     image1[i].B := Random(256);
     image1[i].A := Random(256);
-    
+
     image2[i].R := Random(256);
     image2[i].G := Random(256);
     image2[i].B := Random(256);
     image2[i].A := Random(256);
   end;
-  
-  backend := GetBestBackend;
-  Write('Processing with ', GetBackendInfo(backend).Name, ' backend... ');
-  
+
+  LRuntimeBackend := GetCurrentBackend;
+  Write('Processing with current runtime backend ',
+    GetBackendInfo(LRuntimeBackend).Name, '... ');
+
   startTime := Now;
-  
-  // Simulate alpha blending based on available SIMD
-  case backend of
-    sbAVX2, sbSSE2:
+
+  // Simulate alpha blending based on the current runtime backend class
+  case LRuntimeBackend of
+    sbAVX512, sbAVX2,
+    sbSSE42, sbSSE41, sbSSSE3, sbSSE3, sbSSE2:
       begin
         // SIMD-optimized path (simplified)
         for i := 0 to pixelCount - 1 do
@@ -211,10 +214,10 @@ begin
         end;
       end;
   end;
-  
+
   endTime := Now;
   WriteLn(Format('Done in %.2f ms', [MilliSecondsBetween(endTime, startTime) * 1.0]));
-  WriteLn(Format('  Processed %d pixels (%.2f megapixels)', 
+  WriteLn(Format('  Processed %d pixels (%.2f megapixels)',
                  [pixelCount, pixelCount / 1000000.0]));
   WriteLn;
 end;
@@ -237,15 +240,15 @@ begin
   WriteLn('=== Matrix Multiplication Example ===');
   WriteLn(Format('Multiplying two %dx%d matrices', [MATRIX_SIZE, MATRIX_SIZE]));
   WriteLn;
-  
+
   cpuInfo := GetCPUInfo;
   useFMA := HasFeature(gfFMA);
-  
+
   if useFMA then
     WriteLn('  ✓ FMA instructions available - using optimized path')
   else
     WriteLn('  ○ FMA not available - using standard multiplication');
-  
+
   // Initialize matrices with random values
   Randomize;
   for i := 0 to MATRIX_SIZE - 1 do
@@ -255,10 +258,10 @@ begin
       matrixB[i, j] := Random * 10;
       matrixC[i, j] := 0;
     end;
-  
+
   Write('  Computing C = A × B... ');
   startTime := Now;
-  
+
   // Matrix multiplication
   if useFMA then
   begin
@@ -276,13 +279,13 @@ begin
         for k := 0 to MATRIX_SIZE - 1 do
           matrixC[i, j] := matrixC[i, j] + matrixA[i, k] * matrixB[k, j];
   end;
-  
+
   endTime := Now;
-  
+
   // Calculate performance metrics
   ops := 2 * Int64(MATRIX_SIZE) * MATRIX_SIZE * MATRIX_SIZE; // multiply-add operations
   gflops := ops / (MilliSecondsBetween(endTime, startTime) / 1000.0) / 1e9;
-  
+
   WriteLn(Format('Done in %.2f ms', [MilliSecondsBetween(endTime, startTime) * 1.0]));
   WriteLn(Format('  Performance: %.2f GFLOPS', [gflops]));
   WriteLn;
@@ -298,66 +301,72 @@ var
   cpuInfo: TCPUInfo;
   backends: TSimdBackendArray;
   backendInfo: TSimdBackendInfo;
+  LRuntimeSnapshot: TSimdRuntimeSnapshot;
 begin
   WriteLn('================================================');
   WriteLn('     SIMD CPU Info - Real-World Examples');
   WriteLn('     ', FormatDateTime('yyyy/mm/dd hh:nn:ss', Now));
   WriteLn('================================================');
   WriteLn;
-  
+
   // Display system information
   cpuInfo := GetCPUInfo;
   WriteLn('System Information:');
   WriteLn('  CPU: ', cpuInfo.Model);
   WriteLn('  Logical Cores: ', cpuInfo.LogicalCores);
-  WriteLn('  Cache: L1=', cpuInfo.Cache.L1DataKB, 'KB, L2=', 
+  WriteLn('  Cache: L1=', cpuInfo.Cache.L1DataKB, 'KB, L2=',
           cpuInfo.Cache.L2KB, 'KB, L3=', cpuInfo.Cache.L3KB, 'KB');
   WriteLn;
-  
-  // Display available SIMD backends
-  WriteLn('Available SIMD Backends:');
-  backends := GetAvailableBackends;
+
+  LRuntimeSnapshot := GetCurrentRuntimeSnapshot;
+  WriteLn('Current Runtime Backend: ',
+    GetBackendInfo(LRuntimeSnapshot.CurrentBackend).Name);
+  WriteLn;
+
+  // Display CPU-supported SIMD backends.
+  WriteLn('CPU-Supported SIMD Backends:');
+  backends := GetSupportedBackendList;
   for i := 0 to Length(backends) - 1 do
   begin
     backendInfo := GetBackendInfo(backends[i]);
-    WriteLn(Format('  [%d] %-15s - %s', 
+    WriteLn(Format('  [%d] %-15s - %s',
                    [i+1, backendInfo.Name, backendInfo.Description]));
   end;
   WriteLn;
-  
+
   // Example 1: Dynamic dispatch for vector operations
   WriteLn('=== Example 1: Dynamic Vector Operations ===');
   WriteLn('Adding two vectors with ', VECTOR_SIZE, ' elements');
   WriteLn;
-  
+
   // Allocate and initialize vectors
   SetLength(a, VECTOR_SIZE);
   SetLength(b, VECTOR_SIZE);
   SetLength(c, VECTOR_SIZE);
-  
+
   for i := 0 to VECTOR_SIZE - 1 do
   begin
     a[i] := Random * 100;
     b[i] := Random * 100;
   end;
-  
+
   // Select best implementation
   vectorAddFunc := SelectVectorAddImplementation;
   WriteLn;
-  
+
   // Benchmark different implementations
   WriteLn('Benchmarking implementations:');
   BenchmarkVectorAdd(@VectorAdd_Scalar, 'Scalar', @a[0], @b[0], @c[0], VECTOR_SIZE);
   BenchmarkVectorAdd(@VectorAdd_SSE2, 'SSE2', @a[0], @b[0], @c[0], VECTOR_SIZE);
   BenchmarkVectorAdd(@VectorAdd_AVX2, 'AVX2', @a[0], @b[0], @c[0], VECTOR_SIZE);
   WriteLn;
-  
+
   // Example 2: Image processing
   ExampleImageProcessing;
-  
+
   // Example 3: Matrix multiplication
   ExampleMatrixMultiplication;
-  
+
   WriteLn('================================================');
   WriteLn('All examples completed successfully!');
   WriteLn('================================================');

@@ -102,6 +102,84 @@ NONX86_U8X64_TARGET_SLOTS = frozenset((
     "MinU8x64",
     "MaxU8x64",
 ))
+NONX86_MASK_HELPER_SLOTS = frozenset((
+    "Mask2All",
+    "Mask2Any",
+    "Mask2None",
+    "Mask2PopCount",
+    "Mask2FirstSet",
+    "Mask4All",
+    "Mask4Any",
+    "Mask4None",
+    "Mask4PopCount",
+    "Mask4FirstSet",
+    "Mask8All",
+    "Mask8Any",
+    "Mask8None",
+    "Mask8PopCount",
+    "Mask8FirstSet",
+    "Mask16All",
+    "Mask16Any",
+    "Mask16None",
+    "Mask16PopCount",
+    "Mask16FirstSet",
+))
+NEON_WIDE_WRAPPER_ONLY_SLOTS = frozenset((
+    "AddI32x16",
+    "AddI64x4",
+    "AddI64x8",
+    "AndI32x16",
+    "AndI64x8",
+    "AndNotI32x16",
+    "ExtractI32x16",
+    "ExtractI32x8",
+    "ExtractI64x4",
+    "InsertI32x16",
+    "InsertI32x8",
+    "InsertI64x4",
+    "MaxI32x16",
+    "MaxI32x8",
+    "MinI32x16",
+    "MinI32x8",
+    "MulI32x16",
+    "MulU32x8",
+    "NotI32x16",
+    "NotI64x8",
+    "OrI32x16",
+    "OrI64x8",
+    "SubI32x16",
+    "SubI64x4",
+    "SubI64x8",
+    "XorI32x16",
+    "XorI64x8",
+))
+NONX86_WIDE_FALLBACK_ONLY_SLOTS = frozenset(
+    tuple(sorted(NONX86_I16X32_TARGET_SLOTS))
+    + tuple(sorted(NONX86_I8X64_TARGET_SLOTS))
+    + tuple(sorted(NONX86_U32X16_TARGET_SLOTS))
+    + tuple(sorted(NONX86_U64X8_TARGET_SLOTS))
+    + tuple(sorted(NONX86_U8X64_TARGET_SLOTS))
+)
+RISCVV_128BIT_ROUNDING_BASE_SCALAR_SLOTS = frozenset((
+    "CeilF32x4",
+    "CeilF64x2",
+    "FloorF32x4",
+    "FloorF64x2",
+    "RoundF32x4",
+    "RoundF64x2",
+    "TruncF32x4",
+    "TruncF64x2",
+))
+RISCVV_INTENTIONAL_BASE_SCALAR_SLOTS = frozenset(
+    ("DotF32x8",)
+    + tuple(sorted(NONX86_WIDE_FALLBACK_ONLY_SLOTS))
+    + tuple(sorted(RISCVV_128BIT_ROUNDING_BASE_SCALAR_SLOTS))
+)
+NEON_INTENTIONAL_BASE_SCALAR_SLOTS = frozenset(
+    tuple(sorted(NONX86_WIDE_FALLBACK_ONLY_SLOTS))
+    + tuple(sorted(NEON_WIDE_WRAPPER_ONLY_SLOTS))
+    + tuple(sorted(NONX86_MASK_HELPER_SLOTS))
+)
 
 
 @dataclass(frozen=True)
@@ -156,6 +234,21 @@ def extract_assigned_slots(path: Path, slot_set: set[str]) -> set[str]:
     text = read_text_with_local_includes(path)
     assigned = set(ASSIGN_RE.findall(text))
     return assigned & slot_set
+
+
+def apply_intentional_base_scalar_coverage(backend: str, assigned_slots: set[str]) -> set[str]:
+    if backend == "neon":
+        # RegisterNEONBackend starts from FillBaseDispatchTable. These wide
+        # fallback-only helper families, wide wrapper-only integer slots, and
+        # mask helpers intentionally inherit the published scalar slots instead
+        # of restating NEON-local scalar forwarders.
+        return assigned_slots | NEON_INTENTIONAL_BASE_SCALAR_SLOTS
+    if backend == "riscvv":
+        # RegisterRISCVVBackend starts from FillBaseDispatchTable. After the
+        # dead-wrapper cleanup, these slots intentionally inherit the published
+        # scalar slot instead of restating a RISCVV-specific scalar forwarder.
+        return assigned_slots | RISCVV_INTENTIONAL_BASE_SCALAR_SLOTS
+    return assigned_slots
 
 
 def build_test_token_counter(tests_root: Path) -> dict[str, int]:
@@ -387,7 +480,10 @@ def main() -> int:
 
     backend_assigned: dict[str, set[str]] = {}
     for backend, file in backend_files.items():
-        backend_assigned[backend] = extract_assigned_slots(file, slot_set)
+        backend_assigned[backend] = apply_intentional_base_scalar_coverage(
+            backend=backend,
+            assigned_slots=extract_assigned_slots(file, slot_set),
+        )
 
     items: list[SlotCoverage] = []
     severity_counts = {"P0": 0, "P1": 0, "P2": 0}

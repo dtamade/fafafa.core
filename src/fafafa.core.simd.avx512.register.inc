@@ -54,12 +54,7 @@ begin
     dispatchTable.ToLowerAscii := @ToLowerAscii_AVX512;
     dispatchTable.ToUpperAscii := @ToUpperAscii_AVX512;
     dispatchTable.AsciiIEqual := @AsciiIEqual_AVX512;
-
-    // Functions using AVX2 fallback (complex algorithms)
-    dispatchTable.Utf8Validate := @Utf8Validate_AVX512;
-    dispatchTable.MemReverse := @MemReverse_AVX512;
-    dispatchTable.MemDiffRange := @MemDiffRange_AVX512;
-    dispatchTable.BytesIndexOf := @BytesIndexOf_AVX512;
+    // Utf8Validate/MemReverse/MemDiffRange/BytesIndexOf keep the cloned AVX2 slots.
 
   // === 512-bit Vector Type Operations ===
 

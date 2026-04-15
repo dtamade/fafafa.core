@@ -10,7 +10,7 @@ uses
   SysUtils,
   fafafa.core.simd,
   fafafa.core.simd.base,
-  fafafa.core.simd.dispatch,
+  fafafa.core.simd.runtime,
   fafafa.core.simd.cpuinfo,
   fafafa.core.simd.cpuinfo.base,
   fafafa.core.simd.public_smoke_support;
@@ -37,10 +37,12 @@ end;
 
 var
   C: TCPUInfo;
+  LRuntimeSnapshot: TSimdRuntimeSnapshot;
   expected, backend: TSimdBackend;
 begin
-  C := GetCPUInformation;
-  backend := GetCurrentBackend;
+  C := GetCPUInfo;
+  LRuntimeSnapshot := GetCurrentRuntimeSnapshot;
+  backend := LRuntimeSnapshot.CurrentBackend;
 
   WriteLn('CPU vendor: ', C.Vendor);
   WriteLn('CPU model:  ', C.Model);

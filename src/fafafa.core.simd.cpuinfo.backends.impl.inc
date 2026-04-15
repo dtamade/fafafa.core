@@ -1,4 +1,4 @@
-function GetSupportedBackends: TSimdBackendArray;
+function GetSupportedBackendList: TSimdBackendArray;
 var
   LBackend: TSimdBackend;
   LBackends: TSimdBackendArray;
@@ -18,17 +18,17 @@ begin
   Result := LBackends;
 end;
 
-function GetSupportedBackendList: TSimdBackendArray;
+function GetSupportedBackends: TSimdBackendArray;
 begin
-  Result := GetSupportedBackends;
+  Result := GetSupportedBackendList;
 end;
 
 function GetAvailableBackends: TSimdBackendArray;
 begin
-  Result := GetSupportedBackends;
+  Result := GetSupportedBackendList;
 end;
 
-function GetBestBackendOnCPU: TSimdBackend;
+function GetBestSupportedBackend: TSimdBackend;
 var
   LBackend: TSimdBackend;
 begin
@@ -39,12 +39,12 @@ begin
   Result := sbScalar;
 end;
 
-function GetBestSupportedBackend: TSimdBackend;
+function GetBestBackendOnCPU: TSimdBackend;
 begin
-  Result := GetBestBackendOnCPU;
+  Result := GetBestSupportedBackend;
 end;
 
 function GetBestBackend: TSimdBackend;
 begin
-  Result := GetBestBackendOnCPU;
+  Result := GetBestSupportedBackend;
 end;

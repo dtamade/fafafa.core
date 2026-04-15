@@ -63,7 +63,8 @@
 - 如果你只是想单独重生 closeout summary 而不执行 freeze/apply，可使用低层 helper：`BuildOrTest.sh finalize-win-evidence`。
 - `collect_windows_b07_evidence.bat` / `buildOrTest.bat evidence-win-verify` 现在默认优先走 native batch gate，避免静默绕开 Windows 自己的 `publicabi-smoke` 路径。只有在显式设置 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` 时，才会切到 bash gate 口径做诊断性预演。
 - native batch 采集路径不会额外导出 `gate_summary.json`；这是有意为之，因为该路径本身不生成一份新的 `gate_summary.md`，强行导出只会冒着复用旧摘要的风险。若你需要归档 `gate_summary.md/json`，请走 `win-evidence-via-gh` 或显式 opt-in `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1`。
-- 因此手工 Windows 实机路径在 finalize 前必须显式补跑 fail-close cross gate；否则 `freeze-status` 现在会以 `cross_gate_not_older_than_windows_evidence` 明确失败，而不是继续消费旧的 `gate_summary.md`。
+- 因此手工 Windows 实机路径在 finalize 前必须显式补跑 fail-close cross gate；否则 `freeze-status` 只会继续消费旧的 `gate_summary.md`。
+- 当前 verifier 还会进一步以 `cross_gate_not_older_than_windows_evidence` 明确失败，避免旧摘要被误当成 fresh closeout 证据。
 - 即使 cross gate 已经是新的，`win-closeout-finalize` 也仍然必须在最新 Windows evidence 之后再跑一遍；否则 `freeze-status` 会以 `windows_closeout_not_older_than_windows_evidence` 明确拒绝旧 summary。
 
 ## 快捷入口

@@ -543,12 +543,17 @@ MATRIX_FILE="${REPO_ROOT}/tests/fafafa.core.simd/docs/simd_completeness_matrix.m
 RC_FILE="${REPO_ROOT}/tests/fafafa.core.simd/docs/simd_release_candidate_checklist.md"
 PROGRESS_FILE="${REPO_ROOT}/progress.md"
 
-for LFile in "${ROADMAP_FILE}" "${MATRIX_FILE}" "${RC_FILE}" "${PROGRESS_FILE}"; do
+for LFile in "${ROADMAP_FILE}" "${MATRIX_FILE}" "${RC_FILE}"; do
   if [[ ! -f "${LFile}" ]]; then
     echo "[CLOSEOUT] Missing target file: ${LFile}"
     exit 2
   fi
 done
+
+if [[ ! -f "${PROGRESS_FILE}" ]]; then
+  echo "[CLOSEOUT] SKIP progress append target missing: ${PROGRESS_FILE}"
+  PROGRESS_FILE=""
+fi
 
 if [[ "${SKIP_STRUCTURED}" != "1" ]]; then
   apply_structured_replacements "${ROADMAP_FILE}" "${MATRIX_FILE}" "${RC_FILE}"
@@ -557,6 +562,10 @@ else
 fi
 append_once "${ROADMAP_FILE}" "${ROADMAP_BLOCK}"
 append_once "${MATRIX_FILE}" "${MATRIX_BLOCK}"
-append_once "${PROGRESS_FILE}" "${PROGRESS_BLOCK}"
+if [[ -n "${PROGRESS_FILE}" ]]; then
+  append_once "${PROGRESS_FILE}" "${PROGRESS_BLOCK}"
+else
+  echo "[CLOSEOUT] SKIP progress append (no repo-root progress.md)"
+fi
 
 echo "[CLOSEOUT] APPLY DONE"

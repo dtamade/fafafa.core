@@ -29,10 +29,8 @@ function X86HasAVX512BackendRequiredFeatures(const aX86: TX86Features): Boolean;
 // 内存操作函数
 function MemEqual_AVX512(a, b: Pointer; len: SizeUInt): LongBool;
 function MemFindByte_AVX512(p: Pointer; len: SizeUInt; value: Byte): PtrInt;
-function MemDiffRange_AVX512(a, b: Pointer; len: SizeUInt; out firstDiff, lastDiff: SizeUInt): Boolean;
 procedure MemCopy_AVX512(src, dst: Pointer; len: SizeUInt);
 procedure MemSet_AVX512(dst: Pointer; len: SizeUInt; value: Byte);
-procedure MemReverse_AVX512(p: Pointer; len: SizeUInt);
 
 // 统计函数
 function SumBytes_AVX512(p: Pointer; len: SizeUInt): UInt64;
@@ -41,14 +39,11 @@ function CountByte_AVX512(p: Pointer; len: SizeUInt; value: Byte): SizeUInt;
 function BitsetPopCount_AVX512(p: Pointer; len: SizeUInt): SizeUInt;
 
 // 文本处理函数
-function Utf8Validate_AVX512(p: Pointer; len: SizeUInt): Boolean;
 function AsciiIEqual_AVX512(a, b: Pointer; len: SizeUInt): Boolean;
 procedure ToLowerAscii_AVX512(p: Pointer; len: SizeUInt);
 procedure ToUpperAscii_AVX512(p: Pointer; len: SizeUInt);
 
 // 搜索函数
-function BytesIndexOf_AVX512(haystack: Pointer; haystackLen: SizeUInt; needle: Pointer; needleLen: SizeUInt): PtrInt;
-
 implementation
 
 uses

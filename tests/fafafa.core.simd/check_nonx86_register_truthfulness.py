@@ -1,0 +1,569 @@
+#!/usr/bin/env python3
+"""Check non-x86 backend register files for truthful implementation ownership."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+
+ASSIGN_RE = re.compile(
+    r"^\s*table\.([A-Za-z_][A-Za-z0-9_]*)\s*:=\s*@([A-Za-z_][A-Za-z0-9_]*)\s*;\s*(?://.*)?$"
+)
+DEF_RE = re.compile(r"^\s*(function|procedure)\s+([A-Za-z_][A-Za-z0-9_]*)\b", re.IGNORECASE)
+IFDEF_RE = re.compile(r"^\s*\{\$IFDEF\s+([A-Za-z_][A-Za-z0-9_]*)\s*\}\s*$", re.IGNORECASE)
+IFNDEF_RE = re.compile(r"^\s*\{\$IFNDEF\s+([A-Za-z_][A-Za-z0-9_]*)\s*\}\s*$", re.IGNORECASE)
+ELSE_RE = re.compile(r"^\s*\{\$ELSE\s*\}\s*$", re.IGNORECASE)
+ENDIF_RE = re.compile(r"^\s*\{\$ENDIF\s*\}\s*$", re.IGNORECASE)
+
+NEON_WIDE_COMPARE_WRAPPER_SLOTS: set[str] = {
+    "CmpEqI32x16", "CmpEqI32x8", "CmpEqI64x4", "CmpEqI64x8", "CmpEqU32x8", "CmpEqU64x4",
+    "CmpGeI32x16", "CmpGeI32x8", "CmpGeI64x4", "CmpGeI64x8", "CmpGeU32x8", "CmpGeU64x4",
+    "CmpGtI32x16", "CmpGtI32x8", "CmpGtI64x4", "CmpGtI64x8", "CmpGtU32x8", "CmpGtU64x4",
+    "CmpLeI32x16", "CmpLeI32x8", "CmpLeI64x4", "CmpLeI64x8", "CmpLeU32x8", "CmpLeU64x4",
+    "CmpLtI32x16", "CmpLtI32x8", "CmpLtI64x4", "CmpLtI64x8", "CmpLtU32x8", "CmpLtU64x4",
+    "CmpNeI32x16", "CmpNeI32x8", "CmpNeI64x4", "CmpNeI64x8", "CmpNeU32x8", "CmpNeU64x4",
+}
+
+ALLOWED_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
+    "neon": {
+        "CmpEqF32x16", "CmpEqF32x8", "CmpEqF64x4", "CmpEqF64x8",
+        "CmpEqF64x2",
+        "CmpGeF32x16", "CmpGeF32x8", "CmpGeF64x4", "CmpGeF64x8",
+        "CmpGeF64x2",
+        "CmpGtF32x16", "CmpGtF32x8", "CmpGtF64x4", "CmpGtF64x8",
+        "CmpGtF64x2",
+        "CmpLeF32x16", "CmpLeF32x8", "CmpLeF64x4", "CmpLeF64x8",
+        "CmpLeF64x2",
+        "CmpLtF32x16", "CmpLtF32x8", "CmpLtF64x4", "CmpLtF64x8",
+        "CmpLtF64x2",
+        "CmpNeF32x16", "CmpNeF32x8", "CmpNeF64x4", "CmpNeF64x8",
+        "CmpNeF64x2",
+        "ExtractF32x16", "ExtractF32x8", "ExtractF64x4", "ExtractI32x4", "ExtractI64x2",
+        "InsertF32x16", "InsertF32x8", "InsertF64x4", "InsertI32x4", "InsertI64x2",
+        "SelectF32x4",
+        "AbsF32x16", "AbsF32x8", "AbsF64x2", "AbsF64x4", "AbsF64x8",
+        "AddF32x16", "AddF64x4", "AddF64x8",
+        "CeilF32x16", "CeilF32x8", "CeilF64x2", "CeilF64x4", "CeilF64x8",
+        "ClampF32x16", "ClampF32x8", "ClampF64x2", "ClampF64x4", "ClampF64x8",
+        "DivF32x16", "DivF64x4", "DivF64x8",
+        "FloorF32x16", "FloorF32x8", "FloorF64x2", "FloorF64x4", "FloorF64x8",
+        "FmaF32x16", "FmaF32x8", "FmaF64x2", "FmaF64x4", "FmaF64x8",
+        "LoadF64x2",
+        "MaxF32x16", "MaxF32x8", "MaxF64x2", "MaxF64x4", "MaxF64x8",
+        "MinF32x16", "MinF32x8", "MinF64x2", "MinF64x4", "MinF64x8",
+        "MulF32x16", "MulF64x4", "MulF64x8",
+        "ReduceAddF64x2", "ReduceMaxF64x2", "ReduceMinF64x2", "ReduceMulF64x2",
+        "RoundF32x16", "RoundF32x8", "RoundF64x2", "RoundF64x4", "RoundF64x8",
+        "SplatF64x2",
+        "SqrtF32x16", "SqrtF32x8", "SqrtF64x2", "SqrtF64x4", "SqrtF64x8",
+        "StoreF64x2",
+        "SubF32x16", "SubF64x4", "SubF64x8",
+        "TruncF32x16", "TruncF32x8", "TruncF64x2", "TruncF64x4", "TruncF64x8",
+        "ZeroF32x16", "ZeroF32x8", "ZeroF64x2", "ZeroF64x4", "ZeroF64x8",
+        "AndNotI8x16", "AndNotU16x8", "AndNotU8x16",
+        "LoadF32x16", "LoadF32x8", "LoadF64x4", "LoadF64x8",
+        "RcpF64x4",
+        "ReduceAddF32x16", "ReduceAddF32x8", "ReduceAddF64x4", "ReduceAddF64x8",
+        "ReduceMaxF32x16", "ReduceMaxF32x8", "ReduceMaxF64x4", "ReduceMaxF64x8",
+        "ReduceMinF32x16", "ReduceMinF32x8", "ReduceMinF64x4", "ReduceMinF64x8",
+        "ReduceMulF32x16", "ReduceMulF32x8", "ReduceMulF64x4", "ReduceMulF64x8",
+        "SelectF32x16", "SelectF32x8", "SelectF64x4", "SelectF64x8", "SelectI32x4",
+        "ShiftLeftI16x8", "ShiftLeftU16x8", "ShiftRightArithI16x8", "ShiftRightI16x8", "ShiftRightU16x8",
+        "SplatF32x16", "SplatF32x8", "SplatF64x4", "SplatF64x8",
+        "StoreF32x16", "StoreF32x8", "StoreF64x4", "StoreF64x8",
+    } | NEON_WIDE_COMPARE_WRAPPER_SLOTS,
+    "riscvv": {
+        "AndNotI64x2", "AndNotI8x16", "AndNotU16x8", "AndNotU64x2",
+        "AndNotU8x16",
+        "CmpEqU64x2", "CmpGtU64x2", "CmpLtU64x2",
+        "ExtractI32x8", "ExtractI32x16", "ExtractI64x4",
+        "DotF64x2", "DotF64x4",
+        "MaxI64x2", "MaxU64x2", "MinI64x2", "MinU64x2",
+        "SelectF32x8", "SelectF64x4", "SelectI32x4",
+    },
+}
+
+ALLOWED_ALWAYS_ASM_HELPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
+    "riscvv": {
+        "ShiftLeftI32x8", "ShiftRightI32x8", "ShiftRightArithI32x8",
+        "ShiftLeftI32x16", "ShiftRightI32x16", "ShiftRightArithI32x16",
+        "ShiftLeftI64x4", "ShiftRightI64x4", "ShiftRightArithI64x4",
+    },
+}
+
+
+@dataclass
+class SymbolFacts:
+    has_definition: bool = False
+    has_assembler: bool = False
+    bodies: list[str] = field(default_factory=list)
+
+
+@dataclass
+class Assignment:
+    slot: str
+    target: str
+    line: int
+    context: str
+
+
+@dataclass
+class CheckerConfig:
+    backend: str
+    asm_symbol: str
+    register_file: Path
+    source_files: list[Path]
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Check non-x86 register truthfulness")
+    parser.add_argument("--backend", choices=("neon", "riscvv"), help="Backend to inspect")
+    parser.add_argument("--fixture", choices=("good", "bad"), help="Run against a local fixture instead of real sources")
+    parser.add_argument("--json", action="store_true", help="Print machine-readable JSON")
+    parser.add_argument("--summary-line", action="store_true", help="Print one-line summary for log scraping")
+    parser.add_argument("--strict", action="store_true", help="Treat wrapper / helper-forwarder bindings as failures")
+    args = parser.parse_args()
+
+    if not args.backend and not args.fixture:
+        parser.error("one of --backend or --fixture is required")
+    if args.backend and args.fixture:
+        parser.error("--backend and --fixture are mutually exclusive")
+    return args
+
+
+def repo_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+def build_config(a_root: Path, a_args: argparse.Namespace) -> CheckerConfig:
+    if a_args.fixture:
+        l_fixture_root = a_root / "tests" / "fafafa.core.simd" / "fixtures" / "nonx86_register_truthfulness" / a_args.fixture
+        return CheckerConfig(
+            backend=f"fixture-{a_args.fixture}",
+            asm_symbol="MOCK_ASM",
+            register_file=l_fixture_root / "mock.backend.register.inc",
+            source_files=[l_fixture_root / "mock.backend.pas"],
+        )
+
+    l_src = a_root / "src"
+    if a_args.backend == "neon":
+        l_sources = sorted(l_src.glob("fafafa.core.simd.neon*"))
+        l_sources.append(l_src / "fafafa.core.simd.scalar.pas")
+        return CheckerConfig(
+            backend="neon",
+            asm_symbol="FAFAFA_SIMD_NEON_ASM_ENABLED",
+            register_file=l_src / "fafafa.core.simd.neon.register.inc",
+            source_files=[l_file for l_file in l_sources if l_file.is_file()],
+        )
+
+    if a_args.backend == "riscvv":
+        l_sources = sorted(l_src.glob("fafafa.core.simd.riscvv*"))
+        l_sources.append(l_src / "fafafa.core.simd.scalar.pas")
+        return CheckerConfig(
+            backend="riscvv",
+            asm_symbol="RISCVV_ASSEMBLY",
+            register_file=l_src / "fafafa.core.simd.riscvv.register.inc",
+            source_files=[l_file for l_file in l_sources if l_file.is_file()],
+        )
+
+    raise RuntimeError(f"unsupported backend: {a_args.backend}")
+
+
+def validate_inputs(a_config: CheckerConfig) -> None:
+    if not a_config.register_file.is_file():
+        raise RuntimeError(f"missing register file: {a_config.register_file}")
+    if not a_config.source_files:
+        raise RuntimeError("no source files configured")
+    for l_source in a_config.source_files:
+        if not l_source.is_file():
+            raise RuntimeError(f"missing source file: {l_source}")
+
+
+def strip_comment(a_line: str) -> str:
+    return a_line.split("//", 1)[0].rstrip()
+
+
+def preprocess_for_asm_state(a_text: str, a_asm_symbol: str, a_asm_enabled: bool) -> str:
+    l_lines: list[str] = []
+    l_stack: list[tuple[bool, bool, bool]] = []
+    l_active = True
+    l_asm_symbol_lower = a_asm_symbol.lower()
+
+    for l_line_no, l_line in enumerate(a_text.splitlines(), start=1):
+        l_clean = strip_comment(l_line).strip()
+
+        l_ifdef = IFDEF_RE.match(l_clean)
+        if l_ifdef is not None:
+            l_symbol = l_ifdef.group(1).lower()
+            l_is_target = l_symbol == l_asm_symbol_lower
+            if l_is_target:
+                l_true_branch_active = a_asm_enabled
+                l_stack.append((l_active, l_true_branch_active, False))
+                l_active = l_active and l_true_branch_active
+            continue
+
+        l_ifndef = IFNDEF_RE.match(l_clean)
+        if l_ifndef is not None:
+            l_symbol = l_ifndef.group(1).lower()
+            l_is_target = l_symbol == l_asm_symbol_lower
+            if l_is_target:
+                l_true_branch_active = not a_asm_enabled
+                l_stack.append((l_active, l_true_branch_active, False))
+                l_active = l_active and l_true_branch_active
+            continue
+
+        if ELSE_RE.match(l_clean):
+            if not l_stack:
+                continue
+            l_parent_active, l_true_branch_active, l_seen_else = l_stack.pop()
+            if l_seen_else:
+                raise RuntimeError(f"duplicate {{$ELSE}} at line {l_line_no}")
+            l_active = l_parent_active and (not l_true_branch_active)
+            l_stack.append((l_parent_active, l_true_branch_active, True))
+            continue
+
+        if ENDIF_RE.match(l_clean):
+            if not l_stack:
+                continue
+            l_parent_active, _, _ = l_stack.pop()
+            l_active = l_parent_active
+            continue
+
+        if l_active:
+            l_lines.append(l_line)
+
+    if l_stack:
+        raise RuntimeError(f"unterminated conditional block for asm symbol {a_asm_symbol}")
+    return "\n".join(l_lines)
+
+
+def collect_symbol_facts(a_files: list[Path], a_asm_symbol: str, a_asm_enabled: bool) -> dict[str, SymbolFacts]:
+    l_facts: dict[str, SymbolFacts] = {}
+    for l_file in a_files:
+        l_text = preprocess_for_asm_state(
+            l_file.read_text(encoding="utf-8", errors="ignore"),
+            a_asm_symbol,
+            a_asm_enabled,
+        )
+        l_current_name: str | None = None
+        l_current_is_assembler = False
+        l_current_body: list[str] = []
+
+        def flush_current() -> None:
+            nonlocal l_current_name
+            nonlocal l_current_is_assembler
+            nonlocal l_current_body
+
+            if l_current_name is None:
+                return
+            l_info = l_facts.setdefault(l_current_name, SymbolFacts())
+            l_info.has_definition = True
+            if l_current_is_assembler:
+                l_info.has_assembler = True
+            else:
+                l_info.bodies.append("\n".join(l_current_body))
+            l_current_name = None
+            l_current_is_assembler = False
+            l_current_body = []
+
+        for l_line in l_text.splitlines():
+            l_clean = strip_comment(l_line).strip()
+            if not l_clean:
+                continue
+            l_match = DEF_RE.match(l_clean)
+            if l_match is not None:
+                flush_current()
+                l_current_name = l_match.group(2)
+                l_current_is_assembler = "assembler" in l_clean.lower()
+                l_current_body = [l_clean]
+                continue
+            if l_current_name is not None:
+                l_current_body.append(l_clean)
+
+        flush_current()
+    return l_facts
+
+
+def parse_assignments(a_register_file: Path, a_asm_symbol: str) -> list[Assignment]:
+    l_assignments: list[Assignment] = []
+    l_context: str | None = None
+    l_stack: list[tuple[str | None, str | None, bool]] = []
+    l_asm_symbol_lower = a_asm_symbol.lower()
+
+    for l_line_no, l_raw_line in enumerate(a_register_file.read_text(encoding="utf-8", errors="ignore").splitlines(), start=1):
+        l_clean = strip_comment(l_raw_line).strip()
+        if not l_clean:
+            continue
+
+        l_ifdef = IFDEF_RE.match(l_clean)
+        if l_ifdef is not None:
+            l_symbol = l_ifdef.group(1).lower()
+            l_branch_context = "asm-only" if l_symbol == l_asm_symbol_lower else None
+            l_stack.append((l_context, l_branch_context, False))
+            if l_branch_context is not None:
+                l_context = l_branch_context
+            continue
+
+        l_ifndef = IFNDEF_RE.match(l_clean)
+        if l_ifndef is not None:
+            l_symbol = l_ifndef.group(1).lower()
+            l_branch_context = "no-asm" if l_symbol == l_asm_symbol_lower else None
+            l_stack.append((l_context, l_branch_context, False))
+            if l_branch_context is not None:
+                l_context = l_branch_context
+            continue
+
+        if ELSE_RE.match(l_clean):
+            if not l_stack:
+                raise RuntimeError(f"unexpected {{$ELSE}} at line {l_line_no}")
+            l_parent_context, l_branch_context, l_seen_else = l_stack.pop()
+            if l_seen_else:
+                raise RuntimeError(f"duplicate {{$ELSE}} at line {l_line_no}")
+            if l_branch_context == "asm-only":
+                l_context = "no-asm"
+            elif l_branch_context == "no-asm":
+                l_context = "asm-only"
+            else:
+                l_context = l_parent_context
+            l_stack.append((l_parent_context, l_branch_context, True))
+            continue
+
+        if ENDIF_RE.match(l_clean):
+            if not l_stack:
+                raise RuntimeError(f"unexpected {{$ENDIF}} at line {l_line_no}")
+            l_parent_context, _, _ = l_stack.pop()
+            l_context = l_parent_context
+            continue
+
+        l_match = ASSIGN_RE.match(l_clean)
+        if l_match is None:
+            continue
+
+        l_assignments.append(
+            Assignment(
+                slot=l_match.group(1),
+                target=l_match.group(2),
+                line=l_line_no,
+                context=l_context or "always",
+            )
+        )
+
+    if l_stack:
+        raise RuntimeError(f"unterminated conditional block in {a_register_file}")
+    return l_assignments
+
+
+def detect_wrapper_kind(a_target: str, a_info: SymbolFacts, a_facts: dict[str, SymbolFacts]) -> tuple[str, str | None]:
+    l_body_text = "\n".join(a_info.bodies)
+    for l_helper in (f"{a_target}_ASM", f"{a_target}Asm"):
+        l_helper_info = a_facts.get(l_helper)
+        if l_helper_info is not None and l_helper_info.has_assembler:
+            if re.search(rf"\b{re.escape(l_helper)}(?:\s*\(|\b)", l_body_text):
+                return "asm_helper_forwarder", l_helper
+    if re.search(r"\bScalar[A-Za-z0-9_]+\s*\(", l_body_text):
+        return "scalar_forwarder", None
+    return "pascal_owned", None
+
+
+def classify_target(a_target: str, a_facts: dict[str, SymbolFacts]) -> tuple[str, str | None, str | None]:
+    if a_target.startswith("Scalar"):
+        return "scalar_passthrough", "external_scalar", None
+
+    l_info = a_facts.get(a_target)
+    if l_info is not None and l_info.has_assembler:
+        return "asm_exact", "exact_assembler", None
+
+    if l_info is not None and l_info.has_definition:
+        l_wrapper_kind, l_helper = detect_wrapper_kind(a_target, l_info, a_facts)
+        if l_wrapper_kind == "asm_helper_forwarder":
+            return "asm_suffix_only", l_wrapper_kind, l_helper
+        return "wrapper_only", l_wrapper_kind, l_helper
+
+    for l_helper in (f"{a_target}_ASM", f"{a_target}Asm"):
+        l_helper_info = a_facts.get(l_helper)
+        if l_helper_info is not None and l_helper_info.has_assembler:
+            return "no_def", "missing_wrapper", l_helper
+
+    return "no_def", "missing_definition", None
+
+
+def build_reason_list(
+    a_backend: str,
+    a_assignment: Assignment,
+    a_classification: str,
+    a_wrapper_kind: str | None,
+    a_strict: bool,
+) -> list[str]:
+    l_reasons: list[str] = []
+    l_allowed_wrapper_slots = ALLOWED_WRAPPER_SLOTS_BY_BACKEND.get(a_backend, set())
+    l_allowed_always_asm_helper_slots = ALLOWED_ALWAYS_ASM_HELPER_SLOTS_BY_BACKEND.get(a_backend, set())
+
+    if a_classification == "scalar_passthrough":
+        l_reasons.append("explicit-scalar-binding")
+    elif a_classification == "no_def":
+        l_reasons.append("missing-definition")
+    elif a_classification == "asm_exact":
+        if a_assignment.context == "no-asm":
+            l_reasons.append("asm-symbol-bound-inside-no-asm-block")
+    elif a_classification == "asm_suffix_only":
+        if a_assignment.context == "no-asm":
+            l_reasons.append("asm-helper-wrapper-bound-inside-no-asm-block")
+        elif (a_assignment.context != "asm-only") and (a_assignment.slot not in l_allowed_always_asm_helper_slots):
+            l_reasons.append("asm-helper-wrapper-not-gated-to-asm-only-branch")
+    elif a_classification == "wrapper_only":
+        if a_assignment.slot not in l_allowed_wrapper_slots:
+            if a_assignment.context == "asm-only":
+                l_reasons.append("wrapper-only-bound-inside-asm-block")
+            elif a_assignment.context == "no-asm":
+                l_reasons.append("wrapper-only-bound-inside-no-asm-block")
+            elif a_strict:
+                l_reasons.append("wrapper-only-backend-owned-slot")
+
+    return l_reasons
+
+
+def render_summary_line(a_result: dict[str, Any]) -> str:
+    return (
+        "NONX86_REGISTER_TRUTHFULNESS_SUMMARY "
+        f"backend={a_result['backend']} "
+        f"assignments={a_result['assignment_count']} "
+        f"asm_exact={a_result['asm_exact_count']} "
+        f"asm_suffix_only={a_result['asm_suffix_only_count']} "
+        f"wrapper_only={a_result['wrapper_only_count']} "
+        f"scalar_passthrough={a_result['scalar_passthrough_count']} "
+        f"no_def={a_result['no_def_count']} "
+        f"miswired={a_result['miswired_count']} "
+        f"strict={1 if a_result['strict'] else 0}"
+    )
+
+
+def print_human_result(a_result: dict[str, Any]) -> None:
+    print(f"[REG-TRUTH] backend={a_result['backend']}")
+    print(f"  - register file:       {a_result['register_file']}")
+    print(f"  - source files:        {a_result['source_file_count']}")
+    print(f"  - assignments:         {a_result['assignment_count']}")
+    print(f"  - asm exact:           {a_result['asm_exact_count']}")
+    print(f"  - asm suffix only:     {a_result['asm_suffix_only_count']}")
+    print(f"  - wrapper only:        {a_result['wrapper_only_count']}")
+    print(f"  - scalar passthrough:  {a_result['scalar_passthrough_count']}")
+    print(f"  - no definition:       {a_result['no_def_count']}")
+    print(f"  - miswired:            {a_result['miswired_count']}")
+
+    if a_result["miswired_slots"]:
+        print("[REG-TRUTH] Miswired slots:")
+        for l_item in a_result["miswired_slots"]:
+            l_helper = f", helper={l_item['helper']}" if l_item["helper"] else ""
+            l_reason = ",".join(l_item["reasons"])
+            print(
+                f"  - {l_item['slot']} -> {l_item['target']} "
+                f"(line={l_item['line']}, context={l_item['context']}, class={l_item['classification']}{l_helper}, reason={l_reason})"
+            )
+
+    if a_result["ok"]:
+        print("[REG-TRUTH] OK")
+
+
+def build_report(a_config: CheckerConfig, a_strict: bool) -> dict[str, Any]:
+    l_facts_asm = collect_symbol_facts(a_config.source_files, a_config.asm_symbol, True)
+    l_facts_no_asm = collect_symbol_facts(a_config.source_files, a_config.asm_symbol, False)
+    l_assignments = parse_assignments(a_config.register_file, a_config.asm_symbol)
+
+    l_counts = {
+        "asm_exact_count": 0,
+        "asm_suffix_only_count": 0,
+        "wrapper_only_count": 0,
+        "scalar_passthrough_count": 0,
+        "no_def_count": 0,
+        "scalar_forwarder_count": 0,
+        "pascal_owned_count": 0,
+    }
+    l_miswired: list[dict[str, Any]] = []
+
+    for l_assignment in l_assignments:
+        l_facts = l_facts_asm if l_assignment.context != "no-asm" else l_facts_no_asm
+        l_classification, l_wrapper_kind, l_helper = classify_target(l_assignment.target, l_facts)
+        l_key = f"{l_classification}_count"
+        if l_key in l_counts:
+            l_counts[l_key] += 1
+        if l_wrapper_kind == "scalar_forwarder":
+            l_counts["scalar_forwarder_count"] += 1
+        elif l_wrapper_kind == "pascal_owned":
+            l_counts["pascal_owned_count"] += 1
+
+        l_reasons = build_reason_list(a_config.backend, l_assignment, l_classification, l_wrapper_kind, a_strict)
+        if l_reasons:
+            l_miswired.append(
+                {
+                    "slot": l_assignment.slot,
+                    "target": l_assignment.target,
+                    "line": l_assignment.line,
+                    "context": l_assignment.context,
+                    "classification": l_classification,
+                    "wrapper_kind": l_wrapper_kind,
+                    "helper": l_helper,
+                    "reasons": l_reasons,
+                }
+            )
+
+    l_result: dict[str, Any] = {
+        "backend": a_config.backend,
+        "strict": a_strict,
+        "register_file": str(a_config.register_file),
+        "source_file_count": len(a_config.source_files),
+        "source_files": [str(l_file) for l_file in a_config.source_files],
+        "assignment_count": len(l_assignments),
+        "asm_exact_count": l_counts["asm_exact_count"],
+        "asm_suffix_only_count": l_counts["asm_suffix_only_count"],
+        "wrapper_only_count": l_counts["wrapper_only_count"],
+        "scalar_passthrough_count": l_counts["scalar_passthrough_count"],
+        "no_def_count": l_counts["no_def_count"],
+        "scalar_forwarder_count": l_counts["scalar_forwarder_count"],
+        "pascal_owned_count": l_counts["pascal_owned_count"],
+        "miswired_count": len(l_miswired),
+        "miswired_slots": l_miswired,
+    }
+    l_result["ok"] = l_result["miswired_count"] == 0
+    l_result["exit_code"] = 0 if l_result["ok"] else 1
+    return l_result
+
+
+def main() -> int:
+    l_args = parse_args()
+    l_root = repo_root()
+
+    try:
+        l_config = build_config(l_root, l_args)
+        validate_inputs(l_config)
+        l_result = build_report(l_config, bool(l_args.strict))
+
+        if l_args.json:
+            print(json.dumps(l_result, ensure_ascii=False, sort_keys=True))
+        else:
+            print_human_result(l_result)
+
+        if l_args.summary_line:
+            print(render_summary_line(l_result))
+
+        return int(l_result["exit_code"])
+    except RuntimeError as l_exc:
+        l_error = {
+            "ok": False,
+            "error": "runtime-error",
+            "message": str(l_exc),
+            "exit_code": 2,
+        }
+        if l_args.json:
+            print(json.dumps(l_error, ensure_ascii=False, sort_keys=True))
+        else:
+            print(f"[REG-TRUTH] ERROR: {l_exc}")
+        return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())

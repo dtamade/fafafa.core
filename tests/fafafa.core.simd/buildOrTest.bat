@@ -68,6 +68,14 @@ if /I "%ACTION%"=="release" (
 )
 if /I "%ACTION%"=="gate" goto :gate
 if /I "%ACTION%"=="gate-strict" goto :gate_strict
+if /I "%ACTION%"=="impl-smoke-x86" goto :impl_smoke_x86
+if /I "%ACTION%"=="impl-smoke-nonx86" goto :impl_smoke_nonx86
+if /I "%ACTION%"=="impl-audit-full" goto :impl_audit_full
+if /I "%ACTION%"=="impl-audit-nonx86" goto :impl_audit_nonx86
+if /I "%ACTION%"=="key-slot-audit" goto :key_slot_audit
+if /I "%ACTION%"=="closeout-host-local" goto :closeout_host_local
+if /I "%ACTION%"=="import-nonx86-native-evidence" goto :import_nonx86_native_evidence
+if /I "%ACTION%"=="closeout-host-local-from-import" goto :closeout_host_local_from_import
 if /I "%ACTION%"=="interface-completeness" goto :interface_completeness
 if /I "%ACTION%"=="contract-signature" goto :contract_signature
 if /I "%ACTION%"=="publicabi-signature" goto :publicabi_signature
@@ -140,11 +148,17 @@ if /I "%ACTION%"=="finalize-win-evidence" goto :finalize_win_evidence
 if /I "%ACTION%"=="win-closeout-3cmd" goto :win_closeout_3cmd
 if /I "%ACTION%"=="win-closeout-finalize" goto :win_closeout_finalize
 
-echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|interface-completeness^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]
+echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-full^|impl-audit-nonx86^|key-slot-audit^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]
 echo   Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks.
 echo   gate/gate-strict PASS is not blanket release-grade approval for every experimental path.
 echo   gate         Fast/base gate for routine SIMD changes
 echo   gate-strict  Release/closeout gate with perf, repeats, and evidence checks
+echo   impl-smoke-x86  Lightweight bounded x86 implementation smoke via DispatchAPI frontier proofs
+echo   impl-smoke-nonx86  Lightweight daily non-x86 implementation smoke
+echo   impl-audit-full  Full implementation deep audit: x86 bounded frontier plus non-x86 implementation audit
+echo   impl-audit-nonx86  Aggregate implementation-side non-x86 audit
+echo   key-slot-audit  Audit key non-x86 wide slots against backend-owned/base-scalar expectations
+echo   closeout-host-local  Host-local strict closeout ^(qemu non-x86 required, native evidence optional, windows evidence optional^)
 echo Suggested flow: check -^> targeted suites -^> gate; use gate-strict before release/closeout.
 echo QEMU env: SIMD_QEMU_BUILD_POLICY=always^|if-missing^|skip ^(default: if-missing^)
 echo Isolation env: SIMD_OUTPUT_ROOT=C:\temp\simd-run-123 ^(override bin2/lib2/logs root^)
@@ -222,6 +236,15 @@ findstr /r /c:"src\fafafa\.core\.simd\..*Warning:" /c:"src\fafafa\.core\.simd\..
 if not errorlevel 1 echo [CHECK] Ignoring experimental intrinsics hints from src\fafafa.core.simd.intrinsics.avx2.pas
 echo [CHECK] OK (no SIMD-unit warnings/hints on stable path)
 
+echo [CHECK] Backend adapter sync ^(python-only^)
+set "SIMD_ADAPTER_SYNC_SKIP_BUILD=1"
+set "SIMD_ADAPTER_SYNC_PASCAL_SMOKE=0"
+call :adapter_sync
+set "ADAPTER_SYNC_RC=%ERRORLEVEL%"
+set "SIMD_ADAPTER_SYNC_SKIP_BUILD="
+set "SIMD_ADAPTER_SYNC_PASCAL_SMOKE="
+if not "%ADAPTER_SYNC_RC%"=="0" exit /b %ADAPTER_SYNC_RC%
+
 call :register_include_check
 if errorlevel 1 exit /b 1
 
@@ -241,6 +264,9 @@ if /I "%SIMD_CHECK_WIRING_SYNC%"=="1" (
 ) else (
   echo [CHECK] SKIP optional wiring-sync ^(set SIMD_CHECK_WIRING_SYNC=1 to enable^)
 )
+
+call :register_truthfulness_check 0
+if errorlevel 1 exit /b 1
 
 if /I "%SIMD_CHECK_EXPERIMENTAL%"=="0" (
   echo [CHECK] SKIP optional experimental isolation ^(set SIMD_CHECK_EXPERIMENTAL=1 to enable^)
@@ -275,6 +301,63 @@ if not errorlevel 1 (
 
 echo [REGISTER-INCLUDE] FAILED (python runtime not found; tried py and python)
 exit /b 2
+
+:register_truthfulness_check
+set "REGISTER_TRUTH_SCRIPT=%ROOT%check_nonx86_register_truthfulness.py"
+set "REGISTER_TRUTH_STRICT=%~1"
+set "REGISTER_TRUTH_ARGS="
+set "REGISTER_TRUTH_RAN=0"
+if /I "%REGISTER_TRUTH_STRICT%"=="1" set "REGISTER_TRUTH_ARGS=--strict"
+
+if not exist "%REGISTER_TRUTH_SCRIPT%" (
+  echo [REG-TRUTH] Missing checker: %REGISTER_TRUTH_SCRIPT%
+  exit /b 2
+)
+
+if /I "%SIMD_ENABLE_NEON_BACKEND%"=="1" (
+  set "REGISTER_TRUTH_RAN=1"
+  where py >nul 2>nul
+  if not errorlevel 1 (
+    echo [REG-TRUTH] Running: py -3 %REGISTER_TRUTH_SCRIPT% --backend neon --summary-line %REGISTER_TRUTH_ARGS%
+    py -3 "%REGISTER_TRUTH_SCRIPT%" --backend neon --summary-line %REGISTER_TRUTH_ARGS%
+    if errorlevel 1 exit /b %ERRORLEVEL%
+  ) else (
+    where python >nul 2>nul
+    if not errorlevel 1 (
+      echo [REG-TRUTH] Running: python %REGISTER_TRUTH_SCRIPT% --backend neon --summary-line %REGISTER_TRUTH_ARGS%
+      python "%REGISTER_TRUTH_SCRIPT%" --backend neon --summary-line %REGISTER_TRUTH_ARGS%
+      if errorlevel 1 exit /b %ERRORLEVEL%
+    ) else (
+      echo [REG-TRUTH] FAILED (python runtime not found; tried py and python)
+      exit /b 2
+    )
+  )
+)
+
+if /I "%SIMD_ENABLE_RISCVV_BACKEND%"=="1" (
+  set "REGISTER_TRUTH_RAN=1"
+  where py >nul 2>nul
+  if not errorlevel 1 (
+    echo [REG-TRUTH] Running: py -3 %REGISTER_TRUTH_SCRIPT% --backend riscvv --summary-line %REGISTER_TRUTH_ARGS%
+    py -3 "%REGISTER_TRUTH_SCRIPT%" --backend riscvv --summary-line %REGISTER_TRUTH_ARGS%
+    if errorlevel 1 exit /b %ERRORLEVEL%
+  ) else (
+    where python >nul 2>nul
+    if not errorlevel 1 (
+      echo [REG-TRUTH] Running: python %REGISTER_TRUTH_SCRIPT% --backend riscvv --summary-line %REGISTER_TRUTH_ARGS%
+      python "%REGISTER_TRUTH_SCRIPT%" --backend riscvv --summary-line %REGISTER_TRUTH_ARGS%
+      if errorlevel 1 exit /b %ERRORLEVEL%
+    ) else (
+      echo [REG-TRUTH] FAILED (python runtime not found; tried py and python)
+      exit /b 2
+    )
+  )
+)
+
+if /I "%REGISTER_TRUTH_RAN%"=="0" (
+  echo [REG-TRUTH] SKIP ^(enable SIMD_ENABLE_NEON_BACKEND=1 or SIMD_ENABLE_RISCVV_BACKEND=1^)
+)
+exit /b 0
 
 :suite_manifest_check
 set "SUITE_MANIFEST_SCRIPT=%ROOT%check_suite_manifest_sync.py"
@@ -406,8 +489,12 @@ if errorlevel 1 exit /b 1
 exit /b 0
 
 :adapter_sync
-call :build
-if errorlevel 1 exit /b 1
+if /I "%SIMD_ADAPTER_SYNC_SKIP_BUILD%"=="1" (
+  echo [ADAPTER-SYNC] SKIP build ^(SIMD_ADAPTER_SYNC_SKIP_BUILD=1^)
+) else (
+  call :build
+  if errorlevel 1 exit /b 1
+)
 
 if /I "%SIMD_ADAPTER_SYNC_PASCAL_SMOKE%"=="0" (
   echo [ADAPTER-SYNC] SKIP Pascal smoke ^(SIMD_ADAPTER_SYNC_PASCAL_SMOKE=0^)
@@ -433,7 +520,7 @@ if /I "%SIMD_ADAPTER_SYNC_STRICT%"=="0" set "ADAPTER_SYNC_NO_STRICT=--no-strict"
 where py >nul 2>nul
 if not errorlevel 1 (
   echo [ADAPTER-SYNC] Running: py -3 %ADAPTER_SYNC_SCRIPT% --summary-line %ADAPTER_SYNC_NO_STRICT%
-  echo [ADAPTER-SYNC] Checker now also verifies dispatch slot existence and FillBaseDispatchTable coverage.
+  echo [ADAPTER-SYNC] Checker now also verifies CSV spec ^<-> generated include drift, dispatch slot existence, and FillBaseDispatchTable coverage.
   py -3 "%ADAPTER_SYNC_SCRIPT%" --summary-line %ADAPTER_SYNC_NO_STRICT%
   exit /b %ERRORLEVEL%
 )
@@ -441,7 +528,7 @@ if not errorlevel 1 (
 where python >nul 2>nul
 if not errorlevel 1 (
   echo [ADAPTER-SYNC] Running: python %ADAPTER_SYNC_SCRIPT% --summary-line %ADAPTER_SYNC_NO_STRICT%
-  echo [ADAPTER-SYNC] Checker now also verifies dispatch slot existence and FillBaseDispatchTable coverage.
+  echo [ADAPTER-SYNC] Checker now also verifies CSV spec ^<-> generated include drift, dispatch slot existence, and FillBaseDispatchTable coverage.
   python "%ADAPTER_SYNC_SCRIPT%" --summary-line %ADAPTER_SYNC_NO_STRICT%
   exit /b %ERRORLEVEL%
 )
@@ -811,6 +898,94 @@ if errorlevel 1 (
   exit /b 0
 )
 call "%ROOT%buildOrTest.bat" test --suite=TTestCase_NonX86IEEE754
+exit /b %ERRORLEVEL%
+
+:impl_audit_nonx86
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [IMPL-AUDIT] FAILED ^(bash runtime not found; impl-audit-nonx86 requires bash to preserve shell parity^)
+  exit /b 2
+)
+
+echo [IMPL-AUDIT] Running: bash %ROOT%BuildOrTest.sh impl-audit-nonx86 %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" impl-audit-nonx86 %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:impl_audit_full
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [IMPL-AUDIT-FULL] FAILED ^(bash runtime not found; impl-audit-full requires bash to preserve shell parity^)
+  exit /b 2
+)
+
+echo [IMPL-AUDIT-FULL] Running: bash %ROOT%BuildOrTest.sh impl-audit-full %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" impl-audit-full %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:impl_smoke_x86
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [IMPL-SMOKE-X86] FAILED ^(bash runtime not found; impl-smoke-x86 requires bash to preserve shell parity^)
+  exit /b 2
+)
+
+echo [IMPL-SMOKE-X86] Running: bash %ROOT%BuildOrTest.sh impl-smoke-x86 %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" impl-smoke-x86 %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:impl_smoke_nonx86
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [IMPL-SMOKE] FAILED ^(bash runtime not found; impl-smoke-nonx86 requires bash to preserve shell parity^)
+  exit /b 2
+)
+
+echo [IMPL-SMOKE] Running: bash %ROOT%BuildOrTest.sh impl-smoke-nonx86 %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" impl-smoke-nonx86 %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:key_slot_audit
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [KEY-SLOT-AUDIT] FAILED ^(bash runtime not found; key-slot-audit requires bash to preserve shell parity^)
+  exit /b 2
+)
+
+echo [KEY-SLOT-AUDIT] Running: bash %ROOT%BuildOrTest.sh key-slot-audit %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" key-slot-audit %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:closeout_host_local
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [CLOSEOUT-HOST-LOCAL] FAILED ^(bash runtime not found; closeout-host-local requires bash to preserve shell parity^)
+  exit /b 2
+)
+
+echo [CLOSEOUT-HOST-LOCAL] Running: bash %ROOT%BuildOrTest.sh closeout-host-local %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" closeout-host-local %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:import_nonx86_native_evidence
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [IMPORT] FAILED ^(bash runtime not found; import-nonx86-native-evidence requires bash to preserve shell parity^)
+  exit /b 2
+)
+
+echo [IMPORT] Running: bash %ROOT%BuildOrTest.sh import-nonx86-native-evidence %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" import-nonx86-native-evidence %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:closeout_host_local_from_import
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [CLOSEOUT-HOST-LOCAL-FROM-IMPORT] FAILED ^(bash runtime not found; closeout-host-local-from-import requires bash to preserve shell parity^)
+  exit /b 2
+)
+
+echo [CLOSEOUT-HOST-LOCAL-FROM-IMPORT] Running: bash %ROOT%BuildOrTest.sh closeout-host-local-from-import %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" closeout-host-local-from-import %NORMALIZED_TEST_ARGS%
 exit /b %ERRORLEVEL%
 
 :backend_bench
@@ -1351,6 +1526,18 @@ if /I "%SIMD_GATE_WIRING_SYNC%"=="1" (
   if errorlevel 1 exit /b 1
 ) else (
   echo [GATE] SKIP optional wiring-sync ^(set SIMD_GATE_WIRING_SYNC=1 to enable^)
+)
+
+if /I "%SIMD_ENABLE_NEON_BACKEND%"=="1" (
+  echo [GATE] Optional register-truthfulness enabled
+  call :register_truthfulness_check 1
+  if errorlevel 1 exit /b 1
+) else if /I "%SIMD_ENABLE_RISCVV_BACKEND%"=="1" (
+  echo [GATE] Optional register-truthfulness enabled
+  call :register_truthfulness_check 1
+  if errorlevel 1 exit /b 1
+) else (
+  echo [GATE] SKIP optional register-truthfulness ^(enable SIMD_ENABLE_NEON_BACKEND=1 or SIMD_ENABLE_RISCVV_BACKEND=1^)
 )
 
 if /I "%SIMD_GATE_QEMU_NONX86_EVIDENCE%"=="1" (

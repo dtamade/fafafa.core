@@ -1,5 +1,25 @@
 # Progress Log
 
+## Session: 2026-04-15
+
+### Phase 79: SIMD implementation closeout formalization
+- **Status:** complete
+- Actions taken:
+  - 复核 `tests/fafafa.core.simd/BuildOrTest.sh`、`tests/fafafa.core.simd/buildOrTest.bat`、`docs/fafafa.core.simd.closeout.md`、`docs/fafafa.core.simd.checklist.md`、`docs/fafafa.core.simd.implementation-matrix.md`，确认 `impl-audit-full` 已正式成为实现深审主入口
+  - 新增并固化 `impl-audit-full`：固定顺序 `impl-smoke-x86 -> impl-audit-nonx86`，并让 `closeout-host-local` 复用该顺序而不是绕过 x86 bounded frontier
+  - 修正 shell/batch help 文案里过时的 `closeout-host-local` 描述，使其与当前真实语义一致：`qemu non-x86 required / native evidence optional / windows evidence optional`
+  - 回填最新 2026-04-15 证据链到 closeout / implementation matrix，补上 `SIMD_IMPL_AUDIT_FULL_SUMMARY` 与 formalized closeout rerun 的 QEMU summary 路径
+  - fresh 运行 `git diff --check -- tests/fafafa.core.simd/BuildOrTest.sh tests/fafafa.core.simd/buildOrTest.bat docs/fafafa.core.simd.checklist.md docs/fafafa.core.simd.implementation-matrix.md docs/fafafa.core.simd.closeout.md`
+  - fresh 运行 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-full`
+  - fresh 运行 `SIMD_QEMU_PLATFORMS='linux/arm64 linux/riscv64' SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local`
+- Files created/modified:
+  - `tests/fafafa.core.simd/BuildOrTest.sh` (modified)
+  - `tests/fafafa.core.simd/buildOrTest.bat` (modified)
+  - `docs/fafafa.core.simd.checklist.md` (modified)
+  - `docs/fafafa.core.simd.closeout.md` (modified)
+  - `docs/fafafa.core.simd.implementation-matrix.md` (modified)
+  - `progress.md` (modified)
+
 ## Session: 2026-03-27
 
 ### Phase 78: repo hygiene guard
@@ -3350,6 +3370,54 @@
 - QEMU summary: tests/fafafa.core.simd/logs/qemu-multiarch-20260405-154057-1022104/summary.md
 - Log: tests/fafafa.core.simd/logs/windows_b07_gate.log
 - Summary: tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md (`Generated: 2026-04-05 15:26:32 +0800`)
+
+### 阶段状态
+- 跨平台冻结条件满足。
+
+<!-- SIMD-WIN-CLOSEOUT-2026-04-15 -->
+### 批次
+- SIMD-20260415-152
+
+### 执行动作
+- 在 Windows 实机完成 buildOrTest.bat evidence-win-verify。
+- 生成并归档收口摘要：finalize-win-evidence。
+- 回填 roadmap / matrix / progress，关闭跨平台证据缺口。
+
+### 命令与结果
+| Command | Result |
+|---|---|
+| tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify | PASS |
+| bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence | PASS |
+| bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status | PASS |
+| bash tests/fafafa.core.simd/apply_windows_b07_closeout_updates.sh --apply --freeze-json tests/fafafa.core.simd/logs/freeze_status.json | PASS |
+
+### 关键证据
+- Log: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260415-152/windows_b07_gate.log
+- Summary: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260415-152/windows_b07_closeout_summary.md
+
+### 阶段状态
+- 跨平台冻结条件满足。
+
+<!-- SIMD-WIN-CLOSEOUT-2026-04-16 -->
+### 批次
+- SIMD-20260416-152
+
+### 执行动作
+- 在 Windows 实机完成 buildOrTest.bat evidence-win-verify。
+- 生成并归档收口摘要：finalize-win-evidence。
+- 回填 roadmap / matrix / progress，关闭跨平台证据缺口。
+
+### 命令与结果
+| Command | Result |
+|---|---|
+| tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify | PASS |
+| bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence | PASS |
+| bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status | PASS |
+| bash tests/fafafa.core.simd/apply_windows_b07_closeout_updates.sh --apply --freeze-json tests/fafafa.core.simd/logs/freeze_status.json | PASS |
+
+### 关键证据
+- Log: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260416-152/windows_b07_gate.log
+- Summary: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260416-152/windows_b07_closeout_summary.md
 
 ### 阶段状态
 - 跨平台冻结条件满足。
