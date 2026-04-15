@@ -51,6 +51,14 @@ case "${LArgs[0]:-}" in
     case "${LArgs[2]:-}" in
       HEAD..l0-mainline-closeout-20260411)
         cat <<'OUT'
+M	tests/fafafa.core.fs.async/BuildOrTest.bat
+M	tests/fafafa.core.fs.async/README.md
+M	tests/fafafa.core.fs.async/buildOrTest.bat
+M	tests/fafafa.core.fs.async/run_async_tests.lpr
+M	tests/fafafa.core.fs.async/test_async_basic.pas
+M	tests/fafafa.core.fs.async/test_simple.pas
+M	tests/fafafa.core.socket.async/BuildOrTest.bat
+M	tests/fafafa.core.socket.async/BuildOrTest.sh
 M	src/fafafa.core.atomic.pas
 M	tests/fafafa.core.atomic/Test_fafafa.core.atomic.pas
 M	tests/fafafa.core.platform/BuildOrTest.sh
@@ -65,6 +73,10 @@ OUT
         ;;
       HEAD..l0-main-rescue)
         cat <<'OUT'
+M	tests/fafafa.core.fs.async/BuildOrTest.bat
+M	tests/fafafa.core.fs.async/buildOrTest.bat
+M	tests/fafafa.core.socket.async/BuildOrTest.bat
+D	.github/workflows/l0-windows-native-evidence.yml
 M	src/fafafa.core.args.base.pas
 M	tests/fafafa.core.atomic/Test_fafafa.core.atomic.core.contract.pas
 M	tests/fafafa.core.platform/BuildOrTest.bat
@@ -97,7 +109,7 @@ for LPatt in \
   '== l0-mainline-closeout-20260411 ==' \
   'ref_sha=1111111111111111111111111111111111111111' \
   'review_candidate_paths=3' \
-  'review_skip_paths=3' \
+  'review_skip_paths=11' \
   'src_review_paths=0' \
   'test_code_review_paths=0' \
   'test_script_review_paths=1' \
@@ -108,12 +120,12 @@ for LPatt in \
   'dangerous_delete_paths=3' \
   'reject_wholesale_absorb=yes' \
   'sample_review_candidate_paths=tests/fafafa.core.platform/BuildOrTest.sh | examples/fafafa.core.base/BuildOrRun.sh | examples/fafafa.core.result/example_result_filters_and_try.lpr' \
-  'sample_review_skip_paths=src/fafafa.core.atomic.pas | tests/fafafa.core.atomic/Test_fafafa.core.atomic.pas | .github/workflows/l0-windows-native-evidence.yml' \
+  'sample_review_skip_paths=tests/fafafa.core.fs.async/BuildOrTest.bat | tests/fafafa.core.fs.async/buildOrTest.bat | tests/fafafa.core.socket.async/BuildOrTest.bat' \
   'sample_dangerous_delete_paths=.github/workflows/l0-linux-maintenance.yml | tests/run_strict_l0_maintenance_loop.sh | docs/README.md' \
   '== l0-main-rescue ==' \
   'ref_sha=2222222222222222222222222222222222222222' \
   'review_candidate_paths=2' \
-  'review_skip_paths=3' \
+  'review_skip_paths=6' \
   'src_review_paths=1' \
   'test_code_review_paths=1' \
   'test_script_review_paths=0' \
@@ -121,11 +133,11 @@ for LPatt in \
   'ci_review_paths=0' \
   'examples_build_review_paths=0' \
   'simd_out_of_scope_paths=0' \
-  'dangerous_delete_paths=2' \
+  'dangerous_delete_paths=3' \
   'reject_wholesale_absorb=yes' \
   'sample_review_candidate_paths=src/fafafa.core.args.base.pas | tests/fafafa.core.atomic/Test_fafafa.core.atomic.core.contract.pas' \
-  'sample_review_skip_paths=tests/fafafa.core.platform/BuildOrTest.bat | tests/fafafa.core.atomic/README.md | examples/fafafa.core.atomic/BuildOrRun.sh' \
-  'sample_dangerous_delete_paths=examples/fafafa.core.contracts/README.md | docs/legacy/l0/2026-04-11-l0-mainline-refs-and-ci-closeout.md' \
+  'sample_review_skip_paths=tests/fafafa.core.fs.async/BuildOrTest.bat | tests/fafafa.core.fs.async/buildOrTest.bat | tests/fafafa.core.socket.async/BuildOrTest.bat' \
+  'sample_dangerous_delete_paths=.github/workflows/l0-windows-native-evidence.yml | examples/fafafa.core.contracts/README.md | docs/legacy/l0/2026-04-11-l0-mainline-refs-and-ci-closeout.md' \
   '[PASS] strict L0 retained refs source-review shortlist completed'; do
   printf '%s' "${OUTPUT}" | rg -n -F "${LPatt}" >/dev/null \
     || {

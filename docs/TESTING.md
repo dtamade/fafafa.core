@@ -355,8 +355,10 @@ bash tests/test_strict_l0_retained_refs_closeout_test_docs_no_downgrade_contract
 - `closeout.review_candidate_paths=0`
 - `rescue.review_candidate_paths=0`
 
-这意味着 `closeout/rescue` 的 source-review surface 已经清空。当前唯一真正吸收的 today change，是 `tests/fafafa.core.collections/vecdeque/Test_vecdeque_span.pas` 去掉 `SliceView` 对 strict L0 `span2` contract 的反向 parity 测试；原因是 `docs/fafafa.core.l0.foundation.md` 与 `docs/fafafa.core.l0.roadmap.md` 都已经明确：`collections.slice` 仍然不是 strict L0。
-这意味着 `closeout/rescue` 的 source-review surface 已经清空。fresh API/runner 复核还进一步确认：`tests/fafafa.core.collections/vecdeque/Test_vecdeque_span.pas` 其实是未接线且依赖已移除 `SliceView` API 的 stale dead test code，因此它也继续只应落在 `review_skip_paths=`，而不是重新吸收到 today contract。
+这意味着 `closeout/rescue` 的 source-review surface 已经清空。fresh API/runner 复核还进一步确认：
+
+- `tests/fafafa.core.fs.async/*` 与 `tests/fafafa.core.socket.async/*` 这组 retained-ref 逆向 diff，只会把主线已经吸收的 async runner hygiene 回退成旧 runner / stale `test_simple.pas` 版本，因此它们现在也继续只应落在 `review_skip_paths=`；
+- `tests/fafafa.core.collections/vecdeque/Test_vecdeque_span.pas` 其实是未接线且依赖已移除 `SliceView` API 的 stale dead test code，因此它也继续只应落在 `review_skip_paths=`，而不是重新吸收到 today contract。
 
 因此，如果 fresh shortlist 继续保持 0，后续 retained-refs triage 的下一跳应回到：
 

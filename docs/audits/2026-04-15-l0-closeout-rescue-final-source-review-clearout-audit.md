@@ -10,7 +10,12 @@
 - 不删除 retained refs
 - 不碰 SIMD lane
 
-最后一个看起来像“可能要吸收”的路径，是 `tests/fafafa.core.collections/vecdeque/Test_vecdeque_span.pas`；但 fresh API/runner 复核后确认它其实是 stale dead test code，不是 today contract 增量。
+最后两个还需要显式定性的 surface 是：
+
+- `tests/fafafa.core.fs.async/*` 与 `tests/fafafa.core.socket.async/*` 这组 retained-ref 逆向 async runner diff
+- `tests/fafafa.core.collections/vecdeque/Test_vecdeque_span.pas`
+
+但 fresh API/runner 复核后确认，这两类 surface 都不是 today contract 增量。
 
 ## Fresh shortlist evidence
 
@@ -24,17 +29,43 @@ fresh 输出结论：
 
 - `closeout`
   - `review_candidate_paths=0`
-  - `review_skip_paths=20`
-  - `dangerous_delete_paths=55`
+  - `review_skip_paths=29`
+  - `dangerous_delete_paths=62`
   - `reject_wholesale_absorb=yes`
 - `rescue`
   - `review_candidate_paths=0`
-  - `review_skip_paths=82`
+  - `review_skip_paths=91`
   - `simd_out_of_scope_paths=30`
-  - `dangerous_delete_paths=68`
+  - `dangerous_delete_paths=75`
   - `reject_wholesale_absorb=yes`
 
 这说明 `closeout/rescue` 的 source-review shortlist 已经 fresh 清空；剩下的 retained-ref surface 不是“还没看”，而是已经被显式分类到 `review_skip_paths=`、`simd_out_of_scope_paths=` 或 `dangerous_delete_paths=`。
+
+## Reverse async runner diff: reclassified to already-absorbed / stale skip
+
+文件：
+
+- `tests/fafafa.core.fs.async/BuildOrTest.bat`
+- `tests/fafafa.core.fs.async/README.md`
+- `tests/fafafa.core.fs.async/buildOrTest.bat`
+- `tests/fafafa.core.fs.async/run_async_tests.lpr`
+- `tests/fafafa.core.fs.async/test_async_basic.pas`
+- `tests/fafafa.core.fs.async/test_simple.pas`
+- `tests/fafafa.core.socket.async/BuildOrTest.bat`
+- `tests/fafafa.core.socket.async/BuildOrTest.sh`
+- `tests/fafafa.core.socket.async/buildOrTest.bat`
+
+fresh 复核结果：
+
+- `docs/audits/2026-04-15-l0-sidecar-async-runner-slice-audit.md` 已明确记录：这组 async runner hygiene 小撮已经被主线 small-cut 吸收
+- 当前 today 守门入口已经固定为 `bash tests/test_l0_async_test_runner_hygiene.sh`
+- retained refs 上剩下的 diff，不是在补 today contract，而是在尝试把主线回退成旧的 lowercase runner / stale `test_simple.pas` 版本
+
+结论：
+
+- 不把这组 async runner reverse diff 再算成 `review_candidate_paths=`
+- 统一把它们下沉到 `review_skip_paths=`
+- 它们不能再被当成 `closeout/rescue` 尚未收口的 source-review candidate
 
 ## Last apparent candidate: reclassified to stale dead test code
 
@@ -58,6 +89,8 @@ fresh 复核结果：
 
 除这条已被重新定性为 stale dead test code 的 vecdeque residue 外，其余 surface 也继续只作为 stale/no-op/regression skip 处理，主要包括：
 
+- `closeout/rescue`
+  - `tests/fafafa.core.fs.async/*` 与 `tests/fafafa.core.socket.async/*` 这组 async runner reverse diff
 - `closeout`
   - `mem allocator + fs perf wrapper/README` stale cluster
 - `rescue`
@@ -72,6 +105,7 @@ fresh 复核结果：
 
 - 没有 broad absorb `closeout` / `rescue`
 - 没有改变 strict L0 boundary
+- 没有把已经吸收过的 async runner hygiene reverse diff 误写成缺失主线 value
 - 没有把 dead/stale collections test code 误写成 strict L0 contract
 - 没有碰 SIMD
 - `dangerous_delete_paths=` 仍显式阻止 wholesale absorb

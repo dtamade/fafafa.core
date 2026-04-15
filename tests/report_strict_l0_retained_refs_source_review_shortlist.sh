@@ -132,6 +132,15 @@ is_review_skip_path() {
   local aPath="$2"
 
   case "${aRef}:${aPath}" in
+    l0-mainline-closeout-20260411:tests/fafafa.core.fs.async/BuildOrTest.bat|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.fs.async/README.md|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.fs.async/buildOrTest.bat|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.fs.async/run_async_tests.lpr|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.fs.async/test_async_basic.pas|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.fs.async/test_simple.pas|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.socket.async/BuildOrTest.bat|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.socket.async/BuildOrTest.sh|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.socket.async/buildOrTest.bat|\
     l0-mainline-closeout-20260411:.github/workflows/l0-windows-native-evidence.yml|\
     l0-mainline-closeout-20260411:src/fafafa.core.mem.allocator.pas|\
     l0-mainline-closeout-20260411:src/fafafa.core.atomic.base.pas|\
@@ -152,6 +161,15 @@ is_review_skip_path() {
     l0-mainline-closeout-20260411:tests/fafafa.core.mem.allocator.foundation/test_allocator_foundation_runtime.pas|\
     l0-mainline-closeout-20260411:tests/fafafa.core.platform/README.md|\
     l0-mainline-closeout-20260411:tests/fafafa.core.span/README.md|\
+    l0-main-rescue:tests/fafafa.core.fs.async/BuildOrTest.bat|\
+    l0-main-rescue:tests/fafafa.core.fs.async/README.md|\
+    l0-main-rescue:tests/fafafa.core.fs.async/buildOrTest.bat|\
+    l0-main-rescue:tests/fafafa.core.fs.async/run_async_tests.lpr|\
+    l0-main-rescue:tests/fafafa.core.fs.async/test_async_basic.pas|\
+    l0-main-rescue:tests/fafafa.core.fs.async/test_simple.pas|\
+    l0-main-rescue:tests/fafafa.core.socket.async/BuildOrTest.bat|\
+    l0-main-rescue:tests/fafafa.core.socket.async/BuildOrTest.sh|\
+    l0-main-rescue:tests/fafafa.core.socket.async/buildOrTest.bat|\
     l0-main-rescue:.github/workflows/l0-windows-native-evidence.yml|\
     l0-main-rescue:src/fafafa.core.atomic.base.pas|\
     l0-main-rescue:src/fafafa.core.atomic.pas|\
