@@ -70,31 +70,51 @@ bash tests/run_strict_l0_maintenance_loop.sh
 bash tests/check_strict_l0_docs_consistency.sh
 ```
 
-2. 跑 active shell runner contract
+2. 跑 repo submodule metadata hygiene
+
+```bash
+bash tests/check_repo_submodule_hygiene.sh
+```
+
+3. 跑 active shell runner contract
 
 ```bash
 bash tests/test_active_shell_runners.sh
 ```
 
-3. 跑 examples/build current-entry contract
+4. 跑 examples/build current-entry contract
 
 ```bash
 bash tests/test_strict_l0_examples_build_docs_contract.sh
 ```
 
-4. 跑 strict L0 聚合 gate
+5. 跑 examples current-entry build smoke
+
+```bash
+bash tests/test_strict_l0_examples_smoke_contract.sh
+```
+
+这里固定 smoke 当前 strict L0 examples current-entry 的 Linux/macOS 构建面：
+
+- `examples/fafafa.core.atomic/BuildOrRun.sh build`
+- `examples/fafafa.core.env/BuildOrRun.sh build quickstart`
+- `examples/fafafa.core.platform/BuildOrRun.sh build`
+- `examples/fafafa.core.json/BuildOrRun.sh build`
+- `examples/fafafa.core.sync.mutex/BuildOrRun.sh build`
+
+6. 跑 strict L0 聚合 gate
 
 ```bash
 STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation fafafa.core.platform
 ```
 
-5. 跑 hygiene
+7. 跑 hygiene
 
 ```bash
 git diff --check
 ```
 
-6. 跑 Windows runtime/control-plane contract
+8. 跑 Windows runtime/control-plane contract
 
 ```bash
 bash tests/test_windows_strict_l0_batch_runtime_matrix.sh

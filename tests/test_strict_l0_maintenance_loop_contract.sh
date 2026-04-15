@@ -20,6 +20,8 @@ printf '%s\n' "${OUTPUT}" | rg -F "test_active_shell_runners.sh" >/dev/null \
   || fail "maintenance loop did not print active shell runner step"
 printf '%s\n' "${OUTPUT}" | rg -F "test_strict_l0_examples_build_docs_contract.sh" >/dev/null \
   || fail "maintenance loop did not print examples/build current-entry step"
+printf '%s\n' "${OUTPUT}" | rg -F "test_strict_l0_examples_smoke_contract.sh" >/dev/null \
+  || fail "maintenance loop did not print examples smoke step"
 printf '%s\n' "${OUTPUT}" | rg -F "git diff --check" >/dev/null \
   || fail "maintenance loop did not print git diff step"
 printf '%s\n' "${OUTPUT}" | rg -F "tests/run_all_tests.sh" >/dev/null \
