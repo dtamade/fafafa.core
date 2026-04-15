@@ -311,8 +311,9 @@ TAllocator、TRtlAllocator、TCrtAllocator、TCallbackAllocator
 - `ISSUE_*_FIX_REPORT.md` - 单独修复报告
 
 ### 工作上下文
-- `WORKING.md` - 当前工作状态和进度
-- `WORK_SUMMARY_2025-10-02.md` - 每日工作总结
+- `workers/worker1.md` - 当前 L0 协作入口
+- `docs/plans/` / `docs/audits/` - 当前稳定计划与审计入口
+- `plans/archive/` / `archive/reports/working/` - 历史执行镜像与工作日志归档
 
 ### 性能基准
 - `benchmarks/` - 性能测试套件
@@ -418,7 +419,7 @@ fpc -O3 -Fi./src -Fu./src -FElib src/fafafa.core.crypto.hash.sha256.pas
 
 | 报告类型 | 存放目录 | 命名约定 |
 |----------|----------|----------|
-| 工作日志 | `archive/reports/working/` | `WORKING.md`（单一文件，持续更新） |
+| 工作日志 | `archive/reports/working/` | `WORKING*.md`（历史快照，按主题归档） |
 | 代码审查 | `archive/reports/code-reviews/` | `CODE_REVIEW_{MODULE}_{DATE}.md` |
 | 问题修复 | `archive/reports/issues/` | `ISSUE_{ID}_FIX_REPORT.md` |
 | 阶段总结 | `archive/reports/summaries/` | `{MODULE}_SUMMARY_{DATE}.md` |
@@ -441,7 +442,20 @@ fpc -O3 -Fi./src -Fu./src -FElib src/fafafa.core.crypto.hash.sha256.pas
 
 ### 工作状态文件
 
-维护单一的 `archive/reports/working/WORKING.md` 文件，格式如下：
+主线不再维护单一的根目录 `WORKING.md`。
+
+当前状态以这些入口为准：
+
+- `workers/worker*.md`：当前 owner、worktree、验证状态
+- `docs/plans/*.md`：当前稳定执行路线图
+- `docs/audits/*.md`：当前判断、边界和 triage 结论
+
+如果需要保留详细执行镜像：
+
+- worktree 内可以先维护临时 scratch 文件
+- 需要入库时，归档到 `plans/archive/` 或 `archive/reports/working/`
+
+推荐格式如下：
 
 ```markdown
 # 当前工作状态
@@ -473,17 +487,18 @@ fpc -O3 -Fi./src -Fu./src -FElib src/fafafa.core.crypto.hash.sha256.pas
 
 ### 会话开始检查清单
 
-1. 阅读 `archive/reports/working/WORKING.md` 了解当前状态
-2. 检查 `ISSUE_TRACKER.csv` 了解问题状态
-3. 运行快速回归测试确认基线
-4. 继续未完成的任务或开始新任务
+1. 阅读 `workers/worker*.md` 了解当前 owner 和执行面
+2. 阅读相关 `docs/plans/*.md` / `docs/audits/*.md` 了解当前状态
+3. 检查 `ISSUE_TRACKER.csv` 了解问题状态
+4. 运行快速回归测试确认基线
+5. 如需历史上下文，再查看 `plans/archive/` 或 `archive/reports/working/`
 
 ### 会话结束检查清单
 
-1. 更新 `WORKING.md` 记录当前状态
+1. 更新相关 `workers/`、`docs/plans/`、`docs/audits/`
 2. 确保所有测试通过
 3. 记录已知问题和下一步行动
-4. 如有重要变更，更新相关文档
+4. 如需保留详细过程，再归档到 `plans/archive/` 或 `archive/reports/working/`
 
 ## AI 代码审查清单
 
@@ -550,4 +565,4 @@ fpc -O3 -Fi./src -Fu./src -FElib src/fafafa.core.crypto.hash.sha256.pas
 2. **测试**：运行相关测试套件
 3. **内存**：HeapTrc 验证无泄漏
 4. **文档**：更新相关文档
-5. **记录**：更新 `WORKING.md` 和 `ISSUE_TRACKER.csv`
+5. **记录**：更新稳定入口文档；如需完整过程，归档工作日志，并更新 `ISSUE_TRACKER.csv`

@@ -5,8 +5,10 @@
 
 提供内存分配器的兼容 / 扩展聚合门面。
 
-严格 L0 场景应优先使用 `fafafa.core.mem.allocator.foundation`。
-本单元保留为便利入口，并继续聚合可选后端。
+严格 L0 场景应优先使用 `fafafa.core.mem.allocator.base`。
+需要 mem 域低层 convenience facade 和小 concrete backend 时，再使用
+`fafafa.core.mem.allocator.foundation`。
+本单元保留为兼容 / 扩展聚合入口，并继续聚合可选后端。
 
 本单元所有接口完全遵守 `空操作原则`, 输入参数 `count = 0` 时, 不进行任何操作.
 

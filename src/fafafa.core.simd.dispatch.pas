@@ -25,8 +25,7 @@ procedure SetActiveBackend(backend: TSimdBackend);
 // ✅ P1: 新增函数 - 允许调用者检查是否成功
 function TrySetActiveBackend(backend: TSimdBackend): Boolean;
 
-// Low-level compatibility alias for cpuinfo.IsBackendSupportedOnCPU.
-// New public call sites should prefer fafafa.core.simd.cpuinfo.
+// Check if a backend is available on current CPU
 function IsBackendAvailableOnCPU(backend: TSimdBackend): Boolean;
 
 // Check if a backend is both CPU-supported and dispatchable in this binary.
@@ -1000,79 +999,30 @@ begin
   g_CurrentDispatchOwnedHead := Result;
 end;
 
-function DispatchTableMetadataEquals(const aLeft, aRight: TSimdDispatchTable): Boolean; inline;
-begin
-  Result := (aLeft.Backend = aRight.Backend) and
-    (aLeft.BackendInfo.Backend = aRight.BackendInfo.Backend) and
-    (aLeft.BackendInfo.Name = aRight.BackendInfo.Name) and
-    (aLeft.BackendInfo.Description = aRight.BackendInfo.Description) and
-    (aLeft.BackendInfo.Available = aRight.BackendInfo.Available) and
-    (aLeft.BackendInfo.Priority = aRight.BackendInfo.Priority) and
-    (aLeft.BackendInfo.Capabilities = aRight.BackendInfo.Capabilities);
-end;
-
-function DispatchTableSlotPointersEqual(const aLeft, aRight: TSimdDispatchTable): Boolean;
-var
-  LOffset: PtrUInt;
-  LSize: SizeUInt;
-  LLeftSlots: PByte;
-  LRightSlots: PByte;
-begin
-  {$PUSH}{$WARN 4055 OFF} // pointer-sized offset math over immutable dispatch snapshots
-  LOffset := PtrUInt(@aLeft.AddF32x4) - PtrUInt(@aLeft);
-  LLeftSlots := PByte(PtrUInt(@aLeft) + LOffset);
-  LRightSlots := PByte(PtrUInt(@aRight) + LOffset);
-  {$POP}
-  LSize := SizeOf(TSimdDispatchTable) - LOffset;
-  if LSize = 0 then
-    Exit(True);
-  Result := CompareByte(LLeftSlots^, LRightSlots^, LSize) = 0;
-end;
-
-function DispatchTablesEquivalent(const aLeft, aRight: TSimdDispatchTable): Boolean; inline;
-begin
-  Result := DispatchTableMetadataEquals(aLeft, aRight) and
-    DispatchTableSlotPointersEqual(aLeft, aRight);
-end;
-
-function FindPublishedDispatchStateByTable(
-  const aDispatchTable: TSimdDispatchTable): PSimdDispatchPublishedState;
-begin
-  Result := g_CurrentDispatchOwnedHead;
-  while Result <> nil do
-  begin
-    if DispatchTablesEquivalent(Result^.Table, aDispatchTable) then
-      Exit;
-    Result := Result^.NextOwned;
-  end;
-end;
-
 procedure PublishBackendDispatchTable(const aBackend: TSimdBackend; const aDispatchTable: TSimdDispatchTable);
 var
   LState: PSimdDispatchPublishedState;
 begin
-  LState := FindPublishedDispatchStateByTable(aDispatchTable);
-  if LState = nil then
-  begin
-    LState := CreateDispatchPublishedState;
-    LState^.Table := aDispatchTable;
-  end;
+  LState := CreateDispatchPublishedState;
+  LState^.Table := aDispatchTable;
   atomic_store(g_BackendDispatchStatePtrs[aBackend], Pointer(LState), mo_release);
 end;
 
-procedure PublishCurrentDispatchState(const aState: PSimdDispatchPublishedState);
+procedure PublishCurrentDispatchTable(const aDispatchTable: PSimdDispatchTable);
+var
+  LState: PSimdDispatchPublishedState;
 begin
-  if aState = nil then
+  if aDispatchTable = nil then
   begin
     g_CurrentDispatch := nil;
     atomic_store(g_CurrentDispatchStatePtr, nil, mo_release);
     Exit;
   end;
 
-  // The active/current dispatch view does not need its own cloned publication:
-  // the selected backend snapshot is already immutable and process-owned.
-  g_CurrentDispatch := @aState^.Table;
-  atomic_store(g_CurrentDispatchStatePtr, Pointer(aState), mo_release);
+  LState := CreateDispatchPublishedState;
+  LState^.Table := aDispatchTable^;
+  g_CurrentDispatch := @LState^.Table;
+  atomic_store(g_CurrentDispatchStatePtr, Pointer(LState), mo_release);
 end;
 
 procedure FinalizeDispatchPublishedStates;
@@ -1144,8 +1094,8 @@ procedure DoInitializeDispatch;
 var
   LBestBackend: TSimdBackend;
   LBackend: TSimdBackend;
-  LBestDispatchState: PSimdDispatchPublishedState;
-  LCandidateDispatchState: PSimdDispatchPublishedState;
+  LBestDispatchTable: PSimdDispatchTable;
+  LCandidateDispatchTable: PSimdDispatchTable;
   LBackendSupportedOnCPU: array[TSimdBackend] of Boolean;
   LIndex: Integer;
   LOldState: LongInt;
@@ -1176,7 +1126,7 @@ begin
     if g_BackendForced then
     begin
       LBestBackend := g_ForcedBackend;
-      LBestDispatchState := nil;
+      LBestDispatchTable := nil;
 
       // Forced backend must be:
       //   - registered in this binary
@@ -1188,47 +1138,45 @@ begin
           LBestBackend := sbScalar
         else
         begin
-          LBestDispatchState := GetPublishedBackendDispatchState(LBestBackend);
-          if (LBestDispatchState = nil) or
-             (not LBestDispatchState^.Table.BackendInfo.Available) then
+          LBestDispatchTable := GetPublishedBackendDispatchTable(LBestBackend);
+          if (LBestDispatchTable = nil) or (not LBestDispatchTable^.BackendInfo.Available) then
             LBestBackend := sbScalar;
         end;
       end;
 
       if LBestBackend = sbScalar then
-        LBestDispatchState := GetPublishedBackendDispatchState(sbScalar);
+        LBestDispatchTable := GetPublishedBackendDispatchTable(sbScalar);
     end
     else
     begin
       LBestBackend := sbScalar;
-      LBestDispatchState := GetPublishedBackendDispatchState(sbScalar);
+      LBestDispatchTable := GetPublishedBackendDispatchTable(sbScalar);
 
       for LIndex := Low(SIMD_BACKEND_PRIORITY_ORDER) to High(SIMD_BACKEND_PRIORITY_ORDER) do
       begin
         LBackend := SIMD_BACKEND_PRIORITY_ORDER[LIndex];
         if LBackendSupportedOnCPU[LBackend] then
         begin
-          LCandidateDispatchState := GetPublishedBackendDispatchState(LBackend);
-          if (LCandidateDispatchState <> nil) and
-             LCandidateDispatchState^.Table.BackendInfo.Available then
+          LCandidateDispatchTable := GetPublishedBackendDispatchTable(LBackend);
+          if (LCandidateDispatchTable <> nil) and LCandidateDispatchTable^.BackendInfo.Available then
           begin
             LBestBackend := LBackend;
-            LBestDispatchState := LCandidateDispatchState;
+            LBestDispatchTable := LCandidateDispatchTable;
             Break;
           end;
         end;
       end;
     end;
 
-    // Publish the exact backend snapshot selected above so readers never observe
-    // a newer backend-state rewrite under the same backend id.
-    if LBestDispatchState <> nil then
+    // Publish the exact snapshot selected above so readers never observe a
+    // newer backend-state rewrite under the same backend id.
+    if LBestDispatchTable <> nil then
     begin
-      PublishCurrentDispatchState(LBestDispatchState);
+      PublishCurrentDispatchTable(LBestDispatchTable);
     end
     else
     begin
-      PublishCurrentDispatchState(nil);
+      PublishCurrentDispatchTable(nil);
     end;
 
     g_DispatchInitialized := True;

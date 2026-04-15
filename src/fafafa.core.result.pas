@@ -223,10 +223,18 @@ type
     function Equals(const Other: TResult; const EqT: specialize TResultBiPred<T, T>; const EqE: specialize TResultBiPred<E, E>): Boolean;
   end;
 
-{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+{ TryCollectPtrIntoArray
+  输入：(ptr,count) 形式的 Result<T,E> 序列
+  输出：
+    - 全部 Ok：返回 True，并将 Ok 值按顺序写入 OutValues（动态数组）
+    - 遇到首个 Err：返回 False，清空 OutValues，并将 FirstErr 设为首个错误
+  注意：为规避 FPC 3.3.1 的泛型链接器/initialize 问题，此 API 返回 Boolean + out 参数，而非 TResult。
+}
+generic function TryCollectPtrIntoArray<T, E>(const ItemsPtr: Pointer; const Count: SizeUInt;
+  var OutValues: specialize TValueArray<T>; out FirstErr: E): Boolean;
+
 { 全局组合子 - 需要改变泛型类型的操作 }
 { 由于 FPC 不支持在泛型记录中定义泛型方法，这些必须作为全局函数存在 }
-{ 注意：这些函数需要 FPC 3.3.1+ 的 generic function 语法支持 }
 
 generic function ResultMap<T, E, U>(const R: specialize TResult<T, E>;
   const F: specialize TResultFunc<T, U>): specialize TResult<U, E>; inline;
@@ -314,16 +322,6 @@ generic function ResultZipWith<T1, T2, E, U>(const A: specialize TResult<T1, E>;
   const B: specialize TResult<T2, E>;
   const F: specialize TResultFunc<specialize TTuple2<T1, T2>, U>): specialize TResult<U, E>; inline;
 
-{ TryCollectPtrIntoArray
-  输入：(ptr,count) 形式的 Result<T,E> 序列
-  输出：
-    - 全部 Ok：返回 True，并将 Ok 值按顺序写入 OutValues（动态数组）
-    - 遇到首个 Err：返回 False，清空 OutValues，并将 FirstErr 设为首个错误
-  注意：为规避 FPC 3.3.1 的泛型链接器/initialize 问题，此 API 返回 Boolean + out 参数，而非 TResult。
-}
-generic function TryCollectPtrIntoArray<T, E>(const ItemsPtr: Pointer; const Count: SizeUInt;
-  var OutValues: specialize TValueArray<T>; out FirstErr: E): Boolean;
-
 generic function ResultToTry<T, E>(const R: specialize TResult<T, E>;
   const MapE: specialize TResultFunc<E, Exception>): T; inline;
 
@@ -367,7 +365,6 @@ generic function ResultWithContextE<T, E>(const R: specialize TResult<T, E>;
 }
 generic function ResultTranspose<T, E>(const R: specialize TResult<specialize TOption<T>, E>):
   specialize TOption<specialize TResult<T, E>>;
-{$ENDIF FAFAFA_CORE_ANONYMOUS_REFERENCES}
 
 implementation
 
@@ -570,7 +567,6 @@ begin
     Result := TErrOption.Some(FErr);
 end;
 
-{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
 { Collect 实现 }
 
 generic function TryCollectPtrIntoArray<T, E>(const ItemsPtr: Pointer; const Count: SizeUInt;
@@ -788,7 +784,6 @@ begin
   else
     Result := R;
 end;
-{$ENDIF FAFAFA_CORE_ANONYMOUS_REFERENCES}
 
 function TResult.And_(const B: TResult): TResult;
 begin
@@ -902,7 +897,6 @@ begin
     Result := False;
 end;
 
-{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
 { 全局帮助函数实现 }
 
 generic function ResultToTry<T, E>(const R: specialize TResult<T, E>;
@@ -920,18 +914,20 @@ end;
 
 generic function ResultFromTry<T, E>(const Work: specialize TResultThunk<T>;
   const MapEx: specialize TResultFunc<Exception, E>): specialize TResult<T, E>;
+type
+  TResultTE = specialize TResult<T, E>;
 begin
   if Work = nil then
     ContractsRequireAssigned(Work <> nil, 'Work');
 
   try
-    Result := specialize TResult<T, E>.Ok(Work());
+    Result := TResultTE.Ok(Work());
   except
     on Ex: Exception do
     begin
       if MapEx = nil then
         ContractsRequireAssigned(MapEx <> nil, 'MapEx');
-      Result := specialize TResult<T, E>.Err(MapEx(Ex));
+      Result := TResultTE.Err(MapEx(Ex));
     end;
   end;
 end;
@@ -1108,6 +1104,5 @@ begin
     // Ok(None) -> None
     Result := TOutOpt.None;
 end;
-{$ENDIF FAFAFA_CORE_ANONYMOUS_REFERENCES}
 
 end.

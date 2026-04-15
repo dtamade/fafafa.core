@@ -143,6 +143,121 @@ begin
   Result := 42;
 end;
 
+var
+  GOptionTestInspectSeen: Integer = 0;
+  GOptionTestIntegerThunkCalled: Boolean = False;
+  GOptionTestStringThunkCalled: Boolean = False;
+
+function OptionTest_AddOne(const aX: Integer): Integer;
+begin
+  Result := aX + 1;
+end;
+
+function OptionTest_DoubleIfPositive(const aX: Integer): specialize TOption<Integer>;
+begin
+  if aX > 0 then
+    Exit(specialize TOption<Integer>.Some(aX * 2));
+  Result := specialize TOption<Integer>.None;
+end;
+
+procedure OptionTest_InspectAccumulate(const aX: Integer);
+begin
+  Inc(GOptionTestInspectSeen, aX);
+end;
+
+function OptionTest_IntToString(const aX: Integer): string;
+begin
+  Result := IntToStr(aX);
+end;
+
+function OptionTest_Half(const aX: Integer): Integer;
+begin
+  Result := aX div 2;
+end;
+
+function OptionTest_ReturnMinusTwo: Integer;
+begin
+  Result := -2;
+end;
+
+function OptionTest_AddSeven(const aX: Integer): Integer;
+begin
+  Result := aX + 7;
+end;
+
+function OptionTest_IsEven(const aX: Integer): Boolean;
+begin
+  Result := (aX mod 2) = 0;
+end;
+
+function OptionTest_IsOdd(const aX: Integer): Boolean;
+begin
+  Result := (aX mod 2) = 1;
+end;
+
+function OptionTest_Return99: Integer;
+begin
+  Result := 99;
+end;
+
+function OptionTest_MarkIntegerThunkCalledReturn99: Integer;
+begin
+  GOptionTestIntegerThunkCalled := True;
+  Result := 99;
+end;
+
+function OptionTest_GreaterThan40(const aX: Integer): Boolean;
+begin
+  Result := aX > 40;
+end;
+
+function OptionTest_GreaterThan50(const aX: Integer): Boolean;
+begin
+  Result := aX > 50;
+end;
+
+function OptionTest_AlwaysTrue(const aX: Integer): Boolean;
+begin
+  if aX = aX then;
+  Result := True;
+end;
+
+function OptionTest_IntegerEquals(const aA, aB: Integer): Boolean;
+begin
+  Result := aA = aB;
+end;
+
+function OptionTest_TupleSum(const aTuple: specialize TTuple2<Integer, Integer>): Integer;
+begin
+  Result := aTuple.First + aTuple.Second;
+end;
+
+function OptionTest_ReturnErrorString: string;
+begin
+  Result := 'error';
+end;
+
+function OptionTest_MarkStringThunkCalledReturnCustomError: string;
+begin
+  GOptionTestStringThunkCalled := True;
+  Result := 'custom error';
+end;
+
+function OptionTest_ReturnNine: Integer;
+begin
+  Result := 9;
+end;
+
+function OptionTest_ReturnZero: Integer;
+begin
+  Result := 0;
+end;
+
+function OptionTest_Identity(const aX: Integer): Integer;
+begin
+  Result := aX;
+end;
+
 procedure TTestCase_Option.Test_Some_None_Query_Unwrap;
 var
   O1, O2: specialize TOption<Integer>;
@@ -172,23 +287,19 @@ var
   S: string;
 begin
   O := specialize TOption<Integer>.Some(3);
-  O2 := specialize OptionMap<Integer,Integer>(O,
-    function (const X: Integer): Integer begin Result := X+1; end);
+  O2 := specialize OptionMap<Integer,Integer>(O, @OptionTest_AddOne);
   CheckTrue(O2.IsSome); CheckEquals(4, O2.Unwrap);
 
-  O2 := specialize OptionAndThen<Integer,Integer>(O,
-    function (const X: Integer): specialize TOption<Integer>
-    begin
-      if X>0 then Result := specialize TOption<Integer>.Some(X*2)
-      else Result := specialize TOption<Integer>.None;
-    end);
+  O2 := specialize OptionAndThen<Integer,Integer>(O, @OptionTest_DoubleIfPositive);
   CheckTrue(O2.IsSome); CheckEquals(6, O2.Unwrap);
 
   Seen := 0;
-  O := O.Inspect(procedure (const X: Integer) begin Inc(Seen, X); end);
+  GOptionTestInspectSeen := 0;
+  O := O.Inspect(@OptionTest_InspectAccumulate);
+  Seen := GOptionTestInspectSeen;
   CheckEquals(3, Seen);
 
-  S := O.ToDebugString(function (const X: Integer): string begin Result := IntToStr(X); end);
+  S := O.ToDebugString(@OptionTest_IntToString);
   CheckEquals('Some(3)', S);
 end;
 
@@ -199,29 +310,25 @@ var
   O2: specialize TOption<Integer>;
 begin
   O := specialize TOption<Integer>.Some(10);
-  S := specialize OptionMapOr<Integer,Integer>(O, -1, function (const X: Integer): Integer begin Result := X div 2; end);
+  S := specialize OptionMapOr<Integer,Integer>(O, -1, @OptionTest_Half);
   CheckEquals(5, S);
 
   O := specialize TOption<Integer>.None;
-  S := specialize OptionMapOr<Integer,Integer>(O, -1, function (const X: Integer): Integer begin Result := X div 2; end);
+  S := specialize OptionMapOr<Integer,Integer>(O, -1, @OptionTest_Half);
   CheckEquals(-1, S);
 
   O := specialize TOption<Integer>.Some(3);
-  S := specialize OptionMapOrElse<Integer,Integer>(O,
-    function: Integer begin Result := -2; end,
-    function (const X: Integer): Integer begin Result := X+7; end);
+  S := specialize OptionMapOrElse<Integer,Integer>(O, @OptionTest_ReturnMinusTwo, @OptionTest_AddSeven);
   CheckEquals(10, S);
 
   O := specialize TOption<Integer>.None;
-  S := specialize OptionMapOrElse<Integer,Integer>(O,
-    function: Integer begin Result := -2; end,
-    function (const X: Integer): Integer begin Result := X+7; end);
+  S := specialize OptionMapOrElse<Integer,Integer>(O, @OptionTest_ReturnMinusTwo, @OptionTest_AddSeven);
   CheckEquals(-2, S);
 
   O := specialize TOption<Integer>.Some(4);
-  O2 := specialize OptionFilter<Integer>(O, function (const X: Integer): Boolean begin Result := (X mod 2)=0; end);
+  O2 := specialize OptionFilter<Integer>(O, @OptionTest_IsEven);
   CheckTrue(O2.IsSome); CheckEquals(4, O2.Unwrap);
-  O2 := specialize OptionFilter<Integer>(O, function (const X: Integer): Boolean begin Result := (X mod 2)=1; end);
+  O2 := specialize OptionFilter<Integer>(O, @OptionTest_IsOdd);
   CheckTrue(O2.IsNone);
 end;
 
@@ -289,7 +396,7 @@ var
   V: Integer;
 begin
   O := specialize TOption<Integer>.Some(42);
-  V := O.UnwrapOrElse(function: Integer begin Result := 99; end);
+  V := O.UnwrapOrElse(@OptionTest_Return99);
   CheckEquals(42, V, 'Some should return value without calling function');
 end;
 
@@ -300,8 +407,10 @@ var
   Called: Boolean;
 begin
   Called := False;
+  GOptionTestIntegerThunkCalled := False;
   O := specialize TOption<Integer>.None;
-  V := O.UnwrapOrElse(function: Integer begin Called := True; Result := 99; end);
+  V := O.UnwrapOrElse(@OptionTest_MarkIntegerThunkCalledReturn99);
+  Called := GOptionTestIntegerThunkCalled;
   CheckEquals(99, V, 'None should call function and return its result');
   CheckTrue(Called, 'Function should have been called');
 end;
@@ -409,7 +518,7 @@ var
   Result: Boolean;
 begin
   O := specialize TOption<Integer>.Some(42);
-  Result := O.IsSomeAnd(function(const X: Integer): Boolean begin Result := X > 40; end);
+  Result := O.IsSomeAnd(@OptionTest_GreaterThan40);
   CheckTrue(Result, 'IsSomeAnd should return True when Some and predicate is true');
 end;
 
@@ -419,7 +528,7 @@ var
   Result: Boolean;
 begin
   O := specialize TOption<Integer>.Some(42);
-  Result := O.IsSomeAnd(function(const X: Integer): Boolean begin Result := X > 50; end);
+  Result := O.IsSomeAnd(@OptionTest_GreaterThan50);
   CheckFalse(Result, 'IsSomeAnd should return False when Some but predicate is false');
 end;
 
@@ -429,7 +538,7 @@ var
   Result: Boolean;
 begin
   O := specialize TOption<Integer>.None;
-  Result := O.IsSomeAnd(function(const X: Integer): Boolean begin Result := True; end);
+  Result := O.IsSomeAnd(@OptionTest_AlwaysTrue);
   CheckFalse(Result, 'IsSomeAnd should return False for None');
 end;
 
@@ -441,7 +550,7 @@ var
   Result: Boolean;
 begin
   O := specialize TOption<Integer>.Some(42);
-  Result := O.Contains(42, function(const A, B: Integer): Boolean begin Result := A = B; end);
+  Result := O.Contains(42, @OptionTest_IntegerEquals);
   CheckTrue(Result, 'Contains should return True when Some and values are equal');
 end;
 
@@ -451,7 +560,7 @@ var
   Result: Boolean;
 begin
   O := specialize TOption<Integer>.Some(42);
-  Result := O.Contains(99, function(const A, B: Integer): Boolean begin Result := A = B; end);
+  Result := O.Contains(99, @OptionTest_IntegerEquals);
   CheckFalse(Result, 'Contains should return False when Some but values are not equal');
 end;
 
@@ -461,7 +570,7 @@ var
   Result: Boolean;
 begin
   O := specialize TOption<Integer>.None;
-  Result := O.Contains(42, function(const A, B: Integer): Boolean begin Result := A = B; end);
+  Result := O.Contains(42, @OptionTest_IntegerEquals);
   CheckFalse(Result, 'Contains should return False for None');
 end;
 
@@ -653,13 +762,7 @@ var
 begin
   A := specialize TOption<Integer>.Some(42);
   B := specialize TOption<Integer>.Some(99);
-  Result := specialize OptionZipWith<Integer, Integer, Integer>(
-    A, B,
-    function(const Tuple: specialize TTuple2<Integer, Integer>): Integer
-    begin
-      Result := Tuple.First + Tuple.Second;
-    end
-  );
+  Result := specialize OptionZipWith<Integer, Integer, Integer>(A, B, @OptionTest_TupleSum);
   CheckTrue(Result.IsSome, 'ZipWith should return Some when both are Some');
   CheckEquals(141, Result.Unwrap, 'ZipWith should apply function to tuple');
 end;
@@ -671,13 +774,7 @@ var
 begin
   A := specialize TOption<Integer>.Some(42);
   B := specialize TOption<Integer>.None;
-  Result := specialize OptionZipWith<Integer, Integer, Integer>(
-    A, B,
-    function(const Tuple: specialize TTuple2<Integer, Integer>): Integer
-    begin
-      Result := Tuple.First + Tuple.Second;
-    end
-  );
+  Result := specialize OptionZipWith<Integer, Integer, Integer>(A, B, @OptionTest_TupleSum);
   CheckTrue(Result.IsNone, 'ZipWith should return None when second is None');
 end;
 
@@ -688,13 +785,7 @@ var
 begin
   A := specialize TOption<Integer>.None;
   B := specialize TOption<Integer>.Some(99);
-  Result := specialize OptionZipWith<Integer, Integer, Integer>(
-    A, B,
-    function(const Tuple: specialize TTuple2<Integer, Integer>): Integer
-    begin
-      Result := Tuple.First + Tuple.Second;
-    end
-  );
+  Result := specialize OptionZipWith<Integer, Integer, Integer>(A, B, @OptionTest_TupleSum);
   CheckTrue(Result.IsNone, 'ZipWith should return None when first is None');
 end;
 
@@ -705,13 +796,7 @@ var
 begin
   A := specialize TOption<Integer>.None;
   B := specialize TOption<Integer>.None;
-  Result := specialize OptionZipWith<Integer, Integer, Integer>(
-    A, B,
-    function(const Tuple: specialize TTuple2<Integer, Integer>): Integer
-    begin
-      Result := Tuple.First + Tuple.Second;
-    end
-  );
+  Result := specialize OptionZipWith<Integer, Integer, Integer>(A, B, @OptionTest_TupleSum);
   CheckTrue(Result.IsNone, 'ZipWith should return None when both are None');
 end;
 
@@ -723,10 +808,7 @@ var
   R: specialize TResult<Integer, string>;
 begin
   O := specialize TOption<Integer>.Some(42);
-  R := specialize OptionToResultElse<Integer, string>(
-    O,
-    function: string begin Result := 'error'; end
-  );
+  R := specialize OptionToResultElse<Integer, string>(O, @OptionTest_ReturnErrorString);
   CheckTrue(R.IsOk, 'ToResultElse should return Ok when Some');
   CheckEquals(42, R.Unwrap, 'ToResultElse should contain value');
 end;
@@ -738,11 +820,10 @@ var
   Called: Boolean;
 begin
   Called := False;
+  GOptionTestStringThunkCalled := False;
   O := specialize TOption<Integer>.None;
-  R := specialize OptionToResultElse<Integer, string>(
-    O,
-    function: string begin Called := True; Result := 'custom error'; end
-  );
+  R := specialize OptionToResultElse<Integer, string>(O, @OptionTest_MarkStringThunkCalledReturnCustomError);
+  Called := GOptionTestStringThunkCalled;
   CheckTrue(R.IsErr, 'ToResultElse should return Err when None');
   CheckEquals('custom error', R.UnwrapErr, 'ToResultElse should call function and return error');
   CheckTrue(Called, 'Function should have been called');
@@ -969,14 +1050,14 @@ begin
   // OptionMapOrElse: Some uses Fok; Fnone may be nil
   O := specialize TOption<Integer>.Some(1);
   Fnone := nil;
-  Fok := function(const X: Integer): Integer begin Result := X + 1; end;
+  Fok := @OptionTest_AddOne;
   V := specialize OptionMapOrElse<Integer, Integer>(O, Fnone, Fok);
   CheckEquals(2, V);
 
   // OptionMapOrElse: None uses Fnone; Fok may be nil
   O := specialize TOption<Integer>.None;
   Fok := nil;
-  Fnone := function: Integer begin Result := 9; end;
+  Fnone := @OptionTest_ReturnNine;
   V := specialize OptionMapOrElse<Integer, Integer>(O, Fnone, Fok);
   CheckEquals(9, V);
 
@@ -1062,7 +1143,7 @@ var
   V: Integer;
 begin
   O := specialize TOption<Integer>.Some(1);
-  Fnone := function: Integer begin Result := 0; end;
+  Fnone := @OptionTest_ReturnZero;
   Fok := nil;
   try
     V := specialize OptionMapOrElse<Integer, Integer>(O, Fnone, Fok);
@@ -1083,7 +1164,7 @@ var
 begin
   O := specialize TOption<Integer>.None;
   Fnone := nil;
-  Fok := function(const X: Integer): Integer begin Result := X; end;
+  Fok := @OptionTest_Identity;
   try
     V := specialize OptionMapOrElse<Integer, Integer>(O, Fnone, Fok);
     if V = V then; // suppress hint

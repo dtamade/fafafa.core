@@ -2,6 +2,22 @@
 
 本目录包含 JSON 模块的可运行示例，覆盖读取遍历、JSON Pointer、JSON Patch、以及 Fluent 流畅 API。
 
+## Current entry
+
+- Linux/macOS：
+  - `examples/fafafa.core.json/BuildOrRun.sh`
+  - `examples/fafafa.core.json/BuildOrRun_Min.sh`
+- Windows：
+  - `examples\fafafa.core.json\BuildOrRun.bat`
+  - `examples\fafafa.core.json\BuildOrRun_Min.bat`
+  - `examples\fafafa.core.json\BuildOrRun_NoExcept.bat`
+- 主要示例源码：
+  - `examples/fafafa.core.json/example_json_read_traverse.lpr`
+  - `examples/fafafa.core.json/example_json_pointer_min.lpr`
+  - `examples/fafafa.core.json/example_json_patch_min.lpr`
+  - `examples/fafafa.core.json/example_hot_path_min.lpr`
+  - `examples/fafafa.core.json/example_forin_and_ptr_best_practices.lpr`
+
 ## 示例清单
 
 - example_json_read_traverse.lpr
@@ -56,6 +72,11 @@ examples\fafafa.core.json\bin\example_fluent_min.exe
 ## 相关文档
 
 - docs/fluent.md：Fluent API 快速开始、迁移对照、调试与断言说明
+
+## Generated outputs
+
+- `bin/` 和 `lib/` 只代表本地构建结果，不是 source-of-truth。
+- current-entry 应回到 README、`BuildOrRun*` 脚本、`.lpr` / `.lpi` 源文件，而不是把生成产物当成稳定入口。
 
 
 

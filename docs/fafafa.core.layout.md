@@ -1,15 +1,17 @@
 # fafafa.core.layout — 布局契约与分配能力描述
 
-> 当前 strict L0 语义以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
+> 当前 strict L0 边界以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准；后续推进顺序以 `docs/fafafa.core.l0.roadmap.md` 为准。
 > `fafafa.core.layout` 属于 strict non-SIMD L0，负责跨 allocator / bytes / collections 共享的布局合同。
 
 ## 当前 source-of-truth
 
 1. `docs/fafafa.core.l0.foundation.md`
-2. `docs/ARCHITECTURE_LAYERS.md`
-3. `src/fafafa.core.layout.pas`
-4. `tests/fafafa.core.layout/README.md`
-5. `tests/fafafa.core.layout/BuildOrTest.sh`
+2. `docs/fafafa.core.l0.roadmap.md`
+3. `docs/ARCHITECTURE_LAYERS.md`
+4. `src/fafafa.core.layout.pas`
+5. `tests/fafafa.core.layout/README.md`
+6. `tests/fafafa.core.layout/BuildOrTest.sh`
+7. `tests/fafafa.core.layout/BuildOrTest.bat`
 
 ## 当前兼容策略
 
@@ -57,3 +59,5 @@
 - Linux/macOS：`bash tests/fafafa.core.layout/BuildOrTest.sh test`
 - Windows：`tests\\fafafa.core.layout\\BuildOrTest.bat test`
 - 当前测试入口会锁定 `TryNextPowerOfTwo`、`TMemLayout` 对齐归一化、`Extend/Pad` 语义与 `TAllocCaps.SupportsLayout` 行为。
+- 如果你是在 Linux x64 上做 strict L0 日常维护，优先从 `bash tests/run_strict_l0_maintenance_loop.sh` 开始，而不是只单跑当前模块。
+- 如果你需要 exact Windows native evidence，当前只接受 GitHub Actions 或真实 Windows runner 产物。

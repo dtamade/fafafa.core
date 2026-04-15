@@ -528,6 +528,65 @@ begin
   table.ZeroF64x8 := @NEONZeroF64x8;
   {$ENDIF}
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+  // Native asm builds still rely on NEON-specific wrapper entry points for many
+  // wide float families. Publish those slots explicitly so registered NEON
+  // tables do not leak base scalar dispatch entries on arm64 evidence runs.
+  table.MinF32x8 := @NEONMinF32x8;
+  table.MaxF32x8 := @NEONMaxF32x8;
+  table.AbsF32x8 := @NEONAbsF32x8;
+  table.SqrtF32x8 := @NEONSqrtF32x8;
+  table.FloorF32x8 := @NEONFloorF32x8;
+  table.CeilF32x8 := @NEONCeilF32x8;
+  table.RoundF32x8 := @NEONRoundF32x8;
+  table.TruncF32x8 := @NEONTruncF32x8;
+  table.FmaF32x8 := @NEONFmaF32x8;
+  table.ClampF32x8 := @NEONClampF32x8;
+
+  table.AddF64x4 := @NEONAddF64x4;
+  table.SubF64x4 := @NEONSubF64x4;
+  table.MulF64x4 := @NEONMulF64x4;
+  table.DivF64x4 := @NEONDivF64x4;
+  table.MinF64x4 := @NEONMinF64x4;
+  table.MaxF64x4 := @NEONMaxF64x4;
+  table.AbsF64x4 := @NEONAbsF64x4;
+  table.SqrtF64x4 := @NEONSqrtF64x4;
+  table.FloorF64x4 := @NEONFloorF64x4;
+  table.CeilF64x4 := @NEONCeilF64x4;
+  table.RoundF64x4 := @NEONRoundF64x4;
+  table.TruncF64x4 := @NEONTruncF64x4;
+  table.FmaF64x4 := @NEONFmaF64x4;
+  table.ClampF64x4 := @NEONClampF64x4;
+
+  table.AddF32x16 := @NEONAddF32x16;
+  table.SubF32x16 := @NEONSubF32x16;
+  table.MulF32x16 := @NEONMulF32x16;
+  table.DivF32x16 := @NEONDivF32x16;
+  table.MinF32x16 := @NEONMinF32x16;
+  table.MaxF32x16 := @NEONMaxF32x16;
+  table.AbsF32x16 := @NEONAbsF32x16;
+  table.SqrtF32x16 := @NEONSqrtF32x16;
+  table.FloorF32x16 := @NEONFloorF32x16;
+  table.CeilF32x16 := @NEONCeilF32x16;
+  table.RoundF32x16 := @NEONRoundF32x16;
+  table.TruncF32x16 := @NEONTruncF32x16;
+  table.FmaF32x16 := @NEONFmaF32x16;
+  table.ClampF32x16 := @NEONClampF32x16;
+
+  table.AddF64x8 := @NEONAddF64x8;
+  table.SubF64x8 := @NEONSubF64x8;
+  table.MulF64x8 := @NEONMulF64x8;
+  table.DivF64x8 := @NEONDivF64x8;
+  table.MinF64x8 := @NEONMinF64x8;
+  table.MaxF64x8 := @NEONMaxF64x8;
+  table.AbsF64x8 := @NEONAbsF64x8;
+  table.SqrtF64x8 := @NEONSqrtF64x8;
+  table.FloorF64x8 := @NEONFloorF64x8;
+  table.CeilF64x8 := @NEONCeilF64x8;
+  table.RoundF64x8 := @NEONRoundF64x8;
+  table.TruncF64x8 := @NEONTruncF64x8;
+  table.FmaF64x8 := @NEONFmaF64x8;
+  table.ClampF64x8 := @NEONClampF64x8;
+
   table.AndNotI8x16 := @NEONAndNotI8x16;
   table.AndNotU16x8 := @NEONAndNotU16x8;
   table.AndNotU8x16 := @NEONAndNotU8x16;

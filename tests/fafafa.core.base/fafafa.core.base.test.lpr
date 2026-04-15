@@ -2,6 +2,7 @@
 program fafafa_core_base_test;
 
 {$mode objfpc}{$H+}
+{$I ../../src/fafafa.core.settings.inc}
 
 uses
   {$IFDEF UNIX}
