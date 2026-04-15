@@ -204,8 +204,11 @@ if [[ -z "${LRunId}" ]]; then
 fi
 
 echo "[L0-NATIVE-EVIDENCE-GH] Watching run: ${LRunId}"
-if ! gh_runlib_wait_for_run_completion "${LRunId}" "${LPollSeconds}" "${LPollMaxTries}"; then
-  LWaitRc=$?
+set +e
+gh_runlib_wait_for_run_completion "${LRunId}" "${LPollSeconds}" "${LPollMaxTries}"
+LWaitRc=$?
+set -e
+if [[ "${LWaitRc}" != "0" ]]; then
   if [[ "${LWaitRc}" == "10" ]]; then
     echo "[L0-NATIVE-EVIDENCE-GH] Workflow failed: run=${LRunId}, conclusion=${GH_RUNLIB_LAST_CONCLUSION:-unknown}"
     LRunViewText="$(gh run view "${LRunId}" 2>&1 || true)"

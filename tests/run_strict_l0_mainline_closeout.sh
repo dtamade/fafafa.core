@@ -155,8 +155,11 @@ if [[ "${SKIP_LINUX}" != "1" ]]; then
   fi
 
   echo "[L0-MAINLINE-CLOSEOUT] Watching Linux maintenance run: ${LINUX_RUN_ID}"
-  if ! gh_runlib_wait_for_run_completion "${LINUX_RUN_ID}" "${LPollSeconds}" "${LPollMaxTries}"; then
-    LWaitRc=$?
+  set +e
+  gh_runlib_wait_for_run_completion "${LINUX_RUN_ID}" "${LPollSeconds}" "${LPollMaxTries}"
+  LWaitRc=$?
+  set -e
+  if [[ "${LWaitRc}" != "0" ]]; then
     if [[ "${LWaitRc}" == "10" ]]; then
       echo "[L0-MAINLINE-CLOSEOUT] Workflow failed: run=${LINUX_RUN_ID}, conclusion=${GH_RUNLIB_LAST_CONCLUSION:-unknown}" >&2
     else

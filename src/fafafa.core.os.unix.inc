@@ -157,11 +157,13 @@ begin
     Result := ps
   else
     Result := 4096;
-  {$ELSEIF DEFINED(HASFPSYSCONF)}
-  Result := fpSysConf(_SC_PAGESIZE);
-  if Result <= 0 then Result := 4096;
   {$ELSE}
-  Result := 4096;
+    {$IFDEF HASFPSYSCONF}
+    Result := fpSysConf(_SC_PAGESIZE);
+    if Result <= 0 then Result := 4096;
+    {$ELSE}
+    Result := 4096;
+    {$ENDIF}
   {$ENDIF}
 end;
 
@@ -269,7 +271,8 @@ begin
     end;
   end;
 end;
-{$ELSEIF DEFINED(FREEBSD) or DEFINED(OPENBSD) or DEFINED(NETBSD) or DEFINED(DRAGONFLY)}
+{$ELSE}
+  {$IFDEF FREEBSD}
 var
   tvBoot, tvNow: TimeVal;
   sz: size_t;
@@ -287,7 +290,64 @@ begin
     end;
   end;
 end;
-{$ELSE}
+  {$ELSE}
+    {$IFDEF OPENBSD}
+var
+  tvBoot, tvNow: TimeVal;
+  sz: size_t;
+begin
+  Result := 0;
+  sz := SizeOf(tvBoot);
+  if fpSysCtlByName('kern.boottime', @tvBoot, @sz, nil, 0) = 0 then
+  begin
+    if fpGetTimeOfDay(@tvNow, nil) = 0 then
+    begin
+      if tvNow.tv_sec > tvBoot.tv_sec then
+        Result := QWord(tvNow.tv_sec - tvBoot.tv_sec)
+      else
+        Result := 0;
+    end;
+  end;
+end;
+    {$ELSE}
+      {$IFDEF NETBSD}
+var
+  tvBoot, tvNow: TimeVal;
+  sz: size_t;
+begin
+  Result := 0;
+  sz := SizeOf(tvBoot);
+  if fpSysCtlByName('kern.boottime', @tvBoot, @sz, nil, 0) = 0 then
+  begin
+    if fpGetTimeOfDay(@tvNow, nil) = 0 then
+    begin
+      if tvNow.tv_sec > tvBoot.tv_sec then
+        Result := QWord(tvNow.tv_sec - tvBoot.tv_sec)
+      else
+        Result := 0;
+    end;
+  end;
+end;
+      {$ELSE}
+        {$IFDEF DRAGONFLY}
+var
+  tvBoot, tvNow: TimeVal;
+  sz: size_t;
+begin
+  Result := 0;
+  sz := SizeOf(tvBoot);
+  if fpSysCtlByName('kern.boottime', @tvBoot, @sz, nil, 0) = 0 then
+  begin
+    if fpGetTimeOfDay(@tvNow, nil) = 0 then
+    begin
+      if tvNow.tv_sec > tvBoot.tv_sec then
+        Result := QWord(tvNow.tv_sec - tvBoot.tv_sec)
+      else
+        Result := 0;
+    end;
+  end;
+end;
+        {$ELSE}
 var
   f: Text;
   s: string;
@@ -311,6 +371,10 @@ begin
       if v > 0 then Result := Trunc(v);
   end;
 end;
+        {$ENDIF}
+      {$ENDIF}
+    {$ENDIF}
+  {$ENDIF}
 {$ENDIF}
 
 
@@ -401,7 +465,8 @@ begin
   else
     Result := 0;
 end;
-{$ELSEIF DEFINED(FREEBSD) or DEFINED(OPENBSD) or DEFINED(NETBSD) or DEFINED(DRAGONFLY)}
+{$ELSE}
+  {$IFDEF FREEBSD}
 var
   tvBoot: TimeVal;
   sz: size_t;
@@ -413,7 +478,46 @@ begin
   else
     Result := 0;
 end;
-{$ELSE}
+  {$ELSE}
+    {$IFDEF OPENBSD}
+var
+  tvBoot: TimeVal;
+  sz: size_t;
+begin
+  Result := 0;
+  sz := SizeOf(tvBoot);
+  if fpSysCtlByName('kern.boottime', @tvBoot, @sz, nil, 0) = 0 then
+    Result := QWord(tvBoot.tv_sec)
+  else
+    Result := 0;
+end;
+    {$ELSE}
+      {$IFDEF NETBSD}
+var
+  tvBoot: TimeVal;
+  sz: size_t;
+begin
+  Result := 0;
+  sz := SizeOf(tvBoot);
+  if fpSysCtlByName('kern.boottime', @tvBoot, @sz, nil, 0) = 0 then
+    Result := QWord(tvBoot.tv_sec)
+  else
+    Result := 0;
+end;
+      {$ELSE}
+        {$IFDEF DRAGONFLY}
+var
+  tvBoot: TimeVal;
+  sz: size_t;
+begin
+  Result := 0;
+  sz := SizeOf(tvBoot);
+  if fpSysCtlByName('kern.boottime', @tvBoot, @sz, nil, 0) = 0 then
+    Result := QWord(tvBoot.tv_sec)
+  else
+    Result := 0;
+end;
+        {$ELSE}
 var
   f: Text;
   s: string;
@@ -443,6 +547,10 @@ begin
     Close(f);
   end;
 end;
+        {$ENDIF}
+      {$ENDIF}
+    {$ENDIF}
+  {$ENDIF}
 {$ENDIF}
 
 
