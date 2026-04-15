@@ -182,3 +182,9 @@
   - Log: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260415-152/windows_b07_gate.log
   - Summary: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260415-152/windows_b07_closeout_summary.md
   - 验证：verify_windows_b07_evidence PASS
+
+<!-- SIMD-WIN-CLOSEOUT-2026-04-16 -->
+- Windows 实机证据：已归档（2026-04-16）
+  - Log: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260416-152/windows_b07_gate.log
+  - Summary: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260416-152/windows_b07_closeout_summary.md
+  - 验证：verify_windows_b07_evidence PASS
