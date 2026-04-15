@@ -36,11 +36,9 @@
 当前 today 状态：
 
 - workflow 已经注册在 default branch 上
-- GitHub Actions run `24283947269` 已对当前 `main` merge commit fresh 跑通 `L0 Linux Maintenance`
-- GitHub Actions run `24284111799` 已对当前 `main` merge commit fresh 收到 strict L0 Windows native evidence `12/12 PASS`
-- GitHub Actions run `24224880061` 已在真实 Windows runner 上 fresh 收到 strict L0 native evidence `12/12` PASS
-- GitHub Actions run `24278413198` 已对 `l0-mainline-integration-20260411` 的提交 `3ed04784` 收到 strict L0 native evidence `12/12` PASS
-- strict L0 的最新控制面修复已通过 PR `#13` 合并到 `main`；当前 `main` 已同时具备 fresh Linux maintenance 证据和 fresh Windows native evidence
+- latest merged-main Linux / Windows evidence 锚点固定写在 `docs/audits/2026-04-11-l0-current-state-audit.md`
+- 同一组 closeout / handoff 会由 `bash tests/update_strict_l0_current_state_docs.sh` 同步回填到 `docs/legacy/l0/2026-04-11-l0-mainline-refs-and-ci-closeout.md` 和 `workers/worker1.md`
+- 当前控制面要求显式区分 latest merged-main exact evidence head、`origin/main` 和当前 L0 worktree `HEAD`；如果当前增量只是 docs / control-plane-only，不要把它误写成已经拥有新的 exact Windows evidence
 - 因此，`code=21` 现在应先被视作“当前 shell / runner 没有 gh 登录态”，而 `code=22` 只应在 gh 已认证后被视作“registration drift / GH 环境异常”的诊断信号，而不是当前仓库的基线状态
 
 当前推荐口径：

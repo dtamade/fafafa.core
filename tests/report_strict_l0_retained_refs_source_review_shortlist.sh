@@ -133,10 +133,16 @@ is_review_skip_path() {
 
   case "${aRef}:${aPath}" in
     l0-mainline-closeout-20260411:.github/workflows/l0-windows-native-evidence.yml|\
+    l0-mainline-closeout-20260411:src/fafafa.core.mem.allocator.pas|\
     l0-mainline-closeout-20260411:src/fafafa.core.atomic.base.pas|\
     l0-mainline-closeout-20260411:src/fafafa.core.atomic.pas|\
     l0-mainline-closeout-20260411:src/fafafa.core.mem.allocator.callbackAllocator.pas|\
     l0-mainline-closeout-20260411:tests/lib_github_actions_workflow_runs.sh|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.fs/ArchivePerfResult.sh|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.fs/BuildOrRunPerf.sh|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.fs/BuildOrRunPerfAll.sh|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.fs/BuildOrRunResolvePerf.sh|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.fs/README-perf.md|\
     l0-mainline-closeout-20260411:tests/fafafa.core.atomic/README.md|\
     l0-mainline-closeout-20260411:tests/fafafa.core.atomic/Test_fafafa.core.atomic.compat.contract.pas|\
     l0-mainline-closeout-20260411:tests/fafafa.core.atomic/Test_fafafa.core.atomic.pas|\
@@ -149,23 +155,86 @@ is_review_skip_path() {
     l0-main-rescue:.github/workflows/l0-windows-native-evidence.yml|\
     l0-main-rescue:src/fafafa.core.atomic.base.pas|\
     l0-main-rescue:src/fafafa.core.atomic.pas|\
+    l0-main-rescue:src/fafafa.core.mem.allocator.pas|\
     l0-main-rescue:src/fafafa.core.mem.allocator.callbackAllocator.pas|\
+    l0-main-rescue:src/fafafa.core.result.pas|\
+    l0-main-rescue:src/fafafa.core.span.pas|\
+    l0-main-rescue:examples/fafafa.core.atomic/BuildOrRun.sh|\
+    l0-main-rescue:examples/fafafa.core.base/BuildOrRun.sh|\
+    l0-main-rescue:examples/fafafa.core.base/example_base.lpr|\
+    l0-main-rescue:examples/fafafa.core.option/BuildOrRun.sh|\
+    l0-main-rescue:examples/fafafa.core.result/BuildOrRun.sh|\
+    l0-main-rescue:examples/fafafa.core.result/example_result_filters_and_try.lpr|\
     l0-main-rescue:tests/lib_github_actions_workflow_runs.sh|\
     l0-main-rescue:tests/fafafa.core.atomic/BuildOrTest.bat|\
     l0-main-rescue:tests/fafafa.core.atomic/README.md|\
     l0-main-rescue:tests/fafafa.core.atomic/Test_fafafa.core.atomic.base.pas|\
     l0-main-rescue:tests/fafafa.core.atomic/Test_fafafa.core.atomic.compat.contract.pas|\
     l0-main-rescue:tests/fafafa.core.atomic/Test_fafafa.core.atomic.pas|\
+    l0-main-rescue:tests/fafafa.core.base/BuildOrTest.bat|\
+    l0-main-rescue:tests/fafafa.core.base/README.md|\
+    l0-main-rescue:tests/fafafa.core.base/fafafa.core.base.test.lpr|\
+    l0-main-rescue:tests/fafafa.core.base/fafafa.core.base.testcase.pas|\
+    l0-main-rescue:tests/fafafa.core.bits/BuildOrTest.bat|\
+    l0-main-rescue:tests/fafafa.core.bits/README.md|\
+    l0-main-rescue:tests/fafafa.core.bits/fafafa.core.bits.test.lpr|\
+    l0-main-rescue:tests/fafafa.core.bits/fafafa.core.bits.testcase.pas|\
+    l0-main-rescue:tests/fafafa.core.contracts/BuildOrTest.bat|\
+    l0-main-rescue:tests/fafafa.core.contracts/README.md|\
+    l0-main-rescue:tests/fafafa.core.contracts/fafafa.core.contracts.test.lpr|\
+    l0-main-rescue:tests/fafafa.core.contracts/fafafa.core.contracts.testcase.pas|\
+    l0-main-rescue:tests/fafafa.core.endian/BuildOrTest.bat|\
     l0-main-rescue:tests/fafafa.core.endian/README.md|\
+    l0-main-rescue:tests/fafafa.core.endian/fafafa.core.endian.test.lpr|\
+    l0-main-rescue:tests/fafafa.core.endian/fafafa.core.endian.testcase.pas|\
+    l0-main-rescue:tests/fafafa.core.fs/ArchivePerfResult.sh|\
+    l0-main-rescue:tests/fafafa.core.fs/BuildOrRunPerf.sh|\
+    l0-main-rescue:tests/fafafa.core.fs/BuildOrRunPerfAll.sh|\
+    l0-main-rescue:tests/fafafa.core.fs/BuildOrRunResolvePerf.sh|\
+    l0-main-rescue:tests/fafafa.core.fs/README-perf.md|\
+    l0-main-rescue:tests/fafafa.core.layout/BuildOrTest.bat|\
     l0-main-rescue:tests/fafafa.core.layout/README.md|\
+    l0-main-rescue:tests/fafafa.core.layout/fafafa.core.layout.test.lpr|\
+    l0-main-rescue:tests/fafafa.core.layout/fafafa.core.layout.testcase.pas|\
     l0-main-rescue:tests/fafafa.core.mem.allocator.foundation/BuildOrTest.sh|\
     l0-main-rescue:tests/fafafa.core.mem.allocator.foundation/README.md|\
     l0-main-rescue:tests/fafafa.core.mem.allocator.foundation/buildOrTest.bat|\
     l0-main-rescue:tests/fafafa.core.mem.allocator.foundation/fafafa.core.mem.allocator.foundation.test.lpi|\
     l0-main-rescue:tests/fafafa.core.mem.allocator.foundation/fafafa.core.mem.allocator.foundation.test.lpr|\
     l0-main-rescue:tests/fafafa.core.mem.allocator.foundation/test_allocator_foundation_runtime.pas|\
+    l0-main-rescue:tests/fafafa.core.mem/BuildOrTest.bat|\
+    l0-main-rescue:tests/fafafa.core.mem/BuildOrTest.sh|\
+    l0-main-rescue:tests/fafafa.core.mem/README.md|\
+    l0-main-rescue:tests/fafafa.core.mem/test_mem_allocator.pas|\
+    l0-main-rescue:tests/fafafa.core.mem/tests_mem_allocator_only.lpi|\
+    l0-main-rescue:tests/fafafa.core.mem/tests_mem_allocator_only.lpr|\
+    l0-main-rescue:tests/fafafa.core.option/BuildOrTest.bat|\
+    l0-main-rescue:tests/fafafa.core.option/README.md|\
+    l0-main-rescue:tests/fafafa.core.option/buildOrTest.bat|\
+    l0-main-rescue:tests/fafafa.core.option/fafafa.core.option.test.lpr|\
+    l0-main-rescue:tests/fafafa.core.option/fafafa.core.option.testcase.pas|\
+    l0-main-rescue:tests/fafafa.core.platform/BuildOrTest.bat|\
     l0-main-rescue:tests/fafafa.core.platform/README.md|\
-    l0-main-rescue:tests/fafafa.core.span/README.md)
+    l0-main-rescue:tests/fafafa.core.platform/fafafa.core.platform.test.lpr|\
+    l0-main-rescue:tests/fafafa.core.collections/vecdeque/Test_vecdeque_span.pas|\
+    l0-main-rescue:tests/fafafa.core.result/BuildOrTest.bat|\
+    l0-main-rescue:tests/fafafa.core.result/README.md|\
+    l0-main-rescue:tests/fafafa.core.result/buildOrTest.bat|\
+    l0-main-rescue:tests/fafafa.core.result/fafafa.core.result.test.lpr|\
+    l0-main-rescue:tests/fafafa.core.result/fafafa.core.result.testcase.pas|\
+    l0-main-rescue:tests/fafafa.core.result/test_basic_result.pas|\
+    l0-main-rescue:tests/fafafa.core.result/test_option_basic.pas|\
+    l0-main-rescue:tests/fafafa.core.result/test_option_init_debug.pas|\
+    l0-main-rescue:tests/fafafa.core.result/tests_result.lpr|\
+    l0-main-rescue:tests/fafafa.core.span/BuildOrTest.bat|\
+    l0-main-rescue:tests/fafafa.core.span/README.md|\
+    l0-main-rescue:tests/fafafa.core.span/fafafa.core.span.test.lpr|\
+    l0-main-rescue:tests/fafafa.core.span/fafafa.core.span.testcase.pas|\
+    l0-main-rescue:src/fafafa.core.time.tick.hardware.aarch64.pas|\
+    l0-main-rescue:src/fafafa.core.time.tick.hardware.armv7a.pas|\
+    l0-main-rescue:src/fafafa.core.time.tick.hardware.i386.pas|\
+    l0-main-rescue:src/fafafa.core.time.tick.hardware.riscv32.pas|\
+    l0-main-rescue:src/fafafa.core.time.tick.hardware.riscv64.pas)
       return 0
       ;;
   esac

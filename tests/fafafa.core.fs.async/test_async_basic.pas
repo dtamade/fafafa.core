@@ -7,7 +7,8 @@ unit test_async_basic;
 interface
 
 uses
-  Classes, SysUtils, fpcunit, testregistry;
+  Classes, SysUtils, BaseUnix, fpcunit, testregistry,
+  fafafa.core.base, fafafa.core.thread, fafafa.core.fs, fafafa.core.fs.async;
 
 type
   // 异步文件系统基础功能测试

@@ -9,6 +9,9 @@
 - L0 稳定路线图：`docs/fafafa.core.l0.roadmap.md`
 - L0 详细定义：`docs/fafafa.core.l0.foundation.md`
 - L0 当前审计：`docs/audits/2026-04-11-l0-current-state-audit.md`
+- tail shell/runner head-ahead / no-absorb 审计：`docs/audits/2026-04-15-l0-tail-shell-runner-head-ahead-no-absorb-audit.md`
+- tail residual runner/source no-absorb 审计：`docs/audits/2026-04-15-l0-tail-residual-runner-source-no-absorb-audit.md`
+- sidecar async runner slice 审计：`docs/audits/2026-04-15-l0-sidecar-async-runner-slice-audit.md`
 - retained refs post-merge sidecar/tail 审计：`docs/audits/2026-04-14-l0-retained-refs-sidecar-tail-postmerge-audit.md`
 - L0 post-merge 稳定化计划：`docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md`
 - L0 历史批次 / 审计归档：`docs/legacy/l0/README.md`
@@ -105,7 +108,10 @@
 - strict L0 已在 `main` 完成合并；`docs/legacy/l0/README.md` 记录了更早的 merge checklist、batch closeout、dated current-state audit 和 rescue closeout 历史。
 - `docs/legacy/l0/2026-04-11-l0-mainline-refs-and-ci-closeout.md` 记录了当前残留 L0 refs 的审计结论，以及为什么这一步没有继续盲删历史 refs。
 - 当前如果要判断 strict L0 的真实状态，优先看 `docs/audits/2026-04-11-l0-current-state-audit.md`、`docs/fafafa.core.l0.roadmap.md` 和 `docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md`。
-- 当前 retained-refs latest absorption 入口固定为 `docs/audits/2026-04-14-l0-retained-refs-sidecar-tail-postmerge-audit.md`。
+- 当前 retained-refs latest review closeout 入口固定为 `docs/audits/2026-04-15-l0-tail-shell-runner-head-ahead-no-absorb-audit.md`。
+- `tail` residual runner/source no-absorb 入口继续固定为 `docs/audits/2026-04-15-l0-tail-residual-runner-source-no-absorb-audit.md`。
+- `sidecar` async runner slice 入口继续固定为 `docs/audits/2026-04-15-l0-sidecar-async-runner-slice-audit.md`。
+- `closeout/rescue` 的 source-review clearout 入口继续固定为 `docs/audits/2026-04-15-l0-closeout-rescue-final-source-review-clearout-audit.md`。
 - Linux x64 的 strict L0 日常维护入口固定为 `bash tests/run_strict_l0_maintenance_loop.sh`；它会串起 docs consistency、active shell runners、gate、`git diff --check`、runtime matrix 和 native closeout stack。
 - strict L0 在 `main` 上的一波收口入口固定为 `bash tests/run_strict_l0_mainline_closeout.sh`；需要实际覆盖 current-state 文档时显式加 `--apply-docs`。
 - 如果你已经拿到 Linux / Windows run id，只需要回填 current-state 审计、legacy closeout 和 worker handoff，入口固定为 `bash tests/update_strict_l0_current_state_docs.sh --apply ...`。
@@ -117,6 +123,15 @@
 - 第八波之后，`--details` 还会继续给出 `test_hygiene_candidate_paths=` 与 `source_review_candidate_paths=`，把 `sidecar/tail` 和 `closeout/rescue` 的当前下一跳直接暴露出来。
 - 第九波之后，`sidecar/tail` 的一批 tracked test-hygiene residue 已经从主线真实清掉；如果 `closeout/rescue` 继续是 `source-review-first`，当前标准入口固定为 `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh`。
 - 第九波之后，shortlist 还会继续显式给出 `review_candidate_paths=`、`review_skip_paths=`、`simd_out_of_scope_paths=`、`dangerous_delete_paths=` 与 `reject_wholesale_absorb=`，帮助拒绝 broad absorb；其中 `review_skip_paths=` 专门承接已经完成 fresh 复核的 stale/no-op hotspot，避免重复人工审查。
+- 第 2026-04-14 波之后，`closeout` 的 `mem allocator + fs perf wrapper/README` cluster 与 `rescue` 的 `mem/result/span + base/bits/contracts/result/span test-entry` cluster 也已经统一沉到 `review_skip_paths=`；它们不再是新的人工吸收入口。
+- 同日后续波之后，`rescue` 的 examples/build/runner/doc stale cluster 也已经统一沉到 `review_skip_paths=`；尤其 `examples/fafafa.core.atomic/base/option/result` 的 `BuildOrRun*` / example source 和 `tests/fafafa.core.{endian,layout,mem,option,platform}` 的 stale runner/doc 不再是新的人工吸收入口。
+- 同日后续波还确认 `docs/collections/legacy/README.md`、`docs/reports/README.md`、`docs/collections/reports/README.md`、`docs/benchmarks/reports/README.md` 与 `docs/legacy/l0/README.md` 的 landing-zone 叙事已经是 today contract；如果 `docs_absorb_candidate_paths=` 再暴露这些路径，优先判 stale/no-absorb，而不是回灌 `sidecar` 的旧 pointer 文本。
+- 第 2026-04-15 波之后，fresh shortlist 已固定给出 `closeout.review_candidate_paths=0` 与 `rescue.review_candidate_paths=0`；这表示 `closeout/rescue` 的 source-review surface 已清空。
+- 同日又确认：最后一个看起来像候选的 `tests/fafafa.core.collections/vecdeque/Test_vecdeque_span.pas`，其实是未接线且依赖已移除 `SliceView` API 的 stale dead test code；它继续只应留在 `review_skip_paths=`，不能再被当成 today contract 证据。
+- 同日 fresh diff 还确认：`tests/cleanup_orphan_dirs.sh`、`tests/fafafa.core.fs/{ArchivePerfResult,BuildOrRunPerf,BuildOrRunResolvePerf,BuildOrRunPerfAll}.sh` 与 `tests/fafafa.core.fs/README-perf.md` 这组 tail shell/runner cluster 已经是 current-HEAD-ahead / no-absorb；today shell contract 继续以 `bash tests/test_active_shell_runners.sh` 与 `bash tests/test_fs_perf_shell_scripts.sh` 为准，不能按 tail 版本回灌。
+- 同日 fresh diff 还确认：`src/fafafa.core.atomic.base.pas` 与 `src/fafafa.core.span.pas` 只剩 no-op residue；`tests/fafafa.core.option/BuildOrTest.bat` 与 `tests/fafafa.core.result/BuildOrTest.bat` 则属于 current-HEAD-ahead / no-absorb。today contract 固定为 `bash tests/test_l0_option_result_runner_hygiene.sh`。
+- 同日 `sidecar` 的唯一 exclusive mixed batch 只切片吸收了 async runner hygiene；today contract 固定为 `bash tests/test_l0_async_test_runner_hygiene.sh`，不能把 inventory 的 `test-hygiene-first` 继续泛化成 broad sidecar absorb。
+- 因此接下来如果 retained-refs 还要继续推进，优先回到 `bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh` 或 inventory，而不是重新把 `closeout/rescue` shortlist 当成新的吸收入口。
 - 第 2026-04-14 波之后，如果你当前关心的是 `sidecar/tail` 在 merged-main 之后还能不能删、各自还剩什么 exclusive batch，当前标准入口固定为 `bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh`。
 - fresh overlap 已固定说明：`sidecar_only_commit_count=1`、`tail_only_commit_count=8`，并且 `sidecar_safe_delete_now=no`、`tail_safe_delete_now=no`。
 - 根目录 `task_plan.md`、`findings.md`、`progress.md` 已从主线移除；最后一份快照归档在 `plans/archive/2026-04-07-mainline-working-set/`。

@@ -8,6 +8,10 @@
 - L0 稳定路线图：`docs/fafafa.core.l0.roadmap.md`
 - L0 详细定义：`docs/fafafa.core.l0.foundation.md`
 - 当前 L0 审计：`docs/audits/2026-04-11-l0-current-state-audit.md`
+- tail shell/runner head-ahead / no-absorb 审计：`docs/audits/2026-04-15-l0-tail-shell-runner-head-ahead-no-absorb-audit.md`
+- tail residual runner/source no-absorb 审计：`docs/audits/2026-04-15-l0-tail-residual-runner-source-no-absorb-audit.md`
+- sidecar async runner slice 审计：`docs/audits/2026-04-15-l0-sidecar-async-runner-slice-audit.md`
+- closeout/rescue source-review final clearout 审计：`docs/audits/2026-04-15-l0-closeout-rescue-final-source-review-clearout-audit.md`
 - retained refs post-merge sidecar/tail 审计：`docs/audits/2026-04-14-l0-retained-refs-sidecar-tail-postmerge-audit.md`
 - L0 post-merge 稳定化计划：`docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md`
 - L0 历史批次 / 审计归档：`docs/legacy/l0/README.md`
@@ -23,8 +27,17 @@
 - strict L0 模块入口统一收在 `docs/INDEX.md` 的 `Strict L0 模块入口` 区段
 - strict L0 已经合并到 `main`；superseded 的 dated L0 plans/audits 统一下沉到 `docs/legacy/l0/`
 - 当前如果要继续沿 L0 维护，优先看最新 audit、roadmap、foundation 和 post-merge stabilization plan
+- 当前 retained-refs stale-review 收口入口固定为：`docs/audits/2026-04-15-l0-closeout-rescue-final-source-review-clearout-audit.md`
+- 当前 tail shell/runner no-absorb 收口入口固定为：`docs/audits/2026-04-15-l0-tail-shell-runner-head-ahead-no-absorb-audit.md`
+- 当前 tail residual runner/source no-absorb 收口入口固定为：`docs/audits/2026-04-15-l0-tail-residual-runner-source-no-absorb-audit.md`
+- 当前 sidecar async runner slice 收口入口固定为：`docs/audits/2026-04-15-l0-sidecar-async-runner-slice-audit.md`
 - Linux x64 的日常维护入口固定为：`bash tests/run_strict_l0_maintenance_loop.sh`
 - 当前 retained-refs triage 继续固定为：先看 `next_focus=`，再看 `test_hygiene_candidate_paths=` / `source_review_candidate_paths=` / `docs_absorb_candidate_paths=`；如果是 `source-review-first`，继续跑 `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh`
+- 第 2026-04-15 波之后，`closeout/rescue` 的 source-review shortlist 已 fresh 清空；最后一个看起来像候选的 `Test_vecdeque_span.pas` 也已确认只是 stale dead test code。若 shortlist 继续是 0，下一跳优先回到 `sidecar/tail` overlap 或 retained-refs inventory，而不是重开 broad absorb
+- 同日 fresh diff 还确认：`tests/cleanup_orphan_dirs.sh` + `tests/fafafa.core.fs/{ArchivePerfResult,BuildOrRunPerf,BuildOrRunResolvePerf,BuildOrRunPerfAll}.sh` + `tests/fafafa.core.fs/README-perf.md` 这组 tail shell/runner cluster 当前属于 current-HEAD-ahead / no-absorb；today contract 继续只由 `bash tests/test_active_shell_runners.sh` 与 `bash tests/test_fs_perf_shell_scripts.sh` 守住，不再按 tail 版本回灌
+- 同日 fresh diff 还确认：`src/fafafa.core.atomic.base.pas` 与 `src/fafafa.core.span.pas` 只剩 no-op residue；`tests/fafafa.core.option/BuildOrTest.bat` 与 `tests/fafafa.core.result/BuildOrTest.bat` 则属于 current-HEAD-ahead / no-absorb。today contract 继续由 `bash tests/test_l0_option_result_runner_hygiene.sh` 守住
+- 同日 `sidecar` 的唯一 exclusive mixed batch 也只切片吸收了 async runner hygiene，小撮 today contract 继续由 `bash tests/test_l0_async_test_runner_hygiene.sh` 守住；`examples/fafafa.core.sync*` 与 `examples/fafafa.core.sync.condvar*` 仍然 defer，不做 broad absorb
+- 当前几份 landing-zone docs：`docs/collections/legacy/README.md`、`docs/reports/README.md`、`docs/collections/reports/README.md`、`docs/benchmarks/reports/README.md` 与 `docs/legacy/l0/README.md` 继续以主线版本为准，不吸收 `sidecar` 的旧 pointer 叙事
 - 如果当前问题是 `sidecar/tail` 在 merged-main 之后还能不能删、各自还剩什么 exclusive batch，标准入口切到：`bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh`
 
 ## 文档放置约定（清理后的结构）

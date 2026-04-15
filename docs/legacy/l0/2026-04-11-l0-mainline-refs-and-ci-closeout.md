@@ -11,7 +11,7 @@
 
 ## Final Resolution
 
-- 当前 main merge commit：`c4fcfcf744b87cb1f8b67ad84beccce6b22b9af8`
+- 当前 main merge commit：`ecf3f2febf684ede313ba92e8aa30a8544d0e462`
 - GitHub Actions `L0 Linux Maintenance` run `24377364840`
   - head sha：`c4fcfcf744b87cb1f8b67ad84beccce6b22b9af8`
   - 结果：PASS
@@ -25,7 +25,7 @@
 
 - mainline Linux workflow 已可 dispatch 并 fresh 通过
 - Windows exact evidence 也已收齐
-- 当前 `main` 已推进到 `c4fcfcf744b87cb1f8b67ad84beccce6b22b9af8`，但 latest exact Windows native evidence 仍锚定 `main@c4fcfcf744b87cb1f8b67ad84beccce6b22b9af8`；由于这两者之间只剩 docs / control-plane-only 变更，因此当前 closeout 复用该 exact evidence。
+- 当前 `main` 已推进到 `ecf3f2febf684ede313ba92e8aa30a8544d0e462`，但 latest exact Windows native evidence 仍锚定 `main@c4fcfcf744b87cb1f8b67ad84beccce6b22b9af8`；由于这两者之间只剩 docs / control-plane-only 变更，因此当前 closeout 复用该 exact evidence。
 - 这份文档现在只保留 pre-merge `HTTP 404` 的历史解释与 refs no-op 审计背景
 
 ## Retained Refs

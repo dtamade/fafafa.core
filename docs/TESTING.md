@@ -53,6 +53,42 @@ bash tests/test_active_shell_runners.sh
 bash tests/test_fs_perf_shell_scripts.sh
 ```
 
+如果当前目标是 `tail` 的 residual runner/source 收口，而不是继续泛化理解 `test-hygiene-first`，优先跑：
+
+```bash
+bash tests/test_l0_option_result_runner_hygiene.sh
+```
+
+这条命令当前固定守住：
+
+- `tests/fafafa.core.option/BuildOrTest.bat`
+- `tests/fafafa.core.result/BuildOrTest.bat`
+
+对应 today contract 是：
+
+- `BuildOrTest.bat` / `BuildOrTest.sh` 必须并存
+- 旧的小写 `buildOrTest.bat` 不得回流
+- `tail` 的这组 runner residue 已被重新定性为 `current-HEAD-ahead / no-absorb`
+
+如果当前目标是 `sidecar` 的 async runner hygiene slice，而不是 broad absorb `44974e49f2b3480c0c9a3f96c80bfe3a396ed619` 整包，优先跑：
+
+```bash
+bash tests/test_l0_async_test_runner_hygiene.sh
+```
+
+这条命令当前固定守住：
+
+- `tests/fafafa.core.socket.async/BuildOrTest.bat`
+- `tests/fafafa.core.socket.async/BuildOrTest.sh`
+- `tests/fafafa.core.fs.async/BuildOrTest.bat`
+- `tests/fafafa.core.fs.async/README.md`
+
+以及下面这些 today policy：
+
+- `tests/fafafa.core.fs.async/BuildOrTest.sh` 继续保持缺席，直到 source blocker 真正解决
+- `tests/fafafa.core.fs.async/test_simple.pas` 不得回流
+- `examples/fafafa.core.sync*` / `examples/fafafa.core.sync.condvar*` 仍然 defer，不是这条 contract 的 absorb 范围
+
 只有当 strict L0 发生非文档代码/测试变化，或者有人明确要求 exact `HEAD` / merge commit 证据时，才继续走 GitHub Actions Windows native evidence 主路径。
 
 如果当前目标不是日常维护，而是 mainline closeout，一次性把 Linux maintenance、Windows exact evidence 和 current-state docs 串起来，当前单入口是：
@@ -76,8 +112,10 @@ bash tests/run_strict_l0_mainline_closeout.sh --apply-docs
 如果你已经手头有 run id，只需要单独回填文档，也可以直接执行：
 
 ```bash
-bash tests/update_strict_l0_current_state_docs.sh --apply --main-sha <main-sha> --linux-run-id <linux-run-id> --linux-run-sha <linux-run-sha> --windows-run-id <windows-run-id> --windows-run-sha <windows-run-sha> --windows-local-batch-id <batch-id>
+bash tests/update_strict_l0_current_state_docs.sh --apply --main-sha <main-sha> --worktree-sha <worktree-sha> --linux-run-id <linux-run-id> --linux-run-sha <linux-run-sha> --windows-run-id <windows-run-id> --windows-run-sha <windows-run-sha> --windows-local-batch-id <batch-id>
 ```
+
+如果当前唯一 L0 worktree 的 `HEAD` 已经推进到 `origin/main` 之外，不要省略 `--worktree-sha`；current-state 审计现在要求显式区分 `latest merged-main exact evidence head`、`origin/main` 和当前 worktree `HEAD`。
 
 如果你当前关心的不是 CI/evidence，而是“这 4 个残留历史 L0 refs 现在能不能删”，不要手工猜，先跑：
 
@@ -153,6 +191,12 @@ bash tests/report_strict_l0_retained_refs_inventory.sh --details
 - `current-docs-first`
 
 其中 `sidecar` / `tail` 这种仍然混着 archive docs 与 test residue 的 retained refs，当前会继续保留 `recommendation=` 的高层吸收建议，同时用 `next_focus=test-hygiene-first` 把下一跳 code/test triage 写死。
+
+但第 2026-04-15 波之后，这个字段已经不能再被泛化理解：
+
+- `tail` 的 shell/runner cluster 已由 `bash tests/test_active_shell_runners.sh` 与 `bash tests/test_fs_perf_shell_scripts.sh` 守住，结论固定为 current-HEAD-ahead / no-absorb
+- `tail` 的 residual runner/source 小撮已由 `bash tests/test_l0_option_result_runner_hygiene.sh` 守住；`src/fafafa.core.atomic.base.pas` 与 `src/fafafa.core.span.pas` 只剩 no-op residue
+- `sidecar` 的唯一 exclusive mixed batch 目前只切片吸收了 async runner hygiene；today 守门入口是 `bash tests/test_l0_async_test_runner_hygiene.sh`
 
 第七波之后，`--details` 的 docs residue 还会继续细分成：
 
@@ -274,6 +318,54 @@ bash tests/test_strict_l0_retained_refs_closeout_test_docs_no_downgrade_contract
 - Linux x64 strict L0 日常维护入口：`bash tests/run_strict_l0_maintenance_loop.sh`
 - exact Windows native evidence 只接受 GitHub Actions 或真实 Windows runner
 
+第 2026-04-14 波之后，`closeout` 的 `mem allocator + fs perf wrapper/README` cluster 也已经完成一次 fresh review：它们不是主线补强，而是会把当前统一 shell 入口、wrapper contract 和 allocator boundary 口径回退成旧方案。因此它们当前同样只应出现在 `review_skip_paths=`，不应再作为 `closeout` 的 source-review candidate。
+
+同一波里，`rescue` 的 `mem/result/span + base/bits/contracts/result/span test-entry` cluster 也已确认属于 stale skip：
+
+- `mem.allocator` 是旧 boundary 注释
+- `result` 会把 today combinator surface 收缩回旧 anon-ref gating
+- `span` 会回退已落地的 `span2`
+- `*.test.lpr` 会删掉统一 `settings.inc`
+- `BuildOrTest.bat` / `README.md` 会回退当前 Windows runner 与 current-entry narrative
+
+因此当前 `source-review-first` 下，真正该人工看的只剩 **尚未进入 `review_skip_paths=` 的候选**。
+
+同日后续波里，`rescue` 的 examples/build/runner/doc stale cluster 也已经固定为 skip：
+
+- `examples/fafafa.core.atomic/BuildOrRun.sh`
+- `examples/fafafa.core.base/BuildOrRun.sh`
+- `examples/fafafa.core.base/example_base.lpr`
+- `examples/fafafa.core.option/BuildOrRun.sh`
+- `examples/fafafa.core.result/BuildOrRun.sh`
+- `examples/fafafa.core.result/example_result_filters_and_try.lpr`
+- `tests/fafafa.core.endian/BuildOrTest.bat`
+- `tests/fafafa.core.fs/{ArchivePerfResult,BuildOrRunPerf,BuildOrRunPerfAll,BuildOrRunResolvePerf}.sh`
+- `tests/fafafa.core.fs/README-perf.md`
+- `tests/fafafa.core.layout/BuildOrTest.bat`
+- `tests/fafafa.core.mem/{BuildOrTest.bat,BuildOrTest.sh,README.md}`
+- `tests/fafafa.core.option/{BuildOrTest.bat,README.md}`
+- `tests/fafafa.core.platform/BuildOrTest.bat`
+
+这批路径的共同点不是“主线缺少它们”，而是 `rescue` 版本会把 today example entry、today wrapper contract 或 today docs 叙事回退成旧版本。因此它们现在也只应出现在 `review_skip_paths=`。
+
+同日后续波还再次确认：`docs/collections/legacy/README.md`、`docs/reports/README.md`、`docs/collections/reports/README.md`、`docs/benchmarks/reports/README.md` 与 `docs/legacy/l0/README.md` 的 landing-zone 叙事已经是 today contract。也就是说，如果 `docs_absorb_candidate_paths=` 再暴露这些路径，优先判 stale/no-absorb，而不是把 `sidecar` 的旧 archive-pointer / legacy-pointer 文本重新回灌进来。
+
+第 2026-04-15 波之后，fresh `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh` 已固定给出：
+
+- `closeout.review_candidate_paths=0`
+- `rescue.review_candidate_paths=0`
+
+这意味着 `closeout/rescue` 的 source-review surface 已经清空。当前唯一真正吸收的 today change，是 `tests/fafafa.core.collections/vecdeque/Test_vecdeque_span.pas` 去掉 `SliceView` 对 strict L0 `span2` contract 的反向 parity 测试；原因是 `docs/fafafa.core.l0.foundation.md` 与 `docs/fafafa.core.l0.roadmap.md` 都已经明确：`collections.slice` 仍然不是 strict L0。
+这意味着 `closeout/rescue` 的 source-review surface 已经清空。fresh API/runner 复核还进一步确认：`tests/fafafa.core.collections/vecdeque/Test_vecdeque_span.pas` 其实是未接线且依赖已移除 `SliceView` API 的 stale dead test code，因此它也继续只应落在 `review_skip_paths=`，而不是重新吸收到 today contract。
+
+因此，如果 fresh shortlist 继续保持 0，后续 retained-refs triage 的下一跳应回到：
+
+- `bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh`
+- `bash tests/report_strict_l0_retained_refs_inventory.sh`
+- `bash tests/report_strict_l0_retained_refs_inventory.sh --details`
+
+而不是重新对 `closeout/rescue` 做 broad absorb。
+
 第 2026-04-14 波之后，`sidecar/tail` 还新增了一条 post-merge pairwise overlap 入口：
 
 ```bash
@@ -305,6 +397,38 @@ bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh
 2. `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh` 继续只处理 `closeout/rescue`
 3. `bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh` 继续只处理 `sidecar/tail` 的 post-merge delete readiness / exclusive batch 判断
 
+第 2026-04-15 波之后，`tail` 的 shell/runner hygiene cluster 也已经完成 fresh diff 收口，结论固定为 **current-HEAD-ahead / no-absorb**：
+
+- `tests/cleanup_orphan_dirs.sh`
+- `tests/fafafa.core.fs/{ArchivePerfResult,BuildOrRunPerf,BuildOrRunResolvePerf,BuildOrRunPerfAll}.sh`
+- `tests/fafafa.core.fs/README-perf.md`
+
+也就是说，即使 inventory 继续给出 `next_focus=test-hygiene-first`，也不能把这组路径直接当成下一批应吸收内容。当前 today contract 继续由：
+
+- `bash tests/test_active_shell_runners.sh`
+- `bash tests/test_fs_perf_shell_scripts.sh`
+
+守住；详细结论见：
+
+- `docs/audits/2026-04-15-l0-tail-shell-runner-head-ahead-no-absorb-audit.md`
+
+同日又完成了 `tail` residual runner/source 收口：
+
+- `src/fafafa.core.atomic.base.pas`
+- `src/fafafa.core.span.pas`
+- `tests/fafafa.core.option/BuildOrTest.bat`
+- `tests/fafafa.core.result/BuildOrTest.bat`
+
+这组路径现在分别被重新定性为：
+
+- source residue：`no-op residue`
+- option/result runner residue：`current-HEAD-ahead / no-absorb`
+
+对应 today contract 固定为：
+
+- `bash tests/test_l0_option_result_runner_hygiene.sh`
+- `docs/audits/2026-04-15-l0-tail-residual-runner-source-no-absorb-audit.md`
+
 同时，这一波又真实吸掉了一小段 sidecar hygiene residue，并通过下面这条 contract 锁住：
 
 ```bash
@@ -312,6 +436,26 @@ bash tests/test_strict_l0_retained_refs_sidecar_hygiene_contract.sh
 ```
 
 它当前固定验证：
+
+- `tests/fafafa.core.env/.gitignore`
+- `tests/fafafa.core.mem.manager.rtl/.gitignore`
+- 相关 runtime residue 不再被 tracked
+
+第 2026-04-15 波之后，`sidecar` 的唯一 exclusive mixed batch 又进一步只切片吸收了 async runner hygiene：
+
+- `tests/fafafa.core.fs.async/*`
+- `tests/fafafa.core.socket.async/*`
+
+today contract 固定为：
+
+- `bash tests/test_l0_async_test_runner_hygiene.sh`
+- `docs/audits/2026-04-15-l0-sidecar-async-runner-slice-audit.md`
+
+也就是说，接下来如果 inventory 继续给出 `next_focus=test-hygiene-first`：
+
+1. 不要把 `tail` shell/perf cluster 再当作 live absorb target
+2. 不要把 `tail` option/result runner residue 再当作 live absorb target
+3. 不要把 `sidecar` 的 sync/condvar examples mixed batch 整包吸收
 
 - `tests/fafafa.core.env/.gitignore`
 - `tests/fafafa.core.mem.manager.rtl/.gitignore`
@@ -380,8 +524,9 @@ bash tests/test_strict_l0_retained_refs_sidecar_hygiene_contract.sh
 当前 today 状态：
 
 - workflow 已经注册在 default branch 上
-- GitHub Actions run `24224880061` 已在真实 Windows runner 上 fresh 收到 strict L0 native evidence `12/12` PASS
-- 因此，如果今天在 Linux x64 上要复核 strict L0 Windows 证据，默认先走 `bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh`
+- latest merged-main exact Windows native evidence 锚点固定写在 `docs/audits/2026-04-11-l0-current-state-audit.md`
+- 这份 current-state audit 会显式区分 latest merged-main exact evidence head、`origin/main` 和当前 L0 worktree `HEAD`；不要把 docs / control-plane-only 变化误写成已经拿到新的 exact Windows evidence
+- 因此，如果今天在 Linux x64 上要复核 strict L0 Windows 证据，默认先读 `docs/audits/2026-04-11-l0-current-state-audit.md`，再走 `bash tests/run_windows_strict_l0_native_evidence_via_github_actions.sh`
 - `print_windows_strict_l0_native_ci_enablement_3cmd.sh` 现在主要用于 workflow registration 漂移或 GH 环境异常排障，不再是当前主路径
 
 当前 matrix 覆盖：
