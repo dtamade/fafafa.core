@@ -217,13 +217,17 @@ if [[ "${RUNNER_KIND}" == "direct-fpc" ]]; then
   run_step dispatch_publicabi \
     env "SIMD_FPC_EXTRA_DEFINES=${BACKEND_ASM_DEFINES}" \
     bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --vector-asm --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi
+  run_step runtime_parity \
+    env "SIMD_FPC_EXTRA_DEFINES=${BACKEND_ASM_DEFINES}" \
+    bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --vector-asm --suite=TTestCase_NonX86BackendParity,TTestCase_DataPlane
   run_step build_smoke \
     env "SIMD_RUN_ONLY_BUILD=1" "SIMD_FPC_EXTRA_DEFINES=${BACKEND_ASM_DEFINES}" \
     bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --vector-asm --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi
 else
   run_step list_suites bash tests/fafafa.core.simd/BuildOrTest.sh test --list-suites
   run_step dispatch_publicabi bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi
-  run_step check bash tests/fafafa.core.simd/BuildOrTest.sh check
+  run_step runtime_parity bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NonX86BackendParity,TTestCase_DataPlane
+  run_step impl_audit_nonx86 bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86
 fi
 
 if [[ "${SIMD_NATIVE_EVIDENCE_INCLUDE_BENCH:-0}" == "1" ]]; then
@@ -245,9 +249,14 @@ fi
   echo "## DispatchAPI + PublicAbi"
   grep -E "\[BUILD\]|\[TEST\]|\[LEAK\]" "${OUT_DIR}/dispatch_publicabi.log" || true
   echo
-  if [[ -f "${OUT_DIR}/check.log" ]]; then
-    echo "## Check"
-    grep -E "\[BUILD\]|\[CHECK\]|\[TEST\]|\[LEAK\]|\[REGISTER-INCLUDE\]|\[SUITE-MANIFEST\]|\[DISPATCH-PREINIT\]" "${OUT_DIR}/check.log" || true
+  if [[ -f "${OUT_DIR}/runtime_parity.log" ]]; then
+    echo "## Runtime Parity (TTestCase_NonX86BackendParity,TTestCase_DataPlane)"
+    grep -E "\[BUILD\]|\[TEST\]|\[LEAK\]" "${OUT_DIR}/runtime_parity.log" || true
+    echo
+  fi
+  if [[ -f "${OUT_DIR}/impl_audit_nonx86.log" ]]; then
+    echo "## Implementation Audit"
+    grep -E "\[NONX86-IMPL-AUDIT\]|NONX86_IMPL_AUDIT_SUMMARY|NONX86_HELPER_SEMANTICS_SUMMARY|WIRING_SYNC_SUMMARY|RISCVV_ABI_SHAPE_SUMMARY|NONX86_REGISTER_TRUTHFULNESS_SUMMARY|NONX86_NATIVE_EVIDENCE_SUMMARY|\[HELPER-SEMANTICS\]|\[WIRING-SYNC\]|\[RISCVV-ABI\]|\[REG-TRUTH\]|\[NONX86-NATIVE-VERIFY\]|\[BUILD\]|\[TEST\]|\[LEAK\]" "${OUT_DIR}/impl_audit_nonx86.log" || true
   fi
   if [[ -f "${OUT_DIR}/build_smoke.log" ]]; then
     echo "## Build Smoke"

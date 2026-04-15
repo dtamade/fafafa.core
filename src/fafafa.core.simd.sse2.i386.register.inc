@@ -3,10 +3,13 @@
 procedure RegisterSSE2i386Backend;
 var
   dispatchTable: TSimdDispatchTable;
+  LUseVectorAsm: Boolean;
 begin
   // Only register if SSE2 is available
   if not HasSSE2 then
     Exit;
+
+  LUseVectorAsm := IsVectorAsmEnabled;
 
   // Fill with base scalar implementations
   dispatchTable := Default(TSimdDispatchTable);
@@ -19,11 +22,11 @@ begin
   dispatchTable.BackendInfo.Description := 'i386 SSE2 SIMD implementation (128-bit)';
   dispatchTable.BackendInfo.Capabilities := [scBasicArithmetic, scComparison, scMathFunctions,
                                              scReduction, scLoadStore];
-  if IsVectorAsmEnabled then
+  if LUseVectorAsm then
     Include(dispatchTable.BackendInfo.Capabilities, scShuffle);
-  if IsVectorAsmEnabled then
+  if LUseVectorAsm then
     Include(dispatchTable.BackendInfo.Capabilities, scIntegerOps);
-  dispatchTable.BackendInfo.Available := IsVectorAsmEnabled;
+  dispatchTable.BackendInfo.Available := LUseVectorAsm;
   dispatchTable.BackendInfo.Priority := GetSimdBackendPriorityValue(sbSSE2);
 
   // Override facade functions with SSE2-accelerated versions
@@ -34,7 +37,7 @@ begin
   dispatchTable.BitsetPopCount := @BitsetPopCount_SSE2_i386;
 
   // Override vector operations with SSE2-accelerated versions
-  if IsVectorAsmEnabled then
+  if LUseVectorAsm then
   begin
     dispatchTable.AddF32x4 := @SSE2AddF32x4_i386;
     dispatchTable.SubF32x4 := @SSE2SubF32x4_i386;
@@ -55,3 +58,4 @@ end;
 
 initialization
   RegisterSSE2i386Backend;
+  RegisterBackendRebuilder(sbSSE2, @RegisterSSE2i386Backend);

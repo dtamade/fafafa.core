@@ -1,10 +1,13 @@
 procedure RegisterSSE42Backend;
 var
   dispatchTable: TSimdDispatchTable;
+  LUseVectorAsm: Boolean;
 begin
   // Only register if SSE4.2 is available
   if not HasSSE42 then
     Exit;
+
+  LUseVectorAsm := IsVectorAsmEnabled;
 
   dispatchTable := Default(TSimdDispatchTable);
 
@@ -26,16 +29,15 @@ begin
     Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, scReduction,
                      scLoadStore];
     Include(Capabilities, scMaskedOps);
-    if IsVectorAsmEnabled then
+    Include(Capabilities, scIntegerOps);
+    if LUseVectorAsm then
       Include(Capabilities, scShuffle);
-    if IsVectorAsmEnabled then
-      Include(Capabilities, scIntegerOps);
-    Available := IsVectorAsmEnabled;
+    Available := LUseVectorAsm;
     Priority := GetSimdBackendPriorityValue(sbSSE42);
   end;
 
   // SSE4.2 provides string operations and CRC32
-  if IsVectorAsmEnabled then
+  if LUseVectorAsm then
   begin
     // Override 64-bit comparison with PCMPGTQ
     dispatchTable.CmpGtI64x2 := @SSE42CmpGtI64x2;

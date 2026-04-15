@@ -563,13 +563,39 @@ begin
   Result := tmp;
 end;
 
-// SSE2 has no direct 32-bit integer multiply, use scalar fallback
+// SSE2 reconstructs 4x32-bit low products with PMULUDQ on even lanes and a
+// second shifted pass for odd lanes. Signed low 32-bit results match modulo 2^32.
 function SSE2MulI32x4_i386(const a, b: TVecI32x4): TVecI32x4;
 var
-  j: Integer;
+  tmp: TVecI32x4;
+  pa, pb, pr: Pointer;
 begin
-  for j := 0 to 3 do
-    Result.i[j] := a.i[j] * b.i[j];
+  pa := @a;
+  pb := @b;
+  pr := @tmp;
+  asm
+    mov  eax, pa
+    mov  edx, pb
+    mov  ecx, pr
+
+    movdqu xmm0, [eax]
+    movdqu xmm1, [edx]
+    movdqa xmm2, xmm0
+    movdqa xmm3, xmm1
+
+    pmuludq xmm0, xmm1
+
+    psrldq xmm2, 4
+    psrldq xmm3, 4
+    pmuludq xmm2, xmm3
+
+    pshufd xmm0, xmm0, $08
+    pshufd xmm2, xmm2, $08
+    punpckldq xmm0, xmm2
+
+    movdqu [ecx], xmm0
+  end;
+  Result := tmp;
 end;
 
 // === F64x2 Operations ===

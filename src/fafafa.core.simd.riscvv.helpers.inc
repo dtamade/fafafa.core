@@ -197,12 +197,12 @@ end;
 
 function RISCVVZeroI32x4: TVecI32x4;
 begin
-  FillChar(Result, SizeOf(Result), 0);
+  Result := Default(TVecI32x4);
 end;
 
 function RISCVVZeroI64x2: TVecI64x2;
 begin
-  FillChar(Result, SizeOf(Result), 0);
+  Result := Default(TVecI64x2);
 end;
 
 function RISCVVShiftLeftI64x2(const a: TVecI64x2; shift: Integer): TVecI64x2;

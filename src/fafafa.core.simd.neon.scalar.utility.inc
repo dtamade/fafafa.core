@@ -9,7 +9,7 @@ end;
 
 function NEONZeroF32x4: TVecF32x4;
 begin
-  FillChar(Result, SizeOf(Result), 0);
+  Result := Default(TVecF32x4);
 end;
 
 function NEONSelectF32x4(const mask: TMask4; const a, b: TVecF32x4): TVecF32x4;
@@ -270,72 +270,45 @@ begin
 end;
 
 function NEONAddU64x2(const a, b: TVecU64x2): TVecU64x2;
-var
-  ai, bi, ri: TVecI64x2;
 begin
-  Move(a, ai, SizeOf(ai));
-  Move(b, bi, SizeOf(bi));
-  ri := NEONAddI64x2(ai, bi);
-  Move(ri, Result, SizeOf(Result));
+  Result.u[0] := a.u[0] + b.u[0];
+  Result.u[1] := a.u[1] + b.u[1];
 end;
 
 function NEONSubU64x2(const a, b: TVecU64x2): TVecU64x2;
-var
-  ai, bi, ri: TVecI64x2;
 begin
-  Move(a, ai, SizeOf(ai));
-  Move(b, bi, SizeOf(bi));
-  ri := NEONSubI64x2(ai, bi);
-  Move(ri, Result, SizeOf(Result));
+  Result.u[0] := a.u[0] - b.u[0];
+  Result.u[1] := a.u[1] - b.u[1];
 end;
 
 function NEONAndU64x2(const a, b: TVecU64x2): TVecU64x2;
-var
-  ai, bi, ri: TVecI64x2;
 begin
-  Move(a, ai, SizeOf(ai));
-  Move(b, bi, SizeOf(bi));
-  ri := NEONAndI64x2(ai, bi);
-  Move(ri, Result, SizeOf(Result));
+  Result.u[0] := a.u[0] and b.u[0];
+  Result.u[1] := a.u[1] and b.u[1];
 end;
 
 function NEONOrU64x2(const a, b: TVecU64x2): TVecU64x2;
-var
-  ai, bi, ri: TVecI64x2;
 begin
-  Move(a, ai, SizeOf(ai));
-  Move(b, bi, SizeOf(bi));
-  ri := NEONOrI64x2(ai, bi);
-  Move(ri, Result, SizeOf(Result));
+  Result.u[0] := a.u[0] or b.u[0];
+  Result.u[1] := a.u[1] or b.u[1];
 end;
 
 function NEONXorU64x2(const a, b: TVecU64x2): TVecU64x2;
-var
-  ai, bi, ri: TVecI64x2;
 begin
-  Move(a, ai, SizeOf(ai));
-  Move(b, bi, SizeOf(bi));
-  ri := NEONXorI64x2(ai, bi);
-  Move(ri, Result, SizeOf(Result));
+  Result.u[0] := a.u[0] xor b.u[0];
+  Result.u[1] := a.u[1] xor b.u[1];
 end;
 
 function NEONNotU64x2(const a: TVecU64x2): TVecU64x2;
-var
-  ai, ri: TVecI64x2;
 begin
-  Move(a, ai, SizeOf(ai));
-  ri := NEONNotI64x2(ai);
-  Move(ri, Result, SizeOf(Result));
+  Result.u[0] := not a.u[0];
+  Result.u[1] := not a.u[1];
 end;
 
 function NEONAndNotU64x2(const a, b: TVecU64x2): TVecU64x2;
-var
-  ai, bi, ri: TVecI64x2;
 begin
-  Move(a, ai, SizeOf(ai));
-  Move(b, bi, SizeOf(bi));
-  ri := NEONAndNotI64x2(ai, bi);
-  Move(ri, Result, SizeOf(Result));
+  Result.u[0] := (not a.u[0]) and b.u[0];
+  Result.u[1] := (not a.u[1]) and b.u[1];
 end;
 
 function NEONCmpEqI64x2(const a, b: TVecI64x2): TMask2; forward;
@@ -343,12 +316,12 @@ function NEONCmpLtI64x2(const a, b: TVecI64x2): TMask2; forward;
 function NEONCmpGtI64x2(const a, b: TVecI64x2): TMask2; forward;
 
 function NEONCmpEqU64x2(const a, b: TVecU64x2): TMask2;
-var
-  ai, bi: TVecI64x2;
 begin
-  Move(a, ai, SizeOf(ai));
-  Move(b, bi, SizeOf(bi));
-  Result := NEONCmpEqI64x2(ai, bi);
+  Result := 0;
+  if a.u[0] = b.u[0] then
+    Result := Result or 1;
+  if a.u[1] = b.u[1] then
+    Result := Result or 2;
 end;
 
 function NEONCmpLtU64x2(const a, b: TVecU64x2): TMask2;
@@ -436,66 +409,3 @@ begin
     else
       Result.d[i] := b.d[i];
 end;
-
-// ✅ P1: Mask Operations (Scalar Fallback)
-// NEON 没有直接的 popcount/bsf 指令，使用标量回退
-function NEONMask2All(mask: TMask2): Boolean;
-begin Result := ScalarMask2All(mask); end;
-
-function NEONMask2Any(mask: TMask2): Boolean;
-begin Result := ScalarMask2Any(mask); end;
-
-function NEONMask2None(mask: TMask2): Boolean;
-begin Result := ScalarMask2None(mask); end;
-
-function NEONMask2PopCount(mask: TMask2): Integer;
-begin Result := ScalarMask2PopCount(mask); end;
-
-function NEONMask2FirstSet(mask: TMask2): Integer;
-begin Result := ScalarMask2FirstSet(mask); end;
-
-function NEONMask4All(mask: TMask4): Boolean;
-begin Result := ScalarMask4All(mask); end;
-
-function NEONMask4Any(mask: TMask4): Boolean;
-begin Result := ScalarMask4Any(mask); end;
-
-function NEONMask4None(mask: TMask4): Boolean;
-begin Result := ScalarMask4None(mask); end;
-
-function NEONMask4PopCount(mask: TMask4): Integer;
-begin Result := ScalarMask4PopCount(mask); end;
-
-function NEONMask4FirstSet(mask: TMask4): Integer;
-begin Result := ScalarMask4FirstSet(mask); end;
-
-function NEONMask8All(mask: TMask8): Boolean;
-begin Result := ScalarMask8All(mask); end;
-
-function NEONMask8Any(mask: TMask8): Boolean;
-begin Result := ScalarMask8Any(mask); end;
-
-function NEONMask8None(mask: TMask8): Boolean;
-begin Result := ScalarMask8None(mask); end;
-
-function NEONMask8PopCount(mask: TMask8): Integer;
-begin Result := ScalarMask8PopCount(mask); end;
-
-function NEONMask8FirstSet(mask: TMask8): Integer;
-begin Result := ScalarMask8FirstSet(mask); end;
-
-function NEONMask16All(mask: TMask16): Boolean;
-begin Result := ScalarMask16All(mask); end;
-
-function NEONMask16Any(mask: TMask16): Boolean;
-begin Result := ScalarMask16Any(mask); end;
-
-function NEONMask16None(mask: TMask16): Boolean;
-begin Result := ScalarMask16None(mask); end;
-
-function NEONMask16PopCount(mask: TMask16): Integer;
-begin Result := ScalarMask16PopCount(mask); end;
-
-function NEONMask16FirstSet(mask: TMask16): Integer;
-begin Result := ScalarMask16FirstSet(mask); end;
-

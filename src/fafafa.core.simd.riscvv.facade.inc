@@ -1,86 +1,10 @@
 // =============================================================
 // Facade Function Implementations
 // =============================================================
-// Keep facade APIs available in asm branch by delegating to scalar helpers.
+// Legacy dead facade wrappers removed: dispatch now reuses the canonical
+// base scalar slots directly for mem/text/bitset helpers.
 
-{$IFDEF RISCVV_ASSEMBLY}
-
-function MemEqual_RISCVV(a, b: Pointer; len: SizeUInt): LongBool;
-begin
-  Result := MemEqual_Scalar(a, b, len);
-end;
-
-function MemFindByte_RISCVV(p: Pointer; len: SizeUInt; value: Byte): PtrInt;
-begin
-  Result := MemFindByte_Scalar(p, len, value);
-end;
-
-function MemDiffRange_RISCVV(a, b: Pointer; len: SizeUInt; out firstDiff, lastDiff: SizeUInt): Boolean;
-begin
-  Result := MemDiffRange_Scalar(a, b, len, firstDiff, lastDiff);
-end;
-
-procedure MemCopy_RISCVV(src, dst: Pointer; len: SizeUInt);
-begin
-  MemCopy_Scalar(src, dst, len);
-end;
-
-procedure MemSet_RISCVV(dst: Pointer; len: SizeUInt; value: Byte);
-begin
-  MemSet_Scalar(dst, len, value);
-end;
-
-procedure MemReverse_RISCVV(p: Pointer; len: SizeUInt);
-begin
-  MemReverse_Scalar(p, len);
-end;
-
-function SumBytes_RISCVV(p: Pointer; len: SizeUInt): UInt64;
-begin
-  Result := SumBytes_Scalar(p, len);
-end;
-
-procedure MinMaxBytes_RISCVV(p: Pointer; len: SizeUInt; out minVal, maxVal: Byte);
-begin
-  MinMaxBytes_Scalar(p, len, minVal, maxVal);
-end;
-
-function CountByte_RISCVV(p: Pointer; len: SizeUInt; value: Byte): SizeUInt;
-begin
-  Result := CountByte_Scalar(p, len, value);
-end;
-
-function Utf8Validate_RISCVV(p: Pointer; len: SizeUInt): Boolean;
-begin
-  Result := Utf8Validate_Scalar(p, len);
-end;
-
-function AsciiIEqual_RISCVV(a, b: Pointer; len: SizeUInt): Boolean;
-begin
-  Result := AsciiIEqual_Scalar(a, b, len);
-end;
-
-procedure ToLowerAscii_RISCVV(p: Pointer; len: SizeUInt);
-begin
-  ToLowerAscii_Scalar(p, len);
-end;
-
-procedure ToUpperAscii_RISCVV(p: Pointer; len: SizeUInt);
-begin
-  ToUpperAscii_Scalar(p, len);
-end;
-
-function BytesIndexOf_RISCVV(haystack: Pointer; haystackLen: SizeUInt; needle: Pointer; needleLen: SizeUInt): PtrInt;
-begin
-  Result := BytesIndexOf_Scalar(haystack, haystackLen, needle, needleLen);
-end;
-
-function BitsetPopCount_RISCVV(p: Pointer; byteLen: SizeUInt): SizeUInt;
-begin
-  Result := BitsetPopCount_Scalar(p, byteLen);
-end;
-
-{$ELSE}
+{$IFNDEF RISCVV_ASSEMBLY}
 
 // =============================================================
 // Scalar Fallback Implementations
@@ -268,6 +192,9 @@ begin
     Result.f[i] := 1.0 / Sqrt(a.f[i]);
 end;
 
+// RegisterRISCVVBackend intentionally keeps the canonical base scalar slots
+// for 128-bit rounding until these backend-local helpers are validated
+// end-to-end against the published scalar semantics.
 function RISCVVFloorF32x4(const a: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
@@ -570,19 +497,14 @@ begin
   Result := a.f[0] * b.f[0] + a.f[1] * b.f[1] + a.f[2] * b.f[2];
 end;
 
-function RISCVVDotF32x8(const a, b: TVecF32x8): Single;
-begin
-  Result := ScalarDotF32x8(a, b);
-end;
-
 function RISCVVDotF64x2(const a, b: TVecF64x2): Double;
 begin
-  Result := ScalarDotF64x2(a, b);
+  Result := (a.d[0] * b.d[0]) + (a.d[1] * b.d[1]);
 end;
 
 function RISCVVDotF64x4(const a, b: TVecF64x4): Double;
 begin
-  Result := ScalarDotF64x4(a, b);
+  Result := (a.d[0] * b.d[0]) + (a.d[1] * b.d[1]) + (a.d[2] * b.d[2]) + (a.d[3] * b.d[3]);
 end;
 
 function RISCVVCrossF32x3(const a, b: TVecF32x4): TVecF32x4;
@@ -711,7 +633,7 @@ end;
 
 function RISCVVZeroF32x4: TVecF32x4;
 begin
-  FillChar(Result, SizeOf(Result), 0);
+  Result := Default(TVecF32x4);
 end;
 
 function RISCVVSelectF32x4(const mask: TMask4; const a, b: TVecF32x4): TVecF32x4;
@@ -820,6 +742,8 @@ end;
 // =============================================================
 // I32x8 Operations (256-bit, 8x Int32)
 // =============================================================
+// Non-asm builds still expose these backend-owned symbols so register.inc can
+// keep stable slot ownership without lying about scalar-reuse families.
 
 function RISCVVAddI32x8(const a, b: TVecI32x8): TVecI32x8;
 var i: Integer;
@@ -878,24 +802,18 @@ begin
 end;
 
 function RISCVVShiftLeftI32x8(const a: TVecI32x8; count: Integer): TVecI32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] shl count;
+  Result := ScalarShiftLeftI32x8(a, count);
 end;
 
 function RISCVVShiftRightI32x8(const a: TVecI32x8; count: Integer): TVecI32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := Int32(UInt32(a.i[i]) shr count);
+  Result := ScalarShiftRightI32x8(a, count);
 end;
 
 function RISCVVShiftRightArithI32x8(const a: TVecI32x8; count: Integer): TVecI32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := SarLongint(a.i[i], count);
+  Result := ScalarShiftRightArithI32x8(a, count);
 end;
 
 function RISCVVCmpEqI32x8(const a, b: TVecI32x8): TMask8;
@@ -975,6 +893,8 @@ end;
 // =============================================================
 // I32x16 Operations (512-bit, 16x Int32)
 // =============================================================
+// This facade block mirrors the backend-owned Task 3 surface for non-asm
+// builds only; it is not evidence that the 512-bit path is scalar-reuse.
 
 function RISCVVAddI32x16(const a, b: TVecI32x16): TVecI32x16;
 var i: Integer;
@@ -1033,24 +953,18 @@ begin
 end;
 
 function RISCVVShiftLeftI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.i[i] := a.i[i] shl count;
+  Result := ScalarShiftLeftI32x16(a, count);
 end;
 
 function RISCVVShiftRightI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.i[i] := Int32(UInt32(a.i[i]) shr count);
+  Result := ScalarShiftRightI32x16(a, count);
 end;
 
 function RISCVVShiftRightArithI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.i[i] := SarLongint(a.i[i], count);
+  Result := ScalarShiftRightArithI32x16(a, count);
 end;
 
 function RISCVVCmpEqI32x16(const a, b: TVecI32x16): TMask16;
@@ -1806,356 +1720,6 @@ begin
     Result.i[i] := a.i[i] + b.i[i];
 end;
 
-function RISCVVAddI16x32(const a, b: TVecI16x32): TVecI16x32;
-begin
-  Result := ScalarAddI16x32(a, b);
-end;
-
-function RISCVVSubI16x32(const a, b: TVecI16x32): TVecI16x32;
-begin
-  Result := ScalarSubI16x32(a, b);
-end;
-
-function RISCVVAndI16x32(const a, b: TVecI16x32): TVecI16x32;
-begin
-  Result := ScalarAndI16x32(a, b);
-end;
-
-function RISCVVOrI16x32(const a, b: TVecI16x32): TVecI16x32;
-begin
-  Result := ScalarOrI16x32(a, b);
-end;
-
-function RISCVVXorI16x32(const a, b: TVecI16x32): TVecI16x32;
-begin
-  Result := ScalarXorI16x32(a, b);
-end;
-
-function RISCVVNotI16x32(const a: TVecI16x32): TVecI16x32;
-begin
-  Result := ScalarNotI16x32(a);
-end;
-
-function RISCVVAndNotI16x32(const a, b: TVecI16x32): TVecI16x32;
-begin
-  Result := ScalarAndNotI16x32(a, b);
-end;
-
-function RISCVVCmpEqI16x32(const a, b: TVecI16x32): TMask32;
-begin
-  Result := ScalarCmpEqI16x32(a, b);
-end;
-
-function RISCVVCmpLtI16x32(const a, b: TVecI16x32): TMask32;
-begin
-  Result := ScalarCmpLtI16x32(a, b);
-end;
-
-function RISCVVCmpGtI16x32(const a, b: TVecI16x32): TMask32;
-begin
-  Result := ScalarCmpGtI16x32(a, b);
-end;
-
-function RISCVVMinI16x32(const a, b: TVecI16x32): TVecI16x32;
-begin
-  Result := ScalarMinI16x32(a, b);
-end;
-
-function RISCVVMaxI16x32(const a, b: TVecI16x32): TVecI16x32;
-begin
-  Result := ScalarMaxI16x32(a, b);
-end;
-
-function RISCVVShiftLeftI16x32(const a: TVecI16x32; count: Integer): TVecI16x32;
-begin
-  Result := ScalarShiftLeftI16x32(a, count);
-end;
-
-function RISCVVShiftRightI16x32(const a: TVecI16x32; count: Integer): TVecI16x32;
-begin
-  Result := ScalarShiftRightI16x32(a, count);
-end;
-
-function RISCVVShiftRightArithI16x32(const a: TVecI16x32; count: Integer): TVecI16x32;
-begin
-  Result := ScalarShiftRightArithI16x32(a, count);
-end;
-
-function RISCVVAddI8x64(const a, b: TVecI8x64): TVecI8x64;
-begin
-  Result := ScalarAddI8x64(a, b);
-end;
-
-function RISCVVSubI8x64(const a, b: TVecI8x64): TVecI8x64;
-begin
-  Result := ScalarSubI8x64(a, b);
-end;
-
-function RISCVVAndI8x64(const a, b: TVecI8x64): TVecI8x64;
-begin
-  Result := ScalarAndI8x64(a, b);
-end;
-
-function RISCVVOrI8x64(const a, b: TVecI8x64): TVecI8x64;
-begin
-  Result := ScalarOrI8x64(a, b);
-end;
-
-function RISCVVXorI8x64(const a, b: TVecI8x64): TVecI8x64;
-begin
-  Result := ScalarXorI8x64(a, b);
-end;
-
-function RISCVVNotI8x64(const a: TVecI8x64): TVecI8x64;
-begin
-  Result := ScalarNotI8x64(a);
-end;
-
-function RISCVVAndNotI8x64(const a, b: TVecI8x64): TVecI8x64;
-begin
-  Result := ScalarAndNotI8x64(a, b);
-end;
-
-function RISCVVCmpEqI8x64(const a, b: TVecI8x64): TMask64;
-begin
-  Result := ScalarCmpEqI8x64(a, b);
-end;
-
-function RISCVVCmpLtI8x64(const a, b: TVecI8x64): TMask64;
-begin
-  Result := ScalarCmpLtI8x64(a, b);
-end;
-
-function RISCVVCmpGtI8x64(const a, b: TVecI8x64): TMask64;
-begin
-  Result := ScalarCmpGtI8x64(a, b);
-end;
-
-function RISCVVMinI8x64(const a, b: TVecI8x64): TVecI8x64;
-begin
-  Result := ScalarMinI8x64(a, b);
-end;
-
-function RISCVVMaxI8x64(const a, b: TVecI8x64): TVecI8x64;
-begin
-  Result := ScalarMaxI8x64(a, b);
-end;
-
-function RISCVVAddU8x64(const a, b: TVecU8x64): TVecU8x64;
-begin
-  Result := ScalarAddU8x64(a, b);
-end;
-
-function RISCVVSubU8x64(const a, b: TVecU8x64): TVecU8x64;
-begin
-  Result := ScalarSubU8x64(a, b);
-end;
-
-function RISCVVAndU8x64(const a, b: TVecU8x64): TVecU8x64;
-begin
-  Result := ScalarAndU8x64(a, b);
-end;
-
-function RISCVVOrU8x64(const a, b: TVecU8x64): TVecU8x64;
-begin
-  Result := ScalarOrU8x64(a, b);
-end;
-
-function RISCVVXorU8x64(const a, b: TVecU8x64): TVecU8x64;
-begin
-  Result := ScalarXorU8x64(a, b);
-end;
-
-function RISCVVNotU8x64(const a: TVecU8x64): TVecU8x64;
-begin
-  Result := ScalarNotU8x64(a);
-end;
-
-function RISCVVCmpEqU8x64(const a, b: TVecU8x64): TMask64;
-begin
-  Result := ScalarCmpEqU8x64(a, b);
-end;
-
-function RISCVVCmpLtU8x64(const a, b: TVecU8x64): TMask64;
-begin
-  Result := ScalarCmpLtU8x64(a, b);
-end;
-
-function RISCVVCmpGtU8x64(const a, b: TVecU8x64): TMask64;
-begin
-  Result := ScalarCmpGtU8x64(a, b);
-end;
-
-function RISCVVMinU8x64(const a, b: TVecU8x64): TVecU8x64;
-begin
-  Result := ScalarMinU8x64(a, b);
-end;
-
-function RISCVVMaxU8x64(const a, b: TVecU8x64): TVecU8x64;
-begin
-  Result := ScalarMaxU8x64(a, b);
-end;
-
-function RISCVVAddU32x16(const a, b: TVecU32x16): TVecU32x16;
-begin
-  Result := ScalarAddU32x16(a, b);
-end;
-
-function RISCVVSubU32x16(const a, b: TVecU32x16): TVecU32x16;
-begin
-  Result := ScalarSubU32x16(a, b);
-end;
-
-function RISCVVMulU32x16(const a, b: TVecU32x16): TVecU32x16;
-begin
-  Result := ScalarMulU32x16(a, b);
-end;
-
-function RISCVVAndU32x16(const a, b: TVecU32x16): TVecU32x16;
-begin
-  Result := ScalarAndU32x16(a, b);
-end;
-
-function RISCVVOrU32x16(const a, b: TVecU32x16): TVecU32x16;
-begin
-  Result := ScalarOrU32x16(a, b);
-end;
-
-function RISCVVXorU32x16(const a, b: TVecU32x16): TVecU32x16;
-begin
-  Result := ScalarXorU32x16(a, b);
-end;
-
-function RISCVVNotU32x16(const a: TVecU32x16): TVecU32x16;
-begin
-  Result := ScalarNotU32x16(a);
-end;
-
-function RISCVVAndNotU32x16(const a, b: TVecU32x16): TVecU32x16;
-begin
-  Result := ScalarAndNotU32x16(a, b);
-end;
-
-function RISCVVShiftLeftU32x16(const a: TVecU32x16; count: Integer): TVecU32x16;
-begin
-  Result := ScalarShiftLeftU32x16(a, count);
-end;
-
-function RISCVVShiftRightU32x16(const a: TVecU32x16; count: Integer): TVecU32x16;
-begin
-  Result := ScalarShiftRightU32x16(a, count);
-end;
-
-function RISCVVCmpEqU32x16(const a, b: TVecU32x16): TMask16;
-begin
-  Result := ScalarCmpEqU32x16(a, b);
-end;
-
-function RISCVVCmpLtU32x16(const a, b: TVecU32x16): TMask16;
-begin
-  Result := ScalarCmpLtU32x16(a, b);
-end;
-
-function RISCVVCmpGtU32x16(const a, b: TVecU32x16): TMask16;
-begin
-  Result := ScalarCmpGtU32x16(a, b);
-end;
-
-function RISCVVCmpLeU32x16(const a, b: TVecU32x16): TMask16;
-begin
-  Result := ScalarCmpLeU32x16(a, b);
-end;
-
-function RISCVVCmpGeU32x16(const a, b: TVecU32x16): TMask16;
-begin
-  Result := ScalarCmpGeU32x16(a, b);
-end;
-
-function RISCVVCmpNeU32x16(const a, b: TVecU32x16): TMask16;
-begin
-  Result := ScalarCmpNeU32x16(a, b);
-end;
-
-function RISCVVMinU32x16(const a, b: TVecU32x16): TVecU32x16;
-begin
-  Result := ScalarMinU32x16(a, b);
-end;
-
-function RISCVVMaxU32x16(const a, b: TVecU32x16): TVecU32x16;
-begin
-  Result := ScalarMaxU32x16(a, b);
-end;
-
-function RISCVVAddU64x8(const a, b: TVecU64x8): TVecU64x8;
-begin
-  Result := ScalarAddU64x8(a, b);
-end;
-
-function RISCVVSubU64x8(const a, b: TVecU64x8): TVecU64x8;
-begin
-  Result := ScalarSubU64x8(a, b);
-end;
-
-function RISCVVAndU64x8(const a, b: TVecU64x8): TVecU64x8;
-begin
-  Result := ScalarAndU64x8(a, b);
-end;
-
-function RISCVVOrU64x8(const a, b: TVecU64x8): TVecU64x8;
-begin
-  Result := ScalarOrU64x8(a, b);
-end;
-
-function RISCVVXorU64x8(const a, b: TVecU64x8): TVecU64x8;
-begin
-  Result := ScalarXorU64x8(a, b);
-end;
-
-function RISCVVNotU64x8(const a: TVecU64x8): TVecU64x8;
-begin
-  Result := ScalarNotU64x8(a);
-end;
-
-function RISCVVShiftLeftU64x8(const a: TVecU64x8; count: Integer): TVecU64x8;
-begin
-  Result := ScalarShiftLeftU64x8(a, count);
-end;
-
-function RISCVVShiftRightU64x8(const a: TVecU64x8; count: Integer): TVecU64x8;
-begin
-  Result := ScalarShiftRightU64x8(a, count);
-end;
-
-function RISCVVCmpEqU64x8(const a, b: TVecU64x8): TMask8;
-begin
-  Result := ScalarCmpEqU64x8(a, b);
-end;
-
-function RISCVVCmpLtU64x8(const a, b: TVecU64x8): TMask8;
-begin
-  Result := ScalarCmpLtU64x8(a, b);
-end;
-
-function RISCVVCmpGtU64x8(const a, b: TVecU64x8): TMask8;
-begin
-  Result := ScalarCmpGtU64x8(a, b);
-end;
-
-function RISCVVCmpLeU64x8(const a, b: TVecU64x8): TMask8;
-begin
-  Result := ScalarCmpLeU64x8(a, b);
-end;
-
-function RISCVVCmpGeU64x8(const a, b: TVecU64x8): TMask8;
-begin
-  Result := ScalarCmpGeU64x8(a, b);
-end;
-
-function RISCVVCmpNeU64x8(const a, b: TVecU64x8): TMask8;
-begin
-  Result := ScalarCmpNeU64x8(a, b);
-end;
-
 function RISCVVAddI8x16(const a, b: TVecI8x16): TVecI8x16;
 var i: Integer;
 begin
@@ -2185,6 +1749,8 @@ begin
 end;
 
 // ✅ U32x8 Operations (256-bit)
+// Unsigned Task 3 key slots stay backend-owned. Only families deliberately
+// removed from this file (for example U32x16/U64x8) are meant to reuse base scalar.
 function RISCVVAddU32x8(const a, b: TVecU32x8): TVecU32x8;
 var i: Integer;
 begin
@@ -2242,17 +1808,15 @@ begin
 end;
 
 function RISCVVShiftLeftU32x8(const a: TVecU32x8; count: Integer): TVecU32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] shl count;
+  // Keep the backend-owned symbol, but preserve the published scalar shift
+  // contract for zero / negative / out-of-range counts.
+  Result := ScalarShiftLeftU32x8(a, count);
 end;
 
 function RISCVVShiftRightU32x8(const a: TVecU32x8; count: Integer): TVecU32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] shr count;
+  Result := ScalarShiftRightU32x8(a, count);
 end;
 
 function RISCVVCmpEqU32x8(const a, b: TVecU32x8): TMask8;
@@ -2438,6 +2002,9 @@ begin
     Result.f[i] := Ceil(a.f[i]);
 end;
 
+// RegisterRISCVVBackend intentionally keeps the canonical base scalar slots
+// for 128-bit rounding until these backend-local helpers are validated
+// end-to-end against the published scalar semantics.
 function RISCVVCeilF64x2(const a: TVecF64x2): TVecF64x2;
 var i: Integer;
 begin
@@ -4374,112 +3941,36 @@ end;
 
 function RISCVVZeroF32x16: TVecF32x16;
 begin
-  FillChar(Result, SizeOf(Result), 0);
+  Result := Default(TVecF32x16);
 end;
 
 function RISCVVZeroF32x8: TVecF32x8;
 begin
-  FillChar(Result, SizeOf(Result), 0);
+  Result := Default(TVecF32x8);
 end;
 
 function RISCVVZeroF64x2: TVecF64x2;
 begin
-  FillChar(Result, SizeOf(Result), 0);
+  Result := Default(TVecF64x2);
 end;
 
 function RISCVVZeroF64x4: TVecF64x4;
 begin
-  FillChar(Result, SizeOf(Result), 0);
+  Result := Default(TVecF64x4);
 end;
 
 function RISCVVZeroF64x8: TVecF64x8;
 begin
-  FillChar(Result, SizeOf(Result), 0);
+  Result := Default(TVecF64x8);
 end;
 
 function RISCVVZeroI64x4: TVecI64x4;
 begin
-  FillChar(Result, SizeOf(Result), 0);
+  Result := Default(TVecI64x4);
 end;
 
 // =============================================================
 // Facade Function Implementations
 // =============================================================
-// These delegate to the scalar backend's implementations
 
-function MemEqual_RISCVV(a, b: Pointer; len: SizeUInt): LongBool;
-begin
-  Result := MemEqual_Scalar(a, b, len);
-end;
-
-function MemFindByte_RISCVV(p: Pointer; len: SizeUInt; value: Byte): PtrInt;
-begin
-  Result := MemFindByte_Scalar(p, len, value);
-end;
-
-function MemDiffRange_RISCVV(a, b: Pointer; len: SizeUInt; out firstDiff, lastDiff: SizeUInt): Boolean;
-begin
-  Result := MemDiffRange_Scalar(a, b, len, firstDiff, lastDiff);
-end;
-
-procedure MemCopy_RISCVV(src, dst: Pointer; len: SizeUInt);
-begin
-  MemCopy_Scalar(src, dst, len);
-end;
-
-procedure MemSet_RISCVV(dst: Pointer; len: SizeUInt; value: Byte);
-begin
-  MemSet_Scalar(dst, len, value);
-end;
-
-procedure MemReverse_RISCVV(p: Pointer; len: SizeUInt);
-begin
-  MemReverse_Scalar(p, len);
-end;
-
-function SumBytes_RISCVV(p: Pointer; len: SizeUInt): UInt64;
-begin
-  Result := SumBytes_Scalar(p, len);
-end;
-
-procedure MinMaxBytes_RISCVV(p: Pointer; len: SizeUInt; out minVal, maxVal: Byte);
-begin
-  MinMaxBytes_Scalar(p, len, minVal, maxVal);
-end;
-
-function CountByte_RISCVV(p: Pointer; len: SizeUInt; value: Byte): SizeUInt;
-begin
-  Result := CountByte_Scalar(p, len, value);
-end;
-
-function Utf8Validate_RISCVV(p: Pointer; len: SizeUInt): Boolean;
-begin
-  Result := Utf8Validate_Scalar(p, len);
-end;
-
-function AsciiIEqual_RISCVV(a, b: Pointer; len: SizeUInt): Boolean;
-begin
-  Result := AsciiIEqual_Scalar(a, b, len);
-end;
-
-procedure ToLowerAscii_RISCVV(p: Pointer; len: SizeUInt);
-begin
-  ToLowerAscii_Scalar(p, len);
-end;
-
-procedure ToUpperAscii_RISCVV(p: Pointer; len: SizeUInt);
-begin
-  ToUpperAscii_Scalar(p, len);
-end;
-
-function BytesIndexOf_RISCVV(haystack: Pointer; haystackLen: SizeUInt; needle: Pointer; needleLen: SizeUInt): PtrInt;
-begin
-  Result := BytesIndexOf_Scalar(haystack, haystackLen, needle, needleLen);
-end;
-
-function BitsetPopCount_RISCVV(p: Pointer; byteLen: SizeUInt): SizeUInt;
-begin
-  Result := BitsetPopCount_Scalar(p, byteLen);
-end;
-
-{$ENDIF} // RISCVV_ASSEMBLY
+{$ENDIF} // not RISCVV_ASSEMBLY

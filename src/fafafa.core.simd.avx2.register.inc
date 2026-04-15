@@ -650,24 +650,7 @@ begin
   end;
   // else: keep scalar implementations from FillBaseDispatchTable
 
-  {$IFDEF WINDOWS}
-  // Win64 lane currently uses scalar-safe facade ops to avoid ABI-sensitive AVX2 asm entrypoints.
-  dispatchTable.MemEqual := @MemEqual_Scalar;
-  dispatchTable.MemFindByte := @MemFindByte_Scalar;
-  dispatchTable.SumBytes := @SumBytes_Scalar;
-  dispatchTable.CountByte := @CountByte_Scalar;
-  dispatchTable.MemDiffRange := @MemDiffRange_Scalar;
-  dispatchTable.MemReverse := @MemReverse_Scalar;
-  dispatchTable.MinMaxBytes := @MinMaxBytes_Scalar;
-  dispatchTable.Utf8Validate := @Utf8Validate_Scalar;
-  dispatchTable.AsciiIEqual := @AsciiIEqual_Scalar;
-  dispatchTable.ToLowerAscii := @ToLowerAscii_Scalar;
-  dispatchTable.ToUpperAscii := @ToUpperAscii_Scalar;
-  dispatchTable.BytesIndexOf := @BytesIndexOf_Scalar;
-  dispatchTable.BitsetPopCount := @BitsetPopCount_Scalar;
-  dispatchTable.MemCopy := @MemCopy_Scalar;
-  dispatchTable.MemSet := @MemSet_Scalar;
-  {$ELSE}
+  {$IFNDEF WINDOWS}
   // Override facade functions with AVX2-accelerated versions
   dispatchTable.MemEqual := @MemEqual_AVX2;
   dispatchTable.MemFindByte := @MemFindByte_AVX2;

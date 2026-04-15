@@ -211,12 +211,43 @@ inject_cpuinfo_fail_once_cmd() {
   printf '%s\n' "mkdir -p ${LStampDir} && if [[ ! -f ${LStampFile} ]]; then echo \"[INJECT] cpuinfo fail-once scenario=${aScenario} platform=${aPlatform} exit=${LExitCode}\"; touch ${LStampFile}; exit ${LExitCode}; fi && ${aCmd}"
 }
 
+build_nonx86_evidence_cmd() {
+  local aArchTag
+
+  aArchTag="${1:-unknown}"
+  cat <<EOF
+LQemuOutputRoot="/tmp/fafafa-simd-qemu-nonx86-${aArchTag}";
+rm -rf "\${LQemuOutputRoot}";
+export SIMD_OUTPUT_ROOT="\${LQemuOutputRoot}";
+bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_NonX86IEEE754 &&
+LTestBin="\${SIMD_OUTPUT_ROOT}/bin2/fafafa.core.simd.test";
+LDirectParityLog="\${SIMD_OUTPUT_ROOT}/logs/direct_nonx86_runtime_parity.txt";
+if [[ ! -x "\${LTestBin}" && -x "\${LTestBin}.exe" ]]; then LTestBin="\${LTestBin}.exe"; fi &&
+echo "[TEST] Running: \${LTestBin} --suite=TTestCase_NonX86BackendParity,TTestCase_DataPlane" &&
+if "\${LTestBin}" --suite=TTestCase_NonX86BackendParity,TTestCase_DataPlane >"\${LDirectParityLog}" 2>&1; then
+  echo "[TEST] OK";
+else
+  LRC=\$?;
+  echo "[TEST] FAILED rc=\${LRC} (see \${LDirectParityLog})";
+  tail -n 120 "\${LDirectParityLog}" || true;
+  exit "\${LRC}";
+fi &&
+if grep -nE '^[1-9][0-9]* unfreed memory blocks' "\${LDirectParityLog}" >/dev/null; then
+  echo "[LEAK] FAILED: heaptrc reports unfreed blocks:";
+  grep -nE '^[0-9]+ unfreed memory blocks' "\${LDirectParityLog}" || true;
+  exit 1;
+fi &&
+echo "[LEAK] OK" &&
+bash tests/fafafa.core.simd/run_backend_benchmarks.sh
+EOF
+}
+
 case "${SCENARIO}" in
   basic)
     CONTAINER_CMD='bash tests/fafafa.core.simd/docker/run_fpc_tests.sh'
     ;;
   nonx86-evidence)
-    CONTAINER_CMD='bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_NonX86IEEE754 && bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_NonX86BackendParity && bash tests/fafafa.core.simd/run_backend_benchmarks.sh'
+    CONTAINER_CMD='__NONX86_EVIDENCE__'
     ;;
   cpuinfo-nonx86-evidence)
     CONTAINER_CMD='FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh check && FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --list-suites && LTARGET_CPU="$(fpc -iTP 2>/dev/null | tr "[:upper:]" "[:lower:]" || true)" && LTARGET_OS="$(fpc -iTO 2>/dev/null | tr "[:upper:]" "[:lower:]" || true)" && LTARGET_LOG="tests/fafafa.core.simd.cpuinfo/logs/${LTARGET_CPU:-unknowncpu}-${LTARGET_OS:-unknownos}/test.txt" && LSUITES="$(cat "$LTARGET_LOG" 2>/dev/null || cat tests/fafafa.core.simd.cpuinfo/logs/test.txt 2>/dev/null || true)" && if printf "%s\n" "$LSUITES" | grep -q "TTestCase_LazyCPUInfo"; then FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --suite=TTestCase_LazyCPUInfo; else echo "[TEST] SKIP lazy cpuinfo suite (not available on this target)"; fi && FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --suite=TTestCase_PlatformSpecific'
@@ -348,6 +379,9 @@ for platform in "${PLATFORMS[@]}"; do
   fi
 
   container_cmd="${CONTAINER_CMD}"
+  if [[ "${SCENARIO}" == "nonx86-evidence" ]]; then
+    container_cmd="$(build_nonx86_evidence_cmd "${arch_tag}")"
+  fi
   if [[ "${SCENARIO}" == "arch-matrix-evidence" ]]; then
     case "${arch}" in
       amd64|386)

@@ -13,7 +13,8 @@ uses
   fafafa.core.simd.base,
   fafafa.core.simd.api,
   fafafa.core.simd.dispatch,
-  fafafa.core.simd.direct;
+  fafafa.core.simd.direct,
+  fafafa.core.simd.scalar;
 
 type
   TTestCase_DirectDispatch = class(TTestCase)
@@ -43,9 +44,13 @@ type
     procedure Test_DirectDispatchTable_MultiBackend_U32x8U64x4CompareIdentityMaskProperties_Parity;
     procedure Test_DirectDispatchTable_MultiBackend_F32x8F64x4CompareIdentityMaskProperties_Parity;
     procedure Test_DirectDispatchTable_MultiBackend_I16I8CompareEdgeMatrix_Parity;
+    procedure Test_DirectDispatchTable_MultiBackend_SignedWideCompareMaskMatrix_Parity;
+    procedure Test_DirectDispatchTable_MultiBackend_WideBitwiseShiftMatrix_Parity;
+    procedure Test_DirectDispatchTable_MultiBackend_WideArithmeticMinMaxMatrix_Parity;
     procedure Test_DirectDispatchTable_MultiBackend_MemSearchBitsetUtf8_Parity;
     procedure Test_DirectDispatchTable_MultiBackend_MemWindowMatrix_Parity;
     procedure Test_DirectDispatchTable_MultiBackend_MemSearchFuzzSeed_Parity;
+    procedure Test_DirectDispatchTable_WideIntegerHelperMatrix_Parity;
   end;
 
   TTestCase_DirectDispatchConcurrent = class(TTestCase)
@@ -3766,6 +3771,1026 @@ begin
 end;
 
 
+
+procedure TTestCase_DirectDispatch.Test_DirectDispatchTable_MultiBackend_SignedWideCompareMaskMatrix_Parity;
+const
+  C_CASE_COUNT = 4;
+  C_I32X8_CASES_A: array[0..C_CASE_COUNT - 1, 0..7] of Int32 = (
+    (Low(Int32), -100, -1, 0, 1, 100, High(Int32), 42),
+    (-1, -2, -3, -4, 4, 3, 2, 1),
+    (0, 0, 0, 0, 0, 0, 0, 0),
+    (7, -7, 1024, -1024, 33, -33, 5, -5)
+  );
+  C_I32X8_CASES_B: array[0..C_CASE_COUNT - 1, 0..7] of Int32 = (
+    (Low(Int32), -99, 0, 0, -1, 101, High(Int32) - 1, 42),
+    (-1, -1, -4, -4, 4, 2, 3, 0),
+    (0, 0, 0, 0, 0, 0, 0, 0),
+    (8, -8, 1023, -1023, 33, -40, 6, -4)
+  );
+  C_I64X4_CASES_A: array[0..C_CASE_COUNT - 1, 0..3] of Int64 = (
+    (Low(Int64), -1, 0, High(Int64)),
+    (-1000, 7777777, -1234567890123, 42),
+    (0, 0, 0, 0),
+    (99, -99, 4096, -4096)
+  );
+  C_I64X4_CASES_B: array[0..C_CASE_COUNT - 1, 0..3] of Int64 = (
+    (Low(Int64), 0, 0, High(Int64) - 1),
+    (13, -9, 3000, -500),
+    (0, 0, 0, 0),
+    (100, -100, 4095, -4095)
+  );
+  C_I32X16_CASES_A: array[0..C_CASE_COUNT - 1, 0..15] of Int32 = (
+    (Low(Int32), -1024, -1, 0, 1, 1024, High(Int32), 42, -42, 7, -7, 99, -99, 2048, -2048, 123456),
+    (-1, -2, -3, -4, -5, -6, -7, -8, 8, 7, 6, 5, 4, 3, 2, 1),
+    (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+    (17, -17, 33, -33, 65, -65, 129, -129, 257, -257, 513, -513, 1025, -1025, 2049, -2049)
+  );
+  C_I32X16_CASES_B: array[0..C_CASE_COUNT - 1, 0..15] of Int32 = (
+    (Low(Int32), -1023, 0, 0, -1, 2048, High(Int32), 41, -43, 8, -8, 99, -100, 2047, -2049, 123456),
+    (-1, -1, -4, -4, -4, -7, -8, -8, 7, 8, 5, 6, 3, 4, 1, 2),
+    (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+    (16, -18, 34, -32, 64, -66, 130, -128, 256, -258, 514, -512, 1026, -1024, 2050, -2048)
+  );
+  C_I64X8_CASES_A: array[0..C_CASE_COUNT - 1, 0..7] of Int64 = (
+    (Low(Int64), -1, 0, 1, 2, -2, High(Int64), 42),
+    (-1000, 7777777, -1234567890123, 42, -7, 9, -11, 13),
+    (0, 0, 0, 0, 0, 0, 0, 0),
+    (512, -512, 1024, -1024, 2048, -2048, 4096, -4096)
+  );
+  C_I64X8_CASES_B: array[0..C_CASE_COUNT - 1, 0..7] of Int64 = (
+    (Low(Int64), 0, 0, -1, 3, -3, High(Int64), 42),
+    (13, -9, 3000, -500, -8, 9, -10, 14),
+    (0, 0, 0, 0, 0, 0, 0, 0),
+    (513, -513, 1023, -1023, 2048, -2049, 4097, -4095)
+  );
+var
+  LBackend: TSimdBackend;
+  LDispatch: PSimdDispatchTable;
+  LDirectDispatch: PSimdDispatchTable;
+  LAi32x8, LBi32x8: TVecI32x8;
+  LAi64x4, LBi64x4: TVecI64x4;
+  LAi32x16, LBi32x16: TVecI32x16;
+  LAi64x8, LBi64x8: TVecI64x8;
+  LMask8Direct, LMask8Scalar: TMask8;
+  LMask4Direct, LMask4Scalar: TMask4;
+  LMask16Direct, LMask16Scalar: TMask16;
+  LCaseIdx: Integer;
+  LLane: Integer;
+  LTestedCount: Integer;
+
+  procedure AssertMask4HelperParity(const aLabel: string; const aMask: TMask4);
+  begin
+    AssertEquals(aLabel + ' Mask4All backend ' + IntToStr(Ord(LBackend)),
+      ScalarMask4All(aMask), LDirectDispatch^.Mask4All(aMask));
+    AssertEquals(aLabel + ' Mask4Any backend ' + IntToStr(Ord(LBackend)),
+      ScalarMask4Any(aMask), LDirectDispatch^.Mask4Any(aMask));
+    AssertEquals(aLabel + ' Mask4None backend ' + IntToStr(Ord(LBackend)),
+      ScalarMask4None(aMask), LDirectDispatch^.Mask4None(aMask));
+    AssertEquals(aLabel + ' Mask4PopCount backend ' + IntToStr(Ord(LBackend)),
+      ScalarMask4PopCount(aMask), LDirectDispatch^.Mask4PopCount(aMask));
+    AssertEquals(aLabel + ' Mask4FirstSet backend ' + IntToStr(Ord(LBackend)),
+      ScalarMask4FirstSet(aMask), LDirectDispatch^.Mask4FirstSet(aMask));
+  end;
+
+  procedure AssertMask8HelperParity(const aLabel: string; const aMask: TMask8);
+  begin
+    AssertEquals(aLabel + ' Mask8All backend ' + IntToStr(Ord(LBackend)),
+      ScalarMask8All(aMask), LDirectDispatch^.Mask8All(aMask));
+    AssertEquals(aLabel + ' Mask8Any backend ' + IntToStr(Ord(LBackend)),
+      ScalarMask8Any(aMask), LDirectDispatch^.Mask8Any(aMask));
+    AssertEquals(aLabel + ' Mask8None backend ' + IntToStr(Ord(LBackend)),
+      ScalarMask8None(aMask), LDirectDispatch^.Mask8None(aMask));
+    AssertEquals(aLabel + ' Mask8PopCount backend ' + IntToStr(Ord(LBackend)),
+      ScalarMask8PopCount(aMask), LDirectDispatch^.Mask8PopCount(aMask));
+    AssertEquals(aLabel + ' Mask8FirstSet backend ' + IntToStr(Ord(LBackend)),
+      ScalarMask8FirstSet(aMask), LDirectDispatch^.Mask8FirstSet(aMask));
+  end;
+
+  procedure AssertMask16HelperParity(const aLabel: string; const aMask: TMask16);
+  begin
+    AssertEquals(aLabel + ' Mask16All backend ' + IntToStr(Ord(LBackend)),
+      ScalarMask16All(aMask), LDirectDispatch^.Mask16All(aMask));
+    AssertEquals(aLabel + ' Mask16Any backend ' + IntToStr(Ord(LBackend)),
+      ScalarMask16Any(aMask), LDirectDispatch^.Mask16Any(aMask));
+    AssertEquals(aLabel + ' Mask16None backend ' + IntToStr(Ord(LBackend)),
+      ScalarMask16None(aMask), LDirectDispatch^.Mask16None(aMask));
+    AssertEquals(aLabel + ' Mask16PopCount backend ' + IntToStr(Ord(LBackend)),
+      ScalarMask16PopCount(aMask), LDirectDispatch^.Mask16PopCount(aMask));
+    AssertEquals(aLabel + ' Mask16FirstSet backend ' + IntToStr(Ord(LBackend)),
+      ScalarMask16FirstSet(aMask), LDirectDispatch^.Mask16FirstSet(aMask));
+  end;
+begin
+  LTestedCount := 0;
+  try
+    for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
+    begin
+      if not IsBackendRegistered(LBackend) then
+        Continue;
+      if not TrySetActiveBackend(LBackend) then
+        Continue;
+
+      LDispatch := GetDispatchTable;
+      LDirectDispatch := GetDirectDispatchTable;
+      AssertTrue('Dispatch table should be assigned for backend ' + IntToStr(Ord(LBackend)), LDispatch <> nil);
+      AssertTrue('Direct dispatch table should be assigned for backend ' + IntToStr(Ord(LBackend)), LDirectDispatch <> nil);
+
+      if (not Assigned(LDirectDispatch^.CmpEqI32x8)) or
+         (not Assigned(LDirectDispatch^.CmpLtI32x8)) or
+         (not Assigned(LDirectDispatch^.CmpGtI32x8)) or
+         (not Assigned(LDirectDispatch^.CmpLeI32x8)) or
+         (not Assigned(LDirectDispatch^.CmpGeI32x8)) or
+         (not Assigned(LDirectDispatch^.CmpNeI32x8)) or
+         (not Assigned(LDirectDispatch^.CmpEqI64x4)) or
+         (not Assigned(LDirectDispatch^.CmpLtI64x4)) or
+         (not Assigned(LDirectDispatch^.CmpGtI64x4)) or
+         (not Assigned(LDirectDispatch^.CmpLeI64x4)) or
+         (not Assigned(LDirectDispatch^.CmpGeI64x4)) or
+         (not Assigned(LDirectDispatch^.CmpNeI64x4)) or
+         (not Assigned(LDirectDispatch^.CmpEqI32x16)) or
+         (not Assigned(LDirectDispatch^.CmpLtI32x16)) or
+         (not Assigned(LDirectDispatch^.CmpGtI32x16)) or
+         (not Assigned(LDirectDispatch^.CmpLeI32x16)) or
+         (not Assigned(LDirectDispatch^.CmpGeI32x16)) or
+         (not Assigned(LDirectDispatch^.CmpNeI32x16)) or
+         (not Assigned(LDirectDispatch^.CmpEqI64x8)) or
+         (not Assigned(LDirectDispatch^.CmpLtI64x8)) or
+         (not Assigned(LDirectDispatch^.CmpGtI64x8)) or
+         (not Assigned(LDirectDispatch^.CmpLeI64x8)) or
+         (not Assigned(LDirectDispatch^.CmpGeI64x8)) or
+         (not Assigned(LDirectDispatch^.CmpNeI64x8)) or
+         (not Assigned(LDirectDispatch^.Mask4All)) or
+         (not Assigned(LDirectDispatch^.Mask4Any)) or
+         (not Assigned(LDirectDispatch^.Mask4None)) or
+         (not Assigned(LDirectDispatch^.Mask4PopCount)) or
+         (not Assigned(LDirectDispatch^.Mask4FirstSet)) or
+         (not Assigned(LDirectDispatch^.Mask8All)) or
+         (not Assigned(LDirectDispatch^.Mask8Any)) or
+         (not Assigned(LDirectDispatch^.Mask8None)) or
+         (not Assigned(LDirectDispatch^.Mask8PopCount)) or
+         (not Assigned(LDirectDispatch^.Mask8FirstSet)) or
+         (not Assigned(LDirectDispatch^.Mask16All)) or
+         (not Assigned(LDirectDispatch^.Mask16Any)) or
+         (not Assigned(LDirectDispatch^.Mask16None)) or
+         (not Assigned(LDirectDispatch^.Mask16PopCount)) or
+         (not Assigned(LDirectDispatch^.Mask16FirstSet)) then
+        Continue;
+
+      Inc(LTestedCount);
+      for LCaseIdx := 0 to C_CASE_COUNT - 1 do
+      begin
+        for LLane := 0 to 7 do
+        begin
+          LAi32x8.i[LLane] := C_I32X8_CASES_A[LCaseIdx, LLane];
+          LBi32x8.i[LLane] := C_I32X8_CASES_B[LCaseIdx, LLane];
+          LAi64x8.i[LLane] := C_I64X8_CASES_A[LCaseIdx, LLane];
+          LBi64x8.i[LLane] := C_I64X8_CASES_B[LCaseIdx, LLane];
+        end;
+        for LLane := 0 to 3 do
+        begin
+          LAi64x4.i[LLane] := C_I64X4_CASES_A[LCaseIdx, LLane];
+          LBi64x4.i[LLane] := C_I64X4_CASES_B[LCaseIdx, LLane];
+        end;
+        for LLane := 0 to 15 do
+        begin
+          LAi32x16.i[LLane] := C_I32X16_CASES_A[LCaseIdx, LLane];
+          LBi32x16.i[LLane] := C_I32X16_CASES_B[LCaseIdx, LLane];
+        end;
+
+        LMask8Direct := LDirectDispatch^.CmpEqI32x8(LAi32x8, LBi32x8);
+        LMask8Scalar := ScalarCmpEqI32x8(LAi32x8, LBi32x8);
+        AssertEquals('Direct CmpEqI32x8 parity backend ' + IntToStr(Ord(LBackend)) + ' case=' + IntToStr(LCaseIdx),
+          Integer(LMask8Scalar), Integer(LMask8Direct));
+        LMask8Direct := LDirectDispatch^.CmpLtI32x8(LAi32x8, LBi32x8);
+        LMask8Scalar := ScalarCmpLtI32x8(LAi32x8, LBi32x8);
+        AssertEquals('Direct CmpLtI32x8 parity backend ' + IntToStr(Ord(LBackend)) + ' case=' + IntToStr(LCaseIdx),
+          Integer(LMask8Scalar), Integer(LMask8Direct));
+        AssertMask8HelperParity('I32x8 Lt case=' + IntToStr(LCaseIdx), LMask8Scalar);
+        LMask8Direct := LDirectDispatch^.CmpGtI32x8(LAi32x8, LBi32x8);
+        LMask8Scalar := ScalarCmpGtI32x8(LAi32x8, LBi32x8);
+        AssertEquals('Direct CmpGtI32x8 parity backend ' + IntToStr(Ord(LBackend)) + ' case=' + IntToStr(LCaseIdx),
+          Integer(LMask8Scalar), Integer(LMask8Direct));
+        LMask8Direct := LDirectDispatch^.CmpLeI32x8(LAi32x8, LBi32x8);
+        LMask8Scalar := ScalarCmpLeI32x8(LAi32x8, LBi32x8);
+        AssertEquals('Direct CmpLeI32x8 parity backend ' + IntToStr(Ord(LBackend)) + ' case=' + IntToStr(LCaseIdx),
+          Integer(LMask8Scalar), Integer(LMask8Direct));
+        LMask8Direct := LDirectDispatch^.CmpGeI32x8(LAi32x8, LBi32x8);
+        LMask8Scalar := ScalarCmpGeI32x8(LAi32x8, LBi32x8);
+        AssertEquals('Direct CmpGeI32x8 parity backend ' + IntToStr(Ord(LBackend)) + ' case=' + IntToStr(LCaseIdx),
+          Integer(LMask8Scalar), Integer(LMask8Direct));
+        LMask8Direct := LDirectDispatch^.CmpNeI32x8(LAi32x8, LBi32x8);
+        LMask8Scalar := ScalarCmpNeI32x8(LAi32x8, LBi32x8);
+        AssertEquals('Direct CmpNeI32x8 parity backend ' + IntToStr(Ord(LBackend)) + ' case=' + IntToStr(LCaseIdx),
+          Integer(LMask8Scalar), Integer(LMask8Direct));
+
+        LMask4Direct := LDirectDispatch^.CmpEqI64x4(LAi64x4, LBi64x4);
+        LMask4Scalar := ScalarCmpEqI64x4(LAi64x4, LBi64x4);
+        AssertEquals('Direct CmpEqI64x4 parity backend ' + IntToStr(Ord(LBackend)) + ' case=' + IntToStr(LCaseIdx),
+          Integer(LMask4Scalar), Integer(LMask4Direct));
+        LMask4Direct := LDirectDispatch^.CmpLtI64x4(LAi64x4, LBi64x4);
+        LMask4Scalar := ScalarCmpLtI64x4(LAi64x4, LBi64x4);
+        AssertEquals('Direct CmpLtI64x4 parity backend ' + IntToStr(Ord(LBackend)) + ' case=' + IntToStr(LCaseIdx),
+          Integer(LMask4Scalar), Integer(LMask4Direct));
+        AssertMask4HelperParity('I64x4 Lt case=' + IntToStr(LCaseIdx), LMask4Scalar);
+        LMask4Direct := LDirectDispatch^.CmpGtI64x4(LAi64x4, LBi64x4);
+        LMask4Scalar := ScalarCmpGtI64x4(LAi64x4, LBi64x4);
+        AssertEquals('Direct CmpGtI64x4 parity backend ' + IntToStr(Ord(LBackend)) + ' case=' + IntToStr(LCaseIdx),
+          Integer(LMask4Scalar), Integer(LMask4Direct));
+        LMask4Direct := LDirectDispatch^.CmpLeI64x4(LAi64x4, LBi64x4);
+        LMask4Scalar := ScalarCmpLeI64x4(LAi64x4, LBi64x4);
+        AssertEquals('Direct CmpLeI64x4 parity backend ' + IntToStr(Ord(LBackend)) + ' case=' + IntToStr(LCaseIdx),
+          Integer(LMask4Scalar), Integer(LMask4Direct));
+        LMask4Direct := LDirectDispatch^.CmpGeI64x4(LAi64x4, LBi64x4);
+        LMask4Scalar := ScalarCmpGeI64x4(LAi64x4, LBi64x4);
+        AssertEquals('Direct CmpGeI64x4 parity backend ' + IntToStr(Ord(LBackend)) + ' case=' + IntToStr(LCaseIdx),
+          Integer(LMask4Scalar), Integer(LMask4Direct));
+        LMask4Direct := LDirectDispatch^.CmpNeI64x4(LAi64x4, LBi64x4);
+        LMask4Scalar := ScalarCmpNeI64x4(LAi64x4, LBi64x4);
+        AssertEquals('Direct CmpNeI64x4 parity backend ' + IntToStr(Ord(LBackend)) + ' case=' + IntToStr(LCaseIdx),
+          Integer(LMask4Scalar), Integer(LMask4Direct));
+
+        LMask16Direct := LDirectDispatch^.CmpEqI32x16(LAi32x16, LBi32x16);
+        LMask16Scalar := ScalarCmpEqI32x16(LAi32x16, LBi32x16);
+        AssertEquals('Direct CmpEqI32x16 parity backend ' + IntToStr(Ord(LBackend)) + ' case=' + IntToStr(LCaseIdx),
+          Integer(LMask16Scalar), Integer(LMask16Direct));
+        LMask16Direct := LDirectDispatch^.CmpLtI32x16(LAi32x16, LBi32x16);
+        LMask16Scalar := ScalarCmpLtI32x16(LAi32x16, LBi32x16);
+        AssertEquals('Direct CmpLtI32x16 parity backend ' + IntToStr(Ord(LBackend)) + ' case=' + IntToStr(LCaseIdx),
+          Integer(LMask16Scalar), Integer(LMask16Direct));
+        AssertMask16HelperParity('I32x16 Lt case=' + IntToStr(LCaseIdx), LMask16Scalar);
+        LMask16Direct := LDirectDispatch^.CmpGtI32x16(LAi32x16, LBi32x16);
+        LMask16Scalar := ScalarCmpGtI32x16(LAi32x16, LBi32x16);
+        AssertEquals('Direct CmpGtI32x16 parity backend ' + IntToStr(Ord(LBackend)) + ' case=' + IntToStr(LCaseIdx),
+          Integer(LMask16Scalar), Integer(LMask16Direct));
+        LMask16Direct := LDirectDispatch^.CmpLeI32x16(LAi32x16, LBi32x16);
+        LMask16Scalar := ScalarCmpLeI32x16(LAi32x16, LBi32x16);
+        AssertEquals('Direct CmpLeI32x16 parity backend ' + IntToStr(Ord(LBackend)) + ' case=' + IntToStr(LCaseIdx),
+          Integer(LMask16Scalar), Integer(LMask16Direct));
+        LMask16Direct := LDirectDispatch^.CmpGeI32x16(LAi32x16, LBi32x16);
+        LMask16Scalar := ScalarCmpGeI32x16(LAi32x16, LBi32x16);
+        AssertEquals('Direct CmpGeI32x16 parity backend ' + IntToStr(Ord(LBackend)) + ' case=' + IntToStr(LCaseIdx),
+          Integer(LMask16Scalar), Integer(LMask16Direct));
+        LMask16Direct := LDirectDispatch^.CmpNeI32x16(LAi32x16, LBi32x16);
+        LMask16Scalar := ScalarCmpNeI32x16(LAi32x16, LBi32x16);
+        AssertEquals('Direct CmpNeI32x16 parity backend ' + IntToStr(Ord(LBackend)) + ' case=' + IntToStr(LCaseIdx),
+          Integer(LMask16Scalar), Integer(LMask16Direct));
+
+        LMask8Direct := LDirectDispatch^.CmpEqI64x8(LAi64x8, LBi64x8);
+        LMask8Scalar := ScalarCmpEqI64x8(LAi64x8, LBi64x8);
+        AssertEquals('Direct CmpEqI64x8 parity backend ' + IntToStr(Ord(LBackend)) + ' case=' + IntToStr(LCaseIdx),
+          Integer(LMask8Scalar), Integer(LMask8Direct));
+        LMask8Direct := LDirectDispatch^.CmpLtI64x8(LAi64x8, LBi64x8);
+        LMask8Scalar := ScalarCmpLtI64x8(LAi64x8, LBi64x8);
+        AssertEquals('Direct CmpLtI64x8 parity backend ' + IntToStr(Ord(LBackend)) + ' case=' + IntToStr(LCaseIdx),
+          Integer(LMask8Scalar), Integer(LMask8Direct));
+        AssertMask8HelperParity('I64x8 Lt case=' + IntToStr(LCaseIdx), LMask8Scalar);
+        LMask8Direct := LDirectDispatch^.CmpGtI64x8(LAi64x8, LBi64x8);
+        LMask8Scalar := ScalarCmpGtI64x8(LAi64x8, LBi64x8);
+        AssertEquals('Direct CmpGtI64x8 parity backend ' + IntToStr(Ord(LBackend)) + ' case=' + IntToStr(LCaseIdx),
+          Integer(LMask8Scalar), Integer(LMask8Direct));
+        LMask8Direct := LDirectDispatch^.CmpLeI64x8(LAi64x8, LBi64x8);
+        LMask8Scalar := ScalarCmpLeI64x8(LAi64x8, LBi64x8);
+        AssertEquals('Direct CmpLeI64x8 parity backend ' + IntToStr(Ord(LBackend)) + ' case=' + IntToStr(LCaseIdx),
+          Integer(LMask8Scalar), Integer(LMask8Direct));
+        LMask8Direct := LDirectDispatch^.CmpGeI64x8(LAi64x8, LBi64x8);
+        LMask8Scalar := ScalarCmpGeI64x8(LAi64x8, LBi64x8);
+        AssertEquals('Direct CmpGeI64x8 parity backend ' + IntToStr(Ord(LBackend)) + ' case=' + IntToStr(LCaseIdx),
+          Integer(LMask8Scalar), Integer(LMask8Direct));
+        LMask8Direct := LDirectDispatch^.CmpNeI64x8(LAi64x8, LBi64x8);
+        LMask8Scalar := ScalarCmpNeI64x8(LAi64x8, LBi64x8);
+        AssertEquals('Direct CmpNeI64x8 parity backend ' + IntToStr(Ord(LBackend)) + ' case=' + IntToStr(LCaseIdx),
+          Integer(LMask8Scalar), Integer(LMask8Direct));
+      end;
+
+      AssertMask4HelperParity('Synthetic Mask4 zero', TMask4(0));
+      AssertMask4HelperParity('Synthetic Mask4 mixed', TMask4($0A));
+      AssertMask4HelperParity('Synthetic Mask4 full', TMask4($0F));
+      AssertMask8HelperParity('Synthetic Mask8 zero', TMask8(0));
+      AssertMask8HelperParity('Synthetic Mask8 mixed', TMask8($52));
+      AssertMask8HelperParity('Synthetic Mask8 full', TMask8($FF));
+      AssertMask16HelperParity('Synthetic Mask16 zero', TMask16(0));
+      AssertMask16HelperParity('Synthetic Mask16 mixed', TMask16($A55A));
+      AssertMask16HelperParity('Synthetic Mask16 full', TMask16($FFFF));
+    end;
+
+    AssertTrue('At least one backend should be tested', LTestedCount > 0);
+  finally
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DirectDispatch.Test_DirectDispatchTable_MultiBackend_WideBitwiseShiftMatrix_Parity;
+const
+  C_SHIFT32: array[0..8] of Integer = (-1, 0, 1, 7, 31, 32, 63, 64, 95);
+  C_SHIFT64: array[0..7] of Integer = (-1, 0, 1, 7, 31, 63, 64, 95);
+var
+  LBackends: array[0..2] of TSimdBackend;
+  LBackend: TSimdBackend;
+  LDirectDispatch: PSimdDispatchTable;
+  LScalarTable: TSimdDispatchTable;
+  LI32x8A, LI32x8B: TVecI32x8;
+  LI32x16A, LI32x16B: TVecI32x16;
+  LI64x4A, LI64x4B: TVecI64x4;
+  LI32x8ByDirect, LI32x8ByFacade, LI32x8ByScalar: TVecI32x8;
+  LI32x16ByDirect, LI32x16ByFacade, LI32x16ByScalar: TVecI32x16;
+  LI64x4ByDirect, LI64x4ByFacade, LI64x4ByScalar: TVecI64x4;
+  LShiftIndex: Integer;
+  LLane: Integer;
+  LTestedCount: Integer;
+
+  procedure AssertVecI32x8Equal(const aLabel: string; const aBackend: TSimdBackend;
+    const aExpected, aActual: TVecI32x8);
+  var
+    LLaneIndex: Integer;
+  begin
+    for LLaneIndex := 0 to 7 do
+      AssertEquals(aLabel + ' lane ' + IntToStr(LLaneIndex) + ' backend ' + IntToStr(Ord(aBackend)),
+        aExpected.i[LLaneIndex], aActual.i[LLaneIndex]);
+  end;
+
+  procedure AssertVecI32x16Equal(const aLabel: string; const aBackend: TSimdBackend;
+    const aExpected, aActual: TVecI32x16);
+  var
+    LLaneIndex: Integer;
+  begin
+    for LLaneIndex := 0 to 15 do
+      AssertEquals(aLabel + ' lane ' + IntToStr(LLaneIndex) + ' backend ' + IntToStr(Ord(aBackend)),
+        aExpected.i[LLaneIndex], aActual.i[LLaneIndex]);
+  end;
+
+  procedure AssertVecI64x4Equal(const aLabel: string; const aBackend: TSimdBackend;
+    const aExpected, aActual: TVecI64x4);
+  var
+    LLaneIndex: Integer;
+  begin
+    for LLaneIndex := 0 to 3 do
+      AssertEquals(aLabel + ' lane ' + IntToStr(LLaneIndex) + ' backend ' + IntToStr(Ord(aBackend)),
+        aExpected.i[LLaneIndex], aActual.i[LLaneIndex]);
+  end;
+begin
+  AssertTrue('Scalar dispatch table should be registered for wide bitwise/shift matrix parity',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  LBackends[0] := sbScalar;
+  LBackends[1] := sbNEON;
+  LBackends[2] := sbRISCVV;
+
+  LI32x8A.i[0] := High(Int32);
+  LI32x8A.i[1] := Low(Int32);
+  LI32x8A.i[2] := -1;
+  LI32x8A.i[3] := 0;
+  LI32x8A.i[4] := $55555555;
+  LI32x8A.i[5] := $AAAAAAAA;
+  LI32x8A.i[6] := Int32($40000001);
+  LI32x8A.i[7] := -16;
+  LI32x8B.i[0] := 0;
+  LI32x8B.i[1] := -1;
+  LI32x8B.i[2] := $AAAAAAAA;
+  LI32x8B.i[3] := $55555555;
+  LI32x8B.i[4] := High(Int32);
+  LI32x8B.i[5] := Low(Int32);
+  LI32x8B.i[6] := Int32($7F0F0F0F);
+  LI32x8B.i[7] := 15;
+
+  for LLane := 0 to 15 do
+  begin
+    LI32x16A.i[LLane] := (LLane - 8) * 257;
+    LI32x16B.i[LLane] := (7 - LLane) * 131;
+  end;
+  LI32x16A.i[0] := Low(Int32);
+  LI32x16A.i[1] := -1;
+  LI32x16A.i[2] := $55555555;
+  LI32x16A.i[15] := High(Int32);
+  LI32x16B.i[0] := High(Int32);
+  LI32x16B.i[1] := $AAAAAAAA;
+  LI32x16B.i[2] := -1;
+  LI32x16B.i[15] := Low(Int32);
+
+  LI64x4A.i[0] := Low(Int64);
+  LI64x4A.i[1] := -1;
+  LI64x4A.i[2] := Int64($4000000000000001);
+  LI64x4A.i[3] := High(Int64);
+  LI64x4B.i[0] := High(Int64);
+  LI64x4B.i[1] := Int64($AAAAAAAAAAAAAAAA);
+  LI64x4B.i[2] := -1;
+  LI64x4B.i[3] := Low(Int64);
+
+  GetDispatchTable;
+  LTestedCount := 0;
+  try
+    for LBackend in LBackends do
+    begin
+      if (LBackend <> sbScalar) and (not IsBackendRegistered(LBackend)) then
+        Continue;
+      if not TrySetActiveBackend(LBackend) then
+        Continue;
+
+      Inc(LTestedCount);
+      LDirectDispatch := GetDirectDispatchTable;
+
+      AssertTrue('Direct dispatch table should be assigned for backend ' + IntToStr(Ord(LBackend)),
+        LDirectDispatch <> nil);
+      AssertTrue('Direct AndNotI32x8 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.AndNotI32x8));
+      AssertTrue('Direct ShiftLeftI32x8 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.ShiftLeftI32x8));
+      AssertTrue('Direct ShiftRightI32x8 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.ShiftRightI32x8));
+      AssertTrue('Direct ShiftRightArithI32x8 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.ShiftRightArithI32x8));
+      AssertTrue('Direct AndNotI32x16 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.AndNotI32x16));
+      AssertTrue('Direct ShiftLeftI32x16 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.ShiftLeftI32x16));
+      AssertTrue('Direct ShiftRightI32x16 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.ShiftRightI32x16));
+      AssertTrue('Direct ShiftRightArithI32x16 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.ShiftRightArithI32x16));
+      AssertTrue('Direct AndNotI64x4 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.AndNotI64x4));
+      AssertTrue('Direct ShiftLeftI64x4 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.ShiftLeftI64x4));
+      AssertTrue('Direct ShiftRightI64x4 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.ShiftRightI64x4));
+      AssertTrue('Direct ShiftRightArithI64x4 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.ShiftRightArithI64x4));
+
+      LI32x8ByScalar := LScalarTable.AndI32x8(LI32x8A, LI32x8B);
+      LI32x8ByDirect := LDirectDispatch^.AndI32x8(LI32x8A, LI32x8B);
+      LI32x8ByFacade := VecI32x8And(LI32x8A, LI32x8B);
+      AssertVecI32x8Equal('Direct AndI32x8', LBackend, LI32x8ByScalar, LI32x8ByDirect);
+      AssertVecI32x8Equal('Facade AndI32x8', LBackend, LI32x8ByScalar, LI32x8ByFacade);
+
+      LI32x8ByScalar := LScalarTable.OrI32x8(LI32x8A, LI32x8B);
+      LI32x8ByDirect := LDirectDispatch^.OrI32x8(LI32x8A, LI32x8B);
+      LI32x8ByFacade := VecI32x8Or(LI32x8A, LI32x8B);
+      AssertVecI32x8Equal('Direct OrI32x8', LBackend, LI32x8ByScalar, LI32x8ByDirect);
+      AssertVecI32x8Equal('Facade OrI32x8', LBackend, LI32x8ByScalar, LI32x8ByFacade);
+
+      LI32x8ByScalar := LScalarTable.XorI32x8(LI32x8A, LI32x8B);
+      LI32x8ByDirect := LDirectDispatch^.XorI32x8(LI32x8A, LI32x8B);
+      LI32x8ByFacade := VecI32x8Xor(LI32x8A, LI32x8B);
+      AssertVecI32x8Equal('Direct XorI32x8', LBackend, LI32x8ByScalar, LI32x8ByDirect);
+      AssertVecI32x8Equal('Facade XorI32x8', LBackend, LI32x8ByScalar, LI32x8ByFacade);
+
+      LI32x8ByScalar := LScalarTable.NotI32x8(LI32x8A);
+      LI32x8ByDirect := LDirectDispatch^.NotI32x8(LI32x8A);
+      LI32x8ByFacade := VecI32x8Not(LI32x8A);
+      AssertVecI32x8Equal('Direct NotI32x8', LBackend, LI32x8ByScalar, LI32x8ByDirect);
+      AssertVecI32x8Equal('Facade NotI32x8', LBackend, LI32x8ByScalar, LI32x8ByFacade);
+
+      LI32x8ByScalar := LScalarTable.AndNotI32x8(LI32x8A, LI32x8B);
+      LI32x8ByDirect := LDirectDispatch^.AndNotI32x8(LI32x8A, LI32x8B);
+      LI32x8ByFacade := VecI32x8AndNot(LI32x8A, LI32x8B);
+      AssertVecI32x8Equal('Direct AndNotI32x8', LBackend, LI32x8ByScalar, LI32x8ByDirect);
+      AssertVecI32x8Equal('Facade AndNotI32x8', LBackend, LI32x8ByScalar, LI32x8ByFacade);
+
+      LI32x16ByScalar := LScalarTable.AndI32x16(LI32x16A, LI32x16B);
+      LI32x16ByDirect := LDirectDispatch^.AndI32x16(LI32x16A, LI32x16B);
+      LI32x16ByFacade := VecI32x16And(LI32x16A, LI32x16B);
+      AssertVecI32x16Equal('Direct AndI32x16', LBackend, LI32x16ByScalar, LI32x16ByDirect);
+      AssertVecI32x16Equal('Facade AndI32x16', LBackend, LI32x16ByScalar, LI32x16ByFacade);
+
+      LI32x16ByScalar := LScalarTable.OrI32x16(LI32x16A, LI32x16B);
+      LI32x16ByDirect := LDirectDispatch^.OrI32x16(LI32x16A, LI32x16B);
+      LI32x16ByFacade := VecI32x16Or(LI32x16A, LI32x16B);
+      AssertVecI32x16Equal('Direct OrI32x16', LBackend, LI32x16ByScalar, LI32x16ByDirect);
+      AssertVecI32x16Equal('Facade OrI32x16', LBackend, LI32x16ByScalar, LI32x16ByFacade);
+
+      LI32x16ByScalar := LScalarTable.XorI32x16(LI32x16A, LI32x16B);
+      LI32x16ByDirect := LDirectDispatch^.XorI32x16(LI32x16A, LI32x16B);
+      LI32x16ByFacade := VecI32x16Xor(LI32x16A, LI32x16B);
+      AssertVecI32x16Equal('Direct XorI32x16', LBackend, LI32x16ByScalar, LI32x16ByDirect);
+      AssertVecI32x16Equal('Facade XorI32x16', LBackend, LI32x16ByScalar, LI32x16ByFacade);
+
+      LI32x16ByScalar := LScalarTable.NotI32x16(LI32x16A);
+      LI32x16ByDirect := LDirectDispatch^.NotI32x16(LI32x16A);
+      LI32x16ByFacade := VecI32x16Not(LI32x16A);
+      AssertVecI32x16Equal('Direct NotI32x16', LBackend, LI32x16ByScalar, LI32x16ByDirect);
+      AssertVecI32x16Equal('Facade NotI32x16', LBackend, LI32x16ByScalar, LI32x16ByFacade);
+
+      LI32x16ByScalar := LScalarTable.AndNotI32x16(LI32x16A, LI32x16B);
+      LI32x16ByDirect := LDirectDispatch^.AndNotI32x16(LI32x16A, LI32x16B);
+      LI32x16ByFacade := VecI32x16AndNot(LI32x16A, LI32x16B);
+      AssertVecI32x16Equal('Direct AndNotI32x16', LBackend, LI32x16ByScalar, LI32x16ByDirect);
+      AssertVecI32x16Equal('Facade AndNotI32x16', LBackend, LI32x16ByScalar, LI32x16ByFacade);
+
+      LI64x4ByScalar := LScalarTable.AndI64x4(LI64x4A, LI64x4B);
+      LI64x4ByDirect := LDirectDispatch^.AndI64x4(LI64x4A, LI64x4B);
+      LI64x4ByFacade := VecI64x4And(LI64x4A, LI64x4B);
+      AssertVecI64x4Equal('Direct AndI64x4', LBackend, LI64x4ByScalar, LI64x4ByDirect);
+      AssertVecI64x4Equal('Facade AndI64x4', LBackend, LI64x4ByScalar, LI64x4ByFacade);
+
+      LI64x4ByScalar := LScalarTable.OrI64x4(LI64x4A, LI64x4B);
+      LI64x4ByDirect := LDirectDispatch^.OrI64x4(LI64x4A, LI64x4B);
+      LI64x4ByFacade := VecI64x4Or(LI64x4A, LI64x4B);
+      AssertVecI64x4Equal('Direct OrI64x4', LBackend, LI64x4ByScalar, LI64x4ByDirect);
+      AssertVecI64x4Equal('Facade OrI64x4', LBackend, LI64x4ByScalar, LI64x4ByFacade);
+
+      LI64x4ByScalar := LScalarTable.XorI64x4(LI64x4A, LI64x4B);
+      LI64x4ByDirect := LDirectDispatch^.XorI64x4(LI64x4A, LI64x4B);
+      LI64x4ByFacade := VecI64x4Xor(LI64x4A, LI64x4B);
+      AssertVecI64x4Equal('Direct XorI64x4', LBackend, LI64x4ByScalar, LI64x4ByDirect);
+      AssertVecI64x4Equal('Facade XorI64x4', LBackend, LI64x4ByScalar, LI64x4ByFacade);
+
+      LI64x4ByScalar := LScalarTable.NotI64x4(LI64x4A);
+      LI64x4ByDirect := LDirectDispatch^.NotI64x4(LI64x4A);
+      LI64x4ByFacade := VecI64x4Not(LI64x4A);
+      AssertVecI64x4Equal('Direct NotI64x4', LBackend, LI64x4ByScalar, LI64x4ByDirect);
+      AssertVecI64x4Equal('Facade NotI64x4', LBackend, LI64x4ByScalar, LI64x4ByFacade);
+
+      LI64x4ByScalar := LScalarTable.AndNotI64x4(LI64x4A, LI64x4B);
+      LI64x4ByDirect := LDirectDispatch^.AndNotI64x4(LI64x4A, LI64x4B);
+      LI64x4ByFacade := VecI64x4AndNot(LI64x4A, LI64x4B);
+      AssertVecI64x4Equal('Direct AndNotI64x4', LBackend, LI64x4ByScalar, LI64x4ByDirect);
+      AssertVecI64x4Equal('Facade AndNotI64x4', LBackend, LI64x4ByScalar, LI64x4ByFacade);
+
+      for LShiftIndex := 0 to High(C_SHIFT32) do
+      begin
+        LI32x8ByScalar := LScalarTable.ShiftLeftI32x8(LI32x8A, C_SHIFT32[LShiftIndex]);
+        LI32x8ByDirect := LDirectDispatch^.ShiftLeftI32x8(LI32x8A, C_SHIFT32[LShiftIndex]);
+        LI32x8ByFacade := VecI32x8ShiftLeft(LI32x8A, C_SHIFT32[LShiftIndex]);
+        AssertVecI32x8Equal('Direct ShiftLeftI32x8 c=' + IntToStr(C_SHIFT32[LShiftIndex]), LBackend, LI32x8ByScalar, LI32x8ByDirect);
+        AssertVecI32x8Equal('Facade ShiftLeftI32x8 c=' + IntToStr(C_SHIFT32[LShiftIndex]), LBackend, LI32x8ByScalar, LI32x8ByFacade);
+
+        LI32x8ByScalar := LScalarTable.ShiftRightI32x8(LI32x8A, C_SHIFT32[LShiftIndex]);
+        LI32x8ByDirect := LDirectDispatch^.ShiftRightI32x8(LI32x8A, C_SHIFT32[LShiftIndex]);
+        LI32x8ByFacade := VecI32x8ShiftRight(LI32x8A, C_SHIFT32[LShiftIndex]);
+        AssertVecI32x8Equal('Direct ShiftRightI32x8 c=' + IntToStr(C_SHIFT32[LShiftIndex]), LBackend, LI32x8ByScalar, LI32x8ByDirect);
+        AssertVecI32x8Equal('Facade ShiftRightI32x8 c=' + IntToStr(C_SHIFT32[LShiftIndex]), LBackend, LI32x8ByScalar, LI32x8ByFacade);
+
+        LI32x8ByScalar := LScalarTable.ShiftRightArithI32x8(LI32x8A, C_SHIFT32[LShiftIndex]);
+        LI32x8ByDirect := LDirectDispatch^.ShiftRightArithI32x8(LI32x8A, C_SHIFT32[LShiftIndex]);
+        LI32x8ByFacade := VecI32x8ShiftRightArith(LI32x8A, C_SHIFT32[LShiftIndex]);
+        AssertVecI32x8Equal('Direct ShiftRightArithI32x8 c=' + IntToStr(C_SHIFT32[LShiftIndex]), LBackend, LI32x8ByScalar, LI32x8ByDirect);
+        AssertVecI32x8Equal('Facade ShiftRightArithI32x8 c=' + IntToStr(C_SHIFT32[LShiftIndex]), LBackend, LI32x8ByScalar, LI32x8ByFacade);
+
+        LI32x16ByScalar := LScalarTable.ShiftLeftI32x16(LI32x16A, C_SHIFT32[LShiftIndex]);
+        LI32x16ByDirect := LDirectDispatch^.ShiftLeftI32x16(LI32x16A, C_SHIFT32[LShiftIndex]);
+        LI32x16ByFacade := VecI32x16ShiftLeft(LI32x16A, C_SHIFT32[LShiftIndex]);
+        AssertVecI32x16Equal('Direct ShiftLeftI32x16 c=' + IntToStr(C_SHIFT32[LShiftIndex]), LBackend, LI32x16ByScalar, LI32x16ByDirect);
+        AssertVecI32x16Equal('Facade ShiftLeftI32x16 c=' + IntToStr(C_SHIFT32[LShiftIndex]), LBackend, LI32x16ByScalar, LI32x16ByFacade);
+
+        LI32x16ByScalar := LScalarTable.ShiftRightI32x16(LI32x16A, C_SHIFT32[LShiftIndex]);
+        LI32x16ByDirect := LDirectDispatch^.ShiftRightI32x16(LI32x16A, C_SHIFT32[LShiftIndex]);
+        LI32x16ByFacade := VecI32x16ShiftRight(LI32x16A, C_SHIFT32[LShiftIndex]);
+        AssertVecI32x16Equal('Direct ShiftRightI32x16 c=' + IntToStr(C_SHIFT32[LShiftIndex]), LBackend, LI32x16ByScalar, LI32x16ByDirect);
+        AssertVecI32x16Equal('Facade ShiftRightI32x16 c=' + IntToStr(C_SHIFT32[LShiftIndex]), LBackend, LI32x16ByScalar, LI32x16ByFacade);
+
+        LI32x16ByScalar := LScalarTable.ShiftRightArithI32x16(LI32x16A, C_SHIFT32[LShiftIndex]);
+        LI32x16ByDirect := LDirectDispatch^.ShiftRightArithI32x16(LI32x16A, C_SHIFT32[LShiftIndex]);
+        LI32x16ByFacade := VecI32x16ShiftRightArith(LI32x16A, C_SHIFT32[LShiftIndex]);
+        AssertVecI32x16Equal('Direct ShiftRightArithI32x16 c=' + IntToStr(C_SHIFT32[LShiftIndex]), LBackend, LI32x16ByScalar, LI32x16ByDirect);
+        AssertVecI32x16Equal('Facade ShiftRightArithI32x16 c=' + IntToStr(C_SHIFT32[LShiftIndex]), LBackend, LI32x16ByScalar, LI32x16ByFacade);
+      end;
+
+      for LShiftIndex := 0 to High(C_SHIFT64) do
+      begin
+        LI64x4ByScalar := LScalarTable.ShiftLeftI64x4(LI64x4A, C_SHIFT64[LShiftIndex]);
+        LI64x4ByDirect := LDirectDispatch^.ShiftLeftI64x4(LI64x4A, C_SHIFT64[LShiftIndex]);
+        LI64x4ByFacade := VecI64x4ShiftLeft(LI64x4A, C_SHIFT64[LShiftIndex]);
+        AssertVecI64x4Equal('Direct ShiftLeftI64x4 c=' + IntToStr(C_SHIFT64[LShiftIndex]), LBackend, LI64x4ByScalar, LI64x4ByDirect);
+        AssertVecI64x4Equal('Facade ShiftLeftI64x4 c=' + IntToStr(C_SHIFT64[LShiftIndex]), LBackend, LI64x4ByScalar, LI64x4ByFacade);
+
+        LI64x4ByScalar := LScalarTable.ShiftRightI64x4(LI64x4A, C_SHIFT64[LShiftIndex]);
+        LI64x4ByDirect := LDirectDispatch^.ShiftRightI64x4(LI64x4A, C_SHIFT64[LShiftIndex]);
+        LI64x4ByFacade := VecI64x4ShiftRight(LI64x4A, C_SHIFT64[LShiftIndex]);
+        AssertVecI64x4Equal('Direct ShiftRightI64x4 c=' + IntToStr(C_SHIFT64[LShiftIndex]), LBackend, LI64x4ByScalar, LI64x4ByDirect);
+        AssertVecI64x4Equal('Facade ShiftRightI64x4 c=' + IntToStr(C_SHIFT64[LShiftIndex]), LBackend, LI64x4ByScalar, LI64x4ByFacade);
+
+        LI64x4ByScalar := LScalarTable.ShiftRightArithI64x4(LI64x4A, C_SHIFT64[LShiftIndex]);
+        LI64x4ByDirect := LDirectDispatch^.ShiftRightArithI64x4(LI64x4A, C_SHIFT64[LShiftIndex]);
+        LI64x4ByFacade := VecI64x4ShiftRightArith(LI64x4A, C_SHIFT64[LShiftIndex]);
+        AssertVecI64x4Equal('Direct ShiftRightArithI64x4 c=' + IntToStr(C_SHIFT64[LShiftIndex]), LBackend, LI64x4ByScalar, LI64x4ByDirect);
+        AssertVecI64x4Equal('Facade ShiftRightArithI64x4 c=' + IntToStr(C_SHIFT64[LShiftIndex]), LBackend, LI64x4ByScalar, LI64x4ByFacade);
+      end;
+    end;
+
+    AssertTrue('At least one backend should be tested in wide bitwise/shift matrix parity', LTestedCount > 0);
+  finally
+    ResetToAutomaticBackend;
+  end;
+end;
+
+
+procedure TTestCase_DirectDispatch.Test_DirectDispatchTable_MultiBackend_WideArithmeticMinMaxMatrix_Parity;
+var
+  LBackends: array[0..2] of TSimdBackend;
+  LBackend: TSimdBackend;
+  LDirectDispatch: PSimdDispatchTable;
+  LScalarTable: TSimdDispatchTable;
+  LI32x8A, LI32x8B: TVecI32x8;
+  LU32x8A, LU32x8B: TVecU32x8;
+  LI64x4A, LI64x4B: TVecI64x4;
+  LU64x4A, LU64x4B: TVecU64x4;
+  LI32x16A, LI32x16B: TVecI32x16;
+  LU32x16A, LU32x16B: TVecU32x16;
+  LI64x8A, LI64x8B: TVecI64x8;
+  LU64x8A, LU64x8B: TVecU64x8;
+  LI32x8ByDirect, LI32x8ByFacade, LI32x8ByScalar: TVecI32x8;
+  LU32x8ByDirect, LU32x8ByFacade, LU32x8ByScalar: TVecU32x8;
+  LI64x4ByDirect, LI64x4ByFacade, LI64x4ByScalar: TVecI64x4;
+  LU64x4ByDirect, LU64x4ByFacade, LU64x4ByScalar: TVecU64x4;
+  LI32x16ByDirect, LI32x16ByFacade, LI32x16ByScalar: TVecI32x16;
+  LU32x16ByDirect, LU32x16ByFacade, LU32x16ByScalar: TVecU32x16;
+  LI64x8ByDirect, LI64x8ByFacade, LI64x8ByScalar: TVecI64x8;
+  LU64x8ByDirect, LU64x8ByFacade, LU64x8ByScalar: TVecU64x8;
+  LLane: Integer;
+  LTestedCount: Integer;
+
+  procedure AssertVecI32x8Equal(const aLabel: string; const aBackend: TSimdBackend;
+    const aExpected, aActual: TVecI32x8);
+  var
+    LLaneIndex: Integer;
+  begin
+    for LLaneIndex := 0 to 7 do
+      AssertEquals(aLabel + ' lane ' + IntToStr(LLaneIndex) + ' backend ' + IntToStr(Ord(aBackend)),
+        aExpected.i[LLaneIndex], aActual.i[LLaneIndex]);
+  end;
+
+  procedure AssertVecU32x8Equal(const aLabel: string; const aBackend: TSimdBackend;
+    const aExpected, aActual: TVecU32x8);
+  var
+    LLaneIndex: Integer;
+  begin
+    for LLaneIndex := 0 to 7 do
+      AssertEquals(aLabel + ' lane ' + IntToStr(LLaneIndex) + ' backend ' + IntToStr(Ord(aBackend)),
+        QWord(aExpected.u[LLaneIndex]), QWord(aActual.u[LLaneIndex]));
+  end;
+
+  procedure AssertVecI64x4Equal(const aLabel: string; const aBackend: TSimdBackend;
+    const aExpected, aActual: TVecI64x4);
+  var
+    LLaneIndex: Integer;
+  begin
+    for LLaneIndex := 0 to 3 do
+      AssertEquals(aLabel + ' lane ' + IntToStr(LLaneIndex) + ' backend ' + IntToStr(Ord(aBackend)),
+        aExpected.i[LLaneIndex], aActual.i[LLaneIndex]);
+  end;
+
+  procedure AssertVecU64x4Equal(const aLabel: string; const aBackend: TSimdBackend;
+    const aExpected, aActual: TVecU64x4);
+  var
+    LLaneIndex: Integer;
+  begin
+    for LLaneIndex := 0 to 3 do
+      AssertEquals(aLabel + ' lane ' + IntToStr(LLaneIndex) + ' backend ' + IntToStr(Ord(aBackend)),
+        QWord(aExpected.u[LLaneIndex]), QWord(aActual.u[LLaneIndex]));
+  end;
+
+  procedure AssertVecI32x16Equal(const aLabel: string; const aBackend: TSimdBackend;
+    const aExpected, aActual: TVecI32x16);
+  var
+    LLaneIndex: Integer;
+  begin
+    for LLaneIndex := 0 to 15 do
+      AssertEquals(aLabel + ' lane ' + IntToStr(LLaneIndex) + ' backend ' + IntToStr(Ord(aBackend)),
+        aExpected.i[LLaneIndex], aActual.i[LLaneIndex]);
+  end;
+
+  procedure AssertVecU32x16Equal(const aLabel: string; const aBackend: TSimdBackend;
+    const aExpected, aActual: TVecU32x16);
+  var
+    LLaneIndex: Integer;
+  begin
+    for LLaneIndex := 0 to 15 do
+      AssertEquals(aLabel + ' lane ' + IntToStr(LLaneIndex) + ' backend ' + IntToStr(Ord(aBackend)),
+        QWord(aExpected.u[LLaneIndex]), QWord(aActual.u[LLaneIndex]));
+  end;
+
+  procedure AssertVecI64x8Equal(const aLabel: string; const aBackend: TSimdBackend;
+    const aExpected, aActual: TVecI64x8);
+  var
+    LLaneIndex: Integer;
+  begin
+    for LLaneIndex := 0 to 7 do
+      AssertEquals(aLabel + ' lane ' + IntToStr(LLaneIndex) + ' backend ' + IntToStr(Ord(aBackend)),
+        aExpected.i[LLaneIndex], aActual.i[LLaneIndex]);
+  end;
+
+  procedure AssertVecU64x8Equal(const aLabel: string; const aBackend: TSimdBackend;
+    const aExpected, aActual: TVecU64x8);
+  var
+    LLaneIndex: Integer;
+  begin
+    for LLaneIndex := 0 to 7 do
+      AssertEquals(aLabel + ' lane ' + IntToStr(LLaneIndex) + ' backend ' + IntToStr(Ord(aBackend)),
+        QWord(aExpected.u[LLaneIndex]), QWord(aActual.u[LLaneIndex]));
+  end;
+begin
+  AssertTrue('Scalar dispatch table should be registered for wide arithmetic/minmax matrix parity',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  LBackends[0] := sbScalar;
+  LBackends[1] := sbNEON;
+  LBackends[2] := sbRISCVV;
+
+  LI32x8A.i[0] := High(Int32);
+  LI32x8A.i[1] := Low(Int32);
+  LI32x8A.i[2] := -1;
+  LI32x8A.i[3] := 0;
+  LI32x8A.i[4] := $55555555;
+  LI32x8A.i[5] := $AAAAAAAA;
+  LI32x8A.i[6] := Int32($40000001);
+  LI32x8A.i[7] := -16;
+  LI32x8B.i[0] := 1;
+  LI32x8B.i[1] := -1;
+  LI32x8B.i[2] := $7FFFFFFF;
+  LI32x8B.i[3] := $55555555;
+  LI32x8B.i[4] := High(Int32);
+  LI32x8B.i[5] := Low(Int32);
+  LI32x8B.i[6] := Int32($7F0F0F0F);
+  LI32x8B.i[7] := 15;
+
+  LU32x8A.u[0] := 0;
+  LU32x8A.u[1] := 1;
+  LU32x8A.u[2] := High(UInt32);
+  LU32x8A.u[3] := $80000000;
+  LU32x8A.u[4] := $7FFFFFFF;
+  LU32x8A.u[5] := $AAAAAAAA;
+  LU32x8A.u[6] := $55555555;
+  LU32x8A.u[7] := 37;
+  LU32x8B.u[0] := High(UInt32);
+  LU32x8B.u[1] := 2;
+  LU32x8B.u[2] := 3;
+  LU32x8B.u[3] := $80000000;
+  LU32x8B.u[4] := 1;
+  LU32x8B.u[5] := $11111111;
+  LU32x8B.u[6] := $AAAAAAAA;
+  LU32x8B.u[7] := High(UInt32) - 15;
+
+  LI64x4A.i[0] := High(Int64);
+  LI64x4A.i[1] := Low(Int64);
+  LI64x4A.i[2] := -1;
+  LI64x4A.i[3] := Int64($4000000000000001);
+  LI64x4B.i[0] := 1;
+  LI64x4B.i[1] := -1;
+  LI64x4B.i[2] := High(Int64);
+  LI64x4B.i[3] := Low(Int64);
+
+  LU64x4A.u[0] := 0;
+  LU64x4A.u[1] := 1;
+  LU64x4A.u[2] := High(QWord);
+  LU64x4A.u[3] := QWord($8000000000000000);
+  LU64x4B.u[0] := High(QWord);
+  LU64x4B.u[1] := 2;
+  LU64x4B.u[2] := 3;
+  LU64x4B.u[3] := QWord($7FFFFFFFFFFFFFFF);
+
+  for LLane := 0 to 15 do
+  begin
+    LI32x16A.i[LLane] := (LLane - 8) * 4099;
+    LI32x16B.i[LLane] := (8 - LLane) * 2053;
+    LU32x16A.u[LLane] := DWord(LLane * 257);
+    LU32x16B.u[LLane] := DWord((15 - LLane) * 131);
+  end;
+  LI32x16A.i[0] := Low(Int32);
+  LI32x16A.i[1] := -1;
+  LI32x16A.i[2] := $55555555;
+  LI32x16A.i[15] := High(Int32);
+  LI32x16B.i[0] := 1;
+  LI32x16B.i[1] := High(Int32);
+  LI32x16B.i[2] := $AAAAAAAA;
+  LI32x16B.i[15] := Low(Int32);
+  LU32x16A.u[0] := 0;
+  LU32x16A.u[1] := High(UInt32);
+  LU32x16A.u[2] := $80000000;
+  LU32x16A.u[15] := $55555555;
+  LU32x16B.u[0] := High(UInt32);
+  LU32x16B.u[1] := 1;
+  LU32x16B.u[2] := $80000000;
+  LU32x16B.u[15] := $AAAAAAAA;
+
+  for LLane := 0 to 7 do
+  begin
+    LI64x8A.i[LLane] := (LLane - 4) * 1025;
+    LI64x8B.i[LLane] := (3 - LLane) * 511;
+    LU64x8A.u[LLane] := QWord(LLane) * 257;
+    LU64x8B.u[LLane] := QWord(7 - LLane) * 131;
+  end;
+  LI64x8A.i[0] := High(Int64);
+  LI64x8A.i[1] := Low(Int64);
+  LI64x8A.i[2] := -1;
+  LI64x8A.i[7] := Int64($4000000000000001);
+  LI64x8B.i[0] := 1;
+  LI64x8B.i[1] := -1;
+  LI64x8B.i[2] := High(Int64);
+  LI64x8B.i[7] := Low(Int64);
+  LU64x8A.u[0] := 0;
+  LU64x8A.u[1] := 1;
+  LU64x8A.u[2] := High(QWord);
+  LU64x8A.u[7] := QWord($8000000000000000);
+  LU64x8B.u[0] := High(QWord);
+  LU64x8B.u[1] := 2;
+  LU64x8B.u[2] := 3;
+  LU64x8B.u[7] := QWord($7FFFFFFFFFFFFFFF);
+
+  GetDispatchTable;
+  LTestedCount := 0;
+  try
+    for LBackend in LBackends do
+    begin
+      if (LBackend <> sbScalar) and (not IsBackendRegistered(LBackend)) then
+        Continue;
+      if not TrySetActiveBackend(LBackend) then
+        Continue;
+
+      Inc(LTestedCount);
+      LDirectDispatch := GetDirectDispatchTable;
+
+      AssertTrue('Direct dispatch table should be assigned for backend ' + IntToStr(Ord(LBackend)),
+        LDirectDispatch <> nil);
+      AssertTrue('Direct AddI32x8 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.AddI32x8));
+      AssertTrue('Direct SubI32x8 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.SubI32x8));
+      AssertTrue('Direct MulI32x8 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.MulI32x8));
+      AssertTrue('Direct MinI32x8 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.MinI32x8));
+      AssertTrue('Direct MaxI32x8 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.MaxI32x8));
+      AssertTrue('Direct AddU32x8 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.AddU32x8));
+      AssertTrue('Direct SubU32x8 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.SubU32x8));
+      AssertTrue('Direct MulU32x8 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.MulU32x8));
+      AssertTrue('Direct MinU32x8 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.MinU32x8));
+      AssertTrue('Direct MaxU32x8 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.MaxU32x8));
+      AssertTrue('Direct AddI64x4 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.AddI64x4));
+      AssertTrue('Direct SubI64x4 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.SubI64x4));
+      AssertTrue('Direct AddU64x4 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.AddU64x4));
+      AssertTrue('Direct SubU64x4 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.SubU64x4));
+      AssertTrue('Direct AddI32x16 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.AddI32x16));
+      AssertTrue('Direct SubI32x16 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.SubI32x16));
+      AssertTrue('Direct MulI32x16 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.MulI32x16));
+      AssertTrue('Direct MinI32x16 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.MinI32x16));
+      AssertTrue('Direct MaxI32x16 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.MaxI32x16));
+      AssertTrue('Direct AddU32x16 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.AddU32x16));
+      AssertTrue('Direct SubU32x16 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.SubU32x16));
+      AssertTrue('Direct MulU32x16 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.MulU32x16));
+      AssertTrue('Direct MinU32x16 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.MinU32x16));
+      AssertTrue('Direct MaxU32x16 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.MaxU32x16));
+      AssertTrue('Direct AddI64x8 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.AddI64x8));
+      AssertTrue('Direct SubI64x8 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.SubI64x8));
+      AssertTrue('Direct AddU64x8 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.AddU64x8));
+      AssertTrue('Direct SubU64x8 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.SubU64x8));
+
+      LI32x8ByScalar := LScalarTable.AddI32x8(LI32x8A, LI32x8B);
+      LI32x8ByDirect := LDirectDispatch^.AddI32x8(LI32x8A, LI32x8B);
+      LI32x8ByFacade := VecI32x8Add(LI32x8A, LI32x8B);
+      AssertVecI32x8Equal('Direct AddI32x8', LBackend, LI32x8ByScalar, LI32x8ByDirect);
+      AssertVecI32x8Equal('Facade AddI32x8', LBackend, LI32x8ByScalar, LI32x8ByFacade);
+
+      LI32x8ByScalar := LScalarTable.SubI32x8(LI32x8A, LI32x8B);
+      LI32x8ByDirect := LDirectDispatch^.SubI32x8(LI32x8A, LI32x8B);
+      LI32x8ByFacade := VecI32x8Sub(LI32x8A, LI32x8B);
+      AssertVecI32x8Equal('Direct SubI32x8', LBackend, LI32x8ByScalar, LI32x8ByDirect);
+      AssertVecI32x8Equal('Facade SubI32x8', LBackend, LI32x8ByScalar, LI32x8ByFacade);
+
+      LI32x8ByScalar := LScalarTable.MulI32x8(LI32x8A, LI32x8B);
+      LI32x8ByDirect := LDirectDispatch^.MulI32x8(LI32x8A, LI32x8B);
+      LI32x8ByFacade := VecI32x8Mul(LI32x8A, LI32x8B);
+      AssertVecI32x8Equal('Direct MulI32x8', LBackend, LI32x8ByScalar, LI32x8ByDirect);
+      AssertVecI32x8Equal('Facade MulI32x8', LBackend, LI32x8ByScalar, LI32x8ByFacade);
+
+      LI32x8ByScalar := LScalarTable.MinI32x8(LI32x8A, LI32x8B);
+      LI32x8ByDirect := LDirectDispatch^.MinI32x8(LI32x8A, LI32x8B);
+      LI32x8ByFacade := VecI32x8Min(LI32x8A, LI32x8B);
+      AssertVecI32x8Equal('Direct MinI32x8', LBackend, LI32x8ByScalar, LI32x8ByDirect);
+      AssertVecI32x8Equal('Facade MinI32x8', LBackend, LI32x8ByScalar, LI32x8ByFacade);
+
+      LI32x8ByScalar := LScalarTable.MaxI32x8(LI32x8A, LI32x8B);
+      LI32x8ByDirect := LDirectDispatch^.MaxI32x8(LI32x8A, LI32x8B);
+      LI32x8ByFacade := VecI32x8Max(LI32x8A, LI32x8B);
+      AssertVecI32x8Equal('Direct MaxI32x8', LBackend, LI32x8ByScalar, LI32x8ByDirect);
+      AssertVecI32x8Equal('Facade MaxI32x8', LBackend, LI32x8ByScalar, LI32x8ByFacade);
+
+      LU32x8ByScalar := LScalarTable.AddU32x8(LU32x8A, LU32x8B);
+      LU32x8ByDirect := LDirectDispatch^.AddU32x8(LU32x8A, LU32x8B);
+      LU32x8ByFacade := VecU32x8Add(LU32x8A, LU32x8B);
+      AssertVecU32x8Equal('Direct AddU32x8', LBackend, LU32x8ByScalar, LU32x8ByDirect);
+      AssertVecU32x8Equal('Facade AddU32x8', LBackend, LU32x8ByScalar, LU32x8ByFacade);
+
+      LU32x8ByScalar := LScalarTable.SubU32x8(LU32x8A, LU32x8B);
+      LU32x8ByDirect := LDirectDispatch^.SubU32x8(LU32x8A, LU32x8B);
+      LU32x8ByFacade := VecU32x8Sub(LU32x8A, LU32x8B);
+      AssertVecU32x8Equal('Direct SubU32x8', LBackend, LU32x8ByScalar, LU32x8ByDirect);
+      AssertVecU32x8Equal('Facade SubU32x8', LBackend, LU32x8ByScalar, LU32x8ByFacade);
+
+      LU32x8ByScalar := LScalarTable.MulU32x8(LU32x8A, LU32x8B);
+      LU32x8ByDirect := LDirectDispatch^.MulU32x8(LU32x8A, LU32x8B);
+      LU32x8ByFacade := VecU32x8Mul(LU32x8A, LU32x8B);
+      AssertVecU32x8Equal('Direct MulU32x8', LBackend, LU32x8ByScalar, LU32x8ByDirect);
+      AssertVecU32x8Equal('Facade MulU32x8', LBackend, LU32x8ByScalar, LU32x8ByFacade);
+
+      LU32x8ByScalar := LScalarTable.MinU32x8(LU32x8A, LU32x8B);
+      LU32x8ByDirect := LDirectDispatch^.MinU32x8(LU32x8A, LU32x8B);
+      LU32x8ByFacade := VecU32x8Min(LU32x8A, LU32x8B);
+      AssertVecU32x8Equal('Direct MinU32x8', LBackend, LU32x8ByScalar, LU32x8ByDirect);
+      AssertVecU32x8Equal('Facade MinU32x8', LBackend, LU32x8ByScalar, LU32x8ByFacade);
+
+      LU32x8ByScalar := LScalarTable.MaxU32x8(LU32x8A, LU32x8B);
+      LU32x8ByDirect := LDirectDispatch^.MaxU32x8(LU32x8A, LU32x8B);
+      LU32x8ByFacade := VecU32x8Max(LU32x8A, LU32x8B);
+      AssertVecU32x8Equal('Direct MaxU32x8', LBackend, LU32x8ByScalar, LU32x8ByDirect);
+      AssertVecU32x8Equal('Facade MaxU32x8', LBackend, LU32x8ByScalar, LU32x8ByFacade);
+
+      LI64x4ByScalar := LScalarTable.AddI64x4(LI64x4A, LI64x4B);
+      LI64x4ByDirect := LDirectDispatch^.AddI64x4(LI64x4A, LI64x4B);
+      LI64x4ByFacade := VecI64x4Add(LI64x4A, LI64x4B);
+      AssertVecI64x4Equal('Direct AddI64x4', LBackend, LI64x4ByScalar, LI64x4ByDirect);
+      AssertVecI64x4Equal('Facade AddI64x4', LBackend, LI64x4ByScalar, LI64x4ByFacade);
+
+      LI64x4ByScalar := LScalarTable.SubI64x4(LI64x4A, LI64x4B);
+      LI64x4ByDirect := LDirectDispatch^.SubI64x4(LI64x4A, LI64x4B);
+      LI64x4ByFacade := VecI64x4Sub(LI64x4A, LI64x4B);
+      AssertVecI64x4Equal('Direct SubI64x4', LBackend, LI64x4ByScalar, LI64x4ByDirect);
+      AssertVecI64x4Equal('Facade SubI64x4', LBackend, LI64x4ByScalar, LI64x4ByFacade);
+
+      LU64x4ByScalar := LScalarTable.AddU64x4(LU64x4A, LU64x4B);
+      LU64x4ByDirect := LDirectDispatch^.AddU64x4(LU64x4A, LU64x4B);
+      LU64x4ByFacade := VecU64x4Add(LU64x4A, LU64x4B);
+      AssertVecU64x4Equal('Direct AddU64x4', LBackend, LU64x4ByScalar, LU64x4ByDirect);
+      AssertVecU64x4Equal('Facade AddU64x4', LBackend, LU64x4ByScalar, LU64x4ByFacade);
+
+      LU64x4ByScalar := LScalarTable.SubU64x4(LU64x4A, LU64x4B);
+      LU64x4ByDirect := LDirectDispatch^.SubU64x4(LU64x4A, LU64x4B);
+      LU64x4ByFacade := VecU64x4Sub(LU64x4A, LU64x4B);
+      AssertVecU64x4Equal('Direct SubU64x4', LBackend, LU64x4ByScalar, LU64x4ByDirect);
+      AssertVecU64x4Equal('Facade SubU64x4', LBackend, LU64x4ByScalar, LU64x4ByFacade);
+
+      LI32x16ByScalar := LScalarTable.AddI32x16(LI32x16A, LI32x16B);
+      LI32x16ByDirect := LDirectDispatch^.AddI32x16(LI32x16A, LI32x16B);
+      LI32x16ByFacade := VecI32x16Add(LI32x16A, LI32x16B);
+      AssertVecI32x16Equal('Direct AddI32x16', LBackend, LI32x16ByScalar, LI32x16ByDirect);
+      AssertVecI32x16Equal('Facade AddI32x16', LBackend, LI32x16ByScalar, LI32x16ByFacade);
+
+      LI32x16ByScalar := LScalarTable.SubI32x16(LI32x16A, LI32x16B);
+      LI32x16ByDirect := LDirectDispatch^.SubI32x16(LI32x16A, LI32x16B);
+      LI32x16ByFacade := VecI32x16Sub(LI32x16A, LI32x16B);
+      AssertVecI32x16Equal('Direct SubI32x16', LBackend, LI32x16ByScalar, LI32x16ByDirect);
+      AssertVecI32x16Equal('Facade SubI32x16', LBackend, LI32x16ByScalar, LI32x16ByFacade);
+
+      LI32x16ByScalar := LScalarTable.MulI32x16(LI32x16A, LI32x16B);
+      LI32x16ByDirect := LDirectDispatch^.MulI32x16(LI32x16A, LI32x16B);
+      LI32x16ByFacade := VecI32x16Mul(LI32x16A, LI32x16B);
+      AssertVecI32x16Equal('Direct MulI32x16', LBackend, LI32x16ByScalar, LI32x16ByDirect);
+      AssertVecI32x16Equal('Facade MulI32x16', LBackend, LI32x16ByScalar, LI32x16ByFacade);
+
+      LI32x16ByScalar := LScalarTable.MinI32x16(LI32x16A, LI32x16B);
+      LI32x16ByDirect := LDirectDispatch^.MinI32x16(LI32x16A, LI32x16B);
+      LI32x16ByFacade := VecI32x16Min(LI32x16A, LI32x16B);
+      AssertVecI32x16Equal('Direct MinI32x16', LBackend, LI32x16ByScalar, LI32x16ByDirect);
+      AssertVecI32x16Equal('Facade MinI32x16', LBackend, LI32x16ByScalar, LI32x16ByFacade);
+
+      LI32x16ByScalar := LScalarTable.MaxI32x16(LI32x16A, LI32x16B);
+      LI32x16ByDirect := LDirectDispatch^.MaxI32x16(LI32x16A, LI32x16B);
+      LI32x16ByFacade := VecI32x16Max(LI32x16A, LI32x16B);
+      AssertVecI32x16Equal('Direct MaxI32x16', LBackend, LI32x16ByScalar, LI32x16ByDirect);
+      AssertVecI32x16Equal('Facade MaxI32x16', LBackend, LI32x16ByScalar, LI32x16ByFacade);
+
+      LU32x16ByScalar := LScalarTable.AddU32x16(LU32x16A, LU32x16B);
+      LU32x16ByDirect := LDirectDispatch^.AddU32x16(LU32x16A, LU32x16B);
+      LU32x16ByFacade := VecU32x16Add(LU32x16A, LU32x16B);
+      AssertVecU32x16Equal('Direct AddU32x16', LBackend, LU32x16ByScalar, LU32x16ByDirect);
+      AssertVecU32x16Equal('Facade AddU32x16', LBackend, LU32x16ByScalar, LU32x16ByFacade);
+
+      LU32x16ByScalar := LScalarTable.SubU32x16(LU32x16A, LU32x16B);
+      LU32x16ByDirect := LDirectDispatch^.SubU32x16(LU32x16A, LU32x16B);
+      LU32x16ByFacade := VecU32x16Sub(LU32x16A, LU32x16B);
+      AssertVecU32x16Equal('Direct SubU32x16', LBackend, LU32x16ByScalar, LU32x16ByDirect);
+      AssertVecU32x16Equal('Facade SubU32x16', LBackend, LU32x16ByScalar, LU32x16ByFacade);
+
+      LU32x16ByScalar := LScalarTable.MulU32x16(LU32x16A, LU32x16B);
+      LU32x16ByDirect := LDirectDispatch^.MulU32x16(LU32x16A, LU32x16B);
+      LU32x16ByFacade := VecU32x16Mul(LU32x16A, LU32x16B);
+      AssertVecU32x16Equal('Direct MulU32x16', LBackend, LU32x16ByScalar, LU32x16ByDirect);
+      AssertVecU32x16Equal('Facade MulU32x16', LBackend, LU32x16ByScalar, LU32x16ByFacade);
+
+      LU32x16ByScalar := LScalarTable.MinU32x16(LU32x16A, LU32x16B);
+      LU32x16ByDirect := LDirectDispatch^.MinU32x16(LU32x16A, LU32x16B);
+      LU32x16ByFacade := VecU32x16Min(LU32x16A, LU32x16B);
+      AssertVecU32x16Equal('Direct MinU32x16', LBackend, LU32x16ByScalar, LU32x16ByDirect);
+      AssertVecU32x16Equal('Facade MinU32x16', LBackend, LU32x16ByScalar, LU32x16ByFacade);
+
+      LU32x16ByScalar := LScalarTable.MaxU32x16(LU32x16A, LU32x16B);
+      LU32x16ByDirect := LDirectDispatch^.MaxU32x16(LU32x16A, LU32x16B);
+      LU32x16ByFacade := VecU32x16Max(LU32x16A, LU32x16B);
+      AssertVecU32x16Equal('Direct MaxU32x16', LBackend, LU32x16ByScalar, LU32x16ByDirect);
+      AssertVecU32x16Equal('Facade MaxU32x16', LBackend, LU32x16ByScalar, LU32x16ByFacade);
+
+      LI64x8ByScalar := LScalarTable.AddI64x8(LI64x8A, LI64x8B);
+      LI64x8ByDirect := LDirectDispatch^.AddI64x8(LI64x8A, LI64x8B);
+      LI64x8ByFacade := VecI64x8Add(LI64x8A, LI64x8B);
+      AssertVecI64x8Equal('Direct AddI64x8', LBackend, LI64x8ByScalar, LI64x8ByDirect);
+      AssertVecI64x8Equal('Facade AddI64x8', LBackend, LI64x8ByScalar, LI64x8ByFacade);
+
+      LI64x8ByScalar := LScalarTable.SubI64x8(LI64x8A, LI64x8B);
+      LI64x8ByDirect := LDirectDispatch^.SubI64x8(LI64x8A, LI64x8B);
+      LI64x8ByFacade := VecI64x8Sub(LI64x8A, LI64x8B);
+      AssertVecI64x8Equal('Direct SubI64x8', LBackend, LI64x8ByScalar, LI64x8ByDirect);
+      AssertVecI64x8Equal('Facade SubI64x8', LBackend, LI64x8ByScalar, LI64x8ByFacade);
+
+      LU64x8ByScalar := LScalarTable.AddU64x8(LU64x8A, LU64x8B);
+      LU64x8ByDirect := LDirectDispatch^.AddU64x8(LU64x8A, LU64x8B);
+      LU64x8ByFacade := VecU64x8Add(LU64x8A, LU64x8B);
+      AssertVecU64x8Equal('Direct AddU64x8', LBackend, LU64x8ByScalar, LU64x8ByDirect);
+      AssertVecU64x8Equal('Facade AddU64x8', LBackend, LU64x8ByScalar, LU64x8ByFacade);
+
+      LU64x8ByScalar := LScalarTable.SubU64x8(LU64x8A, LU64x8B);
+      LU64x8ByDirect := LDirectDispatch^.SubU64x8(LU64x8A, LU64x8B);
+      LU64x8ByFacade := VecU64x8Sub(LU64x8A, LU64x8B);
+      AssertVecU64x8Equal('Direct SubU64x8', LBackend, LU64x8ByScalar, LU64x8ByDirect);
+      AssertVecU64x8Equal('Facade SubU64x8', LBackend, LU64x8ByScalar, LU64x8ByFacade);
+    end;
+
+    AssertTrue('At least one backend should be tested in wide arithmetic/minmax matrix parity', LTestedCount > 0);
+  finally
+    ResetToAutomaticBackend;
+  end;
+end;
+
 procedure TTestCase_DirectDispatch.Test_DirectDispatchTable_MultiBackend_MemSearchBitsetUtf8_Parity;
 const
   C_BUF_LEN = 96;
@@ -4180,6 +5205,324 @@ begin
     end;
   finally
     ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DirectDispatch.Test_DirectDispatchTable_WideIntegerHelperMatrix_Parity;
+var
+  LBackends: array[0..2] of TSimdBackend;
+  LBackend: TSimdBackend;
+  LDispatch: PSimdDispatchTable;
+  LDirectDispatch: PSimdDispatchTable;
+  LScalarTable: TSimdDispatchTable;
+  LAlignedBlock: Pointer;
+  LAlignedSrc: PInt64;
+  LAlignedDirectDst: PInt64;
+  LAlignedFacadeDst: PInt64;
+  LAlignedScalarDst: PInt64;
+  LUnalignedSrcStorage: array[0..5] of Int64;
+  LUnalignedDirectStorage: array[0..5] of Int64;
+  LUnalignedFacadeStorage: array[0..5] of Int64;
+  LUnalignedScalarStorage: array[0..5] of Int64;
+  LUnalignedSrc: PInt64;
+  LUnalignedDirectDst: PInt64;
+  LUnalignedFacadeDst: PInt64;
+  LUnalignedScalarDst: PInt64;
+  LI32x8Base: TVecI32x8;
+  LI32x16Base: TVecI32x16;
+  LI64x4Base: TVecI64x4;
+  LI64x4ByDirect: TVecI64x4;
+  LI64x4ByFacade: TVecI64x4;
+  LI64x4ByScalar: TVecI64x4;
+  LI32x8ByDirect: TVecI32x8;
+  LI32x8ByFacade: TVecI32x8;
+  LI32x8ByScalar: TVecI32x8;
+  LI32x16ByDirect: TVecI32x16;
+  LI32x16ByFacade: TVecI32x16;
+  LI32x16ByScalar: TVecI32x16;
+  LExpectedI32: Int32;
+  LActualI32: Int32;
+  LFacadeI32: Int32;
+  LExpectedI64: Int64;
+  LActualI64: Int64;
+  LFacadeI64: Int64;
+  LIndex: Integer;
+  LLane: Integer;
+  LExtractIndex: Integer;
+  LOldVectorAsm: Boolean;
+  LTestedCount: Integer;
+
+  procedure AssertVecI64x4Equal(const aOp: string; const aBackend: TSimdBackend;
+    const aExpected, aActual: TVecI64x4);
+  var
+    LLaneIndex: Integer;
+  begin
+    for LLaneIndex := 0 to 3 do
+      AssertEquals(aOp + ' lane ' + IntToStr(LLaneIndex) + ' backend ' + IntToStr(Ord(aBackend)),
+        aExpected.i[LLaneIndex], aActual.i[LLaneIndex]);
+  end;
+
+  procedure AssertVecI32x8Equal(const aOp: string; const aBackend: TSimdBackend;
+    const aExpected, aActual: TVecI32x8);
+  var
+    LLaneIndex: Integer;
+  begin
+    for LLaneIndex := 0 to 7 do
+      AssertEquals(aOp + ' lane ' + IntToStr(LLaneIndex) + ' backend ' + IntToStr(Ord(aBackend)),
+        aExpected.i[LLaneIndex], aActual.i[LLaneIndex]);
+  end;
+
+  procedure AssertVecI32x16Equal(const aOp: string; const aBackend: TSimdBackend;
+    const aExpected, aActual: TVecI32x16);
+  var
+    LLaneIndex: Integer;
+  begin
+    for LLaneIndex := 0 to 15 do
+      AssertEquals(aOp + ' lane ' + IntToStr(LLaneIndex) + ' backend ' + IntToStr(Ord(aBackend)),
+        aExpected.i[LLaneIndex], aActual.i[LLaneIndex]);
+  end;
+
+  procedure AssertI64BufferEqual(const aOp: string; const aBackend: TSimdBackend;
+    aExpected, aActual: PInt64);
+  var
+    LLaneIndex: Integer;
+  begin
+    for LLaneIndex := 0 to 3 do
+      AssertEquals(aOp + ' lane ' + IntToStr(LLaneIndex) + ' backend ' + IntToStr(Ord(aBackend)),
+        aExpected[LLaneIndex], aActual[LLaneIndex]);
+  end;
+
+begin
+  AssertTrue('Scalar dispatch table should be available',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  LBackends[0] := sbScalar;
+  LBackends[1] := sbNEON;
+  LBackends[2] := sbRISCVV;
+
+  LAlignedBlock := AllocateAligned(SizeOf(Int64) * 20, 32);
+  AssertTrue('AllocateAligned should return non-nil', LAlignedBlock <> nil);
+  LAlignedSrc := PInt64(LAlignedBlock);
+  LAlignedDirectDst := PInt64(PByte(LAlignedBlock) + 32);
+  LAlignedFacadeDst := PInt64(PByte(LAlignedBlock) + 64);
+  LAlignedScalarDst := PInt64(PByte(LAlignedBlock) + 96);
+
+  LAlignedSrc[0] := High(Int64);
+  LAlignedSrc[1] := Low(Int64);
+  LAlignedSrc[2] := 0;
+  LAlignedSrc[3] := -1;
+
+  LUnalignedSrc := @LUnalignedSrcStorage[1];
+  LUnalignedDirectDst := @LUnalignedDirectStorage[1];
+  LUnalignedFacadeDst := @LUnalignedFacadeStorage[1];
+  LUnalignedScalarDst := @LUnalignedScalarStorage[1];
+
+  LUnalignedSrc[0] := Int64(123456789012345678);
+  LUnalignedSrc[1] := Int64(-98765432101234567);
+  LUnalignedSrc[2] := High(Int32);
+  LUnalignedSrc[3] := Low(Int32);
+
+  LI32x8Base.i[0] := High(Int32);
+  LI32x8Base.i[1] := Low(Int32);
+  LI32x8Base.i[2] := 0;
+  LI32x8Base.i[3] := -1;
+  LI32x8Base.i[4] := 7;
+  LI32x8Base.i[5] := -11;
+  LI32x8Base.i[6] := 222222;
+  LI32x8Base.i[7] := -333333;
+
+  for LIndex := 0 to 15 do
+    case LIndex of
+      0: LI32x16Base.i[LIndex] := High(Int32);
+      1: LI32x16Base.i[LIndex] := Low(Int32);
+      2: LI32x16Base.i[LIndex] := 0;
+      15: LI32x16Base.i[LIndex] := -1;
+    else
+      LI32x16Base.i[LIndex] := (LIndex - 8) * 12345;
+    end;
+
+  LI64x4Base.i[0] := High(Int64);
+  LI64x4Base.i[1] := Low(Int64);
+  LI64x4Base.i[2] := 0;
+  LI64x4Base.i[3] := Int64(-444444444444444444);
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LTestedCount := 0;
+  try
+    SetVectorAsmEnabled(True);
+
+    for LBackend in LBackends do
+    begin
+      if (LBackend <> sbScalar) and (not IsBackendRegistered(LBackend)) then
+        Continue;
+      if not TrySetActiveBackend(LBackend) then
+        Continue;
+
+      Inc(LTestedCount);
+      LDispatch := GetDispatchTable;
+      LDirectDispatch := GetDirectDispatchTable;
+
+      AssertTrue('Dispatch table should be assigned for backend ' + IntToStr(Ord(LBackend)), LDispatch <> nil);
+      AssertTrue('Direct dispatch table should be assigned for backend ' + IntToStr(Ord(LBackend)), LDirectDispatch <> nil);
+      AssertEquals('Direct dispatch backend should track dispatch for backend ' + IntToStr(Ord(LBackend)),
+        Ord(LDispatch^.Backend), Ord(LDirectDispatch^.Backend));
+
+      AssertTrue('LoadI64x4 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.LoadI64x4));
+      AssertTrue('StoreI64x4 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.StoreI64x4));
+      AssertTrue('SplatI64x4 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.SplatI64x4));
+      AssertTrue('ZeroI64x4 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.ZeroI64x4));
+      AssertTrue('ExtractI32x8 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.ExtractI32x8));
+      AssertTrue('InsertI32x8 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.InsertI32x8));
+      AssertTrue('ExtractI32x16 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.ExtractI32x16));
+      AssertTrue('InsertI32x16 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.InsertI32x16));
+      AssertTrue('ExtractI64x4 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.ExtractI64x4));
+      AssertTrue('InsertI64x4 should be assigned for backend ' + IntToStr(Ord(LBackend)), Assigned(LDirectDispatch^.InsertI64x4));
+
+      LI64x4ByDirect := LDirectDispatch^.LoadI64x4(LAlignedSrc);
+      LI64x4ByScalar := LScalarTable.LoadI64x4(LAlignedSrc);
+      AssertVecI64x4Equal('Direct LoadI64x4 aligned', LBackend, LI64x4ByScalar, LI64x4ByDirect);
+
+      LI64x4ByFacade := VecI64x4Load(LAlignedSrc);
+      AssertVecI64x4Equal('Facade LoadI64x4 aligned', LBackend, LI64x4ByScalar, LI64x4ByFacade);
+
+      LI64x4ByDirect := LDirectDispatch^.LoadI64x4(LUnalignedSrc);
+      LI64x4ByScalar := LScalarTable.LoadI64x4(LUnalignedSrc);
+      AssertVecI64x4Equal('Direct LoadI64x4 unaligned', LBackend, LI64x4ByScalar, LI64x4ByDirect);
+
+      LI64x4ByFacade := VecI64x4Load(LUnalignedSrc);
+      AssertVecI64x4Equal('Facade LoadI64x4 unaligned', LBackend, LI64x4ByScalar, LI64x4ByFacade);
+
+      for LLane := 0 to 3 do
+      begin
+        LAlignedDirectDst[LLane] := Int64($1111111111111111);
+        LAlignedFacadeDst[LLane] := Int64($2222222222222222);
+        LAlignedScalarDst[LLane] := Int64($3333333333333333);
+        LUnalignedDirectDst[LLane] := Int64($4444444444444444);
+        LUnalignedFacadeDst[LLane] := Int64($5555555555555555);
+        LUnalignedScalarDst[LLane] := Int64($6666666666666666);
+      end;
+
+      LDirectDispatch^.StoreI64x4(LAlignedDirectDst, LScalarTable.LoadI64x4(LAlignedSrc));
+      VecI64x4Store(LAlignedFacadeDst, VecI64x4Load(LAlignedSrc));
+      LScalarTable.StoreI64x4(LAlignedScalarDst, LScalarTable.LoadI64x4(LAlignedSrc));
+      AssertI64BufferEqual('Direct StoreI64x4 aligned', LBackend, LAlignedScalarDst, LAlignedDirectDst);
+      AssertI64BufferEqual('Facade StoreI64x4 aligned', LBackend, LAlignedScalarDst, LAlignedFacadeDst);
+
+      LDirectDispatch^.StoreI64x4(LUnalignedDirectDst, LScalarTable.LoadI64x4(LUnalignedSrc));
+      VecI64x4Store(LUnalignedFacadeDst, VecI64x4Load(LUnalignedSrc));
+      LScalarTable.StoreI64x4(LUnalignedScalarDst, LScalarTable.LoadI64x4(LUnalignedSrc));
+      AssertI64BufferEqual('Direct StoreI64x4 unaligned', LBackend, LUnalignedScalarDst, LUnalignedDirectDst);
+      AssertI64BufferEqual('Facade StoreI64x4 unaligned', LBackend, LUnalignedScalarDst, LUnalignedFacadeDst);
+
+      LI64x4ByDirect := LDirectDispatch^.SplatI64x4(High(Int64));
+      LI64x4ByScalar := LScalarTable.SplatI64x4(High(Int64));
+      AssertVecI64x4Equal('Direct SplatI64x4 high', LBackend, LI64x4ByScalar, LI64x4ByDirect);
+
+      LI64x4ByFacade := VecI64x4Splat(High(Int64));
+      AssertVecI64x4Equal('Facade SplatI64x4 high', LBackend, LI64x4ByScalar, LI64x4ByFacade);
+
+      LI64x4ByDirect := LDirectDispatch^.SplatI64x4(Low(Int64));
+      LI64x4ByScalar := LScalarTable.SplatI64x4(Low(Int64));
+      AssertVecI64x4Equal('Direct SplatI64x4 low', LBackend, LI64x4ByScalar, LI64x4ByDirect);
+
+      LI64x4ByFacade := VecI64x4Splat(Low(Int64));
+      AssertVecI64x4Equal('Facade SplatI64x4 low', LBackend, LI64x4ByScalar, LI64x4ByFacade);
+
+      LI64x4ByDirect := LDirectDispatch^.ZeroI64x4();
+      LI64x4ByScalar := LScalarTable.ZeroI64x4();
+      AssertVecI64x4Equal('Direct ZeroI64x4', LBackend, LI64x4ByScalar, LI64x4ByDirect);
+
+      LI64x4ByFacade := VecI64x4Zero;
+      AssertVecI64x4Equal('Facade ZeroI64x4', LBackend, LI64x4ByScalar, LI64x4ByFacade);
+
+      for LIndex := 0 to 3 do
+      begin
+        case LIndex of
+          0: LExtractIndex := -99;
+          1: LExtractIndex := 0;
+          2: LExtractIndex := 7;
+        else
+          LExtractIndex := 99;
+        end;
+
+        LExpectedI32 := LScalarTable.ExtractI32x8(LI32x8Base, LExtractIndex);
+        LActualI32 := LDirectDispatch^.ExtractI32x8(LI32x8Base, LExtractIndex);
+        AssertEquals('Direct ExtractI32x8 idx ' + IntToStr(LExtractIndex) + ' backend ' + IntToStr(Ord(LBackend)),
+          LExpectedI32, LActualI32);
+
+        LFacadeI32 := VecI32x8Extract(LI32x8Base, LExtractIndex);
+        AssertEquals('Facade ExtractI32x8 idx ' + IntToStr(LExtractIndex) + ' backend ' + IntToStr(Ord(LBackend)),
+          LExpectedI32, LFacadeI32);
+
+        LI32x8ByDirect := LDirectDispatch^.InsertI32x8(LI32x8Base, High(Int32) - LIndex, LExtractIndex);
+        LI32x8ByScalar := LScalarTable.InsertI32x8(LI32x8Base, High(Int32) - LIndex, LExtractIndex);
+        AssertVecI32x8Equal('Direct InsertI32x8 idx ' + IntToStr(LExtractIndex), LBackend, LI32x8ByScalar, LI32x8ByDirect);
+
+        LI32x8ByFacade := VecI32x8Insert(LI32x8Base, High(Int32) - LIndex, LExtractIndex);
+        AssertVecI32x8Equal('Facade InsertI32x8 idx ' + IntToStr(LExtractIndex), LBackend, LI32x8ByScalar, LI32x8ByFacade);
+      end;
+
+      for LIndex := 0 to 3 do
+      begin
+        case LIndex of
+          0: LExtractIndex := -99;
+          1: LExtractIndex := 0;
+          2: LExtractIndex := 15;
+        else
+          LExtractIndex := 99;
+        end;
+
+        LExpectedI32 := LScalarTable.ExtractI32x16(LI32x16Base, LExtractIndex);
+        LActualI32 := LDirectDispatch^.ExtractI32x16(LI32x16Base, LExtractIndex);
+        AssertEquals('Direct ExtractI32x16 idx ' + IntToStr(LExtractIndex) + ' backend ' + IntToStr(Ord(LBackend)),
+          LExpectedI32, LActualI32);
+
+        LFacadeI32 := VecI32x16Extract(LI32x16Base, LExtractIndex);
+        AssertEquals('Facade ExtractI32x16 idx ' + IntToStr(LExtractIndex) + ' backend ' + IntToStr(Ord(LBackend)),
+          LExpectedI32, LFacadeI32);
+
+        LI32x16ByDirect := LDirectDispatch^.InsertI32x16(LI32x16Base, Low(Int32) + LIndex, LExtractIndex);
+        LI32x16ByScalar := LScalarTable.InsertI32x16(LI32x16Base, Low(Int32) + LIndex, LExtractIndex);
+        AssertVecI32x16Equal('Direct InsertI32x16 idx ' + IntToStr(LExtractIndex), LBackend, LI32x16ByScalar, LI32x16ByDirect);
+
+        LI32x16ByFacade := VecI32x16Insert(LI32x16Base, Low(Int32) + LIndex, LExtractIndex);
+        AssertVecI32x16Equal('Facade InsertI32x16 idx ' + IntToStr(LExtractIndex), LBackend, LI32x16ByScalar, LI32x16ByFacade);
+      end;
+
+      for LIndex := 0 to 3 do
+      begin
+        case LIndex of
+          0: LExtractIndex := -99;
+          1: LExtractIndex := 0;
+          2: LExtractIndex := 3;
+        else
+          LExtractIndex := 99;
+        end;
+
+        LExpectedI64 := LScalarTable.ExtractI64x4(LI64x4Base, LExtractIndex);
+        LActualI64 := LDirectDispatch^.ExtractI64x4(LI64x4Base, LExtractIndex);
+        AssertEquals('Direct ExtractI64x4 idx ' + IntToStr(LExtractIndex) + ' backend ' + IntToStr(Ord(LBackend)),
+          LExpectedI64, LActualI64);
+
+        LFacadeI64 := VecI64x4Extract(LI64x4Base, LExtractIndex);
+        AssertEquals('Facade ExtractI64x4 idx ' + IntToStr(LExtractIndex) + ' backend ' + IntToStr(Ord(LBackend)),
+          LExpectedI64, LFacadeI64);
+
+        LI64x4ByDirect := LDirectDispatch^.InsertI64x4(LI64x4Base, Int64(Low(Int64) + LIndex), LExtractIndex);
+        LI64x4ByScalar := LScalarTable.InsertI64x4(LI64x4Base, Int64(Low(Int64) + LIndex), LExtractIndex);
+        AssertVecI64x4Equal('Direct InsertI64x4 idx ' + IntToStr(LExtractIndex), LBackend, LI64x4ByScalar, LI64x4ByDirect);
+
+        LI64x4ByFacade := VecI64x4Insert(LI64x4Base, Int64(Low(Int64) + LIndex), LExtractIndex);
+        AssertVecI64x4Equal('Facade InsertI64x4 idx ' + IntToStr(LExtractIndex), LBackend, LI64x4ByScalar, LI64x4ByFacade);
+      end;
+    end;
+
+    AssertTrue('At least one backend should be tested', LTestedCount > 0);
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+    FreeAligned(LAlignedBlock);
   end;
 end;
 

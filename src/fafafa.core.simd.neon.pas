@@ -61,10 +61,6 @@ procedure RegisterNEONBackend;
 // Memory operations
 function MemEqual_NEON(a, b: Pointer; len: SizeUInt): LongBool;
 function MemFindByte_NEON(p: Pointer; len: SizeUInt; value: Byte): PtrInt;
-function MemDiffRange_NEON(a, b: Pointer; len: SizeUInt; out firstDiff, lastDiff: SizeUInt): Boolean;
-procedure MemCopy_NEON(src, dst: Pointer; len: SizeUInt);
-procedure MemSet_NEON(dst: Pointer; len: SizeUInt; value: Byte);
-procedure MemReverse_NEON(p: Pointer; len: SizeUInt);
 
 // Statistics functions
 function SumBytes_NEON(p: Pointer; len: SizeUInt): UInt64;
@@ -72,15 +68,11 @@ procedure MinMaxBytes_NEON(p: Pointer; len: SizeUInt; out minVal, maxVal: Byte);
 function CountByte_NEON(p: Pointer; len: SizeUInt; value: Byte): SizeUInt;
 
 // Text processing functions
-function Utf8Validate_NEON(p: Pointer; len: SizeUInt): Boolean;
 function AsciiIEqual_NEON(a, b: Pointer; len: SizeUInt): Boolean;
 procedure ToLowerAscii_NEON(p: Pointer; len: SizeUInt);
 procedure ToUpperAscii_NEON(p: Pointer; len: SizeUInt);
 
 // Search functions
-function BytesIndexOf_NEON(haystack: Pointer; haystackLen: SizeUInt; needle: Pointer; needleLen: SizeUInt): PtrInt;
-
-// Bitset functions
 function BitsetPopCount_NEON(p: Pointer; byteLen: SizeUInt): SizeUInt;
 
 implementation
@@ -1372,8 +1364,12 @@ asm
 end;
 
 // === I32x8 Shift Operations (256-bit = 2x128-bit NEON) ===
+// Contract split:
+// - *Asm helpers are raw NEON lane shifts and expect a validated shift count.
+// - Public entrypoints preserve the published scalar fallback semantics for
+//   negative / out-of-range counts before forwarding to the raw helper.
 
-function NEONShiftLeftI32x8(const a: TVecI32x8; count: Integer): TVecI32x8; assembler; nostackframe;
+function NEONShiftLeftI32x8Asm(const a: TVecI32x8; count: Integer): TVecI32x8; assembler; nostackframe;
 asm
   ldp   q0, q1, [x0]
   dup   v2.4s, w1
@@ -1382,7 +1378,14 @@ asm
   stp   q0, q1, [x8]
 end;
 
-function NEONShiftRightI32x8(const a: TVecI32x8; count: Integer): TVecI32x8; assembler; nostackframe;
+function NEONShiftLeftI32x8(const a: TVecI32x8; count: Integer): TVecI32x8;
+begin
+  if (count < 0) or (count >= 32) then
+    Exit(ScalarShiftLeftI32x8(a, count));
+  Result := NEONShiftLeftI32x8Asm(a, count);
+end;
+
+function NEONShiftRightI32x8Asm(const a: TVecI32x8; count: Integer): TVecI32x8; assembler; nostackframe;
 asm
   ldp   q0, q1, [x0]
   neg   w1, w1
@@ -1392,7 +1395,14 @@ asm
   stp   q0, q1, [x8]
 end;
 
-function NEONShiftRightArithI32x8(const a: TVecI32x8; count: Integer): TVecI32x8; assembler; nostackframe;
+function NEONShiftRightI32x8(const a: TVecI32x8; count: Integer): TVecI32x8;
+begin
+  if (count < 0) or (count >= 32) then
+    Exit(ScalarShiftRightI32x8(a, count));
+  Result := NEONShiftRightI32x8Asm(a, count);
+end;
+
+function NEONShiftRightArithI32x8Asm(const a: TVecI32x8; count: Integer): TVecI32x8; assembler; nostackframe;
 asm
   ldp   q0, q1, [x0]
   neg   w1, w1
@@ -1400,6 +1410,13 @@ asm
   sshl  v0.4s, v0.4s, v2.4s
   sshl  v1.4s, v1.4s, v2.4s
   stp   q0, q1, [x8]
+end;
+
+function NEONShiftRightArithI32x8(const a: TVecI32x8; count: Integer): TVecI32x8;
+begin
+  if (count < 0) or (count >= 32) then
+    Exit(ScalarShiftRightArithI32x8(a, count));
+  Result := NEONShiftRightArithI32x8Asm(a, count);
 end;
 
 function NEONShiftLeftU32x8(const a: TVecU32x8; count: Integer): TVecU32x8; assembler; nostackframe;
@@ -1422,17 +1439,29 @@ asm
 end;
 
 // === I64x4 Shift Operations (256-bit = 2x128-bit NEON) ===
+// Same wrapper boundary as I32x8: public functions own the scalar-range
+// contract, while *Asm helpers stay as direct NEON lane operations.
 
-function NEONShiftLeftI64x4(const a: TVecI64x4; count: Integer): TVecI64x4; assembler; nostackframe;
+function NEONShiftLeftI64x4Asm(const a: TVecI64x4; count: Integer): TVecI64x4; assembler; nostackframe;
 asm
   ldp   q0, q1, [x0]
+  // ushl v?.2d consumes 64-bit lane counts; keep the public Integer count
+  // zero-extended before duplicating it into the NEON shift vector.
+  uxtw  x1, w1
   dup   v2.2d, x1
   ushl   v0.2d, v0.2d, v2.2d
   ushl   v1.2d, v1.2d, v2.2d
   stp   q0, q1, [x8]
 end;
 
-function NEONShiftRightI64x4(const a: TVecI64x4; count: Integer): TVecI64x4; assembler; nostackframe;
+function NEONShiftLeftI64x4(const a: TVecI64x4; count: Integer): TVecI64x4;
+begin
+  if (count < 0) or (count >= 64) then
+    Exit(ScalarShiftLeftI64x4(a, count));
+  Result := NEONShiftLeftI64x4Asm(a, count);
+end;
+
+function NEONShiftRightI64x4Asm(const a: TVecI64x4; count: Integer): TVecI64x4; assembler; nostackframe;
 asm
   ldp   q0, q1, [x0]
   neg   w1, w1
@@ -1443,7 +1472,14 @@ asm
   stp   q0, q1, [x8]
 end;
 
-function NEONShiftRightArithI64x4(const a: TVecI64x4; count: Integer): TVecI64x4; assembler; nostackframe;
+function NEONShiftRightI64x4(const a: TVecI64x4; count: Integer): TVecI64x4;
+begin
+  if (count < 0) or (count >= 64) then
+    Exit(ScalarShiftRightI64x4(a, count));
+  Result := NEONShiftRightI64x4Asm(a, count);
+end;
+
+function NEONShiftRightArithI64x4Asm(const a: TVecI64x4; count: Integer): TVecI64x4; assembler; nostackframe;
 asm
   ldp   q0, q1, [x0]
   neg   w1, w1
@@ -1452,6 +1488,13 @@ asm
   sshl  v0.2d, v0.2d, v2.2d
   sshl  v1.2d, v1.2d, v2.2d
   stp   q0, q1, [x8]
+end;
+
+function NEONShiftRightArithI64x4(const a: TVecI64x4; count: Integer): TVecI64x4;
+begin
+  if (count < 0) or (count >= 64) then
+    Exit(ScalarShiftRightArithI64x4(a, count));
+  Result := NEONShiftRightArithI64x4Asm(a, count);
 end;
 
 function NEONShiftLeftU64x4(const a: TVecU64x4; count: Integer): TVecU64x4; assembler; nostackframe;
@@ -1744,9 +1787,10 @@ end;
 
 // === I32x16 Shift Operations (512-bit = 4x128-bit NEON) ===
 // I32x16 = {lo, hi: TVecI32x8}, 每个 I32x8 = {lo, hi: TVecI32x4}
-// 需要操作 4 个 128-bit 寄存器
+// Public wrappers keep the published scalar fallback semantics; *Asm helpers
+// only perform the already-range-checked raw NEON lane work across 4 q regs.
 
-function NEONShiftLeftI32x16(const a: TVecI32x16; count: Integer): TVecI32x16; assembler; nostackframe;
+function NEONShiftLeftI32x16Asm(const a: TVecI32x16; count: Integer): TVecI32x16; assembler; nostackframe;
 asm
   // a: pointer in x0, count: w1, return: pointer in x8
   ldp   q0, q1, [x0]        // 加载 a.lo (2x128-bit)
@@ -1760,7 +1804,14 @@ asm
   stp   q2, q3, [x8, #32]
 end;
 
-function NEONShiftRightI32x16(const a: TVecI32x16; count: Integer): TVecI32x16; assembler; nostackframe;
+function NEONShiftLeftI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;
+begin
+  if (count < 0) or (count >= 32) then
+    Exit(ScalarShiftLeftI32x16(a, count));
+  Result := NEONShiftLeftI32x16Asm(a, count);
+end;
+
+function NEONShiftRightI32x16Asm(const a: TVecI32x16; count: Integer): TVecI32x16; assembler; nostackframe;
 asm
   ldp   q0, q1, [x0]
   ldp   q2, q3, [x0, #32]
@@ -1774,7 +1825,14 @@ asm
   stp   q2, q3, [x8, #32]
 end;
 
-function NEONShiftRightArithI32x16(const a: TVecI32x16; count: Integer): TVecI32x16; assembler; nostackframe;
+function NEONShiftRightI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;
+begin
+  if (count < 0) or (count >= 32) then
+    Exit(ScalarShiftRightI32x16(a, count));
+  Result := NEONShiftRightI32x16Asm(a, count);
+end;
+
+function NEONShiftRightArithI32x16Asm(const a: TVecI32x16; count: Integer): TVecI32x16; assembler; nostackframe;
 asm
   ldp   q0, q1, [x0]
   ldp   q2, q3, [x0, #32]
@@ -1786,6 +1844,13 @@ asm
   sshl  v3.4s, v3.4s, v4.4s
   stp   q0, q1, [x8]
   stp   q2, q3, [x8, #32]
+end;
+
+function NEONShiftRightArithI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;
+begin
+  if (count < 0) or (count >= 32) then
+    Exit(ScalarShiftRightArithI32x16(a, count));
+  Result := NEONShiftRightArithI32x16Asm(a, count);
 end;
 
 // === Math Functions ===
@@ -2159,10 +2224,17 @@ end;
 // === Selection Operation ===
 
 function NEONSelectF32x4(const mask: TMask4; const a, b: TVecF32x4): TVecF32x4;
+var
+  LIndex: Integer;
 begin
-  // Keep correct lane semantics until the mixed scalar/vector AArch64 ABI is
-  // proven stable for this wrapper on native NEON hosts.
-  Result := ScalarSelectF32x4(mask, a, b);
+  // Keep explicit per-lane mask semantics here instead of aliasing a scalar
+  // helper, so asm-enabled builds do not mis-advertise this slot as a
+  // backend-owned NEON implementation while still preserving the API contract.
+  for LIndex := 0 to 3 do
+    if (mask and (1 shl LIndex)) <> 0 then
+      Result.f[LIndex] := a.f[LIndex]
+    else
+      Result.f[LIndex] := b.f[LIndex];
 end;
 
 function NEONInsertF32x4(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4; assembler; nostackframe;

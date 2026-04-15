@@ -33,13 +33,12 @@ begin
     scLoadStore
   ];
   if LUseVectorAsm then
+  begin
     Include(LCapabilities, scIntegerOps);
-  if LUseVectorAsm then
-  Include(LCapabilities, scShuffle);
-  if LUseVectorAsm then
-  Include(LCapabilities, scFMA);
-  if LUseVectorAsm then
-  Include(LCapabilities, scMaskedOps);
+    Include(LCapabilities, scShuffle);
+    Include(LCapabilities, scFMA);
+    Include(LCapabilities, scMaskedOps);
+  end;
   table.BackendInfo.Capabilities := LCapabilities;
 
   if LAsmCapable and (not LUseVectorAsm) then
@@ -49,6 +48,7 @@ begin
   end;
 
   // === F32x4 Operations ===
+  {$IFDEF RISCVV_ASSEMBLY}
   table.AddF32x4 := @RISCVVAddF32x4;
   table.SubF32x4 := @RISCVVSubF32x4;
   table.MulF32x4 := @RISCVVMulF32x4;
@@ -62,34 +62,25 @@ begin
   table.FmaF32x4 := @RISCVVFmaF32x4;
   table.RcpF32x4 := @RISCVVRcpF32x4;
   table.RsqrtF32x4 := @RISCVVRsqrtF32x4;
-  // Keep IEEE754 semantics stable in RVV asm mode until dedicated
-  // floor/ceil/round/trunc asm paths are fully validated.
-  {$IFDEF RISCVV_ASSEMBLY}
-  table.FloorF32x4 := @ScalarFloorF32x4;
-  table.CeilF32x4 := @ScalarCeilF32x4;
-  table.RoundF32x4 := @ScalarRoundF32x4;
-  table.TruncF32x4 := @ScalarTruncF32x4;
-  {$ELSE}
-  table.FloorF32x4 := @RISCVVFloorF32x4;
-  table.CeilF32x4 := @RISCVVCeilF32x4;
-  table.RoundF32x4 := @RISCVVRoundF32x4;
-  table.TruncF32x4 := @RISCVVTruncF32x4;
-  {$ENDIF}
   table.ClampF32x4 := @RISCVVClampF32x4;
+  {$ENDIF}
+  // Keep 128-bit IEEE-sensitive rounding on the canonical base scalar slots
+  // until the RISCVV-specific semantics are validated end-to-end.
 
   // F32x4 Vector Math
   table.DotF32x4 := @RISCVVDotF32x4;
   table.DotF32x3 := @RISCVVDotF32x3;
   table.DotF64x2 := @RISCVVDotF64x2;
   table.DotF64x4 := @RISCVVDotF64x4;
-  {$IFNDEF RISCVV_ASSEMBLY}
-  table.DotF32x8 := @RISCVVDotF32x8;
-  {$ENDIF}
+  {$IFDEF RISCVV_ASSEMBLY}
   table.CrossF32x3 := @RISCVVCrossF32x3;
+  {$ENDIF}
   table.LengthF32x4 := @RISCVVLengthF32x4;
   table.LengthF32x3 := @RISCVVLengthF32x3;
+  {$IFDEF RISCVV_ASSEMBLY}
   table.NormalizeF32x4 := @RISCVVNormalizeF32x4;
   table.NormalizeF32x3 := @RISCVVNormalizeF32x3;
+  {$ENDIF}
 
   // F32x4 Reduction
   table.ReduceAddF32x4 := @RISCVVReduceAddF32x4;
@@ -106,25 +97,34 @@ begin
   table.CmpNeF32x4 := @RISCVVCmpNeF32x4;
 
   // F32x4 Memory
+  {$IFDEF RISCVV_ASSEMBLY}
   table.LoadF32x4 := @RISCVVLoadF32x4;
   table.LoadF32x4Aligned := @RISCVVLoadF32x4Aligned;
+  {$ENDIF}
   table.StoreF32x4 := @RISCVVStoreF32x4;
   table.StoreF32x4Aligned := @RISCVVStoreF32x4Aligned;
 
   // F32x4 Utility
+  {$IFDEF RISCVV_ASSEMBLY}
   table.SplatF32x4 := @RISCVVSplatF32x4;
   table.ZeroF32x4 := @RISCVVZeroF32x4;
   table.SelectF32x4 := @RISCVVSelectF32x4;
   table.ExtractF32x4 := @RISCVVExtractF32x4;
+  {$ENDIF}
+  {$IFDEF RISCVV_ASSEMBLY}
   table.InsertF32x4 := @RISCVVInsertF32x4;
+  {$ENDIF}
 
   // === F64x2 Operations ===
+  {$IFDEF RISCVV_ASSEMBLY}
   table.AddF64x2 := @RISCVVAddF64x2;
   table.SubF64x2 := @RISCVVSubF64x2;
   table.MulF64x2 := @RISCVVMulF64x2;
   table.DivF64x2 := @RISCVVDivF64x2;
+  {$ENDIF}
 
   // === I32x4 Operations ===
+  {$IFDEF RISCVV_ASSEMBLY}
   table.AddI32x4 := @RISCVVAddI32x4;
   table.SubI32x4 := @RISCVVSubI32x4;
   table.MulI32x4 := @RISCVVMulI32x4;
@@ -140,6 +140,7 @@ begin
   table.ShiftLeftI32x4 := @RISCVVShiftLeftI32x4;
   table.ShiftRightI32x4 := @RISCVVShiftRightI32x4;
   table.ShiftRightArithI32x4 := @RISCVVShiftRightArithI32x4;
+  {$ENDIF}
 
   // I32x4 Comparison
   table.CmpEqI32x4 := @RISCVVCmpEqI32x4;
@@ -150,30 +151,38 @@ begin
   table.CmpNeI32x4 := @RISCVVCmpNeI32x4;  // ✅ Task 6.4: Added
 
   // I32x4 Min/Max
+  {$IFDEF RISCVV_ASSEMBLY}
   table.MinI32x4 := @RISCVVMinI32x4;
   table.MaxI32x4 := @RISCVVMaxI32x4;
+  {$ENDIF}
 
   // === I64x2 Operations ===
+  {$IFDEF RISCVV_ASSEMBLY}
   table.AddI64x2 := @RISCVVAddI64x2;
   table.SubI64x2 := @RISCVVSubI64x2;
   table.AndI64x2 := @RISCVVAndI64x2;
   table.OrI64x2 := @RISCVVOrI64x2;
   table.XorI64x2 := @RISCVVXorI64x2;
   table.NotI64x2 := @RISCVVNotI64x2;
+  {$ENDIF}
   table.AndNotI64x2 := @RISCVVAndNotI64x2;
+  {$IFDEF RISCVV_ASSEMBLY}
   table.ShiftLeftI64x2 := @RISCVVShiftLeftI64x2;
   table.ShiftRightI64x2 := @RISCVVShiftRightI64x2;
   table.ShiftRightArithI64x2 := @RISCVVShiftRightArithI64x2;
+  {$ENDIF}
   table.MinI64x2 := @RISCVVMinI64x2;
   table.MaxI64x2 := @RISCVVMaxI64x2;
 
   // === U64x2 Operations ===
+  {$IFDEF RISCVV_ASSEMBLY}
   table.AddU64x2 := @RISCVVAddU64x2;
   table.SubU64x2 := @RISCVVSubU64x2;
   table.AndU64x2 := @RISCVVAndU64x2;
   table.OrU64x2 := @RISCVVOrU64x2;
   table.XorU64x2 := @RISCVVXorU64x2;
   table.NotU64x2 := @RISCVVNotU64x2;
+  {$ENDIF}
   table.AndNotU64x2 := @RISCVVAndNotU64x2;
   table.CmpEqU64x2 := @RISCVVCmpEqU64x2;
   table.CmpLtU64x2 := @RISCVVCmpLtU64x2;
@@ -210,6 +219,9 @@ begin
   table.CmpNeF64x4 := @RISCVVCmpNeF64x4;
 
   // === I32x8 Operations ===
+  // Task 3 backend-owned key slots: keep these bound to RISCVV symbols.
+  // Non-asm builds still resolve through riscvv.facade.inc; do not silently
+  // remap them to base scalar, or the backend ownership contract becomes false.
   table.AddI32x8 := @RISCVVAddI32x8;
   table.SubI32x8 := @RISCVVSubI32x8;
   table.MulI32x8 := @RISCVVMulI32x8;
@@ -317,77 +329,64 @@ begin
   // Wide Float Operations (Abs, Sqrt, Min, Max, Clamp)
   table.AbsF32x16 := @RISCVVAbsF32x16;
   table.AbsF32x8 := @RISCVVAbsF32x8;
+  {$IFDEF RISCVV_ASSEMBLY}
   table.AbsF64x2 := @RISCVVAbsF64x2;
+  {$ENDIF}
   table.AbsF64x4 := @RISCVVAbsF64x4;
   table.AbsF64x8 := @RISCVVAbsF64x8;
   table.SqrtF32x16 := @RISCVVSqrtF32x16;
   table.SqrtF32x8 := @RISCVVSqrtF32x8;
+  {$IFDEF RISCVV_ASSEMBLY}
   table.SqrtF64x2 := @RISCVVSqrtF64x2;
+  {$ENDIF}
   table.SqrtF64x4 := @RISCVVSqrtF64x4;
   table.SqrtF64x8 := @RISCVVSqrtF64x8;
   table.MinF32x16 := @RISCVVMinF32x16;
   table.MinF32x8 := @RISCVVMinF32x8;
+  {$IFDEF RISCVV_ASSEMBLY}
   table.MinF64x2 := @RISCVVMinF64x2;
+  {$ENDIF}
   table.MinF64x4 := @RISCVVMinF64x4;
   table.MinF64x8 := @RISCVVMinF64x8;
   table.MaxF32x16 := @RISCVVMaxF32x16;
   table.MaxF32x8 := @RISCVVMaxF32x8;
+  {$IFDEF RISCVV_ASSEMBLY}
   table.MaxF64x2 := @RISCVVMaxF64x2;
+  {$ENDIF}
   table.MaxF64x4 := @RISCVVMaxF64x4;
   table.MaxF64x8 := @RISCVVMaxF64x8;
   table.ClampF32x16 := @RISCVVClampF32x16;
   table.ClampF32x8 := @RISCVVClampF32x8;
+  {$IFDEF RISCVV_ASSEMBLY}
   table.ClampF64x2 := @RISCVVClampF64x2;
+  {$ENDIF}
   table.ClampF64x4 := @RISCVVClampF64x4;
   table.ClampF64x8 := @RISCVVClampF64x8;
 
   // Wide Float Extended Math (Ceil, Floor, Round, Trunc, Fma)
-  {$IFDEF RISCVV_ASSEMBLY}
   table.CeilF32x16 := @RISCVVCeilF32x16;
   table.CeilF32x8 := @RISCVVCeilF32x8;
-  table.CeilF64x2 := @ScalarCeilF64x2;
   table.CeilF64x4 := @RISCVVCeilF64x4;
   table.CeilF64x8 := @RISCVVCeilF64x8;
   table.FloorF32x16 := @RISCVVFloorF32x16;
   table.FloorF32x8 := @RISCVVFloorF32x8;
-  table.FloorF64x2 := @ScalarFloorF64x2;
   table.FloorF64x4 := @RISCVVFloorF64x4;
   table.FloorF64x8 := @RISCVVFloorF64x8;
   table.RoundF32x16 := @RISCVVRoundF32x16;
   table.RoundF32x8 := @RISCVVRoundF32x8;
-  table.RoundF64x2 := @ScalarRoundF64x2;
   table.RoundF64x4 := @RISCVVRoundF64x4;
   table.RoundF64x8 := @RISCVVRoundF64x8;
   table.TruncF32x16 := @RISCVVTruncF32x16;
   table.TruncF32x8 := @RISCVVTruncF32x8;
-  table.TruncF64x2 := @ScalarTruncF64x2;
   table.TruncF64x4 := @RISCVVTruncF64x4;
   table.TruncF64x8 := @RISCVVTruncF64x8;
-  {$ELSE}
-  table.CeilF32x16 := @RISCVVCeilF32x16;
-  table.CeilF32x8 := @RISCVVCeilF32x8;
-  table.CeilF64x2 := @RISCVVCeilF64x2;
-  table.CeilF64x4 := @RISCVVCeilF64x4;
-  table.CeilF64x8 := @RISCVVCeilF64x8;
-  table.FloorF32x16 := @RISCVVFloorF32x16;
-  table.FloorF32x8 := @RISCVVFloorF32x8;
-  table.FloorF64x2 := @RISCVVFloorF64x2;
-  table.FloorF64x4 := @RISCVVFloorF64x4;
-  table.FloorF64x8 := @RISCVVFloorF64x8;
-  table.RoundF32x16 := @RISCVVRoundF32x16;
-  table.RoundF32x8 := @RISCVVRoundF32x8;
-  table.RoundF64x2 := @RISCVVRoundF64x2;
-  table.RoundF64x4 := @RISCVVRoundF64x4;
-  table.RoundF64x8 := @RISCVVRoundF64x8;
-  table.TruncF32x16 := @RISCVVTruncF32x16;
-  table.TruncF32x8 := @RISCVVTruncF32x8;
-  table.TruncF64x2 := @RISCVVTruncF64x2;
-  table.TruncF64x4 := @RISCVVTruncF64x4;
-  table.TruncF64x8 := @RISCVVTruncF64x8;
-  {$ENDIF}
+  // Keep 128-bit F64x2 rounding on the canonical base scalar slots until the
+  // RISCVV-specific semantics are validated end-to-end.
   table.FmaF32x16 := @RISCVVFmaF32x16;
   table.FmaF32x8 := @RISCVVFmaF32x8;
+  {$IFDEF RISCVV_ASSEMBLY}
   table.FmaF64x2 := @RISCVVFmaF64x2;
+  {$ENDIF}
   table.FmaF64x4 := @RISCVVFmaF64x4;
   table.FmaF64x8 := @RISCVVFmaF64x8;
 
@@ -422,16 +421,19 @@ begin
   table.CmpNeF64x2 := @RISCVVCmpNeF64x2;
 
   // Wide Float Memory/Utility
+  {$IFDEF RISCVV_ASSEMBLY}
   table.LoadF32x16 := @RISCVVLoadF32x16;
   table.LoadF32x8 := @RISCVVLoadF32x8;
   table.LoadF64x2 := @RISCVVLoadF64x2;
   table.LoadF64x4 := @RISCVVLoadF64x4;
   table.LoadF64x8 := @RISCVVLoadF64x8;
+  {$ENDIF}
   table.StoreF32x16 := @RISCVVStoreF32x16;
   table.StoreF32x8 := @RISCVVStoreF32x8;
   table.StoreF64x2 := @RISCVVStoreF64x2;
   table.StoreF64x4 := @RISCVVStoreF64x4;
   table.StoreF64x8 := @RISCVVStoreF64x8;
+  {$IFDEF RISCVV_ASSEMBLY}
   table.SplatF32x16 := @RISCVVSplatF32x16;
   table.SplatF32x8 := @RISCVVSplatF32x8;
   table.SplatF64x2 := @RISCVVSplatF64x2;
@@ -442,22 +444,27 @@ begin
   table.ZeroF64x2 := @RISCVVZeroF64x2;
   table.ZeroF64x4 := @RISCVVZeroF64x4;
   table.ZeroF64x8 := @RISCVVZeroF64x8;
+  {$ENDIF}
 
   // Wide Float Extract/Insert
   table.ExtractF32x16 := @RISCVVExtractF32x16;
   table.ExtractF32x8 := @RISCVVExtractF32x8;
   table.ExtractF64x2 := @RISCVVExtractF64x2;
   table.ExtractF64x4 := @RISCVVExtractF64x4;
+  {$IFDEF RISCVV_ASSEMBLY}
   table.InsertF32x16 := @RISCVVInsertF32x16;
   table.InsertF32x8 := @RISCVVInsertF32x8;
   table.InsertF64x2 := @RISCVVInsertF64x2;
   table.InsertF64x4 := @RISCVVInsertF64x4;
+  {$ENDIF}
 
   // Wide Float Select
-  table.SelectF32x8 := @RISCVVSelectF32x8;
+  {$IFDEF RISCVV_ASSEMBLY}
   table.SelectF64x2 := @RISCVVSelectF64x2;
+  table.SelectF32x8 := @RISCVVSelectF32x8;
   table.SelectF64x4 := @RISCVVSelectF64x4;
   table.SelectI32x4 := @RISCVVSelectI32x4;
+  {$ENDIF}
 
   // I64x2 Comparison
   table.CmpEqI64x2 := @RISCVVCmpEqI64x2;
@@ -468,6 +475,8 @@ begin
   table.CmpNeI64x2 := @RISCVVCmpNeI64x2;
 
   // I64x4 Operations
+  // Contract note: Task 3 only backend-owns Add/Sub here. Mul/Min/Max are not
+  // open slots today, so resist the temptation to "complete" this family here.
   table.AddI64x4 := @RISCVVAddI64x4;
   table.SubI64x4 := @RISCVVSubI64x4;
   table.AndI64x4 := @RISCVVAndI64x4;
@@ -484,14 +493,30 @@ begin
   table.CmpGtI64x4 := @RISCVVCmpGtI64x4;
   table.CmpGeI64x4 := @RISCVVCmpGeI64x4;
   table.CmpNeI64x4 := @RISCVVCmpNeI64x4;
+  {$IFDEF RISCVV_ASSEMBLY}
   table.LoadI64x4 := @RISCVVLoadI64x4;
+  {$ENDIF}
   table.StoreI64x4 := @RISCVVStoreI64x4;
+  {$IFDEF RISCVV_ASSEMBLY}
   table.SplatI64x4 := @RISCVVSplatI64x4;
   table.ZeroI64x4 := @RISCVVZeroI64x4;
+  {$ENDIF}
+  // Keep these Extract* bindings in an explicit asm-gated shape even when both
+  // branches currently bind the same wrapper: register-truthfulness treats
+  // asm-helper wrappers as backend-owned only when the register wiring stays
+  // structurally tied to the asm branch.
+  {$IFDEF RISCVV_ASSEMBLY}
   table.ExtractI64x4 := @RISCVVExtractI64x4;
+  {$ELSE}
+  table.ExtractI64x4 := @RISCVVExtractI64x4;
+  {$ENDIF}
+  {$IFDEF RISCVV_ASSEMBLY}
   table.InsertI64x4 := @RISCVVInsertI64x4;
+  {$ENDIF}
 
   // I64x8 Operations
+  // Same boundary as I64x4: Add/Sub are backend-owned, while Mul/Min/Max are
+  // intentionally absent from the current dispatch contract.
   table.AddI64x8 := @RISCVVAddI64x8;
   table.SubI64x8 := @RISCVVSubI64x8;
   table.AndI64x8 := @RISCVVAndI64x8;
@@ -505,90 +530,34 @@ begin
   table.CmpGeI64x8 := @RISCVVCmpGeI64x8;
   table.CmpNeI64x8 := @RISCVVCmpNeI64x8;
 
-  // Keep scalar base wiring for these wide fallback-only helpers in RVV asm builds.
-  {$IFNDEF RISCVV_ASSEMBLY}
-  // I16x32 Operations
-  table.AddI16x32 := @RISCVVAddI16x32;
-  table.AddI8x64 := @RISCVVAddI8x64;
-  table.SubI16x32 := @RISCVVSubI16x32;
-  table.SubI8x64 := @RISCVVSubI8x64;
-  table.AndI16x32 := @RISCVVAndI16x32;
-  table.AndI8x64 := @RISCVVAndI8x64;
-  table.OrI16x32 := @RISCVVOrI16x32;
-  table.OrI8x64 := @RISCVVOrI8x64;
-  table.XorI16x32 := @RISCVVXorI16x32;
-  table.XorI8x64 := @RISCVVXorI8x64;
-  table.NotI16x32 := @RISCVVNotI16x32;
-  table.NotI8x64 := @RISCVVNotI8x64;
-  table.AndNotI16x32 := @RISCVVAndNotI16x32;
-  table.AndNotI8x64 := @RISCVVAndNotI8x64;
-  table.CmpEqI16x32 := @RISCVVCmpEqI16x32;
-  table.CmpEqI8x64 := @RISCVVCmpEqI8x64;
-  table.CmpLtI16x32 := @RISCVVCmpLtI16x32;
-  table.CmpLtI8x64 := @RISCVVCmpLtI8x64;
-  table.CmpGtI16x32 := @RISCVVCmpGtI16x32;
-  table.CmpGtI8x64 := @RISCVVCmpGtI8x64;
-  table.MinI16x32 := @RISCVVMinI16x32;
-  table.MinI8x64 := @RISCVVMinI8x64;
-  table.MaxI16x32 := @RISCVVMaxI16x32;
-  table.MaxI8x64 := @RISCVVMaxI8x64;
-  table.ShiftLeftI16x32 := @RISCVVShiftLeftI16x32;
-  table.ShiftRightI16x32 := @RISCVVShiftRightI16x32;
-  table.ShiftRightArithI16x32 := @RISCVVShiftRightArithI16x32;
-  table.AddU8x64 := @RISCVVAddU8x64;
-  table.SubU8x64 := @RISCVVSubU8x64;
-  table.AndU8x64 := @RISCVVAndU8x64;
-  table.OrU8x64 := @RISCVVOrU8x64;
-  table.XorU8x64 := @RISCVVXorU8x64;
-  table.NotU8x64 := @RISCVVNotU8x64;
-  table.CmpEqU8x64 := @RISCVVCmpEqU8x64;
-  table.CmpLtU8x64 := @RISCVVCmpLtU8x64;
-  table.CmpGtU8x64 := @RISCVVCmpGtU8x64;
-  table.MinU8x64 := @RISCVVMinU8x64;
-  table.MaxU8x64 := @RISCVVMaxU8x64;
-  table.AddU32x16 := @RISCVVAddU32x16;
-  table.SubU32x16 := @RISCVVSubU32x16;
-  table.MulU32x16 := @RISCVVMulU32x16;
-  table.AndU32x16 := @RISCVVAndU32x16;
-  table.OrU32x16 := @RISCVVOrU32x16;
-  table.XorU32x16 := @RISCVVXorU32x16;
-  table.NotU32x16 := @RISCVVNotU32x16;
-  table.AndNotU32x16 := @RISCVVAndNotU32x16;
-  table.ShiftLeftU32x16 := @RISCVVShiftLeftU32x16;
-  table.ShiftRightU32x16 := @RISCVVShiftRightU32x16;
-  table.CmpEqU32x16 := @RISCVVCmpEqU32x16;
-  table.CmpLtU32x16 := @RISCVVCmpLtU32x16;
-  table.CmpGtU32x16 := @RISCVVCmpGtU32x16;
-  table.CmpLeU32x16 := @RISCVVCmpLeU32x16;
-  table.CmpGeU32x16 := @RISCVVCmpGeU32x16;
-  table.CmpNeU32x16 := @RISCVVCmpNeU32x16;
-  table.MinU32x16 := @RISCVVMinU32x16;
-  table.MaxU32x16 := @RISCVVMaxU32x16;
-  table.AddU64x8 := @RISCVVAddU64x8;
-  table.SubU64x8 := @RISCVVSubU64x8;
-  table.AndU64x8 := @RISCVVAndU64x8;
-  table.OrU64x8 := @RISCVVOrU64x8;
-  table.XorU64x8 := @RISCVVXorU64x8;
-  table.NotU64x8 := @RISCVVNotU64x8;
-  table.ShiftLeftU64x8 := @RISCVVShiftLeftU64x8;
-  table.ShiftRightU64x8 := @RISCVVShiftRightU64x8;
-  table.CmpEqU64x8 := @RISCVVCmpEqU64x8;
-  table.CmpLtU64x8 := @RISCVVCmpLtU64x8;
-  table.CmpGtU64x8 := @RISCVVCmpGtU64x8;
-  table.CmpLeU64x8 := @RISCVVCmpLeU64x8;
-  table.CmpGeU64x8 := @RISCVVCmpGeU64x8;
-  table.CmpNeU64x8 := @RISCVVCmpNeU64x8;
-  {$ENDIF}
+  // Keep base scalar wiring for non-asm wide fallback-only helpers that
+  // otherwise degrade into dead RISCVV-specific scalar forwarders.
 
   // I32x4/I32x8/I32x16 Extract/Insert
   table.ExtractI32x4 := @RISCVVExtractI32x4;
+  {$IFDEF RISCVV_ASSEMBLY}
   table.InsertI32x4 := @RISCVVInsertI32x4;
+  {$ENDIF}
+  {$IFDEF RISCVV_ASSEMBLY}
   table.ExtractI32x8 := @RISCVVExtractI32x8;
+  {$ELSE}
+  table.ExtractI32x8 := @RISCVVExtractI32x8;
+  {$ENDIF}
+  {$IFDEF RISCVV_ASSEMBLY}
   table.InsertI32x8 := @RISCVVInsertI32x8;
+  {$ENDIF}
+  {$IFDEF RISCVV_ASSEMBLY}
   table.ExtractI32x16 := @RISCVVExtractI32x16;
+  {$ELSE}
+  table.ExtractI32x16 := @RISCVVExtractI32x16;
+  {$ENDIF}
+  {$IFDEF RISCVV_ASSEMBLY}
   table.InsertI32x16 := @RISCVVInsertI32x16;
+  {$ENDIF}
   table.ExtractI64x2 := @RISCVVExtractI64x2;
+  {$IFDEF RISCVV_ASSEMBLY}
   table.InsertI64x2 := @RISCVVInsertI64x2;
+  {$ENDIF}
 
   // Narrow Integer Types: I16x8
   table.AddI16x8 := @RISCVVAddI16x8;
@@ -629,6 +598,7 @@ begin
   table.MaxI8x16 := @RISCVVMaxI8x16;
 
   // Unsigned Integer Types: U32x4
+  {$IFDEF RISCVV_ASSEMBLY}
   table.AddU32x4 := @RISCVVAddU32x4;
   table.SubU32x4 := @RISCVVSubU32x4;
   table.MulU32x4 := @RISCVVMulU32x4;
@@ -636,16 +606,21 @@ begin
   table.OrU32x4 := @RISCVVOrU32x4;
   table.XorU32x4 := @RISCVVXorU32x4;
   table.NotU32x4 := @RISCVVNotU32x4;
+  {$ENDIF}
   table.AndNotU32x4 := @RISCVVAndNotU32x4;
+  {$IFDEF RISCVV_ASSEMBLY}
   table.ShiftLeftU32x4 := @RISCVVShiftLeftU32x4;
   table.ShiftRightU32x4 := @RISCVVShiftRightU32x4;
+  {$ENDIF}
   table.CmpEqU32x4 := @RISCVVCmpEqU32x4;
   table.CmpLtU32x4 := @RISCVVCmpLtU32x4;
   table.CmpLeU32x4 := @RISCVVCmpLeU32x4;
   table.CmpGtU32x4 := @RISCVVCmpGtU32x4;
   table.CmpGeU32x4 := @RISCVVCmpGeU32x4;
+  {$IFDEF RISCVV_ASSEMBLY}
   table.MinU32x4 := @RISCVVMinU32x4;
   table.MaxU32x4 := @RISCVVMaxU32x4;
+  {$ENDIF}
 
   // Unsigned Integer Types: U64x4
   table.AddU64x4 := @RISCVVAddU64x4;
@@ -664,6 +639,8 @@ begin
   table.CmpNeU64x4 := @RISCVVCmpNeU64x4;
 
   // ✅ Unsigned Integer Types: U32x8 (256-bit)
+  // Unsigned Task 3 key slots stay backend-owned here; the neighboring
+  // U32x16/U64x8 families intentionally fall through to base scalar instead.
   table.AddU32x8 := @RISCVVAddU32x8;
   table.SubU32x8 := @RISCVVSubU32x8;
   table.MulU32x8 := @RISCVVMulU32x8;
@@ -734,21 +711,8 @@ begin
   table.U16x8SatSub := @RISCVVSatSubU16x8;
 
   // === Facade Functions ===
-  table.MemEqual := @MemEqual_RISCVV;
-  table.MemFindByte := @MemFindByte_RISCVV;
-  table.MemDiffRange := @MemDiffRange_RISCVV;
-  table.MemCopy := @MemCopy_RISCVV;
-  table.MemSet := @MemSet_RISCVV;
-  table.MemReverse := @MemReverse_RISCVV;
-  table.SumBytes := @SumBytes_RISCVV;
-  table.MinMaxBytes := @MinMaxBytes_RISCVV;
-  table.CountByte := @CountByte_RISCVV;
-  table.Utf8Validate := @Utf8Validate_RISCVV;
-  table.AsciiIEqual := @AsciiIEqual_RISCVV;
-  table.ToLowerAscii := @ToLowerAscii_RISCVV;
-  table.ToUpperAscii := @ToUpperAscii_RISCVV;
-  table.BytesIndexOf := @BytesIndexOf_RISCVV;
-  table.BitsetPopCount := @BitsetPopCount_RISCVV;
+  // Keep scalar-pass-through facade helpers on the base scalar slots.
+  // Backend-local wrappers add no runtime value and hide the actual slot ownership.
 
   // Register the backend
   RegisterBackend(sbRISCVV, table);

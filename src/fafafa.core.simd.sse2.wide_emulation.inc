@@ -997,14 +997,38 @@ begin
   end;
 end;
 
-// Note: SSE2 has no direct SIMD multiply for 32-bit integers
-// We need to use SSE4.1's pmulld or simulate with pmuludq
-// For now, use scalar fallback
+// SSE2 has no direct 4-lane 32-bit multiply, but low 32-bit products can be
+// reconstructed with PMULUDQ on even lanes plus a shifted odd-lane pass.
+// Signed/unsigned low 32-bit results are identical modulo 2^32.
 function SSE2MulI32x4(const a, b: TVecI32x4): TVecI32x4;
-var i: Integer;
+var
+  pa, pb, pr: Pointer;
 begin
-  for i := 0 to 3 do
-    Result.i[i] := a.i[i] * b.i[i];
+  pa := @a;
+  pb := @b;
+  pr := @Result;
+  asm
+    mov    rax, pa
+    mov    rdx, pb
+    mov    rcx, pr
+
+    movdqu xmm0, [rax]
+    movdqu xmm1, [rdx]
+    movdqa xmm2, xmm0
+    movdqa xmm3, xmm1
+
+    pmuludq xmm0, xmm1
+
+    psrldq xmm2, 4
+    psrldq xmm3, 4
+    pmuludq xmm2, xmm3
+
+    pshufd xmm0, xmm0, $08
+    pshufd xmm2, xmm2, $08
+    punpckldq xmm0, xmm2
+
+    movdqu [rcx], xmm0
+  end;
 end;
 
 // ============================================================================
@@ -1716,8 +1740,8 @@ begin
   pa := @a;
   pb := @b;
   pr := @Result;
-  // ✅ SSE2 32位乘法模拟 (无 PMULLD)
-  // 使用 pmuludq + psrldq + pshufd + punpckldq 标准方法
+  // SSE2 reconstructs 4x32-bit low products with PMULUDQ on even lanes and a
+  // second shifted pass for odd lanes, then repacks the low dwords.
   asm
     mov    rax, pa
     mov    rdx, pb
@@ -1728,20 +1752,16 @@ begin
     movdqa xmm2, xmm0        // 备份 a
     movdqa xmm3, xmm1        // 备份 b
 
-    // 第1步: 计算 a0*b0, a2*b2
-    pmuludq xmm0, xmm1       // xmm0 = [a2*b2(64bit), a0*b0(64bit)]
+    pmuludq xmm0, xmm1
 
-    // 第2步: 计算 a1*b1, a3*b3 (右移4字节取奇数元素)
-    psrldq  xmm2, 4          // xmm2 = [0, a3, a2, a1]
-    psrldq  xmm3, 4          // xmm3 = [0, b3, b2, b1]
-    pmuludq xmm2, xmm3       // xmm2 = [a3*b3(64bit), a1*b1(64bit)]
+    psrldq  xmm2, 4
+    psrldq  xmm3, 4
+    pmuludq xmm2, xmm3
 
-    // 第3步: Shuffle 提取低32位乘积
-    pshufd xmm0, xmm0, $08   // xmm0 = [a0*b0_L, a0*b0_L, a2*b2_L, a0*b0_L]
-    pshufd xmm2, xmm2, $08   // xmm2 = [a1*b1_L, a1*b1_L, a3*b3_L, a1*b1_L]
+    pshufd xmm0, xmm0, $08
+    pshufd xmm2, xmm2, $08
 
-    // 第4步: Unpack 交织结果
-    punpckldq xmm0, xmm2     // xmm0 = [a1*b1_L, a0*b0_L, a3*b3_L, a2*b2_L]? 顺序检查!
+    punpckldq xmm0, xmm2
 
     movdqu [rcx], xmm0
   end;
@@ -4130,14 +4150,38 @@ begin
   end;
 end;
 
-// Note: SSE2 has no direct SIMD multiply for 32-bit integers
-// We need to use SSE4.1's pmulld or simulate with pmuludq
-// For now, use scalar fallback
+// SSE2 has no direct 4-lane 32-bit multiply, but low 32-bit products can be
+// reconstructed with PMULUDQ on even lanes plus a shifted odd-lane pass.
+// Signed/unsigned low 32-bit results are identical modulo 2^32.
 function SSE2MulI32x4(const a, b: TVecI32x4): TVecI32x4;
-var i: Integer;
+var
+  pa, pb, pr: Pointer;
 begin
-  for i := 0 to 3 do
-    Result.i[i] := a.i[i] * b.i[i];
+  pa := @a;
+  pb := @b;
+  pr := @Result;
+  asm
+    mov    rax, pa
+    mov    rdx, pb
+    mov    rcx, pr
+
+    movdqu xmm0, [rax]
+    movdqu xmm1, [rdx]
+    movdqa xmm2, xmm0
+    movdqa xmm3, xmm1
+
+    pmuludq xmm0, xmm1
+
+    psrldq xmm2, 4
+    psrldq xmm3, 4
+    pmuludq xmm2, xmm3
+
+    pshufd xmm0, xmm0, $08
+    pshufd xmm2, xmm2, $08
+    punpckldq xmm0, xmm2
+
+    movdqu [rcx], xmm0
+  end;
 end;
 
 // ============================================================================
@@ -4849,8 +4893,8 @@ begin
   pa := @a;
   pb := @b;
   pr := @Result;
-  // ✅ SSE2 32位乘法模拟 (无 PMULLD)
-  // 使用 pmuludq + psrldq + pshufd + punpckldq 标准方法
+  // SSE2 reconstructs 4x32-bit low products with PMULUDQ on even lanes and a
+  // second shifted pass for odd lanes, then repacks the low dwords.
   asm
     mov    rax, pa
     mov    rdx, pb
@@ -4861,20 +4905,16 @@ begin
     movdqa xmm2, xmm0        // 备份 a
     movdqa xmm3, xmm1        // 备份 b
 
-    // 第1步: 计算 a0*b0, a2*b2
-    pmuludq xmm0, xmm1       // xmm0 = [a2*b2(64bit), a0*b0(64bit)]
+    pmuludq xmm0, xmm1
 
-    // 第2步: 计算 a1*b1, a3*b3 (右移4字节取奇数元素)
-    psrldq  xmm2, 4          // xmm2 = [0, a3, a2, a1]
-    psrldq  xmm3, 4          // xmm3 = [0, b3, b2, b1]
-    pmuludq xmm2, xmm3       // xmm2 = [a3*b3(64bit), a1*b1(64bit)]
+    psrldq  xmm2, 4
+    psrldq  xmm3, 4
+    pmuludq xmm2, xmm3
 
-    // 第3步: Shuffle 提取低32位乘积
-    pshufd xmm0, xmm0, $08   // xmm0 = [a0*b0_L, a0*b0_L, a2*b2_L, a0*b0_L]
-    pshufd xmm2, xmm2, $08   // xmm2 = [a1*b1_L, a1*b1_L, a3*b3_L, a1*b1_L]
+    pshufd xmm0, xmm0, $08
+    pshufd xmm2, xmm2, $08
 
-    // 第4步: Unpack 交织结果
-    punpckldq xmm0, xmm2     // xmm0 = [a1*b1_L, a0*b0_L, a3*b3_L, a2*b2_L]? 顺序检查!
+    punpckldq xmm0, xmm2
 
     movdqu [rcx], xmm0
   end;
@@ -7671,4 +7711,3 @@ begin
 end;
 
 {$I fafafa.core.simd.sse2.wide_emulation.inc}
-
