@@ -1,11 +1,9 @@
 {
-  Authoritative mapping list for adapter-managed slots.
+  Generated from fafafa.core.simd.backend.adapter.map.csv.
+  Authoritative declarative mapping list for adapter-managed slots.
+  Edit the CSV spec and regenerate; do not hand-edit this file.
   Forward:  TSimdBackendOps -> TSimdDispatchTable (with Assigned guard).
   Backward: TSimdDispatchTable -> TSimdBackendOps.
-  Edit this file only; do not duplicate adapter mappings in .pas bodies.
-  The adapter sync checker treats this file as the fact source for adapter-managed
-  slot wiring and verifies its consistency against backend.iface, dispatch slots,
-  and FillBaseDispatchTable coverage.
 }
 
 {$IFDEF FAFAFA_SIMD_BACKEND_ADAPTER_FORWARD}

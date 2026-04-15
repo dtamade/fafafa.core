@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
-"""Check sync between TSimdBackendOps declarations and backend.adapter mappings."""
+"""Check sync between backend.iface, adapter CSV spec, and generated adapter mappings."""
 
 from __future__ import annotations
 
 import argparse
+import difflib
 import json
 import re
 import sys
 from pathlib import Path
+
+from generate_backend_adapter_map import load_mapping_rows, mapping_rows_to_dict, normalize_text, render_include_text
 
 
 RECORD_RE = re.compile(r"(?ms)^\s*(T[A-Za-z0-9_]+)\s*=\s*record\b(.*?)^\s*end;\s*$")
@@ -235,20 +238,58 @@ def extract_fill_base_section(a_dispatch_text: str) -> str:
     return l_rest[: len("procedure FillBaseDispatchTable") + l_next_proc.start()]
 
 
+def compare_mapping_against_spec(a_spec_map: dict[str, str], a_actual_map: dict[str, str]) -> list[dict[str, str]]:
+    l_issues: list[dict[str, str]] = []
+    for l_path in sorted(set(a_spec_map) | set(a_actual_map)):
+        l_spec_slot = a_spec_map.get(l_path, "")
+        l_actual_slot = a_actual_map.get(l_path, "")
+        if l_spec_slot != l_actual_slot:
+            l_issues.append(
+                {
+                    "ops_path": l_path,
+                    "spec_slot": l_spec_slot,
+                    "actual_slot": l_actual_slot,
+                }
+            )
+    return l_issues
+
+
+def build_text_diff(a_expected_text: str, a_actual_text: str, a_max_lines: int = 40) -> list[str]:
+    l_diff = list(
+        difflib.unified_diff(
+            normalize_text(a_expected_text).splitlines(),
+            normalize_text(a_actual_text).splitlines(),
+            fromfile="spec-generated",
+            tofile="checked-in",
+            lineterm="",
+        )
+    )
+    if len(l_diff) <= a_max_lines:
+        return l_diff
+    return l_diff[:a_max_lines] + [f"... ({len(l_diff) - a_max_lines} more diff lines)"]
+
+
 def build_report(a_repo_root: Path) -> dict:
     l_iface_file = a_repo_root / "src" / "fafafa.core.simd.backend.iface.pas"
     l_adapter_file = a_repo_root / "src" / "fafafa.core.simd.backend.adapter.pas"
+    l_adapter_map_csv_file = a_repo_root / "src" / "fafafa.core.simd.backend.adapter.map.csv"
+    l_adapter_map_inc_file = a_repo_root / "src" / "fafafa.core.simd.backend.adapter.map.inc"
     l_dispatch_file = a_repo_root / "src" / "fafafa.core.simd.dispatch.pas"
 
     if not l_iface_file.is_file():
         raise RuntimeError(f"missing file: {l_iface_file}")
     if not l_adapter_file.is_file():
         raise RuntimeError(f"missing file: {l_adapter_file}")
+    if not l_adapter_map_csv_file.is_file():
+        raise RuntimeError(f"missing file: {l_adapter_map_csv_file}")
+    if not l_adapter_map_inc_file.is_file():
+        raise RuntimeError(f"missing file: {l_adapter_map_inc_file}")
     if not l_dispatch_file.is_file():
         raise RuntimeError(f"missing file: {l_dispatch_file}")
 
     l_iface_text = l_iface_file.read_text(encoding="utf-8", errors="ignore")
     l_adapter_text = l_adapter_file.read_text(encoding="utf-8", errors="ignore")
+    l_adapter_map_inc_text = l_adapter_map_inc_file.read_text(encoding="utf-8", errors="ignore")
     l_dispatch_text = read_text_with_local_includes(l_dispatch_file)
     l_adapter_impl = l_adapter_text.split("implementation", 1)
     if len(l_adapter_impl) != 2:
@@ -257,6 +298,16 @@ def build_report(a_repo_root: Path) -> dict:
 
     l_expected_paths = extract_expected_ops_paths(l_iface_text)
     l_expected_set = set(l_expected_paths)
+    l_spec_rows = load_mapping_rows(l_adapter_map_csv_file)
+    l_spec_map = mapping_rows_to_dict(l_spec_rows)
+    l_spec_paths = sorted(l_spec_map.keys())
+    l_spec_set = set(l_spec_paths)
+    l_missing_spec_paths = sorted(l_expected_set - l_spec_set)
+    l_extra_spec_paths = sorted(l_spec_set - l_expected_set)
+    l_generated_include_text = render_include_text(l_spec_rows)
+    l_generated_include_drift = []
+    if normalize_text(l_adapter_map_inc_text) != normalize_text(l_generated_include_text):
+        l_generated_include_drift = build_text_diff(l_generated_include_text, l_adapter_map_inc_text)
 
     l_forward_section_raw = extract_section(
         l_adapter_impl_text,
@@ -294,6 +345,8 @@ def build_report(a_repo_root: Path) -> dict:
 
     l_forward_set = set(l_forward_map.keys())
     l_backward_set = set(l_backward_map.keys())
+    l_spec_forward_drift = compare_mapping_against_spec(l_spec_map, l_forward_map)
+    l_spec_backward_drift = compare_mapping_against_spec(l_spec_map, l_backward_map)
 
     l_missing_forward = sorted(l_expected_set - l_forward_set)
     l_missing_backward = sorted(l_expected_set - l_backward_set)
@@ -349,8 +402,15 @@ def build_report(a_repo_root: Path) -> dict:
     return {
         "expected_ops_paths_count": len(l_expected_paths),
         "expected_ops_paths": l_expected_paths,
+        "spec_paths_count": len(l_spec_paths),
+        "spec_paths": l_spec_paths,
+        "missing_spec_paths": l_missing_spec_paths,
+        "extra_spec_paths": l_extra_spec_paths,
+        "generated_include_drift": l_generated_include_drift,
         "forward_mapped_count": len(l_forward_map),
         "backward_mapped_count": len(l_backward_map),
+        "spec_forward_drift": l_spec_forward_drift,
+        "spec_backward_drift": l_spec_backward_drift,
         "missing_forward": l_missing_forward,
         "missing_backward": l_missing_backward,
         "extra_forward": l_extra_forward,
@@ -375,6 +435,11 @@ def build_report(a_repo_root: Path) -> dict:
 def has_failures(a_report: dict) -> bool:
     return any(
         [
+            len(a_report["missing_spec_paths"]) > 0,
+            len(a_report["extra_spec_paths"]) > 0,
+            len(a_report["generated_include_drift"]) > 0,
+            len(a_report["spec_forward_drift"]) > 0,
+            len(a_report["spec_backward_drift"]) > 0,
             len(a_report["missing_forward"]) > 0,
             len(a_report["missing_backward"]) > 0,
             len(a_report["extra_forward"]) > 0,
@@ -410,8 +475,9 @@ def main() -> int:
     if l_args.as_json:
         print(json.dumps(l_report, ensure_ascii=False, indent=2))
     else:
-        print("[ADAPTER-SYNC] backend.iface <-> backend.adapter")
+        print("[ADAPTER-SYNC] backend.iface <-> backend.adapter.csv/.inc")
         print(f"  - expected_ops_paths: {l_report['expected_ops_paths_count']}")
+        print(f"  - spec_paths: {l_report['spec_paths_count']}")
         print(f"  - mapped_forward: {l_report['forward_mapped_count']}")
         print(f"  - mapped_backward: {l_report['backward_mapped_count']}")
         print(f"  - dispatch_slots_total: {l_report['dispatch_slots_total']}")
@@ -419,6 +485,11 @@ def main() -> int:
         print(f"  - fill_base_assigned_slots: {l_report['fill_base_assigned_slots_count']}")
         print(
             "  - issues: "
+            f"missing_spec={len(l_report['missing_spec_paths'])}, "
+            f"extra_spec={len(l_report['extra_spec_paths'])}, "
+            f"generated_include_drift={int(bool(l_report['generated_include_drift']))}, "
+            f"spec_forward_drift={len(l_report['spec_forward_drift'])}, "
+            f"spec_backward_drift={len(l_report['spec_backward_drift'])}, "
             f"missing_forward={len(l_report['missing_forward'])}, "
             f"missing_backward={len(l_report['missing_backward'])}, "
             f"extra_forward={len(l_report['extra_forward'])}, "
@@ -431,6 +502,27 @@ def main() -> int:
             f"missing_fill_base_assignments={len(l_report['missing_fill_base_assignments'])}"
         )
 
+        if l_report["missing_spec_paths"]:
+            for l_item in l_report["missing_spec_paths"][:20]:
+                print(f"      missing-spec: {l_item}")
+        if l_report["extra_spec_paths"]:
+            for l_item in l_report["extra_spec_paths"][:20]:
+                print(f"      extra-spec: {l_item}")
+        if l_report["generated_include_drift"]:
+            for l_item in l_report["generated_include_drift"][:20]:
+                print(f"      generated-include-drift: {l_item}")
+        if l_report["spec_forward_drift"]:
+            for l_item in l_report["spec_forward_drift"][:20]:
+                print(
+                    "      spec-forward-drift: "
+                    f"{l_item['ops_path']} spec={l_item['spec_slot']} actual={l_item['actual_slot']}"
+                )
+        if l_report["spec_backward_drift"]:
+            for l_item in l_report["spec_backward_drift"][:20]:
+                print(
+                    "      spec-backward-drift: "
+                    f"{l_item['ops_path']} spec={l_item['spec_slot']} actual={l_item['actual_slot']}"
+                )
         if l_report["missing_forward"]:
             for l_item in l_report["missing_forward"][:20]:
                 print(f"      missing-forward: {l_item}")
@@ -459,6 +551,12 @@ def main() -> int:
         print(
             "ADAPTER_SYNC_SUMMARY "
             f"expected={l_report['expected_ops_paths_count']} "
+            f"spec={l_report['spec_paths_count']} "
+            f"missing_spec={len(l_report['missing_spec_paths'])} "
+            f"extra_spec={len(l_report['extra_spec_paths'])} "
+            f"generated_include_drift={int(bool(l_report['generated_include_drift']))} "
+            f"spec_forward_drift={len(l_report['spec_forward_drift'])} "
+            f"spec_backward_drift={len(l_report['spec_backward_drift'])} "
             f"forward={l_report['forward_mapped_count']} "
             f"backward={l_report['backward_mapped_count']} "
             f"missing_forward={len(l_report['missing_forward'])} "

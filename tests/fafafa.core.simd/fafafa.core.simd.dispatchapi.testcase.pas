@@ -141,6 +141,7 @@ type
     procedure Test_RISCVV_FacadeDotF64_NoAsmSource_Does_Not_ScalarForward;
     procedure Test_RISCVV_FacadeSlots_Reuse_BaseScalar_When_Wrappers_Are_ScalarPassThrough;
     procedure Test_RISCVV_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
+    procedure Test_RISCVV_KeyOwnedWideSlots_Stay_BackendOwned;
     procedure Test_RISCVV_RegisterSource_Deduplicates_WideRoundingAssignments_And_Keeps_F64x2_Exception;
     procedure Test_AllRegisteredBackends_Wide512IntegerSlots_Assigned;
     procedure Test_AVX512_U32x16_U64x8_MappingAndParity;
@@ -6780,6 +6781,71 @@ begin
   AssertSlotReusesScalar('SelectF64x4', Pointer(LScalarTable.SelectF64x4), Pointer(LRISCVVTable.SelectF64x4));
   {$ENDIF}
   AssertSlotKeepsBackendOwnership('AndNotU8x16', Pointer(LScalarTable.AndNotU8x16), Pointer(LRISCVVTable.AndNotU8x16));
+end;
+
+procedure TTestCase_DispatchAPI.Test_RISCVV_KeyOwnedWideSlots_Stay_BackendOwned;
+var
+  LScalarTable: TSimdDispatchTable;
+  LRISCVVTable: TSimdDispatchTable;
+  LSourceLines: TStringList;
+  LRegisterSourcePath: string;
+  LRegisterSource: string;
+
+  procedure AssertRegisterOwnsBackendSlot(const aLabel, aSnippet: string);
+  begin
+    AssertTrue('RegisterRISCVVBackend should keep a dedicated backend-owned assignment for ' + aLabel,
+      Pos(LowerCase(aSnippet), LRegisterSource) > 0);
+  end;
+
+  procedure AssertSlotKeepsBackendOwnership(const aLabel: string; const aScalarSlot, aBackendSlot: Pointer);
+  begin
+    AssertTrue('RISCVV ' + aLabel + ' should stay assigned in the backend dispatch table',
+      aBackendSlot <> nil);
+    AssertTrue('RISCVV ' + aLabel + ' should stay backend-owned instead of reusing the scalar slot',
+      PtrUInt(aScalarSlot) <> PtrUInt(aBackendSlot));
+  end;
+begin
+  LSourceLines := TStringList.Create;
+  try
+    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.riscvv.register.inc');
+    AssertTrue('RISCVV register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
+      FileExists(LRegisterSourcePath));
+    LSourceLines.LoadFromFile(LRegisterSourcePath);
+    LRegisterSource := LowerCase(LSourceLines.Text);
+  finally
+    LSourceLines.Free;
+  end;
+
+  AssertRegisterOwnsBackendSlot('AndI64x8', 'table.AndI64x8 := @RISCVVAndI64x8;');
+  AssertRegisterOwnsBackendSlot('NotI64x8', 'table.NotI64x8 := @RISCVVNotI64x8;');
+  AssertRegisterOwnsBackendSlot('ShiftLeftI32x16', 'table.ShiftLeftI32x16 := @RISCVVShiftLeftI32x16;');
+  AssertRegisterOwnsBackendSlot('ShiftRightArithI64x4', 'table.ShiftRightArithI64x4 := @RISCVVShiftRightArithI64x4;');
+  AssertRegisterOwnsBackendSlot('SubI32x8', 'table.SubI32x8 := @RISCVVSubI32x8;');
+  AssertRegisterOwnsBackendSlot('MinU32x8', 'table.MinU32x8 := @RISCVVMinU32x8;');
+  AssertRegisterOwnsBackendSlot('AddI64x4', 'table.AddI64x4 := @RISCVVAddI64x4;');
+  AssertRegisterOwnsBackendSlot('MulI32x16', 'table.MulI32x16 := @RISCVVMulI32x16;');
+  AssertRegisterOwnsBackendSlot('SubI64x8', 'table.SubI64x8 := @RISCVVSubI64x8;');
+
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+  AssertTrue('RISCVV opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
+    Exit;
+  {$ENDIF}
+
+  AssertSlotKeepsBackendOwnership('AndI64x8', Pointer(LScalarTable.AndI64x8), Pointer(LRISCVVTable.AndI64x8));
+  AssertSlotKeepsBackendOwnership('NotI64x8', Pointer(LScalarTable.NotI64x8), Pointer(LRISCVVTable.NotI64x8));
+  AssertSlotKeepsBackendOwnership('ShiftLeftI32x16', Pointer(LScalarTable.ShiftLeftI32x16), Pointer(LRISCVVTable.ShiftLeftI32x16));
+  AssertSlotKeepsBackendOwnership('ShiftRightArithI64x4', Pointer(LScalarTable.ShiftRightArithI64x4), Pointer(LRISCVVTable.ShiftRightArithI64x4));
+  AssertSlotKeepsBackendOwnership('SubI32x8', Pointer(LScalarTable.SubI32x8), Pointer(LRISCVVTable.SubI32x8));
+  AssertSlotKeepsBackendOwnership('MinU32x8', Pointer(LScalarTable.MinU32x8), Pointer(LRISCVVTable.MinU32x8));
+  AssertSlotKeepsBackendOwnership('AddI64x4', Pointer(LScalarTable.AddI64x4), Pointer(LRISCVVTable.AddI64x4));
+  AssertSlotKeepsBackendOwnership('MulI32x16', Pointer(LScalarTable.MulI32x16), Pointer(LRISCVVTable.MulI32x16));
+  AssertSlotKeepsBackendOwnership('SubI64x8', Pointer(LScalarTable.SubI64x8), Pointer(LRISCVVTable.SubI64x8));
 end;
 
 procedure TTestCase_DispatchAPI.Test_RISCVV_RegisterSource_Deduplicates_WideRoundingAssignments_And_Keeps_F64x2_Exception;

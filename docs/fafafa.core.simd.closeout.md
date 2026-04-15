@@ -33,8 +33,9 @@
    - 明确 experimental intrinsics 默认不属于 stable surface
 
 5. **adapter wiring 校验增强**
-   - `backend.adapter.map.inc` 现在被明确为 adapter-managed slots 的事实真相源
+   - `backend.adapter.map.csv` 现在是 adapter-managed slots 的声明式事实真相源，`backend.adapter.map.inc` 由它生成
    - `adapter-sync` 除了校验 `backend.iface <-> backend.adapter`，还会校验：
+     - CSV spec 与 checked-in generated include 是否漂移
      - 映射里引用的 slot 是否真实存在于 `TSimdDispatchTable`
      - 这些 slot 是否被 `FillBaseDispatchTable` 覆盖
 
@@ -97,7 +98,7 @@
 - `NONX86_KEY_SLOT_AUDIT_SUMMARY`：key wide slot 已按 `backend_owned` / `reuse_base_scalar` 两类契约审计，避免把“故意继承 base scalar”的实现误报成缺口，也避免 backend-owned 槽位悄悄退回 wrapper/scalar
 - `WIRING_SYNC_SUMMARY`：non-x86 wiring slot 名单已收敛到 `AssertNonX86DispatchTableWiringGroupsAssigned`，legacy/grouped 两个测试入口不再各自维护一份 60-slot 名单
 - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY`：`neon` / `riscvv` strict 模式通过
-- `RISCVV facade/register hygiene`：`riscvv.facade.inc` 现在明确把 scalar-pass-through facade helper 留在 base scalar slot，不再伪造 backend-local 包装层；其中 `RISCVVShiftLeftU32x8` / `RISCVVShiftRightU32x8` 现在也显式回到 `ScalarShiftLeftU32x8` / `ScalarShiftRightU32x8`，作为这一轮 `facade hygiene` 的 source truth 一部分固定下来。`riscvv.register.inc` 里的 `ExtractI64x4` / `ExtractI32x8` / `ExtractI32x16` 继续保留显式 asm-gated 结构，因为 `register-truthfulness` 把这种分支形状也视为 ownership 真相的一部分。当前 fresh 结果是 `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=riscvv ... miswired=0 strict=1`，以及 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=riscvv slots=10 issues=0 status=ok`
+- `RISCVV facade/register hygiene`：`riscvv.facade.inc` 现在明确把 scalar-pass-through facade helper 留在 base scalar slot，不再伪造 backend-local 包装层；其中 `RISCVVShiftLeftU32x8` / `RISCVVShiftRightU32x8` 现在也显式回到 `ScalarShiftLeftU32x8` / `ScalarShiftRightU32x8`，作为这一轮 `facade hygiene` 的 source truth 一部分固定下来。与此同时，`DispatchAPI` 新增 `Test_RISCVV_KeyOwnedWideSlots_Stay_BackendOwned`，把 `AndI64x8` / `NotI64x8` / `ShiftLeftI32x16` / `ShiftRightArithI64x4` / `SubI32x8` / `MinU32x8` / `AddI64x4` / `MulI32x16` / `SubI64x8` 从“无 scalar 例外断言”升级成 dedicated source truth，`check_nonx86_key_slot_audit.py` 也会对这些槽位 fail-close，防止下轮再退回“靠默认推断 backend_owned”。`riscvv.register.inc` 里的 `ExtractI64x4` / `ExtractI32x8` / `ExtractI32x16` 继续保留显式 asm-gated 结构，因为 `register-truthfulness` 把这种分支形状也视为 ownership 真相的一部分。当前 fresh 结果是 `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=riscvv ... miswired=0 strict=1`，以及 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=riscvv slots=10 issues=0 status=ok`
 - `RISCVV_ABI_SHAPE_SUMMARY`：宽向量 direct-return asm 已统一回到 hidden-result-pointer ABI 形状，`a0` 只保留 Result 指针语义
 - `NONX86_NATIVE_EVIDENCE_SUMMARY`：native non-x86 evidence verifier 已有正式入口，可在 `x86_64` 上对归档 evidence 做 fail-close 校验
 - `docs/fafafa.core.simd.implementation-matrix.md`：当前 implementation 主线的 working ledger，固定记录 backend/slot/契约/source truth/runtime evidence/next action，避免下轮再回到“看起来好像没问题”的散点审查
@@ -225,6 +226,14 @@ bash tests/fafafa.core.simd/BuildOrTest.sh experimental-intrinsics
 ```
 
 #### 发布前 / closeout
+
+`closeout-release` 现在是完整发布收口的官方主入口：
+
+```bash
+FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152
+```
+
+它会按 `impl-smoke-x86 -> closeout-host-local -> win-evidence-preflight -> win-evidence-via-gh -> freeze-status` 的固定顺序收口；如果你只是做阶段性实现收口、手工 Windows 诊断，或只想单独复验某一段证据链，再退回下面这些拆分命令。
 
 如果目标是当前 Linux/macOS worktree 的 host-local strict closeout，优先直接跑：
 
@@ -432,7 +441,7 @@ tests\fafafa.core.simd\buildOrTest.bat gate-strict
 
 - 把 `gate` 当成发布放行的唯一依据
 - 把 stable façade 误读成“所有 backend 都同等稳定”
-- 在 `backend.adapter.map.inc` 之外重复维护 adapter 映射
+- 在 `backend.adapter.map.csv` / generated include 之外重复维护 adapter 映射
 - 改了 dispatch slot，却忘了看 adapter-sync / base-fill 覆盖
 - 在 `SSE2` 上继续激进物理拆分
 

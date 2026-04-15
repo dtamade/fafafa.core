@@ -31,7 +31,10 @@
 0) 先输出“复制即跑”三命令（推荐）
 - `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-3cmd SIMD-20260210-150`
 
+`closeout-release` 是当前推荐的单一 release 收口入口。
+
 0.1) 或直接使用 GH 单命令闭环（推荐）
+- `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-20260320-152`
 - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-20260320-152`
 
 1) 一键生成并校验证据包（推荐）

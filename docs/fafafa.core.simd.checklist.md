@@ -65,6 +65,17 @@ bash tests/fafafa.core.simd/BuildOrTest.sh publicabi-signature
 
 ### 4. 准备 closeout / release 再跑完整门禁
 
+`closeout-release` 是完整 release 收口的唯一官方入口：
+
+```bash
+FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152
+```
+
+内部固定顺序是 `impl-smoke-x86 -> closeout-host-local -> win-evidence-preflight -> win-evidence-via-gh -> freeze-status`。
+它会先把当前 x86 bounded frontier 和 host-local non-x86/QEMU 证明跑到位，再进入 Windows evidence GH 闭环，最后回到 canonical `freeze-status` 做最终确认。
+
+如果你只想先看完整 release 门禁轮廓，而不是直接一波收口，也可以单独跑：
+
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
 ```
