@@ -14,8 +14,8 @@ L0 相关文档从现在起按固定分工维护：
    说明 L0 接下来该按什么原则继续推进。
 4. `docs/audits/2026-04-11-l0-current-state-audit.md`
    说明当前已验证的执行状态。
-5. `docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md`
-   只保留当前这一轮 post-merge stabilization 的执行语境。
+5. `docs/plans/2026-04-16-l0-mainline-continuation-plan.md`
+   只保留当前这一轮 continuation / maintenance 的执行语境。
 6. `docs/legacy/l0/`
    只保留已经退出 current-entry 的历史候选与 merge-prep closeout。
 

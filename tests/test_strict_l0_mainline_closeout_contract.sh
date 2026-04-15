@@ -23,5 +23,9 @@ printf '%s\n' "${OUTPUT}" | rg -F "bash tests/run_windows_strict_l0_native_evide
   || fail "mainline closeout did not print the Windows native evidence helper command"
 printf '%s\n' "${OUTPUT}" | rg -F "bash tests/update_strict_l0_current_state_docs.sh" >/dev/null \
   || fail "mainline closeout did not print the docs backfill command"
+printf '%s\n' "${OUTPUT}" | rg -F -- "--origin-main-sha <origin-main-sha>" >/dev/null \
+  || fail "mainline closeout did not print the origin/main docs backfill placeholder"
+printf '%s\n' "${OUTPUT}" | rg -F -- "--worktree-sha <worktree-sha>" >/dev/null \
+  || fail "mainline closeout did not print the worktree head docs backfill placeholder"
 
 echo "[PASS] strict L0 mainline closeout contract verified"

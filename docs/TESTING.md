@@ -112,10 +112,10 @@ bash tests/run_strict_l0_mainline_closeout.sh --apply-docs
 如果你已经手头有 run id，只需要单独回填文档，也可以直接执行：
 
 ```bash
-bash tests/update_strict_l0_current_state_docs.sh --apply --main-sha <main-sha> --worktree-sha <worktree-sha> --linux-run-id <linux-run-id> --linux-run-sha <linux-run-sha> --windows-run-id <windows-run-id> --windows-run-sha <windows-run-sha> --windows-local-batch-id <batch-id>
+bash tests/update_strict_l0_current_state_docs.sh --apply --main-sha <main-sha> --origin-main-sha <origin-main-sha> --worktree-sha <worktree-sha> --linux-run-id <linux-run-id> --linux-run-sha <linux-run-sha> --windows-run-id <windows-run-id> --windows-run-sha <windows-run-sha> --windows-local-batch-id <batch-id>
 ```
 
-如果当前唯一 L0 worktree 的 `HEAD` 已经推进到 `origin/main` 之外，不要省略 `--worktree-sha`；current-state 审计现在要求显式区分 `latest merged-main exact evidence head`、`origin/main` 和当前 worktree `HEAD`。
+如果当前本地 `main` 或当前唯一 L0 worktree 的 `HEAD` 已经推进到 `origin/main` 之外，不要省略 `--origin-main-sha` 和 `--worktree-sha`；current-state 审计现在要求显式区分 `latest merged-main exact evidence head`、本地 `main`、`origin/main` 和当前 worktree `HEAD`。
 
 如果你当前关心的不是 CI/evidence，而是“这 4 个残留历史 L0 refs 现在能不能删”，不要手工猜，先跑：
 

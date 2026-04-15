@@ -7,6 +7,7 @@ TARGET_ROOT="${REPO_ROOT_DEFAULT}"
 APPLY_MODE=0
 
 MAIN_SHA=""
+ORIGIN_MAIN_SHA=""
 WORKTREE_SHA=""
 LINUX_RUN_ID=""
 LINUX_RUN_SHA=""
@@ -21,7 +22,8 @@ Usage: $0 [options]
 Options:
   --apply                        Write current-state docs in place
   --target-root <path>           Target repo/doc root (default: current repo)
-  --main-sha <sha>               Current main SHA to record
+  --main-sha <sha>               Current local main SHA to record
+  --origin-main-sha <sha>        Current origin/main SHA to record (default: same as --main-sha)
   --worktree-sha <sha>           Current L0 worktree HEAD SHA (default: same as --main-sha)
   --linux-run-id <id>            Linux maintenance run id
   --linux-run-sha <sha>          Linux maintenance head SHA
@@ -47,6 +49,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --main-sha)
       MAIN_SHA="$2"
+      shift 2
+      ;;
+    --origin-main-sha)
+      ORIGIN_MAIN_SHA="$2"
       shift 2
       ;;
     --worktree-sha)
@@ -91,6 +97,7 @@ fail() {
 [[ -n "${WINDOWS_RUN_ID}" ]] || fail "missing --windows-run-id"
 [[ -n "${WINDOWS_RUN_SHA}" ]] || fail "missing --windows-run-sha"
 [[ -n "${WINDOWS_LOCAL_BATCH_ID}" ]] || fail "missing --windows-local-batch-id"
+[[ -n "${ORIGIN_MAIN_SHA}" ]] || ORIGIN_MAIN_SHA="${MAIN_SHA}"
 [[ -n "${WORKTREE_SHA}" ]] || WORKTREE_SHA="${MAIN_SHA}"
 
 AUDIT_FILE="${TARGET_ROOT}/docs/audits/2026-04-11-l0-current-state-audit.md"
@@ -102,9 +109,15 @@ if [[ "${WINDOWS_RUN_SHA}" == "${MAIN_SHA}" ]]; then
   printf -v WINDOWS_POSTURE_LINE \
     -- '- 当前最新的 exact Windows native evidence 已直接对当前 `main@%s` 收证。' \
     "${MAIN_SHA}"
+elif [[ "${ORIGIN_MAIN_SHA}" != "${MAIN_SHA}" ]]; then
+  printf -v WINDOWS_POSTURE_LINE \
+    -- '- 当前本地 `main` 已推进到 `%s`；当前 `origin/main` 仍在 `%s`；最新 exact Windows native evidence 仍锚定 `main@%s`。只有在确认 current `main` 相对该证据头没有新增 strict L0 代码或测试入口变化时，才应继续把差异理解为 docs / control-plane-only 增量。' \
+    "${MAIN_SHA}" \
+    "${ORIGIN_MAIN_SHA}" \
+    "${WINDOWS_RUN_SHA}"
 else
   printf -v WINDOWS_POSTURE_LINE \
-    -- '- 当前 `origin/main` 已推进到 `%s`；最新 exact Windows native evidence 仍锚定 `main@%s`，两者之间的差异应继续保持为 docs / control-plane-only 增量。' \
+    -- '- 当前 `main` 已推进到 `%s`；最新 exact Windows native evidence 仍锚定 `main@%s`，两者之间的差异应继续保持为 docs / control-plane-only 增量。' \
     "${MAIN_SHA}" \
     "${WINDOWS_RUN_SHA}"
 fi
@@ -124,6 +137,7 @@ AUDIT_FILE_ENV="${AUDIT_FILE}" \
 LEGACY_FILE_ENV="${LEGACY_FILE}" \
 WORKER_FILE_ENV="${WORKER_FILE}" \
 MAIN_SHA_ENV="${MAIN_SHA}" \
+ORIGIN_MAIN_SHA_ENV="${ORIGIN_MAIN_SHA}" \
 WORKTREE_SHA_ENV="${WORKTREE_SHA}" \
 LINUX_RUN_ID_ENV="${LINUX_RUN_ID}" \
 LINUX_RUN_SHA_ENV="${LINUX_RUN_SHA}" \
@@ -141,6 +155,7 @@ legacy_file = Path(os.environ["LEGACY_FILE_ENV"])
 worker_file = Path(os.environ["WORKER_FILE_ENV"])
 
 main_sha = os.environ["MAIN_SHA_ENV"]
+origin_main_sha = os.environ["ORIGIN_MAIN_SHA_ENV"]
 worktree_sha = os.environ["WORKTREE_SHA_ENV"]
 linux_run_id = os.environ["LINUX_RUN_ID_ENV"]
 linux_run_sha = os.environ["LINUX_RUN_SHA_ENV"]
@@ -149,23 +164,35 @@ windows_run_sha = os.environ["WINDOWS_RUN_SHA_ENV"]
 windows_snapshot_path = os.environ["WINDOWS_SNAPSHOT_PATH_ENV"]
 windows_posture_line = os.environ["WINDOWS_POSTURE_LINE_ENV"]
 
+local_main_head_line = f"- 当前本地 `main` head 是 `{main_sha}`。"
+origin_main_head_line = f"- 当前 `origin/main` head 是 `{origin_main_sha}`。"
+
 if worktree_sha == main_sha:
-    main_head_line = f"- 当前 `origin/main` 与唯一 L0 worktree 当前都在 `{main_sha}`。"
-    worktree_head_line = "- 当前唯一 L0 branch 仍是 `l0-mainline`，它现在只是一个跟随 `origin/main` 的维护分支，不再承载未合并增量。"
-    maintenance_worktree_line = "- 当前唯一 L0 worktree 应继续保持在 `l0-mainline -> origin/main`。"
-    worker_head_focus_line = (
-        f"- 保持 merged-main current-state 文档显式写清：latest exact Windows native evidence 仍锚定 `main@{windows_run_sha}`；当前 `origin/main` / worktree head 仍记录为 `{main_sha}`。"
-    )
+    if origin_main_sha == main_sha:
+        worktree_head_line = "- 当前唯一 L0 branch 仍是 `l0-mainline`，它当前与 `main` / `origin/main` 同步，不再承载未合并增量。"
+        maintenance_worktree_line = "- 当前唯一 L0 worktree 应继续保持在 `l0-mainline -> main / origin/main`。"
+        worker_head_focus_line = (
+            f"- 保持 merged-main current-state 文档显式写清：latest exact Windows native evidence 仍锚定 `main@{windows_run_sha}`；当前本地 `main`、`origin/main` 与 worktree head 仍共同记录为 `{main_sha}`。"
+        )
+    else:
+        worktree_head_line = (
+            f"- 当前唯一 L0 branch 仍是 `l0-mainline`；当前 worktree head 与本地 `main@{main_sha}` 一致，它现在是一个跟随本地 merged-main 的维护分支。"
+        )
+        maintenance_worktree_line = (
+            f"- 当前唯一 L0 worktree 仍固定为 `l0-mainline`；当前 head 与本地 `main@{main_sha}` 一致，而 `origin/main` 仍停在 `{origin_main_sha}`。不要把这条维护分支误写成继续单纯跟随远端。"
+        )
+        worker_head_focus_line = (
+            f"- 保持 merged-main current-state 文档显式写清：latest exact Windows native evidence 仍锚定 `main@{windows_run_sha}`；并把当前本地 `main@{main_sha}`、`origin/main@{origin_main_sha}` 与当前 worktree head `{worktree_sha}` 明确区分，避免把 docs / control-plane-only mainline closeout 混写成 origin/main 已同步。"
+        )
 else:
-    main_head_line = f"- 当前 `origin/main` head 是 `{main_sha}`。"
     worktree_head_line = (
-        f"- 当前唯一 L0 worktree `l0-mainline` 目前位于 `{worktree_sha}`；相对 `origin/main@{main_sha}` 仍承载待合并的本地 L0 增量。"
+        f"- 当前唯一 L0 worktree `l0-mainline` 目前位于 `{worktree_sha}`；相对本地 `main@{main_sha}` 仍承载待整理的本地 L0 增量。"
     )
     maintenance_worktree_line = (
-        f"- 当前唯一 L0 worktree 仍固定为 `l0-mainline`；当前 head=`{worktree_sha}`，base=`origin/main@{main_sha}`。merge 前不要把这条本地 worktree 的状态误写成已经进入 `main`。"
+        f"- 当前唯一 L0 worktree 仍固定为 `l0-mainline`；当前 head=`{worktree_sha}`，本地 `main`=`{main_sha}`，`origin/main`=`{origin_main_sha}`。merge 前不要把这条本地 worktree 的状态误写成已经进入 `origin/main`。"
     )
     worker_head_focus_line = (
-        f"- 保持 merged-main current-state 文档显式写清：latest exact Windows native evidence 仍锚定 `main@{windows_run_sha}`；并把当前 `origin/main@{main_sha}` 与当前 worktree head `{worktree_sha}` 明确区分，避免把未合并 L0 增量误写成已经进 main。"
+        f"- 保持 merged-main current-state 文档显式写清：latest exact Windows native evidence 仍锚定 `main@{windows_run_sha}`；并把当前本地 `main@{main_sha}`、`origin/main@{origin_main_sha}` 与当前 worktree head `{worktree_sha}` 明确区分，避免把未合并 L0 增量误写成已经进 main。"
     )
 
 audit_text = f"""# 2026-04-11 L0 Current State Audit
@@ -177,7 +204,8 @@ audit_text = f"""# 2026-04-11 L0 Current State Audit
 - 当前 strict non-SIMD L0 的权威边界仍以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
 - 当前 strict non-SIMD L0 的稳定路线图仍固定为 `docs/fafafa.core.l0.roadmap.md`。
 - 当前这份 current-state audit 固定记录的 latest merged-main exact evidence head 是 `{windows_run_sha}`。
-{main_head_line}
+{local_main_head_line}
+{origin_main_head_line}
 {worktree_head_line}
 - Linux x64 的 strict L0 日常维护继续固定为 `bash tests/run_strict_l0_maintenance_loop.sh`；对应 GitHub Actions workflow `l0-linux-maintenance.yml` 已进入 default branch，并已在 `main` fresh 通过。
 - strict L0 的 Windows native evidence 当前继续由 GitHub Actions run `{windows_run_id}` 提供 exact evidence，shell-side artifact verifier 已在 Linux x64 本地复核通过。
@@ -203,7 +231,8 @@ audit_text = f"""# 2026-04-11 L0 Current State Audit
 ## Mainline Closeout Snapshot
 
 - 当前 latest merged-main exact evidence head：`{windows_run_sha}`
-- 当前 `origin/main` head：`{main_sha}`
+- 当前本地 `main` head：`{main_sha}`
+- 当前 `origin/main` head：`{origin_main_sha}`
 - 当前 L0 worktree head：`{worktree_sha}`
 - GitHub Actions `L0 Linux Maintenance` run `{linux_run_id}`
   - head sha：`{linux_run_sha}`
@@ -339,7 +368,8 @@ legacy_text = f"""# 2026-04-11 L0 Mainline Refs And CI Closeout
 
 ## Final Resolution
 
-- 当前 main merge commit：`{main_sha}`
+- 当前本地 main merge commit：`{main_sha}`
+- 当前 `origin/main` head：`{origin_main_sha}`
 - GitHub Actions `L0 Linux Maintenance` run `{linux_run_id}`
   - head sha：`{linux_run_sha}`
   - 结果：PASS
@@ -353,7 +383,7 @@ legacy_text = f"""# 2026-04-11 L0 Mainline Refs And CI Closeout
 
 - mainline Linux workflow 已可 dispatch 并 fresh 通过
 - Windows exact evidence 也已收齐
-- 当前 `main` 已推进到 `{main_sha}`，但 latest exact Windows native evidence 仍锚定 `main@{windows_run_sha}`；由于这两者之间只剩 docs / control-plane-only 变更，因此当前 closeout 复用该 exact evidence。
+- 当前本地 `main` 已推进到 `{main_sha}`；当前 `origin/main` 仍在 `{origin_main_sha}`；latest exact Windows native evidence 仍锚定 `main@{windows_run_sha}`。只有在确认 current `main` 相对该证据头没有新增 strict L0 代码或测试入口变化时，才应继续把差异理解为 docs / control-plane-only 增量。
 - 这份文档现在只保留 pre-merge `HTTP 404` 的历史解释与 refs no-op 审计背景
 
 ## Retained Refs
@@ -382,7 +412,8 @@ worker_text = f"""# worker1
 - Status: `active`
 - Branch: `l0-mainline`
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
-- Base commit: `{main_sha}` (`origin/main`)
+- Base commit: `{main_sha}` (`main`)
+- Remote main head: `{origin_main_sha}` (`origin/main`)
 - Current HEAD: `{worktree_sha}`
 - Latest merged-main exact evidence head: `{windows_run_sha}`
 - Current focus:
@@ -423,6 +454,7 @@ worker_text = f"""# worker1
   - `docs/collections/reports/README.md`
   - `docs/benchmarks/reports/README.md`
   - `docs/EXAMPLES.md`
+  - `docs/plans/2026-04-16-l0-mainline-continuation-plan.md`
   - `docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md`
   - `docs/plans/2026-04-15-l0-closeout-rescue-final-source-review-clearout-plan.md`
   - `docs/plans/2026-04-14-l0-closeout-rescue-stale-skip-wave.md`
@@ -557,9 +589,9 @@ worker_text = f"""# worker1
   - 如果 fresh shortlist 继续给出 `closeout.review_candidate_paths=0` 与 `rescue.review_candidate_paths=0`，就把 `closeout/rescue` 视为已清空的 source-review lane；当前 async runner reverse diff 与 `Test_vecdeque_span.pas` 也继续只应留在 `review_skip_paths=`。下一跳回到 `sidecar/tail` overlap 或 retained-refs inventory
   - 如果 `docs_absorb_candidate_paths=` 继续暴露 landing-zone docs residue，优先确认是否只是 `sidecar` 的旧 pointer 文本；不要回灌当前 `docs/collections/legacy/README.md`、`docs/reports/README.md`、`docs/collections/reports/README.md`、`docs/benchmarks/reports/README.md` 与 `docs/legacy/l0/README.md` 的 today contract
   - 如需一波收口 Linux/Windows evidence 与 current-state docs，使用 `bash tests/run_strict_l0_mainline_closeout.sh`
-  - 如需只回填 current-state 文档，使用 `bash tests/update_strict_l0_current_state_docs.sh --apply --main-sha <main-sha> --linux-run-id <linux-run-id> --linux-run-sha <linux-run-sha> --windows-run-id <windows-run-id> --windows-run-sha <windows-run-sha> --windows-local-batch-id <batch-id>`
+  - 如需只回填 current-state 文档，使用 `bash tests/update_strict_l0_current_state_docs.sh --apply --main-sha <main-sha> --origin-main-sha <origin-main-sha> --worktree-sha <worktree-sha> --linux-run-id <linux-run-id> --linux-run-sha <linux-run-sha> --windows-run-id <windows-run-id> --windows-run-sha <windows-run-sha> --windows-local-batch-id <batch-id>`
   - 需要 Windows exact evidence 时，继续使用 GitHub Actions workflow + shell verifier，不在 Linux x64 本地伪造 native 结论
-- Last updated: `2026-04-15`
+- Last updated: `2026-04-16`
 """
 
 audit_file.write_text(audit_text, encoding="utf-8")

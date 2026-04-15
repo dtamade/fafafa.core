@@ -69,6 +69,7 @@ REQUIRED_FILES=(
   "docs/audits/2026-04-15-l0-tail-residual-runner-source-no-absorb-audit.md"
   "docs/audits/2026-04-15-l0-sidecar-async-runner-slice-audit.md"
   "docs/audits/2026-04-15-l0-closeout-rescue-final-source-review-clearout-audit.md"
+  "docs/plans/2026-04-16-l0-mainline-continuation-plan.md"
   "docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md"
   "docs/plans/2026-04-13-l0-retained-refs-seventh-absorption-plan.md"
   "docs/plans/2026-04-13-l0-retained-refs-eighth-focus-routing-plan.md"
@@ -126,7 +127,7 @@ for LPath in "${REQUIRED_FILES[@]}"; do
   check_file "${LPath}"
 done
 
-require_literal "docs/README.md" "docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md"
+require_literal "docs/README.md" "docs/plans/2026-04-16-l0-mainline-continuation-plan.md"
 require_literal "docs/README.md" "docs/legacy/l0/README.md"
 require_literal "docs/README.md" "docs/audits/2026-04-14-l0-retained-refs-sidecar-tail-postmerge-audit.md"
 require_literal "docs/README.md" "docs/audits/2026-04-15-l0-tail-shell-runner-head-ahead-no-absorb-audit.md"
@@ -136,7 +137,7 @@ require_literal "docs/README.md" "docs/audits/2026-04-15-l0-closeout-rescue-fina
 require_literal "docs/README.md" "bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh"
 reject_literal "docs/README.md" "docs/plans/2026-04-09-l0-kernel-span2-closeout.md"
 
-require_literal "docs/INDEX.md" "docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md"
+require_literal "docs/INDEX.md" "docs/plans/2026-04-16-l0-mainline-continuation-plan.md"
 require_literal "docs/INDEX.md" "docs/legacy/l0/README.md"
 require_literal "docs/INDEX.md" "docs/audits/2026-04-14-l0-retained-refs-sidecar-tail-postmerge-audit.md"
 require_literal "docs/INDEX.md" "docs/audits/2026-04-15-l0-tail-shell-runner-head-ahead-no-absorb-audit.md"
@@ -165,6 +166,7 @@ require_literal "docs/TESTING.md" "bash tests/test_active_shell_runners.sh"
 require_literal "docs/TESTING.md" "bash tests/test_fs_perf_shell_scripts.sh"
 require_literal "docs/TESTING.md" "bash tests/run_strict_l0_mainline_closeout.sh"
 require_literal "docs/TESTING.md" "bash tests/update_strict_l0_current_state_docs.sh"
+require_literal "docs/TESTING.md" "--origin-main-sha <origin-main-sha>"
 require_literal "docs/TESTING.md" "--worktree-sha <worktree-sha>"
 require_literal "docs/TESTING.md" "bash tests/audit_strict_l0_retained_refs.sh"
 require_literal "docs/TESTING.md" "bash tests/report_strict_l0_retained_refs_inventory.sh"
@@ -243,7 +245,11 @@ require_literal "docs/audits/2026-04-11-l0-current-state-audit.md" "bash tests/t
 require_literal "docs/audits/2026-04-11-l0-current-state-audit.md" "bash tests/test_fs_perf_shell_scripts.sh"
 require_literal "docs/audits/2026-04-11-l0-current-state-audit.md" "sidecar_only_commit_count="
 require_literal "docs/audits/2026-04-11-l0-current-state-audit.md" "tail_only_commit_count="
+require_literal "docs/fafafa.core.l0.foundation.md" "docs/plans/2026-04-16-l0-mainline-continuation-plan.md"
+reject_literal "docs/fafafa.core.l0.foundation.md" "docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md"
 require_literal "docs/fafafa.core.l0.roadmap.md" "Windows exact native evidence 只接受 GitHub Actions 作为证据来源"
+require_literal "docs/fafafa.core.l0.roadmap.md" '当前唯一 L0 worktree 仍固定为 `l0-mainline`'
+reject_literal "docs/fafafa.core.l0.roadmap.md" '当前唯一 L0 worktree 应保持在 `l0-mainline -> origin/main`'
 require_literal "workers/worker1.md" "bash tests/run_strict_l0_maintenance_loop.sh"
 require_literal "workers/worker1.md" "bash tests/run_strict_l0_mainline_closeout.sh"
 require_literal "workers/worker1.md" "bash tests/update_strict_l0_current_state_docs.sh"
