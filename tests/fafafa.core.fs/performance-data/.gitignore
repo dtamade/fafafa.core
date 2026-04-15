@@ -1,0 +1,6 @@
+latest.txt
+perf_[0-9]*.txt
+perf_all_latest.txt
+perf_resolve_[0-9]*.txt
+perf_resolve_latest.txt
+perf_walk_latest.txt

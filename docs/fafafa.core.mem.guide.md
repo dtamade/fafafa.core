@@ -1,18 +1,23 @@
 # fafafa.core.mem 使用指南
 
 这份指南只讲当前还适合直接继承的用法，不再重复历史 closeout、固定性能数字或过时目录结构。
+strict L0 allocator contract 的权威边界和推进顺序以 `docs/fafafa.core.l0.foundation.md`、`docs/fafafa.core.l0.roadmap.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准；本页只负责 mem 域 today usage。
 
 ## 当前 source-of-truth
 
 先看：
 
-1. `docs/fafafa.core.mem.md`
-2. `src/fafafa.core.mem.pas`
-3. `src/fafafa.core.mem.allocator.foundation.pas`
-4. `src/fafafa.core.mem.allocator.pas`
-5. `src/fafafa.core.mem.memPool.pas`
-6. `src/fafafa.core.mem.stackPool.pas`
-7. `src/fafafa.core.mem.pool.slab.pas`
+1. `docs/fafafa.core.l0.foundation.md`
+2. `docs/fafafa.core.l0.roadmap.md`
+3. `docs/ARCHITECTURE_LAYERS.md`
+4. `docs/fafafa.core.mem.md`
+5. `src/fafafa.core.mem.allocator.base.pas`
+6. `src/fafafa.core.mem.allocator.foundation.pas`
+7. `src/fafafa.core.mem.pas`
+8. `src/fafafa.core.mem.allocator.pas`
+9. `src/fafafa.core.mem.memPool.pas`
+10. `src/fafafa.core.mem.stackPool.pas`
+11. `src/fafafa.core.mem.pool.slab.pas`
 
 ## 先选哪一层
 
@@ -69,17 +74,24 @@
 
 ### 需要 strict L0 allocator contract
 
-优先用 `fafafa.core.mem.allocator.foundation`。
+优先依赖 `fafafa.core.mem.allocator.base`。
 
 适合：
 
-- 只想依赖 allocator contract + minimal backend
-- 不希望把 `mimalloc` / `crtAllocator` 之类可选后端带进 strict L0 依赖面
-- 为 `base` / `option` / `result` / `atomic` 一类基础模块提供最小 allocator 入口
+- 只想依赖 `IAllocator` / `TAllocator` / 对齐分配语义这些 strict L0 contract
+- 不希望把 convenience facade 或可选后端固化进 strict L0 依赖面
+- 为 `base` / `option` / `result` / `atomic` 一类基础模块提供最小 allocator 抽象
+
+如果你同时还需要默认 RTL allocator 或 callback allocator 这类小 concrete backend，再额外使用 `fafafa.core.mem.allocator.foundation`。
+
+callback allocator 的 nil callback 行为跟随 `fafafa.core.contracts`：
+
+- 默认构建下，`CreateCallbackAllocator` / `TCallbackAllocator.Init` 会对 nil callback 抛 `EArgumentNil`
+- 若显式定义 `FAFAFA_CORE_NO_CONTRACTS`，这些前置条件检查退化为 no-op，不再承诺 friendly exception
 
 ## 当前推荐用法
 
-### 分配器优先
+### allocator contract + 小 concrete backend
 
 ```pascal
 uses
@@ -99,6 +111,11 @@ begin
   end;
 end;
 ```
+
+说明：
+
+- 上面的 `GetRtlAllocator` 来自 `fafafa.core.mem.allocator.foundation`。
+- 返回值遵循的 contract 仍以 `src/fafafa.core.mem.allocator.base.pas` 为准。
 
 ### StackPool 作用域恢复
 
@@ -157,7 +174,9 @@ end;
 
 - `Destroy`、`Clear`、`Reset` 这类生命周期动作，应在没有并发访问时执行。
 - `fafafa.core.mem.interfaces` 当前是补充合同，不应替代对具体类行为的理解。
-- `fafafa.core.mem.allocator.foundation` 是 strict L0 入口；如果需要可选后端，再显式使用 `fafafa.core.mem.allocator`。
+- `fafafa.core.mem.allocator.base` 才是 strict L0 allocator contract。
+- `fafafa.core.mem.allocator.foundation` 只在需要 `GetRtlAllocator` / callback allocator 这类小 concrete backend 时引入；如果需要可选后端，再显式使用 `fafafa.core.mem.allocator`。
+- `NoContracts` 下不要把 broader mem test runner 当成完整回归；今天只把它当 allocator smoke。
 - `mimalloc` 相关模块属于可选集成，能否启用取决于当前环境和构建配置。
 - `mapped` / `shared memory` 相关旧示例仍可用于追背景，但今天的框架边界优先去 `fs` 域理解。
 
@@ -167,6 +186,10 @@ end;
 
 - Windows: `tests\\fafafa.core.mem\\BuildOrTest.bat test`
 - Linux/macOS: `bash tests/fafafa.core.mem/BuildOrTest.sh`
+- Windows（allocator NoContracts smoke）: `tests\\fafafa.core.mem\\BuildOrTest.bat test-no-contracts`
+- Linux/macOS（allocator NoContracts smoke）: `bash tests/fafafa.core.mem/BuildOrTest.sh test-no-contracts`
+- Windows（foundation NoContracts smoke）: `tests\\fafafa.core.mem.allocator.foundation\\BuildOrTest.bat test-no-contracts`
+- Linux/macOS（foundation NoContracts smoke）: `bash tests/fafafa.core.mem.allocator.foundation/BuildOrTest.sh test-no-contracts`
 
 示例入口：
 

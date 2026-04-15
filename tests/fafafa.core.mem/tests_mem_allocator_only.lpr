@@ -7,6 +7,9 @@ uses
   {$IFDEF UNIX}cthreads,{$ENDIF}
   SysUtils, Classes,
   consoletestrunner,
+  test_mem_allocator
+  {$IFDEF FAFAFA_CORE_CONTRACTS}
+  ,
   test_aligned,
   test_fixedpool,
   test_stackpool,
@@ -19,7 +22,8 @@ uses
   test_stackPool_edgecases,
   test_stats,
   test_interfaces,
-  test_mimalloc_manager_optional_smoke;
+  test_mimalloc_manager_optional_smoke
+  {$ENDIF};
 
 var
   Application: TTestRunner;

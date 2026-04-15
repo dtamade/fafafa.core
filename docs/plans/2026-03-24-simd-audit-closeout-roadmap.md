@@ -3,9 +3,9 @@
 > Status: completed historical batch.
 >
 > This document records the Batch 69/70 closeout scope that was valid on 2026-03-24.
-> It is no longer the active queue for the current `simd-external-evidence` worktree.
-> For current SIMD priorities, use `backlog.md` as the queue truth source, and
-> use `task_plan.md` / `workers/worker0.md` for the active branch execution state.
+> It is no longer the active queue for the later SIMD worktrees.
+> For current SIMD priorities, use `backlog.md` as the queue truth source and the
+> SIMD owner's current worktree-local notes as the execution state.
 
 ## 目标
 
@@ -72,7 +72,7 @@
 - Batch 70 targeted suites PASS
 - fresh release `check` PASS
 - fresh release `gate` PASS
-- `task_plan.md` / `findings.md` / `progress.md` / `workers/worker0.md` 已同步
+- 当时的执行镜像已同步
 - worktree 最终 clean
 
 ## 2026-03-27 Readout

@@ -21,7 +21,7 @@
   - 参数错误抛 EInvalidArgument/EOutOfRange
   - TryReserveExact 返回布尔，不抛异常
 - 参考
-  - 详细 API/实现细节见 docs/TVecDeque_Guide.md
+  - 详细 API/实现细节见 docs/collections/guides/TVecDeque_Guide.md
 
 ## 📋 模块概述
 

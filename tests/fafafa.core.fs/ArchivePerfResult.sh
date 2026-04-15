@@ -7,17 +7,28 @@ RUN_SH="${SCRIPT_DIR}/BuildOrRunPerf.sh"
 LOG_FILE="${PERF_DIR}/latest.txt"
 
 mkdir -p "${PERF_DIR}"
+
 TS="$(date +%F_%H-%M-%S)"
 TS_FILE="${PERF_DIR}/perf_${TS}.txt"
+TMP_OUTPUT="$(mktemp)"
+trap 'rm -f "${TMP_OUTPUT}"' EXIT
 
-echo "[1/2] Running perf ..."
-"${RUN_SH}" "$@" || true
+echo "[1/1] Running perf and archiving ..."
+if bash "${RUN_SH}" "$@" | tee "${TMP_OUTPUT}"; then
+  RET=0
+else
+  RET=$?
+fi
 
 {
   echo "Timestamp: ${TS}"
-  echo -n "Command: BuildOrRunPerf.sh"; for a in "$@"; do echo -n " ${a}"; done; echo
+  printf 'Command: BuildOrRunPerf.sh'
+  for a in "$@"; do
+    printf ' %q' "${a}"
+  done
+  printf '\n'
   echo "--- Output ---"
-  "${RUN_SH}" "$@"
+  cat "${TMP_OUTPUT}"
 } >"${TS_FILE}"
 
 cp -f "${TS_FILE}" "${LOG_FILE}"
@@ -39,3 +50,4 @@ echo
 echo "Saved: ${TS_FILE}"
 echo "Latest: ${LOG_FILE}"
 
+exit "${RET}"

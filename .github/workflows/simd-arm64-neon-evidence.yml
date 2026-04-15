@@ -2,6 +2,7 @@ name: SIMD ARM64 NEON Evidence
 
 on:
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read

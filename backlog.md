@@ -4,13 +4,13 @@
 > 规则：每轮迭代只做 1–3 个条目；其余留在 backlog（避免 WIP 过多）。
 
 ## 工作方式（planning-with-files）
-- 选题：从本 backlog 选 1–3 项 → 写入仓库根的 `task_plan.md`
-- 过程：发现/结论 → `findings.md`；命令/输出/测试结果 → `progress.md`
-- 收尾：将三文件归档到 `plans/archive/YYYY-MM-DD-<topic>/`，并在本条目下补归档链接
+- 选题：从本 backlog 选 1–3 项，在当前 worktree 维护临时计划
+- 过程：发现/结论、命令/输出、测试结果先写临时记录
+- 收尾：将执行镜像归档到 `plans/archive/YYYY-MM-DD-<topic>/`，并把稳定结论提升到 `docs/plans/`、`docs/audits/` 或 `workers/`
 
 ## Now（进行中）
-- [ ] **P0 / strict L0 control-plane closeout**：把 L0 路线图、worker 可见度与主线仓库卫生收成一个最小可回流批次
-  进度：strict L0 gate 已 fresh `10/10 PASS`，`bash tests/fafafa.core.contracts/BuildOrTest.sh test-no-contracts` 已 PASS；当前剩余工作是把 `docs/plans/2026-03-24-l0-docs-closeout-roadmap.md` 回流主线、补主线 `workers/worker1.md`、清理 `src/` 下未跟踪 `.o/.ppu/.bak` 生成物。`platform` 继续 deferred，不扩张 L0 边界。
+- [ ] **P0 / strict L0 rescue split closeout**：在 `PR #6` 合并后继续收口 L0 控制面，并把 `l0-main-rescue` 压回“只可拆批、不可整合并”的状态
+  进度：root working-log 清理、worker/index 刷新、root 历史报告归档、`tools/tests/docs`、`examples`、`mem/time` 三批非 SIMD rescue 拆批都已完成并各自补 fresh verification。当前只剩 merge-ready review 与 SIMD-only 残留 handoff，不再继续通过 L0 扩张范围。
 - [ ] **P0 / layer0+layer1+layer2 自主维护推进**：建立“每轮自主发现 1 个任务 + 完成 1 个子任务”的连续闭环机制（不中断）  
   进度：batch1 已完成“脚本入口规范化 + Layer2 首轮失败矩阵”；batch2 已完成“process/socket 编译阻断修复与回归路径打通”（`process` 编译通过，`socket` 编译通过）；当前状态：`yaml PASS`，`toml/xml` 仍为断言失败，`socket` 在本沙箱因禁网触发运行期失败。
 - [ ] **P0 / sync**：继续 Layer1 验证：修复 `Condvar` / `Barrier` / `Once` / `Spin` 并补回归  
@@ -55,10 +55,9 @@
 - [x] **SIMD-B20(candidate)**：Windows 证据闭环自动化已完成；当前 `verify -> finalize` 主链 fresh 可跑通，`freeze-status` 剩余红项仅是 2026-03-27 源码晚于 2026-03-24 归档证据，不再是自动化缺口
 - [x] **SIMD-B21(candidate)**：reduction façade / current-dispatch contract sweep（`VecF32x4/F64x2/F32x8/F64x4/F64x8/F32x16 Reduce*` 已全部处于“已修复或已守卫”状态；2026-03-27 fresh release `gate` 通过）
 - [x] **SIMD-B22(candidate)**：`VecF64x2 Abs/Sqrt/Min/Max` façade / current-dispatch contract sweep（真实 drift 已修复；`DispatchAPI` 中预声明的 `VecF32` vector-math / wide-float-dot guards 也已补齐；2026-03-27 fresh release `gate` 通过）
+- [x] **SIMD-B23(candidate)**：fresh Linux/Windows evidence refresh 已完成（2026-04-03 fresh fail-close `gate`、Windows batch `SIMD-20260403-152`、`freeze-status ready=True` 全部回绿）
 
 ### Queue
-- [ ] **SIMD-B23(candidate)**：fresh Linux/Windows evidence refresh，把 `freeze-status` 从 freshness/source-newer-than-evidence 红态拉回绿态。
-- 完成条件：fresh release `gate` 产物时间不早于当前 `src/fafafa.core.simd*` 改动，fresh Windows evidence 通过 verifier，并且 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 返回 `ready=True`。
 
 ### SIMD Program Board Update (2026-02-07 06:10)
 - [x] **SIMD-B04**：pack/unpack 极值组合与 lane 隔离测试补齐（已完成）。

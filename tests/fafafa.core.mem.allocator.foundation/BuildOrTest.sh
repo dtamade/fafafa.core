@@ -8,8 +8,6 @@ REPO_ROOT="$(cd "$ROOT/../.." && pwd)"
 cd "$ROOT"
 
 PROJ="$ROOT/fafafa.core.mem.allocator.foundation.test.lpi"
-BIN="$ROOT/bin/fafafa.core.mem.allocator.foundation.test_debug"
-BIN_FALLBACK="$ROOT/bin/fafafa.core.mem.allocator.foundation.test"
 LOG_DIR="$ROOT/logs"
 BUILD_LOG="$LOG_DIR/build.txt"
 TEST_LOG="$LOG_DIR/test.txt"
@@ -32,15 +30,30 @@ if [[ -z "${LAZBUILD_BIN}" ]]; then
   fi
 fi
 
+resolve_mode() {
+  case "$ACTION" in
+    build|check|test)
+      echo "Debug|$ROOT/bin/fafafa.core.mem.allocator.foundation.test_debug|$ROOT/bin/fafafa.core.mem.allocator.foundation.test"
+      ;;
+    build-no-contracts|check-no-contracts|test-no-contracts)
+      echo "NoContracts|$ROOT/bin/fafafa.core.mem.allocator.foundation.test_nocontracts|$ROOT/bin/fafafa.core.mem.allocator.foundation.test"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 build_project() {
-  echo "[BUILD] Project: $PROJ"
+  local LMode="$1"
+  echo "[BUILD] Project: $PROJ (mode=$LMode)"
   : >"$BUILD_LOG"
-  if "${LAZBUILD_BIN}" "${LZ_Q[@]}" --bm=Debug --build-all "$PROJ" >"$BUILD_LOG" 2>&1; then
+  if "${LAZBUILD_BIN}" "${LZ_Q[@]}" --bm="$LMode" --build-all "$PROJ" >"$BUILD_LOG" 2>&1; then
     echo "[BUILD] OK"
   else
     local LExitCode=$?
     echo "[BUILD] FAILED rc=$LExitCode (see $BUILD_LOG)"
-    return $LExitCode
+    return "$LExitCode"
   fi
 }
 
@@ -54,19 +67,21 @@ check_build_log() {
 }
 
 run_tests() {
+  local LBin="$1"
+  local LBinFallback="$2"
   local LRunBin
   : >"$TEST_LOG"
 
-  if [[ -x "$BIN" ]]; then
-    LRunBin="$BIN"
-  elif [[ -x "${BIN}.exe" ]]; then
-    LRunBin="${BIN}.exe"
-  elif [[ -x "$BIN_FALLBACK" ]]; then
-    LRunBin="$BIN_FALLBACK"
-  elif [[ -x "${BIN_FALLBACK}.exe" ]]; then
-    LRunBin="${BIN_FALLBACK}.exe"
+  if [[ -x "$LBin" ]]; then
+    LRunBin="$LBin"
+  elif [[ -x "${LBin}.exe" ]]; then
+    LRunBin="${LBin}.exe"
+  elif [[ -x "$LBinFallback" ]]; then
+    LRunBin="$LBinFallback"
+  elif [[ -x "${LBinFallback}.exe" ]]; then
+    LRunBin="${LBinFallback}.exe"
   else
-    echo "[TEST] Missing binary: ${BIN}[.exe] or ${BIN_FALLBACK}[.exe] (did build succeed?)"
+    echo "[TEST] Missing binary: ${LBin}[.exe] or ${LBinFallback}[.exe] (did build succeed?)"
     return 2
   fi
 
@@ -76,7 +91,7 @@ run_tests() {
   else
     local LExitCode=$?
     echo "[TEST] FAILED rc=$LExitCode (see $TEST_LOG)"
-    return $LExitCode
+    return "$LExitCode"
   fi
 }
 
@@ -90,21 +105,17 @@ check_heap_leaks() {
 }
 
 case "$ACTION" in
-  build)
-    build_project
-    ;;
-  check)
-    build_project
+  build|check|test|build-no-contracts|check-no-contracts|test-no-contracts)
+    IFS='|' read -r BUILD_MODE TEST_BIN TEST_BIN_FALLBACK <<<"$(resolve_mode)"
+    build_project "$BUILD_MODE"
     check_build_log
-    ;;
-  test)
-    build_project
-    check_build_log
-    run_tests
-    check_heap_leaks
+    if [[ "$ACTION" == test* ]]; then
+      run_tests "$TEST_BIN" "$TEST_BIN_FALLBACK"
+      check_heap_leaks
+    fi
     ;;
   *)
-    echo "Usage: $0 [build|check|test]"
+    echo "Usage: $0 [build|check|test|build-no-contracts|check-no-contracts|test-no-contracts]"
     exit 2
     ;;
 esac

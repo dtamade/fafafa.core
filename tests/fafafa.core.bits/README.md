@@ -6,11 +6,12 @@
 
 1. `docs/fafafa.core.bits.md`
 2. `docs/fafafa.core.l0.foundation.md`
-3. `docs/ARCHITECTURE_LAYERS.md`
-4. `tests/fafafa.core.bits/BuildOrTest.sh`
-5. `tests/fafafa.core.bits/BuildOrTest.bat`
-6. `tests/fafafa.core.bits/fafafa.core.bits.test.lpi`
-7. `tests/fafafa.core.bits/fafafa.core.bits.testcase.pas`
+3. `docs/fafafa.core.l0.roadmap.md`
+4. `docs/ARCHITECTURE_LAYERS.md`
+5. `tests/fafafa.core.bits/BuildOrTest.sh`
+6. `tests/fafafa.core.bits/BuildOrTest.bat`
+7. `tests/fafafa.core.bits/fafafa.core.bits.test.lpi`
+8. `tests/fafafa.core.bits/fafafa.core.bits.testcase.pas`
 
 ## 当前测试集合
 
@@ -39,10 +40,12 @@
 - 构建目标：`fafafa.core.bits.test.lpi`
 - 产物：`bin\\fafafa.core.bits.test[.exe]`
 - 支持 `build` / `check` / `test` / `clean` / `rebuild`
+- `test` 当前会优先执行 `bin\\fafafa.core.bits.test.exe`；只有 `.exe` 不存在时才回退到无扩展名产物
+- 在 `FAFAFA_SKIP_BUILD=1` 且 `ACTION=test` 时会跳过构建，直接进入 runtime 路径；这个入口当前主要供 Windows `.bat` runtime-only parity smoke / matrix 使用
 
 ## 当前边界
 
 - 这个目录只覆盖 `bits` 的 L0 契约，不替代 `math` 或 `mem` 的兼容层测试。
 - `src/fafafa.core.math.intutil.pas` 继续承担 compat 角色，但 `bits` 的 today contract 以 `docs/fafafa.core.bits.md` 和当前测试入口为准。
-- 这里不承载 `platform` / `span` 的候选讨论；那是后续 L0 准入问题，不属于 `bits` 当前测试入口。
+- 这里不承载 `platform` 或其他 L0 准入讨论；那不是 `bits` 当前测试入口的职责。
 - `bin/`、`lib/`、`logs/` 是产物目录，不属于合同本体。

@@ -32,6 +32,13 @@ class ErrorItem:
     signature: str
 
 
+def format_repo_path(path: Path, repo_root: Path) -> str:
+    try:
+        return path.resolve().relative_to(repo_root.resolve()).as_posix()
+    except ValueError:
+        return str(path.resolve())
+
+
 def classify_backend(line: str, platform: str) -> str:
     ll = line.lower()
     if "simd.neon.pas" in ll:
@@ -159,6 +166,7 @@ def render_report(
     grouped_by_backend: dict[str, Counter[str]],
     output_path: Path,
     max_rows_per_backend: int,
+    repo_root: Path,
 ) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     lines: list[str] = []
@@ -166,7 +174,7 @@ def render_report(
     lines.append("# Experimental ASM Blockers Report")
     lines.append("")
     lines.append(f"- generated_at: {datetime.now().isoformat(timespec='seconds')}")
-    lines.append(f"- log_dir: `{report_dir}`")
+    lines.append(f"- log_dir: `{format_repo_path(report_dir, repo_root)}`")
     lines.append(f"- scenario: `{scenario}`")
     lines.append("")
     lines.append("## Platform Summary")
@@ -174,7 +182,9 @@ def render_report(
     lines.append("| Platform | Status | Log |")
     lines.append("|---|---|---|")
     for entry in entries:
-        lines.append(f"| {entry.platform} | {entry.status} | `{entry.log_path}` |")
+        lines.append(
+            f"| {entry.platform} | {entry.status} | `{format_repo_path(entry.log_path, repo_root)}` |"
+        )
 
     lines.append("")
     lines.append("## Platform Blockers")
@@ -286,6 +296,7 @@ def main() -> int:
         grouped_by_backend=backend_grouped,
         output_path=output_path,
         max_rows_per_backend=max(1, args.top),
+        repo_root=script_dir.parents[1],
     )
 
     print(f"[QEMU-EXPERIMENTAL-REPORT] log_dir={report_dir}")
