@@ -12,21 +12,21 @@
 ## Final Resolution
 
 - 当前本地 main merge commit：`a25acfe4f56bfd021e860aabe09e3cc392ef01ab`
-- 当前 `origin/main` head：`84adcf9047b7af1c73528768578755c56cb362e2`
-- GitHub Actions `L0 Linux Maintenance` run `24463267969`
-  - head sha：`b8b5f719349bc68fc63da7fe51318af8a6af229f`
+- 当前 `origin/main` head：`ef83a697b6c6efec424a75f8495c79d675770f1a`
+- GitHub Actions `L0 Linux Maintenance` run `24485131735`
+  - head sha：`ef83a697b6c6efec424a75f8495c79d675770f1a`
   - 结果：PASS
-- GitHub Actions `L0 Windows Native Evidence` run `24463558794`
-  - head sha：`b8b5f719349bc68fc63da7fe51318af8a6af229f`
+- GitHub Actions `L0 Windows Native Evidence` run `24485728537`
+  - head sha：`ef83a697b6c6efec424a75f8495c79d675770f1a`
   - 结果：`12/12 PASS`
 - Linux shell verifier snapshot：
-  - `tests/_windows_l0_native_evidence_gh/L0-20260415-mainline-postmerge-closeout-windows/`
+  - `tests/_windows_l0_native_evidence_gh/L0-20260416-mainline-closeout-windows/`
 
 这说明：
 
 - mainline Linux workflow 已可 dispatch 并 fresh 通过
 - Windows exact evidence 也已收齐
-- 当前本地 `main` 已推进到 `a25acfe4f56bfd021e860aabe09e3cc392ef01ab`；当前 `origin/main` 仍在 `84adcf9047b7af1c73528768578755c56cb362e2`；latest exact Windows native evidence 仍锚定 `main@b8b5f719349bc68fc63da7fe51318af8a6af229f`。只有在确认 current `main` 相对该证据头没有新增 strict L0 代码或测试入口变化时，才应继续把差异理解为 docs / control-plane-only 增量。
+- 当前本地 `main` 已推进到 `a25acfe4f56bfd021e860aabe09e3cc392ef01ab`；当前 `origin/main` 仍在 `ef83a697b6c6efec424a75f8495c79d675770f1a`；latest exact Windows native evidence 仍锚定 `main@ef83a697b6c6efec424a75f8495c79d675770f1a`。只有在确认 current `main` 相对该证据头没有新增 strict L0 代码或测试入口变化时，才应继续把差异理解为 docs / control-plane-only 增量。
 - 这份文档现在只保留 pre-merge `HTTP 404` 的历史解释与 refs no-op 审计背景
 
 ## Retained Refs
@@ -45,4 +45,4 @@
 
 - 它只描述 workflow 进入 default branch 之前的历史状态
 - 当前 mainline Linux workflow 已可 dispatch 并 fresh 通过
-- 当前 latest Windows exact evidence run 是 `24463558794`
+- 当前 latest Windows exact evidence run 是 `24485728537`

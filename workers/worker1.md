@@ -6,21 +6,21 @@
 - Branch: `l0-mainline`
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
 - Base commit: `a25acfe4f56bfd021e860aabe09e3cc392ef01ab` (`main`)
-- Remote main head: `84adcf9047b7af1c73528768578755c56cb362e2` (`origin/main`)
-- Current HEAD: `a25acfe4f56bfd021e860aabe09e3cc392ef01ab`
-- Latest merged-main exact evidence head: `b8b5f719349bc68fc63da7fe51318af8a6af229f`
+- Remote main head: `ef83a697b6c6efec424a75f8495c79d675770f1a` (`origin/main`)
+- Current HEAD: `ef83a697b6c6efec424a75f8495c79d675770f1a`
+- Latest merged-main exact evidence head: `ef83a697b6c6efec424a75f8495c79d675770f1a`
 - Current focus:
   - 维持当前唯一 L0 worktree 跟随 `main`
   - 维持 strict L0 的 current-entry 文档、模块边界和验证口径一致
   - 只清理安全可删的本地 L0 refs，保留仍然承载独立历史的锚点
-  - 保持 merged-main current-state 文档显式写清：latest exact Windows native evidence 仍锚定 `main@b8b5f719349bc68fc63da7fe51318af8a6af229f`；并把当前本地 `main@a25acfe4f56bfd021e860aabe09e3cc392ef01ab`、`origin/main@84adcf9047b7af1c73528768578755c56cb362e2` 与当前 worktree head `a25acfe4f56bfd021e860aabe09e3cc392ef01ab` 明确区分，避免把 docs / control-plane-only mainline closeout 混写成 origin/main 已同步。
+  - 保持 merged-main current-state 文档显式写清：latest exact Windows native evidence 仍锚定 `main@ef83a697b6c6efec424a75f8495c79d675770f1a`；并把当前本地 `main@a25acfe4f56bfd021e860aabe09e3cc392ef01ab`、`origin/main@ef83a697b6c6efec424a75f8495c79d675770f1a` 与当前 worktree head `ef83a697b6c6efec424a75f8495c79d675770f1a` 明确区分，避免把未合并 L0 增量误写成已经进 main。
   - 把 Linux maintenance workflow 与 Windows exact-evidence lane 的 current-entry 命令、证据和 fail-close 语义写准
   - 把 retained-refs triage 的 `test_hygiene_candidate_paths=` / `source_review_candidate_paths=` / `docs_absorb_candidate_paths=` 保持为 today contract
   - 把 `tail` 的 `tests/cleanup_orphan_dirs.sh` + `tests/fafafa.core.fs/{ArchivePerfResult,BuildOrRunPerf,BuildOrRunResolvePerf,BuildOrRunPerfAll}.sh` + `tests/fafafa.core.fs/README-perf.md` 固定为 current-HEAD-ahead / no-absorb 结论，只用 `bash tests/test_active_shell_runners.sh` / `bash tests/test_fs_perf_shell_scripts.sh` 守住 today contract，不再按 tail 版本回灌
   - 把 `tail` 的 residual runner/source 小撮也固定为 no-absorb：`src/fafafa.core.atomic.base.pas` 与 `src/fafafa.core.span.pas` 只剩 no-op residue，`tests/fafafa.core.option/BuildOrTest.bat` 与 `tests/fafafa.core.result/BuildOrTest.bat` 则只允许 today 版本继续由 `bash tests/test_l0_option_result_runner_hygiene.sh` 守住
   - 把 strict L0 examples current-entry 的 fresh build smoke 固定到 `bash tests/test_strict_l0_examples_smoke_contract.sh`，当前固定覆盖 `atomic`、`env quickstart`、`platform`、`json` 与 `sync.mutex`
   - 把 `closeout` 的 `mem allocator + fs perf wrapper/README` stale cluster、`rescue` 的 `mem/result/span + base/bits/contracts/result/span test-entry` stale cluster，以及 `rescue` 的 examples/runner/doc stale cluster 一并固定到 `review_skip_paths=`，不要再重复人工吸收
-  - 把 `closeout/rescue` shortlist 已清空这一状态固定成 today contract；并明确 `tests/fafafa.core.fs.async/*` / `tests/fafafa.core.socket.async/*` 这组 retained-ref 逆向 async runner diff 只属于 already-absorbed/stale skip，`Test_vecdeque_span.pas` 也只是 stale dead test code，不再把它们误判成可吸收候选；如果 shortlist 继续是 0，下一跳回到 `sidecar/tail` overlap 或 inventory
+  - 把 `closeout/rescue` shortlist 已清空这一状态固定成 today contract；并明确 `Test_vecdeque_span.pas` 只是 stale dead test code，不再把它误判成可吸收候选；如果 shortlist 继续是 0，下一跳回到 `sidecar/tail` overlap 或 inventory
   - 把 `sidecar/tail` 已吸收的 hygiene residue 与 `closeout/rescue` 的 shortlist-first 语义保持为 today contract，并继续拒绝 `dangerous_delete_paths=` 场景下的 wholesale absorb
   - 把 `sidecar` 的唯一 exclusive mixed batch 限定成 small-cut 推进：当前只吸收 `tests/fafafa.core.fs.async/*` 与 `tests/fafafa.core.socket.async/*` 这组 async runner hygiene，并用 `bash tests/test_l0_async_test_runner_hygiene.sh` 守住 today contract；`examples/fafafa.core.sync*` / `examples/fafafa.core.sync.condvar*` 继续 defer
   - 把 `docs/collections/legacy/README.md`、`docs/reports/README.md`、`docs/collections/reports/README.md`、`docs/benchmarks/reports/README.md` 与 `docs/legacy/l0/README.md` 这些 landing-zone docs 保持为 today contract，不吸收 `sidecar` 的旧 pointer 版本
@@ -146,12 +146,12 @@
   - 结果：PASS；pre-merge branch head=`bb2c4104f098699a9f387800b0688a11a12661c9`
   - `git diff --check`
   - 结果：PASS
-  - GitHub Actions `L0 Linux Maintenance` run `24463267969`
-  - 结果：PASS；head sha=`b8b5f719349bc68fc63da7fe51318af8a6af229f`
-  - GitHub Actions `L0 Windows Native Evidence` run `24463558794`
-  - 结果：PASS；head sha=`b8b5f719349bc68fc63da7fe51318af8a6af229f`
+  - GitHub Actions `L0 Linux Maintenance` run `24485131735`
+  - 结果：PASS；head sha=`ef83a697b6c6efec424a75f8495c79d675770f1a`
+  - GitHub Actions `L0 Windows Native Evidence` run `24485728537`
+  - 结果：PASS；head sha=`ef83a697b6c6efec424a75f8495c79d675770f1a`
   - local Windows snapshot：
-  - `tests/_windows_l0_native_evidence_gh/L0-20260415-mainline-postmerge-closeout-windows/`
+  - `tests/_windows_l0_native_evidence_gh/L0-20260416-mainline-closeout-windows/`
 - Retained local refs:
   - `l0-mainline`
   - `l0-mainline-closeout-20260411`
@@ -183,7 +183,7 @@
   - 当前 `sidecar` / `tail` 的 inventory `next_focus=` 仍固定暴露为 `test-hygiene-first`，但 post-merge ref cleanup readiness 先看 overlap 报表
   - fresh overlap 结果是 `sidecar_only_commit_count=1`、`tail_only_commit_count=8`，并且 `sidecar_safe_delete_now=no`、`tail_safe_delete_now=no`
   - 当前 `closeout/rescue` 里已经完成 fresh 复核的 `atomic` / `mem callback` / Windows native CI hotspot、stale test docs、`closeout` 的 fs perf stale cluster、`rescue` 的 mem/result/span test-entry stale cluster，以及 `rescue` 的 examples/runner/doc stale cluster，都会继续落在 `review_skip_paths=`；下一轮只看剩余未跳过的手工 review 候选
-  - 如果 fresh shortlist 继续给出 `closeout.review_candidate_paths=0` 与 `rescue.review_candidate_paths=0`，就把 `closeout/rescue` 视为已清空的 source-review lane；当前 async runner reverse diff 与 `Test_vecdeque_span.pas` 也继续只应留在 `review_skip_paths=`。下一跳回到 `sidecar/tail` overlap 或 retained-refs inventory
+  - 如果 fresh shortlist 继续给出 `closeout.review_candidate_paths=0` 与 `rescue.review_candidate_paths=0`，就把 `closeout/rescue` 视为已清空的 source-review lane；下一跳回到 `sidecar/tail` overlap 或 retained-refs inventory
   - 如果 `docs_absorb_candidate_paths=` 继续暴露 landing-zone docs residue，优先确认是否只是 `sidecar` 的旧 pointer 文本；不要回灌当前 `docs/collections/legacy/README.md`、`docs/reports/README.md`、`docs/collections/reports/README.md`、`docs/benchmarks/reports/README.md` 与 `docs/legacy/l0/README.md` 的 today contract
   - 如需一波收口 Linux/Windows evidence 与 current-state docs，使用 `bash tests/run_strict_l0_mainline_closeout.sh`
   - 如需只回填 current-state 文档，使用 `bash tests/update_strict_l0_current_state_docs.sh --apply --main-sha <main-sha> --origin-main-sha <origin-main-sha> --worktree-sha <worktree-sha> --linux-run-id <linux-run-id> --linux-run-sha <linux-run-sha> --windows-run-id <windows-run-id> --windows-run-sha <windows-run-sha> --windows-local-batch-id <batch-id>`
