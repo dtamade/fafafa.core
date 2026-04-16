@@ -49,6 +49,28 @@ type
     function PoolSize: Integer;
   end;
 
+  TQueueProducerThread = class(TThread)
+  private
+    FQueue: TThreadSafeQueue;
+    FProducedCount: PInteger;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(aQueue: TThreadSafeQueue; aProducedCount: PInteger);
+  end;
+
+  TQueueConsumerThread = class(TThread)
+  private
+    FQueue: TThreadSafeQueue;
+    FConsumedCount: PInteger;
+    FTargetCount: Integer;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(aQueue: TThreadSafeQueue; aConsumedCount: PInteger;
+      aTargetCount: Integer);
+  end;
+
 { TThreadSafeQueue }
 
 constructor TThreadSafeQueue.Create;
@@ -175,70 +197,88 @@ begin
   Result := FPool.Count;
 end;
 
+constructor TQueueProducerThread.Create(aQueue: TThreadSafeQueue;
+  aProducedCount: PInteger);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FQueue := aQueue;
+  FProducedCount := aProducedCount;
+end;
+
+procedure TQueueProducerThread.Execute;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 1 to 50 do
+  begin
+    FQueue.Enqueue(Pointer(PtrInt(LIndex)));
+    InterlockedIncrement(FProducedCount^);
+    Sleep(10);
+  end;
+end;
+
+constructor TQueueConsumerThread.Create(aQueue: TThreadSafeQueue;
+  aConsumedCount: PInteger; aTargetCount: Integer);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FQueue := aQueue;
+  FConsumedCount := aConsumedCount;
+  FTargetCount := aTargetCount;
+end;
+
+procedure TQueueConsumerThread.Execute;
+var
+  LConsumedItem: Pointer;
+begin
+  while FConsumedCount^ < FTargetCount do
+  begin
+    if FQueue.TryDequeue(LConsumedItem) then
+    begin
+      InterlockedIncrement(FConsumedCount^);
+      WriteLn('消费项目: ', PtrInt(LConsumedItem));
+    end
+    else
+      Sleep(5);
+  end;
+end;
+
 { 示例程序 }
 
 procedure DemoThreadSafeQueue;
 var
-  Queue: TThreadSafeQueue;
-  Producer, Consumer: TThread;
-  Item: Pointer;
-  ProducedCount, ConsumedCount: Integer;
+  LQueue: TThreadSafeQueue;
+  LProducer: TQueueProducerThread;
+  LConsumer: TQueueConsumerThread;
+  LProducedCount, LConsumedCount: Integer;
 begin
   WriteLn('=== 线程安全队列示例 ===');
-  
-  Queue := TThreadSafeQueue.Create;
+
+  LQueue := TThreadSafeQueue.Create;
   try
-    ProducedCount := 0;
-    ConsumedCount := 0;
-    
-    // 生产者线程
-    Producer := TThread.CreateAnonymousThread(
-      procedure
-      var
-        i: Integer;
-      begin
-        for i := 1 to 50 do
-        begin
-          Queue.Enqueue(Pointer(i));
-          InterlockedIncrement(ProducedCount);
-          Sleep(10);
-        end;
-      end);
-    
-    // 消费者线程
-    Consumer := TThread.CreateAnonymousThread(
-      procedure
-      var
-        Item: Pointer;
-      begin
-        while ConsumedCount < 50 do
-        begin
-          if Queue.TryDequeue(Item) then
-          begin
-            InterlockedIncrement(ConsumedCount);
-            WriteLn('消费项目: ', PtrInt(Item));
-          end
-          else
-            Sleep(5);
-        end;
-      end);
-    
-    Producer.Start;
-    Consumer.Start;
-    
-    Producer.WaitFor;
-    Consumer.WaitFor;
-    
-    Producer.Free;
-    Consumer.Free;
-    
-    WriteLn(Format('生产: %d, 消费: %d, 队列剩余: %d', 
-      [ProducedCount, ConsumedCount, Queue.Count]));
-    
+    LProducedCount := 0;
+    LConsumedCount := 0;
+
+    LProducer := TQueueProducerThread.Create(LQueue, @LProducedCount);
+    LConsumer := TQueueConsumerThread.Create(LQueue, @LConsumedCount, 50);
+
+    LProducer.Start;
+    LConsumer.Start;
+
+    LProducer.WaitFor;
+    LConsumer.WaitFor;
+
+    LProducer.Free;
+    LConsumer.Free;
+
+    WriteLn(Format('生产: %d, 消费: %d, 队列剩余: %d',
+      [LProducedCount, LConsumedCount, LQueue.Count]));
+
   finally
-    Queue.Free;
+    LQueue.Free;
   end;
-  
+
   WriteLn;
 end;
 

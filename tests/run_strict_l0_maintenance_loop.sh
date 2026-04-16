@@ -22,6 +22,7 @@ print_commands() {
   printf '%s\n' "bash tests/check_strict_l0_docs_consistency.sh"
   printf '%s\n' "bash tests/check_repo_submodule_hygiene.sh"
   printf '%s\n' "bash tests/test_active_shell_runners.sh"
+  printf '%s\n' "bash tests/test_strict_l0_sync_mutex_example_older_fpc_contract.sh"
   printf '%s\n' "bash tests/test_strict_l0_examples_build_docs_contract.sh"
   printf '%s\n' "bash tests/test_strict_l0_examples_smoke_contract.sh"
   printf '%s\n' "STOP_ON_FAIL=1 bash tests/run_all_tests.sh ${STRICT_L0_MODULES[*]}"
@@ -71,6 +72,8 @@ run_case "strict L0 repo submodule metadata hygiene" \
   bash "${REPO_ROOT}/tests/check_repo_submodule_hygiene.sh"
 run_case "strict L0 active shell runners" \
   bash "${REPO_ROOT}/tests/test_active_shell_runners.sh"
+run_case "strict L0 sync.mutex older-FPC example contract" \
+  bash "${REPO_ROOT}/tests/test_strict_l0_sync_mutex_example_older_fpc_contract.sh"
 run_case "strict L0 examples/build current-entry contract" \
   bash "${REPO_ROOT}/tests/test_strict_l0_examples_build_docs_contract.sh"
 run_case "strict L0 examples current-entry build smoke" \
