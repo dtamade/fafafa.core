@@ -74,6 +74,52 @@ sys.exit(0 if normalize(sys.argv[1]) == normalize(sys.argv[2]) else 1)
 PY
 }
 
+copy_if_distinct() {
+  local aSource
+  local aDestination
+
+  aSource="$1"
+  aDestination="$2"
+
+  if [[ ! -f "${aSource}" ]]; then
+    return 0
+  fi
+
+  mkdir -p "$(dirname "${aDestination}")"
+  if paths_equal "${aSource}" "${aDestination}"; then
+    return 0
+  fi
+
+  cp "${aSource}" "${aDestination}"
+}
+
+mirror_qemu_multiarch_dirs() {
+  local aSourceLogsDir
+  local aDestinationLogsDir
+  local LSourceDir
+  local LDestinationDir
+
+  aSourceLogsDir="$1"
+  aDestinationLogsDir="$2"
+
+  if [[ ! -d "${aSourceLogsDir}" ]]; then
+    return 0
+  fi
+
+  mkdir -p "${aDestinationLogsDir}"
+  shopt -s nullglob
+  for LSourceDir in "${aSourceLogsDir}"/qemu-multiarch-*; do
+    [[ -d "${LSourceDir}" ]] || continue
+    LDestinationDir="${aDestinationLogsDir}/$(basename "${LSourceDir}")"
+    if ! paths_equal "${LSourceDir}" "${LDestinationDir}"; then
+      rm -rf "${LDestinationDir}"
+      cp -a "${LSourceDir}" "${LDestinationDir}"
+      echo "[WIN-EVIDENCE-GH] Mirror qemu summary dir: ${LDestinationDir}"
+    fi
+  done
+  shopt -u nullglob
+}
+
 is_billing_block_output() {
   local aText
   local LNormalized
@@ -314,8 +360,12 @@ LSourceGateSummaryJson="$(find "${LTempDir}" -type f -name 'gate_summary.json' |
 LCanonicalGateSummaryMd="${ROOT}/logs/gate_summary.md"
 LCanonicalGateSummaryJson="${ROOT}/logs/gate_summary.json"
 LBackfillOutputRoot="${SIMD_OUTPUT_ROOT:-${ROOT}}"
+LCanonicalLogsDir="${ROOT}/logs"
+LBackfillLogsDir="${LBackfillOutputRoot}/logs"
 LBackfillGateSummaryMd="${LBackfillOutputRoot}/logs/gate_summary.md"
 LBackfillGateSummaryJson="${LBackfillOutputRoot}/logs/gate_summary.json"
+LBackfillCloseoutSummary="${LBackfillLogsDir}/windows_b07_closeout_summary.md"
+LBackfillFreezeJson="${LBackfillLogsDir}/freeze_status.json"
 LFreezeGateSummaryFile=""
 
 mkdir -p "$(dirname "${EVIDENCE_LOG}")" "$(dirname "${CANONICAL_EVIDENCE_LOG}")" "${BATCH_DIR}"
@@ -392,6 +442,10 @@ if [[ -f "${LBackfillGateSummaryJson}" ]]; then
   echo "[WIN-EVIDENCE-GH] Backfill gate summary json: ${LBackfillGateSummaryJson}"
 fi
 
+if ! paths_equal "${LCanonicalLogsDir}" "${LBackfillLogsDir}"; then
+  mirror_qemu_multiarch_dirs "${LCanonicalLogsDir}" "${LBackfillLogsDir}"
+fi
+
 echo "[WIN-EVIDENCE-GH] Run closeout finalize"
 export SIMD_WIN_EVIDENCE_LOG_FILE="${BATCH_EVIDENCE_LOG}"
 export SIMD_WIN_CLOSEOUT_SUMMARY_FILE="${BATCH_CLOSEOUT_SUMMARY}"
@@ -407,9 +461,11 @@ fi
 bash "${ROOT}/run_windows_b07_closeout_finalize.sh" "${BATCH_ID}"
 
 if [[ -f "${BATCH_CLOSEOUT_SUMMARY}" ]]; then
-  cp "${BATCH_CLOSEOUT_SUMMARY}" "${ROOT}/logs/windows_b07_closeout_summary.md"
+  copy_if_distinct "${BATCH_CLOSEOUT_SUMMARY}" "${ROOT}/logs/windows_b07_closeout_summary.md"
+  copy_if_distinct "${BATCH_CLOSEOUT_SUMMARY}" "${LBackfillCloseoutSummary}"
 fi
 
 if [[ -f "${BATCH_FREEZE_JSON}" ]]; then
-  cp "${BATCH_FREEZE_JSON}" "${ROOT}/logs/freeze_status.json"
+  copy_if_distinct "${BATCH_FREEZE_JSON}" "${ROOT}/logs/freeze_status.json"
+  copy_if_distinct "${BATCH_FREEZE_JSON}" "${LBackfillFreezeJson}"
 fi
