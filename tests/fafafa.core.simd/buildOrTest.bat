@@ -68,6 +68,10 @@ if /I "%ACTION%"=="release" (
 )
 if /I "%ACTION%"=="gate" goto :gate
 if /I "%ACTION%"=="gate-strict" goto :gate_strict
+if /I "%ACTION%"=="closeout-release" goto :closeout_release
+if /I "%ACTION%"=="sse2-structure-check" goto :sse2_structure_check
+if /I "%ACTION%"=="sse2-contracts" goto :sse2_contracts
+if /I "%ACTION%"=="impl-smoke-sse2" goto :impl_smoke_sse2
 if /I "%ACTION%"=="impl-smoke-x86" goto :impl_smoke_x86
 if /I "%ACTION%"=="impl-smoke-nonx86" goto :impl_smoke_nonx86
 if /I "%ACTION%"=="impl-audit-nonx86" goto :impl_audit_nonx86
@@ -147,11 +151,15 @@ if /I "%ACTION%"=="finalize-win-evidence" goto :finalize_win_evidence
 if /I "%ACTION%"=="win-closeout-3cmd" goto :win_closeout_3cmd
 if /I "%ACTION%"=="win-closeout-finalize" goto :win_closeout_finalize
 
-echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|key-slot-audit^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]
+echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|key-slot-audit^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]
 echo   Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks.
 echo   gate/gate-strict PASS is not blanket release-grade approval for every experimental path.
 echo   gate         Fast/base gate for routine SIMD changes
 echo   gate-strict  Release/closeout gate with perf, repeats, and evidence checks
+echo   closeout-release  Canonical release closeout entry ^(delegates to shell runner^)
+echo   sse2-structure-check  Structural guard for SSE2 register/include layout
+echo   sse2-contracts  Focused SSE2 moved-surface contract suite
+echo   impl-smoke-sse2  Targeted SSE2 structure + contract/backend/runtime/dataplane smoke
 echo   impl-smoke-x86  Lightweight bounded x86 implementation smoke via DispatchAPI frontier proofs
 echo   impl-smoke-nonx86  Lightweight daily non-x86 implementation smoke
 echo   impl-audit-nonx86  Aggregate implementation-side non-x86 audit
@@ -234,7 +242,19 @@ findstr /r /c:"src\fafafa\.core\.simd\..*Warning:" /c:"src\fafafa\.core\.simd\..
 if not errorlevel 1 echo [CHECK] Ignoring experimental intrinsics hints from src\fafafa.core.simd.intrinsics.avx2.pas
 echo [CHECK] OK (no SIMD-unit warnings/hints on stable path)
 
+echo [CHECK] Backend adapter sync ^(python-only^)
+set "SIMD_ADAPTER_SYNC_SKIP_BUILD=1"
+set "SIMD_ADAPTER_SYNC_PASCAL_SMOKE=0"
+call :adapter_sync
+set "ADAPTER_SYNC_RC=%ERRORLEVEL%"
+set "SIMD_ADAPTER_SYNC_SKIP_BUILD="
+set "SIMD_ADAPTER_SYNC_PASCAL_SMOKE="
+if not "%ADAPTER_SYNC_RC%"=="0" exit /b %ADAPTER_SYNC_RC%
+
 call :register_include_check
+if errorlevel 1 exit /b 1
+
+call :sse2_structure_check
 if errorlevel 1 exit /b 1
 
 call :suite_manifest_check
@@ -290,6 +310,35 @@ if not errorlevel 1 (
 
 echo [REGISTER-INCLUDE] FAILED (python runtime not found; tried py and python)
 exit /b 2
+
+:sse2_structure_check
+set "SSE2_STRUCTURE_SCRIPT=%ROOT%check_sse2_structure.py"
+if not exist "%SSE2_STRUCTURE_SCRIPT%" (
+  echo [SSE2-STRUCTURE] Missing checker: %SSE2_STRUCTURE_SCRIPT%
+  exit /b 2
+)
+
+where py >nul 2>nul
+if not errorlevel 1 (
+  echo [SSE2-STRUCTURE] Running: py -3 %SSE2_STRUCTURE_SCRIPT% --summary-line
+  py -3 "%SSE2_STRUCTURE_SCRIPT%" --summary-line
+  exit /b %ERRORLEVEL%
+)
+
+where python >nul 2>nul
+if not errorlevel 1 (
+  echo [SSE2-STRUCTURE] Running: python %SSE2_STRUCTURE_SCRIPT% --summary-line
+  python "%SSE2_STRUCTURE_SCRIPT%" --summary-line
+  exit /b %ERRORLEVEL%
+)
+
+echo [SSE2-STRUCTURE] FAILED (python runtime not found; tried py and python)
+exit /b 2
+
+:sse2_contracts
+call "%ROOT%buildOrTest.bat" test --suite=TTestCase_SSE2Contracts
+if errorlevel 1 exit /b 1
+exit /b 0
 
 :register_truthfulness_check
 set "REGISTER_TRUTH_SCRIPT=%ROOT%check_nonx86_register_truthfulness.py"
@@ -478,8 +527,12 @@ if errorlevel 1 exit /b 1
 exit /b 0
 
 :adapter_sync
-call :build
-if errorlevel 1 exit /b 1
+if /I "%SIMD_ADAPTER_SYNC_SKIP_BUILD%"=="1" (
+  echo [ADAPTER-SYNC] SKIP build ^(SIMD_ADAPTER_SYNC_SKIP_BUILD=1^)
+) else (
+  call :build
+  if errorlevel 1 exit /b 1
+)
 
 if /I "%SIMD_ADAPTER_SYNC_PASCAL_SMOKE%"=="0" (
   echo [ADAPTER-SYNC] SKIP Pascal smoke ^(SIMD_ADAPTER_SYNC_PASCAL_SMOKE=0^)
@@ -500,7 +553,7 @@ if /I "%SIMD_ADAPTER_SYNC_STRICT%"=="0" set "ADAPTER_SYNC_NO_STRICT=--no-strict"
 where py >nul 2>nul
 if not errorlevel 1 (
   echo [ADAPTER-SYNC] Running: py -3 %ADAPTER_SYNC_SCRIPT% --summary-line %ADAPTER_SYNC_NO_STRICT%
-  echo [ADAPTER-SYNC] Checker now also verifies dispatch slot existence and FillBaseDispatchTable coverage.
+  echo [ADAPTER-SYNC] Checker now also verifies CSV spec ^<-> generated include drift, dispatch slot existence, and FillBaseDispatchTable coverage.
   py -3 "%ADAPTER_SYNC_SCRIPT%" --summary-line %ADAPTER_SYNC_NO_STRICT%
   exit /b %ERRORLEVEL%
 )
@@ -508,7 +561,7 @@ if not errorlevel 1 (
 where python >nul 2>nul
 if not errorlevel 1 (
   echo [ADAPTER-SYNC] Running: python %ADAPTER_SYNC_SCRIPT% --summary-line %ADAPTER_SYNC_NO_STRICT%
-  echo [ADAPTER-SYNC] Checker now also verifies dispatch slot existence and FillBaseDispatchTable coverage.
+  echo [ADAPTER-SYNC] Checker now also verifies CSV spec ^<-> generated include drift, dispatch slot existence, and FillBaseDispatchTable coverage.
   python "%ADAPTER_SYNC_SCRIPT%" --summary-line %ADAPTER_SYNC_NO_STRICT%
   exit /b %ERRORLEVEL%
 )
@@ -900,6 +953,17 @@ if errorlevel 1 (
 
 echo [IMPL-SMOKE-X86] Running: bash %ROOT%BuildOrTest.sh impl-smoke-x86 %NORMALIZED_TEST_ARGS%
 bash "%ROOT%BuildOrTest.sh" impl-smoke-x86 %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:impl_smoke_sse2
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [IMPL-SMOKE-SSE2] FAILED ^(bash runtime not found; impl-smoke-sse2 requires bash to preserve shell parity^)
+  exit /b 2
+)
+
+echo [IMPL-SMOKE-SSE2] Running: bash %ROOT%BuildOrTest.sh impl-smoke-sse2 %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" impl-smoke-sse2 %NORMALIZED_TEST_ARGS%
 exit /b %ERRORLEVEL%
 
 :impl_smoke_nonx86
@@ -1299,6 +1363,16 @@ if "%SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE%"=="" set "SIMD_GATE_REQUIRE_WINDOWS_EVI
 if "%SIMD_QEMU_CPUINFO_REPEAT_ROUNDS%"=="" set "SIMD_QEMU_CPUINFO_REPEAT_ROUNDS=1"
 if "%SIMD_GATE_CONCURRENT_REPEAT%"=="" set "SIMD_GATE_CONCURRENT_REPEAT=10"
 call "%ROOT%buildOrTest.bat" gate
+exit /b %ERRORLEVEL%
+
+:closeout_release
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [CLOSEOUT-RELEASE] FAILED ^(bash runtime not found; closeout-release requires Git Bash / WSL as the canonical entrypoint^)
+  exit /b 2
+)
+echo [CLOSEOUT-RELEASE] Running: bash %ROOT%BuildOrTest.sh closeout-release %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" closeout-release %NORMALIZED_TEST_ARGS%
 exit /b %ERRORLEVEL%
 
 :gate

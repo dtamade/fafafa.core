@@ -50,7 +50,7 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suit
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-smoke-x86
 ```
 
-- `impl-smoke-x86`：固定重跑当前 x86 bounded frontier 的 `DispatchAPI` proof 集合；它不是 full closeout，而是把 `SSE2 compare/vector-math parity`、`SSE3/SSSE3/SSE4.x incremental clone + semantic parity contract`、`AVX512 shift boundary`、`AVX2 wide select`、`AVX2 wide FMA composition` 这些高价值证明收成单条高频入口
+- `impl-smoke-x86`：固定重跑当前 x86 bounded frontier 的高价值 proof 集合；它不是 full closeout，而是按 `impl-smoke-sse2 -> DispatchAPI bounded frontier` 的顺序把 `SSE2 structure/contracts smoke`、`SSE2 compare/vector-math parity`、`SSE3/SSSE3/SSE4.x incremental clone + semantic parity contract`、`AVX512 shift boundary`、`AVX2 wide select`、`AVX2 wide FMA composition` 收成单条高频入口
 - 如果你改了 `TSimdBackendInfo` / `TSimdDispatchTable` 的声明本身，再额外跑：
 
 ```bash
