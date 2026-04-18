@@ -886,6 +886,8 @@ asm
 end;
 
 // === I64x2 Shift Operations ===
+// Keep the raw NEON lane shifts in *Asm helpers and let the public wrappers
+// preserve the published invalid-count fallback semantics.
 
 function NEONShiftLeftI64x2(const a: TVecI64x2; count: Integer): TVecI64x2; assembler; nostackframe;
 asm
@@ -903,7 +905,7 @@ asm
   umov  x1, v0.d[1]
 end;
 
-function NEONShiftRightI64x2(const a: TVecI64x2; count: Integer): TVecI64x2; assembler; nostackframe;
+function NEONShiftRightI64x2Asm(const a: TVecI64x2; count: Integer): TVecI64x2; assembler; nostackframe;
 asm
   fmov  d0, x0
   fmov  d2, x1
@@ -918,7 +920,14 @@ asm
   umov  x1, v0.d[1]
 end;
 
-function NEONShiftRightArithI64x2(const a: TVecI64x2; count: Integer): TVecI64x2; assembler; nostackframe;
+function NEONShiftRightI64x2(const a: TVecI64x2; count: Integer): TVecI64x2;
+begin
+  if (count < 0) or (count >= 64) then
+    Exit(ScalarShiftRightI64x2(a, count));
+  Result := NEONShiftRightI64x2Asm(a, count);
+end;
+
+function NEONShiftRightArithI64x2Asm(const a: TVecI64x2; count: Integer): TVecI64x2; assembler; nostackframe;
 asm
   fmov  d0, x0
   fmov  d2, x1
@@ -931,6 +940,13 @@ asm
 
   umov  x0, v0.d[0]
   umov  x1, v0.d[1]
+end;
+
+function NEONShiftRightArithI64x2(const a: TVecI64x2; count: Integer): TVecI64x2;
+begin
+  if (count < 0) or (count >= 64) then
+    Exit(ScalarShiftRightArithI64x2(a, count));
+  Result := NEONShiftRightArithI64x2Asm(a, count);
 end;
 
 function NEONShiftLeftU64x2(const a: TVecU64x2; count: Integer): TVecU64x2; assembler; nostackframe;
@@ -947,7 +963,7 @@ asm
   umov  x1, v0.d[1]
 end;
 
-function NEONShiftRightU64x2(const a: TVecU64x2; count: Integer): TVecU64x2; assembler; nostackframe;
+function NEONShiftRightU64x2Asm(const a: TVecU64x2; count: Integer): TVecU64x2; assembler; nostackframe;
 asm
   fmov  d0, x0
   fmov  d2, x1
@@ -960,6 +976,17 @@ asm
 
   umov  x0, v0.d[0]
   umov  x1, v0.d[1]
+end;
+
+function NEONShiftRightU64x2(const a: TVecU64x2; count: Integer): TVecU64x2;
+begin
+  if (count < 0) or (count >= 64) then
+  begin
+    Result.u[0] := 0;
+    Result.u[1] := 0;
+    Exit;
+  end;
+  Result := NEONShiftRightU64x2Asm(a, count);
 end;
 
 // === I16x8 Shift Operations ===
@@ -1511,7 +1538,7 @@ asm
   stp   q0, q1, [x8]
 end;
 
-function NEONShiftRightU64x4(const a: TVecU64x4; count: Integer): TVecU64x4; assembler; nostackframe;
+function NEONShiftRightU64x4Asm(const a: TVecU64x4; count: Integer): TVecU64x4; assembler; nostackframe;
 asm
   ldp   q0, q1, [x0]
   neg   w1, w1
@@ -1520,6 +1547,13 @@ asm
   ushl   v0.2d, v0.2d, v2.2d
   ushl   v1.2d, v1.2d, v2.2d
   stp   q0, q1, [x8]
+end;
+
+function NEONShiftRightU64x4(const a: TVecU64x4; count: Integer): TVecU64x4;
+begin
+  if (count < 0) or (count >= 64) then
+    Exit(ScalarShiftRightU64x4(a, count));
+  Result := NEONShiftRightU64x4Asm(a, count);
 end;
 
 // === I64x4 Bitwise Operations (256-bit = 2x128-bit NEON) ===

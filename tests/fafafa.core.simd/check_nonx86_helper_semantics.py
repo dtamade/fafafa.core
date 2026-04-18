@@ -126,6 +126,16 @@ def main() -> int:
             "Exit(ScalarShiftRightArithI64x4(a, count));",
             "Result := NEONShiftRightArithI64x4Asm(a, count);",
         ]),
+        (neon_impl_source, "NEONShiftRightI64x2", [
+            "if (count < 0) or (count >= 64) then",
+            "Exit(ScalarShiftRightI64x2(a, count));",
+            "Result := NEONShiftRightI64x2Asm(a, count);",
+        ]),
+        (neon_impl_source, "NEONShiftRightArithI64x2", [
+            "if (count < 0) or (count >= 64) then",
+            "Exit(ScalarShiftRightArithI64x2(a, count));",
+            "Result := NEONShiftRightArithI64x2Asm(a, count);",
+        ]),
         (neon_impl_source, "NEONShiftLeftI64x4Asm", [
             "ldp   q0, q1, [x0]",
             "uxtw  x1, w1",
@@ -151,6 +161,17 @@ def main() -> int:
             "ushl   v0.2d, v0.2d, v2.2d",
             "ushl   v1.2d, v1.2d, v2.2d",
             "stp   q0, q1, [x8]",
+        ]),
+        (neon_impl_source, "NEONShiftRightU64x2", [
+            "if (count < 0) or (count >= 64) then",
+            "Result.u[0] := 0;",
+            "Result.u[1] := 0;",
+            "Result := NEONShiftRightU64x2Asm(a, count);",
+        ]),
+        (neon_impl_source, "NEONShiftRightU64x4", [
+            "if (count < 0) or (count >= 64) then",
+            "Exit(ScalarShiftRightU64x4(a, count));",
+            "Result := NEONShiftRightU64x4Asm(a, count);",
         ]),
         (neon_impl_source, "NEONSelectF32x4", [
             "for LIndex := 0 to 3 do",
