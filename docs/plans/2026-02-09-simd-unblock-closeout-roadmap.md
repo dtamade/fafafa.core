@@ -55,6 +55,8 @@ Batch82 已补齐并验证以下 5 项：
 
 ### Stage A（已完成，收口发布证据）
 
+- [x] 当前推荐的一键 release 收口入口：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152`
 - [x] 按推荐顺序完成证据闭环：
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`
   - `tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify`

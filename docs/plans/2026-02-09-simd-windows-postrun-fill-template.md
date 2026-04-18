@@ -19,6 +19,9 @@
 可选（先打印三命令闭环）:
 - `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-3cmd <BATCH_ID>`
 
+`closeout-release` 是完整 release 收口的首选入口：
+- `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release <BATCH_ID>`
+
 说明：
 - native batch evidence 不会生成 fresh `gate_summary.md/json`，所以不能从 `evidence-win-verify` 直接跳到 `finalize-win-evidence` 或 `win-closeout-finalize`。
 - 真正决定 `cross-ready=True` 的是 Linux/WSL 侧这条 fail-close cross gate。
