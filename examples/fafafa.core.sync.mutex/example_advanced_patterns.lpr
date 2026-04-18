@@ -2,7 +2,7 @@
 program example_advanced_patterns;
 
 {$mode objfpc}{$H+}
-{$I fafafa.core.settings.inc}
+{$I ../../src/fafafa.core.settings.inc}
 
 uses
   {$IFDEF UNIX}
@@ -346,6 +346,7 @@ var
   i: Integer;
   ManualTime, GuardTime: QWord;
   Guard2: ILockGuard;
+  LOverheadPct: Double;
 begin
   WriteLn('=== 性能对比示例 ===');
   
@@ -375,10 +376,17 @@ begin
   end;
   EndTime := GetTickCount64;
   GuardTime := EndTime - StartTime;
-  
+
   WriteLn(Format('手动管理: %d ms', [ManualTime]));
   WriteLn(Format('锁保护器: %d ms', [GuardTime]));
-  WriteLn(Format('开销: %.2f%%', [(GuardTime - ManualTime) * 100.0 / ManualTime]));
+  // Short microbenchmarks can fall below the millisecond timer resolution.
+  if ManualTime = 0 then
+    WriteLn('开销: n/a (手动路径低于毫秒计时分辨率)')
+  else
+  begin
+    LOverheadPct := (Double(GuardTime) - Double(ManualTime)) * 100.0 / Double(ManualTime);
+    WriteLn(Format('开销: %.2f%%', [LOverheadPct]));
+  end;
   WriteLn;
 end;
 

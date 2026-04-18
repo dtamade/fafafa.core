@@ -2,7 +2,7 @@
 program example_performance_comparison;
 
 {$mode objfpc}{$H+}
-{$I fafafa.core.settings.inc}
+{$I ../../src/fafafa.core.settings.inc}
 
 uses
   {$IFDEF UNIX}

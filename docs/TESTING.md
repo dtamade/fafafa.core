@@ -129,6 +129,31 @@ bash tests/test_l0_sync_condvar_current_example_build.sh
 - 必须产出 `examples/fafafa.core.sync.condvar/bin/` 下这 7 个 current-entry 可执行文件
 - 作用域只覆盖 `examples/fafafa.core.sync.condvar` 的 current-entry build 链路；默认 `run` 路径虽已在对应 audit 中复核，但不把 `tests/test_l0_sync_condvar_example_runner_hygiene.sh` 一类 broader residue 一并纳入 today contract
 
+如果当前目标是清掉 `examples/fafafa.core.sync.mutex` current-entry 的 Lazarus CodeTools include 解析噪音，而不是重开 `sync.mutex` broader absorb，优先跑：
+
+```bash
+bash tests/test_l0_sync_mutex_current_entry_codetools_include_clean.sh
+```
+
+这条命令当前只固定守住：
+
+- `bash examples/fafafa.core.sync.mutex/BuildOrRun.sh build` 必须能在 current HEAD 上通过
+- 构建日志里不能再出现 `include file not found "fafafa.core.settings.inc"`
+- 作用域只覆盖 `examples/fafafa.core.sync.mutex` 的 current-entry include-resolution cleanliness；它不替代 `bash tests/test_strict_l0_sync_mutex_example_older_fpc_contract.sh`，也不把 `sync.mutex` 其余 broader runner/source residue 一并纳入 today contract
+
+如果当前目标是守住 `examples/fafafa.core.sync.mutex` current-entry 的默认运行路径，而不是重开 `sync.mutex` broader absorb，优先跑：
+
+```bash
+bash tests/test_l0_sync_mutex_current_entry_default_run.sh
+```
+
+这条命令当前只固定守住：
+
+- 先通过 `bash examples/fafafa.core.sync.mutex/BuildOrRun.sh build` 产出 current-entry 可执行文件
+- `example_advanced_patterns` 会在非交互 stdin 下重复运行多次，固定拒绝 `EZeroDivide` 这类毫秒计时分辨率触发的运行时异常
+- `example_basic_usage` 也必须能在非交互 stdin 下完成一次默认运行
+- 作用域只覆盖 `examples/fafafa.core.sync.mutex` 的 current-entry run 质量；它不替代 `bash tests/test_strict_l0_sync_mutex_example_older_fpc_contract.sh`，也不把 `sync.mutex` broader runner/source residue 一并纳入 today contract
+
 只有当 strict L0 发生非文档代码/测试变化，或者有人明确要求 exact `HEAD` / merge commit 证据时，才继续走 GitHub Actions Windows native evidence 主路径。
 
 如果当前目标不是日常维护，而是 mainline closeout，一次性把 Linux maintenance、Windows exact evidence 和 current-state docs 串起来，当前单入口是：
