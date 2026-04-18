@@ -12,8 +12,17 @@ var
   Mutex: IMutex;
   Cond: ICondVar;
 
+function CreateCondMutex: IMutex;
 begin
-  Mutex := MakeMutex;
+  {$IFDEF UNIX}
+  Result := MakePthreadMutex;
+  {$ELSE}
+  Result := MakeMutex;
+  {$ENDIF}
+end;
+
+begin
+  Mutex := CreateCondMutex;
   Cond := MakeCondVar;
 
   Mutex.Acquire;

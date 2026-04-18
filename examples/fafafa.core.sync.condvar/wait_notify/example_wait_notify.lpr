@@ -13,6 +13,15 @@ var
   Cond: ICondVar;
   Ready: Boolean;
 
+function CreateCondMutex: IMutex;
+begin
+  {$IFDEF UNIX}
+  Result := MakePthreadMutex;
+  {$ELSE}
+  Result := MakeMutex;
+  {$ENDIF}
+end;
+
 procedure Worker;
 begin
   Mutex.Acquire;
@@ -26,7 +35,7 @@ begin
 end;
 
 begin
-  Mutex := MakeMutex;
+  Mutex := CreateCondMutex;
   Cond := MakeCondVar;
   Ready := False;
 

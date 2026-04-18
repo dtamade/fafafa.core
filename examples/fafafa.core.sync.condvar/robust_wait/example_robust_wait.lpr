@@ -10,9 +10,18 @@ uses
 
 var
   M: IMutex;
-  CV: IConditionVariable;
+  CV: ICondVar;
   Ready: Boolean;
   Attempts: Integer;
+
+function CreateCondMutex: IMutex;
+begin
+  {$IFDEF UNIX}
+  Result := MakePthreadMutex;
+  {$ELSE}
+  Result := MakeMutex;
+  {$ENDIF}
+end;
 
 procedure Worker;
 var deadline: TDateTime; msleft: Integer; woke: Boolean;
@@ -42,8 +51,8 @@ begin
 end;
 
 begin
-  M := MakeMutex;
-  CV := MakeConditionVariable;
+  M := CreateCondMutex;
+  CV := MakeCondVar;
   Ready := False; Attempts := 0;
 
   with TThread.CreateAnonymousThread(@Worker) do

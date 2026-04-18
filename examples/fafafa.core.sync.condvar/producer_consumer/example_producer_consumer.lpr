@@ -14,6 +14,15 @@ var
   Queue: array of Integer;
   Done: Boolean;
 
+function CreateCondMutex: IMutex;
+begin
+  {$IFDEF UNIX}
+  Result := MakePthreadMutex;
+  {$ELSE}
+  Result := MakeMutex;
+  {$ENDIF}
+end;
+
 
 procedure Consumer; forward;
 
@@ -90,8 +99,8 @@ end;
 var
   T1, T2: TThread;
 begin
-  Mutex := MakeMutex;
-  Cond := MakeConditionVariable;
+  Mutex := CreateCondMutex;
+  Cond := MakeCondVar;
   Done := False; SetLength(Queue, 0);
 
   T1 := TProducerThread.Create(True);

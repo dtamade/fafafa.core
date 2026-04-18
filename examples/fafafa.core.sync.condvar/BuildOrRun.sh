@@ -18,7 +18,6 @@ mkdir -p ./bin ./lib
 echo "=== Building fafafa.core.sync.condvar Examples ==="
 echo
 
-# List of all example subdirectories
 EXAMPLES=(
   "barrier/example_multi_thread_coordination"
   "cond_vs_event/example_cond_vs_event"
@@ -30,8 +29,8 @@ EXAMPLES=(
 )
 
 for example in "${EXAMPLES[@]}"; do
-  echo "[BUILD] ${LAZBUILD_BIN} --build-mode=Release ${example}.lpi"
-  "${LAZBUILD_BIN}" --build-mode=Release "${example}.lpi"
+  echo "[BUILD] ${LAZBUILD_BIN} ${example}.lpi"
+  "${LAZBUILD_BIN}" "${example}.lpi"
 done
 
 echo
@@ -43,7 +42,7 @@ if [[ "${ACTION}" == "run" ]]; then
   echo
 
   for example in "${EXAMPLES[@]}"; do
-    example_name=$(basename "${example}")
+    example_name="$(basename "${example}")"
     if [[ -x "bin/${example_name}" ]]; then
       echo "[RUN] bin/${example_name}"
       "bin/${example_name}"
@@ -60,7 +59,7 @@ else
   echo "[INFO] Build-only mode (${ACTION})"
   echo "You can run the examples manually:"
   for example in "${EXAMPLES[@]}"; do
-    example_name=$(basename "${example}")
+    example_name="$(basename "${example}")"
     echo "  ./bin/${example_name}"
   done
 fi

@@ -16,9 +16,18 @@ const
 
 var
   M: IMutex;
-  CV: IConditionVariable;
+  CV: ICondVar;
   Q: array of Integer;
   ProducersDone: Integer;
+
+function CreateCondMutex: IMutex;
+begin
+  {$IFDEF UNIX}
+  Result := MakePthreadMutex;
+  {$ELSE}
+  Result := MakeMutex;
+  {$ENDIF}
+end;
 
 procedure Enqueue(const V: Integer);
 begin
@@ -126,8 +135,8 @@ end;
 
 var i: Integer; Prod: array[1..N_PROD] of TProducer; Cons: array[1..N_CONS] of TConsumer;
 begin
-  M := MakeMutex;
-  CV := MakeConditionVariable;
+  M := CreateCondMutex;
+  CV := MakeCondVar;
   SetLength(Q, 0);
   ProducersDone := 0;
 

@@ -1,21 +1,30 @@
-# fafafa.core.sync.conditionVariable 示例集合
+# fafafa.core.sync.condvar 示例集合
 
-本目录包含若干经典、易理解的条件变量用法示例（遵循项目规范，UTF-8 编码）：
+本目录收纳 `fafafa.core.sync.condvar` 的 current-entry 示例，重点覆盖等待/通知、超时等待、生产者-消费者、MPMC 队列和条件变量与事件/信号量的对比。
 
-- producer_consumer/example_producer_consumer
-  - 生产者-消费者：Signal 通知、Broadcast 收尾
-- wait_notify/example_wait_notify
-  - 基础等待-通知机制：无超时等待
-- timeout/example_timeout
-  - 超时等待：Wait(Mutex, TimeoutMs) 返回 False
-- barrier/example_multi_thread_coordination
-  - 多线程协调（屏障）：全部到达后 Broadcast 统一放行
+## Current entry
 
-构建说明：
-- Windows: 进入各示例目录，双击 buildOrTest.bat
-- Linux: 在各示例目录执行 lazbuild 对应 .lpi
+- Linux/macOS：`examples/fafafa.core.sync.condvar/BuildOrRun.sh`
+- Windows：`examples\fafafa.core.sync.condvar\BuildOrRun.bat`
+- 当前示例子项目：
+  - `barrier/example_multi_thread_coordination`
+  - `cond_vs_event/example_cond_vs_event`
+  - `mpmc_queue/example_mpmc_queue`
+  - `producer_consumer/example_producer_consumer`
+  - `robust_wait/example_robust_wait`
+  - `timeout/example_timeout`
+  - `wait_notify/example_wait_notify`
 
-输出规范：
-- 二进制输出在 bin/
-- 中间文件在 lib/
+## Usage
+
+- Linux/macOS 构建：`bash examples/fafafa.core.sync.condvar/BuildOrRun.sh build`
+- Linux/macOS 构建并运行：`bash examples/fafafa.core.sync.condvar/BuildOrRun.sh`
+- Windows 构建：`examples\\fafafa.core.sync.condvar\\BuildOrRun.bat build`
+- Windows 构建并运行：`examples\\fafafa.core.sync.condvar\\BuildOrRun.bat`
+
+## Notes
+
+- 当前入口默认使用各子项目 `.lpi` 的 `Default` build mode；这里不再强绑 `Release`
+- Unix 条件变量示例默认使用 `MakePthreadMutex`，避免把 `pthread_cond_*` 和非 pthread mutex 混用
+- 子目录中遗留的 `buildOrTest.bat` 仍属于历史 runner residue，不是 current-entry source of truth
 

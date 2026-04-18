@@ -14,6 +14,15 @@ var
   Arrived: Integer;
   Need: Integer = 3;
 
+function CreateCondMutex: IMutex;
+begin
+  {$IFDEF UNIX}
+  Result := MakePthreadMutex;
+  {$ELSE}
+  Result := MakeMutex;
+  {$ENDIF}
+end;
+
 procedure Worker(const Name: String);
 begin
   // 做一些准备工作（随机耗时）
@@ -41,13 +50,16 @@ procedure Worker3; begin Worker('T3'); end;
 var T1,T2,T3: TThread;
 begin
   Randomize;
-  Mutex := MakeMutex;
+  Mutex := CreateCondMutex;
   Cond := MakeCondVar;
   Arrived := 0;
 
   T1 := TThread.CreateAnonymousThread(@Worker1);
   T2 := TThread.CreateAnonymousThread(@Worker2);
   T3 := TThread.CreateAnonymousThread(@Worker3);
+  T1.FreeOnTerminate := False;
+  T2.FreeOnTerminate := False;
+  T3.FreeOnTerminate := False;
   T1.Start; T2.Start; T3.Start;
   T1.WaitFor; T2.WaitFor; T3.WaitFor;
   T1.Free; T2.Free; T3.Free;

@@ -117,6 +117,18 @@ bash tests/test_l0_sync_current_example_build.sh
 - 必须产出仓库根 `bin/example_sync[.exe]`
 - 作用域只覆盖 `example_sync`，不把 `examples/fafafa.core.sync*` / `examples/fafafa.core.sync.condvar*` 其余旧 runner residue 一并纳入 today contract
 
+如果当前目标是修 `examples/fafafa.core.sync.condvar` 这条 current-entry，而不是把 `sync/condvar` sidecar runner hygiene 一并吸进主线 today contract，优先跑：
+
+```bash
+bash tests/test_l0_sync_condvar_current_example_build.sh
+```
+
+这条命令当前只固定守住：
+
+- `bash examples/fafafa.core.sync.condvar/BuildOrRun.sh build` 必须能在 current HEAD 上通过
+- 必须产出 `examples/fafafa.core.sync.condvar/bin/` 下这 7 个 current-entry 可执行文件
+- 作用域只覆盖 `examples/fafafa.core.sync.condvar` 的 current-entry build 链路；默认 `run` 路径虽已在对应 audit 中复核，但不把 `tests/test_l0_sync_condvar_example_runner_hygiene.sh` 一类 broader residue 一并纳入 today contract
+
 只有当 strict L0 发生非文档代码/测试变化，或者有人明确要求 exact `HEAD` / merge commit 证据时，才继续走 GitHub Actions Windows native evidence 主路径。
 
 如果当前目标不是日常维护，而是 mainline closeout，一次性把 Linux maintenance、Windows exact evidence 和 current-state docs 串起来，当前单入口是：

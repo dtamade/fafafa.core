@@ -15,8 +15,8 @@ set "EXAMPLES=barrier\example_multi_thread_coordination cond_vs_event\example_co
 
 rem Build all examples
 for %%e in (%EXAMPLES%) do (
-  echo [BUILD] %LAZBUILD% --build-mode=Release %%e.lpi
-  %LAZBUILD% --build-mode=Release "%%e.lpi"
+  echo [BUILD] %LAZBUILD% %%e.lpi
+  %LAZBUILD% "%%e.lpi"
   if errorlevel 1 exit /b 1
 )
 

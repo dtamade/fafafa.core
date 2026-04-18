@@ -17,6 +17,15 @@ var
   S: ISem;
   Ready: Boolean;
 
+function CreateCondMutex: IMutex;
+begin
+  {$IFDEF UNIX}
+  Result := MakePthreadMutex;
+  {$ELSE}
+  Result := MakeMutex;
+  {$ENDIF}
+end;
+
 procedure WithCondVar;
 begin
   // 条件变量典型用法：在持有互斥锁时等待，醒来后通常循环判定条件
@@ -53,10 +62,10 @@ begin
 end;
 
 begin
-  M := MakeMutex;
+  M := CreateCondMutex;
   CV := MakeCondVar;
   E := MakeEvent(False{AutoReset}, False{Initial});
-  S := MakeSemaphore(0, 3);
+  S := MakeSem(0, 3);
   Ready := False;
 
   // 启动等待线程
