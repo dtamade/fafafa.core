@@ -13,6 +13,7 @@
 - sidecar async runner slice 审计：`docs/audits/2026-04-15-l0-sidecar-async-runner-slice-audit.md`
 - sync current example build repair 审计：`docs/audits/2026-04-19-l0-sync-current-example-build-repair-audit.md`
 - sync condvar current-entry repair 审计：`docs/audits/2026-04-19-l0-sync-condvar-current-entry-build-repair-audit.md`
+- sync condvar shortlist stale-skip 审计：`docs/audits/2026-04-19-l0-sync-condvar-shortlist-stale-skip-audit.md`
 - sync.mutex current-entry repair 审计：`docs/audits/2026-04-19-l0-sync-mutex-current-entry-codetools-include-repair-audit.md`
 - closeout/rescue source-review final clearout 审计：`docs/audits/2026-04-15-l0-closeout-rescue-final-source-review-clearout-audit.md`
 - closeout/rescue final 10-path stale-skip 审计：`docs/audits/2026-04-19-l0-closeout-rescue-final-10path-stale-skip-audit.md`
@@ -47,6 +48,7 @@
 - 同日 `sidecar` 的唯一 exclusive mixed batch 也只切片吸收了 async runner hygiene，小撮 today contract 继续由 `bash tests/test_l0_async_test_runner_hygiene.sh` 守住；`examples/fafafa.core.sync*` 与 `examples/fafafa.core.sync.condvar*` 仍然 defer，不做 broad absorb
 - 同日 `example_sync` 这条 current-entry 另行修到了 current API，并由 `bash tests/test_l0_sync_current_example_build.sh` 守住；它只覆盖 `example_sync.lpi`，不代表 `sync/condvar` 旧 runner 批次已经 ready
 - 同日 `examples/fafafa.core.sync.condvar` 这条 current-entry 也单独修回了 today build/run；today contract 仅由 `bash tests/test_l0_sync_condvar_current_example_build.sh` 守住 current-entry build，不代表 `sync/condvar` sidecar runner hygiene 批次已经 ready
+- 同日后续 triage 还把 `examples/fafafa.core.sync.condvar` 这组 current-entry 正式降到了 retained-refs shortlist 的 `review_skip_paths=`；`bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh` 不再把它们当 fresh candidate，后续 source-review-first 的注意力收窄到更小的 `example_sync` / `sync.mutex` 源码点
 - 同日 `examples/fafafa.core.sync.mutex` 这条 current-entry 也单独补了两层 today contract：`bash tests/test_l0_sync_mutex_current_entry_codetools_include_clean.sh` 固定拒绝 `include file not found "fafafa.core.settings.inc"` 这类项目入口噪音，`bash tests/test_l0_sync_mutex_current_entry_default_run.sh` 固定拒绝 advanced example 因毫秒计时分辨率触发的 `EZeroDivide`；它们只覆盖 current-entry include/run 质量，不代表 `sync.mutex` broader runner/source absorb 已经 ready
 - 当前几份 landing-zone docs：`docs/collections/legacy/README.md`、`docs/reports/README.md`、`docs/collections/reports/README.md`、`docs/benchmarks/reports/README.md` 与 `docs/legacy/l0/README.md` 继续以主线版本为准，不吸收 `sidecar` 的旧 pointer 叙事
 - 如果当前问题是 `sidecar/tail` 在 merged-main 之后还能不能删、各自还剩什么 exclusive batch，标准入口切到：`bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh`

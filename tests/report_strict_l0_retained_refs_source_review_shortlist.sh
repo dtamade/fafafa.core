@@ -162,6 +162,10 @@ is_review_skip_path() {
     l0-mainline-closeout-20260411:examples/fafafa.core.json/example_reader_flags.lpi|\
     l0-mainline-closeout-20260411:examples/fafafa.core.json/example_stop_when_done.lpi|\
     l0-mainline-closeout-20260411:examples/fafafa.core.platform/BuildOrRun.sh|\
+    l0-mainline-closeout-20260411:examples/fafafa.core.sync.condvar/BuildOrRun.bat|\
+    l0-mainline-closeout-20260411:examples/fafafa.core.sync.condvar/BuildOrRun.sh|\
+    l0-mainline-closeout-20260411:examples/fafafa.core.sync.condvar/*/*.lpi|\
+    l0-mainline-closeout-20260411:examples/fafafa.core.sync.condvar/*/*.lpr|\
     l0-mainline-closeout-20260411:examples/fafafa.core.sync.mutex/BuildOrRun.sh|\
     l0-mainline-closeout-20260411:examples/fafafa.core.sync.mutex/example_advanced_patterns.lpi|\
     l0-mainline-closeout-20260411:examples/fafafa.core.sync.mutex/example_advanced_patterns.lpr|\
@@ -207,6 +211,10 @@ is_review_skip_path() {
     l0-main-rescue:examples/fafafa.core.platform/BuildOrRun.sh|\
     l0-main-rescue:examples/fafafa.core.result/BuildOrRun.sh|\
     l0-main-rescue:examples/fafafa.core.result/example_result_filters_and_try.lpr|\
+    l0-main-rescue:examples/fafafa.core.sync.condvar/BuildOrRun.bat|\
+    l0-main-rescue:examples/fafafa.core.sync.condvar/BuildOrRun.sh|\
+    l0-main-rescue:examples/fafafa.core.sync.condvar/*/*.lpi|\
+    l0-main-rescue:examples/fafafa.core.sync.condvar/*/*.lpr|\
     l0-main-rescue:examples/fafafa.core.sync.mutex/BuildOrRun.sh|\
     l0-main-rescue:examples/fafafa.core.sync.mutex/example_advanced_patterns.lpi|\
     l0-main-rescue:examples/fafafa.core.sync.mutex/example_advanced_patterns.lpr|\
