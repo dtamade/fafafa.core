@@ -893,6 +893,9 @@ asm
   fmov  d2, x1
   ins   v0.d[1], v2.d[0]
 
+  // ushl v?.2d consumes 64-bit lane counts; normalize the public Integer input
+  // before duplicating it into the shift vector.
+  uxtw  x2, w2
   dup   v1.2d, x2
   ushl   v0.2d, v0.2d, v1.2d
 
@@ -936,6 +939,7 @@ asm
   fmov  d2, x1
   ins   v0.d[1], v2.d[0]
 
+  uxtw  x2, w2
   dup   v1.2d, x2
   ushl   v0.2d, v0.2d, v1.2d
 
@@ -1500,6 +1504,7 @@ end;
 function NEONShiftLeftU64x4(const a: TVecU64x4; count: Integer): TVecU64x4; assembler; nostackframe;
 asm
   ldp   q0, q1, [x0]
+  uxtw  x1, w1
   dup   v2.2d, x1
   ushl   v0.2d, v0.2d, v2.2d
   ushl   v1.2d, v1.2d, v2.2d

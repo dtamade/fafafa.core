@@ -134,6 +134,24 @@ def main() -> int:
             "ushl   v1.2d, v1.2d, v2.2d",
             "stp   q0, q1, [x8]",
         ]),
+        (neon_impl_source, "NEONShiftLeftI64x2", [
+            "uxtw  x2, w2",
+            "dup   v1.2d, x2",
+            "ushl   v0.2d, v0.2d, v1.2d",
+        ]),
+        (neon_impl_source, "NEONShiftLeftU64x2", [
+            "uxtw  x2, w2",
+            "dup   v1.2d, x2",
+            "ushl   v0.2d, v0.2d, v1.2d",
+        ]),
+        (neon_impl_source, "NEONShiftLeftU64x4", [
+            "ldp   q0, q1, [x0]",
+            "uxtw  x1, w1",
+            "dup   v2.2d, x1",
+            "ushl   v0.2d, v0.2d, v2.2d",
+            "ushl   v1.2d, v1.2d, v2.2d",
+            "stp   q0, q1, [x8]",
+        ]),
         (neon_impl_source, "NEONSelectF32x4", [
             "for LIndex := 0 to 3 do",
             "if (mask and (1 shl LIndex)) <> 0 then",
