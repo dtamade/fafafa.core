@@ -131,9 +131,11 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-
 SIMD_QEMU_PLATFORMS='linux/arm64 linux/riscv64' SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local
 ```
 
+2026-04-19 fresh rerun：`[CLOSEOUT-HOST-LOCAL] OK`
+
 - latest fresh QEMU non-x86 evidence：
-  - runtime summary: [qemu-multiarch-20260414-114234-1499561/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260414-114234-1499561/summary.md)
-  - cpuinfo summary: [qemu-multiarch-20260414-120248-1569032/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260414-120248-1569032/summary.md)
+  - runtime summary: [qemu-multiarch-20260419-012508-1690172/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260419-012508-1690172/summary.md)
+  - cpuinfo summary: [qemu-multiarch-20260419-013630-1748481/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260419-013630-1748481/summary.md)
 
 - legacy targeted parity smoke 仍保留为显式诊断入口：`TTestCase_NonX86BackendParity,TTestCase_DirectDispatch,TTestCase_DataPlane`
 
@@ -148,7 +150,7 @@ FAFAFA_BUILD_MODE=Release SIMD_ENABLE_NEON_BACKEND=1 SIMD_ENABLE_RISCVV_BACKEND=
 这批结果当前证明的是：`x86_64` 主机上的 source/runtime contract、dispatch wiring、scalar parity 没看到 fresh 漂移。
 `impl-audit-nonx86` 和 `closeout-host-local` 现在把 host-local implementation audit / strict closeout 固化成正式入口。
 QEMU non-x86 runtime evidence 现在就是当前 non-x86 收口主线的一部分。
-当前项目口径下，只要 `qemu-nonx86-evidence` 在 `linux/arm64` / `linux/riscv64` fresh 通过，就把它作为当前 arm64 / riscv64 closeout 的充分证明；这轮最新 fresh 证据就是上面的 `qemu-multiarch-20260414-114234-1499561` / `qemu-multiarch-20260414-120248-1569032`。没有硬件时，不再把 native host 当成 blocker。native host evidence 仍可补充，但不再是这轮收口的前置条件。
+当前项目口径下，只要 `qemu-nonx86-evidence` 在 `linux/arm64` / `linux/riscv64` fresh 通过，就把它作为当前 arm64 / riscv64 closeout 的充分证明；这轮最新 fresh 证据就是上面的 `qemu-multiarch-20260419-012508-1690172` / `qemu-multiarch-20260419-013630-1748481`。没有硬件时，不再把 native host 当成 blocker。native host evidence 仍可补充，但不再是这轮收口的前置条件。
 
 ## Task 2 / Task 3 closeout facts (2026-04-14 fresh)
 

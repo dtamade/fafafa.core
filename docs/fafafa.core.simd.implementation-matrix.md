@@ -10,7 +10,7 @@
 - 目标四：`impl-smoke-nonx86` 作为高频实现回归层，只负责尽快暴露 non-x86 contract 漂移；完整实现审计 / strict closeout 仍分别看 `impl-audit-nonx86` / `closeout-host-local`。
 - 当前额外约束：
   - 这张表可以做 working ledger，但不能单独当成 “Task 2/Task 3 已完成” 的证明。
-  - `Task 2 / Task 3` 相关 family 现在都已经有 2026-04-14 fresh evidence，可以按 closeout-ready 理解。
+  - `Task 2 / Task 3` 相关 family 现在都已经有 2026-04-19 fresh evidence，可以按 closeout-ready 理解。
   - `src/fafafa.core.simd.neon.pas` 里的 `NEON hygiene` 当前已 green，但若后续切历史，建议单列为 `NEON shift/select hygiene`。
 
 ## Non-X86 Ownership Matrix
@@ -67,21 +67,19 @@ AVX2 | FmaF32x16 / FmaF64x8 | vector-asm-gated backend_owned; wide FMA must rema
 
 - `Task 2 / shift-bitwise`：
   - `runtime evidence`：
-    - [qemu-multiarch-20260414-083827-1057268/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260414-083827-1057268/summary.md)
-    - [qemu-multiarch-20260414-085109-1103235/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260414-085109-1103235/summary.md)
-    - [qemu-multiarch-20260414-085836-1128552/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260414-085836-1128552/summary.md)
-  - `current status`：2026-04-14 fresh on `helper semantics checks=41` + `impl-audit-nonx86` + `qemu-nonx86-evidence` + `closeout-host-local`
+    - [qemu-multiarch-20260419-012508-1690172/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260419-012508-1690172/summary.md)
+    - [qemu-multiarch-20260419-013630-1748481/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260419-013630-1748481/summary.md)
+  - `current status`：2026-04-19 fresh on `helper semantics checks=41` + `impl-audit-nonx86` + `qemu-nonx86-evidence` + `closeout-host-local`
   - `next action`：hold green; fail if NEON shift fallback / NEON select lane semantics / wide shift boundary semantics regresses
 - `Task 3 / arithmetic-minmax-mul`：
   - `runtime evidence`：
-    - [qemu-multiarch-20260414-083827-1057268/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260414-083827-1057268/summary.md)
-    - [qemu-multiarch-20260414-085109-1103235/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260414-085109-1103235/summary.md)
-    - [qemu-multiarch-20260414-085836-1128552/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260414-085836-1128552/summary.md)
-  - `current status`：2026-04-14 fresh on targeted release suites + `impl-audit-nonx86` + `qemu-nonx86-evidence` + `closeout-host-local`
+    - [qemu-multiarch-20260419-012508-1690172/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260419-012508-1690172/summary.md)
+    - [qemu-multiarch-20260419-013630-1748481/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260419-013630-1748481/summary.md)
+  - `current status`：2026-04-19 fresh on targeted release suites + `impl-audit-nonx86` + `qemu-nonx86-evidence` + `closeout-host-local`
   - `next action`：hold green; fail if truncation probe / lane-tag probe / dataplane snapshot coverage regresses
 - `NEON hygiene`：
   - `source truth`：`check_nonx86_helper_semantics.py` 现在会锁 `NEONShiftLeftI32x16`、`NEONShiftRightArithI64x4`、`NEONShiftLeftI64x4Asm`、`NEONSelectF32x4`
-  - `runtime evidence`：跟 `Task 2` 共用 2026-04-14 fresh QEMU + closeout summaries
+  - `runtime evidence`：跟 `Task 2` 共用 2026-04-19 fresh QEMU + closeout-host-local summaries
   - `current status`：2026-04-19 fresh green on `helper semantics` + `impl-audit-nonx86`
   - `next action`：如果后续切历史，可单列为 `NEON shift/select hygiene`
 - `RISCVV facade/register hygiene`：
@@ -96,7 +94,7 @@ AVX2 | FmaF32x16 / FmaF64x8 | vector-asm-gated backend_owned; wide FMA must rema
 
 - x86 bounded frontier：`impl-smoke-x86`，固定按 `impl-smoke-sse2 -> DispatchAPI bounded frontier` 的顺序重跑当前已经钉住的 `SSE2 structure/contracts smoke`、`SSE2 compare/vector-math parity`、`SSE3/SSSE3/SSE4.x incremental clone + semantic parity contract`、`AVX512 shift boundary`、`AVX2 wide select`、`AVX2 wide FMA composition` proof；它是高频 smoke，不替代 full closeout。
 - 高频日常层：`impl-smoke-nonx86`，只用来快速确认 helper semantics / wiring ownership / targeted parity 没有 fresh 漂移；它不是 `impl-audit-nonx86` 或 `closeout-host-local` 的替代品。
-- 当前没有 `arm64` / `riscv64` 实机时，fresh `linux/arm64` + `linux/riscv64` QEMU 结果已经足够作为 non-x86 closeout 证明；这轮对应的 summary 是 [qemu-multiarch-20260414-114234-1499561/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260414-114234-1499561/summary.md) 和 [qemu-multiarch-20260414-120248-1569032/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260414-120248-1569032/summary.md)。
+- 当前没有 `arm64` / `riscv64` 实机时，fresh `linux/arm64` + `linux/riscv64` QEMU 结果已经足够作为 non-x86 closeout 证明；这轮对应的 summary 是 [qemu-multiarch-20260419-012508-1690172/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260419-012508-1690172/summary.md) 和 [qemu-multiarch-20260419-013630-1748481/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260419-013630-1748481/summary.md)。
 
 ```bash
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-smoke-x86
