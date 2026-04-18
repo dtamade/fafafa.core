@@ -893,8 +893,8 @@ end;
 // =============================================================
 // I32x16 Operations (512-bit, 16x Int32)
 // =============================================================
-// This facade block mirrors the backend-owned Task 3 surface for non-asm
-// builds only; it is not evidence that the 512-bit path is scalar-reuse.
+// This facade block mirrors the backend-owned wide integer surface for
+// non-asm builds only; it is not evidence that the 512-bit path is scalar-reuse.
 
 function RISCVVAddI32x16(const a, b: TVecI32x16): TVecI32x16;
 var i: Integer;
@@ -1898,7 +1898,7 @@ begin
       Result.u[i] := b.u[i];
 end;
 
-// ✅ RcpF64x4 (Reciprocal)
+// F64x4 Reciprocal
 function RISCVVRcpF64x4(const a: TVecF64x4): TVecF64x4;
 var i: Integer;
 begin
