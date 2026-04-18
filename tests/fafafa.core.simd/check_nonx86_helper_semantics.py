@@ -12,6 +12,7 @@ NEON_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.wide_memory.inc"
 NEON_IMPL_FILE = ROOT / "src" / "fafafa.core.simd.neon.pas"
 RISCVV_FILE = ROOT / "src" / "fafafa.core.simd.riscvv.pas"
 RISCVV_FACADE_FILE = ROOT / "src" / "fafafa.core.simd.riscvv.facade.inc"
+RISCVV_REGISTER_FILE = ROOT / "src" / "fafafa.core.simd.riscvv.register.inc"
 DIRECT_FILE = ROOT / "tests" / "fafafa.core.simd" / "fafafa.core.simd.direct.testcase.pas"
 DISPATCHAPI_FILE = ROOT / "tests" / "fafafa.core.simd" / "fafafa.core.simd.dispatchapi.testcase.pas"
 DATAPLANE_FILE = ROOT / "tests" / "fafafa.core.simd" / "fafafa.core.simd.dataplane.testcase.pas"
@@ -68,6 +69,7 @@ def main() -> int:
     neon_impl_source = read_text(NEON_IMPL_FILE)
     riscvv_source = read_text(RISCVV_FILE)
     riscvv_facade_source = read_text(RISCVV_FACADE_FILE)
+    riscvv_register_source = read_text(RISCVV_REGISTER_FILE)
     direct_source = read_text(DIRECT_FILE)
     dispatchapi_source = read_text(DISPATCHAPI_FILE)
     dataplane_source = read_text(DATAPLANE_FILE)
@@ -579,6 +581,19 @@ def main() -> int:
                 "RISCVV | MaxU32x16 | reuse_base_scalar",
                 "DispatchAPI source truth",
                 "BuildOrTest.sh impl-audit-nonx86",
+            ],
+        ),
+        (
+            riscvv_register_source,
+            "src/fafafa.core.simd.riscvv.register.inc",
+            [
+                "table.ShiftLeftU32x8 := @RISCVVShiftLeftU32x8;",
+                "table.ShiftRightU32x8 := @RISCVVShiftRightU32x8;",
+                "asm-enabled builds resolve these symbols to native RVV implementations",
+                "no-asm builds resolve the same symbols to explicit scalar-passthrough",
+                "second register-only branch",
+                "Neighboring U32x16/U64x8 families intentionally fall through to",
+                "FillBaseDispatchTable instead.",
             ],
         ),
     ]

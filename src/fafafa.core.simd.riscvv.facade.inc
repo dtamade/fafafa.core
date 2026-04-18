@@ -1748,9 +1748,12 @@ begin
     Result.u[i] := a.u[i] + b.u[i];
 end;
 
-// ✅ U32x8 Operations (256-bit)
-// Unsigned Task 3 key slots stay backend-owned. Only families deliberately
-// removed from this file (for example U32x16/U64x8) are meant to reuse base scalar.
+// U32x8 Operations (256-bit)
+// Keep these facade entrypoints in sync with RegisterRISCVVBackend:
+// - asm-enabled builds bind the same symbols to native RVV bodies
+// - no-asm builds resolve here and must preserve the published scalar contract
+// Only families deliberately removed from this file (for example
+// U32x16/U64x8) are meant to reuse the base scalar slot directly.
 function RISCVVAddU32x8(const a, b: TVecU32x8): TVecU32x8;
 var i: Integer;
 begin
@@ -1809,13 +1812,15 @@ end;
 
 function RISCVVShiftLeftU32x8(const a: TVecU32x8; count: Integer): TVecU32x8;
 begin
-  // Keep the backend-owned symbol, but preserve the published scalar shift
-  // contract for zero / negative / out-of-range counts.
+  // Keep the symbol-level contract identical to the asm path while making the
+  // no-asm behavior explicit and unsurprising.
   Result := ScalarShiftLeftU32x8(a, count);
 end;
 
 function RISCVVShiftRightU32x8(const a: TVecU32x8; count: Integer): TVecU32x8;
 begin
+  // RegisterRISCVVBackend still binds this symbol so asm-enabled builds can
+  // swap in the native RVV implementation without a second register branch.
   Result := ScalarShiftRightU32x8(a, count);
 end;
 

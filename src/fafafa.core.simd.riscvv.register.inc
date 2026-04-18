@@ -638,9 +638,14 @@ begin
   table.CmpGeU64x4 := @RISCVVCmpGeU64x4;
   table.CmpNeU64x4 := @RISCVVCmpNeU64x4;
 
-  // ✅ Unsigned Integer Types: U32x8 (256-bit)
-  // Unsigned Task 3 key slots stay backend-owned here; the neighboring
-  // U32x16/U64x8 families intentionally fall through to base scalar instead.
+  // Unsigned Integer Types: U32x8 (256-bit)
+  // Keep one assignment site for both modes:
+  // - asm-enabled builds resolve these symbols to native RVV implementations
+  // - no-asm builds resolve the same symbols to explicit scalar-passthrough
+  //   facades, so the published shift semantics stay identical without a
+  //   second register-only branch
+  // Neighboring U32x16/U64x8 families intentionally fall through to
+  // FillBaseDispatchTable instead.
   table.AddU32x8 := @RISCVVAddU32x8;
   table.SubU32x8 := @RISCVVSubU32x8;
   table.MulU32x8 := @RISCVVMulU32x8;
