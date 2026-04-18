@@ -15,6 +15,7 @@
 - sync current example build repair 审计：`docs/audits/2026-04-19-l0-sync-current-example-build-repair-audit.md`
 - sync condvar current-entry repair 审计：`docs/audits/2026-04-19-l0-sync-condvar-current-entry-build-repair-audit.md`
 - sync condvar shortlist stale-skip 审计：`docs/audits/2026-04-19-l0-sync-condvar-shortlist-stale-skip-audit.md`
+- sync example shortlist contraction 审计：`docs/audits/2026-04-19-l0-sync-example-shortlist-contraction-audit.md`
 - sync.mutex current-entry repair 审计：`docs/audits/2026-04-19-l0-sync-mutex-current-entry-codetools-include-repair-audit.md`
 - closeout/rescue final 10-path stale-skip 审计：`docs/audits/2026-04-19-l0-closeout-rescue-final-10path-stale-skip-audit.md`
 - retained refs post-merge sidecar/tail 审计：`docs/audits/2026-04-14-l0-retained-refs-sidecar-tail-postmerge-audit.md`
@@ -140,6 +141,7 @@
 - 同日 `example_sync` 这条 current-entry 另行修到了 current API，并由 `bash tests/test_l0_sync_current_example_build.sh` 守住；它只覆盖 `example_sync.lpi`，不代表 `sync/condvar` 旧 runner 批次已经 ready。
 - 同日 `examples/fafafa.core.sync.condvar` 这条 current-entry 也单独修回了 today build/run；today contract 仅由 `bash tests/test_l0_sync_condvar_current_example_build.sh` 守住 current-entry build，不代表 `sync/condvar` sidecar runner hygiene 批次已经 ready。
 - 同日后续 triage 还把 `examples/fafafa.core.sync.condvar` 这组 current-entry 正式降到了 retained-refs shortlist 的 `review_skip_paths=`；`bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh` 不再把它们当 fresh candidate，因此 source-review-first 的 examples/build 面已经收窄。
+- 同日再下一轮 triage 又把 `example_sync.lpr` 与 `sync.mutex/example_basic_usage.lpr` 从 fresh shortlist 里正式降掉；当前 examples/build shortlist 只剩 `examples/fafafa.core.sync.mutex/example_performance_comparison.lpr` 这一条未独立合同化的 source 点。
 - 同日 `examples/fafafa.core.sync.mutex` 这条 current-entry 也单独补了两层 today contract：`bash tests/test_l0_sync_mutex_current_entry_codetools_include_clean.sh` 固定拒绝 `include file not found "fafafa.core.settings.inc"`，`bash tests/test_l0_sync_mutex_current_entry_default_run.sh` 固定拒绝 advanced example 因毫秒计时分辨率触发的 `EZeroDivide`；但它们只覆盖 current-entry include/run 质量，不代表 `sync.mutex` broader runner/source absorb 已经 ready。
 - 因此接下来如果 retained-refs 还要继续推进，优先回到 `bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh` 或 inventory，而不是重新把 `closeout/rescue` shortlist 当成新的吸收入口。
 - 第 2026-04-14 波之后，如果你当前关心的是 `sidecar/tail` 在 merged-main 之后还能不能删、各自还剩什么 exclusive batch，当前标准入口固定为 `bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh`。
