@@ -334,48 +334,53 @@ end;
 // ✅ NEW: SSE3 Optimized Normalize
 function SSE3NormalizeF32x4(const a: TVecF32x4): TVecF32x4;
 var
-  pa, pr: Pointer;
+  LPA, LPR: Pointer;
+  LLen: Single;
 begin
-  pa := @a;
-  pr := @Result;
-  asm
-    mov     rax, pa
-    mov     rcx, pr
-    movups  xmm0, [rax]
-    movaps  xmm1, xmm0
-    mulps   xmm1, xmm1      // Square each element
-    haddps  xmm1, xmm1      // Sum pairs
-    haddps  xmm1, xmm1      // Sum all -> length squared in all lanes
-    rsqrtps xmm1, xmm1      // 1/sqrt(length^2) = 1/length
-    mulps   xmm0, xmm1      // Normalize
-    movups  [rcx], xmm0
-  end;
+  LLen := SSE3LengthF32x4(a);
+  if LLen > 0.0 then
+  begin
+    LPA := @a;
+    LPR := @Result;
+    asm
+      mov     rax, LPA
+      mov     rcx, LPR
+      movups  xmm0, [rax]
+      movss   xmm1, LLen
+      shufps  xmm1, xmm1, 0
+      divps   xmm0, xmm1
+      movups  [rcx], xmm0
+    end;
+  end
+  else
+    Result := a;
 end;
 
 function SSE3NormalizeF32x3(const a: TVecF32x4): TVecF32x4;
 var
-  pa, pr: Pointer;
+  LPA, LPR: Pointer;
+  LLen: Single;
 begin
-  pa := @a;
-  pr := @Result;
-  asm
-    mov     rax, pa
-    mov     rcx, pr
-    movups  xmm0, [rax]
-
-    // Zero w lane for length calculation
-    pcmpeqd xmm3, xmm3
-    psrldq  xmm3, 4
-    movaps  xmm1, xmm0
-    andps   xmm1, xmm3
-
-    mulps   xmm1, xmm1      // Square
-    haddps  xmm1, xmm1      // Sum pairs
-    haddps  xmm1, xmm1      // Sum all
-    rsqrtps xmm1, xmm1      // 1/length
-    andps   xmm0, xmm3      // Zero w in original
-    mulps   xmm0, xmm1      // Normalize xyz, w=0
-    movups  [rcx], xmm0
+  LLen := SSE3LengthF32x3(a);
+  if LLen > 0.0 then
+  begin
+    LPA := @a;
+    LPR := @Result;
+    asm
+      mov     rax, LPA
+      mov     rcx, LPR
+      movups  xmm0, [rax]
+      movss   xmm1, LLen
+      shufps  xmm1, xmm1, 0
+      divps   xmm0, xmm1
+      movups  [rcx], xmm0
+    end;
+    Result.f[3] := 0.0;
+  end
+  else
+  begin
+    Result := a;
+    Result.f[3] := 0.0;
   end;
 end;
 
