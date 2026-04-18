@@ -48,6 +48,7 @@ EXPECTATION_PROCEDURES = {
     "riscvv": (
         "TTestCase_DispatchAPI.Test_RISCVV_FacadeSlots_Reuse_BaseScalar_When_Wrappers_Are_ScalarPassThrough",
         "TTestCase_DispatchAPI.Test_RISCVV_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders",
+        "TTestCase_DispatchAPI.Test_RISCVV_KeyOwnedWideSlots_Stay_BackendOwned",
     ),
 }
 ASSERT_MODE_TO_EXPECTATION = {
@@ -56,12 +57,26 @@ ASSERT_MODE_TO_EXPECTATION = {
     "AssertRegisterOwnsBackendSlot": "backend_owned",
 }
 DEFAULT_UNASSERTED_KEY_SLOT_MODE = "backend_owned"
+REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS: dict[str, set[str]] = {
+    "riscvv": {
+        "AndI64x8",
+        "NotI64x8",
+        "ShiftLeftI32x16",
+        "ShiftRightArithI64x4",
+        "SubI32x8",
+        "MinU32x8",
+        "AddI64x4",
+        "MulI32x16",
+        "SubI64x8",
+    },
+}
 
 
 @dataclass(frozen=True)
 class SlotExpectation:
     mode: str
     truth_source: str
+    explicit_assert_present: bool
 
 
 def parse_args() -> argparse.Namespace:
@@ -131,17 +146,22 @@ def collect_expected_slot_modes_from_dispatchapi() -> dict[str, dict[str, SlotEx
                 backend_expectations[slot] = SlotExpectation(
                     mode=mode,
                     truth_source=truth_source,
+                    explicit_assert_present=True,
                 )
 
+        explicit_required_slots = REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS.get(backend, set())
         for slot in KEY_SLOTS:
             backend_expectations.setdefault(
                 slot,
                 SlotExpectation(
                     mode=DEFAULT_UNASSERTED_KEY_SLOT_MODE,
                     truth_source=(
-                        "DispatchAPI exception model: no AssertRegisterKeepsBaseScalar "
+                        "DispatchAPI source truth missing dedicated explicit assert"
+                        if slot in explicit_required_slots
+                        else "DispatchAPI exception model: no AssertRegisterKeepsBaseScalar "
                         "for this key slot"
                     ),
+                    explicit_assert_present=slot not in explicit_required_slots,
                 ),
             )
         expectations[backend] = backend_expectations
@@ -274,11 +294,13 @@ def audit_backend(backend: str) -> dict[str, object]:
 
         if expected_mode == "reuse_base_scalar":
             if not slot_assignments:
-                slot_records.append(
-                    make_base_scalar_inherited_record(
-                        slot, expected_mode, expectation.truth_source
-                    )
+                record = make_base_scalar_inherited_record(
+                    slot, expected_mode, expectation.truth_source
                 )
+                if not expectation.explicit_assert_present:
+                    record["reasons"].append("missing-explicit-dispatchapi-assert")
+                    issues.append(record)
+                slot_records.append(record)
                 continue
 
             for assignment in slot_assignments:
@@ -307,6 +329,8 @@ def audit_backend(backend: str) -> dict[str, object]:
         if not slot_assignments:
             record = make_missing_record(slot, expected_mode)
             record["truth_source"] = expectation.truth_source
+            if not expectation.explicit_assert_present:
+                record["reasons"].append("missing-explicit-dispatchapi-assert")
             slot_records.append(record)
             issues.append(record)
             continue
@@ -319,6 +343,8 @@ def audit_backend(backend: str) -> dict[str, object]:
             reasons = make_reason_list(
                 backend, assignment, classification, wrapper_kind
             )
+            if not expectation.explicit_assert_present:
+                reasons.insert(0, "missing-explicit-dispatchapi-assert")
             record = make_assignment_record(
                 slot,
                 expected_mode,
