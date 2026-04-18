@@ -53,6 +53,7 @@ case "${LArgs[0]:-}" in
         cat <<'OUT'
 M	src/fafafa.core.atomic.pas
 M	examples/fafafa.core.sync/example_sync.lpr
+M	examples/fafafa.core.sync.mutex/example_performance_comparison.lpr
 M	tests/fafafa.core.atomic/Test_fafafa.core.atomic.pas
 M	examples/fafafa.core.sync.condvar/BuildOrRun.sh
 M	tests/fafafa.core.platform/BuildOrTest.sh
@@ -70,6 +71,7 @@ OUT
 M	src/fafafa.core.args.base.pas
 M	tests/fafafa.core.atomic/Test_fafafa.core.atomic.core.contract.pas
 M	examples/fafafa.core.sync.mutex/example_basic_usage.lpr
+M	examples/fafafa.core.sync.mutex/example_performance_comparison.lpr
 M	examples/fafafa.core.sync.condvar/barrier/example_multi_thread_coordination.lpi
 M	tests/fafafa.core.platform/BuildOrTest.bat
 M	tests/fafafa.core.atomic/README.md
@@ -101,7 +103,7 @@ for LPatt in \
   '== l0-mainline-closeout-20260411 ==' \
   'ref_sha=1111111111111111111111111111111111111111' \
   'review_candidate_paths=3' \
-  'review_skip_paths=5' \
+  'review_skip_paths=6' \
   'src_review_paths=0' \
   'test_code_review_paths=0' \
   'test_script_review_paths=1' \
@@ -112,12 +114,12 @@ for LPatt in \
   'dangerous_delete_paths=3' \
   'reject_wholesale_absorb=yes' \
   'sample_review_candidate_paths=tests/fafafa.core.platform/BuildOrTest.sh | examples/fafafa.core.base/BuildOrRun.sh | examples/fafafa.core.result/example_result_filters_and_try.lpr' \
-  'sample_review_skip_paths=src/fafafa.core.atomic.pas | examples/fafafa.core.sync/example_sync.lpr | tests/fafafa.core.atomic/Test_fafafa.core.atomic.pas' \
+  'sample_review_skip_paths=src/fafafa.core.atomic.pas | examples/fafafa.core.sync/example_sync.lpr | examples/fafafa.core.sync.mutex/example_performance_comparison.lpr' \
   'sample_dangerous_delete_paths=.github/workflows/l0-linux-maintenance.yml | tests/run_strict_l0_maintenance_loop.sh | docs/README.md' \
   '== l0-main-rescue ==' \
   'ref_sha=2222222222222222222222222222222222222222' \
   'review_candidate_paths=2' \
-  'review_skip_paths=5' \
+  'review_skip_paths=6' \
   'src_review_paths=1' \
   'test_code_review_paths=1' \
   'test_script_review_paths=0' \
@@ -128,7 +130,7 @@ for LPatt in \
   'dangerous_delete_paths=2' \
   'reject_wholesale_absorb=yes' \
   'sample_review_candidate_paths=src/fafafa.core.args.base.pas | tests/fafafa.core.atomic/Test_fafafa.core.atomic.core.contract.pas' \
-  'sample_review_skip_paths=examples/fafafa.core.sync.mutex/example_basic_usage.lpr | examples/fafafa.core.sync.condvar/barrier/example_multi_thread_coordination.lpi | tests/fafafa.core.platform/BuildOrTest.bat' \
+  'sample_review_skip_paths=examples/fafafa.core.sync.mutex/example_basic_usage.lpr | examples/fafafa.core.sync.mutex/example_performance_comparison.lpr | examples/fafafa.core.sync.condvar/barrier/example_multi_thread_coordination.lpi' \
   'sample_dangerous_delete_paths=examples/fafafa.core.contracts/README.md | docs/legacy/l0/2026-04-11-l0-mainline-refs-and-ci-closeout.md' \
   '[PASS] strict L0 retained refs source-review shortlist completed'; do
   printf '%s' "${OUTPUT}" | rg -n -F "${LPatt}" >/dev/null \

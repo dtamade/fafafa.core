@@ -15,7 +15,7 @@ fresh `sync.mutex` current-entry review 说明这里同时有一类 project/sour
 
 - `bash examples/fafafa.core.sync.mutex/BuildOrRun.sh build` 仍然能通过，因为当前 build 参数会把 `src/` 放进 `-Fi`
 - 但 Lazarus CodeTools 仍会对 `example_basic_usage.lpr` 与 `example_advanced_patterns.lpr` 报 `include file not found "fafafa.core.settings.inc"`
-- `example_performance_comparison.lpr` 使用的是同一类裸 include 形式，也应该一起归一，避免 current-entry 在同一目录里继续出现两套入口约定
+- retained refs 在 `example_performance_comparison.lpr` 上也保留了同一类裸 include 变体，因此同目录源码入口需要一起归一，避免后续 triage 把这类 stale include residue 误读成 current-entry 差异
 - `bash examples/fafafa.core.sync.mutex/BuildOrRun.sh` 的默认运行路径还会执行 `example_advanced_patterns`
 - `DemoPerformanceComparison` 用毫秒级 `GetTickCount64` 测短循环时，`ManualTime` 可能落成 `0`，随后 `... / ManualTime` 会偶发触发 `EZeroDivide`
 
@@ -30,7 +30,7 @@ fresh `sync.mutex` current-entry review 说明这里同时有一类 project/sour
   - 在 `DemoPerformanceComparison` 里对 `ManualTime = 0` 做显式保护
   - 开销计算改成显式 `Double` 差值，避免 `QWord` 算术下溢把负开销错误放大
 - `examples/fafafa.core.sync.mutex/example_performance_comparison.lpr`
-  - 同步切到相同的 current-entry include 约定，避免目录内继续混用两种入口形式
+  - 同步切到同一目录的显式 include 约定，避免 retained stale include residue 继续制造误导
 - `tests/test_l0_sync_mutex_current_entry_codetools_include_clean.sh`
   - 固定验证 `bash examples/fafafa.core.sync.mutex/BuildOrRun.sh build`
   - 直接拒绝构建日志中出现 `include file not found "fafafa.core.settings.inc"`

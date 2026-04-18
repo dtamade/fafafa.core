@@ -172,6 +172,7 @@ is_review_skip_path() {
     l0-mainline-closeout-20260411:examples/fafafa.core.sync.mutex/example_advanced_patterns.lpr|\
     l0-mainline-closeout-20260411:examples/fafafa.core.sync.mutex/example_basic_usage.lpi|\
     l0-mainline-closeout-20260411:examples/fafafa.core.sync.mutex/example_basic_usage.lpr|\
+    l0-mainline-closeout-20260411:examples/fafafa.core.sync.mutex/example_performance_comparison.lpr|\
     l0-mainline-closeout-20260411:tests/fafafa.core.fs.async/BuildOrTest.bat|\
     l0-mainline-closeout-20260411:tests/fafafa.core.fs.async/README.md|\
     l0-mainline-closeout-20260411:tests/fafafa.core.fs.async/buildOrTest.bat|\
@@ -223,6 +224,7 @@ is_review_skip_path() {
     l0-main-rescue:examples/fafafa.core.sync.mutex/example_advanced_patterns.lpr|\
     l0-main-rescue:examples/fafafa.core.sync.mutex/example_basic_usage.lpi|\
     l0-main-rescue:examples/fafafa.core.sync.mutex/example_basic_usage.lpr|\
+    l0-main-rescue:examples/fafafa.core.sync.mutex/example_performance_comparison.lpr|\
     l0-main-rescue:tests/lib_github_actions_workflow_runs.sh|\
     l0-main-rescue:tests/fafafa.core.atomic/BuildOrTest.bat|\
     l0-main-rescue:tests/fafafa.core.atomic/README.md|\

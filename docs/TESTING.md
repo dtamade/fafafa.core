@@ -154,6 +154,20 @@ bash tests/test_l0_sync_mutex_current_entry_default_run.sh
 - `example_basic_usage` 也必须能在非交互 stdin 下完成一次默认运行
 - 作用域只覆盖 `examples/fafafa.core.sync.mutex` 的 current-entry run 质量；它不替代 `bash tests/test_strict_l0_sync_mutex_example_older_fpc_contract.sh`，也不把 `sync.mutex` broader runner/source residue 一并纳入 today contract
 
+如果当前目标是确认 `sync.mutex` README 与 retained-refs shortlist 已经不再把 standalone 性能示例误写成 today current-entry，优先跑：
+
+```bash
+bash tests/test_l0_sync_mutex_readme_current_entry_contract.sh
+bash tests/test_l0_sync_mutex_retained_shortlist_clear.sh
+```
+
+这两条命令当前固定守住：
+
+- `examples/fafafa.core.sync.mutex/README.md` 的 `Current entry` 只描述 `example_basic_usage` / `example_advanced_patterns`
+- `example_performance_comparison.lpr` 与 `example_comprehensive.lpr` 只作为 standalone source 保留，不再冒充 current-entry
+- `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh` 对 `l0-mainline-closeout-20260411` 与 `l0-main-rescue` 都必须给出 `review_candidate_paths=0`
+- `example_performance_comparison.lpr` 不得再落回 `sample_review_candidate_paths=` 或 `sample_examples_build_review_paths=`
+
 只有当 strict L0 发生非文档代码/测试变化，或者有人明确要求 exact `HEAD` / merge commit 证据时，才继续走 GitHub Actions Windows native evidence 主路径。
 
 如果当前目标不是日常维护，而是 mainline closeout，一次性把 Linux maintenance、Windows exact evidence 和 current-state docs 串起来，当前单入口是：

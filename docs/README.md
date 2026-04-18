@@ -16,6 +16,7 @@
 - sync condvar shortlist stale-skip 审计：`docs/audits/2026-04-19-l0-sync-condvar-shortlist-stale-skip-audit.md`
 - sync example shortlist contraction 审计：`docs/audits/2026-04-19-l0-sync-example-shortlist-contraction-audit.md`
 - sync.mutex current-entry repair 审计：`docs/audits/2026-04-19-l0-sync-mutex-current-entry-codetools-include-repair-audit.md`
+- sync.mutex performance shortlist stale-skip 审计：`docs/audits/2026-04-19-l0-sync-mutex-performance-shortlist-stale-skip-audit.md`
 - closeout/rescue source-review final clearout 审计：`docs/audits/2026-04-15-l0-closeout-rescue-final-source-review-clearout-audit.md`
 - closeout/rescue final 10-path stale-skip 审计：`docs/audits/2026-04-19-l0-closeout-rescue-final-10path-stale-skip-audit.md`
 - retained refs post-merge sidecar/tail 审计：`docs/audits/2026-04-14-l0-retained-refs-sidecar-tail-postmerge-audit.md`
@@ -40,6 +41,7 @@
 - 当前 sync `example_sync` current-entry build 修复入口固定为：`docs/audits/2026-04-19-l0-sync-current-example-build-repair-audit.md`
 - 当前 sync.condvar current-entry 修复入口固定为：`docs/audits/2026-04-19-l0-sync-condvar-current-entry-build-repair-audit.md`
 - 当前 sync.mutex current-entry 修复入口固定为：`docs/audits/2026-04-19-l0-sync-mutex-current-entry-codetools-include-repair-audit.md`
+- 当前 sync.mutex performance shortlist stale-skip 入口固定为：`docs/audits/2026-04-19-l0-sync-mutex-performance-shortlist-stale-skip-audit.md`
 - Linux x64 的日常维护入口固定为：`bash tests/run_strict_l0_maintenance_loop.sh`；它会串起 `bash tests/check_strict_l0_docs_consistency.sh`、`bash tests/check_repo_submodule_hygiene.sh`、`bash tests/test_active_shell_runners.sh`、`bash tests/test_strict_l0_examples_build_docs_contract.sh`、`bash tests/test_strict_l0_examples_smoke_contract.sh`、gate、`git diff --check`、runtime matrix 和 native closeout stack
 - 当前 retained-refs triage 继续固定为：先看 `next_focus=`，再看 `test_hygiene_candidate_paths=` / `source_review_candidate_paths=` / `docs_absorb_candidate_paths=`；如果是 `source-review-first`，继续跑 `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh`
 - 第 2026-04-15 波之后，`docs/audits/2026-04-15-l0-closeout-rescue-final-source-review-clearout-audit.md` 仍保留一波 clearout 的历史语境；但 current-entry 不再把这件事直接写成今天已经清空。现在要以 fresh `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh` 输出为准，只有它同时给出 `closeout.review_candidate_paths=0` 与 `rescue.review_candidate_paths=0`，才把 `closeout/rescue` 视为已清空；否则继续按 fresh shortlist 非零结果推进，而不是重开 broad absorb
@@ -50,7 +52,7 @@
 - 同日 `example_sync` 这条 current-entry 另行修到了 current API，并由 `bash tests/test_l0_sync_current_example_build.sh` 守住；它只覆盖 `example_sync.lpi`，不代表 `sync/condvar` 旧 runner 批次已经 ready
 - 同日 `examples/fafafa.core.sync.condvar` 这条 current-entry 也单独修回了 today build/run；today contract 仅由 `bash tests/test_l0_sync_condvar_current_example_build.sh` 守住 current-entry build，不代表 `sync/condvar` sidecar runner hygiene 批次已经 ready
 - 同日后续 triage 还把 `examples/fafafa.core.sync.condvar` 这组 current-entry 正式降到了 retained-refs shortlist 的 `review_skip_paths=`；`bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh` 不再把它们当 fresh candidate，后续 source-review-first 的注意力收窄到更小的 `example_sync` / `sync.mutex` 源码点
-- 同日再下一轮 triage 又把 `example_sync.lpr` 与 `sync.mutex/example_basic_usage.lpr` 从 fresh shortlist 里正式降掉；当前 examples/build shortlist 只剩 `examples/fafafa.core.sync.mutex/example_performance_comparison.lpr` 这一条未独立合同化的 source 点
+- 同日再下一轮 triage 又把 `example_sync.lpr` 与 `sync.mutex/example_basic_usage.lpr` 从 fresh shortlist 里正式降掉；随后最后残留的 `examples/fafafa.core.sync.mutex/example_performance_comparison.lpr` 也被确认只是 retained stale include residue，并正式下沉到 `review_skip_paths=`。当前 examples/build shortlist 已清空，不再把它当成 today current-entry 或 absorb 入口
 - 同日 `examples/fafafa.core.sync.mutex` 这条 current-entry 也单独补了两层 today contract：`bash tests/test_l0_sync_mutex_current_entry_codetools_include_clean.sh` 固定拒绝 `include file not found "fafafa.core.settings.inc"` 这类项目入口噪音，`bash tests/test_l0_sync_mutex_current_entry_default_run.sh` 固定拒绝 advanced example 因毫秒计时分辨率触发的 `EZeroDivide`；它们只覆盖 current-entry include/run 质量，不代表 `sync.mutex` broader runner/source absorb 已经 ready
 - 当前几份 landing-zone docs：`docs/collections/legacy/README.md`、`docs/reports/README.md`、`docs/collections/reports/README.md`、`docs/benchmarks/reports/README.md` 与 `docs/legacy/l0/README.md` 继续以主线版本为准，不吸收 `sidecar` 的旧 pointer 叙事
 - 如果当前问题是 `sidecar/tail` 在 merged-main 之后还能不能删、各自还剩什么 exclusive batch，标准入口切到：`bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh`
