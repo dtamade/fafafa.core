@@ -106,7 +106,7 @@
 - `impl-smoke-x86`：当前 x86 bounded frontier 的高频 smoke 入口，固定按 `impl-smoke-sse2 -> DispatchAPI bounded frontier` 的顺序重跑 `SSE2 structure/contracts smoke`、`SSE2 compare/vector-math parity`、`SSE3/SSSE3/SSE4.x incremental clone + semantic parity contract`、`AVX512 shift boundary`、`AVX2 wide select`、`AVX2 wide FMA composition` proof；它只负责快速确认 x86 证明面没有 fresh 漂移，不替代 `closeout-host-local`
 - `DataPlane wide snapshot`：`Test_DataPlane_WideBitwiseShiftSnapshot_Follows_CurrentDispatchSemantics` / `Test_DataPlane_WideArithmeticMinMaxSnapshot_Follows_CurrentDispatchSemantics` 已覆盖 `I64x8 bitwise` 与 wide arithmetic/minmax 的高价值 dataplane 快照，不再只盯抽样老点位
 - `qemu-nonx86-evidence`：`linux/arm64` / `linux/riscv64` fresh 通过；runner 现在固定使用隔离 `SIMD_OUTPUT_ROOT`，单次 build 后复用 binary 继续跑 `TTestCase_NonX86BackendParity,TTestCase_DataPlane` 与 backend bench，已规避旧链路里 `arm64` 重复 full rebuild 触发的 `ppca64` `FIRSTCALLPARAN` ICE
-- `NONX86_IMPL_AUDIT_SUMMARY`：新的聚合实现审计入口已把 helper semantics、key-slot audit、wiring-sync、RISCVV ABI shape、register truthfulness strict 和 targeted release suite 收成单条命令
+- `NONX86_IMPL_AUDIT_SUMMARY`：新的聚合实现审计入口已把 helper semantics、key-slot audit、wiring-sync、RISCVV ABI shape、register truthfulness strict 和 targeted release suite 收成单条命令；2026-04-19 fresh rerun 仍为 `steps=6 ... status=ok`
 - `impl-smoke-nonx86`：新增轻量日常入口，定位是高频实现回归；它只负责尽快暴露 non-x86 source/runtime contract 的 fresh 漂移，不替代 `impl-audit-nonx86` 的完整实现审计，也不替代 `closeout-host-local` 的 strict closeout 证明
 - `AVX2 public ABI capability contract`：x86 bounded frontier 这一轮没有挖到新的实现红点，收口点转为接口证据补齐。`DispatchAPI` 现在显式覆盖 `sbAVX2` 的 `scFMA` / `scShuffle` 正向暴露，以及 `SetVectorAsmEnabled(False)` 后 public ABI `CapabilityBits` 清零契约；后续不再需要从 registered-table 的 `BackendInfo.Capabilities` 间接推断 public ABI 是否同步
 - `x86 implementation frontier`：这一轮 bounded implementation 专审没有 fresh 复现新的 AVX512 / AVX2 实现 bug，但把最薄弱的实现证明面补强了：
@@ -117,6 +117,7 @@
   - `AVX512 U32x16/U64x8`：`DispatchAPI` 新增 `Test_AVX512_U32x16_U64x8_ShiftBoundary_Contracts`，把 `shift boundary` 的 source truth（invalid-count guard + zero-fill）和运行时 `0 / width-1 / width` parity 一起钉住
   - `AVX2 wide implementation`：`DispatchAPI` 新增 `Test_AVX2_WideSelect_Parity_WithScalar_When_VectorAsmEnabled`，把 `SelectF32x16` / `SelectF64x8` 从原来的 `dispatch == facade` 自证，升级为对 `ScalarSelectF32x16` / `ScalarSelectF64x8` 的直接 parity proof
   - `AVX2 wide FMA composition`：`DispatchAPI` 新增 `Test_AVX2_WideFma_ExactInputs_FollowsHalfComposition`，把 `FmaF32x16` / `FmaF64x8` 明确钉在 `register source truth + AVX2FmaF32x8/F64x4 lo/hi composition + exact-input runtime parity` 上，不再只停留在 wide facade 自证
+  - 2026-04-19 fresh rerun `X86_IMPL_SMOKE_SUMMARY steps=2 ... status=ok`，说明这条 bounded frontier 目前仍处于 hold-green 状态
   - 当前结论应按 “fresh green + proof strengthened + stop condition met” 理解，而不是再继续发散翻 x86 全家桶
 - implementation aggregate audit：
 
