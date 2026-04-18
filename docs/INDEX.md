@@ -12,6 +12,7 @@
 - tail shell/runner head-ahead / no-absorb 审计：`docs/audits/2026-04-15-l0-tail-shell-runner-head-ahead-no-absorb-audit.md`
 - tail residual runner/source no-absorb 审计：`docs/audits/2026-04-15-l0-tail-residual-runner-source-no-absorb-audit.md`
 - sidecar async runner slice 审计：`docs/audits/2026-04-15-l0-sidecar-async-runner-slice-audit.md`
+- closeout/rescue final 10-path stale-skip 审计：`docs/audits/2026-04-19-l0-closeout-rescue-final-10path-stale-skip-audit.md`
 - retained refs post-merge sidecar/tail 审计：`docs/audits/2026-04-14-l0-retained-refs-sidecar-tail-postmerge-audit.md`
 - L0 当前延续计划：`docs/plans/2026-04-16-l0-mainline-continuation-plan.md`
 - L0 历史批次 / 审计归档：`docs/legacy/l0/README.md`
@@ -127,6 +128,7 @@
 - 同日后续波之后，`rescue` 的 examples/build/runner/doc stale cluster 也已经统一沉到 `review_skip_paths=`；尤其 `examples/fafafa.core.atomic/base/option/result` 的 `BuildOrRun*` / example source 和 `tests/fafafa.core.{endian,layout,mem,option,platform}` 的 stale runner/doc 不再是新的人工吸收入口。
 - 同日后续波还确认 `docs/collections/legacy/README.md`、`docs/reports/README.md`、`docs/collections/reports/README.md`、`docs/benchmarks/reports/README.md` 与 `docs/legacy/l0/README.md` 的 landing-zone 叙事已经是 today contract；如果 `docs_absorb_candidate_paths=` 再暴露这些路径，优先判 stale/no-absorb，而不是回灌 `sidecar` 的旧 pointer 文本。
 - 第 2026-04-15 波之后，clearout audit 仍保留“当时那一波曾收口”的历史结论；但 current-entry 要以 fresh `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh` 输出为准，只有当 fresh 输出同时给出 `closeout.review_candidate_paths=0` 与 `rescue.review_candidate_paths=0` 时，才表示 `closeout/rescue` 的 source-review surface 已清空。
+- 第 2026-04-19 波之后，最后一簇 10-path candidate 也已经固定为 stale/no-absorb：`src/fafafa.core.env.pas`、`src/fafafa.core.os.unix.inc`、`src/fafafa.core.sync.mutex.pas` 继续受 older-FPC conditional-compile compatibility contract 约束；`examples/fafafa.core.json/*` 与 `examples/fafafa.core.sync.mutex/*` 的那一小簇则继续受 current-entry smoke 与 sync.mutex older-FPC example contract 约束。它们现在同样只应留在 `review_skip_paths=`。
 - 同日又确认：最后一个看起来像候选的 `tests/fafafa.core.collections/vecdeque/Test_vecdeque_span.pas`，其实是未接线且依赖已移除 `SliceView` API 的 stale dead test code；它继续只应留在 `review_skip_paths=`，不能再被当成 today contract 证据。
 - 同日 fresh diff 还确认：`tests/cleanup_orphan_dirs.sh`、`tests/fafafa.core.fs/{ArchivePerfResult,BuildOrRunPerf,BuildOrRunResolvePerf,BuildOrRunPerfAll}.sh` 与 `tests/fafafa.core.fs/README-perf.md` 这组 tail shell/runner cluster 已经是 current-HEAD-ahead / no-absorb；today shell contract 继续以 `bash tests/test_active_shell_runners.sh` 与 `bash tests/test_fs_perf_shell_scripts.sh` 为准，不能按 tail 版本回灌。
 - 同日 fresh diff 还确认：`src/fafafa.core.atomic.base.pas` 与 `src/fafafa.core.span.pas` 只剩 no-op residue；`tests/fafafa.core.option/BuildOrTest.bat` 与 `tests/fafafa.core.result/BuildOrTest.bat` 则属于 current-HEAD-ahead / no-absorb。today contract 固定为 `bash tests/test_l0_option_result_runner_hygiene.sh`。

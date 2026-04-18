@@ -133,10 +133,13 @@ is_review_skip_path() {
 
   case "${aRef}:${aPath}" in
     l0-mainline-closeout-20260411:.github/workflows/l0-windows-native-evidence.yml|\
+    l0-mainline-closeout-20260411:src/fafafa.core.env.pas|\
     l0-mainline-closeout-20260411:src/fafafa.core.mem.allocator.pas|\
     l0-mainline-closeout-20260411:src/fafafa.core.atomic.base.pas|\
     l0-mainline-closeout-20260411:src/fafafa.core.atomic.pas|\
     l0-mainline-closeout-20260411:src/fafafa.core.mem.allocator.callbackAllocator.pas|\
+    l0-mainline-closeout-20260411:src/fafafa.core.os.unix.inc|\
+    l0-mainline-closeout-20260411:src/fafafa.core.sync.mutex.pas|\
     l0-mainline-closeout-20260411:tests/lib_github_actions_workflow_runs.sh|\
     l0-mainline-closeout-20260411:tests/fafafa.core.fs/ArchivePerfResult.sh|\
     l0-mainline-closeout-20260411:tests/fafafa.core.fs/BuildOrRunPerf.sh|\
@@ -154,8 +157,15 @@ is_review_skip_path() {
     l0-mainline-closeout-20260411:tests/fafafa.core.span/README.md|\
     l0-mainline-closeout-20260411:examples/fafafa.core.env/BuildOrRun.sh|\
     l0-mainline-closeout-20260411:examples/fafafa.core.json/BuildOrRun.sh|\
+    l0-mainline-closeout-20260411:examples/fafafa.core.json/example_json.lpi|\
+    l0-mainline-closeout-20260411:examples/fafafa.core.json/example_json.lpr|\
+    l0-mainline-closeout-20260411:examples/fafafa.core.json/example_reader_flags.lpi|\
+    l0-mainline-closeout-20260411:examples/fafafa.core.json/example_stop_when_done.lpi|\
     l0-mainline-closeout-20260411:examples/fafafa.core.platform/BuildOrRun.sh|\
     l0-mainline-closeout-20260411:examples/fafafa.core.sync.mutex/BuildOrRun.sh|\
+    l0-mainline-closeout-20260411:examples/fafafa.core.sync.mutex/example_advanced_patterns.lpi|\
+    l0-mainline-closeout-20260411:examples/fafafa.core.sync.mutex/example_advanced_patterns.lpr|\
+    l0-mainline-closeout-20260411:examples/fafafa.core.sync.mutex/example_basic_usage.lpi|\
     l0-mainline-closeout-20260411:tests/fafafa.core.fs.async/BuildOrTest.bat|\
     l0-mainline-closeout-20260411:tests/fafafa.core.fs.async/README.md|\
     l0-mainline-closeout-20260411:tests/fafafa.core.fs.async/buildOrTest.bat|\
@@ -177,20 +187,30 @@ is_review_skip_path() {
     l0-main-rescue:.github/workflows/l0-windows-native-evidence.yml|\
     l0-main-rescue:src/fafafa.core.atomic.base.pas|\
     l0-main-rescue:src/fafafa.core.atomic.pas|\
+    l0-main-rescue:src/fafafa.core.env.pas|\
     l0-main-rescue:src/fafafa.core.mem.allocator.pas|\
     l0-main-rescue:src/fafafa.core.mem.allocator.callbackAllocator.pas|\
+    l0-main-rescue:src/fafafa.core.os.unix.inc|\
     l0-main-rescue:src/fafafa.core.result.pas|\
     l0-main-rescue:src/fafafa.core.span.pas|\
+    l0-main-rescue:src/fafafa.core.sync.mutex.pas|\
     l0-main-rescue:examples/fafafa.core.atomic/BuildOrRun.sh|\
     l0-main-rescue:examples/fafafa.core.base/BuildOrRun.sh|\
     l0-main-rescue:examples/fafafa.core.base/example_base.lpr|\
     l0-main-rescue:examples/fafafa.core.env/BuildOrRun.sh|\
     l0-main-rescue:examples/fafafa.core.json/BuildOrRun.sh|\
+    l0-main-rescue:examples/fafafa.core.json/example_json.lpi|\
+    l0-main-rescue:examples/fafafa.core.json/example_json.lpr|\
+    l0-main-rescue:examples/fafafa.core.json/example_reader_flags.lpi|\
+    l0-main-rescue:examples/fafafa.core.json/example_stop_when_done.lpi|\
     l0-main-rescue:examples/fafafa.core.option/BuildOrRun.sh|\
     l0-main-rescue:examples/fafafa.core.platform/BuildOrRun.sh|\
     l0-main-rescue:examples/fafafa.core.result/BuildOrRun.sh|\
     l0-main-rescue:examples/fafafa.core.result/example_result_filters_and_try.lpr|\
     l0-main-rescue:examples/fafafa.core.sync.mutex/BuildOrRun.sh|\
+    l0-main-rescue:examples/fafafa.core.sync.mutex/example_advanced_patterns.lpi|\
+    l0-main-rescue:examples/fafafa.core.sync.mutex/example_advanced_patterns.lpr|\
+    l0-main-rescue:examples/fafafa.core.sync.mutex/example_basic_usage.lpi|\
     l0-main-rescue:tests/lib_github_actions_workflow_runs.sh|\
     l0-main-rescue:tests/fafafa.core.atomic/BuildOrTest.bat|\
     l0-main-rescue:tests/fafafa.core.atomic/README.md|\

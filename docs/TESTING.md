@@ -374,8 +374,28 @@ bash tests/test_strict_l0_retained_refs_closeout_test_docs_no_downgrade_contract
 - `closeout.review_candidate_paths=<fresh value>`
 - `rescue.review_candidate_paths=<fresh value>`
 
-这意味着 `closeout/rescue` 的 source-review surface 已经清空。当前唯一真正吸收的 today change，是 `tests/fafafa.core.collections/vecdeque/Test_vecdeque_span.pas` 去掉 `SliceView` 对 strict L0 `span2` contract 的反向 parity 测试；原因是 `docs/fafafa.core.l0.foundation.md` 与 `docs/fafafa.core.l0.roadmap.md` 都已经明确：`collections.slice` 仍然不是 strict L0。
-这意味着 `closeout/rescue` 的 source-review surface 已经清空。fresh API/runner 复核还进一步确认：`tests/fafafa.core.collections/vecdeque/Test_vecdeque_span.pas` 其实是未接线且依赖已移除 `SliceView` API 的 stale dead test code，因此它也继续只应落在 `review_skip_paths=`，而不是重新吸收到 today contract。
+这两行必须按 fresh 值字面理解，而不是按历史审计外推。只有当 fresh shortlist 同时给出双零时，才能把 `closeout/rescue` 视为暂时 cleared 的 source-review lane。
+
+第 2026-04-19 波之后，最后一簇 10-path candidate 也已经被 fresh 复核并固定为 stale/no-absorb：
+
+- `src/fafafa.core.env.pas`
+- `src/fafafa.core.os.unix.inc`
+- `src/fafafa.core.sync.mutex.pas`
+- `examples/fafafa.core.json/example_json.lpi`
+- `examples/fafafa.core.json/example_json.lpr`
+- `examples/fafafa.core.json/example_reader_flags.lpi`
+- `examples/fafafa.core.json/example_stop_when_done.lpi`
+- `examples/fafafa.core.sync.mutex/example_advanced_patterns.lpi`
+- `examples/fafafa.core.sync.mutex/example_advanced_patterns.lpr`
+- `examples/fafafa.core.sync.mutex/example_basic_usage.lpi`
+
+其中：
+
+- source trio 继续由 `bash tests/test_os_unix_ifdef_elseif_compat_contract.sh` 守住 older-FPC conditional-compile compatibility
+- `sync.mutex` advanced example 继续由 `bash tests/test_strict_l0_sync_mutex_example_older_fpc_contract.sh` 守住显式线程类，不回退到 `CreateAnonymousThread`
+- `json` 与 `sync.mutex` 这组 examples current-entry 继续由 `bash tests/test_strict_l0_examples_smoke_contract.sh` 守住，不回灌 retained refs 的旧 project/source 版本
+
+同一轮 fresh API/runner 复核还再次确认：`tests/fafafa.core.collections/vecdeque/Test_vecdeque_span.pas` 其实是未接线且依赖已移除 `SliceView` API 的 stale dead test code，因此它也继续只应落在 `review_skip_paths=`，而不是重新吸收到 today contract。
 
 `docs/audits/2026-04-15-l0-closeout-rescue-final-source-review-clearout-audit.md` 只保留 2026-04-15 那一波 clearout 的历史语境，不再等同于 current truth。只有 fresh shortlist 同时给出双零时，后续 retained-refs triage 的下一跳才应回到：
 
