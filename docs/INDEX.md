@@ -12,6 +12,7 @@
 - tail shell/runner head-ahead / no-absorb 审计：`docs/audits/2026-04-15-l0-tail-shell-runner-head-ahead-no-absorb-audit.md`
 - tail residual runner/source no-absorb 审计：`docs/audits/2026-04-15-l0-tail-residual-runner-source-no-absorb-audit.md`
 - sidecar async runner slice 审计：`docs/audits/2026-04-15-l0-sidecar-async-runner-slice-audit.md`
+- sync current example build repair 审计：`docs/audits/2026-04-19-l0-sync-current-example-build-repair-audit.md`
 - closeout/rescue final 10-path stale-skip 审计：`docs/audits/2026-04-19-l0-closeout-rescue-final-10path-stale-skip-audit.md`
 - retained refs post-merge sidecar/tail 审计：`docs/audits/2026-04-14-l0-retained-refs-sidecar-tail-postmerge-audit.md`
 - L0 当前延续计划：`docs/plans/2026-04-16-l0-mainline-continuation-plan.md`
@@ -133,6 +134,7 @@
 - 同日 fresh diff 还确认：`tests/cleanup_orphan_dirs.sh`、`tests/fafafa.core.fs/{ArchivePerfResult,BuildOrRunPerf,BuildOrRunResolvePerf,BuildOrRunPerfAll}.sh` 与 `tests/fafafa.core.fs/README-perf.md` 这组 tail shell/runner cluster 已经是 current-HEAD-ahead / no-absorb；today shell contract 继续以 `bash tests/test_active_shell_runners.sh` 与 `bash tests/test_fs_perf_shell_scripts.sh` 为准，不能按 tail 版本回灌。
 - 同日 fresh diff 还确认：`src/fafafa.core.atomic.base.pas` 与 `src/fafafa.core.span.pas` 只剩 no-op residue；`tests/fafafa.core.option/BuildOrTest.bat` 与 `tests/fafafa.core.result/BuildOrTest.bat` 则属于 current-HEAD-ahead / no-absorb。today contract 固定为 `bash tests/test_l0_option_result_runner_hygiene.sh`。
 - 同日 `sidecar` 的唯一 exclusive mixed batch 只切片吸收了 async runner hygiene；today contract 固定为 `bash tests/test_l0_async_test_runner_hygiene.sh`，不能把 inventory 的 `test-hygiene-first` 继续泛化成 broad sidecar absorb。
+- 同日 `example_sync` 这条 current-entry 另行修到了 current API，并由 `bash tests/test_l0_sync_current_example_build.sh` 守住；它只覆盖 `example_sync.lpi`，不代表 `sync/condvar` 旧 runner 批次已经 ready。
 - 因此接下来如果 retained-refs 还要继续推进，优先回到 `bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh` 或 inventory，而不是重新把 `closeout/rescue` shortlist 当成新的吸收入口。
 - 第 2026-04-14 波之后，如果你当前关心的是 `sidecar/tail` 在 merged-main 之后还能不能删、各自还剩什么 exclusive batch，当前标准入口固定为 `bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh`。
 - fresh overlap 已固定说明：`sidecar_only_commit_count=1`、`tail_only_commit_count=8`，并且 `sidecar_safe_delete_now=no`、`tail_safe_delete_now=no`。

@@ -11,6 +11,7 @@
 - tail shell/runner head-ahead / no-absorb 审计：`docs/audits/2026-04-15-l0-tail-shell-runner-head-ahead-no-absorb-audit.md`
 - tail residual runner/source no-absorb 审计：`docs/audits/2026-04-15-l0-tail-residual-runner-source-no-absorb-audit.md`
 - sidecar async runner slice 审计：`docs/audits/2026-04-15-l0-sidecar-async-runner-slice-audit.md`
+- sync current example build repair 审计：`docs/audits/2026-04-19-l0-sync-current-example-build-repair-audit.md`
 - closeout/rescue source-review final clearout 审计：`docs/audits/2026-04-15-l0-closeout-rescue-final-source-review-clearout-audit.md`
 - closeout/rescue final 10-path stale-skip 审计：`docs/audits/2026-04-19-l0-closeout-rescue-final-10path-stale-skip-audit.md`
 - retained refs post-merge sidecar/tail 审计：`docs/audits/2026-04-14-l0-retained-refs-sidecar-tail-postmerge-audit.md`
@@ -32,6 +33,7 @@
 - 当前 tail shell/runner no-absorb 收口入口固定为：`docs/audits/2026-04-15-l0-tail-shell-runner-head-ahead-no-absorb-audit.md`
 - 当前 tail residual runner/source no-absorb 收口入口固定为：`docs/audits/2026-04-15-l0-tail-residual-runner-source-no-absorb-audit.md`
 - 当前 sidecar async runner slice 收口入口固定为：`docs/audits/2026-04-15-l0-sidecar-async-runner-slice-audit.md`
+- 当前 sync `example_sync` current-entry build 修复入口固定为：`docs/audits/2026-04-19-l0-sync-current-example-build-repair-audit.md`
 - Linux x64 的日常维护入口固定为：`bash tests/run_strict_l0_maintenance_loop.sh`；它会串起 `bash tests/check_strict_l0_docs_consistency.sh`、`bash tests/check_repo_submodule_hygiene.sh`、`bash tests/test_active_shell_runners.sh`、`bash tests/test_strict_l0_examples_build_docs_contract.sh`、`bash tests/test_strict_l0_examples_smoke_contract.sh`、gate、`git diff --check`、runtime matrix 和 native closeout stack
 - 当前 retained-refs triage 继续固定为：先看 `next_focus=`，再看 `test_hygiene_candidate_paths=` / `source_review_candidate_paths=` / `docs_absorb_candidate_paths=`；如果是 `source-review-first`，继续跑 `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh`
 - 第 2026-04-15 波之后，`docs/audits/2026-04-15-l0-closeout-rescue-final-source-review-clearout-audit.md` 仍保留一波 clearout 的历史语境；但 current-entry 不再把这件事直接写成今天已经清空。现在要以 fresh `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh` 输出为准，只有它同时给出 `closeout.review_candidate_paths=0` 与 `rescue.review_candidate_paths=0`，才把 `closeout/rescue` 视为已清空；否则继续按 fresh shortlist 非零结果推进，而不是重开 broad absorb
@@ -39,6 +41,7 @@
 - 同日 fresh diff 还确认：`tests/cleanup_orphan_dirs.sh` + `tests/fafafa.core.fs/{ArchivePerfResult,BuildOrRunPerf,BuildOrRunResolvePerf,BuildOrRunPerfAll}.sh` + `tests/fafafa.core.fs/README-perf.md` 这组 tail shell/runner cluster 当前属于 current-HEAD-ahead / no-absorb；today contract 继续只由 `bash tests/test_active_shell_runners.sh` 与 `bash tests/test_fs_perf_shell_scripts.sh` 守住，不再按 tail 版本回灌
 - 同日 fresh diff 还确认：`src/fafafa.core.atomic.base.pas` 与 `src/fafafa.core.span.pas` 只剩 no-op residue；`tests/fafafa.core.option/BuildOrTest.bat` 与 `tests/fafafa.core.result/BuildOrTest.bat` 则属于 current-HEAD-ahead / no-absorb。today contract 继续由 `bash tests/test_l0_option_result_runner_hygiene.sh` 守住
 - 同日 `sidecar` 的唯一 exclusive mixed batch 也只切片吸收了 async runner hygiene，小撮 today contract 继续由 `bash tests/test_l0_async_test_runner_hygiene.sh` 守住；`examples/fafafa.core.sync*` 与 `examples/fafafa.core.sync.condvar*` 仍然 defer，不做 broad absorb
+- 同日 `example_sync` 这条 current-entry 另行修到了 current API，并由 `bash tests/test_l0_sync_current_example_build.sh` 守住；它只覆盖 `example_sync.lpi`，不代表 `sync/condvar` 旧 runner 批次已经 ready
 - 当前几份 landing-zone docs：`docs/collections/legacy/README.md`、`docs/reports/README.md`、`docs/collections/reports/README.md`、`docs/benchmarks/reports/README.md` 与 `docs/legacy/l0/README.md` 继续以主线版本为准，不吸收 `sidecar` 的旧 pointer 叙事
 - 如果当前问题是 `sidecar/tail` 在 merged-main 之后还能不能删、各自还剩什么 exclusive batch，标准入口切到：`bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh`
 

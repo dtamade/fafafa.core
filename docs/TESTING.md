@@ -101,12 +101,21 @@ bash tests/test_l0_async_test_runner_hygiene.sh
 - `tests/fafafa.core.socket.async/BuildOrTest.sh`
 - `tests/fafafa.core.fs.async/BuildOrTest.bat`
 - `tests/fafafa.core.fs.async/README.md`
-
-以及下面这些 today policy：
-
 - `tests/fafafa.core.fs.async/BuildOrTest.sh` 继续保持缺席，直到 source blocker 真正解决
 - `tests/fafafa.core.fs.async/test_simple.pas` 不得回流
 - `examples/fafafa.core.sync*` / `examples/fafafa.core.sync.condvar*` 仍然 defer，不是这条 contract 的 absorb 范围
+
+如果当前目标是修 `examples/fafafa.core.sync/example_sync.lpr` 这条 current-entry，而不是打开整组 `sync/condvar` runner absorb，优先跑：
+
+```bash
+bash tests/test_l0_sync_current_example_build.sh
+```
+
+这条命令当前只固定守住：
+
+- `examples/fafafa.core.sync/example_sync.lpi` 必须能在 current HEAD 上通过 `lazbuild`
+- 必须产出仓库根 `bin/example_sync[.exe]`
+- 作用域只覆盖 `example_sync`，不把 `examples/fafafa.core.sync*` / `examples/fafafa.core.sync.condvar*` 其余旧 runner residue 一并纳入 today contract
 
 只有当 strict L0 发生非文档代码/测试变化，或者有人明确要求 exact `HEAD` / merge commit 证据时，才继续走 GitHub Actions Windows native evidence 主路径。
 
