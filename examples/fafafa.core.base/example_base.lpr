@@ -36,10 +36,12 @@ var
   LPair2: TStrStrPair;
 begin
   WriteLn('=== TTuple2 泛型元组 ===');
+
   // 创建 Integer-String 元组
   LPair1 := TIntStrPair.Create(42, 'hello');
   WriteLn('Pair1.First: ', LPair1.First);
   WriteLn('Pair1.Second: ', LPair1.Second);
+
   // 创建 String-String 元组
   LPair2 := TStrStrPair.Create('key', 'value');
   WriteLn('Pair2.First: ', LPair2.First);

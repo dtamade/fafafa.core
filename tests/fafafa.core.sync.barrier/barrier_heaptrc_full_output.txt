@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestResults>
+  <!-- Generated using FpcUnit on 2026-01-20 09:43:01-->
+  <TestListing>
+    <TestSuite Name="" ElapsedTime="00:00:00.002" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="42" NumberOfIgnoredTests="0">
+      <TestSuite Name="TTestCase_Global" ElapsedTime="00:00:00.000" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="9" NumberOfIgnoredTests="0">
+        <Test Name="Test_MakeBarrier_Valid_Participants" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_MakeBarrier_Single_Participant" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_MakeBarrier_Multiple_Participants" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_MakeBarrier_Large_Participants" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_MakeBarrier_Zero_Participants_Exception" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_MakeBarrier_Negative_Participants_Exception" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_MakeBarrier_MaxInt_Participants" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_MakeBarrier_Returns_IBarrier_Interface" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_MakeBarrier_Multiple_Instances_Independent" Result="OK" ElapsedTime="00:00:00.000"/>
+      </TestSuite>
+      <TestSuite Name="TTestCase_IBarrier" ElapsedTime="00:00:00.001" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="28" NumberOfIgnoredTests="0">
+        <Test Name="Test_GetParticipantCount_SingleParticipant" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_GetParticipantCount_MultipleParticipants" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_GetParticipantCount_Consistency" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Wait_SingleParticipant_ReturnsTrue" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Wait_TwoParticipants_OneSerial" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Wait_MultipleParticipants_OneSerial" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Wait_SerialThread_Identification" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Wait_NonSerialThread_ReturnsFalse" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Wait_Barrier_Reuse_MultipleRounds" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Wait_Barrier_Reuse_DifferentThreadCounts" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Wait_Sequential_Rounds_SerialDistribution" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Wait_Concurrent_Threads_Synchronization" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Wait_Concurrent_Barriers_Independence" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Wait_Thread_Safety_Multiple_Barriers" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Wait_Race_Conditions_Prevention" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Wait_Large_Participant_Count" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Wait_Rapid_Sequential_Calls" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Wait_Mixed_Thread_Priorities" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Wait_Unix_Posix_Barrier" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Wait_Unix_Fallback_Implementation" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Stress_High_Frequency_Barriers" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Stress_Long_Running_Barriers" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Stress_Memory_Pressure_Barriers" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Stress_Thread_Exhaustion_Barriers" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Performance_Baseline_2_Threads" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Performance_Baseline_4_Threads" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Performance_Baseline_8_Threads" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Performance_Baseline_16_Threads" Result="OK" ElapsedTime="00:00:00.000"/>
+      </TestSuite>
+      <TestSuite Name="TTestCase_WaitEx" ElapsedTime="00:00:00.001" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="5" NumberOfIgnoredTests="0">
+        <Test Name="Test_WaitEx_SingleParticipant_IsLeader" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_WaitEx_TwoParticipants_ExactlyOneLeader" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_WaitEx_Generation_IncrementOnComplete" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_WaitEx_Generation_SameForAllParticipants" Result="OK" ElapsedTime="00:00:00.001"/>
+        <Test Name="Test_WaitEx_MultipleRounds_GenerationIncreases" Result="OK" ElapsedTime="00:00:00.000"/>
+      </TestSuite>
+    </TestSuite>
+  </TestListing>
+  <Title></Title>
+  <NumberOfRunTests>42</NumberOfRunTests>
+  <NumberOfErrors>0</NumberOfErrors>
+  <NumberOfFailures>0</NumberOfFailures>
+  <NumberOfIgnoredTests>0</NumberOfIgnoredTests>
+  <TotalElapsedTime>00:00:00.002</TotalElapsedTime>
+  <DateTimeRan>2026-01-20 09:43:01</DateTimeRan>
+</TestResults>
+
+Heap dump by heaptrc unit of "./bin/fafafa.core.sync.barrier.test"
+1155 memory blocks allocated : 105877
+1155 memory blocks freed     : 105877
+0 unfreed memory blocks : 0
+True heap size : 262144
+True free heap : 262144

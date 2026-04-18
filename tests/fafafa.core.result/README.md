@@ -1,18 +1,20 @@
 # fafafa.core.result Tests
 
-这个目录是 `fafafa.core.result` 当前测试入口。它负责锁定 strict non-SIMD L0 `result` 模块的 today contract，不再把历史 Windows wrapper/alias 分层误当成额外语义。
+这个目录是 `result` 模块当前测试入口。它负责说明主测试工程、当前 runner，以及 Windows root wrapper 和历史实现脚本之间的关系。
 
 ## 当前 source-of-truth
 
 1. `docs/fafafa.core.result.md`
-2. `docs/fafafa.core.l0.foundation.md`
-3. `docs/fafafa.core.l0.roadmap.md`
-4. `docs/ARCHITECTURE_LAYERS.md`
-5. `tests/fafafa.core.result/BuildOrTest.sh`
-6. `tests/fafafa.core.result/BuildOrTest.bat`
-7. `tests/fafafa.core.result/fafafa.core.result.test.lpi`
-8. `tests/fafafa.core.result/tests_result.lpi`
-9. `tests/fafafa.core.result/fafafa.core.result.testcase.pas`
+2. `tests/fafafa.core.result/BuildOrTest.sh`
+3. `tests/fafafa.core.result/BuildOrTest.bat`
+4. `tests/fafafa.core.result/buildOrTest.bat`
+5. `tests/fafafa.core.result/fafafa.core.result.test.lpi`
+6. `tests/fafafa.core.result/tests_result.lpi`
+
+补充说明：
+
+- 仓库根 `tests/run_all_tests.bat` 当前只会递归发现 `BuildOrTest.bat` / `BuildAndTest.bat`
+- 这里的大写 `BuildOrTest.bat` 是 Windows root wrapper，小写 `buildOrTest.bat` 继续承载具体实现
 
 ## 当前测试集合
 
@@ -54,11 +56,15 @@
 
 ### BuildOrTest.bat
 
+- 当前是 Windows root wrapper
+- 会委托给 `buildOrTest.bat`
+- 目的是让 `tests/run_all_tests.bat` 可以发现 `result` 模块当前入口
+
+### buildOrTest.bat
+
 - 构建目标：`fafafa.core.result.test.lpi`
 - 产物：`bin\\fafafa.core.result.test[.exe]`
 - 支持 `build` / `check` / `test` / `clean` / `rebuild`
-- `test` 当前会优先执行 `bin\\fafafa.core.result.test.exe`；只有 `.exe` 不存在时才回退到无扩展名产物
-- 在 `FAFAFA_SKIP_BUILD=1` 且 `ACTION=test` 时会跳过构建，直接进入 runtime 路径；这个入口当前主要供 Windows `.bat` runtime-only parity smoke / matrix 使用
 
 ## 当前边界
 

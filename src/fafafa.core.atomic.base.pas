@@ -13,7 +13,6 @@ unit fafafa.core.atomic.base;
 
 {$MODE OBJFPC}{$H+}
 {$MODESWITCH ADVANCEDRECORDS}
-{$I fafafa.core.settings.inc}
 
 interface
 

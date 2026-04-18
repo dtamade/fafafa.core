@@ -1,12 +1,10 @@
 program run_async_tests;
 
-{$mode objfpc}{$H+}
 {$CODEPAGE UTF8}
-{$I ../../src/fafafa.core.settings.inc}
+{$mode objfpc}{$H+}
 
 uses
-  {$IFDEF UNIX}cthreads,{$ENDIF}
-  Classes, SysUtils, fpcunit, testregistry, consoletestrunner,
+  Classes, SysUtils, fpcunit, testreport, testregistry,
   test_async_basic;
 
 var

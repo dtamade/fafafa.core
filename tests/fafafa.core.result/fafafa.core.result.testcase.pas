@@ -343,11 +343,6 @@ begin
   Result := A = B;
 end;
 
-function StrEqIgnoreCase(const A, B: string): Boolean;
-begin
-  Result := LowerCase(A) = LowerCase(B);
-end;
-
 function StrToStrFunc(const S: string): string;
 begin
   Result := S;
@@ -416,9 +411,6 @@ var
   GInspectCount: Integer = 0;
   GInspectValue: Integer = 0;
   GInspectErrValue: string = '';
-  GResultCallbackCalls: Integer = 0;
-  GResultOkBranchCalls: Integer = 0;
-  GResultErrBranchCalls: Integer = 0;
 
 procedure InspectInt(const X: Integer);
 begin
@@ -430,100 +422,6 @@ procedure InspectStr(const S: string);
 begin
   Inc(GInspectCount);
   GInspectErrValue := S;
-end;
-
-function TimesTen(const aX: Integer): Integer;
-begin
-  Result := aX * 10;
-end;
-
-function IdentityInt(const aX: Integer): Integer;
-begin
-  Result := aX;
-end;
-
-function ResultDoublePositive(const aX: Integer): TIntResult;
-begin
-  if aX > 0 then
-    Result := TIntResult.Ok(aX * 2)
-  else
-    Result := TIntResult.Err('negative');
-end;
-
-function ResultDoublePositiveAndRecordCall(const aX: Integer): TIntResult;
-begin
-  Inc(GResultCallbackCalls);
-  Result := ResultDoublePositive(aX);
-end;
-
-function ResultLengthToOk(const aText: string): TIntResult;
-begin
-  Result := TIntResult.Ok(Length(aText));
-end;
-
-function ResultLengthToOkAndRecordCall(const aText: string): TIntResult;
-begin
-  Inc(GResultCallbackCalls);
-  Result := ResultLengthToOk(aText);
-end;
-
-function IncOneAndRecordCall(const aX: Integer): Integer;
-begin
-  Inc(GResultCallbackCalls);
-  Result := aX + 1;
-end;
-
-function StrLenAndRecordCall(const aText: string): Integer;
-begin
-  Inc(GResultCallbackCalls);
-  Result := Length(aText);
-end;
-
-function TimesTenAndRecordOkCall(const aX: Integer): Integer;
-begin
-  Inc(GResultOkBranchCalls);
-  Result := aX * 10;
-end;
-
-function StrLenAndRecordErrCall(const aText: string): Integer;
-begin
-  Inc(GResultErrBranchCalls);
-  Result := Length(aText);
-end;
-
-function IsPositiveAndRecordCall(const aX: Integer): Boolean;
-begin
-  Inc(GResultOkBranchCalls);
-  Result := aX > 0;
-end;
-
-function MakeNegErrorAndRecordCall(const aX: Integer): string;
-begin
-  if aX = aX then;
-  Inc(GResultErrBranchCalls);
-  Result := 'not positive';
-end;
-
-function ValPrefix(const aX: Integer): string;
-begin
-  Result := 'val:' + IntToStr(aX);
-end;
-
-function ErrPrefix(const aText: string): string;
-begin
-  Result := 'err:' + aText;
-end;
-
-function MakeBadError(const aX: Integer): string;
-begin
-  if aX = aX then;
-  Result := 'bad';
-end;
-
-function AlwaysFalse(const aX: Integer): Boolean;
-begin
-  if aX = aX then;
-  Result := False;
 end;
 
 { TTestCase_TResult_Basic }
@@ -744,13 +642,15 @@ var
   F: specialize TResultFunc<Integer, Integer>;
 begin
   Calls := 0;
-  GResultCallbackCalls := 0;
-  F := @IncOneAndRecordCall;
+  F := function(const X: Integer): Integer
+  begin
+    Inc(Calls);
+    Result := X + 1;
+  end;
 
   R := TIntResult.Err('err');
   R2 := specialize ResultMap<Integer, string, Integer>(R, F);
 
-  Calls := GResultCallbackCalls;
   CheckEquals(0, Calls);
   CheckTrue(R2.IsErr);
   CheckEquals('err', R2.UnwrapErr);
@@ -775,13 +675,15 @@ var
   F: specialize TResultFunc<string, Integer>;
 begin
   Calls := 0;
-  GResultCallbackCalls := 0;
-  F := @StrLenAndRecordCall;
+  F := function(const S: string): Integer
+  begin
+    Inc(Calls);
+    Result := Length(S);
+  end;
 
   R := TIntResult.Ok(10);
   R2 := specialize ResultMapErr<Integer, string, Integer>(R, F);
 
-  Calls := GResultCallbackCalls;
   CheckEquals(0, Calls);
   CheckTrue(R2.IsOk);
   CheckEquals(10, R2.Unwrap);
@@ -804,7 +706,13 @@ var
   F: specialize TResultFunc<Integer, TIntResult>;
 begin
   R := TIntResult.Ok(5);
-  F := @ResultDoublePositive;
+  F := function(const X: Integer): TIntResult
+  begin
+    if X > 0 then
+      Result := TIntResult.Ok(X * 2)
+    else
+      Result := TIntResult.Err('negative');
+  end;
   R2 := specialize ResultAndThen<Integer, string, Integer>(R, F);
   CheckTrue(R2.IsOk);
   CheckEquals(10, R2.Unwrap);
@@ -816,7 +724,10 @@ var
   F: specialize TResultFunc<Integer, TIntResult>;
 begin
   R := TIntResult.Err('original');
-  F := @ResultDoublePositive;
+  F := function(const X: Integer): TIntResult
+  begin
+    Result := TIntResult.Ok(X * 2);
+  end;
   R2 := specialize ResultAndThen<Integer, string, Integer>(R, F);
   CheckTrue(R2.IsErr);
   CheckEquals('original', R2.UnwrapErr);
@@ -829,13 +740,15 @@ var
   F: specialize TResultFunc<Integer, TIntResult>;
 begin
   Calls := 0;
-  GResultCallbackCalls := 0;
-  F := @ResultDoublePositiveAndRecordCall;
+  F := function(const X: Integer): TIntResult
+  begin
+    Inc(Calls);
+    Result := TIntResult.Ok(X * 2);
+  end;
 
   R := TIntResult.Err('original');
   R2 := specialize ResultAndThen<Integer, string, Integer>(R, F);
 
-  Calls := GResultCallbackCalls;
   CheckEquals(0, Calls);
   CheckTrue(R2.IsErr);
   CheckEquals('original', R2.UnwrapErr);
@@ -848,7 +761,10 @@ var
   F: specialize TResultFunc<string, TIntResult>;
 begin
   R := TIntResult.Ok(42);
-  F := @ResultLengthToOk;
+  F := function(const S: string): TIntResult
+  begin
+    Result := TIntResult.Ok(Length(S));
+  end;
   R2 := specialize ResultOrElse<Integer, string, string>(R, F);
   CheckTrue(R2.IsOk);
   CheckEquals(42, R2.Unwrap);
@@ -862,13 +778,15 @@ var
   F: specialize TResultFunc<string, TIntResult>;
 begin
   Calls := 0;
-  GResultCallbackCalls := 0;
-  F := @ResultLengthToOkAndRecordCall;
+  F := function(const S: string): TIntResult
+  begin
+    Inc(Calls);
+    Result := TIntResult.Ok(Length(S));
+  end;
 
   R := TIntResult.Ok(42);
   R2 := specialize ResultOrElse<Integer, string, string>(R, F);
 
-  Calls := GResultCallbackCalls;
   CheckEquals(0, Calls);
   CheckTrue(R2.IsOk);
   CheckEquals(42, R2.Unwrap);
@@ -881,7 +799,10 @@ var
   F: specialize TResultFunc<string, TIntResult>;
 begin
   R := TIntResult.Err('hello');
-  F := @ResultLengthToOk;
+  F := function(const S: string): TIntResult
+  begin
+    Result := TIntResult.Ok(Length(S));
+  end;
   R2 := specialize ResultOrElse<Integer, string, string>(R, F);
   CheckTrue(R2.IsOk);
   CheckEquals(5, R2.Unwrap);
@@ -907,8 +828,8 @@ begin
   ROk := TIntResult.Ok(5);
   RErr := TIntResult.Err('abc');
 
-  FErr := @StrLen;
-  FOk := @TimesTen;
+  FErr := function(const S: string): Integer begin Result := Length(S); end;
+  FOk := function(const X: Integer): Integer begin Result := X * 10; end;
 
   CheckEquals(50, specialize ResultMapOrElse<Integer, string, Integer>(ROk, FErr, FOk));
   CheckEquals(3, specialize ResultMapOrElse<Integer, string, Integer>(RErr, FErr, FOk));
@@ -924,24 +845,27 @@ var
 begin
   CallsOk := 0;
   CallsErr := 0;
-  GResultOkBranchCalls := 0;
-  GResultErrBranchCalls := 0;
 
-  FErr := @StrLenAndRecordErrCall;
-  FOk := @TimesTenAndRecordOkCall;
+  FErr := function(const S: string): Integer
+  begin
+    Inc(CallsErr);
+    Result := Length(S);
+  end;
+
+  FOk := function(const X: Integer): Integer
+  begin
+    Inc(CallsOk);
+    Result := X * 10;
+  end;
 
   R := TIntResult.Ok(5);
   V := specialize ResultMapOrElse<Integer, string, Integer>(R, FErr, FOk);
-  CallsOk := GResultOkBranchCalls;
-  CallsErr := GResultErrBranchCalls;
   CheckEquals(50, V);
   CheckEquals(1, CallsOk);
   CheckEquals(0, CallsErr);
 
   R := TIntResult.Err('abc');
   V := specialize ResultMapOrElse<Integer, string, Integer>(R, FErr, FOk);
-  CallsOk := GResultOkBranchCalls;
-  CallsErr := GResultErrBranchCalls;
   CheckEquals(3, V);
   CheckEquals(1, CallsOk);
   CheckEquals(1, CallsErr);
@@ -956,8 +880,8 @@ begin
   ROk := TIntResult.Ok(42);
   RErr := TIntResult.Err('fail');
 
-  FOk := @ValPrefix;
-  FErr := @ErrPrefix;
+  FOk := function(const X: Integer): string begin Result := 'val:' + IntToStr(X); end;
+  FErr := function(const S: string): string begin Result := 'err:' + S; end;
 
   CheckEquals('val:42', specialize ResultMatch<Integer, string, string>(ROk, FOk, FErr));
   CheckEquals('err:fail', specialize ResultMatch<Integer, string, string>(RErr, FOk, FErr));
@@ -1127,17 +1051,23 @@ var
 begin
   CallsPred := 0;
   CallsErrFactory := 0;
-  GResultOkBranchCalls := 0;
-  GResultErrBranchCalls := 0;
 
-  Pred := @IsPositiveAndRecordCall;
-  ErrFactory := @MakeNegErrorAndRecordCall;
+  Pred := function(const X: Integer): Boolean
+  begin
+    Inc(CallsPred);
+    Result := X > 0;
+  end;
+
+  ErrFactory := function(const X: Integer): string
+  begin
+    if X = X then; // suppress hint
+    Inc(CallsErrFactory);
+    Result := 'not positive';
+  end;
 
   R := TIntResult.Err('original');
   R2 := specialize ResultFilterOrElse<Integer, string>(R, Pred, ErrFactory);
 
-  CallsPred := GResultOkBranchCalls;
-  CallsErrFactory := GResultErrBranchCalls;
   CheckEquals(0, CallsPred);
   CheckEquals(0, CallsErrFactory);
   CheckTrue(R2.IsErr);
@@ -1163,7 +1093,7 @@ var
   R: TStrResult;
   IsNeg: specialize TResultFunc<Integer, Boolean>;
 begin
-  IsNeg := @IsNegative;
+  IsNeg := function(const X: Integer): Boolean begin Result := X < 0; end;
 
   R := TStrResult.Err(-1);
   CheckTrue(R.IsErrAnd(IsNeg));
@@ -1249,8 +1179,8 @@ begin
   ROk := TIntResult.Ok(42);
   RErr := TIntResult.Err('fail');
 
-  FOk := @ValPrefix;
-  FErr := @ErrPrefix;
+  FOk := function(const X: Integer): string begin Result := 'val:' + IntToStr(X); end;
+  FErr := function(const S: string): string begin Result := 'err:' + S; end;
 
   // ResultFold should behave same as ResultMatch
   CheckEquals('val:42', specialize ResultFold<Integer, string, string>(ROk, FOk, FErr));
@@ -1267,7 +1197,10 @@ var
 begin
   R := TIntResult.Ok(42);
   OkP := nil;
-  ErrP := @StrToStrFunc;
+  ErrP := function(const S: string): string
+  begin
+    Result := S;
+  end;
 
   CheckEquals('Ok(?)', R.ToDebugString(OkP, ErrP));
 end;
@@ -1279,7 +1212,10 @@ var
   ErrP: specialize TResultFunc<string, string>;
 begin
   R := TIntResult.Err('fail');
-  OkP := @IntToStrFunc;
+  OkP := function(const X: Integer): string
+  begin
+    Result := IntToStr(X);
+  end;
   ErrP := nil;
 
   CheckEquals('Err(?)', R.ToDebugString(OkP, ErrP));
@@ -1399,38 +1335,56 @@ begin
 
   // ResultMapOrElse: Ok uses Fok; Ferr may be nil
   MapOrElseFerr := nil;
-  MapOrElseFok := @DoubleIt;
+  MapOrElseFok := function(const X: Integer): Integer
+  begin
+    Result := X * 2;
+  end;
   ResInt := specialize ResultMapOrElse<Integer, string, Integer>(TIntResult.Ok(10), MapOrElseFerr, MapOrElseFok);
   CheckEquals(20, ResInt);
 
   // ResultMapOrElse: Err uses Ferr; Fok may be nil
   MapOrElseFok := nil;
-  MapOrElseFerr := @StrLen;
+  MapOrElseFerr := function(const S: string): Integer
+  begin
+    Result := Length(S);
+  end;
   ResInt := specialize ResultMapOrElse<Integer, string, Integer>(TIntResult.Err('abc'), MapOrElseFerr, MapOrElseFok);
   CheckEquals(3, ResInt);
 
   // ResultMatch: Ok uses Fok; Ferr may be nil
   MatchFerr := nil;
-  MatchFok := @IncOne;
+  MatchFok := function(const X: Integer): Integer
+  begin
+    Result := X + 1;
+  end;
   ResInt := specialize ResultMatch<Integer, string, Integer>(TIntResult.Ok(1), MatchFok, MatchFerr);
   CheckEquals(2, ResInt);
 
   // ResultMatch: Err uses Ferr; Fok may be nil
   MatchFok := nil;
-  MatchFerr := @StrLen;
+  MatchFerr := function(const S: string): Integer
+  begin
+    Result := Length(S);
+  end;
   ResInt := specialize ResultMatch<Integer, string, Integer>(TIntResult.Err('abc'), MatchFok, MatchFerr);
   CheckEquals(3, ResInt);
 
   // ResultMapBoth: Ok uses Fok; Ferr may be nil
   MapBothFerr := nil;
-  MapBothFok := @IdentityInt;
+  MapBothFok := function(const X: Integer): Integer
+  begin
+    Result := X;
+  end;
   RMb := specialize ResultMapBoth<Integer, string, Integer, Integer>(TIntResult.Ok(5), MapBothFok, MapBothFerr);
   CheckTrue(RMb.IsOk);
   CheckEquals(5, RMb.Unwrap);
 
   // ResultMapBoth: Err uses Ferr; Fok may be nil
   MapBothFok := nil;
-  MapBothFerr := @StrLen;
+  MapBothFerr := function(const S: string): Integer
+  begin
+    Result := Length(S);
+  end;
   RMb := specialize ResultMapBoth<Integer, string, Integer, Integer>(TIntResult.Err('abc'), MapBothFok, MapBothFerr);
   CheckTrue(RMb.IsErr);
   CheckEquals(3, RMb.UnwrapErr);
@@ -1691,7 +1645,10 @@ begin
   {$IFDEF DEBUG}
   // ✅ Phase 4.2.2: nil 检查仅在 Debug 模式下有效
   R := TIntResult.Ok(1);
-  Ferr := @StrLen;
+  Ferr := function(const S: string): Integer
+  begin
+    Result := Length(S);
+  end;
   Fok := nil;
 
   try
@@ -1722,7 +1679,10 @@ begin
   // ✅ Phase 4.2.2: nil 检查仅在 Debug 模式下有效
   R := TIntResult.Err('abc');
   Ferr := nil;
-  Fok := @IdentityInt;
+  Fok := function(const X: Integer): Integer
+  begin
+    Result := X;
+  end;
 
   try
     V := specialize ResultMapOrElse<Integer, string, Integer>(R, Ferr, Fok);
@@ -1752,7 +1712,10 @@ begin
   // ✅ Phase 4.2.2: nil 检查仅在 Debug 模式下有效
   R := TIntResult.Ok(1);
   Fok := nil;
-  Ferr := @StrLen;
+  Ferr := function(const S: string): Integer
+  begin
+    Result := Length(S);
+  end;
 
   try
     V := specialize ResultMatch<Integer, string, Integer>(R, Fok, Ferr);
@@ -1781,7 +1744,10 @@ begin
   {$IFDEF DEBUG}
   // ✅ Phase 4.2.2: nil 检查仅在 Debug 模式下有效
   R := TIntResult.Err('abc');
-  Fok := @IdentityInt;
+  Fok := function(const X: Integer): Integer
+  begin
+    Result := X;
+  end;
   Ferr := nil;
 
   try
@@ -1812,7 +1778,10 @@ begin
   // ✅ Phase 4.2.2: nil 检查仅在 Debug 模式下有效
   R := TIntResult.Ok(1);
   Fok := nil;
-  Ferr := @StrLen;
+  Ferr := function(const S: string): Integer
+  begin
+    Result := Length(S);
+  end;
 
   try
     OutR := specialize ResultMapBoth<Integer, string, Integer, Integer>(R, Fok, Ferr);
@@ -1841,7 +1810,10 @@ begin
   {$IFDEF DEBUG}
   // ✅ Phase 4.2.2: nil 检查仅在 Debug 模式下有效
   R := TIntResult.Err('abc');
-  Fok := @IdentityInt;
+  Fok := function(const X: Integer): Integer
+  begin
+    Result := X;
+  end;
   Ferr := nil;
 
   try
@@ -1872,7 +1844,11 @@ begin
   // ✅ Phase 4.2.2: nil 检查仅在 Debug 模式下有效
   R := TIntResult.Ok(1);
   Pred := nil;
-  Ferr := @MakeBadError;
+  Ferr := function(const X: Integer): string
+  begin
+    if X = X then; // suppress hint
+    Result := 'bad';
+  end;
 
   try
     OutR := specialize ResultFilterOrElse<Integer, string>(R, Pred, Ferr);
@@ -1901,7 +1877,11 @@ begin
   {$IFDEF DEBUG}
   // ✅ Phase 4.2.2: nil 检查仅在 Debug 模式下有效
   R := TIntResult.Ok(1);
-  Pred := @AlwaysFalse;
+  Pred := function(const X: Integer): Boolean
+  begin
+    if X = X then; // suppress hint
+    Result := False;
+  end;
   Ferr := nil;
 
   try
@@ -2050,7 +2030,10 @@ var
   R: TIntResult;
 begin
   Work := nil;
-  MapEx := @MapExToStr;
+  MapEx := function(const Ex: Exception): string
+  begin
+    Result := Ex.Message;
+  end;
 
   try
     R := specialize ResultFromTry<Integer, string>(Work, MapEx);
@@ -2626,15 +2609,6 @@ begin
   Result := TIntResult.Ok(999);
 end;
 
-var
-  GResultTestFallbackCalls: Integer = 0;
-
-function GetFallbackResultAndRecordCall: TIntResult;
-begin
-  Inc(GResultTestFallbackCalls);
-  Result := TIntResult.Ok(999);
-end;
-
 procedure TTestCase_TResult_NewAPI.Test_OrElseThunk_On_Ok;
 var
   R, R2: TIntResult;
@@ -2652,13 +2626,15 @@ var
   Thunk: specialize TResultThunk<TIntResult>;
 begin
   Calls := 0;
-  GResultTestFallbackCalls := 0;
-  Thunk := @GetFallbackResultAndRecordCall;
+  Thunk := function: TIntResult
+  begin
+    Inc(Calls);
+    Result := TIntResult.Ok(999);
+  end;
 
   R := TIntResult.Ok(42);
   R2 := R.OrElseThunk(Thunk);
 
-  Calls := GResultTestFallbackCalls;
   CheckEquals(0, Calls);
   CheckTrue(R2.IsOk);
   CheckEquals(42, R2.Unwrap);
@@ -2738,7 +2714,7 @@ var
   O: TIntOption;
   Pred: specialize TOptionFunc<Integer, Boolean>;
 begin
-  Pred := @IsPositive;
+  Pred := function(const X: Integer): Boolean begin Result := X > 0; end;
 
   O := TIntOption.Some(5);
   CheckTrue(O.IsSomeAnd(Pred));
@@ -3874,14 +3850,16 @@ begin
 
   // 场景 1: Ok 路径
   R := TIntResult.Ok(10);
-  GInspectCount := 0;
-  GInspectValue := 0;
 
   // Inspect: 应该被调用
-  R2 := R.Inspect(@InspectInt);
-  InspectCalled := GInspectCount > 0;
+  R2 := R.Inspect(
+    procedure(const V: Integer)
+    begin
+      InspectCalled := True;
+      CheckEquals(10, V, 'Inspect should receive correct value');
+    end
+  );
   CheckTrue(InspectCalled, 'Inspect should be called for Ok');
-  CheckEquals(10, GInspectValue, 'Inspect should receive correct value');
   CheckTrue(R2.IsOk, 'After Inspect should be Ok');
   CheckEquals(10, R2.Unwrap, 'Value should remain unchanged');
 
@@ -3891,10 +3869,13 @@ begin
   CheckEquals(20, R3.Unwrap, 'Map should double the value');
 
   // InspectErr: 不应该被调用（因为是 Ok）
-  GInspectCount := 0;
-  GInspectErrValue := '';
-  R3 := R3.InspectErr(@InspectStr);
-  InspectErrCalled := GInspectCount > 0;
+  R3 := R3.InspectErr(
+    procedure(const E: string)
+    begin
+      if E = E then; // suppress unused parameter hint for Err-only branch
+      InspectErrCalled := True;
+    end
+  );
   CheckFalse(InspectErrCalled, 'InspectErr should not be called for Ok');
   CheckTrue(R3.IsOk, 'After InspectErr should be Ok');
   CheckEquals(20, R3.Unwrap, 'Value should remain unchanged');
@@ -3903,12 +3884,15 @@ begin
   InspectCalled := False;
   InspectErrCalled := False;
   R := TIntResult.Err('error');
-  GInspectCount := 0;
-  GInspectValue := 0;
 
   // Inspect: 不应该被调用
-  R2 := R.Inspect(@InspectInt);
-  InspectCalled := GInspectCount > 0;
+  R2 := R.Inspect(
+    procedure(const V: Integer)
+    begin
+      if V = V then; // suppress unused parameter hint for Ok-only branch
+      InspectCalled := True;
+    end
+  );
   CheckFalse(InspectCalled, 'Inspect should not be called for Err');
   CheckTrue(R2.IsErr, 'After Inspect should be Err');
 
@@ -3917,12 +3901,14 @@ begin
   CheckTrue(R3.IsErr, 'After Map should be Err');
 
   // InspectErr: 应该被调用
-  GInspectCount := 0;
-  GInspectErrValue := '';
-  R3 := R3.InspectErr(@InspectStr);
-  InspectErrCalled := GInspectCount > 0;
+  R3 := R3.InspectErr(
+    procedure(const E: string)
+    begin
+      InspectErrCalled := True;
+      CheckEquals('error', E, 'InspectErr should receive correct error');
+    end
+  );
   CheckTrue(InspectErrCalled, 'InspectErr should be called for Err');
-  CheckEquals('error', GInspectErrValue, 'InspectErr should receive correct error');
   CheckTrue(R3.IsErr, 'After InspectErr should be Err');
   CheckEquals('error', R3.UnwrapErr, 'Error should remain unchanged');
 end;
@@ -4147,6 +4133,12 @@ end;
 procedure TTestCase_TResult_EnhancedBoundary.Test_Equals_CustomEq_CaseInsensitive;
 var
   R1, R2: TStrResult;
+
+  function CaseInsensitiveEq(const A, B: string): Boolean;
+  begin
+    Result := LowerCase(A) = LowerCase(B);
+  end;
+
 begin
   // 测试大小写不敏感的相等性
   R1 := TStrResult.Ok('Hello');
@@ -4157,7 +4149,7 @@ begin
     'Default equality should be case-sensitive');
 
   // 自定义相等性（大小写不敏感）
-  CheckTrue(R1.Equals(R2, @StrEqIgnoreCase, @IntEq),
+  CheckTrue(R1.Equals(R2, @CaseInsensitiveEq, @IntEq),
     'Custom equality should be case-insensitive');
 end;
 

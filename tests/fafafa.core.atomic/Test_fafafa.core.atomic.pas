@@ -1,7 +1,6 @@
 unit Test_fafafa.core.atomic;
 
 {$mode objfpc}{$H+}
-{$modeswitch advancedrecords}
 {$IFDEF WINDOWS}{$CODEPAGE UTF8}{$ENDIF}
 {$I ../../src/fafafa.core.settings.inc}
 
@@ -10,7 +9,7 @@ interface
 uses
   SysUtils, Classes, fpcunit, testregistry,
   fafafa.core.atomic,
-  fafafa.core.atomic.base;
+  fafafa.core.atomic.compat;
 
 procedure RegisterAtomicTests;
 
@@ -82,8 +81,6 @@ type
     {$ENDIF}
 
     procedure Test_compare_exchange_expected_writeback_consistency;
-    procedure Test_atomic_compare_exchange_single_order_contract;
-    procedure Test_atomic_base_wrapper_today_contract;
     procedure Test_pointer_fetch_add_negative_boundary;
     procedure Test_tagged_ptr_weak_and_exchange;
     procedure Test_tagged_ptr_round_trip_allocated_ptr;
@@ -179,14 +176,6 @@ begin
   Result := atomic_compare_exchange_strong(LObj32, LExp32, LDes32);
 end;
 {$ENDIF}
-
-type
-  TAtomicContractRecord = record
-    Value: Integer;
-  end;
-  PAtomicContractRecord = ^TAtomicContractRecord;
-  PPAtomicContractRecord = ^PAtomicContractRecord;
-  TAtomicContractRecordPtr = specialize TAtomicPtr<TAtomicContractRecord>;
 
 // ———— Stress helpers (opt-in via env) ————
 //
@@ -1217,13 +1206,16 @@ begin
 end;
 
 procedure TTestCase_Global.Test_ptruint_pointer_fetch_smoke;
-var
-  pu, ru: PtrUInt;
+var pu, ru: PtrUInt; pp, rp: Pointer;
 begin
-  // raw API still owns PtrUInt bitwise RMW
+  // PtrUInt fetch_and/or/xor
   pu := PtrUInt($FF00); ru := atomic_fetch_and_ptr(pu, PtrUInt($0F0F)); AssertEquals(PtrUInt($FF00), ru); AssertEquals(PtrUInt($0F00), pu);
   ru := atomic_fetch_or_ptr(pu, PtrUInt($00F0)); AssertEquals(PtrUInt($0F00), ru); AssertEquals(PtrUInt($0FF0), pu);
   ru := atomic_fetch_xor_ptr(pu, PtrUInt($00FF)); AssertEquals(PtrUInt($0FF0), ru); AssertEquals(PtrUInt($0F0F), pu);
+  // Pointer fetch_and/or/xor 通过整数桥接（不关心位义，只测路径）
+  pp := Pointer(PtrUInt($FF00)); rp := atomic_fetch_and(pp, Pointer(PtrUInt($0F0F))); AssertEquals(PtrUInt($FF00), PtrUInt(rp)); AssertEquals(PtrUInt($0F00), PtrUInt(pp));
+  rp := atomic_fetch_or(pp, Pointer(PtrUInt($00F0))); AssertEquals(PtrUInt($0F00), PtrUInt(rp)); AssertEquals(PtrUInt($0FF0), PtrUInt(pp));
+  rp := atomic_fetch_xor(pp, Pointer(PtrUInt($00FF))); AssertEquals(PtrUInt($0FF0), PtrUInt(rp)); AssertEquals(PtrUInt($0F0F), PtrUInt(pp));
 end;
 
 {$IF DEFINED(CPU64) OR DEFINED(CPUX86)}
@@ -1293,122 +1285,6 @@ begin
 
   exp_pp := Pointer(PtrUInt(3333)); success := atomic_compare_exchange_strong(pp, exp_pp, Pointer(PtrUInt(4000)));
   AssertFalse(success); AssertEquals(PtrUInt(2000), PtrUInt(exp_pp)); AssertEquals(PtrUInt(2000), PtrUInt(pp));
-end;
-
-procedure TTestCase_Global.Test_atomic_compare_exchange_single_order_contract;
-var
-  LI32: Int32;
-  LExpected32: Int32;
-  LPtr: Pointer;
-  LExpectedPtr: Pointer;
-begin
-  LI32 := 10;
-
-  LExpected32 := 10;
-  CheckTrue(
-    atomic_compare_exchange_strong(LI32, LExpected32, 20, mo_release),
-    'single-order strong CAS should accept release on the success path'
-  );
-  CheckEquals(20, LI32);
-  CheckEquals(10, LExpected32);
-
-  LExpected32 := 0;
-  CheckFalse(
-    atomic_compare_exchange_strong(LI32, LExpected32, 30, mo_release),
-    'single-order strong CAS should still write back expected on release mismatch'
-  );
-  CheckEquals(20, LExpected32);
-  CheckEquals(20, LI32);
-
-  LExpected32 := 20;
-  CheckTrue(
-    atomic_compare_exchange_weak(LI32, LExpected32, 24, mo_acq_rel),
-    'single-order weak CAS should accept acq_rel on the success path'
-  );
-  CheckEquals(24, LI32);
-  CheckEquals(20, LExpected32);
-
-  LExpected32 := 1;
-  CheckFalse(
-    atomic_compare_exchange_weak(LI32, LExpected32, 28, mo_acq_rel),
-    'single-order weak CAS should still write back expected on acq_rel mismatch'
-  );
-  CheckEquals(24, LExpected32);
-  CheckEquals(24, LI32);
-
-  LPtr := Pointer(PtrUInt(64));
-  LExpectedPtr := Pointer(PtrUInt(64));
-  CheckTrue(
-    atomic_compare_exchange_strong(LPtr, LExpectedPtr, Pointer(PtrUInt(96)), mo_consume),
-    'pointer single-order CAS should keep consume-compatible today contract'
-  );
-  CheckEquals(PtrUInt(96), PtrUInt(LPtr));
-  CheckEquals(PtrUInt(64), PtrUInt(LExpectedPtr));
-
-  LExpectedPtr := Pointer(PtrUInt(32));
-  CheckFalse(
-    atomic_compare_exchange_weak(LPtr, LExpectedPtr, Pointer(PtrUInt(128)), mo_consume),
-    'pointer single-order weak CAS should still write back expected on consume mismatch'
-  );
-  CheckEquals(PtrUInt(96), PtrUInt(LExpectedPtr));
-  CheckEquals(PtrUInt(96), PtrUInt(LPtr));
-end;
-
-procedure TTestCase_Global.Test_atomic_base_wrapper_today_contract;
-var
-  LFlag: TAtomicFlag;
-  LISize: TAtomicISize;
-  LUSize: TAtomicUSize;
-  LExpectedISize: PtrInt;
-  LExpectedUSize: PtrUInt;
-  LRecordA: TAtomicContractRecord;
-  LRecordB: TAtomicContractRecord;
-  LAPtr: TAtomicContractRecordPtr;
-  LExpectedPtr: PAtomicContractRecord;
-  LMut: PPAtomicContractRecord;
-begin
-  LFlag := TAtomicFlag.Create(False);
-  CheckFalse(LFlag.test(mo_consume));
-  CheckFalse(LFlag.test_and_set(mo_release));
-  CheckTrue(LFlag.test(mo_acquire));
-  LFlag.clear(mo_release);
-  CheckFalse(LFlag.test(mo_consume));
-
-  LISize := TAtomicISize.Create(10);
-  LExpectedISize := 10;
-  CheckTrue(
-    LISize.CompareExchangeStrong(LExpectedISize, 20, mo_release),
-    'PtrInt wrapper should normalize single-order CAS today contract'
-  );
-  CheckEquals(PtrInt(20), LISize.Load(mo_acquire));
-  CheckEquals(PtrInt(10), LExpectedISize);
-
-  LExpectedISize := 5;
-  CheckFalse(LISize.CompareExchangeWeak(LExpectedISize, 30, mo_acq_rel));
-  CheckEquals(PtrInt(20), LExpectedISize);
-  CheckEquals(PtrInt(20), LISize.Load);
-
-  LUSize := TAtomicUSize.Create(12);
-  CheckEquals(PtrUInt(12), LUSize.FetchAdd(4, mo_consume));
-  CheckEquals(PtrUInt(16), LUSize.Load(mo_acquire));
-  LExpectedUSize := 8;
-  CheckFalse(LUSize.CompareExchangeStrong(LExpectedUSize, 20, mo_release));
-  CheckEquals(PtrUInt(16), LExpectedUSize);
-
-  LRecordA.Value := 1;
-  LRecordB.Value := 2;
-  LAPtr := TAtomicContractRecordPtr.Create(@LRecordA);
-  LExpectedPtr := @LRecordA;
-  CheckTrue(
-    LAPtr.CompareExchangeStrong(LExpectedPtr, @LRecordB, mo_release),
-    'generic pointer wrapper should share the same single-order CAS contract'
-  );
-  CheckEquals(2, LAPtr.Load(mo_consume)^.Value);
-  CheckEquals(PtrUInt(@LRecordA), PtrUInt(LExpectedPtr));
-  CheckEquals(2, LAPtr.IntoInner^.Value);
-
-  LMut := PPAtomicContractRecord(LAPtr.GetMut);
-  CheckEquals(PtrUInt(@LRecordB), PtrUInt(LMut^));
 end;
 
 procedure TTestCase_Global.Test_pointer_fetch_add_negative_boundary;

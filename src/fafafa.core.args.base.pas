@@ -228,7 +228,7 @@ begin
   Expected := nil;
 
   // 原子 CAS：仅当 _CachedProcessArgsLock 仍为 nil 时才设置
-  if atomic_compare_exchange_strong(
+  if atomic_compare_exchange_strong_ptr(
        Pointer(_CachedProcessArgsLock),
        Expected,
        Pointer(NewLock)) then

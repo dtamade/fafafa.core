@@ -173,7 +173,7 @@ begin
   if (aShard < 0) or (aShard >= FShardCount) then Exit;
   if FShards[aShard].Pool = nil then Exit;
 
-  LNode := atomic_load(FShards[aShard].RemoteFreeHead);
+  LNode := atomic_load_ptr(FShards[aShard].RemoteFreeHead);
   if LNode = nil then Exit;
   LNode := atomic_exchange(FShards[aShard].RemoteFreeHead, nil);
   while LNode <> nil do
@@ -192,10 +192,10 @@ begin
   if (aShard < 0) or (aShard >= FShardCount) then
     raise EInvalidArgument.Create('TSlabPoolSharded.RemoteFreePush: invalid shard index');
 
-  LExpected := atomic_load(FShards[aShard].RemoteFreeHead);
+  LExpected := atomic_load_ptr(FShards[aShard].RemoteFreeHead);
   repeat
     PPointer(aPtr)^ := LExpected;
-  until atomic_compare_exchange_strong(FShards[aShard].RemoteFreeHead, LExpected, aPtr);
+  until atomic_compare_exchange_strong_ptr(FShards[aShard].RemoteFreeHead, LExpected, aPtr);
 end;
 
 function TSlabPoolSharded.IsPowerOfTwoInt(aValue: Integer): Boolean; inline;

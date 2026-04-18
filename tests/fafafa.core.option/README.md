@@ -1,17 +1,19 @@
 # fafafa.core.option Tests
 
-这个目录是 `fafafa.core.option` 当前测试入口。它负责锁定 strict non-SIMD L0 `option` 模块的 today contract，不再把历史 Windows wrapper/alias 分层误当成额外语义。
+这个目录是 `option` 模块当前测试入口。它负责说明主测试工程、当前 runner，以及 Windows root wrapper 和历史实现脚本之间的关系。
 
 ## 当前 source-of-truth
 
 1. `docs/fafafa.core.option.md`
-2. `docs/fafafa.core.l0.foundation.md`
-3. `docs/fafafa.core.l0.roadmap.md`
-4. `docs/ARCHITECTURE_LAYERS.md`
-5. `tests/fafafa.core.option/BuildOrTest.sh`
-6. `tests/fafafa.core.option/BuildOrTest.bat`
-7. `tests/fafafa.core.option/fafafa.core.option.test.lpi`
-8. `tests/fafafa.core.option/fafafa.core.option.testcase.pas`
+2. `tests/fafafa.core.option/BuildOrTest.sh`
+3. `tests/fafafa.core.option/BuildOrTest.bat`
+4. `tests/fafafa.core.option/buildOrTest.bat`
+5. `tests/fafafa.core.option/fafafa.core.option.test.lpi`
+
+补充说明：
+
+- 仓库根 `tests/run_all_tests.bat` 当前只会递归发现 `BuildOrTest.bat` / `BuildAndTest.bat`
+- 这里的大写 `BuildOrTest.bat` 是 Windows root wrapper，小写 `buildOrTest.bat` 继续承载具体实现
 
 ## 当前测试集合
 
@@ -43,14 +45,18 @@
 
 ### BuildOrTest.bat
 
+- 当前是 Windows root wrapper
+- 会委托给 `buildOrTest.bat`
+- 目的是让 `tests/run_all_tests.bat` 可以发现 `option` 模块当前入口
+
+### buildOrTest.bat
+
 - 构建目标：`fafafa.core.option.test.lpi`
 - 产物：`bin\\fafafa.core.option.test[.exe]`
 - 支持 `build` / `check` / `test` / `clean` / `rebuild`
-- `test` 当前会优先执行 `bin\\fafafa.core.option.test.exe`；只有 `.exe` 不存在时才回退到无扩展名产物
-- 在 `FAFAFA_SKIP_BUILD=1` 且 `ACTION=test` 时会跳过构建，直接进入 runtime 路径；这个入口当前主要供 Windows `.bat` runtime-only parity smoke / matrix 使用
 
 ## 当前边界
 
 - 根测试目录代表今天的主验证入口，不再让 `logs/`、`bin/`、`lib/` 一类产物目录冒充当前合同。
-- 当前 shell / Windows runner 都围绕 `fafafa.core.option.test.lpi -> bin/fafafa.core.option.test[.exe]` 这一条 today contract。
+- 当前 shell / Windows root runner 都围绕 `fafafa.core.option.test.lpi -> bin/fafafa.core.option.test[.exe]` 这一条 today contract。
 - 如果 README、脚本和工程文件冲突，以脚本与工程文件现状为准。

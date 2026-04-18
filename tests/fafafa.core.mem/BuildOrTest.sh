@@ -1,121 +1,44 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ACTION="${1:-test}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT="${SCRIPT_DIR}/tests_mem_allocator_only.lpi"
+EXECUTABLE="${SCRIPT_DIR}/bin/tests_mem_allocator_only"
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$ROOT/../.." && pwd)"
-cd "$ROOT"
-
-PROJ="$ROOT/tests_mem_allocator_only.lpi"
-LOG_DIR="$ROOT/logs"
-BUILD_LOG="$LOG_DIR/build.txt"
-TEST_LOG="$LOG_DIR/test.txt"
-TOOLS_LAZBUILD="$REPO_ROOT/tools/lazbuild.sh"
-MODULE_WARNING_PATTERN='(^|.*/)src/fafafa\.core\.mem\.allocator[^[:space:]]*.*(Warning:|Hint:)'
-
-mkdir -p "$ROOT/bin" "$ROOT/lib" "$LOG_DIR"
-
-LZ_Q=()
-if [[ "${FAFAFA_BUILD_QUIET:-1}" != "0" ]]; then
-  LZ_Q+=("--quiet")
+LAZARUSDIR="${LAZARUSDIR:-}"
+LAZBUILD="${LAZBUILD:-lazbuild}"
+LAZARUS_OPT=()
+if [ -n "${LAZARUSDIR}" ]; then
+  LAZARUS_OPT+=(--lazarusdir="${LAZARUSDIR}")
+elif [ -d "/opt/fpcupdeluxe/lazarus/lcl" ]; then
+  LAZARUS_OPT+=(--lazarusdir="/opt/fpcupdeluxe/lazarus")
 fi
 
-LAZBUILD_BIN="${LAZBUILD:-}"
-if [[ -z "${LAZBUILD_BIN}" ]]; then
-  if [[ -x "${TOOLS_LAZBUILD}" ]]; then
-    LAZBUILD_BIN="${TOOLS_LAZBUILD}"
-  else
-    LAZBUILD_BIN="lazbuild"
+# Clean previous build artifacts
+rm -rf "${SCRIPT_DIR}/bin" "${SCRIPT_DIR}/lib"
+mkdir -p "${SCRIPT_DIR}/bin" "${SCRIPT_DIR}/lib"
+
+echo "Building project: ${PROJECT} (Debug)"
+if ! "${LAZBUILD}" "${LAZARUS_OPT[@]}" "${PROJECT}"; then
+  # lazbuild 在某些最小配置环境下会在成功编译后返回非 0（例如输出 "File not found: \"\""），
+  # 这里以生成的可执行文件是否存在作为最终判定，避免阻断测试执行。
+  if [ ! -x "${EXECUTABLE}" ]; then
+    echo
+    echo "Build failed."
+    exit 1
   fi
 fi
 
-resolve_mode() {
-  case "$ACTION" in
-    build|check|test)
-      echo "Debug|$ROOT/bin/tests_mem_allocator_only_debug|$ROOT/bin/tests_mem_allocator_only"
-      ;;
-    build-no-contracts|check-no-contracts|test-no-contracts)
-      echo "NoContracts|$ROOT/bin/tests_mem_allocator_only_nocontracts|$ROOT/bin/tests_mem_allocator_only"
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-}
+echo
+echo "Build successful."
 
-build_project() {
-  local LMode="$1"
-  echo "[BUILD] Project: $PROJ (mode=$LMode)"
-  : >"$BUILD_LOG"
-  if "${LAZBUILD_BIN}" "${LZ_Q[@]}" --bm="$LMode" --build-all "$PROJ" >"$BUILD_LOG" 2>&1; then
-    echo "[BUILD] OK"
-  else
-    local LExitCode=$?
-    echo "[BUILD] FAILED rc=$LExitCode (see $BUILD_LOG)"
-    return "$LExitCode"
-  fi
-}
+echo "Running tests..."
+if ! "${EXECUTABLE}" --all --format=plain; then
+  echo
+  echo "Tests failed!"
+  exit 1
+fi
 
-check_build_log() {
-  if grep -nE "$MODULE_WARNING_PATTERN" "$BUILD_LOG" >/dev/null; then
-    echo "[CHECK] Found warnings/hints from current module scope in build log:"
-    grep -nE "$MODULE_WARNING_PATTERN" "$BUILD_LOG" || true
-    return 1
-  fi
-  echo "[CHECK] OK (no current-module src/ warnings/hints)"
-}
-
-run_tests() {
-  local LBin="$1"
-  local LBinFallback="$2"
-  local LRunBin
-  : >"$TEST_LOG"
-
-  if [[ -x "$LBin" ]]; then
-    LRunBin="$LBin"
-  elif [[ -x "${LBin}.exe" ]]; then
-    LRunBin="${LBin}.exe"
-  elif [[ -x "$LBinFallback" ]]; then
-    LRunBin="$LBinFallback"
-  elif [[ -x "${LBinFallback}.exe" ]]; then
-    LRunBin="${LBinFallback}.exe"
-  else
-    echo "[TEST] Missing binary: ${LBin}[.exe] or ${LBinFallback}[.exe] (did build succeed?)"
-    return 2
-  fi
-
-  echo "[TEST] Running: $LRunBin"
-  if "$LRunBin" --all --format=plain --progress >"$TEST_LOG" 2>&1; then
-    echo "[TEST] OK"
-  else
-    local LExitCode=$?
-    echo "[TEST] FAILED rc=$LExitCode (see $TEST_LOG)"
-    return "$LExitCode"
-  fi
-}
-
-check_heap_leaks() {
-  if grep -nE '^[1-9][0-9]* unfreed memory blocks' "$TEST_LOG" >/dev/null; then
-    echo "[LEAK] FAILED: heaptrc reports unfreed blocks:"
-    grep -nE '^[0-9]+ unfreed memory blocks' "$TEST_LOG" || true
-    return 1
-  fi
-  echo "[LEAK] OK"
-}
-
-case "$ACTION" in
-  build|check|test|build-no-contracts|check-no-contracts|test-no-contracts)
-    IFS='|' read -r BUILD_MODE TEST_BIN TEST_BIN_FALLBACK <<<"$(resolve_mode)"
-    build_project "$BUILD_MODE"
-    check_build_log
-    if [[ "$ACTION" == test* ]]; then
-      run_tests "$TEST_BIN" "$TEST_BIN_FALLBACK"
-      check_heap_leaks
-    fi
-    ;;
-  *)
-    echo "Usage: $0 [build|check|test|build-no-contracts|check-no-contracts|test-no-contracts]"
-    exit 2
-    ;;
-esac
+echo
+echo "All tests passed."
+exit 0

@@ -33,7 +33,6 @@ tests/fafafa.core.os/logs/
 tests/run_all_tests_summary*.txt
 tests/_run_all_logs/
 tests/_run_all_logs_ps/
-tests/_windows_*/
 tests/*/logs/
 tests/*/*/logs/
 tests/_run_all_logs_sh/

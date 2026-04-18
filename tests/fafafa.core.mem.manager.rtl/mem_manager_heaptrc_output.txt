@@ -1,0 +1,23 @@
+ Time:00.000 N:7 E:0 F:0 I:0
+  TTestCase_Global Time:00.000 N:1 E:0 F:0 I:0
+    00.000  Test_GetRtlAllocator_Smoke
+  TTestCase_TRtlAllocator Time:00.000 N:6 E:0 F:0 I:0
+    00.000  Test_Alloc_Free_64
+    00.000  Test_Realloc_64_256
+    00.000  Test_Traits_ZeroInitialized
+    00.000  Test_Traits_ThreadSafe
+    00.000  Test_Traits_SupportsAligned_False
+    00.000  Test_Traits_HasMemSize_False
+
+Number of run tests: 7
+Number of errors:    0
+Number of failures:  0
+
+
+
+Heap dump by heaptrc unit of "./bin/fafafa.core.mem.manager.rtl.test"
+204 memory blocks allocated : 10719
+204 memory blocks freed     : 10719
+0 unfreed memory blocks : 0
+True heap size : 65536
+True free heap : 65536

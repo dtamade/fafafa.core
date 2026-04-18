@@ -33,8 +33,9 @@
    - 明确 experimental intrinsics 默认不属于 stable surface
 
 5. **adapter wiring 校验增强**
-   - `backend.adapter.map.inc` 现在被明确为 adapter-managed slots 的事实真相源
+   - `backend.adapter.map.csv` 现在是 adapter-managed slots 的声明式事实真相源，`backend.adapter.map.inc` 由它生成
    - `adapter-sync` 除了校验 `backend.iface <-> backend.adapter`，还会校验：
+     - CSV spec 与 checked-in generated include 是否漂移
      - 映射里引用的 slot 是否真实存在于 `TSimdDispatchTable`
      - 这些 slot 是否被 `FillBaseDispatchTable` 覆盖
 
@@ -97,18 +98,21 @@
 - `NONX86_KEY_SLOT_AUDIT_SUMMARY`：key wide slot 已按 `backend_owned` / `reuse_base_scalar` 两类契约审计，避免把“故意继承 base scalar”的实现误报成缺口，也避免 backend-owned 槽位悄悄退回 wrapper/scalar
 - `WIRING_SYNC_SUMMARY`：non-x86 wiring slot 名单已收敛到 `AssertNonX86DispatchTableWiringGroupsAssigned`，legacy/grouped 两个测试入口不再各自维护一份 60-slot 名单
 - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY`：`neon` / `riscvv` strict 模式通过
-- `RISCVV facade/register hygiene`：`riscvv.facade.inc` 现在明确把 scalar-pass-through facade helper 留在 base scalar slot，不再伪造 backend-local 包装层；其中 `RISCVVShiftLeftU32x8` / `RISCVVShiftRightU32x8` 现在也显式回到 `ScalarShiftLeftU32x8` / `ScalarShiftRightU32x8`，作为这一轮 `facade hygiene` 的 source truth 一部分固定下来。`riscvv.register.inc` 里的 `ExtractI64x4` / `ExtractI32x8` / `ExtractI32x16` 继续保留显式 asm-gated 结构，因为 `register-truthfulness` 把这种分支形状也视为 ownership 真相的一部分。当前 fresh 结果是 `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=riscvv ... miswired=0 strict=1`，以及 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=riscvv slots=10 issues=0 status=ok`
+- `RISCVV facade/register hygiene`：`riscvv.facade.inc` 现在明确把 scalar-pass-through facade helper 留在 base scalar slot，不再伪造 backend-local 包装层；其中 `RISCVVShiftLeftU32x8` / `RISCVVShiftRightU32x8` 现在也显式回到 `ScalarShiftLeftU32x8` / `ScalarShiftRightU32x8`，作为这一轮 `facade hygiene` 的 source truth 一部分固定下来。与此同时，`DispatchAPI` 新增 `Test_RISCVV_KeyOwnedWideSlots_Stay_BackendOwned`，把 `AndI64x8` / `NotI64x8` / `ShiftLeftI32x16` / `ShiftRightArithI64x4` / `SubI32x8` / `MinU32x8` / `AddI64x4` / `MulI32x16` / `SubI64x8` 从“无 scalar 例外断言”升级成 dedicated source truth，`check_nonx86_key_slot_audit.py` 也会对这些槽位 fail-close，防止下轮再退回“靠默认推断 backend_owned”。`riscvv.register.inc` 里的 `ExtractI64x4` / `ExtractI32x8` / `ExtractI32x16` 继续保留显式 asm-gated 结构，因为 `register-truthfulness` 把这种分支形状也视为 ownership 真相的一部分。当前 fresh 结果是 `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=riscvv ... miswired=0 strict=1`，以及 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=riscvv slots=10 issues=0 status=ok`
 - `RISCVV_ABI_SHAPE_SUMMARY`：宽向量 direct-return asm 已统一回到 hidden-result-pointer ABI 形状，`a0` 只保留 Result 指针语义
 - `NONX86_NATIVE_EVIDENCE_SUMMARY`：native non-x86 evidence verifier 已有正式入口，可在 `x86_64` 上对归档 evidence 做 fail-close 校验
 - `docs/fafafa.core.simd.implementation-matrix.md`：当前 implementation 主线的 working ledger，固定记录 backend/slot/契约/source truth/runtime evidence/next action，避免下轮再回到“看起来好像没问题”的散点审查
 - `docs/plans/2026-04-14-simd-only-patch-bundle.md`：当前 `simd` 收口波次的 patch bundle 清单，明确区分“x86 bounded frontier 最小集”和“SIMD 主线完整集合”，避免在脏工作区里把非 SIMD 改动误混进提交
-- `impl-smoke-x86`：当前 x86 bounded frontier 的高频 smoke 入口，固定重跑 `DispatchAPI` 里已经补齐的 `AVX512 shift boundary` / `AVX2 wide select` / `AVX2 wide FMA composition` proof；它只负责快速确认 x86 证明面没有 fresh 漂移，不替代 `closeout-host-local`
+- `impl-smoke-x86`：当前 x86 bounded frontier 的高频 smoke 入口，固定重跑 `DispatchAPI` 里已经补齐的 `SSE2 compare/vector-math parity`、`SSE3/SSSE3/SSE4.x incremental clone + semantic parity contract`、`AVX512 shift boundary`、`AVX2 wide select`、`AVX2 wide FMA composition` proof；它只负责快速确认 x86 证明面没有 fresh 漂移，不替代 `closeout-host-local`
 - `DataPlane wide snapshot`：`Test_DataPlane_WideBitwiseShiftSnapshot_Follows_CurrentDispatchSemantics` / `Test_DataPlane_WideArithmeticMinMaxSnapshot_Follows_CurrentDispatchSemantics` 已覆盖 `I64x8 bitwise` 与 wide arithmetic/minmax 的高价值 dataplane 快照，不再只盯抽样老点位
 - `qemu-nonx86-evidence`：`linux/arm64` / `linux/riscv64` fresh 通过；runner 现在固定使用隔离 `SIMD_OUTPUT_ROOT`，单次 build 后复用 binary 继续跑 `TTestCase_NonX86BackendParity,TTestCase_DataPlane` 与 backend bench，已规避旧链路里 `arm64` 重复 full rebuild 触发的 `ppca64` `FIRSTCALLPARAN` ICE
 - `NONX86_IMPL_AUDIT_SUMMARY`：新的聚合实现审计入口已把 helper semantics、key-slot audit、wiring-sync、RISCVV ABI shape、register truthfulness strict 和 targeted release suite 收成单条命令
 - `impl-smoke-nonx86`：新增轻量日常入口，定位是高频实现回归；它只负责尽快暴露 non-x86 source/runtime contract 的 fresh 漂移，不替代 `impl-audit-nonx86` 的完整实现审计，也不替代 `closeout-host-local` 的 strict closeout 证明
 - `AVX2 public ABI capability contract`：x86 bounded frontier 这一轮没有挖到新的实现红点，收口点转为接口证据补齐。`DispatchAPI` 现在显式覆盖 `sbAVX2` 的 `scFMA` / `scShuffle` 正向暴露，以及 `SetVectorAsmEnabled(False)` 后 public ABI `CapabilityBits` 清零契约；后续不再需要从 registered-table 的 `BackendInfo.Capabilities` 间接推断 public ABI 是否同步
 - `x86 implementation frontier`：这一轮 bounded implementation 专审没有 fresh 复现新的 AVX512 / AVX2 实现 bug，但把最薄弱的实现证明面补强了：
+  - `SSE2 I64x2 compare parity`：`DispatchAPI` 新增 `Test_SSE2_I64x2_Compare_Use_NonScalar_Impl_And_Keep_Parity`，现在会强制 `sbSSE2` 并直接探测 `CmpEqI64x2 / CmpGtI64x2` 的 runtime parity，尤其覆盖 `same-high-word + unsigned-low` 这类最容易在 64-bit compare 分解里出错的 edge mask。当前 fresh 结果没有复现新的 compare drift，但 base backend 的这条实现路径已经从“只有通用 facade parity”升级成了带强制 backend 的直接证据
+  - `SSE2 F32 vector-math parity`：`DispatchAPI` 新增 `Test_SSE2_F32VectorMath_Use_NonScalar_Impl_And_Keep_Parity`，现在会强制 `sbSSE2` 并直接探测 `RoundF32x4 / DotF32x3 / CrossF32x3` 的 runtime parity；proof 使用 exact half-step round 输入，以及带 lane-3 payload 的 dot/cross 输入，明确锁住 `RoundF32x4` 的 signed half-step 行为和 `Dot/CrossF32x3` 只消费前三个 lane 的语义。当前 fresh 结果没有复现新的 vector-math drift，base backend 这组代表性 math primitive 也不再只有 facade 级旁证
+  - `SSE3 / SSSE3 / SSE4.1 / SSE4.2 incremental clone + semantic parity contracts`：`DispatchAPI` 现在不只钉住小型增量 x86 backend 的 representative ownership/inheritance，还补上了 exact-input runtime parity。`SSE3` 现在同时验证 `ReduceAddF32x4 / DotF32x4 / NormalizeF32x4`（含 zero-vector）对 scalar 的运行时结果；`SSSE3` 验证 `MinI8x16 / MaxI8x16`；`SSE4.1` 现在验证 `MulI32x4 / DotF32x4 / RoundF32x4 / SelectF32x4 / NormalizeF32x4 / NormalizeF32x3 / CmpEqI64x2`；`SSE4.2` 验证 `CmpGtI64x2`。这轮 fresh red 真实抓出了三个实现问题并已修复：`SSE41SelectF32x4` 的 mask polarity 反了，`SSE3NormalizeF32x4/F32x3` 仍停留在 `rsqrtps` 近似路径而没有走与 scalar 一致的精确长度除法路径，以及 `SSE41NormalizeF32x4/F32x3` 同样还保留近似 `rsqrtps` 路径并缺少 zero-vector 的 scalar 等价分支
   - `AVX512 U32x16/U64x8`：`DispatchAPI` 新增 `Test_AVX512_U32x16_U64x8_ShiftBoundary_Contracts`，把 `shift boundary` 的 source truth（invalid-count guard + zero-fill）和运行时 `0 / width-1 / width` parity 一起钉住
   - `AVX2 wide implementation`：`DispatchAPI` 新增 `Test_AVX2_WideSelect_Parity_WithScalar_When_VectorAsmEnabled`，把 `SelectF32x16` / `SelectF64x8` 从原来的 `dispatch == facade` 自证，升级为对 `ScalarSelectF32x16` / `ScalarSelectF64x8` 的直接 parity proof
   - `AVX2 wide FMA composition`：`DispatchAPI` 新增 `Test_AVX2_WideFma_ExactInputs_FollowsHalfComposition`，把 `FmaF32x16` / `FmaF64x8` 明确钉在 `register source truth + AVX2FmaF32x8/F64x4 lo/hi composition + exact-input runtime parity` 上，不再只停留在 wide facade 自证
@@ -225,6 +229,14 @@ bash tests/fafafa.core.simd/BuildOrTest.sh experimental-intrinsics
 ```
 
 #### 发布前 / closeout
+
+`closeout-release` 现在是完整发布收口的官方主入口：
+
+```bash
+FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152
+```
+
+它会按 `impl-smoke-x86 -> closeout-host-local -> win-evidence-preflight -> win-evidence-via-gh -> freeze-status` 的固定顺序收口；如果你只是做阶段性实现收口、手工 Windows 诊断，或只想单独复验某一段证据链，再退回下面这些拆分命令。
 
 如果目标是当前 Linux/macOS worktree 的 host-local strict closeout，优先直接跑：
 
@@ -432,7 +444,7 @@ tests\fafafa.core.simd\buildOrTest.bat gate-strict
 
 - 把 `gate` 当成发布放行的唯一依据
 - 把 stable façade 误读成“所有 backend 都同等稳定”
-- 在 `backend.adapter.map.inc` 之外重复维护 adapter 映射
+- 在 `backend.adapter.map.csv` / generated include 之外重复维护 adapter 映射
 - 改了 dispatch slot，却忘了看 adapter-sync / base-fill 覆盖
 - 在 `SSE2` 上继续激进物理拆分
 

@@ -50,44 +50,6 @@
           </Linking>
         </CompilerOptions>
       </Item>
-      <Item Name="NoContracts">
-        <CompilerOptions>
-          <Version Value="11"/>
-          <Target>
-            <Filename Value="bin/fafafa.core.mem.allocator.foundation.test_nocontracts"/>
-          </Target>
-          <SearchPaths>
-            <IncludeFiles Value="$(ProjOutDir);../../src"/>
-            <OtherUnitFiles Value="../../src"/>
-            <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
-          </SearchPaths>
-          <Parsing>
-            <SyntaxOptions>
-              <IncludeAssertionCode Value="True"/>
-            </SyntaxOptions>
-          </Parsing>
-          <CodeGeneration>
-            <Checks>
-              <IOChecks Value="True"/>
-              <RangeChecks Value="True"/>
-              <OverflowChecks Value="True"/>
-              <StackChecks Value="True"/>
-            </Checks>
-            <VerifyObjMethodCallValidity Value="True"/>
-          </CodeGeneration>
-          <Linking>
-            <Debugging>
-              <DebugInfoType Value="dsDwarf3"/>
-              <UseHeaptrc Value="True"/>
-              <TrashVariables Value="True"/>
-              <UseExternalDbgSyms Value="True"/>
-            </Debugging>
-          </Linking>
-          <Other>
-            <CustomOptions Value="-dFAFAFA_CORE_NO_CONTRACTS"/>
-          </Other>
-        </CompilerOptions>
-      </Item>
     </BuildModes>
     <PublishOptions>
       <Version Value="2"/>

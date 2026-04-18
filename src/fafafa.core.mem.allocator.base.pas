@@ -11,6 +11,9 @@ uses
   {$IFDEF FAFAFA_CORE_STRICT_NULL_FREE}
   , fafafa.core.base
   {$ENDIF}
+  {$IFDEF FAFAFA_CORE_ALLOCATOR_INSTRUMENTATION}
+  , fafafa.core.mem.allocator.instrumentation
+  {$ENDIF}
   ;
 
 type
@@ -185,14 +188,26 @@ function TAllocator.GetMem(aSize: SizeUInt): Pointer;
 begin
   if aSize = 0 then
     Exit(nil);
+  {$IFDEF FAFAFA_CORE_ALLOCATOR_INSTRUMENTATION}
+  if AllocatorFaults_ShouldFailNow then Exit(nil);
+  {$ENDIF}
   Result := DoGetMem(aSize);
+  {$IFDEF FAFAFA_CORE_ALLOCATOR_INSTRUMENTATION}
+  if Result <> nil then AllocatorStats_OnAlloc(aSize);
+  {$ENDIF}
 end;
 
 function TAllocator.AllocMem(aSize: SizeUInt): Pointer;
 begin
   if aSize = 0 then
     Exit(nil);
+  {$IFDEF FAFAFA_CORE_ALLOCATOR_INSTRUMENTATION}
+  if AllocatorFaults_ShouldFailNow then Exit(nil);
+  {$ENDIF}
   Result := DoAllocMem(aSize);
+  {$IFDEF FAFAFA_CORE_ALLOCATOR_INSTRUMENTATION}
+  if Result <> nil then AllocatorStats_OnAlloc(aSize);
+  {$ENDIF}
 end;
 
 function TAllocator.ReallocMem(aDst: Pointer; aSize: SizeUInt): Pointer;
@@ -200,12 +215,23 @@ begin
   if aSize = 0 then
   begin
     if aDst <> nil then
+    begin
+      {$IFDEF FAFAFA_CORE_ALLOCATOR_INSTRUMENTATION}
+      AllocatorStats_OnFree;
+      {$ENDIF}
       DoFreeMem(aDst);
+    end;
     Exit(nil);
   end;
   if aDst = nil then
     Exit(GetMem(aSize));
+  {$IFDEF FAFAFA_CORE_ALLOCATOR_INSTRUMENTATION}
+  if AllocatorFaults_ShouldFailNow then Exit(nil);
+  {$ENDIF}
   Result := DoReallocMem(aDst, aSize);
+  {$IFDEF FAFAFA_CORE_ALLOCATOR_INSTRUMENTATION}
+  if Result <> nil then AllocatorStats_OnRealloc(aSize);
+  {$ENDIF}
 end;
 
 procedure TAllocator.FreeMem(aDst: Pointer);

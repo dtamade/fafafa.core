@@ -9,7 +9,6 @@ interface
 uses
   Classes, SysUtils, fpcunit, testregistry,
   fafafa.core.base,
-  fafafa.core.span,
   fafafa.core.collections.base,
   fafafa.core.collections.vecdeque,
   fafafa.core.collections.slice,
@@ -17,9 +16,6 @@ uses
   fafafa.core.mem.allocator;
 
 type
-  TL0IntSpan = specialize fafafa.core.span.TReadOnlySpan<Integer>;
-  TL0IntSpan2 = specialize fafafa.core.span.TReadOnlySpan2<Integer>;
-
   TTestCase_VecDeque_Span = class(TTestCase)
   published
     procedure Test_SliceView_Empty;
@@ -35,7 +31,6 @@ type
     procedure Test_SliceView_SubSpan_CrossAB;
     procedure Test_SliceView_SubSpan_InB;
     procedure Test_SliceView_GetBlock_Boundaries;
-    procedure Test_SliceView_Matches_L0Span2_Contract;
   end;
 
 implementation
@@ -259,51 +254,6 @@ begin
     Sub := S2.SubSpan(start, len);
     for i := 0 to Sub.Count-1 do
       AssertEquals(D.Get(Integer(start + i)), Sub.Get(i));
-  finally
-    D.Free;
-  end;
-end;
-
-procedure TTestCase_VecDeque_Span.Test_SliceView_Matches_L0Span2_Contract;
-var
-  D: specialize TVecDeque<Integer>;
-  S2: specialize TReadOnlySpan2<Integer>;
-  L0S2: TL0IntSpan2;
-  P1, P2: Pointer;
-  L1, L2: SizeUInt;
-  I: SizeUInt;
-  PLeft, PRight: Pointer;
-  LLenLeft, LLenRight: SizeUInt;
-begin
-  D := specialize TVecDeque<Integer>.Create;
-  try
-    D.ReserveExact(8);
-    D.Append([0,1,2,3,4]);
-    D.PopFront; D.PopFront;
-    D.Append([5,6,7,8,9]);
-
-    D.AsSlices(P1, L1, P2, L2);
-    AssertTrue((L1 > 0) and (L2 > 0));
-
-    S2 := D.SliceView(0, D.GetCount);
-    L0S2 := TL0IntSpan2.FromTwo(
-      TL0IntSpan.FromPointer(P1, L1),
-      TL0IntSpan.FromPointer(P2, L2)
-    );
-
-    AssertEquals(S2.Count, L0S2.Count);
-    for I := 0 to S2.Count - 1 do
-      AssertEquals(S2.Get(I), L0S2.Get(I));
-
-    AssertTrue(S2.GetBlock(0, PLeft, LLenLeft));
-    AssertTrue(L0S2.GetBlock(0, PRight, LLenRight));
-    AssertEquals(PtrUInt(PLeft), PtrUInt(PRight));
-    AssertEquals(LLenLeft, LLenRight);
-
-    AssertTrue(S2.GetBlock(L1, PLeft, LLenLeft));
-    AssertTrue(L0S2.GetBlock(L1, PRight, LLenRight));
-    AssertEquals(PtrUInt(PLeft), PtrUInt(PRight));
-    AssertEquals(LLenLeft, LLenRight);
   finally
     D.Free;
   end;

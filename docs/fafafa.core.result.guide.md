@@ -1,8 +1,5 @@
 # fafafa.core.result 使用指南
 
-> 这是一份使用指南，不是 `fafafa.core.result` 的 today contract source-of-truth。
-> 当前权威边界和 API 以 `docs/fafafa.core.result.md`、`docs/fafafa.core.l0.foundation.md`、`docs/fafafa.core.l0.roadmap.md`、`docs/ARCHITECTURE_LAYERS.md` 和 `tests/fafafa.core.result/README.md` 为准。
-
 ## 概述
 
 `fafafa.core.result` 是 fafafa.core 框架的 Result 类型模块，提供：

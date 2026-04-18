@@ -7,12 +7,6 @@ cd "${SCRIPT_DIR}"
 
 ACTION="${1:-run}"
 TOOLS_LAZBUILD="${REPO_ROOT}/tools/lazbuild.sh"
-EXAMPLES=(
-  "example_basic_operations"
-  "example_producer_consumer"
-  "example_tagged_ptr_aba"
-  "example_thread_counter"
-)
 
 resolve_lazbuild() {
   if [[ -n "${LAZBUILD:-}" ]]; then
@@ -34,58 +28,52 @@ resolve_lazbuild() {
   exit 127
 }
 
-build_examples() {
-  local LLazbuild
-  local LExample
+LAZBUILD_BIN="$(resolve_lazbuild)"
 
-  LLazbuild="$(resolve_lazbuild)"
-  rm -rf ./bin ./lib/*-*/
-  mkdir -p ./bin ./lib
+# Deterministic outputs
+rm -rf ./bin ./lib/*-*/
+mkdir -p ./bin ./lib
 
-  echo "=== Building fafafa.core.atomic Examples ==="
-  echo
+echo "=== Building fafafa.core.atomic Examples ==="
+echo
 
-  for LExample in "${EXAMPLES[@]}"; do
-    echo "[BUILD] ${LLazbuild} --build-mode=Release ${LExample}.lpi"
-    "${LLazbuild}" --build-mode=Release "${LExample}.lpi"
-  done
+EXAMPLES=(
+  "example_basic_operations"
+  "example_producer_consumer"
+  "example_tagged_ptr_aba"
+  "example_thread_counter"
+)
 
-  echo
-  echo "=== All examples built successfully! ==="
-  echo
-}
+for example in "${EXAMPLES[@]}"; do
+  echo "[BUILD] ${LAZBUILD_BIN} --build-mode=Release ${example}.lpi"
+  "${LAZBUILD_BIN}" --build-mode=Release "${example}.lpi"
+done
 
-run_examples() {
-  local LExample
+echo
+echo "=== All examples built successfully! ==="
+echo
 
+if [[ "${ACTION}" == "run" ]]; then
   echo "=== Running Examples ==="
   echo
 
-  for LExample in "${EXAMPLES[@]}"; do
-    if [[ -x "bin/${LExample}" ]]; then
-      echo "[RUN] bin/${LExample}"
-      "bin/${LExample}"
+  for example in "${EXAMPLES[@]}"; do
+    if [[ -x "bin/${example}" ]]; then
+      echo "[RUN] bin/${example}"
+      "bin/${example}"
       echo
-    elif [[ -x "bin/${LExample}.exe" ]]; then
-      echo "[RUN] bin/${LExample}.exe"
-      "bin/${LExample}.exe"
+    elif [[ -x "bin/${example}.exe" ]]; then
+      echo "[RUN] bin/${example}.exe"
+      "bin/${example}.exe"
       echo
     else
-      echo "[WARN] Executable not found: bin/${LExample}[.exe]" >&2
+      echo "[WARN] Executable not found: bin/${example}[.exe]" >&2
     fi
   done
-}
-
-case "${ACTION}" in
-  build)
-    build_examples
-    ;;
-  run)
-    build_examples
-    run_examples
-    ;;
-  *)
-    echo "Usage: $0 [build|run]" >&2
-    exit 2
-    ;;
-esac
+else
+  echo "[INFO] Build-only mode (${ACTION})"
+  echo "You can run the examples manually:"
+  for example in "${EXAMPLES[@]}"; do
+    echo "  ./bin/${example}"
+  done
+fi

@@ -3,7 +3,6 @@ unit Test_fafafa.core.atomic.base;
 {$IFDEF WINDOWS}{$CODEPAGE UTF8}{$ENDIF}
 {$MODE OBJFPC}{$H+}
 {$MODESWITCH ADVANCEDRECORDS}
-{$I ../../src/fafafa.core.settings.inc}
 
 interface
 

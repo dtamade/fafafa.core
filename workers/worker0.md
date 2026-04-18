@@ -1,0 +1,104 @@
+# worker0
+
+- Owner: Codex
+- Scope: `fafafa.core.simd` 模块的 capability / dispatch / public ABI 合同审查与修复
+- Status: `active`
+- Branch: `simd-external-evidence`
+- Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence`
+- Base commit: `870ee1a9d786`
+- Current focus:
+  - `SIMD-B22(candidate)` 已收口完成：
+    - 修复闭环：`VecF64x2Abs`、`VecF64x2Sqrt`、`VecF64x2Min`、`VecF64x2Max`
+    - `DispatchAPI` 中预声明未实现的
+      `Test_VecF32VectorMathFacade_Tracks_CurrentDispatchTable_After_ReRegister` /
+      `Test_VecWideFloatDotFacade_Tracks_CurrentDispatchTable_After_ReRegister`
+      也已补齐并 gate 绿
+  - 当前 active SIMD candidate 改为 `SIMD-B23(candidate)`：
+      - 目标不是继续扩 façade，而是补 fresh Linux/Windows evidence，让 `freeze-status` 回到 green
+      - 这条线只处理 evidence freshness / source-newer-than-evidence 红态，不回退到 B20 自动化重写
+  - 最新审查顺手收掉一条 RVV lane 假红：
+    - `run_riscvv_opcode_lane.sh` 修复前只有 compile-only 默认继承 prebuilt RVV compiler，suite/bench 仍默认回退到容器内 `ppcrv64`
+    - 现已把 `SUITE_USE_PREBUILT_COMPILER` / `BENCH_USE_PREBUILT_COMPILER` 默认对齐到 `${USE_PREBUILT_COMPILER}`
+    - fresh `check` / default RVV lane / default `gate` 都已通过，因此后续若再把 suite/bench 默认退回弱工具链，静态 guard 会先 fail-close
+  - `SIMD-B21(candidate)` 已收口完成：
+    - 修复闭环：`VecF64x4Reduce*`、`VecF32x8Reduce*`、`VecF64x2Reduce*`
+    - fresh guard 绿：`VecF32x4Reduce*`、`VecF64x8Reduce*`、`VecF32x16Reduce*`
+    - 当前公开 float reduction façade 已全部进入“已修复或已守卫”状态
+  - `SIMD-B20(candidate)` 真相源漂移已收口：
+    - fresh release `verify_windows_b07_evidence.sh`：PASS
+    - fresh release `BuildOrTest.sh finalize-win-evidence`：PASS
+    - `freeze-status` 当前红项仅剩 2026-03-27 源码晚于 2026-03-24 canonical Linux/Windows evidence，不是 automation 缺口
+  - 当前下一步不再是继续处理 B20/B21/B22 的实现修补，而是先完成 `SIMD-B23(candidate)` 的 fresh evidence refresh
+  - 本轮刚完成的 branch hygiene / truth-source 收口：
+    - `tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+      - 默认 `RUNTIME_DEFINES` 已与 `LANE_DEFINES` 保持 opcode-ready 对齐
+      - `SIMD_EXPERIMENTAL_RISCVV` 已纳入默认 lane define
+      - `tests/fafafa.core.simd/BuildOrTest.sh` 现已新增 `check_riscvv_opcode_lane_contract_guard()`，默认 release `check` 会持续守住这条 compile/runtime 合同
+    - `.gitignore`
+      - 已新增 `tests/fafafa.core.simd/nonx86.optin/`
+      - 该子树不再作为 fresh `check/gate` 的 worktree 污染源
+    - `docs/plans/2026-03-24-simd-audit-closeout-roadmap.md`
+      - 已明确标记为 completed historical batch
+      - 不再应被当作当前 active roadmap
+- Source of truth:
+  - `backlog.md`
+  - `task_plan.md`
+  - `findings.md`
+  - `progress.md`
+- Working rules:
+  - SIMD 开发默认只在上面的 worktree 内进行，不直接在主线工作目录改 SIMD 代码
+  - 验证继续采用 release 策略
+  - 证据驱动：先补 fresh red，再做最小修复，再跑 fresh green / check / gate
+  - 避免在同一 worktree 上并行跑共享 `bin2/lib2` 的 `check/gate`
+- Fresh verification:
+  - `bash -n tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+  - 结果：PASS
+  - `git check-ignore -v tests/fafafa.core.simd/nonx86.optin/riscvv/logs/test.txt`
+  - 结果：PASS
+  - `TMPDIR=/tmp/simd-check-20260327-phase98-tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-check-20260327-phase98 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - 结果：PASS，`[CHECK] OK`
+  - `TMPDIR=/tmp/simd-gate-20260327-phase98-tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-gate-20260327-phase98 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：PASS，`[GATE] OK`
+  - `TMPDIR=/tmp/simd-b21-sibling-dispatchapi-20260327-tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-b21-sibling-dispatchapi-20260327 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - 结果：PASS，`[TEST] OK`、`[LEAK] OK`
+  - `TMPDIR=/tmp/simd-b21-sibling-check-20260327-tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-b21-sibling-check-20260327 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - 结果：PASS，`[CHECK] OK`
+  - `TMPDIR=/tmp/simd-b21-f32x4-dispatchapi-20260327-tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-b21-f32x4-dispatchapi-20260327 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - 结果：PASS，`[TEST] OK`、`[LEAK] OK`
+  - `TMPDIR=/tmp/simd-b21-f32x4-checkfix3-20260327-tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-b21-f32x4-checkfix3-20260327 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - 结果：PASS，`[CHECK] OK`
+  - `TMPDIR=/tmp/simd-b21-closeout-gate-20260327-tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-b21-closeout-gate-20260327 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：PASS，`[GATE] OK`
+  - `TMPDIR=/tmp/simd-b22-f64x2math-red-20260327-tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-b22-f64x2math-red-20260327 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - 结果：FAIL；命中 `VecF64x2Abs should track current dispatch table after re-register lane 0`
+  - `TMPDIR=/tmp/simd-b22-f64x2math-green-20260327-tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-b22-f64x2math-green-20260327 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - 结果：PASS，`[TEST] OK`、`[LEAK] OK`
+  - `TMPDIR=/tmp/simd-b22-f64x2math-check-20260327-tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-b22-f64x2math-check-20260327 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - 结果：PASS，`[CHECK] OK`
+  - `TMPDIR=/tmp/simd-b22-f64x2math-gate2-20260327-tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-b22-f64x2math-gate2-20260327 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：PASS，最终 `[GATE] OK`
+  - `bash -n tests/fafafa.core.simd/BuildOrTest.sh`
+  - 结果：PASS
+  - `TMPDIR=/tmp/simd-check-20260327-phase104b-tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-check-20260327-phase104b bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - 结果：PASS；关键输出包含 `[CHECK] OK (RVV opcode lane compile/runtime contract guard present)`
+  - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_RVV_LANE_SKIP_BENCH=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+  - 结果：PASS，`[TEST] OK`、`[LEAK] OK`、`[RVV-LANE] PASS`
+  - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/postfix-rvv-prebuilt-gate-20260327 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：PASS，`[GATE] OK`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/verify_windows_b07_evidence.sh`
+  - 结果：PASS，`[EVIDENCE] OK`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence`
+  - 结果：PASS，`[CLOSEOUT] OK`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+  - 结果：FAIL；失败点为 `linux_sources_not_newer_than_gate` / `linux_sources_not_newer_than_windows_evidence`，说明需要 fresh evidence，而不是修自动化链
+- Risks / blockers:
+  - `riscv64` lane 交叉编译/链接仍偶发非确定性噪音；native RVV lane 复验仍依赖脚本内 retry
+  - backlog 里的 SIMD Program Board 仍混有不少历史 update 行；后续选新候选时要以前面的 Queue/Done 真相源为准，而不是直接读旧 update 段
+  - 当前 worktree 仍有进行中的 SIMD 代码修改；`docs/plans/2026-03-24-simd-audit-closeout-roadmap.md` 中“worktree 最终 clean”只适用于当时的 closeout batch，不应误判当前分支为异常脏态
+- Next step:
+  - 先完成 `SIMD-B23(candidate)`：组织 fresh 2026-03-27+ Linux/Windows evidence 批次，把 `freeze-status` 拉回 green
+  - `SIMD-B23(candidate)` 完成后，再从静态扫描里剩余的 façade/current-dispatch 可疑点中重新选下一个实现型候选
+  - 继续保持“不为 freshness 问题回退修改 B20 自动化脚本”的边界
+  - 若继续跑 RVV native lane，维持 `RVV lane -> check -> gate` 的串行节奏，不在同一 worktree 上叠并发验证
+  - 把“历史 closeout 文档只能做审计记录，不能替代 active backlog”作为后续路线图维护准则持续执行
+- Last updated: `2026-03-27 15:15 +0800`

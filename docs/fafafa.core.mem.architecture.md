@@ -1,22 +1,17 @@
 # fafafa.core.mem 架构说明
 
 这份文档只描述当前还成立的组织方式，不再复述旧阶段的规模统计或“终极完成”语气。
-strict L0 allocator contract 的边界仍以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准；后续推进顺序以 `docs/fafafa.core.l0.roadmap.md` 为准。
 
 ## 当前 source-of-truth
 
-1. `docs/fafafa.core.l0.foundation.md`
-2. `docs/fafafa.core.l0.roadmap.md`
-3. `docs/ARCHITECTURE_LAYERS.md`
-4. `src/fafafa.core.mem.allocator.base.pas`
-5. `src/fafafa.core.mem.allocator.foundation.pas`
-6. `src/fafafa.core.mem.pas`
-7. `src/fafafa.core.mem.allocator.pas`
-8. `src/fafafa.core.mem.memPool.pas`
-9. `src/fafafa.core.mem.stackPool.pas`
-10. `src/fafafa.core.mem.pool.slab.pas`
-11. `src/fafafa.core.mem.stats.pas`
-12. `src/fafafa.core.mem.interfaces.pas`
+1. `src/fafafa.core.mem.pas`
+2. `src/fafafa.core.mem.allocator.foundation.pas`
+3. `src/fafafa.core.mem.allocator.pas`
+4. `src/fafafa.core.mem.memPool.pas`
+5. `src/fafafa.core.mem.stackPool.pas`
+6. `src/fafafa.core.mem.pool.slab.pas`
+7. `src/fafafa.core.mem.stats.pas`
+8. `src/fafafa.core.mem.interfaces.pas`
 
 ## 当前分层
 
@@ -25,10 +20,9 @@ fafafa.core.mem
 ├── facade
 │   └── fafafa.core.mem
 ├── allocators
-│   ├── strict L0 contract
-│   │   └── fafafa.core.mem.allocator.base
-│   ├── low-level concrete / convenience
+│   ├── strict L0
 │   │   ├── fafafa.core.mem.allocator.foundation
+│   │   ├── fafafa.core.mem.allocator.base
 │   │   ├── fafafa.core.mem.allocator.rtlAllocator
 │   │   └── fafafa.core.mem.allocator.callbackAllocator
 │   └── compatibility / optional
@@ -56,8 +50,7 @@ fafafa.core.mem
 ## 当前设计取向
 
 - 根门面负责定锚，不负责把所有内存相关能力都重新包装一遍。
-- `fafafa.core.mem.allocator.base` 负责 strict L0 allocator contract；`fafafa.core.mem.allocator.foundation` 负责 mem 域低层 convenience facade。
-- `fafafa.core.mem.allocator` 继续负责兼容 / 扩展聚合。
+- `fafafa.core.mem.allocator.foundation` 负责 strict L0 allocator 入口；`fafafa.core.mem.allocator` 负责兼容 / 扩展聚合。
 - 具体池类型仍直接放在各自单元里；使用者应根据场景显式 `uses`。
 - `stats` 维持只读快照角色，避免把观测逻辑和池行为耦合到一起。
 - `interfaces` 只承担补充合同，不应倒推出“现有实现已经全部接口化”。

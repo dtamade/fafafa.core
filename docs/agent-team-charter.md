@@ -25,7 +25,7 @@
 
 ### 3) Driver（计划推进）
 - 负责扫描缺口、维护优先级、分配批次任务。
-- 维护当前稳定入口：`docs/plans/`、`docs/audits/`、`workers/`；详细 scratch 记录保留在 worktree-local 文件或 `plans/archive/`。
+- 维护计划文件：`task_plan.md`、`findings.md`、`progress.md`。
 - 每批结束做 checkpoint：是否达成、风险是否下降、下一批是什么。
 - 输出物：
   - 可执行任务清单（含文件路径、命令、验收标准）
@@ -61,7 +61,7 @@
 - 对应测试已新增或更新。
 - 至少一轮 RED->GREEN 证据完整。
 - 目标回归通过，且无新增错误。
-- 计划 / 审计 / worker 入口已同步更新。
+- 计划文件已同步更新。
 
 ## 角色默认分工建议
 - Builder：`Codex-Builder`

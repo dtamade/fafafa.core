@@ -6,7 +6,7 @@ unit test_mem_allocator;
 interface
 
 uses
-  SysUtils, fpcunit, testregistry,
+  Classes, SysUtils, fpcunit, testregistry,
   fafafa.core.base,
   fafafa.core.mem.allocator;
 
@@ -15,8 +15,6 @@ type
   { TTestCase_RtlAllocator }
 
   TTestCase_RtlAllocator = class(TTestCase)
-  private
-    procedure RaiseRtlAllocatorFreeMemNil;
   published
     procedure Test_GetMem;
     procedure Test_AllocMem;
@@ -28,8 +26,6 @@ type
   { TTestCase_CrtAllocator }
 
   TTestCase_CrtAllocator = class(TTestCase)
-  private
-    procedure RaiseCrtAllocatorFreeMemNil;
   published
     procedure Test_GetMem;
     procedure Test_AllocMem;
@@ -41,12 +37,6 @@ type
   { TTestCase_CallbackAllocator }
 
   TTestCase_CallbackAllocator = class(TTestCase)
-  private
-    procedure RaiseCallbackAllocatorFreeMemNil;
-    procedure RaiseCreateCallbackAllocatorWithNilGetMem;
-    procedure RaiseCreateCallbackAllocatorWithNilAllocMem;
-    procedure RaiseCreateCallbackAllocatorWithNilReallocMem;
-    procedure RaiseCreateCallbackAllocatorWithNilFreeMem;
   published
     procedure Test_GetMem;
     procedure Test_AllocMem;
@@ -59,50 +49,37 @@ implementation
 
 { TTestCase_RtlAllocator }
 
-procedure TTestCase_RtlAllocator.RaiseRtlAllocatorFreeMemNil;
-var
-  LAllocator: TRtlAllocator;
-begin
-  LAllocator := TRtlAllocator.Create;
-  try
-    LAllocator.FreeMem(nil);
-  finally
-    LAllocator.Free;
-  end;
-end;
-
 procedure TTestCase_RtlAllocator.Test_GetMem;
 var
-  LAllocator: TRtlAllocator;
-  LMem: Pointer;
+  LAllocator: IAllocator;
+  LMem      : Pointer;
 begin
   LAllocator := TRtlAllocator.Create;
-  try
-    LMem := LAllocator.GetMem(100);
-    AssertNotNull('GetMem should return a non-nil pointer for non-zero size', LMem);
-    LAllocator.FreeMem(LMem);
+  LMem       := LAllocator.GetMem(100);
+  AssertNotNull('GetMem should return a non-nil pointer for non-zero size', LMem);
+  LAllocator.FreeMem(LMem);
 
-    // 空操作原则测试: 零字节分配
-    LMem := LAllocator.GetMem(0);
-    AssertNull('GetMem should return nil for zero size', LMem);
-  finally
-    LAllocator.Free;
-  end;
+  // 空操作原则测试: 零字节分配
+  LMem := LAllocator.GetMem(0);
+  AssertNull('GetMem should return nil for zero size', LMem);
+
+  // 释放分配器对象，避免泄漏
+  LAllocator.Free;
 end;
 
 procedure TTestCase_RtlAllocator.Test_AllocMem;
 var
-  LAllocator: TRtlAllocator;
-  LMem: Pointer;
-  LIndex: Integer;
+  LAllocator: IAllocator;
+  LMem      : Pointer;
+  i         : Integer;
 begin
   LAllocator := TRtlAllocator.Create;
   try
-    LMem := LAllocator.AllocMem(100);
+    LMem       := LAllocator.AllocMem(100);
     AssertNotNull('AllocMem should return a non-nil pointer for non-zero size', LMem);
 
-    for LIndex := 0 to 99 do
-      AssertEquals('AllocMem should zero-initialize memory', 0, PByte(LMem)[LIndex]);
+    for i := 0 to 99 do
+      AssertEquals('AllocMem should zero-initialize memory', 0, PByte(LMem)[i]);
 
     LAllocator.FreeMem(LMem);
 
@@ -116,138 +93,124 @@ end;
 
 procedure TTestCase_RtlAllocator.Test_ReallocMem;
 var
-  LAllocator: TRtlAllocator;
-  LMem: Pointer;
-  LNewMem: Pointer;
-  LIndex: Integer;
+  LAllocator: IAllocator;
+  LMem      : Pointer;
+  LNewMem   : Pointer;
+  i         : Integer;
 begin
   LAllocator := TRtlAllocator.Create;
-  try
-    // nil 指针 realloc
-    LNewMem := LAllocator.ReallocMem(nil, 100);
-    AssertNotNull('ReallocMem(nil, size) should return non-nil', LNewMem);
-    LAllocator.FreeMem(LNewMem);
 
-    // realloc 到 0
-    LMem := LAllocator.GetMem(10);
-    AssertNotNull('Pre-allocated memory should not be nil', LMem);
-    AssertNull('ReallocMem to zero size should return nil', LAllocator.ReallocMem(LMem, 0));
+  // nil 指针 realloc
+  LNewMem := LAllocator.ReallocMem(nil, 100);
+  AssertNotNull('ReallocMem(nil, size) should return non-nil', LNewMem);
+  LAllocator.FreeMem(LNewMem);
 
-    // 其它常规测试...
-    LMem := LAllocator.GetMem(50);
-    for LIndex := 0 to 49 do
-      PByte(LMem)[LIndex] := LIndex;
+  // realloc 到 0
+  LMem := LAllocator.GetMem(10);
+  AssertNotNull('Pre-allocated memory should not be nil', LMem);
+  AssertNull('ReallocMem to zero size should return nil', LAllocator.ReallocMem(LMem, 0));
 
-    LNewMem := LAllocator.ReallocMem(LMem, 100);
-    AssertNotNull('ReallocMem to larger size should return non-nil', LNewMem);
+  // 其它常规测试...
+  LMem := LAllocator.GetMem(50);
 
-    for LIndex := 0 to 49 do
-      AssertEquals('ReallocMem should preserve existing data', LIndex, PByte(LNewMem)[LIndex]);
+  for i := 0 to 49 do PByte(LMem)[i] := i;
 
-    LAllocator.FreeMem(LNewMem);
-    LMem := LAllocator.GetMem(100);
+  LNewMem := LAllocator.ReallocMem(LMem, 100);
+  AssertNotNull('ReallocMem to larger size should return non-nil', LNewMem);
 
-    for LIndex := 0 to 99 do
-      PByte(LMem)[LIndex] := LIndex;
+  for i := 0 to 49 do AssertEquals('ReallocMem should preserve existing data', i, PByte(LNewMem)[i]);
 
-    LNewMem := LAllocator.ReallocMem(LMem, 50);
-    AssertNotNull('ReallocMem to smaller size should return non-nil', LNewMem);
+  LAllocator.FreeMem(LNewMem);
+  LMem := LAllocator.GetMem(100);
 
-    for LIndex := 0 to 49 do
-      AssertEquals('ReallocMem should preserve existing data', LIndex, PByte(LNewMem)[LIndex]);
+  for i := 0 to 99 do PByte(LMem)[i] := i;
 
-    LAllocator.FreeMem(LNewMem);
-  finally
-    LAllocator.Free;
-  end;
+  LNewMem := LAllocator.ReallocMem(LMem, 50);
+  AssertNotNull('ReallocMem to smaller size should return non-nil', LNewMem);
+
+  for i := 0 to 49 do AssertEquals('ReallocMem should preserve existing data', i, PByte(LNewMem)[i]);
+
+  LAllocator.FreeMem(LNewMem);
+
+  // 释放分配器对象
+  LAllocator.Free;
 end;
 
 procedure TTestCase_RtlAllocator.Test_FreeMem;
 var
-  LAllocator: TRtlAllocator;
-  LMem: Pointer;
+  LAllocator: IAllocator;
+  LMem      : Pointer;
 begin
   LAllocator := TRtlAllocator.Create;
-  try
-    LMem := LAllocator.GetMem(10);
-    AssertNotNull('GetMem should return a non-nil pointer', LMem);
-    LAllocator.FreeMem(LMem);
+  LMem       := LAllocator.GetMem(10);
+  AssertNotNull('GetMem should return a non-nil pointer', LMem);
+  LAllocator.FreeMem(LMem);
 
-    {$IFDEF FAFAFA_CORE_STRICT_NULL_FREE}
-    // 严格模式下：nil 指针释放应抛异常
-    AssertException('FreeMem with nil pointer should raise an exception', EArgumentNil,
-      @RaiseRtlAllocatorFreeMemNil);
-    {$ENDIF}
-  finally
-    LAllocator.Free;
-  end;
+  {$IFDEF FAFAFA_CORE_STRICT_NULL_FREE}
+  {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+  // 严格模式下：nil 指针释放应抛异常
+  AssertException('FreeMem with nil pointer should raise an exception', EArgumentNil, procedure
+  begin
+    LAllocator.FreeMem(nil);
+  end);
+  {$ENDIF}
+{$ENDIF}
+
+  // 释放分配器对象
+  LAllocator.Free;
 end;
 
 {$IFDEF FAFAFA_CORE_CRT_ALLOCATOR}
 
 { TTestCase_CrtAllocator }
 
-procedure TTestCase_CrtAllocator.RaiseCrtAllocatorFreeMemNil;
-var
-  LAllocator: TCrtAllocator;
-begin
-  LAllocator := TCrtAllocator.Create;
-  try
-    LAllocator.FreeMem(nil);
-  finally
-    LAllocator.Free;
-  end;
-end;
-
 procedure TTestCase_CrtAllocator.Test_GetMem;
 var
-  LAllocator: TCrtAllocator;
-  LMem: Pointer;
+  LAllocator: IAllocator;
+  LMem      : Pointer;
 begin
   LAllocator := TCrtAllocator.Create;
-  try
-    LMem := LAllocator.GetMem(100);
-    AssertNotNull('GetMem should return a non-nil pointer for non-zero size', LMem);
-    LAllocator.FreeMem(LMem);
+  LMem       := LAllocator.GetMem(100);
+  AssertNotNull('GetMem should return a non-nil pointer for non-zero size', LMem);
+  LAllocator.FreeMem(LMem);
 
-    // 空操作原则测试: 零字节分配
-    LMem := LAllocator.GetMem(0);
-    AssertNull('GetMem should return nil for zero size', LMem);
-  finally
-    LAllocator.Free;
-  end;
+  // 空操作原则测试: 零字节分配
+  LMem := LAllocator.GetMem(0);
+  AssertNull('GetMem should return nil for zero size', LMem);
+
+  // 释放分配器对象
+  LAllocator.Free;
 end;
 
 procedure TTestCase_CrtAllocator.Test_AllocMem;
 var
-  LAllocator: TCrtAllocator;
-  LMem: Pointer;
-  LIndex: Integer;
+  LAllocator: IAllocator;
+  LMem      : Pointer;
+  i         : Integer;
 begin
   LAllocator := TCrtAllocator.Create;
-  try
-    LMem := LAllocator.AllocMem(100);
-    AssertNotNull('AllocMem should return a non-nil pointer for non-zero size', LMem);
+  LMem       := LAllocator.AllocMem(100);
+  AssertNotNull('AllocMem should return a non-nil pointer for non-zero size', LMem);
 
-    for LIndex := 0 to 99 do
-      AssertEquals('AllocMem should zero-initialize memory', 0, PByte(LMem)[LIndex]);
+  for i := 0 to 99 do
+    AssertEquals('AllocMem should zero-initialize memory', 0, PByte(LMem)[i]);
 
-    LAllocator.FreeMem(LMem);
+  LAllocator.FreeMem(LMem);
 
-    // 空操作原则测试: 零字节分配
-    LMem := LAllocator.AllocMem(0);
-    AssertNull('AllocMem should return nil for zero size', LMem);
-  finally
-    LAllocator.Free;
-  end;
+  // 空操作原则测试: 零字节分配
+  LMem := LAllocator.AllocMem(0);
+  AssertNull('AllocMem should return nil for zero size', LMem);
+
+  // 释放分配器对象
+  LAllocator.Free;
 end;
 
 procedure TTestCase_CrtAllocator.Test_ReallocMem;
 var
-  LAllocator: TCrtAllocator;
-  LMem: Pointer;
-  LNewMem: Pointer;
-  LIndex: Integer;
+  LAllocator: IAllocator;
+  LMem      : Pointer;
+  LNewMem   : Pointer;
+  i         : Integer;
 begin
   LAllocator := TCrtAllocator.Create;
   try
@@ -263,26 +226,24 @@ begin
 
     // 其它常规测试...
     LMem := LAllocator.GetMem(50);
-    for LIndex := 0 to 49 do
-      PByte(LMem)[LIndex] := LIndex;
+
+    for i := 0 to 49 do PByte(LMem)[i] := i;
 
     LNewMem := LAllocator.ReallocMem(LMem, 100);
     AssertNotNull('ReallocMem to larger size should return non-nil', LNewMem);
 
-    for LIndex := 0 to 49 do
-      AssertEquals('ReallocMem should preserve existing data', LIndex, PByte(LNewMem)[LIndex]);
+    for i := 0 to 49 do AssertEquals('ReallocMem should preserve existing data', i, PByte(LNewMem)[i]);
 
     LAllocator.FreeMem(LNewMem);
 
     LMem := LAllocator.GetMem(100);
-    for LIndex := 0 to 99 do
-      PByte(LMem)[LIndex] := LIndex;
+
+    for i := 0 to 99 do PByte(LMem)[i] := i;
 
     LNewMem := LAllocator.ReallocMem(LMem, 50);
     AssertNotNull('ReallocMem to smaller size should return non-nil', LNewMem);
 
-    for LIndex := 0 to 49 do
-      AssertEquals('ReallocMem should preserve existing data', LIndex, PByte(LNewMem)[LIndex]);
+    for i := 0 to 49 do AssertEquals('ReallocMem should preserve existing data', i, PByte(LNewMem)[i]);
 
     LAllocator.FreeMem(LNewMem);
   finally
@@ -292,43 +253,48 @@ end;
 
 procedure TTestCase_CrtAllocator.Test_FreeMem;
 var
-  LAllocator: TCrtAllocator;
-  LMem: Pointer;
+  LAllocator: IAllocator;
+  LMem      : Pointer;
 begin
   LAllocator := TCrtAllocator.Create;
-  try
-    LMem := LAllocator.GetMem(10);
-    AssertNotNull('GetMem should return a non-nil pointer', LMem);
-    LAllocator.FreeMem(LMem);
+  LMem       := LAllocator.GetMem(10);
+  AssertNotNull('GetMem should return a non-nil pointer', LMem);
+  LAllocator.FreeMem(LMem);
 
-    {$IFDEF FAFAFA_CORE_STRICT_NULL_FREE}
-    // 严格模式下：nil 指针释放应抛异常
-    AssertException('FreeMem with nil pointer should raise an exception',
-      EArgumentNil,
-      @RaiseCrtAllocatorFreeMemNil);
-    {$ENDIF}
-  finally
-    LAllocator.Free;
-  end;
+  {$IFDEF FAFAFA_CORE_STRICT_NULL_FREE}
+  {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+  // 严格模式下：nil 指针释放应抛异常
+  AssertException('FreeMem with nil pointer should raise an exception',
+  EArgumentNil,
+  procedure
+  begin
+    LAllocator.FreeMem(nil);
+  end);
+  {$ENDIF}
+{$ENDIF}
+
+  // 释放分配器对象
+  LAllocator.Free;
 end;
 
 {$ENDIF}
 
 { TTestCase_CallbackAllocator }
 
+// Dummy callbacks for testing TCallbackAllocator
 function DummyGetMem(aSize: SizeUInt): Pointer;
 begin
-  Result := System.GetMem(aSize);
+  Result := System.GetMem(SizeInt(aSize));
 end;
 
 function DummyAllocMem(aSize: SizeUInt): Pointer;
 begin
-  Result := System.AllocMem(aSize);
+  Result := System.AllocMem(SizeInt(aSize));
 end;
 
 function DummyReallocMem(aDst: Pointer; aSize: SizeUInt): Pointer;
 begin
-  Result := System.ReallocMem(aDst, aSize);
+  Result := System.ReallocMem(aDst, SizeInt(aSize));
 end;
 
 procedure DummyFreeMem(aDst: Pointer);
@@ -336,93 +302,62 @@ begin
   System.FreeMem(aDst);
 end;
 
-procedure TTestCase_CallbackAllocator.RaiseCallbackAllocatorFreeMemNil;
-var
-  LAllocator: TCallbackAllocator;
-begin
-  LAllocator := CreateCallbackAllocator(@DummyGetMem, @DummyAllocMem, @DummyReallocMem, @DummyFreeMem);
-  try
-    LAllocator.FreeMem(nil);
-  finally
-    LAllocator.Free;
-  end;
-end;
-
-procedure TTestCase_CallbackAllocator.RaiseCreateCallbackAllocatorWithNilGetMem;
-begin
-  CreateCallbackAllocator(nil, @DummyAllocMem, @DummyReallocMem, @DummyFreeMem).Free;
-end;
-
-procedure TTestCase_CallbackAllocator.RaiseCreateCallbackAllocatorWithNilAllocMem;
-begin
-  CreateCallbackAllocator(@DummyGetMem, nil, @DummyReallocMem, @DummyFreeMem).Free;
-end;
-
-procedure TTestCase_CallbackAllocator.RaiseCreateCallbackAllocatorWithNilReallocMem;
-begin
-  CreateCallbackAllocator(@DummyGetMem, @DummyAllocMem, nil, @DummyFreeMem).Free;
-end;
-
-procedure TTestCase_CallbackAllocator.RaiseCreateCallbackAllocatorWithNilFreeMem;
-begin
-  CreateCallbackAllocator(@DummyGetMem, @DummyAllocMem, @DummyReallocMem, nil).Free;
-end;
-
 procedure TTestCase_CallbackAllocator.Test_GetMem;
 var
-  LAllocator: TCallbackAllocator;
-  LMem: Pointer;
+  LAllocator: IAllocator;
+  LMem      : Pointer;
 begin
-  LAllocator := CreateCallbackAllocator(@DummyGetMem, @DummyAllocMem, @DummyReallocMem, @DummyFreeMem);
+  LAllocator := TCallbackAllocator.Init(@DummyGetMem, @DummyAllocMem, @DummyReallocMem, @DummyFreeMem);
   try
-    LMem := LAllocator.GetMem(100);
+    LMem       := LAllocator.GetMem(100);
     AssertNotNull('GetMem should return a non-nil pointer for non-zero size', LMem);
     LAllocator.FreeMem(LMem);
   finally
-    LAllocator.Free;
+    // 释放 TCallbackAllocator 实例
+    TCallbackAllocator(LAllocator).Free;
   end;
 
   // 空操作原则测试: 零字节分配
-  LAllocator := CreateCallbackAllocator(@DummyGetMem, @DummyAllocMem, @DummyReallocMem, @DummyFreeMem);
+  LAllocator := TCallbackAllocator.Init(@DummyGetMem, @DummyAllocMem, @DummyReallocMem, @DummyFreeMem);
   try
     LMem := LAllocator.GetMem(0);
     AssertNull('GetMem should return nil for zero size', LMem);
   finally
-    LAllocator.Free;
+    TCallbackAllocator(LAllocator).Free;
   end;
 end;
 
 procedure TTestCase_CallbackAllocator.Test_AllocMem;
 var
-  LAllocator: TCallbackAllocator;
-  LMem: Pointer;
-  LIndex: Integer;
+  LAllocator: IAllocator;
+  LMem      : Pointer;
+  i         : Integer;
 begin
-  LAllocator := CreateCallbackAllocator(@DummyGetMem, @DummyAllocMem, @DummyReallocMem, @DummyFreeMem);
+  LAllocator := TCallbackAllocator.Init(@DummyGetMem, @DummyAllocMem, @DummyReallocMem, @DummyFreeMem);
   try
-    LMem := LAllocator.AllocMem(100);
+    LMem       := LAllocator.AllocMem(100);
     AssertNotNull('AllocMem should return a non-nil pointer for non-zero size', LMem);
 
-    for LIndex := 0 to 99 do
-      AssertEquals('AllocMem should zero-initialize memory', 0, PByte(LMem)[LIndex]);
+    for i := 0 to 99 do
+      AssertEquals('AllocMem should zero-initialize memory', 0, PByte(LMem)[i]);
     LAllocator.FreeMem(LMem);
 
     // 空操作原则测试: 零字节分配
     LMem := LAllocator.AllocMem(0);
     AssertNull('AllocMem should return nil for zero size', LMem);
   finally
-    LAllocator.Free;
+    TCallbackAllocator(LAllocator).Free;
   end;
 end;
 
 procedure TTestCase_CallbackAllocator.Test_ReallocMem;
 var
-  LAllocator: TCallbackAllocator;
-  LMem: Pointer;
-  LNewMem: Pointer;
-  LIndex: Integer;
+  LAllocator: IAllocator;
+  LMem      : Pointer;
+  LNewMem   : Pointer;
+  i         : Integer;
 begin
-  LAllocator := CreateCallbackAllocator(@DummyGetMem, @DummyAllocMem, @DummyReallocMem, @DummyFreeMem);
+  LAllocator := TCallbackAllocator.Init(@DummyGetMem, @DummyAllocMem, @DummyReallocMem, @DummyFreeMem);
   try
     // nil 指针 realloc(等价于GetMem)
     LNewMem := LAllocator.ReallocMem(nil, 100);
@@ -436,101 +371,91 @@ begin
 
     // 其它常规测试...
     LMem := LAllocator.GetMem(50);
-    for LIndex := 0 to 49 do
-      PByte(LMem)[LIndex] := LIndex;
+    for i := 0 to 49 do PByte(LMem)[i] := i;
     LNewMem := LAllocator.ReallocMem(LMem, 100);
     AssertNotNull('ReallocMem to larger size should return non-nil', LNewMem);
-    for LIndex := 0 to 49 do
-      AssertEquals('ReallocMem should preserve existing data', LIndex, PByte(LNewMem)[LIndex]);
+    for i := 0 to 49 do AssertEquals('ReallocMem should preserve existing data', i, PByte(LNewMem)[i]);
     LAllocator.FreeMem(LNewMem);
 
     LMem := LAllocator.GetMem(100);
-    for LIndex := 0 to 99 do
-      PByte(LMem)[LIndex] := LIndex;
+    for i := 0 to 99 do PByte(LMem)[i] := i;
     LNewMem := LAllocator.ReallocMem(LMem, 50);
     AssertNotNull('ReallocMem to smaller size should return non-nil', LNewMem);
-    for LIndex := 0 to 49 do
-      AssertEquals('ReallocMem should preserve existing data', LIndex, PByte(LNewMem)[LIndex]);
+    for i := 0 to 49 do AssertEquals('ReallocMem should preserve existing data', i, PByte(LNewMem)[i]);
     LAllocator.FreeMem(LNewMem);
   finally
-    LAllocator.Free;
+    TCallbackAllocator(LAllocator).Free;
   end;
 end;
 
 procedure TTestCase_CallbackAllocator.Test_FreeMem;
 var
-  LAllocator: TCallbackAllocator;
-  LMem: Pointer;
+  LAllocator: IAllocator;
+  LTemp     : IAllocator;
+  LMem      : Pointer;
 begin
   // 正常释放路径验证
-  LAllocator := CreateCallbackAllocator(@DummyGetMem, @DummyAllocMem, @DummyReallocMem, @DummyFreeMem);
+  LAllocator := TCallbackAllocator.Init(@DummyGetMem, @DummyAllocMem, @DummyReallocMem, @DummyFreeMem);
   try
     LMem := LAllocator.GetMem(10);
     AssertNotNull('GetMem should return a non-nil pointer', LMem);
     LAllocator.FreeMem(LMem);
   finally
-    LAllocator.Free;
+    TCallbackAllocator(LAllocator).Free;
   end;
 
-  {$IFDEF FAFAFA_CORE_STRICT_NULL_FREE}
-  AssertException('FreeMem with nil pointer should raise an exception',
-    EArgumentNil,
-    @RaiseCallbackAllocatorFreeMemNil);
-  {$ENDIF}
+  // 异常路径单独验证，使用独立实例，避免与上面的 finally 干扰
+  LTemp := TCallbackAllocator.Init(@DummyGetMem, @DummyAllocMem, @DummyReallocMem, @DummyFreeMem);
+  try
+    {$IFDEF FAFAFA_CORE_STRICT_NULL_FREE}
+    {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+    AssertException('FreeMem with nil pointer should raise an exception',
+      EArgumentNil,
+      procedure
+      begin
+        LTemp.FreeMem(nil);
+      end);
+    {$ENDIF}
+    {$ENDIF}
+  finally
+    TCallbackAllocator(LTemp).Free;
+  end;
 end;
 
 procedure TTestCase_CallbackAllocator.Test_Create_NilCallbacks;
-var
-  LAllocator: TCallbackAllocator;
 begin
-  {$IFDEF FAFAFA_CORE_CONTRACTS}
+  {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
   AssertException(
     'Creating TCallbackAllocator with nil GetMem callback should raise EArgumentNil',
     EArgumentNil,
-    @RaiseCreateCallbackAllocatorWithNilGetMem);
+    procedure
+    begin
+      TCallbackAllocator.Init(nil, @DummyAllocMem, @DummyReallocMem, @DummyFreeMem);
+    end);
 
   AssertException(
     'Creating TCallbackAllocator with nil AllocMem callback should raise EArgumentNil',
     EArgumentNil,
-    @RaiseCreateCallbackAllocatorWithNilAllocMem);
+    procedure
+    begin
+      TCallbackAllocator.Init(@DummyGetMem, nil, @DummyReallocMem, @DummyFreeMem);
+    end);
 
   AssertException(
     'Creating TCallbackAllocator with nil ReallocMem callback should raise EArgumentNil',
     EArgumentNil,
-    @RaiseCreateCallbackAllocatorWithNilReallocMem);
+    procedure
+    begin
+      TCallbackAllocator.Init(@DummyGetMem, @DummyAllocMem, nil, @DummyFreeMem);
+    end);
 
   AssertException(
     'Creating TCallbackAllocator with nil FreeMem callback should raise EArgumentNil',
     EArgumentNil,
-    @RaiseCreateCallbackAllocatorWithNilFreeMem);
-  {$ELSE}
-  LAllocator := CreateCallbackAllocator(nil, @DummyAllocMem, @DummyReallocMem, @DummyFreeMem);
-  try
-    AssertNotNull('Callback allocator should stay constructible without contracts for nil GetMem', LAllocator);
-  finally
-    LAllocator.Free;
-  end;
-
-  LAllocator := CreateCallbackAllocator(@DummyGetMem, nil, @DummyReallocMem, @DummyFreeMem);
-  try
-    AssertNotNull('Callback allocator should stay constructible without contracts for nil AllocMem', LAllocator);
-  finally
-    LAllocator.Free;
-  end;
-
-  LAllocator := CreateCallbackAllocator(@DummyGetMem, @DummyAllocMem, nil, @DummyFreeMem);
-  try
-    AssertNotNull('Callback allocator should stay constructible without contracts for nil ReallocMem', LAllocator);
-  finally
-    LAllocator.Free;
-  end;
-
-  LAllocator := CreateCallbackAllocator(@DummyGetMem, @DummyAllocMem, @DummyReallocMem, nil);
-  try
-    AssertNotNull('Callback allocator should stay constructible without contracts for nil FreeMem', LAllocator);
-  finally
-    LAllocator.Free;
-  end;
+    procedure
+    begin
+      TCallbackAllocator.Init(@DummyGetMem, @DummyAllocMem, @DummyReallocMem, nil);
+    end);
   {$ENDIF}
 end;
 

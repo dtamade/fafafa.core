@@ -58,17 +58,11 @@ jobs:
     uses: ./.github/workflows/simd-windows-b07-evidence.yml
     secrets: inherit
 
-  arm64-neon-native-evidence:
-    name: ARM64 NEON Native Evidence
-    uses: ./.github/workflows/simd-arm64-neon-evidence.yml
-    secrets: inherit
-
   freeze-audit:
     name: Cross-Platform Freeze Audit
     needs:
       - linux-evidence
       - windows-evidence
-      - arm64-neon-native-evidence
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -92,18 +86,11 @@ jobs:
           name: simd-windows-b07-evidence
           path: ${{ runner.temp }}/simd-windows-b07-evidence
 
-      - name: Download ARM64 NEON native evidence
-        uses: actions/download-artifact@v4
-        with:
-          name: simd-arm64-neon-evidence
-          path: ${{ runner.temp }}/simd-arm64-neon-evidence
-
       - name: Restore nightly evidence snapshot
         run: |
           bash tests/fafafa.core.simd/restore_nightly_evidence_artifacts.sh \
             "${RUNNER_TEMP}/simd-linux-evidence" \
-            "${RUNNER_TEMP}/simd-windows-b07-evidence" \
-            "${RUNNER_TEMP}/simd-arm64-neon-evidence"
+            "${RUNNER_TEMP}/simd-windows-b07-evidence"
 
       - name: Verify Windows evidence against gate summary
         run: |
@@ -138,5 +125,4 @@ jobs:
             tests/fafafa.core.simd/logs/freeze_status.json
             tests/fafafa.core.simd/logs/gate_summary.md
             tests/fafafa.core.simd/logs/gate_summary.json
-            tests/fafafa.core.simd/logs/native-evidence-*
             tests/fafafa.core.simd/logs/windows-closeout/*

@@ -1,13 +1,8 @@
 # 2026-03-24 L0 Docs Closeout Roadmap
 
-> Status: completed historical batch.
->
-> 当前 stable L0 roadmap 以 `docs/fafafa.core.l0.roadmap.md` 为准。
-> 当时的根目录执行镜像已归档到 `plans/archive/2026-04-07-mainline-working-set/`。
-
 **Goal:** 为当前 `fafafa.core` 建立一份长期有效的 L0 文档治理路线图，先收紧根入口和模块域 source-of-truth，再做全仓 residual docs sweep，最后完成根级验收。
 
-**Architecture:** 采用“根入口定锚 -> 按域收口 -> 全仓残留扫尾 -> 根级验收”的串行推进方式。`docs/plans/` 保留长期路线图；当时的执行镜像后来已归档到 `plans/archive/2026-04-07-mainline-working-set/`。
+**Architecture:** 采用“根入口定锚 -> 按域收口 -> 全仓残留扫尾 -> 根级验收”的串行推进方式。`docs/plans/` 保留长期路线图；`task_plan.md`、`findings.md`、`progress.md`、`workers/worker1.md` 只记录当前执行镜像。
 
 **Tech Stack:** Markdown、`docs/`、`tests/*/README.md`、`examples/*/README.md`、`rg`、`prettier`。
 
@@ -30,8 +25,8 @@
 3. `docs/ARCHITECTURE_LAYERS.md`
 4. `docs/fafafa.core.l0.foundation.md`
 5. 本路线图 `docs/plans/2026-03-24-l0-docs-closeout-roadmap.md`
-6. 当时执行镜像：现已归档到 `plans/archive/2026-04-07-mainline-working-set/`
-7. worker 状态：参见当时与后续的 `workers/worker1.md`
+6. 当前执行镜像：`task_plan.md`、`findings.md`、`progress.md`
+7. worker 状态：`workers/worker1.md`
 
 ## 已完成基线
 

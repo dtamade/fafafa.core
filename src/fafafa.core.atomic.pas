@@ -47,22 +47,104 @@ unit fafafa.core.atomic;
 {$I fafafa.core.settings.inc}
 {$WARN 5024 off} // memory_order params are API-compat placeholders on some backends
 
-interface
+// fafafa.core.atomic
+// Tagged pointer: tag bits (low-bit tagging mode)
+{$IFNDEF FAFAFA_ATOMIC_TAG_BITS_32}
+  {$DEFINE FAFAFA_ATOMIC_TAG_BITS_32 := 2}
+{$ENDIF}
+{$IFNDEF FAFAFA_ATOMIC_TAG_BITS_64}
+  {$DEFINE FAFAFA_ATOMIC_TAG_BITS_64 := 3}
+{$ENDIF}
 
-uses
-  fafafa.core.atomic.core;
+// Enable extra runtime checks for tagged pointer packing (debug only)
+{$IFDEF DEBUG}
+  {$DEFINE FAFAFA_ATOMIC_TAGGED_PTR_CHECKS}
+{$ENDIF}
+
+interface
 
 type
 
-  memory_order_t = fafafa.core.atomic.core.memory_order_t;
-
-const
-  mo_relaxed = fafafa.core.atomic.core.mo_relaxed;
-  mo_consume = fafafa.core.atomic.core.mo_consume;
-  mo_acquire = fafafa.core.atomic.core.mo_acquire;
-  mo_release = fafafa.core.atomic.core.mo_release;
-  mo_acq_rel = fafafa.core.atomic.core.mo_acq_rel;
-  mo_seq_cst = fafafa.core.atomic.core.mo_seq_cst;
+  {**
+   * @desc 内存序枚举
+   * @details 定义原子操作的内存顺序语义，影响多线程环境下的内存可见性和操作顺序
+   *
+   * @memory_order_semantics
+   *
+   * **mo_relaxed（松弛序）**:
+   * - 语义：只保证原子性，不提供同步或顺序保证
+   * - 用途：计数器、统计信息等不需要同步的场景
+   * - 性能：最快，无额外开销
+   * - 示例：
+   *   ```pascal
+   *   atomic_fetch_add(counter, 1, mo_relaxed);  // 简单计数
+   *   ```
+   *
+   * **mo_consume（消费序）**:
+   * - 语义：数据依赖顺序（C++17 已废弃，当前实现等价于 mo_acquire）
+   * - 用途：不推荐使用，使用 mo_acquire 代替
+   * - 性能：等价于 mo_acquire
+   * - 注意：为了跨平台一致性，实现为更强的 mo_acquire
+   *
+   * **mo_acquire（获取序）**:
+   * - 语义：获取语义，确保此操作之后的读写不会被重排到此操作之前
+   * - 用途：读取共享数据，与 mo_release 配对使用
+   * - 性能：中等，可能需要内存屏障
+   * - 示例：
+   *   ```pascal
+   *   // 消费者读取数据
+   *   if atomic_load(flag, mo_acquire) = 1 then
+   *     value := atomic_load(data, mo_relaxed);  // 保证 data 已写入
+   *   ```
+   *
+   * **mo_release（释放序）**:
+   * - 语义：释放语义，确保此操作之前的读写不会被重排到此操作之后
+   * - 用途：写入共享数据，与 mo_acquire 配对使用
+   * - 性能：中等，可能需要内存屏障
+   * - 示例：
+   *   ```pascal
+   *   // 生产者写入数据
+   *   atomic_store(data, 42, mo_relaxed);
+   *   atomic_store(flag, 1, mo_release);  // 确保 data 写入对消费者可见
+   *   ```
+   *
+   * **mo_acq_rel（获取-释放序）**:
+   * - 语义：获取+释放语义，结合两者的效果
+   * - 用途：读-修改-写操作（如 fetch_add, compare_exchange）
+   * - 性能：中等，可能需要内存屏障
+   * - 示例：
+   *   ```pascal
+   *   // 原子递增
+   *   old_value := atomic_fetch_add(counter, 1, mo_acq_rel);
+   *   ```
+   *
+   * **mo_seq_cst（顺序一致性）**:
+   * - 语义：最强的同步保证，所有线程看到相同的操作顺序
+   * - 用途：默认选择，适用于大多数场景
+   * - 性能：最慢，可能需要全局同步
+   * - 示例：
+   *   ```pascal
+   *   // 默认使用 seq_cst
+   *   atomic_store(flag, 1);  // 等价于 atomic_store(flag, 1, mo_seq_cst)
+   *   ```
+   *
+   * @performance_guide
+   * - 优先使用 mo_seq_cst（默认），除非性能分析表明需要优化
+   * - 对于简单计数器，可以使用 mo_relaxed
+   * - 对于生产者-消费者模式，使用 mo_release/mo_acquire 配对
+   * - 对于读-修改-写操作，使用 mo_acq_rel
+   *
+   * @cpp_equivalent std::memory_order
+   * @rust_equivalent std::sync::atomic::Ordering
+   *}
+  memory_order_t = (
+    mo_relaxed,   // 只保证原子性，无同步
+    mo_consume,   // 数据依赖顺序（已废弃，等价于 mo_acquire）
+    mo_acquire,   // 获取语义
+    mo_release,   // 释放语义
+    mo_acq_rel,   // 获取+释放语义
+    mo_seq_cst    // 顺序一致性（默认）
+  );
 
 // cpu_pause: self-spin hint (PAUSE/YIELD/no-op), useful for CAS loops.
 procedure cpu_pause;
@@ -143,6 +225,9 @@ function atomic_load_64(var aObj: UInt64): UInt64; overload; inline;
 function atomic_load(var aObj: Pointer; aOrder: memory_order_t): Pointer; overload; inline;
 function atomic_load(var aObj: Pointer): Pointer; overload; inline;
 
+function atomic_load_ptr(var aObj: Pointer; aOrder: memory_order_t): Pointer; overload; inline;
+function atomic_load_ptr(var aObj: Pointer): Pointer; overload; inline;
+
 //┌────────────────────────────────────────────────────────────────────────────┐
 //│                                atomic_store                                │
 //└────────────────────────────────────────────────────────────────────────────┘
@@ -171,6 +256,9 @@ procedure atomic_store_64(var aObj: UInt64; aDesired: UInt64); overload; inline;
 
 procedure atomic_store(var aObj: Pointer; aDesired: Pointer; aOrder: memory_order_t); overload; inline;
 procedure atomic_store(var aObj: Pointer; aDesired: Pointer); overload; inline;
+
+procedure atomic_store_ptr(var aObj: Pointer; aDesired: Pointer; aOrder: memory_order_t); overload; inline;
+procedure atomic_store_ptr(var aObj: Pointer; aDesired: Pointer); overload; inline;
 
 //┌────────────────────────────────────────────────────────────────────────────┐
 //│                              atomic_exchange                               │
@@ -227,6 +315,7 @@ function atomic_compare_exchange_strong_64(var aObj: UInt64; var aExpected: UInt
 {$ENDIF}
 
 function atomic_compare_exchange_strong(var aObj: Pointer; var aExpected: Pointer; aDesired: Pointer): Boolean; overload; inline;
+function atomic_compare_exchange_strong_ptr(var aObj: Pointer; var aExpected: Pointer; aDesired: Pointer): Boolean; inline;
 
 function atomic_compare_exchange_weak(var aObj: Int32; var aExpected: Int32; aDesired: Int32): Boolean; overload; inline;
 function atomic_compare_exchange_weak(var aObj: UInt32; var aExpected: UInt32; aDesired: UInt32): Boolean; overload; inline;
@@ -554,7 +643,7 @@ function atomic_is_lock_free_ptr: Boolean; inline;
 //└────────────────────────────────────────────────────────────────────────────┘
 
 type
-  atomic_tagged_ptr_t = fafafa.core.atomic.core.atomic_tagged_ptr_t;
+  atomic_tagged_ptr_t = type PtrUInt;
 
 function  atomic_tagged_ptr(aPtr: Pointer; aTag: {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF}): atomic_tagged_ptr_t; inline;
 function  atomic_tagged_ptr_get_ptr(const aTaggedPtr: atomic_tagged_ptr_t): Pointer; inline;
@@ -583,9 +672,36 @@ implementation
 //│              Phase 4: cpu_pause - 减少自旋等待开销                          │
 //└────────────────────────────────────────────────────────────────────────────┘
 
+// ✅ Phase 4: cpu_pause - x86 PAUSE 指令 (opcode F3 90)
+// 在 CAS 循环中使用，减少 CPU 功耗和流水线惩罚
+// - x86/x86_64: PAUSE 指令，提示 CPU 这是自旋等待
+// - ARM: YIELD 指令
+// - 其他平台: 空操作（编译器会优化掉）
 procedure cpu_pause;
 begin
-  fafafa.core.atomic.core.cpu_pause;
+  {$IF DEFINED(CPUX86_64)}
+    // x86_64: PAUSE = F3 90 (REP NOP)
+    asm
+      pause
+    end;
+  {$ELSEIF DEFINED(CPUX86)}
+    // x86: PAUSE = F3 90
+    asm
+      pause
+    end;
+  {$ELSEIF DEFINED(CPUAARCH64)}
+    // ARM64: YIELD 指令
+    asm
+      yield
+    end;
+  {$ELSEIF DEFINED(CPUARM)}
+    // ARM32: YIELD 指令 (ARMv6K+)
+    asm
+      yield
+    end;
+  {$ELSE}
+    // 其他平台: 空操作
+  {$ENDIF}
 end;
 
 // A lightweight compiler barrier.
@@ -616,32 +732,6 @@ procedure _consume_memory_orders(const aSuccessOrder, aFailureOrder: memory_orde
 begin
   _consume_memory_order(aSuccessOrder);
   _consume_memory_order(aFailureOrder);
-end;
-
-function _cas_single_success_order(const aOrder: memory_order_t): memory_order_t; inline;
-begin
-  if aOrder = mo_consume then
-    Result := mo_acquire
-  else
-    Result := aOrder;
-end;
-
-function _cas_single_failure_order(const aOrder: memory_order_t): memory_order_t; inline;
-begin
-  case _cas_single_success_order(aOrder) of
-    mo_relaxed:
-      Result := mo_relaxed;
-    mo_acquire:
-      Result := mo_acquire;
-    mo_release:
-      Result := mo_relaxed;
-    mo_acq_rel:
-      Result := mo_acquire;
-    mo_seq_cst:
-      Result := mo_seq_cst;
-  else
-    Result := mo_relaxed;
-  end;
 end;
 
 //┌────────────────────────────────────────────────────────────────────────────┐
@@ -1064,6 +1154,16 @@ begin
   {$ENDIF}  
 end;
 
+function atomic_load_ptr(var aObj: Pointer; aOrder: memory_order_t): Pointer;
+begin
+  Result := atomic_load(aObj, aOrder);
+end;
+
+function atomic_load_ptr(var aObj: Pointer): Pointer;
+begin
+  Result := atomic_load(aObj);
+end;
+
 {$IFDEF CPU64}
 function atomic_load(var aObj: PtrInt; aOrder: memory_order_t): PtrInt;
 begin
@@ -1226,6 +1326,16 @@ begin
   {$ELSE}
     atomic_store(aObj, aDesired, mo_release);
   {$ENDIF}  
+end;
+
+procedure atomic_store_ptr(var aObj: Pointer; aDesired: Pointer; aOrder: memory_order_t);
+begin
+  atomic_store(aObj, aDesired, aOrder);
+end;
+
+procedure atomic_store_ptr(var aObj: Pointer; aDesired: Pointer);
+begin
+  atomic_store(aObj, aDesired);
 end;
 
 
@@ -1522,6 +1632,11 @@ end;
 function atomic_compare_exchange_strong(var aObj: Pointer; var aExpected: Pointer; aDesired: Pointer): Boolean;
 begin
   Result := atomic_compare_exchange(aObj, aExpected, aDesired);
+end;
+
+function atomic_compare_exchange_strong_ptr(var aObj: Pointer; var aExpected: Pointer; aDesired: Pointer): Boolean;
+begin
+  Result := atomic_compare_exchange_strong(aObj, aExpected, aDesired);
 end;
 
 function atomic_compare_exchange_weak(var aObj: Int32; var aExpected: Int32; aDesired: Int32): Boolean;
@@ -1872,50 +1987,26 @@ end;
 function atomic_compare_exchange_strong(var aObj: Int32; var aExpected: Int32; aDesired: Int32;
   aOrder: memory_order_t): Boolean;
 begin
-  Result := atomic_compare_exchange_strong(
-    aObj,
-    aExpected,
-    aDesired,
-    _cas_single_success_order(aOrder),
-    _cas_single_failure_order(aOrder)
-  );
+  Result := atomic_compare_exchange_strong(aObj, aExpected, aDesired, aOrder, aOrder);
 end;
 
 function atomic_compare_exchange_strong(var aObj: UInt32; var aExpected: UInt32; aDesired: UInt32;
   aOrder: memory_order_t): Boolean;
 begin
-  Result := atomic_compare_exchange_strong(
-    aObj,
-    aExpected,
-    aDesired,
-    _cas_single_success_order(aOrder),
-    _cas_single_failure_order(aOrder)
-  );
+  Result := atomic_compare_exchange_strong(aObj, aExpected, aDesired, aOrder, aOrder);
 end;
 
 {$IFDEF CPU64}
 function atomic_compare_exchange_strong(var aObj: PtrInt; var aExpected: PtrInt; aDesired: PtrInt;
   aOrder: memory_order_t): Boolean;
 begin
-  Result := atomic_compare_exchange_strong(
-    aObj,
-    aExpected,
-    aDesired,
-    _cas_single_success_order(aOrder),
-    _cas_single_failure_order(aOrder)
-  );
+  Result := atomic_compare_exchange_strong(aObj, aExpected, aDesired, aOrder, aOrder);
 end;
 
 function atomic_compare_exchange_strong(var aObj: PtrUInt; var aExpected: PtrUInt; aDesired: PtrUInt;
   aOrder: memory_order_t): Boolean;
 begin
-  Result := atomic_compare_exchange_strong(
-    aObj,
-    aExpected,
-    aDesired,
-    _cas_single_success_order(aOrder),
-    _cas_single_failure_order(aOrder)
-  );
+  Result := atomic_compare_exchange_strong(aObj, aExpected, aDesired, aOrder, aOrder);
 end;
 {$ENDIF}
 
@@ -1923,88 +2014,46 @@ end;
 function atomic_compare_exchange_strong_64(var aObj: Int64; var aExpected: Int64; aDesired: Int64;
   aOrder: memory_order_t): Boolean;
 begin
-  Result := atomic_compare_exchange_strong_64(
-    aObj,
-    aExpected,
-    aDesired,
-    _cas_single_success_order(aOrder),
-    _cas_single_failure_order(aOrder)
-  );
+  Result := atomic_compare_exchange_strong_64(aObj, aExpected, aDesired, aOrder, aOrder);
 end;
 
 function atomic_compare_exchange_strong_64(var aObj: UInt64; var aExpected: UInt64; aDesired: UInt64;
   aOrder: memory_order_t): Boolean;
 begin
-  Result := atomic_compare_exchange_strong_64(
-    aObj,
-    aExpected,
-    aDesired,
-    _cas_single_success_order(aOrder),
-    _cas_single_failure_order(aOrder)
-  );
+  Result := atomic_compare_exchange_strong_64(aObj, aExpected, aDesired, aOrder, aOrder);
 end;
 {$ENDIF}
 
 function atomic_compare_exchange_strong(var aObj: Pointer; var aExpected: Pointer; aDesired: Pointer;
   aOrder: memory_order_t): Boolean;
 begin
-  Result := atomic_compare_exchange_strong(
-    aObj,
-    aExpected,
-    aDesired,
-    _cas_single_success_order(aOrder),
-    _cas_single_failure_order(aOrder)
-  );
+  Result := atomic_compare_exchange_strong(aObj, aExpected, aDesired, aOrder, aOrder);
 end;
 
 // weak 版本 - 单内存序
 function atomic_compare_exchange_weak(var aObj: Int32; var aExpected: Int32; aDesired: Int32;
   aOrder: memory_order_t): Boolean;
 begin
-  Result := atomic_compare_exchange_weak(
-    aObj,
-    aExpected,
-    aDesired,
-    _cas_single_success_order(aOrder),
-    _cas_single_failure_order(aOrder)
-  );
+  Result := atomic_compare_exchange_weak(aObj, aExpected, aDesired, aOrder, aOrder);
 end;
 
 function atomic_compare_exchange_weak(var aObj: UInt32; var aExpected: UInt32; aDesired: UInt32;
   aOrder: memory_order_t): Boolean;
 begin
-  Result := atomic_compare_exchange_weak(
-    aObj,
-    aExpected,
-    aDesired,
-    _cas_single_success_order(aOrder),
-    _cas_single_failure_order(aOrder)
-  );
+  Result := atomic_compare_exchange_weak(aObj, aExpected, aDesired, aOrder, aOrder);
 end;
 
 {$IFDEF CPU64}
 function atomic_compare_exchange_weak(var aObj: PtrInt; var aExpected: PtrInt; aDesired: PtrInt;
   aOrder: memory_order_t): Boolean;
 begin
-  Result := atomic_compare_exchange_weak(
-    aObj,
-    aExpected,
-    aDesired,
-    _cas_single_success_order(aOrder),
-    _cas_single_failure_order(aOrder)
-  );
+  Result := atomic_compare_exchange_weak(aObj, aExpected, aDesired, aOrder, aOrder);
 end;
 
 function atomic_compare_exchange_weak(var aObj: PtrUInt; var aExpected: PtrUInt; aDesired: PtrUInt;
   aOrder: memory_order_t): Boolean;
 begin
-  Result := atomic_compare_exchange_weak(
-    aObj,
-    aExpected,
-    aDesired,
-    _cas_single_success_order(aOrder),
-    _cas_single_failure_order(aOrder)
-  );
+  Result := atomic_compare_exchange_weak(aObj, aExpected, aDesired, aOrder, aOrder);
 end;
 {$ENDIF}
 
@@ -2012,38 +2061,20 @@ end;
 function atomic_compare_exchange_weak_64(var aObj: Int64; var aExpected: Int64; aDesired: Int64;
   aOrder: memory_order_t): Boolean;
 begin
-  Result := atomic_compare_exchange_weak_64(
-    aObj,
-    aExpected,
-    aDesired,
-    _cas_single_success_order(aOrder),
-    _cas_single_failure_order(aOrder)
-  );
+  Result := atomic_compare_exchange_weak_64(aObj, aExpected, aDesired, aOrder, aOrder);
 end;
 
 function atomic_compare_exchange_weak_64(var aObj: UInt64; var aExpected: UInt64; aDesired: UInt64;
   aOrder: memory_order_t): Boolean;
 begin
-  Result := atomic_compare_exchange_weak_64(
-    aObj,
-    aExpected,
-    aDesired,
-    _cas_single_success_order(aOrder),
-    _cas_single_failure_order(aOrder)
-  );
+  Result := atomic_compare_exchange_weak_64(aObj, aExpected, aDesired, aOrder, aOrder);
 end;
 {$ENDIF}
 
 function atomic_compare_exchange_weak(var aObj: Pointer; var aExpected: Pointer; aDesired: Pointer;
   aOrder: memory_order_t): Boolean;
 begin
-  Result := atomic_compare_exchange_weak(
-    aObj,
-    aExpected,
-    aDesired,
-    _cas_single_success_order(aOrder),
-    _cas_single_failure_order(aOrder)
-  );
+  Result := atomic_compare_exchange_weak(aObj, aExpected, aDesired, aOrder, aOrder);
 end;
 
 function atomic_increment(var aObj: Int32): Int32;
@@ -3208,19 +3239,68 @@ begin
   {$ENDIF}
 end;
 
+{$IF DEFINED(CPUX86_64)}
+const
+  // x86_64: pointers are effectively 48-bit canonical in user-space; keep 16-bit tag in high bits.
+  TAG_BITS  = 16;
+  TAG_SHIFT = (SizeOf(PtrUInt) * 8) - TAG_BITS;
+  PTR_MASK: PtrUInt = (PtrUInt(1) shl TAG_SHIFT) - 1; // low TAG_SHIFT bits pointer, high TAG_BITS bits tag
+{$ELSE}
+const
+  // Other targets: avoid assuming 48-bit pointers (AArch64 can be 52-bit, etc.).
+  // Use low TAG_BITS bits for the tag; this requires pointers to be aligned accordingly.
+  {$IFDEF CPU64}
+  TAG_BITS = FAFAFA_ATOMIC_TAG_BITS_64; // default=3; requires pointer alignment to 2^TAG_BITS
+  {$ELSE}
+  TAG_BITS = FAFAFA_ATOMIC_TAG_BITS_32; // default=2; requires pointer alignment to 2^TAG_BITS
+  {$ENDIF}
+  TAG_MASK: PtrUInt = (PtrUInt(1) shl TAG_BITS) - 1;
+  // NOTE: Keep this expression friendly to older FPC constant folding on non-x86_64 targets.
+  // Avoid referencing typed-const TAG_MASK here (some FPC versions reject it in const-folding).
+  PTR_MASK: PtrUInt = ((not PtrUInt(0)) shr TAG_BITS) shl TAG_BITS;
+{$ENDIF}
+
 function atomic_tagged_ptr(aPtr: Pointer; aTag: {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF}): atomic_tagged_ptr_t;
 begin
-  Result := fafafa.core.atomic.core.atomic_tagged_ptr(aPtr, aTag);
+  {$PUSH}
+  {$WARN 4055 OFF}
+
+  {$IFDEF FAFAFA_ATOMIC_TAGGED_PTR_CHECKS}
+    {$IF DEFINED(CPUX86_64)}
+      // High-tag scheme requires pointer to fit in the preserved low bits.
+      Assert((PtrUInt(aPtr) and (not PTR_MASK)) = 0, 'atomic_tagged_ptr: pointer out of range for x86_64 packing');
+    {$ELSE}
+      // Low-tag scheme requires pointer alignment and tag to fit TAG_BITS.
+      Assert((PtrUInt(aPtr) and TAG_MASK) = 0, 'atomic_tagged_ptr: pointer not aligned for low-bit tag packing');
+      Assert((PtrUInt(aTag) and (not TAG_MASK)) = 0, 'atomic_tagged_ptr: tag does not fit TAG_BITS');
+    {$ENDIF}
+  {$ENDIF}
+
+  {$IF DEFINED(CPUX86_64)}
+  Result := (PtrUInt(aPtr) and PTR_MASK) or (PtrUInt(aTag) shl TAG_SHIFT);
+  {$ELSE}
+  Result := (PtrUInt(aPtr) and PTR_MASK) or (PtrUInt(aTag) and TAG_MASK);
+  {$ENDIF}
+  {$POP}
 end;
 
 function atomic_tagged_ptr_get_ptr(const aTaggedPtr: atomic_tagged_ptr_t): Pointer;
 begin
-  Result := fafafa.core.atomic.core.atomic_tagged_ptr_get_ptr(aTaggedPtr);
+  {$PUSH}
+  {$WARN 4055 OFF} // Conversion between ordinals and pointers is not portable
+  Result := Pointer(PtrUInt(aTaggedPtr) and PTR_MASK);
+  {$POP}
 end;
 
 function atomic_tagged_ptr_get_tag(const aTaggedPtr: atomic_tagged_ptr_t): {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF};
 begin
-  Result := fafafa.core.atomic.core.atomic_tagged_ptr_get_tag(aTaggedPtr);
+  {$IF DEFINED(CPUX86_64)}
+  Result := UInt16(PtrUInt(aTaggedPtr) shr TAG_SHIFT);
+  {$ELSEIF DEFINED(CPU64)}
+  Result := UInt16(PtrUInt(aTaggedPtr) and TAG_MASK);
+  {$ELSE}
+  Result := UInt32(PtrUInt(aTaggedPtr) and TAG_MASK);
+  {$ENDIF}
 end;
 
 function atomic_tagged_ptr_load(var aObj: atomic_tagged_ptr_t; aOrder: memory_order_t): atomic_tagged_ptr_t;
@@ -3286,11 +3366,8 @@ end;
 function atomic_tagged_ptr_compare_exchange_strong(var aObj: atomic_tagged_ptr_t; var aExpected: atomic_tagged_ptr_t; aDesired: atomic_tagged_ptr_t;
   aSuccessOrder, aFailureOrder: memory_order_t): Boolean;
 var
-  {$IF SIZEOF(Pointer) = 4}
   LExpected32: Int32;
-  {$ELSE}
   LExpected64: Int64;
-  {$ENDIF}
 begin
   {$PUSH}
   {$WARN 4055 OFF}
@@ -3315,11 +3392,8 @@ end;
 function atomic_tagged_ptr_compare_exchange_weak(var aObj: atomic_tagged_ptr_t; var aExpected: atomic_tagged_ptr_t; aDesired: atomic_tagged_ptr_t;
   aSuccessOrder, aFailureOrder: memory_order_t): Boolean;
 var
-  {$IF SIZEOF(Pointer) = 4}
   LExpected32: Int32;
-  {$ELSE}
   LExpected64: Int64;
-  {$ENDIF}
 begin
   {$PUSH}
   {$WARN 4055 OFF}
@@ -3341,19 +3415,51 @@ begin
   Result := atomic_tagged_ptr_compare_exchange_weak(aObj, aExpected, aDesired, mo_seq_cst, mo_seq_cst);
 end;
 
+// ------------------- memory fence -------------------
 procedure atomic_thread_fence(aOrder: memory_order_t);
 begin
-  fafafa.core.atomic.core.atomic_thread_fence(aOrder);
+ case aOrder of
+    mo_relaxed:;                       // 不产生任何屏障
+    mo_consume: ReadBarrier;           // 当前实现：按 acquire 处理
+    mo_acquire: ReadBarrier;           // 读取屏障，防止 acquire 后续读取重排到前面
+    mo_release: WriteBarrier;          // 写入屏障，防止 release 前写入重排到后面
+    mo_acq_rel: ReadWriteBarrier;      // 同时防止前后读取和写入重排
+    mo_seq_cst: ReadWriteBarrier;      // 最强顺序，保证全序
+  end;
 end;
 
 procedure atomic_signal_fence(aOrder: memory_order_t);
 begin
-  fafafa.core.atomic.core.atomic_signal_fence(aOrder);
+  // 编译器屏障：只防止编译器重排序，不产生硬件屏障指令
+  // 使用 ReadWriteBarrier 作为编译器屏障（零开销）
+  case aOrder of
+    mo_relaxed:;                       // 不产生任何屏障
+    mo_consume: ReadWriteBarrier;      // 当前实现：按 acquire 处理
+    mo_acquire: ReadWriteBarrier;      // 编译器屏障，防止后续读取重排到前面
+    mo_release: ReadWriteBarrier;      // 编译器屏障，防止前面写入重排到后面
+    mo_acq_rel: ReadWriteBarrier;      // 编译器屏障，防止前后读写重排
+    mo_seq_cst: ReadWriteBarrier;      // 编译器屏障，最强顺序
+  end;
 end;
 
+const
+  {$IF DEFINED(CPUX86_64)}
+  MAX_TAG: UInt16 = $FFFF;
+  {$ELSEIF DEFINED(CPU64)}
+  MAX_TAG: UInt16 = UInt16((PtrUInt(1) shl TAG_BITS) - 1);
+  {$ELSE}
+  MAX_TAG: UInt32 = UInt32((PtrUInt(1) shl TAG_BITS) - 1);
+  {$ENDIF}
+
 function atomic_tagged_ptr_next(const aTaggedPtr: atomic_tagged_ptr_t): {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF};
+var
+  LTag: {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF};
 begin
-  Result := fafafa.core.atomic.core.atomic_tagged_ptr_next(aTaggedPtr);
+  LTag := atomic_tagged_ptr_get_tag(aTaggedPtr);
+  if LTag = MAX_TAG then
+    Result := 1
+  else
+    Result := LTag + 1;
 end;
 
 procedure atomic_tagged_ptr_update(var aObj: atomic_tagged_ptr_t; aPtr: Pointer); inline;

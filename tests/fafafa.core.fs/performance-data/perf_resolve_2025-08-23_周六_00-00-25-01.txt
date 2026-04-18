@@ -1,0 +1,5 @@
+ResolvePathEx: TouchDisk=False, iters=1000, time=5 ms, last=D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.fs\walk_bench_root
+ResolvePathEx: TouchDisk=True,  iters=1000, time=271 ms, last=D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.fs\walk_bench_root
+
+==== Walk (genwalk) ====
+ERROR in mkdir: -6

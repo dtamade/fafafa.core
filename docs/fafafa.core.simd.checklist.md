@@ -50,7 +50,7 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suit
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-smoke-x86
 ```
 
-- `impl-smoke-x86`：固定重跑当前 x86 bounded frontier 的 `DispatchAPI` proof 集合；它不是 full closeout，只是把 `AVX512 shift boundary`、`AVX2 wide select`、`AVX2 wide FMA composition` 这几类高价值证明收成单条高频入口
+- `impl-smoke-x86`：固定重跑当前 x86 bounded frontier 的 `DispatchAPI` proof 集合；它不是 full closeout，而是把 `SSE2 compare/vector-math parity`、`SSE3/SSSE3/SSE4.x incremental clone + semantic parity contract`、`AVX512 shift boundary`、`AVX2 wide select`、`AVX2 wide FMA composition` 这些高价值证明收成单条高频入口
 - 如果你改了 `TSimdBackendInfo` / `TSimdDispatchTable` 的声明本身，再额外跑：
 
 ```bash
@@ -64,6 +64,17 @@ bash tests/fafafa.core.simd/BuildOrTest.sh publicabi-signature
 ```
 
 ### 4. 准备 closeout / release 再跑完整门禁
+
+`closeout-release` 是完整 release 收口的唯一官方入口：
+
+```bash
+FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152
+```
+
+内部固定顺序是 `impl-smoke-x86 -> closeout-host-local -> win-evidence-preflight -> win-evidence-via-gh -> freeze-status`。
+它会先把当前 x86 bounded frontier 和 host-local non-x86/QEMU 证明跑到位，再进入 Windows evidence GH 闭环，最后回到 canonical `freeze-status` 做最终确认。
+
+如果你只想先看完整 release 门禁轮廓，而不是直接一波收口，也可以单独跑：
 
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict

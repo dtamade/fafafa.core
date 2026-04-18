@@ -1,11 +1,10 @@
 {
 # fafafa.core.mem.allocator.foundation
 
-Low-level allocator convenience facade.
+Strict L0 allocator facade.
 
-This unit re-exports the allocator contract together with the small concrete
-backends that remain convenient for the mem domain, but it is no longer the
-strict L0 source-of-truth boundary.
+This unit re-exports only the allocator contract and the minimal backends that
+belong to the strict non-SIMD L0 foundation surface.
 }
 
 unit fafafa.core.mem.allocator.foundation;

@@ -7,7 +7,6 @@ if "%ACTION%"=="" set "ACTION=test"
 
 set "PROJECT=fafafa.core.contracts.test.lpi"
 set "CLEAN_DIRS=lib bin logs"
-set "LAZBUILD=..\..\tools\lazbuild.bat"
 set "SRC_WARN_PATTERNS=/C:\"src/.*fafafa.core.contracts.*Warning:\" /C:\"src/.*fafafa.core.contracts.*Hint:\" /C:\"\src\.*fafafa.core.contracts.*Warning:\" /C:\"\src\.*fafafa.core.contracts.*Hint:\""
 
 set "BUILD_MODE=Debug"
@@ -48,29 +47,15 @@ if exist "%TEST_LOG%" del /q "%TEST_LOG%" >nul 2>nul
 set "LZ_Q="
 if /i not "%FAFAFA_BUILD_QUIET%"=="0" set "LZ_Q=--quiet"
 
-set "SKIP_BUILD_FLAG=%FAFAFA_SKIP_BUILD: =%"
-set "SKIP_BUILD="
-if /i "%ACTION%"=="test" if /i "%SKIP_BUILD_FLAG%"=="1" set "SKIP_BUILD=1"
-if /i "%ACTION%"=="test-no-contracts" if /i "%SKIP_BUILD_FLAG%"=="1" set "SKIP_BUILD=1"
-
 set "EXIT_ERR=1"
-if defined SKIP_BUILD (
-  echo [BUILD] SKIPPED ^(FAFAFA_SKIP_BUILD=1^)
-  set "EXIT_ERR=0"
-) else if exist "%LAZBUILD%" (
-  echo [BUILD] Project: %PROJECT% ^(mode=%BUILD_MODE%^)
-  call "%LAZBUILD%" %LZ_Q% --bm=%BUILD_MODE% --build-all "%PROJECT%" >"%BUILD_LOG%" 2>&1
+where lazbuild >nul 2>nul
+if %ERRORLEVEL%==0 (
+  echo [BUILD] Project: %PROJECT% (mode=%BUILD_MODE%)
+  lazbuild %LZ_Q% --bm=%BUILD_MODE% --build-all "%PROJECT%" >"%BUILD_LOG%" 2>&1
   set "EXIT_ERR=!ERRORLEVEL!"
 ) else (
-  where lazbuild >nul 2>nul
-  if !ERRORLEVEL! EQU 0 (
-    echo [BUILD] Project: %PROJECT% ^(mode=%BUILD_MODE%^)
-    lazbuild %LZ_Q% --bm=%BUILD_MODE% --build-all "%PROJECT%" >"%BUILD_LOG%" 2>&1
-    set "EXIT_ERR=!ERRORLEVEL!"
-  ) else (
-    echo [ERROR] tools\lazbuild.bat not found and lazbuild not in PATH.
-    set "EXIT_ERR=1"
-  )
+  echo [ERROR] lazbuild not found in PATH.
+  set "EXIT_ERR=1"
 )
 
 if not !EXIT_ERR! EQU 0 (
@@ -78,15 +63,10 @@ if not !EXIT_ERR! EQU 0 (
   goto :END
 )
 
-if defined SKIP_BUILD goto :AFTER_BUILD
-
 echo [BUILD] OK
 
-:AFTER_BUILD
 if /i "%ACTION%"=="build" goto :END_OK
 if /i "%ACTION%"=="build-no-contracts" goto :END_OK
-
-if defined SKIP_BUILD goto :AFTER_CHECK
 
 findstr /R %SRC_WARN_PATTERNS% "%BUILD_LOG%" >nul
 if !ERRORLEVEL! EQU 0 (
@@ -96,21 +76,20 @@ if !ERRORLEVEL! EQU 0 (
 )
 echo [CHECK] OK
 
-:AFTER_CHECK
 if /i "%ACTION%"=="check" goto :END_OK
 if /i "%ACTION%"=="check-no-contracts" goto :END_OK
 
-if exist "%TEST_EXECUTABLE_ALT%" (
-  "%TEST_EXECUTABLE_ALT%" --all --format=plain >"%TEST_LOG%" 2>&1
-  set "EXIT_ERR=!ERRORLEVEL!"
-) else if exist "%TEST_EXECUTABLE%" (
+if exist "%TEST_EXECUTABLE%" (
   "%TEST_EXECUTABLE%" --all --format=plain >"%TEST_LOG%" 2>&1
   set "EXIT_ERR=!ERRORLEVEL!"
-) else if exist "%TEST_EXECUTABLE_FALLBACK_ALT%" (
-  "%TEST_EXECUTABLE_FALLBACK_ALT%" --all --format=plain >"%TEST_LOG%" 2>&1
+) else if exist "%TEST_EXECUTABLE_ALT%" (
+  "%TEST_EXECUTABLE_ALT%" --all --format=plain >"%TEST_LOG%" 2>&1
   set "EXIT_ERR=!ERRORLEVEL!"
 ) else if exist "%TEST_EXECUTABLE_FALLBACK%" (
   "%TEST_EXECUTABLE_FALLBACK%" --all --format=plain >"%TEST_LOG%" 2>&1
+  set "EXIT_ERR=!ERRORLEVEL!"
+) else if exist "%TEST_EXECUTABLE_FALLBACK_ALT%" (
+  "%TEST_EXECUTABLE_FALLBACK_ALT%" --all --format=plain >"%TEST_LOG%" 2>&1
   set "EXIT_ERR=!ERRORLEVEL!"
 ) else (
   echo [ERROR] Test executable not found: %TEST_EXECUTABLE%[.exe] or %TEST_EXECUTABLE_FALLBACK%[.exe]

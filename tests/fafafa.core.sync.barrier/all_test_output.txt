@@ -1,0 +1,47 @@
+ Time:00.005 N:37 E:0 F:0 I:0
+  TTestCase_Global Time:00.001 N:9 E:0 F:0 I:0
+    00.000  Test_MakeBarrier_Valid_Participants
+    00.000  Test_MakeBarrier_Single_Participant
+    00.000  Test_MakeBarrier_Multiple_Participants
+    00.000  Test_MakeBarrier_Large_Participants
+    00.001  Test_MakeBarrier_Zero_Participants_Exception
+    00.000  Test_MakeBarrier_Negative_Participants_Exception
+    00.000  Test_MakeBarrier_MaxInt_Participants
+    00.000  Test_MakeBarrier_Returns_IBarrier_Interface
+    00.000  Test_MakeBarrier_Multiple_Instances_Independent
+  TTestCase_IBarrier Time:00.004 N:28 E:0 F:0 I:0
+    00.000  Test_GetParticipantCount_SingleParticipant
+    00.000  Test_GetParticipantCount_MultipleParticipants
+    00.000  Test_GetParticipantCount_Consistency
+    00.000  Test_Wait_SingleParticipant_ReturnsTrue
+    00.002  Test_Wait_TwoParticipants_OneSerial
+    00.002  Test_Wait_MultipleParticipants_OneSerial
+    00.000  Test_Wait_SerialThread_Identification
+    00.000  Test_Wait_NonSerialThread_ReturnsFalse
+    00.000  Test_Wait_Barrier_Reuse_MultipleRounds
+    00.000  Test_Wait_Barrier_Reuse_DifferentThreadCounts
+    00.000  Test_Wait_Sequential_Rounds_SerialDistribution
+    00.000  Test_Wait_Concurrent_Threads_Synchronization
+    00.000  Test_Wait_Concurrent_Barriers_Independence
+    00.000  Test_Wait_Thread_Safety_Multiple_Barriers
+    00.000  Test_Wait_Race_Conditions_Prevention
+    00.000  Test_Wait_Large_Participant_Count
+    00.000  Test_Wait_Rapid_Sequential_Calls
+    00.000  Test_Wait_Mixed_Thread_Priorities
+    00.000  Test_Wait_Windows_Native_Barrier
+    00.000  Test_Wait_Windows_Fallback_Implementation
+    00.000  Test_Stress_High_Frequency_Barriers
+    00.000  Test_Stress_Long_Running_Barriers
+    00.000  Test_Stress_Memory_Pressure_Barriers
+    00.000  Test_Stress_Thread_Exhaustion_Barriers
+    00.000  Test_Performance_Baseline_2_Threads
+    00.000  Test_Performance_Baseline_4_Threads
+    00.000  Test_Performance_Baseline_8_Threads
+    00.000  Test_Performance_Baseline_16_Threads
+
+Number of run tests: 37
+Number of errors:    0
+Number of failures:  0
+
+
+

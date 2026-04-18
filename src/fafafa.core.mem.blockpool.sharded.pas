@@ -738,7 +738,7 @@ begin
   if (aShard < 0) or (aShard >= FShardCount) then
     raise EInvalidArgument.Create('TShardedBlockPool.RemoteFreePush: invalid shard index');
 
-  LExpected := atomic_load(FShards[aShard].RemoteFreeHead, mo_relaxed);
+  LExpected := atomic_load_ptr(FShards[aShard].RemoteFreeHead, mo_relaxed);
   repeat
     PPointer(aPtr)^ := LExpected;
   until atomic_compare_exchange_strong(FShards[aShard].RemoteFreeHead, LExpected, aPtr, mo_release, mo_relaxed);
@@ -752,7 +752,7 @@ begin
   if (aShard < 0) or (aShard >= FShardCount) then
     raise EInvalidArgument.Create('TShardedBlockPool.RemoteFreePushList: invalid shard index');
 
-  LExpected := atomic_load(FShards[aShard].RemoteFreeHead, mo_relaxed);
+  LExpected := atomic_load_ptr(FShards[aShard].RemoteFreeHead, mo_relaxed);
   repeat
     PPointer(aTail)^ := LExpected;
   until atomic_compare_exchange_strong(FShards[aShard].RemoteFreeHead, LExpected, aHead, mo_release, mo_relaxed);

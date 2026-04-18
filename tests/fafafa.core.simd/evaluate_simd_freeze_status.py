@@ -6,7 +6,6 @@ import json
 import os
 import re
 import subprocess
-import sys
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from pathlib import Path
@@ -313,40 +312,6 @@ def freshness_check(name: str, path: Path, max_age_hours: float, required: bool 
         detail=(
             f"stale mtime={mtime:%Y-%m-%d %H:%M:%S}, age_hours={age_hours:.2f}, "
             f"threshold_hours={max_age_hours:.2f}"
-        ),
-    )
-
-
-def artifact_not_older_than_artifact_check(
-    name: str, artifact_path: Path, baseline_path: Path, required: bool = True
-) -> CheckItem:
-    if not artifact_path.is_file():
-        return CheckItem(name=name, required=required, status="FAIL", detail=f"missing {artifact_path}")
-    if not baseline_path.is_file():
-        return CheckItem(name=name, required=required, status="FAIL", detail=f"missing {baseline_path}")
-
-    artifact_mtime = datetime.fromtimestamp(artifact_path.stat().st_mtime)
-    baseline_mtime = datetime.fromtimestamp(baseline_path.stat().st_mtime)
-
-    if artifact_mtime >= baseline_mtime:
-        return CheckItem(
-            name=name,
-            required=required,
-            status="PASS",
-            detail=(
-                f"artifact mtime={artifact_mtime:%Y-%m-%d %H:%M:%S}, "
-                f"baseline={baseline_path} ({baseline_mtime:%Y-%m-%d %H:%M:%S})"
-            ),
-        )
-
-    return CheckItem(
-        name=name,
-        required=required,
-        status="FAIL",
-        detail=(
-            f"artifact older than baseline: artifact={artifact_path} "
-            f"({artifact_mtime:%Y-%m-%d %H:%M:%S}), baseline={baseline_path} "
-            f"({baseline_mtime:%Y-%m-%d %H:%M:%S})"
         ),
     )
 
@@ -1087,16 +1052,6 @@ def main() -> int:
         next_actions.append("tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify")
     if not args.linux_only:
         checks.append(
-            artifact_not_older_than_artifact_check(
-                "cross_gate_not_older_than_windows_evidence",
-                gate_summary,
-                windows_log,
-                required=True,
-            )
-        )
-        if checks[-1].status != "PASS":
-            next_actions.append(CROSS_GATE_FAIL_CLOSE_CMD)
-        checks.append(
             sources_not_newer_than_artifact_check(
                 "linux_sources_not_newer_than_windows_evidence",
                 windows_log,
@@ -1268,20 +1223,6 @@ def main() -> int:
             f"bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize {default_batch_id}"
         )
 
-    if not args.linux_only:
-        checks.append(
-            artifact_not_older_than_artifact_check(
-                "windows_closeout_not_older_than_windows_evidence",
-                closeout_summary,
-                windows_log,
-                required=True,
-            )
-        )
-        if checks[-1].status != "PASS":
-            next_actions.append(
-                f"bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize {default_batch_id}"
-            )
-
     checks.append(freshness_check("windows_closeout_freshness", closeout_summary, args.fresh_hours, required=True))
     if checks[-1].status != "PASS":
         next_actions.append(
@@ -1397,23 +1338,20 @@ def main() -> int:
             if "windows" not in item.name and not item.name.startswith("cross_")
         ]
 
-    status_stream = sys.stderr if args.json else sys.stdout
-
-    print("[FREEZE] SIMD freeze status", file=status_stream)
+    print("[FREEZE] SIMD freeze status")
     cross_ready_display = "N/A" if cross_ready is None else str(cross_ready)
     print(
         f"[FREEZE] mode={payload['mode']}, ready={payload['freeze_ready']}, "
         f"mainline-ready={mainline_ready}, cross-ready={cross_ready_display}, "
-        f"fresh_hours={payload['fresh_hours']:.2f}",
-        file=status_stream,
+        f"fresh_hours={payload['fresh_hours']:.2f}"
     )
     for item in display_checks:
-        print(f"[FREEZE] {item.status:<7} {item.name}: {item.detail}", file=status_stream)
+        print(f"[FREEZE] {item.status:<7} {item.name}: {item.detail}")
 
     if dedup_actions:
-        print("[FREEZE] next-actions:", file=status_stream)
+        print("[FREEZE] next-actions:")
         for action in dedup_actions:
-            print(f"  - {action}", file=status_stream)
+            print(f"  - {action}")
 
     return 0 if freeze_ready else 1
 

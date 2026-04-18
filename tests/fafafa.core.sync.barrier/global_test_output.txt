@@ -1,0 +1,18 @@
+SuiteList Time:00.000 N:9 E:0 F:0 I:0
+  TTestCase_Global Time:00.000 N:9 E:0 F:0 I:0
+    00.000  Test_MakeBarrier_Valid_Participants
+    00.000  Test_MakeBarrier_Single_Participant
+    00.000  Test_MakeBarrier_Multiple_Participants
+    00.000  Test_MakeBarrier_Large_Participants
+    00.000  Test_MakeBarrier_Zero_Participants_Exception
+    00.000  Test_MakeBarrier_Negative_Participants_Exception
+    00.000  Test_MakeBarrier_MaxInt_Participants
+    00.000  Test_MakeBarrier_Returns_IBarrier_Interface
+    00.000  Test_MakeBarrier_Multiple_Instances_Independent
+
+Number of run tests: 9
+Number of errors:    0
+Number of failures:  0
+
+
+

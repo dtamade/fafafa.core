@@ -30,7 +30,7 @@
 - **统一错误处理** - 一致的异常机制
 - **内存管理优化** - ShrinkTo, 智能增长策略
 - ⚙️ 默认增长策略：采用“2 的幂”增长（TPowerOfTwoGrowStrategy），与环形缓冲的掩码/对齐友好，降低扩容次数
-- ⚠️ UnChecked 方法契约：所有 UnChecked 版本不做任何参数/边界检查；array of T 入参需非空且范围由调用方保证（详见 docs/collections/guides/UnChecked_Methods_Summary.md）
+- ⚠️ UnChecked 方法契约：所有 UnChecked 版本不做任何参数/边界检查；array of T 入参需非空且范围由调用方保证（详见 docs/UnChecked_Methods_Summary.md）
 
 - **并行操作支持** - 多核性能优化
 - **全面测试覆盖** - 生产级质量保证

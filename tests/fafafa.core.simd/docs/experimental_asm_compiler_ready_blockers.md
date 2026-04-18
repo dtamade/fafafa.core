@@ -1,19 +1,15 @@
 # Experimental ASM Compiler-Ready Blockers
 
-## Latest Wave (2026-04-03, 00:15)
+## Latest Wave (2026-02-22, 01:36)
 
-- non-x86 experimental asm lane (`SIMD_QEMU_ENABLE_BACKEND_ASM=1` + `*_ASM_COMPILER_READY`): PASS
-  - summary: `tests/fafafa.core.simd/logs/qemu-multiarch-20260403-001103-3652254/summary.md`
-- baseline check (`qemu-experimental-baseline-check --latest`): PASS
-  - baseline: `tests/fafafa.core.simd/docs/experimental_asm_expected_failures.json`
-  - result: `errors=0, warnings=0`
-- blocker report (`qemu-experimental-report --latest`): PASS
-  - report: `tests/fafafa.core.simd/docs/experimental_asm_blockers.md`
-  - result: `platform_rows=2, parsed_errors=0`
-- dedicated RVV opcode lane (`riscvv-opcode-lane`, default `compile_target=project`): unchanged / PASS
+- mainline gate (`gate-strict`, with qemu chain): PASS  
+  - summary: `tests/fafafa.core.simd/logs/qemu-multiarch-20260222-013045/summary.md`
+- dedicated RVV opcode lane (`riscvv-opcode-lane`, default `compile_target=project`): PASS  
   - summary: `tests/fafafa.core.simd/logs/rvv-opcode-lane-20260221-225950/summary.md`
-- strict project-target compile check (`SIMD_RVV_COMPILE_TARGET=project`): unchanged / PASS
+- strict project-target compile check (`SIMD_RVV_COMPILE_TARGET=project`): PASS  
   - summary: `tests/fafafa.core.simd/logs/rvv-opcode-lane-20260221-225804/summary.md`
+- non-x86 experimental asm lane (`SIMD_QEMU_ENABLE_BACKEND_ASM=1` + `*_ASM_COMPILER_READY`): PASS  
+  - summary: `tests/fafafa.core.simd/logs/qemu-multiarch-20260222-012357/summary.md`
 
 ## Dedicated RVV Lane Status (Current)
 
@@ -45,9 +41,8 @@
 ## Experimental ASM Probe Snapshot
 
 - latest asm probe report: `tests/fafafa.core.simd/docs/experimental_asm_blockers.md`
-- latest asm probe summary: `tests/fafafa.core.simd/logs/qemu-multiarch-20260403-001103-3652254/summary.md`
+- latest asm probe summary: `tests/fafafa.core.simd/logs/qemu-multiarch-20260222-012357/summary.md`
 - baseline check: `tests/fafafa.core.simd/docs/experimental_asm_expected_failures.json`
-- latest probe conclusion: `linux/arm64` / `linux/riscv64` both PASS, no compile errors parsed
 
 ## Historical References
 

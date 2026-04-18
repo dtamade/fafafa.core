@@ -5,55 +5,21 @@
 ## 快速入口
 
 - 文档总索引：`docs/INDEX.md`
-- L0 稳定路线图：`docs/fafafa.core.l0.roadmap.md`
-- L0 详细定义：`docs/fafafa.core.l0.foundation.md`
-- 当前 L0 审计：`docs/audits/2026-04-11-l0-current-state-audit.md`
-- tail shell/runner head-ahead / no-absorb 审计：`docs/audits/2026-04-15-l0-tail-shell-runner-head-ahead-no-absorb-audit.md`
-- tail residual runner/source no-absorb 审计：`docs/audits/2026-04-15-l0-tail-residual-runner-source-no-absorb-audit.md`
-- sidecar async runner slice 审计：`docs/audits/2026-04-15-l0-sidecar-async-runner-slice-audit.md`
-- closeout/rescue source-review final clearout 审计：`docs/audits/2026-04-15-l0-closeout-rescue-final-source-review-clearout-audit.md`
-- retained refs post-merge sidecar/tail 审计：`docs/audits/2026-04-14-l0-retained-refs-sidecar-tail-postmerge-audit.md`
-- L0 post-merge 稳定化计划：`docs/plans/2026-04-11-l0-post-merge-stabilization-plan.md`
-- L0 历史批次 / 审计归档：`docs/legacy/l0/README.md`
 - 测试指南：`docs/TESTING.md`
 - CI 指南：`docs/CI.md`
 - 目录结构规范：`docs/standards/DIRECTORY_STANDARDS.md`
 - 工程规范：`docs/standards/ENGINEERING_STANDARDS.md`
 - 命名规范：`docs/standards/NAMING_CONVENTION_PROJECT.md`
 
-## L0 当前导航
-
-- L0 的稳定文档栈固定为：`docs/ARCHITECTURE_LAYERS.md` + `docs/fafafa.core.l0.foundation.md` + `docs/fafafa.core.l0.roadmap.md` + 最新 `docs/audits/*l0*.md`
-- strict L0 模块入口统一收在 `docs/INDEX.md` 的 `Strict L0 模块入口` 区段
-- strict L0 已经合并到 `main`；superseded 的 dated L0 plans/audits 统一下沉到 `docs/legacy/l0/`
-- 当前如果要继续沿 L0 维护，优先看最新 audit、roadmap、foundation 和 post-merge stabilization plan
-- 当前 retained-refs stale-review 收口入口固定为：`docs/audits/2026-04-15-l0-closeout-rescue-final-source-review-clearout-audit.md`
-- 当前 tail shell/runner no-absorb 收口入口固定为：`docs/audits/2026-04-15-l0-tail-shell-runner-head-ahead-no-absorb-audit.md`
-- 当前 tail residual runner/source no-absorb 收口入口固定为：`docs/audits/2026-04-15-l0-tail-residual-runner-source-no-absorb-audit.md`
-- 当前 sidecar async runner slice 收口入口固定为：`docs/audits/2026-04-15-l0-sidecar-async-runner-slice-audit.md`
-- Linux x64 的日常维护入口固定为：`bash tests/run_strict_l0_maintenance_loop.sh`
-- 当前 retained-refs triage 继续固定为：先看 `next_focus=`，再看 `test_hygiene_candidate_paths=` / `source_review_candidate_paths=` / `docs_absorb_candidate_paths=`；如果是 `source-review-first`，继续跑 `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh`
-- 第 2026-04-15 波之后，`closeout/rescue` 的 source-review shortlist 已 fresh 清空：`closeout.review_candidate_paths=0`、`rescue.review_candidate_paths=0`；`tests/fafafa.core.fs.async/*` 与 `tests/fafafa.core.socket.async/*` 这组 retained-ref 逆向 async runner diff 现在也只作为 already-absorbed/stale skip 落在 `review_skip_paths=`，`Test_vecdeque_span.pas` 则继续确认为 stale dead test code。若 shortlist 继续是 0/0，下一跳优先回到 `sidecar/tail` overlap 或 retained-refs inventory，而不是重开 broad absorb
-- 同日 fresh diff 还确认：`tests/cleanup_orphan_dirs.sh` + `tests/fafafa.core.fs/{ArchivePerfResult,BuildOrRunPerf,BuildOrRunResolvePerf,BuildOrRunPerfAll}.sh` + `tests/fafafa.core.fs/README-perf.md` 这组 tail shell/runner cluster 当前属于 current-HEAD-ahead / no-absorb；today contract 继续只由 `bash tests/test_active_shell_runners.sh` 与 `bash tests/test_fs_perf_shell_scripts.sh` 守住，不再按 tail 版本回灌
-- 同日 fresh diff 还确认：`src/fafafa.core.atomic.base.pas` 与 `src/fafafa.core.span.pas` 只剩 no-op residue；`tests/fafafa.core.option/BuildOrTest.bat` 与 `tests/fafafa.core.result/BuildOrTest.bat` 则属于 current-HEAD-ahead / no-absorb。today contract 继续由 `bash tests/test_l0_option_result_runner_hygiene.sh` 守住
-- 同日 `sidecar` 的唯一 exclusive mixed batch 也只切片吸收了 async runner hygiene，小撮 today contract 继续由 `bash tests/test_l0_async_test_runner_hygiene.sh` 守住；`examples/fafafa.core.sync*` 与 `examples/fafafa.core.sync.condvar*` 仍然 defer，不做 broad absorb
-- 当前几份 landing-zone docs：`docs/collections/legacy/README.md`、`docs/reports/README.md`、`docs/collections/reports/README.md`、`docs/benchmarks/reports/README.md` 与 `docs/legacy/l0/README.md` 继续以主线版本为准，不吸收 `sidecar` 的旧 pointer 叙事
-- 如果当前问题是 `sidecar/tail` 在 merged-main 之后还能不能删、各自还剩什么 exclusive batch，标准入口切到：`bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh`
-
 ## 文档放置约定（清理后的结构）
 
 - **模块文档（主入口）**：`docs/fafafa.core.<module>.md`
 - **模块扩展文档**：`docs/fafafa.core.<module>.*.md`（例如 best-practices / troubleshooting / api）
 - **规范/清单**：`docs/standards/`
-- **稳定路线图 / 主题设计**：优先使用长期可维护的主题入口，例如 `docs/fafafa.core.l0.roadmap.md`
-- **执行批次计划**：放 `docs/plans/YYYY-MM-DD-*.md`，只描述某一轮 dated batch，不再承担长期 current-entry
-- **L0 历史批次 / 审计**：统一下沉到 `docs/legacy/l0/`
-- **Collections 历史 plans / status / reviews**：统一下沉到 `docs/collections/legacy/`
-- **Examples current-entry**：优先使用各 domain 的 `examples/<module>/README.md`、`BuildOrRun*` 和 `.lpr` / `.lpi`；`bin/` / `lib/` / 本地 logs 不作为 source-of-truth
+- **设计与计划**：优先放 `docs/design/` 或 `docs/designs/`
 - **报告/复盘/审计/评审**：放 `docs/reports/`、`docs/audits/`、`docs/reviews/`（不要堆在 `docs/` 根目录）
-- **历史报告归档**：统一下沉到 `archive/reports/docs-root/`、`archive/reports/docs-collections/`、`archive/reports/docs-benchmarks/`；原目录只保留 README 指路页
 - **ADR**：`docs/adr/`
 - **可复用片段**：`docs/partials/`
-- **执行日志 / scratch 计划**：不要长期留在仓库根目录；需要入库时，直接归档到 `plans/archive/`，稳定结论再提升到 `docs/plans/` 或 `docs/audits/`
 
 > 目标：`docs/` 根目录只保留“长期有效”的入口与模块文档，过程性文档集中到子目录，避免越堆越乱。
+

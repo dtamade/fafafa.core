@@ -1,17 +1,15 @@
 # fafafa.core.contracts — strict L0 前置条件 Helper
 
-> 当前 strict L0 边界以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准；后续推进顺序以 `docs/fafafa.core.l0.roadmap.md` 为准。
+> 当前 strict L0 语义以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
 > `fafafa.core.contracts` 属于 strict non-SIMD L0，只负责统一前置条件 helper，不承载内部 invariant/assert 语义。
 
 ## 当前 source-of-truth
 
 1. `docs/fafafa.core.l0.foundation.md`
-2. `docs/fafafa.core.l0.roadmap.md`
-3. `docs/ARCHITECTURE_LAYERS.md`
-4. `src/fafafa.core.contracts.pas`
-5. `tests/fafafa.core.contracts/README.md`
-6. `tests/fafafa.core.contracts/BuildOrTest.sh`
-7. `tests/fafafa.core.contracts/BuildOrTest.bat`
+2. `docs/ARCHITECTURE_LAYERS.md`
+3. `src/fafafa.core.contracts.pas`
+4. `tests/fafafa.core.contracts/README.md`
+5. `tests/fafafa.core.contracts/BuildOrTest.sh`
 
 ## 目标
 
@@ -30,7 +28,7 @@
 
 - 这里定义的是 precondition helper，不是通用 assertion 框架。
 - `atomic` / `result.UnwrapUnchecked` 一类内部 invariant 继续使用 `Assert` 或模块自身语义，不迁到这里。
-- `fafafa.core.platform` / `fafafa.core.span` 已各自拥有独立的 strict L0 contract 文档；这里不代替它们给出准入结论，也不回收它们的模块语义。
+- 这里不负责 `platform` / `span` 候选方向；它们当前仍不在 strict L0 准入范围。
 
 ## 测试
 

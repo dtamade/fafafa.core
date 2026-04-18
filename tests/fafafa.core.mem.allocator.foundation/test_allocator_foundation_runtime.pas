@@ -12,17 +12,12 @@ uses
 
 type
   TTestCase_AllocatorFoundationRuntime = class(TTestCase)
-  private
-    procedure RaiseCreateCallbackAllocatorWithNilGetMem;
-    procedure RaiseCreateCallbackAllocatorWithNilAllocMem;
-    procedure RaiseCreateCallbackAllocatorWithNilReallocMem;
-    procedure RaiseCreateCallbackAllocatorWithNilFreeMem;
   published
     procedure Test_GetRtlAllocator_ZeroSize_NoOp;
     procedure Test_GetRtlAllocator_ReallocNil_Allocates;
     procedure Test_GetRtlAllocator_ReallocZero_Frees;
     procedure Test_CreateCallbackAllocator_ForwardsCalls;
-    procedure Test_CreateCallbackAllocator_NilCallbacks_FollowContractsPolicy;
+    procedure Test_CreateCallbackAllocator_RejectsNilCallbacks;
   end;
 
 implementation
@@ -63,26 +58,6 @@ begin
   GAllocMemCalls := 0;
   GReallocMemCalls := 0;
   GFreeMemCalls := 0;
-end;
-
-procedure TTestCase_AllocatorFoundationRuntime.RaiseCreateCallbackAllocatorWithNilGetMem;
-begin
-  CreateCallbackAllocator(nil, @RuntimeAllocMem, @RuntimeReallocMem, @RuntimeFreeMem).Free;
-end;
-
-procedure TTestCase_AllocatorFoundationRuntime.RaiseCreateCallbackAllocatorWithNilAllocMem;
-begin
-  CreateCallbackAllocator(@RuntimeGetMem, nil, @RuntimeReallocMem, @RuntimeFreeMem).Free;
-end;
-
-procedure TTestCase_AllocatorFoundationRuntime.RaiseCreateCallbackAllocatorWithNilReallocMem;
-begin
-  CreateCallbackAllocator(@RuntimeGetMem, @RuntimeAllocMem, nil, @RuntimeFreeMem).Free;
-end;
-
-procedure TTestCase_AllocatorFoundationRuntime.RaiseCreateCallbackAllocatorWithNilFreeMem;
-begin
-  CreateCallbackAllocator(@RuntimeGetMem, @RuntimeAllocMem, @RuntimeReallocMem, nil).Free;
 end;
 
 procedure TTestCase_AllocatorFoundationRuntime.Test_GetRtlAllocator_ZeroSize_NoOp;
@@ -148,48 +123,12 @@ begin
   end;
 end;
 
-procedure TTestCase_AllocatorFoundationRuntime.Test_CreateCallbackAllocator_NilCallbacks_FollowContractsPolicy;
-var
-  LAllocator: TCallbackAllocator;
+procedure TTestCase_AllocatorFoundationRuntime.Test_CreateCallbackAllocator_RejectsNilCallbacks;
 begin
-  {$IFDEF FAFAFA_CORE_CONTRACTS}
-  AssertException('CreateCallbackAllocator should reject nil callbacks', EArgumentNil,
-    @RaiseCreateCallbackAllocatorWithNilGetMem);
-  AssertException('CreateCallbackAllocator should reject nil AllocMem callback', EArgumentNil,
-    @RaiseCreateCallbackAllocatorWithNilAllocMem);
-  AssertException('CreateCallbackAllocator should reject nil ReallocMem callback', EArgumentNil,
-    @RaiseCreateCallbackAllocatorWithNilReallocMem);
-  AssertException('CreateCallbackAllocator should reject nil FreeMem callback', EArgumentNil,
-    @RaiseCreateCallbackAllocatorWithNilFreeMem);
-  {$ELSE}
-  LAllocator := CreateCallbackAllocator(nil, @RuntimeAllocMem, @RuntimeReallocMem, @RuntimeFreeMem);
-  try
-    AssertNotNull('CreateCallbackAllocator should stay constructible when contracts are disabled', LAllocator);
-  finally
-    LAllocator.Free;
-  end;
-
-  LAllocator := CreateCallbackAllocator(@RuntimeGetMem, nil, @RuntimeReallocMem, @RuntimeFreeMem);
-  try
-    AssertNotNull('CreateCallbackAllocator should stay constructible without contracts for nil AllocMem', LAllocator);
-  finally
-    LAllocator.Free;
-  end;
-
-  LAllocator := CreateCallbackAllocator(@RuntimeGetMem, @RuntimeAllocMem, nil, @RuntimeFreeMem);
-  try
-    AssertNotNull('CreateCallbackAllocator should stay constructible without contracts for nil ReallocMem', LAllocator);
-  finally
-    LAllocator.Free;
-  end;
-
-  LAllocator := CreateCallbackAllocator(@RuntimeGetMem, @RuntimeAllocMem, @RuntimeReallocMem, nil);
-  try
-    AssertNotNull('CreateCallbackAllocator should stay constructible without contracts for nil FreeMem', LAllocator);
-  finally
-    LAllocator.Free;
-  end;
-  {$ENDIF}
+  AssertException('CreateCallbackAllocator should reject nil callbacks', EArgumentNil, procedure
+  begin
+    CreateCallbackAllocator(nil, @RuntimeAllocMem, @RuntimeReallocMem, @RuntimeFreeMem).Free;
+  end);
 end;
 
 initialization

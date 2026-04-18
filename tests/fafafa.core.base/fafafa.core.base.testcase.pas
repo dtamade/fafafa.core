@@ -2,7 +2,6 @@ unit fafafa.core.base.testcase;
 
 {$mode objfpc}{$H+}
 {$modeswitch advancedrecords}
-{$I ../../src/fafafa.core.settings.inc}
 
 interface
 

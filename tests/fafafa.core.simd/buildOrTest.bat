@@ -488,11 +488,6 @@ if /I "%SIMD_ADAPTER_SYNC_PASCAL_SMOKE%"=="0" (
   if errorlevel 1 exit /b 1
 )
 
-call :adapter_sync_checker_only
-exit /b %ERRORLEVEL%
-
-:adapter_sync_checker_only
-
 set "ADAPTER_SYNC_SCRIPT=%ROOT%check_backend_adapter_sync.py"
 if not exist "%ADAPTER_SYNC_SCRIPT%" (
   echo [ADAPTER-SYNC] Missing checker: %ADAPTER_SYNC_SCRIPT%
@@ -1295,7 +1290,7 @@ set "SIMD_GATE_EXPERIMENTAL=1"
 set "SIMD_GATE_EXPERIMENTAL_TESTS=1"
 set "SIMD_GATE_NONX86_IEEE754=1"
 if "%SIMD_GATE_CPUINFO_LAZY_REPEAT%"=="" set "SIMD_GATE_CPUINFO_LAZY_REPEAT=3"
-if "%SIMD_GATE_QEMU_NONX86_EVIDENCE%"=="" set "SIMD_GATE_QEMU_NONX86_EVIDENCE=0"
+set "SIMD_GATE_QEMU_NONX86_EVIDENCE=0"
 if "%SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE%"=="" set "SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1"
 if "%SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE%"=="" set "SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0"
 if "%SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT%"=="" set "SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0"
@@ -1367,17 +1362,14 @@ if /I "%SIMD_GATE_ADAPTER_SYNC_PASCAL%"=="1" (
   echo [GATE] Optional backend adapter sync Pascal smoke
   call "%SELF%" adapter-sync-pascal
   if errorlevel 1 exit /b 1
+  set "SIMD_ADAPTER_SYNC_PASCAL_SMOKE=0"
 ) else (
   echo [GATE] SKIP optional backend adapter sync Pascal smoke ^(set SIMD_GATE_ADAPTER_SYNC_PASCAL=1 to enable^)
 )
 
 if /I "%SIMD_GATE_ADAPTER_SYNC%"=="1" (
   echo [GATE] Optional backend adapter sync
-  if /I "%SIMD_GATE_ADAPTER_SYNC_PASCAL%"=="1" (
-    call :adapter_sync_checker_only
-  ) else (
-    call "%SELF%" adapter-sync
-  )
+  call "%SELF%" adapter-sync
   if errorlevel 1 exit /b 1
 ) else (
   echo [GATE] SKIP optional backend adapter sync ^(set SIMD_GATE_ADAPTER_SYNC=1 to enable^)
@@ -1677,7 +1669,7 @@ echo 4^) Confirm freeze status ^(Git Bash / WSL^)
 echo    bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status
 echo.
 echo Notes:
-echo    Step 3 runs finalize ^> freeze-status ^> apply, and apply is blocked unless freeze_ready=true and freeze_status.json is fresh versus the current summary/evidence.
+echo    Step 3 runs finalize ^> freeze-status ^> apply, and apply is blocked unless freeze_ready=true.
 echo    If step 0 returns RECENT_BILLING_BLOCK, fix GitHub Billing/quota first.
 exit /b 0
 

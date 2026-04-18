@@ -48,7 +48,6 @@
 - **后端成熟度不是单一等级**：同一个 façade 背后可以连接不同成熟度的 backend；`sbRISCVV` 目前应继续按 experimental / 受限成熟度理解，而不是与 `SSE2` / `AVX2` / `NEON` 视为同等稳定级别
 - **`sbRISCVV` 默认不进 umbrella**：当前只有在定义 `SIMD_EXPERIMENTAL_RISCVV` 时，`fafafa.core.simd` 才会接线 `fafafa.core.simd.riscvv`；默认 stable 入口链不会因为平台满足就自动带入实验后端
 - **experimental intrinsics 默认不在稳定面内**：这些单元已有默认入口隔离检查，默认入口链只保证它们不会泄漏进常规 façade，而不意味着它们已经自动进入发布级保证范围
-- **native / QEMU evidence 也分层**：ARM64 NEON 与 RISCVV 的 native evidence 当前属于 enhanced evidence；默认 nightly 会归档 ARM64 NEON，RISCVV 仍保留为 self-hosted 手工路径。除非显式打开对应强约束，当前 freeze 硬门禁仍以 canonical `gate/freeze-status` + Windows/QEMU 证据为准
 
 如果你在维护时需要一句最短判断，可以用这句：**stable 的是公开 façade 与仓库内 dispatch contract，不是“所有 backend 都已达到相同成熟度”，更不是“当前 record layout 已经是 public binary ABI”。**
 
