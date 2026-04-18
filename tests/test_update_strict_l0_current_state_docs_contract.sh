@@ -55,6 +55,11 @@ rg -F "docs_absorb_candidate_paths=" "${AUDIT_FILE}" >/dev/null \
   || fail "audit missing docs absorb candidate routing"
 rg -F "report_strict_l0_retained_refs_source_review_shortlist.sh" "${AUDIT_FILE}" >/dev/null \
   || fail "audit missing source-review shortlist command"
+rg -F "只有当 fresh 输出同时给出 \`closeout.review_candidate_paths=0\` 与 \`rescue.review_candidate_paths=0\` 时，才把 \`closeout/rescue\` 视为已清空" "${AUDIT_FILE}" >/dev/null \
+  || fail "audit missing fresh-shortlist dual-zero gating"
+rg -F "docs/audits/2026-04-15-l0-closeout-rescue-final-source-review-clearout-audit.md" "${AUDIT_FILE}" >/dev/null \
+  || fail "audit missing historical clearout audit reference"
+rg -F "已 fresh 清空" "${AUDIT_FILE}" >/dev/null && fail "audit still claims shortlist already cleared"
 rg -F "report_strict_l0_retained_refs_sidecar_tail_overlap.sh" "${AUDIT_FILE}" >/dev/null \
   || fail "audit missing sidecar-tail overlap command"
 rg -F "tests/cleanup_orphan_dirs.sh" "${AUDIT_FILE}" >/dev/null \
@@ -71,8 +76,8 @@ rg -F "tail_only_commit_count=" "${AUDIT_FILE}" >/dev/null \
   || fail "audit missing tail overlap count"
 rg -F "仍锚定 \`main@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\`" "${AUDIT_FILE}" >/dev/null \
   || fail "audit missing merged-main Windows mismatch posture"
-rg -F "Base commit: \`1111111111111111111111111111111111111111\`" "${WORKER_FILE}" >/dev/null \
-  || fail "worker handoff missing base commit"
+rg -F "Local main head: \`1111111111111111111111111111111111111111\` (\`main\`)" "${WORKER_FILE}" >/dev/null \
+  || fail "worker handoff missing local main head"
 rg -F "GitHub Actions \`L0 Linux Maintenance\` run \`1001\`" "${WORKER_FILE}" >/dev/null \
   || fail "worker handoff missing Linux run"
 rg -F "GitHub Actions \`L0 Windows Native Evidence\` run \`1002\`" "${WORKER_FILE}" >/dev/null \
@@ -87,6 +92,10 @@ rg -F "docs_absorb_candidate_paths=" "${WORKER_FILE}" >/dev/null \
   || fail "worker handoff missing docs absorb candidate routing"
 rg -F "report_strict_l0_retained_refs_source_review_shortlist.sh" "${WORKER_FILE}" >/dev/null \
   || fail "worker handoff missing source-review shortlist command"
+rg -F "只有 fresh 双零才算清空" "${WORKER_FILE}" >/dev/null \
+  || fail "worker handoff missing fresh dual-zero current-entry rule"
+rg -F "已清空的 source-review lane" "${WORKER_FILE}" >/dev/null && fail "worker handoff still hardcodes cleared source-review lane"
+rg -F "shortlist 已清空" "${WORKER_FILE}" >/dev/null && fail "worker handoff still claims shortlist already cleared"
 rg -F "report_strict_l0_retained_refs_sidecar_tail_overlap.sh" "${WORKER_FILE}" >/dev/null \
   || fail "worker handoff missing sidecar-tail overlap command"
 rg -F "tests/cleanup_orphan_dirs.sh" "${WORKER_FILE}" >/dev/null \
@@ -107,8 +116,8 @@ rg -F "docs/plans/2026-04-16-l0-mainline-continuation-plan.md" "${WORKER_FILE}" 
   || fail "worker handoff missing continuation plan source-of-truth entry"
 rg -F -- "--origin-main-sha <origin-main-sha> --worktree-sha <worktree-sha>" "${WORKER_FILE}" >/dev/null \
   || fail "worker handoff missing split main/origin/worktree updater command"
-rg -F "merge commit：\`1111111111111111111111111111111111111111\`" "${LEGACY_FILE}" >/dev/null \
-  || fail "legacy closeout missing main merge commit"
+rg -F "当前本地 \`main\` head：\`1111111111111111111111111111111111111111\`" "${LEGACY_FILE}" >/dev/null \
+  || fail "legacy closeout missing local main head"
 rg -F "仍锚定 \`main@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\`" "${LEGACY_FILE}" >/dev/null \
   || fail "legacy closeout missing merged-main Windows mismatch posture"
 rg -F "TEST-L0-BATCH" "${LEGACY_FILE}" >/dev/null \
@@ -146,19 +155,62 @@ rg -F "当前 \`origin/main\` head 是 \`222222222222222222222222222222222222222
   || fail "diverged audit missing origin/main head"
 rg -F "当前唯一 L0 worktree \`l0-mainline\` 目前位于 \`3333333333333333333333333333333333333333\`；相对本地 \`main@1111111111111111111111111111111111111111\` 仍承载待整理的本地 L0 增量。" "${DIVERGED_AUDIT_FILE}" >/dev/null \
   || fail "diverged audit missing worktree-vs-main line"
-rg -F "当前本地 \`main\` 已推进到 \`1111111111111111111111111111111111111111\`；当前 \`origin/main\` 仍在 \`2222222222222222222222222222222222222222\`；最新 exact Windows native evidence 仍锚定 \`main@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\`。" "${DIVERGED_AUDIT_FILE}" >/dev/null \
+rg -F "当前本地 \`main\` head 是 \`1111111111111111111111111111111111111111\`；当前 \`origin/main\` head 是 \`2222222222222222222222222222222222222222\`；当前 L0 worktree head 是 \`3333333333333333333333333333333333333333\`；latest exact Windows native evidence 仍锚定 \`main@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\`。" "${DIVERGED_AUDIT_FILE}" >/dev/null \
   || fail "diverged audit missing local-vs-origin-vs-windows posture"
-rg -F "Base commit: \`1111111111111111111111111111111111111111\` (\`main\`)" "${DIVERGED_WORKER_FILE}" >/dev/null \
-  || fail "diverged worker missing local main base commit"
+rg -F "Local main head: \`1111111111111111111111111111111111111111\` (\`main\`)" "${DIVERGED_WORKER_FILE}" >/dev/null \
+  || fail "diverged worker missing local main head"
 rg -F "Remote main head: \`2222222222222222222222222222222222222222\` (\`origin/main\`)" "${DIVERGED_WORKER_FILE}" >/dev/null \
   || fail "diverged worker missing origin/main head"
 rg -F "当前本地 \`main@1111111111111111111111111111111111111111\`、\`origin/main@2222222222222222222222222222222222222222\` 与当前 worktree head \`3333333333333333333333333333333333333333\` 明确区分" "${DIVERGED_WORKER_FILE}" >/dev/null \
   || fail "diverged worker missing split head focus line"
-rg -F "当前本地 main merge commit：\`1111111111111111111111111111111111111111\`" "${DIVERGED_LEGACY_FILE}" >/dev/null \
-  || fail "diverged legacy closeout missing local main merge commit"
+rg -F "当前本地 \`main\` head：\`1111111111111111111111111111111111111111\`" "${DIVERGED_LEGACY_FILE}" >/dev/null \
+  || fail "diverged legacy closeout missing local main head"
 rg -F "当前 \`origin/main\` head：\`2222222222222222222222222222222222222222\`" "${DIVERGED_LEGACY_FILE}" >/dev/null \
   || fail "diverged legacy closeout missing origin/main head"
-rg -F "当前本地 \`main\` 已推进到 \`1111111111111111111111111111111111111111\`；当前 \`origin/main\` 仍在 \`2222222222222222222222222222222222222222\`；latest exact Windows native evidence 仍锚定 \`main@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\`" "${DIVERGED_LEGACY_FILE}" >/dev/null \
+rg -F "当前本地 \`main\` head 是 \`1111111111111111111111111111111111111111\`；当前 \`origin/main\` head 是 \`2222222222222222222222222222222222222222\`；当前 L0 worktree head 是 \`3333333333333333333333333333333333333333\`；latest exact Windows native evidence 仍锚定 \`main@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\`" "${DIVERGED_LEGACY_FILE}" >/dev/null \
   || fail "diverged legacy closeout missing local-vs-origin posture"
+
+LTmpDirAligned="$(mktemp -d)"
+trap 'rm -rf "${LTmpDir}" "${LTmpDirDiverged}" "${LTmpDirAligned}"' EXIT
+
+mkdir -p "${LTmpDirAligned}/docs/audits" "${LTmpDirAligned}/docs/legacy/l0" "${LTmpDirAligned}/workers"
+
+bash "${TARGET_SCRIPT}" \
+  --apply \
+  --target-root "${LTmpDirAligned}" \
+  --main-sha "1111111111111111111111111111111111111111" \
+  --origin-main-sha "2222222222222222222222222222222222222222" \
+  --worktree-sha "2222222222222222222222222222222222222222" \
+  --linux-run-id "3001" \
+  --linux-run-sha "2222222222222222222222222222222222222222" \
+  --windows-run-id "3002" \
+  --windows-run-sha "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" \
+  --windows-local-batch-id "TEST-L0-ALIGNED" >/dev/null 2>&1 \
+  || fail "docs updater failed to apply origin-aligned active worktree sample data"
+
+ALIGNED_AUDIT_FILE="${LTmpDirAligned}/docs/audits/2026-04-11-l0-current-state-audit.md"
+ALIGNED_LEGACY_FILE="${LTmpDirAligned}/docs/legacy/l0/2026-04-11-l0-mainline-refs-and-ci-closeout.md"
+ALIGNED_WORKER_FILE="${LTmpDirAligned}/workers/worker1.md"
+
+[[ -f "${ALIGNED_AUDIT_FILE}" ]] || fail "aligned audit missing"
+[[ -f "${ALIGNED_LEGACY_FILE}" ]] || fail "aligned legacy closeout missing"
+[[ -f "${ALIGNED_WORKER_FILE}" ]] || fail "aligned worker handoff missing"
+
+rg -F "当前唯一 L0 worktree \`l0-mainline\` 目前位于 \`2222222222222222222222222222222222222222\`，并与 \`origin/main@2222222222222222222222222222222222222222\` 一致；root \`main@1111111111111111111111111111111111111111\` 仍只作为本地脏工作区记录，不是当前执行面。" "${ALIGNED_AUDIT_FILE}" >/dev/null \
+  || fail "aligned audit missing origin-aligned worktree line"
+rg -F "当前 root \`main\` head 是 \`1111111111111111111111111111111111111111\`；当前 \`origin/main\` 与 active L0 worktree 已位于 \`2222222222222222222222222222222222222222\`；latest exact Windows native evidence 仍锚定 \`main@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\`。" "${ALIGNED_AUDIT_FILE}" >/dev/null \
+  || fail "aligned audit missing active-lane windows posture"
+rg -F "Local main head: \`1111111111111111111111111111111111111111\` (\`main\`)" "${ALIGNED_WORKER_FILE}" >/dev/null \
+  || fail "aligned worker missing local main head"
+rg -F "Remote main head: \`2222222222222222222222222222222222222222\` (\`origin/main\`)" "${ALIGNED_WORKER_FILE}" >/dev/null \
+  || fail "aligned worker missing remote main head"
+rg -F "当前 active L0 worktree head \`2222222222222222222222222222222222222222\` 与 \`origin/main@2222222222222222222222222222222222222222\` 一致，而 root \`main@1111111111111111111111111111111111111111\` 仍需单独记录" "${ALIGNED_WORKER_FILE}" >/dev/null \
+  || fail "aligned worker missing active-lane focus line"
+rg -F "当前本地 \`main\` head：\`1111111111111111111111111111111111111111\`" "${ALIGNED_LEGACY_FILE}" >/dev/null \
+  || fail "aligned legacy closeout missing local main head"
+rg -F "当前 \`origin/main\` head：\`2222222222222222222222222222222222222222\`" "${ALIGNED_LEGACY_FILE}" >/dev/null \
+  || fail "aligned legacy closeout missing origin/main head"
+rg -F "当前 root \`main\` head 是 \`1111111111111111111111111111111111111111\`；当前 \`origin/main\` 与 active L0 worktree 已位于 \`2222222222222222222222222222222222222222\`；latest exact Windows native evidence 仍锚定 \`main@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\`" "${ALIGNED_LEGACY_FILE}" >/dev/null \
+  || fail "aligned legacy closeout missing active-lane windows posture"
 
 echo "[PASS] strict L0 current-state docs updater contract verified"

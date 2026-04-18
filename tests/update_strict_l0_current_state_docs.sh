@@ -105,23 +105,6 @@ LEGACY_FILE="${TARGET_ROOT}/docs/legacy/l0/2026-04-11-l0-mainline-refs-and-ci-cl
 WORKER_FILE="${TARGET_ROOT}/workers/worker1.md"
 WINDOWS_SNAPSHOT_PATH="tests/_windows_l0_native_evidence_gh/${WINDOWS_LOCAL_BATCH_ID}/"
 
-if [[ "${WINDOWS_RUN_SHA}" == "${MAIN_SHA}" ]]; then
-  printf -v WINDOWS_POSTURE_LINE \
-    -- '- 当前最新的 exact Windows native evidence 已直接对当前 `main@%s` 收证。' \
-    "${MAIN_SHA}"
-elif [[ "${ORIGIN_MAIN_SHA}" != "${MAIN_SHA}" ]]; then
-  printf -v WINDOWS_POSTURE_LINE \
-    -- '- 当前本地 `main` 已推进到 `%s`；当前 `origin/main` 仍在 `%s`；最新 exact Windows native evidence 仍锚定 `main@%s`。只有在确认 current `main` 相对该证据头没有新增 strict L0 代码或测试入口变化时，才应继续把差异理解为 docs / control-plane-only 增量。' \
-    "${MAIN_SHA}" \
-    "${ORIGIN_MAIN_SHA}" \
-    "${WINDOWS_RUN_SHA}"
-else
-  printf -v WINDOWS_POSTURE_LINE \
-    -- '- 当前 `main` 已推进到 `%s`；最新 exact Windows native evidence 仍锚定 `main@%s`，两者之间的差异应继续保持为 docs / control-plane-only 增量。' \
-    "${MAIN_SHA}" \
-    "${WINDOWS_RUN_SHA}"
-fi
-
 if [[ "${APPLY_MODE}" != "1" ]]; then
   echo "[L0-DOCS-BACKFILL] Planned targets:"
   echo "${AUDIT_FILE}"
@@ -145,7 +128,6 @@ WINDOWS_RUN_ID_ENV="${WINDOWS_RUN_ID}" \
 WINDOWS_RUN_SHA_ENV="${WINDOWS_RUN_SHA}" \
 WINDOWS_LOCAL_BATCH_ID_ENV="${WINDOWS_LOCAL_BATCH_ID}" \
 WINDOWS_SNAPSHOT_PATH_ENV="${WINDOWS_SNAPSHOT_PATH}" \
-WINDOWS_POSTURE_LINE_ENV="${WINDOWS_POSTURE_LINE}" \
 python3 - <<'PY'
 import os
 from pathlib import Path
@@ -162,7 +144,6 @@ linux_run_sha = os.environ["LINUX_RUN_SHA_ENV"]
 windows_run_id = os.environ["WINDOWS_RUN_ID_ENV"]
 windows_run_sha = os.environ["WINDOWS_RUN_SHA_ENV"]
 windows_snapshot_path = os.environ["WINDOWS_SNAPSHOT_PATH_ENV"]
-windows_posture_line = os.environ["WINDOWS_POSTURE_LINE_ENV"]
 
 local_main_head_line = f"- 当前本地 `main` head 是 `{main_sha}`。"
 origin_main_head_line = f"- 当前 `origin/main` head 是 `{origin_main_sha}`。"
@@ -184,6 +165,16 @@ if worktree_sha == main_sha:
         worker_head_focus_line = (
             f"- 保持 merged-main current-state 文档显式写清：latest exact Windows native evidence 仍锚定 `main@{windows_run_sha}`；并把当前本地 `main@{main_sha}`、`origin/main@{origin_main_sha}` 与当前 worktree head `{worktree_sha}` 明确区分，避免把 docs / control-plane-only mainline closeout 混写成 origin/main 已同步。"
         )
+elif worktree_sha == origin_main_sha:
+    worktree_head_line = (
+        f"- 当前唯一 L0 worktree `l0-mainline` 目前位于 `{worktree_sha}`，并与 `origin/main@{origin_main_sha}` 一致；root `main@{main_sha}` 仍只作为本地脏工作区记录，不是当前执行面。"
+    )
+    maintenance_worktree_line = (
+        f"- 当前唯一 L0 worktree 仍固定为 `l0-mainline`；当前 head=`{worktree_sha}` 与 `origin/main@{origin_main_sha}` 一致，而 root `main@{main_sha}` 仍是本地脏工作区。不要把 root `main` 当成当前 L0 执行面。"
+    )
+    worker_head_focus_line = (
+        f"- 保持 merged-main current-state 文档显式写清：latest exact Windows native evidence 仍锚定 `main@{windows_run_sha}`；当前 active L0 worktree head `{worktree_sha}` 与 `origin/main@{origin_main_sha}` 一致，而 root `main@{main_sha}` 仍需单独记录，避免把 root 工作区状态混写成当前 L0 lane。"
+    )
 else:
     worktree_head_line = (
         f"- 当前唯一 L0 worktree `l0-mainline` 目前位于 `{worktree_sha}`；相对本地 `main@{main_sha}` 仍承载待整理的本地 L0 增量。"
@@ -193,6 +184,26 @@ else:
     )
     worker_head_focus_line = (
         f"- 保持 merged-main current-state 文档显式写清：latest exact Windows native evidence 仍锚定 `main@{windows_run_sha}`；并把当前本地 `main@{main_sha}`、`origin/main@{origin_main_sha}` 与当前 worktree head `{worktree_sha}` 明确区分，避免把未合并 L0 增量误写成已经进 main。"
+    )
+
+if windows_run_sha == worktree_sha and worktree_sha == origin_main_sha:
+    if main_sha == worktree_sha:
+        windows_posture_line = f"- 当前最新的 exact Windows native evidence 已直接对当前 `main@{worktree_sha}` 收证。"
+    else:
+        windows_posture_line = (
+            f"- 当前 active L0 lane `l0-mainline@{worktree_sha}` 已直接拿到 exact Windows native evidence；root `main@{main_sha}` 继续只作为本地工作区记录。"
+        )
+elif worktree_sha == origin_main_sha and worktree_sha != main_sha:
+    windows_posture_line = (
+        f"- 当前 root `main` head 是 `{main_sha}`；当前 `origin/main` 与 active L0 worktree 已位于 `{worktree_sha}`；latest exact Windows native evidence 仍锚定 `main@{windows_run_sha}`。只有在确认当前 active L0 lane 相对该证据头没有新增 strict L0 代码或测试入口变化时，才应继续把差异理解为 docs / control-plane-only 增量。"
+    )
+elif origin_main_sha != main_sha or worktree_sha != main_sha:
+    windows_posture_line = (
+        f"- 当前本地 `main` head 是 `{main_sha}`；当前 `origin/main` head 是 `{origin_main_sha}`；当前 L0 worktree head 是 `{worktree_sha}`；latest exact Windows native evidence 仍锚定 `main@{windows_run_sha}`。只有在确认当前 active L0 lane 相对该证据头没有新增 strict L0 代码或测试入口变化时，才应继续把差异理解为 docs / control-plane-only 增量。"
+    )
+else:
+    windows_posture_line = (
+        f"- 当前 `main` head 是 `{main_sha}`；最新 exact Windows native evidence 仍锚定 `main@{windows_run_sha}`，两者之间的差异应继续保持为 docs / control-plane-only 增量。"
     )
 
 audit_text = f"""# 2026-04-11 L0 Current State Audit
@@ -224,7 +235,7 @@ audit_text = f"""# 2026-04-11 L0 Current State Audit
 - 第 2026-04-14 波之后，`closeout` 的 `mem allocator + fs perf wrapper/README` cluster 与 `rescue` 的 `mem/result/span + base/bits/contracts/result/span test-entry` cluster 也已经完成 fresh review：它们分别只会回退 today boundary、today runner 或 today docs narrative，因此当前统一转入 `review_skip_paths=`，不做吸收。
 - 同日后续波之后，`rescue` 的 `examples/fafafa.core.atomic/base/option/result` BuildOrRun/example-source cluster，以及 `tests/fafafa.core.{{endian,layout,mem,option,platform}}` 的 stale runner/doc cluster 也已经完成 fresh review：它们只会把 today example entry、today wrapper contract 或 today docs 叙事回退成旧版本，因此同样统一转入 `review_skip_paths=`。
 - 同日后续波还再次确认：`docs/collections/legacy/README.md`、`docs/reports/README.md`、`docs/collections/reports/README.md`、`docs/benchmarks/reports/README.md` 与 `docs/legacy/l0/README.md` 这些 landing-zone docs 继续以当前主线版本为准；`sidecar` 暴露的旧 archive-pointer / legacy-pointer 文本不应吸收。
-- 第 2026-04-15 波之后，`closeout/rescue` 的 source-review shortlist 已 fresh 清空：`closeout.review_candidate_paths=0`、`rescue.review_candidate_paths=0`。同时 fresh API/runner 复核还确认：最后一个看起来像候选的 `tests/fafafa.core.collections/vecdeque/Test_vecdeque_span.pas` 其实是未接线且依赖已移除 `SliceView` API 的 stale dead test code；它继续只留在 `review_skip_paths=`，不构成 today absorb。
+- 第 2026-04-15 波之后，`docs/audits/2026-04-15-l0-closeout-rescue-final-source-review-clearout-audit.md` 仍保留那一波 clearout 的历史语境，但 current-entry 不再把它直接写成今天已经归零；现在必须以 fresh `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh` 输出为准，只有当 fresh 输出同时给出 `closeout.review_candidate_paths=0` 与 `rescue.review_candidate_paths=0` 时，才把 `closeout/rescue` 视为已清空。历史 clearout 同时还确认：最后一个看起来像候选的 `tests/fafafa.core.collections/vecdeque/Test_vecdeque_span.pas` 其实是未接线且依赖已移除 `SliceView` API 的 stale dead test code；它继续只留在 `review_skip_paths=`，不构成 today absorb。
 - 同日 `sidecar` 的唯一 exclusive mixed batch 也只切片吸收了 async runner hygiene：`tests/fafafa.core.fs.async/*` 与 `tests/fafafa.core.socket.async/*` 的 today contract 现在固定由 `bash tests/test_l0_async_test_runner_hygiene.sh` 守住；`examples/fafafa.core.sync*` / `examples/fafafa.core.sync.condvar*` 仍继续 defer，不做 broad absorb。
 - 当前 4 个残留 L0 refs 仍承载独立 patch history；refs cleanup 结论继续保持显式 `no-op`。
 
@@ -329,11 +340,11 @@ audit_text = f"""# 2026-04-11 L0 Current State Audit
 - 同日 fresh diff 还确认：`src/fafafa.core.atomic.base.pas` 与 `src/fafafa.core.span.pas` 只剩 no-op residue；`tests/fafafa.core.option/BuildOrTest.bat` 与 `tests/fafafa.core.result/BuildOrTest.bat` 则属于 current-HEAD-ahead / no-absorb。对应 today 守门入口固定为 `bash tests/test_l0_option_result_runner_hygiene.sh`。
 - 第九波之后，如果 `next_focus=source-review-first`，当前标准入口是 `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh`；它会继续显式输出 `review_candidate_paths=`、`review_skip_paths=`、`simd_out_of_scope_paths=`、`dangerous_delete_paths=` 与 `reject_wholesale_absorb=`。
 - 第十波之后，如果 `closeout` 仍只剩 test-doc residue，先跑 `bash tests/test_strict_l0_retained_refs_closeout_test_docs_no_downgrade_contract.sh`，确认这些 README 没有把 current-entry 反向降级。
-- 第 2026-04-14 波之后，如果 `closeout` shortlist 已清空，说明 `mem allocator + fs perf wrapper/README` 这组路径已经被判为 stale skip；它们只在 `tail` lane 里继续以 today shell hygiene contract 存在，不再是 `closeout` 的 source-review 候选。
+- 第 2026-04-14 波之后，`mem allocator + fs perf wrapper/README` 这组路径已经被 fresh review 判为 stale skip；它们只在 `tail` lane 里继续以 today shell hygiene contract 存在，不再是 `closeout` 的 source-review 候选。
 - 同一波之后，`rescue` 里 `mem/result/span + base/bits/contracts/result/span test-entry` 这一簇也已经固定为 stale skip；尤其 `result` 的旧 anon-ref gating、`span` 的旧 single-span-only cut 与 `*.test.lpr` 缺 `settings.inc` 都不再应被当成吸收入口。
 - 同日后续波之后，`rescue` 的 examples/build/runner/doc stale cluster 也已经固定为 stale skip；尤其 `examples/fafafa.core.atomic/base/option/result` 的 `BuildOrRun*` / example source、`tests/fafafa.core.{{endian,layout,mem,option,platform}}` 的 runner 变体，以及 `tests/fafafa.core.fs/README-perf.md`、`tests/fafafa.core.mem/README.md`、`tests/fafafa.core.option/README.md` 都不再应被当成新的吸收入口。
 - 同日后续波还确认 `docs/collections/legacy/README.md`、`docs/reports/README.md`、`docs/collections/reports/README.md`、`docs/benchmarks/reports/README.md` 与 `docs/legacy/l0/README.md` 的 landing-zone 叙事已经是 today contract；如果 inventory 继续暴露这些 docs residue，优先判 stale/no-absorb，而不是回灌 `sidecar` 的旧 pointer 文本。
-- 第 2026-04-15 波之后，如果 fresh shortlist 继续给出 `closeout.review_candidate_paths=0` 与 `rescue.review_candidate_paths=0`，说明 `closeout/rescue` 的 source-review surface 已清空；下一跳应回到 `bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh` 或 retained-refs inventory，而不是重开 broad absorb。
+- 第 2026-04-15 波之后，只有当 fresh shortlist 同时给出 `closeout.review_candidate_paths=0` 与 `rescue.review_candidate_paths=0` 时，才说明 `closeout/rescue` 的 source-review surface 已清空；否则 current-entry 继续以 fresh shortlist 非零结果为准。满足双零条件后的下一跳应回到 `bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh` 或 retained-refs inventory，而不是重开 broad absorb。
 - 第 2026-04-14 波之后，如果当前问题从 absorb class 变成了 `sidecar/tail` pairwise cleanup readiness，当前标准入口是 `bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh`；它会继续显式输出 `sidecar_only_commit_count=`、`tail_only_commit_count=`、`sidecar_safe_delete_now=`、`tail_safe_delete_now=` 与 `pairwise_cleanup_readiness=`。
 - 同日如果当前问题落在 `sidecar` 的唯一 exclusive mixed batch 上，也不要 broad absorb；先把 async runner hygiene 限定到 `bash tests/test_l0_async_test_runner_hygiene.sh` 这一条 today contract，再把 sync/condvar examples 与 docs/log residue 继续留在 defer lane。
 - 第九波之后，`tests/fafafa.core.archiver/last-run.txt`、`tests/fafafa.core.atomic/tests_atomic`、`tests/fafafa.core.sync.barrier/*_output.txt` 与 `tests/fafafa.core.fs/performance-data/*latest*` 这类 residue 已不再属于主线 tracked surface。
@@ -368,7 +379,7 @@ legacy_text = f"""# 2026-04-11 L0 Mainline Refs And CI Closeout
 
 ## Final Resolution
 
-- 当前本地 main merge commit：`{main_sha}`
+- 当前本地 `main` head：`{main_sha}`
 - 当前 `origin/main` head：`{origin_main_sha}`
 - GitHub Actions `L0 Linux Maintenance` run `{linux_run_id}`
   - head sha：`{linux_run_sha}`
@@ -383,7 +394,7 @@ legacy_text = f"""# 2026-04-11 L0 Mainline Refs And CI Closeout
 
 - mainline Linux workflow 已可 dispatch 并 fresh 通过
 - Windows exact evidence 也已收齐
-- 当前本地 `main` 已推进到 `{main_sha}`；当前 `origin/main` 仍在 `{origin_main_sha}`；latest exact Windows native evidence 仍锚定 `main@{windows_run_sha}`。只有在确认 current `main` 相对该证据头没有新增 strict L0 代码或测试入口变化时，才应继续把差异理解为 docs / control-plane-only 增量。
+{windows_posture_line}
 - 这份文档现在只保留 pre-merge `HTTP 404` 的历史解释与 refs no-op 审计背景
 
 ## Retained Refs
@@ -412,12 +423,12 @@ worker_text = f"""# worker1
 - Status: `active`
 - Branch: `l0-mainline`
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
-- Base commit: `{main_sha}` (`main`)
+- Local main head: `{main_sha}` (`main`)
 - Remote main head: `{origin_main_sha}` (`origin/main`)
 - Current HEAD: `{worktree_sha}`
 - Latest merged-main exact evidence head: `{windows_run_sha}`
 - Current focus:
-  - 维持当前唯一 L0 worktree 跟随 `main`
+  - 维持当前唯一 L0 worktree 跟随 merged-main current-entry，而不是 root `main` 工作树
   - 维持 strict L0 的 current-entry 文档、模块边界和验证口径一致
   - 只清理安全可删的本地 L0 refs，保留仍然承载独立历史的锚点
   {worker_head_focus_line}
@@ -426,7 +437,7 @@ worker_text = f"""# worker1
   - 把 `tail` 的 `tests/cleanup_orphan_dirs.sh` + `tests/fafafa.core.fs/{{ArchivePerfResult,BuildOrRunPerf,BuildOrRunResolvePerf,BuildOrRunPerfAll}}.sh` + `tests/fafafa.core.fs/README-perf.md` 固定为 current-HEAD-ahead / no-absorb 结论，只用 `bash tests/test_active_shell_runners.sh` / `bash tests/test_fs_perf_shell_scripts.sh` 守住 today contract，不再按 tail 版本回灌
   - 把 `tail` 的 residual runner/source 小撮也固定为 no-absorb：`src/fafafa.core.atomic.base.pas` 与 `src/fafafa.core.span.pas` 只剩 no-op residue，`tests/fafafa.core.option/BuildOrTest.bat` 与 `tests/fafafa.core.result/BuildOrTest.bat` 则只允许 today 版本继续由 `bash tests/test_l0_option_result_runner_hygiene.sh` 守住
   - 把 `closeout` 的 `mem allocator + fs perf wrapper/README` stale cluster、`rescue` 的 `mem/result/span + base/bits/contracts/result/span test-entry` stale cluster，以及 `rescue` 的 examples/runner/doc stale cluster 一并固定到 `review_skip_paths=`，不要再重复人工吸收
-  - 把 `closeout/rescue` shortlist 已清空这一状态固定成 today contract；并明确 `Test_vecdeque_span.pas` 只是 stale dead test code，不再把它误判成可吸收候选；如果 shortlist 继续是 0，下一跳回到 `sidecar/tail` overlap 或 inventory
+  - 把 `closeout/rescue` 的 current-entry 语义固定成“以 fresh shortlist 输出为准，只有 fresh 双零才算清空”；并明确 `Test_vecdeque_span.pas` 只是 stale dead test code，不再把它误判成可吸收候选；只有在 fresh 双零时，下一跳才回到 `sidecar/tail` overlap 或 inventory
   - 把 `sidecar/tail` 已吸收的 hygiene residue 与 `closeout/rescue` 的 shortlist-first 语义保持为 today contract，并继续拒绝 `dangerous_delete_paths=` 场景下的 wholesale absorb
   - 把 `sidecar` 的唯一 exclusive mixed batch 限定成 small-cut 推进：当前只吸收 `tests/fafafa.core.fs.async/*` 与 `tests/fafafa.core.socket.async/*` 这组 async runner hygiene，并用 `bash tests/test_l0_async_test_runner_hygiene.sh` 守住 today contract；`examples/fafafa.core.sync*` / `examples/fafafa.core.sync.condvar*` 继续 defer
   - 把 `docs/collections/legacy/README.md`、`docs/reports/README.md`、`docs/collections/reports/README.md`、`docs/benchmarks/reports/README.md` 与 `docs/legacy/l0/README.md` 这些 landing-zone docs 保持为 today contract，不吸收 `sidecar` 的旧 pointer 版本
@@ -487,6 +498,7 @@ worker_text = f"""# worker1
   - `tests/test_strict_l0_retained_refs_sidecar_tail_overlap_contract.sh`
   - `tests/test_strict_l0_retained_refs_closeout_test_docs_no_downgrade_contract.sh`
   - `tests/test_strict_l0_examples_build_docs_contract.sh`
+  - `tests/test_strict_l0_examples_smoke_contract.sh`
   - `tests/run_windows_strict_l0_native_evidence_via_github_actions.sh`
   - `tests/update_strict_l0_current_state_docs.sh`
   - `docs/fafafa.core.span.md`
@@ -510,6 +522,8 @@ worker_text = f"""# worker1
 - `bash tests/test_active_shell_runners.sh`
   - 结果：PASS
 - `bash tests/test_fs_perf_shell_scripts.sh`
+  - 结果：PASS
+- `bash tests/test_strict_l0_examples_smoke_contract.sh`
   - 结果：PASS
 - `bash tests/test_l0_option_result_runner_hygiene.sh`
   - 结果：PASS
@@ -586,7 +600,7 @@ worker_text = f"""# worker1
   - 当前 `sidecar` / `tail` 的 inventory `next_focus=` 仍固定暴露为 `test-hygiene-first`，但 post-merge ref cleanup readiness 先看 overlap 报表
   - fresh overlap 结果是 `sidecar_only_commit_count=1`、`tail_only_commit_count=8`，并且 `sidecar_safe_delete_now=no`、`tail_safe_delete_now=no`
   - 当前 `closeout/rescue` 里已经完成 fresh 复核的 `atomic` / `mem callback` / Windows native CI hotspot、stale test docs、`closeout` 的 fs perf stale cluster、`rescue` 的 mem/result/span test-entry stale cluster，以及 `rescue` 的 examples/runner/doc stale cluster，都会继续落在 `review_skip_paths=`；下一轮只看剩余未跳过的手工 review 候选
-  - 如果 fresh shortlist 继续给出 `closeout.review_candidate_paths=0` 与 `rescue.review_candidate_paths=0`，就把 `closeout/rescue` 视为已清空的 source-review lane；下一跳回到 `sidecar/tail` overlap 或 retained-refs inventory
+  - 如果 fresh shortlist 同时给出 `closeout.review_candidate_paths=0` 与 `rescue.review_candidate_paths=0`，才把 `closeout/rescue` 标记为 cleared source-review lane；否则继续以 fresh shortlist 非零结果为准。满足双零后，下一跳回到 `sidecar/tail` overlap 或 retained-refs inventory
   - 如果 `docs_absorb_candidate_paths=` 继续暴露 landing-zone docs residue，优先确认是否只是 `sidecar` 的旧 pointer 文本；不要回灌当前 `docs/collections/legacy/README.md`、`docs/reports/README.md`、`docs/collections/reports/README.md`、`docs/benchmarks/reports/README.md` 与 `docs/legacy/l0/README.md` 的 today contract
   - 如需一波收口 Linux/Windows evidence 与 current-state docs，使用 `bash tests/run_strict_l0_mainline_closeout.sh`
   - 如需只回填 current-state 文档，使用 `bash tests/update_strict_l0_current_state_docs.sh --apply --main-sha <main-sha> --origin-main-sha <origin-main-sha> --worktree-sha <worktree-sha> --linux-run-id <linux-run-id> --linux-run-sha <linux-run-sha> --windows-run-id <windows-run-id> --windows-run-sha <windows-run-sha> --windows-local-batch-id <batch-id>`

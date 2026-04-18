@@ -371,13 +371,13 @@ bash tests/test_strict_l0_retained_refs_closeout_test_docs_no_downgrade_contract
 
 第 2026-04-15 波之后，fresh `bash tests/report_strict_l0_retained_refs_source_review_shortlist.sh` 已固定给出：
 
-- `closeout.review_candidate_paths=0`
-- `rescue.review_candidate_paths=0`
+- `closeout.review_candidate_paths=<fresh value>`
+- `rescue.review_candidate_paths=<fresh value>`
 
 这意味着 `closeout/rescue` 的 source-review surface 已经清空。当前唯一真正吸收的 today change，是 `tests/fafafa.core.collections/vecdeque/Test_vecdeque_span.pas` 去掉 `SliceView` 对 strict L0 `span2` contract 的反向 parity 测试；原因是 `docs/fafafa.core.l0.foundation.md` 与 `docs/fafafa.core.l0.roadmap.md` 都已经明确：`collections.slice` 仍然不是 strict L0。
 这意味着 `closeout/rescue` 的 source-review surface 已经清空。fresh API/runner 复核还进一步确认：`tests/fafafa.core.collections/vecdeque/Test_vecdeque_span.pas` 其实是未接线且依赖已移除 `SliceView` API 的 stale dead test code，因此它也继续只应落在 `review_skip_paths=`，而不是重新吸收到 today contract。
 
-因此，如果 fresh shortlist 继续保持 0，后续 retained-refs triage 的下一跳应回到：
+`docs/audits/2026-04-15-l0-closeout-rescue-final-source-review-clearout-audit.md` 只保留 2026-04-15 那一波 clearout 的历史语境，不再等同于 current truth。只有 fresh shortlist 同时给出双零时，后续 retained-refs triage 的下一跳才应回到：
 
 - `bash tests/report_strict_l0_retained_refs_sidecar_tail_overlap.sh`
 - `bash tests/report_strict_l0_retained_refs_inventory.sh`

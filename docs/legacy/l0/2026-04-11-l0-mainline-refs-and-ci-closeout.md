@@ -11,8 +11,8 @@
 
 ## Final Resolution
 
-- 当前本地 main merge commit：`a25acfe4f56bfd021e860aabe09e3cc392ef01ab`
-- 当前 `origin/main` head：`ef83a697b6c6efec424a75f8495c79d675770f1a`
+- 当前本地 `main` head：`ec2a023484fde0831e394d9468edd6a1a548e0b4`
+- 当前 `origin/main` head：`4a5b696ca2ab6a09d6d918aab021d0c543be9bbe`
 - GitHub Actions `L0 Linux Maintenance` run `24485131735`
   - head sha：`ef83a697b6c6efec424a75f8495c79d675770f1a`
   - 结果：PASS
@@ -26,7 +26,7 @@
 
 - mainline Linux workflow 已可 dispatch 并 fresh 通过
 - Windows exact evidence 也已收齐
-- 当前本地 `main` 已推进到 `a25acfe4f56bfd021e860aabe09e3cc392ef01ab`；当前 `origin/main` 仍在 `ef83a697b6c6efec424a75f8495c79d675770f1a`；latest exact Windows native evidence 仍锚定 `main@ef83a697b6c6efec424a75f8495c79d675770f1a`。只有在确认 current `main` 相对该证据头没有新增 strict L0 代码或测试入口变化时，才应继续把差异理解为 docs / control-plane-only 增量。
+- 当前 root `main` head 是 `ec2a023484fde0831e394d9468edd6a1a548e0b4`；当前 `origin/main` 与 active L0 worktree 已位于 `4a5b696ca2ab6a09d6d918aab021d0c543be9bbe`；latest exact Windows native evidence 仍锚定 `main@ef83a697b6c6efec424a75f8495c79d675770f1a`。只有在确认当前 active L0 lane 相对该证据头没有新增 strict L0 代码或测试入口变化时，才应继续把差异理解为 docs / control-plane-only 增量。
 - 这份文档现在只保留 pre-merge `HTTP 404` 的历史解释与 refs no-op 审计背景
 
 ## Retained Refs

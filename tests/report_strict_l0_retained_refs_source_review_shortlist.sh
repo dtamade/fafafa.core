@@ -156,6 +156,15 @@ is_review_skip_path() {
     l0-mainline-closeout-20260411:examples/fafafa.core.json/BuildOrRun.sh|\
     l0-mainline-closeout-20260411:examples/fafafa.core.platform/BuildOrRun.sh|\
     l0-mainline-closeout-20260411:examples/fafafa.core.sync.mutex/BuildOrRun.sh|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.fs.async/BuildOrTest.bat|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.fs.async/README.md|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.fs.async/buildOrTest.bat|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.fs.async/run_async_tests.lpr|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.fs.async/test_async_basic.pas|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.fs.async/test_simple.pas|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.socket.async/BuildOrTest.bat|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.socket.async/BuildOrTest.sh|\
+    l0-mainline-closeout-20260411:tests/fafafa.core.socket.async/buildOrTest.bat|\
     l0-main-rescue:tests/fafafa.core.fs.async/BuildOrTest.bat|\
     l0-main-rescue:tests/fafafa.core.fs.async/README.md|\
     l0-main-rescue:tests/fafafa.core.fs.async/buildOrTest.bat|\

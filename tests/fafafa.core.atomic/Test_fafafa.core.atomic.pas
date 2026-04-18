@@ -18,6 +18,9 @@ implementation
  {$PUSH}
  {$WARN 4055 OFF}
 
+const
+  CONCURRENT_WAIT_MIN_MS = 250;
+
 // 全局函数族测试
 // 位操作 RMW、指针字节加减、atomic_flag、is_lock_free、tagged_ptr
 
@@ -880,7 +883,12 @@ begin
   x := 0; y := 0;
   writer := TAtomicStore32Thread.CreateShared(x, 1, mo_release);
   reader := TWaitUntilNonZeroThenLoad32Thread.CreateShared(x, y, mo_acquire, 100000);
-  writer.Start; reader.Start; writer.WaitFor; reader.WaitFor; writer.Free; reader.Free;
+  writer.Start; reader.Start; writer.WaitFor; reader.WaitFor;
+  if Assigned(writer.FatalException) then
+    raise Exception.CreateFmt('thread_fence_visibility/writer raised %s', [writer.FatalException.ClassName]);
+  if Assigned(reader.FatalException) then
+    raise Exception.CreateFmt('thread_fence_visibility/reader raised %s', [reader.FatalException.ClassName]);
+  writer.Free; reader.Free;
   AssertEquals(1, y);
 end;
 
@@ -994,16 +1002,23 @@ procedure TWaitUntilEqualsThenStore32Thread.Execute;
 var
   k: Integer;
   v: Int32;
+  LStartTick: QWord;
 begin
-  for k := 1 to FMaxIters do
+  LStartTick := GetTickCount64;
+  k := 0;
+  while True do
   begin
+    Inc(k);
     v := atomic_load(FWaitVar^, FOrder);
     if v = FWaitValue then
     begin
       atomic_store(FStoreVar^, FStoreValue, FOrder);
       Exit;
     end;
-    if (k and 1023)=0 then TThread.Yield;
+    if (k and 255) = 0 then
+      TThread.Yield;
+    if (k >= FMaxIters) and ((GetTickCount64 - LStartTick) >= CONCURRENT_WAIT_MIN_MS) then
+      Break;
   end;
   raise Exception.Create('Wait timeout (wait_until_equals_then_store)');
 end;
@@ -1023,13 +1038,21 @@ procedure TWaitUntilNonZeroThenLoad32Thread.Execute;
 var
   k: Integer;
   r: Int32;
+  LStartTick: QWord;
 begin
   r := 0;
-  for k := 1 to FMaxIters do
+  LStartTick := GetTickCount64;
+  k := 0;
+  while True do
   begin
+    Inc(k);
     r := atomic_load(FWaitVar^, FOrder);
-    if r <> 0 then Break;
-    TThread.Yield;
+    if r <> 0 then
+      Break;
+    if (k and 255) = 0 then
+      TThread.Yield;
+    if (k >= FMaxIters) and ((GetTickCount64 - LStartTick) >= CONCURRENT_WAIT_MIN_MS) then
+      Break;
   end;
   if r = 0 then
     raise Exception.Create('Wait timeout (wait_until_nonzero_then_load)');
@@ -1211,6 +1234,12 @@ begin
 
   t1.Start; t2.Start; t3.Start;
   t1.WaitFor; t2.WaitFor; t3.WaitFor;
+  if Assigned(t1.FatalException) then
+    raise Exception.CreateFmt('seq_cst_total_order/t1 raised %s', [t1.FatalException.ClassName]);
+  if Assigned(t2.FatalException) then
+    raise Exception.CreateFmt('seq_cst_total_order/t2 raised %s', [t2.FatalException.ClassName]);
+  if Assigned(t3.FatalException) then
+    raise Exception.CreateFmt('seq_cst_total_order/t3 raised %s', [t3.FatalException.ClassName]);
   t1.Free; t2.Free; t3.Free;
 
   AssertEquals(1, c);
