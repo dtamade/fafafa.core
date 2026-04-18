@@ -11,7 +11,7 @@
 - 当前额外约束：
   - 这张表可以做 working ledger，但不能单独当成 “Task 2/Task 3 已完成” 的证明。
   - `Task 2 / Task 3` 相关 family 现在都已经有 2026-04-19 fresh evidence，可以按 closeout-ready 理解。
-  - `src/fafafa.core.simd.neon.pas` 里的 `NEON hygiene` 当前已 green，但若后续切历史，建议单列为 `NEON shift/select hygiene`。
+  - `src/fafafa.core.simd.neon.pas` 里的 `NEON hygiene` 当前已 green；其中 `I64x2/U64x2/U64x4` 左移也已和 `I64x4` 一样显式固定 64-bit lane count widening，若后续切历史，建议单列为 `NEON shift/select hygiene`。
 
 ## Non-X86 Ownership Matrix
 
@@ -69,7 +69,7 @@ AVX2 | FmaF32x16 / FmaF64x8 | vector-asm-gated backend_owned; wide FMA must rema
   - `runtime evidence`：
     - [qemu-multiarch-20260419-012508-1690172/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260419-012508-1690172/summary.md)
     - [qemu-multiarch-20260419-013630-1748481/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260419-013630-1748481/summary.md)
-  - `current status`：2026-04-19 fresh on `helper semantics checks=41` + `impl-audit-nonx86` + `qemu-nonx86-evidence` + `closeout-host-local`
+  - `current status`：2026-04-19 fresh on `helper semantics checks=45` + `impl-audit-nonx86` + `qemu-nonx86-evidence` + `closeout-host-local`
   - `next action`：hold green; fail if NEON shift fallback / NEON select lane semantics / wide shift boundary semantics regresses
 - `Task 3 / arithmetic-minmax-mul`：
   - `runtime evidence`：
@@ -78,9 +78,9 @@ AVX2 | FmaF32x16 / FmaF64x8 | vector-asm-gated backend_owned; wide FMA must rema
   - `current status`：2026-04-19 fresh on targeted release suites + `impl-audit-nonx86` + `qemu-nonx86-evidence` + `closeout-host-local`
   - `next action`：hold green; fail if truncation probe / lane-tag probe / dataplane snapshot coverage regresses
 - `NEON hygiene`：
-  - `source truth`：`check_nonx86_helper_semantics.py` 现在会锁 `NEONShiftLeftI32x16`、`NEONShiftRightArithI64x4`、`NEONShiftLeftI64x4Asm`、`NEONSelectF32x4`
+  - `source truth`：`check_nonx86_helper_semantics.py` 现在会锁 `NEONShiftLeftI32x16`、`NEONShiftRightArithI64x4`、`NEONShiftLeftI64x4Asm`、`NEONShiftLeftI64x2`、`NEONShiftLeftU64x2`、`NEONShiftLeftU64x4`、`NEONSelectF32x4`
   - `runtime evidence`：跟 `Task 2` 共用 2026-04-19 fresh QEMU + closeout-host-local summaries
-  - `current status`：2026-04-19 fresh green on `helper semantics` + `impl-audit-nonx86`
+  - `current status`：2026-04-19 fresh green on `helper semantics checks=45` + `impl-audit-nonx86`
   - `next action`：如果后续切历史，可单列为 `NEON shift/select hygiene`
 - `RISCVV facade/register hygiene`：
   - `source truth`：`riscvv.facade.inc` 现在把 scalar-pass-through facade helper 留在 base scalar slot；其中 `RISCVVShiftLeftU32x8` / `RISCVVShiftRightU32x8` 已显式回到 `ScalarShiftLeftU32x8` / `ScalarShiftRightU32x8`。`DispatchAPI` 新增 `Test_RISCVV_KeyOwnedWideSlots_Stay_BackendOwned`，把 `AndI64x8` / `NotI64x8` / `ShiftLeftI32x16` / `ShiftRightArithI64x4` / `SubI32x8` / `MinU32x8` / `AddI64x4` / `MulI32x16` / `SubI64x8` 的 backend-owned contract 也从“例外模型”升级成 dedicated source truth。`riscvv.register.inc` 里的 `ExtractI64x4`、`ExtractI32x8`、`ExtractI32x16` 保留显式 asm-gated 结构，不能直接折叠成 unconditional binding
