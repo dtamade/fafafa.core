@@ -12920,6 +12920,7 @@ var
   LI64x4Base: TVecI64x4;
   LI64x4ByBackend, LI64x4ByFacade, LI64x4ByScalar: TVecI64x4;
   LIndex: Integer;
+  LExtractIndex: Integer;
   LCheckedBackends: Integer;
   LOldVectorAsm: Boolean;
 
@@ -13062,6 +13063,12 @@ begin
         Pointer(LScalarTable.InsertF32x16), Pointer(LBackendTable.InsertF32x16));
       AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'InsertF64x4',
         Pointer(LScalarTable.InsertF64x4), Pointer(LBackendTable.InsertF64x4));
+      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'ExtractF32x8',
+        Pointer(LScalarTable.ExtractF32x8), Pointer(LBackendTable.ExtractF32x8));
+      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'ExtractF32x16',
+        Pointer(LScalarTable.ExtractF32x16), Pointer(LBackendTable.ExtractF32x16));
+      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'ExtractF64x4',
+        Pointer(LScalarTable.ExtractF64x4), Pointer(LBackendTable.ExtractF64x4));
       AssertBackendOwnedIntegerSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertI32x8',
         Pointer(LScalarTable.InsertI32x8), Pointer(LBackendTable.InsertI32x8));
       AssertBackendOwnedIntegerSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertI32x16',
@@ -13089,6 +13096,51 @@ begin
 
       LF64x4ByFacade := VecF64x4Insert(LF64x4Base, -999.125, 1);
       AssertVecF64x4Equal('InsertF64x4 facade', NonX86BackendName(LBackend), LF64x4ByScalar, LF64x4ByFacade, 1e-12);
+
+      for LIndex := 0 to 3 do
+      begin
+        case LIndex of
+          0: LExtractIndex := -99;
+          1: LExtractIndex := 0;
+          2: LExtractIndex := 7;
+        else
+          LExtractIndex := 99;
+        end;
+        AssertEquals('ExtractF32x8 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+          LScalarTable.ExtractF32x8(LF32x8Base, LExtractIndex), LBackendTable.ExtractF32x8(LF32x8Base, LExtractIndex), 1e-6);
+        AssertEquals('ExtractF32x8 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+          LScalarTable.ExtractF32x8(LF32x8Base, LExtractIndex), VecF32x8Extract(LF32x8Base, LExtractIndex), 1e-6);
+      end;
+
+      for LIndex := 0 to 3 do
+      begin
+        case LIndex of
+          0: LExtractIndex := -99;
+          1: LExtractIndex := 0;
+          2: LExtractIndex := 15;
+        else
+          LExtractIndex := 99;
+        end;
+        AssertEquals('ExtractF32x16 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+          LScalarTable.ExtractF32x16(LF32x16Base, LExtractIndex), LBackendTable.ExtractF32x16(LF32x16Base, LExtractIndex), 1e-6);
+        AssertEquals('ExtractF32x16 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+          LScalarTable.ExtractF32x16(LF32x16Base, LExtractIndex), VecF32x16Extract(LF32x16Base, LExtractIndex), 1e-6);
+      end;
+
+      for LIndex := 0 to 3 do
+      begin
+        case LIndex of
+          0: LExtractIndex := -99;
+          1: LExtractIndex := 0;
+          2: LExtractIndex := 3;
+        else
+          LExtractIndex := 99;
+        end;
+        AssertEquals('ExtractF64x4 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+          LScalarTable.ExtractF64x4(LF64x4Base, LExtractIndex), LBackendTable.ExtractF64x4(LF64x4Base, LExtractIndex), 1e-12);
+        AssertEquals('ExtractF64x4 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+          LScalarTable.ExtractF64x4(LF64x4Base, LExtractIndex), VecF64x4Extract(LF64x4Base, LExtractIndex), 1e-12);
+      end;
 
       LI32x8ByBackend := LBackendTable.InsertI32x8(LI32x8Base, -2026, 5);
       LI32x8ByScalar := LScalarTable.InsertI32x8(LI32x8Base, -2026, 5);
@@ -13361,6 +13413,8 @@ var
   LF32x4ByBackend, LF32x4ByFacade, LF32x4ByScalar: TVecF32x4;
   LF64x2Base: TVecF64x2;
   LF64x2ByBackend, LF64x2ByFacade, LF64x2ByScalar: TVecF64x2;
+  LIndex: Integer;
+  LExtractIndex: Integer;
   LCheckedBackends: Integer;
   LOldVectorAsm: Boolean;
 
@@ -13448,8 +13502,20 @@ begin
       LF32x4ByFacade := VecF32x4Insert(LF32x4Base, 42.5, 2);
       AssertVecF32x4Equal('InsertF32x4 facade', NonX86BackendName(LBackend), LF32x4ByScalar, LF32x4ByFacade, 1e-6);
 
-      AssertEquals('ExtractF32x4 parity: ' + NonX86BackendName(LBackend),
-        LScalarTable.ExtractF32x4(LF32x4Base, 1), LBackendTable.ExtractF32x4(LF32x4Base, 1), 1e-6);
+      for LIndex := 0 to 3 do
+      begin
+        case LIndex of
+          0: LExtractIndex := -99;
+          1: LExtractIndex := 0;
+          2: LExtractIndex := 3;
+        else
+          LExtractIndex := 99;
+        end;
+        AssertEquals('ExtractF32x4 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+          LScalarTable.ExtractF32x4(LF32x4Base, LExtractIndex), LBackendTable.ExtractF32x4(LF32x4Base, LExtractIndex), 1e-6);
+        AssertEquals('ExtractF32x4 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+          LScalarTable.ExtractF32x4(LF32x4Base, LExtractIndex), VecF32x4Extract(LF32x4Base, LExtractIndex), 1e-6);
+      end;
 
       LF64x2ByBackend := LBackendTable.InsertF64x2(LF64x2Base, 55.75, 0);
       LF64x2ByScalar := LScalarTable.InsertF64x2(LF64x2Base, 55.75, 0);
@@ -13458,8 +13524,20 @@ begin
       LF64x2ByFacade := VecF64x2Insert(LF64x2Base, 55.75, 0);
       AssertVecF64x2Equal('InsertF64x2 facade', NonX86BackendName(LBackend), LF64x2ByScalar, LF64x2ByFacade, 1e-12);
 
-      AssertEquals('ExtractF64x2 parity: ' + NonX86BackendName(LBackend),
-        LScalarTable.ExtractF64x2(LF64x2Base, 1), LBackendTable.ExtractF64x2(LF64x2Base, 1), 1e-12);
+      for LIndex := 0 to 3 do
+      begin
+        case LIndex of
+          0: LExtractIndex := -99;
+          1: LExtractIndex := 0;
+          2: LExtractIndex := 1;
+        else
+          LExtractIndex := 99;
+        end;
+        AssertEquals('ExtractF64x2 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+          LScalarTable.ExtractF64x2(LF64x2Base, LExtractIndex), LBackendTable.ExtractF64x2(LF64x2Base, LExtractIndex), 1e-12);
+        AssertEquals('ExtractF64x2 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+          LScalarTable.ExtractF64x2(LF64x2Base, LExtractIndex), VecF64x2Extract(LF64x2Base, LExtractIndex), 1e-12);
+      end;
     end;
 
     if LCheckedBackends = 0 then
@@ -13678,6 +13756,8 @@ var
   LI32x4ByBackend, LI32x4ByFacade, LI32x4ByScalar: TVecI32x4;
   LI64x2Base: TVecI64x2;
   LI64x2ByBackend, LI64x2ByFacade, LI64x2ByScalar: TVecI64x2;
+  LIndex: Integer;
+  LExtractIndex: Integer;
   LCheckedBackends: Integer;
   LOldVectorAsm: Boolean;
 
@@ -13765,8 +13845,20 @@ begin
       LI32x4ByFacade := VecI32x4Insert(LI32x4Base, -777, 2);
       AssertVecI32x4Equal('InsertI32x4 facade', NonX86BackendName(LBackend), LI32x4ByScalar, LI32x4ByFacade);
 
-      AssertEquals('ExtractI32x4 parity: ' + NonX86BackendName(LBackend),
-        LScalarTable.ExtractI32x4(LI32x4Base, 1), LBackendTable.ExtractI32x4(LI32x4Base, 1));
+      for LIndex := 0 to 3 do
+      begin
+        case LIndex of
+          0: LExtractIndex := -99;
+          1: LExtractIndex := 0;
+          2: LExtractIndex := 3;
+        else
+          LExtractIndex := 99;
+        end;
+        AssertEquals('ExtractI32x4 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+          LScalarTable.ExtractI32x4(LI32x4Base, LExtractIndex), LBackendTable.ExtractI32x4(LI32x4Base, LExtractIndex));
+        AssertEquals('ExtractI32x4 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+          LScalarTable.ExtractI32x4(LI32x4Base, LExtractIndex), VecI32x4Extract(LI32x4Base, LExtractIndex));
+      end;
 
       LI64x2ByBackend := LBackendTable.InsertI64x2(LI64x2Base, Int64(-998877665544332211), 1);
       LI64x2ByScalar := LScalarTable.InsertI64x2(LI64x2Base, Int64(-998877665544332211), 1);
@@ -13775,8 +13867,20 @@ begin
       LI64x2ByFacade := VecI64x2Insert(LI64x2Base, Int64(-998877665544332211), 1);
       AssertVecI64x2Equal('InsertI64x2 facade', NonX86BackendName(LBackend), LI64x2ByScalar, LI64x2ByFacade);
 
-      AssertEquals('ExtractI64x2 parity: ' + NonX86BackendName(LBackend),
-        LScalarTable.ExtractI64x2(LI64x2Base, 0), LBackendTable.ExtractI64x2(LI64x2Base, 0));
+      for LIndex := 0 to 3 do
+      begin
+        case LIndex of
+          0: LExtractIndex := -99;
+          1: LExtractIndex := 0;
+          2: LExtractIndex := 1;
+        else
+          LExtractIndex := 99;
+        end;
+        AssertEquals('ExtractI64x2 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+          LScalarTable.ExtractI64x2(LI64x2Base, LExtractIndex), LBackendTable.ExtractI64x2(LI64x2Base, LExtractIndex));
+        AssertEquals('ExtractI64x2 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+          LScalarTable.ExtractI64x2(LI64x2Base, LExtractIndex), VecI64x2Extract(LI64x2Base, LExtractIndex));
+      end;
     end;
 
     if LCheckedBackends = 0 then

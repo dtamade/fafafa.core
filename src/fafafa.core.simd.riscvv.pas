@@ -5072,7 +5072,7 @@ end;
 // Extract/Insert Operations
 // =============================================================
 
-function RISCVVExtractF32x4(const a: TVecF32x4; index: Integer): Single; assembler; nostackframe;
+function RISCVVExtractF32x4Asm(const a: TVecF32x4; index: Integer): Single; assembler; nostackframe;
 asm
   vsetivli zero, 4, 0xD0
   vle32.v v0, (a0)
@@ -5080,7 +5080,19 @@ asm
   vfmv.f.s f10, v0
 end;
 
-function RISCVVExtractF32x8(const a: TVecF32x8; index: Integer): Single; assembler; nostackframe;
+function RISCVVExtractF32x4(const a: TVecF32x4; index: Integer): Single;
+var
+  LIndex: Integer;
+begin
+  LIndex := index;
+  if LIndex < 0 then
+    LIndex := 0
+  else if LIndex > 3 then
+    LIndex := 3;
+  Result := RISCVVExtractF32x4Asm(a, LIndex);
+end;
+
+function RISCVVExtractF32x8Asm(const a: TVecF32x8; index: Integer): Single; assembler; nostackframe;
 asm
   vsetivli zero, 8, 0xD1
   vle32.v v0, (a0)
@@ -5088,7 +5100,19 @@ asm
   vfmv.f.s f10, v0
 end;
 
-function RISCVVExtractF32x16(const a: TVecF32x16; index: Integer): Single; assembler; nostackframe;
+function RISCVVExtractF32x8(const a: TVecF32x8; index: Integer): Single;
+var
+  LIndex: Integer;
+begin
+  LIndex := index;
+  if LIndex < 0 then
+    LIndex := 0
+  else if LIndex > 7 then
+    LIndex := 7;
+  Result := RISCVVExtractF32x8Asm(a, LIndex);
+end;
+
+function RISCVVExtractF32x16Asm(const a: TVecF32x16; index: Integer): Single; assembler; nostackframe;
 asm
   vsetivli zero, 16, 0xD2
   vle32.v v0, (a0)
@@ -5096,7 +5120,19 @@ asm
   vfmv.f.s f10, v0
 end;
 
-function RISCVVExtractF64x2(const a: TVecF64x2; index: Integer): Double; assembler; nostackframe;
+function RISCVVExtractF32x16(const a: TVecF32x16; index: Integer): Single;
+var
+  LIndex: Integer;
+begin
+  LIndex := index;
+  if LIndex < 0 then
+    LIndex := 0
+  else if LIndex > 15 then
+    LIndex := 15;
+  Result := RISCVVExtractF32x16Asm(a, LIndex);
+end;
+
+function RISCVVExtractF64x2Asm(const a: TVecF64x2; index: Integer): Double; assembler; nostackframe;
 asm
   vsetivli zero, 2, 0xD8
   vle64.v v0, (a0)
@@ -5104,7 +5140,19 @@ asm
   vfmv.f.s f10, v0
 end;
 
-function RISCVVExtractF64x4(const a: TVecF64x4; index: Integer): Double; assembler; nostackframe;
+function RISCVVExtractF64x2(const a: TVecF64x2; index: Integer): Double;
+var
+  LIndex: Integer;
+begin
+  LIndex := index;
+  if LIndex < 0 then
+    LIndex := 0
+  else if LIndex > 1 then
+    LIndex := 1;
+  Result := RISCVVExtractF64x2Asm(a, LIndex);
+end;
+
+function RISCVVExtractF64x4Asm(const a: TVecF64x4; index: Integer): Double; assembler; nostackframe;
 asm
   vsetivli zero, 4, 0xD9
   vle64.v v0, (a0)
@@ -5112,12 +5160,36 @@ asm
   vfmv.f.s f10, v0
 end;
 
-function RISCVVExtractI32x4(const a: TVecI32x4; index: Integer): Int32; assembler; nostackframe;
+function RISCVVExtractF64x4(const a: TVecF64x4; index: Integer): Double;
+var
+  LIndex: Integer;
+begin
+  LIndex := index;
+  if LIndex < 0 then
+    LIndex := 0
+  else if LIndex > 3 then
+    LIndex := 3;
+  Result := RISCVVExtractF64x4Asm(a, LIndex);
+end;
+
+function RISCVVExtractI32x4Asm(const a: TVecI32x4; index: Integer): Int32; assembler; nostackframe;
 asm
   vsetivli zero, 4, 0xD0
   vle32.v v0, (a0)
   vslidedown.vx v0, v0, a1
   vmv.x.s a0, v0
+end;
+
+function RISCVVExtractI32x4(const a: TVecI32x4; index: Integer): Int32;
+var
+  LIndex: Integer;
+begin
+  LIndex := index;
+  if LIndex < 0 then
+    LIndex := 0
+  else if LIndex > 3 then
+    LIndex := 3;
+  Result := RISCVVExtractI32x4Asm(a, LIndex);
 end;
 
 function RISCVVExtractI32x8Asm(const a: TVecI32x8; index: Integer): Int32; assembler; nostackframe;
@@ -5160,12 +5232,24 @@ begin
   Result := RISCVVExtractI32x16Asm(a, LIndex);
 end;
 
-function RISCVVExtractI64x2(const a: TVecI64x2; index: Integer): Int64; assembler; nostackframe;
+function RISCVVExtractI64x2Asm(const a: TVecI64x2; index: Integer): Int64; assembler; nostackframe;
 asm
   vsetivli zero, 2, 0xD8
   vle64.v v0, (a0)
   vslidedown.vx v0, v0, a1
   vmv.x.s a0, v0
+end;
+
+function RISCVVExtractI64x2(const a: TVecI64x2; index: Integer): Int64;
+var
+  LIndex: Integer;
+begin
+  LIndex := index;
+  if LIndex < 0 then
+    LIndex := 0
+  else if LIndex > 1 then
+    LIndex := 1;
+  Result := RISCVVExtractI64x2Asm(a, LIndex);
 end;
 
 function RISCVVExtractI64x4Asm(const a: TVecI64x4; index: Integer): Int64; assembler; nostackframe;

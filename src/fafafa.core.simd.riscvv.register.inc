@@ -447,10 +447,26 @@ begin
   {$ENDIF}
 
   // Wide Float Extract/Insert
+  {$IFDEF RISCVV_ASSEMBLY}
   table.ExtractF32x16 := @RISCVVExtractF32x16;
+  {$ELSE}
+  table.ExtractF32x16 := @RISCVVExtractF32x16;
+  {$ENDIF}
+  {$IFDEF RISCVV_ASSEMBLY}
   table.ExtractF32x8 := @RISCVVExtractF32x8;
+  {$ELSE}
+  table.ExtractF32x8 := @RISCVVExtractF32x8;
+  {$ENDIF}
+  {$IFDEF RISCVV_ASSEMBLY}
   table.ExtractF64x2 := @RISCVVExtractF64x2;
+  {$ELSE}
+  table.ExtractF64x2 := @RISCVVExtractF64x2;
+  {$ENDIF}
+  {$IFDEF RISCVV_ASSEMBLY}
   table.ExtractF64x4 := @RISCVVExtractF64x4;
+  {$ELSE}
+  table.ExtractF64x4 := @RISCVVExtractF64x4;
+  {$ENDIF}
   {$IFDEF RISCVV_ASSEMBLY}
   table.InsertF32x16 := @RISCVVInsertF32x16;
   table.InsertF32x8 := @RISCVVInsertF32x8;
@@ -534,7 +550,11 @@ begin
   // otherwise degrade into dead RISCVV-specific scalar forwarders.
 
   // I32x4/I32x8/I32x16 Extract/Insert
+  {$IFDEF RISCVV_ASSEMBLY}
   table.ExtractI32x4 := @RISCVVExtractI32x4;
+  {$ELSE}
+  table.ExtractI32x4 := @RISCVVExtractI32x4;
+  {$ENDIF}
   {$IFDEF RISCVV_ASSEMBLY}
   table.InsertI32x4 := @RISCVVInsertI32x4;
   {$ENDIF}
@@ -554,7 +574,11 @@ begin
   {$IFDEF RISCVV_ASSEMBLY}
   table.InsertI32x16 := @RISCVVInsertI32x16;
   {$ENDIF}
+  {$IFDEF RISCVV_ASSEMBLY}
   table.ExtractI64x2 := @RISCVVExtractI64x2;
+  {$ELSE}
+  table.ExtractI64x2 := @RISCVVExtractI64x2;
+  {$ENDIF}
   {$IFDEF RISCVV_ASSEMBLY}
   table.InsertI64x2 := @RISCVVInsertI64x2;
   {$ENDIF}
