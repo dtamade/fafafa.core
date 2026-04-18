@@ -28,6 +28,9 @@
 
 ## C. 性能与门禁
 
+- [x] `closeout-release` 是 Linux/Git Bash/WSL 侧完整收口的唯一官方入口。
+  - 命令：`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152`
+  - 固定顺序：`impl-smoke-x86 -> closeout-host-local -> win-evidence-preflight -> win-evidence-via-gh -> freeze-status`
 - [x] `perf-smoke` 通过（non-scalar backend healthy）
 - [x] `gate` 通过（simd + cpuinfo + cpuinfo.x86）
 - [x] `gate` 在 Release + nonx86/qemu 选项下通过

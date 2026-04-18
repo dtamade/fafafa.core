@@ -1738,6 +1738,8 @@ check_closeout_release_entrypoint_guard() {
     'echo [CLOSEOUT-RELEASE] Running: bash %ROOT%BuildOrTest.sh closeout-release %NORMALIZED_TEST_ARGS%'
     'echo [CLOSEOUT-RELEASE] FAILED ^(bash runtime not found; closeout-release requires Git Bash / WSL as the canonical entrypoint^)'
     'echo   closeout-release  Canonical release closeout entry ^(delegates to shell runner^)'
+    'echo Preferred canonical entry ^(Git Bash / WSL^):'
+    'echo    FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release %BATCH_ID%'
     'echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release'
   )
   LChecklistRequired=(
@@ -1750,7 +1752,7 @@ check_closeout_release_entrypoint_guard() {
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152'
   )
   LReadmeRequired=(
-    '如果你要做完整 release closeout，直接运行：'
+    '**想做完整 release closeout**：直接运行 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152`'
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152'
   )
   LRunbookRequired=(

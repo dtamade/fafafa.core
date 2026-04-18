@@ -6,6 +6,9 @@ LBatchId="${1:-SIMD-$(date '+%Y%m%d')-152}"
 cat <<'EOM' | sed "s/__BATCH_ID__/${LBatchId}/g"
 [CLOSEOUT] Windows 证据闭环入口（复制即跑）
 
+如果你要从 Linux/Git Bash/WSL 侧把整条 release closeout 主线一波收口，优先直接跑：
+   FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release __BATCH_ID__
+
 0) 先做 GH 阻塞预检（Git Bash / WSL，推荐）
    FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight
 

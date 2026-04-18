@@ -1,6 +1,6 @@
 # Windows B07 证据闭环 Runbook（cross-ready）
 
-更新时间：2026-03-20
+更新时间：2026-04-16
 
 ## 目标
 
@@ -12,6 +12,12 @@
 - Linux/Git Bash/WSL 侧命令统一前缀：`FAFAFA_BUILD_MODE=Release`
 - Windows PowerShell 先设置：`$env:FAFAFA_BUILD_MODE = 'Release'`
 - Gate 回灌阶段启用 fail-close，并补 fresh cpuinfo non-x86 evidence：`SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1` + `SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1`
+
+如果你要从 Linux/Git Bash/WSL 侧把整条 release closeout 主线一波收口，直接运行：
+
+`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152`
+
+它会固定执行 `impl-smoke-x86 -> closeout-host-local -> win-evidence-preflight -> win-evidence-via-gh -> freeze-status`。下面的 runbook 继续保留，是为了你拆分诊断 GH 预检、手工 Windows 实机路径或单独复验某一步时使用。
 
 ## 推荐顺序（主路径）
 

@@ -14,6 +14,7 @@
   - `gate PASS @ 2026-03-02 09:43:02`
 - Linux 证据包：已生成（`logs/evidence-*`）
 - Windows 证据：实机日志已归档（脚本入口 + 校验入口）
+- `closeout-release` 已作为完整 release 收口入口固化到 runner 与主文档。
 - 机器检查：`check_interface_implementation_completeness.py --strict` 通过（`dispatch=558, P0=0/P1=0/P2=0`）
 - 机器检查产物：
   - `tests/fafafa.core.simd/logs/interface_completeness.json`

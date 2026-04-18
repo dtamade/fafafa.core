@@ -1727,6 +1727,9 @@ for /f "tokens=1" %%A in ("%NORMALIZED_TEST_ARGS%") do set "BATCH_ID=%%A"
 if "%BATCH_ID%"=="" set "BATCH_ID=SIMD-YYYYMMDD-152"
 echo [CLOSEOUT] Windows evidence closeout: recommended command chain
 echo.
+echo Preferred canonical entry ^(Git Bash / WSL^):
+echo    FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release %BATCH_ID%
+echo.
 echo 0^) Preflight GH blockage ^(Git Bash / WSL, recommended^)
 echo    bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight
 echo.
