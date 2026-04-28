@@ -21,8 +21,9 @@ uses
   fafafa.core.simd.intrinsics.base;
 
 {
-  Experimental status (2026-02-17):
-  - This unit still contains placeholder implementations for several AVX APIs.
+  Experimental status (2026-04-29):
+  - This unit provides Pascal fallback semantics for the implemented AVX APIs.
+  - Cache-state cleanup helpers are intentionally no-op in this fallback unit.
   - It should not be used as a default public entry path.
   - It remains available as an internal bridge for AVX2-focused tests.
 }
@@ -136,7 +137,7 @@ procedure EnsureExperimentalIntrinsicsEnabled; inline;
 begin
   {$IFNDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
   raise ENotSupportedException.Create(
-    'fafafa.core.simd.intrinsics.avx is experimental placeholder semantics. ' +
+    'fafafa.core.simd.intrinsics.avx is experimental fallback semantics. ' +
     'Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt in.'
   );
   {$ENDIF}
@@ -601,17 +602,152 @@ begin
       Result.m256i_u64[LIndex] := a.m256i_u64[LIndex];
 end;
 
-function avx_shuffle_ps256(const a, b: TM256; imm8: Byte): TM256; begin Result := a; end;
-function avx_shuffle_pd256(const a, b: TM256; imm8: Byte): TM256; begin Result := a; end;
-function avx_permute_ps256(const a: TM256; imm8: Byte): TM256; begin Result := a; end;
-function avx_permute_pd256(const a: TM256; imm8: Byte): TM256; begin Result := a; end;
-function avx_permute2f128_ps256(const a, b: TM256; imm8: Byte): TM256; begin Result := a; end;
-function avx_permute2f128_pd256(const a, b: TM256; imm8: Byte): TM256; begin Result := a; end;
+function avx_shuffle_ps256(const a, b: TM256; imm8: Byte): TM256;
+var
+  LLane: Integer;
+  LBase: Integer;
+begin
+  for LLane := 0 to 1 do
+  begin
+    LBase := LLane * 4;
+    Result.m256i_u32[LBase + 0] := a.m256i_u32[LBase + ((imm8 shr 0) and 3)];
+    Result.m256i_u32[LBase + 1] := a.m256i_u32[LBase + ((imm8 shr 2) and 3)];
+    Result.m256i_u32[LBase + 2] := b.m256i_u32[LBase + ((imm8 shr 4) and 3)];
+    Result.m256i_u32[LBase + 3] := b.m256i_u32[LBase + ((imm8 shr 6) and 3)];
+  end;
+end;
 
-function avx_unpackhi_ps256(const a, b: TM256): TM256; begin Result := a; end;
-function avx_unpackhi_pd256(const a, b: TM256): TM256; begin Result := a; end;
-function avx_unpacklo_ps256(const a, b: TM256): TM256; begin Result := a; end;
-function avx_unpacklo_pd256(const a, b: TM256): TM256; begin Result := a; end;
+function avx_shuffle_pd256(const a, b: TM256; imm8: Byte): TM256;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    if ((imm8 shr LIndex) and 1) <> 0 then
+      Result.m256i_u64[LIndex] := b.m256i_u64[LIndex]
+    else
+      Result.m256i_u64[LIndex] := a.m256i_u64[LIndex];
+end;
+
+function avx_permute_ps256(const a: TM256; imm8: Byte): TM256;
+var
+  LLane: Integer;
+  LBase: Integer;
+  LIndex: Integer;
+begin
+  for LLane := 0 to 1 do
+  begin
+    LBase := LLane * 4;
+    for LIndex := 0 to 3 do
+      Result.m256i_u32[LBase + LIndex] := a.m256i_u32[LBase + ((imm8 shr (LIndex * 2)) and 3)];
+  end;
+end;
+
+function avx_permute_pd256(const a: TM256; imm8: Byte): TM256;
+var
+  LLane: Integer;
+  LBase: Integer;
+  LIndex: Integer;
+begin
+  for LLane := 0 to 1 do
+  begin
+    LBase := LLane * 2;
+    for LIndex := 0 to 1 do
+      Result.m256i_u64[LBase + LIndex] := a.m256i_u64[LBase + ((imm8 shr (LBase + LIndex)) and 1)];
+  end;
+end;
+
+function Permute2F128256(const a, b: TM256; imm8: Byte): TM256;
+
+  procedure CopySelectedLane(aDestLane: Integer; aSelector: Byte; aZero: Boolean);
+  begin
+    if aZero then
+    begin
+      FillChar(Result.m256_m128[aDestLane], SizeOf(TM128), 0);
+      Exit;
+    end;
+
+    case (aSelector and 3) of
+      0:
+        Result.m256_m128[aDestLane] := a.m256_m128[0];
+      1:
+        Result.m256_m128[aDestLane] := a.m256_m128[1];
+      2:
+        Result.m256_m128[aDestLane] := b.m256_m128[0];
+    else
+      Result.m256_m128[aDestLane] := b.m256_m128[1];
+    end;
+  end;
+
+begin
+  CopySelectedLane(0, imm8 and 3, (imm8 and $08) <> 0);
+  CopySelectedLane(1, (imm8 shr 4) and 3, (imm8 and $80) <> 0);
+end;
+
+function avx_permute2f128_ps256(const a, b: TM256; imm8: Byte): TM256;
+begin
+  Result := Permute2F128256(a, b, imm8);
+end;
+
+function avx_permute2f128_pd256(const a, b: TM256; imm8: Byte): TM256;
+begin
+  Result := Permute2F128256(a, b, imm8);
+end;
+
+function avx_unpackhi_ps256(const a, b: TM256): TM256;
+var
+  LLane: Integer;
+  LBase: Integer;
+begin
+  for LLane := 0 to 1 do
+  begin
+    LBase := LLane * 4;
+    Result.m256i_u32[LBase + 0] := a.m256i_u32[LBase + 2];
+    Result.m256i_u32[LBase + 1] := b.m256i_u32[LBase + 2];
+    Result.m256i_u32[LBase + 2] := a.m256i_u32[LBase + 3];
+    Result.m256i_u32[LBase + 3] := b.m256i_u32[LBase + 3];
+  end;
+end;
+
+function avx_unpackhi_pd256(const a, b: TM256): TM256;
+var
+  LLane: Integer;
+  LBase: Integer;
+begin
+  for LLane := 0 to 1 do
+  begin
+    LBase := LLane * 2;
+    Result.m256i_u64[LBase + 0] := a.m256i_u64[LBase + 1];
+    Result.m256i_u64[LBase + 1] := b.m256i_u64[LBase + 1];
+  end;
+end;
+
+function avx_unpacklo_ps256(const a, b: TM256): TM256;
+var
+  LLane: Integer;
+  LBase: Integer;
+begin
+  for LLane := 0 to 1 do
+  begin
+    LBase := LLane * 4;
+    Result.m256i_u32[LBase + 0] := a.m256i_u32[LBase + 0];
+    Result.m256i_u32[LBase + 1] := b.m256i_u32[LBase + 0];
+    Result.m256i_u32[LBase + 2] := a.m256i_u32[LBase + 1];
+    Result.m256i_u32[LBase + 3] := b.m256i_u32[LBase + 1];
+  end;
+end;
+
+function avx_unpacklo_pd256(const a, b: TM256): TM256;
+var
+  LLane: Integer;
+  LBase: Integer;
+begin
+  for LLane := 0 to 1 do
+  begin
+    LBase := LLane * 2;
+    Result.m256i_u64[LBase + 0] := a.m256i_u64[LBase + 0];
+    Result.m256i_u64[LBase + 1] := b.m256i_u64[LBase + 0];
+  end;
+end;
 
 function avx_cvt_ps2pd256(const a: TM128): TM256;
 var i: Integer;
@@ -679,12 +815,55 @@ begin
       Result := Result or (1 shl i);
 end;
 
-function avx_testz_ps256(const a, b: TM256): Boolean; begin Result := True; end;
-function avx_testz_pd256(const a, b: TM256): Boolean; begin Result := True; end;
-function avx_testc_ps256(const a, b: TM256): Boolean; begin Result := True; end;
-function avx_testc_pd256(const a, b: TM256): Boolean; begin Result := True; end;
-function avx_testnzc_ps256(const a, b: TM256): Boolean; begin Result := False; end;
-function avx_testnzc_pd256(const a, b: TM256): Boolean; begin Result := False; end;
+function avx_testz_ps256(const a, b: TM256): Boolean;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    if ((a.m256i_u32[LIndex] and b.m256i_u32[LIndex]) and DWord($80000000)) <> 0 then
+      Exit(False);
+  Result := True;
+end;
+
+function avx_testz_pd256(const a, b: TM256): Boolean;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    if ((a.m256i_u64[LIndex] and b.m256i_u64[LIndex]) and QWord($8000000000000000)) <> 0 then
+      Exit(False);
+  Result := True;
+end;
+
+function avx_testc_ps256(const a, b: TM256): Boolean;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    if (((not a.m256i_u32[LIndex]) and b.m256i_u32[LIndex]) and DWord($80000000)) <> 0 then
+      Exit(False);
+  Result := True;
+end;
+
+function avx_testc_pd256(const a, b: TM256): Boolean;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    if (((not a.m256i_u64[LIndex]) and b.m256i_u64[LIndex]) and QWord($8000000000000000)) <> 0 then
+      Exit(False);
+  Result := True;
+end;
+
+function avx_testnzc_ps256(const a, b: TM256): Boolean;
+begin
+  Result := (not avx_testz_ps256(a, b)) and (not avx_testc_ps256(a, b));
+end;
+
+function avx_testnzc_pd256(const a, b: TM256): Boolean;
+begin
+  Result := (not avx_testz_pd256(a, b)) and (not avx_testc_pd256(a, b));
+end;
 
 procedure avx_zeroupper; begin end;
 procedure avx_zeroall; begin end;
