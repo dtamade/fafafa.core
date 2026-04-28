@@ -19,6 +19,7 @@ uses
   ,fafafa.core.simd.intrinsics.experimental.avxfacade.testcase
   ,fafafa.core.simd.intrinsics.experimental.avx512facade.testcase
   ,fafafa.core.simd.intrinsics.experimental.fma3facade.testcase
+  ,fafafa.core.simd.intrinsics.experimental.nonx86facade.testcase
   {$ENDIF}
   ;
 

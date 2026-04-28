@@ -153,6 +153,46 @@ def main() -> int:
             'src': l_repo_root / 'src' / 'fafafa.core.simd.intrinsics.fma3.pas',
             'test': l_repo_root / 'tests' / 'fafafa.core.simd.intrinsics.experimental' / 'fafafa.core.simd.intrinsics.experimental.fma3facade.testcase.pas',
         },
+        {
+            'name': 'neon',
+            'prefix': 'neon',
+            'test_mode': 'symbol_ref',
+            'required': True,
+            'src': l_repo_root / 'src' / 'fafafa.core.simd.intrinsics.neon.pas',
+            'test': l_repo_root / 'tests' / 'fafafa.core.simd.intrinsics.experimental' / 'fafafa.core.simd.intrinsics.experimental.nonx86facade.testcase.pas',
+        },
+        {
+            'name': 'rvv',
+            'prefix': 'rvv',
+            'test_mode': 'symbol_ref',
+            'required': True,
+            'src': l_repo_root / 'src' / 'fafafa.core.simd.intrinsics.rvv.pas',
+            'test': l_repo_root / 'tests' / 'fafafa.core.simd.intrinsics.experimental' / 'fafafa.core.simd.intrinsics.experimental.nonx86facade.testcase.pas',
+        },
+        {
+            'name': 'sve',
+            'prefix': 'sve',
+            'test_mode': 'symbol_ref',
+            'required': True,
+            'src': l_repo_root / 'src' / 'fafafa.core.simd.intrinsics.sve.pas',
+            'test': l_repo_root / 'tests' / 'fafafa.core.simd.intrinsics.experimental' / 'fafafa.core.simd.intrinsics.experimental.nonx86facade.testcase.pas',
+        },
+        {
+            'name': 'sve2',
+            'prefix': 'sve2',
+            'test_mode': 'symbol_ref',
+            'required': True,
+            'src': l_repo_root / 'src' / 'fafafa.core.simd.intrinsics.sve2.pas',
+            'test': l_repo_root / 'tests' / 'fafafa.core.simd.intrinsics.experimental' / 'fafafa.core.simd.intrinsics.experimental.nonx86facade.testcase.pas',
+        },
+        {
+            'name': 'lasx',
+            'prefix': 'lasx',
+            'test_mode': 'symbol_ref',
+            'required': True,
+            'src': l_repo_root / 'src' / 'fafafa.core.simd.intrinsics.lasx.pas',
+            'test': l_repo_root / 'tests' / 'fafafa.core.simd.intrinsics.experimental' / 'fafafa.core.simd.intrinsics.experimental.nonx86facade.testcase.pas',
+        },
     ]
 
     for l_module in l_modules:

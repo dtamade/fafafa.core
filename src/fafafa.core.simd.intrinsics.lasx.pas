@@ -80,7 +80,7 @@ procedure EnsureExperimentalIntrinsicsEnabled; inline;
 begin
   {$IFNDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
   raise ENotSupportedException.Create(
-    'fafafa.core.simd.intrinsics.lasx is experimental placeholder semantics. ' +
+    'fafafa.core.simd.intrinsics.lasx is experimental fallback semantics. ' +
     'Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt in.'
   );
   {$ENDIF}
