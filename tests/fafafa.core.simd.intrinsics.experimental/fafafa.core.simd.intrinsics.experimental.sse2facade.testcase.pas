@@ -21,6 +21,9 @@ type
     procedure Test_SlliEpi16_ShiftCounts;
     procedure Test_SraiEpi16_ShiftCounts;
     procedure Test_ShuffleEpi32_Immediate;
+    procedure Test_ShuffleHiLoEpi16_Immediate;
+    procedure Test_InsertExtractEpi16_Immediate;
+    procedure Test_MoveEpi64_LowHalfOnly;
   end;
 
 implementation
@@ -123,6 +126,32 @@ begin
   begin
     LSrc := (aImm8 shr (LDest * 2)) and $3;
     Result.m128i_u32[LDest] := aValue.m128i_u32[LSrc];
+  end;
+end;
+
+function ReferenceShuffleHiEpi16(const aValue: TM128; aImm8: Byte): TM128;
+var
+  LDest: Integer;
+  LSrc: Integer;
+begin
+  Result := aValue;
+  for LDest := 0 to 3 do
+  begin
+    LSrc := 4 + ((aImm8 shr (LDest * 2)) and $3);
+    Result.m128i_u16[4 + LDest] := aValue.m128i_u16[LSrc];
+  end;
+end;
+
+function ReferenceShuffleLoEpi16(const aValue: TM128; aImm8: Byte): TM128;
+var
+  LDest: Integer;
+  LSrc: Integer;
+begin
+  Result := aValue;
+  for LDest := 0 to 3 do
+  begin
+    LSrc := (aImm8 shr (LDest * 2)) and $3;
+    Result.m128i_u16[LDest] := aValue.m128i_u16[LSrc];
   end;
 end;
 
@@ -296,6 +325,89 @@ begin
   LExpected := ReferenceShuffleEpi32(LValue, $E4);
   LActual := simd_shuffle_epi32(LValue, $E4);
   AssertM128WordsEqual(Self, 'simd_shuffle_epi32 imm=e4', LExpected, LActual);
+end;
+
+procedure TTestCase_Sse2FacadeExperimental.Test_ShuffleHiLoEpi16_Immediate;
+var
+  LValue: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+  LLane: Integer;
+begin
+  FillChar(LValue, SizeOf(LValue), 0);
+  for LLane := 0 to 7 do
+    LValue.m128i_u16[LLane] := Word($1000 + (LLane * $111));
+
+  LExpected := ReferenceShuffleHiEpi16(LValue, $1B);
+  LActual := simd_shufflehi_epi16(LValue, $1B);
+  AssertM128BytesEqual(Self, 'simd_shufflehi_epi16 imm=1b', LExpected, LActual);
+
+  LExpected := ReferenceShuffleHiEpi16(LValue, $E4);
+  LActual := simd_shufflehi_epi16(LValue, $E4);
+  AssertM128BytesEqual(Self, 'simd_shufflehi_epi16 imm=e4', LExpected, LActual);
+
+  LExpected := ReferenceShuffleLoEpi16(LValue, $1B);
+  LActual := simd_shufflelo_epi16(LValue, $1B);
+  AssertM128BytesEqual(Self, 'simd_shufflelo_epi16 imm=1b', LExpected, LActual);
+
+  LExpected := ReferenceShuffleLoEpi16(LValue, $4E);
+  LActual := simd_shufflelo_epi16(LValue, $4E);
+  AssertM128BytesEqual(Self, 'simd_shufflelo_epi16 imm=4e', LExpected, LActual);
+end;
+
+procedure TTestCase_Sse2FacadeExperimental.Test_InsertExtractEpi16_Immediate;
+var
+  LValue: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+  LLane: Integer;
+begin
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128i_u16[0] := $0001;
+  LValue.m128i_u16[1] := $8002;
+  LValue.m128i_u16[2] := $1234;
+  LValue.m128i_u16[3] := $ABCD;
+  LValue.m128i_u16[4] := $00FF;
+  LValue.m128i_u16[5] := $7F00;
+  LValue.m128i_u16[6] := $BEEF;
+  LValue.m128i_u16[7] := $FEDC;
+
+  LExpected := LValue;
+  LExpected.m128i_u16[1] := $5678;
+  LActual := simd_insert_epi16(LValue, $12345678, 9);
+  AssertM128BytesEqual(Self, 'simd_insert_epi16 imm masks to lane 1', LExpected, LActual);
+
+  LExpected := LValue;
+  LExpected.m128i_u16[7] := $4321;
+  LActual := simd_insert_epi16(LValue, $87654321, $FF);
+  AssertM128BytesEqual(Self, 'simd_insert_epi16 imm masks to lane 7', LExpected, LActual);
+
+  for LLane := 0 to 7 do
+    AssertEquals(
+      'simd_extract_epi16 lane ' + IntToStr(LLane),
+      Integer(LValue.m128i_u16[LLane]),
+      simd_extract_epi16(LValue, Byte(LLane))
+    );
+
+  AssertEquals('simd_extract_epi16 imm masks to lane 1', Integer($8002), simd_extract_epi16(LValue, 9));
+  AssertEquals('simd_extract_epi16 imm masks to lane 7', Integer($FEDC), simd_extract_epi16(LValue, $FF));
+end;
+
+procedure TTestCase_Sse2FacadeExperimental.Test_MoveEpi64_LowHalfOnly;
+var
+  LValue: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+begin
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128i_u64[0] := $0123456789ABCDEF;
+  LValue.m128i_u64[1] := $FEDCBA9876543210;
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := LValue.m128i_u64[0];
+
+  LActual := simd_move_epi64(LValue);
+  AssertM128BytesEqual(Self, 'simd_move_epi64', LExpected, LActual);
 end;
 
 initialization

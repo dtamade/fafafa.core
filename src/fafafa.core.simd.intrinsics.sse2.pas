@@ -825,10 +825,38 @@ begin
     Result.m128i_u32[LDest] := a.m128i_u32[LSrc];
   end;
 end;
-function simd_shufflehi_epi16(constref a: TM128; imm8: Byte): TM128; begin Result := a; end;
-function simd_shufflelo_epi16(constref a: TM128; imm8: Byte): TM128; begin Result := a; end;
+function simd_shufflehi_epi16(constref a: TM128; imm8: Byte): TM128;
+var
+  LDest: Integer;
+  LSrc: Integer;
+begin
+  Result := a;
+  for LDest := 0 to 3 do
+  begin
+    LSrc := 4 + ((imm8 shr (LDest * 2)) and $3);
+    Result.m128i_u16[4 + LDest] := a.m128i_u16[LSrc];
+  end;
+end;
 
-function simd_move_epi64(constref a: TM128): TM128; begin Result := a; end;
+function simd_shufflelo_epi16(constref a: TM128; imm8: Byte): TM128;
+var
+  LDest: Integer;
+  LSrc: Integer;
+begin
+  Result := a;
+  for LDest := 0 to 3 do
+  begin
+    LSrc := (imm8 shr (LDest * 2)) and $3;
+    Result.m128i_u16[LDest] := a.m128i_u16[LSrc];
+  end;
+end;
+
+function simd_move_epi64(constref a: TM128): TM128;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  Result.m128i_u64[0] := a.m128i_u64[0];
+end;
+
 function simd_movemask_epi8(constref a: TM128): Integer;
 var
   LIndex: Integer;
@@ -839,8 +867,16 @@ begin
       Result := Result or (1 shl LIndex);
 end;
 
-function simd_insert_epi16(constref a: TM128; Value: Integer; imm8: Byte): TM128; begin Result := a; end;
-function simd_extract_epi16(constref a: TM128; imm8: Byte): Integer; begin Result := 0; end;
+function simd_insert_epi16(constref a: TM128; Value: Integer; imm8: Byte): TM128;
+begin
+  Result := a;
+  Result.m128i_u16[imm8 and $7] := Word(Value and $FFFF);
+end;
+
+function simd_extract_epi16(constref a: TM128; imm8: Byte): Integer;
+begin
+  Result := a.m128i_u16[imm8 and $7];
+end;
 
 // 双精度浮点函数的占位符实�?
 function simd_load_pd(const Ptr: Pointer): TM128; begin Result := PTM128(Ptr)^; end;
@@ -917,5 +953,4 @@ initialization
   EnsureExperimentalIntrinsicsEnabled;
 
 end.
-
 
