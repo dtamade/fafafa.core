@@ -17,7 +17,8 @@ type
   TTestCase_SimdIntrinsicsExperimental = class(TTestCase)
   published
     procedure Test_Default_AES_SHA_Rejects;
-    procedure Test_Experimental_AES_SHA_PlaceholderSemantics;
+    procedure Test_Experimental_AES_Semantics;
+    procedure Test_Experimental_SHA_PlaceholderSemantics;
   end;
 
 implementation
@@ -36,6 +37,23 @@ begin
   FillChar(aValue, SizeOf(aValue), 0);
   for LIndex := 0 to 15 do
     aValue.m128i_u8[LIndex] := Byte(aBase + LIndex);
+end;
+
+procedure LoadM128Bytes(var aValue: TM128; const aBytes: array of Byte);
+var
+  LIndex: Integer;
+begin
+  FillChar(aValue, SizeOf(aValue), 0);
+  for LIndex := 0 to High(aBytes) do
+    aValue.m128i_u8[LIndex] := aBytes[LIndex];
+end;
+
+procedure AssertM128BytesEqual(aTest: TTestCase; const aLabel: string; const aExpected, aActual: TM128);
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    aTest.AssertEquals(aLabel + ' lane ' + IntToStr(LIndex), aExpected.m128i_u8[LIndex], aActual.m128i_u8[LIndex]);
 end;
 
 procedure TTestCase_SimdIntrinsicsExperimental.Test_Default_AES_SHA_Rejects;
@@ -73,63 +91,82 @@ begin
   AssertTrue('sha_sha1msg1_epu32 should reject by default', LRaised);
 end;
 
-procedure TTestCase_SimdIntrinsicsExperimental.Test_Experimental_AES_SHA_PlaceholderSemantics;
+procedure TTestCase_SimdIntrinsicsExperimental.Test_Experimental_AES_Semantics;
 var
-  LData, LKey, LA, LB, LC, LResult: TM128;
-  LIndex: Integer;
-  LExpectedByte: Byte;
-  LExpectedWord: DWord;
+  LData, LKey, LExpected, LActual: TM128;
 begin
   {$IFNDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
   Exit;
   {$ENDIF}
 
-  InitM128ForXorTest(LData, 3);
-  InitM128ForXorTest(LKey, 67);
+  LoadM128Bytes(LData, [
+    $00, $11, $22, $33, $44, $55, $66, $77,
+    $88, $99, $AA, $BB, $CC, $DD, $EE, $FF
+  ]);
+  LoadM128Bytes(LKey, [
+    $0F, $1E, $2D, $3C, $4B, $5A, $69, $78,
+    $87, $96, $A5, $B4, $C3, $D2, $E1, $F0
+  ]);
 
-  LResult := aes_aesenc_si128(LData, LKey);
-  for LIndex := 0 to 15 do
-  begin
-    LExpectedByte := LData.m128i_u8[LIndex] xor LKey.m128i_u8[LIndex];
-    AssertEquals('aes_aesenc_si128 xor lane ' + IntToStr(LIndex),
-      LExpectedByte, LResult.m128i_u8[LIndex]);
-  end;
+  LoadM128Bytes(LExpected, [
+    $6C, $67, $CB, $E5, $BF, $3D, $92, $0E,
+    $2A, $90, $99, $40, $11, $39, $6B, $53
+  ]);
+  LActual := aes_aesenc_si128(LData, LKey);
+  AssertM128BytesEqual(Self, 'aes_aesenc_si128', LExpected, LActual);
 
-  LResult := aes_aesenclast_si128(LData, LKey);
-  for LIndex := 0 to 15 do
-  begin
-    LExpectedByte := LData.m128i_u8[LIndex] xor LKey.m128i_u8[LIndex];
-    AssertEquals('aes_aesenclast_si128 xor lane ' + IntToStr(LIndex),
-      LExpectedByte, LResult.m128i_u8[LIndex]);
-  end;
+  LoadM128Bytes(LExpected, [
+    $6C, $E2, $81, $2A, $50, $B4, $41, $BB,
+    $43, $57, $36, $41, $88, $50, $D2, $1A
+  ]);
+  LActual := aes_aesenclast_si128(LData, LKey);
+  AssertM128BytesEqual(Self, 'aes_aesenclast_si128', LExpected, LActual);
 
-  LResult := aes_aesdec_si128(LData, LKey);
-  for LIndex := 0 to 15 do
-  begin
-    LExpectedByte := LData.m128i_u8[LIndex] xor LKey.m128i_u8[LIndex];
-    AssertEquals('aes_aesdec_si128 xor lane ' + IntToStr(LIndex),
-      LExpectedByte, LResult.m128i_u8[LIndex]);
-  end;
+  LoadM128Bytes(LExpected, [
+    $D2, $F9, $2D, $FD, $69, $2B, $50, $10,
+    $8F, $98, $93, $17, $A0, $2B, $A0, $40
+  ]);
+  LActual := aes_aesdec_si128(LData, LKey);
+  AssertM128BytesEqual(Self, 'aes_aesdec_si128', LExpected, LActual);
 
-  LResult := aes_aesdeclast_si128(LData, LKey);
-  for LIndex := 0 to 15 do
-  begin
-    LExpectedByte := LData.m128i_u8[LIndex] xor LKey.m128i_u8[LIndex];
-    AssertEquals('aes_aesdeclast_si128 xor lane ' + IntToStr(LIndex),
-      LExpectedByte, LResult.m128i_u8[LIndex]);
-  end;
+  LoadM128Bytes(LExpected, [
+    $5D, $D7, $4F, $3E, $CD, $B9, $F0, $86,
+    $10, $7B, $31, $C9, $E4, $2B, $32, $96
+  ]);
+  LActual := aes_aesdeclast_si128(LData, LKey);
+  AssertM128BytesEqual(Self, 'aes_aesdeclast_si128', LExpected, LActual);
 
-  LResult := aes_aeskeygenassist_si128(LKey, $5A);
-  AssertEquals('aes_aeskeygenassist_si128 first byte xor rcon',
-    Byte(LKey.m128i_u8[0] xor $5A), LResult.m128i_u8[0]);
-  for LIndex := 1 to 15 do
-    AssertEquals('aes_aeskeygenassist_si128 lane keep ' + IntToStr(LIndex),
-      LKey.m128i_u8[LIndex], LResult.m128i_u8[LIndex]);
+  LoadM128Bytes(LExpected, [
+    $AA, $FF, $88, $DD, $EE, $BB, $CC, $99,
+    $22, $77, $00, $55, $66, $33, $44, $11
+  ]);
+  LActual := aes_aesimc_si128(LData);
+  AssertM128BytesEqual(Self, 'aes_aesimc_si128', LExpected, LActual);
 
-  LResult := aes_aesimc_si128(LData);
-  for LIndex := 0 to 15 do
-    AssertEquals('aes_aesimc_si128 identity lane ' + IntToStr(LIndex),
-      LData.m128i_u8[LIndex], LResult.m128i_u8[LIndex]);
+  LoadM128Bytes(LExpected, [
+    $B3, $BE, $F9, $BC, $A5, $F9, $BC, $B3,
+    $2E, $B5, $F8, $8C, $AE, $F8, $8C, $2E
+  ]);
+  LActual := aes_aeskeygenassist_si128(LKey, $1B);
+  AssertM128BytesEqual(Self, 'aes_aeskeygenassist_si128 rcon=1b', LExpected, LActual);
+
+  LoadM128Bytes(LExpected, [
+    $B3, $BE, $F9, $BC, $88, $F9, $BC, $B3,
+    $2E, $B5, $F8, $8C, $83, $F8, $8C, $2E
+  ]);
+  LActual := aes_aeskeygenassist_si128(LKey, $36);
+  AssertM128BytesEqual(Self, 'aes_aeskeygenassist_si128 rcon=36', LExpected, LActual);
+end;
+
+procedure TTestCase_SimdIntrinsicsExperimental.Test_Experimental_SHA_PlaceholderSemantics;
+var
+  LA, LB, LC, LResult: TM128;
+  LIndex: Integer;
+  LExpectedWord: DWord;
+begin
+  {$IFNDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
+  Exit;
+  {$ENDIF}
 
   FillChar(LA, SizeOf(LA), 0);
   FillChar(LB, SizeOf(LB), 0);
@@ -204,14 +241,6 @@ begin
   FillChar(aValue, SizeOf(aValue), 0);
   for LIndex := 0 to 15 do
     aValue.m128i_u8[LIndex] := Byte(aBase + LIndex);
-end;
-
-procedure AssertM128BytesEqual(aTest: TTestCase; const aLabel: string; const aExpected, aActual: TM128);
-var
-  LIndex: Integer;
-begin
-  for LIndex := 0 to 15 do
-    aTest.AssertEquals(aLabel + ' lane ' + IntToStr(LIndex), aExpected.m128i_u8[LIndex], aActual.m128i_u8[LIndex]);
 end;
 
 procedure ExpectSlliSi128(aTest: TTestCase; const aValue: TM128; aShift: Byte);
