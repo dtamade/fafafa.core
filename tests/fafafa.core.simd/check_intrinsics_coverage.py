@@ -114,6 +114,14 @@ def main() -> int:
             'test': l_repo_root / 'tests' / 'fafafa.core.simd.intrinsics.experimental' / 'fafafa.core.simd.intrinsics.experimental.testcase.pas',
         },
         {
+            'name': 'sse3',
+            'prefix': 'sse3',
+            'test_mode': 'symbol_ref',
+            'required': True,
+            'src': l_repo_root / 'src' / 'fafafa.core.simd.intrinsics.sse3.pas',
+            'test': l_repo_root / 'tests' / 'fafafa.core.simd.intrinsics.experimental' / 'fafafa.core.simd.intrinsics.experimental.sse3facade.testcase.pas',
+        },
+        {
             'name': 'avx512',
             'prefix': 'avx512',
             'test_mode': 'symbol_ref',

@@ -60,7 +60,7 @@ procedure EnsureExperimentalIntrinsicsEnabled; inline;
 begin
   {$IFNDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
   raise ENotSupportedException.Create(
-    'fafafa.core.simd.intrinsics.sse3 is experimental placeholder semantics. ' +
+    'fafafa.core.simd.intrinsics.sse3 is experimental fallback semantics. ' +
     'Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt in.'
   );
   {$ENDIF}
@@ -152,22 +152,20 @@ function sse3_loaddup_pd(const Ptr: Pointer): TM128;
 var
   value: Double;
 begin
-  // 加载并复制双精度�?  value := PDouble(Ptr)^;
+  value := PDouble(Ptr)^;
   Result.m128d_f64[0] := value;
   Result.m128d_f64[1] := value;
 end;
 
-// === 线程同步指令 (占位�? ===
+// === Thread synchronization instructions (explicit fallback no-ops) ===
 procedure sse3_monitor(const Ptr: Pointer; extensions, hints: Cardinal);
 begin
-  // MONITOR 指令的占位符实现
-  // 在实际实现中，这里应该执�?MONITOR 指令
+  // The Pascal fallback cannot monitor CPU cache lines; keep this a no-op.
 end;
 
 procedure sse3_mwait(extensions, hints: Cardinal);
 begin
-  // MWAIT 指令的占位符实现
-  // 在实际实现中，这里应该执�?MWAIT 指令
+  // The Pascal fallback cannot enter monitor-wait state; keep this a no-op.
 end;
 
 initialization
