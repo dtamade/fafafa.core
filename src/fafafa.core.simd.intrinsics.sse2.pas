@@ -1103,7 +1103,14 @@ begin
   Result := a.m128i_u16[imm8 and $7];
 end;
 
-// 双精度浮点函数的占位符实�?
+function BoolToMask64(aCondition: Boolean): QWord; inline;
+begin
+  if aCondition then
+    Exit(QWord($FFFFFFFFFFFFFFFF));
+  Result := 0;
+end;
+
+// 双精度浮点函数的实验性语义实现
 function simd_load_pd(const Ptr: Pointer): TM128; begin Result := PTM128(Ptr)^; end;
 function simd_loadu_pd(const Ptr: Pointer): TM128; begin Result := PTM128(Ptr)^; end;
 function simd_load_sd(const Ptr: Pointer): TM128; begin FillChar(Result, SizeOf(Result), 0); Result.m128d_f64[0] := PDouble(Ptr)^; end;
@@ -1135,26 +1142,117 @@ function simd_andnot_pd(constref a, b: TM128): TM128; begin Result := simd_andno
 function simd_or_pd(constref a, b: TM128): TM128; begin Result := simd_or_si128(a, b); end;
 function simd_xor_pd(constref a, b: TM128): TM128; begin Result := simd_xor_si128(a, b); end;
 
-// 其他复杂函数的占位符实现
-function simd_cmpeq_pd(constref a, b: TM128): TM128; begin Result := a; end;
-function simd_cmpeq_sd(constref a, b: TM128): TM128; begin Result := a; end;
-function simd_cmplt_pd(constref a, b: TM128): TM128; begin Result := a; end;
-function simd_cmplt_sd(constref a, b: TM128): TM128; begin Result := a; end;
-function simd_cmple_pd(constref a, b: TM128): TM128; begin Result := a; end;
-function simd_cmple_sd(constref a, b: TM128): TM128; begin Result := a; end;
-function simd_cmpgt_pd(constref a, b: TM128): TM128; begin Result := a; end;
-function simd_cmpgt_sd(constref a, b: TM128): TM128; begin Result := a; end;
-function simd_cmpge_pd(constref a, b: TM128): TM128; begin Result := a; end;
-function simd_cmpge_sd(constref a, b: TM128): TM128; begin Result := a; end;
-function simd_cmpneq_pd(constref a, b: TM128): TM128; begin Result := a; end;
-function simd_cmpneq_sd(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_cmpeq_pd(constref a, b: TM128): TM128;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  Result.m128i_u64[0] := BoolToMask64(a.m128d_f64[0] = b.m128d_f64[0]);
+  Result.m128i_u64[1] := BoolToMask64(a.m128d_f64[1] = b.m128d_f64[1]);
+end;
 
-function simd_shuffle_pd(constref a, b: TM128; imm8: Byte): TM128; begin Result := a; end;
-function simd_unpackhi_pd(constref a, b: TM128): TM128; begin Result := a; end;
-function simd_unpacklo_pd(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_cmpeq_sd(constref a, b: TM128): TM128;
+begin
+  Result := a;
+  Result.m128i_u64[0] := BoolToMask64(a.m128d_f64[0] = b.m128d_f64[0]);
+end;
 
-function simd_move_sd(constref a, b: TM128): TM128; begin Result := a; end;
-function simd_movemask_pd(constref a: TM128): Integer; begin Result := 0; end;
+function simd_cmplt_pd(constref a, b: TM128): TM128;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  Result.m128i_u64[0] := BoolToMask64(a.m128d_f64[0] < b.m128d_f64[0]);
+  Result.m128i_u64[1] := BoolToMask64(a.m128d_f64[1] < b.m128d_f64[1]);
+end;
+
+function simd_cmplt_sd(constref a, b: TM128): TM128;
+begin
+  Result := a;
+  Result.m128i_u64[0] := BoolToMask64(a.m128d_f64[0] < b.m128d_f64[0]);
+end;
+
+function simd_cmple_pd(constref a, b: TM128): TM128;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  Result.m128i_u64[0] := BoolToMask64(a.m128d_f64[0] <= b.m128d_f64[0]);
+  Result.m128i_u64[1] := BoolToMask64(a.m128d_f64[1] <= b.m128d_f64[1]);
+end;
+
+function simd_cmple_sd(constref a, b: TM128): TM128;
+begin
+  Result := a;
+  Result.m128i_u64[0] := BoolToMask64(a.m128d_f64[0] <= b.m128d_f64[0]);
+end;
+
+function simd_cmpgt_pd(constref a, b: TM128): TM128;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  Result.m128i_u64[0] := BoolToMask64(a.m128d_f64[0] > b.m128d_f64[0]);
+  Result.m128i_u64[1] := BoolToMask64(a.m128d_f64[1] > b.m128d_f64[1]);
+end;
+
+function simd_cmpgt_sd(constref a, b: TM128): TM128;
+begin
+  Result := a;
+  Result.m128i_u64[0] := BoolToMask64(a.m128d_f64[0] > b.m128d_f64[0]);
+end;
+
+function simd_cmpge_pd(constref a, b: TM128): TM128;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  Result.m128i_u64[0] := BoolToMask64(a.m128d_f64[0] >= b.m128d_f64[0]);
+  Result.m128i_u64[1] := BoolToMask64(a.m128d_f64[1] >= b.m128d_f64[1]);
+end;
+
+function simd_cmpge_sd(constref a, b: TM128): TM128;
+begin
+  Result := a;
+  Result.m128i_u64[0] := BoolToMask64(a.m128d_f64[0] >= b.m128d_f64[0]);
+end;
+
+function simd_cmpneq_pd(constref a, b: TM128): TM128;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  Result.m128i_u64[0] := BoolToMask64(a.m128d_f64[0] <> b.m128d_f64[0]);
+  Result.m128i_u64[1] := BoolToMask64(a.m128d_f64[1] <> b.m128d_f64[1]);
+end;
+
+function simd_cmpneq_sd(constref a, b: TM128): TM128;
+begin
+  Result := a;
+  Result.m128i_u64[0] := BoolToMask64(a.m128d_f64[0] <> b.m128d_f64[0]);
+end;
+
+function simd_shuffle_pd(constref a, b: TM128; imm8: Byte): TM128;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  Result.m128d_f64[0] := a.m128d_f64[imm8 and $1];
+  Result.m128d_f64[1] := b.m128d_f64[(imm8 shr 1) and $1];
+end;
+
+function simd_unpackhi_pd(constref a, b: TM128): TM128;
+begin
+  Result.m128d_f64[0] := a.m128d_f64[1];
+  Result.m128d_f64[1] := b.m128d_f64[1];
+end;
+
+function simd_unpacklo_pd(constref a, b: TM128): TM128;
+begin
+  Result.m128d_f64[0] := a.m128d_f64[0];
+  Result.m128d_f64[1] := b.m128d_f64[0];
+end;
+
+function simd_move_sd(constref a, b: TM128): TM128;
+begin
+  Result := a;
+  Result.m128d_f64[0] := b.m128d_f64[0];
+end;
+
+function simd_movemask_pd(constref a: TM128): Integer;
+begin
+  Result := 0;
+  if (a.m128i_u64[0] and QWord($8000000000000000)) <> 0 then
+    Result := Result or 1;
+  if (a.m128i_u64[1] and QWord($8000000000000000)) <> 0 then
+    Result := Result or 2;
+end;
 
 function simd_cvtsi2sd(constref a: TM128; Value: LongInt): TM128; begin Result := a; end;
 function simd_cvtsd2si(constref a: TM128): LongInt; begin Result := 0; end;

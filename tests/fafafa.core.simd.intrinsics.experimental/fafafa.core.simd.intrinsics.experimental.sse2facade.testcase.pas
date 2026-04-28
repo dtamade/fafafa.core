@@ -33,6 +33,10 @@ type
     procedure Test_VariableShiftEpi16_CountOperand;
     procedure Test_VariableShiftEpi32_CountOperand;
     procedure Test_VariableShiftEpi64_CountOperand;
+    procedure Test_ComparePd_Masks;
+    procedure Test_CompareSd_LowLaneOnly;
+    procedure Test_ShuffleUnpackMovePd;
+    procedure Test_MovemaskPd;
   end;
 
 implementation
@@ -60,6 +64,14 @@ var
 begin
   for LIndex := 0 to 3 do
     aTest.AssertEquals(aLabel + ' lane ' + IntToStr(LIndex), aExpected.m128i_u32[LIndex], aActual.m128i_u32[LIndex]);
+end;
+
+procedure AssertM128QWordsEqual(aTest: TTestCase; const aLabel: string; const aExpected, aActual: TM128);
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 1 do
+    aTest.AssertEquals(aLabel + ' lane ' + IntToStr(LIndex), aExpected.m128i_u64[LIndex], aActual.m128i_u64[LIndex]);
 end;
 
 procedure ExpectSlliSi128(aTest: TTestCase; const aValue: TM128; aShift: Byte);
@@ -189,6 +201,13 @@ begin
   if aValue < -32768 then
     Exit(-32768);
   Result := SmallInt(aValue);
+end;
+
+function BoolMask64(aCondition: Boolean): QWord; inline;
+begin
+  if aCondition then
+    Exit(QWord($FFFFFFFFFFFFFFFF));
+  Result := 0;
 end;
 
 function ArithmeticShiftRight32Reference(aValue: LongInt; aShift: Integer): LongInt; inline;
@@ -815,6 +834,192 @@ begin
     LActual := simd_srl_epi64(LValue, LCount);
     AssertM128BytesEqual(Self, 'simd_srl_epi64 count=' + IntToStr(LShift), LExpected, LActual);
   end;
+end;
+
+procedure TTestCase_Sse2FacadeExperimental.Test_ComparePd_Masks;
+var
+  LA: TM128;
+  LB: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := 1.0;
+  LA.m128d_f64[1] := 4.0;
+  LB.m128d_f64[0] := 1.0;
+  LB.m128d_f64[1] := 5.0;
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := BoolMask64(LA.m128d_f64[0] = LB.m128d_f64[0]);
+  LExpected.m128i_u64[1] := BoolMask64(LA.m128d_f64[1] = LB.m128d_f64[1]);
+  LActual := simd_cmpeq_pd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpeq_pd', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := BoolMask64(LA.m128d_f64[0] < LB.m128d_f64[0]);
+  LExpected.m128i_u64[1] := BoolMask64(LA.m128d_f64[1] < LB.m128d_f64[1]);
+  LActual := simd_cmplt_pd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmplt_pd', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := BoolMask64(LA.m128d_f64[0] <= LB.m128d_f64[0]);
+  LExpected.m128i_u64[1] := BoolMask64(LA.m128d_f64[1] <= LB.m128d_f64[1]);
+  LActual := simd_cmple_pd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmple_pd', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := BoolMask64(LA.m128d_f64[0] > LB.m128d_f64[0]);
+  LExpected.m128i_u64[1] := BoolMask64(LA.m128d_f64[1] > LB.m128d_f64[1]);
+  LActual := simd_cmpgt_pd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpgt_pd', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := BoolMask64(LA.m128d_f64[0] >= LB.m128d_f64[0]);
+  LExpected.m128i_u64[1] := BoolMask64(LA.m128d_f64[1] >= LB.m128d_f64[1]);
+  LActual := simd_cmpge_pd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpge_pd', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := BoolMask64(LA.m128d_f64[0] <> LB.m128d_f64[0]);
+  LExpected.m128i_u64[1] := BoolMask64(LA.m128d_f64[1] <> LB.m128d_f64[1]);
+  LActual := simd_cmpneq_pd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpneq_pd', LExpected, LActual);
+end;
+
+procedure TTestCase_Sse2FacadeExperimental.Test_CompareSd_LowLaneOnly;
+var
+  LA: TM128;
+  LB: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := 1.0;
+  LA.m128d_f64[1] := 1234.5;
+  LB.m128d_f64[0] := 1.0;
+  LB.m128d_f64[1] := -9.0;
+
+  LExpected := LA;
+  LExpected.m128i_u64[0] := BoolMask64(True);
+  LActual := simd_cmpeq_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpeq_sd', LExpected, LActual);
+
+  LExpected := LA;
+  LExpected.m128i_u64[0] := BoolMask64(True);
+  LActual := simd_cmple_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmple_sd', LExpected, LActual);
+
+  LExpected := LA;
+  LExpected.m128i_u64[0] := BoolMask64(True);
+  LActual := simd_cmpge_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpge_sd', LExpected, LActual);
+
+  LExpected := LA;
+  LExpected.m128i_u64[0] := BoolMask64(False);
+  LActual := simd_cmplt_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmplt_sd false', LExpected, LActual);
+
+  LExpected := LA;
+  LExpected.m128i_u64[0] := BoolMask64(False);
+  LActual := simd_cmpgt_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpgt_sd false', LExpected, LActual);
+
+  LExpected := LA;
+  LExpected.m128i_u64[0] := BoolMask64(False);
+  LActual := simd_cmpneq_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpneq_sd false', LExpected, LActual);
+
+  LA.m128d_f64[0] := 1.0;
+  LA.m128d_f64[1] := 2222.25;
+  LB.m128d_f64[0] := 2.0;
+  LB.m128d_f64[1] := 7.0;
+
+  LExpected := LA;
+  LExpected.m128i_u64[0] := BoolMask64(True);
+  LActual := simd_cmplt_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmplt_sd true', LExpected, LActual);
+
+  LExpected := LA;
+  LExpected.m128i_u64[0] := BoolMask64(True);
+  LActual := simd_cmpneq_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpneq_sd true', LExpected, LActual);
+
+  LA.m128d_f64[0] := 3.0;
+  LA.m128d_f64[1] := 3333.75;
+  LB.m128d_f64[0] := 2.0;
+  LB.m128d_f64[1] := 8.0;
+
+  LExpected := LA;
+  LExpected.m128i_u64[0] := BoolMask64(True);
+  LActual := simd_cmpgt_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpgt_sd true', LExpected, LActual);
+
+  LExpected := LA;
+  LExpected.m128i_u64[0] := BoolMask64(True);
+  LActual := simd_cmpge_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpge_sd true', LExpected, LActual);
+end;
+
+procedure TTestCase_Sse2FacadeExperimental.Test_ShuffleUnpackMovePd;
+var
+  LA: TM128;
+  LB: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+  LImm: Integer;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := 10.0;
+  LA.m128d_f64[1] := 20.0;
+  LB.m128d_f64[0] := 30.0;
+  LB.m128d_f64[1] := 40.0;
+
+  for LImm := 0 to 3 do
+  begin
+    FillChar(LExpected, SizeOf(LExpected), 0);
+    LExpected.m128d_f64[0] := LA.m128d_f64[LImm and 1];
+    LExpected.m128d_f64[1] := LB.m128d_f64[(LImm shr 1) and 1];
+    LActual := simd_shuffle_pd(LA, LB, Byte(LImm));
+    AssertM128BytesEqual(Self, 'simd_shuffle_pd imm=' + IntToStr(LImm), LExpected, LActual);
+  end;
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128d_f64[0] := LA.m128d_f64[0];
+  LExpected.m128d_f64[1] := LB.m128d_f64[0];
+  LActual := simd_unpacklo_pd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_unpacklo_pd', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128d_f64[0] := LA.m128d_f64[1];
+  LExpected.m128d_f64[1] := LB.m128d_f64[1];
+  LActual := simd_unpackhi_pd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_unpackhi_pd', LExpected, LActual);
+
+  LExpected := LA;
+  LExpected.m128d_f64[0] := LB.m128d_f64[0];
+  LActual := simd_move_sd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_move_sd', LExpected, LActual);
+end;
+
+procedure TTestCase_Sse2FacadeExperimental.Test_MovemaskPd;
+var
+  LValue: TM128;
+begin
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128d_f64[0] := -1.0;
+  LValue.m128d_f64[1] := 2.0;
+  AssertEquals('simd_movemask_pd low negative', 1, simd_movemask_pd(LValue));
+
+  LValue.m128d_f64[0] := 1.0;
+  LValue.m128d_f64[1] := -2.0;
+  AssertEquals('simd_movemask_pd high negative', 2, simd_movemask_pd(LValue));
+
+  LValue.m128d_f64[0] := -1.0;
+  LValue.m128d_f64[1] := -2.0;
+  AssertEquals('simd_movemask_pd both negative', 3, simd_movemask_pd(LValue));
 end;
 
 initialization
