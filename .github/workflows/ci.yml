@@ -182,7 +182,8 @@ jobs:
 
       - name: Note soft failure reason (Windows toolchain)
         if: failure()
-        run: echo "Soft fail: Windows Lazarus/FPC toolchain may be unavailable; see tests_os.log artifact."
+        run: |
+          echo "Soft fail: Windows Lazarus/FPC toolchain may be unavailable; see tests_os.log artifact."
 
       - name: Upload fafafa.core.os artifacts (windows-x64)
         if: always()
@@ -195,7 +196,7 @@ jobs:
 
   # macOS x86_64 测试
   test-macos-x64:
-    runs-on: macos-13
+    runs-on: macos-15-intel
     name: macOS x86_64
 
     steps:
@@ -241,7 +242,8 @@ jobs:
 
       - name: Note soft failure reason (macOS toolchain)
         if: failure()
-        run: echo "Soft fail: macOS Lazarus/FPC toolchain may be partial; see tests_os.log artifact."
+        run: |
+          echo "Soft fail: macOS Lazarus/FPC toolchain may be partial; see tests_os.log artifact."
 
       - name: Upload fafafa.core.os artifacts (macos-arm64)
         if: always()
@@ -254,7 +256,7 @@ jobs:
 
   # macOS x86_64 - fafafa.core.os
   test-macos-os-x64:
-    runs-on: macos-13
+    runs-on: macos-15-intel
     name: macOS x86_64 (fafafa.core.os)
     continue-on-error: true  # macOS Lazarus packaging may differ; keep soft
 
@@ -277,7 +279,8 @@ jobs:
 
       - name: Note soft failure reason (macOS toolchain)
         if: failure()
-        run: echo "Soft fail: macOS Lazarus/FPC toolchain may be partial; see tests_os.log artifact."
+        run: |
+          echo "Soft fail: macOS Lazarus/FPC toolchain may be partial; see tests_os.log artifact."
 
       - name: Upload fafafa.core.os artifacts (macos-x64)
         if: always()
