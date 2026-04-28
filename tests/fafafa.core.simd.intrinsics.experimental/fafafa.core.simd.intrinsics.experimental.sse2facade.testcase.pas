@@ -41,6 +41,8 @@ type
     procedure Test_PackedFloatDoubleConversions;
     procedure Test_PackedIntFloatConversions;
     procedure Test_PackedToIntConversions;
+    procedure Test_SaturatedAddSemantics;
+    procedure Test_SaturatedSubSemantics;
   end;
 
 implementation
@@ -205,6 +207,60 @@ begin
   if aValue < -32768 then
     Exit(-32768);
   Result := SmallInt(aValue);
+end;
+
+function SaturatingAddI16Reference(aLeft, aRight: SmallInt): SmallInt; inline;
+begin
+  Result := SaturateI32ToI16Reference(LongInt(aLeft) + LongInt(aRight));
+end;
+
+function SaturatingSubI16Reference(aLeft, aRight: SmallInt): SmallInt; inline;
+begin
+  Result := SaturateI32ToI16Reference(LongInt(aLeft) - LongInt(aRight));
+end;
+
+function SaturatingAddI8Reference(aLeft, aRight: ShortInt): ShortInt; inline;
+begin
+  Result := SaturateI16ToI8Reference(SmallInt(aLeft) + SmallInt(aRight));
+end;
+
+function SaturatingSubI8Reference(aLeft, aRight: ShortInt): ShortInt; inline;
+begin
+  Result := SaturateI16ToI8Reference(SmallInt(aLeft) - SmallInt(aRight));
+end;
+
+function SaturatingAddU16Reference(aLeft, aRight: Word): Word; inline;
+var
+  LValue: LongInt;
+begin
+  LValue := LongInt(aLeft) + LongInt(aRight);
+  if LValue >= 65535 then
+    Exit(65535);
+  Result := Word(LValue);
+end;
+
+function SaturatingSubU16Reference(aLeft, aRight: Word): Word; inline;
+begin
+  if aLeft <= aRight then
+    Exit(0);
+  Result := aLeft - aRight;
+end;
+
+function SaturatingAddU8Reference(aLeft, aRight: Byte): Byte; inline;
+var
+  LValue: Integer;
+begin
+  LValue := Integer(aLeft) + Integer(aRight);
+  if LValue >= 255 then
+    Exit(255);
+  Result := Byte(LValue);
+end;
+
+function SaturatingSubU8Reference(aLeft, aRight: Byte): Byte; inline;
+begin
+  if aLeft <= aRight then
+    Exit(0);
+  Result := aLeft - aRight;
 end;
 
 function BoolMask64(aCondition: Boolean): QWord; inline;
@@ -1159,6 +1215,176 @@ begin
   LExpected.m128i_i32[3] := -4;
   LActual := simd_cvttps2dq(LValue);
   AssertM128BytesEqual(Self, 'simd_cvttps2dq', LExpected, LActual);
+end;
+
+procedure TTestCase_Sse2FacadeExperimental.Test_SaturatedAddSemantics;
+var
+  LA: TM128;
+  LB: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+  LIndex: Integer;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_i16[0] := 30000;  LB.m128i_i16[0] := 10000;
+  LA.m128i_i16[1] := -30000; LB.m128i_i16[1] := -10000;
+  LA.m128i_i16[2] := 1234;   LB.m128i_i16[2] := -34;
+  LA.m128i_i16[3] := -1234;  LB.m128i_i16[3] := 34;
+  LA.m128i_i16[4] := 32760;  LB.m128i_i16[4] := 100;
+  LA.m128i_i16[5] := -32760; LB.m128i_i16[5] := -100;
+  LA.m128i_i16[6] := 0;      LB.m128i_i16[6] := 1;
+  LA.m128i_i16[7] := -1;     LB.m128i_i16[7] := 1;
+  for LIndex := 0 to 7 do
+    LExpected.m128i_i16[LIndex] := SaturatingAddI16Reference(LA.m128i_i16[LIndex], LB.m128i_i16[LIndex]);
+  LActual := simd_adds_epi16(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_adds_epi16', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_i8[0] := 120;   LB.m128i_i8[0] := 20;
+  LA.m128i_i8[1] := -120;  LB.m128i_i8[1] := -20;
+  LA.m128i_i8[2] := 50;    LB.m128i_i8[2] := -10;
+  LA.m128i_i8[3] := -50;   LB.m128i_i8[3] := 10;
+  LA.m128i_i8[4] := 127;   LB.m128i_i8[4] := 1;
+  LA.m128i_i8[5] := -128;  LB.m128i_i8[5] := -1;
+  LA.m128i_i8[6] := 0;     LB.m128i_i8[6] := 0;
+  LA.m128i_i8[7] := 1;     LB.m128i_i8[7] := -1;
+  LA.m128i_i8[8] := 30;    LB.m128i_i8[8] := 90;
+  LA.m128i_i8[9] := -30;   LB.m128i_i8[9] := -90;
+  LA.m128i_i8[10] := 100;  LB.m128i_i8[10] := 27;
+  LA.m128i_i8[11] := -100; LB.m128i_i8[11] := -28;
+  LA.m128i_i8[12] := 64;   LB.m128i_i8[12] := 63;
+  LA.m128i_i8[13] := -64;  LB.m128i_i8[13] := -64;
+  LA.m128i_i8[14] := 10;   LB.m128i_i8[14] := 11;
+  LA.m128i_i8[15] := -10;  LB.m128i_i8[15] := -11;
+  for LIndex := 0 to 15 do
+    LExpected.m128i_i8[LIndex] := SaturatingAddI8Reference(LA.m128i_i8[LIndex], LB.m128i_i8[LIndex]);
+  LActual := simd_adds_epi8(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_adds_epi8', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u16[0] := 65000; LB.m128i_u16[0] := 1000;
+  LA.m128i_u16[1] := 10;    LB.m128i_u16[1] := 20;
+  LA.m128i_u16[2] := 0;     LB.m128i_u16[2] := 0;
+  LA.m128i_u16[3] := 40000; LB.m128i_u16[3] := 30000;
+  LA.m128i_u16[4] := 1;     LB.m128i_u16[4] := 65535;
+  LA.m128i_u16[5] := 32768; LB.m128i_u16[5] := 32767;
+  LA.m128i_u16[6] := 123;   LB.m128i_u16[6] := 456;
+  LA.m128i_u16[7] := 65535; LB.m128i_u16[7] := 1;
+  for LIndex := 0 to 7 do
+    LExpected.m128i_u16[LIndex] := SaturatingAddU16Reference(LA.m128i_u16[LIndex], LB.m128i_u16[LIndex]);
+  LActual := simd_adds_epu16(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_adds_epu16', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u8[0] := 250; LB.m128i_u8[0] := 10;
+  LA.m128i_u8[1] := 1;   LB.m128i_u8[1] := 2;
+  LA.m128i_u8[2] := 0;   LB.m128i_u8[2] := 255;
+  LA.m128i_u8[3] := 200; LB.m128i_u8[3] := 100;
+  LA.m128i_u8[4] := 127; LB.m128i_u8[4] := 128;
+  LA.m128i_u8[5] := 20;  LB.m128i_u8[5] := 30;
+  LA.m128i_u8[6] := 254; LB.m128i_u8[6] := 1;
+  LA.m128i_u8[7] := 255; LB.m128i_u8[7] := 255;
+  LA.m128i_u8[8] := 60;  LB.m128i_u8[8] := 70;
+  LA.m128i_u8[9] := 90;  LB.m128i_u8[9] := 80;
+  LA.m128i_u8[10] := 100; LB.m128i_u8[10] := 0;
+  LA.m128i_u8[11] := 0;   LB.m128i_u8[11] := 100;
+  LA.m128i_u8[12] := 240; LB.m128i_u8[12] := 20;
+  LA.m128i_u8[13] := 30;  LB.m128i_u8[13] := 40;
+  LA.m128i_u8[14] := 15;  LB.m128i_u8[14] := 16;
+  LA.m128i_u8[15] := 128; LB.m128i_u8[15] := 200;
+  for LIndex := 0 to 15 do
+    LExpected.m128i_u8[LIndex] := SaturatingAddU8Reference(LA.m128i_u8[LIndex], LB.m128i_u8[LIndex]);
+  LActual := simd_adds_epu8(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_adds_epu8', LExpected, LActual);
+end;
+
+procedure TTestCase_Sse2FacadeExperimental.Test_SaturatedSubSemantics;
+var
+  LA: TM128;
+  LB: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+  LIndex: Integer;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_i16[0] := 30000;  LB.m128i_i16[0] := -10000;
+  LA.m128i_i16[1] := -30000; LB.m128i_i16[1] := 10000;
+  LA.m128i_i16[2] := 1234;   LB.m128i_i16[2] := 34;
+  LA.m128i_i16[3] := -1234;  LB.m128i_i16[3] := -34;
+  LA.m128i_i16[4] := 32760;  LB.m128i_i16[4] := -100;
+  LA.m128i_i16[5] := -32760; LB.m128i_i16[5] := 100;
+  LA.m128i_i16[6] := 0;      LB.m128i_i16[6] := 1;
+  LA.m128i_i16[7] := -1;     LB.m128i_i16[7] := 1;
+  for LIndex := 0 to 7 do
+    LExpected.m128i_i16[LIndex] := SaturatingSubI16Reference(LA.m128i_i16[LIndex], LB.m128i_i16[LIndex]);
+  LActual := simd_subs_epi16(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_subs_epi16', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_i8[0] := 120;   LB.m128i_i8[0] := -20;
+  LA.m128i_i8[1] := -120;  LB.m128i_i8[1] := 20;
+  LA.m128i_i8[2] := 50;    LB.m128i_i8[2] := 10;
+  LA.m128i_i8[3] := -50;   LB.m128i_i8[3] := -10;
+  LA.m128i_i8[4] := 127;   LB.m128i_i8[4] := -1;
+  LA.m128i_i8[5] := -128;  LB.m128i_i8[5] := 1;
+  LA.m128i_i8[6] := 0;     LB.m128i_i8[6] := 0;
+  LA.m128i_i8[7] := 1;     LB.m128i_i8[7] := 2;
+  LA.m128i_i8[8] := 30;    LB.m128i_i8[8] := -90;
+  LA.m128i_i8[9] := -30;   LB.m128i_i8[9] := 90;
+  LA.m128i_i8[10] := 100;  LB.m128i_i8[10] := -27;
+  LA.m128i_i8[11] := -100; LB.m128i_i8[11] := 28;
+  LA.m128i_i8[12] := 64;   LB.m128i_i8[12] := -63;
+  LA.m128i_i8[13] := -64;  LB.m128i_i8[13] := 64;
+  LA.m128i_i8[14] := 10;   LB.m128i_i8[14] := -11;
+  LA.m128i_i8[15] := -10;  LB.m128i_i8[15] := 11;
+  for LIndex := 0 to 15 do
+    LExpected.m128i_i8[LIndex] := SaturatingSubI8Reference(LA.m128i_i8[LIndex], LB.m128i_i8[LIndex]);
+  LActual := simd_subs_epi8(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_subs_epi8', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u16[0] := 10;    LB.m128i_u16[0] := 20;
+  LA.m128i_u16[1] := 65000; LB.m128i_u16[1] := 1000;
+  LA.m128i_u16[2] := 0;     LB.m128i_u16[2] := 0;
+  LA.m128i_u16[3] := 40000; LB.m128i_u16[3] := 30000;
+  LA.m128i_u16[4] := 1;     LB.m128i_u16[4] := 65535;
+  LA.m128i_u16[5] := 32768; LB.m128i_u16[5] := 32767;
+  LA.m128i_u16[6] := 123;   LB.m128i_u16[6] := 456;
+  LA.m128i_u16[7] := 65535; LB.m128i_u16[7] := 1;
+  for LIndex := 0 to 7 do
+    LExpected.m128i_u16[LIndex] := SaturatingSubU16Reference(LA.m128i_u16[LIndex], LB.m128i_u16[LIndex]);
+  LActual := simd_subs_epu16(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_subs_epu16', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u8[0] := 10;  LB.m128i_u8[0] := 20;
+  LA.m128i_u8[1] := 250; LB.m128i_u8[1] := 10;
+  LA.m128i_u8[2] := 0;   LB.m128i_u8[2] := 255;
+  LA.m128i_u8[3] := 200; LB.m128i_u8[3] := 100;
+  LA.m128i_u8[4] := 127; LB.m128i_u8[4] := 128;
+  LA.m128i_u8[5] := 20;  LB.m128i_u8[5] := 30;
+  LA.m128i_u8[6] := 254; LB.m128i_u8[6] := 1;
+  LA.m128i_u8[7] := 255; LB.m128i_u8[7] := 255;
+  LA.m128i_u8[8] := 60;  LB.m128i_u8[8] := 70;
+  LA.m128i_u8[9] := 90;  LB.m128i_u8[9] := 80;
+  LA.m128i_u8[10] := 100; LB.m128i_u8[10] := 0;
+  LA.m128i_u8[11] := 0;   LB.m128i_u8[11] := 100;
+  LA.m128i_u8[12] := 240; LB.m128i_u8[12] := 20;
+  LA.m128i_u8[13] := 30;  LB.m128i_u8[13] := 40;
+  LA.m128i_u8[14] := 15;  LB.m128i_u8[14] := 16;
+  LA.m128i_u8[15] := 128; LB.m128i_u8[15] := 200;
+  for LIndex := 0 to 15 do
+    LExpected.m128i_u8[LIndex] := SaturatingSubU8Reference(LA.m128i_u8[LIndex], LB.m128i_u8[LIndex]);
+  LActual := simd_subs_epu8(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_subs_epu8', LExpected, LActual);
 end;
 
 initialization

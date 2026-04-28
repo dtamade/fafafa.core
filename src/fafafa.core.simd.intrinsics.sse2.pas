@@ -24,7 +24,7 @@ uses
 
 {
   Experimental status (2026-02-17):
-  - This unit currently mixes valid helpers with many placeholder bodies.
+  - This unit provides an opt-in Pascal fallback for incremental SSE2 semantic bring-up.
   - It is intentionally excluded from default SIMD facade/gate entry paths.
   - Keep for incremental bring-up only; do not treat as production semantic source.
 }
@@ -238,7 +238,7 @@ procedure EnsureExperimentalIntrinsicsEnabled; inline;
 begin
   {$IFNDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
   raise ENotSupportedException.Create(
-    'fafafa.core.simd.intrinsics.sse2 is experimental placeholder semantics. ' +
+    'fafafa.core.simd.intrinsics.sse2 is an experimental opt-in fallback path. ' +
     'Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt in.'
   );
   {$ENDIF}
@@ -596,18 +596,105 @@ begin
     Result.m128d_f64[i] := a.m128d_f64[i] / b.m128d_f64[i];
 end;
 
-// 其他函数的占位符实现...
-// 完整实现需要更多代码，这里只提供基础框架
+function SaturateToI16(aValue: LongInt): SmallInt; inline;
+begin
+  if aValue > High(SmallInt) then
+    Exit(High(SmallInt));
+  if aValue < Low(SmallInt) then
+    Exit(Low(SmallInt));
+  Result := SmallInt(aValue);
+end;
 
-// 占位符实�?
-function simd_adds_epi16(constref a, b: TM128): TM128; begin Result := simd_add_epi16(a, b); end;
-function simd_adds_epi8(constref a, b: TM128): TM128; begin Result := simd_add_epi8(a, b); end;
-function simd_adds_epu16(constref a, b: TM128): TM128; begin Result := simd_add_epi16(a, b); end;
-function simd_adds_epu8(constref a, b: TM128): TM128; begin Result := simd_add_epi8(a, b); end;
-function simd_subs_epi16(constref a, b: TM128): TM128; begin Result := simd_sub_epi16(a, b); end;
-function simd_subs_epi8(constref a, b: TM128): TM128; begin Result := simd_sub_epi8(a, b); end;
-function simd_subs_epu16(constref a, b: TM128): TM128; begin Result := simd_sub_epi16(a, b); end;
-function simd_subs_epu8(constref a, b: TM128): TM128; begin Result := simd_sub_epi8(a, b); end;
+function SaturateToI8(aValue: Integer): ShortInt; inline;
+begin
+  if aValue > High(ShortInt) then
+    Exit(High(ShortInt));
+  if aValue < Low(ShortInt) then
+    Exit(Low(ShortInt));
+  Result := ShortInt(aValue);
+end;
+
+function SaturateToU16(aValue: LongInt): Word; inline;
+begin
+  if aValue <= 0 then
+    Exit(0);
+  if aValue >= High(Word) then
+    Exit(High(Word));
+  Result := Word(aValue);
+end;
+
+function SaturateToU8(aValue: Integer): Byte; inline;
+begin
+  if aValue <= 0 then
+    Exit(0);
+  if aValue >= High(Byte) then
+    Exit(High(Byte));
+  Result := Byte(aValue);
+end;
+
+function simd_adds_epi16(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.m128i_i16[LIndex] := SaturateToI16(LongInt(a.m128i_i16[LIndex]) + LongInt(b.m128i_i16[LIndex]));
+end;
+
+function simd_adds_epi8(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.m128i_i8[LIndex] := SaturateToI8(Integer(a.m128i_i8[LIndex]) + Integer(b.m128i_i8[LIndex]));
+end;
+
+function simd_adds_epu16(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.m128i_u16[LIndex] := SaturateToU16(LongInt(a.m128i_u16[LIndex]) + LongInt(b.m128i_u16[LIndex]));
+end;
+
+function simd_adds_epu8(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.m128i_u8[LIndex] := SaturateToU8(Integer(a.m128i_u8[LIndex]) + Integer(b.m128i_u8[LIndex]));
+end;
+
+function simd_subs_epi16(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.m128i_i16[LIndex] := SaturateToI16(LongInt(a.m128i_i16[LIndex]) - LongInt(b.m128i_i16[LIndex]));
+end;
+
+function simd_subs_epi8(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.m128i_i8[LIndex] := SaturateToI8(Integer(a.m128i_i8[LIndex]) - Integer(b.m128i_i8[LIndex]));
+end;
+
+function simd_subs_epu16(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.m128i_u16[LIndex] := SaturateToU16(LongInt(a.m128i_u16[LIndex]) - LongInt(b.m128i_u16[LIndex]));
+end;
+
+function simd_subs_epu8(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.m128i_u8[LIndex] := SaturateToU8(Integer(a.m128i_u8[LIndex]) - Integer(b.m128i_u8[LIndex]));
+end;
 
 function simd_mullo_epi16(constref a, b: TM128): TM128;
 var i: Integer;
@@ -643,7 +730,7 @@ begin
     Result.m128i_u64[i] := UInt64(a.m128i_u32[i * 2]) * UInt64(b.m128i_u32[i * 2]);
 end;
 
-// 其他复杂函数的占位符实现
+// 其他复杂函数的逐步补齐实现
 function simd_slli_epi16(constref a: TM128; imm8: Byte): TM128;
 var
   LIndex: Integer;
