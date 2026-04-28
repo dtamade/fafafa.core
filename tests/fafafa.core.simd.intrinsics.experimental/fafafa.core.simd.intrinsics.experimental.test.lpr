@@ -10,7 +10,11 @@ uses
   {$ENDIF}
   Classes, SysUtils,
   fpcunit, consoletestrunner, testregistry,
-  fafafa.core.simd.intrinsics.experimental.testcase;
+  fafafa.core.simd.intrinsics.experimental.testcase
+  {$IFDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
+  ,fafafa.core.simd.intrinsics.experimental.sse2facade.testcase
+  {$ENDIF}
+  ;
 
 var
   LApplication: TTestRunner;

@@ -1,0 +1,304 @@
+unit fafafa.core.simd.intrinsics.experimental.sse2facade.testcase;
+
+{$mode objfpc}{$H+}
+{$I ../../src/fafafa.core.settings.inc}
+{$CODEPAGE UTF8}
+
+interface
+
+uses
+  SysUtils,
+  fpcunit, testregistry,
+  fafafa.core.simd.intrinsics.base,
+  fafafa.core.simd.intrinsics.sse2;
+
+type
+  TTestCase_Sse2FacadeExperimental = class(TTestCase)
+  published
+    procedure Test_LoadStore_Roundtrip;
+    procedure Test_AddCmpEqMovemask;
+    procedure Test_ByteShiftSemantics;
+    procedure Test_SlliEpi16_ShiftCounts;
+    procedure Test_SraiEpi16_ShiftCounts;
+    procedure Test_ShuffleEpi32_Immediate;
+  end;
+
+implementation
+
+procedure InitM128IncrementingBytes(var aValue: TM128; aBase: Byte);
+var
+  LIndex: Integer;
+begin
+  FillChar(aValue, SizeOf(aValue), 0);
+  for LIndex := 0 to 15 do
+    aValue.m128i_u8[LIndex] := Byte(aBase + LIndex);
+end;
+
+procedure AssertM128BytesEqual(aTest: TTestCase; const aLabel: string; const aExpected, aActual: TM128);
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    aTest.AssertEquals(aLabel + ' lane ' + IntToStr(LIndex), aExpected.m128i_u8[LIndex], aActual.m128i_u8[LIndex]);
+end;
+
+procedure AssertM128WordsEqual(aTest: TTestCase; const aLabel: string; const aExpected, aActual: TM128);
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    aTest.AssertEquals(aLabel + ' lane ' + IntToStr(LIndex), aExpected.m128i_u32[LIndex], aActual.m128i_u32[LIndex]);
+end;
+
+procedure ExpectSlliSi128(aTest: TTestCase; const aValue: TM128; aShift: Byte);
+var
+  LExpected: TM128;
+  LActual: TM128;
+  LIndex: Integer;
+  LShift: Integer;
+begin
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LShift := aShift;
+  if LShift > 0 then
+  begin
+    if LShift < 16 then
+      for LIndex := LShift to 15 do
+        LExpected.m128i_u8[LIndex] := aValue.m128i_u8[LIndex - LShift];
+  end
+  else
+    LExpected := aValue;
+
+  LActual := simd_slli_si128(aValue, aShift);
+  AssertM128BytesEqual(aTest, 'simd_slli_si128 shift=' + IntToStr(aShift), LExpected, LActual);
+end;
+
+procedure ExpectSrliSi128(aTest: TTestCase; const aValue: TM128; aShift: Byte);
+var
+  LExpected: TM128;
+  LActual: TM128;
+  LIndex: Integer;
+  LShift: Integer;
+begin
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LShift := aShift;
+  if LShift > 0 then
+  begin
+    if LShift < 16 then
+      for LIndex := 0 to (15 - LShift) do
+        LExpected.m128i_u8[LIndex] := aValue.m128i_u8[LIndex + LShift];
+  end
+  else
+    LExpected := aValue;
+
+  LActual := simd_srli_si128(aValue, aShift);
+  AssertM128BytesEqual(aTest, 'simd_srli_si128 shift=' + IntToStr(aShift), LExpected, LActual);
+end;
+
+function ArithmeticShiftRight16(aValue: SmallInt; aShift: Integer): SmallInt; inline;
+var
+  LBits: Word;
+  LMask: Word;
+begin
+  if aShift <= 0 then
+    Exit(aValue);
+
+  if aShift >= 16 then
+    aShift := 15;
+
+  LBits := Word(aValue);
+  if aValue >= 0 then
+    Exit(SmallInt(LBits shr aShift));
+
+  LMask := Word($FFFF shl (16 - aShift));
+  Result := SmallInt((LBits shr aShift) or LMask);
+end;
+
+function ReferenceShuffleEpi32(const aValue: TM128; aImm8: Byte): TM128;
+var
+  LDest: Integer;
+  LSrc: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  for LDest := 0 to 3 do
+  begin
+    LSrc := (aImm8 shr (LDest * 2)) and $3;
+    Result.m128i_u32[LDest] := aValue.m128i_u32[LSrc];
+  end;
+end;
+
+procedure TTestCase_Sse2FacadeExperimental.Test_LoadStore_Roundtrip;
+var
+  LBytes: array[0..15] of Byte;
+  LBytesOut: array[0..15] of Byte;
+  LValue: TM128;
+  LLoaded: TM128;
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    LBytes[LIndex] := Byte(200 + LIndex);
+
+  LValue := simd_loadu_si128(@LBytes[0]);
+  simd_storeu_si128(LBytesOut[0], LValue);
+
+  for LIndex := 0 to 15 do
+    AssertEquals('simd_loadu/storeu lane ' + IntToStr(LIndex), LBytes[LIndex], LBytesOut[LIndex]);
+
+  LLoaded := simd_loadu_si128(@LBytesOut[0]);
+  AssertM128BytesEqual(Self, 'simd_loadu roundtrip', LValue, LLoaded);
+end;
+
+procedure TTestCase_Sse2FacadeExperimental.Test_AddCmpEqMovemask;
+var
+  LA: TM128;
+  LB: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+  LIndex: Integer;
+  LExpectedMask: Integer;
+  LActualMask: Integer;
+begin
+  InitM128IncrementingBytes(LA, 1);
+  InitM128IncrementingBytes(LB, 5);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    LExpected.m128i_u8[LIndex] := Byte((LA.m128i_u8[LIndex] + LB.m128i_u8[LIndex]) and $FF);
+
+  LActual := simd_add_epi8(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_add_epi8', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+  begin
+    if LA.m128i_u8[LIndex] = LB.m128i_u8[LIndex] then
+      LExpected.m128i_u8[LIndex] := $FF
+    else
+      LExpected.m128i_u8[LIndex] := $00;
+  end;
+
+  LActual := simd_cmpeq_epi8(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_cmpeq_epi8', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  for LIndex := 0 to 15 do
+    if (LIndex and 1) = 0 then
+      LA.m128i_u8[LIndex] := $80
+    else
+      LA.m128i_u8[LIndex] := $7F;
+
+  LExpectedMask := 0;
+  for LIndex := 0 to 15 do
+    if (LA.m128i_u8[LIndex] and $80) <> 0 then
+      LExpectedMask := LExpectedMask or (1 shl LIndex);
+
+  LActualMask := simd_movemask_epi8(LA);
+  AssertEquals('simd_movemask_epi8 mask', LExpectedMask, LActualMask);
+end;
+
+procedure TTestCase_Sse2FacadeExperimental.Test_ByteShiftSemantics;
+const
+  SHIFTS: array[0..17] of Byte = (
+    0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 200
+  );
+var
+  LValue: TM128;
+  LIndex: Integer;
+begin
+  InitM128IncrementingBytes(LValue, 5);
+  for LIndex := Low(SHIFTS) to High(SHIFTS) do
+  begin
+    ExpectSlliSi128(Self, LValue, SHIFTS[LIndex]);
+    ExpectSrliSi128(Self, LValue, SHIFTS[LIndex]);
+  end;
+end;
+
+procedure TTestCase_Sse2FacadeExperimental.Test_SlliEpi16_ShiftCounts;
+const
+  SHIFTS: array[0..6] of Byte = (0, 1, 7, 15, 16, 17, 200);
+var
+  LValue: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+  LShiftIndex: Integer;
+  LLane: Integer;
+  LShift: Integer;
+  LWord: Word;
+begin
+  FillChar(LValue, SizeOf(LValue), 0);
+  for LLane := 0 to 7 do
+    LValue.m128i_u16[LLane] := Word(LLane * 100 + 3);
+
+  for LShiftIndex := Low(SHIFTS) to High(SHIFTS) do
+  begin
+    LShift := SHIFTS[LShiftIndex];
+    FillChar(LExpected, SizeOf(LExpected), 0);
+
+    if LShift < 16 then
+      for LLane := 0 to 7 do
+      begin
+        LWord := LValue.m128i_u16[LLane];
+        LExpected.m128i_u16[LLane] := Word((DWord(LWord) shl LShift) and $FFFF);
+      end;
+
+    LActual := simd_slli_epi16(LValue, SHIFTS[LShiftIndex]);
+    AssertM128BytesEqual(Self, 'simd_slli_epi16 shift=' + IntToStr(SHIFTS[LShiftIndex]), LExpected, LActual);
+  end;
+end;
+
+procedure TTestCase_Sse2FacadeExperimental.Test_SraiEpi16_ShiftCounts;
+const
+  SHIFTS: array[0..6] of Byte = (0, 1, 4, 8, 15, 16, 200);
+var
+  LValue: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+  LShiftIndex: Integer;
+  LLane: Integer;
+  LShift: Integer;
+begin
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128i_i16[0] := -32768;
+  LValue.m128i_i16[1] := -1025;
+  LValue.m128i_i16[2] := -1;
+  LValue.m128i_i16[3] := 0;
+  LValue.m128i_i16[4] := 1;
+  LValue.m128i_i16[5] := 255;
+  LValue.m128i_i16[6] := 1024;
+  LValue.m128i_i16[7] := 32767;
+
+  for LShiftIndex := Low(SHIFTS) to High(SHIFTS) do
+  begin
+    LShift := SHIFTS[LShiftIndex];
+    for LLane := 0 to 7 do
+      LExpected.m128i_i16[LLane] := ArithmeticShiftRight16(LValue.m128i_i16[LLane], LShift);
+
+    LActual := simd_srai_epi16(LValue, SHIFTS[LShiftIndex]);
+    AssertM128BytesEqual(Self, 'simd_srai_epi16 shift=' + IntToStr(SHIFTS[LShiftIndex]), LExpected, LActual);
+  end;
+end;
+
+procedure TTestCase_Sse2FacadeExperimental.Test_ShuffleEpi32_Immediate;
+var
+  LValue: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+begin
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128i_u32[0] := $11223344;
+  LValue.m128i_u32[1] := $55667788;
+  LValue.m128i_u32[2] := $99AABBCC;
+  LValue.m128i_u32[3] := $DDEEFF00;
+
+  LExpected := ReferenceShuffleEpi32(LValue, $1B);
+  LActual := simd_shuffle_epi32(LValue, $1B);
+  AssertM128WordsEqual(Self, 'simd_shuffle_epi32 imm=1b', LExpected, LActual);
+
+  LExpected := ReferenceShuffleEpi32(LValue, $E4);
+  LActual := simd_shuffle_epi32(LValue, $E4);
+  AssertM128WordsEqual(Self, 'simd_shuffle_epi32 imm=e4', LExpected, LActual);
+end;
+
+initialization
+  RegisterTest(TTestCase_Sse2FacadeExperimental);
+
+end.

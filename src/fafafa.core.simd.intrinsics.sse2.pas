@@ -5,8 +5,8 @@ unit fafafa.core.simd.intrinsics.sse2;
 
 {
   === fafafa.core.simd.intrinsics.sse2 ===
-  SSE2 (Streaming SIMD Extensions 2) 指令集支�?  
-  SSE2 �?Intel �?2001 年引入的 128-bit SIMD 指令集扩�?  是所�?x86-64 处理器的基础指令集，提供完整的整数和双精度浮点支�?  
+  SSE2 (Streaming SIMD Extensions 2) 指令集支�?
+  SSE2 �?Intel �?2001 年引入的 128-bit SIMD 指令集扩�?  是所�?x86-64 处理器的基础指令集，提供完整的整数和双精度浮点支�?
   特性：
   - 128-bit 向量寄存�?(xmm0-xmm15)
   - 整数运算 (8/16/32/64-bit)
@@ -14,7 +14,7 @@ unit fafafa.core.simd.intrinsics.sse2;
   - 单精度浮点运�?(4x32-bit)
   - 打包/解包操作
   - 移位和逻辑操作
-  
+
   兼容性：所�?x86-64 处理器都支持，是最重要的基础指令�?}
 
 interface
@@ -232,14 +232,7 @@ implementation
 
 uses
   SysUtils,
-  Math  // RTL Math 单元 (Sqrt)
-  {$IFDEF CPUX86}
-  ,fafafa.core.simd.intrinsics.x86.sse2
-  {$ENDIF}
-  {$IFDEF CPUX86_64}
-  ,fafafa.core.simd.intrinsics.x86.sse2
-  {$ENDIF}
-  ;
+  Math;  // RTL Math 单元 (Sqrt)
 
 procedure EnsureExperimentalIntrinsicsEnabled; inline;
 begin
@@ -251,14 +244,12 @@ begin
   {$ENDIF}
 end;
 
-{$IFDEF CPUX86_64}
-{$I fafafa.core.simd.intrinsics.sse2.x86.inc}
-{$ELSEIF CPUX86}
-{$I fafafa.core.simd.intrinsics.sse2.x86.inc}
-{$ELSE}
-
+// This experimental facade currently uses the scalar fallback path on every
+// architecture. The previous x86 include hook referenced a missing file and
+// prevented the unit from compiling in opt-in experimental builds at all.
+//
+// Keep the runtime guard above so default entry paths still reject it.
 // === 基础函数实现 (Pascal 版本) ===
-// 这里只实现几个关键函数作为示例，完整实现将在后续添加
 
 function simd_load_si128(const Ptr: Pointer): TM128;
 begin
@@ -427,7 +418,7 @@ begin
     Result.m128i_u32[i] := a.m128i_u32[i] xor b.m128i_u32[i];
 end;
 
-function simd_cmpeq_epi32(const a, b: TM128): TM128;
+function simd_cmpeq_epi32(constref a, b: TM128): TM128;
 var
   i: Integer;
 begin
@@ -438,7 +429,7 @@ begin
       Result.m128i_u32[i] := $00000000;
 end;
 
-function simd_cmpeq_epi16(const a, b: TM128): TM128;
+function simd_cmpeq_epi16(constref a, b: TM128): TM128;
 var
   i: Integer;
 begin
@@ -449,7 +440,7 @@ begin
       Result.m128i_u16[i] := $0000;
 end;
 
-function simd_cmpeq_epi8(const a, b: TM128): TM128;
+function simd_cmpeq_epi8(constref a, b: TM128): TM128;
 var
   i: Integer;
 begin
@@ -460,7 +451,7 @@ begin
       Result.m128i_u8[i] := $00;
 end;
 
-function simd_cmpgt_epi32(const a, b: TM128): TM128;
+function simd_cmpgt_epi32(constref a, b: TM128): TM128;
 var
   i: Integer;
 begin
@@ -471,7 +462,7 @@ begin
       Result.m128i_u32[i] := $00000000;
 end;
 
-function simd_cmpgt_epi16(const a, b: TM128): TM128;
+function simd_cmpgt_epi16(constref a, b: TM128): TM128;
 var
   i: Integer;
 begin
@@ -482,7 +473,7 @@ begin
       Result.m128i_u16[i] := $0000;
 end;
 
-function simd_cmpgt_epi8(const a, b: TM128): TM128;
+function simd_cmpgt_epi8(constref a, b: TM128): TM128;
 var
   i: Integer;
 begin
@@ -493,23 +484,23 @@ begin
       Result.m128i_u8[i] := $00;
 end;
 
-function simd_cmplt_epi32(const a, b: TM128): TM128;
+function simd_cmplt_epi32(constref a, b: TM128): TM128;
 begin
   Result := simd_cmpgt_epi32(b, a);
 end;
 
-function simd_cmplt_epi16(const a, b: TM128): TM128;
+function simd_cmplt_epi16(constref a, b: TM128): TM128;
 begin
   Result := simd_cmpgt_epi16(b, a);
 end;
 
-function simd_cmplt_epi8(const a, b: TM128): TM128;
+function simd_cmplt_epi8(constref a, b: TM128): TM128;
 begin
   Result := simd_cmpgt_epi8(b, a);
 end;
 
 // 移位操作的简化实�?
-function simd_slli_epi32(const a: TM128; imm8: Byte): TM128;
+function simd_slli_epi32(constref a: TM128; imm8: Byte): TM128;
 var
   i: Integer;
 begin
@@ -524,7 +515,7 @@ begin
   end;
 end;
 
-function simd_srli_epi32(const a: TM128; imm8: Byte): TM128;
+function simd_srli_epi32(constref a: TM128; imm8: Byte): TM128;
 var
   i: Integer;
 begin
@@ -539,7 +530,7 @@ begin
   end;
 end;
 
-function simd_srai_epi32(const a: TM128; imm8: Byte): TM128;
+function simd_srai_epi32(constref a: TM128; imm8: Byte): TM128;
 var
   i: Integer;
   shift_count: Byte;
@@ -548,7 +539,7 @@ begin
   shift_count := imm8;
   if shift_count >= 32 then
     shift_count := 31;
-    
+
   for i := 0 to 3 do
   begin
     value := a.m128i_i32[i];
@@ -573,7 +564,7 @@ begin
   Result.m128d_f64[1] := Value;
 end;
 
-function simd_add_pd(const a, b: TM128): TM128;
+function simd_add_pd(constref a, b: TM128): TM128;
 var
   i: Integer;
 begin
@@ -581,7 +572,7 @@ begin
     Result.m128d_f64[i] := a.m128d_f64[i] + b.m128d_f64[i];
 end;
 
-function simd_sub_pd(const a, b: TM128): TM128;
+function simd_sub_pd(constref a, b: TM128): TM128;
 var
   i: Integer;
 begin
@@ -589,7 +580,7 @@ begin
     Result.m128d_f64[i] := a.m128d_f64[i] - b.m128d_f64[i];
 end;
 
-function simd_mul_pd(const a, b: TM128): TM128;
+function simd_mul_pd(constref a, b: TM128): TM128;
 var
   i: Integer;
 begin
@@ -597,7 +588,7 @@ begin
     Result.m128d_f64[i] := a.m128d_f64[i] * b.m128d_f64[i];
 end;
 
-function simd_div_pd(const a, b: TM128): TM128;
+function simd_div_pd(constref a, b: TM128): TM128;
 var
   i: Integer;
 begin
@@ -609,23 +600,23 @@ end;
 // 完整实现需要更多代码，这里只提供基础框架
 
 // 占位符实�?
-function simd_adds_epi16(const a, b: TM128): TM128; begin Result := simd_add_epi16(a, b); end;
-function simd_adds_epi8(const a, b: TM128): TM128; begin Result := simd_add_epi8(a, b); end;
-function simd_adds_epu16(const a, b: TM128): TM128; begin Result := simd_add_epi16(a, b); end;
-function simd_adds_epu8(const a, b: TM128): TM128; begin Result := simd_add_epi8(a, b); end;
-function simd_subs_epi16(const a, b: TM128): TM128; begin Result := simd_sub_epi16(a, b); end;
-function simd_subs_epi8(const a, b: TM128): TM128; begin Result := simd_sub_epi8(a, b); end;
-function simd_subs_epu16(const a, b: TM128): TM128; begin Result := simd_sub_epi16(a, b); end;
-function simd_subs_epu8(const a, b: TM128): TM128; begin Result := simd_sub_epi8(a, b); end;
+function simd_adds_epi16(constref a, b: TM128): TM128; begin Result := simd_add_epi16(a, b); end;
+function simd_adds_epi8(constref a, b: TM128): TM128; begin Result := simd_add_epi8(a, b); end;
+function simd_adds_epu16(constref a, b: TM128): TM128; begin Result := simd_add_epi16(a, b); end;
+function simd_adds_epu8(constref a, b: TM128): TM128; begin Result := simd_add_epi8(a, b); end;
+function simd_subs_epi16(constref a, b: TM128): TM128; begin Result := simd_sub_epi16(a, b); end;
+function simd_subs_epi8(constref a, b: TM128): TM128; begin Result := simd_sub_epi8(a, b); end;
+function simd_subs_epu16(constref a, b: TM128): TM128; begin Result := simd_sub_epi16(a, b); end;
+function simd_subs_epu8(constref a, b: TM128): TM128; begin Result := simd_sub_epi8(a, b); end;
 
-function simd_mullo_epi16(const a, b: TM128): TM128;
+function simd_mullo_epi16(constref a, b: TM128): TM128;
 var i: Integer;
 begin
   for i := 0 to 7 do
     Result.m128i_i16[i] := a.m128i_i16[i] * b.m128i_i16[i];
 end;
 
-function simd_mulhi_epi16(const a, b: TM128): TM128;
+function simd_mulhi_epi16(constref a, b: TM128): TM128;
 var i: Integer; temp: LongInt;
 begin
   for i := 0 to 7 do
@@ -635,7 +626,7 @@ begin
   end;
 end;
 
-function simd_mulhi_epu16(const a, b: TM128): TM128;
+function simd_mulhi_epu16(constref a, b: TM128): TM128;
 var i: Integer; temp: Cardinal;
 begin
   for i := 0 to 7 do
@@ -645,7 +636,7 @@ begin
   end;
 end;
 
-function simd_mul_epu32(const a, b: TM128): TM128;
+function simd_mul_epu32(constref a, b: TM128): TM128;
 var i: Integer;
 begin
   for i := 0 to 1 do
@@ -653,36 +644,136 @@ begin
 end;
 
 // 其他复杂函数的占位符实现
-function simd_slli_epi16(const a: TM128; imm8: Byte): TM128; begin Result := a; end;
-function simd_slli_epi64(const a: TM128; imm8: Byte): TM128; begin Result := a; end;
-function simd_slli_si128(const a: TM128; imm8: Byte): TM128; begin Result := a; end;
-function simd_srli_epi16(const a: TM128; imm8: Byte): TM128; begin Result := a; end;
-function simd_srli_epi64(const a: TM128; imm8: Byte): TM128; begin Result := a; end;
-function simd_srli_si128(const a: TM128; imm8: Byte): TM128; begin Result := a; end;
-function simd_srai_epi16(const a: TM128; imm8: Byte): TM128; begin Result := a; end;
+function simd_slli_epi16(constref a: TM128; imm8: Byte): TM128;
+var
+  LIndex: Integer;
+  LShift: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  LShift := imm8;
+  if LShift < 16 then
+    for LIndex := 0 to 7 do
+      Result.m128i_u16[LIndex] := Word((DWord(a.m128i_u16[LIndex]) shl LShift) and $FFFF);
+end;
 
-function simd_sll_epi32(const a, count: TM128): TM128; begin Result := a; end;
-function simd_sll_epi16(const a, count: TM128): TM128; begin Result := a; end;
-function simd_sll_epi64(const a, count: TM128): TM128; begin Result := a; end;
-function simd_srl_epi32(const a, count: TM128): TM128; begin Result := a; end;
-function simd_srl_epi16(const a, count: TM128): TM128; begin Result := a; end;
-function simd_srl_epi64(const a, count: TM128): TM128; begin Result := a; end;
-function simd_sra_epi32(const a, count: TM128): TM128; begin Result := a; end;
-function simd_sra_epi16(const a, count: TM128): TM128; begin Result := a; end;
+function simd_slli_epi64(constref a: TM128; imm8: Byte): TM128;
+var
+  LIndex: Integer;
+  LShift: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  LShift := imm8;
+  if LShift < 64 then
+    for LIndex := 0 to 1 do
+      Result.m128i_u64[LIndex] := a.m128i_u64[LIndex] shl LShift;
+end;
 
-function simd_packs_epi32(const a, b: TM128): TM128; begin Result := a; end;
-function simd_packs_epi16(const a, b: TM128): TM128; begin Result := a; end;
-function simd_packus_epi16(const a, b: TM128): TM128; begin Result := a; end;
-function simd_unpackhi_epi32(const a, b: TM128): TM128; begin Result := a; end;
-function simd_unpackhi_epi16(const a, b: TM128): TM128; begin Result := a; end;
-function simd_unpackhi_epi8(const a, b: TM128): TM128; begin Result := a; end;
-function simd_unpackhi_epi64(const a, b: TM128): TM128; begin Result := a; end;
-function simd_unpacklo_epi32(const a, b: TM128): TM128; begin Result := a; end;
-function simd_unpacklo_epi16(const a, b: TM128): TM128; begin Result := a; end;
-function simd_unpacklo_epi8(const a, b: TM128): TM128; begin Result := a; end;
-function simd_unpacklo_epi64(const a, b: TM128): TM128; begin Result := a; end;
+function simd_slli_si128(constref a: TM128; imm8: Byte): TM128;
+var
+  LIndex: Integer;
+  LShift: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  LShift := imm8;
+  if LShift <= 0 then
+    Result := a
+  else if LShift < 16 then
+    for LIndex := LShift to 15 do
+      Result.m128i_u8[LIndex] := a.m128i_u8[LIndex - LShift];
+end;
 
-function simd_max_epi16(const a, b: TM128): TM128;
+function simd_srli_epi16(constref a: TM128; imm8: Byte): TM128;
+var
+  LIndex: Integer;
+  LShift: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  LShift := imm8;
+  if LShift < 16 then
+    for LIndex := 0 to 7 do
+      Result.m128i_u16[LIndex] := a.m128i_u16[LIndex] shr LShift;
+end;
+
+function simd_srli_epi64(constref a: TM128; imm8: Byte): TM128;
+var
+  LIndex: Integer;
+  LShift: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  LShift := imm8;
+  if LShift < 64 then
+    for LIndex := 0 to 1 do
+      Result.m128i_u64[LIndex] := a.m128i_u64[LIndex] shr LShift;
+end;
+
+function simd_srli_si128(constref a: TM128; imm8: Byte): TM128;
+var
+  LIndex: Integer;
+  LShift: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  LShift := imm8;
+  if LShift <= 0 then
+    Result := a
+  else if LShift < 16 then
+    for LIndex := 0 to (15 - LShift) do
+      Result.m128i_u8[LIndex] := a.m128i_u8[LIndex + LShift];
+end;
+
+function ArithmeticShiftRight16(aValue: SmallInt; aShift: Integer): SmallInt; inline;
+var
+  LBits: Word;
+  LMask: Word;
+begin
+  if aShift <= 0 then
+    Exit(aValue);
+
+  if aShift >= 16 then
+    aShift := 15;
+
+  LBits := Word(aValue);
+  if aValue >= 0 then
+    Exit(SmallInt(LBits shr aShift));
+
+  LMask := Word($FFFF shl (16 - aShift));
+  Result := SmallInt((LBits shr aShift) or LMask);
+end;
+
+function simd_srai_epi16(constref a: TM128; imm8: Byte): TM128;
+var
+  LIndex: Integer;
+  LShift: Integer;
+begin
+  LShift := imm8;
+  if LShift >= 16 then
+    LShift := 15;
+
+  for LIndex := 0 to 7 do
+    Result.m128i_i16[LIndex] := ArithmeticShiftRight16(a.m128i_i16[LIndex], LShift);
+end;
+
+function simd_sll_epi32(constref a, count: TM128): TM128; begin Result := a; end;
+function simd_sll_epi16(constref a, count: TM128): TM128; begin Result := a; end;
+function simd_sll_epi64(constref a, count: TM128): TM128; begin Result := a; end;
+function simd_srl_epi32(constref a, count: TM128): TM128; begin Result := a; end;
+function simd_srl_epi16(constref a, count: TM128): TM128; begin Result := a; end;
+function simd_srl_epi64(constref a, count: TM128): TM128; begin Result := a; end;
+function simd_sra_epi32(constref a, count: TM128): TM128; begin Result := a; end;
+function simd_sra_epi16(constref a, count: TM128): TM128; begin Result := a; end;
+
+function simd_packs_epi32(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_packs_epi16(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_packus_epi16(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_unpackhi_epi32(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_unpackhi_epi16(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_unpackhi_epi8(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_unpackhi_epi64(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_unpacklo_epi32(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_unpacklo_epi16(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_unpacklo_epi8(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_unpacklo_epi64(constref a, b: TM128): TM128; begin Result := a; end;
+
+function simd_max_epi16(constref a, b: TM128): TM128;
 var i: Integer;
 begin
   for i := 0 to 7 do
@@ -692,7 +783,7 @@ begin
       Result.m128i_i16[i] := b.m128i_i16[i];
 end;
 
-function simd_max_epu8(const a, b: TM128): TM128;
+function simd_max_epu8(constref a, b: TM128): TM128;
 var i: Integer;
 begin
   for i := 0 to 15 do
@@ -702,7 +793,7 @@ begin
       Result.m128i_u8[i] := b.m128i_u8[i];
 end;
 
-function simd_min_epi16(const a, b: TM128): TM128;
+function simd_min_epi16(constref a, b: TM128): TM128;
 var i: Integer;
 begin
   for i := 0 to 7 do
@@ -712,7 +803,7 @@ begin
       Result.m128i_i16[i] := b.m128i_i16[i];
 end;
 
-function simd_min_epu8(const a, b: TM128): TM128;
+function simd_min_epu8(constref a, b: TM128): TM128;
 var i: Integer;
 begin
   for i := 0 to 15 do
@@ -722,88 +813,105 @@ begin
       Result.m128i_u8[i] := b.m128i_u8[i];
 end;
 
-function simd_shuffle_epi32(const a: TM128; imm8: Byte): TM128; begin Result := a; end;
-function simd_shufflehi_epi16(const a: TM128; imm8: Byte): TM128; begin Result := a; end;
-function simd_shufflelo_epi16(const a: TM128; imm8: Byte): TM128; begin Result := a; end;
+function simd_shuffle_epi32(constref a: TM128; imm8: Byte): TM128;
+var
+  LDest: Integer;
+  LSrc: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  for LDest := 0 to 3 do
+  begin
+    LSrc := (imm8 shr (LDest * 2)) and $3;
+    Result.m128i_u32[LDest] := a.m128i_u32[LSrc];
+  end;
+end;
+function simd_shufflehi_epi16(constref a: TM128; imm8: Byte): TM128; begin Result := a; end;
+function simd_shufflelo_epi16(constref a: TM128; imm8: Byte): TM128; begin Result := a; end;
 
-function simd_move_epi64(const a: TM128): TM128; begin Result := a; end;
-function simd_movemask_epi8(const a: TM128): Integer; begin Result := 0; end;
+function simd_move_epi64(constref a: TM128): TM128; begin Result := a; end;
+function simd_movemask_epi8(constref a: TM128): Integer;
+var
+  LIndex: Integer;
+begin
+  Result := 0;
+  for LIndex := 0 to 15 do
+    if (a.m128i_u8[LIndex] and $80) <> 0 then
+      Result := Result or (1 shl LIndex);
+end;
 
-function simd_insert_epi16(const a: TM128; Value: Integer; imm8: Byte): TM128; begin Result := a; end;
-function simd_extract_epi16(const a: TM128; imm8: Byte): Integer; begin Result := 0; end;
+function simd_insert_epi16(constref a: TM128; Value: Integer; imm8: Byte): TM128; begin Result := a; end;
+function simd_extract_epi16(constref a: TM128; imm8: Byte): Integer; begin Result := 0; end;
 
 // 双精度浮点函数的占位符实�?
 function simd_load_pd(const Ptr: Pointer): TM128; begin Result := PTM128(Ptr)^; end;
 function simd_loadu_pd(const Ptr: Pointer): TM128; begin Result := PTM128(Ptr)^; end;
 function simd_load_sd(const Ptr: Pointer): TM128; begin FillChar(Result, SizeOf(Result), 0); Result.m128d_f64[0] := PDouble(Ptr)^; end;
 function simd_load1_pd(const Ptr: Pointer): TM128; begin Result := simd_set1_pd(PDouble(Ptr)^); end;
-procedure simd_store_pd(var Dest; const Src: TM128); begin PTM128(@Dest)^ := Src; end;
-procedure simd_storeu_pd(var Dest; const Src: TM128); begin PTM128(@Dest)^ := Src; end;
-procedure simd_store_sd(var Dest; const Src: TM128); begin PDouble(@Dest)^ := Src.m128d_f64[0]; end;
-procedure simd_store1_pd(var Dest; const Src: TM128); begin simd_store_pd(Dest, simd_set1_pd(Src.m128d_f64[0])); end;
+procedure simd_store_pd(var Dest; constref Src: TM128); begin PTM128(@Dest)^ := Src; end;
+procedure simd_storeu_pd(var Dest; constref Src: TM128); begin PTM128(@Dest)^ := Src; end;
+procedure simd_store_sd(var Dest; constref Src: TM128); begin PDouble(@Dest)^ := Src.m128d_f64[0]; end;
+procedure simd_store1_pd(var Dest; constref Src: TM128); begin simd_store_pd(Dest, simd_set1_pd(Src.m128d_f64[0])); end;
 
 function simd_set_pd(e1, e0: Double): TM128; begin Result.m128d_f64[0] := e0; Result.m128d_f64[1] := e1; end;
 function simd_set_sd(Value: Double): TM128; begin FillChar(Result, SizeOf(Result), 0); Result.m128d_f64[0] := Value; end;
 function simd_setr_pd(e0, e1: Double): TM128; begin Result.m128d_f64[0] := e0; Result.m128d_f64[1] := e1; end;
 
-function simd_add_sd(const a, b: TM128): TM128; begin Result := a; Result.m128d_f64[0] := a.m128d_f64[0] + b.m128d_f64[0]; end;
-function simd_sub_sd(const a, b: TM128): TM128; begin Result := a; Result.m128d_f64[0] := a.m128d_f64[0] - b.m128d_f64[0]; end;
-function simd_mul_sd(const a, b: TM128): TM128; begin Result := a; Result.m128d_f64[0] := a.m128d_f64[0] * b.m128d_f64[0]; end;
-function simd_div_sd(const a, b: TM128): TM128; begin Result := a; Result.m128d_f64[0] := a.m128d_f64[0] / b.m128d_f64[0]; end;
+function simd_add_sd(constref a, b: TM128): TM128; begin Result := a; Result.m128d_f64[0] := a.m128d_f64[0] + b.m128d_f64[0]; end;
+function simd_sub_sd(constref a, b: TM128): TM128; begin Result := a; Result.m128d_f64[0] := a.m128d_f64[0] - b.m128d_f64[0]; end;
+function simd_mul_sd(constref a, b: TM128): TM128; begin Result := a; Result.m128d_f64[0] := a.m128d_f64[0] * b.m128d_f64[0]; end;
+function simd_div_sd(constref a, b: TM128): TM128; begin Result := a; Result.m128d_f64[0] := a.m128d_f64[0] / b.m128d_f64[0]; end;
 
-function simd_sqrt_pd(const a: TM128): TM128; var i: Integer; begin for i := 0 to 1 do Result.m128d_f64[i] := Sqrt(a.m128d_f64[i]); end;
-function simd_sqrt_sd(const a: TM128): TM128; begin Result := a; Result.m128d_f64[0] := Sqrt(a.m128d_f64[0]); end;
+function simd_sqrt_pd(constref a: TM128): TM128; var i: Integer; begin for i := 0 to 1 do Result.m128d_f64[i] := Sqrt(a.m128d_f64[i]); end;
+function simd_sqrt_sd(constref a: TM128): TM128; begin Result := a; Result.m128d_f64[0] := Sqrt(a.m128d_f64[0]); end;
 
-function simd_min_pd(const a, b: TM128): TM128; var i: Integer; begin for i := 0 to 1 do if a.m128d_f64[i] < b.m128d_f64[i] then Result.m128d_f64[i] := a.m128d_f64[i] else Result.m128d_f64[i] := b.m128d_f64[i]; end;
-function simd_min_sd(const a, b: TM128): TM128; begin Result := a; if a.m128d_f64[0] < b.m128d_f64[0] then Result.m128d_f64[0] := a.m128d_f64[0] else Result.m128d_f64[0] := b.m128d_f64[0]; end;
-function simd_max_pd(const a, b: TM128): TM128; var i: Integer; begin for i := 0 to 1 do if a.m128d_f64[i] > b.m128d_f64[i] then Result.m128d_f64[i] := a.m128d_f64[i] else Result.m128d_f64[i] := b.m128d_f64[i]; end;
-function simd_max_sd(const a, b: TM128): TM128; begin Result := a; if a.m128d_f64[0] > b.m128d_f64[0] then Result.m128d_f64[0] := a.m128d_f64[0] else Result.m128d_f64[0] := b.m128d_f64[0]; end;
+function simd_min_pd(constref a, b: TM128): TM128; var i: Integer; begin for i := 0 to 1 do if a.m128d_f64[i] < b.m128d_f64[i] then Result.m128d_f64[i] := a.m128d_f64[i] else Result.m128d_f64[i] := b.m128d_f64[i]; end;
+function simd_min_sd(constref a, b: TM128): TM128; begin Result := a; if a.m128d_f64[0] < b.m128d_f64[0] then Result.m128d_f64[0] := a.m128d_f64[0] else Result.m128d_f64[0] := b.m128d_f64[0]; end;
+function simd_max_pd(constref a, b: TM128): TM128; var i: Integer; begin for i := 0 to 1 do if a.m128d_f64[i] > b.m128d_f64[i] then Result.m128d_f64[i] := a.m128d_f64[i] else Result.m128d_f64[i] := b.m128d_f64[i]; end;
+function simd_max_sd(constref a, b: TM128): TM128; begin Result := a; if a.m128d_f64[0] > b.m128d_f64[0] then Result.m128d_f64[0] := a.m128d_f64[0] else Result.m128d_f64[0] := b.m128d_f64[0]; end;
 
-function simd_and_pd(const a, b: TM128): TM128; begin Result := simd_and_si128(a, b); end;
-function simd_andnot_pd(const a, b: TM128): TM128; begin Result := simd_andnot_si128(a, b); end;
-function simd_or_pd(const a, b: TM128): TM128; begin Result := simd_or_si128(a, b); end;
-function simd_xor_pd(const a, b: TM128): TM128; begin Result := simd_xor_si128(a, b); end;
+function simd_and_pd(constref a, b: TM128): TM128; begin Result := simd_and_si128(a, b); end;
+function simd_andnot_pd(constref a, b: TM128): TM128; begin Result := simd_andnot_si128(a, b); end;
+function simd_or_pd(constref a, b: TM128): TM128; begin Result := simd_or_si128(a, b); end;
+function simd_xor_pd(constref a, b: TM128): TM128; begin Result := simd_xor_si128(a, b); end;
 
 // 其他复杂函数的占位符实现
-function simd_cmpeq_pd(const a, b: TM128): TM128; begin Result := a; end;
-function simd_cmpeq_sd(const a, b: TM128): TM128; begin Result := a; end;
-function simd_cmplt_pd(const a, b: TM128): TM128; begin Result := a; end;
-function simd_cmplt_sd(const a, b: TM128): TM128; begin Result := a; end;
-function simd_cmple_pd(const a, b: TM128): TM128; begin Result := a; end;
-function simd_cmple_sd(const a, b: TM128): TM128; begin Result := a; end;
-function simd_cmpgt_pd(const a, b: TM128): TM128; begin Result := a; end;
-function simd_cmpgt_sd(const a, b: TM128): TM128; begin Result := a; end;
-function simd_cmpge_pd(const a, b: TM128): TM128; begin Result := a; end;
-function simd_cmpge_sd(const a, b: TM128): TM128; begin Result := a; end;
-function simd_cmpneq_pd(const a, b: TM128): TM128; begin Result := a; end;
-function simd_cmpneq_sd(const a, b: TM128): TM128; begin Result := a; end;
+function simd_cmpeq_pd(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_cmpeq_sd(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_cmplt_pd(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_cmplt_sd(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_cmple_pd(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_cmple_sd(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_cmpgt_pd(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_cmpgt_sd(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_cmpge_pd(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_cmpge_sd(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_cmpneq_pd(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_cmpneq_sd(constref a, b: TM128): TM128; begin Result := a; end;
 
-function simd_shuffle_pd(const a, b: TM128; imm8: Byte): TM128; begin Result := a; end;
-function simd_unpackhi_pd(const a, b: TM128): TM128; begin Result := a; end;
-function simd_unpacklo_pd(const a, b: TM128): TM128; begin Result := a; end;
+function simd_shuffle_pd(constref a, b: TM128; imm8: Byte): TM128; begin Result := a; end;
+function simd_unpackhi_pd(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_unpacklo_pd(constref a, b: TM128): TM128; begin Result := a; end;
 
-function simd_move_sd(const a, b: TM128): TM128; begin Result := a; end;
-function simd_movemask_pd(const a: TM128): Integer; begin Result := 0; end;
+function simd_move_sd(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_movemask_pd(constref a: TM128): Integer; begin Result := 0; end;
 
-function simd_cvtsi2sd(const a: TM128; Value: LongInt): TM128; begin Result := a; end;
-function simd_cvtsd2si(const a: TM128): LongInt; begin Result := 0; end;
-function simd_cvttsd2si(const a: TM128): LongInt; begin Result := 0; end;
-function simd_cvtps2pd(const a: TM128): TM128; begin Result := a; end;
-function simd_cvtpd2ps(const a: TM128): TM128; begin Result := a; end;
-function simd_cvtss2sd(const a, b: TM128): TM128; begin Result := a; end;
-function simd_cvtsd2ss(const a, b: TM128): TM128; begin Result := a; end;
-function simd_cvtdq2pd(const a: TM128): TM128; begin Result := a; end;
-function simd_cvtpd2dq(const a: TM128): TM128; begin Result := a; end;
-function simd_cvttps2dq(const a: TM128): TM128; begin Result := a; end;
-function simd_cvtps2dq(const a: TM128): TM128; begin Result := a; end;
-function simd_cvtdq2ps(const a: TM128): TM128; begin Result := a; end;
+function simd_cvtsi2sd(constref a: TM128; Value: LongInt): TM128; begin Result := a; end;
+function simd_cvtsd2si(constref a: TM128): LongInt; begin Result := 0; end;
+function simd_cvttsd2si(constref a: TM128): LongInt; begin Result := 0; end;
+function simd_cvtps2pd(constref a: TM128): TM128; begin Result := a; end;
+function simd_cvtpd2ps(constref a: TM128): TM128; begin Result := a; end;
+function simd_cvtss2sd(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_cvtsd2ss(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_cvtdq2pd(constref a: TM128): TM128; begin Result := a; end;
+function simd_cvtpd2dq(constref a: TM128): TM128; begin Result := a; end;
+function simd_cvttps2dq(constref a: TM128): TM128; begin Result := a; end;
+function simd_cvtps2dq(constref a: TM128): TM128; begin Result := a; end;
+function simd_cvtdq2ps(constref a: TM128): TM128; begin Result := a; end;
 
 procedure simd_lfence; begin end;
 procedure simd_mfence; begin end;
 procedure simd_pause; begin end;
 procedure simd_clflush(const Ptr: Pointer); begin end;
-
-{$ENDIF}
 
 initialization
   EnsureExperimentalIntrinsicsEnabled;
