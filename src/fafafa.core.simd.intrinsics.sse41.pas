@@ -91,16 +91,26 @@ implementation
 
 uses
   SysUtils,
-  Math;  // RTL Math 单元 (Round, Int)
+  Math;
 
 procedure EnsureExperimentalIntrinsicsEnabled; inline;
 begin
   {$IFNDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
   raise ENotSupportedException.Create(
-    'fafafa.core.simd.intrinsics.sse41 is experimental placeholder semantics. ' +
+    'fafafa.core.simd.intrinsics.sse41 is experimental fallback semantics. ' +
     'Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt in.'
   );
   {$ENDIF}
+end;
+
+function RoundSse41Value(aValue: Double; aRounding: Byte): Double; inline;
+begin
+  case aRounding and 3 of
+    0: Result := Round(aValue);
+    1: Result := Floor(aValue);
+    2: Result := Ceil(aValue);
+    3: Result := Int(aValue);
+  end;
 end;
 
 // === Min/Max 操作实现 ===
@@ -212,18 +222,18 @@ end;
 
 function sse41_dp_pd(const a, b: TM128; imm8: Byte): TM128;
 var
-  i: Integer;
-  sum: Double;
+  LIndex: Integer;
+  LSum: Double;
 begin
-  // 简化的双精度点积实�?  sum := 0;
-  for i := 0 to 1 do
-    if (imm8 and (1 shl (i + 4))) <> 0 then
-      sum := sum + a.m128d_f64[i] * b.m128d_f64[i];
-  
+  LSum := 0;
+  for LIndex := 0 to 1 do
+    if (imm8 and (1 shl (LIndex + 4))) <> 0 then
+      LSum := LSum + a.m128d_f64[LIndex] * b.m128d_f64[LIndex];
+
   FillChar(Result, SizeOf(Result), 0);
-  for i := 0 to 1 do
-    if (imm8 and (1 shl i)) <> 0 then
-      Result.m128d_f64[i] := sum;
+  for LIndex := 0 to 1 do
+    if (imm8 and (1 shl LIndex)) <> 0 then
+      Result.m128d_f64[LIndex] := LSum;
 end;
 
 // === 混合操作实现 ===
@@ -285,64 +295,50 @@ end;
 // === 舍入指令实现 ===
 function sse41_round_ps(const a: TM128; rounding: Byte): TM128;
 var
-  i: Integer;
+  LIndex: Integer;
 begin
-  for i := 0 to 3 do
+  for LIndex := 0 to 3 do
   begin
-    case rounding and 7 of
-      0: Result.m128_f32[i] := Round(a.m128_f32[i]);      // 最近偶�?      1: Result.m128_f32[i] := Int(a.m128_f32[i] - 0.5);  // 向下
-      2: Result.m128_f32[i] := Int(a.m128_f32[i] + 0.5);  // 向上
-      3: Result.m128_f32[i] := Int(a.m128_f32[i]);        // 向零
-      else Result.m128_f32[i] := a.m128_f32[i];
-    end;
+    Result.m128_f32[LIndex] := RoundSse41Value(a.m128_f32[LIndex], rounding);
   end;
 end;
 
 function sse41_round_pd(const a: TM128; rounding: Byte): TM128;
 var
-  i: Integer;
+  LIndex: Integer;
 begin
-  for i := 0 to 1 do
+  for LIndex := 0 to 1 do
   begin
-    case rounding and 7 of
-      0: Result.m128d_f64[i] := Round(a.m128d_f64[i]);
-      1: Result.m128d_f64[i] := Int(a.m128d_f64[i] - 0.5);
-      2: Result.m128d_f64[i] := Int(a.m128d_f64[i] + 0.5);
-      3: Result.m128d_f64[i] := Int(a.m128d_f64[i]);
-      else Result.m128d_f64[i] := a.m128d_f64[i];
-    end;
+    Result.m128d_f64[LIndex] := RoundSse41Value(a.m128d_f64[LIndex], rounding);
   end;
 end;
 
 function sse41_round_ss(const a, b: TM128; rounding: Byte): TM128;
 begin
   Result := a;
-  case rounding and 7 of
-    0: Result.m128_f32[0] := Round(b.m128_f32[0]);
-    1: Result.m128_f32[0] := Int(b.m128_f32[0] - 0.5);
-    2: Result.m128_f32[0] := Int(b.m128_f32[0] + 0.5);
-    3: Result.m128_f32[0] := Int(b.m128_f32[0]);
-    else Result.m128_f32[0] := b.m128_f32[0];
-  end;
+  Result.m128_f32[0] := RoundSse41Value(b.m128_f32[0], rounding);
 end;
 
 function sse41_round_sd(const a, b: TM128; rounding: Byte): TM128;
 begin
   Result := a;
-  case rounding and 7 of
-    0: Result.m128d_f64[0] := Round(b.m128d_f64[0]);
-    1: Result.m128d_f64[0] := Int(b.m128d_f64[0] - 0.5);
-    2: Result.m128d_f64[0] := Int(b.m128d_f64[0] + 0.5);
-    3: Result.m128d_f64[0] := Int(b.m128d_f64[0]);
-    else Result.m128d_f64[0] := b.m128d_f64[0];
-  end;
+  Result.m128d_f64[0] := RoundSse41Value(b.m128d_f64[0], rounding);
 end;
 
-// === 其他函数的简化实�?===
 function sse41_insert_ps(const a, b: TM128; imm8: Byte): TM128;
+var
+  LDestLane: Integer;
+  LIndex: Integer;
+  LSourceLane: Integer;
 begin
   Result := a;
-  // 简化实�?  Result.m128_f32[imm8 and 3] := b.m128_f32[(imm8 shr 6) and 3];
+  LSourceLane := (imm8 shr 6) and 3;
+  LDestLane := (imm8 shr 4) and 3;
+
+  Result.m128i_u32[LDestLane] := b.m128i_u32[LSourceLane];
+  for LIndex := 0 to 3 do
+    if (imm8 and (1 shl LIndex)) <> 0 then
+      Result.m128i_u32[LIndex] := 0;
 end;
 
 function sse41_extract_ps(const a: TM128; imm8: Byte): Cardinal;
@@ -515,21 +511,22 @@ end;
 
 function sse41_test_mix_ones_zeros(const a, mask: TM128): Boolean;
 var
-  i: Integer;
-  has_zero, has_one: Boolean;
+  LHasOne: Boolean;
+  LHasZero: Boolean;
+  LIndex: Integer;
 begin
-  has_zero := False;
-  has_one := False;
-  
-  for i := 0 to 3 do
+  LHasZero := False;
+  LHasOne := False;
+
+  for LIndex := 0 to 3 do
   begin
-    if (a.m128i_u32[i] and mask.m128i_u32[i]) = 0 then
-      has_zero := True
-    else
-      has_one := True;
+    if (a.m128i_u32[LIndex] and mask.m128i_u32[LIndex]) <> 0 then
+      LHasOne := True;
+    if ((not a.m128i_u32[LIndex]) and mask.m128i_u32[LIndex]) <> 0 then
+      LHasZero := True;
   end;
-  
-  Result := has_zero and has_one;
+
+  Result := LHasZero and LHasOne;
 end;
 
 // === 其他指令实现 ===
