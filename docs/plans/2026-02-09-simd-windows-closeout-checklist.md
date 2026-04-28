@@ -114,7 +114,7 @@
 
 ## 自动回填片段（无侵入）
 
-可从收口摘要自动生成三段可粘贴片段（roadmap/matrix/progress）：
+可从收口摘要自动生成三段可粘贴片段（roadmap/matrix/progress；若主线已移除 `progress.md`，则将 progress 片段粘贴到外部工作日志即可）：
 
 - `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-snippets`
 
@@ -123,6 +123,8 @@
 - `bash tests/fafafa.core.simd/apply_windows_b07_closeout_updates.sh --apply`
 - 或在 cross gate PASS 后执行一键收口：
   - `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize <BATCH_ID>`
+
+`--apply` 会始终更新 SIMD 自身的 roadmap / matrix / RC 文档；如果目标根没有 `progress.md`，脚本会显式 skip progress 追加，不再把它当成硬依赖。
 
 可选参数：
 - `--batch-id <id>`：指定 progress 回填批次标识（例如 `SIMD-20260210-149`）

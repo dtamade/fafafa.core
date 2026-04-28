@@ -34,7 +34,7 @@ cat <<'EOM' | sed "s/__BATCH_ID__/${LBatchId}/g"
 - `win-evidence-via-gh` 在下载并校验证据后，会自动补一轮 `SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1` + `SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1` 的 Linux cross gate，再进入 closeout finalize。
 - 手工 Windows 实机路径必须先显式补一轮 `SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1` + `SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1` 的 Linux cross gate；`win-closeout-finalize` 自己不会回灌 gate。
 - `win-closeout-finalize` 内部顺序：finalize -> freeze-status -> apply（freeze PASS 才会回填文档）。
-- apply_windows_b07_closeout_updates.sh 默认强制读取 freeze_status.json，拒绝未冻结状态写文档。
+- apply_windows_b07_closeout_updates.sh 默认强制读取 freeze_status.json，拒绝未冻结状态写文档；若目标根没有 `progress.md`，只会 skip progress 追加，不会阻塞 SIMD closeout 文档回填。
 - 若第 0 步返回 RECENT_BILLING_BLOCK，请先恢复 GitHub Billing/额度，再继续后续步骤。
 - 若你只是在 Linux 预演，使用 win-closeout-dryrun 与 win-closeout-snippets，不要执行收口回填。
 EOM

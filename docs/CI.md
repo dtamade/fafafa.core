@@ -348,8 +348,9 @@ bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence
 # 用于记录 host/FPC/backend 以及 `git_commit/git_ref_hint` 来源锚点。
 #
 # GitHub Actions:
-# - ARM64 NEON: `.github/workflows/simd-arm64-neon-evidence.yml`（`workflow_dispatch` + `workflow_call`；hosted `ubuntu-24.04-arm`，nightly closeout 会复用）
-# - RISCVV: `.github/workflows/simd-riscvv-native-evidence.yml`（`workflow_dispatch` + `workflow_call`；需要 self-hosted `Linux+riscv64` runner）
+# - ARM64 NEON / RISCVV 的 native evidence lane 只作为独立补证入口；
+#   当前 nightly closeout/freeze audit 只消费 `simd-linux-evidence` 与
+#   `simd-windows-b07-evidence` 两类 artifact。
 #
 # 注意：`riscvv` 这条 lane 需要两层条件同时满足：
 # 1. workflow 已在 default branch 注册；如果没有，`gh workflow run simd-riscvv-native-evidence.yml --ref <branch>` 会返回 `404`，
@@ -363,30 +364,20 @@ SIMD_NATIVE_EVIDENCE_RUNNER=direct-fpc \
 SIMD_NATIVE_EVIDENCE_ENABLE_BACKEND_ASM=1 \
 bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence riscvv
 
-# 若本地已配置 gh，并且仓库有对应 native runner，可直接 dispatch/download
-# backend 支持 neon / riscvv；默认 dispatch 会先检查本地 worktree 干净且 remote ref 与本地一致。
-bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence-via-gh neon
-bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence-via-gh riscvv
+# 若你已从外部原生主机或独立 workflow 拿到 native evidence artifact，
+# 当前主线入口是导入再校验，而不是 restore-nightly-evidence：
+bash tests/fafafa.core.simd/BuildOrTest.sh import-nonx86-native-evidence /tmp/native-evidence-neon-YYYYMMDD-HHMMSS
+bash tests/fafafa.core.simd/BuildOrTest.sh import-nonx86-native-evidence /tmp/native-evidence-riscvv-YYYYMMDD-HHMMSS
 
-# 若已知现成 run-id，可复用旧 run；这条旁路只做 download，不会再触发 git hygiene / ref 一致性拒绝
-bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence-via-gh neon 12345678901
-# helper 下载成功后会输出 `summary.md` / `dispatch_publicabi.log`，以及存在时的 `source_revision.txt` 路径
-# 若要把复用 run 的源码来源锚死到指定 commit/ref，可额外设置：
-# `SIMD_NATIVE_EVIDENCE_EXPECT_COMMIT`、`SIMD_NATIVE_EVIDENCE_EXPECT_REF`、`SIMD_NATIVE_EVIDENCE_REQUIRE_SOURCE_REVISION=1`
-
-# restore-nightly-evidence 的输入应是原始 artifact 目录（例如 `simd-linux-evidence`、
-# `simd-windows-b07-evidence`、可选 `simd-arm64-neon-evidence` / `simd-riscvv-native-evidence`），
-# 不是聚合后的 `simd-freeze-audit` 包。
+# restore-nightly-evidence 的输入只接受 nightly closeout 当前会消费的两类原始 artifact 目录：
+# `simd-linux-evidence` 与 `simd-windows-b07-evidence`；不是聚合后的
+# `simd-freeze-audit` 包，也不接收第三个 native evidence 参数。
 #
-# 若已从 nightly workflow 下载 linux/windows/native artifacts，可先恢复 canonical logs/
+# 若已从 nightly workflow 下载 linux/windows artifacts，可先恢复 canonical logs/
 # 再继续本地 freeze-status / win-closeout-finalize 复验
 bash tests/fafafa.core.simd/BuildOrTest.sh restore-nightly-evidence \
   /tmp/simd-linux-evidence \
-  /tmp/simd-windows-b07-evidence \
-  /tmp/simd-arm64-neon-evidence
-
-# restore helper 会保留 gate_summary.* / windows_b07_gate.log 的原始 mtime，
-# 这样 freeze-status 仍按下载证据自身的时间判 freshness，不会把本地 restore 时刻误算成 fresh。
+  /tmp/simd-windows-b07-evidence
 ```
 
 ### 一键脚本

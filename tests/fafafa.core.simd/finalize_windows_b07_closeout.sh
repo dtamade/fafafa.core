@@ -156,7 +156,7 @@ cat > "${OUT_PATH}" <<EOM
 
 - Update: docs/plans/2026-02-09-simd-unblock-closeout-roadmap.md
 - Update: tests/fafafa.core.simd/docs/simd_completeness_matrix.md
-- Update: progress.md
+- Update: progress.md (if present in target root)
 EOM
 
 if [[ "${LVerifierRc}" -eq 0 ]]; then

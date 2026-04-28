@@ -437,6 +437,8 @@ tests\fafafa.core.simd\buildOrTest.bat gate-strict
    bash tests/fafafa.core.simd/apply_windows_b07_closeout_updates.sh --apply --batch-id SIMD-YYYYMMDD-152
    ```
 
+   `--apply` 会始终回填 SIMD 自身的 roadmap / matrix / RC；若当前目标根没有 `progress.md`，脚本会显式 skip progress 追加，而不是把它当成收口硬阻塞。
+
 4. **非 x86 / QEMU 证据链仍然是发布前话题**
    - 日常快门禁不会默认把这些重路径都打开
    - closeout 时仍然应该靠 `gate-strict` 和对应 evidence 路径补强

@@ -20,11 +20,11 @@ Default summary:
 
 Modes:
   (default)            仅输出可粘贴回填片段（不改文件）
-  --apply              直接更新目标文档（结构化替换 + 片段追加，幂等）
+  --apply              直接更新目标文档（roadmap/matrix/RC 必填；progress.md 存在时追加，幂等）
   --allow-simulated    允许使用 simulated summary 执行 --apply（仅测试用）
   --freeze-json <path> 指定 freeze-status JSON（默认 tests/fafafa.core.simd/logs/freeze_status.json）
   --target-root <path> 指定文档根目录（默认仓库根）
-  --batch-id <id>      指定 progress 回填批次标识（默认自动生成）
+  --batch-id <id>      指定回填批次标识（默认自动生成）
 USAGE
 }
 
@@ -330,7 +330,7 @@ PROGRESS_BLOCK=$(cat <<EOM
 ### 执行动作
 - 在 Windows 实机完成 buildOrTest.bat evidence-win-verify。
 - 生成并归档收口摘要：finalize-win-evidence。
-- 回填 roadmap / matrix / progress，关闭跨平台证据缺口。
+- 回填 roadmap / matrix / RC，并在目标根存在 progress.md 时追加进度记录。
 
 ### 命令与结果
 | Command | Result |
@@ -440,12 +440,16 @@ MATRIX_FILE="${REPO_ROOT}/tests/fafafa.core.simd/docs/simd_completeness_matrix.m
 RC_FILE="${REPO_ROOT}/tests/fafafa.core.simd/docs/simd_release_candidate_checklist.md"
 PROGRESS_FILE="${REPO_ROOT}/progress.md"
 
-for LFile in "${ROADMAP_FILE}" "${MATRIX_FILE}" "${RC_FILE}" "${PROGRESS_FILE}"; do
+for LFile in "${ROADMAP_FILE}" "${MATRIX_FILE}" "${RC_FILE}"; do
   if [[ ! -f "${LFile}" ]]; then
     echo "[CLOSEOUT] Missing target file: ${LFile}"
     exit 2
   fi
 done
+
+if [[ ! -f "${PROGRESS_FILE}" ]]; then
+  echo "[CLOSEOUT] SKIP optional progress target missing: ${PROGRESS_FILE}"
+fi
 
 if [[ "${SKIP_STRUCTURED}" != "1" ]]; then
   apply_structured_replacements "${ROADMAP_FILE}" "${MATRIX_FILE}" "${RC_FILE}"
@@ -454,6 +458,8 @@ else
 fi
 append_once "${ROADMAP_FILE}" "${ROADMAP_BLOCK}"
 append_once "${MATRIX_FILE}" "${MATRIX_BLOCK}"
-append_once "${PROGRESS_FILE}" "${PROGRESS_BLOCK}"
+if [[ -f "${PROGRESS_FILE}" ]]; then
+  append_once "${PROGRESS_FILE}" "${PROGRESS_BLOCK}"
+fi
 
 echo "[CLOSEOUT] APPLY DONE"

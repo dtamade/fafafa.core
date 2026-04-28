@@ -74,7 +74,7 @@
   `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-3cmd SIMD-YYYYMMDD-152`
 - 输出文档回填片段（会按实时 verifier 结果标注“已归档/待补齐”）：
   `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-snippets`
-- 注意：`apply_windows_b07_closeout_updates.sh --apply` 在 Windows 证据校验失败时会拒绝写入“已完成”状态。
+- 注意：`apply_windows_b07_closeout_updates.sh --apply` 在 Windows 证据校验失败时会拒绝写入“已完成”状态；若目标根没有 `progress.md`，会显式 skip progress 追加，但仍会完成 SIMD 自身文档回填。
 
 ## 分步兜底
 
