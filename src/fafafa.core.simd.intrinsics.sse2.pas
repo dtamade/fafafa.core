@@ -739,6 +739,24 @@ begin
   Result := SmallInt((LBits shr aShift) or LMask);
 end;
 
+function SaturateI16ToI8(const aValue: SmallInt): ShortInt; inline;
+begin
+  if aValue > 127 then
+    Exit(127);
+  if aValue < -128 then
+    Exit(-128);
+  Result := ShortInt(aValue);
+end;
+
+function SaturateI16ToU8(const aValue: SmallInt): Byte; inline;
+begin
+  if aValue <= 0 then
+    Exit(0);
+  if aValue >= 255 then
+    Exit(255);
+  Result := Byte(aValue);
+end;
+
 function simd_srai_epi16(constref a: TM128; imm8: Byte): TM128;
 var
   LIndex: Integer;
@@ -762,15 +780,73 @@ function simd_sra_epi32(constref a, count: TM128): TM128; begin Result := a; end
 function simd_sra_epi16(constref a, count: TM128): TM128; begin Result := a; end;
 
 function simd_packs_epi32(constref a, b: TM128): TM128; begin Result := a; end;
-function simd_packs_epi16(constref a, b: TM128): TM128; begin Result := a; end;
-function simd_packus_epi16(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_packs_epi16(constref a, b: TM128): TM128;
+var
+  LInner: Integer;
+begin
+  for LInner := 0 to 7 do
+    Result.m128i_i8[LInner] := SaturateI16ToI8(a.m128i_i16[LInner]);
+  for LInner := 0 to 7 do
+    Result.m128i_i8[8 + LInner] := SaturateI16ToI8(b.m128i_i16[LInner]);
+end;
+
+function simd_packus_epi16(constref a, b: TM128): TM128;
+var
+  LInner: Integer;
+begin
+  for LInner := 0 to 7 do
+    Result.m128i_u8[LInner] := SaturateI16ToU8(a.m128i_i16[LInner]);
+  for LInner := 0 to 7 do
+    Result.m128i_u8[8 + LInner] := SaturateI16ToU8(b.m128i_i16[LInner]);
+end;
+
 function simd_unpackhi_epi32(constref a, b: TM128): TM128; begin Result := a; end;
-function simd_unpackhi_epi16(constref a, b: TM128): TM128; begin Result := a; end;
-function simd_unpackhi_epi8(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_unpackhi_epi16(constref a, b: TM128): TM128;
+var
+  LInner: Integer;
+begin
+  for LInner := 0 to 3 do
+  begin
+    Result.m128i_i16[LInner * 2] := a.m128i_i16[4 + LInner];
+    Result.m128i_i16[(LInner * 2) + 1] := b.m128i_i16[4 + LInner];
+  end;
+end;
+
+function simd_unpackhi_epi8(constref a, b: TM128): TM128;
+var
+  LInner: Integer;
+begin
+  for LInner := 0 to 7 do
+  begin
+    Result.m128i_i8[LInner * 2] := a.m128i_i8[8 + LInner];
+    Result.m128i_i8[(LInner * 2) + 1] := b.m128i_i8[8 + LInner];
+  end;
+end;
+
 function simd_unpackhi_epi64(constref a, b: TM128): TM128; begin Result := a; end;
 function simd_unpacklo_epi32(constref a, b: TM128): TM128; begin Result := a; end;
-function simd_unpacklo_epi16(constref a, b: TM128): TM128; begin Result := a; end;
-function simd_unpacklo_epi8(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_unpacklo_epi16(constref a, b: TM128): TM128;
+var
+  LInner: Integer;
+begin
+  for LInner := 0 to 3 do
+  begin
+    Result.m128i_i16[LInner * 2] := a.m128i_i16[LInner];
+    Result.m128i_i16[(LInner * 2) + 1] := b.m128i_i16[LInner];
+  end;
+end;
+
+function simd_unpacklo_epi8(constref a, b: TM128): TM128;
+var
+  LInner: Integer;
+begin
+  for LInner := 0 to 7 do
+  begin
+    Result.m128i_i8[LInner * 2] := a.m128i_i8[LInner];
+    Result.m128i_i8[(LInner * 2) + 1] := b.m128i_i8[LInner];
+  end;
+end;
+
 function simd_unpacklo_epi64(constref a, b: TM128): TM128; begin Result := a; end;
 
 function simd_max_epi16(constref a, b: TM128): TM128;
@@ -953,4 +1029,3 @@ initialization
   EnsureExperimentalIntrinsicsEnabled;
 
 end.
-
