@@ -142,6 +142,128 @@ begin
   {$ENDIF}
 end;
 
+function BoolMask32(aValue: Boolean): DWord; inline;
+begin
+  if aValue then
+    Exit(DWord($FFFFFFFF));
+  Result := 0;
+end;
+
+function BoolMask64(aValue: Boolean): QWord; inline;
+begin
+  if aValue then
+    Exit(QWord($FFFFFFFFFFFFFFFF));
+  Result := 0;
+end;
+
+function CompareMaskPsLane(aLeft, aRight: Single; aImm8: Byte): DWord; inline;
+var
+  LUnordered: Boolean;
+  LEq: Boolean;
+  LLt: Boolean;
+  LLe: Boolean;
+  LGe: Boolean;
+  LGt: Boolean;
+  LNeOrdered: Boolean;
+begin
+  LUnordered := IsNan(aLeft) or IsNan(aRight);
+  LEq := (not LUnordered) and (aLeft = aRight);
+  LLt := (not LUnordered) and (aLeft < aRight);
+  LLe := (not LUnordered) and (aLeft <= aRight);
+  LGe := (not LUnordered) and (aLeft >= aRight);
+  LGt := (not LUnordered) and (aLeft > aRight);
+  LNeOrdered := (not LUnordered) and (aLeft <> aRight);
+
+  case (aImm8 and $1F) of
+    $00, $10:
+      Result := BoolMask32(LEq);
+    $01, $11:
+      Result := BoolMask32(LLt);
+    $02, $12:
+      Result := BoolMask32(LLe);
+    $03, $13:
+      Result := BoolMask32(LUnordered);
+    $04, $14:
+      Result := BoolMask32(LUnordered or LNeOrdered);
+    $05, $15:
+      Result := BoolMask32(not LLt);
+    $06, $16:
+      Result := BoolMask32(not LLe);
+    $07, $17:
+      Result := BoolMask32(not LUnordered);
+    $08, $18:
+      Result := BoolMask32(LUnordered or LEq);
+    $09, $19:
+      Result := BoolMask32(not LGe);
+    $0A, $1A:
+      Result := BoolMask32(not LGt);
+    $0B, $1B:
+      Result := 0;
+    $0C, $1C:
+      Result := BoolMask32(LNeOrdered);
+    $0D, $1D:
+      Result := BoolMask32(LGe);
+    $0E, $1E:
+      Result := BoolMask32(LGt);
+  else
+    Result := DWord($FFFFFFFF);
+  end;
+end;
+
+function CompareMaskPdLane(aLeft, aRight: Double; aImm8: Byte): QWord; inline;
+var
+  LUnordered: Boolean;
+  LEq: Boolean;
+  LLt: Boolean;
+  LLe: Boolean;
+  LGe: Boolean;
+  LGt: Boolean;
+  LNeOrdered: Boolean;
+begin
+  LUnordered := IsNan(aLeft) or IsNan(aRight);
+  LEq := (not LUnordered) and (aLeft = aRight);
+  LLt := (not LUnordered) and (aLeft < aRight);
+  LLe := (not LUnordered) and (aLeft <= aRight);
+  LGe := (not LUnordered) and (aLeft >= aRight);
+  LGt := (not LUnordered) and (aLeft > aRight);
+  LNeOrdered := (not LUnordered) and (aLeft <> aRight);
+
+  case (aImm8 and $1F) of
+    $00, $10:
+      Result := BoolMask64(LEq);
+    $01, $11:
+      Result := BoolMask64(LLt);
+    $02, $12:
+      Result := BoolMask64(LLe);
+    $03, $13:
+      Result := BoolMask64(LUnordered);
+    $04, $14:
+      Result := BoolMask64(LUnordered or LNeOrdered);
+    $05, $15:
+      Result := BoolMask64(not LLt);
+    $06, $16:
+      Result := BoolMask64(not LLe);
+    $07, $17:
+      Result := BoolMask64(not LUnordered);
+    $08, $18:
+      Result := BoolMask64(LUnordered or LEq);
+    $09, $19:
+      Result := BoolMask64(not LGe);
+    $0A, $1A:
+      Result := BoolMask64(not LGt);
+    $0B, $1B:
+      Result := 0;
+    $0C, $1C:
+      Result := BoolMask64(LNeOrdered);
+    $0D, $1D:
+      Result := BoolMask64(LGe);
+    $0E, $1E:
+      Result := BoolMask64(LGt);
+  else
+    Result := QWord($FFFFFFFFFFFFFFFF);
+  end;
+end;
+
 // === 基础函数实现 (Pascal 版本) ===
 function avx_load_ps256(const Ptr: Pointer): TM256;
 begin
@@ -419,14 +541,65 @@ begin
     Result.m256i_u64[i] := a.m256i_u64[i] xor b.m256i_u64[i];
 end;
 
-// 其他复杂函数的占位符实现
-function avx_cmp_ps256(const a, b: TM256; imm8: Byte): TM256; begin Result := a; end;
-function avx_cmp_pd256(const a, b: TM256; imm8: Byte): TM256; begin Result := a; end;
+function avx_cmp_ps256(const a, b: TM256; imm8: Byte): TM256;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.m256i_u32[LIndex] := CompareMaskPsLane(a.m256_f32[LIndex], b.m256_f32[LIndex], imm8);
+end;
 
-function avx_blend_ps256(const a, b: TM256; imm8: Byte): TM256; begin Result := a; end;
-function avx_blend_pd256(const a, b: TM256; imm8: Byte): TM256; begin Result := a; end;
-function avx_blendv_ps256(const a, b, mask: TM256): TM256; begin Result := a; end;
-function avx_blendv_pd256(const a, b, mask: TM256): TM256; begin Result := a; end;
+function avx_cmp_pd256(const a, b: TM256; imm8: Byte): TM256;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    Result.m256i_u64[LIndex] := CompareMaskPdLane(a.m256_f64[LIndex], b.m256_f64[LIndex], imm8);
+end;
+
+function avx_blend_ps256(const a, b: TM256; imm8: Byte): TM256;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    if ((imm8 shr LIndex) and 1) <> 0 then
+      Result.m256i_u32[LIndex] := b.m256i_u32[LIndex]
+    else
+      Result.m256i_u32[LIndex] := a.m256i_u32[LIndex];
+end;
+
+function avx_blend_pd256(const a, b: TM256; imm8: Byte): TM256;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    if ((imm8 shr LIndex) and 1) <> 0 then
+      Result.m256i_u64[LIndex] := b.m256i_u64[LIndex]
+    else
+      Result.m256i_u64[LIndex] := a.m256i_u64[LIndex];
+end;
+
+function avx_blendv_ps256(const a, b, mask: TM256): TM256;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    if (mask.m256i_u32[LIndex] and DWord($80000000)) <> 0 then
+      Result.m256i_u32[LIndex] := b.m256i_u32[LIndex]
+    else
+      Result.m256i_u32[LIndex] := a.m256i_u32[LIndex];
+end;
+
+function avx_blendv_pd256(const a, b, mask: TM256): TM256;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    if (mask.m256i_u64[LIndex] and QWord($8000000000000000)) <> 0 then
+      Result.m256i_u64[LIndex] := b.m256i_u64[LIndex]
+    else
+      Result.m256i_u64[LIndex] := a.m256i_u64[LIndex];
+end;
 
 function avx_shuffle_ps256(const a, b: TM256; imm8: Byte): TM256; begin Result := a; end;
 function avx_shuffle_pd256(const a, b: TM256; imm8: Byte): TM256; begin Result := a; end;
