@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SIMD intrinsics direct-test coverage checker (SSE/MMX/AVX2 + experimental AES/SHA)."""
+"""SIMD intrinsics direct-test coverage checker."""
 
 from __future__ import annotations
 
@@ -43,12 +43,14 @@ def _check_module(a_name: str, a_src_file: Path, a_test_file: Path, a_prefix: st
 
     l_missing = [l_name for l_name in l_declared if l_name not in l_tested]
     l_extra = sorted(l_name for l_name in l_tested if l_name not in l_declared)
+    l_placeholder_semantics = 'placeholder semantics' in l_src_text.lower()
 
     return {
         'module': a_name,
         'prefix': a_prefix,
         'test_mode': a_test_mode,
         'required': a_required,
+        'placeholder_semantics': l_placeholder_semantics,
         'declared_count': len(l_declared),
         'tested_count': len(l_tested),
         'missing_count': len(l_missing),
@@ -59,7 +61,7 @@ def _check_module(a_name: str, a_src_file: Path, a_test_file: Path, a_prefix: st
 
 
 def main() -> int:
-    l_parser = argparse.ArgumentParser(description='Check SIMD intrinsics direct test coverage for SSE/MMX/AVX2 and experimental AES/SHA.')
+    l_parser = argparse.ArgumentParser(description='Check SIMD intrinsics direct test coverage.')
     l_parser.add_argument('--json', action='store_true', dest='as_json', help='print JSON output')
     l_parser.add_argument('--strict-extra', action='store_true', dest='strict_extra',
                           help='treat extra test mappings as failure')
@@ -111,6 +113,14 @@ def main() -> int:
             'src': l_repo_root / 'src' / 'fafafa.core.simd.intrinsics.sha.pas',
             'test': l_repo_root / 'tests' / 'fafafa.core.simd.intrinsics.experimental' / 'fafafa.core.simd.intrinsics.experimental.testcase.pas',
         },
+        {
+            'name': 'avx512',
+            'prefix': 'avx512',
+            'test_mode': 'symbol_ref',
+            'required': True,
+            'src': l_repo_root / 'src' / 'fafafa.core.simd.intrinsics.avx512.pas',
+            'test': l_repo_root / 'tests' / 'fafafa.core.simd.intrinsics.experimental' / 'fafafa.core.simd.intrinsics.experimental.avx512facade.testcase.pas',
+        },
     ]
 
     for l_module in l_modules:
@@ -134,6 +144,7 @@ def main() -> int:
     l_total_missing_required = sum(l_item['missing_count'] for l_item in l_results if l_item['required'])
     l_total_missing_optional = l_total_missing - l_total_missing_required
     l_total_extra = sum(l_item['extra_count'] for l_item in l_results)
+    l_required_placeholder = [l_item['module'] for l_item in l_results if l_item['required'] and l_item['placeholder_semantics']]
 
     if l_args.as_json:
         print(json.dumps({
@@ -145,6 +156,7 @@ def main() -> int:
             'strict_extra': l_args.strict_extra,
             'require_avx2': l_args.require_avx2,
             'require_experimental': l_args.require_experimental,
+            'required_placeholder_semantics': l_required_placeholder,
         }, ensure_ascii=False, indent=2))
     else:
         print('[COVERAGE] SIMD intrinsics direct-test mapping')
@@ -154,22 +166,29 @@ def main() -> int:
                 f"  - {l_item['module']}: declared={l_item['declared_count']} "
                 f"tested={l_item['tested_count']} missing={l_item['missing_count']} "
                 f"extra={l_item['extra_count']} mode={l_item['test_mode']} scope={l_scope}"
+                f" placeholder_semantics={int(l_item['placeholder_semantics'])}"
             )
             for l_name in l_item['missing']:
                 print(f'      missing: {l_name}')
             for l_name in l_item['extra']:
                 print(f'      extra: {l_name}')
+            if l_item['required'] and l_item['placeholder_semantics']:
+                print('      stale wording: placeholder semantics')
 
-        if l_total_missing_required == 0 and (not l_args.strict_extra or l_total_extra == 0):
+        if l_total_missing_required == 0 and not l_required_placeholder and (not l_args.strict_extra or l_total_extra == 0):
             print('[COVERAGE] OK (no missing direct-test mappings)')
             if l_total_missing_optional > 0:
                 print(f'[COVERAGE] WARN (optional module missing mappings: {l_total_missing_optional})')
         elif l_total_missing_required > 0:
             print(f'[COVERAGE] FAILED (missing mappings in required modules: {l_total_missing_required})')
+        elif l_required_placeholder:
+            print(f"[COVERAGE] FAILED (required modules still say placeholder semantics: {', '.join(l_required_placeholder)})")
         else:
             print(f'[COVERAGE] FAILED (strict-extra enabled, extra mappings: {l_total_extra})')
 
     if l_total_missing_required > 0:
+        return 1
+    if l_required_placeholder:
         return 1
     if l_args.strict_extra and l_total_extra > 0:
         return 1

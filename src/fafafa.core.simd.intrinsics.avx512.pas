@@ -19,7 +19,7 @@ interface
 uses
   fafafa.core.simd.intrinsics.base;
 
-// === AVX-512 基础函数 (占位�? ===
+// === AVX-512 experimental fallback functions ===
 // Load/Store
 function avx512_load_ps512(const Ptr: Pointer): TM512;
 function avx512_loadu_ps512(const Ptr: Pointer): TM512;
@@ -49,7 +49,7 @@ procedure EnsureExperimentalIntrinsicsEnabled; inline;
 begin
   {$IFNDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
   raise ENotSupportedException.Create(
-    'fafafa.core.simd.intrinsics.avx512 is experimental placeholder semantics. ' +
+    'fafafa.core.simd.intrinsics.avx512 is experimental fallback semantics. ' +
     'Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt in.'
   );
   {$ENDIF}

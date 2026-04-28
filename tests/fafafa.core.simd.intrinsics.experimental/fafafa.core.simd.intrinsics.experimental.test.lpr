@@ -14,6 +14,7 @@ uses
   {$IFDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
   ,fafafa.core.simd.intrinsics.experimental.sse2facade.testcase
   ,fafafa.core.simd.intrinsics.experimental.avxfacade.testcase
+  ,fafafa.core.simd.intrinsics.experimental.avx512facade.testcase
   {$ENDIF}
   ;
 
