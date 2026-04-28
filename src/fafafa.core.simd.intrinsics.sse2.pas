@@ -739,6 +739,25 @@ begin
   Result := SmallInt((LBits shr aShift) or LMask);
 end;
 
+function ArithmeticShiftRight32(aValue: LongInt; aShift: Integer): LongInt; inline;
+var
+  LBits: DWord;
+  LMask: DWord;
+begin
+  if aShift <= 0 then
+    Exit(aValue);
+
+  if aShift >= 32 then
+    aShift := 31;
+
+  LBits := DWord(aValue);
+  if aValue >= 0 then
+    Exit(LongInt(LBits shr aShift));
+
+  LMask := DWord($FFFFFFFF shl (32 - aShift));
+  Result := LongInt((LBits shr aShift) or LMask);
+end;
+
 function SaturateI16ToI8(const aValue: SmallInt): ShortInt; inline;
 begin
   if aValue > 127 then
@@ -779,14 +798,103 @@ begin
     Result.m128i_i16[LIndex] := ArithmeticShiftRight16(a.m128i_i16[LIndex], LShift);
 end;
 
-function simd_sll_epi32(constref a, count: TM128): TM128; begin Result := a; end;
-function simd_sll_epi16(constref a, count: TM128): TM128; begin Result := a; end;
-function simd_sll_epi64(constref a, count: TM128): TM128; begin Result := a; end;
-function simd_srl_epi32(constref a, count: TM128): TM128; begin Result := a; end;
-function simd_srl_epi16(constref a, count: TM128): TM128; begin Result := a; end;
-function simd_srl_epi64(constref a, count: TM128): TM128; begin Result := a; end;
-function simd_sra_epi32(constref a, count: TM128): TM128; begin Result := a; end;
-function simd_sra_epi16(constref a, count: TM128): TM128; begin Result := a; end;
+function simd_sll_epi32(constref a, count: TM128): TM128;
+var
+  LIndex: Integer;
+  LShift: QWord;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  LShift := count.m128i_u64[0];
+  if LShift < 32 then
+    for LIndex := 0 to 3 do
+      Result.m128i_u32[LIndex] := a.m128i_u32[LIndex] shl Integer(LShift);
+end;
+
+function simd_sll_epi16(constref a, count: TM128): TM128;
+var
+  LIndex: Integer;
+  LShift: QWord;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  LShift := count.m128i_u64[0];
+  if LShift < 16 then
+    for LIndex := 0 to 7 do
+      Result.m128i_u16[LIndex] := Word((DWord(a.m128i_u16[LIndex]) shl Integer(LShift)) and $FFFF);
+end;
+
+function simd_sll_epi64(constref a, count: TM128): TM128;
+var
+  LIndex: Integer;
+  LShift: QWord;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  LShift := count.m128i_u64[0];
+  if LShift < 64 then
+    for LIndex := 0 to 1 do
+      Result.m128i_u64[LIndex] := a.m128i_u64[LIndex] shl Integer(LShift);
+end;
+
+function simd_srl_epi32(constref a, count: TM128): TM128;
+var
+  LIndex: Integer;
+  LShift: QWord;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  LShift := count.m128i_u64[0];
+  if LShift < 32 then
+    for LIndex := 0 to 3 do
+      Result.m128i_u32[LIndex] := a.m128i_u32[LIndex] shr Integer(LShift);
+end;
+
+function simd_srl_epi16(constref a, count: TM128): TM128;
+var
+  LIndex: Integer;
+  LShift: QWord;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  LShift := count.m128i_u64[0];
+  if LShift < 16 then
+    for LIndex := 0 to 7 do
+      Result.m128i_u16[LIndex] := a.m128i_u16[LIndex] shr Integer(LShift);
+end;
+
+function simd_srl_epi64(constref a, count: TM128): TM128;
+var
+  LIndex: Integer;
+  LShift: QWord;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  LShift := count.m128i_u64[0];
+  if LShift < 64 then
+    for LIndex := 0 to 1 do
+      Result.m128i_u64[LIndex] := a.m128i_u64[LIndex] shr Integer(LShift);
+end;
+
+function simd_sra_epi32(constref a, count: TM128): TM128;
+var
+  LIndex: Integer;
+  LShift: QWord;
+begin
+  LShift := count.m128i_u64[0];
+  if LShift >= 32 then
+    LShift := 31;
+
+  for LIndex := 0 to 3 do
+    Result.m128i_i32[LIndex] := ArithmeticShiftRight32(a.m128i_i32[LIndex], Integer(LShift));
+end;
+
+function simd_sra_epi16(constref a, count: TM128): TM128;
+var
+  LIndex: Integer;
+  LShift: QWord;
+begin
+  LShift := count.m128i_u64[0];
+  if LShift >= 16 then
+    LShift := 15;
+
+  for LIndex := 0 to 7 do
+    Result.m128i_i16[LIndex] := ArithmeticShiftRight16(a.m128i_i16[LIndex], Integer(LShift));
+end;
 
 function simd_packs_epi32(constref a, b: TM128): TM128;
 var

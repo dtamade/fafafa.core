@@ -30,6 +30,9 @@ type
     procedure Test_PacksEpi32_Saturation;
     procedure Test_UnpackHiLoEpi32_Interleave;
     procedure Test_UnpackHiLoEpi64_Interleave;
+    procedure Test_VariableShiftEpi16_CountOperand;
+    procedure Test_VariableShiftEpi32_CountOperand;
+    procedure Test_VariableShiftEpi64_CountOperand;
   end;
 
 implementation
@@ -186,6 +189,25 @@ begin
   if aValue < -32768 then
     Exit(-32768);
   Result := SmallInt(aValue);
+end;
+
+function ArithmeticShiftRight32Reference(aValue: LongInt; aShift: Integer): LongInt; inline;
+var
+  LBits: DWord;
+  LMask: DWord;
+begin
+  if aShift <= 0 then
+    Exit(aValue);
+
+  if aShift >= 32 then
+    aShift := 31;
+
+  LBits := DWord(aValue);
+  if aValue >= 0 then
+    Exit(LongInt(LBits shr aShift));
+
+  LMask := DWord($FFFFFFFF shl (32 - aShift));
+  Result := LongInt((LBits shr aShift) or LMask);
 end;
 
 procedure TTestCase_Sse2FacadeExperimental.Test_LoadStore_Roundtrip;
@@ -656,6 +678,143 @@ begin
 
   LActual := simd_unpackhi_epi64(LA, LB);
   AssertM128BytesEqual(Self, 'simd_unpackhi_epi64', LExpected, LActual);
+end;
+
+procedure TTestCase_Sse2FacadeExperimental.Test_VariableShiftEpi16_CountOperand;
+const
+  SHIFTS: array[0..6] of QWord = (0, 1, 7, 15, 16, 17, 200);
+var
+  LValue: TM128;
+  LCount: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+  LShiftIndex: Integer;
+  LLane: Integer;
+  LShift: Integer;
+begin
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128i_i16[0] := -32768;
+  LValue.m128i_i16[1] := -1025;
+  LValue.m128i_i16[2] := -1;
+  LValue.m128i_i16[3] := 0;
+  LValue.m128i_i16[4] := 1;
+  LValue.m128i_i16[5] := 255;
+  LValue.m128i_i16[6] := 1024;
+  LValue.m128i_i16[7] := 32767;
+
+  for LShiftIndex := Low(SHIFTS) to High(SHIFTS) do
+  begin
+    FillChar(LCount, SizeOf(LCount), 0);
+    LCount.m128i_u64[0] := SHIFTS[LShiftIndex];
+    LCount.m128i_u64[1] := $DEADBEEFDEADBEEF;
+    LShift := Integer(SHIFTS[LShiftIndex]);
+
+    FillChar(LExpected, SizeOf(LExpected), 0);
+    if LShift < 16 then
+      for LLane := 0 to 7 do
+        LExpected.m128i_u16[LLane] := Word((DWord(LValue.m128i_u16[LLane]) shl LShift) and $FFFF);
+    LActual := simd_sll_epi16(LValue, LCount);
+    AssertM128BytesEqual(Self, 'simd_sll_epi16 count=' + IntToStr(LShift), LExpected, LActual);
+
+    FillChar(LExpected, SizeOf(LExpected), 0);
+    if LShift < 16 then
+      for LLane := 0 to 7 do
+        LExpected.m128i_u16[LLane] := LValue.m128i_u16[LLane] shr LShift;
+    LActual := simd_srl_epi16(LValue, LCount);
+    AssertM128BytesEqual(Self, 'simd_srl_epi16 count=' + IntToStr(LShift), LExpected, LActual);
+
+    FillChar(LExpected, SizeOf(LExpected), 0);
+    for LLane := 0 to 7 do
+      LExpected.m128i_i16[LLane] := ArithmeticShiftRight16(LValue.m128i_i16[LLane], LShift);
+    LActual := simd_sra_epi16(LValue, LCount);
+    AssertM128BytesEqual(Self, 'simd_sra_epi16 count=' + IntToStr(LShift), LExpected, LActual);
+  end;
+end;
+
+procedure TTestCase_Sse2FacadeExperimental.Test_VariableShiftEpi32_CountOperand;
+const
+  SHIFTS: array[0..6] of QWord = (0, 1, 5, 31, 32, 33, 200);
+var
+  LValue: TM128;
+  LCount: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+  LShiftIndex: Integer;
+  LLane: Integer;
+  LShift: Integer;
+begin
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128i_i32[0] := LongInt($80000000);
+  LValue.m128i_i32[1] := -1025;
+  LValue.m128i_i32[2] := 1024;
+  LValue.m128i_i32[3] := 2147483647;
+
+  for LShiftIndex := Low(SHIFTS) to High(SHIFTS) do
+  begin
+    FillChar(LCount, SizeOf(LCount), 0);
+    LCount.m128i_u64[0] := SHIFTS[LShiftIndex];
+    LCount.m128i_u64[1] := $0123456789ABCDEF;
+    LShift := Integer(SHIFTS[LShiftIndex]);
+
+    FillChar(LExpected, SizeOf(LExpected), 0);
+    if LShift < 32 then
+      for LLane := 0 to 3 do
+        LExpected.m128i_u32[LLane] := DWord(LValue.m128i_u32[LLane]) shl LShift;
+    LActual := simd_sll_epi32(LValue, LCount);
+    AssertM128WordsEqual(Self, 'simd_sll_epi32 count=' + IntToStr(LShift), LExpected, LActual);
+
+    FillChar(LExpected, SizeOf(LExpected), 0);
+    if LShift < 32 then
+      for LLane := 0 to 3 do
+        LExpected.m128i_u32[LLane] := LValue.m128i_u32[LLane] shr LShift;
+    LActual := simd_srl_epi32(LValue, LCount);
+    AssertM128WordsEqual(Self, 'simd_srl_epi32 count=' + IntToStr(LShift), LExpected, LActual);
+
+    FillChar(LExpected, SizeOf(LExpected), 0);
+    for LLane := 0 to 3 do
+      LExpected.m128i_i32[LLane] := ArithmeticShiftRight32Reference(LValue.m128i_i32[LLane], LShift);
+    LActual := simd_sra_epi32(LValue, LCount);
+    AssertM128WordsEqual(Self, 'simd_sra_epi32 count=' + IntToStr(LShift), LExpected, LActual);
+  end;
+end;
+
+procedure TTestCase_Sse2FacadeExperimental.Test_VariableShiftEpi64_CountOperand;
+const
+  SHIFTS: array[0..6] of QWord = (0, 1, 8, 63, 64, 65, 200);
+var
+  LValue: TM128;
+  LCount: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+  LShiftIndex: Integer;
+  LLane: Integer;
+  LShift: Integer;
+begin
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128i_u64[0] := $0123456789ABCDEF;
+  LValue.m128i_u64[1] := $FEDCBA9876543210;
+
+  for LShiftIndex := Low(SHIFTS) to High(SHIFTS) do
+  begin
+    FillChar(LCount, SizeOf(LCount), 0);
+    LCount.m128i_u64[0] := SHIFTS[LShiftIndex];
+    LCount.m128i_u64[1] := $FFEEDDCCBBAA0099;
+    LShift := Integer(SHIFTS[LShiftIndex]);
+
+    FillChar(LExpected, SizeOf(LExpected), 0);
+    if LShift < 64 then
+      for LLane := 0 to 1 do
+        LExpected.m128i_u64[LLane] := LValue.m128i_u64[LLane] shl LShift;
+    LActual := simd_sll_epi64(LValue, LCount);
+    AssertM128BytesEqual(Self, 'simd_sll_epi64 count=' + IntToStr(LShift), LExpected, LActual);
+
+    FillChar(LExpected, SizeOf(LExpected), 0);
+    if LShift < 64 then
+      for LLane := 0 to 1 do
+        LExpected.m128i_u64[LLane] := LValue.m128i_u64[LLane] shr LShift;
+    LActual := simd_srl_epi64(LValue, LCount);
+    AssertM128BytesEqual(Self, 'simd_srl_epi64 count=' + IntToStr(LShift), LExpected, LActual);
+  end;
 end;
 
 initialization
