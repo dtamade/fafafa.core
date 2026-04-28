@@ -27,6 +27,9 @@ type
     procedure Test_PacksAndPackusEpi16_Saturation;
     procedure Test_UnpackHiLoEpi8_Interleave;
     procedure Test_UnpackHiLoEpi16_Interleave;
+    procedure Test_PacksEpi32_Saturation;
+    procedure Test_UnpackHiLoEpi32_Interleave;
+    procedure Test_UnpackHiLoEpi64_Interleave;
   end;
 
 implementation
@@ -174,6 +177,15 @@ begin
   if aValue >= 255 then
     Exit(255);
   Result := Byte(aValue);
+end;
+
+function SaturateI32ToI16Reference(aValue: LongInt): SmallInt; inline;
+begin
+  if aValue > 32767 then
+    Exit(32767);
+  if aValue < -32768 then
+    Exit(-32768);
+  Result := SmallInt(aValue);
 end;
 
 procedure TTestCase_Sse2FacadeExperimental.Test_LoadStore_Roundtrip;
@@ -546,6 +558,104 @@ begin
 
   LActual := simd_unpackhi_epi16(LA, LB);
   AssertM128BytesEqual(Self, 'simd_unpackhi_epi16', LExpected, LActual);
+end;
+
+procedure TTestCase_Sse2FacadeExperimental.Test_PacksEpi32_Saturation;
+var
+  LA: TM128;
+  LB: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+  LIndex: Integer;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+
+  LA.m128i_i32[0] := -50000;
+  LA.m128i_i32[1] := -32769;
+  LA.m128i_i32[2] := -32768;
+  LA.m128i_i32[3] := -1;
+  LB.m128i_i32[0] := 0;
+  LB.m128i_i32[1] := 32767;
+  LB.m128i_i32[2] := 32768;
+  LB.m128i_i32[3] := 50000;
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 3 do
+    LExpected.m128i_i16[LIndex] := SaturateI32ToI16Reference(LA.m128i_i32[LIndex]);
+  for LIndex := 0 to 3 do
+    LExpected.m128i_i16[4 + LIndex] := SaturateI32ToI16Reference(LB.m128i_i32[LIndex]);
+
+  LActual := simd_packs_epi32(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_packs_epi32 saturation', LExpected, LActual);
+end;
+
+procedure TTestCase_Sse2FacadeExperimental.Test_UnpackHiLoEpi32_Interleave;
+var
+  LA: TM128;
+  LB: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+
+  LA.m128i_u32[0] := $11111111;
+  LA.m128i_u32[1] := $22222222;
+  LA.m128i_u32[2] := $33333333;
+  LA.m128i_u32[3] := $44444444;
+  LB.m128i_u32[0] := $AAAA0001;
+  LB.m128i_u32[1] := $BBBB0002;
+  LB.m128i_u32[2] := $CCCC0003;
+  LB.m128i_u32[3] := $DDDD0004;
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u32[0] := LA.m128i_u32[0];
+  LExpected.m128i_u32[1] := LB.m128i_u32[0];
+  LExpected.m128i_u32[2] := LA.m128i_u32[1];
+  LExpected.m128i_u32[3] := LB.m128i_u32[1];
+
+  LActual := simd_unpacklo_epi32(LA, LB);
+  AssertM128WordsEqual(Self, 'simd_unpacklo_epi32', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u32[0] := LA.m128i_u32[2];
+  LExpected.m128i_u32[1] := LB.m128i_u32[2];
+  LExpected.m128i_u32[2] := LA.m128i_u32[3];
+  LExpected.m128i_u32[3] := LB.m128i_u32[3];
+
+  LActual := simd_unpackhi_epi32(LA, LB);
+  AssertM128WordsEqual(Self, 'simd_unpackhi_epi32', LExpected, LActual);
+end;
+
+procedure TTestCase_Sse2FacadeExperimental.Test_UnpackHiLoEpi64_Interleave;
+var
+  LA: TM128;
+  LB: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+
+  LA.m128i_u64[0] := $0123456789ABCDEF;
+  LA.m128i_u64[1] := $1111222233334444;
+  LB.m128i_u64[0] := $5555666677778888;
+  LB.m128i_u64[1] := $FEDCBA9876543210;
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := LA.m128i_u64[0];
+  LExpected.m128i_u64[1] := LB.m128i_u64[0];
+
+  LActual := simd_unpacklo_epi64(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_unpacklo_epi64', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := LA.m128i_u64[1];
+  LExpected.m128i_u64[1] := LB.m128i_u64[1];
+
+  LActual := simd_unpackhi_epi64(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_unpackhi_epi64', LExpected, LActual);
 end;
 
 initialization

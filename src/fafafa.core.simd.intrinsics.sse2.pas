@@ -757,6 +757,15 @@ begin
   Result := Byte(aValue);
 end;
 
+function SaturateI32ToI16(const aValue: LongInt): SmallInt; inline;
+begin
+  if aValue > 32767 then
+    Exit(32767);
+  if aValue < -32768 then
+    Exit(-32768);
+  Result := SmallInt(aValue);
+end;
+
 function simd_srai_epi16(constref a: TM128; imm8: Byte): TM128;
 var
   LIndex: Integer;
@@ -779,7 +788,16 @@ function simd_srl_epi64(constref a, count: TM128): TM128; begin Result := a; end
 function simd_sra_epi32(constref a, count: TM128): TM128; begin Result := a; end;
 function simd_sra_epi16(constref a, count: TM128): TM128; begin Result := a; end;
 
-function simd_packs_epi32(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_packs_epi32(constref a, b: TM128): TM128;
+var
+  LInner: Integer;
+begin
+  for LInner := 0 to 3 do
+    Result.m128i_i16[LInner] := SaturateI32ToI16(a.m128i_i32[LInner]);
+  for LInner := 0 to 3 do
+    Result.m128i_i16[4 + LInner] := SaturateI32ToI16(b.m128i_i32[LInner]);
+end;
+
 function simd_packs_epi16(constref a, b: TM128): TM128;
 var
   LInner: Integer;
@@ -800,7 +818,14 @@ begin
     Result.m128i_u8[8 + LInner] := SaturateI16ToU8(b.m128i_i16[LInner]);
 end;
 
-function simd_unpackhi_epi32(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_unpackhi_epi32(constref a, b: TM128): TM128;
+begin
+  Result.m128i_i32[0] := a.m128i_i32[2];
+  Result.m128i_i32[1] := b.m128i_i32[2];
+  Result.m128i_i32[2] := a.m128i_i32[3];
+  Result.m128i_i32[3] := b.m128i_i32[3];
+end;
+
 function simd_unpackhi_epi16(constref a, b: TM128): TM128;
 var
   LInner: Integer;
@@ -823,8 +848,20 @@ begin
   end;
 end;
 
-function simd_unpackhi_epi64(constref a, b: TM128): TM128; begin Result := a; end;
-function simd_unpacklo_epi32(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_unpackhi_epi64(constref a, b: TM128): TM128;
+begin
+  Result.m128i_u64[0] := a.m128i_u64[1];
+  Result.m128i_u64[1] := b.m128i_u64[1];
+end;
+
+function simd_unpacklo_epi32(constref a, b: TM128): TM128;
+begin
+  Result.m128i_i32[0] := a.m128i_i32[0];
+  Result.m128i_i32[1] := b.m128i_i32[0];
+  Result.m128i_i32[2] := a.m128i_i32[1];
+  Result.m128i_i32[3] := b.m128i_i32[1];
+end;
+
 function simd_unpacklo_epi16(constref a, b: TM128): TM128;
 var
   LInner: Integer;
@@ -847,7 +884,11 @@ begin
   end;
 end;
 
-function simd_unpacklo_epi64(constref a, b: TM128): TM128; begin Result := a; end;
+function simd_unpacklo_epi64(constref a, b: TM128): TM128;
+begin
+  Result.m128i_u64[0] := a.m128i_u64[0];
+  Result.m128i_u64[1] := b.m128i_u64[0];
+end;
 
 function simd_max_epi16(constref a, b: TM128): TM128;
 var i: Integer;
