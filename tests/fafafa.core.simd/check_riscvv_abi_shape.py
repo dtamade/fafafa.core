@@ -16,7 +16,9 @@ DIRECT_VEC_FUNC_RE = re.compile(
 RESULT_STORE_RE = re.compile(r'\bvse(?:8|16|32|64)\.v\b[^\n]*\(a0\)', re.IGNORECASE)
 A0_LOAD_RE = re.compile(r'\bvle(?:8|16|32|64)\.v\b[^\n]*\(a0\)', re.IGNORECASE)
 
-WIDE_RETURN_TYPES = {
+HIDDEN_RESULT_RETURN_TYPES = {
+    'TVecI16x8', 'TVecI8x16',
+    'TVecU16x8', 'TVecU8x16',
     'TVecF32x8', 'TVecF32x16',
     'TVecF64x4', 'TVecF64x8',
     'TVecI32x8', 'TVecI32x16',
@@ -30,6 +32,18 @@ EXPLICIT_ROUTINES: list[tuple[str, list[str]]] = [
     ('RISCVVLoadI64x4Asm', ['vle64.v v0, (a0)', 'vse64.v v0, (a1)']),
     ('RISCVVSplatI64x4Asm', ['vmv.v.x v0, a0', 'vse64.v v0, (a1)']),
     ('RISCVVZeroI64x4Asm', ['vmv.v.i v0, 0', 'vse64.v v0, (a0)']),
+    ('RISCVVAddI16x8', ['vle16.v v0, (a1)', 'vle16.v v1, (a2)', 'vse16.v v0, (a0)']),
+    ('RISCVVAddI8x16', ['vle8.v v0, (a1)', 'vle8.v v1, (a2)', 'vse8.v v0, (a0)']),
+    ('RISCVVAddU16x8', ['vle16.v v0, (a1)', 'vle16.v v1, (a2)', 'vse16.v v0, (a0)']),
+    ('RISCVVAddU8x16', ['vle8.v v0, (a1)', 'vle8.v v1, (a2)', 'vse8.v v0, (a0)']),
+    ('RISCVVAndNotI16x8', ['Result := ScalarAndNotI16x8(a, b);']),
+    ('RISCVVAndNotI8x16', ['for LIndex := 0 to 15 do', 'Result.i[LIndex] := (not a.i[LIndex]) and b.i[LIndex];']),
+    ('RISCVVAndNotU16x8', ['for LIndex := 0 to 7 do', 'Result.u[LIndex] := (not a.u[LIndex]) and b.u[LIndex];']),
+    ('RISCVVAndNotU8x16', ['for LIndex := 0 to 15 do', 'Result.u[LIndex] := (not a.u[LIndex]) and b.u[LIndex];']),
+    ('RISCVVCmpLtI32x8', ['vmv.x.s a0, v0', 'andi a0, a0, 255']),
+    ('RISCVVCmpEqI32x16', ['vmv.x.s a0, v0', 'slli a0, a0, 48', 'srli a0, a0, 48']),
+    ('RISCVVCmpNeU32x8', ['vle32.v v0, (a0)', 'vle32.v v2, (a1)', 'vmsne.vv v0, v0, v2']),
+    ('RISCVVCmpNeU64x4', ['vle64.v v0, (a0)', 'vle64.v v2, (a1)', 'vmsne.vv v0, v0, v2']),
     ('RISCVVExtractI32x8Asm', ['vle32.v v0, (a0)', 'vslidedown.vx v0, v0, a1', 'vmv.x.s a0, v0']),
     ('RISCVVExtractI32x16Asm', ['vle32.v v0, (a0)', 'vslidedown.vx v0, v0, a1', 'vmv.x.s a0, v0']),
     ('RISCVVExtractI64x4Asm', ['vle64.v v0, (a0)', 'vslidedown.vx v0, v0, a1', 'vmv.x.s a0, v0']),
@@ -75,7 +89,7 @@ def main() -> int:
             routine_name = match.group(1)
             params = match.group(2).strip()
             return_type = match.group(3)
-            if return_type not in WIDE_RETURN_TYPES:
+            if return_type not in HIDDEN_RESULT_RETURN_TYPES:
                 continue
             body = extract_routine_block(source, routine_name)
             direct_functions += 1

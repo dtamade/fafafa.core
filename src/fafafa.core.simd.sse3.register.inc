@@ -59,5 +59,17 @@ begin
 end;
 
 initialization
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.sse3:init:before-register');
+  Flush(StdErr);
+  {$ENDIF}
   RegisterSSE3Backend;
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.sse3:init:after-register');
+  Flush(StdErr);
+  {$ENDIF}
   RegisterBackendRebuilder(sbSSE3, @RegisterSSE3Backend);
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.sse3:init:after-rebuilder');
+  Flush(StdErr);
+  {$ENDIF}

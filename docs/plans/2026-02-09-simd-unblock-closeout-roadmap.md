@@ -55,6 +55,8 @@ Batch82 已补齐并验证以下 5 项：
 
 ### Stage A（已完成，收口发布证据）
 
+- [x] 当前推荐的一键 release 收口入口：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152`
 - [x] 按推荐顺序完成证据闭环：
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`
   - `tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify`
@@ -156,28 +158,26 @@ Batch82 已补齐并验证以下 5 项：
 - Closeout Summary: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260402-152/windows_b07_closeout_summary.md
 - 结论：P0 “Windows 实机证据未归档” 已关闭。
 
-<!-- SIMD-WIN-CLOSEOUT-2026-04-03 -->
-### Windows 实机证据（2026-04-03）
+<!-- SIMD-WIN-CLOSEOUT-2026-04-26 -->
+### Windows 实机证据（2026-04-26）
 
 - 状态：已完成
-- Evidence Log: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260403-152/windows_b07_gate.log
-- Closeout Summary: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260403-152/windows_b07_closeout_summary.md
+- Evidence Log: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260426-152/windows_b07_gate.log
+- Closeout Summary: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260426-152/windows_b07_closeout_summary.md
 - 结论：P0 “Windows 实机证据未归档” 已关闭。
 
-<!-- SIMD-WIN-CLOSEOUT-2026-04-05 -->
-### Windows 实机证据（2026-04-05）
+<!-- SIMD-WIN-CLOSEOUT-2026-04-27 -->
+### Windows 实机证据（2026-04-27）
 
 - 状态：已完成
-- Evidence Log: tests/fafafa.core.simd/logs/windows_b07_gate.log
-- Closeout Summary: tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md
-- Batch: SIMD-20260403-152
-- Canonical summary regenerated: 2026-04-05 15:26:32 +0800（via `win-closeout-finalize`）
+- Evidence Log: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260427-152/windows_b07_gate.log
+- Closeout Summary: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260427-152/windows_b07_closeout_summary.md
 - 结论：P0 “Windows 实机证据未归档” 已关闭。
 
-<!-- SIMD-WIN-CLOSEOUT-2026-04-16 -->
-### Windows 实机证据（2026-04-16）
+<!-- SIMD-WIN-CLOSEOUT-2026-04-29 -->
+### Windows 实机证据（2026-04-29）
 
 - 状态：已完成
-- Evidence Log: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260416-152/windows_b07_gate.log
-- Closeout Summary: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260416-152/windows_b07_closeout_summary.md
+- Evidence Log: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260429-158/windows_b07_gate.log
+- Closeout Summary: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260429-158/windows_b07_closeout_summary.md
 - 结论：P0 “Windows 实机证据未归档” 已关闭。

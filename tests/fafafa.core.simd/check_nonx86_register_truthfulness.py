@@ -80,20 +80,27 @@ ALLOWED_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
     } | NEON_WIDE_COMPARE_WRAPPER_SLOTS,
     "riscvv": {
         "AndNotI64x2", "AndNotI8x16", "AndNotU16x8", "AndNotU64x2",
-        "AndNotU8x16",
+        "AndNotU8x16", "AndNotI16x8",
         "CmpEqU64x2", "CmpGtU64x2", "CmpLtU64x2",
-        "ExtractI32x8", "ExtractI32x16", "ExtractI64x4",
+        "ExtractF32x8", "ExtractF32x16", "ExtractF64x2", "ExtractF64x4",
+        "ExtractI32x4", "ExtractI32x8", "ExtractI32x16",
+        "ExtractI64x2", "ExtractI64x4",
         "DotF64x2", "DotF64x4",
         "MaxI64x2", "MaxU64x2", "MinI64x2", "MinU64x2",
+        "ReduceAddF32x8", "ReduceAddF32x16", "ReduceAddF64x4", "ReduceAddF64x8",
         "SelectF32x8", "SelectF64x4", "SelectI32x4",
     },
 }
 
 ALLOWED_ALWAYS_ASM_HELPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
     "riscvv": {
+        "ShiftLeftI16x8", "ShiftRightI16x8", "ShiftRightArithI16x8",
         "ShiftLeftI32x8", "ShiftRightI32x8", "ShiftRightArithI32x8",
         "ShiftLeftI32x16", "ShiftRightI32x16", "ShiftRightArithI32x16",
         "ShiftLeftI64x4", "ShiftRightI64x4", "ShiftRightArithI64x4",
+        "ShiftLeftU16x8", "ShiftRightU16x8",
+        "ShiftLeftU32x8", "ShiftRightU32x8",
+        "ShiftLeftU64x4", "ShiftRightU64x4",
     },
 }
 

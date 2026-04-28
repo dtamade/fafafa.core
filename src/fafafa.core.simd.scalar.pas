@@ -6346,7 +6346,15 @@ end;
 {$POP}
 
 initialization
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.scalar:init:before-register');
+  Flush(StdErr);
+  {$ENDIF}
   // Register scalar backend on unit initialization
   RegisterScalarBackend;
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.scalar:init:after-register');
+  Flush(StdErr);
+  {$ENDIF}
 
 end.

@@ -41,10 +41,12 @@ type
 function GetCurrentSimdDataPlane: PSimdDataPlane; inline;
 function GetCurrentSimdDataPlaneDispatch: PSimdDispatchTable; inline;
 procedure RebindSimdDataPlane;
+procedure SetSimdDataPlaneInvalidateTestDelayMs(aDelayMs: LongInt);
 
 implementation
 
 uses
+  SysUtils,
   fafafa.core.atomic,
   fafafa.core.simd.cpuinfo;
 
@@ -53,6 +55,7 @@ var
   g_SimdDataPlaneTargetDispatchPtr: Pointer = nil;
   g_SimdDataPlaneOwnedHead: PSimdDataPlane = nil;
   g_SimdDataPlaneRebindLock: TRTLCriticalSection;
+  g_SimdDataPlaneInvalidateTestDelayMs: LongInt = 0;
 
 function FindOwnedSimdDataPlane(aDispatch: PSimdDispatchTable): PSimdDataPlane;
 begin
@@ -71,6 +74,18 @@ begin
   FillChar(Result^, SizeOf(Result^), 0);
   Result^.NextOwned := g_SimdDataPlaneOwnedHead;
   g_SimdDataPlaneOwnedHead := Result;
+end;
+
+procedure SetSimdDataPlaneInvalidateTestDelayMs(aDelayMs: LongInt);
+begin
+  if aDelayMs < 0 then
+    aDelayMs := 0;
+  InterlockedExchange(g_SimdDataPlaneInvalidateTestDelayMs, aDelayMs);
+end;
+
+function GetSimdDataPlaneInvalidateTestDelayMs: LongInt; inline;
+begin
+  Result := InterlockedCompareExchange(g_SimdDataPlaneInvalidateTestDelayMs, 0, 0);
 end;
 
 procedure InitializeSimdDataPlaneForDispatch(aDataPlane: PSimdDataPlane;
@@ -110,7 +125,7 @@ var
   LTargetDispatch: PSimdDispatchTable;
 begin
   LCurrent := PSimdDataPlane(atomic_load(g_SimdDataPlanePtr, mo_acquire));
-  LTargetDispatch := PSimdDispatchTable(atomic_load(g_SimdDataPlaneTargetDispatchPtr, mo_acquire));
+  LTargetDispatch := GetDispatchTable;
   if (LCurrent = nil) or
      ((LTargetDispatch <> nil) and (LCurrent^.Dispatch <> LTargetDispatch)) then
   begin
@@ -168,7 +183,13 @@ begin
 end;
 
 procedure InvalidateSimdDataPlane;
+var
+  LDelayMs: LongInt;
 begin
+  LDelayMs := GetSimdDataPlaneInvalidateTestDelayMs;
+  if LDelayMs > 0 then
+    Sleep(LDelayMs);
+
   // Keep the last published data-plane snapshot alive until readers observe
   // that dispatch published a different snapshot pointer, then refresh once.
   atomic_store(g_SimdDataPlaneTargetDispatchPtr, Pointer(GetDispatchTable), mo_release);
@@ -198,13 +219,30 @@ begin
 end;
 
 initialization
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.dataplane:init:start');
+  Flush(StdErr);
+  {$ENDIF}
   InitCriticalSection(g_SimdDataPlaneRebindLock);
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.dataplane:init:after-lock');
+  Flush(StdErr);
+  {$ENDIF}
   AddDispatchChangedHook(@InvalidateSimdDataPlane);
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.dataplane:init:after-hook');
+  Flush(StdErr);
+  {$ENDIF}
   RebindSimdDataPlane;
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.dataplane:init:after-rebind');
+  Flush(StdErr);
+  {$ENDIF}
 
 finalization
   RemoveDispatchChangedHook(@InvalidateSimdDataPlane);
   FinalizeSimdDataPlane;
+  InterlockedExchange(g_SimdDataPlaneInvalidateTestDelayMs, 0);
   DoneCriticalSection(g_SimdDataPlaneRebindLock);
 
 end.

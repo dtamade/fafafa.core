@@ -15,7 +15,10 @@
   - 稳定承诺：`docs/fafafa.core.simd.publicabi.stability.md`
 - **想理解模块全貌**：看 `docs/fafafa.core.simd.md`
 - **想维护或修改实现**：看 `docs/fafafa.core.simd.map.md`、`docs/fafafa.core.simd.maintenance.md`、`docs/fafafa.core.simd.checklist.md`
+- **想做完整 release closeout**：直接运行 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152`
+  - 固定顺序：`impl-smoke-x86 -> closeout-host-local -> win-evidence-preflight -> win-evidence-via-gh -> freeze-status`
 - **想知道当前稳定边界**：看 `docs/fafafa.core.simd.handoff.md` 与 `src/fafafa.core.simd.STABLE`
+  - machine-readable guard：`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh interface-completeness`
 - **想快速看这轮收尾结果和回归矩阵**：看 `docs/fafafa.core.simd.closeout.md`
 
 有两个文件需要特别区分：
@@ -208,7 +211,8 @@ WriteLn(info.Name);          // 'SSE2'
 WriteLn(info.Description);   // 'x86-64 SSE2 SIMD implementation'
 ```
 
-兼容入口 `GetCPUInformation`、`GetAvailableBackendList`、`GetAvailableBackends`、`GetBestBackendOnCPU`、`TryForceBackend`、`ForceBackend`、`ResetBackendSelection` 仍然可用，但新代码更推荐使用上面的 canonical 名称。
+模块族内的兼容入口 `GetCPUInformation`、`GetAvailableBackendList`、`GetAvailableBackends`、`GetBestBackendOnCPU`、`TryForceBackend`、`ForceBackend`、`ResetBackendSelection` 仍然可用，但新代码更推荐使用上面的 canonical 名称。
+其中 `GetAvailableBackends` / `GetBestBackendOnCPU` 继续归 `fafafa.core.simd.cpuinfo` 所有；顶层 `fafafa.core.simd` 故意只重导出 `GetSupportedBackendList` / `GetBestSupportedBackend` 这组更清晰的 CPU capability 入口。
 更底层的 `IsBackendAvailableOnCPU` / `GetActiveBackend` / `SetActiveBackend` / `ResetToAutomaticBackend` 继续存在于 `fafafa.core.simd.dispatch`，主要面向维护和测试，不再作为默认 control-plane 入口推荐。
 
 ## 对齐内存分配

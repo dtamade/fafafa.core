@@ -25,7 +25,8 @@ procedure SetActiveBackend(backend: TSimdBackend);
 // ✅ P1: 新增函数 - 允许调用者检查是否成功
 function TrySetActiveBackend(backend: TSimdBackend): Boolean;
 
-// Check if a backend is available on current CPU
+// Low-level compatibility alias for cpuinfo.IsBackendSupportedOnCPU.
+// New public call sites should prefer fafafa.core.simd.cpuinfo.
 function IsBackendAvailableOnCPU(backend: TSimdBackend): Boolean;
 
 // Check if a backend is both CPU-supported and dispatchable in this binary.
@@ -795,6 +796,10 @@ type
 // Get current dispatch table
 function GetDispatchTable: PSimdDispatchTable; inline;
 
+// Monotonic publication token for backend/current-dispatch mutations.
+function GetDispatchPublicationGeneration: LongInt; inline;
+function GetDispatchPublicationActiveWriterCount: LongInt; inline;
+
 // === Backend Registration ===
 
 // Register a backend implementation
@@ -876,11 +881,16 @@ type
     Table: TSimdDispatchTable;
   end;
 
+const
+  SIMD_MAX_CONTROL_PLANE_RESTORE_ATTEMPTS = 8;
+
 var
   // Current active dispatch table
   g_CurrentDispatch: PSimdDispatchTable;
   g_CurrentDispatchStatePtr: Pointer = nil;
   g_CurrentDispatchOwnedHead: PSimdDispatchPublishedState = nil;
+  g_DispatchPublicationGeneration: LongInt = 0;
+  g_DispatchPublicationActiveWriterCount: LongInt = 0;
   g_BackendDispatchStatePtrs: array[TSimdBackend] of Pointer;
   
   // Registered backend dispatch tables
@@ -903,11 +913,13 @@ var
   g_VectorAsmEnabledState: LongInt = 0;
   {$ENDIF}
 
-  // Serialize runtime toggle writers so backend rebuild is single-threaded.
+  // Serialize control-plane writers so backend rebuild, backend reselection,
+  // and backend re-registration do not race across threads.
   g_VectorAsmToggleLock: TRTLCriticalSection;
 
   // Serialize hook list mutation without holding the lock during callbacks.
   g_DispatchHooksLock: TRTLCriticalSection;
+  g_DispatchLocksState: LongInt = 0;  // 0=uninitialized, 1=initializing, 2=ready
 
   // Dispatch change hooks (e.g., for direct-dispatch fast path binding)
   g_DispatchChangedHooks: array of TSimdDispatchChangedHook;
@@ -926,6 +938,44 @@ var
   g_DispatchBatchRebuildState: LongInt = 0;
 
 // === Initialization ===
+
+procedure EnsureDispatchLocksInitialized;
+var
+  LObservedState: LongInt;
+begin
+  if InterlockedCompareExchange(g_DispatchLocksState, 2, 2) = 2 then
+    Exit;
+
+  LObservedState := InterlockedCompareExchange(g_DispatchLocksState, 1, 0);
+  if LObservedState = 0 then
+  begin
+    // RegisterBackend can be reached during backend unit initialization before
+    // this unit's own initialization block runs, so the writer/hook locks must
+    // be self-bootstrapping instead of assuming startup order.
+    g_VectorAsmToggleLock := Default(TRTLCriticalSection);
+    g_DispatchHooksLock := Default(TRTLCriticalSection);
+    InitCriticalSection(g_VectorAsmToggleLock);
+    InitCriticalSection(g_DispatchHooksLock);
+    WriteBarrier;
+    InterlockedExchange(g_DispatchLocksState, 2);
+    Exit;
+  end;
+
+  while InterlockedCompareExchange(g_DispatchLocksState, 2, 2) <> 2 do
+  begin
+    ReadBarrier;
+    ThreadSwitch;
+  end;
+end;
+
+procedure FinalizeDispatchLocks;
+begin
+  if InterlockedCompareExchange(g_DispatchLocksState, 2, 2) <> 2 then
+    Exit;
+
+  DoneCriticalSection(g_DispatchHooksLock);
+  DoneCriticalSection(g_VectorAsmToggleLock);
+end;
 
 function DefaultBackendName(const aBackend: TSimdBackend): string; inline;
 begin
@@ -978,6 +1028,28 @@ end;
 function GetPublishedBackendDispatchState(const aBackend: TSimdBackend): PSimdDispatchPublishedState; inline;
 begin
   Result := PSimdDispatchPublishedState(atomic_load(g_BackendDispatchStatePtrs[aBackend], mo_acquire));
+end;
+
+function GetDispatchPublicationGeneration: LongInt; inline;
+begin
+  Result := atomic_load(g_DispatchPublicationGeneration, mo_acquire);
+end;
+
+function GetDispatchPublicationActiveWriterCount: LongInt; inline;
+begin
+  Result := InterlockedCompareExchange(g_DispatchPublicationActiveWriterCount, 0, 0);
+end;
+
+procedure BeginDispatchPublication; inline;
+begin
+  InterlockedIncrement(g_DispatchPublicationActiveWriterCount);
+  atomic_fetch_add(g_DispatchPublicationGeneration, 1, mo_acq_rel);
+end;
+
+procedure EndDispatchPublication; inline;
+begin
+  atomic_fetch_add(g_DispatchPublicationGeneration, 1, mo_acq_rel);
+  InterlockedDecrement(g_DispatchPublicationActiveWriterCount);
 end;
 
 function GetPublishedBackendDispatchTable(const aBackend: TSimdBackend): PSimdDispatchTable; inline;
@@ -1251,8 +1323,52 @@ end;
 
 procedure InitializeDispatch;
 begin
+  EnsureDispatchLocksInitialized;
   // Always call DoInitializeDispatch - it has its own guard
   DoInitializeDispatch;
+end;
+
+function MatchesControlPlaneIntentLocked(const aExpectForced: Boolean;
+  const aExpectedBackend: TSimdBackend): Boolean; inline;
+begin
+  Result := (g_BackendForced = aExpectForced) and
+    ((not aExpectForced) or (g_ForcedBackend = aExpectedBackend));
+end;
+
+procedure ApplyControlPlaneIntentLocked(const aExpectForced: Boolean;
+  const aExpectedBackend: TSimdBackend); inline;
+begin
+  g_BackendForced := aExpectForced;
+  if aExpectForced then
+    g_ForcedBackend := aExpectedBackend
+  else
+    g_ForcedBackend := sbScalar;
+  WriteBarrier;
+end;
+
+procedure ReinitializeDispatchLocked; inline;
+begin
+  g_DispatchInitialized := False;
+  InterlockedExchange(g_DispatchState, 0);
+  atomic_thread_fence(mo_seq_cst);
+  InitializeDispatch;
+end;
+
+function RestoreControlPlaneIntentUntilStableLocked(const aExpectForced: Boolean;
+  const aExpectedBackend: TSimdBackend): Boolean;
+var
+  LAttempt: Integer;
+begin
+  for LAttempt := 1 to SIMD_MAX_CONTROL_PLANE_RESTORE_ATTEMPTS do
+  begin
+    ApplyControlPlaneIntentLocked(aExpectForced, aExpectedBackend);
+    ReinitializeDispatchLocked;
+    ReadBarrier;
+    if MatchesControlPlaneIntentLocked(aExpectForced, aExpectedBackend) then
+      Exit(True);
+  end;
+
+  Result := False;
 end;
 
 // === Public Interface ===
@@ -1286,6 +1402,7 @@ var
   LBackend: TSimdBackend;
   LCount: Integer;
 begin
+  EnsureDispatchLocksInitialized;
   EnterCriticalSection(g_VectorAsmToggleLock);
   try
     Result := nil;
@@ -1309,6 +1426,7 @@ function GetBestDispatchableBackend: TSimdBackend;
 var
   LBackend: TSimdBackend;
 begin
+  EnsureDispatchLocksInitialized;
   EnterCriticalSection(g_VectorAsmToggleLock);
   try
     for LBackend in SIMD_BACKEND_PRIORITY_ORDER do
@@ -1324,10 +1442,13 @@ end;
 function TrySetActiveBackendInternal(backend: TSimdBackend; out aAttemptedSelection: Boolean): Boolean;
 var
   LDispatch: PSimdDispatchTable;
+  LAutomaticIntentStable: Boolean;
   LPreviousBackendForced: Boolean;
   LPreviousForcedBackend: TSimdBackend;
+  LForcedIntentStable: Boolean;
 begin
   aAttemptedSelection := False;
+  EnsureDispatchLocksInitialized;
   EnterCriticalSection(g_VectorAsmToggleLock);
   try
     // Fast fail on backends that are not registered or not wired available.
@@ -1343,13 +1464,8 @@ begin
     LPreviousForcedBackend := g_ForcedBackend;
 
     // Backend is valid, force it
-    g_ForcedBackend := backend;
-    g_BackendForced := True;
-    WriteBarrier;
-    g_DispatchInitialized := False;
-    InterlockedExchange(g_DispatchState, 0);
-    atomic_thread_fence(mo_seq_cst);
-    InitializeDispatch;
+    ApplyControlPlaneIntentLocked(True, backend);
+    ReinitializeDispatchLocked;
     ReadBarrier;
     LDispatch := GetCurrentPublishedDispatchTable;
     Result := (LDispatch <> nil) and (LDispatch^.Backend = backend);
@@ -1360,41 +1476,7 @@ begin
       // backend that this call already reported as not successfully selected.
       // It also must not leave the active dispatch stuck on the transient
       // scalar fallback chosen during the failed forced-selection attempt.
-      g_BackendForced := False;
-      g_ForcedBackend := sbScalar;
-      WriteBarrier;
-      g_DispatchInitialized := False;
-      InterlockedExchange(g_DispatchState, 0);
-      atomic_thread_fence(mo_seq_cst);
-      InitializeDispatch;
-      if (not LPreviousBackendForced) and g_BackendForced then
-      begin
-        // Automatic rollback is also a control-plane transition. If a
-        // dispatch-changed hook re-enters and forces another backend during
-        // the rollback notification, restore automatic intent before the API
-        // reports its final state.
-        g_BackendForced := False;
-        g_ForcedBackend := sbScalar;
-        WriteBarrier;
-        g_DispatchInitialized := False;
-        InterlockedExchange(g_DispatchState, 0);
-        atomic_thread_fence(mo_seq_cst);
-        InitializeDispatch;
-        ReadBarrier;
-        if g_BackendForced then
-        begin
-          // The restore reinitialize is itself another automatic-state
-          // publication. If a hook re-forces scalar again during that restore
-          // callback, clear forced mode once more before returning.
-          g_BackendForced := False;
-          g_ForcedBackend := sbScalar;
-          WriteBarrier;
-          g_DispatchInitialized := False;
-          InterlockedExchange(g_DispatchState, 0);
-          atomic_thread_fence(mo_seq_cst);
-          InitializeDispatch;
-        end;
-      end;
+      LAutomaticIntentStable := RestoreControlPlaneIntentUntilStableLocked(False, sbScalar);
       ReadBarrier;
       LDispatch := GetCurrentPublishedDispatchTable;
       Result := (LDispatch <> nil) and (LDispatch^.Backend = backend);
@@ -1404,37 +1486,58 @@ begin
         // requested backend before this API returns. Preserve the success
         // contract by restoring forced intent as well, so later backend
         // re-register/rebuild events cannot drift to a higher-priority backend.
-        g_ForcedBackend := backend;
-        g_BackendForced := True;
-        WriteBarrier;
+        LForcedIntentStable := False;
+        if RestoreControlPlaneIntentUntilStableLocked(True, backend) then
+        begin
+          ReadBarrier;
+          LDispatch := GetCurrentPublishedDispatchTable;
+          LForcedIntentStable := (LDispatch <> nil) and (LDispatch^.Backend = backend) and
+            MatchesControlPlaneIntentLocked(True, backend);
+        end
+        ;
+
+        Result := LForcedIntentStable;
+        if not Result then
+        begin
+          // Once forced-intent stabilization itself exhausts the bounded
+          // restore budget, report failure and return to the caller's pre-call
+          // stable intent instead of leaking the transient late-force state.
+          if LPreviousBackendForced then
+          begin
+            if not RestoreControlPlaneIntentUntilStableLocked(True, LPreviousForcedBackend) then
+            begin
+              ApplyControlPlaneIntentLocked(True, LPreviousForcedBackend);
+              ReinitializeDispatchLocked;
+            end;
+          end
+          else if not RestoreControlPlaneIntentUntilStableLocked(False, sbScalar) then
+          begin
+            ApplyControlPlaneIntentLocked(False, sbScalar);
+            ReinitializeDispatchLocked;
+          end;
+        end;
       end
       else if LPreviousBackendForced then
       begin
         // A failed switch must not destroy the caller's previously established
         // forced-selection intent. Restore both the control-plane intent and
         // the published dispatch snapshot to the pre-call forced backend.
-        g_ForcedBackend := LPreviousForcedBackend;
-        g_BackendForced := True;
-        WriteBarrier;
-        g_DispatchInitialized := False;
-        InterlockedExchange(g_DispatchState, 0);
-        atomic_thread_fence(mo_seq_cst);
-        InitializeDispatch;
-        ReadBarrier;
-        if (not g_BackendForced) or (g_ForcedBackend <> LPreviousForcedBackend) then
+        if not RestoreControlPlaneIntentUntilStableLocked(True, LPreviousForcedBackend) then
         begin
-          // The rollback restore path is also a control-plane transition.
-          // If a dispatch-changed hook mutates forced mode again during the
-          // restore notification, re-apply the caller's previous forced intent
-          // before returning.
-          g_ForcedBackend := LPreviousForcedBackend;
-          g_BackendForced := True;
-          WriteBarrier;
-          g_DispatchInitialized := False;
-          InterlockedExchange(g_DispatchState, 0);
-          atomic_thread_fence(mo_seq_cst);
-          InitializeDispatch;
+          // If repeated late-force mutations spend the bounded rollback budget,
+          // issue one last explicit restore to the caller's pre-call forced
+          // backend after the mutation storm has exhausted itself.
+          ApplyControlPlaneIntentLocked(True, LPreviousForcedBackend);
+          ReinitializeDispatchLocked;
         end;
+      end
+      else if not LAutomaticIntentStable then
+      begin
+        // Mirror the previous-forced post-cap closeout for automatic callers:
+        // once repeated late-force mutations have spent the bounded restore
+        // budget, perform one last explicit automatic restore before returning.
+        ApplyControlPlaneIntentLocked(False, sbScalar);
+        ReinitializeDispatchLocked;
       end;
     end;
   finally
@@ -1469,42 +1572,15 @@ end;
 
 procedure ResetToAutomaticBackend;
 begin
+  EnsureDispatchLocksInitialized;
   EnterCriticalSection(g_VectorAsmToggleLock);
   try
-    g_BackendForced := False;
-    g_ForcedBackend := sbScalar;
-    WriteBarrier;  // Ensure write is visible before clearing initialized flag
-    g_DispatchInitialized := False; // Force re-initialization
-    InterlockedExchange(g_DispatchState, 0);  // ✅ Reset atomic state
-    atomic_thread_fence(mo_seq_cst); // Full barrier before re-initialization
-    InitializeDispatch;
-
-    ReadBarrier;
-    if g_BackendForced then
+    if not RestoreControlPlaneIntentUntilStableLocked(False, sbScalar) then
     begin
-      // Reset-to-automatic must not return with a hook-driven forced selection
-      // resurrected during dispatch-changed notification.
-      g_BackendForced := False;
-      g_ForcedBackend := sbScalar;
-      WriteBarrier;
-      g_DispatchInitialized := False;
-      InterlockedExchange(g_DispatchState, 0);
-      atomic_thread_fence(mo_seq_cst);
-      InitializeDispatch;
-      ReadBarrier;
-      if g_BackendForced then
-      begin
-        // The restore reinitialize is also a control-plane transition. If a
-        // dispatch-changed hook resurrects forced mode again during that
-        // restore notification, clear it once more before returning.
-        g_BackendForced := False;
-        g_ForcedBackend := sbScalar;
-        WriteBarrier;
-        g_DispatchInitialized := False;
-        InterlockedExchange(g_DispatchState, 0);
-        atomic_thread_fence(mo_seq_cst);
-        InitializeDispatch;
-      end;
+      // If repeated late-force mutations exhaust the bounded restore helper,
+      // issue one final explicit automatic closeout before returning.
+      ApplyControlPlaneIntentLocked(False, sbScalar);
+      ReinitializeDispatchLocked;
     end;
   finally
     LeaveCriticalSection(g_VectorAsmToggleLock);
@@ -1536,6 +1612,7 @@ begin
   if InterlockedCompareExchange(g_VectorAsmEnabledState, LExpectedState, LExpectedState) = LExpectedState then
     Exit;
 
+  EnsureDispatchLocksInitialized;
   EnterCriticalSection(g_VectorAsmToggleLock);
   try
     // Re-check after acquiring lock (another writer may have already updated).
@@ -1564,34 +1641,10 @@ begin
         // forced-vs-automatic selection intent. Late dispatch hooks may
         // temporarily reset or replace it during notification, so reapply the
         // original control-plane mode before returning.
-        g_BackendForced := LPreviousBackendForced;
-        if LPreviousBackendForced then
-          g_ForcedBackend := LPreviousForcedBackend
-        else
-          g_ForcedBackend := sbScalar;
-        WriteBarrier;
-        g_DispatchInitialized := False;
-        InterlockedExchange(g_DispatchState, 0);
-        atomic_thread_fence(mo_seq_cst);
-        InitializeDispatch;
-        ReadBarrier;
-        if (g_BackendForced <> LPreviousBackendForced) or
-           (LPreviousBackendForced and (g_ForcedBackend <> LPreviousForcedBackend)) then
+        if not RestoreControlPlaneIntentUntilStableLocked(LPreviousBackendForced, LPreviousForcedBackend) then
         begin
-          // The restore reinitialize is also a control-plane transition. If a
-          // dispatch-changed hook mutates forced-vs-automatic mode again
-          // during that restore notification, re-apply the pre-toggle intent
-          // before returning.
-          g_BackendForced := LPreviousBackendForced;
-          if LPreviousBackendForced then
-            g_ForcedBackend := LPreviousForcedBackend
-          else
-            g_ForcedBackend := sbScalar;
-          WriteBarrier;
-          g_DispatchInitialized := False;
-          InterlockedExchange(g_DispatchState, 0);
-          atomic_thread_fence(mo_seq_cst);
-          InitializeDispatch;
+          ApplyControlPlaneIntentLocked(LPreviousBackendForced, LPreviousForcedBackend);
+          ReinitializeDispatchLocked;
         end;
       end;
     end;
@@ -1618,75 +1671,62 @@ var
   LPreviousBackendForced: Boolean;
   LPreviousForcedBackend: TSimdBackend;
 begin
-  // The registration slot id is the canonical backend identity.
-  // Dynamic re-registration is allowed, but callers should not be able to
-  // drift the stored table identity away from the slot they are updating.
-  LCanonicalTable := dispatchTable;
-  LCanonicalTable.Backend := backend;
-  LCanonicalTable.BackendInfo.Backend := backend;
-  LCanonicalTable.BackendInfo.Priority := GetSimdBackendPriorityValue(backend);
-  if backend = sbScalar then
-    LCanonicalTable.BackendInfo.Available := True;
-  if LCanonicalTable.BackendInfo.Name = '' then
-    LCanonicalTable.BackendInfo.Name := DefaultBackendName(backend);
-  if LCanonicalTable.BackendInfo.Description = '' then
-    LCanonicalTable.BackendInfo.Description := DefaultBackendDescription(backend);
-  LPreviousBackendForced := g_BackendForced;
-  LPreviousForcedBackend := g_ForcedBackend;
+  EnsureDispatchLocksInitialized;
+  EnterCriticalSection(g_VectorAsmToggleLock);
+  try
+    BeginDispatchPublication;
+    try
+      // The registration slot id is the canonical backend identity.
+      // Dynamic re-registration is allowed, but callers should not be able to
+      // drift the stored table identity away from the slot they are updating.
+      LCanonicalTable := dispatchTable;
+      LCanonicalTable.Backend := backend;
+      LCanonicalTable.BackendInfo.Backend := backend;
+      LCanonicalTable.BackendInfo.Priority := GetSimdBackendPriorityValue(backend);
+      if backend = sbScalar then
+        LCanonicalTable.BackendInfo.Available := True;
+      if LCanonicalTable.BackendInfo.Name = '' then
+        LCanonicalTable.BackendInfo.Name := DefaultBackendName(backend);
+      if LCanonicalTable.BackendInfo.Description = '' then
+        LCanonicalTable.BackendInfo.Description := DefaultBackendDescription(backend);
+      LPreviousBackendForced := g_BackendForced;
+      LPreviousForcedBackend := g_ForcedBackend;
 
-  g_BackendTables[backend] := LCanonicalTable;
-  PublishBackendDispatchTable(backend, LCanonicalTable);
-  WriteBarrier;  // Ensure published snapshot is visible before marking as registered
-  g_BackendRegistered[backend] := True;
-  WriteBarrier;  // Ensure registration is visible before clearing initialized flag
+      g_BackendTables[backend] := LCanonicalTable;
+      PublishBackendDispatchTable(backend, LCanonicalTable);
+      WriteBarrier;  // Ensure published snapshot is visible before marking as registered
+      g_BackendRegistered[backend] := True;
+      WriteBarrier;  // Ensure registration is visible before clearing initialized flag
 
-  // Re-select immediately only after dispatch has already been initialized.
-  LShouldReinitialize := (g_DispatchState = 2) and
-    (InterlockedCompareExchange(g_RegisterBackendReinitializeSuspendDepth, 0, 0) = 0);
-  g_DispatchInitialized := False;
-  InterlockedExchange(g_DispatchState, 0);  // ✅ Reset atomic state
-  atomic_thread_fence(mo_seq_cst); // Full barrier before re-initialization
-  if LShouldReinitialize then
-  begin
-    InitializeDispatch;
-    ReadBarrier;
-    if (g_BackendForced <> LPreviousBackendForced) or
-       (LPreviousBackendForced and (g_ForcedBackend <> LPreviousForcedBackend)) then
-    begin
-      // RegisterBackend is a data/control publication helper, not a
-      // user-visible control-plane selection API. If a dispatch-changed hook
-      // mutates forced-vs-automatic mode during notification, restore the
-      // caller's pre-call intent before returning.
-      g_BackendForced := LPreviousBackendForced;
-      if LPreviousBackendForced then
-        g_ForcedBackend := LPreviousForcedBackend
-      else
-        g_ForcedBackend := sbScalar;
-      WriteBarrier;
+      // Re-select immediately only after dispatch has already been initialized.
+      LShouldReinitialize := (g_DispatchState = 2) and
+        (InterlockedCompareExchange(g_RegisterBackendReinitializeSuspendDepth, 0, 0) = 0);
       g_DispatchInitialized := False;
-      InterlockedExchange(g_DispatchState, 0);
-      atomic_thread_fence(mo_seq_cst);
-      InitializeDispatch;
-      ReadBarrier;
-      if (g_BackendForced <> LPreviousBackendForced) or
-         (LPreviousBackendForced and (g_ForcedBackend <> LPreviousForcedBackend)) then
+      InterlockedExchange(g_DispatchState, 0);  // ✅ Reset atomic state
+      atomic_thread_fence(mo_seq_cst); // Full barrier before re-initialization
+      if LShouldReinitialize then
       begin
-        // The restore reinitialize is itself another control-plane
-        // transition. If a hook mutates forced-vs-automatic mode again during
-        // that restore notification, re-apply the caller's original intent
-        // before returning.
-        g_BackendForced := LPreviousBackendForced;
-        if LPreviousBackendForced then
-          g_ForcedBackend := LPreviousForcedBackend
-        else
-          g_ForcedBackend := sbScalar;
-        WriteBarrier;
-        g_DispatchInitialized := False;
-        InterlockedExchange(g_DispatchState, 0);
-        atomic_thread_fence(mo_seq_cst);
         InitializeDispatch;
+        ReadBarrier;
+        if (g_BackendForced <> LPreviousBackendForced) or
+           (LPreviousBackendForced and (g_ForcedBackend <> LPreviousForcedBackend)) then
+        begin
+          // RegisterBackend is a data/control publication helper, not a
+          // user-visible control-plane selection API. If a dispatch-changed hook
+          // mutates forced-vs-automatic mode during notification, restore the
+          // caller's pre-call intent before returning.
+          if not RestoreControlPlaneIntentUntilStableLocked(LPreviousBackendForced, LPreviousForcedBackend) then
+          begin
+            ApplyControlPlaneIntentLocked(LPreviousBackendForced, LPreviousForcedBackend);
+            ReinitializeDispatchLocked;
+          end;
+        end;
       end;
+    finally
+      EndDispatchPublication;
     end;
+  finally
+    LeaveCriticalSection(g_VectorAsmToggleLock);
   end;
 end;
 
@@ -2559,15 +2599,23 @@ end;
 // === Initialization ===
 
 initialization
-  g_VectorAsmToggleLock := Default(TRTLCriticalSection);
-  g_DispatchHooksLock := Default(TRTLCriticalSection);
-  InitCriticalSection(g_VectorAsmToggleLock);
-  InitCriticalSection(g_DispatchHooksLock);
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.dispatch:init:start');
+  Flush(StdErr);
+  {$ENDIF}
+  EnsureDispatchLocksInitialized;
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.dispatch:init:after-vectorasm-lock');
+  Flush(StdErr);
+  {$ENDIF}
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.dispatch:init:after-hooks-lock');
+  Flush(StdErr);
+  {$ENDIF}
 
 finalization
   FinalizeDispatchPublishedStates;
   SetLength(g_DispatchChangedHooks, 0);
-  DoneCriticalSection(g_DispatchHooksLock);
-  DoneCriticalSection(g_VectorAsmToggleLock);
+  FinalizeDispatchLocks;
 
 end.

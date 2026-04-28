@@ -19,6 +19,7 @@ uses
   fafafa.core.simd.vecf64x4.testcase,
   fafafa.core.simd.ieee754.testcase,
   fafafa.core.simd.dispatchapi.testcase,
+  fafafa.core.simd.sse2contracts.testcase,
   fafafa.core.simd.dataplane.testcase,
   fafafa.core.simd.runtime.testcase,
   fafafa.core.simd.dispatchslots.testcase,
@@ -95,8 +96,21 @@ end;
 
 procedure PrintAvailableSuites;
 begin
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.test:PrintAvailableSuites:enter');
+  Flush(StdErr);
+  {$ENDIF}
   WriteLn('Available suites:');
+  {$IFDEF SIMD_INIT_TRACE}
+  Flush(Output);
+  WriteLn(StdErr, '[INIT-TRACE] simd.test:PrintAvailableSuites:after-header');
+  Flush(StdErr);
+  {$ENDIF}
   ProcessAllSuites(True, nil);
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.test:PrintAvailableSuites:after-manifest');
+  Flush(StdErr);
+  {$ENDIF}
 end;
 
 procedure AddSuiteFilter(const value: string);
@@ -131,88 +145,92 @@ begin
   Result := suiteFilters.IndexOf(suiteName) >= 0;
 end;
 
-procedure HandleSuite(const aName: string; const aSuite: TTest; const aListOnly: Boolean; aTargetSuite: TTestSuite);
+procedure HandleSuite(const aName: string; aTestCaseClass: TTestCaseClass; const aListOnly: Boolean; aTargetSuite: TTestSuite);
+var
+  LSuite: TTest;
 begin
   if aListOnly then
   begin
     WriteLn('  ', aName);
-    if aSuite <> nil then
-      aSuite.Free;
     Exit;
   end;
 
-  if (aTargetSuite <> nil) and ShouldRunSuite(aName) then
-    aTargetSuite.AddTest(aSuite)
-  else if aSuite <> nil then
-    aSuite.Free;
+  if (aTargetSuite = nil) or (not ShouldRunSuite(aName)) or (aTestCaseClass = nil) then
+    Exit;
+
+  LSuite := aTestCaseClass.Suite;
+  if LSuite <> nil then
+    aTargetSuite.AddTest(LSuite);
 end;
 
 procedure ProcessAllSuites(const aListOnly: Boolean; aTargetSuite: TTestSuite);
 begin
-  HandleSuite('TTestCase_ImageProc', TTestCase_ImageProc.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_Global', TTestCase_Global.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_ImageProc', TTestCase_ImageProc, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_Global', TTestCase_Global, aListOnly, aTargetSuite);
   {$IFDEF CPUX86_64}
-  HandleSuite('TTestCase_BackendConsistency', TTestCase_BackendConsistency.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_BackendVectorConsistency', TTestCase_BackendVectorConsistency.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_X86BackendPredicates', TTestCase_X86BackendPredicates.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_BackendConsistency', TTestCase_BackendConsistency, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_BackendVectorConsistency', TTestCase_BackendVectorConsistency, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_X86BackendPredicates', TTestCase_X86BackendPredicates, aListOnly, aTargetSuite);
   {$ENDIF}
-  HandleSuite('TTestCase_BackendSmoke', TTestCase_BackendSmoke.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_BackendSmoke', TTestCase_BackendSmoke, aListOnly, aTargetSuite);
   {$IFDEF CPUX86_64}
   {$IFDEF SIMD_BACKEND_AVX512}
-  HandleSuite('TTestCase_AVX512BackendRequirements', TTestCase_AVX512BackendRequirements.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_AVX512BackendRequirements', TTestCase_AVX512BackendRequirements, aListOnly, aTargetSuite);
   {$ENDIF}
   {$ENDIF}
   {$IFDEF UNIX}
   {$IFDEF CPUX86_64}
-  HandleSuite('TTestCase_AVX2VectorAsm', TTestCase_AVX2VectorAsm.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_AVX2VectorAsm', TTestCase_AVX2VectorAsm, aListOnly, aTargetSuite);
   {$IFDEF SIMD_BACKEND_AVX512}
-  HandleSuite('TTestCase_AVX512VectorAsm', TTestCase_AVX512VectorAsm.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_AVX512VectorAsm', TTestCase_AVX512VectorAsm, aListOnly, aTargetSuite);
   {$ENDIF}
   {$ENDIF}
   {$ENDIF}
-  HandleSuite('TTestCase_VectorOps', TTestCase_VectorOps.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_LargeData', TTestCase_LargeData.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_UnsignedVectorTypes', TTestCase_UnsignedVectorTypes.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_OperatorOverloads', TTestCase_OperatorOverloads.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_VectorMaskTypes', TTestCase_VectorMaskTypes.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_TypeConversion', TTestCase_TypeConversion.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_Builder', TTestCase_Builder.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_GatherScatter', TTestCase_GatherScatter.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_ShuffleSWizzle', TTestCase_ShuffleSWizzle.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_MathFunctions', TTestCase_MathFunctions.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_AdvancedAlgorithms', TTestCase_AdvancedAlgorithms.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_EdgeCases', TTestCase_EdgeCases.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_Vec512Types', TTestCase_Vec512Types.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_Memutils', TTestCase_Memutils.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_RustStyleAliases', TTestCase_RustStyleAliases.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_SaturatingArithmetic', TTestCase_SaturatingArithmetic.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_NarrowIntegerOps', TTestCase_NarrowIntegerOps.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_VecI32x8', TTestCase_VecI32x8.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_VecU32x8', TTestCase_VecU32x8.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_VecF32x8', TTestCase_VecF32x8.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_VecF64x4', TTestCase_VecF64x4.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_IEEE754_F64', TTestCase_IEEE754_F64.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_IEEE754EdgeCases', TTestCase_IEEE754EdgeCases.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_AVX2RoundTruncIEEE754', TTestCase_AVX2RoundTruncIEEE754.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_NonX86IEEE754', TTestCase_NonX86IEEE754.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_NonX86BackendParity', TTestCase_NonX86BackendParity.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_DispatchAPI', TTestCase_DispatchAPI.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_DataPlane', TTestCase_DataPlane.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_RuntimeAPI', TTestCase_RuntimeAPI.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_X86MaskedFmaContract', TTestCase_X86MaskedFmaContract.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_RISCVVMaskedOpsContract', TTestCase_RISCVVMaskedOpsContract.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_RISCVFallbackDispatchContract', TTestCase_RISCVFallbackDispatchContract.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_DispatchAllSlots', TTestCase_DispatchAllSlots.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_PublicAbi', TTestCase_PublicAbi.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_VectorOps', TTestCase_VectorOps, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_LargeData', TTestCase_LargeData, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_UnsignedVectorTypes', TTestCase_UnsignedVectorTypes, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_OperatorOverloads', TTestCase_OperatorOverloads, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_VectorMaskTypes', TTestCase_VectorMaskTypes, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_TypeConversion', TTestCase_TypeConversion, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_Builder', TTestCase_Builder, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_GatherScatter', TTestCase_GatherScatter, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_ShuffleSWizzle', TTestCase_ShuffleSWizzle, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_MathFunctions', TTestCase_MathFunctions, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_AdvancedAlgorithms', TTestCase_AdvancedAlgorithms, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_EdgeCases', TTestCase_EdgeCases, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_Vec512Types', TTestCase_Vec512Types, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_Memutils', TTestCase_Memutils, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_RustStyleAliases', TTestCase_RustStyleAliases, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_SaturatingArithmetic', TTestCase_SaturatingArithmetic, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_NarrowIntegerOps', TTestCase_NarrowIntegerOps, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_VecI32x8', TTestCase_VecI32x8, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_VecU32x8', TTestCase_VecU32x8, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_VecF32x8', TTestCase_VecF32x8, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_VecF64x4', TTestCase_VecF64x4, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_IEEE754_F64', TTestCase_IEEE754_F64, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_IEEE754EdgeCases', TTestCase_IEEE754EdgeCases, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_AVX2RoundTruncIEEE754', TTestCase_AVX2RoundTruncIEEE754, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_NonX86IEEE754', TTestCase_NonX86IEEE754, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_NonX86BackendParity', TTestCase_NonX86BackendParity, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_DispatchAPI', TTestCase_DispatchAPI, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_SSE2Contracts', TTestCase_SSE2Contracts, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_DataPlane', TTestCase_DataPlane, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_RuntimeAPI', TTestCase_RuntimeAPI, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_X86MaskedFmaContract', TTestCase_X86MaskedFmaContract, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_RISCVVMaskedOpsContract', TTestCase_RISCVVMaskedOpsContract, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_RISCVFallbackDispatchContract', TTestCase_RISCVFallbackDispatchContract, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_DispatchAllSlots', TTestCase_DispatchAllSlots, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_PublicAbi', TTestCase_PublicAbi, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_PublicAbiTextProbe', TTestCase_PublicAbiTextProbe, aListOnly, aTargetSuite);
   {$IFDEF SIMD_X86_AVAILABLE}
-  HandleSuite('TTestCase_DirectDispatch', TTestCase_DirectDispatch.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_DirectDispatchConcurrent', TTestCase_DirectDispatchConcurrent.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_DirectDispatch', TTestCase_DirectDispatch, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_DirectDispatchConcurrent', TTestCase_DirectDispatchConcurrent, aListOnly, aTargetSuite);
   {$ENDIF}
-  HandleSuite('TTestCase_AVX2IntrinsicsFallback', TTestCase_AVX2IntrinsicsFallback.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_SimdConcurrent', TTestCase_SimdConcurrent.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_SimdConcurrentPublicAbi', TTestCase_SimdConcurrentPublicAbi.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_SimdConcurrentFramework', TTestCase_SimdConcurrentFramework.Suite, aListOnly, aTargetSuite);
-  HandleSuite('TTestCase_SimdConcurrentRegistration', TTestCase_SimdConcurrentRegistration.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_AVX2IntrinsicsFallback', TTestCase_AVX2IntrinsicsFallback, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_SimdConcurrent', TTestCase_SimdConcurrent, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_SimdConcurrentPublicAbi', TTestCase_SimdConcurrentPublicAbi, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_SimdConcurrentFramework', TTestCase_SimdConcurrentFramework, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_SimdConcurrentRegistration', TTestCase_SimdConcurrentRegistration, aListOnly, aTargetSuite);
 end;
 
 procedure ParseArgs;
@@ -300,7 +318,15 @@ begin
 end;
 
 begin
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.test:program:begin');
+  Flush(StdErr);
+  {$ENDIF}
   ParseArgs;
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.test:program:after-parseargs');
+  Flush(StdErr);
+  {$ENDIF}
 
   try
     if exitEarly then
@@ -311,6 +337,10 @@ begin
         PrintUsage;
       if exitEarlyListSuites then
         PrintAvailableSuites;
+      {$IFDEF SIMD_INIT_TRACE}
+      WriteLn(StdErr, '[INIT-TRACE] simd.test:program:after-early-exit-work');
+      Flush(StdErr);
+      {$ENDIF}
 
       ExitCode := exitEarlyCode;
 
@@ -323,6 +353,10 @@ begin
       Exit;
     end;
 
+    {$IFDEF SIMD_INIT_TRACE}
+    WriteLn(StdErr, '[INIT-TRACE] simd.test:program:before-banner');
+    Flush(StdErr);
+    {$ENDIF}
     WriteLn('=== fafafa.core.simd Test Suite ===');
     WriteLn('Starting SIMD facade function tests...');
     WriteLn;

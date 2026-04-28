@@ -16,8 +16,9 @@ STABILITY GUARANTEES
 
 BOUNDARY NOTES
 --------------
-- Stable first means the public façade (`fafafa.core.simd` / `fafafa.core.simd.api`) and the documented dispatch contract surface such as `TSimdDispatchTable`.
+- Stable first means the public façade (`fafafa.core.simd` / `fafafa.core.simd.api` / `fafafa.core.simd.runtime` / `fafafa.core.simd.cpuinfo`), the documented public ABI wrapper, and the documented dispatch contract surface such as `TSimdDispatchTable`.
 - If an external/public binary ABI is needed in the future, introduce a POD-only wrapper/signature layer first; do not treat the current managed-field record layout as that ABI.
+- The top-level façade intentionally re-exports only a narrow convenience subset of runtime/cpuinfo helpers; ambiguous CPU capability aliases stay in `fafafa.core.simd.cpuinfo`, and lower-level mutation names stay in `fafafa.core.simd.dispatch`.
 - Backend maturity differs. `Scalar`, `SSE2`, `AVX2`, and `NEON` are closer to the default maintenance path; `sbRISCVV` remains experimental / limited-maturity.
 - Experimental intrinsics are kept out of the default entry chain and are not part of the default stable surface.
 - Backend state must be read in four layers, not a single ambiguous "available":
@@ -41,6 +42,7 @@ Before modifying any file under src/fafafa.core.simd.*:
    bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DirectDispatch
 3. Run the fast/base gate for routine changes:
    bash tests/fafafa.core.simd/BuildOrTest.sh gate
+   - This now includes the public surface contract inside `interface-completeness`.
    - This now includes the `contract-signature` guard for `TSimdBackendInfo` / `TSimdDispatchTable`.
    - It also includes the `publicabi-signature` guard for the public ABI wrapper contract.
 4. (Optional) Run the repo test runner restricted to this module:
@@ -64,13 +66,15 @@ Before modifying any file under src/fafafa.core.simd.*:
    - rerun `bash tests/fafafa.core.simd.publicabi/BuildOrTest.sh test`
    - rerun `gate` and `gate-strict`
 
-COVERED PUBLIC ENTRY POINTS
----------------------------
+COVERED PUBLIC ENTRY POINTS / STABLE CONTRACT SOURCES
+-----------------------------------------------------
 - src/fafafa.core.simd.pas
 - src/fafafa.core.simd.api.pas
+- src/fafafa.core.simd.runtime.pas
+- src/fafafa.core.simd.cpuinfo.pas
+- src/fafafa.core.simd.public_abi.intf.inc
 - src/fafafa.core.simd.base.pas
 - src/fafafa.core.simd.dispatch.pas
-- src/fafafa.core.simd.cpuinfo.pas
 - src/fafafa.core.simd.memutils.pas
 
 BACKENDS (IMPLEMENTATION DETAILS)

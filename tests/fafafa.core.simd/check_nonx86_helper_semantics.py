@@ -8,10 +8,11 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-NEON_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.wide_memory.inc"
+NEON_FILE = ROOT / "src" / "fafafa.core.simd.neon.shared_wide_memory_asm.inc"
 NEON_IMPL_FILE = ROOT / "src" / "fafafa.core.simd.neon.pas"
 RISCVV_FILE = ROOT / "src" / "fafafa.core.simd.riscvv.pas"
 RISCVV_FACADE_FILE = ROOT / "src" / "fafafa.core.simd.riscvv.facade.inc"
+RISCVV_REGISTER_FILE = ROOT / "src" / "fafafa.core.simd.riscvv.register.inc"
 DIRECT_FILE = ROOT / "tests" / "fafafa.core.simd" / "fafafa.core.simd.direct.testcase.pas"
 DISPATCHAPI_FILE = ROOT / "tests" / "fafafa.core.simd" / "fafafa.core.simd.dispatchapi.testcase.pas"
 DATAPLANE_FILE = ROOT / "tests" / "fafafa.core.simd" / "fafafa.core.simd.dataplane.testcase.pas"
@@ -68,6 +69,7 @@ def main() -> int:
     neon_impl_source = read_text(NEON_IMPL_FILE)
     riscvv_source = read_text(RISCVV_FILE)
     riscvv_facade_source = read_text(RISCVV_FACADE_FILE)
+    riscvv_register_source = read_text(RISCVV_REGISTER_FILE)
     direct_source = read_text(DIRECT_FILE)
     dispatchapi_source = read_text(DISPATCHAPI_FILE)
     dataplane_source = read_text(DATAPLANE_FILE)
@@ -124,13 +126,52 @@ def main() -> int:
             "Exit(ScalarShiftRightArithI64x4(a, count));",
             "Result := NEONShiftRightArithI64x4Asm(a, count);",
         ]),
+        (neon_impl_source, "NEONShiftRightI64x2", [
+            "if (count < 0) or (count >= 64) then",
+            "Exit(ScalarShiftRightI64x2(a, count));",
+            "Result := NEONShiftRightI64x2Asm(a, count);",
+        ]),
+        (neon_impl_source, "NEONShiftRightArithI64x2", [
+            "if (count < 0) or (count >= 64) then",
+            "Exit(ScalarShiftRightArithI64x2(a, count));",
+            "Result := NEONShiftRightArithI64x2Asm(a, count);",
+        ]),
         (neon_impl_source, "NEONShiftLeftI64x4Asm", [
             "ldp   q0, q1, [x0]",
-            "uxtw  x1, w1",
+            "mov   w1, w1",
             "dup   v2.2d, x1",
             "ushl   v0.2d, v0.2d, v2.2d",
             "ushl   v1.2d, v1.2d, v2.2d",
             "stp   q0, q1, [x8]",
+        ]),
+        (neon_impl_source, "NEONShiftLeftI64x2", [
+            "mov   w2, w2",
+            "dup   v1.2d, x2",
+            "ushl   v0.2d, v0.2d, v1.2d",
+        ]),
+        (neon_impl_source, "NEONShiftLeftU64x2", [
+            "mov   w2, w2",
+            "dup   v1.2d, x2",
+            "ushl   v0.2d, v0.2d, v1.2d",
+        ]),
+        (neon_impl_source, "NEONShiftLeftU64x4", [
+            "ldp   q0, q1, [x0]",
+            "mov   w1, w1",
+            "dup   v2.2d, x1",
+            "ushl   v0.2d, v0.2d, v2.2d",
+            "ushl   v1.2d, v1.2d, v2.2d",
+            "stp   q0, q1, [x8]",
+        ]),
+        (neon_impl_source, "NEONShiftRightU64x2", [
+            "if (count < 0) or (count >= 64) then",
+            "Result.u[0] := 0;",
+            "Result.u[1] := 0;",
+            "Result := NEONShiftRightU64x2Asm(a, count);",
+        ]),
+        (neon_impl_source, "NEONShiftRightU64x4", [
+            "if (count < 0) or (count >= 64) then",
+            "Exit(ScalarShiftRightU64x4(a, count));",
+            "Result := NEONShiftRightU64x4Asm(a, count);",
         ]),
         (neon_impl_source, "NEONSelectF32x4", [
             "for LIndex := 0 to 3 do",
@@ -138,6 +179,54 @@ def main() -> int:
             "Result.f[LIndex] := a.f[LIndex]",
             "else",
             "Result.f[LIndex] := b.f[LIndex];",
+        ]),
+        (riscvv_source, "RISCVVExtractF32x4", [
+            "LIndex := index;",
+            "if LIndex < 0 then",
+            "LIndex := 0",
+            "else if LIndex > 3 then",
+            "LIndex := 3;",
+            "Result := RISCVVExtractF32x4Asm(a, LIndex);",
+        ]),
+        (riscvv_source, "RISCVVExtractF32x8", [
+            "LIndex := index;",
+            "if LIndex < 0 then",
+            "LIndex := 0",
+            "else if LIndex > 7 then",
+            "LIndex := 7;",
+            "Result := RISCVVExtractF32x8Asm(a, LIndex);",
+        ]),
+        (riscvv_source, "RISCVVExtractF32x16", [
+            "LIndex := index;",
+            "if LIndex < 0 then",
+            "LIndex := 0",
+            "else if LIndex > 15 then",
+            "LIndex := 15;",
+            "Result := RISCVVExtractF32x16Asm(a, LIndex);",
+        ]),
+        (riscvv_source, "RISCVVExtractF64x2", [
+            "LIndex := index;",
+            "if LIndex < 0 then",
+            "LIndex := 0",
+            "else if LIndex > 1 then",
+            "LIndex := 1;",
+            "Result := RISCVVExtractF64x2Asm(a, LIndex);",
+        ]),
+        (riscvv_source, "RISCVVExtractF64x4", [
+            "LIndex := index;",
+            "if LIndex < 0 then",
+            "LIndex := 0",
+            "else if LIndex > 3 then",
+            "LIndex := 3;",
+            "Result := RISCVVExtractF64x4Asm(a, LIndex);",
+        ]),
+        (riscvv_source, "RISCVVExtractI32x4", [
+            "LIndex := index;",
+            "if LIndex < 0 then",
+            "LIndex := 0",
+            "else if LIndex > 3 then",
+            "LIndex := 3;",
+            "Result := RISCVVExtractI32x4Asm(a, LIndex);",
         ]),
         (riscvv_source, "RISCVVStoreI64x4", [
             "vsetivli zero, 4, 0xD9",
@@ -225,11 +314,79 @@ def main() -> int:
             "LIndex := 3;",
             "Result := RISCVVExtractI64x4Asm(a, LIndex);",
         ]),
+        (riscvv_source, "RISCVVExtractI64x2", [
+            "LIndex := index;",
+            "if LIndex < 0 then",
+            "LIndex := 0",
+            "else if LIndex > 1 then",
+            "LIndex := 1;",
+            "Result := RISCVVExtractI64x2Asm(a, LIndex);",
+        ]),
+        (riscvv_source, "RISCVVAndNotI16x8", [
+            "Result := ScalarAndNotI16x8(a, b);",
+        ]),
+        (riscvv_source, "RISCVVReduceAddF32x8", [
+            "Result := ScalarReduceAddF32x8(a);",
+        ]),
+        (riscvv_source, "RISCVVReduceAddF32x16", [
+            "Result := ScalarReduceAddF32x16(a);",
+        ]),
+        (riscvv_source, "RISCVVReduceAddF64x4", [
+            "Result := ScalarReduceAddF64x4(a);",
+        ]),
+        (riscvv_source, "RISCVVReduceAddF64x8", [
+            "Result := ScalarReduceAddF64x8(a);",
+        ]),
+        (riscvv_source, "RISCVVShiftLeftI16x8", [
+            "if (count < 0) or (count >= 16) then",
+            "Exit(ScalarShiftLeftI16x8(a, count));",
+            "RISCVVShiftLeftI16x8Asm(a, count, Result);",
+        ]),
+        (riscvv_source, "RISCVVShiftRightI16x8", [
+            "if (count < 0) or (count >= 16) then",
+            "Exit(ScalarShiftRightI16x8(a, count));",
+            "RISCVVShiftRightI16x8Asm(a, count, Result);",
+        ]),
+        (riscvv_source, "RISCVVShiftRightArithI16x8", [
+            "if (count < 0) or (count >= 16) then",
+            "Exit(ScalarShiftRightArithI16x8(a, count));",
+            "RISCVVShiftRightArithI16x8Asm(a, count, Result);",
+        ]),
+        (riscvv_source, "RISCVVShiftLeftU16x8", [
+            "if (count < 0) or (count >= 16) then",
+            "Exit(ScalarShiftLeftU16x8(a, count));",
+            "RISCVVShiftLeftU16x8Asm(a, count, Result);",
+        ]),
+        (riscvv_source, "RISCVVShiftRightU16x8", [
+            "if (count < 0) or (count >= 16) then",
+            "Exit(ScalarShiftRightU16x8(a, count));",
+            "RISCVVShiftRightU16x8Asm(a, count, Result);",
+        ]),
         (riscvv_facade_source, "RISCVVShiftLeftU32x8", [
             "Result := ScalarShiftLeftU32x8(a, count);",
         ]),
         (riscvv_facade_source, "RISCVVShiftRightU32x8", [
             "Result := ScalarShiftRightU32x8(a, count);",
+        ]),
+        (riscvv_source, "RISCVVShiftLeftU32x8", [
+            "if (shift < 0) or (shift >= 32) then",
+            "Exit(ScalarShiftLeftU32x8(a, shift));",
+            "Result := RISCVVShiftLeftU32x8Asm(a, shift);",
+        ]),
+        (riscvv_source, "RISCVVShiftRightU32x8", [
+            "if (shift < 0) or (shift >= 32) then",
+            "Exit(ScalarShiftRightU32x8(a, shift));",
+            "Result := RISCVVShiftRightU32x8Asm(a, shift);",
+        ]),
+        (riscvv_source, "RISCVVShiftLeftU64x4", [
+            "if (shift < 0) or (shift >= 64) then",
+            "Exit(ScalarShiftLeftU64x4(a, shift));",
+            "Result := RISCVVShiftLeftU64x4Asm(a, shift);",
+        ]),
+        (riscvv_source, "RISCVVShiftRightU64x4", [
+            "if (shift < 0) or (shift >= 64) then",
+            "Exit(ScalarShiftRightU64x4(a, shift));",
+            "Result := RISCVVShiftRightU64x4Asm(a, shift);",
         ]),
         (direct_source, "TTestCase_DirectDispatch.Test_DirectDispatchTable_MultiBackend_SignedWideCompareMaskMatrix_Parity", [
             "ScalarCmpEqI32x8",
@@ -278,6 +435,19 @@ def main() -> int:
             "AssertVecI64x4Equal('ShiftRightArithI64x4 parity",
             "AssertVecI64x8Equal('AndI64x8 parity",
             "VecI64x8Not",
+        ]),
+        (dispatchapi_source, "TTestCase_NonX86BackendParity.Test_I32x4_BitwiseShiftParity_IfAvailable", [
+            "LShiftCounts: array[0..7] of Integer;",
+            "LShiftCounts64: array[0..6] of Integer;",
+            "LShiftCounts[0] := -1;",
+            "LShiftCounts[2] := 1;",
+            "LShiftCounts[5] := 32;",
+            "LShiftCounts[6] := 63;",
+            "LShiftCounts[7] := 95;",
+            "LShiftCounts64[5] := 64;",
+            "LShiftCounts64[6] := 95;",
+            "ShiftLeftU32x8 parity c=",
+            "ShiftRightU64x4 parity c=",
         ]),
         (dispatchapi_source, "TTestCase_NonX86BackendParity.Test_WideCompareMaskParity_IfAvailable", [
             "Assigned(LBackendTable.CmpEqI32x8)",
@@ -465,6 +635,8 @@ def main() -> int:
                 "NONX86_IMPL_SMOKE_SUMMARY",
                 "impl-smoke-nonx86)",
                 "bash \"${ROOT}/BuildOrTest.sh\" test --suite=TTestCase_NonX86BackendParity",
+                "run_nonx86_impl_audit_step \"${LAuditLog}\" \"nonx86-ieee754\"",
+                "bash \"${ROOT}/BuildOrTest.sh\" nonx86-ieee754",
                 "bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NonX86BackendParity,TTestCase_DataPlane",
                 "bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --vector-asm --suite=TTestCase_NonX86BackendParity,TTestCase_DataPlane",
                 "## Runtime Parity (TTestCase_NonX86BackendParity,TTestCase_DataPlane)",
@@ -579,6 +751,19 @@ def main() -> int:
                 "RISCVV | MaxU32x16 | reuse_base_scalar",
                 "DispatchAPI source truth",
                 "BuildOrTest.sh impl-audit-nonx86",
+            ],
+        ),
+        (
+            riscvv_register_source,
+            "src/fafafa.core.simd.riscvv.register.inc",
+            [
+                "table.ShiftLeftU32x8 := @RISCVVShiftLeftU32x8;",
+                "table.ShiftRightU32x8 := @RISCVVShiftRightU32x8;",
+                "asm-enabled builds resolve these symbols to native RVV implementations",
+                "no-asm builds resolve the same symbols to explicit scalar-passthrough",
+                "second register-only branch",
+                "Neighboring U32x16/U64x8 families intentionally fall through to",
+                "FillBaseDispatchTable instead.",
             ],
         ),
     ]

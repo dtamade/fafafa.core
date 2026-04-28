@@ -711,41 +711,53 @@ end;
 // ✅ NEW: SSE4.1 Optimized Normalize using DPPS
 function SSE41NormalizeF32x4(const a: TVecF32x4): TVecF32x4;
 var
-  pa, pr: Pointer;
+  LPA, LPR: Pointer;
+  LLen: Single;
 begin
-  pa := @a;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    movups xmm0, [rax]       // Load vector
-    movaps xmm1, xmm0        // Copy for dot product
-    dpps   xmm1, xmm1, $FF   // length^2 in all lanes
-    rsqrtps xmm1, xmm1       // 1/length in all lanes
-    mulps  xmm0, xmm1        // Normalize
-    movups [rcx], xmm0
-  end;
+  LLen := SSE41LengthF32x4(a);
+  if LLen > 0.0 then
+  begin
+    LPA := @a;
+    LPR := @Result;
+    asm
+      mov     rax, LPA
+      mov     rcx, LPR
+      movups  xmm0, [rax]
+      movss   xmm1, LLen
+      shufps  xmm1, xmm1, 0
+      divps   xmm0, xmm1
+      movups  [rcx], xmm0
+    end;
+  end
+  else
+    Result := a;
 end;
 
 function SSE41NormalizeF32x3(const a: TVecF32x4): TVecF32x4;
 var
-  pa, pr: Pointer;
+  LPA, LPR: Pointer;
+  LLen: Single;
 begin
-  pa := @a;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    movups xmm0, [rax]
-    movaps xmm1, xmm0
-    dpps   xmm1, xmm1, $7F   // xyz dot product, broadcast to all
-    rsqrtps xmm1, xmm1
-    mulps  xmm0, xmm1
-    // Zero w component
-    pcmpeqd xmm2, xmm2
-    psrldq xmm2, 4
-    andps  xmm0, xmm2
-    movups [rcx], xmm0
+  LLen := SSE41LengthF32x3(a);
+  if LLen > 0.0 then
+  begin
+    LPA := @a;
+    LPR := @Result;
+    asm
+      mov     rax, LPA
+      mov     rcx, LPR
+      movups  xmm0, [rax]
+      movss   xmm1, LLen
+      shufps  xmm1, xmm1, 0
+      divps   xmm0, xmm1
+      movups  [rcx], xmm0
+    end;
+    Result.f[3] := 0.0;
+  end
+  else
+  begin
+    Result := a;
+    Result.f[3] := 0.0;
   end;
 end;
 
@@ -773,8 +785,8 @@ begin
     mov    r8, pb
     mov    rcx, pr
     movdqu xmm0, [rax]       // mask -> xmm0 (implicit for blendvps)
-    movups xmm1, [r8]        // b (source when mask bit set)
-    movups xmm2, [rdx]       // a (source when mask bit clear)
+    movups xmm1, [rdx]       // a (source when mask bit set)
+    movups xmm2, [r8]        // b (destination when mask bit clear)
     // blendvps: xmm2 = (mask[i] < 0) ? xmm1[i] : xmm2[i]
     blendvps xmm2, xmm1
     movups [rcx], xmm2

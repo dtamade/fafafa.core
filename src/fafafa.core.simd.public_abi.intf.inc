@@ -1,3 +1,7 @@
+// External/public binary ABI boundary.
+// This surface is intentionally POD-only and distinct from the in-repo
+// TSimdDispatchTable contract.
+
 type
   TFafafaSimdAbiFlags = type UInt32;
 

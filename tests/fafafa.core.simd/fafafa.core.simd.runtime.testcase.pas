@@ -29,6 +29,7 @@ type
     procedure Test_FacadeRuntimeControlPlane_Wrappers_Interoperate_With_Legacy_Aliases;
     procedure Test_RuntimeSnapshot_View_Matches_Runtime_And_Legacy_Helpers;
     procedure Test_RuntimeSnapshot_Switch_Tracks_ControlPlane_And_Dispatch;
+    procedure Test_RuntimeStableState_Tracks_CrossSurface_After_ControlPlaneSwitches;
   end;
 
 implementation
@@ -359,6 +360,182 @@ begin
   finally
     if fafafa.core.simd.runtime.GetCurrentBackend <> LOriginalBackend then
       AssertTrue('runtime snapshot test should restore original backend',
+        fafafa.core.simd.runtime.TrySetCurrentBackend(LOriginalBackend));
+  end;
+end;
+
+procedure TTestCase_RuntimeAPI.Test_RuntimeStableState_Tracks_CrossSurface_After_ControlPlaneSwitches;
+var
+  LOldVectorAsm: Boolean;
+  LOriginalBackend: TSimdBackend;
+  LOriginalBestDispatchable: TSimdBackend;
+  LAvailableBackends: TSimdBackendArray;
+  LForcedBackend: TSimdBackend;
+  LHasForcedBackend: Boolean;
+  LIndex: Integer;
+
+  procedure AssertStableCurrentState(const aContext: string;
+    const aExpectAutomatic: Boolean);
+  var
+    LApi: PFafafaSimdPublicApi;
+    LCurrentBackend: TSimdBackend;
+    LCurrentInfo: TSimdBackendInfo;
+    LCanonicalInfo: TSimdBackendInfo;
+    LSnapshot: TSimdRuntimeSnapshot;
+    LDispatch: PSimdDispatchTable;
+    LActivePodInfo: TFafafaSimdBackendPodInfo;
+    LRegisteredBackends: TSimdBackendArray;
+    LDispatchableBackends: TSimdBackendArray;
+    LNamePtr: PAnsiChar;
+    LDescriptionPtr: PAnsiChar;
+    LFoundCurrentRegistered: Boolean;
+    LFoundCurrentDispatchable: Boolean;
+    LListIndex: Integer;
+  begin
+    LCurrentBackend := fafafa.core.simd.runtime.GetCurrentBackend;
+    LCurrentInfo := fafafa.core.simd.runtime.GetCurrentBackendInfo;
+    LCanonicalInfo := GetBackendInfo(LCurrentBackend);
+    LSnapshot := fafafa.core.simd.runtime.GetCurrentRuntimeSnapshot;
+    LDispatch := GetDispatchTable;
+    LRegisteredBackends := fafafa.core.simd.runtime.GetRegisteredBackendList;
+    LDispatchableBackends := fafafa.core.simd.runtime.GetDispatchableBackendList;
+
+    AssertTrue(aContext + ': active backend should remain registered in runtime stable state',
+      fafafa.core.simd.runtime.IsBackendRegisteredInBinary(LCurrentBackend));
+    AssertTrue(aContext + ': active backend pod info should remain queryable',
+      TryGetSimdBackendPodInfo(LCurrentBackend, LActivePodInfo));
+
+    LApi := GetSimdPublicApi;
+    AssertNotNull(aContext + ': public API table should not be nil', LApi);
+    AssertNotNull(aContext + ': dispatch table should not be nil', LDispatch);
+
+    LNamePtr := GetSimdBackendNamePtr(LCurrentBackend);
+    LDescriptionPtr := GetSimdBackendDescriptionPtr(LCurrentBackend);
+    AssertNotNull(aContext + ': backend name pointer should not be nil', Pointer(LNamePtr));
+    AssertNotNull(aContext + ': backend description pointer should not be nil', Pointer(LDescriptionPtr));
+
+    AssertEquals(aContext + ': runtime current backend should match legacy facade helper',
+      Ord(fafafa.core.simd.GetCurrentBackend), Ord(LCurrentBackend));
+    AssertEquals(aContext + ': runtime snapshot current backend should match runtime getter',
+      Ord(LSnapshot.CurrentBackend), Ord(LCurrentBackend));
+    AssertEquals(aContext + ': dispatch table backend should match runtime getter',
+      Ord(LDispatch^.Backend), Ord(LCurrentBackend));
+    AssertEquals(aContext + ': public API active backend id should match runtime getter',
+      Ord(LCurrentBackend), Integer(LApi^.ActiveBackendId));
+
+    AssertEquals(aContext + ': runtime current backend info backend should match runtime getter',
+      Ord(LCurrentBackend), Ord(LCurrentInfo.Backend));
+    AssertEquals(aContext + ': runtime snapshot backend info backend should match runtime getter',
+      Ord(LCurrentBackend), Ord(LSnapshot.CurrentBackendInfo.Backend));
+    AssertEquals(aContext + ': dispatch backend info backend should match runtime getter',
+      Ord(LCurrentBackend), Ord(LDispatch^.BackendInfo.Backend));
+    AssertEquals(aContext + ': canonical backend info name should stay aligned with runtime getter',
+      LCanonicalInfo.Name, LCurrentInfo.Name);
+    AssertEquals(aContext + ': canonical backend info description should stay aligned with runtime getter',
+      LCanonicalInfo.Description, LCurrentInfo.Description);
+    AssertEquals(aContext + ': runtime snapshot backend info name should match runtime getter',
+      LCurrentInfo.Name, LSnapshot.CurrentBackendInfo.Name);
+    AssertEquals(aContext + ': runtime snapshot backend info description should match runtime getter',
+      LCurrentInfo.Description, LSnapshot.CurrentBackendInfo.Description);
+    AssertEquals(aContext + ': runtime snapshot backend info availability should match runtime getter',
+      LCurrentInfo.Available, LSnapshot.CurrentBackendInfo.Available);
+    AssertEquals(aContext + ': runtime snapshot backend info priority should match runtime getter',
+      LCurrentInfo.Priority, LSnapshot.CurrentBackendInfo.Priority);
+    AssertTrue(aContext + ': runtime snapshot backend info capabilities should match runtime getter',
+      LCurrentInfo.Capabilities = LSnapshot.CurrentBackendInfo.Capabilities);
+    AssertEquals(aContext + ': dispatch backend info availability should match runtime getter',
+      LDispatch^.BackendInfo.Available, LCurrentInfo.Available);
+    AssertEquals(aContext + ': dispatch backend info priority should match runtime getter',
+      LDispatch^.BackendInfo.Priority, LCurrentInfo.Priority);
+    AssertTrue(aContext + ': dispatch backend info capabilities should match runtime getter',
+      LDispatch^.BackendInfo.Capabilities = LCurrentInfo.Capabilities);
+
+    AssertEquals(aContext + ': public API active flags should match active backend pod flags',
+      LActivePodInfo.Flags, LApi^.ActiveFlags);
+    AssertTrue(aContext + ': public API active flags should include dispatchable',
+      (LApi^.ActiveFlags and FAF_SIMD_ABI_FLAG_DISPATCHABLE) <> 0);
+    AssertTrue(aContext + ': public API active flags should include active',
+      (LApi^.ActiveFlags and FAF_SIMD_ABI_FLAG_ACTIVE) <> 0);
+    AssertEquals(aContext + ': public ABI backend name text should stay aligned with runtime getter',
+      LCurrentInfo.Name, string(StrPas(LNamePtr)));
+    AssertEquals(aContext + ': public ABI backend description text should stay aligned with runtime getter',
+      LCurrentInfo.Description, string(StrPas(LDescriptionPtr)));
+
+    AssertBackendArrayEquals(aContext + ': runtime registered backend list should match runtime snapshot',
+      LRegisteredBackends, LSnapshot.RegisteredBackends);
+    AssertBackendArrayEquals(aContext + ': runtime dispatchable backend list should match runtime snapshot',
+      LDispatchableBackends, LSnapshot.DispatchableBackends);
+    AssertEquals(aContext + ': runtime best dispatchable backend should match runtime snapshot',
+      Ord(fafafa.core.simd.runtime.GetBestDispatchableBackend), Ord(LSnapshot.BestDispatchableBackend));
+    AssertEquals(aContext + ': runtime best dispatchable backend should match legacy facade helper',
+      Ord(fafafa.core.simd.GetBestDispatchableBackend),
+      Ord(fafafa.core.simd.runtime.GetBestDispatchableBackend));
+
+    LFoundCurrentRegistered := False;
+    for LListIndex := 0 to High(LRegisteredBackends) do
+      if LRegisteredBackends[LListIndex] = LCurrentBackend then
+      begin
+        LFoundCurrentRegistered := True;
+        Break;
+      end;
+    AssertTrue(aContext + ': registered backend list should contain current backend in stable state',
+      LFoundCurrentRegistered);
+
+    LFoundCurrentDispatchable := False;
+    for LListIndex := 0 to High(LDispatchableBackends) do
+      if LDispatchableBackends[LListIndex] = LCurrentBackend then
+      begin
+        LFoundCurrentDispatchable := True;
+        Break;
+      end;
+    AssertTrue(aContext + ': dispatchable backend list should contain current backend in stable state',
+      LFoundCurrentDispatchable);
+
+    if aExpectAutomatic then
+      AssertEquals(aContext + ': best dispatchable backend should match current backend in automatic stable state',
+        Ord(fafafa.core.simd.runtime.GetBestDispatchableBackend), Ord(LCurrentBackend));
+  end;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LOriginalBackend := fafafa.core.simd.runtime.GetCurrentBackend;
+  LOriginalBestDispatchable := fafafa.core.simd.runtime.GetBestDispatchableBackend;
+  LAvailableBackends := nil;
+  LForcedBackend := sbScalar;
+  LHasForcedBackend := False;
+
+  try
+    SetVectorAsmEnabled(True);
+    fafafa.core.simd.runtime.ResetCurrentBackendSelection;
+    AssertStableCurrentState('runtime vector asm enabled automatic', True);
+
+    LAvailableBackends := fafafa.core.simd.runtime.GetDispatchableBackendList;
+    for LIndex := 0 to High(LAvailableBackends) do
+      if LAvailableBackends[LIndex] <> fafafa.core.simd.runtime.GetCurrentBackend then
+      begin
+        LForcedBackend := LAvailableBackends[LIndex];
+        LHasForcedBackend := True;
+        Break;
+      end;
+
+    if LHasForcedBackend then
+    begin
+      AssertTrue('runtime forced backend selection should succeed in stable-state test',
+        fafafa.core.simd.runtime.TrySetCurrentBackend(LForcedBackend));
+      AssertStableCurrentState('runtime forced backend stable state', False);
+    end;
+
+    fafafa.core.simd.runtime.ResetCurrentBackendSelection;
+    AssertStableCurrentState('runtime automatic reset stable state', True);
+
+    SetVectorAsmEnabled(False);
+    fafafa.core.simd.runtime.ResetCurrentBackendSelection;
+    AssertStableCurrentState('runtime vector asm disabled automatic', True);
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    if LOriginalBackend = LOriginalBestDispatchable then
+      fafafa.core.simd.runtime.ResetCurrentBackendSelection
+    else if fafafa.core.simd.runtime.GetCurrentBackend <> LOriginalBackend then
+      AssertTrue('runtime stable-state test should restore original backend',
         fafafa.core.simd.runtime.TrySetCurrentBackend(LOriginalBackend));
   end;
 end;

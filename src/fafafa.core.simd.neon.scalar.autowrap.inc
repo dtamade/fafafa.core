@@ -313,7 +313,9 @@ begin
   Result := TMask2(Byte(MASK2_ALL_SET) xor Byte(NEONCmpEqU64x2(a, b)));
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 function NEONCmpEqU32x4(const a, b: TVecU32x4): TMask4; forward;
+{$ENDIF}
 
 function NEONCmpNeU32x4Wrapper(const a, b: TVecU32x4): TMask4; inline;
 begin

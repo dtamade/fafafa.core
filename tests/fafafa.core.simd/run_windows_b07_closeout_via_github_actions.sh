@@ -74,39 +74,50 @@ sys.exit(0 if normalize(sys.argv[1]) == normalize(sys.argv[2]) else 1)
 PY
 }
 
-copy_file_preserve_mtime() {
+copy_if_distinct() {
   local aSource
-  local aTarget
+  local aDestination
 
   aSource="$1"
-  aTarget="$2"
+  aDestination="$2"
 
-  mkdir -p "$(dirname "${aTarget}")"
-  cp -p "${aSource}" "${aTarget}"
+  if [[ ! -f "${aSource}" ]]; then
+    return 0
+  fi
+
+  mkdir -p "$(dirname "${aDestination}")"
+  if paths_equal "${aSource}" "${aDestination}"; then
+    return 0
+  fi
+
+  cp "${aSource}" "${aDestination}"
 }
 
-find_unique_downloaded_file() {
-  local aSearchRoot
-  local aName
-  local aLabel
-  local -a LCandidates
+mirror_qemu_multiarch_dirs() {
+  local aSourceLogsDir
+  local aDestinationLogsDir
+  local LSourceDir
+  local LDestinationDir
 
-  aSearchRoot="${1:-}"
-  aName="${2:-}"
-  aLabel="${3:-${aName}}"
+  aSourceLogsDir="$1"
+  aDestinationLogsDir="$2"
 
-  mapfile -t LCandidates < <(find "${aSearchRoot}" -type f -name "${aName}" | sort)
-  if [[ "${#LCandidates[@]}" == "0" ]]; then
-    return 10
+  if [[ ! -d "${aSourceLogsDir}" ]]; then
+    return 0
   fi
 
-  if [[ "${#LCandidates[@]}" != "1" ]]; then
-    echo "[WIN-EVIDENCE-GH] Refuse artifact: multiple ${aLabel} files found in download:" >&2
-    printf '  - %s\n' "${LCandidates[@]}" >&2
-    return 11
-  fi
-
-  printf '%s\n' "${LCandidates[0]}"
+  mkdir -p "${aDestinationLogsDir}"
+  shopt -s nullglob
+  for LSourceDir in "${aSourceLogsDir}"/qemu-multiarch-*; do
+    [[ -d "${LSourceDir}" ]] || continue
+    LDestinationDir="${aDestinationLogsDir}/$(basename "${LSourceDir}")"
+    if ! paths_equal "${LSourceDir}" "${LDestinationDir}"; then
+      rm -rf "${LDestinationDir}"
+      cp -a "${LSourceDir}" "${LDestinationDir}"
+      echo "[WIN-EVIDENCE-GH] Mirror qemu summary dir: ${LDestinationDir}"
+    fi
+  done
+  shopt -u nullglob
 }
 
 is_billing_block_output() {
@@ -338,61 +349,23 @@ trap cleanup EXIT
 echo "[WIN-EVIDENCE-GH] Download artifact: ${ARTIFACT_NAME}"
 gh run download "${LRunId}" -n "${ARTIFACT_NAME}" -D "${LTempDir}"
 
-set +e
-LSourceLog="$(find_unique_downloaded_file "${LTempDir}" 'windows_b07_gate.log' 'windows evidence log')"
-LSourceLogRc=$?
-set -e
-case "${LSourceLogRc}" in
-  0)
-    ;;
-  10)
-    echo "[WIN-EVIDENCE-GH] Missing windows_b07_gate.log in downloaded artifact"
-    exit 1
-    ;;
-  *)
-    exit 1
-    ;;
-esac
-
-set +e
-LSourceGateSummaryMd="$(find_unique_downloaded_file "${LTempDir}" 'gate_summary.md' 'gate summary md')"
-LSummaryMdRc=$?
-set -e
-case "${LSummaryMdRc}" in
-  0)
-    ;;
-  10)
-    LSourceGateSummaryMd=""
-    ;;
-  *)
-    exit 1
-    ;;
-esac
-
-set +e
-LSourceGateSummaryJson="$(find_unique_downloaded_file "${LTempDir}" 'gate_summary.json' 'gate summary json')"
-LSummaryJsonRc=$?
-set -e
-case "${LSummaryJsonRc}" in
-  0)
-    ;;
-  10)
-    LSourceGateSummaryJson=""
-    ;;
-  *)
-    exit 1
-    ;;
-esac
-
+LSourceLog="$(find "${LTempDir}" -type f -name 'windows_b07_gate.log' | head -n 1 || true)"
 if [[ -z "${LSourceLog}" ]]; then
+  echo "[WIN-EVIDENCE-GH] Missing windows_b07_gate.log in downloaded artifact"
   exit 1
 fi
 
+LSourceGateSummaryMd="$(find "${LTempDir}" -type f -name 'gate_summary.md' | head -n 1 || true)"
+LSourceGateSummaryJson="$(find "${LTempDir}" -type f -name 'gate_summary.json' | head -n 1 || true)"
 LCanonicalGateSummaryMd="${ROOT}/logs/gate_summary.md"
 LCanonicalGateSummaryJson="${ROOT}/logs/gate_summary.json"
 LBackfillOutputRoot="${SIMD_OUTPUT_ROOT:-${ROOT}}"
+LCanonicalLogsDir="${ROOT}/logs"
+LBackfillLogsDir="${LBackfillOutputRoot}/logs"
 LBackfillGateSummaryMd="${LBackfillOutputRoot}/logs/gate_summary.md"
 LBackfillGateSummaryJson="${LBackfillOutputRoot}/logs/gate_summary.json"
+LBackfillCloseoutSummary="${LBackfillLogsDir}/windows_b07_closeout_summary.md"
+LBackfillFreezeJson="${LBackfillLogsDir}/freeze_status.json"
 LFreezeGateSummaryFile=""
 
 mkdir -p "$(dirname "${EVIDENCE_LOG}")" "$(dirname "${CANONICAL_EVIDENCE_LOG}")" "${BATCH_DIR}"
@@ -403,13 +376,13 @@ if ! paths_equal "${BATCH_GATE_SUMMARY_JSON}" "${LCanonicalGateSummaryJson}"; th
   rm -f "${BATCH_GATE_SUMMARY_JSON}"
 fi
 if ! paths_equal "${LSourceLog}" "${BATCH_EVIDENCE_LOG}"; then
-  copy_file_preserve_mtime "${LSourceLog}" "${BATCH_EVIDENCE_LOG}"
+  cp "${LSourceLog}" "${BATCH_EVIDENCE_LOG}"
 fi
 if ! paths_equal "${LSourceLog}" "${CANONICAL_EVIDENCE_LOG}"; then
-  copy_file_preserve_mtime "${LSourceLog}" "${CANONICAL_EVIDENCE_LOG}"
+  cp "${LSourceLog}" "${CANONICAL_EVIDENCE_LOG}"
 fi
 if ! paths_equal "${EVIDENCE_LOG}" "${CANONICAL_EVIDENCE_LOG}" && ! paths_equal "${LSourceLog}" "${EVIDENCE_LOG}"; then
-  copy_file_preserve_mtime "${LSourceLog}" "${EVIDENCE_LOG}"
+  cp "${LSourceLog}" "${EVIDENCE_LOG}"
 fi
 echo "[WIN-EVIDENCE-GH] Evidence log updated: ${EVIDENCE_LOG}"
 echo "[WIN-EVIDENCE-GH] Canonical evidence log: ${CANONICAL_EVIDENCE_LOG}"
@@ -417,10 +390,10 @@ echo "[WIN-EVIDENCE-GH] Batch evidence log: ${BATCH_EVIDENCE_LOG}"
 
 if [[ -n "${LSourceGateSummaryMd}" ]]; then
   if ! paths_equal "${LSourceGateSummaryMd}" "${BATCH_GATE_SUMMARY_MD}"; then
-    copy_file_preserve_mtime "${LSourceGateSummaryMd}" "${BATCH_GATE_SUMMARY_MD}"
+    cp "${LSourceGateSummaryMd}" "${BATCH_GATE_SUMMARY_MD}"
   fi
   if ! paths_equal "${LSourceGateSummaryMd}" "${LCanonicalGateSummaryMd}"; then
-    copy_file_preserve_mtime "${LSourceGateSummaryMd}" "${LCanonicalGateSummaryMd}"
+    cp "${LSourceGateSummaryMd}" "${LCanonicalGateSummaryMd}"
   fi
   echo "[WIN-EVIDENCE-GH] Batch gate summary md: ${BATCH_GATE_SUMMARY_MD}"
   LFreezeGateSummaryFile="${BATCH_GATE_SUMMARY_MD}"
@@ -430,10 +403,10 @@ fi
 
 if [[ -n "${LSourceGateSummaryJson}" ]]; then
   if ! paths_equal "${LSourceGateSummaryJson}" "${BATCH_GATE_SUMMARY_JSON}"; then
-    copy_file_preserve_mtime "${LSourceGateSummaryJson}" "${BATCH_GATE_SUMMARY_JSON}"
+    cp "${LSourceGateSummaryJson}" "${BATCH_GATE_SUMMARY_JSON}"
   fi
   if ! paths_equal "${LSourceGateSummaryJson}" "${LCanonicalGateSummaryJson}"; then
-    copy_file_preserve_mtime "${LSourceGateSummaryJson}" "${LCanonicalGateSummaryJson}"
+    cp "${LSourceGateSummaryJson}" "${LCanonicalGateSummaryJson}"
   fi
   echo "[WIN-EVIDENCE-GH] Batch gate summary json: ${BATCH_GATE_SUMMARY_JSON}"
 else
@@ -456,7 +429,7 @@ bash "${ROOT}/BuildOrTest.sh" gate
 
 if [[ -f "${LBackfillGateSummaryMd}" ]]; then
   if ! paths_equal "${LBackfillGateSummaryMd}" "${LCanonicalGateSummaryMd}"; then
-    copy_file_preserve_mtime "${LBackfillGateSummaryMd}" "${LCanonicalGateSummaryMd}"
+    cp "${LBackfillGateSummaryMd}" "${LCanonicalGateSummaryMd}"
   fi
   echo "[WIN-EVIDENCE-GH] Backfill gate summary md: ${LBackfillGateSummaryMd}"
   LFreezeGateSummaryFile="${LCanonicalGateSummaryMd}"
@@ -464,9 +437,13 @@ fi
 
 if [[ -f "${LBackfillGateSummaryJson}" ]]; then
   if ! paths_equal "${LBackfillGateSummaryJson}" "${LCanonicalGateSummaryJson}"; then
-    copy_file_preserve_mtime "${LBackfillGateSummaryJson}" "${LCanonicalGateSummaryJson}"
+    cp "${LBackfillGateSummaryJson}" "${LCanonicalGateSummaryJson}"
   fi
   echo "[WIN-EVIDENCE-GH] Backfill gate summary json: ${LBackfillGateSummaryJson}"
+fi
+
+if ! paths_equal "${LCanonicalLogsDir}" "${LBackfillLogsDir}"; then
+  mirror_qemu_multiarch_dirs "${LCanonicalLogsDir}" "${LBackfillLogsDir}"
 fi
 
 echo "[WIN-EVIDENCE-GH] Run closeout finalize"
@@ -484,9 +461,11 @@ fi
 bash "${ROOT}/run_windows_b07_closeout_finalize.sh" "${BATCH_ID}"
 
 if [[ -f "${BATCH_CLOSEOUT_SUMMARY}" ]]; then
-  copy_file_preserve_mtime "${BATCH_CLOSEOUT_SUMMARY}" "${ROOT}/logs/windows_b07_closeout_summary.md"
+  copy_if_distinct "${BATCH_CLOSEOUT_SUMMARY}" "${ROOT}/logs/windows_b07_closeout_summary.md"
+  copy_if_distinct "${BATCH_CLOSEOUT_SUMMARY}" "${LBackfillCloseoutSummary}"
 fi
 
 if [[ -f "${BATCH_FREEZE_JSON}" ]]; then
-  copy_file_preserve_mtime "${BATCH_FREEZE_JSON}" "${ROOT}/logs/freeze_status.json"
+  copy_if_distinct "${BATCH_FREEZE_JSON}" "${ROOT}/logs/freeze_status.json"
+  copy_if_distinct "${BATCH_FREEZE_JSON}" "${LBackfillFreezeJson}"
 fi

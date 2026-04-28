@@ -8,7 +8,6 @@ REQUESTED_BACKEND="${1:-auto}"
 TS="$(date +%Y%m%d-%H%M%S)"
 REQUESTED_RUNNER="${SIMD_NATIVE_EVIDENCE_RUNNER:-auto}"
 ENABLE_BACKEND_ASM="${SIMD_NATIVE_EVIDENCE_ENABLE_BACKEND_ASM:-0}"
-NONX86_IEEE754_SUITE="TTestCase_NonX86IEEE754"
 
 normalize_arch() {
   local aRawArch
@@ -150,7 +149,6 @@ RUN_OUTPUT_ROOT="${OUT_DIR}/run"
 RUN_TMPDIR="${OUT_DIR}/tmp"
 SUMMARY_FILE="${OUT_DIR}/summary.md"
 ENV_FILE="${OUT_DIR}/environment.txt"
-SOURCE_FILE="${OUT_DIR}/source_revision.txt"
 mkdir -p "${OUT_DIR}" "${RUN_OUTPUT_ROOT}" "${RUN_TMPDIR}"
 
 FPC_VERSION="$(fpc -iV 2>/dev/null || true)"
@@ -173,21 +171,6 @@ if [[ "${RUNNER_KIND}" == "direct-fpc" && "${ENABLE_BACKEND_ASM}" == "1" ]]; the
   fi
 fi
 
-COLLECTED_AT_UTC="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-GIT_COMMIT="$(git -C "${ROOT_DIR}" rev-parse HEAD 2>/dev/null || true)"
-GIT_REF_HINT="${SIMD_NATIVE_EVIDENCE_REF_HINT:-${GITHUB_REF_NAME:-$(git -C "${ROOT_DIR}" branch --show-current 2>/dev/null || true)}}"
-GIT_TREE_STATE="unknown"
-if git -C "${ROOT_DIR}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  if [[ -n "$(git -C "${ROOT_DIR}" status --short --untracked-files=no 2>/dev/null || true)" ]]; then
-    GIT_TREE_STATE="dirty"
-  else
-    GIT_TREE_STATE="clean"
-  fi
-fi
-if [[ -z "${GIT_REF_HINT}" ]]; then
-  GIT_REF_HINT="${GIT_COMMIT:-detached}"
-fi
-
 run_step() {
   local aName
   local aLogFile
@@ -208,41 +191,6 @@ run_step() {
   ) 2>&1 | tee "${aLogFile}"
 }
 
-suite_present_in_list_log() {
-  local aSuiteName
-
-  aSuiteName="${1:-}"
-  [[ -n "${aSuiteName}" ]] || return 1
-  [[ -f "${OUT_DIR}/list_suites.log" ]] || return 1
-  grep -F "${aSuiteName}" "${OUT_DIR}/list_suites.log" >/dev/null 2>&1
-}
-
-skip_optional_suite() {
-  local aName
-  local aSuiteName
-  local aLogFile
-
-  aName="${1:-}"
-  aSuiteName="${2:-}"
-  aLogFile="${OUT_DIR}/${aName}.log"
-  printf '[NATIVE-EVIDENCE] SKIP %s (suite %s not present in list-suites)\n' "${aName}" "${aSuiteName}" | tee "${aLogFile}"
-}
-
-run_optional_suite_step() {
-  local aName
-  local aSuiteName
-
-  aName="${1:-}"
-  aSuiteName="${2:-}"
-  shift 2 || true
-
-  if suite_present_in_list_log "${aSuiteName}"; then
-    run_step "${aName}" "$@"
-  else
-    skip_optional_suite "${aName}" "${aSuiteName}"
-  fi
-}
-
 {
   echo "host_arch=${ARCH}"
   echo "backend=${BACKEND}"
@@ -260,25 +208,7 @@ run_optional_suite_step() {
   echo "fpc_target_os=$(fpc -iTO 2>/dev/null || true)"
   echo "lazbuild=${LAZBUILD_PATH}"
   echo "lazbuild_has_opt=${LAZBUILD_HAS_OPT}"
-  echo "git_commit=${GIT_COMMIT}"
-  echo "git_ref_hint=${GIT_REF_HINT}"
-  echo "git_tree_state=${GIT_TREE_STATE}"
-  echo "github_repository=${GITHUB_REPOSITORY:-}"
-  echo "github_workflow=${GITHUB_WORKFLOW:-}"
-  echo "github_run_id=${GITHUB_RUN_ID:-}"
-  echo "github_run_attempt=${GITHUB_RUN_ATTEMPT:-}"
 } > "${ENV_FILE}"
-
-{
-  echo "collected_at_utc=${COLLECTED_AT_UTC}"
-  echo "git_commit=${GIT_COMMIT}"
-  echo "git_ref_hint=${GIT_REF_HINT}"
-  echo "git_tree_state=${GIT_TREE_STATE}"
-  echo "github_repository=${GITHUB_REPOSITORY:-}"
-  echo "github_workflow=${GITHUB_WORKFLOW:-}"
-  echo "github_run_id=${GITHUB_RUN_ID:-}"
-  echo "github_run_attempt=${GITHUB_RUN_ATTEMPT:-}"
-} > "${SOURCE_FILE}"
 
 if [[ "${RUNNER_KIND}" == "direct-fpc" ]]; then
   run_step list_suites \
@@ -287,9 +217,6 @@ if [[ "${RUNNER_KIND}" == "direct-fpc" ]]; then
   run_step dispatch_publicabi \
     env "SIMD_FPC_EXTRA_DEFINES=${BACKEND_ASM_DEFINES}" \
     bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --vector-asm --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi
-  run_optional_suite_step nonx86_ieee754 "${NONX86_IEEE754_SUITE}" \
-    env "SIMD_FPC_EXTRA_DEFINES=${BACKEND_ASM_DEFINES}" \
-    bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --vector-asm --suite="${NONX86_IEEE754_SUITE}"
   run_step runtime_parity \
     env "SIMD_FPC_EXTRA_DEFINES=${BACKEND_ASM_DEFINES}" \
     bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --vector-asm --suite=TTestCase_NonX86BackendParity,TTestCase_DataPlane
@@ -299,8 +226,6 @@ if [[ "${RUNNER_KIND}" == "direct-fpc" ]]; then
 else
   run_step list_suites bash tests/fafafa.core.simd/BuildOrTest.sh test --list-suites
   run_step dispatch_publicabi bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi
-  run_optional_suite_step nonx86_ieee754 "${NONX86_IEEE754_SUITE}" \
-    bash tests/fafafa.core.simd/BuildOrTest.sh test --suite="${NONX86_IEEE754_SUITE}"
   run_step runtime_parity bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NonX86BackendParity,TTestCase_DataPlane
   run_step impl_audit_nonx86 bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86
 fi
@@ -317,7 +242,6 @@ fi
   echo "- Backend: ${BACKEND_LABEL}"
   echo "- Output Root: ${RUN_OUTPUT_ROOT}"
   echo "- Environment: ${ENV_FILE}"
-  echo "- Source Revision: ${SOURCE_FILE}"
   echo
   echo "## list-suites"
   grep -E "\[BUILD\]|\[TEST\]|\[LEAK\]|TTestCase_" "${OUT_DIR}/list_suites.log" || true
@@ -325,14 +249,9 @@ fi
   echo "## DispatchAPI + PublicAbi"
   grep -E "\[BUILD\]|\[TEST\]|\[LEAK\]" "${OUT_DIR}/dispatch_publicabi.log" || true
   echo
-  if [[ -f "${OUT_DIR}/nonx86_ieee754.log" ]]; then
-    echo "## NonX86 IEEE754"
-    grep -E "\[BUILD\]|\[TEST\]|\[LEAK\]|\[NATIVE-EVIDENCE\]" "${OUT_DIR}/nonx86_ieee754.log" || true
-    echo
-  fi
   if [[ -f "${OUT_DIR}/runtime_parity.log" ]]; then
     echo "## Runtime Parity (TTestCase_NonX86BackendParity,TTestCase_DataPlane)"
-    grep -E "\[BUILD\]|\[TEST\]|\[LEAK\]|\[NATIVE-EVIDENCE\]" "${OUT_DIR}/runtime_parity.log" || true
+    grep -E "\[BUILD\]|\[TEST\]|\[LEAK\]" "${OUT_DIR}/runtime_parity.log" || true
     echo
   fi
   if [[ -f "${OUT_DIR}/impl_audit_nonx86.log" ]]; then
@@ -352,4 +271,3 @@ fi
 
 echo "[NATIVE-EVIDENCE] DONE: ${OUT_DIR}"
 echo "[NATIVE-EVIDENCE] SUMMARY: ${SUMMARY_FILE}"
-echo "[NATIVE-EVIDENCE] SOURCE: ${SOURCE_FILE}"

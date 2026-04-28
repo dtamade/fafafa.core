@@ -32,6 +32,7 @@ PUBLIC_ABI_SIGNATURE_SCRIPT="${ROOT}/check_public_abi_signature.py"
 PERF_SMOKE_CHECK_SCRIPT="${ROOT}/check_perf_smoke_log.py"
 ADAPTER_SYNC_SCRIPT="${ROOT}/check_backend_adapter_sync.py"
 REGISTER_INCLUDE_CHECK_SCRIPT="${ROOT}/check_backend_register_include_consistency.py"
+SSE2_STRUCTURE_SCRIPT="${ROOT}/check_sse2_structure.py"
 SUITE_MANIFEST_CHECK_SCRIPT="${ROOT}/check_suite_manifest_sync.py"
 DISPATCH_PREINIT_SMOKE_SRC="${ROOT}/fafafa.core.simd.dispatch_preinit_smoke.pas"
 EXPERIMENTAL_INTRINSICS_SCRIPT="${ROOT}/check_intrinsics_experimental_status.py"
@@ -42,6 +43,9 @@ NONX86_NATIVE_EVIDENCE_IMPORT_SCRIPT="${ROOT}/import_nonx86_native_evidence_arti
 RISCVV_ABI_SHAPE_SCRIPT="${ROOT}/check_riscvv_abi_shape.py"
 QEMU_EXPERIMENTAL_REPORT_SCRIPT="${ROOT}/report_qemu_experimental_blockers.py"
 QEMU_EXPERIMENTAL_BASELINE_SCRIPT="${ROOT}/check_experimental_failure_baseline.py"
+QEMU_EXPERIMENTAL_COMPILER_READY_PLATFORMS_DEFAULT="linux/arm64 linux/riscv64"
+QEMU_EXPERIMENTAL_ARM64_COMPILER_DEFINE_DEFAULT="-dFAFAFA_SIMD_NEON_ASM_COMPILER_READY"
+QEMU_EXPERIMENTAL_RISCV64_COMPILER_DEFINE_DEFAULT="-dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY"
 INTERFACE_COMPLETENESS_JSON_LOG="${LOG_DIR}/interface_completeness.json"
 INTERFACE_COMPLETENESS_MD_LOG="${LOG_DIR}/interface_completeness.md"
 DISPATCH_CONTRACT_SIGNATURE_LOG="${LOG_DIR}/dispatch_contract_signature.txt"
@@ -59,9 +63,11 @@ REGISTER_TRUTHFULNESS_RISCVV_JSON_LOG="${LOG_DIR}/register_truthfulness_riscvv.j
 HELPER_SEMANTICS_LOG="${LOG_DIR}/helper_semantics.txt"
 KEY_SLOT_AUDIT_LOG="${LOG_DIR}/nonx86_key_slot_audit.txt"
 KEY_SLOT_AUDIT_JSON_LOG="${LOG_DIR}/nonx86_key_slot_audit.json"
+SSE2_STRUCTURE_LOG="${LOG_DIR}/sse2_structure.txt"
+SSE2_STRUCTURE_JSON_LOG="${LOG_DIR}/sse2_structure.json"
 X86_IMPL_SMOKE_LOG="${LOG_DIR}/x86_impl_smoke.txt"
+SSE2_IMPL_SMOKE_LOG="${LOG_DIR}/sse2_impl_smoke.txt"
 NONX86_IMPL_SMOKE_LOG="${LOG_DIR}/nonx86_impl_smoke.txt"
-IMPL_FULL_AUDIT_LOG="${LOG_DIR}/impl_full_audit.txt"
 NONX86_IMPL_AUDIT_LOG="${LOG_DIR}/nonx86_impl_audit.txt"
 NONX86_NATIVE_EVIDENCE_LOG="${LOG_DIR}/nonx86_native_evidence.txt"
 NONX86_NATIVE_EVIDENCE_JSON_LOG="${LOG_DIR}/nonx86_native_evidence.json"
@@ -207,6 +213,9 @@ build_project() {
     fi
     if [[ "${SIMD_ENABLE_AVX512_BACKEND:-0}" == "1" ]]; then
       LLazbuildArgs+=("--opt=-dSIMD_BACKEND_AVX512")
+    fi
+    if [[ "${SIMD_INIT_TRACE:-0}" == "1" ]]; then
+      LLazbuildArgs+=("--opt=-dSIMD_INIT_TRACE")
     fi
   elif [[ "${OUTPUT_ROOT}" != "${ROOT}" ]]; then
     echo "[BUILD] WARN: lazbuild without --opt support; fallback to project-local bin2/lib2 layout" | tee -a "${BUILD_LOG}"
@@ -386,7 +395,7 @@ run_tests() {
   echo "[TEST] Running: ${LBinPath} $*"
   : >"${TEST_LOG}"
 
-  if "${LBinPath}" "$@" >"${TEST_LOG}" 2>&1; then
+  if FAFAFA_SIMD_REPO_ROOT="${REPO_ROOT}" "${LBinPath}" "$@" >"${TEST_LOG}" 2>&1; then
     :
   else
     local rc=$?
@@ -498,9 +507,9 @@ nonx86_optin_output_root() {
 }
 
 nonx86_impl_audit_output_root() {
-  # Implementation-shape audit tests resolve ../../../src from ParamStr(0),
-  # so the targeted suite must keep the binary rooted under tests/fafafa.core.simd/bin2.
-  echo "${ROOT}"
+  # Implementation-shape audit tests now resolve repo sources explicitly,
+  # so targeted suites can stay under the caller-provided output root.
+  echo "${OUTPUT_ROOT}"
 }
 
 run_clean() {
@@ -752,6 +761,10 @@ check_windows_runner_parity() {
     'if /I "%ACTION%"=="cpuinfo-lazy-repeat" goto :cpuinfo_lazy_repeat'
     'if /I "%ACTION%"=="gate" goto :gate'
     'if /I "%ACTION%"=="gate-strict" goto :gate_strict'
+    'if /I "%ACTION%"=="closeout-release" goto :closeout_release'
+    'if /I "%ACTION%"=="sse2-structure-check" goto :sse2_structure_check'
+    'if /I "%ACTION%"=="sse2-contracts" goto :sse2_contracts'
+    'if /I "%ACTION%"=="impl-smoke-sse2" goto :impl_smoke_sse2'
     'if /I "%ACTION%"=="impl-smoke-nonx86" goto :impl_smoke_nonx86'
     'if /I "%ACTION%"=="impl-audit-nonx86" goto :impl_audit_nonx86'
     'if /I "%ACTION%"=="key-slot-audit" goto :key_slot_audit'
@@ -776,6 +789,7 @@ check_windows_runner_parity() {
     'if /I "%ACTION%"=="qemu-cpuinfo-nonx86-suite-repeat" goto :qemu_cpuinfo_nonx86_suite_repeat'
     'if /I "%ACTION%"=="qemu-arch-matrix-evidence" goto :qemu_arch_matrix_evidence'
     'if /I "%ACTION%"=="qemu-nonx86-experimental-asm" goto :qemu_nonx86_experimental_asm'
+    'if /I "%ACTION%"=="qemu-experimental-compiler-ready" goto :qemu_experimental_compiler_ready'
     'if /I "%ACTION%"=="qemu-experimental-report" goto :qemu_experimental_report'
     'if /I "%ACTION%"=="qemu-experimental-baseline-check" goto :qemu_experimental_baseline_check'
     'if /I "%ACTION%"=="evidence-win" goto :evidence_win'
@@ -786,7 +800,6 @@ check_windows_runner_parity() {
     'if /I "%ACTION%"=="win-closeout-3cmd" goto :win_closeout_3cmd'
     'if /I "%ACTION%"=="win-closeout-finalize" goto :win_closeout_finalize'
     'if /I "%ACTION%"=="impl-smoke-x86" goto :impl_smoke_x86'
-    'if /I "%ACTION%"=="impl-audit-full" goto :impl_audit_full'
     'set "NORMALIZED_TEST_ARGS=!NORMALIZED_TEST_ARGS! %1"'
     'if /I "%ACTION%"=="wiring-sync" goto :wiring_sync'
     'if /I "%ACTION%"=="gate-summary" goto :gate_summary'
@@ -795,8 +808,8 @@ check_windows_runner_parity() {
     'if /I "%ACTION%"=="gate-summary-inject" goto :gate_summary_inject'
     'if /I "%ACTION%"=="gate-summary-rollback" goto :gate_summary_rollback'
     'if /I "%ACTION%"=="gate-summary-backups" goto :gate_summary_backups'
-    'echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-full^|impl-audit-nonx86^|key-slot-audit^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]'
-    'echo [IMPL-AUDIT-FULL] Running: bash %ROOT%BuildOrTest.sh impl-audit-full %NORMALIZED_TEST_ARGS%'
+    'echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|key-slot-audit^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-compiler-ready^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]'
+    'echo   closeout-release  Canonical release closeout entry ^(delegates to shell runner^)'
     'echo [IMPL-SMOKE-X86] Running: bash %ROOT%BuildOrTest.sh impl-smoke-x86 %NORMALIZED_TEST_ARGS%'
     'findstr /r /c:"src\fafafa\.core\.simd\..*Warning:" /c:"src\fafafa\.core\.simd\..*Hint:" "%BUILD_LOG%" | findstr /v /c:"src\fafafa.core.simd.intrinsics.avx2.pas" >nul 2>nul'
     'call :register_include_check'
@@ -1460,6 +1473,8 @@ check_windows_manual_closeout_guard() {
     'native batch evidence 不会生成 fresh `gate_summary.md/json`'
   )
   LCloseoutChecklistRequired=(
+    '`closeout-release` 是当前推荐的单一 release 收口入口。'
+    'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-20260320-152'
     '0.1) 或直接使用 GH 单命令闭环（推荐）'
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-20260320-152'
     '2) Git Bash / WSL 回灌 fail-close cross gate（必需）'
@@ -1468,12 +1483,16 @@ check_windows_manual_closeout_guard() {
     '不能从 `evidence-win-verify` 直接跳到 `win-closeout-finalize`'
   )
   LCloseoutRoadmapRequired=(
+    '当前推荐的一键 release 收口入口：'
+    'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152'
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight'
     "FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate"
     'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1'
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-YYYYMMDD-152'
   )
   LCloseoutTemplateRequired=(
+    '`closeout-release` 是完整 release 收口的首选入口：'
+    'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release <BATCH_ID>'
     '先回灌 fail-close cross gate'
     "FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate"
     'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1'
@@ -1486,12 +1505,15 @@ check_windows_manual_closeout_guard() {
     'evidence-win-verify -> SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 + SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 gate -> win-closeout-finalize -> freeze-status'
   )
   LReleaseChecklistRequired=(
+    '`closeout-release` 是 Linux/Git Bash/WSL 侧完整收口的唯一官方入口。'
+    'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152'
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight'
     "FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate"
     'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1'
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status'
   )
   LCompletenessMatrixRequired=(
+    '`closeout-release` 已作为完整 release 收口入口固化到 runner 与主文档。'
     '采集 + 校验证据包；手工路径仍需后续 fail-close cross gate + finalize'
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-YYYYMMDD-152'
   )
@@ -1666,6 +1688,154 @@ check_windows_via_gh_cross_gate_guard() {
   done
 
   echo "[CHECK] OK (Windows via-gh cross gate guard present)"
+}
+
+check_closeout_release_entrypoint_guard() {
+  local LShell
+  local LBat
+  local LChecklist
+  local LHandoff
+  local LReadme
+  local LRunbook
+  local LCloseoutDoc
+  local LHelper
+  local LMissing
+  local LPattern
+  local -a LShellRequired
+  local -a LBatRequired
+  local -a LChecklistRequired
+  local -a LHandoffRequired
+  local -a LReadmeRequired
+  local -a LRunbookRequired
+  local -a LCloseoutDocRequired
+  local -a LHelperRequired
+
+  LShell="${ROOT}/BuildOrTest.sh"
+  LBat="${ROOT}/buildOrTest.bat"
+  LChecklist="${REPO_ROOT}/docs/fafafa.core.simd.checklist.md"
+  LHandoff="${REPO_ROOT}/docs/fafafa.core.simd.handoff.md"
+  LReadme="${REPO_ROOT}/src/fafafa.core.simd.README.md"
+  LRunbook="${ROOT}/docs/windows_b07_closeout_runbook.md"
+  LCloseoutDoc="${REPO_ROOT}/docs/fafafa.core.simd.closeout.md"
+  LHelper="${ROOT}/print_windows_b07_closeout_3cmd.sh"
+  LMissing=0
+
+  for LPattern in "${LShell}" "${LBat}" "${LChecklist}" "${LHandoff}" "${LReadme}" "${LRunbook}" "${LCloseoutDoc}" "${LHelper}"; do
+    if [[ ! -f "${LPattern}" ]]; then
+      echo "[CHECK] Missing closeout-release guard target: ${LPattern}"
+      return 1
+    fi
+  done
+
+  LShellRequired=(
+    'run_closeout_release() {'
+    'echo "[CLOSEOUT-RELEASE] 1/5 x86 bounded frontier smoke"'
+    'echo "[CLOSEOUT-RELEASE] 2/5 host-local closeout (QEMU arm64/riscv64, Windows evidence optional)"'
+    'echo "[CLOSEOUT-RELEASE] 3/5 Windows evidence preflight"'
+    'echo "[CLOSEOUT-RELEASE] 4/5 Windows evidence via GH"'
+    'echo "[CLOSEOUT-RELEASE] 5/5 freeze-status"'
+    'SIMD_QEMU_PLATFORMS="${SIMD_QEMU_PLATFORMS:-linux/arm64 linux/riscv64}" \'
+    'SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 \'
+    'SIMD_WIN_EVIDENCE_PREFLIGHT=0 run_win_evidence_via_gh "${LBatchId}" "${LRunId}"'
+    'closeout-release)'
+    'echo "  closeout-release  Canonical release closeout entry (x86 frontier -> host-local closeout -> win preflight -> GH evidence -> freeze-status)"'
+  )
+  LBatRequired=(
+    'if /I "%ACTION%"=="closeout-release" goto :closeout_release'
+    'echo [CLOSEOUT-RELEASE] Running: bash %ROOT%BuildOrTest.sh closeout-release %NORMALIZED_TEST_ARGS%'
+    'echo [CLOSEOUT-RELEASE] FAILED ^(bash runtime not found; closeout-release requires Git Bash / WSL as the canonical entrypoint^)'
+    'echo   closeout-release  Canonical release closeout entry ^(delegates to shell runner^)'
+    'echo Preferred canonical entry ^(Git Bash / WSL^):'
+    'echo    FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release %BATCH_ID%'
+    'echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release'
+  )
+  LChecklistRequired=(
+    '`closeout-release` 是完整 release 收口的唯一官方入口：'
+    'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152'
+    '内部固定顺序是 `impl-smoke-x86 -> closeout-host-local -> win-evidence-preflight -> win-evidence-via-gh -> freeze-status`。'
+  )
+  LHandoffRequired=(
+    '`closeout-release` 已经是当前推荐的单一 release/closeout 入口。'
+    'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152'
+  )
+  LReadmeRequired=(
+    '**想做完整 release closeout**：直接运行 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152`'
+    'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152'
+  )
+  LRunbookRequired=(
+    '如果你要从 Linux/Git Bash/WSL 侧把整条 release closeout 主线一波收口，直接运行：'
+    'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152'
+  )
+  LCloseoutDocRequired=(
+    '`closeout-release` 现在是完整发布收口的官方主入口：'
+    'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152'
+  )
+  LHelperRequired=(
+    '如果你要从 Linux/Git Bash/WSL 侧把整条 release closeout 主线一波收口，优先直接跑：'
+    'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release __BATCH_ID__'
+  )
+
+  for LPattern in "${LShellRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LShell}" >/dev/null; then
+      echo "[CHECK] closeout-release shell runner missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  for LPattern in "${LBatRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LBat}" >/dev/null; then
+      echo "[CHECK] closeout-release Windows runner missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  for LPattern in "${LChecklistRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LChecklist}" >/dev/null; then
+      echo "[CHECK] closeout-release checklist missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  for LPattern in "${LHandoffRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LHandoff}" >/dev/null; then
+      echo "[CHECK] closeout-release handoff missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  for LPattern in "${LReadmeRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LReadme}" >/dev/null; then
+      echo "[CHECK] closeout-release README missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  for LPattern in "${LRunbookRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LRunbook}" >/dev/null; then
+      echo "[CHECK] closeout-release runbook missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  for LPattern in "${LCloseoutDocRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LCloseoutDoc}" >/dev/null; then
+      echo "[CHECK] closeout-release closeout doc missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  for LPattern in "${LHelperRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LHelper}" >/dev/null; then
+      echo "[CHECK] closeout-release helper missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  if [[ "${LMissing}" != "0" ]]; then
+    return 1
+  fi
+
+  echo "[CHECK] OK (closeout-release entrypoint guard present)"
 }
 
 check_gate_summary_json_runtime_guard() {
@@ -2142,6 +2312,8 @@ check_riscvv_opcode_lane_contract_guard() {
   LMissing=0
   LRequired=(
     'RISCV_EXPERIMENTAL_DEFINE="${SIMD_QEMU_EXPERIMENTAL_RISCVV_FEATURE_DEFINE:--dSIMD_EXPERIMENTAL_RISCVV}"'
+    'LANE_SUITE="${SIMD_RVV_LANE_SUITE:-TTestCase_NonX86IEEE754,TTestCase_NonX86BackendParity}"'
+    'RUNTIME_TEST_ARGS="${SIMD_RVV_RUNTIME_TEST_ARGS:---vector-asm}"'
     'RISCV_OPCODE_DEFINE="${SIMD_QEMU_EXPERIMENTAL_RISCV64_OPCODE_DEFINE:--dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY}"'
     'LANE_DEFINES="${SIMD_RVV_LANE_DEFINES:-${RISCV_EXPERIMENTAL_DEFINE} ${BASE_DEFINE} ${RISCV_BACKEND_DEFINE} ${RISCV_COMPILER_DEFINE} ${RISCV_OPCODE_DEFINE}}"'
     'COMPILE_DEFINES="${SIMD_RVV_COMPILE_DEFINES:-${LANE_DEFINES}}"'
@@ -2151,7 +2323,7 @@ check_riscvv_opcode_lane_contract_guard() {
     'BENCH_USE_PREBUILT_COMPILER="${SIMD_RVV_BENCH_USE_PREBUILT_COMPILER:-${USE_PREBUILT_COMPILER}}"'
     "Callers that intentionally want a weaker runtime lane can still override"
     "SIMD_RVV_RUNTIME_DEFINES explicitly."
-    "SIMD_FPC_EXTRA_DEFINES='\${RUNTIME_DEFINES}' bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=\${LANE_SUITE}"
+    "SIMD_FPC_EXTRA_DEFINES='\${RUNTIME_DEFINES}' bash tests/fafafa.core.simd/docker/run_fpc_tests.sh \${RUNTIME_TEST_ARGS} --suite=\${LANE_SUITE}"
     "SIMD_BENCH_FPC_EXTRA_DEFINES='\${RUNTIME_DEFINES}' bash tests/fafafa.core.simd/run_backend_benchmarks.sh"
   )
 
@@ -3950,6 +4122,7 @@ gate_step_build_check() {
   check_windows_manual_closeout_guard || return $?
   check_windows_closeout_helper_runtime_guard || return $?
   check_windows_via_gh_cross_gate_guard || return $?
+  check_closeout_release_entrypoint_guard || return $?
   check_gate_summary_json_runtime_guard || return $?
   check_perf_smoke_scalar_guard || return $?
   check_perf_smoke_public_abi_shape_guard || return $?
@@ -4110,6 +4283,10 @@ gate_step_qemu_arch_matrix_evidence() {
   run_qemu_multiarch "arch-matrix-evidence" || return $?
 }
 
+gate_step_qemu_experimental_compiler_ready() {
+  run_qemu_experimental_compiler_ready || return $?
+}
+
 gate_step_evidence_verify() {
   verify_windows_evidence_if_present || return $?
 }
@@ -4184,6 +4361,46 @@ run_nonx86_key_slot_audit_check() {
   return "${LMainRC}"
 }
 
+run_sse2_structure_check() {
+  local LLog
+  local LJsonLog
+  local LMainRC
+  local LSummaryLine
+
+  if [[ ! -f "${SSE2_STRUCTURE_SCRIPT}" ]]; then
+    echo "[SSE2-STRUCTURE] Missing checker: ${SSE2_STRUCTURE_SCRIPT}"
+    return 2
+  fi
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "[SSE2-STRUCTURE] FAILED (python3 runtime not found; SSE2 structure check requires python3)"
+    return 2
+  fi
+
+  LLog="${SIMD_SSE2_STRUCTURE_LOG_FILE:-${SSE2_STRUCTURE_LOG}}"
+  LJsonLog="${SIMD_SSE2_STRUCTURE_JSON_FILE:-${SSE2_STRUCTURE_JSON_LOG}}"
+
+  echo "[SSE2-STRUCTURE] Running: python3 ${SSE2_STRUCTURE_SCRIPT} --summary-line"
+  : > "${LLog}"
+  python3 "${SSE2_STRUCTURE_SCRIPT}" --summary-line 2>&1 | tee "${LLog}"
+  LMainRC="${PIPESTATUS[0]}"
+
+  if [[ "${SIMD_SSE2_STRUCTURE_JSON:-1}" != "0" ]]; then
+    if python3 "${SSE2_STRUCTURE_SCRIPT}" --json > "${LJsonLog}"; then
+      echo "[SSE2-STRUCTURE] JSON snapshot: ${LJsonLog}"
+    else
+      echo "[SSE2-STRUCTURE] WARN: failed to snapshot JSON: ${LJsonLog}"
+    fi
+  fi
+
+  LSummaryLine="$(grep -E '^SSE2_STRUCTURE_SUMMARY ' "${LLog}" | tail -n 1 || true)"
+  if [[ -n "${LSummaryLine}" ]]; then
+    echo "[SSE2-STRUCTURE] Summary: ${LSummaryLine#SSE2_STRUCTURE_SUMMARY }"
+  fi
+
+  return "${LMainRC}"
+}
+
 run_nonx86_impl_audit_step() {
   local LAuditLog
   local LStep
@@ -4226,6 +4443,25 @@ run_nonx86_impl_smoke_step() {
   echo "[NONX86-IMPL-SMOKE] <<< ${LStep}: ok" | tee -a "${LSmokeLog}"
 }
 
+run_sse2_impl_smoke_step() {
+  local LSmokeLog
+  local LStep
+  local LRC
+
+  LSmokeLog="${1:-}"
+  LStep="${2:-unknown-step}"
+  shift 2 || true
+
+  echo "[SSE2-IMPL-SMOKE] >>> ${LStep}" | tee -a "${LSmokeLog}"
+  "$@" 2>&1 | tee -a "${LSmokeLog}"
+  LRC="${PIPESTATUS[0]}"
+  if [[ "${LRC}" != "0" ]]; then
+    echo "[SSE2-IMPL-SMOKE] <<< ${LStep}: failed rc=${LRC}" | tee -a "${LSmokeLog}"
+    return "${LRC}"
+  fi
+  echo "[SSE2-IMPL-SMOKE] <<< ${LStep}: ok" | tee -a "${LSmokeLog}"
+}
+
 run_x86_impl_smoke_step() {
   local LSmokeLog
   local LStep
@@ -4245,6 +4481,42 @@ run_x86_impl_smoke_step() {
   echo "[X86-IMPL-SMOKE] <<< ${LStep}: ok" | tee -a "${LSmokeLog}"
 }
 
+run_sse2_impl_smoke() {
+  local LSmokeLog
+  local LTargetedOutputRoot
+  local LStepCount
+
+  LSmokeLog="${SIMD_SSE2_IMPL_SMOKE_LOG_FILE:-${SSE2_IMPL_SMOKE_LOG}}"
+  LTargetedOutputRoot="${SIMD_SSE2_IMPL_SMOKE_OUTPUT_ROOT:-$(nonx86_impl_audit_output_root)}"
+  LStepCount=5
+
+  mkdir -p "$(dirname "${LSmokeLog}")" "${LTargetedOutputRoot}"
+  : > "${LSmokeLog}"
+
+  echo "[SSE2-IMPL-SMOKE] log=${LSmokeLog}" | tee -a "${LSmokeLog}"
+  echo "[SSE2-IMPL-SMOKE] targeted_output_root=${LTargetedOutputRoot}" | tee -a "${LSmokeLog}"
+
+  run_sse2_impl_smoke_step "${LSmokeLog}" "sse2-structure" run_sse2_structure_check || return $?
+  run_sse2_impl_smoke_step "${LSmokeLog}" "sse2-contracts" \
+    env FAFAFA_BUILD_MODE="${FAFAFA_BUILD_MODE:-Release}" \
+        SIMD_OUTPUT_ROOT="${LTargetedOutputRoot}" \
+        bash "${ROOT}/BuildOrTest.sh" sse2-contracts || return $?
+  run_sse2_impl_smoke_step "${LSmokeLog}" "backend-smoke" \
+    env FAFAFA_BUILD_MODE="${FAFAFA_BUILD_MODE:-Release}" \
+        SIMD_OUTPUT_ROOT="${LTargetedOutputRoot}" \
+        bash "${ROOT}/BuildOrTest.sh" test --suite=TTestCase_BackendSmoke || return $?
+  run_sse2_impl_smoke_step "${LSmokeLog}" "runtime-api" \
+    env FAFAFA_BUILD_MODE="${FAFAFA_BUILD_MODE:-Release}" \
+        SIMD_OUTPUT_ROOT="${LTargetedOutputRoot}" \
+        bash "${ROOT}/BuildOrTest.sh" test --suite=TTestCase_RuntimeAPI || return $?
+  run_sse2_impl_smoke_step "${LSmokeLog}" "data-plane" \
+    env FAFAFA_BUILD_MODE="${FAFAFA_BUILD_MODE:-Release}" \
+        SIMD_OUTPUT_ROOT="${LTargetedOutputRoot}" \
+        bash "${ROOT}/BuildOrTest.sh" test --suite=TTestCase_DataPlane || return $?
+
+  echo "SSE2_IMPL_SMOKE_SUMMARY steps=${LStepCount} targeted_output_root=${LTargetedOutputRoot} status=ok" | tee -a "${LSmokeLog}"
+}
+
 run_x86_impl_smoke() {
   local LSmokeLog
   local LTargetedOutputRoot
@@ -4252,7 +4524,7 @@ run_x86_impl_smoke() {
 
   LSmokeLog="${SIMD_X86_IMPL_SMOKE_LOG_FILE:-${X86_IMPL_SMOKE_LOG}}"
   LTargetedOutputRoot="${SIMD_X86_IMPL_SMOKE_OUTPUT_ROOT:-$(nonx86_impl_audit_output_root)}"
-  LStepCount=1
+  LStepCount=2
 
   mkdir -p "$(dirname "${LSmokeLog}")" "${LTargetedOutputRoot}"
   : > "${LSmokeLog}"
@@ -4260,8 +4532,14 @@ run_x86_impl_smoke() {
   echo "[X86-IMPL-SMOKE] log=${LSmokeLog}" | tee -a "${LSmokeLog}"
   echo "[X86-IMPL-SMOKE] targeted_output_root=${LTargetedOutputRoot}" | tee -a "${LSmokeLog}"
 
-  # DispatchAPI carries the current bounded x86 proof set, and these tests
-  # resolve ../../../src from ParamStr(0), so the smoke keeps bin2 rooted here.
+  run_x86_impl_smoke_step "${LSmokeLog}" "sse2-structure-contracts" \
+    env FAFAFA_BUILD_MODE="${FAFAFA_BUILD_MODE:-Release}" \
+        SIMD_SSE2_IMPL_SMOKE_OUTPUT_ROOT="${LTargetedOutputRoot}" \
+        SIMD_OUTPUT_ROOT="${LTargetedOutputRoot}" \
+        bash "${ROOT}/BuildOrTest.sh" impl-smoke-sse2 || return $?
+
+  # DispatchAPI carries the current bounded x86 proof set; keep it on the
+  # same isolated output root as the other implementation-smoke steps.
   run_x86_impl_smoke_step "${LSmokeLog}" "dispatchapi-bounded-frontier" \
     env FAFAFA_BUILD_MODE="${FAFAFA_BUILD_MODE:-Release}" \
         SIMD_OUTPUT_ROOT="${LTargetedOutputRoot}" \
@@ -4298,53 +4576,6 @@ run_nonx86_impl_smoke() {
   echo "NONX86_IMPL_SMOKE_SUMMARY steps=${LStepCount} targeted_output_root=${LTargetedOutputRoot} status=ok" | tee -a "${LSmokeLog}"
 }
 
-run_impl_full_audit_step() {
-  local LAuditLog
-  local LStep
-  local LRC
-
-  LAuditLog="${1:-}"
-  LStep="${2:-unknown-step}"
-  shift 2 || true
-
-  echo "[IMPL-AUDIT-FULL] >>> ${LStep}" | tee -a "${LAuditLog}"
-  "$@" 2>&1 | tee -a "${LAuditLog}"
-  LRC="${PIPESTATUS[0]}"
-  if [[ "${LRC}" != "0" ]]; then
-    echo "[IMPL-AUDIT-FULL] <<< ${LStep}: failed rc=${LRC}" | tee -a "${LAuditLog}"
-    return "${LRC}"
-  fi
-  echo "[IMPL-AUDIT-FULL] <<< ${LStep}: ok" | tee -a "${LAuditLog}"
-}
-
-run_impl_full_audit() {
-  local LAuditLog
-  local LTargetedOutputRoot
-  local LStepCount
-
-  LAuditLog="${SIMD_IMPL_FULL_AUDIT_LOG_FILE:-${IMPL_FULL_AUDIT_LOG}}"
-  LTargetedOutputRoot="${SIMD_IMPL_FULL_AUDIT_OUTPUT_ROOT:-$(nonx86_impl_audit_output_root)}"
-  LStepCount=2
-
-  mkdir -p "$(dirname "${LAuditLog}")" "${LTargetedOutputRoot}"
-  : > "${LAuditLog}"
-
-  echo "[IMPL-AUDIT-FULL] log=${LAuditLog}" | tee -a "${LAuditLog}"
-  echo "[IMPL-AUDIT-FULL] targeted_output_root=${LTargetedOutputRoot}" | tee -a "${LAuditLog}"
-
-  run_impl_full_audit_step "${LAuditLog}" "x86-bounded-frontier" \
-    env FAFAFA_BUILD_MODE="${FAFAFA_BUILD_MODE:-Release}" \
-        SIMD_X86_IMPL_SMOKE_OUTPUT_ROOT="${LTargetedOutputRoot}" \
-        bash "${ROOT}/BuildOrTest.sh" impl-smoke-x86 || return $?
-
-  run_impl_full_audit_step "${LAuditLog}" "nonx86-implementation-audit" \
-    env FAFAFA_BUILD_MODE="${FAFAFA_BUILD_MODE:-Release}" \
-        SIMD_NONX86_IMPL_AUDIT_OUTPUT_ROOT="${LTargetedOutputRoot}" \
-        bash "${ROOT}/BuildOrTest.sh" impl-audit-nonx86 || return $?
-
-  echo "SIMD_IMPL_AUDIT_FULL_SUMMARY steps=${LStepCount} targeted_output_root=${LTargetedOutputRoot} status=ok" | tee -a "${LAuditLog}"
-}
-
 run_nonx86_impl_audit() {
   local LAuditLog
   local LTargetedOutputRoot
@@ -4356,7 +4587,7 @@ run_nonx86_impl_audit() {
   LTargetedOutputRoot="${SIMD_NONX86_IMPL_AUDIT_OUTPUT_ROOT:-$(nonx86_impl_audit_output_root)}"
   LNativeEvidenceMode="${SIMD_IMPL_AUDIT_VERIFY_NONX86_NATIVE_EVIDENCE:-auto}"
   LNativeEvidenceStatus="skip"
-  LStepCount=6
+  LStepCount=7
 
   mkdir -p "$(dirname "${LAuditLog}")" "${LTargetedOutputRoot}"
   : > "${LAuditLog}"
@@ -4396,6 +4627,12 @@ run_nonx86_impl_audit() {
   esac
 
   run_nonx86_impl_audit_step "${LAuditLog}" "targeted-release-suites"     env FAFAFA_BUILD_MODE="${FAFAFA_BUILD_MODE:-Release}"         SIMD_OUTPUT_ROOT="${LTargetedOutputRoot}"         SIMD_ENABLE_NEON_BACKEND=1         SIMD_ENABLE_RISCVV_BACKEND=1         bash "${ROOT}/BuildOrTest.sh" test --suite=TTestCase_DispatchAPI,TTestCase_DirectDispatch,TTestCase_DataPlane || return $?
+  run_nonx86_impl_audit_step "${LAuditLog}" "nonx86-ieee754" \
+    env FAFAFA_BUILD_MODE="${FAFAFA_BUILD_MODE:-Release}" \
+        SIMD_OUTPUT_ROOT="${LTargetedOutputRoot}" \
+        SIMD_ENABLE_NEON_BACKEND=1 \
+        SIMD_ENABLE_RISCVV_BACKEND=1 \
+        bash "${ROOT}/BuildOrTest.sh" nonx86-ieee754 || return $?
 
   echo "NONX86_IMPL_AUDIT_SUMMARY steps=${LStepCount} native_evidence=${LNativeEvidenceStatus} targeted_output_root=${LTargetedOutputRoot} status=ok" | tee -a "${LAuditLog}"
 }
@@ -4661,6 +4898,28 @@ run_qemu_multiarch() {
   fi
 
   bash "${LQemuScript}" "${LScenario}" "$@"
+}
+
+run_qemu_experimental_compiler_ready() {
+  local LPlatforms
+  local LArm64CompilerDefine
+  local LRiscv64CompilerDefine
+
+  LPlatforms="${SIMD_QEMU_EXPERIMENTAL_COMPILER_READY_PLATFORMS:-${QEMU_EXPERIMENTAL_COMPILER_READY_PLATFORMS_DEFAULT}}"
+  LArm64CompilerDefine="${SIMD_QEMU_EXPERIMENTAL_ARM64_COMPILER_DEFINE:-${QEMU_EXPERIMENTAL_ARM64_COMPILER_DEFINE_DEFAULT}}"
+  LRiscv64CompilerDefine="${SIMD_QEMU_EXPERIMENTAL_RISCV64_COMPILER_DEFINE:-${QEMU_EXPERIMENTAL_RISCV64_COMPILER_DEFINE_DEFAULT}}"
+
+  echo "[QEMU-EXPERIMENTAL-COMPILER-READY] Platforms: ${LPlatforms}"
+  echo "[QEMU-EXPERIMENTAL-COMPILER-READY] backend-asm=on probe-mode=off"
+  echo "[QEMU-EXPERIMENTAL-COMPILER-READY] arm64-define=${LArm64CompilerDefine}"
+  echo "[QEMU-EXPERIMENTAL-COMPILER-READY] riscv64-define=${LRiscv64CompilerDefine}"
+
+  SIMD_QEMU_PLATFORMS="${LPlatforms}" \
+  SIMD_QEMU_ENABLE_BACKEND_ASM=1 \
+  SIMD_QEMU_BACKEND_ASM_PROBE_MODE=0 \
+  SIMD_QEMU_EXPERIMENTAL_ARM64_COMPILER_DEFINE="${LArm64CompilerDefine}" \
+  SIMD_QEMU_EXPERIMENTAL_RISCV64_COMPILER_DEFINE="${LRiscv64CompilerDefine}" \
+  run_qemu_multiarch "nonx86-experimental-asm" "$@"
 }
 
 run_riscvv_opcode_lane() {
@@ -5153,6 +5412,18 @@ run_gate() {
     append_gate_summary "qemu-arch-matrix-evidence" "SKIP" "SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0" "-" "SKIP" "${ROOT}/logs/qemu-multiarch-*"
   fi
 
+  if [[ "${SIMD_GATE_QEMU_EXPERIMENTAL_COMPILER_READY:-0}" != "0" ]]; then
+    echo "[GATE] Optional qemu experimental compiler-ready evidence"
+    if ! run_gate_step "qemu-experimental-compiler-ready" "qemu experimental compiler-ready passed" "qemu experimental compiler-ready failed" "${ROOT}/logs/qemu-multiarch-*" gate_step_qemu_experimental_compiler_ready; then
+      LGateEndMs="$(now_ms)"
+      LGateDurationMs="$(( LGateEndMs - LGateStartMs ))"
+      append_gate_summary "gate" "FAIL" "failed-step=qemu-experimental-compiler-ready" "${LGateDurationMs}" "FAILED"
+      return 1
+    fi
+  else
+    append_gate_summary "qemu-experimental-compiler-ready" "SKIP" "SIMD_GATE_QEMU_EXPERIMENTAL_COMPILER_READY=0" "-" "SKIP" "${ROOT}/logs/qemu-multiarch-*"
+  fi
+
   LNonX86NativeEvidenceRoot="$(nonx86_native_evidence_root)"
   echo "[GATE] Non-x86 native evidence verify (optional unless SIMD_GATE_REQUIRE_NONX86_NATIVE_EVIDENCE=1)"
   if [[ "${LGateRequireNonX86NativeEvidence}" != "0" || -n "${SIMD_NONX86_NATIVE_EVIDENCE_ROOT:-}" ]] || nonx86_native_evidence_root_has_entries "${LNonX86NativeEvidenceRoot}"; then
@@ -5557,16 +5828,58 @@ nonx86_native_evidence_root_has_entries() {
 }
 
 run_closeout_host_local() {
-  echo "[CLOSEOUT-HOST-LOCAL] 1/2 impl-audit-full (x86 bounded frontier + non-x86 implementation audit)"
-  run_impl_full_audit || return $?
+  echo "[CLOSEOUT-HOST-LOCAL] 1/2 impl-audit-nonx86"
+  run_nonx86_impl_audit || return $?
 
-  echo "[CLOSEOUT-HOST-LOCAL] 2/2 gate-strict (qemu-nonx86 required, native-evidence optional)"
+  echo "[CLOSEOUT-HOST-LOCAL] 2/2 gate-strict (qemu-nonx86 + compiler-ready required, native-evidence optional)"
   SIMD_GATE_QEMU_NONX86_EVIDENCE="${SIMD_GATE_QEMU_NONX86_EVIDENCE:-1}" \
+  SIMD_GATE_QEMU_EXPERIMENTAL_COMPILER_READY="${SIMD_GATE_QEMU_EXPERIMENTAL_COMPILER_READY:-1}" \
   SIMD_GATE_REQUIRE_NONX86_NATIVE_EVIDENCE="${SIMD_GATE_REQUIRE_NONX86_NATIVE_EVIDENCE:-0}" \
   SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE="${SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE:-0}" \
   run_gate_strict || return $?
 
   echo "[CLOSEOUT-HOST-LOCAL] OK"
+}
+
+run_closeout_release() {
+  local LBatchId
+  local LRunId
+  local LReleaseMode
+
+  LBatchId="${1:-SIMD-$(date '+%Y%m%d')-152}"
+  LRunId="${2:-}"
+  LReleaseMode="${FAFAFA_BUILD_MODE:-Release}"
+
+  echo "[CLOSEOUT-RELEASE] batch=${LBatchId} mode=${LReleaseMode}"
+  if [[ -n "${LRunId}" ]]; then
+    echo "[CLOSEOUT-RELEASE] reuse workflow run id=${LRunId}"
+  fi
+
+  echo "[CLOSEOUT-RELEASE] 1/5 x86 bounded frontier smoke"
+  FAFAFA_BUILD_MODE="${LReleaseMode}" \
+  run_x86_impl_smoke || return $?
+
+  echo "[CLOSEOUT-RELEASE] 2/5 host-local closeout (QEMU arm64/riscv64, Windows evidence optional)"
+  FAFAFA_BUILD_MODE="${LReleaseMode}" \
+  SIMD_QEMU_PLATFORMS="${SIMD_QEMU_PLATFORMS:-linux/arm64 linux/riscv64}" \
+  SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 \
+  run_closeout_host_local || return $?
+
+  echo "[CLOSEOUT-RELEASE] 3/5 Windows evidence preflight"
+  FAFAFA_BUILD_MODE="${LReleaseMode}" \
+  run_win_evidence_preflight || return $?
+
+  echo "[CLOSEOUT-RELEASE] 4/5 Windows evidence via GH"
+  FAFAFA_BUILD_MODE="${LReleaseMode}" \
+  SIMD_WIN_EVIDENCE_PREFLIGHT=0 \
+  run_win_evidence_via_gh "${LBatchId}" "${LRunId}" || return $?
+
+  echo "[CLOSEOUT-RELEASE] 5/5 freeze-status"
+  FAFAFA_BUILD_MODE="${LReleaseMode}" \
+  SIMD_FREEZE_REQUIRE_QEMU_EXPERIMENTAL_COMPILER_READY="${SIMD_FREEZE_REQUIRE_QEMU_EXPERIMENTAL_COMPILER_READY:-1}" \
+  run_freeze_status || return $?
+
+  echo "[CLOSEOUT-RELEASE] OK"
 }
 
 run_nonx86_native_evidence_verify() {
@@ -5863,6 +6176,7 @@ case "${ACTION}" in
   check_windows_manual_closeout_guard
   check_windows_closeout_helper_runtime_guard
   check_windows_via_gh_cross_gate_guard
+  check_closeout_release_entrypoint_guard
   check_gate_summary_json_runtime_guard
   check_perf_smoke_scalar_guard
   check_perf_smoke_public_abi_shape_guard
@@ -5888,6 +6202,7 @@ case "${ACTION}" in
     check_freeze_status_output_isolation
     check_cpuinfo_runner_parity
     run_register_include_check
+    run_sse2_structure_check
     run_suite_manifest_check
     run_nonx86_optin_list_suites
     run_dispatch_preinit_smoke
@@ -5942,14 +6257,25 @@ case "${ACTION}" in
     echo "[GATE] Running release-gate profile (发布/closeout 完整门禁)"
     run_gate_strict
     ;;
+  closeout-release)
+    run_closeout_release "$@"
+    ;;
+  sse2-structure-check)
+    run_sse2_structure_check
+    ;;
+  sse2-contracts)
+    build_project
+    run_tests --suite=TTestCase_SSE2Contracts
+    check_heap_leaks
+    ;;
+  impl-smoke-sse2)
+    run_sse2_impl_smoke
+    ;;
   impl-smoke-x86)
     run_x86_impl_smoke
     ;;
   impl-smoke-nonx86)
     run_nonx86_impl_smoke
-    ;;
-  impl-audit-full)
-    run_impl_full_audit
     ;;
   impl-audit-nonx86)
     run_nonx86_impl_audit
@@ -6024,6 +6350,9 @@ case "${ACTION}" in
     ;;
   qemu-nonx86-experimental-asm)
     run_qemu_multiarch nonx86-experimental-asm "$@"
+    ;;
+  qemu-experimental-compiler-ready)
+    run_qemu_experimental_compiler_ready "$@"
     ;;
   riscvv-opcode-lane)
     run_riscvv_opcode_lane "$@"
@@ -6110,17 +6439,21 @@ case "${ACTION}" in
     run_freeze_status_rehearsal "$@"
     ;;
   *)
-    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|impl-smoke-x86|impl-smoke-nonx86|impl-audit-full|impl-audit-nonx86|key-slot-audit|closeout-host-local|import-nonx86-native-evidence|closeout-host-local-from-import|interface-completeness|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|verify-nonx86-native-evidence|restore-nightly-evidence|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
+    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|closeout-release|sse2-structure-check|sse2-contracts|impl-smoke-sse2|impl-smoke-x86|impl-smoke-nonx86|impl-audit-nonx86|key-slot-audit|closeout-host-local|import-nonx86-native-evidence|closeout-host-local-from-import|interface-completeness|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|qemu-experimental-compiler-ready|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|verify-nonx86-native-evidence|restore-nightly-evidence|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
     echo "  Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks."
     echo "  gate/gate-strict PASS is not blanket release-grade approval for every experimental path."
     echo "  gate         Fast/base gate for routine SIMD changes"
     echo "  gate-strict  Release/closeout gate with perf, repeats, and evidence checks"
+    echo "  closeout-release  Canonical release closeout entry (x86 frontier -> host-local closeout -> win preflight -> GH evidence -> freeze-status)"
+    echo "  qemu-experimental-compiler-ready  Canonical non-x86 backend-asm compiler-ready QEMU lane (arm64/riscv64 fail-close)"
+    echo "  sse2-structure-check  Structural guard for SSE2 register/include layout"
+    echo "  sse2-contracts  Focused SSE2 moved-surface contract suite"
+    echo "  impl-smoke-sse2  Targeted SSE2 structure + contract/backend/runtime/dataplane smoke"
     echo "  impl-smoke-x86  Lightweight bounded x86 implementation smoke via DispatchAPI frontier proofs"
     echo "  impl-smoke-nonx86  Lightweight daily non-x86 implementation smoke"
-    echo "  impl-audit-full  Full implementation deep audit: x86 bounded frontier plus non-x86 implementation audit"
     echo "  impl-audit-nonx86  Aggregate implementation-side non-x86 audit"
     echo "  key-slot-audit  Audit non-x86 key wide slots for implementation ownership"
-    echo "  closeout-host-local  Host-local strict closeout (qemu non-x86 required, native evidence optional, windows evidence optional)"
+    echo "  closeout-host-local  Host-local strict closeout (non-x86 native evidence fail-close, windows evidence optional)"
     echo "  import-nonx86-native-evidence  Import external arm64/riscv64 native evidence into fixtures/ and verify it"
     echo "  closeout-host-local-from-import  Import external arm64/riscv64 native evidence, verify it, then run host-local strict closeout"
     echo "Suggested flow: check -> targeted suites -> gate; use gate-strict before release/closeout."

@@ -1095,6 +1095,7 @@ implementation
 
 uses
   fafafa.core.atomic,
+  fafafa.core.simd.dataplane,
   fafafa.core.simd.memutils;
 
 type
@@ -1113,17 +1114,26 @@ var
 
 procedure RebindSimdFacadeFastPaths;
 var
-  LDispatch: PSimdDispatchTable;
+  LDataPlane: PSimdDataPlane;
 begin
-  LDispatch := GetDispatchTable;
-  if LDispatch = nil then
+  LDataPlane := GetCurrentSimdDataPlane;
+  if LDataPlane = nil then
     Exit;
 
-  atomic_store(g_FastVecF32x4AddPtr, Pointer(LDispatch^.AddF32x4), mo_release);
-  atomic_store(g_FastVecI16x32AddPtr, Pointer(LDispatch^.AddI16x32), mo_release);
-  atomic_store(g_FastVecU32x16MulPtr, Pointer(LDispatch^.MulU32x16), mo_release);
-  atomic_store(g_FastVecU64x8AddPtr, Pointer(LDispatch^.AddU64x8), mo_release);
-  atomic_store(g_FastVecU8x64MaxPtr, Pointer(LDispatch^.MaxU8x64), mo_release);
+  atomic_store(g_FastVecF32x4AddPtr, LDataPlane^.VecF32x4AddPtr, mo_release);
+  atomic_store(g_FastVecI16x32AddPtr, LDataPlane^.VecI16x32AddPtr, mo_release);
+  atomic_store(g_FastVecU32x16MulPtr, LDataPlane^.VecU32x16MulPtr, mo_release);
+  atomic_store(g_FastVecU64x8AddPtr, LDataPlane^.VecU64x8AddPtr, mo_release);
+  atomic_store(g_FastVecU8x64MaxPtr, LDataPlane^.VecU8x64MaxPtr, mo_release);
+end;
+
+procedure InvalidateSimdFacadeFastPaths;
+begin
+  atomic_store(g_FastVecF32x4AddPtr, nil, mo_release);
+  atomic_store(g_FastVecI16x32AddPtr, nil, mo_release);
+  atomic_store(g_FastVecU32x16MulPtr, nil, mo_release);
+  atomic_store(g_FastVecU64x8AddPtr, nil, mo_release);
+  atomic_store(g_FastVecU8x64MaxPtr, nil, mo_release);
 end;
 
 function LoadSimdFacadeFastPath(var aFuncPtr: Pointer): Pointer; inline;
@@ -7509,15 +7519,40 @@ end;
 {$I fafafa.core.simd.public_abi.impl.inc}
 
 initialization
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.facade:init:start');
+  Flush(StdErr);
+  {$ENDIF}
   InitializeSimdPublicApiBinding;
-  AddDispatchChangedHook(@RebindSimdFacadeFastPaths);
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.facade:init:after-publicapi-binding');
+  Flush(StdErr);
+  {$ENDIF}
+  AddDispatchChangedHook(@InvalidateSimdFacadeFastPaths);
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.facade:init:after-fastpath-hook');
+  Flush(StdErr);
+  {$ENDIF}
   RebindSimdFacadeFastPaths;
-  AddDispatchChangedHook(@RebindSimdPublicApi);
-  RebindSimdPublicApi;
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.facade:init:after-fastpath-rebind');
+  Flush(StdErr);
+  {$ENDIF}
+  AddDispatchChangedHook(@InvalidateSimdPublicApiBinding);
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.facade:init:after-publicapi-hook');
+  Flush(StdErr);
+  {$ENDIF}
+  if GetCurrentSimdPublicApiBindingState = nil then
+    RebindSimdPublicApi;
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.facade:init:after-publicapi-rebind');
+  Flush(StdErr);
+  {$ENDIF}
 
 finalization
-  RemoveDispatchChangedHook(@RebindSimdPublicApi);
-  RemoveDispatchChangedHook(@RebindSimdFacadeFastPaths);
+  RemoveDispatchChangedHook(@InvalidateSimdPublicApiBinding);
+  RemoveDispatchChangedHook(@InvalidateSimdFacadeFastPaths);
   FinalizeSimdPublicApiBinding;
 
 end.

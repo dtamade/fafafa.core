@@ -66,6 +66,8 @@ uses
 type
   TSimdRuntimePublishedState = record
     Dispatch: PSimdDispatchTable;
+    Generation: LongInt;
+    PublicationGeneration: LongInt;
     Snapshot: TSimdRuntimeSnapshot;
     RegisteredFlags: array[TSimdBackend] of Boolean;
     Valid: Boolean;
@@ -74,12 +76,15 @@ type
 var
   g_SimdRuntimeState: TSimdRuntimePublishedState;
   g_SimdRuntimeTargetDispatchPtr: Pointer = nil;
+  g_SimdRuntimeTargetGeneration: LongInt = 0;
   g_SimdRuntimeRebindLock: TRTLCriticalSection;
 
 procedure InitializeSimdRuntimePublishedState(out aState: TSimdRuntimePublishedState);
 begin
   aState := Default(TSimdRuntimePublishedState);
   aState.Dispatch := nil;
+  aState.Generation := 0;
+  aState.PublicationGeneration := 0;
   aState.Snapshot.CurrentBackend := sbScalar;
   aState.Snapshot.BestDispatchableBackend := sbScalar;
   aState.Valid := False;
@@ -88,6 +93,8 @@ end;
 procedure ClearSimdRuntimePublishedState(var aState: TSimdRuntimePublishedState);
 begin
   aState.Dispatch := nil;
+  aState.Generation := 0;
+  aState.PublicationGeneration := 0;
   aState.Snapshot.CurrentBackend := sbScalar;
   aState.Snapshot.CurrentBackendInfo := Default(TSimdBackendInfo);
   aState.Snapshot.RegisteredBackends := nil;
@@ -169,14 +176,38 @@ end;
 
 function GetCurrentSimdRuntimeTargetDispatch: PSimdDispatchTable; inline;
 begin
-  Result := PSimdDispatchTable(atomic_load(g_SimdRuntimeTargetDispatchPtr, mo_acquire));
+  Result := GetDispatchTable;
+end;
+
+function GetCurrentSimdRuntimeTargetGeneration: LongInt; inline;
+begin
+  Result := atomic_load(g_SimdRuntimeTargetGeneration, mo_acquire);
+end;
+
+function GetCurrentSimdRuntimePublicationGeneration: LongInt; inline;
+begin
+  Result := GetDispatchPublicationGeneration;
+end;
+
+function GetCurrentSimdRuntimePublicationWriterCount: LongInt; inline;
+begin
+  Result := GetDispatchPublicationActiveWriterCount;
+end;
+
+function DispatchPublicationStateIsStable(aGeneration: LongInt;
+  aWriterCount: LongInt): Boolean; inline;
+begin
+  Result := (aWriterCount = 0) and ((aGeneration and 1) = 0);
 end;
 
 function RuntimeStateMatchesTarget(const aState: TSimdRuntimePublishedState;
-  aTargetDispatch: PSimdDispatchTable): Boolean; inline;
+  aTargetDispatch: PSimdDispatchTable; aTargetGeneration,
+  aTargetPublicationGeneration: LongInt): Boolean; inline;
 begin
   Result := aState.Valid and
-    ((aTargetDispatch = nil) or (aState.Dispatch = aTargetDispatch));
+    (aState.Dispatch = aTargetDispatch) and
+    (aState.Generation = aTargetGeneration) and
+    (aState.PublicationGeneration = aTargetPublicationGeneration);
 end;
 
 procedure InvalidateSimdRuntimeState;
@@ -184,6 +215,7 @@ begin
   // Runtime snapshot is control-plane facing and returned by value, so it can
   // use a single cached state instead of process-lifetime published snapshots.
   atomic_store(g_SimdRuntimeTargetDispatchPtr, Pointer(GetDispatchTable), mo_release);
+  atomic_fetch_add(g_SimdRuntimeTargetGeneration, 1, mo_acq_rel);
   EnterCriticalSection(g_SimdRuntimeRebindLock);
   try
     g_SimdRuntimeState.Valid := False;
@@ -196,13 +228,27 @@ function GetCurrentRuntimeSnapshot: TSimdRuntimeSnapshot;
 var
   LBuiltState: TSimdRuntimePublishedState;
   LTargetDispatch: PSimdDispatchTable;
+  LTargetGeneration: LongInt;
+  LTargetPublicationGeneration: LongInt;
+  LTargetPublicationWriterCount: LongInt;
+  LBuildTargetDispatch: PSimdDispatchTable;
+  LBuildTargetGeneration: LongInt;
+  LBuildTargetPublicationGeneration: LongInt;
+  LBuildTargetPublicationWriterCount: LongInt;
   LRetry: Boolean;
 begin
   repeat
     EnterCriticalSection(g_SimdRuntimeRebindLock);
     try
+      LTargetGeneration := GetCurrentSimdRuntimeTargetGeneration;
+      LTargetPublicationGeneration := GetCurrentSimdRuntimePublicationGeneration;
+      LTargetPublicationWriterCount := GetCurrentSimdRuntimePublicationWriterCount;
       LTargetDispatch := GetCurrentSimdRuntimeTargetDispatch;
-      if RuntimeStateMatchesTarget(g_SimdRuntimeState, LTargetDispatch) then
+      if DispatchPublicationStateIsStable(LTargetPublicationGeneration,
+           LTargetPublicationWriterCount) and
+         RuntimeStateMatchesTarget(g_SimdRuntimeState, LTargetDispatch,
+           LTargetGeneration,
+           LTargetPublicationGeneration) then
       begin
         Result := g_SimdRuntimeState.Snapshot;
         Exit;
@@ -211,16 +257,45 @@ begin
       LeaveCriticalSection(g_SimdRuntimeRebindLock);
     end;
 
+    LBuildTargetDispatch := LTargetDispatch;
+    LBuildTargetGeneration := LTargetGeneration;
+    LBuildTargetPublicationGeneration := LTargetPublicationGeneration;
+    LBuildTargetPublicationWriterCount := LTargetPublicationWriterCount;
+    if not DispatchPublicationStateIsStable(LBuildTargetPublicationGeneration,
+         LBuildTargetPublicationWriterCount) then
+    begin
+      LRetry := True;
+      ThreadSwitch;
+      Continue;
+    end;
     BuildSimdRuntimePublishedState(LBuiltState);
 
     LRetry := False;
     EnterCriticalSection(g_SimdRuntimeRebindLock);
     try
+      LTargetGeneration := GetCurrentSimdRuntimeTargetGeneration;
+      LTargetPublicationGeneration := GetCurrentSimdRuntimePublicationGeneration;
+      LTargetPublicationWriterCount := GetCurrentSimdRuntimePublicationWriterCount;
       LTargetDispatch := GetCurrentSimdRuntimeTargetDispatch;
-      if (LTargetDispatch <> nil) and (LBuiltState.Dispatch <> LTargetDispatch) then
+      if LBuildTargetDispatch <> LTargetDispatch then
+        LRetry := True
+      else
+      if LBuildTargetGeneration <> LTargetGeneration then
+        LRetry := True
+      else
+      if LBuildTargetPublicationGeneration <> LTargetPublicationGeneration then
+        LRetry := True
+      else
+      if LBuildTargetPublicationWriterCount <> LTargetPublicationWriterCount then
+        LRetry := True
+      else
+      if not DispatchPublicationStateIsStable(LTargetPublicationGeneration,
+           LTargetPublicationWriterCount) then
         LRetry := True
       else
       begin
+        LBuiltState.Generation := LTargetGeneration;
+        LBuiltState.PublicationGeneration := LTargetPublicationGeneration;
         g_SimdRuntimeState := LBuiltState;
         Result := g_SimdRuntimeState.Snapshot;
         Exit;
@@ -320,16 +395,38 @@ begin
 end;
 
 initialization
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.runtime:init:start');
+  Flush(StdErr);
+  {$ENDIF}
   InitCriticalSection(g_SimdRuntimeRebindLock);
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.runtime:init:after-lock');
+  Flush(StdErr);
+  {$ENDIF}
   InitializeSimdRuntimePublishedState(g_SimdRuntimeState);
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.runtime:init:after-published-state');
+  Flush(StdErr);
+  {$ENDIF}
   atomic_store(g_SimdRuntimeTargetDispatchPtr, nil, mo_release);
+  atomic_store(g_SimdRuntimeTargetGeneration, 0, mo_release);
   AddDispatchChangedHook(@InvalidateSimdRuntimeState);
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.runtime:init:after-hook');
+  Flush(StdErr);
+  {$ENDIF}
   GetCurrentRuntimeSnapshot;
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.runtime:init:after-snapshot');
+  Flush(StdErr);
+  {$ENDIF}
 
 finalization
   RemoveDispatchChangedHook(@InvalidateSimdRuntimeState);
   FinalizeSimdRuntimePublishedState;
   atomic_store(g_SimdRuntimeTargetDispatchPtr, nil, mo_release);
+  atomic_store(g_SimdRuntimeTargetGeneration, 0, mo_release);
   DoneCriticalSection(g_SimdRuntimeRebindLock);
 
 end.

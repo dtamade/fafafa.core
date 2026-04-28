@@ -1,10 +1,15 @@
-# SIMD Interface/Implementation Completeness Report
+# SIMD Public Surface + Interface/Implementation Completeness Report
 
-- generated_at: 2026-04-10T07:45:44
+- generated_at: 2026-04-28T05:45:38
 - dispatch_slots_total: `558`
 - strict: `True`
 - strict_level: `p2`
+- interface_surface_issues: `0`
 - analyzer: `heuristic token/assignment scan (not semantic proof)`
+
+## Public Interface Surface Contract
+
+- none
 
 ## Backend Slot Coverage
 

@@ -17,6 +17,12 @@ SLOT_RE = re.compile(r"\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?:function|procedure)\
 ASSIGN_RE = re.compile(r"\b(?:dispatchTable|table)\.([A-Za-z_][A-Za-z0-9_]*)\s*:=")
 TOKEN_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 INCLUDE_RE = re.compile(r"\{\$I\s+([^}]+)\}", re.IGNORECASE)
+INTERFACE_DECL_RE = re.compile(
+    r"^\s*(?:class\s+)?(?:function|procedure)\s+([A-Za-z_][A-Za-z0-9_]*)\b",
+    re.MULTILINE,
+)
+DECLARED_NAME_RE = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=", re.MULTILINE)
+IMPLEMENTATION_SPLIT_RE = re.compile(r"^\s*implementation\s*$", re.IGNORECASE | re.MULTILINE)
 
 CRITICAL_PREFIXES = ("Round", "Trunc", "Floor", "Ceil")
 CRITICAL_SUFFIXES = ("F32x4", "F64x2", "F32x8", "F64x4", "F32x16", "F64x8")
@@ -160,20 +166,36 @@ NONX86_WIDE_FALLBACK_ONLY_SLOTS = frozenset(
     + tuple(sorted(NONX86_U64X8_TARGET_SLOTS))
     + tuple(sorted(NONX86_U8X64_TARGET_SLOTS))
 )
-RISCVV_128BIT_ROUNDING_BASE_SCALAR_SLOTS = frozenset((
+RISCVV_BASE_SCALAR_ROUNDING_SLOTS = frozenset((
     "CeilF32x4",
+    "CeilF32x8",
+    "CeilF32x16",
     "CeilF64x2",
+    "CeilF64x4",
+    "CeilF64x8",
     "FloorF32x4",
+    "FloorF32x8",
+    "FloorF32x16",
     "FloorF64x2",
+    "FloorF64x4",
+    "FloorF64x8",
     "RoundF32x4",
+    "RoundF32x8",
+    "RoundF32x16",
     "RoundF64x2",
+    "RoundF64x4",
+    "RoundF64x8",
     "TruncF32x4",
+    "TruncF32x8",
+    "TruncF32x16",
     "TruncF64x2",
+    "TruncF64x4",
+    "TruncF64x8",
 ))
 RISCVV_INTENTIONAL_BASE_SCALAR_SLOTS = frozenset(
     ("DotF32x8",)
     + tuple(sorted(NONX86_WIDE_FALLBACK_ONLY_SLOTS))
-    + tuple(sorted(RISCVV_128BIT_ROUNDING_BASE_SCALAR_SLOTS))
+    + tuple(sorted(RISCVV_BASE_SCALAR_ROUNDING_SLOTS))
 )
 NEON_INTENTIONAL_BASE_SCALAR_SLOTS = frozenset(
     tuple(sorted(NONX86_WIDE_FALLBACK_ONLY_SLOTS))
@@ -189,6 +211,168 @@ class SlotCoverage:
     test_refs: int
     severity: str
     reason: str
+
+
+@dataclass(frozen=True)
+class InterfaceSurfaceSpec:
+    relative_path: str
+    label: str
+    required_functions: tuple[str, ...] = ()
+    forbidden_functions: tuple[str, ...] = ()
+    required_names: tuple[str, ...] = ()
+    forbidden_names: tuple[str, ...] = ()
+    required_substrings: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class InterfaceSurfaceIssue:
+    area: str
+    severity: str
+    reason: str
+
+
+INTERFACE_SURFACE_SPECS: tuple[InterfaceSurfaceSpec, ...] = (
+    InterfaceSurfaceSpec(
+        relative_path="src/fafafa.core.simd.framework.intf.inc",
+        label="top-level façade narrow re-export contract",
+        required_functions=(
+            "GetCPUInfo",
+            "GetCurrentRuntimeSnapshot",
+            "GetCurrentBackend",
+            "GetCurrentBackendInfo",
+            "GetCPUInformation",
+            "GetSupportedBackendList",
+            "GetBestSupportedBackend",
+            "IsBackendRegisteredInBinary",
+            "GetRegisteredBackendList",
+            "GetDispatchableBackendList",
+            "GetBestDispatchableBackend",
+            "GetAvailableBackendList",
+            "TrySetCurrentBackend",
+            "SetCurrentBackend",
+            "ResetCurrentBackendSelection",
+            "TryForceBackend",
+            "ForceBackend",
+            "ResetBackendSelection",
+            "AllocateAligned",
+            "FreeAligned",
+            "IsPointerAligned",
+        ),
+        forbidden_functions=(
+            "GetSupportedBackends",
+            "GetAvailableBackends",
+            "GetBestBackendOnCPU",
+            "GetBestBackend",
+            "GetCurrentSimdRuntimeSnapshot",
+        ),
+    ),
+    InterfaceSurfaceSpec(
+        relative_path="src/fafafa.core.simd.runtime.pas",
+        label="runtime canonical control-plane contract",
+        required_functions=(
+            "GetCurrentRuntimeSnapshot",
+            "GetCurrentSimdRuntimeSnapshot",
+            "GetCurrentBackend",
+            "GetCurrentBackendInfo",
+            "IsBackendRegisteredInBinary",
+            "GetRegisteredBackendList",
+            "GetDispatchableBackendList",
+            "GetAvailableBackendList",
+            "GetBestDispatchableBackend",
+            "TrySetCurrentBackend",
+            "SetCurrentBackend",
+            "ResetCurrentBackendSelection",
+        ),
+        required_names=("TSimdRuntimeSnapshot",),
+        forbidden_functions=(
+            "GetCPUInformation",
+            "TryForceBackend",
+            "ForceBackend",
+            "ResetBackendSelection",
+            "GetAvailableBackends",
+            "GetBestBackendOnCPU",
+        ),
+    ),
+    InterfaceSurfaceSpec(
+        relative_path="src/fafafa.core.simd.cpuinfo.pas",
+        label="cpuinfo CPU/OS capability contract",
+        required_functions=(
+            "GetCPUInfo",
+            "DetectCPUArchitecture",
+            "HasFeature",
+            "IsBackendSupportedOnCPU",
+            "GetSupportedBackendList",
+            "GetSupportedBackends",
+            "GetAvailableBackends",
+            "GetBestSupportedBackend",
+            "GetBestBackendOnCPU",
+            "GetBestBackend",
+            "ResetCPUInfo",
+            "HasSSE2",
+            "HasSSE3",
+            "HasSSSE3",
+            "HasSSE41",
+            "HasSSE42",
+            "HasAVX2",
+            "HasAVX512",
+            "HasNEON",
+            "HasRISCVV",
+        ),
+        required_names=("TSimdBackendArray",),
+        forbidden_functions=(
+            "GetDispatchableBackendList",
+            "GetAvailableBackendList",
+            "GetRegisteredBackendList",
+            "IsBackendRegisteredInBinary",
+            "TrySetCurrentBackend",
+            "SetCurrentBackend",
+            "ResetCurrentBackendSelection",
+            "TryForceBackend",
+            "ForceBackend",
+            "ResetBackendSelection",
+        ),
+    ),
+    InterfaceSurfaceSpec(
+        relative_path="src/fafafa.core.simd.public_abi.intf.inc",
+        label="public ABI wrapper contract",
+        required_functions=(
+            "GetSimdAbiVersionMajor",
+            "GetSimdAbiVersionMinor",
+            "GetSimdAbiSignature",
+            "TryGetSimdBackendPodInfo",
+            "GetSimdBackendNamePtr",
+            "GetSimdBackendDescriptionPtr",
+            "GetSimdPublicApi",
+            "fafafa_simd_abi_version_major",
+            "fafafa_simd_abi_version_minor",
+            "fafafa_simd_abi_signature",
+            "fafafa_simd_get_backend_pod_info",
+            "fafafa_simd_backend_name",
+            "fafafa_simd_backend_description",
+            "fafafa_simd_get_public_api",
+        ),
+        required_names=(
+            "TFafafaSimdAbiFlags",
+            "TFafafaSimdBackendPodInfo",
+            "PFafafaSimdBackendPodInfo",
+            "TFafafaSimdPublicApi",
+            "PFafafaSimdPublicApi",
+        ),
+    ),
+    InterfaceSurfaceSpec(
+        relative_path="src/fafafa.core.simd.STABLE",
+        label="stable truth file contract",
+        required_substrings=(
+            "`fafafa.core.simd.runtime`",
+            "`fafafa.core.simd.cpuinfo`",
+            "documented public ABI wrapper",
+            "top-level façade intentionally re-exports only a narrow convenience subset",
+            "public surface contract inside `interface-completeness`",
+            "src/fafafa.core.simd.runtime.pas",
+            "src/fafafa.core.simd.public_abi.intf.inc",
+        ),
+    ),
+)
 
 
 
@@ -212,6 +396,95 @@ def read_text_with_local_includes(path: Path, seen: set[Path] | None = None) -> 
         return read_text_with_local_includes(include_path, seen)
 
     return INCLUDE_RE.sub(repl, text)
+
+
+def read_interface_surface_text(path: Path) -> str:
+    text = path.read_text(encoding="utf-8", errors="ignore")
+    if path.suffix.lower() ==".pas":
+        parts = IMPLEMENTATION_SPLIT_RE.split(text, maxsplit=1)
+        if parts:
+            text = parts[0]
+    return text
+
+
+def extract_declared_functions(path: Path) -> set[str]:
+    return set(INTERFACE_DECL_RE.findall(read_interface_surface_text(path)))
+
+
+def extract_declared_names(path: Path) -> set[str]:
+    return set(DECLARED_NAME_RE.findall(read_interface_surface_text(path)))
+
+
+def collect_interface_surface_issues(repo_root: Path) -> list[InterfaceSurfaceIssue]:
+    issues: list[InterfaceSurfaceIssue] = []
+
+    for spec in INTERFACE_SURFACE_SPECS:
+        path = repo_root / spec.relative_path
+        if not path.exists():
+            issues.append(
+                InterfaceSurfaceIssue(
+                    area=spec.label,
+                    severity="P0",
+                    reason=f"missing contract file: {spec.relative_path}",
+                )
+            )
+            continue
+
+        text = read_interface_surface_text(path)
+        declared_functions = extract_declared_functions(path)
+        declared_names = extract_declared_names(path)
+
+        for name in spec.required_functions:
+            if name not in declared_functions:
+                issues.append(
+                    InterfaceSurfaceIssue(
+                        area=spec.label,
+                        severity="P0",
+                        reason=f"missing required function `{name}` in {spec.relative_path}",
+                    )
+                )
+
+        for name in spec.forbidden_functions:
+            if name in declared_functions:
+                issues.append(
+                    InterfaceSurfaceIssue(
+                        area=spec.label,
+                        severity="P0",
+                        reason=f"unexpected function `{name}` leaked into {spec.relative_path}",
+                    )
+                )
+
+        for name in spec.required_names:
+            if name not in declared_names:
+                issues.append(
+                    InterfaceSurfaceIssue(
+                        area=spec.label,
+                        severity="P0",
+                        reason=f"missing required declared name `{name}` in {spec.relative_path}",
+                    )
+                )
+
+        for name in spec.forbidden_names:
+            if name in declared_names:
+                issues.append(
+                    InterfaceSurfaceIssue(
+                        area=spec.label,
+                        severity="P0",
+                        reason=f"unexpected declared name `{name}` leaked into {spec.relative_path}",
+                    )
+                )
+
+        for snippet in spec.required_substrings:
+            if snippet not in text:
+                issues.append(
+                    InterfaceSurfaceIssue(
+                        area=spec.label,
+                        severity="P0",
+                        reason=f"missing required boundary text `{snippet}` in {spec.relative_path}",
+                    )
+                )
+
+    return issues
 
 def extract_dispatch_slots(dispatch_file: Path) -> list[str]:
     text = read_text_with_local_includes(dispatch_file).splitlines()
@@ -385,13 +658,22 @@ def render_markdown(
     out_path: Path,
 ) -> None:
     lines: list[str] = []
-    lines.append("# SIMD Interface/Implementation Completeness Report")
+    lines.append("# SIMD Public Surface + Interface/Implementation Completeness Report")
     lines.append("")
     lines.append(f"- generated_at: {report['generated_at']}")
     lines.append(f"- dispatch_slots_total: `{report['dispatch_slots_total']}`")
     lines.append(f"- strict: `{report['strict']}`")
     lines.append(f"- strict_level: `{report['strict_level']}`")
+    lines.append(f"- interface_surface_issues: `{len(report['interface_surface_issues'])}`")
     lines.append("- analyzer: `heuristic token/assignment scan (not semantic proof)`")
+    lines.append("")
+    lines.append("## Public Interface Surface Contract")
+    lines.append("")
+    if not report["interface_surface_issues"]:
+        lines.append("- none")
+    else:
+        for item in report["interface_surface_issues"]:
+            lines.append(f"- `{item['area']}`: {item['reason']}")
     lines.append("")
     lines.append("## Backend Slot Coverage")
     lines.append("")
@@ -477,6 +759,7 @@ def main() -> int:
     slot_set = set(slots)
     test_counter = build_test_token_counter(tests_root)
     nonx86_target_slots = extract_nonx86_p0_target_slots(nonx86_checklist) & slot_set
+    surface_issues = collect_interface_surface_issues(repo_root)
 
     backend_assigned: dict[str, set[str]] = {}
     for backend, file in backend_files.items():
@@ -507,6 +790,10 @@ def main() -> int:
         if severity in severity_counts:
             severity_counts[severity] += 1
 
+    for issue in surface_issues:
+        if issue.severity in severity_counts:
+            severity_counts[issue.severity] += 1
+
     p0_items = [
         {
             "slot": x.slot,
@@ -517,6 +804,16 @@ def main() -> int:
         for x in items
         if x.severity == "P0"
     ]
+    p0_items.extend(
+        {
+            "slot": f"[surface] {x.area}",
+            "assigned_backends": [],
+            "test_refs": 0,
+            "reason": x.reason,
+        }
+        for x in surface_issues
+        if x.severity == "P0"
+    )
     p1_items = [
         {
             "slot": x.slot,
@@ -527,6 +824,16 @@ def main() -> int:
         for x in items
         if x.severity == "P1"
     ]
+    p1_items.extend(
+        {
+            "slot": f"[surface] {x.area}",
+            "assigned_backends": [],
+            "test_refs": 0,
+            "reason": x.reason,
+        }
+        for x in surface_issues
+        if x.severity == "P1"
+    )
     p2_items = [
         {
             "slot": x.slot,
@@ -537,6 +844,16 @@ def main() -> int:
         for x in items
         if x.severity == "P2"
     ]
+    p2_items.extend(
+        {
+            "slot": f"[surface] {x.area}",
+            "assigned_backends": [],
+            "test_refs": 0,
+            "reason": x.reason,
+        }
+        for x in surface_issues
+        if x.severity == "P2"
+    )
 
     report: dict[str, Any] = {
         "generated_at": datetime.now().isoformat(timespec="seconds"),
@@ -546,6 +863,14 @@ def main() -> int:
         "dispatch_slots_total": len(slots),
         "backend_slot_counts": {k: len(v) for k, v in backend_assigned.items()},
         "severity_counts": severity_counts,
+        "interface_surface_issues": [
+            {
+                "area": x.area,
+                "severity": x.severity,
+                "reason": x.reason,
+            }
+            for x in surface_issues
+        ],
         "p0_items": p0_items,
         "p1_items": p1_items,
         "p2_items": p2_items,
@@ -566,14 +891,19 @@ def main() -> int:
         print(json.dumps(report, ensure_ascii=False, indent=2))
     else:
         strict_fail = should_fail_in_strict(severity_counts, args.strict_level)
-        print("[SIMD-COMPLETENESS] interface->dispatch->backend->tests")
+        print("[SIMD-COMPLETENESS] public-surface + interface->dispatch->backend->tests")
         print(f"  - dispatch_slots_total: {report['dispatch_slots_total']}")
         print(f"  - backend_slot_counts: {report['backend_slot_counts']}")
         print(f"  - severity_counts: {report['severity_counts']}")
+        print(f"  - interface_surface_issues: {len(surface_issues)}")
         print(f"  - strict_level: {report['strict_level']}")
         print("  - analyzer: heuristic token/assignment scan (not semantic proof)")
         print(f"  - json: {json_path}")
         print(f"  - markdown: {md_path}")
+        if surface_issues:
+            print("  - public surface preview:")
+            for item in surface_issues[:10]:
+                print(f"    * {item.area}: {item.reason}")
         if p0_items:
             print("  - P0 preview:")
             for item in p0_items[:10]:

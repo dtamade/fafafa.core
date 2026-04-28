@@ -1,14 +1,14 @@
 {
   "scenario": "nonx86-experimental-asm",
-  "updated_at": "2026-04-03",
+  "updated_at": "2026-04-27",
   "notes": [
-    "Experimental asm scenario is expected to PASS at scenario level for linux/arm64 and linux/riscv64.",
-    "Set SIMD_QEMU_ENABLE_BACKEND_ASM=1 to inject per-backend asm defines (NEON/RISCVV gates).",
-    "Compiler-ready defines are FAFAFA_SIMD_NEON_ASM_COMPILER_READY and FAFAFA_SIMD_RISCVV_ASM_COMPILER_READY.",
-    "Fresh revalidation on 2026-04-03 passed with SIMD_QEMU_BACKEND_ASM_PROBE_MODE=0 and SIMD_QEMU_PLATFORMS='linux/arm64 linux/riscv64'.",
-    "Real RVV asm in fafafa.core.simd.riscvv additionally requires FAFAFA_SIMD_RISCVV_ASM_OPCODE_READY.",
-    "Current stock riscv64 toolchain still rejects RVV opcodes; keep opcode-ready define unset in default CI lanes.",
-    "When backend probe mode is on, unsupported backend-asm toolchains can fallback and keep scenario PASS."
+    "This baseline validates the default qemu-nonx86-experimental-asm scenario result, not the compiler-ready promotion lane.",
+    "Default non-x86 QEMU platforms are linux/arm/v7 linux/arm64 linux/riscv64 unless SIMD_QEMU_PLATFORMS_NONX86 overrides them.",
+    "Default execution keeps SIMD_QEMU_ENABLE_BACKEND_ASM=0, so the scenario is expected to PASS without per-backend asm defines.",
+    "If SIMD_QEMU_ENABLE_BACKEND_ASM=1, default probe mode (SIMD_QEMU_BACKEND_ASM_PROBE_MODE=1) may retry a fallback path without per-backend asm defines and still keep the scenario PASS.",
+    "Compiler-ready promotion evidence for FAFAFA_SIMD_NEON_ASM_COMPILER_READY and FAFAFA_SIMD_RISCVV_ASM_COMPILER_READY lives in experimental_asm_compiler_ready_blockers.md.",
+    "RVV opcode-ready validation stays in riscvv-opcode-lane; keep SIMD_QEMU_EXPERIMENTAL_RISCV64_OPCODE_DEFINE unset in the default QEMU probe lane unless explicitly exercising patched opcode-ready toolchains.",
+    "An empty platforms map means no platform-specific failure signatures are currently expected; any FAIL row is treated as drift."
   ],
   "platforms": {}
 }

@@ -5,35 +5,65 @@ const
   FAFAFA_SIMD_PUBLIC_ABI_SIGNATURE_LO: UInt64 = QWord($4142495441424C45);
 
 type
+  TSimdPublicMemEqualFunc = function(aA, aB: Pointer; aLen: SizeUInt): LongBool;
+  TSimdPublicMemFindByteFunc = function(aP: Pointer; aLen: SizeUInt; aValue: Byte): PtrInt;
+  TSimdPublicMemDiffRangeFunc = function(aA, aB: Pointer; aLen: SizeUInt;
+    out aFirstDiff, aLastDiff: SizeUInt): Boolean;
+  TSimdPublicSumBytesFunc = function(aP: Pointer; aLen: SizeUInt): UInt64;
+  TSimdPublicCountByteFunc = function(aP: Pointer; aLen: SizeUInt; aValue: Byte): SizeUInt;
+  TSimdPublicBitsetPopCountFunc = function(aP: Pointer; aByteLen: SizeUInt): SizeUInt;
+  TSimdPublicUtf8ValidateFunc = function(aP: Pointer; aLen: SizeUInt): Boolean;
+  TSimdPublicAsciiIEqualFunc = function(aA, aB: Pointer; aLen: SizeUInt): Boolean;
+  TSimdPublicBytesIndexOfFunc = function(aHaystack: Pointer; aHaystackLen: SizeUInt;
+    aNeedle: Pointer; aNeedleLen: SizeUInt): PtrInt;
+  TSimdPublicMemCopyFunc = procedure(aSrc, aDst: Pointer; aLen: SizeUInt);
+  TSimdPublicMemSetFunc = procedure(aDst: Pointer; aLen: SizeUInt; aValue: Byte);
+  TSimdPublicAsciiCaseFunc = procedure(aP: Pointer; aLen: SizeUInt);
+  TSimdPublicMemReverseFunc = procedure(aP: Pointer; aLen: SizeUInt);
+  TSimdPublicMinMaxBytesFunc = procedure(aP: Pointer; aLen: SizeUInt; out aMinVal, aMaxVal: Byte);
+
   PSimdPublicApiBindingState = ^TSimdPublicApiBindingState;
   TSimdPublicApiBindingState = record
     NextOwned: PSimdPublicApiBindingState;
+    // Metadata stays frozen with the published table pointer, while the ABI
+    // entry points remain stable cdecl shims that lazily hop through the
+    // latest published binding state.
     Api: TFafafaSimdPublicApi;
-    MemEqualBound: function(aA, aB: Pointer; aLen: SizeUInt): LongBool;
-    MemFindByteBound: function(aP: Pointer; aLen: SizeUInt; aValue: Byte): PtrInt;
-    MemDiffRangeBound: function(aA, aB: Pointer; aLen: SizeUInt;
-      out aFirstDiff, aLastDiff: SizeUInt): Boolean;
-    SumBytesBound: function(aP: Pointer; aLen: SizeUInt): UInt64;
-    CountByteBound: function(aP: Pointer; aLen: SizeUInt; aValue: Byte): SizeUInt;
-    BitsetPopCountBound: function(aP: Pointer; aByteLen: SizeUInt): SizeUInt;
-    Utf8ValidateBound: function(aP: Pointer; aLen: SizeUInt): Boolean;
-    AsciiIEqualBound: function(aA, aB: Pointer; aLen: SizeUInt): Boolean;
-    BytesIndexOfBound: function(aHaystack: Pointer; aHaystackLen: SizeUInt;
-      aNeedle: Pointer; aNeedleLen: SizeUInt): PtrInt;
-    MemCopyBound: procedure(aSrc, aDst: Pointer; aLen: SizeUInt);
-    MemSetBound: procedure(aDst: Pointer; aLen: SizeUInt; aValue: Byte);
-    ToLowerAsciiBound: procedure(aP: Pointer; aLen: SizeUInt);
-    ToUpperAsciiBound: procedure(aP: Pointer; aLen: SizeUInt);
-    MemReverseBound: procedure(aP: Pointer; aLen: SizeUInt);
-    MinMaxBytesBound: procedure(aP: Pointer; aLen: SizeUInt; out aMinVal, aMaxVal: Byte);
+    Dispatch: PSimdDispatchTable;
+    MemEqualBound: TSimdPublicMemEqualFunc;
+    MemFindByteBound: TSimdPublicMemFindByteFunc;
+    MemDiffRangeBound: TSimdPublicMemDiffRangeFunc;
+    SumBytesBound: TSimdPublicSumBytesFunc;
+    CountByteBound: TSimdPublicCountByteFunc;
+    BitsetPopCountBound: TSimdPublicBitsetPopCountFunc;
+    Utf8ValidateBound: TSimdPublicUtf8ValidateFunc;
+    AsciiIEqualBound: TSimdPublicAsciiIEqualFunc;
+    BytesIndexOfBound: TSimdPublicBytesIndexOfFunc;
+    MemCopyBound: TSimdPublicMemCopyFunc;
+    MemSetBound: TSimdPublicMemSetFunc;
+    ToLowerAsciiBound: TSimdPublicAsciiCaseFunc;
+    ToUpperAsciiBound: TSimdPublicAsciiCaseFunc;
+    MemReverseBound: TSimdPublicMemReverseFunc;
+    MinMaxBytesBound: TSimdPublicMinMaxBytesFunc;
+  end;
+
+  PSimdBackendTextState = ^TSimdBackendTextState;
+  TSimdBackendTextState = record
+    NextOwned: PSimdBackendTextState;
+    NameText: AnsiString;
+    DescriptionText: AnsiString;
   end;
 
 var
-  g_SimdBackendNameCache: array[TSimdBackend] of AnsiString;
-  g_SimdBackendDescriptionCache: array[TSimdBackend] of AnsiString;
   g_SimdPublicApiStatePtr: Pointer = nil;
+  g_SimdPublicApiTargetDispatchPtr: Pointer = nil;
+  // Public API tables may be cached by consumers after later control-plane
+  // mutations, so published states stay process-owned until finalization.
   g_SimdPublicApiOwnedHead: PSimdPublicApiBindingState = nil;
   g_SimdPublicApiRebindLock: TRTLCriticalSection;
+  g_SimdBackendTextStatePtrs: array[TSimdBackend] of Pointer;
+  g_SimdBackendTextOwnedHead: PSimdBackendTextState = nil;
+  g_SimdBackendTextLock: TRTLCriticalSection;
 
 function DefaultBackendName(const aBackend: TSimdBackend): AnsiString; inline;
 begin
@@ -107,6 +137,34 @@ begin
   Result := PSimdPublicApiBindingState(atomic_load(g_SimdPublicApiStatePtr, mo_acquire));
 end;
 
+function GetCurrentSimdPublicApiTargetDispatch: PSimdDispatchTable; inline;
+begin
+  Result := GetCurrentSimdDataPlaneDispatch;
+  if Result = nil then
+    Result := GetDispatchTable;
+end;
+
+procedure RebindSimdPublicApi; forward;
+
+function GetLiveSimdPublicApiBindingState: PSimdPublicApiBindingState; inline;
+var
+  LCurrent: PSimdPublicApiBindingState;
+  LTargetDispatch: PSimdDispatchTable;
+begin
+  LCurrent := GetCurrentSimdPublicApiBindingState;
+  LTargetDispatch := GetCurrentSimdPublicApiTargetDispatch;
+  if (LCurrent = nil) or
+     ((LTargetDispatch <> nil) and (LCurrent^.Dispatch <> LTargetDispatch)) then
+  begin
+    RebindSimdPublicApi;
+    Result := GetCurrentSimdPublicApiBindingState;
+    if (Result = nil) and (LCurrent <> nil) then
+      Result := LCurrent;
+    Exit;
+  end;
+  Result := LCurrent;
+end;
+
 function CreateSimdPublicApiBindingState: PSimdPublicApiBindingState;
 begin
   New(Result);
@@ -115,19 +173,97 @@ begin
   g_SimdPublicApiOwnedHead := Result;
 end;
 
+function FindOwnedSimdPublicApiBindingState(
+  aDispatch: PSimdDispatchTable): PSimdPublicApiBindingState;
+begin
+  Result := g_SimdPublicApiOwnedHead;
+  while Result <> nil do
+  begin
+    if Result^.Dispatch = aDispatch then
+      Exit;
+    Result := Result^.NextOwned;
+  end;
+end;
+
+function GetCurrentSimdBackendTextState(
+  const aBackend: TSimdBackend): PSimdBackendTextState; inline;
+begin
+  Result := PSimdBackendTextState(atomic_load(g_SimdBackendTextStatePtrs[aBackend], mo_acquire));
+end;
+
+function CreateSimdBackendTextState: PSimdBackendTextState;
+begin
+  New(Result);
+  FillChar(Result^, SizeOf(Result^), 0);
+  Result^.NextOwned := g_SimdBackendTextOwnedHead;
+  g_SimdBackendTextOwnedHead := Result;
+end;
+
+procedure BuildCanonicalBackendText(const aBackend: TSimdBackend;
+  out aNameText, aDescriptionText: AnsiString);
+var
+  LInfo: TSimdBackendInfo;
+begin
+  LInfo := GetBackendInfo(aBackend);
+  aNameText := AnsiString(LInfo.Name);
+  aDescriptionText := AnsiString(LInfo.Description);
+end;
+
+function BackendTextStateMatches(const aState: PSimdBackendTextState;
+  const aNameText, aDescriptionText: AnsiString): Boolean; inline;
+begin
+  Result := (aState <> nil) and
+    (aState^.NameText = aNameText) and
+    (aState^.DescriptionText = aDescriptionText);
+end;
+
+function GetLiveSimdBackendTextState(
+  const aBackend: TSimdBackend): PSimdBackendTextState;
+var
+  LCurrent: PSimdBackendTextState;
+  LState: PSimdBackendTextState;
+  LNameText: AnsiString;
+  LDescriptionText: AnsiString;
+begin
+  BuildCanonicalBackendText(aBackend, LNameText, LDescriptionText);
+  LCurrent := GetCurrentSimdBackendTextState(aBackend);
+  if BackendTextStateMatches(LCurrent, LNameText, LDescriptionText) then
+    Exit(LCurrent);
+
+  EnterCriticalSection(g_SimdBackendTextLock);
+  try
+    LCurrent := GetCurrentSimdBackendTextState(aBackend);
+    if BackendTextStateMatches(LCurrent, LNameText, LDescriptionText) then
+      Exit(LCurrent);
+
+    LState := CreateSimdBackendTextState;
+    LState^.NameText := LNameText;
+    LState^.DescriptionText := LDescriptionText;
+    atomic_store(g_SimdBackendTextStatePtrs[aBackend], Pointer(LState), mo_release);
+    Result := LState;
+  finally
+    LeaveCriticalSection(g_SimdBackendTextLock);
+  end;
+end;
+
 procedure InitializeSimdPublicApiBinding;
 begin
   InitCriticalSection(g_SimdPublicApiRebindLock);
+  InitCriticalSection(g_SimdBackendTextLock);
 end;
 
 procedure FinalizeSimdPublicApiBinding;
 var
+  LBackend: TSimdBackend;
   LState: PSimdPublicApiBindingState;
   LNext: PSimdPublicApiBindingState;
+  LTextState: PSimdBackendTextState;
+  LTextNext: PSimdBackendTextState;
 begin
   EnterCriticalSection(g_SimdPublicApiRebindLock);
   try
     atomic_store(g_SimdPublicApiStatePtr, nil, mo_release);
+    atomic_store(g_SimdPublicApiTargetDispatchPtr, nil, mo_release);
     LState := g_SimdPublicApiOwnedHead;
     g_SimdPublicApiOwnedHead := nil;
   finally
@@ -141,6 +277,24 @@ begin
     LState := LNext;
   end;
 
+  EnterCriticalSection(g_SimdBackendTextLock);
+  try
+    for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
+      atomic_store(g_SimdBackendTextStatePtrs[LBackend], nil, mo_release);
+    LTextState := g_SimdBackendTextOwnedHead;
+    g_SimdBackendTextOwnedHead := nil;
+  finally
+    LeaveCriticalSection(g_SimdBackendTextLock);
+  end;
+
+  while LTextState <> nil do
+  begin
+    LTextNext := LTextState^.NextOwned;
+    Dispose(LTextState);
+    LTextState := LTextNext;
+  end;
+
+  DoneCriticalSection(g_SimdBackendTextLock);
   DoneCriticalSection(g_SimdPublicApiRebindLock);
 end;
 
@@ -149,7 +303,7 @@ var
   LState: PSimdPublicApiBindingState;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetCurrentSimdPublicApiBindingState;
+  LState := GetLiveSimdPublicApiBindingState;
   if (LState <> nil) and Assigned(LState^.MemEqualBound) then
     Result := LState^.MemEqualBound(aA, aB, aLen)
   else
@@ -164,7 +318,7 @@ var
   LState: PSimdPublicApiBindingState;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetCurrentSimdPublicApiBindingState;
+  LState := GetLiveSimdPublicApiBindingState;
   if (LState <> nil) and Assigned(LState^.MemFindByteBound) then
     Result := LState^.MemFindByteBound(aP, aLen, aValue)
   else
@@ -180,7 +334,7 @@ var
   LState: PSimdPublicApiBindingState;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetCurrentSimdPublicApiBindingState;
+  LState := GetLiveSimdPublicApiBindingState;
   if (LState <> nil) and Assigned(LState^.MemDiffRangeBound) then
     Result := LState^.MemDiffRangeBound(aA, aB, aLen, aFirstDiff, aLastDiff)
   else
@@ -195,7 +349,7 @@ var
   LState: PSimdPublicApiBindingState;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetCurrentSimdPublicApiBindingState;
+  LState := GetLiveSimdPublicApiBindingState;
   if (LState <> nil) and Assigned(LState^.SumBytesBound) then
     Result := LState^.SumBytesBound(aP, aLen)
   else
@@ -210,7 +364,7 @@ var
   LState: PSimdPublicApiBindingState;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetCurrentSimdPublicApiBindingState;
+  LState := GetLiveSimdPublicApiBindingState;
   if (LState <> nil) and Assigned(LState^.CountByteBound) then
     Result := LState^.CountByteBound(aP, aLen, aValue)
   else
@@ -225,7 +379,7 @@ var
   LState: PSimdPublicApiBindingState;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetCurrentSimdPublicApiBindingState;
+  LState := GetLiveSimdPublicApiBindingState;
   if (LState <> nil) and Assigned(LState^.BitsetPopCountBound) then
     Result := LState^.BitsetPopCountBound(aP, aByteLen)
   else
@@ -240,7 +394,7 @@ var
   LState: PSimdPublicApiBindingState;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetCurrentSimdPublicApiBindingState;
+  LState := GetLiveSimdPublicApiBindingState;
   if (LState <> nil) and Assigned(LState^.Utf8ValidateBound) then
     Result := LState^.Utf8ValidateBound(aP, aLen)
   else
@@ -255,7 +409,7 @@ var
   LState: PSimdPublicApiBindingState;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetCurrentSimdPublicApiBindingState;
+  LState := GetLiveSimdPublicApiBindingState;
   if (LState <> nil) and Assigned(LState^.AsciiIEqualBound) then
     Result := LState^.AsciiIEqualBound(aA, aB, aLen)
   else
@@ -271,7 +425,7 @@ var
   LState: PSimdPublicApiBindingState;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetCurrentSimdPublicApiBindingState;
+  LState := GetLiveSimdPublicApiBindingState;
   if (LState <> nil) and Assigned(LState^.BytesIndexOfBound) then
     Result := LState^.BytesIndexOfBound(aHaystack, aHaystackLen, aNeedle, aNeedleLen)
   else
@@ -286,7 +440,7 @@ var
   LState: PSimdPublicApiBindingState;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetCurrentSimdPublicApiBindingState;
+  LState := GetLiveSimdPublicApiBindingState;
   if (LState <> nil) and Assigned(LState^.MemCopyBound) then
     LState^.MemCopyBound(aSrc, aDst, aLen)
   else
@@ -301,7 +455,7 @@ var
   LState: PSimdPublicApiBindingState;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetCurrentSimdPublicApiBindingState;
+  LState := GetLiveSimdPublicApiBindingState;
   if (LState <> nil) and Assigned(LState^.MemSetBound) then
     LState^.MemSetBound(aDst, aLen, aValue)
   else
@@ -316,7 +470,7 @@ var
   LState: PSimdPublicApiBindingState;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetCurrentSimdPublicApiBindingState;
+  LState := GetLiveSimdPublicApiBindingState;
   if (LState <> nil) and Assigned(LState^.ToLowerAsciiBound) then
     LState^.ToLowerAsciiBound(aP, aLen)
   else
@@ -331,7 +485,7 @@ var
   LState: PSimdPublicApiBindingState;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetCurrentSimdPublicApiBindingState;
+  LState := GetLiveSimdPublicApiBindingState;
   if (LState <> nil) and Assigned(LState^.ToUpperAsciiBound) then
     LState^.ToUpperAsciiBound(aP, aLen)
   else
@@ -346,7 +500,7 @@ var
   LState: PSimdPublicApiBindingState;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetCurrentSimdPublicApiBindingState;
+  LState := GetLiveSimdPublicApiBindingState;
   if (LState <> nil) and Assigned(LState^.MemReverseBound) then
     LState^.MemReverseBound(aP, aLen)
   else
@@ -361,7 +515,7 @@ var
   LState: PSimdPublicApiBindingState;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetCurrentSimdPublicApiBindingState;
+  LState := GetLiveSimdPublicApiBindingState;
   if (LState <> nil) and Assigned(LState^.MinMaxBytesBound) then
     LState^.MinMaxBytesBound(aP, aLen, aMinVal, aMaxVal)
   else
@@ -371,61 +525,57 @@ begin
   end;
 end;
 
-procedure EnsureBackendTextCache(const aBackend: TSimdBackend);
-var
-  LInfo: TSimdBackendInfo;
-begin
-  // Backends can be re-registered at runtime, so refresh the cached text view
-  // from the latest backend metadata instead of pinning the first observed value.
-  LInfo := GetBackendInfo(aBackend);
-  if LInfo.Name <> '' then
-    g_SimdBackendNameCache[aBackend] := AnsiString(LInfo.Name)
-  else
-    g_SimdBackendNameCache[aBackend] := DefaultBackendName(aBackend);
-
-  if LInfo.Description <> '' then
-    g_SimdBackendDescriptionCache[aBackend] := AnsiString(LInfo.Description)
-  else
-    g_SimdBackendDescriptionCache[aBackend] := DefaultBackendDescription(aBackend);
-end;
-
 procedure RebindSimdPublicApi;
 var
+  LDataPlane: PSimdDataPlane;
   LDispatch: PSimdDispatchTable;
+  LCurrent: PSimdPublicApiBindingState;
   LState: PSimdPublicApiBindingState;
-  LDispatchable: Boolean;
 begin
   EnterCriticalSection(g_SimdPublicApiRebindLock);
   try
-  LDispatch := GetDispatchTable;
-  if LDispatch = nil then
-    Exit;
+    LDataPlane := GetCurrentSimdDataPlane;
+    if LDataPlane = nil then
+      Exit;
+    LDispatch := LDataPlane^.Dispatch;
+    if LDispatch = nil then
+      Exit;
 
-    LState := CreateSimdPublicApiBindingState;
+    LCurrent := GetCurrentSimdPublicApiBindingState;
+    if (LCurrent <> nil) and (LCurrent^.Dispatch = LDispatch) then
+    begin
+      atomic_store(g_SimdPublicApiTargetDispatchPtr, Pointer(LDispatch), mo_release);
+      Exit;
+    end;
+
+    LState := FindOwnedSimdPublicApiBindingState(LDispatch);
+    if LState = nil then
+      LState := CreateSimdPublicApiBindingState;
+
     LState^.Api.StructSize := SizeOf(LState^.Api);
+    LState^.Dispatch := LDispatch;
     LState^.Api.AbiVersionMajor := FAFAFA_SIMD_PUBLIC_ABI_VERSION_MAJOR;
     LState^.Api.AbiVersionMinor := FAFAFA_SIMD_PUBLIC_ABI_VERSION_MINOR;
     LState^.Api.AbiSignatureHi := FAFAFA_SIMD_PUBLIC_ABI_SIGNATURE_HI;
     LState^.Api.AbiSignatureLo := FAFAFA_SIMD_PUBLIC_ABI_SIGNATURE_LO;
-    LState^.Api.ActiveBackendId := UInt32(Ord(LDispatch^.Backend));
-    LDispatchable := LDispatch^.BackendInfo.Available and IsBackendAvailableOnCPU(LDispatch^.Backend);
+    LState^.Api.ActiveBackendId := UInt32(Ord(LDataPlane^.ActiveBackend));
     LState^.Api.ActiveFlags := BuildSimdBackendAbiFlagsFromSnapshot(
-      LDispatch^.Backend, True, LDispatchable, True);
-    LState^.MemEqualBound := LDispatch^.MemEqual;
-    LState^.MemFindByteBound := LDispatch^.MemFindByte;
-    LState^.MemDiffRangeBound := LDispatch^.MemDiffRange;
-    LState^.SumBytesBound := LDispatch^.SumBytes;
-    LState^.CountByteBound := LDispatch^.CountByte;
-    LState^.BitsetPopCountBound := LDispatch^.BitsetPopCount;
-    LState^.Utf8ValidateBound := LDispatch^.Utf8Validate;
-    LState^.AsciiIEqualBound := LDispatch^.AsciiIEqual;
-    LState^.BytesIndexOfBound := LDispatch^.BytesIndexOf;
-    LState^.MemCopyBound := LDispatch^.MemCopy;
-    LState^.MemSetBound := LDispatch^.MemSet;
-    LState^.ToLowerAsciiBound := LDispatch^.ToLowerAscii;
-    LState^.ToUpperAsciiBound := LDispatch^.ToUpperAscii;
-    LState^.MemReverseBound := LDispatch^.MemReverse;
-    LState^.MinMaxBytesBound := LDispatch^.MinMaxBytes;
+      LDataPlane^.ActiveBackend, True, LDataPlane^.ActiveDispatchable, True);
+    LState^.MemEqualBound := TSimdPublicMemEqualFunc(LDataPlane^.MemEqualPtr);
+    LState^.MemFindByteBound := TSimdPublicMemFindByteFunc(LDataPlane^.MemFindBytePtr);
+    LState^.MemDiffRangeBound := TSimdPublicMemDiffRangeFunc(LDataPlane^.MemDiffRangePtr);
+    LState^.SumBytesBound := TSimdPublicSumBytesFunc(LDataPlane^.SumBytesPtr);
+    LState^.CountByteBound := TSimdPublicCountByteFunc(LDataPlane^.CountBytePtr);
+    LState^.BitsetPopCountBound := TSimdPublicBitsetPopCountFunc(LDataPlane^.BitsetPopCountPtr);
+    LState^.Utf8ValidateBound := TSimdPublicUtf8ValidateFunc(LDataPlane^.Utf8ValidatePtr);
+    LState^.AsciiIEqualBound := TSimdPublicAsciiIEqualFunc(LDataPlane^.AsciiIEqualPtr);
+    LState^.BytesIndexOfBound := TSimdPublicBytesIndexOfFunc(LDataPlane^.BytesIndexOfPtr);
+    LState^.MemCopyBound := TSimdPublicMemCopyFunc(LDataPlane^.MemCopyPtr);
+    LState^.MemSetBound := TSimdPublicMemSetFunc(LDataPlane^.MemSetPtr);
+    LState^.ToLowerAsciiBound := TSimdPublicAsciiCaseFunc(LDataPlane^.ToLowerAsciiPtr);
+    LState^.ToUpperAsciiBound := TSimdPublicAsciiCaseFunc(LDataPlane^.ToUpperAsciiPtr);
+    LState^.MemReverseBound := TSimdPublicMemReverseFunc(LDataPlane^.MemReversePtr);
+    LState^.MinMaxBytesBound := TSimdPublicMinMaxBytesFunc(LDataPlane^.MinMaxBytesPtr);
     LState^.Api.MemEqual := @PublicAbiMemEqual;
     LState^.Api.MemFindByte := @PublicAbiMemFindByte;
     LState^.Api.MemDiffRange := @PublicAbiMemDiffRange;
@@ -441,32 +591,20 @@ begin
     LState^.Api.ToUpperAscii := @PublicAbiToUpperAscii;
     LState^.Api.MemReverse := @PublicAbiMemReverse;
     LState^.Api.MinMaxBytes := @PublicAbiMinMaxBytes;
-    {$IF Defined(CPUX86_64) or Defined(CPUAARCH64) or Defined(CPURISCV64)}
-    // On the primary 64-bit targets, default Pascal calling convention matches
-    // the public ABI well enough to publish the snapshot-bound entry points
-    // directly. This preserves the documented "cached table = bound data-plane"
-    // contract instead of funneling every call back through the global wrapper.
-    LState^.Api.MemEqual := TFafafaSimdMemEqualFunc(Pointer(LState^.MemEqualBound));
-    LState^.Api.MemFindByte := TFafafaSimdMemFindByteFunc(Pointer(LState^.MemFindByteBound));
-    LState^.Api.MemDiffRange := TFafafaSimdMemDiffRangeFunc(Pointer(LState^.MemDiffRangeBound));
-    LState^.Api.SumBytes := TFafafaSimdSumBytesFunc(Pointer(LState^.SumBytesBound));
-    LState^.Api.CountByte := TFafafaSimdCountByteFunc(Pointer(LState^.CountByteBound));
-    LState^.Api.BitsetPopCount := TFafafaSimdBitsetPopCountFunc(Pointer(LState^.BitsetPopCountBound));
-    LState^.Api.Utf8Validate := TFafafaSimdUtf8ValidateFunc(Pointer(LState^.Utf8ValidateBound));
-    LState^.Api.AsciiIEqual := TFafafaSimdAsciiIEqualFunc(Pointer(LState^.AsciiIEqualBound));
-    LState^.Api.BytesIndexOf := TFafafaSimdBytesIndexOfFunc(Pointer(LState^.BytesIndexOfBound));
-    LState^.Api.MemCopy := TFafafaSimdMemCopyFunc(Pointer(LState^.MemCopyBound));
-    LState^.Api.MemSet := TFafafaSimdMemSetFunc(Pointer(LState^.MemSetBound));
-    LState^.Api.ToLowerAscii := TFafafaSimdToLowerAsciiFunc(Pointer(LState^.ToLowerAsciiBound));
-    LState^.Api.ToUpperAscii := TFafafaSimdToUpperAsciiFunc(Pointer(LState^.ToUpperAsciiBound));
-    LState^.Api.MemReverse := TFafafaSimdMemReverseFunc(Pointer(LState^.MemReverseBound));
-    LState^.Api.MinMaxBytes := TFafafaSimdMinMaxBytesFunc(Pointer(LState^.MinMaxBytesBound));
-    {$ENDIF}
 
+    atomic_store(g_SimdPublicApiTargetDispatchPtr, Pointer(LDispatch), mo_release);
     atomic_store(g_SimdPublicApiStatePtr, Pointer(LState), mo_release);
   finally
     LeaveCriticalSection(g_SimdPublicApiRebindLock);
   end;
+end;
+
+procedure InvalidateSimdPublicApiBinding;
+begin
+  // Keep the last published table alive for cached readers. The next public ABI
+  // getter or cdecl entry-point call will observe the new target dispatch and
+  // lazily publish a fresh binding state.
+  atomic_store(g_SimdPublicApiTargetDispatchPtr, Pointer(GetDispatchTable), mo_release);
 end;
 
 function GetSimdAbiVersionMajor: UInt16; cdecl;
@@ -529,27 +667,30 @@ begin
 end;
 
 function GetSimdBackendNamePtr(aBackend: TSimdBackend): PAnsiChar; cdecl;
+var
+  LState: PSimdBackendTextState;
 begin
-  EnsureBackendTextCache(aBackend);
-  Result := PAnsiChar(g_SimdBackendNameCache[aBackend]);
+  LState := GetLiveSimdBackendTextState(aBackend);
+  if LState = nil then
+    Exit(nil);
+  Result := PAnsiChar(LState^.NameText);
 end;
 
 function GetSimdBackendDescriptionPtr(aBackend: TSimdBackend): PAnsiChar; cdecl;
+var
+  LState: PSimdBackendTextState;
 begin
-  EnsureBackendTextCache(aBackend);
-  Result := PAnsiChar(g_SimdBackendDescriptionCache[aBackend]);
+  LState := GetLiveSimdBackendTextState(aBackend);
+  if LState = nil then
+    Exit(nil);
+  Result := PAnsiChar(LState^.DescriptionText);
 end;
 
 function GetSimdPublicApi: PFafafaSimdPublicApi; cdecl;
 var
   LState: PSimdPublicApiBindingState;
 begin
-  LState := GetCurrentSimdPublicApiBindingState;
-  if LState = nil then
-  begin
-    RebindSimdPublicApi;
-    LState := GetCurrentSimdPublicApiBindingState;
-  end;
+  LState := GetLiveSimdPublicApiBindingState;
 
   if LState = nil then
     Exit(nil);

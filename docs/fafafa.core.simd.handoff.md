@@ -76,6 +76,14 @@ bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
 bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status
 ```
 
+`closeout-release` 已经是当前推荐的单一 release/closeout 入口。
+
+```bash
+FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152
+```
+
+它固定把 `impl-smoke-x86 -> closeout-host-local -> win-evidence-preflight -> win-evidence-via-gh -> freeze-status` 串成一条 canonical 主线；只有在你明确要拆分诊断 Windows 手工路径或单独复验某一步时，才再退回下面这些低层 helper。
+
 如果需要 Windows 证据闭环，优先主入口：
 
 ```bash

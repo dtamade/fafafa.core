@@ -112,7 +112,17 @@ def resolve_log_dir(args: argparse.Namespace, script_dir: Path) -> Path:
     if args.latest:
         latest = find_latest_experimental_dir(script_dir / "logs", scenario=args.scenario)
         if latest is None:
-            raise RuntimeError(f"no qemu-multiarch logs found for scenario '{args.scenario}'")
+            if args.scenario == DEFAULT_SCENARIO:
+                hint = (
+                    "run `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh "
+                    "qemu-nonx86-experimental-asm` first"
+                )
+            else:
+                hint = f"produce logs for scenario '{args.scenario}' first"
+            raise RuntimeError(
+                f"no qemu-multiarch logs found for scenario '{args.scenario}' under {script_dir / 'logs'}; "
+                f"{hint}, or pass --log-dir <qemu-multiarch-dir>"
+            )
         return latest
     raise RuntimeError("either --log-dir or --latest is required")
 
@@ -192,6 +202,10 @@ def main() -> int:
     scenario, entries = parse_summary(summary_path)
     if not entries:
         print(f"ERROR: no platform rows parsed from summary: {summary_path}")
+        print(
+            "HINT: the QEMU run may still be in progress; rerun after "
+            "`qemu-nonx86-experimental-asm` completes, or point --log-dir at a finished qemu-multiarch-* directory."
+        )
         return 2
     if args.scenario and scenario and scenario != args.scenario:
         print(f"ERROR: scenario mismatch, expected={args.scenario}, actual={scenario}")

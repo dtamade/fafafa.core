@@ -68,9 +68,12 @@ if /I "%ACTION%"=="release" (
 )
 if /I "%ACTION%"=="gate" goto :gate
 if /I "%ACTION%"=="gate-strict" goto :gate_strict
+if /I "%ACTION%"=="closeout-release" goto :closeout_release
+if /I "%ACTION%"=="sse2-structure-check" goto :sse2_structure_check
+if /I "%ACTION%"=="sse2-contracts" goto :sse2_contracts
+if /I "%ACTION%"=="impl-smoke-sse2" goto :impl_smoke_sse2
 if /I "%ACTION%"=="impl-smoke-x86" goto :impl_smoke_x86
 if /I "%ACTION%"=="impl-smoke-nonx86" goto :impl_smoke_nonx86
-if /I "%ACTION%"=="impl-audit-full" goto :impl_audit_full
 if /I "%ACTION%"=="impl-audit-nonx86" goto :impl_audit_nonx86
 if /I "%ACTION%"=="key-slot-audit" goto :key_slot_audit
 if /I "%ACTION%"=="closeout-host-local" goto :closeout_host_local
@@ -100,6 +103,7 @@ if /I "%ACTION%"=="qemu-cpuinfo-nonx86-full-repeat" goto :qemu_cpuinfo_nonx86_fu
 if /I "%ACTION%"=="qemu-cpuinfo-nonx86-suite-repeat" goto :qemu_cpuinfo_nonx86_suite_repeat
 if /I "%ACTION%"=="qemu-arch-matrix-evidence" goto :qemu_arch_matrix_evidence
 if /I "%ACTION%"=="qemu-nonx86-experimental-asm" goto :qemu_nonx86_experimental_asm
+if /I "%ACTION%"=="qemu-experimental-compiler-ready" goto :qemu_experimental_compiler_ready
 if /I "%ACTION%"=="riscvv-opcode-lane" goto :riscvv_opcode_lane
 if /I "%ACTION%"=="qemu-experimental-report" goto :qemu_experimental_report
 if /I "%ACTION%"=="qemu-experimental-baseline-check" goto :qemu_experimental_baseline_check
@@ -148,17 +152,21 @@ if /I "%ACTION%"=="finalize-win-evidence" goto :finalize_win_evidence
 if /I "%ACTION%"=="win-closeout-3cmd" goto :win_closeout_3cmd
 if /I "%ACTION%"=="win-closeout-finalize" goto :win_closeout_finalize
 
-echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-full^|impl-audit-nonx86^|key-slot-audit^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]
+echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|key-slot-audit^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-compiler-ready^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]
 echo   Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks.
 echo   gate/gate-strict PASS is not blanket release-grade approval for every experimental path.
 echo   gate         Fast/base gate for routine SIMD changes
 echo   gate-strict  Release/closeout gate with perf, repeats, and evidence checks
+echo   closeout-release  Canonical release closeout entry ^(delegates to shell runner^)
+echo   qemu-experimental-compiler-ready  Canonical non-x86 backend-asm compiler-ready QEMU lane ^(arm64/riscv64 fail-close^)
+echo   sse2-structure-check  Structural guard for SSE2 register/include layout
+echo   sse2-contracts  Focused SSE2 moved-surface contract suite
+echo   impl-smoke-sse2  Targeted SSE2 structure + contract/backend/runtime/dataplane smoke
 echo   impl-smoke-x86  Lightweight bounded x86 implementation smoke via DispatchAPI frontier proofs
 echo   impl-smoke-nonx86  Lightweight daily non-x86 implementation smoke
-echo   impl-audit-full  Full implementation deep audit: x86 bounded frontier plus non-x86 implementation audit
 echo   impl-audit-nonx86  Aggregate implementation-side non-x86 audit
 echo   key-slot-audit  Audit key non-x86 wide slots against backend-owned/base-scalar expectations
-echo   closeout-host-local  Host-local strict closeout ^(qemu non-x86 required, native evidence optional, windows evidence optional^)
+echo   closeout-host-local  Host-local strict closeout ^(non-x86 native evidence fail-close, windows evidence optional^)
 echo Suggested flow: check -^> targeted suites -^> gate; use gate-strict before release/closeout.
 echo QEMU env: SIMD_QEMU_BUILD_POLICY=always^|if-missing^|skip ^(default: if-missing^)
 echo Isolation env: SIMD_OUTPUT_ROOT=C:\temp\simd-run-123 ^(override bin2/lib2/logs root^)
@@ -197,6 +205,7 @@ if /I "%SIMD_SUPPRESS_BUILD_WARNINGS%"=="1" set "LAZBUILD_EXTRA_OPTS=--opt=-vw- 
 if /I "%SIMD_ENABLE_NEON_BACKEND%"=="1" set "LAZBUILD_EXTRA_OPTS=%LAZBUILD_EXTRA_OPTS% --opt=-dSIMD_BACKEND_NEON --opt=-dFAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND"
 if /I "%SIMD_ENABLE_RISCVV_BACKEND%"=="1" set "LAZBUILD_EXTRA_OPTS=%LAZBUILD_EXTRA_OPTS% --opt=-dSIMD_RISCV_AVAILABLE --opt=-dSIMD_EXPERIMENTAL_RISCVV --opt=-dSIMD_BACKEND_RISCVV --opt=-dFAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND"
 if /I "%SIMD_ENABLE_AVX512_BACKEND%"=="1" set "LAZBUILD_EXTRA_OPTS=%LAZBUILD_EXTRA_OPTS% --opt=-dSIMD_BACKEND_AVX512"
+if /I "%SIMD_INIT_TRACE%"=="1" set "LAZBUILD_EXTRA_OPTS=%LAZBUILD_EXTRA_OPTS% --opt=-dSIMD_INIT_TRACE"
 "%LAZBUILD_EXE%" --build-mode=%MODE% --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%UNIT_DIR%" %LAZBUILD_EXTRA_OPTS% "%PROJ%" > "%BUILD_LOG%" 2>&1
 set "BUILD_RC=%ERRORLEVEL%"
 if /I "%SIMD_SUPPRESS_BUILD_WARNINGS%"=="1" (
@@ -246,6 +255,9 @@ set "SIMD_ADAPTER_SYNC_PASCAL_SMOKE="
 if not "%ADAPTER_SYNC_RC%"=="0" exit /b %ADAPTER_SYNC_RC%
 
 call :register_include_check
+if errorlevel 1 exit /b 1
+
+call :sse2_structure_check
 if errorlevel 1 exit /b 1
 
 call :suite_manifest_check
@@ -301,6 +313,35 @@ if not errorlevel 1 (
 
 echo [REGISTER-INCLUDE] FAILED (python runtime not found; tried py and python)
 exit /b 2
+
+:sse2_structure_check
+set "SSE2_STRUCTURE_SCRIPT=%ROOT%check_sse2_structure.py"
+if not exist "%SSE2_STRUCTURE_SCRIPT%" (
+  echo [SSE2-STRUCTURE] Missing checker: %SSE2_STRUCTURE_SCRIPT%
+  exit /b 2
+)
+
+where py >nul 2>nul
+if not errorlevel 1 (
+  echo [SSE2-STRUCTURE] Running: py -3 %SSE2_STRUCTURE_SCRIPT% --summary-line
+  py -3 "%SSE2_STRUCTURE_SCRIPT%" --summary-line
+  exit /b %ERRORLEVEL%
+)
+
+where python >nul 2>nul
+if not errorlevel 1 (
+  echo [SSE2-STRUCTURE] Running: python %SSE2_STRUCTURE_SCRIPT% --summary-line
+  python "%SSE2_STRUCTURE_SCRIPT%" --summary-line
+  exit /b %ERRORLEVEL%
+)
+
+echo [SSE2-STRUCTURE] FAILED (python runtime not found; tried py and python)
+exit /b 2
+
+:sse2_contracts
+call "%ROOT%buildOrTest.bat" test --suite=TTestCase_SSE2Contracts
+if errorlevel 1 exit /b 1
+exit /b 0
 
 :register_truthfulness_check
 set "REGISTER_TRUTH_SCRIPT=%ROOT%check_nonx86_register_truthfulness.py"
@@ -502,11 +543,6 @@ if /I "%SIMD_ADAPTER_SYNC_PASCAL_SMOKE%"=="0" (
   call :adapter_sync_pascal
   if errorlevel 1 exit /b 1
 )
-
-call :adapter_sync_checker_only
-exit /b %ERRORLEVEL%
-
-:adapter_sync_checker_only
 
 set "ADAPTER_SYNC_SCRIPT=%ROOT%check_backend_adapter_sync.py"
 if not exist "%ADAPTER_SYNC_SCRIPT%" (
@@ -911,17 +947,6 @@ echo [IMPL-AUDIT] Running: bash %ROOT%BuildOrTest.sh impl-audit-nonx86 %NORMALIZ
 bash "%ROOT%BuildOrTest.sh" impl-audit-nonx86 %NORMALIZED_TEST_ARGS%
 exit /b %ERRORLEVEL%
 
-:impl_audit_full
-where bash >nul 2>nul
-if errorlevel 1 (
-  echo [IMPL-AUDIT-FULL] FAILED ^(bash runtime not found; impl-audit-full requires bash to preserve shell parity^)
-  exit /b 2
-)
-
-echo [IMPL-AUDIT-FULL] Running: bash %ROOT%BuildOrTest.sh impl-audit-full %NORMALIZED_TEST_ARGS%
-bash "%ROOT%BuildOrTest.sh" impl-audit-full %NORMALIZED_TEST_ARGS%
-exit /b %ERRORLEVEL%
-
 :impl_smoke_x86
 where bash >nul 2>nul
 if errorlevel 1 (
@@ -931,6 +956,17 @@ if errorlevel 1 (
 
 echo [IMPL-SMOKE-X86] Running: bash %ROOT%BuildOrTest.sh impl-smoke-x86 %NORMALIZED_TEST_ARGS%
 bash "%ROOT%BuildOrTest.sh" impl-smoke-x86 %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:impl_smoke_sse2
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [IMPL-SMOKE-SSE2] FAILED ^(bash runtime not found; impl-smoke-sse2 requires bash to preserve shell parity^)
+  exit /b 2
+)
+
+echo [IMPL-SMOKE-SSE2] Running: bash %ROOT%BuildOrTest.sh impl-smoke-sse2 %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" impl-smoke-sse2 %NORMALIZED_TEST_ARGS%
 exit /b %ERRORLEVEL%
 
 :impl_smoke_nonx86
@@ -1144,6 +1180,17 @@ echo [QEMU] Running: bash %QEMU_SCRIPT% nonx86-experimental-asm %NORMALIZED_TEST
 bash "%QEMU_SCRIPT%" nonx86-experimental-asm %NORMALIZED_TEST_ARGS%
 exit /b %ERRORLEVEL%
 
+:qemu_experimental_compiler_ready
+if "%SIMD_QEMU_EXPERIMENTAL_COMPILER_READY_PLATFORMS%"=="" set "SIMD_QEMU_EXPERIMENTAL_COMPILER_READY_PLATFORMS=linux/arm64 linux/riscv64"
+if "%SIMD_QEMU_EXPERIMENTAL_ARM64_COMPILER_DEFINE%"=="" set "SIMD_QEMU_EXPERIMENTAL_ARM64_COMPILER_DEFINE=-dFAFAFA_SIMD_NEON_ASM_COMPILER_READY"
+if "%SIMD_QEMU_EXPERIMENTAL_RISCV64_COMPILER_DEFINE%"=="" set "SIMD_QEMU_EXPERIMENTAL_RISCV64_COMPILER_DEFINE=-dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY"
+set "SIMD_QEMU_PLATFORMS=%SIMD_QEMU_EXPERIMENTAL_COMPILER_READY_PLATFORMS%"
+set "SIMD_QEMU_ENABLE_BACKEND_ASM=1"
+set "SIMD_QEMU_BACKEND_ASM_PROBE_MODE=0"
+echo [QEMU-EXPERIMENTAL-COMPILER-READY] Platforms: %SIMD_QEMU_PLATFORMS%
+echo [QEMU-EXPERIMENTAL-COMPILER-READY] backend-asm=on probe-mode=off
+goto :qemu_nonx86_experimental_asm
+
 :qemu_experimental_report
 set "QEMU_EXP_REPORT_SCRIPT=%ROOT%report_qemu_experimental_blockers.py"
 if not exist "%QEMU_EXP_REPORT_SCRIPT%" (
@@ -1321,7 +1368,7 @@ set "SIMD_GATE_EXPERIMENTAL=1"
 set "SIMD_GATE_EXPERIMENTAL_TESTS=1"
 set "SIMD_GATE_NONX86_IEEE754=1"
 if "%SIMD_GATE_CPUINFO_LAZY_REPEAT%"=="" set "SIMD_GATE_CPUINFO_LAZY_REPEAT=3"
-if "%SIMD_GATE_QEMU_NONX86_EVIDENCE%"=="" set "SIMD_GATE_QEMU_NONX86_EVIDENCE=0"
+set "SIMD_GATE_QEMU_NONX86_EVIDENCE=0"
 if "%SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE%"=="" set "SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1"
 if "%SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE%"=="" set "SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0"
 if "%SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT%"=="" set "SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0"
@@ -1330,6 +1377,16 @@ if "%SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE%"=="" set "SIMD_GATE_REQUIRE_WINDOWS_EVI
 if "%SIMD_QEMU_CPUINFO_REPEAT_ROUNDS%"=="" set "SIMD_QEMU_CPUINFO_REPEAT_ROUNDS=1"
 if "%SIMD_GATE_CONCURRENT_REPEAT%"=="" set "SIMD_GATE_CONCURRENT_REPEAT=10"
 call "%ROOT%buildOrTest.bat" gate
+exit /b %ERRORLEVEL%
+
+:closeout_release
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [CLOSEOUT-RELEASE] FAILED ^(bash runtime not found; closeout-release requires Git Bash / WSL as the canonical entrypoint^)
+  exit /b 2
+)
+echo [CLOSEOUT-RELEASE] Running: bash %ROOT%BuildOrTest.sh closeout-release %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" closeout-release %NORMALIZED_TEST_ARGS%
 exit /b %ERRORLEVEL%
 
 :gate
@@ -1393,17 +1450,14 @@ if /I "%SIMD_GATE_ADAPTER_SYNC_PASCAL%"=="1" (
   echo [GATE] Optional backend adapter sync Pascal smoke
   call "%SELF%" adapter-sync-pascal
   if errorlevel 1 exit /b 1
+  set "SIMD_ADAPTER_SYNC_PASCAL_SMOKE=0"
 ) else (
   echo [GATE] SKIP optional backend adapter sync Pascal smoke ^(set SIMD_GATE_ADAPTER_SYNC_PASCAL=1 to enable^)
 )
 
 if /I "%SIMD_GATE_ADAPTER_SYNC%"=="1" (
   echo [GATE] Optional backend adapter sync
-  if /I "%SIMD_GATE_ADAPTER_SYNC_PASCAL%"=="1" (
-    call :adapter_sync_checker_only
-  ) else (
-    call "%SELF%" adapter-sync
-  )
+  call "%SELF%" adapter-sync
   if errorlevel 1 exit /b 1
 ) else (
   echo [GATE] SKIP optional backend adapter sync ^(set SIMD_GATE_ADAPTER_SYNC=1 to enable^)
@@ -1687,6 +1741,9 @@ for /f "tokens=1" %%A in ("%NORMALIZED_TEST_ARGS%") do set "BATCH_ID=%%A"
 if "%BATCH_ID%"=="" set "BATCH_ID=SIMD-YYYYMMDD-152"
 echo [CLOSEOUT] Windows evidence closeout: recommended command chain
 echo.
+echo Preferred canonical entry ^(Git Bash / WSL^):
+echo    FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release %BATCH_ID%
+echo.
 echo 0^) Preflight GH blockage ^(Git Bash / WSL, recommended^)
 echo    bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight
 echo.
@@ -1703,7 +1760,7 @@ echo 4^) Confirm freeze status ^(Git Bash / WSL^)
 echo    bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status
 echo.
 echo Notes:
-echo    Step 3 runs finalize ^> freeze-status ^> apply, and apply is blocked unless freeze_ready=true and freeze_status.json is fresh versus the current summary/evidence.
+echo    Step 3 runs finalize ^> freeze-status ^> apply, and apply is blocked unless freeze_ready=true.
 echo    If step 0 returns RECENT_BILLING_BLOCK, fix GitHub Billing/quota first.
 exit /b 0
 

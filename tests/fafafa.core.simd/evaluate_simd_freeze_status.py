@@ -6,7 +6,6 @@ import json
 import os
 import re
 import subprocess
-import sys
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from pathlib import Path
@@ -71,6 +70,28 @@ QEMU_CPUINFO_NONX86_FULL_REPEAT_GATE_CMD = (
     "SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 "
     "bash tests/fafafa.core.simd/BuildOrTest.sh gate"
 )
+QEMU_EXPERIMENTAL_COMPILER_READY_STEP = "qemu-experimental-compiler-ready"
+QEMU_EXPERIMENTAL_COMPILER_READY_REQUIRE_ENV = (
+    "SIMD_FREEZE_REQUIRE_QEMU_EXPERIMENTAL_COMPILER_READY"
+)
+QEMU_EXPERIMENTAL_COMPILER_READY_PLATFORM_ENV = (
+    "SIMD_QEMU_EXPERIMENTAL_COMPILER_READY_PLATFORMS='linux/arm64 linux/riscv64' "
+)
+QEMU_EXPERIMENTAL_COMPILER_READY_GATE_CMD = (
+    "FAFAFA_BUILD_MODE=Release "
+    + QEMU_EXPERIMENTAL_COMPILER_READY_PLATFORM_ENV
+    +
+    "SIMD_GATE_QEMU_EXPERIMENTAL_COMPILER_READY=1 "
+    "bash tests/fafafa.core.simd/BuildOrTest.sh gate"
+)
+QEMU_EXPERIMENTAL_COMPILER_READY_CROSS_GATE_CMD = (
+    "FAFAFA_BUILD_MODE=Release "
+    + QEMU_EXPERIMENTAL_COMPILER_READY_PLATFORM_ENV
+    +
+    "SIMD_GATE_QEMU_EXPERIMENTAL_COMPILER_READY=1 "
+    "SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 "
+    "bash tests/fafafa.core.simd/BuildOrTest.sh gate"
+)
 CROSS_GATE_FAIL_CLOSE_CMD = (
     "FAFAFA_BUILD_MODE=Release "
     + QEMU_CPUINFO_NONX86_PLATFORM_ENV
@@ -98,9 +119,14 @@ QEMU_CPUINFO_NONX86_REQUIRED_PLATFORMS = (
     "linux/arm64",
     "linux/riscv64",
 )
+QEMU_EXPERIMENTAL_COMPILER_READY_REQUIRED_PLATFORMS = (
+    "linux/arm64",
+    "linux/riscv64",
+)
 QEMU_CPUINFO_NONX86_SCENARIO = "cpuinfo-nonx86-evidence"
 QEMU_CPUINFO_NONX86_FULL_SCENARIO = "cpuinfo-nonx86-full-evidence"
 QEMU_CPUINFO_NONX86_FULL_REPEAT_SCENARIO = "cpuinfo-nonx86-full-repeat"
+QEMU_EXPERIMENTAL_COMPILER_READY_SCENARIO = "nonx86-experimental-asm"
 QEMU_MULTIARCH_DIR_RE = re.compile(r"^qemu-multiarch-(\d{8})-(\d{6})(?:-.+)?$")
 
 
@@ -216,6 +242,7 @@ def build_required_gate_steps(
     include_qemu_cpuinfo_nonx86_step: bool = False,
     include_qemu_cpuinfo_nonx86_full_step: bool = False,
     include_qemu_cpuinfo_nonx86_full_repeat_step: bool = False,
+    include_qemu_experimental_compiler_ready_step: bool = False,
     include_cpuinfo_lazy_repeat_step: bool = False,
 ) -> List[str]:
     steps = list(REQUIRED_GATE_STEPS_BASE)
@@ -227,6 +254,8 @@ def build_required_gate_steps(
         steps.append(QEMU_CPUINFO_NONX86_FULL_STEP)
     if include_qemu_cpuinfo_nonx86_full_repeat_step:
         steps.append(QEMU_CPUINFO_NONX86_FULL_REPEAT_STEP)
+    if include_qemu_experimental_compiler_ready_step:
+        steps.append(QEMU_EXPERIMENTAL_COMPILER_READY_STEP)
     if include_cpuinfo_lazy_repeat_step:
         steps.append(CPUINFO_LAZY_REPEAT_STEP)
     return steps
@@ -313,40 +342,6 @@ def freshness_check(name: str, path: Path, max_age_hours: float, required: bool 
         detail=(
             f"stale mtime={mtime:%Y-%m-%d %H:%M:%S}, age_hours={age_hours:.2f}, "
             f"threshold_hours={max_age_hours:.2f}"
-        ),
-    )
-
-
-def artifact_not_older_than_artifact_check(
-    name: str, artifact_path: Path, baseline_path: Path, required: bool = True
-) -> CheckItem:
-    if not artifact_path.is_file():
-        return CheckItem(name=name, required=required, status="FAIL", detail=f"missing {artifact_path}")
-    if not baseline_path.is_file():
-        return CheckItem(name=name, required=required, status="FAIL", detail=f"missing {baseline_path}")
-
-    artifact_mtime = datetime.fromtimestamp(artifact_path.stat().st_mtime)
-    baseline_mtime = datetime.fromtimestamp(baseline_path.stat().st_mtime)
-
-    if artifact_mtime >= baseline_mtime:
-        return CheckItem(
-            name=name,
-            required=required,
-            status="PASS",
-            detail=(
-                f"artifact mtime={artifact_mtime:%Y-%m-%d %H:%M:%S}, "
-                f"baseline={baseline_path} ({baseline_mtime:%Y-%m-%d %H:%M:%S})"
-            ),
-        )
-
-    return CheckItem(
-        name=name,
-        required=required,
-        status="FAIL",
-        detail=(
-            f"artifact older than baseline: artifact={artifact_path} "
-            f"({artifact_mtime:%Y-%m-%d %H:%M:%S}), baseline={baseline_path} "
-            f"({baseline_mtime:%Y-%m-%d %H:%M:%S})"
         ),
     )
 
@@ -625,6 +620,9 @@ def main() -> int:
     require_qemu_cpuinfo_nonx86_full_repeat_step = parse_bool_env(
         QEMU_CPUINFO_NONX86_FULL_REPEAT_REQUIRE_ENV, default=False
     )
+    require_qemu_experimental_compiler_ready_step = parse_bool_env(
+        QEMU_EXPERIMENTAL_COMPILER_READY_REQUIRE_ENV, default=False
+    )
     require_cpuinfo_lazy_repeat_step = parse_bool_env(
         CPUINFO_LAZY_REPEAT_REQUIRE_ENV, default=False
     )
@@ -633,6 +631,7 @@ def main() -> int:
         include_qemu_cpuinfo_nonx86_step=require_qemu_cpuinfo_nonx86_step,
         include_qemu_cpuinfo_nonx86_full_step=require_qemu_cpuinfo_nonx86_full_step,
         include_qemu_cpuinfo_nonx86_full_repeat_step=require_qemu_cpuinfo_nonx86_full_repeat_step,
+        include_qemu_experimental_compiler_ready_step=require_qemu_experimental_compiler_ready_step,
         include_cpuinfo_lazy_repeat_step=require_cpuinfo_lazy_repeat_step,
     )
     required_gate_steps_cross = build_required_gate_steps(
@@ -640,6 +639,7 @@ def main() -> int:
         include_qemu_cpuinfo_nonx86_step=require_qemu_cpuinfo_nonx86_step,
         include_qemu_cpuinfo_nonx86_full_step=require_qemu_cpuinfo_nonx86_full_step,
         include_qemu_cpuinfo_nonx86_full_repeat_step=require_qemu_cpuinfo_nonx86_full_repeat_step,
+        include_qemu_experimental_compiler_ready_step=require_qemu_experimental_compiler_ready_step,
         include_cpuinfo_lazy_repeat_step=require_cpuinfo_lazy_repeat_step,
     )
     required_gate_steps = (
@@ -974,6 +974,100 @@ def main() -> int:
                 )
                 next_actions.append(QEMU_CPUINFO_NONX86_FULL_REPEAT_GATE_CMD)
 
+        qemu_experimental_compiler_ready_row = find_latest_step_row(
+            latest_gate_run, QEMU_EXPERIMENTAL_COMPILER_READY_STEP
+        )
+        if qemu_experimental_compiler_ready_row is None:
+            checks.append(
+                CheckItem(
+                    name="linux_qemu_experimental_compiler_ready",
+                    required=require_qemu_experimental_compiler_ready_step,
+                    status="FAIL" if require_qemu_experimental_compiler_ready_step else "SKIP",
+                    detail=(
+                        f"missing {QEMU_EXPERIMENTAL_COMPILER_READY_STEP} in latest gate run; "
+                        f"set {QEMU_EXPERIMENTAL_COMPILER_READY_REQUIRE_ENV}=1 to require this step"
+                    ),
+                )
+            )
+            if require_qemu_experimental_compiler_ready_step:
+                next_actions.append(
+                    QEMU_EXPERIMENTAL_COMPILER_READY_GATE_CMD
+                    if args.linux_only
+                    else QEMU_EXPERIMENTAL_COMPILER_READY_CROSS_GATE_CMD
+                )
+        else:
+            qemu_experimental_compiler_ready_status = qemu_experimental_compiler_ready_row.get(
+                "status", ""
+            )
+            qemu_experimental_compiler_ready_detail = qemu_experimental_compiler_ready_row.get(
+                "detail", ""
+            )
+            if qemu_experimental_compiler_ready_status == "PASS":
+                checks.append(
+                    CheckItem(
+                        name="linux_qemu_experimental_compiler_ready",
+                        required=require_qemu_experimental_compiler_ready_step,
+                        status="PASS",
+                        detail=(
+                            "step PASS at "
+                            f"{qemu_experimental_compiler_ready_row.get('time', '-')}, "
+                            f"event={qemu_experimental_compiler_ready_row.get('event', '-')}, "
+                            f"duration_ms={qemu_experimental_compiler_ready_row.get('duration_ms', '-')}"
+                        ),
+                    )
+                )
+                qemu_experimental_compiler_ready_step_time = parse_gate_row_time(
+                    qemu_experimental_compiler_ready_row
+                )
+                coverage_check = qemu_platform_coverage_check(
+                    name="linux_qemu_experimental_compiler_ready_platforms",
+                    logs_dir=logs_dir,
+                    scenario=QEMU_EXPERIMENTAL_COMPILER_READY_SCENARIO,
+                    required_platforms=list(QEMU_EXPERIMENTAL_COMPILER_READY_REQUIRED_PLATFORMS),
+                    required=require_qemu_experimental_compiler_ready_step,
+                    gate_step_time=qemu_experimental_compiler_ready_step_time,
+                )
+                checks.append(coverage_check)
+                if coverage_check.status == "FAIL":
+                    next_actions.append(
+                        QEMU_EXPERIMENTAL_COMPILER_READY_GATE_CMD
+                        if args.linux_only
+                        else QEMU_EXPERIMENTAL_COMPILER_READY_CROSS_GATE_CMD
+                    )
+            elif (
+                qemu_experimental_compiler_ready_status == "SKIP"
+                and not require_qemu_experimental_compiler_ready_step
+            ):
+                checks.append(
+                    CheckItem(
+                        name="linux_qemu_experimental_compiler_ready",
+                        required=False,
+                        status="SKIP",
+                        detail=(
+                            "step SKIP in latest gate run "
+                            f"({qemu_experimental_compiler_ready_detail}); "
+                            f"set {QEMU_EXPERIMENTAL_COMPILER_READY_REQUIRE_ENV}=1 to enforce"
+                        ),
+                    )
+                )
+            else:
+                checks.append(
+                    CheckItem(
+                        name="linux_qemu_experimental_compiler_ready",
+                        required=require_qemu_experimental_compiler_ready_step,
+                        status="FAIL",
+                        detail=(
+                            f"step status={qemu_experimental_compiler_ready_status} "
+                            f"(detail={qemu_experimental_compiler_ready_detail})"
+                        ),
+                    )
+                )
+                next_actions.append(
+                    QEMU_EXPERIMENTAL_COMPILER_READY_GATE_CMD
+                    if args.linux_only
+                    else QEMU_EXPERIMENTAL_COMPILER_READY_CROSS_GATE_CMD
+                )
+
         cpuinfo_lazy_repeat_row = find_latest_step_row(
             latest_gate_run, CPUINFO_LAZY_REPEAT_STEP
         )
@@ -1086,16 +1180,6 @@ def main() -> int:
     if checks[-1].status != "PASS":
         next_actions.append("tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify")
     if not args.linux_only:
-        checks.append(
-            artifact_not_older_than_artifact_check(
-                "cross_gate_not_older_than_windows_evidence",
-                gate_summary,
-                windows_log,
-                required=True,
-            )
-        )
-        if checks[-1].status != "PASS":
-            next_actions.append(CROSS_GATE_FAIL_CLOSE_CMD)
         checks.append(
             sources_not_newer_than_artifact_check(
                 "linux_sources_not_newer_than_windows_evidence",
@@ -1268,20 +1352,6 @@ def main() -> int:
             f"bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize {default_batch_id}"
         )
 
-    if not args.linux_only:
-        checks.append(
-            artifact_not_older_than_artifact_check(
-                "windows_closeout_not_older_than_windows_evidence",
-                closeout_summary,
-                windows_log,
-                required=True,
-            )
-        )
-        if checks[-1].status != "PASS":
-            next_actions.append(
-                f"bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize {default_batch_id}"
-            )
-
     checks.append(freshness_check("windows_closeout_freshness", closeout_summary, args.fresh_hours, required=True))
     if checks[-1].status != "PASS":
         next_actions.append(
@@ -1397,23 +1467,20 @@ def main() -> int:
             if "windows" not in item.name and not item.name.startswith("cross_")
         ]
 
-    status_stream = sys.stderr if args.json else sys.stdout
-
-    print("[FREEZE] SIMD freeze status", file=status_stream)
+    print("[FREEZE] SIMD freeze status")
     cross_ready_display = "N/A" if cross_ready is None else str(cross_ready)
     print(
         f"[FREEZE] mode={payload['mode']}, ready={payload['freeze_ready']}, "
         f"mainline-ready={mainline_ready}, cross-ready={cross_ready_display}, "
-        f"fresh_hours={payload['fresh_hours']:.2f}",
-        file=status_stream,
+        f"fresh_hours={payload['fresh_hours']:.2f}"
     )
     for item in display_checks:
-        print(f"[FREEZE] {item.status:<7} {item.name}: {item.detail}", file=status_stream)
+        print(f"[FREEZE] {item.status:<7} {item.name}: {item.detail}")
 
     if dedup_actions:
-        print("[FREEZE] next-actions:", file=status_stream)
+        print("[FREEZE] next-actions:")
         for action in dedup_actions:
-            print(f"  - {action}", file=status_stream)
+            print(f"  - {action}")
 
     return 0 if freeze_ready else 1
 

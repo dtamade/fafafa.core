@@ -51,5 +51,17 @@ begin
 end;
 
 initialization
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.sse42:init:before-register');
+  Flush(StdErr);
+  {$ENDIF}
   RegisterSSE42Backend;
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.sse42:init:after-register');
+  Flush(StdErr);
+  {$ENDIF}
   RegisterBackendRebuilder(sbSSE42, @RegisterSSE42Backend);
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.sse42:init:after-rebuilder');
+  Flush(StdErr);
+  {$ENDIF}

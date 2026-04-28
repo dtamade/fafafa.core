@@ -5,8 +5,8 @@ var
   LAsmCapable: Boolean;
   LUseVectorAsm: Boolean;
 begin
-  // ✅ 使用 FillBaseDispatchTable 填充标量后备实现，而不是 FillChar
-  // 这确保所有未注册的函数都有有效的后备实现，避免空指针异常
+  // Seed the dispatch table from the canonical scalar baseline so every
+  // unassigned slot keeps a valid fallback and a stable ownership origin.
   table := Default(TSimdDispatchTable);
   FillBaseDispatchTable(table);
 
@@ -146,9 +146,9 @@ begin
   table.CmpEqI32x4 := @RISCVVCmpEqI32x4;
   table.CmpLtI32x4 := @RISCVVCmpLtI32x4;
   table.CmpGtI32x4 := @RISCVVCmpGtI32x4;
-  table.CmpLeI32x4 := @RISCVVCmpLeI32x4;  // ✅ Task 6.4: Added
-  table.CmpGeI32x4 := @RISCVVCmpGeI32x4;  // ✅ Task 6.4: Added
-  table.CmpNeI32x4 := @RISCVVCmpNeI32x4;  // ✅ Task 6.4: Added
+  table.CmpLeI32x4 := @RISCVVCmpLeI32x4;
+  table.CmpGeI32x4 := @RISCVVCmpGeI32x4;
+  table.CmpNeI32x4 := @RISCVVCmpNeI32x4;
 
   // I32x4 Min/Max
   {$IFDEF RISCVV_ASSEMBLY}
@@ -196,7 +196,7 @@ begin
   table.MulF32x8 := @RISCVVMulF32x8;
   table.DivF32x8 := @RISCVVDivF32x8;
 
-  // F32x8 Comparison - ✅ Task 6.4: Added
+  // F32x8 Comparison
   table.CmpEqF32x8 := @RISCVVCmpEqF32x8;
   table.CmpLtF32x8 := @RISCVVCmpLtF32x8;
   table.CmpLeF32x8 := @RISCVVCmpLeF32x8;
@@ -210,7 +210,7 @@ begin
   table.MulF64x4 := @RISCVVMulF64x4;
   table.DivF64x4 := @RISCVVDivF64x4;
 
-  // F64x4 Comparison - ✅ Task 6.4: Added
+  // F64x4 Comparison
   table.CmpEqF64x4 := @RISCVVCmpEqF64x4;
   table.CmpLtF64x4 := @RISCVVCmpLtF64x4;
   table.CmpLeF64x4 := @RISCVVCmpLeF64x4;
@@ -219,9 +219,9 @@ begin
   table.CmpNeF64x4 := @RISCVVCmpNeF64x4;
 
   // === I32x8 Operations ===
-  // Task 3 backend-owned key slots: keep these bound to RISCVV symbols.
-  // Non-asm builds still resolve through riscvv.facade.inc; do not silently
-  // remap them to base scalar, or the backend ownership contract becomes false.
+  // Keep these wide integer key slots bound to RISCVV symbols. Non-asm builds
+  // still resolve through riscvv.facade.inc, so silently remapping them to
+  // base scalar would make the published backend-ownership contract false.
   table.AddI32x8 := @RISCVVAddI32x8;
   table.SubI32x8 := @RISCVVSubI32x8;
   table.MulI32x8 := @RISCVVMulI32x8;
@@ -236,9 +236,9 @@ begin
   table.CmpEqI32x8 := @RISCVVCmpEqI32x8;
   table.CmpLtI32x8 := @RISCVVCmpLtI32x8;
   table.CmpGtI32x8 := @RISCVVCmpGtI32x8;
-  table.CmpLeI32x8 := @RISCVVCmpLeI32x8;  // ✅ Task 6.4: Added
-  table.CmpGeI32x8 := @RISCVVCmpGeI32x8;  // ✅ Task 6.4: Added
-  table.CmpNeI32x8 := @RISCVVCmpNeI32x8;  // ✅ Task 6.4: Added
+  table.CmpLeI32x8 := @RISCVVCmpLeI32x8;
+  table.CmpGeI32x8 := @RISCVVCmpGeI32x8;
+  table.CmpNeI32x8 := @RISCVVCmpNeI32x8;
   table.MinI32x8 := @RISCVVMinI32x8;
   table.MaxI32x8 := @RISCVVMaxI32x8;
 
@@ -257,9 +257,9 @@ begin
   table.CmpEqI32x16 := @RISCVVCmpEqI32x16;
   table.CmpLtI32x16 := @RISCVVCmpLtI32x16;
   table.CmpGtI32x16 := @RISCVVCmpGtI32x16;
-  table.CmpLeI32x16 := @RISCVVCmpLeI32x16;  // ✅ Task 6.4: Added
-  table.CmpGeI32x16 := @RISCVVCmpGeI32x16;  // ✅ Task 6.4: Added
-  table.CmpNeI32x16 := @RISCVVCmpNeI32x16;  // ✅ Task 6.4: Added
+  table.CmpLeI32x16 := @RISCVVCmpLeI32x16;
+  table.CmpGeI32x16 := @RISCVVCmpGeI32x16;
+  table.CmpNeI32x16 := @RISCVVCmpNeI32x16;
   table.MinI32x16 := @RISCVVMinI32x16;
   table.MaxI32x16 := @RISCVVMaxI32x16;
 
@@ -269,7 +269,7 @@ begin
   table.MulF32x16 := @RISCVVMulF32x16;
   table.DivF32x16 := @RISCVVDivF32x16;
 
-  // F32x16 Comparison - ✅ Task 6.4: Added
+  // F32x16 Comparison
   table.CmpEqF32x16 := @RISCVVCmpEqF32x16;
   table.CmpLtF32x16 := @RISCVVCmpLtF32x16;
   table.CmpLeF32x16 := @RISCVVCmpLeF32x16;
@@ -284,7 +284,7 @@ begin
   table.MulF64x8 := @RISCVVMulF64x8;
   table.DivF64x8 := @RISCVVDivF64x8;
 
-  // F64x8 Comparison - ✅ Task 6.4: Added
+  // F64x8 Comparison
   table.CmpEqF64x8 := @RISCVVCmpEqF64x8;
   table.CmpLtF64x8 := @RISCVVCmpLtF64x8;
   table.CmpLeF64x8 := @RISCVVCmpLeF64x8;
@@ -293,7 +293,7 @@ begin
   table.CmpNeF64x8 := @RISCVVCmpNeF64x8;
   table.SelectF64x8 := @RISCVVSelectF64x8;
 
-  // === Mask Operations - ✅ Task 6.4: Added ===
+  // === Mask Operations ===
   // TMask4 Operations
   table.Mask4All := @RISCVVMask4All;
   table.Mask4Any := @RISCVVMask4Any;
@@ -364,24 +364,10 @@ begin
   table.ClampF64x8 := @RISCVVClampF64x8;
 
   // Wide Float Extended Math (Ceil, Floor, Round, Trunc, Fma)
-  table.CeilF32x16 := @RISCVVCeilF32x16;
-  table.CeilF32x8 := @RISCVVCeilF32x8;
-  table.CeilF64x4 := @RISCVVCeilF64x4;
-  table.CeilF64x8 := @RISCVVCeilF64x8;
-  table.FloorF32x16 := @RISCVVFloorF32x16;
-  table.FloorF32x8 := @RISCVVFloorF32x8;
-  table.FloorF64x4 := @RISCVVFloorF64x4;
-  table.FloorF64x8 := @RISCVVFloorF64x8;
-  table.RoundF32x16 := @RISCVVRoundF32x16;
-  table.RoundF32x8 := @RISCVVRoundF32x8;
-  table.RoundF64x4 := @RISCVVRoundF64x4;
-  table.RoundF64x8 := @RISCVVRoundF64x8;
-  table.TruncF32x16 := @RISCVVTruncF32x16;
-  table.TruncF32x8 := @RISCVVTruncF32x8;
-  table.TruncF64x4 := @RISCVVTruncF64x4;
-  table.TruncF64x8 := @RISCVVTruncF64x8;
-  // Keep 128-bit F64x2 rounding on the canonical base scalar slots until the
-  // RISCVV-specific semantics are validated end-to-end.
+  // Keep wide Floor/Ceil/Round/Trunc on the canonical base scalar slots until
+  // the RISCVV-specific semantics are validated end-to-end. The wide Trunc
+  // asm path still traps on NaN/Inf under the opcode lane, so the backend must
+  // reuse the scalar slot instead of over-claiming ownership here.
   table.FmaF32x16 := @RISCVVFmaF32x16;
   table.FmaF32x8 := @RISCVVFmaF32x8;
   {$IFDEF RISCVV_ASSEMBLY}
@@ -447,10 +433,26 @@ begin
   {$ENDIF}
 
   // Wide Float Extract/Insert
+  {$IFDEF RISCVV_ASSEMBLY}
   table.ExtractF32x16 := @RISCVVExtractF32x16;
+  {$ELSE}
+  table.ExtractF32x16 := @RISCVVExtractF32x16;
+  {$ENDIF}
+  {$IFDEF RISCVV_ASSEMBLY}
   table.ExtractF32x8 := @RISCVVExtractF32x8;
+  {$ELSE}
+  table.ExtractF32x8 := @RISCVVExtractF32x8;
+  {$ENDIF}
+  {$IFDEF RISCVV_ASSEMBLY}
   table.ExtractF64x2 := @RISCVVExtractF64x2;
+  {$ELSE}
+  table.ExtractF64x2 := @RISCVVExtractF64x2;
+  {$ENDIF}
+  {$IFDEF RISCVV_ASSEMBLY}
   table.ExtractF64x4 := @RISCVVExtractF64x4;
+  {$ELSE}
+  table.ExtractF64x4 := @RISCVVExtractF64x4;
+  {$ENDIF}
   {$IFDEF RISCVV_ASSEMBLY}
   table.InsertF32x16 := @RISCVVInsertF32x16;
   table.InsertF32x8 := @RISCVVInsertF32x8;
@@ -475,8 +477,8 @@ begin
   table.CmpNeI64x2 := @RISCVVCmpNeI64x2;
 
   // I64x4 Operations
-  // Contract note: Task 3 only backend-owns Add/Sub here. Mul/Min/Max are not
-  // open slots today, so resist the temptation to "complete" this family here.
+  // Only Add/Sub are backend-owned in this family today. Mul/Min/Max are not
+  // open dispatch slots yet, so do not "complete" the family here.
   table.AddI64x4 := @RISCVVAddI64x4;
   table.SubI64x4 := @RISCVVSubI64x4;
   table.AndI64x4 := @RISCVVAndI64x4;
@@ -534,7 +536,11 @@ begin
   // otherwise degrade into dead RISCVV-specific scalar forwarders.
 
   // I32x4/I32x8/I32x16 Extract/Insert
+  {$IFDEF RISCVV_ASSEMBLY}
   table.ExtractI32x4 := @RISCVVExtractI32x4;
+  {$ELSE}
+  table.ExtractI32x4 := @RISCVVExtractI32x4;
+  {$ENDIF}
   {$IFDEF RISCVV_ASSEMBLY}
   table.InsertI32x4 := @RISCVVInsertI32x4;
   {$ENDIF}
@@ -554,7 +560,11 @@ begin
   {$IFDEF RISCVV_ASSEMBLY}
   table.InsertI32x16 := @RISCVVInsertI32x16;
   {$ENDIF}
+  {$IFDEF RISCVV_ASSEMBLY}
   table.ExtractI64x2 := @RISCVVExtractI64x2;
+  {$ELSE}
+  table.ExtractI64x2 := @RISCVVExtractI64x2;
+  {$ENDIF}
   {$IFDEF RISCVV_ASSEMBLY}
   table.InsertI64x2 := @RISCVVInsertI64x2;
   {$ENDIF}
@@ -638,9 +648,14 @@ begin
   table.CmpGeU64x4 := @RISCVVCmpGeU64x4;
   table.CmpNeU64x4 := @RISCVVCmpNeU64x4;
 
-  // ✅ Unsigned Integer Types: U32x8 (256-bit)
-  // Unsigned Task 3 key slots stay backend-owned here; the neighboring
-  // U32x16/U64x8 families intentionally fall through to base scalar instead.
+  // Unsigned Integer Types: U32x8 (256-bit)
+  // Keep one assignment site for both modes:
+  // - asm-enabled builds resolve these symbols to native RVV implementations
+  // - no-asm builds resolve the same symbols to explicit scalar-passthrough
+  //   facades, so the published shift semantics stay identical without a
+  //   second register-only branch
+  // Neighboring U32x16/U64x8 families intentionally fall through to
+  // FillBaseDispatchTable instead.
   table.AddU32x8 := @RISCVVAddU32x8;
   table.SubU32x8 := @RISCVVSubU32x8;
   table.MulU32x8 := @RISCVVMulU32x8;
@@ -660,7 +675,7 @@ begin
   table.MinU32x8 := @RISCVVMinU32x8;
   table.MaxU32x8 := @RISCVVMaxU32x8;
 
-  // ✅ RcpF64x4 (Reciprocal)
+  // F64x4 Reciprocal
   table.RcpF64x4 := @RISCVVRcpF64x4;
 
   // Unsigned Integer Types: U16x8
@@ -734,12 +749,12 @@ initialization
   // On RISC-V 64-bit, attempt to register
   // In practice, runtime detection of V extension would be needed
   RegisterRISCVVBackend;
-  // ✅ P1-D: Register rebuilder callback for VectorAsmEnabled changes
+  // Keep the registry in sync when VectorAsmEnabled changes.
   RegisterBackendRebuilder(sbRISCVV, @RegisterRISCVVBackend);
   {$ENDIF}
   {$IFDEF CPURISCV32}
   RegisterRISCVVBackend;
-  // ✅ P1-D: Register rebuilder callback for VectorAsmEnabled changes
+  // Keep the registry in sync when VectorAsmEnabled changes.
   RegisterBackendRebuilder(sbRISCVV, @RegisterRISCVVBackend);
   {$ENDIF}
   {$ENDIF}

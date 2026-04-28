@@ -48,6 +48,7 @@
 8. **runtime / cpuinfo / dataplane 接口封边**
    - `TSimdBackendArray` 现在归 `fafafa.core.simd.base` 所有，`cpuinfo` / `runtime` 只返回这个共享容器类型
    - `fafafa.core.simd` 现在直接重导出 canonical `GetCPUInfo`；`GetCPUInformation` 降级为兼容别名
+   - `interface-completeness` 现在还会 machine-check `framework/runtime/cpuinfo/public ABI` 的公开接口面合同，避免 canonical/legacy alias 边界再次漂移
    - data-plane published snapshot 不再在复用旧节点时重写内容；同一 dispatch 只会重新发布既有 immutable snapshot
    - `example_simd_dispatch` 与接口文档现在显式区分 `CPU-supported` 和 `current runtime backend`
 
@@ -60,17 +61,11 @@
 - fresh fast gate：
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` -> `[CHECK] OK`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` -> `[GATE] OK`
-- fresh implementation deep audit：
-  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-full` -> `SIMD_IMPL_AUDIT_FULL_SUMMARY steps=2 targeted_output_root=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-freeze-closeout-20260415/tests/fafafa.core.simd status=ok`
-  - log: `/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-freeze-closeout-20260415/tests/fafafa.core.simd/logs/impl_full_audit.txt`
 - fresh host-local strict closeout：
   - `SIMD_QEMU_PLATFORMS='linux/arm64 linux/riscv64' SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local` -> `[CLOSEOUT-HOST-LOCAL] OK`
+  - `SIMD_FREEZE_REQUIRE_QEMU_EXPERIMENTAL_COMPILER_READY=1 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-linux` -> `[FREEZE] mode=linux-only, ready=True`
   - qemu runtime summary: [qemu-multiarch-20260415-010346-869191/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260415-010346-869191/summary.md)
   - qemu cpuinfo summary: [qemu-multiarch-20260415-011042-887472/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260415-011042-887472/summary.md)
-- post-formalization host-local strict closeout rerun：
-  - `SIMD_QEMU_PLATFORMS='linux/arm64 linux/riscv64' SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local` -> `[CLOSEOUT-HOST-LOCAL] OK`
-  - qemu runtime summary: [qemu-multiarch-20260415-231755-781545/summary.md](/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-freeze-closeout-20260415/tests/fafafa.core.simd/logs/qemu-multiarch-20260415-231755-781545/summary.md)
-  - qemu cpuinfo summary: [qemu-multiarch-20260415-232437-788450/summary.md](/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-freeze-closeout-20260415/tests/fafafa.core.simd/logs/qemu-multiarch-20260415-232437-788450/summary.md)
 - 当前结论：
   - 接口层 canonical/legacy 口径已经封边：`cpuinfo` 只回答 CPU/OS capability，`runtime` 负责 active/registered/dispatchable/control-plane
   - data-plane published snapshot 的不可变语义已经落到实现上，不再依赖“复用节点但内容刚好相同”的隐式假设
@@ -101,31 +96,35 @@
 这一轮实现层收口的 fresh 证据，应该按下面的边界理解：
 
 - `NONX86_HELPER_SEMANTICS_SUMMARY`：source checker 已覆盖 helper/native-evidence，以及 compare/mask / shift/bitwise / arithmetic/minmax 的 source-side 语义矩阵
-- `NEON hygiene source truth`：`check_nonx86_helper_semantics.py` 现在还会 fail-close 锁定 `src/fafafa.core.simd.neon.pas` 里的 `ShiftLeftI32x16` / `ShiftRightArithI64x4` invalid-count fallback、`NEONShiftLeftI64x4Asm` 的 `uxtw  x1, w1`，以及 `NEONSelectF32x4` 的逐 lane mask 选择逻辑
+- `NEON hygiene source truth`：`check_nonx86_helper_semantics.py` 现在还会 fail-close 锁定 `src/fafafa.core.simd.neon.pas` 里的 `ShiftLeftI32x16` / `ShiftRightArithI64x4` invalid-count fallback、`NEONShiftLeftI64x4Asm` 的 `uxtw  x1, w1`、`NEONShiftLeftI64x2` / `NEONShiftLeftU64x2` / `NEONShiftLeftU64x4` 的 64-bit lane count widening，以及 `NEONSelectF32x4` 的逐 lane mask 选择逻辑
 - `NONX86_KEY_SLOT_AUDIT_SUMMARY`：key wide slot 已按 `backend_owned` / `reuse_base_scalar` 两类契约审计，避免把“故意继承 base scalar”的实现误报成缺口，也避免 backend-owned 槽位悄悄退回 wrapper/scalar
 - `WIRING_SYNC_SUMMARY`：non-x86 wiring slot 名单已收敛到 `AssertNonX86DispatchTableWiringGroupsAssigned`，legacy/grouped 两个测试入口不再各自维护一份 60-slot 名单
 - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY`：`neon` / `riscvv` strict 模式通过
-- `RISCVV facade/register hygiene`：`riscvv.facade.inc` 现在明确把 scalar-pass-through facade helper 留在 base scalar slot，不再伪造 backend-local 包装层；其中 `RISCVVShiftLeftU32x8` / `RISCVVShiftRightU32x8` 现在也显式回到 `ScalarShiftLeftU32x8` / `ScalarShiftRightU32x8`，作为这一轮 `facade hygiene` 的 source truth 一部分固定下来。`riscvv.register.inc` 里的 `ExtractI64x4` / `ExtractI32x8` / `ExtractI32x16` 继续保留显式 asm-gated 结构，因为 `register-truthfulness` 把这种分支形状也视为 ownership 真相的一部分。当前 fresh 结果是 `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=riscvv ... miswired=0 strict=1`，以及 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=riscvv slots=10 issues=0 status=ok`
+- `RISCVV facade/register hygiene`：`riscvv.facade.inc` 现在明确把 scalar-pass-through facade helper 留在 base scalar slot，不再伪造 backend-local 包装层；其中 `RISCVVShiftLeftU32x8` / `RISCVVShiftRightU32x8` 当前锁定为 `*Asm + Pascal guard wrapper` 结构，合法 `count` 走 backend asm，invalid `count` 才回退 `ScalarShiftLeftU32x8` / `ScalarShiftRightU32x8`，这才是这一轮 `facade hygiene` 的 source truth。与此同时，`DispatchAPI` 新增 `Test_RISCVV_KeyOwnedWideSlots_Stay_BackendOwned`，把 `AndI64x8` / `NotI64x8` / `ShiftLeftI32x16` / `ShiftRightArithI64x4` / `SubI32x8` / `MinU32x8` / `AddI64x4` / `MulI32x16` / `SubI64x8` 从“无 scalar 例外断言”升级成 dedicated source truth，`check_nonx86_key_slot_audit.py` 也会对这些槽位 fail-close，防止下轮再退回“靠默认推断 backend_owned”。`riscvv.register.inc` 里的 `ExtractF32x16` / `ExtractF32x8` / `ExtractF64x2` / `ExtractF64x4` / `ExtractI32x4` / `ExtractI32x8` / `ExtractI32x16` / `ExtractI64x2` / `ExtractI64x4` 继续保留显式 asm-gated 结构，因为 `register-truthfulness` 把这种分支形状也视为 ownership 真相的一部分。当前 fresh 结果是 `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=riscvv assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 scalar_passthrough=0 no_def=0 miswired=0 strict=1`，以及 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=riscvv slots=10 issues=0 status=ok`
 - `RISCVV_ABI_SHAPE_SUMMARY`：宽向量 direct-return asm 已统一回到 hidden-result-pointer ABI 形状，`a0` 只保留 Result 指针语义
 - `NONX86_NATIVE_EVIDENCE_SUMMARY`：native non-x86 evidence verifier 已有正式入口，可在 `x86_64` 上对归档 evidence 做 fail-close 校验
 - `docs/fafafa.core.simd.implementation-matrix.md`：当前 implementation 主线的 working ledger，固定记录 backend/slot/契约/source truth/runtime evidence/next action，避免下轮再回到“看起来好像没问题”的散点审查
 - `docs/plans/2026-04-14-simd-only-patch-bundle.md`：当前 `simd` 收口波次的 patch bundle 清单，明确区分“x86 bounded frontier 最小集”和“SIMD 主线完整集合”，避免在脏工作区里把非 SIMD 改动误混进提交
-- `impl-smoke-x86`：当前 x86 bounded frontier 的高频 smoke 入口，固定重跑 `DispatchAPI` 里已经补齐的 `AVX512 shift boundary` / `AVX2 wide select` / `AVX2 wide FMA composition` proof；它只负责快速确认 x86 证明面没有 fresh 漂移，不替代 `closeout-host-local`
+- `impl-smoke-x86`：当前 x86 bounded frontier 的高频 smoke 入口，固定按 `impl-smoke-sse2 -> DispatchAPI bounded frontier` 的顺序重跑 `SSE2 structure/contracts smoke`、`SSE2 compare/vector-math parity`、`SSE3/SSSE3/SSE4.x incremental clone + semantic parity contract`、`AVX512 shift boundary`、`AVX2 wide select`、`AVX2 wide FMA composition` proof；它只负责快速确认 x86 证明面没有 fresh 漂移，不替代 `closeout-host-local`
 - `DataPlane wide snapshot`：`Test_DataPlane_WideBitwiseShiftSnapshot_Follows_CurrentDispatchSemantics` / `Test_DataPlane_WideArithmeticMinMaxSnapshot_Follows_CurrentDispatchSemantics` 已覆盖 `I64x8 bitwise` 与 wide arithmetic/minmax 的高价值 dataplane 快照，不再只盯抽样老点位
 - `qemu-nonx86-evidence`：`linux/arm64` / `linux/riscv64` fresh 通过；runner 现在固定使用隔离 `SIMD_OUTPUT_ROOT`，单次 build 后复用 binary 继续跑 `TTestCase_NonX86BackendParity,TTestCase_DataPlane` 与 backend bench，已规避旧链路里 `arm64` 重复 full rebuild 触发的 `ppca64` `FIRSTCALLPARAN` ICE
-- `NONX86_IMPL_AUDIT_SUMMARY`：新的聚合实现审计入口已把 helper semantics、key-slot audit、wiring-sync、RISCVV ABI shape、register truthfulness strict 和 targeted release suite 收成单条命令
-- `SIMD_IMPL_AUDIT_FULL_SUMMARY`：实现深审主入口现在会固定先复验 `impl-smoke-x86` 的 bounded frontier proof，再继续 `impl-audit-nonx86`；后续不再建议手工记忆“先 x86 还是先 non-x86”
+- `NONX86_IMPL_AUDIT_SUMMARY`：新的聚合实现审计入口已把 helper semantics、key-slot audit、wiring-sync、RISCVV ABI shape、register truthfulness strict、targeted release suite 与 `nonx86-ieee754` 收成单条命令；当前默认口径应按 `steps=7 ... status=ok` 理解，只有显式启用 native evidence verifier 时才会继续加一条验证步骤
 - `impl-smoke-nonx86`：新增轻量日常入口，定位是高频实现回归；它只负责尽快暴露 non-x86 source/runtime contract 的 fresh 漂移，不替代 `impl-audit-nonx86` 的完整实现审计，也不替代 `closeout-host-local` 的 strict closeout 证明
 - `AVX2 public ABI capability contract`：x86 bounded frontier 这一轮没有挖到新的实现红点，收口点转为接口证据补齐。`DispatchAPI` 现在显式覆盖 `sbAVX2` 的 `scFMA` / `scShuffle` 正向暴露，以及 `SetVectorAsmEnabled(False)` 后 public ABI `CapabilityBits` 清零契约；后续不再需要从 registered-table 的 `BackendInfo.Capabilities` 间接推断 public ABI 是否同步
 - `x86 implementation frontier`：这一轮 bounded implementation 专审没有 fresh 复现新的 AVX512 / AVX2 实现 bug，但把最薄弱的实现证明面补强了：
+  - `SSE2 structure/contracts smoke`：`BuildOrTest.sh` 现在提供 `impl-smoke-sse2`，把 `sse2-structure-check`、`TTestCase_SSE2Contracts`、`TTestCase_BackendSmoke`、`TTestCase_RuntimeAPI`、`TTestCase_DataPlane` 收成一条 release smoke；`impl-smoke-x86` 也已把它纳入固定前置步骤。当前 fresh 结果是 `SSE2_STRUCTURE_SUMMARY ... status=ok` 和 `SSE2_IMPL_SMOKE_SUMMARY steps=5 ... status=ok`，意味着 `SSE2` 当前这波 root/register/select/wide include 重排不再只是本地改动，而是带结构 contract 和 runtime contract 的正式证据
+  - `SSE2 I64x2 compare parity`：`DispatchAPI` 新增 `Test_SSE2_I64x2_Compare_Use_NonScalar_Impl_And_Keep_Parity`，现在会强制 `sbSSE2` 并直接探测 `CmpEqI64x2 / CmpGtI64x2` 的 runtime parity，尤其覆盖 `same-high-word + unsigned-low` 这类最容易在 64-bit compare 分解里出错的 edge mask。当前 fresh 结果没有复现新的 compare drift，但 base backend 的这条实现路径已经从“只有通用 facade parity”升级成了带强制 backend 的直接证据
+  - `SSE2 F32 vector-math parity`：`DispatchAPI` 新增 `Test_SSE2_F32VectorMath_Use_NonScalar_Impl_And_Keep_Parity`，现在会强制 `sbSSE2` 并直接探测 `RoundF32x4 / DotF32x3 / CrossF32x3` 的 runtime parity；proof 使用 exact half-step round 输入，以及带 lane-3 payload 的 dot/cross 输入，明确锁住 `RoundF32x4` 的 signed half-step 行为和 `Dot/CrossF32x3` 只消费前三个 lane 的语义。当前 fresh 结果没有复现新的 vector-math drift，base backend 这组代表性 math primitive 也不再只有 facade 级旁证
+  - `SSE3 / SSSE3 / SSE4.1 / SSE4.2 incremental clone + semantic parity contracts`：`DispatchAPI` 现在不只钉住小型增量 x86 backend 的 representative ownership/inheritance，还补上了 exact-input runtime parity。`SSE3` 现在同时验证 `ReduceAddF32x4 / DotF32x4 / NormalizeF32x4`（含 zero-vector）对 scalar 的运行时结果；`SSSE3` 验证 `MinI8x16 / MaxI8x16`；`SSE4.1` 现在验证 `MulI32x4 / DotF32x4 / RoundF32x4 / SelectF32x4 / NormalizeF32x4 / NormalizeF32x3 / CmpEqI64x2`；`SSE4.2` 验证 `CmpGtI64x2`。这轮 fresh red 真实抓出了三个实现问题并已修复：`SSE41SelectF32x4` 的 mask polarity 反了，`SSE3NormalizeF32x4/F32x3` 仍停留在 `rsqrtps` 近似路径而没有走与 scalar 一致的精确长度除法路径，以及 `SSE41NormalizeF32x4/F32x3` 同样还保留近似 `rsqrtps` 路径并缺少 zero-vector 的 scalar 等价分支
   - `AVX512 U32x16/U64x8`：`DispatchAPI` 新增 `Test_AVX512_U32x16_U64x8_ShiftBoundary_Contracts`，把 `shift boundary` 的 source truth（invalid-count guard + zero-fill）和运行时 `0 / width-1 / width` parity 一起钉住
   - `AVX2 wide implementation`：`DispatchAPI` 新增 `Test_AVX2_WideSelect_Parity_WithScalar_When_VectorAsmEnabled`，把 `SelectF32x16` / `SelectF64x8` 从原来的 `dispatch == facade` 自证，升级为对 `ScalarSelectF32x16` / `ScalarSelectF64x8` 的直接 parity proof
   - `AVX2 wide FMA composition`：`DispatchAPI` 新增 `Test_AVX2_WideFma_ExactInputs_FollowsHalfComposition`，把 `FmaF32x16` / `FmaF64x8` 明确钉在 `register source truth + AVX2FmaF32x8/F64x4 lo/hi composition + exact-input runtime parity` 上，不再只停留在 wide facade 自证
+  - 2026-04-19 fresh rerun `X86_IMPL_SMOKE_SUMMARY steps=2 ... status=ok`，说明这条 bounded frontier 目前仍处于 hold-green 状态
   - 当前结论应按 “fresh green + proof strengthened + stop condition met” 理解，而不是再继续发散翻 x86 全家桶
 - implementation aggregate audit：
 
 ```bash
-FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-full
+FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86
 ```
 
 - host-local strict closeout：
@@ -134,9 +133,11 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-
 SIMD_QEMU_PLATFORMS='linux/arm64 linux/riscv64' SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local
 ```
 
+2026-04-19 fresh rerun：`[CLOSEOUT-HOST-LOCAL] OK`
+
 - latest fresh QEMU non-x86 evidence：
-  - runtime summary: [qemu-multiarch-20260415-231755-781545/summary.md](/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-freeze-closeout-20260415/tests/fafafa.core.simd/logs/qemu-multiarch-20260415-231755-781545/summary.md)
-  - cpuinfo summary: [qemu-multiarch-20260415-232437-788450/summary.md](/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-freeze-closeout-20260415/tests/fafafa.core.simd/logs/qemu-multiarch-20260415-232437-788450/summary.md)
+  - runtime summary: [qemu-multiarch-20260419-012508-1690172/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260419-012508-1690172/summary.md)
+  - cpuinfo summary: [qemu-multiarch-20260419-013630-1748481/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260419-013630-1748481/summary.md)
 
 - legacy targeted parity smoke 仍保留为显式诊断入口：`TTestCase_NonX86BackendParity,TTestCase_DirectDispatch,TTestCase_DataPlane`
 
@@ -149,23 +150,35 @@ FAFAFA_BUILD_MODE=Release SIMD_ENABLE_NEON_BACKEND=1 SIMD_ENABLE_RISCVV_BACKEND=
 这一轮不只是补注释。当前 worktree 已经落地了经 `release + impl-audit + QEMU evidence` 支撑的 `ABI / wiring / shift` 修正：`riscvv.pas` 的 hidden-result-pointer ABI 形状、`riscvv.register.inc` / `riscvv.facade.inc` 的 ownership/wiring 收口，以及 `neon.pas` 的 shift/select hygiene 都已经进入 fresh green 状态。
 
 这批结果当前证明的是：`x86_64` 主机上的 source/runtime contract、dispatch wiring、scalar parity 没看到 fresh 漂移。
-`impl-audit-full` / `impl-audit-nonx86` / `closeout-host-local` 现在把 x86 bounded frontier、host-local implementation audit 与 strict closeout 固化成正式入口；其中 `closeout-host-local` 的固定顺序已经显式收敛到 `impl-audit-full -> gate-strict`。
+`impl-audit-nonx86` 和 `closeout-host-local` 现在把 host-local implementation audit / strict closeout 固化成正式入口。
 QEMU non-x86 runtime evidence 现在就是当前 non-x86 收口主线的一部分。
-当前项目口径下，只要 `qemu-nonx86-evidence` 在 `linux/arm64` / `linux/riscv64` fresh 通过，就把它作为当前 arm64 / riscv64 closeout 的充分证明；这轮最新 fresh 证据就是上面的 `qemu-multiarch-20260415-231755-781545` / `qemu-multiarch-20260415-232437-788450`。没有硬件时，不再把 native host 当成 blocker。native host evidence 仍可补充，但不再是这轮收口的前置条件。
+当前项目口径下，只要 `qemu-nonx86-evidence` 在 `linux/arm64` / `linux/riscv64` fresh 通过，就把它作为当前 arm64 / riscv64 closeout 的充分证明；这轮最新 fresh 证据就是上面的 `qemu-multiarch-20260419-012508-1690172` / `qemu-multiarch-20260419-013630-1748481`。没有硬件时，不再把 native host 当成 blocker。native host evidence 仍可补充，但不再是这轮收口的前置条件。
+
+## 2026-04-28 RVV correctness closeout facts
+
+- `Phase 83 / 2026-04-28 RISCVV opcode-ready runtime correctness closeout` 当前应按已收口理解，不再停留在“source-side 看起来合理”的阶段
+- fresh ABI shape 证据：`python3 tests/fafafa.core.simd/check_riscvv_abi_shape.py --summary-line` -> `RISCVV_ABI_SHAPE_SUMMARY direct_functions=165 explicit_checks=22 missing_result_store=0 suspicious_a0_loads=0 status=ok`
+- fresh runtime 证据：`SIMD_QEMU_RETRIES=1 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh riscvv-opcode-lane` -> `PASS`
+  - summary: [rvv-opcode-lane-20260428-050438/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/rvv-opcode-lane-20260428-050438/summary.md)
+- `src/fafafa.core.simd.riscvv.pas` 里的 `RISCVVAndNotI16x8` / `RISCVVAndNotI8x16` / `RISCVVAndNotU16x8` / `RISCVVAndNotU8x16` 现已收成安全 wrapper / 本地循环，统一语义固定为 `(~a) & b`；不要再把旧的 `ScalarAndNotU16x8 = a & ~b` helper 当作 parity 可复用来源
+- `RISCVVCmpNeU32x8` / `RISCVVCmpNeU64x4` 已修正 LMUL>1 第二源寄存器重叠问题，当前口径是 `v1 -> v2`，不再接受旧的重叠写法
+- `TMask8` / `TMask16` compare 返回值 normalization 已按整族补齐：`TMask8` 用 `andi a0, a0, 255`，`TMask16` 用 `slli a0, a0, 48` + `srli a0, a0, 48`
+- wide rounding ownership 现在统一按 canonical scalar-slot reuse 记录：`wide Floor/Ceil/Round/Trunc` 都走 canonical scalar-slot reuse，不再保留 `wide Trunc backend-owned` 的旧说法
+- `RISCVVShiftLeftU32x8` / `RISCVVShiftRightU32x8` 的 source truth 也同步固定为 `*Asm + Pascal guard wrapper`；只有 invalid `count` 才回退 scalar，这和上面的 opcode-ready runtime 结果是一套口径
 
 ## Task 2 / Task 3 closeout facts (2026-04-14 fresh)
 
 - `Task 2 / shift-bitwise`：
-  - helper semantics：`NONX86_HELPER_SEMANTICS_SUMMARY checks=41 status=ok`
-  - implementation audit：`NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - helper semantics：`NONX86_HELPER_SEMANTICS_SUMMARY checks=45 status=ok`
+  - implementation audit（按当前 runner 口径回读）：`NONX86_IMPL_AUDIT_SUMMARY steps=7 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
   - qemu runtime summary: [qemu-multiarch-20260414-083827-1057268/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260414-083827-1057268/summary.md)
   - closeout runtime summary: [qemu-multiarch-20260414-085109-1103235/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260414-085109-1103235/summary.md)
   - closeout cpuinfo summary: [qemu-multiarch-20260414-085836-1128552/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260414-085836-1128552/summary.md)
   - 当前结论：boundary semantics、invalid-count fallback 和 data-plane snapshot 已具备 fresh closeout 证据；下一轮只需要 `hold green`
 - `Task 3 / arithmetic-minmax-mul`：
   - targeted release suites：`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_DirectDispatch,TTestCase_DataPlane` -> `[TEST] OK`
-  - helper semantics：`NONX86_HELPER_SEMANTICS_SUMMARY checks=41 status=ok`
-  - implementation audit：`NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - helper semantics：`NONX86_HELPER_SEMANTICS_SUMMARY checks=45 status=ok`
+  - implementation audit（按当前 runner 口径回读）：`NONX86_IMPL_AUDIT_SUMMARY steps=7 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
   - qemu runtime summary: [qemu-multiarch-20260414-083827-1057268/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260414-083827-1057268/summary.md)
   - closeout runtime summary: [qemu-multiarch-20260414-085109-1103235/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260414-085109-1103235/summary.md)
   - closeout cpuinfo summary: [qemu-multiarch-20260414-085836-1128552/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260414-085836-1128552/summary.md)
@@ -174,13 +187,13 @@ QEMU non-x86 runtime evidence 现在就是当前 non-x86 收口主线的一部�
     - `DirectDispatch` / `DataPlane`：wide arithmetic/minmax 与 dataplane snapshot 已覆盖当前高 ROI family
   - 当前结论：`arithmetic/minmax/mul` 已具备 fresh closeout 证据；下一轮只需要 `hold green`
 - `NEON hygiene`：
-  - `src/fafafa.core.simd.neon.pas` 当前除了 Task 2 主线，还顺带收了 `shift/select/facade hygiene`
+  - `src/fafafa.core.simd.neon.pas` 当前除了 Task 2 主线，还顺带收了 `shift/select/facade hygiene`，并补齐了 64-bit lane 左移对 `Integer` count 的显式 zero-extension
   - 这部分现在已经是 green，但如果后续想把提交历史切得更干净，建议单列成 `NEON shift/select hygiene` 一组，而不是再和 `RISCVV ABI` 收口混写
 - `RISCVV facade/register hygiene`：
   - `src/fafafa.core.simd.riscvv.facade.inc` / `src/fafafa.core.simd.riscvv.register.inc` 这一轮只做了结构收口，不改 public API / ABI，也不改 key-slot ownership 结论
-  - `RISCVVShiftLeftU32x8` / `RISCVVShiftRightU32x8` 现在显式回到 `ScalarShiftLeftU32x8` / `ScalarShiftRightU32x8`；这不是“暂时能跑”的宽松写法，而是当前 `RISCVV facade hygiene` 明确锁定的 source truth
-  - fresh checker 证明 `ExtractI64x4` / `ExtractI32x8` / `ExtractI32x16` 不能随手折叠成 unconditional binding；当前必须保留显式 asm-gated 结构，`register-truthfulness` 才会继续认定它们是对的
-  - 当前 fresh 结果：`NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=riscvv assignments=467 ... miswired=0 strict=1`，`NONX86_KEY_SLOT_AUDIT_SUMMARY backends=riscvv slots=10 issues=0 status=ok`
+  - `RISCVVShiftLeftU32x8` / `RISCVVShiftRightU32x8` 当前应按 `*Asm + Pascal guard wrapper` 理解：合法 `count` 走 backend asm，invalid `count` 才回退 `ScalarShiftLeftU32x8` / `ScalarShiftRightU32x8`；这不是“暂时能跑”的宽松写法，而是当前 `RISCVV facade hygiene` 明确锁定的 source truth
+  - fresh checker 证明 `ExtractF32x16` / `ExtractF32x8` / `ExtractF64x2` / `ExtractF64x4` / `ExtractI32x4` / `ExtractI32x8` / `ExtractI32x16` / `ExtractI64x2` / `ExtractI64x4` 不能随手折叠成 unconditional binding；当前必须保留显式 asm-gated 结构，`register-truthfulness` 才会继续认定它们是对的
+  - 当前 fresh 结果：`NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=riscvv assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 scalar_passthrough=0 no_def=0 miswired=0 strict=1`，`NONX86_KEY_SLOT_AUDIT_SUMMARY backends=riscvv slots=10 issues=0 status=ok`
 - 对 `x86_64` worktree 来说：
   - `checker ok` 和 `compile/list-suites ok` 仍不能代替 fresh non-x86 runtime evidence
   - 文档里要继续把 “source-side proof” 和 “QEMU/native runtime proof” 分开写
@@ -207,7 +220,7 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate
 - dispatch / cpuinfo 的局部修改
 - backend 小范围修正
 
-其中 `impl-smoke-x86` 负责当前 x86 bounded frontier 的高频证明回归，`impl-smoke-nonx86` 负责 non-x86 helper semantics / wiring ownership / targeted parity 的高频回归；要做完整实现审计或 strict closeout，仍然分别看 `impl-audit-full` / `closeout-host-local`。
+其中 `impl-smoke-x86` 负责当前 x86 bounded frontier 的高频证明回归，`impl-smoke-nonx86` 负责 non-x86 helper semantics / wiring ownership / targeted parity 的高频回归；要做完整实现审计或 strict closeout，仍然分别看 `impl-audit-nonx86` / `closeout-host-local`。
 
 #### `cpuinfo` 便携路径
 
@@ -235,6 +248,16 @@ bash tests/fafafa.core.simd/BuildOrTest.sh experimental-intrinsics
 
 #### 发布前 / closeout
 
+`closeout-release` 现在是完整发布收口的官方主入口：
+
+```bash
+FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152
+```
+
+它会按 `impl-smoke-x86 -> closeout-host-local -> win-evidence-preflight -> win-evidence-via-gh -> freeze-status` 的固定顺序收口；如果你只是做阶段性实现收口、手工 Windows 诊断，或只想单独复验某一段证据链，再退回下面这些拆分命令。
+
+其中 `closeout-host-local` 现在默认把 `SIMD_GATE_QEMU_EXPERIMENTAL_COMPILER_READY=1` 打开，把 `qemu-experimental-compiler-ready` 作为 release closeout 的正式 gate step；`closeout-release` 最后的 `freeze-status` 也会默认带上 `SIMD_FREEZE_REQUIRE_QEMU_EXPERIMENTAL_COMPILER_READY=1` 做 fail-close 判定。
+
 如果目标是当前 Linux/macOS worktree 的 host-local strict closeout，优先直接跑：
 
 Run:
@@ -242,7 +265,14 @@ Run:
 SIMD_QEMU_PLATFORMS='linux/arm64 linux/riscv64' SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local
 ```
 
-`closeout-host-local` 的固定顺序是 `impl-audit-full -> gate-strict`。其中 `impl-audit-full` 会先复验 `impl-smoke-x86` 的 bounded frontier proof，再继续 `impl-audit-nonx86`；当前默认它会把 `SIMD_GATE_QEMU_NONX86_EVIDENCE=1` 打开，并把 `SIMD_GATE_REQUIRE_NONX86_NATIVE_EVIDENCE=0` 降为可选，同时继续把 Windows evidence requirement 降到可选，因此适合当前 `x86_64` 主机上的实现层阶段收口。
+`closeout-host-local` 的固定顺序是 `impl-audit-nonx86 -> gate-strict`。当前默认它会把 `SIMD_GATE_QEMU_NONX86_EVIDENCE=1` 打开，并把 `SIMD_GATE_REQUIRE_NONX86_NATIVE_EVIDENCE=0` 降为可选，同时继续把 Windows evidence requirement 降到可选，因此适合当前 `x86_64` 主机上的实现层阶段收口。
+这条 host-local 路径的完成信号应配套看：
+
+```bash
+SIMD_FREEZE_REQUIRE_QEMU_EXPERIMENTAL_COMPILER_READY=1 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-linux
+```
+
+不要把 cross-platform `freeze-status` 直接当成这条 host-local 命令的完成信号；cross-platform freeze 还会额外要求 fresh Windows evidence，并默认按 `linux/arm/v7 linux/arm64 linux/riscv64` 检查 `qemu-cpuinfo-nonx86-evidence` 的平台覆盖。
 如果目标是完整发布门禁 / Windows closeout 主线，再跑：
 
 Run:

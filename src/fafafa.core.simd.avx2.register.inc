@@ -707,6 +707,18 @@ begin
 end;
 
 initialization
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.avx2:init:before-register');
+  Flush(StdErr);
+  {$ENDIF}
   RegisterAVX2Backend;
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.avx2:init:after-register');
+  Flush(StdErr);
+  {$ENDIF}
   // ✅ P1-D: Register rebuilder callback for VectorAsmEnabled changes
   RegisterBackendRebuilder(sbAVX2, @RegisterAVX2Backend);
+  {$IFDEF SIMD_INIT_TRACE}
+  WriteLn(StdErr, '[INIT-TRACE] simd.avx2:init:after-rebuilder');
+  Flush(StdErr);
+  {$ENDIF}

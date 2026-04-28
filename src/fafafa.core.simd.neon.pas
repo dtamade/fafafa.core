@@ -886,6 +886,8 @@ asm
 end;
 
 // === I64x2 Shift Operations ===
+// Keep the raw NEON lane shifts in *Asm helpers and let the public wrappers
+// preserve the published invalid-count fallback semantics.
 
 function NEONShiftLeftI64x2(const a: TVecI64x2; count: Integer): TVecI64x2; assembler; nostackframe;
 asm
@@ -893,6 +895,9 @@ asm
   fmov  d2, x1
   ins   v0.d[1], v2.d[0]
 
+  // ushl v?.2d consumes 64-bit lane counts; normalize the public Integer input
+  // before duplicating it into the shift vector.
+  mov   w2, w2
   dup   v1.2d, x2
   ushl   v0.2d, v0.2d, v1.2d
 
@@ -900,7 +905,7 @@ asm
   umov  x1, v0.d[1]
 end;
 
-function NEONShiftRightI64x2(const a: TVecI64x2; count: Integer): TVecI64x2; assembler; nostackframe;
+function NEONShiftRightI64x2Asm(const a: TVecI64x2; count: Integer): TVecI64x2; assembler; nostackframe;
 asm
   fmov  d0, x0
   fmov  d2, x1
@@ -915,7 +920,14 @@ asm
   umov  x1, v0.d[1]
 end;
 
-function NEONShiftRightArithI64x2(const a: TVecI64x2; count: Integer): TVecI64x2; assembler; nostackframe;
+function NEONShiftRightI64x2(const a: TVecI64x2; count: Integer): TVecI64x2;
+begin
+  if (count < 0) or (count >= 64) then
+    Exit(ScalarShiftRightI64x2(a, count));
+  Result := NEONShiftRightI64x2Asm(a, count);
+end;
+
+function NEONShiftRightArithI64x2Asm(const a: TVecI64x2; count: Integer): TVecI64x2; assembler; nostackframe;
 asm
   fmov  d0, x0
   fmov  d2, x1
@@ -930,12 +942,20 @@ asm
   umov  x1, v0.d[1]
 end;
 
+function NEONShiftRightArithI64x2(const a: TVecI64x2; count: Integer): TVecI64x2;
+begin
+  if (count < 0) or (count >= 64) then
+    Exit(ScalarShiftRightArithI64x2(a, count));
+  Result := NEONShiftRightArithI64x2Asm(a, count);
+end;
+
 function NEONShiftLeftU64x2(const a: TVecU64x2; count: Integer): TVecU64x2; assembler; nostackframe;
 asm
   fmov  d0, x0
   fmov  d2, x1
   ins   v0.d[1], v2.d[0]
 
+  mov   w2, w2
   dup   v1.2d, x2
   ushl   v0.2d, v0.2d, v1.2d
 
@@ -943,7 +963,7 @@ asm
   umov  x1, v0.d[1]
 end;
 
-function NEONShiftRightU64x2(const a: TVecU64x2; count: Integer): TVecU64x2; assembler; nostackframe;
+function NEONShiftRightU64x2Asm(const a: TVecU64x2; count: Integer): TVecU64x2; assembler; nostackframe;
 asm
   fmov  d0, x0
   fmov  d2, x1
@@ -956,6 +976,17 @@ asm
 
   umov  x0, v0.d[0]
   umov  x1, v0.d[1]
+end;
+
+function NEONShiftRightU64x2(const a: TVecU64x2; count: Integer): TVecU64x2;
+begin
+  if (count < 0) or (count >= 64) then
+  begin
+    Result.u[0] := 0;
+    Result.u[1] := 0;
+    Exit;
+  end;
+  Result := NEONShiftRightU64x2Asm(a, count);
 end;
 
 // === I16x8 Shift Operations ===
@@ -1447,7 +1478,7 @@ asm
   ldp   q0, q1, [x0]
   // ushl v?.2d consumes 64-bit lane counts; keep the public Integer count
   // zero-extended before duplicating it into the NEON shift vector.
-  uxtw  x1, w1
+  mov   w1, w1
   dup   v2.2d, x1
   ushl   v0.2d, v0.2d, v2.2d
   ushl   v1.2d, v1.2d, v2.2d
@@ -1500,13 +1531,14 @@ end;
 function NEONShiftLeftU64x4(const a: TVecU64x4; count: Integer): TVecU64x4; assembler; nostackframe;
 asm
   ldp   q0, q1, [x0]
+  mov   w1, w1
   dup   v2.2d, x1
   ushl   v0.2d, v0.2d, v2.2d
   ushl   v1.2d, v1.2d, v2.2d
   stp   q0, q1, [x8]
 end;
 
-function NEONShiftRightU64x4(const a: TVecU64x4; count: Integer): TVecU64x4; assembler; nostackframe;
+function NEONShiftRightU64x4Asm(const a: TVecU64x4; count: Integer): TVecU64x4; assembler; nostackframe;
 asm
   ldp   q0, q1, [x0]
   neg   w1, w1
@@ -1515,6 +1547,13 @@ asm
   ushl   v0.2d, v0.2d, v2.2d
   ushl   v1.2d, v1.2d, v2.2d
   stp   q0, q1, [x8]
+end;
+
+function NEONShiftRightU64x4(const a: TVecU64x4; count: Integer): TVecU64x4;
+begin
+  if (count < 0) or (count >= 64) then
+    Exit(ScalarShiftRightU64x4(a, count));
+  Result := NEONShiftRightU64x4Asm(a, count);
 end;
 
 // === I64x4 Bitwise Operations (256-bit = 2x128-bit NEON) ===
@@ -2291,6 +2330,20 @@ end;
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 {$I fafafa.core.simd.neon.scalar_fallback.inc}
+
+// These helpers remain part of the backend contract even when inline asm is
+// enabled: autowrap relies on the U64x2 compare shims even under asm-enabled
+// builds.
+{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+{$I fafafa.core.simd.neon.shared_utility.inc}
+{$ELSE}
+{$I fafafa.core.simd.neon.scalar.utility.inc}
+{$ENDIF}
+{$I fafafa.core.simd.neon.scalar.autowrap.inc}
+
+{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+{$I fafafa.core.simd.neon.shared_wide_memory_asm.inc}
+{$ENDIF}
 
 {$I fafafa.core.simd.neon.facade_platform.inc}
 

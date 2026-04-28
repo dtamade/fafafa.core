@@ -2915,23 +2915,53 @@ end;
 
 // I64x2 逻辑左移 (逐 lane)
 function AVX2ShiftLeftI64x2(const a: TVecI64x2; count: Integer): TVecI64x2;
+var
+  LCount: Integer;
 begin
-  Result.i[0] := a.i[0] shl count;
-  Result.i[1] := a.i[1] shl count;
+  LCount := count;
+  if (LCount < 0) or (LCount >= 64) then
+  begin
+    Result.i[0] := 0;
+    Result.i[1] := 0;
+    Exit;
+  end;
+
+  Result.i[0] := a.i[0] shl LCount;
+  Result.i[1] := a.i[1] shl LCount;
 end;
 
 // I64x2 逻辑右移 (逐 lane)
 function AVX2ShiftRightI64x2(const a: TVecI64x2; count: Integer): TVecI64x2;
+var
+  LCount: Integer;
 begin
-  Result.i[0] := Int64(UInt64(a.i[0]) shr count);
-  Result.i[1] := Int64(UInt64(a.i[1]) shr count);
+  LCount := count;
+  if (LCount < 0) or (LCount >= 64) then
+  begin
+    Result.i[0] := 0;
+    Result.i[1] := 0;
+    Exit;
+  end;
+
+  Result.i[0] := Int64(UInt64(a.i[0]) shr LCount);
+  Result.i[1] := Int64(UInt64(a.i[1]) shr LCount);
 end;
 
 // I64x2 算术右移 (逐 lane)
 function AVX2ShiftRightArithI64x2(const a: TVecI64x2; count: Integer): TVecI64x2;
+var
+  LCount: Integer;
 begin
-  Result.i[0] := a.i[0] shr count;
-  Result.i[1] := a.i[1] shr count;
+  LCount := count;
+  if (LCount < 0) or (LCount >= 64) then
+  begin
+    Result.i[0] := 0;
+    Result.i[1] := 0;
+    Exit;
+  end;
+
+  Result.i[0] := SarInt64(a.i[0], LCount);
+  Result.i[1] := SarInt64(a.i[1], LCount);
 end;
 
 function AVX2MinI64x2(const a, b: TVecI64x2): TVecI64x2;
@@ -4581,13 +4611,12 @@ begin
     mov rcx, pB
     mov r8, pR
 
-    vmovups ymm2, [rax]      // ymm2 = mask
+    vmovdqu ymm2, [rax]      // ymm2 = mask
     vmovups ymm0, [rdx]      // ymm0 = a (选择当 mask 非零)
     vmovups ymm1, [rcx]      // ymm1 = b (选择当 mask 为零)
-
-    // vblendvps: 根据掩码最高位选择
-    // 如果 mask[i] 最高位为 1，选择 ymm0[i]，否则选择 ymm1[i]
-    vblendvps ymm0, ymm1, ymm0, ymm2
+    vpxor   ymm3, ymm3, ymm3
+    vpcmpeqd ymm2, ymm2, ymm3
+    vblendvps ymm0, ymm0, ymm1, ymm2
 
     vmovups [r8], ymm0
     vzeroupper
@@ -4609,13 +4638,12 @@ begin
     mov rcx, pB
     mov r8, pR
 
-    vmovupd ymm2, [rax]      // ymm2 = mask
+    vmovdqu ymm2, [rax]      // ymm2 = mask
     vmovupd ymm0, [rdx]      // ymm0 = a (选择当 mask 非零)
     vmovupd ymm1, [rcx]      // ymm1 = b (选择当 mask 为零)
-
-    // vblendvpd: 根据掩码最高位选择
-    // 如果 mask[i] 最高位为 1，选择 ymm0[i]，否则选择 ymm1[i]
-    vblendvpd ymm0, ymm1, ymm0, ymm2
+    vpxor   ymm3, ymm3, ymm3
+    vpcmpeqq ymm2, ymm2, ymm3
+    vblendvpd ymm0, ymm0, ymm1, ymm2
 
     vmovupd [r8], ymm0
     vzeroupper

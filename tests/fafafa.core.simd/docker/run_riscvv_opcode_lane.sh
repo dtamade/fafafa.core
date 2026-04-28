@@ -9,7 +9,8 @@ IMAGE_BASE="${SIMD_QEMU_RVV_IMAGE_BASE:-fafafa-core-simd-test-rvv}"
 IMAGE_TAG="${IMAGE_BASE}:riscv64"
 BUILD_IMAGE="${SIMD_RVV_BUILD_IMAGE:-0}"
 DOCKER_RETRIES="${SIMD_QEMU_RETRIES:-3}"
-LANE_SUITE="${SIMD_RVV_LANE_SUITE:-TTestCase_NonX86IEEE754}"
+LANE_SUITE="${SIMD_RVV_LANE_SUITE:-TTestCase_NonX86IEEE754,TTestCase_NonX86BackendParity}"
+RUNTIME_TEST_ARGS="${SIMD_RVV_RUNTIME_TEST_ARGS:---vector-asm}"
 SKIP_SUITE="${SIMD_RVV_LANE_SKIP_SUITE:-0}"
 SKIP_BENCH="${SIMD_RVV_LANE_SKIP_BENCH:-0}"
 USE_PREBUILT_COMPILER="${SIMD_RVV_USE_PREBUILT_COMPILER:-1}"
@@ -206,6 +207,7 @@ echo "[RVV-LANE] Image: ${IMAGE_TAG}"
 echo "[RVV-LANE] Compile target: ${COMPILE_TARGET}"
 echo "[RVV-LANE] Compile defines: ${COMPILE_DEFINES}"
 echo "[RVV-LANE] Runtime defines: ${RUNTIME_DEFINES}"
+echo "[RVV-LANE] Runtime test args: ${RUNTIME_TEST_ARGS}"
 echo "[RVV-LANE] Prebuilt per-step: compile=${COMPILE_USE_PREBUILT_COMPILER} suite=${SUITE_USE_PREBUILT_COMPILER} bench=${BENCH_USE_PREBUILT_COMPILER}"
 if [[ "${COMPILE_USE_PREBUILT_COMPILER}" != "0" || "${SUITE_USE_PREBUILT_COMPILER}" != "0" || "${BENCH_USE_PREBUILT_COMPILER}" != "0" ]]; then
   echo "[RVV-LANE] Prebuilt compiler: ENABLED"
@@ -272,7 +274,7 @@ fi
 
 SUITE_STATUS="SKIP"
 if [[ "${SKIP_SUITE}" == "0" ]]; then
-  SUITE_CMD="SIMD_FPC_EXTRA_DEFINES='${RUNTIME_DEFINES}' bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=${LANE_SUITE}"
+  SUITE_CMD="SIMD_FPC_EXTRA_DEFINES='${RUNTIME_DEFINES}' bash tests/fafafa.core.simd/docker/run_fpc_tests.sh ${RUNTIME_TEST_ARGS} --suite=${LANE_SUITE}"
   if run_container_step "suite-${LANE_SUITE}" "${SUITE_LOG}" "${SUITE_CMD}" "${SUITE_USE_PREBUILT_COMPILER}"; then
     SUITE_STATUS="PASS"
   else
@@ -298,6 +300,7 @@ fi
   echo "- compile_target: \`${COMPILE_TARGET}\`"
   echo "- compile_defines: \`${COMPILE_DEFINES}\`"
   echo "- runtime_defines: \`${RUNTIME_DEFINES}\`"
+  echo "- runtime_test_args: \`${RUNTIME_TEST_ARGS}\`"
   echo
   echo "## Layered Acceptance"
   echo

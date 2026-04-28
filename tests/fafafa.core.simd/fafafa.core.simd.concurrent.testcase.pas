@@ -27,6 +27,9 @@ uses
   fafafa.core.simd,
   fafafa.core.simd.base,
   fafafa.core.simd.backend.adapter,
+  fafafa.core.simd.dataplane,
+  fafafa.core.simd.direct,
+  fafafa.core.simd.runtime,
   fafafa.core.simd.dispatch;
 
 type
@@ -94,16 +97,28 @@ type
   published
     {** backend adapter ops 与 RegisterBackend 并发读写保护 *}
     procedure Test_Concurrent_BackendOps_RegisterBackend_ReadConsistency;
+    {** raw registered backend dispatch snapshot 与 RegisterBackend 并发读写保护 *}
+    procedure Test_Concurrent_RegisteredBackendDispatchTable_RegisterBackend_ReadConsistency;
+    {** backend adapter ops 与 vector-asm toggle 并发读写保护 *}
+    procedure Test_Concurrent_BackendOps_VectorAsmToggle_ReadConsistency;
     {** current backend 与 RegisterBackend 并发读写保护 *}
     procedure Test_Concurrent_CurrentBackend_RegisterBackend_ReadConsistency;
     {** current backend 与 vector-asm toggle 并发读写保护 *}
     procedure Test_Concurrent_CurrentBackend_VectorAsmToggle_ReadConsistency;
     {** current backend info 与 RegisterBackend 并发读写保护 *}
     procedure Test_Concurrent_CurrentBackendInfo_RegisterBackend_ReadConsistency;
+    {** raw backend info 与 RegisterBackend 并发读写保护 *}
+    procedure Test_Concurrent_BackendInfo_RegisterBackend_ReadConsistency;
+    {** runtime snapshot 与 RegisterBackend 并发读写保护 *}
+    procedure Test_Concurrent_RuntimeSnapshot_RegisterBackend_ReadConsistency;
+    {** runtime snapshot 与 vector-asm toggle 并发读写保护 *}
+    procedure Test_Concurrent_RuntimeSnapshot_VectorAsmToggle_ReadConsistency;
     {** dispatchable helper 与 vector-asm toggle 并发读写保护 *}
     procedure Test_Concurrent_DispatchableHelpers_VectorAsmToggle_ReadConsistency;
     {** current backend info 与 vector-asm toggle 并发读写保护 *}
     procedure Test_Concurrent_CurrentBackendInfo_VectorAsmToggle_ReadConsistency;
+    {** latest dispatch 已 publish 后，runtime/public api 不应继续返回旧 active backend *}
+    procedure Test_Concurrent_LatestDispatch_RuntimeAndPublicApi_VectorAsmToggle_ReadConsistency;
   end;
 
   {** @abstract(首次注册路径的并发回归套件) *}
@@ -429,8 +444,61 @@ type
     property ErrorMsg: string read FErrorMsg;
   end;
 
+  {** raw backend info 只读线程（与 RegisterBackend 写线程并发） *}
+  TBackendInfoReadWorker = class(TThread)
+  private
+    FIterations: Integer;
+    FBackend: TSimdBackend;
+    FExpectedInfoA: TSimdBackendInfo;
+    FExpectedInfoB: TSimdBackendInfo;
+    FSuccess: Boolean;
+    FErrorMsg: string;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(aIterations: Integer; aBackend: TSimdBackend;
+      const aExpectedInfoA, aExpectedInfoB: TSimdBackendInfo);
+    property Success: Boolean read FSuccess;
+    property ErrorMsg: string read FErrorMsg;
+  end;
+
+  {** runtime snapshot 只读线程（与 vector-asm toggle 写线程并发） *}
+  TCurrentRuntimeSnapshotReadWorker = class(TThread)
+  private
+    FIterations: Integer;
+    FExpectedSnapshotA: TSimdRuntimeSnapshot;
+    FExpectedSnapshotB: TSimdRuntimeSnapshot;
+    FSuccess: Boolean;
+    FErrorMsg: string;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(aIterations: Integer;
+      const aExpectedSnapshotA, aExpectedSnapshotB: TSimdRuntimeSnapshot);
+    property Success: Boolean read FSuccess;
+    property ErrorMsg: string read FErrorMsg;
+  end;
+
   {** backend adapter ops 只读线程（与 RegisterBackend 写线程并发） *}
   TBackendOpsReadWorker = class(TThread)
+  private
+    FIterations: Integer;
+    FBackend: TSimdBackend;
+    FExpectedTableA: TSimdDispatchTable;
+    FExpectedTableB: TSimdDispatchTable;
+    FSuccess: Boolean;
+    FErrorMsg: string;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(aIterations: Integer; aBackend: TSimdBackend;
+      const aExpectedTableA, aExpectedTableB: TSimdDispatchTable);
+    property Success: Boolean read FSuccess;
+    property ErrorMsg: string read FErrorMsg;
+  end;
+
+  {** raw registered dispatch snapshot 只读线程（与 RegisterBackend 写线程并发） *}
+  TRegisteredBackendDispatchTableReadWorker = class(TThread)
   private
     FIterations: Integer;
     FBackend: TSimdBackend;
@@ -513,6 +581,20 @@ type
     procedure Execute; override;
   public
     constructor Create(aIterations: Integer; const aExpectedStates: TSimdBackendArrayStates);
+    property Success: Boolean read FSuccess;
+    property ErrorMsg: string read FErrorMsg;
+  end;
+
+  {** 单次 vector-asm 切换线程（用于 latest-dispatch stale 回归） *}
+  TSingleVectorAsmSetWorker = class(TThread)
+  private
+    FEnabled: Boolean;
+    FSuccess: Boolean;
+    FErrorMsg: string;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(aEnabled: Boolean);
     property Success: Boolean read FSuccess;
     property ErrorMsg: string read FErrorMsg;
   end;
@@ -664,6 +746,29 @@ begin
     Result := Result + DescribeBackendArrayLocal(aStates[LIndex]);
   end;
   Result := Result + '}';
+end;
+
+function RuntimeSnapshotMatchesLocal(const aSnapshot,
+  aExpected: TSimdRuntimeSnapshot): Boolean;
+begin
+  Result :=
+    (aSnapshot.CurrentBackend = aExpected.CurrentBackend) and
+    BackendInfoMatchesLocal(aSnapshot.CurrentBackendInfo, aExpected.CurrentBackendInfo) and
+    SameBackendArrayLocal(aSnapshot.RegisteredBackends, aExpected.RegisteredBackends) and
+    SameBackendArrayLocal(aSnapshot.DispatchableBackends, aExpected.DispatchableBackends) and
+    (aSnapshot.BestDispatchableBackend = aExpected.BestDispatchableBackend);
+end;
+
+function DescribeRuntimeSnapshotLocal(const aSnapshot: TSimdRuntimeSnapshot): string;
+begin
+  Result := Format(
+    'current=%d info=(%s) registered=%s dispatchable=%s best=%d',
+    [Ord(aSnapshot.CurrentBackend),
+     DescribeBackendInfoLocal(aSnapshot.CurrentBackendInfo),
+     DescribeBackendArrayLocal(aSnapshot.RegisteredBackends),
+     DescribeBackendArrayLocal(aSnapshot.DispatchableBackends),
+     Ord(aSnapshot.BestDispatchableBackend)]
+  );
 end;
 
 function BuildRegisteredBackendSnapshotLocal(const aBaseRegistered,
@@ -1593,6 +1698,31 @@ begin
   FErrorMsg := '';
 end;
 
+constructor TCurrentRuntimeSnapshotReadWorker.Create(aIterations: Integer;
+  const aExpectedSnapshotA, aExpectedSnapshotB: TSimdRuntimeSnapshot);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FIterations := aIterations;
+  FExpectedSnapshotA := aExpectedSnapshotA;
+  FExpectedSnapshotB := aExpectedSnapshotB;
+  FSuccess := False;
+  FErrorMsg := '';
+end;
+
+constructor TBackendInfoReadWorker.Create(aIterations: Integer; aBackend: TSimdBackend;
+  const aExpectedInfoA, aExpectedInfoB: TSimdBackendInfo);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FIterations := aIterations;
+  FBackend := aBackend;
+  FExpectedInfoA := aExpectedInfoA;
+  FExpectedInfoB := aExpectedInfoB;
+  FSuccess := False;
+  FErrorMsg := '';
+end;
+
 constructor TCurrentBackendReadWorker.Create(aIterations: Integer;
   aExpectedBackendA, aExpectedBackendB: TSimdBackend);
 begin
@@ -1632,6 +1762,19 @@ begin
   FExpectedFlagsEnabledActive := aExpectedFlagsEnabledActive;
   FExpectedFlagsEnabledInactive := aExpectedFlagsEnabledInactive;
   FExpectedFlagsDisabledInactive := aExpectedFlagsDisabledInactive;
+  FSuccess := False;
+  FErrorMsg := '';
+end;
+
+constructor TRegisteredBackendDispatchTableReadWorker.Create(aIterations: Integer;
+  aBackend: TSimdBackend; const aExpectedTableA, aExpectedTableB: TSimdDispatchTable);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FIterations := aIterations;
+  FBackend := aBackend;
+  FExpectedTableA := aExpectedTableA;
+  FExpectedTableB := aExpectedTableB;
   FSuccess := False;
   FErrorMsg := '';
 end;
@@ -1695,6 +1838,68 @@ begin
   end;
 end;
 
+procedure TBackendInfoReadWorker.Execute;
+var
+  LIndex: Integer;
+  LInfo: TSimdBackendInfo;
+begin
+  try
+    for LIndex := 0 to FIterations - 1 do
+    begin
+      if (LIndex and 3) = 0 then
+        ThreadSwitch;
+
+      LInfo := GetBackendInfo(FBackend);
+      if (not BackendInfoMatchesLocal(LInfo, FExpectedInfoA)) and
+         (not BackendInfoMatchesLocal(LInfo, FExpectedInfoB)) then
+      begin
+        FErrorMsg := Format('backend info mixed snapshot at iter %d: got=(%s) expectedA=(%s) expectedB=(%s)',
+          [LIndex, DescribeBackendInfoLocal(LInfo),
+           DescribeBackendInfoLocal(FExpectedInfoA),
+           DescribeBackendInfoLocal(FExpectedInfoB)]);
+        Exit;
+      end;
+    end;
+
+    FSuccess := True;
+  except
+    on E: Exception do
+      FErrorMsg := 'backend info reader exception: ' + E.Message;
+  end;
+end;
+
+procedure TCurrentRuntimeSnapshotReadWorker.Execute;
+var
+  LIndex: Integer;
+  LSnapshot: TSimdRuntimeSnapshot;
+begin
+  try
+    for LIndex := 0 to FIterations - 1 do
+    begin
+      if (LIndex and 3) = 0 then
+        ThreadSwitch;
+
+      LSnapshot := GetCurrentRuntimeSnapshot;
+      if (not RuntimeSnapshotMatchesLocal(LSnapshot, FExpectedSnapshotA)) and
+         (not RuntimeSnapshotMatchesLocal(LSnapshot, FExpectedSnapshotB)) then
+      begin
+        FErrorMsg := Format(
+          'runtime snapshot mixed state at iter %d: got=(%s) expectedA=(%s) expectedB=(%s)',
+          [LIndex,
+           DescribeRuntimeSnapshotLocal(LSnapshot),
+           DescribeRuntimeSnapshotLocal(FExpectedSnapshotA),
+           DescribeRuntimeSnapshotLocal(FExpectedSnapshotB)]);
+        Exit;
+      end;
+    end;
+
+    FSuccess := True;
+  except
+    on E: Exception do
+      FErrorMsg := 'runtime snapshot reader exception: ' + E.Message;
+  end;
+end;
+
 procedure TBackendOpsReadWorker.Execute;
 var
   LIndex: Integer;
@@ -1730,6 +1935,51 @@ begin
   except
     on E: Exception do
       FErrorMsg := 'backend ops reader exception: ' + E.Message;
+  end;
+end;
+
+procedure TRegisteredBackendDispatchTableReadWorker.Execute;
+var
+  LIndex: Integer;
+  LObservedTable: TSimdDispatchTable;
+begin
+  try
+    for LIndex := 0 to FIterations - 1 do
+    begin
+      if (LIndex and 3) = 0 then
+        ThreadSwitch;
+
+      if not TryGetRegisteredBackendDispatchTable(FBackend, LObservedTable) then
+      begin
+        FErrorMsg := Format(
+          'registered backend dispatch snapshot disappeared at iter %d for backend=%d',
+          [LIndex, Ord(FBackend)]);
+        Exit;
+      end;
+
+      if (not DispatchTableRepresentativeSliceMatchesLocal(LObservedTable, FExpectedTableA)) and
+         (not DispatchTableRepresentativeSliceMatchesLocal(LObservedTable, FExpectedTableB)) then
+      begin
+        FErrorMsg := Format(
+          'registered backend dispatch mixed snapshot at iter %d: info=(%s) add=[A:%s B:%s] mul=[A:%s B:%s] addi=[A:%s B:%s] select=[A:%s B:%s]',
+          [LIndex,
+           DescribeBackendInfoLocal(LObservedTable.BackendInfo),
+           BoolToStr(Pointer(LObservedTable.AddF32x4) = Pointer(FExpectedTableA.AddF32x4), True),
+           BoolToStr(Pointer(LObservedTable.AddF32x4) = Pointer(FExpectedTableB.AddF32x4), True),
+           BoolToStr(Pointer(LObservedTable.MulF32x4) = Pointer(FExpectedTableA.MulF32x4), True),
+           BoolToStr(Pointer(LObservedTable.MulF32x4) = Pointer(FExpectedTableB.MulF32x4), True),
+           BoolToStr(Pointer(LObservedTable.AddI32x4) = Pointer(FExpectedTableA.AddI32x4), True),
+           BoolToStr(Pointer(LObservedTable.AddI32x4) = Pointer(FExpectedTableB.AddI32x4), True),
+           BoolToStr(Pointer(LObservedTable.SelectF32x4) = Pointer(FExpectedTableA.SelectF32x4), True),
+           BoolToStr(Pointer(LObservedTable.SelectF32x4) = Pointer(FExpectedTableB.SelectF32x4), True)]);
+        Exit;
+      end;
+    end;
+
+    FSuccess := True;
+  except
+    on E: Exception do
+      FErrorMsg := 'registered backend dispatch reader exception: ' + E.Message;
   end;
 end;
 
@@ -1959,6 +2209,26 @@ begin
   except
     on E: Exception do
       FErrorMsg := 'registered backend list reader exception: ' + E.Message;
+  end;
+end;
+
+constructor TSingleVectorAsmSetWorker.Create(aEnabled: Boolean);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FEnabled := aEnabled;
+  FSuccess := False;
+  FErrorMsg := '';
+end;
+
+procedure TSingleVectorAsmSetWorker.Execute;
+begin
+  try
+    SetVectorAsmEnabled(FEnabled);
+    FSuccess := True;
+  except
+    on E: Exception do
+      FErrorMsg := 'single vector-asm set worker exception: ' + E.Message;
   end;
 end;
 
@@ -3279,6 +3549,205 @@ begin
   end;
 end;
 
+procedure TTestCase_SimdConcurrentFramework.Test_Concurrent_BackendInfo_RegisterBackend_ReadConsistency;
+const
+  WRITER_THREADS = 2;
+  WRITER_ITERATIONS = 160;
+  READER_THREADS = 3;
+  READER_ITERATIONS = 4000;
+var
+  LWriters: array of TBackendRegisterToggleWorker;
+  LReaders: array of TBackendInfoReadWorker;
+  LIndex: Integer;
+  LAllSuccess: Boolean;
+  LErrorMsgs: string;
+  LOldVectorAsm: Boolean;
+  LBackend: TSimdBackend;
+  LOriginalTable: TSimdDispatchTable;
+  LDisabledTable: TSimdDispatchTable;
+  LExpectedEnabledInfo: TSimdBackendInfo;
+  LExpectedDisabledInfo: TSimdBackendInfo;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LWriters := nil;
+  LReaders := nil;
+  LBackend := sbScalar;
+  LOriginalTable := Default(TSimdDispatchTable);
+  LDisabledTable := Default(TSimdDispatchTable);
+  LExpectedEnabledInfo := Default(TSimdBackendInfo);
+  LExpectedDisabledInfo := Default(TSimdBackendInfo);
+
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LBackend := GetCurrentBackend;
+    if LBackend = sbScalar then
+      Exit;
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LOriginalTable) then
+      Exit;
+    if (not LOriginalTable.BackendInfo.Available) or
+       (LOriginalTable.BackendInfo.Capabilities = []) then
+      Exit;
+
+    LExpectedEnabledInfo := GetBackendInfo(LBackend);
+    LDisabledTable := LOriginalTable;
+    LDisabledTable.BackendInfo.Available := False;
+    LDisabledTable.BackendInfo.Capabilities := [];
+
+    RegisterBackend(LBackend, LDisabledTable);
+    LExpectedDisabledInfo := GetBackendInfo(LBackend);
+    RegisterBackend(LBackend, LOriginalTable);
+    AssertTrue('Backend info read contract should see a real metadata change between enabled and disabled snapshots',
+      not BackendInfoMatchesLocal(LExpectedEnabledInfo, LExpectedDisabledInfo));
+
+    SetLength(LWriters, WRITER_THREADS);
+    SetLength(LReaders, READER_THREADS);
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex] := TBackendRegisterToggleWorker.Create(
+        WRITER_ITERATIONS, LBackend, LOriginalTable, LDisabledTable);
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex] := TBackendInfoReadWorker.Create(
+        READER_ITERATIONS, LBackend, LExpectedEnabledInfo, LExpectedDisabledInfo);
+
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Start;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Start;
+
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].WaitFor;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].WaitFor;
+
+    LAllSuccess := True;
+    LErrorMsgs := '';
+    for LIndex := 0 to High(LWriters) do
+      if not LWriters[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LWriters[LIndex].ErrorMsg + '; ';
+      end;
+    for LIndex := 0 to High(LReaders) do
+      if not LReaders[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LReaders[LIndex].ErrorMsg + '; ';
+      end;
+
+    AssertTrue('Concurrent backend-info register/read failed: ' + LErrorMsgs, LAllSuccess);
+  finally
+    if LBackend <> sbScalar then
+      RegisterBackend(LBackend, LOriginalTable);
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Free;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Free;
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_SimdConcurrentFramework.Test_Concurrent_RuntimeSnapshot_RegisterBackend_ReadConsistency;
+const
+  WRITER_THREADS = 2;
+  WRITER_ITERATIONS = 160;
+  READER_THREADS = 3;
+  READER_ITERATIONS = 4000;
+var
+  LWriters: array of TBackendRegisterToggleWorker;
+  LReaders: array of TCurrentRuntimeSnapshotReadWorker;
+  LIndex: Integer;
+  LAllSuccess: Boolean;
+  LErrorMsgs: string;
+  LOldVectorAsm: Boolean;
+  LBackend: TSimdBackend;
+  LOriginalTable: TSimdDispatchTable;
+  LDisabledTable: TSimdDispatchTable;
+  LExpectedEnabledSnapshot: TSimdRuntimeSnapshot;
+  LExpectedDisabledSnapshot: TSimdRuntimeSnapshot;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LWriters := nil;
+  LReaders := nil;
+  LBackend := sbScalar;
+  LOriginalTable := Default(TSimdDispatchTable);
+  LDisabledTable := Default(TSimdDispatchTable);
+  LExpectedEnabledSnapshot := Default(TSimdRuntimeSnapshot);
+  LExpectedDisabledSnapshot := Default(TSimdRuntimeSnapshot);
+
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LBackend := GetCurrentBackend;
+    if LBackend = sbScalar then
+      Exit;
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LOriginalTable) then
+      Exit;
+    if (not LOriginalTable.BackendInfo.Available) or
+       (LOriginalTable.BackendInfo.Capabilities = []) then
+      Exit;
+
+    LExpectedEnabledSnapshot := GetCurrentRuntimeSnapshot;
+    LDisabledTable := LOriginalTable;
+    LDisabledTable.BackendInfo.Available := False;
+    LDisabledTable.BackendInfo.Capabilities := [];
+
+    RegisterBackend(LBackend, LDisabledTable);
+    LExpectedDisabledSnapshot := GetCurrentRuntimeSnapshot;
+    AssertTrue('Disabled current backend should reselect away from the mutated backend',
+      LExpectedDisabledSnapshot.CurrentBackend <> LBackend);
+
+    RegisterBackend(LBackend, LOriginalTable);
+    AssertEquals('Restored backend should become current again',
+      Ord(LBackend), Ord(GetCurrentBackend));
+
+    SetLength(LWriters, WRITER_THREADS);
+    SetLength(LReaders, READER_THREADS);
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex] := TBackendRegisterToggleWorker.Create(
+        WRITER_ITERATIONS, LBackend, LOriginalTable, LDisabledTable);
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex] := TCurrentRuntimeSnapshotReadWorker.Create(
+        READER_ITERATIONS, LExpectedEnabledSnapshot, LExpectedDisabledSnapshot);
+
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Start;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Start;
+
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].WaitFor;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].WaitFor;
+
+    LAllSuccess := True;
+    LErrorMsgs := '';
+    for LIndex := 0 to High(LWriters) do
+      if not LWriters[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LWriters[LIndex].ErrorMsg + '; ';
+      end;
+    for LIndex := 0 to High(LReaders) do
+      if not LReaders[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LReaders[LIndex].ErrorMsg + '; ';
+      end;
+
+    AssertTrue('Concurrent runtime-snapshot register/read failed: ' + LErrorMsgs, LAllSuccess);
+  finally
+    if LBackend <> sbScalar then
+      RegisterBackend(LBackend, LOriginalTable);
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Free;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Free;
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
 procedure TTestCase_SimdConcurrentFramework.Test_Concurrent_BackendOps_RegisterBackend_ReadConsistency;
 const
   WRITER_THREADS = 2;
@@ -3374,6 +3843,196 @@ begin
   finally
     if LBackend <> sbScalar then
       RegisterBackend(LBackend, LOriginalTable);
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Free;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Free;
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_SimdConcurrentFramework.Test_Concurrent_RegisteredBackendDispatchTable_RegisterBackend_ReadConsistency;
+const
+  WRITER_THREADS = 2;
+  WRITER_ITERATIONS = 160;
+  READER_THREADS = 3;
+  READER_ITERATIONS = 4000;
+var
+  LWriters: array of TBackendRegisterToggleWorker;
+  LReaders: array of TRegisteredBackendDispatchTableReadWorker;
+  LIndex: Integer;
+  LAllSuccess: Boolean;
+  LErrorMsgs: string;
+  LOldVectorAsm: Boolean;
+  LBackend: TSimdBackend;
+  LOriginalTable: TSimdDispatchTable;
+  LDisabledTable: TSimdDispatchTable;
+  LScalarTable: TSimdDispatchTable;
+
+  function IsScalarBackedForRepresentativeSlots(const aBackendTable,
+    aScalarTable: TSimdDispatchTable): Boolean;
+  begin
+    Result :=
+      (Pointer(aBackendTable.AddF32x4) = Pointer(aScalarTable.AddF32x4)) and
+      (Pointer(aBackendTable.MulF32x4) = Pointer(aScalarTable.MulF32x4)) and
+      (Pointer(aBackendTable.AddI32x4) = Pointer(aScalarTable.AddI32x4)) and
+      (Pointer(aBackendTable.SelectF32x4) = Pointer(aScalarTable.SelectF32x4));
+  end;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LWriters := nil;
+  LReaders := nil;
+  LBackend := sbScalar;
+  LOriginalTable := Default(TSimdDispatchTable);
+  LDisabledTable := Default(TSimdDispatchTable);
+  LScalarTable := Default(TSimdDispatchTable);
+
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LBackend := GetCurrentBackend;
+    if LBackend = sbScalar then
+      Exit;
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LOriginalTable) then
+      Exit;
+    if not TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable) then
+      Exit;
+    if IsScalarBackedForRepresentativeSlots(LOriginalTable, LScalarTable) then
+      Exit;
+
+    LDisabledTable := LOriginalTable;
+    LDisabledTable.BackendInfo.Available := False;
+    LDisabledTable.BackendInfo.Capabilities := [];
+    LDisabledTable.AddF32x4 := LScalarTable.AddF32x4;
+    LDisabledTable.MulF32x4 := LScalarTable.MulF32x4;
+    LDisabledTable.AddI32x4 := LScalarTable.AddI32x4;
+    LDisabledTable.SelectF32x4 := LScalarTable.SelectF32x4;
+
+    SetLength(LWriters, WRITER_THREADS);
+    SetLength(LReaders, READER_THREADS);
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex] := TBackendRegisterToggleWorker.Create(
+        WRITER_ITERATIONS, LBackend, LOriginalTable, LDisabledTable);
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex] := TRegisteredBackendDispatchTableReadWorker.Create(
+        READER_ITERATIONS, LBackend, LOriginalTable, LDisabledTable);
+
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Start;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Start;
+
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].WaitFor;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].WaitFor;
+
+    LAllSuccess := True;
+    LErrorMsgs := '';
+    for LIndex := 0 to High(LWriters) do
+      if not LWriters[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LWriters[LIndex].ErrorMsg + '; ';
+      end;
+    for LIndex := 0 to High(LReaders) do
+      if not LReaders[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LReaders[LIndex].ErrorMsg + '; ';
+      end;
+
+    AssertTrue('Concurrent registered-backend dispatch snapshot register/read failed: ' + LErrorMsgs,
+      LAllSuccess);
+  finally
+    if LBackend <> sbScalar then
+      RegisterBackend(LBackend, LOriginalTable);
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Free;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Free;
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_SimdConcurrentFramework.Test_Concurrent_BackendOps_VectorAsmToggle_ReadConsistency;
+const
+  WRITER_THREADS = 4;
+  WRITER_ITERATIONS = 4000;
+  READER_THREADS = 6;
+  READER_ITERATIONS = 30000;
+var
+  LWriters: array of TVectorAsmMultiToggleWorker;
+  LReaders: array of TBackendOpsReadWorker;
+  LIndex: Integer;
+  LAllSuccess: Boolean;
+  LErrorMsgs: string;
+  LOldVectorAsm: Boolean;
+  LBackend: TSimdBackend;
+  LExpectedEnabledTable: TSimdDispatchTable;
+  LExpectedDisabledTable: TSimdDispatchTable;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LWriters := nil;
+  LReaders := nil;
+  LBackend := sbScalar;
+  LExpectedEnabledTable := Default(TSimdDispatchTable);
+  LExpectedDisabledTable := Default(TSimdDispatchTable);
+
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LBackend := GetCurrentBackend;
+    if LBackend = sbScalar then
+      Exit;
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LExpectedEnabledTable) then
+      Exit;
+
+    SetVectorAsmEnabled(False);
+    ResetToAutomaticBackend;
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LExpectedDisabledTable) then
+      Exit;
+
+    if DispatchTableRepresentativeSliceMatchesLocal(LExpectedEnabledTable, LExpectedDisabledTable) then
+      Exit;
+
+    SetLength(LWriters, WRITER_THREADS);
+    SetLength(LReaders, READER_THREADS);
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex] := TVectorAsmMultiToggleWorker.Create(WRITER_ITERATIONS, LIndex);
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex] := TBackendOpsReadWorker.Create(
+        READER_ITERATIONS, LBackend, LExpectedEnabledTable, LExpectedDisabledTable);
+
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Start;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Start;
+
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].WaitFor;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].WaitFor;
+
+    LAllSuccess := True;
+    LErrorMsgs := '';
+    for LIndex := 0 to High(LWriters) do
+      if not LWriters[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LWriters[LIndex].ErrorMsg + '; ';
+      end;
+    for LIndex := 0 to High(LReaders) do
+      if not LReaders[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LReaders[LIndex].ErrorMsg + '; ';
+      end;
+
+    AssertTrue('Concurrent backend-ops toggle/read failed: ' + LErrorMsgs, LAllSuccess);
+  finally
     for LIndex := 0 to High(LWriters) do
       LWriters[LIndex].Free;
     for LIndex := 0 to High(LReaders) do
@@ -3541,6 +4200,85 @@ begin
   end;
 end;
 
+procedure TTestCase_SimdConcurrentFramework.Test_Concurrent_RuntimeSnapshot_VectorAsmToggle_ReadConsistency;
+const
+  WRITER_THREADS = 4;
+  WRITER_ITERATIONS = 4000;
+  READER_THREADS = 6;
+  READER_ITERATIONS = 30000;
+var
+  LWriters: array of TVectorAsmMultiToggleWorker;
+  LReaders: array of TCurrentRuntimeSnapshotReadWorker;
+  LExpectedEnabledSnapshot: TSimdRuntimeSnapshot;
+  LExpectedDisabledSnapshot: TSimdRuntimeSnapshot;
+  LIndex: Integer;
+  LAllSuccess: Boolean;
+  LErrorMsgs: string;
+  LOldVectorAsm: Boolean;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LWriters := nil;
+  LReaders := nil;
+  LExpectedEnabledSnapshot := Default(TSimdRuntimeSnapshot);
+  LExpectedDisabledSnapshot := Default(TSimdRuntimeSnapshot);
+
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LExpectedEnabledSnapshot := GetCurrentRuntimeSnapshot;
+
+    SetVectorAsmEnabled(False);
+    ResetToAutomaticBackend;
+    LExpectedDisabledSnapshot := GetCurrentRuntimeSnapshot;
+
+    if RuntimeSnapshotMatchesLocal(LExpectedEnabledSnapshot, LExpectedDisabledSnapshot) then
+      Exit;
+
+    SetLength(LWriters, WRITER_THREADS);
+    SetLength(LReaders, READER_THREADS);
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex] := TVectorAsmMultiToggleWorker.Create(WRITER_ITERATIONS, LIndex);
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex] := TCurrentRuntimeSnapshotReadWorker.Create(
+        READER_ITERATIONS, LExpectedEnabledSnapshot, LExpectedDisabledSnapshot);
+
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Start;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Start;
+
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].WaitFor;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].WaitFor;
+
+    LAllSuccess := True;
+    LErrorMsgs := '';
+    for LIndex := 0 to High(LWriters) do
+      if not LWriters[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LWriters[LIndex].ErrorMsg + '; ';
+      end;
+    for LIndex := 0 to High(LReaders) do
+      if not LReaders[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LReaders[LIndex].ErrorMsg + '; ';
+      end;
+
+    AssertTrue('Concurrent runtime-snapshot toggle/read failed: ' + LErrorMsgs,
+      LAllSuccess);
+  finally
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Free;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Free;
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
 procedure TTestCase_SimdConcurrentFramework.Test_Concurrent_DispatchableHelpers_VectorAsmToggle_ReadConsistency;
 const
   WRITER_THREADS = 4;
@@ -3620,6 +4358,125 @@ begin
       LWriters[LIndex].Free;
     for LIndex := 0 to High(LReaders) do
       LReaders[LIndex].Free;
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_SimdConcurrentFramework.Test_Concurrent_LatestDispatch_RuntimeAndPublicApi_VectorAsmToggle_ReadConsistency;
+const
+  INVALIDATE_DELAY_MS = 100;
+  DISPATCH_POLL_TIMEOUT_MS = 4000;
+var
+  LWriter: TSingleVectorAsmSetWorker;
+  LOldVectorAsm: Boolean;
+  LExpectedEnabledBackend: TSimdBackend;
+  LExpectedDisabledBackend: TSimdBackend;
+  LDispatch: PSimdDispatchTable;
+  LObservedDisabledDispatch: Boolean;
+  LStartedAt: QWord;
+  LActiveBackend: TSimdBackend;
+  LRuntimeBackend: TSimdBackend;
+  LRuntimeSnapshot: TSimdRuntimeSnapshot;
+  LDirectDispatch: PSimdDispatchTable;
+  LApi: PFafafaSimdPublicApi;
+  LPodInfo: TFafafaSimdBackendPodInfo;
+  LExpectedDisabledFlags: TFafafaSimdAbiFlags;
+  LExpectedDisabledCaps: UInt64;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LWriter := nil;
+  LExpectedEnabledBackend := sbScalar;
+  LExpectedDisabledBackend := sbScalar;
+  LDispatch := nil;
+  LObservedDisabledDispatch := False;
+  LExpectedDisabledFlags := 0;
+  LExpectedDisabledCaps := 0;
+
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LExpectedEnabledBackend := GetCurrentBackend;
+
+    SetVectorAsmEnabled(False);
+    ResetToAutomaticBackend;
+    LExpectedDisabledBackend := GetCurrentBackend;
+
+    if LExpectedEnabledBackend = LExpectedDisabledBackend then
+      Exit;
+
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    AssertEquals('enabled precondition current backend should be restored before latest-dispatch stale regression test',
+      Ord(LExpectedEnabledBackend), Ord(GetCurrentBackend));
+
+    SetSimdDataPlaneInvalidateTestDelayMs(INVALIDATE_DELAY_MS);
+    LWriter := TSingleVectorAsmSetWorker.Create(False);
+    LWriter.Start;
+
+    LStartedAt := GetTickCount64;
+    while (GetTickCount64 - LStartedAt) < DISPATCH_POLL_TIMEOUT_MS do
+    begin
+      LDispatch := GetDispatchTable;
+      if (LDispatch <> nil) and (LDispatch^.Backend = LExpectedDisabledBackend) then
+      begin
+        LObservedDisabledDispatch := True;
+        Break;
+      end;
+      ThreadSwitch;
+    end;
+
+    AssertTrue('dispatch should publish disabled backend before delayed dataplane invalidation finishes',
+      LObservedDisabledDispatch);
+    AssertTrue('writer should still be in progress when dispatch already exposes disabled backend',
+      Assigned(LWriter) and (not LWriter.Finished));
+
+    LRuntimeBackend := fafafa.core.simd.runtime.GetCurrentBackend;
+    LActiveBackend := GetActiveBackend;
+    LRuntimeSnapshot := fafafa.core.simd.runtime.GetCurrentRuntimeSnapshot;
+    LDirectDispatch := GetDirectDispatchTable;
+    LApi := GetSimdPublicApi;
+    AssertNotNull('direct dispatch table should not be nil during latest-dispatch stale regression test', LDirectDispatch);
+    AssertNotNull('public api table should not be nil during latest-dispatch stale regression test', LApi);
+    AssertTrue('current active backend pod info should remain queryable during latest-dispatch stale regression test',
+      TryGetSimdBackendPodInfo(LExpectedDisabledBackend, LPodInfo));
+
+    LExpectedDisabledCaps := CapabilitiesToAbiBitsLocal(LDispatch^.BackendInfo.Capabilities);
+    LExpectedDisabledFlags := BuildExpectedAbiFlagsLocal(
+      LExpectedDisabledBackend,
+      IsBackendAvailableOnCPU(LExpectedDisabledBackend),
+      True,
+      LDispatch^.BackendInfo.Available and IsBackendAvailableOnCPU(LExpectedDisabledBackend),
+      True);
+
+    AssertEquals('low-level active backend should follow the latest published dispatch during vector-asm toggle churn',
+      Ord(LExpectedDisabledBackend), Ord(LActiveBackend));
+    AssertEquals('direct fast-path dispatch should follow the latest published dispatch during vector-asm toggle churn',
+      PtrUInt(LDispatch), PtrUInt(LDirectDispatch));
+    AssertEquals('runtime current backend should follow the latest published dispatch during vector-asm toggle churn',
+      Ord(LExpectedDisabledBackend), Ord(LRuntimeBackend));
+    AssertEquals('runtime snapshot current backend should follow the latest published dispatch during vector-asm toggle churn',
+      Ord(LExpectedDisabledBackend), Ord(LRuntimeSnapshot.CurrentBackend));
+    AssertEquals('public api active backend should follow the latest published dispatch during vector-asm toggle churn',
+      Ord(LExpectedDisabledBackend), Integer(LApi^.ActiveBackendId));
+    AssertEquals('current active backend pod info should follow the latest published dispatch during vector-asm toggle churn',
+      UInt32(Ord(LExpectedDisabledBackend)), LPodInfo.BackendId);
+    AssertEquals('current active backend pod info capability bits should follow the latest published dispatch during vector-asm toggle churn',
+      LExpectedDisabledCaps, LPodInfo.CapabilityBits);
+    AssertEquals('current active backend pod info priority should follow the latest published dispatch during vector-asm toggle churn',
+      LDispatch^.BackendInfo.Priority, LPodInfo.Priority);
+    AssertEquals('current active backend pod info flags should follow the latest published dispatch during vector-asm toggle churn',
+      LExpectedDisabledFlags, LPodInfo.Flags);
+    AssertEquals('public api active flags should stay aligned with current active backend pod info during vector-asm toggle churn',
+      LPodInfo.Flags, LApi^.ActiveFlags);
+
+    LWriter.WaitFor;
+    AssertTrue('latest-dispatch vector-asm writer should finish successfully: ' + LWriter.ErrorMsg,
+      LWriter.Success);
+  finally
+    SetSimdDataPlaneInvalidateTestDelayMs(0);
+    if Assigned(LWriter) then
+      LWriter.Free;
     SetVectorAsmEnabled(LOldVectorAsm);
     ResetToAutomaticBackend;
   end;

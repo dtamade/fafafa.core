@@ -116,6 +116,7 @@ type
     procedure Test_NonX86_RoundTruncFloorCeil_NaNInf_IfAvailable;
     procedure Test_NonX86_NarrowF64x2_RoundTruncFloorCeil_Finite_IfAvailable;
     procedure Test_NonX86_Wide_RoundTruncFloorCeil_NaNInf_IfAvailable;
+    procedure Test_RISCVV_Wide_FloorCeilRound_FiniteRegression_IfAvailable;
     procedure Test_NonX86_FloorCeil_PropertyLike_FixedSeed_IfAvailable;
     procedure Test_NonX86_RoundTrunc_PropertyLike_FixedSeed_IfAvailable;
   end;
@@ -3467,6 +3468,197 @@ begin
 
   if LCheckedBackends = 0 then
     AssertTrue('No non-x86 backend available on this host (allowed)', True);
+end;
+
+procedure TTestCase_NonX86IEEE754.Test_RISCVV_Wide_FloorCeilRound_FiniteRegression_IfAvailable;
+var
+  LScalarTable: TSimdDispatchTable;
+  LRISCVVTable: TSimdDispatchTable;
+  LDispatch: PSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+  LIndex: Integer;
+  LInF32x8, LExpectedRoundF32x8, LExpectedFloorF32x8, LExpectedCeilF32x8: TVecF32x8;
+  LActualRoundF32x8, LActualFloorF32x8, LActualCeilF32x8: TVecF32x8;
+  LInF64x4, LExpectedRoundF64x4, LExpectedFloorF64x4, LExpectedCeilF64x4: TVecF64x4;
+  LActualRoundF64x4, LActualFloorF64x4, LActualCeilF64x4: TVecF64x4;
+  LInF32x16, LExpectedRoundF32x16, LExpectedFloorF32x16, LExpectedCeilF32x16: TVecF32x16;
+  LActualRoundF32x16, LActualFloorF32x16, LActualCeilF32x16: TVecF32x16;
+  LInF64x8, LExpectedRoundF64x8, LExpectedFloorF64x8, LExpectedCeilF64x8: TVecF64x8;
+  LActualRoundF64x8, LActualFloorF64x8, LActualCeilF64x8: TVecF64x8;
+
+  procedure AssertSingleFiniteEqual(const aPrefix: string; const aExpected, aActual: Single);
+  begin
+    AssertEquals(aPrefix, aExpected, aActual, 0.0);
+  end;
+
+  procedure AssertDoubleFiniteEqual(const aPrefix: string; const aExpected, aActual: Double);
+  begin
+    AssertEquals(aPrefix, aExpected, aActual, 0.0);
+  end;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+
+    {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+    AssertTrue('RISCVV opt-in test registration should be present for wide rounding regression',
+      TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+    {$ELSE}
+    if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
+      Exit;
+    {$ENDIF}
+
+    AssertEquals('RISCVV RoundF32x8 should now reuse the canonical scalar slot',
+      PtrUInt(LScalarTable.RoundF32x8), PtrUInt(LRISCVVTable.RoundF32x8));
+    AssertEquals('RISCVV TruncF32x8 should now reuse the canonical scalar slot',
+      PtrUInt(LScalarTable.TruncF32x8), PtrUInt(LRISCVVTable.TruncF32x8));
+    AssertEquals('RISCVV FloorF64x4 should now reuse the canonical scalar slot',
+      PtrUInt(LScalarTable.FloorF64x4), PtrUInt(LRISCVVTable.FloorF64x4));
+    AssertEquals('RISCVV TruncF64x4 should now reuse the canonical scalar slot',
+      PtrUInt(LScalarTable.TruncF64x4), PtrUInt(LRISCVVTable.TruncF64x4));
+    AssertEquals('RISCVV RoundF32x16 should now reuse the canonical scalar slot',
+      PtrUInt(LScalarTable.RoundF32x16), PtrUInt(LRISCVVTable.RoundF32x16));
+    AssertEquals('RISCVV TruncF32x16 should now reuse the canonical scalar slot',
+      PtrUInt(LScalarTable.TruncF32x16), PtrUInt(LRISCVVTable.TruncF32x16));
+    AssertEquals('RISCVV FloorF64x8 should now reuse the canonical scalar slot',
+      PtrUInt(LScalarTable.FloorF64x8), PtrUInt(LRISCVVTable.FloorF64x8));
+    AssertEquals('RISCVV TruncF64x8 should now reuse the canonical scalar slot',
+      PtrUInt(LScalarTable.TruncF64x8), PtrUInt(LRISCVVTable.TruncF64x8));
+
+    LInF32x8.f[0] := 0.5;
+    LInF32x8.f[1] := -0.5;
+    LInF32x8.f[2] := 1.5;
+    LInF32x8.f[3] := -1.5;
+    LInF32x8.f[4] := 2.5;
+    LInF32x8.f[5] := -2.5;
+    LInF32x8.f[6] := 123456.75;
+    LInF32x8.f[7] := -123456.25;
+
+    LInF64x4.d[0] := 0.5;
+    LInF64x4.d[1] := -0.5;
+    LInF64x4.d[2] := 1048576.125;
+    LInF64x4.d[3] := -1048576.875;
+
+    LInF32x16.f[0] := 0.5;
+    LInF32x16.f[1] := -0.5;
+    LInF32x16.f[2] := 1.5;
+    LInF32x16.f[3] := -1.5;
+    LInF32x16.f[4] := 2.5;
+    LInF32x16.f[5] := -2.5;
+    LInF32x16.f[6] := 3.5;
+    LInF32x16.f[7] := -3.5;
+    LInF32x16.f[8] := 7.5;
+    LInF32x16.f[9] := -7.5;
+    LInF32x16.f[10] := 1024.125;
+    LInF32x16.f[11] := -1024.875;
+    LInF32x16.f[12] := 4096.5;
+    LInF32x16.f[13] := -4096.5;
+    LInF32x16.f[14] := 8388607.5;
+    LInF32x16.f[15] := -8388607.5;
+
+    LInF64x8.d[0] := 0.5;
+    LInF64x8.d[1] := -0.5;
+    LInF64x8.d[2] := 1.5;
+    LInF64x8.d[3] := -1.5;
+    LInF64x8.d[4] := 2.5;
+    LInF64x8.d[5] := -2.5;
+    LInF64x8.d[6] := 4503599627370495.25;
+    LInF64x8.d[7] := -4503599627370495.75;
+
+    SetActiveBackend(sbScalar);
+    LDispatch := GetDispatchTable;
+    AssertTrue('Scalar dispatch should provide wide Round/Floor/Ceil',
+      (LDispatch <> nil) and
+      Assigned(LDispatch^.RoundF32x8) and Assigned(LDispatch^.FloorF32x8) and Assigned(LDispatch^.CeilF32x8) and
+      Assigned(LDispatch^.RoundF64x4) and Assigned(LDispatch^.FloorF64x4) and Assigned(LDispatch^.CeilF64x4) and
+      Assigned(LDispatch^.RoundF32x16) and Assigned(LDispatch^.FloorF32x16) and Assigned(LDispatch^.CeilF32x16) and
+      Assigned(LDispatch^.RoundF64x8) and Assigned(LDispatch^.FloorF64x8) and Assigned(LDispatch^.CeilF64x8));
+
+    LExpectedRoundF32x8 := LDispatch^.RoundF32x8(LInF32x8);
+    LExpectedFloorF32x8 := LDispatch^.FloorF32x8(LInF32x8);
+    LExpectedCeilF32x8 := LDispatch^.CeilF32x8(LInF32x8);
+    LExpectedRoundF64x4 := LDispatch^.RoundF64x4(LInF64x4);
+    LExpectedFloorF64x4 := LDispatch^.FloorF64x4(LInF64x4);
+    LExpectedCeilF64x4 := LDispatch^.CeilF64x4(LInF64x4);
+    LExpectedRoundF32x16 := LDispatch^.RoundF32x16(LInF32x16);
+    LExpectedFloorF32x16 := LDispatch^.FloorF32x16(LInF32x16);
+    LExpectedCeilF32x16 := LDispatch^.CeilF32x16(LInF32x16);
+    LExpectedRoundF64x8 := LDispatch^.RoundF64x8(LInF64x8);
+    LExpectedFloorF64x8 := LDispatch^.FloorF64x8(LInF64x8);
+    LExpectedCeilF64x8 := LDispatch^.CeilF64x8(LInF64x8);
+
+    if not TrySetActiveBackend(sbRISCVV) then
+      Exit;
+
+    LDispatch := GetDispatchTable;
+    AssertTrue('RISCVV dispatch should provide wide Round/Floor/Ceil',
+      (LDispatch <> nil) and
+      Assigned(LDispatch^.RoundF32x8) and Assigned(LDispatch^.FloorF32x8) and Assigned(LDispatch^.CeilF32x8) and
+      Assigned(LDispatch^.RoundF64x4) and Assigned(LDispatch^.FloorF64x4) and Assigned(LDispatch^.CeilF64x4) and
+      Assigned(LDispatch^.RoundF32x16) and Assigned(LDispatch^.FloorF32x16) and Assigned(LDispatch^.CeilF32x16) and
+      Assigned(LDispatch^.RoundF64x8) and Assigned(LDispatch^.FloorF64x8) and Assigned(LDispatch^.CeilF64x8));
+
+    LActualRoundF32x8 := LDispatch^.RoundF32x8(LInF32x8);
+    LActualFloorF32x8 := LDispatch^.FloorF32x8(LInF32x8);
+    LActualCeilF32x8 := LDispatch^.CeilF32x8(LInF32x8);
+    LActualRoundF64x4 := LDispatch^.RoundF64x4(LInF64x4);
+    LActualFloorF64x4 := LDispatch^.FloorF64x4(LInF64x4);
+    LActualCeilF64x4 := LDispatch^.CeilF64x4(LInF64x4);
+    LActualRoundF32x16 := LDispatch^.RoundF32x16(LInF32x16);
+    LActualFloorF32x16 := LDispatch^.FloorF32x16(LInF32x16);
+    LActualCeilF32x16 := LDispatch^.CeilF32x16(LInF32x16);
+    LActualRoundF64x8 := LDispatch^.RoundF64x8(LInF64x8);
+    LActualFloorF64x8 := LDispatch^.FloorF64x8(LInF64x8);
+    LActualCeilF64x8 := LDispatch^.CeilF64x8(LInF64x8);
+
+    for LIndex := 0 to 7 do
+    begin
+      AssertSingleFiniteEqual('RISCVV RoundF32x8[' + IntToStr(LIndex) + ']',
+        LExpectedRoundF32x8.f[LIndex], LActualRoundF32x8.f[LIndex]);
+      AssertSingleFiniteEqual('RISCVV FloorF32x8[' + IntToStr(LIndex) + ']',
+        LExpectedFloorF32x8.f[LIndex], LActualFloorF32x8.f[LIndex]);
+      AssertSingleFiniteEqual('RISCVV CeilF32x8[' + IntToStr(LIndex) + ']',
+        LExpectedCeilF32x8.f[LIndex], LActualCeilF32x8.f[LIndex]);
+    end;
+
+    for LIndex := 0 to 3 do
+    begin
+      AssertDoubleFiniteEqual('RISCVV RoundF64x4[' + IntToStr(LIndex) + ']',
+        LExpectedRoundF64x4.d[LIndex], LActualRoundF64x4.d[LIndex]);
+      AssertDoubleFiniteEqual('RISCVV FloorF64x4[' + IntToStr(LIndex) + ']',
+        LExpectedFloorF64x4.d[LIndex], LActualFloorF64x4.d[LIndex]);
+      AssertDoubleFiniteEqual('RISCVV CeilF64x4[' + IntToStr(LIndex) + ']',
+        LExpectedCeilF64x4.d[LIndex], LActualCeilF64x4.d[LIndex]);
+    end;
+
+    for LIndex := 0 to 15 do
+    begin
+      AssertSingleFiniteEqual('RISCVV RoundF32x16[' + IntToStr(LIndex) + ']',
+        LExpectedRoundF32x16.f[LIndex], LActualRoundF32x16.f[LIndex]);
+      AssertSingleFiniteEqual('RISCVV FloorF32x16[' + IntToStr(LIndex) + ']',
+        LExpectedFloorF32x16.f[LIndex], LActualFloorF32x16.f[LIndex]);
+      AssertSingleFiniteEqual('RISCVV CeilF32x16[' + IntToStr(LIndex) + ']',
+        LExpectedCeilF32x16.f[LIndex], LActualCeilF32x16.f[LIndex]);
+    end;
+
+    for LIndex := 0 to 7 do
+    begin
+      AssertDoubleFiniteEqual('RISCVV RoundF64x8[' + IntToStr(LIndex) + ']',
+        LExpectedRoundF64x8.d[LIndex], LActualRoundF64x8.d[LIndex]);
+      AssertDoubleFiniteEqual('RISCVV FloorF64x8[' + IntToStr(LIndex) + ']',
+        LExpectedFloorF64x8.d[LIndex], LActualFloorF64x8.d[LIndex]);
+      AssertDoubleFiniteEqual('RISCVV CeilF64x8[' + IntToStr(LIndex) + ']',
+        LExpectedCeilF64x8.d[LIndex], LActualCeilF64x8.d[LIndex]);
+    end;
+  finally
+    ResetToAutomaticBackend;
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
 end;
 
 procedure TTestCase_NonX86IEEE754.Test_NonX86_FloorCeil_PropertyLike_FixedSeed_IfAvailable;

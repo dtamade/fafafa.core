@@ -156,4 +156,18 @@ ResetCurrentBackendSelection;
 - `runtime` 与 `cpuinfo` 的语义边界明确分离
 - `dispatch` 保留为低层 contract，不再承担默认公开 control-plane 教程入口
 
+## Machine-readable Guard
+
+本轮之后，不只靠人工读文档。接口边界还会通过下面这条机器检查锁住：
+
+```bash
+FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh interface-completeness
+```
+
+它现在同时守这三类东西：
+
+- `framework/runtime/cpuinfo/public ABI` 的公开接口面合同
+- façade 允许重导出的 canonical convenience wrapper 子集
+- 现有 `interface -> dispatch -> backend -> tests` completeness 基线
+
 下一轮如果继续审查，应只看实现质量、线程安全细节、fallback/adapter wiring 等实现问题，而不是重新争论公开接口叫什么。

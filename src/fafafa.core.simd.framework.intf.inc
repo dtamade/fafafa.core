@@ -1,3 +1,9 @@
+// Intentional narrow re-export contract for the top-level façade:
+// - keep canonical convenience wrappers here
+// - keep only the historical façade-level control-plane aliases here
+// - leave ambiguous CPU capability aliases in fafafa.core.simd.cpuinfo
+// - leave low-level dispatch names in fafafa.core.simd.dispatch
+
 // Canonical façade convenience wrapper for fafafa.core.simd.cpuinfo.GetCPUInfo.
 function GetCPUInfo: TCPUInfo;
 

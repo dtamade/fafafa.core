@@ -74,21 +74,40 @@ type
     procedure Test_TrySetActiveBackend_FailedHookMutation_Restores_PreviousForcedBackend;
     procedure Test_TrySetActiveBackend_RollbackRestore_ReSelects_RequestedBackend_Before_Return;
     procedure Test_TrySetActiveBackend_RollbackRestore_Success_Preserves_ForcedSelection;
+    procedure Test_TrySetActiveBackend_RollbackRestore_Success_FromPreviousForcedState_Preserves_RequestedSelection;
+    procedure Test_TrySetActiveBackend_RollbackRestore_Success_FromPreviousForcedState_LateForce_DuringThirdRestore_Preserves_RequestedSelection;
+    procedure Test_TrySetActiveBackend_RollbackRestore_Success_FromPreviousForcedState_LateForce_UntilAttemptCap_Restores_PreviousStableState;
+    procedure Test_TrySetActiveBackend_RollbackRestore_Success_FromLowerPriorityPreviousForcedState_LateForce_UntilAttemptCap_Restores_PreviousStableState;
+    procedure Test_TrySetActiveBackend_RollbackRestore_Success_LateForce_DuringThirdRestore_Preserves_ForcedSelection;
+    procedure Test_TrySetActiveBackend_RollbackRestore_Success_LateForce_UntilAttemptCap_Restores_AutomaticIntent;
     procedure Test_TrySetActiveBackend_RollbackRestore_LateForce_Restores_AutomaticBackend;
     procedure Test_TrySetActiveBackend_RollbackRestore_LateForce_DuringRestore_Restores_AutomaticBackend;
+    procedure Test_TrySetActiveBackend_RollbackRestore_LateForce_DuringThirdRestore_Restores_AutomaticBackend;
+    procedure Test_TrySetActiveBackend_RollbackRestore_LateForce_UntilAttemptCap_Restores_AutomaticBackend;
     procedure Test_TrySetActiveBackend_RollbackRestore_LateForce_Preserves_PreviousForcedBackend;
+    procedure Test_TrySetActiveBackend_RollbackRestore_LateForce_DuringThirdRestore_Preserves_PreviousForcedBackend;
     procedure Test_SetActiveBackend_Unavailable_FallsBackToScalar;
     procedure Test_SetActiveBackend_HookLateFailure_Preserves_PreviousForcedBackend;
     procedure Test_ResetToAutomaticBackend_HookLateForce_Restores_AutomaticBackend;
     procedure Test_ResetToAutomaticBackend_HookLateForce_DuringRestore_Restores_AutomaticBackend;
+    procedure Test_ResetToAutomaticBackend_HookLateForce_DuringThirdRestore_Restores_AutomaticBackend;
+    procedure Test_ResetToAutomaticBackend_HookLateForce_UntilAttemptCap_Restores_AutomaticBackend;
     procedure Test_SetVectorAsmEnabled_HookLateForce_Restores_AutomaticBackend;
     procedure Test_SetVectorAsmEnabled_HookLateForce_DuringRestore_Restores_AutomaticBackend;
+    procedure Test_SetVectorAsmEnabled_HookLateForce_DuringThirdRestore_Restores_AutomaticBackend;
+    procedure Test_SetVectorAsmEnabled_HookLateForce_UntilAttemptCap_Restores_AutomaticBackend;
     procedure Test_SetVectorAsmEnabled_HookLateAutomaticReset_Preserves_PreviousForcedBackend;
     procedure Test_SetVectorAsmEnabled_HookLateAutomaticReset_DuringRestore_Preserves_PreviousForcedBackend;
     procedure Test_SetVectorAsmEnabled_HookLateForce_DuringRestore_Preserves_PreviousForcedBackend;
+    procedure Test_SetVectorAsmEnabled_HookLateForce_DuringThirdRestore_Preserves_PreviousForcedBackend;
+    procedure Test_SetVectorAsmEnabled_HookLateForce_UntilAttemptCap_Preserves_PreviousForcedBackend;
     procedure Test_RegisterBackend_HookLateForce_Restores_AutomaticBackend;
+    procedure Test_RegisterBackend_HookLateForce_DuringThirdRestore_Restores_AutomaticBackend;
+    procedure Test_RegisterBackend_HookLateForce_UntilAttemptCap_Restores_AutomaticBackend;
     procedure Test_RegisterBackend_HookLateAutomaticReset_Preserves_PreviousForcedBackend;
     procedure Test_RegisterBackend_HookLateForce_DuringRestore_Preserves_PreviousForcedBackend;
+    procedure Test_RegisterBackend_HookLateForce_DuringThirdRestore_Preserves_PreviousForcedBackend;
+    procedure Test_RegisterBackend_HookLateForce_UntilAttemptCap_Preserves_PreviousForcedBackend;
     procedure Test_DispatchChangedHooks_MultiSubscriber_Dedup_And_Remove;
     procedure Test_BackendInfoAvailableFalse_IsNotSelectable;
     procedure Test_RegisterBackend_Canonicalizes_TableIdentity_For_ForcedSelection;
@@ -131,6 +150,8 @@ type
     procedure Test_CoreFamilies_FacadeScalar_Parity_Completeness_Batch2;
     procedure Test_BacklogParityAndSmoke_Batch3;
     procedure Test_SSE2_I32x4_U32x4_Mul_Use_NonScalar_Impl_And_Keep_Parity;
+    procedure Test_SSE2_I64x2_Compare_Use_NonScalar_Impl_And_Keep_Parity;
+    procedure Test_SSE2_F32VectorMath_Use_NonScalar_Impl_And_Keep_Parity;
     procedure Test_NEON_PlatformFacadeSlots_Reuse_BaseScalar_When_AlwaysScalarByDesign;
     procedure Test_NEON_FacadeFastSlots_OnlyBind_When_NEONAsm_Is_Compiled;
     procedure Test_NEON_DotFallbackSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
@@ -141,6 +162,7 @@ type
     procedure Test_RISCVV_FacadeDotF64_NoAsmSource_Does_Not_ScalarForward;
     procedure Test_RISCVV_FacadeSlots_Reuse_BaseScalar_When_Wrappers_Are_ScalarPassThrough;
     procedure Test_RISCVV_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
+    procedure Test_RISCVV_KeyOwnedWideSlots_Stay_BackendOwned;
     procedure Test_RISCVV_RegisterSource_Deduplicates_WideRoundingAssignments_And_Keeps_F64x2_Exception;
     procedure Test_AllRegisteredBackends_Wide512IntegerSlots_Assigned;
     procedure Test_AVX512_U32x16_U64x8_MappingAndParity;
@@ -158,17 +180,28 @@ type
     procedure Test_AVX2_BackendCapabilities_Clear_FMA_When_VectorAsmDisabled;
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_AVX2FMA_When_FusedPathUsable;
     procedure Test_AVX2_WideFma_ExactInputs_FollowsHalfComposition;
+    procedure Test_AVX2_I64x2_ShiftBoundary_Contracts;
     procedure Test_AVX2_WideSelect_Parity_WithScalar_When_VectorAsmEnabled;
+    procedure Test_X86_WideSelect_NonZeroMaskLane_Semantics;
     procedure Test_AVX2_BackendCapabilities_Expose_Shuffle_When_NativeShuffleSlotsUsable;
     procedure Test_AVX2_BackendCapabilities_Clear_Shuffle_When_VectorAsmDisabled;
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_AVX2Shuffle_When_NativeShuffleSlotsUsable;
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Clear_AVX2VectorAsmGatedBits_When_VectorAsmDisabled;
     procedure Test_AVX2_FacadeScalarFallback_Uses_BaseFill_Without_Redundant_Win64_Rebinds;
+    procedure Test_SSE3_RepresentativeOverrides_Reuse_SSE2_CoreSlots;
+    procedure Test_SSSE3_RepresentativeOverrides_Reuse_SSE3_CoreSlots;
+    procedure Test_SSE41_RepresentativeOverrides_Reuse_SSSE3_CoreSlots;
+    procedure Test_SSE42_RepresentativeOverride_Reuse_SSE41_CoreSlots;
+    procedure Test_SSE3_RepresentativeSemanticParity_WithScalar_IfDispatchable;
+    procedure Test_SSSE3_RepresentativeSemanticParity_WithScalar_IfDispatchable;
+    procedure Test_SSE41_RepresentativeSemanticParity_WithScalar_IfDispatchable;
+    procedure Test_SSE42_RepresentativeSemanticParity_WithScalar_IfDispatchable;
     procedure Test_AVX512_PassThroughFacadeSlots_Reuse_AVX2_When_Wrappers_Are_Just_Forwarders;
     procedure Test_X86_BackendCapabilities_Clear_Shuffle_When_VectorAsmDisabled;
     procedure Test_AVX512_BackendCapabilities_Expose_FMA_When_WideFmaSlots_AreNative;
     procedure Test_AVX512_BackendCapabilities_Expose_Shuffle_When_WideSelectSlots_AreNative;
     procedure Test_AVX512_BackendCapabilities_Clear_VectorAsmGatedBits_When_VectorAsmDisabled;
+    procedure Test_AVX512_BackendCapabilities_Restore_Representative_Slots_After_VectorAsm_RoundTrip;
     procedure Test_NEON_BackendCapabilities_Expose_Shuffle_When_RepresentativeSlots_AreNonScalar;
     procedure Test_NEON_BackendCapabilities_Expose_IntegerOps_When_IntegerSlots_AreNative;
     procedure Test_NEON_BackendCapabilities_Expose_FMA_When_FmaSlots_AreNative;
@@ -281,6 +314,84 @@ var
   GDispatchHookAutomaticRollbackRestoreLateForceRequestedTable: TSimdDispatchTable;
   GDispatchHookRegisterRestoreResetEnabled: Boolean = False;
   GDispatchHookRegisterRestoreResetStage: Integer = 0;
+  GResolvedRepoRootDir: string = '';
+
+function IsSimdRepoRootDir(const aDir: string): Boolean;
+var
+  LRootDir: string;
+begin
+  LRootDir := ExpandFileName(aDir);
+  Result :=
+    DirectoryExists(LRootDir) and
+    FileExists(IncludeTrailingPathDelimiter(LRootDir) + 'src' + DirectorySeparator +
+      'fafafa.core.simd.pas') and
+    FileExists(IncludeTrailingPathDelimiter(LRootDir) + 'tests' + DirectorySeparator +
+      'fafafa.core.simd' + DirectorySeparator + 'BuildOrTest.sh');
+end;
+
+function TryResolveRepoRootFromEnv(const aEnvVar: string): string;
+var
+  LEnvRoot: string;
+begin
+  Result := '';
+  LEnvRoot := Trim(GetEnvironmentVariable(aEnvVar));
+  if (LEnvRoot <> '') and IsSimdRepoRootDir(LEnvRoot) then
+    Result := ExpandFileName(LEnvRoot);
+end;
+
+function FindRepoRootFromStartDir(const aStartDir: string): string;
+var
+  LCurrentDir: string;
+  LParentDir: string;
+begin
+  Result := '';
+  if aStartDir = '' then
+    Exit;
+
+  LCurrentDir := ExpandFileName(aStartDir);
+  while LCurrentDir <> '' do
+  begin
+    if IsSimdRepoRootDir(LCurrentDir) then
+    begin
+      Result := LCurrentDir;
+      Exit;
+    end;
+
+    LParentDir := ExpandFileName(IncludeTrailingPathDelimiter(LCurrentDir) + '..');
+    if LParentDir = LCurrentDir then
+      Break;
+
+    LCurrentDir := LParentDir;
+  end;
+end;
+
+function GetRepoRootDir: string;
+begin
+  if GResolvedRepoRootDir <> '' then
+  begin
+    Result := GResolvedRepoRootDir;
+    Exit;
+  end;
+
+  GResolvedRepoRootDir := TryResolveRepoRootFromEnv('FAFAFA_SIMD_REPO_ROOT');
+  if GResolvedRepoRootDir = '' then
+    GResolvedRepoRootDir := FindRepoRootFromStartDir(ExtractFilePath(ParamStr(0)));
+  if GResolvedRepoRootDir = '' then
+    GResolvedRepoRootDir := FindRepoRootFromStartDir(GetCurrentDir);
+
+  if GResolvedRepoRootDir = '' then
+    raise Exception.CreateFmt(
+      'Unable to resolve fafafa.core repo root for SIMD implementation-shape audit (exe=%s, cwd=%s)',
+      [ExpandFileName(ParamStr(0)), GetCurrentDir]
+    );
+
+  Result := GResolvedRepoRootDir;
+end;
+
+function ResolveRepoSourcePath(const aRelativePath: string): string;
+begin
+  Result := IncludeTrailingPathDelimiter(GetRepoRootDir) + 'src' + DirectorySeparator + aRelativePath;
+end;
 
 function SyntheticReduceAddF64x4CurrentDispatch(const a: TVecF64x4): Double;
 begin
@@ -603,6 +714,157 @@ begin
   end;
 end;
 
+procedure DispatchHookRollbackForceSuccessThenLateForceOnThirdRestore;
+var
+  LModifiedTable: TSimdDispatchTable;
+  LIndex: Integer;
+begin
+  if not GDispatchHookRollbackForceSuccessEnabled then
+    Exit;
+
+  if GDispatchHookRollbackForceSuccessInMutation then
+    Exit;
+
+  case GDispatchHookRollbackForceSuccessStage of
+    0:
+      begin
+        GDispatchHookRollbackForceSuccessStage := 1;
+        Exit;
+      end;
+    1:
+      begin
+        GDispatchHookRollbackForceSuccessStage := 2;
+        GDispatchHookRollbackForceSuccessInMutation := True;
+        try
+          LModifiedTable := GDispatchHookRollbackForceSuccessTargetTable;
+          LModifiedTable.BackendInfo.Available := False;
+          RegisterBackend(GDispatchHookRollbackForceSuccessTarget, LModifiedTable);
+        finally
+          GDispatchHookRollbackForceSuccessInMutation := False;
+        end;
+        Exit;
+      end;
+    2:
+      begin
+        GDispatchHookRollbackForceSuccessStage := 3;
+        GDispatchHookRollbackForceSuccessInMutation := True;
+        try
+          RegisterBackend(GDispatchHookRollbackForceSuccessTarget,
+            GDispatchHookRollbackForceSuccessTargetTable);
+          for LIndex := 0 to GDispatchHookRollbackForceSuccessHigherCount - 1 do
+          begin
+            LModifiedTable := GDispatchHookRollbackForceSuccessHigherTables[LIndex];
+            LModifiedTable.BackendInfo.Available := False;
+            RegisterBackend(GDispatchHookRollbackForceSuccessHigherBackends[LIndex], LModifiedTable);
+          end;
+        finally
+          GDispatchHookRollbackForceSuccessInMutation := False;
+        end;
+        Exit;
+      end;
+    3:
+      begin
+        GDispatchHookRollbackForceSuccessStage := 4;
+        SetActiveBackend(sbScalar);
+        Exit;
+      end;
+    4:
+      begin
+        GDispatchHookRollbackForceSuccessStage := 5;
+        Exit;
+      end;
+    5:
+      begin
+        GDispatchHookRollbackForceSuccessStage := 6;
+        SetActiveBackend(sbScalar);
+        Exit;
+      end;
+    6:
+      begin
+        GDispatchHookRollbackForceSuccessStage := 7;
+        Exit;
+      end;
+    7:
+      begin
+        GDispatchHookRollbackForceSuccessStage := 8;
+        SetActiveBackend(sbScalar);
+        Exit;
+      end;
+    8:
+      begin
+        GDispatchHookRollbackForceSuccessStage := 9;
+        Exit;
+      end;
+  end;
+end;
+
+procedure DispatchHookRollbackForceSuccessThenLateForceUntilAttemptCap;
+var
+  LModifiedTable: TSimdDispatchTable;
+  LIndex: Integer;
+begin
+  if not GDispatchHookRollbackForceSuccessEnabled then
+    Exit;
+
+  if GDispatchHookRollbackForceSuccessInMutation then
+    Exit;
+
+  case GDispatchHookRollbackForceSuccessStage of
+    0:
+      begin
+        GDispatchHookRollbackForceSuccessStage := 1;
+        Exit;
+      end;
+    1:
+      begin
+        GDispatchHookRollbackForceSuccessStage := 2;
+        GDispatchHookRollbackForceSuccessInMutation := True;
+        try
+          LModifiedTable := GDispatchHookRollbackForceSuccessTargetTable;
+          LModifiedTable.BackendInfo.Available := False;
+          RegisterBackend(GDispatchHookRollbackForceSuccessTarget, LModifiedTable);
+        finally
+          GDispatchHookRollbackForceSuccessInMutation := False;
+        end;
+        Exit;
+      end;
+    2:
+      begin
+        GDispatchHookRollbackForceSuccessStage := 3;
+        GDispatchHookRollbackForceSuccessInMutation := True;
+        try
+          RegisterBackend(GDispatchHookRollbackForceSuccessTarget,
+            GDispatchHookRollbackForceSuccessTargetTable);
+          for LIndex := 0 to GDispatchHookRollbackForceSuccessHigherCount - 1 do
+          begin
+            LModifiedTable := GDispatchHookRollbackForceSuccessHigherTables[LIndex];
+            LModifiedTable.BackendInfo.Available := False;
+            RegisterBackend(GDispatchHookRollbackForceSuccessHigherBackends[LIndex], LModifiedTable);
+          end;
+        finally
+          GDispatchHookRollbackForceSuccessInMutation := False;
+        end;
+        Exit;
+      end;
+    3, 5, 7, 9, 11, 13, 15, 17:
+      begin
+        Inc(GDispatchHookRollbackForceSuccessStage);
+        SetActiveBackend(sbScalar);
+        Exit;
+      end;
+    4, 6, 8, 10, 12, 14, 16, 18:
+      begin
+        Inc(GDispatchHookRollbackForceSuccessStage);
+        Exit;
+      end;
+    19:
+      begin
+        GDispatchHookRollbackForceSuccessStage := 20;
+        Exit;
+      end;
+  end;
+end;
+
 procedure DispatchHookReForceBackendOnce;
 begin
   if not GDispatchHookReForceBackendEnabled then
@@ -674,6 +936,143 @@ begin
     4:
       begin
         GDispatchHookResetLateForceStage := 5;
+        Exit;
+      end;
+  end;
+end;
+
+procedure DispatchHookReForceBackendOnAutomaticThirdRestore;
+begin
+  if not GDispatchHookResetLateForceEnabled then
+    Exit;
+
+  case GDispatchHookResetLateForceStage of
+    0:
+      begin
+        GDispatchHookResetLateForceStage := 1;
+        Exit;
+      end;
+    1:
+      begin
+        GDispatchHookResetLateForceStage := 2;
+        SetActiveBackend(GDispatchHookResetLateForceTarget);
+        Exit;
+      end;
+    2:
+      begin
+        GDispatchHookResetLateForceStage := 3;
+        Exit;
+      end;
+    3:
+      begin
+        GDispatchHookResetLateForceStage := 4;
+        SetActiveBackend(GDispatchHookResetLateForceTarget);
+        Exit;
+      end;
+    4:
+      begin
+        GDispatchHookResetLateForceStage := 5;
+        Exit;
+      end;
+    5:
+      begin
+        GDispatchHookResetLateForceStage := 6;
+        SetActiveBackend(GDispatchHookResetLateForceTarget);
+        Exit;
+      end;
+    6:
+      begin
+        GDispatchHookResetLateForceStage := 7;
+        Exit;
+      end;
+  end;
+end;
+
+procedure DispatchHookReForceBackendOnAutomaticRestoreUntilAttemptCap;
+begin
+  if not GDispatchHookResetLateForceEnabled then
+    Exit;
+
+  case GDispatchHookResetLateForceStage of
+    0:
+      begin
+        GDispatchHookResetLateForceStage := 1;
+        Exit;
+      end;
+    1, 3, 5, 7, 9, 11, 13, 15:
+      begin
+        Inc(GDispatchHookResetLateForceStage);
+        SetActiveBackend(GDispatchHookResetLateForceTarget);
+        Exit;
+      end;
+    2, 4, 6, 8, 10, 12, 14, 16:
+      begin
+        Inc(GDispatchHookResetLateForceStage);
+        Exit;
+      end;
+    17:
+      begin
+        GDispatchHookResetLateForceStage := 18;
+        Exit;
+      end;
+  end;
+end;
+
+procedure DispatchHookReForceBackendOnToggleRestoreUntilAttemptCap;
+begin
+  if not GDispatchHookResetLateForceEnabled then
+    Exit;
+
+  case GDispatchHookResetLateForceStage of
+    0:
+      begin
+        GDispatchHookResetLateForceStage := 1;
+        Exit;
+      end;
+    1, 3, 5, 7, 9, 11, 13, 15, 17:
+      begin
+        Inc(GDispatchHookResetLateForceStage);
+        SetActiveBackend(GDispatchHookResetLateForceTarget);
+        Exit;
+      end;
+    2, 4, 6, 8, 10, 12, 14, 16, 18:
+      begin
+        Inc(GDispatchHookResetLateForceStage);
+        Exit;
+      end;
+    19:
+      begin
+        GDispatchHookResetLateForceStage := 20;
+        Exit;
+      end;
+  end;
+end;
+
+procedure DispatchHookReForceBackendOnRegisterRestoreUntilAttemptCap;
+begin
+  if not GDispatchHookResetLateForceEnabled then
+    Exit;
+
+  case GDispatchHookResetLateForceStage of
+    0:
+      begin
+        GDispatchHookResetLateForceStage := 1;
+        Exit;
+      end;
+    1, 3, 5, 7, 9, 11, 13, 15, 17:
+      begin
+        Inc(GDispatchHookResetLateForceStage);
+        SetActiveBackend(GDispatchHookResetLateForceTarget);
+        Exit;
+      end;
+    2, 4, 6, 8, 10, 12, 14, 16, 18:
+      begin
+        Inc(GDispatchHookResetLateForceStage);
+        Exit;
+      end;
+    19:
+      begin
+        GDispatchHookResetLateForceStage := 20;
         Exit;
       end;
   end;
@@ -760,6 +1159,73 @@ begin
   end;
 end;
 
+procedure DispatchHookDisableRequestedThenLateForceOnPreviousThirdRestore;
+var
+  LModifiedTable: TSimdDispatchTable;
+begin
+  if not GDispatchHookRollbackLateForceEnabled then
+    Exit;
+
+  case GDispatchHookRollbackLateForceStage of
+    0:
+      begin
+        GDispatchHookRollbackLateForceStage := 1;
+        Exit;
+      end;
+    1:
+      begin
+        GDispatchHookRollbackLateForceStage := 2;
+        LModifiedTable := GDispatchHookRollbackLateForceRequestedTable;
+        LModifiedTable.BackendInfo.Available := False;
+        RegisterBackend(GDispatchHookRollbackLateForceRequestedBackend, LModifiedTable);
+        Exit;
+      end;
+    2:
+      begin
+        GDispatchHookRollbackLateForceStage := 3;
+        Exit;
+      end;
+    3:
+      begin
+        GDispatchHookRollbackLateForceStage := 4;
+        Exit;
+      end;
+    4:
+      begin
+        GDispatchHookRollbackLateForceStage := 5;
+        SetActiveBackend(sbScalar);
+        Exit;
+      end;
+    5:
+      begin
+        GDispatchHookRollbackLateForceStage := 6;
+        Exit;
+      end;
+    6:
+      begin
+        GDispatchHookRollbackLateForceStage := 7;
+        SetActiveBackend(sbScalar);
+        Exit;
+      end;
+    7:
+      begin
+        GDispatchHookRollbackLateForceStage := 8;
+        Exit;
+      end;
+    8:
+      begin
+        GDispatchHookRollbackLateForceStage := 9;
+        SetActiveBackend(sbScalar);
+        Exit;
+      end;
+    9:
+      begin
+        GDispatchHookRollbackLateForceStage := 10;
+        Exit;
+      end;
+  end;
+end;
+
 procedure DispatchHookDisableRequestedThenLateForceOnAutomaticRestore;
 var
   LModifiedTable: TSimdDispatchTable;
@@ -795,6 +1261,113 @@ begin
     4:
       begin
         GDispatchHookAutomaticRollbackLateForceStage := 5;
+        Exit;
+      end;
+  end;
+end;
+
+procedure DispatchHookDisableRequestedThenLateForceOnAutomaticThirdRestore;
+var
+  LModifiedTable: TSimdDispatchTable;
+begin
+  if not GDispatchHookAutomaticRollbackRestoreLateForceEnabled then
+    Exit;
+
+  case GDispatchHookAutomaticRollbackRestoreLateForceStage of
+    0:
+      begin
+        GDispatchHookAutomaticRollbackRestoreLateForceStage := 1;
+        Exit;
+      end;
+    1:
+      begin
+        GDispatchHookAutomaticRollbackRestoreLateForceStage := 2;
+        LModifiedTable := GDispatchHookAutomaticRollbackRestoreLateForceRequestedTable;
+        LModifiedTable.BackendInfo.Available := False;
+        RegisterBackend(GDispatchHookAutomaticRollbackRestoreLateForceRequestedBackend, LModifiedTable);
+        Exit;
+      end;
+    2:
+      begin
+        GDispatchHookAutomaticRollbackRestoreLateForceStage := 3;
+        Exit;
+      end;
+    3:
+      begin
+        GDispatchHookAutomaticRollbackRestoreLateForceStage := 4;
+        SetActiveBackend(sbScalar);
+        Exit;
+      end;
+    4:
+      begin
+        GDispatchHookAutomaticRollbackRestoreLateForceStage := 5;
+        Exit;
+      end;
+    5:
+      begin
+        GDispatchHookAutomaticRollbackRestoreLateForceStage := 6;
+        SetActiveBackend(sbScalar);
+        Exit;
+      end;
+    6:
+      begin
+        GDispatchHookAutomaticRollbackRestoreLateForceStage := 7;
+        Exit;
+      end;
+    7:
+      begin
+        GDispatchHookAutomaticRollbackRestoreLateForceStage := 8;
+        SetActiveBackend(sbScalar);
+        Exit;
+      end;
+    8:
+      begin
+        GDispatchHookAutomaticRollbackRestoreLateForceStage := 9;
+        Exit;
+      end;
+  end;
+end;
+
+procedure DispatchHookDisableRequestedThenLateForceOnAutomaticRestoreUntilAttemptCap;
+var
+  LModifiedTable: TSimdDispatchTable;
+begin
+  if not GDispatchHookAutomaticRollbackRestoreLateForceEnabled then
+    Exit;
+
+  case GDispatchHookAutomaticRollbackRestoreLateForceStage of
+    0:
+      begin
+        GDispatchHookAutomaticRollbackRestoreLateForceStage := 1;
+        Exit;
+      end;
+    1:
+      begin
+        GDispatchHookAutomaticRollbackRestoreLateForceStage := 2;
+        LModifiedTable := GDispatchHookAutomaticRollbackRestoreLateForceRequestedTable;
+        LModifiedTable.BackendInfo.Available := False;
+        RegisterBackend(GDispatchHookAutomaticRollbackRestoreLateForceRequestedBackend, LModifiedTable);
+        Exit;
+      end;
+    2:
+      begin
+        GDispatchHookAutomaticRollbackRestoreLateForceStage := 3;
+        Exit;
+      end;
+    3, 5, 7, 9, 11, 13, 15, 17:
+      begin
+        Inc(GDispatchHookAutomaticRollbackRestoreLateForceStage);
+        SetActiveBackend(sbScalar);
+        Exit;
+      end;
+    4, 6, 8, 10, 12, 14, 16, 18:
+      begin
+        Inc(GDispatchHookAutomaticRollbackRestoreLateForceStage);
+        Exit;
+      end;
+    19:
+      begin
+        GDispatchHookAutomaticRollbackRestoreLateForceStage := 20;
         Exit;
       end;
   end;
@@ -1360,6 +1933,579 @@ begin
   end;
 end;
 
+procedure TTestCase_DispatchAPI.Test_TrySetActiveBackend_RollbackRestore_Success_FromPreviousForcedState_Preserves_RequestedSelection;
+var
+  LDispatchable: TSimdBackendArray;
+  LAutomaticBackend: TSimdBackend;
+  LPreviousForcedBackend: TSimdBackend;
+  LRequestedBackend: TSimdBackend;
+  LBackend: TSimdBackend;
+  LOldVectorAsm: Boolean;
+  LTargetTableCaptured: Boolean;
+  LSelectedCount: Integer;
+  LIndex: Integer;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LTargetTableCaptured := False;
+  GDispatchHookRollbackForceSuccessHigherCount := 0;
+  GDispatchHookRollbackForceSuccessTarget := sbScalar;
+  GDispatchHookRollbackForceSuccessTargetTable := Default(TSimdDispatchTable);
+  GDispatchHookRollbackForceSuccessStage := 0;
+  GDispatchHookRollbackForceSuccessEnabled := False;
+  GDispatchHookRollbackForceSuccessInMutation := False;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LDispatchable := GetDispatchableBackendList;
+    if Length(LDispatchable) < 3 then
+      Exit;
+
+    LAutomaticBackend := GetBestDispatchableBackend;
+    LPreviousForcedBackend := sbScalar;
+    LRequestedBackend := sbScalar;
+    LSelectedCount := 0;
+    for LIndex := 0 to High(LDispatchable) do
+      if (LDispatchable[LIndex] <> LAutomaticBackend) and (LDispatchable[LIndex] <> sbScalar) then
+      begin
+        Inc(LSelectedCount);
+        if LSelectedCount = 1 then
+          LPreviousForcedBackend := LDispatchable[LIndex]
+        else
+        begin
+          LRequestedBackend := LDispatchable[LIndex];
+          Break;
+        end;
+      end;
+
+    if (LPreviousForcedBackend = sbScalar) or (LRequestedBackend = sbScalar) then
+      Exit;
+
+    AssertTrue('Previous forced backend should differ from automatic best backend in rollback forced-success previous-state test',
+      LPreviousForcedBackend <> LAutomaticBackend);
+    AssertTrue('Previous forced backend setup should succeed before rollback forced-success previous-state test',
+      TrySetActiveBackend(LPreviousForcedBackend));
+    AssertEquals('Previous forced backend should be active before rollback forced-success previous-state test',
+      Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+
+    AssertTrue('Requested backend should be registered for rollback forced-success previous-state test',
+      TryGetRegisteredBackendDispatchTable(LRequestedBackend, GDispatchHookRollbackForceSuccessTargetTable));
+    LTargetTableCaptured := True;
+
+    GDispatchHookRollbackForceSuccessHigherCount := 0;
+    for LBackend in LDispatchable do
+    begin
+      if LBackend = LRequestedBackend then
+        Break;
+      if LBackend = sbScalar then
+        Continue;
+      AssertTrue('Higher-priority backend should be registered for rollback forced-success previous-state test',
+        TryGetRegisteredBackendDispatchTable(LBackend,
+          GDispatchHookRollbackForceSuccessHigherTables[GDispatchHookRollbackForceSuccessHigherCount]));
+      GDispatchHookRollbackForceSuccessHigherBackends[GDispatchHookRollbackForceSuccessHigherCount] := LBackend;
+      Inc(GDispatchHookRollbackForceSuccessHigherCount);
+    end;
+    AssertTrue('Rollback forced-success previous-state test requires at least one higher-priority backend to suppress',
+      GDispatchHookRollbackForceSuccessHigherCount > 0);
+
+    GDispatchHookRollbackForceSuccessTarget := LRequestedBackend;
+    GDispatchHookRollbackForceSuccessEnabled := True;
+    GDispatchHookRollbackForceSuccessStage := 0;
+    GDispatchHookRollbackForceSuccessInMutation := False;
+    AddDispatchChangedHook(@DispatchHookRollbackForceSuccessWithoutForcedIntent);
+    try
+      AssertTrue('TrySetActiveBackend should report success when rollback-time restore reselects the requested backend even if the call started from a different forced backend',
+        TrySetActiveBackend(LRequestedBackend));
+      AssertEquals('Return-time active backend should switch to the requested backend instead of restoring the previous forced backend in rollback forced-success previous-state test',
+        Ord(LRequestedBackend), Ord(GetActiveBackend));
+      AssertEquals('Synthetic rollback forced-success previous-state hook should complete all expected stages',
+        3, GDispatchHookRollbackForceSuccessStage);
+    finally
+      RemoveDispatchChangedHook(@DispatchHookRollbackForceSuccessWithoutForcedIntent);
+      GDispatchHookRollbackForceSuccessEnabled := False;
+      GDispatchHookRollbackForceSuccessInMutation := False;
+    end;
+
+    for LIndex := 0 to GDispatchHookRollbackForceSuccessHigherCount - 1 do
+      RegisterBackend(GDispatchHookRollbackForceSuccessHigherBackends[LIndex],
+        GDispatchHookRollbackForceSuccessHigherTables[LIndex]);
+
+    AssertEquals('A successful TrySetActiveBackend should keep the requested backend forced even after higher-priority backends are restored when the call started from a previous forced backend',
+      Ord(LRequestedBackend), Ord(GetActiveBackend));
+    AssertTrue('Successful rollback forced-success previous-state path should not drift back to the pre-call forced backend',
+      GetActiveBackend <> LPreviousForcedBackend);
+  finally
+    if LTargetTableCaptured then
+      RegisterBackend(GDispatchHookRollbackForceSuccessTarget,
+        GDispatchHookRollbackForceSuccessTargetTable);
+    for LIndex := 0 to GDispatchHookRollbackForceSuccessHigherCount - 1 do
+      RegisterBackend(GDispatchHookRollbackForceSuccessHigherBackends[LIndex],
+        GDispatchHookRollbackForceSuccessHigherTables[LIndex]);
+    GDispatchHookRollbackForceSuccessHigherCount := 0;
+    GDispatchHookRollbackForceSuccessTarget := sbScalar;
+    GDispatchHookRollbackForceSuccessStage := 0;
+    GDispatchHookRollbackForceSuccessEnabled := False;
+    GDispatchHookRollbackForceSuccessInMutation := False;
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_TrySetActiveBackend_RollbackRestore_Success_FromPreviousForcedState_LateForce_DuringThirdRestore_Preserves_RequestedSelection;
+var
+  LDispatchable: TSimdBackendArray;
+  LAutomaticBackend: TSimdBackend;
+  LPreviousForcedBackend: TSimdBackend;
+  LRequestedBackend: TSimdBackend;
+  LBackend: TSimdBackend;
+  LOldVectorAsm: Boolean;
+  LTargetTableCaptured: Boolean;
+  LSelectedCount: Integer;
+  LIndex: Integer;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LTargetTableCaptured := False;
+  GDispatchHookRollbackForceSuccessHigherCount := 0;
+  GDispatchHookRollbackForceSuccessTarget := sbScalar;
+  GDispatchHookRollbackForceSuccessTargetTable := Default(TSimdDispatchTable);
+  GDispatchHookRollbackForceSuccessStage := 0;
+  GDispatchHookRollbackForceSuccessEnabled := False;
+  GDispatchHookRollbackForceSuccessInMutation := False;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LDispatchable := GetDispatchableBackendList;
+    if Length(LDispatchable) < 3 then
+      Exit;
+
+    LAutomaticBackend := GetBestDispatchableBackend;
+    LPreviousForcedBackend := sbScalar;
+    LRequestedBackend := sbScalar;
+    LSelectedCount := 0;
+    for LIndex := 0 to High(LDispatchable) do
+      if (LDispatchable[LIndex] <> LAutomaticBackend) and (LDispatchable[LIndex] <> sbScalar) then
+      begin
+        Inc(LSelectedCount);
+        if LSelectedCount = 1 then
+          LPreviousForcedBackend := LDispatchable[LIndex]
+        else
+        begin
+          LRequestedBackend := LDispatchable[LIndex];
+          Break;
+        end;
+      end;
+
+    if (LPreviousForcedBackend = sbScalar) or (LRequestedBackend = sbScalar) then
+      Exit;
+
+    AssertTrue('Previous forced backend should differ from automatic best backend in rollback forced-success previous-state third-restore test',
+      LPreviousForcedBackend <> LAutomaticBackend);
+    AssertTrue('Previous forced backend setup should succeed before rollback forced-success previous-state third-restore test',
+      TrySetActiveBackend(LPreviousForcedBackend));
+    AssertEquals('Previous forced backend should be active before rollback forced-success previous-state third-restore test',
+      Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+
+    AssertTrue('Requested backend should be registered for rollback forced-success previous-state third-restore test',
+      TryGetRegisteredBackendDispatchTable(LRequestedBackend, GDispatchHookRollbackForceSuccessTargetTable));
+    LTargetTableCaptured := True;
+
+    GDispatchHookRollbackForceSuccessHigherCount := 0;
+    for LBackend in LDispatchable do
+    begin
+      if LBackend = LRequestedBackend then
+        Break;
+      if LBackend = sbScalar then
+        Continue;
+      AssertTrue('Higher-priority backend should be registered for rollback forced-success previous-state third-restore test',
+        TryGetRegisteredBackendDispatchTable(LBackend,
+          GDispatchHookRollbackForceSuccessHigherTables[GDispatchHookRollbackForceSuccessHigherCount]));
+      GDispatchHookRollbackForceSuccessHigherBackends[GDispatchHookRollbackForceSuccessHigherCount] := LBackend;
+      Inc(GDispatchHookRollbackForceSuccessHigherCount);
+    end;
+    AssertTrue('Rollback forced-success previous-state third-restore test requires at least one higher-priority backend to suppress',
+      GDispatchHookRollbackForceSuccessHigherCount > 0);
+
+    GDispatchHookRollbackForceSuccessTarget := LRequestedBackend;
+    GDispatchHookRollbackForceSuccessEnabled := True;
+    GDispatchHookRollbackForceSuccessStage := 0;
+    GDispatchHookRollbackForceSuccessInMutation := False;
+    AddDispatchChangedHook(@DispatchHookRollbackForceSuccessThenLateForceOnThirdRestore);
+    try
+      AssertTrue('TrySetActiveBackend should still report success when rollback-time restore reselects the requested backend before late-force third-restore observation even if the call started from a different forced backend',
+        TrySetActiveBackend(LRequestedBackend));
+      AssertEquals('Return-time active backend should stay on the requested backend instead of drifting back to the previous forced backend during the third forced-intent restore callback',
+        Ord(LRequestedBackend), Ord(GetActiveBackend));
+      AssertTrue('Rollback forced-success previous-state third-restore path should not remain stuck on scalar at return time',
+        GetActiveBackend <> sbScalar);
+      AssertTrue('Rollback forced-success previous-state third-restore path should not drift back to the pre-call forced backend at return time',
+        GetActiveBackend <> LPreviousForcedBackend);
+      AssertEquals('Synthetic rollback forced-success previous-state third-restore hook should complete all expected stages',
+        9, GDispatchHookRollbackForceSuccessStage);
+    finally
+      RemoveDispatchChangedHook(@DispatchHookRollbackForceSuccessThenLateForceOnThirdRestore);
+      GDispatchHookRollbackForceSuccessEnabled := False;
+      GDispatchHookRollbackForceSuccessInMutation := False;
+    end;
+
+    for LIndex := 0 to GDispatchHookRollbackForceSuccessHigherCount - 1 do
+      RegisterBackend(GDispatchHookRollbackForceSuccessHigherBackends[LIndex],
+        GDispatchHookRollbackForceSuccessHigherTables[LIndex]);
+
+    AssertEquals('A successful TrySetActiveBackend must keep the requested backend forced even after higher-priority backends are restored from third-restore late-force success path that started from a previous forced backend',
+      Ord(LRequestedBackend), Ord(GetActiveBackend));
+    AssertTrue('Successful rollback forced-success previous-state third-restore path should still not drift back to the pre-call forced backend after higher-priority backends are restored',
+      GetActiveBackend <> LPreviousForcedBackend);
+  finally
+    if LTargetTableCaptured then
+      RegisterBackend(GDispatchHookRollbackForceSuccessTarget,
+        GDispatchHookRollbackForceSuccessTargetTable);
+    for LIndex := 0 to GDispatchHookRollbackForceSuccessHigherCount - 1 do
+      RegisterBackend(GDispatchHookRollbackForceSuccessHigherBackends[LIndex],
+        GDispatchHookRollbackForceSuccessHigherTables[LIndex]);
+    GDispatchHookRollbackForceSuccessHigherCount := 0;
+    GDispatchHookRollbackForceSuccessTarget := sbScalar;
+    GDispatchHookRollbackForceSuccessStage := 0;
+    GDispatchHookRollbackForceSuccessEnabled := False;
+    GDispatchHookRollbackForceSuccessInMutation := False;
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_TrySetActiveBackend_RollbackRestore_Success_FromPreviousForcedState_LateForce_UntilAttemptCap_Restores_PreviousStableState;
+var
+  LDispatchable: TSimdBackendArray;
+  LAutomaticBackend: TSimdBackend;
+  LPreviousForcedBackend: TSimdBackend;
+  LRequestedBackend: TSimdBackend;
+  LBackend: TSimdBackend;
+  LOldVectorAsm: Boolean;
+  LTargetTableCaptured: Boolean;
+  LSelectedCount: Integer;
+  LIndex: Integer;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LTargetTableCaptured := False;
+  GDispatchHookRollbackForceSuccessHigherCount := 0;
+  GDispatchHookRollbackForceSuccessTarget := sbScalar;
+  GDispatchHookRollbackForceSuccessTargetTable := Default(TSimdDispatchTable);
+  GDispatchHookRollbackForceSuccessStage := 0;
+  GDispatchHookRollbackForceSuccessEnabled := False;
+  GDispatchHookRollbackForceSuccessInMutation := False;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LDispatchable := GetDispatchableBackendList;
+    if Length(LDispatchable) < 3 then
+      Exit;
+
+    LAutomaticBackend := GetBestDispatchableBackend;
+    LPreviousForcedBackend := sbScalar;
+    LRequestedBackend := sbScalar;
+    LSelectedCount := 0;
+    for LIndex := 0 to High(LDispatchable) do
+      if (LDispatchable[LIndex] <> LAutomaticBackend) and (LDispatchable[LIndex] <> sbScalar) then
+      begin
+        Inc(LSelectedCount);
+        if LSelectedCount = 1 then
+          LPreviousForcedBackend := LDispatchable[LIndex]
+        else
+        begin
+          LRequestedBackend := LDispatchable[LIndex];
+          Break;
+        end;
+      end;
+
+    if (LPreviousForcedBackend = sbScalar) or (LRequestedBackend = sbScalar) then
+      Exit;
+
+    AssertTrue('Previous forced backend should differ from automatic best backend in rollback forced-success attempt-cap test',
+      LPreviousForcedBackend <> LAutomaticBackend);
+    AssertTrue('Previous forced backend setup should succeed before rollback forced-success attempt-cap test',
+      TrySetActiveBackend(LPreviousForcedBackend));
+    AssertEquals('Previous forced backend should be active before rollback forced-success attempt-cap test',
+      Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+
+    AssertTrue('Requested backend should be registered for rollback forced-success attempt-cap test',
+      TryGetRegisteredBackendDispatchTable(LRequestedBackend, GDispatchHookRollbackForceSuccessTargetTable));
+    LTargetTableCaptured := True;
+
+    GDispatchHookRollbackForceSuccessHigherCount := 0;
+    for LBackend in LDispatchable do
+    begin
+      if LBackend = LRequestedBackend then
+        Break;
+      if (LBackend = sbScalar) or (LBackend = LPreviousForcedBackend) then
+        Continue;
+      AssertTrue('Higher-priority backend should be registered for rollback forced-success attempt-cap test',
+        TryGetRegisteredBackendDispatchTable(LBackend,
+          GDispatchHookRollbackForceSuccessHigherTables[GDispatchHookRollbackForceSuccessHigherCount]));
+      GDispatchHookRollbackForceSuccessHigherBackends[GDispatchHookRollbackForceSuccessHigherCount] := LBackend;
+      Inc(GDispatchHookRollbackForceSuccessHigherCount);
+    end;
+    AssertTrue('Rollback forced-success attempt-cap test requires at least one higher-priority backend to suppress',
+      GDispatchHookRollbackForceSuccessHigherCount > 0);
+
+    GDispatchHookRollbackForceSuccessTarget := LRequestedBackend;
+    GDispatchHookRollbackForceSuccessEnabled := True;
+    GDispatchHookRollbackForceSuccessStage := 0;
+    GDispatchHookRollbackForceSuccessInMutation := False;
+    AddDispatchChangedHook(@DispatchHookRollbackForceSuccessThenLateForceUntilAttemptCap);
+    try
+      AssertFalse('TrySetActiveBackend should report failure when repeated late scalar re-force exhausts forced-intent restore attempts after rollback-time reselect',
+        TrySetActiveBackend(LRequestedBackend));
+      AssertEquals('Synthetic rollback forced-success attempt-cap hook should also observe the follow-up callback from failure rollback stabilization',
+        20, GDispatchHookRollbackForceSuccessStage);
+      AssertEquals('TrySetActiveBackend should restore the previous forced backend when forced-intent stabilization exhausts the bounded attempt cap',
+        Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+      AssertTrue('Attempt-cap exhaustion should not leave stale scalar forced fallback while a previous forced backend exists',
+        GetActiveBackend <> sbScalar);
+      AssertTrue('Attempt-cap exhaustion should not incorrectly report the requested backend as still active after failure rollback',
+        GetActiveBackend <> LRequestedBackend);
+    finally
+      RemoveDispatchChangedHook(@DispatchHookRollbackForceSuccessThenLateForceUntilAttemptCap);
+      GDispatchHookRollbackForceSuccessEnabled := False;
+      GDispatchHookRollbackForceSuccessInMutation := False;
+    end;
+
+    for LIndex := 0 to GDispatchHookRollbackForceSuccessHigherCount - 1 do
+      RegisterBackend(GDispatchHookRollbackForceSuccessHigherBackends[LIndex],
+        GDispatchHookRollbackForceSuccessHigherTables[LIndex]);
+
+    AssertEquals('Restoring higher-priority backends after attempt-cap exhaustion must keep the previous forced backend active',
+      Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+  finally
+    if LTargetTableCaptured then
+      RegisterBackend(GDispatchHookRollbackForceSuccessTarget,
+        GDispatchHookRollbackForceSuccessTargetTable);
+    for LIndex := 0 to GDispatchHookRollbackForceSuccessHigherCount - 1 do
+      RegisterBackend(GDispatchHookRollbackForceSuccessHigherBackends[LIndex],
+        GDispatchHookRollbackForceSuccessHigherTables[LIndex]);
+    GDispatchHookRollbackForceSuccessHigherCount := 0;
+    GDispatchHookRollbackForceSuccessTarget := sbScalar;
+    GDispatchHookRollbackForceSuccessStage := 0;
+    GDispatchHookRollbackForceSuccessEnabled := False;
+    GDispatchHookRollbackForceSuccessInMutation := False;
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_TrySetActiveBackend_RollbackRestore_Success_FromLowerPriorityPreviousForcedState_LateForce_UntilAttemptCap_Restores_PreviousStableState;
+var
+  LDispatchable: TSimdBackendArray;
+  LAutomaticBackend: TSimdBackend;
+  LPreviousForcedBackend: TSimdBackend;
+  LRequestedBackend: TSimdBackend;
+  LBackend: TSimdBackend;
+  LOldVectorAsm: Boolean;
+  LTargetTableCaptured: Boolean;
+  LSelectedCount: Integer;
+  LIndex: Integer;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LTargetTableCaptured := False;
+  GDispatchHookRollbackForceSuccessHigherCount := 0;
+  GDispatchHookRollbackForceSuccessTarget := sbScalar;
+  GDispatchHookRollbackForceSuccessTargetTable := Default(TSimdDispatchTable);
+  GDispatchHookRollbackForceSuccessStage := 0;
+  GDispatchHookRollbackForceSuccessEnabled := False;
+  GDispatchHookRollbackForceSuccessInMutation := False;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LDispatchable := GetDispatchableBackendList;
+    if Length(LDispatchable) < 3 then
+      Exit;
+
+    LAutomaticBackend := GetBestDispatchableBackend;
+    LPreviousForcedBackend := sbScalar;
+    LRequestedBackend := sbScalar;
+    LSelectedCount := 0;
+    for LIndex := 0 to High(LDispatchable) do
+      if (LDispatchable[LIndex] <> LAutomaticBackend) and (LDispatchable[LIndex] <> sbScalar) then
+      begin
+        Inc(LSelectedCount);
+        if LSelectedCount = 1 then
+          LRequestedBackend := LDispatchable[LIndex]
+        else
+        begin
+          LPreviousForcedBackend := LDispatchable[LIndex];
+          Break;
+        end;
+      end;
+
+    if (LPreviousForcedBackend = sbScalar) or (LRequestedBackend = sbScalar) then
+      Exit;
+
+    AssertTrue('Previous forced backend setup should succeed before lower-priority previous-forced success-path attempt-cap test',
+      TrySetActiveBackend(LPreviousForcedBackend));
+    AssertEquals('Previous forced backend should be active before lower-priority previous-forced success-path attempt-cap test',
+      Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+
+    AssertTrue('Requested backend should be registered for lower-priority previous-forced success-path attempt-cap test',
+      TryGetRegisteredBackendDispatchTable(LRequestedBackend, GDispatchHookRollbackForceSuccessTargetTable));
+    LTargetTableCaptured := True;
+
+    GDispatchHookRollbackForceSuccessHigherCount := 0;
+    for LBackend in LDispatchable do
+    begin
+      if LBackend = LRequestedBackend then
+        Break;
+      if LBackend = sbScalar then
+        Continue;
+      AssertTrue('Higher-priority backend should be registered for lower-priority previous-forced success-path attempt-cap test',
+        TryGetRegisteredBackendDispatchTable(LBackend,
+          GDispatchHookRollbackForceSuccessHigherTables[GDispatchHookRollbackForceSuccessHigherCount]));
+      GDispatchHookRollbackForceSuccessHigherBackends[GDispatchHookRollbackForceSuccessHigherCount] := LBackend;
+      Inc(GDispatchHookRollbackForceSuccessHigherCount);
+    end;
+    AssertTrue('Lower-priority previous-forced success-path attempt-cap test requires at least one higher-priority backend to suppress',
+      GDispatchHookRollbackForceSuccessHigherCount > 0);
+
+    GDispatchHookRollbackForceSuccessTarget := LRequestedBackend;
+    GDispatchHookRollbackForceSuccessEnabled := True;
+    GDispatchHookRollbackForceSuccessStage := 0;
+    GDispatchHookRollbackForceSuccessInMutation := False;
+    AddDispatchChangedHook(@DispatchHookRollbackForceSuccessThenLateForceUntilAttemptCap);
+    try
+      AssertFalse('TrySetActiveBackend should report failure when repeated late scalar re-force exhausts forced-intent restore attempts after rollback-time reselect from a lower-priority previous forced backend',
+        TrySetActiveBackend(LRequestedBackend));
+      AssertEquals('Synthetic lower-priority previous-forced success-path attempt-cap hook should also observe the follow-up callback from pre-call forced-intent stabilization',
+        20, GDispatchHookRollbackForceSuccessStage);
+      AssertEquals('Success-path attempt-cap exhaustion should restore the lower-priority pre-call forced backend instead of leaking the transient requested selection',
+        Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+      AssertTrue('Lower-priority previous-forced success-path attempt-cap exhaustion should not leave stale scalar forced fallback at return time',
+        GetActiveBackend <> sbScalar);
+      AssertTrue('Lower-priority previous-forced success-path attempt-cap exhaustion should not keep the requested backend active after failure closeout',
+        GetActiveBackend <> LRequestedBackend);
+    finally
+      RemoveDispatchChangedHook(@DispatchHookRollbackForceSuccessThenLateForceUntilAttemptCap);
+      GDispatchHookRollbackForceSuccessEnabled := False;
+      GDispatchHookRollbackForceSuccessInMutation := False;
+    end;
+
+    for LIndex := 0 to GDispatchHookRollbackForceSuccessHigherCount - 1 do
+      RegisterBackend(GDispatchHookRollbackForceSuccessHigherBackends[LIndex],
+        GDispatchHookRollbackForceSuccessHigherTables[LIndex]);
+
+    AssertEquals('Restoring higher-priority backends after lower-priority previous-forced success-path attempt-cap exhaustion must keep the original forced backend active',
+      Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+  finally
+    if LTargetTableCaptured then
+      RegisterBackend(GDispatchHookRollbackForceSuccessTarget,
+        GDispatchHookRollbackForceSuccessTargetTable);
+    for LIndex := 0 to GDispatchHookRollbackForceSuccessHigherCount - 1 do
+      RegisterBackend(GDispatchHookRollbackForceSuccessHigherBackends[LIndex],
+        GDispatchHookRollbackForceSuccessHigherTables[LIndex]);
+    GDispatchHookRollbackForceSuccessHigherCount := 0;
+    GDispatchHookRollbackForceSuccessTarget := sbScalar;
+    GDispatchHookRollbackForceSuccessStage := 0;
+    GDispatchHookRollbackForceSuccessEnabled := False;
+    GDispatchHookRollbackForceSuccessInMutation := False;
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_TrySetActiveBackend_RollbackRestore_Success_LateForce_DuringThirdRestore_Preserves_ForcedSelection;
+var
+  LDispatchable: TSimdBackendArray;
+  LAutomaticBackend: TSimdBackend;
+  LRequestedBackend: TSimdBackend;
+  LBackend: TSimdBackend;
+  LOldVectorAsm: Boolean;
+  LTargetTableCaptured: Boolean;
+  LIndex: Integer;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LTargetTableCaptured := False;
+  GDispatchHookRollbackForceSuccessHigherCount := 0;
+  GDispatchHookRollbackForceSuccessTarget := sbScalar;
+  GDispatchHookRollbackForceSuccessTargetTable := Default(TSimdDispatchTable);
+  GDispatchHookRollbackForceSuccessStage := 0;
+  GDispatchHookRollbackForceSuccessEnabled := False;
+  GDispatchHookRollbackForceSuccessInMutation := False;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LDispatchable := GetDispatchableBackendList;
+    if Length(LDispatchable) < 2 then
+      Exit;
+
+    LAutomaticBackend := GetBestDispatchableBackend;
+    LRequestedBackend := sbScalar;
+    for LIndex := High(LDispatchable) downto 0 do
+      if (LDispatchable[LIndex] <> sbScalar) and (LDispatchable[LIndex] <> LAutomaticBackend) then
+      begin
+        LRequestedBackend := LDispatchable[LIndex];
+        Break;
+      end;
+    if LRequestedBackend = sbScalar then
+      Exit;
+
+    AssertTrue('Requested backend should be registered for rollback forced-success third-restore preservation test',
+      TryGetRegisteredBackendDispatchTable(LRequestedBackend, GDispatchHookRollbackForceSuccessTargetTable));
+    LTargetTableCaptured := True;
+
+    GDispatchHookRollbackForceSuccessHigherCount := 0;
+    for LBackend in LDispatchable do
+    begin
+      if LBackend = LRequestedBackend then
+        Break;
+      if LBackend = sbScalar then
+        Continue;
+      AssertTrue('Higher-priority backend should be registered for rollback forced-success third-restore preservation test',
+        TryGetRegisteredBackendDispatchTable(LBackend,
+          GDispatchHookRollbackForceSuccessHigherTables[GDispatchHookRollbackForceSuccessHigherCount]));
+      GDispatchHookRollbackForceSuccessHigherBackends[GDispatchHookRollbackForceSuccessHigherCount] := LBackend;
+      Inc(GDispatchHookRollbackForceSuccessHigherCount);
+    end;
+    AssertTrue('Rollback forced-success third-restore preservation test requires at least one higher-priority backend to suppress',
+      GDispatchHookRollbackForceSuccessHigherCount > 0);
+
+    GDispatchHookRollbackForceSuccessTarget := LRequestedBackend;
+    GDispatchHookRollbackForceSuccessEnabled := True;
+    GDispatchHookRollbackForceSuccessStage := 0;
+    GDispatchHookRollbackForceSuccessInMutation := False;
+    AddDispatchChangedHook(@DispatchHookRollbackForceSuccessThenLateForceOnThirdRestore);
+    try
+      AssertTrue('TrySetActiveBackend should still report success when rollback-time restore reselects the requested backend before late-force third-restore observation',
+        TrySetActiveBackend(LRequestedBackend));
+      AssertEquals('Return-time active backend should stay on the requested backend even if a late hook re-forces scalar during the third forced-intent restore callback',
+        Ord(LRequestedBackend), Ord(GetActiveBackend));
+      AssertTrue('Rollback forced-success third-restore path should not leave stale scalar forced fallback at return time',
+        GetActiveBackend <> sbScalar);
+      AssertEquals('Synthetic rollback forced-success third-restore hook should complete all expected stages',
+        9, GDispatchHookRollbackForceSuccessStage);
+    finally
+      RemoveDispatchChangedHook(@DispatchHookRollbackForceSuccessThenLateForceOnThirdRestore);
+      GDispatchHookRollbackForceSuccessEnabled := False;
+      GDispatchHookRollbackForceSuccessInMutation := False;
+    end;
+
+    for LIndex := 0 to GDispatchHookRollbackForceSuccessHigherCount - 1 do
+      RegisterBackend(GDispatchHookRollbackForceSuccessHigherBackends[LIndex],
+        GDispatchHookRollbackForceSuccessHigherTables[LIndex]);
+
+    AssertEquals('A successful TrySetActiveBackend must keep the requested backend forced even after higher-priority backends are restored from third-restore late-force success path',
+      Ord(LRequestedBackend), Ord(GetActiveBackend));
+  finally
+    if LTargetTableCaptured then
+      RegisterBackend(GDispatchHookRollbackForceSuccessTarget,
+        GDispatchHookRollbackForceSuccessTargetTable);
+    for LIndex := 0 to GDispatchHookRollbackForceSuccessHigherCount - 1 do
+      RegisterBackend(GDispatchHookRollbackForceSuccessHigherBackends[LIndex],
+        GDispatchHookRollbackForceSuccessHigherTables[LIndex]);
+    GDispatchHookRollbackForceSuccessHigherCount := 0;
+    GDispatchHookRollbackForceSuccessTarget := sbScalar;
+    GDispatchHookRollbackForceSuccessStage := 0;
+    GDispatchHookRollbackForceSuccessEnabled := False;
+    GDispatchHookRollbackForceSuccessInMutation := False;
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
 procedure TTestCase_DispatchAPI.Test_SetActiveBackend_Unavailable_FallsBackToScalar;
 begin
   try
@@ -1375,6 +2521,107 @@ begin
 
     AssertEquals('SetActiveBackend(unavailable) should fall back to Scalar', Ord(sbScalar), Ord(GetActiveBackend));
   finally
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_TrySetActiveBackend_RollbackRestore_Success_LateForce_UntilAttemptCap_Restores_AutomaticIntent;
+var
+  LDispatchable: TSimdBackendArray;
+  LAutomaticBackend: TSimdBackend;
+  LRequestedBackend: TSimdBackend;
+  LBackend: TSimdBackend;
+  LOldVectorAsm: Boolean;
+  LTargetTableCaptured: Boolean;
+  LIndex: Integer;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LTargetTableCaptured := False;
+  GDispatchHookRollbackForceSuccessHigherCount := 0;
+  GDispatchHookRollbackForceSuccessTarget := sbScalar;
+  GDispatchHookRollbackForceSuccessTargetTable := Default(TSimdDispatchTable);
+  GDispatchHookRollbackForceSuccessStage := 0;
+  GDispatchHookRollbackForceSuccessEnabled := False;
+  GDispatchHookRollbackForceSuccessInMutation := False;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LDispatchable := GetDispatchableBackendList;
+    if Length(LDispatchable) < 2 then
+      Exit;
+
+    LAutomaticBackend := GetBestDispatchableBackend;
+    LRequestedBackend := sbScalar;
+    for LIndex := High(LDispatchable) downto 0 do
+      if (LDispatchable[LIndex] <> sbScalar) and (LDispatchable[LIndex] <> LAutomaticBackend) then
+      begin
+        LRequestedBackend := LDispatchable[LIndex];
+        Break;
+      end;
+    if LRequestedBackend = sbScalar then
+      Exit;
+
+    AssertTrue('Requested backend should be registered for rollback forced-success automatic-intent attempt-cap test',
+      TryGetRegisteredBackendDispatchTable(LRequestedBackend, GDispatchHookRollbackForceSuccessTargetTable));
+    LTargetTableCaptured := True;
+
+    GDispatchHookRollbackForceSuccessHigherCount := 0;
+    for LBackend in LDispatchable do
+    begin
+      if LBackend = LRequestedBackend then
+        Break;
+      if LBackend = sbScalar then
+        Continue;
+      AssertTrue('Higher-priority backend should be registered for rollback forced-success automatic-intent attempt-cap test',
+        TryGetRegisteredBackendDispatchTable(LBackend,
+          GDispatchHookRollbackForceSuccessHigherTables[GDispatchHookRollbackForceSuccessHigherCount]));
+      GDispatchHookRollbackForceSuccessHigherBackends[GDispatchHookRollbackForceSuccessHigherCount] := LBackend;
+      Inc(GDispatchHookRollbackForceSuccessHigherCount);
+    end;
+    AssertTrue('Rollback forced-success automatic-intent attempt-cap test requires at least one higher-priority backend to suppress',
+      GDispatchHookRollbackForceSuccessHigherCount > 0);
+
+    GDispatchHookRollbackForceSuccessTarget := LRequestedBackend;
+    GDispatchHookRollbackForceSuccessEnabled := True;
+    GDispatchHookRollbackForceSuccessStage := 0;
+    GDispatchHookRollbackForceSuccessInMutation := False;
+    AddDispatchChangedHook(@DispatchHookRollbackForceSuccessThenLateForceUntilAttemptCap);
+    try
+      AssertFalse('TrySetActiveBackend should report failure when repeated late scalar re-force exhausts forced-intent restore attempts after rollback-time reselect from automatic mode',
+        TrySetActiveBackend(LRequestedBackend));
+      AssertEquals('Synthetic rollback forced-success automatic-intent attempt-cap hook should also observe the follow-up callback from automatic-intent stabilization',
+        20, GDispatchHookRollbackForceSuccessStage);
+      AssertEquals('Attempt-cap exhaustion should restore automatic intent at return time, which under the hook-suppressed higher backends still means the requested backend remains the current automatic best backend',
+        Ord(LRequestedBackend), Ord(GetActiveBackend));
+      AssertTrue('Rollback forced-success automatic-intent attempt-cap path should not remain stuck on scalar at return time',
+        GetActiveBackend <> sbScalar);
+    finally
+      RemoveDispatchChangedHook(@DispatchHookRollbackForceSuccessThenLateForceUntilAttemptCap);
+      GDispatchHookRollbackForceSuccessEnabled := False;
+      GDispatchHookRollbackForceSuccessInMutation := False;
+    end;
+
+    for LIndex := 0 to GDispatchHookRollbackForceSuccessHigherCount - 1 do
+      RegisterBackend(GDispatchHookRollbackForceSuccessHigherBackends[LIndex],
+        GDispatchHookRollbackForceSuccessHigherTables[LIndex]);
+
+    AssertEquals('Restoring higher-priority backends after attempt-cap exhaustion must drift back to the automatic best backend instead of preserving the requested forced selection',
+      Ord(LAutomaticBackend), Ord(GetActiveBackend));
+    AssertTrue('Restoring higher-priority backends after success-path attempt-cap exhaustion should not keep the requested backend forced',
+      GetActiveBackend <> LRequestedBackend);
+  finally
+    if LTargetTableCaptured then
+      RegisterBackend(GDispatchHookRollbackForceSuccessTarget,
+        GDispatchHookRollbackForceSuccessTargetTable);
+    for LIndex := 0 to GDispatchHookRollbackForceSuccessHigherCount - 1 do
+      RegisterBackend(GDispatchHookRollbackForceSuccessHigherBackends[LIndex],
+        GDispatchHookRollbackForceSuccessHigherTables[LIndex]);
+    GDispatchHookRollbackForceSuccessHigherCount := 0;
+    GDispatchHookRollbackForceSuccessTarget := sbScalar;
+    GDispatchHookRollbackForceSuccessStage := 0;
+    GDispatchHookRollbackForceSuccessEnabled := False;
+    GDispatchHookRollbackForceSuccessInMutation := False;
+    SetVectorAsmEnabled(LOldVectorAsm);
     ResetToAutomaticBackend;
   end;
 end;
@@ -1527,6 +2774,154 @@ begin
   end;
 end;
 
+procedure TTestCase_DispatchAPI.Test_TrySetActiveBackend_RollbackRestore_LateForce_DuringThirdRestore_Restores_AutomaticBackend;
+var
+  LAutomaticBackend: TSimdBackend;
+  LRequestedBackend: TSimdBackend;
+  LDispatchable: TSimdBackendArray;
+  LOriginalTable: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+  LRequestedTableCaptured: Boolean;
+  LIndex: Integer;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LRequestedTableCaptured := False;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LAutomaticBackend := GetActiveBackend;
+    if LAutomaticBackend = sbScalar then
+      Exit;
+
+    AssertEquals('Automatic selection should start from best dispatchable backend before automatic rollback third-restore late-force test',
+      Ord(LAutomaticBackend), Ord(GetBestDispatchableBackend));
+
+    LRequestedBackend := sbScalar;
+    LDispatchable := GetDispatchableBackendList;
+    for LIndex := 0 to High(LDispatchable) do
+      if (LDispatchable[LIndex] <> LAutomaticBackend) and (LDispatchable[LIndex] <> sbScalar) then
+      begin
+        LRequestedBackend := LDispatchable[LIndex];
+        Break;
+      end;
+
+    if LRequestedBackend = sbScalar then
+      Exit;
+
+    AssertTrue('Requested backend should be registered for automatic rollback third-restore late-force test',
+      TryGetRegisteredBackendDispatchTable(LRequestedBackend, LOriginalTable));
+    LRequestedTableCaptured := True;
+    AssertTrue('Requested backend should start dispatchable before automatic rollback third-restore late-force test',
+      IsBackendDispatchable(LRequestedBackend));
+
+    GDispatchHookAutomaticRollbackRestoreLateForceRequestedBackend := LRequestedBackend;
+    GDispatchHookAutomaticRollbackRestoreLateForceRequestedTable := LOriginalTable;
+    GDispatchHookAutomaticRollbackRestoreLateForceEnabled := True;
+    GDispatchHookAutomaticRollbackRestoreLateForceStage := 0;
+    AddDispatchChangedHook(@DispatchHookDisableRequestedThenLateForceOnAutomaticThirdRestore);
+    try
+      AssertFalse('TrySetActiveBackend should still report failure when requested backend is disabled before automatic rollback third-restore late-force observation',
+        TrySetActiveBackend(LRequestedBackend));
+      AssertEquals('Synthetic automatic rollback third-restore late-force hook should run through the full callback sequence',
+        9, GDispatchHookAutomaticRollbackRestoreLateForceStage);
+      AssertEquals('A failed TrySetActiveBackend in automatic mode must still restore automatic best backend even if a late hook re-forces scalar during the third rollback restore callback',
+        Ord(LAutomaticBackend), Ord(GetActiveBackend));
+      AssertTrue('Automatic rollback third-restore late-force path should not remain stuck on scalar when a better automatic backend exists',
+        GetActiveBackend <> sbScalar);
+    finally
+      RemoveDispatchChangedHook(@DispatchHookDisableRequestedThenLateForceOnAutomaticThirdRestore);
+      GDispatchHookAutomaticRollbackRestoreLateForceEnabled := False;
+      GDispatchHookAutomaticRollbackRestoreLateForceStage := 0;
+      GDispatchHookAutomaticRollbackRestoreLateForceRequestedBackend := sbScalar;
+    end;
+
+    RegisterBackend(LRequestedBackend, LOriginalTable);
+    AssertTrue('Requested backend should become dispatchable again after restoring its original table in automatic rollback third-restore late-force test',
+      IsBackendDispatchable(LRequestedBackend));
+    AssertEquals('Restoring the requested backend table after automatic rollback third-restore late-force failure must keep automatic best backend active',
+      Ord(LAutomaticBackend), Ord(GetActiveBackend));
+  finally
+    if LRequestedTableCaptured then
+      RegisterBackend(LRequestedBackend, LOriginalTable);
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_TrySetActiveBackend_RollbackRestore_LateForce_UntilAttemptCap_Restores_AutomaticBackend;
+var
+  LAutomaticBackend: TSimdBackend;
+  LRequestedBackend: TSimdBackend;
+  LDispatchable: TSimdBackendArray;
+  LOriginalTable: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+  LRequestedTableCaptured: Boolean;
+  LIndex: Integer;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LRequestedTableCaptured := False;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LAutomaticBackend := GetActiveBackend;
+    if LAutomaticBackend = sbScalar then
+      Exit;
+
+    AssertEquals('Automatic selection should start from best dispatchable backend before automatic rollback attempt-cap late-force test',
+      Ord(LAutomaticBackend), Ord(GetBestDispatchableBackend));
+
+    LRequestedBackend := sbScalar;
+    LDispatchable := GetDispatchableBackendList;
+    for LIndex := 0 to High(LDispatchable) do
+      if (LDispatchable[LIndex] <> LAutomaticBackend) and (LDispatchable[LIndex] <> sbScalar) then
+      begin
+        LRequestedBackend := LDispatchable[LIndex];
+        Break;
+      end;
+
+    if LRequestedBackend = sbScalar then
+      Exit;
+
+    AssertTrue('Requested backend should be registered for automatic rollback attempt-cap late-force test',
+      TryGetRegisteredBackendDispatchTable(LRequestedBackend, LOriginalTable));
+    LRequestedTableCaptured := True;
+    AssertTrue('Requested backend should start dispatchable before automatic rollback attempt-cap late-force test',
+      IsBackendDispatchable(LRequestedBackend));
+
+    GDispatchHookAutomaticRollbackRestoreLateForceRequestedBackend := LRequestedBackend;
+    GDispatchHookAutomaticRollbackRestoreLateForceRequestedTable := LOriginalTable;
+    GDispatchHookAutomaticRollbackRestoreLateForceEnabled := True;
+    GDispatchHookAutomaticRollbackRestoreLateForceStage := 0;
+    AddDispatchChangedHook(@DispatchHookDisableRequestedThenLateForceOnAutomaticRestoreUntilAttemptCap);
+    try
+      AssertFalse('TrySetActiveBackend should still report failure when requested backend is disabled before automatic rollback attempt-cap late-force observation',
+        TrySetActiveBackend(LRequestedBackend));
+      AssertEquals('Synthetic automatic rollback attempt-cap late-force hook should also observe the follow-up callback from post-cap automatic stabilization',
+        20, GDispatchHookAutomaticRollbackRestoreLateForceStage);
+      AssertEquals('A failed TrySetActiveBackend in automatic mode must still restore automatic best backend after rollback restore attempts are exhausted by repeated late scalar force',
+        Ord(LAutomaticBackend), Ord(GetActiveBackend));
+      AssertTrue('Automatic rollback attempt-cap late-force path should not remain stuck on scalar when a better automatic backend exists',
+        GetActiveBackend <> sbScalar);
+    finally
+      RemoveDispatchChangedHook(@DispatchHookDisableRequestedThenLateForceOnAutomaticRestoreUntilAttemptCap);
+      GDispatchHookAutomaticRollbackRestoreLateForceEnabled := False;
+      GDispatchHookAutomaticRollbackRestoreLateForceStage := 0;
+      GDispatchHookAutomaticRollbackRestoreLateForceRequestedBackend := sbScalar;
+    end;
+
+    RegisterBackend(LRequestedBackend, LOriginalTable);
+    AssertTrue('Requested backend should become dispatchable again after restoring its original table in automatic rollback attempt-cap late-force test',
+      IsBackendDispatchable(LRequestedBackend));
+    AssertEquals('Restoring the requested backend table after automatic rollback attempt-cap late-force failure must keep automatic best backend active',
+      Ord(LAutomaticBackend), Ord(GetActiveBackend));
+  finally
+    if LRequestedTableCaptured then
+      RegisterBackend(LRequestedBackend, LOriginalTable);
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
 procedure TTestCase_DispatchAPI.Test_TrySetActiveBackend_RollbackRestore_LateForce_Preserves_PreviousForcedBackend;
 var
   LDispatchable: TSimdBackendArray;
@@ -1604,6 +2999,92 @@ begin
 
     RegisterBackend(LRequestedBackend, LRequestedOriginalTable);
     AssertEquals('Restoring the requested backend table after rollback late-force failure must keep the previous forced backend active',
+      Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+  finally
+    if LRequestedTableCaptured then
+      RegisterBackend(LRequestedBackend, LRequestedOriginalTable);
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_TrySetActiveBackend_RollbackRestore_LateForce_DuringThirdRestore_Preserves_PreviousForcedBackend;
+var
+  LDispatchable: TSimdBackendArray;
+  LAutomaticBackend: TSimdBackend;
+  LPreviousForcedBackend: TSimdBackend;
+  LRequestedBackend: TSimdBackend;
+  LRequestedOriginalTable: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+  LRequestedTableCaptured: Boolean;
+  LSelectedCount: Integer;
+  LIndex: Integer;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LRequestedTableCaptured := False;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LDispatchable := GetDispatchableBackendList;
+    if Length(LDispatchable) < 3 then
+      Exit;
+
+    LAutomaticBackend := GetBestDispatchableBackend;
+    LPreviousForcedBackend := sbScalar;
+    LRequestedBackend := sbScalar;
+    LSelectedCount := 0;
+    for LIndex := 0 to High(LDispatchable) do
+      if (LDispatchable[LIndex] <> LAutomaticBackend) and (LDispatchable[LIndex] <> sbScalar) then
+      begin
+        Inc(LSelectedCount);
+        if LSelectedCount = 1 then
+          LPreviousForcedBackend := LDispatchable[LIndex]
+        else
+        begin
+          LRequestedBackend := LDispatchable[LIndex];
+          Break;
+        end;
+      end;
+
+    if (LPreviousForcedBackend = sbScalar) or (LRequestedBackend = sbScalar) then
+      Exit;
+
+    AssertTrue('Previous forced backend should differ from automatic best backend in rollback third-restore late-force test',
+      LPreviousForcedBackend <> LAutomaticBackend);
+    AssertTrue('Previous forced backend setup should succeed before rollback third-restore late-force test',
+      TrySetActiveBackend(LPreviousForcedBackend));
+    AssertEquals('Previous forced backend should be active before rollback third-restore late-force test',
+      Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+
+    AssertTrue('Requested backend should be registered for rollback third-restore late-force test',
+      TryGetRegisteredBackendDispatchTable(LRequestedBackend, LRequestedOriginalTable));
+    LRequestedTableCaptured := True;
+    AssertTrue('Requested backend should start dispatchable before rollback third-restore late-force test',
+      IsBackendDispatchable(LRequestedBackend));
+
+    GDispatchHookRollbackLateForceRequestedBackend := LRequestedBackend;
+    GDispatchHookRollbackLateForceRequestedTable := LRequestedOriginalTable;
+    GDispatchHookRollbackLateForceEnabled := True;
+    GDispatchHookRollbackLateForceStage := 0;
+    AddDispatchChangedHook(@DispatchHookDisableRequestedThenLateForceOnPreviousThirdRestore);
+    try
+      AssertFalse('TrySetActiveBackend should still report failure when requested backend is disabled by hook before rollback third-restore late-force observation',
+        TrySetActiveBackend(LRequestedBackend));
+      AssertEquals('Synthetic rollback third-restore late-force hook should run through the full callback sequence',
+        10, GDispatchHookRollbackLateForceStage);
+      AssertEquals('TrySetActiveBackend should preserve the previous forced backend even if a late hook re-forces scalar during the third rollback restore callback',
+        Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+      AssertTrue('Rollback third-restore should not leave stale scalar forced fallback while a previous forced backend exists',
+        GetActiveBackend <> sbScalar);
+    finally
+      RemoveDispatchChangedHook(@DispatchHookDisableRequestedThenLateForceOnPreviousThirdRestore);
+      GDispatchHookRollbackLateForceEnabled := False;
+      GDispatchHookRollbackLateForceStage := 0;
+      GDispatchHookRollbackLateForceRequestedBackend := sbScalar;
+    end;
+
+    RegisterBackend(LRequestedBackend, LRequestedOriginalTable);
+    AssertEquals('Restoring the requested backend table after rollback third-restore late-force failure must keep the previous forced backend active',
       Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
   finally
     if LRequestedTableCaptured then
@@ -1828,6 +3309,94 @@ begin
   end;
 end;
 
+procedure TTestCase_DispatchAPI.Test_ResetToAutomaticBackend_HookLateForce_DuringThirdRestore_Restores_AutomaticBackend;
+var
+  LAutomaticBackend: TSimdBackend;
+  LOldVectorAsm: Boolean;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LAutomaticBackend := GetBestDispatchableBackend;
+    if LAutomaticBackend = sbScalar then
+      Exit;
+
+    AssertTrue('Scalar force setup should succeed before ResetToAutomaticBackend third-restore late-force test',
+      TrySetActiveBackend(sbScalar));
+    AssertEquals('Scalar should be active before ResetToAutomaticBackend third-restore late-force test',
+      Ord(sbScalar), Ord(GetActiveBackend));
+
+    GDispatchHookResetLateForceTarget := sbScalar;
+    GDispatchHookResetLateForceEnabled := True;
+    GDispatchHookResetLateForceStage := 0;
+    AddDispatchChangedHook(@DispatchHookReForceBackendOnAutomaticThirdRestore);
+    try
+      ResetToAutomaticBackend;
+      AssertEquals('Synthetic third-late-force hook should run through the full ResetToAutomaticBackend callback sequence',
+        7, GDispatchHookResetLateForceStage);
+      AssertEquals('ResetToAutomaticBackend should still restore automatic best backend even if a late hook re-forces scalar during the third restore callback',
+        Ord(LAutomaticBackend), Ord(GetActiveBackend));
+      AssertTrue('ResetToAutomaticBackend third-restore late-force path should not return with stale scalar forced fallback when a better automatic backend exists',
+        GetActiveBackend <> sbScalar);
+      AssertEquals('ResetToAutomaticBackend third-restore late-force path should leave active backend aligned with best dispatchable backend',
+        Ord(GetBestDispatchableBackend), Ord(GetActiveBackend));
+    finally
+      RemoveDispatchChangedHook(@DispatchHookReForceBackendOnAutomaticThirdRestore);
+      GDispatchHookResetLateForceEnabled := False;
+      GDispatchHookResetLateForceStage := 0;
+      GDispatchHookResetLateForceTarget := sbScalar;
+    end;
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_ResetToAutomaticBackend_HookLateForce_UntilAttemptCap_Restores_AutomaticBackend;
+var
+  LAutomaticBackend: TSimdBackend;
+  LOldVectorAsm: Boolean;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LAutomaticBackend := GetBestDispatchableBackend;
+    if LAutomaticBackend = sbScalar then
+      Exit;
+
+    AssertTrue('Scalar force setup should succeed before ResetToAutomaticBackend attempt-cap late-force test',
+      TrySetActiveBackend(sbScalar));
+    AssertEquals('Scalar should be active before ResetToAutomaticBackend attempt-cap late-force test',
+      Ord(sbScalar), Ord(GetActiveBackend));
+
+    GDispatchHookResetLateForceTarget := sbScalar;
+    GDispatchHookResetLateForceEnabled := True;
+    GDispatchHookResetLateForceStage := 0;
+    AddDispatchChangedHook(@DispatchHookReForceBackendOnAutomaticRestoreUntilAttemptCap);
+    try
+      ResetToAutomaticBackend;
+      AssertEquals('Synthetic ResetToAutomaticBackend attempt-cap late-force hook should observe the post-cap automatic closeout callback',
+        18, GDispatchHookResetLateForceStage);
+      AssertEquals('ResetToAutomaticBackend must restore automatic best backend after repeated late scalar force exhausts the bounded restore helper',
+        Ord(LAutomaticBackend), Ord(GetActiveBackend));
+      AssertTrue('ResetToAutomaticBackend attempt-cap late-force path should not remain stuck on scalar when a better automatic backend exists',
+        GetActiveBackend <> sbScalar);
+      AssertEquals('ResetToAutomaticBackend attempt-cap late-force path should leave active backend aligned with best dispatchable backend',
+        Ord(GetBestDispatchableBackend), Ord(GetActiveBackend));
+    finally
+      RemoveDispatchChangedHook(@DispatchHookReForceBackendOnAutomaticRestoreUntilAttemptCap);
+      GDispatchHookResetLateForceEnabled := False;
+      GDispatchHookResetLateForceStage := 0;
+      GDispatchHookResetLateForceTarget := sbScalar;
+    end;
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
 procedure TTestCase_DispatchAPI.Test_SetVectorAsmEnabled_HookLateForce_Restores_AutomaticBackend;
 var
   LAutomaticBackend: TSimdBackend;
@@ -1906,6 +3475,94 @@ begin
         Ord(GetBestDispatchableBackend), Ord(GetActiveBackend));
     finally
       RemoveDispatchChangedHook(@DispatchHookReForceBackendOnAutomaticRestore);
+      GDispatchHookResetLateForceEnabled := False;
+      GDispatchHookResetLateForceStage := 0;
+      GDispatchHookResetLateForceTarget := sbScalar;
+    end;
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_SetVectorAsmEnabled_HookLateForce_DuringThirdRestore_Restores_AutomaticBackend;
+var
+  LAutomaticBackend: TSimdBackend;
+  LOldVectorAsm: Boolean;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LAutomaticBackend := GetBestDispatchableBackend;
+    if LAutomaticBackend = sbScalar then
+      Exit;
+
+    SetVectorAsmEnabled(False);
+    ResetToAutomaticBackend;
+    AssertEquals('Vector-asm disable precondition should keep active backend aligned with automatic best backend before third-restore late-force test',
+      Ord(GetBestDispatchableBackend), Ord(GetActiveBackend));
+
+    GDispatchHookResetLateForceTarget := sbScalar;
+    GDispatchHookResetLateForceEnabled := True;
+    GDispatchHookResetLateForceStage := 0;
+    AddDispatchChangedHook(@DispatchHookReForceBackendOnAutomaticThirdRestore);
+    try
+      SetVectorAsmEnabled(True);
+      AssertEquals('Synthetic vector-asm third-late-force hook should run through the full SetVectorAsmEnabled callback sequence',
+        7, GDispatchHookResetLateForceStage);
+      AssertEquals('SetVectorAsmEnabled should still restore automatic best backend even if a late hook re-forces scalar during the third restore callback',
+        Ord(LAutomaticBackend), Ord(GetActiveBackend));
+      AssertTrue('SetVectorAsmEnabled third-restore late-force path should not return with stale scalar forced fallback when a better automatic backend exists',
+        GetActiveBackend <> sbScalar);
+      AssertEquals('SetVectorAsmEnabled third-restore late-force path should leave active backend aligned with best dispatchable backend',
+        Ord(GetBestDispatchableBackend), Ord(GetActiveBackend));
+    finally
+      RemoveDispatchChangedHook(@DispatchHookReForceBackendOnAutomaticThirdRestore);
+      GDispatchHookResetLateForceEnabled := False;
+      GDispatchHookResetLateForceStage := 0;
+      GDispatchHookResetLateForceTarget := sbScalar;
+    end;
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_SetVectorAsmEnabled_HookLateForce_UntilAttemptCap_Restores_AutomaticBackend;
+var
+  LAutomaticBackend: TSimdBackend;
+  LOldVectorAsm: Boolean;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LAutomaticBackend := GetBestDispatchableBackend;
+    if LAutomaticBackend = sbScalar then
+      Exit;
+
+    SetVectorAsmEnabled(False);
+    ResetToAutomaticBackend;
+    AssertEquals('Vector-asm disable precondition should keep active backend aligned with automatic best backend before attempt-cap late-force test',
+      Ord(GetBestDispatchableBackend), Ord(GetActiveBackend));
+
+    GDispatchHookResetLateForceTarget := sbScalar;
+    GDispatchHookResetLateForceEnabled := True;
+    GDispatchHookResetLateForceStage := 0;
+    AddDispatchChangedHook(@DispatchHookReForceBackendOnToggleRestoreUntilAttemptCap);
+    try
+      SetVectorAsmEnabled(True);
+      AssertEquals('Synthetic vector-asm attempt-cap late-force hook should observe the post-cap automatic closeout callback',
+        20, GDispatchHookResetLateForceStage);
+      AssertEquals('SetVectorAsmEnabled should restore automatic best backend after repeated late scalar force exhausts the bounded restore helper',
+        Ord(LAutomaticBackend), Ord(GetActiveBackend));
+      AssertTrue('SetVectorAsmEnabled attempt-cap late-force path should not return with stale scalar forced fallback when a better automatic backend exists',
+        GetActiveBackend <> sbScalar);
+      AssertEquals('SetVectorAsmEnabled attempt-cap late-force path should leave active backend aligned with best dispatchable backend',
+        Ord(GetBestDispatchableBackend), Ord(GetActiveBackend));
+    finally
+      RemoveDispatchChangedHook(@DispatchHookReForceBackendOnToggleRestoreUntilAttemptCap);
       GDispatchHookResetLateForceEnabled := False;
       GDispatchHookResetLateForceStage := 0;
       GDispatchHookResetLateForceTarget := sbScalar;
@@ -2097,6 +3754,130 @@ begin
   end;
 end;
 
+procedure TTestCase_DispatchAPI.Test_SetVectorAsmEnabled_HookLateForce_DuringThirdRestore_Preserves_PreviousForcedBackend;
+var
+  LDispatchable: TSimdBackendArray;
+  LAutomaticBackend: TSimdBackend;
+  LPreviousForcedBackend: TSimdBackend;
+  LOldVectorAsm: Boolean;
+  LIndex: Integer;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LDispatchable := GetDispatchableBackendList;
+    if Length(LDispatchable) < 2 then
+      Exit;
+
+    LAutomaticBackend := GetBestDispatchableBackend;
+    LPreviousForcedBackend := sbScalar;
+    for LIndex := High(LDispatchable) downto 0 do
+      if (LDispatchable[LIndex] <> sbScalar) and (LDispatchable[LIndex] <> LAutomaticBackend) then
+      begin
+        LPreviousForcedBackend := LDispatchable[LIndex];
+        Break;
+      end;
+
+    if LPreviousForcedBackend = sbScalar then
+      Exit;
+
+    AssertTrue('Previous forced backend should differ from automatic best backend in vector-asm third-restore late-force test',
+      LPreviousForcedBackend <> LAutomaticBackend);
+    AssertTrue('Previous forced backend setup should succeed before vector-asm third-restore late-force test',
+      TrySetActiveBackend(LPreviousForcedBackend));
+    AssertEquals('Previous forced backend should be active before vector-asm third-restore late-force test',
+      Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+
+    GDispatchHookResetLateForceEnabled := True;
+    GDispatchHookResetLateForceStage := 0;
+    GDispatchHookResetLateForceTarget := sbScalar;
+    AddDispatchChangedHook(@DispatchHookReForceBackendOnAutomaticThirdRestore);
+    try
+      SetVectorAsmEnabled(False);
+      AssertEquals('Synthetic vector-asm third-restore late-force hook should run through the full callback sequence',
+        7, GDispatchHookResetLateForceStage);
+      AssertTrue('Disabling vector asm should move current backend away from the previously forced backend when it becomes non-dispatchable',
+        GetActiveBackend <> LPreviousForcedBackend);
+    finally
+      RemoveDispatchChangedHook(@DispatchHookReForceBackendOnAutomaticThirdRestore);
+      GDispatchHookResetLateForceEnabled := False;
+      GDispatchHookResetLateForceStage := 0;
+      GDispatchHookResetLateForceTarget := sbScalar;
+    end;
+
+    SetVectorAsmEnabled(True);
+    AssertEquals('Re-enabling vector asm should preserve the previously forced backend even if a late hook re-forces scalar during the third restore callback',
+      Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+    AssertTrue('Vector-asm third-restore late-force path should not remain stuck on scalar after re-enable',
+      GetActiveBackend <> sbScalar);
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_SetVectorAsmEnabled_HookLateForce_UntilAttemptCap_Preserves_PreviousForcedBackend;
+var
+  LDispatchable: TSimdBackendArray;
+  LAutomaticBackend: TSimdBackend;
+  LPreviousForcedBackend: TSimdBackend;
+  LOldVectorAsm: Boolean;
+  LIndex: Integer;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LDispatchable := GetDispatchableBackendList;
+    if Length(LDispatchable) < 2 then
+      Exit;
+
+    LAutomaticBackend := GetBestDispatchableBackend;
+    LPreviousForcedBackend := sbScalar;
+    for LIndex := High(LDispatchable) downto 0 do
+      if (LDispatchable[LIndex] <> sbScalar) and (LDispatchable[LIndex] <> LAutomaticBackend) then
+      begin
+        LPreviousForcedBackend := LDispatchable[LIndex];
+        Break;
+      end;
+
+    if LPreviousForcedBackend = sbScalar then
+      Exit;
+
+    AssertTrue('Previous forced backend should differ from automatic best backend in vector-asm attempt-cap late-force test',
+      LPreviousForcedBackend <> LAutomaticBackend);
+    AssertTrue('Previous forced backend setup should succeed before vector-asm attempt-cap late-force test',
+      TrySetActiveBackend(LPreviousForcedBackend));
+    AssertEquals('Previous forced backend should be active before vector-asm attempt-cap late-force test',
+      Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+
+    GDispatchHookResetLateForceEnabled := True;
+    GDispatchHookResetLateForceStage := 0;
+    GDispatchHookResetLateForceTarget := sbScalar;
+    AddDispatchChangedHook(@DispatchHookReForceBackendOnToggleRestoreUntilAttemptCap);
+    try
+      SetVectorAsmEnabled(False);
+      AssertEquals('Synthetic vector-asm previous-forced attempt-cap late-force hook should observe the post-cap restore closeout callback',
+        20, GDispatchHookResetLateForceStage);
+      AssertTrue('Disabling vector asm should move current backend away from the previously forced backend when it becomes non-dispatchable',
+        GetActiveBackend <> LPreviousForcedBackend);
+    finally
+      RemoveDispatchChangedHook(@DispatchHookReForceBackendOnToggleRestoreUntilAttemptCap);
+      GDispatchHookResetLateForceEnabled := False;
+      GDispatchHookResetLateForceStage := 0;
+      GDispatchHookResetLateForceTarget := sbScalar;
+    end;
+
+    SetVectorAsmEnabled(True);
+    AssertEquals('Re-enabling vector asm should preserve the previously forced backend after repeated late scalar force exhausts the bounded restore helper',
+      Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
 procedure TTestCase_DispatchAPI.Test_RegisterBackend_HookLateForce_Restores_AutomaticBackend;
 var
   LAutomaticBackend: TSimdBackend;
@@ -2135,6 +3916,94 @@ begin
       GDispatchHookReForceBackendEnabled := False;
       GDispatchHookReForceBackendStage := 0;
       GDispatchHookReForceBackendTarget := sbScalar;
+    end;
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_RegisterBackend_HookLateForce_DuringThirdRestore_Restores_AutomaticBackend;
+var
+  LAutomaticBackend: TSimdBackend;
+  LOriginalTable: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LAutomaticBackend := GetBestDispatchableBackend;
+    if LAutomaticBackend = sbScalar then
+      Exit;
+
+    AssertTrue('Automatic backend table should be registered for RegisterBackend third-restore late-force test',
+      TryGetRegisteredBackendDispatchTable(LAutomaticBackend, LOriginalTable));
+
+    GDispatchHookResetLateForceTarget := sbScalar;
+    GDispatchHookResetLateForceEnabled := True;
+    GDispatchHookResetLateForceStage := 0;
+    AddDispatchChangedHook(@DispatchHookReForceBackendOnAutomaticThirdRestore);
+    try
+      RegisterBackend(LAutomaticBackend, LOriginalTable);
+      AssertEquals('Synthetic RegisterBackend automatic third-late-force hook should run through the full callback sequence',
+        7, GDispatchHookResetLateForceStage);
+      AssertEquals('RegisterBackend should still restore automatic best backend even if a late hook re-forces scalar during the third restore notification',
+        Ord(LAutomaticBackend), Ord(GetActiveBackend));
+      AssertTrue('RegisterBackend automatic third-restore late-force path should not remain stuck on scalar when a better automatic backend exists',
+        GetActiveBackend <> sbScalar);
+      AssertEquals('RegisterBackend automatic third-restore late-force path should leave active backend aligned with best dispatchable backend',
+        Ord(GetBestDispatchableBackend), Ord(GetActiveBackend));
+    finally
+      RemoveDispatchChangedHook(@DispatchHookReForceBackendOnAutomaticThirdRestore);
+      GDispatchHookResetLateForceEnabled := False;
+      GDispatchHookResetLateForceStage := 0;
+      GDispatchHookResetLateForceTarget := sbScalar;
+    end;
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_RegisterBackend_HookLateForce_UntilAttemptCap_Restores_AutomaticBackend;
+var
+  LAutomaticBackend: TSimdBackend;
+  LOriginalTable: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LAutomaticBackend := GetBestDispatchableBackend;
+    if LAutomaticBackend = sbScalar then
+      Exit;
+
+    AssertEquals('Automatic backend should be active before RegisterBackend attempt-cap late-force test',
+      Ord(LAutomaticBackend), Ord(GetActiveBackend));
+    AssertTrue('Automatic backend table should be registered for RegisterBackend attempt-cap late-force test',
+      TryGetRegisteredBackendDispatchTable(LAutomaticBackend, LOriginalTable));
+
+    GDispatchHookResetLateForceTarget := sbScalar;
+    GDispatchHookResetLateForceEnabled := True;
+    GDispatchHookResetLateForceStage := 0;
+    AddDispatchChangedHook(@DispatchHookReForceBackendOnRegisterRestoreUntilAttemptCap);
+    try
+      RegisterBackend(LAutomaticBackend, LOriginalTable);
+      AssertEquals('Synthetic RegisterBackend attempt-cap late-force hook should observe the post-cap automatic closeout callback',
+        20, GDispatchHookResetLateForceStage);
+      AssertEquals('RegisterBackend should restore automatic best backend after repeated late scalar force exhausts the bounded restore helper',
+        Ord(LAutomaticBackend), Ord(GetActiveBackend));
+      AssertTrue('RegisterBackend attempt-cap late-force path should not remain stuck on scalar when a better automatic backend exists',
+        GetActiveBackend <> sbScalar);
+      AssertEquals('RegisterBackend attempt-cap late-force path should leave active backend aligned with best dispatchable backend',
+        Ord(GetBestDispatchableBackend), Ord(GetActiveBackend));
+    finally
+      RemoveDispatchChangedHook(@DispatchHookReForceBackendOnRegisterRestoreUntilAttemptCap);
+      GDispatchHookResetLateForceEnabled := False;
+      GDispatchHookResetLateForceStage := 0;
+      GDispatchHookResetLateForceTarget := sbScalar;
     end;
   finally
     SetVectorAsmEnabled(LOldVectorAsm);
@@ -2268,6 +4137,146 @@ begin
         GetActiveBackend <> sbScalar);
     finally
       RemoveDispatchChangedHook(@DispatchHookReForceBackendOnAutomaticRestore);
+      GDispatchHookResetLateForceEnabled := False;
+      GDispatchHookResetLateForceStage := 0;
+      GDispatchHookResetLateForceTarget := sbScalar;
+    end;
+  finally
+    if LPreviousTableCaptured then
+      RegisterBackend(LPreviousForcedBackend, LPreviousOriginalTable);
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_RegisterBackend_HookLateForce_DuringThirdRestore_Preserves_PreviousForcedBackend;
+var
+  LDispatchable: TSimdBackendArray;
+  LAutomaticBackend: TSimdBackend;
+  LPreviousForcedBackend: TSimdBackend;
+  LPreviousOriginalTable: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+  LPreviousTableCaptured: Boolean;
+  LIndex: Integer;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LPreviousTableCaptured := False;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LDispatchable := GetDispatchableBackendList;
+    if Length(LDispatchable) < 2 then
+      Exit;
+
+    LAutomaticBackend := GetBestDispatchableBackend;
+    LPreviousForcedBackend := sbScalar;
+    for LIndex := 0 to High(LDispatchable) do
+      if (LDispatchable[LIndex] <> LAutomaticBackend) and (LDispatchable[LIndex] <> sbScalar) then
+      begin
+        LPreviousForcedBackend := LDispatchable[LIndex];
+        Break;
+      end;
+
+    if LPreviousForcedBackend = sbScalar then
+      Exit;
+
+    AssertTrue('Previous forced backend should differ from automatic best backend in RegisterBackend third-restore late-force test',
+      LPreviousForcedBackend <> LAutomaticBackend);
+    AssertTrue('Previous forced backend setup should succeed before RegisterBackend third-restore late-force test',
+      TrySetActiveBackend(LPreviousForcedBackend));
+    AssertEquals('Previous forced backend should be active before RegisterBackend third-restore late-force test',
+      Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+
+    AssertTrue('Previous forced backend table should be registered for RegisterBackend third-restore late-force test',
+      TryGetRegisteredBackendDispatchTable(LPreviousForcedBackend, LPreviousOriginalTable));
+    LPreviousTableCaptured := True;
+
+    GDispatchHookResetLateForceEnabled := True;
+    GDispatchHookResetLateForceStage := 0;
+    GDispatchHookResetLateForceTarget := sbScalar;
+    AddDispatchChangedHook(@DispatchHookReForceBackendOnAutomaticThirdRestore);
+    try
+      RegisterBackend(LPreviousForcedBackend, LPreviousOriginalTable);
+      AssertEquals('Synthetic RegisterBackend third-late-force hook should run through the full callback sequence',
+        7, GDispatchHookResetLateForceStage);
+      AssertEquals('RegisterBackend should preserve the previous forced backend even if a late hook re-forces scalar during the third restore notification',
+        Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+      AssertTrue('RegisterBackend third-restore late-force path should not silently drift to automatic best backend when a previous forced backend exists',
+        GetActiveBackend <> LAutomaticBackend);
+      AssertTrue('RegisterBackend third-restore late-force path should not remain stuck on scalar while restoring previous forced backend',
+        GetActiveBackend <> sbScalar);
+    finally
+      RemoveDispatchChangedHook(@DispatchHookReForceBackendOnAutomaticThirdRestore);
+      GDispatchHookResetLateForceEnabled := False;
+      GDispatchHookResetLateForceStage := 0;
+      GDispatchHookResetLateForceTarget := sbScalar;
+    end;
+  finally
+    if LPreviousTableCaptured then
+      RegisterBackend(LPreviousForcedBackend, LPreviousOriginalTable);
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_RegisterBackend_HookLateForce_UntilAttemptCap_Preserves_PreviousForcedBackend;
+var
+  LDispatchable: TSimdBackendArray;
+  LAutomaticBackend: TSimdBackend;
+  LPreviousForcedBackend: TSimdBackend;
+  LPreviousOriginalTable: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+  LPreviousTableCaptured: Boolean;
+  LIndex: Integer;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LPreviousTableCaptured := False;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LDispatchable := GetDispatchableBackendList;
+    if Length(LDispatchable) < 2 then
+      Exit;
+
+    LAutomaticBackend := GetBestDispatchableBackend;
+    LPreviousForcedBackend := sbScalar;
+    for LIndex := 0 to High(LDispatchable) do
+      if (LDispatchable[LIndex] <> LAutomaticBackend) and (LDispatchable[LIndex] <> sbScalar) then
+      begin
+        LPreviousForcedBackend := LDispatchable[LIndex];
+        Break;
+      end;
+
+    if LPreviousForcedBackend = sbScalar then
+      Exit;
+
+    AssertTrue('Previous forced backend should differ from automatic best backend in RegisterBackend attempt-cap late-force test',
+      LPreviousForcedBackend <> LAutomaticBackend);
+    AssertTrue('Previous forced backend setup should succeed before RegisterBackend attempt-cap late-force test',
+      TrySetActiveBackend(LPreviousForcedBackend));
+    AssertEquals('Previous forced backend should be active before RegisterBackend attempt-cap late-force test',
+      Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+
+    AssertTrue('Previous forced backend table should be registered for RegisterBackend attempt-cap late-force test',
+      TryGetRegisteredBackendDispatchTable(LPreviousForcedBackend, LPreviousOriginalTable));
+    LPreviousTableCaptured := True;
+
+    GDispatchHookResetLateForceEnabled := True;
+    GDispatchHookResetLateForceStage := 0;
+    GDispatchHookResetLateForceTarget := sbScalar;
+    AddDispatchChangedHook(@DispatchHookReForceBackendOnRegisterRestoreUntilAttemptCap);
+    try
+      RegisterBackend(LPreviousForcedBackend, LPreviousOriginalTable);
+      AssertEquals('Synthetic RegisterBackend previous-forced attempt-cap late-force hook should observe the post-cap restore closeout callback',
+        20, GDispatchHookResetLateForceStage);
+      AssertEquals('RegisterBackend should preserve the previous forced backend after repeated late scalar force exhausts the bounded restore helper',
+        Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+      AssertTrue('RegisterBackend attempt-cap late-force path should not silently drift to automatic best backend when a previous forced backend exists',
+        GetActiveBackend <> LAutomaticBackend);
+      AssertTrue('RegisterBackend attempt-cap late-force path should not remain stuck on scalar while restoring previous forced backend',
+        GetActiveBackend <> sbScalar);
+    finally
+      RemoveDispatchChangedHook(@DispatchHookReForceBackendOnRegisterRestoreUntilAttemptCap);
       GDispatchHookResetLateForceEnabled := False;
       GDispatchHookResetLateForceStage := 0;
       GDispatchHookResetLateForceTarget := sbScalar;
@@ -5216,14 +7225,14 @@ begin
 
   LSourceLines := TStringList.Create;
   try
-    LSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.sse2.pas');
+    LSourcePath := ResolveRepoSourcePath('fafafa.core.simd.sse2.pas');
     AssertTrue('SSE2 source file should exist for implementation-shape audit: ' + LSourcePath,
       FileExists(LSourcePath));
     LSourceLines.LoadFromFile(LSourcePath);
     LMulI32Source := LowerCase(ExtractFunctionSource(LSourceLines, 'SSE2MulI32x4'));
     LMulU32Source := LowerCase(ExtractFunctionSource(LSourceLines, 'SSE2MulU32x4'));
 
-    LI386SourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.sse2.i386.pas');
+    LI386SourcePath := ResolveRepoSourcePath('fafafa.core.simd.sse2.i386.pas');
     AssertTrue('SSE2 i386 source file should exist for implementation-shape audit: ' + LI386SourcePath,
       FileExists(LI386SourcePath));
     LSourceLines.LoadFromFile(LI386SourcePath);
@@ -5298,6 +7307,182 @@ begin
   end;
 end;
 
+procedure TTestCase_DispatchAPI.Test_SSE2_I64x2_Compare_Use_NonScalar_Impl_And_Keep_Parity;
+var
+  LSSE2Table: TSimdDispatchTable;
+  LScalarTable: TSimdDispatchTable;
+  LCurrentDispatch: PSimdDispatchTable;
+  LCanRunSSE2: Boolean;
+  LOldVectorAsm: Boolean;
+  LEqA, LEqB: TVecI64x2;
+  LGtMask1A, LGtMask1B: TVecI64x2;
+  LGtMask2A, LGtMask2B: TVecI64x2;
+  LMaskExpected, LMaskActual: TMask2;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+
+    if not TryGetRegisteredBackendDispatchTable(sbSSE2, LSSE2Table) then
+      Exit;
+
+    AssertTrue('SSE2 CmpEqI64x2 should be assigned', Assigned(LSSE2Table.CmpEqI64x2));
+    AssertTrue('SSE2 CmpGtI64x2 should be assigned', Assigned(LSSE2Table.CmpGtI64x2));
+    AssertTrue('SSE2 CmpEqI64x2 should not remain scalar fallback when vector asm is enabled',
+      Pointer(LSSE2Table.CmpEqI64x2) <> Pointer(LScalarTable.CmpEqI64x2));
+    AssertTrue('SSE2 CmpGtI64x2 should not remain scalar fallback when vector asm is enabled',
+      Pointer(LSSE2Table.CmpGtI64x2) <> Pointer(LScalarTable.CmpGtI64x2));
+
+    LCanRunSSE2 := LSSE2Table.BackendInfo.Available and TrySetActiveBackend(sbSSE2);
+    if not LCanRunSSE2 then
+      Exit;
+
+    LCurrentDispatch := GetDispatchTable;
+    AssertEquals('Active backend should be SSE2 for compare parity',
+      Ord(sbSSE2), Ord(GetActiveBackend));
+    AssertEquals('Current dispatch table should resolve to SSE2 after forcing the backend',
+      Ord(sbSSE2), Ord(LCurrentDispatch^.Backend));
+
+    LEqA.i[0] := (Int64(1) shl 32) or Int64($80000000);
+    LEqA.i[1] := -2147483648;
+    LEqB.i[0] := (Int64(1) shl 32) or Int64($80000000);
+    LEqB.i[1] := -2147483647;
+
+    LGtMask1A.i[0] := (Int64(1) shl 32) or Int64($80000000);
+    LGtMask1A.i[1] := -2147483648;
+    LGtMask1B.i[0] := (Int64(1) shl 32) or Int64($7FFFFFFF);
+    LGtMask1B.i[1] := -2147483647;
+
+    LGtMask2A.i[0] := (Int64(1) shl 32) or Int64($7FFFFFFF);
+    LGtMask2A.i[1] := -2147483647;
+    LGtMask2B.i[0] := (Int64(1) shl 32) or Int64($80000000);
+    LGtMask2B.i[1] := -2147483648;
+
+    LMaskExpected := ScalarCmpEqI64x2(LEqA, LEqB);
+    LMaskActual := LCurrentDispatch^.CmpEqI64x2(LEqA, LEqB);
+    AssertEquals('SSE2 CmpEqI64x2 scalar parity',
+      Integer(LMaskExpected), Integer(LMaskActual));
+
+    LMaskExpected := ScalarCmpGtI64x2(LGtMask1A, LGtMask1B);
+    LMaskActual := LCurrentDispatch^.CmpGtI64x2(LGtMask1A, LGtMask1B);
+    AssertEquals('SSE2 CmpGtI64x2 scalar parity mask1',
+      Integer(LMaskExpected), Integer(LMaskActual));
+
+    LMaskExpected := ScalarCmpGtI64x2(LGtMask2A, LGtMask2B);
+    LMaskActual := LCurrentDispatch^.CmpGtI64x2(LGtMask2A, LGtMask2B);
+    AssertEquals('SSE2 CmpGtI64x2 scalar parity mask2',
+      Integer(LMaskExpected), Integer(LMaskActual));
+  finally
+    ResetToAutomaticBackend;
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_SSE2_F32VectorMath_Use_NonScalar_Impl_And_Keep_Parity;
+var
+  LSSE2Table: TSimdDispatchTable;
+  LScalarTable: TSimdDispatchTable;
+  LCurrentDispatch: PSimdDispatchTable;
+  LCanRunSSE2: Boolean;
+  LOldVectorAsm: Boolean;
+  LRoundInput: TVecF32x4;
+  LRoundExpected, LRoundActual: TVecF32x4;
+  LDotA, LDotB: TVecF32x4;
+  LDotExpected, LDotActual: Single;
+  LCrossA, LCrossB: TVecF32x4;
+  LCrossExpected, LCrossActual: TVecF32x4;
+
+  procedure AssertVecF32x4Equal(const aLabel: string; const aExpected, aActual: TVecF32x4; const aEps: Single);
+  var
+    LLane: Integer;
+  begin
+    for LLane := 0 to 3 do
+      AssertEquals(aLabel + ' lane ' + IntToStr(LLane),
+        aExpected.f[LLane], aActual.f[LLane], aEps);
+  end;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+
+    if not TryGetRegisteredBackendDispatchTable(sbSSE2, LSSE2Table) then
+      Exit;
+
+    AssertTrue('SSE2 RoundF32x4 should be assigned', Assigned(LSSE2Table.RoundF32x4));
+    AssertTrue('SSE2 DotF32x3 should be assigned', Assigned(LSSE2Table.DotF32x3));
+    AssertTrue('SSE2 CrossF32x3 should be assigned', Assigned(LSSE2Table.CrossF32x3));
+    AssertTrue('SSE2 RoundF32x4 should not remain scalar fallback when vector asm is enabled',
+      Pointer(LSSE2Table.RoundF32x4) <> Pointer(LScalarTable.RoundF32x4));
+    AssertTrue('SSE2 DotF32x3 should not remain scalar fallback when vector asm is enabled',
+      Pointer(LSSE2Table.DotF32x3) <> Pointer(LScalarTable.DotF32x3));
+    AssertTrue('SSE2 CrossF32x3 should not remain scalar fallback when vector asm is enabled',
+      Pointer(LSSE2Table.CrossF32x3) <> Pointer(LScalarTable.CrossF32x3));
+
+    LCanRunSSE2 := LSSE2Table.BackendInfo.Available and TrySetActiveBackend(sbSSE2);
+    if not LCanRunSSE2 then
+      Exit;
+
+    LCurrentDispatch := GetDispatchTable;
+    AssertEquals('Active backend should be SSE2 for vector-math parity',
+      Ord(sbSSE2), Ord(GetActiveBackend));
+    AssertEquals('Current dispatch table should resolve to SSE2 after forcing the backend',
+      Ord(sbSSE2), Ord(LCurrentDispatch^.Backend));
+
+    LRoundInput.f[0] := 2.5;
+    LRoundInput.f[1] := 3.5;
+    LRoundInput.f[2] := -2.5;
+    LRoundInput.f[3] := -3.5;
+
+    LDotA.f[0] := 1.5;
+    LDotA.f[1] := -2.0;
+    LDotA.f[2] := 3.25;
+    LDotA.f[3] := 99.0;
+    LDotB.f[0] := -4.0;
+    LDotB.f[1] := 5.5;
+    LDotB.f[2] := -6.0;
+    LDotB.f[3] := 777.0;
+
+    LCrossA.f[0] := 2.0;
+    LCrossA.f[1] := 3.0;
+    LCrossA.f[2] := 5.0;
+    LCrossA.f[3] := 99.0;
+    LCrossB.f[0] := 7.0;
+    LCrossB.f[1] := 11.0;
+    LCrossB.f[2] := 13.0;
+    LCrossB.f[3] := 123.0;
+
+    LRoundExpected := ScalarRoundF32x4(LRoundInput);
+    LRoundActual := LCurrentDispatch^.RoundF32x4(LRoundInput);
+    AssertVecF32x4Equal('SSE2 RoundF32x4 scalar parity',
+      LRoundExpected, LRoundActual, 0.0);
+
+    LDotExpected := ScalarDotF32x3(LDotA, LDotB);
+    LDotActual := LCurrentDispatch^.DotF32x3(LDotA, LDotB);
+    AssertEquals('SSE2 DotF32x3 scalar parity',
+      LDotExpected, LDotActual, 0.0);
+
+    LCrossExpected := ScalarCrossF32x3(LCrossA, LCrossB);
+    LCrossActual := LCurrentDispatch^.CrossF32x3(LCrossA, LCrossB);
+    AssertVecF32x4Equal('SSE2 CrossF32x3 scalar parity',
+      LCrossExpected, LCrossActual, 0.0);
+  finally
+    ResetToAutomaticBackend;
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
 procedure TTestCase_DispatchAPI.Test_NEON_PlatformFacadeSlots_Reuse_BaseScalar_When_AlwaysScalarByDesign;
 var
   LScalarTable: TSimdDispatchTable;
@@ -5324,19 +7509,19 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LUnitSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.neon.pas');
+    LUnitSourcePath := ResolveRepoSourcePath('fafafa.core.simd.neon.pas');
     AssertTrue('NEON unit source should exist for implementation-shape audit: ' + LUnitSourcePath,
       FileExists(LUnitSourcePath));
     LSourceLines.LoadFromFile(LUnitSourcePath);
     LUnitSource := LowerCase(LSourceLines.Text);
 
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.neon.register.inc');
+    LRegisterSourcePath := ResolveRepoSourcePath('fafafa.core.simd.neon.register.inc');
     AssertTrue('NEON register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
     LRegisterSource := LowerCase(LSourceLines.Text);
 
-    LFacadeSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.neon.facade_platform.inc');
+    LFacadeSourcePath := ResolveRepoSourcePath('fafafa.core.simd.neon.facade_platform.inc');
     AssertTrue('NEON platform facade source should exist for implementation-shape audit: ' + LFacadeSourcePath,
       FileExists(LFacadeSourcePath));
     LSourceLines.LoadFromFile(LFacadeSourcePath);
@@ -5428,19 +7613,19 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.neon.register.inc');
+    LRegisterSourcePath := ResolveRepoSourcePath('fafafa.core.simd.neon.register.inc');
     AssertTrue('NEON register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
     LRegisterSource := LowerCase(LSourceLines.Text);
 
-    LAsmFacadeSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.neon.facade_asm.inc');
+    LAsmFacadeSourcePath := ResolveRepoSourcePath('fafafa.core.simd.neon.facade_asm.inc');
     AssertTrue('NEON asm facade source should exist for implementation-shape audit: ' + LAsmFacadeSourcePath,
       FileExists(LAsmFacadeSourcePath));
     LSourceLines.LoadFromFile(LAsmFacadeSourcePath);
     LAsmFacadeSource := LowerCase(LSourceLines.Text);
 
-    LScalarFacadeSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.neon.facade_scalar.inc');
+    LScalarFacadeSourcePath := ResolveRepoSourcePath('fafafa.core.simd.neon.facade_scalar.inc');
     AssertTrue('NEON scalar facade source should exist for implementation-shape audit: ' + LScalarFacadeSourcePath,
       FileExists(LScalarFacadeSourcePath));
     LSourceLines.LoadFromFile(LScalarFacadeSourcePath);
@@ -5540,13 +7725,13 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.neon.register.inc');
+    LRegisterSourcePath := ResolveRepoSourcePath('fafafa.core.simd.neon.register.inc');
     AssertTrue('NEON register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
     LRegisterSource := LowerCase(LSourceLines.Text);
 
-    LDotSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.neon.dot.inc');
+    LDotSourcePath := ResolveRepoSourcePath('fafafa.core.simd.neon.dot.inc');
     AssertTrue('NEON dot source should exist for implementation-shape audit: ' + LDotSourcePath,
       FileExists(LDotSourcePath));
     LSourceLines.LoadFromFile(LDotSourcePath);
@@ -5609,13 +7794,13 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.neon.register.inc');
+    LRegisterSourcePath := ResolveRepoSourcePath('fafafa.core.simd.neon.register.inc');
     AssertTrue('NEON register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
     LRegisterSource := LowerCase(LSourceLines.Text);
 
-    LAutowrapSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.neon.scalar.autowrap.inc');
+    LAutowrapSourcePath := ResolveRepoSourcePath('fafafa.core.simd.neon.scalar.autowrap.inc');
     AssertTrue('NEON scalar autowrap source should exist for implementation-shape audit: ' + LAutowrapSourcePath,
       FileExists(LAutowrapSourcePath));
     LSourceLines.LoadFromFile(LAutowrapSourcePath);
@@ -5879,13 +8064,13 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.neon.register.inc');
+    LRegisterSourcePath := ResolveRepoSourcePath('fafafa.core.simd.neon.register.inc');
     AssertTrue('NEON register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
     LRegisterSource := LowerCase(LSourceLines.Text);
 
-    LUtilitySourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.neon.scalar.utility.inc');
+    LUtilitySourcePath := ResolveRepoSourcePath('fafafa.core.simd.neon.scalar.utility.inc');
     AssertTrue('NEON scalar utility source should exist for implementation-shape audit: ' + LUtilitySourcePath,
       FileExists(LUtilitySourcePath));
     LSourceLines.LoadFromFile(LUtilitySourcePath);
@@ -6005,7 +8190,7 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.neon.register.inc');
+    LRegisterSourcePath := ResolveRepoSourcePath('fafafa.core.simd.neon.register.inc');
     AssertTrue('NEON register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
@@ -6290,7 +8475,7 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LNEONSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.neon.pas');
+    LNEONSourcePath := ResolveRepoSourcePath('fafafa.core.simd.neon.pas');
     AssertTrue('NEON source should exist for implementation-shape audit: ' + LNEONSourcePath,
       FileExists(LNEONSourcePath));
     LSourceLines.LoadFromFile(LNEONSourcePath);
@@ -6311,7 +8496,7 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LFacadeSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.riscvv.facade.inc');
+    LFacadeSourcePath := ResolveRepoSourcePath('fafafa.core.simd.riscvv.facade.inc');
     AssertTrue('RISCVV facade source should exist for implementation-shape audit: ' + LFacadeSourcePath,
       FileExists(LFacadeSourcePath));
     LSourceLines.LoadFromFile(LFacadeSourcePath);
@@ -6373,19 +8558,19 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LUnitSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.riscvv.pas');
+    LUnitSourcePath := ResolveRepoSourcePath('fafafa.core.simd.riscvv.pas');
     AssertTrue('RISCVV unit source should exist for implementation-shape audit: ' + LUnitSourcePath,
       FileExists(LUnitSourcePath));
     LSourceLines.LoadFromFile(LUnitSourcePath);
     LUnitSource := LowerCase(LSourceLines.Text);
 
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.riscvv.register.inc');
+    LRegisterSourcePath := ResolveRepoSourcePath('fafafa.core.simd.riscvv.register.inc');
     AssertTrue('RISCVV register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
     LRegisterSource := LowerCase(LSourceLines.Text);
 
-    LFacadeSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.riscvv.facade.inc');
+    LFacadeSourcePath := ResolveRepoSourcePath('fafafa.core.simd.riscvv.facade.inc');
     AssertTrue('RISCVV facade source should exist for implementation-shape audit: ' + LFacadeSourcePath,
       FileExists(LFacadeSourcePath));
     LSourceLines.LoadFromFile(LFacadeSourcePath);
@@ -6531,13 +8716,13 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.riscvv.register.inc');
+    LRegisterSourcePath := ResolveRepoSourcePath('fafafa.core.simd.riscvv.register.inc');
     AssertTrue('RISCVV register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
     LRegisterSource := LowerCase(LSourceLines.Text);
 
-    LFacadeSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.riscvv.facade.inc');
+    LFacadeSourcePath := ResolveRepoSourcePath('fafafa.core.simd.riscvv.facade.inc');
     AssertTrue('RISCVV facade source should exist for implementation-shape audit: ' + LFacadeSourcePath,
       FileExists(LFacadeSourcePath));
     LSourceLines.LoadFromFile(LFacadeSourcePath);
@@ -6782,6 +8967,71 @@ begin
   AssertSlotKeepsBackendOwnership('AndNotU8x16', Pointer(LScalarTable.AndNotU8x16), Pointer(LRISCVVTable.AndNotU8x16));
 end;
 
+procedure TTestCase_DispatchAPI.Test_RISCVV_KeyOwnedWideSlots_Stay_BackendOwned;
+var
+  LScalarTable: TSimdDispatchTable;
+  LRISCVVTable: TSimdDispatchTable;
+  LSourceLines: TStringList;
+  LRegisterSourcePath: string;
+  LRegisterSource: string;
+
+  procedure AssertRegisterOwnsBackendSlot(const aLabel, aSnippet: string);
+  begin
+    AssertTrue('RegisterRISCVVBackend should keep a dedicated backend-owned assignment for ' + aLabel,
+      Pos(LowerCase(aSnippet), LRegisterSource) > 0);
+  end;
+
+  procedure AssertSlotKeepsBackendOwnership(const aLabel: string; const aScalarSlot, aBackendSlot: Pointer);
+  begin
+    AssertTrue('RISCVV ' + aLabel + ' should stay assigned in the backend dispatch table',
+      aBackendSlot <> nil);
+    AssertTrue('RISCVV ' + aLabel + ' should stay backend-owned instead of reusing the scalar slot',
+      PtrUInt(aScalarSlot) <> PtrUInt(aBackendSlot));
+  end;
+begin
+  LSourceLines := TStringList.Create;
+  try
+    LRegisterSourcePath := ResolveRepoSourcePath('fafafa.core.simd.riscvv.register.inc');
+    AssertTrue('RISCVV register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
+      FileExists(LRegisterSourcePath));
+    LSourceLines.LoadFromFile(LRegisterSourcePath);
+    LRegisterSource := LowerCase(LSourceLines.Text);
+  finally
+    LSourceLines.Free;
+  end;
+
+  AssertRegisterOwnsBackendSlot('AndI64x8', 'table.AndI64x8 := @RISCVVAndI64x8;');
+  AssertRegisterOwnsBackendSlot('NotI64x8', 'table.NotI64x8 := @RISCVVNotI64x8;');
+  AssertRegisterOwnsBackendSlot('ShiftLeftI32x16', 'table.ShiftLeftI32x16 := @RISCVVShiftLeftI32x16;');
+  AssertRegisterOwnsBackendSlot('ShiftRightArithI64x4', 'table.ShiftRightArithI64x4 := @RISCVVShiftRightArithI64x4;');
+  AssertRegisterOwnsBackendSlot('SubI32x8', 'table.SubI32x8 := @RISCVVSubI32x8;');
+  AssertRegisterOwnsBackendSlot('MinU32x8', 'table.MinU32x8 := @RISCVVMinU32x8;');
+  AssertRegisterOwnsBackendSlot('AddI64x4', 'table.AddI64x4 := @RISCVVAddI64x4;');
+  AssertRegisterOwnsBackendSlot('MulI32x16', 'table.MulI32x16 := @RISCVVMulI32x16;');
+  AssertRegisterOwnsBackendSlot('SubI64x8', 'table.SubI64x8 := @RISCVVSubI64x8;');
+
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+  AssertTrue('RISCVV opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
+    Exit;
+  {$ENDIF}
+
+  AssertSlotKeepsBackendOwnership('AndI64x8', Pointer(LScalarTable.AndI64x8), Pointer(LRISCVVTable.AndI64x8));
+  AssertSlotKeepsBackendOwnership('NotI64x8', Pointer(LScalarTable.NotI64x8), Pointer(LRISCVVTable.NotI64x8));
+  AssertSlotKeepsBackendOwnership('ShiftLeftI32x16', Pointer(LScalarTable.ShiftLeftI32x16), Pointer(LRISCVVTable.ShiftLeftI32x16));
+  AssertSlotKeepsBackendOwnership('ShiftRightArithI64x4', Pointer(LScalarTable.ShiftRightArithI64x4), Pointer(LRISCVVTable.ShiftRightArithI64x4));
+  AssertSlotKeepsBackendOwnership('SubI32x8', Pointer(LScalarTable.SubI32x8), Pointer(LRISCVVTable.SubI32x8));
+  AssertSlotKeepsBackendOwnership('MinU32x8', Pointer(LScalarTable.MinU32x8), Pointer(LRISCVVTable.MinU32x8));
+  AssertSlotKeepsBackendOwnership('AddI64x4', Pointer(LScalarTable.AddI64x4), Pointer(LRISCVVTable.AddI64x4));
+  AssertSlotKeepsBackendOwnership('MulI32x16', Pointer(LScalarTable.MulI32x16), Pointer(LRISCVVTable.MulI32x16));
+  AssertSlotKeepsBackendOwnership('SubI64x8', Pointer(LScalarTable.SubI64x8), Pointer(LRISCVVTable.SubI64x8));
+end;
+
 procedure TTestCase_DispatchAPI.Test_RISCVV_RegisterSource_Deduplicates_WideRoundingAssignments_And_Keeps_F64x2_Exception;
 var
   LScalarTable: TSimdDispatchTable;
@@ -6811,7 +9061,7 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.riscvv.register.inc');
+    LRegisterSourcePath := ResolveRepoSourcePath('fafafa.core.simd.riscvv.register.inc');
     AssertTrue('RISCVV register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
@@ -6820,22 +9070,22 @@ begin
     LSourceLines.Free;
   end;
 
-  AssertEquals('RISCVV CeilF32x16 common wide assignment should appear exactly once in register source',
-    1, CountOccurrences('table.CeilF32x16 := @RISCVVCeilF32x16;'));
-  AssertEquals('RISCVV FloorF32x16 common wide assignment should appear exactly once in register source',
-    1, CountOccurrences('table.FloorF32x16 := @RISCVVFloorF32x16;'));
-  AssertEquals('RISCVV RoundF32x16 common wide assignment should appear exactly once in register source',
-    1, CountOccurrences('table.RoundF32x16 := @RISCVVRoundF32x16;'));
-  AssertEquals('RISCVV TruncF32x16 common wide assignment should appear exactly once in register source',
-    1, CountOccurrences('table.TruncF32x16 := @RISCVVTruncF32x16;'));
-  AssertEquals('RISCVV CeilF64x4 common wide assignment should appear exactly once in register source',
-    1, CountOccurrences('table.CeilF64x4 := @RISCVVCeilF64x4;'));
-  AssertEquals('RISCVV FloorF64x4 common wide assignment should appear exactly once in register source',
-    1, CountOccurrences('table.FloorF64x4 := @RISCVVFloorF64x4;'));
-  AssertEquals('RISCVV RoundF64x4 common wide assignment should appear exactly once in register source',
-    1, CountOccurrences('table.RoundF64x4 := @RISCVVRoundF64x4;'));
-  AssertEquals('RISCVV TruncF64x4 common wide assignment should appear exactly once in register source',
-    1, CountOccurrences('table.TruncF64x4 := @RISCVVTruncF64x4;'));
+  AssertEquals('RISCVV CeilF32x16 should now reuse the base scalar slot without a register override',
+    0, CountOccurrences('table.CeilF32x16 := @RISCVVCeilF32x16;'));
+  AssertEquals('RISCVV FloorF32x16 should now reuse the base scalar slot without a register override',
+    0, CountOccurrences('table.FloorF32x16 := @RISCVVFloorF32x16;'));
+  AssertEquals('RISCVV RoundF32x16 should now reuse the base scalar slot without a register override',
+    0, CountOccurrences('table.RoundF32x16 := @RISCVVRoundF32x16;'));
+  AssertEquals('RISCVV TruncF32x16 should now reuse the base scalar slot without a register override',
+    0, CountOccurrences('table.TruncF32x16 := @RISCVVTruncF32x16;'));
+  AssertEquals('RISCVV CeilF64x4 should now reuse the base scalar slot without a register override',
+    0, CountOccurrences('table.CeilF64x4 := @RISCVVCeilF64x4;'));
+  AssertEquals('RISCVV FloorF64x4 should now reuse the base scalar slot without a register override',
+    0, CountOccurrences('table.FloorF64x4 := @RISCVVFloorF64x4;'));
+  AssertEquals('RISCVV RoundF64x4 should now reuse the base scalar slot without a register override',
+    0, CountOccurrences('table.RoundF64x4 := @RISCVVRoundF64x4;'));
+  AssertEquals('RISCVV TruncF64x4 should now reuse the base scalar slot without a register override',
+    0, CountOccurrences('table.TruncF64x4 := @RISCVVTruncF64x4;'));
 
   AssertEquals('RISCVV F32x4 Floor should now reuse the published base scalar slot without an explicit register override',
     0, CountOccurrences('table.FloorF32x4 := @ScalarFloorF32x4;'));
@@ -6905,14 +9155,14 @@ begin
     AssertEquals('RISCVV F64x2 Trunc should now reuse the canonical base scalar slot',
       PtrUInt(LScalarTable.TruncF64x2), PtrUInt(LRISCVVTable.TruncF64x2));
 
-    AssertTrue('RISCVV FloorF32x16 should keep a non-scalar wide slot after register-source dedup',
-      Pointer(LRISCVVTable.FloorF32x16) <> Pointer(LScalarTable.FloorF32x16));
-    AssertTrue('RISCVV CeilF32x16 should keep a non-scalar wide slot after register-source dedup',
-      Pointer(LRISCVVTable.CeilF32x16) <> Pointer(LScalarTable.CeilF32x16));
-    AssertTrue('RISCVV RoundF64x4 should keep a non-scalar wide slot after register-source dedup',
-      Pointer(LRISCVVTable.RoundF64x4) <> Pointer(LScalarTable.RoundF64x4));
-    AssertTrue('RISCVV TruncF64x4 should keep a non-scalar wide slot after register-source dedup',
-      Pointer(LRISCVVTable.TruncF64x4) <> Pointer(LScalarTable.TruncF64x4));
+    AssertEquals('RISCVV FloorF32x16 should now reuse the canonical base scalar slot',
+      PtrUInt(LScalarTable.FloorF32x16), PtrUInt(LRISCVVTable.FloorF32x16));
+    AssertEquals('RISCVV CeilF32x16 should now reuse the canonical base scalar slot',
+      PtrUInt(LScalarTable.CeilF32x16), PtrUInt(LRISCVVTable.CeilF32x16));
+    AssertEquals('RISCVV RoundF64x4 should now reuse the canonical base scalar slot',
+      PtrUInt(LScalarTable.RoundF64x4), PtrUInt(LRISCVVTable.RoundF64x4));
+    AssertEquals('RISCVV TruncF64x4 should now reuse the canonical base scalar slot',
+      PtrUInt(LScalarTable.TruncF64x4), PtrUInt(LRISCVVTable.TruncF64x4));
   finally
     SetVectorAsmEnabled(LOldVectorAsm);
   end;
@@ -7477,13 +9727,13 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LU32SourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.avx512.u32x16_family.inc');
+    LU32SourcePath := ResolveRepoSourcePath('fafafa.core.simd.avx512.u32x16_family.inc');
     AssertTrue('AVX512 U32x16 family source should exist for shift-boundary audit: ' + LU32SourcePath,
       FileExists(LU32SourcePath));
     LSourceLines.LoadFromFile(LU32SourcePath);
     LU32Source := LowerCase(LSourceLines.Text);
 
-    LU64SourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.avx512.u64x8_family.inc');
+    LU64SourcePath := ResolveRepoSourcePath('fafafa.core.simd.avx512.u64x8_family.inc');
     AssertTrue('AVX512 U64x8 family source should exist for shift-boundary audit: ' + LU64SourcePath,
       FileExists(LU64SourcePath));
     LSourceLines.LoadFromFile(LU64SourcePath);
@@ -8554,13 +10804,13 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.avx2.register.inc');
+    LRegisterSourcePath := ResolveRepoSourcePath('fafafa.core.simd.avx2.register.inc');
     AssertTrue('AVX2 register source should exist for wide FMA half-composition audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
     LRegisterSource := LowerCase(LSourceLines.Text);
 
-    LWideSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.avx2.wide_emulation.inc');
+    LWideSourcePath := ResolveRepoSourcePath('fafafa.core.simd.avx2.wide_emulation.inc');
     AssertTrue('AVX2 wide emulation source should exist for wide FMA half-composition audit: ' + LWideSourcePath,
       FileExists(LWideSourcePath));
     LSourceLines.LoadFromFile(LWideSourcePath);
@@ -8658,6 +10908,78 @@ begin
   end;
 end;
 
+procedure TTestCase_DispatchAPI.Test_AVX2_I64x2_ShiftBoundary_Contracts;
+var
+  LScalarTable: TSimdDispatchTable;
+  LAVX2Table: TSimdDispatchTable;
+  LCanRunAVX2: Boolean;
+  LOldVectorAsm: Boolean;
+  LInput: TVecI64x2;
+  LActual, LExpected: TVecI64x2;
+  LShiftCounts: array[0..4] of Integer;
+  LIndex: Integer;
+  LShiftCount: Integer;
+
+  procedure AssertVecI64x2Equal(const aName: string; const aExpectedValue, aActualValue: TVecI64x2);
+  begin
+    AssertEquals(aName + ' lane 0', aExpectedValue.i[0], aActualValue.i[0]);
+    AssertEquals(aName + ' lane 1', aExpectedValue.i[1], aActualValue.i[1]);
+  end;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+
+    if not TryGetRegisteredBackendDispatchTable(sbAVX2, LAVX2Table) then
+      Exit;
+
+    AssertTrue('AVX2 ShiftLeftI64x2 should leave the scalar slot when boundary contracts are runtime-checkable',
+      Pointer(LAVX2Table.ShiftLeftI64x2) <> Pointer(LScalarTable.ShiftLeftI64x2));
+    AssertTrue('AVX2 ShiftRightI64x2 should leave the scalar slot when boundary contracts are runtime-checkable',
+      Pointer(LAVX2Table.ShiftRightI64x2) <> Pointer(LScalarTable.ShiftRightI64x2));
+    AssertTrue('AVX2 ShiftRightArithI64x2 should leave the scalar slot when boundary contracts are runtime-checkable',
+      Pointer(LAVX2Table.ShiftRightArithI64x2) <> Pointer(LScalarTable.ShiftRightArithI64x2));
+
+    LCanRunAVX2 := LAVX2Table.BackendInfo.Available and TrySetActiveBackend(sbAVX2);
+    if not LCanRunAVX2 then
+      Exit;
+
+    LInput.i[0] := High(Int64);
+    LInput.i[1] := -1234567890123456789;
+    LShiftCounts[0] := -1;
+    LShiftCounts[1] := 0;
+    LShiftCounts[2] := 13;
+    LShiftCounts[3] := 63;
+    LShiftCounts[4] := 64;
+
+    for LIndex := 0 to High(LShiftCounts) do
+    begin
+      LShiftCount := LShiftCounts[LIndex];
+
+      LActual := LAVX2Table.ShiftLeftI64x2(LInput, LShiftCount);
+      LExpected := ScalarShiftLeftI64x2(LInput, LShiftCount);
+      AssertVecI64x2Equal('AVX2 ShiftLeftI64x2 scalar parity c=' + IntToStr(LShiftCount), LExpected, LActual);
+
+      LActual := LAVX2Table.ShiftRightI64x2(LInput, LShiftCount);
+      LExpected := ScalarShiftRightI64x2(LInput, LShiftCount);
+      AssertVecI64x2Equal('AVX2 ShiftRightI64x2 scalar parity c=' + IntToStr(LShiftCount), LExpected, LActual);
+
+      LActual := LAVX2Table.ShiftRightArithI64x2(LInput, LShiftCount);
+      LExpected := ScalarShiftRightArithI64x2(LInput, LShiftCount);
+      AssertVecI64x2Equal('AVX2 ShiftRightArithI64x2 scalar parity c=' + IntToStr(LShiftCount), LExpected, LActual);
+    end;
+  finally
+    ResetToAutomaticBackend;
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
 procedure TTestCase_DispatchAPI.Test_AVX2_WideSelect_Parity_WithScalar_When_VectorAsmEnabled;
 var
   LAVX2Table: TSimdDispatchTable;
@@ -8675,13 +10997,13 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.avx2.register.inc');
+    LRegisterSourcePath := ResolveRepoSourcePath('fafafa.core.simd.avx2.register.inc');
     AssertTrue('AVX2 register source should exist for wide select audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
     LRegisterSource := LowerCase(LSourceLines.Text);
 
-    LWideSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.avx2.wide_emulation.inc');
+    LWideSourcePath := ResolveRepoSourcePath('fafafa.core.simd.avx2.wide_emulation.inc');
     AssertTrue('AVX2 wide emulation source should exist for wide select audit: ' + LWideSourcePath,
       FileExists(LWideSourcePath));
     LSourceLines.LoadFromFile(LWideSourcePath);
@@ -8746,6 +11068,110 @@ begin
     for LIndex := 0 to 7 do
       AssertEquals('AVX2 SelectF64x8 scalar parity lane ' + IntToStr(LIndex),
         LF64Expected.d[LIndex], LF64Actual.d[LIndex], 0.0);
+  finally
+    ResetToAutomaticBackend;
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_X86_WideSelect_NonZeroMaskLane_Semantics;
+var
+  LScalarTable: TSimdDispatchTable;
+  LSSE2Table: TSimdDispatchTable;
+  LAVX2Table: TSimdDispatchTable;
+  LCanRunAVX2: Boolean;
+  LOldVectorAsm: Boolean;
+  LF32Mask: TVecU32x8;
+  LF64Mask: TVecU64x4;
+  LF32A, LF32B, LF32Actual, LF32Expected: TVecF32x8;
+  LF64A, LF64B, LF64Actual, LF64Expected: TVecF64x4;
+  LIndex: Integer;
+
+  procedure AssertVecF32x8Equal(const aName: string; const aExpectedValue, aActualValue: TVecF32x8);
+  var
+    LLane: Integer;
+  begin
+    for LLane := 0 to 7 do
+      AssertEquals(aName + ' lane ' + IntToStr(LLane), aExpectedValue.f[LLane], aActualValue.f[LLane], 0.0);
+  end;
+
+  procedure AssertVecF64x4Equal(const aName: string; const aExpectedValue, aActualValue: TVecF64x4);
+  var
+    LLane: Integer;
+  begin
+    for LLane := 0 to 3 do
+      AssertEquals(aName + ' lane ' + IntToStr(LLane), aExpectedValue.d[LLane], aActualValue.d[LLane], 0.0);
+  end;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  for LIndex := 0 to 7 do
+  begin
+    LF32A.f[LIndex] := LIndex + 0.25;
+    LF32B.f[LIndex] := 100.0 + LIndex + 0.5;
+  end;
+  for LIndex := 0 to 3 do
+  begin
+    LF64A.d[LIndex] := LIndex + 0.125;
+    LF64B.d[LIndex] := -100.0 - LIndex - 0.25;
+  end;
+
+  LF32Mask.u[0] := 1;
+  LF32Mask.u[1] := 0;
+  LF32Mask.u[2] := 2;
+  LF32Mask.u[3] := $80000000;
+  LF32Mask.u[4] := 3;
+  LF32Mask.u[5] := 0;
+  LF32Mask.u[6] := 4;
+  LF32Mask.u[7] := $FFFFFFFF;
+
+  LF64Mask.u[0] := 1;
+  LF64Mask.u[1] := 0;
+  LF64Mask.u[2] := 2;
+  LF64Mask.u[3] := High(QWord);
+
+  LF32Expected := ScalarSelectF32x8(LF32Mask, LF32A, LF32B);
+  LF64Expected := ScalarSelectF64x4(LF64Mask, LF64A, LF64B);
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+
+    if TryGetRegisteredBackendDispatchTable(sbSSE2, LSSE2Table) then
+    begin
+      AssertTrue('SSE2 SelectF32x8 should leave the scalar slot when non-zero mask semantics are runtime-checkable',
+        Pointer(LSSE2Table.SelectF32x8) <> Pointer(LScalarTable.SelectF32x8));
+      AssertTrue('SSE2 SelectF64x4 should leave the scalar slot when non-zero mask semantics are runtime-checkable',
+        Pointer(LSSE2Table.SelectF64x4) <> Pointer(LScalarTable.SelectF64x4));
+
+      LF32Actual := LSSE2Table.SelectF32x8(LF32Mask, LF32A, LF32B);
+      AssertVecF32x8Equal('SSE2 SelectF32x8 non-zero mask scalar parity', LF32Expected, LF32Actual);
+
+      LF64Actual := LSSE2Table.SelectF64x4(LF64Mask, LF64A, LF64B);
+      AssertVecF64x4Equal('SSE2 SelectF64x4 non-zero mask scalar parity', LF64Expected, LF64Actual);
+    end;
+
+    if not TryGetRegisteredBackendDispatchTable(sbAVX2, LAVX2Table) then
+      Exit;
+
+    AssertTrue('AVX2 SelectF32x8 should leave the scalar slot when non-zero mask semantics are runtime-checkable',
+      Pointer(LAVX2Table.SelectF32x8) <> Pointer(LScalarTable.SelectF32x8));
+    AssertTrue('AVX2 SelectF64x4 should leave the scalar slot when non-zero mask semantics are runtime-checkable',
+      Pointer(LAVX2Table.SelectF64x4) <> Pointer(LScalarTable.SelectF64x4));
+
+    LCanRunAVX2 := LAVX2Table.BackendInfo.Available and TrySetActiveBackend(sbAVX2);
+    if not LCanRunAVX2 then
+      Exit;
+
+    LF32Actual := LAVX2Table.SelectF32x8(LF32Mask, LF32A, LF32B);
+    AssertVecF32x8Equal('AVX2 SelectF32x8 non-zero mask scalar parity', LF32Expected, LF32Actual);
+
+    LF64Actual := LAVX2Table.SelectF64x4(LF64Mask, LF64A, LF64B);
+    AssertVecF64x4Equal('AVX2 SelectF64x4 non-zero mask scalar parity', LF64Expected, LF64Actual);
   finally
     ResetToAutomaticBackend;
     SetVectorAsmEnabled(LOldVectorAsm);
@@ -9072,6 +11498,105 @@ begin
     AssertFalse('AVX512 sc512BitOps should clear when vector asm is disabled',
       sc512BitOps in LAVX512Table.BackendInfo.Capabilities);
   finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_AVX512_BackendCapabilities_Restore_Representative_Slots_After_VectorAsm_RoundTrip;
+var
+  LScalarTable: TSimdDispatchTable;
+  LEnabledTable: TSimdDispatchTable;
+  LDisabledTable: TSimdDispatchTable;
+  LReenabledTable: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+
+  function HasCapability(const aTable: TSimdDispatchTable; const aCapability: TSimdCapability): Boolean;
+  begin
+    Result := aCapability in aTable.BackendInfo.Capabilities;
+  end;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    ResetToAutomaticBackend;
+
+    if IsVectorAsmEnabled then
+    begin
+      SetVectorAsmEnabled(False);
+      AssertFalse('Vector asm baseline should be disabled before AVX512 round-trip rebuild test',
+        IsVectorAsmEnabled);
+    end;
+
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+    if not TryGetRegisteredBackendDispatchTable(sbAVX512, LEnabledTable) then
+      Exit;
+
+    AssertTrue('AVX512 FmaF32x16 should become non-scalar when vector asm is enabled',
+      PtrUInt(LEnabledTable.FmaF32x16) <> PtrUInt(LScalarTable.FmaF32x16));
+    AssertTrue('AVX512 SelectF32x16 should become non-scalar when vector asm is enabled',
+      PtrUInt(LEnabledTable.SelectF32x16) <> PtrUInt(LScalarTable.SelectF32x16));
+    AssertTrue('AVX512 AddU32x16 should become non-scalar when vector asm is enabled',
+      PtrUInt(LEnabledTable.AddU32x16) <> PtrUInt(LScalarTable.AddU32x16));
+    AssertTrue('AVX512 should advertise scFMA when vector asm is enabled',
+      HasCapability(LEnabledTable, scFMA));
+    AssertTrue('AVX512 should advertise scShuffle when vector asm is enabled',
+      HasCapability(LEnabledTable, scShuffle));
+    AssertTrue('AVX512 should advertise scIntegerOps when vector asm is enabled',
+      HasCapability(LEnabledTable, scIntegerOps));
+    AssertTrue('AVX512 should advertise sc512BitOps when vector asm is enabled',
+      HasCapability(LEnabledTable, sc512BitOps));
+
+    SetVectorAsmEnabled(False);
+    AssertFalse('Vector asm should be disabled for AVX512 round-trip rebuild test', IsVectorAsmEnabled);
+    AssertTrue('AVX512 backend should remain registered after vector asm disable',
+      TryGetRegisteredBackendDispatchTable(sbAVX512, LDisabledTable));
+
+    AssertEquals('AVX512 FmaF32x16 should fall back to scalar when vector asm is disabled',
+      PtrUInt(LScalarTable.FmaF32x16), PtrUInt(LDisabledTable.FmaF32x16));
+    AssertEquals('AVX512 SelectF32x16 should fall back to scalar when vector asm is disabled',
+      PtrUInt(LScalarTable.SelectF32x16), PtrUInt(LDisabledTable.SelectF32x16));
+    AssertEquals('AVX512 AddU32x16 should fall back to scalar when vector asm is disabled',
+      PtrUInt(LScalarTable.AddU32x16), PtrUInt(LDisabledTable.AddU32x16));
+    AssertFalse('AVX512 should clear scFMA when vector asm is disabled',
+      HasCapability(LDisabledTable, scFMA));
+    AssertFalse('AVX512 should clear scShuffle when vector asm is disabled',
+      HasCapability(LDisabledTable, scShuffle));
+    AssertFalse('AVX512 should clear scIntegerOps when vector asm is disabled',
+      HasCapability(LDisabledTable, scIntegerOps));
+    AssertFalse('AVX512 should clear sc512BitOps when vector asm is disabled',
+      HasCapability(LDisabledTable, sc512BitOps));
+    AssertFalse('AVX512 dispatch availability should be false while vector asm is disabled',
+      LDisabledTable.BackendInfo.Available);
+
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+    AssertTrue('AVX512 backend should remain registered after vector asm re-enable',
+      TryGetRegisteredBackendDispatchTable(sbAVX512, LReenabledTable));
+
+    AssertEquals('AVX512 FmaF32x16 should restore the enabled binding after vector asm round-trip',
+      PtrUInt(LEnabledTable.FmaF32x16), PtrUInt(LReenabledTable.FmaF32x16));
+    AssertEquals('AVX512 SelectF32x16 should restore the enabled binding after vector asm round-trip',
+      PtrUInt(LEnabledTable.SelectF32x16), PtrUInt(LReenabledTable.SelectF32x16));
+    AssertEquals('AVX512 AddU32x16 should restore the enabled binding after vector asm round-trip',
+      PtrUInt(LEnabledTable.AddU32x16), PtrUInt(LReenabledTable.AddU32x16));
+    AssertEquals('AVX512 dispatch availability should restore after vector asm round-trip',
+      Ord(LEnabledTable.BackendInfo.Available), Ord(LReenabledTable.BackendInfo.Available));
+    AssertEquals('AVX512 scFMA should restore after vector asm round-trip',
+      Ord(HasCapability(LEnabledTable, scFMA)), Ord(HasCapability(LReenabledTable, scFMA)));
+    AssertEquals('AVX512 scShuffle should restore after vector asm round-trip',
+      Ord(HasCapability(LEnabledTable, scShuffle)), Ord(HasCapability(LReenabledTable, scShuffle)));
+    AssertEquals('AVX512 scIntegerOps should restore after vector asm round-trip',
+      Ord(HasCapability(LEnabledTable, scIntegerOps)), Ord(HasCapability(LReenabledTable, scIntegerOps)));
+    AssertEquals('AVX512 sc512BitOps should restore after vector asm round-trip',
+      Ord(HasCapability(LEnabledTable, sc512BitOps)), Ord(HasCapability(LReenabledTable, sc512BitOps)));
+  finally
+    ResetToAutomaticBackend;
     SetVectorAsmEnabled(LOldVectorAsm);
   end;
 end;
@@ -9526,13 +12051,13 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.avx2.register.inc');
+    LRegisterSourcePath := ResolveRepoSourcePath('fafafa.core.simd.avx2.register.inc');
     AssertTrue('AVX2 register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
     LRegisterSource := LowerCase(LSourceLines.Text);
 
-    LFacadeSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.avx2.facade.inc');
+    LFacadeSourcePath := ResolveRepoSourcePath('fafafa.core.simd.avx2.facade.inc');
     AssertTrue('AVX2 facade source should exist for implementation-shape audit: ' + LFacadeSourcePath,
       FileExists(LFacadeSourcePath));
     LSourceLines.LoadFromFile(LFacadeSourcePath);
@@ -9620,6 +12145,698 @@ begin
   {$ENDIF}
 end;
 
+procedure TTestCase_DispatchAPI.Test_SSE3_RepresentativeOverrides_Reuse_SSE2_CoreSlots;
+var
+  LSSE2Table: TSimdDispatchTable;
+  LSSE3Table: TSimdDispatchTable;
+  LSourceLines: TStringList;
+  LRegisterSourcePath: string;
+  LRegisterSource: string;
+  LOldVectorAsm: Boolean;
+
+  procedure AssertRegisterBinds(const aLabel, aSnippet: string);
+  begin
+    AssertTrue('RegisterSSE3Backend should keep ' + aLabel + ' explicitly bound in the SSE3 register include',
+      Pos(LowerCase(aSnippet), LRegisterSource) > 0);
+  end;
+
+  procedure AssertRegisterKeepsClonedSSE2(const aLabel, aSnippet: string);
+  begin
+    AssertTrue('RegisterSSE3Backend should keep cloned SSE2 ' + aLabel + ' instead of rebinding it in the SSE3 register include',
+      Pos(LowerCase(aSnippet), LRegisterSource) = 0);
+  end;
+
+  procedure AssertSlotReusesSSE2(const aLabel: string; const aSSE2Slot, aSSE3Slot: Pointer);
+  begin
+    AssertEquals('SSE3 ' + aLabel + ' should reuse the cloned SSE2 slot',
+      PtrUInt(aSSE2Slot), PtrUInt(aSSE3Slot));
+  end;
+
+  procedure AssertSlotOwnsSSE3(const aLabel: string; const aSSE2Slot, aSSE3Slot: Pointer);
+  begin
+    AssertTrue('SSE3 ' + aLabel + ' should stay on the SSE3 override instead of collapsing back to SSE2',
+      PtrUInt(aSSE2Slot) <> PtrUInt(aSSE3Slot));
+  end;
+begin
+  LSourceLines := TStringList.Create;
+  try
+    LRegisterSourcePath := ResolveRepoSourcePath('fafafa.core.simd.sse3.register.inc');
+    AssertTrue('SSE3 register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
+      FileExists(LRegisterSourcePath));
+    LSourceLines.LoadFromFile(LRegisterSourcePath);
+    LRegisterSource := LowerCase(LSourceLines.Text);
+  finally
+    LSourceLines.Free;
+  end;
+
+  AssertTrue('RegisterSSE3Backend should clone from SSE2 before applying SSE3-specific overrides',
+    Pos('clonedispatchtable(sbsse2, dispatchtable)', LRegisterSource) > 0);
+  AssertRegisterBinds('ReduceAddF32x4', 'dispatchTable.ReduceAddF32x4 := @SSE3ReduceAddF32x4;');
+  AssertRegisterBinds('DotF32x4', 'dispatchTable.DotF32x4 := @SSE3DotF32x4;');
+  AssertRegisterBinds('NormalizeF32x4', 'dispatchTable.NormalizeF32x4 := @SSE3NormalizeF32x4;');
+  AssertRegisterKeepsClonedSSE2('AddF32x4', 'dispatchTable.AddF32x4 := @SSE3');
+  AssertRegisterKeepsClonedSSE2('MulF32x4', 'dispatchTable.MulF32x4 := @SSE3');
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+    if not TryGetRegisteredBackendDispatchTable(sbSSE2, LSSE2Table) then
+      Exit;
+    if not TryGetRegisteredBackendDispatchTable(sbSSE3, LSSE3Table) then
+      Exit;
+
+    AssertSlotReusesSSE2('AddF32x4', Pointer(LSSE2Table.AddF32x4), Pointer(LSSE3Table.AddF32x4));
+    AssertSlotReusesSSE2('MulF32x4', Pointer(LSSE2Table.MulF32x4), Pointer(LSSE3Table.MulF32x4));
+    AssertSlotOwnsSSE3('ReduceAddF32x4', Pointer(LSSE2Table.ReduceAddF32x4), Pointer(LSSE3Table.ReduceAddF32x4));
+    AssertSlotOwnsSSE3('DotF32x4', Pointer(LSSE2Table.DotF32x4), Pointer(LSSE3Table.DotF32x4));
+    AssertSlotOwnsSSE3('NormalizeF32x4', Pointer(LSSE2Table.NormalizeF32x4), Pointer(LSSE3Table.NormalizeF32x4));
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_SSSE3_RepresentativeOverrides_Reuse_SSE3_CoreSlots;
+var
+  LSSE3Table: TSimdDispatchTable;
+  LSSSE3Table: TSimdDispatchTable;
+  LSourceLines: TStringList;
+  LRegisterSourcePath: string;
+  LRegisterSource: string;
+  LOldVectorAsm: Boolean;
+
+  procedure AssertRegisterBinds(const aLabel, aSnippet: string);
+  begin
+    AssertTrue('RegisterSSSE3Backend should keep ' + aLabel + ' explicitly bound in the SSSE3 register include',
+      Pos(LowerCase(aSnippet), LRegisterSource) > 0);
+  end;
+
+  procedure AssertRegisterKeepsClonedSSE3(const aLabel, aSnippet: string);
+  begin
+    AssertTrue('RegisterSSSE3Backend should keep cloned SSE3 ' + aLabel + ' instead of rebinding it in the SSSE3 register include',
+      Pos(LowerCase(aSnippet), LRegisterSource) = 0);
+  end;
+
+  procedure AssertSlotReusesSSE3(const aLabel: string; const aSSE3Slot, aSSSE3Slot: Pointer);
+  begin
+    AssertEquals('SSSE3 ' + aLabel + ' should reuse the cloned SSE3 slot',
+      PtrUInt(aSSE3Slot), PtrUInt(aSSSE3Slot));
+  end;
+
+  procedure AssertSlotOwnsSSSE3(const aLabel: string; const aSSE3Slot, aSSSE3Slot: Pointer);
+  begin
+    AssertTrue('SSSE3 ' + aLabel + ' should stay on the SSSE3 override instead of collapsing back to SSE3',
+      PtrUInt(aSSE3Slot) <> PtrUInt(aSSSE3Slot));
+  end;
+begin
+  LSourceLines := TStringList.Create;
+  try
+    LRegisterSourcePath := ResolveRepoSourcePath('fafafa.core.simd.ssse3.register.inc');
+    AssertTrue('SSSE3 register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
+      FileExists(LRegisterSourcePath));
+    LSourceLines.LoadFromFile(LRegisterSourcePath);
+    LRegisterSource := LowerCase(LSourceLines.Text);
+  finally
+    LSourceLines.Free;
+  end;
+
+  AssertTrue('RegisterSSSE3Backend should clone from SSE3 before applying SSSE3-specific overrides',
+    Pos('clonedispatchtable(sbsse3, dispatchtable)', LRegisterSource) > 0);
+  AssertRegisterBinds('MinI8x16', 'dispatchTable.MinI8x16 := @SSSE3MinI8x16;');
+  AssertRegisterBinds('MaxI8x16', 'dispatchTable.MaxI8x16 := @SSSE3MaxI8x16;');
+  AssertRegisterKeepsClonedSSE3('ReduceAddF32x4', 'dispatchTable.ReduceAddF32x4 := @SSSE3');
+  AssertRegisterKeepsClonedSSE3('DotF32x4', 'dispatchTable.DotF32x4 := @SSSE3');
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+    if not TryGetRegisteredBackendDispatchTable(sbSSE3, LSSE3Table) then
+      Exit;
+    if not TryGetRegisteredBackendDispatchTable(sbSSSE3, LSSSE3Table) then
+      Exit;
+
+    AssertSlotReusesSSE3('ReduceAddF32x4', Pointer(LSSE3Table.ReduceAddF32x4), Pointer(LSSSE3Table.ReduceAddF32x4));
+    AssertSlotReusesSSE3('DotF32x4', Pointer(LSSE3Table.DotF32x4), Pointer(LSSSE3Table.DotF32x4));
+    AssertSlotOwnsSSSE3('MinI8x16', Pointer(LSSE3Table.MinI8x16), Pointer(LSSSE3Table.MinI8x16));
+    AssertSlotOwnsSSSE3('MaxI8x16', Pointer(LSSE3Table.MaxI8x16), Pointer(LSSSE3Table.MaxI8x16));
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_SSE41_RepresentativeOverrides_Reuse_SSSE3_CoreSlots;
+var
+  LSSSE3Table: TSimdDispatchTable;
+  LSSE41Table: TSimdDispatchTable;
+  LSourceLines: TStringList;
+  LRegisterSourcePath: string;
+  LRegisterSource: string;
+  LOldVectorAsm: Boolean;
+
+  procedure AssertRegisterBinds(const aLabel, aSnippet: string);
+  begin
+    AssertTrue('RegisterSSE41Backend should keep ' + aLabel + ' explicitly bound in the SSE4.1 register include',
+      Pos(LowerCase(aSnippet), LRegisterSource) > 0);
+  end;
+
+  procedure AssertRegisterKeepsClonedSSSE3(const aLabel, aSnippet: string);
+  begin
+    AssertTrue('RegisterSSE41Backend should keep cloned SSSE3 ' + aLabel + ' instead of rebinding it in the SSE4.1 register include',
+      Pos(LowerCase(aSnippet), LRegisterSource) = 0);
+  end;
+
+  procedure AssertSlotReusesSSSE3(const aLabel: string; const aSSSE3Slot, aSSE41Slot: Pointer);
+  begin
+    AssertEquals('SSE4.1 ' + aLabel + ' should reuse the cloned SSSE3 slot',
+      PtrUInt(aSSSE3Slot), PtrUInt(aSSE41Slot));
+  end;
+
+  procedure AssertSlotOwnsSSE41(const aLabel: string; const aSSSE3Slot, aSSE41Slot: Pointer);
+  begin
+    AssertTrue('SSE4.1 ' + aLabel + ' should stay on the SSE4.1 override instead of collapsing back to SSSE3',
+      PtrUInt(aSSSE3Slot) <> PtrUInt(aSSE41Slot));
+  end;
+begin
+  LSourceLines := TStringList.Create;
+  try
+    LRegisterSourcePath := ResolveRepoSourcePath('fafafa.core.simd.sse41.register.inc');
+    AssertTrue('SSE4.1 register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
+      FileExists(LRegisterSourcePath));
+    LSourceLines.LoadFromFile(LRegisterSourcePath);
+    LRegisterSource := LowerCase(LSourceLines.Text);
+  finally
+    LSourceLines.Free;
+  end;
+
+  AssertTrue('RegisterSSE41Backend should clone from SSSE3 before applying SSE4.1-specific overrides',
+    Pos('clonedispatchtable(sbssse3, dispatchtable)', LRegisterSource) > 0);
+  AssertRegisterBinds('MulI32x4', 'dispatchTable.MulI32x4 := @SSE41MulI32x4;');
+  AssertRegisterBinds('DotF32x4', 'dispatchTable.DotF32x4 := @SSE41DotF32x4;');
+  AssertRegisterBinds('RoundF32x4', 'dispatchTable.RoundF32x4 := @SSE41RoundF32x4;');
+  AssertRegisterBinds('SelectF32x4', 'dispatchTable.SelectF32x4 := @SSE41SelectF32x4;');
+  AssertRegisterBinds('CmpEqI64x2', 'dispatchTable.CmpEqI64x2 := @SSE41CmpEqI64x2;');
+  AssertRegisterKeepsClonedSSSE3('ReduceAddF32x4', 'dispatchTable.ReduceAddF32x4 := @SSE41');
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+    if not TryGetRegisteredBackendDispatchTable(sbSSSE3, LSSSE3Table) then
+      Exit;
+    if not TryGetRegisteredBackendDispatchTable(sbSSE41, LSSE41Table) then
+      Exit;
+
+    AssertSlotReusesSSSE3('ReduceAddF32x4', Pointer(LSSSE3Table.ReduceAddF32x4), Pointer(LSSE41Table.ReduceAddF32x4));
+    AssertSlotOwnsSSE41('MulI32x4', Pointer(LSSSE3Table.MulI32x4), Pointer(LSSE41Table.MulI32x4));
+    AssertSlotOwnsSSE41('DotF32x4', Pointer(LSSSE3Table.DotF32x4), Pointer(LSSE41Table.DotF32x4));
+    AssertSlotOwnsSSE41('RoundF32x4', Pointer(LSSSE3Table.RoundF32x4), Pointer(LSSE41Table.RoundF32x4));
+    AssertSlotOwnsSSE41('SelectF32x4', Pointer(LSSSE3Table.SelectF32x4), Pointer(LSSE41Table.SelectF32x4));
+    AssertSlotOwnsSSE41('CmpEqI64x2', Pointer(LSSSE3Table.CmpEqI64x2), Pointer(LSSE41Table.CmpEqI64x2));
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_SSE42_RepresentativeOverride_Reuse_SSE41_CoreSlots;
+var
+  LSSE41Table: TSimdDispatchTable;
+  LSSE42Table: TSimdDispatchTable;
+  LSourceLines: TStringList;
+  LRegisterSourcePath: string;
+  LRegisterSource: string;
+  LOldVectorAsm: Boolean;
+
+  procedure AssertRegisterBinds(const aLabel, aSnippet: string);
+  begin
+    AssertTrue('RegisterSSE42Backend should keep ' + aLabel + ' explicitly bound in the SSE4.2 register include',
+      Pos(LowerCase(aSnippet), LRegisterSource) > 0);
+  end;
+
+  procedure AssertRegisterKeepsClonedSSE41(const aLabel, aSnippet: string);
+  begin
+    AssertTrue('RegisterSSE42Backend should keep cloned SSE4.1 ' + aLabel + ' instead of rebinding it in the SSE4.2 register include',
+      Pos(LowerCase(aSnippet), LRegisterSource) = 0);
+  end;
+
+  procedure AssertSlotReusesSSE41(const aLabel: string; const aSSE41Slot, aSSE42Slot: Pointer);
+  begin
+    AssertEquals('SSE4.2 ' + aLabel + ' should reuse the cloned SSE4.1 slot',
+      PtrUInt(aSSE41Slot), PtrUInt(aSSE42Slot));
+  end;
+
+  procedure AssertSlotOwnsSSE42(const aLabel: string; const aSSE41Slot, aSSE42Slot: Pointer);
+  begin
+    AssertTrue('SSE4.2 ' + aLabel + ' should stay on the SSE4.2 override instead of collapsing back to SSE4.1',
+      PtrUInt(aSSE41Slot) <> PtrUInt(aSSE42Slot));
+  end;
+begin
+  LSourceLines := TStringList.Create;
+  try
+    LRegisterSourcePath := ResolveRepoSourcePath('fafafa.core.simd.sse42.register.inc');
+    AssertTrue('SSE4.2 register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
+      FileExists(LRegisterSourcePath));
+    LSourceLines.LoadFromFile(LRegisterSourcePath);
+    LRegisterSource := LowerCase(LSourceLines.Text);
+  finally
+    LSourceLines.Free;
+  end;
+
+  AssertTrue('RegisterSSE42Backend should clone from SSE4.1 before applying SSE4.2-specific overrides',
+    Pos('clonedispatchtable(sbsse41, dispatchtable)', LRegisterSource) > 0);
+  AssertRegisterBinds('CmpGtI64x2', 'dispatchTable.CmpGtI64x2 := @SSE42CmpGtI64x2;');
+  AssertRegisterKeepsClonedSSE41('ReduceAddF32x4', 'dispatchTable.ReduceAddF32x4 := @SSE42');
+  AssertRegisterKeepsClonedSSE41('SelectF32x4', 'dispatchTable.SelectF32x4 := @SSE42');
+  AssertRegisterKeepsClonedSSE41('CmpEqI64x2', 'dispatchTable.CmpEqI64x2 := @SSE42');
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+    if not TryGetRegisteredBackendDispatchTable(sbSSE41, LSSE41Table) then
+      Exit;
+    if not TryGetRegisteredBackendDispatchTable(sbSSE42, LSSE42Table) then
+      Exit;
+
+    AssertSlotReusesSSE41('ReduceAddF32x4', Pointer(LSSE41Table.ReduceAddF32x4), Pointer(LSSE42Table.ReduceAddF32x4));
+    AssertSlotReusesSSE41('SelectF32x4', Pointer(LSSE41Table.SelectF32x4), Pointer(LSSE42Table.SelectF32x4));
+    AssertSlotReusesSSE41('CmpEqI64x2', Pointer(LSSE41Table.CmpEqI64x2), Pointer(LSSE42Table.CmpEqI64x2));
+    AssertSlotOwnsSSE42('CmpGtI64x2', Pointer(LSSE41Table.CmpGtI64x2), Pointer(LSSE42Table.CmpGtI64x2));
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_SSE3_RepresentativeSemanticParity_WithScalar_IfDispatchable;
+var
+  LScalarTable: TSimdDispatchTable;
+  LSSE3Table: TSimdDispatchTable;
+  LCurrentDispatch: PSimdDispatchTable;
+  LCanRunSSE3: Boolean;
+  LOldVectorAsm: Boolean;
+  LA, LB, LNormalizeInput, LNormalizeZeroInput: TVecF32x4;
+  LNormalizeActual, LNormalizeExpected: TVecF32x4;
+  LNormalizeZeroActual, LNormalizeZeroExpected: TVecF32x4;
+  LReduceActual, LReduceExpected: Single;
+  LDotActual, LDotExpected: Single;
+
+  procedure AssertVecF32x4Equal(const aLabel: string; const aExpected, aActual: TVecF32x4; const aEps: Single);
+  var
+    LLane: Integer;
+  begin
+    for LLane := 0 to 3 do
+      AssertEquals(aLabel + ' lane ' + IntToStr(LLane),
+        aExpected.f[LLane], aActual.f[LLane], aEps);
+  end;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+
+    if not TryGetRegisteredBackendDispatchTable(sbSSE3, LSSE3Table) then
+      Exit;
+
+    AssertTrue('SSE3 ReduceAddF32x4 should leave the scalar slot when runtime semantic parity is checkable',
+      Pointer(LSSE3Table.ReduceAddF32x4) <> Pointer(LScalarTable.ReduceAddF32x4));
+    AssertTrue('SSE3 DotF32x4 should leave the scalar slot when runtime semantic parity is checkable',
+      Pointer(LSSE3Table.DotF32x4) <> Pointer(LScalarTable.DotF32x4));
+    AssertTrue('SSE3 NormalizeF32x4 should leave the scalar slot when runtime semantic parity is checkable',
+      Pointer(LSSE3Table.NormalizeF32x4) <> Pointer(LScalarTable.NormalizeF32x4));
+
+    LCanRunSSE3 := LSSE3Table.BackendInfo.Available and TrySetActiveBackend(sbSSE3);
+    if not LCanRunSSE3 then
+      Exit;
+
+    LCurrentDispatch := GetDispatchTable;
+    AssertEquals('Active backend should be SSE3 for runtime semantic parity',
+      Ord(sbSSE3), Ord(GetActiveBackend));
+    AssertEquals('Current dispatch table should resolve to SSE3 after forcing the backend',
+      Ord(sbSSE3), Ord(LCurrentDispatch^.Backend));
+
+    LA.f[0] := 1.0;
+    LA.f[1] := 2.0;
+    LA.f[2] := 3.0;
+    LA.f[3] := 4.0;
+    LB.f[0] := -5.0;
+    LB.f[1] := 6.0;
+    LB.f[2] := -7.0;
+    LB.f[3] := 8.0;
+    LNormalizeInput.f[0] := 4.0;
+    LNormalizeInput.f[1] := 0.0;
+    LNormalizeInput.f[2] := 0.0;
+    LNormalizeInput.f[3] := 0.0;
+    LNormalizeZeroInput.f[0] := 0.0;
+    LNormalizeZeroInput.f[1] := 0.0;
+    LNormalizeZeroInput.f[2] := 0.0;
+    LNormalizeZeroInput.f[3] := 0.0;
+
+    LReduceExpected := ScalarReduceAddF32x4(LA);
+    LReduceActual := LCurrentDispatch^.ReduceAddF32x4(LA);
+    AssertEquals('SSE3 ReduceAddF32x4 scalar parity',
+      LReduceExpected, LReduceActual, 0.0);
+
+    LDotExpected := ScalarDotF32x4(LA, LB);
+    LDotActual := LCurrentDispatch^.DotF32x4(LA, LB);
+    AssertEquals('SSE3 DotF32x4 scalar parity',
+      LDotExpected, LDotActual, 0.0);
+
+    LNormalizeExpected := ScalarNormalizeF32x4(LNormalizeInput);
+    LNormalizeActual := LCurrentDispatch^.NormalizeF32x4(LNormalizeInput);
+    AssertVecF32x4Equal('SSE3 NormalizeF32x4 scalar parity',
+      LNormalizeExpected, LNormalizeActual, 0.0);
+
+    LNormalizeZeroExpected := ScalarNormalizeF32x4(LNormalizeZeroInput);
+    LNormalizeZeroActual := LCurrentDispatch^.NormalizeF32x4(LNormalizeZeroInput);
+    AssertVecF32x4Equal('SSE3 NormalizeF32x4 zero scalar parity',
+      LNormalizeZeroExpected, LNormalizeZeroActual, 0.0);
+  finally
+    ResetToAutomaticBackend;
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_SSSE3_RepresentativeSemanticParity_WithScalar_IfDispatchable;
+var
+  LScalarTable: TSimdDispatchTable;
+  LSSSE3Table: TSimdDispatchTable;
+  LCurrentDispatch: PSimdDispatchTable;
+  LCanRunSSSE3: Boolean;
+  LOldVectorAsm: Boolean;
+  LA, LB: TVecI8x16;
+  LMinActual, LMinExpected: TVecI8x16;
+  LMaxActual, LMaxExpected: TVecI8x16;
+
+  procedure AssertVecI8x16Equal(const aLabel: string; const aExpected, aActual: TVecI8x16);
+  var
+    LLane: Integer;
+  begin
+    for LLane := 0 to 15 do
+      AssertEquals(aLabel + ' lane ' + IntToStr(LLane),
+        aExpected.i[LLane], aActual.i[LLane]);
+  end;
+
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+
+    if not TryGetRegisteredBackendDispatchTable(sbSSSE3, LSSSE3Table) then
+      Exit;
+
+    AssertTrue('SSSE3 MinI8x16 should leave the scalar slot when runtime semantic parity is checkable',
+      Pointer(LSSSE3Table.MinI8x16) <> Pointer(LScalarTable.MinI8x16));
+    AssertTrue('SSSE3 MaxI8x16 should leave the scalar slot when runtime semantic parity is checkable',
+      Pointer(LSSSE3Table.MaxI8x16) <> Pointer(LScalarTable.MaxI8x16));
+
+    LCanRunSSSE3 := LSSSE3Table.BackendInfo.Available and TrySetActiveBackend(sbSSSE3);
+    if not LCanRunSSSE3 then
+      Exit;
+
+    LCurrentDispatch := GetDispatchTable;
+    AssertEquals('Active backend should be SSSE3 for runtime semantic parity',
+      Ord(sbSSSE3), Ord(GetActiveBackend));
+    AssertEquals('Current dispatch table should resolve to SSSE3 after forcing the backend',
+      Ord(sbSSSE3), Ord(LCurrentDispatch^.Backend));
+
+    LA.i[0] := -104; LA.i[1] := -91; LA.i[2] := -78; LA.i[3] := -65;
+    LA.i[4] := -52;  LA.i[5] := -39; LA.i[6] := -26; LA.i[7] := -13;
+    LA.i[8] := 0;    LA.i[9] := 13;  LA.i[10] := 26; LA.i[11] := 39;
+    LA.i[12] := 52;  LA.i[13] := 65; LA.i[14] := 78; LA.i[15] := 91;
+    LB.i[0] := 96;   LB.i[1] := 85;  LB.i[2] := 74;  LB.i[3] := 63;
+    LB.i[4] := 52;   LB.i[5] := 41;  LB.i[6] := 30;  LB.i[7] := 19;
+    LB.i[8] := 8;    LB.i[9] := -3;  LB.i[10] := -14; LB.i[11] := -25;
+    LB.i[12] := -36; LB.i[13] := -47; LB.i[14] := -58; LB.i[15] := -69;
+
+    LMinExpected := ScalarMinI8x16(LA, LB);
+    LMinActual := LCurrentDispatch^.MinI8x16(LA, LB);
+    AssertVecI8x16Equal('SSSE3 MinI8x16 scalar parity',
+      LMinExpected, LMinActual);
+
+    LMaxExpected := ScalarMaxI8x16(LA, LB);
+    LMaxActual := LCurrentDispatch^.MaxI8x16(LA, LB);
+    AssertVecI8x16Equal('SSSE3 MaxI8x16 scalar parity',
+      LMaxExpected, LMaxActual);
+  finally
+    ResetToAutomaticBackend;
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_SSE41_RepresentativeSemanticParity_WithScalar_IfDispatchable;
+var
+  LScalarTable: TSimdDispatchTable;
+  LSSE41Table: TSimdDispatchTable;
+  LCurrentDispatch: PSimdDispatchTable;
+  LCanRunSSE41: Boolean;
+  LOldVectorAsm: Boolean;
+  LI32A, LI32B: TVecI32x4;
+  LI32Actual, LI32Expected: TVecI32x4;
+  LF32RoundInput: TVecF32x4;
+  LF32RoundActual, LF32RoundExpected: TVecF32x4;
+  LF32SelectA, LF32SelectB: TVecF32x4;
+  LF32SelectActual, LF32SelectExpected: TVecF32x4;
+  LNormalize4Input, LNormalize4ZeroInput: TVecF32x4;
+  LNormalize3Input, LNormalize3ZeroInput: TVecF32x4;
+  LNormalize4Actual, LNormalize4Expected: TVecF32x4;
+  LNormalize4ZeroActual, LNormalize4ZeroExpected: TVecF32x4;
+  LNormalize3Actual, LNormalize3Expected: TVecF32x4;
+  LNormalize3ZeroActual, LNormalize3ZeroExpected: TVecF32x4;
+  LI64CmpA, LI64CmpB: TVecI64x2;
+  LMask2Actual, LMask2Expected: TMask2;
+  LDotActual, LDotExpected: Single;
+  LDotA, LDotB: TVecF32x4;
+  LMask4: TMask4;
+
+  procedure AssertVecI32x4Equal(const aLabel: string; const aExpected, aActual: TVecI32x4);
+  var
+    LLane: Integer;
+  begin
+    for LLane := 0 to 3 do
+      AssertEquals(aLabel + ' lane ' + IntToStr(LLane),
+        aExpected.i[LLane], aActual.i[LLane]);
+  end;
+
+  procedure AssertVecF32x4Equal(const aLabel: string; const aExpected, aActual: TVecF32x4; const aEps: Single);
+  var
+    LLane: Integer;
+  begin
+    for LLane := 0 to 3 do
+      AssertEquals(aLabel + ' lane ' + IntToStr(LLane),
+        aExpected.f[LLane], aActual.f[LLane], aEps);
+  end;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+
+    if not TryGetRegisteredBackendDispatchTable(sbSSE41, LSSE41Table) then
+      Exit;
+
+    AssertTrue('SSE4.1 MulI32x4 should leave the scalar slot when runtime semantic parity is checkable',
+      Pointer(LSSE41Table.MulI32x4) <> Pointer(LScalarTable.MulI32x4));
+    AssertTrue('SSE4.1 DotF32x4 should leave the scalar slot when runtime semantic parity is checkable',
+      Pointer(LSSE41Table.DotF32x4) <> Pointer(LScalarTable.DotF32x4));
+    AssertTrue('SSE4.1 RoundF32x4 should leave the scalar slot when runtime semantic parity is checkable',
+      Pointer(LSSE41Table.RoundF32x4) <> Pointer(LScalarTable.RoundF32x4));
+    AssertTrue('SSE4.1 SelectF32x4 should leave the scalar slot when runtime semantic parity is checkable',
+      Pointer(LSSE41Table.SelectF32x4) <> Pointer(LScalarTable.SelectF32x4));
+    AssertTrue('SSE4.1 NormalizeF32x4 should leave the scalar slot when runtime semantic parity is checkable',
+      Pointer(LSSE41Table.NormalizeF32x4) <> Pointer(LScalarTable.NormalizeF32x4));
+    AssertTrue('SSE4.1 NormalizeF32x3 should leave the scalar slot when runtime semantic parity is checkable',
+      Pointer(LSSE41Table.NormalizeF32x3) <> Pointer(LScalarTable.NormalizeF32x3));
+    AssertTrue('SSE4.1 CmpEqI64x2 should leave the scalar slot when runtime semantic parity is checkable',
+      Pointer(LSSE41Table.CmpEqI64x2) <> Pointer(LScalarTable.CmpEqI64x2));
+
+    LCanRunSSE41 := LSSE41Table.BackendInfo.Available and TrySetActiveBackend(sbSSE41);
+    if not LCanRunSSE41 then
+      Exit;
+
+    LCurrentDispatch := GetDispatchTable;
+    AssertEquals('Active backend should be SSE4.1 for runtime semantic parity',
+      Ord(sbSSE41), Ord(GetActiveBackend));
+    AssertEquals('Current dispatch table should resolve to SSE4.1 after forcing the backend',
+      Ord(sbSSE41), Ord(LCurrentDispatch^.Backend));
+
+    LI32A.i[0] := 2;
+    LI32A.i[1] := -3;
+    LI32A.i[2] := 1000;
+    LI32A.i[3] := -2000;
+    LI32B.i[0] := 4;
+    LI32B.i[1] := 5;
+    LI32B.i[2] := -7;
+    LI32B.i[3] := 8;
+
+    LDotA.f[0] := 1.0;
+    LDotA.f[1] := 2.0;
+    LDotA.f[2] := 3.0;
+    LDotA.f[3] := 4.0;
+    LDotB.f[0] := -5.0;
+    LDotB.f[1] := 6.0;
+    LDotB.f[2] := -7.0;
+    LDotB.f[3] := 8.0;
+
+    LF32RoundInput.f[0] := 1.125;
+    LF32RoundInput.f[1] := -2.875;
+    LF32RoundInput.f[2] := 3.4;
+    LF32RoundInput.f[3] := -4.6;
+    LF32SelectA.f[0] := 1.25;
+    LF32SelectA.f[1] := 2.25;
+    LF32SelectA.f[2] := 3.25;
+    LF32SelectA.f[3] := 4.25;
+    LF32SelectB.f[0] := 10.5;
+    LF32SelectB.f[1] := 20.5;
+    LF32SelectB.f[2] := 30.5;
+    LF32SelectB.f[3] := 40.5;
+    LMask4 := TMask4($5);
+    LNormalize4Input.f[0] := 4.0;
+    LNormalize4Input.f[1] := 0.0;
+    LNormalize4Input.f[2] := 0.0;
+    LNormalize4Input.f[3] := 0.0;
+    LNormalize4ZeroInput.f[0] := 0.0;
+    LNormalize4ZeroInput.f[1] := 0.0;
+    LNormalize4ZeroInput.f[2] := 0.0;
+    LNormalize4ZeroInput.f[3] := 0.0;
+    LNormalize3Input.f[0] := 0.0;
+    LNormalize3Input.f[1] := 4.0;
+    LNormalize3Input.f[2] := 0.0;
+    LNormalize3Input.f[3] := 99.0;
+    LNormalize3ZeroInput.f[0] := 0.0;
+    LNormalize3ZeroInput.f[1] := 0.0;
+    LNormalize3ZeroInput.f[2] := 0.0;
+    LNormalize3ZeroInput.f[3] := 17.0;
+
+    LI64CmpA.i[0] := 42;
+    LI64CmpA.i[1] := -9000;
+    LI64CmpB.i[0] := 42;
+    LI64CmpB.i[1] := 9000;
+
+    LI32Expected := ScalarMulI32x4(LI32A, LI32B);
+    LI32Actual := LCurrentDispatch^.MulI32x4(LI32A, LI32B);
+    AssertVecI32x4Equal('SSE4.1 MulI32x4 scalar parity',
+      LI32Expected, LI32Actual);
+
+    LDotExpected := ScalarDotF32x4(LDotA, LDotB);
+    LDotActual := LCurrentDispatch^.DotF32x4(LDotA, LDotB);
+    AssertEquals('SSE4.1 DotF32x4 scalar parity',
+      LDotExpected, LDotActual, 0.0);
+
+    LF32RoundExpected := ScalarRoundF32x4(LF32RoundInput);
+    LF32RoundActual := LCurrentDispatch^.RoundF32x4(LF32RoundInput);
+    AssertVecF32x4Equal('SSE4.1 RoundF32x4 scalar parity',
+      LF32RoundExpected, LF32RoundActual, 0.0);
+
+    LF32SelectExpected := ScalarSelectF32x4(LMask4, LF32SelectA, LF32SelectB);
+    LF32SelectActual := LCurrentDispatch^.SelectF32x4(LMask4, LF32SelectA, LF32SelectB);
+    AssertVecF32x4Equal('SSE4.1 SelectF32x4 scalar parity',
+      LF32SelectExpected, LF32SelectActual, 0.0);
+
+    LNormalize4Expected := ScalarNormalizeF32x4(LNormalize4Input);
+    LNormalize4Actual := LCurrentDispatch^.NormalizeF32x4(LNormalize4Input);
+    AssertVecF32x4Equal('SSE4.1 NormalizeF32x4 scalar parity',
+      LNormalize4Expected, LNormalize4Actual, 0.0);
+
+    LNormalize4ZeroExpected := ScalarNormalizeF32x4(LNormalize4ZeroInput);
+    LNormalize4ZeroActual := LCurrentDispatch^.NormalizeF32x4(LNormalize4ZeroInput);
+    AssertVecF32x4Equal('SSE4.1 NormalizeF32x4 zero scalar parity',
+      LNormalize4ZeroExpected, LNormalize4ZeroActual, 0.0);
+
+    LNormalize3Expected := ScalarNormalizeF32x3(LNormalize3Input);
+    LNormalize3Actual := LCurrentDispatch^.NormalizeF32x3(LNormalize3Input);
+    AssertVecF32x4Equal('SSE4.1 NormalizeF32x3 scalar parity',
+      LNormalize3Expected, LNormalize3Actual, 0.0);
+
+    LNormalize3ZeroExpected := ScalarNormalizeF32x3(LNormalize3ZeroInput);
+    LNormalize3ZeroActual := LCurrentDispatch^.NormalizeF32x3(LNormalize3ZeroInput);
+    AssertVecF32x4Equal('SSE4.1 NormalizeF32x3 zero scalar parity',
+      LNormalize3ZeroExpected, LNormalize3ZeroActual, 0.0);
+
+    LMask2Expected := ScalarCmpEqI64x2(LI64CmpA, LI64CmpB);
+    LMask2Actual := LCurrentDispatch^.CmpEqI64x2(LI64CmpA, LI64CmpB);
+    AssertEquals('SSE4.1 CmpEqI64x2 scalar parity',
+      Integer(LMask2Expected), Integer(LMask2Actual));
+  finally
+    ResetToAutomaticBackend;
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_SSE42_RepresentativeSemanticParity_WithScalar_IfDispatchable;
+var
+  LScalarTable: TSimdDispatchTable;
+  LSSE42Table: TSimdDispatchTable;
+  LCurrentDispatch: PSimdDispatchTable;
+  LCanRunSSE42: Boolean;
+  LOldVectorAsm: Boolean;
+  LA, LB: TVecI64x2;
+  LMaskActual, LMaskExpected: TMask2;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+
+    if not TryGetRegisteredBackendDispatchTable(sbSSE42, LSSE42Table) then
+      Exit;
+
+    AssertTrue('SSE4.2 CmpGtI64x2 should leave the scalar slot when runtime semantic parity is checkable',
+      Pointer(LSSE42Table.CmpGtI64x2) <> Pointer(LScalarTable.CmpGtI64x2));
+
+    LCanRunSSE42 := LSSE42Table.BackendInfo.Available and TrySetActiveBackend(sbSSE42);
+    if not LCanRunSSE42 then
+      Exit;
+
+    LCurrentDispatch := GetDispatchTable;
+    AssertEquals('Active backend should be SSE4.2 for runtime semantic parity',
+      Ord(sbSSE42), Ord(GetActiveBackend));
+    AssertEquals('Current dispatch table should resolve to SSE4.2 after forcing the backend',
+      Ord(sbSSE42), Ord(LCurrentDispatch^.Backend));
+
+    LA.i[0] := 1234567890123;
+    LA.i[1] := -10;
+    LB.i[0] := 1234567890000;
+    LB.i[1] := 20;
+
+    LMaskExpected := ScalarCmpGtI64x2(LA, LB);
+    LMaskActual := LCurrentDispatch^.CmpGtI64x2(LA, LB);
+    AssertEquals('SSE4.2 CmpGtI64x2 scalar parity',
+      Integer(LMaskExpected), Integer(LMaskActual));
+  finally
+    ResetToAutomaticBackend;
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
 procedure TTestCase_DispatchAPI.Test_AVX512_PassThroughFacadeSlots_Reuse_AVX2_When_Wrappers_Are_Just_Forwarders;
 var
   LAVX2Table: TSimdDispatchTable;
@@ -9649,25 +12866,25 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LUnitSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.avx512.pas');
+    LUnitSourcePath := ResolveRepoSourcePath('fafafa.core.simd.avx512.pas');
     AssertTrue('AVX512 unit source should exist for implementation-shape audit: ' + LUnitSourcePath,
       FileExists(LUnitSourcePath));
     LSourceLines.LoadFromFile(LUnitSourcePath);
     LUnitSource := LowerCase(LSourceLines.Text);
 
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.avx512.register.inc');
+    LRegisterSourcePath := ResolveRepoSourcePath('fafafa.core.simd.avx512.register.inc');
     AssertTrue('AVX512 register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
     LRegisterSource := LowerCase(LSourceLines.Text);
 
-    LFacadeSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.avx512.facade.inc');
+    LFacadeSourcePath := ResolveRepoSourcePath('fafafa.core.simd.avx512.facade.inc');
     AssertTrue('AVX512 facade source should exist for implementation-shape audit: ' + LFacadeSourcePath,
       FileExists(LFacadeSourcePath));
     LSourceLines.LoadFromFile(LFacadeSourcePath);
     LFacadeSource := LowerCase(LSourceLines.Text);
 
-    LFallbackSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.avx512.fallback.inc');
+    LFallbackSourcePath := ResolveRepoSourcePath('fafafa.core.simd.avx512.fallback.inc');
     AssertTrue('AVX512 fallback source should exist for implementation-shape audit: ' + LFallbackSourcePath,
       FileExists(LFallbackSourcePath));
     LSourceLines.LoadFromFile(LFallbackSourcePath);
@@ -10093,6 +13310,13 @@ var
       aBackendSlot <> aScalarSlot);
   end;
 
+  procedure AssertSlotMatchesScalar(const aBackendName, aSlotName: string; const aScalarSlot, aBackendSlot: Pointer);
+  begin
+    AssertTrue(aSlotName + ' missing: ' + aBackendName, aBackendSlot <> nil);
+    AssertEquals(aSlotName + ' should intentionally reuse the canonical scalar slot: ' + aBackendName,
+      PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
+  end;
+
 begin
   AssertTrue('Scalar dispatch table should be available',
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
@@ -10129,39 +13353,76 @@ begin
 
       Inc(LCheckedBackends);
 
-    // Native-slot contract (only for explicitly marked non-x86 wide Floor/Ceil targets).
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'FloorF32x8',
-      Pointer(LScalarTable.FloorF32x8), Pointer(LBackendTable.FloorF32x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'CeilF32x8',
-      Pointer(LScalarTable.CeilF32x8), Pointer(LBackendTable.CeilF32x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'RoundF32x8',
-      Pointer(LScalarTable.RoundF32x8), Pointer(LBackendTable.RoundF32x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'TruncF32x8',
-      Pointer(LScalarTable.TruncF32x8), Pointer(LBackendTable.TruncF32x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'FloorF64x4',
-      Pointer(LScalarTable.FloorF64x4), Pointer(LBackendTable.FloorF64x4));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'CeilF64x4',
-      Pointer(LScalarTable.CeilF64x4), Pointer(LBackendTable.CeilF64x4));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'RoundF64x4',
-      Pointer(LScalarTable.RoundF64x4), Pointer(LBackendTable.RoundF64x4));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'TruncF64x4',
-      Pointer(LScalarTable.TruncF64x4), Pointer(LBackendTable.TruncF64x4));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'FloorF32x16',
-      Pointer(LScalarTable.FloorF32x16), Pointer(LBackendTable.FloorF32x16));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'CeilF32x16',
-      Pointer(LScalarTable.CeilF32x16), Pointer(LBackendTable.CeilF32x16));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'RoundF32x16',
-      Pointer(LScalarTable.RoundF32x16), Pointer(LBackendTable.RoundF32x16));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'TruncF32x16',
-      Pointer(LScalarTable.TruncF32x16), Pointer(LBackendTable.TruncF32x16));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'FloorF64x8',
-      Pointer(LScalarTable.FloorF64x8), Pointer(LBackendTable.FloorF64x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'CeilF64x8',
-      Pointer(LScalarTable.CeilF64x8), Pointer(LBackendTable.CeilF64x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'RoundF64x8',
-      Pointer(LScalarTable.RoundF64x8), Pointer(LBackendTable.RoundF64x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'TruncF64x8',
-      Pointer(LScalarTable.TruncF64x8), Pointer(LBackendTable.TruncF64x8));
+      if LBackend = sbRISCVV then
+      begin
+        AssertSlotMatchesScalar(BackendName(LBackend), 'FloorF32x8',
+          Pointer(LScalarTable.FloorF32x8), Pointer(LBackendTable.FloorF32x8));
+        AssertSlotMatchesScalar(BackendName(LBackend), 'CeilF32x8',
+          Pointer(LScalarTable.CeilF32x8), Pointer(LBackendTable.CeilF32x8));
+        AssertSlotMatchesScalar(BackendName(LBackend), 'RoundF32x8',
+          Pointer(LScalarTable.RoundF32x8), Pointer(LBackendTable.RoundF32x8));
+        AssertSlotMatchesScalar(BackendName(LBackend), 'TruncF32x8',
+          Pointer(LScalarTable.TruncF32x8), Pointer(LBackendTable.TruncF32x8));
+        AssertSlotMatchesScalar(BackendName(LBackend), 'FloorF64x4',
+          Pointer(LScalarTable.FloorF64x4), Pointer(LBackendTable.FloorF64x4));
+        AssertSlotMatchesScalar(BackendName(LBackend), 'CeilF64x4',
+          Pointer(LScalarTable.CeilF64x4), Pointer(LBackendTable.CeilF64x4));
+        AssertSlotMatchesScalar(BackendName(LBackend), 'RoundF64x4',
+          Pointer(LScalarTable.RoundF64x4), Pointer(LBackendTable.RoundF64x4));
+        AssertSlotMatchesScalar(BackendName(LBackend), 'TruncF64x4',
+          Pointer(LScalarTable.TruncF64x4), Pointer(LBackendTable.TruncF64x4));
+        AssertSlotMatchesScalar(BackendName(LBackend), 'FloorF32x16',
+          Pointer(LScalarTable.FloorF32x16), Pointer(LBackendTable.FloorF32x16));
+        AssertSlotMatchesScalar(BackendName(LBackend), 'CeilF32x16',
+          Pointer(LScalarTable.CeilF32x16), Pointer(LBackendTable.CeilF32x16));
+        AssertSlotMatchesScalar(BackendName(LBackend), 'RoundF32x16',
+          Pointer(LScalarTable.RoundF32x16), Pointer(LBackendTable.RoundF32x16));
+        AssertSlotMatchesScalar(BackendName(LBackend), 'TruncF32x16',
+          Pointer(LScalarTable.TruncF32x16), Pointer(LBackendTable.TruncF32x16));
+        AssertSlotMatchesScalar(BackendName(LBackend), 'FloorF64x8',
+          Pointer(LScalarTable.FloorF64x8), Pointer(LBackendTable.FloorF64x8));
+        AssertSlotMatchesScalar(BackendName(LBackend), 'CeilF64x8',
+          Pointer(LScalarTable.CeilF64x8), Pointer(LBackendTable.CeilF64x8));
+        AssertSlotMatchesScalar(BackendName(LBackend), 'RoundF64x8',
+          Pointer(LScalarTable.RoundF64x8), Pointer(LBackendTable.RoundF64x8));
+        AssertSlotMatchesScalar(BackendName(LBackend), 'TruncF64x8',
+          Pointer(LScalarTable.TruncF64x8), Pointer(LBackendTable.TruncF64x8));
+      end
+      else
+      begin
+        AssertNativeSlotNotScalar(BackendName(LBackend), 'FloorF32x8',
+          Pointer(LScalarTable.FloorF32x8), Pointer(LBackendTable.FloorF32x8));
+        AssertNativeSlotNotScalar(BackendName(LBackend), 'CeilF32x8',
+          Pointer(LScalarTable.CeilF32x8), Pointer(LBackendTable.CeilF32x8));
+        AssertNativeSlotNotScalar(BackendName(LBackend), 'RoundF32x8',
+          Pointer(LScalarTable.RoundF32x8), Pointer(LBackendTable.RoundF32x8));
+        AssertNativeSlotNotScalar(BackendName(LBackend), 'TruncF32x8',
+          Pointer(LScalarTable.TruncF32x8), Pointer(LBackendTable.TruncF32x8));
+        AssertNativeSlotNotScalar(BackendName(LBackend), 'FloorF64x4',
+          Pointer(LScalarTable.FloorF64x4), Pointer(LBackendTable.FloorF64x4));
+        AssertNativeSlotNotScalar(BackendName(LBackend), 'CeilF64x4',
+          Pointer(LScalarTable.CeilF64x4), Pointer(LBackendTable.CeilF64x4));
+        AssertNativeSlotNotScalar(BackendName(LBackend), 'RoundF64x4',
+          Pointer(LScalarTable.RoundF64x4), Pointer(LBackendTable.RoundF64x4));
+        AssertNativeSlotNotScalar(BackendName(LBackend), 'TruncF64x4',
+          Pointer(LScalarTable.TruncF64x4), Pointer(LBackendTable.TruncF64x4));
+        AssertNativeSlotNotScalar(BackendName(LBackend), 'FloorF32x16',
+          Pointer(LScalarTable.FloorF32x16), Pointer(LBackendTable.FloorF32x16));
+        AssertNativeSlotNotScalar(BackendName(LBackend), 'CeilF32x16',
+          Pointer(LScalarTable.CeilF32x16), Pointer(LBackendTable.CeilF32x16));
+        AssertNativeSlotNotScalar(BackendName(LBackend), 'RoundF32x16',
+          Pointer(LScalarTable.RoundF32x16), Pointer(LBackendTable.RoundF32x16));
+        AssertNativeSlotNotScalar(BackendName(LBackend), 'TruncF32x16',
+          Pointer(LScalarTable.TruncF32x16), Pointer(LBackendTable.TruncF32x16));
+        AssertNativeSlotNotScalar(BackendName(LBackend), 'FloorF64x8',
+          Pointer(LScalarTable.FloorF64x8), Pointer(LBackendTable.FloorF64x8));
+        AssertNativeSlotNotScalar(BackendName(LBackend), 'CeilF64x8',
+          Pointer(LScalarTable.CeilF64x8), Pointer(LBackendTable.CeilF64x8));
+        AssertNativeSlotNotScalar(BackendName(LBackend), 'RoundF64x8',
+          Pointer(LScalarTable.RoundF64x8), Pointer(LBackendTable.RoundF64x8));
+        AssertNativeSlotNotScalar(BackendName(LBackend), 'TruncF64x8',
+          Pointer(LScalarTable.TruncF64x8), Pointer(LBackendTable.TruncF64x8));
+      end;
 
     AssertNativeSlotNotScalar(BackendName(LBackend), 'AddF32x8',
       Pointer(LScalarTable.AddF32x8), Pointer(LBackendTable.AddF32x8));
@@ -10279,6 +13540,13 @@ var
     AssertTrue(aSlotName + ' unexpectedly falls back to scalar slot: ' + aBackendName,
       aBackendSlot <> aScalarSlot);
   end;
+
+  procedure AssertSlotMatchesScalar(const aBackendName, aSlotName: string; const aScalarSlot, aBackendSlot: Pointer);
+  begin
+    AssertTrue(aSlotName + ' missing: ' + aBackendName, aBackendSlot <> nil);
+    AssertEquals(aSlotName + ' should intentionally reuse the canonical scalar slot: ' + aBackendName,
+      PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
+  end;
 begin
   AssertTrue('Scalar dispatch table should be available',
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
@@ -10317,38 +13585,76 @@ begin
 
       Inc(LCheckedBackends);
 
-    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'FloorF32x8',
-      Pointer(LScalarTable.FloorF32x8), Pointer(LBackendTable.FloorF32x8));
-    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'CeilF32x8',
-      Pointer(LScalarTable.CeilF32x8), Pointer(LBackendTable.CeilF32x8));
-    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'RoundF32x8',
-      Pointer(LScalarTable.RoundF32x8), Pointer(LBackendTable.RoundF32x8));
-    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'TruncF32x8',
-      Pointer(LScalarTable.TruncF32x8), Pointer(LBackendTable.TruncF32x8));
-    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'FloorF64x4',
-      Pointer(LScalarTable.FloorF64x4), Pointer(LBackendTable.FloorF64x4));
-    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'CeilF64x4',
-      Pointer(LScalarTable.CeilF64x4), Pointer(LBackendTable.CeilF64x4));
-    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'RoundF64x4',
-      Pointer(LScalarTable.RoundF64x4), Pointer(LBackendTable.RoundF64x4));
-    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'TruncF64x4',
-      Pointer(LScalarTable.TruncF64x4), Pointer(LBackendTable.TruncF64x4));
-    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'FloorF32x16',
-      Pointer(LScalarTable.FloorF32x16), Pointer(LBackendTable.FloorF32x16));
-    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'CeilF32x16',
-      Pointer(LScalarTable.CeilF32x16), Pointer(LBackendTable.CeilF32x16));
-    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'RoundF32x16',
-      Pointer(LScalarTable.RoundF32x16), Pointer(LBackendTable.RoundF32x16));
-    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'TruncF32x16',
-      Pointer(LScalarTable.TruncF32x16), Pointer(LBackendTable.TruncF32x16));
-    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'FloorF64x8',
-      Pointer(LScalarTable.FloorF64x8), Pointer(LBackendTable.FloorF64x8));
-    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'CeilF64x8',
-      Pointer(LScalarTable.CeilF64x8), Pointer(LBackendTable.CeilF64x8));
-    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'RoundF64x8',
-      Pointer(LScalarTable.RoundF64x8), Pointer(LBackendTable.RoundF64x8));
-    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'TruncF64x8',
-      Pointer(LScalarTable.TruncF64x8), Pointer(LBackendTable.TruncF64x8));
+      if LBackend = sbRISCVV then
+      begin
+        AssertSlotMatchesScalar(NonX86BackendName(LBackend), 'FloorF32x8',
+          Pointer(LScalarTable.FloorF32x8), Pointer(LBackendTable.FloorF32x8));
+        AssertSlotMatchesScalar(NonX86BackendName(LBackend), 'CeilF32x8',
+          Pointer(LScalarTable.CeilF32x8), Pointer(LBackendTable.CeilF32x8));
+        AssertSlotMatchesScalar(NonX86BackendName(LBackend), 'RoundF32x8',
+          Pointer(LScalarTable.RoundF32x8), Pointer(LBackendTable.RoundF32x8));
+        AssertSlotMatchesScalar(NonX86BackendName(LBackend), 'TruncF32x8',
+          Pointer(LScalarTable.TruncF32x8), Pointer(LBackendTable.TruncF32x8));
+        AssertSlotMatchesScalar(NonX86BackendName(LBackend), 'FloorF64x4',
+          Pointer(LScalarTable.FloorF64x4), Pointer(LBackendTable.FloorF64x4));
+        AssertSlotMatchesScalar(NonX86BackendName(LBackend), 'CeilF64x4',
+          Pointer(LScalarTable.CeilF64x4), Pointer(LBackendTable.CeilF64x4));
+        AssertSlotMatchesScalar(NonX86BackendName(LBackend), 'RoundF64x4',
+          Pointer(LScalarTable.RoundF64x4), Pointer(LBackendTable.RoundF64x4));
+        AssertSlotMatchesScalar(NonX86BackendName(LBackend), 'TruncF64x4',
+          Pointer(LScalarTable.TruncF64x4), Pointer(LBackendTable.TruncF64x4));
+        AssertSlotMatchesScalar(NonX86BackendName(LBackend), 'FloorF32x16',
+          Pointer(LScalarTable.FloorF32x16), Pointer(LBackendTable.FloorF32x16));
+        AssertSlotMatchesScalar(NonX86BackendName(LBackend), 'CeilF32x16',
+          Pointer(LScalarTable.CeilF32x16), Pointer(LBackendTable.CeilF32x16));
+        AssertSlotMatchesScalar(NonX86BackendName(LBackend), 'RoundF32x16',
+          Pointer(LScalarTable.RoundF32x16), Pointer(LBackendTable.RoundF32x16));
+        AssertSlotMatchesScalar(NonX86BackendName(LBackend), 'TruncF32x16',
+          Pointer(LScalarTable.TruncF32x16), Pointer(LBackendTable.TruncF32x16));
+        AssertSlotMatchesScalar(NonX86BackendName(LBackend), 'FloorF64x8',
+          Pointer(LScalarTable.FloorF64x8), Pointer(LBackendTable.FloorF64x8));
+        AssertSlotMatchesScalar(NonX86BackendName(LBackend), 'CeilF64x8',
+          Pointer(LScalarTable.CeilF64x8), Pointer(LBackendTable.CeilF64x8));
+        AssertSlotMatchesScalar(NonX86BackendName(LBackend), 'RoundF64x8',
+          Pointer(LScalarTable.RoundF64x8), Pointer(LBackendTable.RoundF64x8));
+        AssertSlotMatchesScalar(NonX86BackendName(LBackend), 'TruncF64x8',
+          Pointer(LScalarTable.TruncF64x8), Pointer(LBackendTable.TruncF64x8));
+      end
+      else
+      begin
+        AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'FloorF32x8',
+          Pointer(LScalarTable.FloorF32x8), Pointer(LBackendTable.FloorF32x8));
+        AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'CeilF32x8',
+          Pointer(LScalarTable.CeilF32x8), Pointer(LBackendTable.CeilF32x8));
+        AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'RoundF32x8',
+          Pointer(LScalarTable.RoundF32x8), Pointer(LBackendTable.RoundF32x8));
+        AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'TruncF32x8',
+          Pointer(LScalarTable.TruncF32x8), Pointer(LBackendTable.TruncF32x8));
+        AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'FloorF64x4',
+          Pointer(LScalarTable.FloorF64x4), Pointer(LBackendTable.FloorF64x4));
+        AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'CeilF64x4',
+          Pointer(LScalarTable.CeilF64x4), Pointer(LBackendTable.CeilF64x4));
+        AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'RoundF64x4',
+          Pointer(LScalarTable.RoundF64x4), Pointer(LBackendTable.RoundF64x4));
+        AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'TruncF64x4',
+          Pointer(LScalarTable.TruncF64x4), Pointer(LBackendTable.TruncF64x4));
+        AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'FloorF32x16',
+          Pointer(LScalarTable.FloorF32x16), Pointer(LBackendTable.FloorF32x16));
+        AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'CeilF32x16',
+          Pointer(LScalarTable.CeilF32x16), Pointer(LBackendTable.CeilF32x16));
+        AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'RoundF32x16',
+          Pointer(LScalarTable.RoundF32x16), Pointer(LBackendTable.RoundF32x16));
+        AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'TruncF32x16',
+          Pointer(LScalarTable.TruncF32x16), Pointer(LBackendTable.TruncF32x16));
+        AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'FloorF64x8',
+          Pointer(LScalarTable.FloorF64x8), Pointer(LBackendTable.FloorF64x8));
+        AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'CeilF64x8',
+          Pointer(LScalarTable.CeilF64x8), Pointer(LBackendTable.CeilF64x8));
+        AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'RoundF64x8',
+          Pointer(LScalarTable.RoundF64x8), Pointer(LBackendTable.RoundF64x8));
+        AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'TruncF64x8',
+          Pointer(LScalarTable.TruncF64x8), Pointer(LBackendTable.TruncF64x8));
+      end;
 
     AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'AddF32x8',
       Pointer(LScalarTable.AddF32x8), Pointer(LBackendTable.AddF32x8));
@@ -11976,6 +15282,7 @@ var
   LI64x4Base: TVecI64x4;
   LI64x4ByBackend, LI64x4ByFacade, LI64x4ByScalar: TVecI64x4;
   LIndex: Integer;
+  LExtractIndex: Integer;
   LCheckedBackends: Integer;
   LOldVectorAsm: Boolean;
 
@@ -12118,6 +15425,12 @@ begin
         Pointer(LScalarTable.InsertF32x16), Pointer(LBackendTable.InsertF32x16));
       AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'InsertF64x4',
         Pointer(LScalarTable.InsertF64x4), Pointer(LBackendTable.InsertF64x4));
+      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'ExtractF32x8',
+        Pointer(LScalarTable.ExtractF32x8), Pointer(LBackendTable.ExtractF32x8));
+      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'ExtractF32x16',
+        Pointer(LScalarTable.ExtractF32x16), Pointer(LBackendTable.ExtractF32x16));
+      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'ExtractF64x4',
+        Pointer(LScalarTable.ExtractF64x4), Pointer(LBackendTable.ExtractF64x4));
       AssertBackendOwnedIntegerSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertI32x8',
         Pointer(LScalarTable.InsertI32x8), Pointer(LBackendTable.InsertI32x8));
       AssertBackendOwnedIntegerSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertI32x16',
@@ -12145,6 +15458,51 @@ begin
 
       LF64x4ByFacade := VecF64x4Insert(LF64x4Base, -999.125, 1);
       AssertVecF64x4Equal('InsertF64x4 facade', NonX86BackendName(LBackend), LF64x4ByScalar, LF64x4ByFacade, 1e-12);
+
+      for LIndex := 0 to 3 do
+      begin
+        case LIndex of
+          0: LExtractIndex := -99;
+          1: LExtractIndex := 0;
+          2: LExtractIndex := 7;
+        else
+          LExtractIndex := 99;
+        end;
+        AssertEquals('ExtractF32x8 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+          LScalarTable.ExtractF32x8(LF32x8Base, LExtractIndex), LBackendTable.ExtractF32x8(LF32x8Base, LExtractIndex), 1e-6);
+        AssertEquals('ExtractF32x8 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+          LScalarTable.ExtractF32x8(LF32x8Base, LExtractIndex), VecF32x8Extract(LF32x8Base, LExtractIndex), 1e-6);
+      end;
+
+      for LIndex := 0 to 3 do
+      begin
+        case LIndex of
+          0: LExtractIndex := -99;
+          1: LExtractIndex := 0;
+          2: LExtractIndex := 15;
+        else
+          LExtractIndex := 99;
+        end;
+        AssertEquals('ExtractF32x16 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+          LScalarTable.ExtractF32x16(LF32x16Base, LExtractIndex), LBackendTable.ExtractF32x16(LF32x16Base, LExtractIndex), 1e-6);
+        AssertEquals('ExtractF32x16 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+          LScalarTable.ExtractF32x16(LF32x16Base, LExtractIndex), VecF32x16Extract(LF32x16Base, LExtractIndex), 1e-6);
+      end;
+
+      for LIndex := 0 to 3 do
+      begin
+        case LIndex of
+          0: LExtractIndex := -99;
+          1: LExtractIndex := 0;
+          2: LExtractIndex := 3;
+        else
+          LExtractIndex := 99;
+        end;
+        AssertEquals('ExtractF64x4 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+          LScalarTable.ExtractF64x4(LF64x4Base, LExtractIndex), LBackendTable.ExtractF64x4(LF64x4Base, LExtractIndex), 1e-12);
+        AssertEquals('ExtractF64x4 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+          LScalarTable.ExtractF64x4(LF64x4Base, LExtractIndex), VecF64x4Extract(LF64x4Base, LExtractIndex), 1e-12);
+      end;
 
       LI32x8ByBackend := LBackendTable.InsertI32x8(LI32x8Base, -2026, 5);
       LI32x8ByScalar := LScalarTable.InsertI32x8(LI32x8Base, -2026, 5);
@@ -12417,6 +15775,8 @@ var
   LF32x4ByBackend, LF32x4ByFacade, LF32x4ByScalar: TVecF32x4;
   LF64x2Base: TVecF64x2;
   LF64x2ByBackend, LF64x2ByFacade, LF64x2ByScalar: TVecF64x2;
+  LIndex: Integer;
+  LExtractIndex: Integer;
   LCheckedBackends: Integer;
   LOldVectorAsm: Boolean;
 
@@ -12504,8 +15864,20 @@ begin
       LF32x4ByFacade := VecF32x4Insert(LF32x4Base, 42.5, 2);
       AssertVecF32x4Equal('InsertF32x4 facade', NonX86BackendName(LBackend), LF32x4ByScalar, LF32x4ByFacade, 1e-6);
 
-      AssertEquals('ExtractF32x4 parity: ' + NonX86BackendName(LBackend),
-        LScalarTable.ExtractF32x4(LF32x4Base, 1), LBackendTable.ExtractF32x4(LF32x4Base, 1), 1e-6);
+      for LIndex := 0 to 3 do
+      begin
+        case LIndex of
+          0: LExtractIndex := -99;
+          1: LExtractIndex := 0;
+          2: LExtractIndex := 3;
+        else
+          LExtractIndex := 99;
+        end;
+        AssertEquals('ExtractF32x4 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+          LScalarTable.ExtractF32x4(LF32x4Base, LExtractIndex), LBackendTable.ExtractF32x4(LF32x4Base, LExtractIndex), 1e-6);
+        AssertEquals('ExtractF32x4 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+          LScalarTable.ExtractF32x4(LF32x4Base, LExtractIndex), VecF32x4Extract(LF32x4Base, LExtractIndex), 1e-6);
+      end;
 
       LF64x2ByBackend := LBackendTable.InsertF64x2(LF64x2Base, 55.75, 0);
       LF64x2ByScalar := LScalarTable.InsertF64x2(LF64x2Base, 55.75, 0);
@@ -12514,8 +15886,20 @@ begin
       LF64x2ByFacade := VecF64x2Insert(LF64x2Base, 55.75, 0);
       AssertVecF64x2Equal('InsertF64x2 facade', NonX86BackendName(LBackend), LF64x2ByScalar, LF64x2ByFacade, 1e-12);
 
-      AssertEquals('ExtractF64x2 parity: ' + NonX86BackendName(LBackend),
-        LScalarTable.ExtractF64x2(LF64x2Base, 1), LBackendTable.ExtractF64x2(LF64x2Base, 1), 1e-12);
+      for LIndex := 0 to 3 do
+      begin
+        case LIndex of
+          0: LExtractIndex := -99;
+          1: LExtractIndex := 0;
+          2: LExtractIndex := 1;
+        else
+          LExtractIndex := 99;
+        end;
+        AssertEquals('ExtractF64x2 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+          LScalarTable.ExtractF64x2(LF64x2Base, LExtractIndex), LBackendTable.ExtractF64x2(LF64x2Base, LExtractIndex), 1e-12);
+        AssertEquals('ExtractF64x2 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+          LScalarTable.ExtractF64x2(LF64x2Base, LExtractIndex), VecF64x2Extract(LF64x2Base, LExtractIndex), 1e-12);
+      end;
     end;
 
     if LCheckedBackends = 0 then
@@ -12734,6 +16118,8 @@ var
   LI32x4ByBackend, LI32x4ByFacade, LI32x4ByScalar: TVecI32x4;
   LI64x2Base: TVecI64x2;
   LI64x2ByBackend, LI64x2ByFacade, LI64x2ByScalar: TVecI64x2;
+  LIndex: Integer;
+  LExtractIndex: Integer;
   LCheckedBackends: Integer;
   LOldVectorAsm: Boolean;
 
@@ -12821,8 +16207,20 @@ begin
       LI32x4ByFacade := VecI32x4Insert(LI32x4Base, -777, 2);
       AssertVecI32x4Equal('InsertI32x4 facade', NonX86BackendName(LBackend), LI32x4ByScalar, LI32x4ByFacade);
 
-      AssertEquals('ExtractI32x4 parity: ' + NonX86BackendName(LBackend),
-        LScalarTable.ExtractI32x4(LI32x4Base, 1), LBackendTable.ExtractI32x4(LI32x4Base, 1));
+      for LIndex := 0 to 3 do
+      begin
+        case LIndex of
+          0: LExtractIndex := -99;
+          1: LExtractIndex := 0;
+          2: LExtractIndex := 3;
+        else
+          LExtractIndex := 99;
+        end;
+        AssertEquals('ExtractI32x4 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+          LScalarTable.ExtractI32x4(LI32x4Base, LExtractIndex), LBackendTable.ExtractI32x4(LI32x4Base, LExtractIndex));
+        AssertEquals('ExtractI32x4 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+          LScalarTable.ExtractI32x4(LI32x4Base, LExtractIndex), VecI32x4Extract(LI32x4Base, LExtractIndex));
+      end;
 
       LI64x2ByBackend := LBackendTable.InsertI64x2(LI64x2Base, Int64(-998877665544332211), 1);
       LI64x2ByScalar := LScalarTable.InsertI64x2(LI64x2Base, Int64(-998877665544332211), 1);
@@ -12831,8 +16229,20 @@ begin
       LI64x2ByFacade := VecI64x2Insert(LI64x2Base, Int64(-998877665544332211), 1);
       AssertVecI64x2Equal('InsertI64x2 facade', NonX86BackendName(LBackend), LI64x2ByScalar, LI64x2ByFacade);
 
-      AssertEquals('ExtractI64x2 parity: ' + NonX86BackendName(LBackend),
-        LScalarTable.ExtractI64x2(LI64x2Base, 0), LBackendTable.ExtractI64x2(LI64x2Base, 0));
+      for LIndex := 0 to 3 do
+      begin
+        case LIndex of
+          0: LExtractIndex := -99;
+          1: LExtractIndex := 0;
+          2: LExtractIndex := 1;
+        else
+          LExtractIndex := 99;
+        end;
+        AssertEquals('ExtractI64x2 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+          LScalarTable.ExtractI64x2(LI64x2Base, LExtractIndex), LBackendTable.ExtractI64x2(LI64x2Base, LExtractIndex));
+        AssertEquals('ExtractI64x2 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+          LScalarTable.ExtractI64x2(LI64x2Base, LExtractIndex), VecI64x2Extract(LI64x2Base, LExtractIndex));
+      end;
     end;
 
     if LCheckedBackends = 0 then
@@ -12913,6 +16323,7 @@ var
   LScalarTable: TSimdDispatchTable;
   LF64A, LF64B: TVecF64x2;
   LF64ByBackend, LF64ByScalar: TVecF64x2;
+  LF64x4A: TVecF64x4;
   LF32A, LF32B: TVecF32x8;
   LF32ByBackend, LF32ByScalar: TVecF32x8;
   LF32x16A, LF32x16B, LF32x16C: TVecF32x16;
@@ -12925,6 +16336,9 @@ var
   LMask8ByBackend, LMask8ByScalar: TMask8;
   LReduceF64ByBackend, LReduceF64ByScalar: Double;
   LReduceF32ByBackend, LReduceF32ByScalar: Single;
+  LReduceF64x4ByBackend, LReduceF64x4ByScalar: Double;
+  LReduceF64x8ByBackend, LReduceF64x8ByScalar: Double;
+  LReduceF32x16ByBackend, LReduceF32x16ByScalar: Single;
   LIndex: Integer;
   LChecked: Integer;
 
@@ -12955,6 +16369,10 @@ begin
 
   LF64A.d[0] := 1.5;    LF64B.d[0] := -2.25;
   LF64A.d[1] := -8.75;  LF64B.d[1] := 10.0;
+  LF64x4A.d[0] := -9.5;
+  LF64x4A.d[1] := 4.25;
+  LF64x4A.d[2] := 0.5;
+  LF64x4A.d[3] := 7.75;
 
   LF32A.f[0] := 1.0;    LF32B.f[0] := 2.5;
   LF32A.f[1] := -3.5;   LF32B.f[1] := 4.0;
@@ -12997,6 +16415,9 @@ begin
       AssertTrue('AddF32x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.AddF32x8));
       AssertTrue('CmpLtF32x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.CmpLtF32x8));
       AssertTrue('ReduceAddF32x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ReduceAddF32x8));
+      AssertTrue('Wide ReduceAdd slots missing: ' + NonX86BackendName(LBackend),
+        Assigned(LBackendTable.ReduceAddF32x16) and Assigned(LBackendTable.ReduceAddF64x4) and
+        Assigned(LBackendTable.ReduceAddF64x8));
       AssertTrue('Wide float math slots missing: ' + NonX86BackendName(LBackend),
         Assigned(LBackendTable.AddF32x16) and Assigned(LBackendTable.SubF32x16) and
         Assigned(LBackendTable.MulF32x16) and Assigned(LBackendTable.DivF32x16) and
@@ -13040,6 +16461,16 @@ begin
       LReduceF32ByScalar := LScalarTable.ReduceAddF32x8(LF32A);
       AssertEquals('ReduceAddF32x8 parity: ' + NonX86BackendName(LBackend),
         LReduceF32ByScalar, LReduceF32ByBackend, 1e-6);
+
+      LReduceF32x16ByBackend := LBackendTable.ReduceAddF32x16(LF32x16A);
+      LReduceF32x16ByScalar := LScalarTable.ReduceAddF32x16(LF32x16A);
+      AssertEquals('ReduceAddF32x16 parity: ' + NonX86BackendName(LBackend),
+        LReduceF32x16ByScalar, LReduceF32x16ByBackend, 1e-5);
+
+      LReduceF64x4ByBackend := LBackendTable.ReduceAddF64x4(LF64x4A);
+      LReduceF64x4ByScalar := LScalarTable.ReduceAddF64x4(LF64x4A);
+      AssertEquals('ReduceAddF64x4 parity: ' + NonX86BackendName(LBackend),
+        LReduceF64x4ByScalar, LReduceF64x4ByBackend, 1e-12);
 
       LF32x16ByBackend := LBackendTable.AddF32x16(LF32x16A, LF32x16B);
       LF32x16ByScalar := LScalarTable.AddF32x16(LF32x16A, LF32x16B);
@@ -13121,6 +16552,11 @@ begin
       LF64x8ByScalar := LScalarTable.ClampF64x8(LF64x8A, LF64x8Min, LF64x8Max);
       AssertVecF64x8Equal('ClampF64x8', NonX86BackendName(LBackend), LF64x8ByScalar, LF64x8ByBackend, 0.0);
 
+      LReduceF64x8ByBackend := LBackendTable.ReduceAddF64x8(LF64x8A);
+      LReduceF64x8ByScalar := LScalarTable.ReduceAddF64x8(LF64x8A);
+      AssertEquals('ReduceAddF64x8 parity: ' + NonX86BackendName(LBackend),
+        LReduceF64x8ByScalar, LReduceF64x8ByBackend, 1e-11);
+
       Inc(LChecked);
     end;
   finally
@@ -13137,9 +16573,11 @@ var
   LBackend: TSimdBackend;
   LBackendTable: TSimdDispatchTable;
   LScalarTable: TSimdDispatchTable;
+  LI16A, LI16B: TVecI16x8;
   LI8A, LI8B: TVecI8x16;
   LU16A, LU16B: TVecU16x8;
   LU8A, LU8B: TVecU8x16;
+  LI16ByBackend, LI16ByScalar: TVecI16x8;
   LI8ByBackend, LI8ByScalar: TVecI8x16;
   LU16ByBackend, LU16ByScalar: TVecU16x8;
   LU8ByBackend, LU8ByScalar: TVecU8x16;
@@ -13152,6 +16590,15 @@ begin
   LBackends[0] := sbNEON;
   LBackends[1] := sbRISCVV;
   LChecked := 0;
+
+  LI16A.i[0] := -1;      LI16B.i[0] := 0;
+  LI16A.i[1] := 0;       LI16B.i[1] := -1;
+  LI16A.i[2] := 32767;   LI16B.i[2] := 1234;
+  LI16A.i[3] := -32768;  LI16B.i[3] := 2345;
+  LI16A.i[4] := 18;      LI16B.i[4] := -52;
+  LI16A.i[5] := -85;     LI16B.i[5] := 15;
+  LI16A.i[6] := 4096;    LI16B.i[6] := -2048;
+  LI16A.i[7] := -7;      LI16B.i[7] := 7;
 
   LI8A.i[0] := -1;    LI8B.i[0] := 0;
   LI8A.i[1] := 0;     LI8B.i[1] := -1;
@@ -13204,9 +16651,16 @@ begin
       if not TrySetActiveBackend(LBackend) then
         Continue;
 
+      AssertTrue('AndNotI16x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.AndNotI16x8));
       AssertTrue('AndNotI8x16 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.AndNotI8x16));
       AssertTrue('AndNotU16x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.AndNotU16x8));
       AssertTrue('AndNotU8x16 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.AndNotU8x16));
+
+      LI16ByBackend := LBackendTable.AndNotI16x8(LI16A, LI16B);
+      LI16ByScalar := LScalarTable.AndNotI16x8(LI16A, LI16B);
+      for LIndex := 0 to 7 do
+        AssertEquals('AndNotI16x8 lane ' + IntToStr(LIndex) + ': ' + NonX86BackendName(LBackend),
+          LI16ByScalar.i[LIndex], LI16ByBackend.i[LIndex]);
 
       LI8ByBackend := LBackendTable.AndNotI8x16(LI8A, LI8B);
       LI8ByScalar := LScalarTable.AndNotI8x16(LI8A, LI8B);
@@ -14941,16 +18395,21 @@ var
   LScalarTable: TSimdDispatchTable;
   LA, LB: TVecI32x4;
   LVecByBackend, LVecByScalar: TVecI32x4;
+  LI16A: TVecI16x8;
+  LI16ByBackend, LI16ByScalar: TVecI16x8;
   LI64A: TVecI64x2;
   LI64ByBackend, LI64ByScalar: TVecI64x2;
   LI64x4A: TVecI64x4;
   LI64x4ByBackend, LI64x4ByScalar: TVecI64x4;
+  LU16A: TVecU16x8;
+  LU16ByBackend, LU16ByScalar: TVecU16x8;
   LU32x8A: TVecU32x8;
   LU32x8ByBackend, LU32x8ByScalar: TVecU32x8;
   LU64x4A: TVecU64x4;
   LU64x4ByBackend, LU64x4ByScalar: TVecU64x4;
-  LShiftCounts: array[0..4] of Integer;
-  LShiftCounts64: array[0..4] of Integer;
+  LShiftCounts: array[0..7] of Integer;
+  LShiftCounts16: array[0..6] of Integer;
+  LShiftCounts64: array[0..6] of Integer;
   LShiftCount: Integer;
   LIndex: Integer;
   LChecked: Integer;
@@ -14986,6 +18445,22 @@ var
     for LLane := 0 to 3 do
       AssertEquals(aOp + ' lane ' + IntToStr(LLane), QWord(aExpected.u[LLane]), QWord(aActual.u[LLane]));
   end;
+
+  procedure AssertVecI16x8Equal(const aOp: string; const aExpected, aActual: TVecI16x8);
+  var
+    LLane: Integer;
+  begin
+    for LLane := 0 to 7 do
+      AssertEquals(aOp + ' lane ' + IntToStr(LLane), aExpected.i[LLane], aActual.i[LLane]);
+  end;
+
+  procedure AssertVecU16x8Equal(const aOp: string; const aExpected, aActual: TVecU16x8);
+  var
+    LLane: Integer;
+  begin
+    for LLane := 0 to 7 do
+      AssertEquals(aOp + ' lane ' + IntToStr(LLane), QWord(aExpected.u[LLane]), QWord(aActual.u[LLane]));
+  end;
 begin
   AssertTrue('Scalar dispatch table should be registered',
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
@@ -14998,21 +18473,42 @@ begin
   LA.i[1] := $40000001;
   LA.i[2] := -1;
   LA.i[3] := -16;
+  LI16A.i[0] := $7FFF;
+  LI16A.i[1] := $4001;
+  LI16A.i[2] := -1;
+  LI16A.i[3] := -16;
+  LI16A.i[4] := $1234;
+  LI16A.i[5] := -$1234;
+  LI16A.i[6] := 1;
+  LI16A.i[7] := -32768;
   LB.i[0] := $0F0F0F0F;
   LB.i[1] := $F0F0F0F0;
   LB.i[2] := $AAAAAAAA;
   LB.i[3] := $55555555;
 
+  // Keep <0, =0, and >SEW behavior pinned to scalar semantics.
   LShiftCounts[0] := -1;
   LShiftCounts[1] := 0;
-  LShiftCounts[2] := 7;
-  LShiftCounts[3] := 31;
-  LShiftCounts[4] := 32;
+  LShiftCounts[2] := 1;
+  LShiftCounts[3] := 7;
+  LShiftCounts[4] := 31;
+  LShiftCounts[5] := 32;
+  LShiftCounts[6] := 63;
+  LShiftCounts[7] := 95;
+  LShiftCounts16[0] := -1;
+  LShiftCounts16[1] := 0;
+  LShiftCounts16[2] := 1;
+  LShiftCounts16[3] := 7;
+  LShiftCounts16[4] := 15;
+  LShiftCounts16[5] := 16;
+  LShiftCounts16[6] := 31;
   LShiftCounts64[0] := -1;
   LShiftCounts64[1] := 0;
-  LShiftCounts64[2] := 13;
-  LShiftCounts64[3] := 63;
-  LShiftCounts64[4] := 64;
+  LShiftCounts64[2] := 1;
+  LShiftCounts64[3] := 13;
+  LShiftCounts64[4] := 63;
+  LShiftCounts64[5] := 64;
+  LShiftCounts64[6] := 95;
 
   LI64A.i[0] := $7FFFFFFFFFFFFFFF;
   LI64A.i[1] := -1;
@@ -15020,6 +18516,14 @@ begin
   LI64x4A.i[1] := -1;
   LI64x4A.i[2] := Int64($4000000000000001);
   LI64x4A.i[3] := -16;
+  LU16A.u[0] := $FFFF;
+  LU16A.u[1] := $8000;
+  LU16A.u[2] := $4001;
+  LU16A.u[3] := $1234;
+  LU16A.u[4] := 0;
+  LU16A.u[5] := 1;
+  LU16A.u[6] := $AAAA;
+  LU16A.u[7] := $5555;
   LU32x8A.u[0] := $FFFFFFFF;
   LU32x8A.u[1] := $80000000;
   LU32x8A.u[2] := $40000001;
@@ -15047,12 +18551,17 @@ begin
       AssertTrue('ShiftLeftI32x4 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ShiftLeftI32x4));
       AssertTrue('ShiftRightI32x4 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ShiftRightI32x4));
       AssertTrue('ShiftRightArithI32x4 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ShiftRightArithI32x4));
+      AssertTrue('ShiftLeftI16x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ShiftLeftI16x8));
+      AssertTrue('ShiftRightI16x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ShiftRightI16x8));
+      AssertTrue('ShiftRightArithI16x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ShiftRightArithI16x8));
       AssertTrue('ShiftLeftI64x2 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ShiftLeftI64x2));
       AssertTrue('ShiftRightI64x2 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ShiftRightI64x2));
       AssertTrue('ShiftRightArithI64x2 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ShiftRightArithI64x2));
       AssertTrue('ShiftLeftI64x4 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ShiftLeftI64x4));
       AssertTrue('ShiftRightI64x4 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ShiftRightI64x4));
       AssertTrue('ShiftRightArithI64x4 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ShiftRightArithI64x4));
+      AssertTrue('ShiftLeftU16x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ShiftLeftU16x8));
+      AssertTrue('ShiftRightU16x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ShiftRightU16x8));
       AssertTrue('ShiftLeftU32x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ShiftLeftU32x8));
       AssertTrue('ShiftRightU32x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ShiftRightU32x8));
       AssertTrue('ShiftLeftU64x4 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ShiftLeftU64x4));
@@ -15069,6 +18578,36 @@ begin
       LVecByBackend := LBackendTable.XorI32x4(LA, LB);
       LVecByScalar := LScalarTable.XorI32x4(LA, LB);
       AssertVecI32x4Equal('XorI32x4 parity: ' + NonX86BackendName(LBackend), LVecByScalar, LVecByBackend);
+
+      for LIndex := 0 to High(LShiftCounts16) do
+      begin
+        LShiftCount := LShiftCounts16[LIndex];
+
+        LI16ByBackend := LBackendTable.ShiftLeftI16x8(LI16A, LShiftCount);
+        LI16ByScalar := LScalarTable.ShiftLeftI16x8(LI16A, LShiftCount);
+        AssertVecI16x8Equal('ShiftLeftI16x8 parity c=' + IntToStr(LShiftCount) + ': ' + NonX86BackendName(LBackend),
+          LI16ByScalar, LI16ByBackend);
+
+        LI16ByBackend := LBackendTable.ShiftRightI16x8(LI16A, LShiftCount);
+        LI16ByScalar := LScalarTable.ShiftRightI16x8(LI16A, LShiftCount);
+        AssertVecI16x8Equal('ShiftRightI16x8 parity c=' + IntToStr(LShiftCount) + ': ' + NonX86BackendName(LBackend),
+          LI16ByScalar, LI16ByBackend);
+
+        LI16ByBackend := LBackendTable.ShiftRightArithI16x8(LI16A, LShiftCount);
+        LI16ByScalar := LScalarTable.ShiftRightArithI16x8(LI16A, LShiftCount);
+        AssertVecI16x8Equal('ShiftRightArithI16x8 parity c=' + IntToStr(LShiftCount) + ': ' + NonX86BackendName(LBackend),
+          LI16ByScalar, LI16ByBackend);
+
+        LU16ByBackend := LBackendTable.ShiftLeftU16x8(LU16A, LShiftCount);
+        LU16ByScalar := LScalarTable.ShiftLeftU16x8(LU16A, LShiftCount);
+        AssertVecU16x8Equal('ShiftLeftU16x8 parity c=' + IntToStr(LShiftCount) + ': ' + NonX86BackendName(LBackend),
+          LU16ByScalar, LU16ByBackend);
+
+        LU16ByBackend := LBackendTable.ShiftRightU16x8(LU16A, LShiftCount);
+        LU16ByScalar := LScalarTable.ShiftRightU16x8(LU16A, LShiftCount);
+        AssertVecU16x8Equal('ShiftRightU16x8 parity c=' + IntToStr(LShiftCount) + ': ' + NonX86BackendName(LBackend),
+          LU16ByScalar, LU16ByBackend);
+      end;
 
       for LIndex := 0 to High(LShiftCounts) do
       begin
