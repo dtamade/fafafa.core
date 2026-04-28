@@ -121,6 +121,14 @@ def main() -> int:
             'src': l_repo_root / 'src' / 'fafafa.core.simd.intrinsics.avx512.pas',
             'test': l_repo_root / 'tests' / 'fafafa.core.simd.intrinsics.experimental' / 'fafafa.core.simd.intrinsics.experimental.avx512facade.testcase.pas',
         },
+        {
+            'name': 'fma3',
+            'prefix': 'fma3',
+            'test_mode': 'symbol_ref',
+            'required': True,
+            'src': l_repo_root / 'src' / 'fafafa.core.simd.intrinsics.fma3.pas',
+            'test': l_repo_root / 'tests' / 'fafafa.core.simd.intrinsics.experimental' / 'fafafa.core.simd.intrinsics.experimental.fma3facade.testcase.pas',
+        },
     ]
 
     for l_module in l_modules:
