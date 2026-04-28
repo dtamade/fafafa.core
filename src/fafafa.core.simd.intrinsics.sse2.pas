@@ -1254,18 +1254,85 @@ begin
     Result := Result or 2;
 end;
 
-function simd_cvtsi2sd(constref a: TM128; Value: LongInt): TM128; begin Result := a; end;
-function simd_cvtsd2si(constref a: TM128): LongInt; begin Result := 0; end;
-function simd_cvttsd2si(constref a: TM128): LongInt; begin Result := 0; end;
-function simd_cvtps2pd(constref a: TM128): TM128; begin Result := a; end;
-function simd_cvtpd2ps(constref a: TM128): TM128; begin Result := a; end;
-function simd_cvtss2sd(constref a, b: TM128): TM128; begin Result := a; end;
-function simd_cvtsd2ss(constref a, b: TM128): TM128; begin Result := a; end;
-function simd_cvtdq2pd(constref a: TM128): TM128; begin Result := a; end;
-function simd_cvtpd2dq(constref a: TM128): TM128; begin Result := a; end;
-function simd_cvttps2dq(constref a: TM128): TM128; begin Result := a; end;
-function simd_cvtps2dq(constref a: TM128): TM128; begin Result := a; end;
-function simd_cvtdq2ps(constref a: TM128): TM128; begin Result := a; end;
+function simd_cvtsi2sd(constref a: TM128; Value: LongInt): TM128;
+begin
+  Result := a;
+  Result.m128d_f64[0] := Value;
+end;
+
+function simd_cvtsd2si(constref a: TM128): LongInt;
+begin
+  Result := LongInt(Round(a.m128d_f64[0]));
+end;
+
+function simd_cvttsd2si(constref a: TM128): LongInt;
+begin
+  Result := LongInt(Trunc(a.m128d_f64[0]));
+end;
+
+function simd_cvtps2pd(constref a: TM128): TM128;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  Result.m128d_f64[0] := a.m128_f32[0];
+  Result.m128d_f64[1] := a.m128_f32[1];
+end;
+
+function simd_cvtpd2ps(constref a: TM128): TM128;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  Result.m128_f32[0] := Single(a.m128d_f64[0]);
+  Result.m128_f32[1] := Single(a.m128d_f64[1]);
+end;
+
+function simd_cvtss2sd(constref a, b: TM128): TM128;
+begin
+  Result := a;
+  Result.m128d_f64[0] := b.m128_f32[0];
+end;
+
+function simd_cvtsd2ss(constref a, b: TM128): TM128;
+begin
+  Result := a;
+  Result.m128_f32[0] := Single(b.m128d_f64[0]);
+end;
+
+function simd_cvtdq2pd(constref a: TM128): TM128;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  Result.m128d_f64[0] := a.m128i_i32[0];
+  Result.m128d_f64[1] := a.m128i_i32[1];
+end;
+
+function simd_cvtpd2dq(constref a: TM128): TM128;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  Result.m128i_i32[0] := LongInt(Round(a.m128d_f64[0]));
+  Result.m128i_i32[1] := LongInt(Round(a.m128d_f64[1]));
+end;
+
+function simd_cvttps2dq(constref a: TM128): TM128;
+begin
+  Result.m128i_i32[0] := LongInt(Trunc(a.m128_f32[0]));
+  Result.m128i_i32[1] := LongInt(Trunc(a.m128_f32[1]));
+  Result.m128i_i32[2] := LongInt(Trunc(a.m128_f32[2]));
+  Result.m128i_i32[3] := LongInt(Trunc(a.m128_f32[3]));
+end;
+
+function simd_cvtps2dq(constref a: TM128): TM128;
+begin
+  Result.m128i_i32[0] := LongInt(Round(a.m128_f32[0]));
+  Result.m128i_i32[1] := LongInt(Round(a.m128_f32[1]));
+  Result.m128i_i32[2] := LongInt(Round(a.m128_f32[2]));
+  Result.m128i_i32[3] := LongInt(Round(a.m128_f32[3]));
+end;
+
+function simd_cvtdq2ps(constref a: TM128): TM128;
+begin
+  Result.m128_f32[0] := a.m128i_i32[0];
+  Result.m128_f32[1] := a.m128i_i32[1];
+  Result.m128_f32[2] := a.m128i_i32[2];
+  Result.m128_f32[3] := a.m128i_i32[3];
+end;
 
 procedure simd_lfence; begin end;
 procedure simd_mfence; begin end;
