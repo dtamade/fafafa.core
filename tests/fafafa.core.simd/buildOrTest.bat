@@ -191,6 +191,58 @@ findstr /c:"(1008)" "%BUILD_LOG%" >nul 2>nul
 if not errorlevel 1 exit /b 0
 exit /b 1
 
+:resolve_fpc_exe_from_root
+set "FPC_SEARCH_ROOT=%~1"
+if "%FPC_SEARCH_ROOT%"=="" exit /b 1
+if not exist "%FPC_SEARCH_ROOT%\fpc" exit /b 1
+for /d %%V in ("%FPC_SEARCH_ROOT%\fpc\*") do (
+  if exist "%%~fV\bin\%TARGET_CPU%-%TARGET_OS%\fpc.exe" (
+    set "FPC_EXE=%%~fV\bin\%TARGET_CPU%-%TARGET_OS%\fpc.exe"
+    exit /b 0
+  )
+  if exist "%%~fV\bin\x86_64-win64\fpc.exe" (
+    set "FPC_EXE=%%~fV\bin\x86_64-win64\fpc.exe"
+    exit /b 0
+  )
+  if exist "%%~fV\bin\i386-win32\fpc.exe" (
+    set "FPC_EXE=%%~fV\bin\i386-win32\fpc.exe"
+    exit /b 0
+  )
+)
+exit /b 1
+
+:resolve_fpc_exe
+set "FPC_EXE=%FPC_BIN%"
+if "%FPC_EXE%"=="" set "FPC_EXE=%FPC%"
+if not "%FPC_EXE%"=="" (
+  if exist "%FPC_EXE%" exit /b 0
+)
+for /f "delims=" %%P in ('where fpc.exe 2^>nul') do (
+  set "FPC_EXE=%%~fP"
+  exit /b 0
+)
+for /f "delims=" %%P in ('where fpc 2^>nul') do (
+  set "FPC_EXE=%%~fP"
+  exit /b 0
+)
+if defined ProgramFiles (
+  call :resolve_fpc_exe_from_root "%ProgramFiles%\Lazarus"
+  if not errorlevel 1 exit /b 0
+)
+if defined ProgramW6432 (
+  call :resolve_fpc_exe_from_root "%ProgramW6432%\Lazarus"
+  if not errorlevel 1 exit /b 0
+)
+call :resolve_fpc_exe_from_root "C:\Program Files\Lazarus"
+if not errorlevel 1 exit /b 0
+call :resolve_fpc_exe_from_root "C:\Program Files (x86)\Lazarus"
+if not errorlevel 1 exit /b 0
+call :resolve_fpc_exe_from_root "C:\lazarus"
+if not errorlevel 1 exit /b 0
+call :resolve_fpc_exe_from_root "C:\Lazarus"
+if not errorlevel 1 exit /b 0
+exit /b 1
+
 :test_args_include_list_suites
 if "%NORMALIZED_TEST_ARGS%"=="" exit /b 1
 if not "%NORMALIZED_TEST_ARGS:--list-suites=%"=="%NORMALIZED_TEST_ARGS%" exit /b 0
@@ -993,7 +1045,14 @@ if not exist "%DISPATCH_PREINIT_BIN_DIR%" mkdir "%DISPATCH_PREINIT_BIN_DIR%"
 if not exist "%DISPATCH_PREINIT_LIB_DIR%" mkdir "%DISPATCH_PREINIT_LIB_DIR%"
 if not exist "%DISPATCH_PREINIT_LOG_DIR%" mkdir "%DISPATCH_PREINIT_LOG_DIR%"
 echo [DISPATCH-PREINIT] Building standalone smoke: %DISPATCH_PREINIT_SMOKE_SRC%
-fpc -B -Mobjfpc -Scghi -O3 -Fi"%ROOT%..\..\src" -Fu"%ROOT%..\..\src" -Fu"%ROOT%" -FE"%DISPATCH_PREINIT_BIN_DIR%" -FU"%DISPATCH_PREINIT_LIB_DIR%" "%DISPATCH_PREINIT_SMOKE_SRC%" > "%DISPATCH_PREINIT_BUILD_LOG%" 2>&1
+call :resolve_fpc_exe
+if errorlevel 1 (
+  echo [DISPATCH-PREINIT] BUILD FAILED ^(fpc compiler not found; set FPC_BIN/FPC or install Lazarus/FPC^) > "%DISPATCH_PREINIT_BUILD_LOG%"
+  echo [DISPATCH-PREINIT] BUILD FAILED ^(see %DISPATCH_PREINIT_BUILD_LOG%^)
+  type "%DISPATCH_PREINIT_BUILD_LOG%"
+  exit /b 2
+)
+"%FPC_EXE%" -B -Mobjfpc -Scghi -O3 -Fi"%ROOT%..\..\src" -Fu"%ROOT%..\..\src" -Fu"%ROOT%" -FE"%DISPATCH_PREINIT_BIN_DIR%" -FU"%DISPATCH_PREINIT_LIB_DIR%" "%DISPATCH_PREINIT_SMOKE_SRC%" > "%DISPATCH_PREINIT_BUILD_LOG%" 2>&1
 if errorlevel 1 (
   echo [DISPATCH-PREINIT] BUILD FAILED ^(see %DISPATCH_PREINIT_BUILD_LOG%^)
   type "%DISPATCH_PREINIT_BUILD_LOG%"

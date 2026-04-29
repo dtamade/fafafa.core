@@ -3696,7 +3696,9 @@ check_dispatch_preinit_smoke_runner_guard() {
     'set "DISPATCH_PREINIT_SMOKE_SRC=%ROOT%fafafa.core.simd.dispatch_preinit_smoke.pas"'
     'call :run_dispatch_preinit_smoke_internal'
     ':run_dispatch_preinit_smoke_internal'
-    'fpc -B -Mobjfpc -Scghi -O3 -Fi"%ROOT%..\..\src" -Fu"%ROOT%..\..\src" -Fu"%ROOT%" -FE"%DISPATCH_PREINIT_BIN_DIR%" -FU"%DISPATCH_PREINIT_LIB_DIR%" "%DISPATCH_PREINIT_SMOKE_SRC%" > "%DISPATCH_PREINIT_BUILD_LOG%" 2>&1'
+    ':resolve_fpc_exe'
+    'call :resolve_fpc_exe'
+    '"%FPC_EXE%" -B -Mobjfpc -Scghi -O3 -Fi"%ROOT%..\..\src" -Fu"%ROOT%..\..\src" -Fu"%ROOT%" -FE"%DISPATCH_PREINIT_BIN_DIR%" -FU"%DISPATCH_PREINIT_LIB_DIR%" "%DISPATCH_PREINIT_SMOKE_SRC%" > "%DISPATCH_PREINIT_BUILD_LOG%" 2>&1'
   )
   LSmokeRequired=(
     'SetVectorAsmEnabled(False);'
