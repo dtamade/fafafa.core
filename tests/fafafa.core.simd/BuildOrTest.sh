@@ -1278,6 +1278,41 @@ check_windows_publicabi_runner_guard() {
   echo "[CHECK] OK (Windows public ABI runner guard present)"
 }
 
+check_windows_publicabi_main_batch_guard() {
+  local LBat
+  local LMissing
+  local LPattern
+  local -a LRequired
+
+  LBat="${ROOT}/buildOrTest.bat"
+  if [[ ! -f "${LBat}" ]]; then
+    echo "[CHECK] Missing Windows runner: ${LBat}"
+    return 1
+  fi
+
+  LMissing=0
+  LRequired=(
+    'for %%I in ("%ROOT%..\fafafa.core.simd.publicabi\.") do set "PUBLICABI_RUNNER_DIR=%%~fI"'
+    'set "PUBLICABI_RUNNER=%PUBLICABI_RUNNER_DIR%BuildOrTest.bat"'
+    'pushd "%PUBLICABI_RUNNER_DIR%" >nul'
+    'call "BuildOrTest.bat" test'
+    'popd >nul'
+  )
+
+  for LPattern in "${LRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LBat}" >/dev/null; then
+      echo "[CHECK] Windows main batch public ABI smoke missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  if [[ "${LMissing}" != "0" ]]; then
+    return 1
+  fi
+
+  echo "[CHECK] OK (Windows main batch public ABI smoke guard present)"
+}
+
 check_windows_evidence_collector_guard() {
   local LCollector
   local LVerifyBat
@@ -4249,6 +4284,7 @@ gate_step_build_check() {
   check_windows_experimental_tests_runner_guard || return $?
   check_windows_experimental_direct_runner_guard || return $?
   check_windows_publicabi_runner_guard || return $?
+  check_windows_publicabi_main_batch_guard || return $?
   check_windows_evidence_collector_guard || return $?
   check_windows_simulated_evidence_guard || return $?
   check_windows_gate_summary_helper_guard || return $?
@@ -6304,6 +6340,7 @@ case "${ACTION}" in
   check_windows_experimental_tests_runner_guard
   check_windows_experimental_direct_runner_guard
   check_windows_publicabi_runner_guard
+  check_windows_publicabi_main_batch_guard
   check_windows_evidence_collector_guard
   check_windows_simulated_evidence_guard
   check_windows_gate_summary_helper_guard

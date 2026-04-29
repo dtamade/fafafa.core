@@ -126,6 +126,11 @@ if ! printf '%s' "${MAIN_OUTPUT}" | rg -n "\[TEST\] OK" >/dev/null; then
   fail "Windows main SIMD runner did not report TEST OK for publicabi-smoke"
 fi
 
+if ! printf '%s' "${MAIN_OUTPUT}" | rg -n "tests\\\\fafafa\\.core\\.simd\\.publicabi\\\\fafafa\\.core\\.simd\\.publicabi\\.lpr" >/dev/null; then
+  printf '%s\n' "${MAIN_OUTPUT}" >&2
+  fail "Windows main SIMD runner did not build the publicabi project from the expected tests/fafafa.core.simd.publicabi path"
+fi
+
 if [[ ! -f "${TMP_DIR}/simd-main-out/publicabi/bin/libfafafa.core.simd.publicabi.dll" ]]; then
   printf '%s\n' "${MAIN_OUTPUT}" >&2
   fail "Windows main SIMD runner did not materialize the expected DLL artifact under publicabi output isolation"

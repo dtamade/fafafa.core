@@ -626,7 +626,9 @@ echo [PUBLIC-ABI] FAILED (python runtime not found; tried py and python)
 exit /b 2
 
 :publicabi_smoke
-for %%I in ("%ROOT%..\fafafa.core.simd.publicabi\BuildOrTest.bat") do set "PUBLICABI_RUNNER=%%~fI"
+for %%I in ("%ROOT%..\fafafa.core.simd.publicabi\.") do set "PUBLICABI_RUNNER_DIR=%%~fI"
+if not "%PUBLICABI_RUNNER_DIR:~-1%"=="\" set "PUBLICABI_RUNNER_DIR=%PUBLICABI_RUNNER_DIR%\"
+set "PUBLICABI_RUNNER=%PUBLICABI_RUNNER_DIR%BuildOrTest.bat"
 if not exist "%PUBLICABI_RUNNER%" (
   echo [PUBLICABI] Missing runner: %PUBLICABI_RUNNER%
   exit /b 2
@@ -640,11 +642,14 @@ if /I "%OUTPUT_ROOT%"=="%ROOT%" (
 )
 set "PREV_SIMD_OUTPUT_ROOT=%SIMD_OUTPUT_ROOT%"
 set "SIMD_OUTPUT_ROOT=%PUBLICABI_OUTPUT_ROOT%"
-call "%PUBLICABI_RUNNER%" test
+pushd "%PUBLICABI_RUNNER_DIR%" >nul
+call "BuildOrTest.bat" test
 set "PUBLICABI_RC=%ERRORLEVEL%"
+popd >nul
 set "SIMD_OUTPUT_ROOT=%PREV_SIMD_OUTPUT_ROOT%"
 set "PREV_SIMD_OUTPUT_ROOT="
 set "PUBLICABI_OUTPUT_ROOT="
+set "PUBLICABI_RUNNER_DIR="
 exit /b %PUBLICABI_RC%
 
 :adapter_sync_pascal
