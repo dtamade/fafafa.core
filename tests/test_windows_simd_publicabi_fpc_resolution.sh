@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 PUBLICABI_RUNNER="${REPO_ROOT}/tests/fafafa.core.simd.publicabi/BuildOrTest.bat"
+SIMD_MAIN_RUNNER="${REPO_ROOT}/tests/fafafa.core.simd/buildOrTest.bat"
 
 fail() {
   echo "[FAIL] $*" >&2
@@ -12,6 +13,9 @@ fail() {
 
 if [[ ! -f "${PUBLICABI_RUNNER}" ]]; then
   fail "missing public ABI runner: ${PUBLICABI_RUNNER}"
+fi
+if [[ ! -f "${SIMD_MAIN_RUNNER}" ]]; then
+  fail "missing simd main runner: ${SIMD_MAIN_RUNNER}"
 fi
 
 if ! command -v wine >/dev/null 2>&1; then
@@ -95,6 +99,36 @@ fi
 if [[ ! -f "${TMP_DIR}/publicabi-out/bin/libfafafa.core.simd.publicabi.dll" ]]; then
   printf '%s\n' "${OUTPUT}" >&2
   fail "Windows public ABI runner did not materialize the expected DLL artifact"
+fi
+
+cat > "${TMP_DIR}/run_simd_main_publicabi_smoke.bat" <<EOF
+@echo off
+cd /d "${WIN_REPO_ROOT}"
+set "PATH=${WIN_TMP_DIR};%PATH%"
+set "FPC_BIN=${WIN_TMP_DIR}\\fake_fpc.bat"
+set "SIMD_OUTPUT_ROOT=${WIN_TMP_DIR}\\simd-main-out"
+call tests\\fafafa.core.simd\\buildOrTest.bat publicabi-smoke
+exit /b %ERRORLEVEL%
+EOF
+
+set +e
+MAIN_OUTPUT="$(wine cmd /c "${WIN_TMP_DIR}\\run_simd_main_publicabi_smoke.bat" 2>&1)"
+MAIN_RC=$?
+set -e
+
+if [[ ${MAIN_RC} -ne 0 ]]; then
+  printf '%s\n' "${MAIN_OUTPUT}" >&2
+  fail "Windows main SIMD runner should succeed when publicabi-smoke is invoked through the top-level batch gate"
+fi
+
+if ! printf '%s' "${MAIN_OUTPUT}" | rg -n "\[TEST\] OK" >/dev/null; then
+  printf '%s\n' "${MAIN_OUTPUT}" >&2
+  fail "Windows main SIMD runner did not report TEST OK for publicabi-smoke"
+fi
+
+if [[ ! -f "${TMP_DIR}/simd-main-out/publicabi/bin/libfafafa.core.simd.publicabi.dll" ]]; then
+  printf '%s\n' "${MAIN_OUTPUT}" >&2
+  fail "Windows main SIMD runner did not materialize the expected DLL artifact under publicabi output isolation"
 fi
 
 cat > "${TMP_DIR}/run_publicabi_bad_fpc.bat" <<EOF

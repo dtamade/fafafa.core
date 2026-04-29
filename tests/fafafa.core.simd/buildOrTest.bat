@@ -626,7 +626,7 @@ echo [PUBLIC-ABI] FAILED (python runtime not found; tried py and python)
 exit /b 2
 
 :publicabi_smoke
-set "PUBLICABI_RUNNER=%ROOT%..\fafafa.core.simd.publicabi\BuildOrTest.bat"
+for %%I in ("%ROOT%..\fafafa.core.simd.publicabi\BuildOrTest.bat") do set "PUBLICABI_RUNNER=%%~fI"
 if not exist "%PUBLICABI_RUNNER%" (
   echo [PUBLICABI] Missing runner: %PUBLICABI_RUNNER%
   exit /b 2

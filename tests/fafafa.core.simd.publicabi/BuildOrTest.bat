@@ -6,7 +6,7 @@ if "%ACTION%"=="" set "ACTION=test"
 if not "%~1"=="" shift
 if /I "%ACTION%"=="run" set "ACTION=test"
 
-set "ROOT=%~dp0"
+for %%I in ("%~dp0.") do set "ROOT=%%~fI"
 if not "%ROOT:~-1%"=="\" set "ROOT=%ROOT%\"
 for %%I in ("%ROOT%..\..") do set "REPO_ROOT=%%~fI"
 set "FPC_BIN=%FPC_BIN%"
