@@ -191,6 +191,18 @@ findstr /c:"(1008)" "%BUILD_LOG%" >nul 2>nul
 if not errorlevel 1 exit /b 0
 exit /b 1
 
+:test_args_include_list_suites
+if "%NORMALIZED_TEST_ARGS%"=="" exit /b 1
+if not "%NORMALIZED_TEST_ARGS:--list-suites=%"=="%NORMALIZED_TEST_ARGS%" exit /b 0
+exit /b 1
+
+:test_log_has_suite_list
+findstr /c:"Available suites:" "%TEST_LOG%" >nul 2>nul
+if errorlevel 1 exit /b 1
+findstr /c:"TTestCase_" "%TEST_LOG%" >nul 2>nul
+if not errorlevel 1 exit /b 0
+exit /b 1
+
 :normalize_binary
 if exist "%BIN%" exit /b 0
 if exist "%ROOT%bin2\fafafa.core.simd.test.exe" (
@@ -784,6 +796,23 @@ echo [TEST] Running: %BIN%%NORMALIZED_TEST_ARGS%
 echo. > "%TEST_LOG%"
 "%BIN%" %NORMALIZED_TEST_ARGS% > "%TEST_LOG%" 2>&1
 set "TEST_RC=%ERRORLEVEL%"
+set "TEST_LIST_SUITES_MODE=0"
+call :test_args_include_list_suites
+if not errorlevel 1 set "TEST_LIST_SUITES_MODE=1"
+set "TEST_LISTING_VALID=0"
+call :test_log_has_suite_list
+if not errorlevel 1 set "TEST_LISTING_VALID=1"
+if not "%TEST_RC%"=="0" (
+  if "%TEST_LIST_SUITES_MODE%"=="1" if "%TEST_LISTING_VALID%"=="1" (
+    echo [TEST] WARN ^(suite list output present despite rc=%TEST_RC%^)
+    set "TEST_RC=0"
+  )
+)
+if "%TEST_LIST_SUITES_MODE%"=="1" if "%TEST_LISTING_VALID%"=="1" (
+  type "%TEST_LOG%"
+  echo [TEST] OK
+  exit /b 0
+)
 if /I "%SIMD_SUPPRESS_BUILD_WARNINGS%"=="1" (
   findstr /c:"Failures: 0" "%TEST_LOG%" >nul 2>nul
   if not errorlevel 1 findstr /c:"Errors: 0" "%TEST_LOG%" >nul 2>nul && set "TEST_RC=0"

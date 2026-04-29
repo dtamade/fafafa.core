@@ -13,6 +13,13 @@ REGISTER_HEADER_RE = re.compile(r'^\s*procedure\s+RegisterSSE2Backend\s*;', re.I
 SYMBOL_HEADER_TEMPLATE = r'^\s*(?:function|procedure)\s+{name}\b'
 
 
+def configure_stdio() -> None:
+    for stream_name in ('stdout', 'stderr'):
+        stream = getattr(sys, stream_name, None)
+        if stream is not None and hasattr(stream, 'reconfigure'):
+            stream.reconfigure(errors='backslashreplace')
+
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -34,6 +41,7 @@ def collect_include_names(a_text: str) -> list[str]:
 
 
 def main() -> int:
+    configure_stdio()
     args = parse_args()
 
     root = Path(__file__).resolve().parents[2]
