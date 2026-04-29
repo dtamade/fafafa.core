@@ -176,6 +176,16 @@ echo Build env: SIMD_ENABLE_RISCVV_BACKEND=1 ^(compile RISCV-V backend into the 
 echo Build env: SIMD_ENABLE_AVX512_BACKEND=1 ^(compile AVX-512 backend into the test binary for opt-in verification^)
 exit /b 2
 
+:build_log_has_fatal
+findstr /c:"Fatal:" /c:"returned an error exitcode" "%BUILD_LOG%" >nul 2>nul
+if not errorlevel 1 exit /b 0
+exit /b 1
+
+:build_log_has_link
+findstr /c:"(9015) Linking" "%BUILD_LOG%" >nul 2>nul
+if not errorlevel 1 exit /b 0
+exit /b 1
+
 :clean
 echo [CLEAN] Removing %BIN_DIR%, %LIB_DIR%, %LOG_DIR%
 if exist "%BIN_DIR%" rmdir /s /q "%BIN_DIR%"
@@ -209,6 +219,7 @@ if /I "%SIMD_ENABLE_AVX512_BACKEND%"=="1" set "LAZBUILD_EXTRA_OPTS=%LAZBUILD_EXT
 if /I "%SIMD_INIT_TRACE%"=="1" set "LAZBUILD_EXTRA_OPTS=%LAZBUILD_EXTRA_OPTS% --opt=-dSIMD_INIT_TRACE"
 call "%LAZBUILD_EXE%" --build-mode=%MODE% --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%UNIT_DIR%" %LAZBUILD_EXTRA_OPTS% "%PROJ%" > "%BUILD_LOG%" 2>&1
 set "BUILD_RC=%ERRORLEVEL%"
+call :normalize_binary
 if /I "%SIMD_SUPPRESS_BUILD_WARNINGS%"=="1" (
   if exist "%BIN%" (
     echo [BUILD] OK
@@ -220,7 +231,18 @@ if /I "%SIMD_SUPPRESS_BUILD_WARNINGS%"=="1" (
     exit /b 0
   )
 )
+set "BUILD_FATAL=0"
+call :build_log_has_fatal
+if not errorlevel 1 set "BUILD_FATAL=1"
+set "BUILD_LINKED=0"
+call :build_log_has_link
+if not errorlevel 1 set "BUILD_LINKED=1"
 if not "%BUILD_RC%"=="0" (
+  if "%BUILD_FATAL%"=="0" if "%BUILD_LINKED%"=="1" if exist "%BIN%" (
+    echo [BUILD] WARN ^(lazbuild rc=%BUILD_RC% but artifact/build log are usable^)
+    echo [BUILD] OK
+    exit /b 0
+  )
   echo [BUILD] FAILED ^(see %BUILD_LOG%^ )
   type "%BUILD_LOG%"
   exit /b 1

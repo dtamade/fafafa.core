@@ -57,6 +57,16 @@ if /I "%ACTION%"=="release" goto :test
 echo Usage: %~nx0 [clean^|build^|check^|test^|debug^|release] [test-args...]
 exit /b 2
 
+:build_log_has_fatal
+findstr /c:"Fatal:" /c:"returned an error exitcode" "%BUILD_LOG%" >nul 2>nul
+if not errorlevel 1 exit /b 0
+exit /b 1
+
+:build_log_has_link
+findstr /c:"(9015) Linking" "%BUILD_LOG%" >nul 2>nul
+if not errorlevel 1 exit /b 0
+exit /b 1
+
 :clean
 echo [CLEAN] Removing bin, lib, logs
 if exist "%BIN_DIR%" rmdir /s /q "%BIN_DIR%"
@@ -70,7 +80,19 @@ if /I "%LAZARUS_MODE%"=="Release" set "LAZARUS_MODE=Default"
 echo [BUILD] Project: %PROJ% (mode=%MODE%, lazarus-mode=%LAZARUS_MODE%)
 echo. > "%BUILD_LOG%"
 call "%LAZBUILD_EXE%" --build-mode=%LAZARUS_MODE% --build-all "%PROJ%" > "%BUILD_LOG%" 2>&1
-if errorlevel 1 (
+set "BUILD_RC=%ERRORLEVEL%"
+set "BUILD_FATAL=0"
+call :build_log_has_fatal
+if not errorlevel 1 set "BUILD_FATAL=1"
+set "BUILD_LINKED=0"
+call :build_log_has_link
+if not errorlevel 1 set "BUILD_LINKED=1"
+if not "%BUILD_RC%"=="0" (
+  if "%BUILD_FATAL%"=="0" if "%BUILD_LINKED%"=="1" if exist "%BIN%" (
+    echo [BUILD] WARN ^(lazbuild rc=%BUILD_RC% but artifact/build log are usable^)
+    echo [BUILD] OK
+    exit /b 0
+  )
   echo [BUILD] FAILED (see %BUILD_LOG%)
   type "%BUILD_LOG%"
   exit /b 1

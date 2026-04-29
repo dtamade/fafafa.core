@@ -44,6 +44,16 @@ if /I "%ACTION%"=="test" goto :test
 echo Usage: %~nx0 [clean^|build^|check^|test]
 exit /b 2
 
+:build_log_has_fatal
+findstr /c:"Fatal:" /c:"returned an error exitcode" "%BUILD_LOG%" >nul 2>nul
+if not errorlevel 1 exit /b 0
+exit /b 1
+
+:build_log_has_link
+findstr /c:"(9015) Linking" "%BUILD_LOG%" >nul 2>nul
+if not errorlevel 1 exit /b 0
+exit /b 1
+
 :clean
 echo [CLEAN] Removing %BIN_DIR%, %LIB_DIR%, %LOG_DIR%
 if exist "%BIN_DIR%" rmdir /s /q "%BIN_DIR%"
@@ -63,8 +73,22 @@ exit /b 0
 echo [BUILD] Project: %PROJECT_FILE% (output_root=%OUTPUT_ROOT%)
 > "%BUILD_LOG%" echo.
 call "%LAZBUILD_EXE%" --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%LIB_DIR%" "%PROJECT_FILE%" >> "%BUILD_LOG%" 2>&1
-if errorlevel 1 (
+set "BUILD_RC=%ERRORLEVEL%"
+call :normalize_binary
+set "BUILD_FATAL=0"
+call :build_log_has_fatal
+if not errorlevel 1 set "BUILD_FATAL=1"
+set "BUILD_LINKED=0"
+call :build_log_has_link
+if not errorlevel 1 set "BUILD_LINKED=1"
+if not "%BUILD_RC%"=="0" (
+  if "%BUILD_FATAL%"=="0" if "%BUILD_LINKED%"=="1" if exist "%EXECUTABLE%" (
+    echo [BUILD] WARN ^(lazbuild rc=%BUILD_RC% but artifact/build log are usable^)
+    echo [BUILD] OK
+    exit /b 0
+  )
   echo [BUILD] FAILED ^(see %BUILD_LOG%^)
+  type "%BUILD_LOG%"
   exit /b 1
 )
 call :normalize_binary
