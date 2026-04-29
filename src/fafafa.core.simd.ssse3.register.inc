@@ -2,12 +2,19 @@ procedure RegisterSSSE3Backend;
 var
   dispatchTable: TSimdDispatchTable;
   LUseVectorAsm: Boolean;
+  LAdvertiseAvailability: Boolean;
 begin
   // Only register if SSSE3 is available
   if not HasSSSE3 then
     Exit;
 
   LUseVectorAsm := IsVectorAsmEnabled;
+  LAdvertiseAvailability := LUseVectorAsm;
+  {$IFDEF WINDOWS}
+  // Win64 lane: keep the clone/override shape registered for table-audit tests,
+  // but do not publish SSSE3 as dispatchable until representative semantics are validated.
+  LAdvertiseAvailability := False;
+  {$ENDIF}
 
   // ✅ 使用 CloneDispatchTable 从 SSE3 继承实现
   dispatchTable := Default(TSimdDispatchTable);
@@ -28,7 +35,7 @@ begin
     Include(Capabilities, scIntegerOps);
     if LUseVectorAsm then
       Include(Capabilities, scShuffle);
-    Available := LUseVectorAsm;
+    Available := LAdvertiseAvailability;
     Priority := GetSimdBackendPriorityValue(sbSSSE3);
   end;
 

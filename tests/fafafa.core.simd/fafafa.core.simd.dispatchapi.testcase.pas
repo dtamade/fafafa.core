@@ -393,6 +393,11 @@ begin
   Result := IncludeTrailingPathDelimiter(GetRepoRootDir) + 'src' + DirectorySeparator + aRelativePath;
 end;
 
+function BackendIsDispatchable(const aTable: TSimdDispatchTable): Boolean;
+begin
+  Result := aTable.BackendInfo.Available;
+end;
+
 function SyntheticReduceAddF64x4CurrentDispatch(const a: TVecF64x4): Double;
 begin
   Result := 401.25;
@@ -10703,6 +10708,17 @@ begin
 
     AssertTrue('AVX2 FmaF32x4 should be assigned', Assigned(LTable.FmaF32x4));
 
+    if not BackendIsDispatchable(LTable) then
+    begin
+      AssertFalse('AVX2 should fail-closed when BackendInfo.Available=False',
+        TrySetActiveBackend(sbAVX2));
+      AssertEquals('AVX2 FmaF32x4 should stay on the scalar slot while AVX2 is fail-closed',
+        PtrUInt(@ScalarFmaF32x4), PtrUInt(LTable.FmaF32x4));
+      AssertFalse('AVX2 scFMA should stay cleared while AVX2 is fail-closed',
+        scFMA in LTable.BackendInfo.Capabilities);
+      Exit;
+    end;
+
     // This input distinguishes fused FMA from separate mul+add.
     LA := VecF32x4Splat(SingleFromBitsLocal($3F800001));
     LB := LA;
@@ -10939,6 +10955,19 @@ begin
     if not TryGetRegisteredBackendDispatchTable(sbAVX2, LAVX2Table) then
       Exit;
 
+    if not BackendIsDispatchable(LAVX2Table) then
+    begin
+      AssertFalse('AVX2 should fail-closed when BackendInfo.Available=False',
+        TrySetActiveBackend(sbAVX2));
+      AssertEquals('AVX2 ShiftLeftI64x2 should stay on the scalar slot while AVX2 is fail-closed',
+        PtrUInt(LScalarTable.ShiftLeftI64x2), PtrUInt(LAVX2Table.ShiftLeftI64x2));
+      AssertEquals('AVX2 ShiftRightI64x2 should stay on the scalar slot while AVX2 is fail-closed',
+        PtrUInt(LScalarTable.ShiftRightI64x2), PtrUInt(LAVX2Table.ShiftRightI64x2));
+      AssertEquals('AVX2 ShiftRightArithI64x2 should stay on the scalar slot while AVX2 is fail-closed',
+        PtrUInt(LScalarTable.ShiftRightArithI64x2), PtrUInt(LAVX2Table.ShiftRightArithI64x2));
+      Exit;
+    end;
+
     AssertTrue('AVX2 ShiftLeftI64x2 should leave the scalar slot when boundary contracts are runtime-checkable',
       Pointer(LAVX2Table.ShiftLeftI64x2) <> Pointer(LScalarTable.ShiftLeftI64x2));
     AssertTrue('AVX2 ShiftRightI64x2 should leave the scalar slot when boundary contracts are runtime-checkable',
@@ -11157,6 +11186,17 @@ begin
 
     if not TryGetRegisteredBackendDispatchTable(sbAVX2, LAVX2Table) then
       Exit;
+
+    if not BackendIsDispatchable(LAVX2Table) then
+    begin
+      AssertFalse('AVX2 should fail-closed when BackendInfo.Available=False',
+        TrySetActiveBackend(sbAVX2));
+      AssertEquals('AVX2 SelectF32x8 should stay on the scalar slot while AVX2 is fail-closed',
+        PtrUInt(LScalarTable.SelectF32x8), PtrUInt(LAVX2Table.SelectF32x8));
+      AssertEquals('AVX2 SelectF64x4 should stay on the scalar slot while AVX2 is fail-closed',
+        PtrUInt(LScalarTable.SelectF64x4), PtrUInt(LAVX2Table.SelectF64x4));
+      Exit;
+    end;
 
     AssertTrue('AVX2 SelectF32x8 should leave the scalar slot when non-zero mask semantics are runtime-checkable',
       Pointer(LAVX2Table.SelectF32x8) <> Pointer(LScalarTable.SelectF32x8));
@@ -12562,6 +12602,13 @@ begin
 
     if not TryGetRegisteredBackendDispatchTable(sbSSSE3, LSSSE3Table) then
       Exit;
+
+    if not BackendIsDispatchable(LSSSE3Table) then
+    begin
+      AssertFalse('SSSE3 should fail-closed when BackendInfo.Available=False',
+        TrySetActiveBackend(sbSSSE3));
+      Exit;
+    end;
 
     AssertTrue('SSSE3 MinI8x16 should leave the scalar slot when runtime semantic parity is checkable',
       Pointer(LSSSE3Table.MinI8x16) <> Pointer(LScalarTable.MinI8x16));
