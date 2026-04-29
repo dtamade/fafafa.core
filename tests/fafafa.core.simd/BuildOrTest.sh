@@ -589,6 +589,18 @@ run_dispatch_preinit_smoke() {
   echo "[DISPATCH-PREINIT] OK"
 }
 
+run_windows_publicabi_fpc_resolution_smoke() {
+  local LSmokeScript
+
+  LSmokeScript="${REPO_ROOT}/tests/test_windows_simd_publicabi_fpc_resolution.sh"
+  if [[ ! -f "${LSmokeScript}" ]]; then
+    echo "[WINDOWS-PUBLICABI-FPC] Missing smoke script: ${LSmokeScript}"
+    return 2
+  fi
+
+  bash "${LSmokeScript}"
+}
+
 run_cpuinfo_lazy_repeat() {
   local aTestsRoot
   local aRounds
@@ -1230,13 +1242,19 @@ check_windows_publicabi_runner_guard() {
 
   LMissing=0
   LRequired=(
+    ':resolve_fpc_bin'
+    'call :resolve_fpc_bin'
     'set "POWERSHELL_EXE="'
     ':resolve_powershell'
     'where pwsh >nul 2>nul'
     'set "POWERSHELL_EXE=pwsh"'
     'where powershell >nul 2>nul'
     'set "POWERSHELL_EXE=powershell"'
+    'set "FPC_RESOLVE_ERROR=requested FPC compiler not found: %FPC_BIN%"'
+    'echo [BUILD] FAILED ^(%FPC_RESOLVE_ERROR%^) > "%BUILD_LOG%"'
+    'echo [BUILD] FAILED ^(fpc compiler not found; set FPC_BIN/FPC or install Lazarus/FPC^)'
     'echo [PUBLICABI] FAILED ^(PowerShell runtime not found; tried pwsh and powershell^)'
+    '"%FPC_BIN%" -B -Mobjfpc -Scghi -O3 -Fi"%REPO_ROOT%\src" -Fu"%REPO_ROOT%\src" -FE"%BIN_DIR%" -FU"%LIB_DIR%" "%PROJ%" > "%BUILD_LOG%" 2>&1'
     '"!POWERSHELL_EXE!" -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT%" -LibraryPath "!LIB_PATH!" -ValidateOnly'
     '"!POWERSHELL_EXE!" -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT%" -LibraryPath "!LIB_PATH!" > "%TEST_LOG%" 2>&1'
   )
@@ -3278,9 +3296,9 @@ check_publicabi_output_isolation() {
   LPublicAbiBatRequired=(
     'set "OUTPUT_ROOT=%SIMD_OUTPUT_ROOT%"'
     'if "%OUTPUT_ROOT%"=="" set "OUTPUT_ROOT=%ROOT%"'
-    'set "BIN_DIR=%OUTPUT_ROOT%bin"'
-    'set "LIB_DIR=%OUTPUT_ROOT%lib\%TARGET_CPU%-%TARGET_OS%"'
-    'set "LOG_DIR=%OUTPUT_ROOT%logs"'
+    'set "BIN_DIR=%OUTPUT_ROOT%\bin"'
+    'set "LIB_DIR=%OUTPUT_ROOT%\lib\%TARGET_CPU%-%TARGET_OS%"'
+    'set "LOG_DIR=%OUTPUT_ROOT%\logs"'
   )
 
   for LPattern in "${LMainShellRequired[@]}"; do
@@ -4263,6 +4281,7 @@ gate_step_build_check() {
   check_cpuinfo_runner_parity || return $?
   run_register_include_check || return $?
   run_suite_manifest_check || return $?
+  run_windows_publicabi_fpc_resolution_smoke || return $?
   run_nonx86_optin_list_suites || return $?
   run_dispatch_preinit_smoke || return $?
 }
@@ -6320,6 +6339,7 @@ case "${ACTION}" in
     run_register_include_check
     run_sse2_structure_check
     run_suite_manifest_check
+    run_windows_publicabi_fpc_resolution_smoke
     run_nonx86_optin_list_suites
     run_dispatch_preinit_smoke
     if [[ "${SIMD_CHECK_WIRING_SYNC:-0}" != "0" ]]; then

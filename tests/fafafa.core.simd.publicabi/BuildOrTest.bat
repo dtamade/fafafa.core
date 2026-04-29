@@ -10,20 +10,22 @@ set "ROOT=%~dp0"
 if not "%ROOT:~-1%"=="\" set "ROOT=%ROOT%\"
 for %%I in ("%ROOT%..\..") do set "REPO_ROOT=%%~fI"
 set "FPC_BIN=%FPC_BIN%"
-if "%FPC_BIN%"=="" set "FPC_BIN=fpc"
+if "%FPC_BIN%"=="" set "FPC_BIN=%FPC%"
+set "FPC_RESOLVE_ERROR="
+call :resolve_fpc_bin >nul 2>nul
 
 set "TARGET_CPU="
-for /f "delims=" %%I in ('%FPC_BIN% -iTP 2^>nul') do if not defined TARGET_CPU set "TARGET_CPU=%%I"
+if not "%FPC_BIN%"=="" for /f "delims=" %%I in ('"%FPC_BIN%" -iTP 2^>nul') do if not defined TARGET_CPU set "TARGET_CPU=%%I"
 if not defined TARGET_CPU set "TARGET_CPU=nativecpu"
 set "TARGET_OS="
-for /f "delims=" %%I in ('%FPC_BIN% -iTO 2^>nul') do if not defined TARGET_OS set "TARGET_OS=%%I"
+if not "%FPC_BIN%"=="" for /f "delims=" %%I in ('"%FPC_BIN%" -iTO 2^>nul') do if not defined TARGET_OS set "TARGET_OS=%%I"
 if not defined TARGET_OS set "TARGET_OS=nativeos"
 
 set "OUTPUT_ROOT=%SIMD_OUTPUT_ROOT%"
 if "%OUTPUT_ROOT%"=="" set "OUTPUT_ROOT=%ROOT%"
-set "BIN_DIR=%OUTPUT_ROOT%bin"
-set "LIB_DIR=%OUTPUT_ROOT%lib\%TARGET_CPU%-%TARGET_OS%"
-set "LOG_DIR=%OUTPUT_ROOT%logs"
+set "BIN_DIR=%OUTPUT_ROOT%\bin"
+set "LIB_DIR=%OUTPUT_ROOT%\lib\%TARGET_CPU%-%TARGET_OS%"
+set "LOG_DIR=%OUTPUT_ROOT%\logs"
 set "PROJ=%ROOT%fafafa.core.simd.publicabi.lpr"
 set "BUILD_LOG=%LOG_DIR%\build.txt"
 set "TEST_LOG=%LOG_DIR%\test.txt"
@@ -87,6 +89,59 @@ if /I "%ACTION%"=="test" (
 echo Usage: %~nx0 [clean^|build^|validate-exports^|test^|run]
 exit /b 2
 
+:resolve_fpc_bin_from_root
+set "FPC_SEARCH_ROOT=%~1"
+if "%FPC_SEARCH_ROOT%"=="" exit /b 1
+if not exist "%FPC_SEARCH_ROOT%\fpc" exit /b 1
+for /d %%V in ("%FPC_SEARCH_ROOT%\fpc\*") do (
+  if exist "%%~fV\bin\%TARGET_CPU%-%TARGET_OS%\fpc.exe" (
+    set "FPC_BIN=%%~fV\bin\%TARGET_CPU%-%TARGET_OS%\fpc.exe"
+    exit /b 0
+  )
+  if exist "%%~fV\bin\x86_64-win64\fpc.exe" (
+    set "FPC_BIN=%%~fV\bin\x86_64-win64\fpc.exe"
+    exit /b 0
+  )
+  if exist "%%~fV\bin\i386-win32\fpc.exe" (
+    set "FPC_BIN=%%~fV\bin\i386-win32\fpc.exe"
+    exit /b 0
+  )
+)
+exit /b 1
+
+:resolve_fpc_bin
+if not "%FPC_BIN%"=="" (
+  if exist "%FPC_BIN%" exit /b 0
+  set "FPC_RESOLVE_ERROR=requested FPC compiler not found: %FPC_BIN%"
+  exit /b 1
+)
+for /f "delims=" %%P in ('where fpc.exe 2^>nul') do (
+  set "FPC_BIN=%%~fP"
+  exit /b 0
+)
+for /f "delims=" %%P in ('where fpc 2^>nul') do (
+  set "FPC_BIN=%%~fP"
+  exit /b 0
+)
+if defined ProgramFiles (
+  call :resolve_fpc_bin_from_root "%ProgramFiles%\Lazarus"
+  if not errorlevel 1 exit /b 0
+)
+if defined ProgramW6432 (
+  call :resolve_fpc_bin_from_root "%ProgramW6432%\Lazarus"
+  if not errorlevel 1 exit /b 0
+)
+call :resolve_fpc_bin_from_root "C:\Program Files\Lazarus"
+if not errorlevel 1 exit /b 0
+call :resolve_fpc_bin_from_root "C:\Program Files (x86)\Lazarus"
+if not errorlevel 1 exit /b 0
+call :resolve_fpc_bin_from_root "C:\lazarus"
+if not errorlevel 1 exit /b 0
+call :resolve_fpc_bin_from_root "C:\Lazarus"
+if not errorlevel 1 exit /b 0
+set "FPC_BIN="
+exit /b 1
+
 :resolve_library
 set "LIB_PATH="
 for %%F in ("%BIN_DIR%\*.dll") do (
@@ -118,7 +173,18 @@ exit /b 2
 :build
 echo [BUILD] Project: %PROJ%
 echo. > "%BUILD_LOG%"
-%FPC_BIN% -B -Mobjfpc -Scghi -O3 -Fi"%REPO_ROOT%\src" -Fu"%REPO_ROOT%\src" -FE"%BIN_DIR%" -FU"%LIB_DIR%" "%PROJ%" > "%BUILD_LOG%" 2>&1
+call :resolve_fpc_bin
+if errorlevel 1 (
+  if defined FPC_RESOLVE_ERROR (
+    echo [BUILD] FAILED ^(%FPC_RESOLVE_ERROR%^) > "%BUILD_LOG%"
+  ) else (
+    echo [BUILD] FAILED ^(fpc compiler not found; set FPC_BIN/FPC or install Lazarus/FPC^) > "%BUILD_LOG%"
+  )
+  echo [BUILD] FAILED ^(see %BUILD_LOG%^)
+  type "%BUILD_LOG%"
+  exit /b 2
+)
+"%FPC_BIN%" -B -Mobjfpc -Scghi -O3 -Fi"%REPO_ROOT%\src" -Fu"%REPO_ROOT%\src" -FE"%BIN_DIR%" -FU"%LIB_DIR%" "%PROJ%" > "%BUILD_LOG%" 2>&1
 if errorlevel 1 (
   echo [BUILD] FAILED ^(see %BUILD_LOG%^)
   type "%BUILD_LOG%"
