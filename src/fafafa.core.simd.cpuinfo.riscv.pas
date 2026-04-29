@@ -1276,14 +1276,14 @@ begin
 end;
 
 function DetectRISCVFeatures: TRISCVFeatures;
-var
 {$IFDEF UNIX}
+var
   LCpuInfoContent: string;
-{$ENDIF}
-{$IFDEF LINUX}
+  {$IFDEF LINUX}
   LDeviceTreeISA: string;
   LAuxHWCAP: QWord;
   LAuxHWCAP2: QWord;
+  {$ENDIF}
 {$ENDIF}
 begin
   FillChar(Result, SizeOf(TRISCVFeatures), 0);
@@ -1369,16 +1369,16 @@ begin
 end;
 
 function GetRISCVProcessorInfo: TRISCVProcessorInfo;
+{$IFDEF UNIX}
 var
-  {$IFDEF UNIX}
   LCpuInfoContent: string;
   LISA: string;
   LFeatures: TRISCVFeatures;
-  {$ENDIF}
   {$IFDEF LINUX}
   LAuxHWCAP: QWord;
   LAuxHWCAP2: QWord;
   {$ENDIF}
+{$ENDIF}
 begin
   Result := Default(TRISCVProcessorInfo);
   
