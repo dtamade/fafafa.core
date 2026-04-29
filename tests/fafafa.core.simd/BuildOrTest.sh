@@ -1013,6 +1013,48 @@ check_windows_runner_parity() {
   echo "[CHECK] OK (windows runner parity signatures present)"
 }
 
+check_windows_lazbuild_wrapper_guard() {
+  local LWrapper
+  local LPattern
+  local LForbiddenPattern
+  local LMissing
+  local -a LRequired
+
+  LWrapper="${REPO_ROOT}/tools/lazbuild.bat"
+  if [[ ! -f "${LWrapper}" ]]; then
+    echo "[CHECK] Missing Windows lazbuild wrapper: ${LWrapper}"
+    return 1
+  fi
+
+  LMissing=0
+  LRequired=(
+    'set "SCRIPT_PATH=%~f0"'
+    'for %%P in ("%LAZBUILD_EXE%") do ('
+    'if /I not "%%~fP"=="%SCRIPT_PATH%" set "LAZBUILD_PATH=%%~fP"'
+  )
+
+  for LPattern in "${LRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LWrapper}" >/dev/null; then
+      echo "[CHECK] Windows lazbuild wrapper missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  for LForbiddenPattern in \
+    'set "LAZBUILD_PATH=%LAZBUILD_EXE%"'; do
+    if grep -F -- "${LForbiddenPattern}" "${LWrapper}" >/dev/null; then
+      echo "[CHECK] Windows lazbuild wrapper contains unsafe self-pin pattern: ${LForbiddenPattern}"
+      LMissing=1
+    fi
+  done
+
+  if [[ "${LMissing}" -ne 0 ]]; then
+    return 1
+  fi
+
+  echo "[CHECK] OK (Windows lazbuild wrapper self-recursion guard present)"
+}
+
 check_windows_cpuinfo_x86_runner_guard() {
   local LBat
   local LPattern
@@ -4180,6 +4222,7 @@ gate_step_build_check() {
   build_project || return $?
   check_build_log || return $?
   check_windows_runner_parity || return $?
+  check_windows_lazbuild_wrapper_guard || return $?
   check_windows_cpuinfo_x86_runner_guard || return $?
   check_avx512_optin_runner_guard || return $?
   check_nonx86_optin_runner_guard || return $?

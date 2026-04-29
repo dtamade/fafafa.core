@@ -9,7 +9,9 @@ set "HAS_LAZARUSDIR=0"
 
 if defined LAZBUILD_EXE (
   if exist "%LAZBUILD_EXE%" (
-    set "LAZBUILD_PATH=%LAZBUILD_EXE%"
+    for %%P in ("%LAZBUILD_EXE%") do (
+      if /I not "%%~fP"=="%SCRIPT_PATH%" set "LAZBUILD_PATH=%%~fP"
+    )
   )
 )
 
