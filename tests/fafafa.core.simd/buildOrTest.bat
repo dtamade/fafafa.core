@@ -47,11 +47,9 @@ if not exist "%UNIT_DIR%" mkdir "%UNIT_DIR%"
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 
 set "LAZBUILD_EXE=%LAZBUILD%"
-if "%LAZBUILD_EXE%"=="" (
-  set "LAZBUILD_EXE=%ROOT%..\..\tools\lazbuild.bat"
-  if not exist "%LAZBUILD_EXE%" set "LAZBUILD_EXE=%ProgramFiles%\Lazarus\lazbuild.exe"
-  if not exist "%LAZBUILD_EXE%" set "LAZBUILD_EXE=lazbuild"
-)
+if "%LAZBUILD_EXE%"=="" set "LAZBUILD_EXE=%ROOT%..\..\tools\lazbuild.bat"
+if not exist "%LAZBUILD_EXE%" set "LAZBUILD_EXE=%ProgramFiles%\Lazarus\lazbuild.exe"
+if not exist "%LAZBUILD_EXE%" set "LAZBUILD_EXE=lazbuild"
 
 set "MODE=%FAFAFA_BUILD_MODE%"
 if "%MODE%"=="" set "MODE=Release"

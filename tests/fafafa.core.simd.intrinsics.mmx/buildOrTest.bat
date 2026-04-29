@@ -13,11 +13,9 @@ if "%OUTPUT_ROOT%"=="" set "OUTPUT_ROOT=%ROOT%"
 set "PROJECT_NAME=fafafa.core.simd.intrinsics.mmx.test"
 set "PROJECT_FILE=%ROOT%%PROJECT_NAME%.lpi"
 set "LAZBUILD_EXE=%LAZBUILD%"
-if "%LAZBUILD_EXE%"=="" (
-  set "LAZBUILD_EXE=%ROOT%..\..\tools\lazbuild.bat"
-  if not exist "%LAZBUILD_EXE%" set "LAZBUILD_EXE=%ProgramFiles%\Lazarus\lazbuild.exe"
-  if not exist "%LAZBUILD_EXE%" set "LAZBUILD_EXE=lazbuild"
-)
+if "%LAZBUILD_EXE%"=="" set "LAZBUILD_EXE=%ROOT%..\..\tools\lazbuild.bat"
+if not exist "%LAZBUILD_EXE%" set "LAZBUILD_EXE=%ProgramFiles%\Lazarus\lazbuild.exe"
+if not exist "%LAZBUILD_EXE%" set "LAZBUILD_EXE=lazbuild"
 if not exist "%LAZBUILD_EXE%" set "LAZBUILD_EXE=lazbuild"
 
 set "TARGET_CPU="

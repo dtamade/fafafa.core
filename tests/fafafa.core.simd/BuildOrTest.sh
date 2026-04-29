@@ -711,6 +711,7 @@ check_windows_runner_parity() {
   local LShellRunner
   local LMissing
   local LPattern
+  local LForbiddenPattern
   local LAction
   local -a LRequired
   local -a LShellActions
@@ -811,6 +812,7 @@ check_windows_runner_parity() {
     'echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|key-slot-audit^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-compiler-ready^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]'
     'echo   closeout-release  Canonical release closeout entry ^(delegates to shell runner^)'
     'echo [IMPL-SMOKE-X86] Running: bash %ROOT%BuildOrTest.sh impl-smoke-x86 %NORMALIZED_TEST_ARGS%'
+    'if "%LAZBUILD_EXE%"=="" set "LAZBUILD_EXE=%ROOT%..\..\tools\lazbuild.bat"'
     'findstr /r /c:"src\fafafa\.core\.simd\..*Warning:" /c:"src\fafafa\.core\.simd\..*Hint:" "%BUILD_LOG%" | findstr /v /c:"src\fafafa.core.simd.intrinsics.avx2.pas" >nul 2>nul'
     'call :register_include_check'
     ':register_include_check'
@@ -963,6 +965,14 @@ check_windows_runner_parity() {
     fi
   done
 
+  for LForbiddenPattern in \
+    'if "%LAZBUILD_EXE%"=="" ('; do
+    if grep -F -- "${LForbiddenPattern}" "${LBat}" >/dev/null; then
+      echo "[CHECK] Windows runner contains unsafe batch fallback block: ${LForbiddenPattern}"
+      LMissing=1
+    fi
+  done
+
   mapfile -t LShellActions < <(collect_shell_runner_actions "${LShellRunner}")
   mapfile -t LBatActions < <(collect_windows_runner_actions "${LBat}")
 
@@ -1006,6 +1016,7 @@ check_windows_runner_parity() {
 check_windows_cpuinfo_x86_runner_guard() {
   local LBat
   local LPattern
+  local LForbiddenPattern
   local LMissing
   local -a LRequired
 
@@ -1027,6 +1038,14 @@ check_windows_cpuinfo_x86_runner_guard() {
   for LPattern in "${LRequired[@]}"; do
     if ! grep -F -- "${LPattern}" "${LBat}" >/dev/null; then
       echo "[CHECK] Windows cpuinfo.x86 runner missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  for LForbiddenPattern in \
+    'if "%LAZBUILD_EXE%"=="" ('; do
+    if grep -F -- "${LForbiddenPattern}" "${LBat}" >/dev/null; then
+      echo "[CHECK] Windows cpuinfo.x86 runner contains unsafe batch fallback block: ${LForbiddenPattern}"
       LMissing=1
     fi
   done
@@ -3433,6 +3452,7 @@ check_intrinsics_runner_output_isolation() {
   local LSseBat
   local LMmxBat
   local LPattern
+  local LForbiddenPattern
   local LMissing
   local -a LShellRequired
   local -a LBatRequired
@@ -3489,6 +3509,18 @@ check_intrinsics_runner_output_isolation() {
     fi
     if ! grep -F -- "${LPattern}" "${LMmxBat}" >/dev/null; then
       echo "[CHECK] MMX batch runner missing isolation pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  for LForbiddenPattern in \
+    'if "%LAZBUILD_EXE%"=="" ('; do
+    if grep -F -- "${LForbiddenPattern}" "${LSseBat}" >/dev/null; then
+      echo "[CHECK] SSE batch runner contains unsafe batch fallback block: ${LForbiddenPattern}"
+      LMissing=1
+    fi
+    if grep -F -- "${LForbiddenPattern}" "${LMmxBat}" >/dev/null; then
+      echo "[CHECK] MMX batch runner contains unsafe batch fallback block: ${LForbiddenPattern}"
       LMissing=1
     fi
   done
