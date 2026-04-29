@@ -3461,11 +3461,14 @@ check_intrinsics_runner_output_isolation() {
   LBatRequired=(
     'set "OUTPUT_ROOT=%SIMD_OUTPUT_ROOT%"'
     'if "%OUTPUT_ROOT%"=="" set "OUTPUT_ROOT=%ROOT%"'
+    'set "LAZBUILD_EXE=%LAZBUILD%"'
+    'set "LAZBUILD_EXE=%ROOT%..\..\tools\lazbuild.bat"'
     'set "BIN_DIR=%OUTPUT_ROOT%\bin"'
     'set "LIB_DIR=%OUTPUT_ROOT%\lib\%TARGET_CPU%-%TARGET_OS%"'
     'set "LOG_DIR=%OUTPUT_ROOT%\logs"'
     '--opt=-FE%BIN_DIR%'
     '--opt=-FU%LIB_DIR%'
+    'call "%LAZBUILD_EXE%" --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%LIB_DIR%" "%PROJECT_FILE%" >> "%BUILD_LOG%" 2>&1'
   )
 
   for LPattern in "${LShellRequired[@]}"; do

@@ -13,7 +13,12 @@ if "%OUTPUT_ROOT%"=="" set "OUTPUT_ROOT=%ROOT%"
 set "PROJECT_NAME=fafafa.core.simd.intrinsics.mmx.test"
 set "PROJECT_FILE=%ROOT%%PROJECT_NAME%.lpi"
 set "LAZBUILD_EXE=%LAZBUILD%"
-if "%LAZBUILD_EXE%"=="" set "LAZBUILD_EXE=lazbuild"
+if "%LAZBUILD_EXE%"=="" (
+  set "LAZBUILD_EXE=%ROOT%..\..\tools\lazbuild.bat"
+  if not exist "%LAZBUILD_EXE%" set "LAZBUILD_EXE=%ProgramFiles%\Lazarus\lazbuild.exe"
+  if not exist "%LAZBUILD_EXE%" set "LAZBUILD_EXE=lazbuild"
+)
+if not exist "%LAZBUILD_EXE%" set "LAZBUILD_EXE=lazbuild"
 
 set "TARGET_CPU="
 for /f "delims=" %%I in ('fpc -iTP 2^>nul') do if not defined TARGET_CPU set "TARGET_CPU=%%I"
@@ -59,7 +64,7 @@ exit /b 0
 :build
 echo [BUILD] Project: %PROJECT_FILE% (output_root=%OUTPUT_ROOT%)
 > "%BUILD_LOG%" echo.
-"%LAZBUILD_EXE%" --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%LIB_DIR%" "%PROJECT_FILE%" >> "%BUILD_LOG%" 2>&1
+call "%LAZBUILD_EXE%" --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%LIB_DIR%" "%PROJECT_FILE%" >> "%BUILD_LOG%" 2>&1
 if errorlevel 1 (
   echo [BUILD] FAILED ^(see %BUILD_LOG%^)
   exit /b 1
