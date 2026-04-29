@@ -186,6 +186,14 @@ findstr /c:"(9015) Linking" "%BUILD_LOG%" >nul 2>nul
 if not errorlevel 1 exit /b 0
 exit /b 1
 
+:normalize_binary
+if exist "%BIN%" exit /b 0
+if exist "%ROOT%bin2\fafafa.core.simd.test.exe" (
+  copy /y "%ROOT%bin2\fafafa.core.simd.test.exe" "%BIN%" >nul
+  echo [BUILD] Binary normalized: %ROOT%bin2\fafafa.core.simd.test.exe ^> %BIN%
+)
+exit /b 0
+
 :clean
 echo [CLEAN] Removing %BIN_DIR%, %LIB_DIR%, %LOG_DIR%
 if exist "%BIN_DIR%" rmdir /s /q "%BIN_DIR%"
