@@ -27,7 +27,7 @@ type
     NextOwned: PSimdPublicApiBindingState;
     // Metadata stays frozen with the published table pointer, while the ABI
     // entry points remain stable cdecl shims that lazily hop through the
-    // latest published binding state.
+    // latest published bound fast-paths.
     Api: TFafafaSimdPublicApi;
     Dispatch: PSimdDispatchTable;
     MemEqualBound: TSimdPublicMemEqualFunc;
@@ -57,6 +57,21 @@ type
 var
   g_SimdPublicApiStatePtr: Pointer = nil;
   g_SimdPublicApiTargetDispatchPtr: Pointer = nil;
+  g_SimdPublicApiMemEqualPtr: Pointer = nil;
+  g_SimdPublicApiMemFindBytePtr: Pointer = nil;
+  g_SimdPublicApiMemDiffRangePtr: Pointer = nil;
+  g_SimdPublicApiSumBytesPtr: Pointer = nil;
+  g_SimdPublicApiCountBytePtr: Pointer = nil;
+  g_SimdPublicApiBitsetPopCountPtr: Pointer = nil;
+  g_SimdPublicApiUtf8ValidatePtr: Pointer = nil;
+  g_SimdPublicApiAsciiIEqualPtr: Pointer = nil;
+  g_SimdPublicApiBytesIndexOfPtr: Pointer = nil;
+  g_SimdPublicApiMemCopyPtr: Pointer = nil;
+  g_SimdPublicApiMemSetPtr: Pointer = nil;
+  g_SimdPublicApiToLowerAsciiPtr: Pointer = nil;
+  g_SimdPublicApiToUpperAsciiPtr: Pointer = nil;
+  g_SimdPublicApiMemReversePtr: Pointer = nil;
+  g_SimdPublicApiMinMaxBytesPtr: Pointer = nil;
   // Public API tables may be cached by consumers after later control-plane
   // mutations, so published states stay process-owned until finalization.
   g_SimdPublicApiOwnedHead: PSimdPublicApiBindingState = nil;
@@ -137,32 +152,23 @@ begin
   Result := PSimdPublicApiBindingState(atomic_load(g_SimdPublicApiStatePtr, mo_acquire));
 end;
 
-function GetCurrentSimdPublicApiTargetDispatch: PSimdDispatchTable; inline;
-begin
-  Result := GetCurrentSimdDataPlaneDispatch;
-  if Result = nil then
-    Result := GetDispatchTable;
-end;
-
 procedure RebindSimdPublicApi; forward;
 
-function GetLiveSimdPublicApiBindingState: PSimdPublicApiBindingState; inline;
-var
-  LCurrent: PSimdPublicApiBindingState;
-  LTargetDispatch: PSimdDispatchTable;
+function LoadSimdPublicApiBoundPtr(var aFuncPtr: Pointer): Pointer; inline;
 begin
-  LCurrent := GetCurrentSimdPublicApiBindingState;
-  LTargetDispatch := GetCurrentSimdPublicApiTargetDispatch;
-  if (LCurrent = nil) or
-     ((LTargetDispatch <> nil) and (LCurrent^.Dispatch <> LTargetDispatch)) then
+  // Hot-path loads stay relaxed on x86/x86_64 and acquire on weaker targets
+  // through fafafa.core.atomic defaults, mirroring the façade fast-path model.
+  Result := atomic_load(aFuncPtr);
+end;
+
+function GetLiveSimdPublicApiBindingState: PSimdPublicApiBindingState; inline;
+begin
+  Result := GetCurrentSimdPublicApiBindingState;
+  if Result = nil then
   begin
     RebindSimdPublicApi;
     Result := GetCurrentSimdPublicApiBindingState;
-    if (Result = nil) and (LCurrent <> nil) then
-      Result := LCurrent;
-    Exit;
   end;
-  Result := LCurrent;
 end;
 
 function CreateSimdPublicApiBindingState: PSimdPublicApiBindingState;
@@ -252,6 +258,44 @@ begin
   InitCriticalSection(g_SimdBackendTextLock);
 end;
 
+procedure PublishSimdPublicApiBoundFastPaths(const aDataPlane: PSimdDataPlane); inline;
+begin
+  atomic_store(g_SimdPublicApiMemEqualPtr, aDataPlane^.MemEqualPtr, mo_release);
+  atomic_store(g_SimdPublicApiMemFindBytePtr, aDataPlane^.MemFindBytePtr, mo_release);
+  atomic_store(g_SimdPublicApiMemDiffRangePtr, aDataPlane^.MemDiffRangePtr, mo_release);
+  atomic_store(g_SimdPublicApiSumBytesPtr, aDataPlane^.SumBytesPtr, mo_release);
+  atomic_store(g_SimdPublicApiCountBytePtr, aDataPlane^.CountBytePtr, mo_release);
+  atomic_store(g_SimdPublicApiBitsetPopCountPtr, aDataPlane^.BitsetPopCountPtr, mo_release);
+  atomic_store(g_SimdPublicApiUtf8ValidatePtr, aDataPlane^.Utf8ValidatePtr, mo_release);
+  atomic_store(g_SimdPublicApiAsciiIEqualPtr, aDataPlane^.AsciiIEqualPtr, mo_release);
+  atomic_store(g_SimdPublicApiBytesIndexOfPtr, aDataPlane^.BytesIndexOfPtr, mo_release);
+  atomic_store(g_SimdPublicApiMemCopyPtr, aDataPlane^.MemCopyPtr, mo_release);
+  atomic_store(g_SimdPublicApiMemSetPtr, aDataPlane^.MemSetPtr, mo_release);
+  atomic_store(g_SimdPublicApiToLowerAsciiPtr, aDataPlane^.ToLowerAsciiPtr, mo_release);
+  atomic_store(g_SimdPublicApiToUpperAsciiPtr, aDataPlane^.ToUpperAsciiPtr, mo_release);
+  atomic_store(g_SimdPublicApiMemReversePtr, aDataPlane^.MemReversePtr, mo_release);
+  atomic_store(g_SimdPublicApiMinMaxBytesPtr, aDataPlane^.MinMaxBytesPtr, mo_release);
+end;
+
+procedure ClearSimdPublicApiBoundFastPaths; inline;
+begin
+  atomic_store(g_SimdPublicApiMemEqualPtr, nil, mo_release);
+  atomic_store(g_SimdPublicApiMemFindBytePtr, nil, mo_release);
+  atomic_store(g_SimdPublicApiMemDiffRangePtr, nil, mo_release);
+  atomic_store(g_SimdPublicApiSumBytesPtr, nil, mo_release);
+  atomic_store(g_SimdPublicApiCountBytePtr, nil, mo_release);
+  atomic_store(g_SimdPublicApiBitsetPopCountPtr, nil, mo_release);
+  atomic_store(g_SimdPublicApiUtf8ValidatePtr, nil, mo_release);
+  atomic_store(g_SimdPublicApiAsciiIEqualPtr, nil, mo_release);
+  atomic_store(g_SimdPublicApiBytesIndexOfPtr, nil, mo_release);
+  atomic_store(g_SimdPublicApiMemCopyPtr, nil, mo_release);
+  atomic_store(g_SimdPublicApiMemSetPtr, nil, mo_release);
+  atomic_store(g_SimdPublicApiToLowerAsciiPtr, nil, mo_release);
+  atomic_store(g_SimdPublicApiToUpperAsciiPtr, nil, mo_release);
+  atomic_store(g_SimdPublicApiMemReversePtr, nil, mo_release);
+  atomic_store(g_SimdPublicApiMinMaxBytesPtr, nil, mo_release);
+end;
+
 procedure FinalizeSimdPublicApiBinding;
 var
   LBackend: TSimdBackend;
@@ -264,6 +308,7 @@ begin
   try
     atomic_store(g_SimdPublicApiStatePtr, nil, mo_release);
     atomic_store(g_SimdPublicApiTargetDispatchPtr, nil, mo_release);
+    ClearSimdPublicApiBoundFastPaths;
     LState := g_SimdPublicApiOwnedHead;
     g_SimdPublicApiOwnedHead := nil;
   finally
@@ -300,12 +345,17 @@ end;
 
 function PublicAbiMemEqual(aA, aB: Pointer; aLen: SizeUInt): LongBool; cdecl;
 var
-  LState: PSimdPublicApiBindingState;
+  LFunc: TSimdPublicMemEqualFunc;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetLiveSimdPublicApiBindingState;
-  if (LState <> nil) and Assigned(LState^.MemEqualBound) then
-    Result := LState^.MemEqualBound(aA, aB, aLen)
+  LFunc := TSimdPublicMemEqualFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiMemEqualPtr));
+  if not Assigned(LFunc) then
+  begin
+    RebindSimdPublicApi;
+    LFunc := TSimdPublicMemEqualFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiMemEqualPtr));
+  end;
+  if Assigned(LFunc) then
+    Result := LFunc(aA, aB, aLen)
   else
   begin
     LDispatch := GetDispatchTable;
@@ -315,12 +365,17 @@ end;
 
 function PublicAbiMemFindByte(aP: Pointer; aLen: SizeUInt; aValue: Byte): PtrInt; cdecl;
 var
-  LState: PSimdPublicApiBindingState;
+  LFunc: TSimdPublicMemFindByteFunc;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetLiveSimdPublicApiBindingState;
-  if (LState <> nil) and Assigned(LState^.MemFindByteBound) then
-    Result := LState^.MemFindByteBound(aP, aLen, aValue)
+  LFunc := TSimdPublicMemFindByteFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiMemFindBytePtr));
+  if not Assigned(LFunc) then
+  begin
+    RebindSimdPublicApi;
+    LFunc := TSimdPublicMemFindByteFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiMemFindBytePtr));
+  end;
+  if Assigned(LFunc) then
+    Result := LFunc(aP, aLen, aValue)
   else
   begin
     LDispatch := GetDispatchTable;
@@ -331,12 +386,17 @@ end;
 function PublicAbiMemDiffRange(aA, aB: Pointer; aLen: SizeUInt;
   out aFirstDiff, aLastDiff: SizeUInt): LongBool; cdecl;
 var
-  LState: PSimdPublicApiBindingState;
+  LFunc: TSimdPublicMemDiffRangeFunc;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetLiveSimdPublicApiBindingState;
-  if (LState <> nil) and Assigned(LState^.MemDiffRangeBound) then
-    Result := LState^.MemDiffRangeBound(aA, aB, aLen, aFirstDiff, aLastDiff)
+  LFunc := TSimdPublicMemDiffRangeFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiMemDiffRangePtr));
+  if not Assigned(LFunc) then
+  begin
+    RebindSimdPublicApi;
+    LFunc := TSimdPublicMemDiffRangeFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiMemDiffRangePtr));
+  end;
+  if Assigned(LFunc) then
+    Result := LFunc(aA, aB, aLen, aFirstDiff, aLastDiff)
   else
   begin
     LDispatch := GetDispatchTable;
@@ -346,12 +406,17 @@ end;
 
 function PublicAbiSumBytes(aP: Pointer; aLen: SizeUInt): UInt64; cdecl;
 var
-  LState: PSimdPublicApiBindingState;
+  LFunc: TSimdPublicSumBytesFunc;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetLiveSimdPublicApiBindingState;
-  if (LState <> nil) and Assigned(LState^.SumBytesBound) then
-    Result := LState^.SumBytesBound(aP, aLen)
+  LFunc := TSimdPublicSumBytesFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiSumBytesPtr));
+  if not Assigned(LFunc) then
+  begin
+    RebindSimdPublicApi;
+    LFunc := TSimdPublicSumBytesFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiSumBytesPtr));
+  end;
+  if Assigned(LFunc) then
+    Result := LFunc(aP, aLen)
   else
   begin
     LDispatch := GetDispatchTable;
@@ -361,12 +426,17 @@ end;
 
 function PublicAbiCountByte(aP: Pointer; aLen: SizeUInt; aValue: Byte): SizeUInt; cdecl;
 var
-  LState: PSimdPublicApiBindingState;
+  LFunc: TSimdPublicCountByteFunc;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetLiveSimdPublicApiBindingState;
-  if (LState <> nil) and Assigned(LState^.CountByteBound) then
-    Result := LState^.CountByteBound(aP, aLen, aValue)
+  LFunc := TSimdPublicCountByteFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiCountBytePtr));
+  if not Assigned(LFunc) then
+  begin
+    RebindSimdPublicApi;
+    LFunc := TSimdPublicCountByteFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiCountBytePtr));
+  end;
+  if Assigned(LFunc) then
+    Result := LFunc(aP, aLen, aValue)
   else
   begin
     LDispatch := GetDispatchTable;
@@ -376,12 +446,17 @@ end;
 
 function PublicAbiBitsetPopCount(aP: Pointer; aByteLen: SizeUInt): SizeUInt; cdecl;
 var
-  LState: PSimdPublicApiBindingState;
+  LFunc: TSimdPublicBitsetPopCountFunc;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetLiveSimdPublicApiBindingState;
-  if (LState <> nil) and Assigned(LState^.BitsetPopCountBound) then
-    Result := LState^.BitsetPopCountBound(aP, aByteLen)
+  LFunc := TSimdPublicBitsetPopCountFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiBitsetPopCountPtr));
+  if not Assigned(LFunc) then
+  begin
+    RebindSimdPublicApi;
+    LFunc := TSimdPublicBitsetPopCountFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiBitsetPopCountPtr));
+  end;
+  if Assigned(LFunc) then
+    Result := LFunc(aP, aByteLen)
   else
   begin
     LDispatch := GetDispatchTable;
@@ -391,12 +466,17 @@ end;
 
 function PublicAbiUtf8Validate(aP: Pointer; aLen: SizeUInt): LongBool; cdecl;
 var
-  LState: PSimdPublicApiBindingState;
+  LFunc: TSimdPublicUtf8ValidateFunc;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetLiveSimdPublicApiBindingState;
-  if (LState <> nil) and Assigned(LState^.Utf8ValidateBound) then
-    Result := LState^.Utf8ValidateBound(aP, aLen)
+  LFunc := TSimdPublicUtf8ValidateFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiUtf8ValidatePtr));
+  if not Assigned(LFunc) then
+  begin
+    RebindSimdPublicApi;
+    LFunc := TSimdPublicUtf8ValidateFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiUtf8ValidatePtr));
+  end;
+  if Assigned(LFunc) then
+    Result := LFunc(aP, aLen)
   else
   begin
     LDispatch := GetDispatchTable;
@@ -406,12 +486,17 @@ end;
 
 function PublicAbiAsciiIEqual(aA, aB: Pointer; aLen: SizeUInt): LongBool; cdecl;
 var
-  LState: PSimdPublicApiBindingState;
+  LFunc: TSimdPublicAsciiIEqualFunc;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetLiveSimdPublicApiBindingState;
-  if (LState <> nil) and Assigned(LState^.AsciiIEqualBound) then
-    Result := LState^.AsciiIEqualBound(aA, aB, aLen)
+  LFunc := TSimdPublicAsciiIEqualFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiAsciiIEqualPtr));
+  if not Assigned(LFunc) then
+  begin
+    RebindSimdPublicApi;
+    LFunc := TSimdPublicAsciiIEqualFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiAsciiIEqualPtr));
+  end;
+  if Assigned(LFunc) then
+    Result := LFunc(aA, aB, aLen)
   else
   begin
     LDispatch := GetDispatchTable;
@@ -422,12 +507,17 @@ end;
 function PublicAbiBytesIndexOf(aHaystack: Pointer; aHaystackLen: SizeUInt;
   aNeedle: Pointer; aNeedleLen: SizeUInt): PtrInt; cdecl;
 var
-  LState: PSimdPublicApiBindingState;
+  LFunc: TSimdPublicBytesIndexOfFunc;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetLiveSimdPublicApiBindingState;
-  if (LState <> nil) and Assigned(LState^.BytesIndexOfBound) then
-    Result := LState^.BytesIndexOfBound(aHaystack, aHaystackLen, aNeedle, aNeedleLen)
+  LFunc := TSimdPublicBytesIndexOfFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiBytesIndexOfPtr));
+  if not Assigned(LFunc) then
+  begin
+    RebindSimdPublicApi;
+    LFunc := TSimdPublicBytesIndexOfFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiBytesIndexOfPtr));
+  end;
+  if Assigned(LFunc) then
+    Result := LFunc(aHaystack, aHaystackLen, aNeedle, aNeedleLen)
   else
   begin
     LDispatch := GetDispatchTable;
@@ -437,12 +527,17 @@ end;
 
 procedure PublicAbiMemCopy(aSrc, aDst: Pointer; aLen: SizeUInt); cdecl;
 var
-  LState: PSimdPublicApiBindingState;
+  LFunc: TSimdPublicMemCopyFunc;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetLiveSimdPublicApiBindingState;
-  if (LState <> nil) and Assigned(LState^.MemCopyBound) then
-    LState^.MemCopyBound(aSrc, aDst, aLen)
+  LFunc := TSimdPublicMemCopyFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiMemCopyPtr));
+  if not Assigned(LFunc) then
+  begin
+    RebindSimdPublicApi;
+    LFunc := TSimdPublicMemCopyFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiMemCopyPtr));
+  end;
+  if Assigned(LFunc) then
+    LFunc(aSrc, aDst, aLen)
   else
   begin
     LDispatch := GetDispatchTable;
@@ -452,12 +547,17 @@ end;
 
 procedure PublicAbiMemSet(aDst: Pointer; aLen: SizeUInt; aValue: Byte); cdecl;
 var
-  LState: PSimdPublicApiBindingState;
+  LFunc: TSimdPublicMemSetFunc;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetLiveSimdPublicApiBindingState;
-  if (LState <> nil) and Assigned(LState^.MemSetBound) then
-    LState^.MemSetBound(aDst, aLen, aValue)
+  LFunc := TSimdPublicMemSetFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiMemSetPtr));
+  if not Assigned(LFunc) then
+  begin
+    RebindSimdPublicApi;
+    LFunc := TSimdPublicMemSetFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiMemSetPtr));
+  end;
+  if Assigned(LFunc) then
+    LFunc(aDst, aLen, aValue)
   else
   begin
     LDispatch := GetDispatchTable;
@@ -467,12 +567,17 @@ end;
 
 procedure PublicAbiToLowerAscii(aP: Pointer; aLen: SizeUInt); cdecl;
 var
-  LState: PSimdPublicApiBindingState;
+  LFunc: TSimdPublicAsciiCaseFunc;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetLiveSimdPublicApiBindingState;
-  if (LState <> nil) and Assigned(LState^.ToLowerAsciiBound) then
-    LState^.ToLowerAsciiBound(aP, aLen)
+  LFunc := TSimdPublicAsciiCaseFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiToLowerAsciiPtr));
+  if not Assigned(LFunc) then
+  begin
+    RebindSimdPublicApi;
+    LFunc := TSimdPublicAsciiCaseFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiToLowerAsciiPtr));
+  end;
+  if Assigned(LFunc) then
+    LFunc(aP, aLen)
   else
   begin
     LDispatch := GetDispatchTable;
@@ -482,12 +587,17 @@ end;
 
 procedure PublicAbiToUpperAscii(aP: Pointer; aLen: SizeUInt); cdecl;
 var
-  LState: PSimdPublicApiBindingState;
+  LFunc: TSimdPublicAsciiCaseFunc;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetLiveSimdPublicApiBindingState;
-  if (LState <> nil) and Assigned(LState^.ToUpperAsciiBound) then
-    LState^.ToUpperAsciiBound(aP, aLen)
+  LFunc := TSimdPublicAsciiCaseFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiToUpperAsciiPtr));
+  if not Assigned(LFunc) then
+  begin
+    RebindSimdPublicApi;
+    LFunc := TSimdPublicAsciiCaseFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiToUpperAsciiPtr));
+  end;
+  if Assigned(LFunc) then
+    LFunc(aP, aLen)
   else
   begin
     LDispatch := GetDispatchTable;
@@ -497,12 +607,17 @@ end;
 
 procedure PublicAbiMemReverse(aP: Pointer; aLen: SizeUInt); cdecl;
 var
-  LState: PSimdPublicApiBindingState;
+  LFunc: TSimdPublicMemReverseFunc;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetLiveSimdPublicApiBindingState;
-  if (LState <> nil) and Assigned(LState^.MemReverseBound) then
-    LState^.MemReverseBound(aP, aLen)
+  LFunc := TSimdPublicMemReverseFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiMemReversePtr));
+  if not Assigned(LFunc) then
+  begin
+    RebindSimdPublicApi;
+    LFunc := TSimdPublicMemReverseFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiMemReversePtr));
+  end;
+  if Assigned(LFunc) then
+    LFunc(aP, aLen)
   else
   begin
     LDispatch := GetDispatchTable;
@@ -512,12 +627,17 @@ end;
 
 procedure PublicAbiMinMaxBytes(aP: Pointer; aLen: SizeUInt; out aMinVal, aMaxVal: Byte); cdecl;
 var
-  LState: PSimdPublicApiBindingState;
+  LFunc: TSimdPublicMinMaxBytesFunc;
   LDispatch: PSimdDispatchTable;
 begin
-  LState := GetLiveSimdPublicApiBindingState;
-  if (LState <> nil) and Assigned(LState^.MinMaxBytesBound) then
-    LState^.MinMaxBytesBound(aP, aLen, aMinVal, aMaxVal)
+  LFunc := TSimdPublicMinMaxBytesFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiMinMaxBytesPtr));
+  if not Assigned(LFunc) then
+  begin
+    RebindSimdPublicApi;
+    LFunc := TSimdPublicMinMaxBytesFunc(LoadSimdPublicApiBoundPtr(g_SimdPublicApiMinMaxBytesPtr));
+  end;
+  if Assigned(LFunc) then
+    LFunc(aP, aLen, aMinVal, aMaxVal)
   else
   begin
     LDispatch := GetDispatchTable;
@@ -544,7 +664,9 @@ begin
     LCurrent := GetCurrentSimdPublicApiBindingState;
     if (LCurrent <> nil) and (LCurrent^.Dispatch = LDispatch) then
     begin
+      PublishSimdPublicApiBoundFastPaths(LDataPlane);
       atomic_store(g_SimdPublicApiTargetDispatchPtr, Pointer(LDispatch), mo_release);
+      atomic_store(g_SimdPublicApiStatePtr, Pointer(LCurrent), mo_release);
       Exit;
     end;
 
@@ -592,6 +714,7 @@ begin
     LState^.Api.MemReverse := @PublicAbiMemReverse;
     LState^.Api.MinMaxBytes := @PublicAbiMinMaxBytes;
 
+    PublishSimdPublicApiBoundFastPaths(LDataPlane);
     atomic_store(g_SimdPublicApiTargetDispatchPtr, Pointer(LDispatch), mo_release);
     atomic_store(g_SimdPublicApiStatePtr, Pointer(LState), mo_release);
   finally
@@ -602,9 +725,11 @@ end;
 procedure InvalidateSimdPublicApiBinding;
 begin
   // Keep the last published table alive for cached readers. The next public ABI
-  // getter or cdecl entry-point call will observe the new target dispatch and
-  // lazily publish a fresh binding state.
+  // getter or cdecl entry-point call will lazily publish a fresh binding state
+  // and rebound hot-path targets.
   atomic_store(g_SimdPublicApiTargetDispatchPtr, Pointer(GetDispatchTable), mo_release);
+  ClearSimdPublicApiBoundFastPaths;
+  atomic_store(g_SimdPublicApiStatePtr, nil, mo_release);
 end;
 
 function GetSimdAbiVersionMajor: UInt16; cdecl;

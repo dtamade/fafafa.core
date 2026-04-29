@@ -47,8 +47,11 @@ if not exist "%UNIT_DIR%" mkdir "%UNIT_DIR%"
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 
 set "LAZBUILD_EXE=%LAZBUILD%"
-if "%LAZBUILD_EXE%"=="" set "LAZBUILD_EXE=%ProgramFiles%\Lazarus\lazbuild.exe"
-if not exist "%LAZBUILD_EXE%" set "LAZBUILD_EXE=lazbuild"
+if "%LAZBUILD_EXE%"=="" (
+  set "LAZBUILD_EXE=%ROOT%..\..\tools\lazbuild.bat"
+  if not exist "%LAZBUILD_EXE%" set "LAZBUILD_EXE=%ProgramFiles%\Lazarus\lazbuild.exe"
+  if not exist "%LAZBUILD_EXE%" set "LAZBUILD_EXE=lazbuild"
+)
 
 set "MODE=%FAFAFA_BUILD_MODE%"
 if "%MODE%"=="" set "MODE=Release"
@@ -206,7 +209,7 @@ if /I "%SIMD_ENABLE_NEON_BACKEND%"=="1" set "LAZBUILD_EXTRA_OPTS=%LAZBUILD_EXTRA
 if /I "%SIMD_ENABLE_RISCVV_BACKEND%"=="1" set "LAZBUILD_EXTRA_OPTS=%LAZBUILD_EXTRA_OPTS% --opt=-dSIMD_RISCV_AVAILABLE --opt=-dSIMD_EXPERIMENTAL_RISCVV --opt=-dSIMD_BACKEND_RISCVV --opt=-dFAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND"
 if /I "%SIMD_ENABLE_AVX512_BACKEND%"=="1" set "LAZBUILD_EXTRA_OPTS=%LAZBUILD_EXTRA_OPTS% --opt=-dSIMD_BACKEND_AVX512"
 if /I "%SIMD_INIT_TRACE%"=="1" set "LAZBUILD_EXTRA_OPTS=%LAZBUILD_EXTRA_OPTS% --opt=-dSIMD_INIT_TRACE"
-"%LAZBUILD_EXE%" --build-mode=%MODE% --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%UNIT_DIR%" %LAZBUILD_EXTRA_OPTS% "%PROJ%" > "%BUILD_LOG%" 2>&1
+call "%LAZBUILD_EXE%" --build-mode=%MODE% --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%UNIT_DIR%" %LAZBUILD_EXTRA_OPTS% "%PROJ%" > "%BUILD_LOG%" 2>&1
 set "BUILD_RC=%ERRORLEVEL%"
 if /I "%SIMD_SUPPRESS_BUILD_WARNINGS%"=="1" (
   if exist "%BIN%" (

@@ -9,6 +9,7 @@ on:
 
 env:
   FPC_VERSION: "3.2.2"
+  FAFAFA_BUILD_MODE: Release
 
 jobs:
   # x86_64 Linux 测试 (SSE2/AVX2/AVX-512)
@@ -25,18 +26,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y fpc lazarus
 
-      - name: Build SIMD Tests
+      - name: Run SIMD Gate
         run: |
-          cd tests/fafafa.core.simd
-          lazbuild fafafa.core.simd.test.lpi
+          bash tests/fafafa.core.simd/BuildOrTest.sh gate
 
-      - name: Run Tests
-        run: |
-          ./tests/fafafa.core.simd/bin/fafafa.core.simd.test --all
-      - name: Check Memory Leaks
-        run: |
-          # HeapTrc 已在测试中启用，检查输出是否有泄漏
-          ./tests/fafafa.core.simd/bin/fafafa.core.simd.test --all 2>&1 | grep -q "0 unfreed memory blocks" || exit 1
+      - name: Upload SIMD artifacts (linux-x64)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simd-linux-x64
+          path: tests/fafafa.core.simd/logs
 
   # x86_64 Linux - fafafa.core.os
   test-linux-os-x64:
@@ -83,26 +82,20 @@ jobs:
         with:
           platforms: arm64
 
-      - name: Build and Test in ARM64 Container
+      - name: Run non-x86 SIMD smoke in ARM64 Container
         run: |
           docker run --rm --platform linux/arm64 \
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
             arm64v8/debian:bookworm \
-            bash -c "
-              apt-get update && apt-get install -y fpc lazarus-ide-gtk2 make
-              cd tests/fafafa.core.simd
-              lazbuild fafafa.core.simd.test.lpi || (cat ~/.lazarus/compilertest.log 2>/dev/null; exit 1)
-              ./bin/fafafa.core.simd.test --all
-            "
+            bash -lc 'set -euo pipefail; apt-get update; apt-get install -y fpc lazarus-ide-gtk2 make; bash tests/fafafa.core.simd/BuildOrTest.sh impl-smoke-nonx86'
 
-      - name: Upload fafafa.core.os artifacts (linux-arm64)
+      - name: Upload SIMD artifacts (linux-arm64)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: tests_os-linux-arm64
-          path: |
-            tests/fafafa.core.os/bin/tests_os
-            tests/fafafa.core.os/bin/tests_os.log
+          name: simd-linux-arm64
+          path: tests/fafafa.core.simd/logs
 
   # ARM64 Linux - fafafa.core.os (QEMU)
   test-linux-os-arm64:
@@ -124,12 +117,16 @@ jobs:
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
             arm64v8/debian:bookworm \
-            bash -c "\
-              apt-get update && apt-get install -y fpc lazarus-ide-gtk2 make \
-              cd tests/fafafa.core.os \
-              lazbuild fafafa.core.os.test.lpi || (cat ~/.lazarus/compilertest.log 2>/dev/null; exit 1) \
-              ./bin/tests_os --all --format=plain | tee /workspace/tests/fafafa.core.os/bin/tests_os.log \
-            "
+            bash -lc 'set -euo pipefail; apt-get update; apt-get install -y fpc lazarus-ide-gtk2 make; cd tests/fafafa.core.os; lazbuild fafafa.core.os.test.lpi || (cat /root/.lazarus/compilertest.log 2>/dev/null; exit 1); ./bin/tests_os --all --format=plain | tee /workspace/tests/fafafa.core.os/bin/tests_os.log'
+
+      - name: Upload fafafa.core.os artifacts (linux-arm64)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tests_os-linux-arm64
+          path: |
+            tests/fafafa.core.os/bin/tests_os
+            tests/fafafa.core.os/bin/tests_os.log
 
   # Windows x86_64 测试
   test-windows-x64:
@@ -144,16 +141,18 @@ jobs:
         run: |
           choco install freepascal lazarus --yes
 
-      - name: Build SIMD Tests
+      - name: Run SIMD Gate
         shell: cmd
         run: |
-          cd tests\fafafa.core.simd
-          lazbuild fafafa.core.simd.test.lpi
+          set FAFAFA_BUILD_MODE=Release
+          call tests\fafafa.core.simd\buildOrTest.bat gate
 
-      - name: Run Tests
-        shell: cmd
-        run: |
-          tests\fafafa.core.simd\bin\fafafa.core.simd.test.exe --all
+      - name: Upload SIMD artifacts (windows-x64)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simd-windows-x64
+          path: tests/fafafa.core.simd/logs
 
   # Windows x86_64 - fafafa.core.os
   test-windows-os-x64:
@@ -169,21 +168,15 @@ jobs:
         run: |
           choco install freepascal lazarus --yes
 
-      - name: Build fafafa.core.os tests
-        shell: cmd
-        run: |
-          cd tests\\fafafa.core.os
-          lazbuild fafafa.core.os.test.lpi
-
       - name: Run fafafa.core.os tests
         shell: cmd
         run: |
-          tests\\fafafa.core.os\\bin\\tests_os.exe --all --format=plain > tests\\fafafa.core.os\\bin\\tests_os.log
+          call tests\fafafa.core.os\buildOrTest.bat
 
       - name: Note soft failure reason (Windows toolchain)
         if: failure()
         run: |
-          echo "Soft fail: Windows Lazarus/FPC toolchain may be unavailable; see tests_os.log artifact."
+          echo "Soft fail: Windows Lazarus/FPC toolchain may be unavailable; see fafafa.core.os logs artifact."
 
       - name: Upload fafafa.core.os artifacts (windows-x64)
         if: always()
@@ -192,7 +185,8 @@ jobs:
           name: tests_os-windows-x64
           path: |
             tests/fafafa.core.os/bin/tests_os.exe
-            tests/fafafa.core.os/bin/tests_os.log
+            tests/fafafa.core.os/logs/build.txt
+            tests/fafafa.core.os/logs/test.txt
 
   # macOS x86_64 测试
   test-macos-x64:
@@ -328,11 +322,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y fpc lazarus
 
-      - name: Build SIMD Tests
-        run: |
-          cd tests/fafafa.core.simd
-          lazbuild fafafa.core.simd.test.lpi
-
       - name: Build FS Tests
         run: |
           cd tests/fafafa.core.fs
@@ -340,7 +329,8 @@ jobs:
 
       - name: Run SIMD Benchmark
         run: |
-          ./tests/fafafa.core.simd/bin/fafafa.core.simd.test --all 2>&1 | tee benchmark-simd.log
+          set -o pipefail
+          bash tests/fafafa.core.simd/BuildOrTest.sh perf-smoke 2>&1 | tee benchmark-simd.log
 
       - name: Run FS Benchmark
         run: |
