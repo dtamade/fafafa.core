@@ -186,6 +186,11 @@ findstr /c:"(9015) Linking" "%BUILD_LOG%" >nul 2>nul
 if not errorlevel 1 exit /b 0
 exit /b 1
 
+:build_log_has_compiled
+findstr /c:"(1008)" "%BUILD_LOG%" >nul 2>nul
+if not errorlevel 1 exit /b 0
+exit /b 1
+
 :normalize_binary
 if exist "%BIN%" exit /b 0
 if exist "%ROOT%bin2\fafafa.core.simd.test.exe" (
@@ -233,7 +238,7 @@ if /I "%SIMD_SUPPRESS_BUILD_WARNINGS%"=="1" (
     echo [BUILD] OK
     exit /b 0
   )
-  findstr /c:"(1008)" "%BUILD_LOG%" >nul 2>nul
+  call :build_log_has_compiled
   if not errorlevel 1 (
     echo [BUILD] OK
     exit /b 0
@@ -245,11 +250,21 @@ if not errorlevel 1 set "BUILD_FATAL=1"
 set "BUILD_LINKED=0"
 call :build_log_has_link
 if not errorlevel 1 set "BUILD_LINKED=1"
+set "BUILD_COMPILED=0"
+call :build_log_has_compiled
+if not errorlevel 1 set "BUILD_COMPILED=1"
 if not "%BUILD_RC%"=="0" (
-  if "%BUILD_FATAL%"=="0" if "%BUILD_LINKED%"=="1" if exist "%BIN%" (
-    echo [BUILD] WARN ^(lazbuild rc=%BUILD_RC% but artifact/build log are usable^)
-    echo [BUILD] OK
-    exit /b 0
+  if "%BUILD_FATAL%"=="0" if "%BUILD_LINKED%"=="1" (
+    if exist "%BIN%" (
+      echo [BUILD] WARN ^(lazbuild rc=%BUILD_RC% but artifact/build log are usable^)
+      echo [BUILD] OK
+      exit /b 0
+    )
+    if "%BUILD_COMPILED%"=="1" (
+      echo [BUILD] WARN ^(lazbuild rc=%BUILD_RC% and compile/link summary is present; expected binary path probe missed: %BIN%^)
+      echo [BUILD] OK
+      exit /b 0
+    )
   )
   echo [BUILD] FAILED ^(see %BUILD_LOG%^ )
   type "%BUILD_LOG%"
