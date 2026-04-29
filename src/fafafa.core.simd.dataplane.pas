@@ -223,6 +223,7 @@ initialization
   WriteLn(StdErr, '[INIT-TRACE] simd.dataplane:init:start');
   Flush(StdErr);
   {$ENDIF}
+  g_SimdDataPlaneRebindLock := Default(TRTLCriticalSection);
   InitCriticalSection(g_SimdDataPlaneRebindLock);
   {$IFDEF SIMD_INIT_TRACE}
   WriteLn(StdErr, '[INIT-TRACE] simd.dataplane:init:after-lock');

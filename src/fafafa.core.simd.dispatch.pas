@@ -979,6 +979,7 @@ end;
 
 function DefaultBackendName(const aBackend: TSimdBackend): string; inline;
 begin
+  Result := '';
   case aBackend of
     sbScalar: Result := 'Scalar';
     sbSSE2: Result := 'SSE2';
@@ -995,6 +996,7 @@ end;
 
 function DefaultBackendDescription(const aBackend: TSimdBackend): string; inline;
 begin
+  Result := '';
   case aBackend of
     sbScalar: Result := 'Pure scalar reference implementation';
     sbSSE2: Result := 'x86-64 SSE2 SIMD implementation';

@@ -399,6 +399,7 @@ initialization
   WriteLn(StdErr, '[INIT-TRACE] simd.runtime:init:start');
   Flush(StdErr);
   {$ENDIF}
+  g_SimdRuntimeRebindLock := Default(TRTLCriticalSection);
   InitCriticalSection(g_SimdRuntimeRebindLock);
   {$IFDEF SIMD_INIT_TRACE}
   WriteLn(StdErr, '[INIT-TRACE] simd.runtime:init:after-lock');
@@ -410,6 +411,7 @@ initialization
   Flush(StdErr);
   {$ENDIF}
   atomic_store(g_SimdRuntimeTargetDispatchPtr, nil, mo_release);
+  g_SimdRuntimeTargetGeneration := 0;
   atomic_store(g_SimdRuntimeTargetGeneration, 0, mo_release);
   AddDispatchChangedHook(@InvalidateSimdRuntimeState);
   {$IFDEF SIMD_INIT_TRACE}

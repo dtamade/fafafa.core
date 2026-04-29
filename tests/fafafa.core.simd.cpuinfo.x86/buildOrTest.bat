@@ -17,12 +17,18 @@ shift
 goto :collect_args
 :args_done
 
-set "ROOT=%~dp0"
+set "ROOT=%SIMD_SCRIPT_ROOT%"
+if "%ROOT%"=="" set "ROOT=%~dp0"
+if not "%ROOT%"=="" if not "%ROOT:~-1%"=="\" set "ROOT=%ROOT%\"
+if not exist "%ROOT%buildOrTest.bat" set "ROOT=%CD%\tests\fafafa.core.simd.cpuinfo.x86\"
+if not "%ROOT:~-1%"=="\" set "ROOT=%ROOT%\"
 set "PROJ=%ROOT%fafafa.core.simd.cpuinfo.x86.test.lpi"
-set "BIN_DIR=%ROOT%bin"
-set "LIB_DIR=%ROOT%lib"
+set "OUTPUT_ROOT=%SIMD_OUTPUT_ROOT%"
+if "%OUTPUT_ROOT%"=="" set "OUTPUT_ROOT=%ROOT%"
+set "BIN_DIR=%OUTPUT_ROOT%\bin"
+set "LIB_DIR=%OUTPUT_ROOT%\lib"
 set "BIN=%BIN_DIR%\fafafa.core.simd.cpuinfo.x86.test.exe"
-set "LOG_DIR=%ROOT%logs"
+set "LOG_DIR=%OUTPUT_ROOT%\logs"
 set "BUILD_LOG=%LOG_DIR%\build.txt"
 set "TEST_LOG=%LOG_DIR%\test.txt"
 set "MODE=%FAFAFA_BUILD_MODE%"
@@ -33,7 +39,11 @@ if not exist "%LIB_DIR%" mkdir "%LIB_DIR%"
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 
 set "LAZBUILD_EXE=%LAZBUILD%"
-if "%LAZBUILD_EXE%"=="" set "LAZBUILD_EXE=%ProgramFiles%\Lazarus\lazbuild.exe"
+if "%LAZBUILD_EXE%"=="" (
+  set "LAZBUILD_EXE=%ROOT%..\..\tools\lazbuild.bat"
+  if not exist "%LAZBUILD_EXE%" set "LAZBUILD_EXE=%ProgramFiles%\Lazarus\lazbuild.exe"
+  if not exist "%LAZBUILD_EXE%" set "LAZBUILD_EXE=lazbuild"
+)
 if not exist "%LAZBUILD_EXE%" set "LAZBUILD_EXE=lazbuild"
 
 if /I "%ACTION%"=="debug" set "MODE=Debug"
@@ -61,7 +71,7 @@ set "LAZARUS_MODE=%MODE%"
 if /I "%LAZARUS_MODE%"=="Release" set "LAZARUS_MODE=Default"
 echo [BUILD] Project: %PROJ% (mode=%MODE%, lazarus-mode=%LAZARUS_MODE%)
 echo. > "%BUILD_LOG%"
-"%LAZBUILD_EXE%" --build-mode=%LAZARUS_MODE% --build-all "%PROJ%" > "%BUILD_LOG%" 2>&1
+call "%LAZBUILD_EXE%" --build-mode=%LAZARUS_MODE% --build-all "%PROJ%" > "%BUILD_LOG%" 2>&1
 if errorlevel 1 (
   echo [BUILD] FAILED (see %BUILD_LOG%)
   type "%BUILD_LOG%"

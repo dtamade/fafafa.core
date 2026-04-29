@@ -1003,6 +1003,41 @@ check_windows_runner_parity() {
   echo "[CHECK] OK (windows runner parity signatures present)"
 }
 
+check_windows_cpuinfo_x86_runner_guard() {
+  local LBat
+  local LPattern
+  local LMissing
+  local -a LRequired
+
+  LBat="${ROOT}/../fafafa.core.simd.cpuinfo.x86/buildOrTest.bat"
+  if [[ ! -f "${LBat}" ]]; then
+    echo "[CHECK] Missing Windows cpuinfo.x86 runner: ${LBat}"
+    return 1
+  fi
+
+  LMissing=0
+  LRequired=(
+    'set "OUTPUT_ROOT=%SIMD_OUTPUT_ROOT%"'
+    'if "%OUTPUT_ROOT%"=="" set "OUTPUT_ROOT=%ROOT%"'
+    'set "LAZBUILD_EXE=%LAZBUILD%"'
+    'set "LAZBUILD_EXE=%ROOT%..\..\tools\lazbuild.bat"'
+    'call "%LAZBUILD_EXE%" --build-mode=%LAZARUS_MODE% --build-all "%PROJ%" > "%BUILD_LOG%" 2>&1'
+  )
+
+  for LPattern in "${LRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LBat}" >/dev/null; then
+      echo "[CHECK] Windows cpuinfo.x86 runner missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  if [[ "${LMissing}" -ne 0 ]]; then
+    return 1
+  fi
+
+  echo "[CHECK] OK (Windows cpuinfo.x86 runner lazbuild/output guards present)"
+}
+
 check_avx512_optin_runner_guard() {
   local LShellRunner
   local LBatRunner
@@ -4110,6 +4145,7 @@ gate_step_build_check() {
   build_project || return $?
   check_build_log || return $?
   check_windows_runner_parity || return $?
+  check_windows_cpuinfo_x86_runner_guard || return $?
   check_avx512_optin_runner_guard || return $?
   check_nonx86_optin_runner_guard || return $?
   check_windows_experimental_tests_runner_guard || return $?
