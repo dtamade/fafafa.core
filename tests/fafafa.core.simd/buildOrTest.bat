@@ -255,28 +255,42 @@ call :build_log_has_compiled
 if not errorlevel 1 set "BUILD_COMPILED=1"
 if not "%BUILD_RC%"=="0" (
   if "%BUILD_FATAL%"=="0" if "%BUILD_LINKED%"=="1" (
-    if exist "%BIN%" (
-      echo [BUILD] WARN ^(lazbuild rc=%BUILD_RC% but artifact/build log are usable^)
-      echo [BUILD] OK
-      exit /b 0
-    )
-    if "%BUILD_COMPILED%"=="1" (
-      echo [BUILD] WARN ^(lazbuild rc=%BUILD_RC% and compile/link summary is present; expected binary path probe missed: %BIN%^)
-      echo [BUILD] OK
-      exit /b 0
-    )
+    if exist "%BIN%" goto :build_warn_nonzero_usable_artifact
+    if "%BUILD_COMPILED%"=="1" goto :build_warn_nonzero_compiled_summary
   )
-  echo [BUILD] FAILED ^(see %BUILD_LOG%^ )
-  type "%BUILD_LOG%"
-  exit /b 1
+  goto :build_failed_from_log
 )
 if not exist "%BIN%" (
-  echo [BUILD] FAILED ^(binary missing after build: %BIN%^)
-  type "%BUILD_LOG%"
-  exit /b 1
+  if "%BUILD_LINKED%"=="1" if "%BUILD_COMPILED%"=="1" goto :build_warn_zero_compiled_summary
+  goto :build_failed_missing_binary
 )
 echo [BUILD] OK
 exit /b 0
+
+:build_warn_nonzero_usable_artifact
+echo [BUILD] WARN ^(lazbuild rc=%BUILD_RC% but artifact/build log are usable^)
+echo [BUILD] OK
+exit /b 0
+
+:build_warn_nonzero_compiled_summary
+echo [BUILD] WARN ^(lazbuild rc=%BUILD_RC% and compile/link summary is present; expected binary path probe missed: %BIN%^)
+echo [BUILD] OK
+exit /b 0
+
+:build_warn_zero_compiled_summary
+echo [BUILD] WARN ^(compile/link summary is present; expected binary path probe missed: %BIN%^)
+echo [BUILD] OK
+exit /b 0
+
+:build_failed_from_log
+echo [BUILD] FAILED ^(see %BUILD_LOG%^)
+type "%BUILD_LOG%"
+exit /b 1
+
+:build_failed_missing_binary
+echo [BUILD] FAILED ^(binary missing after build: %BIN%^)
+type "%BUILD_LOG%"
+exit /b 1
 
 :check
 call :build

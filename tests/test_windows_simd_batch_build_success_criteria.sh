@@ -54,6 +54,12 @@ type ${WIN_TMP_DIR}\\failure.log
 exit /b 1
 EOF
 
+cat > "${TMP_DIR}/fake_zero_rc_lazbuild.bat" <<EOF
+@echo off
+type ${WIN_TMP_DIR}\\success.log
+exit /b 0
+EOF
+
 cat > "${TMP_DIR}/run_success.bat" <<EOF
 @echo off
 cd /d ${WIN_REPO_ROOT}
@@ -68,6 +74,15 @@ cat > "${TMP_DIR}/run_failure.bat" <<EOF
 cd /d ${WIN_REPO_ROOT}
 set "LAZBUILD=${WIN_TMP_DIR}\\fake_failure_lazbuild.bat"
 set "SIMD_OUTPUT_ROOT=${WIN_TMP_DIR}\\failure-out"
+call tests\\fafafa.core.simd\\buildOrTest.bat build
+exit /b %ERRORLEVEL%
+EOF
+
+cat > "${TMP_DIR}/run_zero_rc.bat" <<EOF
+@echo off
+cd /d ${WIN_REPO_ROOT}
+set "LAZBUILD=${WIN_TMP_DIR}\\fake_zero_rc_lazbuild.bat"
+set "SIMD_OUTPUT_ROOT=${WIN_TMP_DIR}\\zero-rc-out"
 call tests\\fafafa.core.simd\\buildOrTest.bat build
 exit /b %ERRORLEVEL%
 EOF
@@ -90,6 +105,26 @@ fi
 if ! printf '%s' "${SUCCESS_OUTPUT}" | rg -n "\[BUILD\] OK" >/dev/null; then
   printf '%s\n' "${SUCCESS_OUTPUT}" >&2
   fail "synthetic compiled-summary batch case did not finish with BUILD OK"
+fi
+
+set +e
+ZERO_RC_OUTPUT="$(wine cmd /c "${WIN_TMP_DIR}\\run_zero_rc.bat" 2>&1)"
+ZERO_RC_RC=$?
+set -e
+
+if [[ ${ZERO_RC_RC} -ne 0 ]]; then
+  printf '%s\n' "${ZERO_RC_OUTPUT}" >&2
+  fail "synthetic zero-rc compiled-summary batch case should succeed"
+fi
+
+if ! printf '%s' "${ZERO_RC_OUTPUT}" | rg -n "\[BUILD\] WARN .*expected binary path probe missed" >/dev/null; then
+  printf '%s\n' "${ZERO_RC_OUTPUT}" >&2
+  fail "synthetic zero-rc compiled-summary batch case did not emit the expected warn marker"
+fi
+
+if ! printf '%s' "${ZERO_RC_OUTPUT}" | rg -n "\[BUILD\] OK" >/dev/null; then
+  printf '%s\n' "${ZERO_RC_OUTPUT}" >&2
+  fail "synthetic zero-rc compiled-summary batch case did not finish with BUILD OK"
 fi
 
 set +e
