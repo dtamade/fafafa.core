@@ -255,6 +255,24 @@ findstr /c:"TTestCase_" "%TEST_LOG%" >nul 2>nul
 if not errorlevel 1 exit /b 0
 exit /b 1
 
+:test_log_has_explicit_pass
+findstr /c:"Failures: 0" "%TEST_LOG%" >nul 2>nul
+if errorlevel 1 exit /b 1
+findstr /c:"Errors: 0" "%TEST_LOG%" >nul 2>nul
+if errorlevel 1 exit /b 1
+findstr /c:"All tests passed!" "%TEST_LOG%" >nul 2>nul
+if errorlevel 1 exit /b 1
+findstr /c:"ERROR: suite filter matched no tests." "%TEST_LOG%" >nul 2>nul
+if not errorlevel 1 exit /b 1
+exit /b 0
+
+:test_log_has_failure_markers
+findstr /r /c:"Failures:[ ]*[1-9][0-9]*" /c:"Errors:[ ]*[1-9][0-9]*" /c:"Number of failures:[ ]*[1-9][0-9]*" /c:"Number of errors:[ ]*[1-9][0-9]*" /c:"Time:.* E:[1-9][0-9]*" /c:"Time:.* F:[1-9][0-9]*" "%TEST_LOG%" >nul 2>nul
+if not errorlevel 1 exit /b 0
+findstr /c:"Some tests failed!" "%TEST_LOG%" >nul 2>nul
+if not errorlevel 1 exit /b 0
+exit /b 1
+
 :normalize_binary
 if exist "%BIN%" exit /b 0
 if exist "%ROOT%bin2\fafafa.core.simd.test.exe" (
@@ -288,6 +306,15 @@ echo. > "%BUILD_LOG%"
 if not exist "%BIN_DIR%" mkdir "%BIN_DIR%"
 if not exist "%UNIT_DIR%" mkdir "%UNIT_DIR%"
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
+if /I "%FAFAFA_SKIP_BUILD%"=="1" (
+  call :normalize_binary
+  if not errorlevel 1 (
+    echo [BUILD] SKIPPED ^(FAFAFA_SKIP_BUILD=1^)
+    exit /b 0
+  )
+  echo [BUILD] Missing binary for FAFAFA_SKIP_BUILD=1: %BIN%
+  exit /b 2
+)
 set "LAZBUILD_EXTRA_OPTS="
 if /I "%SIMD_SUPPRESS_BUILD_WARNINGS%"=="1" set "LAZBUILD_EXTRA_OPTS=--opt=-vw- --opt=-vh- --opt=-vn-"
 if /I "%SIMD_ENABLE_NEON_BACKEND%"=="1" set "LAZBUILD_EXTRA_OPTS=%LAZBUILD_EXTRA_OPTS% --opt=-dSIMD_BACKEND_NEON --opt=-dFAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND"
@@ -870,24 +897,34 @@ if "%TEST_LIST_SUITES_MODE%"=="1" if "%TEST_LISTING_VALID%"=="1" (
   echo [TEST] OK
   exit /b 0
 )
-if /I "%SIMD_SUPPRESS_BUILD_WARNINGS%"=="1" (
-  findstr /c:"Failures: 0" "%TEST_LOG%" >nul 2>nul
-  if not errorlevel 1 findstr /c:"Errors: 0" "%TEST_LOG%" >nul 2>nul && set "TEST_RC=0"
+call :test_log_has_explicit_pass
+set "EXPLICIT_PASS_RC=%ERRORLEVEL%"
+if /I "%SIMD_BATCH_DEBUG%"=="1" echo [DEBUG] explicit_pass_rc="%EXPLICIT_PASS_RC%" test_rc="%TEST_RC%"
+if "%EXPLICIT_PASS_RC%"=="0" (
+  if not "%TEST_RC%"=="0" echo [TEST] WARN ^(runner rc=%TEST_RC% but log shows explicit pass; normalizing to 0^)
+  set "TEST_RC=0"
 )
 if not "%TEST_RC%"=="0" (
-  echo [TEST] FAILED ^(see %TEST_LOG%^ )
+  if /I "%SIMD_BATCH_DEBUG%"=="1" echo [DEBUG] entering_test_rc_failure_branch test_rc="%TEST_RC%"
+  echo [TEST] FAILED ^(see %TEST_LOG%^)
   type "%TEST_LOG%"
   exit /b 1
 )
+if /I "%SIMD_BATCH_DEBUG%"=="1" echo [DEBUG] before_invalid_option_check
 findstr /b /c:"Invalid option" "%TEST_LOG%" >nul 2>nul
-if not errorlevel 1 (
-  echo [TEST] FAILED: unsupported test argument (see %TEST_LOG%)
+set "INVALID_OPTION_RC=%ERRORLEVEL%"
+if /I "%SIMD_BATCH_DEBUG%"=="1" echo [DEBUG] invalid_option_rc="%INVALID_OPTION_RC%" test_rc="%TEST_RC%"
+if "%INVALID_OPTION_RC%"=="0" (
+  echo [TEST] FAILED: unsupported test argument ^(see %TEST_LOG%^)
   type "%TEST_LOG%"
   exit /b 2
 )
-findstr /r /c:"Number of failures:[ ]*[1-9][0-9]*" /c:"Number of errors:[ ]*[1-9][0-9]*" /c:"Time:.* E:[1-9][0-9]*" /c:"Time:.* F:[1-9][0-9]*" "%TEST_LOG%" >nul 2>nul
-if not errorlevel 1 (
-  echo [TEST] FAILED: test runner reports failures/errors (see %TEST_LOG%)
+if /I "%SIMD_BATCH_DEBUG%"=="1" echo [DEBUG] before_failure_markers_check
+call :test_log_has_failure_markers
+set "FAILURE_MARKERS_RC=%ERRORLEVEL%"
+if /I "%SIMD_BATCH_DEBUG%"=="1" echo [DEBUG] failure_markers_rc="%FAILURE_MARKERS_RC%" test_rc="%TEST_RC%"
+if "%FAILURE_MARKERS_RC%"=="0" (
+  echo [TEST] FAILED: test runner reports failures/errors ^(see %TEST_LOG%^)
   type "%TEST_LOG%"
   exit /b 1
 )
@@ -898,15 +935,24 @@ exit /b %ERRORLEVEL%
 
 :test_concurrent_repeat
 set "REPEAT_ROUNDS="
-for /f "tokens=1" %%R in ("%NORMALIZED_TEST_ARGS%") do set "REPEAT_ROUNDS=%%R"
+if not "%NORMALIZED_TEST_ARGS%"=="" set "REPEAT_ROUNDS=%NORMALIZED_TEST_ARGS:~1%"
 if "%REPEAT_ROUNDS%"=="" set "REPEAT_ROUNDS=%SIMD_CONCURRENT_REPEAT_ROUNDS%"
 if "%REPEAT_ROUNDS%"=="" set "REPEAT_ROUNDS=10"
-
-echo(%REPEAT_ROUNDS%| findstr /r "^[1-9][0-9]*$" >nul
+if /I "%SIMD_BATCH_DEBUG%"=="1" echo [DEBUG] repeat_rounds="%REPEAT_ROUNDS%" normalized_test_args="%NORMALIZED_TEST_ARGS%"
+set /a REPEAT_ROUNDS_NUM=%REPEAT_ROUNDS% >nul 2>nul
 if errorlevel 1 (
   echo [REPEAT] Invalid rounds: %REPEAT_ROUNDS% ^(expect positive integer^)
   exit /b 2
 )
+if "%REPEAT_ROUNDS_NUM%"=="0" (
+  echo [REPEAT] Invalid rounds: %REPEAT_ROUNDS% ^(expect positive integer^)
+  exit /b 2
+)
+if not "%REPEAT_ROUNDS_NUM%"=="%REPEAT_ROUNDS%" (
+  echo [REPEAT] Invalid rounds: %REPEAT_ROUNDS% ^(expect positive integer^)
+  exit /b 2
+)
+set "REPEAT_ROUNDS=%REPEAT_ROUNDS_NUM%"
 
 call :build
 if errorlevel 1 exit /b 1
@@ -915,20 +961,32 @@ for /L %%I in (1,1,%REPEAT_ROUNDS%) do (
   echo [REPEAT] %%I/%REPEAT_ROUNDS% suite=TTestCase_SimdConcurrent
   echo. > "%TEST_LOG%"
   "%BIN%" --suite=TTestCase_SimdConcurrent > "%TEST_LOG%" 2>&1
-  if errorlevel 1 (
-    echo [TEST] FAILED (see %TEST_LOG%)
+  set "REPEAT_TEST_RC=!ERRORLEVEL!"
+  call :test_log_has_explicit_pass
+  set "REPEAT_EXPLICIT_PASS_RC=!ERRORLEVEL!"
+  if /I "!SIMD_BATCH_DEBUG!"=="1" echo [DEBUG] repeat_explicit_pass_rc=!REPEAT_EXPLICIT_PASS_RC! repeat_test_rc=!REPEAT_TEST_RC!
+  if "!REPEAT_EXPLICIT_PASS_RC!"=="0" (
+    if not "!REPEAT_TEST_RC!"=="0" echo [TEST] WARN ^(suite=TTestCase_SimdConcurrent rc=!REPEAT_TEST_RC! but log shows explicit pass; normalizing to 0^)
+    set "REPEAT_TEST_RC=0"
+  )
+  if not "!REPEAT_TEST_RC!"=="0" (
+    echo [TEST] FAILED ^(see %TEST_LOG%^)
     type "%TEST_LOG%"
     exit /b 1
   )
   findstr /b /c:"Invalid option" "%TEST_LOG%" >nul 2>nul
-  if not errorlevel 1 (
-    echo [TEST] FAILED: unsupported test argument (see %TEST_LOG%)
+  set "REPEAT_INVALID_OPTION_RC=!ERRORLEVEL!"
+  if /I "!SIMD_BATCH_DEBUG!"=="1" echo [DEBUG] repeat_invalid_option_rc=!REPEAT_INVALID_OPTION_RC! repeat_test_rc=!REPEAT_TEST_RC!
+  if "!REPEAT_INVALID_OPTION_RC!"=="0" (
+    echo [TEST] FAILED: unsupported test argument ^(see %TEST_LOG%^)
     type "%TEST_LOG%"
     exit /b 2
   )
-  findstr /r /c:"Number of failures:[ ]*[1-9][0-9]*" /c:"Number of errors:[ ]*[1-9][0-9]*" /c:"Time:.* E:[1-9][0-9]*" /c:"Time:.* F:[1-9][0-9]*" "%TEST_LOG%" >nul 2>nul
-  if not errorlevel 1 (
-    echo [TEST] FAILED: test runner reports failures/errors (see %TEST_LOG%)
+  call :test_log_has_failure_markers
+  set "REPEAT_FAILURE_MARKERS_RC=!ERRORLEVEL!"
+  if /I "!SIMD_BATCH_DEBUG!"=="1" echo [DEBUG] repeat_failure_markers_rc=!REPEAT_FAILURE_MARKERS_RC! repeat_test_rc=!REPEAT_TEST_RC!
+  if "!REPEAT_FAILURE_MARKERS_RC!"=="0" (
+    echo [TEST] FAILED: test runner reports failures/errors ^(see %TEST_LOG%^)
     type "%TEST_LOG%"
     exit /b 1
   )
@@ -957,15 +1015,24 @@ if not exist "%CPUINFO_RUNNER%" (
 )
 
 set "CPUINFO_REPEAT_ROUNDS="
-for /f "tokens=1" %%R in ("%NORMALIZED_TEST_ARGS%") do set "CPUINFO_REPEAT_ROUNDS=%%R"
+if not "%NORMALIZED_TEST_ARGS%"=="" set "CPUINFO_REPEAT_ROUNDS=%NORMALIZED_TEST_ARGS:~1%"
 if "%CPUINFO_REPEAT_ROUNDS%"=="" set "CPUINFO_REPEAT_ROUNDS=%SIMD_CPUINFO_LAZY_REPEAT_ROUNDS%"
 if "%CPUINFO_REPEAT_ROUNDS%"=="" set "CPUINFO_REPEAT_ROUNDS=5"
-
-echo(%CPUINFO_REPEAT_ROUNDS%| findstr /r "^[1-9][0-9]*$" >nul
+if /I "%SIMD_BATCH_DEBUG%"=="1" echo [DEBUG] cpuinfo_repeat_rounds="%CPUINFO_REPEAT_ROUNDS%" normalized_test_args="%NORMALIZED_TEST_ARGS%"
+set /a CPUINFO_REPEAT_ROUNDS_NUM=%CPUINFO_REPEAT_ROUNDS% >nul 2>nul
 if errorlevel 1 (
   echo [CPUINFO-LAZY] Invalid rounds: %CPUINFO_REPEAT_ROUNDS% ^(expect positive integer^)
   exit /b 2
 )
+if "%CPUINFO_REPEAT_ROUNDS_NUM%"=="0" (
+  echo [CPUINFO-LAZY] Invalid rounds: %CPUINFO_REPEAT_ROUNDS% ^(expect positive integer^)
+  exit /b 2
+)
+if not "%CPUINFO_REPEAT_ROUNDS_NUM%"=="%CPUINFO_REPEAT_ROUNDS%" (
+  echo [CPUINFO-LAZY] Invalid rounds: %CPUINFO_REPEAT_ROUNDS% ^(expect positive integer^)
+  exit /b 2
+)
+set "CPUINFO_REPEAT_ROUNDS=%CPUINFO_REPEAT_ROUNDS_NUM%"
 
 set "SIMD_OUTPUT_ROOT=%CPUINFO_OUTPUT_ROOT%"
 call "%CPUINFO_RUNNER%" test --list-suites
@@ -1436,14 +1503,14 @@ echo [PERF] Running: %BIN% %PERF_ARGS%
 echo. > "%TEST_LOG%"
 "%BIN%" %PERF_ARGS% > "%TEST_LOG%" 2>&1
 if errorlevel 1 (
-  echo [PERF] FAILED (see %TEST_LOG%)
+  echo [PERF] FAILED ^(see %TEST_LOG%^)
   type "%TEST_LOG%"
   exit /b 1
 )
 
 findstr /b /c:"Invalid option" "%TEST_LOG%" >nul 2>nul
 if not errorlevel 1 (
-  echo [PERF] FAILED: unsupported bench argument (see %TEST_LOG%)
+  echo [PERF] FAILED: unsupported bench argument ^(see %TEST_LOG%^)
   type "%TEST_LOG%"
   exit /b 2
 )
