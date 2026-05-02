@@ -303,7 +303,7 @@ procedure simd_stream_si64(var Dest; Value: Int64); // Non-temporal store 64-bit
 implementation
 
 uses
-  SysUtils;
+  SysUtils, Math;
 
 procedure EnsureExperimentalIntrinsicsEnabled; inline;
 begin
@@ -331,6 +331,42 @@ begin
   if aValue < Low(SmallInt) then
     Exit(Low(SmallInt));
   Result := SmallInt(aValue);
+end;
+
+function SelectMinSingle(aLeft, aRight: Single): Single; inline;
+begin
+  if IsNan(aLeft) or IsNan(aRight) then
+    Exit(aRight);
+  if aLeft < aRight then
+    Exit(aLeft);
+  Result := aRight;
+end;
+
+function SelectMaxSingle(aLeft, aRight: Single): Single; inline;
+begin
+  if IsNan(aLeft) or IsNan(aRight) then
+    Exit(aRight);
+  if aLeft > aRight then
+    Exit(aLeft);
+  Result := aRight;
+end;
+
+function SelectMinDouble(aLeft, aRight: Double): Double; inline;
+begin
+  if IsNan(aLeft) or IsNan(aRight) then
+    Exit(aRight);
+  if aLeft < aRight then
+    Exit(aLeft);
+  Result := aRight;
+end;
+
+function SelectMaxDouble(aLeft, aRight: Double): Double; inline;
+begin
+  if IsNan(aLeft) or IsNan(aRight) then
+    Exit(aRight);
+  if aLeft > aRight then
+    Exit(aLeft);
+  Result := aRight;
 end;
 
 // === SSE2 Intrinsics 实现 ===
@@ -3051,366 +3087,111 @@ asm
 {$ENDIF}
 end;
 
-// Floating-Point 新函�?
-function simd_min_ps(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]; movups xmm1, [rdx]; minps xmm0, xmm1  // 4个单精度浮点最小�?
-    {$ELSE}
-    movups xmm0, [rdi]; movups xmm1, [rsi]; minps xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movups xmm0, [eax]; movups xmm1, [edx]; minps xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+// Keep these TM128-returning ops in Pascal to avoid Win64 hidden-result ABI hazards.
+function simd_min_ps(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    Result.m128_f32[LIndex] := SelectMinSingle(a.m128_f32[LIndex], b.m128_f32[LIndex]);
 end;
 
-function simd_max_ps(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]; movups xmm1, [rdx]; maxps xmm0, xmm1  // 4个单精度浮点最大�?
-    {$ELSE}
-    movups xmm0, [rdi]; movups xmm1, [rsi]; maxps xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movups xmm0, [eax]; movups xmm1, [edx]; maxps xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_max_ps(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    Result.m128_f32[LIndex] := SelectMaxSingle(a.m128_f32[LIndex], b.m128_f32[LIndex]);
 end;
 
-function simd_min_pd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; movupd xmm1, [rdx]; minpd xmm0, xmm1  // 2个双精度浮点最小�?
-    {$ELSE}
-    movupd xmm0, [rdi]; movupd xmm1, [rsi]; minpd xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; minpd xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_min_pd(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 1 do
+    Result.m128d_f64[LIndex] := SelectMinDouble(a.m128d_f64[LIndex], b.m128d_f64[LIndex]);
 end;
 
-function simd_max_pd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; movupd xmm1, [rdx]; maxpd xmm0, xmm1  // 2个双精度浮点最大�?
-    {$ELSE}
-    movupd xmm0, [rdi]; movupd xmm1, [rsi]; maxpd xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; maxpd xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_max_pd(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 1 do
+    Result.m128d_f64[LIndex] := SelectMaxDouble(a.m128d_f64[LIndex], b.m128d_f64[LIndex]);
 end;
 
-function simd_add_sd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; movsd xmm1, [rdx]; addsd xmm0, xmm1  // 标量双精度加法，高位保持
-  {$ELSE}
-    movupd xmm0, [rdi]; movsd xmm1, [rsi]; addsd xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; addsd xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_add_sd(constref a, b: TM128): TM128;
+begin
+  Result := a;
+  Result.m128d_f64[0] := a.m128d_f64[0] + b.m128d_f64[0];
 end;
 
-function simd_sub_sd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; movsd xmm1, [rdx]; subsd xmm0, xmm1  // 标量双精度减�?
-    {$ELSE}
-    movupd xmm0, [rdi]; movsd xmm1, [rsi]; subsd xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; subsd xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_sub_sd(constref a, b: TM128): TM128;
+begin
+  Result := a;
+  Result.m128d_f64[0] := a.m128d_f64[0] - b.m128d_f64[0];
 end;
 
-function simd_mul_sd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; movsd xmm1, [rdx]; mulsd xmm0, xmm1  // 标量双精度乘�?
-    {$ELSE}
-    movupd xmm0, [rdi]; movsd xmm1, [rsi]; mulsd xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; mulsd xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_mul_sd(constref a, b: TM128): TM128;
+begin
+  Result := a;
+  Result.m128d_f64[0] := a.m128d_f64[0] * b.m128d_f64[0];
 end;
 
-function simd_div_sd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; movsd xmm1, [rdx]; divsd xmm0, xmm1  // 标量双精度除�?
-    {$ELSE}
-    movupd xmm0, [rdi]; movsd xmm1, [rsi]; divsd xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; divsd xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_div_sd(constref a, b: TM128): TM128;
+begin
+  Result := a;
+  Result.m128d_f64[0] := a.m128d_f64[0] / b.m128d_f64[0];
 end;
 
-function simd_sqrt_sd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; movsd xmm1, [rdx]; sqrtsd xmm0, xmm1  // 标量双精度开方，a的高位保�?
-    {$ELSE}
-    movupd xmm0, [rdi]; movsd xmm1, [rsi]; sqrtsd xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; sqrtsd xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_sqrt_sd(constref a, b: TM128): TM128;
+begin
+  Result := a;
+  Result.m128d_f64[0] := Sqrt(b.m128d_f64[0]);
 end;
 
-function simd_min_sd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; movsd xmm1, [rdx]; minsd xmm0, xmm1  // 标量双精度最小�?
-    {$ELSE}
-    movupd xmm0, [rdi]; movsd xmm1, [rsi]; minsd xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; minsd xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_min_sd(constref a, b: TM128): TM128;
+begin
+  Result := a;
+  Result.m128d_f64[0] := SelectMinDouble(a.m128d_f64[0], b.m128d_f64[0]);
 end;
 
-function simd_max_sd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; movsd xmm1, [rdx]; maxsd xmm0, xmm1  // 标量双精度最大�?
-    {$ELSE}
-    movupd xmm0, [rdi]; movsd xmm1, [rsi]; maxsd xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; maxsd xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_max_sd(constref a, b: TM128): TM128;
+begin
+  Result := a;
+  Result.m128d_f64[0] := SelectMaxDouble(a.m128d_f64[0], b.m128d_f64[0]);
 end;
 
-// === 双精度逻辑运算实现 ===
-function simd_and_pd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; movupd xmm1, [rdx]; andpd xmm0, xmm1  // 双精度逻辑�?
-    {$ELSE}
-    movupd xmm0, [rdi]; movupd xmm1, [rsi]; andpd xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; andpd xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_and_pd(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.m128i_u8[LIndex] := a.m128i_u8[LIndex] and b.m128i_u8[LIndex];
 end;
 
-function simd_or_pd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; movupd xmm1, [rdx]; orpd xmm0, xmm1  // 双精度逻辑�?
-    {$ELSE}
-    movupd xmm0, [rdi]; movupd xmm1, [rsi]; orpd xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; orpd xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_or_pd(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.m128i_u8[LIndex] := a.m128i_u8[LIndex] or b.m128i_u8[LIndex];
 end;
 
-function simd_xor_pd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; movupd xmm1, [rdx]; xorpd xmm0, xmm1  // 双精度逻辑异或
-  {$ELSE}
-    movupd xmm0, [rdi]; movupd xmm1, [rsi]; xorpd xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; xorpd xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_xor_pd(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.m128i_u8[LIndex] := a.m128i_u8[LIndex] xor b.m128i_u8[LIndex];
 end;
 
-function simd_andnot_pd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; movupd xmm1, [rdx]; andnpd xmm0, xmm1  // 双精度逻辑与非 (~a & b)
-  {$ELSE}
-    movupd xmm0, [rdi]; movupd xmm1, [rsi]; andnpd xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; andnpd xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_andnot_pd(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.m128i_u8[LIndex] := Byte(not a.m128i_u8[LIndex]) and b.m128i_u8[LIndex];
 end;
 
 // 重复的比较函数实现已删除，保留汇编版�?

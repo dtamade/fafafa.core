@@ -664,8 +664,10 @@ type
   TTestCase_X86Sse2AbiBasics = class(TTestCase)
   published
     procedure Test_AddAndCmpeqMovemask;
+    procedure Test_DoubleLogicalBinaryOps;
     procedure Test_FloatingConstructorsAndLoads;
     procedure Test_FloatingBinaryOps;
+    procedure Test_FloatingMinMaxOps;
     procedure Test_FloatingSqrtOps;
     procedure Test_IntegerConstructors;
     procedure Test_IntegerAddSubOps;
@@ -673,6 +675,7 @@ type
     procedure Test_IntegerMinMaxMulOps;
     procedure Test_IntegerSaturatingOps;
     procedure Test_LogicalBinaryOps;
+    procedure Test_ScalarDoubleOps;
     procedure Test_LoadStore_Roundtrip;
     procedure Test_SlliEpi16_ShiftCounts;
   end;
@@ -892,6 +895,52 @@ begin
   AssertM128BytesEqual(Self, 'simd_div_pd', LExpected, LActual);
 end;
 
+procedure TTestCase_X86Sse2AbiBasics.Test_FloatingMinMaxOps;
+var
+  LA: TM128;
+  LB: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+begin
+  LoadM128Words(LA, [DWord($00000000), DWord($3F800000), DWord($BF800000), DWord($7FC00000)]);
+  LoadM128Words(LB, [DWord($80000000), DWord($40000000), DWord($C0000000), DWord($40400000)]);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u32[0] := LB.m128i_u32[0];
+  LExpected.m128i_u32[1] := LA.m128i_u32[1];
+  LExpected.m128i_u32[2] := LB.m128i_u32[2];
+  LExpected.m128i_u32[3] := LB.m128i_u32[3];
+  LActual := simd_min_ps(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_min_ps', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u32[0] := LB.m128i_u32[0];
+  LExpected.m128i_u32[1] := LB.m128i_u32[1];
+  LExpected.m128i_u32[2] := LA.m128i_u32[2];
+  LExpected.m128i_u32[3] := LB.m128i_u32[3];
+  LActual := simd_max_ps(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_max_ps', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u64[0] := QWord($0000000000000000);
+  LA.m128d_f64[1] := 5.0;
+  LB.m128i_u64[0] := QWord($8000000000000000);
+  LB.m128d_f64[1] := -7.0;
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := LB.m128i_u64[0];
+  LExpected.m128d_f64[1] := -7.0;
+  LActual := simd_min_pd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_min_pd', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := LB.m128i_u64[0];
+  LExpected.m128d_f64[1] := 5.0;
+  LActual := simd_max_pd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_max_pd', LExpected, LActual);
+end;
+
 procedure TTestCase_X86Sse2AbiBasics.Test_FloatingSqrtOps;
 var
   LValue: TM128;
@@ -912,6 +961,57 @@ begin
     LExpected.m128d_f64[LIndex] := Sqrt(LValue.m128d_f64[LIndex]);
   LActual := simd_sqrt_pd(LValue);
   AssertM128BytesEqual(Self, 'simd_sqrt_pd', LExpected, LActual);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_ScalarDoubleOps;
+var
+  LA: TM128;
+  LB: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+begin
+  LoadM128Doubles(LA, [10.0, 123.0]);
+  LoadM128Doubles(LB, [2.5, 999.0]);
+
+  LExpected := LA;
+  LExpected.m128d_f64[0] := LA.m128d_f64[0] + LB.m128d_f64[0];
+  LActual := simd_add_sd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_add_sd', LExpected, LActual);
+
+  LExpected := LA;
+  LExpected.m128d_f64[0] := LA.m128d_f64[0] - LB.m128d_f64[0];
+  LActual := simd_sub_sd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_sub_sd', LExpected, LActual);
+
+  LExpected := LA;
+  LExpected.m128d_f64[0] := LA.m128d_f64[0] * LB.m128d_f64[0];
+  LActual := simd_mul_sd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_mul_sd', LExpected, LActual);
+
+  LExpected := LA;
+  LExpected.m128d_f64[0] := LA.m128d_f64[0] / LB.m128d_f64[0];
+  LActual := simd_div_sd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_div_sd', LExpected, LActual);
+
+  LExpected := LA;
+  LExpected.m128d_f64[0] := Sqrt(LB.m128d_f64[0]);
+  LActual := simd_sqrt_sd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_sqrt_sd', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u64[0] := QWord($0000000000000000);
+  LA.m128d_f64[1] := 77.0;
+  LB.m128i_u64[0] := QWord($8000000000000000);
+  LB.m128d_f64[1] := 55.0;
+
+  LExpected := LA;
+  LExpected.m128i_u64[0] := LB.m128i_u64[0];
+  LActual := simd_min_sd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_min_sd', LExpected, LActual);
+
+  LActual := simd_max_sd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_max_sd', LExpected, LActual);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_IntegerConstructors;
@@ -1262,6 +1362,42 @@ begin
     LExpected.m128i_u8[LIndex] := Byte(not LA.m128i_u8[LIndex]) and LB.m128i_u8[LIndex];
   LActual := simd_andnot_si128(LA, LB);
   AssertM128BytesEqual(Self, 'simd_andnot_si128', LExpected, LActual);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_DoubleLogicalBinaryOps;
+var
+  LA: TM128;
+  LB: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+  LIndex: Integer;
+begin
+  LoadM128Bytes(LA, [$3F, $F1, $AA, $55, $00, $FF, $12, $34, $80, $7F, $33, $CC, $5A, $A5, $11, $EE]);
+  LoadM128Bytes(LB, [$C0, $0E, $55, $AA, $FF, $00, $21, $43, $7F, $80, $CC, $33, $A5, $5A, $EE, $11]);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    LExpected.m128i_u8[LIndex] := LA.m128i_u8[LIndex] and LB.m128i_u8[LIndex];
+  LActual := simd_and_pd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_and_pd', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    LExpected.m128i_u8[LIndex] := LA.m128i_u8[LIndex] or LB.m128i_u8[LIndex];
+  LActual := simd_or_pd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_or_pd', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    LExpected.m128i_u8[LIndex] := LA.m128i_u8[LIndex] xor LB.m128i_u8[LIndex];
+  LActual := simd_xor_pd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_xor_pd', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    LExpected.m128i_u8[LIndex] := Byte(not LA.m128i_u8[LIndex]) and LB.m128i_u8[LIndex];
+  LActual := simd_andnot_pd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_andnot_pd', LExpected, LActual);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_LoadStore_Roundtrip;
