@@ -815,6 +815,8 @@ type
     procedure Test_ScalarDoubleComiOps;
     procedure Test_ScalarDoubleOps;
     procedure Test_ScalarIntConversionOps;
+    procedure Test_PackedConversionOps;
+    procedure Test_ScalarFloatPrecisionConversionOps;
     procedure Test_ShufflePsOps;
     procedure Test_LoadStore_Roundtrip;
     procedure Test_AlignedStoreDoubleOps;
@@ -1223,6 +1225,111 @@ begin
   LExpected.m128d_f64[0] := -4000000000.0;
   LActual := simd_cvtsi64_sd(LValue, Int64(-4000000000));
   AssertM128BytesEqual(Self, 'simd_cvtsi64_sd', LExpected, LActual);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_PackedConversionOps;
+var
+  LValue: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+begin
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128i_i32[0] := 7;
+  LValue.m128i_i32[1] := -8;
+  LValue.m128i_i32[2] := 1024;
+  LValue.m128i_i32[3] := -2048;
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128d_f64[0] := 7.0;
+  LExpected.m128d_f64[1] := -8.0;
+  LActual := simd_cvtepi32_pd(LValue);
+  AssertM128BytesEqual(Self, 'simd_cvtepi32_pd', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128_f32[0] := 7.0;
+  LExpected.m128_f32[1] := -8.0;
+  LExpected.m128_f32[2] := 1024.0;
+  LExpected.m128_f32[3] := -2048.0;
+  LActual := simd_cvtepi32_ps(LValue);
+  AssertM128BytesEqual(Self, 'simd_cvtepi32_ps', LExpected, LActual);
+
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128d_f64[0] := 3.75;
+  LValue.m128d_f64[1] := -2.75;
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_i32[0] := 4;
+  LExpected.m128i_i32[1] := -3;
+  LActual := simd_cvtpd_epi32(LValue);
+  AssertM128BytesEqual(Self, 'simd_cvtpd_epi32', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_i32[0] := 3;
+  LExpected.m128i_i32[1] := -2;
+  LActual := simd_cvttpd_epi32(LValue);
+  AssertM128BytesEqual(Self, 'simd_cvttpd_epi32', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128_f32[0] := 3.75;
+  LExpected.m128_f32[1] := -2.75;
+  LActual := simd_cvtpd_ps(LValue);
+  AssertM128BytesEqual(Self, 'simd_cvtpd_ps', LExpected, LActual);
+
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128_f32[0] := 1.4;
+  LValue.m128_f32[1] := 2.6;
+  LValue.m128_f32[2] := -3.6;
+  LValue.m128_f32[3] := -4.1;
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_i32[0] := 1;
+  LExpected.m128i_i32[1] := 3;
+  LExpected.m128i_i32[2] := -4;
+  LExpected.m128i_i32[3] := -4;
+  LActual := simd_cvtps_epi32(LValue);
+  AssertM128BytesEqual(Self, 'simd_cvtps_epi32', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_i32[0] := 1;
+  LExpected.m128i_i32[1] := 2;
+  LExpected.m128i_i32[2] := -3;
+  LExpected.m128i_i32[3] := -4;
+  LActual := simd_cvttps_epi32(LValue);
+  AssertM128BytesEqual(Self, 'simd_cvttps_epi32', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128d_f64[0] := Double(LValue.m128_f32[0]);
+  LExpected.m128d_f64[1] := Double(LValue.m128_f32[1]);
+  LActual := simd_cvtps_pd(LValue);
+  AssertM128BytesEqual(Self, 'simd_cvtps_pd', LExpected, LActual);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_ScalarFloatPrecisionConversionOps;
+var
+  LA: TM128;
+  LB: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  LA.m128i_u32[0] := $11223344;
+  LA.m128i_u32[1] := $55667788;
+  LA.m128i_u32[2] := $99AABBCC;
+  LA.m128i_u32[3] := $DDEEFF00;
+
+  FillChar(LB, SizeOf(LB), 0);
+  LB.m128_f32[0] := 3.5;
+  LExpected := LA;
+  LExpected.m128d_f64[0] := 3.5;
+  LActual := simd_cvtss_sd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_cvtss_sd', LExpected, LActual);
+
+  FillChar(LB, SizeOf(LB), 0);
+  LB.m128d_f64[0] := -6.25;
+  LExpected := LA;
+  LExpected.m128_f32[0] := -6.25;
+  LActual := simd_cvtsd_ss(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_cvtsd_ss', LExpected, LActual);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_IntegerConstructors;
