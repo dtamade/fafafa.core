@@ -146,6 +146,15 @@ begin
   end;
 end;
 
+function ReferenceShufflePs(const aLeft, aRight: TM128; aImm8: Byte): TM128;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  Result.m128_f32[0] := aLeft.m128_f32[aImm8 and $3];
+  Result.m128_f32[1] := aLeft.m128_f32[(aImm8 shr 2) and $3];
+  Result.m128_f32[2] := aRight.m128_f32[(aImm8 shr 4) and $3];
+  Result.m128_f32[3] := aRight.m128_f32[(aImm8 shr 6) and $3];
+end;
+
 function ReferenceShuffleHiEpi16(const aValue: TM128; aImm8: Byte): TM128;
 var
   LDest: Integer;
@@ -760,7 +769,9 @@ type
     procedure Test_LogicalBinaryOps;
     procedure Test_ScalarDoubleCompareOps;
     procedure Test_ScalarDoubleOps;
+    procedure Test_ShufflePsOps;
     procedure Test_LoadStore_Roundtrip;
+    procedure Test_InsertExtractEpi16Ops;
     procedure Test_ShuffleMoveCastOps;
     procedure Test_SlliEpi16_ShiftCounts;
   end;
@@ -1809,6 +1820,25 @@ begin
   AssertM128QWordsEqual(Self, 'simd_cmpunord_sd unordered', LExpected, LActual);
 end;
 
+procedure TTestCase_X86Sse2AbiBasics.Test_ShufflePsOps;
+var
+  LA: TM128;
+  LB: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+begin
+  LoadM128Singles(LA, [1.0, 2.0, 3.0, 4.0]);
+  LoadM128Singles(LB, [10.0, 20.0, 30.0, 40.0]);
+
+  LExpected := ReferenceShufflePs(LA, LB, $E4);
+  LActual := simd_shuffle_ps(LA, LB, $E4);
+  AssertM128BytesEqual(Self, 'simd_shuffle_ps imm=e4', LExpected, LActual);
+
+  LExpected := ReferenceShufflePs(LA, LB, $1B);
+  LActual := simd_shuffle_ps(LA, LB, $1B);
+  AssertM128BytesEqual(Self, 'simd_shuffle_ps imm=1b', LExpected, LActual);
+end;
+
 procedure TTestCase_X86Sse2AbiBasics.Test_LoadStore_Roundtrip;
 var
   LBytes: array[0..15] of Byte;
@@ -1828,6 +1858,44 @@ begin
 
   LLoaded := simd_loadu_si128(@LBytesOut[0]);
   AssertM128BytesEqual(Self, 'simd_loadu roundtrip', LValue, LLoaded);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_InsertExtractEpi16Ops;
+var
+  LValue: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+  LLane: Integer;
+begin
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128i_u16[0] := $0001;
+  LValue.m128i_u16[1] := $8002;
+  LValue.m128i_u16[2] := $1234;
+  LValue.m128i_u16[3] := $ABCD;
+  LValue.m128i_u16[4] := $00FF;
+  LValue.m128i_u16[5] := $7F00;
+  LValue.m128i_u16[6] := $BEEF;
+  LValue.m128i_u16[7] := $FEDC;
+
+  LExpected := LValue;
+  LExpected.m128i_u16[1] := $5678;
+  LActual := simd_insert_epi16(LValue, $12345678, 9);
+  AssertM128BytesEqual(Self, 'simd_insert_epi16 imm masks to lane 1', LExpected, LActual);
+
+  LExpected := LValue;
+  LExpected.m128i_u16[7] := $4321;
+  LActual := simd_insert_epi16(LValue, $87654321, $FF);
+  AssertM128BytesEqual(Self, 'simd_insert_epi16 imm masks to lane 7', LExpected, LActual);
+
+  for LLane := 0 to 7 do
+    AssertEquals(
+      'simd_extract_epi16 lane ' + IntToStr(LLane),
+      Integer(LValue.m128i_u16[LLane]),
+      simd_extract_epi16(LValue, Byte(LLane))
+    );
+
+  AssertEquals('simd_extract_epi16 imm masks to lane 1', Integer($8002), simd_extract_epi16(LValue, 9));
+  AssertEquals('simd_extract_epi16 imm masks to lane 7', Integer($FEDC), simd_extract_epi16(LValue, $FF));
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_ShuffleMoveCastOps;

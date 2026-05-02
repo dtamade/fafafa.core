@@ -1204,62 +1204,13 @@ begin
   Result.m128d_f64[1] := b.m128d_f64[(imm8 shr 1) and 1];
 end;
 
-function simd_shuffle_ps(constref a, b: TM128; imm8: Byte): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]    // 加载 a
-    movups xmm1, [rdx]    // 加载 b
-    // 使用常见�?shuffle 模式
-    cmp r8b, $00; je @imm00
-    cmp r8b, $00; je @imm44
-    cmp r8b, $00; je @imm88
-    cmp r8b, $00; je @immE4
-    shufps xmm0, xmm1, $00; jmp @done // 默认
-@imm00: shufps xmm0, xmm1, $00; jmp @done
-@imm44: shufps xmm0, xmm1, $00; jmp @done
-@imm88: shufps xmm0, xmm1, $00; jmp @done
-@immE4: shufps xmm0, xmm1, $00; jmp @done
-@done:
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-    cmp dl, $00; je @imm00
-    cmp dl, $00; je @imm44
-    cmp dl, $00; je @imm88
-    cmp dl, $00; je @immE4
-    shufps xmm0, xmm1, $00; jmp @done
-@imm00: shufps xmm0, xmm1, $00; jmp @done
-@imm44: shufps xmm0, xmm1, $00; jmp @done
-@imm88: shufps xmm0, xmm1, $00; jmp @done
-@immE4: shufps xmm0, xmm1, $00; jmp @done
-@done:
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; mov ecx, [esp + 12]
-    movups xmm0, [eax]; movups xmm1, [edx]
-    cmp cl, $00; je @imm00
-    cmp cl, $00; je @imm44
-    cmp cl, $00; je @imm88
-    cmp cl, $00; je @immE4
-    shufps xmm0, xmm1, $00; jmp @done
-@imm00: shufps xmm0, xmm1, $00; jmp @done
-@imm44: shufps xmm0, xmm1, $00; jmp @done
-@imm88: shufps xmm0, xmm1, $00; jmp @done
-@immE4: shufps xmm0, xmm1, $00; jmp @done
-@done:
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_shuffle_ps(constref a, b: TM128; imm8: Byte): TM128;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  Result.m128_f32[0] := a.m128_f32[imm8 and $3];
+  Result.m128_f32[1] := a.m128_f32[(imm8 shr 2) and $3];
+  Result.m128_f32[2] := b.m128_f32[(imm8 shr 4) and $3];
+  Result.m128_f32[3] := b.m128_f32[(imm8 shr 6) and $3];
 end;
 
 function simd_shufflelo_epi16(constref a: TM128; imm8: Byte): TM128;
@@ -3209,165 +3160,15 @@ begin
     Result.m128i_u8[8 + LIndex] := SaturateToU8(b.m128i_i16[LIndex]);
 end;
 
-	function simd_insert_epi16(constref a: TM128; Value: Integer; imm8: Byte): TM128; {$IFDEF FPC}assembler; nostackframe;
-	{$ENDIF}
-	asm
-	{$IFDEF CPUX86_64}
-	  {$IFDEF WINDOWS}
-	    movdqu xmm0, [rcx]    // 加载 a
-	    // pinsrw 的位置参数必须是立即�?
-	    cmp r8b, 0; je @pos0
-	    cmp r8b, 1; je @pos1
-	    cmp r8b, 2; je @pos2
-	    cmp r8b, 3; je @pos3
-	    cmp r8b, 4; je @pos4
-	    cmp r8b, 5; je @pos5
-	    cmp r8b, 6; je @pos6
-	    cmp r8b, 7; je @pos7
-	    // gas 不接受 r16 作为源操作数；这里使用 edx/esi 取低 16-bit
-	    pinsrw xmm0, edx, 0; jmp @done  // 默认位置 0
-	@pos0: pinsrw xmm0, edx, 0; jmp @done
-	@pos1: pinsrw xmm0, edx, 1; jmp @done
-	@pos2: pinsrw xmm0, edx, 2; jmp @done
-	@pos3: pinsrw xmm0, edx, 3; jmp @done
-	@pos4: pinsrw xmm0, edx, 4; jmp @done
-	@pos5: pinsrw xmm0, edx, 5; jmp @done
-	@pos6: pinsrw xmm0, edx, 6; jmp @done
-	@pos7: pinsrw xmm0, edx, 7; jmp @done
-	@done:
-	  {$ELSE}
-	    movdqu xmm0, [rdi]
-	    cmp dl, 0; je @pos0
-	    cmp dl, 1; je @pos1
-	    cmp dl, 2; je @pos2
-	    cmp dl, 3; je @pos3
-	    cmp dl, 4; je @pos4
-	    cmp dl, 5; je @pos5
-	    cmp dl, 6; je @pos6
-	    cmp dl, 7; je @pos7
-	    pinsrw xmm0, esi, 0; jmp @done
-	@pos0: pinsrw xmm0, esi, 0; jmp @done
-	@pos1: pinsrw xmm0, esi, 1; jmp @done
-	@pos2: pinsrw xmm0, esi, 2; jmp @done
-	@pos3: pinsrw xmm0, esi, 3; jmp @done
-	@pos4: pinsrw xmm0, esi, 4; jmp @done
-	@pos5: pinsrw xmm0, esi, 5; jmp @done
-	@pos6: pinsrw xmm0, esi, 6; jmp @done
-	@pos7: pinsrw xmm0, esi, 7; jmp @done
-	@done:
-	  {$ENDIF}
-	{$ELSE}
-	  {$IFDEF CPUX86}
-	    mov eax, [esp + 4]; mov edx, [esp + 8]; mov ecx, [esp + 12]
-	    movdqu xmm0, [eax]
-	    cmp cl, 0; je @pos0
-	    cmp cl, 1; je @pos1
-	    cmp cl, 2; je @pos2
-	    cmp cl, 3; je @pos3
-	    cmp cl, 4; je @pos4
-	    cmp cl, 5; je @pos5
-	    cmp cl, 6; je @pos6
-	    cmp cl, 7; je @pos7
-	    pinsrw xmm0, edx, 0; jmp @done
-	@pos0: pinsrw xmm0, edx, 0; jmp @done
-	@pos1: pinsrw xmm0, edx, 1; jmp @done
-	@pos2: pinsrw xmm0, edx, 2; jmp @done
-	@pos3: pinsrw xmm0, edx, 3; jmp @done
-	@pos4: pinsrw xmm0, edx, 4; jmp @done
-	@pos5: pinsrw xmm0, edx, 5; jmp @done
-	@pos6: pinsrw xmm0, edx, 6; jmp @done
-	@pos7: pinsrw xmm0, edx, 7; jmp @done
-	@done:
-	  {$ELSE}
-	    {$ERROR Unsupported CPU}
-	  {$ENDIF}
-	{$ENDIF}
-	{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_insert_epi16(constref a: TM128; Value: Integer; imm8: Byte): TM128;
+begin
+  Result := a;
+  Result.m128i_u16[imm8 and $7] := Word(Value and $FFFF);
 end;
 
-function simd_extract_epi16(constref a: TM128; imm8: Byte): Integer; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]    // 加载 a
-    // pextrw 的位置参数必须是立即�?
-    cmp dl, 0; je @pos0
-    cmp dl, 1; je @pos1
-    cmp dl, 2; je @pos2
-    cmp dl, 3; je @pos3
-    cmp dl, 4; je @pos4
-    cmp dl, 5; je @pos5
-    cmp dl, 6; je @pos6
-    cmp dl, 7; je @pos7
-    pextrw eax, xmm0, 0; jmp @done  // 默认位置 0
-@pos0: pextrw eax, xmm0, 0; jmp @done
-@pos1: pextrw eax, xmm0, 1; jmp @done
-@pos2: pextrw eax, xmm0, 2; jmp @done
-@pos3: pextrw eax, xmm0, 3; jmp @done
-@pos4: pextrw eax, xmm0, 4; jmp @done
-@pos5: pextrw eax, xmm0, 5; jmp @done
-@pos6: pextrw eax, xmm0, 6; jmp @done
-@pos7: pextrw eax, xmm0, 7; jmp @done
-@done:
-  {$ELSE}
-    movdqu xmm0, [rdi]
-    cmp sil, 0; je @pos0
-    cmp sil, 1; je @pos1
-    cmp sil, 2; je @pos2
-    cmp sil, 3; je @pos3
-    cmp sil, 4; je @pos4
-    cmp sil, 5; je @pos5
-    cmp sil, 6; je @pos6
-    cmp sil, 7; je @pos7
-    pextrw eax, xmm0, 0; jmp @done
-@pos0: pextrw eax, xmm0, 0; jmp @done
-@pos1: pextrw eax, xmm0, 1; jmp @done
-@pos2: pextrw eax, xmm0, 2; jmp @done
-@pos3: pextrw eax, xmm0, 3; jmp @done
-@pos4: pextrw eax, xmm0, 4; jmp @done
-@pos5: pextrw eax, xmm0, 5; jmp @done
-@pos6: pextrw eax, xmm0, 6; jmp @done
-@pos7: pextrw eax, xmm0, 7; jmp @done
-@done:
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov edx, [esp + 4]; mov ecx, [esp + 8]
-    movdqu xmm0, [edx]
-    cmp cl, 0; je @pos0
-    cmp cl, 1; je @pos1
-    cmp cl, 2; je @pos2
-    cmp cl, 3; je @pos3
-    cmp cl, 4; je @pos4
-    cmp cl, 5; je @pos5
-    cmp cl, 6; je @pos6
-    cmp cl, 7; je @pos7
-    pextrw eax, xmm0, 0; jmp @done
-@pos0: pextrw eax, xmm0, 0; jmp @done
-@pos1: pextrw eax, xmm0, 1; jmp @done
-@pos2: pextrw eax, xmm0, 2; jmp @done
-@pos3: pextrw eax, xmm0, 3; jmp @done
-@pos4: pextrw eax, xmm0, 4; jmp @done
-@pos5: pextrw eax, xmm0, 5; jmp @done
-@pos6: pextrw eax, xmm0, 6; jmp @done
-@pos7: pextrw eax, xmm0, 7; jmp @done
-@done:
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_extract_epi16(constref a: TM128; imm8: Byte): Integer;
+begin
+  Result := Integer(a.m128i_u16[imm8 and $7]);
 end;
 
 function simd_move_sd(constref a, b: TM128): TM128;
