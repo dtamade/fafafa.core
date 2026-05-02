@@ -118,6 +118,21 @@ begin
     aTest.AssertEquals(aLabel + ' lane ' + IntToStr(LIndex), aExpected.m128i_u32[LIndex], aActual.m128i_u32[LIndex]);
 end;
 
+procedure AssertM128QWordsEqual(aTest: TTestCase; const aLabel: string; const aExpected, aActual: TM128);
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 1 do
+    aTest.AssertEquals(aLabel + ' lane ' + IntToStr(LIndex), aExpected.m128i_u64[LIndex], aActual.m128i_u64[LIndex]);
+end;
+
+function BoolMask64(aValue: Boolean): QWord; inline;
+begin
+  if aValue then
+    Exit(High(QWord));
+  Result := 0;
+end;
+
 function Add32(aLeft, aRight: DWord): DWord; inline;
 begin
   Result := DWord(QWord(aLeft) + QWord(aRight));
@@ -665,6 +680,7 @@ type
   published
     procedure Test_AddAndCmpeqMovemask;
     procedure Test_DoubleLogicalBinaryOps;
+    procedure Test_DoubleCompareOps;
     procedure Test_FloatingConstructorsAndLoads;
     procedure Test_FloatingBinaryOps;
     procedure Test_FloatingMinMaxOps;
@@ -675,6 +691,7 @@ type
     procedure Test_IntegerMinMaxMulOps;
     procedure Test_IntegerSaturatingOps;
     procedure Test_LogicalBinaryOps;
+    procedure Test_ScalarDoubleCompareOps;
     procedure Test_ScalarDoubleOps;
     procedure Test_LoadStore_Roundtrip;
     procedure Test_SlliEpi16_ShiftCounts;
@@ -1162,6 +1179,15 @@ begin
   LActual := simd_cmpgt_epi8(LA, LB);
   AssertM128BytesEqual(Self, 'simd_cmpgt_epi8', LExpected, LActual);
 
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    if LA.m128i_i8[LIndex] < LB.m128i_i8[LIndex] then
+      LExpected.m128i_u8[LIndex] := $FF
+    else
+      LExpected.m128i_u8[LIndex] := $00;
+  LActual := simd_cmplt_epi8(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_cmplt_epi8', LExpected, LActual);
+
   LoadM128SmallInts(LA, [-30000, -1, 0, 1234, 32760, -32760, 42, 42]);
   LoadM128SmallInts(LB, [-30000, 1, 0, -1234, 32760, -32759, 100, 0]);
 
@@ -1183,6 +1209,15 @@ begin
   LActual := simd_cmpgt_epi16(LA, LB);
   AssertM128BytesEqual(Self, 'simd_cmpgt_epi16', LExpected, LActual);
 
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 7 do
+    if LA.m128i_i16[LIndex] < LB.m128i_i16[LIndex] then
+      LExpected.m128i_u16[LIndex] := $FFFF
+    else
+      LExpected.m128i_u16[LIndex] := $0000;
+  LActual := simd_cmplt_epi16(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_cmplt_epi16', LExpected, LActual);
+
   LoadM128LongInts(LA, [-2147483600, -1, 0, 2147483600]);
   LoadM128LongInts(LB, [-2147483600, 1, -1, 2147483500]);
 
@@ -1203,6 +1238,15 @@ begin
       LExpected.m128i_u32[LIndex] := DWord($00000000);
   LActual := simd_cmpgt_epi32(LA, LB);
   AssertM128BytesEqual(Self, 'simd_cmpgt_epi32', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 3 do
+    if LA.m128i_i32[LIndex] < LB.m128i_i32[LIndex] then
+      LExpected.m128i_u32[LIndex] := DWord($FFFFFFFF)
+    else
+      LExpected.m128i_u32[LIndex] := DWord($00000000);
+  LActual := simd_cmplt_epi32(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_cmplt_epi32', LExpected, LActual);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_IntegerMinMaxMulOps;
@@ -1398,6 +1442,238 @@ begin
     LExpected.m128i_u8[LIndex] := Byte(not LA.m128i_u8[LIndex]) and LB.m128i_u8[LIndex];
   LActual := simd_andnot_pd(LA, LB);
   AssertM128BytesEqual(Self, 'simd_andnot_pd', LExpected, LActual);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_DoubleCompareOps;
+var
+  LA: TM128;
+  LB: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := 1.0;
+  LA.m128d_f64[1] := 4.0;
+  LB.m128d_f64[0] := 1.0;
+  LB.m128d_f64[1] := 5.0;
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := BoolMask64(True);
+  LExpected.m128i_u64[1] := BoolMask64(False);
+  LActual := simd_cmpeq_pd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpeq_pd', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := BoolMask64(False);
+  LExpected.m128i_u64[1] := BoolMask64(True);
+  LActual := simd_cmplt_pd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmplt_pd', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := BoolMask64(True);
+  LExpected.m128i_u64[1] := BoolMask64(True);
+  LActual := simd_cmple_pd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmple_pd', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := BoolMask64(False);
+  LExpected.m128i_u64[1] := BoolMask64(False);
+  LActual := simd_cmpgt_pd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpgt_pd', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := BoolMask64(True);
+  LExpected.m128i_u64[1] := BoolMask64(False);
+  LActual := simd_cmpge_pd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpge_pd', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := BoolMask64(False);
+  LExpected.m128i_u64[1] := BoolMask64(True);
+  LActual := simd_cmpneq_pd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpneq_pd ordered', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u64[0] := QWord($7FF8000000000001);
+  LA.m128d_f64[1] := 3.0;
+  LB.m128d_f64[0] := 1.0;
+  LB.m128d_f64[1] := 2.0;
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := BoolMask64(True);
+  LExpected.m128i_u64[1] := BoolMask64(True);
+  LActual := simd_cmpnlt_pd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpnlt_pd', LExpected, LActual);
+
+  LActual := simd_cmpnle_pd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpnle_pd', LExpected, LActual);
+
+  LActual := simd_cmpneq_pd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpneq_pd unordered', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := BoolMask64(False);
+  LExpected.m128i_u64[1] := BoolMask64(False);
+  LActual := simd_cmpngt_pd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpngt_pd', LExpected, LActual);
+
+  LActual := simd_cmpnge_pd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpnge_pd', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := BoolMask64(False);
+  LExpected.m128i_u64[1] := BoolMask64(True);
+  LActual := simd_cmpord_pd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpord_pd', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := BoolMask64(True);
+  LExpected.m128i_u64[1] := BoolMask64(False);
+  LActual := simd_cmpunord_pd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpunord_pd', LExpected, LActual);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_ScalarDoubleCompareOps;
+const
+  PRESERVE1 = QWord($1122334455667788);
+  PRESERVE2 = QWord($8877665544332211);
+  PRESERVE3 = QWord($CAFEBABE01020304);
+  PRESERVE4 = QWord($5566778899AABBCC);
+var
+  LA: TM128;
+  LB: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := 1.0;
+  LA.m128i_u64[1] := PRESERVE1;
+  LB.m128d_f64[0] := 1.0;
+
+  LExpected := LA;
+  LExpected.m128i_u64[0] := BoolMask64(True);
+  LActual := simd_cmpeq_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpeq_sd', LExpected, LActual);
+
+  LActual := simd_cmple_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmple_sd', LExpected, LActual);
+
+  LActual := simd_cmpge_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpge_sd ordered-eq', LExpected, LActual);
+
+  LActual := simd_cmpnlt_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpnlt_sd ordered-eq', LExpected, LActual);
+
+  LActual := simd_cmpngt_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpngt_sd ordered-eq', LExpected, LActual);
+
+  LExpected := LA;
+  LExpected.m128i_u64[0] := BoolMask64(False);
+  LActual := simd_cmplt_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmplt_sd false', LExpected, LActual);
+
+  LActual := simd_cmpgt_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpgt_sd false', LExpected, LActual);
+
+  LActual := simd_cmpneq_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpneq_sd false', LExpected, LActual);
+
+  LActual := simd_cmpnle_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpnle_sd false', LExpected, LActual);
+
+  LActual := simd_cmpnge_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpnge_sd false', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := 1.0;
+  LA.m128i_u64[1] := PRESERVE2;
+  LB.m128d_f64[0] := 2.0;
+
+  LExpected := LA;
+  LExpected.m128i_u64[0] := BoolMask64(True);
+  LActual := simd_cmplt_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmplt_sd true', LExpected, LActual);
+
+  LActual := simd_cmpneq_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpneq_sd true', LExpected, LActual);
+
+  LActual := simd_cmpngt_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpngt_sd true', LExpected, LActual);
+
+  LActual := simd_cmpnge_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpnge_sd true', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := 3.0;
+  LA.m128i_u64[1] := PRESERVE3;
+  LB.m128d_f64[0] := 2.0;
+
+  LExpected := LA;
+  LExpected.m128i_u64[0] := BoolMask64(True);
+  LActual := simd_cmpgt_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpgt_sd true', LExpected, LActual);
+
+  LActual := simd_cmpge_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpge_sd true', LExpected, LActual);
+
+  LActual := simd_cmpnlt_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpnlt_sd true', LExpected, LActual);
+
+  LActual := simd_cmpnle_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpnle_sd true', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u64[0] := QWord($7FF8000000000001);
+  LA.m128i_u64[1] := PRESERVE4;
+  LB.m128d_f64[0] := 2.0;
+
+  LExpected := LA;
+  LExpected.m128i_u64[0] := BoolMask64(True);
+  LActual := simd_cmpgt_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpgt_sd unordered', LExpected, LActual);
+
+  LActual := simd_cmpge_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpge_sd unordered', LExpected, LActual);
+
+  LActual := simd_cmpneq_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpneq_sd unordered', LExpected, LActual);
+
+  LActual := simd_cmpnlt_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpnlt_sd unordered', LExpected, LActual);
+
+  LActual := simd_cmpnle_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpnle_sd unordered', LExpected, LActual);
+
+  LExpected := LA;
+  LExpected.m128i_u64[0] := BoolMask64(False);
+  LActual := simd_cmpeq_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpeq_sd unordered', LExpected, LActual);
+
+  LActual := simd_cmplt_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmplt_sd unordered', LExpected, LActual);
+
+  LActual := simd_cmple_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmple_sd unordered', LExpected, LActual);
+
+  LActual := simd_cmpngt_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpngt_sd unordered', LExpected, LActual);
+
+  LActual := simd_cmpnge_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpnge_sd unordered', LExpected, LActual);
+
+  LActual := simd_cmpord_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpord_sd unordered', LExpected, LActual);
+
+  LExpected := LA;
+  LExpected.m128i_u64[0] := BoolMask64(True);
+  LActual := simd_cmpunord_sd(LA, LB);
+  AssertM128QWordsEqual(Self, 'simd_cmpunord_sd unordered', LExpected, LActual);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_LoadStore_Roundtrip;
