@@ -315,6 +315,24 @@ begin
   {$ENDIF}
 end;
 
+function SaturateToI8(aValue: Integer): ShortInt; inline;
+begin
+  if aValue > High(ShortInt) then
+    Exit(High(ShortInt));
+  if aValue < Low(ShortInt) then
+    Exit(Low(ShortInt));
+  Result := ShortInt(aValue);
+end;
+
+function SaturateToI16(aValue: Integer): SmallInt; inline;
+begin
+  if aValue > High(SmallInt) then
+    Exit(High(SmallInt));
+  if aValue < Low(SmallInt) then
+    Exit(Low(SmallInt));
+  Result := SmallInt(aValue);
+end;
+
 // === SSE2 Intrinsics 实现 ===
 // 目前提供占位实现，后续将添加实际的内联汇编代�?
 // === 1️⃣ Load / Store 实现 ===
@@ -650,39 +668,12 @@ begin
     Result.m128i_u32[LIndex] := DWord(QWord(a.m128i_u32[LIndex]) + QWord(b.m128i_u32[LIndex]));
 end;
 
-function simd_add_epi64(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    // Windows x64: a �?rcx, b �?rdx
-    movdqu xmm0, [rcx]    // 加载 a
-    movdqu xmm1, [rdx]    // 加载 b
-    paddq xmm0, xmm1      // 2�?4位整数并行加�?
-    {$ELSE}
-    // Linux/macOS x64 System V ABI: a �?rdi, b �?rsi
-    movdqu xmm0, [rdi]    // 加载 a
-    movdqu xmm1, [rsi]    // 加载 b
-    paddq xmm0, xmm1      // 2�?4位整数并行加�?
-    {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    // x86 32-bit: 参数在栈�?
-    mov eax, [esp + 4]    // a
-    mov edx, [esp + 8]    // b
-    movdqu xmm0, [eax]
-    movdqu xmm1, [edx]
-    paddq xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_add_epi64(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 1 do
+    Result.m128i_u64[LIndex] := a.m128i_u64[LIndex] + b.m128i_u64[LIndex];
 end;
 
 function simd_sub_epi8(constref a, b: TM128): TM128;
@@ -709,296 +700,107 @@ begin
     Result.m128i_u32[LIndex] := DWord(QWord(a.m128i_u32[LIndex]) - QWord(b.m128i_u32[LIndex]));
 end;
 
-function simd_sub_epi64(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; psubq xmm0, xmm1
-  {$ELSE}
-    movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; psubq xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; psubq xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_sub_epi64(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 1 do
+    Result.m128i_u64[LIndex] := a.m128i_u64[LIndex] - b.m128i_u64[LIndex];
 end;
 
-function simd_adds_epi8(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; paddsb xmm0, xmm1  // 有符�?位饱和加�?
-    {$ELSE}
-    movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; paddsb xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; paddsb xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_adds_epi8(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.m128i_i8[LIndex] := SaturateToI8(Integer(a.m128i_i8[LIndex]) + Integer(b.m128i_i8[LIndex]));
 end;
 
-function simd_adds_epi16(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; paddsw xmm0, xmm1  // 有符�?6位饱和加�?
-    {$ELSE}
-    movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; paddsw xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; paddsw xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_adds_epi16(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.m128i_i16[LIndex] := SaturateToI16(Integer(a.m128i_i16[LIndex]) + Integer(b.m128i_i16[LIndex]));
 end;
 
-function simd_subs_epi8(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; psubsb xmm0, xmm1  // 有符�?位饱和减�?
-    {$ELSE}
-    movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; psubsb xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; psubsb xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_subs_epi8(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.m128i_i8[LIndex] := SaturateToI8(Integer(a.m128i_i8[LIndex]) - Integer(b.m128i_i8[LIndex]));
 end;
 
-function simd_subs_epi16(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; psubsw xmm0, xmm1  // 有符�?6位饱和减�?
-    {$ELSE}
-    movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; psubsw xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; psubsw xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_subs_epi16(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.m128i_i16[LIndex] := SaturateToI16(Integer(a.m128i_i16[LIndex]) - Integer(b.m128i_i16[LIndex]));
 end;
 
-function simd_max_epi8(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]    // 加载 a
-    movdqu xmm1, [rdx]    // 加载 b
-    movdqu xmm2, xmm0     // 复制 a
-    pcmpgtb xmm2, xmm1    // a > b 的掩�?    pand xmm0, xmm2       // 选择 a 中较大的元素
-    pandn xmm2, xmm1      // 选择 b 中较大的元素
-    por xmm0, xmm2        // 合并结果
-  {$ELSE}
-    movdqu xmm0, [rdi]
-    movdqu xmm1, [rsi]
-    movdqu xmm2, xmm0
-    pcmpgtb xmm2, xmm1
-    pand xmm0, xmm2
-    pandn xmm2, xmm1
-    por xmm0, xmm2
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]
-    movdqu xmm0, [eax]; movdqu xmm1, [edx]
-    movdqu xmm2, xmm0; pcmpgtb xmm2, xmm1
-    pand xmm0, xmm2; pandn xmm2, xmm1; por xmm0, xmm2
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_max_epi8(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    if a.m128i_i8[LIndex] > b.m128i_i8[LIndex] then
+      Result.m128i_i8[LIndex] := a.m128i_i8[LIndex]
+    else
+      Result.m128i_i8[LIndex] := b.m128i_i8[LIndex];
 end;
 
-function simd_max_epi16(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pmaxsw xmm0, xmm1  // 有符�?6位最大�?
-    {$ELSE}
-    movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pmaxsw xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pmaxsw xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_max_epi16(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    if a.m128i_i16[LIndex] > b.m128i_i16[LIndex] then
+      Result.m128i_i16[LIndex] := a.m128i_i16[LIndex]
+    else
+      Result.m128i_i16[LIndex] := b.m128i_i16[LIndex];
 end;
 
-function simd_min_epi8(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]    // 加载 a
-    movdqu xmm1, [rdx]    // 加载 b
-    movdqu xmm2, xmm1     // 复制 b
-    pcmpgtb xmm2, xmm0    // b > a 的掩�?    pand xmm0, xmm2       // 选择 a 中较小的元素
-    pandn xmm2, xmm1      // 选择 b 中较小的元素
-    por xmm0, xmm2        // 合并结果
-  {$ELSE}
-    movdqu xmm0, [rdi]
-    movdqu xmm1, [rsi]
-    movdqu xmm2, xmm1
-    pcmpgtb xmm2, xmm0
-    pand xmm0, xmm2
-    pandn xmm2, xmm1
-    por xmm0, xmm2
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]
-    movdqu xmm0, [eax]; movdqu xmm1, [edx]
-    movdqu xmm2, xmm1; pcmpgtb xmm2, xmm0
-    pand xmm0, xmm2; pandn xmm2, xmm1; por xmm0, xmm2
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_min_epi8(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    if a.m128i_i8[LIndex] < b.m128i_i8[LIndex] then
+      Result.m128i_i8[LIndex] := a.m128i_i8[LIndex]
+    else
+      Result.m128i_i8[LIndex] := b.m128i_i8[LIndex];
 end;
 
-function simd_min_epi16(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pminsw xmm0, xmm1  // 有符�?6位最小�?
-    {$ELSE}
-    movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pminsw xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pminsw xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_min_epi16(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    if a.m128i_i16[LIndex] < b.m128i_i16[LIndex] then
+      Result.m128i_i16[LIndex] := a.m128i_i16[LIndex]
+    else
+      Result.m128i_i16[LIndex] := b.m128i_i16[LIndex];
 end;
 
-function simd_mul_epu32(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pmuludq xmm0, xmm1  // 无符�?2位乘�?-> 64位结�?
-    {$ELSE}
-    movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pmuludq xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pmuludq xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_mul_epu32(constref a, b: TM128): TM128;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  Result.m128i_u64[0] := QWord(a.m128i_u32[0]) * QWord(b.m128i_u32[0]);
+  Result.m128i_u64[1] := QWord(a.m128i_u32[2]) * QWord(b.m128i_u32[2]);
 end;
 
-function simd_mullo_epi16(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pmullw xmm0, xmm1  // 16位乘法低位结�?
-    {$ELSE}
-    movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pmullw xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pmullw xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_mullo_epi16(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+  LProduct: Int64;
+begin
+  for LIndex := 0 to 7 do
+  begin
+    LProduct := Int64(a.m128i_i16[LIndex]) * Int64(b.m128i_i16[LIndex]);
+    Result.m128i_u16[LIndex] := Word(LProduct and $FFFF);
+  end;
 end;
 
 // === 4️⃣ Floating-Point Arithmetic 实现 ===
@@ -1034,28 +836,12 @@ begin
     Result.m128_f32[LIndex] := a.m128_f32[LIndex] / b.m128_f32[LIndex];
 end;
 
-function simd_sqrt_ps(constref a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]; sqrtps xmm0, xmm0  // 4个单精度浮点并行开�?
-    {$ELSE}
-    movups xmm0, [rdi]; sqrtps xmm0, xmm0
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; movups xmm0, [eax]; sqrtps xmm0, xmm0
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_sqrt_ps(constref a: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    Result.m128_f32[LIndex] := Sqrt(a.m128_f32[LIndex]);
 end;
 
 function simd_add_pd(constref a, b: TM128): TM128;
@@ -1090,28 +876,12 @@ begin
     Result.m128d_f64[LIndex] := a.m128d_f64[LIndex] / b.m128d_f64[LIndex];
 end;
 
-function simd_sqrt_pd(constref a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; sqrtpd xmm0, xmm0  // 2个双精度浮点并行开�?
-    {$ELSE}
-    movupd xmm0, [rdi]; sqrtpd xmm0, xmm0
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; movupd xmm0, [eax]; sqrtpd xmm0, xmm0
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_sqrt_pd(constref a: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 1 do
+    Result.m128d_f64[LIndex] := Sqrt(a.m128d_f64[LIndex]);
 end;
 
 // === 5️⃣ Logical Operations 剩余实现 ===
