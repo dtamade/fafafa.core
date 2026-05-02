@@ -329,12 +329,14 @@ asm
     // Linux/macOS x64 System V ABI: 第一个参数在 rdi
     movdqa xmm0, [rdi]
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]
     movdqa xmm0, [eax]
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -355,12 +357,14 @@ asm
     // Linux/macOS x64 System V ABI: 第一个参数在 rdi
     movdqu xmm0, [rdi]
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]
     movdqu xmm0, [eax]
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -383,14 +387,16 @@ asm
     movdqa xmm0, [rsi] //  对齐加载源数�?
     movdqa [rdi], xmm0    // 对齐存储到目�?
     {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
     movdqa xmm0, [edx] //  对齐加载源数�?
     movdqa [eax], xmm0    // 对齐存储到目�?
-    {$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -407,14 +413,16 @@ asm
     movdqu xmm0, [rsi]    // 非对齐加载源数据
     movdqu [rdi], xmm0    // 非对齐存储到目标
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
     movdqu xmm0, [edx]    // 非对齐加载源数据
     movdqu [eax], xmm0    // 非对齐存储到目标
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -430,12 +438,14 @@ asm
     // Linux/macOS x64 System V ABI: 第一个参数在 rdi
     movapd xmm0, [rdi]
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]
     movapd xmm0, [eax]
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -456,12 +466,14 @@ asm
     // Linux/macOS x64 System V ABI: 第一个参数在 rdi
     movupd xmm0, [rdi]
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]
     movupd xmm0, [eax]
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -484,14 +496,16 @@ asm
     movapd xmm0, [rsi] //  对齐加载源数�?
     movapd [rdi], xmm0    // 对齐存储到目�?
     {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
     movapd xmm0, [edx] //  对齐加载源数�?
     movapd [eax], xmm0    // 对齐存储到目�?
-    {$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -508,14 +522,16 @@ asm
     movupd xmm0, [rsi]    // 非对齐加载源数据
     movupd [rdi], xmm0    // 非对齐存储到目标
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
     movupd xmm0, [edx]    // 非对齐加载源数据
     movupd [eax], xmm0    // 非对齐存储到目标
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -531,12 +547,14 @@ asm
     // Linux/macOS x64 System V ABI: 第一个参数在 rdi
     movaps xmm0, [rdi]
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]
     movaps xmm0, [eax]
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -557,12 +575,14 @@ asm
     // Linux/macOS x64 System V ABI: 第一个参数在 rdi
     movups xmm0, [rdi]
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]
     movups xmm0, [eax]
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -585,14 +605,16 @@ asm
     movaps xmm0, [rsi] //  对齐加载源数�?
     movaps [rdi], xmm0    // 对齐存储到目�?
     {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
     movaps xmm0, [edx] //  对齐加载源数�?
     movaps [eax], xmm0    // 对齐存储到目�?
-    {$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -609,14 +631,16 @@ asm
     movups xmm0, [rsi]    // 非对齐加载源数据
     movups [rdi], xmm0    // 非对齐存储到目标
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
     movups xmm0, [edx]    // 非对齐加载源数据
     movups [eax], xmm0    // 非对齐存储到目标
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -683,15 +707,17 @@ asm
     punpcklwd xmm0, xmm0
     pshufd xmm0, xmm0, 0
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: Value 在栈�?
     mov eax, [esp + 4]
     movd xmm0, eax
     punpcklbw xmm0, xmm0
     punpcklwd xmm0, xmm0
     pshufd xmm0, xmm0, 0
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -716,14 +742,16 @@ asm
     punpcklwd xmm0, xmm0
     pshufd xmm0, xmm0, 0
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: Value 在栈�?
     mov eax, [esp + 4]
     movd xmm0, eax
     punpcklwd xmm0, xmm0
     pshufd xmm0, xmm0, 0
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -746,13 +774,15 @@ asm
     movd xmm0, edi
     pshufd xmm0, xmm0, 0
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: Value 在栈�?
     mov eax, [esp + 4]
     movd xmm0, eax
     pshufd xmm0, xmm0, 0
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -775,12 +805,14 @@ asm
     movq xmm0, rdi
     punpcklqdq xmm0, xmm0
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: Value 在栈�?(8字节)
     movq xmm0, [esp + 4] //  直接从栈加载64�?
     punpcklqdq xmm0, xmm0
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -801,12 +833,14 @@ asm
     // Linux/macOS x64 System V ABI: Value �?xmm0
     shufps xmm0, xmm0, 0
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: Value 在栈�?
     movss xmm0, [esp + 4] // 加载单精度浮点数
     shufps xmm0, xmm0, 0  // 复制到所有位�?
-    {$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -827,12 +861,14 @@ asm
     // Linux/macOS x64 System V ABI: Value �?xmm0
     unpcklpd xmm0, xmm0
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: Value 在栈�?(8字节)
     movsd xmm0, [esp + 4] // 加载双精度浮点数
     unpcklpd xmm0, xmm0   // 复制到高�?
-    {$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -868,7 +904,8 @@ asm
     punpckldq xmm1, xmm2
     punpcklqdq xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]    // a
     mov edx, [esp + 8]    // b
@@ -881,8 +918,9 @@ asm
     movd xmm2, edx
     punpckldq xmm1, xmm2
     punpcklqdq xmm0, xmm1
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -916,7 +954,8 @@ asm
     punpckldq xmm1, xmm2
     punpcklqdq xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 16]   // d
     mov edx, [esp + 12]   // c
@@ -929,8 +968,9 @@ asm
     movd xmm2, edx
     punpckldq xmm1, xmm2
     punpcklqdq xmm0, xmm1
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -951,13 +991,15 @@ asm
     // Linux/macOS x64 System V ABI: a在xmm0, b在xmm1
     unpcklpd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     movsd xmm0, [esp + 4]  // a (8字节)
     movsd xmm1, [esp + 12] // b (8字节)
     unpcklpd xmm0, xmm1
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -983,13 +1025,15 @@ asm
     movq xmm1, rdi //  a -> �?4�?
     punpcklqdq xmm0, xmm1 // xmm0 = [a, b]
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     movq xmm0, [esp + 12] // b (8字节)
     movq xmm1, [esp + 4]  // a (8字节)
     punpcklqdq xmm0, xmm1
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1018,15 +1062,17 @@ asm
     movdqu xmm1, [rsi]    // 加载 b
     paddb xmm0, xmm1      // 16�?位整数并行加�?
     {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]    // a
     mov edx, [esp + 8]    // b
     movdqu xmm0, [eax]
     movdqu xmm1, [edx]
     paddb xmm0, xmm1
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1045,10 +1091,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pcmpeqb xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pcmpeqb xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pcmpeqb xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1067,10 +1115,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pand xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pand xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pand xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1097,15 +1147,17 @@ asm
     movdqu xmm1, [rsi]    // 加载 b
     paddw xmm0, xmm1      // 8�?6位整数并行加�?
     {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]    // a
     mov edx, [esp + 8]    // b
     movdqu xmm0, [eax]
     movdqu xmm1, [edx]
     paddw xmm0, xmm1
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1130,15 +1182,17 @@ asm
     movdqu xmm1, [rsi]    // 加载 b
     paddd xmm0, xmm1      // 4�?2位整数并行加�?
     {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]    // a
     mov edx, [esp + 8]    // b
     movdqu xmm0, [eax]
     movdqu xmm1, [edx]
     paddd xmm0, xmm1
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1163,15 +1217,17 @@ asm
     movdqu xmm1, [rsi]    // 加载 b
     paddq xmm0, xmm1      // 2�?4位整数并行加�?
     {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]    // a
     mov edx, [esp + 8]    // b
     movdqu xmm0, [eax]
     movdqu xmm1, [edx]
     paddq xmm0, xmm1
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1196,15 +1252,17 @@ asm
     movdqu xmm1, [rsi]    // 加载 b
     psubb xmm0, xmm1      // 16�?位整数并行减�?
     {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]    // a
     mov edx, [esp + 8]    // b
     movdqu xmm0, [eax]
     movdqu xmm1, [edx]
     psubb xmm0, xmm1
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1223,10 +1281,12 @@ asm
   {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; psubw xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; psubw xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; psubw xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1245,10 +1305,12 @@ asm
   {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; psubd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; psubd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; psubd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1267,10 +1329,12 @@ asm
   {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; psubq xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; psubq xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; psubq xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1289,10 +1353,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; paddsb xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; paddsb xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; paddsb xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1311,10 +1377,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; paddsw xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; paddsw xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; paddsw xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1333,10 +1401,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; psubsb xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; psubsb xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; psubsb xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1355,10 +1425,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; psubsw xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; psubsw xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; psubsw xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1388,13 +1460,15 @@ asm
     pandn xmm2, xmm1
     por xmm0, xmm2
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]; mov edx, [esp + 8]
     movdqu xmm0, [eax]; movdqu xmm1, [edx]
     movdqu xmm2, xmm0; pcmpgtb xmm2, xmm1
     pand xmm0, xmm2; pandn xmm2, xmm1; por xmm0, xmm2
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1413,10 +1487,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pmaxsw xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pmaxsw xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pmaxsw xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1446,13 +1522,15 @@ asm
     pandn xmm2, xmm1
     por xmm0, xmm2
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]; mov edx, [esp + 8]
     movdqu xmm0, [eax]; movdqu xmm1, [edx]
     movdqu xmm2, xmm1; pcmpgtb xmm2, xmm0
     pand xmm0, xmm2; pandn xmm2, xmm1; por xmm0, xmm2
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1471,10 +1549,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pminsw xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pminsw xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pminsw xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1493,10 +1573,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pmuludq xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pmuludq xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pmuludq xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1515,10 +1597,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pmullw xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pmullw xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pmullw xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1538,10 +1622,12 @@ asm
   {$ELSE}
     movups xmm0, [rdi]; movups xmm1, [rsi]; addps xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movups xmm0, [eax]; movups xmm1, [edx]; addps xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movups xmm0, [eax]; movups xmm1, [edx]; addps xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1560,10 +1646,12 @@ asm
   {$ELSE}
     movups xmm0, [rdi]; movups xmm1, [rsi]; subps xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movups xmm0, [eax]; movups xmm1, [edx]; subps xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movups xmm0, [eax]; movups xmm1, [edx]; subps xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1582,10 +1670,12 @@ asm
   {$ELSE}
     movups xmm0, [rdi]; movups xmm1, [rsi]; mulps xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movups xmm0, [eax]; movups xmm1, [edx]; mulps xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movups xmm0, [eax]; movups xmm1, [edx]; mulps xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1604,10 +1694,12 @@ asm
   {$ELSE}
     movups xmm0, [rdi]; movups xmm1, [rsi]; divps xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movups xmm0, [eax]; movups xmm1, [edx]; divps xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movups xmm0, [eax]; movups xmm1, [edx]; divps xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1626,10 +1718,12 @@ asm
     {$ELSE}
     movups xmm0, [rdi]; sqrtps xmm0, xmm0
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; movups xmm0, [eax]; sqrtps xmm0, xmm0
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; movups xmm0, [eax]; sqrtps xmm0, xmm0
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1648,10 +1742,12 @@ asm
   {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; addpd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; addpd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; addpd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1670,10 +1766,12 @@ asm
   {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; subpd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; subpd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; subpd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1692,10 +1790,12 @@ asm
   {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; mulpd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; mulpd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; mulpd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1714,10 +1814,12 @@ asm
   {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; divpd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; divpd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; divpd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1736,10 +1838,12 @@ asm
     {$ELSE}
     movupd xmm0, [rdi]; sqrtpd xmm0, xmm0
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; movupd xmm0, [eax]; sqrtpd xmm0, xmm0
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; movupd xmm0, [eax]; sqrtpd xmm0, xmm0
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1759,10 +1863,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; por xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; por xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; por xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1781,10 +1887,12 @@ asm
   {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pxor xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pxor xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pxor xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1803,10 +1911,12 @@ asm
   {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pandn xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pandn xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pandn xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1826,10 +1936,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pcmpeqw xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pcmpeqw xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pcmpeqw xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1848,10 +1960,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pcmpeqd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pcmpeqd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pcmpeqd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1870,10 +1984,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pcmpgtb xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pcmpgtb xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pcmpgtb xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1892,10 +2008,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pcmpgtw xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pcmpgtw xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pcmpgtw xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1914,10 +2032,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pcmpgtd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pcmpgtd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pcmpgtd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1937,10 +2057,12 @@ asm
   {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; cmpnltpd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; cmpnltpd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; cmpnltpd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1959,10 +2081,12 @@ asm
   {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; cmpnlepd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; cmpnlepd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; cmpnlepd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -1981,10 +2105,12 @@ asm
   {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; cmppd xmm0, xmm1, 2
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; cmppd xmm0, xmm1, 2
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; cmppd xmm0, xmm1, 2
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2003,10 +2129,12 @@ asm
   {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; cmppd xmm0, xmm1, 1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; cmppd xmm0, xmm1, 1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; cmppd xmm0, xmm1, 1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2025,10 +2153,12 @@ asm
   {$ELSE}
     movdqu xmm0, [rsi]; movdqu xmm1, [rdi]; pcmpgtb xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [edx]; movdqu xmm1, [eax]; pcmpgtb xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [edx]; movdqu xmm1, [eax]; pcmpgtb xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2047,10 +2177,12 @@ asm
   {$ELSE}
     movdqu xmm0, [rsi]; movdqu xmm1, [rdi]; pcmpgtw xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [edx]; movdqu xmm1, [eax]; pcmpgtw xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [edx]; movdqu xmm1, [eax]; pcmpgtw xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2069,10 +2201,12 @@ asm
   {$ELSE}
     movdqu xmm0, [rsi]; movdqu xmm1, [rdi]; pcmpgtd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [edx]; movdqu xmm1, [eax]; pcmpgtd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [edx]; movdqu xmm1, [eax]; pcmpgtd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2092,10 +2226,12 @@ asm
     {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; cmpeqpd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; cmpeqpd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; cmpeqpd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2114,10 +2250,12 @@ asm
     {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; cmpltpd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; cmpltpd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; cmpltpd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2136,10 +2274,12 @@ asm
     {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; cmplepd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; cmplepd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; cmplepd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2158,10 +2298,12 @@ asm
   {$ELSE}
     movupd xmm0, [rsi]; movupd xmm1, [rdi]; cmpltpd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [edx]; movupd xmm1, [eax]; cmpltpd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [edx]; movupd xmm1, [eax]; cmpltpd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2180,10 +2322,12 @@ asm
   {$ELSE}
     movupd xmm0, [rsi]; movupd xmm1, [rdi]; cmplepd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [edx]; movupd xmm1, [eax]; cmplepd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [edx]; movupd xmm1, [eax]; cmplepd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2202,10 +2346,12 @@ asm
   {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; cmpneqpd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; cmpneqpd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; cmpneqpd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2249,7 +2395,8 @@ asm
 @imm3: pshufd xmm0, xmm0, $00; jmp @done
 @done:
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]; mov edx, [esp + 8]
     movdqu xmm0, [eax]
     cmp dl, 0; je @imm0
@@ -2262,8 +2409,9 @@ asm
 @imm2: pshufd xmm0, xmm0, $00; jmp @done
 @imm3: pshufd xmm0, xmm0, $00; jmp @done
 @done:
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2304,7 +2452,8 @@ asm
 @imm3: shufpd xmm0, xmm1, 3; jmp @done
 @done:
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]; mov edx, [esp + 8]; mov ecx, [esp + 12]
     movupd xmm0, [eax]; movupd xmm1, [edx]
     cmp cl, 0; je @imm0
@@ -2317,8 +2466,9 @@ asm
 @imm2: shufpd xmm0, xmm1, 2; jmp @done
 @imm3: shufpd xmm0, xmm1, 3; jmp @done
 @done:
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2360,7 +2510,8 @@ asm
 @immE4: shufps xmm0, xmm1, $00; jmp @done
 @done:
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]; mov edx, [esp + 8]; mov ecx, [esp + 12]
     movups xmm0, [eax]; movups xmm1, [edx]
     cmp cl, $00; je @imm00
@@ -2373,8 +2524,9 @@ asm
 @imm88: shufps xmm0, xmm1, $00; jmp @done
 @immE4: shufps xmm0, xmm1, $00; jmp @done
 @done:
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2414,7 +2566,8 @@ asm
 @immE4: pshuflw xmm0, xmm0, $00; jmp @done
 @done:
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]; mov edx, [esp + 8]
     movdqu xmm0, [eax]
     cmp dl, $00; je @imm00
@@ -2427,8 +2580,9 @@ asm
 @imm88: pshuflw xmm0, xmm0, $00; jmp @done
 @immE4: pshuflw xmm0, xmm0, $00; jmp @done
 @done:
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2468,7 +2622,8 @@ asm
 @immE4: pshufhw xmm0, xmm0, $00; jmp @done
 @done:
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]; mov edx, [esp + 8]
     movdqu xmm0, [eax]
     cmp dl, $00; je @imm00
@@ -2481,8 +2636,9 @@ asm
 @imm88: pshufhw xmm0, xmm0, $00; jmp @done
 @immE4: pshufhw xmm0, xmm0, $00; jmp @done
 @done:
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2501,10 +2657,12 @@ asm
   {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; punpcklbw xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; punpcklbw xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; punpcklbw xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2523,10 +2681,12 @@ asm
   {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; punpckhbw xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; punpckhbw xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; punpckhbw xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2545,10 +2705,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; punpcklwd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; punpcklwd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; punpcklwd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2567,10 +2729,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; punpckhwd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; punpckhwd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; punpckhwd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2589,10 +2753,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; punpckldq xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; punpckldq xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; punpckldq xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2611,10 +2777,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; punpckhdq xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; punpckhdq xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; punpckhdq xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2633,10 +2801,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; punpcklqdq xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; punpcklqdq xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; punpcklqdq xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2655,10 +2825,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; punpckhqdq xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; punpckhqdq xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; punpckhqdq xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2677,10 +2849,12 @@ asm
   {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; unpcklpd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; unpcklpd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; unpcklpd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2699,10 +2873,12 @@ asm
   {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; unpckhpd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; unpckhpd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; unpckhpd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2737,7 +2913,8 @@ asm
     pxor xmm0, xmm0
 @done:
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]; mov edx, [esp + 8]
     movdqu xmm0, [eax]
     cmp dl, 16; jae @zero
@@ -2745,8 +2922,9 @@ asm
     movd xmm1, edx; psllw xmm0, xmm1; jmp @done
 @zero: pxor xmm0, xmm0
 @done:
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2775,15 +2953,17 @@ asm
 @zero: pxor xmm0, xmm0
 @done:
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]
     cmp dl, 32; jae @zero
     cmp dl, 0; je @done
     movd xmm1, edx; pslld xmm0, xmm1; jmp @done
 @zero: pxor xmm0, xmm0
 @done:
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2812,15 +2992,17 @@ asm
 @zero: pxor xmm0, xmm0
 @done:
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]
     cmp dl, 64; jae @zero
     cmp dl, 0; je @done
     movd xmm1, edx; psllq xmm0, xmm1; jmp @done
 @zero: pxor xmm0, xmm0
 @done:
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2849,15 +3031,17 @@ asm
 @zero: pxor xmm0, xmm0
 @done:
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]
     cmp dl, 16; jae @zero
     cmp dl, 0; je @done
     movd xmm1, edx; psrlw xmm0, xmm1; jmp @done
 @zero: pxor xmm0, xmm0
 @done:
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2886,15 +3070,17 @@ asm
 @zero: pxor xmm0, xmm0
 @done:
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]
     cmp dl, 32; jae @zero
     cmp dl, 0; je @done
     movd xmm1, edx; psrld xmm0, xmm1; jmp @done
 @zero: pxor xmm0, xmm0
 @done:
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2923,15 +3109,17 @@ asm
 @zero: pxor xmm0, xmm0
 @done:
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]
     cmp dl, 64; jae @zero
     cmp dl, 0; je @done
     movd xmm1, edx; psrlq xmm0, xmm1; jmp @done
 @zero: pxor xmm0, xmm0
 @done:
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2959,15 +3147,17 @@ asm
 @max: psraw xmm0, 15
 @done:
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]
     cmp dl, 16; jae @max
     cmp dl, 0; je @done
     movd xmm1, edx; psraw xmm0, xmm1; jmp @done
 @max: psraw xmm0, 15
 @done:
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -2995,15 +3185,17 @@ asm
 @max: psrad xmm0, 31
 @done:
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]
     cmp dl, 32; jae @max
     cmp dl, 0; je @done
     movd xmm1, edx; psrad xmm0, xmm1; jmp @done
 @max: psrad xmm0, 31
 @done:
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -3095,7 +3287,8 @@ end;
 	    pxor xmm0, xmm0
 	@done:
 	  {$ENDIF}
-	{$ELSEIF DEFINED(CPUX86)}
+	{$ELSE}
+	  {$IFDEF CPUX86}
 	    mov eax, [esp + 4]; mov edx, [esp + 8]
 	    movdqu xmm0, [eax]
 	    cmp dl, 0; je @done
@@ -3134,8 +3327,9 @@ end;
 	@zero:
 	    pxor xmm0, xmm0
 	@done:
-	{$ELSE}
+	  {$ELSE}
 	    {$ERROR Unsupported CPU}
+	  {$ENDIF}
 	{$ENDIF}
 	{$IFDEF CPUX86_64}
 	  movq rax, xmm0
@@ -3226,7 +3420,8 @@ end;
 	    pxor xmm0, xmm0
 	@done:
 	  {$ENDIF}
-	{$ELSEIF DEFINED(CPUX86)}
+	{$ELSE}
+	  {$IFDEF CPUX86}
 	    mov eax, [esp + 4]; mov edx, [esp + 8]
 	    movdqu xmm0, [eax]
 	    cmp dl, 0; je @done
@@ -3265,8 +3460,9 @@ end;
 	@zero:
 	    pxor xmm0, xmm0
 	@done:
-	{$ELSE}
+	  {$ELSE}
 	    {$ERROR Unsupported CPU}
+	  {$ENDIF}
 	{$ENDIF}
 	{$IFDEF CPUX86_64}
 	  movq rax, xmm0
@@ -3288,12 +3484,14 @@ asm
     movdqu xmm0, [rdi]
     cvtdq2pd xmm0, xmm0
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]    // a
     movdqu xmm0, [eax]
     cvtdq2pd xmm0, xmm0
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -3314,12 +3512,14 @@ asm
     movupd xmm0, [rdi]
     cvtpd2dq xmm0, xmm0
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]    // a
     movupd xmm0, [eax]
     cvtpd2dq xmm0, xmm0
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -3340,12 +3540,14 @@ asm
     movdqu xmm0, [rdi]
     cvtdq2ps xmm0, xmm0
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]    // a
     movdqu xmm0, [eax]
     cvtdq2ps xmm0, xmm0
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -3366,12 +3568,14 @@ asm
     movups xmm0, [rdi]
     cvtps2dq xmm0, xmm0
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]    // a
     movups xmm0, [eax]
     cvtps2dq xmm0, xmm0
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -3390,11 +3594,13 @@ asm
   {$ELSE}
     movd xmm0, edi        // Linux/macOS x64
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]    // a
     movd xmm0, eax
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -3413,10 +3619,12 @@ asm
   {$ELSE}
     movq xmm0, rdi        // Linux/macOS x64
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    movq xmm0, [esp + 4]  // 64位参数在栈上
 {$ELSE}
+  {$IFDEF CPUX86}
+    movq xmm0, [esp + 4]  // 64位参数在栈上
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -3437,12 +3645,14 @@ asm
     movdqu xmm0, [rdi]
     movd eax, xmm0
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov edx, [esp + 4]    // a
     movdqu xmm0, [edx]
     movd eax, xmm0
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -3457,12 +3667,14 @@ asm
     movdqu xmm0, [rdi]
     movq rax, xmm0
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov edx, [esp + 4]    // a
     movdqu xmm0, [edx]
     movq [esp + 8], xmm0  // 返回64位值到�?
-    {$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -3478,12 +3690,14 @@ asm
     movupd xmm0, [rdi]
     cvtpd2ps xmm0, xmm0
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]    // a
     movupd xmm0, [eax]
     cvtpd2ps xmm0, xmm0
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -3504,12 +3718,14 @@ asm
     movups xmm0, [rdi]
     cvtps2pd xmm0, xmm0
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]    // a
     movups xmm0, [eax]
     cvtps2pd xmm0, xmm0
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -3531,12 +3747,14 @@ asm
     movups xmm0, [rdi]
     cvttps2dq xmm0, xmm0
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]    // a
     movups xmm0, [eax]
     cvttps2dq xmm0, xmm0
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -3557,12 +3775,14 @@ asm
     movupd xmm0, [rdi]
     cvttpd2dq xmm0, xmm0
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]    // a
     movupd xmm0, [eax]
     cvttpd2dq xmm0, xmm0
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -3590,13 +3810,15 @@ asm
     pxor xmm0, xmm0
     movq xmm0, [rdi]
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]
     pxor xmm0, xmm0
     movq xmm0, [eax]
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -3619,14 +3841,16 @@ asm
     movq xmm0, [rsi] //  加载源数据的�?4�?
     movq [rdi], xmm0      // 存储�?4位到目标
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
     movq xmm0, [edx] //  加载源数据的�?4�?
     movq [eax], xmm0      // 存储�?4位到目标
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -3651,7 +3875,8 @@ asm
     maskmovdqu xmm0, xmm1
     pop rdi               // 恢复原始 rdi
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]    // Src
     mov edx, [esp + 8]    // Mask
@@ -3660,8 +3885,9 @@ asm
     movdqa xmm1, [edx]
     maskmovdqu xmm0, xmm1 // 条件存储�?[edi]
     pop edi               // 恢复 edi 寄存�?
-    {$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -3678,13 +3904,15 @@ asm
     movupd xmm0, [rdi]     // 加载两个双精度数
     shufpd xmm0, xmm0, 1   // 交换高低�?
     {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]
     movupd xmm0, [eax]
     shufpd xmm0, xmm0, 1
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -3709,15 +3937,17 @@ asm
     shufpd xmm0, xmm0, 1 //  交换高低�?
     movupd [rdi], xmm0     // 存储到目�?
     {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]     // Dest
     mov edx, [esp + 8]     // Src
     movapd xmm0, [edx]
     shufpd xmm0, xmm0, 1
     movupd [eax], xmm0
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -3734,14 +3964,16 @@ asm
     movapd xmm0, [rdi]     // 加载 A �?xmm0
     movhpd xmm0, [rsi]     // 加载 Ptr 指向的双精度到高�?
     {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]     // A
     mov edx, [esp + 8]     // Ptr
     movapd xmm0, [eax]
     movhpd xmm0, [edx]
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -3764,14 +3996,16 @@ asm
     movapd xmm0, [rdi]     // 加载 A �?xmm0
     movlpd xmm0, [rsi]     // 加载 Ptr 指向的双精度到低�?
     {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]     // A
     mov edx, [esp + 8]     // Ptr
     movapd xmm0, [eax]
     movlpd xmm0, [edx]
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -3792,14 +4026,16 @@ asm
     // Linux/macOS x64 System V ABI: Dest �?rdi, Src �?rsi
     movapd xmm0, [rsi]     // 加载源数�?    movhpd [rdi], xmm0     // 存储高位双精度到目标
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]     // Dest
     mov edx, [esp + 8]     // Src
     movapd xmm0, [edx]
     movhpd [eax], xmm0
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -3814,14 +4050,16 @@ asm
     // Linux/macOS x64 System V ABI: Dest �?rdi, Src �?rsi
     movapd xmm0, [rsi]     // 加载源数�?    movlpd [rdi], xmm0     // 存储低位双精度到目标
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]     // Dest
     mov edx, [esp + 8]     // Src
     movapd xmm0, [edx]
     movlpd [eax], xmm0
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -3836,12 +4074,14 @@ asm
     // Linux/macOS x64 System V ABI: 第一个参数在 rdi
     movsd xmm0, [rdi]      // 加载标量双精度，高位自动清零
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]
     movsd xmm0, [eax]
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -3864,14 +4104,16 @@ asm
     movapd xmm0, [rsi] //  加载源数�?
     movsd [rdi], xmm0      // 存储标量双精�?
     {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]     // Dest
     mov edx, [esp + 8]     // Src
     movapd xmm0, [edx]
     movsd [eax], xmm0
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -3929,10 +4171,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; paddusb xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; paddusb xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; paddusb xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -3951,10 +4195,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; paddusw xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; paddusw xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; paddusw xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -3973,10 +4219,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; psubusb xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; psubusb xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; psubusb xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -3995,10 +4243,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; psubusw xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; psubusw xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; psubusw xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4017,10 +4267,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pmulhw xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pmulhw xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pmulhw xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4039,10 +4291,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pmulhuw xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pmulhuw xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pmulhuw xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4061,10 +4315,12 @@ asm
   {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pmaddwd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pmaddwd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pmaddwd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4083,10 +4339,12 @@ asm
   {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pavgb xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pavgb xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pavgb xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4105,10 +4363,12 @@ asm
   {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pavgw xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pavgw xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pavgw xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4127,10 +4387,12 @@ asm
   {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; psadbw xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; psadbw xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; psadbw xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4150,10 +4412,12 @@ asm
     {$ELSE}
     movups xmm0, [rdi]; movups xmm1, [rsi]; minps xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movups xmm0, [eax]; movups xmm1, [edx]; minps xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movups xmm0, [eax]; movups xmm1, [edx]; minps xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4172,10 +4436,12 @@ asm
     {$ELSE}
     movups xmm0, [rdi]; movups xmm1, [rsi]; maxps xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movups xmm0, [eax]; movups xmm1, [edx]; maxps xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movups xmm0, [eax]; movups xmm1, [edx]; maxps xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4194,10 +4460,12 @@ asm
     {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; minpd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; minpd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; minpd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4216,10 +4484,12 @@ asm
     {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; maxpd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; maxpd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; maxpd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4238,10 +4508,12 @@ asm
   {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; addsd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; addsd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; addsd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4260,10 +4532,12 @@ asm
     {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; subsd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; subsd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; subsd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4282,10 +4556,12 @@ asm
     {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; mulsd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; mulsd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; mulsd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4304,10 +4580,12 @@ asm
     {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; divsd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; divsd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; divsd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4326,10 +4604,12 @@ asm
     {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; sqrtsd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; sqrtsd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; sqrtsd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4348,10 +4628,12 @@ asm
     {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; minsd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; minsd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; minsd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4370,10 +4652,12 @@ asm
     {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; maxsd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; maxsd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; maxsd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4393,10 +4677,12 @@ asm
     {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; andpd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; andpd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; andpd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4415,10 +4701,12 @@ asm
     {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; orpd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; orpd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; orpd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4437,10 +4725,12 @@ asm
   {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; xorpd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; xorpd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; xorpd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4459,10 +4749,12 @@ asm
   {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; andnpd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; andnpd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; andnpd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4482,10 +4774,12 @@ asm
     {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; cmpordpd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; cmpordpd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; cmpordpd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4504,10 +4798,12 @@ asm
     {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; cmpunordpd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; cmpunordpd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; cmpunordpd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4527,10 +4823,12 @@ asm
   {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; cmpeqsd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; cmpeqsd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; cmpeqsd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4549,10 +4847,12 @@ asm
     {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; cmpltsd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; cmpltsd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; cmpltsd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4571,10 +4871,12 @@ asm
     {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; cmplesd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; cmplesd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; cmplesd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4593,10 +4895,12 @@ asm
     {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; cmpnlesd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; cmpnlesd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; cmpnlesd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4615,10 +4919,12 @@ asm
     {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; cmpnltsd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; cmpnltsd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; cmpnltsd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4637,10 +4943,12 @@ asm
   {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; cmpneqsd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; cmpneqsd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; cmpneqsd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4659,10 +4967,12 @@ asm
   {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; cmpnltsd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; cmpnltsd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; cmpnltsd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4681,10 +4991,12 @@ asm
   {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; cmpnlesd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; cmpnlesd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; cmpnlesd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4703,10 +5015,12 @@ asm
   {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; cmpsd xmm0, xmm1, 2
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; cmpsd xmm0, xmm1, 2
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; cmpsd xmm0, xmm1, 2
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4725,10 +5039,12 @@ asm
   {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; cmpsd xmm0, xmm1, 1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; cmpsd xmm0, xmm1, 1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; cmpsd xmm0, xmm1, 1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4747,10 +5063,12 @@ asm
     {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; cmpordsd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; cmpordsd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; cmpordsd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4769,10 +5087,12 @@ asm
     {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; cmpunordsd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; cmpunordsd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; cmpunordsd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -4792,10 +5112,12 @@ asm
   {$ELSE}
     movsd xmm0, [rdi]; movsd xmm1, [rsi]; comisd xmm0, xmm1; sete al; movzx eax, al
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; comisd xmm0, xmm1; sete al; movzx eax, al
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; comisd xmm0, xmm1; sete al; movzx eax, al
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -4808,10 +5130,12 @@ asm
   {$ELSE}
     movsd xmm0, [rdi]; movsd xmm1, [rsi]; comisd xmm0, xmm1; setb al; movzx eax, al
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; comisd xmm0, xmm1; setb al; movzx eax, al
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; comisd xmm0, xmm1; setb al; movzx eax, al
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -4824,10 +5148,12 @@ asm
   {$ELSE}
     movsd xmm0, [rdi]; movsd xmm1, [rsi]; comisd xmm0, xmm1; setbe al; movzx eax, al
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; comisd xmm0, xmm1; setbe al; movzx eax, al
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; comisd xmm0, xmm1; setbe al; movzx eax, al
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -4840,10 +5166,12 @@ asm
   {$ELSE}
     movsd xmm0, [rdi]; movsd xmm1, [rsi]; comisd xmm0, xmm1; seta al; movzx eax, al
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; comisd xmm0, xmm1; seta al; movzx eax, al
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; comisd xmm0, xmm1; seta al; movzx eax, al
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -4856,10 +5184,12 @@ asm
   {$ELSE}
     movsd xmm0, [rdi]; movsd xmm1, [rsi]; comisd xmm0, xmm1; setae al; movzx eax, al
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; comisd xmm0, xmm1; setae al; movzx eax, al
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; comisd xmm0, xmm1; setae al; movzx eax, al
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -4872,10 +5202,12 @@ asm
     {$ELSE}
     movsd xmm0, [rdi]; movsd xmm1, [rsi]; comisd xmm0, xmm1; setne al; movzx eax, al
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; comisd xmm0, xmm1; setne al; movzx eax, al
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; comisd xmm0, xmm1; setne al; movzx eax, al
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -4889,10 +5221,12 @@ asm
   {$ELSE}
     movsd xmm0, [rdi]; movsd xmm1, [rsi]; ucomisd xmm0, xmm1; sete al; movzx eax, al
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; ucomisd xmm0, xmm1; sete al; movzx eax, al
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; ucomisd xmm0, xmm1; sete al; movzx eax, al
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -4905,10 +5239,12 @@ asm
   {$ELSE}
     movsd xmm0, [rdi]; movsd xmm1, [rsi]; ucomisd xmm0, xmm1; setb al; movzx eax, al
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; ucomisd xmm0, xmm1; setb al; movzx eax, al
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; ucomisd xmm0, xmm1; setb al; movzx eax, al
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -4921,10 +5257,12 @@ asm
   {$ELSE}
     movsd xmm0, [rdi]; movsd xmm1, [rsi]; ucomisd xmm0, xmm1; setbe al; movzx eax, al
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; ucomisd xmm0, xmm1; setbe al; movzx eax, al
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; ucomisd xmm0, xmm1; setbe al; movzx eax, al
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -4937,10 +5275,12 @@ asm
   {$ELSE}
     movsd xmm0, [rdi]; movsd xmm1, [rsi]; ucomisd xmm0, xmm1; seta al; movzx eax, al
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; ucomisd xmm0, xmm1; seta al; movzx eax, al
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; ucomisd xmm0, xmm1; seta al; movzx eax, al
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -4953,10 +5293,12 @@ asm
   {$ELSE}
     movsd xmm0, [rdi]; movsd xmm1, [rsi]; ucomisd xmm0, xmm1; setae al; movzx eax, al
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; ucomisd xmm0, xmm1; setae al; movzx eax, al
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; ucomisd xmm0, xmm1; setae al; movzx eax, al
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -4969,10 +5311,12 @@ asm
     {$ELSE}
     movsd xmm0, [rdi]; movsd xmm1, [rsi]; ucomisd xmm0, xmm1; setne al; movzx eax, al
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; ucomisd xmm0, xmm1; setne al; movzx eax, al
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; ucomisd xmm0, xmm1; setne al; movzx eax, al
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -4986,10 +5330,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; packsswb xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; packsswb xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; packsswb xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -5008,10 +5354,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; packssdw xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; packssdw xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; packssdw xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -5030,10 +5378,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; packuswb xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; packuswb xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; packuswb xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -5090,7 +5440,8 @@ end;
 	@pos7: pinsrw xmm0, esi, 7; jmp @done
 	@done:
 	  {$ENDIF}
-	{$ELSEIF DEFINED(CPUX86)}
+	{$ELSE}
+	  {$IFDEF CPUX86}
 	    mov eax, [esp + 4]; mov edx, [esp + 8]; mov ecx, [esp + 12]
 	    movdqu xmm0, [eax]
 	    cmp cl, 0; je @pos0
@@ -5111,8 +5462,9 @@ end;
 	@pos6: pinsrw xmm0, edx, 6; jmp @done
 	@pos7: pinsrw xmm0, edx, 7; jmp @done
 	@done:
-	{$ELSE}
+	  {$ELSE}
 	    {$ERROR Unsupported CPU}
+	  {$ENDIF}
 	{$ENDIF}
 	{$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -5168,7 +5520,8 @@ asm
 @pos7: pextrw eax, xmm0, 7; jmp @done
 @done:
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov edx, [esp + 4]; mov ecx, [esp + 8]
     movdqu xmm0, [edx]
     cmp cl, 0; je @pos0
@@ -5189,8 +5542,9 @@ asm
 @pos6: pextrw eax, xmm0, 6; jmp @done
 @pos7: pextrw eax, xmm0, 7; jmp @done
 @done:
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -5213,14 +5567,16 @@ asm
     movsd xmm1, [rsi]
     movsd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]    // a
     mov edx, [esp + 8]    // b
     movupd xmm0, [eax]
     movsd xmm1, [edx]
     movsd xmm0, xmm1
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -5241,12 +5597,14 @@ asm
     movdqu xmm0, [rdi]
     movq xmm0, xmm0
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]    // a
     movdqu xmm0, [eax]
     movq xmm0, xmm0
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -5267,12 +5625,14 @@ asm
     movdqu xmm0, [rdi]
     pmovmskb eax, xmm0
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov edx, [esp + 4]    // a
     movdqu xmm0, [edx]
     pmovmskb eax, xmm0
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -5287,12 +5647,14 @@ asm
     movupd xmm0, [rdi]
     movmskpd eax, xmm0
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov edx, [esp + 4]    // a
     movupd xmm0, [edx]
     movmskpd eax, xmm0
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -5307,12 +5669,14 @@ asm
     movups xmm0, [rdi]
     movmskps eax, xmm0
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov edx, [esp + 4]    // a
     movups xmm0, [edx]
     movmskps eax, xmm0
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -5326,11 +5690,13 @@ asm
   {$ELSE}
     movupd xmm0, [rdi]
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]
     movupd xmm0, [eax]
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -5349,11 +5715,13 @@ asm
   {$ELSE}
     movdqu xmm0, [rdi]
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]
     movdqu xmm0, [eax]
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -5372,11 +5740,13 @@ asm
   {$ELSE}
     movups xmm0, [rdi]
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]
     movups xmm0, [eax]
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -5395,11 +5765,13 @@ asm
   {$ELSE}
     movdqu xmm0, [rdi]
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]
     movdqu xmm0, [eax]
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -5418,11 +5790,13 @@ asm
   {$ELSE}
     movupd xmm0, [rdi]
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]
     movupd xmm0, [eax]
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -5441,11 +5815,13 @@ asm
   {$ELSE}
     movups xmm0, [rdi]
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]
     movups xmm0, [eax]
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -5464,10 +5840,12 @@ asm
     {$ELSE}
     movups xmm0, [rdi]; movups xmm1, [rsi]; unpcklps xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movups xmm0, [eax]; movups xmm1, [edx]; unpcklps xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movups xmm0, [eax]; movups xmm1, [edx]; unpcklps xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -5486,10 +5864,12 @@ asm
     {$ELSE}
     movups xmm0, [rdi]; movups xmm1, [rsi]; unpckhps xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movups xmm0, [eax]; movups xmm1, [edx]; unpckhps xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movups xmm0, [eax]; movups xmm1, [edx]; unpckhps xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -5508,10 +5888,12 @@ asm
     {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; cvtsd2ss xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; cvtsd2ss xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; cvtsd2ss xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -5530,10 +5912,12 @@ asm
     {$ELSE}
     movupd xmm0, [rdi]; movss xmm1, [rsi]; cvtss2sd xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movss xmm1, [edx]; cvtss2sd xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movss xmm1, [edx]; cvtss2sd xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -5645,7 +6029,8 @@ end;
 	    movdqa xmm0, xmm1
 	@done:
 	  {$ENDIF}
-	{$ELSEIF DEFINED(CPUX86)}
+	{$ELSE}
+	  {$IFDEF CPUX86}
 	    mov ecx, [esp + 4]; mov edx, [esp + 8]
 	    movdqu xmm0, [ecx]
 	    cmp dl, 0; je @done
@@ -5691,8 +6076,9 @@ end;
 	@allfill:
 	    movdqa xmm0, xmm1
 	@done:
-	{$ELSE}
+	  {$ELSE}
 	    {$ERROR Unsupported CPU}
+	  {$ENDIF}
 	{$ENDIF}
 	{$IFDEF CPUX86_64}
 	  movq rax, xmm0
@@ -5711,10 +6097,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pmaxub xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pmaxub xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pmaxub xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -5733,10 +6121,12 @@ asm
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pminub xmm0, xmm1
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pminub xmm0, xmm1
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pminub xmm0, xmm1
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -5755,10 +6145,12 @@ asm
     {$ELSE}
     movsd xmm0, [rdi]; cvtsd2si eax, xmm0
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov edx, [esp + 4]; movsd xmm0, [edx]; cvtsd2si eax, xmm0
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov edx, [esp + 4]; movsd xmm0, [edx]; cvtsd2si eax, xmm0
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -5771,10 +6163,12 @@ asm
     {$ELSE}
     movsd xmm0, [rdi]; cvtsd2si rax, xmm0
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov edx, [esp + 4]; movsd xmm0, [edx]; cvtsd2si eax, xmm0; mov [esp + 8], eax; xor eax, eax; mov [esp + 12], eax
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov edx, [esp + 4]; movsd xmm0, [edx]; cvtsd2si eax, xmm0; mov [esp + 8], eax; xor eax, eax; mov [esp + 12], eax
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -5787,10 +6181,12 @@ asm
     {$ELSE}
     movsd xmm0, [rdi]; cvttsd2si eax, xmm0
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov edx, [esp + 4]; movsd xmm0, [edx]; cvttsd2si eax, xmm0
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov edx, [esp + 4]; movsd xmm0, [edx]; cvttsd2si eax, xmm0
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -5803,10 +6199,12 @@ asm
     {$ELSE}
     movsd xmm0, [rdi]; cvttsd2si rax, xmm0
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov edx, [esp + 4]; movsd xmm0, [edx]; cvttsd2si eax, xmm0; mov [esp + 8], eax; xor eax, eax; mov [esp + 12], eax
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov edx, [esp + 4]; movsd xmm0, [edx]; cvttsd2si eax, xmm0; mov [esp + 8], eax; xor eax, eax; mov [esp + 12], eax
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -5819,10 +6217,12 @@ asm
     {$ELSE}
     movupd xmm0, [rdi]; cvtsi2sd xmm0, esi
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; cvtsi2sd xmm0, edx
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; cvtsi2sd xmm0, edx
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -5841,10 +6241,12 @@ asm
     {$ELSE}
     movupd xmm0, [rdi]; cvtsi2sd xmm0, rsi
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
-    mov eax, [esp + 4]; movupd xmm0, [eax]; cvtsi2sd xmm0, qword ptr [esp + 8]
 {$ELSE}
+  {$IFDEF CPUX86}
+    mov eax, [esp + 4]; movupd xmm0, [eax]; cvtsi2sd xmm0, qword ptr [esp + 8]
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -5864,11 +6266,13 @@ asm
     {$ELSE}
     clflush [rdi]         // Linux/macOS x64
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]    // Ptr
     clflush [eax]
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -5901,13 +6305,15 @@ asm
     movupd xmm0, [rsi]    // 加载 Src
     movntpd [rdi], xmm0   // 非临时存储双精度
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
     movupd xmm0, [edx]
     movntpd [eax], xmm0
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -5922,13 +6328,15 @@ asm
     movups xmm0, [rsi]    // 加载 Src
     movntps [rdi], xmm0   // 非临时存储单精度
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
     movups xmm0, [edx]
     movntps [eax], xmm0
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -5943,13 +6351,15 @@ asm
     movdqu xmm0, [rsi]    // 加载 Src
     movntdq [rdi], xmm0   // 非临时存�?28位整�?
     {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
     movdqu xmm0, [edx]
     movntdq [eax], xmm0
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -5962,12 +6372,14 @@ asm
     {$ELSE}
     movnti [rdi], esi     // Linux/macOS x64
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Value
     movnti [eax], edx
-{$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -5980,12 +6392,14 @@ asm
     {$ELSE}
     movnti [rdi], rsi     // Linux/macOS x64
   {$ENDIF}
-{$ELSEIF DEFINED(CPUX86)}
+{$ELSE}
+  {$IFDEF CPUX86}
     mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8] //  �?2�?
     mov ecx, [esp + 12]   // �?2�?    movnti [eax], edx     // 存储�?2�?    movnti [eax + 4], ecx // 存储�?2�?
-    {$ELSE}
+  {$ELSE}
     {$ERROR Unsupported CPU}
+  {$ENDIF}
 {$ENDIF}
 end;
 
