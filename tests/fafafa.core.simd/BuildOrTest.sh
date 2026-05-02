@@ -84,6 +84,7 @@ WIN_CLOSEOUT_FINALIZE_SCRIPT="${ROOT}/run_windows_b07_closeout_finalize.sh"
 FREEZE_REHEARSAL_SCRIPT="${ROOT}/rehearse_freeze_status.sh"
 WIN_EVIDENCE_PREFLIGHT_SCRIPT="${ROOT}/preflight_windows_b07_evidence_gh.sh"
 PUBLICABI_RUNNER_SCRIPT="${ROOT}/../fafafa.core.simd.publicabi/BuildOrTest.sh"
+WINDOWS_CPUINFO_X86_BATCH_SUCCESS_CRITERIA_SMOKE_SCRIPT="${REPO_ROOT}/tests/test_windows_simd_cpuinfo_x86_batch_build_success_criteria.sh"
 
 mkdir -p "${BIN_DIR}" "${UNIT_DIR}" "${LOG_DIR}"
 
@@ -5704,6 +5705,18 @@ PY_JSON_CHECK
   echo "[GATE-SUMMARY-SELFCHECK] OK"
 }
 
+run_windows_cpuinfo_x86_batch_build_success_criteria_smoke() {
+  local LSmokeScript
+
+  LSmokeScript="${WINDOWS_CPUINFO_X86_BATCH_SUCCESS_CRITERIA_SMOKE_SCRIPT:-${REPO_ROOT}/tests/test_windows_simd_cpuinfo_x86_batch_build_success_criteria.sh}"
+  if [[ ! -f "${LSmokeScript}" ]]; then
+    echo "[CHECK] Missing Windows cpuinfo.x86 batch success-criteria smoke: ${LSmokeScript}"
+    return 2
+  fi
+
+  bash "${LSmokeScript}"
+}
+
 run_evidence_linux() {
   local LEvidenceScript
 
@@ -6146,6 +6159,7 @@ case "${ACTION}" in
     check_linux_evidence_output_isolation
     check_freeze_status_output_isolation
     check_cpuinfo_runner_parity
+    run_windows_cpuinfo_x86_batch_build_success_criteria_smoke
     run_register_include_check
     run_sse2_structure_check
     run_suite_manifest_check
