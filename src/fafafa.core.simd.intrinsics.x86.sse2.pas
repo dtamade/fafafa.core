@@ -2432,8 +2432,8 @@ asm
     cmp r8b, 1; je @imm1
     cmp r8b, 2; je @imm2
     cmp r8b, 3; je @imm3
-    shufpd xmm0, xmm1, 0; jmp @done //  默认�?@imm0:
-    shufpd xmm0, xmm1, 0; jmp @done
+    shufpd xmm0, xmm1, 0; jmp @done // 默认
+@imm0: shufpd xmm0, xmm1, 0; jmp @done
 @imm1: shufpd xmm0, xmm1, 1; jmp @done
 @imm2: shufpd xmm0, xmm1, 2; jmp @done
 @imm3: shufpd xmm0, xmm1, 3; jmp @done
@@ -2490,8 +2490,8 @@ asm
     cmp r8b, $00; je @imm44
     cmp r8b, $00; je @imm88
     cmp r8b, $00; je @immE4
-    shufps xmm0, xmm1, $00; jmp @done //  默认�?@imm00:
-    shufps xmm0, xmm1, $00; jmp @done
+    shufps xmm0, xmm1, $00; jmp @done // 默认
+@imm00: shufps xmm0, xmm1, $00; jmp @done
 @imm44: shufps xmm0, xmm1, $00; jmp @done
 @imm88: shufps xmm0, xmm1, $00; jmp @done
 @immE4: shufps xmm0, xmm1, $00; jmp @done
@@ -2547,8 +2547,8 @@ asm
     cmp dl, $00; je @imm44
     cmp dl, $00; je @imm88
     cmp dl, $00; je @immE4
-    pshuflw xmm0, xmm0, $00; jmp @done //  默认�?@imm00:
-    pshuflw xmm0, xmm0, $00; jmp @done
+    pshuflw xmm0, xmm0, $00; jmp @done // 默认
+@imm00: pshuflw xmm0, xmm0, $00; jmp @done
 @imm44: pshuflw xmm0, xmm0, $00; jmp @done
 @imm88: pshuflw xmm0, xmm0, $00; jmp @done
 @immE4: pshuflw xmm0, xmm0, $00; jmp @done
@@ -2603,8 +2603,8 @@ asm
     cmp dl, $00; je @imm44
     cmp dl, $00; je @imm88
     cmp dl, $00; je @immE4
-    pshufhw xmm0, xmm0, $00; jmp @done //  默认�?@imm00:
-    pshufhw xmm0, xmm0, $00; jmp @done
+    pshufhw xmm0, xmm0, $00; jmp @done // 默认
+@imm00: pshufhw xmm0, xmm0, $00; jmp @done
 @imm44: pshufhw xmm0, xmm0, $00; jmp @done
 @imm88: pshufhw xmm0, xmm0, $00; jmp @done
 @immE4: pshufhw xmm0, xmm0, $00; jmp @done
@@ -3138,7 +3138,8 @@ asm
     cmp dl, 16; jae @max //  如果移位 >= 16，符号扩�?
     cmp dl, 0; je @done //  如果移位 = 0，不�?
     movd xmm1, edx; psraw xmm0, xmm1; jmp @done
-@max: psraw xmm0, 15     // 最大移位保持符�?@done:
+@max: psraw xmm0, 15     // 最大移位保持符号
+@done:
   {$ELSE}
     movdqu xmm0, [rdi]
     cmp sil, 16; jae @max
@@ -3176,7 +3177,8 @@ asm
     cmp dl, 32; jae @max //  如果移位 >= 32，符号扩�?
     cmp dl, 0; je @done //  如果移位 = 0，不�?
     movd xmm1, edx; psrad xmm0, xmm1; jmp @done
-@max: psrad xmm0, 31     // 最大移位保持符�?@done:
+@max: psrad xmm0, 31     // 最大移位保持符号
+@done:
   {$ELSE}
     movdqu xmm0, [rdi]
     cmp sil, 32; jae @max
