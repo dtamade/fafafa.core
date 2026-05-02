@@ -40,6 +40,52 @@ FMA3_SMOKE_SOURCE="${LOG_DIR}/fma3_smoke.pas"
 FMA3_SMOKE_BIN="${BIN_DIR}/fma3_smoke"
 HYGIENE_CHECKER="${REPO_ROOT}/tests/fafafa.core.simd/check_intrinsics_comment_swallow.py"
 
+is_msys_shell() {
+  case "$(uname -s 2>/dev/null || echo unknown)" in
+    MINGW*|MSYS*|CYGWIN*)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+to_windows_path() {
+  local aPath
+  local LDrive
+  local LRest
+
+  aPath="${1:-}"
+  if [[ -z "${aPath}" ]]; then
+    echo ""
+    return 0
+  fi
+
+  if [[ "${aPath}" =~ ^/([a-zA-Z])/(.*)$ ]]; then
+    LDrive="${BASH_REMATCH[1]}"
+    LRest="${BASH_REMATCH[2]//\//\\}"
+    LDrive="$(printf '%s' "${LDrive}" | tr '[:lower:]' '[:upper:]')"
+    echo "${LDrive}:\\${LRest}"
+    return 0
+  fi
+
+  if [[ "${aPath}" =~ ^[a-zA-Z]:[\\/].* ]]; then
+    echo "${aPath//\//\\}"
+    return 0
+  fi
+
+  echo "${aPath}"
+}
+
+fpc_path_arg() {
+  if is_msys_shell; then
+    to_windows_path "${1:-}"
+  else
+    echo "${1:-}"
+  fi
+}
+
 detect_windows_fpc_bin() {
   local LCandidate
   local LRoot
@@ -112,6 +158,10 @@ TRIPLET="${CPU}-${OS}"
 LIB_DIR="${OUTPUT_ROOT}/lib/${TRIPLET}/${MODE_TAG}"
 BIN="${BIN_DIR}/fafafa.core.simd.intrinsics.experimental.test"
 
+if is_msys_shell; then
+  BIN="${BIN}.exe"
+fi
+
 mkdir -p "${BIN_DIR}" "${LIB_DIR}" "${LOG_DIR}"
 
 UNITS_ROOT=""
@@ -145,7 +195,7 @@ DEFINES=("-dFAFAFA_SIMD_EXPERIMENTAL_TEST_BUILD")
 add_fu() {
   local LDir
   LDir="$1"
-  [[ -d "${LDir}" ]] && FU+=("-Fu${LDir}")
+  [[ -d "${LDir}" ]] && FU+=("-Fu$(fpc_path_arg "${LDir}")")
 }
 
 if [[ "${EXPERIMENTAL_FLAG}" != "0" ]]; then
@@ -154,7 +204,7 @@ fi
 
 add_fu "${REPO_ROOT}/src"
 add_fu "${ROOT}"
-FI+=("-Fi${REPO_ROOT}/src" "-Fi${ROOT}")
+FI+=("-Fi$(fpc_path_arg "${REPO_ROOT}/src")" "-Fi$(fpc_path_arg "${ROOT}")")
 if [[ -n "${UNITS_ROOT}" ]]; then
   add_fu "${UNITS_ROOT}/rtl"
   add_fu "${UNITS_ROOT}/rtl-objpas"
@@ -163,6 +213,11 @@ if [[ -n "${UNITS_ROOT}" ]]; then
 fi
 
 build_project() {
+  local LProjArg
+  local LBinDirArg
+  local LLibDirArg
+  local LBinArg
+
   echo "[BUILD] Target: ${PROJ} (experimental=${EXPERIMENTAL_FLAG})"
   : >"${BUILD_LOG}"
   if [[ ! -f "${PROJ}" ]]; then
@@ -174,14 +229,19 @@ build_project() {
     return 127
   fi
 
+  LProjArg="$(fpc_path_arg "${PROJ}")"
+  LBinDirArg="$(fpc_path_arg "${BIN_DIR}")"
+  LLibDirArg="$(fpc_path_arg "${LIB_DIR}")"
+  LBinArg="$(fpc_path_arg "${BIN}")"
+
   if "${FPC_BIN}" \
     "${FU[@]}" \
     "${FI[@]}" \
     "${DEFINES[@]}" \
-    -FE"${BIN_DIR}" \
-    -FU"${LIB_DIR}" \
-    -o"${BIN}" \
-    "${PROJ}" >"${BUILD_LOG}" 2>&1; then
+    -FE"${LBinDirArg}" \
+    -FU"${LLibDirArg}" \
+    -o"${LBinArg}" \
+    "${LProjArg}" >"${BUILD_LOG}" 2>&1; then
     echo "[BUILD] OK"
   else
     local LRC=$?
@@ -226,6 +286,10 @@ check_unit_backend_smoke() {
   local aLogPath
   local aBinPath
   local aUnitRegex
+  local LSourceArg
+  local LBinDirArg
+  local LLibDirArg
+  local LBinArg
   local -a aUnits
 
   aLabel="$1"
@@ -261,14 +325,18 @@ check_unit_backend_smoke() {
 
   echo "[CHECK] Running ${aLabel} smoke: ${aSourcePath}"
   : >"${aLogPath}"
+  LSourceArg="$(fpc_path_arg "${aSourcePath}")"
+  LBinDirArg="$(fpc_path_arg "${BIN_DIR}")"
+  LLibDirArg="$(fpc_path_arg "${LIB_DIR}")"
+  LBinArg="$(fpc_path_arg "${aBinPath}")"
   if "${FPC_BIN}" \
     "${FU[@]}" \
     "${FI[@]}" \
     "${DEFINES[@]}" \
-    -FE"${BIN_DIR}" \
-    -FU"${LIB_DIR}" \
-    -o"${aBinPath}" \
-    "${aSourcePath}" >"${aLogPath}" 2>&1; then
+    -FE"${LBinDirArg}" \
+    -FU"${LLibDirArg}" \
+    -o"${LBinArg}" \
+    "${LSourceArg}" >"${aLogPath}" 2>&1; then
     :
   else
     local LRC=$?

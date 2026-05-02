@@ -28,13 +28,32 @@ ln -s "${REPO_ROOT}" "${REPO_LINK_WITH_SPACES}"
 
 TRACE_LOG="${TMP_DIR}/fake_fpc.trace"
 FAKE_BIN_DIR="${TMP_DIR}/fake-bin"
-mkdir -p "${FAKE_BIN_DIR}"
+TOOL_BIN_DIR="${TMP_DIR}/tool-bin"
+mkdir -p "${FAKE_BIN_DIR}" "${TOOL_BIN_DIR}"
 
-cat > "${FAKE_BIN_DIR}/uname" <<'EOF'
+link_tool() {
+  local aTool
+  local LSource
+
+  aTool="$1"
+  LSource="$(command -v "${aTool}" || true)"
+  if [[ -z "${LSource}" ]]; then
+    fail "required tool not found: ${aTool}"
+  fi
+  ln -s "${LSource}" "${TOOL_BIN_DIR}/${aTool}"
+}
+
+for LTool in bash cat chmod dirname getconf grep mkdir pwd readlink rm tail tee tr wc; do
+  link_tool "${LTool}"
+done
+
+ln -s "${REAL_PYTHON3}" "${TOOL_BIN_DIR}/python3"
+
+cat > "${TOOL_BIN_DIR}/uname" <<'EOF'
 #!/usr/bin/env bash
 echo "MSYS_NT-10.0"
 EOF
-chmod +x "${FAKE_BIN_DIR}/uname"
+chmod +x "${TOOL_BIN_DIR}/uname"
 
 cat > "${FAKE_BIN_DIR}/fpc.exe" <<EOF
 #!/usr/bin/env bash
@@ -87,7 +106,7 @@ exit 0
 EOF
 chmod +x "${FAKE_BIN_DIR}/fpc.exe"
 
-PATH_PREFIX="${FAKE_BIN_DIR}:$(dirname "${REAL_PYTHON3}"):/usr/bin:/bin"
+PATH_PREFIX="${FAKE_BIN_DIR}:${TOOL_BIN_DIR}"
 SUCCESS_OUT="${TMP_DIR}/success-out"
 
 set +e
@@ -120,7 +139,7 @@ if [[ ! -s "${TRACE_LOG}" ]]; then
 fi
 
 SUCCESS_TRACE_LINES="$(wc -l < "${TRACE_LOG}")"
-if [[ ! -x "${SUCCESS_OUT}/bin/fafafa.core.simd.intrinsics.experimental.test" ]]; then
+if [[ ! -x "${SUCCESS_OUT}/bin/fafafa.core.simd.intrinsics.experimental.test.exe" ]]; then
   printf '%s\n' "${SUCCESS_OUTPUT}" >&2
   fail "experimental intrinsics runner did not materialize the expected test binary"
 fi
