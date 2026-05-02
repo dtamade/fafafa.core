@@ -1275,6 +1275,9 @@ begin
   LActual := simd_cvtpd_ps(LValue);
   AssertM128BytesEqual(Self, 'simd_cvtpd_ps', LExpected, LActual);
 
+  LActual := simd_cvttpd_ps(LValue);
+  AssertM128BytesEqual(Self, 'simd_cvttpd_ps', LExpected, LActual);
+
   FillChar(LValue, SizeOf(LValue), 0);
   LValue.m128_f32[0] := 1.4;
   LValue.m128_f32[1] := 2.6;
