@@ -820,8 +820,11 @@ type
     procedure Test_ShufflePsOps;
     procedure Test_LoadStore_Roundtrip;
     procedure Test_AlignedStoreDoubleOps;
+    procedure Test_AlignedStoreDoubleOps_UnalignedSource;
     procedure Test_AlignedStoreIntVectorOps;
+    procedure Test_AlignedStoreIntVectorOps_UnalignedSource;
     procedure Test_AlignedStoreSingleOps;
+    procedure Test_AlignedStoreSingleOps_UnalignedSource;
     procedure Test_LoadStoreQwordOps;
     procedure Test_LoadStoreDoubleLaneOps;
     procedure Test_LoadStoreScalarDoubleOps;
@@ -2178,6 +2181,39 @@ begin
   AssertM128BytesEqual(Self, 'simd_store_pd', LValue, LActual);
 end;
 
+procedure TTestCase_X86Sse2AbiBasics.Test_AlignedStoreDoubleOps_UnalignedSource;
+var
+  LSourceBuffer: array[0..63] of Byte;
+  LDestBuffer: array[0..31] of Byte;
+  LSource: PTM128;
+  LDestAligned: Pointer;
+  LExpected: TM128;
+  LActual: TM128;
+begin
+  LDestAligned := AlignPtr16(@LDestBuffer[0]);
+  LSource := PTM128(PByte(AlignPtr16(@LSourceBuffer[0])) + 1);
+
+  AssertTrue('unaligned double source precondition', (PtrUInt(LSource) and 15) <> 0);
+
+  LoadM128Doubles(LExpected, [1.25, -6.5]);
+  Move(LExpected, LSource^, SizeOf(LExpected));
+  FillChar(LDestBuffer, SizeOf(LDestBuffer), $CC);
+
+  try
+    simd_store_pd(PByte(LDestAligned)^, LSource^);
+  except
+    on E: Exception do
+    begin
+      Fail('simd_store_pd unaligned source raised ' + E.ClassName + ': ' + E.Message);
+      Exit;
+    end;
+  end;
+
+  FillChar(LActual, SizeOf(LActual), 0);
+  Move(PByte(LDestAligned)^, LActual, SizeOf(LActual));
+  AssertM128BytesEqual(Self, 'simd_store_pd unaligned source', LExpected, LActual);
+end;
+
 procedure TTestCase_X86Sse2AbiBasics.Test_AlignedStoreIntVectorOps;
 var
   LBuffer: array[0..31] of Byte;
@@ -2196,6 +2232,39 @@ begin
   AssertM128BytesEqual(Self, 'simd_store_si128', LValue, LActual);
 end;
 
+procedure TTestCase_X86Sse2AbiBasics.Test_AlignedStoreIntVectorOps_UnalignedSource;
+var
+  LSourceBuffer: array[0..63] of Byte;
+  LDestBuffer: array[0..31] of Byte;
+  LSource: PTM128;
+  LDestAligned: Pointer;
+  LExpected: TM128;
+  LActual: TM128;
+begin
+  LDestAligned := AlignPtr16(@LDestBuffer[0]);
+  LSource := PTM128(PByte(AlignPtr16(@LSourceBuffer[0])) + 1);
+
+  AssertTrue('unaligned source precondition', (PtrUInt(LSource) and 15) <> 0);
+
+  LoadM128Bytes(LExpected, [$10, $32, $54, $76, $98, $BA, $DC, $FE, $EF, $CD, $AB, $89, $67, $45, $23, $01]);
+  Move(LExpected, LSource^, SizeOf(LExpected));
+  FillChar(LDestBuffer, SizeOf(LDestBuffer), $CC);
+
+  try
+    simd_store_si128(PByte(LDestAligned)^, LSource^);
+  except
+    on E: Exception do
+    begin
+      Fail('simd_store_si128 unaligned source raised ' + E.ClassName + ': ' + E.Message);
+      Exit;
+    end;
+  end;
+
+  FillChar(LActual, SizeOf(LActual), 0);
+  Move(PByte(LDestAligned)^, LActual, SizeOf(LActual));
+  AssertM128BytesEqual(Self, 'simd_store_si128 unaligned source', LExpected, LActual);
+end;
+
 procedure TTestCase_X86Sse2AbiBasics.Test_AlignedStoreSingleOps;
 var
   LBuffer: array[0..31] of Byte;
@@ -2212,6 +2281,39 @@ begin
   FillChar(LActual, SizeOf(LActual), 0);
   Move(PByte(LAligned)^, LActual, SizeOf(LActual));
   AssertM128BytesEqual(Self, 'simd_store_ps', LValue, LActual);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_AlignedStoreSingleOps_UnalignedSource;
+var
+  LSourceBuffer: array[0..63] of Byte;
+  LDestBuffer: array[0..31] of Byte;
+  LSource: PTM128;
+  LDestAligned: Pointer;
+  LExpected: TM128;
+  LActual: TM128;
+begin
+  LDestAligned := AlignPtr16(@LDestBuffer[0]);
+  LSource := PTM128(PByte(AlignPtr16(@LSourceBuffer[0])) + 1);
+
+  AssertTrue('unaligned single source precondition', (PtrUInt(LSource) and 15) <> 0);
+
+  LoadM128Singles(LExpected, [1.0, -2.0, 3.5, -4.5]);
+  Move(LExpected, LSource^, SizeOf(LExpected));
+  FillChar(LDestBuffer, SizeOf(LDestBuffer), $CC);
+
+  try
+    simd_store_ps(PByte(LDestAligned)^, LSource^);
+  except
+    on E: Exception do
+    begin
+      Fail('simd_store_ps unaligned source raised ' + E.ClassName + ': ' + E.Message);
+      Exit;
+    end;
+  end;
+
+  FillChar(LActual, SizeOf(LActual), 0);
+  Move(PByte(LDestAligned)^, LActual, SizeOf(LActual));
+  AssertM128BytesEqual(Self, 'simd_store_ps unaligned source', LExpected, LActual);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_LoadStoreQwordOps;

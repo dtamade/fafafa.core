@@ -455,11 +455,11 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Dest �?rcx, Src �?rdx
-    movdqa xmm0, [rdx] //  对齐加载源数�?
+    movdqu xmm0, [rdx] // Src 可能只是 constref，不能假定 16-byte 对齐
     movdqa [rcx], xmm0    // 对齐存储到目�?
     {$ELSE}
     // Linux/macOS x64 System V ABI: Dest �?rdi, Src �?rsi
-    movdqa xmm0, [rsi] //  对齐加载源数�?
+    movdqu xmm0, [rsi] // Src 可能只是 constref，不能假定 16-byte 对齐
     movdqa [rdi], xmm0    // 对齐存储到目�?
     {$ENDIF}
 {$ELSE}
@@ -467,7 +467,7 @@ asm
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
-    movdqa xmm0, [edx] //  对齐加载源数�?
+    movdqu xmm0, [edx] // Src 可能只是 constref，不能假定 16-byte 对齐
     movdqa [eax], xmm0    // 对齐存储到目�?
   {$ELSE}
     {$ERROR Unsupported CPU}
@@ -518,11 +518,11 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Dest �?rcx, Src �?rdx
-    movapd xmm0, [rdx] //  对齐加载源数�?
+    movupd xmm0, [rdx] // Src 可能只是 constref，不能假定 16-byte 对齐
     movapd [rcx], xmm0    // 对齐存储到目�?
     {$ELSE}
     // Linux/macOS x64 System V ABI: Dest �?rdi, Src �?rsi
-    movapd xmm0, [rsi] //  对齐加载源数�?
+    movupd xmm0, [rsi] // Src 可能只是 constref，不能假定 16-byte 对齐
     movapd [rdi], xmm0    // 对齐存储到目�?
     {$ENDIF}
 {$ELSE}
@@ -530,7 +530,7 @@ asm
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
-    movapd xmm0, [edx] //  对齐加载源数�?
+    movupd xmm0, [edx] // Src 可能只是 constref，不能假定 16-byte 对齐
     movapd [eax], xmm0    // 对齐存储到目�?
   {$ELSE}
     {$ERROR Unsupported CPU}
@@ -581,11 +581,11 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Dest �?rcx, Src �?rdx
-    movaps xmm0, [rdx] //  对齐加载源数�?
+    movups xmm0, [rdx] // Src 可能只是 constref，不能假定 16-byte 对齐
     movaps [rcx], xmm0    // 对齐存储到目�?
     {$ELSE}
     // Linux/macOS x64 System V ABI: Dest �?rdi, Src �?rsi
-    movaps xmm0, [rsi] //  对齐加载源数�?
+    movups xmm0, [rsi] // Src 可能只是 constref，不能假定 16-byte 对齐
     movaps [rdi], xmm0    // 对齐存储到目�?
     {$ENDIF}
 {$ELSE}
@@ -593,7 +593,7 @@ asm
     // x86 32-bit: 参数在栈�?
     mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
-    movaps xmm0, [edx] //  对齐加载源数�?
+    movups xmm0, [edx] // Src 可能只是 constref，不能假定 16-byte 对齐
     movaps [eax], xmm0    // 对齐存储到目�?
   {$ELSE}
     {$ERROR Unsupported CPU}
