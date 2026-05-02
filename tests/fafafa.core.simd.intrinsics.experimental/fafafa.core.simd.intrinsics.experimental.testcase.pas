@@ -807,8 +807,13 @@ type
     procedure Test_LogicalBinaryOps;
     procedure Test_ScalarDoubleCompareOps;
     procedure Test_ScalarDoubleOps;
+    procedure Test_ScalarIntConversionOps;
     procedure Test_ShufflePsOps;
     procedure Test_LoadStore_Roundtrip;
+    procedure Test_LoadStoreQwordOps;
+    procedure Test_LoadStoreDoubleLaneOps;
+    procedure Test_LoadStoreScalarDoubleOps;
+    procedure Test_MaskMoveuSi128Ops;
     procedure Test_InsertExtractEpi16Ops;
     procedure Test_ShuffleMoveCastOps;
     procedure Test_ShiftArithmeticImmediateOps;
@@ -1148,6 +1153,66 @@ begin
 
   LActual := simd_max_sd(LA, LB);
   AssertM128BytesEqual(Self, 'simd_max_sd', LExpected, LActual);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_ScalarIntConversionOps;
+var
+  LValue: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+  LExpectedI64: Int64;
+begin
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_i32[0] := -42;
+  LActual := simd_cvtsi32_si128(-42);
+  AssertM128BytesEqual(Self, 'simd_cvtsi32_si128', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_i64[0] := Int64(-4000000000);
+  LActual := simd_cvtsi64_si128(Int64(-4000000000));
+  AssertM128BytesEqual(Self, 'simd_cvtsi64_si128', LExpected, LActual);
+
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128i_u32[0] := $89ABCDEF;
+  LValue.m128i_u32[1] := $01234567;
+  LValue.m128i_u32[2] := $DEADBEEF;
+  LValue.m128i_u32[3] := $76543210;
+  AssertEquals('simd_cvtsi128_si32', Integer(LongInt($89ABCDEF)), simd_cvtsi128_si32(LValue));
+
+  LExpectedI64 := Int64((QWord($01234567) shl 32) or QWord($89ABCDEF));
+  AssertEquals('simd_cvtsi128_si64', LExpectedI64, simd_cvtsi128_si64(LValue));
+
+  LoadM128Doubles(LValue, [3.75, 99.0]);
+  AssertEquals('simd_cvtsd_si32 positive rounds', 4, simd_cvtsd_si32(LValue));
+  LoadM128Doubles(LValue, [-2.75, 99.0]);
+  AssertEquals('simd_cvtsd_si32 negative rounds', -3, simd_cvtsd_si32(LValue));
+
+  LoadM128Doubles(LValue, [4000000000.75, 0.0]);
+  AssertEquals('simd_cvtsd_si64 positive rounds', Int64(4000000001), simd_cvtsd_si64(LValue));
+  LoadM128Doubles(LValue, [-4000000000.75, 0.0]);
+  AssertEquals('simd_cvtsd_si64 negative rounds', Int64(-4000000001), simd_cvtsd_si64(LValue));
+
+  LoadM128Doubles(LValue, [3.75, 11.0]);
+  AssertEquals('simd_cvttsd_si32 positive truncates', 3, simd_cvttsd_si32(LValue));
+  LoadM128Doubles(LValue, [-2.75, 11.0]);
+  AssertEquals('simd_cvttsd_si32 negative truncates', -2, simd_cvttsd_si32(LValue));
+
+  LoadM128Doubles(LValue, [4000000000.75, 0.0]);
+  AssertEquals('simd_cvttsd_si64 positive truncates', Int64(4000000000), simd_cvttsd_si64(LValue));
+  LoadM128Doubles(LValue, [-4000000000.75, 0.0]);
+  AssertEquals('simd_cvttsd_si64 negative truncates', Int64(-4000000000), simd_cvttsd_si64(LValue));
+
+  LoadM128Doubles(LValue, [10.0, 123.5]);
+  LExpected := LValue;
+  LExpected.m128d_f64[0] := -42.0;
+  LActual := simd_cvtsi32_sd(LValue, -42);
+  AssertM128BytesEqual(Self, 'simd_cvtsi32_sd', LExpected, LActual);
+
+  LoadM128Doubles(LValue, [10.0, 123.5]);
+  LExpected := LValue;
+  LExpected.m128d_f64[0] := -4000000000.0;
+  LActual := simd_cvtsi64_sd(LValue, Int64(-4000000000));
+  AssertM128BytesEqual(Self, 'simd_cvtsi64_sd', LExpected, LActual);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_IntegerConstructors;
@@ -1898,6 +1963,115 @@ begin
 
   LLoaded := simd_loadu_si128(@LBytesOut[0]);
   AssertM128BytesEqual(Self, 'simd_loadu roundtrip', LValue, LLoaded);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_LoadStoreQwordOps;
+var
+  LQWordIn: QWord;
+  LQWordOut: QWord;
+  LExpected: TM128;
+  LActual: TM128;
+begin
+  LQWordIn := QWord($0123456789ABCDEF);
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := LQWordIn;
+  LActual := simd_loadl_epi64(@LQWordIn);
+  AssertM128BytesEqual(Self, 'simd_loadl_epi64', LExpected, LActual);
+
+  LQWordOut := 0;
+  simd_storel_epi64(LQWordOut, LActual);
+  AssertEquals('simd_storel_epi64', LQWordIn, LQWordOut);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_LoadStoreDoubleLaneOps;
+var
+  LDoubles: array[0..1] of Double;
+  LDoubleOut: array[0..1] of Double;
+  LScalar: Double;
+  LScalarOut: Double;
+  LValue: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+begin
+  LDoubles[0] := 1.25;
+  LDoubles[1] := -6.5;
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128d_f64[0] := LDoubles[1];
+  LExpected.m128d_f64[1] := LDoubles[0];
+  LActual := simd_loadr_pd(@LDoubles[0]);
+  AssertM128BytesEqual(Self, 'simd_loadr_pd', LExpected, LActual);
+
+  LoadM128Doubles(LValue, [10.0, 20.0]);
+  LDoubleOut[0] := 0.0;
+  LDoubleOut[1] := 0.0;
+  simd_storer_pd(LDoubleOut[0], LValue);
+  AssertTrue('simd_storer_pd lane 0', Abs(LDoubleOut[0] - 20.0) < 1.0e-12);
+  AssertTrue('simd_storer_pd lane 1', Abs(LDoubleOut[1] - 10.0) < 1.0e-12);
+
+  LoadM128Doubles(LValue, [10.0, 20.0]);
+  LScalar := -7.5;
+  LExpected := LValue;
+  LExpected.m128d_f64[1] := LScalar;
+  LActual := simd_loadh_pd(LValue, @LScalar);
+  AssertM128BytesEqual(Self, 'simd_loadh_pd', LExpected, LActual);
+
+  LoadM128Doubles(LValue, [10.0, 20.0]);
+  LScalar := -7.5;
+  LExpected := LValue;
+  LExpected.m128d_f64[0] := LScalar;
+  LActual := simd_loadl_pd(LValue, @LScalar);
+  AssertM128BytesEqual(Self, 'simd_loadl_pd', LExpected, LActual);
+
+  LoadM128Doubles(LValue, [10.0, 20.0]);
+  LScalarOut := 0.0;
+  simd_storeh_pd(LScalarOut, LValue);
+  AssertTrue('simd_storeh_pd', Abs(LScalarOut - 20.0) < 1.0e-12);
+
+  LScalarOut := 0.0;
+  simd_storel_pd(LScalarOut, LValue);
+  AssertTrue('simd_storel_pd', Abs(LScalarOut - 10.0) < 1.0e-12);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_LoadStoreScalarDoubleOps;
+var
+  LScalar: Double;
+  LScalarOut: Double;
+  LValue: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+begin
+  LScalar := -3.25;
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128d_f64[0] := LScalar;
+  LActual := simd_load_sd(@LScalar);
+  AssertM128BytesEqual(Self, 'simd_load_sd', LExpected, LActual);
+
+  LoadM128Doubles(LValue, [8.25, 77.0]);
+  LScalarOut := 0.0;
+  simd_store_sd(LScalarOut, LValue);
+  AssertTrue('simd_store_sd', Abs(LScalarOut - 8.25) < 1.0e-12);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_MaskMoveuSi128Ops;
+var
+  LSrc: TM128;
+  LMask: TM128;
+  LDest: array[0..15] of Byte;
+  LExpectedBytes: array[0..15] of Byte;
+  LIndex: Integer;
+begin
+  LoadM128Bytes(LSrc, [$10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $1A, $1B, $1C, $1D, $1E, $1F]);
+  LoadM128Bytes(LMask, [$00, $80, $7F, $FF, $01, $81, $00, $00, $80, $00, $80, $7F, $FF, $00, $80, $00]);
+  for LIndex := 0 to 15 do
+  begin
+    LDest[LIndex] := Byte($A0 + LIndex);
+    LExpectedBytes[LIndex] := LDest[LIndex];
+    if (LMask.m128i_u8[LIndex] and $80) <> 0 then
+      LExpectedBytes[LIndex] := LSrc.m128i_u8[LIndex];
+  end;
+  simd_maskmoveu_si128(LSrc, LMask, LDest[0]);
+  for LIndex := 0 to 15 do
+    AssertEquals('simd_maskmoveu_si128 lane ' + IntToStr(LIndex), LExpectedBytes[LIndex], LDest[LIndex]);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_InsertExtractEpi16Ops;

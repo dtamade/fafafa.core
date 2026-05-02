@@ -2182,31 +2182,32 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Src �?rcx, Mask �?rdx, Dest �?r8
-    movdqa xmm0, [rcx] //  加载源数�?
-    movdqa xmm1, [rdx]    // 加载掩码
-    push rdi              // 保存 rdi 寄存�?    mov rdi, r8           // maskmovdqu 需要目标地址�?rdi
+    movdqu xmm0, [rcx]
+    movdqu xmm1, [rdx]
+    push rdi
+    mov rdi, r8
     maskmovdqu xmm0, xmm1
-    pop rdi               // 恢复 rdi 寄存�?
+    pop rdi
     {$ELSE}
     // Linux/macOS x64 System V ABI: Src �?rdi, Mask �?rsi, Dest �?rdx
-    push rdi              // 保存原始 rdi
-    movdqa xmm0, [rdi] //  加载源数�?
-    movdqa xmm1, [rsi]    // 加载掩码
+    push rdi
+    movdqu xmm0, [rdi]
+    movdqu xmm1, [rsi]
     mov rdi, rdx
-    // maskmovdqu 需要目标地址�?rdi
     maskmovdqu xmm0, xmm1
-    pop rdi               // 恢复原始 rdi
+    pop rdi
   {$ENDIF}
 {$ELSE}
   {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
-    mov eax, [esp + 4]    // Src
-    mov edx, [esp + 8]    // Mask
-    push edi              // 保存 edi 寄存�?    mov edi, [esp + 16]   // Dest (注意栈偏移变�?
-    movdqa xmm0, [eax]
-    movdqa xmm1, [edx]
-    maskmovdqu xmm0, xmm1 // 条件存储�?[edi]
-    pop edi               // 恢复 edi 寄存�?
+    mov eax, [esp + 4]
+    mov edx, [esp + 8]
+    push edi
+    mov edi, [esp + 16]
+    movdqu xmm0, [eax]
+    movdqu xmm1, [edx]
+    maskmovdqu xmm0, xmm1
+    pop edi
   {$ELSE}
     {$ERROR Unsupported CPU}
   {$ENDIF}
@@ -2250,21 +2251,21 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Dest �?rcx, Src �?rdx
-    movapd xmm0, [rdx] //  加载源数�?
-    shufpd xmm0, xmm0, 1 //  交换高低�?
-    movupd [rcx], xmm0     // 存储到目�?
+    movupd xmm0, [rdx]
+    shufpd xmm0, xmm0, 1
+    movupd [rcx], xmm0
     {$ELSE}
     // Linux/macOS x64 System V ABI: Dest �?rdi, Src �?rsi
-    movapd xmm0, [rsi] //  加载源数�?
-    shufpd xmm0, xmm0, 1 //  交换高低�?
-    movupd [rdi], xmm0     // 存储到目�?
+    movupd xmm0, [rsi]
+    shufpd xmm0, xmm0, 1
+    movupd [rdi], xmm0
     {$ENDIF}
 {$ELSE}
   {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
-    mov eax, [esp + 4]     // Dest
-    mov edx, [esp + 8]     // Src
-    movapd xmm0, [edx]
+    mov eax, [esp + 4]
+    mov edx, [esp + 8]
+    movupd xmm0, [edx]
     shufpd xmm0, xmm0, 1
     movupd [eax], xmm0
   {$ELSE}
@@ -2279,19 +2280,19 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: A �?rcx, Ptr �?rdx
-    movapd xmm0, [rcx]     // 加载 A �?xmm0
-    movhpd xmm0, [rdx]     // 加载 Ptr 指向的双精度到高�?
+    movupd xmm0, [rcx]
+    movhpd xmm0, [rdx]
     {$ELSE}
     // Linux/macOS x64 System V ABI: A �?rdi, Ptr �?rsi
-    movapd xmm0, [rdi]     // 加载 A �?xmm0
-    movhpd xmm0, [rsi]     // 加载 Ptr 指向的双精度到高�?
+    movupd xmm0, [rdi]
+    movhpd xmm0, [rsi]
     {$ENDIF}
 {$ELSE}
   {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
-    mov eax, [esp + 4]     // A
-    mov edx, [esp + 8]     // Ptr
-    movapd xmm0, [eax]
+    mov eax, [esp + 4]
+    mov edx, [esp + 8]
+    movupd xmm0, [eax]
     movhpd xmm0, [edx]
   {$ELSE}
     {$ERROR Unsupported CPU}
@@ -2311,19 +2312,19 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: A �?rcx, Ptr �?rdx
-    movapd xmm0, [rcx]     // 加载 A �?xmm0
-    movlpd xmm0, [rdx]     // 加载 Ptr 指向的双精度到低�?
+    movupd xmm0, [rcx]
+    movlpd xmm0, [rdx]
     {$ELSE}
     // Linux/macOS x64 System V ABI: A �?rdi, Ptr �?rsi
-    movapd xmm0, [rdi]     // 加载 A �?xmm0
-    movlpd xmm0, [rsi]     // 加载 Ptr 指向的双精度到低�?
+    movupd xmm0, [rdi]
+    movlpd xmm0, [rsi]
     {$ENDIF}
 {$ELSE}
   {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
-    mov eax, [esp + 4]     // A
-    mov edx, [esp + 8]     // Ptr
-    movapd xmm0, [eax]
+    mov eax, [esp + 4]
+    mov edx, [esp + 8]
+    movupd xmm0, [eax]
     movlpd xmm0, [edx]
   {$ELSE}
     {$ERROR Unsupported CPU}
@@ -2343,17 +2344,19 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Dest �?rcx, Src �?rdx
-    movapd xmm0, [rdx]     // 加载源数�?    movhpd [rcx], xmm0     // 存储高位双精度到目标
+    movupd xmm0, [rdx]
+    movhpd [rcx], xmm0
   {$ELSE}
     // Linux/macOS x64 System V ABI: Dest �?rdi, Src �?rsi
-    movapd xmm0, [rsi]     // 加载源数�?    movhpd [rdi], xmm0     // 存储高位双精度到目标
+    movupd xmm0, [rsi]
+    movhpd [rdi], xmm0
   {$ENDIF}
 {$ELSE}
   {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
-    mov eax, [esp + 4]     // Dest
-    mov edx, [esp + 8]     // Src
-    movapd xmm0, [edx]
+    mov eax, [esp + 4]
+    mov edx, [esp + 8]
+    movupd xmm0, [edx]
     movhpd [eax], xmm0
   {$ELSE}
     {$ERROR Unsupported CPU}
@@ -2367,17 +2370,19 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Dest �?rcx, Src �?rdx
-    movapd xmm0, [rdx]     // 加载源数�?    movlpd [rcx], xmm0     // 存储低位双精度到目标
+    movupd xmm0, [rdx]
+    movlpd [rcx], xmm0
   {$ELSE}
     // Linux/macOS x64 System V ABI: Dest �?rdi, Src �?rsi
-    movapd xmm0, [rsi]     // 加载源数�?    movlpd [rdi], xmm0     // 存储低位双精度到目标
+    movupd xmm0, [rsi]
+    movlpd [rdi], xmm0
   {$ENDIF}
 {$ELSE}
   {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
-    mov eax, [esp + 4]     // Dest
-    mov edx, [esp + 8]     // Src
-    movapd xmm0, [edx]
+    mov eax, [esp + 4]
+    mov edx, [esp + 8]
+    movupd xmm0, [edx]
     movlpd [eax], xmm0
   {$ELSE}
     {$ERROR Unsupported CPU}
@@ -2419,19 +2424,19 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Dest �?rcx, Src �?rdx
-    movapd xmm0, [rdx] //  加载源数�?
-    movsd [rcx], xmm0      // 存储标量双精�?
+    movupd xmm0, [rdx]
+    movsd [rcx], xmm0
     {$ELSE}
     // Linux/macOS x64 System V ABI: Dest �?rdi, Src �?rsi
-    movapd xmm0, [rsi] //  加载源数�?
-    movsd [rdi], xmm0      // 存储标量双精�?
+    movupd xmm0, [rsi]
+    movsd [rdi], xmm0
     {$ENDIF}
 {$ELSE}
   {$IFDEF CPUX86}
     // x86 32-bit: 参数在栈�?
-    mov eax, [esp + 4]     // Dest
-    mov edx, [esp + 8]     // Src
-    movapd xmm0, [edx]
+    mov eax, [esp + 4]
+    mov edx, [esp + 8]
+    movupd xmm0, [edx]
     movsd [eax], xmm0
   {$ELSE}
     {$ERROR Unsupported CPU}
