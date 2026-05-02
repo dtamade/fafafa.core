@@ -3604,6 +3604,12 @@ check_run_all_output_isolation() {
   )
   LRunAllBatRequired=(
     'set "DISCOVERY_FILE=%LOG_DIR%\run_all_discovery.txt"'
+    'set "__FILTER_REST=%FILTER%"'
+    ':should_run_next'
+    'for /f "tokens=1,* delims= " %%A in ("!__FILTER_REST!") do ('
+    'set "__F_RAW=%%A"'
+    'set "__FILTER_REST=%%B"'
+    'for %%D in ("%~dp1.") do set "MOD_LEAF=%%~nxD"'
     'if defined SIMD_OUTPUT_ROOT if /I "!MOD_FULL:~0,16!"=="fafafa.core.simd" set "MODULE_SIMD_OUTPUT_ROOT=%SIMD_OUTPUT_ROOT%\run_all\!MOD_FULL!"'
     'set "ACTION=%RUN_ACTION%"'
     'if not defined ACTION set "ACTION=test"'
@@ -3647,6 +3653,11 @@ check_run_all_output_isolation() {
     LMissing=1
   fi
 
+  if grep -F -- 'for %%F in (%FILTER%) do (' "${LRunAllBat}" >/dev/null; then
+    echo "[CHECK] run_all batch still tokenizes filters through for %%F in (%FILTER%), which strips leading ="
+    LMissing=1
+  fi
+
   if grep -F -- 'for /R "%TESTS_ROOT%" %%F in (buildOrTest.bat) do call :run_one "%%~fF"' "${LRunAllBat}" >/dev/null; then
     echo "[CHECK] run_all batch still uses dynamic buildOrTest.bat recursion"
     LMissing=1
@@ -3659,6 +3670,11 @@ check_run_all_output_isolation() {
 
   if grep -F -- 'echo [PASS] !MOD_FULL! (rc=%RC%)' "${LRunAllBat}" >/dev/null; then
     echo "[CHECK] run_all batch still emits unescaped PASS parentheses inside a block"
+    LMissing=1
+  fi
+
+  if grep -F -- 'for %%D in ("%~dp1.") do set "MOD_LEAF=%%~nD"' "${LRunAllBat}" >/dev/null; then
+    echo "[CHECK] run_all batch still derives dotted module leaf names via %%~nD"
     LMissing=1
   fi
 

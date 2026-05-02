@@ -53,8 +53,12 @@ set "__MOD_FULL=%~1"
 set "__MOD_LEAF=%~2"
 if "%FILTER%"=="" exit /b 0
 
-for %%F in (%FILTER%) do (
-  set "__F_RAW=%%~F"
+set "__FILTER_REST=%FILTER%"
+:should_run_next
+if "!__FILTER_REST!"=="" exit /b 1
+for /f "tokens=1,* delims= " %%A in ("!__FILTER_REST!") do (
+  set "__F_RAW=%%A"
+  set "__FILTER_REST=%%B"
   set "__F_NORM=!__F_RAW:/=.!"
   set "__F_NORM=!__F_NORM:\=.!"
   set "__EXACT_ONLY="
@@ -81,6 +85,8 @@ for %%F in (%FILTER%) do (
   )
 )
 
+goto :should_run_next
+
 exit /b 1
 
 REM Run a single script and capture logs/exit code
@@ -97,7 +103,7 @@ set "DIR=%~dp1"
 set "REL_DIR=!DIR:%TESTS_ROOT%=!"
 if "!REL_DIR:~-1!"=="\" set "REL_DIR=!REL_DIR:~0,-1!"
 set "MOD_FULL=!REL_DIR:\=.!"
-for %%D in ("%~dp1.") do set "MOD_LEAF=%%~nD"
+for %%D in ("%~dp1.") do set "MOD_LEAF=%%~nxD"
 call set "__RUN_ALREADY=%%RUN_SEEN_!MOD_FULL!%%"
 if defined __RUN_ALREADY goto :eof
 set "RUN_SEEN_!MOD_FULL!=1"
@@ -204,16 +210,16 @@ for /f "usebackq delims=" %%F in ("%DISCOVERY_FILE%") do call :run_one "%%F"
 :finish
 echo.>"%SUMMARY_FILE%"
 echo ========================================>>"%SUMMARY_FILE%"
-echo Run-all summary (%DATE% %TIME%)>>"%SUMMARY_FILE%"
-echo Logs dir: %LOG_DIR%>>"%SUMMARY_FILE%"
+>>"%SUMMARY_FILE%" echo Run-all summary (%DATE% %TIME%)
+>>"%SUMMARY_FILE%" echo Logs dir: %LOG_DIR%
 echo ========================================>>"%SUMMARY_FILE%"
-echo Total:  %TOTAL%>>"%SUMMARY_FILE%"
-echo Passed: %PASSED%>>"%SUMMARY_FILE%"
-echo Failed: %FAILED%>>"%SUMMARY_FILE%"
-if defined FAILED_LIST echo Failed modules: %FAILED_LIST%>>"%SUMMARY_FILE%"
+>>"%SUMMARY_FILE%" echo Total:  %TOTAL%
+>>"%SUMMARY_FILE%" echo Passed: %PASSED%
+>>"%SUMMARY_FILE%" echo Failed: %FAILED%
+if defined FAILED_LIST >>"%SUMMARY_FILE%" echo Failed modules: %FAILED_LIST%
 if not "%FILTER%"=="" if "%TOTAL%"=="0" (
-  echo Filter matched 0 modules.>>"%SUMMARY_FILE%"
-  echo Filter args: %FILTER%>>"%SUMMARY_FILE%"
+  >>"%SUMMARY_FILE%" echo Filter matched 0 modules.
+  >>"%SUMMARY_FILE%" echo Filter args: %FILTER%
 )
 
 type "%SUMMARY_FILE%"
