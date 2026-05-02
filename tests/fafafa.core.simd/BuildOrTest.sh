@@ -613,6 +613,18 @@ run_windows_cpuinfo_portable_fpc_resolution_smoke() {
   bash "${LSmokeScript}"
 }
 
+run_windows_cpuinfo_x86_batch_build_success_criteria_smoke() {
+  local LSmokeScript
+
+  LSmokeScript="${REPO_ROOT}/tests/test_windows_simd_cpuinfo_x86_batch_build_success_criteria.sh"
+  if [[ ! -f "${LSmokeScript}" ]]; then
+    echo "[WINDOWS-CPUINFO-X86-BATCH] Missing smoke script: ${LSmokeScript}"
+    return 2
+  fi
+
+  bash "${LSmokeScript}"
+}
+
 run_cpuinfo_lazy_repeat() {
   local aTestsRoot
   local aRounds
@@ -1101,9 +1113,14 @@ check_windows_cpuinfo_x86_runner_guard() {
   LRequired=(
     'set "OUTPUT_ROOT=%SIMD_OUTPUT_ROOT%"'
     'if "%OUTPUT_ROOT%"=="" set "OUTPUT_ROOT=%ROOT%"'
+    'set "EXPECTED_BIN=%BIN%"'
     'set "LAZBUILD_EXE=%LAZBUILD%"'
     'set "LAZBUILD_EXE=%ROOT%..\..\tools\lazbuild.bat"'
     'call "%LAZBUILD_EXE%" --build-mode=%LAZARUS_MODE% --build-all "%PROJ%" > "%BUILD_LOG%" 2>&1'
+    'call :build_log_has_compiled'
+    'call :resolve_binary_from_build_log'
+    'goto :build_failed_from_log'
+    'call :resolve_test_binary'
   )
 
   for LPattern in "${LRequired[@]}"; do
@@ -4375,6 +4392,7 @@ gate_step_build_check() {
   run_suite_manifest_check || return $?
   run_windows_publicabi_fpc_resolution_smoke || return $?
   run_windows_cpuinfo_portable_fpc_resolution_smoke || return $?
+  run_windows_cpuinfo_x86_batch_build_success_criteria_smoke || return $?
   run_nonx86_optin_list_suites || return $?
   run_dispatch_preinit_smoke || return $?
 }
