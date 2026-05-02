@@ -7,16 +7,10 @@ shift || true
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "${ROOT}/../.." && pwd)"
 PROJ="${ROOT}/fafafa.core.simd.intrinsics.experimental.test.lpr"
-FPC_BIN="${FPC_BIN:-fpc}"
-CPU="$(${FPC_BIN} -iTP 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)"
-OS="$(${FPC_BIN} -iTO 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)"
-TRIPLET="${CPU}-${OS}"
 EXPERIMENTAL_FLAG="${FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS:-0}"
 OUTPUT_ROOT="${SIMD_OUTPUT_ROOT:-${ROOT}}"
 BIN_DIR="${OUTPUT_ROOT}/bin"
 MODE_TAG="exp${EXPERIMENTAL_FLAG}"
-LIB_DIR="${OUTPUT_ROOT}/lib/${TRIPLET}/${MODE_TAG}"
-BIN="${BIN_DIR}/fafafa.core.simd.intrinsics.experimental.test"
 LOG_DIR="${OUTPUT_ROOT}/logs"
 BUILD_LOG="${LOG_DIR}/build.txt"
 TEST_LOG="${LOG_DIR}/test.txt"
@@ -45,6 +39,78 @@ FMA3_SMOKE_LOG="${LOG_DIR}/fma3_smoke.txt"
 FMA3_SMOKE_SOURCE="${LOG_DIR}/fma3_smoke.pas"
 FMA3_SMOKE_BIN="${BIN_DIR}/fma3_smoke"
 HYGIENE_CHECKER="${REPO_ROOT}/tests/fafafa.core.simd/check_intrinsics_comment_swallow.py"
+
+detect_windows_fpc_bin() {
+  local LCandidate
+  local LRoot
+
+  if command -v fpc.exe >/dev/null 2>&1; then
+    FPC_BIN="$(command -v fpc.exe)"
+    return 0
+  fi
+
+  for LRoot in \
+    "/c/lazarus/fpc" \
+    "/c/Lazarus/fpc" \
+    "/c/Program Files/Lazarus/fpc" \
+    "/c/Program Files (x86)/Lazarus/fpc"; do
+    for LCandidate in \
+      "${LRoot}"/*/bin/x86_64-win64/fpc.exe \
+      "${LRoot}"/*/bin/i386-win32/fpc.exe; do
+      if [[ -x "${LCandidate}" ]]; then
+        FPC_BIN="${LCandidate}"
+        return 0
+      fi
+    done
+  done
+
+  return 1
+}
+
+resolve_fpc_bin() {
+  local LCandidate
+  local LUname
+
+  LCandidate="${FPC_BIN:-${FPC:-}}"
+  if [[ -n "${LCandidate}" ]]; then
+    if [[ -x "${LCandidate}" ]]; then
+      FPC_BIN="${LCandidate}"
+      return 0
+    fi
+    if command -v "${LCandidate}" >/dev/null 2>&1; then
+      FPC_BIN="$(command -v "${LCandidate}")"
+      return 0
+    fi
+    FPC_RESOLVE_ERROR="requested FPC compiler not found: ${LCandidate}"
+    FPC_BIN=""
+    return 1
+  fi
+
+  if command -v fpc >/dev/null 2>&1; then
+    FPC_BIN="$(command -v fpc)"
+    return 0
+  fi
+
+  LUname="$(uname -s 2>/dev/null | tr '[:upper:]' '[:lower:]')"
+  if [[ "${LUname}" == *mingw* ]] || [[ "${LUname}" == *msys* ]] || [[ "${LUname}" == *cygwin* ]]; then
+    if detect_windows_fpc_bin; then
+      return 0
+    fi
+  fi
+
+  FPC_RESOLVE_ERROR="fpc compiler not found; set FPC_BIN/FPC or install FPC"
+  FPC_BIN=""
+  return 1
+}
+
+FPC_RESOLVE_ERROR=""
+FPC_BIN="${FPC_BIN:-}"
+resolve_fpc_bin || true
+CPU="$(${FPC_BIN:-fpc} -iTP 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)"
+OS="$(${FPC_BIN:-fpc} -iTO 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)"
+TRIPLET="${CPU}-${OS}"
+LIB_DIR="${OUTPUT_ROOT}/lib/${TRIPLET}/${MODE_TAG}"
+BIN="${BIN_DIR}/fafafa.core.simd.intrinsics.experimental.test"
 
 mkdir -p "${BIN_DIR}" "${LIB_DIR}" "${LOG_DIR}"
 
@@ -102,6 +168,10 @@ build_project() {
   if [[ ! -f "${PROJ}" ]]; then
     echo "[BUILD] FAILED rc=2 (missing ${PROJ})"
     return 2
+  fi
+  if [[ -z "${FPC_BIN}" ]]; then
+    echo "[BUILD] FAILED rc=127 (${FPC_RESOLVE_ERROR:-fpc compiler not found; set FPC_BIN/FPC or install FPC})" | tee -a "${BUILD_LOG}"
+    return 127
   fi
 
   if "${FPC_BIN}" \

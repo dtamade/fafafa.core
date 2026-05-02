@@ -613,6 +613,18 @@ run_windows_cpuinfo_portable_fpc_resolution_smoke() {
   bash "${LSmokeScript}"
 }
 
+run_windows_experimental_intrinsics_fpc_resolution_smoke() {
+  local LSmokeScript
+
+  LSmokeScript="${REPO_ROOT}/tests/test_windows_simd_intrinsics_experimental_fpc_resolution.sh"
+  if [[ ! -f "${LSmokeScript}" ]]; then
+    echo "[WINDOWS-EXPERIMENTAL-INTRINSICS-FPC] Missing smoke script: ${LSmokeScript}"
+    return 2
+  fi
+
+  bash "${LSmokeScript}"
+}
+
 run_windows_cpuinfo_x86_batch_build_success_criteria_smoke() {
   local LSmokeScript
 
@@ -4470,6 +4482,7 @@ gate_step_build_check() {
   run_suite_manifest_check || return $?
   run_windows_publicabi_fpc_resolution_smoke || return $?
   run_windows_cpuinfo_portable_fpc_resolution_smoke || return $?
+  run_windows_experimental_intrinsics_fpc_resolution_smoke || return $?
   run_windows_cpuinfo_x86_batch_build_success_criteria_smoke || return $?
   run_nonx86_optin_list_suites || return $?
   run_dispatch_preinit_smoke || return $?
@@ -6530,6 +6543,7 @@ case "${ACTION}" in
     run_sse2_structure_check
     run_suite_manifest_check
     run_windows_publicabi_fpc_resolution_smoke
+    run_windows_experimental_intrinsics_fpc_resolution_smoke
     run_nonx86_optin_list_suites
     run_dispatch_preinit_smoke
     if [[ "${SIMD_CHECK_WIRING_SYNC:-0}" != "0" ]]; then
