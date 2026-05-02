@@ -318,60 +318,14 @@ end;
 // === SSE2 Intrinsics 实现 ===
 // 目前提供占位实现，后续将添加实际的内联汇编代�?
 // === 1️⃣ Load / Store 实现 ===
-function simd_load_si128(const Ptr: Pointer): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    // Windows x64: 第一个参数在 rcx
-    movdqa xmm0, [rcx]
-  {$ELSE}
-    // Linux/macOS x64 System V ABI: 第一个参数在 rdi
-    movdqa xmm0, [rdi]
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    // x86 32-bit: 参数在栈�?
-    mov eax, [esp + 4]
-    movdqa xmm0, [eax]
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_load_si128(const Ptr: Pointer): TM128;
+begin
+  Move(PByte(Ptr)^, Result, SizeOf(Result));
 end;
 
-function simd_loadu_si128(const Ptr: Pointer): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    // Windows x64: 第一个参数在 rcx
-    movdqu xmm0, [rcx]
-  {$ELSE}
-    // Linux/macOS x64 System V ABI: 第一个参数在 rdi
-    movdqu xmm0, [rdi]
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    // x86 32-bit: 参数在栈�?
-    mov eax, [esp + 4]
-    movdqu xmm0, [eax]
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_loadu_si128(const Ptr: Pointer): TM128;
+begin
+  Move(PByte(Ptr)^, Result, SizeOf(Result));
 end;
 
 procedure simd_store_si128(var Dest; constref Src: TM128); {$IFDEF FPC}assembler; nostackframe;
@@ -427,60 +381,14 @@ asm
 end;
 
 // Double Load/Store
-function simd_load_pd(const Ptr: Pointer): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    // Windows x64: 第一个参数在 rcx
-    movapd xmm0, [rcx]
-  {$ELSE}
-    // Linux/macOS x64 System V ABI: 第一个参数在 rdi
-    movapd xmm0, [rdi]
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    // x86 32-bit: 参数在栈�?
-    mov eax, [esp + 4]
-    movapd xmm0, [eax]
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_load_pd(const Ptr: Pointer): TM128;
+begin
+  Move(PByte(Ptr)^, Result, SizeOf(Result));
 end;
 
-function simd_loadu_pd(const Ptr: Pointer): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    // Windows x64: 第一个参数在 rcx
-    movupd xmm0, [rcx]
-  {$ELSE}
-    // Linux/macOS x64 System V ABI: 第一个参数在 rdi
-    movupd xmm0, [rdi]
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    // x86 32-bit: 参数在栈�?
-    mov eax, [esp + 4]
-    movupd xmm0, [eax]
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_loadu_pd(const Ptr: Pointer): TM128;
+begin
+  Move(PByte(Ptr)^, Result, SizeOf(Result));
 end;
 
 procedure simd_store_pd(var Dest; constref Src: TM128); {$IFDEF FPC}assembler; nostackframe;
@@ -536,60 +444,14 @@ asm
 end;
 
 // Single Load/Store
-function simd_load_ps(const Ptr: Pointer): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    // Windows x64: 第一个参数在 rcx
-    movaps xmm0, [rcx]
-  {$ELSE}
-    // Linux/macOS x64 System V ABI: 第一个参数在 rdi
-    movaps xmm0, [rdi]
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    // x86 32-bit: 参数在栈�?
-    mov eax, [esp + 4]
-    movaps xmm0, [eax]
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_load_ps(const Ptr: Pointer): TM128;
+begin
+  Move(PByte(Ptr)^, Result, SizeOf(Result));
 end;
 
-function simd_loadu_ps(const Ptr: Pointer): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    // Windows x64: 第一个参数在 rcx
-    movups xmm0, [rcx]
-  {$ELSE}
-    // Linux/macOS x64 System V ABI: 第一个参数在 rdi
-    movups xmm0, [rdi]
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    // x86 32-bit: 参数在栈�?
-    mov eax, [esp + 4]
-    movups xmm0, [eax]
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_loadu_ps(const Ptr: Pointer): TM128;
+begin
+  Move(PByte(Ptr)^, Result, SizeOf(Result));
 end;
 
 procedure simd_store_ps(var Dest; constref Src: TM128); {$IFDEF FPC}assembler; nostackframe;
@@ -645,465 +507,121 @@ asm
 end;
 
 // === 2️⃣ Set / Zero / Broadcast 实现 ===
-function simd_setzero_si128: TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-  // Intel 语法:
-  pxor xmm0, xmm0
-  // �?xmm0 与自己异或，结果为全�?
-  pxor xmm0, xmm0
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_setzero_si128: TM128;
+begin
+  FillChar(Result, SizeOf(Result), 0);
 end;
 
-function simd_setzero_pd: TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-  // Intel 语法:
-  xorpd xmm0, xmm0
-  // 双精度浮点数清零
-  xorpd xmm0, xmm0
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_setzero_pd: TM128;
+begin
+  FillChar(Result, SizeOf(Result), 0);
 end;
 
-function simd_setzero_ps: TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-  // Intel 语法:
-  xorps xmm0, xmm0
-  // 单精度浮点数清零
-  xorps xmm0, xmm0
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_setzero_ps: TM128;
+begin
+  FillChar(Result, SizeOf(Result), 0);
 end;
 
-function simd_set1_epi8(Value: ShortInt): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    // Windows x64: Value �?rcx (�?�?
-    movd xmm0, ecx //  �?Value 移到 xmm0 的低32�?
-    punpcklbw xmm0, xmm0  // 复制字节: 01010101 -> 0011001100110011
-    punpcklwd xmm0, xmm0  // 复制�? 0011 -> 00001111
-    pshufd xmm0, xmm0, 0  // 复制双字到所有位�?
-    {$ELSE}
-    // Linux/macOS x64 System V ABI: Value �?rdi (�?�?
-    movd xmm0, edi
-    punpcklbw xmm0, xmm0
-    punpcklwd xmm0, xmm0
-    pshufd xmm0, xmm0, 0
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    // x86 32-bit: Value 在栈�?
-    mov eax, [esp + 4]
-    movd xmm0, eax
-    punpcklbw xmm0, xmm0
-    punpcklwd xmm0, xmm0
-    pshufd xmm0, xmm0, 0
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_set1_epi8(Value: ShortInt): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.m128i_i8[LIndex] := Value;
 end;
 
-function simd_set1_epi16(Value: SmallInt): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    // Windows x64: Value �?rcx (�?6�?
-    movd xmm0, ecx //  �?Value 移到 xmm0 的低32�?
-    punpcklwd xmm0, xmm0  // 复制�? 01 -> 0011
-    pshufd xmm0, xmm0, 0  // 复制双字到所有位�?
-    {$ELSE}
-    // Linux/macOS x64 System V ABI: Value �?rdi (�?6�?
-    movd xmm0, edi
-    punpcklwd xmm0, xmm0
-    pshufd xmm0, xmm0, 0
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    // x86 32-bit: Value 在栈�?
-    mov eax, [esp + 4]
-    movd xmm0, eax
-    punpcklwd xmm0, xmm0
-    pshufd xmm0, xmm0, 0
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_set1_epi16(Value: SmallInt): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.m128i_i16[LIndex] := Value;
 end;
 
-function simd_set1_epi32(Value: LongInt): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    // Windows x64: Value �?rcx (�?2�?
-    movd xmm0, ecx //  �?Value 移到 xmm0 的低32�?
-    pshufd xmm0, xmm0, 0  // 复制到所�?�?2位位�?(00000000b = 0)
-  {$ELSE}
-    // Linux/macOS x64 System V ABI: Value �?rdi (�?2�?
-    movd xmm0, edi
-    pshufd xmm0, xmm0, 0
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    // x86 32-bit: Value 在栈�?
-    mov eax, [esp + 4]
-    movd xmm0, eax
-    pshufd xmm0, xmm0, 0
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_set1_epi32(Value: LongInt): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    Result.m128i_i32[LIndex] := Value;
 end;
 
-function simd_set1_epi64x(Value: Int64): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    // Windows x64: Value �?rcx (64�?
-    movq xmm0, rcx //  �?Value 移到 xmm0 的低64�?
-    punpcklqdq xmm0, xmm0 // 复制�?4位到�?4�?
-    {$ELSE}
-    // Linux/macOS x64 System V ABI: Value �?rdi (64�?
-    movq xmm0, rdi
-    punpcklqdq xmm0, xmm0
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    // x86 32-bit: Value 在栈�?(8字节)
-    movq xmm0, [esp + 4] //  直接从栈加载64�?
-    punpcklqdq xmm0, xmm0
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_set1_epi64x(Value: Int64): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 1 do
+    Result.m128i_i64[LIndex] := Value;
 end;
 
-function simd_set1_ps(Value: Single): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    // Windows x64: Value �?xmm0 (单精度浮点参�?
-    shufps xmm0, xmm0, 0  // 复制 xmm0[0] 到所有位�?(00000000b = 0)
-  {$ELSE}
-    // Linux/macOS x64 System V ABI: Value �?xmm0
-    shufps xmm0, xmm0, 0
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    // x86 32-bit: Value 在栈�?
-    movss xmm0, [esp + 4] // 加载单精度浮点数
-    shufps xmm0, xmm0, 0  // 复制到所有位�?
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_set1_ps(Value: Single): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    Result.m128_f32[LIndex] := Value;
 end;
 
-function simd_set1_pd(Value: Double): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    // Windows x64: Value �?xmm0 (双精度浮点参�?
-    unpcklpd xmm0, xmm0   // 复制�?4位到�?4�?
-    {$ELSE}
-    // Linux/macOS x64 System V ABI: Value �?xmm0
-    unpcklpd xmm0, xmm0
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    // x86 32-bit: Value 在栈�?(8字节)
-    movsd xmm0, [esp + 4] // 加载双精度浮点数
-    unpcklpd xmm0, xmm0   // 复制到高�?
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_set1_pd(Value: Double): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 1 do
+    Result.m128d_f64[LIndex] := Value;
 end;
 
 // === 复杂 Set 函数实现 ===
 // 重复�?Set 函数实现已删除，保留第二个版�?
 // === Set 函数实现 ===
-function simd_setr_epi32(a, b, c, d: LongInt): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    // Windows x64: a在rcx, b在rdx, c在r8, d在r9
-    movd xmm0, ecx        // a -> xmm0[31:0]
-    movd xmm1, edx        // b -> xmm1[31:0]
-    punpckldq xmm0, xmm1  // xmm0 = [b, a, 0, 0]
-    movd xmm1, r8d        // c -> xmm1[31:0]
-    movd xmm2, r9d        // d -> xmm2[31:0]
-    punpckldq xmm1, xmm2  // xmm1 = [d, c, 0, 0]
-    punpcklqdq xmm0, xmm1 // xmm0 = [d, c, b, a]
-  {$ELSE}
-    // Linux/macOS x64 System V ABI: a在rdi, b在rsi, c在rdx, d在rcx
-    movd xmm0, edi
-    movd xmm1, esi
-    punpckldq xmm0, xmm1
-    movd xmm1, edx
-    movd xmm2, ecx
-    punpckldq xmm1, xmm2
-    punpcklqdq xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    // x86 32-bit: 参数在栈�?
-    mov eax, [esp + 4]    // a
-    mov edx, [esp + 8]    // b
-    movd xmm0, eax
-    movd xmm1, edx
-    punpckldq xmm0, xmm1
-    mov eax, [esp + 12]   // c
-    mov edx, [esp + 16]   // d
-    movd xmm1, eax
-    movd xmm2, edx
-    punpckldq xmm1, xmm2
-    punpcklqdq xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_setr_epi32(a, b, c, d: LongInt): TM128;
+begin
+  Result.m128i_i32[0] := a;
+  Result.m128i_i32[1] := b;
+  Result.m128i_i32[2] := c;
+  Result.m128i_i32[3] := d;
 end;
 
-function simd_set_epi32(a, b, c, d: LongInt): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    // Windows x64: a在rcx, b在rdx, c在r8, d在r9
-    // 结果顺序: [a, b, c, d] (高位到低�?
-    movd xmm0, r9d        // d -> xmm0[31:0]
-    movd xmm1, r8d        // c -> xmm1[31:0]
-    punpckldq xmm0, xmm1  // xmm0 = [c, d, 0, 0]
-    movd xmm1, edx        // b -> xmm1[31:0]
-    movd xmm2, ecx        // a -> xmm2[31:0]
-    punpckldq xmm1, xmm2  // xmm1 = [a, b, 0, 0]
-    punpcklqdq xmm0, xmm1 // xmm0 = [a, b, c, d]
-  {$ELSE}
-    // Linux/macOS x64 System V ABI: a在rdi, b在rsi, c在rdx, d在rcx
-    movd xmm0, ecx        // d
-    movd xmm1, edx        // c
-    punpckldq xmm0, xmm1
-    movd xmm1, esi        // b
-    movd xmm2, edi        // a
-    punpckldq xmm1, xmm2
-    punpcklqdq xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    // x86 32-bit: 参数在栈�?
-    mov eax, [esp + 16]   // d
-    mov edx, [esp + 12]   // c
-    movd xmm0, eax
-    movd xmm1, edx
-    punpckldq xmm0, xmm1
-    mov eax, [esp + 8]    // b
-    mov edx, [esp + 4]    // a
-    movd xmm1, eax
-    movd xmm2, edx
-    punpckldq xmm1, xmm2
-    punpcklqdq xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_set_epi32(a, b, c, d: LongInt): TM128;
+begin
+  Result.m128i_i32[0] := d;
+  Result.m128i_i32[1] := c;
+  Result.m128i_i32[2] := b;
+  Result.m128i_i32[3] := a;
 end;
 
-function simd_setr_pd(a, b: Double): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    // Windows x64: a在xmm0, b在xmm1
-    unpcklpd xmm0, xmm1   // xmm0 = [b, a] (高位, 低位)
-  {$ELSE}
-    // Linux/macOS x64 System V ABI: a在xmm0, b在xmm1
-    unpcklpd xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    // x86 32-bit: 参数在栈�?
-    movsd xmm0, [esp + 4]  // a (8字节)
-    movsd xmm1, [esp + 12] // b (8字节)
-    unpcklpd xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_setr_pd(a, b: Double): TM128;
+begin
+  Result.m128d_f64[0] := a;
+  Result.m128d_f64[1] := b;
 end;
 
-function simd_set_epi64x(a, b: Int64): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    // Windows x64: a在rcx, b在rdx
-    // 结果: [a, b] (�?4�? �?4�?
-    movq xmm0, rdx //  b -> �?4�?
-    movq xmm1, rcx //  a -> �?4�?
-    punpcklqdq xmm0, xmm1 // xmm0 = [a, b]
-  {$ELSE}
-    // Linux/macOS x64 System V ABI: a在rdi, b在rsi
-    movq xmm0, rsi //  b -> �?4�?
-    movq xmm1, rdi //  a -> �?4�?
-    punpcklqdq xmm0, xmm1 // xmm0 = [a, b]
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    // x86 32-bit: 参数在栈�?
-    movq xmm0, [esp + 12] // b (8字节)
-    movq xmm1, [esp + 4]  // a (8字节)
-    punpcklqdq xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_set_epi64x(a, b: Int64): TM128;
+begin
+  Result.m128i_i64[0] := b;
+  Result.m128i_i64[1] := a;
 end;
 
 // === 剩余函数的占位实�?===
 // 为了编译通过，这里提供简单的占位实现
 // 后续将逐步添加实际的内联汇编代�?
 // 关键函数的占位实�?
-function simd_add_epi8(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    // Windows x64: a �?rcx, b �?rdx
-    movdqu xmm0, [rcx]    // 加载 a
-    movdqu xmm1, [rdx]    // 加载 b
-    paddb xmm0, xmm1      // 16�?位整数并行加�?
-    {$ELSE}
-    // Linux/macOS x64 System V ABI: a �?rdi, b �?rsi
-    movdqu xmm0, [rdi]    // 加载 a
-    movdqu xmm1, [rsi]    // 加载 b
-    paddb xmm0, xmm1      // 16�?位整数并行加�?
-    {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    // x86 32-bit: 参数在栈�?
-    mov eax, [esp + 4]    // a
-    mov edx, [esp + 8]    // b
-    movdqu xmm0, [eax]
-    movdqu xmm1, [edx]
-    paddb xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_add_epi8(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.m128i_u8[LIndex] := Byte((Integer(a.m128i_u8[LIndex]) + Integer(b.m128i_u8[LIndex])) and $FF);
 end;
 
-function simd_cmpeq_epi8(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pcmpeqb xmm0, xmm1  // 8位整数相等比�?
-    {$ELSE}
-    movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pcmpeqb xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; pcmpeqb xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_cmpeq_epi8(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    if a.m128i_u8[LIndex] = b.m128i_u8[LIndex] then
+      Result.m128i_u8[LIndex] := $FF
+    else
+      Result.m128i_u8[LIndex] := $00;
 end;
 
 function simd_and_si128(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
@@ -2889,49 +2407,16 @@ asm
 end;
 
 // === 8️⃣ Shift / Rotate 实现 ===
-function simd_slli_epi16(constref a: TM128; imm8: Byte): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]    // 加载 a
-    cmp dl, 16; jae @zero // 如果移位 >= 16，结果为 0
-    cmp dl, 0; je @done //  如果移位 = 0，不�?
-    movd xmm1, edx        // 加载移位�?    psllw xmm0, xmm1      // 16位逻辑左移
-    jmp @done
-@zero:
-    pxor xmm0, xmm0       // 清零
-@done:
-  {$ELSE}
-    movdqu xmm0, [rdi]
-    cmp sil, 16; jae @zero
-    cmp sil, 0; je @done
-    movd xmm1, esi
-    psllw xmm0, xmm1
-    jmp @done
-@zero:
-    pxor xmm0, xmm0
-@done:
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]
-    movdqu xmm0, [eax]
-    cmp dl, 16; jae @zero
-    cmp dl, 0; je @done
-    movd xmm1, edx; psllw xmm0, xmm1; jmp @done
-@zero: pxor xmm0, xmm0
-@done:
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_slli_epi16(constref a: TM128; imm8: Byte): TM128;
+var
+  LIndex: Integer;
+  LShift: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  LShift := imm8;
+  if LShift < 16 then
+    for LIndex := 0 to 7 do
+      Result.m128i_u16[LIndex] := Word((DWord(a.m128i_u16[LIndex]) shl LShift) and $FFFF);
 end;
 
 function simd_slli_epi32(constref a: TM128; imm8: Byte): TM128; {$IFDEF FPC}assembler; nostackframe;
@@ -3208,271 +2693,33 @@ asm
 end;
 
 	// === 字节级移位函数实现 ===
-	function simd_slli_si128(constref a: TM128; imm8: Byte): TM128; {$IFDEF FPC}assembler; nostackframe;
-	{$ENDIF}
-	asm
-	{$IFDEF CPUX86_64}
-	  {$IFDEF WINDOWS}
-	    movdqu xmm0, [rcx]
-	    cmp dl, 0; je @done
-	    cmp dl, 16; jae @zero
-	    cmp dl, 1; je @s1
-	    cmp dl, 2; je @s2
-	    cmp dl, 3; je @s3
-	    cmp dl, 4; je @s4
-	    cmp dl, 5; je @s5
-	    cmp dl, 6; je @s6
-	    cmp dl, 7; je @s7
-	    cmp dl, 8; je @s8
-	    cmp dl, 9; je @s9
-	    cmp dl, 10; je @s10
-	    cmp dl, 11; je @s11
-	    cmp dl, 12; je @s12
-	    cmp dl, 13; je @s13
-	    cmp dl, 14; je @s14
-	    cmp dl, 15; je @s15
-	    jmp @zero
-	@s1: pslldq xmm0, 1; jmp @done
-	@s2: pslldq xmm0, 2; jmp @done
-	@s3: pslldq xmm0, 3; jmp @done
-	@s4: pslldq xmm0, 4; jmp @done
-	@s5: pslldq xmm0, 5; jmp @done
-	@s6: pslldq xmm0, 6; jmp @done
-	@s7: pslldq xmm0, 7; jmp @done
-	@s8: pslldq xmm0, 8; jmp @done
-	@s9: pslldq xmm0, 9; jmp @done
-	@s10: pslldq xmm0, 10; jmp @done
-	@s11: pslldq xmm0, 11; jmp @done
-	@s12: pslldq xmm0, 12; jmp @done
-	@s13: pslldq xmm0, 13; jmp @done
-	@s14: pslldq xmm0, 14; jmp @done
-	@s15: pslldq xmm0, 15; jmp @done
-	@zero:
-	    pxor xmm0, xmm0
-	@done:
-	  {$ELSE}
-	    movdqu xmm0, [rdi]
-	    cmp sil, 0; je @done
-	    cmp sil, 16; jae @zero
-	    cmp sil, 1; je @s1
-	    cmp sil, 2; je @s2
-	    cmp sil, 3; je @s3
-	    cmp sil, 4; je @s4
-	    cmp sil, 5; je @s5
-	    cmp sil, 6; je @s6
-	    cmp sil, 7; je @s7
-	    cmp sil, 8; je @s8
-	    cmp sil, 9; je @s9
-	    cmp sil, 10; je @s10
-	    cmp sil, 11; je @s11
-	    cmp sil, 12; je @s12
-	    cmp sil, 13; je @s13
-	    cmp sil, 14; je @s14
-	    cmp sil, 15; je @s15
-	    jmp @zero
-	@s1: pslldq xmm0, 1; jmp @done
-	@s2: pslldq xmm0, 2; jmp @done
-	@s3: pslldq xmm0, 3; jmp @done
-	@s4: pslldq xmm0, 4; jmp @done
-	@s5: pslldq xmm0, 5; jmp @done
-	@s6: pslldq xmm0, 6; jmp @done
-	@s7: pslldq xmm0, 7; jmp @done
-	@s8: pslldq xmm0, 8; jmp @done
-	@s9: pslldq xmm0, 9; jmp @done
-	@s10: pslldq xmm0, 10; jmp @done
-	@s11: pslldq xmm0, 11; jmp @done
-	@s12: pslldq xmm0, 12; jmp @done
-	@s13: pslldq xmm0, 13; jmp @done
-	@s14: pslldq xmm0, 14; jmp @done
-	@s15: pslldq xmm0, 15; jmp @done
-	@zero:
-	    pxor xmm0, xmm0
-	@done:
-	  {$ENDIF}
-	{$ELSE}
-	  {$IFDEF CPUX86}
-	    mov eax, [esp + 4]; mov edx, [esp + 8]
-	    movdqu xmm0, [eax]
-	    cmp dl, 0; je @done
-	    cmp dl, 16; jae @zero
-	    cmp dl, 1; je @s1
-	    cmp dl, 2; je @s2
-	    cmp dl, 3; je @s3
-	    cmp dl, 4; je @s4
-	    cmp dl, 5; je @s5
-	    cmp dl, 6; je @s6
-	    cmp dl, 7; je @s7
-	    cmp dl, 8; je @s8
-	    cmp dl, 9; je @s9
-	    cmp dl, 10; je @s10
-	    cmp dl, 11; je @s11
-	    cmp dl, 12; je @s12
-	    cmp dl, 13; je @s13
-	    cmp dl, 14; je @s14
-	    cmp dl, 15; je @s15
-	    jmp @zero
-	@s1: pslldq xmm0, 1; jmp @done
-	@s2: pslldq xmm0, 2; jmp @done
-	@s3: pslldq xmm0, 3; jmp @done
-	@s4: pslldq xmm0, 4; jmp @done
-	@s5: pslldq xmm0, 5; jmp @done
-	@s6: pslldq xmm0, 6; jmp @done
-	@s7: pslldq xmm0, 7; jmp @done
-	@s8: pslldq xmm0, 8; jmp @done
-	@s9: pslldq xmm0, 9; jmp @done
-	@s10: pslldq xmm0, 10; jmp @done
-	@s11: pslldq xmm0, 11; jmp @done
-	@s12: pslldq xmm0, 12; jmp @done
-	@s13: pslldq xmm0, 13; jmp @done
-	@s14: pslldq xmm0, 14; jmp @done
-	@s15: pslldq xmm0, 15; jmp @done
-	@zero:
-	    pxor xmm0, xmm0
-	@done:
-	  {$ELSE}
-	    {$ERROR Unsupported CPU}
-	  {$ENDIF}
-	{$ENDIF}
-	{$IFDEF CPUX86_64}
-	  movq rax, xmm0
-	  movdqa xmm1, xmm0
-	  psrldq xmm1, 8
-	  movq rdx, xmm1
-	{$ENDIF}
-	end;
+function simd_slli_si128(constref a: TM128; imm8: Byte): TM128;
+var
+  LIndex: Integer;
+  LShift: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  LShift := imm8;
+  if LShift <= 0 then
+    Result := a
+  else if LShift < 16 then
+    for LIndex := LShift to 15 do
+      Result.m128i_u8[LIndex] := a.m128i_u8[LIndex - LShift];
+end;
 
-	function simd_srli_si128(constref a: TM128; imm8: Byte): TM128; {$IFDEF FPC}assembler; nostackframe;
-	{$ENDIF}
-	asm
-	{$IFDEF CPUX86_64}
-	  {$IFDEF WINDOWS}
-	    movdqu xmm0, [rcx]
-	    cmp dl, 0; je @done
-	    cmp dl, 16; jae @zero
-	    cmp dl, 1; je @s1
-	    cmp dl, 2; je @s2
-	    cmp dl, 3; je @s3
-	    cmp dl, 4; je @s4
-	    cmp dl, 5; je @s5
-	    cmp dl, 6; je @s6
-	    cmp dl, 7; je @s7
-	    cmp dl, 8; je @s8
-	    cmp dl, 9; je @s9
-	    cmp dl, 10; je @s10
-	    cmp dl, 11; je @s11
-	    cmp dl, 12; je @s12
-	    cmp dl, 13; je @s13
-	    cmp dl, 14; je @s14
-	    cmp dl, 15; je @s15
-	    jmp @zero
-	@s1: psrldq xmm0, 1; jmp @done
-	@s2: psrldq xmm0, 2; jmp @done
-	@s3: psrldq xmm0, 3; jmp @done
-	@s4: psrldq xmm0, 4; jmp @done
-	@s5: psrldq xmm0, 5; jmp @done
-	@s6: psrldq xmm0, 6; jmp @done
-	@s7: psrldq xmm0, 7; jmp @done
-	@s8: psrldq xmm0, 8; jmp @done
-	@s9: psrldq xmm0, 9; jmp @done
-	@s10: psrldq xmm0, 10; jmp @done
-	@s11: psrldq xmm0, 11; jmp @done
-	@s12: psrldq xmm0, 12; jmp @done
-	@s13: psrldq xmm0, 13; jmp @done
-	@s14: psrldq xmm0, 14; jmp @done
-	@s15: psrldq xmm0, 15; jmp @done
-	@zero:
-	    pxor xmm0, xmm0
-	@done:
-	  {$ELSE}
-	    movdqu xmm0, [rdi]
-	    cmp sil, 0; je @done
-	    cmp sil, 16; jae @zero
-	    cmp sil, 1; je @s1
-	    cmp sil, 2; je @s2
-	    cmp sil, 3; je @s3
-	    cmp sil, 4; je @s4
-	    cmp sil, 5; je @s5
-	    cmp sil, 6; je @s6
-	    cmp sil, 7; je @s7
-	    cmp sil, 8; je @s8
-	    cmp sil, 9; je @s9
-	    cmp sil, 10; je @s10
-	    cmp sil, 11; je @s11
-	    cmp sil, 12; je @s12
-	    cmp sil, 13; je @s13
-	    cmp sil, 14; je @s14
-	    cmp sil, 15; je @s15
-	    jmp @zero
-	@s1: psrldq xmm0, 1; jmp @done
-	@s2: psrldq xmm0, 2; jmp @done
-	@s3: psrldq xmm0, 3; jmp @done
-	@s4: psrldq xmm0, 4; jmp @done
-	@s5: psrldq xmm0, 5; jmp @done
-	@s6: psrldq xmm0, 6; jmp @done
-	@s7: psrldq xmm0, 7; jmp @done
-	@s8: psrldq xmm0, 8; jmp @done
-	@s9: psrldq xmm0, 9; jmp @done
-	@s10: psrldq xmm0, 10; jmp @done
-	@s11: psrldq xmm0, 11; jmp @done
-	@s12: psrldq xmm0, 12; jmp @done
-	@s13: psrldq xmm0, 13; jmp @done
-	@s14: psrldq xmm0, 14; jmp @done
-	@s15: psrldq xmm0, 15; jmp @done
-	@zero:
-	    pxor xmm0, xmm0
-	@done:
-	  {$ENDIF}
-	{$ELSE}
-	  {$IFDEF CPUX86}
-	    mov eax, [esp + 4]; mov edx, [esp + 8]
-	    movdqu xmm0, [eax]
-	    cmp dl, 0; je @done
-	    cmp dl, 16; jae @zero
-	    cmp dl, 1; je @s1
-	    cmp dl, 2; je @s2
-	    cmp dl, 3; je @s3
-	    cmp dl, 4; je @s4
-	    cmp dl, 5; je @s5
-	    cmp dl, 6; je @s6
-	    cmp dl, 7; je @s7
-	    cmp dl, 8; je @s8
-	    cmp dl, 9; je @s9
-	    cmp dl, 10; je @s10
-	    cmp dl, 11; je @s11
-	    cmp dl, 12; je @s12
-	    cmp dl, 13; je @s13
-	    cmp dl, 14; je @s14
-	    cmp dl, 15; je @s15
-	    jmp @zero
-	@s1: psrldq xmm0, 1; jmp @done
-	@s2: psrldq xmm0, 2; jmp @done
-	@s3: psrldq xmm0, 3; jmp @done
-	@s4: psrldq xmm0, 4; jmp @done
-	@s5: psrldq xmm0, 5; jmp @done
-	@s6: psrldq xmm0, 6; jmp @done
-	@s7: psrldq xmm0, 7; jmp @done
-	@s8: psrldq xmm0, 8; jmp @done
-	@s9: psrldq xmm0, 9; jmp @done
-	@s10: psrldq xmm0, 10; jmp @done
-	@s11: psrldq xmm0, 11; jmp @done
-	@s12: psrldq xmm0, 12; jmp @done
-	@s13: psrldq xmm0, 13; jmp @done
-	@s14: psrldq xmm0, 14; jmp @done
-	@s15: psrldq xmm0, 15; jmp @done
-	@zero:
-	    pxor xmm0, xmm0
-	@done:
-	  {$ELSE}
-	    {$ERROR Unsupported CPU}
-	  {$ENDIF}
-	{$ENDIF}
-	{$IFDEF CPUX86_64}
-	  movq rax, xmm0
-	  movdqa xmm1, xmm0
-	  psrldq xmm1, 8
-	  movq rdx, xmm1
-	{$ENDIF}
-	end;
+function simd_srli_si128(constref a: TM128; imm8: Byte): TM128;
+var
+  LIndex: Integer;
+  LShift: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  LShift := imm8;
+  if LShift <= 0 then
+    Result := a
+  else if LShift < 16 then
+    for LIndex := 0 to (15 - LShift) do
+      Result.m128i_u8[LIndex] := a.m128i_u8[LIndex + LShift];
+end;
 
 // === 9️⃣ Conversion / Cast 实现 ===
 function simd_cvtepi32_pd(constref a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
@@ -5936,158 +5183,24 @@ begin
   Result.m128_f32[1] := Single(a.m128d_f64[1]);
 end;
 
-	function simd_srai_si128(constref a: TM128; imm8: Byte): TM128; {$IFDEF FPC}assembler; nostackframe;
-	{$ENDIF}
-	asm
-	{$IFDEF CPUX86_64}
-	  {$IFDEF WINDOWS}
-	    movdqu xmm0, [rcx]
-	    cmp dl, 0; je @done
-	
-	    pxor xmm1, xmm1
-	    mov al, [rcx + 15]
-	    test al, $80
-	    jz @fill_ready
-	    pcmpeqb xmm1, xmm1
-	@fill_ready:
-	    cmp dl, 16; jae @allfill
-	    cmp dl, 1; je @s1
-	    cmp dl, 2; je @s2
-	    cmp dl, 3; je @s3
-	    cmp dl, 4; je @s4
-	    cmp dl, 5; je @s5
-	    cmp dl, 6; je @s6
-	    cmp dl, 7; je @s7
-	    cmp dl, 8; je @s8
-	    cmp dl, 9; je @s9
-	    cmp dl, 10; je @s10
-	    cmp dl, 11; je @s11
-	    cmp dl, 12; je @s12
-	    cmp dl, 13; je @s13
-	    cmp dl, 14; je @s14
-	    cmp dl, 15; je @s15
-	    jmp @allfill
-	@s1: psrldq xmm0, 1; pslldq xmm1, 15; por xmm0, xmm1; jmp @done
-	@s2: psrldq xmm0, 2; pslldq xmm1, 14; por xmm0, xmm1; jmp @done
-	@s3: psrldq xmm0, 3; pslldq xmm1, 13; por xmm0, xmm1; jmp @done
-	@s4: psrldq xmm0, 4; pslldq xmm1, 12; por xmm0, xmm1; jmp @done
-	@s5: psrldq xmm0, 5; pslldq xmm1, 11; por xmm0, xmm1; jmp @done
-	@s6: psrldq xmm0, 6; pslldq xmm1, 10; por xmm0, xmm1; jmp @done
-	@s7: psrldq xmm0, 7; pslldq xmm1, 9; por xmm0, xmm1; jmp @done
-	@s8: psrldq xmm0, 8; pslldq xmm1, 8; por xmm0, xmm1; jmp @done
-	@s9: psrldq xmm0, 9; pslldq xmm1, 7; por xmm0, xmm1; jmp @done
-	@s10: psrldq xmm0, 10; pslldq xmm1, 6; por xmm0, xmm1; jmp @done
-	@s11: psrldq xmm0, 11; pslldq xmm1, 5; por xmm0, xmm1; jmp @done
-	@s12: psrldq xmm0, 12; pslldq xmm1, 4; por xmm0, xmm1; jmp @done
-	@s13: psrldq xmm0, 13; pslldq xmm1, 3; por xmm0, xmm1; jmp @done
-	@s14: psrldq xmm0, 14; pslldq xmm1, 2; por xmm0, xmm1; jmp @done
-	@s15: psrldq xmm0, 15; pslldq xmm1, 1; por xmm0, xmm1; jmp @done
-	@allfill:
-	    movdqa xmm0, xmm1
-	@done:
-	  {$ELSE}
-	    movdqu xmm0, [rdi]
-	    cmp sil, 0; je @done
-	
-	    pxor xmm1, xmm1
-	    mov al, [rdi + 15]
-	    test al, $80
-	    jz @fill_ready
-	    pcmpeqb xmm1, xmm1
-	@fill_ready:
-	    cmp sil, 16; jae @allfill
-	    cmp sil, 1; je @s1
-	    cmp sil, 2; je @s2
-	    cmp sil, 3; je @s3
-	    cmp sil, 4; je @s4
-	    cmp sil, 5; je @s5
-	    cmp sil, 6; je @s6
-	    cmp sil, 7; je @s7
-	    cmp sil, 8; je @s8
-	    cmp sil, 9; je @s9
-	    cmp sil, 10; je @s10
-	    cmp sil, 11; je @s11
-	    cmp sil, 12; je @s12
-	    cmp sil, 13; je @s13
-	    cmp sil, 14; je @s14
-	    cmp sil, 15; je @s15
-	    jmp @allfill
-	@s1: psrldq xmm0, 1; pslldq xmm1, 15; por xmm0, xmm1; jmp @done
-	@s2: psrldq xmm0, 2; pslldq xmm1, 14; por xmm0, xmm1; jmp @done
-	@s3: psrldq xmm0, 3; pslldq xmm1, 13; por xmm0, xmm1; jmp @done
-	@s4: psrldq xmm0, 4; pslldq xmm1, 12; por xmm0, xmm1; jmp @done
-	@s5: psrldq xmm0, 5; pslldq xmm1, 11; por xmm0, xmm1; jmp @done
-	@s6: psrldq xmm0, 6; pslldq xmm1, 10; por xmm0, xmm1; jmp @done
-	@s7: psrldq xmm0, 7; pslldq xmm1, 9; por xmm0, xmm1; jmp @done
-	@s8: psrldq xmm0, 8; pslldq xmm1, 8; por xmm0, xmm1; jmp @done
-	@s9: psrldq xmm0, 9; pslldq xmm1, 7; por xmm0, xmm1; jmp @done
-	@s10: psrldq xmm0, 10; pslldq xmm1, 6; por xmm0, xmm1; jmp @done
-	@s11: psrldq xmm0, 11; pslldq xmm1, 5; por xmm0, xmm1; jmp @done
-	@s12: psrldq xmm0, 12; pslldq xmm1, 4; por xmm0, xmm1; jmp @done
-	@s13: psrldq xmm0, 13; pslldq xmm1, 3; por xmm0, xmm1; jmp @done
-	@s14: psrldq xmm0, 14; pslldq xmm1, 2; por xmm0, xmm1; jmp @done
-	@s15: psrldq xmm0, 15; pslldq xmm1, 1; por xmm0, xmm1; jmp @done
-	@allfill:
-	    movdqa xmm0, xmm1
-	@done:
-	  {$ENDIF}
-	{$ELSE}
-	  {$IFDEF CPUX86}
-	    mov ecx, [esp + 4]; mov edx, [esp + 8]
-	    movdqu xmm0, [ecx]
-	    cmp dl, 0; je @done
-	
-	    pxor xmm1, xmm1
-	    mov al, [ecx + 15]
-	    test al, $80
-	    jz @fill_ready
-	    pcmpeqb xmm1, xmm1
-	@fill_ready:
-	    cmp dl, 16; jae @allfill
-	    cmp dl, 1; je @s1
-	    cmp dl, 2; je @s2
-	    cmp dl, 3; je @s3
-	    cmp dl, 4; je @s4
-	    cmp dl, 5; je @s5
-	    cmp dl, 6; je @s6
-	    cmp dl, 7; je @s7
-	    cmp dl, 8; je @s8
-	    cmp dl, 9; je @s9
-	    cmp dl, 10; je @s10
-	    cmp dl, 11; je @s11
-	    cmp dl, 12; je @s12
-	    cmp dl, 13; je @s13
-	    cmp dl, 14; je @s14
-	    cmp dl, 15; je @s15
-	    jmp @allfill
-	@s1: psrldq xmm0, 1; pslldq xmm1, 15; por xmm0, xmm1; jmp @done
-	@s2: psrldq xmm0, 2; pslldq xmm1, 14; por xmm0, xmm1; jmp @done
-	@s3: psrldq xmm0, 3; pslldq xmm1, 13; por xmm0, xmm1; jmp @done
-	@s4: psrldq xmm0, 4; pslldq xmm1, 12; por xmm0, xmm1; jmp @done
-	@s5: psrldq xmm0, 5; pslldq xmm1, 11; por xmm0, xmm1; jmp @done
-	@s6: psrldq xmm0, 6; pslldq xmm1, 10; por xmm0, xmm1; jmp @done
-	@s7: psrldq xmm0, 7; pslldq xmm1, 9; por xmm0, xmm1; jmp @done
-	@s8: psrldq xmm0, 8; pslldq xmm1, 8; por xmm0, xmm1; jmp @done
-	@s9: psrldq xmm0, 9; pslldq xmm1, 7; por xmm0, xmm1; jmp @done
-	@s10: psrldq xmm0, 10; pslldq xmm1, 6; por xmm0, xmm1; jmp @done
-	@s11: psrldq xmm0, 11; pslldq xmm1, 5; por xmm0, xmm1; jmp @done
-	@s12: psrldq xmm0, 12; pslldq xmm1, 4; por xmm0, xmm1; jmp @done
-	@s13: psrldq xmm0, 13; pslldq xmm1, 3; por xmm0, xmm1; jmp @done
-	@s14: psrldq xmm0, 14; pslldq xmm1, 2; por xmm0, xmm1; jmp @done
-	@s15: psrldq xmm0, 15; pslldq xmm1, 1; por xmm0, xmm1; jmp @done
-	@allfill:
-	    movdqa xmm0, xmm1
-	@done:
-	  {$ELSE}
-	    {$ERROR Unsupported CPU}
-	  {$ENDIF}
-	{$ENDIF}
-	{$IFDEF CPUX86_64}
-	  movq rax, xmm0
-	  movdqa xmm1, xmm0
-	  psrldq xmm1, 8
-	  movq rdx, xmm1
-	{$ENDIF}
+	function simd_srai_si128(constref a: TM128; imm8: Byte): TM128;
+	var
+	  LFill: Byte;
+	  LIndex: Integer;
+	  LShift: Integer;
+	begin
+	  if (a.m128i_u8[15] and $80) <> 0 then
+	    LFill := $FF
+	  else
+	    LFill := $00;
+
+	  FillChar(Result, SizeOf(Result), LFill);
+	  LShift := imm8;
+	  if LShift <= 0 then
+	    Result := a
+	  else if LShift < 16 then
+	    for LIndex := 0 to (15 - LShift) do
+	      Result.m128i_u8[LIndex] := a.m128i_u8[LIndex + LShift];
 	end;
 
 function simd_max_epu8(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;

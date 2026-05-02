@@ -601,6 +601,8 @@ type
   TTestCase_X86Sse2AbiBasics = class(TTestCase)
   published
     procedure Test_AddAndCmpeqMovemask;
+    procedure Test_FloatingConstructorsAndLoads;
+    procedure Test_IntegerConstructors;
     procedure Test_LoadStore_Roundtrip;
     procedure Test_SlliEpi16_ShiftCounts;
   end;
@@ -706,6 +708,112 @@ begin
 
   LActualMask := simd_movemask_epi8(LA);
   AssertEquals('simd_movemask_epi8 mask', LExpectedMask, LActualMask);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_FloatingConstructorsAndLoads;
+var
+  LDoubles: array[0..1] of Double;
+  LExpected: TM128;
+  LActual: TM128;
+  LIndex: Integer;
+  LSingles: array[0..3] of Single;
+begin
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LActual := simd_setzero_pd;
+  AssertM128BytesEqual(Self, 'simd_setzero_pd', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LActual := simd_setzero_ps;
+  AssertM128BytesEqual(Self, 'simd_setzero_ps', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 1 do
+    LExpected.m128d_f64[LIndex] := 3.5;
+  LActual := simd_set1_pd(3.5);
+  AssertM128BytesEqual(Self, 'simd_set1_pd', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 3 do
+    LExpected.m128_f32[LIndex] := 2.25;
+  LActual := simd_set1_ps(2.25);
+  AssertM128BytesEqual(Self, 'simd_set1_ps', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128d_f64[0] := 1.25;
+  LExpected.m128d_f64[1] := 9.5;
+  LActual := simd_setr_pd(1.25, 9.5);
+  AssertM128BytesEqual(Self, 'simd_setr_pd', LExpected, LActual);
+
+  LDoubles[0] := -7.0;
+  LDoubles[1] := 42.25;
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  Move(LDoubles[0], LExpected, SizeOf(LDoubles));
+  LActual := simd_loadu_pd(@LDoubles[0]);
+  AssertM128BytesEqual(Self, 'simd_loadu_pd', LExpected, LActual);
+
+  for LIndex := 0 to 3 do
+    LSingles[LIndex] := (LIndex * 1.5) - 2.0;
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  Move(LSingles[0], LExpected, SizeOf(LSingles));
+  LActual := simd_loadu_ps(@LSingles[0]);
+  AssertM128BytesEqual(Self, 'simd_loadu_ps', LExpected, LActual);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_IntegerConstructors;
+var
+  LExpected: TM128;
+  LActual: TM128;
+  LIndex: Integer;
+begin
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LActual := simd_setzero_si128;
+  AssertM128BytesEqual(Self, 'simd_setzero_si128', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    LExpected.m128i_i8[LIndex] := -5;
+  LActual := simd_set1_epi8(-5);
+  AssertM128BytesEqual(Self, 'simd_set1_epi8', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 7 do
+    LExpected.m128i_i16[LIndex] := $1234;
+  LActual := simd_set1_epi16($1234);
+  AssertM128BytesEqual(Self, 'simd_set1_epi16', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 3 do
+    LExpected.m128i_i32[LIndex] := $12345678;
+  LActual := simd_set1_epi32($12345678);
+  AssertM128BytesEqual(Self, 'simd_set1_epi32', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 1 do
+    LExpected.m128i_i64[LIndex] := $1122334455667788;
+  LActual := simd_set1_epi64x($1122334455667788);
+  AssertM128BytesEqual(Self, 'simd_set1_epi64x', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_i32[0] := 11;
+  LExpected.m128i_i32[1] := 22;
+  LExpected.m128i_i32[2] := 33;
+  LExpected.m128i_i32[3] := 44;
+  LActual := simd_setr_epi32(11, 22, 33, 44);
+  AssertM128BytesEqual(Self, 'simd_setr_epi32', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_i32[0] := 44;
+  LExpected.m128i_i32[1] := 33;
+  LExpected.m128i_i32[2] := 22;
+  LExpected.m128i_i32[3] := 11;
+  LActual := simd_set_epi32(11, 22, 33, 44);
+  AssertM128BytesEqual(Self, 'simd_set_epi32', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_i64[0] := $1020304050607080;
+  LExpected.m128i_i64[1] := $0102030405060708;
+  LActual := simd_set_epi64x($0102030405060708, $1020304050607080);
+  AssertM128BytesEqual(Self, 'simd_set_epi64x', LExpected, LActual);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_LoadStore_Roundtrip;
