@@ -3603,6 +3603,7 @@ check_run_all_output_isolation() {
     'SIMD_OUTPUT_ROOT="${module_output_root}" bash "./$(basename "$script")" "$action"'
   )
   LRunAllBatRequired=(
+    'set "DISCOVERY_FILE=%LOG_DIR%\run_all_discovery.txt"'
     'if defined SIMD_OUTPUT_ROOT if /I "!MOD_FULL:~0,16!"=="fafafa.core.simd" set "MODULE_SIMD_OUTPUT_ROOT=%SIMD_OUTPUT_ROOT%\run_all\!MOD_FULL!"'
     'set "ACTION=%RUN_ACTION%"'
     'if not defined ACTION set "ACTION=test"'
@@ -3611,6 +3612,15 @@ check_run_all_output_isolation() {
     'if defined MODULE_SIMD_OUTPUT_ROOT set "SIMD_OUTPUT_ROOT=!MODULE_SIMD_OUTPUT_ROOT!"'
     'call "%SCRIPT%" "!ACTION!" >>"%LOG_FILE%" 2>&1'
     'set "SIMD_OUTPUT_ROOT=%PREV_SIMD_OUTPUT_ROOT%"'
+    ':is_generated_dir'
+    'findstr /I /C:"\_run_all_logs\" /C:"\run_all\" /C:"\bin\" /C:"\lib\" /C:"\logs\" /C:"\nonx86.optin\" /C:"\dispatch.preinit.smoke\"'
+    ':collect_module_dir'
+    'call :collect_module_dir "%TESTS_ROOT%"'
+    'for /f "delims=" %%D in ('
+    "dir /b /s /ad \"%TESTS_ROOT%\" 2^>nul"
+    'for /f "usebackq delims=" %%F in ("%DISCOVERY_FILE%") do call :run_one "%%F"'
+    'echo [PASS] !MOD_FULL! ^(rc=%RC%^)'
+    'echo [FAIL] !MOD_FULL! ^(rc=%RC%^)'
   )
 
   for LPattern in "${LRunAllShellRequired[@]}"; do
@@ -3629,6 +3639,31 @@ check_run_all_output_isolation() {
 
   if grep -F -- 'call "%SCRIPT%" >>"%LOG_FILE%" 2>&1' "${LRunAllBat}" >/dev/null; then
     echo "[CHECK] run_all batch still calls module scripts without RUN_ACTION forwarding"
+    LMissing=1
+  fi
+
+  if grep -F -- 'for /R "%TESTS_ROOT%" %%F in (BuildOrTest.bat) do call :run_one "%%~fF"' "${LRunAllBat}" >/dev/null; then
+    echo "[CHECK] run_all batch still uses dynamic BuildOrTest.bat recursion"
+    LMissing=1
+  fi
+
+  if grep -F -- 'for /R "%TESTS_ROOT%" %%F in (buildOrTest.bat) do call :run_one "%%~fF"' "${LRunAllBat}" >/dev/null; then
+    echo "[CHECK] run_all batch still uses dynamic buildOrTest.bat recursion"
+    LMissing=1
+  fi
+
+  if grep -F -- 'for /R "%TESTS_ROOT%" %%F in (BuildAndTest.bat) do call :run_one "%%~fF"' "${LRunAllBat}" >/dev/null; then
+    echo "[CHECK] run_all batch still uses dynamic BuildAndTest.bat recursion"
+    LMissing=1
+  fi
+
+  if grep -F -- 'echo [PASS] !MOD_FULL! (rc=%RC%)' "${LRunAllBat}" >/dev/null; then
+    echo "[CHECK] run_all batch still emits unescaped PASS parentheses inside a block"
+    LMissing=1
+  fi
+
+  if grep -F -- 'echo [FAIL] !MOD_FULL! (rc=%RC%)' "${LRunAllBat}" >/dev/null; then
+    echo "[CHECK] run_all batch still emits unescaped FAIL parentheses inside a block"
     LMissing=1
   fi
 

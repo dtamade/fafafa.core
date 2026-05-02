@@ -7,6 +7,7 @@ for %%D in ("%TESTS_ROOT%..") do set "REPO_ROOT=%%~fD"
 set "HYGIENE_CHECKER=%TESTS_ROOT%check_repo_hygiene.bat"
 set "LOG_DIR=%TESTS_ROOT%_run_all_logs"
 set "SUMMARY_FILE=%TESTS_ROOT%run_all_tests_summary.txt"
+set "DISCOVERY_FILE=%LOG_DIR%\run_all_discovery.txt"
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%" >nul 2>&1
 
 REM Optional filters:
@@ -134,10 +135,10 @@ popd >nul
 
 if "%RC%"=="0" (
   set /a PASSED+=1
-  echo [PASS] !MOD_FULL! (rc=%RC%)
+  echo [PASS] !MOD_FULL! ^(rc=%RC%^)
 ) else (
   set /a FAILED+=1
-  echo [FAIL] !MOD_FULL! (rc=%RC%)
+  echo [FAIL] !MOD_FULL! ^(rc=%RC%^)
   if defined FAILED_LIST (
     set "FAILED_LIST=%FAILED_LIST%,!MOD_FULL!"
   ) else (
@@ -146,6 +147,38 @@ if "%RC%"=="0" (
   if "%STOP_ON_FAIL%"=="1" goto :finish
 )
 
+goto :eof
+
+:is_generated_dir
+set "CHECK_DIR=%~f1"
+if "%CHECK_DIR%"=="" exit /b 1
+set "CHECK_DIR_NORM=%CHECK_DIR%"
+if not "%CHECK_DIR_NORM:~-1%"=="\" set "CHECK_DIR_NORM=%CHECK_DIR_NORM%\"
+echo %CHECK_DIR_NORM% | findstr /I /C:"\_run_all_logs\" /C:"\run_all\" /C:"\bin\" /C:"\lib\" /C:"\logs\" /C:"\nonx86.optin\" /C:"\dispatch.preinit.smoke\" >nul 2>nul
+if not errorlevel 1 exit /b 0
+exit /b 1
+
+:queue_script_if_present
+if exist "%~1" >>"%DISCOVERY_FILE%" echo %~f1
+exit /b 0
+
+:collect_module_dir
+set "DISCOVERY_DIR=%~f1"
+if "%DISCOVERY_DIR%"=="" goto :eof
+call :is_generated_dir "%DISCOVERY_DIR%"
+if not errorlevel 1 goto :eof
+
+if exist "%DISCOVERY_DIR%\BuildOrTest.bat" (
+  call :queue_script_if_present "%DISCOVERY_DIR%\BuildOrTest.bat"
+  goto :eof
+)
+if exist "%DISCOVERY_DIR%\buildOrTest.bat" (
+  call :queue_script_if_present "%DISCOVERY_DIR%\buildOrTest.bat"
+  goto :eof
+)
+if exist "%DISCOVERY_DIR%\BuildAndTest.bat" (
+  call :queue_script_if_present "%DISCOVERY_DIR%\BuildAndTest.bat"
+)
 goto :eof
 
 :main
@@ -160,9 +193,13 @@ if not exist "%HYGIENE_CHECKER%" (
 call "%HYGIENE_CHECKER%" "%REPO_ROOT%"
 if errorlevel 1 exit /b %ERRORLEVEL%
 
-for /R "%TESTS_ROOT%" %%F in (BuildOrTest.bat) do call :run_one "%%~fF"
-for /R "%TESTS_ROOT%" %%F in (buildOrTest.bat) do call :run_one "%%~fF"
-for /R "%TESTS_ROOT%" %%F in (BuildAndTest.bat) do call :run_one "%%~fF"
+if exist "%DISCOVERY_FILE%" del /q "%DISCOVERY_FILE%" >nul 2>&1
+type nul > "%DISCOVERY_FILE%"
+
+call :collect_module_dir "%TESTS_ROOT%"
+for /f "delims=" %%D in ('dir /b /s /ad "%TESTS_ROOT%" 2^>nul') do call :collect_module_dir "%%~fD"
+
+for /f "usebackq delims=" %%F in ("%DISCOVERY_FILE%") do call :run_one "%%F"
 
 :finish
 echo.>"%SUMMARY_FILE%"
