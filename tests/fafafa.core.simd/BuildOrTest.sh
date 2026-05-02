@@ -601,6 +601,18 @@ run_windows_publicabi_fpc_resolution_smoke() {
   bash "${LSmokeScript}"
 }
 
+run_windows_cpuinfo_portable_fpc_resolution_smoke() {
+  local LSmokeScript
+
+  LSmokeScript="${REPO_ROOT}/tests/test_windows_simd_cpuinfo_portable_fpc_resolution.sh"
+  if [[ ! -f "${LSmokeScript}" ]]; then
+    echo "[WINDOWS-CPUINFO-FPC] Missing smoke script: ${LSmokeScript}"
+    return 2
+  fi
+
+  bash "${LSmokeScript}"
+}
+
 run_cpuinfo_lazy_repeat() {
   local aTestsRoot
   local aRounds
@@ -1114,6 +1126,44 @@ check_windows_cpuinfo_x86_runner_guard() {
   fi
 
   echo "[CHECK] OK (Windows cpuinfo.x86 runner lazbuild/output guards present)"
+}
+
+check_windows_cpuinfo_portable_runner_guard() {
+  local LBat
+  local LPattern
+  local LMissing
+  local -a LRequired
+
+  LBat="${ROOT}/../fafafa.core.simd.cpuinfo/buildOrTest.bat"
+  if [[ ! -f "${LBat}" ]]; then
+    echo "[CHECK] Missing Windows cpuinfo runner: ${LBat}"
+    return 1
+  fi
+
+  LMissing=0
+  LRequired=(
+    'set "ROOT=%SIMD_SCRIPT_ROOT%"'
+    'set "OUTPUT_ROOT=%SIMD_OUTPUT_ROOT%"'
+    'set "LIB_ROOT=%OUTPUT_ROOT%\lib"'
+    'set "FPC_EXE=%FPC_BIN%"'
+    'if "%FPC_EXE%"=="" set "FPC_EXE=%FPC%"'
+    'call :resolve_fpc_exe'
+    'call :populate_target_triplet'
+    'if "%TEST_LIST_SUITES_MODE%"=="1" if "%TEST_LISTING_VALID%"=="1" ('
+  )
+
+  for LPattern in "${LRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LBat}" >/dev/null; then
+      echo "[CHECK] Windows cpuinfo runner missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  if [[ "${LMissing}" != "0" ]]; then
+    return 1
+  fi
+
+  echo "[CHECK] OK (Windows cpuinfo portable runner FPC/output guards present)"
 }
 
 check_avx512_optin_runner_guard() {
@@ -4283,6 +4333,7 @@ gate_step_build_check() {
   check_build_log || return $?
   check_windows_runner_parity || return $?
   check_windows_lazbuild_wrapper_guard || return $?
+  check_windows_cpuinfo_portable_runner_guard || return $?
   check_windows_cpuinfo_x86_runner_guard || return $?
   check_avx512_optin_runner_guard || return $?
   check_nonx86_optin_runner_guard || return $?
@@ -4323,6 +4374,7 @@ gate_step_build_check() {
   run_register_include_check || return $?
   run_suite_manifest_check || return $?
   run_windows_publicabi_fpc_resolution_smoke || return $?
+  run_windows_cpuinfo_portable_fpc_resolution_smoke || return $?
   run_nonx86_optin_list_suites || return $?
   run_dispatch_preinit_smoke || return $?
 }
