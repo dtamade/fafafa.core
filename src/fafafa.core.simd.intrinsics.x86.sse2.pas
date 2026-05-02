@@ -2913,222 +2913,66 @@ begin
   Result := MakeScalarCompareResult(a, IsUnorderedDoubleCompare(a.m128d_f64[0], b.m128d_f64[0]));
 end;
 
-// 有序比较返回整数
-function simd_comieq_sd(constref a, b: TM128): Integer; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]; movsd xmm1, [rdx]; comisd xmm0, xmm1; sete al; movzx eax, al  // 有序相等比较
-  {$ELSE}
-    movsd xmm0, [rdi]; movsd xmm1, [rsi]; comisd xmm0, xmm1; sete al; movzx eax, al
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; comisd xmm0, xmm1; sete al; movzx eax, al
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
+// 标量比较返回整数。这里统一复用现有的 compare 语义辅助函数，
+// 避免 COMISD/UCOMISD 在 NaN 场景下把异常/flags 直接泄漏成 ABI 差异。
+function simd_comieq_sd(constref a, b: TM128): Integer;
+begin
+  Result := Ord(CompareEqOrderedDouble(a.m128d_f64[0], b.m128d_f64[0]));
 end;
 
-function simd_comilt_sd(constref a, b: TM128): Integer; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]; movsd xmm1, [rdx]; comisd xmm0, xmm1; setb al; movzx eax, al  // 有序小于比较
-  {$ELSE}
-    movsd xmm0, [rdi]; movsd xmm1, [rsi]; comisd xmm0, xmm1; setb al; movzx eax, al
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; comisd xmm0, xmm1; setb al; movzx eax, al
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
+function simd_comilt_sd(constref a, b: TM128): Integer;
+begin
+  Result := Ord(CompareLtOrderedDouble(a.m128d_f64[0], b.m128d_f64[0]));
 end;
 
-function simd_comile_sd(constref a, b: TM128): Integer; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]; movsd xmm1, [rdx]; comisd xmm0, xmm1; setbe al; movzx eax, al  // 有序小于等于比较
-  {$ELSE}
-    movsd xmm0, [rdi]; movsd xmm1, [rsi]; comisd xmm0, xmm1; setbe al; movzx eax, al
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; comisd xmm0, xmm1; setbe al; movzx eax, al
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
+function simd_comile_sd(constref a, b: TM128): Integer;
+begin
+  Result := Ord(CompareLeOrderedDouble(a.m128d_f64[0], b.m128d_f64[0]));
 end;
 
-function simd_comigt_sd(constref a, b: TM128): Integer; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]; movsd xmm1, [rdx]; comisd xmm0, xmm1; seta al; movzx eax, al  // 有序大于比较
-  {$ELSE}
-    movsd xmm0, [rdi]; movsd xmm1, [rsi]; comisd xmm0, xmm1; seta al; movzx eax, al
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; comisd xmm0, xmm1; seta al; movzx eax, al
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
+function simd_comigt_sd(constref a, b: TM128): Integer;
+begin
+  Result := Ord(CompareGtOrderedDouble(a.m128d_f64[0], b.m128d_f64[0]));
 end;
 
-function simd_comige_sd(constref a, b: TM128): Integer; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]; movsd xmm1, [rdx]; comisd xmm0, xmm1; setae al; movzx eax, al  // 有序大于等于比较
-  {$ELSE}
-    movsd xmm0, [rdi]; movsd xmm1, [rsi]; comisd xmm0, xmm1; setae al; movzx eax, al
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; comisd xmm0, xmm1; setae al; movzx eax, al
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
+function simd_comige_sd(constref a, b: TM128): Integer;
+begin
+  Result := Ord(CompareGeOrderedDouble(a.m128d_f64[0], b.m128d_f64[0]));
 end;
 
-function simd_comineq_sd(constref a, b: TM128): Integer; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]; movsd xmm1, [rdx]; comisd xmm0, xmm1; setne al; movzx eax, al  // 有序不等于比�?
-    {$ELSE}
-    movsd xmm0, [rdi]; movsd xmm1, [rsi]; comisd xmm0, xmm1; setne al; movzx eax, al
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; comisd xmm0, xmm1; setne al; movzx eax, al
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
+function simd_comineq_sd(constref a, b: TM128): Integer;
+begin
+  Result := Ord(CompareNeqDouble(a.m128d_f64[0], b.m128d_f64[0]));
 end;
 
-// 无序比较返回整数
-function simd_ucomieq_sd(constref a, b: TM128): Integer; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]; movsd xmm1, [rdx]; ucomisd xmm0, xmm1; sete al; movzx eax, al  // 无序相等比较
-  {$ELSE}
-    movsd xmm0, [rdi]; movsd xmm1, [rsi]; ucomisd xmm0, xmm1; sete al; movzx eax, al
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; ucomisd xmm0, xmm1; sete al; movzx eax, al
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
+function simd_ucomieq_sd(constref a, b: TM128): Integer;
+begin
+  Result := Ord(CompareEqOrderedDouble(a.m128d_f64[0], b.m128d_f64[0]));
 end;
 
-function simd_ucomilt_sd(constref a, b: TM128): Integer; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]; movsd xmm1, [rdx]; ucomisd xmm0, xmm1; setb al; movzx eax, al  // 无序小于比较
-  {$ELSE}
-    movsd xmm0, [rdi]; movsd xmm1, [rsi]; ucomisd xmm0, xmm1; setb al; movzx eax, al
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; ucomisd xmm0, xmm1; setb al; movzx eax, al
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
+function simd_ucomilt_sd(constref a, b: TM128): Integer;
+begin
+  Result := Ord(CompareLtOrderedDouble(a.m128d_f64[0], b.m128d_f64[0]));
 end;
 
-function simd_ucomile_sd(constref a, b: TM128): Integer; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]; movsd xmm1, [rdx]; ucomisd xmm0, xmm1; setbe al; movzx eax, al  // 无序小于等于比较
-  {$ELSE}
-    movsd xmm0, [rdi]; movsd xmm1, [rsi]; ucomisd xmm0, xmm1; setbe al; movzx eax, al
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; ucomisd xmm0, xmm1; setbe al; movzx eax, al
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
+function simd_ucomile_sd(constref a, b: TM128): Integer;
+begin
+  Result := Ord(CompareLeOrderedDouble(a.m128d_f64[0], b.m128d_f64[0]));
 end;
 
-function simd_ucomigt_sd(constref a, b: TM128): Integer; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]; movsd xmm1, [rdx]; ucomisd xmm0, xmm1; seta al; movzx eax, al  // 无序大于比较
-  {$ELSE}
-    movsd xmm0, [rdi]; movsd xmm1, [rsi]; ucomisd xmm0, xmm1; seta al; movzx eax, al
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; ucomisd xmm0, xmm1; seta al; movzx eax, al
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
+function simd_ucomigt_sd(constref a, b: TM128): Integer;
+begin
+  Result := Ord(CompareGtOrderedDouble(a.m128d_f64[0], b.m128d_f64[0]));
 end;
 
-function simd_ucomige_sd(constref a, b: TM128): Integer; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]; movsd xmm1, [rdx]; ucomisd xmm0, xmm1; setae al; movzx eax, al  // 无序大于等于比较
-  {$ELSE}
-    movsd xmm0, [rdi]; movsd xmm1, [rsi]; ucomisd xmm0, xmm1; setae al; movzx eax, al
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; ucomisd xmm0, xmm1; setae al; movzx eax, al
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
+function simd_ucomige_sd(constref a, b: TM128): Integer;
+begin
+  Result := Ord(CompareGeOrderedDouble(a.m128d_f64[0], b.m128d_f64[0]));
 end;
 
-function simd_ucomineq_sd(constref a, b: TM128): Integer; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]; movsd xmm1, [rdx]; ucomisd xmm0, xmm1; setne al; movzx eax, al  // 无序不等于比�?
-    {$ELSE}
-    movsd xmm0, [rdi]; movsd xmm1, [rsi]; ucomisd xmm0, xmm1; setne al; movzx eax, al
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov edx, [esp + 4]; mov ecx, [esp + 8]; movsd xmm0, [edx]; movsd xmm1, [ecx]; ucomisd xmm0, xmm1; setne al; movzx eax, al
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
+function simd_ucomineq_sd(constref a, b: TM128): Integer;
+begin
+  Result := Ord(CompareNeqDouble(a.m128d_f64[0], b.m128d_f64[0]));
 end;
 
 // === 🔟 Pack / Insert / Extract / Move 实现 ===

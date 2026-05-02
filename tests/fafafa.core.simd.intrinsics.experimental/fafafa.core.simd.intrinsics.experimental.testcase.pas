@@ -7,6 +7,7 @@ unit fafafa.core.simd.intrinsics.experimental.testcase;
 interface
 
 uses
+  Math,
   SysUtils,
   fpcunit, testregistry,
   fafafa.core.simd.intrinsics.base,
@@ -811,6 +812,7 @@ type
     procedure Test_IntegerSaturatingOps;
     procedure Test_LogicalBinaryOps;
     procedure Test_ScalarDoubleCompareOps;
+    procedure Test_ScalarDoubleComiOps;
     procedure Test_ScalarDoubleOps;
     procedure Test_ScalarIntConversionOps;
     procedure Test_ShufflePsOps;
@@ -1931,6 +1933,81 @@ begin
   LExpected.m128i_u64[0] := BoolMask64(True);
   LActual := simd_cmpunord_sd(LA, LB);
   AssertM128QWordsEqual(Self, 'simd_cmpunord_sd unordered', LExpected, LActual);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_ScalarDoubleComiOps;
+  procedure AssertComiCase(const aLabel: string; const aLeft, aRight: TM128);
+  var
+    LUnordered: Boolean;
+    LExpectedEq: Integer;
+    LExpectedLt: Integer;
+    LExpectedLe: Integer;
+    LExpectedGt: Integer;
+    LExpectedGe: Integer;
+    LExpectedNeq: Integer;
+  begin
+    LUnordered := IsNan(aLeft.m128d_f64[0]) or IsNan(aRight.m128d_f64[0]);
+
+    LExpectedEq := Ord((not LUnordered) and (aLeft.m128d_f64[0] = aRight.m128d_f64[0]));
+    LExpectedLt := Ord((not LUnordered) and (aLeft.m128d_f64[0] < aRight.m128d_f64[0]));
+    LExpectedLe := Ord((not LUnordered) and (aLeft.m128d_f64[0] <= aRight.m128d_f64[0]));
+    LExpectedGt := Ord((not LUnordered) and (aLeft.m128d_f64[0] > aRight.m128d_f64[0]));
+    LExpectedGe := Ord((not LUnordered) and (aLeft.m128d_f64[0] >= aRight.m128d_f64[0]));
+    LExpectedNeq := Ord(LUnordered or (aLeft.m128d_f64[0] <> aRight.m128d_f64[0]));
+
+    AssertEquals(aLabel + ' simd_comieq_sd', LExpectedEq, simd_comieq_sd(aLeft, aRight));
+    AssertEquals(aLabel + ' simd_comilt_sd', LExpectedLt, simd_comilt_sd(aLeft, aRight));
+    AssertEquals(aLabel + ' simd_comile_sd', LExpectedLe, simd_comile_sd(aLeft, aRight));
+    AssertEquals(aLabel + ' simd_comigt_sd', LExpectedGt, simd_comigt_sd(aLeft, aRight));
+    AssertEquals(aLabel + ' simd_comige_sd', LExpectedGe, simd_comige_sd(aLeft, aRight));
+    AssertEquals(aLabel + ' simd_comineq_sd', LExpectedNeq, simd_comineq_sd(aLeft, aRight));
+
+    AssertEquals(aLabel + ' simd_ucomieq_sd', LExpectedEq, simd_ucomieq_sd(aLeft, aRight));
+    AssertEquals(aLabel + ' simd_ucomilt_sd', LExpectedLt, simd_ucomilt_sd(aLeft, aRight));
+    AssertEquals(aLabel + ' simd_ucomile_sd', LExpectedLe, simd_ucomile_sd(aLeft, aRight));
+    AssertEquals(aLabel + ' simd_ucomigt_sd', LExpectedGt, simd_ucomigt_sd(aLeft, aRight));
+    AssertEquals(aLabel + ' simd_ucomige_sd', LExpectedGe, simd_ucomige_sd(aLeft, aRight));
+    AssertEquals(aLabel + ' simd_ucomineq_sd', LExpectedNeq, simd_ucomineq_sd(aLeft, aRight));
+  end;
+var
+  LA: TM128;
+  LB: TM128;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := 1.0;
+  LB.m128d_f64[0] := 1.0;
+  AssertComiCase('ordered-eq', LA, LB);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := -3.5;
+  LB.m128d_f64[0] := 2.0;
+  AssertComiCase('ordered-lt', LA, LB);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := 8.0;
+  LB.m128d_f64[0] := -4.0;
+  AssertComiCase('ordered-gt', LA, LB);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := -0.0;
+  LB.m128d_f64[0] := 0.0;
+  AssertComiCase('ordered-signed-zero', LA, LB);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u64[0] := QWord($7FF8000000000001);
+  LB.m128d_f64[0] := 2.0;
+  AssertComiCase('unordered-left-nan', LA, LB);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := 2.0;
+  LB.m128i_u64[0] := QWord($7FF8000000000002);
+  AssertComiCase('unordered-right-nan', LA, LB);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_ShufflePsOps;
