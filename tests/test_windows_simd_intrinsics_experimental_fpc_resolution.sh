@@ -123,12 +123,12 @@ if [[ ${SUCCESS_RC} -ne 0 ]]; then
   fail "experimental intrinsics runner should succeed when only fpc.exe is available in an MSYS-like shell"
 fi
 
-if ! printf '%s' "${SUCCESS_OUTPUT}" | rg -n "\[TEST-ALL\] Running default mode" >/dev/null; then
+if ! printf '%s' "${SUCCESS_OUTPUT}" | grep -nE "\[TEST-ALL\] Running default mode" >/dev/null; then
   printf '%s\n' "${SUCCESS_OUTPUT}" >&2
   fail "experimental intrinsics runner did not enter test-all default mode"
 fi
 
-if ! printf '%s' "${SUCCESS_OUTPUT}" | rg -n "\[TEST\] OK" >/dev/null; then
+if ! printf '%s' "${SUCCESS_OUTPUT}" | grep -nE "\[TEST\] OK" >/dev/null; then
   printf '%s\n' "${SUCCESS_OUTPUT}" >&2
   fail "experimental intrinsics runner did not report TEST OK"
 fi
@@ -160,7 +160,7 @@ if [[ ${BAD_RC} -eq 0 ]]; then
   fail "experimental intrinsics runner must fail closed when explicit FPC_BIN is invalid"
 fi
 
-if ! printf '%s' "${BAD_OUTPUT}" | rg -n "requested FPC compiler not found" >/dev/null; then
+if ! printf '%s' "${BAD_OUTPUT}" | grep -nF "requested FPC compiler not found" >/dev/null; then
   printf '%s\n' "${BAD_OUTPUT}" >&2
   fail "experimental intrinsics runner did not explain the invalid explicit FPC_BIN failure"
 fi
