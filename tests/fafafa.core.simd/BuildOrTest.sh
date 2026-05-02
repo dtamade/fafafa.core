@@ -1145,6 +1145,32 @@ check_windows_cpuinfo_x86_runner_guard() {
   echo "[CHECK] OK (Windows cpuinfo.x86 runner lazbuild/output guards present)"
 }
 
+check_windows_batch_eol_guard() {
+  local LEntry
+  local LMissing
+  local -a LTargets
+
+  LMissing=0
+  LTargets=(
+    'tests/run_all_tests.bat'
+    'tests/fafafa.core.simd.cpuinfo.x86/buildOrTest.bat'
+  )
+
+  while IFS= read -r LEntry; do
+    if [[ -z "${LEntry}" ]]; then
+      continue
+    fi
+    echo "[CHECK] Windows batch file has mixed line endings: ${LEntry}"
+    LMissing=1
+  done < <(git -C "${REPO_ROOT}" ls-files --eol "${LTargets[@]}" | awk '$1 == "i/mixed" { print $NF }')
+
+  if [[ "${LMissing}" -ne 0 ]]; then
+    return 1
+  fi
+
+  echo "[CHECK] OK (critical Windows batch files are not mixed-eol)"
+}
+
 check_windows_cpuinfo_portable_runner_guard() {
   local LBat
   local LPattern
@@ -4352,6 +4378,7 @@ gate_step_build_check() {
   check_windows_lazbuild_wrapper_guard || return $?
   check_windows_cpuinfo_portable_runner_guard || return $?
   check_windows_cpuinfo_x86_runner_guard || return $?
+  check_windows_batch_eol_guard || return $?
   check_avx512_optin_runner_guard || return $?
   check_nonx86_optin_runner_guard || return $?
   check_windows_experimental_tests_runner_guard || return $?
