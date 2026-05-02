@@ -102,6 +102,11 @@ begin
     aValue.m128d_f64[LIndex] := aValues[LIndex];
 end;
 
+function AlignPtr16(aPtr: Pointer): Pointer; inline;
+begin
+  Result := Pointer((PtrUInt(aPtr) + 15) and not PtrUInt(15));
+end;
+
 procedure AssertM128BytesEqual(aTest: TTestCase; const aLabel: string; const aExpected, aActual: TM128);
 var
   LIndex: Integer;
@@ -810,6 +815,9 @@ type
     procedure Test_ScalarIntConversionOps;
     procedure Test_ShufflePsOps;
     procedure Test_LoadStore_Roundtrip;
+    procedure Test_AlignedStoreDoubleOps;
+    procedure Test_AlignedStoreIntVectorOps;
+    procedure Test_AlignedStoreSingleOps;
     procedure Test_LoadStoreQwordOps;
     procedure Test_LoadStoreDoubleLaneOps;
     procedure Test_LoadStoreScalarDoubleOps;
@@ -1963,6 +1971,60 @@ begin
 
   LLoaded := simd_loadu_si128(@LBytesOut[0]);
   AssertM128BytesEqual(Self, 'simd_loadu roundtrip', LValue, LLoaded);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_AlignedStoreDoubleOps;
+var
+  LBuffer: array[0..31] of Byte;
+  LAligned: Pointer;
+  LValue: TM128;
+  LActual: TM128;
+begin
+  LAligned := AlignPtr16(@LBuffer[0]);
+  FillChar(LBuffer, SizeOf(LBuffer), $CC);
+
+  LoadM128Doubles(LValue, [1.25, -6.5]);
+  simd_store_pd(PByte(LAligned)^, LValue);
+
+  FillChar(LActual, SizeOf(LActual), 0);
+  Move(PByte(LAligned)^, LActual, SizeOf(LActual));
+  AssertM128BytesEqual(Self, 'simd_store_pd', LValue, LActual);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_AlignedStoreIntVectorOps;
+var
+  LBuffer: array[0..31] of Byte;
+  LAligned: Pointer;
+  LValue: TM128;
+  LActual: TM128;
+begin
+  LAligned := AlignPtr16(@LBuffer[0]);
+  FillChar(LBuffer, SizeOf(LBuffer), $CC);
+
+  LoadM128Bytes(LValue, [$10, $32, $54, $76, $98, $BA, $DC, $FE, $EF, $CD, $AB, $89, $67, $45, $23, $01]);
+  simd_store_si128(PByte(LAligned)^, LValue);
+
+  FillChar(LActual, SizeOf(LActual), 0);
+  Move(PByte(LAligned)^, LActual, SizeOf(LActual));
+  AssertM128BytesEqual(Self, 'simd_store_si128', LValue, LActual);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_AlignedStoreSingleOps;
+var
+  LBuffer: array[0..31] of Byte;
+  LAligned: Pointer;
+  LValue: TM128;
+  LActual: TM128;
+begin
+  LAligned := AlignPtr16(@LBuffer[0]);
+  FillChar(LBuffer, SizeOf(LBuffer), $CC);
+
+  LoadM128Singles(LValue, [1.0, -2.0, 3.5, -4.5]);
+  simd_store_ps(PByte(LAligned)^, LValue);
+
+  FillChar(LActual, SizeOf(LActual), 0);
+  Move(PByte(LAligned)^, LActual, SizeOf(LActual));
+  AssertM128BytesEqual(Self, 'simd_store_ps', LValue, LActual);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_LoadStoreQwordOps;
