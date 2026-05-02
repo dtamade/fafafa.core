@@ -133,6 +133,72 @@ begin
   Result := 0;
 end;
 
+function ReferenceShuffleEpi32(const aValue: TM128; aImm8: Byte): TM128;
+var
+  LDest: Integer;
+  LSrc: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  for LDest := 0 to 3 do
+  begin
+    LSrc := (aImm8 shr (LDest * 2)) and $3;
+    Result.m128i_u32[LDest] := aValue.m128i_u32[LSrc];
+  end;
+end;
+
+function ReferenceShuffleHiEpi16(const aValue: TM128; aImm8: Byte): TM128;
+var
+  LDest: Integer;
+  LSrc: Integer;
+begin
+  Result := aValue;
+  for LDest := 0 to 3 do
+  begin
+    LSrc := 4 + ((aImm8 shr (LDest * 2)) and $3);
+    Result.m128i_u16[4 + LDest] := aValue.m128i_u16[LSrc];
+  end;
+end;
+
+function ReferenceShuffleLoEpi16(const aValue: TM128; aImm8: Byte): TM128;
+var
+  LDest: Integer;
+  LSrc: Integer;
+begin
+  Result := aValue;
+  for LDest := 0 to 3 do
+  begin
+    LSrc := (aImm8 shr (LDest * 2)) and $3;
+    Result.m128i_u16[LDest] := aValue.m128i_u16[LSrc];
+  end;
+end;
+
+function SaturateI16ToI8Reference(aValue: SmallInt): ShortInt; inline;
+begin
+  if aValue > High(ShortInt) then
+    Exit(High(ShortInt));
+  if aValue < Low(ShortInt) then
+    Exit(Low(ShortInt));
+  Result := ShortInt(aValue);
+end;
+
+function SaturateI16ToU8Reference(aValue: SmallInt): Byte; inline;
+begin
+  if aValue <= 0 then
+    Exit(0);
+  if aValue >= High(Byte) then
+    Exit(High(Byte));
+  Result := Byte(aValue);
+end;
+
+function SaturateI32ToI16Reference(aValue: LongInt): SmallInt; inline;
+begin
+  if aValue > High(SmallInt) then
+    Exit(High(SmallInt));
+  if aValue < Low(SmallInt) then
+    Exit(Low(SmallInt));
+  Result := SmallInt(aValue);
+end;
+
 function Add32(aLeft, aRight: DWord): DWord; inline;
 begin
   Result := DWord(QWord(aLeft) + QWord(aRight));
@@ -689,11 +755,13 @@ type
     procedure Test_IntegerAddSubOps;
     procedure Test_IntegerCompareOps;
     procedure Test_IntegerMinMaxMulOps;
+    procedure Test_IntegerPackOps;
     procedure Test_IntegerSaturatingOps;
     procedure Test_LogicalBinaryOps;
     procedure Test_ScalarDoubleCompareOps;
     procedure Test_ScalarDoubleOps;
     procedure Test_LoadStore_Roundtrip;
+    procedure Test_ShuffleMoveCastOps;
     procedure Test_SlliEpi16_ShiftCounts;
   end;
 
@@ -1320,6 +1388,71 @@ begin
   AssertM128BytesEqual(Self, 'simd_mullo_epi16', LExpected, LActual);
 end;
 
+procedure TTestCase_X86Sse2AbiBasics.Test_IntegerPackOps;
+var
+  LA: TM128;
+  LB: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+  LIndex: Integer;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+
+  LA.m128i_i16[0] := -300;
+  LA.m128i_i16[1] := -129;
+  LA.m128i_i16[2] := -128;
+  LA.m128i_i16[3] := -1;
+  LA.m128i_i16[4] := 0;
+  LA.m128i_i16[5] := 100;
+  LA.m128i_i16[6] := 127;
+  LA.m128i_i16[7] := 300;
+
+  LB.m128i_i16[0] := -1024;
+  LB.m128i_i16[1] := -50;
+  LB.m128i_i16[2] := 1;
+  LB.m128i_i16[3] := 42;
+  LB.m128i_i16[4] := 128;
+  LB.m128i_i16[5] := 255;
+  LB.m128i_i16[6] := 256;
+  LB.m128i_i16[7] := 1024;
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 7 do
+    LExpected.m128i_i8[LIndex] := SaturateI16ToI8Reference(LA.m128i_i16[LIndex]);
+  for LIndex := 0 to 7 do
+    LExpected.m128i_i8[8 + LIndex] := SaturateI16ToI8Reference(LB.m128i_i16[LIndex]);
+  LActual := simd_packs_epi16(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_packs_epi16', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 7 do
+    LExpected.m128i_u8[LIndex] := SaturateI16ToU8Reference(LA.m128i_i16[LIndex]);
+  for LIndex := 0 to 7 do
+    LExpected.m128i_u8[8 + LIndex] := SaturateI16ToU8Reference(LB.m128i_i16[LIndex]);
+  LActual := simd_packus_epi16(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_packus_epi16', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_i32[0] := -50000;
+  LA.m128i_i32[1] := -32769;
+  LA.m128i_i32[2] := -32768;
+  LA.m128i_i32[3] := -1;
+  LB.m128i_i32[0] := 0;
+  LB.m128i_i32[1] := 32767;
+  LB.m128i_i32[2] := 32768;
+  LB.m128i_i32[3] := 50000;
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 3 do
+    LExpected.m128i_i16[LIndex] := SaturateI32ToI16Reference(LA.m128i_i32[LIndex]);
+  for LIndex := 0 to 3 do
+    LExpected.m128i_i16[4 + LIndex] := SaturateI32ToI16Reference(LB.m128i_i32[LIndex]);
+  LActual := simd_packs_epi32(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_packs_epi32', LExpected, LActual);
+end;
+
 procedure TTestCase_X86Sse2AbiBasics.Test_IntegerSaturatingOps;
 var
   LA: TM128;
@@ -1695,6 +1828,101 @@ begin
 
   LLoaded := simd_loadu_si128(@LBytesOut[0]);
   AssertM128BytesEqual(Self, 'simd_loadu roundtrip', LValue, LLoaded);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_ShuffleMoveCastOps;
+var
+  LA: TM128;
+  LB: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+  LValue: TM128;
+  LIndex: Integer;
+  LImm: Integer;
+begin
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128i_u32[0] := $11223344;
+  LValue.m128i_u32[1] := $55667788;
+  LValue.m128i_u32[2] := $99AABBCC;
+  LValue.m128i_u32[3] := $DDEEFF00;
+
+  LExpected := ReferenceShuffleEpi32(LValue, $1B);
+  LActual := simd_shuffle_epi32(LValue, $1B);
+  AssertM128WordsEqual(Self, 'simd_shuffle_epi32 imm=1b', LExpected, LActual);
+
+  LExpected := ReferenceShuffleEpi32(LValue, $E4);
+  LActual := simd_shuffle_epi32(LValue, $E4);
+  AssertM128WordsEqual(Self, 'simd_shuffle_epi32 imm=e4', LExpected, LActual);
+
+  FillChar(LValue, SizeOf(LValue), 0);
+  for LIndex := 0 to 7 do
+    LValue.m128i_u16[LIndex] := Word($1000 + (LIndex * $111));
+
+  LExpected := ReferenceShuffleHiEpi16(LValue, $1B);
+  LActual := simd_shufflehi_epi16(LValue, $1B);
+  AssertM128BytesEqual(Self, 'simd_shufflehi_epi16 imm=1b', LExpected, LActual);
+
+  LExpected := ReferenceShuffleHiEpi16(LValue, $E4);
+  LActual := simd_shufflehi_epi16(LValue, $E4);
+  AssertM128BytesEqual(Self, 'simd_shufflehi_epi16 imm=e4', LExpected, LActual);
+
+  LExpected := ReferenceShuffleLoEpi16(LValue, $1B);
+  LActual := simd_shufflelo_epi16(LValue, $1B);
+  AssertM128BytesEqual(Self, 'simd_shufflelo_epi16 imm=1b', LExpected, LActual);
+
+  LExpected := ReferenceShuffleLoEpi16(LValue, $4E);
+  LActual := simd_shufflelo_epi16(LValue, $4E);
+  AssertM128BytesEqual(Self, 'simd_shufflelo_epi16 imm=4e', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := 10.0;
+  LA.m128d_f64[1] := 20.0;
+  LB.m128d_f64[0] := 30.0;
+  LB.m128d_f64[1] := 40.0;
+
+  for LImm := 0 to 3 do
+  begin
+    FillChar(LExpected, SizeOf(LExpected), 0);
+    LExpected.m128d_f64[0] := LA.m128d_f64[LImm and 1];
+    LExpected.m128d_f64[1] := LB.m128d_f64[(LImm shr 1) and 1];
+    LActual := simd_shuffle_pd(LA, LB, Byte(LImm));
+    AssertM128BytesEqual(Self, 'simd_shuffle_pd imm=' + IntToStr(LImm), LExpected, LActual);
+  end;
+
+  LExpected := LA;
+  LExpected.m128d_f64[0] := LB.m128d_f64[0];
+  LActual := simd_move_sd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_move_sd', LExpected, LActual);
+
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128i_u64[0] := QWord($0123456789ABCDEF);
+  LValue.m128i_u64[1] := QWord($FEDCBA9876543210);
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := LValue.m128i_u64[0];
+  LActual := simd_move_epi64(LValue);
+  AssertM128BytesEqual(Self, 'simd_move_epi64', LExpected, LActual);
+
+  LoadM128Bytes(LValue, [$10, $32, $54, $76, $98, $BA, $DC, $FE, $EF, $CD, $AB, $89, $67, $45, $23, $01]);
+  LExpected := LValue;
+
+  LActual := simd_castpd_si128(LValue);
+  AssertM128BytesEqual(Self, 'simd_castpd_si128', LExpected, LActual);
+
+  LActual := simd_castsi128_pd(LValue);
+  AssertM128BytesEqual(Self, 'simd_castsi128_pd', LExpected, LActual);
+
+  LActual := simd_castps_si128(LValue);
+  AssertM128BytesEqual(Self, 'simd_castps_si128', LExpected, LActual);
+
+  LActual := simd_castsi128_ps(LValue);
+  AssertM128BytesEqual(Self, 'simd_castsi128_ps', LExpected, LActual);
+
+  LActual := simd_castpd_ps(LValue);
+  AssertM128BytesEqual(Self, 'simd_castpd_ps', LExpected, LActual);
+
+  LActual := simd_castps_pd(LValue);
+  AssertM128BytesEqual(Self, 'simd_castps_pd', LExpected, LActual);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_SlliEpi16_ShiftCounts;

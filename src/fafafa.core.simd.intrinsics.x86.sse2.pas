@@ -333,6 +333,15 @@ begin
   Result := SmallInt(aValue);
 end;
 
+function SaturateToU8(aValue: Integer): Byte; inline;
+begin
+  if aValue <= 0 then
+    Exit(0);
+  if aValue >= High(Byte) then
+    Exit(High(Byte));
+  Result := Byte(aValue);
+end;
+
 function SelectMinSingle(aLeft, aRight: Single): Single; inline;
 begin
   if IsNan(aLeft) or IsNan(aRight) then
@@ -1175,119 +1184,24 @@ end;
 
 // Move Mask 实现已移至汇编版�?
 // === 7️⃣ Shuffle / Unpack / Permute 实现 ===
-function simd_shuffle_epi32(constref a: TM128; imm8: Byte): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]    // 加载 a
-    cmp dl, 0; je @imm0
-    cmp dl, 1; je @imm1
-    cmp dl, 2; je @imm2
-    cmp dl, 3; je @imm3
-    // 更多立即数值的处理...
-    pshufd xmm0, xmm0, $E4 //  默认�?
-    jmp @done
-@imm0: pshufd xmm0, xmm0, $00; jmp @done
-@imm1: pshufd xmm0, xmm0, $01; jmp @done
-@imm2: pshufd xmm0, xmm0, $02; jmp @done
-@imm3: pshufd xmm0, xmm0, $03; jmp @done
-@done:
-  {$ELSE}
-    movdqu xmm0, [rdi]
-    cmp sil, 0; je @imm0
-    cmp sil, 1; je @imm1
-    cmp sil, 2; je @imm2
-    cmp sil, 3; je @imm3
-    pshufd xmm0, xmm0, $00
-    jmp @done
-@imm0: pshufd xmm0, xmm0, $00; jmp @done
-@imm1: pshufd xmm0, xmm0, $00; jmp @done
-@imm2: pshufd xmm0, xmm0, $00; jmp @done
-@imm3: pshufd xmm0, xmm0, $00; jmp @done
-@done:
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]
-    movdqu xmm0, [eax]
-    cmp dl, 0; je @imm0
-    cmp dl, 1; je @imm1
-    cmp dl, 2; je @imm2
-    cmp dl, 3; je @imm3
-    pshufd xmm0, xmm0, $00; jmp @done
-@imm0: pshufd xmm0, xmm0, $00; jmp @done
-@imm1: pshufd xmm0, xmm0, $00; jmp @done
-@imm2: pshufd xmm0, xmm0, $00; jmp @done
-@imm3: pshufd xmm0, xmm0, $00; jmp @done
-@done:
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_shuffle_epi32(constref a: TM128; imm8: Byte): TM128;
+var
+  LDest: Integer;
+  LSrc: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  for LDest := 0 to 3 do
+  begin
+    LSrc := (imm8 shr (LDest * 2)) and $3;
+    Result.m128i_u32[LDest] := a.m128i_u32[LSrc];
+  end;
 end;
 
-function simd_shuffle_pd(constref a, b: TM128; imm8: Byte): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]    // 加载 a
-    movupd xmm1, [rdx]    // 加载 b
-    cmp r8b, 0; je @imm0
-    cmp r8b, 1; je @imm1
-    cmp r8b, 2; je @imm2
-    cmp r8b, 3; je @imm3
-    shufpd xmm0, xmm1, 0; jmp @done // 默认
-@imm0: shufpd xmm0, xmm1, 0; jmp @done
-@imm1: shufpd xmm0, xmm1, 1; jmp @done
-@imm2: shufpd xmm0, xmm1, 2; jmp @done
-@imm3: shufpd xmm0, xmm1, 3; jmp @done
-@done:
-  {$ELSE}
-    movupd xmm0, [rdi]
-    movupd xmm1, [rsi]
-    cmp dl, 0; je @imm0
-    cmp dl, 1; je @imm1
-    cmp dl, 2; je @imm2
-    cmp dl, 3; je @imm3
-    shufpd xmm0, xmm1, 0; jmp @done
-@imm0: shufpd xmm0, xmm1, 0; jmp @done
-@imm1: shufpd xmm0, xmm1, 1; jmp @done
-@imm2: shufpd xmm0, xmm1, 2; jmp @done
-@imm3: shufpd xmm0, xmm1, 3; jmp @done
-@done:
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; mov ecx, [esp + 12]
-    movupd xmm0, [eax]; movupd xmm1, [edx]
-    cmp cl, 0; je @imm0
-    cmp cl, 1; je @imm1
-    cmp cl, 2; je @imm2
-    cmp cl, 3; je @imm3
-    shufpd xmm0, xmm1, 0; jmp @done
-@imm0: shufpd xmm0, xmm1, 0; jmp @done
-@imm1: shufpd xmm0, xmm1, 1; jmp @done
-@imm2: shufpd xmm0, xmm1, 2; jmp @done
-@imm3: shufpd xmm0, xmm1, 3; jmp @done
-@done:
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_shuffle_pd(constref a, b: TM128; imm8: Byte): TM128;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  Result.m128d_f64[0] := a.m128d_f64[imm8 and 1];
+  Result.m128d_f64[1] := b.m128d_f64[(imm8 shr 1) and 1];
 end;
 
 function simd_shuffle_ps(constref a, b: TM128; imm8: Byte): TM128; {$IFDEF FPC}assembler; nostackframe;
@@ -1348,116 +1262,30 @@ asm
 {$ENDIF}
 end;
 
-function simd_shufflelo_epi16(constref a: TM128; imm8: Byte): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]    // 加载 a
-    // 使用常见�?shuffle 模式
-    cmp dl, $00; je @imm00
-    cmp dl, $00; je @imm44
-    cmp dl, $00; je @imm88
-    cmp dl, $00; je @immE4
-    pshuflw xmm0, xmm0, $00; jmp @done // 默认
-@imm00: pshuflw xmm0, xmm0, $00; jmp @done
-@imm44: pshuflw xmm0, xmm0, $00; jmp @done
-@imm88: pshuflw xmm0, xmm0, $00; jmp @done
-@immE4: pshuflw xmm0, xmm0, $00; jmp @done
-@done:
-  {$ELSE}
-    movdqu xmm0, [rdi]
-    cmp sil, $00; je @imm00
-    cmp sil, $00; je @imm44
-    cmp sil, $00; je @imm88
-    cmp sil, $00; je @immE4
-    pshuflw xmm0, xmm0, $00; jmp @done
-@imm00: pshuflw xmm0, xmm0, $00; jmp @done
-@imm44: pshuflw xmm0, xmm0, $00; jmp @done
-@imm88: pshuflw xmm0, xmm0, $00; jmp @done
-@immE4: pshuflw xmm0, xmm0, $00; jmp @done
-@done:
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]
-    movdqu xmm0, [eax]
-    cmp dl, $00; je @imm00
-    cmp dl, $00; je @imm44
-    cmp dl, $00; je @imm88
-    cmp dl, $00; je @immE4
-    pshuflw xmm0, xmm0, $00; jmp @done
-@imm00: pshuflw xmm0, xmm0, $00; jmp @done
-@imm44: pshuflw xmm0, xmm0, $00; jmp @done
-@imm88: pshuflw xmm0, xmm0, $00; jmp @done
-@immE4: pshuflw xmm0, xmm0, $00; jmp @done
-@done:
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_shufflelo_epi16(constref a: TM128; imm8: Byte): TM128;
+var
+  LDest: Integer;
+  LSrc: Integer;
+begin
+  Result := a;
+  for LDest := 0 to 3 do
+  begin
+    LSrc := (imm8 shr (LDest * 2)) and $3;
+    Result.m128i_u16[LDest] := a.m128i_u16[LSrc];
+  end;
 end;
 
-function simd_shufflehi_epi16(constref a: TM128; imm8: Byte): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]    // 加载 a
-    // 使用常见�?shuffle 模式
-    cmp dl, $00; je @imm00
-    cmp dl, $00; je @imm44
-    cmp dl, $00; je @imm88
-    cmp dl, $00; je @immE4
-    pshufhw xmm0, xmm0, $00; jmp @done // 默认
-@imm00: pshufhw xmm0, xmm0, $00; jmp @done
-@imm44: pshufhw xmm0, xmm0, $00; jmp @done
-@imm88: pshufhw xmm0, xmm0, $00; jmp @done
-@immE4: pshufhw xmm0, xmm0, $00; jmp @done
-@done:
-  {$ELSE}
-    movdqu xmm0, [rdi]
-    cmp sil, $00; je @imm00
-    cmp sil, $00; je @imm44
-    cmp sil, $00; je @imm88
-    cmp sil, $00; je @immE4
-    pshufhw xmm0, xmm0, $00; jmp @done
-@imm00: pshufhw xmm0, xmm0, $00; jmp @done
-@imm44: pshufhw xmm0, xmm0, $00; jmp @done
-@imm88: pshufhw xmm0, xmm0, $00; jmp @done
-@immE4: pshufhw xmm0, xmm0, $00; jmp @done
-@done:
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]
-    movdqu xmm0, [eax]
-    cmp dl, $00; je @imm00
-    cmp dl, $00; je @imm44
-    cmp dl, $00; je @imm88
-    cmp dl, $00; je @immE4
-    pshufhw xmm0, xmm0, $00; jmp @done
-@imm00: pshufhw xmm0, xmm0, $00; jmp @done
-@imm44: pshufhw xmm0, xmm0, $00; jmp @done
-@imm88: pshufhw xmm0, xmm0, $00; jmp @done
-@immE4: pshufhw xmm0, xmm0, $00; jmp @done
-@done:
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_shufflehi_epi16(constref a: TM128; imm8: Byte): TM128;
+var
+  LDest: Integer;
+  LSrc: Integer;
+begin
+  Result := a;
+  for LDest := 0 to 3 do
+  begin
+    LSrc := 4 + ((imm8 shr (LDest * 2)) and $3);
+    Result.m128i_u16[4 + LDest] := a.m128i_u16[LSrc];
+  end;
 end;
 
 function simd_unpacklo_epi8(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
@@ -3348,76 +3176,37 @@ asm
 end;
 
 // === 🔟 Pack / Insert / Extract / Move 实现 ===
-function simd_packs_epi16(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; packsswb xmm0, xmm1  // 有符�?6位打包到8位（饱和�?
-    {$ELSE}
-    movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; packsswb xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; packsswb xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_packs_epi16(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  for LIndex := 0 to 7 do
+    Result.m128i_i8[LIndex] := SaturateToI8(a.m128i_i16[LIndex]);
+  for LIndex := 0 to 7 do
+    Result.m128i_i8[8 + LIndex] := SaturateToI8(b.m128i_i16[LIndex]);
 end;
 
-function simd_packs_epi32(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; packssdw xmm0, xmm1  // 有符�?2位打包到16位（饱和�?
-    {$ELSE}
-    movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; packssdw xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; packssdw xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_packs_epi32(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  for LIndex := 0 to 3 do
+    Result.m128i_i16[LIndex] := SaturateToI16(a.m128i_i32[LIndex]);
+  for LIndex := 0 to 3 do
+    Result.m128i_i16[4 + LIndex] := SaturateToI16(b.m128i_i32[LIndex]);
 end;
 
-function simd_packus_epi16(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; packuswb xmm0, xmm1  // 有符�?6位打包到无符�?位（饱和�?
-    {$ELSE}
-    movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; packuswb xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movdqu xmm0, [eax]; movdqu xmm1, [edx]; packuswb xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_packus_epi16(constref a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  for LIndex := 0 to 7 do
+    Result.m128i_u8[LIndex] := SaturateToU8(a.m128i_i16[LIndex]);
+  for LIndex := 0 to 7 do
+    Result.m128i_u8[8 + LIndex] := SaturateToU8(b.m128i_i16[LIndex]);
 end;
 
 	function simd_insert_epi16(constref a: TM128; Value: Integer; imm8: Byte): TM128; {$IFDEF FPC}assembler; nostackframe;
@@ -3581,64 +3370,16 @@ asm
 {$ENDIF}
 end;
 
-function simd_move_sd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]    // 加载 a
-    movsd xmm1, [rdx] //  加载 b 的低64�?
-    movsd xmm0, xmm1      // 移动标量双精�?
-    {$ELSE}
-    movupd xmm0, [rdi]
-    movsd xmm1, [rsi]
-    movsd xmm0, xmm1
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]    // a
-    mov edx, [esp + 8]    // b
-    movupd xmm0, [eax]
-    movsd xmm1, [edx]
-    movsd xmm0, xmm1
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_move_sd(constref a, b: TM128): TM128;
+begin
+  Result := a;
+  Result.m128d_f64[0] := b.m128d_f64[0];
 end;
 
-function simd_move_epi64(constref a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]    // 加载 a
-    movq xmm0, xmm0       // 移动64位，高位清零
-  {$ELSE}
-    movdqu xmm0, [rdi]
-    movq xmm0, xmm0
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]    // a
-    movdqu xmm0, [eax]
-    movq xmm0, xmm0
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_move_epi64(constref a: TM128): TM128;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  Result.m128i_u64[0] := a.m128i_u64[0];
 end;
 
 function simd_movemask_epi8(constref a: TM128): Integer; {$IFDEF FPC}assembler; nostackframe;
@@ -3707,155 +3448,35 @@ asm
 {$ENDIF}
 end;
 
-// === Cast 函数实现（无转换，仅重新解释�?===
-function simd_castpd_si128(constref a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]    // 直接复制，无转换
-  {$ELSE}
-    movupd xmm0, [rdi]
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]
-    movupd xmm0, [eax]
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+// === Cast 函数实现（无转换，仅重新解释）===
+function simd_castpd_si128(constref a: TM128): TM128;
+begin
+  Result := a;
 end;
 
-function simd_castsi128_pd(constref a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]    // 直接复制，无转换
-  {$ELSE}
-    movdqu xmm0, [rdi]
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]
-    movdqu xmm0, [eax]
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_castsi128_pd(constref a: TM128): TM128;
+begin
+  Result := a;
 end;
 
-function simd_castps_si128(constref a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]    // 直接复制，无转换
-  {$ELSE}
-    movups xmm0, [rdi]
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]
-    movups xmm0, [eax]
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_castps_si128(constref a: TM128): TM128;
+begin
+  Result := a;
 end;
 
-function simd_castsi128_ps(constref a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]    // 直接复制，无转换
-  {$ELSE}
-    movdqu xmm0, [rdi]
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]
-    movdqu xmm0, [eax]
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_castsi128_ps(constref a: TM128): TM128;
+begin
+  Result := a;
 end;
 
-function simd_castpd_ps(constref a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]    // 直接复制，无转换
-  {$ELSE}
-    movupd xmm0, [rdi]
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]
-    movupd xmm0, [eax]
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_castpd_ps(constref a: TM128): TM128;
+begin
+  Result := a;
 end;
 
-function simd_castps_pd(constref a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]    // 直接复制，无转换
-  {$ELSE}
-    movups xmm0, [rdi]
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF CPUX86}
-    mov eax, [esp + 4]
-    movups xmm0, [eax]
-  {$ELSE}
-    {$ERROR Unsupported CPU}
-  {$ENDIF}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_castps_pd(constref a: TM128): TM128;
+begin
+  Result := a;
 end;
 
 function simd_unpacklo_ps(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
