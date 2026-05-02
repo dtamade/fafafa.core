@@ -57,6 +57,51 @@ begin
     aValue.m128i_u32[LIndex] := aWords[LIndex];
 end;
 
+procedure LoadM128ShortInts(var aValue: TM128; const aValues: array of ShortInt);
+var
+  LIndex: Integer;
+begin
+  FillChar(aValue, SizeOf(aValue), 0);
+  for LIndex := 0 to High(aValues) do
+    aValue.m128i_i8[LIndex] := aValues[LIndex];
+end;
+
+procedure LoadM128SmallInts(var aValue: TM128; const aValues: array of SmallInt);
+var
+  LIndex: Integer;
+begin
+  FillChar(aValue, SizeOf(aValue), 0);
+  for LIndex := 0 to High(aValues) do
+    aValue.m128i_i16[LIndex] := aValues[LIndex];
+end;
+
+procedure LoadM128LongInts(var aValue: TM128; const aValues: array of LongInt);
+var
+  LIndex: Integer;
+begin
+  FillChar(aValue, SizeOf(aValue), 0);
+  for LIndex := 0 to High(aValues) do
+    aValue.m128i_i32[LIndex] := aValues[LIndex];
+end;
+
+procedure LoadM128Singles(var aValue: TM128; const aValues: array of Single);
+var
+  LIndex: Integer;
+begin
+  FillChar(aValue, SizeOf(aValue), 0);
+  for LIndex := 0 to High(aValues) do
+    aValue.m128_f32[LIndex] := aValues[LIndex];
+end;
+
+procedure LoadM128Doubles(var aValue: TM128; const aValues: array of Double);
+var
+  LIndex: Integer;
+begin
+  FillChar(aValue, SizeOf(aValue), 0);
+  for LIndex := 0 to High(aValues) do
+    aValue.m128d_f64[LIndex] := aValues[LIndex];
+end;
+
 procedure AssertM128BytesEqual(aTest: TTestCase; const aLabel: string; const aExpected, aActual: TM128);
 var
   LIndex: Integer;
@@ -602,7 +647,11 @@ type
   published
     procedure Test_AddAndCmpeqMovemask;
     procedure Test_FloatingConstructorsAndLoads;
+    procedure Test_FloatingBinaryOps;
     procedure Test_IntegerConstructors;
+    procedure Test_IntegerAddSubOps;
+    procedure Test_IntegerCompareOps;
+    procedure Test_LogicalBinaryOps;
     procedure Test_LoadStore_Roundtrip;
     procedure Test_SlliEpi16_ShiftCounts;
   end;
@@ -759,6 +808,69 @@ begin
   AssertM128BytesEqual(Self, 'simd_loadu_ps', LExpected, LActual);
 end;
 
+procedure TTestCase_X86Sse2AbiBasics.Test_FloatingBinaryOps;
+var
+  LA: TM128;
+  LB: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+  LIndex: Integer;
+begin
+  LoadM128Singles(LA, [1.5, -2.0, 8.0, -16.0]);
+  LoadM128Singles(LB, [0.5, 4.0, -2.0, 0.25]);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 3 do
+    LExpected.m128_f32[LIndex] := LA.m128_f32[LIndex] + LB.m128_f32[LIndex];
+  LActual := simd_add_ps(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_add_ps', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 3 do
+    LExpected.m128_f32[LIndex] := LA.m128_f32[LIndex] - LB.m128_f32[LIndex];
+  LActual := simd_sub_ps(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_sub_ps', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 3 do
+    LExpected.m128_f32[LIndex] := LA.m128_f32[LIndex] * LB.m128_f32[LIndex];
+  LActual := simd_mul_ps(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_mul_ps', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 3 do
+    LExpected.m128_f32[LIndex] := LA.m128_f32[LIndex] / LB.m128_f32[LIndex];
+  LActual := simd_div_ps(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_div_ps', LExpected, LActual);
+
+  LoadM128Doubles(LA, [1.25, -4.0]);
+  LoadM128Doubles(LB, [0.5, 0.125]);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 1 do
+    LExpected.m128d_f64[LIndex] := LA.m128d_f64[LIndex] + LB.m128d_f64[LIndex];
+  LActual := simd_add_pd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_add_pd', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 1 do
+    LExpected.m128d_f64[LIndex] := LA.m128d_f64[LIndex] - LB.m128d_f64[LIndex];
+  LActual := simd_sub_pd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_sub_pd', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 1 do
+    LExpected.m128d_f64[LIndex] := LA.m128d_f64[LIndex] * LB.m128d_f64[LIndex];
+  LActual := simd_mul_pd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_mul_pd', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 1 do
+    LExpected.m128d_f64[LIndex] := LA.m128d_f64[LIndex] / LB.m128d_f64[LIndex];
+  LActual := simd_div_pd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_div_pd', LExpected, LActual);
+end;
+
 procedure TTestCase_X86Sse2AbiBasics.Test_IntegerConstructors;
 var
   LExpected: TM128;
@@ -814,6 +926,153 @@ begin
   LExpected.m128i_i64[1] := $0102030405060708;
   LActual := simd_set_epi64x($0102030405060708, $1020304050607080);
   AssertM128BytesEqual(Self, 'simd_set_epi64x', LExpected, LActual);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_IntegerAddSubOps;
+var
+  LA: TM128;
+  LB: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+  LIndex: Integer;
+begin
+  LoadM128ShortInts(LA, [120, -120, 15, -15, 100, -100, 64, -64, 1, -1, 50, -50, 30, -30, 90, -90]);
+  LoadM128ShortInts(LB, [10, 20, -30, 40, 70, -80, -90, 100, -1, 1, 100, -100, -60, 60, 100, -100]);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    LExpected.m128i_u8[LIndex] := Byte((Integer(LA.m128i_u8[LIndex]) - Integer(LB.m128i_u8[LIndex])) and $FF);
+  LActual := simd_sub_epi8(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_sub_epi8', LExpected, LActual);
+
+  LoadM128SmallInts(LA, [32760, -32760, 100, -100, 1234, -1234, 20000, -20000]);
+  LoadM128SmallInts(LB, [100, -100, 32760, -32760, -1234, 1234, 20000, -20000]);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 7 do
+    LExpected.m128i_u16[LIndex] := Word((DWord(LA.m128i_u16[LIndex]) + DWord(LB.m128i_u16[LIndex])) and $FFFF);
+  LActual := simd_add_epi16(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_add_epi16', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 7 do
+    LExpected.m128i_u16[LIndex] := Word((DWord(LA.m128i_u16[LIndex]) - DWord(LB.m128i_u16[LIndex])) and $FFFF);
+  LActual := simd_sub_epi16(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_sub_epi16', LExpected, LActual);
+
+  LoadM128LongInts(LA, [2147483600, -2147483600, 100, -100]);
+  LoadM128LongInts(LB, [100, -100, 2147483600, -2147483600]);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 3 do
+    LExpected.m128i_u32[LIndex] := DWord(QWord(LA.m128i_u32[LIndex]) + QWord(LB.m128i_u32[LIndex]));
+  LActual := simd_add_epi32(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_add_epi32', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 3 do
+    LExpected.m128i_u32[LIndex] := DWord(QWord(LA.m128i_u32[LIndex]) - QWord(LB.m128i_u32[LIndex]));
+  LActual := simd_sub_epi32(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_sub_epi32', LExpected, LActual);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_IntegerCompareOps;
+var
+  LA: TM128;
+  LB: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+  LIndex: Integer;
+begin
+  LoadM128ShortInts(LA, [-5, 5, 100, -100, 0, 1, -1, 127, -128, 42, 42, -42, 64, -64, 10, -10]);
+  LoadM128ShortInts(LB, [-10, 5, 99, -99, 1, 0, -1, 126, -127, 100, 42, -100, 65, -65, 20, -20]);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    if LA.m128i_i8[LIndex] > LB.m128i_i8[LIndex] then
+      LExpected.m128i_u8[LIndex] := $FF
+    else
+      LExpected.m128i_u8[LIndex] := $00;
+  LActual := simd_cmpgt_epi8(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_cmpgt_epi8', LExpected, LActual);
+
+  LoadM128SmallInts(LA, [-30000, -1, 0, 1234, 32760, -32760, 42, 42]);
+  LoadM128SmallInts(LB, [-30000, 1, 0, -1234, 32760, -32759, 100, 0]);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 7 do
+    if LA.m128i_i16[LIndex] = LB.m128i_i16[LIndex] then
+      LExpected.m128i_u16[LIndex] := $FFFF
+    else
+      LExpected.m128i_u16[LIndex] := $0000;
+  LActual := simd_cmpeq_epi16(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_cmpeq_epi16', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 7 do
+    if LA.m128i_i16[LIndex] > LB.m128i_i16[LIndex] then
+      LExpected.m128i_u16[LIndex] := $FFFF
+    else
+      LExpected.m128i_u16[LIndex] := $0000;
+  LActual := simd_cmpgt_epi16(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_cmpgt_epi16', LExpected, LActual);
+
+  LoadM128LongInts(LA, [-2147483600, -1, 0, 2147483600]);
+  LoadM128LongInts(LB, [-2147483600, 1, -1, 2147483500]);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 3 do
+    if LA.m128i_i32[LIndex] = LB.m128i_i32[LIndex] then
+      LExpected.m128i_u32[LIndex] := DWord($FFFFFFFF)
+    else
+      LExpected.m128i_u32[LIndex] := DWord($00000000);
+  LActual := simd_cmpeq_epi32(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_cmpeq_epi32', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 3 do
+    if LA.m128i_i32[LIndex] > LB.m128i_i32[LIndex] then
+      LExpected.m128i_u32[LIndex] := DWord($FFFFFFFF)
+    else
+      LExpected.m128i_u32[LIndex] := DWord($00000000);
+  LActual := simd_cmpgt_epi32(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_cmpgt_epi32', LExpected, LActual);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_LogicalBinaryOps;
+var
+  LA: TM128;
+  LB: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+  LIndex: Integer;
+begin
+  LoadM128Bytes(LA, [$00, $FF, $0F, $F0, $55, $AA, $12, $34, $80, $7F, $33, $CC, $5A, $A5, $11, $EE]);
+  LoadM128Bytes(LB, [$FF, $00, $F0, $0F, $AA, $55, $21, $43, $7F, $80, $CC, $33, $A5, $5A, $EE, $11]);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    LExpected.m128i_u8[LIndex] := LA.m128i_u8[LIndex] and LB.m128i_u8[LIndex];
+  LActual := simd_and_si128(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_and_si128', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    LExpected.m128i_u8[LIndex] := LA.m128i_u8[LIndex] or LB.m128i_u8[LIndex];
+  LActual := simd_or_si128(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_or_si128', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    LExpected.m128i_u8[LIndex] := LA.m128i_u8[LIndex] xor LB.m128i_u8[LIndex];
+  LActual := simd_xor_si128(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_xor_si128', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    LExpected.m128i_u8[LIndex] := Byte(not LA.m128i_u8[LIndex]) and LB.m128i_u8[LIndex];
+  LActual := simd_andnot_si128(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_andnot_si128', LExpected, LActual);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_LoadStore_Roundtrip;
