@@ -154,6 +154,11 @@ begin
   Result := PSimdPublicApiBindingState(atomic_load(g_SimdPublicApiStatePtr, mo_acquire));
 end;
 
+function GetCurrentSimdPublicApiTargetDispatch: PSimdDispatchTable; inline;
+begin
+  Result := PSimdDispatchTable(atomic_load(g_SimdPublicApiTargetDispatchPtr, mo_acquire));
+end;
+
 procedure RebindSimdPublicApi; forward;
 
 function LoadSimdPublicApiBoundPtr(var aFuncPtr: Pointer): Pointer; inline;
@@ -164,13 +169,25 @@ begin
 end;
 
 function GetLiveSimdPublicApiBindingState: PSimdPublicApiBindingState; inline;
+var
+  LCurrent: PSimdPublicApiBindingState;
+  LTargetDispatch: PSimdDispatchTable;
 begin
-  Result := GetCurrentSimdPublicApiBindingState;
-  if Result = nil then
+  LCurrent := GetCurrentSimdPublicApiBindingState;
+  LTargetDispatch := GetCurrentSimdPublicApiTargetDispatch;
+  if LTargetDispatch = nil then
+    LTargetDispatch := GetDispatchTable;
+
+  if (LCurrent = nil) or
+     ((LTargetDispatch <> nil) and (LCurrent^.Dispatch <> LTargetDispatch)) then
   begin
     RebindSimdPublicApi;
     Result := GetCurrentSimdPublicApiBindingState;
+    if (Result = nil) and (LCurrent <> nil) then
+      Result := LCurrent;
+    Exit;
   end;
+  Result := LCurrent;
 end;
 
 function CreateSimdPublicApiBindingState: PSimdPublicApiBindingState;
@@ -726,12 +743,11 @@ end;
 
 procedure InvalidateSimdPublicApiBinding;
 begin
-  // Keep the last published table alive for cached readers. The next public ABI
-  // getter or cdecl entry-point call will lazily publish a fresh binding state
-  // and rebound hot-path targets.
+  // Mirror dataplane publication semantics: cached readers may keep using the
+  // last published metadata snapshot, while fresh getters compare its Dispatch
+  // pointer against the latest target dispatch and refresh on demand.
   atomic_store(g_SimdPublicApiTargetDispatchPtr, Pointer(GetDispatchTable), mo_release);
   ClearSimdPublicApiBoundFastPaths;
-  atomic_store(g_SimdPublicApiStatePtr, nil, mo_release);
 end;
 
 function GetSimdAbiVersionMajor: UInt16; cdecl;
