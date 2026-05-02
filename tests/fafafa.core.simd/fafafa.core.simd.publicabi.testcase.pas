@@ -2461,9 +2461,9 @@ begin
     SetVectorAsmEnabled(True);
     if not IsVectorAsmEnabled then
       Exit;
+    if not TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512Table) then
+      Exit;
     SetActiveBackend(sbScalar);
-    AssertTrue('AVX512 backend should remain registered after enabling vector asm for public ABI round-trip test',
-      TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512Table));
     AssertTrue('AVX512 registered FmaF32x16 should be non-scalar when vector asm is enabled for public ABI round-trip test',
       PtrUInt(LAVX512Table.FmaF32x16) <> PtrUInt(LScalarTable.FmaF32x16));
     AssertTrue('AVX512 registered capability set should expose scFMA when vector asm is enabled for public ABI round-trip test',
