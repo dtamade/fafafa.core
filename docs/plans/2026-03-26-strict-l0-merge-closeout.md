@@ -62,7 +62,7 @@ git diff --check
 ### Task 3: 产出最终收口清单
 
 **Files:**
-- Create: `docs/fafafa.core.l0.merge-closeout.md`
+- Create: `docs/fafafa.core.l0.merge-closeout.md`（现已归档至 `docs/legacy/l0/fafafa.core.l0.merge-closeout.md`）
 
 **Step 1: 写模块清单**
 
@@ -83,7 +83,7 @@ git diff --check
 ### Task 4: 最终校验
 
 **Files:**
-- Review: `docs/fafafa.core.l0.merge-closeout.md`
+- Review: `docs/fafafa.core.l0.merge-closeout.md`（现已归档至 `docs/legacy/l0/fafafa.core.l0.merge-closeout.md`）
 
 **Step 1: 运行文本校验**
 

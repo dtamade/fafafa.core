@@ -1,24 +1,40 @@
 # fafafa.core.atomic
 
 > 当前 strict L0 语义以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
-> `fafafa.core.atomic.base`、`fafafa.core.atomic`、`fafafa.core.atomic.compat` 都属于 strict non-SIMD L0，但 `atomic.compat` 只承担 legacy compatibility surface，不是新代码的主入口。
+> `fafafa.core.atomic.core`、`fafafa.core.atomic.base`、`fafafa.core.atomic`、`fafafa.core.atomic.compat` 都属于 strict non-SIMD L0，但 `atomic.compat` 只承担 legacy compatibility surface，不是新代码的主入口。
 
 ## 当前 source-of-truth
 
 1. `docs/fafafa.core.l0.foundation.md`
 2. `docs/ARCHITECTURE_LAYERS.md`
-3. `src/fafafa.core.atomic.base.pas`
-4. `src/fafafa.core.atomic.pas`
-5. `src/fafafa.core.atomic.compat.pas`
-6. `tests/fafafa.core.atomic/README.md`
-7. `tests/fafafa.core.atomic/BuildOrTest.sh`
+3. `src/fafafa.core.atomic.core.pas`
+4. `src/fafafa.core.atomic.base.pas`
+5. `src/fafafa.core.atomic.pas`
+6. `src/fafafa.core.atomic.compat.pas`
+7. `tests/fafafa.core.atomic/README.md`
+8. `tests/fafafa.core.atomic/BuildOrTest.sh`
 
 ## 当前入口约定
 
-- 新代码优先直接使用 `fafafa.core.atomic` 与 `fafafa.core.atomic.base`。
+- 需要最小 memory-order / pause / fence / tagged-pointer packing contract 时，优先直接使用 `fafafa.core.atomic.core`。
+- 需要 today raw atomic primitive surface 时，优先使用 `fafafa.core.atomic`。
+- 需要 typed wrapper 时，优先使用 `fafafa.core.atomic.base`。
 - `fafafa.core.atomic.compat` 只保留旧指针 RMW overload、legacy tagged-pointer helper 命名和旧调用点兼容桥接。
+- 当前仓库主线 `src/` 调用点已经迁到 Pointer 原生 overload；`atomic.compat` 主要保留给历史调用点、bridge 和合同测试。
+- `tests/fafafa.core.atomic/Test_fafafa.core.atomic.core.contract.pas` 会锁定 `atomic.core` 的最小 L0 contract。
 - `tests/fafafa.core.atomic/Test_fafafa.core.atomic.compat.contract.pas` 会继续锁定这部分 compat surface，防止兼容桥接被无意打断。
 - 如果某个 API 只有在 `atomic.compat` 里才存在，应默认把它视作 legacy surface，而不是 today contract 的推荐写法。
+
+## 当前分层
+
+- `fafafa.core.atomic.core`
+  - 承载 `memory_order_t`、`cpu_pause`、`atomic_thread_fence`、`atomic_signal_fence` 和 tagged-pointer packing helper。
+- `fafafa.core.atomic`
+  - 承载 raw atomic primitive surface，并继续对外暴露 today contract；其中 core 语义通过薄包装保持兼容。
+- `fafafa.core.atomic.base`
+  - 承载 typed wrapper。
+- `fafafa.core.atomic.compat`
+  - 承载 legacy pointer RMW overload 与旧 helper 命名。
 
 现代化、高性能、跨平台的 FreePascal 原子操作库，提供无锁编程的基础设施。
 

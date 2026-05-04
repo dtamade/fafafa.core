@@ -4,9 +4,9 @@
 > 规则：每轮迭代只做 1–3 个条目；其余留在 backlog（避免 WIP 过多）。
 
 ## 工作方式（planning-with-files）
-- 选题：从本 backlog 选 1–3 项 → 写入仓库根的 `task_plan.md`
-- 过程：发现/结论 → `findings.md`；命令/输出/测试结果 → `progress.md`
-- 收尾：将三文件归档到 `plans/archive/YYYY-MM-DD-<topic>/`，并在本条目下补归档链接
+- 选题：从本 backlog 选 1–3 项，在当前 worktree 维护临时计划
+- 过程：发现/结论、命令/输出、测试结果先写临时记录
+- 收尾：将完整执行镜像归档到 `plans/archive/YYYY-MM-DD-<topic>/`，并把稳定结论提升到 `docs/plans/`、`docs/audits/` 或 `workers/`
 
 ## Now（进行中）
 - [ ] **P0 / strict L0 control-plane closeout**：把 L0 路线图、worker 可见度与主线仓库卫生收成一个最小可回流批次

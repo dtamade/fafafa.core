@@ -18,6 +18,7 @@
 - 常规 testcase
   - `Test_fafafa.core.atomic.pas`
   - `Test_fafafa.core.atomic.base.pas`
+  - `Test_fafafa.core.atomic.core.contract.pas`
   - `Test_fafafa.core.atomic.contract.pas`
   - `Test_fafafa.core.atomic.compat.contract.pas`
 - 支持材料
@@ -51,7 +52,9 @@
 
 ## 当前边界
 
+- `Test_fafafa.core.atomic.core.contract.pas` 锁定 `fafafa.core.atomic.core` 的最小 L0 contract，不覆盖 raw RMW 语义。
 - `Test_fafafa.core.atomic.compat.contract.pas` 只负责锁定 legacy pointer/tagged-pointer helper 仍可用，不代表 `fafafa.core.atomic.compat` 是新代码推荐入口。
+- 当前仓库主线 `src/` 已经迁到 `atomic_load/atomic_store/atomic_compare_exchange_strong` 的 Pointer 重载；compat 主要由 legacy bridge 和合同测试覆盖。
 - `VerifyMultiArchDocker.sh` 是多架构辅助脚本，不是仓库级 current entry。
 - 这个目录只覆盖 `atomic` 域当前根测试入口，不负责更高层模块的聚合 gate。
 - 如果 README、脚本和工程文件冲突，以脚本与工程文件现状为准。

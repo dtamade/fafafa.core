@@ -1,5 +1,6 @@
 # fafafa.core.span 候选审查与准入结果
 
+> 该文件已从根 `docs/` 归档到 `docs/legacy/l0/`，避免和 today contract 文档混淆。
 > 当前 strict non-SIMD L0 的总边界以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
 > 本页记录 `span` 从候选审查到最小准入落地的结果，说明为什么只有当前这个 cut 被允许进入 strict L0。
 

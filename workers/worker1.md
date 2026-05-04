@@ -1,36 +1,30 @@
 # worker1
 
 - Owner: Codex
-- Scope: strict non-SIMD L0 的路线图回流、主线 handoff 对齐与源码树卫生收口
+- Scope: strict non-SIMD L0 的 pre-merge closeout状态、remote handoff 对齐、source-of-truth 和文档归档
 - Status: `active`
-- Branch: `l0-foundation`
-- Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-foundation`
-- Base commit: `3f3bc075`
+- Branch: `l0-mainline`
+- Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
+- Base commit: `bb2c4104f098699a9f387800b0688a11a12661c9`
 - Current focus:
-  - 将缺失的 `docs/plans/2026-03-24-l0-docs-closeout-roadmap.md` 回流到主线，修复 `docs/INDEX.md` 的断链入口
-  - 让主线也能直接看到 L0 owner、source-of-truth 与当前执行状态，不再只存在于 worktree 内
-  - 维持 strict L0 当前边界：`span` 已纳入，`platform` 继续 deferred，不扩张到 `span2` 或 SIMD
-  - 清理主线 `src/` 下可验证为未跟踪生成物的 `.o/.ppu/.bak`，降低搜索与审查噪音
+  - 把 tenth-wave guard 继续限定在 strict non-SIMD L0，并保持 no broad absorb / no SIMD 的边界；platform/span2 仍然 deferred，不再扩大 scope
+  - 确保 remote `l0-mainline` 已经和本地 head `bb2c4104f098699a9f387800b0688a11a12661c9` 对齐，CI 现在可以引用同一个 branch-visible SHA
+  - 以新的 evidence audit 与 closeout plan 为 source-of-truth，给右侧团队清晰的 pre-merge 路线图和状态
 - Source of truth:
-  - `docs/fafafa.core.l0.foundation.md`
-  - `docs/fafafa.core.l0.merge-closeout.md`
-  - `docs/plans/2026-03-24-l0-docs-closeout-roadmap.md`
-  - `docs/plans/2026-03-27-l0-control-plane-closeout.md`
-  - `task_plan.md`
-  - `findings.md`
-  - `progress.md`
+  - `docs/audits/2026-04-13-l0-retained-refs-tenth-mem-callback-doc-guard-audit.md`
+  - `docs/audits/2026-04-13-l0-premerge-ci-evidence-audit.md`
+  - `docs/plans/2026-04-13-l0-retained-refs-tenth-mem-callback-doc-guard-plan.md`
+  - `docs/plans/2026-04-13-l0-premerge-ci-closeout-plan.md`
+  - `docs/README.md`
+  - `tests/check_strict_l0_docs_consistency.sh`
 - Fresh verification:
-  - `STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation`
-  - 结果：PASS，`10/10`
-  - `bash tests/fafafa.core.contracts/BuildOrTest.sh test-no-contracts`
-  - 结果：PASS
-  - `git diff --check`
-  - 结果：PASS
+  - Linux Maintenance workflow run `24349423066`: PASS (L0 Linux Maintenance, pre-merge branch evidence for `bb2c4104f098699a9f387800b0688a11a12661c9`)
+  - Windows Native Evidence workflow run `24349338362`: PASS (exact Windows evidence now exists for the branch-visible head `bb2c4104f098699a9f387800b0688a11a12661c9`; this is still pre-merge branch evidence, not an origin/main merge)
 - Risks / blockers:
-  - `l0-foundation` worktree 当前非常脏，不能做 broad merge；应坚持“小补丁回流”而不是整树合并
-  - 主线仍有一个未跟踪目录 `tests/fafafa.core.simd/nonx86.optin/`，本批不主动处理，避免误碰 SIMD sidecar
-  - `platform` 候选仍未收敛成小 API；当前不应借本批继续推动准入
+  - SIMD 相关路径保持 out-of-scope，不能在此批中触碰 `tests/fafafa.core.simd` 或其他 SIMD helpers
+  - broad absorb / rescue still rejected；保留 stale README 仅用 guard 限制，不能重整回收
+  - 继续保持 strict non-SIMD L0 文档/contract 体，避免在 pre-merge 阶段引入额外 platform/span2 surface
 - Next step:
-  - 继续把 L0 closeout 相关最小文档/worker/hygiene 变更收成单独批次
-  - 回流后，再决定是否需要单独做 `repo hygiene` guard，防止 `src/` 再次积累编译产物
-- Last updated: `2026-03-27`
+  - 完成 merge-ready final verification + integrate 走向，不再推进新的 rescue absorb 批次
+  - 准备 merge 时附带说明：L0 tenth wave + no-downgrade guard + pre-merge CI backlog 这一波即可
+- Last updated: `2026-04-13`
