@@ -48,8 +48,6 @@ type
   end;
 
 var
-  g_SimdBackendNameCache: array[TSimdBackend] of AnsiString;
-  g_SimdBackendDescriptionCache: array[TSimdBackend] of AnsiString;
   g_SimdPublicApiStatePtr: Pointer = nil;
   g_SimdPublicApiTargetDispatchPtr: Pointer = nil;
   // Public API tables may be cached by consumers after later control-plane
@@ -432,24 +430,6 @@ begin
   end;
 end;
 
-procedure EnsureBackendTextCache(const aBackend: TSimdBackend);
-var
-  LInfo: TSimdBackendInfo;
-begin
-  // Backends can be re-registered at runtime, so refresh the cached text view
-  // from the latest backend metadata instead of pinning the first observed value.
-  LInfo := GetBackendInfo(aBackend);
-  if LInfo.Name <> '' then
-    g_SimdBackendNameCache[aBackend] := AnsiString(LInfo.Name)
-  else
-    g_SimdBackendNameCache[aBackend] := DefaultBackendName(aBackend);
-
-  if LInfo.Description <> '' then
-    g_SimdBackendDescriptionCache[aBackend] := AnsiString(LInfo.Description)
-  else
-    g_SimdBackendDescriptionCache[aBackend] := DefaultBackendDescription(aBackend);
-end;
-
 procedure RebindSimdPublicApi;
 var
   LDataPlane: PSimdDataPlane;
@@ -593,14 +573,12 @@ end;
 
 function GetSimdBackendNamePtr(aBackend: TSimdBackend): PAnsiChar; cdecl;
 begin
-  EnsureBackendTextCache(aBackend);
-  Result := PAnsiChar(g_SimdBackendNameCache[aBackend]);
+  Result := GetBackendNameTextPtr(aBackend);
 end;
 
 function GetSimdBackendDescriptionPtr(aBackend: TSimdBackend): PAnsiChar; cdecl;
 begin
-  EnsureBackendTextCache(aBackend);
-  Result := PAnsiChar(g_SimdBackendDescriptionCache[aBackend]);
+  Result := GetBackendDescriptionTextPtr(aBackend);
 end;
 
 function GetSimdPublicApi: PFafafaSimdPublicApi; cdecl;

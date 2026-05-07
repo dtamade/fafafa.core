@@ -4074,7 +4074,7 @@ end;
 function SSE2FloorF32x4(const a: TVecF32x4): TVecF32x4;
 var
   pa, pr: Pointer;
-  i: Integer;
+  LIndex: Integer;
 begin
   CheckSSE41;
   if g_HasSSE41 then
@@ -4092,19 +4092,25 @@ begin
   end
   else
   begin
-    for i := 0 to 3 do
-      Result.f[i] := Int(a.f[i]);
-    // Adjust for negative numbers
-    for i := 0 to 3 do
-      if (a.f[i] < 0) and (Result.f[i] <> a.f[i]) then
-        Result.f[i] := Result.f[i] - 1.0;
+    for LIndex := 0 to 3 do
+    begin
+      if IsNan(a.f[LIndex]) or IsInfinite(a.f[LIndex]) then
+      begin
+        Result.f[LIndex] := a.f[LIndex];
+        Continue;
+      end;
+
+      Result.f[LIndex] := Int(a.f[LIndex]);
+      if (a.f[LIndex] < 0) and (Result.f[LIndex] <> a.f[LIndex]) then
+        Result.f[LIndex] := Result.f[LIndex] - 1.0;
+    end;
   end;
 end;
 
 function SSE2CeilF32x4(const a: TVecF32x4): TVecF32x4;
 var
   pa, pr: Pointer;
-  i: Integer;
+  LIndex: Integer;
 begin
   CheckSSE41;
   if g_HasSSE41 then
@@ -4122,19 +4128,26 @@ begin
   end
   else
   begin
-    for i := 0 to 3 do
-      Result.f[i] := Int(a.f[i]);
-    // Adjust for positive numbers
-    for i := 0 to 3 do
-      if (a.f[i] > 0) and (Result.f[i] <> a.f[i]) then
-        Result.f[i] := Result.f[i] + 1.0;
+    for LIndex := 0 to 3 do
+    begin
+      if IsNan(a.f[LIndex]) or IsInfinite(a.f[LIndex]) then
+      begin
+        Result.f[LIndex] := a.f[LIndex];
+        Continue;
+      end;
+
+      Result.f[LIndex] := Int(a.f[LIndex]);
+      if (a.f[LIndex] > 0) and (Result.f[LIndex] <> a.f[LIndex]) then
+        Result.f[LIndex] := Result.f[LIndex] + 1.0;
+    end;
   end;
 end;
 
 function SSE2RoundF32x4(const a: TVecF32x4): TVecF32x4;
 var
   pa, pr: Pointer;
-  i: Integer;
+  LIndex: Integer;
+  LBits: DWord;
 begin
   CheckSSE41;
   if g_HasSSE41 then
@@ -4152,15 +4165,28 @@ begin
   end
   else
   begin
-    for i := 0 to 3 do
-      Result.f[i] := Round(a.f[i]);
+    LBits := 0;
+    for LIndex := 0 to 3 do
+      if IsNan(a.f[LIndex]) or IsInfinite(a.f[LIndex]) then
+        Result.f[LIndex] := a.f[LIndex]
+      else
+      begin
+        Result.f[LIndex] := Round(a.f[LIndex]);
+        if Result.f[LIndex] = 0.0 then
+        begin
+          Move(a.f[LIndex], LBits, SizeOf(LBits));
+          if (LBits and DWord($80000000)) <> 0 then
+            Result.f[LIndex] := -0.0;
+        end;
+      end;
   end;
 end;
 
 function SSE2TruncF32x4(const a: TVecF32x4): TVecF32x4;
 var
   pa, pr: Pointer;
-  i: Integer;
+  LIndex: Integer;
+  LBits: DWord;
 begin
   CheckSSE41;
   if g_HasSSE41 then
@@ -4178,8 +4204,20 @@ begin
   end
   else
   begin
-    for i := 0 to 3 do
-      Result.f[i] := Int(a.f[i]);
+    LBits := 0;
+    for LIndex := 0 to 3 do
+      if IsNan(a.f[LIndex]) or IsInfinite(a.f[LIndex]) then
+        Result.f[LIndex] := a.f[LIndex]
+      else
+      begin
+        Result.f[LIndex] := Int(a.f[LIndex]);
+        if Result.f[LIndex] = 0.0 then
+        begin
+          Move(a.f[LIndex], LBits, SizeOf(LBits));
+          if (LBits and DWord($80000000)) <> 0 then
+            Result.f[LIndex] := -0.0;
+        end;
+      end;
   end;
 end;
 
@@ -4440,232 +4478,28 @@ begin
 {$ENDIF}
 end;
 
-// ✅ SIMD Quality Iteration 6.3: F32x8 舍入操作 SSE2 ASM 实现
 function SSE2FloorF32x8(const a: TVecF32x8): TVecF32x8;
-{$IFDEF CPUX64}
-var
-  pa, pr: Pointer;
-const
-  OneSingle: array[0..3] of Single = (1.0, 1.0, 1.0, 1.0);
-begin
-  pa := @a; pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-
-    // 加载低 4 个 float
-    movups xmm0, [rax]
-    // 加载高 4 个 float
-    movups xmm4, [rax+16]
-
-    // === 处理低 4 个元素 (xmm0) ===
-    // 保存原值
-    movaps xmm1, xmm0
-    // 截断转整数
-    cvttps2dq xmm0, xmm0
-    // 转回浮点
-    cvtdq2ps xmm0, xmm0
-    // 比较: 原值 < 截断值？
-    movaps xmm2, xmm1
-    cmpltps xmm2, xmm0
-    // 加载 1.0
-    movups xmm3, [rip + OneSingle]
-    // 掩码 & 1.0
-    andps  xmm2, xmm3
-    // 减去修正值
-    subps  xmm0, xmm2
-
-    // === 处理高 4 个元素 (xmm4) ===
-    // 保存原值
-    movaps xmm5, xmm4
-    // 截断转整数
-    cvttps2dq xmm4, xmm4
-    // 转回浮点
-    cvtdq2ps xmm4, xmm4
-    // 比较: 原值 < 截断值？
-    movaps xmm6, xmm5
-    cmpltps xmm6, xmm4
-    // 掩码 & 1.0
-    andps  xmm6, xmm3
-    // 减去修正值
-    subps  xmm4, xmm6
-
-    // 保存结果
-    movups [rcx], xmm0
-    movups [rcx+16], xmm4
-  end;
-{$ELSE}
 begin
   Result.lo := SSE2FloorF32x4(a.lo);
   Result.hi := SSE2FloorF32x4(a.hi);
-{$ENDIF}
 end;
 
 function SSE2CeilF32x8(const a: TVecF32x8): TVecF32x8;
-{$IFDEF CPUX64}
-var
-  pa, pr: Pointer;
-const
-  OneSingle: array[0..3] of Single = (1.0, 1.0, 1.0, 1.0);
-begin
-  pa := @a; pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-
-    // 加载低 4 个 float
-    movups xmm0, [rax]
-    // 加载高 4 个 float
-    movups xmm4, [rax+16]
-
-    // === 处理低 4 个元素 (xmm0) ===
-    // 保存原值
-    movaps xmm1, xmm0
-    // 截断转整数
-    cvttps2dq xmm0, xmm0
-    // 转回浮点
-    cvtdq2ps xmm0, xmm0
-    // 比较: 截断值 < 原值？
-    cmpltps xmm0, xmm1
-    // 加载 1.0
-    movups xmm3, [rip + OneSingle]
-    // 掩码 & 1.0
-    andps  xmm0, xmm3
-    // 重新加载截断值
-    movaps xmm2, xmm1
-    cvttps2dq xmm2, xmm2
-    cvtdq2ps xmm2, xmm2
-    // 加上修正值
-    addps  xmm0, xmm2
-
-    // === 处理高 4 个元素 (xmm4) ===
-    // 保存原值
-    movaps xmm5, xmm4
-    // 截断转整数
-    cvttps2dq xmm4, xmm4
-    // 转回浮点
-    cvtdq2ps xmm4, xmm4
-    // 比较: 截断值 < 原值？
-    cmpltps xmm4, xmm5
-    // 掩码 & 1.0
-    andps  xmm4, xmm3
-    // 重新加载截断值
-    movaps xmm6, xmm5
-    cvttps2dq xmm6, xmm6
-    cvtdq2ps xmm6, xmm6
-    // 加上修正值
-    addps  xmm4, xmm6
-
-    // 保存结果
-    movups [rcx], xmm0
-    movups [rcx+16], xmm4
-  end;
-{$ELSE}
 begin
   Result.lo := SSE2CeilF32x4(a.lo);
   Result.hi := SSE2CeilF32x4(a.hi);
-{$ENDIF}
 end;
 
 function SSE2RoundF32x8(const a: TVecF32x8): TVecF32x8;
-{$IFDEF CPUX64}
-var
-  pa, pr: Pointer;
-const
-  HalfSingle: array[0..3] of Single = (0.5, 0.5, 0.5, 0.5);
-  OneSingle: array[0..3] of Single = (1.0, 1.0, 1.0, 1.0);
-  SignMaskPS: array[0..3] of UInt32 = ($80000000, $80000000, $80000000, $80000000);
-begin
-  pa := @a; pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-
-    // 加载低 4 个 float
-    movups xmm0, [rax]
-    // 加载高 4 个 float
-    movups xmm4, [rax+16]
-
-    // === 处理低 4 个元素 (xmm0) ===
-    // 保存原值
-    movaps xmm1, xmm0
-    // 提取符号
-    movups xmm2, [rip + SignMaskPS]
-    movaps xmm3, xmm1
-    andps  xmm3, xmm2  // xmm3 = sign
-    // 取绝对值
-    andnps xmm2, xmm1  // xmm2 = abs(x)
-    // 加 0.5
-    movups xmm1, [rip + HalfSingle]
-    addps  xmm2, xmm1
-    // 截断
-    cvttps2dq xmm2, xmm2
-    cvtdq2ps xmm2, xmm2
-    // 恢复符号
-    orps   xmm2, xmm3
-    movaps xmm0, xmm2
-
-    // === 处理高 4 个元素 (xmm4) ===
-    // 保存原值
-    movaps xmm5, xmm4
-    // 提取符号
-    movups xmm6, [rip + SignMaskPS]
-    movaps xmm7, xmm5
-    andps  xmm7, xmm6  // xmm7 = sign
-    // 取绝对值
-    andnps xmm6, xmm5  // xmm6 = abs(x)
-    // 加 0.5
-    addps  xmm6, xmm1  // 复用 HalfSingle
-    // 截断
-    cvttps2dq xmm6, xmm6
-    cvtdq2ps xmm6, xmm6
-    // 恢复符号
-    orps   xmm6, xmm7
-    movaps xmm4, xmm6
-
-    // 保存结果
-    movups [rcx], xmm0
-    movups [rcx+16], xmm4
-  end;
-{$ELSE}
 begin
   Result.lo := SSE2RoundF32x4(a.lo);
   Result.hi := SSE2RoundF32x4(a.hi);
-{$ENDIF}
 end;
 
 function SSE2TruncF32x8(const a: TVecF32x8): TVecF32x8;
-{$IFDEF CPUX64}
-var
-  pa, pr: Pointer;
-begin
-  pa := @a; pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-
-    // 加载低 4 个 float
-    movups xmm0, [rax]
-    // 加载高 4 个 float
-    movups xmm1, [rax+16]
-
-    // 截断低 4 个元素
-    cvttps2dq xmm0, xmm0
-    cvtdq2ps xmm0, xmm0
-
-    // 截断高 4 个元素
-    cvttps2dq xmm1, xmm1
-    cvtdq2ps xmm1, xmm1
-
-    // 保存结果
-    movups [rcx], xmm0
-    movups [rcx+16], xmm1
-  end;
-{$ELSE}
 begin
   Result.lo := SSE2TruncF32x4(a.lo);
   Result.hi := SSE2TruncF32x4(a.hi);
-{$ENDIF}
 end;
 
 function SSE2AbsF32x8(const a: TVecF32x8): TVecF32x8;
@@ -5801,29 +5635,84 @@ end;
 
 // ✅ F64x2 扩展函数 (2026-02-05) - 用于构建 F64x4 分解实现
 
+function SSE2NormalizeSignedZeroDouble(const aInput, aOutput: Double): Double; inline;
+var
+  LBits: QWord;
+  LInput: Double;
+begin
+  Result := aOutput;
+  if aOutput = 0.0 then
+  begin
+    LBits := 0;
+    LInput := aInput;
+    Move(LInput, LBits, SizeOf(LBits));
+    if (LBits and QWord($8000000000000000)) <> 0 then
+      Result := -0.0;
+  end;
+end;
+
+function SSE2FloorF64Lane(const aValue: Double): Double; inline;
+var
+  LFloor: Double;
+begin
+  if IsNan(aValue) or IsInfinite(aValue) then
+    Exit(aValue);
+  LFloor := Floor(aValue);
+  Result := SSE2NormalizeSignedZeroDouble(aValue, LFloor);
+end;
+
+function SSE2CeilF64Lane(const aValue: Double): Double; inline;
+var
+  LCeil: Double;
+begin
+  if IsNan(aValue) or IsInfinite(aValue) then
+    Exit(aValue);
+  LCeil := Ceil(aValue);
+  Result := SSE2NormalizeSignedZeroDouble(aValue, LCeil);
+end;
+
+function SSE2RoundF64Lane(const aValue: Double): Double; inline;
+var
+  LRounded: Double;
+begin
+  if IsNan(aValue) or IsInfinite(aValue) then
+    Exit(aValue);
+  LRounded := Round(aValue);
+  Result := SSE2NormalizeSignedZeroDouble(aValue, LRounded);
+end;
+
+function SSE2TruncF64Lane(const aValue: Double): Double; inline;
+var
+  LTruncated: Double;
+begin
+  if IsNan(aValue) or IsInfinite(aValue) then
+    Exit(aValue);
+  LTruncated := Trunc(aValue);
+  Result := SSE2NormalizeSignedZeroDouble(aValue, LTruncated);
+end;
+
 function SSE2FloorF64x2(const a: TVecF64x2): TVecF64x2;
 begin
-  // SSE2 没有 ROUNDPD，使用标量 Floor
-  Result.d[0] := Floor(a.d[0]);
-  Result.d[1] := Floor(a.d[1]);
+  Result.d[0] := SSE2FloorF64Lane(a.d[0]);
+  Result.d[1] := SSE2FloorF64Lane(a.d[1]);
 end;
 
 function SSE2CeilF64x2(const a: TVecF64x2): TVecF64x2;
 begin
-  Result.d[0] := Ceil(a.d[0]);
-  Result.d[1] := Ceil(a.d[1]);
+  Result.d[0] := SSE2CeilF64Lane(a.d[0]);
+  Result.d[1] := SSE2CeilF64Lane(a.d[1]);
 end;
 
 function SSE2RoundF64x2(const a: TVecF64x2): TVecF64x2;
 begin
-  Result.d[0] := Round(a.d[0]);
-  Result.d[1] := Round(a.d[1]);
+  Result.d[0] := SSE2RoundF64Lane(a.d[0]);
+  Result.d[1] := SSE2RoundF64Lane(a.d[1]);
 end;
 
 function SSE2TruncF64x2(const a: TVecF64x2): TVecF64x2;
 begin
-  Result.d[0] := Trunc(a.d[0]);
-  Result.d[1] := Trunc(a.d[1]);
+  Result.d[0] := SSE2TruncF64Lane(a.d[0]);
+  Result.d[1] := SSE2TruncF64Lane(a.d[1]);
 end;
 
 function SSE2FmaF64x2(const a, b, c: TVecF64x2): TVecF64x2;
@@ -6007,231 +5896,28 @@ begin
   Result.hi := SSE2DivF64x2(one, a.hi);
 end;
 
-// ✅ SIMD Quality Iteration 6.3: F64x4 舍入操作 SSE2 ASM 实现
 function SSE2FloorF64x4(const a: TVecF64x4): TVecF64x4;
-{$IFDEF CPUX64}
-var
-  pa, pr: Pointer;
-const
-  OneDouble: array[0..1] of Double = (1.0, 1.0);
-begin
-  pa := @a; pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-
-    // 加载低 2 个 double
-    movupd xmm0, [rax]
-    // 加载高 2 个 double
-    movupd xmm4, [rax+16]
-
-    // === 处理低 2 个元素 (xmm0) ===
-    // 保存原值
-    movapd xmm1, xmm0
-    // 截断转整数 (SSE2 cvttpd2dq 转换 2 个 double 到 2 个 int32)
-    cvttpd2dq xmm0, xmm0
-    // 转回浮点 (cvtdq2pd 将 2 个 int32 转为 2 个 double)
-    cvtdq2pd xmm0, xmm0
-    // 比较: 原值 < 截断值？
-    movapd xmm2, xmm1
-    cmpltpd xmm2, xmm0
-    // 加载 1.0
-    movupd xmm3, [rip + OneDouble]
-    // 掩码 & 1.0
-    andpd  xmm2, xmm3
-    // 减去修正值
-    subpd  xmm0, xmm2
-
-    // === 处理高 2 个元素 (xmm4) ===
-    // 保存原值
-    movapd xmm5, xmm4
-    // 截断转整数
-    cvttpd2dq xmm4, xmm4
-    // 转回浮点
-    cvtdq2pd xmm4, xmm4
-    // 比较: 原值 < 截断值？
-    movapd xmm6, xmm5
-    cmpltpd xmm6, xmm4
-    // 掩码 & 1.0
-    andpd  xmm6, xmm3
-    // 减去修正值
-    subpd  xmm4, xmm6
-
-    // 保存结果
-    movupd [rcx], xmm0
-    movupd [rcx+16], xmm4
-  end;
-{$ELSE}
 begin
   Result.lo := SSE2FloorF64x2(a.lo);
   Result.hi := SSE2FloorF64x2(a.hi);
-{$ENDIF}
 end;
 
 function SSE2CeilF64x4(const a: TVecF64x4): TVecF64x4;
-{$IFDEF CPUX64}
-var
-  pa, pr: Pointer;
-const
-  OneDouble: array[0..1] of Double = (1.0, 1.0);
-begin
-  pa := @a; pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-
-    // 加载低 2 个 double
-    movupd xmm0, [rax]
-    // 加载高 2 个 double
-    movupd xmm4, [rax+16]
-
-    // === 处理低 2 个元素 (xmm0) ===
-    // 保存原值
-    movapd xmm1, xmm0
-    // 截断转整数
-    cvttpd2dq xmm0, xmm0
-    // 转回浮点
-    cvtdq2pd xmm0, xmm0
-    // 比较: 截断值 < 原值？
-    cmpltpd xmm0, xmm1
-    // 加载 1.0
-    movupd xmm3, [rip + OneDouble]
-    // 掩码 & 1.0
-    andpd  xmm0, xmm3
-    // 重新加载截断值
-    movapd xmm2, xmm1
-    cvttpd2dq xmm2, xmm2
-    cvtdq2pd xmm2, xmm2
-    // 加上修正值
-    addpd  xmm0, xmm2
-
-    // === 处理高 2 个元素 (xmm4) ===
-    // 保存原值
-    movapd xmm5, xmm4
-    // 截断转整数
-    cvttpd2dq xmm4, xmm4
-    // 转回浮点
-    cvtdq2pd xmm4, xmm4
-    // 比较: 截断值 < 原值？
-    cmpltpd xmm4, xmm5
-    // 掩码 & 1.0
-    andpd  xmm4, xmm3
-    // 重新加载截断值
-    movapd xmm6, xmm5
-    cvttpd2dq xmm6, xmm6
-    cvtdq2pd xmm6, xmm6
-    // 加上修正值
-    addpd  xmm4, xmm6
-
-    // 保存结果
-    movupd [rcx], xmm0
-    movupd [rcx+16], xmm4
-  end;
-{$ELSE}
 begin
   Result.lo := SSE2CeilF64x2(a.lo);
   Result.hi := SSE2CeilF64x2(a.hi);
-{$ENDIF}
 end;
 
 function SSE2RoundF64x4(const a: TVecF64x4): TVecF64x4;
-{$IFDEF CPUX64}
-var
-  pa, pr: Pointer;
-const
-  HalfDouble: array[0..1] of Double = (0.5, 0.5);
-  SignMaskPD: array[0..3] of UInt32 = ($00000000, $80000000, $00000000, $80000000);
-begin
-  pa := @a; pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-
-    // 加载低 2 个 double
-    movupd xmm0, [rax]
-    // 加载高 2 个 double
-    movupd xmm4, [rax+16]
-
-    // === 处理低 2 个元素 (xmm0) ===
-    // 保存原值
-    movapd xmm1, xmm0
-    // 提取符号
-    movupd xmm2, [rip + SignMaskPD]
-    movapd xmm3, xmm1
-    andpd  xmm3, xmm2  // xmm3 = sign
-    // 取绝对值
-    andnpd xmm2, xmm1  // xmm2 = abs(x)
-    // 加 0.5
-    movupd xmm1, [rip + HalfDouble]
-    addpd  xmm2, xmm1
-    // 截断
-    cvttpd2dq xmm2, xmm2
-    cvtdq2pd xmm2, xmm2
-    // 恢复符号
-    orpd   xmm2, xmm3
-    movapd xmm0, xmm2
-
-    // === 处理高 2 个元素 (xmm4) ===
-    // 保存原值
-    movapd xmm5, xmm4
-    // 提取符号
-    movupd xmm6, [rip + SignMaskPD]
-    movapd xmm7, xmm5
-    andpd  xmm7, xmm6  // xmm7 = sign
-    // 取绝对值
-    andnpd xmm6, xmm5  // xmm6 = abs(x)
-    // 加 0.5
-    addpd  xmm6, xmm1  // 复用 HalfDouble
-    // 截断
-    cvttpd2dq xmm6, xmm6
-    cvtdq2pd xmm6, xmm6
-    // 恢复符号
-    orpd   xmm6, xmm7
-    movapd xmm4, xmm6
-
-    // 保存结果
-    movupd [rcx], xmm0
-    movupd [rcx+16], xmm4
-  end;
-{$ELSE}
 begin
   Result.lo := SSE2RoundF64x2(a.lo);
   Result.hi := SSE2RoundF64x2(a.hi);
-{$ENDIF}
 end;
 
 function SSE2TruncF64x4(const a: TVecF64x4): TVecF64x4;
-{$IFDEF CPUX64}
-var
-  pa, pr: Pointer;
-begin
-  pa := @a; pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-
-    // 加载低 2 个 double
-    movupd xmm0, [rax]
-    // 加载高 2 个 double
-    movupd xmm1, [rax+16]
-
-    // 截断低 2 个元素
-    cvttpd2dq xmm0, xmm0
-    cvtdq2pd xmm0, xmm0
-
-    // 截断高 2 个元素
-    cvttpd2dq xmm1, xmm1
-    cvtdq2pd xmm1, xmm1
-
-    // 保存结果
-    movupd [rcx], xmm0
-    movupd [rcx+16], xmm1
-  end;
-{$ELSE}
 begin
   Result.lo := SSE2TruncF64x2(a.lo);
   Result.hi := SSE2TruncF64x2(a.hi);
-{$ENDIF}
 end;
 
 function SSE2AbsF64x4(const a: TVecF64x4): TVecF64x4;

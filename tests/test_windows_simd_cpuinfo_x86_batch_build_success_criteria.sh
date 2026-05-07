@@ -19,6 +19,16 @@ if ! command -v wine >/dev/null 2>&1; then
   exit 0
 fi
 
+set +e
+sh -c 'wine cmd /c exit 0 >/dev/null 2>&1' >/dev/null 2>&1
+WINE_RUNTIME_RC=$?
+set -e
+
+if [[ ${WINE_RUNTIME_RC} -ne 0 ]]; then
+  echo "[SKIP] wine runtime unusable rc=${WINE_RUNTIME_RC}; skip Windows cpuinfo.x86 batch success-criteria smoke"
+  exit 0
+fi
+
 win_path() {
   printf 'Z:\\%s' "$(printf '%s' "$1" | sed 's#^/##; s#/#\\\\#g')"
 }

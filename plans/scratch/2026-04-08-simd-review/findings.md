@@ -41,6 +41,122 @@
 - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 通过。
 - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 失败，但失败项集中在发布级证据链，而非代码行为。
 
+## Fake-Red Closeout Already Landed
+
+- `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 已修复 dispatch API 源码形状审计对输出目录的路径假设。
+- `tests/test_windows_simd_cpuinfo_x86_batch_build_success_criteria.sh` 已修复为先 probe wine runtime，可用性不足时显式 `SKIP(rc=159)`，不再把“命令存在”误判为“运行时可用”。
+- `tests/check_repo_hygiene.sh` 的执行位问题已修复，`run_all_tests.sh` 不再误报脚本缺失。
+
+## Newly Exposed Real Failures
+
+- `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test` 仍失败，`rc=217`。
+- 真实失败面当前收敛到两类：
+  1. 并发 runtime/public ABI 读写时的 `Access violation` / `Invalid pointer operation`
+  2. SSE2/AVX2 IEEE754 `round/floor/ceil/trunc` 在 `NaN/Inf/signed-zero/randomized` 条件下不一致
+
+## Current Root-Cause Track A: Public ABI Backend Text Publication
+
+- 最小失败已压缩到：
+  - `TTestCase_SimdConcurrentPublicAbi.Test_Concurrent_PublicAbiBackendText_RegisterBackend_ReadConsistency`
+- 失败点不是抽象的“并发不安全”，而是：
+  - `src/fafafa.core.simd.public_abi.impl.inc`
+  - `EnsureBackendTextCache`
+  - `g_SimdBackendNameCache`
+  - `g_SimdBackendDescriptionCache`
+- 这套实现用无锁全局 `AnsiString` cache 承接 `GetBackendInfo(...)` 的最新文本，然后把 `PAnsiChar` 指针直接暴露给调用方。
+- 在 `RegisterBackend(...)` 并发切长文本时，这种“可变 managed string cache + 裸指针返回”设计天然存在 refcount / pointer 生命周期风险。
+- 这与 public ABI 文档承诺存在张力：
+  - 文档明确要求 `public ABI` 避免把 Pascal managed string 本身暴露成 ABI 面
+  - 但当前实现仍把裸 `PAnsiChar` 绑定到可变 `AnsiString` cache 上，读者拿到指针后并没有 snapshot ownership
+- 更合理的实现语义应是：
+  - backend text 来自 process-lifetime published snapshot
+  - 或来自 immutable default storage
+  - 而不是来自可被后续注册覆盖的共享 cache
+
+## Current Root-Cause Track B: Runtime Snapshot Publication
+
+- `src/fafafa.core.simd.runtime.pas` 当前仍使用单个全局 `g_SimdRuntimeState`，内部含：
+  - `TSimdRuntimeSnapshot`
+  - `TSimdBackendInfo`（含 `Name/Description` managed string）
+  - `TSimdBackendArray` 动态数组
+- `GetCurrentRuntimeSnapshot` 在锁外构建 `LBuiltState`，再在锁内执行 `g_SimdRuntimeState := LBuiltState`。
+- 这种“可变全局 record，内部含 managed string/动态数组”的发布模型，在高频 control-plane mutation 下仍有较高的生命周期风险。
+- 这条线还未修，但优先级次于 public ABI backend text，因为当前最小可复现已经先卡在 text getter。
+
+## Current Root-Cause Track C: IEEE754 Rounding Correctness
+
+- 现有 archive 文档里已经自认：
+  - SSE2 `Round` 使用的是简化算法
+  - 非真正 IEEE754 banker rounding
+- 这与当前失败现象吻合：
+  - `NaN -> expected sentinel/int behavior but got NaN`
+  - signed zero sign-bit 漂移
+  - randomized finite case 出现 lane 级 `expected -1 but was 0`
+- 说明这个问题不是“测试太严”，而是舍入语义本身没有被严格实现。
+
+## 2026-05-08 Review Refresh: Interface vs Implementation
+
+### Interface Completeness
+
+- `python3 tests/fafafa.core.simd/check_interface_implementation_completeness.py --strict` 当前为绿：
+  - `dispatch_slots_total=558`
+  - `severity_counts={P0:0, P1:0, P2:0}`
+- `python3 tests/fafafa.core.simd/check_dispatch_contract_signature.py --summary-line` 与 `check_public_abi_signature.py --summary-line` 当前都通过。
+- 这说明 `simd` 在“公开 façade -> dispatch -> backend -> tests` 的接口挂接完整度上，已经不是缺入口、缺 wiring 的状态。
+- 但它同时也说明：当前剩余问题已经从“接口不完整”转成“实现语义不完整”。
+
+### Interface Design Remaining Friction
+
+- `fafafa.core.simd.framework.intf.inc` 仍同时暴露 canonical façade 与 legacy alias：
+  - canonical：`GetCPUInfo`、`GetCurrentRuntimeSnapshot`、`GetSupportedBackendList`、`GetDispatchableBackendList`、`TrySetCurrentBackend`
+  - legacy：`GetCPUInformation`、`GetAvailableBackendList`、`TryForceBackend`、`ForceBackend`、`ResetBackendSelection`
+- `src/fafafa.core.simd.cpuinfo.pas` 也仍保留 `GetAvailableBackends` / `GetBestBackendOnCPU` 这类历史命名。
+- 测试已经覆盖这些 alias 与 canonical 结果一致，但接口层“太宽、别名太多”的问题仍客观存在：
+  - 优点：兼容稳定
+  - 代价：调用方继续有机会把 `supported_on_cpu` / `dispatchable` / `active` 三层语义混用
+- 结论：接口设计当前更适合做“降噪和分级推荐”，而不是继续加新别名。
+
+### Confirmed Implementation Gap
+
+- 当前最小并发/public ABI 测试面已经通过：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`
+  - 结果：`[TEST] OK`、`[LEAK] OK`
+- 当前最小 IEEE754 测试面仍失败 5 项：
+  - `TTestCase_IEEE754EdgeCases.Test_Wide_RoundTrunc_NaNInf_SSE2: SSE2 F64x2[0] Round(NaN)`
+  - `AVX2 vs SSE2 RoundF64x4[0] finite compare`
+  - `AVX2 vs SSE2 FloorF64x4[0] finite compare`
+  - `AVX2 vs SSE2 RoundF64x4[1] finite compare`
+  - `AVX2 vs SSE2 TruncF64x4[1] zero sign bit`
+- 对照源码后，根因已经非常具体：
+  - `src/fafafa.core.simd.sse2.pas` 的 `SSE2FloorF64x2/SSE2CeilF64x2/SSE2RoundF64x2/SSE2TruncF64x2` 仍直接走 `Math.Floor/Ceil/Round/Trunc`
+  - `src/fafafa.core.simd.sse2.pas` 的 `SSE2FloorF64x4/SSE2CeilF64x4/SSE2RoundF64x4/SSE2TruncF64x4` x64 快路径仍基于旧的 `cvttpd2dq/cvtdq2pd` 方案
+- 这两类实现共同导致：
+  - `NaN/Inf` 语义与当前测试期望不一致
+  - `signed zero` 不能稳定保真
+  - `Round` 仍不是稳定的 banker-rounding 一致实现
+
+### Overall Judgment
+
+- 如果只看接口完整度：当前 `simd` 已经接近完整，主要剩“别名面降噪”这种接口优雅度问题。
+- 如果看当前工作树成熟度：`SSE2 F64 round/floor/ceil/trunc` 与 Windows `cpuinfo.x86` batch success-criteria 合同缺口都已被当前工作树修复，Linux fast-gate 已重新回到绿态。
+- 因而当前剩余问题已经从“stable surface 还不完整”转成“release 级跨平台证据是否足够新、环境能力是否满足 strict closeout”。
+
+## 2026-05-08 Gate Closeout Update
+
+- `tests/fafafa.core.simd.cpuinfo.x86/buildOrTest.bat` 现已补齐两个关键合同：
+  - `LAZBUILD` 指向 batch wrapper 时，用 `call` 保证执行返回父批处理。
+  - `lazbuild` 返回非零但 `build.txt` 已出现 compile/link summary 时，输出 `WARN ... compile/link summary is present` 并接受为 `BUILD OK`。
+- 对应的真实 smoke 已通过：
+  - `bash tests/test_windows_simd_cpuinfo_x86_batch_build_success_criteria.sh`
+- Linux 侧 full test 也已回到绿态：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test`
+- 最终 `Release gate` 已通过，且最后的 `filtered run_all check chain` 现为 5/5 绿：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 当前判断更新为：
+  - stable interface completeness：绿
+  - stable implementation behavior：绿
+  - remaining release closeout gaps：仍主要是 `freeze-status/gate-strict` 所依赖的跨平台证据刷新与环境能力，不是 stable surface 再补接口或再补基础实现
+
 ## Release-Readiness Gaps
 
 - `freeze-status` 已确认 Linux 主 gate 新鲜且通过，但 `qemu-cpuinfo-nonx86-evidence` 在最近 gate 里为 `SKIP`，因此 mainline/cross ready 仍为 `False`。

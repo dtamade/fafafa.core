@@ -307,247 +307,28 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (Floor)
 function SSE2FloorF32x16(const a: TVecF32x16): TVecF32x16;
-const
-  OneSingle: array[0..3] of Single = (1.0, 1.0, 1.0, 1.0);
-var
-  pa, pr: Pointer;
 begin
-  pa := @a;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    // Load 1.0 constant
-    movups xmm15, [rip + OneSingle]
-
-    // === 处理第 1 块 (xmm0) ===
-    movups xmm0, [rax]
-    movaps xmm1, xmm0        // 保存原值
-    cvttps2dq xmm0, xmm0     // 截断转整数
-    cvtdq2ps xmm0, xmm0      // 转回浮点
-    movaps xmm2, xmm1
-    cmpltps xmm2, xmm0       // 原值 < 截断值？
-    andps  xmm2, xmm15       // 掩码 & 1.0
-    subps  xmm0, xmm2        // 减去修正值
-
-    // === 处理第 2 块 (xmm4) ===
-    movups xmm4, [rax+16]
-    movaps xmm5, xmm4
-    cvttps2dq xmm4, xmm4
-    cvtdq2ps xmm4, xmm4
-    movaps xmm6, xmm5
-    cmpltps xmm6, xmm4
-    andps  xmm6, xmm15
-    subps  xmm4, xmm6
-
-    // === 处理第 3 块 (xmm8) ===
-    movups xmm8, [rax+32]
-    movaps xmm9, xmm8
-    cvttps2dq xmm8, xmm8
-    cvtdq2ps xmm8, xmm8
-    movaps xmm10, xmm9
-    cmpltps xmm10, xmm8
-    andps  xmm10, xmm15
-    subps  xmm8, xmm10
-
-    // === 处理第 4 块 (xmm12) ===
-    movups xmm12, [rax+48]
-    movaps xmm13, xmm12
-    cvttps2dq xmm12, xmm12
-    cvtdq2ps xmm12, xmm12
-    movaps xmm14, xmm13
-    cmpltps xmm14, xmm12
-    andps  xmm14, xmm15
-    subps  xmm12, xmm14
-
-    // Store results
-    movups [rcx], xmm0
-    movups [rcx+16], xmm4
-    movups [rcx+32], xmm8
-    movups [rcx+48], xmm12
-  end;
+  Result.lo := SSE2FloorF32x8(a.lo);
+  Result.hi := SSE2FloorF32x8(a.hi);
 end;
 
-// ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (Ceil)
 function SSE2CeilF32x16(const a: TVecF32x16): TVecF32x16;
-const
-  OneSingle: array[0..3] of Single = (1.0, 1.0, 1.0, 1.0);
-var
-  pa, pr: Pointer;
 begin
-  pa := @a;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    // Load 1.0 constant
-    movups xmm15, [rip + OneSingle]
-
-    // === 处理第 1 块 (xmm0) ===
-    movups xmm0, [rax]
-    movaps xmm1, xmm0        // 保存原值
-    cvttps2dq xmm0, xmm0     // 截断转整数
-    cvtdq2ps xmm0, xmm0      // 转回浮点
-    cmpltps xmm0, xmm1       // 截断值 < 原值？
-    andps  xmm0, xmm15       // 掩码 & 1.0
-    movaps xmm2, xmm1
-    cvttps2dq xmm2, xmm2     // 重新计算截断值
-    cvtdq2ps xmm2, xmm2
-    addps  xmm0, xmm2        // 加上修正值
-
-    // === 处理第 2 块 (xmm4) ===
-    movups xmm4, [rax+16]
-    movaps xmm5, xmm4
-    cvttps2dq xmm4, xmm4
-    cvtdq2ps xmm4, xmm4
-    cmpltps xmm4, xmm5
-    andps  xmm4, xmm15
-    movaps xmm6, xmm5
-    cvttps2dq xmm6, xmm6
-    cvtdq2ps xmm6, xmm6
-    addps  xmm4, xmm6
-
-    // === 处理第 3 块 (xmm8) ===
-    movups xmm8, [rax+32]
-    movaps xmm9, xmm8
-    cvttps2dq xmm8, xmm8
-    cvtdq2ps xmm8, xmm8
-    cmpltps xmm8, xmm9
-    andps  xmm8, xmm15
-    movaps xmm10, xmm9
-    cvttps2dq xmm10, xmm10
-    cvtdq2ps xmm10, xmm10
-    addps  xmm8, xmm10
-
-    // === 处理第 4 块 (xmm12) ===
-    movups xmm12, [rax+48]
-    movaps xmm13, xmm12
-    cvttps2dq xmm12, xmm12
-    cvtdq2ps xmm12, xmm12
-    cmpltps xmm12, xmm13
-    andps  xmm12, xmm15
-    movaps xmm14, xmm13
-    cvttps2dq xmm14, xmm14
-    cvtdq2ps xmm14, xmm14
-    addps  xmm12, xmm14
-
-    // Store results
-    movups [rcx], xmm0
-    movups [rcx+16], xmm4
-    movups [rcx+32], xmm8
-    movups [rcx+48], xmm12
-  end;
+  Result.lo := SSE2CeilF32x8(a.lo);
+  Result.hi := SSE2CeilF32x8(a.hi);
 end;
 
-// ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (Round)
 function SSE2RoundF32x16(const a: TVecF32x16): TVecF32x16;
-const
-  HalfSingle: array[0..3] of Single = (0.5, 0.5, 0.5, 0.5);
-  SignMaskPS: array[0..3] of UInt32 = ($80000000, $80000000, $80000000, $80000000);
-var
-  pa, pr: Pointer;
 begin
-  pa := @a;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    // Load constants
-    movups xmm14, [rip + HalfSingle]
-    movups xmm15, [rip + SignMaskPS]
-
-    // === 处理第 1 块 (xmm0) ===
-    movups xmm0, [rax]
-    movaps xmm1, xmm0
-    movaps xmm2, xmm15
-    movaps xmm3, xmm1
-    andps  xmm3, xmm2        // 提取符号
-    andnps xmm2, xmm1        // 取绝对值
-    addps  xmm2, xmm14       // 加 0.5
-    cvttps2dq xmm2, xmm2     // 截断
-    cvtdq2ps xmm2, xmm2
-    orps   xmm2, xmm3        // 恢复符号
-    movaps xmm0, xmm2
-
-    // === 处理第 2 块 (xmm4) ===
-    movups xmm4, [rax+16]
-    movaps xmm5, xmm4
-    movaps xmm6, xmm15
-    movaps xmm7, xmm5
-    andps  xmm7, xmm6
-    andnps xmm6, xmm5
-    addps  xmm6, xmm14
-    cvttps2dq xmm6, xmm6
-    cvtdq2ps xmm6, xmm6
-    orps   xmm6, xmm7
-    movaps xmm4, xmm6
-
-    // === 处理第 3 块 (xmm8) ===
-    movups xmm8, [rax+32]
-    movaps xmm9, xmm8
-    movaps xmm10, xmm15
-    movaps xmm11, xmm9
-    andps  xmm11, xmm10
-    andnps xmm10, xmm9
-    addps  xmm10, xmm14
-    cvttps2dq xmm10, xmm10
-    cvtdq2ps xmm10, xmm10
-    orps   xmm10, xmm11
-    movaps xmm8, xmm10
-
-    // === 处理第 4 块 (xmm12) ===
-    movups xmm12, [rax+48]
-    movaps xmm13, xmm12
-    movaps xmm1, xmm15       // 重用 xmm1 作为临时寄存器
-    movaps xmm2, xmm13
-    andps  xmm2, xmm1
-    andnps xmm1, xmm13
-    addps  xmm1, xmm14
-    cvttps2dq xmm1, xmm1
-    cvtdq2ps xmm1, xmm1
-    orps   xmm1, xmm2
-    movaps xmm12, xmm1
-
-    // Store results
-    movups [rcx], xmm0
-    movups [rcx+16], xmm4
-    movups [rcx+32], xmm8
-    movups [rcx+48], xmm12
-  end;
+  Result.lo := SSE2RoundF32x8(a.lo);
+  Result.hi := SSE2RoundF32x8(a.hi);
 end;
 
-// ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (Trunc: 截断到整数)
 function SSE2TruncF32x16(const a: TVecF32x16): TVecF32x16;
-var
-  pa, pr: Pointer;
 begin
-  pa := @a;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    // Load and truncate 4 chunks
-    movups xmm0, [rax]
-    movups xmm1, [rax+16]
-    movups xmm2, [rax+32]
-    movups xmm3, [rax+48]
-    // Truncate to integer and convert back
-    cvttps2dq xmm0, xmm0
-    cvttps2dq xmm1, xmm1
-    cvttps2dq xmm2, xmm2
-    cvttps2dq xmm3, xmm3
-    cvtdq2ps xmm0, xmm0
-    cvtdq2ps xmm1, xmm1
-    cvtdq2ps xmm2, xmm2
-    cvtdq2ps xmm3, xmm3
-    // Store results
-    movups [rcx], xmm0
-    movups [rcx+16], xmm1
-    movups [rcx+32], xmm2
-    movups [rcx+48], xmm3
-  end;
+  Result.lo := SSE2TruncF32x8(a.lo);
+  Result.hi := SSE2TruncF32x8(a.hi);
 end;
 
 // ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (Clamp: 限制在 [minVal, maxVal] 范围)
@@ -1056,247 +837,28 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (F64x8 Floor)
 function SSE2FloorF64x8(const a: TVecF64x8): TVecF64x8;
-const
-  OneDouble: array[0..1] of Double = (1.0, 1.0);
-var
-  pa, pr: Pointer;
 begin
-  pa := @a;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    // Load 1.0 constant
-    movupd xmm15, [rip + OneDouble]
-
-    // === 处理第 1 块 (xmm0) ===
-    movupd xmm0, [rax]
-    movapd xmm1, xmm0        // 保存原值
-    cvttpd2dq xmm0, xmm0     // 截断转整数
-    cvtdq2pd xmm0, xmm0      // 转回浮点
-    movapd xmm2, xmm1
-    cmpltpd xmm2, xmm0       // 原值 < 截断值？
-    andpd  xmm2, xmm15       // 掩码 & 1.0
-    subpd  xmm0, xmm2        // 减去修正值
-
-    // === 处理第 2 块 (xmm4) ===
-    movupd xmm4, [rax+16]
-    movapd xmm5, xmm4
-    cvttpd2dq xmm4, xmm4
-    cvtdq2pd xmm4, xmm4
-    movapd xmm6, xmm5
-    cmpltpd xmm6, xmm4
-    andpd  xmm6, xmm15
-    subpd  xmm4, xmm6
-
-    // === 处理第 3 块 (xmm8) ===
-    movupd xmm8, [rax+32]
-    movapd xmm9, xmm8
-    cvttpd2dq xmm8, xmm8
-    cvtdq2pd xmm8, xmm8
-    movapd xmm10, xmm9
-    cmpltpd xmm10, xmm8
-    andpd  xmm10, xmm15
-    subpd  xmm8, xmm10
-
-    // === 处理第 4 块 (xmm12) ===
-    movupd xmm12, [rax+48]
-    movapd xmm13, xmm12
-    cvttpd2dq xmm12, xmm12
-    cvtdq2pd xmm12, xmm12
-    movapd xmm14, xmm13
-    cmpltpd xmm14, xmm12
-    andpd  xmm14, xmm15
-    subpd  xmm12, xmm14
-
-    // Store results
-    movupd [rcx], xmm0
-    movupd [rcx+16], xmm4
-    movupd [rcx+32], xmm8
-    movupd [rcx+48], xmm12
-  end;
+  Result.lo := SSE2FloorF64x4(a.lo);
+  Result.hi := SSE2FloorF64x4(a.hi);
 end;
 
-// ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (F64x8 Ceil)
 function SSE2CeilF64x8(const a: TVecF64x8): TVecF64x8;
-const
-  OneDouble: array[0..1] of Double = (1.0, 1.0);
-var
-  pa, pr: Pointer;
 begin
-  pa := @a;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    // Load 1.0 constant
-    movupd xmm15, [rip + OneDouble]
-
-    // === 处理第 1 块 (xmm0) ===
-    movupd xmm0, [rax]
-    movapd xmm1, xmm0        // 保存原值
-    cvttpd2dq xmm0, xmm0     // 截断转整数
-    cvtdq2pd xmm0, xmm0      // 转回浮点
-    cmpltpd xmm0, xmm1       // 截断值 < 原值？
-    andpd  xmm0, xmm15       // 掩码 & 1.0
-    movapd xmm2, xmm1
-    cvttpd2dq xmm2, xmm2     // 重新计算截断值
-    cvtdq2pd xmm2, xmm2
-    addpd  xmm0, xmm2        // 加上修正值
-
-    // === 处理第 2 块 (xmm4) ===
-    movupd xmm4, [rax+16]
-    movapd xmm5, xmm4
-    cvttpd2dq xmm4, xmm4
-    cvtdq2pd xmm4, xmm4
-    cmpltpd xmm4, xmm5
-    andpd  xmm4, xmm15
-    movapd xmm6, xmm5
-    cvttpd2dq xmm6, xmm6
-    cvtdq2pd xmm6, xmm6
-    addpd  xmm4, xmm6
-
-    // === 处理第 3 块 (xmm8) ===
-    movupd xmm8, [rax+32]
-    movapd xmm9, xmm8
-    cvttpd2dq xmm8, xmm8
-    cvtdq2pd xmm8, xmm8
-    cmpltpd xmm8, xmm9
-    andpd  xmm8, xmm15
-    movapd xmm10, xmm9
-    cvttpd2dq xmm10, xmm10
-    cvtdq2pd xmm10, xmm10
-    addpd  xmm8, xmm10
-
-    // === 处理第 4 块 (xmm12) ===
-    movupd xmm12, [rax+48]
-    movapd xmm13, xmm12
-    cvttpd2dq xmm12, xmm12
-    cvtdq2pd xmm12, xmm12
-    cmpltpd xmm12, xmm13
-    andpd  xmm12, xmm15
-    movapd xmm14, xmm13
-    cvttpd2dq xmm14, xmm14
-    cvtdq2pd xmm14, xmm14
-    addpd  xmm12, xmm14
-
-    // Store results
-    movupd [rcx], xmm0
-    movupd [rcx+16], xmm4
-    movupd [rcx+32], xmm8
-    movupd [rcx+48], xmm12
-  end;
+  Result.lo := SSE2CeilF64x4(a.lo);
+  Result.hi := SSE2CeilF64x4(a.hi);
 end;
 
-// ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (F64x8 Round: 四舍五入)
 function SSE2RoundF64x8(const a: TVecF64x8): TVecF64x8;
-const
-  HalfDouble: array[0..1] of Double = (0.5, 0.5);
-  SignMaskPD: array[0..3] of UInt32 = ($00000000, $80000000, $00000000, $80000000);
-var
-  pa, pr: Pointer;
 begin
-  pa := @a;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    // Load constants
-    movupd xmm14, [rip + HalfDouble]
-    movupd xmm15, [rip + SignMaskPD]
-
-    // === 处理第 1 块 (xmm0) ===
-    movupd xmm0, [rax]
-    movapd xmm1, xmm0
-    movapd xmm2, xmm15
-    movapd xmm3, xmm1
-    andpd  xmm3, xmm2      // xmm3 = sign
-    andnpd xmm2, xmm1      // xmm2 = abs(x)
-    addpd  xmm2, xmm14     // abs(x) + 0.5
-    cvttpd2dq xmm2, xmm2
-    cvtdq2pd xmm2, xmm2
-    orpd   xmm2, xmm3      // 恢复符号
-    movapd xmm0, xmm2
-
-    // === 处理第 2 块 (xmm4) ===
-    movupd xmm4, [rax+16]
-    movapd xmm5, xmm4
-    movapd xmm6, xmm15
-    movapd xmm7, xmm5
-    andpd  xmm7, xmm6
-    andnpd xmm6, xmm5
-    addpd  xmm6, xmm14
-    cvttpd2dq xmm6, xmm6
-    cvtdq2pd xmm6, xmm6
-    orpd   xmm6, xmm7
-    movapd xmm4, xmm6
-
-    // === 处理第 3 块 (xmm8) ===
-    movupd xmm8, [rax+32]
-    movapd xmm9, xmm8
-    movapd xmm10, xmm15
-    movapd xmm11, xmm9
-    andpd  xmm11, xmm10
-    andnpd xmm10, xmm9
-    addpd  xmm10, xmm14
-    cvttpd2dq xmm10, xmm10
-    cvtdq2pd xmm10, xmm10
-    orpd   xmm10, xmm11
-    movapd xmm8, xmm10
-
-    // === 处理第 4 块 (xmm12) ===
-    movupd xmm12, [rax+48]
-    movapd xmm13, xmm12
-    movapd xmm1, xmm15
-    movapd xmm3, xmm13
-    andpd  xmm3, xmm1
-    andnpd xmm1, xmm13
-    addpd  xmm1, xmm14
-    cvttpd2dq xmm1, xmm1
-    cvtdq2pd xmm1, xmm1
-    orpd   xmm1, xmm3
-    movapd xmm12, xmm1
-
-    // Store results
-    movupd [rcx], xmm0
-    movupd [rcx+16], xmm4
-    movupd [rcx+32], xmm8
-    movupd [rcx+48], xmm12
-  end;
+  Result.lo := SSE2RoundF64x4(a.lo);
+  Result.hi := SSE2RoundF64x4(a.hi);
 end;
 
-// ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (F64x8 Trunc: 截断到整数)
 function SSE2TruncF64x8(const a: TVecF64x8): TVecF64x8;
-var
-  pa, pr: Pointer;
 begin
-  pa := @a;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    // Load and truncate 4 chunks
-    movupd xmm0, [rax]
-    movupd xmm1, [rax+16]
-    movupd xmm2, [rax+32]
-    movupd xmm3, [rax+48]
-    // Truncate to integer and convert back
-    cvttpd2dq xmm0, xmm0
-    cvttpd2dq xmm1, xmm1
-    cvttpd2dq xmm2, xmm2
-    cvttpd2dq xmm3, xmm3
-    cvtdq2pd xmm0, xmm0
-    cvtdq2pd xmm1, xmm1
-    cvtdq2pd xmm2, xmm2
-    cvtdq2pd xmm3, xmm3
-    // Store results
-    movupd [rcx], xmm0
-    movupd [rcx+16], xmm1
-    movupd [rcx+32], xmm2
-    movupd [rcx+48], xmm3
-  end;
+  Result.lo := SSE2TruncF64x4(a.lo);
+  Result.hi := SSE2TruncF64x4(a.hi);
 end;
 
 // ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (F64x8 Clamp: 限制在 [minVal, maxVal] 范围)

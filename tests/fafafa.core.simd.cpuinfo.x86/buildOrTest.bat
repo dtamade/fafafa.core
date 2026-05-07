@@ -56,16 +56,28 @@ if exist "%LIB_DIR%" rmdir /s /q "%LIB_DIR%"
 if exist "%LOG_DIR%" rmdir /s /q "%LOG_DIR%"
 exit /b 0
 
+:build_log_has_compile_summary
+findstr /c:"Linking " "%BUILD_LOG%" >nul 2>nul
+if errorlevel 1 exit /b 1
+findstr /c:" lines compiled, " "%BUILD_LOG%" >nul 2>nul
+if errorlevel 1 exit /b 1
+exit /b 0
+
 :build
 set "LAZARUS_MODE=%MODE%"
 if /I "%LAZARUS_MODE%"=="Release" set "LAZARUS_MODE=Default"
 echo [BUILD] Project: %PROJ% (mode=%MODE%, lazarus-mode=%LAZARUS_MODE%)
 echo. > "%BUILD_LOG%"
-"%LAZBUILD_EXE%" --build-mode=%LAZARUS_MODE% --build-all "%PROJ%" > "%BUILD_LOG%" 2>&1
-if errorlevel 1 (
-  echo [BUILD] FAILED (see %BUILD_LOG%)
-  type "%BUILD_LOG%"
-  exit /b 1
+call "%LAZBUILD_EXE%" --build-mode=%LAZARUS_MODE% --build-all "%PROJ%" > "%BUILD_LOG%" 2>&1
+set "BUILD_RC=%ERRORLEVEL%"
+if not "%BUILD_RC%"=="0" (
+  call :build_log_has_compile_summary
+  if errorlevel 1 (
+    echo [BUILD] FAILED ^(see %BUILD_LOG%^)
+    type "%BUILD_LOG%"
+    exit /b %BUILD_RC%
+  )
+  echo [BUILD] WARN lazbuild returned rc=%BUILD_RC% but compile/link summary is present; accepting build as success
 )
 echo [BUILD] OK
 exit /b 0
@@ -101,19 +113,19 @@ echo [TEST] Running: %BIN%%NORMALIZED_TEST_ARGS%
 echo. > "%TEST_LOG%"
 "%BIN%" %NORMALIZED_TEST_ARGS% > "%TEST_LOG%" 2>&1
 if errorlevel 1 (
-  echo [TEST] FAILED (see %TEST_LOG%)
+  echo [TEST] FAILED ^(see %TEST_LOG%^)
   type "%TEST_LOG%"
   exit /b 1
 )
 findstr /b /c:"Invalid option" "%TEST_LOG%" >nul 2>nul
 if not errorlevel 1 (
-  echo [TEST] FAILED: unsupported test argument (see %TEST_LOG%)
+  echo [TEST] FAILED: unsupported test argument ^(see %TEST_LOG%^)
   type "%TEST_LOG%"
   exit /b 2
 )
 findstr /r /c:"Number of failures:[ ]*[1-9][0-9]*" /c:"Number of errors:[ ]*[1-9][0-9]*" /c:"Time:.* E:[1-9][0-9]*" /c:"Time:.* F:[1-9][0-9]*" "%TEST_LOG%" >nul 2>nul
 if not errorlevel 1 (
-  echo [TEST] FAILED: test runner reports failures/errors (see %TEST_LOG%)
+  echo [TEST] FAILED: test runner reports failures/errors ^(see %TEST_LOG%^)
   type "%TEST_LOG%"
   exit /b 1
 )

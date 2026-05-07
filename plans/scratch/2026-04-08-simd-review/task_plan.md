@@ -15,10 +15,10 @@
 
 | Phase | Status | Notes |
 | --- | --- | --- |
-| 1. 建立审查上下文与工作台 | in_progress | 使用 worktree-local scratch，避免覆盖仓库根归档文件 |
-| 2. 收集结构、测试、文档与 gate 证据 | pending | 重点核对文档承诺与代码现实是否一致 |
-| 3. 提炼问题并按严重度排序 | pending | 以架构风险、验证缺口、维护复杂度为主 |
-| 4. 形成成熟整改方案 | pending | 输出审查结论 + 分阶段落地路径 |
+| 1. 建立审查上下文与工作台 | completed | 已切回当前 `main` worktree 真实状态，并接管 scratch 记录 |
+| 2. 收集结构、测试、文档与 gate 证据 | completed | 已区分“假红基础设施问题”与 full test 暴露的真实实现缺陷 |
+| 3. 提炼问题并按严重度排序 | completed | 当前真实优先级已更新为：SSE2 F64 IEEE754 rounding 语义缺陷 > façade alias 面继续收敛 > runtime snapshot 发布模型稳态化 |
+| 4. 形成成熟整改方案 | completed | 当前 Linux fast-gate 已重回绿态；接口挂接完整度为绿，剩余重点转为 release 级跨平台证据刷新，而非 simd stable surface 的新增接口缺口 |
 
 ## Constraints
 
@@ -32,3 +32,6 @@
 | --- | --- | --- |
 | `mcp__ace_tool__search_context` 首次返回 499 | 1 | 缩窄查询后重试成功 |
 | `CLAUDE_PLUGIN_ROOT` 未注入，无法直接调用 planning skill 辅助脚本 | 1 | 改为使用已知 skill 安装路径和 worktree-local scratch |
+| `BuildOrTest.sh test` 在 full suite 下 `rc=217` | 1 | 已缩到并发/public ABI 与 IEEE754 两类真实失败，按最小失败面分治修复 |
+| `rg -n` 直接扫 IEEE754 testcase 输出过大 | 1 | 改为先定位具体 suite 名称与行号，再按区段读取 |
+| `gate` 最后一步 `run_all-chain` 失败 | 1 | 已定位为 `cpuinfo.x86` Windows batch runner success-criteria 合同缺口，修复后 `gate` 恢复 PASS |

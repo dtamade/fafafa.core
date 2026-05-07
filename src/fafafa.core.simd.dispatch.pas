@@ -807,6 +807,14 @@ function IsBackendRegistered(backend: TSimdBackend): Boolean;
 // Get backend info
 function GetBackendInfo(backend: TSimdBackend): TSimdBackendInfo;
 
+// Return a stable pointer to the published backend name text.
+// The returned pointer stays valid until process finalization.
+function GetBackendNameTextPtr(backend: TSimdBackend): PAnsiChar;
+
+// Return a stable pointer to the published backend description text.
+// The returned pointer stays valid until process finalization.
+function GetBackendDescriptionTextPtr(backend: TSimdBackend): PAnsiChar;
+
 // Get a copy of a registered backend's dispatch table.
 // Useful for diagnostics/tests (e.g. validating wiring on machines without that CPU feature).
 // Returns False and clears `dispatchTable` if the backend is not registered.
@@ -887,6 +895,8 @@ var
   // Registered backend dispatch tables
   g_BackendTables: array[TSimdBackend] of TSimdDispatchTable;
   g_BackendRegistered: array[TSimdBackend] of Boolean;
+  g_DefaultBackendNames: array[TSimdBackend] of AnsiString;
+  g_DefaultBackendDescriptions: array[TSimdBackend] of AnsiString;
   
   // Initialization state
   g_DispatchInitialized: Boolean = False;
@@ -957,6 +967,17 @@ begin
     sbAVX512: Result := 'x86-64 AVX-512 SIMD implementation';
     sbNEON: Result := 'ARM NEON 128-bit SIMD';
     sbRISCVV: Result := 'RISC-V Vector Extension (RVV)';
+  end;
+end;
+
+procedure InitializeDefaultBackendTexts;
+var
+  LBackend: TSimdBackend;
+begin
+  for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
+  begin
+    g_DefaultBackendNames[LBackend] := AnsiString(DefaultBackendName(LBackend));
+    g_DefaultBackendDescriptions[LBackend] := AnsiString(DefaultBackendDescription(LBackend));
   end;
 end;
 
@@ -1729,6 +1750,34 @@ begin
     Result.Name := DefaultBackendName(backend);
   if Result.Description = '' then
     Result.Description := DefaultBackendDescription(backend);
+end;
+
+function GetBackendNameTextPtr(backend: TSimdBackend): PAnsiChar;
+var
+  LDispatchTable: PSimdDispatchTable;
+begin
+  ReadBarrier;
+  if g_BackendRegistered[backend] then
+  begin
+    LDispatchTable := GetPublishedBackendDispatchTable(backend);
+    if (LDispatchTable <> nil) and (LDispatchTable^.BackendInfo.Name <> '') then
+      Exit(PAnsiChar(LDispatchTable^.BackendInfo.Name));
+  end;
+  Result := PAnsiChar(g_DefaultBackendNames[backend]);
+end;
+
+function GetBackendDescriptionTextPtr(backend: TSimdBackend): PAnsiChar;
+var
+  LDispatchTable: PSimdDispatchTable;
+begin
+  ReadBarrier;
+  if g_BackendRegistered[backend] then
+  begin
+    LDispatchTable := GetPublishedBackendDispatchTable(backend);
+    if (LDispatchTable <> nil) and (LDispatchTable^.BackendInfo.Description <> '') then
+      Exit(PAnsiChar(LDispatchTable^.BackendInfo.Description));
+  end;
+  Result := PAnsiChar(g_DefaultBackendDescriptions[backend]);
 end;
 
 function TryGetRegisteredBackendDispatchTable(backend: TSimdBackend; out dispatchTable: TSimdDispatchTable): Boolean;
@@ -2560,6 +2609,7 @@ end;
 // === Initialization ===
 
 initialization
+  InitializeDefaultBackendTexts;
   g_VectorAsmToggleLock := Default(TRTLCriticalSection);
   g_DispatchHooksLock := Default(TRTLCriticalSection);
   InitCriticalSection(g_VectorAsmToggleLock);

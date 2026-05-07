@@ -292,6 +292,60 @@ var
   GDispatchHookAutomaticRollbackRestoreLateForceRequestedTable: TSimdDispatchTable;
   GDispatchHookRegisterRestoreResetEnabled: Boolean = False;
   GDispatchHookRegisterRestoreResetStage: Integer = 0;
+  GSimdRepoRootCache: string = '';
+
+function DirectoryLooksLikeSimdRepoRoot(const aDir: string): Boolean;
+var
+  LRoot: string;
+begin
+  LRoot := IncludeTrailingPathDelimiter(ExpandFileName(aDir));
+  Result := FileExists(LRoot + 'src/fafafa.core.settings.inc')
+    and DirectoryExists(LRoot + 'tests/fafafa.core.simd');
+end;
+
+function FindSimdRepoRootFrom(const aStartDir: string): string;
+var
+  LDir: string;
+  LParentDir: string;
+begin
+  Result := '';
+  if aStartDir = '' then
+    Exit;
+
+  LDir := ExpandFileName(aStartDir);
+  while LDir <> '' do
+  begin
+    if DirectoryLooksLikeSimdRepoRoot(LDir) then
+      Exit(LDir);
+
+    LParentDir := ExpandFileName(IncludeTrailingPathDelimiter(LDir) + '..');
+    if SameText(LParentDir, LDir) then
+      Break;
+    LDir := LParentDir;
+  end;
+end;
+
+function GetSimdRepoRoot: string;
+begin
+  if GSimdRepoRootCache = '' then
+  begin
+    GSimdRepoRootCache := FindSimdRepoRootFrom(GetCurrentDir);
+    if GSimdRepoRootCache = '' then
+      GSimdRepoRootCache := FindSimdRepoRootFrom(ExtractFilePath(ParamStr(0)));
+  end;
+  Result := GSimdRepoRootCache;
+end;
+
+function ExpandSimdRepoPath(const aRelativePath: string): string;
+var
+  LRepoRoot: string;
+begin
+  LRepoRoot := GetSimdRepoRoot;
+  if LRepoRoot <> '' then
+    Result := ExpandFileName(IncludeTrailingPathDelimiter(LRepoRoot) + aRelativePath)
+  else
+    Result := ExpandFileName(IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) + aRelativePath);
+end;
 
 function SyntheticReduceAddF64x4CurrentDispatch(const a: TVecF64x4): Double;
 begin
@@ -5227,14 +5281,14 @@ begin
 
   LSourceLines := TStringList.Create;
   try
-    LSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.sse2.pas');
+    LSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.sse2.pas');
     AssertTrue('SSE2 source file should exist for implementation-shape audit: ' + LSourcePath,
       FileExists(LSourcePath));
     LSourceLines.LoadFromFile(LSourcePath);
     LMulI32Source := LowerCase(ExtractFunctionSource(LSourceLines, 'SSE2MulI32x4'));
     LMulU32Source := LowerCase(ExtractFunctionSource(LSourceLines, 'SSE2MulU32x4'));
 
-    LI386SourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.sse2.i386.pas');
+    LI386SourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.sse2.i386.pas');
     AssertTrue('SSE2 i386 source file should exist for implementation-shape audit: ' + LI386SourcePath,
       FileExists(LI386SourcePath));
     LSourceLines.LoadFromFile(LI386SourcePath);
@@ -5511,19 +5565,19 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LUnitSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.neon.pas');
+    LUnitSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.pas');
     AssertTrue('NEON unit source should exist for implementation-shape audit: ' + LUnitSourcePath,
       FileExists(LUnitSourcePath));
     LSourceLines.LoadFromFile(LUnitSourcePath);
     LUnitSource := LowerCase(LSourceLines.Text);
 
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.neon.register.inc');
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.register.inc');
     AssertTrue('NEON register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
     LRegisterSource := LowerCase(LSourceLines.Text);
 
-    LFacadeSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.neon.facade_platform.inc');
+    LFacadeSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.facade_platform.inc');
     AssertTrue('NEON platform facade source should exist for implementation-shape audit: ' + LFacadeSourcePath,
       FileExists(LFacadeSourcePath));
     LSourceLines.LoadFromFile(LFacadeSourcePath);
@@ -5615,19 +5669,19 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.neon.register.inc');
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.register.inc');
     AssertTrue('NEON register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
     LRegisterSource := LowerCase(LSourceLines.Text);
 
-    LAsmFacadeSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.neon.facade_asm.inc');
+    LAsmFacadeSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.facade_asm.inc');
     AssertTrue('NEON asm facade source should exist for implementation-shape audit: ' + LAsmFacadeSourcePath,
       FileExists(LAsmFacadeSourcePath));
     LSourceLines.LoadFromFile(LAsmFacadeSourcePath);
     LAsmFacadeSource := LowerCase(LSourceLines.Text);
 
-    LScalarFacadeSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.neon.facade_scalar.inc');
+    LScalarFacadeSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.facade_scalar.inc');
     AssertTrue('NEON scalar facade source should exist for implementation-shape audit: ' + LScalarFacadeSourcePath,
       FileExists(LScalarFacadeSourcePath));
     LSourceLines.LoadFromFile(LScalarFacadeSourcePath);
@@ -5727,13 +5781,13 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.neon.register.inc');
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.register.inc');
     AssertTrue('NEON register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
     LRegisterSource := LowerCase(LSourceLines.Text);
 
-    LDotSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.neon.dot.inc');
+    LDotSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.dot.inc');
     AssertTrue('NEON dot source should exist for implementation-shape audit: ' + LDotSourcePath,
       FileExists(LDotSourcePath));
     LSourceLines.LoadFromFile(LDotSourcePath);
@@ -5796,13 +5850,13 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.neon.register.inc');
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.register.inc');
     AssertTrue('NEON register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
     LRegisterSource := LowerCase(LSourceLines.Text);
 
-    LAutowrapSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.neon.scalar.autowrap.inc');
+    LAutowrapSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.scalar.autowrap.inc');
     AssertTrue('NEON scalar autowrap source should exist for implementation-shape audit: ' + LAutowrapSourcePath,
       FileExists(LAutowrapSourcePath));
     LSourceLines.LoadFromFile(LAutowrapSourcePath);
@@ -6066,13 +6120,13 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.neon.register.inc');
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.register.inc');
     AssertTrue('NEON register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
     LRegisterSource := LowerCase(LSourceLines.Text);
 
-    LUtilitySourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.neon.scalar.utility.inc');
+    LUtilitySourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.scalar.utility.inc');
     AssertTrue('NEON scalar utility source should exist for implementation-shape audit: ' + LUtilitySourcePath,
       FileExists(LUtilitySourcePath));
     LSourceLines.LoadFromFile(LUtilitySourcePath);
@@ -6192,7 +6246,7 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.neon.register.inc');
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.register.inc');
     AssertTrue('NEON register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
@@ -6477,7 +6531,7 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LNEONSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.neon.pas');
+    LNEONSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.pas');
     AssertTrue('NEON source should exist for implementation-shape audit: ' + LNEONSourcePath,
       FileExists(LNEONSourcePath));
     LSourceLines.LoadFromFile(LNEONSourcePath);
@@ -6498,7 +6552,7 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LFacadeSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.riscvv.facade.inc');
+    LFacadeSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.facade.inc');
     AssertTrue('RISCVV facade source should exist for implementation-shape audit: ' + LFacadeSourcePath,
       FileExists(LFacadeSourcePath));
     LSourceLines.LoadFromFile(LFacadeSourcePath);
@@ -6560,19 +6614,19 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LUnitSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.riscvv.pas');
+    LUnitSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.pas');
     AssertTrue('RISCVV unit source should exist for implementation-shape audit: ' + LUnitSourcePath,
       FileExists(LUnitSourcePath));
     LSourceLines.LoadFromFile(LUnitSourcePath);
     LUnitSource := LowerCase(LSourceLines.Text);
 
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.riscvv.register.inc');
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.register.inc');
     AssertTrue('RISCVV register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
     LRegisterSource := LowerCase(LSourceLines.Text);
 
-    LFacadeSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.riscvv.facade.inc');
+    LFacadeSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.facade.inc');
     AssertTrue('RISCVV facade source should exist for implementation-shape audit: ' + LFacadeSourcePath,
       FileExists(LFacadeSourcePath));
     LSourceLines.LoadFromFile(LFacadeSourcePath);
@@ -6718,13 +6772,13 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.riscvv.register.inc');
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.register.inc');
     AssertTrue('RISCVV register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
     LRegisterSource := LowerCase(LSourceLines.Text);
 
-    LFacadeSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.riscvv.facade.inc');
+    LFacadeSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.facade.inc');
     AssertTrue('RISCVV facade source should exist for implementation-shape audit: ' + LFacadeSourcePath,
       FileExists(LFacadeSourcePath));
     LSourceLines.LoadFromFile(LFacadeSourcePath);
@@ -6993,7 +7047,7 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.riscvv.register.inc');
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.register.inc');
     AssertTrue('RISCVV register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
@@ -7063,7 +7117,7 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.riscvv.register.inc');
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.register.inc');
     AssertTrue('RISCVV register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
@@ -7729,13 +7783,13 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LU32SourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.avx512.u32x16_family.inc');
+    LU32SourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.avx512.u32x16_family.inc');
     AssertTrue('AVX512 U32x16 family source should exist for shift-boundary audit: ' + LU32SourcePath,
       FileExists(LU32SourcePath));
     LSourceLines.LoadFromFile(LU32SourcePath);
     LU32Source := LowerCase(LSourceLines.Text);
 
-    LU64SourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.avx512.u64x8_family.inc');
+    LU64SourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.avx512.u64x8_family.inc');
     AssertTrue('AVX512 U64x8 family source should exist for shift-boundary audit: ' + LU64SourcePath,
       FileExists(LU64SourcePath));
     LSourceLines.LoadFromFile(LU64SourcePath);
@@ -8806,13 +8860,13 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.avx2.register.inc');
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.avx2.register.inc');
     AssertTrue('AVX2 register source should exist for wide FMA half-composition audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
     LRegisterSource := LowerCase(LSourceLines.Text);
 
-    LWideSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.avx2.wide_emulation.inc');
+    LWideSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.avx2.wide_emulation.inc');
     AssertTrue('AVX2 wide emulation source should exist for wide FMA half-composition audit: ' + LWideSourcePath,
       FileExists(LWideSourcePath));
     LSourceLines.LoadFromFile(LWideSourcePath);
@@ -8927,13 +8981,13 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.avx2.register.inc');
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.avx2.register.inc');
     AssertTrue('AVX2 register source should exist for wide select audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
     LRegisterSource := LowerCase(LSourceLines.Text);
 
-    LWideSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.avx2.wide_emulation.inc');
+    LWideSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.avx2.wide_emulation.inc');
     AssertTrue('AVX2 wide emulation source should exist for wide select audit: ' + LWideSourcePath,
       FileExists(LWideSourcePath));
     LSourceLines.LoadFromFile(LWideSourcePath);
@@ -9778,13 +9832,13 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.avx2.register.inc');
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.avx2.register.inc');
     AssertTrue('AVX2 register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
     LRegisterSource := LowerCase(LSourceLines.Text);
 
-    LFacadeSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.avx2.facade.inc');
+    LFacadeSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.avx2.facade.inc');
     AssertTrue('AVX2 facade source should exist for implementation-shape audit: ' + LFacadeSourcePath,
       FileExists(LFacadeSourcePath));
     LSourceLines.LoadFromFile(LFacadeSourcePath);
@@ -9907,7 +9961,7 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.sse3.register.inc');
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.sse3.register.inc');
     AssertTrue('SSE3 register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
@@ -9980,7 +10034,7 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.ssse3.register.inc');
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.ssse3.register.inc');
     AssertTrue('SSSE3 register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
@@ -10051,7 +10105,7 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.sse41.register.inc');
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.sse41.register.inc');
     AssertTrue('SSE4.1 register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
@@ -10126,7 +10180,7 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.sse42.register.inc');
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.sse42.register.inc');
     AssertTrue('SSE4.2 register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
@@ -10593,25 +10647,25 @@ var
 begin
   LSourceLines := TStringList.Create;
   try
-    LUnitSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.avx512.pas');
+    LUnitSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.avx512.pas');
     AssertTrue('AVX512 unit source should exist for implementation-shape audit: ' + LUnitSourcePath,
       FileExists(LUnitSourcePath));
     LSourceLines.LoadFromFile(LUnitSourcePath);
     LUnitSource := LowerCase(LSourceLines.Text);
 
-    LRegisterSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.avx512.register.inc');
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.avx512.register.inc');
     AssertTrue('AVX512 register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
     LRegisterSource := LowerCase(LSourceLines.Text);
 
-    LFacadeSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.avx512.facade.inc');
+    LFacadeSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.avx512.facade.inc');
     AssertTrue('AVX512 facade source should exist for implementation-shape audit: ' + LFacadeSourcePath,
       FileExists(LFacadeSourcePath));
     LSourceLines.LoadFromFile(LFacadeSourcePath);
     LFacadeSource := LowerCase(LSourceLines.Text);
 
-    LFallbackSourcePath := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../src/fafafa.core.simd.avx512.fallback.inc');
+    LFallbackSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.avx512.fallback.inc');
     AssertTrue('AVX512 fallback source should exist for implementation-shape audit: ' + LFallbackSourcePath,
       FileExists(LFallbackSourcePath));
     LSourceLines.LoadFromFile(LFallbackSourcePath);
