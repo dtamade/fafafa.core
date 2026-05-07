@@ -45,7 +45,7 @@ function HasFeature(feature: TGenericFeature): Boolean;
 function IsBackendSupportedOnCPU(aBackend: TSimdBackend): Boolean;
 function GetSupportedBackendList: TSimdBackendArray; // preferred canonical name
 function GetSupportedBackends: TSimdBackendArray; // compatibility alias
-function GetAvailableBackends: TSimdBackendArray; // compatibility alias with legacy ambiguous naming
+function GetAvailableBackends: TSimdBackendArray; // compatibility alias; still means supported_on_cpu, not runtime dispatchable
 
 // Get best backend allowed by current CPU/OS capabilities.
 function GetBestSupportedBackend: TSimdBackend; // preferred canonical name

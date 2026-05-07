@@ -43,7 +43,8 @@ function GetRegisteredBackendList: TSimdBackendArray;
 // Enumerates backends that are both registered and dispatchable now.
 function GetDispatchableBackendList: TSimdBackendArray;
 
-// Compatibility alias for dispatchable backends.
+// Compatibility alias for the runtime dispatchable view.
+// This is not the CPU-capability-only list from fafafa.core.simd.cpuinfo.
 function GetAvailableBackendList: TSimdBackendArray;
 
 // Returns the best dispatchable backend in the current runtime state.
@@ -66,6 +67,7 @@ uses
 type
   TSimdRuntimePublishedState = record
     Dispatch: PSimdDispatchTable;
+    TargetVersion: UInt64;
     Snapshot: TSimdRuntimeSnapshot;
     RegisteredFlags: array[TSimdBackend] of Boolean;
     Valid: Boolean;
@@ -74,12 +76,14 @@ type
 var
   g_SimdRuntimeState: TSimdRuntimePublishedState;
   g_SimdRuntimeTargetDispatchPtr: Pointer = nil;
+  g_SimdRuntimeTargetVersion: UInt64 = 0;
   g_SimdRuntimeRebindLock: TRTLCriticalSection;
 
 procedure InitializeSimdRuntimePublishedState(out aState: TSimdRuntimePublishedState);
 begin
   aState := Default(TSimdRuntimePublishedState);
   aState.Dispatch := nil;
+  aState.TargetVersion := 0;
   aState.Snapshot.CurrentBackend := sbScalar;
   aState.Snapshot.BestDispatchableBackend := sbScalar;
   aState.Valid := False;
@@ -88,6 +92,7 @@ end;
 procedure ClearSimdRuntimePublishedState(var aState: TSimdRuntimePublishedState);
 begin
   aState.Dispatch := nil;
+  aState.TargetVersion := 0;
   aState.Snapshot.CurrentBackend := sbScalar;
   aState.Snapshot.CurrentBackendInfo := Default(TSimdBackendInfo);
   aState.Snapshot.RegisteredBackends := nil;
@@ -172,10 +177,16 @@ begin
   Result := PSimdDispatchTable(atomic_load(g_SimdRuntimeTargetDispatchPtr, mo_acquire));
 end;
 
+function GetCurrentSimdRuntimeTargetVersion: UInt64; inline;
+begin
+  Result := atomic_load_64(g_SimdRuntimeTargetVersion, mo_acquire);
+end;
+
 function RuntimeStateMatchesTarget(const aState: TSimdRuntimePublishedState;
-  aTargetDispatch: PSimdDispatchTable): Boolean; inline;
+  aTargetDispatch: PSimdDispatchTable; aTargetVersion: UInt64): Boolean; inline;
 begin
   Result := aState.Valid and
+    (aState.TargetVersion = aTargetVersion) and
     ((aTargetDispatch = nil) or (aState.Dispatch = aTargetDispatch));
 end;
 
@@ -184,6 +195,7 @@ begin
   // Runtime snapshot is control-plane facing and returned by value, so it can
   // use a single cached state instead of process-lifetime published snapshots.
   atomic_store(g_SimdRuntimeTargetDispatchPtr, Pointer(GetDispatchTable), mo_release);
+  atomic_increment_64(g_SimdRuntimeTargetVersion);
   EnterCriticalSection(g_SimdRuntimeRebindLock);
   try
     g_SimdRuntimeState.Valid := False;
@@ -196,13 +208,16 @@ function GetCurrentRuntimeSnapshot: TSimdRuntimeSnapshot;
 var
   LBuiltState: TSimdRuntimePublishedState;
   LTargetDispatch: PSimdDispatchTable;
+  LTargetVersion: UInt64;
+  LCurrentTargetVersion: UInt64;
   LRetry: Boolean;
 begin
   repeat
     EnterCriticalSection(g_SimdRuntimeRebindLock);
     try
+      LTargetVersion := GetCurrentSimdRuntimeTargetVersion;
       LTargetDispatch := GetCurrentSimdRuntimeTargetDispatch;
-      if RuntimeStateMatchesTarget(g_SimdRuntimeState, LTargetDispatch) then
+      if RuntimeStateMatchesTarget(g_SimdRuntimeState, LTargetDispatch, LTargetVersion) then
       begin
         Result := g_SimdRuntimeState.Snapshot;
         Exit;
@@ -216,11 +231,14 @@ begin
     LRetry := False;
     EnterCriticalSection(g_SimdRuntimeRebindLock);
     try
+      LCurrentTargetVersion := GetCurrentSimdRuntimeTargetVersion;
       LTargetDispatch := GetCurrentSimdRuntimeTargetDispatch;
-      if (LTargetDispatch <> nil) and (LBuiltState.Dispatch <> LTargetDispatch) then
+      if (LCurrentTargetVersion <> LTargetVersion) or
+         ((LTargetDispatch <> nil) and (LBuiltState.Dispatch <> LTargetDispatch)) then
         LRetry := True
       else
       begin
+        LBuiltState.TargetVersion := LCurrentTargetVersion;
         g_SimdRuntimeState := LBuiltState;
         Result := g_SimdRuntimeState.Snapshot;
         Exit;
@@ -323,6 +341,7 @@ initialization
   InitCriticalSection(g_SimdRuntimeRebindLock);
   InitializeSimdRuntimePublishedState(g_SimdRuntimeState);
   atomic_store(g_SimdRuntimeTargetDispatchPtr, nil, mo_release);
+  atomic_store_64(g_SimdRuntimeTargetVersion, 0, mo_release);
   AddDispatchChangedHook(@InvalidateSimdRuntimeState);
   GetCurrentRuntimeSnapshot;
 
@@ -330,6 +349,7 @@ finalization
   RemoveDispatchChangedHook(@InvalidateSimdRuntimeState);
   FinalizeSimdRuntimePublishedState;
   atomic_store(g_SimdRuntimeTargetDispatchPtr, nil, mo_release);
+  atomic_store_64(g_SimdRuntimeTargetVersion, 0, mo_release);
   DoneCriticalSection(g_SimdRuntimeRebindLock);
 
 end.

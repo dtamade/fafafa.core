@@ -68,3 +68,21 @@
   - stable interface completeness：绿
   - stable implementation behavior：绿
   - 剩余未做的是 release 级 strict closeout/证据刷新，不是当前 stable surface 的接口或基础实现缺口
+- 本轮继续补强接口/实现证据时，新增了 `GetCurrentRuntimeSnapshot` 的直接并发回归：
+  - `TTestCase_SimdConcurrentFramework.Test_Concurrent_RuntimeSnapshot_VectorAsmToggle_ReadConsistency`
+- 这条新回归第一次 fresh 运行直接抓到真实实现问题：
+  - 可观察到 `CurrentBackend/CurrentBackendInfo/BestDispatchableBackend` 来自 AVX2
+  - 但 `DispatchableBackends` 同时来自 `vector-asm disabled` 的 `[sbScalar]`
+  - 说明此前 `runtime snapshot` 仍可能发布 mixed snapshot，而不只是 helper 间“多次独立调用可能跨代”的文档边界问题
+- 根因已定位并修复在 `src/fafafa.core.simd.runtime.pas`：
+  - 旧实现只在发布前校验 `Dispatch` 指针是否仍匹配 target
+  - 当 `SetVectorAsmEnabled(True/False)` 在构建期间发生多次往返、最终又回到同一 active dispatch 指针时，旧检查可能放过跨代拼接的 snapshot
+  - 新实现把 `dispatch-changed hook` 驱动的 `target version` 一起纳入 runtime cache 发布条件，要求“版本未变 + dispatch 指针未漂移”才允许发布
+- 修复后验证已完成：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentFramework`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test`
+  - `python3 tests/fafafa.core.simd/check_interface_implementation_completeness.py --strict`
+  - `python3 tests/fafafa.core.simd/check_dispatch_contract_signature.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_public_abi_signature.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

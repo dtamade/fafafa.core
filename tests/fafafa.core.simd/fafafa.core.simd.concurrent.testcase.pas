@@ -27,6 +27,7 @@ uses
   fafafa.core.simd,
   fafafa.core.simd.base,
   fafafa.core.simd.backend.adapter,
+  fafafa.core.simd.runtime,
   fafafa.core.simd.dispatch;
 
 type
@@ -100,6 +101,8 @@ type
     procedure Test_Concurrent_CurrentBackend_VectorAsmToggle_ReadConsistency;
     {** current backend info 与 RegisterBackend 并发读写保护 *}
     procedure Test_Concurrent_CurrentBackendInfo_RegisterBackend_ReadConsistency;
+    {** current runtime snapshot 与 vector-asm toggle 并发读写保护 *}
+    procedure Test_Concurrent_RuntimeSnapshot_VectorAsmToggle_ReadConsistency;
     {** dispatchable helper 与 vector-asm toggle 并发读写保护 *}
     procedure Test_Concurrent_DispatchableHelpers_VectorAsmToggle_ReadConsistency;
     {** current backend info 与 vector-asm toggle 并发读写保护 *}
@@ -429,6 +432,23 @@ type
     property ErrorMsg: string read FErrorMsg;
   end;
 
+  {** current runtime snapshot 只读线程（与 vector-asm toggle 写线程并发） *}
+  TCurrentRuntimeSnapshotReadWorker = class(TThread)
+  private
+    FIterations: Integer;
+    FExpectedSnapshotA: TSimdRuntimeSnapshot;
+    FExpectedSnapshotB: TSimdRuntimeSnapshot;
+    FSuccess: Boolean;
+    FErrorMsg: string;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(aIterations: Integer;
+      const aExpectedSnapshotA, aExpectedSnapshotB: TSimdRuntimeSnapshot);
+    property Success: Boolean read FSuccess;
+    property ErrorMsg: string read FErrorMsg;
+  end;
+
   {** backend adapter ops 只读线程（与 RegisterBackend 写线程并发） *}
   TBackendOpsReadWorker = class(TThread)
   private
@@ -650,6 +670,27 @@ begin
     Result := Result + IntToStr(Ord(aBackends[LIndex]));
   end;
   Result := Result + ']';
+end;
+
+function RuntimeSnapshotMatchesLocal(const aSnapshot,
+  aExpected: TSimdRuntimeSnapshot): Boolean;
+begin
+  Result := (aSnapshot.CurrentBackend = aExpected.CurrentBackend) and
+    BackendInfoMatchesLocal(aSnapshot.CurrentBackendInfo, aExpected.CurrentBackendInfo) and
+    SameBackendArrayLocal(aSnapshot.RegisteredBackends, aExpected.RegisteredBackends) and
+    SameBackendArrayLocal(aSnapshot.DispatchableBackends, aExpected.DispatchableBackends) and
+    (aSnapshot.BestDispatchableBackend = aExpected.BestDispatchableBackend);
+end;
+
+function DescribeRuntimeSnapshotLocal(const aSnapshot: TSimdRuntimeSnapshot): string;
+begin
+  Result := Format(
+    'backend=%d info=(%s) registered=%s dispatchable=%s best=%d',
+    [Ord(aSnapshot.CurrentBackend),
+     DescribeBackendInfoLocal(aSnapshot.CurrentBackendInfo),
+     DescribeBackendArrayLocal(aSnapshot.RegisteredBackends),
+     DescribeBackendArrayLocal(aSnapshot.DispatchableBackends),
+     Ord(aSnapshot.BestDispatchableBackend)]);
 end;
 
 function DescribeBackendArrayStatesLocal(const aStates: TSimdBackendArrayStates): string;
@@ -1605,6 +1646,18 @@ begin
   FErrorMsg := '';
 end;
 
+constructor TCurrentRuntimeSnapshotReadWorker.Create(aIterations: Integer;
+  const aExpectedSnapshotA, aExpectedSnapshotB: TSimdRuntimeSnapshot);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FIterations := aIterations;
+  FExpectedSnapshotA := aExpectedSnapshotA;
+  FExpectedSnapshotB := aExpectedSnapshotB;
+  FSuccess := False;
+  FErrorMsg := '';
+end;
+
 constructor TBackendOpsReadWorker.Create(aIterations: Integer; aBackend: TSimdBackend;
   const aExpectedTableA, aExpectedTableB: TSimdDispatchTable);
 begin
@@ -1692,6 +1745,38 @@ begin
   except
     on E: Exception do
       FErrorMsg := 'current backend info reader exception: ' + E.Message;
+  end;
+end;
+
+procedure TCurrentRuntimeSnapshotReadWorker.Execute;
+var
+  LIndex: Integer;
+  LSnapshot: TSimdRuntimeSnapshot;
+begin
+  try
+    for LIndex := 0 to FIterations - 1 do
+    begin
+      if (LIndex and 3) = 0 then
+        ThreadSwitch;
+
+      LSnapshot := fafafa.core.simd.GetCurrentRuntimeSnapshot;
+      if (not RuntimeSnapshotMatchesLocal(LSnapshot, FExpectedSnapshotA)) and
+         (not RuntimeSnapshotMatchesLocal(LSnapshot, FExpectedSnapshotB)) then
+      begin
+        FErrorMsg := Format(
+          'runtime snapshot mixed snapshot at iter %d: got=(%s) expectedA=(%s) expectedB=(%s)',
+          [LIndex,
+           DescribeRuntimeSnapshotLocal(LSnapshot),
+           DescribeRuntimeSnapshotLocal(FExpectedSnapshotA),
+           DescribeRuntimeSnapshotLocal(FExpectedSnapshotB)]);
+        Exit;
+      end;
+    end;
+
+    FSuccess := True;
+  except
+    on E: Exception do
+      FErrorMsg := 'runtime snapshot reader exception: ' + E.Message;
   end;
 end;
 
@@ -3615,6 +3700,84 @@ begin
       end;
 
     AssertTrue('Concurrent dispatchable helper toggle/read failed: ' + LErrorMsgs, LAllSuccess);
+  finally
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Free;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Free;
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_SimdConcurrentFramework.Test_Concurrent_RuntimeSnapshot_VectorAsmToggle_ReadConsistency;
+const
+  WRITER_THREADS = 4;
+  WRITER_ITERATIONS = 4000;
+  READER_THREADS = 6;
+  READER_ITERATIONS = 30000;
+var
+  LWriters: array of TVectorAsmMultiToggleWorker;
+  LReaders: array of TCurrentRuntimeSnapshotReadWorker;
+  LExpectedEnabledSnapshot: TSimdRuntimeSnapshot;
+  LExpectedDisabledSnapshot: TSimdRuntimeSnapshot;
+  LIndex: Integer;
+  LAllSuccess: Boolean;
+  LErrorMsgs: string;
+  LOldVectorAsm: Boolean;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LWriters := nil;
+  LReaders := nil;
+  LExpectedEnabledSnapshot := Default(TSimdRuntimeSnapshot);
+  LExpectedDisabledSnapshot := Default(TSimdRuntimeSnapshot);
+
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LExpectedEnabledSnapshot := fafafa.core.simd.GetCurrentRuntimeSnapshot;
+
+    SetVectorAsmEnabled(False);
+    ResetToAutomaticBackend;
+    LExpectedDisabledSnapshot := fafafa.core.simd.GetCurrentRuntimeSnapshot;
+
+    if RuntimeSnapshotMatchesLocal(LExpectedEnabledSnapshot, LExpectedDisabledSnapshot) then
+      Exit;
+
+    SetLength(LWriters, WRITER_THREADS);
+    SetLength(LReaders, READER_THREADS);
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex] := TVectorAsmMultiToggleWorker.Create(WRITER_ITERATIONS, LIndex);
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex] := TCurrentRuntimeSnapshotReadWorker.Create(
+        READER_ITERATIONS, LExpectedEnabledSnapshot, LExpectedDisabledSnapshot);
+
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Start;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Start;
+
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].WaitFor;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].WaitFor;
+
+    LAllSuccess := True;
+    LErrorMsgs := '';
+    for LIndex := 0 to High(LWriters) do
+      if not LWriters[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LWriters[LIndex].ErrorMsg + '; ';
+      end;
+    for LIndex := 0 to High(LReaders) do
+      if not LReaders[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LReaders[LIndex].ErrorMsg + '; ';
+      end;
+
+    AssertTrue('Concurrent runtime-snapshot toggle/read failed: ' + LErrorMsgs, LAllSuccess);
   finally
     for LIndex := 0 to High(LWriters) do
       LWriters[LIndex].Free;

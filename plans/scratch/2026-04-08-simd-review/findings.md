@@ -157,6 +157,34 @@
   - stable implementation behavior：绿
   - remaining release closeout gaps：仍主要是 `freeze-status/gate-strict` 所依赖的跨平台证据刷新与环境能力，不是 stable surface 再补接口或再补基础实现
 
+## 2026-05-08 Runtime Snapshot Consistency Closure
+
+- 为了把 `runtime snapshot` 本身的并发完整度补成直接证据，本轮新增：
+  - `TTestCase_SimdConcurrentFramework.Test_Concurrent_RuntimeSnapshot_VectorAsmToggle_ReadConsistency`
+- fresh release 运行这条新回归时，首次直接抓到真实 mixed snapshot：
+  - `CurrentBackend=sbAVX2`
+  - `CurrentBackendInfo=AVX2`
+  - `BestDispatchableBackend=sbAVX2`
+  - 但 `DispatchableBackends=[sbScalar]`
+- 这不是“两个独立 helper 分别跨代读取”的已知文档边界，而是 `GetCurrentRuntimeSnapshot` 自己仍可能发布跨代拼接结果。
+- 根因非常具体：
+  - `src/fafafa.core.simd.runtime.pas` 旧实现只在发布前校验 `Dispatch` 指针是否仍等于 target
+  - `SetVectorAsmEnabled(True/False)` 在构建期间可以经历多次 dispatch 重建
+  - 即使最终又回到同一个 active dispatch 指针，中途也可能让 `DispatchableBackends` / `BestDispatchableBackend` 来自另一代状态
+  - 因而“只看最终 dispatch 指针是否相等”不足以证明整份 snapshot 同代
+- 最小修复已落地：
+  - 在 runtime cache 中引入 `TargetVersion`
+  - `dispatch-changed hook` 每次 dispatch publication 后递增 `g_SimdRuntimeTargetVersion`
+  - `GetCurrentRuntimeSnapshot` 只有在“预构建版本 == 发布前复核版本”且 `Dispatch` 指针未漂移时才接受 `LBuiltState`
+- 修复后 fresh 证明：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentFramework`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - `python3 tests/fafafa.core.simd/check_interface_implementation_completeness.py --strict`
+  - `python3 tests/fafafa.core.simd/check_dispatch_contract_signature.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_public_abi_signature.py --summary-line`
+  - 结果：全部通过
+
 ## Release-Readiness Gaps
 
 - `freeze-status` 已确认 Linux 主 gate 新鲜且通过，但 `qemu-cpuinfo-nonx86-evidence` 在最近 gate 里为 `SKIP`，因此 mainline/cross ready 仍为 `False`。
