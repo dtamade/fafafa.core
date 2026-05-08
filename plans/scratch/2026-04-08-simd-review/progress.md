@@ -99,7 +99,15 @@
   - 已移除 4 个干净历史 worktree：`codex/simd-closeout-20260416`、`codex/simd-closeout-20260426-final`、`codex/simd-mainline-absorb-20260427`、`codex/simd-mainline-integration-20260429`。
   - 已 prune 掉失效的临时 `simd/win-evidence-20260419-152` worktree 管理记录。
   - 已删除 2 个已完全并入 `main` 的本地辅助分支：`simd-win-evidence-runtime-20260320`、`win-evidence-main-update`。
-  - 当前仍保留 2 个高风险 worktree 不动：
-    - `simd-foundation`：存在 tracked 修改与未提交审查文档
-    - `codex/simd-mainline-integration-20260503-frontier`：存在未跟踪产物与本地 ahead 状态
-  - 结论：当前 `simd` 已完成主线收口，剩余只是“是否继续清理历史实验/前沿 worktree”的仓库卫生问题，而不是 `simd` 主线未合并。
+  - 后续进一步卫生清理已完成：
+    - `codex/simd-mainline-integration-20260503-frontier` 的本地独有 3 个提交已先推到远端，再移除 worktree 目录
+    - `simd-foundation` 与 `codex/simd-mainline-integration-20260503-frontier` 的未提交状态都已先归档到 stash：
+      - `stash@{1}` = `archive-before-worktree-cleanup: simd-foundation 2026-05-08`
+      - `stash@{0}` = `archive-before-worktree-cleanup: codex/simd-mainline-integration-20260503-frontier 2026-05-08`
+    - 两个 worktree 的分支都继续保留：
+      - `simd-foundation` -> `origin/simd-foundation`
+      - `codex/simd-mainline-integration-20260503-frontier` -> `origin/codex/simd-mainline-integration-20260503-frontier`
+  - 当前 `git worktree list` 只剩：
+    - `main`
+    - 非 SIMD 的 `l0-mainline`
+  - 结论：当前 `simd` 已完成主线收口与相关仓库卫生清理；剩余可恢复入口已经明确保存在分支与 stash 中。
