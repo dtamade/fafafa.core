@@ -2,6 +2,14 @@
 
 如果你只想在 1 分钟内知道这个模块该从哪里读起，看这页就够了。
 
+## 0 层：先看真相表
+
+如果你这次要判断“谁是默认主线”“哪个 intrinsics 只是 experimental”“SSE2 到底该迁什么”，先看这三张表：
+
+- `docs/SIMD_BACKEND_TRUTH.md`
+- `docs/SIMD_INTRINSICS_DISPOSITION.md`
+- `docs/SIMD_SSE2_MIGRATION_MAP.md`
+
 ## 第一层：对外入口
 
 从这里开始，先理解模块对外承诺什么：

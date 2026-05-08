@@ -15,6 +15,7 @@
   - 稳定承诺：`docs/fafafa.core.simd.publicabi.stability.md`
 - **想理解模块全貌**：看 `docs/fafafa.core.simd.md`
 - **想维护或修改实现**：看 `docs/fafafa.core.simd.map.md`、`docs/fafafa.core.simd.maintenance.md`、`docs/fafafa.core.simd.checklist.md`
+- **想先把 backend / intrinsics / SSE2 归属看死**：先看 `docs/SIMD_BACKEND_TRUTH.md`、`docs/SIMD_INTRINSICS_DISPOSITION.md`、`docs/SIMD_SSE2_MIGRATION_MAP.md`
 - **想做完整 release closeout**：直接运行 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152`
   - 固定顺序：`impl-smoke-x86 -> closeout-host-local -> win-evidence-preflight -> win-evidence-via-gh -> freeze-status`
 - **想知道当前稳定边界**：看 `docs/fafafa.core.simd.handoff.md` 与 `src/fafafa.core.simd.STABLE`
@@ -38,6 +39,7 @@
 - **后端成熟度有差异**：`Scalar`、`SSE2`、`AVX2`、`NEON` 更接近当前默认维护主线；`AVX-512` 受构建配置和验证范围影响；`sbRISCVV` 仍应视为 experimental / 受限成熟度后端
 - **`sbRISCVV` 现在是显式 opt-in**：即使平台满足，`fafafa.core.simd` 也不会默认接线 `riscvv`；只有定义 `SIMD_EXPERIMENTAL_RISCVV` 时才会把它接入 umbrella unit
 - **experimental intrinsics 默认隔离**：实验性 intrinsics 已有默认入口隔离检查，不属于默认 stable surface；默认入口链路不会把这些实验单元直接暴露成常规公开入口
+- **实现层也有固定口径**：`simd.*` 是 backend adapter，`intrinsics.*` 是 raw ISA leaf；`intrinsics.sse2` / `intrinsics.x86.sse2` 都不是当前 SSE2 发布真相源
 
 这意味着：**可以把公开 API 当成稳定入口使用，但不要把当前 `TSimdDispatchTable` 误读成 public binary ABI，也不要把每个 backend 都默认理解成同等成熟、同等验证深度。**
 
@@ -283,6 +285,7 @@ BitsetPopCount(p, len)     // 位集合 popcount
 - `fafafa.core.simd.dispatch.pas` 已拆出 hook 管理；`fafafa.core.simd.cpuinfo.pas` 已拆出 backend 选择逻辑。
 - `AVX2`、`AVX-512`、`NEON` 的 register / facade / family / fallback 区块已经按注释边界拆出。
 - `SSE2` 仍然保留更多主体实现；这是有意为之，因为它已经接近“继续物理拆分风险大于收益”的边界。
+- `SSE2` 的当前职责与未来迁移边界，以 `docs/SIMD_SSE2_MIGRATION_MAP.md` 为准；不要把 `intrinsics.sse2` / `intrinsics.x86.sse2` 误读成当前发布真相源。
 
 如果你要理解当前实现，建议先从 `fafafa.core.simd.pas`、`fafafa.core.simd.dispatch.pas`、`fafafa.core.simd.cpuinfo.pas` 读起，再看各 backend 的注册入口与 `*.facade.inc`。其中多数 backend 的注册入口在 `*.register.inc`，但 `SSE2` 当前直接保留在 `fafafa.core.simd.sse2.pas`。
 

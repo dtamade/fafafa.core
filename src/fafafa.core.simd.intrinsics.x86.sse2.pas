@@ -5,6 +5,14 @@ unit fafafa.core.simd.intrinsics.x86.sse2;
 
 interface
 
+{
+  Role marker (2026-05-09):
+  - raw ISA leaf target for SSE2 128-bit primitives
+  - TM128/raw intrinsic surface only
+  - no TVec/TMask facade, no dispatch registration, no runtime control-plane knowledge
+  - current default gate still keeps this unit experimental-isolated until raw semantic parity is proven
+}
+
 // === SSE2 Intrinsics 完整接口 ===
 // SSE2 �?x86-64 的基础指令集，所�?x86-64 CPU 都支�?
 // 提供 128-bit 向量操作，是最重要的基础指令�?

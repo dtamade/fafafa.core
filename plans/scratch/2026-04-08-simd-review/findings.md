@@ -199,3 +199,22 @@
 - `docs/fafafa.core.simd.handoff.md`
 - `src/fafafa.core.simd.README.md`
 - `tests/fafafa.core.simd/BuildOrTest.sh`
+
+## 2026-05-09 Interface Truth Closeout
+
+- 当前最大的认知债不是“SIMD 是否还能跑”，而是 `SSE2` 的接口层归属之前没有被一份当前真相表写死。
+- 代码真相非常明确：
+  - `src/fafafa.core.simd.sse2.pas` 当前承载 backend registration、`TVec*` / `TMask*` façade 语义、`wide_emulation`、mem/text/stat helper 与多寄存器组合语义。
+  - `src/fafafa.core.simd.intrinsics.sse2.pas` 和 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 都仍带 experimental guard，不能再被描述成当前发布真相源。
+- 这意味着此前“不要继续硬拆 SSE2”并不等于“不要再定义归属”；真正缺的是：
+  - backend truth table
+  - intrinsics disposition table
+  - SSE2 migration bucket map
+- 本轮落地后，`SSE2` 的最短判断已经可以收敛成一句：
+  - `simd.sse2` 是当前 backend adapter truth source
+  - `intrinsics.sse2` 是 transitional wrapper
+  - `intrinsics.x86.sse2` 是 future raw-leaf target，但当前仍是 experimental isolated
+- 新的 `check_sse2_structure.py` 已经把这条判断写进机器护栏，不再只靠口头记忆：
+  - 反向依赖禁令：`simd.sse2` uses clause 里不得出现 `fafafa.core.simd.intrinsics.sse2`
+  - raw-leaf 边界：`intrinsics.x86.sse2` 不得出现 `TVec*`、`TMask*`、`TSimdDispatchTable`、`RegisterSSE2Backend`、`runtime/cpuinfo/dispatch` 依赖
+  - 文档真相漂移：三张真相表缺行、改 status、删 sentinel 会直接让结构检查失败

@@ -11,9 +11,13 @@ uses
   fafafa.core.simd.dispatch,
   fafafa.core.simd.backend.priority;
 
-// === SSE2 Backend Implementation ===
-// Provides SIMD-accelerated operations using x86-64 SSE2 instructions.
-// This backend is available on all x86-64 processors.
+// === SSE2 Backend Adapter ===
+// Role marker (2026-05-09):
+// - thin backend adapter / backend assembly layer
+// - owns TVec* / TMask* facade semantics, dispatch registration, compare-mask translation
+// - wide_emulation, mem/text/stat helpers, and multi-register composition stay here
+// - must not depend on fafafa.core.simd.intrinsics.sse2
+// Current production truth source for SSE2 remains this unit.
 
 // Register the SSE2 backend
 procedure RegisterSSE2Backend;

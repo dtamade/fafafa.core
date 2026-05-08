@@ -8,6 +8,12 @@
 
 如果你想快速了解当前收口已经做到哪里，以及后续最值得做什么，再看 `docs/fafafa.core.simd.handoff.md`。
 
+如果你这次要判断 backend / intrinsics / SSE2 的真实归属，先看三张真相表：
+
+- `docs/SIMD_BACKEND_TRUTH.md`
+- `docs/SIMD_INTRINSICS_DISPOSITION.md`
+- `docs/SIMD_SSE2_MIGRATION_MAP.md`
+
 ## 先看什么
 
 如果你第一次接手这个模块，建议按这个顺序读：
@@ -80,6 +86,13 @@
 - `src/fafafa.core.simd.cpuinfo.pas`：CPU/OS capability-only 视图
 - `src/fafafa.core.simd.dispatch.pas`：更低层的 dispatch contract、hook 与 backend wiring
 
+同样冻结的一条实现口径是：
+
+- `simd.*` = backend adapter / backend assembly layer
+- `intrinsics.*` = raw ISA leaf / low层语义叶子
+
+不要再把 `intrinsics.*` 误读成默认主线 backend 实现层；尤其是 `SSE2`，当前发布真相源仍然是 `src/fafafa.core.simd.sse2.pas`。
+
 后续默认不要再回到“命名是不是还要再改”“runtime/cpuinfo 要不要再换层”这种接口层反复重构。除非出现新的语义错误或兼容性问题，否则审查重点应放在：
 
 - 实现正确性
@@ -113,6 +126,10 @@
 - **稳定基线**：`scalar`、`sse2`
 - **已完成较多结构收口**：`avx2`、`avx512`、`neon`
 - **特殊平台 / 试验性**：`sse2.i386`、`riscvv`
+
+要看默认主线 backend 的“文件级真相源”，以 `docs/SIMD_BACKEND_TRUTH.md` 为准。
+要看 intrinsics 是否只是隔离叶子或兼容包袱，以 `docs/SIMD_INTRINSICS_DISPOSITION.md` 为准。
+要看 SSE2 以后能迁什么、不能迁什么，以 `docs/SIMD_SSE2_MIGRATION_MAP.md` 为准。
 
 已经拆出的典型片段包括：
 

@@ -5,13 +5,20 @@ unit fafafa.core.simd.intrinsics;
 
 {
   === fafafa.core.simd.intrinsics ===
-  SIMD 内联函数统一门面模块
-  
-  这个模块作为所�?SIMD 指令集的统一入口，提供：
-  1. 统一的类型定义和接口
-  2. 自动的指令集检测和选择
-  3. 跨平台的兼容性抽�?  4. 性能优化的函数选择
-  
+  历史 low-level convenience umbrella
+
+  这个模块不是 fafafa.core.simd 的主 façade，也不是 backend control-plane。
+  它只提供：
+  1. 统一的低层寄存器类型与 helper 声明
+  2. 少量 capability helper
+  3. 受 guard 约束的 intrinsics 级便捷入口
+
+  不负责：
+  - backend registration
+  - dispatch table wiring
+  - runtime backend selection
+  - 把 experimental family 自动提升为默认主线
+
   支持的指令集�?  - x86/x64: MMX, SSE, SSE2, SSE3, SSE4.1, SSE4.2, AVX, AVX2, AVX-512, AES, SHA, FMA3
   - ARM: NEON, SVE, SVE2
   - RISC-V: RVV (Vector Extension)

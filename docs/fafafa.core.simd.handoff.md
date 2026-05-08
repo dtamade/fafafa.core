@@ -4,6 +4,12 @@
 
 如果你只想看“现在该做什么”，再看 `docs/fafafa.core.simd.checklist.md`。
 
+如果你这次接手的是 backend / intrinsics / SSE2 分账，不要先翻历史计划，先看：
+
+- `docs/SIMD_BACKEND_TRUTH.md`
+- `docs/SIMD_INTRINSICS_DISPOSITION.md`
+- `docs/SIMD_SSE2_MIGRATION_MAP.md`
+
 ## 当前状态
 
 `fafafa.core.simd` 已经完成一轮较大规模的“低风险结构收口”。
@@ -65,6 +71,12 @@
 
 - 可以继续读、继续修、继续补文档。
 - 但不建议再做高频物理拆分，除非先单独做一版 `SSE2` 重构设计。
+
+补一条当前已经冻结的归属判断：
+
+- `src/fafafa.core.simd.sse2.pas` 是当前 SSE2 backend adapter truth source
+- `src/fafafa.core.simd.intrinsics.sse2.pas` 只是 transitional compatibility wrapper
+- `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 是未来 raw leaf 的落点，不是当前发布真相源
 
 ## 验证基线
 

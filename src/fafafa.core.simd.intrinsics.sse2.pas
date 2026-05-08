@@ -5,7 +5,7 @@ unit fafafa.core.simd.intrinsics.sse2;
 
 {
   === fafafa.core.simd.intrinsics.sse2 ===
-  SSE2 (Streaming SIMD Extensions 2) 指令集支�?  
+  SSE2 (Streaming SIMD Extensions 2) 指令集支�?
   SSE2 �?Intel �?2001 年引入的 128-bit SIMD 指令集扩�?  是所�?x86-64 处理器的基础指令集，提供完整的整数和双精度浮点支�?  
   特性：
   - 128-bit 向量寄存�?(xmm0-xmm15)
@@ -14,8 +14,16 @@ unit fafafa.core.simd.intrinsics.sse2;
   - 单精度浮点运�?(4x32-bit)
   - 打包/解包操作
   - 移位和逻辑操作
-  
+
   兼容性：所�?x86-64 处理器都支持，是最重要的基础指令�?}
+
+{
+  Role marker (2026-05-09):
+  - transitional compatibility wrapper
+  - experimental opt-in only
+  - may delegate raw helpers to fafafa.core.simd.intrinsics.x86.sse2
+  - not a backend adapter, not a dispatch truth source, retire path after SSE2 raw-leaf migration
+}
 
 interface
 

@@ -107,7 +107,38 @@
     - 两个 worktree 的分支都继续保留：
       - `simd-foundation` -> `origin/simd-foundation`
       - `codex/simd-mainline-integration-20260503-frontier` -> `origin/codex/simd-mainline-integration-20260503-frontier`
-  - 当前 `git worktree list` 只剩：
-    - `main`
-    - 非 SIMD 的 `l0-mainline`
-  - 结论：当前 `simd` 已完成主线收口与相关仓库卫生清理；剩余可恢复入口已经明确保存在分支与 stash 中。
+- 当前 `git worktree list` 只剩：
+  - `main`
+  - 非 SIMD 的 `l0-mainline`
+- 结论：当前 `simd` 已完成主线收口与相关仓库卫生清理；剩余可恢复入口已经明确保存在分支与 stash 中。
+
+## 2026-05-09
+
+- 按当前 `SIMD` 方案重新核对了 `src/fafafa.core.simd.sse2.pas`、`src/fafafa.core.simd.intrinsics.sse2.pas`、`src/fafafa.core.simd.intrinsics.x86.sse2.pas` 与现有 experimental/structure 护栏，确认此前仓库文档虽然强调 stable/experimental 边界，但还缺少 SSE2 归属的明确真相表。
+- 已新增三张结构真相表：
+  - `docs/SIMD_BACKEND_TRUTH.md`
+  - `docs/SIMD_INTRINSICS_DISPOSITION.md`
+  - `docs/SIMD_SSE2_MIGRATION_MAP.md`
+- 已把三张真相表接入现有入口文档：
+  - `docs/fafafa.core.simd.map.md`
+  - `docs/fafafa.core.simd.maintenance.md`
+  - `docs/fafafa.core.simd.handoff.md`
+  - `docs/fafafa.core.simd.interface.md`
+  - `src/fafafa.core.simd.README.md`
+  - `src/fafafa.core.simd.STABLE`
+- 已把关键单元注释统一到本轮冻结口径：
+  - `src/fafafa.core.simd.sse2.pas` 标成 `thin backend adapter`
+  - `src/fafafa.core.simd.intrinsics.sse2.pas` 标成 `transitional compatibility wrapper`
+  - `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 标成 `raw ISA leaf target`
+  - `src/fafafa.core.simd.intrinsics.pas` 去掉“统一主入口/自动 backend 选择”式误导描述
+- `tests/fafafa.core.simd/check_sse2_structure.py` 已扩展，不再只看 include/register 结构，还会检查：
+  - 三张真相表是否存在且行集未漂移
+  - `simd.sse2` 是否反向依赖 `intrinsics.sse2`
+  - `intrinsics.x86.sse2` 是否泄漏 `TVec*` / `TMask*` / dispatch / runtime control-plane 语义
+  - `SIMD_SSE2_MIGRATION_MAP.md` 的 A/B/C 分桶是否仍保留关键 sentinel
+- 本轮验证已完成：
+  - `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_experimental_status.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

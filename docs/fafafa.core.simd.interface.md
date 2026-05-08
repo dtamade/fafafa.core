@@ -46,6 +46,33 @@
 - 仍然稳定，但不再是普通调用方默认 control-plane API
 - 主要面向维护、测试、底层 wiring
 
+## 实现层口径
+
+这一层不面向普通调用方，但必须统一口径：
+
+- `fafafa.core.simd.*` backend unit：`backend adapter / backend assembly layer`
+- `fafafa.core.simd.intrinsics.*`：`raw ISA leaf / low-level semantic leaf`
+
+职责切分：
+
+- backend adapter 负责 `TVec*` / `TMask*` façade 语义、dispatch 注册、backend 能力接线、必要的多寄存器拼装与 façade helper
+- raw ISA leaf 只负责原始寄存器或原始 intrinsic 风格接口，例如 `TM128/TM256/TM512`
+- raw ISA leaf 不负责 dispatch table 注册
+- raw ISA leaf 不负责 façade 级 `TVec*` 公开语义
+- raw ISA leaf 不负责 backend selection / runtime control-plane
+
+当前 SSE2 的专门判断：
+
+- `src/fafafa.core.simd.sse2.pas` 是当前 backend adapter truth source
+- `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 是未来 raw leaf 的目标落点
+- `src/fafafa.core.simd.intrinsics.sse2.pas` 是 transitional compatibility wrapper
+
+对应真相表：
+
+- `docs/SIMD_BACKEND_TRUTH.md`
+- `docs/SIMD_INTRINSICS_DISPOSITION.md`
+- `docs/SIMD_SSE2_MIGRATION_MAP.md`
+
 ## 四层 backend 语义
 
 | 语义 | 定义 | canonical 入口 |
