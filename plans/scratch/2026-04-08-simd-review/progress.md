@@ -170,3 +170,22 @@
   - `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line`
   - `python3 tests/fafafa.core.simd/check_intrinsics_experimental_status.py --summary-line`
   - 结果：全部通过
+- 继续做“文档是否真正全局反映 SIMD 架构”的复核时，已对照：
+  - `src/fafafa.core.simd.pas`
+  - `src/fafafa.core.simd.direct.pas`
+  - `src/fafafa.core.simd.public_abi.intf.inc`
+  - `src/fafafa.core.simd.public_abi.impl.inc`
+  - `src/fafafa.core.simd.STABLE`
+  - `docs/fafafa.core.simd.publicabi.md`
+- 复核后确认三层骨架本身没错，但上一版主文档还缺两个必须显式安置的真实代码面：
+  - `public ABI wrapper`
+  - `direct dispatch companion`
+- 本轮已补齐这些口径：
+  - `docs/SIMD_LAYERING_IMPLEMENTATION.md` 现在明确写成“三个逻辑层 + 六类单元 + 两个伴生出口 + 四种 intrinsics 状态”
+  - `docs/fafafa.core.simd.interface.md` 已同步注明 `public ABI wrapper` 与 `fafafa.core.simd.direct` 的接口定位
+  - `docs/fafafa.core.simd.maintenance.md` 已同步注明这两个面属于第一层附近的 companion surfaces，不是 backend adapter
+- 补齐后再次验证：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_experimental_status.py --summary-line`
+  - 结果：全部通过

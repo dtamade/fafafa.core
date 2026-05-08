@@ -218,6 +218,21 @@
   - 反向依赖禁令：`simd.sse2` uses clause 里不得出现 `fafafa.core.simd.intrinsics.sse2`
   - raw-leaf 边界：`intrinsics.x86.sse2` 不得出现 `TVec*`、`TMask*`、`TSimdDispatchTable`、`RegisterSSE2Backend`、`runtime/cpuinfo/dispatch` 依赖
   - 文档真相漂移：三张真相表缺行、改 status、删 sentinel 会直接让结构检查失败
+
+## 2026-05-09 Architecture Review Closure
+
+- 三层主设计本身是正确的：对这个仓库，`façade -> intrinsics` 两层直通仍然不成立，`public/control surface -> backend adapter -> raw leaf` 继续是最稳的骨架。
+- 上一版主文档剩下的不是“核心分层错误”，而是“全局反映还不够完整”：
+  - `public ABI wrapper` 是真实存在的外部稳定包装面，但此前没有在主设计文档里被显式安置。
+  - `src/fafafa.core.simd.direct.pas` 是真实存在的 direct dataplane companion，但此前也没有被明确放进架构图。
+- 这两个面都不应被误判成新 layer：
+  - `public ABI wrapper` 逻辑上属于第一层旁的 external stable wrapper，物理上通过 `simd.pas` 的 `public_abi` include 实现。
+  - `direct` 逻辑上属于第一层旁的 fast-path companion，只读取已发布 dataplane snapshot，不拥有 control-plane 真相。
+- 因而本轮文档修正的关键不是推翻三层，而是把“三层骨架 + 两个伴生出口”的全局口径写完整。
+- 修正后可以更明确地区分 3 件事：
+  - Pascal façade / runtime / cpuinfo / dispatch 是主公开与控制面
+  - public ABI wrapper 是外部 ABI 包装面，不等于 `TSimdDispatchTable`
+  - direct dispatch companion 是仓库内热点入口，不等于 backend adapter
 - 仅靠三张真相表还不够，因为它们主要回答“谁是谁”，不直接回答“为什么不能做成两层”。
 - 对这个仓库来说，两层 `façade -> intrinsics` 不成立的根因很具体：
   - 公开 contract 是 `TVec*` / `TMask*`，不是 `TM128`

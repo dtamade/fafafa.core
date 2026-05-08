@@ -25,9 +25,28 @@
 
 再压缩一点：
 
-> 三个逻辑层，四类单元，四种 intrinsics 状态。
+> 三个逻辑层，六类单元，四种 intrinsics 状态。
 
 下面把这三件事写死。
+
+## 先看全局图
+
+从全局看，当前 `simd` 不是只有一条“公开 façade -> backend -> intrinsics”的主线。
+
+它同时还带着两个必须显式安置的伴生出口：
+
+- `public ABI wrapper`
+- `direct dispatch companion`
+
+它们都不是新的 backend，也不是新的 raw leaf。
+
+它们的正确位置是：
+
+- 逻辑上都挂在第一层附近
+- 语义上都依赖当前已发布的 stable public/control surface
+- 职责上都不能越级吞掉 adapter 或 raw leaf 的边界
+
+如果这两个面不写出来，读者很容易误以为整个模块只有 Pascal façade 一条入口链，这就不算“全局反映架构”。
 
 ## 三个逻辑层
 
@@ -41,6 +60,7 @@
 - `src/fafafa.core.simd.api.pas`
 - `src/fafafa.core.simd.runtime.pas`
 - `src/fafafa.core.simd.cpuinfo.pas`
+- `src/fafafa.core.simd.dispatch.pas`
 
 职责：
 
@@ -48,6 +68,7 @@
 - 对外公开 mem / text / stat data-plane façade
 - 对外公开 runtime / control-plane
 - 对外公开 CPU/OS capability 视图
+- 维护 in-repo dispatch contract 与 runtime wiring 真相
 
 不负责：
 
@@ -119,25 +140,92 @@
 - runtime / control-plane
 - façade helper
 
-## 四类单元
+## 两个伴生出口
+
+这两个面都是真实代码面，但都不应该被误判成“又多了一层实现”。
+
+### `public ABI wrapper`
+
+对应位置：
+
+- `src/fafafa.core.simd.public_abi.intf.inc`
+- `src/fafafa.core.simd.public_abi.impl.inc`
+- 物理上由 `src/fafafa.core.simd.pas` include 进主入口
+
+逻辑位置：
+
+- 第一层的 external stable wrapper
+
+职责：
+
+- 给 Pascal 之外的调用方暴露 POD-only 稳定边界
+- 暴露 `cdecl` 风格 public API table
+- 复用当前已发布 data-plane binding，而不是重新发明一套 backend 语义
+
+不负责：
+
+- 公开 `TSimdDispatchTable` 作为外部 ABI
+- backend adapter 注册
+- raw leaf 语义
+
+要记死一句：
+
+> `public ABI wrapper` 是外部稳定包装面，不是内部 dispatch contract 的直接翻版。
+
+### `direct dispatch companion`
+
+对应位置：
+
+- `src/fafafa.core.simd.direct.pas`
+
+逻辑位置：
+
+- 第一层旁路 fast-path companion
+
+职责：
+
+- 读取当前已发布的 data-plane dispatch snapshot
+- 给仓库内热点路径、测试和 wiring 提供 direct pointer 访问
+- 在 control-plane 切换后执行 rebind
+
+不负责：
+
+- 自己决定 active backend
+- 自己维护 dispatch 真相
+- 替代 `runtime` / `dispatch` 成为 control-plane 裁决面
+
+要记死一句：
+
+> `direct` 只是读取已发布 dataplane 的伴生入口，不是新的 backend，也不是新的控制面真相源。
+
+## 六类单元
 
 这一步最容易被写乱。
 
 `namespace` 不等于 `layer`。尤其是 `fafafa.core.simd.*` 这个前缀，不要直接等同于 backend adapter。
 
-下一轮实施时，请按下面四类单元判断，而不是只按文件名前缀判断。
+同样要记住：
+
+- include-backed surface 也可以承载独立 contract
+- 物理文件位置不等于逻辑职责层次
+
+下一轮实施时，请按下面六类单元判断，而不是只按文件名前缀判断。
 
 | 单元类别 | 典型文件 | 所属逻辑层 | 说明 |
 | --- | --- | --- | --- |
-| public surface | `simd` / `api` / `runtime` / `cpuinfo` | 第一层 | 对外 contract 与 control surface |
-| control / dispatch infra | `dispatch` | 第一层支撑区 | 低层 dispatch contract 与 wiring 入口；不是普通 façade，也不是 backend adapter |
+| public / control surface | `simd` / `api` / `runtime` / `cpuinfo` | 第一层 | 对外 contract 与 canonical control surface |
+| control / dispatch infra | `dispatch` | 第一层支撑区 | in-repo dispatch contract 与 wiring 入口；不是普通 façade，也不是 backend adapter |
+| public ABI wrapper | `public_abi.intf/impl.inc` | 第一层外部包装区 | POD-only external stable wrapper；物理上挂在 `simd.pas` 内 |
+| direct dispatch companion | `direct` | 第一层 fast-path 伴生区 | 读取已发布 dataplane snapshot；不是控制面真相源 |
 | backend adapter | `scalar` / `sse2` / `avx2` / `neon` 等 | 第二层 | 默认主线 backend 真相源 |
 | raw leaf family | `intrinsics.*` | 第三层 | 具体状态看 disposition 表，不要默认都能进入 stable 主链 |
 
-这张表要记死两条：
+这张表要记死四条：
 
 1. `dispatch` 在 `simd.*` 命名空间里，但它不是 backend adapter
-2. `intrinsics.*` 在实现上属于 raw leaf 平面，但能不能被默认 stable adapter 依赖，要看它的状态，不是看它叫不叫 intrinsics
+2. `public ABI wrapper` 物理上在 `simd.pas` 里，但逻辑上是独立外部 contract 面
+3. `direct` 是伴生 fast-path，不拥有 backend 选择真相
+4. `intrinsics.*` 在实现上属于 raw leaf 平面，但能不能被默认 stable adapter 依赖，要看它的状态，不是看它叫不叫 intrinsics
 
 ## 四种 intrinsics 状态
 
@@ -243,6 +331,23 @@ raw compare 往往给你一整块向量寄存器结果。
 - runtime 重绑定
 
 都属于控制面或 adapter 接线逻辑，不应进入 raw leaf。
+
+### 这个仓库还有 companion surfaces
+
+这里不仅有普通 Pascal façade，还有两个额外边界：
+
+- `public ABI wrapper`：对外稳定包装
+- `direct dispatch companion`：对内热点直达入口
+
+这两个面都依赖“先有稳定 public/control surface，再发布 dataplane snapshot”。
+
+如果做成“façade 直接引用 intrinsics”的两层直通，最终只会把：
+
+- 外部 ABI 包装
+- direct dataplane 绑定
+- dispatch publication
+
+重新塞回一个含混的 façade 层里，结构上反而更脏。
 
 ### 这个仓库明确需要 stable / experimental 隔离
 

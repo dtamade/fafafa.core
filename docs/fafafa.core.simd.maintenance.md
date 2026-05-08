@@ -81,6 +81,25 @@
 - `src/fafafa.core.simd.cpuinfo.pas`：CPU/OS 支持视图与能力判断入口
 - `src/fafafa.core.simd.STABLE`：公开 façade、in-repo dispatch contract 与 stable boundary 的真相源
 
+### 伴生出口层
+
+除了主 façade / runtime / cpuinfo / dispatch 这条主线，还要明确两个真实存在的伴生出口：
+
+- `public ABI wrapper`
+- `direct dispatch companion`
+
+对应位置：
+
+- `src/fafafa.core.simd.public_abi.intf.inc`
+- `src/fafafa.core.simd.public_abi.impl.inc`
+- `src/fafafa.core.simd.direct.pas`
+
+这里的维护判断要固定：
+
+- `public ABI wrapper` 是外部稳定包装面，不是 `TSimdDispatchTable` 的公开版
+- `direct` 只是读取已发布 dataplane 的 fast-path companion，不是新的 control-plane 真相源
+- 这两个面都挂在第一层附近；不要把它们误判成 backend adapter，也不要把它们下沉到 raw leaf 讨论
+
 ## 当前接口封边结论
 
 这一轮之后，`SIMD` 的接口分层应视为冻结：
@@ -89,6 +108,8 @@
 - `src/fafafa.core.simd.runtime.pas`：canonical runtime / control-plane snapshot
 - `src/fafafa.core.simd.cpuinfo.pas`：CPU/OS capability-only 视图
 - `src/fafafa.core.simd.dispatch.pas`：更低层的 dispatch contract、hook 与 backend wiring
+- `src/fafafa.core.simd.public_abi.intf.inc` / `impl.inc`：external stable wrapper
+- `src/fafafa.core.simd.direct.pas`：direct dataplane companion
 
 同样冻结的一条实现口径是：
 
@@ -160,7 +181,10 @@
 - `src/fafafa.core.simd.types.inc`
 - `src/fafafa.core.simd.framework.intf.inc`
 - `src/fafafa.core.simd.framework.impl.inc`
+- `src/fafafa.core.simd.public_abi.intf.inc`
+- `src/fafafa.core.simd.public_abi.impl.inc`
 - `src/fafafa.core.simd.dispatch.pas`
+- `src/fafafa.core.simd.direct.pas`
 - `src/fafafa.core.simd.cpuinfo.pas`
 - `tests/fafafa.core.simd/check_backend_adapter_sync.py`
 - `tests/fafafa.core.simd/check_intrinsics_experimental_status.py`

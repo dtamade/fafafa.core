@@ -10,6 +10,8 @@
 - `fafafa.core.simd.api` 只负责 mem/text/stat data-plane façade
 - `fafafa.core.simd.runtime` 是 backend control-plane 与 runtime state 的 canonical 入口
 - `fafafa.core.simd.cpuinfo` 是 CPU/OS capability 视图的 canonical 入口
+- `public ABI wrapper` 是面向外部调用方的 POD-only 稳定包装面，但不是 `TSimdDispatchTable` 的公开版
+- `fafafa.core.simd.direct` 是仓库内 direct dataplane companion，不是新的 control-plane 入口
 - 所有 legacy alias 继续保留兼容，但新代码、示例、文档默认只使用 canonical 名称
 
 ## 分层职责
@@ -45,6 +47,20 @@
 - 更低层的 dispatch contract 与维护入口
 - 仍然稳定，但不再是普通调用方默认 control-plane API
 - 主要面向维护、测试、底层 wiring
+
+### `public ABI wrapper`
+
+- 物理位置是 `src/fafafa.core.simd.public_abi.intf.inc` / `impl.inc`
+- 逻辑上挂在 `fafafa.core.simd` 主入口旁边，承载 external stable wrapper
+- 只暴露 POD-only metadata 和 `cdecl` public API table
+- 不是 `TSimdDispatchTable` 的外部 ABI 承诺面
+
+### `fafafa.core.simd.direct`
+
+- 仓库内的 direct dataplane companion
+- 读取当前已发布的 dispatch snapshot
+- 适合热点路径、测试和 wiring 使用
+- 不负责 backend 选择，不替代 `runtime` / `dispatch`
 
 ## 实现层口径
 
