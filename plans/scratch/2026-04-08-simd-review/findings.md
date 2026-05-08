@@ -233,6 +233,7 @@
   - Pascal façade / runtime / cpuinfo / dispatch 是主公开与控制面
   - public ABI wrapper 是外部 ABI 包装面，不等于 `TSimdDispatchTable`
   - direct dispatch companion 是仓库内热点入口，不等于 backend adapter
+- 继续顺着阅读链复核后，又确认 `src/fafafa.core.simd.architecture.md` 和 `src/fafafa.core.simd.README.md` 的旧层图如果不同步，会继续把读者带回过度简化的旧心智模型；因此本轮也已把这两处高层图改成与正式实施基线兼容的版本，并显式回指 `docs/SIMD_LAYERING_IMPLEMENTATION.md`。
 - 仅靠三张真相表还不够，因为它们主要回答“谁是谁”，不直接回答“为什么不能做成两层”。
 - 对这个仓库来说，两层 `façade -> intrinsics` 不成立的根因很具体：
   - 公开 contract 是 `TVec*` / `TMask*`，不是 `TM128`

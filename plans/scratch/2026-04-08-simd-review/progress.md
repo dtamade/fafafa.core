@@ -184,6 +184,7 @@
   - `docs/SIMD_LAYERING_IMPLEMENTATION.md` 现在明确写成“三个逻辑层 + 六类单元 + 两个伴生出口 + 四种 intrinsics 状态”
   - `docs/fafafa.core.simd.interface.md` 已同步注明 `public ABI wrapper` 与 `fafafa.core.simd.direct` 的接口定位
   - `docs/fafafa.core.simd.maintenance.md` 已同步注明这两个面属于第一层附近的 companion surfaces，不是 backend adapter
+  - `src/fafafa.core.simd.architecture.md` 与 `src/fafafa.core.simd.README.md` 的高层图也已同步降歧，避免旧图继续把实现口径简化回“高级 API / dispatch / backend / infra”四块
 - 补齐后再次验证：
   - `git diff --check`
   - `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line`

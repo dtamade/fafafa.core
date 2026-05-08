@@ -266,17 +266,29 @@ BitsetPopCount(p, len)     // 位集合 popcount
 
 ```
 ┌─────────────────────────────────────────┐
-│     高级 API (fafafa.core.simd.pas)     │  ← 用户接口
+│  public / control surface               │  ← simd / api / runtime / cpuinfo
 ├─────────────────────────────────────────┤
-│   派发层 (fafafa.core.simd.dispatch)    │  ← 运行时后端选择
+│  companion surfaces                     │  ← public ABI wrapper / direct
 ├─────────────────────────────────────────┤
-│  后端实现层 (scalar/sse2/avx2/neon...)  │  ← 硬件特定优化
+│  dispatch infra                         │  ← dispatch contract / wiring
 ├─────────────────────────────────────────┤
-│   基础设施层 (base/cpuinfo/memutils)    │  ← 类型定义、工具
+│  backend adapter                        │  ← scalar / sse2 / avx2 / neon...
+├─────────────────────────────────────────┤
+│  raw leaf + infra                       │  ← intrinsics / base / memutils
 └─────────────────────────────────────────┘
 ```
 
-详细架构设计参见 `src/fafafa.core.simd.architecture.md`。
+这张图是高层概览。
+
+如果你要裁决：
+
+- 为什么不是 `façade -> intrinsics` 两层直通
+- `public ABI wrapper` / `direct dispatch companion` 的正确位置
+- backend adapter / raw leaf / intrinsics 状态的实施边界
+
+请直接看 `docs/SIMD_LAYERING_IMPLEMENTATION.md`。
+
+更偏实现导向的大图景见 `src/fafafa.core.simd.architecture.md`。
 
 ## 代码组织
 

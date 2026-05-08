@@ -3,6 +3,8 @@
 > 这份文档描述的是**当前实现导向的架构视图**。
 >
 > 其中少量代码块是概念示意，不保证逐字可编译；遇到 API 名称、类型布局、后端接线细节时，以 `src/fafafa.core.simd.pas`、`src/fafafa.core.simd.base.pas`、`src/fafafa.core.simd.dispatch.pas` 为准。
+>
+> 如果你要裁决“为什么不是 façade 直接引用 intrinsics”“`public ABI wrapper` / `direct dispatch companion` 在哪里”“backend adapter 与 raw leaf 怎么分账”，以 `docs/SIMD_LAYERING_IMPLEMENTATION.md` 为准；这页只保留高层大图景。
 
 ## 🏗️ 架构设计原则
 
@@ -11,15 +13,23 @@
 ┌─────────────────────────────────────────┐
 │           用户应用层                      │
 ├─────────────────────────────────────────┤
-│     高级 API (fafafa.core.simd.pas)     │  ← 运算符重载、类型安全
+│  public / control surface               │  ← simd / api / runtime / cpuinfo
 ├─────────────────────────────────────────┤
-│   派发层 (fafafa.core.simd.dispatch)    │  ← 运行时后端选择
+│  companion surfaces                     │  ← public ABI wrapper / direct
 ├─────────────────────────────────────────┤
-│  后端实现层 (scalar/sse2/avx2/neon)     │  ← 硬件特定优化
+│  dispatch infra                         │  ← dispatch contract / wiring
 ├─────────────────────────────────────────┤
-│   基础设施层 (types/cpuinfo/memutils)   │  ← 类型定义、工具
+│  backend adapter                        │  ← scalar / sse2 / avx2 / neon
+├─────────────────────────────────────────┤
+│  raw leaf + infra                       │  ← intrinsics / base / memutils
 └─────────────────────────────────────────┘
 ```
+
+补充说明：
+
+- `public ABI wrapper` 物理上在 `simd.pas` 的 `public_abi` include 中，但逻辑上是独立的外部稳定包装面。
+- `direct` 是 direct dataplane companion，不是新的 control-plane 真相源。
+- 这张图是高层视角；`experimental isolated` / `active leaf` 之类实施准入规则，统一看 `docs/SIMD_LAYERING_IMPLEMENTATION.md`。
 
 ### 2. 零开销抽象 (Zero-Cost Abstraction)
 - **编译时优化**: 内联函数 + 常量折叠
