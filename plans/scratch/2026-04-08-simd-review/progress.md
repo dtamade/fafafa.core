@@ -94,3 +94,12 @@
 - 当前 stop-point：
   - Linux/QEMU/mainline gate 已绿，`freeze-status` 仍只红在 Windows evidence freshness/source-newer-than-evidence。
   - 要继续完成 Task 4/5，必须先恢复 GitHub Actions Billing/额度，或者提供一份基于当前 `9859f520` 的 fresh Windows evidence 供 `win-evidence-via-gh <batch-id> <run-id>` / manual finalize 消费。
+- SIMD worktree 收口状态更新：
+  - 已确认当前 `simd` 主线改动已经落在 `main`，不再需要把历史 `simd` worktree 当成“待合并主线”处理。
+  - 已移除 4 个干净历史 worktree：`codex/simd-closeout-20260416`、`codex/simd-closeout-20260426-final`、`codex/simd-mainline-absorb-20260427`、`codex/simd-mainline-integration-20260429`。
+  - 已 prune 掉失效的临时 `simd/win-evidence-20260419-152` worktree 管理记录。
+  - 已删除 2 个已完全并入 `main` 的本地辅助分支：`simd-win-evidence-runtime-20260320`、`win-evidence-main-update`。
+  - 当前仍保留 2 个高风险 worktree 不动：
+    - `simd-foundation`：存在 tracked 修改与未提交审查文档
+    - `codex/simd-mainline-integration-20260503-frontier`：存在未跟踪产物与本地 ahead 状态
+  - 结论：当前 `simd` 已完成主线收口，剩余只是“是否继续清理历史实验/前沿 worktree”的仓库卫生问题，而不是 `simd` 主线未合并。
