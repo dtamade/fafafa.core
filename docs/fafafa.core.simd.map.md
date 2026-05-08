@@ -10,6 +10,10 @@
 - `docs/SIMD_INTRINSICS_DISPOSITION.md`
 - `docs/SIMD_SSE2_MIGRATION_MAP.md`
 
+如果你这次要回答“为什么这里不是两层”“后续实施时哪些职责必须留在 adapter”，再看：
+
+- `docs/SIMD_LAYERING_IMPLEMENTATION.md`
+
 ## 第一层：对外入口
 
 从这里开始，先理解模块对外承诺什么：

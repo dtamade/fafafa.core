@@ -218,3 +218,15 @@
   - 反向依赖禁令：`simd.sse2` uses clause 里不得出现 `fafafa.core.simd.intrinsics.sse2`
   - raw-leaf 边界：`intrinsics.x86.sse2` 不得出现 `TVec*`、`TMask*`、`TSimdDispatchTable`、`RegisterSSE2Backend`、`runtime/cpuinfo/dispatch` 依赖
   - 文档真相漂移：三张真相表缺行、改 status、删 sentinel 会直接让结构检查失败
+- 仅靠三张真相表还不够，因为它们主要回答“谁是谁”，不直接回答“为什么不能做成两层”。
+- 对这个仓库来说，两层 `façade -> intrinsics` 不成立的根因很具体：
+  - 公开 contract 是 `TVec*` / `TMask*`，不是 `TM128`
+  - compare 结果需要 façade 级 mask 压缩/翻译
+  - `wide_emulation`、多寄存器组合与 helper 不是单条 intrinsic 直通
+  - runtime / dispatch / backend registration 属于控制面，不应污染 raw leaf
+  - experimental intrinsics 默认隔离，不能被 stable façade 默认穿透引用
+- 因此这里正确的最终形态不是“删掉中间层”，而是：
+  - stable façade / control-plane
+  - thin backend adapter
+  - raw intrinsics leaf
+- 新增 `docs/SIMD_LAYERING_IMPLEMENTATION.md` 的意义，就是把这条判断从口头说明变成后续实施时的正式裁决基线。

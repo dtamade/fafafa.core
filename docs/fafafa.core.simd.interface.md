@@ -73,6 +73,8 @@
 - `docs/SIMD_INTRINSICS_DISPOSITION.md`
 - `docs/SIMD_SSE2_MIGRATION_MAP.md`
 
+如果你这次讨论的是“为什么不能把 backend adapter 整层拿掉、直接做 façade -> intrinsics 两层直通”，统一以 `docs/SIMD_LAYERING_IMPLEMENTATION.md` 为准。
+
 ## 四层 backend 语义
 
 | 语义 | 定义 | canonical 入口 |

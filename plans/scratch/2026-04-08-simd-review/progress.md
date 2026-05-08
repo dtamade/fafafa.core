@@ -142,3 +142,12 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+- 在真相表之外，已补一页专门回答“为什么这里不是两层、为什么不能直接 façade -> intrinsics”的实施基线：
+  - `docs/SIMD_LAYERING_IMPLEMENTATION.md`
+- 这页新文档已经把三层目标形态、adapter 与 raw leaf 的职责分账、SSE2 的样板归属、以及后续迁移纪律单独写死。
+- 现有入口文档已同步指向这页新基线：
+  - `docs/fafafa.core.simd.map.md`
+  - `docs/fafafa.core.simd.maintenance.md`
+  - `docs/fafafa.core.simd.handoff.md`
+  - `docs/fafafa.core.simd.interface.md`
+  - `src/fafafa.core.simd.README.md`

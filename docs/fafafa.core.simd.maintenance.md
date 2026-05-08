@@ -14,6 +14,10 @@
 - `docs/SIMD_INTRINSICS_DISPOSITION.md`
 - `docs/SIMD_SSE2_MIGRATION_MAP.md`
 
+如果你这次要决定“为什么不是 façade 直接引用 intrinsics”“后续迁移应该按什么实施纪律推进”，再看：
+
+- `docs/SIMD_LAYERING_IMPLEMENTATION.md`
+
 ## 先看什么
 
 如果你第一次接手这个模块，建议按这个顺序读：
@@ -90,6 +94,14 @@
 
 - `simd.*` = backend adapter / backend assembly layer
 - `intrinsics.*` = raw ISA leaf / low层语义叶子
+
+这里不要偷换成“两层直通”理解。对这个仓库来说，正确口径是：
+
+- stable façade / control-plane
+- thin backend adapter
+- raw intrinsics leaf
+
+为什么不是两层，以及哪些职责不能穿透 adapter，统一以 `docs/SIMD_LAYERING_IMPLEMENTATION.md` 为准。
 
 不要再把 `intrinsics.*` 误读成默认主线 backend 实现层；尤其是 `SSE2`，当前发布真相源仍然是 `src/fafafa.core.simd.sse2.pas`。
 

@@ -16,6 +16,7 @@
 - **想理解模块全貌**：看 `docs/fafafa.core.simd.md`
 - **想维护或修改实现**：看 `docs/fafafa.core.simd.map.md`、`docs/fafafa.core.simd.maintenance.md`、`docs/fafafa.core.simd.checklist.md`
 - **想先把 backend / intrinsics / SSE2 归属看死**：先看 `docs/SIMD_BACKEND_TRUTH.md`、`docs/SIMD_INTRINSICS_DISPOSITION.md`、`docs/SIMD_SSE2_MIGRATION_MAP.md`
+- **想先把“为什么不是两层、实施时哪些职责不能穿透 adapter”看死**：看 `docs/SIMD_LAYERING_IMPLEMENTATION.md`
 - **想做完整 release closeout**：直接运行 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152`
   - 固定顺序：`impl-smoke-x86 -> closeout-host-local -> win-evidence-preflight -> win-evidence-via-gh -> freeze-status`
 - **想知道当前稳定边界**：看 `docs/fafafa.core.simd.handoff.md` 与 `src/fafafa.core.simd.STABLE`

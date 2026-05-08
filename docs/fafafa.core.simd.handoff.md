@@ -9,6 +9,7 @@
 - `docs/SIMD_BACKEND_TRUTH.md`
 - `docs/SIMD_INTRINSICS_DISPOSITION.md`
 - `docs/SIMD_SSE2_MIGRATION_MAP.md`
+- `docs/SIMD_LAYERING_IMPLEMENTATION.md`
 
 ## 当前状态
 
@@ -77,6 +78,12 @@
 - `src/fafafa.core.simd.sse2.pas` 是当前 SSE2 backend adapter truth source
 - `src/fafafa.core.simd.intrinsics.sse2.pas` 只是 transitional compatibility wrapper
 - `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 是未来 raw leaf 的落点，不是当前发布真相源
+
+补一条当前已经冻结的结构判断：
+
+- 这个仓库的正确目标不是“两层：façade -> intrinsics”
+- 而是“三层：stable façade / control-plane -> thin backend adapter -> raw intrinsics leaf”
+- 具体理由和实施纪律统一写在 `docs/SIMD_LAYERING_IMPLEMENTATION.md`
 
 ## 验证基线
 
