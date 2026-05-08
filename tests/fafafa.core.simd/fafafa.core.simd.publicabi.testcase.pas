@@ -49,6 +49,9 @@ uses
 
 type
   TTestCase_PublicAbi = class(TTestCase)
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
   published
     procedure Test_PublicApi_Table_IsBound_And_Metadata_IsPresent;
     procedure Test_PublicApi_CachedTable_RemainsCallable_Across_Rebind;
@@ -550,6 +553,84 @@ begin
         Exit;
       end;
   end;
+end;
+
+procedure ResetPublicAbiSyntheticHookState;
+var
+  LIndex: Integer;
+begin
+  RemoveDispatchChangedHook(@PublicAbiHookDisableBackendOnce);
+  RemoveDispatchChangedHook(@PublicAbiHookDisableThenRestoreBackendOnRollback);
+  RemoveDispatchChangedHook(@PublicAbiHookRollbackForceSuccessWithoutForcedIntent);
+  RemoveDispatchChangedHook(@PublicAbiHookReForceBackendOnce);
+  RemoveDispatchChangedHook(@PublicAbiHookResetToAutomaticOnce);
+  RemoveDispatchChangedHook(@PublicAbiHookReForceBackendOnAutomaticRestore);
+  RemoveDispatchChangedHook(@PublicAbiHookResetToAutomaticOnToggleRestore);
+  RemoveDispatchChangedHook(@PublicAbiHookDisableRequestedThenLateForceOnPreviousRestore);
+  RemoveDispatchChangedHook(@PublicAbiHookDisableRequestedThenLateForceOnAutomaticRestore);
+  RemoveDispatchChangedHook(@PublicAbiHookDisableRequestedThenLateForceOnAutomaticRestoreTwice);
+  RemoveDispatchChangedHook(@PublicAbiHookLateAutomaticResetOnRegisterRestore);
+
+  GPublicAbiHookDisableBackendEnabled := False;
+  GPublicAbiHookDisableBackendArmed := False;
+  GPublicAbiHookDisableBackendDone := False;
+  GPublicAbiHookDisableBackendTarget := sbScalar;
+  GPublicAbiHookDisableBackendOriginalTable := Default(TSimdDispatchTable);
+  GPublicAbiHookRestoreBackendEnabled := False;
+  GPublicAbiHookRestoreBackendStage := 0;
+  GPublicAbiHookRestoreBackendTarget := sbScalar;
+  GPublicAbiHookRestoreBackendOriginalTable := Default(TSimdDispatchTable);
+  GPublicAbiHookRollbackForceSuccessEnabled := False;
+  GPublicAbiHookRollbackForceSuccessStage := 0;
+  GPublicAbiHookRollbackForceSuccessInMutation := False;
+  GPublicAbiHookRollbackForceSuccessTarget := sbScalar;
+  GPublicAbiHookRollbackForceSuccessTargetTable := Default(TSimdDispatchTable);
+  GPublicAbiHookRollbackForceSuccessHigherCount := 0;
+  for LIndex := Low(GPublicAbiHookRollbackForceSuccessHigherBackends) to
+    High(GPublicAbiHookRollbackForceSuccessHigherBackends) do
+  begin
+    GPublicAbiHookRollbackForceSuccessHigherBackends[LIndex] := sbScalar;
+    GPublicAbiHookRollbackForceSuccessHigherTables[LIndex] := Default(TSimdDispatchTable);
+  end;
+  GPublicAbiHookReForceBackendEnabled := False;
+  GPublicAbiHookReForceBackendStage := 0;
+  GPublicAbiHookReForceBackendTarget := sbScalar;
+  GPublicAbiHookResetToAutomaticEnabled := False;
+  GPublicAbiHookResetToAutomaticStage := 0;
+  GPublicAbiHookResetLateForceEnabled := False;
+  GPublicAbiHookResetLateForceStage := 0;
+  GPublicAbiHookResetLateForceTarget := sbScalar;
+  GPublicAbiHookToggleRestoreResetEnabled := False;
+  GPublicAbiHookToggleRestoreResetStage := 0;
+  GPublicAbiHookRollbackLateForceEnabled := False;
+  GPublicAbiHookRollbackLateForceStage := 0;
+  GPublicAbiHookRollbackLateForceRequestedBackend := sbScalar;
+  GPublicAbiHookRollbackLateForceRequestedTable := Default(TSimdDispatchTable);
+  GPublicAbiHookAutomaticRollbackLateForceEnabled := False;
+  GPublicAbiHookAutomaticRollbackLateForceStage := 0;
+  GPublicAbiHookAutomaticRollbackLateForceRequestedBackend := sbScalar;
+  GPublicAbiHookAutomaticRollbackLateForceRequestedTable := Default(TSimdDispatchTable);
+  GPublicAbiHookAutomaticRollbackRestoreLateForceEnabled := False;
+  GPublicAbiHookAutomaticRollbackRestoreLateForceStage := 0;
+  GPublicAbiHookAutomaticRollbackRestoreLateForceRequestedBackend := sbScalar;
+  GPublicAbiHookAutomaticRollbackRestoreLateForceRequestedTable := Default(TSimdDispatchTable);
+  GPublicAbiHookRegisterRestoreResetEnabled := False;
+  GPublicAbiHookRegisterRestoreResetStage := 0;
+
+  SetVectorAsmEnabled(False);
+  ResetToAutomaticBackend;
+end;
+
+procedure TTestCase_PublicAbi.SetUp;
+begin
+  inherited SetUp;
+  ResetPublicAbiSyntheticHookState;
+end;
+
+procedure TTestCase_PublicAbi.TearDown;
+begin
+  ResetPublicAbiSyntheticHookState;
+  inherited TearDown;
 end;
 
 function RestoreOriginalActiveBackend(aOriginalBackend: TSimdBackend): Boolean;

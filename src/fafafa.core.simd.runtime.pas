@@ -67,7 +67,7 @@ uses
 type
   TSimdRuntimePublishedState = record
     Dispatch: PSimdDispatchTable;
-    TargetVersion: UInt64;
+    TargetVersion: UInt32;
     Snapshot: TSimdRuntimeSnapshot;
     RegisteredFlags: array[TSimdBackend] of Boolean;
     Valid: Boolean;
@@ -76,7 +76,7 @@ type
 var
   g_SimdRuntimeState: TSimdRuntimePublishedState;
   g_SimdRuntimeTargetDispatchPtr: Pointer = nil;
-  g_SimdRuntimeTargetVersion: UInt64 = 0;
+  g_SimdRuntimeTargetVersion: UInt32 = 0;
   g_SimdRuntimeRebindLock: TRTLCriticalSection;
 
 procedure InitializeSimdRuntimePublishedState(out aState: TSimdRuntimePublishedState);
@@ -177,13 +177,13 @@ begin
   Result := PSimdDispatchTable(atomic_load(g_SimdRuntimeTargetDispatchPtr, mo_acquire));
 end;
 
-function GetCurrentSimdRuntimeTargetVersion: UInt64; inline;
+function GetCurrentSimdRuntimeTargetVersion: UInt32; inline;
 begin
-  Result := atomic_load_64(g_SimdRuntimeTargetVersion, mo_acquire);
+  Result := atomic_load(g_SimdRuntimeTargetVersion, mo_acquire);
 end;
 
 function RuntimeStateMatchesTarget(const aState: TSimdRuntimePublishedState;
-  aTargetDispatch: PSimdDispatchTable; aTargetVersion: UInt64): Boolean; inline;
+  aTargetDispatch: PSimdDispatchTable; aTargetVersion: UInt32): Boolean; inline;
 begin
   Result := aState.Valid and
     (aState.TargetVersion = aTargetVersion) and
@@ -195,7 +195,7 @@ begin
   // Runtime snapshot is control-plane facing and returned by value, so it can
   // use a single cached state instead of process-lifetime published snapshots.
   atomic_store(g_SimdRuntimeTargetDispatchPtr, Pointer(GetDispatchTable), mo_release);
-  atomic_increment_64(g_SimdRuntimeTargetVersion);
+  atomic_increment(g_SimdRuntimeTargetVersion);
   EnterCriticalSection(g_SimdRuntimeRebindLock);
   try
     g_SimdRuntimeState.Valid := False;
@@ -208,8 +208,8 @@ function GetCurrentRuntimeSnapshot: TSimdRuntimeSnapshot;
 var
   LBuiltState: TSimdRuntimePublishedState;
   LTargetDispatch: PSimdDispatchTable;
-  LTargetVersion: UInt64;
-  LCurrentTargetVersion: UInt64;
+  LTargetVersion: UInt32;
+  LCurrentTargetVersion: UInt32;
   LRetry: Boolean;
 begin
   repeat
@@ -341,7 +341,7 @@ initialization
   InitCriticalSection(g_SimdRuntimeRebindLock);
   InitializeSimdRuntimePublishedState(g_SimdRuntimeState);
   atomic_store(g_SimdRuntimeTargetDispatchPtr, nil, mo_release);
-  atomic_store_64(g_SimdRuntimeTargetVersion, 0, mo_release);
+  atomic_store(g_SimdRuntimeTargetVersion, 0, mo_release);
   AddDispatchChangedHook(@InvalidateSimdRuntimeState);
   GetCurrentRuntimeSnapshot;
 
@@ -349,7 +349,7 @@ finalization
   RemoveDispatchChangedHook(@InvalidateSimdRuntimeState);
   FinalizeSimdRuntimePublishedState;
   atomic_store(g_SimdRuntimeTargetDispatchPtr, nil, mo_release);
-  atomic_store_64(g_SimdRuntimeTargetVersion, 0, mo_release);
+  atomic_store(g_SimdRuntimeTargetVersion, 0, mo_release);
   DoneCriticalSection(g_SimdRuntimeRebindLock);
 
 end.
