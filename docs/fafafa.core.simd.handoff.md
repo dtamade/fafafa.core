@@ -10,6 +10,19 @@
 
 重点不是改变语义，而是把原来集中在少数超大 Pascal 单元里的内容，按现有注释边界拆成主单元 + include 片段的结构，降低 review 成本和定位成本。
 
+截至 `2026-05-08`，当前最重要的状态判断要单独记住：
+
+- 代码侧已经是 green：
+  - 最新 `gate` 为 PASS
+  - 最新接口完整度检查为绿，`P0/P1/P2=0`
+- 发布级 closeout 还不是 green：
+  - `freeze-status` 仍为 `ready=False / mainline-ready=False / cross-ready=False`
+  - 当前红项只剩 Windows evidence freshness 与 `source-newer-than-windows-evidence`
+- 这不是新的接口/实现质量问题，而是外部条件问题：
+  - 当前 canonical Windows evidence 仍停留在 `2026-04-19`
+  - 当前源码已经推进到 `2026-05-08`
+  - 在没有 Windows 主机、也没有可用 GitHub Actions Billing/额度时，这一轮应该按 `code-green / release-evidence-blocked` 交接，而不是继续重开 SIMD 泛审查
+
 当前已经完成的方向包括：
 
 - 主入口层收口：`simd.pas` 的类型与框架包装已拆到 include。

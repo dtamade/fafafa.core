@@ -2,6 +2,18 @@
 
 这页只回答两件事：现在应该做什么，以及现在不要做什么。
 
+## 当前停点（2026-05-08）
+
+- 当前 `simd` 不应再按“接口/实现仍未收口”处理。
+- 最新 release 证据说明：
+  - `python3 tests/fafafa.core.simd/check_interface_implementation_completeness.py --strict` 为绿，`P0/P1/P2=0`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 为绿
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 仍红，但红点只剩 Windows evidence freshness / source-newer-than-evidence
+- 如果你当前既没有 Windows 实机，也没有可用 GitHub Actions Billing/额度，就把模块状态记成：
+  - `code-green / release-evidence-blocked`
+  - 到这里先停，不要继续重开 SIMD 接口设计审查或实现泛审查
+- 只有在 fresh Windows evidence 条件恢复后，才继续 `closeout-release` / `win-evidence-via-gh -> freeze-status` 这条发布收口链
+
 ## 现在应该做什么
 
 ### 0. 先确认这轮是不是“实现问题”而不是“接口命名焦虑”

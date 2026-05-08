@@ -10,6 +10,22 @@
 - adapter wiring 现在有更强的自动校验，但还没有走到“自动生成 Pascal 代码”的程度
 - façade 层现在区分了 `supported-on-cpu` 与 `dispatchable-in-this-binary` 两种后端视图
 
+## 2026-05-08 当前收口判断
+
+- 代码主线可以按“已收口”理解：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 最新产物为 PASS，时间是 `2026-05-08 10:44:57`
+  - `python3 tests/fafafa.core.simd/check_interface_implementation_completeness.py --strict` 最新结果为 `dispatch_slots_total=558`、`P0/P1/P2=0`
+- 发布级 closeout 还不能写成完成：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 仍是 `ready=False`
+  - 当前红项只剩 Windows evidence freshness / source-newer-than-evidence，不是新的接口或实现回归
+- 当前外部 blocker 已明确：
+  - canonical `windows_b07_gate.log` / `windows_b07_closeout_summary.md` 仍停留在 `2026-04-19`
+  - 最新 SIMD 源码时间线已经推进到 `2026-05-08`
+  - 当前 worktree 已尝试 GH 路径，但在没有可用 GitHub Actions Billing/额度的条件下，只能停在 `RECENT_BILLING_BLOCK`
+- 因此，在“没有 Windows 主机、也没有可用 GH Windows runner”的约束下，当前最准确的结论是：
+  - `code-green / release-evidence-blocked`
+  - 不要再把后续时间花在重新打开 SIMD 接口审查或实现泛审查上
+
 ## 这一轮收了什么
 
 这轮收尾主要完成了 5 组工作：
