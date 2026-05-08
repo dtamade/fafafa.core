@@ -102,6 +102,7 @@
 - raw intrinsics leaf
 
 为什么不是两层，以及哪些职责不能穿透 adapter，统一以 `docs/SIMD_LAYERING_IMPLEMENTATION.md` 为准。
+再补一条实施纪律：default stable backend adapter 只允许新增依赖 `active leaf`，不允许直接把 `experimental isolated` 当成默认实现依赖。
 
 不要再把 `intrinsics.*` 误读成默认主线 backend 实现层；尤其是 `SSE2`，当前发布真相源仍然是 `src/fafafa.core.simd.sse2.pas`。
 

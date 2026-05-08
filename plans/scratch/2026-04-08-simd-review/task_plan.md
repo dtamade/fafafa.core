@@ -62,5 +62,5 @@
 | Phase | Status | Notes |
 | --- | --- | --- |
 | 1. 抽出三层/两层争议的裁决问题 | completed | 已确认现有真相表能回答“谁是谁”，但还缺一页专门回答“为什么不是两层、后续怎么实施”的文档 |
-| 2. 落地正式实施基线文档 | completed | 已新增 `docs/SIMD_LAYERING_IMPLEMENTATION.md`，写死三层目标形态、两层不成立的前提、adapter/leaf 硬边界与迁移纪律 |
-| 3. 同步入口文档与 scratch 记录 | completed | `map/maintenance/handoff/interface/README` 与当前 scratch 记录已统一指向这份新基线 |
+| 2. 落地正式实施基线文档 | completed | 已把主文档重写成“3 个逻辑层 + 4 类单元 + 4 种 intrinsics 状态 + 1 套依赖准入规则”的版本，不再混淆 namespace、SSE2 局部规则与全局规则 |
+| 3. 同步入口文档与 scratch 记录 | completed | `maintenance`、`disposition`、`migration map` 已补齐 `active leaf` 准入规则与 `experimental isolated` 禁入 stable adapter 的前提，且结构护栏验证继续通过 |

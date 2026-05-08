@@ -41,10 +41,20 @@
 - `transitional` 说明该单元还在承接历史兼容或迁移包袱，不能把它误读成最终落点。
 - `retire target` 只有在迁移证据和 parity 证据齐全时才会使用；当前这批没有预先标死的删除对象。
 
+## adapter 依赖准入规则
+
+这里再补一条实施纪律，避免后续把状态表只当注释看：
+
+- default stable backend adapter 只允许新增依赖 `active leaf`
+- `experimental isolated` 不能作为 default stable adapter 的新增实现依赖
+- `transitional` 不能作为新的长期落点；它只承接兼容和迁移包袱
+- 如果某个实验单元想被 stable adapter 使用，先 promote 成 `active leaf`，或者先拆出新的 `active leaf` 子集
+
 ## 当前最容易误判的点
 
 - `fafafa.core.simd.intrinsics.sse2` 不是当前 SSE2 发布真相源。
 - `fafafa.core.simd.intrinsics.x86.sse2` 也不是当前 SSE2 发布真相源。
 - 当前 SSE2 发布真相源仍然是 `src/fafafa.core.simd.sse2.pas`。
+- 只要 `fafafa.core.simd.intrinsics.x86.sse2` 仍是 `experimental isolated`，default stable `simd.sse2` 就不应新增对它的默认依赖。
 
 如果要继续推进 SSE2 分账，请下一步直接看 `docs/SIMD_SSE2_MIGRATION_MAP.md`。

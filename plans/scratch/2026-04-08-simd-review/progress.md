@@ -151,3 +151,22 @@
   - `docs/fafafa.core.simd.handoff.md`
   - `docs/fafafa.core.simd.interface.md`
   - `src/fafafa.core.simd.README.md`
+- 审查后已发现上一版主文档仍有 3 个设计矛盾：
+  - 把 `fafafa.core.simd.*` 前缀写得过宽，容易把 `dispatch` 误判成 adapter
+  - 把“SSE2 当前只迁 128-bit”误写成全仓库全局规则
+  - 没把 `active leaf / experimental isolated / transitional` 写成真正的依赖准入规则
+- 现已重写 `docs/SIMD_LAYERING_IMPLEMENTATION.md`：
+  - 改成“3 个逻辑层 + 4 类单元 + 4 种 intrinsics 状态”的结构
+  - 明确 `namespace != layer`
+  - 明确全局 raw leaf 可覆盖 `TM128/TM256/TM512`
+  - 明确“只迁 128-bit”只是 SSE2 当前局部 frontier
+  - 明确 default stable backend adapter 只允许新增依赖 `active leaf`
+- 配套规则已同步进：
+  - `docs/SIMD_INTRINSICS_DISPOSITION.md`
+  - `docs/SIMD_SSE2_MIGRATION_MAP.md`
+  - `docs/fafafa.core.simd.maintenance.md`
+- 本轮最小一致性验证已完成：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_experimental_status.py --summary-line`
+  - 结果：全部通过

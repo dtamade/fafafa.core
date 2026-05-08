@@ -230,3 +230,16 @@
   - thin backend adapter
   - raw intrinsics leaf
 - 新增 `docs/SIMD_LAYERING_IMPLEMENTATION.md` 的意义，就是把这条判断从口头说明变成后续实施时的正式裁决基线。
+- 但第一版主文档还有 3 个会误导后续实施的矛盾：
+  - 把 `fafafa.core.simd.*` 写得过宽，容易让人把 `dispatch` 也误判成 backend adapter
+  - 把“SSE2 现在先只迁 128-bit”偷换成全仓库全局规则，和 `intrinsics.avx2` 这个 `active leaf` 例外不一致
+  - 把 `experimental isolated` 写成概念边界，却没有把“stable adapter 只允许新增依赖 active leaf”写成硬准入规则
+- 这些矛盾现在已经在设计文档里被收口：
+  - 三个逻辑层：public/control surface -> backend adapter -> raw leaf
+  - 四类单元：public surface、dispatch infra、backend adapter、raw leaf family
+  - 四种 intrinsics 状态：`active leaf`、`experimental isolated`、`transitional`、`retire target`
+  - 一条实施准入规则：default stable backend adapter 只允许新增依赖 `active leaf`
+- 对下一轮实施最关键的新增结论是：
+  - `SSE2_MIGRATION_MAP` 的 A 桶现在只是目标归属图
+  - 只要 `intrinsics.x86.sse2` 仍是 `experimental isolated`，stable `simd.sse2` 就不应新增对它的默认依赖
+  - 下一轮真正的第一个动作，不是直接让 adapter 委托过去，而是先把目标 leaf 做到“可准入判断”：补 raw tests，然后做 promote 或 split 决策
