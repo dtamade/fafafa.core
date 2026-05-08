@@ -11,6 +11,11 @@
 - `docs/SIMD_SSE2_MIGRATION_MAP.md`
 - `docs/SIMD_LAYERING_IMPLEMENTATION.md`
 
+如果你这次接手的是“按文档继续做结构实施”，要再单独记住一条：
+
+- 当前推荐的全局形态不是只背“三层”，而是 `public surface + control/publication seam + companion surfaces + backend adapters + raw leaves`
+- 其中 `dispatch + dataplane` 是共享中间缝；不要把 `dataplane` 继续当成隐藏 helper
+
 ## 当前状态
 
 `fafafa.core.simd` 已经完成一轮较大规模的“低风险结构收口”。
@@ -34,6 +39,7 @@
 
 - 主入口层收口：`simd.pas` 的类型与框架包装已拆到 include。
 - 派发层收口：`dispatch` 的 hook 管理、`cpuinfo` 的 backend 选择已拆出。
+- 发布缝收口：`dataplane` 已经承担 façade fast-path / public ABI / direct 共用的 published binding 语义，不再只是局部缓存技巧。
 - 后端注册区收口：主要 backend 的 register / initialization 区块已拆出。
 - 后端辅助区收口：`AVX2`、`AVX-512`、`NEON` 的 facade / fallback / family 已经拆到较细粒度。
 - 测试文件保持稳定：测试文件拆分尝试已回滚，不再继续沿那条路推进。
@@ -48,7 +54,10 @@
 
 - `src/fafafa.core.simd.pas`
 - `src/fafafa.core.simd.dispatch.pas`
+- `src/fafafa.core.simd.dataplane.pas`
 - `src/fafafa.core.simd.cpuinfo.pas`
+- `src/fafafa.core.simd.public_abi.impl.inc`
+- `src/fafafa.core.simd.direct.pas`
 - `src/fafafa.core.simd.avx2.pas`
 - `src/fafafa.core.simd.avx512.pas`
 - `src/fafafa.core.simd.neon.pas`
@@ -83,6 +92,12 @@
 
 - 这个仓库的正确目标不是“两层：façade -> intrinsics”
 - 而是“三层：stable façade / control-plane -> thin backend adapter -> raw intrinsics leaf”
+- 如果从整个模块视角再压一次，最优雅的说法是：
+  - `public surface`
+  - `control/publication seam`
+  - `companion surfaces`
+  - `backend adapters`
+  - `raw leaves`
 - 具体理由和实施纪律统一写在 `docs/SIMD_LAYERING_IMPLEMENTATION.md`
 
 ## 验证基线
@@ -173,6 +188,7 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-stat
 落到代码层时，仍然建议：
 
 - 先看 `dispatch` / `cpuinfo`
+- 如果问题落在 façade fast-path / public ABI / direct 绑定一致性，先看 `dataplane`
 - 再看对应 backend 的 `register.inc`
 - 最后看对应 family / facade include
 

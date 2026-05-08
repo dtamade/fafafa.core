@@ -234,6 +234,25 @@
   - public ABI wrapper 是外部 ABI 包装面，不等于 `TSimdDispatchTable`
   - direct dispatch companion 是仓库内热点入口，不等于 backend adapter
 - 继续顺着阅读链复核后，又确认 `src/fafafa.core.simd.architecture.md` 和 `src/fafafa.core.simd.README.md` 的旧层图如果不同步，会继续把读者带回过度简化的旧心智模型；因此本轮也已把这两处高层图改成与正式实施基线兼容的版本，并显式回指 `docs/SIMD_LAYERING_IMPLEMENTATION.md`。
+
+## 2026-05-09 Publication Seam Closeout
+
+- 继续从整个模块视角复核后，发现“最优雅终态”还差最后一个关键命名：`dataplane` 之前虽然已经在代码里承担真实角色，但还没有在主设计文档里被正式提升成 `publication seam`。
+- 代码证据已经足够明确：
+  - `src/fafafa.core.simd.pas` 的 façade fast-path 会从 `dataplane` 取 bound pointers
+  - `src/fafafa.core.simd.public_abi.impl.inc` 会从 `dataplane` 取 bound API table 成员
+  - `src/fafafa.core.simd.direct.pas` 直接读取 `dataplane` 已发布 dispatch snapshot
+- 因而当前最优雅、也最贴近代码现实的全局形态应写成：
+  - `public surface`
+  - `control/publication seam`
+  - `companion surfaces`
+  - `backend adapters`
+  - `raw leaves`
+- 其中：
+  - `dispatch` 负责 control-plane truth
+  - `dataplane` 负责 published binding seam
+  - `public ABI wrapper` / `direct` / façade fast-path 都只是 seam 的消费者
+- 这次文档收口的核心价值不是再发明新层，而是把已经存在的共享结构从“实现细节”提升成“正式架构位”，这样下一会话才不会重新把它拆散或误判成局部缓存技巧。
 - 仅靠三张真相表还不够，因为它们主要回答“谁是谁”，不直接回答“为什么不能做成两层”。
 - 对这个仓库来说，两层 `façade -> intrinsics` 不成立的根因很具体：
   - 公开 contract 是 `TVec*` / `TMask*`，不是 `TM128`

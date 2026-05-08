@@ -32,6 +32,10 @@ BOUNDARY NOTES
   - `registered`: this binary registered it
   - `dispatchable`: supported_on_cpu + registered + `BackendInfo.Available=True`
   - `active`: current live dispatch selection
+- Hot-path publication now also has an explicit internal seam:
+  - `dispatch` publishes control-plane truth
+  - `dataplane` publishes bound data-plane snapshots consumed by façade fast-path,
+    `direct`, and the public ABI wrapper
 - The in-repo dispatch contract is also guarded by a machine-readable signature check:
   `tests/fafafa.core.simd/check_dispatch_contract_signature.py`
 
@@ -92,4 +96,5 @@ BACKENDS (IMPLEMENTATION DETAILS)
 - src/fafafa.core.simd.avx512.pas
 - src/fafafa.core.simd.neon.pas
 - src/fafafa.core.simd.riscvv.pas
+- src/fafafa.core.simd.dataplane.pas
 - src/fafafa.core.simd.direct.pas

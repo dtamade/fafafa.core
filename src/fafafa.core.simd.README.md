@@ -36,7 +36,7 @@
 
 先看结论：`fafafa.core.simd` 的**公开 façade** 可以按稳定入口来理解，`TSimdDispatchTable` 当前只应视为**仓库内稳定 dispatch contract**，不是 public binary ABI；后端成熟度也并不完全相同。
 
-- **稳定面**：`fafafa.core.simd` / `fafafa.core.simd.api` / `fafafa.core.simd.runtime` 对外暴露的公开 façade，以及 `TSimdDispatchTable` 这类已明确写入稳定约束的 in-repo dispatch contract
+- **稳定面**：`fafafa.core.simd` / `fafafa.core.simd.api` / `fafafa.core.simd.runtime` 对外暴露的公开 façade，以及 `TSimdDispatchTable` 这类已明确写入稳定约束的 in-repo dispatch contract；热点调用面的 published binding seam 由 `dataplane` 承接
 - **后端成熟度有差异**：`Scalar`、`SSE2`、`AVX2`、`NEON` 更接近当前默认维护主线；`AVX-512` 受构建配置和验证范围影响；`sbRISCVV` 仍应视为 experimental / 受限成熟度后端
 - **`sbRISCVV` 现在是显式 opt-in**：即使平台满足，`fafafa.core.simd` 也不会默认接线 `riscvv`；只有定义 `SIMD_EXPERIMENTAL_RISCVV` 时才会把它接入 umbrella unit
 - **experimental intrinsics 默认隔离**：实验性 intrinsics 已有默认入口隔离检查，不属于默认 stable surface；默认入口链路不会把这些实验单元直接暴露成常规公开入口
@@ -270,7 +270,7 @@ BitsetPopCount(p, len)     // 位集合 popcount
 ├─────────────────────────────────────────┤
 │  companion surfaces                     │  ← public ABI wrapper / direct
 ├─────────────────────────────────────────┤
-│  dispatch infra                         │  ← dispatch contract / wiring
+│  control / publication seam             │  ← dispatch / dataplane
 ├─────────────────────────────────────────┤
 │  backend adapter                        │  ← scalar / sse2 / avx2 / neon...
 ├─────────────────────────────────────────┤
@@ -283,6 +283,7 @@ BitsetPopCount(p, len)     // 位集合 popcount
 如果你要裁决：
 
 - 为什么不是 `façade -> intrinsics` 两层直通
+- `dispatch + dataplane` 这条中间缝的正确位置
 - `public ABI wrapper` / `direct dispatch companion` 的正确位置
 - backend adapter / raw leaf / intrinsics 状态的实施边界
 
@@ -296,11 +297,12 @@ BitsetPopCount(p, len)     // 位集合 popcount
 
 - `fafafa.core.simd.pas` 已拆出 `types` / `framework` 相关 include，保持对外 API 不变。
 - `fafafa.core.simd.dispatch.pas` 已拆出 hook 管理；`fafafa.core.simd.cpuinfo.pas` 已拆出 backend 选择逻辑。
+- `fafafa.core.simd.dataplane.pas` 已承担 façade fast-path / public ABI / direct 共用的 published binding seam。
 - `AVX2`、`AVX-512`、`NEON` 的 register / facade / family / fallback 区块已经按注释边界拆出。
 - `SSE2` 仍然保留更多主体实现；这是有意为之，因为它已经接近“继续物理拆分风险大于收益”的边界。
 - `SSE2` 的当前职责与未来迁移边界，以 `docs/SIMD_SSE2_MIGRATION_MAP.md` 为准；不要把 `intrinsics.sse2` / `intrinsics.x86.sse2` 误读成当前发布真相源。
 
-如果你要理解当前实现，建议先从 `fafafa.core.simd.pas`、`fafafa.core.simd.dispatch.pas`、`fafafa.core.simd.cpuinfo.pas` 读起，再看各 backend 的注册入口与 `*.facade.inc`。其中多数 backend 的注册入口在 `*.register.inc`，但 `SSE2` 当前直接保留在 `fafafa.core.simd.sse2.pas`。
+如果你要理解当前实现，建议先从 `fafafa.core.simd.pas`、`fafafa.core.simd.dispatch.pas`、`fafafa.core.simd.dataplane.pas`、`fafafa.core.simd.cpuinfo.pas` 读起，再看各 backend 的注册入口与 `*.facade.inc`。其中多数 backend 的注册入口在 `*.register.inc`，但 `SSE2` 当前直接保留在 `fafafa.core.simd.sse2.pas`。
 
 更偏维护视角的说明，见 `docs/fafafa.core.simd.maintenance.md`；更短的阅读地图见 `docs/fafafa.core.simd.map.md`。
 

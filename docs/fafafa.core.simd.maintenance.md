@@ -27,8 +27,10 @@
 3. `src/fafafa.core.simd.architecture.md`
 4. `src/fafafa.core.simd.pas`
 5. `src/fafafa.core.simd.dispatch.pas`
-6. `src/fafafa.core.simd.cpuinfo.pas`
-7. 具体后端（`avx2` / `avx512` / `neon` / `sse2`）
+6. `src/fafafa.core.simd.dataplane.pas`
+7. `src/fafafa.core.simd.cpuinfo.pas`
+8. `src/fafafa.core.simd.direct.pas` / `public_abi` include
+9. 具体后端（`avx2` / `avx512` / `neon` / `sse2`）
 
 这个顺序有两个好处：
 
@@ -60,6 +62,7 @@
 ### 派发与能力检测层
 
 - `src/fafafa.core.simd.dispatch.pas`
+- `src/fafafa.core.simd.dataplane.pas`
 - `src/fafafa.core.simd.cpuinfo.pas`
 - `src/fafafa.core.simd.backend.priority.pas`
 
@@ -67,7 +70,8 @@
 
 - 后端优先级
 - CPU / OS 能力判断
-- dispatch table 选择
+- control-plane truth 与 dispatch table 选择
+- dataplane published binding snapshot
 - runtime hook / backend rebuild
 
 补充一条当前容易踩坑的事实：
@@ -78,8 +82,26 @@
 当前更值得关注的真相源：
 
 - `src/fafafa.core.simd.dispatch.pas`：`TSimdDispatchTable` 与 base fallback 的事实真相源
+- `src/fafafa.core.simd.dataplane.pas`：façade fast-path / public ABI / direct 共用的 published binding seam
 - `src/fafafa.core.simd.cpuinfo.pas`：CPU/OS 支持视图与能力判断入口
 - `src/fafafa.core.simd.STABLE`：公开 façade、in-repo dispatch contract 与 stable boundary 的真相源
+
+### control/publication seam
+
+如果你是从整个模块视角判断“最优雅的设计是什么”，这里是当前最该记住的一层：
+
+- `dispatch` 负责 control-plane truth
+- `dataplane` 负责 publication seam
+
+这两者合起来，才是当前仓库把 backend 选择结果发布给热点调用面的中间缝。
+
+后续不要再把 `dataplane` 当成：
+
+- `direct` 的私有 helper
+- `public ABI wrapper` 的缓存实现
+- 或 façade hot-path 的偶然优化
+
+它现在已经是明确的共享结构。
 
 ### 伴生出口层
 
@@ -98,6 +120,7 @@
 
 - `public ABI wrapper` 是外部稳定包装面，不是 `TSimdDispatchTable` 的公开版
 - `direct` 只是读取已发布 dataplane 的 fast-path companion，不是新的 control-plane 真相源
+- 这两个面都通过 `dataplane` 消费当前 published binding
 - 这两个面都挂在第一层附近；不要把它们误判成 backend adapter，也不要把它们下沉到 raw leaf 讨论
 
 ## 当前接口封边结论
@@ -106,6 +129,7 @@
 
 - `src/fafafa.core.simd.pas`：data-plane façade 与兼容别名出口
 - `src/fafafa.core.simd.runtime.pas`：canonical runtime / control-plane snapshot
+- `src/fafafa.core.simd.dataplane.pas`：published binding seam
 - `src/fafafa.core.simd.cpuinfo.pas`：CPU/OS capability-only 视图
 - `src/fafafa.core.simd.dispatch.pas`：更低层的 dispatch contract、hook 与 backend wiring
 - `src/fafafa.core.simd.public_abi.intf.inc` / `impl.inc`：external stable wrapper
@@ -119,6 +143,7 @@
 这里不要偷换成“两层直通”理解。对这个仓库来说，正确口径是：
 
 - stable façade / control-plane
+- control/publication seam
 - thin backend adapter
 - raw intrinsics leaf
 
@@ -153,6 +178,22 @@
 - 不要把这里“简化”为每次读取都 lockless 现算的 cacheless rebuild，除非你重新证明并发稳定性与 managed-field 生命周期安全
 - 任何想动这一层发布模型的改动，至少要重新通过 `gate`、`gate-strict`，以及当前 gate 中的 `publicabi-concurrent-chain` 回归组合；没有真实硬件时，还要保住现有 QEMU non-x86 evidence
 
+## Dataplane published snapshot 模型
+
+`src/fafafa.core.simd.dataplane.pas` 当前不是普通 helper，而是热点调用面的 publication seam。
+
+关键约束：
+
+- `dataplane` 绑定的是当前 published dispatch 对应的一组热点函数指针
+- `simd.pas` façade fast-path、public ABI wrapper、`direct` 都共享这份发布结果
+- 当前语义是“发布 snapshot，再消费”，不是每个调用面自己反复回读 `dispatch`
+
+维护规则：
+
+- 不要把这层重新打散回“多个调用面各自 getter + 各自缓存”的状态
+- 如果你改了 `dataplane` 的字段、发布时机或失效逻辑，至少重新跑 `TTestCase_DataPlane`、`TTestCase_DirectDispatch` 和 `gate`
+- 如果你同时动 `dispatch` 与 `dataplane`，要把它视为同一条 seam 的一致性改动，而不是两个无关文件
+
 ### 后端层
 
 当前后端大致分三类：
@@ -184,6 +225,7 @@
 - `src/fafafa.core.simd.public_abi.intf.inc`
 - `src/fafafa.core.simd.public_abi.impl.inc`
 - `src/fafafa.core.simd.dispatch.pas`
+- `src/fafafa.core.simd.dataplane.pas`
 - `src/fafafa.core.simd.direct.pas`
 - `src/fafafa.core.simd.cpuinfo.pas`
 - `tests/fafafa.core.simd/check_backend_adapter_sync.py`

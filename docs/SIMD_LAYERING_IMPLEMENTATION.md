@@ -25,7 +25,7 @@
 
 再压缩一点：
 
-> 三个逻辑层，六类单元，四种 intrinsics 状态。
+> 三个核心层，一个 control/publication seam，两个 companion surfaces，四种 intrinsics 状态。
 
 下面把这三件事写死。
 
@@ -33,24 +33,67 @@
 
 从全局看，当前 `simd` 不是只有一条“公开 façade -> backend -> intrinsics”的主线。
 
-它同时还带着两个必须显式安置的伴生出口：
+它同时还带着三个必须显式安置的中间结构：
 
+- `control/publication seam`
 - `public ABI wrapper`
 - `direct dispatch companion`
 
-它们都不是新的 backend，也不是新的 raw leaf。
+这里真正容易被漏掉的不是 `direct`，而是 `dataplane`。
 
-它们的正确位置是：
+如果 `dataplane` 继续只被当成实现细节，不被写进主设计，下一轮实施时还是会反复把它误判成：
 
-- 逻辑上都挂在第一层附近
-- 语义上都依赖当前已发布的 stable public/control surface
-- 职责上都不能越级吞掉 adapter 或 raw leaf 的边界
+- `dispatch` 的附属 helper
+- `direct/public ABI` 的私有缓存
+- 或 façade hot-path 的偶然优化
 
-如果这两个面不写出来，读者很容易误以为整个模块只有 Pascal façade 一条入口链，这就不算“全局反映架构”。
+这三种理解都不对。
 
-## 三个逻辑层
+`dataplane` 在当前仓库里已经是 **published binding seam**。
 
-### 第一层：public / control surface
+它和 `dispatch` 一起，构成了“控制真相发布到热点调用面”的中间缝。
+
+## 最优雅终态
+
+从整个模块看，最优雅的目标形态不是只背“有三层”。
+
+更准确的全局图应该是：
+
+1. `public surface`
+2. `control/publication seam`
+3. `companion surfaces`
+4. `backend adapters`
+5. `raw leaves`
+
+压成更贴近代码的结构就是：
+
+```text
+public surface
+  -> simd / api / runtime / cpuinfo
+
+control/publication seam
+  -> dispatch / dataplane
+
+companion surfaces
+  -> public ABI wrapper / direct
+
+backend adapters
+  -> scalar / sse2 / avx2 / neon / ...
+
+raw leaves
+  -> intrinsics.*
+```
+
+这张图里有两个关键点：
+
+- `dispatch` 负责 control-plane truth
+- `dataplane` 负责 published binding snapshot
+
+而 `simd.pas` façade fast-path、`public ABI wrapper`、`direct` 都只是消费这条发布缝。
+
+如果这三个面不写出来，读者很容易误以为整个模块只有 Pascal façade 一条入口链，这就不算“全局反映架构”。
+
+## 第一层：public / control surface
 
 这一层负责对外 contract 和运行时控制面。
 
@@ -60,7 +103,6 @@
 - `src/fafafa.core.simd.api.pas`
 - `src/fafafa.core.simd.runtime.pas`
 - `src/fafafa.core.simd.cpuinfo.pas`
-- `src/fafafa.core.simd.dispatch.pas`
 
 职责：
 
@@ -68,14 +110,62 @@
 - 对外公开 mem / text / stat data-plane façade
 - 对外公开 runtime / control-plane
 - 对外公开 CPU/OS capability 视图
-- 维护 in-repo dispatch contract 与 runtime wiring 真相
 
 不负责：
 
 - 原始 ISA leaf 语义
 - backend 内部拼装细节
 
-### 第二层：backend adapter
+## 一条中间缝：control / publication seam
+
+这一段不适合硬塞进“public surface”或“backend adapter”。
+
+它的职责就是把“控制面真相”稳定地发布成“热点调用面可消费的绑定结果”。
+
+### `dispatch`
+
+对应位置：
+
+- `src/fafafa.core.simd.dispatch.pas`
+
+职责：
+
+- backend 注册
+- backend 选择
+- in-repo dispatch contract
+- dispatch hook publication
+- runtime 切换后的 target truth
+
+它是 control-plane truth source。
+
+### `dataplane`
+
+对应位置：
+
+- `src/fafafa.core.simd.dataplane.pas`
+
+职责：
+
+- 按当前 published dispatch 生成 data-plane binding snapshot
+- 保存 façade hot-path / public ABI / direct 会消费的已绑定函数指针
+- 以“发布后的 snapshot”而不是“每次现算 getter”形式服务热点路径
+
+它不是：
+
+- 新的 public API
+- backend selector
+- backend adapter
+- raw leaf
+
+为什么这里要单独写出来：
+
+- `simd.pas` façade fast-path 会从这里取 bound pointers
+- `public ABI wrapper` 会从这里取 bound API table 成员
+- `direct` 会从这里取当前 dispatch snapshot
+
+如果不把这条 seam 单独写出来，下一轮实施时就很容易把 façade fast-path、public ABI 和 direct 的共享语义拆散。
+
+## 第二层：backend adapter
 
 这一层负责把公开 contract 绑定到具体 backend。
 
@@ -109,7 +199,7 @@
 - 但它不能被删除
 - 它存在的意义就是承接“公开 contract”和“raw leaf”之间的语义接缝
 
-### 第三层：raw leaf
+## 第三层：raw leaf
 
 这一层只负责原始寄存器级语义。
 
@@ -160,7 +250,7 @@
 
 - 给 Pascal 之外的调用方暴露 POD-only 稳定边界
 - 暴露 `cdecl` 风格 public API table
-- 复用当前已发布 data-plane binding，而不是重新发明一套 backend 语义
+- 消费当前 `dataplane` published binding，而不是重新发明一套 backend 语义
 
 不负责：
 
@@ -186,7 +276,7 @@
 
 - 读取当前已发布的 data-plane dispatch snapshot
 - 给仓库内热点路径、测试和 wiring 提供 direct pointer 访问
-- 在 control-plane 切换后执行 rebind
+- 在 control-plane 切换后通过 `dataplane` 执行 rebind
 
 不负责：
 
@@ -198,7 +288,7 @@
 
 > `direct` 只是读取已发布 dataplane 的伴生入口，不是新的 backend，也不是新的控制面真相源。
 
-## 六类单元
+## 七类单元
 
 这一步最容易被写乱。
 
@@ -209,23 +299,25 @@
 - include-backed surface 也可以承载独立 contract
 - 物理文件位置不等于逻辑职责层次
 
-下一轮实施时，请按下面六类单元判断，而不是只按文件名前缀判断。
+下一轮实施时，请按下面七类单元判断，而不是只按文件名前缀判断。
 
 | 单元类别 | 典型文件 | 所属逻辑层 | 说明 |
 | --- | --- | --- | --- |
-| public / control surface | `simd` / `api` / `runtime` / `cpuinfo` | 第一层 | 对外 contract 与 canonical control surface |
-| control / dispatch infra | `dispatch` | 第一层支撑区 | in-repo dispatch contract 与 wiring 入口；不是普通 façade，也不是 backend adapter |
-| public ABI wrapper | `public_abi.intf/impl.inc` | 第一层外部包装区 | POD-only external stable wrapper；物理上挂在 `simd.pas` 内 |
-| direct dispatch companion | `direct` | 第一层 fast-path 伴生区 | 读取已发布 dataplane snapshot；不是控制面真相源 |
-| backend adapter | `scalar` / `sse2` / `avx2` / `neon` 等 | 第二层 | 默认主线 backend 真相源 |
-| raw leaf family | `intrinsics.*` | 第三层 | 具体状态看 disposition 表，不要默认都能进入 stable 主链 |
+| public / canonical surface | `simd` / `api` / `runtime` / `cpuinfo` | 第一核心层 | 对外 contract 与 canonical public/control surface |
+| control seam | `dispatch` | 中间缝 | control-plane truth、dispatch contract、hook publication |
+| publication seam | `dataplane` | 中间缝 | published binding snapshot；给 façade/public ABI/direct 消费 |
+| public ABI wrapper | `public_abi.intf/impl.inc` | companion surface | POD-only external stable wrapper；物理上挂在 `simd.pas` 内 |
+| direct dispatch companion | `direct` | companion surface | 读取已发布 dataplane snapshot；不是控制面真相源 |
+| backend adapter | `scalar` / `sse2` / `avx2` / `neon` 等 | 第二核心层 | 默认主线 backend 真相源 |
+| raw leaf family | `intrinsics.*` | 第三核心层 | 具体状态看 disposition 表，不要默认都能进入 stable 主链 |
 
-这张表要记死四条：
+这张表要记死五条：
 
 1. `dispatch` 在 `simd.*` 命名空间里，但它不是 backend adapter
-2. `public ABI wrapper` 物理上在 `simd.pas` 里，但逻辑上是独立外部 contract 面
-3. `direct` 是伴生 fast-path，不拥有 backend 选择真相
-4. `intrinsics.*` 在实现上属于 raw leaf 平面，但能不能被默认 stable adapter 依赖，要看它的状态，不是看它叫不叫 intrinsics
+2. `dataplane` 是 publication seam，不是 public façade，也不是 backend adapter
+3. `public ABI wrapper` 物理上在 `simd.pas` 里，但逻辑上是独立外部 contract 面
+4. `direct` 是伴生 fast-path，不拥有 backend 选择真相
+5. `intrinsics.*` 在实现上属于 raw leaf 平面，但能不能被默认 stable adapter 依赖，要看它的状态，不是看它叫不叫 intrinsics
 
 ## 四种 intrinsics 状态
 
@@ -332,6 +424,23 @@ raw compare 往往给你一整块向量寄存器结果。
 
 都属于控制面或 adapter 接线逻辑，不应进入 raw leaf。
 
+### 这里还有显式 publication seam
+
+这个仓库不只是“有 dispatch”。
+
+它还明确有：
+
+- runtime published snapshot
+- dataplane published snapshot
+
+也就是说，当前实现不是“门面每次自己重新找 dispatch”，而是：
+
+- `dispatch` 先发布 control-plane truth
+- `dataplane` 再发布热点调用面要消费的 binding snapshot
+- façade fast-path / public ABI / direct 只读取这份已发布结果
+
+这也是为什么 `dataplane` 必须被写进主架构，而不是继续埋在实现细节里。
+
 ### 这个仓库还有 companion surfaces
 
 这里不仅有普通 Pascal façade，还有两个额外边界：
@@ -339,10 +448,16 @@ raw compare 往往给你一整块向量寄存器结果。
 - `public ABI wrapper`：对外稳定包装
 - `direct dispatch companion`：对内热点直达入口
 
-这两个面都依赖“先有稳定 public/control surface，再发布 dataplane snapshot”。
+这两个面都依赖“先有稳定 public/control surface，再经过 control/publication seam，最后发布 dataplane snapshot”。
+
+更重要的是：
+
+- `simd.pas` 自己的 façade fast-path 也在消费这条 seam
+- 所以这不是 `public ABI/direct` 两个特例，而是整个热点调用面的共用结构
 
 如果做成“façade 直接引用 intrinsics”的两层直通，最终只会把：
 
+- façade hot-path 绑定
 - 外部 ABI 包装
 - direct dataplane 绑定
 - dispatch publication
@@ -455,7 +570,7 @@ SSE2 是下一轮最重要的实施样板，但它不是全仓库的唯一范式
 
 先回答两个问题：
 
-1. 这次改的是 public surface、dispatch infra、backend adapter，还是 raw leaf
+1. 这次改的是 public surface、control seam、publication seam、companion surface、backend adapter，还是 raw leaf
 2. 如果涉及 raw leaf，这个单元现在是 `active leaf`、`experimental isolated`、还是 `transitional`
 
 没判清之前，不开始迁移。

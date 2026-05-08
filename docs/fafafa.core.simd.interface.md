@@ -10,6 +10,7 @@
 - `fafafa.core.simd.api` 只负责 mem/text/stat data-plane façade
 - `fafafa.core.simd.runtime` 是 backend control-plane 与 runtime state 的 canonical 入口
 - `fafafa.core.simd.cpuinfo` 是 CPU/OS capability 视图的 canonical 入口
+- `fafafa.core.simd.dataplane` 是内部 publication seam，负责发布热点调用面会消费的 binding snapshot
 - `public ABI wrapper` 是面向外部调用方的 POD-only 稳定包装面，但不是 `TSimdDispatchTable` 的公开版
 - `fafafa.core.simd.direct` 是仓库内 direct dataplane companion，不是新的 control-plane 入口
 - 所有 legacy alias 继续保留兼容，但新代码、示例、文档默认只使用 canonical 名称
@@ -47,6 +48,14 @@
 - 更低层的 dispatch contract 与维护入口
 - 仍然稳定，但不再是普通调用方默认 control-plane API
 - 主要面向维护、测试、底层 wiring
+- 是 control-plane truth source，不负责热点调用面的已绑定发布
+
+### `fafafa.core.simd.dataplane`
+
+- 内部 publication seam，不属于普通调用方公开 API
+- 负责按当前 published dispatch 构造 data-plane binding snapshot
+- 这份 snapshot 会被 `simd.pas` façade fast-path、public ABI wrapper、`fafafa.core.simd.direct` 共同消费
+- 不负责 backend 选择，不替代 `dispatch` / `runtime`
 
 ### `public ABI wrapper`
 
@@ -68,10 +77,13 @@
 
 - `fafafa.core.simd.*` backend unit：`backend adapter / backend assembly layer`
 - `fafafa.core.simd.intrinsics.*`：`raw ISA leaf / low-level semantic leaf`
+- `dispatch + dataplane`：`control/publication seam`
 
 职责切分：
 
 - backend adapter 负责 `TVec*` / `TMask*` façade 语义、dispatch 注册、backend 能力接线、必要的多寄存器拼装与 façade helper
+- `dispatch` 负责 control-plane truth 与 in-repo dispatch contract
+- `dataplane` 负责已绑定热点路径 publication
 - raw ISA leaf 只负责原始寄存器或原始 intrinsic 风格接口，例如 `TM128/TM256/TM512`
 - raw ISA leaf 不负责 dispatch table 注册
 - raw ISA leaf 不负责 façade 级 `TVec*` 公开语义

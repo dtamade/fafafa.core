@@ -14,6 +14,10 @@
 
 - `docs/SIMD_LAYERING_IMPLEMENTATION.md`
 
+如果你这次要回答“整个模块最优雅的设计是什么”“`dataplane` 到底算什么”，同样先看：
+
+- `docs/SIMD_LAYERING_IMPLEMENTATION.md`
+
 ## 第一层：对外入口
 
 从这里开始，先理解模块对外承诺什么：
@@ -23,7 +27,7 @@
 - `src/fafafa.core.simd.pas`
 - `src/fafafa.core.simd.api.pas`
 
-## 第二层：运行时选择
+## 第二层：控制真相
 
 如果你关心“为什么会选中这个 backend”，看这里：
 
@@ -37,7 +41,16 @@
 - `src/fafafa.core.simd.dispatch.hooks.impl.inc`
 - `src/fafafa.core.simd.cpuinfo.backends.impl.inc`
 
-## 第三层：后端入口
+## 第三层：发布缝与热点绑定
+
+如果你关心“这个选择结果是怎么发布给 façade / public ABI / direct 的”，看这里：
+
+- `src/fafafa.core.simd.dataplane.pas`
+- `src/fafafa.core.simd.direct.pas`
+- `src/fafafa.core.simd.public_abi.intf.inc`
+- `src/fafafa.core.simd.public_abi.impl.inc`
+
+## 第四层：后端入口
 
 想知道某个后端“注册了什么能力”，多数情况下优先看 `*.register.inc`；`SSE2` 例外，直接看 `src/fafafa.core.simd.sse2.pas`：
 
@@ -47,7 +60,7 @@
 - `src/fafafa.core.simd.neon.register.inc`
 - `src/fafafa.core.simd.riscvv.register.inc`
 
-## 第四层：后端快路径
+## 第五层：后端快路径
 
 想看 mem/text/search/bitset 之类的快路径，优先看 `*.facade.inc`：
 
@@ -58,7 +71,7 @@
 - `src/fafafa.core.simd.neon.facade_platform.inc`
 - `src/fafafa.core.simd.riscvv.facade.inc`
 
-## 第五层：按向量族读实现
+## 第六层：按向量族读实现
 
 想看具体向量族实现时，再去读 family include：
 
@@ -78,10 +91,11 @@
 
 1. `simd.pas`
 2. `dispatch.pas`
-3. `cpuinfo.pas`
-4. 对应 backend 的注册入口（多数是 `register.inc`，`SSE2` 直接看 `sse2.pas`）
-5. 对应 backend 的 `facade.inc`
-6. 最后才看具体 family 实现
+3. `dataplane.pas`
+4. `cpuinfo.pas`
+5. 对应 backend 的注册入口（多数是 `register.inc`，`SSE2` 直接看 `sse2.pas`）
+6. 对应 backend 的 `facade.inc`
+7. 最后才看具体 family 实现
 
 这样最不容易在大量汇编和 fallback 代码里迷路。
 

@@ -18,7 +18,7 @@
 
 ### 0. 先确认这轮是不是“实现问题”而不是“接口命名焦虑”
 
-当前 `SIMD` 的 façade/runtime/cpuinfo/dispatch 分层已经封边。没有新的语义 bug 证据时，不要再把时间花在接口命名、层次搬运、入口再分拆上；后续默认聚焦：
+当前 `SIMD` 的 façade/runtime/cpuinfo/dispatch/dataplane/public-ABI/direct 这一整条公开面与发布缝已经封边。没有新的语义 bug 证据时，不要再把时间花在接口命名、层次搬运、入口再分拆上；后续默认聚焦：
 
 - 实现正确性
 - 并发稳定性
@@ -26,19 +26,21 @@
 - non-x86 可移植性
 - 证据链新鲜度
 
-### 1. 先读这三个文件
+### 1. 先读这些文件
 
 - `docs/fafafa.core.simd.map.md`
 - `docs/fafafa.core.simd.maintenance.md`
 - `docs/fafafa.core.simd.handoff.md`
 - `docs/fafafa.core.simd.closeout.md`
+- `docs/SIMD_LAYERING_IMPLEMENTATION.md`
 
 ### 2. 改代码前先定位层级
 
 先问自己：你要改的是哪一层？
 
 - 主入口：`simd.pas` / `api.pas`
-- 运行时选择：`dispatch.pas` / `cpuinfo.pas`
+- 控制真相：`dispatch.pas` / `cpuinfo.pas`
+- 发布缝：`dataplane.pas` / `public_abi.impl.inc` / `direct.pas`
 - 后端注册：多数看 `*.register.inc`；`SSE2` 直接看 `sse2.pas`
 - 后端快路径：`*.facade.inc`
 - 向量族实现：`*.family.inc`

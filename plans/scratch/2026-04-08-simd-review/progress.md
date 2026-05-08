@@ -181,11 +181,36 @@
   - `public ABI wrapper`
   - `direct dispatch companion`
 - 本轮已补齐这些口径：
-  - `docs/SIMD_LAYERING_IMPLEMENTATION.md` 现在明确写成“三个逻辑层 + 六类单元 + 两个伴生出口 + 四种 intrinsics 状态”
+  - `docs/SIMD_LAYERING_IMPLEMENTATION.md` 现在明确写成“三个核心层 + control/publication seam + companion surfaces + 四种 intrinsics 状态”
   - `docs/fafafa.core.simd.interface.md` 已同步注明 `public ABI wrapper` 与 `fafafa.core.simd.direct` 的接口定位
   - `docs/fafafa.core.simd.maintenance.md` 已同步注明这两个面属于第一层附近的 companion surfaces，不是 backend adapter
   - `src/fafafa.core.simd.architecture.md` 与 `src/fafafa.core.simd.README.md` 的高层图也已同步降歧，避免旧图继续把实现口径简化回“高级 API / dispatch / backend / infra”四块
 - 补齐后再次验证：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_experimental_status.py --summary-line`
+  - 结果：全部通过
+- 继续从“整个模块最优雅终态”视角复核时，又确认 `dataplane` 已经不是局部 helper：
+  - `simd.pas` façade fast-path 会从 `dataplane` 取 bound pointers
+  - `public_abi.impl.inc` 会从 `dataplane` 取 bound API 成员
+  - `direct.pas` 直接读取 `dataplane` snapshot
+- 因此本轮又进一步把文档总口径升级为：
+  - `public surface`
+  - `control/publication seam`
+  - `companion surfaces`
+  - `backend adapters`
+  - `raw leaves`
+- 这次额外同步的文档包括：
+  - `docs/SIMD_LAYERING_IMPLEMENTATION.md`
+  - `docs/fafafa.core.simd.interface.md`
+  - `docs/fafafa.core.simd.maintenance.md`
+  - `docs/fafafa.core.simd.map.md`
+  - `docs/fafafa.core.simd.handoff.md`
+  - `docs/fafafa.core.simd.checklist.md`
+  - `src/fafafa.core.simd.README.md`
+  - `src/fafafa.core.simd.architecture.md`
+  - `src/fafafa.core.simd.STABLE`
+- 这轮文档升级后的轻量验证已完成：
   - `git diff --check`
   - `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line`
   - `python3 tests/fafafa.core.simd/check_intrinsics_experimental_status.py --summary-line`

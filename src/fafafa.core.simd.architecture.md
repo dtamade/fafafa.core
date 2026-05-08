@@ -4,7 +4,7 @@
 >
 > 其中少量代码块是概念示意，不保证逐字可编译；遇到 API 名称、类型布局、后端接线细节时，以 `src/fafafa.core.simd.pas`、`src/fafafa.core.simd.base.pas`、`src/fafafa.core.simd.dispatch.pas` 为准。
 >
-> 如果你要裁决“为什么不是 façade 直接引用 intrinsics”“`public ABI wrapper` / `direct dispatch companion` 在哪里”“backend adapter 与 raw leaf 怎么分账”，以 `docs/SIMD_LAYERING_IMPLEMENTATION.md` 为准；这页只保留高层大图景。
+> 如果你要裁决“为什么不是 façade 直接引用 intrinsics”“`dispatch + dataplane` 这条 seam 在哪里”“`public ABI wrapper` / `direct dispatch companion` 在哪里”“backend adapter 与 raw leaf 怎么分账”，以 `docs/SIMD_LAYERING_IMPLEMENTATION.md` 为准；这页只保留高层大图景。
 
 ## 🏗️ 架构设计原则
 
@@ -17,7 +17,7 @@
 ├─────────────────────────────────────────┤
 │  companion surfaces                     │  ← public ABI wrapper / direct
 ├─────────────────────────────────────────┤
-│  dispatch infra                         │  ← dispatch contract / wiring
+│  control / publication seam             │  ← dispatch / dataplane
 ├─────────────────────────────────────────┤
 │  backend adapter                        │  ← scalar / sse2 / avx2 / neon
 ├─────────────────────────────────────────┤
@@ -29,6 +29,7 @@
 
 - `public ABI wrapper` 物理上在 `simd.pas` 的 `public_abi` include 中，但逻辑上是独立的外部稳定包装面。
 - `direct` 是 direct dataplane companion，不是新的 control-plane 真相源。
+- `dataplane` 是 façade fast-path / public ABI / direct 共用的 published binding seam，不应继续被当成隐藏 helper。
 - 这张图是高层视角；`experimental isolated` / `active leaf` 之类实施准入规则，统一看 `docs/SIMD_LAYERING_IMPLEMENTATION.md`。
 
 ### 2. 零开销抽象 (Zero-Cost Abstraction)
