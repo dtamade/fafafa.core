@@ -981,6 +981,14 @@ begin
   end;
 end;
 
+procedure EnsureUniqueBackendInfoText(var aInfo: TSimdBackendInfo); inline;
+begin
+  if aInfo.Name <> '' then
+    UniqueString(aInfo.Name);
+  if aInfo.Description <> '' then
+    UniqueString(aInfo.Description);
+end;
+
 function GetCurrentDispatchPublishedState: PSimdDispatchPublishedState; inline;
 begin
   Result := PSimdDispatchPublishedState(atomic_load(g_CurrentDispatchStatePtr, mo_acquire));
@@ -1640,63 +1648,49 @@ var
   LPreviousBackendForced: Boolean;
   LPreviousForcedBackend: TSimdBackend;
 begin
-  // The registration slot id is the canonical backend identity.
-  // Dynamic re-registration is allowed, but callers should not be able to
-  // drift the stored table identity away from the slot they are updating.
-  LCanonicalTable := dispatchTable;
-  LCanonicalTable.Backend := backend;
-  LCanonicalTable.BackendInfo.Backend := backend;
-  LCanonicalTable.BackendInfo.Priority := GetSimdBackendPriorityValue(backend);
-  if backend = sbScalar then
-    LCanonicalTable.BackendInfo.Available := True;
-  if LCanonicalTable.BackendInfo.Name = '' then
-    LCanonicalTable.BackendInfo.Name := DefaultBackendName(backend);
-  if LCanonicalTable.BackendInfo.Description = '' then
-    LCanonicalTable.BackendInfo.Description := DefaultBackendDescription(backend);
-  LPreviousBackendForced := g_BackendForced;
-  LPreviousForcedBackend := g_ForcedBackend;
+  EnterCriticalSection(g_VectorAsmToggleLock);
+  try
+    // RegisterBackend mutates managed-string metadata, published dispatch-state
+    // ownership lists, and dispatch selection state. Serialize all control-plane
+    // writers so concurrent re-register tests cannot tear record assignment or
+    // corrupt the owned published-state chain.
+    LCanonicalTable := dispatchTable;
+    LCanonicalTable.Backend := backend;
+    LCanonicalTable.BackendInfo.Backend := backend;
+    LCanonicalTable.BackendInfo.Priority := GetSimdBackendPriorityValue(backend);
+    if backend = sbScalar then
+      LCanonicalTable.BackendInfo.Available := True;
+    if LCanonicalTable.BackendInfo.Name = '' then
+      LCanonicalTable.BackendInfo.Name := DefaultBackendName(backend);
+    if LCanonicalTable.BackendInfo.Description = '' then
+      LCanonicalTable.BackendInfo.Description := DefaultBackendDescription(backend);
+    EnsureUniqueBackendInfoText(LCanonicalTable.BackendInfo);
+    LPreviousBackendForced := g_BackendForced;
+    LPreviousForcedBackend := g_ForcedBackend;
 
-  g_BackendTables[backend] := LCanonicalTable;
-  PublishBackendDispatchTable(backend, LCanonicalTable);
-  WriteBarrier;  // Ensure published snapshot is visible before marking as registered
-  g_BackendRegistered[backend] := True;
-  WriteBarrier;  // Ensure registration is visible before clearing initialized flag
+    g_BackendTables[backend] := LCanonicalTable;
+    PublishBackendDispatchTable(backend, LCanonicalTable);
+    WriteBarrier;  // Ensure published snapshot is visible before marking as registered
+    g_BackendRegistered[backend] := True;
+    WriteBarrier;  // Ensure registration is visible before clearing initialized flag
 
-  // Re-select immediately only after dispatch has already been initialized.
-  LShouldReinitialize := (g_DispatchState = 2) and
-    (InterlockedCompareExchange(g_RegisterBackendReinitializeSuspendDepth, 0, 0) = 0);
-  g_DispatchInitialized := False;
-  InterlockedExchange(g_DispatchState, 0);  // ✅ Reset atomic state
-  atomic_thread_fence(mo_seq_cst); // Full barrier before re-initialization
-  if LShouldReinitialize then
-  begin
-    InitializeDispatch;
-    ReadBarrier;
-    if (g_BackendForced <> LPreviousBackendForced) or
-       (LPreviousBackendForced and (g_ForcedBackend <> LPreviousForcedBackend)) then
+    // Re-select immediately only after dispatch has already been initialized.
+    LShouldReinitialize := (g_DispatchState = 2) and
+      (InterlockedCompareExchange(g_RegisterBackendReinitializeSuspendDepth, 0, 0) = 0);
+    g_DispatchInitialized := False;
+    InterlockedExchange(g_DispatchState, 0);  // ✅ Reset atomic state
+    atomic_thread_fence(mo_seq_cst); // Full barrier before re-initialization
+    if LShouldReinitialize then
     begin
-      // RegisterBackend is a data/control publication helper, not a
-      // user-visible control-plane selection API. If a dispatch-changed hook
-      // mutates forced-vs-automatic mode during notification, restore the
-      // caller's pre-call intent before returning.
-      g_BackendForced := LPreviousBackendForced;
-      if LPreviousBackendForced then
-        g_ForcedBackend := LPreviousForcedBackend
-      else
-        g_ForcedBackend := sbScalar;
-      WriteBarrier;
-      g_DispatchInitialized := False;
-      InterlockedExchange(g_DispatchState, 0);
-      atomic_thread_fence(mo_seq_cst);
       InitializeDispatch;
       ReadBarrier;
       if (g_BackendForced <> LPreviousBackendForced) or
          (LPreviousBackendForced and (g_ForcedBackend <> LPreviousForcedBackend)) then
       begin
-        // The restore reinitialize is itself another control-plane
-        // transition. If a hook mutates forced-vs-automatic mode again during
-        // that restore notification, re-apply the caller's original intent
-        // before returning.
+        // RegisterBackend is a data/control publication helper, not a
+        // user-visible control-plane selection API. If a dispatch-changed hook
+        // mutates forced-vs-automatic mode during notification, restore the
+        // caller's pre-call intent before returning.
         g_BackendForced := LPreviousBackendForced;
         if LPreviousBackendForced then
           g_ForcedBackend := LPreviousForcedBackend
@@ -1707,8 +1701,29 @@ begin
         InterlockedExchange(g_DispatchState, 0);
         atomic_thread_fence(mo_seq_cst);
         InitializeDispatch;
+        ReadBarrier;
+        if (g_BackendForced <> LPreviousBackendForced) or
+           (LPreviousBackendForced and (g_ForcedBackend <> LPreviousForcedBackend)) then
+        begin
+          // The restore reinitialize is itself another control-plane
+          // transition. If a hook mutates forced-vs-automatic mode again during
+          // that restore notification, re-apply the caller's original intent
+          // before returning.
+          g_BackendForced := LPreviousBackendForced;
+          if LPreviousBackendForced then
+            g_ForcedBackend := LPreviousForcedBackend
+          else
+            g_ForcedBackend := sbScalar;
+          WriteBarrier;
+          g_DispatchInitialized := False;
+          InterlockedExchange(g_DispatchState, 0);
+          atomic_thread_fence(mo_seq_cst);
+          InitializeDispatch;
+        end;
       end;
     end;
+  finally
+    LeaveCriticalSection(g_VectorAsmToggleLock);
   end;
 end;
 
@@ -1750,6 +1765,7 @@ begin
     Result.Name := DefaultBackendName(backend);
   if Result.Description = '' then
     Result.Description := DefaultBackendDescription(backend);
+  EnsureUniqueBackendInfoText(Result);
 end;
 
 function GetBackendNameTextPtr(backend: TSimdBackend): PAnsiChar;

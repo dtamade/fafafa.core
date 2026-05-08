@@ -449,8 +449,8 @@ def main() -> int:
     )
     parser.add_argument(
         "--md-file",
-        default="tests/fafafa.core.simd/docs/interface_implementation_completeness.md",
-        help="Output markdown file path (repo-relative)",
+        default="tests/fafafa.core.simd/logs/interface_completeness.md",
+        help="Output markdown file path (repo-relative); pass an explicit docs path only when intentionally refreshing a tracked document",
     )
     parser.add_argument("--json", action="store_true", help="print JSON to stdout")
     args = parser.parse_args()

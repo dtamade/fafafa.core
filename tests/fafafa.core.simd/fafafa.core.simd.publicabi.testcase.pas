@@ -555,21 +555,50 @@ begin
   end;
 end;
 
+procedure RegisterPublicAbiSyntheticHook(aHook: TSimdDispatchChangedHook); inline;
+begin
+  AddDispatchChangedHook(aHook);
+end;
+
+procedure UnregisterPublicAbiSyntheticHook(aHook: TSimdDispatchChangedHook); inline;
+begin
+  RemoveDispatchChangedHook(aHook);
+end;
+
+procedure EnablePublicAbiDisableBackendHook(aTarget: TSimdBackend;
+  const aOriginalTable: TSimdDispatchTable);
+begin
+  GPublicAbiHookDisableBackendOriginalTable := aOriginalTable;
+  GPublicAbiHookDisableBackendTarget := aTarget;
+  GPublicAbiHookDisableBackendEnabled := True;
+  GPublicAbiHookDisableBackendArmed := False;
+  GPublicAbiHookDisableBackendDone := False;
+  RegisterPublicAbiSyntheticHook(@PublicAbiHookDisableBackendOnce);
+end;
+
+procedure DisablePublicAbiDisableBackendHook;
+begin
+  UnregisterPublicAbiSyntheticHook(@PublicAbiHookDisableBackendOnce);
+  GPublicAbiHookDisableBackendEnabled := False;
+  GPublicAbiHookDisableBackendArmed := False;
+  GPublicAbiHookDisableBackendDone := False;
+end;
+
 procedure ResetPublicAbiSyntheticHookState;
 var
   LIndex: Integer;
 begin
-  RemoveDispatchChangedHook(@PublicAbiHookDisableBackendOnce);
-  RemoveDispatchChangedHook(@PublicAbiHookDisableThenRestoreBackendOnRollback);
-  RemoveDispatchChangedHook(@PublicAbiHookRollbackForceSuccessWithoutForcedIntent);
-  RemoveDispatchChangedHook(@PublicAbiHookReForceBackendOnce);
-  RemoveDispatchChangedHook(@PublicAbiHookResetToAutomaticOnce);
-  RemoveDispatchChangedHook(@PublicAbiHookReForceBackendOnAutomaticRestore);
-  RemoveDispatchChangedHook(@PublicAbiHookResetToAutomaticOnToggleRestore);
-  RemoveDispatchChangedHook(@PublicAbiHookDisableRequestedThenLateForceOnPreviousRestore);
-  RemoveDispatchChangedHook(@PublicAbiHookDisableRequestedThenLateForceOnAutomaticRestore);
-  RemoveDispatchChangedHook(@PublicAbiHookDisableRequestedThenLateForceOnAutomaticRestoreTwice);
-  RemoveDispatchChangedHook(@PublicAbiHookLateAutomaticResetOnRegisterRestore);
+  UnregisterPublicAbiSyntheticHook(@PublicAbiHookDisableBackendOnce);
+  UnregisterPublicAbiSyntheticHook(@PublicAbiHookDisableThenRestoreBackendOnRollback);
+  UnregisterPublicAbiSyntheticHook(@PublicAbiHookRollbackForceSuccessWithoutForcedIntent);
+  UnregisterPublicAbiSyntheticHook(@PublicAbiHookReForceBackendOnce);
+  UnregisterPublicAbiSyntheticHook(@PublicAbiHookResetToAutomaticOnce);
+  UnregisterPublicAbiSyntheticHook(@PublicAbiHookReForceBackendOnAutomaticRestore);
+  UnregisterPublicAbiSyntheticHook(@PublicAbiHookResetToAutomaticOnToggleRestore);
+  UnregisterPublicAbiSyntheticHook(@PublicAbiHookDisableRequestedThenLateForceOnPreviousRestore);
+  UnregisterPublicAbiSyntheticHook(@PublicAbiHookDisableRequestedThenLateForceOnAutomaticRestore);
+  UnregisterPublicAbiSyntheticHook(@PublicAbiHookDisableRequestedThenLateForceOnAutomaticRestoreTwice);
+  UnregisterPublicAbiSyntheticHook(@PublicAbiHookLateAutomaticResetOnRegisterRestore);
 
   GPublicAbiHookDisableBackendEnabled := False;
   GPublicAbiHookDisableBackendArmed := False;
@@ -2334,12 +2363,7 @@ begin
     AssertTrue('Requested backend should start dispatchable before hook-driven mutation',
       IsBackendDispatchable(LRequestedBackend));
 
-    GPublicAbiHookDisableBackendOriginalTable := LOriginalTable;
-    GPublicAbiHookDisableBackendTarget := LRequestedBackend;
-    GPublicAbiHookDisableBackendEnabled := True;
-    GPublicAbiHookDisableBackendArmed := False;
-    GPublicAbiHookDisableBackendDone := False;
-    AddDispatchChangedHook(@PublicAbiHookDisableBackendOnce);
+    EnablePublicAbiDisableBackendHook(LRequestedBackend, LOriginalTable);
     try
       AssertFalse('TrySetActiveBackend should fail when hook-driven re-register makes the requested backend non-dispatchable before the call completes',
         TrySetActiveBackend(LRequestedBackend));
@@ -2351,10 +2375,7 @@ begin
       AssertTrue('Hook-driven re-selection should move public API active backend away from the requested backend',
         Integer(LApi^.ActiveBackendId) <> Ord(LRequestedBackend));
     finally
-      RemoveDispatchChangedHook(@PublicAbiHookDisableBackendOnce);
-      GPublicAbiHookDisableBackendEnabled := False;
-      GPublicAbiHookDisableBackendArmed := False;
-      GPublicAbiHookDisableBackendDone := False;
+      DisablePublicAbiDisableBackendHook;
       RegisterBackend(LRequestedBackend, LOriginalTable);
       if GetCurrentBackend <> LRequestedBackend then
         AssertTrue('Restoring original active backend should succeed',
@@ -2399,20 +2420,12 @@ begin
     AssertTrue('Requested backend should start dispatchable before public ABI lingering-force test',
       IsBackendDispatchable(LRequestedBackend));
 
-    GPublicAbiHookDisableBackendOriginalTable := LOriginalTable;
-    GPublicAbiHookDisableBackendTarget := LRequestedBackend;
-    GPublicAbiHookDisableBackendEnabled := True;
-    GPublicAbiHookDisableBackendArmed := False;
-    GPublicAbiHookDisableBackendDone := False;
-    AddDispatchChangedHook(@PublicAbiHookDisableBackendOnce);
+    EnablePublicAbiDisableBackendHook(LRequestedBackend, LOriginalTable);
     try
       AssertFalse('TrySetActiveBackend should fail when hook-driven mutation makes the requested backend non-dispatchable before completion',
         TrySetActiveBackend(LRequestedBackend));
     finally
-      RemoveDispatchChangedHook(@PublicAbiHookDisableBackendOnce);
-      GPublicAbiHookDisableBackendEnabled := False;
-      GPublicAbiHookDisableBackendArmed := False;
-      GPublicAbiHookDisableBackendDone := False;
+      DisablePublicAbiDisableBackendHook;
     end;
 
     RegisterBackend(LRequestedBackend, LOriginalTable);
@@ -2469,12 +2482,7 @@ begin
     AssertTrue('Requested backend should start dispatchable before public ABI failed-hook automatic-restore test',
       IsBackendDispatchable(LRequestedBackend));
 
-    GPublicAbiHookDisableBackendOriginalTable := LOriginalTable;
-    GPublicAbiHookDisableBackendTarget := LRequestedBackend;
-    GPublicAbiHookDisableBackendEnabled := True;
-    GPublicAbiHookDisableBackendArmed := False;
-    GPublicAbiHookDisableBackendDone := False;
-    AddDispatchChangedHook(@PublicAbiHookDisableBackendOnce);
+    EnablePublicAbiDisableBackendHook(LRequestedBackend, LOriginalTable);
     try
       AssertFalse('TrySetActiveBackend should fail when hook-driven mutation makes the requested backend non-dispatchable before public ABI automatic restore',
         TrySetActiveBackend(LRequestedBackend));
@@ -2492,10 +2500,7 @@ begin
       AssertEquals('Public API active flags should stay aligned with the automatic backend pod flags after failed hook-driven selection',
         LActiveInfo.Flags, LApi^.ActiveFlags);
     finally
-      RemoveDispatchChangedHook(@PublicAbiHookDisableBackendOnce);
-      GPublicAbiHookDisableBackendEnabled := False;
-      GPublicAbiHookDisableBackendArmed := False;
-      GPublicAbiHookDisableBackendDone := False;
+      DisablePublicAbiDisableBackendHook;
       RegisterBackend(LRequestedBackend, LOriginalTable);
       if GetCurrentBackend <> LAutomaticBackend then
         AssertTrue('Restoring original automatic backend after public ABI failed-hook restore test should succeed',
@@ -2564,12 +2569,7 @@ begin
     AssertTrue('Requested backend should start dispatchable before public ABI previous-forced rollback test',
       IsBackendDispatchable(LRequestedBackend));
 
-    GPublicAbiHookDisableBackendOriginalTable := LRequestedOriginalTable;
-    GPublicAbiHookDisableBackendTarget := LRequestedBackend;
-    GPublicAbiHookDisableBackendEnabled := True;
-    GPublicAbiHookDisableBackendArmed := False;
-    GPublicAbiHookDisableBackendDone := False;
-    AddDispatchChangedHook(@PublicAbiHookDisableBackendOnce);
+    EnablePublicAbiDisableBackendHook(LRequestedBackend, LRequestedOriginalTable);
     try
       AssertFalse('TrySetActiveBackend should fail when hook-driven mutation makes the requested backend non-dispatchable after a different backend was already forced',
         TrySetActiveBackend(LRequestedBackend));
@@ -2580,10 +2580,7 @@ begin
       AssertEquals('Public API active backend should keep tracking the actual current backend after previous-forced late-failure rollback',
         Ord(GetCurrentBackend), Integer(LApi^.ActiveBackendId));
     finally
-      RemoveDispatchChangedHook(@PublicAbiHookDisableBackendOnce);
-      GPublicAbiHookDisableBackendEnabled := False;
-      GPublicAbiHookDisableBackendArmed := False;
-      GPublicAbiHookDisableBackendDone := False;
+      DisablePublicAbiDisableBackendHook;
     end;
 
     RegisterBackend(LRequestedBackend, LRequestedOriginalTable);
@@ -2815,12 +2812,7 @@ begin
     AssertTrue('Requested backend should start dispatchable before public ABI SetActiveBackend late-failure test',
       IsBackendDispatchable(LRequestedBackend));
 
-    GPublicAbiHookDisableBackendOriginalTable := LRequestedOriginalTable;
-    GPublicAbiHookDisableBackendTarget := LRequestedBackend;
-    GPublicAbiHookDisableBackendEnabled := True;
-    GPublicAbiHookDisableBackendArmed := False;
-    GPublicAbiHookDisableBackendDone := False;
-    AddDispatchChangedHook(@PublicAbiHookDisableBackendOnce);
+    EnablePublicAbiDisableBackendHook(LRequestedBackend, LRequestedOriginalTable);
     try
       SetActiveBackend(LRequestedBackend);
       LApi := GetSimdPublicApi;
@@ -2832,10 +2824,7 @@ begin
       AssertTrue('Public API active backend should not silently drop to scalar fallback while a previous forced backend exists',
         Integer(LApi^.ActiveBackendId) <> Ord(sbScalar));
     finally
-      RemoveDispatchChangedHook(@PublicAbiHookDisableBackendOnce);
-      GPublicAbiHookDisableBackendEnabled := False;
-      GPublicAbiHookDisableBackendArmed := False;
-      GPublicAbiHookDisableBackendDone := False;
+      DisablePublicAbiDisableBackendHook;
     end;
 
     RegisterBackend(LRequestedBackend, LRequestedOriginalTable);

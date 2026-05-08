@@ -49,6 +49,7 @@ DISPATCH_CONTRACT_SIGNATURE_LOG="${LOG_DIR}/dispatch_contract_signature.txt"
 DISPATCH_CONTRACT_SIGNATURE_JSON_LOG="${LOG_DIR}/dispatch_contract_signature.json"
 PUBLIC_ABI_SIGNATURE_LOG="${LOG_DIR}/public_abi_signature.txt"
 PUBLIC_ABI_SIGNATURE_JSON_LOG="${LOG_DIR}/public_abi_signature.json"
+PUBLICABI_CONCURRENT_CHAIN_LOG="${LOG_DIR}/publicabi_concurrent_chain.txt"
 ADAPTER_SYNC_LOG="${LOG_DIR}/backend_adapter_sync.txt"
 ADAPTER_SYNC_JSON_LOG="${LOG_DIR}/backend_adapter_sync.json"
 WIRING_SYNC_LOG="${LOG_DIR}/wiring_sync.txt"
@@ -4159,6 +4160,15 @@ gate_step_publicabi_smoke() {
   run_publicabi_smoke || return $?
 }
 
+gate_step_publicabi_concurrent_chain() {
+  local LSuite
+
+  LSuite="TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework"
+  run_tests --suite="${LSuite}" || return $?
+  check_heap_leaks || return $?
+  cp "${TEST_LOG}" "${PUBLICABI_CONCURRENT_CHAIN_LOG}" || true
+}
+
 gate_step_adapter_sync_pascal() {
   run_backend_adapter_sync_pascal || return $?
 }
@@ -4986,6 +4996,7 @@ run_gate() {
   local LGateContractSignature
   local LGatePublicAbiSignature
   local LGatePublicAbiSmoke
+  local LGatePublicAbiConcurrentChain
   local LGateAdapterSyncPascal
   local LGateAdapterSync
   local LCpuinfoArtifactsRoot
@@ -5015,6 +5026,7 @@ run_gate() {
   LGateContractSignature="${SIMD_GATE_CONTRACT_SIGNATURE:-1}"
   LGatePublicAbiSignature="${SIMD_GATE_PUBLICABI_SIGNATURE:-1}"
   LGatePublicAbiSmoke="${SIMD_GATE_PUBLICABI_SMOKE:-1}"
+  LGatePublicAbiConcurrentChain="${SIMD_GATE_PUBLICABI_CONCURRENT_CHAIN:-1}"
   LGateAdapterSyncPascal="${SIMD_GATE_ADAPTER_SYNC_PASCAL:-1}"
   LGateAdapterSync="${SIMD_GATE_ADAPTER_SYNC:-1}"
   LGateParitySuites="${SIMD_GATE_PARITY_SUITES:-1}"
@@ -5028,7 +5040,7 @@ run_gate() {
     reset_gate_summary
   fi
 
-  append_gate_summary "gate" "START" "profile=${LGateProfile}; mode=${MODE}; interface-completeness=${LGateInterfaceCompleteness}; contract-signature=${LGateContractSignature}; publicabi-signature=${LGatePublicAbiSignature}; publicabi-smoke=${LGatePublicAbiSmoke}; adapter-sync-pascal=${LGateAdapterSyncPascal}; adapter-sync=${LGateAdapterSync}; parity-suites=${LGateParitySuites}; wiring=${LGateWiringSync}; coverage=${LGateCoverage}; perf=${SIMD_GATE_PERF_SMOKE:-0}; experimental=${SIMD_GATE_EXPERIMENTAL:-1}; experimental-tests=${SIMD_GATE_EXPERIMENTAL_TESTS:-0}; nonx86-ieee754=${SIMD_GATE_NONX86_IEEE754:-0}; cpuinfo-lazy-repeat=${SIMD_GATE_CPUINFO_LAZY_REPEAT:-0}; qemu-nonx86-evidence=${SIMD_GATE_QEMU_NONX86_EVIDENCE:-0}; qemu-cpuinfo-nonx86-evidence=${SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE:-0}; qemu-cpuinfo-nonx86-full-evidence=${SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE:-0}; qemu-cpuinfo-nonx86-full-repeat=${SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT:-0}; qemu-arch-matrix=${SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE:-0}; require-nonx86-native-evidence=${LGateRequireNonX86NativeEvidence}; require-win-evidence=${SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE:-0}; concurrent-repeat=${SIMD_GATE_CONCURRENT_REPEAT:-0}" "-" "START" "${BUILD_LOG}; ${TEST_LOG}; ${SIMD_WIRING_SYNC_LOG_FILE:-${WIRING_SYNC_LOG}}; ${SIMD_RISCVV_ABI_SHAPE_LOG_FILE:-${RISCVV_ABI_SHAPE_LOG}}; ${SIMD_NONX86_NATIVE_EVIDENCE_LOG_FILE:-${NONX86_NATIVE_EVIDENCE_LOG}}"
+  append_gate_summary "gate" "START" "profile=${LGateProfile}; mode=${MODE}; interface-completeness=${LGateInterfaceCompleteness}; contract-signature=${LGateContractSignature}; publicabi-signature=${LGatePublicAbiSignature}; publicabi-smoke=${LGatePublicAbiSmoke}; publicabi-concurrent-chain=${LGatePublicAbiConcurrentChain}; adapter-sync-pascal=${LGateAdapterSyncPascal}; adapter-sync=${LGateAdapterSync}; parity-suites=${LGateParitySuites}; wiring=${LGateWiringSync}; coverage=${LGateCoverage}; perf=${SIMD_GATE_PERF_SMOKE:-0}; experimental=${SIMD_GATE_EXPERIMENTAL:-1}; experimental-tests=${SIMD_GATE_EXPERIMENTAL_TESTS:-0}; nonx86-ieee754=${SIMD_GATE_NONX86_IEEE754:-0}; cpuinfo-lazy-repeat=${SIMD_GATE_CPUINFO_LAZY_REPEAT:-0}; qemu-nonx86-evidence=${SIMD_GATE_QEMU_NONX86_EVIDENCE:-0}; qemu-cpuinfo-nonx86-evidence=${SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE:-0}; qemu-cpuinfo-nonx86-full-evidence=${SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE:-0}; qemu-cpuinfo-nonx86-full-repeat=${SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT:-0}; qemu-arch-matrix=${SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE:-0}; require-nonx86-native-evidence=${LGateRequireNonX86NativeEvidence}; require-win-evidence=${SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE:-0}; concurrent-repeat=${SIMD_GATE_CONCURRENT_REPEAT:-0}" "-" "START" "${BUILD_LOG}; ${TEST_LOG}; ${PUBLICABI_CONCURRENT_CHAIN_LOG}; ${SIMD_WIRING_SYNC_LOG_FILE:-${WIRING_SYNC_LOG}}; ${SIMD_RISCVV_ABI_SHAPE_LOG_FILE:-${RISCVV_ABI_SHAPE_LOG}}; ${SIMD_NONX86_NATIVE_EVIDENCE_LOG_FILE:-${NONX86_NATIVE_EVIDENCE_LOG}}"
 
   if [[ "${LGateProfile}" == "release-gate" ]]; then
     echo "[GATE] Profile: release-gate (发布/closeout 完整门禁)"
@@ -5092,6 +5104,18 @@ run_gate() {
     fi
   else
     append_gate_summary "publicabi-smoke" "SKIP" "SIMD_GATE_PUBLICABI_SMOKE=0" "-" "SKIP" "${LPublicAbiArtifactsRoot}/logs/test.txt"
+  fi
+
+  if [[ "${LGatePublicAbiConcurrentChain}" != "0" ]]; then
+    echo "[GATE] Optional public ABI concurrent regression chain"
+    if ! run_gate_step "publicabi-concurrent-chain" "public ABI concurrent regression chain passed" "public ABI concurrent regression chain failed" "${PUBLICABI_CONCURRENT_CHAIN_LOG}" gate_step_publicabi_concurrent_chain; then
+      LGateEndMs="$(now_ms)"
+      LGateDurationMs="$(( LGateEndMs - LGateStartMs ))"
+      append_gate_summary "gate" "FAIL" "failed-step=publicabi-concurrent-chain" "${LGateDurationMs}" "FAILED"
+      return 1
+    fi
+  else
+    append_gate_summary "publicabi-concurrent-chain" "SKIP" "SIMD_GATE_PUBLICABI_CONCURRENT_CHAIN=0" "-" "SKIP" "${PUBLICABI_CONCURRENT_CHAIN_LOG}"
   fi
 
   if [[ "${LGateAdapterSyncPascal}" != "0" ]]; then
@@ -5436,6 +5460,7 @@ run_gate_strict() {
   SIMD_GATE_CONTRACT_SIGNATURE=1 \
   SIMD_GATE_PUBLICABI_SIGNATURE=1 \
   SIMD_GATE_PUBLICABI_SMOKE=1 \
+  SIMD_GATE_PUBLICABI_CONCURRENT_CHAIN=1 \
   SIMD_GATE_ADAPTER_SYNC_PASCAL=1 \
   SIMD_GATE_ADAPTER_SYNC=1 \
   SIMD_GATE_PARITY_SUITES=1 \

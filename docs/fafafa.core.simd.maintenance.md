@@ -71,6 +71,41 @@
 - `src/fafafa.core.simd.cpuinfo.pas`：CPU/OS 支持视图与能力判断入口
 - `src/fafafa.core.simd.STABLE`：公开 façade、in-repo dispatch contract 与 stable boundary 的真相源
 
+## 当前接口封边结论
+
+这一轮之后，`SIMD` 的接口分层应视为冻结：
+
+- `src/fafafa.core.simd.pas`：data-plane façade 与兼容别名出口
+- `src/fafafa.core.simd.runtime.pas`：canonical runtime / control-plane snapshot
+- `src/fafafa.core.simd.cpuinfo.pas`：CPU/OS capability-only 视图
+- `src/fafafa.core.simd.dispatch.pas`：更低层的 dispatch contract、hook 与 backend wiring
+
+后续默认不要再回到“命名是不是还要再改”“runtime/cpuinfo 要不要再换层”这种接口层反复重构。除非出现新的语义错误或兼容性问题，否则审查重点应放在：
+
+- 实现正确性
+- 并发一致性
+- fallback / wiring 真相
+- 非 x86 可移植性
+- 证据链是否新鲜且可复验
+
+## Runtime snapshot 发布模型
+
+`src/fafafa.core.simd.runtime.pas` 当前采用的是“target 指针 + version + 锁内 published snapshot cache”的发布模型，这一层不要随意回退到 cacheless rebuild。
+
+关键约束：
+
+- `TSimdRuntimeSnapshot` 是 control-plane 视图，并按值返回给调用方
+- snapshot 内部包含 `TSimdBackendInfo` 的 managed string，以及 backend 列表动态数组
+- 因此当前实现故意把最新已发布 snapshot 缓存在 `g_SimdRuntimeState`，并用 `g_SimdRuntimeRebindLock` 串起 publish / read 一致性
+- 失效信号使用 `g_SimdRuntimeTargetDispatchPtr + g_SimdRuntimeTargetVersion`
+- `TargetVersion` 明确使用 `UInt32`，避免重新引入 `armv7` 等平台缺失 `atomic_*_64` 的可移植性问题
+
+维护规则：
+
+- 只是触发 runtime 重新绑定时，维持现在的 invalidation + rebuild + publish 语义
+- 不要把这里“简化”为每次读取都 lockless 现算的 cacheless rebuild，除非你重新证明并发稳定性与 managed-field 生命周期安全
+- 任何想动这一层发布模型的改动，至少要重新通过 `gate`、`gate-strict`，以及当前 gate 中的 `publicabi-concurrent-chain` 回归组合；没有真实硬件时，还要保住现有 QEMU non-x86 evidence
+
 ### 后端层
 
 当前后端大致分三类：
@@ -214,6 +249,7 @@ bash tests/fafafa.core.simd/BuildOrTest.sh gate
 
 - `check` 负责编译卫生、基础 runner parity，以及默认启用的轻量静态检查。
 - `gate` 负责日常改动使用的快门禁 / 基础门禁；它会串联主要模块回归，并默认包含 `contract-signature` 与 `publicabi-signature` 这类结构护栏，但不会默认打开所有重检查。
+- `gate` 现在还默认包含 `publicabi-concurrent-chain`，固定重跑历史上真实炸过的组合：`TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`。
 - 如果你明确改了 `TSimdBackendInfo` / `TSimdDispatchTable` 的声明形状，先单独跑：
 
 ```bash
@@ -237,6 +273,8 @@ bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
 ```
 
 `gate-strict` 是发布门禁 / 完整门禁，会在 `gate` 的基础上额外打开性能烟测、repeat、non-x86 / evidence 等更重的检查。
+
+`interface-completeness` checker 的默认 JSON/Markdown 产物现在都应落到 `tests/fafafa.core.simd/logs/`。只有在你明确要刷新 tracked doc 时，才显式传 `--md-file tests/fafafa.core.simd/docs/interface_implementation_completeness.md`。
 
 ### 出现异常时先怀疑什么
 

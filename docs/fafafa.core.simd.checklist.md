@@ -4,6 +4,16 @@
 
 ## 现在应该做什么
 
+### 0. 先确认这轮是不是“实现问题”而不是“接口命名焦虑”
+
+当前 `SIMD` 的 façade/runtime/cpuinfo/dispatch 分层已经封边。没有新的语义 bug 证据时，不要再把时间花在接口命名、层次搬运、入口再分拆上；后续默认聚焦：
+
+- 实现正确性
+- 并发稳定性
+- fallback / wiring 完整性
+- non-x86 可移植性
+- 证据链新鲜度
+
 ### 1. 先读这三个文件
 
 - `docs/fafafa.core.simd.map.md`
@@ -35,6 +45,7 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate
 - `check`：编译卫生 + 基础 runner parity；现在还会 fresh 编译 `NEON/RISCVV` 的 opt-in `--list-suites` 路径，并带上 `check_riscvv_abi_shape.py`，专门防止 non-x86 opt-in compile drift / RISCVV hidden-result-pointer ABI 漂移再次躲过默认门禁
 - 两个 `--suite`：最关键的 dispatch / direct 回归
 - `gate`：日常改动使用的快门禁 / 基础门禁
+- `gate`：现在默认还会重跑历史爆炸组合 `TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`，用来盯住 runtime 发布 / public ABI / 并发框架交叉回归
 - 如果你改的是 `runtime / cpuinfo / dataplane / façade` 这一层接口边界，优先再补两条：
 
 ```bash
@@ -62,6 +73,8 @@ bash tests/fafafa.core.simd/BuildOrTest.sh contract-signature
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh publicabi-signature
 ```
+
+- 如果你只是手动跑 `interface-completeness` checker，默认产物现在应该进入 `tests/fafafa.core.simd/logs/interface_completeness.{json,md}`；只有在明确刷新 tracked doc 时，才显式传 `--md-file tests/fafafa.core.simd/docs/interface_implementation_completeness.md`
 
 ### 4. 准备 closeout / release 再跑完整门禁
 
