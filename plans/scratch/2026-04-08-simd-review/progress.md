@@ -86,3 +86,11 @@
   - `python3 tests/fafafa.core.simd/check_public_abi_signature.py --summary-line`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+- 当前 release closeout 收口状态更新：
+  - `git push origin main` 已完成，远端 `main` 已对齐到 `9859f520`，GH Windows evidence 可以消费当前 SIMD HEAD。
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-20260508-152` 已真实触发 GitHub Actions dispatch。
+  - 本次 GH run `25544888689` 未进入 Windows job 执行，直接失败于账户额度/账单限制，而不是 SIMD 构建或测试失败。
+  - 随后 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight` 已 fail-close 返回 `RECENT_BILLING_BLOCK`，说明当前 blocker 已被预检稳定记住。
+- 当前 stop-point：
+  - Linux/QEMU/mainline gate 已绿，`freeze-status` 仍只红在 Windows evidence freshness/source-newer-than-evidence。
+  - 要继续完成 Task 4/5，必须先恢复 GitHub Actions Billing/额度，或者提供一份基于当前 `9859f520` 的 fresh Windows evidence 供 `win-evidence-via-gh <batch-id> <run-id>` / manual finalize 消费。
