@@ -106,4 +106,5 @@
 | 1. 识别当前计划的局部性边界 | completed | 已确认 `SSE2` 方案适合作为高债务试点，但不足以覆盖 `AVX2/AVX-512/NEON/RISCVV` 等 family 的全局治理 |
 | 2. 写出全模块统一终态与冗余定义 | completed | 已新增全局总纲，明确 `public/control surface -> seam -> companion -> adapter -> raw leaf` 的统一目标，并把“真相源/语义/入口/状态冗余”分开定义 |
 | 3. 定义全 ISA 分组与波次 | completed | 已把 family 拆成正样板、高债务、adapter-only、opt-in experimental 四类，并把 `SSE2` 降级成 Wave 3 子计划 |
-| 4. 把新总纲接入当前阅读入口 | in_progress | 已把全局总纲接入 `map`；剩余是 review + commit |
+| 4. 把新总纲接入当前阅读入口 | completed | 已把全局总纲接入 `map`，并确认后续新会话可从全模块入口起盘 |
+| 5. 补 execution-ready 文档部件 | completed | 已新增 family matrix，并把总纲/source-of-truth 分工与 Wave exit criteria 补全 |

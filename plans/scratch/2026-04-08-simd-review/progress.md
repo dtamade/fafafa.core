@@ -226,3 +226,17 @@
   - “不要冗余”不是删层，而是消灭真相源冗余、语义冗余、入口冗余、状态冗余
   - ISA family 按 `正样板 / 高债务 / adapter-only / opt-in experimental` 四类分波次推进
 - `docs/fafafa.core.simd.map.md` 已补入口，后续新会话如果要做“整个 simd 怎么重构”，不再需要先从 `SSE2` 子问题切入。
+- 进一步检查后，确认这份总纲当时还不够 execution-ready，原因不是方向错，而是缺两块：
+  - 全 ISA `family matrix`
+  - 文档 source-of-truth 分工与各 Wave 退出条件
+- 本轮已继续补完：
+  - 新增 `docs/plans/2026-05-09-simd-family-matrix.md`
+  - 在 `docs/plans/2026-05-09-simd-global-architecture-refactor-plan.md` 中补入：
+    - 文档分工表
+    - 当前完善度判断
+    - `Wave 1~4` 的退出条件补充
+- `map` 已同步增加 family matrix 入口，因此当前 whole-module refactor 文档链已变成：
+  - `global plan` 负责总纲
+  - `family matrix` 负责执行排程
+  - `layering implementation` 负责架构裁决
+  - `backend truth` / `intrinsics disposition` 负责状态表

@@ -21,6 +21,7 @@
 如果你这次要回答“整个 simd 模块该怎么整体重构，不能只盯 `SSE2`”，再看：
 
 - `docs/plans/2026-05-09-simd-global-architecture-refactor-plan.md`
+- `docs/plans/2026-05-09-simd-family-matrix.md`
 
 ## 第一层：对外入口
 

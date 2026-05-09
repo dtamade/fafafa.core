@@ -213,6 +213,49 @@ raw leaves
 - replacement 已进入正确 disposition
 - gate 能持续守住边界
 
+## 这套文档各自负责什么
+
+这轮 whole-module refactor 不再允许“每份文档都讲一点，但没有唯一真相源”。
+
+从现在开始按下面的分工看：
+
+| 文档 | 责任 |
+| --- | --- |
+| `docs/plans/2026-05-09-simd-global-architecture-refactor-plan.md` | whole-module 总纲、波次、完成标准 |
+| `docs/plans/2026-05-09-simd-family-matrix.md` | 各 ISA family 的执行矩阵：truth source / disposition / verification lane / next action |
+| `docs/SIMD_LAYERING_IMPLEMENTATION.md` | 架构裁决基线：层次、seam、companion、准入规则 |
+| `docs/SIMD_BACKEND_TRUTH.md` | 当前 stable backend truth source 表 |
+| `docs/SIMD_INTRINSICS_DISPOSITION.md` | 各 intrinsics 单元状态表 |
+| `docs/SIMD_SSE2_MIGRATION_MAP.md` | `SSE2` family 的局部迁移图 |
+| `docs/fafafa.core.simd.implementation-matrix.md` | non-x86 implementation working ledger |
+| `docs/fafafa.core.simd.map.md` | 阅读入口，不承载新的设计真相 |
+
+规则：
+
+1. 总纲只定义全局规则，不重复抄 family 级细节。
+2. family 细节进入 `family matrix` 或该 family 的局部迁移图。
+3. 阅读地图只做导航，不再承载裁决性判断。
+
+## 我对当前计划的判断
+
+这份计划现在已经从“方向正确”进入“可以执行”，但还不能算完全完善。
+
+### 现在已经具备的部分
+
+- 有统一终态，不再是 `SSE2-first` 局部视角。
+- 有统一准入规则，不再让每个 family 自己发明稳定性边界。
+- 有波次，不再是散点翻文件。
+- 有显式的 `family matrix`。
+- 有文档分工，不再让总纲、状态表、阅读地图互相抢 source-of-truth。
+
+### 还不够的部分
+
+- `AVX2` 还没有单独的正样板文档。
+- `NEON / RISCVV` 还没有 family-specific qualification plan。
+- `SSE3 / SSSE3 / SSE4.1 / SSE4.2 / AVX-512` 还没有共享的 x86 incremental qualification plan。
+
+因此，这份计划现在已经是 `execution-ready`，但还不是 `closeout-complete`。
+
 ## 工作流分波次
 
 ## Wave 1：冻结总纲与 family matrix
@@ -228,6 +271,12 @@ raw leaves
 - family matrix
 - 每个 family 的 truth/disposition/verification lane 表
 
+退出条件：
+
+- `docs/plans/2026-05-09-simd-family-matrix.md` 存在并覆盖当前 active families
+- 总纲、matrix、layering doc 三者分工不冲突
+- 后续执行可以不再从 `SSE2` 子问题重新起盘
+
 ## Wave 2：收紧 control/publication seam
 
 目标：
@@ -240,6 +289,7 @@ raw leaves
 - backend 选择只认 `dispatch`
 - published binding 只认 `dataplane`
 - companion surface 不再私自拥有第二套 truth
+- 文档层面不再有人把 `public ABI` / `direct` / façade fast-path 当成独立控制面
 
 ## Wave 3：建立 x86 family 样板
 
@@ -258,6 +308,7 @@ raw leaves
 - `SSE2` 不再被当成全模块例外语义黑洞
 - `AVX2` 被正式提炼成可复制样板
 - 其他 x86 family 都被归入统一 matrix，而不是分散在历史脚本和注释里
+- 至少一条 `experimental isolated -> active leaf` 或 `hold isolated` 的判定流程被文档化证明
 
 ## Wave 4：建立 non-x86 family 样板
 
@@ -276,6 +327,7 @@ raw leaves
 
 - non-x86 不再只有 adapter 入口，没有 raw-leaf qualification 计划
 - opt-in / stable / experimental 边界对所有非 x86 family 都清晰可验证
+- `NEON` / `RISCVV` 至少各有一条 family-specific qualification 路线
 
 ## Wave 5：消减冗余并冻结删除策略
 
@@ -311,11 +363,10 @@ raw leaves
 
 ## 下一步
 
-先不要继续写单个 family 的局部迁移方案。
-
 下一步应该是：
 
-1. 基于这份总纲，补一张全模块 `family matrix`
-2. 把现有 `SSE2` 计划降级成 `Wave 3` 里的一个子计划
-3. 明确 `AVX2`、`NEON`、`RISCVV` 分别属于“正样板 / adapter-only / opt-in experimental”的哪一类
-4. 再开始逐 family 执行 qualification / promote / split / retire
+1. 给 `AVX2` 补一页正样板文档，明确可复制的 adapter -> active leaf 模式
+2. 给 `NEON` 和 `RISCVV` 各补一页 family-specific qualification plan
+3. 给 `SSE3 / SSSE3 / SSE4.1 / SSE4.2 / AVX-512` 补一页共享 x86 incremental qualification plan
+4. 把现有 `SSE2` 计划继续保留在 `Wave 3`，作为高债务试点子计划
+5. 然后再按 matrix 执行 qualification / promote / split / retire

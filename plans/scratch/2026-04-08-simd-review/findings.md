@@ -309,3 +309,22 @@
   - `AVX2` 应作为正样板，被显式提炼成可复制模式
   - `SSE2` 应作为高债务试点，被放在 Wave 3，而不是继续充当整个模块的代名词
   - `NEON/RISCVV/AVX-512` 等 family 后续也必须进矩阵，而不是留在“以后再说”的状态
+
+## 2026-05-09 Plan Completeness Review
+
+- 我对当前重构计划的判断更新为：
+  - 在补 matrix 之前，它是 `architecture-correct`
+  - 在补完 matrix、文档分工、Wave exit criteria 之后，它才进入 `execution-ready`
+- 这次补完后的关键改进不是“多写了一份表”，而是把 3 个常见失控点堵上了：
+  - 不再让 `SSE2` 子计划冒充全模块主线
+  - 不再让阅读地图、状态表、总纲互相抢 source-of-truth
+  - 不再让每个 family 的下一动作只存在于聊天上下文里
+- 但它仍然没有到 `closeout-complete`，因为下面几类文档还没单独展开：
+  - `AVX2` 正样板文档
+  - `NEON` family qualification plan
+  - `RISCVV` family qualification plan
+  - `x86 incremental families` 共享 qualification plan
+- 所以“这份计划完善了吗”的准确回答是：
+  - **已经够启动 whole-module refactor**
+  - **但还没完整到可以一口气收所有 family**
+  - **接下来应继续按 matrix 补 family-level 子计划，而不是回头重写总纲**
