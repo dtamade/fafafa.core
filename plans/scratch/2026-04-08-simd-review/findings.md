@@ -341,3 +341,20 @@
 - 计划完善度因此进一步更新为：
   - **planning/documentation: execution-ready with main family plans present**
   - **implementation/refactor rollout: still pending actual code waves**
+
+## 2026-05-10 Execution Index Addition
+
+- 当前最大的“实施摩擦”已经不是缺总纲，而是：
+  - 文档链变完整之后，新会话很容易不知道第一步该进哪一页
+  - 使用者需要自己从 `global plan -> matrix -> family plan -> scratch` 手动解压执行顺序
+- 这类摩擦不会靠再补架构原则解决，所以新增了单页执行索引：
+  - `docs/plans/2026-05-10-simd-execution-index.md`
+- 这页的作用不是替代总纲，而是把 whole-module 计划压成一条固定起手顺序：
+  - 先看当前波次
+  - 再看 family matrix
+  - 再进对应 family plan
+  - 先跑 baseline
+  - 改完后只更新 family plan / matrix / scratch
+- 结论：
+  - **现在已经存在一个可以让总计划正常实施的执行索引**
+  - 后续如果计划再扩张，应优先维护 execution index，而不是再让使用者自己从总纲里提取顺序

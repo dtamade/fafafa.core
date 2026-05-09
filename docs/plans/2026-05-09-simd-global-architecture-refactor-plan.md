@@ -221,6 +221,7 @@ raw leaves
 
 | 文档 | 责任 |
 | --- | --- |
+| `docs/plans/2026-05-10-simd-execution-index.md` | 下次开会话时的单页实施入口：先做什么、再做什么、改完后更新哪里 |
 | `docs/plans/2026-05-09-simd-global-architecture-refactor-plan.md` | whole-module 总纲、波次、完成标准 |
 | `docs/plans/2026-05-09-simd-family-matrix.md` | 各 ISA family 的执行矩阵：truth source / disposition / verification lane / next action |
 | `docs/SIMD_LAYERING_IMPLEMENTATION.md` | 架构裁决基线：层次、seam、companion、准入规则 |

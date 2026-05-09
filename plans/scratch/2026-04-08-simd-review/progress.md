@@ -246,3 +246,12 @@
   - `docs/plans/2026-05-09-simd-neon-qualification-plan.md`
   - `docs/plans/2026-05-09-simd-riscvv-qualification-plan.md`
 - 这一步的意义是把 whole-module 计划从“有总纲、有矩阵”推进到“每个主要波次都已有可执行入口”，后续不再需要从聊天里追问 `AVX2/NEON/RISCVV/x86 incremental` 分别该怎么做。
+- 用户进一步指出真正的摩擦点是“总计划虽全，但下次开会话不知道从哪开始”。
+- 因此本轮又补了一份单页执行索引：
+  - `docs/plans/2026-05-10-simd-execution-index.md`
+- 这页专门回答：
+  - 下次开会话先看什么
+  - 当前默认执行队列是什么
+  - 选某个 family 后应该进哪份文档
+  - baseline 先跑哪几条
+  - 改完后只更新哪几处
