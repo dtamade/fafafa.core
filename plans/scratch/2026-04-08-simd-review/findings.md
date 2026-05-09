@@ -320,11 +320,24 @@
   - 不再让阅读地图、状态表、总纲互相抢 source-of-truth
   - 不再让每个 family 的下一动作只存在于聊天上下文里
 - 但它仍然没有到 `closeout-complete`，因为下面几类文档还没单独展开：
-  - `AVX2` 正样板文档
-  - `NEON` family qualification plan
-  - `RISCVV` family qualification plan
-  - `x86 incremental families` 共享 qualification plan
+  - `SSE2` promote / split / retire 决策文档
+  - `SSSE3` raw-leaf target 明确化
+  - `AES/SHA/AVX/FMA3/SVE/SVE2/LASX` future trigger 文档
 - 所以“这份计划完善了吗”的准确回答是：
   - **已经够启动 whole-module refactor**
   - **但还没完整到可以一口气收所有 family**
-  - **接下来应继续按 matrix 补 family-level 子计划，而不是回头重写总纲**
+  - **接下来应继续按 matrix 推进 family-level 执行与剩余 closeout 文档，而不是回头重写总纲**
+
+## 2026-05-09 Family-Level Plan Expansion
+
+- 现在 whole-module 文档链已经不只停在总纲和 matrix：
+  - `AVX2` 已单独被写成 active-leaf 正样板
+  - `NEON` 已单独被写成 family qualification plan
+  - `RISCVV` 已单独被写成 family qualification plan
+  - `SSE3/SSSE3/SSE4.1/SSE4.2/AVX-512` 已被收口到共享 x86 incremental qualification plan
+- 这意味着当前文档系统已经回答了两类不同问题：
+  - “整个 simd 模块该怎么重构”
+  - “到了某个 family，这一波具体按什么口径执行”
+- 计划完善度因此进一步更新为：
+  - **planning/documentation: execution-ready with main family plans present**
+  - **implementation/refactor rollout: still pending actual code waves**

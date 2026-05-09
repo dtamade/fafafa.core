@@ -108,3 +108,4 @@
 | 3. 定义全 ISA 分组与波次 | completed | 已把 family 拆成正样板、高债务、adapter-only、opt-in experimental 四类，并把 `SSE2` 降级成 Wave 3 子计划 |
 | 4. 把新总纲接入当前阅读入口 | completed | 已把全局总纲接入 `map`，并确认后续新会话可从全模块入口起盘 |
 | 5. 补 execution-ready 文档部件 | completed | 已新增 family matrix，并把总纲/source-of-truth 分工与 Wave exit criteria 补全 |
+| 6. 补 family-level 子计划 | completed | 已新增 AVX2 正样板、x86 incremental qualification、NEON qualification、RISCVV qualification 四份文档，whole-module 计划不再卡在总纲层 |

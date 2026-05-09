@@ -250,9 +250,9 @@ raw leaves
 
 ### 还不够的部分
 
-- `AVX2` 还没有单独的正样板文档。
-- `NEON / RISCVV` 还没有 family-specific qualification plan。
-- `SSE3 / SSSE3 / SSE4.1 / SSE4.2 / AVX-512` 还没有共享的 x86 incremental qualification plan。
+- `SSE2` 还没有进入 promote / split / retire 的决策文档阶段。
+- `SSSE3` 的 raw-leaf 目标还没有在真相文档里被显式写死。
+- `AES / SHA / AVX / FMA3 / SVE / SVE2 / LASX` 目前仍只有 hold 判断，没有 future trigger 文档。
 
 因此，这份计划现在已经是 `execution-ready`，但还不是 `closeout-complete`。
 
@@ -365,8 +365,8 @@ raw leaves
 
 下一步应该是：
 
-1. 给 `AVX2` 补一页正样板文档，明确可复制的 adapter -> active leaf 模式
-2. 给 `NEON` 和 `RISCVV` 各补一页 family-specific qualification plan
-3. 给 `SSE3 / SSSE3 / SSE4.1 / SSE4.2 / AVX-512` 补一页共享 x86 incremental qualification plan
-4. 把现有 `SSE2` 计划继续保留在 `Wave 3`，作为高债务试点子计划
-5. 然后再按 matrix 执行 qualification / promote / split / retire
+1. 继续维护 `AVX2 / NEON / RISCVV / x86 incremental` 这 4 份 family-level 文档，避免它们重新漂回聊天上下文
+2. 把现有 `SSE2` 计划继续保留在 `Wave 3`，作为高债务试点子计划
+3. 先补 `SSSE3` raw-leaf target 真相
+4. 再按 matrix 执行 qualification / promote / split / retire
+5. 最后再补 `SSE2 retire target` 与 `experimental hold future trigger` 这两类 closeout 级文档

@@ -60,14 +60,14 @@
 
 1. `SSSE3` 的 raw-leaf 目标没有在当前真相文档里被显式写死。
 2. `SSE3/SSE4.1/SSE4.2/AVX-512` 只有 isolation / smoke，但缺 family-specific raw parity 文档。
-3. `NEON/RISCVV` 的 non-x86 working ledger 已存在，但还没被提升成和 `SSE2` 一样的 family-level migration doc。
+3. `NEON/RISCVV` 虽然已有 family-level qualification plan，但还没有进入 promote / hold-decision 文档阶段。
 4. `AES/SHA/AVX/FMA3/SVE/SVE2/LASX` 目前还只有“继续隔离”的判断，没有明确的 future trigger。
 
 因此它是 **execution-ready**，但还不是 **closeout-complete**。
 
 ## 下一步文档动作
 
-1. 给 `AVX2` 补一页 family sample 文档，明确为什么它是 active-leaf 正样板。
-2. 给 `NEON` 和 `RISCVV` 各补一页 family qualification plan。
-3. 给 `x86 incremental families` 补一页共享 qualification plan，覆盖 `SSE3/SSSE3/SSE4.1/SSE4.2/AVX-512`。
+1. 继续维护 `docs/plans/2026-05-09-simd-avx2-active-leaf-sample.md`，把 `AVX2` 作为 active-leaf 正样板守住。
+2. 继续维护 `docs/plans/2026-05-09-simd-neon-qualification-plan.md` 与 `docs/plans/2026-05-09-simd-riscvv-qualification-plan.md`，把 non-x86 family 的 qualification 入口固定下来。
+3. 继续维护 `docs/plans/2026-05-09-simd-x86-incremental-qualification-plan.md`，统一 `SSE3/SSSE3/SSE4.1/SSE4.2/AVX-512` 这组 family 的 qualification 口径。
 4. 等 `SSE2` 进入 promote / split 决策时，再补 `retire target` 清单。

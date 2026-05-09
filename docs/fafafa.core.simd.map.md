@@ -23,6 +23,13 @@
 - `docs/plans/2026-05-09-simd-global-architecture-refactor-plan.md`
 - `docs/plans/2026-05-09-simd-family-matrix.md`
 
+如果你已经接受 whole-module 总纲，准备按 family 逐波次推进，再按类别看：
+
+- `docs/plans/2026-05-09-simd-avx2-active-leaf-sample.md`
+- `docs/plans/2026-05-09-simd-x86-incremental-qualification-plan.md`
+- `docs/plans/2026-05-09-simd-neon-qualification-plan.md`
+- `docs/plans/2026-05-09-simd-riscvv-qualification-plan.md`
+
 ## 第一层：对外入口
 
 从这里开始，先理解模块对外承诺什么：
