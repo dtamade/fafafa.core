@@ -215,3 +215,14 @@
   - `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line`
   - `python3 tests/fafafa.core.simd/check_intrinsics_experimental_status.py --summary-line`
   - 结果：全部通过
+- 用户随后明确目标不是“收 `SSE2` 计划”，而是“把整个 simd 模块重构好，不要冗余，正确架构”。
+- 因此本轮记录已从 `SSE2-first` pivot 到 whole-module 视角：
+  - `SSE2` 保留为高债务试点 family
+  - 不再把 `SSE2` 的局部迁移策略当成整个模块的总规划
+- 已新增全局总纲：
+  - `docs/plans/2026-05-09-simd-global-architecture-refactor-plan.md`
+- 这份总纲当前明确了：
+  - 全模块终态：`public/control surface -> control/publication seam -> companion surfaces -> backend adapters -> raw leaves`
+  - “不要冗余”不是删层，而是消灭真相源冗余、语义冗余、入口冗余、状态冗余
+  - ISA family 按 `正样板 / 高债务 / adapter-only / opt-in experimental` 四类分波次推进
+- `docs/fafafa.core.simd.map.md` 已补入口，后续新会话如果要做“整个 simd 怎么重构”，不再需要先从 `SSE2` 子问题切入。

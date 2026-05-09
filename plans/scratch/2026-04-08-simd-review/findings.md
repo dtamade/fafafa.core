@@ -278,3 +278,34 @@
   - `SSE2_MIGRATION_MAP` 的 A 桶现在只是目标归属图
   - 只要 `intrinsics.x86.sse2` 仍是 `experimental isolated`，stable `simd.sse2` 就不应新增对它的默认依赖
   - 下一轮真正的第一个动作，不是直接让 adapter 委托过去，而是先把目标 leaf 做到“可准入判断”：补 raw tests，然后做 promote 或 split 决策
+
+## 2026-05-09 Whole-Module Refactor Pivot
+
+- 如果目标是“整个 simd 模块重构好，不要冗余，正确架构”，那么当前 `SSE2` 计划必须降级成局部子计划，不能再被当成总规划。
+- `SSE2` 之所以先被详细写，是因为它同时带着：
+  - 当前 stable adapter truth source
+  - transitional wrapper
+  - future raw leaf target
+  这三重身份，债务最集中。
+- 但其他 ISA family 并不是没被考虑，而是状态不同：
+  - `Scalar/MMX/SSE/AVX2` 更接近“可作为正样板”的状态
+  - `SSE3/SSSE3/SSE4.1/SSE4.2/AVX-512/NEON/RISCVV` 属于“已有 adapter，但 raw leaf 还没完成准入”的一组
+  - `AES/SHA/AVX/FMA3/SVE/SVE2/LASX` 仍应停留在 opt-in experimental lane
+- 因此整体重构不应按“一个 family 一个例外规则”推进，而应按统一治理模型推进：
+  - 先统一层次：`public/control surface -> seam -> companion -> adapter -> raw leaf`
+  - 再统一状态：`active leaf / experimental isolated / transitional / retire target`
+  - 再统一准入：stable adapter 只允许新增依赖 `active leaf`
+- 对“冗余”的最新定义已经收敛成 4 类，而不只是“文件太多”：
+  - 真相源冗余：同一 family 同时有多个 current truth source
+  - 语义冗余：同一 raw primitive 在 adapter / wrapper / leaf 长期复制
+  - 入口冗余：backend 选择、published binding、ABI/direct 各自维护第二套真相
+  - 状态冗余：每个 family 自己发明能否进入 stable adapter 的规则
+- 全模块的正确推进顺序应是：
+  1. 冻结 global refactor plan
+  2. 建立全 ISA family matrix
+  3. 先收紧 `dispatch/dataplane/public ABI/direct` 的统一边界
+  4. 再按 family 分波次做 qualification / promote / split / retire
+- 这意味着：
+  - `AVX2` 应作为正样板，被显式提炼成可复制模式
+  - `SSE2` 应作为高债务试点，被放在 Wave 3，而不是继续充当整个模块的代名词
+  - `NEON/RISCVV/AVX-512` 等 family 后续也必须进矩阵，而不是留在“以后再说”的状态

@@ -18,6 +18,10 @@
 
 - `docs/SIMD_LAYERING_IMPLEMENTATION.md`
 
+如果你这次要回答“整个 simd 模块该怎么整体重构，不能只盯 `SSE2`”，再看：
+
+- `docs/plans/2026-05-09-simd-global-architecture-refactor-plan.md`
+
 ## 第一层：对外入口
 
 从这里开始，先理解模块对外承诺什么：
