@@ -304,7 +304,7 @@ begin
 end;
 
 // === SSE4.1 Blending ===
-// More efficient than SSE2 bit operations for selecting elements
+// Keep the native blend kernel in one place; bitmask-based selection wraps it.
 
 // Blend based on immediate mask
 function SSE41BlendF32x4_1(const a, b: TVecF32x4): TVecF32x4;
@@ -322,27 +322,24 @@ end;
 
 // Variable blend using mask vector (SSE4.1 blendvps)
 function SSE41BlendVF32x4(const a, b: TVecF32x4; const mask: TMaskF32x4): TVecF32x4;
+var
+  pmask, pa, pb, pr: Pointer;
 begin
+  pmask := @mask;
+  pa := @a;
+  pb := @b;
+  pr := @Result;
   asm
-    lea    rax, a
-    lea    rdx, b
-    lea    rcx, mask
-    movups xmm0, [rax]
-    movups xmm1, [rdx]
-    movups xmm2, [rcx]
-    // Move mask to xmm0 implicit operand
-    movaps xmm3, xmm2
-    movaps xmm0, [rax]
-    movaps xmm1, [rdx]
-    // blendvps uses xmm0 implicitly as mask, which is inconvenient
-    // We need to shuffle: xmm0=mask for blendvps xmm1, xmm2
-    // Actually: blendvps xmm1, xmm2, <xmm0> selects from xmm2 where xmm0 high bit set
-    movaps xmm0, xmm3       // mask -> xmm0
-    movaps xmm1, [rax]      // a
-    movaps xmm2, [rdx]      // b
-    // blendvps xmm1, xmm2, xmm0: for each element, if xmm0 high bit set, take from xmm2
-    blendvps xmm1, xmm2         // xmm0 is implicit mask operand in FPC
-    movups [result], xmm1
+    mov    rax, pmask
+    mov    rdx, pa
+    mov    r8, pb
+    mov    rcx, pr
+    movups xmm0, [rax]       // mask
+    movups xmm1, [rdx]       // a
+    movups xmm2, [r8]        // b
+    // If mask lane is set, take from a; otherwise take from b.
+    blendvps xmm2, xmm1
+    movups [rcx], xmm2
   end;
 end;
 
@@ -764,33 +761,16 @@ end;
 // ✅ NEW: SSE4.1 Select operations using BLENDVPS
 function SSE41SelectF32x4(const mask: TMask4; const a, b: TVecF32x4): TVecF32x4;
 var
-  pmask, pa, pb, pr: Pointer;
-  maskVec: TVecI32x4;
+  maskVec: TMaskF32x4;
   i: Integer;
 begin
-  // Expand mask bits to full vector mask
   for i := 0 to 3 do
     if (mask shr i) and 1 <> 0 then
-      maskVec.i[i] := Int32($FFFFFFFF)
+      maskVec.m[i] := $FFFFFFFF
     else
-      maskVec.i[i] := 0;
+      maskVec.m[i] := 0;
 
-  pmask := @maskVec;
-  pa := @a;
-  pb := @b;
-  pr := @Result;
-  asm
-    mov    rax, pmask
-    mov    rdx, pa
-    mov    r8, pb
-    mov    rcx, pr
-    movdqu xmm0, [rax]       // mask -> xmm0 (implicit for blendvps)
-    movups xmm1, [rdx]       // a (source when mask bit set)
-    movups xmm2, [r8]        // b (destination when mask bit clear)
-    // blendvps: xmm2 = (mask[i] < 0) ? xmm1[i] : xmm2[i]
-    blendvps xmm2, xmm1
-    movups [rcx], xmm2
-  end;
+  Result := SSE41BlendVF32x4(a, b, maskVec);
 end;
 
 // === Backend Registration ===

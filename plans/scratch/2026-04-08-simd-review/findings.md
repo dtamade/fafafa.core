@@ -514,3 +514,14 @@
 - `SelectF32x16 / SelectF64x8 / ClampF32x16 / ClampF64x8` 现在保持 native AVX-512 最优实现，不应为了“统一风格”降成 scalar 或 AVX2 wrapper。
 - `Utf8Validate / MemReverse / MemDiffRange / BytesIndexOf` 继续保持为故意继承的 AVX2 slots，不是 AVX512 的实现缺口。
 - 因此 `AVX512` 当前应继续 hold green；下一轮重复实现清理不应优先从这条线开刀。
+
+## 2026-05-11 SSE4.1 Blend Kernel Consolidation
+
+- `SSE41SelectF32x4` 之前把 mask 展开和 `blendvps` 调用都自己写了一遍，和同单元里的 `SSE41BlendVF32x4` 形成了重复的选择逻辑。
+- 现在 `SSE41SelectF32x4` 只负责把 `TMask4` 展开成 `TMaskF32x4`，真正的 native blend kernel 统一收在 `SSE41BlendVF32x4`。
+- 这样保留了 `SelectF32x4` 这个 dispatch-owned slot 的语义，同时把 SSE4.1 的 bitmask selection 逻辑收成单一实现。
+- release 验证已通过：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`

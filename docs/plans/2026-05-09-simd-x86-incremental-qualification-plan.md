@@ -46,6 +46,7 @@
 - 当前关键判断：
   - representative hardware slots 继续 backend-owned
   - inherited reduction path 继续 clone `SSSE3`
+  - `SelectF32x4` 现在只是 bitmask wrapper，真正的 native blend kernel 收在 `SSE41BlendVF32x4`
 
 ### `SSE4.2`
 

@@ -226,3 +226,17 @@
 | 1. 识别边界语义漂移 | completed | 已确认 `SSE2.wide_emulation.inc` 里 18 个 wide extract/insert helper 都在用 wrap-around 索引，而 scalar/reference 走 clamp |
 | 2. 统一边界语义 | completed | 这批 wide extract/insert 已改成直接委托 scalar reference helper，dispatch ownership 保持不变 |
 | 3. Release 验证与收口 | completed | `git diff --check`、`TTestCase_DispatchAPI,TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、`gate` 均已通过 |
+
+## 2026-05-11 SSE4.1 Blend Kernel Consolidation
+
+### Goal
+
+把 `SSE4.1` 的 bitmask selection 收成单一 native blend kernel，避免 `SelectF32x4` 自己再维护一份 `blendvps` 序列。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别重复 blend 路径 | completed | `SSE41SelectF32x4` 与 `SSE41BlendVF32x4` 之前各自维护一份选择/混合逻辑 |
+| 2. 收口到单一 kernel | completed | `SSE41SelectF32x4` 现在只做 `TMask4 -> TMaskF32x4` 展开，然后委托 `SSE41BlendVF32x4` |
+| 3. Release 验证与收口 | completed | `git diff --check`、`check`、`TTestCase_DispatchAPI`、`gate` 均已通过 |

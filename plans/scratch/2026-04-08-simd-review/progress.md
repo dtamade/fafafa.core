@@ -313,6 +313,8 @@
 - 2026-05-11: SSE2 lane helper consolidation 已完成 release 验证：`git diff --check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 全部通过。
 - 2026-05-11: 开始 SSE2 wide-emulation boundary normalization，把 18 个 wide extract/insert helper 从 wrap-around 索引收回到 scalar clamp 语义，避免 SSE2 wide emulation 和其余 helper 契约分叉。
 - 2026-05-11: SSE2 wide-emulation boundary normalization 已完成 release 验证：`git diff --check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 全部通过。
+- 2026-05-11: SSE4.1 blend kernel consolidation 已完成：`SSE41SelectF32x4` 现在只是 bitmask wrapper，内部统一委托 `SSE41BlendVF32x4` 作为单一 native blend kernel。
+- 2026-05-11: SSE4.1 blend kernel consolidation 已完成 release 验证：`git diff --check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 全部通过。
 
 ## 2026-05-11 Runtime State Simplification
 
