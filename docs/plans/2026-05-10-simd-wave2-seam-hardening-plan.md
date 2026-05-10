@@ -4,6 +4,8 @@
 
 **Architecture:** 这一波不处理 `SSE2/AVX2/NEON/RISCVV` family 迁移，不改 raw-leaf disposition，不扩 stable backend 依赖面。唯一目标是把 control-plane truth 固定在 `dispatch`，把 published binding truth 固定在 `dataplane`，并让 `public ABI wrapper`、`direct`、façade fast-path 全部退回到“只消费已发布 snapshot”的 companion surface 角色。
 
+**Status:** completed
+
 **Tech Stack:** `src/fafafa.core.simd.dispatch.pas`、`src/fafafa.core.simd.dataplane.pas`、`src/fafafa.core.simd.direct.pas`、`src/fafafa.core.simd.public_abi.impl.inc`、`src/fafafa.core.simd.pas`、`src/fafafa.core.simd.runtime.pas`、`src/fafafa.core.simd.cpuinfo.pas`、`tests/fafafa.core.simd/*dispatchapi*`、`*dataplane*`、`*runtime*`、`*direct*`、`*concurrent*`、release `BuildOrTest.sh` gate/check/test suites。
 
 ---
@@ -271,6 +273,6 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suit
 
 ## Current implementation notes
 
-- 2026-05-11: `public ABI`、façade fast-path、`direct` companion、`api/ops/arrays` dispatch 读取路径，以及 `dispatch-read-scope` 机器护栏已完成并通过 release `check` / targeted suites / `gate`。
+- 2026-05-11: `Wave 2` 已完成。`public ABI`、façade fast-path、`direct` companion、`api/ops/arrays` dispatch 读取路径，以及 `dispatch-read-scope` 机器护栏已完成并通过 release `check` / targeted suites / `gate`。
 - 2026-05-11: `runtime` 内部已移除只服务 `IsBackendRegisteredInBinary` 的 `RegisteredFlags`，并把多个 runtime getter 收成共用 published-snapshot 读取 helper，减少内部重复状态与重复读取模板。
-- 这波剩余的默认工作是继续扫 `cpuinfo` legacy aliases、`framework` 转发层和后续 family / adapter 面，不夹带 family migration。
+- `cpuinfo` legacy aliases 和 `framework` 转发层已确认只是 compatibility thin shells，不是第二套 truth source；默认下一波转入 `Wave 3A / AVX2`。

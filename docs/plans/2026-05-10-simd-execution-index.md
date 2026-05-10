@@ -33,10 +33,12 @@
   - total plan 已落盘
   - family matrix 已落盘
   - `AVX2 / x86 incremental / NEON / RISCVV` family-level 文档已落盘
+- `Wave 2 / seam hardening`：已完成
+  - `dispatch / dataplane / public ABI / direct / façade fast-path` 已收口到单一 truth / publication seam
+  - `dispatch-read-scope` 已接入 `check`
 
 ### 还没完成的阶段
 
-- `Wave 2 / seam hardening`：待进入代码实施
 - `Wave 3 / x86 families execution`：待进入代码实施
 - `Wave 4 / non-x86 families execution`：待进入代码实施
 - `Wave 5 / retire + redundancy cleanup`：待进入代码实施
@@ -71,14 +73,13 @@
 
 当前默认执行队列是：
 
-1. `Wave 2`：收紧 `dispatch / dataplane / public ABI / direct` 的边界
-2. `Wave 3A`：守住 `AVX2` 正样板，不做大拆
-3. `Wave 3B`：补 `SSSE3` raw-leaf target 真相
-4. `Wave 3C`：按 shared x86 incremental plan 收 `SSE3 / SSSE3 / SSE4.1 / SSE4.2 / AVX-512`
-5. `Wave 3D`：推进 `SSE2` 高债务试点
-6. `Wave 4A`：按 `NEON` qualification plan 推进
-7. `Wave 4B`：按 `RISCVV` qualification plan 推进
-8. `Wave 5`：清理 retire target / duplicated helper / future trigger
+1. `Wave 3A`：守住 `AVX2` 正样板，不做大拆
+2. `Wave 3B`：补 `SSSE3` raw-leaf target 真相
+3. `Wave 3C`：按 shared x86 incremental plan 收 `SSE3 / SSSE3 / SSE4.1 / SSE4.2 / AVX-512`
+4. `Wave 3D`：推进 `SSE2` 高债务试点
+5. `Wave 4A`：按 `NEON` qualification plan 推进
+6. `Wave 4B`：按 `RISCVV` qualification plan 推进
+7. `Wave 5`：清理 retire target / duplicated helper / future trigger
 
 规则：
 
@@ -97,6 +98,10 @@
 
 - 先把 `dispatch / dataplane / public ABI / direct / façade fast-path` 的 seam 收紧
 - 不夹带 family migration
+
+说明：
+
+- 这一波已经完成，当前只作为历史完成记录保留
 
 ### 如果你今天要做 `AVX2`
 

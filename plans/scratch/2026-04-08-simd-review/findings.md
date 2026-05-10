@@ -116,6 +116,7 @@
   - 优点：兼容稳定
   - 代价：调用方继续有机会把 `supported_on_cpu` / `dispatchable` / `active` 三层语义混用
 - 结论：接口设计当前更适合做“降噪和分级推荐”，而不是继续加新别名。
+- 2026-05-11 复核后确认：`cpuinfo` legacy aliases 与 `framework` 转发层仍只是 compatibility thin shells，没有形成新的实现 truth source；这块不再阻塞 `Wave 2` 完成。
 
 ### Confirmed Implementation Gap
 
