@@ -374,7 +374,8 @@ implementation
 uses
   SysUtils,
   Math,  // RTL Math 单元
-  fafafa.core.simd.cpuinfo;
+  fafafa.core.simd.cpuinfo,
+  fafafa.core.simd.scalar;
 
 // === SSE2 Arithmetic Operations ===
 // Note: FPC x86-64 calling convention:
@@ -3247,36 +3248,18 @@ begin
 end;
 
 function SSE2SelectF32x4(const mask: TMask4; const a, b: TVecF32x4): TVecF32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    if (mask and (1 shl i)) <> 0 then
-      Result.f[i] := a.f[i]
-    else
-      Result.f[i] := b.f[i];
+  Result := ScalarSelectF32x4(mask, a, b);
 end;
 
 function SSE2ExtractF32x4(const a: TVecF32x4; index: Integer): Single;
-var
-  safeIndex: Integer;
 begin
-  // ✅ Safety check: use saturation strategy for index bounds (per project spec)
-  safeIndex := index;
-  if safeIndex < 0 then safeIndex := 0
-  else if safeIndex > 3 then safeIndex := 3;
-  Result := a.f[safeIndex];
+  Result := ScalarExtractF32x4(a, index);
 end;
 
 function SSE2InsertF32x4(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4;
-var
-  safeIndex: Integer;
 begin
-  // ✅ Safety check: use saturation strategy for index bounds (per project spec)
-  safeIndex := index;
-  if safeIndex < 0 then safeIndex := 0
-  else if safeIndex > 3 then safeIndex := 3;
-  Result := a;
-  Result.f[safeIndex] := value;
+  Result := ScalarInsertF32x4(a, value, index);
 end;
 
 // === F32x8 Operations (simulate with 2x F32x4) ===

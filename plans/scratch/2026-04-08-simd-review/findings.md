@@ -491,3 +491,11 @@
 - AVX2 的 dispatch-owned slot 仍然保留，`DispatchAPI` 里要求的 capability / non-scalar ownership 语义不受影响。
 - 下一步要做的是 release 验证和继续扫其他 family 里是否还有同类“只改了名字、没改语义”的重复实现。
 - `check`、`TTestCase_DispatchAPI`、`gate` 都已通过，说明这批 thin wrapper 收口没有破坏 AVX2 结构或 release 门禁。
+
+## 2026-05-11 SSE2 Lane Helper Consolidation
+
+- `SSE2SelectF32x4 / SSE2ExtractF32x4 / SSE2InsertF32x4` 与 scalar helper 只是同一套 lane 选择/边界逻辑的重复实现，现在也收成了 thin wrapper。
+- 这次没有动 `SSE2SelectF64x2`，也没有碰 wide-emulation 的 `F64x2` extract/insert，因为那些路径本来就不是和 scalar 完全同构的重复代码。
+- SSE2 的 dispatch ownership 仍然保留，所以测试里对 slot 归属和结构检查的预期不需要改。
+- 这批改动的风险点主要在编译和 dispatch 回归，不在算法语义本身。
+- `check`、`TTestCase_DispatchAPI`、`gate` 已通过，说明 SSE2 thin wrapper 收口没有破坏结构检查、dispatch contract 或 release 门禁。

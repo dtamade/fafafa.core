@@ -198,3 +198,17 @@
 | 1. 识别重复 lane helpers | completed | 已确认 `AVX2SelectF32x4 / AVX2ExtractF32x4 / AVX2InsertF32x4 / AVX2SelectF64x2` 与 scalar helper 只是重复的 lane 选择/边界逻辑 |
 | 2. 收回 AVX2 重复实现 | completed | 这四个 wrapper 已委托给 scalar reference helper，dispatch ownership 保持不变 |
 | 3. Release 验证与收口 | completed | `git diff --check`、`check`、`TTestCase_DispatchAPI`、`gate` 均已通过，工作树只剩计划文件与源码变更 |
+
+## 2026-05-11 SSE2 Lane Helper Consolidation
+
+### Goal
+
+把 SSE2 里和 scalar 完全同构的 128-bit lane helper 收回到 reference 实现，保留 SSE2 的 dispatch-owned slot，不再重写同义的 select / extract / insert 边界逻辑。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别重复 lane helpers | completed | 已确认 `SSE2SelectF32x4 / SSE2ExtractF32x4 / SSE2InsertF32x4` 与 scalar helper 只是重复的 lane 选择/边界逻辑 |
+| 2. 收回 SSE2 重复实现 | completed | 这三个 wrapper 已委托给 scalar reference helper，dispatch ownership 保持不变 |
+| 3. Release 验证与收口 | completed | `git diff --check`、`check`、`TTestCase_DispatchAPI`、`gate` 均已通过；`SSE2SelectF64x2` 与 wide-emulation 路径保持原样，因为它们并非同构重复 |
