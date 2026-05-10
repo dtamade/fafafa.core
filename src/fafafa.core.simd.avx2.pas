@@ -2568,36 +2568,18 @@ begin
 end;
 
 function AVX2SelectF32x4(const mask: TMask4; const a, b: TVecF32x4): TVecF32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    if (mask and (1 shl i)) <> 0 then
-      Result.f[i] := a.f[i]
-    else
-      Result.f[i] := b.f[i];
+  Result := ScalarSelectF32x4(mask, a, b);
 end;
 
 function AVX2ExtractF32x4(const a: TVecF32x4; index: Integer): Single;
-var
-  safeIndex: Integer;
 begin
-  // Safety check: use saturation strategy for index bounds (per project spec)
-  safeIndex := index;
-  if safeIndex < 0 then safeIndex := 0
-  else if safeIndex > 3 then safeIndex := 3;
-  Result := a.f[safeIndex];
+  Result := ScalarExtractF32x4(a, index);
 end;
 
 function AVX2InsertF32x4(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4;
-var
-  safeIndex: Integer;
 begin
-  // Safety check: use saturation strategy for index bounds (per project spec)
-  safeIndex := index;
-  if safeIndex < 0 then safeIndex := 0
-  else if safeIndex > 3 then safeIndex := 3;
-  Result := a;
-  Result.f[safeIndex] := value;
+  Result := ScalarInsertF32x4(a, value, index);
 end;
 
 {$I fafafa.core.simd.avx2.f32x8_arith.inc}
@@ -4514,30 +4496,8 @@ end;
 // mask 位 0 控制元素 0，位 1 控制元素 1
 // 位为 1 时选择 a，位为 0 时选择 b
 function AVX2SelectF64x2(const mask: TMask2; const a, b: TVecF64x2): TVecF64x2;
-var
-  expandedMask: TVecI64x2;
 begin
-  // 将 mask 扩展为 64-bit 掩码 (最高位需要为 1 表示选择第一个源)
-  if (mask and 1) <> 0 then expandedMask.i[0] := Int64($8000000000000000) else expandedMask.i[0] := 0;
-  if (mask and 2) <> 0 then expandedMask.i[1] := Int64($8000000000000000) else expandedMask.i[1] := 0;
-
-  // vblendvpd: if mask bit set, select from first source (a), else from second (b)
-  asm
-    lea rax, a
-    lea rdx, b
-    lea rcx, expandedMask
-
-    vmovupd xmm0, [rax]      // a (first source)
-    vmovupd xmm1, [rdx]      // b (second source)
-    vmovdqu xmm2, [rcx]      // expanded mask
-
-    // vblendvpd xmm0, xmm1, xmm0, xmm2
-    // Result = mask[i] ? xmm0[i] : xmm1[i]
-    vblendvpd xmm0, xmm1, xmm0, xmm2
-
-    vmovupd [result], xmm0
-    vzeroupper
-  end;
+  Result := ScalarSelectF64x2(mask, a, b);
 end;
 
 // Missing select operation implementations

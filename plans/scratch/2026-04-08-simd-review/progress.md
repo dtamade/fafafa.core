@@ -306,6 +306,9 @@
 - 2026-05-11: Release 验证已通过：`check`、`TTestCase_DataPlane,TTestCase_PublicAbi`、`TTestCase_DispatchAPI,TTestCase_RuntimeAPI`、`TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`、`gate`。
 - 2026-05-11: 继续收口 `api` / `ops` / `arrays` 的 dispatch 读取路径，全部改为 `GetDirectDispatchTable`，并移除 `SIMD_USE_DIRECT_DISPATCH` 的旧开关说明；`check`、SIMD targeted suites、`TTestMathArray`、`gate` 都已通过。
 - 2026-05-11: 新增 `dispatch-read-scope` 机器护栏，限制 `GetDispatchTable` 直读只保留在 `dispatch` / `dataplane` / `runtime` 内部单元；`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已通过，摘要为 `scanned_files=157 allowed_files=3 allowed_hits=6 forbidden_hits=0`。
+- 2026-05-11: 开始 AVX2 lane helper consolidation，把 `SelectF32x4 / ExtractF32x4 / InsertF32x4 / SelectF64x2` 的重复边界逻辑收回到 scalar reference helper，保留 AVX2 owned dispatch slot，不再让 backend 重写同义算法。
+- 2026-05-11: AVX2 lane helper consolidation 已完成 release 验证：`git diff --check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 全部通过。
+- 2026-05-11: 顺手清掉 `tests/fafafa.core.simd/__pycache__/` 下被误跟踪的 `.pyc` 编译产物，避免测试缓存继续进入版本库。
 
 ## 2026-05-11 Runtime State Simplification
 
