@@ -376,6 +376,17 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
 
+## 2026-05-11 AVX2 256-bit CmpEq Consolidation
+
+- 继续扫 256-bit compare 时，确认 `I32x8/U32x8`、`I64x4/U64x4` 也只是同宽 compare + mask extraction 的重复实现。
+- `F32x8/F64x4` 保留独立浮点 compare 语义，不纳入这批。
+- 下一步要把 256-bit dword/qword compare 收进 shared raw helper，然后让 wide-emulation wrapper 自然继承底层结果。
+- 已完成验证：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_DirectDispatch`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+
 ## 2026-05-11 X86 Incremental Noise Cleanup
 
 - 这轮继续把 `src/fafafa.core.simd.sse3.pas`、`src/fafafa.core.simd.sse3.register.inc`、`src/fafafa.core.simd.ssse3.pas`、`src/fafafa.core.simd.ssse3.register.inc` 里的 `NEW / Task 5.1 / milestone` 标记收掉。

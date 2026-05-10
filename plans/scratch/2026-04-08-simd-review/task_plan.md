@@ -171,6 +171,20 @@
 | 2. 收回重复实现到 raw helper | completed | 已引入 dword/word/byte/qword width-specific compare helper，typed wrappers 只保留签名和 dispatch 入口 |
 | 3. Release 验证与收口 | completed | `git diff --check`、Release `DispatchAPI/DirectDispatch`、`check`、`gate` 全部通过；待提交 |
 
+## 2026-05-11 AVX2 256-bit CmpEq Consolidation
+
+### Goal
+
+把 AVX2 里 256-bit 的同宽 `CmpEq` 重复实现也收回成 shared raw helper，继续保留 typed wrapper / dispatch 入口，不碰 float compare 语义。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别 256-bit Eq 重复簇 | completed | `I32x8/U32x8`、`I64x4/U64x4` 只是同宽 compare + mask extraction 重复；`F32x8/F64x4` 保持独立语义 |
+| 2. 收回重复实现到 raw helper | completed | 已引入 256-bit dword/qword compare helper，typed wrappers 只保留签名和 dispatch 入口 |
+| 3. Release 验证与收口 | completed | `git diff --check`、Release `DispatchAPI/DirectDispatch`、`check`、`gate` 全部通过；待提交 |
+
 ## 2026-05-11 X86 Incremental Noise Cleanup
 
 ### Goal

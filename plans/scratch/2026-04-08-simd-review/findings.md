@@ -527,6 +527,18 @@
 - 这批更适合抽成 width-specific raw helper，再让 typed wrappers 保持签名和 dispatch 入口不变。
 - `Lt/Gt/Le/Ge/Ne` 暂时不碰，因为它们含有 swap / not / unsigned-adjust 之类的语义差异，不是同一类重复实现。
 
+## 2026-05-11 AVX2 256-bit CmpEq Redundancy Scan
+
+- 继续扫 256-bit compare 面时，`I32x8/U32x8` 与 `I64x4/U64x4` 也只是同宽 compare + mask extraction 的重复实现。
+- `F32x8/F64x4` 仍然保持独立的浮点 compare 语义，不适合硬并到整数 helper。
+- 这一批更适合和 128-bit 同类一样抽成 256-bit width-specific raw helper，再让 typed wrappers 保持原签名。
+- `I32x16/I64x8` 这类 wide-emulation wrapper 会顺着底层 256-bit helper 自然收获，不需要单独再写一层重复 compare 核心。
+- 已完成 release 验证：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_DirectDispatch`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+
 ## 2026-05-11 SSE2 Lane Helper Consolidation
 
 - `SSE2SelectF32x4 / SSE2ExtractF32x4 / SSE2InsertF32x4` 与 scalar helper 只是同一套 lane 选择/边界逻辑的重复实现，现在也收成了 thin wrapper。

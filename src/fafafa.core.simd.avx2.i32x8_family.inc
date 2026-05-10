@@ -245,24 +245,8 @@ end;
 // I32x8 Comparison Operations
 
 function AVX2CmpEqI32x8(const a, b: TVecI32x8): TMask8;
-var
-  pa, pb: Pointer;
-  mask: Integer;
 begin
-  pa := @a;
-  pb := @b;
-
-  asm
-    mov     rdx, pa
-    mov     rcx, pb
-    vmovdqu ymm0, [rdx]
-    vpcmpeqd ymm0, ymm0, [rcx]
-    vmovmskps eax, ymm0         // Extract sign bits (1 bit per 32-bit element)
-    mov     mask, eax
-    vzeroupper
-  end;
-
-  Result := TMask8(mask);
+  Result := TMask8(AVX2CmpEqDwordMaskRaw256(@a, @b));
 end;
 
 function AVX2CmpLtI32x8(const a, b: TVecI32x8): TMask8;
@@ -417,4 +401,3 @@ begin
     vzeroupper
   end;
 end;
-

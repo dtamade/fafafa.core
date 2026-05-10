@@ -1050,6 +1050,44 @@ begin
   Result := mask;
 end;
 
+function AVX2CmpEqDwordMaskRaw256(const aPtr, bPtr: Pointer): Integer;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := aPtr;
+  pb := bPtr;
+  asm
+    mov      rax, pa
+    mov      rdx, pb
+    vmovdqu  ymm0, [rax]
+    vpcmpeqd ymm0, ymm0, [rdx]
+    vmovmskps eax, ymm0
+    mov      mask, eax
+    vzeroupper
+  end;
+  Result := mask;
+end;
+
+function AVX2CmpEqQwordMaskRaw256(const aPtr, bPtr: Pointer): Integer;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := aPtr;
+  pb := bPtr;
+  asm
+    mov      rax, pa
+    mov      rdx, pb
+    vmovdqu  ymm0, [rax]
+    vpcmpeqq ymm0, ymm0, [rdx]
+    vmovmskpd eax, ymm0
+    mov      mask, eax
+    vzeroupper
+  end;
+  Result := mask;
+end;
+
 // === I32x4 Bitwise Operations (128-bit) ===
 
 function AVX2AndI32x4(const a, b: TVecI32x4): TVecI32x4;
@@ -3135,24 +3173,8 @@ end;
 
 // I64x4 相等比较 (VPCMPEQQ ymm)
 function AVX2CmpEqI64x4(const a, b: TVecI64x4): TMask4;
-var
-  pa, pb: Pointer;
-  mask: Integer;
 begin
-  pa := @a;
-  pb := @b;
-
-  asm
-    mov     rdx, pa
-    mov     rcx, pb
-    vmovdqu ymm0, [rdx]
-    vpcmpeqq ymm0, ymm0, [rcx]
-    vmovmskpd eax, ymm0         // Extract sign bits (1 bit per 64-bit element)
-    mov     mask, eax
-    vzeroupper
-  end;
-
-  Result := TMask4(mask);
+  Result := TMask4(AVX2CmpEqQwordMaskRaw256(@a, @b));
 end;
 
 // I64x4 大于比较 (VPCMPGTQ ymm)
@@ -3555,24 +3577,8 @@ end;
 
 // U32x8 相等比较 (无符号与有符号相同)
 function AVX2CmpEqU32x8(const a, b: TVecU32x8): TMask8;
-var
-  pa, pb: Pointer;
-  mask: Integer;
 begin
-  pa := @a;
-  pb := @b;
-
-  asm
-    mov     rdx, pa
-    mov     rcx, pb
-    vmovdqu ymm0, [rdx]
-    vpcmpeqd ymm0, ymm0, [rcx]
-    vmovmskps eax, ymm0         // Extract sign bits (1 bit per 32-bit element)
-    mov     mask, eax
-    vzeroupper
-  end;
-
-  Result := TMask8(mask);
+  Result := TMask8(AVX2CmpEqDwordMaskRaw256(@a, @b));
 end;
 
 // U32x8 大于比较 (使用符号位翻转技巧)
@@ -3946,24 +3952,8 @@ end;
 
 // U64x4 相等比较 (无符号与有符号相同)
 function AVX2CmpEqU64x4(const a, b: TVecU64x4): TMask4;
-var
-  pa, pb: Pointer;
-  mask: Integer;
 begin
-  pa := @a;
-  pb := @b;
-
-  asm
-    mov     rdx, pa
-    mov     rcx, pb
-    vmovdqu ymm0, [rdx]
-    vpcmpeqq ymm0, ymm0, [rcx]
-    vmovmskpd eax, ymm0         // Extract sign bits (1 bit per 64-bit element)
-    mov     mask, eax
-    vzeroupper
-  end;
-
-  Result := TMask4(mask);
+  Result := TMask4(AVX2CmpEqQwordMaskRaw256(@a, @b));
 end;
 
 // U64x4 大于比较 (使用符号位翻转技巧)
