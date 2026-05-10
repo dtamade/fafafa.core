@@ -212,3 +212,17 @@
 | 1. 识别重复 lane helpers | completed | 已确认 `SSE2SelectF32x4 / SSE2ExtractF32x4 / SSE2InsertF32x4` 与 scalar helper 只是重复的 lane 选择/边界逻辑 |
 | 2. 收回 SSE2 重复实现 | completed | 这三个 wrapper 已委托给 scalar reference helper，dispatch ownership 保持不变 |
 | 3. Release 验证与收口 | completed | `git diff --check`、`check`、`TTestCase_DispatchAPI`、`gate` 均已通过；`SSE2SelectF64x2` 与 wide-emulation 路径保持原样，因为它们并非同构重复 |
+
+## 2026-05-11 SSE2 Wide Emulation Boundary Normalization
+
+### Goal
+
+把 `SSE2` wide-emulation 的 extract/insert 边界语义统一回 scalar clamp 规则，清掉那组 `index and N` 的 wrap-around 老实现，让 wide vector helper 和全模块其余路径保持一致。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别边界语义漂移 | completed | 已确认 `SSE2.wide_emulation.inc` 里 18 个 wide extract/insert helper 都在用 wrap-around 索引，而 scalar/reference 走 clamp |
+| 2. 统一边界语义 | completed | 这批 wide extract/insert 已改成直接委托 scalar reference helper，dispatch ownership 保持不变 |
+| 3. Release 验证与收口 | completed | `git diff --check`、`TTestCase_DispatchAPI,TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、`gate` 均已通过 |

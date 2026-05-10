@@ -499,3 +499,11 @@
 - SSE2 的 dispatch ownership 仍然保留，所以测试里对 slot 归属和结构检查的预期不需要改。
 - 这批改动的风险点主要在编译和 dispatch 回归，不在算法语义本身。
 - `check`、`TTestCase_DispatchAPI`、`gate` 已通过，说明 SSE2 thin wrapper 收口没有破坏结构检查、dispatch contract 或 release 门禁。
+
+## 2026-05-11 SSE2 Wide Emulation Boundary Normalization
+
+- `src/fafafa.core.simd.sse2.wide_emulation.inc` 的 wide extract/insert helper 原来统一用 `index and N`，这会形成 wrap-around 语义。
+- scalar reference、non-x86 parity 测试和 direct-dispatch wide parity 都把 out-of-range lane 解释成 clamp，因此 `SSE2` wide-emulation 这组实现属于边界语义漂移，而不是一个值得保留的优化层。
+- 本轮把 `F64x2 / I32x4 / I64x2 / F32x8 / F64x4 / I32x8 / I64x4 / F32x16 / I32x16` 的 extract/insert 全部改为委托 scalar reference helper。
+- 这样保留了 `SSE2` dispatch-owned slot，同时消掉一整组重复索引逻辑和潜在 out-of-range 行为分叉。
+- `TTestCase_DispatchAPI,TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent` 和 `gate` 都已通过，说明这批 wide-emulation clamp 收口同时满足 direct dispatch / facade / release 门禁。

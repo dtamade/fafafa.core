@@ -2553,106 +2553,98 @@ begin
 end;
 
 // ============================================================================
-// ✅ NEW: Extract/Insert 操作实现
+// Extract/Insert operations reuse scalar boundary semantics while keeping the
+// SSE2-owned dispatch slots.
 // ============================================================================
 
 function SSE2ExtractF64x2(const a: TVecF64x2; index: Integer): Double;
 begin
-  Result := a.d[index and 1];
+  Result := ScalarExtractF64x2(a, index);
 end;
 
 function SSE2InsertF64x2(const a: TVecF64x2; value: Double; index: Integer): TVecF64x2;
 begin
-  Result := a;
-  Result.d[index and 1] := value;
+  Result := ScalarInsertF64x2(a, value, index);
 end;
 
 function SSE2ExtractI32x4(const a: TVecI32x4; index: Integer): Int32;
 begin
-  Result := a.i[index and 3];
+  Result := ScalarExtractI32x4(a, index);
 end;
 
 function SSE2InsertI32x4(const a: TVecI32x4; value: Int32; index: Integer): TVecI32x4;
 begin
-  Result := a;
-  Result.i[index and 3] := value;
+  Result := ScalarInsertI32x4(a, value, index);
 end;
 
 function SSE2ExtractI64x2(const a: TVecI64x2; index: Integer): Int64;
 begin
-  Result := a.i[index and 1];
+  Result := ScalarExtractI64x2(a, index);
 end;
 
 function SSE2InsertI64x2(const a: TVecI64x2; value: Int64; index: Integer): TVecI64x2;
 begin
-  Result := a;
-  Result.i[index and 1] := value;
+  Result := ScalarInsertI64x2(a, value, index);
 end;
 
 function SSE2ExtractF32x8(const a: TVecF32x8; index: Integer): Single;
 begin
-  Result := a.f[index and 7];
+  Result := ScalarExtractF32x8(a, index);
 end;
 
 function SSE2InsertF32x8(const a: TVecF32x8; value: Single; index: Integer): TVecF32x8;
 begin
-  Result := a;
-  Result.f[index and 7] := value;
+  Result := ScalarInsertF32x8(a, value, index);
 end;
 
 function SSE2ExtractF64x4(const a: TVecF64x4; index: Integer): Double;
 begin
-  Result := a.d[index and 3];
+  Result := ScalarExtractF64x4(a, index);
 end;
 
 function SSE2InsertF64x4(const a: TVecF64x4; value: Double; index: Integer): TVecF64x4;
 begin
-  Result := a;
-  Result.d[index and 3] := value;
+  Result := ScalarInsertF64x4(a, value, index);
 end;
 
 function SSE2ExtractI32x8(const a: TVecI32x8; index: Integer): Int32;
 begin
-  Result := a.i[index and 7];
+  Result := ScalarExtractI32x8(a, index);
 end;
 
 function SSE2InsertI32x8(const a: TVecI32x8; value: Int32; index: Integer): TVecI32x8;
 begin
-  Result := a;
-  Result.i[index and 7] := value;
+  Result := ScalarInsertI32x8(a, value, index);
 end;
 
 function SSE2ExtractI64x4(const a: TVecI64x4; index: Integer): Int64;
 begin
-  Result := a.i[index and 3];
+  Result := ScalarExtractI64x4(a, index);
 end;
 
 function SSE2InsertI64x4(const a: TVecI64x4; value: Int64; index: Integer): TVecI64x4;
 begin
-  Result := a;
-  Result.i[index and 3] := value;
+  Result := ScalarInsertI64x4(a, value, index);
 end;
 
 function SSE2ExtractF32x16(const a: TVecF32x16; index: Integer): Single;
 begin
-  Result := a.f[index and 15];
+  Result := ScalarExtractF32x16(a, index);
 end;
 
 function SSE2InsertF32x16(const a: TVecF32x16; value: Single; index: Integer): TVecF32x16;
 begin
-  Result := a;
-  Result.f[index and 15] := value;
+  Result := ScalarInsertF32x16(a, value, index);
 end;
 
 function SSE2ExtractI32x16(const a: TVecI32x16; index: Integer): Int32;
 begin
-  Result := a.i[index and 15];
+  Result := ScalarExtractI32x16(a, index);
 end;
 
 function SSE2InsertI32x16(const a: TVecI32x16; value: Int32; index: Integer): TVecI32x16;
 begin
-  Result := a;
-  Result.i[index and 15] := value;
+  Result := ScalarInsertI32x16(a, value, index);
 end;
 
 // ============================================================================
