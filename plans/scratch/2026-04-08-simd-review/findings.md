@@ -234,6 +234,7 @@
 - `src/fafafa.core.simd.sse3.pas` / `src/fafafa.core.simd.sse3.register.inc` / `src/fafafa.core.simd.ssse3.pas` / `src/fafafa.core.simd.ssse3.register.inc` 里的历史标记属于同一类噪音，不是新架构层。
 - 这些文件的真实角色没有变化：`SSE3` 继续是 SSE2 的增量 backend adapter，`SSSE3` 继续通过 `CloneDispatchTable` 继承 `SSE3` 再加少量 override。
 - 这轮同样没有改 dispatch wiring，也没有引入新的 truth source。
+- 进一步核对后，`SSSE3MinI8x16 / SSSE3MaxI8x16` 现在只保留 direct helper 兼容面，没有新的 owned override 需要保留。
 - 复验已通过：
   - `git diff --check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`

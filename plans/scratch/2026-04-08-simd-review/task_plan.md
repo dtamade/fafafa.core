@@ -239,7 +239,7 @@
 | --- | --- | --- |
 | 1. 收敛注释噪音 | completed | 已清理 `src/fafafa.core.simd.sse3.pas` / `src/fafafa.core.simd.sse3.register.inc` / `src/fafafa.core.simd.ssse3.pas` / `src/fafafa.core.simd.ssse3.register.inc` 中的 `NEW / Task 5.1 / milestone` 标记 |
 | 2. 复验样板 lane | completed | `git diff --check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 均通过 |
-| 3. 继续 Wave 3B | pending | 下一步进入 SSSE3 关系更明确的分组检查，确认还有没有真实重复实现可合并 |
+| 3. 继续 Wave 3B | completed | 已确认 `SSSE3` 只保留 direct helper 兼容面，没有新的 owned duplicate override |
 
 ## 2026-05-11 X86 Incremental Redundancy Collapse
 

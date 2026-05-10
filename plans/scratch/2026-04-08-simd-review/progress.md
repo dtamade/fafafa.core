@@ -423,6 +423,7 @@
 - 当前判断：
   - 这仍然是低风险噪音收敛，不是功能改动
   - `SSE3 / SSSE3` 的 truth 链没有新增重复实现
+- 进一步审计确认 `SSSE3MinI8x16 / SSSE3MaxI8x16` 只剩 direct helper 兼容面，不再有 owned duplicate override。
 
 ## 2026-05-11 X86 Incremental Redundancy Collapse
 
