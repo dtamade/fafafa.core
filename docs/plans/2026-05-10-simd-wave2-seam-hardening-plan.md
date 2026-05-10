@@ -268,3 +268,9 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suit
 
 - `docs/plans/2026-05-09-simd-global-architecture-refactor-plan.md`
 - `docs/SIMD_LAYERING_IMPLEMENTATION.md`
+
+## Current implementation notes
+
+- 2026-05-11: `public ABI`、façade fast-path、`direct` companion、`api/ops/arrays` dispatch 读取路径，以及 `dispatch-read-scope` 机器护栏已完成并通过 release `check` / targeted suites / `gate`。
+- 2026-05-11: `runtime` 内部已移除只服务 `IsBackendRegisteredInBinary` 的 `RegisteredFlags`，并把多个 runtime getter 收成共用 published-snapshot 读取 helper，减少内部重复状态与重复读取模板。
+- 这波剩余的默认工作是继续扫 `cpuinfo` legacy aliases、`framework` 转发层和后续 family / adapter 面，不夹带 family migration。

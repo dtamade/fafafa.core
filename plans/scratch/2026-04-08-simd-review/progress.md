@@ -306,3 +306,14 @@
 - 2026-05-11: Release 验证已通过：`check`、`TTestCase_DataPlane,TTestCase_PublicAbi`、`TTestCase_DispatchAPI,TTestCase_RuntimeAPI`、`TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`、`gate`。
 - 2026-05-11: 继续收口 `api` / `ops` / `arrays` 的 dispatch 读取路径，全部改为 `GetDirectDispatchTable`，并移除 `SIMD_USE_DIRECT_DISPATCH` 的旧开关说明；`check`、SIMD targeted suites、`TTestMathArray`、`gate` 都已通过。
 - 2026-05-11: 新增 `dispatch-read-scope` 机器护栏，限制 `GetDispatchTable` 直读只保留在 `dispatch` / `dataplane` / `runtime` 内部单元；`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已通过，摘要为 `scanned_files=157 allowed_files=3 allowed_hits=6 forbidden_hits=0`。
+
+## 2026-05-11 Runtime State Simplification
+
+- `src/fafafa.core.simd.runtime.pas` 这轮移除了只服务 `IsBackendRegisteredInBinary` 的内部 `RegisteredFlags`，改为直接从已发布的 `RegisteredBackends` snapshot 推导注册成员资格。
+- `runtime` 的几个读路径已收进共用的 published-snapshot helper，避免 `GetCurrentBackend` / `GetCurrentBackendInfo` / `GetRegisteredBackendList` / `GetDispatchableBackendList` / `GetBestDispatchableBackend` 各自重复写一遍“查缓存 -> 刷新 -> 再查一次”的模板。
+- fresh 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_RuntimeAPI,TTestCase_DispatchAPI,TTestCase_DataPlane,TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 下一步继续扫 `cpuinfo` legacy alias 与 `framework` 转发层，确认没有把“兼容薄壳”放成新的重复实现。

@@ -69,7 +69,6 @@ type
     Dispatch: PSimdDispatchTable;
     TargetVersion: UInt32;
     Snapshot: TSimdRuntimeSnapshot;
-    RegisteredFlags: array[TSimdBackend] of Boolean;
     Valid: Boolean;
   end;
 
@@ -98,7 +97,6 @@ begin
   aState.Snapshot.RegisteredBackends := nil;
   aState.Snapshot.DispatchableBackends := nil;
   aState.Snapshot.BestDispatchableBackend := sbScalar;
-  FillChar(aState.RegisteredFlags, SizeOf(aState.RegisteredFlags), 0);
   aState.Valid := False;
 end;
 
@@ -139,6 +137,17 @@ begin
   Result.BestDispatchableBackend := aSnapshot.BestDispatchableBackend;
 end;
 
+function ContainsBackend(const aBackends: TSimdBackendArray;
+  aBackend: TSimdBackend): Boolean; inline;
+var
+  LBackend: TSimdBackend;
+begin
+  for LBackend in aBackends do
+    if LBackend = aBackend then
+      Exit(True);
+  Result := False;
+end;
+
 function BuildCurrentBackendInfoFromDispatch(aDispatch: PSimdDispatchTable): TSimdBackendInfo;
 var
   LCanonicalInfo: TSimdBackendInfo;
@@ -165,23 +174,21 @@ begin
   EnsureUniqueBackendInfoText(Result);
 end;
 
-procedure BuildRegisteredBackendState(var aState: TSimdRuntimePublishedState);
+function BuildRegisteredBackendList: TSimdBackendArray;
 var
   LBackend: TSimdBackend;
   LCount: Integer;
 begin
-  FillChar(aState.RegisteredFlags, SizeOf(aState.RegisteredFlags), 0);
-  SetLength(aState.Snapshot.RegisteredBackends,
+  SetLength(Result,
     Ord(High(TSimdBackend)) - Ord(Low(TSimdBackend)) + 1);
   LCount := 0;
   for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
     if IsBackendRegistered(LBackend) then
     begin
-      aState.RegisteredFlags[LBackend] := True;
-      aState.Snapshot.RegisteredBackends[LCount] := LBackend;
+      Result[LCount] := LBackend;
       Inc(LCount);
     end;
-  SetLength(aState.Snapshot.RegisteredBackends, LCount);
+  SetLength(Result, LCount);
 end;
 
 procedure BuildSimdRuntimePublishedState(out aState: TSimdRuntimePublishedState);
@@ -196,7 +203,7 @@ begin
   else
     aState.Snapshot.CurrentBackend := GetActiveBackend;
   aState.Snapshot.CurrentBackendInfo := BuildCurrentBackendInfoFromDispatch(LDispatch);
-  BuildRegisteredBackendState(aState);
+  aState.Snapshot.RegisteredBackends := BuildRegisteredBackendList;
   aState.Snapshot.DispatchableBackends := GetDispatchableBackends;
   aState.Snapshot.BestDispatchableBackend := fafafa.core.simd.dispatch.GetBestDispatchableBackend;
   aState.Valid := True;
@@ -231,6 +238,28 @@ begin
     g_SimdRuntimeState.Valid := False;
   finally
     LeaveCriticalSection(g_SimdRuntimeRebindLock);
+  end;
+end;
+
+function TryGetPublishedRuntimeSnapshot(out aSnapshot: TSimdRuntimeSnapshot): Boolean; inline;
+begin
+  EnterCriticalSection(g_SimdRuntimeRebindLock);
+  try
+    Result := g_SimdRuntimeState.Valid;
+    if Result then
+      aSnapshot := CloneRuntimeSnapshot(g_SimdRuntimeState.Snapshot);
+  finally
+    LeaveCriticalSection(g_SimdRuntimeRebindLock);
+  end;
+end;
+
+function TryGetPublishedRuntimeSnapshotAfterRefresh(out aSnapshot: TSimdRuntimeSnapshot): Boolean; inline;
+begin
+  Result := TryGetPublishedRuntimeSnapshot(aSnapshot);
+  if not Result then
+  begin
+    GetCurrentRuntimeSnapshot;
+    Result := TryGetPublishedRuntimeSnapshot(aSnapshot);
   end;
 end;
 
@@ -287,133 +316,53 @@ begin
 end;
 
 function GetCurrentBackend: TSimdBackend;
+var
+  LSnapshot: TSimdRuntimeSnapshot;
 begin
-  EnterCriticalSection(g_SimdRuntimeRebindLock);
-  try
-    if g_SimdRuntimeState.Valid then
-    begin
-      Result := g_SimdRuntimeState.Snapshot.CurrentBackend;
-      Exit;
-    end;
-  finally
-    LeaveCriticalSection(g_SimdRuntimeRebindLock);
-  end;
+  if TryGetPublishedRuntimeSnapshotAfterRefresh(LSnapshot) then
+    Exit(LSnapshot.CurrentBackend);
 
-  GetCurrentRuntimeSnapshot;
-
-  EnterCriticalSection(g_SimdRuntimeRebindLock);
-  try
-    if g_SimdRuntimeState.Valid then
-      Result := g_SimdRuntimeState.Snapshot.CurrentBackend
-    else
-      Result := GetActiveBackend;
-  finally
-    LeaveCriticalSection(g_SimdRuntimeRebindLock);
-  end;
+  Result := GetActiveBackend;
 end;
 
 function GetCurrentBackendInfo: TSimdBackendInfo;
+var
+  LSnapshot: TSimdRuntimeSnapshot;
 begin
-  EnterCriticalSection(g_SimdRuntimeRebindLock);
-  try
-    if g_SimdRuntimeState.Valid then
-    begin
-      Result := CloneBackendInfo(g_SimdRuntimeState.Snapshot.CurrentBackendInfo);
-      Exit;
-    end;
-  finally
-    LeaveCriticalSection(g_SimdRuntimeRebindLock);
-  end;
+  if TryGetPublishedRuntimeSnapshotAfterRefresh(LSnapshot) then
+    Exit(LSnapshot.CurrentBackendInfo);
 
-  GetCurrentRuntimeSnapshot;
-
-  EnterCriticalSection(g_SimdRuntimeRebindLock);
-  try
-    if g_SimdRuntimeState.Valid then
-      Result := CloneBackendInfo(g_SimdRuntimeState.Snapshot.CurrentBackendInfo)
-    else
-      Result := GetBackendInfo(GetActiveBackend);
-  finally
-    LeaveCriticalSection(g_SimdRuntimeRebindLock);
-  end;
+  Result := GetBackendInfo(GetActiveBackend);
 end;
 
 function IsBackendRegisteredInBinary(aBackend: TSimdBackend): Boolean;
+var
+  LSnapshot: TSimdRuntimeSnapshot;
 begin
-  EnterCriticalSection(g_SimdRuntimeRebindLock);
-  try
-    if g_SimdRuntimeState.Valid then
-    begin
-      Result := g_SimdRuntimeState.RegisteredFlags[aBackend];
-      Exit;
-    end;
-  finally
-    LeaveCriticalSection(g_SimdRuntimeRebindLock);
-  end;
+  if TryGetPublishedRuntimeSnapshotAfterRefresh(LSnapshot) then
+    Exit(ContainsBackend(LSnapshot.RegisteredBackends, aBackend));
 
-  GetCurrentRuntimeSnapshot;
-
-  EnterCriticalSection(g_SimdRuntimeRebindLock);
-  try
-    if g_SimdRuntimeState.Valid then
-      Result := g_SimdRuntimeState.RegisteredFlags[aBackend]
-    else
-      Result := IsBackendRegistered(aBackend);
-  finally
-    LeaveCriticalSection(g_SimdRuntimeRebindLock);
-  end;
+  Result := IsBackendRegistered(aBackend);
 end;
 
 function GetRegisteredBackendList: TSimdBackendArray;
+var
+  LSnapshot: TSimdRuntimeSnapshot;
 begin
-  EnterCriticalSection(g_SimdRuntimeRebindLock);
-  try
-    if g_SimdRuntimeState.Valid then
-    begin
-      Result := CloneBackendArray(g_SimdRuntimeState.Snapshot.RegisteredBackends);
-      Exit;
-    end;
-  finally
-    LeaveCriticalSection(g_SimdRuntimeRebindLock);
-  end;
+  if TryGetPublishedRuntimeSnapshotAfterRefresh(LSnapshot) then
+    Exit(LSnapshot.RegisteredBackends);
 
-  GetCurrentRuntimeSnapshot;
-
-  EnterCriticalSection(g_SimdRuntimeRebindLock);
-  try
-    if g_SimdRuntimeState.Valid then
-      Result := CloneBackendArray(g_SimdRuntimeState.Snapshot.RegisteredBackends)
-    else
-      Result := nil;
-  finally
-    LeaveCriticalSection(g_SimdRuntimeRebindLock);
-  end;
+  Result := nil;
 end;
 
 function GetDispatchableBackendList: TSimdBackendArray;
+var
+  LSnapshot: TSimdRuntimeSnapshot;
 begin
-  EnterCriticalSection(g_SimdRuntimeRebindLock);
-  try
-    if g_SimdRuntimeState.Valid then
-    begin
-      Result := CloneBackendArray(g_SimdRuntimeState.Snapshot.DispatchableBackends);
-      Exit;
-    end;
-  finally
-    LeaveCriticalSection(g_SimdRuntimeRebindLock);
-  end;
+  if TryGetPublishedRuntimeSnapshotAfterRefresh(LSnapshot) then
+    Exit(LSnapshot.DispatchableBackends);
 
-  GetCurrentRuntimeSnapshot;
-
-  EnterCriticalSection(g_SimdRuntimeRebindLock);
-  try
-    if g_SimdRuntimeState.Valid then
-      Result := CloneBackendArray(g_SimdRuntimeState.Snapshot.DispatchableBackends)
-    else
-      Result := nil;
-  finally
-    LeaveCriticalSection(g_SimdRuntimeRebindLock);
-  end;
+  Result := nil;
 end;
 
 function GetAvailableBackendList: TSimdBackendArray;
@@ -422,29 +371,13 @@ begin
 end;
 
 function GetBestDispatchableBackend: TSimdBackend;
+var
+  LSnapshot: TSimdRuntimeSnapshot;
 begin
-  EnterCriticalSection(g_SimdRuntimeRebindLock);
-  try
-    if g_SimdRuntimeState.Valid then
-    begin
-      Result := g_SimdRuntimeState.Snapshot.BestDispatchableBackend;
-      Exit;
-    end;
-  finally
-    LeaveCriticalSection(g_SimdRuntimeRebindLock);
-  end;
+  if TryGetPublishedRuntimeSnapshotAfterRefresh(LSnapshot) then
+    Exit(LSnapshot.BestDispatchableBackend);
 
-  GetCurrentRuntimeSnapshot;
-
-  EnterCriticalSection(g_SimdRuntimeRebindLock);
-  try
-    if g_SimdRuntimeState.Valid then
-      Result := g_SimdRuntimeState.Snapshot.BestDispatchableBackend
-    else
-      Result := fafafa.core.simd.dispatch.GetBestDispatchableBackend;
-  finally
-    LeaveCriticalSection(g_SimdRuntimeRebindLock);
-  end;
+  Result := fafafa.core.simd.dispatch.GetBestDispatchableBackend;
 end;
 
 function TrySetCurrentBackend(aBackend: TSimdBackend): Boolean;

@@ -80,8 +80,9 @@
   - `TSimdBackendInfo`（含 `Name/Description` managed string）
   - `TSimdBackendArray` 动态数组
 - `GetCurrentRuntimeSnapshot` 在锁外构建 `LBuiltState`，再在锁内执行 `g_SimdRuntimeState := LBuiltState`。
-- 这种“可变全局 record，内部含 managed string/动态数组”的发布模型，在高频 control-plane mutation 下仍有较高的生命周期风险。
-- 这条线还未修，但优先级次于 public ABI backend text，因为当前最小可复现已经先卡在 text getter。
+- 这种“可变全局 record，内部含 managed string/动态数组”的发布模型，仍然需要保守维护；不要把它简化成 lockless / cacheless rebuild。
+- 2026-05-11 这轮已先去掉只服务 `IsBackendRegisteredInBinary` 的内部 `RegisteredFlags`，让注册成员资格直接从已发布的 `RegisteredBackends` snapshot 推导，减少了 runtime 内部重复状态。
+- 这条线后续如果继续动，只能沿着 invalidation + rebuild + publish 语义做进一步收口，不能把 `runtime` 再写成第二套 control-plane source of truth。
 
 ## Current Root-Cause Track C: IEEE754 Rounding Correctness
 
