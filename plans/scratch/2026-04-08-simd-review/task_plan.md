@@ -240,3 +240,17 @@
 | 1. 识别重复 blend 路径 | completed | `SSE41SelectF32x4` 与 `SSE41BlendVF32x4` 之前各自维护一份选择/混合逻辑 |
 | 2. 收口到单一 kernel | completed | `SSE41SelectF32x4` 现在只做 `TMask4 -> TMaskF32x4` 展开，然后委托 `SSE41BlendVF32x4` |
 | 3. Release 验证与收口 | completed | `git diff --check`、`check`、`TTestCase_DispatchAPI`、`gate` 均已通过 |
+
+## 2026-05-11 SSE4.2 String Helper Consolidation
+
+### Goal
+
+把 `SSE4.2` 的 `FindFirstOf_SSE42 / FindFirstNotOf_SSE42` 收回到同一个 `PCMPESTRI` chunk scanner，避免两条 direct helper 继续维护重复循环与索引逻辑。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别重复 scanner | completed | 两个 helper 只有 polarity / 空集合返回值不同，chunk loop 与 result 计算完全同构 |
+| 2. 收口到共享 helper | completed | 新增 `FindFirstPcmpestri_SSE42`；`FindFirstOf` 走 positive polarity，`FindFirstNotOf` 走 negative polarity 并拒绝 chunk-boundary sentinel |
+| 3. Release 验证与收口 | completed | `git diff --check`、`TTestCase_BackendSmoke`、`check`、`gate` 均已通过 |

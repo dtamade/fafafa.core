@@ -53,6 +53,111 @@ uses
   SysUtils,
   fafafa.core.simd.cpuinfo;
 
+// Shared chunked PCMPESTRI scan for positive and negative byte-set searches.
+function FindFirstPcmpestri_SSE42(const aHaystack: PAnsiChar; aHaystackLen: Integer;
+  const aNeedles: PAnsiChar; aNeedlesLen: Integer; const aNegativePolarity: Boolean): Integer; inline;
+var
+  LIndex: Integer;
+  LHaystackLen, LNeedlesLen: Integer;
+  LHaystackPtr, LNeedlesPtr: PAnsiChar;
+  LFound: Boolean;
+begin
+  Result := -1;
+  if (aHaystack = nil) or (aHaystackLen <= 0) or (aNeedles = nil) or (aNeedlesLen <= 0) then
+    Exit;
+
+  LNeedlesLen := aNeedlesLen;
+  if LNeedlesLen > 16 then
+    LNeedlesLen := 16;
+
+  LHaystackPtr := aHaystack;
+  LNeedlesPtr := aNeedles;
+  LHaystackLen := aHaystackLen;
+  LIndex := 0;
+  LFound := False;
+
+  while LHaystackLen > 0 do
+  begin
+    if aNegativePolarity then
+    begin
+      asm
+        mov    rax, LHaystackPtr
+        mov    rdx, LNeedlesPtr
+        mov    ecx, LHaystackLen
+        mov    r8d, LNeedlesLen
+
+        movdqu xmm0, [rdx]
+        movdqu xmm1, [rax]
+
+        mov    eax, r8d
+        mov    edx, ecx
+        cmp    edx, 16
+        jle    @use_edx
+        mov    edx, 16
+      @use_edx:
+
+        // Negative polarity can surface zero-padded tail bytes as a synthetic
+        // not-in-set hit at the explicit chunk boundary; reject that sentinel.
+        db $66, $0F, $3A, $61, $C1, $10
+
+        jnc    @no_match
+        cmp    ecx, edx
+        jge    @no_match
+        mov    [LIndex], ecx
+        mov    byte ptr [LFound], 1
+        jmp    @done
+
+      @no_match:
+        mov    byte ptr [LFound], 0
+
+      @done:
+      end;
+    end
+    else
+    begin
+      asm
+        mov    rax, LHaystackPtr
+        mov    rdx, LNeedlesPtr
+        mov    ecx, LHaystackLen
+        mov    r8d, LNeedlesLen
+
+        movdqu xmm0, [rdx]
+        movdqu xmm1, [rax]
+
+        mov    eax, r8d
+        mov    edx, ecx
+        cmp    edx, 16
+        jle    @use_edx
+        mov    edx, 16
+      @use_edx:
+
+        db $66, $0F, $3A, $61, $C1, $00
+
+        jnc    @no_match
+        mov    [LIndex], ecx
+        mov    byte ptr [LFound], 1
+        jmp    @done
+
+      @no_match:
+        mov    byte ptr [LFound], 0
+
+      @done:
+      end;
+    end;
+
+    if LFound then
+    begin
+      Result := (LHaystackPtr - aHaystack) + LIndex;
+      Exit;
+    end;
+
+    if LHaystackLen <= 16 then
+      Break;
+    Inc(LHaystackPtr, 16);
+    Dec(LHaystackLen, 16);
+  end;
+end;
+
 // === CRC32C Hardware Implementation ===
 // SSE4.2 provides CRC32 instruction with Castagnoli polynomial
 
@@ -189,89 +294,14 @@ end;
 // Uses "equal any" mode (imm8 = 0x00)
 function FindFirstOf_SSE42(const haystack: PAnsiChar; haystackLen: Integer;
                             const needles: PAnsiChar; needlesLen: Integer): Integer;
-var
-  idx: Integer;
-  hLen, nLen: Integer;
-  hp, np: PAnsiChar;
-  found: Boolean;
 begin
-  Result := -1;
-  if (haystack = nil) or (haystackLen <= 0) or (needles = nil) or (needlesLen <= 0) then
-    Exit;
-
-  // Limit needle length to 16 (SSE register size)
-  nLen := needlesLen;
-  if nLen > 16 then nLen := 16;
-
-  hp := haystack;
-  np := needles;
-  hLen := haystackLen;
-  idx := 0;
-  found := False;
-
-  // Process 16 bytes of haystack at a time
-  while hLen > 0 do
-  begin
-    asm
-      mov    rax, hp         // haystack pointer
-      mov    rdx, np         // needles pointer
-      mov    ecx, hLen       // haystack length (remaining)
-      mov    r8d, nLen       // needles length
-
-      movdqu xmm0, [rdx]     // Load needles (up to 16 bytes)
-      movdqu xmm1, [rax]     // Load haystack chunk
-
-      // PCMPESTRI: eax=needle_len, edx=haystack_len in chunk
-      mov    eax, r8d        // needle length in eax
-      mov    edx, ecx        // haystack length in edx
-      cmp    edx, 16
-      jle    @use_edx
-      mov    edx, 16         // Cap at 16 for this chunk
-    @use_edx:
-
-      // pcmpestri xmm0, xmm1, imm8
-      // imm8 = 0x00: unsigned bytes, equal any, positive polarity, least significant index
-      // Returns index of first match in ECX, or 16 if no match
-      // CF is set if there's a match
-      db $66, $0F, $3A, $61, $C1, $00   // pcmpestri xmm0, xmm1, 0x00
-
-      // Check if match found (CF set)
-      jnc    @no_match
-
-      // Match found, ECX contains index within this 16-byte chunk
-      mov    [idx], ecx
-      mov    byte ptr [found], 1
-      jmp    @done
-
-    @no_match:
-      mov    byte ptr [found], 0
-
-    @done:
-    end;
-
-    if found then
-    begin
-      Result := (hp - haystack) + idx;
-      Exit;
-    end;
-
-    // Move to next chunk
-    if hLen <= 16 then
-      Break;
-    Inc(hp, 16);
-    Dec(hLen, 16);
-  end;
+  Result := FindFirstPcmpestri_SSE42(haystack, haystackLen, needles, needlesLen, False);
 end;
 
 // Find first byte NOT in character set
 // Uses "equal any" with negative polarity (imm8 = 0x10)
 function FindFirstNotOf_SSE42(const str: PAnsiChar; strLen: Integer;
                                const chars: PAnsiChar; charsLen: Integer): Integer;
-var
-  idx: Integer;
-  sLen, cLen: Integer;
-  sPtr, cp: PAnsiChar;
-  found: Boolean;
 begin
   Result := -1;
   if (str = nil) or (strLen <= 0) then
@@ -283,60 +313,7 @@ begin
     Exit;
   end;
 
-  cLen := charsLen;
-  if cLen > 16 then cLen := 16;
-
-  sPtr := str;
-  cp := chars;
-  sLen := strLen;
-  idx := 0;
-  found := False;
-
-  while sLen > 0 do
-  begin
-    asm
-      mov    rax, sPtr
-      mov    rdx, cp
-      mov    ecx, sLen
-      mov    r8d, cLen
-
-      movdqu xmm0, [rdx]     // char set
-      movdqu xmm1, [rax]     // string chunk
-
-      mov    eax, r8d        // char set length
-      mov    edx, ecx        // string length
-      cmp    edx, 16
-      jle    @use_edx2
-      mov    edx, 16
-    @use_edx2:
-
-      // pcmpestri xmm0, xmm1, imm8
-      // imm8 = 0x10: unsigned bytes, equal any, negative polarity, least significant
-      // Negative polarity inverts the result, finding bytes NOT in set
-      db $66, $0F, $3A, $61, $C1, $10
-
-      jnc    @no_match2
-      mov    [idx], ecx
-      mov    byte ptr [found], 1
-      jmp    @done2
-
-    @no_match2:
-      mov    byte ptr [found], 0
-
-    @done2:
-    end;
-
-    if found then
-    begin
-      Result := (sPtr - str) + idx;
-      Exit;
-    end;
-
-    if sLen <= 16 then
-      Break;
-    Inc(sPtr, 16);
-    Dec(sLen, 16);
-  end;
+  Result := FindFirstPcmpestri_SSE42(str, strLen, chars, charsLen, True);
 end;
 
 // === SSE4.2 64-bit Comparison ===

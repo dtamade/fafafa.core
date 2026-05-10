@@ -525,3 +525,15 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+
+## 2026-05-11 SSE4.2 String Helper Consolidation
+
+- `FindFirstOf_SSE42` 与 `FindFirstNotOf_SSE42` 原来维护了两份同构 `PCMPESTRI` chunk scanner；这属于真实重复实现，不只是风格相似。
+- 共享 scanner 后，direct helper 的差异只剩入口语义：`FindFirstOf` 使用 positive polarity，`FindFirstNotOf` 使用 negative polarity，空字符集合仍按原契约返回 0。
+- 回归测试暴露了一个原有边界 bug：negative polarity 会把 explicit-length chunk 后面的 synthetic tail index 当成 not-in-set 命中，导致全字符串都在集合里时返回 `len` 而不是 `-1`。
+- 当前修复把 negative-polarity 命中限制在 `index < explicit_chunk_len`，保留 SSE4.2 direct helper 语义，同时消掉重复循环。
+- release 验证已通过：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_BackendSmoke`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`

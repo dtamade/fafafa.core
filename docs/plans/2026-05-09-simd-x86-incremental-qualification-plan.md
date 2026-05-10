@@ -32,7 +32,7 @@
 ### `SSSE3`
 
 - stable truth source：`src/fafafa.core.simd.ssse3.pas`
-- raw leaf：当前真相文档里还没显式写死 dedicated leaf 目标
+- raw leaf：no dedicated raw leaf target；当前就是 adapter-only in practice
 - current disposition：adapter-only in practice
 - 当前关键判断：
   - signed-byte representative slots 保持继承 SSE3/SSE2，不再保留冗余 backend-owned override

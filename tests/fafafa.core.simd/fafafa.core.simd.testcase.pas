@@ -23,6 +23,7 @@ uses
   fafafa.core.simd.backend.consistency.testcase,
   {$IFDEF CPUX86_64}
   fafafa.core.simd.sse2,
+  fafafa.core.simd.sse42,
   fafafa.core.simd.avx2,
   {$IFDEF SIMD_BACKEND_AVX512}
   fafafa.core.simd.avx512,
@@ -118,6 +119,9 @@ type
     procedure Test_ForceSSSE3_VecF32x4_Smoke;
     procedure Test_ForceSSE41_VecF32x4_Smoke;
     procedure Test_ForceSSE42_VecF32x4_Smoke;
+    {$IFDEF CPUX86_64}
+    procedure Test_SSE42_StringSearchHelpers;
+    {$ENDIF}
     procedure Test_ForceAVX2_VecF32x4_Smoke;
     procedure Test_ForceAVX512_VecF32x4_Smoke;
   end;
@@ -1948,6 +1952,37 @@ begin
     AssertEquals('Fallback backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));
   RunVecF32x4Smoke;
 end;
+
+{$IFDEF CPUX86_64}
+procedure TTestCase_BackendSmoke.Test_SSE42_StringSearchHelpers;
+var
+  LHaystack: AnsiString;
+  LNeedles: AnsiString;
+  LChars: AnsiString;
+begin
+  if not HasSSE42 then
+    Exit;
+
+  LHaystack := 'abcdefghijklmnopQ';
+  LNeedles := 'Q';
+  AssertEquals('FindFirstOf_SSE42 should find a match across the 16-byte boundary',
+    16, FindFirstOf_SSE42(PAnsiChar(LHaystack), Length(LHaystack), PAnsiChar(LNeedles), Length(LNeedles)));
+
+  AssertEquals('FindFirstOf_SSE42 should return -1 for an empty needle set',
+    -1, FindFirstOf_SSE42(PAnsiChar(LHaystack), Length(LHaystack), nil, 0));
+
+  LHaystack := 'aaaaaab';
+  LChars := 'a';
+  AssertEquals('FindFirstNotOf_SSE42 should find the first byte outside the set',
+    6, FindFirstNotOf_SSE42(PAnsiChar(LHaystack), Length(LHaystack), PAnsiChar(LChars), Length(LChars)));
+
+  LHaystack := 'aaaaa';
+  AssertEquals('FindFirstNotOf_SSE42 should return -1 when every byte is in the set',
+    -1, FindFirstNotOf_SSE42(PAnsiChar(LHaystack), Length(LHaystack), PAnsiChar(LChars), Length(LChars)));
+  AssertEquals('FindFirstNotOf_SSE42 should return 0 for an empty set',
+    0, FindFirstNotOf_SSE42(PAnsiChar(LHaystack), Length(LHaystack), nil, 0));
+end;
+{$ENDIF}
 
 procedure TTestCase_BackendSmoke.Test_ForceAVX2_VecF32x4_Smoke;
 begin

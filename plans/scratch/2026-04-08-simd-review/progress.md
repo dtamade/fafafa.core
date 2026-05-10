@@ -378,3 +378,16 @@
 - `SelectF32x16 / SelectF64x8 / ClampF32x16 / ClampF64x8` 仍然是 native AVX-512 最优实现，不应为了“更少代码”降成 scalar/AVX2 wrapper。
 - `Utf8Validate / MemReverse / MemDiffRange / BytesIndexOf` 继续保持为故意继承的 AVX2 slots，不是 AVX512 缺口。
 - 当前判断：`AVX512` 保持 hold green，下一轮重复实现清理不要把它当成新目标。
+
+## 2026-05-11 SSE4.2 String Helper Consolidation
+
+- 继续扫 x86 incremental family 时，确认 `FindFirstOf_SSE42` 与 `FindFirstNotOf_SSE42` 是同单元内的真实重复 scanner：chunk loop、length cap、index 回算都重复，只有 `PCMPESTRI` polarity 和空集合语义不同。
+- 已新增 `FindFirstPcmpestri_SSE42` 作为共享 scanner，两个 public direct helper 只保留各自入口语义。
+- 新增 `TTestCase_BackendSmoke.Test_SSE42_StringSearchHelpers`，覆盖跨 16-byte chunk 的 `FindFirstOf`、空 needle/set 语义，以及 `FindFirstNotOf` 全部命中集合时必须返回 `-1`。
+- 测试首次抓到 `FindFirstNotOf_SSE42` 把 `PCMPESTRI` negative polarity 的 chunk-boundary sentinel 当成真实 not-in-set 命中的问题；当前已通过 `ecx < chunk_len` 检查修复。
+- 已完成 release 验证：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_BackendSmoke`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
