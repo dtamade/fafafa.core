@@ -294,49 +294,13 @@ end;
 
 // ✅ P0-2: 补充缺失的比较函数
 function AVX2CmpLeI32x8(const a, b: TVecI32x8): TMask8;
-var
-  pa, pb: Pointer;
-  mask: Integer;
 begin
-  pa := @a;
-  pb := @b;
-
-  // a <= b is equivalent to NOT(a > b)
-  asm
-    mov     rdx, pa
-    mov     rcx, pb
-    vmovdqu ymm0, [rdx]
-    vpcmpgtd ymm0, ymm0, [rcx]   // a > b
-    vmovmskps eax, ymm0
-    xor     eax, $FF              // NOT (8 bits for 8 elements)
-    mov     mask, eax
-    vzeroupper
-  end;
-
-  Result := TMask8(mask);
+  Result := TMask8(MASK8_ALL_SET xor AVX2CmpGtI32x8(a, b));
 end;
 
 function AVX2CmpGeI32x8(const a, b: TVecI32x8): TMask8;
-var
-  pa, pb: Pointer;
-  mask: Integer;
 begin
-  pa := @a;
-  pb := @b;
-
-  // a >= b is equivalent to NOT(a < b) = NOT(b > a)
-  asm
-    mov     rdx, pb
-    mov     rcx, pa
-    vmovdqu ymm0, [rdx]
-    vpcmpgtd ymm0, ymm0, [rcx]   // b > a = a < b
-    vmovmskps eax, ymm0
-    xor     eax, $FF              // NOT (8 bits for 8 elements)
-    mov     mask, eax
-    vzeroupper
-  end;
-
-  Result := TMask8(mask);
+  Result := TMask8(MASK8_ALL_SET xor AVX2CmpLtI32x8(a, b));
 end;
 
 function AVX2CmpNeI32x8(const a, b: TVecI32x8): TMask8;

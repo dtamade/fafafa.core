@@ -52,7 +52,7 @@
 | 1. 复核当前主线与旧审查结论 | completed | 已按 `map -> maintenance -> handoff -> src/tests` 顺序回读，并确认当前 `SSE2` 真相仍在 `src/fafafa.core.simd.sse2.pas` |
 | 2. 补真相源文档与代码注释 | completed | 已新增 `SIMD_BACKEND_TRUTH.md`、`SIMD_INTRINSICS_DISPOSITION.md`、`SIMD_SSE2_MIGRATION_MAP.md`，并同步到 README/maintenance/interface/handoff/STABLE 与关键单元注释 |
 | 3. 把归属判断落成机器护栏 | completed | `check_sse2_structure.py` 已扩展为同时检查 SSE2 文件结构、三张真相表、`simd.sse2 -> intrinsics.sse2` 反向依赖禁令，以及 `intrinsics.x86.sse2` 的 raw-leaf 边界 |
-| 4. release 验证与提交收口 | in_progress | `check_sse2_structure.py`、`check_intrinsics_experimental_status.py`、`BuildOrTest.sh check`、`BuildOrTest.sh gate` 已通过；剩余是 review + commit |
+| 4. release 验证与提交收口 | completed | `check_sse2_structure.py`、`check_intrinsics_experimental_status.py`、`BuildOrTest.sh check`、`BuildOrTest.sh gate` 已通过；已完成 review + commit |
 
 ## 2026-05-09 Documentation Follow-up
 
@@ -126,7 +126,7 @@
 | 1. 锁定 Batch 1 边界 | completed | 这批只碰 `public_abi.impl.inc`、`simd.pas` 初始化/收尾接线、`dataplane` 相关测试；不打开 family migration，也不扩 runtime/cpuinfo 语义 |
 | 2. public ABI 绑定语义收紧 | completed | `public ABI` 现在按 `PSimdDataPlane` 复用/发布 metadata table，不再维护独立 `target dispatch ptr`，也不再依赖独立 invalidate hook |
 | 3. fallback 语义收回 dataplane | completed | `PublicAbi*` cdecl wrapper 的兜底路径已从 `GetDispatchTable` 改成读取当前已发布 `dataplane` 槽位，消除第二条 publication path |
-| 4. seam 回归验证与提交收口 | in_progress | `git diff --check`、Release `check`、`TTestCase_DataPlane`、`TTestCase_PublicAbi`、`TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`、`TTestCase_DispatchAPI`、`TTestCase_RuntimeAPI`、`TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、`gate` 已通过；剩余 review 结论 + commit |
+| 4. seam 回归验证与提交收口 | completed | `git diff --check`、Release `check`、`TTestCase_DataPlane`、`TTestCase_PublicAbi`、`TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`、`TTestCase_DispatchAPI`、`TTestCase_RuntimeAPI`、`TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、`gate` 已通过；已完成 review + commit |
 
 ## 2026-05-11 Facade Dispatch Unification
 
@@ -198,6 +198,20 @@
 | 1. 识别可合并的整数 CmpNe 簇 | completed | `I32x4/U32x4`、`I16x8/U16x8`、`I8x16/U8x16`、`I64x2/U64x2`、`I32x8/U32x8`、`I64x4/U64x4` 都可直接由 Eq 反相得到 |
 | 2. 收回重复实现到 Eq 反相薄壳 | completed | 已让整数 `CmpNe` 只做 mask 翻转，浮点 compare 不动 |
 | 3. Release 验证与收口 | completed | `git diff --check`、Release `check`、Release `gate` 全部通过；待提交 |
+
+## 2026-05-11 AVX2 Integer Comparison Thin Wrapper Consolidation
+
+### Goal
+
+把 AVX2 整数 `CmpLe/CmpGe` 收成 `CmpGt/CmpLt` 的反相薄封装，保留 `CmpLt/CmpGt` 的真实比较语义和浮点 compare 独立实现，避免每个 family 再维护一份 compare + NOT + mask extraction。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别可合并的整数 compare wrappers | completed | `I32x4/U32x4`、`I16x8/U16x8`、`I8x16/U8x16`、`I64x2/U64x2`、`I32x8/U32x8`、`I64x4/U64x4` 的 `CmpLe/CmpGe` 都只是 `CmpGt/CmpLt` 反相薄壳 |
+| 2. 收回重复实现到 thin wrapper | completed | 已让整数 `CmpLe/CmpGe` 统一退回 `MASK_ALL_SET xor CmpGt/CmpLt`，`CmpLt/CmpGt` 保持真比较语义 |
+| 3. Release 验证与收口 | completed | `git diff --check`、Release `gate` 已通过；待提交 |
 
 ## 2026-05-11 X86 Incremental Noise Cleanup
 

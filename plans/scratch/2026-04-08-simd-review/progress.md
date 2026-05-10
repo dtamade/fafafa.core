@@ -394,6 +394,13 @@
 - 下一步优先收 `I32x4/U32x4`、`I16x8/U16x8`、`I8x16/U8x16`、`I64x2/U64x2`、`I32x8/U32x8`、`I64x4/U64x4` 的整数 `CmpNe`。
 - 已完成 release 验证，当前门禁为绿，接下来继续按“同语义共享 helper”扫 AVX2 里剩余的重复实现。
 
+## 2026-05-11 AVX2 Integer CmpLe/CmpGe Thin Wrapper Consolidation
+
+- 继续扫整数 `CmpLe/CmpGe` 时，确认它们就是 `CmpGt/CmpLt` 的反相薄壳，没必要再维护两套 compare + NOT + mask extraction。
+- 浮点 `CmpLe/CmpGe` 不在这批，保持原样。
+- 这一批已把 `I32x4/U32x4`、`I16x8/U16x8`、`I8x16/U8x16`、`I64x2/U64x2`、`I32x8/U32x8`、`I64x4/U64x4` 的整数 `CmpLe/CmpGe` 统一收口。
+- 已完成 release 验证，当前门禁为绿，下一步继续扫 AVX2 里剩余的重复实现面。
+
 ## 2026-05-11 X86 Incremental Noise Cleanup
 
 - 这轮继续把 `src/fafafa.core.simd.sse3.pas`、`src/fafafa.core.simd.sse3.register.inc`、`src/fafafa.core.simd.ssse3.pas`、`src/fafafa.core.simd.ssse3.register.inc` 里的 `NEW / Task 5.1 / milestone` 标记收掉。
