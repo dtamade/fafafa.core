@@ -520,6 +520,13 @@
 - 下一步要做的是 release 验证和继续扫其他 family 里是否还有同类“只改了名字、没改语义”的重复实现。
 - `check`、`TTestCase_DispatchAPI`、`gate` 都已通过，说明这批 thin wrapper 收口没有破坏 AVX2 结构或 release 门禁。
 
+## 2026-05-11 AVX2 CmpEq Redundancy Scan
+
+- `CmpEq` 家族也呈现出和 bitwise 一样的同宽重复形状：`I32x4/U32x4`、`I16x8/U16x8`、`I8x16/U8x16`、`I64x2/U64x2` 只是 compare + mask extraction 重复了一遍。
+- `F32x4` 与 `F64x2` 仍然各自保持独立语义，不能硬并到整数 helper。
+- 这批更适合抽成 width-specific raw helper，再让 typed wrappers 保持签名和 dispatch 入口不变。
+- `Lt/Gt/Le/Ge/Ne` 暂时不碰，因为它们含有 swap / not / unsigned-adjust 之类的语义差异，不是同一类重复实现。
+
 ## 2026-05-11 SSE2 Lane Helper Consolidation
 
 - `SSE2SelectF32x4 / SSE2ExtractF32x4 / SSE2InsertF32x4` 与 scalar helper 只是同一套 lane 选择/边界逻辑的重复实现，现在也收成了 thin wrapper。

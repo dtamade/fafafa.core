@@ -977,6 +977,79 @@ begin
   end;
 end;
 
+// Eq compare raw helpers shared by signed/unsigned wrappers of the same lane width.
+function AVX2CmpEqDwordMaskRaw(const aPtr, bPtr: Pointer): Integer;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := aPtr;
+  pb := bPtr;
+  asm
+    mov      rax, pa
+    mov      rdx, pb
+    vmovdqu  xmm0, [rax]
+    vpcmpeqd xmm0, xmm0, [rdx]
+    vmovmskps eax, xmm0
+    mov      mask, eax
+  end;
+  Result := mask;
+end;
+
+function AVX2CmpEqWordMaskRaw(const aPtr, bPtr: Pointer): Integer;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := aPtr;
+  pb := bPtr;
+  asm
+    mov      rax, pa
+    mov      rdx, pb
+    vmovdqu  xmm0, [rax]
+    vpcmpeqw xmm0, xmm0, [rdx]
+    vpmovmskb eax, xmm0
+    mov      mask, eax
+  end;
+  Result := mask;
+end;
+
+function AVX2CmpEqByteMaskRaw(const aPtr, bPtr: Pointer): Integer;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := aPtr;
+  pb := bPtr;
+  asm
+    mov      rax, pa
+    mov      rdx, pb
+    vmovdqu  xmm0, [rax]
+    vpcmpeqb xmm0, xmm0, [rdx]
+    vpmovmskb eax, xmm0
+    mov      mask, eax
+  end;
+  Result := mask;
+end;
+
+function AVX2CmpEqQwordMaskRaw(const aPtr, bPtr: Pointer): Integer;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := aPtr;
+  pb := bPtr;
+  asm
+    mov      rax, pa
+    mov      rdx, pb
+    vmovdqu  xmm0, [rax]
+    vpcmpeqq xmm0, xmm0, [rdx]
+    vmovmskpd eax, xmm0
+    mov      mask, eax
+  end;
+  Result := mask;
+end;
+
 // === I32x4 Bitwise Operations (128-bit) ===
 
 function AVX2AndI32x4(const a, b: TVecI32x4): TVecI32x4;
@@ -1072,17 +1145,8 @@ end;
 // === I32x4 Comparison Operations (128-bit) ===
 
 function AVX2CmpEqI32x4(const a, b: TVecI32x4): TMask4;
-var mask: Integer;
 begin
-  asm
-    lea       rax, a
-    lea       rdx, b
-    vmovdqu   xmm0, [rax]
-    vpcmpeqd  xmm0, xmm0, [rdx]
-    vmovmskps eax, xmm0
-    mov       mask, eax
-  end;
-  Result := TMask4(mask);
+  Result := TMask4(AVX2CmpEqDwordMaskRaw(@a, @b));
 end;
 
 function AVX2CmpLtI32x4(const a, b: TVecI32x4): TMask4;
@@ -1283,17 +1347,8 @@ end;
 // === I16x8 Comparison Operations (128-bit) ===
 
 function AVX2CmpEqI16x8(const a, b: TVecI16x8): TMask8;
-var mask: Integer;
 begin
-  asm
-    lea      rax, a
-    lea      rdx, b
-    vmovdqu  xmm0, [rax]
-    vpcmpeqw xmm0, xmm0, [rdx]
-    vpmovmskb eax, xmm0        // Get byte mask (16 bits for 8×Int16)
-    mov      mask, eax
-  end;
-  Result := TMask8(mask);
+  Result := TMask8(AVX2CmpEqWordMaskRaw(@a, @b));
 end;
 
 function AVX2CmpLtI16x8(const a, b: TVecI16x8): TMask8;
@@ -1455,17 +1510,8 @@ end;
 // === I8x16 Comparison Operations (128-bit) ===
 
 function AVX2CmpEqI8x16(const a, b: TVecI8x16): TMask16;
-var mask: Integer;
 begin
-  asm
-    lea      rax, a
-    lea      rdx, b
-    vmovdqu  xmm0, [rax]
-    vpcmpeqb xmm0, xmm0, [rdx]
-    vpmovmskb eax, xmm0
-    mov      mask, eax
-  end;
-  Result := TMask16(mask);
+  Result := TMask16(AVX2CmpEqByteMaskRaw(@a, @b));
 end;
 
 function AVX2CmpLtI8x16(const a, b: TVecI8x16): TMask16;
@@ -1658,17 +1704,8 @@ end;
 // === U32x4 Comparison Operations (128-bit) ===
 
 function AVX2CmpEqU32x4(const a, b: TVecU32x4): TMask4;
-var mask: Integer;
 begin
-  asm
-    lea      rax, a
-    lea      rdx, b
-    vmovdqu  xmm0, [rax]
-    vpcmpeqd xmm0, xmm0, [rdx]
-    vmovmskps eax, xmm0
-    mov      mask, eax
-  end;
-  Result := TMask4(mask);
+  Result := TMask4(AVX2CmpEqDwordMaskRaw(@a, @b));
 end;
 
 function AVX2CmpLtU32x4(const a, b: TVecU32x4): TMask4;
@@ -1868,17 +1905,8 @@ end;
 // === U16x8 Comparison Operations (128-bit) ===
 
 function AVX2CmpEqU16x8(const a, b: TVecU16x8): TMask8;
-var mask: Integer;
 begin
-  asm
-    lea      rax, a
-    lea      rdx, b
-    vmovdqu  xmm0, [rax]
-    vpcmpeqw xmm0, xmm0, [rdx]
-    vpmovmskb eax, xmm0
-    mov      mask, eax
-  end;
-  Result := TMask8(mask);
+  Result := TMask8(AVX2CmpEqWordMaskRaw(@a, @b));
 end;
 
 function AVX2CmpLtU16x8(const a, b: TVecU16x8): TMask8;
@@ -2069,17 +2097,8 @@ end;
 // === U8x16 Comparison Operations (128-bit) ===
 
 function AVX2CmpEqU8x16(const a, b: TVecU8x16): TMask16;
-var mask: Integer;
 begin
-  asm
-    lea      rax, a
-    lea      rdx, b
-    vmovdqu  xmm0, [rax]
-    vpcmpeqb xmm0, xmm0, [rdx]
-    vpmovmskb eax, xmm0
-    mov      mask, eax
-  end;
-  Result := TMask16(mask);
+  Result := TMask16(AVX2CmpEqByteMaskRaw(@a, @b));
 end;
 
 function AVX2CmpLtU8x16(const a, b: TVecU8x16): TMask16;
@@ -2698,18 +2717,8 @@ end;
 
 // I64x2 相等比较 (VPCMPEQQ - requires AVX2)
 function AVX2CmpEqI64x2(const a, b: TVecI64x2): TMask2;
-var maskVal: Integer;
 begin
-  asm
-    lea rax, a
-    lea rdx, b
-    vmovdqu  xmm0, [rax]
-    vmovdqu  xmm1, [rdx]
-    vpcmpeqq xmm0, xmm0, xmm1
-    vmovmskpd eax, xmm0
-    mov      maskVal, eax
-  end;
-  Result := TMask2(maskVal);
+  Result := TMask2(AVX2CmpEqQwordMaskRaw(@a, @b));
 end;
 
 // I64x2 大于比较 (VPCMPGTQ - requires AVX2)
@@ -2879,9 +2888,7 @@ end;
 
 function AVX2CmpEqU64x2(const a, b: TVecU64x2): TMask2;
 begin
-  Result := 0;
-  if a.u[0] = b.u[0] then Result := Result or 1;
-  if a.u[1] = b.u[1] then Result := Result or 2;
+  Result := TMask2(AVX2CmpEqQwordMaskRaw(@a, @b));
 end;
 
 function AVX2CmpLtU64x2(const a, b: TVecU64x2): TMask2;

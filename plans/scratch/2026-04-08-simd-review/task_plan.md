@@ -157,6 +157,20 @@
 | 2. 复验样板 lane | completed | `git diff --check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_AVX2IntrinsicsFallback` 均通过 |
 | 3. 继续 Wave 3A | pending | 下一步保持 AVX2 为正样板，继续检查是否还有真实的重复实现可合并 |
 
+## 2026-05-11 AVX2 CmpEq Family Consolidation
+
+### Goal
+
+把 AVX2 里真实重复的 `CmpEq` 实现收回成按宽度共享的 raw helper，保留 typed thin wrappers 和 dispatch 入口，不去碰语义不同的 `Lt/Gt/Le/Ge/Ne`。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别可合并的 Eq 重复簇 | completed | `I32x4/U32x4`、`I16x8/U16x8`、`I8x16/U8x16`、`I64x2/U64x2` 只是在相同宽度上重复了 compare + mask extraction；`F32/F64` 仍保持独立语义 |
+| 2. 收回重复实现到 raw helper | completed | 已引入 dword/word/byte/qword width-specific compare helper，typed wrappers 只保留签名和 dispatch 入口 |
+| 3. Release 验证与收口 | completed | `git diff --check`、Release `DispatchAPI/DirectDispatch`、`check`、`gate` 全部通过；待提交 |
+
 ## 2026-05-11 X86 Incremental Noise Cleanup
 
 ### Goal
