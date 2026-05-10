@@ -285,6 +285,7 @@ implementation
 uses
   fafafa.core.simd.base,
   fafafa.core.simd.dispatch,
+  fafafa.core.simd.direct,
   fafafa.core.simd;
 
 const
@@ -311,7 +312,7 @@ begin
   if (aSrc = nil) or (aCount = 0) then
     Exit(0.0);
 
-  LDispatch := GetDispatchTable;
+  LDispatch := GetDirectDispatchTable;
   LHasReduceAddF64x4 := Assigned(LDispatch^.ReduceAddF64x4);
   LHasLoadF64x4 := Assigned(LDispatch^.LoadF64x4);
   Result := 0.0;
@@ -355,7 +356,7 @@ begin
   if (aSrc = nil) or (aCount = 0) then
     Exit(0.0);
 
-  LDispatch := GetDispatchTable;
+  LDispatch := GetDirectDispatchTable;
   LHasLoadF64x4 := Assigned(LDispatch^.LoadF64x4);
   LHasReduceAddF64x4 := Assigned(LDispatch^.ReduceAddF64x4);
 
@@ -411,7 +412,7 @@ begin
   if (aSrc = nil) or (aCount = 0) then
     Exit(PosInfinityF64);
 
-  LDispatch := GetDispatchTable;
+  LDispatch := GetDirectDispatchTable;
   LCanVectorize := Assigned(LDispatch^.LoadF64x4)
     and Assigned(LDispatch^.MinF64x4)
     and Assigned(LDispatch^.ReduceMinF64x4);
@@ -456,7 +457,7 @@ begin
   if (aSrc = nil) or (aCount = 0) then
     Exit(NegInfinityF64);
 
-  LDispatch := GetDispatchTable;
+  LDispatch := GetDirectDispatchTable;
   LCanVectorize := Assigned(LDispatch^.LoadF64x4)
     and Assigned(LDispatch^.MaxF64x4)
     and Assigned(LDispatch^.ReduceMaxF64x4);
@@ -505,7 +506,7 @@ begin
     Exit;
   end;
 
-  LDispatch := GetDispatchTable;
+  LDispatch := GetDirectDispatchTable;
   LCanVectorize := Assigned(LDispatch^.LoadF64x4)
     and Assigned(LDispatch^.MinF64x4)
     and Assigned(LDispatch^.MaxF64x4)
@@ -571,7 +572,7 @@ begin
   if (aSrc = nil) or (aCount = 0) then
     Exit(0.0);
 
-  LDispatch := GetDispatchTable;
+  LDispatch := GetDirectDispatchTable;
   LCanVectorize := Assigned(LDispatch^.LoadF64x4)
     and Assigned(LDispatch^.SubF64x4)
     and Assigned(LDispatch^.MulF64x4);
@@ -662,7 +663,7 @@ begin
   if (aSrc1 = nil) or (aSrc2 = nil) or (aCount = 0) then
     Exit(0.0);
 
-  LDispatch := GetDispatchTable;
+  LDispatch := GetDirectDispatchTable;
   LHasDotF64x4 := Assigned(LDispatch^.DotF64x4);
   LHasLoadF64x4 := Assigned(LDispatch^.LoadF64x4);
   Result := 0.0;
@@ -718,7 +719,7 @@ begin
   if (aSrc = nil) or (aCount = 0) then
     Exit(0.0);
 
-  LDispatch := GetDispatchTable;
+  LDispatch := GetDirectDispatchTable;
   LHasReduceAddF32x8 := Assigned(LDispatch^.ReduceAddF32x8);
   LHasLoadF32x8 := Assigned(LDispatch^.LoadF32x8);
   Result := 0.0;
@@ -762,7 +763,7 @@ begin
   if (aSrc = nil) or (aCount = 0) then
     Exit(0.0);
 
-  LDispatch := GetDispatchTable;
+  LDispatch := GetDirectDispatchTable;
   LHasLoadF32x8 := Assigned(LDispatch^.LoadF32x8);
   LHasReduceAddF32x8 := Assigned(LDispatch^.ReduceAddF32x8);
 
@@ -818,7 +819,7 @@ begin
   if (aSrc = nil) or (aCount = 0) then
     Exit(PosInfinityF32);
 
-  LDispatch := GetDispatchTable;
+  LDispatch := GetDirectDispatchTable;
   LCanVectorize := Assigned(LDispatch^.LoadF32x8)
     and Assigned(LDispatch^.MinF32x8)
     and Assigned(LDispatch^.ReduceMinF32x8);
@@ -863,7 +864,7 @@ begin
   if (aSrc = nil) or (aCount = 0) then
     Exit(NegInfinityF32);
 
-  LDispatch := GetDispatchTable;
+  LDispatch := GetDirectDispatchTable;
   LCanVectorize := Assigned(LDispatch^.LoadF32x8)
     and Assigned(LDispatch^.MaxF32x8)
     and Assigned(LDispatch^.ReduceMaxF32x8);
@@ -912,7 +913,7 @@ begin
     Exit;
   end;
 
-  LDispatch := GetDispatchTable;
+  LDispatch := GetDirectDispatchTable;
   LCanVectorize := Assigned(LDispatch^.LoadF32x8)
     and Assigned(LDispatch^.MinF32x8)
     and Assigned(LDispatch^.MaxF32x8)
@@ -978,7 +979,7 @@ begin
   if (aSrc = nil) or (aCount = 0) then
     Exit(0.0);
 
-  LDispatch := GetDispatchTable;
+  LDispatch := GetDirectDispatchTable;
   LCanVectorize := Assigned(LDispatch^.LoadF32x8)
     and Assigned(LDispatch^.SubF32x8)
     and Assigned(LDispatch^.MulF32x8);
@@ -1067,7 +1068,7 @@ begin
   if (aSrc1 = nil) or (aSrc2 = nil) or (aCount = 0) then
     Exit(0.0);
 
-  LDispatch := GetDispatchTable;
+  LDispatch := GetDirectDispatchTable;
   LHasDotF32x8 := Assigned(LDispatch^.DotF32x8);
   LHasLoadF32x8 := Assigned(LDispatch^.LoadF32x8);
   Result := 0.0;
@@ -1127,7 +1128,7 @@ begin
   if (aSrc = nil) or (aDst = nil) or (aCount = 0) then
     Exit;
 
-  LDispatch := GetDispatchTable;
+  LDispatch := GetDirectDispatchTable;
   LCanVectorize := Assigned(LDispatch^.LoadF64x4)
     and Assigned(LDispatch^.StoreF64x4)
     and Assigned(LDispatch^.SplatF64x4)
@@ -1163,7 +1164,7 @@ begin
   if (aSrc = nil) or (aDst = nil) or (aCount = 0) then
     Exit;
 
-  LDispatch := GetDispatchTable;
+  LDispatch := GetDirectDispatchTable;
   LCanVectorize := Assigned(LDispatch^.LoadF64x4)
     and Assigned(LDispatch^.StoreF64x4)
     and Assigned(LDispatch^.AbsF64x4);
@@ -1196,7 +1197,7 @@ begin
   if (aSrc = nil) or (aDst = nil) or (aCount = 0) then
     Exit;
 
-  LDispatch := GetDispatchTable;
+  LDispatch := GetDirectDispatchTable;
   LCanVectorize := Assigned(LDispatch^.LoadF64x4)
     and Assigned(LDispatch^.StoreF64x4)
     and Assigned(LDispatch^.SplatF64x4)
@@ -1232,7 +1233,7 @@ begin
   if (aSrc1 = nil) or (aSrc2 = nil) or (aDst = nil) or (aCount = 0) then
     Exit;
 
-  LDispatch := GetDispatchTable;
+  LDispatch := GetDirectDispatchTable;
   LCanVectorize := Assigned(LDispatch^.LoadF64x4)
     and Assigned(LDispatch^.StoreF64x4)
     and Assigned(LDispatch^.AddF64x4);
@@ -1271,7 +1272,7 @@ begin
   if (aSrc = nil) or (aDst = nil) or (aCount = 0) then
     Exit;
 
-  LDispatch := GetDispatchTable;
+  LDispatch := GetDirectDispatchTable;
   LCanVectorize := Assigned(LDispatch^.LoadF32x8)
     and Assigned(LDispatch^.StoreF32x8)
     and Assigned(LDispatch^.SplatF32x8)
@@ -1307,7 +1308,7 @@ begin
   if (aSrc = nil) or (aDst = nil) or (aCount = 0) then
     Exit;
 
-  LDispatch := GetDispatchTable;
+  LDispatch := GetDirectDispatchTable;
   LCanVectorize := Assigned(LDispatch^.LoadF32x8)
     and Assigned(LDispatch^.StoreF32x8)
     and Assigned(LDispatch^.AbsF32x8);
@@ -1340,7 +1341,7 @@ begin
   if (aSrc = nil) or (aDst = nil) or (aCount = 0) then
     Exit;
 
-  LDispatch := GetDispatchTable;
+  LDispatch := GetDirectDispatchTable;
   LCanVectorize := Assigned(LDispatch^.LoadF32x8)
     and Assigned(LDispatch^.StoreF32x8)
     and Assigned(LDispatch^.SplatF32x8)
@@ -1376,7 +1377,7 @@ begin
   if (aSrc1 = nil) or (aSrc2 = nil) or (aDst = nil) or (aCount = 0) then
     Exit;
 
-  LDispatch := GetDispatchTable;
+  LDispatch := GetDirectDispatchTable;
   LCanVectorize := Assigned(LDispatch^.LoadF32x8)
     and Assigned(LDispatch^.StoreF32x8)
     and Assigned(LDispatch^.AddF32x8);

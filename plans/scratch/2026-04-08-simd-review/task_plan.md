@@ -140,4 +140,5 @@
 | --- | --- | --- |
 | 1. 找出残留的直接 dispatch 读取 | completed | 已确认 `simd.pas` 里大量 façade wrapper 仍直接调用 `GetDispatchTable`，而不是显式读 `dataplane` published snapshot |
 | 2. 统一 façade wrapper 读取路径 | completed | 已将 `src/fafafa.core.simd.pas` 中所有 `GetDispatchTable` 调用统一替换为 `GetCurrentSimdDataPlaneDispatch` |
-| 3. 验证并继续扫残余重复实现 | in_progress | Release `check`、targeted seam suites、`gate` 已通过；下一步继续检查 runtime/cpuinfo/family 面是否还有可清理的重复 truth 或多重实现 |
+| 3. 验证并继续扫残余重复实现 | completed | Release `check`、targeted seam suites、`gate` 已通过；`api` / `ops` / `arrays` 已统一到 `GetDirectDispatchTable`，下一步继续检查 runtime/cpuinfo/family 面是否还有可清理的重复 truth 或多重实现 |
+| 4. 继续扫剩余消费面 | in_progress | 继续检查 runtime / cpuinfo / family / adapter 面是否还存在重复实现、第二条 truth 或可合并的多路径封装 |

@@ -304,3 +304,4 @@
 - 2026-05-11: 当前 seam audit 发现 `src/fafafa.core.simd.pas` 里仍有大量 façade wrapper 直接走 `GetDispatchTable`；已统一改为 `GetCurrentSimdDataPlaneDispatch`，让 façade 更明确地从 published dataplane seam 读绑定。
 - 2026-05-11: 继续把 `src/fafafa.core.simd.public_abi.impl.inc` 的 backend pod info 查询改为读取 `GetCurrentSimdDataPlaneDispatch`，避免 public ABI 继续显式抓 control-plane current dispatch。
 - 2026-05-11: Release 验证已通过：`check`、`TTestCase_DataPlane,TTestCase_PublicAbi`、`TTestCase_DispatchAPI,TTestCase_RuntimeAPI`、`TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`、`gate`。
+- 2026-05-11: 继续收口 `api` / `ops` / `arrays` 的 dispatch 读取路径，全部改为 `GetDirectDispatchTable`，并移除 `SIMD_USE_DIRECT_DISPATCH` 的旧开关说明；`check`、SIMD targeted suites、`TTestMathArray`、`gate` 都已通过。

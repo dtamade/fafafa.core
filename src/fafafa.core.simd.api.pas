@@ -69,23 +69,16 @@ function BitsetPopCount(p: Pointer; byteLen: SizeUInt): SizeUInt; {$IFDEF SIMD_A
 implementation
 
 uses
-  fafafa.core.simd.dispatch
-  {$IFDEF SIMD_USE_DIRECT_DISPATCH}
-  , fafafa.core.simd.direct
-  {$ENDIF}
-  ;
+  fafafa.core.simd.dispatch,
+  fafafa.core.simd.direct;
 
 function GetFacadeDispatch: PSimdDispatchTable; inline;
 begin
-  {$IFDEF SIMD_USE_DIRECT_DISPATCH}
   Result := GetDirectDispatchTable;
-  {$ELSE}
-  Result := GetDispatchTable;
-  {$ENDIF}
 end;
 
 // === 内存操作函数实现 ===
-// 通过派发表调用当前活跃后端
+// 通过已发布的 dataplane dispatch snapshot 调用当前活跃后端
 
 function MemEqual(a, b: Pointer; len: SizeUInt): LongBool;
 var dispatch: PSimdDispatchTable;

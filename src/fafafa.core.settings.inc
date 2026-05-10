@@ -393,19 +393,6 @@
 /// fafafa.core.simd SIMD 框架配置
 ///
 
-{ === Direct Dispatch Mode === }
-{ 启用直接函数指针派发（默认开启）。
-  开启后门面函数使用一次性绑定的全局函数指针，减少调用开销。
-  关闭则使用动态 dispatch table（支持运行时后端切换）。
-
-  关闭方式：
-  - 在编译器参数中定义 SIMD_USE_DIRECT_DISPATCH_DISABLED
-    或
-  - 直接注释掉下面的 DEFINE 行 }
-{$IFNDEF SIMD_USE_DIRECT_DISPATCH_DISABLED}
-  {$DEFINE SIMD_USE_DIRECT_DISPATCH}
-{$ENDIF}
-
 { === Core Framework Settings === }
 
 { Enable aggressive inlining for performance-critical functions }
