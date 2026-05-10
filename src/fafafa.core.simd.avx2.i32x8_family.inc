@@ -244,31 +244,16 @@ end;
 
 // I32x8 Comparison Operations
 
+function AVX2CmpGtI32x8(const a, b: TVecI32x8): TMask8; forward;
+
 function AVX2CmpEqI32x8(const a, b: TVecI32x8): TMask8;
 begin
   Result := TMask8(AVX2CmpEqDwordMaskRaw256(@a, @b));
 end;
 
 function AVX2CmpLtI32x8(const a, b: TVecI32x8): TMask8;
-var
-  pa, pb: Pointer;
-  mask: Integer;
 begin
-  pa := @a;
-  pb := @b;
-
-  // a < b is equivalent to b > a
-  asm
-    mov     rdx, pb
-    mov     rcx, pa
-    vmovdqu ymm0, [rdx]
-    vpcmpgtd ymm0, ymm0, [rcx]  // b > a
-    vmovmskps eax, ymm0
-    mov     mask, eax
-    vzeroupper
-  end;
-
-  Result := TMask8(mask);
+  Result := AVX2CmpGtI32x8(b, a);
 end;
 
 function AVX2CmpGtI32x8(const a, b: TVecI32x8): TMask8;
@@ -300,7 +285,7 @@ end;
 
 function AVX2CmpGeI32x8(const a, b: TVecI32x8): TMask8;
 begin
-  Result := TMask8(MASK8_ALL_SET xor AVX2CmpLtI32x8(a, b));
+  Result := TMask8(MASK8_ALL_SET xor AVX2CmpGtI32x8(b, a));
 end;
 
 function AVX2CmpNeI32x8(const a, b: TVecI32x8): TMask8;

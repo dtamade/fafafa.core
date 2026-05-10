@@ -551,6 +551,8 @@
 - 整数 `CmpLe/CmpGe` 和 `CmpGt/CmpLt` 的关系同样直接：前者只是后者的反相薄封装，不应该继续维护两套 compare + NOT + mask extraction。
 - 这条收口只适用于整数 family；`F32/F64` 的 `CmpLe/CmpGe` 仍然保留它们自己的浮点比较语义。
 - 这一批最适合一起收 `I32x4/U32x4`、`I16x8/U16x8`、`I8x16/U8x16`、`I64x2/U64x2`、`I32x8/U32x8`、`I64x4/U64x4` 的 `CmpLe/CmpGe`，把每个 family 里只剩一套真比较语义。
+- 其中 `CmpGe` 现在也直接落到 `CmpGt(b, a)`，不再多绕一层 `CmpLt`，把薄壳收得更直。
+- 为了不搬动大量函数体，只给这些后定义的 `CmpGt` 补了 forward declarations；`git diff --check` 和 Release `gate` 复验都已通过。
 - release 验证已通过：`git diff --check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`。
 
 ## 2026-05-11 SSE2 Lane Helper Consolidation

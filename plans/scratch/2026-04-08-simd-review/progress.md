@@ -112,6 +112,12 @@
   - 非 SIMD 的 `l0-mainline`
 - 结论：当前 `simd` 已完成主线收口与相关仓库卫生清理；剩余可恢复入口已经明确保存在分支与 stash 中。
 
+## 2026-05-11 AVX2 Compare Thin Wrapper Follow-up
+
+- 当前继续收窄 AVX2 整数 compare 调用链：`CmpGe` 不再通过 `CmpLt` 二次转发，而是直接使用 `MASK_ALL_SET xor CmpGt(b, a)`。
+- 这让 `CmpLt/CmpLe/CmpGe` 都只围绕 `CmpGt` 这一套真比较语义展开，浮点 compare 语义继续保持独立。
+- 为了避免搬动大块函数体，只给后定义的 `CmpGt` 补了 forward declarations；随后 `git diff --check` 与 Release `gate` 都重新通过。
+
 ## 2026-05-09
 
 - 按当前 `SIMD` 方案重新核对了 `src/fafafa.core.simd.sse2.pas`、`src/fafafa.core.simd.intrinsics.sse2.pas`、`src/fafafa.core.simd.intrinsics.x86.sse2.pas` 与现有 experimental/structure 护栏，确认此前仓库文档虽然强调 stable/experimental 边界，但还缺少 SSE2 归属的明确真相表。

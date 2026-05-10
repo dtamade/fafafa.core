@@ -203,14 +203,14 @@
 
 ### Goal
 
-把 AVX2 整数 `CmpLe/CmpGe` 收成 `CmpGt/CmpLt` 的反相薄封装，保留 `CmpLt/CmpGt` 的真实比较语义和浮点 compare 独立实现，避免每个 family 再维护一份 compare + NOT + mask extraction。
+把 AVX2 整数 `CmpLt/CmpLe/CmpGe` 收成 `CmpGt` 交换参数/反相薄封装，保留 `CmpGt` 的真实比较语义和浮点 compare 独立实现，避免每个 family 再维护一份 compare + NOT + mask extraction。
 
 ### Phases
 
 | Phase | Status | Notes |
 | --- | --- | --- |
-| 1. 识别可合并的整数 compare wrappers | completed | `I32x4/U32x4`、`I16x8/U16x8`、`I8x16/U8x16`、`I64x2/U64x2`、`I32x8/U32x8`、`I64x4/U64x4` 的 `CmpLe/CmpGe` 都只是 `CmpGt/CmpLt` 反相薄壳 |
-| 2. 收回重复实现到 thin wrapper | completed | 已让整数 `CmpLe/CmpGe` 统一退回 `MASK_ALL_SET xor CmpGt/CmpLt`，`CmpLt/CmpGt` 保持真比较语义 |
+| 1. 识别可合并的整数 compare wrappers | completed | `I32x4/U32x4`、`I16x8/U16x8`、`I8x16/U8x16`、`I64x2/U64x2`、`I32x8/U32x8`、`I64x4/U64x4` 的 `CmpLt/CmpLe/CmpGe` 都只是 `CmpGt` 相关薄壳 |
+| 2. 收回重复实现到 thin wrapper | completed | 已让整数 `CmpLt/CmpLe/CmpGe` 统一退回交换参数或 `MASK_ALL_SET xor ...`，其中 `CmpGe` 也直接落到 `CmpGt(b, a)`，`CmpGt` 保持真比较语义 |
 | 3. Release 验证与收口 | completed | `git diff --check`、Release `gate` 已通过；待提交 |
 
 ## 2026-05-11 X86 Incremental Noise Cleanup

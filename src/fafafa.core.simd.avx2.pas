@@ -76,6 +76,14 @@ uses
   fafafa.core.simd.cpuinfo.base,
   fafafa.core.simd.scalar; // For fallback functions
 
+function AVX2CmpGtI32x4(const a, b: TVecI32x4): TMask4; forward;
+function AVX2CmpGtI16x8(const a, b: TVecI16x8): TMask8; forward;
+function AVX2CmpGtI8x16(const a, b: TVecI8x16): TMask16; forward;
+function AVX2CmpGtU32x4(const a, b: TVecU32x4): TMask4; forward;
+function AVX2CmpGtU16x8(const a, b: TVecU16x8): TMask8; forward;
+function AVX2CmpGtU8x16(const a, b: TVecU8x16): TMask16; forward;
+function AVX2CmpGtU64x2(const a, b: TVecU64x2): TMask2; forward;
+
 // === AVX2 Arithmetic Operations ===
 // Note: FPC x86-64 calling convention:
 //   - First 6 integer/pointer args: RDI, RSI, RDX, RCX, R8, R9
@@ -1188,18 +1196,8 @@ begin
 end;
 
 function AVX2CmpLtI32x4(const a, b: TVecI32x4): TMask4;
-var mask: Integer;
 begin
-  // a < b is equivalent to b > a
-  asm
-    lea       rax, b
-    lea       rdx, a
-    vmovdqu   xmm0, [rax]
-    vpcmpgtd  xmm0, xmm0, [rdx]  // b > a
-    vmovmskps eax, xmm0
-    mov       mask, eax
-  end;
-  Result := TMask4(mask);
+  Result := AVX2CmpGtI32x4(b, a);
 end;
 
 function AVX2CmpGtI32x4(const a, b: TVecI32x4): TMask4;
@@ -1223,7 +1221,7 @@ end;
 
 function AVX2CmpGeI32x4(const a, b: TVecI32x4): TMask4;
 begin
-  Result := TMask4(MASK4_ALL_SET xor AVX2CmpLtI32x4(a, b));
+  Result := TMask4(MASK4_ALL_SET xor AVX2CmpGtI32x4(b, a));
 end;
 
 function AVX2CmpNeI32x4(const a, b: TVecI32x4): TMask4;
@@ -1357,18 +1355,8 @@ begin
 end;
 
 function AVX2CmpLtI16x8(const a, b: TVecI16x8): TMask8;
-var mask: Integer;
 begin
-  asm
-    lea      rax, a
-    lea      rdx, b
-    vmovdqu  xmm0, [rax]
-    vmovdqu  xmm1, [rdx]
-    vpcmpgtw xmm1, xmm1, xmm0  // b > a (swap operands)
-    vpmovmskb eax, xmm1
-    mov      mask, eax
-  end;
-  Result := TMask8(mask);
+  Result := AVX2CmpGtI16x8(b, a);
 end;
 
 function AVX2CmpGtI16x8(const a, b: TVecI16x8): TMask8;
@@ -1392,7 +1380,7 @@ end;
 
 function AVX2CmpGeI16x8(const a, b: TVecI16x8): TMask8;
 begin
-  Result := TMask8(MASK8_ALL_SET xor AVX2CmpLtI16x8(a, b));
+  Result := TMask8(MASK8_ALL_SET xor AVX2CmpGtI16x8(b, a));
 end;
 
 function AVX2CmpNeI16x8(const a, b: TVecI16x8): TMask8;
@@ -1483,18 +1471,8 @@ begin
 end;
 
 function AVX2CmpLtI8x16(const a, b: TVecI8x16): TMask16;
-var mask: Integer;
 begin
-  asm
-    lea      rax, a
-    lea      rdx, b
-    vmovdqu  xmm0, [rax]
-    vmovdqu  xmm1, [rdx]
-    vpcmpgtb xmm1, xmm1, xmm0  // b > a (swap operands)
-    vpmovmskb eax, xmm1
-    mov      mask, eax
-  end;
-  Result := TMask16(mask);
+  Result := AVX2CmpGtI8x16(b, a);
 end;
 
 function AVX2CmpGtI8x16(const a, b: TVecI8x16): TMask16;
@@ -1518,7 +1496,7 @@ end;
 
 function AVX2CmpGeI8x16(const a, b: TVecI8x16): TMask16;
 begin
-  Result := TMask16(MASK16_ALL_SET xor AVX2CmpLtI8x16(a, b));
+  Result := TMask16(MASK16_ALL_SET xor AVX2CmpGtI8x16(b, a));
 end;
 
 function AVX2CmpNeI8x16(const a, b: TVecI8x16): TMask16;
@@ -1640,24 +1618,8 @@ begin
 end;
 
 function AVX2CmpLtU32x4(const a, b: TVecU32x4): TMask4;
-var mask: Integer;
 begin
-  // Unsigned comparison: flip sign bit and use signed compare
-  asm
-    lea      rax, a
-    lea      rdx, b
-    mov      ecx, $80000000
-    vmovd    xmm2, ecx
-    vpshufd  xmm2, xmm2, 0      // Broadcast sign bit
-    vmovdqu  xmm0, [rax]
-    vpxor    xmm0, xmm0, xmm2   // Flip sign bit of a
-    vmovdqu  xmm1, [rdx]
-    vpxor    xmm1, xmm1, xmm2   // Flip sign bit of b
-    vpcmpgtd xmm1, xmm1, xmm0   // Signed compare: b > a
-    vmovmskps eax, xmm1
-    mov      mask, eax
-  end;
-  Result := TMask4(mask);
+  Result := AVX2CmpGtU32x4(b, a);
 end;
 
 function AVX2CmpGtU32x4(const a, b: TVecU32x4): TMask4;
@@ -1688,7 +1650,7 @@ end;
 
 function AVX2CmpGeU32x4(const a, b: TVecU32x4): TMask4;
 begin
-  Result := TMask4(MASK4_ALL_SET xor AVX2CmpLtU32x4(a, b));
+  Result := TMask4(MASK4_ALL_SET xor AVX2CmpGtU32x4(b, a));
 end;
 
 // === U32x4 Min/Max Operations (128-bit) ===
@@ -1805,25 +1767,8 @@ begin
 end;
 
 function AVX2CmpLtU16x8(const a, b: TVecU16x8): TMask8;
-var mask: Integer;
 begin
-  // Unsigned comparison: flip sign bit and use signed compare
-  asm
-    lea      rax, a
-    lea      rdx, b
-    mov      ecx, $8000
-    vmovd    xmm2, ecx
-    vpshuflw xmm2, xmm2, 0      // Broadcast to low 4 words
-    vpshufhw xmm2, xmm2, 0      // Broadcast to high 4 words
-    vmovdqu  xmm0, [rax]
-    vpxor    xmm0, xmm0, xmm2
-    vmovdqu  xmm1, [rdx]
-    vpxor    xmm1, xmm1, xmm2
-    vpcmpgtw xmm1, xmm1, xmm0   // b > a
-    vpmovmskb eax, xmm1
-    mov      mask, eax
-  end;
-  Result := TMask8(mask);
+  Result := AVX2CmpGtU16x8(b, a);
 end;
 
 function AVX2CmpGtU16x8(const a, b: TVecU16x8): TMask8;
@@ -1855,7 +1800,7 @@ end;
 
 function AVX2CmpGeU16x8(const a, b: TVecU16x8): TMask8;
 begin
-  Result := TMask8(MASK8_ALL_SET xor AVX2CmpLtU16x8(a, b));
+  Result := TMask8(MASK8_ALL_SET xor AVX2CmpGtU16x8(b, a));
 end;
 
 function AVX2CmpNeU16x8(const a, b: TVecU16x8): TMask8;
@@ -1946,24 +1891,8 @@ begin
 end;
 
 function AVX2CmpLtU8x16(const a, b: TVecU8x16): TMask16;
-var mask: Integer;
 begin
-  // Unsigned comparison: flip sign bit and use signed compare
-  asm
-    lea      rax, a
-    lea      rdx, b
-    mov      al, $80
-    vmovd    xmm2, eax
-    vpbroadcastb xmm2, xmm2     // Broadcast sign bit (AVX2)
-    vmovdqu  xmm0, [rax]
-    vpxor    xmm0, xmm0, xmm2
-    vmovdqu  xmm1, [rdx]
-    vpxor    xmm1, xmm1, xmm2
-    vpcmpgtb xmm1, xmm1, xmm0   // b > a
-    vpmovmskb eax, xmm1
-    mov      mask, eax
-  end;
-  Result := TMask16(mask);
+  Result := AVX2CmpGtU8x16(b, a);
 end;
 
 function AVX2CmpGtU8x16(const a, b: TVecU8x16): TMask16;
@@ -1994,7 +1923,7 @@ end;
 
 function AVX2CmpGeU8x16(const a, b: TVecU8x16): TMask16;
 begin
-  Result := TMask16(MASK16_ALL_SET xor AVX2CmpLtU8x16(a, b));
+  Result := TMask16(MASK16_ALL_SET xor AVX2CmpGtU8x16(b, a));
 end;
 
 function AVX2CmpNeU8x16(const a, b: TVecU8x16): TMask16;
@@ -2534,18 +2463,8 @@ end;
 
 // I64x2 小于比较 (a < b = b > a)
 function AVX2CmpLtI64x2(const a, b: TVecI64x2): TMask2;
-var maskVal: Integer;
 begin
-  asm
-    lea rax, b     // swap: load b first
-    lea rdx, a
-    vmovdqu  xmm0, [rax]
-    vmovdqu  xmm1, [rdx]
-    vpcmpgtq xmm0, xmm0, xmm1  // b > a
-    vmovmskpd eax, xmm0
-    mov      maskVal, eax
-  end;
-  Result := TMask2(maskVal);
+  Result := AVX2CmpGtI64x2(b, a);
 end;
 
 // I64x2 小于等于 (a <= b = NOT(a > b))
@@ -2557,7 +2476,7 @@ end;
 // I64x2 大于等于 (a >= b = NOT(a < b) = NOT(b > a))
 function AVX2CmpGeI64x2(const a, b: TVecI64x2): TMask2;
 begin
-  Result := TMask2(MASK2_ALL_SET xor AVX2CmpLtI64x2(a, b));
+  Result := TMask2(MASK2_ALL_SET xor AVX2CmpGtI64x2(b, a));
 end;
 
 // I64x2 不等比较 (a != b = NOT(a == b))
@@ -2654,16 +2573,8 @@ begin
 end;
 
 function AVX2CmpLtU64x2(const a, b: TVecU64x2): TMask2;
-const
-  SIGN_MASK: QWord = QWord($8000000000000000);
-var
-  LAdjustedA, LAdjustedB: TVecI64x2;
 begin
-  LAdjustedA.i[0] := Int64(a.u[0] xor SIGN_MASK);
-  LAdjustedA.i[1] := Int64(a.u[1] xor SIGN_MASK);
-  LAdjustedB.i[0] := Int64(b.u[0] xor SIGN_MASK);
-  LAdjustedB.i[1] := Int64(b.u[1] xor SIGN_MASK);
-  Result := AVX2CmpLtI64x2(LAdjustedA, LAdjustedB);
+  Result := AVX2CmpGtU64x2(b, a);
 end;
 
 function AVX2CmpGtU64x2(const a, b: TVecU64x2): TMask2;
@@ -2925,25 +2836,8 @@ end;
 
 // I64x4 小于比较 (a < b = b > a)
 function AVX2CmpLtI64x4(const a, b: TVecI64x4): TMask4;
-var
-  pa, pb: Pointer;
-  mask: Integer;
 begin
-  pa := @a;
-  pb := @b;
-
-  // a < b is equivalent to b > a
-  asm
-    mov     rdx, pb
-    mov     rcx, pa
-    vmovdqu ymm0, [rdx]
-    vpcmpgtq ymm0, ymm0, [rcx]  // b > a
-    vmovmskpd eax, ymm0
-    mov     mask, eax
-    vzeroupper
-  end;
-
-  Result := TMask4(mask);
+  Result := AVX2CmpGtI64x4(b, a);
 end;
 
 // I64x4 小于等于 (a <= b = NOT(a > b))
@@ -2955,7 +2849,7 @@ end;
 // I64x4 大于等于 (a >= b = NOT(a < b) = NOT(b > a))
 function AVX2CmpGeI64x4(const a, b: TVecI64x4): TMask4;
 begin
-  Result := TMask4(MASK4_ALL_SET xor AVX2CmpLtI64x4(a, b));
+  Result := TMask4(MASK4_ALL_SET xor AVX2CmpGtI64x4(b, a));
 end;
 
 // I64x4 不等比较 (a != b = NOT(a == b))
@@ -3290,33 +3184,8 @@ end;
 
 // U32x8 小于比较 (a < b = b > a，使用符号位翻转)
 function AVX2CmpLtU32x8(const a, b: TVecU32x8): TMask8;
-var
-  pa, pb: Pointer;
-  mask: Integer;
 begin
-  pa := @a;
-  pb := @b;
-
-  asm
-    mov     rdx, pb             // swap: load b first
-    mov     rcx, pa
-    // 创建符号位掩码
-    mov     eax, $80000000
-    vmovd   xmm2, eax
-    vpbroadcastd ymm2, xmm2
-    // 加载并翻转符号位
-    vmovdqu ymm0, [rdx]
-    vpxor   ymm0, ymm0, ymm2    // b XOR $80000000
-    vmovdqu ymm1, [rcx]
-    vpxor   ymm1, ymm1, ymm2    // a XOR $80000000
-    // 有符号比较 b > a
-    vpcmpgtd ymm0, ymm0, ymm1
-    vmovmskps eax, ymm0
-    mov     mask, eax
-    vzeroupper
-  end;
-
-  Result := TMask8(mask);
+  Result := AVX2CmpGtU32x8(b, a);
 end;
 
 // U32x8 小于等于 (a <= b = NOT(a > b))
@@ -3328,7 +3197,7 @@ end;
 // U32x8 大于等于 (a >= b = NOT(a < b))
 function AVX2CmpGeU32x8(const a, b: TVecU32x8): TMask8;
 begin
-  Result := TMask8(MASK8_ALL_SET xor AVX2CmpLtU32x8(a, b));
+  Result := TMask8(MASK8_ALL_SET xor AVX2CmpGtU32x8(b, a));
 end;
 
 // U32x8 不等比较 (无符号与有符号相同)
@@ -3594,33 +3463,8 @@ end;
 
 // U64x4 小于比较 (a < b = b > a)
 function AVX2CmpLtU64x4(const a, b: TVecU64x4): TMask4;
-var
-  pa, pb: Pointer;
-  mask: Integer;
 begin
-  pa := @a;
-  pb := @b;
-
-  asm
-    mov     rdx, pb             // swap: load b first
-    mov     rcx, pa
-    // 创建符号位掩码 (64-bit)
-    mov     rax, $8000000000000000
-    vmovq   xmm2, rax
-    vpbroadcastq ymm2, xmm2
-    // 加载并翻转符号位
-    vmovdqu ymm0, [rdx]
-    vpxor   ymm0, ymm0, ymm2    // b XOR $8000...
-    vmovdqu ymm1, [rcx]
-    vpxor   ymm1, ymm1, ymm2    // a XOR $8000...
-    // 有符号比较 b > a
-    vpcmpgtq ymm0, ymm0, ymm1
-    vmovmskpd eax, ymm0
-    mov     mask, eax
-    vzeroupper
-  end;
-
-  Result := TMask4(mask);
+  Result := AVX2CmpGtU64x4(b, a);
 end;
 
 // U64x4 小于等于 (a <= b = NOT(a > b))
@@ -3632,7 +3476,7 @@ end;
 // U64x4 大于等于 (a >= b = NOT(a < b))
 function AVX2CmpGeU64x4(const a, b: TVecU64x4): TMask4;
 begin
-  Result := TMask4(MASK4_ALL_SET xor AVX2CmpLtU64x4(a, b));
+  Result := TMask4(MASK4_ALL_SET xor AVX2CmpGtU64x4(b, a));
 end;
 
 // U64x4 不等比较 (无符号与有符号相同)
