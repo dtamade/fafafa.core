@@ -127,3 +127,17 @@
 | 2. public ABI 绑定语义收紧 | completed | `public ABI` 现在按 `PSimdDataPlane` 复用/发布 metadata table，不再维护独立 `target dispatch ptr`，也不再依赖独立 invalidate hook |
 | 3. fallback 语义收回 dataplane | completed | `PublicAbi*` cdecl wrapper 的兜底路径已从 `GetDispatchTable` 改成读取当前已发布 `dataplane` 槽位，消除第二条 publication path |
 | 4. seam 回归验证与提交收口 | in_progress | `git diff --check`、Release `check`、`TTestCase_DataPlane`、`TTestCase_PublicAbi`、`TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`、`TTestCase_DispatchAPI`、`TTestCase_RuntimeAPI`、`TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、`gate` 已通过；剩余 review 结论 + commit |
+
+## 2026-05-11 Facade Dispatch Unification
+
+### Goal
+
+把 `src/fafafa.core.simd.pas` 里残留的 façade wrapper 统一收回到 `dataplane` 发布的 dispatch 读取路径，避免 façade 继续显式依赖第二套 dispatch getter 语义。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 找出残留的直接 dispatch 读取 | completed | 已确认 `simd.pas` 里大量 façade wrapper 仍直接调用 `GetDispatchTable`，而不是显式读 `dataplane` published snapshot |
+| 2. 统一 façade wrapper 读取路径 | completed | 已将 `src/fafafa.core.simd.pas` 中所有 `GetDispatchTable` 调用统一替换为 `GetCurrentSimdDataPlaneDispatch` |
+| 3. 验证并继续扫残余重复实现 | in_progress | Release `check`、targeted seam suites、`gate` 已通过；下一步继续检查 runtime/cpuinfo/family 面是否还有可清理的重复 truth 或多重实现 |

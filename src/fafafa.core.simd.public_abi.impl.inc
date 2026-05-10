@@ -577,7 +577,7 @@ begin
   aInfo.StructSize := SizeOf(aInfo);
   aInfo.BackendId := UInt32(Ord(aBackend));
 
-  LCurrentDispatch := GetDispatchTable;
+  LCurrentDispatch := GetCurrentSimdDataPlaneDispatch;
   LActive := (LCurrentDispatch <> nil) and (LCurrentDispatch^.Backend = aBackend);
 
   if LActive then

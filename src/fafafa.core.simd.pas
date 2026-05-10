@@ -1162,91 +1162,91 @@ end;
 function VecF32x4Sub(const a, b: TVecF32x4): TVecF32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.SubF32x4(a, b);
 end;
 
 function VecF32x4Mul(const a, b: TVecF32x4): TVecF32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.MulF32x4(a, b);
 end;
 
 function VecF32x4Div(const a, b: TVecF32x4): TVecF32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.DivF32x4(a, b);
 end;
 
 function VecF32x4CmpEq(const a, b: TVecF32x4): TMask4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.CmpEqF32x4(a, b);
 end;
 
 function VecF32x4CmpLt(const a, b: TVecF32x4): TMask4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.CmpLtF32x4(a, b);
 end;
 
 function VecF32x4CmpLe(const a, b: TVecF32x4): TMask4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.CmpLeF32x4(a, b);
 end;
 
 function VecF32x4CmpGt(const a, b: TVecF32x4): TMask4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.CmpGtF32x4(a, b);
 end;
 
 function VecF32x4CmpGe(const a, b: TVecF32x4): TMask4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.CmpGeF32x4(a, b);
 end;
 
 function VecF32x4CmpNe(const a, b: TVecF32x4): TMask4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.CmpNeF32x4(a, b);
 end;
 
 function VecF32x4Abs(const a: TVecF32x4): TVecF32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.AbsF32x4(a);
 end;
 
 function VecF32x4Sqrt(const a: TVecF32x4): TVecF32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.SqrtF32x4(a);
 end;
 
 function VecF32x4Min(const a, b: TVecF32x4): TVecF32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.MinF32x4(a, b);
 end;
 
 function VecF32x4Max(const a, b: TVecF32x4): TVecF32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.MaxF32x4(a, b);
 end;
 
@@ -1255,56 +1255,56 @@ end;
 function VecF32x4Fma(const a, b, c: TVecF32x4): TVecF32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.FmaF32x4(a, b, c);
 end;
 
 function VecF32x4Rcp(const a: TVecF32x4): TVecF32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.RcpF32x4(a);
 end;
 
 function VecF32x4Rsqrt(const a: TVecF32x4): TVecF32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.RsqrtF32x4(a);
 end;
 
 function VecF32x4Floor(const a: TVecF32x4): TVecF32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.FloorF32x4(a);
 end;
 
 function VecF32x4Ceil(const a: TVecF32x4): TVecF32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.CeilF32x4(a);
 end;
 
 function VecF32x4Round(const a: TVecF32x4): TVecF32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.RoundF32x4(a);
 end;
 
 function VecF32x4Trunc(const a: TVecF32x4): TVecF32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.TruncF32x4(a);
 end;
 
 function VecF32x4Clamp(const a, minVal, maxVal: TVecF32x4): TVecF32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.ClampF32x4(a, minVal, maxVal);
 end;
 
@@ -1313,49 +1313,49 @@ end;
 function VecF32x4Dot(const a, b: TVecF32x4): Single;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.DotF32x4(a, b);
 end;
 
 function VecF32x3Dot(const a, b: TVecF32x4): Single;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.DotF32x3(a, b);
 end;
 
 function VecF32x3Cross(const a, b: TVecF32x4): TVecF32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.CrossF32x3(a, b);
 end;
 
 function VecF32x4Length(const a: TVecF32x4): Single;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.LengthF32x4(a);
 end;
 
 function VecF32x3Length(const a: TVecF32x4): Single;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.LengthF32x3(a);
 end;
 
 function VecF32x4Normalize(const a: TVecF32x4): TVecF32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.NormalizeF32x4(a);
 end;
 
 function VecF32x3Normalize(const a: TVecF32x4): TVecF32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.NormalizeF32x3(a);
 end;
 
@@ -1364,21 +1364,21 @@ end;
 function VecF32x8Dot(const a, b: TVecF32x8): Single;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.DotF32x8(a, b);
 end;
 
 function VecF64x2Dot(const a, b: TVecF64x2): Double;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.DotF64x2(a, b);
 end;
 
 function VecF64x4Dot(const a, b: TVecF64x4): Double;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.DotF64x4(a, b);
 end;
 
@@ -1386,77 +1386,77 @@ end;
 function VecF32x4ReduceAdd(const a: TVecF32x4): Single;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.ReduceAddF32x4(a);
 end;
 
 function VecF32x4ReduceMin(const a: TVecF32x4): Single;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.ReduceMinF32x4(a);
 end;
 
 function VecF32x4ReduceMax(const a: TVecF32x4): Single;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.ReduceMaxF32x4(a);
 end;
 
 function VecF32x4ReduceMul(const a: TVecF32x4): Single;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.ReduceMulF32x4(a);
 end;
 
 function VecF32x4Load(p: PSingle): TVecF32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.LoadF32x4(p);
 end;
 
 function VecF32x4LoadAligned(p: PSingle): TVecF32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.LoadF32x4Aligned(p);
 end;
 
 procedure VecF32x4Store(p: PSingle; const a: TVecF32x4);
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   dispatch^.StoreF32x4(p, a);
 end;
 
 procedure VecF32x4StoreAligned(p: PSingle; const a: TVecF32x4);
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   dispatch^.StoreF32x4Aligned(p, a);
 end;
 
 function VecF32x4Splat(value: Single): TVecF32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.SplatF32x4(value);
 end;
 
 function VecF32x4Zero: TVecF32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.ZeroF32x4();
 end;
 
 function VecF32x4Select(const mask: TMask4; const a, b: TVecF32x4): TVecF32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.SelectF32x4(mask, a, b);
 end;
 
@@ -1464,7 +1464,7 @@ function VecF32x4Extract(const a: TVecF32x4; index: Integer): Single;
 var dispatch: PSimdDispatchTable;
     LIndex: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ExtractF32x4) then
     Result := dispatch^.ExtractF32x4(a, index)
   else
@@ -1480,7 +1480,7 @@ function VecF32x4Insert(const a: TVecF32x4; value: Single; index: Integer): TVec
 var dispatch: PSimdDispatchTable;
     LIndex: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.InsertF32x4) then
     Result := dispatch^.InsertF32x4(a, value, index)
   else
@@ -1500,7 +1500,7 @@ function VecF64x2Extract(const a: TVecF64x2; index: Integer): Double;
 var dispatch: PSimdDispatchTable;
     LIndex: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ExtractF64x2) then
     Result := dispatch^.ExtractF64x2(a, index)
   else
@@ -1516,7 +1516,7 @@ function VecF64x2Insert(const a: TVecF64x2; value: Double; index: Integer): TVec
 var dispatch: PSimdDispatchTable;
     LIndex: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.InsertF64x2) then
     Result := dispatch^.InsertF64x2(a, value, index)
   else
@@ -1534,7 +1534,7 @@ function VecI32x4Extract(const a: TVecI32x4; index: Integer): Int32;
 var dispatch: PSimdDispatchTable;
     LIndex: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ExtractI32x4) then
     Result := dispatch^.ExtractI32x4(a, index)
   else
@@ -1550,7 +1550,7 @@ function VecI32x4Insert(const a: TVecI32x4; value: Int32; index: Integer): TVecI
 var dispatch: PSimdDispatchTable;
     LIndex: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.InsertI32x4) then
     Result := dispatch^.InsertI32x4(a, value, index)
   else
@@ -1568,7 +1568,7 @@ function VecI64x2Extract(const a: TVecI64x2; index: Integer): Int64;
 var dispatch: PSimdDispatchTable;
     LIndex: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ExtractI64x2) then
     Result := dispatch^.ExtractI64x2(a, index)
   else
@@ -1584,7 +1584,7 @@ function VecI64x2Insert(const a: TVecI64x2; value: Int64; index: Integer): TVecI
 var dispatch: PSimdDispatchTable;
     LIndex: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.InsertI64x2) then
     Result := dispatch^.InsertI64x2(a, value, index)
   else
@@ -1602,7 +1602,7 @@ function VecF32x8Extract(const a: TVecF32x8; index: Integer): Single;
 var dispatch: PSimdDispatchTable;
     LIndex: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ExtractF32x8) then
     Result := dispatch^.ExtractF32x8(a, index)
   else
@@ -1618,7 +1618,7 @@ function VecF32x8Insert(const a: TVecF32x8; value: Single; index: Integer): TVec
 var dispatch: PSimdDispatchTable;
     LIndex: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.InsertF32x8) then
     Result := dispatch^.InsertF32x8(a, value, index)
   else
@@ -1636,7 +1636,7 @@ function VecF64x4Extract(const a: TVecF64x4; index: Integer): Double;
 var dispatch: PSimdDispatchTable;
     LIndex: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ExtractF64x4) then
     Result := dispatch^.ExtractF64x4(a, index)
   else
@@ -1652,7 +1652,7 @@ function VecF64x4Insert(const a: TVecF64x4; value: Double; index: Integer): TVec
 var dispatch: PSimdDispatchTable;
     LIndex: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.InsertF64x4) then
     Result := dispatch^.InsertF64x4(a, value, index)
   else
@@ -1670,7 +1670,7 @@ function VecI32x8Extract(const a: TVecI32x8; index: Integer): Int32;
 var dispatch: PSimdDispatchTable;
     LIndex: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ExtractI32x8) then
     Result := dispatch^.ExtractI32x8(a, index)
   else
@@ -1686,7 +1686,7 @@ function VecI32x8Insert(const a: TVecI32x8; value: Int32; index: Integer): TVecI
 var dispatch: PSimdDispatchTable;
     LIndex: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.InsertI32x8) then
     Result := dispatch^.InsertI32x8(a, value, index)
   else
@@ -1704,7 +1704,7 @@ function VecI64x4Extract(const a: TVecI64x4; index: Integer): Int64;
 var dispatch: PSimdDispatchTable;
     LIndex: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ExtractI64x4) then
     Result := dispatch^.ExtractI64x4(a, index)
   else
@@ -1720,7 +1720,7 @@ function VecI64x4Insert(const a: TVecI64x4; value: Int64; index: Integer): TVecI
 var dispatch: PSimdDispatchTable;
     LIndex: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.InsertI64x4) then
     Result := dispatch^.InsertI64x4(a, value, index)
   else
@@ -1738,7 +1738,7 @@ function VecF32x16Extract(const a: TVecF32x16; index: Integer): Single;
 var dispatch: PSimdDispatchTable;
     LIndex: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ExtractF32x16) then
     Result := dispatch^.ExtractF32x16(a, index)
   else
@@ -1754,7 +1754,7 @@ function VecF32x16Insert(const a: TVecF32x16; value: Single; index: Integer): TV
 var dispatch: PSimdDispatchTable;
     LIndex: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.InsertF32x16) then
     Result := dispatch^.InsertF32x16(a, value, index)
   else
@@ -1771,7 +1771,7 @@ function VecF32x16Load(p: PSingle): TVecF32x16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.LoadF32x16(p);
 end;
 
@@ -1779,7 +1779,7 @@ procedure VecF32x16Store(p: PSingle; const a: TVecF32x16);
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   LDispatch^.StoreF32x16(p, a);
 end;
 
@@ -1787,7 +1787,7 @@ function VecF32x16Splat(value: Single): TVecF32x16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.SplatF32x16(value);
 end;
 
@@ -1795,7 +1795,7 @@ function VecF32x16Zero: TVecF32x16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.ZeroF32x16();
 end;
 
@@ -1803,7 +1803,7 @@ function VecF64x8Load(p: PDouble): TVecF64x8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.LoadF64x8(p);
 end;
 
@@ -1811,7 +1811,7 @@ procedure VecF64x8Store(p: PDouble; const a: TVecF64x8);
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   LDispatch^.StoreF64x8(p, a);
 end;
 
@@ -1819,7 +1819,7 @@ function VecF64x8Splat(value: Double): TVecF64x8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.SplatF64x8(value);
 end;
 
@@ -1827,7 +1827,7 @@ function VecF64x8Zero: TVecF64x8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.ZeroF64x8();
 end;
 
@@ -1836,7 +1836,7 @@ function VecI32x16Extract(const a: TVecI32x16; index: Integer): Int32;
 var dispatch: PSimdDispatchTable;
     LIndex: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ExtractI32x16) then
     Result := dispatch^.ExtractI32x16(a, index)
   else
@@ -1852,7 +1852,7 @@ function VecI32x16Insert(const a: TVecI32x16; value: Int32; index: Integer): TVe
 var dispatch: PSimdDispatchTable;
     LIndex: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.InsertI32x16) then
     Result := dispatch^.InsertI32x16(a, value, index)
   else
@@ -1871,7 +1871,7 @@ end;
 function VecF64x2Add(const a, b: TVecF64x2): TVecF64x2;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AddF64x2) then
     Result := dispatch^.AddF64x2(a, b)
   else
@@ -1884,7 +1884,7 @@ end;
 function VecF64x2Sub(const a, b: TVecF64x2): TVecF64x2;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.SubF64x2) then
     Result := dispatch^.SubF64x2(a, b)
   else
@@ -1897,7 +1897,7 @@ end;
 function VecF64x2Mul(const a, b: TVecF64x2): TVecF64x2;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.MulF64x2) then
     Result := dispatch^.MulF64x2(a, b)
   else
@@ -1910,7 +1910,7 @@ end;
 function VecF64x2Div(const a, b: TVecF64x2): TVecF64x2;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.DivF64x2) then
     Result := dispatch^.DivF64x2(a, b)
   else
@@ -1925,7 +1925,7 @@ end;
 function VecF64x2CmpEq(const a, b: TVecF64x2): TMask2;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpEqF64x2) then
     Result := dispatch^.CmpEqF64x2(a, b)
   else begin
@@ -1938,7 +1938,7 @@ end;
 function VecF64x2CmpLt(const a, b: TVecF64x2): TMask2;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpLtF64x2) then
     Result := dispatch^.CmpLtF64x2(a, b)
   else begin
@@ -1951,7 +1951,7 @@ end;
 function VecF64x2CmpLe(const a, b: TVecF64x2): TMask2;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpLeF64x2) then
     Result := dispatch^.CmpLeF64x2(a, b)
   else begin
@@ -1964,7 +1964,7 @@ end;
 function VecF64x2CmpGt(const a, b: TVecF64x2): TMask2;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpGtF64x2) then
     Result := dispatch^.CmpGtF64x2(a, b)
   else begin
@@ -1977,7 +1977,7 @@ end;
 function VecF64x2CmpGe(const a, b: TVecF64x2): TMask2;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpGeF64x2) then
     Result := dispatch^.CmpGeF64x2(a, b)
   else begin
@@ -1990,7 +1990,7 @@ end;
 function VecF64x2CmpNe(const a, b: TVecF64x2): TMask2;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpNeF64x2) then
     Result := dispatch^.CmpNeF64x2(a, b)
   else begin
@@ -2004,7 +2004,7 @@ function VecF64x2Abs(const a: TVecF64x2): TVecF64x2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.AbsF64x2) then
     Result := LDispatch^.AbsF64x2(a)
   else
@@ -2018,7 +2018,7 @@ function VecF64x2Sqrt(const a: TVecF64x2): TVecF64x2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.SqrtF64x2) then
     Result := LDispatch^.SqrtF64x2(a)
   else
@@ -2032,7 +2032,7 @@ function VecF64x2Min(const a, b: TVecF64x2): TVecF64x2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.MinF64x2) then
     Result := LDispatch^.MinF64x2(a, b)
   else
@@ -2046,7 +2046,7 @@ function VecF64x2Max(const a, b: TVecF64x2): TVecF64x2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.MaxF64x2) then
     Result := LDispatch^.MaxF64x2(a, b)
   else
@@ -2061,7 +2061,7 @@ end;
 function VecF64x2Fma(const a, b, c: TVecF64x2): TVecF64x2;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.FmaF64x2(a, b, c);
 end;
 
@@ -2070,28 +2070,28 @@ end;
 function VecF64x2Floor(const a: TVecF64x2): TVecF64x2;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.FloorF64x2(a);
 end;
 
 function VecF64x2Ceil(const a: TVecF64x2): TVecF64x2;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.CeilF64x2(a);
 end;
 
 function VecF64x2Round(const a: TVecF64x2): TVecF64x2;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.RoundF64x2(a);
 end;
 
 function VecF64x2Trunc(const a: TVecF64x2): TVecF64x2;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.TruncF64x2(a);
 end;
 
@@ -2099,7 +2099,7 @@ function VecF64x2ReduceAdd(const a: TVecF64x2): Double;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.ReduceAddF64x2) then
     Result := LDispatch^.ReduceAddF64x2(a)
   else
@@ -2110,7 +2110,7 @@ function VecF64x2ReduceMin(const a: TVecF64x2): Double;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.ReduceMinF64x2) then
     Result := LDispatch^.ReduceMinF64x2(a)
   else if a.d[0] < a.d[1] then
@@ -2123,7 +2123,7 @@ function VecF64x2ReduceMax(const a: TVecF64x2): Double;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.ReduceMaxF64x2) then
     Result := LDispatch^.ReduceMaxF64x2(a)
   else if a.d[0] > a.d[1] then
@@ -2136,7 +2136,7 @@ function VecF64x2ReduceMul(const a: TVecF64x2): Double;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.ReduceMulF64x2) then
     Result := LDispatch^.ReduceMulF64x2(a)
   else
@@ -2147,7 +2147,7 @@ end;
 function VecF64x2Load(p: PDouble): TVecF64x2;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.LoadF64x2) then
     Result := dispatch^.LoadF64x2(p)
   else
@@ -2160,7 +2160,7 @@ end;
 procedure VecF64x2Store(p: PDouble; const a: TVecF64x2);
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.StoreF64x2) then
     dispatch^.StoreF64x2(p, a)
   else
@@ -2173,7 +2173,7 @@ end;
 function VecF64x2Splat(value: Double): TVecF64x2;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.SplatF64x2) then
     Result := dispatch^.SplatF64x2(value)
   else
@@ -2186,7 +2186,7 @@ end;
 function VecF64x2Zero: TVecF64x2;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ZeroF64x2) then
     Result := dispatch^.ZeroF64x2()
   else
@@ -2199,7 +2199,7 @@ end;
 function VecF64x2Select(const mask: TMask2; const a, b: TVecF64x2): TVecF64x2;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.SelectF64x2) then
     Result := dispatch^.SelectF64x2(mask, a, b)
   else
@@ -2217,7 +2217,7 @@ var
   dispatch: PSimdDispatchTable;
   i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.SelectI32x4) then
     Result := dispatch^.SelectI32x4(mask, a, b)
   else
@@ -2236,7 +2236,7 @@ var
   dispatch: PSimdDispatchTable;
   i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.SelectF32x8) then
     Result := dispatch^.SelectF32x8(mask, a, b)
   else
@@ -2255,7 +2255,7 @@ var
   dispatch: PSimdDispatchTable;
   i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.SelectF64x4) then
     Result := dispatch^.SelectF64x4(mask, a, b)
   else
@@ -2273,140 +2273,140 @@ end;
 function Mask2All(mask: TMask2): Boolean;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.Mask2All(mask);
 end;
 
 function Mask2Any(mask: TMask2): Boolean;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.Mask2Any(mask);
 end;
 
 function Mask2None(mask: TMask2): Boolean;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.Mask2None(mask);
 end;
 
 function Mask2PopCount(mask: TMask2): Integer;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.Mask2PopCount(mask);
 end;
 
 function Mask2FirstSet(mask: TMask2): Integer;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.Mask2FirstSet(mask);
 end;
 
 function Mask4All(mask: TMask4): Boolean;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.Mask4All(mask);
 end;
 
 function Mask4Any(mask: TMask4): Boolean;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.Mask4Any(mask);
 end;
 
 function Mask4None(mask: TMask4): Boolean;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.Mask4None(mask);
 end;
 
 function Mask4PopCount(mask: TMask4): Integer;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.Mask4PopCount(mask);
 end;
 
 function Mask4FirstSet(mask: TMask4): Integer;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.Mask4FirstSet(mask);
 end;
 
 function Mask8All(mask: TMask8): Boolean;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.Mask8All(mask);
 end;
 
 function Mask8Any(mask: TMask8): Boolean;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.Mask8Any(mask);
 end;
 
 function Mask8None(mask: TMask8): Boolean;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.Mask8None(mask);
 end;
 
 function Mask8PopCount(mask: TMask8): Integer;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.Mask8PopCount(mask);
 end;
 
 function Mask8FirstSet(mask: TMask8): Integer;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.Mask8FirstSet(mask);
 end;
 
 function Mask16All(mask: TMask16): Boolean;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.Mask16All(mask);
 end;
 
 function Mask16Any(mask: TMask16): Boolean;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.Mask16Any(mask);
 end;
 
 function Mask16None(mask: TMask16): Boolean;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.Mask16None(mask);
 end;
 
 function Mask16PopCount(mask: TMask16): Integer;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.Mask16PopCount(mask);
 end;
 
 function Mask16FirstSet(mask: TMask16): Integer;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.Mask16FirstSet(mask);
 end;
 
@@ -2416,7 +2416,7 @@ end;
 function VecI32x4Add(const a, b: TVecI32x4): TVecI32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AddI32x4) then
     Result := dispatch^.AddI32x4(a, b)
   else
@@ -2431,7 +2431,7 @@ end;
 function VecI32x4Sub(const a, b: TVecI32x4): TVecI32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.SubI32x4) then
     Result := dispatch^.SubI32x4(a, b)
   else
@@ -2446,7 +2446,7 @@ end;
 function VecI32x4Mul(const a, b: TVecI32x4): TVecI32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.MulI32x4) then
     Result := dispatch^.MulI32x4(a, b)
   else
@@ -2461,7 +2461,7 @@ end;
 function VecI32x4And(const a, b: TVecI32x4): TVecI32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AndI32x4) then
     Result := dispatch^.AndI32x4(a, b)
   else
@@ -2476,7 +2476,7 @@ end;
 function VecI32x4Or(const a, b: TVecI32x4): TVecI32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.OrI32x4) then
     Result := dispatch^.OrI32x4(a, b)
   else
@@ -2491,7 +2491,7 @@ end;
 function VecI32x4Xor(const a, b: TVecI32x4): TVecI32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.XorI32x4) then
     Result := dispatch^.XorI32x4(a, b)
   else
@@ -2506,7 +2506,7 @@ end;
 function VecI32x4Not(const a: TVecI32x4): TVecI32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.NotI32x4) then
     Result := dispatch^.NotI32x4(a)
   else
@@ -2521,7 +2521,7 @@ end;
 function VecI32x4AndNot(const a, b: TVecI32x4): TVecI32x4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AndNotI32x4) then
     Result := dispatch^.AndNotI32x4(a, b)
   else
@@ -2547,7 +2547,7 @@ begin
     Exit;
   end;
 
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftLeftI32x4) then
     Result := dispatch^.ShiftLeftI32x4(a, LCount)
   else
@@ -2573,7 +2573,7 @@ begin
     Exit;
   end;
 
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftRightI32x4) then
     Result := dispatch^.ShiftRightI32x4(a, LCount)
   else
@@ -2606,7 +2606,7 @@ begin
     Exit;
   end;
 
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftRightArithI32x4) then
     Result := dispatch^.ShiftRightArithI32x4(a, LCount)
   else
@@ -2622,7 +2622,7 @@ end;
 function VecI32x4CmpEq(const a, b: TVecI32x4): TMask4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpEqI32x4) then
     Result := dispatch^.CmpEqI32x4(a, b)
   else
@@ -2638,7 +2638,7 @@ end;
 function VecI32x4CmpLt(const a, b: TVecI32x4): TMask4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpLtI32x4) then
     Result := dispatch^.CmpLtI32x4(a, b)
   else
@@ -2654,7 +2654,7 @@ end;
 function VecI32x4CmpGt(const a, b: TVecI32x4): TMask4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpGtI32x4) then
     Result := dispatch^.CmpGtI32x4(a, b)
   else
@@ -2671,7 +2671,7 @@ end;
 function VecI32x4CmpLe(const a, b: TVecI32x4): TMask4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpLeI32x4) then
     Result := dispatch^.CmpLeI32x4(a, b)
   else
@@ -2687,7 +2687,7 @@ end;
 function VecI32x4CmpGe(const a, b: TVecI32x4): TMask4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpGeI32x4) then
     Result := dispatch^.CmpGeI32x4(a, b)
   else
@@ -2703,7 +2703,7 @@ end;
 function VecI32x4CmpNe(const a, b: TVecI32x4): TMask4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpNeI32x4) then
     Result := dispatch^.CmpNeI32x4(a, b)
   else
@@ -2720,7 +2720,7 @@ function VecI32x4Min(const a, b: TVecI32x4): TVecI32x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.MinI32x4) then
     Result := dispatch^.MinI32x4(a, b)
   else
@@ -2737,7 +2737,7 @@ function VecI32x4Max(const a, b: TVecI32x4): TVecI32x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.MaxI32x4) then
     Result := dispatch^.MaxI32x4(a, b)
   else
@@ -2756,7 +2756,7 @@ end;
 function VecI64x2Add(const a, b: TVecI64x2): TVecI64x2;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AddI64x2) then
     Result := dispatch^.AddI64x2(a, b)
   else
@@ -2769,7 +2769,7 @@ end;
 function VecI64x2Sub(const a, b: TVecI64x2): TVecI64x2;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.SubI64x2) then
     Result := dispatch^.SubI64x2(a, b)
   else
@@ -2783,7 +2783,7 @@ function VecI64x2And(const a, b: TVecI64x2): TVecI64x2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.AndI64x2) then
     Result := LDispatch^.AndI64x2(a, b)
   else
@@ -2797,7 +2797,7 @@ function VecI64x2Or(const a, b: TVecI64x2): TVecI64x2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.OrI64x2) then
     Result := LDispatch^.OrI64x2(a, b)
   else
@@ -2811,7 +2811,7 @@ function VecI64x2Xor(const a, b: TVecI64x2): TVecI64x2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.XorI64x2) then
     Result := LDispatch^.XorI64x2(a, b)
   else
@@ -2825,7 +2825,7 @@ function VecI64x2Not(const a: TVecI64x2): TVecI64x2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.NotI64x2) then
     Result := LDispatch^.NotI64x2(a)
   else
@@ -2839,7 +2839,7 @@ function VecI64x2AndNot(const a, b: TVecI64x2): TVecI64x2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.AndNotI64x2) then
     Result := LDispatch^.AndNotI64x2(a, b)
   else
@@ -2865,7 +2865,7 @@ begin
     Exit;
   end;
 
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.ShiftLeftI64x2) then
     Result := LDispatch^.ShiftLeftI64x2(a, LCount)
   else
@@ -2888,7 +2888,7 @@ begin
     Exit;
   end;
 
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.ShiftRightI64x2) then
     Result := LDispatch^.ShiftRightI64x2(a, LCount)
   else
@@ -2912,7 +2912,7 @@ begin
     Exit;
   end;
 
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.ShiftRightArithI64x2) then
     Result := LDispatch^.ShiftRightArithI64x2(a, LCount)
   else
@@ -2927,7 +2927,7 @@ function VecI64x2CmpEq(const a, b: TVecI64x2): TMask2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.CmpEqI64x2) then
     Result := LDispatch^.CmpEqI64x2(a, b)
   else
@@ -2942,7 +2942,7 @@ function VecI64x2CmpLt(const a, b: TVecI64x2): TMask2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.CmpLtI64x2) then
     Result := LDispatch^.CmpLtI64x2(a, b)
   else
@@ -2957,7 +2957,7 @@ function VecI64x2CmpGt(const a, b: TVecI64x2): TMask2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.CmpGtI64x2) then
     Result := LDispatch^.CmpGtI64x2(a, b)
   else
@@ -2973,7 +2973,7 @@ function VecI64x2CmpLe(const a, b: TVecI64x2): TMask2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.CmpLeI64x2) then
     Result := LDispatch^.CmpLeI64x2(a, b)
   else
@@ -2988,7 +2988,7 @@ function VecI64x2CmpGe(const a, b: TVecI64x2): TMask2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.CmpGeI64x2) then
     Result := LDispatch^.CmpGeI64x2(a, b)
   else
@@ -3003,7 +3003,7 @@ function VecI64x2CmpNe(const a, b: TVecI64x2): TMask2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.CmpNeI64x2) then
     Result := LDispatch^.CmpNeI64x2(a, b)
   else
@@ -3018,7 +3018,7 @@ function VecI64x2Min(const a, b: TVecI64x2): TVecI64x2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.MinI64x2) then
     Result := LDispatch^.MinI64x2(a, b)
   else
@@ -3032,7 +3032,7 @@ function VecI64x2Max(const a, b: TVecI64x2): TVecI64x2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.MaxI64x2) then
     Result := LDispatch^.MaxI64x2(a, b)
   else
@@ -3049,7 +3049,7 @@ function VecU64x2Add(const a, b: TVecU64x2): TVecU64x2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.AddU64x2) then
     Result := LDispatch^.AddU64x2(a, b)
   else
@@ -3063,7 +3063,7 @@ function VecU64x2Sub(const a, b: TVecU64x2): TVecU64x2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.SubU64x2) then
     Result := LDispatch^.SubU64x2(a, b)
   else
@@ -3077,7 +3077,7 @@ function VecU64x2And(const a, b: TVecU64x2): TVecU64x2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.AndU64x2) then
     Result := LDispatch^.AndU64x2(a, b)
   else
@@ -3091,7 +3091,7 @@ function VecU64x2Or(const a, b: TVecU64x2): TVecU64x2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.OrU64x2) then
     Result := LDispatch^.OrU64x2(a, b)
   else
@@ -3105,7 +3105,7 @@ function VecU64x2Xor(const a, b: TVecU64x2): TVecU64x2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.XorU64x2) then
     Result := LDispatch^.XorU64x2(a, b)
   else
@@ -3119,7 +3119,7 @@ function VecU64x2Not(const a: TVecU64x2): TVecU64x2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.NotU64x2) then
     Result := LDispatch^.NotU64x2(a)
   else
@@ -3133,7 +3133,7 @@ function VecU64x2AndNot(const a, b: TVecU64x2): TVecU64x2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.AndNotU64x2) then
     Result := LDispatch^.AndNotU64x2(a, b)
   else
@@ -3148,7 +3148,7 @@ function VecU64x2CmpEq(const a, b: TVecU64x2): TMask2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.CmpEqU64x2) then
     Result := LDispatch^.CmpEqU64x2(a, b)
   else
@@ -3163,7 +3163,7 @@ function VecU64x2CmpLt(const a, b: TVecU64x2): TMask2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.CmpLtU64x2) then
     Result := LDispatch^.CmpLtU64x2(a, b)
   else
@@ -3178,7 +3178,7 @@ function VecU64x2CmpGt(const a, b: TVecU64x2): TMask2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.CmpGtU64x2) then
     Result := LDispatch^.CmpGtU64x2(a, b)
   else
@@ -3193,7 +3193,7 @@ function VecU64x2Min(const a, b: TVecU64x2): TVecU64x2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.MinU64x2) then
     Result := LDispatch^.MinU64x2(a, b)
   else
@@ -3207,7 +3207,7 @@ function VecU64x2Max(const a, b: TVecU64x2): TVecU64x2;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.MaxU64x2) then
     Result := LDispatch^.MaxU64x2(a, b)
   else
@@ -3227,7 +3227,7 @@ function VecU32x4Add(const a, b: TVecU32x4): TVecU32x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AddU32x4) then
     Result := dispatch^.AddU32x4(a, b)
   else
@@ -3239,7 +3239,7 @@ function VecU32x4Sub(const a, b: TVecU32x4): TVecU32x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.SubU32x4) then
     Result := dispatch^.SubU32x4(a, b)
   else
@@ -3251,7 +3251,7 @@ function VecU32x4Mul(const a, b: TVecU32x4): TVecU32x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.MulU32x4) then
     Result := dispatch^.MulU32x4(a, b)
   else
@@ -3263,7 +3263,7 @@ function VecU32x4And(const a, b: TVecU32x4): TVecU32x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AndU32x4) then
     Result := dispatch^.AndU32x4(a, b)
   else
@@ -3275,7 +3275,7 @@ function VecU32x4Or(const a, b: TVecU32x4): TVecU32x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.OrU32x4) then
     Result := dispatch^.OrU32x4(a, b)
   else
@@ -3287,7 +3287,7 @@ function VecU32x4Xor(const a, b: TVecU32x4): TVecU32x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.XorU32x4) then
     Result := dispatch^.XorU32x4(a, b)
   else
@@ -3299,7 +3299,7 @@ function VecU32x4Not(const a: TVecU32x4): TVecU32x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.NotU32x4) then
     Result := dispatch^.NotU32x4(a)
   else
@@ -3311,7 +3311,7 @@ function VecU32x4AndNot(const a, b: TVecU32x4): TVecU32x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AndNotU32x4) then
     Result := dispatch^.AndNotU32x4(a, b)
   else
@@ -3332,7 +3332,7 @@ begin
     Exit;
   end;
 
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftLeftU32x4) then
     Result := dispatch^.ShiftLeftU32x4(a, LCount)
   else
@@ -3353,7 +3353,7 @@ begin
     Exit;
   end;
 
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftRightU32x4) then
     Result := dispatch^.ShiftRightU32x4(a, LCount)
   else
@@ -3364,7 +3364,7 @@ end;
 function VecU32x4CmpEq(const a, b: TVecU32x4): TMask4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpEqU32x4) then
     Result := dispatch^.CmpEqU32x4(a, b)
   else
@@ -3380,7 +3380,7 @@ end;
 function VecU32x4CmpLt(const a, b: TVecU32x4): TMask4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpLtU32x4) then
     Result := dispatch^.CmpLtU32x4(a, b)
   else
@@ -3396,7 +3396,7 @@ end;
 function VecU32x4CmpGt(const a, b: TVecU32x4): TMask4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpGtU32x4) then
     Result := dispatch^.CmpGtU32x4(a, b)
   else
@@ -3412,7 +3412,7 @@ end;
 function VecU32x4CmpLe(const a, b: TVecU32x4): TMask4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpLeU32x4) then
     Result := dispatch^.CmpLeU32x4(a, b)
   else
@@ -3428,7 +3428,7 @@ end;
 function VecU32x4CmpGe(const a, b: TVecU32x4): TMask4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpGeU32x4) then
     Result := dispatch^.CmpGeU32x4(a, b)
   else
@@ -3445,7 +3445,7 @@ function VecU32x4Min(const a, b: TVecU32x4): TVecU32x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.MinU32x4) then
     Result := dispatch^.MinU32x4(a, b)
   else
@@ -3460,7 +3460,7 @@ function VecU32x4Max(const a, b: TVecU32x4): TVecU32x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.MaxU32x4) then
     Result := dispatch^.MaxU32x4(a, b)
   else
@@ -3478,7 +3478,7 @@ function VecF32x8Add(const a, b: TVecF32x8): TVecF32x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AddF32x8) then
     Result := dispatch^.AddF32x8(a, b)
   else
@@ -3492,7 +3492,7 @@ function VecF32x8Sub(const a, b: TVecF32x8): TVecF32x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.SubF32x8) then
     Result := dispatch^.SubF32x8(a, b)
   else
@@ -3506,7 +3506,7 @@ function VecF32x8Mul(const a, b: TVecF32x8): TVecF32x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.MulF32x8) then
     Result := dispatch^.MulF32x8(a, b)
   else
@@ -3520,7 +3520,7 @@ function VecF32x8Div(const a, b: TVecF32x8): TVecF32x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.DivF32x8) then
     Result := dispatch^.DivF32x8(a, b)
   else
@@ -3534,7 +3534,7 @@ function VecF32x8CmpEq(const a, b: TVecF32x8): TMask8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpEqF32x8) then
     Result := dispatch^.CmpEqF32x8(a, b)
   else
@@ -3549,7 +3549,7 @@ function VecF32x8CmpLt(const a, b: TVecF32x8): TMask8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpLtF32x8) then
     Result := dispatch^.CmpLtF32x8(a, b)
   else
@@ -3564,7 +3564,7 @@ function VecF32x8CmpLe(const a, b: TVecF32x8): TMask8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpLeF32x8) then
     Result := dispatch^.CmpLeF32x8(a, b)
   else
@@ -3579,7 +3579,7 @@ function VecF32x8CmpGt(const a, b: TVecF32x8): TMask8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpGtF32x8) then
     Result := dispatch^.CmpGtF32x8(a, b)
   else
@@ -3594,7 +3594,7 @@ function VecF32x8CmpGe(const a, b: TVecF32x8): TMask8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpGeF32x8) then
     Result := dispatch^.CmpGeF32x8(a, b)
   else
@@ -3609,7 +3609,7 @@ function VecF32x8CmpNe(const a, b: TVecF32x8): TMask8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpNeF32x8) then
     Result := dispatch^.CmpNeF32x8(a, b)
   else
@@ -3625,7 +3625,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.AbsF32x8) then
     Result := LDispatch^.AbsF32x8(a)
   else
@@ -3638,7 +3638,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.SqrtF32x8) then
     Result := LDispatch^.SqrtF32x8(a)
   else
@@ -3651,7 +3651,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.MinF32x8) then
     Result := LDispatch^.MinF32x8(a, b)
   else
@@ -3667,7 +3667,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.MaxF32x8) then
     Result := LDispatch^.MaxF32x8(a, b)
   else
@@ -3683,7 +3683,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.ReduceAddF32x8) then
     Result := LDispatch^.ReduceAddF32x8(a)
   else
@@ -3699,7 +3699,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.ReduceMinF32x8) then
     Result := LDispatch^.ReduceMinF32x8(a)
   else
@@ -3716,7 +3716,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.ReduceMaxF32x8) then
     Result := LDispatch^.ReduceMaxF32x8(a)
   else
@@ -3733,7 +3733,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.ReduceMulF32x8) then
     Result := LDispatch^.ReduceMulF32x8(a)
   else
@@ -3751,7 +3751,7 @@ function VecI32x8Add(const a, b: TVecI32x8): TVecI32x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AddI32x8) then
     Result := dispatch^.AddI32x8(a, b)
   else
@@ -3765,7 +3765,7 @@ function VecI32x8Sub(const a, b: TVecI32x8): TVecI32x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.SubI32x8) then
     Result := dispatch^.SubI32x8(a, b)
   else
@@ -3779,7 +3779,7 @@ function VecI32x8Mul(const a, b: TVecI32x8): TVecI32x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.MulI32x8) then
     Result := dispatch^.MulI32x8(a, b)
   else
@@ -3793,7 +3793,7 @@ function VecI32x8And(const a, b: TVecI32x8): TVecI32x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AndI32x8) then
     Result := dispatch^.AndI32x8(a, b)
   else
@@ -3807,7 +3807,7 @@ function VecI32x8Or(const a, b: TVecI32x8): TVecI32x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.OrI32x8) then
     Result := dispatch^.OrI32x8(a, b)
   else
@@ -3821,7 +3821,7 @@ function VecI32x8Xor(const a, b: TVecI32x8): TVecI32x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.XorI32x8) then
     Result := dispatch^.XorI32x8(a, b)
   else
@@ -3835,7 +3835,7 @@ function VecI32x8Not(const a: TVecI32x8): TVecI32x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.NotI32x8) then
     Result := dispatch^.NotI32x8(a)
   else
@@ -3849,7 +3849,7 @@ function VecI32x8AndNot(const a, b: TVecI32x8): TVecI32x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AndNotI32x8) then
     Result := dispatch^.AndNotI32x8(a, b)
   else
@@ -3872,7 +3872,7 @@ begin
     Exit;
   end;
 
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftLeftI32x8) then
     Result := dispatch^.ShiftLeftI32x8(a, LCount)
   else
@@ -3895,7 +3895,7 @@ begin
     Exit;
   end;
 
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftRightI32x8) then
     Result := dispatch^.ShiftRightI32x8(a, LCount)
   else
@@ -3927,7 +3927,7 @@ begin
     Exit;
   end;
 
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftRightArithI32x8) then
     Result := dispatch^.ShiftRightArithI32x8(a, LCount)
   else
@@ -3941,7 +3941,7 @@ function VecI32x8CmpEq(const a, b: TVecI32x8): TMask8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpEqI32x8) then
     Result := dispatch^.CmpEqI32x8(a, b)
   else
@@ -3956,7 +3956,7 @@ function VecI32x8CmpLt(const a, b: TVecI32x8): TMask8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpLtI32x8) then
     Result := dispatch^.CmpLtI32x8(a, b)
   else
@@ -3971,7 +3971,7 @@ function VecI32x8CmpGt(const a, b: TVecI32x8): TMask8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpGtI32x8) then
     Result := dispatch^.CmpGtI32x8(a, b)
   else
@@ -3987,7 +3987,7 @@ function VecI32x8CmpLe(const a, b: TVecI32x8): TMask8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpLeI32x8) then
     Result := dispatch^.CmpLeI32x8(a, b)
   else
@@ -4002,7 +4002,7 @@ function VecI32x8CmpGe(const a, b: TVecI32x8): TMask8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpGeI32x8) then
     Result := dispatch^.CmpGeI32x8(a, b)
   else
@@ -4017,7 +4017,7 @@ function VecI32x8CmpNe(const a, b: TVecI32x8): TMask8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpNeI32x8) then
     Result := dispatch^.CmpNeI32x8(a, b)
   else
@@ -4032,7 +4032,7 @@ function VecI32x8Min(const a, b: TVecI32x8): TVecI32x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.MinI32x8) then
     Result := dispatch^.MinI32x8(a, b)
   else
@@ -4049,7 +4049,7 @@ function VecI32x8Max(const a, b: TVecI32x8): TVecI32x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.MaxI32x8) then
     Result := dispatch^.MaxI32x8(a, b)
   else
@@ -4070,7 +4070,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.AddU32x8) then
     Result := LDispatch^.AddU32x8(a, b)
   else
@@ -4083,7 +4083,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.SubU32x8) then
     Result := LDispatch^.SubU32x8(a, b)
   else
@@ -4096,7 +4096,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.MulU32x8) then
     Result := LDispatch^.MulU32x8(a, b)
   else
@@ -4109,7 +4109,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.AndU32x8) then
     Result := LDispatch^.AndU32x8(a, b)
   else
@@ -4122,7 +4122,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.OrU32x8) then
     Result := LDispatch^.OrU32x8(a, b)
   else
@@ -4135,7 +4135,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.XorU32x8) then
     Result := LDispatch^.XorU32x8(a, b)
   else
@@ -4148,7 +4148,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.NotU32x8) then
     Result := LDispatch^.NotU32x8(a)
   else
@@ -4161,7 +4161,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.AndNotU32x8) then
     Result := LDispatch^.AndNotU32x8(a, b)
   else
@@ -4183,7 +4183,7 @@ begin
     Exit;
   end;
 
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.ShiftLeftU32x8) then
     Result := LDispatch^.ShiftLeftU32x8(a, LCount)
   else
@@ -4205,7 +4205,7 @@ begin
     Exit;
   end;
 
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.ShiftRightU32x8) then
     Result := LDispatch^.ShiftRightU32x8(a, LCount)
   else
@@ -4218,7 +4218,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.CmpEqU32x8) then
     Result := LDispatch^.CmpEqU32x8(a, b)
   else
@@ -4235,7 +4235,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.CmpLtU32x8) then
     Result := LDispatch^.CmpLtU32x8(a, b)
   else
@@ -4252,7 +4252,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.CmpGtU32x8) then
     Result := LDispatch^.CmpGtU32x8(a, b)
   else
@@ -4269,7 +4269,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.CmpLeU32x8) then
     Result := LDispatch^.CmpLeU32x8(a, b)
   else
@@ -4286,7 +4286,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.CmpGeU32x8) then
     Result := LDispatch^.CmpGeU32x8(a, b)
   else
@@ -4303,7 +4303,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.CmpNeU32x8) then
     Result := LDispatch^.CmpNeU32x8(a, b)
   else
@@ -4320,7 +4320,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.MinU32x8) then
     Result := LDispatch^.MinU32x8(a, b)
   else
@@ -4336,7 +4336,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.MaxU32x8) then
     Result := LDispatch^.MaxU32x8(a, b)
   else
@@ -4355,7 +4355,7 @@ function VecI64x4Add(const a, b: TVecI64x4): TVecI64x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AddI64x4) then
     Result := dispatch^.AddI64x4(a, b)
   else
@@ -4367,7 +4367,7 @@ function VecI64x4Sub(const a, b: TVecI64x4): TVecI64x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.SubI64x4) then
     Result := dispatch^.SubI64x4(a, b)
   else
@@ -4379,7 +4379,7 @@ function VecI64x4And(const a, b: TVecI64x4): TVecI64x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AndI64x4) then
     Result := dispatch^.AndI64x4(a, b)
   else
@@ -4391,7 +4391,7 @@ function VecI64x4Or(const a, b: TVecI64x4): TVecI64x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.OrI64x4) then
     Result := dispatch^.OrI64x4(a, b)
   else
@@ -4403,7 +4403,7 @@ function VecI64x4Xor(const a, b: TVecI64x4): TVecI64x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.XorI64x4) then
     Result := dispatch^.XorI64x4(a, b)
   else
@@ -4415,7 +4415,7 @@ function VecI64x4Not(const a: TVecI64x4): TVecI64x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.NotI64x4) then
     Result := dispatch^.NotI64x4(a)
   else
@@ -4427,7 +4427,7 @@ function VecI64x4AndNot(const a, b: TVecI64x4): TVecI64x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AndNotI64x4) then
     Result := dispatch^.AndNotI64x4(a, b)
   else
@@ -4448,7 +4448,7 @@ begin
     Exit;
   end;
 
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftLeftI64x4) then
     Result := dispatch^.ShiftLeftI64x4(a, LCount)
   else
@@ -4469,7 +4469,7 @@ begin
     Exit;
   end;
 
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftRightI64x4) then
     Result := dispatch^.ShiftRightI64x4(a, LCount)
   else
@@ -4491,7 +4491,7 @@ begin
     Exit;
   end;
 
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftRightArithI64x4) then
     Result := dispatch^.ShiftRightArithI64x4(a, LCount)
   else
@@ -4503,7 +4503,7 @@ function VecI64x4CmpEq(const a, b: TVecI64x4): TMask4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpEqI64x4) then
     Result := dispatch^.CmpEqI64x4(a, b)
   else
@@ -4519,7 +4519,7 @@ function VecI64x4CmpLt(const a, b: TVecI64x4): TMask4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpLtI64x4) then
     Result := dispatch^.CmpLtI64x4(a, b)
   else
@@ -4535,7 +4535,7 @@ function VecI64x4CmpGt(const a, b: TVecI64x4): TMask4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpGtI64x4) then
     Result := dispatch^.CmpGtI64x4(a, b)
   else
@@ -4551,7 +4551,7 @@ function VecI64x4CmpLe(const a, b: TVecI64x4): TMask4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpLeI64x4) then
     Result := dispatch^.CmpLeI64x4(a, b)
   else
@@ -4567,7 +4567,7 @@ function VecI64x4CmpGe(const a, b: TVecI64x4): TMask4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpGeI64x4) then
     Result := dispatch^.CmpGeI64x4(a, b)
   else
@@ -4583,7 +4583,7 @@ function VecI64x4CmpNe(const a, b: TVecI64x4): TMask4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpNeI64x4) then
     Result := dispatch^.CmpNeI64x4(a, b)
   else
@@ -4599,7 +4599,7 @@ function VecI64x4Load(p: PInt64): TVecI64x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.LoadI64x4) then
     Result := dispatch^.LoadI64x4(p)
   else
@@ -4611,7 +4611,7 @@ procedure VecI64x4Store(p: PInt64; const a: TVecI64x4);
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.StoreI64x4) then
     dispatch^.StoreI64x4(p, a)
   else
@@ -4623,7 +4623,7 @@ function VecI64x4Splat(value: Int64): TVecI64x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.SplatI64x4) then
     Result := dispatch^.SplatI64x4(value)
   else
@@ -4635,7 +4635,7 @@ function VecI64x4Zero: TVecI64x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ZeroI64x4) then
     Result := dispatch^.ZeroI64x4()
   else
@@ -4651,7 +4651,7 @@ function VecU64x4Add(const a, b: TVecU64x4): TVecU64x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AddU64x4) then
     Result := dispatch^.AddU64x4(a, b)
   else
@@ -4663,7 +4663,7 @@ function VecU64x4Sub(const a, b: TVecU64x4): TVecU64x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.SubU64x4) then
     Result := dispatch^.SubU64x4(a, b)
   else
@@ -4675,7 +4675,7 @@ function VecU64x4And(const a, b: TVecU64x4): TVecU64x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AndU64x4) then
     Result := dispatch^.AndU64x4(a, b)
   else
@@ -4687,7 +4687,7 @@ function VecU64x4Or(const a, b: TVecU64x4): TVecU64x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.OrU64x4) then
     Result := dispatch^.OrU64x4(a, b)
   else
@@ -4699,7 +4699,7 @@ function VecU64x4Xor(const a, b: TVecU64x4): TVecU64x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.XorU64x4) then
     Result := dispatch^.XorU64x4(a, b)
   else
@@ -4711,7 +4711,7 @@ function VecU64x4Not(const a: TVecU64x4): TVecU64x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.NotU64x4) then
     Result := dispatch^.NotU64x4(a)
   else
@@ -4732,7 +4732,7 @@ begin
     Exit;
   end;
 
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftLeftU64x4) then
     Result := dispatch^.ShiftLeftU64x4(a, LCount)
   else
@@ -4753,7 +4753,7 @@ begin
     Exit;
   end;
 
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftRightU64x4) then
     Result := dispatch^.ShiftRightU64x4(a, LCount)
   else
@@ -4765,7 +4765,7 @@ function VecU64x4CmpEq(const a, b: TVecU64x4): TMask4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpEqU64x4) then
     Result := dispatch^.CmpEqU64x4(a, b)
   else
@@ -4781,7 +4781,7 @@ function VecU64x4CmpLt(const a, b: TVecU64x4): TMask4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpLtU64x4) then
     Result := dispatch^.CmpLtU64x4(a, b)
   else
@@ -4797,7 +4797,7 @@ function VecU64x4CmpGt(const a, b: TVecU64x4): TMask4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpGtU64x4) then
     Result := dispatch^.CmpGtU64x4(a, b)
   else
@@ -4813,7 +4813,7 @@ function VecU64x4CmpLe(const a, b: TVecU64x4): TMask4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpLeU64x4) then
     Result := dispatch^.CmpLeU64x4(a, b)
   else
@@ -4829,7 +4829,7 @@ function VecU64x4CmpGe(const a, b: TVecU64x4): TMask4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpGeU64x4) then
     Result := dispatch^.CmpGeU64x4(a, b)
   else
@@ -4845,7 +4845,7 @@ function VecU64x4CmpNe(const a, b: TVecU64x4): TMask4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpNeU64x4) then
     Result := dispatch^.CmpNeU64x4(a, b)
   else
@@ -4881,7 +4881,7 @@ function VecI16x8Add(const a, b: TVecI16x8): TVecI16x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AddI16x8) then
     Result := dispatch^.AddI16x8(a, b)
   else
@@ -4893,7 +4893,7 @@ function VecI16x8Sub(const a, b: TVecI16x8): TVecI16x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.SubI16x8) then
     Result := dispatch^.SubI16x8(a, b)
   else
@@ -4905,7 +4905,7 @@ function VecI16x8Mul(const a, b: TVecI16x8): TVecI16x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.MulI16x8) then
     Result := dispatch^.MulI16x8(a, b)
   else
@@ -4917,7 +4917,7 @@ function VecI16x8And(const a, b: TVecI16x8): TVecI16x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AndI16x8) then
     Result := dispatch^.AndI16x8(a, b)
   else
@@ -4929,7 +4929,7 @@ function VecI16x8Or(const a, b: TVecI16x8): TVecI16x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.OrI16x8) then
     Result := dispatch^.OrI16x8(a, b)
   else
@@ -4941,7 +4941,7 @@ function VecI16x8Xor(const a, b: TVecI16x8): TVecI16x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.XorI16x8) then
     Result := dispatch^.XorI16x8(a, b)
   else
@@ -4953,7 +4953,7 @@ function VecI16x8Not(const a: TVecI16x8): TVecI16x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.NotI16x8) then
     Result := dispatch^.NotI16x8(a)
   else
@@ -4965,7 +4965,7 @@ function VecI16x8AndNot(const a, b: TVecI16x8): TVecI16x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AndNotI16x8) then
     Result := dispatch^.AndNotI16x8(a, b)
   else
@@ -4977,7 +4977,7 @@ function VecI16x8ShiftLeft(const a: TVecI16x8; count: Integer): TVecI16x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftLeftI16x8) then
     Result := dispatch^.ShiftLeftI16x8(a, count)
   else
@@ -4989,7 +4989,7 @@ function VecI16x8ShiftRight(const a: TVecI16x8; count: Integer): TVecI16x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftRightI16x8) then
     Result := dispatch^.ShiftRightI16x8(a, count)
   else
@@ -5001,7 +5001,7 @@ function VecI16x8ShiftRightArith(const a: TVecI16x8; count: Integer): TVecI16x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftRightArithI16x8) then
     Result := dispatch^.ShiftRightArithI16x8(a, count)
   else
@@ -5013,7 +5013,7 @@ function VecI16x8CmpEq(const a, b: TVecI16x8): TMask8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpEqI16x8) then
     Result := dispatch^.CmpEqI16x8(a, b)
   else
@@ -5028,7 +5028,7 @@ function VecI16x8CmpLt(const a, b: TVecI16x8): TMask8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpLtI16x8) then
     Result := dispatch^.CmpLtI16x8(a, b)
   else
@@ -5043,7 +5043,7 @@ function VecI16x8CmpGt(const a, b: TVecI16x8): TMask8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpGtI16x8) then
     Result := dispatch^.CmpGtI16x8(a, b)
   else
@@ -5058,7 +5058,7 @@ function VecI16x8Min(const a, b: TVecI16x8): TVecI16x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.MinI16x8) then
     Result := dispatch^.MinI16x8(a, b)
   else
@@ -5073,7 +5073,7 @@ function VecI16x8Max(const a, b: TVecI16x8): TVecI16x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.MaxI16x8) then
     Result := dispatch^.MaxI16x8(a, b)
   else
@@ -5092,7 +5092,7 @@ function VecI8x16Add(const a, b: TVecI8x16): TVecI8x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AddI8x16) then
     Result := dispatch^.AddI8x16(a, b)
   else
@@ -5104,7 +5104,7 @@ function VecI8x16Sub(const a, b: TVecI8x16): TVecI8x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.SubI8x16) then
     Result := dispatch^.SubI8x16(a, b)
   else
@@ -5116,7 +5116,7 @@ function VecI8x16And(const a, b: TVecI8x16): TVecI8x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AndI8x16) then
     Result := dispatch^.AndI8x16(a, b)
   else
@@ -5128,7 +5128,7 @@ function VecI8x16Or(const a, b: TVecI8x16): TVecI8x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.OrI8x16) then
     Result := dispatch^.OrI8x16(a, b)
   else
@@ -5140,7 +5140,7 @@ function VecI8x16Xor(const a, b: TVecI8x16): TVecI8x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.XorI8x16) then
     Result := dispatch^.XorI8x16(a, b)
   else
@@ -5152,7 +5152,7 @@ function VecI8x16Not(const a: TVecI8x16): TVecI8x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.NotI8x16) then
     Result := dispatch^.NotI8x16(a)
   else
@@ -5165,7 +5165,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.AndNotI8x16) then
     Result := LDispatch^.AndNotI8x16(a, b)
   else if (LDispatch <> nil) and Assigned(LDispatch^.NotI8x16) and Assigned(LDispatch^.AndI8x16) then
@@ -5181,7 +5181,7 @@ function VecI8x16CmpEq(const a, b: TVecI8x16): TMask16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpEqI8x16) then
     Result := dispatch^.CmpEqI8x16(a, b)
   else
@@ -5196,7 +5196,7 @@ function VecI8x16CmpLt(const a, b: TVecI8x16): TMask16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpLtI8x16) then
     Result := dispatch^.CmpLtI8x16(a, b)
   else
@@ -5211,7 +5211,7 @@ function VecI8x16CmpGt(const a, b: TVecI8x16): TMask16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpGtI8x16) then
     Result := dispatch^.CmpGtI8x16(a, b)
   else
@@ -5226,7 +5226,7 @@ function VecI8x16Min(const a, b: TVecI8x16): TVecI8x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.MinI8x16) then
     Result := dispatch^.MinI8x16(a, b)
   else
@@ -5241,7 +5241,7 @@ function VecI8x16Max(const a, b: TVecI8x16): TVecI8x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.MaxI8x16) then
     Result := dispatch^.MaxI8x16(a, b)
   else
@@ -5260,7 +5260,7 @@ function VecU8x16Add(const a, b: TVecU8x16): TVecU8x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AddU8x16) then
     Result := dispatch^.AddU8x16(a, b)
   else
@@ -5272,7 +5272,7 @@ function VecU8x16Sub(const a, b: TVecU8x16): TVecU8x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.SubU8x16) then
     Result := dispatch^.SubU8x16(a, b)
   else
@@ -5284,7 +5284,7 @@ function VecU8x16And(const a, b: TVecU8x16): TVecU8x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AndU8x16) then
     Result := dispatch^.AndU8x16(a, b)
   else
@@ -5296,7 +5296,7 @@ function VecU8x16Or(const a, b: TVecU8x16): TVecU8x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.OrU8x16) then
     Result := dispatch^.OrU8x16(a, b)
   else
@@ -5308,7 +5308,7 @@ function VecU8x16Xor(const a, b: TVecU8x16): TVecU8x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.XorU8x16) then
     Result := dispatch^.XorU8x16(a, b)
   else
@@ -5320,7 +5320,7 @@ function VecU8x16Not(const a: TVecU8x16): TVecU8x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.NotU8x16) then
     Result := dispatch^.NotU8x16(a)
   else
@@ -5333,7 +5333,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.AndNotU8x16) then
     Result := LDispatch^.AndNotU8x16(a, b)
   else if (LDispatch <> nil) and Assigned(LDispatch^.NotU8x16) and Assigned(LDispatch^.AndU8x16) then
@@ -5349,7 +5349,7 @@ function VecU8x16CmpEq(const a, b: TVecU8x16): TMask16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpEqU8x16) then
     Result := dispatch^.CmpEqU8x16(a, b)
   else
@@ -5364,7 +5364,7 @@ function VecU8x16CmpLt(const a, b: TVecU8x16): TMask16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpLtU8x16) then
     Result := dispatch^.CmpLtU8x16(a, b)
   else
@@ -5379,7 +5379,7 @@ function VecU8x16CmpGt(const a, b: TVecU8x16): TMask16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpGtU8x16) then
     Result := dispatch^.CmpGtU8x16(a, b)
   else
@@ -5394,7 +5394,7 @@ function VecU8x16Min(const a, b: TVecU8x16): TVecU8x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.MinU8x16) then
     Result := dispatch^.MinU8x16(a, b)
   else
@@ -5409,7 +5409,7 @@ function VecU8x16Max(const a, b: TVecU8x16): TVecU8x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.MaxU8x16) then
     Result := dispatch^.MaxU8x16(a, b)
   else
@@ -5428,7 +5428,7 @@ function VecU16x8Add(const a, b: TVecU16x8): TVecU16x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AddU16x8) then
     Result := dispatch^.AddU16x8(a, b)
   else
@@ -5440,7 +5440,7 @@ function VecU16x8Sub(const a, b: TVecU16x8): TVecU16x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.SubU16x8) then
     Result := dispatch^.SubU16x8(a, b)
   else
@@ -5452,7 +5452,7 @@ function VecU16x8Mul(const a, b: TVecU16x8): TVecU16x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.MulU16x8) then
     Result := dispatch^.MulU16x8(a, b)
   else
@@ -5464,7 +5464,7 @@ function VecU16x8And(const a, b: TVecU16x8): TVecU16x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AndU16x8) then
     Result := dispatch^.AndU16x8(a, b)
   else
@@ -5476,7 +5476,7 @@ function VecU16x8Or(const a, b: TVecU16x8): TVecU16x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.OrU16x8) then
     Result := dispatch^.OrU16x8(a, b)
   else
@@ -5488,7 +5488,7 @@ function VecU16x8Xor(const a, b: TVecU16x8): TVecU16x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.XorU16x8) then
     Result := dispatch^.XorU16x8(a, b)
   else
@@ -5500,7 +5500,7 @@ function VecU16x8Not(const a: TVecU16x8): TVecU16x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.NotU16x8) then
     Result := dispatch^.NotU16x8(a)
   else
@@ -5513,7 +5513,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.AndNotU16x8) then
     Result := LDispatch^.AndNotU16x8(a, b)
   else if (LDispatch <> nil) and Assigned(LDispatch^.NotU16x8) and Assigned(LDispatch^.AndU16x8) then
@@ -5529,7 +5529,7 @@ function VecU16x8ShiftLeft(const a: TVecU16x8; count: Integer): TVecU16x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftLeftU16x8) then
     Result := dispatch^.ShiftLeftU16x8(a, count)
   else
@@ -5541,7 +5541,7 @@ function VecU16x8ShiftRight(const a: TVecU16x8; count: Integer): TVecU16x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftRightU16x8) then
     Result := dispatch^.ShiftRightU16x8(a, count)
   else
@@ -5553,7 +5553,7 @@ function VecU16x8CmpEq(const a, b: TVecU16x8): TMask8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpEqU16x8) then
     Result := dispatch^.CmpEqU16x8(a, b)
   else
@@ -5568,7 +5568,7 @@ function VecU16x8CmpLt(const a, b: TVecU16x8): TMask8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpLtU16x8) then
     Result := dispatch^.CmpLtU16x8(a, b)
   else
@@ -5583,7 +5583,7 @@ function VecU16x8CmpGt(const a, b: TVecU16x8): TMask8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpGtU16x8) then
     Result := dispatch^.CmpGtU16x8(a, b)
   else
@@ -5598,7 +5598,7 @@ function VecU16x8Min(const a, b: TVecU16x8): TVecU16x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.MinU16x8) then
     Result := dispatch^.MinU16x8(a, b)
   else
@@ -5613,7 +5613,7 @@ function VecU16x8Max(const a, b: TVecU16x8): TVecU16x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.MaxU16x8) then
     Result := dispatch^.MaxU16x8(a, b)
   else
@@ -5632,7 +5632,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.AddF64x4) then
     Result := LDispatch^.AddF64x4(a, b)
   else
@@ -5645,7 +5645,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.SubF64x4) then
     Result := LDispatch^.SubF64x4(a, b)
   else
@@ -5658,7 +5658,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.MulF64x4) then
     Result := LDispatch^.MulF64x4(a, b)
   else
@@ -5671,7 +5671,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.DivF64x4) then
     Result := LDispatch^.DivF64x4(a, b)
   else
@@ -5684,7 +5684,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.RcpF64x4) then
     Result := LDispatch^.RcpF64x4(a)
   else
@@ -5695,7 +5695,7 @@ end;
 function VecF64x4CmpEq(const a, b: TVecF64x4): TMask4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpEqF64x4) then
     Result := dispatch^.CmpEqF64x4(a, b)
   else
@@ -5711,7 +5711,7 @@ end;
 function VecF64x4CmpLt(const a, b: TVecF64x4): TMask4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpLtF64x4) then
     Result := dispatch^.CmpLtF64x4(a, b)
   else
@@ -5727,7 +5727,7 @@ end;
 function VecF64x4CmpLe(const a, b: TVecF64x4): TMask4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpLeF64x4) then
     Result := dispatch^.CmpLeF64x4(a, b)
   else
@@ -5743,7 +5743,7 @@ end;
 function VecF64x4CmpGt(const a, b: TVecF64x4): TMask4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpGtF64x4) then
     Result := dispatch^.CmpGtF64x4(a, b)
   else
@@ -5759,7 +5759,7 @@ end;
 function VecF64x4CmpGe(const a, b: TVecF64x4): TMask4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpGeF64x4) then
     Result := dispatch^.CmpGeF64x4(a, b)
   else
@@ -5775,7 +5775,7 @@ end;
 function VecF64x4CmpNe(const a, b: TVecF64x4): TMask4;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpNeF64x4) then
     Result := dispatch^.CmpNeF64x4(a, b)
   else
@@ -5793,7 +5793,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.AbsF64x4) then
     Result := LDispatch^.AbsF64x4(a)
   else
@@ -5806,7 +5806,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.SqrtF64x4) then
     Result := LDispatch^.SqrtF64x4(a)
   else
@@ -5819,7 +5819,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.MinF64x4) then
     Result := LDispatch^.MinF64x4(a, b)
   else
@@ -5835,7 +5835,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.MaxF64x4) then
     Result := LDispatch^.MaxF64x4(a, b)
   else
@@ -5850,7 +5850,7 @@ function VecF64x4ReduceAdd(const a: TVecF64x4): Double;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.ReduceAddF64x4) then
     Result := LDispatch^.ReduceAddF64x4(a)
   else
@@ -5862,7 +5862,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.ReduceMinF64x4) then
     Result := LDispatch^.ReduceMinF64x4(a)
   else
@@ -5879,7 +5879,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.ReduceMaxF64x4) then
     Result := LDispatch^.ReduceMaxF64x4(a)
   else
@@ -5895,7 +5895,7 @@ function VecF64x4ReduceMul(const a: TVecF64x4): Double;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.ReduceMulF64x4) then
     Result := LDispatch^.ReduceMulF64x4(a)
   else
@@ -5909,7 +5909,7 @@ function VecF64x8Add(const a, b: TVecF64x8): TVecF64x8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.AddF64x8(a, b);
 end;
 
@@ -5917,7 +5917,7 @@ function VecF64x8Sub(const a, b: TVecF64x8): TVecF64x8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.SubF64x8(a, b);
 end;
 
@@ -5925,7 +5925,7 @@ function VecF64x8Mul(const a, b: TVecF64x8): TVecF64x8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.MulF64x8(a, b);
 end;
 
@@ -5933,7 +5933,7 @@ function VecF64x8Div(const a, b: TVecF64x8): TVecF64x8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.DivF64x8(a, b);
 end;
 
@@ -5941,7 +5941,7 @@ function VecF64x8CmpEq(const a, b: TVecF64x8): TMask8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpEqF64x8(a, b);
 end;
 
@@ -5949,7 +5949,7 @@ function VecF64x8CmpLt(const a, b: TVecF64x8): TMask8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpLtF64x8(a, b);
 end;
 
@@ -5957,7 +5957,7 @@ function VecF64x8CmpLe(const a, b: TVecF64x8): TMask8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpLeF64x8(a, b);
 end;
 
@@ -5965,7 +5965,7 @@ function VecF64x8CmpGt(const a, b: TVecF64x8): TMask8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpGtF64x8(a, b);
 end;
 
@@ -5973,7 +5973,7 @@ function VecF64x8CmpGe(const a, b: TVecF64x8): TMask8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpGeF64x8(a, b);
 end;
 
@@ -5981,7 +5981,7 @@ function VecF64x8CmpNe(const a, b: TVecF64x8): TMask8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpNeF64x8(a, b);
 end;
 
@@ -5989,7 +5989,7 @@ function VecF64x8Abs(const a: TVecF64x8): TVecF64x8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.AbsF64x8(a);
 end;
 
@@ -5997,7 +5997,7 @@ function VecF64x8Sqrt(const a: TVecF64x8): TVecF64x8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.SqrtF64x8(a);
 end;
 
@@ -6005,7 +6005,7 @@ function VecF64x8Min(const a, b: TVecF64x8): TVecF64x8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.MinF64x8(a, b);
 end;
 
@@ -6013,7 +6013,7 @@ function VecF64x8Max(const a, b: TVecF64x8): TVecF64x8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.MaxF64x8(a, b);
 end;
 
@@ -6021,7 +6021,7 @@ function VecF64x8Clamp(const a, minVal, maxVal: TVecF64x8): TVecF64x8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.ClampF64x8(a, minVal, maxVal);
 end;
 
@@ -6029,7 +6029,7 @@ function VecF64x8Fma(const a, b, c: TVecF64x8): TVecF64x8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.FmaF64x8(a, b, c);
 end;
 
@@ -6037,7 +6037,7 @@ function VecF64x8Floor(const a: TVecF64x8): TVecF64x8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.FloorF64x8(a);
 end;
 
@@ -6045,7 +6045,7 @@ function VecF64x8Ceil(const a: TVecF64x8): TVecF64x8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CeilF64x8(a);
 end;
 
@@ -6053,7 +6053,7 @@ function VecF64x8Round(const a: TVecF64x8): TVecF64x8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.RoundF64x8(a);
 end;
 
@@ -6061,7 +6061,7 @@ function VecF64x8Trunc(const a: TVecF64x8): TVecF64x8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.TruncF64x8(a);
 end;
 
@@ -6069,7 +6069,7 @@ function VecF64x8ReduceAdd(const a: TVecF64x8): Double;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.ReduceAddF64x8(a);
 end;
 
@@ -6077,7 +6077,7 @@ function VecF64x8ReduceMin(const a: TVecF64x8): Double;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.ReduceMinF64x8(a);
 end;
 
@@ -6085,7 +6085,7 @@ function VecF64x8ReduceMax(const a: TVecF64x8): Double;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.ReduceMaxF64x8(a);
 end;
 
@@ -6093,7 +6093,7 @@ function VecF64x8ReduceMul(const a: TVecF64x8): Double;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.ReduceMulF64x8(a);
 end;
 
@@ -6101,7 +6101,7 @@ function VecF64x8Select(const mask: TMask8; const a, b: TVecF64x8): TVecF64x8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.SelectF64x8(mask, a, b);
 end;
 
@@ -6112,7 +6112,7 @@ function VecF32x16Add(const a, b: TVecF32x16): TVecF32x16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.AddF32x16(a, b);
 end;
 
@@ -6120,7 +6120,7 @@ function VecF32x16Sub(const a, b: TVecF32x16): TVecF32x16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.SubF32x16(a, b);
 end;
 
@@ -6128,7 +6128,7 @@ function VecF32x16Mul(const a, b: TVecF32x16): TVecF32x16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.MulF32x16(a, b);
 end;
 
@@ -6136,7 +6136,7 @@ function VecF32x16Div(const a, b: TVecF32x16): TVecF32x16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.DivF32x16(a, b);
 end;
 
@@ -6144,7 +6144,7 @@ function VecF32x16CmpEq_Mask(const a, b: TVecF32x16): TMask16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpEqF32x16(a, b);
 end;
 
@@ -6152,7 +6152,7 @@ function VecF32x16CmpLt_Mask(const a, b: TVecF32x16): TMask16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpLtF32x16(a, b);
 end;
 
@@ -6160,7 +6160,7 @@ function VecF32x16CmpLe_Mask(const a, b: TVecF32x16): TMask16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpLeF32x16(a, b);
 end;
 
@@ -6168,7 +6168,7 @@ function VecF32x16CmpGt_Mask(const a, b: TVecF32x16): TMask16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpGtF32x16(a, b);
 end;
 
@@ -6176,7 +6176,7 @@ function VecF32x16CmpGe_Mask(const a, b: TVecF32x16): TMask16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpGeF32x16(a, b);
 end;
 
@@ -6184,7 +6184,7 @@ function VecF32x16CmpNe_Mask(const a, b: TVecF32x16): TMask16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpNeF32x16(a, b);
 end;
 
@@ -6192,7 +6192,7 @@ function VecF32x16Abs(const a: TVecF32x16): TVecF32x16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.AbsF32x16(a);
 end;
 
@@ -6200,7 +6200,7 @@ function VecF32x16Sqrt(const a: TVecF32x16): TVecF32x16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.SqrtF32x16(a);
 end;
 
@@ -6208,7 +6208,7 @@ function VecF32x16Min(const a, b: TVecF32x16): TVecF32x16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.MinF32x16(a, b);
 end;
 
@@ -6216,7 +6216,7 @@ function VecF32x16Max(const a, b: TVecF32x16): TVecF32x16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.MaxF32x16(a, b);
 end;
 
@@ -6224,7 +6224,7 @@ function VecF32x16Clamp(const a, minVal, maxVal: TVecF32x16): TVecF32x16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.ClampF32x16(a, minVal, maxVal);
 end;
 
@@ -6232,7 +6232,7 @@ function VecF32x16Fma(const a, b, c: TVecF32x16): TVecF32x16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.FmaF32x16(a, b, c);
 end;
 
@@ -6240,7 +6240,7 @@ function VecF32x16Floor(const a: TVecF32x16): TVecF32x16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.FloorF32x16(a);
 end;
 
@@ -6248,7 +6248,7 @@ function VecF32x16Ceil(const a: TVecF32x16): TVecF32x16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CeilF32x16(a);
 end;
 
@@ -6256,7 +6256,7 @@ function VecF32x16Round(const a: TVecF32x16): TVecF32x16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.RoundF32x16(a);
 end;
 
@@ -6264,7 +6264,7 @@ function VecF32x16Trunc(const a: TVecF32x16): TVecF32x16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.TruncF32x16(a);
 end;
 
@@ -6272,7 +6272,7 @@ function VecF32x16ReduceAdd(const a: TVecF32x16): Single;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.ReduceAddF32x16(a);
 end;
 
@@ -6280,7 +6280,7 @@ function VecF32x16ReduceMin(const a: TVecF32x16): Single;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.ReduceMinF32x16(a);
 end;
 
@@ -6288,7 +6288,7 @@ function VecF32x16ReduceMax(const a: TVecF32x16): Single;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.ReduceMaxF32x16(a);
 end;
 
@@ -6296,7 +6296,7 @@ function VecF32x16ReduceMul(const a: TVecF32x16): Single;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.ReduceMulF32x16(a);
 end;
 
@@ -6304,7 +6304,7 @@ function VecF32x16Select(const mask: TMask16; const a, b: TVecF32x16): TVecF32x1
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.SelectF32x16(mask, a, b);
 end;
 
@@ -6315,7 +6315,7 @@ function VecI32x16Add(const a, b: TVecI32x16): TVecI32x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AddI32x16) then
     Result := dispatch^.AddI32x16(a, b)
   else
@@ -6329,7 +6329,7 @@ function VecI32x16Sub(const a, b: TVecI32x16): TVecI32x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.SubI32x16) then
     Result := dispatch^.SubI32x16(a, b)
   else
@@ -6343,7 +6343,7 @@ function VecI32x16Mul(const a, b: TVecI32x16): TVecI32x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.MulI32x16) then
     Result := dispatch^.MulI32x16(a, b)
   else
@@ -6357,7 +6357,7 @@ function VecI32x16And(const a, b: TVecI32x16): TVecI32x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AndI32x16) then
     Result := dispatch^.AndI32x16(a, b)
   else
@@ -6371,7 +6371,7 @@ function VecI32x16Or(const a, b: TVecI32x16): TVecI32x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.OrI32x16) then
     Result := dispatch^.OrI32x16(a, b)
   else
@@ -6385,7 +6385,7 @@ function VecI32x16Xor(const a, b: TVecI32x16): TVecI32x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.XorI32x16) then
     Result := dispatch^.XorI32x16(a, b)
   else
@@ -6399,7 +6399,7 @@ function VecI32x16Not(const a: TVecI32x16): TVecI32x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.NotI32x16) then
     Result := dispatch^.NotI32x16(a)
   else
@@ -6413,7 +6413,7 @@ function VecI32x16AndNot(const a, b: TVecI32x16): TVecI32x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.AndNotI32x16) then
     Result := dispatch^.AndNotI32x16(a, b)
   else
@@ -6436,7 +6436,7 @@ begin
     Exit;
   end;
 
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftLeftI32x16) then
     Result := dispatch^.ShiftLeftI32x16(a, LCount)
   else
@@ -6459,7 +6459,7 @@ begin
     Exit;
   end;
 
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftRightI32x16) then
     Result := dispatch^.ShiftRightI32x16(a, LCount)
   else
@@ -6491,7 +6491,7 @@ begin
     Exit;
   end;
 
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftRightArithI32x16) then
     Result := dispatch^.ShiftRightArithI32x16(a, LCount)
   else
@@ -6505,7 +6505,7 @@ function VecI32x16CmpEq(const a, b: TVecI32x16): TMask16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpEqI32x16) then
     Result := dispatch^.CmpEqI32x16(a, b)
   else
@@ -6520,7 +6520,7 @@ function VecI32x16CmpLt(const a, b: TVecI32x16): TMask16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpLtI32x16) then
     Result := dispatch^.CmpLtI32x16(a, b)
   else
@@ -6535,7 +6535,7 @@ function VecI32x16CmpGt(const a, b: TVecI32x16): TMask16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpGtI32x16) then
     Result := dispatch^.CmpGtI32x16(a, b)
   else
@@ -6551,7 +6551,7 @@ function VecI32x16CmpLe(const a, b: TVecI32x16): TMask16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpLeI32x16) then
     Result := dispatch^.CmpLeI32x16(a, b)
   else
@@ -6566,7 +6566,7 @@ function VecI32x16CmpGe(const a, b: TVecI32x16): TMask16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpGeI32x16) then
     Result := dispatch^.CmpGeI32x16(a, b)
   else
@@ -6581,7 +6581,7 @@ function VecI32x16CmpNe(const a, b: TVecI32x16): TMask16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.CmpNeI32x16) then
     Result := dispatch^.CmpNeI32x16(a, b)
   else
@@ -6596,7 +6596,7 @@ function VecI32x16Min(const a, b: TVecI32x16): TVecI32x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.MinI32x16) then
     Result := dispatch^.MinI32x16(a, b)
   else
@@ -6613,7 +6613,7 @@ function VecI32x16Max(const a, b: TVecI32x16): TVecI32x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   if (dispatch <> nil) and Assigned(dispatch^.MaxI32x16) then
     Result := dispatch^.MaxI32x16(a, b)
   else
@@ -6633,7 +6633,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.AddI64x8) then
     Result := LDispatch^.AddI64x8(a, b)
   else
@@ -6648,7 +6648,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.SubI64x8) then
     Result := LDispatch^.SubI64x8(a, b)
   else
@@ -6663,7 +6663,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.AndI64x8) then
     Result := LDispatch^.AndI64x8(a, b)
   else
@@ -6678,7 +6678,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.OrI64x8) then
     Result := LDispatch^.OrI64x8(a, b)
   else
@@ -6693,7 +6693,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.XorI64x8) then
     Result := LDispatch^.XorI64x8(a, b)
   else
@@ -6708,7 +6708,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.NotI64x8) then
     Result := LDispatch^.NotI64x8(a)
   else
@@ -6723,7 +6723,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.CmpEqI64x8) then
     Result := LDispatch^.CmpEqI64x8(a, b)
   else
@@ -6740,7 +6740,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.CmpLtI64x8) then
     Result := LDispatch^.CmpLtI64x8(a, b)
   else
@@ -6757,7 +6757,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.CmpGtI64x8) then
     Result := LDispatch^.CmpGtI64x8(a, b)
   else
@@ -6774,7 +6774,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.CmpLeI64x8) then
     Result := LDispatch^.CmpLeI64x8(a, b)
   else
@@ -6791,7 +6791,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.CmpGeI64x8) then
     Result := LDispatch^.CmpGeI64x8(a, b)
   else
@@ -6808,7 +6808,7 @@ var
   LDispatch: PSimdDispatchTable;
   LIndex: Integer;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   if (LDispatch <> nil) and Assigned(LDispatch^.CmpNeI64x8) then
     Result := LDispatch^.CmpNeI64x8(a, b)
   else
@@ -6824,7 +6824,7 @@ function VecU32x16Add(const a, b: TVecU32x16): TVecU32x16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.AddU32x16(a, b);
 end;
 
@@ -6832,7 +6832,7 @@ function VecU32x16Sub(const a, b: TVecU32x16): TVecU32x16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.SubU32x16(a, b);
 end;
 
@@ -6853,7 +6853,7 @@ function VecU32x16And(const a, b: TVecU32x16): TVecU32x16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.AndU32x16(a, b);
 end;
 
@@ -6861,7 +6861,7 @@ function VecU32x16Or(const a, b: TVecU32x16): TVecU32x16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.OrU32x16(a, b);
 end;
 
@@ -6869,7 +6869,7 @@ function VecU32x16Xor(const a, b: TVecU32x16): TVecU32x16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.XorU32x16(a, b);
 end;
 
@@ -6877,7 +6877,7 @@ function VecU32x16Not(const a: TVecU32x16): TVecU32x16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.NotU32x16(a);
 end;
 
@@ -6885,7 +6885,7 @@ function VecU32x16AndNot(const a, b: TVecU32x16): TVecU32x16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.AndNotU32x16(a, b);
 end;
 
@@ -6893,7 +6893,7 @@ function VecU32x16ShiftLeft(const a: TVecU32x16; count: Integer): TVecU32x16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.ShiftLeftU32x16(a, count);
 end;
 
@@ -6901,7 +6901,7 @@ function VecU32x16ShiftRight(const a: TVecU32x16; count: Integer): TVecU32x16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.ShiftRightU32x16(a, count);
 end;
 
@@ -6909,7 +6909,7 @@ function VecU32x16CmpEq(const a, b: TVecU32x16): TMask16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpEqU32x16(a, b);
 end;
 
@@ -6917,7 +6917,7 @@ function VecU32x16CmpLt(const a, b: TVecU32x16): TMask16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpLtU32x16(a, b);
 end;
 
@@ -6925,7 +6925,7 @@ function VecU32x16CmpGt(const a, b: TVecU32x16): TMask16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpGtU32x16(a, b);
 end;
 
@@ -6933,7 +6933,7 @@ function VecU32x16CmpLe(const a, b: TVecU32x16): TMask16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpLeU32x16(a, b);
 end;
 
@@ -6941,7 +6941,7 @@ function VecU32x16CmpGe(const a, b: TVecU32x16): TMask16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpGeU32x16(a, b);
 end;
 
@@ -6949,7 +6949,7 @@ function VecU32x16CmpNe(const a, b: TVecU32x16): TMask16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpNeU32x16(a, b);
 end;
 
@@ -6957,7 +6957,7 @@ function VecU32x16Min(const a, b: TVecU32x16): TVecU32x16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.MinU32x16(a, b);
 end;
 
@@ -6965,7 +6965,7 @@ function VecU32x16Max(const a, b: TVecU32x16): TVecU32x16;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.MaxU32x16(a, b);
 end;
 
@@ -6986,7 +6986,7 @@ function VecU64x8Sub(const a, b: TVecU64x8): TVecU64x8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.SubU64x8(a, b);
 end;
 
@@ -6994,7 +6994,7 @@ function VecU64x8And(const a, b: TVecU64x8): TVecU64x8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.AndU64x8(a, b);
 end;
 
@@ -7002,7 +7002,7 @@ function VecU64x8Or(const a, b: TVecU64x8): TVecU64x8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.OrU64x8(a, b);
 end;
 
@@ -7010,7 +7010,7 @@ function VecU64x8Xor(const a, b: TVecU64x8): TVecU64x8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.XorU64x8(a, b);
 end;
 
@@ -7018,7 +7018,7 @@ function VecU64x8Not(const a: TVecU64x8): TVecU64x8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.NotU64x8(a);
 end;
 
@@ -7026,7 +7026,7 @@ function VecU64x8ShiftLeft(const a: TVecU64x8; count: Integer): TVecU64x8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.ShiftLeftU64x8(a, count);
 end;
 
@@ -7034,7 +7034,7 @@ function VecU64x8ShiftRight(const a: TVecU64x8; count: Integer): TVecU64x8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.ShiftRightU64x8(a, count);
 end;
 
@@ -7042,7 +7042,7 @@ function VecU64x8CmpEq(const a, b: TVecU64x8): TMask8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpEqU64x8(a, b);
 end;
 
@@ -7050,7 +7050,7 @@ function VecU64x8CmpLt(const a, b: TVecU64x8): TMask8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpLtU64x8(a, b);
 end;
 
@@ -7058,7 +7058,7 @@ function VecU64x8CmpGt(const a, b: TVecU64x8): TMask8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpGtU64x8(a, b);
 end;
 
@@ -7066,7 +7066,7 @@ function VecU64x8CmpLe(const a, b: TVecU64x8): TMask8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpLeU64x8(a, b);
 end;
 
@@ -7074,7 +7074,7 @@ function VecU64x8CmpGe(const a, b: TVecU64x8): TMask8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpGeU64x8(a, b);
 end;
 
@@ -7082,7 +7082,7 @@ function VecU64x8CmpNe(const a, b: TVecU64x8): TMask8;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpNeU64x8(a, b);
 end;
 
@@ -7103,7 +7103,7 @@ function VecI16x32Sub(const a, b: TVecI16x32): TVecI16x32;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.SubI16x32(a, b);
 end;
 
@@ -7111,7 +7111,7 @@ function VecI16x32And(const a, b: TVecI16x32): TVecI16x32;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.AndI16x32(a, b);
 end;
 
@@ -7119,7 +7119,7 @@ function VecI16x32Or(const a, b: TVecI16x32): TVecI16x32;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.OrI16x32(a, b);
 end;
 
@@ -7127,7 +7127,7 @@ function VecI16x32Xor(const a, b: TVecI16x32): TVecI16x32;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.XorI16x32(a, b);
 end;
 
@@ -7135,7 +7135,7 @@ function VecI16x32Not(const a: TVecI16x32): TVecI16x32;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.NotI16x32(a);
 end;
 
@@ -7143,7 +7143,7 @@ function VecI16x32AndNot(const a, b: TVecI16x32): TVecI16x32;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.AndNotI16x32(a, b);
 end;
 
@@ -7151,7 +7151,7 @@ function VecI16x32ShiftLeft(const a: TVecI16x32; count: Integer): TVecI16x32;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.ShiftLeftI16x32(a, count);
 end;
 
@@ -7159,7 +7159,7 @@ function VecI16x32ShiftRight(const a: TVecI16x32; count: Integer): TVecI16x32;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.ShiftRightI16x32(a, count);
 end;
 
@@ -7167,7 +7167,7 @@ function VecI16x32ShiftRightArith(const a: TVecI16x32; count: Integer): TVecI16x
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.ShiftRightArithI16x32(a, count);
 end;
 
@@ -7175,7 +7175,7 @@ function VecI16x32CmpEq(const a, b: TVecI16x32): TMask32;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpEqI16x32(a, b);
 end;
 
@@ -7183,7 +7183,7 @@ function VecI16x32CmpLt(const a, b: TVecI16x32): TMask32;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpLtI16x32(a, b);
 end;
 
@@ -7191,7 +7191,7 @@ function VecI16x32CmpGt(const a, b: TVecI16x32): TMask32;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpGtI16x32(a, b);
 end;
 
@@ -7199,7 +7199,7 @@ function VecI16x32Min(const a, b: TVecI16x32): TVecI16x32;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.MinI16x32(a, b);
 end;
 
@@ -7207,7 +7207,7 @@ function VecI16x32Max(const a, b: TVecI16x32): TVecI16x32;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.MaxI16x32(a, b);
 end;
 
@@ -7215,7 +7215,7 @@ function VecI8x64Add(const a, b: TVecI8x64): TVecI8x64;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.AddI8x64(a, b);
 end;
 
@@ -7223,7 +7223,7 @@ function VecI8x64Sub(const a, b: TVecI8x64): TVecI8x64;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.SubI8x64(a, b);
 end;
 
@@ -7231,7 +7231,7 @@ function VecI8x64And(const a, b: TVecI8x64): TVecI8x64;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.AndI8x64(a, b);
 end;
 
@@ -7239,7 +7239,7 @@ function VecI8x64Or(const a, b: TVecI8x64): TVecI8x64;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.OrI8x64(a, b);
 end;
 
@@ -7247,7 +7247,7 @@ function VecI8x64Xor(const a, b: TVecI8x64): TVecI8x64;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.XorI8x64(a, b);
 end;
 
@@ -7255,7 +7255,7 @@ function VecI8x64Not(const a: TVecI8x64): TVecI8x64;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.NotI8x64(a);
 end;
 
@@ -7263,7 +7263,7 @@ function VecI8x64AndNot(const a, b: TVecI8x64): TVecI8x64;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.AndNotI8x64(a, b);
 end;
 
@@ -7271,7 +7271,7 @@ function VecI8x64CmpEq(const a, b: TVecI8x64): TMask64;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpEqI8x64(a, b);
 end;
 
@@ -7279,7 +7279,7 @@ function VecI8x64CmpLt(const a, b: TVecI8x64): TMask64;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpLtI8x64(a, b);
 end;
 
@@ -7287,7 +7287,7 @@ function VecI8x64CmpGt(const a, b: TVecI8x64): TMask64;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpGtI8x64(a, b);
 end;
 
@@ -7295,7 +7295,7 @@ function VecI8x64Min(const a, b: TVecI8x64): TVecI8x64;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.MinI8x64(a, b);
 end;
 
@@ -7303,7 +7303,7 @@ function VecI8x64Max(const a, b: TVecI8x64): TVecI8x64;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.MaxI8x64(a, b);
 end;
 
@@ -7311,7 +7311,7 @@ function VecU8x64Add(const a, b: TVecU8x64): TVecU8x64;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.AddU8x64(a, b);
 end;
 
@@ -7319,7 +7319,7 @@ function VecU8x64Sub(const a, b: TVecU8x64): TVecU8x64;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.SubU8x64(a, b);
 end;
 
@@ -7327,7 +7327,7 @@ function VecU8x64And(const a, b: TVecU8x64): TVecU8x64;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.AndU8x64(a, b);
 end;
 
@@ -7335,7 +7335,7 @@ function VecU8x64Or(const a, b: TVecU8x64): TVecU8x64;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.OrU8x64(a, b);
 end;
 
@@ -7343,7 +7343,7 @@ function VecU8x64Xor(const a, b: TVecU8x64): TVecU8x64;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.XorU8x64(a, b);
 end;
 
@@ -7351,7 +7351,7 @@ function VecU8x64Not(const a: TVecU8x64): TVecU8x64;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.NotU8x64(a);
 end;
 
@@ -7359,7 +7359,7 @@ function VecU8x64CmpEq(const a, b: TVecU8x64): TMask64;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpEqU8x64(a, b);
 end;
 
@@ -7367,7 +7367,7 @@ function VecU8x64CmpLt(const a, b: TVecU8x64): TMask64;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpLtU8x64(a, b);
 end;
 
@@ -7375,7 +7375,7 @@ function VecU8x64CmpGt(const a, b: TVecU8x64): TMask64;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.CmpGtU8x64(a, b);
 end;
 
@@ -7383,7 +7383,7 @@ function VecU8x64Min(const a, b: TVecU8x64): TVecU8x64;
 var
   LDispatch: PSimdDispatchTable;
 begin
-  LDispatch := GetDispatchTable;
+  LDispatch := GetCurrentSimdDataPlaneDispatch;
   Result := LDispatch^.MinU8x64(a, b);
 end;
 
@@ -7406,56 +7406,56 @@ end;
 function VecI8x16SatAdd(const a, b: TVecI8x16): TVecI8x16;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.I8x16SatAdd(a, b);
 end;
 
 function VecI8x16SatSub(const a, b: TVecI8x16): TVecI8x16;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.I8x16SatSub(a, b);
 end;
 
 function VecI16x8SatAdd(const a, b: TVecI16x8): TVecI16x8;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.I16x8SatAdd(a, b);
 end;
 
 function VecI16x8SatSub(const a, b: TVecI16x8): TVecI16x8;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.I16x8SatSub(a, b);
 end;
 
 function VecU8x16SatAdd(const a, b: TVecU8x16): TVecU8x16;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.U8x16SatAdd(a, b);
 end;
 
 function VecU8x16SatSub(const a, b: TVecU8x16): TVecU8x16;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.U8x16SatSub(a, b);
 end;
 
 function VecU16x8SatAdd(const a, b: TVecU16x8): TVecU16x8;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.U16x8SatAdd(a, b);
 end;
 
 function VecU16x8SatSub(const a, b: TVecU16x8): TVecU16x8;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetCurrentSimdDataPlaneDispatch;
   Result := dispatch^.U16x8SatSub(a, b);
 end;
 
