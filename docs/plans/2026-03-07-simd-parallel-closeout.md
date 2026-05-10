@@ -1,5 +1,12 @@
 # SIMD Parallel Closeout Implementation Plan
 
+> Status: superseded historical plan.
+>
+> This document records an older SIMD execution batch or bounded strategy snapshot.
+> It is no longer part of the active whole-module execution chain.
+> Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** 并行完成 SIMD 模块当前最高优先级的文档收口、API 文档纠偏、伪 skip 修复，以及 gate/gate-strict 分层说明更新。
@@ -52,4 +59,3 @@
 - `bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DirectDispatch`
 - `bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --suite=TTestCase_BackendSelection`
 - `bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --list-suites`
-

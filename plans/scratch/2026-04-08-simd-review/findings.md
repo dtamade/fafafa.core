@@ -358,3 +358,22 @@
 - 结论：
   - **现在已经存在一个可以让总计划正常实施的执行索引**
   - 后续如果计划再扩张，应优先维护 execution index，而不是再让使用者自己从总纲里提取顺序
+
+## 2026-05-10 SIMD Plan Hygiene
+
+- 当前新的主要干扰已经不是“没有入口”，而是：
+  - `docs/plans/` 中堆积了大量旧 `simd` 计划
+  - 其中很多名字带 `final`、`closeout`、`roadmap`、`phase2`、`frontier`
+  - 它们虽然当时真实有效，但现在已经不是当前 whole-module refactor 的 active queue
+- 这类文档如果不显式退役，即使入口页已经正确，也会在搜索结果、目录列表、旧聊天引用里继续制造干扰。
+- 因此当前正确动作不是“先删”，而是先做 `plan hygiene`：
+  - 新增单页状态索引：`docs/plans/2026-05-10-simd-plan-status-index.md`
+  - 把真正 active 的链路固定为：
+    - `execution index`
+    - `global refactor plan`
+    - `family matrix`
+    - 4 份 family-level plan
+  - 把更早的 `2026-02 ~ 2026-04` 执行计划整体降为 `historical baseline` 或 `superseded historical plan`
+- 结论：
+  - **已完成 plan 与冲突 plan 需要清，但优先级是“退役出主链”高于“物理删除文件”**
+  - **active 入口必须单一，历史计划必须显式标状态，否则继续干扰实施**

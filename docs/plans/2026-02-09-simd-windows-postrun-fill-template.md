@@ -1,5 +1,12 @@
 # SIMD Windows 实机后回填模板（Batch 模板）
 
+> Status: historical baseline.
+>
+> This document is kept for drift comparison, template reuse, or local design history.
+> It is not part of the active whole-module execution chain.
+> Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
+
+
 更新时间：2026-03-20
 
 ## 使用方式

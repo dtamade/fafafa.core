@@ -1,5 +1,12 @@
 # SIMD (Linux) Finalization Plan
 
+> Status: superseded historical plan.
+>
+> This document records an older SIMD execution batch or bounded strategy snapshot.
+> It is no longer part of the active whole-module execution chain.
+> Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** 在 Linux 上把 `fafafa.core.simd` 相关模块（含 intrinsics / cpuinfo）做到“可验证、可留证据、可复跑”的完成态。
@@ -115,4 +122,3 @@ rg -n 'test\\\\run_cpuinfo_tests|test\\\\test_cpuinfo' AGENTS.md || true
 
 Expected:
 - 无匹配（旧路径引用被清理）。
-

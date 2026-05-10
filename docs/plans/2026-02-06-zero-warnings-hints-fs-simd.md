@@ -1,5 +1,12 @@
 # 0 Warnings/Hints：FS + SIMD 构建洁净化 Implementation Plan
 
+> Status: superseded historical plan.
+>
+> This document records an older SIMD execution batch or bounded strategy snapshot.
+> It is no longer part of the active whole-module execution chain.
+> Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** 让 `tests/fafafa.core.fs/BuildOrTest.sh` 与 `tests/fafafa.core.simd/BuildOrTest.sh check` 在当前工具链下达到 **0 Warning/Hint** 并通过；随后继续推进全量回归。
@@ -150,4 +157,3 @@
 **Step 3: 全量（完整）**
 - Run: `bash tests/run_all_tests.sh`
 - Expected: exit 0，summary Total>0
-

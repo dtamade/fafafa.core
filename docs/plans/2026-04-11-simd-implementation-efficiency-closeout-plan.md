@@ -1,5 +1,12 @@
 # SIMD Implementation Efficiency Closeout Plan
 
+> Status: superseded historical plan.
+>
+> This document records an older SIMD execution batch or bounded strategy snapshot.
+> It is no longer part of the active whole-module execution chain.
+> Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** 把当前 SIMD 实现侧已存在的 non-x86 checker、strict gate 和 native-evidence 流程收束成低误用、低维护成本的统一入口，并明确 `x86_64` 主机与外部原生主机的收口边界。

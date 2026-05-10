@@ -1,5 +1,12 @@
 # SIMD Interface Target Checklist v2 (2026-02-17)
 
+> Status: historical baseline.
+>
+> This document is kept for drift comparison, template reuse, or local design history.
+> It is not part of the active whole-module execution chain.
+> Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
+
+
 ## Baseline
 - Previous baseline (2026-02-09): `439`
 - Current baseline: `547`

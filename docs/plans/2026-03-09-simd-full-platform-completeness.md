@@ -1,5 +1,12 @@
 # SIMD Full-Platform Completeness Implementation Plan
 
+> Status: superseded historical plan.
+>
+> This document records an older SIMD execution batch or bounded strategy snapshot.
+> It is no longer part of the active whole-module execution chain.
+> Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Bring `fafafa.core.simd` from “Linux ready, cross-platform pending” to a state where cross-platform freeze can honestly be reported as ready.

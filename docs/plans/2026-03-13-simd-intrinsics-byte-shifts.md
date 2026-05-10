@@ -1,5 +1,12 @@
 # SIMD x86 SSE2 Byte-Shift Intrinsics Implementation Plan
 
+> Status: historical baseline.
+>
+> This document is kept for drift comparison, template reuse, or local design history.
+> It is not part of the active whole-module execution chain.
+> Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Make experimental x86 SSE2 byte-shift helpers (`simd_slli_si128`, `simd_srli_si128`, `simd_srai_si128`) correct for all shift counts, and lock semantics with tests.
@@ -69,4 +76,3 @@ FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.exp
 ```
 
 Expected: PASS (includes hygiene + backend smoke compiles).
-

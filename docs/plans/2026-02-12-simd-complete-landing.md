@@ -1,5 +1,12 @@
 # SIMD Complete Landing Implementation Plan
 
+> Status: superseded historical plan.
+>
+> This document records an older SIMD execution batch or bounded strategy snapshot.
+> It is no longer part of the active whole-module execution chain.
+> Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** 让 `fafafa.core.simd` 在 Linux/x86_64 下完整通过 `check/test/gate`（含 wiring-sync + strict coverage + perf-smoke），并把跨平台冻结（Windows 证据）收口动作固化为可复制执行的闭环步骤与证据产物。

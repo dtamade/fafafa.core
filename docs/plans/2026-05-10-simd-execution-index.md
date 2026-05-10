@@ -8,17 +8,22 @@
 
 如果你只想快速开始，不要先自己在总纲、matrix、family plan 之间来回跳，先看这页。
 
+如果你是从搜索结果或目录列表里，直接点开某份旧 `simd` plan，先看：
+
+- `docs/plans/2026-05-10-simd-plan-status-index.md`
+
 ## 一句话结论
 
 当前 `simd` 的文档体系已经够开工。
 
 正确起手顺序不是“先随便读一个熟悉的文件”，而是：
 
-1. 先用这页确认当前波次和执行顺序
-2. 再去 `family matrix` 找当前 family
-3. 再去对应 family plan
-4. 再跑这条 family 的 baseline 命令
-5. 改完以后只更新 3 处：family plan / family matrix / scratch
+1. 先用 `plan status index` 排除历史/冲突 plan
+2. 再用这页确认当前波次和执行顺序
+3. 再去 `family matrix` 找当前 family
+4. 再去对应 family plan
+5. 再跑这条 family 的 baseline 命令
+6. 改完以后只更新 3 处：family plan / family matrix / scratch
 
 ## 当前总计划状态
 

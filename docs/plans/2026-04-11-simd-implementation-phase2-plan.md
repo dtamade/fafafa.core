@@ -1,5 +1,12 @@
 # SIMD Implementation Phase 2 Plan
 
+> Status: superseded historical plan.
+>
+> This document records an older SIMD execution batch or bounded strategy snapshot.
+> It is no longer part of the active whole-module execution chain.
+> Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** 在 `simd` 模块已完成接口/ownership/Task 4 helper 收口的基础上，把剩余“实现层语义正确性”一次性做完，并补齐 native non-x86 运行证据、checker 和最终 closeout。

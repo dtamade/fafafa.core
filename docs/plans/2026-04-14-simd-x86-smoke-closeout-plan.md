@@ -1,5 +1,12 @@
 # SIMD X86 Smoke Closeout Implementation Plan
 
+> Status: superseded historical plan.
+>
+> This document records an older SIMD execution batch or bounded strategy snapshot.
+> It is no longer part of the active whole-module execution chain.
+> Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** 把当前 `simd` x86 bounded frontier 收成可复跑、可提交、可阶段性封板的最小闭环，避免下轮再靠口头回忆“哪些 x86 proof 已经补过”。

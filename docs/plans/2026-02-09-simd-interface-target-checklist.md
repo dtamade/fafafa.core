@@ -1,5 +1,12 @@
 # SIMD Interface Target Checklist Implementation Plan
 
+> Status: historical baseline.
+>
+> This document is kept for drift comparison, template reuse, or local design history.
+> It is not part of the active whole-module execution chain.
+> Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** 建立 `fafafa.core.simd` 全量接口目标清单（Public API），并基于清单按批次逐项攻克，直到“接口实现稳定 + 测试覆盖可追踪 + 性能收益可证”。

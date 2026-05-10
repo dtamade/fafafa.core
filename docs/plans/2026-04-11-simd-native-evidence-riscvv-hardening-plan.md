@@ -1,5 +1,12 @@
 # SIMD Native Evidence And RISCVV Hardening Plan
 
+> Status: superseded historical plan.
+>
+> This document records an older SIMD execution batch or bounded strategy snapshot.
+> It is no longer part of the active whole-module execution chain.
+> Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** 把 `simd` 的 native non-x86 evidence 变成正式 verifier/gate，并补强 `RISCVV` ABI 敏感实现的 source-side 护栏。

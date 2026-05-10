@@ -1,5 +1,12 @@
 # SIMD Unblock Closeout & Next Attack Roadmap
 
+> Status: superseded historical plan.
+>
+> This document records an older SIMD execution batch or bounded strategy snapshot.
+> It is no longer part of the active whole-module execution chain.
+> Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
+
+
 更新时间：2026-03-11
 
 ## 1. 当前阻塞状态（结论先行）

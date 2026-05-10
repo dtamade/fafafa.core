@@ -1,5 +1,12 @@
 # SIMD Implementation Closeout Plan
 
+> Status: superseded historical plan.
+>
+> This document records an older SIMD execution batch or bounded strategy snapshot.
+> It is no longer part of the active whole-module execution chain.
+> Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** 在不改 SIMD 公共接口的前提下，把 `fafafa.core.simd` 的实现层问题一次性收口到“register ownership 说真话、真实 asm 接线完整、语义正确性可复验、checker 可自动报警”的状态。
@@ -607,4 +614,3 @@ python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend r
 - 不做大规模 backend 架构重构
 - 不做性能 benchmark 优化轮
 - 不把 experimental backend 提升为默认 stable surface
-

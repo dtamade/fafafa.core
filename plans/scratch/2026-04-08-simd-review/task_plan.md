@@ -19,6 +19,7 @@
 | 2. 收集结构、测试、文档与 gate 证据 | completed | 已区分“假红基础设施问题”与 full test 暴露的真实实现缺陷 |
 | 3. 提炼问题并按严重度排序 | completed | 当前真实优先级已更新为：SSE2 F64 IEEE754 rounding 语义缺陷 > façade alias 面继续收敛 > runtime snapshot 发布模型稳态化 |
 | 4. 形成成熟整改方案 | completed | 当前 Linux fast-gate 已重回绿态；接口挂接完整度为绿，剩余重点转为 release 级跨平台证据刷新，而非 simd stable surface 的新增接口缺口 |
+| 5. SIMD plan hygiene 与主链去干扰 | in_progress | 开始把 `docs/plans/*simd*` 明确分成 `active / historical / superseded`，避免旧 closeout/roadmap 与当前 whole-module 执行链混淆 |
 
 ## Constraints
 
@@ -35,6 +36,7 @@
 | `BuildOrTest.sh test` 在 full suite 下 `rc=217` | 1 | 已缩到并发/public ABI 与 IEEE754 两类真实失败，按最小失败面分治修复 |
 | `rg -n` 直接扫 IEEE754 testcase 输出过大 | 1 | 改为先定位具体 suite 名称与行号，再按区段读取 |
 | `gate` 最后一步 `run_all-chain` 失败 | 1 | 已定位为 `cpuinfo.x86` Windows batch runner success-criteria 合同缺口，修复后 `gate` 恢复 PASS |
+| 批量给旧 `simd` plan 插入状态头时首次落到了文档尾部 | 1 | 已去掉错误的跨行匹配方式，先清除误插入块，再把状态头重插到标题下 |
 
 ## 2026-05-09 Subtask
 

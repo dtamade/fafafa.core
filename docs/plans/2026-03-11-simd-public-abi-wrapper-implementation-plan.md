@@ -1,5 +1,12 @@
 # SIMD Public ABI Wrapper Implementation Plan
 
+> Status: superseded historical plan.
+>
+> This document records an older SIMD execution batch or bounded strategy snapshot.
+> It is no longer part of the active whole-module execution chain.
+> Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** 在 `fafafa.core.simd` 单元内实现 public ABI wrapper 的第一阶段落地：提供 POD metadata、ABI signature、backend query，以及“绑定后直调”的 public function table，不把当前 `TSimdDispatchTable` 直接公开为 public binary ABI。

@@ -1,5 +1,12 @@
 # SIMD Freeze Closure And Next-Wave Implementation Plan
 
+> Status: superseded historical plan.
+>
+> This document records an older SIMD execution batch or bounded strategy snapshot.
+> It is no longer part of the active whole-module execution chain.
+> Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** 完成 `simd` 模块跨平台冻结闭环（Linux + Windows 证据一致为 PASS），并启动下一波可持续迭代（门禁加固 + non-x86 增强 + experimental intrinsics 分层收敛）。

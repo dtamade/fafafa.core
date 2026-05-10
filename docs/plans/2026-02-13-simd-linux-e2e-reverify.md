@@ -1,5 +1,12 @@
 # SIMD (Linux) E2E Re-Verify Implementation Plan
 
+> Status: superseded historical plan.
+>
+> This document records an older SIMD execution batch or bounded strategy snapshot.
+> It is no longer part of the active whole-module execution chain.
+> Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** 在 Linux 上对 `fafafa.core.simd` 做一次“缺口扫描 → 全链路 gate（strict）→ evidence 留痕 → freeze-status-linux”复跑验证；若发现缺口或回归，按严格 TDD（先失败、再修复、再通过）闭环修复。

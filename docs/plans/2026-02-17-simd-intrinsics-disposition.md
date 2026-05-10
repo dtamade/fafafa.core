@@ -1,5 +1,12 @@
 # SIMD Intrinsics Disposition (Task 4)
 
+> Status: historical baseline.
+>
+> This document is kept for drift comparison, template reuse, or local design history.
+> It is not part of the active whole-module execution chain.
+> Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
+
+
 ## Goal
 - Give explicit A/B/C decisions for low-reach intrinsics-related units.
 - Keep default gate path trustworthy by isolating semantic placeholders.

@@ -1,5 +1,12 @@
 # SIMD-only Patch Bundle
 
+> Status: historical baseline.
+>
+> This document is kept for drift comparison, template reuse, or local design history.
+> It is not part of the active whole-module execution chain.
+> Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
+
+
 **Goal:** 在仓库整体工作区很脏的前提下，把当前 `simd` 收口相关改动整理成可 review、可 stage、可 cherry-pick 的单独 patch bundle，避免下轮又回到“到底哪些文件属于 SIMD 主线”的混乱状态。
 
 **Scope rule:** 这份清单只服务 `simd` 主线；不替代 `closeout.md`，也不把非 SIMD 文件混进来。

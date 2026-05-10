@@ -1,5 +1,12 @@
 # 0 Warnings/Hints：FS + SIMD 构建洁净化（Design）
 
+> Status: superseded historical plan.
+>
+> This document records an older SIMD execution batch or bounded strategy snapshot.
+> It is no longer part of the active whole-module execution chain.
+> Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
+
+
 ## 背景 / 问题陈述
 在 Linux 下运行 `STOP_ON_FAIL=1 bash tests/run_all_tests.sh` 时，回归在 `fafafa.core.fs` 模块停止：
 
@@ -49,4 +56,3 @@
 ## 验证策略
 - 快速回归：`bash tests/fafafa.core.simd/BuildOrTest.sh check`、`bash tests/fafafa.core.fs/BuildOrTest.sh check`
 - 逐步推进：每批修复后回跑上述 check；通过后再跑 `STOP_ON_FAIL=1 bash tests/run_all_tests.sh` 寻找下一个失败模块。
-

@@ -1,5 +1,12 @@
 # SIMD Dispatch Adapter Single Source Implementation Plan
 
+> Status: superseded historical plan.
+>
+> This document records an older SIMD execution batch or bounded strategy snapshot.
+> It is no longer part of the active whole-module execution chain.
+> Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** 以 `backend.adapter.map.inc` 为 adapter-managed slots 的事实真相源，增强自动校验，减少 `dispatch` / `backend.iface` / `adapter` 之间的多点同步漏改风险。
@@ -33,4 +40,3 @@
 - `python3 tests/fafafa.core.simd/check_backend_adapter_sync.py --summary-line`
 - `bash tests/fafafa.core.simd/BuildOrTest.sh adapter-sync`
 - `bash tests/fafafa.core.simd/BuildOrTest.sh check`
-

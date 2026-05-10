@@ -1,5 +1,12 @@
 # SIMD Maturity Closeout Implementation Plan
 
+> Status: superseded historical plan.
+>
+> This document records an older SIMD execution batch or bounded strategy snapshot.
+> It is no longer part of the active whole-module execution chain.
+> Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** 在不扩大 SIMD 稳定面风险的前提下，把 `fafafa.core.simd` 从“代码门禁通过但 freeze 未就绪”推进到可重复、可审计、可收口的 release-ready 状态。

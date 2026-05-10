@@ -1,5 +1,12 @@
 # SIMD Runtime/Cpuinfo Closeout Implementation Plan
 
+> Status: superseded historical plan.
+>
+> This document records an older SIMD execution batch or bounded strategy snapshot.
+> It is no longer part of the active whole-module execution chain.
+> Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** 把 `simd` 当前 `runtime / cpuinfo / dataplane / façade` 这一条 bounded frontier 收成可验证、可提交、不会再反复争论接口语义的最小闭环。

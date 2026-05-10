@@ -1,5 +1,12 @@
 # SIMD X86 Bounded Frontier Implementation Plan
 
+> Status: superseded historical plan.
+>
+> This document records an older SIMD execution batch or bounded strategy snapshot.
+> It is no longer part of the active whole-module execution chain.
+> Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** 在当前 non-x86 implementation closeout 已 green 的前提下，用最高 ROI 的方式完成一轮 bounded x86 implementation 推进，优先锁定一个真实、可证明、可收口的 x86 family 问题，而不是再次做泛审查。

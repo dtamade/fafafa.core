@@ -255,3 +255,9 @@
   - 选某个 family 后应该进哪份文档
   - baseline 先跑哪几条
   - 改完后只更新哪几处
+- 用户随后又明确提出新的实施摩擦：
+  - 已完成的 plan 和互相冲突的 plan 如果继续堆在 `docs/plans/`，会干扰下一轮执行
+- 因此当前又进入一轮 `SIMD plan hygiene`：
+  - 新增 `docs/plans/2026-05-10-simd-plan-status-index.md`
+  - 开始把 `docs/plans/*simd*` 明确分成 `active / historical baseline / superseded historical plan`
+  - 目标不是先删文件，而是先把 active 执行链压成唯一主线

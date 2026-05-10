@@ -1,5 +1,12 @@
 # SIMD Module Remediation Implementation Plan
 
+> Status: superseded historical plan.
+>
+> This document records an older SIMD execution batch or bounded strategy snapshot.
+> It is no longer part of the active whole-module execution chain.
+> Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
+
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** 系统修复 `fafafa.core` 的 SIMD 子系统中“未实现/错误实现/覆盖盲区/设计不一致”问题，使 gate 结果与真实质量一致。
