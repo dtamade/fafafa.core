@@ -10008,12 +10008,6 @@ var
   LRegisterSource: string;
   LOldVectorAsm: Boolean;
 
-  procedure AssertRegisterBinds(const aLabel, aSnippet: string);
-  begin
-    AssertTrue('RegisterSSSE3Backend should keep ' + aLabel + ' explicitly bound in the SSSE3 register include',
-      Pos(LowerCase(aSnippet), LRegisterSource) > 0);
-  end;
-
   procedure AssertRegisterKeepsClonedSSE3(const aLabel, aSnippet: string);
   begin
     AssertTrue('RegisterSSSE3Backend should keep cloned SSE3 ' + aLabel + ' instead of rebinding it in the SSSE3 register include',
@@ -10026,11 +10020,6 @@ var
       PtrUInt(aSSE3Slot), PtrUInt(aSSSE3Slot));
   end;
 
-  procedure AssertSlotOwnsSSSE3(const aLabel: string; const aSSE3Slot, aSSSE3Slot: Pointer);
-  begin
-    AssertTrue('SSSE3 ' + aLabel + ' should stay on the SSSE3 override instead of collapsing back to SSE3',
-      PtrUInt(aSSE3Slot) <> PtrUInt(aSSSE3Slot));
-  end;
 begin
   LSourceLines := TStringList.Create;
   try
@@ -10043,10 +10032,10 @@ begin
     LSourceLines.Free;
   end;
 
-  AssertTrue('RegisterSSSE3Backend should clone from SSE3 before applying SSSE3-specific overrides',
+  AssertTrue('RegisterSSSE3Backend should clone from SSE3 before using SSSE3-specific direct helpers',
     Pos('clonedispatchtable(sbsse3, dispatchtable)', LRegisterSource) > 0);
-  AssertRegisterBinds('MinI8x16', 'dispatchTable.MinI8x16 := @SSSE3MinI8x16;');
-  AssertRegisterBinds('MaxI8x16', 'dispatchTable.MaxI8x16 := @SSSE3MaxI8x16;');
+  AssertRegisterKeepsClonedSSE3('MinI8x16', 'dispatchTable.MinI8x16 := @SSSE3MinI8x16;');
+  AssertRegisterKeepsClonedSSE3('MaxI8x16', 'dispatchTable.MaxI8x16 := @SSSE3MaxI8x16;');
   AssertRegisterKeepsClonedSSE3('ReduceAddF32x4', 'dispatchTable.ReduceAddF32x4 := @SSSE3');
   AssertRegisterKeepsClonedSSE3('DotF32x4', 'dispatchTable.DotF32x4 := @SSSE3');
 
@@ -10063,8 +10052,8 @@ begin
 
     AssertSlotReusesSSE3('ReduceAddF32x4', Pointer(LSSE3Table.ReduceAddF32x4), Pointer(LSSSE3Table.ReduceAddF32x4));
     AssertSlotReusesSSE3('DotF32x4', Pointer(LSSE3Table.DotF32x4), Pointer(LSSSE3Table.DotF32x4));
-    AssertSlotOwnsSSSE3('MinI8x16', Pointer(LSSE3Table.MinI8x16), Pointer(LSSSE3Table.MinI8x16));
-    AssertSlotOwnsSSSE3('MaxI8x16', Pointer(LSSE3Table.MaxI8x16), Pointer(LSSSE3Table.MaxI8x16));
+    AssertSlotReusesSSE3('MinI8x16', Pointer(LSSE3Table.MinI8x16), Pointer(LSSSE3Table.MinI8x16));
+    AssertSlotReusesSSE3('MaxI8x16', Pointer(LSSE3Table.MaxI8x16), Pointer(LSSSE3Table.MaxI8x16));
   finally
     SetVectorAsmEnabled(LOldVectorAsm);
   end;

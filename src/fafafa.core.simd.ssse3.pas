@@ -24,7 +24,7 @@ uses
 // - PMADDUBSW: Multiply-add (unsigned/signed byte to word)
 // - PMULHRSW: Multiply high with rounding and scaling
 //
-// ✅ Task 5.1: Enhanced SSSE3 implementation
+// Enhanced SSSE3 implementation
 // - Inherits from SSE3 via CloneDispatchTable
 // - PABSD for integer absolute value (very useful!)
 // - PSHUFB for byte-level operations
@@ -33,6 +33,9 @@ uses
 procedure RegisterSSSE3Backend;
 
 // === SSSE3 Exported Functions ===
+// SSSE3 adds direct helpers (PSHUFB, PALIGNR, PABS, PSIGN, PHADD), but the
+// representative Min/Max dispatch slots intentionally keep inheriting the
+// SSE3/SSE2 chain because SSSE3 does not provide a better override.
 
 // Byte-level shuffle (PSHUFB - extremely powerful)
 function SSSE3ShuffleBytes(const a, ctrl: TVecU8x16): TVecU8x16;
@@ -69,6 +72,8 @@ implementation
 
 uses
   SysUtils,
+  fafafa.core.simd.sse2,
+  fafafa.core.simd.sse3,
   fafafa.core.simd.cpuinfo;
 
 // === SSSE3 Byte Shuffle ===
@@ -353,7 +358,7 @@ begin
   Result := tmp.i[0];
 end;
 
-// ✅ NEW: SSSE3 byte-level negate using PABSB + PSIGNB pattern
+// SSSE3 byte-level negate using PABSB + PSIGNB pattern
 function SSSE3NegI8x16(const a: TVecI8x16): TVecI8x16;
 begin
   asm
@@ -389,41 +394,16 @@ begin
   end;
 end;
 
-// ✅ NEW: SSSE3 optimized Min/Max for I8x16 using PABSB
-// MinI8x16 using compare+blend
+// Compatibility direct wrappers. SSSE3 has no PMINSB/PMAXSB equivalent;
+// SSE4.1 is the first x86 tier with native signed-byte Min/Max.
 function SSSE3MinI8x16(const a, b: TVecI8x16): TVecI8x16;
 begin
-  asm
-    lea    rax, a
-    lea    rdx, b
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    movdqa xmm2, xmm0
-    pcmpgtb xmm2, xmm1     // mask where a > b
-    // Select b where a > b, else a
-    movdqa xmm3, xmm2
-    pand   xmm3, xmm1      // b where a > b
-    pandn  xmm2, xmm0      // a where a <= b
-    por    xmm2, xmm3
-    movdqu [result], xmm2
-  end;
+  Result := SSE2MinI8x16(a, b);
 end;
 
 function SSSE3MaxI8x16(const a, b: TVecI8x16): TVecI8x16;
 begin
-  asm
-    lea    rax, a
-    lea    rdx, b
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    movdqa xmm2, xmm0
-    pcmpgtb xmm2, xmm1     // mask where a > b
-    // Select a where a > b, else b
-    pand   xmm0, xmm2      // a where a > b
-    pandn  xmm2, xmm1      // b where a <= b
-    por    xmm0, xmm2
-    movdqu [result], xmm0
-  end;
+  Result := SSE2MaxI8x16(a, b);
 end;
 
 // === Backend Registration ===

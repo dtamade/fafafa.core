@@ -329,3 +329,27 @@
 - 当前判断：
   - AVX2 仍然是 Wave 3A 正样板
   - 没有新增功能债，只做阅读噪音收敛
+
+## 2026-05-11 X86 Incremental Noise Cleanup
+
+- 这轮继续把 `src/fafafa.core.simd.sse3.pas`、`src/fafafa.core.simd.sse3.register.inc`、`src/fafafa.core.simd.ssse3.pas`、`src/fafafa.core.simd.ssse3.register.inc` 里的 `NEW / Task 5.1 / milestone` 标记收掉。
+- 目标是让 `SSE3 / SSSE3` 的实现和注册文件与 AVX2 一样，剩下真正的语义与结构，而不是演进批次痕迹。
+- 已完成验证：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- 当前判断：
+  - 这仍然是低风险噪音收敛，不是功能改动
+  - `SSE3 / SSSE3` 的 truth 链没有新增重复实现
+
+## 2026-05-11 X86 Incremental Redundancy Collapse
+
+- 重新检查 `SSSE3` 后发现 `MinI8x16 / MaxI8x16` 只是 SSE2 compare+blend 的重复实现，不是 SSSE3 独占能力。
+- 当前正在把这两个 dispatch override 收回成 inherited `SSE3/SSE2` core slots，同时保留 `SSSE3MinI8x16 / SSSE3MaxI8x16` direct helper 作为 compatibility wrapper。
+- 已同步修改 source/test/docs 的预期口径。
+- 本轮 release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-smoke-x86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

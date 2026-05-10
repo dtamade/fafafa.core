@@ -9,7 +9,7 @@ begin
 
   LUseVectorAsm := IsVectorAsmEnabled;
 
-  // ✅ 使用 CloneDispatchTable 从 SSE2 继承实现
+  // 使用 CloneDispatchTable 从 SSE2 继承实现
   // 这比从标量基线开始更高效
   dispatchTable := Default(TSimdDispatchTable);
   if not CloneDispatchTable(sbSSE2, dispatchTable) then

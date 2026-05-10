@@ -228,6 +228,15 @@
   - `git diff --check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_AVX2IntrinsicsFallback`
+
+## 2026-05-11 X86 Incremental Noise Cleanup
+
+- `src/fafafa.core.simd.sse3.pas` / `src/fafafa.core.simd.sse3.register.inc` / `src/fafafa.core.simd.ssse3.pas` / `src/fafafa.core.simd.ssse3.register.inc` 里的历史标记属于同一类噪音，不是新架构层。
+- 这些文件的真实角色没有变化：`SSE3` 继续是 SSE2 的增量 backend adapter，`SSSE3` 继续通过 `CloneDispatchTable` 继承 `SSE3` 再加少量 override。
+- 这轮同样没有改 dispatch wiring，也没有引入新的 truth source。
+- 复验已通过：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - raw-leaf 边界：`intrinsics.x86.sse2` 不得出现 `TVec*`、`TMask*`、`TSimdDispatchTable`、`RegisterSSE2Backend`、`runtime/cpuinfo/dispatch` 依赖
   - 文档真相漂移：三张真相表缺行、改 status、删 sentinel 会直接让结构检查失败
 
@@ -460,3 +469,11 @@
 - 本轮未处理的部分仍然明确保留：
   - façade fast-path 仍是 dataplane 的只读镜像，但还没进一步统一成“按 dataplane snapshot 判等”的更强 mirror 语义
   - `TryGetSimdBackendPodInfo` 这类 metadata query 仍主要走 control-plane registry/query 口径，后续如需更彻底对齐，再单开 batch
+
+## 2026-05-11 X86 Incremental Redundancy Collapse
+
+- 继续向 `SSE3 / SSSE3` 线做重复实现清理时，确认 `SSSE3MinI8x16 / SSSE3MaxI8x16` 和 `SSE2MinI8x16 / SSE2MaxI8x16` 语义完全同构，都是 `pcmpgtb + pand/pandn + por` 的 compare+blend 路径。
+- 这意味着 `SSSE3` 的这两个 dispatch override 没有带来新的指令优势，只是在 `dispatch` 层重复维护了一套同义实现。
+- 更合理的收口方式是让 `SSSE3` 直接继承 `SSE3/SSE2` core slots，保留 direct helper 兼容面，但不再让 dispatch table 绑定冗余 owned override。
+- 这次收口的边界已经明确：`SSSE3` 仍保留 direct helper 名字，方便兼容和直调，但 dispatch ownership 不再落在 SSSE3 上。
+- 这条收口已被 `DispatchAPI`、`check`、`impl-smoke-x86`、`gate` 四条 release 线验证为绿。

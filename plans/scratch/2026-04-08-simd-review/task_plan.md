@@ -156,3 +156,31 @@
 | 1. 收敛注释噪音 | completed | 已清理 `src/fafafa.core.simd.avx2.pas` / `src/fafafa.core.simd.avx2.register.inc` 中的 `NEW / Iteration / milestone` 标记，保留真正的 section header 与语义注释 |
 | 2. 复验样板 lane | completed | `git diff --check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_AVX2IntrinsicsFallback` 均通过 |
 | 3. 继续 Wave 3A | pending | 下一步保持 AVX2 为正样板，继续检查是否还有真实的重复实现可合并 |
+
+## 2026-05-11 X86 Incremental Noise Cleanup
+
+### Goal
+
+把 SSE3 / SSSE3 的历史注释噪音收掉，让 x86 incremental family 读起来一致、干净。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 收敛注释噪音 | completed | 已清理 `src/fafafa.core.simd.sse3.pas` / `src/fafafa.core.simd.sse3.register.inc` / `src/fafafa.core.simd.ssse3.pas` / `src/fafafa.core.simd.ssse3.register.inc` 中的 `NEW / Task 5.1 / milestone` 标记 |
+| 2. 复验样板 lane | completed | `git diff --check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 均通过 |
+| 3. 继续 Wave 3B | pending | 下一步进入 SSSE3 关系更明确的分组检查，确认还有没有真实重复实现可合并 |
+
+## 2026-05-11 X86 Incremental Redundancy Collapse
+
+### Goal
+
+把 `SSSE3` 上和 `SSE2` 完全重复的 `MinI8x16 / MaxI8x16` dispatch override 收回，让这条 family 保留真正增量和兼容别名，不再维护多一份同义实现。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别重复实现 | completed | 已确认 `SSSE3MinI8x16 / SSSE3MaxI8x16` 只是 SSE2 compare+blend 的重复实现，并没有形成更强的 SSSE3 语义 |
+| 2. 收回冗余 override | completed | dispatch table 已直接继承 `SSE3/SSE2` core slots，SSSE3 只保留 compatibility direct helpers |
+| 3. 验证与收口 | completed | `DispatchAPI`、Release `check`、`impl-smoke-x86`、`gate` 均已通过 |

@@ -35,7 +35,7 @@
 - raw leaf：当前真相文档里还没显式写死 dedicated leaf 目标
 - current disposition：adapter-only in practice
 - 当前关键判断：
-  - signed-byte representative override 保持 backend-owned
+  - signed-byte representative slots 保持继承 SSE3/SSE2，不再保留冗余 backend-owned override
   - 继承链继续 clone `SSE3`
 
 ### `SSE4.1`
@@ -117,6 +117,7 @@ python3 tests/fafafa.core.simd/check_intrinsics_experimental_status.py --summary
 - 当前目标：
   - hold green
   - 先补 raw-leaf 目标真相，不急着 promote
+  - 不再让 MinI8x16 / MaxI8x16 形成独立 owned override，直接复用 SSE3/SSE2 core slots
 
 ### `SSE4.1`
 

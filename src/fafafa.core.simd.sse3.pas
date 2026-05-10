@@ -23,7 +23,7 @@ uses
 // - LDDQU: Optimized unaligned load for cache-line crossing
 // - ADDSUBPS/ADDSUBPD: Alternating add/sub (useful for complex arithmetic)
 //
-// ✅ Task 5.1: Enhanced SSE3 implementation with tier inheritance
+// Enhanced SSE3 implementation with tier inheritance
 // - Inherits from SSE2 via CloneDispatchTable
 // - Optimizes: ReduceAddF32x4, ReduceAddF64x2, DotF32x4, LengthF32x4, etc.
 
@@ -155,7 +155,7 @@ begin
   end;
 end;
 
-// ✅ NEW: Multiply reduction using HADD
+// Multiply reduction using HADD
 function SSE3ReduceMulF32x4(const a: TVecF32x4): Single;
 var
   pa: Pointer;
@@ -175,7 +175,7 @@ begin
   end;
 end;
 
-// ✅ NEW: F64x2 multiplication reduction
+// F64x2 multiplication reduction
 function SSE3ReduceMulF64x2(const a: TVecF64x2): Double;
 begin
   asm
@@ -331,7 +331,7 @@ begin
   end;
 end;
 
-// ✅ NEW: SSE3 Optimized Normalize
+// SSE3 Optimized Normalize
 function SSE3NormalizeF32x4(const a: TVecF32x4): TVecF32x4;
 var
   LPA, LPR: Pointer;
