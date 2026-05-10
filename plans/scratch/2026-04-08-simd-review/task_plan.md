@@ -282,3 +282,17 @@
 | 1. 识别真实重复实现 | completed | `I32x4/U32x4` 与 `I16x8/U16x8` 的 low-half multiply 只有类型签名不同，asm kernel 完全同构 |
 | 2. 收口 shared kernel | completed | 新增 `AVX2MulDwordVecRaw` / `AVX2MulWordVecRaw`，typed wrapper 仍保持原 dispatch 入口 |
 | 3. Release 验证与收口 | completed | `git diff --check`、`check`、`gate` 均已通过 |
+
+## 2026-05-11 AVX2 128-bit Bitwise Kernel Consolidation
+
+### Goal
+
+把 `AVX2` 里 128-bit 整数向量的 `And / Or / Xor / Not / AndNot` 从 signed/unsigned、width-specific 的重复实现收成共享 raw kernel，保留原 dispatch 入口和类型签名。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别重复 bitwise bodies | completed | `I32x4/U32x4`、`I16x8/U16x8`、`I8x16/U8x16`、`I64x2/U64x2` 的 bitwise 语义完全同构 |
+| 2. 收口共享 raw kernel | completed | 新增 `AVX2AndVecRaw` / `AVX2OrVecRaw` / `AVX2XorVecRaw` / `AVX2NotVecRaw` / `AVX2AndNotVecRaw`，所有 128-bit integer wrappers 改为 thin wrapper |
+| 3. Release 验证与收口 | completed | `git diff --check`、`check`、`gate` 均已通过 |

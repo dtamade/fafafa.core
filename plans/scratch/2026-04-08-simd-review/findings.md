@@ -397,6 +397,17 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
 
+## 2026-05-11 AVX2 128-bit Bitwise Cleanup
+
+- `AVX2` 的 128-bit integer bitwise 组之前同时按 signed/unsigned 和 lane width 写了多份同构实现，核心都是同一组 `vpand / vpor / vpxor / vpandn / all-ones-xor`。
+- 这类函数必须保留 typed wrapper 和 dispatch slot，但实现真源不需要重复；现在所有 `I32x4/U32x4`、`I16x8/U16x8`、`I8x16/U8x16`、`I64x2/U64x2` 的 `And / Or / Xor / Not / AndNot` 都走共享 raw helper。
+- `AVX2NotVecRaw` 使用 dword all-ones mask 生成 128-bit 全 1 payload，这对 8/16/32/64-bit lane 都是同一 bitwise 语义。
+- 这次没有改变 dispatch ownership，也没有把 AVX2 adapter 推向 raw leaf；它只是把同一 adapter 内的 repeated body 收回单一 kernel。
+- release 验证已通过：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+
 ## 2026-05-10 SIMD Plan Hygiene
 
 - 当前新的主要干扰已经不是“没有入口”，而是：

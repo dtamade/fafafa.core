@@ -893,61 +893,115 @@ begin
   AVX2MulDwordVecImpl(a, b, Result);
 end;
 
+procedure AVX2AndVecRaw(const aPtr, bPtr, rPtr: Pointer);
+var
+  pa, pb, pr: Pointer;
+begin
+  pa := aPtr;
+  pb := bPtr;
+  pr := rPtr;
+  asm
+    mov    rax, pa
+    mov    rdx, pb
+    mov    rcx, pr
+    vmovdqu xmm0, [rax]
+    vpand   xmm0, xmm0, [rdx]
+    vmovdqu [rcx], xmm0
+  end;
+end;
+
+procedure AVX2OrVecRaw(const aPtr, bPtr, rPtr: Pointer);
+var
+  pa, pb, pr: Pointer;
+begin
+  pa := aPtr;
+  pb := bPtr;
+  pr := rPtr;
+  asm
+    mov    rax, pa
+    mov    rdx, pb
+    mov    rcx, pr
+    vmovdqu xmm0, [rax]
+    vpor    xmm0, xmm0, [rdx]
+    vmovdqu [rcx], xmm0
+  end;
+end;
+
+procedure AVX2XorVecRaw(const aPtr, bPtr, rPtr: Pointer);
+var
+  pa, pb, pr: Pointer;
+begin
+  pa := aPtr;
+  pb := bPtr;
+  pr := rPtr;
+  asm
+    mov    rax, pa
+    mov    rdx, pb
+    mov    rcx, pr
+    vmovdqu xmm0, [rax]
+    vpxor   xmm0, xmm0, [rdx]
+    vmovdqu [rcx], xmm0
+  end;
+end;
+
+procedure AVX2NotVecRaw(const aPtr, rPtr: Pointer);
+var
+  pa, pr: Pointer;
+begin
+  pa := aPtr;
+  pr := rPtr;
+  asm
+    mov      rax, pa
+    mov      rcx, pr
+    vmovdqu  xmm0, [rax]
+    vpcmpeqd xmm1, xmm1, xmm1
+    vpxor    xmm0, xmm0, xmm1
+    vmovdqu  [rcx], xmm0
+  end;
+end;
+
+procedure AVX2AndNotVecRaw(const aPtr, bPtr, rPtr: Pointer);
+var
+  pa, pb, pr: Pointer;
+begin
+  pa := aPtr;
+  pb := bPtr;
+  pr := rPtr;
+  asm
+    mov    rax, pa
+    mov    rdx, pb
+    mov    rcx, pr
+    vmovdqu xmm0, [rax]
+    vpandn  xmm0, xmm0, [rdx]
+    vmovdqu [rcx], xmm0
+  end;
+end;
+
 // === I32x4 Bitwise Operations (128-bit) ===
 
 function AVX2AndI32x4(const a, b: TVecI32x4): TVecI32x4;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpand   xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2AndVecRaw(@a, @b, @Result);
 end;
 
 function AVX2OrI32x4(const a, b: TVecI32x4): TVecI32x4;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpor    xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2OrVecRaw(@a, @b, @Result);
 end;
 
 function AVX2XorI32x4(const a, b: TVecI32x4): TVecI32x4;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpxor   xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2XorVecRaw(@a, @b, @Result);
 end;
 
 function AVX2NotI32x4(const a: TVecI32x4): TVecI32x4;
 begin
-  asm
-    lea      rax, a
-    vpcmpeqd xmm1, xmm1, xmm1   // all 1s
-    vmovdqu  xmm0, [rax]
-    vpxor    xmm0, xmm0, xmm1   // NOT = XOR with all 1s
-    vmovdqu  [result], xmm0
-  end;
+  AVX2NotVecRaw(@a, @Result);
 end;
 
 function AVX2AndNotI32x4(const a, b: TVecI32x4): TVecI32x4;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpandn  xmm0, xmm0, [rdx]  // (NOT a) AND b
-    vmovdqu [result], xmm0
-  end;
+  AVX2AndNotVecRaw(@a, @b, @Result);
 end;
 
 // === I32x4 Shift Operations (128-bit) ===
@@ -1165,57 +1219,27 @@ end;
 
 function AVX2AndI16x8(const a, b: TVecI16x8): TVecI16x8;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpand   xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2AndVecRaw(@a, @b, @Result);
 end;
 
 function AVX2OrI16x8(const a, b: TVecI16x8): TVecI16x8;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpor    xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2OrVecRaw(@a, @b, @Result);
 end;
 
 function AVX2XorI16x8(const a, b: TVecI16x8): TVecI16x8;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpxor   xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2XorVecRaw(@a, @b, @Result);
 end;
 
 function AVX2NotI16x8(const a: TVecI16x8): TVecI16x8;
 begin
-  asm
-    lea     rax, a
-    vmovdqu xmm0, [rax]
-    vpcmpeqw xmm1, xmm1, xmm1  // Set all bits to 1
-    vpxor   xmm0, xmm0, xmm1   // XOR with all 1s = NOT
-    vmovdqu [result], xmm0
-  end;
+  AVX2NotVecRaw(@a, @Result);
 end;
 
 function AVX2AndNotI16x8(const a, b: TVecI16x8): TVecI16x8;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpandn  xmm0, xmm0, [rdx]  // andnot: ~a & b
-    vmovdqu [result], xmm0
-  end;
+  AVX2AndNotVecRaw(@a, @b, @Result);
 end;
 
 // === I16x8 Shift Operations (128-bit) ===
@@ -1405,57 +1429,27 @@ end;
 
 function AVX2AndI8x16(const a, b: TVecI8x16): TVecI8x16;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpand   xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2AndVecRaw(@a, @b, @Result);
 end;
 
 function AVX2OrI8x16(const a, b: TVecI8x16): TVecI8x16;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpor    xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2OrVecRaw(@a, @b, @Result);
 end;
 
 function AVX2XorI8x16(const a, b: TVecI8x16): TVecI8x16;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpxor   xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2XorVecRaw(@a, @b, @Result);
 end;
 
 function AVX2NotI8x16(const a: TVecI8x16): TVecI8x16;
 begin
-  asm
-    lea     rax, a
-    vmovdqu xmm0, [rax]
-    vpcmpeqb xmm1, xmm1, xmm1  // Set all bits to 1
-    vpxor   xmm0, xmm0, xmm1   // XOR with all 1s = NOT
-    vmovdqu [result], xmm0
-  end;
+  AVX2NotVecRaw(@a, @Result);
 end;
 
 function AVX2AndNotI8x16(const a, b: TVecI8x16): TVecI8x16;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpandn  xmm0, xmm0, [rdx]  // andnot: ~a & b
-    vmovdqu [result], xmm0
-  end;
+  AVX2AndNotVecRaw(@a, @b, @Result);
 end;
 
 // === I8x16 Comparison Operations (128-bit) ===
@@ -1612,57 +1606,27 @@ end;
 
 function AVX2AndU32x4(const a, b: TVecU32x4): TVecU32x4;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpand   xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2AndVecRaw(@a, @b, @Result);
 end;
 
 function AVX2OrU32x4(const a, b: TVecU32x4): TVecU32x4;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpor    xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2OrVecRaw(@a, @b, @Result);
 end;
 
 function AVX2XorU32x4(const a, b: TVecU32x4): TVecU32x4;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpxor   xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2XorVecRaw(@a, @b, @Result);
 end;
 
 function AVX2NotU32x4(const a: TVecU32x4): TVecU32x4;
 begin
-  asm
-    lea     rax, a
-    vmovdqu xmm0, [rax]
-    vpcmpeqd xmm1, xmm1, xmm1  // Set all bits to 1
-    vpxor   xmm0, xmm0, xmm1   // XOR with all 1s = NOT
-    vmovdqu [result], xmm0
-  end;
+  AVX2NotVecRaw(@a, @Result);
 end;
 
 function AVX2AndNotU32x4(const a, b: TVecU32x4): TVecU32x4;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpandn  xmm0, xmm0, [rdx]  // andnot: ~a & b
-    vmovdqu [result], xmm0
-  end;
+  AVX2AndNotVecRaw(@a, @b, @Result);
 end;
 
 // === U32x4 Shift Operations (128-bit) ===
@@ -1852,57 +1816,27 @@ end;
 
 function AVX2AndU16x8(const a, b: TVecU16x8): TVecU16x8;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpand   xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2AndVecRaw(@a, @b, @Result);
 end;
 
 function AVX2OrU16x8(const a, b: TVecU16x8): TVecU16x8;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpor    xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2OrVecRaw(@a, @b, @Result);
 end;
 
 function AVX2XorU16x8(const a, b: TVecU16x8): TVecU16x8;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpxor   xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2XorVecRaw(@a, @b, @Result);
 end;
 
 function AVX2NotU16x8(const a: TVecU16x8): TVecU16x8;
 begin
-  asm
-    lea     rax, a
-    vmovdqu xmm0, [rax]
-    vpcmpeqw xmm1, xmm1, xmm1  // Set all bits to 1
-    vpxor   xmm0, xmm0, xmm1   // XOR with all 1s = NOT
-    vmovdqu [result], xmm0
-  end;
+  AVX2NotVecRaw(@a, @Result);
 end;
 
 function AVX2AndNotU16x8(const a, b: TVecU16x8): TVecU16x8;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpandn  xmm0, xmm0, [rdx]  // andnot: ~a & b
-    vmovdqu [result], xmm0
-  end;
+  AVX2AndNotVecRaw(@a, @b, @Result);
 end;
 
 // === U16x8 Shift Operations (128-bit) ===
@@ -2109,57 +2043,27 @@ end;
 
 function AVX2AndU8x16(const a, b: TVecU8x16): TVecU8x16;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpand   xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2AndVecRaw(@a, @b, @Result);
 end;
 
 function AVX2OrU8x16(const a, b: TVecU8x16): TVecU8x16;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpor    xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2OrVecRaw(@a, @b, @Result);
 end;
 
 function AVX2XorU8x16(const a, b: TVecU8x16): TVecU8x16;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpxor   xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2XorVecRaw(@a, @b, @Result);
 end;
 
 function AVX2NotU8x16(const a: TVecU8x16): TVecU8x16;
 begin
-  asm
-    lea     rax, a
-    vmovdqu xmm0, [rax]
-    vpcmpeqb xmm1, xmm1, xmm1  // Set all bits to 1
-    vpxor   xmm0, xmm0, xmm1   // XOR with all 1s = NOT
-    vmovdqu [result], xmm0
-  end;
+  AVX2NotVecRaw(@a, @Result);
 end;
 
 function AVX2AndNotU8x16(const a, b: TVecU8x16): TVecU8x16;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpandn  xmm0, xmm0, [rdx]  // andnot: ~a & b
-    vmovdqu [result], xmm0
-  end;
+  AVX2AndNotVecRaw(@a, @b, @Result);
 end;
 
 // === U8x16 Comparison Operations (128-bit) ===
@@ -2771,49 +2675,25 @@ end;
 // I64x2 位与 (VPAND)
 function AVX2AndI64x2(const a, b: TVecI64x2): TVecI64x2;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpand   xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2AndVecRaw(@a, @b, @Result);
 end;
 
 // I64x2 位或 (VPOR)
 function AVX2OrI64x2(const a, b: TVecI64x2): TVecI64x2;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpor    xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2OrVecRaw(@a, @b, @Result);
 end;
 
 // I64x2 位异或 (VPXOR)
 function AVX2XorI64x2(const a, b: TVecI64x2): TVecI64x2;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpxor   xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2XorVecRaw(@a, @b, @Result);
 end;
 
 // I64x2 位非 (VPXOR with all 1s)
 function AVX2NotI64x2(const a: TVecI64x2): TVecI64x2;
 begin
-  asm
-    lea      rax, a
-    vmovdqu  xmm0, [rax]
-    vpcmpeqd xmm1, xmm1, xmm1
-    vpxor    xmm0, xmm0, xmm1
-    vmovdqu  [result], xmm0
-  end;
+  AVX2NotVecRaw(@a, @Result);
 end;
 
 // I64x2 相等比较 (VPCMPEQQ - requires AVX2)
@@ -2918,13 +2798,7 @@ end;
 // I64x2 按位与非 (~a & b)
 function AVX2AndNotI64x2(const a, b: TVecI64x2): TVecI64x2;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpandn  xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2AndNotVecRaw(@a, @b, @Result);
 end;
 
 // I64x2 逻辑左移 (逐 lane)
@@ -2980,32 +2854,27 @@ end;
 
 function AVX2AndU64x2(const a, b: TVecU64x2): TVecU64x2;
 begin
-  Result.u[0] := a.u[0] and b.u[0];
-  Result.u[1] := a.u[1] and b.u[1];
+  AVX2AndVecRaw(@a, @b, @Result);
 end;
 
 function AVX2OrU64x2(const a, b: TVecU64x2): TVecU64x2;
 begin
-  Result.u[0] := a.u[0] or b.u[0];
-  Result.u[1] := a.u[1] or b.u[1];
+  AVX2OrVecRaw(@a, @b, @Result);
 end;
 
 function AVX2XorU64x2(const a, b: TVecU64x2): TVecU64x2;
 begin
-  Result.u[0] := a.u[0] xor b.u[0];
-  Result.u[1] := a.u[1] xor b.u[1];
+  AVX2XorVecRaw(@a, @b, @Result);
 end;
 
 function AVX2NotU64x2(const a: TVecU64x2): TVecU64x2;
 begin
-  Result.u[0] := not a.u[0];
-  Result.u[1] := not a.u[1];
+  AVX2NotVecRaw(@a, @Result);
 end;
 
 function AVX2AndNotU64x2(const a, b: TVecU64x2): TVecU64x2;
 begin
-  Result.u[0] := (not a.u[0]) and b.u[0];
-  Result.u[1] := (not a.u[1]) and b.u[1];
+  AVX2AndNotVecRaw(@a, @b, @Result);
 end;
 
 function AVX2CmpEqU64x2(const a, b: TVecU64x2): TMask2;

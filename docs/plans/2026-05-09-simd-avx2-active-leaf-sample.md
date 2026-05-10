@@ -134,6 +134,11 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate
 - `MulI32x4 / MulU32x4` 与 `MulI16x8 / MulU16x8` 已收成 shared raw kernel，typed wrappers 仍保留原 dispatch 入口。
 - 这次只是把 AVX2 里的同码重复实现收紧，不改变 `AVX2` 作为 active-leaf 样板的定位。
 
+### 2026-05-11 Bitwise Kernel Cleanup
+
+- `And / Or / Xor / Not / AndNot` 这组 128-bit integer bitwise 现在也统一收成 shared raw kernel，涵盖 `I32x4/U32x4`、`I16x8/U16x8`、`I8x16/U8x16`、`I64x2/U64x2`。
+- 这继续保持 `AVX2` 的样板定位不变，只是把 adapter 内部的重复 body 再压缩一层。
+
 ## Task 3：把 AVX2 作为其他 family 的 promote 参照物
 
 后续如果 `SSE2`、`NEON` 或 `RISCVV` 有子集想进入 `active leaf`，先回答：

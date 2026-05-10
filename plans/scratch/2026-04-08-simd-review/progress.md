@@ -353,6 +353,18 @@
   - AVX2 仍然保持样板角色
   - 下一轮优先继续扫同类同码重复实现，而不是动已经稳定的 dispatch 结构
 
+## 2026-05-11 AVX2 128-bit Bitwise Kernel Consolidation
+
+- 继续扫 AVX2 的 128-bit integer bitwise 组时，确认 `And / Or / Xor / Not / AndNot` 在 signed/unsigned、不同 lane width 上本来就是同一套 `vpand / vpor / vpxor / vpandn / all-ones-xor` 语义。
+- 这次把 `I32x4/U32x4`、`I16x8/U16x8`、`I8x16/U8x16`、`I64x2/U64x2` 的 bitwise 实现统一收进共享 raw helper，保留 typed wrapper 和 dispatch 入口。
+- 已完成验证：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 当前判断：
+  - AVX2 的内部重复实现密度明显下降
+  - 下一轮继续按“同码共享 kernel”找剩余冗余，而不是重开架构大拆
+
 ## 2026-05-11 X86 Incremental Noise Cleanup
 
 - 这轮继续把 `src/fafafa.core.simd.sse3.pas`、`src/fafafa.core.simd.sse3.register.inc`、`src/fafafa.core.simd.ssse3.pas`、`src/fafafa.core.simd.ssse3.register.inc` 里的 `NEW / Task 5.1 / milestone` 标记收掉。
