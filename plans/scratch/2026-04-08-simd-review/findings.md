@@ -387,6 +387,16 @@
 - FPC 对“把 `Result` 通过 untyped `var` helper 传给 asm kernel”会产生 `parameter unused / result uninitialized` false-positive hint；当前采用 raw pointer kernel + typed `out` wrapper 的形态，既保留单一实现，又能通过 strict no-hints check。
   - 后续如果计划再扩张，应优先维护 execution index，而不是再让使用者自己从总纲里提取顺序
 
+## 2026-05-11 AVX2 Dword/Word Multiply Cleanup
+
+- `AVX2MulI32x4 / AVX2MulU32x4` 与 `AVX2MulI16x8 / AVX2MulU16x8` 也是同码低位乘法：signed / unsigned 只改变解释，不改变 `vpmulld / vpmullw` 的结果 bit pattern。
+- 这类实现不该继续以两份完整 asm body 维护；更合理的收口是把 raw kernel 收在 `AVX2MulDwordVecRaw` / `AVX2MulWordVecRaw`，再让 typed wrapper 保持各自 dispatch 签名。
+- 这次没有触碰 dispatch ownership 或 register 结构，`AVX2` 仍然是样板 active leaf，只是把重复 multiply kernel 收回单一真源。
+- release 验证已通过：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+
 ## 2026-05-10 SIMD Plan Hygiene
 
 - 当前新的主要干扰已经不是“没有入口”，而是：

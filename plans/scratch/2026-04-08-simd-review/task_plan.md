@@ -268,3 +268,17 @@
 | 1. 识别真实重复实现 | completed | `SSE41MulI32x4` 与 `SSE41MulU32x4` 使用同一条 `PMULLD` kernel，只有签名类型不同 |
 | 2. 收口共享 kernel 并清理噪音 | completed | 两条 wrapper 已收进单一 shared kernel，`SSE4.1` 里的历史标记也已清掉 |
 | 3. Release 验证与收口 | completed | `git diff --check`、`check`、`gate` 均已通过 |
+
+## 2026-05-11 AVX2 Dword/Word Multiply Kernel Consolidation
+
+### Goal
+
+把 `AVX2` 里 `MulI32x4 / MulU32x4` 与 `MulI16x8 / MulU16x8` 的重复低位乘法实现收成单一 shared kernel，同时保留 typed wrapper 和 dispatch-owned 入口。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别真实重复实现 | completed | `I32x4/U32x4` 与 `I16x8/U16x8` 的 low-half multiply 只有类型签名不同，asm kernel 完全同构 |
+| 2. 收口 shared kernel | completed | 新增 `AVX2MulDwordVecRaw` / `AVX2MulWordVecRaw`，typed wrapper 仍保持原 dispatch 入口 |
+| 3. Release 验证与收口 | completed | `git diff --check`、`check`、`gate` 均已通过 |

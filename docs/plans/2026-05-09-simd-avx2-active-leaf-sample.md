@@ -129,6 +129,11 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate
 - `check` / `gate` 保证 stable lane 还绿
 - `impl-smoke-x86` 保证 bounded frontier 没跑丢
 
+### 2026-05-11 Multiply Kernel Cleanup
+
+- `MulI32x4 / MulU32x4` 与 `MulI16x8 / MulU16x8` 已收成 shared raw kernel，typed wrappers 仍保留原 dispatch 入口。
+- 这次只是把 AVX2 里的同码重复实现收紧，不改变 `AVX2` 作为 active-leaf 样板的定位。
+
 ## Task 3：把 AVX2 作为其他 family 的 promote 参照物
 
 后续如果 `SSE2`、`NEON` 或 `RISCVV` 有子集想进入 `active leaf`，先回答：

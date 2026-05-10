@@ -341,6 +341,18 @@
   - AVX2 仍然是 Wave 3A 正样板
   - 没有新增功能债，只做阅读噪音收敛
 
+## 2026-05-11 AVX2 Dword/Word Multiply Kernel Consolidation
+
+- 继续扫 AVX2 时确认 `MulI32x4 / MulU32x4` 与 `MulI16x8 / MulU16x8` 只是同码低位乘法的 signed/unsigned 双份实现。
+- 本轮把这两组重复实现收进 `AVX2MulDwordVecRaw` / `AVX2MulWordVecRaw`，typed wrapper 仍保留原 dispatch 入口与签名。
+- 已完成验证：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 当前判断：
+  - AVX2 仍然保持样板角色
+  - 下一轮优先继续扫同类同码重复实现，而不是动已经稳定的 dispatch 结构
+
 ## 2026-05-11 X86 Incremental Noise Cleanup
 
 - 这轮继续把 `src/fafafa.core.simd.sse3.pas`、`src/fafafa.core.simd.sse3.register.inc`、`src/fafafa.core.simd.ssse3.pas`、`src/fafafa.core.simd.ssse3.register.inc` 里的 `NEW / Task 5.1 / milestone` 标记收掉。

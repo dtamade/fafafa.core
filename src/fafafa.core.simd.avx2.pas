@@ -831,16 +831,66 @@ begin
   end;
 end;
 
-// AVX2 has pmulld for 32-bit integer multiply
-function AVX2MulI32x4(const a, b: TVecI32x4): TVecI32x4;
+// === AVX2 Integer Multiply Shared Kernels ===
+// Low-half vector multiply has the same bit pattern for signed and unsigned lanes.
+
+procedure AVX2MulDwordVecRaw(const aPtr, bPtr, rPtr: Pointer);
+var
+  pa, pb, pr: Pointer;
 begin
+  pa := aPtr;
+  pb := bPtr;
+  pr := rPtr;
   asm
-    lea    rax, a
-    lea    rdx, b
+    mov    rax, pa
+    mov    rdx, pb
+    mov    rcx, pr
     vmovdqu xmm0, [rax]
     vpmulld xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
+    vmovdqu [rcx], xmm0
   end;
+end;
+
+procedure AVX2MulDwordVecImpl(const a, b: TVecI32x4; out r: TVecI32x4); inline;
+begin
+  AVX2MulDwordVecRaw(@a, @b, @r);
+end;
+
+procedure AVX2MulDwordVecImpl(const a, b: TVecU32x4; out r: TVecU32x4); inline;
+begin
+  AVX2MulDwordVecRaw(@a, @b, @r);
+end;
+
+procedure AVX2MulWordVecRaw(const aPtr, bPtr, rPtr: Pointer);
+var
+  pa, pb, pr: Pointer;
+begin
+  pa := aPtr;
+  pb := bPtr;
+  pr := rPtr;
+  asm
+    mov    rax, pa
+    mov    rdx, pb
+    mov    rcx, pr
+    vmovdqu xmm0, [rax]
+    vpmullw xmm0, xmm0, [rdx]
+    vmovdqu [rcx], xmm0
+  end;
+end;
+
+procedure AVX2MulWordVecImpl(const a, b: TVecI16x8; out r: TVecI16x8); inline;
+begin
+  AVX2MulWordVecRaw(@a, @b, @r);
+end;
+
+procedure AVX2MulWordVecImpl(const a, b: TVecU16x8; out r: TVecU16x8); inline;
+begin
+  AVX2MulWordVecRaw(@a, @b, @r);
+end;
+
+function AVX2MulI32x4(const a, b: TVecI32x4): TVecI32x4;
+begin
+  AVX2MulDwordVecImpl(a, b, Result);
 end;
 
 // === I32x4 Bitwise Operations (128-bit) ===
@@ -1108,13 +1158,7 @@ end;
 
 function AVX2MulI16x8(const a, b: TVecI16x8): TVecI16x8;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpmullw xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2MulWordVecImpl(a, b, Result);
 end;
 
 // === I16x8 Bitwise Operations (128-bit) ===
@@ -1561,13 +1605,7 @@ end;
 
 function AVX2MulU32x4(const a, b: TVecU32x4): TVecU32x4;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpmulld xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2MulDwordVecImpl(a, b, Result);
 end;
 
 // === U32x4 Bitwise Operations (128-bit) ===
@@ -1807,13 +1845,7 @@ end;
 
 function AVX2MulU16x8(const a, b: TVecU16x8): TVecU16x8;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpmullw xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2MulWordVecImpl(a, b, Result);
 end;
 
 // === U16x8 Bitwise Operations (128-bit) ===
@@ -4491,16 +4523,12 @@ asm
   {$ENDIF}
 end;
 
-// === SelectF64x2 SIMD Implementation ===
-// 使用 vblendvpd 进行掩码混合 (AVX 指令集)
-// mask 位 0 控制元素 0，位 1 控制元素 1
-// 位为 1 时选择 a，位为 0 时选择 b
+// === SelectF64x2 Compatibility Wrapper ===
+// 这里仍保留 AVX2 owned slot，但语义直接委托 scalar reference helper。
 function AVX2SelectF64x2(const mask: TMask2; const a, b: TVecF64x2): TVecF64x2;
 begin
   Result := ScalarSelectF64x2(mask, a, b);
 end;
-
-// Missing select operation implementations
 
 // SelectI32x4: 使用 VPAND + VPANDN + VPOR 实现 (AVX)
 // Result = (a AND mask) OR (b AND NOT mask)
