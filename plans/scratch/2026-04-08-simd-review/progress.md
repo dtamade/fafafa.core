@@ -369,3 +369,10 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+
+## 2026-05-11 AVX512 Frontier Reconfirmation
+
+- 重新核对 `src/fafafa.core.simd.avx512.wide_loadstore.inc`、`src/fafafa.core.simd.avx512.f32x16_math.inc`、`src/fafafa.core.simd.avx512.f64x8_math.inc`、`src/fafafa.core.simd.avx512.facade.inc`、`src/fafafa.core.simd.avx512.register.inc` 后，没有找到可继续合并的 thin-wrapper 或重复实现。
+- `SelectF32x16 / SelectF64x8 / ClampF32x16 / ClampF64x8` 仍然是 native AVX-512 最优实现，不应为了“更少代码”降成 scalar/AVX2 wrapper。
+- `Utf8Validate / MemReverse / MemDiffRange / BytesIndexOf` 继续保持为故意继承的 AVX2 slots，不是 AVX512 缺口。
+- 当前判断：`AVX512` 保持 hold green，下一轮重复实现清理不要把它当成新目标。

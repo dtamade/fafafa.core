@@ -307,7 +307,7 @@
   - 当前 stable adapter truth source
   - transitional wrapper
   - future raw leaf target
-  这三重身份，债务最集中。
+- 这三重身份让它的债务最集中。
 - 但其他 ISA family 并不是没被考虑，而是状态不同：
   - `Scalar/MMX/SSE/AVX2` 更接近“可作为正样板”的状态
   - `SSE3/SSSE3/SSE4.1/SSE4.2/AVX-512/NEON/RISCVV` 属于“已有 adapter，但 raw leaf 还没完成准入”的一组
@@ -507,3 +507,10 @@
 - 本轮把 `F64x2 / I32x4 / I64x2 / F32x8 / F64x4 / I32x8 / I64x4 / F32x16 / I32x16` 的 extract/insert 全部改为委托 scalar reference helper。
 - 这样保留了 `SSE2` dispatch-owned slot，同时消掉一整组重复索引逻辑和潜在 out-of-range 行为分叉。
 - `TTestCase_DispatchAPI,TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent` 和 `gate` 都已通过，说明这批 wide-emulation clamp 收口同时满足 direct dispatch / facade / release 门禁。
+
+## 2026-05-11 AVX512 Frontier Reconfirmation
+
+- 重新核对 `AVX512` 的 wide_loadstore、math、facade 和 register 面后，没有发现可继续合并的 thin-wrapper 或重复实现。
+- `SelectF32x16 / SelectF64x8 / ClampF32x16 / ClampF64x8` 现在保持 native AVX-512 最优实现，不应为了“统一风格”降成 scalar 或 AVX2 wrapper。
+- `Utf8Validate / MemReverse / MemDiffRange / BytesIndexOf` 继续保持为故意继承的 AVX2 slots，不是 AVX512 的实现缺口。
+- 因此 `AVX512` 当前应继续 hold green；下一轮重复实现清理不应优先从这条线开刀。
