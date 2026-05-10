@@ -562,6 +562,7 @@
 - 这组不适合再各自维护四份 lane 赋值体；更合理的是把选择动作收成一个 raw helper，再让 typed wrapper 只保留各自的 `CmpLt/CmpGt` 语义。
 - 这次没有碰 `I64x4/U64x4`，因为它们当前并没有同类 min/max duplicate body。
 - `git diff --check` 和 Release `gate` 已通过，说明这个 raw helper 收口没有破坏 compare/min/max 的签名或结果。
+- 继续在 AVX2 上往下扫后，没有再发现新的同构重复体，`Wave 3A` 已可以收口。
 
 ## 2026-05-11 SSE2 Lane Helper Consolidation
 
@@ -608,3 +609,13 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_BackendSmoke`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+
+## 2026-05-11 RISCVV Facade Scalar Reference Consolidation
+
+- `riscvv.facade.inc` 里一批 exact-contract fallback 还在重复维护 select / extract / insert 的边界逻辑；这批实现和 `ScalarSelect* / ScalarExtract* / ScalarInsert*` 完全同合同，没必要继续保留第二份真源。
+- 本轮把 `RISCVVSelectF32x4`、`RISCVVSelectF32x16`、`RISCVVSelectF64x8`、`RISCVVSelectF32x8(TVecU32x8)`、`RISCVVSelectF64x2`、`RISCVVSelectF64x4(TVecU64x4)`、`RISCVVSelectI32x4` 以及全部 exact extract / insert fallback 都收回 scalar reference helper。
+- 这样 `RISCVV` facade fallback 不再自己维护一套重复的 clamp / lane 选择逻辑；只有不对应现成 scalar helper 的少数重载还保留本地循环。
+- release 验证已通过：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- non-x86 implementation audit 也已通过：`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`

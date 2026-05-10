@@ -155,7 +155,7 @@
 | --- | --- | --- |
 | 1. 收敛注释噪音 | completed | 已清理 `src/fafafa.core.simd.avx2.pas` / `src/fafafa.core.simd.avx2.register.inc` 中的 `NEW / Iteration / milestone` 标记，保留真正的 section header 与语义注释 |
 | 2. 复验样板 lane | completed | `git diff --check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_AVX2IntrinsicsFallback` 均通过 |
-| 3. 继续 Wave 3A | pending | 下一步保持 AVX2 为正样板，继续检查是否还有真实的重复实现可合并 |
+| 3. 继续 Wave 3A | completed | 继续扫 AVX2 后没有再发现新的真重复实现；最后一块同构选择逻辑也已收成共享 raw helper |
 
 ## 2026-05-11 AVX2 CmpEq Family Consolidation
 
@@ -366,3 +366,17 @@
 | 1. 识别重复 bitwise bodies | completed | `I32x4/U32x4`、`I16x8/U16x8`、`I8x16/U8x16`、`I64x2/U64x2` 的 bitwise 语义完全同构 |
 | 2. 收口共享 raw kernel | completed | 新增 `AVX2AndVecRaw` / `AVX2OrVecRaw` / `AVX2XorVecRaw` / `AVX2NotVecRaw` / `AVX2AndNotVecRaw`，所有 128-bit integer wrappers 改为 thin wrapper |
 | 3. Release 验证与收口 | completed | `git diff --check`、`check`、`gate` 均已通过 |
+
+## 2026-05-11 RISCVV Facade Scalar Reference Consolidation
+
+### Goal
+
+把 `riscvv.facade.inc` 里与 scalar 完全同合同的 select / extract / insert fallback 收回到 `Scalar*` 真源，避免 RISCVV facade 再维护一份重复的边界和选择逻辑。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别可复用的 exact-contract fallback | completed | `SelectF32x4 / SelectF32x16 / SelectF64x8 / SelectF32x8(TVecU32x8) / SelectF64x2 / SelectF64x4(TVecU64x4) / SelectI32x4` 以及 exact extract / insert fallback 都可以直接复用 scalar truth |
+| 2. 收回重复实现 | completed | fallback bodies 已改为委托 `ScalarSelect* / ScalarExtract* / ScalarInsert*`，不再维护第二份 clamp / lane 选择真源 |
+| 3. Release 验证与收口 | completed | `git diff --check`、Release `gate`、`impl-audit-nonx86` 已通过 |

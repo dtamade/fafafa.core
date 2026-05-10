@@ -85,6 +85,8 @@ raw leaves
 - raw leaf 负责 raw ISA primitive
 - adapter 只保留 façade 级语义、组合语义、registration、mask 翻译
 - transitional 单元只临时存在，不再承接新增长期职责
+- 只要两个实现的 width / mask / result contract 完全一致，就合并成单一 helper 或 raw kernel，不再保留第二份同义实现
+- typed wrapper 只保留签名、分发入口和必要的命名兼容，不再养独立 truth source
 
 ### 3. 入口冗余
 

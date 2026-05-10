@@ -123,6 +123,7 @@
 - 继续扫 AVX2 后发现 `MinI64x2 / MaxI64x2 / MinU64x2 / MaxU64x2` 只是在重复同一段 mask-driven lane selection。
 - 已新增 `AVX2SelectI64x2ByMaskRaw`，让四个 typed wrapper 只负责各自的 signed/unsigned compare 语义，选择动作回到单一实现。
 - `git diff --check` 和 Release `gate` 已通过，当前 batch 已收口。
+- 继续往 AVX2 里扫过一轮后，没有再冒出新的同构重复体，`Wave 3A` 可以收口了。
 
 ## 2026-05-09
 
@@ -329,6 +330,9 @@
 - 2026-05-11: SSE4.1 blend kernel consolidation 已完成 release 验证：`git diff --check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 全部通过。
 - 2026-05-11: 继续扫 SSE4.1 时识别到 `SSE41MulI32x4 / SSE41MulU32x4` 共用同一 `PMULLD` kernel，准备把它们收成单一 shared helper，并顺手清掉 `SSE4.1` 文件里的历史任务标记。
 - 2026-05-11: `SSE4.1` 的 `PMULLD` 双份实现已收成单一 shared kernel，历史标记也已清理；`git diff --check`、Release `check`、Release `gate` 全部通过。
+- 2026-05-11: `RISCVV` facade fallback 继续向 scalar 真源收口，`Select/Extract/Insert` 里与 `Scalar*` 完全同合同的边界逻辑已统一委托出去。
+- 2026-05-11: `RISCVV` facade scalar-reference consolidation 已通过 `git diff --check` 和 Release `gate`。
+- 2026-05-11: `RISCVV` facade scalar-reference consolidation 也通过了 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`。
 
 ## 2026-05-11 Runtime State Simplification
 

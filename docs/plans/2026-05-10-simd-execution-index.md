@@ -203,6 +203,7 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-
 - 不把 `experimental isolated` 直接接进 stable adapter 默认依赖
 - 不把 `transitional` 当长期落点
 - 不把 `dispatch` / `dataplane` / `public ABI` / `direct` 各自再造一套 truth
+- 不保留同合同的多重实现；只要 width / mask / result contract 相同，就收成单一 helper / raw kernel
 - 不把 `SSE2` 的局部策略写成全仓库通用规则
 
 ### 默认允许做的事

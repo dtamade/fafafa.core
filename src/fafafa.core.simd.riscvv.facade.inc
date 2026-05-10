@@ -637,42 +637,18 @@ begin
 end;
 
 function RISCVVSelectF32x4(const mask: TMask4; const a, b: TVecF32x4): TVecF32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    if (mask and (1 shl i)) <> 0 then
-      Result.f[i] := a.f[i]
-    else
-      Result.f[i] := b.f[i];
+  Result := ScalarSelectF32x4(mask, a, b);
 end;
 
 function RISCVVExtractF32x4(const a: TVecF32x4; index: Integer): Single;
-var
-  idx: Integer;
 begin
-  if index < 0 then
-    idx := 0
-  else if index > 3 then
-    idx := 3
-  else
-    idx := index;
-
-  Result := a.f[idx];
+  Result := ScalarExtractF32x4(a, index);
 end;
 
 function RISCVVInsertF32x4(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4;
-var
-  idx: Integer;
 begin
-  if index < 0 then
-    idx := 0
-  else if index > 3 then
-    idx := 3
-  else
-    idx := index;
-
-  Result := a;
-  Result.f[idx] := value;
+  Result := ScalarInsertF32x4(a, value, index);
 end;
 
 // =============================================================
@@ -1604,13 +1580,8 @@ end;
 // =============================================================
 
 function RISCVVSelectF32x16(const mask: TMask16; const a, b: TVecF32x16): TVecF32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    if (mask and (1 shl i)) <> 0 then
-      Result.f[i] := a.f[i]
-    else
-      Result.f[i] := b.f[i];
+  Result := ScalarSelectF32x16(mask, a, b);
 end;
 
 // =============================================================
@@ -1618,13 +1589,8 @@ end;
 // =============================================================
 
 function RISCVVSelectF64x8(const mask: TMask8; const a, b: TVecF64x8): TVecF64x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    if (mask and (1 shl i)) <> 0 then
-      Result.d[i] := a.d[i]
-    else
-      Result.d[i] := b.d[i];
+  Result := ScalarSelectF64x8(mask, a, b);
 end;
 
 // =============================================================
@@ -2634,65 +2600,47 @@ end;
 
 function RISCVVExtractF32x16(const a: TVecF32x16; index: Integer): Single;
 begin
-  if index < 0 then index := 0
-  else if index > 15 then index := 15;
-  Result := a.f[index];
+  Result := ScalarExtractF32x16(a, index);
 end;
 
 function RISCVVExtractF32x8(const a: TVecF32x8; index: Integer): Single;
 begin
-  if index < 0 then index := 0
-  else if index > 7 then index := 7;
-  Result := a.f[index];
+  Result := ScalarExtractF32x8(a, index);
 end;
 
 function RISCVVExtractF64x2(const a: TVecF64x2; index: Integer): Double;
 begin
-  if index < 0 then index := 0
-  else if index > 1 then index := 1;
-  Result := a.d[index];
+  Result := ScalarExtractF64x2(a, index);
 end;
 
 function RISCVVExtractF64x4(const a: TVecF64x4; index: Integer): Double;
 begin
-  if index < 0 then index := 0
-  else if index > 3 then index := 3;
-  Result := a.d[index];
+  Result := ScalarExtractF64x4(a, index);
 end;
 
 function RISCVVExtractI32x16(const a: TVecI32x16; index: Integer): Int32;
 begin
-  if index < 0 then index := 0
-  else if index > 15 then index := 15;
-  Result := a.i[index];
+  Result := ScalarExtractI32x16(a, index);
 end;
 
 function RISCVVExtractI32x4(const a: TVecI32x4; index: Integer): Int32;
 begin
-  if index < 0 then index := 0
-  else if index > 3 then index := 3;
-  Result := a.i[index];
+  Result := ScalarExtractI32x4(a, index);
 end;
 
 function RISCVVExtractI32x8(const a: TVecI32x8; index: Integer): Int32;
 begin
-  if index < 0 then index := 0
-  else if index > 7 then index := 7;
-  Result := a.i[index];
+  Result := ScalarExtractI32x8(a, index);
 end;
 
 function RISCVVExtractI64x2(const a: TVecI64x2; index: Integer): Int64;
 begin
-  if index < 0 then index := 0
-  else if index > 1 then index := 1;
-  Result := a.i[index];
+  Result := ScalarExtractI64x2(a, index);
 end;
 
 function RISCVVExtractI64x4(const a: TVecI64x4; index: Integer): Int64;
 begin
-  if index < 0 then index := 0
-  else if index > 3 then index := 3;
-  Result := a.i[index];
+  Result := ScalarExtractI64x4(a, index);
 end;
 
 function RISCVVFloorF32x16(const a: TVecF32x16): TVecF32x16;
@@ -2883,74 +2831,47 @@ end;
 
 function RISCVVInsertF32x16(const a: TVecF32x16; value: Single; index: Integer): TVecF32x16;
 begin
-  if index < 0 then index := 0
-  else if index > 15 then index := 15;
-  Result := a;
-  Result.f[index] := value;
+  Result := ScalarInsertF32x16(a, value, index);
 end;
 
 function RISCVVInsertF32x8(const a: TVecF32x8; value: Single; index: Integer): TVecF32x8;
 begin
-  if index < 0 then index := 0
-  else if index > 7 then index := 7;
-  Result := a;
-  Result.f[index] := value;
+  Result := ScalarInsertF32x8(a, value, index);
 end;
 
 function RISCVVInsertF64x2(const a: TVecF64x2; value: Double; index: Integer): TVecF64x2;
 begin
-  if index < 0 then index := 0
-  else if index > 1 then index := 1;
-  Result := a;
-  Result.d[index] := value;
+  Result := ScalarInsertF64x2(a, value, index);
 end;
 
 function RISCVVInsertF64x4(const a: TVecF64x4; value: Double; index: Integer): TVecF64x4;
 begin
-  if index < 0 then index := 0
-  else if index > 3 then index := 3;
-  Result := a;
-  Result.d[index] := value;
+  Result := ScalarInsertF64x4(a, value, index);
 end;
 
 function RISCVVInsertI32x16(const a: TVecI32x16; value: Int32; index: Integer): TVecI32x16;
 begin
-  if index < 0 then index := 0
-  else if index > 15 then index := 15;
-  Result := a;
-  Result.i[index] := value;
+  Result := ScalarInsertI32x16(a, value, index);
 end;
 
 function RISCVVInsertI32x4(const a: TVecI32x4; value: Int32; index: Integer): TVecI32x4;
 begin
-  if index < 0 then index := 0
-  else if index > 3 then index := 3;
-  Result := a;
-  Result.i[index] := value;
+  Result := ScalarInsertI32x4(a, value, index);
 end;
 
 function RISCVVInsertI32x8(const a: TVecI32x8; value: Int32; index: Integer): TVecI32x8;
 begin
-  if index < 0 then index := 0
-  else if index > 7 then index := 7;
-  Result := a;
-  Result.i[index] := value;
+  Result := ScalarInsertI32x8(a, value, index);
 end;
 
 function RISCVVInsertI64x2(const a: TVecI64x2; value: Int64; index: Integer): TVecI64x2;
 begin
-  if index < 0 then index := 0
-  else if index > 1 then index := 1;
-  Result := a;
-  Result.i[index] := value;
+  Result := ScalarInsertI64x2(a, value, index);
 end;
 
 function RISCVVInsertI64x4(const a: TVecI64x4; value: Int64; index: Integer): TVecI64x4;
 begin
-  if index < 0 then index := 0
-  else if index > 3 then index := 3;
-  Result := a;
-  Result.i[index] := value;
+  Result := ScalarInsertI64x4(a, value, index);
 end;
 
 function RISCVVLoadF32x16(p: PSingle): TVecF32x16;
@@ -3534,43 +3455,23 @@ begin
 end;
 
 function RISCVVSelectF32x8(const mask: TVecU32x8; const a, b: TVecF32x8): TVecF32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    if mask.u[i] <> 0 then
-      Result.f[i] := a.f[i]
-    else
-      Result.f[i] := b.f[i];
+  Result := ScalarSelectF32x8(mask, a, b);
 end;
 
 function RISCVVSelectF64x2(const mask: TMask2; const a, b: TVecF64x2): TVecF64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    if (mask and (1 shl i)) <> 0 then
-      Result.d[i] := a.d[i]
-    else
-      Result.d[i] := b.d[i];
+  Result := ScalarSelectF64x2(mask, a, b);
 end;
 
 function RISCVVSelectF64x4(const mask: TVecU64x4; const a, b: TVecF64x4): TVecF64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    if mask.u[i] <> 0 then
-      Result.d[i] := a.d[i]
-    else
-      Result.d[i] := b.d[i];
+  Result := ScalarSelectF64x4(mask, a, b);
 end;
 
 function RISCVVSelectI32x4(const mask: TVecI32x4; const a, b: TVecI32x4): TVecI32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    if mask.i[i] <> 0 then
-      Result.i[i] := a.i[i]
-    else
-      Result.i[i] := b.i[i];
+  Result := ScalarSelectI32x4(mask, a, b);
 end;
 
 function RISCVVShiftLeftI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
