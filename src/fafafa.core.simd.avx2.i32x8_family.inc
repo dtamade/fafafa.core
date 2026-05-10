@@ -340,26 +340,8 @@ begin
 end;
 
 function AVX2CmpNeI32x8(const a, b: TVecI32x8): TMask8;
-var
-  pa, pb: Pointer;
-  mask: Integer;
 begin
-  pa := @a;
-  pb := @b;
-
-  // a != b is equivalent to NOT(a == b)
-  asm
-    mov     rdx, pa
-    mov     rcx, pb
-    vmovdqu ymm0, [rdx]
-    vpcmpeqd ymm0, ymm0, [rcx]   // a == b
-    vmovmskps eax, ymm0
-    xor     eax, $FF              // NOT (8 bits for 8 elements)
-    mov     mask, eax
-    vzeroupper
-  end;
-
-  Result := TMask8(mask);
+  Result := TMask8(MASK8_ALL_SET xor AVX2CmpEqDwordMaskRaw256(@a, @b));
 end;
 
 // I32x8 Min/Max Operations

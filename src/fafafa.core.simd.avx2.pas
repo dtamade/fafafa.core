@@ -1249,19 +1249,8 @@ begin
 end;
 
 function AVX2CmpNeI32x4(const a, b: TVecI32x4): TMask4;
-var mask: Integer;
 begin
-  // a != b is equivalent to NOT(a == b)
-  asm
-    lea       rax, a
-    lea       rdx, b
-    vmovdqu   xmm0, [rax]
-    vpcmpeqd  xmm0, xmm0, [rdx]  // a == b
-    vmovmskps eax, xmm0
-    xor       eax, $F            // NOT (4 bits)
-    mov       mask, eax
-  end;
-  Result := TMask4(mask);
+  Result := TMask4(MASK4_ALL_SET xor AVX2CmpEqDwordMaskRaw(@a, @b));
 end;
 
 // === I32x4 Min/Max Operations (128-bit) ===
@@ -1454,20 +1443,8 @@ begin
 end;
 
 function AVX2CmpNeI16x8(const a, b: TVecI16x8): TMask8;
-var mask: Integer;
 begin
-  // NE: a != b is same as NOT(a == b)
-  asm
-    lea      rax, a
-    lea      rdx, b
-    vmovdqu  xmm0, [rax]
-    vpcmpeqw xmm0, xmm0, [rdx]  // a == b
-    vpcmpeqw xmm1, xmm1, xmm1  // all ones
-    vpxor    xmm0, xmm0, xmm1  // NOT(a == b) = a != b
-    vpmovmskb eax, xmm0
-    mov      mask, eax
-  end;
-  Result := TMask8(mask);
+  Result := TMask8(MASK8_ALL_SET xor AVX2CmpEqWordMaskRaw(@a, @b));
 end;
 
 // === I16x8 Min/Max Operations (128-bit) ===
@@ -1617,20 +1594,8 @@ begin
 end;
 
 function AVX2CmpNeI8x16(const a, b: TVecI8x16): TMask16;
-var mask: Integer;
 begin
-  // NE: a != b is same as NOT(a == b)
-  asm
-    lea      rax, a
-    lea      rdx, b
-    vmovdqu  xmm0, [rax]
-    vpcmpeqb xmm0, xmm0, [rdx]  // a == b
-    vpcmpeqb xmm1, xmm1, xmm1  // all ones
-    vpxor    xmm0, xmm0, xmm1  // NOT(a == b) = a != b
-    vpmovmskb eax, xmm0
-    mov      mask, eax
-  end;
-  Result := TMask16(mask);
+  Result := TMask16(MASK16_ALL_SET xor AVX2CmpEqByteMaskRaw(@a, @b));
 end;
 
 // === I8x16 Min/Max Operations (128-bit) ===
@@ -2041,20 +2006,8 @@ begin
 end;
 
 function AVX2CmpNeU16x8(const a, b: TVecU16x8): TMask8;
-var mask: Integer;
 begin
-  // NE: a != b is same as NOT(a == b)
-  asm
-    lea      rax, a
-    lea      rdx, b
-    vmovdqu  xmm0, [rax]
-    vpcmpeqw xmm0, xmm0, [rdx]  // a == b
-    vpcmpeqw xmm1, xmm1, xmm1  // all ones
-    vpxor    xmm0, xmm0, xmm1  // NOT(a == b) = a != b
-    vpmovmskb eax, xmm0
-    mov      mask, eax
-  end;
-  Result := TMask8(mask);
+  Result := TMask8(MASK8_ALL_SET xor AVX2CmpEqWordMaskRaw(@a, @b));
 end;
 
 // === U16x8 Min/Max Operations (128-bit) ===
@@ -2229,20 +2182,8 @@ begin
 end;
 
 function AVX2CmpNeU8x16(const a, b: TVecU8x16): TMask16;
-var mask: Integer;
 begin
-  // NE: a != b is same as NOT(a == b)
-  asm
-    lea      rax, a
-    lea      rdx, b
-    vmovdqu  xmm0, [rax]
-    vpcmpeqb xmm0, xmm0, [rdx]  // a == b
-    vpcmpeqb xmm1, xmm1, xmm1  // all ones
-    vpxor    xmm0, xmm0, xmm1  // NOT(a == b) = a != b
-    vpmovmskb eax, xmm0
-    mov      mask, eax
-  end;
-  Result := TMask16(mask);
+  Result := TMask16(MASK16_ALL_SET xor AVX2CmpEqByteMaskRaw(@a, @b));
 end;
 
 // === U8x16 Min/Max Operations (128-bit) ===
@@ -2827,19 +2768,8 @@ end;
 
 // I64x2 不等比较 (a != b = NOT(a == b))
 function AVX2CmpNeI64x2(const a, b: TVecI64x2): TMask2;
-var maskVal: Integer;
 begin
-  asm
-    lea rax, a
-    lea rdx, b
-    vmovdqu  xmm0, [rax]
-    vmovdqu  xmm1, [rdx]
-    vpcmpeqq xmm0, xmm0, xmm1
-    vmovmskpd eax, xmm0
-    xor      eax, 3           // NOT
-    mov      maskVal, eax
-  end;
-  Result := TMask2(maskVal);
+  Result := TMask2(MASK2_ALL_SET xor AVX2CmpEqQwordMaskRaw(@a, @b));
 end;
 
 // I64x2 按位与非 (~a & b)
@@ -3270,25 +3200,8 @@ end;
 
 // I64x4 不等比较 (a != b = NOT(a == b))
 function AVX2CmpNeI64x4(const a, b: TVecI64x4): TMask4;
-var
-  pa, pb: Pointer;
-  mask: Integer;
 begin
-  pa := @a;
-  pb := @b;
-
-  asm
-    mov     rdx, pa
-    mov     rcx, pb
-    vmovdqu ymm0, [rdx]
-    vpcmpeqq ymm0, ymm0, [rcx]   // a == b
-    vmovmskpd eax, ymm0
-    xor     eax, $0F              // NOT (4 bits for 4 elements)
-    mov     mask, eax
-    vzeroupper
-  end;
-
-  Result := TMask4(mask);
+  Result := TMask4(MASK4_ALL_SET xor AVX2CmpEqQwordMaskRaw256(@a, @b));
 end;
 
 // I64x4 Utility Operations
@@ -3712,25 +3625,8 @@ end;
 
 // U32x8 不等比较 (无符号与有符号相同)
 function AVX2CmpNeU32x8(const a, b: TVecU32x8): TMask8;
-var
-  pa, pb: Pointer;
-  mask: Integer;
 begin
-  pa := @a;
-  pb := @b;
-
-  asm
-    mov     rdx, pa
-    mov     rcx, pb
-    vmovdqu ymm0, [rdx]
-    vpcmpeqd ymm0, ymm0, [rcx]   // a == b
-    vmovmskps eax, ymm0
-    xor     eax, $FF              // NOT (8 bits)
-    mov     mask, eax
-    vzeroupper
-  end;
-
-  Result := TMask8(mask);
+  Result := TMask8(MASK8_ALL_SET xor AVX2CmpEqDwordMaskRaw256(@a, @b));
 end;
 
 // U32x8 无符号最小值 (VPMINUD ymm)
@@ -4085,25 +3981,8 @@ end;
 
 // U64x4 不等比较 (无符号与有符号相同)
 function AVX2CmpNeU64x4(const a, b: TVecU64x4): TMask4;
-var
-  pa, pb: Pointer;
-  mask: Integer;
 begin
-  pa := @a;
-  pb := @b;
-
-  asm
-    mov     rdx, pa
-    mov     rcx, pb
-    vmovdqu ymm0, [rdx]
-    vpcmpeqq ymm0, ymm0, [rcx]   // a == b
-    vmovmskpd eax, ymm0
-    xor     eax, $0F              // NOT (4 bits)
-    mov     mask, eax
-    vzeroupper
-  end;
-
-  Result := TMask4(mask);
+  Result := TMask4(MASK4_ALL_SET xor AVX2CmpEqQwordMaskRaw256(@a, @b));
 end;
 
 // === F64x4 扩展数学函数 ===

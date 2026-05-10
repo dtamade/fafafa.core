@@ -185,6 +185,20 @@
 | 2. 收回重复实现到 raw helper | completed | 已引入 256-bit dword/qword compare helper，typed wrappers 只保留签名和 dispatch 入口 |
 | 3. Release 验证与收口 | completed | `git diff --check`、Release `DispatchAPI/DirectDispatch`、`check`、`gate` 全部通过；待提交 |
 
+## 2026-05-11 AVX2 Integer CmpNe Consolidation
+
+### Goal
+
+把 AVX2 整数 `CmpNe` 收成 `CmpEq` 反相的薄封装，保留浮点 `CmpNe` 独立语义，不再重复写一遍 compare + not + mask extraction。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别可合并的整数 CmpNe 簇 | completed | `I32x4/U32x4`、`I16x8/U16x8`、`I8x16/U8x16`、`I64x2/U64x2`、`I32x8/U32x8`、`I64x4/U64x4` 都可直接由 Eq 反相得到 |
+| 2. 收回重复实现到 Eq 反相薄壳 | completed | 已让整数 `CmpNe` 只做 mask 翻转，浮点 compare 不动 |
+| 3. Release 验证与收口 | completed | `git diff --check`、Release `check`、Release `gate` 全部通过；待提交 |
+
 ## 2026-05-11 X86 Incremental Noise Cleanup
 
 ### Goal

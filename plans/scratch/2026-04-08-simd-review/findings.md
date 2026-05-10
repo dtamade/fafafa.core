@@ -539,6 +539,13 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
 
+## 2026-05-11 AVX2 Integer CmpNe Scan
+
+- 整数 `CmpNe` 和整数 `CmpEq` 的关系非常直接：在相同 mask 宽度里做反相即可，不需要再维护一套 compare + not + mask extraction。
+- 这条收口只适用于整数 family；`F32/F64` 的 `CmpNe` 仍然要保留它们自己的浮点比较语义。
+- 这一批最适合先收 `I32x4/U32x4`、`I16x8/U16x8`、`I8x16/U8x16`、`I64x2/U64x2`、`I32x8/U32x8`、`I64x4/U64x4`，再让 `I32x16/I64x8` 跟着底层 wrapper 自然继承。
+- release 验证已通过：`git diff --check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`。
+
 ## 2026-05-11 SSE2 Lane Helper Consolidation
 
 - `SSE2SelectF32x4 / SSE2ExtractF32x4 / SSE2InsertF32x4` 与 scalar helper 只是同一套 lane 选择/边界逻辑的重复实现，现在也收成了 thin wrapper。
