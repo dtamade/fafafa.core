@@ -80,6 +80,7 @@ if /I "%ACTION%"=="closeout-host-local" goto :closeout_host_local
 if /I "%ACTION%"=="import-nonx86-native-evidence" goto :import_nonx86_native_evidence
 if /I "%ACTION%"=="closeout-host-local-from-import" goto :closeout_host_local_from_import
 if /I "%ACTION%"=="interface-completeness" goto :interface_completeness
+if /I "%ACTION%"=="dispatch-read-scope" goto :dispatch_read_scope
 if /I "%ACTION%"=="contract-signature" goto :contract_signature
 if /I "%ACTION%"=="publicabi-signature" goto :publicabi_signature
 if /I "%ACTION%"=="publicabi-smoke" goto :publicabi_smoke
@@ -151,7 +152,7 @@ if /I "%ACTION%"=="finalize-win-evidence" goto :finalize_win_evidence
 if /I "%ACTION%"=="win-closeout-3cmd" goto :win_closeout_3cmd
 if /I "%ACTION%"=="win-closeout-finalize" goto :win_closeout_finalize
 
-echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|key-slot-audit^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]
+echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|key-slot-audit^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]
 echo   Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks.
 echo   gate/gate-strict PASS is not blanket release-grade approval for every experimental path.
 echo   gate         Fast/base gate for routine SIMD changes
@@ -252,6 +253,9 @@ set "SIMD_ADAPTER_SYNC_PASCAL_SMOKE="
 if not "%ADAPTER_SYNC_RC%"=="0" exit /b %ADAPTER_SYNC_RC%
 
 call :register_include_check
+if errorlevel 1 exit /b 1
+
+call :dispatch_read_scope
 if errorlevel 1 exit /b 1
 
 call :sse2_structure_check
@@ -446,6 +450,31 @@ if not errorlevel 1 (
 )
 
 echo [INTERFACE-CHECK] FAILED (python runtime not found; tried py and python)
+exit /b 2
+
+:dispatch_read_scope
+set "DISPATCH_READ_SCOPE_SCRIPT=%ROOT%check_dispatch_read_scope.py"
+if not exist "%DISPATCH_READ_SCOPE_SCRIPT%" (
+  echo [DISPATCH-READ-SCOPE] Missing checker: %DISPATCH_READ_SCOPE_SCRIPT%
+  exit /b 2
+)
+if "%SIMD_DISPATCH_READ_SCOPE_JSON_FILE%"=="" set "SIMD_DISPATCH_READ_SCOPE_JSON_FILE=%LOG_DIR%\dispatch_read_scope.json"
+
+where py >nul 2>nul
+if not errorlevel 1 (
+  echo [DISPATCH-READ-SCOPE] Running: py -3 %DISPATCH_READ_SCOPE_SCRIPT% --summary-line --json-file "%SIMD_DISPATCH_READ_SCOPE_JSON_FILE%"
+  py -3 "%DISPATCH_READ_SCOPE_SCRIPT%" --summary-line --json-file "%SIMD_DISPATCH_READ_SCOPE_JSON_FILE%"
+  exit /b %ERRORLEVEL%
+)
+
+where python >nul 2>nul
+if not errorlevel 1 (
+  echo [DISPATCH-READ-SCOPE] Running: python %DISPATCH_READ_SCOPE_SCRIPT% --summary-line --json-file "%SIMD_DISPATCH_READ_SCOPE_JSON_FILE%"
+  python "%DISPATCH_READ_SCOPE_SCRIPT%" --summary-line --json-file "%SIMD_DISPATCH_READ_SCOPE_JSON_FILE%"
+  exit /b %ERRORLEVEL%
+)
+
+echo [DISPATCH-READ-SCOPE] FAILED (python runtime not found; tried py and python)
 exit /b 2
 
 :contract_signature

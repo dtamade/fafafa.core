@@ -27,6 +27,7 @@ COVERAGE_SCRIPT="${ROOT}/check_intrinsics_coverage.py"
 HELPER_SEMANTICS_SCRIPT="${ROOT}/check_nonx86_helper_semantics.py"
 KEY_SLOT_AUDIT_SCRIPT="${ROOT}/check_nonx86_key_slot_audit.py"
 INTERFACE_COMPLETENESS_SCRIPT="${ROOT}/check_interface_implementation_completeness.py"
+DISPATCH_READ_SCOPE_SCRIPT="${ROOT}/check_dispatch_read_scope.py"
 DISPATCH_CONTRACT_SIGNATURE_SCRIPT="${ROOT}/check_dispatch_contract_signature.py"
 PUBLIC_ABI_SIGNATURE_SCRIPT="${ROOT}/check_public_abi_signature.py"
 PERF_SMOKE_CHECK_SCRIPT="${ROOT}/check_perf_smoke_log.py"
@@ -45,6 +46,8 @@ QEMU_EXPERIMENTAL_REPORT_SCRIPT="${ROOT}/report_qemu_experimental_blockers.py"
 QEMU_EXPERIMENTAL_BASELINE_SCRIPT="${ROOT}/check_experimental_failure_baseline.py"
 INTERFACE_COMPLETENESS_JSON_LOG="${LOG_DIR}/interface_completeness.json"
 INTERFACE_COMPLETENESS_MD_LOG="${LOG_DIR}/interface_completeness.md"
+DISPATCH_READ_SCOPE_LOG="${LOG_DIR}/dispatch_read_scope.txt"
+DISPATCH_READ_SCOPE_JSON_LOG="${LOG_DIR}/dispatch_read_scope.json"
 DISPATCH_CONTRACT_SIGNATURE_LOG="${LOG_DIR}/dispatch_contract_signature.txt"
 DISPATCH_CONTRACT_SIGNATURE_JSON_LOG="${LOG_DIR}/dispatch_contract_signature.json"
 PUBLIC_ABI_SIGNATURE_LOG="${LOG_DIR}/public_abi_signature.txt"
@@ -803,7 +806,7 @@ check_windows_runner_parity() {
     'if /I "%ACTION%"=="gate-summary-inject" goto :gate_summary_inject'
     'if /I "%ACTION%"=="gate-summary-rollback" goto :gate_summary_rollback'
     'if /I "%ACTION%"=="gate-summary-backups" goto :gate_summary_backups'
-    'echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|key-slot-audit^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]'
+    'echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|key-slot-audit^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]'
     'echo   closeout-release  Canonical release closeout entry ^(delegates to shell runner^)'
     'echo [IMPL-SMOKE-X86] Running: bash %ROOT%BuildOrTest.sh impl-smoke-x86 %NORMALIZED_TEST_ARGS%'
     'findstr /r /c:"src\fafafa\.core\.simd\..*Warning:" /c:"src\fafafa\.core\.simd\..*Hint:" "%BUILD_LOG%" | findstr /v /c:"src\fafafa.core.simd.intrinsics.avx2.pas" >nul 2>nul'
@@ -2688,6 +2691,7 @@ check_python_checker_runtime_guard() {
   local LRegisterFunction
   local LSuiteManifestFunction
   local LInterfaceFunction
+  local LDispatchReadScopeFunction
   local LContractFunction
   local LPublicAbiFunction
   local LAdapterFunction
@@ -2713,6 +2717,7 @@ check_python_checker_runtime_guard() {
   LRegisterFunction="$(sed -n '/^run_register_include_check()/,/^}/p' "${LShell}")"
   LSuiteManifestFunction="$(sed -n '/^run_suite_manifest_check()/,/^}/p' "${LShell}")"
   LInterfaceFunction="$(sed -n '/^run_interface_completeness()/,/^}/p' "${LShell}")"
+  LDispatchReadScopeFunction="$(sed -n '/^run_dispatch_read_scope()/,/^}/p' "${LShell}")"
   LContractFunction="$(sed -n '/^run_dispatch_contract_signature()/,/^}/p' "${LShell}")"
   LPublicAbiFunction="$(sed -n '/^run_public_abi_signature()/,/^}/p' "${LShell}")"
   LAdapterFunction="$(sed -n '/^run_backend_adapter_sync()/,/^}/p' "${LShell}")"
@@ -2724,6 +2729,7 @@ check_python_checker_runtime_guard() {
     'echo "[REGISTER-INCLUDE] FAILED (python3 runtime not found; register include check requires python3)"'
     'echo "[SUITE-MANIFEST] FAILED (python3 runtime not found; suite-manifest check requires python3)"'
     'echo "[INTERFACE-CHECK] FAILED (python3 runtime not found; interface-completeness requires python3)"'
+    'echo "[DISPATCH-READ-SCOPE] FAILED (python3 runtime not found; dispatch-read-scope requires python3)"'
     'echo "[DISPATCH-CONTRACT] FAILED (python3 runtime not found; contract-signature requires python3)"'
     'echo "[PUBLIC-ABI] FAILED (python3 runtime not found; publicabi-signature requires python3)"'
     'echo "[ADAPTER-SYNC] FAILED (python3 runtime not found; adapter-sync requires python3)"'
@@ -2736,6 +2742,7 @@ check_python_checker_runtime_guard() {
     'echo [REGISTER-INCLUDE] FAILED (python runtime not found; tried py and python)'
     'echo [SUITE-MANIFEST] FAILED (python runtime not found; tried py and python)'
     'echo [INTERFACE-CHECK] FAILED (python runtime not found; tried py and python)'
+    'echo [DISPATCH-READ-SCOPE] FAILED (python runtime not found; tried py and python)'
     'echo [DISPATCH-CONTRACT] FAILED (python runtime not found; tried py and python)'
     'echo [PUBLIC-ABI] FAILED (python runtime not found; tried py and python)'
     'echo [ADAPTER-SYNC] FAILED (python runtime not found; tried py and python)'
@@ -2785,6 +2792,12 @@ check_python_checker_runtime_guard() {
       *INTERFACE-CHECK*)
         if ! grep -F -- "${LPattern}" <<<"${LInterfaceFunction}" >/dev/null; then
           echo "[CHECK] Shell interface-completeness helper missing pattern: ${LPattern}"
+          LMissing=1
+        fi
+        ;;
+      *DISPATCH-READ-SCOPE*)
+        if ! grep -F -- "${LPattern}" <<<"${LDispatchReadScopeFunction}" >/dev/null; then
+          echo "[CHECK] Shell dispatch-read-scope helper missing pattern: ${LPattern}"
           LMissing=1
         fi
         ;;
@@ -3044,6 +3057,38 @@ run_interface_completeness() {
 
   echo "[INTERFACE-CHECK] Running: python3 ${INTERFACE_COMPLETENESS_SCRIPT} ${LArgs[*]}"
   python3 "${INTERFACE_COMPLETENESS_SCRIPT}" "${LArgs[@]}"
+}
+
+run_dispatch_read_scope() {
+  if [[ ! -f "${DISPATCH_READ_SCOPE_SCRIPT}" ]]; then
+    echo "[DISPATCH-READ-SCOPE] Missing checker: ${DISPATCH_READ_SCOPE_SCRIPT}"
+    return 2
+  fi
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "[DISPATCH-READ-SCOPE] FAILED (python3 runtime not found; dispatch-read-scope requires python3)"
+    return 2
+  fi
+
+  local LReadScopeLog
+  local LReadScopeJsonLog
+  local LMainRC
+  local LSummaryLine
+
+  LReadScopeLog="${SIMD_DISPATCH_READ_SCOPE_LOG_FILE:-${DISPATCH_READ_SCOPE_LOG}}"
+  LReadScopeJsonLog="${SIMD_DISPATCH_READ_SCOPE_JSON_FILE:-${DISPATCH_READ_SCOPE_JSON_LOG}}"
+
+  echo "[DISPATCH-READ-SCOPE] Running: python3 ${DISPATCH_READ_SCOPE_SCRIPT} --summary-line --json-file ${LReadScopeJsonLog}"
+  : > "${LReadScopeLog}"
+  python3 "${DISPATCH_READ_SCOPE_SCRIPT}" --summary-line --json-file "${LReadScopeJsonLog}" 2>&1 | tee "${LReadScopeLog}"
+  LMainRC="${PIPESTATUS[0]}"
+
+  LSummaryLine="$(grep -E '^DISPATCH_READ_SCOPE ' "${LReadScopeLog}" | tail -n 1 || true)"
+  if [[ -n "${LSummaryLine}" ]]; then
+    echo "[DISPATCH-READ-SCOPE] Summary: ${LSummaryLine#DISPATCH_READ_SCOPE }"
+  fi
+
+  return "${LMainRC}"
 }
 
 run_dispatch_contract_signature() {
@@ -4139,6 +4184,7 @@ gate_step_build_check() {
   check_freeze_status_output_isolation || return $?
   check_cpuinfo_runner_parity || return $?
   run_register_include_check || return $?
+  run_dispatch_read_scope || return $?
   run_suite_manifest_check || return $?
   run_nonx86_optin_list_suites || return $?
   run_dispatch_preinit_smoke || return $?
@@ -6185,7 +6231,8 @@ case "${ACTION}" in
     check_freeze_status_output_isolation
     check_cpuinfo_runner_parity
     run_windows_cpuinfo_x86_batch_build_success_criteria_smoke
-    run_register_include_check
+  run_register_include_check
+    run_dispatch_read_scope
     run_sse2_structure_check
     run_suite_manifest_check
     run_nonx86_optin_list_suites
@@ -6269,6 +6316,9 @@ case "${ACTION}" in
     ;;
   interface-completeness)
     run_interface_completeness
+    ;;
+  dispatch-read-scope)
+    run_dispatch_read_scope
     ;;
   adapter-sync-pascal)
     build_project

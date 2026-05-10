@@ -344,6 +344,7 @@ bash tests/fafafa.core.simd/BuildOrTest.sh gate
 说明：
 
 - `check` 负责编译卫生、基础 runner parity，以及默认启用的轻量静态检查。
+- `check` 现在还包含 `dispatch-read-scope`，用于把 `GetDispatchTable` 的直接读取限制在 `dispatch` / `dataplane` / `runtime` 这三处内部单元，防止 façade / companion surfaces 回退到第二条 truth。
 - `gate` 负责日常改动使用的快门禁 / 基础门禁；它会串联主要模块回归，并默认包含 `contract-signature` 与 `publicabi-signature` 这类结构护栏，但不会默认打开所有重检查。
 - `gate` 现在还默认包含 `publicabi-concurrent-chain`，固定重跑历史上真实炸过的组合：`TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`。
 - 如果你明确改了 `TSimdBackendInfo` / `TSimdDispatchTable` 的声明形状，先单独跑：
