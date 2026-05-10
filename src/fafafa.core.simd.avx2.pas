@@ -15,7 +15,7 @@ uses
 // Provides SIMD-accelerated operations using x86-64 AVX2 instructions.
 // This backend requires AVX2 support (Intel Haswell 2013+, AMD Excavator 2015+).
 //
-// ✅ P1-E: vzeroupper 策略
+// vzeroupper policy
 // ============================================================
 // 所有使用 YMM 寄存器的 AVX2 函数必须在返回前调用 vzeroupper。
 // 这可以避免从 AVX 代码调用 SSE 代码时的 SSE/AVX 状态转换惩罚。
@@ -283,7 +283,7 @@ begin
   end;
 end;
 
-// ✅ Iteration 6.4: FMA-optimized Dot Product Functions
+// FMA-optimized Dot Product Functions
 
 function AVX2DotF32x8(const a, b: TVecF32x8): Single;
 begin
@@ -1257,7 +1257,7 @@ begin
   Result := TMask8(mask);
 end;
 
-// ✅ NEW: CmpLe/CmpGe/CmpNe for I16x8 using NOT + base comparison (AVX2 VEX encoding)
+// CmpLe/CmpGe/CmpNe for I16x8 using NOT + base comparison (AVX2 VEX encoding)
 function AVX2CmpLeI16x8(const a, b: TVecI16x8): TMask8;
 var mask: Integer;
 begin
@@ -1459,7 +1459,7 @@ begin
   Result := TMask16(mask);
 end;
 
-// ✅ NEW: CmpLe/CmpGe/CmpNe for I8x16 using NOT + base comparison (AVX2 VEX encoding)
+// CmpLe/CmpGe/CmpNe for I8x16 using NOT + base comparison (AVX2 VEX encoding)
 function AVX2CmpLeI8x16(const a, b: TVecI8x16): TMask16;
 var mask: Integer;
 begin
@@ -1959,7 +1959,7 @@ begin
   Result := TMask8(mask);
 end;
 
-// ✅ NEW: CmpLe/CmpGe/CmpNe for U16x8 using NOT + base comparison (AVX2 VEX encoding)
+// CmpLe/CmpGe/CmpNe for U16x8 using NOT + base comparison (AVX2 VEX encoding)
 function AVX2CmpLeU16x8(const a, b: TVecU16x8): TMask8;
 var mask: Integer;
 begin
@@ -2188,7 +2188,7 @@ begin
   Result := TMask16(mask);
 end;
 
-// ✅ NEW: CmpLe/CmpGe/CmpNe for U8x16 using NOT + base comparison (AVX2 VEX encoding)
+// CmpLe/CmpGe/CmpNe for U8x16 using NOT + base comparison (AVX2 VEX encoding)
 function AVX2CmpLeU8x16(const a, b: TVecU8x16): TMask16;
 var mask: Integer;
 begin
@@ -2498,7 +2498,7 @@ end;
 
 function AVX2LoadF32x4(p: PSingle): TVecF32x4;
 begin
-  // ✅ Safety check: Assert for nil pointer
+  // Safety check: Assert for nil pointer
   Assert(p <> nil, 'AVX2LoadF32x4: pointer is nil');
   asm
     mov     rax, p
@@ -2509,7 +2509,7 @@ end;
 
 function AVX2LoadF32x4Aligned(p: PSingle): TVecF32x4;
 begin
-  // ✅ Safety check: Assert for nil pointer and 16-byte alignment
+  // Safety check: Assert for nil pointer and 16-byte alignment
   Assert(p <> nil, 'AVX2LoadF32x4Aligned: pointer is nil');
   {$PUSH}{$WARN 4055 OFF}
   Assert((PtrUInt(p) and $F) = 0, 'AVX2LoadF32x4Aligned: Pointer must be 16-byte aligned');
@@ -2523,7 +2523,7 @@ end;
 
 procedure AVX2StoreF32x4(p: PSingle; const a: TVecF32x4);
 begin
-  // ✅ Safety check: Assert for nil pointer
+  // Safety check: Assert for nil pointer
   Assert(p <> nil, 'AVX2StoreF32x4: pointer is nil');
   asm
     mov     rax, p
@@ -2535,7 +2535,7 @@ end;
 
 procedure AVX2StoreF32x4Aligned(p: PSingle; const a: TVecF32x4);
 begin
-  // ✅ Safety check: Assert for nil pointer and 16-byte alignment
+  // Safety check: Assert for nil pointer and 16-byte alignment
   Assert(p <> nil, 'AVX2StoreF32x4Aligned: pointer is nil');
   {$PUSH}{$WARN 4055 OFF}
   Assert((PtrUInt(p) and $F) = 0, 'AVX2StoreF32x4Aligned: Pointer must be 16-byte aligned');
@@ -2581,7 +2581,7 @@ function AVX2ExtractF32x4(const a: TVecF32x4; index: Integer): Single;
 var
   safeIndex: Integer;
 begin
-  // ✅ Safety check: use saturation strategy for index bounds (per project spec)
+  // Safety check: use saturation strategy for index bounds (per project spec)
   safeIndex := index;
   if safeIndex < 0 then safeIndex := 0
   else if safeIndex > 3 then safeIndex := 3;
@@ -2592,7 +2592,7 @@ function AVX2InsertF32x4(const a: TVecF32x4; value: Single; index: Integer): TVe
 var
   safeIndex: Integer;
 begin
-  // ✅ Safety check: use saturation strategy for index bounds (per project spec)
+  // Safety check: use saturation strategy for index bounds (per project spec)
   safeIndex := index;
   if safeIndex < 0 then safeIndex := 0
   else if safeIndex > 3 then safeIndex := 3;
@@ -2628,7 +2628,7 @@ end;
 
 {$I fafafa.core.simd.avx2.facade.inc}
 
-// === ✅ P2: Saturating Arithmetic (AVX2 VEX-encoded) ===
+// === Saturating Arithmetic (AVX2 VEX-encoded) ===
 // 使用 VEX 编码避免 SSE-AVX 转换惩罚
 
 // I8x16 有符号饱和加法 (VPADDSB)
@@ -2727,7 +2727,7 @@ begin
   end;
 end;
 
-// === ✅ P3: I64x2 Arithmetic and Bitwise Operations (AVX2 VEX-encoded) ===
+// === I64x2 Arithmetic and Bitwise Operations (AVX2 VEX-encoded) ===
 // 使用 VEX 编码避免 SSE-AVX 转换惩罚
 
 // I64x2 加法 (VPADDQ)
@@ -3045,7 +3045,7 @@ begin
   if (LMask and 2) <> 0 then Result.u[1] := a.u[1] else Result.u[1] := b.u[1];
 end;
 
-// === ✅ I64x4 Operations (native 256-bit AVX2) ===
+// === I64x4 Operations (native 256-bit AVX2) ===
 // 4×Int64 向量操作，使用原生 AVX2 256-bit 指令
 
 // I64x4 加法 (VPADDQ ymm)
@@ -3446,7 +3446,7 @@ begin
   end;
 end;
 
-// === ✅ U32x8 Operations (native 256-bit AVX2) ===
+// === U32x8 Operations (native 256-bit AVX2) ===
 // 8×UInt32 向量操作，使用原生 AVX2 256-bit 指令
 
 // U32x8 加法 (VPADDD ymm) - 与有符号相同
@@ -3877,7 +3877,7 @@ begin
   end;
 end;
 
-// === ✅ U64x4 Operations (native 256-bit AVX2) ===
+// === U64x4 Operations (native 256-bit AVX2) ===
 // 4×UInt64 向量操作，使用原生 AVX2 256-bit 指令
 
 // U64x4 加法 (VPADDQ ymm) - 与有符号相同
@@ -4226,7 +4226,7 @@ begin
   Result := TMask4(mask);
 end;
 
-// === ✅ F64x4 扩展数学函数 ===
+// === F64x4 扩展数学函数 ===
 
 // F64x4 钳位操作 (已存在于 AVX2ClampF64x4，此处添加 RcpF64x4)
 
@@ -4253,7 +4253,7 @@ begin
   end;
 end;
 
-// === ✅ P1: Mask Operations SIMD Implementation (AVX2) ===
+// === Mask Operations SIMD Implementation (AVX2) ===
 // AVX2 CPU 都支持 popcnt 指令（SSE4.2），可以使用原生指令
 // 使用 bsf (bit scan forward) 和 popcnt 指令
 
@@ -4509,7 +4509,7 @@ asm
   {$ENDIF}
 end;
 
-// === ✅ P4: SelectF64x2 SIMD Implementation ===
+// === SelectF64x2 SIMD Implementation ===
 // 使用 vblendvpd 进行掩码混合 (AVX 指令集)
 // mask 位 0 控制元素 0，位 1 控制元素 1
 // 位为 1 时选择 a，位为 0 时选择 b
@@ -4540,7 +4540,7 @@ begin
   end;
 end;
 
-// ✅ NEW: 缺失的 Select 操作实现
+// Missing select operation implementations
 
 // SelectI32x4: 使用 VPAND + VPANDN + VPOR 实现 (AVX)
 // Result = (a AND mask) OR (b AND NOT mask)

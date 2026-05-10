@@ -317,3 +317,15 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_RuntimeAPI,TTestCase_DispatchAPI,TTestCase_DataPlane,TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
 - Wave 2 已完成，`cpuinfo` legacy alias 与 `framework` 转发层确认只是兼容薄壳，不再作为当前默认整改目标；下一步默认进入 `Wave 3A / AVX2`。
+
+## 2026-05-11 AVX2 Sample Noise Cleanup
+
+- 这轮不改 AVX2 语义，只把 `src/fafafa.core.simd.avx2.pas` 和 `src/fafafa.core.simd.avx2.register.inc` 里的历史 `NEW / Iteration / milestone` 标记收掉，保留真正有用的 section header 与语义说明。
+- 目标是让 AVX2 更像稳定样板，而不是演进日志。
+- 已完成验证：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_AVX2IntrinsicsFallback`
+- 当前判断：
+  - AVX2 仍然是 Wave 3A 正样板
+  - 没有新增功能债，只做阅读噪音收敛

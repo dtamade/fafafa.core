@@ -98,9 +98,9 @@ begin
     dispatchTable.CmpEqI16x8 := @AVX2CmpEqI16x8;
     dispatchTable.CmpLtI16x8 := @AVX2CmpLtI16x8;
     dispatchTable.CmpGtI16x8 := @AVX2CmpGtI16x8;
-    dispatchTable.CmpLeI16x8 := @AVX2CmpLeI16x8;  // ✅ NEW
-    dispatchTable.CmpGeI16x8 := @AVX2CmpGeI16x8;  // ✅ NEW
-    dispatchTable.CmpNeI16x8 := @AVX2CmpNeI16x8;  // ✅ NEW
+    dispatchTable.CmpLeI16x8 := @AVX2CmpLeI16x8;
+    dispatchTable.CmpGeI16x8 := @AVX2CmpGeI16x8;
+    dispatchTable.CmpNeI16x8 := @AVX2CmpNeI16x8;
     // I16x8 Min/Max operations
     dispatchTable.MinI16x8 := @AVX2MinI16x8;
     dispatchTable.MaxI16x8 := @AVX2MaxI16x8;
@@ -118,9 +118,9 @@ begin
     dispatchTable.CmpEqI8x16 := @AVX2CmpEqI8x16;
     dispatchTable.CmpLtI8x16 := @AVX2CmpLtI8x16;
     dispatchTable.CmpGtI8x16 := @AVX2CmpGtI8x16;
-    dispatchTable.CmpLeI8x16 := @AVX2CmpLeI8x16;  // ✅ NEW
-    dispatchTable.CmpGeI8x16 := @AVX2CmpGeI8x16;  // ✅ NEW
-    dispatchTable.CmpNeI8x16 := @AVX2CmpNeI8x16;  // ✅ NEW
+    dispatchTable.CmpLeI8x16 := @AVX2CmpLeI8x16;
+    dispatchTable.CmpGeI8x16 := @AVX2CmpGeI8x16;
+    dispatchTable.CmpNeI8x16 := @AVX2CmpNeI8x16;
     // I8x16 Min/Max operations
     dispatchTable.MinI8x16 := @AVX2MinI8x16;
     dispatchTable.MaxI8x16 := @AVX2MaxI8x16;
@@ -165,9 +165,9 @@ begin
     dispatchTable.CmpEqU16x8 := @AVX2CmpEqU16x8;
     dispatchTable.CmpLtU16x8 := @AVX2CmpLtU16x8;
     dispatchTable.CmpGtU16x8 := @AVX2CmpGtU16x8;
-    dispatchTable.CmpLeU16x8 := @AVX2CmpLeU16x8;  // ✅ NEW
-    dispatchTable.CmpGeU16x8 := @AVX2CmpGeU16x8;  // ✅ NEW
-    dispatchTable.CmpNeU16x8 := @AVX2CmpNeU16x8;  // ✅ NEW
+    dispatchTable.CmpLeU16x8 := @AVX2CmpLeU16x8;
+    dispatchTable.CmpGeU16x8 := @AVX2CmpGeU16x8;
+    dispatchTable.CmpNeU16x8 := @AVX2CmpNeU16x8;
     // U16x8 Min/Max operations
     dispatchTable.MinU16x8 := @AVX2MinU16x8;
     dispatchTable.MaxU16x8 := @AVX2MaxU16x8;
@@ -185,14 +185,14 @@ begin
     dispatchTable.CmpEqU8x16 := @AVX2CmpEqU8x16;
     dispatchTable.CmpLtU8x16 := @AVX2CmpLtU8x16;
     dispatchTable.CmpGtU8x16 := @AVX2CmpGtU8x16;
-    dispatchTable.CmpLeU8x16 := @AVX2CmpLeU8x16;  // ✅ NEW
-    dispatchTable.CmpGeU8x16 := @AVX2CmpGeU8x16;  // ✅ NEW
-    dispatchTable.CmpNeU8x16 := @AVX2CmpNeU8x16;  // ✅ NEW
+    dispatchTable.CmpLeU8x16 := @AVX2CmpLeU8x16;
+    dispatchTable.CmpGeU8x16 := @AVX2CmpGeU8x16;
+    dispatchTable.CmpNeU8x16 := @AVX2CmpNeU8x16;
     // U8x16 Min/Max operations
     dispatchTable.MinU8x16 := @AVX2MinU8x16;
     dispatchTable.MaxU8x16 := @AVX2MaxU8x16;
 
-    // ✅ P3: I64x2 arithmetic, bitwise, compare, shift, min/max
+    // I64x2 arithmetic, bitwise, compare, shift, min/max
     dispatchTable.AddI64x2 := @AVX2AddI64x2;
     dispatchTable.SubI64x2 := @AVX2SubI64x2;
     dispatchTable.AndI64x2 := @AVX2AndI64x2;
@@ -212,7 +212,7 @@ begin
     dispatchTable.MinI64x2 := @AVX2MinI64x2;
     dispatchTable.MaxI64x2 := @AVX2MaxI64x2;
 
-    // ✅ U64x2 arithmetic/bitwise/compare/minmax
+    // U64x2 arithmetic/bitwise/compare/minmax
     dispatchTable.AddU64x2 := @AVX2AddU64x2;
     dispatchTable.SubU64x2 := @AVX2SubU64x2;
     dispatchTable.AndU64x2 := @AVX2AndU64x2;
@@ -247,13 +247,13 @@ begin
     dispatchTable.CmpEqI32x8 := @AVX2CmpEqI32x8;
     dispatchTable.CmpLtI32x8 := @AVX2CmpLtI32x8;
     dispatchTable.CmpGtI32x8 := @AVX2CmpGtI32x8;
-    dispatchTable.CmpLeI32x8 := @AVX2CmpLeI32x8;  // ✅ P0-2: 补充缺失
-    dispatchTable.CmpGeI32x8 := @AVX2CmpGeI32x8;  // ✅ P0-2: 补充缺失
-    dispatchTable.CmpNeI32x8 := @AVX2CmpNeI32x8;  // ✅ P0-2: 补充缺失
+    dispatchTable.CmpLeI32x8 := @AVX2CmpLeI32x8;
+    dispatchTable.CmpGeI32x8 := @AVX2CmpGeI32x8;
+    dispatchTable.CmpNeI32x8 := @AVX2CmpNeI32x8;
     dispatchTable.MinI32x8 := @AVX2MinI32x8;
     dispatchTable.MaxI32x8 := @AVX2MaxI32x8;
 
-    // ✅ NEW: I64x4 Operations (256-bit AVX2)
+    // I64x4 Operations (256-bit AVX2)
     dispatchTable.AddI64x4 := @AVX2AddI64x4;
     dispatchTable.SubI64x4 := @AVX2SubI64x4;
     dispatchTable.AndI64x4 := @AVX2AndI64x4;
@@ -274,7 +274,7 @@ begin
     dispatchTable.SplatI64x4 := @AVX2SplatI64x4;
     dispatchTable.ZeroI64x4 := @AVX2ZeroI64x4;
 
-    // ✅ NEW: U32x8 Operations (256-bit AVX2)
+    // U32x8 Operations (256-bit AVX2)
     dispatchTable.AddU32x8 := @AVX2AddU32x8;
     dispatchTable.SubU32x8 := @AVX2SubU32x8;
     dispatchTable.MulU32x8 := @AVX2MulU32x8;
@@ -294,7 +294,7 @@ begin
     dispatchTable.MinU32x8 := @AVX2MinU32x8;
     dispatchTable.MaxU32x8 := @AVX2MaxU32x8;
 
-    // ✅ NEW: U64x4 Operations (256-bit AVX2)
+    // U64x4 Operations (256-bit AVX2)
     dispatchTable.AddU64x4 := @AVX2AddU64x4;
     dispatchTable.SubU64x4 := @AVX2SubU64x4;
     dispatchTable.AndU64x4 := @AVX2AndU64x4;
@@ -316,7 +316,7 @@ begin
     dispatchTable.AddU64x8 := @AVX2AddU64x8;
     dispatchTable.MaxU8x64 := @AVX2MaxU8x64;
 
-    // ✅ NEW: F64x4 Extended Math
+    // F64x4 Extended Math
     dispatchTable.RcpF64x4 := @AVX2RcpF64x4;
 
     // Override with AVX2 comparison operations
@@ -327,7 +327,7 @@ begin
     dispatchTable.CmpGeF32x4 := @AVX2CmpGeF32x4;
     dispatchTable.CmpNeF32x4 := @AVX2CmpNeF32x4;
 
-    // ✅ NEW: F32x8 Comparison (256-bit)
+    // F32x8 Comparison (256-bit)
     dispatchTable.CmpEqF32x8 := @AVX2CmpEqF32x8;
     dispatchTable.CmpLtF32x8 := @AVX2CmpLtF32x8;
     dispatchTable.CmpLeF32x8 := @AVX2CmpLeF32x8;
@@ -335,7 +335,7 @@ begin
     dispatchTable.CmpGeF32x8 := @AVX2CmpGeF32x8;
     dispatchTable.CmpNeF32x8 := @AVX2CmpNeF32x8;
 
-    // ✅ NEW: F64x4 Comparison (256-bit)
+    // F64x4 Comparison (256-bit)
     dispatchTable.CmpEqF64x4 := @AVX2CmpEqF64x4;
     dispatchTable.CmpLtF64x4 := @AVX2CmpLtF64x4;
     dispatchTable.CmpLeF64x4 := @AVX2CmpLeF64x4;
@@ -368,7 +368,7 @@ begin
     dispatchTable.LengthF32x3 := @AVX2LengthF32x3;
     dispatchTable.NormalizeF32x4 := @AVX2NormalizeF32x4;
 
-    // ✅ Iteration 6.4: FMA-optimized Dot Product
+    // FMA-optimized Dot Product
     dispatchTable.DotF32x8 := @AVX2DotF32x8;
     dispatchTable.DotF64x2 := @AVX2DotF64x2;
     dispatchTable.DotF64x4 := @AVX2DotF64x4;
@@ -469,7 +469,7 @@ begin
     dispatchTable.SplatF64x4 := @AVX2SplatF64x4;
     dispatchTable.ZeroF64x4 := @AVX2ZeroF64x4;
 
-    // ✅ 512-bit 向量的 AVX2 仿真实现 (2×256-bit 操作)
+    // 512-bit 向量的 AVX2 仿真实现 (2×256-bit 操作)
 
     // F32x16 Arithmetic (512-bit emulated via 2×F32x8)
     dispatchTable.AddF32x16 := @AVX2AddF32x16;
@@ -584,7 +584,7 @@ begin
     dispatchTable.MinI32x16 := @AVX2MinI32x16;
     dispatchTable.MaxI32x16 := @AVX2MaxI32x16;
 
-    // ✅ NEW: I64x8 Operations (512-bit emulated via 2×I64x4)
+    // I64x8 Operations (512-bit emulated via 2×I64x4)
     dispatchTable.AddI64x8 := @AVX2AddI64x8;
     dispatchTable.SubI64x8 := @AVX2SubI64x8;
     dispatchTable.AndI64x8 := @AVX2AndI64x8;
@@ -611,7 +611,7 @@ begin
     dispatchTable.ExtractF32x4 := @AVX2ExtractF32x4;
     dispatchTable.InsertF32x4 := @AVX2InsertF32x4;
 
-    // ✅ NEW: Extract/Insert Operations
+    // Extract/Insert Operations
     // F32x8 (256-bit)
     dispatchTable.ExtractF32x8 := @AVX2ExtractF32x8;
     dispatchTable.InsertF32x8 := @AVX2InsertF32x8;
@@ -640,10 +640,10 @@ begin
     dispatchTable.ExtractI32x16 := @AVX2ExtractI32x16;
     dispatchTable.InsertI32x16 := @AVX2InsertI32x16;
 
-    // ✅ P4: SelectF64x2
+    // SelectF64x2
     dispatchTable.SelectF64x2 := @AVX2SelectF64x2;
 
-    // ✅ NEW: 缺失的 Select 操作
+    // Missing select operations
     dispatchTable.SelectI32x4 := @AVX2SelectI32x4;
     dispatchTable.SelectF32x8 := @AVX2SelectF32x8;
     dispatchTable.SelectF64x4 := @AVX2SelectF64x4;
@@ -665,12 +665,12 @@ begin
   dispatchTable.ToUpperAscii := @ToUpperAscii_AVX2;
   dispatchTable.BytesIndexOf := @BytesIndexOf_AVX2;
   dispatchTable.BitsetPopCount := @BitsetPopCount_AVX2;
-  // ✅ NEW: MemCopy, MemSet (使用 FPC 内置函数，已足够优化)
+  // MemCopy, MemSet (使用 FPC 内置函数，已足够优化)
   dispatchTable.MemCopy := @MemCopy_AVX2;
   dispatchTable.MemSet := @MemSet_AVX2;
   {$ENDIF}
 
-  // ✅ P2: Override with AVX2 saturating arithmetic (VEX-encoded, always enabled)
+  // Override with AVX2 saturating arithmetic (VEX-encoded, always enabled)
   dispatchTable.I8x16SatAdd := @AVX2I8x16SatAdd;
   dispatchTable.I8x16SatSub := @AVX2I8x16SatSub;
   dispatchTable.I16x8SatAdd := @AVX2I16x8SatAdd;
@@ -680,7 +680,7 @@ begin
   dispatchTable.U16x8SatAdd := @AVX2U16x8SatAdd;
   dispatchTable.U16x8SatSub := @AVX2U16x8SatSub;
 
-  // ✅ P1: Mask operations (native popcnt + bsf, always enabled)
+  // Mask operations (native popcnt + bsf, always enabled)
   dispatchTable.Mask2All := @AVX2Mask2All;
   dispatchTable.Mask2Any := @AVX2Mask2Any;
   dispatchTable.Mask2None := @AVX2Mask2None;
@@ -708,5 +708,5 @@ end;
 
 initialization
   RegisterAVX2Backend;
-  // ✅ P1-D: Register rebuilder callback for VectorAsmEnabled changes
+  // Register rebuilder callback for VectorAsmEnabled changes
   RegisterBackendRebuilder(sbAVX2, @RegisterAVX2Backend);

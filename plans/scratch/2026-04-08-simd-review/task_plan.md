@@ -142,3 +142,17 @@
 | 2. 统一 façade wrapper 读取路径 | completed | 已将 `src/fafafa.core.simd.pas` 中所有 `GetDispatchTable` 调用统一替换为 `GetCurrentSimdDataPlaneDispatch` |
 | 3. 验证并继续扫残余重复实现 | completed | Release `check`、targeted seam suites、`gate` 已通过；`api` / `ops` / `arrays` 已统一到 `GetDirectDispatchTable`，下一步继续检查 runtime/cpuinfo/family 面是否还有可清理的重复 truth 或多重实现 |
 | 4. 继续扫剩余消费面 | completed | 已把 `GetDispatchTable` 直读收进 `dispatch-read-scope` 护栏；runtime 内部已去掉 `RegisteredFlags` 重复状态并收拢成共用 snapshot 读取 helper；cpuinfo legacy aliases 与 framework 转发层确认只是 compatibility thin shells；Wave 2 seam hardening 已完成，下一步进入 `Wave 3A / AVX2` |
+
+## 2026-05-11 AVX2 Sample Noise Cleanup
+
+### Goal
+
+把 `AVX2` 样板里历史演进标记清掉，让文件读起来像稳定实现，而不是项目日志。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 收敛注释噪音 | completed | 已清理 `src/fafafa.core.simd.avx2.pas` / `src/fafafa.core.simd.avx2.register.inc` 中的 `NEW / Iteration / milestone` 标记，保留真正的 section header 与语义注释 |
+| 2. 复验样板 lane | completed | `git diff --check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_AVX2IntrinsicsFallback` 均通过 |
+| 3. 继续 Wave 3A | pending | 下一步保持 AVX2 为正样板，继续检查是否还有真实的重复实现可合并 |
