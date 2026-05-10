@@ -269,3 +269,35 @@
   - 只碰 `dispatch / dataplane / public ABI / direct / façade fast-path`
   - 不夹带 family migration
   - 写死 baseline、红线、目标文件、verification lane 和完成标准
+
+## 2026-05-10 Wave 2 Seam Hardening Batch 1
+
+- 已先用 release 策略重新确认当前 baseline：
+  - 继承上一轮串行 `gate` 绿态
+  - 本轮再跑 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- 已完成第一批代码收口：
+  - `src/fafafa.core.simd.public_abi.impl.inc`
+    - 删除 `g_SimdPublicApiTargetDispatchPtr`
+    - 删除 `InvalidateSimdPublicApiBinding`
+    - `TSimdPublicApiBindingState` 新增 `DataPlane`
+    - 绑定复用从“按 dispatch 指针”改为“按 dataplane snapshot 指针”
+    - `PublicAbi*` fallback 从 `GetDispatchTable` 改为读取当前已发布 `dataplane` 槽位
+  - `src/fafafa.core.simd.pas`
+    - 去掉 public ABI 的独立 dispatch hook 接线
+  - `tests/fafafa.core.simd/fafafa.core.simd.dataplane.testcase.pas`
+    - same-dispatch rebind 测试新增 public API table 复用断言
+- 已完成本轮 release 验证：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DataPlane`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_RuntimeAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前 stop-point：
+  - Wave 2 已从文档阶段进入真实实现阶段
+  - Batch 1 已把 public ABI 从第二条 truth/publication path 收回
+  - 下一批可继续审视 façade fast-path mirror 语义，或再收 `TryGetSimdBackendPodInfo` / metadata query 与 dataplane/publication 的边界

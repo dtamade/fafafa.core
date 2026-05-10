@@ -112,3 +112,18 @@
 | 4. 把新总纲接入当前阅读入口 | completed | 已把全局总纲接入 `map`，并确认后续新会话可从全模块入口起盘 |
 | 5. 补 execution-ready 文档部件 | completed | 已新增 family matrix，并把总纲/source-of-truth 分工与 Wave exit criteria 补全 |
 | 6. 补 family-level 子计划 | completed | 已新增 AVX2 正样板、x86 incremental qualification、NEON qualification、RISCVV qualification 四份文档，whole-module 计划不再卡在总纲层 |
+
+## 2026-05-10 Wave 2 Seam Hardening Batch 1
+
+### Goal
+
+开始真正的 Wave 2 实施，先把 `public ABI wrapper` 从“独立 invalidate + 第二套 dispatch truth”收回成严格跟随 `dataplane` published snapshot 的 companion surface。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 锁定 Batch 1 边界 | completed | 这批只碰 `public_abi.impl.inc`、`simd.pas` 初始化/收尾接线、`dataplane` 相关测试；不打开 family migration，也不扩 runtime/cpuinfo 语义 |
+| 2. public ABI 绑定语义收紧 | completed | `public ABI` 现在按 `PSimdDataPlane` 复用/发布 metadata table，不再维护独立 `target dispatch ptr`，也不再依赖独立 invalidate hook |
+| 3. fallback 语义收回 dataplane | completed | `PublicAbi*` cdecl wrapper 的兜底路径已从 `GetDispatchTable` 改成读取当前已发布 `dataplane` 槽位，消除第二条 publication path |
+| 4. seam 回归验证与提交收口 | in_progress | `git diff --check`、Release `check`、`TTestCase_DataPlane`、`TTestCase_PublicAbi`、`TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`、`TTestCase_DispatchAPI`、`TTestCase_RuntimeAPI`、`TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、`gate` 已通过；剩余 review 结论 + commit |

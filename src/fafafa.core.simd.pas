@@ -7522,12 +7522,10 @@ initialization
   InitializeSimdPublicApiBinding;
   AddDispatchChangedHook(@InvalidateSimdFacadeFastPaths);
   RebindSimdFacadeFastPaths;
-  AddDispatchChangedHook(@InvalidateSimdPublicApiBinding);
   if GetCurrentSimdPublicApiBindingState = nil then
     RebindSimdPublicApi;
 
 finalization
-  RemoveDispatchChangedHook(@InvalidateSimdPublicApiBinding);
   RemoveDispatchChangedHook(@InvalidateSimdFacadeFastPaths);
   FinalizeSimdPublicApiBinding;
 

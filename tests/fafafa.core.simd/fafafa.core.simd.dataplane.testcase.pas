@@ -116,18 +116,28 @@ procedure TTestCase_DataPlane.Test_DataPlane_ExplicitRebind_WithoutDispatchMutat
 var
   LBefore: PSimdDataPlane;
   LAfter: PSimdDataPlane;
+  LApiBefore: PFafafaSimdPublicApi;
+  LApiAfter: PFafafaSimdPublicApi;
 begin
   LBefore := GetCurrentSimdDataPlane;
+  LApiBefore := GetSimdPublicApi;
   AssertTrue('data-plane snapshot should be assigned before explicit same-dispatch rebind',
     LBefore <> nil);
+  AssertTrue('public API table should be assigned before explicit same-dispatch rebind',
+    LApiBefore <> nil);
 
   RebindDirectDispatch;
   LAfter := GetCurrentSimdDataPlane;
+  LApiAfter := GetSimdPublicApi;
 
   AssertTrue('data-plane snapshot should be assigned after explicit same-dispatch rebind',
     LAfter <> nil);
+  AssertTrue('public API table should be assigned after explicit same-dispatch rebind',
+    LApiAfter <> nil);
   AssertTrue('explicit rebind without dispatch mutation should preserve the published snapshot',
     PtrUInt(LBefore) = PtrUInt(LAfter));
+  AssertTrue('public API table should reuse the same published metadata table when the data-plane snapshot is unchanged',
+    PtrUInt(LApiBefore) = PtrUInt(LApiAfter));
 end;
 
 procedure TTestCase_DataPlane.Test_DataPlane_BackendRoundTrip_Reuses_PreviouslyPublishedSnapshot;

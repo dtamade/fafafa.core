@@ -397,3 +397,26 @@
 - 结论：
   - **当前 whole-module SIMD 文档链已经达到实施级完备**
   - **下一步如果继续，不该再补总纲，而该直接按 `Wave 2 seam hardening` 开始改代码**
+
+## 2026-05-10 Wave 2 Batch 1 Implementation Findings
+
+- 当前第一批真正需要先收的冗余，不在 family，而在 `public ABI wrapper` 自己那套“已发布 metadata state + target dispatch ptr + invalidate hook + raw dispatch fallback”组合。
+- 这套实现虽然之前测试是绿的，但它在结构上仍然保留了第二条 publication/control 解释路径：
+  - 绑定复用按 `Dispatch` 指针判断
+  - 失效触发靠自己的 `g_SimdPublicApiTargetDispatchPtr`
+  - cdecl wrapper 在绑定缺失时会直接回退到 `GetDispatchTable`
+- 这与当前文档已经冻结的 `dispatch = control truth`、`dataplane = publication truth` 口径不一致。
+- 本轮已把 `public ABI` 收回到真正的 companion surface 语义：
+  - `TSimdPublicApiBindingState` 现在直接记住 `DataPlane`
+  - 绑定状态按 `PSimdDataPlane` 复用，而不是再额外发明一套 target dispatch 状态
+  - `GetLiveSimdPublicApiBindingState` 直接跟随 `GetCurrentSimdDataPlane`
+  - `PublicAbi*` 的兜底路径不再直读 `GetDispatchTable`，而是回到当前 published `dataplane` 槽位
+- 这意味着当前 public ABI 的生命周期语义变成：
+  - `dispatch` 只负责控制面选择
+  - `dataplane` 只负责发布当前 snapshot
+  - `public ABI` 只负责把这份 snapshot 包装成稳定 cdecl table，并按同一 published snapshot 复用
+- 相关 seam 约束已通过测试固化：
+  - `TTestCase_DataPlane.Test_DataPlane_ExplicitRebind_WithoutDispatchMutation_PreservesSnapshot` 现在同时断言 `dataplane snapshot` 与 `public API table` 都会在 same-dispatch rebind 下复用同一已发布对象
+- 本轮未处理的部分仍然明确保留：
+  - façade fast-path 仍是 dataplane 的只读镜像，但还没进一步统一成“按 dataplane snapshot 判等”的更强 mirror 语义
+  - `TryGetSimdBackendPodInfo` 这类 metadata query 仍主要走 control-plane registry/query 口径，后续如需更彻底对齐，再单开 batch
