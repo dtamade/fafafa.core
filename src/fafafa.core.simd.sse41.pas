@@ -13,31 +13,9 @@ uses
 
 // === SSE4.1 Backend Implementation ===
 // Provides SIMD-accelerated operations using x86-64 SSE4.1 instructions.
-// SSE4.1 is a major update with many practical instructions.
-//
-// Key SSE4.1 instructions:
-// - DPPS/DPPD: Direct dot product with mask (huge performance gain)
-// - ROUNDPS/ROUNDPD: Hardware rounding (floor, ceil, trunc, nearest)
-// - BLENDPS/BLENDPD/PBLENDW/PBLENDVB: Vector blending
-// - INSERTPS/EXTRACTPS: Insert/extract single F32 elements
-// - PINSRB/PINSRD/PINSRQ, PEXTRB/PEXTRD/PEXTRQ: Integer insert/extract
-// - PMULLD: 32-bit integer multiplication (missing in SSE2!)
-// - PMOVSX/PMOVZX: Sign/zero extend packed integers
-// - PCMPEQQ: 64-bit integer comparison
-// - PACKUSDW: Unsigned pack dwords to words
-// - PTEST: Packed bit test (CF and ZF flags)
-// - PMAXSD/PMINSD, PMAXUD/PMINUD: 32-bit signed/unsigned min/max
-// - MPSADBW: Multi-packed sum of absolute differences (for motion estimation)
-//
-// ✅ Task 5.1: Enhanced SSE4.1 implementation
-// - Inherits from SSSE3 via CloneDispatchTable
-// - PMULLD: Critical 32-bit integer multiplication (SSE2 only has 16-bit!)
-// - ROUNDPS/ROUNDPD: Hardware rounding operations
-// - DPPS/DPPD: Single-instruction dot product
-// - PMINSD/PMAXSD: Signed 32-bit min/max
-// - PMINUD/PMAXUD: Unsigned 32-bit min/max
-// - PMINSB/PMAXSB: Signed 8-bit min/max (new!)
-// - PMINUW/PMAXUW: Unsigned 16-bit min/max (new!)
+// SSE4.1 adds DPPS/DPPD, ROUNDPS/ROUNDPD, BLENDPS/BLENDVPS,
+// INSERTPS/EXTRACTPS, PMULLD, PCMPEQQ, PACKUSDW, PTEST, and
+// signed/unsigned min-max instructions over the SSE3/SSSE3 baseline.
 
 procedure RegisterSSE41Backend;
 
@@ -63,22 +41,22 @@ function SSE41TruncF64x2(const a: TVecF64x2): TVecF64x2;
 function SSE41BlendF32x4_1(const a, b: TVecF32x4): TVecF32x4;
 function SSE41BlendVF32x4(const a, b: TVecF32x4; const mask: TMaskF32x4): TVecF32x4;
 
-// Integer multiply (PMULLD - critical missing instruction in SSE2!)
+// Integer multiply (PMULLD)
 function SSE41MulI32x4(const a, b: TVecI32x4): TVecI32x4;
 
-// 32-bit signed min/max (PMINSD/PMAXSD - new in SSE4.1!)
+// 32-bit signed min/max (PMINSD/PMAXSD)
 function SSE41MinI32x4(const a, b: TVecI32x4): TVecI32x4;
 function SSE41MaxI32x4(const a, b: TVecI32x4): TVecI32x4;
 
-// 32-bit unsigned min/max (PMINUD/PMAXUD - new in SSE4.1!)
+// 32-bit unsigned min/max (PMINUD/PMAXUD)
 function SSE41MinU32x4(const a, b: TVecU32x4): TVecU32x4;
 function SSE41MaxU32x4(const a, b: TVecU32x4): TVecU32x4;
 
-// 8-bit signed min/max (PMINSB/PMAXSB - new in SSE4.1!)
+// 8-bit signed min/max (PMINSB/PMAXSB)
 function SSE41MinI8x16(const a, b: TVecI8x16): TVecI8x16;
 function SSE41MaxI8x16(const a, b: TVecI8x16): TVecI8x16;
 
-// 16-bit unsigned min/max (PMINUW/PMAXUW - new in SSE4.1!)
+// 16-bit unsigned min/max (PMINUW/PMAXUW)
 function SSE41MinU16x8(const a, b: TVecU16x8): TVecU16x8;
 function SSE41MaxU16x8(const a, b: TVecU16x8): TVecU16x8;
 
@@ -86,13 +64,13 @@ function SSE41MaxU16x8(const a, b: TVecU16x8): TVecU16x8;
 function SSE41InsertF32x4(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4;
 function SSE41ExtractF32x4(const a: TVecF32x4; index: Integer): Single;
 
-// 64-bit comparison (PCMPEQQ - new in SSE4.1!)
+// 64-bit comparison (PCMPEQQ)
 function SSE41CmpEqI64x2(const a, b: TVecI64x2): TMask2;
 
-// Pack (PACKUSDW - new in SSE4.1!)
+// Pack (PACKUSDW)
 function SSE41PackUSDW(const a, b: TVecI32x4): TVecU16x8;
 
-// Test (PTEST - new in SSE4.1!)
+// Test (PTEST)
 function SSE41TestAllZeros(const a, b: TVecU8x16): Boolean;
 function SSE41TestAllOnes(const a, b: TVecU8x16): Boolean;
 
@@ -344,17 +322,16 @@ begin
 end;
 
 // === SSE4.1 Integer Multiply ===
-// PMULLD: 32-bit integer multiplication (finally!)
-// ✅ This is one of the most important SSE4.1 instructions!
-// SSE2 only has 16-bit multiply (PMULLW)
+// PMULLD: 32-bit integer multiplication.
+// Shared by signed and unsigned dword wrappers.
 
-function SSE41MulI32x4(const a, b: TVecI32x4): TVecI32x4;
+procedure SSE41MulDwordVecRaw(const aPtr, bPtr, rPtr: Pointer);
 var
   pa, pb, pr: Pointer;
 begin
-  pa := @a;
-  pb := @b;
-  pr := @Result;
+  pa := aPtr;
+  pb := bPtr;
+  pr := rPtr;
   asm
     mov    rax, pa
     mov    rdx, pb
@@ -366,27 +343,29 @@ begin
   end;
 end;
 
-// ✅ NEW: U32x4 multiplication using PMULLD (same bit pattern)
-function SSE41MulU32x4(const a, b: TVecU32x4): TVecU32x4;
-var
-  pa, pb, pr: Pointer;
+procedure SSE41MulDwordVecImpl(const a, b: TVecI32x4; out r: TVecI32x4); inline;
 begin
-  pa := @a;
-  pb := @b;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rdx, pb
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    pmulld xmm0, xmm1      // Same instruction, works for unsigned too
-    movdqu [rcx], xmm0
-  end;
+  SSE41MulDwordVecRaw(@a, @b, @r);
+end;
+
+procedure SSE41MulDwordVecImpl(const a, b: TVecU32x4; out r: TVecU32x4); inline;
+begin
+  SSE41MulDwordVecRaw(@a, @b, @r);
+end;
+
+function SSE41MulI32x4(const a, b: TVecI32x4): TVecI32x4;
+begin
+  SSE41MulDwordVecImpl(a, b, Result);
+end;
+
+// U32x4 multiplication using PMULLD (same bit pattern)
+function SSE41MulU32x4(const a, b: TVecU32x4): TVecU32x4;
+begin
+  SSE41MulDwordVecImpl(a, b, Result);
 end;
 
 // === SSE4.1 Min/Max for 32-bit integers ===
-// ✅ PMINSD/PMAXSD: Signed 32-bit min/max (NEW in SSE4.1!)
+// PMINSD/PMAXSD: Signed 32-bit min/max
 // SSE2 doesn't have these - requires compare+select workaround
 
 function SSE41MinI32x4(const a, b: TVecI32x4): TVecI32x4;
@@ -425,7 +404,7 @@ begin
   end;
 end;
 
-// ✅ PMINUD/PMAXUD: Unsigned 32-bit min/max (NEW in SSE4.1!)
+// PMINUD/PMAXUD: Unsigned 32-bit min/max
 function SSE41MinU32x4(const a, b: TVecU32x4): TVecU32x4;
 begin
   asm
@@ -450,7 +429,7 @@ begin
   end;
 end;
 
-// ✅ NEW: PMINSB/PMAXSB - Signed 8-bit min/max (NEW in SSE4.1!)
+// PMINSB/PMAXSB - Signed 8-bit min/max
 // SSE2/SSSE3 don't have these for signed bytes!
 function SSE41MinI8x16(const a, b: TVecI8x16): TVecI8x16;
 begin
@@ -476,7 +455,7 @@ begin
   end;
 end;
 
-// ✅ NEW: PMINUW/PMAXUW - Unsigned 16-bit min/max (NEW in SSE4.1!)
+// PMINUW/PMAXUW - Unsigned 16-bit min/max
 function SSE41MinU16x8(const a, b: TVecU16x8): TVecU16x8;
 begin
   asm
@@ -600,7 +579,7 @@ begin
 end;
 
 // === SSE4.1 64-bit Comparison ===
-// ✅ PCMPEQQ: 64-bit integer equality (NEW in SSE4.1!)
+// PCMPEQQ: 64-bit integer equality
 // SSE2 only has up to 32-bit comparison
 
 function SSE41CmpEqI64x2(const a, b: TVecI64x2): TMask2;
@@ -623,7 +602,7 @@ begin
 end;
 
 // === SSE4.1 Pack ===
-// ✅ PACKUSDW: Pack 32-bit signed integers to 16-bit unsigned with saturation (NEW!)
+// PACKUSDW: Pack 32-bit signed integers to 16-bit unsigned with saturation
 
 function SSE41PackUSDW(const a, b: TVecI32x4): TVecU16x8;
 begin
@@ -638,7 +617,7 @@ begin
 end;
 
 // === SSE4.1 Test ===
-// ✅ PTEST: Packed bit test (NEW in SSE4.1!)
+// PTEST: Packed bit test
 
 // Test if all bits are zero: returns True if (a AND b) == 0
 function SSE41TestAllZeros(const a, b: TVecU8x16): Boolean;
@@ -705,7 +684,7 @@ begin
   end;
 end;
 
-// ✅ NEW: SSE4.1 Optimized Normalize using DPPS
+// SSE4.1 Optimized Normalize using DPPS
 function SSE41NormalizeF32x4(const a: TVecF32x4): TVecF32x4;
 var
   LPA, LPR: Pointer;
@@ -758,7 +737,7 @@ begin
   end;
 end;
 
-// ✅ NEW: SSE4.1 Select operations using BLENDVPS
+// SSE4.1 Select operations using BLENDVPS
 function SSE41SelectF32x4(const mask: TMask4; const a, b: TVecF32x4): TVecF32x4;
 var
   maskVec: TMaskF32x4;

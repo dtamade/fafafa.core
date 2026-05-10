@@ -254,3 +254,17 @@
 | 1. 识别重复 scanner | completed | 两个 helper 只有 polarity / 空集合返回值不同，chunk loop 与 result 计算完全同构 |
 | 2. 收口到共享 helper | completed | 新增 `FindFirstPcmpestri_SSE42`；`FindFirstOf` 走 positive polarity，`FindFirstNotOf` 走 negative polarity 并拒绝 chunk-boundary sentinel |
 | 3. Release 验证与收口 | completed | `git diff --check`、`TTestCase_BackendSmoke`、`check`、`gate` 均已通过 |
+
+## 2026-05-11 SSE4.1 Dword Multiply Kernel Consolidation
+
+### Goal
+
+把 `SSE4.1` 里 `PMULLD` 的 signed / unsigned 双份实现收成一个共享 kernel，同时清掉 `SSE4.1` 文件里残留的历史任务标记，让这段实现更像稳定后端，而不是演进日志。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别真实重复实现 | completed | `SSE41MulI32x4` 与 `SSE41MulU32x4` 使用同一条 `PMULLD` kernel，只有签名类型不同 |
+| 2. 收口共享 kernel 并清理噪音 | completed | 两条 wrapper 已收进单一 shared kernel，`SSE4.1` 里的历史标记也已清掉 |
+| 3. Release 验证与收口 | completed | `git diff --check`、`check`、`gate` 均已通过 |

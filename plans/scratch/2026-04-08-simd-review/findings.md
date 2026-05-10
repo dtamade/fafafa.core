@@ -378,6 +378,13 @@
   - 改完后只更新 family plan / matrix / scratch
 - 结论：
   - **现在已经存在一个可以让总计划正常实施的执行索引**
+
+## 2026-05-11 SSE4.1 Dword Multiply Cleanup
+
+- `SSE41MulI32x4` 与 `SSE41MulU32x4` 当前是同一个 `PMULLD` 语义的双份实现；`PMULLD` 取低 32-bit 乘积，signed / unsigned 只影响解释方式，不影响结果 bit pattern。
+- `TVecI32x4` 与 `TVecU32x4` 是两种不同 record 类型，但 payload 都是 16 bytes；最干净的收口方式不是把 dispatch slot 混绑成不匹配的函数指针，而是在 `SSE4.1` 单元内引入一个私有 shared dword multiply kernel，让两个 typed wrapper 各自保持签名。
+- `SSE4.1` 源码和 register include 仍残留 `✅ / NEW / Task` 历史标记；这属于实现噪音，不是语义文档，应和这次 `PMULLD` 收口一起清掉。
+- FPC 对“把 `Result` 通过 untyped `var` helper 传给 asm kernel”会产生 `parameter unused / result uninitialized` false-positive hint；当前采用 raw pointer kernel + typed `out` wrapper 的形态，既保留单一实现，又能通过 strict no-hints check。
   - 后续如果计划再扩张，应优先维护 execution index，而不是再让使用者自己从总纲里提取顺序
 
 ## 2026-05-10 SIMD Plan Hygiene
