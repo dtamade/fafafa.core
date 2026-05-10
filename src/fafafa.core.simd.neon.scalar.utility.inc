@@ -13,42 +13,18 @@ begin
 end;
 
 function NEONSelectF32x4(const mask: TMask4; const a, b: TVecF32x4): TVecF32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    if (mask and (1 shl i)) <> 0 then
-      Result.f[i] := a.f[i]
-    else
-      Result.f[i] := b.f[i];
+  Result := ScalarSelectF32x4(mask, a, b);
 end;
 
 function NEONExtractF32x4(const a: TVecF32x4; index: Integer): Single;
-var
-  idx: Integer;
 begin
-  if index < 0 then
-    idx := 0
-  else if index > 3 then
-    idx := 3
-  else
-    idx := index;
-
-  Result := a.f[idx];
+  Result := ScalarExtractF32x4(a, index);
 end;
 
 function NEONInsertF32x4(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4;
-var
-  idx: Integer;
 begin
-  if index < 0 then
-    idx := 0
-  else if index > 3 then
-    idx := 3
-  else
-    idx := index;
-
-  Result := a;
-  Result.f[idx] := value;
+  Result := ScalarInsertF32x4(a, value, index);
 end;
 
 {$I fafafa.core.simd.neon.facade_scalar.inc}
@@ -241,7 +217,7 @@ end;
 
 function NEONAndNotI64x2(const a, b: TVecI64x2): TVecI64x2;
 begin
-  Result := NEONAndI64x2(NEONNotI64x2(a), b);
+  Result := ScalarAndNotI64x2(a, b);
 end;
 
 function NEONShiftLeftI64x2(const a: TVecI64x2; count: Integer): TVecI64x2;
@@ -271,102 +247,62 @@ end;
 
 function NEONAddU64x2(const a, b: TVecU64x2): TVecU64x2;
 begin
-  Result.u[0] := a.u[0] + b.u[0];
-  Result.u[1] := a.u[1] + b.u[1];
+  Result := ScalarAddU64x2(a, b);
 end;
 
 function NEONSubU64x2(const a, b: TVecU64x2): TVecU64x2;
 begin
-  Result.u[0] := a.u[0] - b.u[0];
-  Result.u[1] := a.u[1] - b.u[1];
+  Result := ScalarSubU64x2(a, b);
 end;
 
 function NEONAndU64x2(const a, b: TVecU64x2): TVecU64x2;
 begin
-  Result.u[0] := a.u[0] and b.u[0];
-  Result.u[1] := a.u[1] and b.u[1];
+  Result := ScalarAndU64x2(a, b);
 end;
 
 function NEONOrU64x2(const a, b: TVecU64x2): TVecU64x2;
 begin
-  Result.u[0] := a.u[0] or b.u[0];
-  Result.u[1] := a.u[1] or b.u[1];
+  Result := ScalarOrU64x2(a, b);
 end;
 
 function NEONXorU64x2(const a, b: TVecU64x2): TVecU64x2;
 begin
-  Result.u[0] := a.u[0] xor b.u[0];
-  Result.u[1] := a.u[1] xor b.u[1];
+  Result := ScalarXorU64x2(a, b);
 end;
 
 function NEONNotU64x2(const a: TVecU64x2): TVecU64x2;
 begin
-  Result.u[0] := not a.u[0];
-  Result.u[1] := not a.u[1];
+  Result := ScalarNotU64x2(a);
 end;
 
 function NEONAndNotU64x2(const a, b: TVecU64x2): TVecU64x2;
 begin
-  Result.u[0] := (not a.u[0]) and b.u[0];
-  Result.u[1] := (not a.u[1]) and b.u[1];
+  Result := ScalarAndNotU64x2(a, b);
 end;
-
-function NEONCmpEqI64x2(const a, b: TVecI64x2): TMask2; forward;
-function NEONCmpLtI64x2(const a, b: TVecI64x2): TMask2; forward;
-function NEONCmpGtI64x2(const a, b: TVecI64x2): TMask2; forward;
 
 function NEONCmpEqU64x2(const a, b: TVecU64x2): TMask2;
 begin
-  Result := 0;
-  if a.u[0] = b.u[0] then
-    Result := Result or 1;
-  if a.u[1] = b.u[1] then
-    Result := Result or 2;
+  Result := ScalarCmpEqU64x2(a, b);
 end;
 
 function NEONCmpLtU64x2(const a, b: TVecU64x2): TMask2;
-const
-  SIGN_MASK: QWord = QWord($8000000000000000);
-var
-  LAdjustedA, LAdjustedB: TVecI64x2;
 begin
-  // 将无符号顺序映射到有符号顺序，再复用 I64x2 比较路径
-  LAdjustedA.i[0] := Int64(a.u[0] xor SIGN_MASK);
-  LAdjustedA.i[1] := Int64(a.u[1] xor SIGN_MASK);
-  LAdjustedB.i[0] := Int64(b.u[0] xor SIGN_MASK);
-  LAdjustedB.i[1] := Int64(b.u[1] xor SIGN_MASK);
-  Result := NEONCmpLtI64x2(LAdjustedA, LAdjustedB);
+  Result := ScalarCmpLtU64x2(a, b);
 end;
 
 function NEONCmpGtU64x2(const a, b: TVecU64x2): TMask2;
-const
-  SIGN_MASK: QWord = QWord($8000000000000000);
-var
-  LAdjustedA, LAdjustedB: TVecI64x2;
 begin
-  LAdjustedA.i[0] := Int64(a.u[0] xor SIGN_MASK);
-  LAdjustedA.i[1] := Int64(a.u[1] xor SIGN_MASK);
-  LAdjustedB.i[0] := Int64(b.u[0] xor SIGN_MASK);
-  LAdjustedB.i[1] := Int64(b.u[1] xor SIGN_MASK);
-  Result := NEONCmpGtI64x2(LAdjustedA, LAdjustedB);
+  Result := ScalarCmpGtU64x2(a, b);
 end;
 
 function NEONMinU64x2(const a, b: TVecU64x2): TVecU64x2;
-var
-  LMask: TMask2;
 begin
-  LMask := NEONCmpLtU64x2(a, b);
-  if (LMask and 1) <> 0 then Result.u[0] := a.u[0] else Result.u[0] := b.u[0];
-  if (LMask and 2) <> 0 then Result.u[1] := a.u[1] else Result.u[1] := b.u[1];
+  Result := ScalarMinU64x2(a, b);
 end;
 
 function NEONMaxU64x2(const a, b: TVecU64x2): TVecU64x2;
-var
-  LMask: TMask2;
 begin
-  LMask := NEONCmpGtU64x2(a, b);
-  if (LMask and 1) <> 0 then Result.u[0] := a.u[0] else Result.u[0] := b.u[0];
-  if (LMask and 2) <> 0 then Result.u[1] := a.u[1] else Result.u[1] := b.u[1];
+  Result := ScalarMaxU64x2(a, b);
 end;
 
 function NEONCmpEqI64x2(const a, b: TVecI64x2): TMask2;
@@ -401,11 +337,6 @@ end;
 
 // ✅ P4: SelectF64x2 (Pascal Implementation)
 function NEONSelectF64x2(const mask: TMask2; const a, b: TVecF64x2): TVecF64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    if (mask and (1 shl i)) <> 0 then
-      Result.d[i] := a.d[i]
-    else
-      Result.d[i] := b.d[i];
+  Result := ScalarSelectF64x2(mask, a, b);
 end;

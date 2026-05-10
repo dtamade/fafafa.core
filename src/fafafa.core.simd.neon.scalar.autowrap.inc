@@ -1001,12 +1001,8 @@ end;
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONExtractF64x2(const a: TVecF64x2; index: Integer): Double;
-var idx: Integer;
 begin
-  if index < 0 then idx := 0
-  else if index > 1 then idx := 1
-  else idx := index;
-  Result := a.d[idx];
+  Result := ScalarExtractF64x2(a, index);
 end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
@@ -1149,13 +1145,8 @@ end;
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONInsertF64x2(const a: TVecF64x2; value: Double; index: Integer): TVecF64x2;
-var idx: Integer;
 begin
-  if index < 0 then idx := 0
-  else if index > 1 then idx := 1
-  else idx := index;
-  Result := a;
-  Result.d[idx] := value;
+  Result := ScalarInsertF64x2(a, value, index);
 end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED

@@ -10,6 +10,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 NEON_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.wide_memory.inc"
 NEON_IMPL_FILE = ROOT / "src" / "fafafa.core.simd.neon.pas"
+NEON_SCALAR_UTILITY_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.utility.inc"
+NEON_SCALAR_AUTOWRAP_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.autowrap.inc"
 RISCVV_FILE = ROOT / "src" / "fafafa.core.simd.riscvv.pas"
 RISCVV_FACADE_FILE = ROOT / "src" / "fafafa.core.simd.riscvv.facade.inc"
 RISCVV_REGISTER_FILE = ROOT / "src" / "fafafa.core.simd.riscvv.register.inc"
@@ -67,6 +69,8 @@ def main() -> int:
 
     neon_source = read_text(NEON_FILE)
     neon_impl_source = read_text(NEON_IMPL_FILE)
+    neon_scalar_utility_source = read_text(NEON_SCALAR_UTILITY_FILE)
+    neon_scalar_autowrap_source = read_text(NEON_SCALAR_AUTOWRAP_FILE)
     riscvv_source = read_text(RISCVV_FILE)
     riscvv_facade_source = read_text(RISCVV_FACADE_FILE)
     riscvv_register_source = read_text(RISCVV_REGISTER_FILE)
@@ -179,6 +183,63 @@ def main() -> int:
             "Result.f[LIndex] := a.f[LIndex]",
             "else",
             "Result.f[LIndex] := b.f[LIndex];",
+        ]),
+        (neon_scalar_utility_source, "NEONSelectF32x4", [
+            "Result := ScalarSelectF32x4(mask, a, b);",
+        ]),
+        (neon_scalar_utility_source, "NEONExtractF32x4", [
+            "Result := ScalarExtractF32x4(a, index);",
+        ]),
+        (neon_scalar_utility_source, "NEONInsertF32x4", [
+            "Result := ScalarInsertF32x4(a, value, index);",
+        ]),
+        (neon_scalar_utility_source, "NEONAndNotI64x2", [
+            "Result := ScalarAndNotI64x2(a, b);",
+        ]),
+        (neon_scalar_utility_source, "NEONAddU64x2", [
+            "Result := ScalarAddU64x2(a, b);",
+        ]),
+        (neon_scalar_utility_source, "NEONSubU64x2", [
+            "Result := ScalarSubU64x2(a, b);",
+        ]),
+        (neon_scalar_utility_source, "NEONAndU64x2", [
+            "Result := ScalarAndU64x2(a, b);",
+        ]),
+        (neon_scalar_utility_source, "NEONOrU64x2", [
+            "Result := ScalarOrU64x2(a, b);",
+        ]),
+        (neon_scalar_utility_source, "NEONXorU64x2", [
+            "Result := ScalarXorU64x2(a, b);",
+        ]),
+        (neon_scalar_utility_source, "NEONNotU64x2", [
+            "Result := ScalarNotU64x2(a);",
+        ]),
+        (neon_scalar_utility_source, "NEONAndNotU64x2", [
+            "Result := ScalarAndNotU64x2(a, b);",
+        ]),
+        (neon_scalar_utility_source, "NEONCmpEqU64x2", [
+            "Result := ScalarCmpEqU64x2(a, b);",
+        ]),
+        (neon_scalar_utility_source, "NEONCmpLtU64x2", [
+            "Result := ScalarCmpLtU64x2(a, b);",
+        ]),
+        (neon_scalar_utility_source, "NEONCmpGtU64x2", [
+            "Result := ScalarCmpGtU64x2(a, b);",
+        ]),
+        (neon_scalar_utility_source, "NEONMinU64x2", [
+            "Result := ScalarMinU64x2(a, b);",
+        ]),
+        (neon_scalar_utility_source, "NEONMaxU64x2", [
+            "Result := ScalarMaxU64x2(a, b);",
+        ]),
+        (neon_scalar_utility_source, "NEONSelectF64x2", [
+            "Result := ScalarSelectF64x2(mask, a, b);",
+        ]),
+        (neon_scalar_autowrap_source, "NEONExtractF64x2", [
+            "Result := ScalarExtractF64x2(a, index);",
+        ]),
+        (neon_scalar_autowrap_source, "NEONInsertF64x2", [
+            "Result := ScalarInsertF64x2(a, value, index);",
         ]),
         (riscvv_source, "RISCVVExtractF32x4", [
             "LIndex := index;",

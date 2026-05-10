@@ -470,3 +470,10 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-11 NEON Scalar Fallback Consolidation
+
+- 已确认 `NEON` 的 non-ASM fallback 里仍有可合并的 exact-contract 重复体，主要集中在 `scalar.utility.inc` 和 `scalar.autowrap.inc`。
+- 目标是把这批 fallback 收回 `Scalar*` 真源，只保留真正的 asm-owned 或语义不同的实现。
+- 当前已把这一批作为新的 in-progress 批次写进 scratch，下一步直接动代码和 checker。
+- 已完成代码收口、checker 收口和 release 验证：`check_nonx86_helper_semantics.py --summary-line`、`BuildOrTest.sh check`、`BuildOrTest.sh impl-audit-nonx86`、`BuildOrTest.sh gate` 全绿。

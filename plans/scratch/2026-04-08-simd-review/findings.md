@@ -619,3 +619,11 @@
   - `git diff --check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
 - non-x86 implementation audit 也已通过：`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+
+## 2026-05-11 NEON Scalar Fallback Consolidation
+
+- `src/fafafa.core.simd.neon.scalar.utility.inc` 里仍有一组 non-ASM fallback 在手写与 `Scalar*` 完全同合同的 lane / U64x2 逻辑：`SelectF32x4`、`ExtractF32x4`、`InsertF32x4`、`SelectF64x2`，以及 `U64x2` 的 add/sub/bitwise/compare/min/max。
+- `src/fafafa.core.simd.neon.scalar.autowrap.inc` 的 non-ASM `ExtractF64x2 / InsertF64x2` 也还手写了同一套 clamp 边界逻辑。
+- 这些都属于 fallback exact-contract redundancy，不是 backend-owned NEON asm leaf；可以收回 `ScalarSelect* / ScalarExtract* / ScalarInsert* / Scalar*U64x2`。
+- `src/fafafa.core.simd.neon.pas` 里的 asm-enabled `NEONSelectF32x4` 继续保持显式 per-lane body，因为现有 helper checker 用它表达 backend-owned slot 的源码归属，不纳入这批。
+- 已完成收口：utility / autowrap fallback 已改成 thin wrapper，`check_nonx86_helper_semantics.py` 也补了对应 source-side 断言，防止同合同重复实现再回长回来。

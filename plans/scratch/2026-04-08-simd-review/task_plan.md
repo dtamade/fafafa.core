@@ -380,3 +380,17 @@
 | 1. 识别可复用的 exact-contract fallback | completed | `SelectF32x4 / SelectF32x16 / SelectF64x8 / SelectF32x8(TVecU32x8) / SelectF64x2 / SelectF64x4(TVecU64x4) / SelectI32x4` 以及 exact extract / insert fallback 都可以直接复用 scalar truth |
 | 2. 收回重复实现 | completed | fallback bodies 已改为委托 `ScalarSelect* / ScalarExtract* / ScalarInsert*`，不再维护第二份 clamp / lane 选择真源 |
 | 3. Release 验证与收口 | completed | `git diff --check`、Release `gate`、`impl-audit-nonx86` 已通过 |
+
+## 2026-05-11 NEON Scalar Fallback Consolidation
+
+### Goal
+
+把 `NEON` non-ASM scalar fallback 里与 scalar 完全同合同的 lane / U64x2 helper 收回到 `Scalar*` 真源，避免 NEON fallback 再维护第二份标量边界、bitwise、compare、min/max 实现。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别可复用的 exact-contract fallback | completed | 已确认 `neon.scalar.utility.inc` 的 `SelectF32x4 / ExtractF32x4 / InsertF32x4 / SelectF64x2`、U64x2 exact fallback，以及 `neon.scalar.autowrap.inc` 的 `ExtractF64x2 / InsertF64x2` 都是同合同重复体 |
+| 2. 收回重复实现并补 checker | completed | exact fallback 已委托 `Scalar*`；`check_nonx86_helper_semantics.py` 已补 source-side 护栏 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、non-x86 helper checker、Release `check`、`impl-audit-nonx86`、`gate` 全绿 |
