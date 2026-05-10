@@ -2512,22 +2512,25 @@ begin
   Result.i[1] := a.i[1] shr count;
 end;
 
-function AVX2MinI64x2(const a, b: TVecI64x2): TVecI64x2;
+procedure AVX2SelectI64x2ByMaskRaw(const aPtr, bPtr: Pointer; const mask: TMask2; resultPtr: Pointer); inline;
 var
-  LMask: TMask2;
+  pa, pb, pr: PInt64;
 begin
-  LMask := AVX2CmpLtI64x2(a, b);
-  if (LMask and 1) <> 0 then Result.i[0] := a.i[0] else Result.i[0] := b.i[0];
-  if (LMask and 2) <> 0 then Result.i[1] := a.i[1] else Result.i[1] := b.i[1];
+  pa := aPtr;
+  pb := bPtr;
+  pr := resultPtr;
+  if (mask and 1) <> 0 then pr[0] := pa[0] else pr[0] := pb[0];
+  if (mask and 2) <> 0 then pr[1] := pa[1] else pr[1] := pb[1];
+end;
+
+function AVX2MinI64x2(const a, b: TVecI64x2): TVecI64x2;
+begin
+  AVX2SelectI64x2ByMaskRaw(@a, @b, AVX2CmpLtI64x2(a, b), @Result);
 end;
 
 function AVX2MaxI64x2(const a, b: TVecI64x2): TVecI64x2;
-var
-  LMask: TMask2;
 begin
-  LMask := AVX2CmpGtI64x2(a, b);
-  if (LMask and 1) <> 0 then Result.i[0] := a.i[0] else Result.i[0] := b.i[0];
-  if (LMask and 2) <> 0 then Result.i[1] := a.i[1] else Result.i[1] := b.i[1];
+  AVX2SelectI64x2ByMaskRaw(@a, @b, AVX2CmpGtI64x2(a, b), @Result);
 end;
 
 function AVX2AddU64x2(const a, b: TVecU64x2): TVecU64x2;
@@ -2591,21 +2594,13 @@ begin
 end;
 
 function AVX2MinU64x2(const a, b: TVecU64x2): TVecU64x2;
-var
-  LMask: TMask2;
 begin
-  LMask := AVX2CmpLtU64x2(a, b);
-  if (LMask and 1) <> 0 then Result.u[0] := a.u[0] else Result.u[0] := b.u[0];
-  if (LMask and 2) <> 0 then Result.u[1] := a.u[1] else Result.u[1] := b.u[1];
+  AVX2SelectI64x2ByMaskRaw(@a, @b, AVX2CmpLtU64x2(a, b), @Result);
 end;
 
 function AVX2MaxU64x2(const a, b: TVecU64x2): TVecU64x2;
-var
-  LMask: TMask2;
 begin
-  LMask := AVX2CmpGtU64x2(a, b);
-  if (LMask and 1) <> 0 then Result.u[0] := a.u[0] else Result.u[0] := b.u[0];
-  if (LMask and 2) <> 0 then Result.u[1] := a.u[1] else Result.u[1] := b.u[1];
+  AVX2SelectI64x2ByMaskRaw(@a, @b, AVX2CmpGtU64x2(a, b), @Result);
 end;
 
 // === I64x4 Operations (native 256-bit AVX2) ===

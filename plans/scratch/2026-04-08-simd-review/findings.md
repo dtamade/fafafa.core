@@ -555,6 +555,13 @@
 - 为了不搬动大量函数体，只给这些后定义的 `CmpGt` 补了 forward declarations；`git diff --check` 和 Release `gate` 复验都已通过。
 - release 验证已通过：`git diff --check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`。
 
+## 2026-05-11 AVX2 I64x2 Min/Max Selection Scan
+
+- `MinI64x2 / MaxI64x2 / MinU64x2 / MaxU64x2` 的 lane selection 其实是同一段 mask 驱动的 if/else 分支，只是 compare 语义不同。
+- 这组不适合再各自维护四份 lane 赋值体；更合理的是把选择动作收成一个 raw helper，再让 typed wrapper 只保留各自的 `CmpLt/CmpGt` 语义。
+- 这次没有碰 `I64x4/U64x4`，因为它们当前并没有同类 min/max duplicate body。
+- `git diff --check` 和 Release `gate` 已通过，说明这个 raw helper 收口没有破坏 compare/min/max 的签名或结果。
+
 ## 2026-05-11 SSE2 Lane Helper Consolidation
 
 - `SSE2SelectF32x4 / SSE2ExtractF32x4 / SSE2InsertF32x4` 与 scalar helper 只是同一套 lane 选择/边界逻辑的重复实现，现在也收成了 thin wrapper。

@@ -213,6 +213,20 @@
 | 2. 收回重复实现到 thin wrapper | completed | 已让整数 `CmpLt/CmpLe/CmpGe` 统一退回交换参数或 `MASK_ALL_SET xor ...`，其中 `CmpGe` 也直接落到 `CmpGt(b, a)`，`CmpGt` 保持真比较语义 |
 | 3. Release 验证与收口 | completed | `git diff --check`、Release `gate` 已通过；待提交 |
 
+## 2026-05-11 AVX2 I64x2 Min/Max Selection Consolidation
+
+### Goal
+
+把 `AVX2` 里 `I64x2/U64x2` 的 `Min/Max` lane selection 收成一个共享 raw helper，保留 compare 语义和 typed wrapper，不再维护四份同构的 lane-by-lane if/else。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别重复选择逻辑 | completed | `MinI64x2 / MaxI64x2 / MinU64x2 / MaxU64x2` 都是同一段 mask 驱动的 lane 选择逻辑 |
+| 2. 收回共享 raw helper | completed | 已新增 `AVX2SelectI64x2ByMaskRaw`，四个 wrapper 只保留各自 compare 语义和签名 |
+| 3. 验证与收口 | completed | `git diff --check`、Release `gate` 已通过；待提交 |
+
 ## 2026-05-11 X86 Incremental Noise Cleanup
 
 ### Goal
