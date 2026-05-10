@@ -223,6 +223,7 @@ raw leaves
 | --- | --- |
 | `docs/plans/2026-05-10-simd-plan-status-index.md` | 计划生命周期入口：哪些 `simd` plan 仍是 active queue，哪些只是 historical baseline |
 | `docs/plans/2026-05-10-simd-execution-index.md` | 下次开会话时的单页实施入口：先做什么、再做什么、改完后更新哪里 |
+| `docs/plans/2026-05-10-simd-wave2-seam-hardening-plan.md` | 当前第一波 active 实施计划：收紧 `dispatch / dataplane / public ABI / direct` seam，不夹带 family migration |
 | `docs/plans/2026-05-09-simd-global-architecture-refactor-plan.md` | whole-module 总纲、波次、完成标准 |
 | `docs/plans/2026-05-09-simd-family-matrix.md` | 各 ISA family 的执行矩阵：truth source / disposition / verification lane / next action |
 | `docs/SIMD_LAYERING_IMPLEMENTATION.md` | 架构裁决基线：层次、seam、companion、准入规则 |

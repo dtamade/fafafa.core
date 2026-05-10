@@ -377,3 +377,23 @@
 - 结论：
   - **已完成 plan 与冲突 plan 需要清，但优先级是“退役出主链”高于“物理删除文件”**
   - **active 入口必须单一，历史计划必须显式标状态，否则继续干扰实施**
+
+## 2026-05-10 Wave 2 Active Plan Completion
+
+- `plan hygiene` 完成之后，当前 whole-module 文档链已经足够判断“谁该看、谁不该看”，但还差最后一层：
+  - 当前默认第一波是 `Wave 2 / seam hardening`
+  - 但 active 链里还没有一份 fresh 作战单，能把这波的文件边界、红线、baseline 和完成标准单独写死
+- 旧文档虽然有可复用内容，例如：
+  - `2026-04-15 runtime/cpuinfo/dataplane closeout`
+  - `2026-03-11 public ABI wrapper implementation`
+  - 但它们都已经被降为历史文档，不能再直接当 active plan 用
+- 因此当前新增：
+  - `docs/plans/2026-05-10-simd-wave2-seam-hardening-plan.md`
+- 这份文档的作用不是重写总纲，而是把当前第一波实现收敛成一个 bounded batch：
+  - control-plane truth 只认 `dispatch`
+  - published binding truth 只认 `dataplane`
+  - `public ABI` / `direct` / `façade fast-path` 都退回 companion consumer 角色
+  - 明确不夹带 `SSE2/AVX2/NEON/RISCVV` family migration
+- 结论：
+  - **当前 whole-module SIMD 文档链已经达到实施级完备**
+  - **下一步如果继续，不该再补总纲，而该直接按 `Wave 2 seam hardening` 开始改代码**

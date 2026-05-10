@@ -20,10 +20,10 @@
 
 1. 先用 `plan status index` 排除历史/冲突 plan
 2. 再用这页确认当前波次和执行顺序
-3. 再去 `family matrix` 找当前 family
-4. 再去对应 family plan
-5. 再跑这条 family 的 baseline 命令
-6. 改完以后只更新 3 处：family plan / family matrix / scratch
+3. 再去对应的 wave plan 或 family plan
+4. 如果是 family 波次，再去 `family matrix` 对位当前 family
+5. 再跑这条 wave/family 的 baseline 命令
+6. 改完以后更新对应的 wave/family plan，再按需回写 matrix 和 scratch
 
 ## 当前总计划状态
 
@@ -65,7 +65,7 @@
 先看：
 
 - 这页
-- 对应 family plan
+- 对应 wave plan 或 family plan
 
 ## Step 1：先看当前执行队列，不要自己重新排优先级
 
@@ -86,6 +86,17 @@
 - 只有当某条波次出现 fresh red 或用户明确指定，才允许跳队
 
 ## Step 2：按目标选入口文档
+
+### 如果你今天要做 `Wave 2 / seam hardening`
+
+看：
+
+- `docs/plans/2026-05-10-simd-wave2-seam-hardening-plan.md`
+
+目标：
+
+- 先把 `dispatch / dataplane / public ABI / direct / façade fast-path` 的 seam 收紧
+- 不夹带 family migration
 
 ### 如果你今天要做 `AVX2`
 
@@ -193,11 +204,14 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-
 
 ## Step 5：改完后只更新这 3 处
 
-每一波改完，默认只更新：
+每一波改完，默认更新：
 
-1. 对应 family plan
-2. `docs/plans/2026-05-09-simd-family-matrix.md`
-3. `plans/scratch/2026-04-08-simd-review/` 下的 `task_plan.md / progress.md / findings.md`
+1. 对应的 wave plan 或 family plan
+2. `plans/scratch/2026-04-08-simd-review/` 下的 `task_plan.md / progress.md / findings.md`
+
+如果这波直接改变某个 family 的 `Next action`、verification lane 或 disposition，再补：
+
+3. `docs/plans/2026-05-09-simd-family-matrix.md`
 
 不要每次波动都去改整个总纲。
 
@@ -210,9 +224,9 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-
 
 一波完成，不看“感觉差不多”，只看这 4 条：
 
-1. family plan 里的当前目标已经落地
+1. 当前 wave/family plan 里的目标已经落地
 2. 对应 verification lane fresh 通过
-3. family matrix 的 `Next action` 已更新
+3. 如果影响 family 编排，family matrix 的 `Next action` 已更新
 4. scratch 里写清楚了这轮做了什么、下一轮接着做什么
 
 ## 今天如果只想 5 分钟内开始
@@ -221,8 +235,8 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-
 
 1. 读这页
 2. 打开 `docs/plans/2026-05-09-simd-family-matrix.md`
-3. 选今天要推进的 family
-4. 打开对应 family plan
+3. 选今天要推进的 wave 或 family
+4. 打开对应 plan
 5. 跑它的 baseline
 6. 开工
 
@@ -232,6 +246,7 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-
 
 当前还明确未完成的是：
 
+- `Wave 2` 当前虽然已有 active plan，但代码实施还没开始
 - `SSE2` promote / split / retire 决策文档
 - `SSSE3` raw-leaf target 明确化
 - `AES / SHA / AVX / FMA3 / SVE / SVE2 / LASX` 的 future trigger 文档

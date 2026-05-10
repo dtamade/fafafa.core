@@ -261,3 +261,11 @@
   - 新增 `docs/plans/2026-05-10-simd-plan-status-index.md`
   - 开始把 `docs/plans/*simd*` 明确分成 `active / historical baseline / superseded historical plan`
   - 目标不是先删文件，而是先把 active 执行链压成唯一主线
+- 在 `plan hygiene` 之后，当前 active 文档链还剩最后一个实施层缺口：
+  - `Wave 2 / seam hardening` 虽然是默认第一波，但还没有一份 fresh active 作战单
+- 因此本轮继续新增：
+  - `docs/plans/2026-05-10-simd-wave2-seam-hardening-plan.md`
+- 这份文档当前负责把第一波真正落到实施口径：
+  - 只碰 `dispatch / dataplane / public ABI / direct / façade fast-path`
+  - 不夹带 family migration
+  - 写死 baseline、红线、目标文件、verification lane 和完成标准

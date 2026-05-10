@@ -26,6 +26,7 @@
 如果今天要继续 whole-module SIMD 重构，只从下面这些文档起手：
 
 - `docs/plans/2026-05-10-simd-execution-index.md`
+- `docs/plans/2026-05-10-simd-wave2-seam-hardening-plan.md`
 - `docs/plans/2026-05-09-simd-global-architecture-refactor-plan.md`
 - `docs/plans/2026-05-09-simd-family-matrix.md`
 - `docs/plans/2026-05-09-simd-avx2-active-leaf-sample.md`

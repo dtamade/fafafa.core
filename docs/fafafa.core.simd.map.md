@@ -22,6 +22,7 @@
 
 - `docs/plans/2026-05-10-simd-plan-status-index.md`
 - `docs/plans/2026-05-10-simd-execution-index.md`
+- `docs/plans/2026-05-10-simd-wave2-seam-hardening-plan.md`
 - `docs/plans/2026-05-09-simd-global-architecture-refactor-plan.md`
 - `docs/plans/2026-05-09-simd-family-matrix.md`
 
