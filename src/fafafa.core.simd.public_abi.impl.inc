@@ -572,6 +572,13 @@ var
   LRegistered: Boolean;
   LDispatchable: Boolean;
   LActive: Boolean;
+
+  procedure FillPodInfoFromDispatch(const aDispatch: PSimdDispatchTable; var aPodInfo: TFafafaSimdBackendPodInfo; out aIsDispatchable: Boolean);
+  begin
+    aPodInfo.CapabilityBits := SimdCapabilitiesToAbiBits(aDispatch^.BackendInfo.Capabilities);
+    aIsDispatchable := aDispatch^.BackendInfo.Available and IsBackendAvailableOnCPU(aDispatch^.Backend);
+    aPodInfo.Priority := aDispatch^.BackendInfo.Priority;
+  end;
 begin
   aInfo := Default(TFafafaSimdBackendPodInfo);
   aInfo.StructSize := SizeOf(aInfo);
@@ -582,9 +589,7 @@ begin
 
   if LActive then
   begin
-    aInfo.CapabilityBits := SimdCapabilitiesToAbiBits(LCurrentDispatch^.BackendInfo.Capabilities);
-    LDispatchable := LCurrentDispatch^.BackendInfo.Available and IsBackendAvailableOnCPU(aBackend);
-    aInfo.Priority := LCurrentDispatch^.BackendInfo.Priority;
+    FillPodInfoFromDispatch(LCurrentDispatch, aInfo, LDispatchable);
     LRegistered := True;
   end
   else
@@ -592,9 +597,7 @@ begin
     LRegistered := TryGetRegisteredBackendDispatchTable(aBackend, LDispatchTable);
     if LRegistered then
     begin
-      aInfo.CapabilityBits := SimdCapabilitiesToAbiBits(LDispatchTable.BackendInfo.Capabilities);
-      LDispatchable := LDispatchTable.BackendInfo.Available and IsBackendAvailableOnCPU(aBackend);
-      aInfo.Priority := LDispatchTable.BackendInfo.Priority;
+      FillPodInfoFromDispatch(@LDispatchTable, aInfo, LDispatchable);
     end
     else
     begin

@@ -353,3 +353,12 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-smoke-x86`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-11 Public ABI Metadata Query Cleanup
+
+- `TryGetSimdBackendPodInfo` 里 active / registered 两个分支原先重复维护了同一组 dispatch 派生字段，本轮收成一个局部 helper，减少 metadata query 的重复模板。
+- 这次改动不改变 public ABI 语义，只是让 `public_abi.impl.inc` 的控制流更直接，避免同一套 capability / dispatchable / priority 赋值散在两个分支里。
+- 已完成验证：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`

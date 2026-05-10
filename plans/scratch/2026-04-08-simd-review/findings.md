@@ -477,3 +477,9 @@
 - 更合理的收口方式是让 `SSSE3` 直接继承 `SSE3/SSE2` core slots，保留 direct helper 兼容面，但不再让 dispatch table 绑定冗余 owned override。
 - 这次收口的边界已经明确：`SSSE3` 仍保留 direct helper 名字，方便兼容和直调，但 dispatch ownership 不再落在 SSSE3 上。
 - 这条收口已被 `DispatchAPI`、`check`、`impl-smoke-x86`、`gate` 四条 release 线验证为绿。
+
+## 2026-05-11 Public ABI Metadata Query Cleanup
+
+- `TryGetSimdBackendPodInfo` 的 active backend 与 registered backend 分支仍会分别从 published dataplane / registered dispatch table 取事实，但两条路径现在共享同一个局部 dispatch-to-POD 填充 helper。
+- 这没有把 metadata query 伪装成 dataplane 的职责；它只是消掉同一组 `CapabilityBits / dispatchable / Priority` 赋值模板，避免后续维护时一个分支改了另一个分支漏掉。
+- 回归已覆盖 public ABI suite、`check` 和 `gate`，其中 `gate` 同时经过 public ABI signature、public ABI smoke、并发回归链、`DispatchAPI`、`DataPlane` 与 `DirectDispatch`。
