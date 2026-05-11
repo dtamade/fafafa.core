@@ -933,52 +933,27 @@ end;
 
 function RISCVVMask4All(mask: TMask4): Boolean;
 begin
-  Result := (mask and $0F) = $0F;
+  Result := ScalarMask4All(mask);
 end;
 
 function RISCVVMask4Any(mask: TMask4): Boolean;
 begin
-  Result := (mask and $0F) <> 0;
+  Result := ScalarMask4Any(mask);
 end;
 
 function RISCVVMask4None(mask: TMask4): Boolean;
 begin
-  Result := (mask and $0F) = 0;
+  Result := ScalarMask4None(mask);
 end;
 
 function RISCVVMask4PopCount(mask: TMask4): Integer;
-var
-  m: Byte;
 begin
-  m := mask and $0F;
-  Result := 0;
-  while m <> 0 do
-  begin
-    Inc(Result, m and 1);
-    m := m shr 1;
-  end;
+  Result := ScalarMask4PopCount(mask);
 end;
 
 function RISCVVMask4FirstSet(mask: TMask4): Integer;
-var
-  m: Byte;
-  i: Integer;
 begin
-  m := mask and $0F;
-  if m = 0 then
-  begin
-    Result := -1;
-    Exit;
-  end;
-  for i := 0 to 3 do
-  begin
-    if (m and (1 shl i)) <> 0 then
-    begin
-      Result := i;
-      Exit;
-    end;
-  end;
-  Result := -1;
+  Result := ScalarMask4FirstSet(mask);
 end;
 
 // =============================================================
@@ -987,52 +962,27 @@ end;
 
 function RISCVVMask8All(mask: TMask8): Boolean;
 begin
-  Result := mask = $FF;
+  Result := ScalarMask8All(mask);
 end;
 
 function RISCVVMask8Any(mask: TMask8): Boolean;
 begin
-  Result := mask <> 0;
+  Result := ScalarMask8Any(mask);
 end;
 
 function RISCVVMask8None(mask: TMask8): Boolean;
 begin
-  Result := mask = 0;
+  Result := ScalarMask8None(mask);
 end;
 
 function RISCVVMask8PopCount(mask: TMask8): Integer;
-var
-  m: Byte;
 begin
-  m := mask;
-  Result := 0;
-  while m <> 0 do
-  begin
-    Inc(Result, m and 1);
-    m := m shr 1;
-  end;
+  Result := ScalarMask8PopCount(mask);
 end;
 
 function RISCVVMask8FirstSet(mask: TMask8): Integer;
-var
-  m: Byte;
-  i: Integer;
 begin
-  m := mask;
-  if m = 0 then
-  begin
-    Result := -1;
-    Exit;
-  end;
-  for i := 0 to 7 do
-  begin
-    if (m and (1 shl i)) <> 0 then
-    begin
-      Result := i;
-      Exit;
-    end;
-  end;
-  Result := -1;
+  Result := ScalarMask8FirstSet(mask);
 end;
 
 // =============================================================
@@ -1041,52 +991,27 @@ end;
 
 function RISCVVMask16All(mask: TMask16): Boolean;
 begin
-  Result := mask = $FFFF;
+  Result := ScalarMask16All(mask);
 end;
 
 function RISCVVMask16Any(mask: TMask16): Boolean;
 begin
-  Result := mask <> 0;
+  Result := ScalarMask16Any(mask);
 end;
 
 function RISCVVMask16None(mask: TMask16): Boolean;
 begin
-  Result := mask = 0;
+  Result := ScalarMask16None(mask);
 end;
 
 function RISCVVMask16PopCount(mask: TMask16): Integer;
-var
-  m: Word;
 begin
-  m := mask;
-  Result := 0;
-  while m <> 0 do
-  begin
-    Inc(Result, m and 1);
-    m := m shr 1;
-  end;
+  Result := ScalarMask16PopCount(mask);
 end;
 
 function RISCVVMask16FirstSet(mask: TMask16): Integer;
-var
-  m: Word;
-  i: Integer;
 begin
-  m := mask;
-  if m = 0 then
-  begin
-    Result := -1;
-    Exit;
-  end;
-  for i := 0 to 15 do
-  begin
-    if (m and (1 shl i)) <> 0 then
-    begin
-      Result := i;
-      Exit;
-    end;
-  end;
-  Result := -1;
+  Result := ScalarMask16FirstSet(mask);
 end;
 
 // =============================================================
@@ -1215,33 +1140,27 @@ end;
 
 function RISCVVMask2All(mask: TMask2): Boolean;
 begin
-  Result := (mask and $03) = $03;
+  Result := ScalarMask2All(mask);
 end;
 
 function RISCVVMask2Any(mask: TMask2): Boolean;
 begin
-  Result := (mask and $03) <> 0;
+  Result := ScalarMask2Any(mask);
 end;
 
 function RISCVVMask2None(mask: TMask2): Boolean;
 begin
-  Result := (mask and $03) = 0;
+  Result := ScalarMask2None(mask);
 end;
 
 function RISCVVMask2PopCount(mask: TMask2): Integer;
-var m: Byte;
 begin
-  m := mask and $03;
-  Result := (m and 1) + ((m shr 1) and 1);
+  Result := ScalarMask2PopCount(mask);
 end;
 
 function RISCVVMask2FirstSet(mask: TMask2): Integer;
-var m: Byte;
 begin
-  m := mask and $03;
-  if m = 0 then Result := -1
-  else if (m and 1) <> 0 then Result := 0
-  else Result := 1;
+  Result := ScalarMask2FirstSet(mask);
 end;
 
 function RISCVVAbsF32x16(const a: TVecF32x16): TVecF32x16;

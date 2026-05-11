@@ -844,6 +844,12 @@ def main() -> int:
                 (f"RISCVV{op}{suffix}", f"Scalar{op}{suffix}(a, count)")
             )
 
+    for suffix in ("Mask2", "Mask4", "Mask8", "Mask16"):
+        for op in ("All", "Any", "None", "PopCount", "FirstSet"):
+            riscvv_scalar_forwarder_expectations.append(
+                (f"RISCVV{suffix}{op}", f"Scalar{suffix}{op}(mask)")
+            )
+
     for suffix in ("F32x4", "F64x2", "F32x8", "F64x4", "F32x16", "F64x8"):
         riscvv_scalar_forwarder_expectations.append(
             (f"RISCVVFma{suffix}", f"ScalarFma{suffix}(a, b, c)")

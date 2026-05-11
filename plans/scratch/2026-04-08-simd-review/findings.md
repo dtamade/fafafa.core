@@ -991,3 +991,10 @@
 - 这 3 个 shift 的合同和 scalar 侧完全一致，包括负 count、高位 count 的归零语义，以及算术右移的符号扩展语义。
 - 这次没有碰 `Cmp*`、`Min/Max`、`Select/Extract/Insert`、asm path 或 `riscvv.register.inc` 的 slot ownership，边界仍然干净。
 - `check_nonx86_helper_semantics.py` 的护栏已经更新到 `checks=434 status=ok`，release `check` 和 `gate` 也都通过了。
+
+## 2026-05-12 RISCVV Mask Helper Forwarder Consolidation
+
+- `src/fafafa.core.simd.riscvv.facade.inc` 里 `Mask2/Mask4/Mask8/Mask16` 的 `All/Any/None/PopCount/FirstSet` 现在都直调 `ScalarMask*`，把手写 bit-twiddling 收回统一真源。
+- 这 20 个 mask helper 的合同和 scalar 侧完全一致，属于纯壳收口，不涉及 NaN、signed-zero、fused 运算或其它高风险语义。
+- 这次没有碰 bitwise mask ops、select、extract/insert、asm path 或 `riscvv.register.inc` 的 slot ownership，边界仍然干净。
+- `check_nonx86_helper_semantics.py` 的护栏已经更新到 `checks=454 status=ok`，release `check` 和 `gate` 也都通过了。

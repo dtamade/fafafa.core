@@ -1133,3 +1133,18 @@
 | 2. 落地 scalar truth forwarder | completed | `RISCVVShiftLeftI32x4` / `ShiftRightI32x4` / `ShiftRightArithI32x4` 已改成直接委托 `ScalarShift*` |
 | 3. 扩大 helper semantics 护栏   | completed | `check_nonx86_helper_semantics.py` 已纳入这 3 个 forwarder，summary 从 `checks=431` 扩到 `checks=434` |
 | 4. Release 验证与收口          | completed | `git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过 |
+
+## 2026-05-12 RISCVV Mask Helper Forwarder Consolidation
+
+### Goal
+
+把 `src/fafafa.core.simd.riscvv.facade.inc` 里 `Mask2/Mask4/Mask8/Mask16` 的 `All/Any/None/PopCount/FirstSet` no-ASM fallback 收回 `ScalarMask*` 真源；只处理 exact-contract mask helper，不碰 bitwise mask ops、select、extract/insert、asm path 或 register ownership。
+
+### Phases
+
+| Phase                          | Status    | Notes                                                                                 |
+| ------------------------------ | --------- | ------------------------------------------------------------------------------------- |
+| 1. 识别 mask 重复体           | completed | `ScalarMask2/4/8/16All/Any/None/PopCount/FirstSet` 都已存在且与 facade 逻辑同构      |
+| 2. 落地 scalar truth forwarder | completed | `RISCVVMask2/4/8/16*` 已改成直接委托 `ScalarMask*`                                   |
+| 3. 扩大 helper semantics 护栏   | completed | `check_nonx86_helper_semantics.py` 已纳入 20 个 mask forwarder，summary 从 `checks=434` 扩到 `checks=454` |
+| 4. Release 验证与收口          | completed | `git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过 |
