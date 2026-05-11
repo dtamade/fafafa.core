@@ -622,3 +622,17 @@
 - `SSE3 / SSE4.1 / SSE4.2 / AVX-512` 的共享 raw parity baseline 已单独落成，不再让 smoke 叙述继续承担 parity 决策。
 - 已把这份 baseline 接入 `plan-status-index`、`execution-index`、`global plan`、`family matrix` 与 `x86 incremental qualification plan`，让 `Wave 3C` 明确分工为 qualification + parity freeze。
 - 这次只是在文档链上收口，没有碰代码实现；当前轻量验证仍是绿的：`git diff --check`、`check_sse2_structure.py --summary-line`、`check_intrinsics_experimental_status.py --summary-line`。
+
+## 2026-05-11 NEON Scalar Vector Math Forwarder Consolidation
+
+- 继续扫 `NEON` fallback 时，确认 `scalar.vector_math.inc` 里的 `DotF32x4 / DotF32x3 / CrossF32x3 / LengthF32x4 / LengthF32x3 / NormalizeF32x4 / NormalizeF32x3` 都只是 `Scalar*` 真源的同合同重复体。
+- 本批只收 non-ASM fallback，不动 `neon.pas` 的 ARM64 asm 实现，也不改 register ownership；`NormalizeF32x3` 已特别核对 `w=0` 语义与 scalar truth 一致。
+- `check_nonx86_helper_semantics.py` 已补 7 个 source-side 断言，当前 summary 为 `NONX86_HELPER_SEMANTICS_SUMMARY checks=191 status=ok`。
+- release 验证已完成：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-smoke-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

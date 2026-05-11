@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 NEON_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.wide_memory.inc"
 NEON_IMPL_FILE = ROOT / "src" / "fafafa.core.simd.neon.pas"
 NEON_SCALAR_FALLBACK_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar_fallback.inc"
+NEON_SCALAR_VECTOR_MATH_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.vector_math.inc"
 NEON_SCALAR_UTILITY_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.utility.inc"
 NEON_SCALAR_MATH_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.math.inc"
 NEON_SCALAR_EXT_MATH_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.ext_math.inc"
@@ -73,6 +74,7 @@ def main() -> int:
     neon_source = read_text(NEON_FILE)
     neon_impl_source = read_text(NEON_IMPL_FILE)
     neon_scalar_fallback_source = read_text(NEON_SCALAR_FALLBACK_FILE)
+    neon_scalar_vector_math_source = read_text(NEON_SCALAR_VECTOR_MATH_FILE)
     neon_scalar_utility_source = read_text(NEON_SCALAR_UTILITY_FILE)
     neon_scalar_math_source = read_text(NEON_SCALAR_MATH_FILE)
     neon_scalar_ext_math_source = read_text(NEON_SCALAR_EXT_MATH_FILE)
@@ -234,6 +236,27 @@ def main() -> int:
         ]),
         (neon_scalar_fallback_source, "NEONMulI32x4", [
             "Result := ScalarMulI32x4(a, b);",
+        ]),
+        (neon_scalar_vector_math_source, "NEONDotF32x4", [
+            "Result := ScalarDotF32x4(a, b);",
+        ]),
+        (neon_scalar_vector_math_source, "NEONDotF32x3", [
+            "Result := ScalarDotF32x3(a, b);",
+        ]),
+        (neon_scalar_vector_math_source, "NEONCrossF32x3", [
+            "Result := ScalarCrossF32x3(a, b);",
+        ]),
+        (neon_scalar_vector_math_source, "NEONLengthF32x4", [
+            "Result := ScalarLengthF32x4(a);",
+        ]),
+        (neon_scalar_vector_math_source, "NEONLengthF32x3", [
+            "Result := ScalarLengthF32x3(a);",
+        ]),
+        (neon_scalar_vector_math_source, "NEONNormalizeF32x4", [
+            "Result := ScalarNormalizeF32x4(a);",
+        ]),
+        (neon_scalar_vector_math_source, "NEONNormalizeF32x3", [
+            "Result := ScalarNormalizeF32x3(a);",
         ]),
         (neon_scalar_utility_source, "NEONSplatF32x4", [
             "Result := ScalarSplatF32x4(value);",

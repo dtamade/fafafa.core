@@ -606,3 +606,17 @@
 | 1. 识别 shared parity 口径 | completed | 已确认这组 family 需要共享 raw parity baseline，而不是继续按“只有 smoke 看起来绿”来判断 |
 | 2. 接入 active 文档链 | completed | 已新增 `docs/plans/2026-05-09-simd-x86-raw-parity-plan.md`，并接入 `plan-status-index`、`execution-index`、`global plan`、`family matrix` 与 `x86 incremental qualification plan` |
 | 3. 验证与收口 | completed | `git diff --check`、`check_sse2_structure.py --summary-line`、`check_intrinsics_experimental_status.py --summary-line` 全部通过 |
+
+## 2026-05-11 NEON Scalar Vector Math Forwarder Consolidation
+
+### Goal
+
+把 `NEON` non-ASM scalar fallback 里的 `Dot / Cross / Length / Normalize` vector-math 重复体收回到 `Scalar*` 真源；保留 ARM64 asm 实现和 register ownership，不把语义敏感的 rounding / clamp / native compare 路径混进本批。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别 exact-contract vector-math fallback | completed | 已核对 `ScalarDot/Cross/Length/NormalizeF32x3/F32x4` 与原 `neon.scalar.vector_math.inc` non-ASM fallback 同合同，包括 `NormalizeF32x3` 的 `w=0` 语义 |
+| 2. 收回 scalar truth 并补 checker 护栏 | completed | `src/fafafa.core.simd.neon.scalar.vector_math.inc` 已改为直接委托 `Scalar*`，`check_nonx86_helper_semantics.py` 检查数提升至 191 |
+| 3. Release 验证与收口 | completed | `git diff --check`、helper checker、`impl-smoke-nonx86`、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过 |

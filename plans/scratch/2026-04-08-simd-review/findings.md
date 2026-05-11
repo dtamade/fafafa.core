@@ -202,6 +202,13 @@
 - `src/fafafa.core.simd.README.md`
 - `tests/fafafa.core.simd/BuildOrTest.sh`
 
+## 2026-05-11 NEON Vector Math Exact-Contract Finding
+
+- `src/fafafa.core.simd.neon.scalar.vector_math.inc` 的 non-ASM `Dot / Cross / Length / Normalize` fallback 与 `src/fafafa.core.simd.scalar.pas` 中的 `Scalar*` vector-math 实现同合同。
+- 这批属于安全的 duplicate truth-source cleanup：可以把 fallback body 收成 `Scalar*` forwarder，并用 `check_nonx86_helper_semantics.py` 锁住。
+- 这不改变 `src/fafafa.core.simd.neon.pas` 里的 ARM64 asm fast path，也不改变 register ownership；它只是让 fallback 不再维护第二份标量真源。
+- 后续继续扫重复体时仍要遵守当前边界：rounding、clamp、浮点 min/max、native compare/select 等语义敏感路径必须先有独立 parity 证据，不能只因为“长得像”就合并。
+
 ## 2026-05-09 Interface Truth Closeout
 
 - 当前最大的认知债不是“SIMD 是否还能跑”，而是 `SSE2` 的接口层归属之前没有被一份当前真相表写死。
