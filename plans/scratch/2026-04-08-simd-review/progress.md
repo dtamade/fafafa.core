@@ -705,3 +705,9 @@
 - 回头对照 runtime 代码后确认，问题不在刚改的 placeholder helper，而在 `GetCurrentBackendInfo` / dispatchable helper 的 fallback 还会直接回到 active state 或 nil。
 - 已把 runtime getter fallback 收紧到 `GetCurrentRuntimeSnapshot`，并先用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentFramework` 做了 targeted 验证，结果已回绿。
 - full Release `gate` 已回绿，说明这条 fallback 收口在完整门禁链路下没有再冒 mixed snapshot。
+
+## 2026-05-11 AVX Placeholder Helper Consolidation
+
+- 已把 `src/fafafa.core.simd.intrinsics.avx.pas` 里的 `load/store/set1` 以及一组纯占位 `cmp/blend/shuffle/permute/unpack/test/extract/insert` 重复体收成 helper。
+- 这批仍然只保留 experimental placeholder 语义，没有扩大公开 surface，也没有碰真正的数值实现分支。
+- `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`、Release `check`、Release `gate` 已通过，helper 收口没有破坏 experimental 门禁。

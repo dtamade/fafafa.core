@@ -733,3 +733,17 @@
 | 2. 收紧 runtime getter fallback         | completed   | `GetCurrentBackend*`、registered/dispatchable list、best dispatchable backend 的 fallback 已统一回到 `GetCurrentRuntimeSnapshot` |
 | 3. Targeted 并发验证                    | completed   | `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentFramework` 通过 |
 | 4. Full release gate 收口               | completed   | Release `check` 与 Release `gate` 已复跑通过，runtime getter fallback 收口已被全链路门禁确认绿态       |
+
+## 2026-05-11 AVX Placeholder Helper Consolidation
+
+### Goal
+
+把 `src/fafafa.core.simd.intrinsics.avx.pas` 里 `load / loadu / store / storeu / set1_ps / set1_pd` 和纯占位 `cmp / blend / shuffle / permute / unpack / testz / testc / testnzc / extract / insert` 收成文件内 helper，继续保持 experimental placeholder 语义，不扩大公开 surface。
+
+### Phases
+
+| Phase                             | Status      | Notes                                                                                                         |
+| --------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------- |
+| 1. 识别安全重复体                 | completed   | `load/loadu`、`store/storeu`、`set1_ps/set1_pd` 以及一组纯占位 return 体都是同合同重复体                    |
+| 2. 落地文件内 helper 收口         | completed   | 已新增 `AVXLoadTM256`、`AVXStoreTM256`、`AVXSetTM256F32/F64`、`AVXCopyTM256`、`AVXExtractF128TM128`、`AVXInsertF128TM256` |
+| 3. Release / experimental 验证收口 | completed   | `git diff --check`、experimental `check`、Release `check`、Release `gate` 全部通过                         |

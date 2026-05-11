@@ -142,45 +142,103 @@ begin
   {$ENDIF}
 end;
 
+function AVXLoadTM256(const Ptr: Pointer): TM256; inline;
+begin
+  Result := PTM256(Ptr)^;
+end;
+
+procedure AVXStoreTM256(var aDest; const aSrc: TM256); inline;
+begin
+  PTM256(@aDest)^ := aSrc;
+end;
+
+procedure AVXSetTM256F32(var aResult: TM256; const aValue: Single); inline;
+var
+  i: Integer;
+begin
+  for i := 0 to 7 do
+    aResult.m256_f32[i] := aValue;
+end;
+
+procedure AVXSetTM256F64(var aResult: TM256; const aValue: Double); inline;
+var
+  i: Integer;
+begin
+  for i := 0 to 3 do
+    aResult.m256_f64[i] := aValue;
+end;
+
+function AVXCopyTM256(const aValue: TM256): TM256; inline;
+begin
+  Result := aValue;
+end;
+
+function AVXExtractF128TM128(const aValue: TM256; imm8: Byte): TM128; inline;
+begin
+  if (imm8 and 1) = 0 then
+    Result := aValue.m256_m128[0]
+  else
+    Result := aValue.m256_m128[1];
+end;
+
+function AVXInsertF128TM256(const aValue: TM256; const aInsert: TM128; imm8: Byte): TM256; inline;
+begin
+  Result := aValue;
+  if (imm8 and 1) = 0 then
+    Result.m256_m128[0] := aInsert
+  else
+    Result.m256_m128[1] := aInsert;
+end;
+
+function AVXReturnTrue: Boolean; inline;
+begin
+  Result := True;
+end;
+
+function AVXReturnFalse: Boolean; inline;
+begin
+  Result := False;
+end;
+
 // === 基础函数实现 (Pascal 版本) ===
 function avx_load_ps256(const Ptr: Pointer): TM256;
 begin
-  Result := PTM256(Ptr)^;
+  Result := AVXLoadTM256(Ptr);
 end;
 
 function avx_loadu_ps256(const Ptr: Pointer): TM256;
 begin
-  Result := PTM256(Ptr)^;
+  Result := AVXLoadTM256(Ptr);
 end;
 
 function avx_load_pd256(const Ptr: Pointer): TM256;
 begin
-  Result := PTM256(Ptr)^;
+  Result := AVXLoadTM256(Ptr);
 end;
 
 function avx_loadu_pd256(const Ptr: Pointer): TM256;
 begin
-  Result := PTM256(Ptr)^;
+  Result := AVXLoadTM256(Ptr);
 end;
 
 procedure avx_store_ps256(var Dest; const Src: TM256);
 begin
-  PTM256(@Dest)^ := Src;
+  AVXStoreTM256(Dest, Src);
 end;
 
 procedure avx_storeu_ps256(var Dest; const Src: TM256);
 begin
-  PTM256(@Dest)^ := Src;
+  AVXStoreTM256(Dest, Src);
 end;
 
 procedure avx_store_pd256(var Dest; const Src: TM256);
 begin
-  PTM256(@Dest)^ := Src;
+  AVXStoreTM256(Dest, Src);
 end;
 
 procedure avx_storeu_pd256(var Dest; const Src: TM256);
 begin
-  PTM256(@Dest)^ := Src;
+  AVXStoreTM256(Dest, Src);
 end;
 
 function avx_setzero_ps256: TM256;
@@ -194,19 +252,13 @@ begin
 end;
 
 function avx_set1_ps256(Value: Single): TM256;
-var
-  i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.m256_f32[i] := Value;
+  AVXSetTM256F32(Result, Value);
 end;
 
 function avx_set1_pd256(Value: Double): TM256;
-var
-  i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.m256_f64[i] := Value;
+  AVXSetTM256F64(Result, Value);
 end;
 
 function avx_add_ps256(const a, b: TM256): TM256;
@@ -420,25 +472,85 @@ begin
 end;
 
 // 其他复杂函数的占位符实现
-function avx_cmp_ps256(const a, b: TM256; imm8: Byte): TM256; begin Result := a; end;
-function avx_cmp_pd256(const a, b: TM256; imm8: Byte): TM256; begin Result := a; end;
+function avx_cmp_ps256(const a, b: TM256; imm8: Byte): TM256;
+begin
+  Result := AVXCopyTM256(a);
+end;
 
-function avx_blend_ps256(const a, b: TM256; imm8: Byte): TM256; begin Result := a; end;
-function avx_blend_pd256(const a, b: TM256; imm8: Byte): TM256; begin Result := a; end;
-function avx_blendv_ps256(const a, b, mask: TM256): TM256; begin Result := a; end;
-function avx_blendv_pd256(const a, b, mask: TM256): TM256; begin Result := a; end;
+function avx_cmp_pd256(const a, b: TM256; imm8: Byte): TM256;
+begin
+  Result := AVXCopyTM256(a);
+end;
 
-function avx_shuffle_ps256(const a, b: TM256; imm8: Byte): TM256; begin Result := a; end;
-function avx_shuffle_pd256(const a, b: TM256; imm8: Byte): TM256; begin Result := a; end;
-function avx_permute_ps256(const a: TM256; imm8: Byte): TM256; begin Result := a; end;
-function avx_permute_pd256(const a: TM256; imm8: Byte): TM256; begin Result := a; end;
-function avx_permute2f128_ps256(const a, b: TM256; imm8: Byte): TM256; begin Result := a; end;
-function avx_permute2f128_pd256(const a, b: TM256; imm8: Byte): TM256; begin Result := a; end;
+function avx_blend_ps256(const a, b: TM256; imm8: Byte): TM256;
+begin
+  Result := AVXCopyTM256(a);
+end;
 
-function avx_unpackhi_ps256(const a, b: TM256): TM256; begin Result := a; end;
-function avx_unpackhi_pd256(const a, b: TM256): TM256; begin Result := a; end;
-function avx_unpacklo_ps256(const a, b: TM256): TM256; begin Result := a; end;
-function avx_unpacklo_pd256(const a, b: TM256): TM256; begin Result := a; end;
+function avx_blend_pd256(const a, b: TM256; imm8: Byte): TM256;
+begin
+  Result := AVXCopyTM256(a);
+end;
+
+function avx_blendv_ps256(const a, b, mask: TM256): TM256;
+begin
+  Result := AVXCopyTM256(a);
+end;
+
+function avx_blendv_pd256(const a, b, mask: TM256): TM256;
+begin
+  Result := AVXCopyTM256(a);
+end;
+
+function avx_shuffle_ps256(const a, b: TM256; imm8: Byte): TM256;
+begin
+  Result := AVXCopyTM256(a);
+end;
+
+function avx_shuffle_pd256(const a, b: TM256; imm8: Byte): TM256;
+begin
+  Result := AVXCopyTM256(a);
+end;
+
+function avx_permute_ps256(const a: TM256; imm8: Byte): TM256;
+begin
+  Result := AVXCopyTM256(a);
+end;
+
+function avx_permute_pd256(const a: TM256; imm8: Byte): TM256;
+begin
+  Result := AVXCopyTM256(a);
+end;
+
+function avx_permute2f128_ps256(const a, b: TM256; imm8: Byte): TM256;
+begin
+  Result := AVXCopyTM256(a);
+end;
+
+function avx_permute2f128_pd256(const a, b: TM256; imm8: Byte): TM256;
+begin
+  Result := AVXCopyTM256(a);
+end;
+
+function avx_unpackhi_ps256(const a, b: TM256): TM256;
+begin
+  Result := AVXCopyTM256(a);
+end;
+
+function avx_unpackhi_pd256(const a, b: TM256): TM256;
+begin
+  Result := AVXCopyTM256(a);
+end;
+
+function avx_unpacklo_ps256(const a, b: TM256): TM256;
+begin
+  Result := AVXCopyTM256(a);
+end;
+
+function avx_unpacklo_pd256(const a, b: TM256): TM256;
+begin
+  Result := AVXCopyTM256(a);
+end;
 
 function avx_cvt_ps2pd256(const a: TM128): TM256;
 var i: Integer;
@@ -456,36 +568,22 @@ end;
 
 function avx_extractf128_ps256(const a: TM256; imm8: Byte): TM128;
 begin
-  if (imm8 and 1) = 0 then
-    Result := a.m256_m128[0]
-  else
-    Result := a.m256_m128[1];
+  Result := AVXExtractF128TM128(a, imm8);
 end;
 
 function avx_extractf128_pd256(const a: TM256; imm8: Byte): TM128;
 begin
-  if (imm8 and 1) = 0 then
-    Result := a.m256_m128[0]
-  else
-    Result := a.m256_m128[1];
+  Result := AVXExtractF128TM128(a, imm8);
 end;
 
 function avx_insertf128_ps256(const a: TM256; const b: TM128; imm8: Byte): TM256;
 begin
-  Result := a;
-  if (imm8 and 1) = 0 then
-    Result.m256_m128[0] := b
-  else
-    Result.m256_m128[1] := b;
+  Result := AVXInsertF128TM256(a, b, imm8);
 end;
 
 function avx_insertf128_pd256(const a: TM256; const b: TM128; imm8: Byte): TM256;
 begin
-  Result := a;
-  if (imm8 and 1) = 0 then
-    Result.m256_m128[0] := b
-  else
-    Result.m256_m128[1] := b;
+  Result := AVXInsertF128TM256(a, b, imm8);
 end;
 
 function avx_movemask_ps256(const a: TM256): Integer;
@@ -506,12 +604,12 @@ begin
       Result := Result or (1 shl i);
 end;
 
-function avx_testz_ps256(const a, b: TM256): Boolean; begin Result := True; end;
-function avx_testz_pd256(const a, b: TM256): Boolean; begin Result := True; end;
-function avx_testc_ps256(const a, b: TM256): Boolean; begin Result := True; end;
-function avx_testc_pd256(const a, b: TM256): Boolean; begin Result := True; end;
-function avx_testnzc_ps256(const a, b: TM256): Boolean; begin Result := False; end;
-function avx_testnzc_pd256(const a, b: TM256): Boolean; begin Result := False; end;
+function avx_testz_ps256(const a, b: TM256): Boolean; begin Result := AVXReturnTrue; end;
+function avx_testz_pd256(const a, b: TM256): Boolean; begin Result := AVXReturnTrue; end;
+function avx_testc_ps256(const a, b: TM256): Boolean; begin Result := AVXReturnTrue; end;
+function avx_testc_pd256(const a, b: TM256): Boolean; begin Result := AVXReturnTrue; end;
+function avx_testnzc_ps256(const a, b: TM256): Boolean; begin Result := AVXReturnFalse; end;
+function avx_testnzc_pd256(const a, b: TM256): Boolean; begin Result := AVXReturnFalse; end;
 
 procedure avx_zeroupper; begin end;
 procedure avx_zeroall; begin end;

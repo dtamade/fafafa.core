@@ -793,3 +793,10 @@
 - 这次 gate 红点里，`TTestCase_SimdConcurrentFramework` 稳定抓到两类失败：`current backend info mixed snapshot` 和 `dispatchable helper mixed snapshot`，都指向同一条 fallback 路径。
 - 修复后这些 getter 在 snapshot publish 失败时改为回到 `GetCurrentRuntimeSnapshot`，让 fallback 也维持同代视图，而不是把 transient control-plane 状态直接吐给读者。
 - full Release `gate` 已通过，本轮没有再观察到 runtime getter/helper 的跨代拼接输出。
+
+## 2026-05-11 AVX Placeholder Helper Consolidation
+
+- `src/fafafa.core.simd.intrinsics.avx.pas` 里 `load/loadu`、`store/storeu`、`set1_ps/set1_pd` 以及一组纯占位 `cmp/blend/shuffle/permute/unpack/testz/testc/testnzc/extract/insert` 都是同合同重复体。
+- 这份文件已经有独立 experimental smoke 入口，所以适合用文件内 helper 收口，而不是新开更大的架构层。
+- 这批只改 placeholder 体，不碰真正的数值语义函数，目标是先把 AVX experimental 面的重复噪音压下去。
+- `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`、Release `check`、Release `gate` 已通过，说明 helper 收口没有把 AVX experimental smoke 或默认门禁打坏。
