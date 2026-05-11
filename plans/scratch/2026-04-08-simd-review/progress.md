@@ -984,3 +984,17 @@
 - `src/fafafa.core.simd.riscvv.facade.inc` 已把 `F32x4/F64x2/F32x8/F64x4/F32x16/F64x8` 的 `Floor/Ceil` 改成直接委托 `ScalarFloor/Ceil*` 真源；`Round/Trunc/Clamp` 先保留。
 - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 已把这批 source-side forwarder 收进护栏，summary 扩到 `checks=406`。
 - release 级验证已完成：`git diff --check`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过。
+
+## 2026-05-12 RISCVV Splat Forwarder Consolidation
+
+- 接上 `Wave 5 / retire + redundancy cleanup`，继续收 `RISCVV` no-ASM facade 里剩余的纯构造器重复体。
+- `src/fafafa.core.simd.riscvv.facade.inc` 已把 `SplatF32x4/F32x8/F32x16/F64x2/F64x4/F64x8/I64x4` 改成直接委托对应 `ScalarSplat*` 真源。
+- `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 已新增这 7 个 forwarder 的 source-side 断言，summary 从 `checks=406` 扩到 `checks=413`。
+- 轻量验证与 release 级收口已完成：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过，`NONX86_HELPER_SEMANTICS_SUMMARY checks=413 status=ok`

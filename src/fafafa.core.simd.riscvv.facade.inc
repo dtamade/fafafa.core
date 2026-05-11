@@ -506,10 +506,8 @@ end;
 // =============================================================
 
 function RISCVVSplatF32x4(value: Single): TVecF32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := value;
+  Result := ScalarSplatF32x4(value);
 end;
 
 function RISCVVZeroF32x4: TVecF32x4;
@@ -2778,45 +2776,33 @@ begin
 end;
 
 function RISCVVSplatF32x16(value: Single): TVecF32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.f[i] := value;
+  Result := ScalarSplatF32x16(value);
 end;
 
 function RISCVVSplatF32x8(value: Single): TVecF32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.f[i] := value;
+  Result := ScalarSplatF32x8(value);
 end;
 
 function RISCVVSplatF64x2(value: Double): TVecF64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.d[i] := value;
+  Result := ScalarSplatF64x2(value);
 end;
 
 function RISCVVSplatF64x4(value: Double): TVecF64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.d[i] := value;
+  Result := ScalarSplatF64x4(value);
 end;
 
 function RISCVVSplatF64x8(value: Double): TVecF64x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.d[i] := value;
+  Result := ScalarSplatF64x8(value);
 end;
 
 function RISCVVSplatI64x4(value: Int64): TVecI64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.i[i] := value;
+  Result := ScalarSplatI64x4(value);
 end;
 
 function RISCVVSqrtF32x16(const a: TVecF32x16): TVecF32x16;
