@@ -1199,3 +1199,18 @@
 | 2. 清理 NEON 注释标题              | completed   | 统一为中性语义标题，去掉项目过程标签 |
 | 3. 复验源码/文档/护栏              | completed   | 注释文本已不再带过程标记，函数体未改 |
 | 4. Release 验证与提交收口           | completed   | `git diff --check`、Release `check` 均通过；待 review + commit |
+
+## 2026-05-12 SIMD Redundancy Survey
+
+### Goal
+
+调查 `simd` 的冗余卫生问题，按 `docs/plans` / 顶层文档 / 源码三层分别找出重复 truth source、重复计划入口、重复实现与可合并封装，只输出可收口清单，不在本批扩大架构面。
+
+### Phases
+
+| Phase                              | Status      | Notes |
+| ---------------------------------- | ----------- | ----- |
+| 1. 盘点 active spine 与历史尾部      | completed   | 已确认当前 active spine，且历史计划/快照都带有明确退役口径 |
+| 2. 分类 docs/plans 与顶层 SIMD 文档  | completed   | 已分出 active / historical baseline / superseded / cleanup candidate |
+| 3. 扫描源码重复 truth 与重复实现     | completed   | 已确认当前 residual 主要是 fallback thin wrapper 与少数语义敏感 loop |
+| 4. 汇总可收口项与后续动作           | completed   | 已形成可执行的卫生建议清单，不扩大架构面 |

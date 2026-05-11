@@ -1096,3 +1096,12 @@
   - `git diff --check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - 结果：通过，无新的 warning/hint 或门禁回退。
+
+## 2026-05-12
+
+- 开始做 `simd` 冗余卫生专项盘点，重点区分文档/计划层的重复 truth source 与源码层的真实重复实现。
+- 当前初判：文档计划层的重复与交叉引用问题明显高于源码层，后续先把 active spine / historical baseline / superseded / deletion candidate 分类清楚。
+- 已复核 `docs/plans/2026-05-10-simd-plan-status-index.md`、`execution index`、`global plan`、`family matrix`，确认当前 active spine 已经集中到 2026-05-09/10/11 链路。
+- 已抽查旧顶层文档：`SIMD_MODULE_ANALYSIS`、`SIMD_COMPREHENSIVE_AUDIT_REPORT`、`SIMD_QUALITY_ITERATION_*`、`SIMD_ITERATIVE_OPTIMIZATION_PLAN` 都已自标为 internal/historical snapshot，不应再作为活真相源。
+- 已做源码重复层初扫：当前最明显的是 `NEON/RISCVV` fallback 的大量 `Scalar*` thin forwarder，真实未收的重复实现体不多，剩余本地 loop 多数卡在 NaN / signed-zero / clamp / min-max 等语义敏感边界。
+- 本批调查已收口：文档侧以 active spine + historical snapshot 分层为主，源码侧没有发现新的大面积 duplicate truth source；后续若再动，只应针对有 replacement/parity/checker 的 exact-contract fallback。

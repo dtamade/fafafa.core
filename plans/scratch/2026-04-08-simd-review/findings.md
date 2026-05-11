@@ -202,6 +202,56 @@
 - `src/fafafa.core.simd.README.md`
 - `tests/fafafa.core.simd/BuildOrTest.sh`
 
+## 2026-05-12 Redundancy Survey Start
+
+- 当前最强的冗余信号不是源码层的新重复体，而是 `docs/plans/*simd*` 和顶层 SIMD 文档面仍然很厚。
+- `plan status index`、`execution index`、`family matrix`、`global architecture plan`、`wave2 seam hardening plan` 已经构成当前 active spine。
+- 其余大量 `simd` 计划更偏历史基线、阶段记录或已吸收的专题笔记，后续需要按 `active / historical baseline / superseded / deletion candidate` 分类。
+- 初步看源码层的重复实现比文档层少很多，当前更可能的“卫生问题”是重复 truth source、重复政策说明和重复计划入口，而不是大面积同构函数体还没收口。
+- 复核后确认：`docs/plans/2026-02-06-zero-warnings-hints-fs-simd.md` 并非漏索引，它在 `plan status index` 里已有 `superseded historical plan` 头。
+- 更真实的源码冗余密度在 fallback/compatibility 薄壳上：`NEON` 相关文件仍有大量 `Result := Scalar...` 转发，`RISCVV` facade 也保留大量同类转发，但这些多数是有意的 adapter 面，不是新的 truth source。
+- 目前更值得关注的代码层 residual 是少数仍保留本地 loop 的 semantic-sensitive 路径，尤其 `RISCVV` 的 `Min/Max/Round/Trunc/Clamp` 一类，它们是“暂缓合并”而不是“忘了去重”。
+
+## 2026-05-12 Redundancy Survey Classification
+
+### Active truth sources
+
+- `docs/plans/2026-05-10-simd-plan-status-index.md`
+- `docs/plans/2026-05-10-simd-execution-index.md`
+- `docs/plans/2026-05-09-simd-global-architecture-refactor-plan.md`
+- `docs/plans/2026-05-09-simd-family-matrix.md`
+- `docs/plans/2026-05-11-simd-family-decision-baseline.md`
+- `docs/SIMD_LAYERING_IMPLEMENTATION.md`
+- `docs/SIMD_BACKEND_TRUTH.md`
+- `docs/SIMD_INTRINSICS_DISPOSITION.md`
+- `docs/SIMD_SSE2_MIGRATION_MAP.md`
+- `docs/fafafa.core.simd.map.md`
+
+### Historical but keep for provenance
+
+- `docs/plans/2026-02-*simd*.md` 到 `docs/plans/2026-04-*simd*.md` 这批旧执行计划已经被 `plan status index` 降级为 historical / superseded。
+- `docs/SIMD_MODULE_ANALYSIS.md`
+- `docs/SIMD_COMPREHENSIVE_AUDIT_REPORT.md`
+- `docs/SIMD_QUALITY_ITERATION_PLAN.md`
+- `docs/SIMD_ITERATIVE_OPTIMIZATION_PLAN.md`
+- `docs/SIMD_QUALITY_ITERATION_5.1_REPORT.md`
+- `src/fafafa.core.simd.next-steps.md`
+
+这些文件当前不该再进入 active reading path；如果要进一步卫生整理，优先移动/归档，而不是先删除。
+
+### Cleanup candidates
+
+- `docs/INDEX.md` 仍声称 `simd` 专题文档已归位到 `docs/simd/`，但当前没有 `docs/simd/` 文件树；这是过时导流，不是代码问题。
+- 顶层 `SIMD_*` 历史快照虽然都有 internal / historical note，但仍和 active docs 同目录并列，容易在搜索结果里压过当前主链。
+- `src/fafafa.core.simd.next-steps.md` 已被当前 README 和主文档标成历史草案，可在后续批次迁入 archive/legacy，并保留跳转 stub。
+
+### Code redundancy judgment
+
+- 当前代码层没有发现新的大面积“多重实现都算真源”的问题。
+- `NEON` / `RISCVV` fallback 仍有很多 `Scalar*` thin forwarder，这是 adapter compatibility surface；不是当前最大债务。
+- 真正要继续清理代码，应只挑 `replacement + parity evidence + checker guard` 三者齐全的 exact-contract fallback。
+- `RISCVV` 当前保留的 local loop / branch 主要卡在 `Min/Max/Round/Trunc/Clamp` 等语义敏感路径，下一批不能只凭“看起来像 scalar”直接合并。
+
 ## 2026-05-11 NEON Vector Math Exact-Contract Finding
 
 - `src/fafafa.core.simd.neon.scalar.vector_math.inc` 的 non-ASM `Dot / Cross / Length / Normalize` fallback 与 `src/fafafa.core.simd.scalar.pas` 中的 `Scalar*` vector-math 实现同合同。
