@@ -824,3 +824,15 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-11 SSE3 Normalize Helper Consolidation
+
+- 已把 `SSE3LengthF32x4 / SSE3LengthF32x3` 的 zero-w + horizontal length 逻辑收成私有 `SSE3LengthWithOptionalZeroW` helper。
+- 已把 `SSE3NormalizeF32x4 / SSE3NormalizeF32x3` 的 length divide 和 zero-vector fallback 收成私有 `SSE3NormalizeByLength` helper。
+- 公开 dispatch wrapper 签名不变；`F32x3` 的 `w` lane 清零仍保留在 helper policy 里。
+- 验证结果：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_DirectDispatch`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

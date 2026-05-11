@@ -859,3 +859,17 @@
 | 1. 识别重复 length/normalize | completed | `LengthF32x4/F32x3` 与 `NormalizeF32x4/F32x3` 共享同一套 zero-w + sqrt/divide 控制流         |
 | 2. 落地私有 helper 收口       | completed | 新增 `AVX2LengthWithOptionalZeroW` 与 `AVX2NormalizeByLength`，四个 wrapper 变成 thin shell |
 | 3. Release 验证与收口         | completed | `git diff --check`、`TTestCase_AVX2VectorAsm`、Release `check`、Release `gate` 全通过        |
+
+## 2026-05-11 SSE3 Normalize Helper Consolidation
+
+### Goal
+
+把 `SSE3LengthF32x4 / SSE3LengthF32x3` 与 `SSE3NormalizeF32x4 / SSE3NormalizeF32x3` 的重复 zero-w / length / divide 控制流收成两个私有 helper，保留 SSE3 backend-owned slot 和现有 `F32x3` 清零合同。
+
+### Phases
+
+| Phase                        | Status    | Notes                                                                                          |
+| ---------------------------- | --------- | ---------------------------------------------------------------------------------------------- |
+| 1. 识别重复 length/normalize | completed | SSE3 的 length/normalize 与 AVX2/SSE4.1 同属 exact-contract helper consolidation               |
+| 2. 落地私有 helper 收口       | completed | 新增 `SSE3LengthWithOptionalZeroW` 与 `SSE3NormalizeByLength`，wrapper 只保留 length source 和 `w` policy |
+| 3. Release 验证与收口         | completed | `git diff --check`、`TTestCase_DispatchAPI,TTestCase_DirectDispatch`、Release `check`、Release `gate` 全通过 |

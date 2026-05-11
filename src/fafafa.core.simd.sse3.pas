@@ -293,95 +293,94 @@ end;
 
 // === SSE3 Optimized Length ===
 
-function SSE3LengthF32x4(const a: TVecF32x4): Single;
+function SSE3LengthWithOptionalZeroW(const a: TVecF32x4; aZeroW: Boolean): Single; inline;
 var
-  pa: Pointer;
+  LPA: Pointer;
 begin
-  pa := @a;
-  asm
-    mov     rax, pa
-    movups  xmm0, [rax]
-    mulps   xmm0, xmm0      // Square each element
-    haddps  xmm0, xmm0      // Sum pairs
-    haddps  xmm0, xmm0      // Sum all
-    sqrtss  xmm0, xmm0      // Square root
-    movss   [result], xmm0
+  LPA := @a;
+  if aZeroW then
+  begin
+    asm
+      mov     rax, LPA
+      movups  xmm0, [rax]
+      pcmpeqd xmm2, xmm2
+      psrldq  xmm2, 4
+      andps   xmm0, xmm2
+
+      mulps   xmm0, xmm0      // Square each element
+      haddps  xmm0, xmm0      // Sum pairs
+      haddps  xmm0, xmm0      // Sum all
+      sqrtss  xmm0, xmm0      // Square root
+      movss   [result], xmm0
+    end;
+  end
+  else
+  begin
+    asm
+      mov     rax, LPA
+      movups  xmm0, [rax]
+      mulps   xmm0, xmm0      // Square each element
+      haddps  xmm0, xmm0      // Sum pairs
+      haddps  xmm0, xmm0      // Sum all
+      sqrtss  xmm0, xmm0      // Square root
+      movss   [result], xmm0
+    end;
   end;
 end;
 
-function SSE3LengthF32x3(const a: TVecF32x4): Single;
+function SSE3NormalizeByLength(const a: TVecF32x4; const aLen: Single; aZeroW: Boolean): TVecF32x4; inline;
 var
-  pa: Pointer;
+  LPA, LPR: Pointer;
 begin
-  pa := @a;
-  asm
-    mov     rax, pa
-    movups  xmm0, [rax]
-
-    // Zero w lane
-    pcmpeqd xmm2, xmm2
-    psrldq  xmm2, 4
-    andps   xmm0, xmm2
-
-    mulps   xmm0, xmm0      // Square
-    haddps  xmm0, xmm0      // Sum pairs
-    haddps  xmm0, xmm0      // Sum all
-    sqrtss  xmm0, xmm0      // Square root
-    movss   [result], xmm0
+  if aLen > 0.0 then
+  begin
+    LPA := @a;
+    LPR := @Result;
+    asm
+      mov     rax, LPA
+      mov     rcx, LPR
+      movups  xmm0, [rax]
+      movss   xmm1, aLen
+      shufps  xmm1, xmm1, 0
+      divps   xmm0, xmm1
+      movups  [rcx], xmm0
+    end;
+    if aZeroW then
+      Result.f[3] := 0.0;
+  end
+  else
+  begin
+    Result := a;
+    if aZeroW then
+      Result.f[3] := 0.0;
   end;
+end;
+
+function SSE3LengthF32x4(const a: TVecF32x4): Single;
+begin
+  Result := SSE3LengthWithOptionalZeroW(a, False);
+end;
+
+function SSE3LengthF32x3(const a: TVecF32x4): Single;
+begin
+  Result := SSE3LengthWithOptionalZeroW(a, True);
 end;
 
 // SSE3 Optimized Normalize
 function SSE3NormalizeF32x4(const a: TVecF32x4): TVecF32x4;
 var
-  LPA, LPR: Pointer;
   LLen: Single;
 begin
-  LLen := SSE3LengthF32x4(a);
-  if LLen > 0.0 then
-  begin
-    LPA := @a;
-    LPR := @Result;
-    asm
-      mov     rax, LPA
-      mov     rcx, LPR
-      movups  xmm0, [rax]
-      movss   xmm1, LLen
-      shufps  xmm1, xmm1, 0
-      divps   xmm0, xmm1
-      movups  [rcx], xmm0
-    end;
-  end
-  else
-    Result := a;
+  LLen := SSE3LengthWithOptionalZeroW(a, False);
+  Result := SSE3NormalizeByLength(a, LLen, False);
 end;
 
 function SSE3NormalizeF32x3(const a: TVecF32x4): TVecF32x4;
 var
-  LPA, LPR: Pointer;
   LLen: Single;
 begin
-  LLen := SSE3LengthF32x3(a);
-  if LLen > 0.0 then
-  begin
-    LPA := @a;
-    LPR := @Result;
-    asm
-      mov     rax, LPA
-      mov     rcx, LPR
-      movups  xmm0, [rax]
-      movss   xmm1, LLen
-      shufps  xmm1, xmm1, 0
-      divps   xmm0, xmm1
-      movups  [rcx], xmm0
-    end;
-    Result.f[3] := 0.0;
-  end
-  else
-  begin
-    Result := a;
-    Result.f[3] := 0.0;
-  end;
+  LLen := SSE3LengthWithOptionalZeroW(a, True);
+  Result := SSE3NormalizeByLength(a, LLen, True);
 end;
 
 // === Backend Registration ===

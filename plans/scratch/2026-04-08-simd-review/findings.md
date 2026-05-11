@@ -854,3 +854,9 @@
 - `AVX2LengthF32x4 / AVX2LengthF32x3` 以及 `AVX2NormalizeF32x4 / AVX2NormalizeF32x3` 也是同一条 length-divide 控制流，只是 `F32x3` 额外需要把 `w` lane 清零；这次把它们收成 `AVX2LengthWithOptionalZeroW` 和 `AVX2NormalizeByLength` 两个私有 helper，四个 wrapper 只保留 contract 选择。
 - 这批没有改变公开 dispatch 签名，也没有碰 AVX2 其它 arithmetic / compare / shuffle 路径；`TTestCase_AVX2VectorAsm` 和 release gate 已经把 normalize 随机一致性和门禁链路一起确认过。
 - 这也给后面继续扫 `SSE2 / SSE3 / AVX2` 的 vector-math 文件提供了统一形状：先把 zero-w / divide / sqrt 的重复骨架抽出来，再看还有没有真正值得单独保留的变体。
+
+## 2026-05-11 SSE3 Normalize Helper Consolidation
+
+- `SSE3LengthF32x4 / SSE3LengthF32x3` 和 `SSE3NormalizeF32x4 / SSE3NormalizeF32x3` 也是同一条 zero-w + length + divide 控制流；这次把它们收成 `SSE3LengthWithOptionalZeroW` 和 `SSE3NormalizeByLength`，让四个 wrapper 都只保留自己的 lane policy。
+- 这批保持了现有 `SSE3` 代表性 parity 和 direct dispatch 路径，`DispatchAPI / DirectDispatch / check / gate` 全都绿了，说明 helper consolidation 没把 `F32x3` 的 `w=0` contract 弄丢。
+- 现在 `SSE3/AVX2/SSE4.1` 的 vector-math normalize 面都已经是同一套 helper 形状了，后面继续扫 `SSE2` 时可以直接复用这条整理思路，而不是再写第三套看起来像、其实重复的分支树。
