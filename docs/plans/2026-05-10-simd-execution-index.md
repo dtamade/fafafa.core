@@ -39,7 +39,7 @@
 - `Wave 3 / x86 families execution`：部分完成
   - `Wave 3A` AVX2 sample / lane cleanup 已完成
   - `Wave 3B` SSSE3 noise cleanup / redundancy collapse 已完成
-  - `Wave 3C` x86 incremental qualification 仍是当前代码队列
+  - `Wave 3C` x86 incremental qualification 仍是当前代码队列；shared raw parity baseline 已独立落盘
   - `Wave 3D` SSE2 debt pilot 已完成
 
 ### 还没完成的阶段
@@ -77,7 +77,7 @@
 
 当前默认执行队列是：
 
-1. `Wave 3C`：按 shared x86 incremental plan 收 `SSE3 / SSSE3 / SSE4.1 / SSE4.2 / AVX-512`
+1. `Wave 3C`：按 shared x86 incremental plan + raw parity baseline 收 `SSE3 / SSSE3 / SSE4.1 / SSE4.2 / AVX-512`
 2. `Wave 4A`：按 `NEON` qualification plan 推进
 3. `Wave 4B`：按 `RISCVV` qualification plan 推进
 4. `Wave 5`：清理 retire target / duplicated helper / future trigger
@@ -120,10 +120,12 @@
 看：
 
 - `docs/plans/2026-05-09-simd-x86-incremental-qualification-plan.md`
+- `docs/plans/2026-05-09-simd-x86-raw-parity-plan.md`
 
 当前补一句明确结论：
 
 - `AVX-512` 这条线已经重新核对过，当前没有新的 thin-wrapper / duplicate implementation 可收，继续保持 `hold green`。
+- `raw parity baseline` 已单独落盘，不再临场决定要不要另开 family 级 parity 文档。
 - 下一波如果要做代码，而不是文档收口，优先还是 `Wave 3C` 里剩下的 x86 incremental qualification，再往后才是 `Wave 5 / retire + redundancy cleanup`。
 
 目标：

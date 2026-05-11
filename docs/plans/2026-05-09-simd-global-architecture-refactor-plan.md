@@ -228,6 +228,7 @@ raw leaves
 | `docs/plans/2026-05-10-simd-wave2-seam-hardening-plan.md`         | 当前第一波 active 实施计划：收紧 `dispatch / dataplane / public ABI / direct` seam，不夹带 family migration |
 | `docs/plans/2026-05-09-simd-global-architecture-refactor-plan.md` | whole-module 总纲、波次、完成标准                                                                           |
 | `docs/plans/2026-05-09-simd-family-matrix.md`                     | 各 ISA family 的执行矩阵：truth source / disposition / verification lane / next action                      |
+| `docs/plans/2026-05-09-simd-x86-raw-parity-plan.md`               | `SSE3 / SSE4.1 / SSE4.2 / AVX-512` 的共享 representative parity baseline：冻结 parity lane，不把 smoke 当成 promote |
 | `docs/plans/2026-05-09-simd-sse2-retire-target-plan.md`           | `SSE2` retire bucket 冻结说明：哪些能进 C 桶、哪些必须留在 adapter                                          |
 | `docs/plans/2026-05-09-simd-experimental-hold-future-trigger-plan.md` | experimental hold 家族的 future-trigger baseline：什么条件下才值得重开                                       |
 | `docs/SIMD_LAYERING_IMPLEMENTATION.md`                            | 架构裁决基线：层次、seam、companion、准入规则                                                               |
@@ -253,12 +254,14 @@ raw leaves
 - 有统一准入规则，不再让每个 family 自己发明稳定性边界。
 - 有波次，不再是散点翻文件。
 - 有显式的 `family matrix`。
+- `SSE3 / SSE4.1 / SSE4.2 / AVX-512` 的共享 raw parity baseline 已单独落盘，不再让 smoke 冒充 parity source-of-truth。
 - 有文档分工，不再让总纲、状态表、阅读地图互相抢 source-of-truth。
 - `SSSE3` 已明确为 adapter-only / `no dedicated raw leaf target`，不再被误列成待补 raw leaf。
 
 ### 还不够的部分
 
 - `SSE2` 还没有进入 promote / split / retire 的决策文档阶段。
+- `SSE3 / SSE4.1 / SSE4.2 / AVX-512` 的 shared raw parity baseline 已有，但还没有进入 promote / split 的更细决策阶段。
 - `AES / SHA / AVX / FMA3 / SVE / SVE2 / LASX` 目前已有 generic hold baseline，但还没有 family-specific future trigger 决策。
 
 因此，这份计划现在已经是 `execution-ready`，但还不是 `closeout-complete`。

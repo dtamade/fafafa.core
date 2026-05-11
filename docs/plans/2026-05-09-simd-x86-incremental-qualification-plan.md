@@ -73,7 +73,7 @@
 1. 先守住 today adapter truth source
 2. 再证明 representative override 没有漂移
 3. 再证明 inherited clone-chain 没被误重绑
-4. 如果这三条都稳定，再决定是否值得为某个 family 单独补 raw parity 文档
+4. 如果这三条都稳定，就直接按 `docs/plans/2026-05-09-simd-x86-raw-parity-plan.md` 冻结 representative parity baseline，而不是在这里临场决定要不要另开 raw parity 文档
 
 换句话说，这组当前不是“先 promote”，而是“先 hold green and qualify”。
 
@@ -165,7 +165,7 @@ python3 tests/fafafa.core.simd/check_intrinsics_experimental_status.py --summary
 
 ## 当前下一动作
 
-- `SSE3 / SSE4.1 / SSE4.2 / AVX-512`：继续 `hold green`
+- `SSE3 / SSE4.1 / SSE4.2 / AVX-512`：继续 `hold green`，并按 shared raw parity baseline 对位 representative parity lane
 - `SSSE3`：保持 adapter-only；`no dedicated raw leaf target` 已是当前真相，只有 fresh red 或明确 promote 需要时才开 leaf 子计划
 
 ## 完成标准

@@ -31,6 +31,7 @@
 - `docs/plans/2026-05-09-simd-family-matrix.md`
 - `docs/plans/2026-05-09-simd-avx2-active-leaf-sample.md`
 - `docs/plans/2026-05-09-simd-x86-incremental-qualification-plan.md`
+- `docs/plans/2026-05-09-simd-x86-raw-parity-plan.md`
 - `docs/plans/2026-05-09-simd-neon-qualification-plan.md`
 - `docs/plans/2026-05-09-simd-riscvv-qualification-plan.md`
 - `docs/plans/2026-05-09-simd-sse2-retire-target-plan.md`

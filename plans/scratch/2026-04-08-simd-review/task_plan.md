@@ -592,3 +592,17 @@
 | 1. 识别 hold 家族 | completed | 当前需要冻结 future-trigger 规则的家族已经在 active plans 里写清：`AES / SHA / AVX / FMA3 / SVE / SVE2 / LASX` |
 | 2. 落地 future-trigger baseline | completed | 已新增 `docs/plans/2026-05-09-simd-experimental-hold-future-trigger-plan.md` 并接入 active 入口 |
 | 3. 验证与收口 | completed | `prettier --write`、`git diff --check`、`check_sse2_structure.py --summary-line`、`check_intrinsics_experimental_status.py --summary-line` 全部通过 |
+
+## 2026-05-11 X86 Raw Parity Baseline
+
+### Goal
+
+把 `SSE3 / SSE4.1 / SSE4.2 / AVX-512` 的 representative parity 口径单独落成 baseline，让 `Wave 3C` 的职责收回到 qualification，而不是继续把 parity 决策散在 smoke 叙述里。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别 shared parity 口径 | completed | 已确认这组 family 需要共享 raw parity baseline，而不是继续按“只有 smoke 看起来绿”来判断 |
+| 2. 接入 active 文档链 | completed | 已新增 `docs/plans/2026-05-09-simd-x86-raw-parity-plan.md`，并接入 `plan-status-index`、`execution-index`、`global plan`、`family matrix` 与 `x86 incremental qualification plan` |
+| 3. 验证与收口 | completed | `git diff --check`、`check_sse2_structure.py --summary-line`、`check_intrinsics_experimental_status.py --summary-line` 全部通过 |

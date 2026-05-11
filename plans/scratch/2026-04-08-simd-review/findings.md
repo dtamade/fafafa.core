@@ -718,3 +718,10 @@
 - 这份文档的作用是把“什么时候该重开 family 计划”与“什么不算触发条件”写成统一口径，避免后续再靠聊天上下文临场判断。
 - `check_sse2_structure.py` 继续通过，说明新增文档和 active 入口没有破坏 SSE2 migration map 的 A/B/C 护栏。
 - `check_intrinsics_experimental_status.py` 继续通过，说明新增文档没有把任何 experimental unit 拉进默认入口链。
+
+## 2026-05-11 X86 Raw Parity Baseline
+
+- `SSE3 / SSE4.1 / SSE4.2 / AVX-512` 的 shared raw parity baseline 现在已经单独落成，不再让 smoke 叙述继续充当 parity 结论。
+- 这条 baseline 不是 promote 计划，而是把代表性 parity lane 冻结下来，交给 `x86 incremental qualification plan` 去消费。
+- 之前 family matrix 里那句“还缺 family-specific raw parity 文档”已经过时，当前应改读为“baseline 已有，但 promote / split 决策还没细分完”。
+- 轻量结构校验继续通过，说明这次只是在主链上补齐入口，没有引入新的 active-doc 冲突。
