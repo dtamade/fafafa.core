@@ -1082,3 +1082,24 @@
 | 2. 落地 scalar truth forwarder     | completed   | `riscvv.facade.inc` 已改成直接委托 `ScalarSplatF32x4/F32x8/F32x16/F64x2/F64x4/F64x8/I64x4`               |
 | 3. 扩大 helper semantics 护栏       | completed   | `check_nonx86_helper_semantics.py` 已补 RISCVV `Splat` source-side 断言，summary 从 `checks=406` 扩到 `checks=413` |
 | 4. Release 验证与收口              | completed   | `git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 均通过 |
+
+## 2026-05-12 RISCVV Zero Forwarder Consolidation
+
+### Goal
+
+把 `src/fafafa.core.simd.riscvv.facade.inc` 里 `F32x4/F32x8/F32x16/F64x2/F64x4/F64x8/I64x4` 的 `Zero` no-ASM fallback 收回 `ScalarZero*` 真源；只处理纯构造器，不碰 `Select/Extract/Insert`、asm path 或 register ownership。
+
+### Phases
+
+| Phase                             | Status      | Notes                                                                                                     |
+| --------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------- |
+| 1. 识别 exact-contract zero 重复体 | completed   | 7 个 `Zero` wrapper 都是 `Default(TVec*)` 的纯构造器，已有对应 `ScalarZero*` helper                       |
+| 2. 落地 scalar truth forwarder    | completed   | `riscvv.facade.inc` 已改成直接委托 `ScalarZeroF32x4/F32x8/F32x16/F64x2/F64x4/F64x8/I64x4()`             |
+| 3. 扩大 helper semantics 护栏      | completed   | `check_nonx86_helper_semantics.py` 已补 RISCVV `Zero` source-side 断言，summary 从 `checks=413` 扩到 `checks=420` |
+| 4. Release 验证与收口             | completed   | `git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 均通过 |
+
+### Errors Encountered
+
+| Error | Attempt | Resolution |
+| --- | --- | --- |
+| missing parentheses on `ScalarZero` calls | 1 | helper checker reported `RISCVVZeroF32x4 missing fragment: Result := ScalarZeroF32x4();`; updated all 7 wrappers to explicit `ScalarZero*()` calls |

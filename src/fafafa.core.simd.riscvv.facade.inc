@@ -512,7 +512,7 @@ end;
 
 function RISCVVZeroF32x4: TVecF32x4;
 begin
-  Result := Default(TVecF32x4);
+  Result := ScalarZeroF32x4();
 end;
 
 function RISCVVSelectF32x4(const mask: TMask4; const a, b: TVecF32x4): TVecF32x4;
@@ -2989,32 +2989,32 @@ end;
 
 function RISCVVZeroF32x16: TVecF32x16;
 begin
-  Result := Default(TVecF32x16);
+  Result := ScalarZeroF32x16();
 end;
 
 function RISCVVZeroF32x8: TVecF32x8;
 begin
-  Result := Default(TVecF32x8);
+  Result := ScalarZeroF32x8();
 end;
 
 function RISCVVZeroF64x2: TVecF64x2;
 begin
-  Result := Default(TVecF64x2);
+  Result := ScalarZeroF64x2();
 end;
 
 function RISCVVZeroF64x4: TVecF64x4;
 begin
-  Result := Default(TVecF64x4);
+  Result := ScalarZeroF64x4();
 end;
 
 function RISCVVZeroF64x8: TVecF64x8;
 begin
-  Result := Default(TVecF64x8);
+  Result := ScalarZeroF64x8();
 end;
 
 function RISCVVZeroI64x4: TVecI64x4;
 begin
-  Result := Default(TVecI64x4);
+  Result := ScalarZeroI64x4();
 end;
 
 // =============================================================

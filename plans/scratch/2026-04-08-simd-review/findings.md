@@ -969,3 +969,11 @@
 - 这批只收纯构造器，不把 `Zero/Select/Extract/Insert`、rounding、clamp 或 float min/max 混进来；`riscvv.pas` 的 RVV asm path 与 `riscvv.register.inc` slot ownership 不变。
 - `check_nonx86_helper_semantics.py` 已补 7 个 RISCVV `Splat` source-side 断言，helper summary 扩到 `NONX86_HELPER_SEMANTICS_SUMMARY checks=413 status=ok`。
 - release 复验已完成：`git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿。
+
+## 2026-05-12 RISCVV Zero Forwarder Consolidation
+
+- `src/fafafa.core.simd.riscvv.facade.inc` 里 `F32x4/F32x8/F32x16/F64x2/F64x4/F64x8/I64x4` 的 `Zero` no-ASM fallback 仍是 `Default(TVec*)` 纯构造器，已经有对应 `ScalarZero*` 真源。
+- 这批只收纯构造器，不把 `Select/Extract/Insert`、asm path 或 register ownership 混进来；`riscvv.pas` 的 RVV asm path 与 `riscvv.register.inc` slot ownership 不变。
+- `check_nonx86_helper_semantics.py` 已补 7 个 RISCVV `Zero` source-side 断言，helper summary 扩到 `NONX86_HELPER_SEMANTICS_SUMMARY checks=420 status=ok`。
+- 首轮把 `ScalarZero*` 写成无参标识符时被 helper checker 抓到，已改成显式 `ScalarZero*()` 调用后复验通过。
+- release 复验已完成：`git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿。
