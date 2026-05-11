@@ -114,6 +114,90 @@ begin
   end;
 end;
 
+function SSE41ExtendSignedI8(const aValue: TM128; aTargetWidth: Integer): TM128; inline;
+var
+  i: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  case aTargetWidth of
+    16:
+      for i := 0 to 7 do
+        Result.m128i_i16[i] := aValue.m128i_i8[i];
+    32:
+      for i := 0 to 3 do
+        Result.m128i_i32[i] := aValue.m128i_i8[i];
+    64:
+      for i := 0 to 1 do
+        Result.m128i_i64[i] := aValue.m128i_i8[i];
+  end;
+end;
+
+function SSE41ExtendSignedI16(const aValue: TM128; aTargetWidth: Integer): TM128; inline;
+var
+  i: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  case aTargetWidth of
+    32:
+      for i := 0 to 3 do
+        Result.m128i_i32[i] := aValue.m128i_i16[i];
+    64:
+      for i := 0 to 1 do
+        Result.m128i_i64[i] := aValue.m128i_i16[i];
+  end;
+end;
+
+function SSE41ExtendSignedI32(const aValue: TM128): TM128; inline;
+var
+  i: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  for i := 0 to 1 do
+    Result.m128i_i64[i] := aValue.m128i_i32[i];
+end;
+
+function SSE41ExtendUnsignedU8(const aValue: TM128; aTargetWidth: Integer): TM128; inline;
+var
+  i: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  case aTargetWidth of
+    16:
+      for i := 0 to 7 do
+        Result.m128i_u16[i] := aValue.m128i_u8[i];
+    32:
+      for i := 0 to 3 do
+        Result.m128i_u32[i] := aValue.m128i_u8[i];
+    64:
+      for i := 0 to 1 do
+        Result.m128i_u64[i] := aValue.m128i_u8[i];
+  end;
+end;
+
+function SSE41ExtendUnsignedU16(const aValue: TM128; aTargetWidth: Integer): TM128; inline;
+var
+  i: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  case aTargetWidth of
+    32:
+      for i := 0 to 3 do
+        Result.m128i_u32[i] := aValue.m128i_u16[i];
+    64:
+      for i := 0 to 1 do
+        Result.m128i_u64[i] := aValue.m128i_u16[i];
+  end;
+end;
+
+function SSE41ExtendUnsignedU32(const aValue: TM128): TM128; inline;
+var
+  i: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  for i := 0 to 1 do
+    Result.m128i_u64[i] := aValue.m128i_u32[i];
+end;
+
 // === Min/Max 操作实现 ===
 function sse41_max_epi8(const a, b: TM128): TM128;
 var
@@ -377,99 +461,63 @@ end;
 
 // === 转换指令的简化实�?===
 function sse41_cvtepi8_epi16(const a: TM128): TM128;
-var
-  i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.m128i_i16[i] := a.m128i_i8[i];
+  Result := SSE41ExtendSignedI8(a, 16);
 end;
 
 function sse41_cvtepi8_epi32(const a: TM128): TM128;
-var
-  i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.m128i_i32[i] := a.m128i_i8[i];
+  Result := SSE41ExtendSignedI8(a, 32);
 end;
 
 function sse41_cvtepi8_epi64(const a: TM128): TM128;
-var
-  i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.m128i_i64[i] := a.m128i_i8[i];
+  Result := SSE41ExtendSignedI8(a, 64);
 end;
 
 function sse41_cvtepi16_epi32(const a: TM128): TM128;
-var
-  i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.m128i_i32[i] := a.m128i_i16[i];
+  Result := SSE41ExtendSignedI16(a, 32);
 end;
 
 function sse41_cvtepi16_epi64(const a: TM128): TM128;
-var
-  i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.m128i_i64[i] := a.m128i_i16[i];
+  Result := SSE41ExtendSignedI16(a, 64);
 end;
 
 function sse41_cvtepi32_epi64(const a: TM128): TM128;
-var
-  i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.m128i_i64[i] := a.m128i_i32[i];
+  Result := SSE41ExtendSignedI32(a);
 end;
 
 function sse41_cvtepu8_epi16(const a: TM128): TM128;
-var
-  i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.m128i_u16[i] := a.m128i_u8[i];
+  Result := SSE41ExtendUnsignedU8(a, 16);
 end;
 
 function sse41_cvtepu8_epi32(const a: TM128): TM128;
-var
-  i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.m128i_u32[i] := a.m128i_u8[i];
+  Result := SSE41ExtendUnsignedU8(a, 32);
 end;
 
 function sse41_cvtepu8_epi64(const a: TM128): TM128;
-var
-  i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.m128i_u64[i] := a.m128i_u8[i];
+  Result := SSE41ExtendUnsignedU8(a, 64);
 end;
 
 function sse41_cvtepu16_epi32(const a: TM128): TM128;
-var
-  i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.m128i_u32[i] := a.m128i_u16[i];
+  Result := SSE41ExtendUnsignedU16(a, 32);
 end;
 
 function sse41_cvtepu16_epi64(const a: TM128): TM128;
-var
-  i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.m128i_u64[i] := a.m128i_u16[i];
+  Result := SSE41ExtendUnsignedU16(a, 64);
 end;
 
 function sse41_cvtepu32_epi64(const a: TM128): TM128;
-var
-  i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.m128i_u64[i] := a.m128i_u32[i];
+  Result := SSE41ExtendUnsignedU32(a);
 end;
 
 // === 测试指令实现 ===

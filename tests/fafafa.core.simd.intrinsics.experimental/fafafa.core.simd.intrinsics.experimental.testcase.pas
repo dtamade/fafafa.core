@@ -30,6 +30,7 @@ type
     procedure Test_SSE41_RoundPd_Mode2_UpdatesEachLane;
     procedure Test_SSE41_RoundSsSd_PreserveUnmodifiedLanes;
     procedure Test_SSE41_InsertPs_ReplacesSelectedLane;
+    procedure Test_SSE41_ConvertExtends_SignedAndUnsigned;
   end;
 {$ENDIF}
 {$ENDIF}
@@ -333,6 +334,108 @@ begin
   AssertEquals('sse41_insert_ps lane1', 20.0, LResult.m128_f32[1], 0.0);
   AssertEquals('sse41_insert_ps lane2', 400.0, LResult.m128_f32[2], 0.0);
   AssertEquals('sse41_insert_ps lane3', 40.0, LResult.m128_f32[3], 0.0);
+end;
+
+procedure TTestCase_SimdIntrinsicsExperimentalX86.Test_SSE41_ConvertExtends_SignedAndUnsigned;
+var
+  LValue: TM128;
+  LResult: TM128;
+begin
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128i_i8[0] := -1;
+  LValue.m128i_i8[1] := 2;
+  LValue.m128i_i8[2] := -3;
+  LValue.m128i_i8[3] := 4;
+  LValue.m128i_i8[4] := -5;
+  LValue.m128i_i8[5] := 6;
+  LValue.m128i_i8[6] := -7;
+  LValue.m128i_i8[7] := 8;
+
+  LResult := sse41_cvtepi8_epi16(LValue);
+  AssertEquals('sse41_cvtepi8_epi16 lane0', -1, LResult.m128i_i16[0]);
+  AssertEquals('sse41_cvtepi8_epi16 lane1', 2, LResult.m128i_i16[1]);
+  AssertEquals('sse41_cvtepi8_epi16 lane6', -7, LResult.m128i_i16[6]);
+  AssertEquals('sse41_cvtepi8_epi16 lane7', 8, LResult.m128i_i16[7]);
+
+  LResult := sse41_cvtepi8_epi32(LValue);
+  AssertEquals('sse41_cvtepi8_epi32 lane0', -1, LResult.m128i_i32[0]);
+  AssertEquals('sse41_cvtepi8_epi32 lane1', 2, LResult.m128i_i32[1]);
+  AssertEquals('sse41_cvtepi8_epi32 lane2', -3, LResult.m128i_i32[2]);
+  AssertEquals('sse41_cvtepi8_epi32 lane3', 4, LResult.m128i_i32[3]);
+
+  LResult := sse41_cvtepi8_epi64(LValue);
+  AssertEquals('sse41_cvtepi8_epi64 lane0', -1, LResult.m128i_i64[0]);
+  AssertEquals('sse41_cvtepi8_epi64 lane1', 2, LResult.m128i_i64[1]);
+
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128i_i16[0] := -101;
+  LValue.m128i_i16[1] := 202;
+  LValue.m128i_i16[2] := -303;
+  LValue.m128i_i16[3] := 404;
+
+  LResult := sse41_cvtepi16_epi32(LValue);
+  AssertEquals('sse41_cvtepi16_epi32 lane0', -101, LResult.m128i_i32[0]);
+  AssertEquals('sse41_cvtepi16_epi32 lane1', 202, LResult.m128i_i32[1]);
+  AssertEquals('sse41_cvtepi16_epi32 lane2', -303, LResult.m128i_i32[2]);
+  AssertEquals('sse41_cvtepi16_epi32 lane3', 404, LResult.m128i_i32[3]);
+
+  LResult := sse41_cvtepi16_epi64(LValue);
+  AssertEquals('sse41_cvtepi16_epi64 lane0', -101, LResult.m128i_i64[0]);
+  AssertEquals('sse41_cvtepi16_epi64 lane1', 202, LResult.m128i_i64[1]);
+
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128i_i32[0] := -123456;
+  LValue.m128i_i32[1] := 789012;
+
+  LResult := sse41_cvtepi32_epi64(LValue);
+  AssertEquals('sse41_cvtepi32_epi64 lane0', -123456, LResult.m128i_i64[0]);
+  AssertEquals('sse41_cvtepi32_epi64 lane1', 789012, LResult.m128i_i64[1]);
+
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128i_u8[0] := 200;
+  LValue.m128i_u8[1] := 201;
+  LValue.m128i_u8[2] := 202;
+  LValue.m128i_u8[3] := 203;
+  LValue.m128i_u8[4] := 204;
+  LValue.m128i_u8[5] := 205;
+  LValue.m128i_u8[6] := 206;
+  LValue.m128i_u8[7] := 207;
+
+  LResult := sse41_cvtepu8_epi16(LValue);
+  AssertEquals('sse41_cvtepu8_epi16 lane0', 200, LResult.m128i_u16[0]);
+  AssertEquals('sse41_cvtepu8_epi16 lane7', 207, LResult.m128i_u16[7]);
+
+  LResult := sse41_cvtepu8_epi32(LValue);
+  AssertEquals('sse41_cvtepu8_epi32 lane0', 200, LResult.m128i_u32[0]);
+  AssertEquals('sse41_cvtepu8_epi32 lane3', 203, LResult.m128i_u32[3]);
+
+  LResult := sse41_cvtepu8_epi64(LValue);
+  AssertEquals('sse41_cvtepu8_epi64 lane0', 200, LResult.m128i_u64[0]);
+  AssertEquals('sse41_cvtepu8_epi64 lane1', 201, LResult.m128i_u64[1]);
+
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128i_u16[0] := 50000;
+  LValue.m128i_u16[1] := 60000;
+  LValue.m128i_u16[2] := 12345;
+  LValue.m128i_u16[3] := 54321;
+
+  LResult := sse41_cvtepu16_epi32(LValue);
+  AssertEquals('sse41_cvtepu16_epi32 lane0', 50000, LResult.m128i_u32[0]);
+  AssertEquals('sse41_cvtepu16_epi32 lane3', 54321, LResult.m128i_u32[3]);
+
+  LResult := sse41_cvtepu16_epi64(LValue);
+  AssertEquals('sse41_cvtepu16_epi64 lane0', 50000, LResult.m128i_u64[0]);
+  AssertEquals('sse41_cvtepu16_epi64 lane1', 60000, LResult.m128i_u64[1]);
+
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128i_u32[0] := $F1234567;
+  LValue.m128i_u32[1] := $E2345678;
+
+  LResult := sse41_cvtepu32_epi64(LValue);
+  AssertEquals('sse41_cvtepu32_epi64 lane0 low', DWord($F1234567), DWord(LResult.m128i_u64[0] and $FFFFFFFF));
+  AssertEquals('sse41_cvtepu32_epi64 lane0 high', QWord(0), QWord(LResult.m128i_u64[0] shr 32));
+  AssertEquals('sse41_cvtepu32_epi64 lane1 low', DWord($E2345678), DWord(LResult.m128i_u64[1] and $FFFFFFFF));
+  AssertEquals('sse41_cvtepu32_epi64 lane1 high', QWord(0), QWord(LResult.m128i_u64[1] shr 32));
 end;
 
 {$ENDIF}

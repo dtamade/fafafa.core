@@ -738,3 +738,18 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-11 SSE4.1 Conversion Helper Consolidation
+
+- 已把 `sse41_cvtepi*` / `sse41_cvtepu*` 的重复 signed / unsigned lane-extension loop 收成私有 helper：
+  - `SSE41ExtendSignedI8/I16/I32`
+  - `SSE41ExtendUnsignedU8/U16/U32`
+- 12 个公开 placeholder wrapper 仍保留原函数名和 lane contract，只把重复 loop 收回 helper，不扩大 experimental surface。
+- 已新增 `Test_SSE41_ConvertExtends_SignedAndUnsigned`，覆盖 signed sign-extension 与 unsigned zero-extension 的代表性路径。
+- 验证结果：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test --suite=TTestCase_SimdIntrinsicsExperimentalX86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

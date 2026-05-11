@@ -815,3 +815,10 @@
 - 这批只把 rounding decision 收成 `SSE41RoundScalar`，不改变 placeholder rounding 语义，也不把 SSE4.1 family 状态提升成 stable default path。
 - `round_ss` / `round_sd` 的关键合同不是只看 lane0 结果，还要保持其他 lane 来自第一个参数；新增回归专门覆盖这一点。
 - `TTestCase_SimdIntrinsicsExperimentalX86` 当前在显式 experimental 模式下跑 6 个测试，说明这次新增的 rounding 回归和上一批 load/dp/insert 回归都被真实执行。
+
+## 2026-05-11 SSE4.1 Conversion Helper Consolidation
+
+- `sse41_cvtepi*` / `sse41_cvtepu*` 的重复体是纯 lane 扩展 loop，和 round 那批一样，属于 exact-contract 的结构性重复，而不是语义差异。
+- 用少量私有 helper 收口后，公开 wrapper 仍然是 thin shell，`SSE4.1` 的外部 contract 没变，只是减少了 12 份几乎同形的 loop。
+- 这里最需要盯的点是 unsigned 64-bit 扩展的高 32 位必须为 0，所以回归专门检查了 `cvtepu32_epi64` 的高低 32 位。
+- 这批的实验性回归现在已经把 `SSE4.1` 的 `loaddup / dp / round / insert / convert` 五类 helper 覆盖起来了，后面再扫 `SSE4.1` 时就能更容易发现真正的新增重复体，而不是继续在旧模板里反复打转。

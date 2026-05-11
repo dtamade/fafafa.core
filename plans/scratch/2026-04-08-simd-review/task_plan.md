@@ -775,3 +775,17 @@
 | 1. 识别重复 rounding case  | completed | 4 个 rounding wrapper 共享同一套 `round / Int` case 分支，只是 lane width 和 preserve pattern 不同                 |
 | 2. 落地私有 helper 与回归  | completed | 新增 `SSE41RoundScalar`，`round_ps/pd/ss/sd` 改为直调，并补了 `round_pd` / `round_ss` / `round_sd` 回归          |
 | 3. Release 验证与收口     | completed | `git diff --check`、experimental `check`、`test --suite=TTestCase_SimdIntrinsicsExperimentalX86`、Release `check`、Release `gate` 全通过 |
+
+## 2026-05-11 SSE4.1 Conversion Helper Consolidation
+
+### Goal
+
+把 `sse41_cvtepi8_epi16 / cvtepi8_epi32 / cvtepi8_epi64 / cvtepi16_epi32 / cvtepi16_epi64 / cvtepi32_epi64` 与对应 `cvtepu*` 的重复扩展 loop 收成少量私有 helper，同时保留现有 placeholder 语义和 lane ownership，不碰其他 `SSE4.1` 路径。
+
+### Phases
+
+| Phase                    | Status    | Notes                                                                                                                          |
+| ------------------------ | --------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| 1. 识别扩展重复体        | completed | signed / unsigned 的 lane 扩展 loop 只是目标宽度不同，结构上完全同构                                                          |
+| 2. 落地私有 helper 与回归 | completed | 新增 `SSE41ExtendSigned*` / `SSE41ExtendUnsigned*` helpers，并补了 `Test_SSE41_ConvertExtends_SignedAndUnsigned` 回归 |
+| 3. Release 验证与收口    | completed | `git diff --check`、experimental `check`、`test --suite=TTestCase_SimdIntrinsicsExperimentalX86`、Release `check`、Release `gate` 全通过 |
