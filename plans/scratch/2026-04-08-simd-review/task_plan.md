@@ -437,3 +437,17 @@
 | 1. 锁定稳定边界 | completed | 文档已明确 `sse2.pas` 是当前 SSE2 backend adapter truth source，适合注释清理和小范围 helper 审查，不适合无设计的大拆分 |
 | 2. 收敛历史注释标记 | completed | 已移除 `✅ / NEW / P* / Task / Iteration / 2026-02-05` 这类历史痕迹，保留真实 safety/performance/ISA 说明 |
 | 3. 验证与提交收口 | completed | `git diff --check`、`check_sse2_structure.py --summary-line` 与 Release `check` 已通过 |
+
+## 2026-05-11 SSE2 Narrow Compare Thin Wrapper Consolidation
+
+### Goal
+
+把 `SSE2` 窄整型 `CmpLe/CmpGe/CmpNe` 从完整重复 ASM 体收回成围绕 `CmpGt/CmpEq` 的薄封装，保留当前 mask contract、dispatch-owned 入口和 `sse2.pas` 稳定边界。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别可收敛重复体 | completed | `I16x8/I8x16/U16x8/U8x16` 的 `Le/Ge/Ne` 都只是 `Gt/Eq` 结果按当前 mask 宽度反相；浮点比较和真实 `Eq/Gt` ASM 不纳入本批 |
+| 2. 收回 thin wrapper | completed | 12 个 wrapper 已改成 `MASK*_ALL_SET xor SSE2CmpGt/Eq...`，避免继续维护 `NOT + compare + pmovmskb` 的重复 ASM |
+| 3. Release 验证与收口 | completed | `git diff --check`、`NarrowIntegerOps`、`DispatchAPI`、Release `check`、Release `gate` 全部通过 |

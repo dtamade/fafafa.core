@@ -572,6 +572,13 @@
 - 这批改动的风险点主要在编译和 dispatch 回归，不在算法语义本身。
 - `check`、`TTestCase_DispatchAPI`、`gate` 已通过，说明 SSE2 thin wrapper 收口没有破坏结构检查、dispatch contract 或 release 门禁。
 
+## 2026-05-11 SSE2 Narrow Compare Thin Wrapper Scan
+
+- `SSE2CmpLe/CmpGe/CmpNe` 在 `I16x8/I8x16/U16x8/U8x16` 四组窄整型上不是独立比较语义，只是对 `CmpGt` 或 `CmpEq` 的同 mask 宽度反相。
+- 这批适合收成 thin wrapper，而不是抽新 raw leaf：`sse2.pas` 仍是当前 backend adapter truth source，`Eq/Gt` ASM 仍负责真实比较和当前 mask extraction。
+- 对 word-lane family 要保守：当前 `TMask8` contract 来自已有 `SSE2CmpEq/Gt...` 返回值，本批只翻转该返回值，不重解释 `pmovmskb` 的 lane layout。
+- 收口后 release 证据已覆盖 `NarrowIntegerOps`、`DispatchAPI`、`check` 和 `gate`，说明 wrapper 化没有破坏窄整型测试、dispatch parity 或结构护栏。
+
 ## 2026-05-11 SSE2 Wide Emulation Boundary Normalization
 
 - `src/fafafa.core.simd.sse2.wide_emulation.inc` 的 wide extract/insert helper 原来统一用 `index and N`，这会形成 wrap-around 语义。

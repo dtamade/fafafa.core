@@ -503,3 +503,15 @@
   - `git diff --check`
   - `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+
+## 2026-05-11 SSE2 Narrow Compare Thin Wrapper Consolidation
+
+- 继续扫 `src/fafafa.core.simd.sse2.pas` 时，确认 `I16x8/I8x16/U16x8/U8x16` 的 `CmpLe/CmpGe/CmpNe` 都是在重复 `CmpGt/CmpEq + mask 反相` 的同构 ASM。
+- 本批只收 exact-contract 重复：`Le := all-set xor Gt(a,b)`、`Ge := all-set xor Gt(b,a)`、`Ne := all-set xor Eq(a,b)`；`Eq/Gt` 仍保留为真实 SSE2 compare 实现。
+- 对 `I16x8/U16x8` 没有做新的 lane-normalization，只按当前 `TMask8` contract 翻转现有 wrapper 返回值，避免把“去重”混成语义改造。
+- 已完成验证：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NarrowIntegerOps`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`

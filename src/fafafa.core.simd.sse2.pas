@@ -1438,71 +1438,19 @@ begin
   Result := TMask8(mask);
 end;
 
-// CmpLe/CmpGe/CmpNe for I16x8 using NOT + base comparison
 function SSE2CmpLeI16x8(const a, b: TVecI16x8): TMask8;
-var
-  pa, pb: Pointer;
-  mask: Integer;
 begin
-  pa := @a;
-  pb := @b;
-  // LE: a <= b is same as NOT(a > b)
-  asm
-    mov      rax, pa
-    mov      rdx, pb
-    movdqu   xmm0, [rax]
-    movdqu   xmm1, [rdx]
-    pcmpgtw  xmm0, xmm1    // a > b
-    pcmpeqw  xmm2, xmm2    // all ones
-    pxor     xmm0, xmm2    // NOT(a > b) = a <= b
-    pmovmskb eax, xmm0
-    mov      mask, eax
-  end;
-  Result := TMask8(mask);
+  Result := TMask8(MASK8_ALL_SET xor SSE2CmpGtI16x8(a, b));
 end;
 
 function SSE2CmpGeI16x8(const a, b: TVecI16x8): TMask8;
-var
-  pa, pb: Pointer;
-  mask: Integer;
 begin
-  pa := @a;
-  pb := @b;
-  // GE: a >= b is same as NOT(a < b) = NOT(b > a)
-  asm
-    mov      rax, pa
-    mov      rdx, pb
-    movdqu   xmm0, [rax]
-    movdqu   xmm1, [rdx]
-    pcmpgtw  xmm1, xmm0    // b > a (i.e., a < b)
-    pcmpeqw  xmm2, xmm2    // all ones
-    pxor     xmm1, xmm2    // NOT(a < b) = a >= b
-    pmovmskb eax, xmm1
-    mov      mask, eax
-  end;
-  Result := TMask8(mask);
+  Result := TMask8(MASK8_ALL_SET xor SSE2CmpGtI16x8(b, a));
 end;
 
 function SSE2CmpNeI16x8(const a, b: TVecI16x8): TMask8;
-var
-  pa, pb: Pointer;
-  mask: Integer;
 begin
-  pa := @a;
-  pb := @b;
-  // NE: a != b is same as NOT(a == b)
-  asm
-    mov      rax, pa
-    mov      rdx, pb
-    movdqu   xmm0, [rax]
-    movdqu   xmm1, [rdx]
-    pcmpeqw  xmm0, xmm1    // a == b
-    pcmpeqw  xmm2, xmm2    // all ones
-    pxor     xmm0, xmm2    // NOT(a == b) = a != b
-    pmovmskb eax, xmm0
-    mov      mask, eax
-  end;
-  Result := TMask8(mask);
+  Result := TMask8(MASK8_ALL_SET xor SSE2CmpEqI16x8(a, b));
 end;
 
 function SSE2MinI16x8(const a, b: TVecI16x8): TVecI16x8;
@@ -1729,71 +1677,19 @@ begin
   Result := TMask16(mask);
 end;
 
-// CmpLe/CmpGe/CmpNe for I8x16 using NOT + base comparison
 function SSE2CmpLeI8x16(const a, b: TVecI8x16): TMask16;
-var
-  pa, pb: Pointer;
-  mask: Integer;
 begin
-  pa := @a;
-  pb := @b;
-  // LE: a <= b is same as NOT(a > b)
-  asm
-    mov      rax, pa
-    mov      rdx, pb
-    movdqu   xmm0, [rax]
-    movdqu   xmm1, [rdx]
-    pcmpgtb  xmm0, xmm1    // a > b
-    pcmpeqb  xmm2, xmm2    // all ones
-    pxor     xmm0, xmm2    // NOT(a > b) = a <= b
-    pmovmskb eax, xmm0
-    mov      mask, eax
-  end;
-  Result := TMask16(mask);
+  Result := TMask16(MASK16_ALL_SET xor SSE2CmpGtI8x16(a, b));
 end;
 
 function SSE2CmpGeI8x16(const a, b: TVecI8x16): TMask16;
-var
-  pa, pb: Pointer;
-  mask: Integer;
 begin
-  pa := @a;
-  pb := @b;
-  // GE: a >= b is same as NOT(a < b) = NOT(b > a)
-  asm
-    mov      rax, pa
-    mov      rdx, pb
-    movdqu   xmm0, [rax]
-    movdqu   xmm1, [rdx]
-    pcmpgtb  xmm1, xmm0    // b > a (i.e., a < b)
-    pcmpeqb  xmm2, xmm2    // all ones
-    pxor     xmm1, xmm2    // NOT(a < b) = a >= b
-    pmovmskb eax, xmm1
-    mov      mask, eax
-  end;
-  Result := TMask16(mask);
+  Result := TMask16(MASK16_ALL_SET xor SSE2CmpGtI8x16(b, a));
 end;
 
 function SSE2CmpNeI8x16(const a, b: TVecI8x16): TMask16;
-var
-  pa, pb: Pointer;
-  mask: Integer;
 begin
-  pa := @a;
-  pb := @b;
-  // NE: a != b is same as NOT(a == b)
-  asm
-    mov      rax, pa
-    mov      rdx, pb
-    movdqu   xmm0, [rax]
-    movdqu   xmm1, [rdx]
-    pcmpeqb  xmm0, xmm1    // a == b
-    pcmpeqb  xmm2, xmm2    // all ones
-    pxor     xmm0, xmm2    // NOT(a == b) = a != b
-    pmovmskb eax, xmm0
-    mov      mask, eax
-  end;
-  Result := TMask16(mask);
+  Result := TMask16(MASK16_ALL_SET xor SSE2CmpEqI8x16(a, b));
 end;
 
 function SSE2MinI8x16(const a, b: TVecI8x16): TVecI8x16;
@@ -2438,81 +2334,19 @@ begin
   Result := TMask8(mask);
 end;
 
-// CmpLe/CmpGe/CmpNe for U16x8 using NOT + base comparison
 function SSE2CmpLeU16x8(const a, b: TVecU16x8): TMask8;
-var
-  pa, pb: Pointer;
-  mask: Integer;
-const
-  SignFlip: array[0..7] of UInt16 = ($8000, $8000, $8000, $8000, $8000, $8000, $8000, $8000);
 begin
-  pa := @a;
-  pb := @b;
-  // LE: a <= b is same as NOT(a > b)
-  asm
-    mov      rax, pa
-    mov      rdx, pb
-    movdqu   xmm0, [rax]
-    movdqu   xmm1, [rdx]
-    movdqu   xmm4, [rip + SignFlip]
-    pxor     xmm0, xmm4       // flip sign of a
-    pxor     xmm1, xmm4       // flip sign of b
-    pcmpgtw  xmm0, xmm1       // signed(a) > signed(b) = unsigned(a) > unsigned(b)
-    pcmpeqw  xmm2, xmm2       // all ones
-    pxor     xmm0, xmm2       // NOT(a > b) = a <= b
-    pmovmskb eax, xmm0
-    mov      mask, eax
-  end;
-  Result := TMask8(mask);
+  Result := TMask8(MASK8_ALL_SET xor SSE2CmpGtU16x8(a, b));
 end;
 
 function SSE2CmpGeU16x8(const a, b: TVecU16x8): TMask8;
-var
-  pa, pb: Pointer;
-  mask: Integer;
-const
-  SignFlip: array[0..7] of UInt16 = ($8000, $8000, $8000, $8000, $8000, $8000, $8000, $8000);
 begin
-  pa := @a;
-  pb := @b;
-  // GE: a >= b is same as NOT(a < b) = NOT(b > a)
-  asm
-    mov      rax, pa
-    mov      rdx, pb
-    movdqu   xmm0, [rax]
-    movdqu   xmm1, [rdx]
-    movdqu   xmm4, [rip + SignFlip]
-    pxor     xmm0, xmm4       // flip sign of a
-    pxor     xmm1, xmm4       // flip sign of b
-    pcmpgtw  xmm1, xmm0       // signed(b) > signed(a) = unsigned(a) < unsigned(b)
-    pcmpeqw  xmm2, xmm2       // all ones
-    pxor     xmm1, xmm2       // NOT(a < b) = a >= b
-    pmovmskb eax, xmm1
-    mov      mask, eax
-  end;
-  Result := TMask8(mask);
+  Result := TMask8(MASK8_ALL_SET xor SSE2CmpGtU16x8(b, a));
 end;
 
 function SSE2CmpNeU16x8(const a, b: TVecU16x8): TMask8;
-var
-  pa, pb: Pointer;
-  mask: Integer;
 begin
-  pa := @a;
-  pb := @b;
-  // NE: a != b is same as NOT(a == b)
-  asm
-    mov      rax, pa
-    mov      rdx, pb
-    movdqu   xmm0, [rax]
-    movdqu   xmm1, [rdx]
-    pcmpeqw  xmm0, xmm1    // a == b
-    pcmpeqw  xmm2, xmm2    // all ones
-    pxor     xmm0, xmm2    // NOT(a == b) = a != b
-    pmovmskb eax, xmm0
-    mov      mask, eax
-  end;
-  Result := TMask8(mask);
+  Result := TMask8(MASK8_ALL_SET xor SSE2CmpEqU16x8(a, b));
 end;
 
 function SSE2MinU16x8(const a, b: TVecU16x8): TVecU16x8;
@@ -2775,83 +2609,19 @@ begin
   Result := TMask16(mask);
 end;
 
-// CmpLe/CmpGe/CmpNe for U8x16 using NOT + base comparison
 function SSE2CmpLeU8x16(const a, b: TVecU8x16): TMask16;
-var
-  pa, pb: Pointer;
-  mask: Integer;
-const
-  SignFlip: array[0..15] of Byte = ($80, $80, $80, $80, $80, $80, $80, $80,
-                                     $80, $80, $80, $80, $80, $80, $80, $80);
 begin
-  pa := @a;
-  pb := @b;
-  // LE: a <= b is same as NOT(a > b)
-  asm
-    mov      rax, pa
-    mov      rdx, pb
-    movdqu   xmm0, [rax]
-    movdqu   xmm1, [rdx]
-    movdqu   xmm4, [rip + SignFlip]
-    pxor     xmm0, xmm4       // flip sign of a
-    pxor     xmm1, xmm4       // flip sign of b
-    pcmpgtb  xmm0, xmm1       // signed(a) > signed(b) = unsigned(a) > unsigned(b)
-    pcmpeqb  xmm2, xmm2       // all ones
-    pxor     xmm0, xmm2       // NOT(a > b) = a <= b
-    pmovmskb eax, xmm0
-    mov      mask, eax
-  end;
-  Result := TMask16(mask);
+  Result := TMask16(MASK16_ALL_SET xor SSE2CmpGtU8x16(a, b));
 end;
 
 function SSE2CmpGeU8x16(const a, b: TVecU8x16): TMask16;
-var
-  pa, pb: Pointer;
-  mask: Integer;
-const
-  SignFlip: array[0..15] of Byte = ($80, $80, $80, $80, $80, $80, $80, $80,
-                                     $80, $80, $80, $80, $80, $80, $80, $80);
 begin
-  pa := @a;
-  pb := @b;
-  // GE: a >= b is same as NOT(a < b) = NOT(b > a)
-  asm
-    mov      rax, pa
-    mov      rdx, pb
-    movdqu   xmm0, [rax]
-    movdqu   xmm1, [rdx]
-    movdqu   xmm4, [rip + SignFlip]
-    pxor     xmm0, xmm4       // flip sign of a
-    pxor     xmm1, xmm4       // flip sign of b
-    pcmpgtb  xmm1, xmm0       // signed(b) > signed(a) = unsigned(a) < unsigned(b)
-    pcmpeqb  xmm2, xmm2       // all ones
-    pxor     xmm1, xmm2       // NOT(a < b) = a >= b
-    pmovmskb eax, xmm1
-    mov      mask, eax
-  end;
-  Result := TMask16(mask);
+  Result := TMask16(MASK16_ALL_SET xor SSE2CmpGtU8x16(b, a));
 end;
 
 function SSE2CmpNeU8x16(const a, b: TVecU8x16): TMask16;
-var
-  pa, pb: Pointer;
-  mask: Integer;
 begin
-  pa := @a;
-  pb := @b;
-  // NE: a != b is same as NOT(a == b)
-  asm
-    mov      rax, pa
-    mov      rdx, pb
-    movdqu   xmm0, [rax]
-    movdqu   xmm1, [rdx]
-    pcmpeqb  xmm0, xmm1    // a == b
-    pcmpeqb  xmm2, xmm2    // all ones
-    pxor     xmm0, xmm2    // NOT(a == b) = a != b
-    pmovmskb eax, xmm0
-    mov      mask, eax
-  end;
-  Result := TMask16(mask);
+  Result := TMask16(MASK16_ALL_SET xor SSE2CmpEqU8x16(a, b));
 end;
 
 function SSE2MinU8x16(const a, b: TVecU8x16): TVecU8x16;
