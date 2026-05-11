@@ -990,71 +990,19 @@ begin
   Result := TMask4(mask);
 end;
 
-// SSE2 does not have LE/GE/NE directly, but we can derive them
 function SSE2CmpLeI32x4(const a, b: TVecI32x4): TMask4;
-var
-  pa, pb: Pointer;
-  mask: Integer;
 begin
-  pa := @a;
-  pb := @b;
-  // LE: a <= b is same as NOT(a > b)
-  asm
-    mov    rax, pa
-    mov    rdx, pb
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    pcmpgtd xmm0, xmm1      // a > b
-    pcmpeqd xmm2, xmm2      // all ones
-    pxor   xmm0, xmm2       // NOT(a > b)
-    movmskps eax, xmm0
-    mov    mask, eax
-  end;
-  Result := TMask4(mask);
+  Result := TMask4(MASK4_ALL_SET xor SSE2CmpGtI32x4(a, b));
 end;
 
 function SSE2CmpGeI32x4(const a, b: TVecI32x4): TMask4;
-var
-  pa, pb: Pointer;
-  mask: Integer;
 begin
-  pa := @a;
-  pb := @b;
-  // GE: a >= b is same as NOT(a < b) = NOT(b > a)
-  asm
-    mov    rax, pa
-    mov    rdx, pb
-    movdqu xmm0, [rdx]      // load b
-    movdqu xmm1, [rax]      // load a
-    pcmpgtd xmm0, xmm1      // b > a
-    pcmpeqd xmm2, xmm2      // all ones
-    pxor   xmm0, xmm2       // NOT(b > a)
-    movmskps eax, xmm0
-    mov    mask, eax
-  end;
-  Result := TMask4(mask);
+  Result := TMask4(MASK4_ALL_SET xor SSE2CmpGtI32x4(b, a));
 end;
 
 function SSE2CmpNeI32x4(const a, b: TVecI32x4): TMask4;
-var
-  pa, pb: Pointer;
-  mask: Integer;
 begin
-  pa := @a;
-  pb := @b;
-  // NE: NOT(a == b)
-  asm
-    mov    rax, pa
-    mov    rdx, pb
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    pcmpeqd xmm0, xmm1      // a == b
-    pcmpeqd xmm2, xmm2      // all ones
-    pxor   xmm0, xmm2       // NOT(a == b)
-    movmskps eax, xmm0
-    mov    mask, eax
-  end;
-  Result := TMask4(mask);
+  Result := TMask4(MASK4_ALL_SET xor SSE2CmpEqI32x4(a, b));
 end;
 
 // ============================================================================
@@ -1401,22 +1349,8 @@ begin
 end;
 
 function SSE2CmpLtI16x8(const a, b: TVecI16x8): TMask8;
-var
-  pa, pb: Pointer;
-  mask: Integer;
 begin
-  pa := @a;
-  pb := @b;
-  asm
-    mov      rax, pa
-    mov      rdx, pb
-    movdqu   xmm0, [rax]
-    movdqu   xmm1, [rdx]
-    pcmpgtw  xmm1, xmm0    // b > a (i.e., a < b)
-    pmovmskb eax, xmm1
-    mov      mask, eax
-  end;
-  Result := TMask8(mask);
+  Result := SSE2CmpGtI16x8(b, a);
 end;
 
 function SSE2CmpGtI16x8(const a, b: TVecI16x8): TMask8;
@@ -1640,22 +1574,8 @@ begin
 end;
 
 function SSE2CmpLtI8x16(const a, b: TVecI8x16): TMask16;
-var
-  pa, pb: Pointer;
-  mask: Integer;
 begin
-  pa := @a;
-  pb := @b;
-  asm
-    mov      rax, pa
-    mov      rdx, pb
-    movdqu   xmm0, [rax]
-    movdqu   xmm1, [rdx]
-    pcmpgtb  xmm1, xmm0    // b > a (i.e., a < b)
-    pmovmskb eax, xmm1
-    mov      mask, eax
-  end;
-  Result := TMask16(mask);
+  Result := SSE2CmpGtI8x16(b, a);
 end;
 
 function SSE2CmpGtI8x16(const a, b: TVecI8x16): TMask16;
@@ -1958,28 +1878,8 @@ begin
 end;
 
 function SSE2CmpLtU32x4(const a, b: TVecU32x4): TMask4;
-var
-  pa, pb: Pointer;
-  mask: Integer;
-const
-  SignFlip: array[0..3] of UInt32 = ($80000000, $80000000, $80000000, $80000000);
 begin
-  pa := @a;
-  pb := @b;
-  // Unsigned compare: flip sign bit to use signed comparison
-  asm
-    mov      rax, pa
-    mov      rdx, pb
-    movdqu   xmm0, [rax]
-    movdqu   xmm1, [rdx]
-    movdqu   xmm4, [rip + SignFlip]
-    pxor     xmm0, xmm4       // flip sign of a
-    pxor     xmm1, xmm4       // flip sign of b
-    pcmpgtd  xmm1, xmm0       // signed(b) > signed(a)
-    movmskps eax, xmm1
-    mov      mask, eax
-  end;
-  Result := TMask4(mask);
+  Result := SSE2CmpGtU32x4(b, a);
 end;
 
 function SSE2CmpGtU32x4(const a, b: TVecU32x4): TMask4;
@@ -2007,22 +1907,19 @@ begin
   Result := TMask4(mask);
 end;
 
-// CmpLeU32x4: a <= b = NOT(a > b)
 function SSE2CmpLeU32x4(const a, b: TVecU32x4): TMask4;
 begin
-  Result := TMask4((not Byte(SSE2CmpGtU32x4(a, b))) and $F);
+  Result := TMask4(MASK4_ALL_SET xor SSE2CmpGtU32x4(a, b));
 end;
 
-// CmpGeU32x4: a >= b = NOT(a < b)
 function SSE2CmpGeU32x4(const a, b: TVecU32x4): TMask4;
 begin
-  Result := TMask4((not Byte(SSE2CmpLtU32x4(a, b))) and $F);
+  Result := TMask4(MASK4_ALL_SET xor SSE2CmpGtU32x4(b, a));
 end;
 
-// CmpNeU32x4: a != b = NOT(a == b)
 function SSE2CmpNeU32x4(const a, b: TVecU32x4): TMask4;
 begin
-  Result := TMask4((not Byte(SSE2CmpEqU32x4(a, b))) and $F);
+  Result := TMask4(MASK4_ALL_SET xor SSE2CmpEqU32x4(a, b));
 end;
 
 function SSE2MinU32x4(const a, b: TVecU32x4): TVecU32x4;
@@ -2287,27 +2184,8 @@ begin
 end;
 
 function SSE2CmpLtU16x8(const a, b: TVecU16x8): TMask8;
-var
-  pa, pb: Pointer;
-  mask: Integer;
-const
-  SignFlip: array[0..7] of UInt16 = ($8000, $8000, $8000, $8000, $8000, $8000, $8000, $8000);
 begin
-  pa := @a;
-  pb := @b;
-  asm
-    mov      rax, pa
-    mov      rdx, pb
-    movdqu   xmm0, [rax]
-    movdqu   xmm1, [rdx]
-    movdqu   xmm4, [rip + SignFlip]
-    pxor     xmm0, xmm4       // flip sign of a
-    pxor     xmm1, xmm4       // flip sign of b
-    pcmpgtw  xmm1, xmm0       // signed(b) > signed(a)
-    pmovmskb eax, xmm1
-    mov      mask, eax
-  end;
-  Result := TMask8(mask);
+  Result := SSE2CmpGtU16x8(b, a);
 end;
 
 function SSE2CmpGtU16x8(const a, b: TVecU16x8): TMask8;
@@ -2560,28 +2438,8 @@ begin
 end;
 
 function SSE2CmpLtU8x16(const a, b: TVecU8x16): TMask16;
-var
-  pa, pb: Pointer;
-  mask: Integer;
-const
-  SignFlip: array[0..15] of Byte = ($80, $80, $80, $80, $80, $80, $80, $80,
-                                     $80, $80, $80, $80, $80, $80, $80, $80);
 begin
-  pa := @a;
-  pb := @b;
-  asm
-    mov      rax, pa
-    mov      rdx, pb
-    movdqu   xmm0, [rax]
-    movdqu   xmm1, [rdx]
-    movdqu   xmm4, [rip + SignFlip]
-    pxor     xmm0, xmm4       // flip sign of a
-    pxor     xmm1, xmm4       // flip sign of b
-    pcmpgtb  xmm1, xmm0       // signed(b) > signed(a)
-    pmovmskb eax, xmm1
-    mov      mask, eax
-  end;
-  Result := TMask16(mask);
+  Result := SSE2CmpGtU8x16(b, a);
 end;
 
 function SSE2CmpGtU8x16(const a, b: TVecU8x16): TMask16;

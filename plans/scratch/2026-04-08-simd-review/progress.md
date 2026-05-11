@@ -515,3 +515,15 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+
+## 2026-05-11 SSE2 Integer Compare Thin Wrapper Completion
+
+- 继续顺着整数 compare 家族往下扫，确认 `I32x4/U32x4` 的 `Lt` 也只是 `Gt(b, a)` 的同合同重复体，没有必要继续保留完整 ASM。
+- 这次把 `I32x4/U32x4` 的 `Lt` 收成参数交换薄壳，并把 `Le/Ge/Ne` 统一成 `MASK4_ALL_SET xor ...`，让 `SSE2` 整数比较家族的收口模式和 `AVX2` 保持一致。
+- 现在 `SSE2` 的整数 compare 只保留 `Eq/Gt` 作为真比较体，其他关系都走薄封装，代码面更整齐，也更容易继续扫下一批重复实现。
+- 已完成验证：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NarrowIntegerOps`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`

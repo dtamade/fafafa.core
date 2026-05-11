@@ -579,6 +579,13 @@
 - 对 word-lane family 要保守：当前 `TMask8` contract 来自已有 `SSE2CmpEq/Gt...` 返回值，本批只翻转该返回值，不重解释 `pmovmskb` 的 lane layout。
 - 收口后 release 证据已覆盖 `NarrowIntegerOps`、`DispatchAPI`、`check` 和 `gate`，说明 wrapper 化没有破坏窄整型测试、dispatch parity 或结构护栏。
 
+## 2026-05-11 SSE2 Integer Compare Thin Wrapper Completion
+
+- `I32x4/U32x4` 的 `Lt` 也只是 `Gt(b, a)` 的同合同重复体，不需要继续维护独立 ASM compare 核心。
+- 这批进一步把 `I32x4/U32x4` 的 `Le/Ge/Ne` 收齐成和 `I16x8/I8x16/U16x8/U8x16` 同一套薄壳模式：`Lt` 走参数交换，`Le/Ge/Ne` 走 `MASK4_ALL_SET xor ...`。
+- 这样 `SSE2` 的整数比较族就和 `AVX2` 的收口思路一致了：保留 `Eq/Gt` 的真实比较体，其余关系都当作语义薄壳，而不是分散维护多份 ASM。
+- `NarrowIntegerOps` 和 `DispatchAPI` 已经足够覆盖这类 wrapper 重写的行为风险，`check` 与 `gate` 进一步证明结构、dispatch 和 release 门禁都没被破坏。
+
 ## 2026-05-11 SSE2 Wide Emulation Boundary Normalization
 
 - `src/fafafa.core.simd.sse2.wide_emulation.inc` 的 wide extract/insert helper 原来统一用 `index and N`，这会形成 wrap-around 语义。

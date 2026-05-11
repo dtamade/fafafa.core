@@ -451,3 +451,17 @@
 | 1. 识别可收敛重复体 | completed | `I16x8/I8x16/U16x8/U8x16` 的 `Le/Ge/Ne` 都只是 `Gt/Eq` 结果按当前 mask 宽度反相；浮点比较和真实 `Eq/Gt` ASM 不纳入本批 |
 | 2. 收回 thin wrapper | completed | 12 个 wrapper 已改成 `MASK*_ALL_SET xor SSE2CmpGt/Eq...`，避免继续维护 `NOT + compare + pmovmskb` 的重复 ASM |
 | 3. Release 验证与收口 | completed | `git diff --check`、`NarrowIntegerOps`、`DispatchAPI`、Release `check`、Release `gate` 全部通过 |
+
+## 2026-05-11 SSE2 Integer Compare Thin Wrapper Completion
+
+### Goal
+
+把 `SSE2` 里剩余的整数比较家族继续收紧到统一模式：`Lt/Le/Ge/Ne` 全部只是 `Eq/Gt` 的薄封装，`I32x4/U32x4` 跟已完成的窄整型 family 保持一致，不再维护任何重复的 `Lt` ASM 体。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别残余重复体 | completed | `I32x4/U32x4` 的 `Lt` 仍是完整 `pcmpgtd + movmskps` / sign-flip 体，和 `Gt(b,a)` 完全同合同；`Le/Ge/Ne` 也应继续保持薄壳风格 |
+| 2. 收回剩余 thin wrapper | completed | `I32x4/U32x4` 的 `Lt` 已改成 `Gt(b,a)`，`Le/Ge/Ne` 统一成 `MASK4_ALL_SET xor ...`；比较家族现在只保留 `Eq/Gt` 为真实 ASM |
+| 3. Release 验证与收口 | completed | `git diff --check`、`NarrowIntegerOps`、`DispatchAPI`、`check`、`gate` 全部通过 |
