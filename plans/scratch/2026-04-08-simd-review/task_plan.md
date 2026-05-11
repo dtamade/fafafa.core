@@ -620,3 +620,17 @@
 | 1. 识别 exact-contract vector-math fallback | completed | 已核对 `ScalarDot/Cross/Length/NormalizeF32x3/F32x4` 与原 `neon.scalar.vector_math.inc` non-ASM fallback 同合同，包括 `NormalizeF32x3` 的 `w=0` 语义 |
 | 2. 收回 scalar truth 并补 checker 护栏 | completed | `src/fafafa.core.simd.neon.scalar.vector_math.inc` 已改为直接委托 `Scalar*`，`check_nonx86_helper_semantics.py` 检查数提升至 191 |
 | 3. Release 验证与收口 | completed | `git diff --check`、helper checker、`impl-smoke-nonx86`、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过 |
+
+## 2026-05-11 AVX2 256-bit Dword Shared Kernel Consolidation
+
+### Goal
+
+把 `AVX2` 里 `I32x8/U32x8` 的 `Add/Sub/Mul/And/Or/Xor/Not/AndNot/ShiftLeft/ShiftRight(logical)` 重复体收回共享 dword raw helper；保留 signed/unsigned 比较、`Min/Max` 与 arithmetic right shift 的独立语义，不动 dispatch / register ownership。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别可安全合并的 dword repeaters | completed | 只收位语义同构的 arithmetic / bitwise / logical shift；`Cmp*`、`Min/Max`、`ShiftRightArithI32x8` 不动 |
+| 2. 落地 shared raw helper 并收口 wrappers | completed | `avx2.i32x8_family.inc` 新增 256-bit dword raw kernels，`I32x8/U32x8` 入口改为薄封装 |
+| 3. Release 验证与收口 | completed | `git diff --check`、Release targeted suite、Release `check`、Release `gate` 全部通过 |

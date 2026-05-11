@@ -636,3 +636,9 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-11 AVX2 256-bit Dword Shared Kernel Consolidation
+
+- `AVX2` 的 `I32x8/U32x8` 里，`Add/Sub/Mul/And/Or/Xor/Not/AndNot/ShiftLeft/ShiftRight(logical)` 都是同一条 dword 位语义的重复体，适合收成共享 raw kernel。
+- 这次把共享 kernel 放进 `avx2.i32x8_family.inc`，typed wrapper 只保留类型入口和 dispatch 绑定点；`Cmp*`、`Min/Max`、`ShiftRightArithI32x8` 仍保留独立实现。
+- release 验证已通过：`TTestCase_VecI32x8`、`TTestCase_VecU32x8`、`TTestCase_DispatchAPI`、`TTestCase_DirectDispatch`、`check`、`gate` 全绿。

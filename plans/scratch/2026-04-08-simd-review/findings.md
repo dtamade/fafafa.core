@@ -732,3 +732,9 @@
 - 这条 baseline 不是 promote 计划，而是把代表性 parity lane 冻结下来，交给 `x86 incremental qualification plan` 去消费。
 - 之前 family matrix 里那句“还缺 family-specific raw parity 文档”已经过时，当前应改读为“baseline 已有，但 promote / split 决策还没细分完”。
 - 轻量结构校验继续通过，说明这次只是在主链上补齐入口，没有引入新的 active-doc 冲突。
+
+## 2026-05-11 AVX2 256-bit Dword Shared Kernel Consolidation
+
+- `I32x8/U32x8` 的 `Add/Sub/Mul/And/Or/Xor/Not/AndNot/ShiftLeft/ShiftRight(logical)` 是 exact-contract 重复体，位模式完全一致，适合统一到共享 raw helper。
+- 共享 helper 放在 `avx2.i32x8_family.inc` 后，typed wrapper 只剩签名和 dispatch 入口，`Cmp*`、`Min/Max`、`ShiftRightArithI32x8` 仍保持独立语义，不做误合并。
+- 这次验证已经确认：`TTestCase_VecI32x8`、`TTestCase_VecU32x8`、`TTestCase_DispatchAPI`、`TTestCase_DirectDispatch`、`check`、`gate` 都是绿的。

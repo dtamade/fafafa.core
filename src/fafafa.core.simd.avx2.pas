@@ -2925,213 +2925,62 @@ end;
 
 // U32x8 加法 (VPADDD ymm) - 与有符号相同
 function AVX2AddU32x8(const a, b: TVecU32x8): TVecU32x8;
-var
-  pa, pb, pr: Pointer;
 begin
-  pr := @Result;
-  pa := @a;
-  pb := @b;
-
-  asm
-    mov     rax, pr
-    mov     rdx, pa
-    mov     rcx, pb
-    vmovdqu ymm0, [rdx]
-    vpaddd  ymm0, ymm0, [rcx]
-    vmovdqu [rax], ymm0
-    vzeroupper
-  end;
+  AVX2AddDwordVecRaw256(@a, @b, @Result);
 end;
 
 // U32x8 减法 (VPSUBD ymm) - 与有符号相同
 function AVX2SubU32x8(const a, b: TVecU32x8): TVecU32x8;
-var
-  pa, pb, pr: Pointer;
 begin
-  pr := @Result;
-  pa := @a;
-  pb := @b;
-
-  asm
-    mov     rax, pr
-    mov     rdx, pa
-    mov     rcx, pb
-    vmovdqu ymm0, [rdx]
-    vpsubd  ymm0, ymm0, [rcx]
-    vmovdqu [rax], ymm0
-    vzeroupper
-  end;
+  AVX2SubDwordVecRaw256(@a, @b, @Result);
 end;
 
 // U32x8 乘法 (低32位) (VPMULLD ymm)
 function AVX2MulU32x8(const a, b: TVecU32x8): TVecU32x8;
-var
-  pa, pb, pr: Pointer;
 begin
-  pr := @Result;
-  pa := @a;
-  pb := @b;
-
-  asm
-    mov     rax, pr
-    mov     rdx, pa
-    mov     rcx, pb
-    vmovdqu ymm0, [rdx]
-    vpmulld ymm0, ymm0, [rcx]
-    vmovdqu [rax], ymm0
-    vzeroupper
-  end;
+  AVX2MulDwordVecRaw256(@a, @b, @Result);
 end;
 
 // U32x8 位与 (VPAND ymm)
 function AVX2AndU32x8(const a, b: TVecU32x8): TVecU32x8;
-var
-  pa, pb, pr: Pointer;
 begin
-  pr := @Result;
-  pa := @a;
-  pb := @b;
-
-  asm
-    mov     rax, pr
-    mov     rdx, pa
-    mov     rcx, pb
-    vmovdqu ymm0, [rdx]
-    vpand   ymm0, ymm0, [rcx]
-    vmovdqu [rax], ymm0
-    vzeroupper
-  end;
+  AVX2AndDwordVecRaw256(@a, @b, @Result);
 end;
 
 // U32x8 位或 (VPOR ymm)
 function AVX2OrU32x8(const a, b: TVecU32x8): TVecU32x8;
-var
-  pa, pb, pr: Pointer;
 begin
-  pr := @Result;
-  pa := @a;
-  pb := @b;
-
-  asm
-    mov     rax, pr
-    mov     rdx, pa
-    mov     rcx, pb
-    vmovdqu ymm0, [rdx]
-    vpor    ymm0, ymm0, [rcx]
-    vmovdqu [rax], ymm0
-    vzeroupper
-  end;
+  AVX2OrDwordVecRaw256(@a, @b, @Result);
 end;
 
 // U32x8 位异或 (VPXOR ymm)
 function AVX2XorU32x8(const a, b: TVecU32x8): TVecU32x8;
-var
-  pa, pb, pr: Pointer;
 begin
-  pr := @Result;
-  pa := @a;
-  pb := @b;
-
-  asm
-    mov     rax, pr
-    mov     rdx, pa
-    mov     rcx, pb
-    vmovdqu ymm0, [rdx]
-    vpxor   ymm0, ymm0, [rcx]
-    vmovdqu [rax], ymm0
-    vzeroupper
-  end;
+  AVX2XorDwordVecRaw256(@a, @b, @Result);
 end;
 
 // U32x8 位非 (VPXOR with all 1s)
 function AVX2NotU32x8(const a: TVecU32x8): TVecU32x8;
-var
-  pa, pr: Pointer;
 begin
-  pr := @Result;
-  pa := @a;
-
-  asm
-    mov     rax, pr
-    mov     rdx, pa
-    vpcmpeqd ymm1, ymm1, ymm1   // all 1s
-    vmovdqu ymm0, [rdx]
-    vpxor   ymm0, ymm0, ymm1    // NOT = XOR with all 1s
-    vmovdqu [rax], ymm0
-    vzeroupper
-  end;
+  AVX2NotDwordVecRaw256(@a, @Result);
 end;
 
 // U32x8 位与非 (VPANDN ymm) - (NOT a) AND b
 function AVX2AndNotU32x8(const a, b: TVecU32x8): TVecU32x8;
-var
-  pa, pb, pr: Pointer;
 begin
-  pr := @Result;
-  pa := @a;
-  pb := @b;
-
-  asm
-    mov     rax, pr
-    mov     rdx, pa
-    mov     rcx, pb
-    vmovdqu ymm0, [rdx]
-    vpandn  ymm0, ymm0, [rcx]   // (NOT a) AND b
-    vmovdqu [rax], ymm0
-    vzeroupper
-  end;
+  AVX2AndNotDwordVecRaw256(@a, @b, @Result);
 end;
 
 // U32x8 逻辑左移 (VPSLLD ymm)
 function AVX2ShiftLeftU32x8(const a: TVecU32x8; count: Integer): TVecU32x8;
-var
-  pa, pr: Pointer;
 begin
-  pr := @Result;
-  pa := @a;
-
-  if (count < 0) or (count >= 32) then
-  begin
-    FillChar(Result, SizeOf(Result), 0);
-    Exit;
-  end;
-
-  asm
-    mov     rax, pr
-    mov     rdx, pa
-    vmovdqu ymm0, [rdx]
-    mov     ecx, count
-    vmovd   xmm1, ecx
-    vpslld  ymm0, ymm0, xmm1
-    vmovdqu [rax], ymm0
-    vzeroupper
-  end;
+  AVX2ShiftLeftDwordVecRaw256(@a, @Result, count);
 end;
 
 // U32x8 逻辑右移 (VPSRLD ymm)
 function AVX2ShiftRightU32x8(const a: TVecU32x8; count: Integer): TVecU32x8;
-var
-  pa, pr: Pointer;
 begin
-  pr := @Result;
-  pa := @a;
-
-  if (count < 0) or (count >= 32) then
-  begin
-    FillChar(Result, SizeOf(Result), 0);
-    Exit;
-  end;
-
-  asm
-    mov     rax, pr
-    mov     rdx, pa
-    vmovdqu ymm0, [rdx]
-    mov     ecx, count
-    vmovd   xmm1, ecx
-    vpsrld  ymm0, ymm0, xmm1    // Logical right shift
-    vmovdqu [rax], ymm0
-    vzeroupper
-  end;
+  AVX2ShiftRightDwordVecRaw256(@a, @Result, count);
 end;
 
 // U32x8 无符号比较操作
