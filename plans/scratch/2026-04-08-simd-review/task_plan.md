@@ -932,3 +932,18 @@
 | 2. 落地 scalar truth forwarder        | completed   | `riscvv.facade.inc` 的对应逐 lane 循环已改成 `Scalar*` 直调，不改 `riscvv.register.inc` 的 backend-owned slot                   |
 | 3. 扩大 helper semantics 护栏         | completed   | `check_nonx86_helper_semantics.py` 已加入新增 forwarder 断言，summary 从 197 扩到 251                                             |
 | 4. Release 验证与提交收口             | completed   | `git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过                  |
+
+## 2026-05-12 RISCVV Integer Compare Forwarder Expansion
+
+### Goal
+
+把 `src/fafafa.core.simd.riscvv.facade.inc` 里剩余一批 exact-contract integer compare fallback 收回 `ScalarCmp*` 真源；只动 integer compare，不碰 float compare、shift、min/max、register ownership 或 asm 路径。
+
+### Phases
+
+| Phase                                | Status      | Notes                                                                                                                              |
+| ------------------------------------ | ----------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| 1. 识别可安全合并的 compare fallback | completed   | `I16x8/I8x16/I32x16/I64x4/I64x8/U16x8/U32x4/U64x4/U8x16` 的 `Eq/Lt/Gt/Le/Ge/Ne` 都只是逐 lane compare 重复体                 |
+| 2. 落地 scalar truth forwarder       | completed   | `riscvv.facade.inc` 的对应 compare wrapper 已改成直接委托 `ScalarCmp*`，不改 `riscvv.register.inc` 的 slot ownership             |
+| 3. 扩大 helper semantics 护栏        | completed   | `check_nonx86_helper_semantics.py` 已把 RISCVV compare forwarder 覆盖扩到 `checks=304`                                           |
+| 4. Release 验证与收口                | completed   | `git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过               |

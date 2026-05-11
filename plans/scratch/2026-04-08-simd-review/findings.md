@@ -894,3 +894,10 @@
 - 这次收掉的是 `I16x8/I64x4/I64x8/I8x16/U16x8/U32x4/U64x4/U8x16` 的 `Add/Sub/And/Or/Xor/Not`，以及 `I16x8/U16x8/U32x4` 的 `Mul` 和 `I16x8/I64x4/U32x4` 的 `AndNot`；没有碰 compare、shift、float、register ownership。
 - `check_nonx86_helper_semantics.py` 已扩到 `checks=251`，说明这批 forwarder 已被 source-side 护栏接住，不会再轻易长回重复实现。
 - 这轮已经完成“代码 + 护栏 + release 复验”三步，当前只剩提交收口。
+
+## 2026-05-12 RISCVV Integer Compare Forwarder Expansion
+
+- `src/fafafa.core.simd.riscvv.facade.inc` 里 `I16x8/I8x16/I32x16/I64x4/I64x8/U16x8/U32x4/U64x4/U8x16` 的 integer compare 仍在手写逐 lane 比较，属于与 `ScalarCmp*` 完全同合同的重复壳。
+- 这次把这些 compare wrapper 全部收回 `ScalarCmp*`，但保留了 float compare 和 register ownership，不把语义敏感或 backend-owned 路径混进来。
+- `check_nonx86_helper_semantics.py` 的 summary 从 `251` 扩到 `304`，说明新增 forwarder 已被护栏完整接住。
+- `impl-audit-nonx86 / check / gate` 也都绿了，所以这批 compare 收口属于可提交的完成态。

@@ -894,3 +894,17 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 - 生成的 `__pycache__` 已清理，当前工作树只保留目标改动。
+
+## 2026-05-12 RISCVV Integer Compare Forwarder Expansion
+
+- 继续沿 `Wave 5 / retire + redundancy cleanup` 扫 `RISCVV` facade 的 exact-contract 重复体，这次收的是 integer compare 而不是 arithmetic。
+- `src/fafafa.core.simd.riscvv.facade.inc` 已把 `I16x8/I8x16/I32x16/I64x4/I64x8/U16x8/U32x4/U64x4/U8x16` 的 compare wrapper 改成直调 `ScalarCmp*`。
+- `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 已同步新增 compare forwarder 断言，summary 变成 `checks=304`。
+- 已完成 release 级收口：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
