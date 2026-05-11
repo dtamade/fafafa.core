@@ -10,6 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 NEON_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.wide_memory.inc"
 NEON_IMPL_FILE = ROOT / "src" / "fafafa.core.simd.neon.pas"
+NEON_SCALAR_FALLBACK_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar_fallback.inc"
 NEON_SCALAR_UTILITY_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.utility.inc"
 NEON_SCALAR_AUTOWRAP_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.autowrap.inc"
 RISCVV_FILE = ROOT / "src" / "fafafa.core.simd.riscvv.pas"
@@ -69,6 +70,7 @@ def main() -> int:
 
     neon_source = read_text(NEON_FILE)
     neon_impl_source = read_text(NEON_IMPL_FILE)
+    neon_scalar_fallback_source = read_text(NEON_SCALAR_FALLBACK_FILE)
     neon_scalar_utility_source = read_text(NEON_SCALAR_UTILITY_FILE)
     neon_scalar_autowrap_source = read_text(NEON_SCALAR_AUTOWRAP_FILE)
     riscvv_source = read_text(RISCVV_FILE)
@@ -183,6 +185,51 @@ def main() -> int:
             "Result.f[LIndex] := a.f[LIndex]",
             "else",
             "Result.f[LIndex] := b.f[LIndex];",
+        ]),
+        (neon_scalar_fallback_source, "NEONAddF32x4", [
+            "Result := ScalarAddF32x4(a, b);",
+        ]),
+        (neon_scalar_fallback_source, "NEONSubF32x4", [
+            "Result := ScalarSubF32x4(a, b);",
+        ]),
+        (neon_scalar_fallback_source, "NEONMulF32x4", [
+            "Result := ScalarMulF32x4(a, b);",
+        ]),
+        (neon_scalar_fallback_source, "NEONDivF32x4", [
+            "Result := ScalarDivF32x4(a, b);",
+        ]),
+        (neon_scalar_fallback_source, "NEONAddF32x8", [
+            "Result := ScalarAddF32x8(a, b);",
+        ]),
+        (neon_scalar_fallback_source, "NEONSubF32x8", [
+            "Result := ScalarSubF32x8(a, b);",
+        ]),
+        (neon_scalar_fallback_source, "NEONMulF32x8", [
+            "Result := ScalarMulF32x8(a, b);",
+        ]),
+        (neon_scalar_fallback_source, "NEONDivF32x8", [
+            "Result := ScalarDivF32x8(a, b);",
+        ]),
+        (neon_scalar_fallback_source, "NEONAddF64x2", [
+            "Result := ScalarAddF64x2(a, b);",
+        ]),
+        (neon_scalar_fallback_source, "NEONSubF64x2", [
+            "Result := ScalarSubF64x2(a, b);",
+        ]),
+        (neon_scalar_fallback_source, "NEONMulF64x2", [
+            "Result := ScalarMulF64x2(a, b);",
+        ]),
+        (neon_scalar_fallback_source, "NEONDivF64x2", [
+            "Result := ScalarDivF64x2(a, b);",
+        ]),
+        (neon_scalar_fallback_source, "NEONAddI32x4", [
+            "Result := ScalarAddI32x4(a, b);",
+        ]),
+        (neon_scalar_fallback_source, "NEONSubI32x4", [
+            "Result := ScalarSubI32x4(a, b);",
+        ]),
+        (neon_scalar_fallback_source, "NEONMulI32x4", [
+            "Result := ScalarMulI32x4(a, b);",
         ]),
         (neon_scalar_utility_source, "NEONSelectF32x4", [
             "Result := ScalarSelectF32x4(mask, a, b);",

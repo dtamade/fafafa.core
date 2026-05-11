@@ -7,106 +7,80 @@
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONAddF32x4(const a, b: TVecF32x4): TVecF32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := a.f[i] + b.f[i];
+  Result := ScalarAddF32x4(a, b);
 end;
 
 function NEONSubF32x4(const a, b: TVecF32x4): TVecF32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := a.f[i] - b.f[i];
+  Result := ScalarSubF32x4(a, b);
 end;
 
 function NEONMulF32x4(const a, b: TVecF32x4): TVecF32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := a.f[i] * b.f[i];
+  Result := ScalarMulF32x4(a, b);
 end;
 
 function NEONDivF32x4(const a, b: TVecF32x4): TVecF32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := a.f[i] / b.f[i];
+  Result := ScalarDivF32x4(a, b);
 end;
 
 function NEONAddF32x8(const a, b: TVecF32x8): TVecF32x8;
 begin
-  Result.lo := NEONAddF32x4(a.lo, b.lo);
-  Result.hi := NEONAddF32x4(a.hi, b.hi);
+  Result := ScalarAddF32x8(a, b);
 end;
 
 function NEONSubF32x8(const a, b: TVecF32x8): TVecF32x8;
 begin
-  Result.lo := NEONSubF32x4(a.lo, b.lo);
-  Result.hi := NEONSubF32x4(a.hi, b.hi);
+  Result := ScalarSubF32x8(a, b);
 end;
 
 function NEONMulF32x8(const a, b: TVecF32x8): TVecF32x8;
 begin
-  Result.lo := NEONMulF32x4(a.lo, b.lo);
-  Result.hi := NEONMulF32x4(a.hi, b.hi);
+  Result := ScalarMulF32x8(a, b);
 end;
 
 function NEONDivF32x8(const a, b: TVecF32x8): TVecF32x8;
 begin
-  Result.lo := NEONDivF32x4(a.lo, b.lo);
-  Result.hi := NEONDivF32x4(a.hi, b.hi);
+  Result := ScalarDivF32x8(a, b);
 end;
 
 function NEONAddF64x2(const a, b: TVecF64x2): TVecF64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.d[i] := a.d[i] + b.d[i];
+  Result := ScalarAddF64x2(a, b);
 end;
 
 function NEONSubF64x2(const a, b: TVecF64x2): TVecF64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.d[i] := a.d[i] - b.d[i];
+  Result := ScalarSubF64x2(a, b);
 end;
 
 function NEONMulF64x2(const a, b: TVecF64x2): TVecF64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.d[i] := a.d[i] * b.d[i];
+  Result := ScalarMulF64x2(a, b);
 end;
 
 function NEONDivF64x2(const a, b: TVecF64x2): TVecF64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.d[i] := a.d[i] / b.d[i];
+  Result := ScalarDivF64x2(a, b);
 end;
 
 // Integer SIMD operations must wrap on overflow (hardware semantics).
 {$PUSH}{$R-}{$Q-}
 function NEONAddI32x4(const a, b: TVecI32x4): TVecI32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.i[i] := a.i[i] + b.i[i];
+  Result := ScalarAddI32x4(a, b);
 end;
 
 function NEONSubI32x4(const a, b: TVecI32x4): TVecI32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.i[i] := a.i[i] - b.i[i];
+  Result := ScalarSubI32x4(a, b);
 end;
 
 function NEONMulI32x4(const a, b: TVecI32x4): TVecI32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.i[i] := a.i[i] * b.i[i];
+  Result := ScalarMulI32x4(a, b);
 end;
 {$POP}
 

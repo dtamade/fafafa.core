@@ -38,6 +38,7 @@
 | `rg -n` 直接扫 IEEE754 testcase 输出过大 | 1 | 改为先定位具体 suite 名称与行号，再按区段读取 |
 | `gate` 最后一步 `run_all-chain` 失败 | 1 | 已定位为 `cpuinfo.x86` Windows batch runner success-criteria 合同缺口，修复后 `gate` 恢复 PASS |
 | 批量给旧 `simd` plan 插入状态头时首次落到了文档尾部 | 1 | 已去掉错误的跨行匹配方式，先清除误插入块，再把状态头重插到标题下 |
+| `check` 和 `gate` 并发编译同一 `tests/fafafa.core.simd` 输出目录导致临时 rc=2/1 | 1 | 改为串行重跑，确认不是代码回归 |
 
 ## 2026-05-09 Subtask
 
@@ -394,3 +395,17 @@
 | 1. 识别可复用的 exact-contract fallback | completed | 已确认 `neon.scalar.utility.inc` 的 `SelectF32x4 / ExtractF32x4 / InsertF32x4 / SelectF64x2`、U64x2 exact fallback，以及 `neon.scalar.autowrap.inc` 的 `ExtractF64x2 / InsertF64x2` 都是同合同重复体 |
 | 2. 收回重复实现并补 checker | completed | exact fallback 已委托 `Scalar*`；`check_nonx86_helper_semantics.py` 已补 source-side 护栏 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、non-x86 helper checker、Release `check`、`impl-audit-nonx86`、`gate` 全绿 |
+
+## 2026-05-11 NEON Scalar Fallback Core Arithmetic Consolidation
+
+### Goal
+
+把 `NEON` non-ASM scalar fallback 开头那组基础算术 wrapper 收回到 `Scalar*` 真源，避免 `scalar_fallback.inc` 再维护一份逐 lane arithmetic loop。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别基础算术重复体 | completed | 已确认 `NEONAdd/Sub/Mul/DivF32x4/F32x8/F64x2` 以及 `NEONAdd/Sub/MulI32x4` 都是与 `Scalar*` 完全同合同的逐 lane loop |
+| 2. 收回重复实现并补 checker | completed | `scalar_fallback.inc` 里的这批 wrapper 已全部改成直接委托 `Scalar*`，`check_nonx86_helper_semantics.py` 也补了 source-side 护栏 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、`check_nonx86_helper_semantics.py --summary-line`、Release `check`、`impl-audit-nonx86`、`gate` 串行全绿 |

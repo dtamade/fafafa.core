@@ -627,3 +627,11 @@
 - 这些都属于 fallback exact-contract redundancy，不是 backend-owned NEON asm leaf；可以收回 `ScalarSelect* / ScalarExtract* / ScalarInsert* / Scalar*U64x2`。
 - `src/fafafa.core.simd.neon.pas` 里的 asm-enabled `NEONSelectF32x4` 继续保持显式 per-lane body，因为现有 helper checker 用它表达 backend-owned slot 的源码归属，不纳入这批。
 - 已完成收口：utility / autowrap fallback 已改成 thin wrapper，`check_nonx86_helper_semantics.py` 也补了对应 source-side 断言，防止同合同重复实现再回长回来。
+
+## 2026-05-11 NEON Scalar Fallback Core Arithmetic Consolidation
+
+- `src/fafafa.core.simd.neon.scalar_fallback.inc` 开头那组基础算术 wrapper 也都是和 `Scalar*` 完全同合同的逐 lane loop：`Add/Sub/Mul/DivF32x4`、`Add/Sub/Mul/DivF32x8`、`Add/Sub/Mul/DivF64x2`、`Add/Sub/MulI32x4`。
+- 这批更适合直接委托 scalar truth，而不是在 NEON fallback 再维护一份相同 loop。
+- 计划同步会把这批加入 helper checker，保持 exact-contract 收口可追踪。
+- 当前这批已全部收口完成，`scalar_fallback.inc` 不再保留这组重复的逐 lane 基础算术体。
+- 验证时曾因 `check` / `gate` 并发占用同一输出目录触发临时失败，串行重跑后确认门禁绿。

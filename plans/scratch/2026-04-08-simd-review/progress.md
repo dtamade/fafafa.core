@@ -477,3 +477,10 @@
 - 目标是把这批 fallback 收回 `Scalar*` 真源，只保留真正的 asm-owned 或语义不同的实现。
 - 当前已把这一批作为新的 in-progress 批次写进 scratch，下一步直接动代码和 checker。
 - 已完成代码收口、checker 收口和 release 验证：`check_nonx86_helper_semantics.py --summary-line`、`BuildOrTest.sh check`、`BuildOrTest.sh impl-audit-nonx86`、`BuildOrTest.sh gate` 全绿。
+
+## 2026-05-11 NEON Scalar Fallback Core Arithmetic Consolidation
+
+- 继续扫 `NEON` fallback 时，发现 `scalar_fallback.inc` 开头的 F32/F64/I32 基础算术仍在手写同合同 scalar loop。
+- 当前批次将这些基础算术 wrapper 改成直接委托 `Scalar*`，并在 helper checker 中锁住。
+- 这批现在已经收口完成，`check_nonx86_helper_semantics.py --summary-line`、`BuildOrTest.sh check`、`BuildOrTest.sh impl-audit-nonx86`、`BuildOrTest.sh gate` 串行全绿。
+- 过程中曾把 `check` 和 `gate` 并行到同一输出目录，触发了一次临时 build 失败；已确认是验证方式冲突，不是代码问题。
