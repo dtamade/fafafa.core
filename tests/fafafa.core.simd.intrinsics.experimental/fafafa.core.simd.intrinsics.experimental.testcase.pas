@@ -32,6 +32,7 @@ type
     procedure Test_SSE41_InsertPs_ReplacesSelectedLane;
     procedure Test_SSE41_ConvertExtends_SignedAndUnsigned;
     procedure Test_SSE41_MinMax_SignedAndUnsigned;
+    procedure Test_SSE41_Blend_ImmediateAndVariableMasks;
   end;
 {$ENDIF}
 {$ENDIF}
@@ -505,6 +506,92 @@ begin
   LResult := sse41_max_epu32(LLeft, LRight);
   AssertEquals('sse41_max_epu32 lane0', Int64($F0000000), Int64(LResult.m128i_u32[0]));
   AssertEquals('sse41_max_epu32 lane3', Int64($90000000), Int64(LResult.m128i_u32[3]));
+end;
+
+procedure TTestCase_SimdIntrinsicsExperimentalX86.Test_SSE41_Blend_ImmediateAndVariableMasks;
+var
+  LA: TM128;
+  LB: TM128;
+  LMask: TM128;
+  LResult: TM128;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128_f32[0] := 10.0;
+  LA.m128_f32[1] := 20.0;
+  LA.m128_f32[2] := 30.0;
+  LA.m128_f32[3] := 40.0;
+  LB.m128_f32[0] := 100.0;
+  LB.m128_f32[1] := 200.0;
+  LB.m128_f32[2] := 300.0;
+  LB.m128_f32[3] := 400.0;
+
+  LResult := sse41_blend_ps(LA, LB, $05);
+  AssertEquals('sse41_blend_ps lane0', 100.0, LResult.m128_f32[0], 0.0);
+  AssertEquals('sse41_blend_ps lane1', 20.0, LResult.m128_f32[1], 0.0);
+  AssertEquals('sse41_blend_ps lane2', 300.0, LResult.m128_f32[2], 0.0);
+  AssertEquals('sse41_blend_ps lane3', 40.0, LResult.m128_f32[3], 0.0);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := 11.0;
+  LA.m128d_f64[1] := 22.0;
+  LB.m128d_f64[0] := 111.0;
+  LB.m128d_f64[1] := 222.0;
+
+  LResult := sse41_blend_pd(LA, LB, $02);
+  AssertEquals('sse41_blend_pd lane0', 11.0, LResult.m128d_f64[0], 0.0);
+  AssertEquals('sse41_blend_pd lane1', 222.0, LResult.m128d_f64[1], 0.0);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  FillChar(LMask, SizeOf(LMask), 0);
+  LA.m128_f32[0] := 1.0;
+  LA.m128_f32[1] := 2.0;
+  LA.m128_f32[2] := 3.0;
+  LA.m128_f32[3] := 4.0;
+  LB.m128_f32[0] := 10.0;
+  LB.m128_f32[1] := 20.0;
+  LB.m128_f32[2] := 30.0;
+  LB.m128_f32[3] := 40.0;
+  LMask.m128i_u32[1] := $80000000;
+  LMask.m128i_u32[3] := $80000000;
+
+  LResult := sse41_blendv_ps(LA, LB, LMask);
+  AssertEquals('sse41_blendv_ps lane0', 1.0, LResult.m128_f32[0], 0.0);
+  AssertEquals('sse41_blendv_ps lane1', 20.0, LResult.m128_f32[1], 0.0);
+  AssertEquals('sse41_blendv_ps lane2', 3.0, LResult.m128_f32[2], 0.0);
+  AssertEquals('sse41_blendv_ps lane3', 40.0, LResult.m128_f32[3], 0.0);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  FillChar(LMask, SizeOf(LMask), 0);
+  LA.m128d_f64[0] := 5.0;
+  LA.m128d_f64[1] := 6.0;
+  LB.m128d_f64[0] := 50.0;
+  LB.m128d_f64[1] := 60.0;
+  LMask.m128i_u64[0] := QWord($8000000000000000);
+
+  LResult := sse41_blendv_pd(LA, LB, LMask);
+  AssertEquals('sse41_blendv_pd lane0', 50.0, LResult.m128d_f64[0], 0.0);
+  AssertEquals('sse41_blendv_pd lane1', 6.0, LResult.m128d_f64[1], 0.0);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  FillChar(LMask, SizeOf(LMask), 0);
+  LA.m128i_u8[0] := 1;
+  LA.m128i_u8[1] := 2;
+  LA.m128i_u8[15] := 15;
+  LB.m128i_u8[0] := 100;
+  LB.m128i_u8[1] := 101;
+  LB.m128i_u8[15] := 115;
+  LMask.m128i_u8[0] := $80;
+  LMask.m128i_u8[15] := $80;
+
+  LResult := sse41_blendv_epi8(LA, LB, LMask);
+  AssertEquals('sse41_blendv_epi8 lane0', 100, LResult.m128i_u8[0]);
+  AssertEquals('sse41_blendv_epi8 lane1', 2, LResult.m128i_u8[1]);
+  AssertEquals('sse41_blendv_epi8 lane15', 115, LResult.m128i_u8[15]);
 end;
 
 {$ENDIF}

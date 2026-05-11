@@ -741,6 +741,24 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 
+## 2026-05-11 SSE4.1 Blend Helper Consolidation
+
+- 已把 `sse41_blend_ps / blend_pd / blendv_ps / blendv_pd / blendv_epi8` 的重复 lane selection 收成私有 helper：
+  - `SSE41BlendF32x4`
+  - `SSE41BlendF64x2`
+  - `SSE41BlendVF32x4`
+  - `SSE41BlendVF64x2`
+  - `SSE41BlendVE8x16`
+- 公开 wrapper 继续保留原函数名与 imm8 / sign-bit mask contract，只收敛重复选择体，不扩大 surface。
+- 已新增 `Test_SSE41_Blend_ImmediateAndVariableMasks`，覆盖 immediate mask、float sign-mask 与 byte sign-mask 的代表性路径。
+- 验证结果：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test --suite=TTestCase_SimdIntrinsicsExperimentalX86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+
 ## 2026-05-11 SSE4.1 Rounding Helper Consolidation
 
 - 已把 `sse41_round_ps / sse41_round_pd / sse41_round_ss / sse41_round_sd` 的重复 rounding case 收成单一私有 `SSE41RoundScalar` helper。

@@ -829,3 +829,10 @@
 - 这批没有把 signed 与 unsigned 比较强行塞进一个模糊 helper，而是按 lane type 保留 4 个私有 helper；公开 wrapper 只负责函数名、signedness 和 min/max 入口，重复选择逻辑不再散落 8 份。
 - 新增回归使用负数和高位 unsigned 值一起覆盖，能防止后续把 `epu16/epu32` 误退化成 signed 比较，也能证明最后一个 lane 没有被漏掉。
 - `TTestCase_SimdIntrinsicsExperimentalX86` 必须继续用显式 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1` 运行；本批 targeted experimental suite、Release `check`、Release `gate` 已全部通过。
+
+## 2026-05-11 SSE4.1 Blend Helper Consolidation
+
+- `sse41_blend_ps / blend_pd / blendv_ps / blendv_pd / blendv_epi8` 都是 lane selection 的重复壳，最值得收的部分是前四个 float/double pair，它们能按 immediate-mask 和 sign-mask 分成两组私有 helper。
+- 这批保持了原本的 imm8 / sign-bit contract，没有引入新的 mask 解释层，也没有把 blend 逻辑推广成更抽象的泛型接口。
+- `blendv_epi8` 也一并退到单一 helper，避免 byte sign-mask 继续维护独立循环体。
+- 新增的 `Test_SSE41_Blend_ImmediateAndVariableMasks` 让 immediate mask、float sign-mask 和 byte sign-mask 三种形态都在显式 experimental 模式下被证明过。

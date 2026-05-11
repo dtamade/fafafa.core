@@ -803,3 +803,17 @@
 | 1. 识别 min/max 重复簇   | completed | 八个 wrapper 只在 lane type 与 `>` / `<` 方向上不同，属于 exact-contract duplicate                                     |
 | 2. 落地私有 helper 与回归 | completed | 新增 `SSE41MinMaxI8x16/I32x4/U16x8/U32x4`，并补 `Test_SSE41_MinMax_SignedAndUnsigned` |
 | 3. Release 验证与收口    | completed | `git diff --check`、experimental `check`、targeted experimental suite、Release `check`、Release `gate` 全通过            |
+
+## 2026-05-11 SSE4.1 Blend Helper Consolidation
+
+### Goal
+
+把 `sse41_blend_ps / blend_pd / blendv_ps / blendv_pd / blendv_epi8` 的重复 lane selection 收成私有 helper，同时保留 imm8 / sign-bit mask contract 和公开函数名，不改其它 SSE4.1 路径。
+
+### Phases
+
+| Phase                        | Status    | Notes                                                                                                   |
+| ---------------------------- | --------- | ------------------------------------------------------------------------------------------------------- |
+| 1. 识别 blend 重复簇         | completed | `blend_ps/pd` 与 `blendv_ps/pd/epi8` 都是同合同 lane selection 重复体，只是 mask 来源和 lane 宽度不同 |
+| 2. 落地私有 helper 与回归     | completed | 新增 `SSE41BlendF32x4/F64x2/VF32x4/VF64x2/VE8x16`，并补 `Test_SSE41_Blend_ImmediateAndVariableMasks` |
+| 3. Release 验证与收口        | completed | `git diff --check`、experimental `check`、targeted experimental suite、Release `check`、Release `gate` 全通过 |

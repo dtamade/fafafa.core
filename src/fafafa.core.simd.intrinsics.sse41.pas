@@ -350,60 +350,80 @@ begin
       Result.m128d_f64[i] := sum;
 end;
 
-// === 混合操作实现 ===
-function sse41_blend_ps(const a, b: TM128; imm8: Byte): TM128;
+function SSE41BlendF32x4(const a, b: TM128; imm8: Byte): TM128; inline;
 var
   i: Integer;
 begin
+  Result := a;
   for i := 0 to 3 do
     if (imm8 and (1 shl i)) <> 0 then
-      Result.m128_f32[i] := b.m128_f32[i]
-    else
-      Result.m128_f32[i] := a.m128_f32[i];
+      Result.m128_f32[i] := b.m128_f32[i];
+end;
+
+function SSE41BlendF64x2(const a, b: TM128; imm8: Byte): TM128; inline;
+var
+  i: Integer;
+begin
+  Result := a;
+  for i := 0 to 1 do
+    if (imm8 and (1 shl i)) <> 0 then
+      Result.m128d_f64[i] := b.m128d_f64[i];
+end;
+
+function SSE41BlendVF32x4(const a, b, mask: TM128): TM128; inline;
+var
+  i: Integer;
+begin
+  Result := a;
+  for i := 0 to 3 do
+    if (mask.m128i_u32[i] and $80000000) <> 0 then
+      Result.m128_f32[i] := b.m128_f32[i];
+end;
+
+function SSE41BlendVF64x2(const a, b, mask: TM128): TM128; inline;
+var
+  i: Integer;
+begin
+  Result := a;
+  for i := 0 to 1 do
+    if (mask.m128i_u64[i] and $8000000000000000) <> 0 then
+      Result.m128d_f64[i] := b.m128d_f64[i];
+end;
+
+function SSE41BlendVE8x16(const a, b, mask: TM128): TM128; inline;
+var
+  i: Integer;
+begin
+  Result := a;
+  for i := 0 to 15 do
+    if (mask.m128i_u8[i] and $80) <> 0 then
+      Result.m128i_u8[i] := b.m128i_u8[i];
+end;
+
+// === 混合操作实现 ===
+function sse41_blend_ps(const a, b: TM128; imm8: Byte): TM128;
+begin
+  Result := SSE41BlendF32x4(a, b, imm8);
 end;
 
 function sse41_blend_pd(const a, b: TM128; imm8: Byte): TM128;
-var
-  i: Integer;
 begin
-  for i := 0 to 1 do
-    if (imm8 and (1 shl i)) <> 0 then
-      Result.m128d_f64[i] := b.m128d_f64[i]
-    else
-      Result.m128d_f64[i] := a.m128d_f64[i];
+  Result := SSE41BlendF64x2(a, b, imm8);
 end;
 
 function sse41_blendv_ps(const a, b, mask: TM128): TM128;
-var
-  i: Integer;
 begin
-  for i := 0 to 3 do
-    if (mask.m128i_u32[i] and $80000000) <> 0 then
-      Result.m128_f32[i] := b.m128_f32[i]
-    else
-      Result.m128_f32[i] := a.m128_f32[i];
+  Result := SSE41BlendVF32x4(a, b, mask);
 end;
 
 function sse41_blendv_pd(const a, b, mask: TM128): TM128;
-var
-  i: Integer;
 begin
-  for i := 0 to 1 do
-    if (mask.m128i_u64[i] and $8000000000000000) <> 0 then
-      Result.m128d_f64[i] := b.m128d_f64[i]
-    else
-      Result.m128d_f64[i] := a.m128d_f64[i];
+  Result := SSE41BlendVF64x2(a, b, mask);
 end;
 
 function sse41_blendv_epi8(const a, b, mask: TM128): TM128;
-var
-  i: Integer;
 begin
-  for i := 0 to 15 do
-    if (mask.m128i_u8[i] and $80) <> 0 then
-      Result.m128i_u8[i] := b.m128i_u8[i]
-    else
-      Result.m128i_u8[i] := a.m128i_u8[i];
+  Result := SSE41BlendVE8x16(a, b, mask);
 end;
 
 // === 舍入指令实现 ===
