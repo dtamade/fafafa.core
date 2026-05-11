@@ -758,3 +758,9 @@
 - 重新核对代码、commit history 和 scratch 以后，没有再找到一块“可安全合并、且不碰语义敏感路径”的新增重复体；继续硬扫只会增加误合并风险。
 - 真正需要修的是 active plan 状态漂移：`execution-index` 仍把 `Wave 3C / Wave 4A / Wave 4B` 当默认起手，和当前已落地的 code batches 不一致。
 - 已把 `execution-index` 与 `global architecture plan` 同步到当前事实：默认执行队列现在应切到 `Wave 5 / retire + redundancy cleanup`，Wave 4 的 non-x86 代码批次只保留为 hold / evidence / drift watch 参考。
+
+## 2026-05-11 Current Validation Snapshot
+
+- `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test` 当前通过，说明当前树里的 SIMD 实现和并发回归面已经回到绿态。
+- `TTestCase_SimdConcurrentPublicAbi`、`TTestCase_IEEE754EdgeCases` 和 full `gate` 也都通过，说明先前的 public ABI text publication 与 IEEE754 rounding 失败面在当前树里不再是活跃 blocker。
+- `bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight` 现在返回 `RECENT_BILLING_BLOCK`，所以 fresh Windows evidence refresh 目前被 GitHub billing 挡住，剩余 release gap 是外部证据链，而不是 SIMD 代码本身。

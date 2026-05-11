@@ -673,3 +673,10 @@
 - 重新核对当前代码与 active plan 后，确认 `execution-index` 里 `Wave 3C / Wave 4A / Wave 4B` 仍写成默认起手会误导后续会话；实际默认执行队列应切到 `Wave 5 / retire + redundancy cleanup`。
 - 已同步修正 `docs/plans/2026-05-10-simd-execution-index.md` 与 `docs/plans/2026-05-09-simd-global-architecture-refactor-plan.md`，把 `Wave 4` 的 non-x86 代码批次写成已落地，把 `Wave 5` 写成当前默认 cleanup wave。
 - 这轮没有继续开新代码批次，因为当前没有再找到一块可安全收口、又不碰语义敏感边界的重复实现；下一步要么进 Wave 5 的 evidence-backed cleanup，要么等 fresh red 再回到 family plan。
+
+## 2026-05-11 Current Session Checkpoint
+
+- `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test` PASS。
+- `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` PASS。
+- `bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight` 现在返回 `RECENT_BILLING_BLOCK`，所以 fresh Windows evidence refresh 目前被 GitHub billing 挡住了，不是 SIMD 代码回归。
+- 本轮代码侧已经没有新的可见 blocker，剩余 release gap 只有外部 evidence freshness。
