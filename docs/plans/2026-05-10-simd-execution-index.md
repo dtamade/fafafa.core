@@ -45,10 +45,11 @@
   - `NEON` exact-contract fallback forwarder 批次已收口，由 helper semantics checker 守住
   - `RISCVV` exact-contract facade fallback 批次已收口，继续保持 opt-in / opcode lane / ABI shape 边界
 
-### 当前还没完成的阶段
+### 当前剩余的代码侧阶段
 
 - `Wave 5 / retire + redundancy cleanup`：当前默认下一波
   - retire / hold baseline 已落盘
+  - family-level promote / hold / future-trigger 判断已冻结在 `docs/plans/2026-05-11-simd-family-decision-baseline.md`
   - 后续只处理有替代项、有证据、有 checker 护栏的 duplicated helper / transitional debt
   - 语义敏感路径继续要求独立 parity，不用“看起来相似”当合并依据
 
@@ -286,16 +287,17 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-
 5. 跑它的 baseline
 6. 开工
 
-## 当前还没做完的 closeout 级文档
+## 当前仍保留的 closeout 级文档
 
 这页只负责“怎么开始”，不负责把所有 closeout 问题都解决。
 
-当前还明确未完成的是：
+当前仍保留、但不再表示“未完成 policy”的文档是：
 
-- `SSE2` promote / split / retire 决策文档链（retire target baseline 已落盘）
-- `AES / SHA / AVX / FMA3 / SVE / SVE2 / LASX` 的 family-specific future trigger 决策
+- `docs/plans/2026-05-09-simd-sse2-retire-target-plan.md`
+- `docs/plans/2026-05-09-simd-experimental-hold-future-trigger-plan.md`
+- `docs/plans/2026-05-11-simd-family-decision-baseline.md`
 
 `SSSE3` 当前已经明确为 adapter-only / `no dedicated raw leaf target`，不再作为待补 raw leaf 项处理。
 `Wave 2 / seam hardening` 也已完成，不再列入未完成 closeout 项。
 
-这些是后面波次的收尾问题，不影响你从当前计划正常开工。
+这些文档负责收口政策与边界，不影响你从当前计划正常开工。
