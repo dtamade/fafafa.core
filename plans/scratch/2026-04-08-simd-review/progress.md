@@ -1055,3 +1055,17 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过，`NONX86_HELPER_SEMANTICS_SUMMARY checks=454 status=ok`
+
+## 2026-05-12 RISCVV Vector Math Exact Forwarder Consolidation
+
+- 继续沿 `Wave 5 / retire + redundancy cleanup` 收 `RISCVV` no-ASM facade 里的 exact vector-math 重复体，把 `DotF32x4/F32x3`、`CrossF32x3`、`LengthF32x4/F32x3` 收回 `Scalar*` 真源。
+- `NormalizeF32x4/F32x3` 先保留，因为 RISCVV 当前阈值是 `1e-10`，scalar 阈值是 `0.0`，不能按重复体直接合并。
+- `DotF64x2/F64x4` 经 release 测试确认不能直接 scalar forward，已回退到本地实现；`check_nonx86_helper_semantics.py` 最终只收了 5 个 forwarder，summary 从 `checks=454` 扩到 `checks=459`。
+- 轻量验证与 release 级收口已完成：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过，`NONX86_HELPER_SEMANTICS_SUMMARY checks=459 status=ok`

@@ -1148,3 +1148,24 @@
 | 2. 落地 scalar truth forwarder | completed | `RISCVVMask2/4/8/16*` 已改成直接委托 `ScalarMask*`                                   |
 | 3. 扩大 helper semantics 护栏   | completed | `check_nonx86_helper_semantics.py` 已纳入 20 个 mask forwarder，summary 从 `checks=434` 扩到 `checks=454` |
 | 4. Release 验证与收口          | completed | `git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过 |
+
+## 2026-05-12 RISCVV Vector Math Exact Forwarder Consolidation
+
+### Goal
+
+把 `src/fafafa.core.simd.riscvv.facade.inc` 里 `F32` dot/cross/length 的 5 个 exact-contract no-ASM fallback 收回 `Scalar*` 真源；不碰 `NormalizeF32x4/F32x3`，因为 RISCVV 当前阈值是 `1e-10` 而 scalar 阈值是 `0.0`；不碰 `DotF64x2/F64x4`，因为现有 source-shape 测试要求它们不得直接 scalar forward。
+
+### Phases
+
+| Phase                          | Status    | Notes                                                                                          |
+| ------------------------------ | --------- | ---------------------------------------------------------------------------------------------- |
+| 1. 识别 exact vector-math 重复体 | completed | `DotF32x4/F32x3`、`CrossF32x3`、`LengthF32x4/F32x3` 与 `Scalar*` 同合同；`DotF64x2/F64x4` 经测试确认不得 scalar forward |
+| 2. 落地 scalar truth forwarder | completed | 5 个 RISCVV wrapper 已改成直接委托对应 `Scalar*`；`Normalize*` 保留原实现                     |
+| 3. 扩大 helper semantics 护栏   | completed | `check_nonx86_helper_semantics.py` 已纳入这 5 个 forwarder，summary 从 `checks=454` 扩到 `checks=459` |
+| 4. Release 验证与收口          | completed | `git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过 |
+
+### Errors Encountered
+
+| Error | Attempt | Resolution |
+| --- | --- | --- |
+| `Test_RISCVV_FacadeDotF64_NoAsmSource_Does_Not_ScalarForward` failed after forwarding `DotF64x2/F64x4` | 1 | Reverted both F64 dot wrappers back to local exact arithmetic and kept only the F32 dot/cross/length forwarders |

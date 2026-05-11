@@ -998,3 +998,11 @@
 - 这 20 个 mask helper 的合同和 scalar 侧完全一致，属于纯壳收口，不涉及 NaN、signed-zero、fused 运算或其它高风险语义。
 - 这次没有碰 bitwise mask ops、select、extract/insert、asm path 或 `riscvv.register.inc` 的 slot ownership，边界仍然干净。
 - `check_nonx86_helper_semantics.py` 的护栏已经更新到 `checks=454 status=ok`，release `check` 和 `gate` 也都通过了。
+
+## 2026-05-12 RISCVV Vector Math Exact Forwarder Consolidation
+
+- `src/fafafa.core.simd.riscvv.facade.inc` 里 `DotF32x4/F32x3`、`CrossF32x3`、`LengthF32x4/F32x3` 现在都直调 `Scalar*`，把手写公式收回统一真源。
+- `NormalizeF32x4/F32x3` 明确不纳入本批，因为 RISCVV 当前使用 `1e-10` 阈值，而 scalar 使用 `0.0` 阈值，不能当成 exact-contract 重复体。
+- `DotF64x2/F64x4` 后来被 release 测试证明不能直接 scalar forward，已回退到本地实现；最终只保留 F32 dot/cross/length 的 5 个 forwarder。
+- 这次没有碰 reduction、float min/max、rounding/trunc、load/store、asm path 或 `riscvv.register.inc` 的 slot ownership，边界仍然干净。
+- `check_nonx86_helper_semantics.py` 的护栏已经更新到 `checks=459 status=ok`，release `check` 和 `gate` 也都通过了。

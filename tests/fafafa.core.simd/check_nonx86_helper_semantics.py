@@ -815,6 +815,16 @@ def main() -> int:
                 (f"RISCVV{op}{suffix}", f"Scalar{op}{suffix}(a)")
             )
 
+    riscvv_scalar_forwarder_expectations.extend(
+        [
+            ("RISCVVDotF32x4", "ScalarDotF32x4(a, b)"),
+            ("RISCVVDotF32x3", "ScalarDotF32x3(a, b)"),
+            ("RISCVVCrossF32x3", "ScalarCrossF32x3(a, b)"),
+            ("RISCVVLengthF32x4", "ScalarLengthF32x4(a)"),
+            ("RISCVVLengthF32x3", "ScalarLengthF32x3(a)"),
+        ]
+    )
+
     for suffix in ("F32x4", "F64x2", "F32x8", "F64x4", "F32x16", "F64x8"):
         for op in ("Floor", "Ceil"):
             riscvv_scalar_forwarder_expectations.append(

@@ -333,12 +333,12 @@ end;
 
 function RISCVVDotF32x4(const a, b: TVecF32x4): Single;
 begin
-  Result := a.f[0] * b.f[0] + a.f[1] * b.f[1] + a.f[2] * b.f[2] + a.f[3] * b.f[3];
+  Result := ScalarDotF32x4(a, b);
 end;
 
 function RISCVVDotF32x3(const a, b: TVecF32x4): Single;
 begin
-  Result := a.f[0] * b.f[0] + a.f[1] * b.f[1] + a.f[2] * b.f[2];
+  Result := ScalarDotF32x3(a, b);
 end;
 
 function RISCVVDotF64x2(const a, b: TVecF64x2): Double;
@@ -353,20 +353,17 @@ end;
 
 function RISCVVCrossF32x3(const a, b: TVecF32x4): TVecF32x4;
 begin
-  Result.f[0] := a.f[1] * b.f[2] - a.f[2] * b.f[1];
-  Result.f[1] := a.f[2] * b.f[0] - a.f[0] * b.f[2];
-  Result.f[2] := a.f[0] * b.f[1] - a.f[1] * b.f[0];
-  Result.f[3] := 0.0;
+  Result := ScalarCrossF32x3(a, b);
 end;
 
 function RISCVVLengthF32x4(const a: TVecF32x4): Single;
 begin
-  Result := Sqrt(a.f[0] * a.f[0] + a.f[1] * a.f[1] + a.f[2] * a.f[2] + a.f[3] * a.f[3]);
+  Result := ScalarLengthF32x4(a);
 end;
 
 function RISCVVLengthF32x3(const a: TVecF32x4): Single;
 begin
-  Result := Sqrt(a.f[0] * a.f[0] + a.f[1] * a.f[1] + a.f[2] * a.f[2]);
+  Result := ScalarLengthF32x3(a);
 end;
 
 function RISCVVNormalizeF32x4(const a: TVecF32x4): TVecF32x4;
