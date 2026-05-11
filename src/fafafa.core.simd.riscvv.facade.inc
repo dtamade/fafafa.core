@@ -861,23 +861,13 @@ begin
 end;
 
 function RISCVVMinI32x16(const a, b: TVecI32x16): TVecI32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    if a.i[i] < b.i[i] then
-      Result.i[i] := a.i[i]
-    else
-      Result.i[i] := b.i[i];
+  Result := ScalarMinI32x16(a, b);
 end;
 
 function RISCVVMaxI32x16(const a, b: TVecI32x16): TVecI32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    if a.i[i] > b.i[i] then
-      Result.i[i] := a.i[i]
-    else
-      Result.i[i] := b.i[i];
+  Result := ScalarMaxI32x16(a, b);
 end;
 
 // =============================================================

@@ -901,3 +901,10 @@
 - 这次把这些 compare wrapper 全部收回 `ScalarCmp*`，但保留了 float compare 和 register ownership，不把语义敏感或 backend-owned 路径混进来。
 - `check_nonx86_helper_semantics.py` 的 summary 从 `251` 扩到 `304`，说明新增 forwarder 已被护栏完整接住。
 - `impl-audit-nonx86 / check / gate` 也都绿了，所以这批 compare 收口属于可提交的完成态。
+
+## 2026-05-12 RISCVV I32x16 MinMax Tail Completion
+
+- 重新扫 RISCVV integer min/max 后，发现历史 min/max 批次已基本收完，当前只剩 `RISCVVMinI32x16 / RISCVVMaxI32x16` 两个手写逐 lane 分支。
+- 这两个函数与 `ScalarMinI32x16 / ScalarMaxI32x16` 完全同合同，适合直接收回 scalar truth；float min/max 仍然不碰。
+- `check_nonx86_helper_semantics.py` 现在把这两个尾巴也纳入 source-side 断言，summary 变成 `checks=306`。
+- `impl-audit-nonx86 / check / gate` 全部通过，说明这个尾巴收口没有改变 backend-owned slot 或公开 contract。

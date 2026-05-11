@@ -908,3 +908,16 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-12 RISCVV I32x16 MinMax Tail Completion
+
+- 继续扫 RISCVV integer min/max 后，确认当前只剩 `RISCVVMinI32x16 / RISCVVMaxI32x16` 两个手写 loop。
+- 已把这两个 wrapper 改成 `ScalarMinI32x16 / ScalarMaxI32x16` 直调，并把 checker 期待值扩到 `checks=306`。
+- 已完成 release 级收口：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

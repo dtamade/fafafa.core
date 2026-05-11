@@ -947,3 +947,18 @@
 | 2. 落地 scalar truth forwarder       | completed   | `riscvv.facade.inc` 的对应 compare wrapper 已改成直接委托 `ScalarCmp*`，不改 `riscvv.register.inc` 的 slot ownership             |
 | 3. 扩大 helper semantics 护栏        | completed   | `check_nonx86_helper_semantics.py` 已把 RISCVV compare forwarder 覆盖扩到 `checks=304`                                           |
 | 4. Release 验证与收口                | completed   | `git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过               |
+
+## 2026-05-12 RISCVV I32x16 MinMax Tail Completion
+
+### Goal
+
+把 `src/fafafa.core.simd.riscvv.facade.inc` 里剩余的 `I32x16` integer `Min/Max` 手写循环收回 `ScalarMin/MaxI32x16` 真源；不碰 float min/max，也不改 register ownership。
+
+### Phases
+
+| Phase                          | Status      | Notes                                                                                               |
+| ------------------------------ | ----------- | --------------------------------------------------------------------------------------------------- |
+| 1. 识别唯一剩余的 min/max 尾巴 | completed   | 当前只剩 `MinI32x16/MaxI32x16` 还在手写逐 lane 分支                                               |
+| 2. 落地 scalar truth forwarder | completed   | 两个 wrapper 已改成直接委托 `ScalarMinI32x16/ScalarMaxI32x16`                                      |
+| 3. 扩大 helper semantics 护栏   | completed   | `check_nonx86_helper_semantics.py` 已把 `I32x16` min/max 计入 compare/minmax forwarder 覆盖，checks=306 |
+| 4. Release 验证与收口          | completed   | `git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过 |

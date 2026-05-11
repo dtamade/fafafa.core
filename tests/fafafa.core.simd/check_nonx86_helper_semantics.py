@@ -845,7 +845,7 @@ def main() -> int:
             (f"RISCVVAndNot{suffix}", f"ScalarAndNot{suffix}(a, b)")
         )
 
-    for suffix in ("I32x4", "I32x8"):
+    for suffix in ("I32x4", "I32x8", "I32x16"):
         riscvv_scalar_forwarder_expectations.extend(
             [
                 (f"RISCVVMin{suffix}", f"ScalarMin{suffix}(a, b)"),
