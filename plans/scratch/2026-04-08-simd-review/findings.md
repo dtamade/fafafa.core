@@ -946,3 +946,11 @@
 - 这批仍然只碰 no-ASM facade fallback，不碰 `Min/Max`、rounding、clamp、FMA、`Rcp/Rsqrt`、asm path 或 `riscvv.register.inc` 的 slot ownership。
 - `check_nonx86_helper_semantics.py` 需要把这 12 个 forwarder 收进护栏，summary 预期会从 `checks=374` 扩到 `checks=386`。
 - 复验结果已确认：`git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿，helper summary 为 `NONX86_HELPER_SEMANTICS_SUMMARY checks=386 status=ok`。
+
+## 2026-05-12 RISCVV Fma/Rcp/Rsqrt Forwarder Consolidation
+
+- `src/fafafa.core.simd.riscvv.facade.inc` 里 `F32x4/F64x2/F32x8/F64x4/F32x16/F64x8` 的 `Fma` 仍是与 `ScalarFma*` 完全同合同的逐 lane loop；`F32x4` 的 `Rcp/Rsqrt` 也与 `ScalarRcp/ScalarRsqrt` 完全同合同。
+- `RcpF64x4` 先保留本地实现，因为它对零有显式特判，不属于和 `ScalarRcpF64x4` 完全同合同的薄壳。
+- 这批只改 no-ASM facade fallback，不碰 `riscvv.pas` 的 RVV asm path，也不动 `riscvv.register.inc` 的 backend-owned slot。
+- `check_nonx86_helper_semantics.py` 已补这 8 个 source-side 断言，helper summary 扩到 `NONX86_HELPER_SEMANTICS_SUMMARY checks=394 status=ok`。
+- release 复验已完成：`git diff --check`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿。

@@ -1037,3 +1037,18 @@
 | 2. 落地 scalar truth forwarder  | completed   | 12 个 wrapper 已改成直接委托对应 `ScalarAbs/Sqrt*`                                                     |
 | 3. 扩大 helper semantics 护栏    | completed   | `check_nonx86_helper_semantics.py` 已纳入这 12 个 forwarder，summary 预期从 `checks=374` 到 `checks=386` |
 | 4. Release 验证与收口           | completed   | `git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过 |
+
+## 2026-05-12 RISCVV Fma/Rcp/Rsqrt Forwarder Consolidation
+
+### Goal
+
+把 `src/fafafa.core.simd.riscvv.facade.inc` 里 `F32x4/F64x2/F32x8/F64x4/F32x16/F64x8` 的 `Fma` no-ASM fallback 以及 `F32x4` 的 `Rcp/Rsqrt` 收回 `Scalar*` 真源；保留 `RcpF64x4`、`Min/Max`、rounding、clamp、asm path 和 register ownership 不动。
+
+### Phases
+
+| Phase                                       | Status      | Notes                                                                                                         |
+| ------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------- |
+| 1. 识别 exact-contract ext math 重复体       | completed   | 6 个 `Fma` wrapper 与 `F32x4` 的 `Rcp/Rsqrt` 都已有对应 `Scalar*` helper；`RcpF64x4` 因零特判不纳入本批       |
+| 2. 落地 scalar truth forwarder              | completed   | `riscvv.facade.inc` 已改成直接委托 `ScalarFma*` / `ScalarRcpF32x4` / `ScalarRsqrtF32x4`                      |
+| 3. 扩大 helper semantics 护栏                | completed   | `check_nonx86_helper_semantics.py` 已补 RISCVV Fma / `Rcp` / `Rsqrt` source-side 断言，summary 扩到 `checks=394` |
+| 4. Release 验证与收口                       | completed   | `git diff --check`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 均通过              |

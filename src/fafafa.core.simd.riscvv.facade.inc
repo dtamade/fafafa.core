@@ -137,25 +137,18 @@ end;
 // =============================================================
 
 function RISCVVFmaF32x4(const a, b, c: TVecF32x4): TVecF32x4;
-var i: Integer;
 begin
-  // a * b + c
-  for i := 0 to 3 do
-    Result.f[i] := a.f[i] * b.f[i] + c.f[i];
+  Result := ScalarFmaF32x4(a, b, c);
 end;
 
 function RISCVVRcpF32x4(const a: TVecF32x4): TVecF32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := 1.0 / a.f[i];
+  Result := ScalarRcpF32x4(a);
 end;
 
 function RISCVVRsqrtF32x4(const a: TVecF32x4): TVecF32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := 1.0 / Sqrt(a.f[i]);
+  Result := ScalarRsqrtF32x4(a);
 end;
 
 // RegisterRISCVVBackend intentionally keeps the canonical base scalar slots
@@ -2010,38 +2003,28 @@ begin
 end;
 
 function RISCVVFmaF32x16(const a, b, c: TVecF32x16): TVecF32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.f[i] := a.f[i] * b.f[i] + c.f[i];
+  Result := ScalarFmaF32x16(a, b, c);
 end;
 
 function RISCVVFmaF32x8(const a, b, c: TVecF32x8): TVecF32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.f[i] := a.f[i] * b.f[i] + c.f[i];
+  Result := ScalarFmaF32x8(a, b, c);
 end;
 
 function RISCVVFmaF64x2(const a, b, c: TVecF64x2): TVecF64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.d[i] := a.d[i] * b.d[i] + c.d[i];
+  Result := ScalarFmaF64x2(a, b, c);
 end;
 
 function RISCVVFmaF64x4(const a, b, c: TVecF64x4): TVecF64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.d[i] := a.d[i] * b.d[i] + c.d[i];
+  Result := ScalarFmaF64x4(a, b, c);
 end;
 
 function RISCVVFmaF64x8(const a, b, c: TVecF64x8): TVecF64x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.d[i] := a.d[i] * b.d[i] + c.d[i];
+  Result := ScalarFmaF64x8(a, b, c);
 end;
 
 function RISCVVSatAddI8x16(const a, b: TVecI8x16): TVecI8x16;

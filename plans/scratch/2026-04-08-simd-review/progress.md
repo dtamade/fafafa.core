@@ -970,3 +970,10 @@
 - 这些函数都有现成 `Scalar*` helper，可继续按 exact-contract 收回。
 - `src/fafafa.core.simd.riscvv.facade.inc` 已把这 12 个 fallback 改成对应 `Scalar*` 直调，`check_nonx86_helper_semantics.py` 已把 summary 扩到 `checks=386`。
 - release 级复验已完成：`git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 均通过。
+
+## 2026-05-12 RISCVV Fma/Rcp/Rsqrt Forwarder Consolidation
+
+- 接上 `Wave 5 / retire + redundancy cleanup`，继续收 `RISCVV` no-ASM facade 里剩余的 exact-contract ext math 重复体。
+- `src/fafafa.core.simd.riscvv.facade.inc` 已把 `F32x4/F64x2/F32x8/F64x4/F32x16/F64x8` 的 `Fma` 以及 `F32x4` 的 `Rcp/Rsqrt` 改成直接委托 `Scalar*` 真源；`RcpF64x4` 仍保留本地实现。
+- `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 已把这批 source-side forwarder 收进护栏，summary 扩到 `checks=394`。
+- release 级验证已完成：`git diff --check`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过。
