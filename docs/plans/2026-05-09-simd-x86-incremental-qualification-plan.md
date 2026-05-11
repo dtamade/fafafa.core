@@ -166,7 +166,7 @@ python3 tests/fafafa.core.simd/check_intrinsics_experimental_status.py --summary
 ## 当前下一动作
 
 - `SSE3 / SSE4.1 / SSE4.2 / AVX-512`：继续 `hold green`
-- `SSSE3`：先把 raw-leaf 目标补成显式真相，再决定是否需要 leaf 计划
+- `SSSE3`：保持 adapter-only；`no dedicated raw leaf target` 已是当前真相，只有 fresh red 或明确 promote 需要时才开 leaf 子计划
 
 ## 完成标准
 

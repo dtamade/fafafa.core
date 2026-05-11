@@ -56,12 +56,13 @@
 
 这张矩阵已经够开工，但还没有彻底闭环。
 
+`SSSE3` 当前已明确为 adapter-only / `no dedicated raw leaf target`，不再作为待补 raw leaf 项处理。
+
 目前还缺：
 
-1. `SSSE3` 的 raw-leaf 目标没有在当前真相文档里被显式写死。
-2. `SSE3/SSE4.1/SSE4.2/AVX-512` 只有 isolation / smoke，但缺 family-specific raw parity 文档。
-3. `NEON/RISCVV` 虽然已有 family-level qualification plan，但还没有进入 promote / hold-decision 文档阶段。
-4. `AES/SHA/AVX/FMA3/SVE/SVE2/LASX` 目前还只有“继续隔离”的判断，没有明确的 future trigger。
+1. `SSE3/SSE4.1/SSE4.2/AVX-512` 只有 isolation / smoke，但缺 family-specific raw parity 文档。
+2. `NEON/RISCVV` 虽然已有 family-level qualification plan，但还没有进入 promote / hold-decision 文档阶段。
+3. `AES/SHA/AVX/FMA3/SVE/SVE2/LASX` 目前还只有“继续隔离”的判断，没有明确的 future trigger。
 
 因此它是 **execution-ready**，但还不是 **closeout-complete**。
 

@@ -550,3 +550,17 @@
 | 1. 识别 exact-contract wide floor/ceil fallback | completed | 已确认 `NEONFloor/CeilF32x8/F32x16/F64x4/F64x8` 都只是和 `ScalarFloor/Ceil*` 同合同的 guard+round wrapper |
 | 2. 收回 scalar truth 并补 checker 护栏 | completed | `neon.scalar.autowrap.inc` 已改成直接委托 `ScalarFloor/Ceil*`；`check_nonx86_helper_semantics.py` 已补 8 条 source-side 断言 |
 | 3. Release 验证与收口 | completed | `git diff --check`、`py_compile`、non-x86 helper checker、`impl-smoke-nonx86`、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过 |
+
+## 2026-05-11 SSSE3 Raw-Leaf Wording Harmonization
+
+### Goal
+
+把 `SSSE3` 在 active x86 文档里的口径统一成 `adapter-only`，不再把不存在的 dedicated raw leaf target 写成待补项。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 找出冲突表述 | completed | `execution index` / `global architecture plan` 曾把 `SSSE3` 写成待补 raw-leaf target，而 `family matrix` 已明确它是 adapter-only in practice |
+| 2. 统一 active 文档口径 | completed | x86 plan、execution index、global plan 与 family matrix 已统一成 `adapter-only / no dedicated raw leaf target` |
+| 3. 验证与收口 | completed | `rg` 复核不再有 active-doc 冲突，`git diff --check` 通过；同时清掉 execution index 里过期的 `Wave 2` 未开始表述 |

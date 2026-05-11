@@ -343,7 +343,7 @@
   - 不再让每个 family 的下一动作只存在于聊天上下文里
 - 但它仍然没有到 `closeout-complete`，因为下面几类文档还没单独展开：
   - `SSE2` promote / split / retire 决策文档
-  - `SSSE3` raw-leaf target 明确化
+  - `SSSE3` adapter-only / `no dedicated raw leaf target` 口径统一
   - `AES/SHA/AVX/FMA3/SVE/SVE2/LASX` future trigger 文档
 - 所以“这份计划完善了吗”的准确回答是：
   - **已经够启动 whole-module refactor**
@@ -698,3 +698,9 @@
 - 窄 `F32x4 / F64x2` 的 `Floor/Ceil` fallback 仍和 scalar helper 不完全同构，本轮不合并，避免把语义修复伪装成去重。
 - `Round/Trunc` 也继续保留，因为 scalar helper 额外做 signed-zero normalize；后续如要收口，应该先补明确语义测试。
 - release 复验证明这次只收宽向量 exact fallback：helper checker、`impl-smoke-nonx86`、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿。
+
+## 2026-05-11 SSSE3 Raw-Leaf Wording Harmonization
+
+- 通过比对 `global architecture plan`、`execution index` 和 `family matrix`，发现 `SSSE3` 只有文档口径冲突，不是代码实现缺口。
+- `family matrix` 已明确 `SSSE3` 是 adapter-only in practice，没有 dedicated raw leaf target；active 入口里那句“raw-leaf target 明确化”的表述已改成 hold adapter-only，避免未来会话误把它当成待办实现。
+- `execution index` 顶部已经写明 `Wave 2 / seam hardening` 完成，但底部未完成项仍保留旧句“代码实施还没开始”；这是同一类 active-doc drift，已同步删除。

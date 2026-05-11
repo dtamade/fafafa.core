@@ -252,11 +252,11 @@ raw leaves
 - 有波次，不再是散点翻文件。
 - 有显式的 `family matrix`。
 - 有文档分工，不再让总纲、状态表、阅读地图互相抢 source-of-truth。
+- `SSSE3` 已明确为 adapter-only / `no dedicated raw leaf target`，不再被误列成待补 raw leaf。
 
 ### 还不够的部分
 
 - `SSE2` 还没有进入 promote / split / retire 的决策文档阶段。
-- `SSSE3` 的 raw-leaf 目标还没有在真相文档里被显式写死。
 - `AES / SHA / AVX / FMA3 / SVE / SVE2 / LASX` 目前仍只有 hold 判断，没有 future trigger 文档。
 
 因此，这份计划现在已经是 `execution-ready`，但还不是 `closeout-complete`。
@@ -372,6 +372,5 @@ raw leaves
 
 1. 继续维护 `AVX2 / NEON / RISCVV / x86 incremental` 这 4 份 family-level 文档，避免它们重新漂回聊天上下文
 2. 把现有 `SSE2` 计划继续保留在 `Wave 3`，作为高债务试点子计划
-3. 先补 `SSSE3` raw-leaf target 真相
-4. 再按 matrix 执行 qualification / promote / split / retire
-5. 最后再补 `SSE2 retire target` 与 `experimental hold future trigger` 这两类 closeout 级文档
+3. 再按 matrix 执行 qualification / promote / split / retire
+4. 最后再补 `SSE2 retire target` 与 `experimental hold future trigger` 这两类 closeout 级文档

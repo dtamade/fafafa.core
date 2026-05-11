@@ -258,9 +258,10 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-
 
 当前还明确未完成的是：
 
-- `Wave 2` 当前虽然已有 active plan，但代码实施还没开始
 - `SSE2` promote / split / retire 决策文档
-- `SSSE3` raw-leaf target 明确化
 - `AES / SHA / AVX / FMA3 / SVE / SVE2 / LASX` 的 future trigger 文档
+
+`SSSE3` 当前已经明确为 adapter-only / `no dedicated raw leaf target`，不再作为待补 raw leaf 项处理。
+`Wave 2 / seam hardening` 也已完成，不再列入未完成 closeout 项。
 
 这些是后面波次的收尾问题，不影响你从当前计划正常开工。
