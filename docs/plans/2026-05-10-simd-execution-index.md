@@ -36,16 +36,21 @@
 - `Wave 2 / seam hardening`：已完成
   - `dispatch / dataplane / public ABI / direct / façade fast-path` 已收口到单一 truth / publication seam
   - `dispatch-read-scope` 已接入 `check`
-- `Wave 3 / x86 families execution`：部分完成
+- `Wave 3 / x86 families execution`：当前代码队列已完成
   - `Wave 3A` AVX2 sample / lane cleanup 已完成
   - `Wave 3B` SSSE3 noise cleanup / redundancy collapse 已完成
-  - `Wave 3C` x86 incremental qualification 仍是当前代码队列；shared raw parity baseline 已独立落盘
+  - `Wave 3C` x86 incremental qualification / shared raw parity baseline 已独立落盘；当前不再作为默认代码起点
   - `Wave 3D` SSE2 debt pilot 已完成
+- `Wave 4 / non-x86 families execution`：当前代码队列已完成
+  - `NEON` exact-contract fallback forwarder 批次已收口，由 helper semantics checker 守住
+  - `RISCVV` exact-contract facade fallback 批次已收口，继续保持 opt-in / opcode lane / ABI shape 边界
 
-### 还没完成的阶段
+### 当前还没完成的阶段
 
-- `Wave 4 / non-x86 families execution`：待进入代码实施
-- `Wave 5 / retire + redundancy cleanup`：待进入代码实施
+- `Wave 5 / retire + redundancy cleanup`：当前默认下一波
+  - retire / hold baseline 已落盘
+  - 后续只处理有替代项、有证据、有 checker 护栏的 duplicated helper / transitional debt
+  - 语义敏感路径继续要求独立 parity，不用“看起来相似”当合并依据
 
 ## 下次开会话的固定步骤
 
@@ -77,14 +82,13 @@
 
 当前默认执行队列是：
 
-1. `Wave 3C`：按 shared x86 incremental plan + raw parity baseline 收 `SSE3 / SSSE3 / SSE4.1 / SSE4.2 / AVX-512`
-2. `Wave 4A`：按 `NEON` qualification plan 推进
-3. `Wave 4B`：按 `RISCVV` qualification plan 推进
-4. `Wave 5`：清理 retire target / duplicated helper / future trigger
+1. `Wave 5`：按 retire / hold baseline 清理 duplicated helper / transitional debt / future trigger drift
+2. fresh-red family 回查：只有当 `check` / `gate` / family audit 明确红到某个 family，才回到对应 family plan
+3. release closeout：如果代码队列已经没有可安全收口项，再回到 release evidence freshness / freeze-status 链路
 
 规则：
 
-- 不要跳过前面的波次，直接去做后面更“有趣”的重构
+- 不要重新打开已经收口的 `Wave 3C / Wave 4A / Wave 4B`，除非有 fresh red 或用户明确指定
 - 只有当某条波次出现 fresh red 或用户明确指定，才允许跳队
 
 ## Step 2：按目标选入口文档
@@ -103,6 +107,20 @@
 说明：
 
 - 这一波已经完成，当前只作为历史完成记录保留
+
+### 如果你今天要做 `Wave 5 / retire + redundancy cleanup`
+
+看：
+
+- `docs/plans/2026-05-09-simd-sse2-retire-target-plan.md`
+- `docs/plans/2026-05-09-simd-experimental-hold-future-trigger-plan.md`
+- `docs/plans/2026-05-09-simd-family-matrix.md`
+
+目标：
+
+- 只清理已经有 replacement / evidence / checker 的重复实现
+- 只冻结明确 retire / hold 的对象，不把 stable adapter 责任误删
+- 不把 semantic-sensitive path 伪装成 exact-contract 去重
 
 ### 如果你今天要做 `AVX2`
 
@@ -126,7 +144,7 @@
 
 - `AVX-512` 这条线已经重新核对过，当前没有新的 thin-wrapper / duplicate implementation 可收，继续保持 `hold green`。
 - `raw parity baseline` 已单独落盘，不再临场决定要不要另开 family 级 parity 文档。
-- 下一波如果要做代码，而不是文档收口，优先还是 `Wave 3C` 里剩下的 x86 incremental qualification，再往后才是 `Wave 5 / retire + redundancy cleanup`。
+- `Wave 3C` 当前不再是默认代码队列；只有 fresh red 明确落到这组 family 时，才回到这里。
 
 目标：
 

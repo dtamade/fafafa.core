@@ -339,6 +339,11 @@ raw leaves
 - opt-in / stable / experimental 边界对所有非 x86 family 都清晰可验证
 - `NEON` / `RISCVV` 至少各有一条 family-specific qualification 路线
 
+当前状态补充：
+
+- `NEON` / `RISCVV` 的主要 code batches 已落地，当前更多是 hold / evidence / drift watch 面，不再是默认起手的代码队列
+- 如果未来出现 fresh red，再回到对应 family plan；否则默认进入 Wave 5
+
 ## Wave 5：消减冗余并冻结删除策略
 
 目标：
@@ -352,6 +357,12 @@ raw leaves
 - 替代项已通过 release 证据
 - family matrix 已更新
 - gate / structure checker 能守住新边界
+
+当前状态补充：
+
+- 这是接下来默认的 cleanup wave
+- 只处理 evidence-backed exact-contract redundancy / transitional debt / retire target freezing
+- 不把 semantic-sensitive path 伪装成“看起来像重复体”的简单去重
 
 ## 这轮重构不做什么
 

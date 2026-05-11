@@ -662,3 +662,17 @@
 | 1. 识别可安全合并的 128-bit arithmetic/shift repeaters | completed | `I32x4/U32x4`、`I16x8/U16x8`、`I8x16/U8x16` 的 add/sub 以及 dword/word logical shift 都是 exact-contract 重复体 |
 | 2. 落地 shared raw helper 并收口 wrappers | completed | `src/fafafa.core.simd.avx2.pas` 已新增 dword/word/byte add-sub raw helper 和 dword/word shift raw helper，相关 typed wrapper 已改成薄封装 |
 | 3. Release 验证与收口 | completed | `git diff --check`、`TTestCase_NarrowIntegerOps`、`TTestCase_AVX2VectorAsm`、`TTestCase_DispatchAPI`、`TTestCase_DirectDispatch`、`TTestCase_DataPlane`、`check`、`gate` 全部通过 |
+
+## 2026-05-11 SIMD Active Plan Status Sync
+
+### Goal
+
+把 `execution-index` / `global architecture plan` 的当前波次状态同步到最新代码事实，避免后续会话继续从过期的 `Wave 3C / Wave 4A / Wave 4B` 默认起手。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前 code queue 与 plan queue | completed | 重新核对 git log、scratch 记录与 active plans，确认 Wave 4 主要 code batches 已落地，默认执行队列应切到 Wave 5 |
+| 2. 修正 active plan 状态文档 | completed | 已同步更新 `docs/plans/2026-05-10-simd-execution-index.md` 与 `docs/plans/2026-05-09-simd-global-architecture-refactor-plan.md` |
+| 3. 记录下一步收口方向 | completed | 当前不再继续开新代码 batch；后续要么进入 Wave 5 的 evidence-backed cleanup，要么等 fresh red 再回到 family plan |

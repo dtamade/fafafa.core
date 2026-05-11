@@ -752,3 +752,9 @@
 - 本批把 128-bit dword/word/byte add-sub 收进共享 raw helper，把 dword/word logical shift 收进共享 raw helper；typed wrapper 继续保留 dispatch slot 和类型签名。
 - `ShiftRightArithI32x4`、`ShiftRightArithI16x8`、`Cmp*`、`Min/Max` 没有被合并；这些路径仍是当前 AVX2 adapter 内的独立语义边界。
 - release 复验证明这次是重复实现收口而不是 contract 漂移：`NarrowIntegerOps`、`AVX2VectorAsm`、`DispatchAPI`、`DirectDispatch`、`DataPlane`、`check`、`gate` 全绿。
+
+## 2026-05-11 SIMD Active Plan Status Sync
+
+- 重新核对代码、commit history 和 scratch 以后，没有再找到一块“可安全合并、且不碰语义敏感路径”的新增重复体；继续硬扫只会增加误合并风险。
+- 真正需要修的是 active plan 状态漂移：`execution-index` 仍把 `Wave 3C / Wave 4A / Wave 4B` 当默认起手，和当前已落地的 code batches 不一致。
+- 已把 `execution-index` 与 `global architecture plan` 同步到当前事实：默认执行队列现在应切到 `Wave 5 / retire + redundancy cleanup`，Wave 4 的 non-x86 代码批次只保留为 hold / evidence / drift watch 参考。
