@@ -682,13 +682,11 @@
 - `check_nonx86_helper_semantics.py` 已加 source-side 断言，锁住这批 RISCVV fallback 的 `ScalarMin/Max*` 委托路径，避免后续再长回逐 lane loop。
 - release 复验证明这次只是 fallback 去重，不是 contract 漂移：`git diff --check`、`impl-smoke-nonx86`、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿。
 
-
 ## 2026-05-11 RISCVV Facade Arithmetic/Bitwise/Compare Consolidation
 
 - `riscvv.facade.inc` 里 `I32x4 / I64x2 / I32x8 / U32x8` 仍有一批 exact-contract fallback 在手写 lane loop，和同名 `Scalar*` helper 完全同合同。
 - 本轮收口只改 non-asm fallback body：`Add/Sub/Mul/And/Or/Xor/Not/AndNot/Cmp*` 以及 `I32x4/I32x8` 的 `Min/Max` 已改为直接委托 `Scalar*`；`Shift`、`float min/max`、`select/extract/insert`、`register.inc` ownership 都没动。
 - checker 层面已经补了对应 source-side 断言，下一步重点是 release verification，不是继续扩语义范围。
-
 
 ## 2026-05-11 NEON Scalar Math/Utility Forwarder Consolidation
 
@@ -697,7 +695,6 @@
 - fallback-only wide `Abs/Fma` 原来只是递归拆到较窄 NEON fallback；现在直接委托 wide `ScalarAbs/Fma*`，避免再维护宽度拆分的第二份真源。
 - 本批刻意不碰浮点 `Min/Max`、`Floor/Ceil/Round/Trunc`、`Clamp`，因为这些路径涉及 NaN、Inf、signed-zero 或 `Math.Min/Max` 差异，不能只凭循环形状合并。
 - release 复验证明这次是 fallback 去重而非 contract 漂移：`git diff --check`、helper checker、`impl-smoke-nonx86`、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿。
-
 
 ## 2026-05-11 NEON Scalar Floor/Ceil Wide Forwarder Consolidation
 
@@ -764,3 +761,14 @@
 - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test` 当前通过，说明当前树里的 SIMD 实现和并发回归面已经回到绿态。
 - `TTestCase_SimdConcurrentPublicAbi`、`TTestCase_IEEE754EdgeCases` 和 full `gate` 也都通过，说明先前的 public ABI text publication 与 IEEE754 rounding 失败面在当前树里不再是活跃 blocker。
 - `bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight` 现在返回 `RECENT_BILLING_BLOCK`，所以 fresh Windows evidence refresh 目前被 GitHub billing 挡住，剩余 release gap 是外部证据链，而不是 SIMD 代码本身。
+
+## 2026-05-11 Family Decision Baseline
+
+- 这轮再扫 active docs 后，新的结论不是“还剩一批代码没收”，而是“还剩一批 family 决策没冻住”：`SSE3 / SSE4.1 / SSE4.2 / AVX-512`、`NEON / RISCVV`、`AES / SHA / AVX / FMA3 / SVE / SVE2 / LASX`。
+- 这些 family 的重复噪音主要来自 policy judgment 分散在 `family matrix`、`execution index` 和各自 family plan 里，而不是源码里还有新的同合同重复体。
+- 新增的 `docs/plans/2026-05-11-simd-family-decision-baseline.md` 把这三类判断拆成 single-source baseline：
+  - x86 资格化组继续 qualification，不在没有 fresh red 的情况下 reopen promote / split
+  - non-x86 资格化组继续 opt-in / qualification，不因为 fallback wrapper 变薄就默认 promote
+  - experimental hold 组继续 `experimental isolated` / hold，不因为 smoke 绿就默认 reopen
+- `SSSE3` 也被再次明确成 adapter-only，不再作为待补 raw leaf 项；这点现在由 family matrix 和 decision baseline 一起维护，后续不应再回到“是不是还要补 raw leaf”的老争论。
+- 当前的真实收益是让 active docs 只保留一层政策判断，不再让同一结论在多个入口重复一遍。

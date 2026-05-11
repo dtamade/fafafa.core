@@ -564,7 +564,6 @@
 - `check_nonx86_helper_semantics.py` 已加上这 12 个 RISCVV fallback 的 source-side 断言，防止同合同重复实现回流。
 - 已完成 release 验证：`git diff --check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-smoke-nonx86`、`... impl-audit-nonx86`、`... check`、`... gate` 全绿。
 
-
 ## 2026-05-11 RISCVV Facade Arithmetic/Bitwise/Compare Consolidation
 
 - 已把 `RISCVV` non-ASM facade 里一批 exact-contract 重复体收回 `Scalar*` 真源，覆盖 `I32x4 / I64x2 / I32x8 / U32x8` 的 arithmetic、bitwise、compare，以及 `I32x4 / I32x8` 的 min/max。
@@ -579,7 +578,6 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
 
-
 ## 2026-05-11 NEON Scalar Math/Utility Forwarder Consolidation
 
 - 继续扫 `NEON` fallback 时，发现 `scalar.utility/math/ext_math/autowrap` 里还有一批 exact-contract scalar loop：`SplatF32x4`、`Abs/SqrtF32x4`、`Fma/Rcp/RsqrtF32x4`，以及 fallback-only wide `Abs/Fma`。
@@ -587,7 +585,6 @@
 - `Min/Max`、rounding、floor/ceil/trunc、clamp 这类浮点语义敏感路径本批没有动，后续必须先证明 NaN / signed-zero 语义再收口。
 - `check_nonx86_helper_semantics.py` 已补新增 forwarder 的 source-side 断言，当前 summary 为 `NONX86_HELPER_SEMANTICS_SUMMARY checks=176 status=ok`。
 - 已完成 release 验证：`git diff --check`、`py_compile`、helper checker、`impl-smoke-nonx86`、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿。
-
 
 ## 2026-05-11 NEON Scalar Floor/Ceil Wide Forwarder Consolidation
 
@@ -680,3 +677,10 @@
 - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` PASS。
 - `bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight` 现在返回 `RECENT_BILLING_BLOCK`，所以 fresh Windows evidence refresh 目前被 GitHub billing 挡住了，不是 SIMD 代码回归。
 - 本轮代码侧已经没有新的可见 blocker，剩余 release gap 只有外部 evidence freshness。
+
+## 2026-05-11 Family Decision Baseline
+
+- 重新扫了一遍 family matrix 和 execution/status index 后，确认真正还在反复制造噪音的不是源码重复体，而是 family-level `promote / hold / future-trigger` 决策还散在多个入口里。
+- 已新增 `docs/plans/2026-05-11-simd-family-decision-baseline.md`，把 `SSE3 / SSE4.1 / SSE4.2 / AVX-512`、`NEON / RISCVV`、`AES / SHA / AVX / FMA3 / SVE / SVE2 / LASX` 的默认判断一次性冻住。
+- 已同步回填 `docs/plans/2026-05-09-simd-family-matrix.md`、`docs/plans/2026-05-10-simd-execution-index.md` 与 `docs/plans/2026-05-10-simd-plan-status-index.md`，让后续会话先看单页基线，再看 family matrix。
+- 这批只做文档层治理，没有继续开新代码 batch；当前 SIMD 的源码层重复体收口已经够了，后续若要继续只能等 fresh red 或新的高价值 exact-contract 重复体。

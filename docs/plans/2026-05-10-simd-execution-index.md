@@ -66,6 +66,7 @@
 
 - `docs/plans/2026-05-09-simd-global-architecture-refactor-plan.md`
 - `docs/plans/2026-05-09-simd-family-matrix.md`
+- `docs/plans/2026-05-11-simd-family-decision-baseline.md`
 
 如果你今天的目标是：
 
@@ -121,6 +122,17 @@
 - 只清理已经有 replacement / evidence / checker 的重复实现
 - 只冻结明确 retire / hold 的对象，不把 stable adapter 责任误删
 - 不把 semantic-sensitive path 伪装成 exact-contract 去重
+
+### 如果你今天要冻结 family-level promote / hold / future-trigger 决策
+
+看：
+
+- `docs/plans/2026-05-11-simd-family-decision-baseline.md`
+
+目标：
+
+- 把 `family matrix` 里剩下的政策判断收成单页基线
+- 避免下一次会话重新争论已经冻结的 family 定位
 
 ### 如果你今天要做 `AVX2`
 

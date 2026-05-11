@@ -29,6 +29,7 @@
 - `docs/plans/2026-05-10-simd-wave2-seam-hardening-plan.md`
 - `docs/plans/2026-05-09-simd-global-architecture-refactor-plan.md`
 - `docs/plans/2026-05-09-simd-family-matrix.md`
+- `docs/plans/2026-05-11-simd-family-decision-baseline.md`
 - `docs/plans/2026-05-09-simd-avx2-active-leaf-sample.md`
 - `docs/plans/2026-05-09-simd-x86-incremental-qualification-plan.md`
 - `docs/plans/2026-05-09-simd-x86-raw-parity-plan.md`
