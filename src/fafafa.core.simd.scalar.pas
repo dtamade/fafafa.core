@@ -87,9 +87,9 @@ function ScalarShiftRightArithI32x4(const a: TVecI32x4; count: Integer): TVecI32
 function ScalarCmpEqI32x4(const a, b: TVecI32x4): TMask4;
 function ScalarCmpLtI32x4(const a, b: TVecI32x4): TMask4;
 function ScalarCmpGtI32x4(const a, b: TVecI32x4): TMask4;
-function ScalarCmpLeI32x4(const a, b: TVecI32x4): TMask4;  // ✅ P0-5: Added
-function ScalarCmpGeI32x4(const a, b: TVecI32x4): TMask4;  // ✅ P0-5: Added
-function ScalarCmpNeI32x4(const a, b: TVecI32x4): TMask4;  // ✅ P0-5: Added
+function ScalarCmpLeI32x4(const a, b: TVecI32x4): TMask4;
+function ScalarCmpGeI32x4(const a, b: TVecI32x4): TMask4;
+function ScalarCmpNeI32x4(const a, b: TVecI32x4): TMask4;
 // I32x4 MinMax
 function ScalarMinI32x4(const a, b: TVecI32x4): TVecI32x4;
 function ScalarMaxI32x4(const a, b: TVecI32x4): TVecI32x4;
@@ -106,7 +106,7 @@ function ScalarAndNotI64x2(const a, b: TVecI64x2): TVecI64x2;
 function ScalarShiftLeftI64x2(const a: TVecI64x2; count: Integer): TVecI64x2;
 function ScalarShiftRightI64x2(const a: TVecI64x2; count: Integer): TVecI64x2;
 function ScalarShiftRightArithI64x2(const a: TVecI64x2; count: Integer): TVecI64x2;
-// ✅ P0-5: I64x2 Comparison (added full set)
+// I64x2 Comparison
 function ScalarCmpEqI64x2(const a, b: TVecI64x2): TMask2;
 function ScalarCmpLtI64x2(const a, b: TVecI64x2): TMask2;
 function ScalarCmpGtI64x2(const a, b: TVecI64x2): TMask2;
@@ -130,7 +130,7 @@ function ScalarCmpGtU64x2(const a, b: TVecU64x2): TMask2;
 function ScalarMinU64x2(const a, b: TVecU64x2): TVecU64x2;
 function ScalarMaxU64x2(const a, b: TVecU64x2): TVecU64x2;
 
-// ✅ Task 5.2: I64x4 Operations (256-bit, 4x64-bit signed)
+// I64x4 Operations (256-bit, 4x64-bit signed)
 // I64x4 Arithmetic
 function ScalarAddI64x4(const a, b: TVecI64x4): TVecI64x4;
 function ScalarSubI64x4(const a, b: TVecI64x4): TVecI64x4;
@@ -157,7 +157,7 @@ procedure ScalarStoreI64x4(p: PInt64; const a: TVecI64x4);
 function ScalarSplatI64x4(value: Int64): TVecI64x4;
 function ScalarZeroI64x4: TVecI64x4;
 
-// ✅ Task 5.2: U64x4 Operations (256-bit, 4x64-bit unsigned)
+// U64x4 Operations (256-bit, 4x64-bit unsigned)
 // U64x4 Arithmetic
 function ScalarAddU64x4(const a, b: TVecU64x4): TVecU64x4;
 function ScalarSubU64x4(const a, b: TVecU64x4): TVecU64x4;
@@ -195,9 +195,9 @@ function ScalarShiftRightArithI32x8(const a: TVecI32x8; count: Integer): TVecI32
 function ScalarCmpEqI32x8(const a, b: TVecI32x8): TMask8;
 function ScalarCmpLtI32x8(const a, b: TVecI32x8): TMask8;
 function ScalarCmpGtI32x8(const a, b: TVecI32x8): TMask8;
-function ScalarCmpLeI32x8(const a, b: TVecI32x8): TMask8;  // ✅ P0-5: Added
-function ScalarCmpGeI32x8(const a, b: TVecI32x8): TMask8;  // ✅ P0-5: Added
-function ScalarCmpNeI32x8(const a, b: TVecI32x8): TMask8;  // ✅ P0-5: Added
+function ScalarCmpLeI32x8(const a, b: TVecI32x8): TMask8;
+function ScalarCmpGeI32x8(const a, b: TVecI32x8): TMask8;
+function ScalarCmpNeI32x8(const a, b: TVecI32x8): TMask8;
 // I32x8 MinMax
 function ScalarMinI32x8(const a, b: TVecI32x8): TVecI32x8;
 function ScalarMaxI32x8(const a, b: TVecI32x8): TVecI32x8;
@@ -232,9 +232,9 @@ function ScalarShiftRightArithI32x16(const a: TVecI32x16; count: Integer): TVecI
 function ScalarCmpEqI32x16(const a, b: TVecI32x16): TMask16;
 function ScalarCmpLtI32x16(const a, b: TVecI32x16): TMask16;
 function ScalarCmpGtI32x16(const a, b: TVecI32x16): TMask16;
-function ScalarCmpLeI32x16(const a, b: TVecI32x16): TMask16;  // ✅ P0-5: Added
-function ScalarCmpGeI32x16(const a, b: TVecI32x16): TMask16;  // ✅ P0-5: Added
-function ScalarCmpNeI32x16(const a, b: TVecI32x16): TMask16;  // ✅ P0-5: Added
+function ScalarCmpLeI32x16(const a, b: TVecI32x16): TMask16;
+function ScalarCmpGeI32x16(const a, b: TVecI32x16): TMask16;
+function ScalarCmpNeI32x16(const a, b: TVecI32x16): TMask16;
 // I32x16 MinMax
 function ScalarMinI32x16(const a, b: TVecI32x16): TVecI32x16;
 function ScalarMaxI32x16(const a, b: TVecI32x16): TVecI32x16;
@@ -341,7 +341,7 @@ function ScalarCmpGtF32x4(const a, b: TVecF32x4): TMask4;
 function ScalarCmpGeF32x4(const a, b: TVecF32x4): TMask4;
 function ScalarCmpNeF32x4(const a, b: TVecF32x4): TMask4;
 
-// ✅ P1-E: F64x2 比较操作
+// F64x2 比较操作
 function ScalarCmpEqF64x2(const a, b: TVecF64x2): TMask2;
 function ScalarCmpLtF64x2(const a, b: TVecF64x2): TMask2;
 function ScalarCmpLeF64x2(const a, b: TVecF64x2): TMask2;
@@ -349,7 +349,7 @@ function ScalarCmpGtF64x2(const a, b: TVecF64x2): TMask2;
 function ScalarCmpGeF64x2(const a, b: TVecF64x2): TMask2;
 function ScalarCmpNeF64x2(const a, b: TVecF64x2): TMask2;
 
-// ✅ NEW: 256-bit floating-point comparisons
+// 256-bit floating-point comparisons
 // F32x8 (256-bit)
 function ScalarCmpEqF32x8(const a, b: TVecF32x8): TMask8;
 function ScalarCmpLtF32x8(const a, b: TVecF32x8): TMask8;
@@ -385,21 +385,21 @@ function ScalarSqrtF32x4(const a: TVecF32x4): TVecF32x4;
 function ScalarMinF32x4(const a, b: TVecF32x4): TVecF32x4;
 function ScalarMaxF32x4(const a, b: TVecF32x4): TVecF32x4;
 
-// ✅ NEW: F64x2 Math
+// F64x2 Math
 function ScalarAbsF64x2(const a: TVecF64x2): TVecF64x2;
 function ScalarSqrtF64x2(const a: TVecF64x2): TVecF64x2;
 function ScalarMinF64x2(const a, b: TVecF64x2): TVecF64x2;
 function ScalarMaxF64x2(const a, b: TVecF64x2): TVecF64x2;
 function ScalarClampF64x2(const a, minVal, maxVal: TVecF64x2): TVecF64x2;
 
-// ✅ NEW: F32x8 Math
+// F32x8 Math
 function ScalarAbsF32x8(const a: TVecF32x8): TVecF32x8;
 function ScalarSqrtF32x8(const a: TVecF32x8): TVecF32x8;
 function ScalarMinF32x8(const a, b: TVecF32x8): TVecF32x8;
 function ScalarMaxF32x8(const a, b: TVecF32x8): TVecF32x8;
 function ScalarClampF32x8(const a, minVal, maxVal: TVecF32x8): TVecF32x8;
 
-// ✅ NEW: F64x4 Math
+// F64x4 Math
 function ScalarAbsF64x4(const a: TVecF64x4): TVecF64x4;
 function ScalarSqrtF64x4(const a: TVecF64x4): TVecF64x4;
 function ScalarMinF64x4(const a, b: TVecF64x4): TVecF64x4;
@@ -424,19 +424,19 @@ function ScalarReduceMinF32x4(const a: TVecF32x4): Single;
 function ScalarReduceMaxF32x4(const a: TVecF32x4): Single;
 function ScalarReduceMulF32x4(const a: TVecF32x4): Single;
 
-// ✅ NEW: F64x2 Reduction
+// F64x2 Reduction
 function ScalarReduceAddF64x2(const a: TVecF64x2): Double;
 function ScalarReduceMinF64x2(const a: TVecF64x2): Double;
 function ScalarReduceMaxF64x2(const a: TVecF64x2): Double;
 function ScalarReduceMulF64x2(const a: TVecF64x2): Double;
 
-// ✅ NEW: F32x8 Reduction
+// F32x8 Reduction
 function ScalarReduceAddF32x8(const a: TVecF32x8): Single;
 function ScalarReduceMinF32x8(const a: TVecF32x8): Single;
 function ScalarReduceMaxF32x8(const a: TVecF32x8): Single;
 function ScalarReduceMulF32x8(const a: TVecF32x8): Single;
 
-// ✅ NEW: F64x4 Reduction
+// F64x4 Reduction
 function ScalarReduceAddF64x4(const a: TVecF64x4): Double;
 function ScalarReduceMinF64x4(const a: TVecF64x4): Double;
 function ScalarReduceMaxF64x4(const a: TVecF64x4): Double;
@@ -465,7 +465,7 @@ function ScalarSelectF32x4(const mask: TMask4; const a, b: TVecF32x4): TVecF32x4
 function ScalarExtractF32x4(const a: TVecF32x4; index: Integer): Single;
 function ScalarInsertF32x4(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4;
 
-// ✅ Task 5.3: Extract/Insert Lane Operations
+// Extract/Insert Lane Operations
 // F64x2 (128-bit)
 function ScalarExtractF64x2(const a: TVecF64x2; index: Integer): Double;
 function ScalarInsertF64x2(const a: TVecF64x2; value: Double; index: Integer): TVecF64x2;
@@ -494,7 +494,7 @@ function ScalarInsertF32x16(const a: TVecF32x16; value: Single; index: Integer):
 function ScalarExtractI32x16(const a: TVecI32x16; index: Integer): Int32;
 function ScalarInsertI32x16(const a: TVecI32x16; value: Int32; index: Integer): TVecI32x16;
 
-// ✅ P1-5: 宽向量 Load/Store/Splat/Zero
+// 宽向量 Load/Store/Splat/Zero
 // F64x2 (128-bit)
 function ScalarLoadF64x2(p: PDouble): TVecF64x2;
 procedure ScalarStoreF64x2(p: PDouble; const a: TVecF64x2);
@@ -531,7 +531,7 @@ function ScalarRoundF32x4(const a: TVecF32x4): TVecF32x4;
 function ScalarTruncF32x4(const a: TVecF32x4): TVecF32x4;
 function ScalarClampF32x4(const a, minVal, maxVal: TVecF32x4): TVecF32x4;
 
-// ✅ P1-4: 宽向量扩展数学函数
+// 宽向量扩展数学函数
 // F64x2 (128-bit)
 function ScalarFmaF64x2(const a, b, c: TVecF64x2): TVecF64x2;
 function ScalarFloorF64x2(const a: TVecF64x2): TVecF64x2;
@@ -575,12 +575,12 @@ function ScalarLengthF32x3(const a: TVecF32x4): Single;
 function ScalarNormalizeF32x4(const a: TVecF32x4): TVecF32x4;
 function ScalarNormalizeF32x3(const a: TVecF32x4): TVecF32x4;
 
-// ✅ Iteration 6.4: FMA-optimized Dot Product Functions
+// FMA-optimized Dot Product Functions
 function ScalarDotF32x8(const a, b: TVecF32x8): Single;
 function ScalarDotF64x2(const a, b: TVecF64x2): Double;
 function ScalarDotF64x4(const a, b: TVecF64x4): Double;
 
-// === ✅ P2-1: Saturating Arithmetic ===
+// === Saturating Arithmetic ===
 // Signed saturating (clamp to type range, no overflow)
 function ScalarI8x16SatAdd(const a, b: TVecI8x16): TVecI8x16;
 function ScalarI8x16SatSub(const a, b: TVecI8x16): TVecI8x16;
@@ -592,7 +592,7 @@ function ScalarU8x16SatSub(const a, b: TVecU8x16): TVecU8x16;
 function ScalarU16x8SatAdd(const a, b: TVecU16x8): TVecU16x8;
 function ScalarU16x8SatSub(const a, b: TVecU16x8): TVecU16x8;
 
-// === ✅ NEW: Narrow Integer Operations ===
+// === Narrow Integer Operations ===
 // I16x8 Operations (16 functions)
 function ScalarAddI16x8(const a, b: TVecI16x8): TVecI16x8;
 function ScalarSubI16x8(const a, b: TVecI16x8): TVecI16x8;
@@ -608,9 +608,9 @@ function ScalarShiftRightArithI16x8(const a: TVecI16x8; count: Integer): TVecI16
 function ScalarCmpEqI16x8(const a, b: TVecI16x8): TMask8;
 function ScalarCmpLtI16x8(const a, b: TVecI16x8): TMask8;
 function ScalarCmpGtI16x8(const a, b: TVecI16x8): TMask8;
-function ScalarCmpLeI16x8(const a, b: TVecI16x8): TMask8;  // ✅ NEW
-function ScalarCmpGeI16x8(const a, b: TVecI16x8): TMask8;  // ✅ NEW
-function ScalarCmpNeI16x8(const a, b: TVecI16x8): TMask8;  // ✅ NEW
+function ScalarCmpLeI16x8(const a, b: TVecI16x8): TMask8;
+function ScalarCmpGeI16x8(const a, b: TVecI16x8): TMask8;
+function ScalarCmpNeI16x8(const a, b: TVecI16x8): TMask8;
 function ScalarMinI16x8(const a, b: TVecI16x8): TVecI16x8;
 function ScalarMaxI16x8(const a, b: TVecI16x8): TVecI16x8;
 
@@ -624,9 +624,9 @@ function ScalarNotI8x16(const a: TVecI8x16): TVecI8x16;
 function ScalarCmpEqI8x16(const a, b: TVecI8x16): TMask16;
 function ScalarCmpLtI8x16(const a, b: TVecI8x16): TMask16;
 function ScalarCmpGtI8x16(const a, b: TVecI8x16): TMask16;
-function ScalarCmpLeI8x16(const a, b: TVecI8x16): TMask16;  // ✅ NEW
-function ScalarCmpGeI8x16(const a, b: TVecI8x16): TMask16;  // ✅ NEW
-function ScalarCmpNeI8x16(const a, b: TVecI8x16): TMask16;  // ✅ NEW
+function ScalarCmpLeI8x16(const a, b: TVecI8x16): TMask16;
+function ScalarCmpGeI8x16(const a, b: TVecI8x16): TMask16;
+function ScalarCmpNeI8x16(const a, b: TVecI8x16): TMask16;
 function ScalarMinI8x16(const a, b: TVecI8x16): TVecI8x16;
 function ScalarMaxI8x16(const a, b: TVecI8x16): TVecI8x16;
 
@@ -683,9 +683,9 @@ function ScalarShiftRightU16x8(const a: TVecU16x8; count: Integer): TVecU16x8;
 function ScalarCmpEqU16x8(const a, b: TVecU16x8): TMask8;
 function ScalarCmpLtU16x8(const a, b: TVecU16x8): TMask8;
 function ScalarCmpGtU16x8(const a, b: TVecU16x8): TMask8;
-function ScalarCmpLeU16x8(const a, b: TVecU16x8): TMask8;  // ✅ NEW
-function ScalarCmpGeU16x8(const a, b: TVecU16x8): TMask8;  // ✅ NEW
-function ScalarCmpNeU16x8(const a, b: TVecU16x8): TMask8;  // ✅ NEW
+function ScalarCmpLeU16x8(const a, b: TVecU16x8): TMask8;
+function ScalarCmpGeU16x8(const a, b: TVecU16x8): TMask8;
+function ScalarCmpNeU16x8(const a, b: TVecU16x8): TMask8;
 function ScalarMinU16x8(const a, b: TVecU16x8): TVecU16x8;
 function ScalarMaxU16x8(const a, b: TVecU16x8): TVecU16x8;
 
@@ -699,13 +699,13 @@ function ScalarNotU8x16(const a: TVecU8x16): TVecU8x16;
 function ScalarCmpEqU8x16(const a, b: TVecU8x16): TMask16;
 function ScalarCmpLtU8x16(const a, b: TVecU8x16): TMask16;
 function ScalarCmpGtU8x16(const a, b: TVecU8x16): TMask16;
-function ScalarCmpLeU8x16(const a, b: TVecU8x16): TMask16;  // ✅ NEW
-function ScalarCmpGeU8x16(const a, b: TVecU8x16): TMask16;  // ✅ NEW
-function ScalarCmpNeU8x16(const a, b: TVecU8x16): TMask16;  // ✅ NEW
+function ScalarCmpLeU8x16(const a, b: TVecU8x16): TMask16;
+function ScalarCmpGeU8x16(const a, b: TVecU8x16): TMask16;
+function ScalarCmpNeU8x16(const a, b: TVecU8x16): TMask16;
 function ScalarMinU8x16(const a, b: TVecU8x16): TVecU8x16;
 function ScalarMaxU8x16(const a, b: TVecU8x16): TVecU8x16;
 
-// ✅ P2-2: Mask 操作函数
+// Mask 操作函数
 // TMask2 (2 元素)
 function ScalarMask2All(mask: TMask2): Boolean;
 function ScalarMask2Any(mask: TMask2): Boolean;
@@ -731,14 +731,14 @@ function ScalarMask16None(mask: TMask16): Boolean;
 function ScalarMask16PopCount(mask: TMask16): Integer;
 function ScalarMask16FirstSet(mask: TMask16): Integer;
 
-// ✅ P2-3: F64x2 Select
+// F64x2 Select
 function ScalarSelectF64x2(const mask: TMask2; const a, b: TVecF64x2): TVecF64x2;
 
-// ✅ NEW: 512-bit Select
+// 512-bit Select
 function ScalarSelectF32x16(const mask: TMask16; const a, b: TVecF32x16): TVecF32x16;
 function ScalarSelectF64x8(const mask: TMask8; const a, b: TVecF64x8): TVecF64x8;
 
-// ✅ NEW: 缺失的 Select 操作 (条件选择: mask[i] != 0 ? a[i] : b[i])
+// Select 操作 (条件选择: mask[i] != 0 ? a[i] : b[i])
 function ScalarSelectI32x4(const mask: TVecI32x4; const a, b: TVecI32x4): TVecI32x4;
 function ScalarSelectF32x8(const mask: TVecU32x8; const a, b: TVecF32x8): TVecF32x8;
 function ScalarSelectF64x4(const mask: TVecU64x4; const a, b: TVecF64x4): TVecF64x4;
@@ -1015,7 +1015,7 @@ begin
       Result := Result or (1 shl i);
 end;
 
-// ✅ P0-5: Added missing comparison operations
+// comparison operations
 function ScalarCmpLeI32x4(const a, b: TVecI32x4): TMask4;
 var i: Integer;
 begin
@@ -1162,7 +1162,7 @@ begin
   Result.i[1] := SarInt64(a.i[1], LCount);
 end;
 
-// ✅ P0-5: I64x2 Comparison Operations (missing from dispatch table)
+// I64x2 Comparison Operations (missing from dispatch table)
 function ScalarCmpEqI64x2(const a, b: TVecI64x2): TMask2;
 begin
   Result := 0;
@@ -1292,7 +1292,7 @@ begin
   if a.u[1] > b.u[1] then Result.u[1] := a.u[1] else Result.u[1] := b.u[1];
 end;
 
-// ✅ Task 5.2: I64x4 Scalar Operations (256-bit, 4x64-bit signed)
+// I64x4 Scalar Operations (256-bit, 4x64-bit signed)
 
 function ScalarAddI64x4(const a, b: TVecI64x4): TVecI64x4;
 var i: Integer;
@@ -1455,7 +1455,7 @@ begin
     Result.i[i] := 0;
 end;
 
-// ✅ Task 5.2: U64x4 Scalar Operations (256-bit, 4x64-bit unsigned)
+// U64x4 Scalar Operations (256-bit, 4x64-bit unsigned)
 
 function ScalarAddU64x4(const a, b: TVecU64x4): TVecU64x4;
 var i: Integer;
@@ -1748,7 +1748,7 @@ begin
       Result := Result or (1 shl i);
 end;
 
-// ✅ P0-5: Added missing I32x8 comparison operations
+// I32x8 comparison operations
 function ScalarCmpLeI32x8(const a, b: TVecI32x8): TMask8;
 var i: Integer;
 begin
@@ -2001,7 +2001,7 @@ begin
       Result := Result or (1 shl i);
 end;
 
-// ✅ P0-5: Added missing I32x16 comparison operations
+// I32x16 comparison operations
 function ScalarCmpLeI32x16(const a, b: TVecI32x16): TMask16;
 var i: Integer;
 begin
@@ -2799,7 +2799,7 @@ begin
       Result := Result or (1 shl i);
 end;
 
-// ✅ P1-E: F64x2 比较操作实现
+// F64x2 比较操作实现
 function ScalarCmpEqF64x2(const a, b: TVecF64x2): TMask2;
 begin
   Result := 0;
@@ -3180,7 +3180,7 @@ begin
     Result.f[i] := Max(minVal.f[i], Min(a.f[i], maxVal.f[i]));
 end;
 
-// === ✅ NEW: Wide Vector Math Functions ===
+// === Wide Vector Math Functions ===
 
 // F64x2 Math
 function ScalarAbsF64x2(const a: TVecF64x2): TVecF64x2;
@@ -3357,7 +3357,7 @@ begin
     Result.d[i] := Max(minVal.d[i], Min(a.d[i], maxVal.d[i]));
 end;
 
-// === ✅ P1-4: Wide Vector Extended Math Functions ===
+// === Wide Vector Extended Math Functions ===
 
 // F64x2 (128-bit)
 function ScalarFmaF64x2(const a, b, c: TVecF64x2): TVecF64x2;
@@ -3741,7 +3741,7 @@ begin
   end;
 end;
 
-// ✅ Iteration 6.4: FMA-optimized Dot Product Functions (Scalar Reference)
+// FMA-optimized Dot Product Functions (Scalar Reference)
 
 function ScalarDotF32x8(const a, b: TVecF32x8): Single;
 var
@@ -3800,7 +3800,7 @@ begin
     Result := Result * a.f[i];
 end;
 
-// === ✅ NEW: Wide Vector Reduction Operations ===
+// === Wide Vector Reduction Operations ===
 
 // F64x2 Reduction
 function ScalarReduceAddF64x2(const a: TVecF64x2): Double;
@@ -3957,7 +3957,7 @@ end;
 
 // === Memory Operations ===
 
-// ✅ Safety check: Assert for nil pointer (performance-sensitive code)
+// Assert for nil pointer (performance-sensitive code)
 function ScalarLoadF32x4(p: PSingle): TVecF32x4;
 var i: Integer;
 begin
@@ -3988,7 +3988,7 @@ end;
 
 // === Utility Operations ===
 
-// ✅ P2-1: 展开循环优化
+// 展开循环优化
 function ScalarSplatF32x4(value: Single): TVecF32x4;
 begin
   Result.f[0] := value;
@@ -3997,7 +3997,7 @@ begin
   Result.f[3] := value;
 end;
 
-// ✅ P2-1: 展开循环优化
+// 展开循环优化
 function ScalarZeroF32x4: TVecF32x4;
 begin
   Result.f[0] := 0.0;
@@ -4020,7 +4020,7 @@ function ScalarExtractF32x4(const a: TVecF32x4; index: Integer): Single;
 var
   safeIndex: Integer;
 begin
-  // ✅ Safety check: use saturation strategy for index bounds (per project spec)
+  // use saturation strategy for index bounds (per project spec)
   safeIndex := index;
   if safeIndex < 0 then safeIndex := 0
   else if safeIndex > 3 then safeIndex := 3;
@@ -4031,7 +4031,7 @@ function ScalarInsertF32x4(const a: TVecF32x4; value: Single; index: Integer): T
 var
   safeIndex: Integer;
 begin
-  // ✅ Safety check: use saturation strategy for index bounds (per project spec)
+  // use saturation strategy for index bounds (per project spec)
   safeIndex := index;
   if safeIndex < 0 then safeIndex := 0
   else if safeIndex > 3 then safeIndex := 3;
@@ -4039,7 +4039,7 @@ begin
   Result.f[safeIndex] := value;
 end;
 
-// === ✅ Task 5.3: Extract/Insert Lane Operations ===
+// === Extract/Insert Lane Operations ===
 
 // F64x2 (128-bit)
 function ScalarExtractF64x2(const a: TVecF64x2; index: Integer): Double;
@@ -4239,7 +4239,7 @@ begin
   Result.i[safeIndex] := value;
 end;
 
-// === ✅ P1-5: Wide Vector Load/Store/Splat/Zero Functions ===
+// === Wide Vector Load/Store/Splat/Zero Functions ===
 
 // F64x2 (128-bit)
 function ScalarLoadF64x2(p: PDouble): TVecF64x2;
@@ -4285,7 +4285,7 @@ begin
     p[i] := a.f[i];
 end;
 
-// ✅ P2-1: 展开循环优化
+// 展开循环优化
 function ScalarSplatF32x8(value: Single): TVecF32x8;
 begin
   Result.f[0] := value;
@@ -4298,7 +4298,7 @@ begin
   Result.f[7] := value;
 end;
 
-// ✅ P2-1: 展开循环优化
+// 展开循环优化
 function ScalarZeroF32x8: TVecF32x8;
 begin
   Result.f[0] := 0.0;
@@ -4328,7 +4328,7 @@ begin
     p[i] := a.d[i];
 end;
 
-// ✅ P2-1: 展开循环优化
+// 展开循环优化
 function ScalarSplatF64x4(value: Double): TVecF64x4;
 begin
   Result.d[0] := value;
@@ -4337,7 +4337,7 @@ begin
   Result.d[3] := value;
 end;
 
-// ✅ P2-1: 展开循环优化
+// 展开循环优化
 function ScalarZeroF64x4: TVecF64x4;
 begin
   Result.d[0] := 0.0;
@@ -4437,7 +4437,7 @@ end;
 // === 标量门面函数实现 ===
 
 // 内存操作函数
-// ✅ P1-1: 优化为 8 字节批量比较
+// 优化为 8 字节批量比较
 function MemEqual_Scalar(a, b: Pointer; len: SizeUInt): LongBool;
 var
   pa, pb: PByte;
@@ -4481,7 +4481,7 @@ begin
 
   // 处理剩余的 0-7 字节
   remaining := len mod 8;
-  // ✅ 修复: 当 remaining=0 时，remaining-1 会下溢到 High(SizeUInt)
+  // 当 remaining=0 时，remaining-1 会下溢到 High(SizeUInt)
   if remaining > 0 then
     for i := 0 to remaining - 1 do
     begin
@@ -4605,7 +4605,7 @@ begin
 end;
 
 // 统计函数
-// ✅ P1-2: 优化为 8 字节批量读取并展开循环
+// 优化为 8 字节批量读取并展开循环
 function SumBytes_Scalar(p: Pointer; len: SizeUInt): UInt64;
 var
   pb: PByte;
@@ -4651,7 +4651,7 @@ begin
 
   // 处理剩余的 0-7 字节
   remaining := len mod 8;
-  // ✅ 修复: 当 remaining=0 时，remaining-1 会下溢到 High(SizeUInt)
+  // 当 remaining=0 时，remaining-1 会下溢到 High(SizeUInt)
   if remaining > 0 then
     for i := 0 to remaining - 1 do
       sum0 := sum0 + pb[i];
@@ -4714,7 +4714,7 @@ var
 begin
   Result := True;
 
-  // ✅ 边界检查: 空长度有效，空指针无效
+  // 空长度有效，空指针无效
   if len = 0 then
     Exit(True);
   if p = nil then
@@ -4921,7 +4921,7 @@ begin
 end;
 
 // 位集函数
-// ✅ 使用 256 字节查找表实现 O(1) 每字节的 popcount
+// 使用 256 字节查找表实现 O(1) 每字节的 popcount
 const
   PopCountTable: array[0..255] of Byte = (
     0,1,1,2,1,2,2,3,1,2,2,3,2,3,3,4,  // 0x00-0x0F
@@ -4954,12 +4954,12 @@ begin
 
   pb := PByte(p);
 
-  // ✅ 使用查找表 O(1) 每字节，而非逐位循环 O(8)
+  // 使用查找表 O(1) 每字节，而非逐位循环 O(8)
   for i := 0 to byteLen - 1 do
     Result := Result + PopCountTable[pb[i]];
 end;
 
-// === ✅ P2-1: Saturating Arithmetic Implementation ===
+// === Saturating Arithmetic Implementation ===
 // 饱和算术：结果超出类型范围时钳位到边界值
 
 {$PUSH}{$R-}{$Q-}  // 禁用溢出检查，我们自己处理饱和
@@ -5098,7 +5098,7 @@ begin
   end;
 end;
 
-// ✅ P2-2: Mask 操作实现
+// Mask 操作实现
 // === TMask2 操作 (2 有效位) ===
 function ScalarMask2All(mask: TMask2): Boolean;
 begin
@@ -5261,7 +5261,7 @@ begin
   Result := -1;
 end;
 
-// ✅ P2-3: F64x2 Select 实现
+// F64x2 Select 实现
 function ScalarSelectF64x2(const mask: TMask2; const a, b: TVecF64x2): TVecF64x2;
 begin
   // mask 位 0 控制元素 0，位 1 控制元素 1
@@ -5296,7 +5296,7 @@ begin
       Result.d[i] := b.d[i];
 end;
 
-// ✅ NEW: 缺失的 Select 操作实现 (条件选择: mask[i] != 0 ? a[i] : b[i])
+// Select 操作实现 (条件选择: mask[i] != 0 ? a[i] : b[i])
 
 function ScalarSelectI32x4(const mask: TVecI32x4; const a, b: TVecI32x4): TVecI32x4;
 var i: Integer;
@@ -5331,7 +5331,7 @@ begin
       Result.d[i] := b.d[i];
 end;
 
-// === ✅ NEW: Narrow Integer Operations ===
+// === Narrow Integer Operations ===
 
 // ============================================================================
 // I16x8 Operations (16 functions)
@@ -5489,7 +5489,7 @@ begin
       Result := Result or (1 shl i);
 end;
 
-// ✅ NEW: CmpLe/CmpGe/CmpNe for I16x8
+// CmpLe/CmpGe/CmpNe for I16x8
 function ScalarCmpLeI16x8(const a, b: TVecI16x8): TMask8;
 var
   i: Integer;
@@ -5624,7 +5624,7 @@ begin
       Result := Result or (1 shl i);
 end;
 
-// ✅ NEW: CmpLe/CmpGe/CmpNe for I8x16
+// CmpLe/CmpGe/CmpNe for I8x16
 function ScalarCmpLeI8x16(const a, b: TVecI8x16): TMask16;
 var
   i: Integer;
@@ -6155,7 +6155,7 @@ begin
       Result := Result or (1 shl i);
 end;
 
-// ✅ NEW: CmpLe/CmpGe/CmpNe for U16x8
+// CmpLe/CmpGe/CmpNe for U16x8
 function ScalarCmpLeU16x8(const a, b: TVecU16x8): TMask8;
 var
   i: Integer;
@@ -6290,7 +6290,7 @@ begin
       Result := Result or (1 shl i);
 end;
 
-// ✅ NEW: CmpLe/CmpGe/CmpNe for U8x16
+// CmpLe/CmpGe/CmpNe for U8x16
 function ScalarCmpLeU8x16(const a, b: TVecU8x16): TMask16;
 var
   i: Integer;

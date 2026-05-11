@@ -421,5 +421,5 @@
 | Phase | Status | Notes |
 | --- | --- | --- |
 | 1. 识别中央注释噪音面 | completed | 已确认噪音主要集中在 `simd.pas`、`dispatch.pas`、`sse2.register.inc`、`sse2.wide_emulation.inc` 与 `scalar.pas`；其中前四个文件已完成清理，`scalar.pas` 因混合 CRLF/LF 单独延后 |
-| 2. 收敛历史标记 | in_progress | 已移除前四个文件里的 `NEW / Task / Iteration / P*` 标签和无意义 inline `Added` 标记，`scalar.pas` 仍需 line-ending-safe 处理 |
-| 3. Release 验证与提交收口 | pending | 默认跑 `git diff --check` 与 Release `check`，必要时补 `gate` |
+| 2. 收敛历史标记 | completed | 已移除前四个文件与 `scalar.pas` 里的 `NEW / Task / Iteration / P*` 标签、`✅` 标记和无意义 inline `Added` 注释；`scalar.pas` 采用改动行 LF 处理，避免整文件行尾噪音 |
+| 3. Release 验证与提交收口 | completed | `git diff --check` 与 Release `check` 已通过 |

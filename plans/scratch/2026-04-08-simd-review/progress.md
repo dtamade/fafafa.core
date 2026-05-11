@@ -484,3 +484,12 @@
 - 当前批次将这些基础算术 wrapper 改成直接委托 `Scalar*`，并在 helper checker 中锁住。
 - 这批现在已经收口完成，`check_nonx86_helper_semantics.py --summary-line`、`BuildOrTest.sh check`、`BuildOrTest.sh impl-audit-nonx86`、`BuildOrTest.sh gate` 串行全绿。
 - 过程中曾把 `check` 和 `gate` 并行到同一输出目录，触发了一次临时 build 失败；已确认是验证方式冲突，不是代码问题。
+
+## 2026-05-11 Central SIMD Comment Noise Cleanup
+
+- 已把 `simd.pas`、`dispatch.pas`、`sse2.register.inc`、`sse2.wide_emulation.inc` 里的历史施工标记收掉，保持行为不变。
+- 随后单独处理 `scalar.pas`：移除 `NEW / Task / Iteration / P*`、`✅` 和无意义 inline `Added` 注释，只保留真实的边界、性能与语义说明。
+- `scalar.pas` 仍是 mixed CRLF/LF 文件，本批没有做整文件行尾归一；只把改动行转成 LF，避免把注释清理变成行尾噪音重构。
+- 已完成验证：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
