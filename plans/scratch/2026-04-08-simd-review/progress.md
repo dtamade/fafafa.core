@@ -724,6 +724,23 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 
+## 2026-05-11 SSE4.1 Min/Max Helper Consolidation
+
+- 已把 `sse41_max_epi8 / max_epi32 / max_epu16 / max_epu32` 与对应 `min_*` 的重复逐 lane if/else 收成类型专属私有 helper：
+  - `SSE41MinMaxI8x16`
+  - `SSE41MinMaxI32x4`
+  - `SSE41MinMaxU16x8`
+  - `SSE41MinMaxU32x4`
+- 公开 placeholder wrapper 继续保留原函数名和 signed/unsigned lane contract，只变成 thin shell，不提升 experimental surface。
+- 已新增 `Test_SSE41_MinMax_SignedAndUnsigned`，覆盖 signed `epi8/epi32` 与 unsigned `epu16/epu32` 的代表性 min/max 路径。
+- 验证结果：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test --suite=TTestCase_SimdIntrinsicsExperimentalX86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+
 ## 2026-05-11 SSE4.1 Rounding Helper Consolidation
 
 - 已把 `sse41_round_ps / sse41_round_pd / sse41_round_ss / sse41_round_sd` 的重复 rounding case 收成单一私有 `SSE41RoundScalar` helper。

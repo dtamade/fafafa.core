@@ -822,3 +822,10 @@
 - 用少量私有 helper 收口后，公开 wrapper 仍然是 thin shell，`SSE4.1` 的外部 contract 没变，只是减少了 12 份几乎同形的 loop。
 - 这里最需要盯的点是 unsigned 64-bit 扩展的高 32 位必须为 0，所以回归专门检查了 `cvtepu32_epi64` 的高低 32 位。
 - 这批的实验性回归现在已经把 `SSE4.1` 的 `loaddup / dp / round / insert / convert` 五类 helper 覆盖起来了，后面再扫 `SSE4.1` 时就能更容易发现真正的新增重复体，而不是继续在旧模板里反复打转。
+
+## 2026-05-11 SSE4.1 Min/Max Helper Consolidation
+
+- `sse41_max/min` 的 `epi8 / epi32 / epu16 / epu32` 八个 wrapper 之前都在维护同一类逐 lane 选择 loop，属于 exact-contract structural redundancy。
+- 这批没有把 signed 与 unsigned 比较强行塞进一个模糊 helper，而是按 lane type 保留 4 个私有 helper；公开 wrapper 只负责函数名、signedness 和 min/max 入口，重复选择逻辑不再散落 8 份。
+- 新增回归使用负数和高位 unsigned 值一起覆盖，能防止后续把 `epu16/epu32` 误退化成 signed 比较，也能证明最后一个 lane 没有被漏掉。
+- `TTestCase_SimdIntrinsicsExperimentalX86` 必须继续用显式 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1` 运行；本批 targeted experimental suite、Release `check`、Release `gate` 已全部通过。

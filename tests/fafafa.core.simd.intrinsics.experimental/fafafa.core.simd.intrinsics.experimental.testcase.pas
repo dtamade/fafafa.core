@@ -31,6 +31,7 @@ type
     procedure Test_SSE41_RoundSsSd_PreserveUnmodifiedLanes;
     procedure Test_SSE41_InsertPs_ReplacesSelectedLane;
     procedure Test_SSE41_ConvertExtends_SignedAndUnsigned;
+    procedure Test_SSE41_MinMax_SignedAndUnsigned;
   end;
 {$ENDIF}
 {$ENDIF}
@@ -436,6 +437,74 @@ begin
   AssertEquals('sse41_cvtepu32_epi64 lane0 high', QWord(0), QWord(LResult.m128i_u64[0] shr 32));
   AssertEquals('sse41_cvtepu32_epi64 lane1 low', DWord($E2345678), DWord(LResult.m128i_u64[1] and $FFFFFFFF));
   AssertEquals('sse41_cvtepu32_epi64 lane1 high', QWord(0), QWord(LResult.m128i_u64[1] shr 32));
+end;
+
+procedure TTestCase_SimdIntrinsicsExperimentalX86.Test_SSE41_MinMax_SignedAndUnsigned;
+var
+  LLeft: TM128;
+  LRight: TM128;
+  LResult: TM128;
+begin
+  FillChar(LLeft, SizeOf(LLeft), 0);
+  FillChar(LRight, SizeOf(LRight), 0);
+
+  LLeft.m128i_i8[0] := -8;
+  LRight.m128i_i8[0] := 7;
+  LLeft.m128i_i8[15] := 12;
+  LRight.m128i_i8[15] := -11;
+
+  LResult := sse41_min_epi8(LLeft, LRight);
+  AssertEquals('sse41_min_epi8 lane0', -8, LResult.m128i_i8[0]);
+  AssertEquals('sse41_min_epi8 lane15', -11, LResult.m128i_i8[15]);
+
+  LResult := sse41_max_epi8(LLeft, LRight);
+  AssertEquals('sse41_max_epi8 lane0', 7, LResult.m128i_i8[0]);
+  AssertEquals('sse41_max_epi8 lane15', 12, LResult.m128i_i8[15]);
+
+  FillChar(LLeft, SizeOf(LLeft), 0);
+  FillChar(LRight, SizeOf(LRight), 0);
+  LLeft.m128i_i32[0] := -100;
+  LRight.m128i_i32[0] := 50;
+  LLeft.m128i_i32[3] := 900;
+  LRight.m128i_i32[3] := -700;
+
+  LResult := sse41_min_epi32(LLeft, LRight);
+  AssertEquals('sse41_min_epi32 lane0', -100, LResult.m128i_i32[0]);
+  AssertEquals('sse41_min_epi32 lane3', -700, LResult.m128i_i32[3]);
+
+  LResult := sse41_max_epi32(LLeft, LRight);
+  AssertEquals('sse41_max_epi32 lane0', 50, LResult.m128i_i32[0]);
+  AssertEquals('sse41_max_epi32 lane3', 900, LResult.m128i_i32[3]);
+
+  FillChar(LLeft, SizeOf(LLeft), 0);
+  FillChar(LRight, SizeOf(LRight), 0);
+  LLeft.m128i_u16[0] := 1;
+  LRight.m128i_u16[0] := 65535;
+  LLeft.m128i_u16[7] := 60000;
+  LRight.m128i_u16[7] := 5;
+
+  LResult := sse41_min_epu16(LLeft, LRight);
+  AssertEquals('sse41_min_epu16 lane0', 1, LResult.m128i_u16[0]);
+  AssertEquals('sse41_min_epu16 lane7', 5, LResult.m128i_u16[7]);
+
+  LResult := sse41_max_epu16(LLeft, LRight);
+  AssertEquals('sse41_max_epu16 lane0', 65535, LResult.m128i_u16[0]);
+  AssertEquals('sse41_max_epu16 lane7', 60000, LResult.m128i_u16[7]);
+
+  FillChar(LLeft, SizeOf(LLeft), 0);
+  FillChar(LRight, SizeOf(LRight), 0);
+  LLeft.m128i_u32[0] := $10000000;
+  LRight.m128i_u32[0] := $F0000000;
+  LLeft.m128i_u32[3] := $90000000;
+  LRight.m128i_u32[3] := $00000002;
+
+  LResult := sse41_min_epu32(LLeft, LRight);
+  AssertEquals('sse41_min_epu32 lane0', Int64($10000000), Int64(LResult.m128i_u32[0]));
+  AssertEquals('sse41_min_epu32 lane3', Int64(2), Int64(LResult.m128i_u32[3]));
+
+  LResult := sse41_max_epu32(LLeft, LRight);
+  AssertEquals('sse41_max_epu32 lane0', Int64($F0000000), Int64(LResult.m128i_u32[0]));
+  AssertEquals('sse41_max_epu32 lane3', Int64($90000000), Int64(LResult.m128i_u32[3]));
 end;
 
 {$ENDIF}

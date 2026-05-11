@@ -789,3 +789,17 @@
 | 1. 识别扩展重复体        | completed | signed / unsigned 的 lane 扩展 loop 只是目标宽度不同，结构上完全同构                                                          |
 | 2. 落地私有 helper 与回归 | completed | 新增 `SSE41ExtendSigned*` / `SSE41ExtendUnsigned*` helpers，并补了 `Test_SSE41_ConvertExtends_SignedAndUnsigned` 回归 |
 | 3. Release 验证与收口    | completed | `git diff --check`、experimental `check`、`test --suite=TTestCase_SimdIntrinsicsExperimentalX86`、Release `check`、Release `gate` 全通过 |
+
+## 2026-05-11 SSE4.1 Min/Max Helper Consolidation
+
+### Goal
+
+把 `sse41_max_epi8 / max_epi32 / max_epu16 / max_epu32` 与对应 `min_*` 的重复逐 lane 选择 loop 收成类型专属私有 helper，同时保留 experimental placeholder 语义、signed/unsigned contract 和公开函数名。
+
+### Phases
+
+| Phase                    | Status    | Notes                                                                                                                  |
+| ------------------------ | --------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 1. 识别 min/max 重复簇   | completed | 八个 wrapper 只在 lane type 与 `>` / `<` 方向上不同，属于 exact-contract duplicate                                     |
+| 2. 落地私有 helper 与回归 | completed | 新增 `SSE41MinMaxI8x16/I32x4/U16x8/U32x4`，并补 `Test_SSE41_MinMax_SignedAndUnsigned` |
+| 3. Release 验证与收口    | completed | `git diff --check`、experimental `check`、targeted experimental suite、Release `check`、Release `gate` 全通过            |

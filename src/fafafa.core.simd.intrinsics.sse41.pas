@@ -198,93 +198,121 @@ begin
     Result.m128i_u64[i] := aValue.m128i_u32[i];
 end;
 
-// === Min/Max 操作实现 ===
-function sse41_max_epi8(const a, b: TM128): TM128;
+function SSE41MinMaxI8x16(const a, b: TM128; aUseMax: Boolean): TM128; inline;
 var
   i: Integer;
 begin
-  for i := 0 to 15 do
-    if a.m128i_i8[i] > b.m128i_i8[i] then
-      Result.m128i_i8[i] := a.m128i_i8[i]
-    else
-      Result.m128i_i8[i] := b.m128i_i8[i];
+  FillChar(Result, SizeOf(Result), 0);
+  if aUseMax then
+    for i := 0 to 15 do
+      if a.m128i_i8[i] > b.m128i_i8[i] then
+        Result.m128i_i8[i] := a.m128i_i8[i]
+      else
+        Result.m128i_i8[i] := b.m128i_i8[i]
+  else
+    for i := 0 to 15 do
+      if a.m128i_i8[i] < b.m128i_i8[i] then
+        Result.m128i_i8[i] := a.m128i_i8[i]
+      else
+        Result.m128i_i8[i] := b.m128i_i8[i];
+end;
+
+function SSE41MinMaxI32x4(const a, b: TM128; aUseMax: Boolean): TM128; inline;
+var
+  i: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  if aUseMax then
+    for i := 0 to 3 do
+      if a.m128i_i32[i] > b.m128i_i32[i] then
+        Result.m128i_i32[i] := a.m128i_i32[i]
+      else
+        Result.m128i_i32[i] := b.m128i_i32[i]
+  else
+    for i := 0 to 3 do
+      if a.m128i_i32[i] < b.m128i_i32[i] then
+        Result.m128i_i32[i] := a.m128i_i32[i]
+      else
+        Result.m128i_i32[i] := b.m128i_i32[i];
+end;
+
+function SSE41MinMaxU16x8(const a, b: TM128; aUseMax: Boolean): TM128; inline;
+var
+  i: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  if aUseMax then
+    for i := 0 to 7 do
+      if a.m128i_u16[i] > b.m128i_u16[i] then
+        Result.m128i_u16[i] := a.m128i_u16[i]
+      else
+        Result.m128i_u16[i] := b.m128i_u16[i]
+  else
+    for i := 0 to 7 do
+      if a.m128i_u16[i] < b.m128i_u16[i] then
+        Result.m128i_u16[i] := a.m128i_u16[i]
+      else
+        Result.m128i_u16[i] := b.m128i_u16[i];
+end;
+
+function SSE41MinMaxU32x4(const a, b: TM128; aUseMax: Boolean): TM128; inline;
+var
+  i: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  if aUseMax then
+    for i := 0 to 3 do
+      if a.m128i_u32[i] > b.m128i_u32[i] then
+        Result.m128i_u32[i] := a.m128i_u32[i]
+      else
+        Result.m128i_u32[i] := b.m128i_u32[i]
+  else
+    for i := 0 to 3 do
+      if a.m128i_u32[i] < b.m128i_u32[i] then
+        Result.m128i_u32[i] := a.m128i_u32[i]
+      else
+        Result.m128i_u32[i] := b.m128i_u32[i];
+end;
+
+// === Min/Max 操作实现 ===
+function sse41_max_epi8(const a, b: TM128): TM128;
+begin
+  Result := SSE41MinMaxI8x16(a, b, True);
 end;
 
 function sse41_max_epi32(const a, b: TM128): TM128;
-var
-  i: Integer;
 begin
-  for i := 0 to 3 do
-    if a.m128i_i32[i] > b.m128i_i32[i] then
-      Result.m128i_i32[i] := a.m128i_i32[i]
-    else
-      Result.m128i_i32[i] := b.m128i_i32[i];
+  Result := SSE41MinMaxI32x4(a, b, True);
 end;
 
 function sse41_max_epu16(const a, b: TM128): TM128;
-var
-  i: Integer;
 begin
-  for i := 0 to 7 do
-    if a.m128i_u16[i] > b.m128i_u16[i] then
-      Result.m128i_u16[i] := a.m128i_u16[i]
-    else
-      Result.m128i_u16[i] := b.m128i_u16[i];
+  Result := SSE41MinMaxU16x8(a, b, True);
 end;
 
 function sse41_max_epu32(const a, b: TM128): TM128;
-var
-  i: Integer;
 begin
-  for i := 0 to 3 do
-    if a.m128i_u32[i] > b.m128i_u32[i] then
-      Result.m128i_u32[i] := a.m128i_u32[i]
-    else
-      Result.m128i_u32[i] := b.m128i_u32[i];
+  Result := SSE41MinMaxU32x4(a, b, True);
 end;
 
 function sse41_min_epi8(const a, b: TM128): TM128;
-var
-  i: Integer;
 begin
-  for i := 0 to 15 do
-    if a.m128i_i8[i] < b.m128i_i8[i] then
-      Result.m128i_i8[i] := a.m128i_i8[i]
-    else
-      Result.m128i_i8[i] := b.m128i_i8[i];
+  Result := SSE41MinMaxI8x16(a, b, False);
 end;
 
 function sse41_min_epi32(const a, b: TM128): TM128;
-var
-  i: Integer;
 begin
-  for i := 0 to 3 do
-    if a.m128i_i32[i] < b.m128i_i32[i] then
-      Result.m128i_i32[i] := a.m128i_i32[i]
-    else
-      Result.m128i_i32[i] := b.m128i_i32[i];
+  Result := SSE41MinMaxI32x4(a, b, False);
 end;
 
 function sse41_min_epu16(const a, b: TM128): TM128;
-var
-  i: Integer;
 begin
-  for i := 0 to 7 do
-    if a.m128i_u16[i] < b.m128i_u16[i] then
-      Result.m128i_u16[i] := a.m128i_u16[i]
-    else
-      Result.m128i_u16[i] := b.m128i_u16[i];
+  Result := SSE41MinMaxU16x8(a, b, False);
 end;
 
 function sse41_min_epu32(const a, b: TM128): TM128;
-var
-  i: Integer;
 begin
-  for i := 0 to 3 do
-    if a.m128i_u32[i] < b.m128i_u32[i] then
-      Result.m128i_u32[i] := a.m128i_u32[i]
-    else
-      Result.m128i_u32[i] := b.m128i_u32[i];
+  Result := SSE41MinMaxU32x4(a, b, False);
 end;
 
 // === 点积指令实现 ===
