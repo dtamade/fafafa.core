@@ -522,3 +522,17 @@
 | 1. 识别可继续收口的 exact-contract wrapper | completed | 已确认 `I32x4 / I64x2 / I32x8 / U32x8` 的 add/sub/mul/bitwise/compare/min/max fallback 仍是手写 lane loop，同合同 scalar 真源都已存在 |
 | 2. 收回 scalar truth 并补 checker 护栏 | completed | `src/fafafa.core.simd.riscvv.facade.inc` 已改成直接委托 `Scalar*`；`check_nonx86_helper_semantics.py` 已补 source-side 断言，避免同合同循环壳回流 |
 | 3. Release 验证与收口 | completed | 已完成 `git diff --check`、non-x86 helper checker、`impl-smoke-nonx86`、`impl-audit-nonx86`、Release `check`、Release `gate`，结果全绿 |
+
+## 2026-05-11 NEON Scalar Math/Utility Forwarder Consolidation
+
+### Goal
+
+继续收 `NEON` non-ASM scalar fallback 里与 `Scalar*` 完全同合同的基础 math / utility wrapper，把 `Splat / Abs / Sqrt / Fma / Rcp / Rsqrt` 这类重复逐 lane 体收回 scalar 真源；不触碰浮点 `Min/Max`、rounding、clamp 等 NaN / signed-zero 语义仍需单独证明的路径。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别 exact-contract math/utility fallback | completed | 已确认 `NEONSplatF32x4`、`NEONAbs/SqrtF32x4`、`NEONFma/Rcp/RsqrtF32x4`、fallback-only wide `Abs/Fma` 都只是 scalar 真源的重复体 |
+| 2. 收回 scalar truth 并补 checker 护栏 | completed | `neon.scalar.utility/math/ext_math/autowrap.inc` 已改成直接委托 `Scalar*`；`check_nonx86_helper_semantics.py` 检查数提升至 176，锁住新增 forwarder |
+| 3. Release 验证与收口 | completed | `git diff --check`、`py_compile`、non-x86 helper checker、`impl-smoke-nonx86`、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过 |

@@ -1,24 +1,18 @@
 // === Extended Math Operations ===
 
 function NEONFmaF32x4(const a, b, c: TVecF32x4): TVecF32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := a.f[i] * b.f[i] + c.f[i];
+  Result := ScalarFmaF32x4(a, b, c);
 end;
 
 function NEONRcpF32x4(const a: TVecF32x4): TVecF32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := 1.0 / a.f[i];
+  Result := ScalarRcpF32x4(a);
 end;
 
 function NEONRsqrtF32x4(const a: TVecF32x4): TVecF32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := 1.0 / Sqrt(a.f[i]);
+  Result := ScalarRsqrtF32x4(a);
 end;
 
 function NEONFloorF32x4(const a: TVecF32x4): TVecF32x4;
@@ -62,4 +56,3 @@ begin
       Result.f[i] := a.f[i];
   end;
 end;
-

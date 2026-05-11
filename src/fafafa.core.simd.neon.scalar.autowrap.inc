@@ -5,34 +5,27 @@
 
 function NEONAbsF32x16(const a: TVecF32x16): TVecF32x16;
 begin
-  Result.lo.lo := NEONAbsF32x4(a.lo.lo);
-  Result.lo.hi := NEONAbsF32x4(a.lo.hi);
-  Result.hi.lo := NEONAbsF32x4(a.hi.lo);
-  Result.hi.hi := NEONAbsF32x4(a.hi.hi);
+  Result := ScalarAbsF32x16(a);
 end;
 
 function NEONAbsF32x8(const a: TVecF32x8): TVecF32x8;
 begin
-  Result.lo := NEONAbsF32x4(a.lo);
-  Result.hi := NEONAbsF32x4(a.hi);
+  Result := ScalarAbsF32x8(a);
 end;
 
 function NEONAbsF64x2(const a: TVecF64x2): TVecF64x2;
 begin
-  Result.d[0] := Abs(a.d[0]);
-  Result.d[1] := Abs(a.d[1]);
+  Result := ScalarAbsF64x2(a);
 end;
 
 function NEONAbsF64x4(const a: TVecF64x4): TVecF64x4;
 begin
-  Result.lo := NEONAbsF64x2(a.lo);
-  Result.hi := NEONAbsF64x2(a.hi);
+  Result := ScalarAbsF64x4(a);
 end;
 
 function NEONAbsF64x8(const a: TVecF64x8): TVecF64x8;
 begin
-  Result.lo := NEONAbsF64x4(a.lo);
-  Result.hi := NEONAbsF64x4(a.hi);
+  Result := ScalarAbsF64x8(a);
 end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
@@ -1099,35 +1092,27 @@ end;
 
 function NEONFmaF32x16(const a, b, c: TVecF32x16): TVecF32x16;
 begin
-  Result.lo.lo := NEONFmaF32x4(a.lo.lo, b.lo.lo, c.lo.lo);
-  Result.lo.hi := NEONFmaF32x4(a.lo.hi, b.lo.hi, c.lo.hi);
-  Result.hi.lo := NEONFmaF32x4(a.hi.lo, b.hi.lo, c.hi.lo);
-  Result.hi.hi := NEONFmaF32x4(a.hi.hi, b.hi.hi, c.hi.hi);
+  Result := ScalarFmaF32x16(a, b, c);
 end;
 
 function NEONFmaF32x8(const a, b, c: TVecF32x8): TVecF32x8;
 begin
-  Result.lo := NEONFmaF32x4(a.lo, b.lo, c.lo);
-  Result.hi := NEONFmaF32x4(a.hi, b.hi, c.hi);
+  Result := ScalarFmaF32x8(a, b, c);
 end;
 
 function NEONFmaF64x2(const a, b, c: TVecF64x2): TVecF64x2;
 begin
-  // Result = a * b + c
-  Result.d[0] := a.d[0] * b.d[0] + c.d[0];
-  Result.d[1] := a.d[1] * b.d[1] + c.d[1];
+  Result := ScalarFmaF64x2(a, b, c);
 end;
 
 function NEONFmaF64x4(const a, b, c: TVecF64x4): TVecF64x4;
 begin
-  Result.lo := NEONFmaF64x2(a.lo, b.lo, c.lo);
-  Result.hi := NEONFmaF64x2(a.hi, b.hi, c.hi);
+  Result := ScalarFmaF64x4(a, b, c);
 end;
 
 function NEONFmaF64x8(const a, b, c: TVecF64x8): TVecF64x8;
 begin
-  Result.lo := NEONFmaF64x4(a.lo, b.lo, c.lo);
-  Result.hi := NEONFmaF64x4(a.hi, b.hi, c.hi);
+  Result := ScalarFmaF64x8(a, b, c);
 end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED

@@ -12,6 +12,8 @@ NEON_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.wide_memory.inc"
 NEON_IMPL_FILE = ROOT / "src" / "fafafa.core.simd.neon.pas"
 NEON_SCALAR_FALLBACK_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar_fallback.inc"
 NEON_SCALAR_UTILITY_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.utility.inc"
+NEON_SCALAR_MATH_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.math.inc"
+NEON_SCALAR_EXT_MATH_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.ext_math.inc"
 NEON_SCALAR_AUTOWRAP_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.autowrap.inc"
 RISCVV_FILE = ROOT / "src" / "fafafa.core.simd.riscvv.pas"
 RISCVV_FACADE_FILE = ROOT / "src" / "fafafa.core.simd.riscvv.facade.inc"
@@ -72,6 +74,8 @@ def main() -> int:
     neon_impl_source = read_text(NEON_IMPL_FILE)
     neon_scalar_fallback_source = read_text(NEON_SCALAR_FALLBACK_FILE)
     neon_scalar_utility_source = read_text(NEON_SCALAR_UTILITY_FILE)
+    neon_scalar_math_source = read_text(NEON_SCALAR_MATH_FILE)
+    neon_scalar_ext_math_source = read_text(NEON_SCALAR_EXT_MATH_FILE)
     neon_scalar_autowrap_source = read_text(NEON_SCALAR_AUTOWRAP_FILE)
     riscvv_source = read_text(RISCVV_FILE)
     riscvv_facade_source = read_text(RISCVV_FACADE_FILE)
@@ -231,6 +235,9 @@ def main() -> int:
         (neon_scalar_fallback_source, "NEONMulI32x4", [
             "Result := ScalarMulI32x4(a, b);",
         ]),
+        (neon_scalar_utility_source, "NEONSplatF32x4", [
+            "Result := ScalarSplatF32x4(value);",
+        ]),
         (neon_scalar_utility_source, "NEONSelectF32x4", [
             "Result := ScalarSelectF32x4(mask, a, b);",
         ]),
@@ -287,6 +294,51 @@ def main() -> int:
         ]),
         (neon_scalar_autowrap_source, "NEONInsertF64x2", [
             "Result := ScalarInsertF64x2(a, value, index);",
+        ]),
+        (neon_scalar_math_source, "NEONAbsF32x4", [
+            "Result := ScalarAbsF32x4(a);",
+        ]),
+        (neon_scalar_math_source, "NEONSqrtF32x4", [
+            "Result := ScalarSqrtF32x4(a);",
+        ]),
+        (neon_scalar_ext_math_source, "NEONFmaF32x4", [
+            "Result := ScalarFmaF32x4(a, b, c);",
+        ]),
+        (neon_scalar_ext_math_source, "NEONRcpF32x4", [
+            "Result := ScalarRcpF32x4(a);",
+        ]),
+        (neon_scalar_ext_math_source, "NEONRsqrtF32x4", [
+            "Result := ScalarRsqrtF32x4(a);",
+        ]),
+        (neon_scalar_autowrap_source, "NEONAbsF32x16", [
+            "Result := ScalarAbsF32x16(a);",
+        ]),
+        (neon_scalar_autowrap_source, "NEONAbsF32x8", [
+            "Result := ScalarAbsF32x8(a);",
+        ]),
+        (neon_scalar_autowrap_source, "NEONAbsF64x2", [
+            "Result := ScalarAbsF64x2(a);",
+        ]),
+        (neon_scalar_autowrap_source, "NEONAbsF64x4", [
+            "Result := ScalarAbsF64x4(a);",
+        ]),
+        (neon_scalar_autowrap_source, "NEONAbsF64x8", [
+            "Result := ScalarAbsF64x8(a);",
+        ]),
+        (neon_scalar_autowrap_source, "NEONFmaF32x16", [
+            "Result := ScalarFmaF32x16(a, b, c);",
+        ]),
+        (neon_scalar_autowrap_source, "NEONFmaF32x8", [
+            "Result := ScalarFmaF32x8(a, b, c);",
+        ]),
+        (neon_scalar_autowrap_source, "NEONFmaF64x2", [
+            "Result := ScalarFmaF64x2(a, b, c);",
+        ]),
+        (neon_scalar_autowrap_source, "NEONFmaF64x4", [
+            "Result := ScalarFmaF64x4(a, b, c);",
+        ]),
+        (neon_scalar_autowrap_source, "NEONFmaF64x8", [
+            "Result := ScalarFmaF64x8(a, b, c);",
         ]),
         (riscvv_source, "RISCVVExtractF32x4", [
             "LIndex := index;",

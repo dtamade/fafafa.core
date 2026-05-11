@@ -1,17 +1,13 @@
 // === Math Operations ===
 
 function NEONAbsF32x4(const a: TVecF32x4): TVecF32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := Abs(a.f[i]);
+  Result := ScalarAbsF32x4(a);
 end;
 
 function NEONSqrtF32x4(const a: TVecF32x4): TVecF32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := Sqrt(a.f[i]);
+  Result := ScalarSqrtF32x4(a);
 end;
 
 function NEONMinF32x4(const a, b: TVecF32x4): TVecF32x4;
@@ -33,4 +29,3 @@ begin
     else
       Result.f[i] := b.f[i];
 end;
-

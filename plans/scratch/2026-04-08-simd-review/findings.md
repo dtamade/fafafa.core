@@ -681,3 +681,12 @@
 - `riscvv.facade.inc` 里 `I32x4 / I64x2 / I32x8 / U32x8` 仍有一批 exact-contract fallback 在手写 lane loop，和同名 `Scalar*` helper 完全同合同。
 - 本轮收口只改 non-asm fallback body：`Add/Sub/Mul/And/Or/Xor/Not/AndNot/Cmp*` 以及 `I32x4/I32x8` 的 `Min/Max` 已改为直接委托 `Scalar*`；`Shift`、`float min/max`、`select/extract/insert`、`register.inc` ownership 都没动。
 - checker 层面已经补了对应 source-side 断言，下一步重点是 release verification，不是继续扩语义范围。
+
+
+## 2026-05-11 NEON Scalar Math/Utility Forwarder Consolidation
+
+- `NEON` non-ASM fallback 里仍有一批基础 math / utility 函数在维护与 `Scalar*` 完全同合同的逐 lane 体，主要是 `Splat / Abs / Sqrt / Fma / Rcp / Rsqrt`。
+- 本轮把这些 exact-contract wrapper 收回 scalar truth，同时保留 `NEON` asm-enabled 路径和 register ownership 不变。
+- fallback-only wide `Abs/Fma` 原来只是递归拆到较窄 NEON fallback；现在直接委托 wide `ScalarAbs/Fma*`，避免再维护宽度拆分的第二份真源。
+- 本批刻意不碰浮点 `Min/Max`、`Floor/Ceil/Round/Trunc`、`Clamp`，因为这些路径涉及 NaN、Inf、signed-zero 或 `Math.Min/Max` 差异，不能只凭循环形状合并。
+- release 复验证明这次是 fallback 去重而非 contract 漂移：`git diff --check`、helper checker、`impl-smoke-nonx86`、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿。

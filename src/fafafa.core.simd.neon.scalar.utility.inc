@@ -1,10 +1,8 @@
 // === Utility Operations ===
 
 function NEONSplatF32x4(value: Single): TVecF32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := value;
+  Result := ScalarSplatF32x4(value);
 end;
 
 function NEONZeroF32x4: TVecF32x4;
