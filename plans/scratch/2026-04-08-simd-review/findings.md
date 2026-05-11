@@ -977,3 +977,10 @@
 - `check_nonx86_helper_semantics.py` 已补 7 个 RISCVV `Zero` source-side 断言，helper summary 扩到 `NONX86_HELPER_SEMANTICS_SUMMARY checks=420 status=ok`。
 - 首轮把 `ScalarZero*` 写成无参标识符时被 helper checker 抓到，已改成显式 `ScalarZero*()` 调用后复验通过。
 - release 复验已完成：`git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿。
+
+## 2026-05-12 RISCVV Shift Forwarder Consolidation
+
+- `src/fafafa.core.simd.riscvv.facade.inc` 里 11 个 `ShiftLeft/ShiftRight/ShiftRightArith` no-ASM fallback 现在都直调 `ScalarShift*`，去掉了第二份逐 lane truth source。
+- 这批 shift 的合同由 `ScalarShift*` 统一承接，包括负数和高位 count 的归零语义；这比继续保留手写 loop 更不容易漂移。
+- 这次没有碰 `RcpF64x4`、rounding、clamp、Min/Max、asm path 或 `riscvv.register.inc` 的 slot ownership，边界仍然干净。
+- `check_nonx86_helper_semantics.py` 的护栏已经更新到 `checks=431 status=ok`，release `check` 和 `gate` 也都通过了。

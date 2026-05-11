@@ -2671,108 +2671,58 @@ begin
 end;
 
 function RISCVVShiftLeftI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] shl count;
+  Result := ScalarShiftLeftI16x8(a, count);
 end;
 
 function RISCVVShiftLeftI64x4(const a: TVecI64x4; count: Integer): TVecI64x4;
-var i: Integer;
 begin
-  if (count < 0) or (count >= 64) then
-  begin
-    for i := 0 to 3 do
-      Result.i[i] := 0;
-    Exit;
-  end;
-
-  for i := 0 to 3 do
-    Result.i[i] := a.i[i] shl count;
+  Result := ScalarShiftLeftI64x4(a, count);
 end;
 
 function RISCVVShiftLeftU16x8(const a: TVecU16x8; count: Integer): TVecU16x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] shl count;
+  Result := ScalarShiftLeftU16x8(a, count);
 end;
 
 function RISCVVShiftLeftU32x4(const a: TVecU32x4; count: Integer): TVecU32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.u[i] := a.u[i] shl count;
+  Result := ScalarShiftLeftU32x4(a, count);
 end;
 
 function RISCVVShiftLeftU64x4(const a: TVecU64x4; count: Integer): TVecU64x4;
-var i: Integer;
 begin
-  if (count < 0) or (count >= 64) then
-  begin
-    for i := 0 to 3 do
-      Result.u[i] := 0;
-    Exit;
-  end;
-
-  for i := 0 to 3 do
-    Result.u[i] := a.u[i] shl count;
+  Result := ScalarShiftLeftU64x4(a, count);
 end;
 
 function RISCVVShiftRightArithI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := SarSmallint(a.i[i], count);
+  Result := ScalarShiftRightArithI16x8(a, count);
 end;
 
 function RISCVVShiftRightI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] shr count;
+  Result := ScalarShiftRightI16x8(a, count);
 end;
 
 function RISCVVShiftRightI64x4(const a: TVecI64x4; count: Integer): TVecI64x4;
-var i: Integer;
 begin
-  if (count < 0) or (count >= 64) then
-  begin
-    for i := 0 to 3 do
-      Result.i[i] := 0;
-    Exit;
-  end;
-
-  for i := 0 to 3 do
-    Result.i[i] := Int64(UInt64(a.i[i]) shr count);
+  Result := ScalarShiftRightI64x4(a, count);
 end;
 
 function RISCVVShiftRightU16x8(const a: TVecU16x8; count: Integer): TVecU16x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] shr count;
+  Result := ScalarShiftRightU16x8(a, count);
 end;
 
 function RISCVVShiftRightU32x4(const a: TVecU32x4; count: Integer): TVecU32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.u[i] := a.u[i] shr count;
+  Result := ScalarShiftRightU32x4(a, count);
 end;
 
 function RISCVVShiftRightU64x4(const a: TVecU64x4; count: Integer): TVecU64x4;
-var i: Integer;
 begin
-  if (count < 0) or (count >= 64) then
-  begin
-    for i := 0 to 3 do
-      Result.u[i] := 0;
-    Exit;
-  end;
-
-  for i := 0 to 3 do
-    Result.u[i] := a.u[i] shr count;
+  Result := ScalarShiftRightU64x4(a, count);
 end;
 
 function RISCVVSplatF32x16(value: Single): TVecF32x16;

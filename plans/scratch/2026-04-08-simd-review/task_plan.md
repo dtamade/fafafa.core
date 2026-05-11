@@ -1103,3 +1103,18 @@
 | Error | Attempt | Resolution |
 | --- | --- | --- |
 | missing parentheses on `ScalarZero` calls | 1 | helper checker reported `RISCVVZeroF32x4 missing fragment: Result := ScalarZeroF32x4();`; updated all 7 wrappers to explicit `ScalarZero*()` calls |
+
+## 2026-05-12 RISCVV Shift Forwarder Consolidation
+
+### Goal
+
+把 `src/fafafa.core.simd.riscvv.facade.inc` 里 11 个 `ShiftLeft/ShiftRight/ShiftRightArith` no-ASM fallback 收回 `ScalarShift*` 真源；只处理 exact-contract shift wrappers，不碰 `RcpF64x4`、rounding、clamp、Min/Max、asm path 或 register ownership。
+
+### Phases
+
+| Phase                          | Status      | Notes                                                                                              |
+| ------------------------------ | ----------- | -------------------------------------------------------------------------------------------------- |
+| 1. 识别 shift 重复体           | completed   | 11 个 wrapper 都已有对应 `ScalarShift*` helper，包含高位/越界 count 的统一合同                    |
+| 2. 落地 scalar truth forwarder | completed   | `riscvv.facade.inc` 已改成直接委托 `ScalarShift*`                                                  |
+| 3. 扩大 helper semantics 护栏   | completed   | `check_nonx86_helper_semantics.py` 已纳入 11 个 shift forwarder，summary 从 `checks=420` 扩到 `checks=431` |
+| 4. Release 验证与收口          | completed   | `git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过 |
