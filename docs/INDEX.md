@@ -50,7 +50,6 @@
 - `docs/mem/`
 - `docs/fs/`
 - `docs/term/`
-- `docs/simd/`
 - `docs/benchmarks/`
 - `docs/adr/`
 - `docs/standards/`
@@ -84,5 +83,5 @@
 - mem 领域的报告与旧版指南已下沉到 `docs/mem/`，根目录只保留稳定入口。
 - fs 领域的研究、开发者说明和旧 topic 文档已归位到 `docs/fs/`。
 - term 领域的旧 guide、报告和计划文档已归位到 `docs/term/`。
-- simd 领域的专题 guide、计划、报告和 closeout/handoff 文档已归位到 `docs/simd/`。
+- simd 领域的专题 guide、计划、报告和 closeout/handoff 文档已归位到模块级 `docs/fafafa.core.simd*.md`、`docs/SIMD_*.md` 与 `docs/plans/`；历史草案归入 `docs/legacy/simd/`。
 - 已完成的根目录修复报告已迁移到 `archive/reports/`。

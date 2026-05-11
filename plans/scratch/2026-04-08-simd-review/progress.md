@@ -1105,3 +1105,4 @@
 - 已抽查旧顶层文档：`SIMD_MODULE_ANALYSIS`、`SIMD_COMPREHENSIVE_AUDIT_REPORT`、`SIMD_QUALITY_ITERATION_*`、`SIMD_ITERATIVE_OPTIMIZATION_PLAN` 都已自标为 internal/historical snapshot，不应再作为活真相源。
 - 已做源码重复层初扫：当前最明显的是 `NEON/RISCVV` fallback 的大量 `Scalar*` thin forwarder，真实未收的重复实现体不多，剩余本地 loop 多数卡在 NaN / signed-zero / clamp / min-max 等语义敏感边界。
 - 本批调查已收口：文档侧以 active spine + historical snapshot 分层为主，源码侧没有发现新的大面积 duplicate truth source；后续若再动，只应针对有 replacement/parity/checker 的 exact-contract fallback。
+- 按建议已继续收口文档卫生：`docs/INDEX.md` 的过时 `docs/simd/` 导流已修正，`src/fafafa.core.simd.next-steps.md` 正式迁入 `docs/legacy/simd/`，原路径改为兼容占位。

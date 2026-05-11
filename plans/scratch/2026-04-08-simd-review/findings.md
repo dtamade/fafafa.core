@@ -235,15 +235,15 @@
 - `docs/SIMD_QUALITY_ITERATION_PLAN.md`
 - `docs/SIMD_ITERATIVE_OPTIMIZATION_PLAN.md`
 - `docs/SIMD_QUALITY_ITERATION_5.1_REPORT.md`
-- `src/fafafa.core.simd.next-steps.md`
+- `docs/legacy/simd/fafafa.core.simd.next-steps.md`（由 `src/fafafa.core.simd.next-steps.md` 迁入）
 
 这些文件当前不该再进入 active reading path；如果要进一步卫生整理，优先移动/归档，而不是先删除。
 
 ### Cleanup candidates
 
-- `docs/INDEX.md` 仍声称 `simd` 专题文档已归位到 `docs/simd/`，但当前没有 `docs/simd/` 文件树；这是过时导流，不是代码问题。
+- `docs/INDEX.md` 先前声称 `simd` 专题文档已归位到 `docs/simd/`，这已经修正为模块级顶层文档 + `docs/legacy/simd/` 历史草案入口。
 - 顶层 `SIMD_*` 历史快照虽然都有 internal / historical note，但仍和 active docs 同目录并列，容易在搜索结果里压过当前主链。
-- `src/fafafa.core.simd.next-steps.md` 已被当前 README 和主文档标成历史草案，可在后续批次迁入 archive/legacy，并保留跳转 stub。
+- `src/fafafa.core.simd.next-steps.md` 已迁入 `docs/legacy/simd/`，原路径现仅保留跳转 stub。
 
 ### Code redundancy judgment
 

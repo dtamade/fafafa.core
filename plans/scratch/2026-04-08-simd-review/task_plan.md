@@ -1214,3 +1214,18 @@
 | 2. 分类 docs/plans 与顶层 SIMD 文档  | completed   | 已分出 active / historical baseline / superseded / cleanup candidate |
 | 3. 扫描源码重复 truth 与重复实现     | completed   | 已确认当前 residual 主要是 fallback thin wrapper 与少数语义敏感 loop |
 | 4. 汇总可收口项与后续动作           | completed   | 已形成可执行的卫生建议清单，不扩大架构面 |
+
+## 2026-05-12 SIMD Docs Legacy Hygiene
+
+### Goal
+
+按冗余调查建议收口两处文档卫生：修正 `docs/INDEX.md` 中不存在的 `docs/simd/` 导流，并把 `src/fafafa.core.simd.next-steps.md` 历史草案迁入 `docs/legacy/simd/`，原路径只保留兼容占位。
+
+### Phases
+
+| Phase                              | Status      | Notes |
+| ---------------------------------- | ----------- | ----- |
+| 1. 修正全局索引导流                | completed   | `docs/INDEX.md` 不再列出不存在的 `docs/simd/`，改指当前模块级文档与 legacy 入口 |
+| 2. 迁移历史草案正文                | completed   | 正文已移动到 `docs/legacy/simd/fafafa.core.simd.next-steps.md` |
+| 3. 保留旧路径兼容占位              | completed   | `src/fafafa.core.simd.next-steps.md` 现在只负责跳转，不承载旧计划正文 |
+| 4. 更新当前活入口说明              | completed   | `src/fafafa.core.simd.README.md` 与 `docs/fafafa.core.simd.md` 已指明 archive 位置 |

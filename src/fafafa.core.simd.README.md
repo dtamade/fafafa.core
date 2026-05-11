@@ -25,7 +25,7 @@
 有两个文件需要特别区分：
 
 - `src/fafafa.core.simd.architecture.md`：当前实现导向的架构说明，适合维护者阅读
-- `src/fafafa.core.simd.next-steps.md`：历史草案，保留是为了追溯背景，不应再作为当前 API / 架构真相源
+- `src/fafafa.core.simd.next-steps.md`：历史草案占位，正文已迁入 `docs/legacy/simd/fafafa.core.simd.next-steps.md`，不应再作为当前 API / 架构真相源
 
 ## 示例入口
 

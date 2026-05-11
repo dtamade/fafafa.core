@@ -33,7 +33,7 @@
 - **维护策略**：`docs/fafafa.core.simd.maintenance.md`
 - **极简行动清单**：`docs/fafafa.core.simd.checklist.md`
 - **本轮收尾与回归矩阵**：`docs/fafafa.core.simd.closeout.md`
-- **历史背景**：`src/fafafa.core.simd.next-steps.md`（历史草案，不是当前真相源）
+- **历史背景**：`src/fafafa.core.simd.next-steps.md`（历史草案占位；正文已迁入 `docs/legacy/simd/fafafa.core.simd.next-steps.md`，不是当前真相源）
 
 ## 示例定位
 
