@@ -797,6 +797,18 @@ def main() -> int:
                 (f"RISCVVCmp{op}{suffix}", f"ScalarCmp{op}{suffix}(a, b)")
             )
 
+    for suffix in ("F32x8", "F64x4"):
+        for op in ("Add", "Sub", "Mul", "Div"):
+            riscvv_scalar_forwarder_expectations.append(
+                (f"RISCVV{op}{suffix}", f"Scalar{op}{suffix}(a, b)")
+            )
+
+    for suffix in ("F32x8", "F64x4", "F64x8", "F32x16"):
+        for op in ("Eq", "Lt", "Gt", "Le", "Ge", "Ne"):
+            riscvv_scalar_forwarder_expectations.append(
+                (f"RISCVVCmp{op}{suffix}", f"ScalarCmp{op}{suffix}(a, b)")
+            )
+
     for suffix in ("F32x16", "F64x8"):
         for op in ("Add", "Sub", "Mul", "Div"):
             riscvv_scalar_forwarder_expectations.append(

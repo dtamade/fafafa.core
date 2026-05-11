@@ -956,3 +956,10 @@
 - `src/fafafa.core.simd.riscvv.facade.inc` 已把 `Add/Sub/Mul/Div` 与 `CmpEq/Lt/Gt/Le/Ge/NeF32x4/F64x2` 改成对应 `Scalar*` 直调。
 - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 已新增这 20 个 forwarder 断言，预期 summary 从 `checks=322` 扩到 `checks=342`。
 - release 级复验已完成，`git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 均通过，当前批次已可收口。
+
+## 2026-05-12 RISCVV Mid Float Arithmetic/Compare Forwarder Consolidation
+
+- 下一批已经定位：`F32x8/F64x4` 的 arithmetic loop，以及 `F32x8/F64x4/F64x8/F32x16` 的 compare loop。
+- 这些函数都有现成 `Scalar*` helper，可继续按 exact-contract 收回。
+- `src/fafafa.core.simd.riscvv.facade.inc` 已把这 32 个 fallback 改成对应 `Scalar*` 直调，`check_nonx86_helper_semantics.py` 已把 summary 扩到 `checks=374`。
+- release 级复验已完成：`git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 均通过。

@@ -553,31 +553,23 @@ end;
 // =============================================================
 
 function RISCVVAddF32x8(const a, b: TVecF32x8): TVecF32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.f[i] := a.f[i] + b.f[i];
+  Result := ScalarAddF32x8(a, b);
 end;
 
 function RISCVVSubF32x8(const a, b: TVecF32x8): TVecF32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.f[i] := a.f[i] - b.f[i];
+  Result := ScalarSubF32x8(a, b);
 end;
 
 function RISCVVMulF32x8(const a, b: TVecF32x8): TVecF32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.f[i] := a.f[i] * b.f[i];
+  Result := ScalarMulF32x8(a, b);
 end;
 
 function RISCVVDivF32x8(const a, b: TVecF32x8): TVecF32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.f[i] := a.f[i] / b.f[i];
+  Result := ScalarDivF32x8(a, b);
 end;
 
 // =============================================================
@@ -585,31 +577,23 @@ end;
 // =============================================================
 
 function RISCVVAddF64x4(const a, b: TVecF64x4): TVecF64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.d[i] := a.d[i] + b.d[i];
+  Result := ScalarAddF64x4(a, b);
 end;
 
 function RISCVVSubF64x4(const a, b: TVecF64x4): TVecF64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.d[i] := a.d[i] - b.d[i];
+  Result := ScalarSubF64x4(a, b);
 end;
 
 function RISCVVMulF64x4(const a, b: TVecF64x4): TVecF64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.d[i] := a.d[i] * b.d[i];
+  Result := ScalarMulF64x4(a, b);
 end;
 
 function RISCVVDivF64x4(const a, b: TVecF64x4): TVecF64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.d[i] := a.d[i] / b.d[i];
+  Result := ScalarDivF64x4(a, b);
 end;
 
 // =============================================================
@@ -867,57 +851,33 @@ end;
 // =============================================================
 
 function RISCVVCmpEqF32x8(const a, b: TVecF32x8): TMask8;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.f[i] = b.f[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpEqF32x8(a, b);
 end;
 
 function RISCVVCmpLtF32x8(const a, b: TVecF32x8): TMask8;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.f[i] < b.f[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpLtF32x8(a, b);
 end;
 
 function RISCVVCmpLeF32x8(const a, b: TVecF32x8): TMask8;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.f[i] <= b.f[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpLeF32x8(a, b);
 end;
 
 function RISCVVCmpGtF32x8(const a, b: TVecF32x8): TMask8;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.f[i] > b.f[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpGtF32x8(a, b);
 end;
 
 function RISCVVCmpGeF32x8(const a, b: TVecF32x8): TMask8;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.f[i] >= b.f[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpGeF32x8(a, b);
 end;
 
 function RISCVVCmpNeF32x8(const a, b: TVecF32x8): TMask8;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.f[i] <> b.f[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpNeF32x8(a, b);
 end;
 
 // =============================================================
@@ -925,57 +885,33 @@ end;
 // =============================================================
 
 function RISCVVCmpEqF64x4(const a, b: TVecF64x4): TMask4;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 3 do
-    if a.d[i] = b.d[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpEqF64x4(a, b);
 end;
 
 function RISCVVCmpLtF64x4(const a, b: TVecF64x4): TMask4;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 3 do
-    if a.d[i] < b.d[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpLtF64x4(a, b);
 end;
 
 function RISCVVCmpLeF64x4(const a, b: TVecF64x4): TMask4;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 3 do
-    if a.d[i] <= b.d[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpLeF64x4(a, b);
 end;
 
 function RISCVVCmpGtF64x4(const a, b: TVecF64x4): TMask4;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 3 do
-    if a.d[i] > b.d[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpGtF64x4(a, b);
 end;
 
 function RISCVVCmpGeF64x4(const a, b: TVecF64x4): TMask4;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 3 do
-    if a.d[i] >= b.d[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpGeF64x4(a, b);
 end;
 
 function RISCVVCmpNeF64x4(const a, b: TVecF64x4): TMask4;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 3 do
-    if a.d[i] <> b.d[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpNeF64x4(a, b);
 end;
 
 // =============================================================
@@ -983,57 +919,33 @@ end;
 // =============================================================
 
 function RISCVVCmpEqF64x8(const a, b: TVecF64x8): TMask8;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.d[i] = b.d[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpEqF64x8(a, b);
 end;
 
 function RISCVVCmpLtF64x8(const a, b: TVecF64x8): TMask8;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.d[i] < b.d[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpLtF64x8(a, b);
 end;
 
 function RISCVVCmpLeF64x8(const a, b: TVecF64x8): TMask8;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.d[i] <= b.d[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpLeF64x8(a, b);
 end;
 
 function RISCVVCmpGtF64x8(const a, b: TVecF64x8): TMask8;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.d[i] > b.d[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpGtF64x8(a, b);
 end;
 
 function RISCVVCmpGeF64x8(const a, b: TVecF64x8): TMask8;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.d[i] >= b.d[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpGeF64x8(a, b);
 end;
 
 function RISCVVCmpNeF64x8(const a, b: TVecF64x8): TMask8;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.d[i] <> b.d[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpNeF64x8(a, b);
 end;
 
 // =============================================================
@@ -1041,57 +953,33 @@ end;
 // =============================================================
 
 function RISCVVCmpEqF32x16(const a, b: TVecF32x16): TMask16;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 15 do
-    if a.f[i] = b.f[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpEqF32x16(a, b);
 end;
 
 function RISCVVCmpLtF32x16(const a, b: TVecF32x16): TMask16;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 15 do
-    if a.f[i] < b.f[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpLtF32x16(a, b);
 end;
 
 function RISCVVCmpLeF32x16(const a, b: TVecF32x16): TMask16;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 15 do
-    if a.f[i] <= b.f[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpLeF32x16(a, b);
 end;
 
 function RISCVVCmpGtF32x16(const a, b: TVecF32x16): TMask16;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 15 do
-    if a.f[i] > b.f[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpGtF32x16(a, b);
 end;
 
 function RISCVVCmpGeF32x16(const a, b: TVecF32x16): TMask16;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 15 do
-    if a.f[i] >= b.f[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpGeF32x16(a, b);
 end;
 
 function RISCVVCmpNeF32x16(const a, b: TVecF32x16): TMask16;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 15 do
-    if a.f[i] <> b.f[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpNeF32x16(a, b);
 end;
 
 // =============================================================
