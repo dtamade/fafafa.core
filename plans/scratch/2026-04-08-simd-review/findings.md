@@ -772,3 +772,11 @@
   - experimental hold 组继续 `experimental isolated` / hold，不因为 smoke 绿就默认 reopen
 - `SSSE3` 也被再次明确成 adapter-only，不再作为待补 raw leaf 项；这点现在由 family matrix 和 decision baseline 一起维护，后续不应再回到“是不是还要补 raw leaf”的老争论。
 - 当前的真实收益是让 active docs 只保留一层政策判断，不再让同一结论在多个入口重复一遍。
+
+## 2026-05-11 AVX512 Placeholder Helper Consolidation
+
+- `src/fafafa.core.simd.intrinsics.avx512.pas` 里的 `load / loadu / store / storeu / set1 / add / sub / mul / div / mask_add / maskz_add` 都是同一宽度的 exact-contract placeholder body，只有 load/store 命名和 op / mask fallback 分支不同。
+- 这批适合收成文件内 helper：公开 API、experimental opt-in gate 语义都不变，只减少重复循环体与重复搬运体。
+- `mask_add` 与 `maskz_add` 可以共用同一个 masked-add helper；zeroing 语义由 `aUseSourceForUnmasked = False` 保留，不需要第二份 loop。
+- 本批必须停在 placeholder math layer，不能顺手扩展新的 intrinsic surface，也不能把 AVX-512 family 状态误判成 promote。
+- `git diff --check`、experimental check、Release `check`、Release `gate` 已经全绿，所以这次收口可以按稳定 batch 处理。

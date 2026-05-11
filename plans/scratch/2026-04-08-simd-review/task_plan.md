@@ -690,3 +690,17 @@
 | 1. Consolidate remaining decision gaps   | completed | 新增 `docs/plans/2026-05-11-simd-family-decision-baseline.md`，把 x86 qualification、non-x86 qualification、experimental hold 的默认判断一次性冻住                 |
 | 2. Sync active indexes and family matrix | completed | 已把新基线接入 `docs/plans/2026-05-10-simd-plan-status-index.md`、`docs/plans/2026-05-10-simd-execution-index.md` 与 `docs/plans/2026-05-09-simd-family-matrix.md` |
 | 3. Verify docs hygiene                   | completed | `npx prettier --write` 与 `git diff --check` 通过；本批只动文档，没有触碰源码                                                                                      |
+
+## 2026-05-11 AVX512 Placeholder Helper Consolidation
+
+### Goal
+
+把 `src/fafafa.core.simd.intrinsics.avx512.pas` 里 `load / loadu / store / storeu / set1 / add / sub / mul / div / mask_add / maskz_add` 的重复循环收成单一内部 helper，保留 experimental placeholder 语义与初始化门控，不扩大公开 surface。
+
+### Phases
+
+| Phase                                     | Status    | Notes                                                                                          |
+| ----------------------------------------- | --------- | ---------------------------------------------------------------------------------------------- |
+| 1. 识别可合并的 placeholder repeaters     | completed | 这 11 个函数只是同宽 `TM512` 浮点循环的不同 load/store / op / mask 变体                     |
+| 2. 落地局部 helper 收口                  | completed | 已新增 `AVX512LoadF32x16`、`AVX512StoreF32x16`、`AVX512SetF32x16`、`AVX512ApplyF32x16Binary`、`AVX512ApplyF32x16MaskAdd`，公开函数薄封装 |
+| 3. Release / experimental 验证与收口      | completed | `git diff --check`、`tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`、Release `check`、Release `gate` 全部通过 |

@@ -5,13 +5,13 @@ unit fafafa.core.simd.intrinsics.avx512;
 
 {
   === fafafa.core.simd.intrinsics.avx512 ===
-  AVX-512 (Advanced Vector Extensions 512) 指令集支�?  
+  AVX-512 (Advanced Vector Extensions 512) 指令集支�?
   AVX-512 �?Intel �?2016 年引入的 512-bit SIMD 指令集扩�?  提供最宽的向量寄存器和掩码操作
-  
+
   特性：
   - 512-bit 向量寄存�?(zmm0-zmm31)
   - 掩码寄存�?(k0-k7)
-  - 掩码操作和条件执�?  - 嵌入式舍入控�?  - 冲突检测指�?  
+  - 掩码操作和条件执�?  - 嵌入式舍入控�?  - 冲突检测指�?
   兼容性：Intel Xeon Phi (2016) 及部分服务器处理�?}
 
 interface
@@ -45,6 +45,9 @@ implementation
 uses
   SysUtils;
 
+type
+  TAVX512F32x16BinaryOp = (avx512OpAdd, avx512OpSub, avx512OpMul, avx512OpDiv);
+
 procedure EnsureExperimentalIntrinsicsEnabled; inline;
 begin
   {$IFNDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
@@ -55,25 +58,76 @@ begin
   {$ENDIF}
 end;
 
+function AVX512LoadF32x16(const Ptr: Pointer): TM512; inline;
+begin
+  Result := PTM512(Ptr)^;
+end;
+
+procedure AVX512StoreF32x16(var aDest; const aSrc: TM512); inline;
+begin
+  PTM512(@aDest)^ := aSrc;
+end;
+
+procedure AVX512SetF32x16(var aResult: TM512; const aValue: Single); inline;
+var
+  i: Integer;
+begin
+  for i := 0 to 15 do
+    aResult.m512_f32[i] := aValue;
+end;
+
+procedure AVX512ApplyF32x16Binary(var aResult: TM512; const a, b: TM512; const aOp: TAVX512F32x16BinaryOp); inline;
+var
+  i: Integer;
+begin
+  case aOp of
+    avx512OpAdd:
+      for i := 0 to 15 do
+        aResult.m512_f32[i] := a.m512_f32[i] + b.m512_f32[i];
+    avx512OpSub:
+      for i := 0 to 15 do
+        aResult.m512_f32[i] := a.m512_f32[i] - b.m512_f32[i];
+    avx512OpMul:
+      for i := 0 to 15 do
+        aResult.m512_f32[i] := a.m512_f32[i] * b.m512_f32[i];
+    avx512OpDiv:
+      for i := 0 to 15 do
+        aResult.m512_f32[i] := a.m512_f32[i] / b.m512_f32[i];
+  end;
+end;
+
+procedure AVX512ApplyF32x16MaskAdd(var aResult: TM512; const src, a, b: TM512; const mask: UInt16; const aUseSourceForUnmasked: Boolean); inline;
+var
+  i: Integer;
+begin
+  for i := 0 to 15 do
+    if (mask and (1 shl i)) <> 0 then
+      aResult.m512_f32[i] := a.m512_f32[i] + b.m512_f32[i]
+    else if aUseSourceForUnmasked then
+      aResult.m512_f32[i] := src.m512_f32[i]
+    else
+      aResult.m512_f32[i] := 0.0;
+end;
+
 // === 基础函数实现 (Pascal 版本) ===
 function avx512_load_ps512(const Ptr: Pointer): TM512;
 begin
-  Result := PTM512(Ptr)^;
+  Result := AVX512LoadF32x16(Ptr);
 end;
 
 function avx512_loadu_ps512(const Ptr: Pointer): TM512;
 begin
-  Result := PTM512(Ptr)^;
+  Result := AVX512LoadF32x16(Ptr);
 end;
 
 procedure avx512_store_ps512(var Dest; const Src: TM512);
 begin
-  PTM512(@Dest)^ := Src;
+  AVX512StoreF32x16(Dest, Src);
 end;
 
 procedure avx512_storeu_ps512(var Dest; const Src: TM512);
 begin
-  PTM512(@Dest)^ := Src;
+  AVX512StoreF32x16(Dest, Src);
 end;
 
 function avx512_setzero_ps512: TM512;
@@ -82,65 +136,38 @@ begin
 end;
 
 function avx512_set1_ps512(Value: Single): TM512;
-var
-  i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.m512_f32[i] := Value;
+  AVX512SetF32x16(Result, Value);
 end;
 
 function avx512_add_ps512(const a, b: TM512): TM512;
-var
-  i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.m512_f32[i] := a.m512_f32[i] + b.m512_f32[i];
+  AVX512ApplyF32x16Binary(Result, a, b, avx512OpAdd);
 end;
 
 function avx512_sub_ps512(const a, b: TM512): TM512;
-var
-  i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.m512_f32[i] := a.m512_f32[i] - b.m512_f32[i];
+  AVX512ApplyF32x16Binary(Result, a, b, avx512OpSub);
 end;
 
 function avx512_mul_ps512(const a, b: TM512): TM512;
-var
-  i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.m512_f32[i] := a.m512_f32[i] * b.m512_f32[i];
+  AVX512ApplyF32x16Binary(Result, a, b, avx512OpMul);
 end;
 
 function avx512_div_ps512(const a, b: TM512): TM512;
-var
-  i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.m512_f32[i] := a.m512_f32[i] / b.m512_f32[i];
+  AVX512ApplyF32x16Binary(Result, a, b, avx512OpDiv);
 end;
 
 function avx512_mask_add_ps512(const src, a, b: TM512; mask: UInt16): TM512;
-var
-  i: Integer;
 begin
-  for i := 0 to 15 do
-    if (mask and (1 shl i)) <> 0 then
-      Result.m512_f32[i] := a.m512_f32[i] + b.m512_f32[i]
-    else
-      Result.m512_f32[i] := src.m512_f32[i];
+  AVX512ApplyF32x16MaskAdd(Result, src, a, b, mask, True);
 end;
 
 function avx512_maskz_add_ps512(const a, b: TM512; mask: UInt16): TM512;
-var
-  i: Integer;
 begin
-  for i := 0 to 15 do
-    if (mask and (1 shl i)) <> 0 then
-      Result.m512_f32[i] := a.m512_f32[i] + b.m512_f32[i]
-    else
-      Result.m512_f32[i] := 0.0;
+  AVX512ApplyF32x16MaskAdd(Result, Default(TM512), a, b, mask, False);
 end;
 
 initialization
