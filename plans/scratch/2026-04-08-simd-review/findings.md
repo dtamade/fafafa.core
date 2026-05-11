@@ -532,6 +532,14 @@
 - 这没有把 metadata query 伪装成 dataplane 的职责；它只是消掉同一组 `CapabilityBits / dispatchable / Priority` 赋值模板，避免后续维护时一个分支改了另一个分支漏掉。
 - 回归已覆盖 public ABI suite、`check` 和 `gate`，其中 `gate` 同时经过 public ABI signature、public ABI smoke、并发回归链、`DispatchAPI`、`DataPlane` 与 `DirectDispatch`。
 
+## 2026-05-12 Facade Hot-Path Dispatch Mirror
+
+- `src/fafafa.core.simd.pas` 的普通 façade wrapper 已不再逐次调用 `GetCurrentSimdDataPlaneDispatch`，而是读取本地 `g_FastSimdDispatchPtr` mirror。
+- 这份 mirror 只在 `RebindSimdFacadeFastPaths` 中从当前 `PSimdDataPlane.Dispatch` 发布，dispatch hook invalidate 时同步清空；因此它是 `dataplane` snapshot 的只读热路径镜像，不是新的 control-plane truth source。
+- `VecF32x4Add` 等少量已绑定函数指针 fast-path 仍保持专用 bound pointer；普通 wrapper 则通过同一个 local dispatch mirror 减少每次调用穿过 `dataplane` getter 的层级。
+- `check_dispatch_read_scope.py` 现在同时封住两类回退：消费者直读 `GetDispatchTable`，以及 `simd.pas` 回退到 per-call `GetCurrentSimdDataPlaneDispatch`。
+- Release 验证结果：`git diff --check`、Release `check`、两组 focused seam suites、Release `gate` 全部通过，`DISPATCH_READ_SCOPE ... facade_issues=0`。
+
 ## 2026-05-11 AVX2 Lane Helper Consolidation
 
 - `AVX2SelectF32x4 / AVX2ExtractF32x4 / AVX2InsertF32x4 / AVX2SelectF64x2` 原来只是把和 scalar 完全相同的 lane 选择与边界截断逻辑在 AVX2 里又写了一遍。

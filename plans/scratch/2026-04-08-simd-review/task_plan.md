@@ -1169,3 +1169,18 @@
 | Error | Attempt | Resolution |
 | --- | --- | --- |
 | `Test_RISCVV_FacadeDotF64_NoAsmSource_Does_Not_ScalarForward` failed after forwarding `DotF64x2/F64x4` | 1 | Reverted both F64 dot wrappers back to local exact arithmetic and kept only the F32 dot/cross/length forwarders |
+
+## 2026-05-12 Facade Hot-Path Dispatch Mirror
+
+### Goal
+
+把 `src/fafafa.core.simd.pas` 普通 façade wrapper 的 dispatch 读取从每次调用 `GetCurrentSimdDataPlaneDispatch` 收紧为本地只读 snapshot mirror；mirror 只由 `dataplane` 发布结果填充，`dispatch` / `runtime` / `cpuinfo` 控制面不下沉到 façade 热路径。
+
+### Phases
+
+| Phase                              | Status      | Notes |
+| ---------------------------------- | ----------- | ----- |
+| 1. 锁定热路径边界与现状            | completed   | 当前 `simd.pas` 中仍有大量 wrapper 每次调用 `GetCurrentSimdDataPlaneDispatch` |
+| 2. 落地 façade local dispatch mirror | completed   | 新增本地 `g_FastSimdDispatchPtr`，由 `RebindSimdFacadeFastPaths` 从 `PSimdDataPlane.Dispatch` 发布 |
+| 3. 扩展 dispatch-read-scope 护栏    | completed   | `check_dispatch_read_scope.py` 已阻止 `simd.pas` façade wrapper 回退到 per-call dataplane dispatch getter |
+| 4. Release 验证与提交收口           | completed   | `git diff --check`、Release `check`、focused seam suites、Release `gate` 全部通过；待 review + commit |

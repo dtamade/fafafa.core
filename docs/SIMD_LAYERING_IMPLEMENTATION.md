@@ -149,6 +149,7 @@ raw leaves
 - 按当前 published dispatch 生成 data-plane binding snapshot
 - 保存 façade hot-path / public ABI / direct 会消费的已绑定函数指针
 - 以“发布后的 snapshot”而不是“每次现算 getter”形式服务热点路径
+- `simd.pas` 可以保留本地 dispatch pointer mirror，但这份 mirror 只能从 `dataplane` snapshot 发布结果填充，不能回到 control-plane 现算
 
 它不是：
 
@@ -160,6 +161,7 @@ raw leaves
 为什么这里要单独写出来：
 
 - `simd.pas` façade fast-path 会从这里取 bound pointers
+- `simd.pas` 普通 wrapper 会从这里派生本地 dispatch mirror，避免热点路径每次再穿过 dataplane getter
 - `public ABI wrapper` 会从这里取 bound API table 成员
 - `direct` 会从这里取当前 dispatch snapshot
 

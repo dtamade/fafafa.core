@@ -54,7 +54,7 @@
 
 - 内部 publication seam，不属于普通调用方公开 API
 - 负责按当前 published dispatch 构造 data-plane binding snapshot
-- 这份 snapshot 会被 `simd.pas` façade fast-path、public ABI wrapper、`fafafa.core.simd.direct` 共同消费
+- 这份 snapshot 会被 `simd.pas` façade fast-path、本地 dispatch mirror、public ABI wrapper、`fafafa.core.simd.direct` 共同消费
 - 不负责 backend 选择，不替代 `dispatch` / `runtime`
 
 ### `public ABI wrapper`

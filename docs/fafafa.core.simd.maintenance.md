@@ -185,12 +185,13 @@
 关键约束：
 
 - `dataplane` 绑定的是当前 published dispatch 对应的一组热点函数指针
-- `simd.pas` façade fast-path、public ABI wrapper、`direct` 都共享这份发布结果
+- `simd.pas` façade fast-path、`simd.pas` 本地 dispatch mirror、public ABI wrapper、`direct` 都共享这份发布结果
 - 当前语义是“发布 snapshot，再消费”，不是每个调用面自己反复回读 `dispatch`
 
 维护规则：
 
 - 不要把这层重新打散回“多个调用面各自 getter + 各自缓存”的状态
+- `simd.pas` 的本地 dispatch mirror 只能从 `PSimdDataPlane.Dispatch` 发布；它是只读热路径镜像，不是新的 truth source
 - 如果你改了 `dataplane` 的字段、发布时机或失效逻辑，至少重新跑 `TTestCase_DataPlane`、`TTestCase_DirectDispatch` 和 `gate`
 - 如果你同时动 `dispatch` 与 `dataplane`，要把它视为同一条 seam 的一致性改动，而不是两个无关文件
 

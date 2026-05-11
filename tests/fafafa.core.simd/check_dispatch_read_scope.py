@@ -24,6 +24,8 @@ ALLOWED_DIRECT_READ_FILES = {
 }
 SYMBOL_RE = re.compile(rf"\b{re.escape(SYMBOL)}\b")
 ACTIVE_PUBLIC_ABI_DOC = "docs/fafafa.core.simd.publicabi.md"
+FACADE_SOURCE_FILE = "src/fafafa.core.simd.pas"
+FACADE_FORBIDDEN_GETTER_SYMBOL = "GetCurrentSimdDataPlaneDispatch"
 PUBLIC_ABI_DOC_FORBIDDEN_PATTERNS = (
     re.compile(r"\u515c\u5e95.{0,80}dispatch table", re.IGNORECASE),
     re.compile(r"fallback.{0,80}dispatch table", re.IGNORECASE),
@@ -32,6 +34,15 @@ PUBLIC_ABI_DOC_REQUIRED_FRAGMENTS = (
     "published `dataplane`",
     "`public ABI wrapper`",
     "`GetDispatchTable`",
+)
+FACADE_FORBIDDEN_GETTER_RE = re.compile(
+    rf"\b{re.escape(FACADE_FORBIDDEN_GETTER_SYMBOL)}\b"
+)
+FACADE_REQUIRED_FRAGMENTS = (
+    "g_FastSimdDispatchPtr",
+    "function GetSimdFacadeDispatchFastPath",
+    "LDataPlane^.Dispatch",
+    "atomic_store(g_FastSimdDispatchPtr, nil",
 )
 
 
@@ -52,10 +63,15 @@ class Report:
     allowed_hits: list[Hit]
     forbidden_hits: list[Hit]
     active_doc_issues: list[str]
+    facade_issues: list[str]
 
     @property
     def ok(self) -> bool:
-        return len(self.forbidden_hits) == 0 and len(self.active_doc_issues) == 0
+        return (
+            len(self.forbidden_hits) == 0
+            and len(self.active_doc_issues) == 0
+            and len(self.facade_issues) == 0
+        )
 
 
 def repo_root() -> Path:
@@ -203,6 +219,7 @@ def build_report(aRoot: Path) -> Report:
     l_allowed_hits: list[Hit] = []
     l_forbidden_hits: list[Hit] = []
     l_active_doc_issues = check_active_public_abi_doc(aRoot)
+    l_facade_issues = check_facade_hot_path_mirror(aRoot)
 
     for l_path in l_files:
         l_rel = l_path.relative_to(aRoot).as_posix()
@@ -221,6 +238,7 @@ def build_report(aRoot: Path) -> Report:
         allowed_hits=l_allowed_hits,
         forbidden_hits=l_forbidden_hits,
         active_doc_issues=l_active_doc_issues,
+        facade_issues=l_facade_issues,
     )
 
 
@@ -248,6 +266,33 @@ def check_active_public_abi_doc(aRoot: Path) -> list[str]:
     return l_issues
 
 
+def check_facade_hot_path_mirror(aRoot: Path) -> list[str]:
+    l_path = aRoot / FACADE_SOURCE_FILE
+    if not l_path.is_file():
+        return [f"missing facade source file: {FACADE_SOURCE_FILE}"]
+
+    l_text = l_path.read_text(encoding="utf-8", errors="replace")
+    l_stripped = strip_pascal_comments_and_strings(l_text)
+    l_issues: list[str] = []
+
+    for l_line_no, l_code in enumerate(l_stripped.splitlines(), start=1):
+        if FACADE_FORBIDDEN_GETTER_RE.search(l_code):
+            l_issues.append(
+                f"{FACADE_SOURCE_FILE}:{l_line_no}: facade hot path must use "
+                "its local dataplane dispatch mirror, not "
+                f"{FACADE_FORBIDDEN_GETTER_SYMBOL}"
+            )
+
+    for l_fragment in FACADE_REQUIRED_FRAGMENTS:
+        if l_fragment not in l_stripped:
+            l_issues.append(
+                f"{FACADE_SOURCE_FILE}: missing facade dispatch mirror "
+                f"fragment: {l_fragment}"
+            )
+
+    return l_issues
+
+
 def print_human_report(aReport: Report, aVerbose: bool) -> None:
     if aReport.forbidden_hits:
         for l_hit in aReport.forbidden_hits:
@@ -268,13 +313,17 @@ def print_human_report(aReport: Report, aVerbose: bool) -> None:
     for l_issue in aReport.active_doc_issues:
         print(f"[DISPATCH-READ-SCOPE] DOC-ISSUE {l_issue}")
 
+    for l_issue in aReport.facade_issues:
+        print(f"[DISPATCH-READ-SCOPE] FACADE-ISSUE {l_issue}")
+
     if aReport.ok:
         print("[DISPATCH-READ-SCOPE] OK")
     else:
         print(
             "[DISPATCH-READ-SCOPE] FAILED: GetDispatchTable is only allowed in "
             "dispatch/dataplane/runtime internals, and active public ABI docs "
-            "must describe dataplane fallback semantics."
+            "must describe dataplane fallback semantics. The main facade must "
+            "also use its local dataplane dispatch mirror."
         )
 
 
@@ -286,7 +335,8 @@ def render_summary_line(aReport: Report) -> str:
         f"allowed_files={len(aReport.allowed_files)} "
         f"allowed_hits={len(aReport.allowed_hits)} "
         f"forbidden_hits={len(aReport.forbidden_hits)} "
-        f"active_doc_issues={len(aReport.active_doc_issues)}"
+        f"active_doc_issues={len(aReport.active_doc_issues)} "
+        f"facade_issues={len(aReport.facade_issues)}"
     )
 
 

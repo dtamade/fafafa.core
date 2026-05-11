@@ -1069,3 +1069,20 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过，`NONX86_HELPER_SEMANTICS_SUMMARY checks=459 status=ok`
+
+## 2026-05-12 Facade Hot-Path Dispatch Mirror
+
+- 接上用户强调的“架构层级之间的调用要注意 inline / hot path”，本批不打开 family migration，也不继续扫 RISCVV 重复体。
+- 现状确认：`dispatch` 仍是 control-plane truth，`dataplane` 仍是 published binding seam；但 `src/fafafa.core.simd.pas` 还有大量普通 façade wrapper 每次调用 `GetCurrentSimdDataPlaneDispatch`，热路径层级比当前目标多一跳。
+- 本批目标：在 `simd.pas` 内维护一个只读 `PSimdDispatchTable` mirror，来源只允许是 `GetCurrentSimdDataPlane^.Dispatch`，并由 dispatch hook invalidate；普通 façade wrapper 改读本地 mirror。
+- 已落地：`g_FastSimdDispatchPtr` 由 `RebindSimdFacadeFastPaths` 从 `PSimdDataPlane.Dispatch` 发布，dispatch hook invalidate 时同步清空；普通 façade wrapper 已统一改读 `GetSimdFacadeDispatchFastPath`。
+- 已扩展机器护栏：`check_dispatch_read_scope.py` 除了继续封住消费者直读 `GetDispatchTable`，还会检查 `simd.pas` 不回退到 `GetCurrentSimdDataPlaneDispatch`，并要求本地 dispatch mirror 关键片段存在。
+- Release 验证已完成：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_dispatch_read_scope.py`
+  - `python3 tests/fafafa.core.simd/check_dispatch_read_scope.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DataPlane,TTestCase_DirectDispatch,TTestCase_DispatchAPI,TTestCase_RuntimeAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework,TTestCase_DirectDispatchConcurrent`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过；dispatch-read-scope summary 为 `forbidden_hits=0 active_doc_issues=0 facade_issues=0`。
