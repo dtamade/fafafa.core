@@ -284,6 +284,7 @@ begin
     dispatchTable.OrI64x2 := @SSE2OrI64x2;
     dispatchTable.XorI64x2 := @SSE2XorI64x2;
     dispatchTable.NotI64x2 := @SSE2NotI64x2;
+    dispatchTable.AndNotI64x2 := @SSE2AndNotI64x2;
 
     // I64x2 comparison operations (SSE2 emulation)
     // SSE2 没有原生 64 位整数比较指令（PCMPGTQ 是 SSE4.2）

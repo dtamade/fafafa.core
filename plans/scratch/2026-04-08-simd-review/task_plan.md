@@ -465,3 +465,18 @@
 | 1. 识别残余重复体 | completed | `I32x4/U32x4` 的 `Lt` 仍是完整 `pcmpgtd + movmskps` / sign-flip 体，和 `Gt(b,a)` 完全同合同；`Le/Ge/Ne` 也应继续保持薄壳风格 |
 | 2. 收回剩余 thin wrapper | completed | `I32x4/U32x4` 的 `Lt` 已改成 `Gt(b,a)`，`Le/Ge/Ne` 统一成 `MASK4_ALL_SET xor ...`；比较家族现在只保留 `Eq/Gt` 为真实 ASM |
 | 3. Release 验证与收口 | completed | `git diff --check`、`NarrowIntegerOps`、`DispatchAPI`、`check`、`gate` 全部通过 |
+
+## 2026-05-11 SSE2 128-bit Bitwise Kernel Consolidation
+
+### Goal
+
+把 `SSE2` active 128-bit 整数位运算从 signed/unsigned、lane-width-specific 的重复 ASM 体收成共享 raw kernel，保留 typed wrapper、dispatch 入口和 `sse2.pas` backend adapter 边界；同时清理未被 include 的旧 `i64x2_compare` 死文件。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别重复 bitwise bodies | completed | `I32x4/U32x4`、`I16x8/U16x8`、`I8x16/U8x16` 与 active `I64x2` 的 `And/Or/Xor/Not/AndNot` 都是同一 128-bit bitwise 语义 |
+| 2. 收口共享 raw kernel | completed | 新增 `SSE2AndVecRaw` / `SSE2OrVecRaw` / `SSE2XorVecRaw` / `SSE2NotVecRaw` / `SSE2AndNotVecRaw`，typed wrappers 改为 thin wrapper |
+| 3. 清理孤立旧实现 | completed | 删除未被任何 include 链引用的 `src/fafafa.core.simd.sse2.i64x2_compare.inc`，避免旧 scalar/compare 片段继续干扰架构判断 |
+| 4. Release 验证与收口 | completed | `git diff --check`、`check_sse2_structure.py --summary-line`、`NarrowIntegerOps`、`DispatchAPI`、`check`、`gate` 已通过；删除孤立文件后已复验 `diff --check`、SSE2 structure 与 Release `check` |

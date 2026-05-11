@@ -377,6 +377,98 @@ uses
   fafafa.core.simd.cpuinfo,
   fafafa.core.simd.scalar;
 
+// === SSE2 128-bit Bitwise Raw Helpers ===
+// Typed wrappers keep dispatch signatures distinct; these kernels own the
+// shared 128-bit bitwise behavior across lane width and signedness.
+
+procedure SSE2AndVecRaw(const aPtr, bPtr, rPtr: Pointer); inline;
+var
+  pa, pb, pr: Pointer;
+begin
+  pa := aPtr;
+  pb := bPtr;
+  pr := rPtr;
+  asm
+    mov    rax, pa
+    mov    rdx, pb
+    mov    rcx, pr
+    movdqu xmm0, [rax]
+    movdqu xmm1, [rdx]
+    pand   xmm0, xmm1
+    movdqu [rcx], xmm0
+  end;
+end;
+
+procedure SSE2OrVecRaw(const aPtr, bPtr, rPtr: Pointer); inline;
+var
+  pa, pb, pr: Pointer;
+begin
+  pa := aPtr;
+  pb := bPtr;
+  pr := rPtr;
+  asm
+    mov    rax, pa
+    mov    rdx, pb
+    mov    rcx, pr
+    movdqu xmm0, [rax]
+    movdqu xmm1, [rdx]
+    por    xmm0, xmm1
+    movdqu [rcx], xmm0
+  end;
+end;
+
+procedure SSE2XorVecRaw(const aPtr, bPtr, rPtr: Pointer); inline;
+var
+  pa, pb, pr: Pointer;
+begin
+  pa := aPtr;
+  pb := bPtr;
+  pr := rPtr;
+  asm
+    mov    rax, pa
+    mov    rdx, pb
+    mov    rcx, pr
+    movdqu xmm0, [rax]
+    movdqu xmm1, [rdx]
+    pxor   xmm0, xmm1
+    movdqu [rcx], xmm0
+  end;
+end;
+
+procedure SSE2NotVecRaw(const aPtr, rPtr: Pointer); inline;
+var
+  pa, pr: Pointer;
+begin
+  pa := aPtr;
+  pr := rPtr;
+  asm
+    mov    rax, pa
+    mov    rcx, pr
+    movdqu xmm0, [rax]
+    pcmpeqd xmm1, xmm1
+    pxor   xmm0, xmm1
+    movdqu [rcx], xmm0
+  end;
+end;
+
+procedure SSE2AndNotVecRaw(const aPtr, bPtr, rPtr: Pointer); inline;
+var
+  pa, pb, pr: Pointer;
+begin
+  pa := aPtr;
+  pb := bPtr;
+  pr := rPtr;
+  asm
+    mov    rax, pa
+    mov    rdx, pb
+    mov    rcx, pr
+    movdqu xmm0, [rax]
+    movdqu xmm1, [rdx]
+    pandn  xmm0, xmm1
+    movdqu [rcx], xmm0
+  end;
+end;
+
 // === SSE2 Arithmetic Operations ===
 // Note: FPC x86-64 calling convention:
 //   - First 6 integer/pointer args: RDI, RSI, RDX, RCX, R8, R9
@@ -781,94 +873,28 @@ end;
 // ============================================================================
 
 function SSE2AndI32x4(const a, b: TVecI32x4): TVecI32x4;
-var
-  pa, pb, pr: Pointer;
 begin
-  pa := @a;
-  pb := @b;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rdx, pb
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    pand   xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2AndVecRaw(@a, @b, @Result);
 end;
 
 function SSE2OrI32x4(const a, b: TVecI32x4): TVecI32x4;
-var
-  pa, pb, pr: Pointer;
 begin
-  pa := @a;
-  pb := @b;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rdx, pb
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    por    xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2OrVecRaw(@a, @b, @Result);
 end;
 
 function SSE2XorI32x4(const a, b: TVecI32x4): TVecI32x4;
-var
-  pa, pb, pr: Pointer;
 begin
-  pa := @a;
-  pb := @b;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rdx, pb
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    pxor   xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2XorVecRaw(@a, @b, @Result);
 end;
 
 function SSE2NotI32x4(const a: TVecI32x4): TVecI32x4;
-var
-  pa, pr: Pointer;
-const
-  AllOnes: array[0..3] of UInt32 = ($FFFFFFFF, $FFFFFFFF, $FFFFFFFF, $FFFFFFFF);
 begin
-  pa := @a;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rip + AllOnes]
-    pxor   xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2NotVecRaw(@a, @Result);
 end;
 
 function SSE2AndNotI32x4(const a, b: TVecI32x4): TVecI32x4;
-var
-  pa, pb, pr: Pointer;
 begin
-  pa := @a;
-  pb := @b;
-  pr := @Result;
-  // PANDN: dest = (NOT a) AND b
-  asm
-    mov    rax, pa
-    mov    rdx, pb
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    pandn  xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2AndNotVecRaw(@a, @b, @Result);
 end;
 
 // ============================================================================
@@ -1189,93 +1215,28 @@ begin
 end;
 
 function SSE2AndI16x8(const a, b: TVecI16x8): TVecI16x8;
-var
-  pa, pb, pr: Pointer;
 begin
-  pa := @a;
-  pb := @b;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rdx, pb
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    pand   xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2AndVecRaw(@a, @b, @Result);
 end;
 
 function SSE2OrI16x8(const a, b: TVecI16x8): TVecI16x8;
-var
-  pa, pb, pr: Pointer;
 begin
-  pa := @a;
-  pb := @b;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rdx, pb
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    por    xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2OrVecRaw(@a, @b, @Result);
 end;
 
 function SSE2XorI16x8(const a, b: TVecI16x8): TVecI16x8;
-var
-  pa, pb, pr: Pointer;
 begin
-  pa := @a;
-  pb := @b;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rdx, pb
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    pxor   xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2XorVecRaw(@a, @b, @Result);
 end;
 
 function SSE2NotI16x8(const a: TVecI16x8): TVecI16x8;
-var
-  pa, pr: Pointer;
-const
-  AllOnes: array[0..7] of UInt16 = ($FFFF, $FFFF, $FFFF, $FFFF, $FFFF, $FFFF, $FFFF, $FFFF);
 begin
-  pa := @a;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rip + AllOnes]
-    pxor   xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2NotVecRaw(@a, @Result);
 end;
 
 function SSE2AndNotI16x8(const a, b: TVecI16x8): TVecI16x8;
-var
-  pa, pb, pr: Pointer;
 begin
-  pa := @a;
-  pb := @b;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rdx, pb
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    pandn  xmm0, xmm1    // (NOT a) AND b
-    movdqu [rcx], xmm0
-  end;
+  SSE2AndNotVecRaw(@a, @b, @Result);
 end;
 
 function SSE2ShiftLeftI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
@@ -1464,94 +1425,28 @@ begin
 end;
 
 function SSE2AndI8x16(const a, b: TVecI8x16): TVecI8x16;
-var
-  pa, pb, pr: Pointer;
 begin
-  pa := @a;
-  pb := @b;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rdx, pb
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    pand   xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2AndVecRaw(@a, @b, @Result);
 end;
 
 function SSE2OrI8x16(const a, b: TVecI8x16): TVecI8x16;
-var
-  pa, pb, pr: Pointer;
 begin
-  pa := @a;
-  pb := @b;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rdx, pb
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    por    xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2OrVecRaw(@a, @b, @Result);
 end;
 
 function SSE2XorI8x16(const a, b: TVecI8x16): TVecI8x16;
-var
-  pa, pb, pr: Pointer;
 begin
-  pa := @a;
-  pb := @b;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rdx, pb
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    pxor   xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2XorVecRaw(@a, @b, @Result);
 end;
 
 function SSE2NotI8x16(const a: TVecI8x16): TVecI8x16;
-var
-  pa, pr: Pointer;
-const
-  AllOnes: array[0..15] of Byte = ($FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF,
-                                    $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF);
 begin
-  pa := @a;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rip + AllOnes]
-    pxor   xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2NotVecRaw(@a, @Result);
 end;
 
 function SSE2AndNotI8x16(const a, b: TVecI8x16): TVecI8x16;
-var
-  pa, pb, pr: Pointer;
 begin
-  pa := @a;
-  pb := @b;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rdx, pb
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    pandn  xmm0, xmm1    // (NOT a) AND b
-    movdqu [rcx], xmm0
-  end;
+  SSE2AndNotVecRaw(@a, @b, @Result);
 end;
 
 function SSE2CmpEqI8x16(const a, b: TVecI8x16): TMask16;
@@ -1735,93 +1630,28 @@ begin
 end;
 
 function SSE2AndU32x4(const a, b: TVecU32x4): TVecU32x4;
-var
-  pa, pb, pr: Pointer;
 begin
-  pa := @a;
-  pb := @b;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rdx, pb
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    pand   xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2AndVecRaw(@a, @b, @Result);
 end;
 
 function SSE2OrU32x4(const a, b: TVecU32x4): TVecU32x4;
-var
-  pa, pb, pr: Pointer;
 begin
-  pa := @a;
-  pb := @b;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rdx, pb
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    por    xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2OrVecRaw(@a, @b, @Result);
 end;
 
 function SSE2XorU32x4(const a, b: TVecU32x4): TVecU32x4;
-var
-  pa, pb, pr: Pointer;
 begin
-  pa := @a;
-  pb := @b;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rdx, pb
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    pxor   xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2XorVecRaw(@a, @b, @Result);
 end;
 
 function SSE2NotU32x4(const a: TVecU32x4): TVecU32x4;
-var
-  pa, pr: Pointer;
-const
-  AllOnes: array[0..3] of UInt32 = ($FFFFFFFF, $FFFFFFFF, $FFFFFFFF, $FFFFFFFF);
 begin
-  pa := @a;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rip + AllOnes]
-    pxor   xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2NotVecRaw(@a, @Result);
 end;
 
 function SSE2AndNotU32x4(const a, b: TVecU32x4): TVecU32x4;
-var
-  pa, pb, pr: Pointer;
 begin
-  pa := @a;
-  pb := @b;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rdx, pb
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    pandn  xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2AndNotVecRaw(@a, @b, @Result);
 end;
 
 function SSE2ShiftLeftU32x4(const a: TVecU32x4; count: Integer): TVecU32x4;
@@ -2041,93 +1871,28 @@ begin
 end;
 
 function SSE2AndU16x8(const a, b: TVecU16x8): TVecU16x8;
-var
-  pa, pb, pr: Pointer;
 begin
-  pa := @a;
-  pb := @b;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rdx, pb
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    pand   xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2AndVecRaw(@a, @b, @Result);
 end;
 
 function SSE2OrU16x8(const a, b: TVecU16x8): TVecU16x8;
-var
-  pa, pb, pr: Pointer;
 begin
-  pa := @a;
-  pb := @b;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rdx, pb
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    por    xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2OrVecRaw(@a, @b, @Result);
 end;
 
 function SSE2XorU16x8(const a, b: TVecU16x8): TVecU16x8;
-var
-  pa, pb, pr: Pointer;
 begin
-  pa := @a;
-  pb := @b;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rdx, pb
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    pxor   xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2XorVecRaw(@a, @b, @Result);
 end;
 
 function SSE2NotU16x8(const a: TVecU16x8): TVecU16x8;
-var
-  pa, pr: Pointer;
-const
-  AllOnes: array[0..7] of UInt16 = ($FFFF, $FFFF, $FFFF, $FFFF, $FFFF, $FFFF, $FFFF, $FFFF);
 begin
-  pa := @a;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rip + AllOnes]
-    pxor   xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2NotVecRaw(@a, @Result);
 end;
 
 function SSE2AndNotU16x8(const a, b: TVecU16x8): TVecU16x8;
-var
-  pa, pb, pr: Pointer;
 begin
-  pa := @a;
-  pb := @b;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rdx, pb
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    pandn  xmm0, xmm1       // xmm0 = (~a) & b
-    movdqu [rcx], xmm0
-  end;
+  SSE2AndNotVecRaw(@a, @b, @Result);
 end;
 
 function SSE2ShiftLeftU16x8(const a: TVecU16x8; count: Integer): TVecU16x8;
@@ -2328,94 +2093,28 @@ begin
 end;
 
 function SSE2AndU8x16(const a, b: TVecU8x16): TVecU8x16;
-var
-  pa, pb, pr: Pointer;
 begin
-  pa := @a;
-  pb := @b;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rdx, pb
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    pand   xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2AndVecRaw(@a, @b, @Result);
 end;
 
 function SSE2OrU8x16(const a, b: TVecU8x16): TVecU8x16;
-var
-  pa, pb, pr: Pointer;
 begin
-  pa := @a;
-  pb := @b;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rdx, pb
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    por    xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2OrVecRaw(@a, @b, @Result);
 end;
 
 function SSE2XorU8x16(const a, b: TVecU8x16): TVecU8x16;
-var
-  pa, pb, pr: Pointer;
 begin
-  pa := @a;
-  pb := @b;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rdx, pb
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    pxor   xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2XorVecRaw(@a, @b, @Result);
 end;
 
 function SSE2NotU8x16(const a: TVecU8x16): TVecU8x16;
-var
-  pa, pr: Pointer;
-const
-  AllOnes: array[0..15] of Byte = ($FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF,
-                                    $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF);
 begin
-  pa := @a;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rip + AllOnes]
-    pxor   xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2NotVecRaw(@a, @Result);
 end;
 
 function SSE2AndNotU8x16(const a, b: TVecU8x16): TVecU8x16;
-var
-  pa, pb, pr: Pointer;
 begin
-  pa := @a;
-  pb := @b;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rdx, pb
-    mov    rcx, pr
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rdx]
-    pandn  xmm0, xmm1       // xmm0 = (~a) & b
-    movdqu [rcx], xmm0
-  end;
+  SSE2AndNotVecRaw(@a, @b, @Result);
 end;
 
 function SSE2CmpEqU8x16(const a, b: TVecU8x16): TMask16;
@@ -4720,67 +4419,32 @@ asm
 end;
 
 // I64x2 位与 (PAND)
-function SSE2AndI64x2(const a, b: TVecI64x2): TVecI64x2; assembler; nostackframe;
-asm
-  {$IFDEF UNIX}
-  movdqu xmm0, [rdi]
-  movdqu xmm1, [rsi]
-  pand   xmm0, xmm1
-  movdqu [rax], xmm0
-  {$ELSE}
-  movdqu xmm0, [rcx]
-  movdqu xmm1, [rdx]
-  pand   xmm0, xmm1
-  movdqu [rax], xmm0
-  {$ENDIF}
+function SSE2AndI64x2(const a, b: TVecI64x2): TVecI64x2;
+begin
+  SSE2AndVecRaw(@a, @b, @Result);
 end;
 
 // I64x2 位或 (POR)
-function SSE2OrI64x2(const a, b: TVecI64x2): TVecI64x2; assembler; nostackframe;
-asm
-  {$IFDEF UNIX}
-  movdqu xmm0, [rdi]
-  movdqu xmm1, [rsi]
-  por    xmm0, xmm1
-  movdqu [rax], xmm0
-  {$ELSE}
-  movdqu xmm0, [rcx]
-  movdqu xmm1, [rdx]
-  por    xmm0, xmm1
-  movdqu [rax], xmm0
-  {$ENDIF}
+function SSE2OrI64x2(const a, b: TVecI64x2): TVecI64x2;
+begin
+  SSE2OrVecRaw(@a, @b, @Result);
 end;
 
 // I64x2 位异或 (PXOR)
-function SSE2XorI64x2(const a, b: TVecI64x2): TVecI64x2; assembler; nostackframe;
-asm
-  {$IFDEF UNIX}
-  movdqu xmm0, [rdi]
-  movdqu xmm1, [rsi]
-  pxor   xmm0, xmm1
-  movdqu [rax], xmm0
-  {$ELSE}
-  movdqu xmm0, [rcx]
-  movdqu xmm1, [rdx]
-  pxor   xmm0, xmm1
-  movdqu [rax], xmm0
-  {$ENDIF}
+function SSE2XorI64x2(const a, b: TVecI64x2): TVecI64x2;
+begin
+  SSE2XorVecRaw(@a, @b, @Result);
 end;
 
 // I64x2 位非 (PXOR with all 1s)
-function SSE2NotI64x2(const a: TVecI64x2): TVecI64x2; assembler; nostackframe;
-asm
-  {$IFDEF UNIX}
-  movdqu  xmm0, [rdi]
-  pcmpeqd xmm1, xmm1      // all 1s
-  pxor    xmm0, xmm1      // NOT = XOR with all 1s
-  movdqu  [rax], xmm0
-  {$ELSE}
-  movdqu  xmm0, [rcx]
-  pcmpeqd xmm1, xmm1
-  pxor    xmm0, xmm1
-  movdqu  [rax], xmm0
-  {$ENDIF}
+function SSE2NotI64x2(const a: TVecI64x2): TVecI64x2;
+begin
+  SSE2NotVecRaw(@a, @Result);
+end;
+
+function SSE2AndNotI64x2(const a, b: TVecI64x2): TVecI64x2;
+begin
+  SSE2AndNotVecRaw(@a, @b, @Result);
 end;
 
 // === I64x2 Comparison Operations (SSE2 emulation) ===

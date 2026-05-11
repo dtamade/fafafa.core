@@ -527,3 +527,18 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+
+## 2026-05-11 SSE2 128-bit Bitwise Kernel Consolidation
+
+- 继续扫 `src/fafafa.core.simd.sse2.pas` 时，确认 `And / Or / Xor / Not / AndNot` 在 `I32x4/U32x4`、`I16x8/U16x8`、`I8x16/U8x16` 上都是同一组 128-bit `pand / por / pxor / pandn / all-ones-xor` 语义。
+- 已新增 `SSE2AndVecRaw`、`SSE2OrVecRaw`、`SSE2XorVecRaw`、`SSE2NotVecRaw`、`SSE2AndNotVecRaw`，这些 family 的 typed wrapper 现在只保留签名并委托共享 kernel。
+- active `I64x2` 的 bitwise 也收回共享 raw helper，并补上 `SSE2AndNotI64x2` dispatch override，避免 `AndNotI64x2` 留在 base scalar fallback。
+- 发现 `src/fafafa.core.simd.sse2.i64x2_compare.inc` 没有任何 include 引用，里面是不会进构建的旧 compare/bitwise 片段；本轮已删除，避免后续架构判断被死文件误导。
+- 已完成验证：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NarrowIntegerOps`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 删除孤立文件后复验：`git diff --check`、`check_sse2_structure.py --summary-line`、Release `check`

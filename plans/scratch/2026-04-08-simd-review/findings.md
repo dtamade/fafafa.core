@@ -586,6 +586,14 @@
 - 这样 `SSE2` 的整数比较族就和 `AVX2` 的收口思路一致了：保留 `Eq/Gt` 的真实比较体，其余关系都当作语义薄壳，而不是分散维护多份 ASM。
 - `NarrowIntegerOps` 和 `DispatchAPI` 已经足够覆盖这类 wrapper 重写的行为风险，`check` 与 `gate` 进一步证明结构、dispatch 和 release 门禁都没被破坏。
 
+## 2026-05-11 SSE2 128-bit Bitwise Kernel Consolidation
+
+- `SSE2` 的 128-bit integer bitwise 组本质上只有一份语义：`pand / por / pxor / pandn / all-ones-xor`，lane width 和 signedness 都不该再拥有独立 kernel。
+- 这次把 `I32x4/U32x4`、`I16x8/U16x8`、`I8x16/U8x16`、`I64x2` 的 `And / Or / Xor / Not / AndNot` 全部收成共享 raw helper，再让 typed wrapper 只保留 dispatch 签名。
+- `SSE2NotVecRaw` 直接用 `pcmpeqd xmm1, xmm1` 造全 1 掩码，避免继续维护多份 `AllOnes` 常量表。
+- `src/fafafa.core.simd.sse2.i64x2_compare.inc` 没有任何 include 引用，属于不会进构建的孤立旧文件；删除后，active truth source 更集中地回到 `src/fafafa.core.simd.sse2.pas` 和 `sse2.register.inc`。
+- 本批没有把 `U64x2` 拉进 active SSE2 backend；它仍在 base fallback 路径，等后续需要时再单独决定是否升级为 backend-owned slot，避免把“去重”混成新的架构扩散。
+
 ## 2026-05-11 SSE2 Wide Emulation Boundary Normalization
 
 - `src/fafafa.core.simd.sse2.wide_emulation.inc` 的 wide extract/insert helper 原来统一用 `index and N`，这会形成 wrap-around 语义。
