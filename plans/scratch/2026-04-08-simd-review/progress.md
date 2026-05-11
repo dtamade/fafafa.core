@@ -963,3 +963,10 @@
 - 这些函数都有现成 `Scalar*` helper，可继续按 exact-contract 收回。
 - `src/fafafa.core.simd.riscvv.facade.inc` 已把这 32 个 fallback 改成对应 `Scalar*` 直调，`check_nonx86_helper_semantics.py` 已把 summary 扩到 `checks=374`。
 - release 级复验已完成：`git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 均通过。
+
+## 2026-05-12 RISCVV Abs/Sqrt Forwarder Consolidation
+
+- 下一批已经定位：`F32x4/F64x2/F32x8/F64x4/F32x16/F64x8` 的 `Abs/Sqrt` unary loop。
+- 这些函数都有现成 `Scalar*` helper，可继续按 exact-contract 收回。
+- `src/fafafa.core.simd.riscvv.facade.inc` 已把这 12 个 fallback 改成对应 `Scalar*` 直调，`check_nonx86_helper_semantics.py` 已把 summary 扩到 `checks=386`。
+- release 级复验已完成：`git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 均通过。

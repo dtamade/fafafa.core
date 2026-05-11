@@ -1022,3 +1022,18 @@
 | 2. 落地 scalar truth forwarder             | completed   | 32 个 wrapper 已改成直接委托 `Scalar*`                                                                         |
 | 3. 扩大 helper semantics 护栏               | completed   | `check_nonx86_helper_semantics.py` 已纳入这 32 个 forwarder，summary 从 `checks=342` 扩到 `checks=374`           |
 | 4. Release 验证与收口                      | completed   | `git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过 |
+
+## 2026-05-12 RISCVV Abs/Sqrt Forwarder Consolidation
+
+### Goal
+
+把 `src/fafafa.core.simd.riscvv.facade.inc` 里 `F32x4/F64x2/F32x8/F64x4/F32x16/F64x8` 的 `Abs/Sqrt` no-ASM fallback 收回 `Scalar*` 真源；只处理这 12 个 unary exact-contract wrapper，不碰 `Min/Max`、rounding、clamp、FMA、`Rcp/Rsqrt`、asm path 或 register ownership。
+
+### Phases
+
+| Phase                          | Status      | Notes                                                                                                  |
+| ------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------ |
+| 1. 识别 unary float 重复体      | completed   | 这 12 个 `Abs/Sqrt` wrapper 都已有对应 `Scalar*` helper                                                |
+| 2. 落地 scalar truth forwarder  | completed   | 12 个 wrapper 已改成直接委托对应 `ScalarAbs/Sqrt*`                                                     |
+| 3. 扩大 helper semantics 护栏    | completed   | `check_nonx86_helper_semantics.py` 已纳入这 12 个 forwarder，summary 预期从 `checks=374` 到 `checks=386` |
+| 4. Release 验证与收口           | completed   | `git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过 |

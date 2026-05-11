@@ -36,17 +36,13 @@ begin
 end;
 
 function RISCVVAbsF32x4(const a: TVecF32x4): TVecF32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := Abs(a.f[i]);
+  Result := ScalarAbsF32x4(a);
 end;
 
 function RISCVVSqrtF32x4(const a: TVecF32x4): TVecF32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := Sqrt(a.f[i]);
+  Result := ScalarSqrtF32x4(a);
 end;
 
 function RISCVVMinF32x4(const a, b: TVecF32x4): TVecF32x4;
@@ -1300,38 +1296,28 @@ begin
 end;
 
 function RISCVVAbsF32x16(const a: TVecF32x16): TVecF32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.f[i] := Abs(a.f[i]);
+  Result := ScalarAbsF32x16(a);
 end;
 
 function RISCVVAbsF32x8(const a: TVecF32x8): TVecF32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.f[i] := Abs(a.f[i]);
+  Result := ScalarAbsF32x8(a);
 end;
 
 function RISCVVAbsF64x2(const a: TVecF64x2): TVecF64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.d[i] := Abs(a.d[i]);
+  Result := ScalarAbsF64x2(a);
 end;
 
 function RISCVVAbsF64x4(const a: TVecF64x4): TVecF64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.d[i] := Abs(a.d[i]);
+  Result := ScalarAbsF64x4(a);
 end;
 
 function RISCVVAbsF64x8(const a: TVecF64x8): TVecF64x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.d[i] := Abs(a.d[i]);
+  Result := ScalarAbsF64x8(a);
 end;
 
 function RISCVVAddI16x8(const a, b: TVecI16x8): TVecI16x8;
@@ -2879,38 +2865,28 @@ begin
 end;
 
 function RISCVVSqrtF32x16(const a: TVecF32x16): TVecF32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.f[i] := Sqrt(a.f[i]);
+  Result := ScalarSqrtF32x16(a);
 end;
 
 function RISCVVSqrtF32x8(const a: TVecF32x8): TVecF32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.f[i] := Sqrt(a.f[i]);
+  Result := ScalarSqrtF32x8(a);
 end;
 
 function RISCVVSqrtF64x2(const a: TVecF64x2): TVecF64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.d[i] := Sqrt(a.d[i]);
+  Result := ScalarSqrtF64x2(a);
 end;
 
 function RISCVVSqrtF64x4(const a: TVecF64x4): TVecF64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.d[i] := Sqrt(a.d[i]);
+  Result := ScalarSqrtF64x4(a);
 end;
 
 function RISCVVSqrtF64x8(const a: TVecF64x8): TVecF64x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.d[i] := Sqrt(a.d[i]);
+  Result := ScalarSqrtF64x8(a);
 end;
 
 procedure RISCVVStoreF32x16(p: PSingle; const a: TVecF32x16);

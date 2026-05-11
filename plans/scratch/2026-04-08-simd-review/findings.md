@@ -939,3 +939,10 @@
 - 这批仍然只碰 no-ASM facade fallback，不碰 `Min/Max`、rounding、clamp、FMA、asm path 或 `riscvv.register.inc` 的 slot ownership。
 - `check_nonx86_helper_semantics.py` 需要把这 32 个 forwarder 收进护栏，summary 预期会从 `checks=342` 扩到 `checks=374`。
 - 复验结果已确认：`git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿，helper summary 为 `NONX86_HELPER_SEMANTICS_SUMMARY checks=374 status=ok`。
+
+## 2026-05-12 RISCVV Abs/Sqrt Forwarder Consolidation
+
+- `src/fafafa.core.simd.riscvv.facade.inc` 里还有一组 `Abs/Sqrt` unary loop，覆盖 `F32x4/F64x2/F32x8/F64x4/F32x16/F64x8`，它们也都有对应 `Scalar*` helper，可继续收成 thin forwarder。
+- 这批仍然只碰 no-ASM facade fallback，不碰 `Min/Max`、rounding、clamp、FMA、`Rcp/Rsqrt`、asm path 或 `riscvv.register.inc` 的 slot ownership。
+- `check_nonx86_helper_semantics.py` 需要把这 12 个 forwarder 收进护栏，summary 预期会从 `checks=374` 扩到 `checks=386`。
+- 复验结果已确认：`git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿，helper summary 为 `NONX86_HELPER_SEMANTICS_SUMMARY checks=386 status=ok`。
