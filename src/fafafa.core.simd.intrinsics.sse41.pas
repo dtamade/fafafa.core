@@ -103,6 +103,17 @@ begin
   {$ENDIF}
 end;
 
+function SSE41RoundScalar(const aValue: Extended; aRounding: Byte): Extended; inline;
+begin
+  case aRounding and 7 of
+    0: Result := Round(aValue);
+    1: Result := Int(aValue - 0.5);
+    2: Result := Int(aValue + 0.5);
+    3: Result := Int(aValue);
+    else Result := aValue;
+  end;
+end;
+
 // === Min/Max 操作实现 ===
 function sse41_max_epi8(const a, b: TM128): TM128;
 var
@@ -289,15 +300,7 @@ var
   i: Integer;
 begin
   for i := 0 to 3 do
-  begin
-    case rounding and 7 of
-      0: Result.m128_f32[i] := Round(a.m128_f32[i]);      // 最近偶数
-      1: Result.m128_f32[i] := Int(a.m128_f32[i] - 0.5);  // 向下
-      2: Result.m128_f32[i] := Int(a.m128_f32[i] + 0.5);  // 向上
-      3: Result.m128_f32[i] := Int(a.m128_f32[i]);        // 向零
-      else Result.m128_f32[i] := a.m128_f32[i];
-    end;
-  end;
+    Result.m128_f32[i] := SSE41RoundScalar(a.m128_f32[i], rounding);
 end;
 
 function sse41_round_pd(const a: TM128; rounding: Byte): TM128;
@@ -305,39 +308,19 @@ var
   i: Integer;
 begin
   for i := 0 to 1 do
-  begin
-    case rounding and 7 of
-      0: Result.m128d_f64[i] := Round(a.m128d_f64[i]);
-      1: Result.m128d_f64[i] := Int(a.m128d_f64[i] - 0.5);
-      2: Result.m128d_f64[i] := Int(a.m128d_f64[i] + 0.5);
-      3: Result.m128d_f64[i] := Int(a.m128d_f64[i]);
-      else Result.m128d_f64[i] := a.m128d_f64[i];
-    end;
-  end;
+    Result.m128d_f64[i] := SSE41RoundScalar(a.m128d_f64[i], rounding);
 end;
 
 function sse41_round_ss(const a, b: TM128; rounding: Byte): TM128;
 begin
   Result := a;
-  case rounding and 7 of
-    0: Result.m128_f32[0] := Round(b.m128_f32[0]);
-    1: Result.m128_f32[0] := Int(b.m128_f32[0] - 0.5);
-    2: Result.m128_f32[0] := Int(b.m128_f32[0] + 0.5);
-    3: Result.m128_f32[0] := Int(b.m128_f32[0]);
-    else Result.m128_f32[0] := b.m128_f32[0];
-  end;
+  Result.m128_f32[0] := SSE41RoundScalar(b.m128_f32[0], rounding);
 end;
 
 function sse41_round_sd(const a, b: TM128; rounding: Byte): TM128;
 begin
   Result := a;
-  case rounding and 7 of
-    0: Result.m128d_f64[0] := Round(b.m128d_f64[0]);
-    1: Result.m128d_f64[0] := Int(b.m128d_f64[0] - 0.5);
-    2: Result.m128d_f64[0] := Int(b.m128d_f64[0] + 0.5);
-    3: Result.m128d_f64[0] := Int(b.m128d_f64[0]);
-    else Result.m128d_f64[0] := b.m128d_f64[0];
-  end;
+  Result.m128d_f64[0] := SSE41RoundScalar(b.m128d_f64[0], rounding);
 end;
 
 // === 其他函数的简化实�?===

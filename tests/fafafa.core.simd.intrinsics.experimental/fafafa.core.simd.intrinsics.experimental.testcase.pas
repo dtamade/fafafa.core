@@ -27,6 +27,8 @@ type
     procedure Test_SSE3_LoaddupPd_LoadsFirstLaneTwice;
     procedure Test_SSE41_DpPd_UsesSelectedLanes;
     procedure Test_SSE41_RoundPs_Mode1_UpdatesEachLane;
+    procedure Test_SSE41_RoundPd_Mode2_UpdatesEachLane;
+    procedure Test_SSE41_RoundSsSd_PreserveUnmodifiedLanes;
     procedure Test_SSE41_InsertPs_ReplacesSelectedLane;
   end;
 {$ENDIF}
@@ -255,6 +257,58 @@ begin
   AssertEquals('sse41_round_ps lane1', 1.0, LResult.m128_f32[1], 0.0);
   AssertEquals('sse41_round_ps lane2', 3.0, LResult.m128_f32[2], 0.0);
   AssertEquals('sse41_round_ps lane3', 3.0, LResult.m128_f32[3], 0.0);
+end;
+
+procedure TTestCase_SimdIntrinsicsExperimentalX86.Test_SSE41_RoundPd_Mode2_UpdatesEachLane;
+var
+  LValue: TM128;
+  LResult: TM128;
+begin
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128d_f64[0] := 1.1;
+  LValue.m128d_f64[1] := 2.6;
+
+  LResult := sse41_round_pd(LValue, 2);
+  AssertEquals('sse41_round_pd lane0', 1.0, LResult.m128d_f64[0], 0.0);
+  AssertEquals('sse41_round_pd lane1', 3.0, LResult.m128d_f64[1], 0.0);
+end;
+
+procedure TTestCase_SimdIntrinsicsExperimentalX86.Test_SSE41_RoundSsSd_PreserveUnmodifiedLanes;
+var
+  LA: TM128;
+  LB: TM128;
+  LC: TM128;
+  LD: TM128;
+  LResult: TM128;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  FillChar(LC, SizeOf(LC), 0);
+  FillChar(LD, SizeOf(LD), 0);
+
+  LA.m128_f32[0] := 10.0;
+  LA.m128_f32[1] := 20.0;
+  LA.m128_f32[2] := 30.0;
+  LA.m128_f32[3] := 40.0;
+  LB.m128_f32[0] := 7.9;
+  LB.m128_f32[1] := 70.0;
+  LB.m128_f32[2] := 80.0;
+  LB.m128_f32[3] := 90.0;
+
+  LResult := sse41_round_ss(LA, LB, 3);
+  AssertEquals('sse41_round_ss lane0', 7.0, LResult.m128_f32[0], 0.0);
+  AssertEquals('sse41_round_ss lane1', 20.0, LResult.m128_f32[1], 0.0);
+  AssertEquals('sse41_round_ss lane2', 30.0, LResult.m128_f32[2], 0.0);
+  AssertEquals('sse41_round_ss lane3', 40.0, LResult.m128_f32[3], 0.0);
+
+  LC.m128d_f64[0] := 11.0;
+  LC.m128d_f64[1] := 22.0;
+  LD.m128d_f64[0] := 8.2;
+  LD.m128d_f64[1] := 88.0;
+
+  LResult := sse41_round_sd(LC, LD, 3);
+  AssertEquals('sse41_round_sd lane0', 8.0, LResult.m128d_f64[0], 0.0);
+  AssertEquals('sse41_round_sd lane1', 22.0, LResult.m128d_f64[1], 0.0);
 end;
 
 procedure TTestCase_SimdIntrinsicsExperimentalX86.Test_SSE41_InsertPs_ReplacesSelectedLane;

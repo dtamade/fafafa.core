@@ -808,3 +808,10 @@
 - 新增的 `TTestCase_SimdIntrinsicsExperimentalX86` 不是只为让 `check` 绿，它必须在 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1` 下实际跑到，才能证明注册和条件编译都没断。
 - 一个容易踩的点是 experimental 测试脚本默认还是 `experimental=0`，所以新 suite 只能靠显式 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1` 跑；否则会出现“编过了但没测到”的假绿。
 - 本批最终验证通过后，`check` / targeted experimental suite / Release `check` / Release `gate` 形成了完整收口链。
+
+## 2026-05-11 SSE4.1 Rounding Helper Consolidation
+
+- `sse41_round_ps / sse41_round_pd / sse41_round_ss / sse41_round_sd` 原来重复维护同一套 `round / Int` case 分支；这正是上一批 comment-swallow 曾经打中的高风险形态。
+- 这批只把 rounding decision 收成 `SSE41RoundScalar`，不改变 placeholder rounding 语义，也不把 SSE4.1 family 状态提升成 stable default path。
+- `round_ss` / `round_sd` 的关键合同不是只看 lane0 结果，还要保持其他 lane 来自第一个参数；新增回归专门覆盖这一点。
+- `TTestCase_SimdIntrinsicsExperimentalX86` 当前在显式 experimental 模式下跑 6 个测试，说明这次新增的 rounding 回归和上一批 load/dp/insert 回归都被真实执行。

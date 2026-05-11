@@ -761,3 +761,17 @@
 | 1. 修复源码里的真实残缺             | completed | `sse3_loaddup_pd` 恢复实际加载；`sse41_dp_pd`、`sse41_round_ps`、`sse41_insert_ps` 去掉 comment-swallow / 缺失逻辑 |
 | 2. 补最小 x86 实验性回归            | completed | 新增 `TTestCase_SimdIntrinsicsExperimentalX86`，覆盖 `sse3_loaddup_pd` / `sse41_dp_pd` / `sse41_round_ps` / `sse41_insert_ps` |
 | 3. Release 验证与收口               | completed | experimental `check`、`test --suite=TTestCase_SimdIntrinsicsExperimentalX86`、Release `check`、Release `gate` 全通过 |
+
+## 2026-05-11 SSE4.1 Rounding Helper Consolidation
+
+### Goal
+
+把 `sse41_round_ps / sse41_round_pd / sse41_round_ss / sse41_round_sd` 的重复 rounding case 收成单一私有 helper，同时保留现有 placeholder 语义与 lane ownership，不碰其他 SSE4.1 路径。
+
+### Phases
+
+| Phase                     | Status    | Notes                                                                                                              |
+| ------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------ |
+| 1. 识别重复 rounding case  | completed | 4 个 rounding wrapper 共享同一套 `round / Int` case 分支，只是 lane width 和 preserve pattern 不同                 |
+| 2. 落地私有 helper 与回归  | completed | 新增 `SSE41RoundScalar`，`round_ps/pd/ss/sd` 改为直调，并补了 `round_pd` / `round_ss` / `round_sd` 回归          |
+| 3. Release 验证与收口     | completed | `git diff --check`、experimental `check`、`test --suite=TTestCase_SimdIntrinsicsExperimentalX86`、Release `check`、Release `gate` 全通过 |
