@@ -1118,3 +1118,18 @@
 | 2. 落地 scalar truth forwarder | completed   | `riscvv.facade.inc` 已改成直接委托 `ScalarShift*`                                                  |
 | 3. 扩大 helper semantics 护栏   | completed   | `check_nonx86_helper_semantics.py` 已纳入 11 个 shift forwarder，summary 从 `checks=420` 扩到 `checks=431` |
 | 4. Release 验证与收口          | completed   | `git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过 |
+
+## 2026-05-12 RISCVV I32x4 Shift Forwarder Consolidation
+
+### Goal
+
+把 `src/fafafa.core.simd.riscvv.facade.inc` 里 `I32x4` 的 3 个 shift no-ASM fallback 收回 `ScalarShift*` 真源；只处理 exact-contract shift wrapper，不碰 `Cmp*`、`Min/Max`、`Select/Extract/Insert`、asm path 或 register ownership。
+
+### Phases
+
+| Phase                          | Status    | Notes                                                                                         |
+| ------------------------------ | --------- | --------------------------------------------------------------------------------------------- |
+| 1. 识别 shift 重复体           | completed | `ScalarShiftLeftI32x4` / `ScalarShiftRightI32x4` / `ScalarShiftRightArithI32x4` 都已存在     |
+| 2. 落地 scalar truth forwarder | completed | `RISCVVShiftLeftI32x4` / `ShiftRightI32x4` / `ShiftRightArithI32x4` 已改成直接委托 `ScalarShift*` |
+| 3. 扩大 helper semantics 护栏   | completed | `check_nonx86_helper_semantics.py` 已纳入这 3 个 forwarder，summary 从 `checks=431` 扩到 `checks=434` |
+| 4. Release 验证与收口          | completed | `git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过 |

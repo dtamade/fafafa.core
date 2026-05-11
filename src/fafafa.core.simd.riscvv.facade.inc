@@ -269,55 +269,18 @@ begin
 end;
 
 function RISCVVShiftLeftI32x4(const a: TVecI32x4; count: Integer): TVecI32x4;
-var i: Integer;
 begin
-  if (count < 0) or (count >= 32) then
-  begin
-    for i := 0 to 3 do
-      Result.i[i] := 0;
-    Exit;
-  end;
-
-  for i := 0 to 3 do
-    Result.i[i] := a.i[i] shl count;
+  Result := ScalarShiftLeftI32x4(a, count);
 end;
 
 function RISCVVShiftRightI32x4(const a: TVecI32x4; count: Integer): TVecI32x4;
-var i: Integer;
 begin
-  if (count < 0) or (count >= 32) then
-  begin
-    for i := 0 to 3 do
-      Result.i[i] := 0;
-    Exit;
-  end;
-
-  for i := 0 to 3 do
-    Result.i[i] := Int32(UInt32(a.i[i]) shr count);
+  Result := ScalarShiftRightI32x4(a, count);
 end;
 
 function RISCVVShiftRightArithI32x4(const a: TVecI32x4; count: Integer): TVecI32x4;
-var i: Integer;
 begin
-  if count < 0 then
-  begin
-    for i := 0 to 3 do
-      Result.i[i] := a.i[i];
-    Exit;
-  end;
-
-  if count >= 32 then
-  begin
-    for i := 0 to 3 do
-      if a.i[i] < 0 then
-        Result.i[i] := -1
-      else
-        Result.i[i] := 0;
-    Exit;
-  end;
-
-  for i := 0 to 3 do
-    Result.i[i] := SarLongint(a.i[i], count);
+  Result := ScalarShiftRightArithI32x4(a, count);
 end;
 
 function RISCVVMinI32x4(const a, b: TVecI32x4): TVecI32x4;

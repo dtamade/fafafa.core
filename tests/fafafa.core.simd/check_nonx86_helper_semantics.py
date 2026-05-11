@@ -832,6 +832,7 @@ def main() -> int:
         )
 
     for suffix, ops in (
+        ("I32x4", ("ShiftLeft", "ShiftRight", "ShiftRightArith")),
         ("I16x8", ("ShiftLeft", "ShiftRight", "ShiftRightArith")),
         ("I64x4", ("ShiftLeft", "ShiftRight")),
         ("U16x8", ("ShiftLeft", "ShiftRight")),

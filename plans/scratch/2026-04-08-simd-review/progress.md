@@ -1027,3 +1027,17 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过，`NONX86_HELPER_SEMANTICS_SUMMARY checks=431 status=ok`
+
+## 2026-05-12 RISCVV I32x4 Shift Forwarder Consolidation
+
+- 继续沿 `Wave 5 / retire + redundancy cleanup` 收 `RISCVV` no-ASM facade 里剩余的 `I32x4` shift 重复体，把 `ShiftLeft/ShiftRight/ShiftRightArith` 收回 `ScalarShift*` 真源。
+- `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 已把这 3 个 forwarder 收进 source-side 护栏，summary 从 `checks=431` 扩到 `checks=434`。
+- 这批仍然不碰 `Cmp*`、`Min/Max`、`Select/Extract/Insert`、asm path 或 `riscvv.register.inc` 的 slot ownership。
+- 轻量验证与 release 级收口已完成：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过，`NONX86_HELPER_SEMANTICS_SUMMARY checks=434 status=ok`

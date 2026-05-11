@@ -984,3 +984,10 @@
 - 这批 shift 的合同由 `ScalarShift*` 统一承接，包括负数和高位 count 的归零语义；这比继续保留手写 loop 更不容易漂移。
 - 这次没有碰 `RcpF64x4`、rounding、clamp、Min/Max、asm path 或 `riscvv.register.inc` 的 slot ownership，边界仍然干净。
 - `check_nonx86_helper_semantics.py` 的护栏已经更新到 `checks=431 status=ok`，release `check` 和 `gate` 也都通过了。
+
+## 2026-05-12 RISCVV I32x4 Shift Forwarder Consolidation
+
+- `src/fafafa.core.simd.riscvv.facade.inc` 里 `I32x4` 的 `ShiftLeft/ShiftRight/ShiftRightArith` 现在都直调 `ScalarShift*`，把手写 count 边界和逐 lane loop 收回统一真源。
+- 这 3 个 shift 的合同和 scalar 侧完全一致，包括负 count、高位 count 的归零语义，以及算术右移的符号扩展语义。
+- 这次没有碰 `Cmp*`、`Min/Max`、`Select/Extract/Insert`、asm path 或 `riscvv.register.inc` 的 slot ownership，边界仍然干净。
+- `check_nonx86_helper_semantics.py` 的护栏已经更新到 `checks=434 status=ok`，release `check` 和 `gate` 也都通过了。
