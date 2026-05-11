@@ -665,3 +665,12 @@
 - 这批不需要改动 `dispatch` / `dataplane` / `public ABI` 的语义，只需要把宽度展开逻辑从“复制 ASM”收回到“共享 raw helper + 逐 chunk 调用”。
 - 现有 dispatch / direct / wide parity 测试已经覆盖了这些 shift 入口，适合作为收口后验证基线。
 - 收口后保留的重复边界是有意的：typed wrapper 继续承担 dispatch slot 与类型合同，raw helper 才承担同宽 load/shift/store 真实现；这符合当前 `sse2.pas` 作为 backend adapter truth source 的边界。
+
+## 2026-05-11 RISCVV Integer MinMax Fallback Consolidation
+
+- `RISCVV` 的 real asm 路径已经有 `vmin/vmax/vminu/vmaxu` native 实现；本轮发现的重复体只在 non-ASM fallback facade 里。
+- `RISCVVMin/MaxU32x8`、`RISCVVMin/MaxI16x8`、`RISCVVMin/MaxI8x16`、`RISCVVMin/MaxU16x8`、`RISCVVMin/MaxU32x4`、`RISCVVMin/MaxU8x16` 的 fallback 逐 lane loop 与对应 `ScalarMin/Max*` 完全同合同，可以安全委托 scalar reference helper。
+- `MinU32x8` 等 backend-owned slot 的 register contract 不应该因为 fallback 去重而改变；本轮只消掉重复代码，不把 backend-owned 槽位改成 base scalar pointer。
+- 浮点 `Min/Max` 暂不收口到 `ScalarMin/MaxF*`，因为 NaN 和 signed-zero 语义需要单独证明，不能按循环相似度直接合并。
+- `check_nonx86_helper_semantics.py` 已加 source-side 断言，锁住这批 RISCVV fallback 的 `ScalarMin/Max*` 委托路径，避免后续再长回逐 lane loop。
+- release 复验证明这次只是 fallback 去重，不是 contract 漂移：`git diff --check`、`impl-smoke-nonx86`、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿。

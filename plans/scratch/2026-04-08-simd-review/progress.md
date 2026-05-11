@@ -556,3 +556,10 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DirectDispatch`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+
+## 2026-05-11 RISCVV Integer MinMax Fallback Consolidation
+
+- `riscvv.facade.inc` 的 non-ASM integer `Min/Max` 还在手写逐 lane 循环，和 `ScalarMin/Max*` 完全同合同；这次把 `U32x8/I16x8/I8x16/U16x8/U32x4/U8x16` 这组 fallback 全部收回 scalar truth。
+- `RISCVV` asm 路径里的 `vmin/vmax/vminu/vmaxu` 实现没有动，register ownership 也没有改，仍然保持 backend-owned contract。
+- `check_nonx86_helper_semantics.py` 已加上这 12 个 RISCVV fallback 的 source-side 断言，防止同合同重复实现回流。
+- 已完成 release 验证：`git diff --check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-smoke-nonx86`、`... impl-audit-nonx86`、`... check`、`... gate` 全绿。

@@ -494,3 +494,17 @@
 | 1. 识别可合并的 shift 簇 | completed | `I16x8/I32x4/U16x8/U32x4` 与 `I32x8/I32x16/U32x8/U64x4/I64x4/I64x8` 的 shift 已确认只是同一批 128-bit chunk 逻辑在不同宽度上的重复展开 |
 | 2. 收口共享 raw helper | completed | 已新增 `SSE2Shift*WordVecRaw` / `SSE2Shift*DwordVecRaw` / `SSE2Shift*QwordVecRaw`，typed wrapper 与 wide-emulation 已统一复用 |
 | 3. Release 验证与收口 | completed | `git diff --check`、`check_sse2_structure.py --summary-line`、`NarrowIntegerOps`、`DispatchAPI`、`DirectDispatch`、`check`、`gate` 全部通过 |
+
+## 2026-05-11 RISCVV Integer MinMax Fallback Consolidation
+
+### Goal
+
+把 `RISCVV` non-ASM fallback 里与 scalar 完全同合同的整数 `Min/Max` 循环收回到 `ScalarMin/Max*` 真源；保留 RISCVV asm 路径和 register ownership，不把 backend-owned 槽位误降成 base scalar。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别 exact-contract integer fallback | completed | 已确认 `U32x8/I16x8/I8x16/U16x8/U32x4/U8x16` 的 non-ASM `Min/Max` 都只是逐 lane 标量比较；浮点 `Min/Max` 因 IEEE754 NaN / signed-zero 语义不纳入本批 |
+| 2. 收回 scalar truth | completed | 12 个 RISCVV non-ASM fallback wrapper 已改为直接委托对应 `ScalarMin/Max*`；真实 RVV asm `vmin/vmax/vminu/vmaxu` 实现保持不变 |
+| 3. Release 验证与收口 | completed | `git diff --check`、`impl-smoke-nonx86`、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过 |

@@ -1845,23 +1845,13 @@ begin
 end;
 
 function RISCVVMinU32x8(const a, b: TVecU32x8): TVecU32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    if a.u[i] < b.u[i] then
-      Result.u[i] := a.u[i]
-    else
-      Result.u[i] := b.u[i];
+  Result := ScalarMinU32x8(a, b);
 end;
 
 function RISCVVMaxU32x8(const a, b: TVecU32x8): TVecU32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    if a.u[i] > b.u[i] then
-      Result.u[i] := a.u[i]
-    else
-      Result.u[i] := b.u[i];
+  Result := ScalarMaxU32x8(a, b);
 end;
 
 // F64x4 Reciprocal
@@ -2967,53 +2957,28 @@ begin
 end;
 
 function RISCVVMaxI16x8(const a, b: TVecI16x8): TVecI16x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    if a.i[i] > b.i[i] then
-      Result.i[i] := a.i[i]
-    else
-      Result.i[i] := b.i[i];
+  Result := ScalarMaxI16x8(a, b);
 end;
 
 function RISCVVMaxI8x16(const a, b: TVecI8x16): TVecI8x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    if a.i[i] > b.i[i] then
-      Result.i[i] := a.i[i]
-    else
-      Result.i[i] := b.i[i];
+  Result := ScalarMaxI8x16(a, b);
 end;
 
 function RISCVVMaxU16x8(const a, b: TVecU16x8): TVecU16x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    if a.u[i] > b.u[i] then
-      Result.u[i] := a.u[i]
-    else
-      Result.u[i] := b.u[i];
+  Result := ScalarMaxU16x8(a, b);
 end;
 
 function RISCVVMaxU32x4(const a, b: TVecU32x4): TVecU32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    if a.u[i] > b.u[i] then
-      Result.u[i] := a.u[i]
-    else
-      Result.u[i] := b.u[i];
+  Result := ScalarMaxU32x4(a, b);
 end;
 
 function RISCVVMaxU8x16(const a, b: TVecU8x16): TVecU8x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    if a.u[i] > b.u[i] then
-      Result.u[i] := a.u[i]
-    else
-      Result.u[i] := b.u[i];
+  Result := ScalarMaxU8x16(a, b);
 end;
 
 function RISCVVMinF32x16(const a, b: TVecF32x16): TVecF32x16;
@@ -3067,53 +3032,28 @@ begin
 end;
 
 function RISCVVMinI16x8(const a, b: TVecI16x8): TVecI16x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    if a.i[i] < b.i[i] then
-      Result.i[i] := a.i[i]
-    else
-      Result.i[i] := b.i[i];
+  Result := ScalarMinI16x8(a, b);
 end;
 
 function RISCVVMinI8x16(const a, b: TVecI8x16): TVecI8x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    if a.i[i] < b.i[i] then
-      Result.i[i] := a.i[i]
-    else
-      Result.i[i] := b.i[i];
+  Result := ScalarMinI8x16(a, b);
 end;
 
 function RISCVVMinU16x8(const a, b: TVecU16x8): TVecU16x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    if a.u[i] < b.u[i] then
-      Result.u[i] := a.u[i]
-    else
-      Result.u[i] := b.u[i];
+  Result := ScalarMinU16x8(a, b);
 end;
 
 function RISCVVMinU32x4(const a, b: TVecU32x4): TVecU32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    if a.u[i] < b.u[i] then
-      Result.u[i] := a.u[i]
-    else
-      Result.u[i] := b.u[i];
+  Result := ScalarMinU32x4(a, b);
 end;
 
 function RISCVVMinU8x16(const a, b: TVecU8x16): TVecU8x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    if a.u[i] < b.u[i] then
-      Result.u[i] := a.u[i]
-    else
-      Result.u[i] := b.u[i];
+  Result := ScalarMinU8x16(a, b);
 end;
 
 function RISCVVMulI16x8(const a, b: TVecI16x8): TVecI16x8;

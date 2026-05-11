@@ -436,6 +436,42 @@ def main() -> int:
         (riscvv_facade_source, "RISCVVShiftRightU32x8", [
             "Result := ScalarShiftRightU32x8(a, count);",
         ]),
+        (riscvv_facade_source, "RISCVVMinU32x8", [
+            "Result := ScalarMinU32x8(a, b);",
+        ]),
+        (riscvv_facade_source, "RISCVVMaxU32x8", [
+            "Result := ScalarMaxU32x8(a, b);",
+        ]),
+        (riscvv_facade_source, "RISCVVMinI16x8", [
+            "Result := ScalarMinI16x8(a, b);",
+        ]),
+        (riscvv_facade_source, "RISCVVMaxI16x8", [
+            "Result := ScalarMaxI16x8(a, b);",
+        ]),
+        (riscvv_facade_source, "RISCVVMinI8x16", [
+            "Result := ScalarMinI8x16(a, b);",
+        ]),
+        (riscvv_facade_source, "RISCVVMaxI8x16", [
+            "Result := ScalarMaxI8x16(a, b);",
+        ]),
+        (riscvv_facade_source, "RISCVVMinU16x8", [
+            "Result := ScalarMinU16x8(a, b);",
+        ]),
+        (riscvv_facade_source, "RISCVVMaxU16x8", [
+            "Result := ScalarMaxU16x8(a, b);",
+        ]),
+        (riscvv_facade_source, "RISCVVMinU32x4", [
+            "Result := ScalarMinU32x4(a, b);",
+        ]),
+        (riscvv_facade_source, "RISCVVMaxU32x4", [
+            "Result := ScalarMaxU32x4(a, b);",
+        ]),
+        (riscvv_facade_source, "RISCVVMinU8x16", [
+            "Result := ScalarMinU8x16(a, b);",
+        ]),
+        (riscvv_facade_source, "RISCVVMaxU8x16", [
+            "Result := ScalarMaxU8x16(a, b);",
+        ]),
         (direct_source, "TTestCase_DirectDispatch.Test_DirectDispatchTable_MultiBackend_SignedWideCompareMaskMatrix_Parity", [
             "ScalarCmpEqI32x8",
             "ScalarCmpLtI64x4",
