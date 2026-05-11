@@ -889,3 +889,17 @@
 | 2. 落地私有 helper 收口       | completed | 新增 `SSE2LengthWithOptionalZeroW` 与 `SSE2NormalizeByLength`，四个 wrapper 只保留 length source 和 `w` policy                                   |
 | 3. 补 SSE2 parity 证据        | completed | `DispatchAPI` 现在直接覆盖 `LengthF32x4/F32x3`、`NormalizeF32x4/F32x3`、zero-vector 和 `F32x3 w=0` 语义                                        |
 | 4. 清理死镜像与 release 验证   | completed | 删除未被任何 `include` 引用的 `src/fafafa.core.simd.sse2.vector_math.inc`；`git diff --check`、`check`、`gate` 均通过                              |
+
+## 2026-05-11 NEON Scalar Memory/Reduction Forwarder Consolidation
+
+### Goal
+
+把 `src/fafafa.core.simd.neon.scalar.memory.inc` 里 `F32x4` 的 load/store，以及 `src/fafafa.core.simd.neon.scalar.reduction.inc` 里 `F32x4` 的 `ReduceAdd/ReduceMul` 收回 `Scalar*` 真源；保留 `ReduceMin/ReduceMax` 和整数 reduction 的 local 实现，不碰语义敏感路径。
+
+### Phases
+
+| Phase                   | Status      | Notes                                                                                           |
+| ----------------------- | ----------- | ----------------------------------------------------------------------------------------------- |
+| 1. 识别可安全收口的薄壳 | completed   | `Load/Store F32x4` 与 `ReduceAdd/ReduceMul F32x4` 都是 exact-contract 的重复壳                |
+| 2. 落地 scalar forwarder | completed   | `neon.scalar.memory.inc` 与 `neon.scalar.reduction.inc` 已改为直调 `Scalar*` 真源，并补 checker |
+| 3. Release 验证与收口   | completed   | `git diff --check`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿  |

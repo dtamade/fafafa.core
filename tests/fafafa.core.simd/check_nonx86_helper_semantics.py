@@ -12,6 +12,8 @@ NEON_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.wide_memory.inc"
 NEON_IMPL_FILE = ROOT / "src" / "fafafa.core.simd.neon.pas"
 NEON_SCALAR_FALLBACK_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar_fallback.inc"
 NEON_SCALAR_VECTOR_MATH_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.vector_math.inc"
+NEON_SCALAR_REDUCTION_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.reduction.inc"
+NEON_SCALAR_MEMORY_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.memory.inc"
 NEON_SCALAR_UTILITY_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.utility.inc"
 NEON_SCALAR_MATH_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.math.inc"
 NEON_SCALAR_EXT_MATH_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.ext_math.inc"
@@ -75,6 +77,8 @@ def main() -> int:
     neon_impl_source = read_text(NEON_IMPL_FILE)
     neon_scalar_fallback_source = read_text(NEON_SCALAR_FALLBACK_FILE)
     neon_scalar_vector_math_source = read_text(NEON_SCALAR_VECTOR_MATH_FILE)
+    neon_scalar_reduction_source = read_text(NEON_SCALAR_REDUCTION_FILE)
+    neon_scalar_memory_source = read_text(NEON_SCALAR_MEMORY_FILE)
     neon_scalar_utility_source = read_text(NEON_SCALAR_UTILITY_FILE)
     neon_scalar_math_source = read_text(NEON_SCALAR_MATH_FILE)
     neon_scalar_ext_math_source = read_text(NEON_SCALAR_EXT_MATH_FILE)
@@ -257,6 +261,24 @@ def main() -> int:
         ]),
         (neon_scalar_vector_math_source, "NEONNormalizeF32x3", [
             "Result := ScalarNormalizeF32x3(a);",
+        ]),
+        (neon_scalar_reduction_source, "NEONReduceAddF32x4", [
+            "Result := ScalarReduceAddF32x4(a);",
+        ]),
+        (neon_scalar_reduction_source, "NEONReduceMulF32x4", [
+            "Result := ScalarReduceMulF32x4(a);",
+        ]),
+        (neon_scalar_memory_source, "NEONLoadF32x4", [
+            "Result := ScalarLoadF32x4(p);",
+        ]),
+        (neon_scalar_memory_source, "NEONLoadF32x4Aligned", [
+            "Result := ScalarLoadF32x4Aligned(p);",
+        ]),
+        (neon_scalar_memory_source, "NEONStoreF32x4", [
+            "ScalarStoreF32x4(p, a);",
+        ]),
+        (neon_scalar_memory_source, "NEONStoreF32x4Aligned", [
+            "ScalarStoreF32x4Aligned(p, a);",
         ]),
         (neon_scalar_utility_source, "NEONSplatF32x4", [
             "Result := ScalarSplatF32x4(value);",

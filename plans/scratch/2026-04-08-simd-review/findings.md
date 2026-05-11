@@ -872,3 +872,10 @@
 - `SSE3LengthF32x4 / SSE3LengthF32x3` 和 `SSE3NormalizeF32x4 / SSE3NormalizeF32x3` 也是同一条 zero-w + length + divide 控制流；这次把它们收成 `SSE3LengthWithOptionalZeroW` 和 `SSE3NormalizeByLength`，让四个 wrapper 都只保留自己的 lane policy。
 - 这批保持了现有 `SSE3` 代表性 parity 和 direct dispatch 路径，`DispatchAPI / DirectDispatch / check / gate` 全都绿了，说明 helper consolidation 没把 `F32x3` 的 `w=0` contract 弄丢。
 - 现在 `SSE3/AVX2/SSE4.1` 的 vector-math normalize 面都已经是同一套 helper 形状了，后面继续扫 `SSE2` 时可以直接复用这条整理思路，而不是再写第三套看起来像、其实重复的分支树。
+
+## 2026-05-11 NEON Scalar Memory/Reduction Forwarder Finding
+
+- `src/fafafa.core.simd.neon.scalar.memory.inc` 的 `Load/StoreF32x4` / `Load/StoreF32x4Aligned` 只是 `ScalarLoad/Store*` 的薄壳，适合直接转发，不必继续维护第二份逐 lane 搬运体。
+- `src/fafafa.core.simd.neon.scalar.reduction.inc` 里 `ReduceAddF32x4 / ReduceMulF32x4` 也是同类 exact-contract duplicate；`ReduceMin/ReduceMax` 与整数 reduction 仍保留 local 实现，因为这次不碰 floating min/max 语义边界。
+- 这两块之前没有进入 `check_nonx86_helper_semantics.py`，所以它们正好是当前 NEON fallback 面上比较新的、值得继续清理的重复体。
+- release 复验证明这次只是 exact-contract forwarder 收口，不是 reduction / memory contract 漂移：`git diff --check`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿。

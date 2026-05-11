@@ -2,7 +2,7 @@
 
 function NEONReduceAddF32x4(const a: TVecF32x4): Single;
 begin
-  Result := a.f[0] + a.f[1] + a.f[2] + a.f[3];
+  Result := ScalarReduceAddF32x4(a);
 end;
 
 function NEONReduceMinF32x4(const a: TVecF32x4): Single;
@@ -25,7 +25,7 @@ end;
 
 function NEONReduceMulF32x4(const a: TVecF32x4): Single;
 begin
-  Result := a.f[0] * a.f[1] * a.f[2] * a.f[3];
+  Result := ScalarReduceMulF32x4(a);
 end;
 
 // ✅ I32x4 规约操作 (Scalar fallback)
@@ -77,4 +77,3 @@ begin
       Result := a.u[i];
 end;
 {$POP}
-

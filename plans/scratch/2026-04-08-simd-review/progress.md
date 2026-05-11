@@ -849,3 +849,16 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-11 NEON Scalar Memory/Reduction Forwarder Consolidation
+
+- 重新扫 `NEON` non-ASM fallback 后，确认 `neon.scalar.memory.inc` 的 `F32x4` load/store 和 `neon.scalar.reduction.inc` 的 `F32x4` reduce add/mul 仍在手写第二份同合同逻辑。
+- 这批已经收成 `Scalar*` 真源转发，`ReduceMin/ReduceMax` 与整数 reduction 保持 local，因为它们不属于这次 exact-contract 去重面。
+- 同步把这条线补进 `check_nonx86_helper_semantics.py`，避免后面再有人把这几组 fallback 写回手写壳。
+- release 复验已完成：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
