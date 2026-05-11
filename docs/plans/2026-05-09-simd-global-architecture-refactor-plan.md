@@ -221,19 +221,20 @@ raw leaves
 
 从现在开始按下面的分工看：
 
-| 文档 | 责任 |
-| --- | --- |
-| `docs/plans/2026-05-10-simd-plan-status-index.md` | 计划生命周期入口：哪些 `simd` plan 仍是 active queue，哪些只是 historical baseline |
-| `docs/plans/2026-05-10-simd-execution-index.md` | 下次开会话时的单页实施入口：先做什么、再做什么、改完后更新哪里 |
-| `docs/plans/2026-05-10-simd-wave2-seam-hardening-plan.md` | 当前第一波 active 实施计划：收紧 `dispatch / dataplane / public ABI / direct` seam，不夹带 family migration |
-| `docs/plans/2026-05-09-simd-global-architecture-refactor-plan.md` | whole-module 总纲、波次、完成标准 |
-| `docs/plans/2026-05-09-simd-family-matrix.md` | 各 ISA family 的执行矩阵：truth source / disposition / verification lane / next action |
-| `docs/SIMD_LAYERING_IMPLEMENTATION.md` | 架构裁决基线：层次、seam、companion、准入规则 |
-| `docs/SIMD_BACKEND_TRUTH.md` | 当前 stable backend truth source 表 |
-| `docs/SIMD_INTRINSICS_DISPOSITION.md` | 各 intrinsics 单元状态表 |
-| `docs/SIMD_SSE2_MIGRATION_MAP.md` | `SSE2` family 的局部迁移图 |
-| `docs/fafafa.core.simd.implementation-matrix.md` | non-x86 implementation working ledger |
-| `docs/fafafa.core.simd.map.md` | 阅读入口，不承载新的设计真相 |
+| 文档                                                              | 责任                                                                                                        |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `docs/plans/2026-05-10-simd-plan-status-index.md`                 | 计划生命周期入口：哪些 `simd` plan 仍是 active queue，哪些只是 historical baseline                          |
+| `docs/plans/2026-05-10-simd-execution-index.md`                   | 下次开会话时的单页实施入口：先做什么、再做什么、改完后更新哪里                                              |
+| `docs/plans/2026-05-10-simd-wave2-seam-hardening-plan.md`         | 当前第一波 active 实施计划：收紧 `dispatch / dataplane / public ABI / direct` seam，不夹带 family migration |
+| `docs/plans/2026-05-09-simd-global-architecture-refactor-plan.md` | whole-module 总纲、波次、完成标准                                                                           |
+| `docs/plans/2026-05-09-simd-family-matrix.md`                     | 各 ISA family 的执行矩阵：truth source / disposition / verification lane / next action                      |
+| `docs/plans/2026-05-09-simd-sse2-retire-target-plan.md`           | `SSE2` retire bucket 冻结说明：哪些能进 C 桶、哪些必须留在 adapter                                          |
+| `docs/SIMD_LAYERING_IMPLEMENTATION.md`                            | 架构裁决基线：层次、seam、companion、准入规则                                                               |
+| `docs/SIMD_BACKEND_TRUTH.md`                                      | 当前 stable backend truth source 表                                                                         |
+| `docs/SIMD_INTRINSICS_DISPOSITION.md`                             | 各 intrinsics 单元状态表                                                                                    |
+| `docs/SIMD_SSE2_MIGRATION_MAP.md`                                 | `SSE2` family 的局部迁移图                                                                                  |
+| `docs/fafafa.core.simd.implementation-matrix.md`                  | non-x86 implementation working ledger                                                                       |
+| `docs/fafafa.core.simd.map.md`                                    | 阅读入口，不承载新的设计真相                                                                                |
 
 规则：
 
@@ -373,4 +374,4 @@ raw leaves
 1. 继续维护 `AVX2 / NEON / RISCVV / x86 incremental` 这 4 份 family-level 文档，避免它们重新漂回聊天上下文
 2. 把现有 `SSE2` 计划继续保留在 `Wave 3`，作为高债务试点子计划
 3. 再按 matrix 执行 qualification / promote / split / retire
-4. 最后再补 `SSE2 retire target` 与 `experimental hold future trigger` 这两类 closeout 级文档
+4. 最后再维护 `SSE2 retire target` 与 `experimental hold future trigger` 这两类 closeout 级文档

@@ -602,3 +602,10 @@
 - 已把这些 active 文档统一改成 `adapter-only / no dedicated raw leaf target`，避免后续把不存在的 leaf 目标当成 TODO。
 - 同时发现 `execution index` 底部仍把已完成的 `Wave 2 / seam hardening` 写成“代码实施还没开始”；已按顶部完成状态同步移除。
 - 复核已完成：`rg` 没有再发现 active-doc 里的 `SSSE3` 待补 raw leaf 或 `Wave 2` 未开始冲突，`git diff --check` 通过。
+
+## 2026-05-11 SSE2 Retire Target Baseline
+
+- `Wave 5` 里最后那块收口文档现在要落成单独的 `SSE2 retire target` baseline，而不是继续散落在总纲里。
+- 这份文档会负责冻结 C 桶，明确 `SSE2` 哪些对象永远留在 adapter，哪些对象只有在 raw leaf 迁移证据齐全后才可能进入 retire bucket。
+- 已新增 `docs/plans/2026-05-09-simd-sse2-retire-target-plan.md`，并把它接入 `plan-status-index`、`execution-index`、`global architecture plan`、`family matrix` 与 `SIMD_SSE2_MIGRATION_MAP.md`。
+- 验证已完成：`prettier --write`、`git diff --check`、`python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line`、`python3 tests/fafafa.core.simd/check_intrinsics_experimental_status.py --summary-line` 全部通过。

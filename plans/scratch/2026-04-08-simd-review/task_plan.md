@@ -564,3 +564,17 @@
 | 1. 找出冲突表述 | completed | `execution index` / `global architecture plan` 曾把 `SSSE3` 写成待补 raw-leaf target，而 `family matrix` 已明确它是 adapter-only in practice |
 | 2. 统一 active 文档口径 | completed | x86 plan、execution index、global plan 与 family matrix 已统一成 `adapter-only / no dedicated raw leaf target` |
 | 3. 验证与收口 | completed | `rg` 复核不再有 active-doc 冲突，`git diff --check` 通过；同时清掉 execution index 里过期的 `Wave 2` 未开始表述 |
+
+## 2026-05-11 SSE2 Retire Target Baseline
+
+### Goal
+
+把 `SSE2` 的 retire bucket 冻结说明写成正式文档，明确哪些对象永远留在 adapter，哪些对象只有在 raw leaf 迁移证据齐全后才可能进入 C 桶。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别当前 retire 口径 | completed | `SSE2` 迁移图已经把 A/B/C 桶写死，但还缺一份专门冻结 retire baseline 的 closeout 文档 |
+| 2. 落地 retire target baseline | completed | 已新增 `docs/plans/2026-05-09-simd-sse2-retire-target-plan.md`，并接入 active chain、execution index、global plan、family matrix 与 migration map |
+| 3. 验证与收口 | completed | `prettier --write`、`git diff --check`、`check_sse2_structure.py --summary-line`、`check_intrinsics_experimental_status.py --summary-line` 全部通过 |

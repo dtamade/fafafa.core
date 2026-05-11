@@ -704,3 +704,10 @@
 - 通过比对 `global architecture plan`、`execution index` 和 `family matrix`，发现 `SSSE3` 只有文档口径冲突，不是代码实现缺口。
 - `family matrix` 已明确 `SSSE3` 是 adapter-only in practice，没有 dedicated raw leaf target；active 入口里那句“raw-leaf target 明确化”的表述已改成 hold adapter-only，避免未来会话误把它当成待办实现。
 - `execution index` 顶部已经写明 `Wave 2 / seam hardening` 完成，但底部未完成项仍保留旧句“代码实施还没开始”；这是同一类 active-doc drift，已同步删除。
+
+## 2026-05-11 SSE2 Retire Target Baseline
+
+- `SSE2` 的 migration map 已经把 A/B/C 桶写死，但还缺一份专门的 retire baseline 来冻结 C 桶，避免后续把临时桥接或兼容壳和真正的生产导出混在一起。
+- 当前这份新文档只负责定义 retire bucket 的准入条件和非目标，不会把任何稳定 adapter 责任误列进删表。
+- `check_sse2_structure.py` 继续通过，说明格式化和新增 retire baseline 没有破坏 migration map 的 A/B/C section 与 token 护栏。
+- `check_intrinsics_experimental_status.py` 继续通过，说明新增文档没有改变 experimental intrinsics 的默认入口隔离判断。
