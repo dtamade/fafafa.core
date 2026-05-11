@@ -18,11 +18,11 @@ procedure InitializeDispatch;
 function GetActiveBackend: TSimdBackend;
 
 // Force a specific backend (for testing)
-// ✅ P1: 添加安全性检查 - 如果后端不可用则回退到 Scalar
+// 添加安全性检查 - 如果后端不可用则回退到 Scalar
 procedure SetActiveBackend(backend: TSimdBackend);
 
 // Try to set a specific backend, returns True if successful
-// ✅ P1: 新增函数 - 允许调用者检查是否成功
+// 新增函数 - 允许调用者检查是否成功
 function TrySetActiveBackend(backend: TSimdBackend): Boolean;
 
 // Low-level compatibility alias for cpuinfo.IsBackendSupportedOnCPU.
@@ -42,7 +42,7 @@ function GetBestDispatchableBackend: TSimdBackend;
 procedure ResetToAutomaticBackend;
 
 // === SIMD Vector ASM Feature Toggle ===
-// ✅ P1-E: SIMD vector ASM implementations are enabled by default.
+// SIMD vector ASM implementations are enabled by default.
 // To disable at compile-time, define SIMD_VECTOR_ASM_DISABLED.
 // To disable at runtime, call SetVectorAsmEnabled(False).
 function IsVectorAsmEnabled: Boolean;
@@ -107,9 +107,9 @@ type
     CmpEqI32x4: function(const a, b: TVecI32x4): TMask4;
     CmpLtI32x4: function(const a, b: TVecI32x4): TMask4;
     CmpGtI32x4: function(const a, b: TVecI32x4): TMask4;
-    CmpLeI32x4: function(const a, b: TVecI32x4): TMask4;  // ✅ P0-5: Added
-    CmpGeI32x4: function(const a, b: TVecI32x4): TMask4;  // ✅ P0-5: Added
-    CmpNeI32x4: function(const a, b: TVecI32x4): TMask4;  // ✅ P0-5: Added
+    CmpLeI32x4: function(const a, b: TVecI32x4): TMask4;
+    CmpGeI32x4: function(const a, b: TVecI32x4): TMask4;
+    CmpNeI32x4: function(const a, b: TVecI32x4): TMask4;
     // Min/Max operations - I32x4
     MinI32x4: function(const a, b: TVecI32x4): TVecI32x4;
     MaxI32x4: function(const a, b: TVecI32x4): TVecI32x4;
@@ -125,7 +125,7 @@ type
     ShiftLeftI64x2: function(const a: TVecI64x2; count: Integer): TVecI64x2;
     ShiftRightI64x2: function(const a: TVecI64x2; count: Integer): TVecI64x2;
     ShiftRightArithI64x2: function(const a: TVecI64x2; count: Integer): TVecI64x2;
-    // Comparison operations - I64x2 (✅ P0-5: Added)
+    // Comparison operations - I64x2
     CmpEqI64x2: function(const a, b: TVecI64x2): TMask2;
     CmpLtI64x2: function(const a, b: TVecI64x2): TMask2;
     CmpGtI64x2: function(const a, b: TVecI64x2): TMask2;
@@ -172,14 +172,14 @@ type
     CmpEqI32x8: function(const a, b: TVecI32x8): TMask8;
     CmpLtI32x8: function(const a, b: TVecI32x8): TMask8;
     CmpGtI32x8: function(const a, b: TVecI32x8): TMask8;
-    CmpLeI32x8: function(const a, b: TVecI32x8): TMask8;  // ✅ P0-5: Added
-    CmpGeI32x8: function(const a, b: TVecI32x8): TMask8;  // ✅ P0-5: Added
-    CmpNeI32x8: function(const a, b: TVecI32x8): TMask8;  // ✅ P0-5: Added
+    CmpLeI32x8: function(const a, b: TVecI32x8): TMask8;
+    CmpGeI32x8: function(const a, b: TVecI32x8): TMask8;
+    CmpNeI32x8: function(const a, b: TVecI32x8): TMask8;
     // Min/Max operations - I32x8
     MinI32x8: function(const a, b: TVecI32x8): TVecI32x8;
     MaxI32x8: function(const a, b: TVecI32x8): TVecI32x8;
 
-    // ✅ NEW: I64x4 Operations (256-bit AVX2)
+    // I64x4 Operations (256-bit AVX2)
     AddI64x4: function(const a, b: TVecI64x4): TVecI64x4;
     SubI64x4: function(const a, b: TVecI64x4): TVecI64x4;
     AndI64x4: function(const a, b: TVecI64x4): TVecI64x4;
@@ -202,7 +202,7 @@ type
     SplatI64x4: function(value: Int64): TVecI64x4;
     ZeroI64x4: function: TVecI64x4;
 
-    // ✅ NEW: U32x8 Operations (256-bit AVX2)
+    // U32x8 Operations (256-bit AVX2)
     AddU32x8: function(const a, b: TVecU32x8): TVecU32x8;
     SubU32x8: function(const a, b: TVecU32x8): TVecU32x8;
     MulU32x8: function(const a, b: TVecU32x8): TVecU32x8;
@@ -222,7 +222,7 @@ type
     MinU32x8: function(const a, b: TVecU32x8): TVecU32x8;
     MaxU32x8: function(const a, b: TVecU32x8): TVecU32x8;
 
-    // ✅ NEW: U64x4 Operations (256-bit AVX2)
+    // U64x4 Operations (256-bit AVX2)
     AddU64x4: function(const a, b: TVecU64x4): TVecU64x4;
     SubU64x4: function(const a, b: TVecU64x4): TVecU64x4;
     AndU64x4: function(const a, b: TVecU64x4): TVecU64x4;
@@ -238,7 +238,7 @@ type
     CmpGeU64x4: function(const a, b: TVecU64x4): TMask4;
     CmpNeU64x4: function(const a, b: TVecU64x4): TMask4;
 
-    // ✅ NEW: F64x4 Extended Math
+    // F64x4 Extended Math
     RcpF64x4: function(const a: TVecF64x4): TVecF64x4;
 
     // Arithmetic operations - I32x16 (512-bit AVX-512)
@@ -258,9 +258,9 @@ type
     CmpEqI32x16: function(const a, b: TVecI32x16): TMask16;
     CmpLtI32x16: function(const a, b: TVecI32x16): TMask16;
     CmpGtI32x16: function(const a, b: TVecI32x16): TMask16;
-    CmpLeI32x16: function(const a, b: TVecI32x16): TMask16;  // ✅ P0-5: Added
-    CmpGeI32x16: function(const a, b: TVecI32x16): TMask16;  // ✅ P0-5: Added
-    CmpNeI32x16: function(const a, b: TVecI32x16): TMask16;  // ✅ P0-5: Added
+    CmpLeI32x16: function(const a, b: TVecI32x16): TMask16;
+    CmpGeI32x16: function(const a, b: TVecI32x16): TMask16;
+    CmpNeI32x16: function(const a, b: TVecI32x16): TMask16;
     // Min/Max operations - I32x16
     MinI32x16: function(const a, b: TVecI32x16): TVecI32x16;
     MaxI32x16: function(const a, b: TVecI32x16): TVecI32x16;
@@ -381,7 +381,7 @@ type
     CmpGeF32x4: function(const a, b: TVecF32x4): TMask4;
     CmpNeF32x4: function(const a, b: TVecF32x4): TMask4;
 
-    // ✅ P1-E: F64x2 比较操作 - 修复派发缺失
+    // F64x2 比较操作 - 修复派发缺失
     CmpEqF64x2: function(const a, b: TVecF64x2): TMask2;
     CmpLtF64x2: function(const a, b: TVecF64x2): TMask2;
     CmpLeF64x2: function(const a, b: TVecF64x2): TMask2;
@@ -389,7 +389,7 @@ type
     CmpGeF64x2: function(const a, b: TVecF64x2): TMask2;
     CmpNeF64x2: function(const a, b: TVecF64x2): TMask2;
 
-    // ✅ NEW: 512-bit floating-point comparisons
+    // 512-bit floating-point comparisons
     // F32x16 (512-bit)
     CmpEqF32x16: function(const a, b: TVecF32x16): TMask16;
     CmpLtF32x16: function(const a, b: TVecF32x16): TMask16;
@@ -405,7 +405,7 @@ type
     CmpGeF64x8: function(const a, b: TVecF64x8): TMask8;
     CmpNeF64x8: function(const a, b: TVecF64x8): TMask8;
 
-    // ✅ NEW: 256-bit floating-point comparisons
+    // 256-bit floating-point comparisons
     // F32x8 (256-bit)
     CmpEqF32x8: function(const a, b: TVecF32x8): TMask8;
     CmpLtF32x8: function(const a, b: TVecF32x8): TMask8;
@@ -437,14 +437,14 @@ type
     TruncF32x4: function(const a: TVecF32x4): TVecF32x4;
     ClampF32x4: function(const a, minVal, maxVal: TVecF32x4): TVecF32x4;
 
-    // ✅ P1-4: Wide vector extended math functions
+    // Wide vector extended math functions
     // F64x2 (128-bit)
     FmaF64x2: function(const a, b, c: TVecF64x2): TVecF64x2;
     FloorF64x2: function(const a: TVecF64x2): TVecF64x2;
     CeilF64x2: function(const a: TVecF64x2): TVecF64x2;
     RoundF64x2: function(const a: TVecF64x2): TVecF64x2;
     TruncF64x2: function(const a: TVecF64x2): TVecF64x2;
-    // ✅ NEW: F64x2 math functions
+    // F64x2 math functions
     AbsF64x2: function(const a: TVecF64x2): TVecF64x2;
     SqrtF64x2: function(const a: TVecF64x2): TVecF64x2;
     MinF64x2: function(const a, b: TVecF64x2): TVecF64x2;
@@ -456,7 +456,7 @@ type
     CeilF32x8: function(const a: TVecF32x8): TVecF32x8;
     RoundF32x8: function(const a: TVecF32x8): TVecF32x8;
     TruncF32x8: function(const a: TVecF32x8): TVecF32x8;
-    // ✅ NEW: F32x8 math functions
+    // F32x8 math functions
     AbsF32x8: function(const a: TVecF32x8): TVecF32x8;
     SqrtF32x8: function(const a: TVecF32x8): TVecF32x8;
     MinF32x8: function(const a, b: TVecF32x8): TVecF32x8;
@@ -480,14 +480,14 @@ type
     CeilF64x8: function(const a: TVecF64x8): TVecF64x8;
     RoundF64x8: function(const a: TVecF64x8): TVecF64x8;
     TruncF64x8: function(const a: TVecF64x8): TVecF64x8;
-    // ✅ NEW: F64x4 math functions
+    // F64x4 math functions
     AbsF64x4: function(const a: TVecF64x4): TVecF64x4;
     SqrtF64x4: function(const a: TVecF64x4): TVecF64x4;
     MinF64x4: function(const a, b: TVecF64x4): TVecF64x4;
     MaxF64x4: function(const a, b: TVecF64x4): TVecF64x4;
     ClampF64x4: function(const a, minVal, maxVal: TVecF64x4): TVecF64x4;
 
-    // ✅ NEW: 512-bit float math functions
+    // 512-bit float math functions
     // F32x16 (512-bit)
     AbsF32x16: function(const a: TVecF32x16): TVecF32x16;
     SqrtF32x16: function(const a: TVecF32x16): TVecF32x16;
@@ -510,7 +510,7 @@ type
     NormalizeF32x4: function(const a: TVecF32x4): TVecF32x4;    // Normalize (4 elements)
     NormalizeF32x3: function(const a: TVecF32x4): TVecF32x4;    // Normalize (3 elements, w=0)
 
-    // ✅ Iteration 6.4: FMA-optimized Dot Product Functions
+    // FMA-optimized Dot Product Functions
     DotF32x8: function(const a, b: TVecF32x8): Single;          // Dot product (8 elements)
     DotF64x2: function(const a, b: TVecF64x2): Double;          // Dot product (2 elements)
     DotF64x4: function(const a, b: TVecF64x4): Double;          // Dot product (4 elements)
@@ -520,7 +520,7 @@ type
     ReduceMinF32x4: function(const a: TVecF32x4): Single;
     ReduceMaxF32x4: function(const a: TVecF32x4): Single;
     ReduceMulF32x4: function(const a: TVecF32x4): Single;
-    // ✅ NEW: Wide vector reduction operations
+    // Wide vector reduction operations
     // F64x2 (128-bit)
     ReduceAddF64x2: function(const a: TVecF64x2): Double;
     ReduceMinF64x2: function(const a: TVecF64x2): Double;
@@ -560,7 +560,7 @@ type
     ExtractF32x4: function(const a: TVecF32x4; index: Integer): Single;
     InsertF32x4: function(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4;
 
-    // ✅ Task 5.3: Extract/Insert Lane Operations
+    // Extract/Insert Lane Operations
     // F64x2 (128-bit)
     ExtractF64x2: function(const a: TVecF64x2; index: Integer): Double;
     InsertF64x2: function(const a: TVecF64x2; value: Double; index: Integer): TVecF64x2;
@@ -589,7 +589,7 @@ type
     ExtractI32x16: function(const a: TVecI32x16; index: Integer): Int32;
     InsertI32x16: function(const a: TVecI32x16; value: Int32; index: Integer): TVecI32x16;
 
-    // ✅ P1-5: Wide vector Load/Store/Splat/Zero
+    // Wide vector Load/Store/Splat/Zero
     // F64x2 (128-bit)
     LoadF64x2: function(p: PDouble): TVecF64x2;
     StoreF64x2: procedure(p: PDouble; const a: TVecF64x2);
@@ -642,7 +642,7 @@ type
     // Bitset functions
     BitsetPopCount: function(p: Pointer; byteLen: SizeUInt): SizeUInt;
 
-    // ✅ P2-1: Saturating Arithmetic (音视频处理必需)
+    // Saturating Arithmetic (音视频处理必需)
     // 有符号饱和 (I8: [-128, 127], I16: [-32768, 32767])
     I8x16SatAdd: function(const a, b: TVecI8x16): TVecI8x16;
     I8x16SatSub: function(const a, b: TVecI8x16): TVecI8x16;
@@ -654,7 +654,7 @@ type
     U16x8SatAdd: function(const a, b: TVecU16x8): TVecU16x8;
     U16x8SatSub: function(const a, b: TVecU16x8): TVecU16x8;
 
-    // ✅ I16x8 完整操作 (8×Int16)
+    // I16x8 完整操作 (8×Int16)
     AddI16x8: function(const a, b: TVecI16x8): TVecI16x8;
     SubI16x8: function(const a, b: TVecI16x8): TVecI16x8;
     MulI16x8: function(const a, b: TVecI16x8): TVecI16x8;
@@ -669,13 +669,13 @@ type
     CmpEqI16x8: function(const a, b: TVecI16x8): TMask8;
     CmpLtI16x8: function(const a, b: TVecI16x8): TMask8;
     CmpGtI16x8: function(const a, b: TVecI16x8): TMask8;
-    CmpLeI16x8: function(const a, b: TVecI16x8): TMask8;  // ✅ NEW: Le/Ge/Ne for narrow integers
+    CmpLeI16x8: function(const a, b: TVecI16x8): TMask8;  // Le/Ge/Ne for narrow integers
     CmpGeI16x8: function(const a, b: TVecI16x8): TMask8;
     CmpNeI16x8: function(const a, b: TVecI16x8): TMask8;
     MinI16x8: function(const a, b: TVecI16x8): TVecI16x8;
     MaxI16x8: function(const a, b: TVecI16x8): TVecI16x8;
 
-    // ✅ I8x16 完整操作 (16×Int8)
+    // I8x16 完整操作 (16×Int8)
     AddI8x16: function(const a, b: TVecI8x16): TVecI8x16;
     SubI8x16: function(const a, b: TVecI8x16): TVecI8x16;
     AndI8x16: function(const a, b: TVecI8x16): TVecI8x16;
@@ -685,13 +685,13 @@ type
     CmpEqI8x16: function(const a, b: TVecI8x16): TMask16;
     CmpLtI8x16: function(const a, b: TVecI8x16): TMask16;
     CmpGtI8x16: function(const a, b: TVecI8x16): TMask16;
-    CmpLeI8x16: function(const a, b: TVecI8x16): TMask16;  // ✅ NEW: Le/Ge/Ne for narrow integers
+    CmpLeI8x16: function(const a, b: TVecI8x16): TMask16;  // Le/Ge/Ne for narrow integers
     CmpGeI8x16: function(const a, b: TVecI8x16): TMask16;
     CmpNeI8x16: function(const a, b: TVecI8x16): TMask16;
     MinI8x16: function(const a, b: TVecI8x16): TVecI8x16;
     MaxI8x16: function(const a, b: TVecI8x16): TVecI8x16;
 
-    // ✅ U32x4 完整操作 (4×UInt32)
+    // U32x4 完整操作 (4×UInt32)
     AddU32x4: function(const a, b: TVecU32x4): TVecU32x4;
     SubU32x4: function(const a, b: TVecU32x4): TVecU32x4;
     MulU32x4: function(const a, b: TVecU32x4): TVecU32x4;
@@ -710,7 +710,7 @@ type
     MinU32x4: function(const a, b: TVecU32x4): TVecU32x4;
     MaxU32x4: function(const a, b: TVecU32x4): TVecU32x4;
 
-    // ✅ U16x8 完整操作 (8×UInt16)
+    // U16x8 完整操作 (8×UInt16)
     AddU16x8: function(const a, b: TVecU16x8): TVecU16x8;
     SubU16x8: function(const a, b: TVecU16x8): TVecU16x8;
     MulU16x8: function(const a, b: TVecU16x8): TVecU16x8;
@@ -723,13 +723,13 @@ type
     CmpEqU16x8: function(const a, b: TVecU16x8): TMask8;
     CmpLtU16x8: function(const a, b: TVecU16x8): TMask8;
     CmpGtU16x8: function(const a, b: TVecU16x8): TMask8;
-    CmpLeU16x8: function(const a, b: TVecU16x8): TMask8;  // ✅ NEW: Le/Ge/Ne for narrow integers
+    CmpLeU16x8: function(const a, b: TVecU16x8): TMask8;  // Le/Ge/Ne for narrow integers
     CmpGeU16x8: function(const a, b: TVecU16x8): TMask8;
     CmpNeU16x8: function(const a, b: TVecU16x8): TMask8;
     MinU16x8: function(const a, b: TVecU16x8): TVecU16x8;
     MaxU16x8: function(const a, b: TVecU16x8): TVecU16x8;
 
-    // ✅ U8x16 完整操作 (16×UInt8)
+    // U8x16 完整操作 (16×UInt8)
     AddU8x16: function(const a, b: TVecU8x16): TVecU8x16;
     SubU8x16: function(const a, b: TVecU8x16): TVecU8x16;
     AndU8x16: function(const a, b: TVecU8x16): TVecU8x16;
@@ -739,13 +739,13 @@ type
     CmpEqU8x16: function(const a, b: TVecU8x16): TMask16;
     CmpLtU8x16: function(const a, b: TVecU8x16): TMask16;
     CmpGtU8x16: function(const a, b: TVecU8x16): TMask16;
-    CmpLeU8x16: function(const a, b: TVecU8x16): TMask16;  // ✅ NEW: Le/Ge/Ne for narrow integers
+    CmpLeU8x16: function(const a, b: TVecU8x16): TMask16;  // Le/Ge/Ne for narrow integers
     CmpGeU8x16: function(const a, b: TVecU8x16): TMask16;
     CmpNeU8x16: function(const a, b: TVecU8x16): TMask16;
     MinU8x16: function(const a, b: TVecU8x16): TVecU8x16;
     MaxU8x16: function(const a, b: TVecU8x16): TVecU8x16;
 
-    // ✅ P2-2: Mask 类型操作 (条件分支优化)
+    // Mask 类型操作 (条件分支优化)
     // TMask2 操作 (2 元素)
     Mask2All: function(mask: TMask2): Boolean;
     Mask2Any: function(mask: TMask2): Boolean;
@@ -771,14 +771,14 @@ type
     Mask16PopCount: function(mask: TMask16): Integer;
     Mask16FirstSet: function(mask: TMask16): Integer;  // -1 if none
 
-    // ✅ P2-3: F64x2 Select 操作
+    // F64x2 Select 操作
     SelectF64x2: function(const mask: TMask2; const a, b: TVecF64x2): TVecF64x2;
 
-    // ✅ NEW: 512-bit Select operations
+    // 512-bit Select operations
     SelectF32x16: function(const mask: TMask16; const a, b: TVecF32x16): TVecF32x16;
     SelectF64x8: function(const mask: TMask8; const a, b: TVecF64x8): TVecF64x8;
 
-    // ✅ NEW: 缺失的 Select 操作 (条件选择: mask ? a : b)
+    // 缺失的 Select 操作 (条件选择: mask ? a : b)
     SelectI32x4: function(const mask: TVecI32x4; const a, b: TVecI32x4): TVecI32x4;
     SelectF32x8: function(const mask: TVecU32x8; const a, b: TVecF32x8): TVecF32x8;
     SelectF64x4: function(const mask: TVecU64x4; const a, b: TVecF64x4): TVecF64x4;
@@ -900,12 +900,12 @@ var
   
   // Initialization state
   g_DispatchInitialized: Boolean = False;
-  g_DispatchState: LongInt = 0;  // ✅ 0=未初始化, 1=初始化中, 2=已完成
+  g_DispatchState: LongInt = 0;  // 0=未初始化, 1=初始化中, 2=已完成
   g_ForcedBackend: TSimdBackend;
   g_BackendForced: Boolean = False;
 
   // Feature toggles
-  // ✅ P1-E: 默认启用 SIMD 向量操作
+  // 默认启用 SIMD 向量操作
   // 如需禁用，编译时定义 SIMD_VECTOR_ASM_DISABLED
   // 0 = disabled, 1 = enabled
   {$IFNDEF SIMD_VECTOR_ASM_DISABLED}
@@ -1168,7 +1168,7 @@ begin
     InitializeDispatch;
 end;
 
-// ✅ Thread-safe dispatch initialization using atomic operations
+// Thread-safe dispatch initialization using atomic operations
 procedure DoInitializeDispatch;
 var
   LBestBackend: TSimdBackend;
@@ -1208,9 +1208,9 @@ begin
       LBestDispatchState := nil;
 
       // Forced backend must be:
-      //   - registered in this binary
-      //   - available on current CPU/OS (cpuinfo)
-      //   - marked available by the backend implementation (BackendInfo.Available)
+      // - registered in this binary
+      // - available on current CPU/OS (cpuinfo)
+      // - marked available by the backend implementation (BackendInfo.Available)
       if LBestBackend <> sbScalar then
       begin
         if not LBackendSupportedOnCPU[LBestBackend] then
@@ -1299,7 +1299,7 @@ begin
     Result := sbScalar;
 end;
 
-// ✅ P1: Check if a backend is available on current CPU
+// Check if a backend is available on current CPU
 function IsBackendAvailableOnCPU(backend: TSimdBackend): Boolean;
 begin
   // Delegate to cpuinfo facade (O(1) predicate, no temporary array allocation).
@@ -1472,7 +1472,7 @@ begin
   end;
 end;
 
-// ✅ P1: TrySetActiveBackend - returns True if backend was successfully set
+// TrySetActiveBackend - returns True if backend was successfully set
 function TrySetActiveBackend(backend: TSimdBackend): Boolean;
 var
   LAttemptedSelection: Boolean;
@@ -1480,7 +1480,7 @@ begin
   Result := TrySetActiveBackendInternal(backend, LAttemptedSelection);
 end;
 
-// ✅ P1: SetActiveBackend - now with safety check, falls back to Scalar if unavailable
+// SetActiveBackend - now with safety check, falls back to Scalar if unavailable
 procedure SetActiveBackend(backend: TSimdBackend);
 var
   LAttemptedSelection: Boolean;
@@ -1505,7 +1505,7 @@ begin
     g_ForcedBackend := sbScalar;
     WriteBarrier;  // Ensure write is visible before clearing initialized flag
     g_DispatchInitialized := False; // Force re-initialization
-    InterlockedExchange(g_DispatchState, 0);  // ✅ Reset atomic state
+    InterlockedExchange(g_DispatchState, 0);  // Reset atomic state
     atomic_thread_fence(mo_seq_cst); // Full barrier before re-initialization
     InitializeDispatch;
 
@@ -1678,7 +1678,7 @@ begin
     LShouldReinitialize := (g_DispatchState = 2) and
       (InterlockedCompareExchange(g_RegisterBackendReinitializeSuspendDepth, 0, 0) = 0);
     g_DispatchInitialized := False;
-    InterlockedExchange(g_DispatchState, 0);  // ✅ Reset atomic state
+    InterlockedExchange(g_DispatchState, 0);  // Reset atomic state
     atomic_thread_fence(mo_seq_cst); // Full barrier before re-initialization
     if LShouldReinitialize then
     begin
@@ -1896,9 +1896,9 @@ begin
   dispatchTable.CmpEqI32x4 := @ScalarCmpEqI32x4;
   dispatchTable.CmpLtI32x4 := @ScalarCmpLtI32x4;
   dispatchTable.CmpGtI32x4 := @ScalarCmpGtI32x4;
-  dispatchTable.CmpLeI32x4 := @ScalarCmpLeI32x4;  // ✅ P0-5: Added
-  dispatchTable.CmpGeI32x4 := @ScalarCmpGeI32x4;  // ✅ P0-5: Added
-  dispatchTable.CmpNeI32x4 := @ScalarCmpNeI32x4;  // ✅ P0-5: Added
+  dispatchTable.CmpLeI32x4 := @ScalarCmpLeI32x4;
+  dispatchTable.CmpGeI32x4 := @ScalarCmpGeI32x4;
+  dispatchTable.CmpNeI32x4 := @ScalarCmpNeI32x4;
 
   // === I32x4 MinMax ===
   dispatchTable.MinI32x4 := @ScalarMinI32x4;
@@ -1918,7 +1918,7 @@ begin
   dispatchTable.ShiftRightI64x2 := @ScalarShiftRightI64x2;
   dispatchTable.ShiftRightArithI64x2 := @ScalarShiftRightArithI64x2;
 
-  // === I64x2 Comparison === (✅ P0-5: Added full set)
+  // === I64x2 Comparison ===
   dispatchTable.CmpEqI64x2 := @ScalarCmpEqI64x2;
   dispatchTable.CmpLtI64x2 := @ScalarCmpLtI64x2;
   dispatchTable.CmpGtI64x2 := @ScalarCmpGtI64x2;
@@ -1962,7 +1962,7 @@ begin
   dispatchTable.MinU32x8 := @ScalarMinU32x8;
   dispatchTable.MaxU32x8 := @ScalarMaxU32x8;
 
-  // === ✅ Task 5.2: I64x4 Operations (256-bit AVX2) ===
+  // === I64x4 Operations (256-bit AVX2) ===
   // I64x4 Arithmetic
   dispatchTable.AddI64x4 := @ScalarAddI64x4;
   dispatchTable.SubI64x4 := @ScalarSubI64x4;
@@ -1989,7 +1989,7 @@ begin
   dispatchTable.SplatI64x4 := @ScalarSplatI64x4;
   dispatchTable.ZeroI64x4 := @ScalarZeroI64x4;
 
-  // === ✅ Task 5.2: U64x4 Operations (256-bit AVX2) ===
+  // === U64x4 Operations (256-bit AVX2) ===
   // U64x4 Arithmetic
   dispatchTable.AddU64x4 := @ScalarAddU64x4;
   dispatchTable.SubU64x4 := @ScalarSubU64x4;
@@ -2037,9 +2037,9 @@ begin
   dispatchTable.CmpEqI32x8 := @ScalarCmpEqI32x8;
   dispatchTable.CmpLtI32x8 := @ScalarCmpLtI32x8;
   dispatchTable.CmpGtI32x8 := @ScalarCmpGtI32x8;
-  dispatchTable.CmpLeI32x8 := @ScalarCmpLeI32x8;  // ✅ P0-5: Added
-  dispatchTable.CmpGeI32x8 := @ScalarCmpGeI32x8;  // ✅ P0-5: Added
-  dispatchTable.CmpNeI32x8 := @ScalarCmpNeI32x8;  // ✅ P0-5: Added
+  dispatchTable.CmpLeI32x8 := @ScalarCmpLeI32x8;
+  dispatchTable.CmpGeI32x8 := @ScalarCmpGeI32x8;
+  dispatchTable.CmpNeI32x8 := @ScalarCmpNeI32x8;
 
   // === I32x8 MinMax ===
   dispatchTable.MinI32x8 := @ScalarMinI32x8;
@@ -2078,9 +2078,9 @@ begin
   dispatchTable.CmpEqI32x16 := @ScalarCmpEqI32x16;
   dispatchTable.CmpLtI32x16 := @ScalarCmpLtI32x16;
   dispatchTable.CmpGtI32x16 := @ScalarCmpGtI32x16;
-  dispatchTable.CmpLeI32x16 := @ScalarCmpLeI32x16;  // ✅ P0-5: Added
-  dispatchTable.CmpGeI32x16 := @ScalarCmpGeI32x16;  // ✅ P0-5: Added
-  dispatchTable.CmpNeI32x16 := @ScalarCmpNeI32x16;  // ✅ P0-5: Added
+  dispatchTable.CmpLeI32x16 := @ScalarCmpLeI32x16;
+  dispatchTable.CmpGeI32x16 := @ScalarCmpGeI32x16;
+  dispatchTable.CmpNeI32x16 := @ScalarCmpNeI32x16;
 
   // === I32x16 MinMax ===
   dispatchTable.MinI32x16 := @ScalarMinI32x16;
@@ -2188,7 +2188,7 @@ begin
   dispatchTable.CmpGeF32x4 := @ScalarCmpGeF32x4;
   dispatchTable.CmpNeF32x4 := @ScalarCmpNeF32x4;
 
-  // ✅ P1-E: F64x2 比较操作
+  // F64x2 比较操作
   dispatchTable.CmpEqF64x2 := @ScalarCmpEqF64x2;
   dispatchTable.CmpLtF64x2 := @ScalarCmpLtF64x2;
   dispatchTable.CmpLeF64x2 := @ScalarCmpLeF64x2;
@@ -2240,7 +2240,7 @@ begin
   dispatchTable.TruncF32x4 := @ScalarTruncF32x4;
   dispatchTable.ClampF32x4 := @ScalarClampF32x4;
 
-  // === ✅ P1-4: Wide Vector Extended Math ===
+  // === Wide Vector Extended Math ===
   // F64x2
   dispatchTable.FmaF64x2 := @ScalarFmaF64x2;
   dispatchTable.FloorF64x2 := @ScalarFloorF64x2;
@@ -2317,7 +2317,7 @@ begin
   dispatchTable.NormalizeF32x4 := @ScalarNormalizeF32x4;
   dispatchTable.NormalizeF32x3 := @ScalarNormalizeF32x3;
 
-  // === ✅ Iteration 6.4: FMA-optimized Dot Product ===
+  // === FMA-optimized Dot Product ===
   dispatchTable.DotF32x8 := @ScalarDotF32x8;
   dispatchTable.DotF64x2 := @ScalarDotF64x2;
   dispatchTable.DotF64x4 := @ScalarDotF64x4;
@@ -2370,7 +2370,7 @@ begin
   dispatchTable.ExtractF32x4 := @ScalarExtractF32x4;
   dispatchTable.InsertF32x4 := @ScalarInsertF32x4;
 
-  // === ✅ Task 5.3: Extract/Insert Lane Operations ===
+  // === Extract/Insert Lane Operations ===
   // F64x2 (128-bit)
   dispatchTable.ExtractF64x2 := @ScalarExtractF64x2;
   dispatchTable.InsertF64x2 := @ScalarInsertF64x2;
@@ -2399,7 +2399,7 @@ begin
   dispatchTable.ExtractI32x16 := @ScalarExtractI32x16;
   dispatchTable.InsertI32x16 := @ScalarInsertI32x16;
 
-  // === ✅ P1-5: Wide Vector Load/Store/Splat/Zero ===
+  // === Wide Vector Load/Store/Splat/Zero ===
   // F64x2
   dispatchTable.LoadF64x2 := @ScalarLoadF64x2;
   dispatchTable.StoreF64x2 := @ScalarStoreF64x2;
@@ -2445,7 +2445,7 @@ begin
   dispatchTable.BytesIndexOf := @BytesIndexOf_Scalar;
   dispatchTable.BitsetPopCount := @BitsetPopCount_Scalar;
 
-  // === ✅ P2-1: Saturating Arithmetic ===
+  // === Saturating Arithmetic ===
   dispatchTable.I8x16SatAdd := @ScalarI8x16SatAdd;
   dispatchTable.I8x16SatSub := @ScalarI8x16SatSub;
   dispatchTable.I16x8SatAdd := @ScalarI16x8SatAdd;
@@ -2455,7 +2455,7 @@ begin
   dispatchTable.U16x8SatAdd := @ScalarU16x8SatAdd;
   dispatchTable.U16x8SatSub := @ScalarU16x8SatSub;
 
-  // === ✅ P2-2: Mask 操作 ===
+  // === Mask 操作 ===
   dispatchTable.Mask2All := @ScalarMask2All;
   dispatchTable.Mask2Any := @ScalarMask2Any;
   dispatchTable.Mask2None := @ScalarMask2None;
@@ -2477,19 +2477,19 @@ begin
   dispatchTable.Mask16PopCount := @ScalarMask16PopCount;
   dispatchTable.Mask16FirstSet := @ScalarMask16FirstSet;
 
-  // === ✅ P2-3: F64x2 Select ===
+  // === F64x2 Select ===
   dispatchTable.SelectF64x2 := @ScalarSelectF64x2;
 
   // === 512-bit Select ===
   dispatchTable.SelectF32x16 := @ScalarSelectF32x16;
   dispatchTable.SelectF64x8 := @ScalarSelectF64x8;
 
-  // === ✅ NEW: 缺失的 Select 操作 ===
+  // === 缺失的 Select 操作 ===
   dispatchTable.SelectI32x4 := @ScalarSelectI32x4;
   dispatchTable.SelectF32x8 := @ScalarSelectF32x8;
   dispatchTable.SelectF64x4 := @ScalarSelectF64x4;
 
-  // === ✅ P3-1: Narrow Integer Types (I16x8, I8x16, U32x4, U16x8, U8x16) ===
+  // === Narrow Integer Types (I16x8, I8x16, U32x4, U16x8, U8x16) ===
 
   // --- I16x8 完整操作 (8×Int16) ---
   dispatchTable.AddI16x8 := @ScalarAddI16x8;
@@ -2506,9 +2506,9 @@ begin
   dispatchTable.CmpEqI16x8 := @ScalarCmpEqI16x8;
   dispatchTable.CmpLtI16x8 := @ScalarCmpLtI16x8;
   dispatchTable.CmpGtI16x8 := @ScalarCmpGtI16x8;
-  dispatchTable.CmpLeI16x8 := @ScalarCmpLeI16x8;  // ✅ NEW
-  dispatchTable.CmpGeI16x8 := @ScalarCmpGeI16x8;  // ✅ NEW
-  dispatchTable.CmpNeI16x8 := @ScalarCmpNeI16x8;  // ✅ NEW
+  dispatchTable.CmpLeI16x8 := @ScalarCmpLeI16x8;
+  dispatchTable.CmpGeI16x8 := @ScalarCmpGeI16x8;
+  dispatchTable.CmpNeI16x8 := @ScalarCmpNeI16x8;
   dispatchTable.MinI16x8 := @ScalarMinI16x8;
   dispatchTable.MaxI16x8 := @ScalarMaxI16x8;
 
@@ -2523,9 +2523,9 @@ begin
   dispatchTable.CmpEqI8x16 := @ScalarCmpEqI8x16;
   dispatchTable.CmpLtI8x16 := @ScalarCmpLtI8x16;
   dispatchTable.CmpGtI8x16 := @ScalarCmpGtI8x16;
-  dispatchTable.CmpLeI8x16 := @ScalarCmpLeI8x16;  // ✅ NEW
-  dispatchTable.CmpGeI8x16 := @ScalarCmpGeI8x16;  // ✅ NEW
-  dispatchTable.CmpNeI8x16 := @ScalarCmpNeI8x16;  // ✅ NEW
+  dispatchTable.CmpLeI8x16 := @ScalarCmpLeI8x16;
+  dispatchTable.CmpGeI8x16 := @ScalarCmpGeI8x16;
+  dispatchTable.CmpNeI8x16 := @ScalarCmpNeI8x16;
   dispatchTable.MinI8x16 := @ScalarMinI8x16;
   dispatchTable.MaxI8x16 := @ScalarMaxI8x16;
 
@@ -2562,9 +2562,9 @@ begin
   dispatchTable.CmpEqU16x8 := @ScalarCmpEqU16x8;
   dispatchTable.CmpLtU16x8 := @ScalarCmpLtU16x8;
   dispatchTable.CmpGtU16x8 := @ScalarCmpGtU16x8;
-  dispatchTable.CmpLeU16x8 := @ScalarCmpLeU16x8;  // ✅ NEW
-  dispatchTable.CmpGeU16x8 := @ScalarCmpGeU16x8;  // ✅ NEW
-  dispatchTable.CmpNeU16x8 := @ScalarCmpNeU16x8;  // ✅ NEW
+  dispatchTable.CmpLeU16x8 := @ScalarCmpLeU16x8;
+  dispatchTable.CmpGeU16x8 := @ScalarCmpGeU16x8;
+  dispatchTable.CmpNeU16x8 := @ScalarCmpNeU16x8;
   dispatchTable.MinU16x8 := @ScalarMinU16x8;
   dispatchTable.MaxU16x8 := @ScalarMaxU16x8;
 
@@ -2579,14 +2579,14 @@ begin
   dispatchTable.CmpEqU8x16 := @ScalarCmpEqU8x16;
   dispatchTable.CmpLtU8x16 := @ScalarCmpLtU8x16;
   dispatchTable.CmpGtU8x16 := @ScalarCmpGtU8x16;
-  dispatchTable.CmpLeU8x16 := @ScalarCmpLeU8x16;  // ✅ NEW
-  dispatchTable.CmpGeU8x16 := @ScalarCmpGeU8x16;  // ✅ NEW
-  dispatchTable.CmpNeU8x16 := @ScalarCmpNeU8x16;  // ✅ NEW
+  dispatchTable.CmpLeU8x16 := @ScalarCmpLeU8x16;
+  dispatchTable.CmpGeU8x16 := @ScalarCmpGeU8x16;
+  dispatchTable.CmpNeU8x16 := @ScalarCmpNeU8x16;
   dispatchTable.MinU8x16 := @ScalarMinU8x16;
   dispatchTable.MaxU8x16 := @ScalarMaxU8x16;
 end;
 
-// ✅ 修复 P0-1: 允许 tier 后端从 SSE2 继承实现，而非从标量基线开始
+// 修复 允许 tier 后端从 SSE2 继承实现，而非从标量基线开始
 function CloneDispatchTable(fromBackend: TSimdBackend; var dispatchTable: TSimdDispatchTable): Boolean;
 var
   savedBackend: TSimdBackend;

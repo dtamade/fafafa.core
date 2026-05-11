@@ -409,3 +409,17 @@
 | 1. 识别基础算术重复体 | completed | 已确认 `NEONAdd/Sub/Mul/DivF32x4/F32x8/F64x2` 以及 `NEONAdd/Sub/MulI32x4` 都是与 `Scalar*` 完全同合同的逐 lane loop |
 | 2. 收回重复实现并补 checker | completed | `scalar_fallback.inc` 里的这批 wrapper 已全部改成直接委托 `Scalar*`，`check_nonx86_helper_semantics.py` 也补了 source-side 护栏 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、`check_nonx86_helper_semantics.py --summary-line`、Release `check`、`impl-audit-nonx86`、`gate` 串行全绿 |
+
+## 2026-05-11 Central SIMD Comment Noise Cleanup
+
+### Goal
+
+把中央 SIMD 源文件里残留的 `NEW / Task / Iteration / P*` 历史施工标记收掉，让 façade、dispatch、scalar reference 和 SSE2 register/wide-emulation 读起来像稳定代码，而不是批次日志；只改注释，不改变行为。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别中央注释噪音面 | completed | 已确认噪音主要集中在 `simd.pas`、`dispatch.pas`、`sse2.register.inc`、`sse2.wide_emulation.inc` 与 `scalar.pas`；其中前四个文件已完成清理，`scalar.pas` 因混合 CRLF/LF 单独延后 |
+| 2. 收敛历史标记 | in_progress | 已移除前四个文件里的 `NEW / Task / Iteration / P*` 标签和无意义 inline `Added` 标记，`scalar.pas` 仍需 line-ending-safe 处理 |
+| 3. Release 验证与提交收口 | pending | 默认跑 `git diff --check` 与 Release `check`，必要时补 `gate` |

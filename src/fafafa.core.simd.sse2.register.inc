@@ -45,7 +45,7 @@ begin
     dispatchTable.MulF32x8 := @SSE2MulF32x8;
     dispatchTable.DivF32x8 := @SSE2DivF32x8;
 
-    // ✅ F32x8 扩展函数 (2026-02-05)
+    // F32x8 扩展函数 (2026-02-05)
     dispatchTable.FmaF32x8 := @SSE2FmaF32x8;
     dispatchTable.FloorF32x8 := @SSE2FloorF32x8;
     dispatchTable.CeilF32x8 := @SSE2CeilF32x8;
@@ -65,7 +65,7 @@ begin
     dispatchTable.SplatF32x8 := @SSE2SplatF32x8;
     dispatchTable.ZeroF32x8 := @SSE2ZeroF32x8;
 
-    // ✅ F32x8 comparison operations (2x F32x4)
+    // F32x8 comparison operations (2x F32x4)
     dispatchTable.CmpEqF32x8 := @SSE2CmpEqF32x8;
     dispatchTable.CmpLtF32x8 := @SSE2CmpLtF32x8;
     dispatchTable.CmpLeF32x8 := @SSE2CmpLeF32x8;
@@ -78,13 +78,13 @@ begin
     dispatchTable.MulF64x2 := @SSE2MulF64x2;
     dispatchTable.DivF64x2 := @SSE2DivF64x2;
 
-    // ✅ F64x2 math operations (new)
+    // F64x2 math operations
     dispatchTable.SqrtF64x2 := @SSE2SqrtF64x2;
     dispatchTable.MinF64x2 := @SSE2MinF64x2;
     dispatchTable.MaxF64x2 := @SSE2MaxF64x2;
     dispatchTable.AbsF64x2 := @SSE2AbsF64x2;
 
-    // ✅ F64x2 comparison operations (new)
+    // F64x2 comparison operations
     dispatchTable.CmpEqF64x2 := @SSE2CmpEqF64x2;
     dispatchTable.CmpLtF64x2 := @SSE2CmpLtF64x2;
     dispatchTable.CmpLeF64x2 := @SSE2CmpLeF64x2;
@@ -92,13 +92,13 @@ begin
     dispatchTable.CmpGeF64x2 := @SSE2CmpGeF64x2;
     dispatchTable.CmpNeF64x2 := @SSE2CmpNeF64x2;
 
-    // ✅ F64x2 utility operations (new)
+    // F64x2 utility operations
     dispatchTable.LoadF64x2 := @SSE2LoadF64x2;
     dispatchTable.StoreF64x2 := @SSE2StoreF64x2;
     dispatchTable.SplatF64x2 := @SSE2SplatF64x2;
     dispatchTable.ZeroF64x2 := @SSE2ZeroF64x2;
 
-    // ✅ F64x2 扩展函数 (2026-02-05)
+    // F64x2 扩展函数 (2026-02-05)
     dispatchTable.FloorF64x2 := @SSE2FloorF64x2;
     dispatchTable.CeilF64x2 := @SSE2CeilF64x2;
     dispatchTable.RoundF64x2 := @SSE2RoundF64x2;
@@ -110,7 +110,7 @@ begin
     dispatchTable.ReduceMaxF64x2 := @SSE2ReduceMaxF64x2;
     dispatchTable.ReduceMulF64x2 := @SSE2ReduceMulF64x2;
 
-    // ✅ F64x4 分解实现 (2026-02-05) - 使用 2x F64x2
+    // F64x4 分解实现 (2026-02-05) - 使用 2x F64x2
     dispatchTable.AddF64x4 := @SSE2AddF64x4;
     dispatchTable.SubF64x4 := @SSE2SubF64x4;
     dispatchTable.MulF64x4 := @SSE2MulF64x4;
@@ -135,7 +135,7 @@ begin
     dispatchTable.SplatF64x4 := @SSE2SplatF64x4;
     dispatchTable.ZeroF64x4 := @SSE2ZeroF64x4;
 
-    // ✅ F64x4 comparison operations (2x F64x2)
+    // F64x4 comparison operations (2x F64x2)
     dispatchTable.CmpEqF64x4 := @SSE2CmpEqF64x4;
     dispatchTable.CmpLtF64x4 := @SSE2CmpLtF64x4;
     dispatchTable.CmpLeF64x4 := @SSE2CmpLeF64x4;
@@ -147,19 +147,19 @@ begin
     dispatchTable.SubI32x4 := @SSE2SubI32x4;
     dispatchTable.MulI32x4 := @SSE2MulI32x4;
 
-    // ✅ I32x4 bitwise operations (new)
+    // I32x4 bitwise operations
     dispatchTable.AndI32x4 := @SSE2AndI32x4;
     dispatchTable.OrI32x4 := @SSE2OrI32x4;
     dispatchTable.XorI32x4 := @SSE2XorI32x4;
     dispatchTable.NotI32x4 := @SSE2NotI32x4;
     dispatchTable.AndNotI32x4 := @SSE2AndNotI32x4;
 
-    // ✅ I32x4 shift operations (new)
+    // I32x4 shift operations
     dispatchTable.ShiftLeftI32x4 := @SSE2ShiftLeftI32x4;
     dispatchTable.ShiftRightI32x4 := @SSE2ShiftRightI32x4;
     dispatchTable.ShiftRightArithI32x4 := @SSE2ShiftRightArithI32x4;
 
-    // ✅ I32x4 comparison operations (new)
+    // I32x4 comparison operations
     dispatchTable.CmpEqI32x4 := @SSE2CmpEqI32x4;
     dispatchTable.CmpLtI32x4 := @SSE2CmpLtI32x4;
     dispatchTable.CmpGtI32x4 := @SSE2CmpGtI32x4;
@@ -167,11 +167,11 @@ begin
     dispatchTable.CmpGeI32x4 := @SSE2CmpGeI32x4;
     dispatchTable.CmpNeI32x4 := @SSE2CmpNeI32x4;
 
-    // ✅ I32x4 min/max operations (new)
+    // I32x4 min/max operations
     dispatchTable.MinI32x4 := @SSE2MinI32x4;
     dispatchTable.MaxI32x4 := @SSE2MaxI32x4;
 
-    // ✅ I32x8 分解实现 (2026-02-05) - 使用 2x I32x4
+    // I32x8 分解实现 (2026-02-05) - 使用 2x I32x4
     dispatchTable.AddI32x8 := @SSE2AddI32x8;
     dispatchTable.SubI32x8 := @SSE2SubI32x8;
     dispatchTable.MulI32x8 := @SSE2MulI32x8;
@@ -192,7 +192,7 @@ begin
     dispatchTable.MinI32x8 := @SSE2MinI32x8;
     dispatchTable.MaxI32x8 := @SSE2MaxI32x8;
 
-    // ✅ 512-bit 向量的 SSE2 渐进降级实现 (2026-02-05)
+    // 512-bit 向量的 SSE2 渐进降级实现 (2026-02-05)
 
     // F32x16 (16×Float32)
     dispatchTable.AddF32x16 := @SSE2AddF32x16;
@@ -277,7 +277,7 @@ begin
     dispatchTable.MinI32x16 := @SSE2MinI32x16;
     dispatchTable.MaxI32x16 := @SSE2MaxI32x16;
 
-    // ✅ P3: I64x2 arithmetic and bitwise
+    // I64x2 arithmetic and bitwise
     dispatchTable.AddI64x2 := @SSE2AddI64x2;
     dispatchTable.SubI64x2 := @SSE2SubI64x2;
     dispatchTable.AndI64x2 := @SSE2AndI64x2;
@@ -285,7 +285,7 @@ begin
     dispatchTable.XorI64x2 := @SSE2XorI64x2;
     dispatchTable.NotI64x2 := @SSE2NotI64x2;
 
-    // ✅ I64x2 comparison operations (SSE2 emulation)
+    // I64x2 comparison operations (SSE2 emulation)
     // SSE2 没有原生 64 位整数比较指令（PCMPGTQ 是 SSE4.2）
     // 使用 32 位比较的组合逻辑来模拟 64 位比较
     dispatchTable.CmpEqI64x2 := @SSE2CmpEqI64x2;
@@ -347,10 +347,10 @@ begin
     dispatchTable.ExtractF32x4 := @SSE2ExtractF32x4;
     dispatchTable.InsertF32x4 := @SSE2InsertF32x4;
 
-    // ✅ P4: SelectF64x2
+    // SelectF64x2
     dispatchTable.SelectF64x2 := @SSE2SelectF64x2;
 
-    // ✅ NEW: 缺失的 Select 操作
+    // 缺失的 Select 操作
     dispatchTable.SelectI32x4 := @SSE2SelectI32x4;
     dispatchTable.SelectF32x8 := @SSE2SelectF32x8;
     dispatchTable.SelectF64x4 := @SSE2SelectF64x4;
@@ -364,12 +364,12 @@ begin
   dispatchTable.CountByte := @CountByte_SSE2;
   dispatchTable.MinMaxBytes := @MinMaxBytes_SSE2;
   dispatchTable.BitsetPopCount := @BitsetPopCount_SSE2;
-  // ✅ Register SSE2 memory operations
+  // Register SSE2 memory operations
   dispatchTable.MemCopy := @MemCopy_SSE2;
   dispatchTable.MemSet := @MemSet_SSE2;
   // Wide/helper facade overrides are applied below to keep SSE2-owned implementations active.
 
-  // ✅ P2-1: Override with SSE2 saturating arithmetic (always enabled, stable ops)
+  // Override with SSE2 saturating arithmetic (always enabled, stable ops)
   dispatchTable.I8x16SatAdd := @SSE2I8x16SatAdd;
   dispatchTable.I8x16SatSub := @SSE2I8x16SatSub;
   dispatchTable.I16x8SatAdd := @SSE2I16x8SatAdd;
@@ -379,7 +379,7 @@ begin
   dispatchTable.U16x8SatAdd := @SSE2U16x8SatAdd;
   dispatchTable.U16x8SatSub := @SSE2U16x8SatSub;
 
-  // ✅ I16x8 operations (SSE2)
+  // I16x8 operations (SSE2)
   dispatchTable.AddI16x8 := @SSE2AddI16x8;
   dispatchTable.SubI16x8 := @SSE2SubI16x8;
   dispatchTable.MulI16x8 := @SSE2MulI16x8;
@@ -394,13 +394,13 @@ begin
   dispatchTable.CmpEqI16x8 := @SSE2CmpEqI16x8;
   dispatchTable.CmpLtI16x8 := @SSE2CmpLtI16x8;
   dispatchTable.CmpGtI16x8 := @SSE2CmpGtI16x8;
-  dispatchTable.CmpLeI16x8 := @SSE2CmpLeI16x8;  // ✅ NEW
-  dispatchTable.CmpGeI16x8 := @SSE2CmpGeI16x8;  // ✅ NEW
-  dispatchTable.CmpNeI16x8 := @SSE2CmpNeI16x8;  // ✅ NEW
+  dispatchTable.CmpLeI16x8 := @SSE2CmpLeI16x8;
+  dispatchTable.CmpGeI16x8 := @SSE2CmpGeI16x8;
+  dispatchTable.CmpNeI16x8 := @SSE2CmpNeI16x8;
   dispatchTable.MinI16x8 := @SSE2MinI16x8;
   dispatchTable.MaxI16x8 := @SSE2MaxI16x8;
 
-  // ✅ I8x16 operations (SSE2)
+  // I8x16 operations (SSE2)
   dispatchTable.AddI8x16 := @SSE2AddI8x16;
   dispatchTable.SubI8x16 := @SSE2SubI8x16;
   dispatchTable.AndI8x16 := @SSE2AndI8x16;
@@ -410,13 +410,13 @@ begin
   dispatchTable.CmpEqI8x16 := @SSE2CmpEqI8x16;
   dispatchTable.CmpLtI8x16 := @SSE2CmpLtI8x16;
   dispatchTable.CmpGtI8x16 := @SSE2CmpGtI8x16;
-  dispatchTable.CmpLeI8x16 := @SSE2CmpLeI8x16;  // ✅ NEW
-  dispatchTable.CmpGeI8x16 := @SSE2CmpGeI8x16;  // ✅ NEW
-  dispatchTable.CmpNeI8x16 := @SSE2CmpNeI8x16;  // ✅ NEW
+  dispatchTable.CmpLeI8x16 := @SSE2CmpLeI8x16;
+  dispatchTable.CmpGeI8x16 := @SSE2CmpGeI8x16;
+  dispatchTable.CmpNeI8x16 := @SSE2CmpNeI8x16;
   dispatchTable.MinI8x16 := @SSE2MinI8x16;
   dispatchTable.MaxI8x16 := @SSE2MaxI8x16;
 
-  // ✅ U32x4 operations (SSE2)
+  // U32x4 operations (SSE2)
   dispatchTable.AddU32x4 := @SSE2AddU32x4;
   dispatchTable.SubU32x4 := @SSE2SubU32x4;
   dispatchTable.MulU32x4 := @SSE2MulU32x4;
@@ -436,7 +436,7 @@ begin
   dispatchTable.MinU32x4 := @SSE2MinU32x4;
   dispatchTable.MaxU32x4 := @SSE2MaxU32x4;
 
-  // ✅ U16x8 operations (SSE2)
+  // U16x8 operations (SSE2)
   dispatchTable.AddU16x8 := @SSE2AddU16x8;
   dispatchTable.SubU16x8 := @SSE2SubU16x8;
   dispatchTable.MulU16x8 := @SSE2MulU16x8;
@@ -449,13 +449,13 @@ begin
   dispatchTable.CmpEqU16x8 := @SSE2CmpEqU16x8;
   dispatchTable.CmpLtU16x8 := @SSE2CmpLtU16x8;
   dispatchTable.CmpGtU16x8 := @SSE2CmpGtU16x8;
-  dispatchTable.CmpLeU16x8 := @SSE2CmpLeU16x8;  // ✅ NEW
-  dispatchTable.CmpGeU16x8 := @SSE2CmpGeU16x8;  // ✅ NEW
-  dispatchTable.CmpNeU16x8 := @SSE2CmpNeU16x8;  // ✅ NEW
+  dispatchTable.CmpLeU16x8 := @SSE2CmpLeU16x8;
+  dispatchTable.CmpGeU16x8 := @SSE2CmpGeU16x8;
+  dispatchTable.CmpNeU16x8 := @SSE2CmpNeU16x8;
   dispatchTable.MinU16x8 := @SSE2MinU16x8;
   dispatchTable.MaxU16x8 := @SSE2MaxU16x8;
 
-  // ✅ U8x16 operations (SSE2)
+  // U8x16 operations (SSE2)
   dispatchTable.AddU8x16 := @SSE2AddU8x16;
   dispatchTable.SubU8x16 := @SSE2SubU8x16;
   dispatchTable.AndU8x16 := @SSE2AndU8x16;
@@ -465,14 +465,14 @@ begin
   dispatchTable.CmpEqU8x16 := @SSE2CmpEqU8x16;
   dispatchTable.CmpLtU8x16 := @SSE2CmpLtU8x16;
   dispatchTable.CmpGtU8x16 := @SSE2CmpGtU8x16;
-  dispatchTable.CmpLeU8x16 := @SSE2CmpLeU8x16;  // ✅ NEW
-  dispatchTable.CmpGeU8x16 := @SSE2CmpGeU8x16;  // ✅ NEW
-  dispatchTable.CmpNeU8x16 := @SSE2CmpNeU8x16;  // ✅ NEW
+  dispatchTable.CmpLeU8x16 := @SSE2CmpLeU8x16;
+  dispatchTable.CmpGeU8x16 := @SSE2CmpGeU8x16;
+  dispatchTable.CmpNeU8x16 := @SSE2CmpNeU8x16;
   dispatchTable.MinU8x16 := @SSE2MinU8x16;
   dispatchTable.MaxU8x16 := @SSE2MaxU8x16;
 
   // ============================================================================
-  // ✅ NEW: I64x4 操作注册 (256-bit，使用 2×I64x2 仿真)
+  // I64x4 操作注册 (256-bit，使用 2×I64x2 仿真)
   // ============================================================================
   dispatchTable.AddI64x4 := @SSE2AddI64x4;
   dispatchTable.SubI64x4 := @SSE2SubI64x4;
@@ -495,7 +495,7 @@ begin
   dispatchTable.ZeroI64x4 := @SSE2ZeroI64x4;
 
   // ============================================================================
-  // ✅ NEW: U32x8 操作注册 (256-bit，使用 2×U32x4 仿真)
+  // U32x8 操作注册 (256-bit，使用 2×U32x4 仿真)
   // ============================================================================
   dispatchTable.AddU32x8 := @SSE2AddU32x8;
   dispatchTable.SubU32x8 := @SSE2SubU32x8;
@@ -517,7 +517,7 @@ begin
   dispatchTable.MaxU32x8 := @SSE2MaxU32x8;
 
   // ============================================================================
-  // ✅ NEW: U64x4 操作注册 (256-bit，使用纯标量仿真)
+  // U64x4 操作注册 (256-bit，使用纯标量仿真)
   // ============================================================================
   dispatchTable.AddU64x4 := @SSE2AddU64x4;
   dispatchTable.SubU64x4 := @SSE2SubU64x4;
@@ -535,7 +535,7 @@ begin
   dispatchTable.CmpNeU64x4 := @SSE2CmpNeU64x4;
 
   // ============================================================================
-  // ✅ NEW: I64x8 操作注册 (512-bit，使用 2×I64x4 仿真)
+  // I64x8 操作注册 (512-bit，使用 2×I64x4 仿真)
   // ============================================================================
   dispatchTable.AddI64x8 := @SSE2AddI64x8;
   dispatchTable.SubI64x8 := @SSE2SubI64x8;
@@ -551,7 +551,7 @@ begin
   dispatchTable.CmpNeI64x8 := @SSE2CmpNeI64x8;
 
   // ============================================================================
-  // ✅ NEW: Extract/Insert 操作注册
+  // Extract/Insert 操作注册
   // ============================================================================
   dispatchTable.ExtractF64x2 := @SSE2ExtractF64x2;
   dispatchTable.InsertF64x2 := @SSE2InsertF64x2;
@@ -573,7 +573,7 @@ begin
   dispatchTable.InsertI32x16 := @SSE2InsertI32x16;
 
   // ============================================================================
-  // ✅ NEW: Facade 函数注册
+  // Facade 函数注册
   // ============================================================================
   dispatchTable.MemDiffRange := @MemDiffRange_SSE2;
   dispatchTable.MemReverse := @MemReverse_SSE2;
@@ -583,7 +583,7 @@ begin
   dispatchTable.BytesIndexOf := @BytesIndexOf_SSE2;
   dispatchTable.Utf8Validate := @Utf8Validate_SSE2;
 
-  // ✅ P1: Mask operations (bsf + SWAR popcount, always enabled)
+  // Mask operations (bsf + SWAR popcount, always enabled)
   dispatchTable.Mask2All := @SSE2Mask2All;
   dispatchTable.Mask2Any := @SSE2Mask2Any;
   dispatchTable.Mask2None := @SSE2Mask2None;
@@ -611,5 +611,5 @@ end;
 
 initialization
   RegisterSSE2Backend;
-  // ✅ P1-D: Register rebuilder callback for VectorAsmEnabled changes
+  // Register rebuilder callback for VectorAsmEnabled changes
   RegisterBackendRebuilder(sbSSE2, @RegisterSSE2Backend);

@@ -1,11 +1,11 @@
 // ============================================================================
-// ✅ 512-bit 向量的 SSE2 渐进降级实现 (2026-02-05)
+// 512-bit 向量的 SSE2 渐进降级实现 (2026-02-05)
 // 策略: 使用 2×256-bit 操作 (利用已有的 F32x8/F64x4/I32x8)
 // ============================================================================
 
 // === F32x16 操作 (16×Float32) - 使用 2×F32x8 ===
 
-// ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (Add)
+// 4×128-bit SSE2 ASM 实现 (Add)
 function SSE2AddF32x16(const a, b: TVecF32x16): TVecF32x16;
 var
   pa, pb, pr: Pointer;
@@ -40,7 +40,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (Sub)
+// 4×128-bit SSE2 ASM 实现 (Sub)
 function SSE2SubF32x16(const a, b: TVecF32x16): TVecF32x16;
 var
   pa, pb, pr: Pointer;
@@ -72,7 +72,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (Mul)
+// 4×128-bit SSE2 ASM 实现 (Mul)
 function SSE2MulF32x16(const a, b: TVecF32x16): TVecF32x16;
 var
   pa, pb, pr: Pointer;
@@ -104,7 +104,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (Div)
+// 4×128-bit SSE2 ASM 实现 (Div)
 function SSE2DivF32x16(const a, b: TVecF32x16): TVecF32x16;
 var
   pa, pb, pr: Pointer;
@@ -136,7 +136,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (Abs)
+// 4×128-bit SSE2 ASM 实现 (Abs)
 function SSE2AbsF32x16(const a: TVecF32x16): TVecF32x16;
 const
   AbsMask: array[0..3] of UInt32 = ($7FFFFFFF, $7FFFFFFF, $7FFFFFFF, $7FFFFFFF);
@@ -170,7 +170,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (Sqrt)
+// 4×128-bit SSE2 ASM 实现 (Sqrt)
 function SSE2SqrtF32x16(const a: TVecF32x16): TVecF32x16;
 var
   pa, pr: Pointer;
@@ -196,7 +196,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (Min)
+// 4×128-bit SSE2 ASM 实现 (Min)
 function SSE2MinF32x16(const a, b: TVecF32x16): TVecF32x16;
 var
   pa, pb, pr: Pointer;
@@ -228,7 +228,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (Max)
+// 4×128-bit SSE2 ASM 实现 (Max)
 function SSE2MaxF32x16(const a, b: TVecF32x16): TVecF32x16;
 var
   pa, pb, pr: Pointer;
@@ -260,7 +260,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (FMA: a*b+c)
+// 4×128-bit SSE2 ASM 实现 (FMA: a*b+c)
 function SSE2FmaF32x16(const a, b, c: TVecF32x16): TVecF32x16;
 var
   pa, pb, pc, pr: Pointer;
@@ -331,7 +331,7 @@ begin
   Result.hi := SSE2TruncF32x8(a.hi);
 end;
 
-// ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (Clamp: 限制在 [minVal, maxVal] 范围)
+// 4×128-bit SSE2 ASM 实现 (Clamp: 限制在 [minVal, maxVal] 范围)
 function SSE2ClampF32x16(const a, minVal, maxVal: TVecF32x16): TVecF32x16;
 var
   pa, pmin, pmax, pr: Pointer;
@@ -535,7 +535,7 @@ end;
 
 // === F64x8 操作 (8×Float64) - 使用 2×F64x4 ===
 
-// ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (F64x8 Add)
+// 4×128-bit SSE2 ASM 实现 (F64x8 Add)
 function SSE2AddF64x8(const a, b: TVecF64x8): TVecF64x8;
 var
   pa, pb, pr: Pointer;
@@ -570,7 +570,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (F64x8 Sub)
+// 4×128-bit SSE2 ASM 实现 (F64x8 Sub)
 function SSE2SubF64x8(const a, b: TVecF64x8): TVecF64x8;
 var
   pa, pb, pr: Pointer;
@@ -602,7 +602,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (F64x8 Mul)
+// 4×128-bit SSE2 ASM 实现 (F64x8 Mul)
 function SSE2MulF64x8(const a, b: TVecF64x8): TVecF64x8;
 var
   pa, pb, pr: Pointer;
@@ -634,7 +634,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (F64x8 Div)
+// 4×128-bit SSE2 ASM 实现 (F64x8 Div)
 function SSE2DivF64x8(const a, b: TVecF64x8): TVecF64x8;
 var
   pa, pb, pr: Pointer;
@@ -666,7 +666,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (F64x8 Abs)
+// 4×128-bit SSE2 ASM 实现 (F64x8 Abs)
 function SSE2AbsF64x8(const a: TVecF64x8): TVecF64x8;
 const
   AbsMask: array[0..1] of UInt64 = ($7FFFFFFFFFFFFFFF, $7FFFFFFFFFFFFFFF);
@@ -700,7 +700,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (F64x8 Sqrt)
+// 4×128-bit SSE2 ASM 实现 (F64x8 Sqrt)
 function SSE2SqrtF64x8(const a: TVecF64x8): TVecF64x8;
 var
   pa, pr: Pointer;
@@ -726,7 +726,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (F64x8 Min)
+// 4×128-bit SSE2 ASM 实现 (F64x8 Min)
 function SSE2MinF64x8(const a, b: TVecF64x8): TVecF64x8;
 var
   pa, pb, pr: Pointer;
@@ -758,7 +758,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (F64x8 Max)
+// 4×128-bit SSE2 ASM 实现 (F64x8 Max)
 function SSE2MaxF64x8(const a, b: TVecF64x8): TVecF64x8;
 var
   pa, pb, pr: Pointer;
@@ -790,7 +790,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (F64x8 FMA: a*b+c)
+// 4×128-bit SSE2 ASM 实现 (F64x8 FMA: a*b+c)
 function SSE2FmaF64x8(const a, b, c: TVecF64x8): TVecF64x8;
 var
   pa, pb, pc, pr: Pointer;
@@ -861,7 +861,7 @@ begin
   Result.hi := SSE2TruncF64x4(a.hi);
 end;
 
-// ✅ ITERATION-4.3: 4×128-bit SSE2 ASM 实现 (F64x8 Clamp: 限制在 [minVal, maxVal] 范围)
+// 4×128-bit SSE2 ASM 实现 (F64x8 Clamp: 限制在 [minVal, maxVal] 范围)
 function SSE2ClampF64x8(const a, minVal, maxVal: TVecF64x8): TVecF64x8;
 var
   pa, pmin, pmax, pr: Pointer;
@@ -1063,7 +1063,7 @@ begin
   end;
 end;
 
-// ✅ NEW: 缺失的 Select 操作实现
+// 缺失的 Select 操作实现
 // SelectI32x4: 使用 PAND + PANDN + POR 实现
 // Result = (a AND mask) OR (b AND NOT mask)
 function SSE2SelectI32x4(const mask: TVecI32x4; const a, b: TVecI32x4): TVecI32x4;
@@ -1199,7 +1199,7 @@ end;
 
 // === I32x16 操作 (16×Int32) - 使用 2×I32x8 ===
 
-// ✅ ITERATION-4.4: 4×128-bit SSE2 ASM 实现 (I32x16 Add)
+// 4×128-bit SSE2 ASM 实现 (I32x16 Add)
 function SSE2AddI32x16(const a, b: TVecI32x16): TVecI32x16;
 var
   pa, pb, pr: Pointer;
@@ -1234,7 +1234,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.4: 4×128-bit SSE2 ASM 实现 (I32x16 Sub)
+// 4×128-bit SSE2 ASM 实现 (I32x16 Sub)
 function SSE2SubI32x16(const a, b: TVecI32x16): TVecI32x16;
 var
   pa, pb, pr: Pointer;
@@ -1266,7 +1266,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.4: 4×128-bit SSE2 ASM 实现 (I32x16 Mul - 使用标量回退，因为 SSE2 无 pmulld)
+// 4×128-bit SSE2 ASM 实现 (I32x16 Mul - 使用标量回退，因为 SSE2 无 pmulld)
 function SSE2MulI32x16(const a, b: TVecI32x16): TVecI32x16;
 var
   i: Integer;
@@ -1276,7 +1276,7 @@ begin
     Result.i[i] := a.i[i] * b.i[i];
 end;
 
-// ✅ ITERATION-4.4: 4×128-bit SSE2 ASM 实现 (I32x16 And)
+// 4×128-bit SSE2 ASM 实现 (I32x16 And)
 function SSE2AndI32x16(const a, b: TVecI32x16): TVecI32x16;
 var
   pa, pb, pr: Pointer;
@@ -1308,7 +1308,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.4: 4×128-bit SSE2 ASM 实现 (I32x16 Or)
+// 4×128-bit SSE2 ASM 实现 (I32x16 Or)
 function SSE2OrI32x16(const a, b: TVecI32x16): TVecI32x16;
 var
   pa, pb, pr: Pointer;
@@ -1340,7 +1340,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.4: 4×128-bit SSE2 ASM 实现 (I32x16 Xor)
+// 4×128-bit SSE2 ASM 实现 (I32x16 Xor)
 function SSE2XorI32x16(const a, b: TVecI32x16): TVecI32x16;
 var
   pa, pb, pr: Pointer;
@@ -1372,7 +1372,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.4: 4×128-bit SSE2 ASM 实现 (I32x16 Not)
+// 4×128-bit SSE2 ASM 实现 (I32x16 Not)
 function SSE2NotI32x16(const a: TVecI32x16): TVecI32x16;
 var
   pa, pr: Pointer;
@@ -1412,7 +1412,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.4: 4×128-bit SSE2 ASM 实现 (I32x16 AndNot)
+// 4×128-bit SSE2 ASM 实现 (I32x16 AndNot)
 function SSE2AndNotI32x16(const a, b: TVecI32x16): TVecI32x16;
 var
   pa, pb, pr: Pointer;
@@ -1445,7 +1445,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.4: 4×128-bit SSE2 ASM 实现 (I32x16 ShiftLeft)
+// 4×128-bit SSE2 ASM 实现 (I32x16 ShiftLeft)
 function SSE2ShiftLeftI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;
 var
   pa, pr: Pointer;
@@ -1475,7 +1475,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.4: 4×128-bit SSE2 ASM 实现 (I32x16 ShiftRight - logical)
+// 4×128-bit SSE2 ASM 实现 (I32x16 ShiftRight - logical)
 function SSE2ShiftRightI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;
 var
   pa, pr: Pointer;
@@ -1504,7 +1504,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.4: 4×128-bit SSE2 ASM 实现 (I32x16 ShiftRightArith - arithmetic)
+// 4×128-bit SSE2 ASM 实现 (I32x16 ShiftRightArith - arithmetic)
 function SSE2ShiftRightArithI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;
 var
   pa, pr: Pointer;
@@ -1563,7 +1563,7 @@ begin
   Result := (SSE2CmpNeI32x8(a.lo, b.lo) and $FF) or ((SSE2CmpNeI32x8(a.hi, b.hi) and $FF) shl 8);
 end;
 
-// ✅ ITERATION-4.4: 4×128-bit SSE2 ASM 实现 (I32x16 Min - emulated)
+// 4×128-bit SSE2 ASM 实现 (I32x16 Min - emulated)
 function SSE2MinI32x16(const a, b: TVecI32x16): TVecI32x16;
 var
   pa, pb, pr: Pointer;
@@ -1623,7 +1623,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.4: 4×128-bit SSE2 ASM 实现 (I32x16 Max - emulated)
+// 4×128-bit SSE2 ASM 实现 (I32x16 Max - emulated)
 function SSE2MaxI32x16(const a, b: TVecI32x16): TVecI32x16;
 var
   pa, pb, pr: Pointer;
@@ -1684,7 +1684,7 @@ begin
 end;
 
 // ============================================================================
-// ✅ NEW: I64x4 操作实现 (256-bit，使用 2×I64x2 仿真)
+// I64x4 操作实现 (256-bit，使用 2×I64x2 仿真)
 // ============================================================================
 
 function SSE2AddI64x4(const a, b: TVecI64x4): TVecI64x4;
@@ -1896,7 +1896,7 @@ begin
 end;
 
 // ============================================================================
-// ✅ NEW: U32x8 操作实现 (256-bit，使用 2×U32x4 仿真)
+// U32x8 操作实现 (256-bit，使用 2×U32x4 仿真)
 // ============================================================================
 
 function SSE2AddU32x8(const a, b: TVecU32x8): TVecU32x8;
@@ -2038,7 +2038,7 @@ begin
 end;
 
 // ============================================================================
-// ✅ NEW: U64x4 操作实现 (256-bit，使用 2×U64x2 仿真)
+// U64x4 操作实现 (256-bit，使用 2×U64x2 仿真)
 // ============================================================================
 
 function SSE2AddU64x4(const a, b: TVecU64x4): TVecU64x4;
@@ -2185,10 +2185,10 @@ begin
 end;
 
 // ============================================================================
-// ✅ NEW: I64x8 操作实现 (512-bit，使用 2×I64x4 仿真)
+// I64x8 操作实现 (512-bit，使用 2×I64x4 仿真)
 // ============================================================================
 
-// ✅ ITERATION-4.4: 4×128-bit SSE2 ASM 实现 (I64x8 Add)
+// 4×128-bit SSE2 ASM 实现 (I64x8 Add)
 function SSE2AddI64x8(const a, b: TVecI64x8): TVecI64x8;
 var
   pa, pb, pr: Pointer;
@@ -2223,7 +2223,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.4: 4×128-bit SSE2 ASM 实现 (I64x8 Sub)
+// 4×128-bit SSE2 ASM 实现 (I64x8 Sub)
 function SSE2SubI64x8(const a, b: TVecI64x8): TVecI64x8;
 var
   pa, pb, pr: Pointer;
@@ -2255,7 +2255,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.4: 4×128-bit SSE2 ASM 实现 (I64x8 And)
+// 4×128-bit SSE2 ASM 实现 (I64x8 And)
 function SSE2AndI64x8(const a, b: TVecI64x8): TVecI64x8;
 var
   pa, pb, pr: Pointer;
@@ -2287,7 +2287,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.4: 4×128-bit SSE2 ASM 实现 (I64x8 Or)
+// 4×128-bit SSE2 ASM 实现 (I64x8 Or)
 function SSE2OrI64x8(const a, b: TVecI64x8): TVecI64x8;
 var
   pa, pb, pr: Pointer;
@@ -2319,7 +2319,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.4: 4×128-bit SSE2 ASM 实现 (I64x8 Xor)
+// 4×128-bit SSE2 ASM 实现 (I64x8 Xor)
 function SSE2XorI64x8(const a, b: TVecI64x8): TVecI64x8;
 var
   pa, pb, pr: Pointer;
@@ -2351,7 +2351,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.4: 4×128-bit SSE2 ASM 实现 (I64x8 Not)
+// 4×128-bit SSE2 ASM 实现 (I64x8 Not)
 function SSE2NotI64x8(const a: TVecI64x8): TVecI64x8;
 var
   pa, pr: Pointer;
@@ -2391,7 +2391,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.4: 4×128-bit SSE2 ASM 实现 (I64x8 ShiftLeft)
+// 4×128-bit SSE2 ASM 实现 (I64x8 ShiftLeft)
 function SSE2ShiftLeftI64x8(const a: TVecI64x8; count: Integer): TVecI64x8;
 var
   pa, pr: Pointer;
@@ -2421,7 +2421,7 @@ begin
   end;
 end;
 
-// ✅ ITERATION-4.4: 4×128-bit SSE2 ASM 实现 (I64x8 ShiftRight - logical)
+// 4×128-bit SSE2 ASM 实现 (I64x8 ShiftRight - logical)
 function SSE2ShiftRightI64x8(const a: TVecI64x8; count: Integer): TVecI64x8;
 var
   pa, pr: Pointer;
@@ -2648,7 +2648,7 @@ begin
 end;
 
 // ============================================================================
-// ✅ NEW: Facade 函数实现 (高级内存和文本操作)
+// Facade 函数实现 (高级内存和文本操作)
 // ============================================================================
 
 function MemDiffRange_SSE2(a, b: Pointer; len: SizeUInt; out firstDiff, lastDiff: SizeUInt): Boolean;

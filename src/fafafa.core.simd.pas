@@ -11,13 +11,13 @@ uses
   fafafa.core.simd.runtime,
   fafafa.core.simd.cpuinfo,
   fafafa.core.simd.cpuinfo.base,
-  fafafa.core.simd.utils      // ✅ Shuffle, Blend, Convert operations
+  fafafa.core.simd.utils      // Shuffle, Blend, Convert operations
   {$IFDEF CPUX86_64}  // x86-64 SIMD backends use 64-bit assembly
   , fafafa.core.simd.sse2
-  , fafafa.core.simd.sse3      // ✅ SSE3: horizontal ops (HADDPS, HSUBPS)
-  , fafafa.core.simd.ssse3     // ✅ SSSE3: byte shuffle (PSHUFB), integer abs (PABS)
-  , fafafa.core.simd.sse41     // ✅ SSE4.1: dot product (DPPS), rounding, PMULLD
-  , fafafa.core.simd.sse42     // ✅ SSE4.2: CRC32, string ops, PCMPGTQ
+  , fafafa.core.simd.sse3      // SSE3: horizontal ops (HADDPS, HSUBPS)
+  , fafafa.core.simd.ssse3     // SSSE3: byte shuffle (PSHUFB), integer abs (PABS)
+  , fafafa.core.simd.sse41     // SSE4.1: dot product (DPPS), rounding, PMULLD
+  , fafafa.core.simd.sse42     // SSE4.2: CRC32, string ops, PCMPGTQ
   , fafafa.core.simd.avx2
     {$IFDEF SIMD_BACKEND_AVX512}
   , fafafa.core.simd.avx512
@@ -172,7 +172,7 @@ function VecF32x4Normalize(const a: TVecF32x4): TVecF32x4; inline;
 {** Normalize 3-element vector (w=0). @returns([x,y,z,0] / length([x,y,z])) *}
 function VecF32x3Normalize(const a: TVecF32x4): TVecF32x4; inline;
 
-{** @abstract(✅ Iteration 6.4: FMA-optimized Dot Product Functions) *}
+{** @abstract(FMA-optimized Dot Product Functions) *}
 
 {** 8-element dot product (256-bit). @returns(sum of a[i]*b[i] for i=0..7) *}
 function VecF32x8Dot(const a, b: TVecF32x8): Single; inline;
@@ -232,7 +232,7 @@ function VecF32x4Extract(const a: TVecF32x4; index: Integer): Single; inline;
 {** Insert value at index. @returns(Vector with a[index] replaced by value) *}
 function VecF32x4Insert(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4; inline;
 
-// === ✅ Task 5.3: Extract/Insert Lane Operations ===
+// === Extract/Insert Lane Operations ===
 // These functions provide element-level access to SIMD vectors.
 // Extract retrieves a single lane value; Insert creates a new vector with one lane modified.
 // Index bounds are clamped to valid range (saturation strategy).
@@ -292,7 +292,7 @@ function VecI32x16Extract(const a: TVecI32x16; index: Integer): Int32; inline;
 function VecI32x16Insert(const a: TVecI32x16; value: Int32; index: Integer): TVecI32x16; inline;
 
 // === F64x2 Operations (128-bit Double) ===
-// ✅ P0.3: 添加缺失的 F64x2 高级 API
+// 添加缺失的 F64x2 高级 API
 
 // F64x2 arithmetic
 function VecF64x2Add(const a, b: TVecF64x2): TVecF64x2; inline;
@@ -334,16 +334,16 @@ function VecF64x2ReduceMin(const a: TVecF64x2): Double; inline;
 function VecF64x2ReduceMax(const a: TVecF64x2): Double; inline;
 function VecF64x2ReduceMul(const a: TVecF64x2): Double; inline;
 
-// ✅ P2-3: F64x2 memory operations
+// F64x2 memory operations
 function VecF64x2Load(p: PDouble): TVecF64x2; inline;
 procedure VecF64x2Store(p: PDouble; const a: TVecF64x2); inline;
 
-// ✅ P2-3: F64x2 utility operations
+// F64x2 utility operations
 function VecF64x2Splat(value: Double): TVecF64x2; inline;
 function VecF64x2Zero: TVecF64x2; inline;
 function VecF64x2Select(const mask: TMask2; const a, b: TVecF64x2): TVecF64x2; inline;
 
-// ✅ NEW: 缺失的 Select 操作 (条件选择: mask[i] != 0 ? a[i] : b[i])
+// 缺失的 Select 操作 (条件选择: mask[i] != 0 ? a[i] : b[i])
 {** 根据向量掩码选择元素。掩码元素非零时选择 a，否则选择 b *}
 function VecI32x4Select(const mask: TVecI32x4; const a, b: TVecI32x4): TVecI32x4; inline;
 {** 根据向量掩码选择元素（256-bit）。掩码元素最高位为 1 时选择 a *}
@@ -351,7 +351,7 @@ function VecF32x8Select(const mask: TVecU32x8; const a, b: TVecF32x8): TVecF32x8
 {** 根据向量掩码选择元素（256-bit）。掩码元素最高位为 1 时选择 a *}
 function VecF64x4Select(const mask: TVecU64x4; const a, b: TVecF64x4): TVecF64x4; inline;
 
-// ✅ P2-2: Mask Operations (条件分支优化)
+// Mask Operations (条件分支优化)
 // TMask2 (2 元素向量的比较结果)
 function Mask2All(mask: TMask2): Boolean; inline;    // 全部为 true
 function Mask2Any(mask: TMask2): Boolean; inline;    // 至少一个为 true
@@ -381,7 +381,7 @@ function Mask16PopCount(mask: TMask16): Integer; inline;
 function Mask16FirstSet(mask: TMask16): Integer; inline;
 
 // === I32x4 Operations (128-bit Integer) ===
-// ✅ P0.3: 添加缺失的 I32x4 高级 API
+// 添加缺失的 I32x4 高级 API
 
 // I32x4 arithmetic
 function VecI32x4Add(const a, b: TVecI32x4): TVecI32x4; inline;
@@ -404,16 +404,16 @@ function VecI32x4ShiftRightArith(const a: TVecI32x4; count: Integer): TVecI32x4;
 function VecI32x4CmpEq(const a, b: TVecI32x4): TMask4; inline;
 function VecI32x4CmpLt(const a, b: TVecI32x4): TMask4; inline;
 function VecI32x4CmpGt(const a, b: TVecI32x4): TMask4; inline;
-function VecI32x4CmpLe(const a, b: TVecI32x4): TMask4; inline;  // ✅ P0-C: 添加缺失 API
-function VecI32x4CmpGe(const a, b: TVecI32x4): TMask4; inline;  // ✅ P0-C: 添加缺失 API
-function VecI32x4CmpNe(const a, b: TVecI32x4): TMask4; inline;  // ✅ P0-C: 添加缺失 API
+function VecI32x4CmpLe(const a, b: TVecI32x4): TMask4; inline;  // 添加缺失 API
+function VecI32x4CmpGe(const a, b: TVecI32x4): TMask4; inline;  // 添加缺失 API
+function VecI32x4CmpNe(const a, b: TVecI32x4): TMask4; inline;  // 添加缺失 API
 
 // I32x4 min/max
 function VecI32x4Min(const a, b: TVecI32x4): TVecI32x4; inline;
 function VecI32x4Max(const a, b: TVecI32x4): TVecI32x4; inline;
 
 // === I64x2 Operations (128-bit Integer, 64-bit elements) ===
-// ✅ P1.3: 添加 I64x2 高级 API
+// 添加 I64x2 高级 API
 
 // I64x2 arithmetic
 function VecI64x2Add(const a, b: TVecI64x2): TVecI64x2; inline;
@@ -435,16 +435,16 @@ function VecI64x2ShiftRightArith(const a: TVecI64x2; count: Integer): TVecI64x2;
 function VecI64x2CmpEq(const a, b: TVecI64x2): TMask2; inline;
 function VecI64x2CmpLt(const a, b: TVecI64x2): TMask2; inline;
 function VecI64x2CmpGt(const a, b: TVecI64x2): TMask2; inline;
-function VecI64x2CmpLe(const a, b: TVecI64x2): TMask2; inline;  // ✅ P0-C: 添加缺失 API
-function VecI64x2CmpGe(const a, b: TVecI64x2): TMask2; inline;  // ✅ P0-C: 添加缺失 API
-function VecI64x2CmpNe(const a, b: TVecI64x2): TMask2; inline;  // ✅ P0-C: 添加缺失 API
+function VecI64x2CmpLe(const a, b: TVecI64x2): TMask2; inline;  // 添加缺失 API
+function VecI64x2CmpGe(const a, b: TVecI64x2): TMask2; inline;  // 添加缺失 API
+function VecI64x2CmpNe(const a, b: TVecI64x2): TMask2; inline;  // 添加缺失 API
 
 // I64x2 min/max
 function VecI64x2Min(const a, b: TVecI64x2): TVecI64x2; inline;
 function VecI64x2Max(const a, b: TVecI64x2): TVecI64x2; inline;
 
 // === U64x2 Operations (128-bit Unsigned 64-bit Integer) ===
-// ✅ P3.3: 添加 U64x2 高级 API
+// 添加 U64x2 高级 API
 
 // U64x2 arithmetic
 function VecU64x2Add(const a, b: TVecU64x2): TVecU64x2; inline;
@@ -467,7 +467,7 @@ function VecU64x2Min(const a, b: TVecU64x2): TVecU64x2; inline;
 function VecU64x2Max(const a, b: TVecU64x2): TVecU64x2; inline;
 
 // === U32x4 Operations (128-bit Unsigned Integer) ===
-// ✅ P2.1: 添加 U32x4 高级 API
+// 添加 U32x4 高级 API
 
 // U32x4 arithmetic (bit-identical to I32x4, different semantics)
 function VecU32x4Add(const a, b: TVecU32x4): TVecU32x4; inline;
@@ -497,7 +497,7 @@ function VecU32x4Min(const a, b: TVecU32x4): TVecU32x4; inline;
 function VecU32x4Max(const a, b: TVecU32x4): TVecU32x4; inline;
 
 // === F32x8 Operations (256-bit Float, AVX) ===
-// ✅ P0.3: 添加缺失的 F32x8 高级 API
+// 添加缺失的 F32x8 高级 API
 
 // F32x8 arithmetic
 function VecF32x8Add(const a, b: TVecF32x8): TVecF32x8; inline;
@@ -526,7 +526,7 @@ function VecF32x8ReduceMax(const a: TVecF32x8): Single; inline;
 function VecF32x8ReduceMul(const a: TVecF32x8): Single; inline;
 
 // === I32x8 Operations (256-bit Integer, AVX2) ===
-// ✅ P1.1: 添加缺失的 I32x8 高级 API
+// 添加缺失的 I32x8 高级 API
 
 // I32x8 arithmetic
 function VecI32x8Add(const a, b: TVecI32x8): TVecI32x8; inline;
@@ -549,16 +549,16 @@ function VecI32x8ShiftRightArith(const a: TVecI32x8; count: Integer): TVecI32x8;
 function VecI32x8CmpEq(const a, b: TVecI32x8): TMask8; inline;
 function VecI32x8CmpLt(const a, b: TVecI32x8): TMask8; inline;
 function VecI32x8CmpGt(const a, b: TVecI32x8): TMask8; inline;
-function VecI32x8CmpLe(const a, b: TVecI32x8): TMask8; inline;  // ✅ P0-C: 添加缺失 API
-function VecI32x8CmpGe(const a, b: TVecI32x8): TMask8; inline;  // ✅ P0-C: 添加缺失 API
-function VecI32x8CmpNe(const a, b: TVecI32x8): TMask8; inline;  // ✅ P0-C: 添加缺失 API
+function VecI32x8CmpLe(const a, b: TVecI32x8): TMask8; inline;  // 添加缺失 API
+function VecI32x8CmpGe(const a, b: TVecI32x8): TMask8; inline;  // 添加缺失 API
+function VecI32x8CmpNe(const a, b: TVecI32x8): TMask8; inline;  // 添加缺失 API
 
 // I32x8 min/max
 function VecI32x8Min(const a, b: TVecI32x8): TVecI32x8; inline;
 function VecI32x8Max(const a, b: TVecI32x8): TVecI32x8; inline;
 
 // === U32x8 Operations (256-bit Unsigned Integer, AVX2) ===
-// ✅ P2.1: 添加 U32x8 高级 API
+// 添加 U32x8 高级 API
 
 // U32x8 arithmetic
 function VecU32x8Add(const a, b: TVecU32x8): TVecU32x8; inline;
@@ -589,7 +589,7 @@ function VecU32x8Min(const a, b: TVecU32x8): TVecU32x8; inline;
 function VecU32x8Max(const a, b: TVecU32x8): TVecU32x8; inline;
 
 // === I64x4 Operations (256-bit, 64-bit signed integers) ===
-// ✅ Task 5.2: 添加 I64x4 高级 API (AVX2)
+// 添加 I64x4 高级 API (AVX2)
 
 // I64x4 arithmetic
 function VecI64x4Add(const a, b: TVecI64x4): TVecI64x4; inline;
@@ -622,7 +622,7 @@ function VecI64x4Splat(value: Int64): TVecI64x4; inline;
 function VecI64x4Zero: TVecI64x4; inline;
 
 // === U64x4 Operations (256-bit, 64-bit unsigned integers) ===
-// ✅ Task 5.2: 添加 U64x4 高级 API (AVX2)
+// 添加 U64x4 高级 API (AVX2)
 
 // U64x4 arithmetic
 function VecU64x4Add(const a, b: TVecU64x4): TVecU64x4; inline;
@@ -651,7 +651,7 @@ function VecU64x4Splat(value: UInt64): TVecU64x4; inline;
 function VecU64x4Zero: TVecU64x4; inline;
 
 // === I16x8 Operations (128-bit, 16-bit signed integers) ===
-// ✅ P2.2: 添加 I16x8 高级 API
+// 添加 I16x8 高级 API
 
 // I16x8 arithmetic
 function VecI16x8Add(const a, b: TVecI16x8): TVecI16x8; inline;
@@ -680,7 +680,7 @@ function VecI16x8Min(const a, b: TVecI16x8): TVecI16x8; inline;
 function VecI16x8Max(const a, b: TVecI16x8): TVecI16x8; inline;
 
 // === I8x16 Operations (128-bit, 8-bit signed integers) ===
-// ✅ P2.2: 添加 I8x16 高级 API
+// 添加 I8x16 高级 API
 
 // I8x16 arithmetic
 function VecI8x16Add(const a, b: TVecI8x16): TVecI8x16; inline;
@@ -703,7 +703,7 @@ function VecI8x16Min(const a, b: TVecI8x16): TVecI8x16; inline;
 function VecI8x16Max(const a, b: TVecI8x16): TVecI8x16; inline;
 
 // === U8x16 Operations (128-bit, 8-bit unsigned integers) ===
-// ✅ P4.1: 添加 U8x16 高级 API
+// 添加 U8x16 高级 API
 
 // U8x16 arithmetic
 function VecU8x16Add(const a, b: TVecU8x16): TVecU8x16; inline;
@@ -726,7 +726,7 @@ function VecU8x16Min(const a, b: TVecU8x16): TVecU8x16; inline;
 function VecU8x16Max(const a, b: TVecU8x16): TVecU8x16; inline;
 
 // === U16x8 Operations (128-bit, 16-bit unsigned integers) ===
-// ✅ P4.2: 添加 U16x8 高级 API
+// 添加 U16x8 高级 API
 
 // U16x8 arithmetic
 function VecU16x8Add(const a, b: TVecU16x8): TVecU16x8; inline;
@@ -754,7 +754,7 @@ function VecU16x8Min(const a, b: TVecU16x8): TVecU16x8; inline;
 function VecU16x8Max(const a, b: TVecU16x8): TVecU16x8; inline;
 
 // === F64x4 Operations (256-bit Double, AVX) ===
-// ✅ P2.3: 添加 F64x4 高级 API
+// 添加 F64x4 高级 API
 
 // F64x4 arithmetic
 function VecF64x4Add(const a, b: TVecF64x4): TVecF64x4; inline;
@@ -784,7 +784,7 @@ function VecF64x4ReduceMax(const a: TVecF64x4): Double; inline;
 function VecF64x4ReduceMul(const a: TVecF64x4): Double; inline;
 
 // === F64x8 Operations (512-bit Double, AVX-512) ===
-// ✅ P2.3: 添加 F64x8 高级 API
+// 添加 F64x8 高级 API
 
 // F64x8 arithmetic
 function VecF64x8Add(const a, b: TVecF64x8): TVecF64x8; inline;
@@ -828,7 +828,7 @@ function VecF64x8Zero: TVecF64x8; inline;
 function VecF64x8Select(const mask: TMask8; const a, b: TVecF64x8): TVecF64x8; inline;
 
 // === F32x16 Operations (512-bit Float, AVX-512) ===
-// ✅ P3.2: 添加 F32x16 高级 API
+// 添加 F32x16 高级 API
 
 // F32x16 arithmetic
 function VecF32x16Add(const a, b: TVecF32x16): TVecF32x16; inline;
@@ -872,7 +872,7 @@ function VecF32x16Zero: TVecF32x16; inline;
 function VecF32x16Select(const mask: TMask16; const a, b: TVecF32x16): TVecF32x16; inline;
 
 // === I32x16 Operations (512-bit Integer, AVX-512) ===
-// ✅ P1.2: 添加 I32x16 高级 API
+// 添加 I32x16 高级 API
 
 // I32x16 arithmetic
 function VecI32x16Add(const a, b: TVecI32x16): TVecI32x16; inline;
@@ -895,9 +895,9 @@ function VecI32x16ShiftRightArith(const a: TVecI32x16; count: Integer): TVecI32x
 function VecI32x16CmpEq(const a, b: TVecI32x16): TMask16; inline;
 function VecI32x16CmpLt(const a, b: TVecI32x16): TMask16; inline;
 function VecI32x16CmpGt(const a, b: TVecI32x16): TMask16; inline;
-function VecI32x16CmpLe(const a, b: TVecI32x16): TMask16; inline;  // ✅ P0-C: 添加缺失 API
-function VecI32x16CmpGe(const a, b: TVecI32x16): TMask16; inline;  // ✅ P0-C: 添加缺失 API
-function VecI32x16CmpNe(const a, b: TVecI32x16): TMask16; inline;  // ✅ P0-C: 添加缺失 API
+function VecI32x16CmpLe(const a, b: TVecI32x16): TMask16; inline;  // 添加缺失 API
+function VecI32x16CmpGe(const a, b: TVecI32x16): TMask16; inline;  // 添加缺失 API
+function VecI32x16CmpNe(const a, b: TVecI32x16): TMask16; inline;  // 添加缺失 API
 
 // I32x16 min/max
 function VecI32x16Min(const a, b: TVecI32x16): TVecI32x16; inline;
@@ -1003,7 +1003,7 @@ function VecU8x64CmpGt(const a, b: TVecU8x64): TMask64; inline;
 function VecU8x64Min(const a, b: TVecU8x64): TVecU8x64; inline;
 function VecU8x64Max(const a, b: TVecU8x64): TVecU8x64; inline;
 
-// === ✅ P2-1: Saturating Arithmetic (音视频处理必需) ===
+// === Saturating Arithmetic (音视频处理必需) ===
 // 有符号饱和: I8 范围 [-128, 127], I16 范围 [-32768, 32767]
 function VecI8x16SatAdd(const a, b: TVecI8x16): TVecI8x16; inline;
 function VecI8x16SatSub(const a, b: TVecI8x16): TVecI8x16; inline;
@@ -1359,7 +1359,7 @@ begin
   Result := dispatch^.NormalizeF32x3(a);
 end;
 
-// ✅ Iteration 6.4: FMA-optimized Dot Product Functions
+// FMA-optimized Dot Product Functions
 
 function VecF32x8Dot(const a, b: TVecF32x8): Single;
 var dispatch: PSimdDispatchTable;
@@ -1493,7 +1493,7 @@ begin
   end;
 end;
 
-// === ✅ Task 5.3: Extract/Insert Lane Operations Implementation ===
+// === Extract/Insert Lane Operations Implementation ===
 
 // F64x2 (128-bit)
 function VecF64x2Extract(const a: TVecF64x2; index: Integer): Double;
@@ -1866,7 +1866,7 @@ begin
 end;
 
 // === F64x2 Operations Implementation ===
-// ✅ P0.3: F64x2 高级 API 实现
+// F64x2 高级 API 实现
 
 function VecF64x2Add(const a, b: TVecF64x2): TVecF64x2;
 var dispatch: PSimdDispatchTable;
@@ -1920,7 +1920,7 @@ begin
   end;
 end;
 
-// ✅ P1-E: F64x2 比较操作 - 使用派发表
+// F64x2 比较操作 - 使用派发表
 
 function VecF64x2CmpEq(const a, b: TVecF64x2): TMask2;
 var dispatch: PSimdDispatchTable;
@@ -2143,7 +2143,7 @@ begin
     Result := a.d[0] * a.d[1];
 end;
 
-// ✅ P2-3: F64x2 memory operations
+// F64x2 memory operations
 function VecF64x2Load(p: PDouble): TVecF64x2;
 var dispatch: PSimdDispatchTable;
 begin
@@ -2210,7 +2210,7 @@ begin
   end;
 end;
 
-// ✅ NEW: 缺失的 Select 操作实现
+// 缺失的 Select 操作实现
 
 function VecI32x4Select(const mask: TVecI32x4; const a, b: TVecI32x4): TVecI32x4;
 var
@@ -2269,7 +2269,7 @@ begin
   end;
 end;
 
-// ✅ P2-2: Mask Operations Implementation
+// Mask Operations Implementation
 function Mask2All(mask: TMask2): Boolean;
 var dispatch: PSimdDispatchTable;
 begin
@@ -2411,7 +2411,7 @@ begin
 end;
 
 // === I32x4 Operations Implementation ===
-// ✅ P0.3: I32x4 高级 API 实现
+// I32x4 高级 API 实现
 
 function VecI32x4Add(const a, b: TVecI32x4): TVecI32x4;
 var dispatch: PSimdDispatchTable;
@@ -2667,7 +2667,7 @@ begin
   end;
 end;
 
-// ✅ P0-C: 添加 I32x4 缺失比较函数
+// 添加 I32x4 缺失比较函数
 function VecI32x4CmpLe(const a, b: TVecI32x4): TMask4;
 var dispatch: PSimdDispatchTable;
 begin
@@ -2751,7 +2751,7 @@ begin
 end;
 
 // === I64x2 Operations Implementation ===
-// ✅ P1.3: I64x2 高级 API 实现
+// I64x2 高级 API 实现
 
 function VecI64x2Add(const a, b: TVecI64x2): TVecI64x2;
 var dispatch: PSimdDispatchTable;
@@ -2850,7 +2850,7 @@ begin
   end;
 end;
 
-// ✅ P5.2: I64x2 完整 API 实现 - 移位/比较/Min/Max
+// I64x2 完整 API 实现 - 移位/比较/Min/Max
 
 function VecI64x2ShiftLeft(const a: TVecI64x2; count: Integer): TVecI64x2;
 var
@@ -2968,7 +2968,7 @@ begin
   end;
 end;
 
-// ✅ P0-C: 添加 I64x2 缺失比较函数
+// 添加 I64x2 缺失比较函数
 function VecI64x2CmpLe(const a, b: TVecI64x2): TMask2;
 var
   LDispatch: PSimdDispatchTable;
@@ -3043,7 +3043,7 @@ begin
 end;
 
 // === U64x2 Operations Implementation ===
-// ✅ P3.3: U64x2 (128-bit, 2x UInt64) 高级 API 实现
+// U64x2 (128-bit, 2x UInt64) 高级 API 实现
 
 function VecU64x2Add(const a, b: TVecU64x2): TVecU64x2;
 var
@@ -3218,10 +3218,10 @@ begin
 end;
 
 // === U32x4 Operations Implementation ===
-// ✅ P2.1: U32x4 (128-bit Unsigned) 高级 API 实现
-// ✅ 修改为使用 dispatch table 以获得 SIMD 加速
+// U32x4 (128-bit Unsigned) 高级 API 实现
+// 修改为使用 dispatch table 以获得 SIMD 加速
 // 注意: 无符号整数 SIMD 操作在位层面与有符号相同,
-//       区别在于比较和 min/max 使用无符号语义
+// 区别在于比较和 min/max 使用无符号语义
 
 function VecU32x4Add(const a, b: TVecU32x4): TVecU32x4;
 var dispatch: PSimdDispatchTable;
@@ -3472,7 +3472,7 @@ begin
 end;
 
 // === F32x8 Operations Implementation ===
-// ✅ P0.3: F32x8 (256-bit) 高级 API 实现
+// F32x8 (256-bit) 高级 API 实现
 
 function VecF32x8Add(const a, b: TVecF32x8): TVecF32x8;
 var dispatch: PSimdDispatchTable;
@@ -3745,7 +3745,7 @@ begin
 end;
 
 // === I32x8 Operations Implementation ===
-// ✅ P1.1: I32x8 高级 API 实现
+// I32x8 高级 API 实现
 
 function VecI32x8Add(const a, b: TVecI32x8): TVecI32x8;
 var dispatch: PSimdDispatchTable;
@@ -3982,7 +3982,7 @@ begin
   end;
 end;
 
-// ✅ P0-C: 添加 I32x8 缺失比较函数
+// 添加 I32x8 缺失比较函数
 function VecI32x8CmpLe(const a, b: TVecI32x8): TMask8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
@@ -4063,7 +4063,7 @@ begin
 end;
 
 // === U32x8 Operations Implementation ===
-// ✅ P2.1: U32x8 (256-bit Unsigned) 高级 API 实现
+// U32x8 (256-bit Unsigned) 高级 API 实现
 
 function VecU32x8Add(const a, b: TVecU32x8): TVecU32x8;
 var
@@ -4348,7 +4348,7 @@ begin
 end;
 
 // === I64x4 Operations Implementation ===
-// ✅ Task 5.2: I64x4 (256-bit, 4x64-bit signed) 高级 API 实现
+// I64x4 (256-bit, 4x64-bit signed) 高级 API 实现
 // 使用 dispatch table 以获得 AVX2 加速
 
 function VecI64x4Add(const a, b: TVecI64x4): TVecI64x4;
@@ -4644,7 +4644,7 @@ begin
 end;
 
 // === U64x4 Operations Implementation ===
-// ✅ Task 5.2: U64x4 (256-bit, 4x64-bit unsigned) 高级 API 实现
+// U64x4 (256-bit, 4x64-bit unsigned) 高级 API 实现
 // 使用 dispatch table 以获得 AVX2 加速
 
 function VecU64x4Add(const a, b: TVecU64x4): TVecU64x4;
@@ -4874,8 +4874,8 @@ begin
 end;
 
 // === I16x8 Operations Implementation ===
-// ✅ P2.2: I16x8 (128-bit, 8x16-bit signed) 高级 API 实现
-// ✅ 修改为使用 dispatch table 以获得 SIMD 加速
+// I16x8 (128-bit, 8x16-bit signed) 高级 API 实现
+// 修改为使用 dispatch table 以获得 SIMD 加速
 
 function VecI16x8Add(const a, b: TVecI16x8): TVecI16x8;
 var dispatch: PSimdDispatchTable;
@@ -5085,8 +5085,8 @@ begin
 end;
 
 // === I8x16 Operations Implementation ===
-// ✅ P2.2: I8x16 (128-bit, 16x8-bit signed) 高级 API 实现
-// ✅ 修改为使用 dispatch table 以获得 SIMD 加速
+// I8x16 (128-bit, 16x8-bit signed) 高级 API 实现
+// 修改为使用 dispatch table 以获得 SIMD 加速
 
 function VecI8x16Add(const a, b: TVecI8x16): TVecI8x16;
 var dispatch: PSimdDispatchTable;
@@ -5253,8 +5253,8 @@ begin
 end;
 
 // === U8x16 Operations Implementation ===
-// ✅ P4.1: U8x16 (128-bit, 16x UInt8) 高级 API 实现
-// ✅ 修改为使用 dispatch table 以获得 SIMD 加速
+// U8x16 (128-bit, 16x UInt8) 高级 API 实现
+// 修改为使用 dispatch table 以获得 SIMD 加速
 
 function VecU8x16Add(const a, b: TVecU8x16): TVecU8x16;
 var dispatch: PSimdDispatchTable;
@@ -5421,8 +5421,8 @@ begin
 end;
 
 // === U16x8 Operations Implementation ===
-// ✅ P4.2: U16x8 (128-bit, 8x UInt16) 高级 API 实现
-// ✅ 修改为使用 dispatch table 以获得 SIMD 加速
+// U16x8 (128-bit, 8x UInt16) 高级 API 实现
+// 修改为使用 dispatch table 以获得 SIMD 加速
 
 function VecU16x8Add(const a, b: TVecU16x8): TVecU16x8;
 var dispatch: PSimdDispatchTable;
@@ -5625,7 +5625,7 @@ begin
 end;
 
 // === F64x4 Operations Implementation ===
-// ✅ P2.3: F64x4 (256-bit, 4x Double) 高级 API 实现
+// F64x4 (256-bit, 4x Double) 高级 API 实现
 
 function VecF64x4Add(const a, b: TVecF64x4): TVecF64x4;
 var
@@ -5903,7 +5903,7 @@ begin
 end;
 
 // === F64x8 Operations Implementation ===
-// ✅ P2.3: F64x8 (512-bit, 8x Double) 高级 API 实现
+// F64x8 (512-bit, 8x Double) 高级 API 实现
 
 function VecF64x8Add(const a, b: TVecF64x8): TVecF64x8;
 var
@@ -6106,7 +6106,7 @@ begin
 end;
 
 // === F32x16 Operations Implementation ===
-// ✅ P3.2: F32x16 (512-bit, 16x Single) 高级 API 实现
+// F32x16 (512-bit, 16x Single) 高级 API 实现
 
 function VecF32x16Add(const a, b: TVecF32x16): TVecF32x16;
 var
@@ -6309,7 +6309,7 @@ begin
 end;
 
 // === I32x16 Operations Implementation ===
-// ✅ P1.2: I32x16 高级 API 实现
+// I32x16 高级 API 实现
 
 function VecI32x16Add(const a, b: TVecI32x16): TVecI32x16;
 var dispatch: PSimdDispatchTable;
@@ -6546,7 +6546,7 @@ begin
   end;
 end;
 
-// ✅ P0-C: 添加 I32x16 缺失比较函数
+// 添加 I32x16 缺失比较函数
 function VecI32x16CmpLe(const a, b: TVecI32x16): TMask16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
@@ -7400,7 +7400,7 @@ begin
   Result := LFunc(a, b);
 end;
 
-// === ✅ P2-1: Saturating Arithmetic Implementation ===
+// === Saturating Arithmetic Implementation ===
 // 饱和算术：结果被钳制到类型范围，而不是溢出回绕
 
 function VecI8x16SatAdd(const a, b: TVecI8x16): TVecI8x16;
