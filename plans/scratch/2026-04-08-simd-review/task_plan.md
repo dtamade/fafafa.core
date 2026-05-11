@@ -423,3 +423,17 @@
 | 1. 识别中央注释噪音面 | completed | 已确认噪音主要集中在 `simd.pas`、`dispatch.pas`、`sse2.register.inc`、`sse2.wide_emulation.inc` 与 `scalar.pas`；其中前四个文件已完成清理，`scalar.pas` 因混合 CRLF/LF 单独延后 |
 | 2. 收敛历史标记 | completed | 已移除前四个文件与 `scalar.pas` 里的 `NEW / Task / Iteration / P*` 标签、`✅` 标记和无意义 inline `Added` 注释；`scalar.pas` 采用改动行 LF 处理，避免整文件行尾噪音 |
 | 3. Release 验证与提交收口 | completed | `git diff --check` 与 Release `check` 已通过 |
+
+## 2026-05-11 SSE2 Root Comment Noise Cleanup
+
+### Goal
+
+清理 `src/fafafa.core.simd.sse2.pas` 里残留的历史施工标记，让 SSE2 backend adapter 的注释表达当前结构事实，而不是旧批次日志；本批只改注释，不物理拆分、不触碰 ASM leaf 或 dispatch wiring。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 锁定稳定边界 | completed | 文档已明确 `sse2.pas` 是当前 SSE2 backend adapter truth source，适合注释清理和小范围 helper 审查，不适合无设计的大拆分 |
+| 2. 收敛历史注释标记 | completed | 已移除 `✅ / NEW / P* / Task / Iteration / 2026-02-05` 这类历史痕迹，保留真实 safety/performance/ISA 说明 |
+| 3. 验证与提交收口 | completed | `git diff --check`、`check_sse2_structure.py --summary-line` 与 Release `check` 已通过 |

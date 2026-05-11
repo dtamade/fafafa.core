@@ -12,7 +12,7 @@ uses
   fafafa.core.simd.backend.priority;
 
 // === SSE2 Backend Adapter ===
-// Role marker (2026-05-09):
+// Role:
 // - thin backend adapter / backend assembly layer
 // - owns TVec* / TMask* facade semantics, dispatch registration, compare-mask translation
 // - wide_emulation, mem/text/stat helpers, and multi-register composition stay here
@@ -34,7 +34,7 @@ procedure MemSet_SSE2(dst: Pointer; len: SizeUInt; value: Byte);
 function SumBytes_SSE2(p: Pointer; len: SizeUInt): UInt64;
 function CountByte_SSE2(p: Pointer; len: SizeUInt; value: Byte): SizeUInt;
 
-// ✅ P2-1: 饱和算术（SSE2 PADDS/PSUBS 指令加速）
+// 饱和算术（SSE2 PADDS/PSUBS 指令加速）
 function SSE2I8x16SatAdd(const a, b: TVecI8x16): TVecI8x16;
 function SSE2I8x16SatSub(const a, b: TVecI8x16): TVecI8x16;
 function SSE2I16x8SatAdd(const a, b: TVecI16x8): TVecI16x8;
@@ -44,7 +44,7 @@ function SSE2U8x16SatSub(const a, b: TVecU8x16): TVecU8x16;
 function SSE2U16x8SatAdd(const a, b: TVecU16x8): TVecU16x8;
 function SSE2U16x8SatSub(const a, b: TVecU16x8): TVecU16x8;
 
-// ✅ I16x8 操作（SSE2 PADDW/PSUBW/PMULLW 等指令）
+// I16x8 操作（SSE2 PADDW/PSUBW/PMULLW 等指令）
 function SSE2AddI16x8(const a, b: TVecI16x8): TVecI16x8;
 function SSE2SubI16x8(const a, b: TVecI16x8): TVecI16x8;
 function SSE2MulI16x8(const a, b: TVecI16x8): TVecI16x8;
@@ -59,13 +59,13 @@ function SSE2ShiftRightArithI16x8(const a: TVecI16x8; count: Integer): TVecI16x8
 function SSE2CmpEqI16x8(const a, b: TVecI16x8): TMask8;
 function SSE2CmpLtI16x8(const a, b: TVecI16x8): TMask8;
 function SSE2CmpGtI16x8(const a, b: TVecI16x8): TMask8;
-function SSE2CmpLeI16x8(const a, b: TVecI16x8): TMask8;  // ✅ NEW
-function SSE2CmpGeI16x8(const a, b: TVecI16x8): TMask8;  // ✅ NEW
-function SSE2CmpNeI16x8(const a, b: TVecI16x8): TMask8;  // ✅ NEW
+function SSE2CmpLeI16x8(const a, b: TVecI16x8): TMask8;
+function SSE2CmpGeI16x8(const a, b: TVecI16x8): TMask8;
+function SSE2CmpNeI16x8(const a, b: TVecI16x8): TMask8;
 function SSE2MinI16x8(const a, b: TVecI16x8): TVecI16x8;
 function SSE2MaxI16x8(const a, b: TVecI16x8): TVecI16x8;
 
-// ✅ I8x16 操作（SSE2 PADDB/PSUBB 等指令）
+// I8x16 操作（SSE2 PADDB/PSUBB 等指令）
 function SSE2AddI8x16(const a, b: TVecI8x16): TVecI8x16;
 function SSE2SubI8x16(const a, b: TVecI8x16): TVecI8x16;
 function SSE2AndI8x16(const a, b: TVecI8x16): TVecI8x16;
@@ -76,13 +76,13 @@ function SSE2AndNotI8x16(const a, b: TVecI8x16): TVecI8x16;
 function SSE2CmpEqI8x16(const a, b: TVecI8x16): TMask16;
 function SSE2CmpLtI8x16(const a, b: TVecI8x16): TMask16;
 function SSE2CmpGtI8x16(const a, b: TVecI8x16): TMask16;
-function SSE2CmpLeI8x16(const a, b: TVecI8x16): TMask16;  // ✅ NEW
-function SSE2CmpGeI8x16(const a, b: TVecI8x16): TMask16;  // ✅ NEW
-function SSE2CmpNeI8x16(const a, b: TVecI8x16): TMask16;  // ✅ NEW
+function SSE2CmpLeI8x16(const a, b: TVecI8x16): TMask16;
+function SSE2CmpGeI8x16(const a, b: TVecI8x16): TMask16;
+function SSE2CmpNeI8x16(const a, b: TVecI8x16): TMask16;
 function SSE2MinI8x16(const a, b: TVecI8x16): TVecI8x16;
 function SSE2MaxI8x16(const a, b: TVecI8x16): TVecI8x16;
 
-// ✅ U32x4 操作
+// U32x4 操作
 function SSE2AddU32x4(const a, b: TVecU32x4): TVecU32x4;
 function SSE2SubU32x4(const a, b: TVecU32x4): TVecU32x4;
 function SSE2MulU32x4(const a, b: TVecU32x4): TVecU32x4;
@@ -102,7 +102,7 @@ function SSE2CmpNeU32x4(const a, b: TVecU32x4): TMask4;
 function SSE2MinU32x4(const a, b: TVecU32x4): TVecU32x4;
 function SSE2MaxU32x4(const a, b: TVecU32x4): TVecU32x4;
 
-// ✅ U16x8 操作
+// U16x8 操作
 function SSE2AddU16x8(const a, b: TVecU16x8): TVecU16x8;
 function SSE2SubU16x8(const a, b: TVecU16x8): TVecU16x8;
 function SSE2MulU16x8(const a, b: TVecU16x8): TVecU16x8;
@@ -116,13 +116,13 @@ function SSE2ShiftRightU16x8(const a: TVecU16x8; count: Integer): TVecU16x8;
 function SSE2CmpEqU16x8(const a, b: TVecU16x8): TMask8;
 function SSE2CmpLtU16x8(const a, b: TVecU16x8): TMask8;
 function SSE2CmpGtU16x8(const a, b: TVecU16x8): TMask8;
-function SSE2CmpLeU16x8(const a, b: TVecU16x8): TMask8;  // ✅ NEW
-function SSE2CmpGeU16x8(const a, b: TVecU16x8): TMask8;  // ✅ NEW
-function SSE2CmpNeU16x8(const a, b: TVecU16x8): TMask8;  // ✅ NEW
+function SSE2CmpLeU16x8(const a, b: TVecU16x8): TMask8;
+function SSE2CmpGeU16x8(const a, b: TVecU16x8): TMask8;
+function SSE2CmpNeU16x8(const a, b: TVecU16x8): TMask8;
 function SSE2MinU16x8(const a, b: TVecU16x8): TVecU16x8;
 function SSE2MaxU16x8(const a, b: TVecU16x8): TVecU16x8;
 
-// ✅ U8x16 操作
+// U8x16 操作
 function SSE2AddU8x16(const a, b: TVecU8x16): TVecU8x16;
 function SSE2SubU8x16(const a, b: TVecU8x16): TVecU8x16;
 function SSE2AndU8x16(const a, b: TVecU8x16): TVecU8x16;
@@ -133,13 +133,13 @@ function SSE2AndNotU8x16(const a, b: TVecU8x16): TVecU8x16;
 function SSE2CmpEqU8x16(const a, b: TVecU8x16): TMask16;
 function SSE2CmpLtU8x16(const a, b: TVecU8x16): TMask16;
 function SSE2CmpGtU8x16(const a, b: TVecU8x16): TMask16;
-function SSE2CmpLeU8x16(const a, b: TVecU8x16): TMask16;  // ✅ NEW
-function SSE2CmpGeU8x16(const a, b: TVecU8x16): TMask16;  // ✅ NEW
-function SSE2CmpNeU8x16(const a, b: TVecU8x16): TMask16;  // ✅ NEW
+function SSE2CmpLeU8x16(const a, b: TVecU8x16): TMask16;
+function SSE2CmpGeU8x16(const a, b: TVecU8x16): TMask16;
+function SSE2CmpNeU8x16(const a, b: TVecU8x16): TMask16;
 function SSE2MinU8x16(const a, b: TVecU8x16): TVecU8x16;
 function SSE2MaxU8x16(const a, b: TVecU8x16): TVecU8x16;
 
-// ✅ I64x2 比较操作（SSE2 模拟 - 无原生 64 位比较指令）
+// I64x2 比较操作（SSE2 模拟 - 无原生 64 位比较指令）
 // SSE2 没有 PCMPGTQ 指令（SSE4.2+），使用 32 位比较组合模拟
 function SSE2CmpEqI64x2(const a, b: TVecI64x2): TMask2;
 function SSE2CmpNeI64x2(const a, b: TVecI64x2): TMask2;
@@ -149,7 +149,7 @@ function SSE2CmpGeI64x2(const a, b: TVecI64x2): TMask2;
 function SSE2CmpLeI64x2(const a, b: TVecI64x2): TMask2;
 
 // ============================================================================
-// ✅ 512-bit 向量的 SSE2 渐进降级实现 (2026-02-05)
+// 512-bit 向量的 SSE2 渐进降级实现
 // 策略: 使用 2×256-bit 操作 (利用已有的 F32x8/F64x4/I32x8)
 // ============================================================================
 
@@ -215,7 +215,7 @@ function SSE2CmpGeF64x8(const a, b: TVecF64x8): TMask8;
 function SSE2CmpNeF64x8(const a, b: TVecF64x8): TMask8;
 function SSE2SelectF64x8(const mask: TMask8; const a, b: TVecF64x8): TVecF64x8;
 
-// ✅ NEW: 缺失的 Select 操作 (条件选择: mask[i] != 0 ? a[i] : b[i])
+// Select 操作 (条件选择: mask[i] != 0 ? a[i] : b[i])
 function SSE2SelectI32x4(const mask: TVecI32x4; const a, b: TVecI32x4): TVecI32x4;
 function SSE2SelectF32x8(const mask: TVecU32x8; const a, b: TVecF32x8): TVecF32x8;
 function SSE2SelectF64x4(const mask: TVecU64x4; const a, b: TVecF64x4): TVecF64x4;
@@ -242,7 +242,7 @@ function SSE2MinI32x16(const a, b: TVecI32x16): TVecI32x16;
 function SSE2MaxI32x16(const a, b: TVecI32x16): TVecI32x16;
 
 // ============================================================================
-// ✅ NEW: I64x4 操作 (256-bit AVX2 仿真，使用 2×I64x2)
+// I64x4 操作 (256-bit AVX2 仿真，使用 2×I64x2)
 // ============================================================================
 function SSE2AddI64x4(const a, b: TVecI64x4): TVecI64x4;
 function SSE2SubI64x4(const a, b: TVecI64x4): TVecI64x4;
@@ -265,7 +265,7 @@ function SSE2SplatI64x4(value: Int64): TVecI64x4;
 function SSE2ZeroI64x4: TVecI64x4;
 
 // ============================================================================
-// ✅ NEW: U32x8 操作 (256-bit AVX2 仿真，使用 2×U32x4)
+// U32x8 操作 (256-bit AVX2 仿真，使用 2×U32x4)
 // ============================================================================
 function SSE2AddU32x8(const a, b: TVecU32x8): TVecU32x8;
 function SSE2SubU32x8(const a, b: TVecU32x8): TVecU32x8;
@@ -288,7 +288,7 @@ function SSE2MaxU32x8(const a, b: TVecU32x8): TVecU32x8;
 function SSE2SplatU32x8(value: UInt32): TVecU32x8;
 
 // ============================================================================
-// ✅ NEW: U64x4 操作 (256-bit AVX2 仿真，使用 2×U64x2)
+// U64x4 操作 (256-bit AVX2 仿真，使用 2×U64x2)
 // ============================================================================
 function SSE2AddU64x4(const a, b: TVecU64x4): TVecU64x4;
 function SSE2SubU64x4(const a, b: TVecU64x4): TVecU64x4;
@@ -306,7 +306,7 @@ function SSE2CmpGeU64x4(const a, b: TVecU64x4): TMask4;
 function SSE2CmpNeU64x4(const a, b: TVecU64x4): TMask4;
 
 // ============================================================================
-// ✅ NEW: I64x8 操作 (512-bit AVX-512 仿真，使用 4×I64x2 或 2×I64x4)
+// I64x8 操作 (512-bit AVX-512 仿真，使用 4×I64x2 或 2×I64x4)
 // ============================================================================
 function SSE2AddI64x8(const a, b: TVecI64x8): TVecI64x8;
 function SSE2SubI64x8(const a, b: TVecI64x8): TVecI64x8;
@@ -328,7 +328,7 @@ function SSE2SplatI64x8(value: Int64): TVecI64x8;
 function SSE2ZeroI64x8: TVecI64x8;
 
 // ============================================================================
-// ✅ NEW: Extract/Insert 操作 (通过数组索引实现)
+// Extract/Insert 操作 (通过数组索引实现)
 // ============================================================================
 // F64x2
 function SSE2ExtractF64x2(const a: TVecF64x2; index: Integer): Double;
@@ -359,7 +359,7 @@ function SSE2ExtractI32x16(const a: TVecI32x16; index: Integer): Int32;
 function SSE2InsertI32x16(const a: TVecI32x16; value: Int32; index: Integer): TVecI32x16;
 
 // ============================================================================
-// ✅ NEW: Facade 函数 (高级内存和文本操作)
+// Facade 函数 (高级内存和文本操作)
 // ============================================================================
 function MemDiffRange_SSE2(a, b: Pointer; len: SizeUInt; out firstDiff, lastDiff: SizeUInt): Boolean;
 procedure MemReverse_SSE2(p: Pointer; len: SizeUInt);
@@ -1438,7 +1438,7 @@ begin
   Result := TMask8(mask);
 end;
 
-// ✅ NEW: CmpLe/CmpGe/CmpNe for I16x8 using NOT + base comparison
+// CmpLe/CmpGe/CmpNe for I16x8 using NOT + base comparison
 function SSE2CmpLeI16x8(const a, b: TVecI16x8): TMask8;
 var
   pa, pb: Pointer;
@@ -1729,7 +1729,7 @@ begin
   Result := TMask16(mask);
 end;
 
-// ✅ NEW: CmpLe/CmpGe/CmpNe for I8x16 using NOT + base comparison
+// CmpLe/CmpGe/CmpNe for I8x16 using NOT + base comparison
 function SSE2CmpLeI8x16(const a, b: TVecI8x16): TMask16;
 var
   pa, pb: Pointer;
@@ -2438,7 +2438,7 @@ begin
   Result := TMask8(mask);
 end;
 
-// ✅ NEW: CmpLe/CmpGe/CmpNe for U16x8 using NOT + base comparison
+// CmpLe/CmpGe/CmpNe for U16x8 using NOT + base comparison
 function SSE2CmpLeU16x8(const a, b: TVecU16x8): TMask8;
 var
   pa, pb: Pointer;
@@ -2775,7 +2775,7 @@ begin
   Result := TMask16(mask);
 end;
 
-// ✅ NEW: CmpLe/CmpGe/CmpNe for U8x16 using NOT + base comparison
+// CmpLe/CmpGe/CmpNe for U8x16 using NOT + base comparison
 function SSE2CmpLeU8x16(const a, b: TVecU8x16): TMask16;
 var
   pa, pb: Pointer;
@@ -3158,7 +3158,7 @@ function SSE2LoadF32x4(p: PSingle): TVecF32x4;
 var
   pr: Pointer;
 begin
-  // ✅ Safety check: Assert for nil pointer
+  // Assert for nil pointer
   Assert(p <> nil, 'SSE2LoadF32x4: pointer is nil');
   pr := @Result;
   asm
@@ -3173,7 +3173,7 @@ function SSE2LoadF32x4Aligned(p: PSingle): TVecF32x4;
 var
   pr: Pointer;
 begin
-  // ✅ Safety check: Assert for nil pointer and 16-byte alignment
+  // Assert for nil pointer and 16-byte alignment
   Assert(p <> nil, 'SSE2LoadF32x4Aligned: pointer is nil');
   {$PUSH}{$WARN 4055 OFF}
   Assert((PtrUInt(p) and $F) = 0, 'SSE2LoadF32x4Aligned: Pointer must be 16-byte aligned');
@@ -3191,7 +3191,7 @@ procedure SSE2StoreF32x4(p: PSingle; const a: TVecF32x4);
 var
   pa: Pointer;
 begin
-  // ✅ Safety check: Assert for nil pointer
+  // Assert for nil pointer
   Assert(p <> nil, 'SSE2StoreF32x4: pointer is nil');
   pa := @a;
   asm
@@ -3206,7 +3206,7 @@ procedure SSE2StoreF32x4Aligned(p: PSingle; const a: TVecF32x4);
 var
   pa: Pointer;
 begin
-  // ✅ Safety check: Assert for nil pointer and 16-byte alignment
+  // Assert for nil pointer and 16-byte alignment
   Assert(p <> nil, 'SSE2StoreF32x4Aligned: pointer is nil');
   {$PUSH}{$WARN 4055 OFF}
   Assert((PtrUInt(p) and $F) = 0, 'SSE2StoreF32x4Aligned: Pointer must be 16-byte aligned');
@@ -3264,7 +3264,7 @@ end;
 
 // === F32x8 Operations (simulate with 2x F32x4) ===
 
-// ✅ SIMD Quality Iteration 4.4: 2×128-bit SSE2 ASM 实现
+// 2×128-bit SSE2 ASM 实现
 function SSE2AddF32x8(const a, b: TVecF32x8): TVecF32x8;
 {$IFDEF CPUX64}
 var pa, pb, pr: Pointer;
@@ -3369,7 +3369,7 @@ begin
 end;
 
 // === F32x8 Comparison Operations (direct 2×128-bit ASM) ===
-// ✅ Converted from recursive calls to eliminate function call overhead
+// Converted from recursive calls to eliminate function call overhead
 
 function SSE2CmpEqF32x8(const a, b: TVecF32x8): TMask8;
 var
@@ -4030,7 +4030,7 @@ var
   g_HasSSE41: Boolean = False;
   g_SSE41CheckState: LongInt = 0; // 0=未检查, 1=检查中, 2=已完成
 
-// ✅ Thread-safe SSE4.1 detection using atomic operations
+// Thread-safe SSE4.1 detection using atomic operations
 procedure CheckSSE41;
 var
   oldState: LongInt;
@@ -4427,7 +4427,7 @@ begin
   end;
 end;
 
-// ✅ F32x8 扩展函数 (2026-02-05) - 使用 2x F32x4 仿真
+// F32x8 扩展函数 - 使用 2x F32x4 仿真
 
 function SSE2FmaF32x8(const a, b, c: TVecF32x8): TVecF32x8;
 {$IFDEF CPUX64}
@@ -4923,7 +4923,7 @@ begin
   Result := count;
 end;
 
-// === ✅ P2-1: Saturating Arithmetic (SSE2 硬件加速) ===
+// === Saturating Arithmetic (SSE2 硬件加速) ===
 // SSE2 提供专门的饱和算术指令，比标量实现快 8-16x
 
 // I8x16 有符号饱和加法 (PADDSB)
@@ -5056,7 +5056,7 @@ asm
   {$ENDIF}
 end;
 
-// === ✅ P3: I64x2 Arithmetic and Bitwise Operations (SSE2) ===
+// === I64x2 Arithmetic and Bitwise Operations (SSE2) ===
 // SSE2 提供 paddq/psubq 用于 64-bit 整数运算
 
 // I64x2 加法 (PADDQ)
@@ -5155,7 +5155,7 @@ asm
   {$ENDIF}
 end;
 
-// === ✅ I64x2 Comparison Operations (SSE2 emulation) ===
+// === I64x2 Comparison Operations (SSE2 emulation) ===
 // SSE2 没有原生 64 位整数比较指令（PCMPEQQ 是 SSE4.1）
 // 使用两个 32 位比较 + AND/OR 逻辑实现
 
@@ -5279,7 +5279,7 @@ begin
   Result := TMask2((not Byte(SSE2CmpGtI64x2(a, b))) and 3);
 end;
 
-// === ✅ P1: Mask Operations SIMD Implementation ===
+// === Mask Operations SIMD Implementation ===
 // 使用 bsf (bit scan forward) 和 SWAR popcount 加速
 // Mask 类型是小整数（TMask2/4/8/16），可以用标量指令优化
 
@@ -5620,7 +5620,7 @@ end;
 
 {$I fafafa.core.simd.sse2.select.inc}
 
-// ✅ F64x2 扩展函数 (2026-02-05) - 用于构建 F64x4 分解实现
+// F64x2 扩展函数 - 用于构建 F64x4 分解实现
 
 function SSE2NormalizeSignedZeroDouble(const aInput, aOutput: Double): Double; inline;
 var
@@ -5734,9 +5734,9 @@ begin
   Result := a.d[0] * a.d[1];
 end;
 
-// ✅ F64x4 分解实现 (2026-02-05) - 使用 2x F64x2
+// F64x4 分解实现 - 使用 2x F64x2
 
-// ✅ SIMD Quality Iteration 4.4: F64x4 2×128-bit SSE2 ASM 实现
+// F64x4 2×128-bit SSE2 ASM 实现
 function SSE2AddF64x4(const a, b: TVecF64x4): TVecF64x4;
 {$IFDEF CPUX64}
 var pa, pb, pr: Pointer;
@@ -6170,7 +6170,7 @@ begin
   Result.hi := SSE2ZeroF64x2;
 end;
 
-// ✅ F64x4 Comparison Operations (2×128-bit SSE2 ASM) - 2026-02-05
+// F64x4 Comparison Operations (2×128-bit SSE2 ASM)
 
 function SSE2CmpEqF64x4(const a, b: TVecF64x4): TMask4;
 {$IFDEF CPUX64}
@@ -6360,9 +6360,9 @@ begin
 {$ENDIF}
 end;
 
-// ✅ I32x8 分解实现 (2026-02-05) - 使用 2x I32x4
+// I32x8 分解实现 - 使用 2x I32x4
 
-// ✅ SIMD Quality Iteration 4.4: I32x8 2×128-bit SSE2 ASM 实现
+// I32x8 2×128-bit SSE2 ASM 实现
 function SSE2AddI32x8(const a, b: TVecI32x8): TVecI32x8;
 {$IFDEF CPUX64}
 var pa, pb, pr: Pointer;

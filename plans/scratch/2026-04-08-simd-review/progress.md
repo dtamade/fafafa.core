@@ -493,3 +493,13 @@
 - 已完成验证：
   - `git diff --check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+
+## 2026-05-11 SSE2 Root Comment Noise Cleanup
+
+- `src/fafafa.core.simd.sse2.pas` 已按稳定 backend adapter 边界完成注释噪音收敛。
+- 本批只移除 `✅ / NEW / P* / Task / Iteration / 2026-02-05` 这类历史标记，保留 safety、performance、ISA 限制、仿真策略等真实说明。
+- 没有物理拆分 `sse2.pas`，没有改 ASM leaf、函数签名或 dispatch wiring。
+- 已完成验证：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
