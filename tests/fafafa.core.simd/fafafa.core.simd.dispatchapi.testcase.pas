@@ -5449,6 +5449,15 @@ var
   LOldVectorAsm: Boolean;
   LRoundInput: TVecF32x4;
   LRoundExpected, LRoundActual: TVecF32x4;
+  LLengthInput: TVecF32x4;
+  LLength4Expected, LLength4Actual: Single;
+  LLength3Expected, LLength3Actual: Single;
+  LNormalize4Input, LNormalize4ZeroInput: TVecF32x4;
+  LNormalize4Expected, LNormalize4Actual: TVecF32x4;
+  LNormalize4ZeroExpected, LNormalize4ZeroActual: TVecF32x4;
+  LNormalize3Input, LNormalize3ZeroInput: TVecF32x4;
+  LNormalize3Expected, LNormalize3Actual: TVecF32x4;
+  LNormalize3ZeroExpected, LNormalize3ZeroActual: TVecF32x4;
   LDotA, LDotB: TVecF32x4;
   LDotExpected, LDotActual: Single;
   LCrossA, LCrossB: TVecF32x4;
@@ -5477,10 +5486,22 @@ begin
       Exit;
 
     AssertTrue('SSE2 RoundF32x4 should be assigned', Assigned(LSSE2Table.RoundF32x4));
+    AssertTrue('SSE2 LengthF32x4 should be assigned', Assigned(LSSE2Table.LengthF32x4));
+    AssertTrue('SSE2 LengthF32x3 should be assigned', Assigned(LSSE2Table.LengthF32x3));
+    AssertTrue('SSE2 NormalizeF32x4 should be assigned', Assigned(LSSE2Table.NormalizeF32x4));
+    AssertTrue('SSE2 NormalizeF32x3 should be assigned', Assigned(LSSE2Table.NormalizeF32x3));
     AssertTrue('SSE2 DotF32x3 should be assigned', Assigned(LSSE2Table.DotF32x3));
     AssertTrue('SSE2 CrossF32x3 should be assigned', Assigned(LSSE2Table.CrossF32x3));
     AssertTrue('SSE2 RoundF32x4 should not remain scalar fallback when vector asm is enabled',
       Pointer(LSSE2Table.RoundF32x4) <> Pointer(LScalarTable.RoundF32x4));
+    AssertTrue('SSE2 LengthF32x4 should not remain scalar fallback when vector asm is enabled',
+      Pointer(LSSE2Table.LengthF32x4) <> Pointer(LScalarTable.LengthF32x4));
+    AssertTrue('SSE2 LengthF32x3 should not remain scalar fallback when vector asm is enabled',
+      Pointer(LSSE2Table.LengthF32x3) <> Pointer(LScalarTable.LengthF32x3));
+    AssertTrue('SSE2 NormalizeF32x4 should not remain scalar fallback when vector asm is enabled',
+      Pointer(LSSE2Table.NormalizeF32x4) <> Pointer(LScalarTable.NormalizeF32x4));
+    AssertTrue('SSE2 NormalizeF32x3 should not remain scalar fallback when vector asm is enabled',
+      Pointer(LSSE2Table.NormalizeF32x3) <> Pointer(LScalarTable.NormalizeF32x3));
     AssertTrue('SSE2 DotF32x3 should not remain scalar fallback when vector asm is enabled',
       Pointer(LSSE2Table.DotF32x3) <> Pointer(LScalarTable.DotF32x3));
     AssertTrue('SSE2 CrossF32x3 should not remain scalar fallback when vector asm is enabled',
@@ -5500,6 +5521,29 @@ begin
     LRoundInput.f[1] := 3.5;
     LRoundInput.f[2] := -2.5;
     LRoundInput.f[3] := -3.5;
+
+    LLengthInput.f[0] := 0.0;
+    LLengthInput.f[1] := 4.0;
+    LLengthInput.f[2] := 0.0;
+    LLengthInput.f[3] := 99.0;
+
+    LNormalize4Input.f[0] := 0.0;
+    LNormalize4Input.f[1] := 0.0;
+    LNormalize4Input.f[2] := 0.0;
+    LNormalize4Input.f[3] := 5.0;
+    LNormalize4ZeroInput.f[0] := 0.0;
+    LNormalize4ZeroInput.f[1] := 0.0;
+    LNormalize4ZeroInput.f[2] := 0.0;
+    LNormalize4ZeroInput.f[3] := 0.0;
+
+    LNormalize3Input.f[0] := 0.0;
+    LNormalize3Input.f[1] := 4.0;
+    LNormalize3Input.f[2] := 0.0;
+    LNormalize3Input.f[3] := 99.0;
+    LNormalize3ZeroInput.f[0] := 0.0;
+    LNormalize3ZeroInput.f[1] := 0.0;
+    LNormalize3ZeroInput.f[2] := 0.0;
+    LNormalize3ZeroInput.f[3] := 17.0;
 
     LDotA.f[0] := 1.5;
     LDotA.f[1] := -2.0;
@@ -5524,6 +5568,16 @@ begin
     AssertVecF32x4Equal('SSE2 RoundF32x4 scalar parity',
       LRoundExpected, LRoundActual, 0.0);
 
+    LLength4Expected := ScalarLengthF32x4(LLengthInput);
+    LLength4Actual := LCurrentDispatch^.LengthF32x4(LLengthInput);
+    AssertEquals('SSE2 LengthF32x4 scalar parity',
+      LLength4Expected, LLength4Actual, 1e-5);
+
+    LLength3Expected := ScalarLengthF32x3(LLengthInput);
+    LLength3Actual := LCurrentDispatch^.LengthF32x3(LLengthInput);
+    AssertEquals('SSE2 LengthF32x3 scalar parity',
+      LLength3Expected, LLength3Actual, 1e-5);
+
     LDotExpected := ScalarDotF32x3(LDotA, LDotB);
     LDotActual := LCurrentDispatch^.DotF32x3(LDotA, LDotB);
     AssertEquals('SSE2 DotF32x3 scalar parity',
@@ -5533,6 +5587,26 @@ begin
     LCrossActual := LCurrentDispatch^.CrossF32x3(LCrossA, LCrossB);
     AssertVecF32x4Equal('SSE2 CrossF32x3 scalar parity',
       LCrossExpected, LCrossActual, 0.0);
+
+    LNormalize4Expected := ScalarNormalizeF32x4(LNormalize4Input);
+    LNormalize4Actual := LCurrentDispatch^.NormalizeF32x4(LNormalize4Input);
+    AssertVecF32x4Equal('SSE2 NormalizeF32x4 scalar parity',
+      LNormalize4Expected, LNormalize4Actual, 0.0);
+
+    LNormalize4ZeroExpected := ScalarNormalizeF32x4(LNormalize4ZeroInput);
+    LNormalize4ZeroActual := LCurrentDispatch^.NormalizeF32x4(LNormalize4ZeroInput);
+    AssertVecF32x4Equal('SSE2 NormalizeF32x4 zero scalar parity',
+      LNormalize4ZeroExpected, LNormalize4ZeroActual, 0.0);
+
+    LNormalize3Expected := ScalarNormalizeF32x3(LNormalize3Input);
+    LNormalize3Actual := LCurrentDispatch^.NormalizeF32x3(LNormalize3Input);
+    AssertVecF32x4Equal('SSE2 NormalizeF32x3 scalar parity',
+      LNormalize3Expected, LNormalize3Actual, 0.0);
+
+    LNormalize3ZeroExpected := ScalarNormalizeF32x3(LNormalize3ZeroInput);
+    LNormalize3ZeroActual := LCurrentDispatch^.NormalizeF32x3(LNormalize3ZeroInput);
+    AssertVecF32x4Equal('SSE2 NormalizeF32x3 zero scalar parity',
+      LNormalize3ZeroExpected, LNormalize3ZeroActual, 0.0);
   finally
     ResetToAutomaticBackend;
     SetVectorAsmEnabled(LOldVectorAsm);

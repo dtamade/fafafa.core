@@ -245,6 +245,18 @@
 - 复验已通过：
   - `git diff --check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+
+## 2026-05-11 SSE2 F32 Vector Math Helper Consolidation
+
+- `SSE2LengthF32x4 / SSE2LengthF32x3` 和 `SSE2NormalizeF32x4 / SSE2NormalizeF32x3` 也是同一条 zero-w + length + divide 控制流，适合像 SSE3 / AVX2 / SSE4.1 一样收进 shared helper。
+- 这批补了 SSE2 代表性证据：`DispatchAPI` 现在直接覆盖 `LengthF32x4/F32x3`、`NormalizeF32x4/F32x3`、zero-vector fallback 与 `F32x3` 的 `w=0` 语义，不再只看 Round/Dot/Cross。
+- `src/fafafa.core.simd.sse2.vector_math.inc` 没有任何 `include` 或测试引用，是一份不参与构建的镜像重复源；删掉后，仓库里少了一份会误导后续判断的旧文本。
+- `check` 首轮冒出的 `inline` hints 说明 new helper 只是局部 refactor，还没完全贴合 stable-unit 检查口径；去掉 `inline` 后 `check/gate` 重新归绿。
+- 验证链路：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_DirectDispatch`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - raw-leaf 边界：`intrinsics.x86.sse2` 不得出现 `TVec*`、`TMask*`、`TSimdDispatchTable`、`RegisterSSE2Backend`、`runtime/cpuinfo/dispatch` 依赖
   - 文档真相漂移：三张真相表缺行、改 status、删 sentinel 会直接让结构检查失败
 

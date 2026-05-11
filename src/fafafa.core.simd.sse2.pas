@@ -3670,106 +3670,102 @@ begin
   Result.f[3] := 0.0; // Ensure w=0
 end;
 
-// Vector length (4 elements)
-function SSE2LengthF32x4(const a: TVecF32x4): Single;
-var
-  pa: Pointer;
-begin
-  pa := @a;
-  asm
-    mov     rax, pa
-    movups  xmm0, [rax]
-    mulps   xmm0, xmm0      // Square each element
-    // Horizontal add
-    movaps  xmm1, xmm0
-    shufps  xmm1, xmm1, $4E
-    addps   xmm0, xmm1
-    movaps  xmm1, xmm0
-    shufps  xmm1, xmm1, $B1
-    addss   xmm0, xmm1
-    sqrtss  xmm0, xmm0      // Square root
-    movss   [result], xmm0
-  end;
-end;
+// === SSE2 Optimized Length / Normalize ===
 
-// Vector length (3 elements)
-function SSE2LengthF32x3(const a: TVecF32x4): Single;
+function SSE2LengthWithOptionalZeroW(const a: TVecF32x4; aZeroW: Boolean): Single;
 var
-  pa: Pointer;
+  LPA: Pointer;
 begin
-  pa := @a;
-  asm
-    mov     rax, pa
-    movups  xmm0, [rax]
-    // Zero w before squaring
-    pcmpeqd xmm1, xmm1
-    psrldq  xmm1, 4          // Shift right to create mask [FF,FF,FF,00]
-    andps   xmm0, xmm1       // Zero w
-    mulps   xmm0, xmm0
-    // Horizontal add
-    movaps  xmm1, xmm0
-    shufps  xmm1, xmm1, $4E
-    addps   xmm0, xmm1
-    movaps  xmm1, xmm0
-    shufps  xmm1, xmm1, $B1
-    addss   xmm0, xmm1
-    sqrtss  xmm0, xmm0
-    movss   [result], xmm0
-  end;
-end;
-
-// Normalize vector (4 elements)
-function SSE2NormalizeF32x4(const a: TVecF32x4): TVecF32x4;
-var
-  pa, pr: Pointer;
-  len: Single;
-begin
-  len := SSE2LengthF32x4(a);
-  if len > 0 then
+  LPA := @a;
+  if aZeroW then
   begin
-    pa := @a;
-    pr := @Result;
     asm
-      mov     rax, pa
-      mov     rcx, pr
+      mov     rax, LPA
       movups  xmm0, [rax]
-      movss   xmm1, len
-      shufps  xmm1, xmm1, 0   // Broadcast length
-      divps   xmm0, xmm1      // Divide each element by length
-      movups  [rcx], xmm0
+      pcmpeqd xmm1, xmm1
+      psrldq  xmm1, 4
+      andps   xmm0, xmm1
+      mulps   xmm0, xmm0
+      movaps  xmm1, xmm0
+      shufps  xmm1, xmm1, $4E
+      addps   xmm0, xmm1
+      movaps  xmm1, xmm0
+      shufps  xmm1, xmm1, $B1
+      addss   xmm0, xmm1
+      sqrtss  xmm0, xmm0
+      movss   [result], xmm0
     end;
   end
   else
-    Result := a;
+  begin
+    asm
+      mov     rax, LPA
+      movups  xmm0, [rax]
+      mulps   xmm0, xmm0
+      movaps  xmm1, xmm0
+      shufps  xmm1, xmm1, $4E
+      addps   xmm0, xmm1
+      movaps  xmm1, xmm0
+      shufps  xmm1, xmm1, $B1
+      addss   xmm0, xmm1
+      sqrtss  xmm0, xmm0
+      movss   [result], xmm0
+    end;
+  end;
 end;
 
-// Normalize vector (3 elements, w=0)
-function SSE2NormalizeF32x3(const a: TVecF32x4): TVecF32x4;
+function SSE2NormalizeByLength(const a: TVecF32x4; const aLen: Single; aZeroW: Boolean): TVecF32x4;
 var
-  pa, pr: Pointer;
-  len: Single;
+  LPA, LPR: Pointer;
 begin
-  len := SSE2LengthF32x3(a);
-  if len > 0 then
+  if aLen > 0.0 then
   begin
-    pa := @a;
-    pr := @Result;
+    LPA := @a;
+    LPR := @Result;
     asm
-      mov     rax, pa
-      mov     rcx, pr
+      mov     rax, LPA
+      mov     rcx, LPR
       movups  xmm0, [rax]
-      movss   xmm1, len
+      movss   xmm1, aLen
       shufps  xmm1, xmm1, 0
       divps   xmm0, xmm1
       movups  [rcx], xmm0
     end;
-    Result.f[3] := 0.0;
+    if aZeroW then
+      Result.f[3] := 0.0;
   end
   else
   begin
     Result := a;
-    Result.f[3] := 0.0;
+    if aZeroW then
+      Result.f[3] := 0.0;
   end;
+end;
+
+function SSE2LengthF32x4(const a: TVecF32x4): Single;
+begin
+  Result := SSE2LengthWithOptionalZeroW(a, False);
+end;
+
+function SSE2LengthF32x3(const a: TVecF32x4): Single;
+begin
+  Result := SSE2LengthWithOptionalZeroW(a, True);
+end;
+
+function SSE2NormalizeF32x4(const a: TVecF32x4): TVecF32x4;
+var
+  len: Single;
+begin
+  len := SSE2LengthWithOptionalZeroW(a, False);
+  Result := SSE2NormalizeByLength(a, len, False);
+end;
+
+function SSE2NormalizeF32x3(const a: TVecF32x4): TVecF32x4;
+var
+  len: Single;
+begin
+  len := SSE2LengthWithOptionalZeroW(a, True);
+  Result := SSE2NormalizeByLength(a, len, True);
 end;
 
 // F32x8 扩展函数 - 使用 2x F32x4 仿真

@@ -836,3 +836,16 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-11 SSE2 F32 Vector Math Helper Consolidation
+
+- 已把 `SSE2LengthF32x4 / SSE2LengthF32x3` 与 `SSE2NormalizeF32x4 / SSE2NormalizeF32x3` 收成 `SSE2LengthWithOptionalZeroW` 与 `SSE2NormalizeByLength` 两个私有 helper，保留了 `F32x3` 的 `w=0` 语义。
+- `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 里的 `Test_SSE2_F32VectorMath_Use_NonScalar_Impl_And_Keep_Parity` 现在直接覆盖 `LengthF32x4/F32x3`、`NormalizeF32x4/F32x3`、zero-vector 与 `w` lane 行为。
+- 顺手删除了未被任何 `include` 引用的 `src/fafafa.core.simd.sse2.vector_math.inc` 镜像文件，避免仓库里继续留一份误导性的旧重复源。
+- 先前 `check` 曾因为新 helper 的 `inline` 标记冒出 hints；去掉 `inline` 后已复验通过。
+- 验证结果：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_DirectDispatch`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

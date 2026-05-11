@@ -39,6 +39,7 @@
 | `gate` 最后一步 `run_all-chain` 失败                                            | 1       | 已定位为 `cpuinfo.x86` Windows batch runner success-criteria 合同缺口，修复后 `gate` 恢复 PASS |
 | 批量给旧 `simd` plan 插入状态头时首次落到了文档尾部                             | 1       | 已去掉错误的跨行匹配方式，先清除误插入块，再把状态头重插到标题下                               |
 | `check` 和 `gate` 并发编译同一 `tests/fafafa.core.simd` 输出目录导致临时 rc=2/1 | 1       | 改为串行重跑，确认不是代码回归                                                                 |
+| 新增 `SSE2` length/normalize helper 后 `check` 报 inline hints                   | 1       | 去掉 `SSE2LengthWithOptionalZeroW` / `SSE2NormalizeByLength` 的 `inline` 标记后复验通过         |
 
 ## 2026-05-09 Subtask
 
@@ -873,3 +874,18 @@
 | 1. 识别重复 length/normalize | completed | SSE3 的 length/normalize 与 AVX2/SSE4.1 同属 exact-contract helper consolidation               |
 | 2. 落地私有 helper 收口       | completed | 新增 `SSE3LengthWithOptionalZeroW` 与 `SSE3NormalizeByLength`，wrapper 只保留 length source 和 `w` policy |
 | 3. Release 验证与收口         | completed | `git diff --check`、`TTestCase_DispatchAPI,TTestCase_DirectDispatch`、Release `check`、Release `gate` 全通过 |
+
+## 2026-05-11 SSE2 F32 Vector Math Helper Consolidation
+
+### Goal
+
+把 `SSE2` 的 F32 length / normalize 重复 body 收成单一私有 helper，补上 SSE2 代表性 normalize / zero-vector parity，并清理未被构建引用的 `sse2.vector_math.inc` 镜像文件。
+
+### Phases
+
+| Phase                         | Status    | Notes                                                                                                                                              |
+| ----------------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. 识别重复 length/normalize  | completed | `LengthF32x4/F32x3` 与 `NormalizeF32x4/F32x3` 只是 zero-w / length / divide 的重复 body                                                           |
+| 2. 落地私有 helper 收口       | completed | 新增 `SSE2LengthWithOptionalZeroW` 与 `SSE2NormalizeByLength`，四个 wrapper 只保留 length source 和 `w` policy                                   |
+| 3. 补 SSE2 parity 证据        | completed | `DispatchAPI` 现在直接覆盖 `LengthF32x4/F32x3`、`NormalizeF32x4/F32x3`、zero-vector 和 `F32x3 w=0` 语义                                        |
+| 4. 清理死镜像与 release 验证   | completed | 删除未被任何 `include` 引用的 `src/fafafa.core.simd.sse2.vector_math.inc`；`git diff --check`、`check`、`gate` 均通过                              |
