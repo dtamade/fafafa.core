@@ -28,7 +28,7 @@ begin
   Result := ScalarReduceMulF32x4(a);
 end;
 
-// ✅ I32x4 规约操作 (Scalar fallback)
+// I32x4 规约操作 (Scalar fallback)
 {$PUSH}{$R-}{$Q-}
 function NEONReduceAddI32x4(const a: TVecI32x4): Int32;
 begin
@@ -53,7 +53,7 @@ begin
       Result := a.i[i];
 end;
 
-// ✅ U32x4 规约操作 (Scalar fallback)
+// U32x4 规约操作 (Scalar fallback)
 function NEONReduceAddU32x4(const a: TVecU32x4): UInt32;
 begin
   Result := a.u[0] + a.u[1] + a.u[2] + a.u[3];

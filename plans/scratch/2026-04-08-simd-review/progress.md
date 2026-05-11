@@ -1086,3 +1086,13 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework,TTestCase_DirectDispatchConcurrent`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过；dispatch-read-scope summary 为 `forbidden_hits=0 active_doc_issues=0 facade_issues=0`。
+
+## 2026-05-12 NEON Comment Hygiene
+
+- 当前最适合做的卫生项不是再动实现，而是把 NEON include 里的项目过程标记清掉：`Task 6.2`、`Iteration 2.4`、`P2/P3/P4`、`✅` 这类噪音会让文件看起来像任务日志而不是稳定实现。
+- 本批只清理 `src/fafafa.core.simd.neon.compare.inc`、`src/fafafa.core.simd.neon.scalar.utility.inc`、`src/fafafa.core.simd.neon.scalar.reduction.inc` 的注释标题，不改任何 NEON 函数体和调用链。
+- 已完成清理：`✅`、`Task 6.2`、`Iteration 2.4`、`P2/P3/P4` 这类过程标记已从 NEON include 注释里移除，剩余标题改为中性语义标题。
+- 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - 结果：通过，无新的 warning/hint 或门禁回退。

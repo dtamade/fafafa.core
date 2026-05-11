@@ -540,6 +540,13 @@
 - `check_dispatch_read_scope.py` 现在同时封住两类回退：消费者直读 `GetDispatchTable`，以及 `simd.pas` 回退到 per-call `GetCurrentSimdDataPlaneDispatch`。
 - Release 验证结果：`git diff --check`、Release `check`、两组 focused seam suites、Release `gate` 全部通过，`DISPATCH_READ_SCOPE ... facade_issues=0`。
 
+## 2026-05-12 NEON Comment Hygiene
+
+- `src/fafafa.core.simd.neon.compare.inc`、`src/fafafa.core.simd.neon.scalar.utility.inc`、`src/fafafa.core.simd.neon.scalar.reduction.inc` 仍残留 `✅`、`Task 6.2`、`Iteration 2.4`、`P2/P3/P4` 这类过程标记。
+- 这类注释不承载实现语义，只是历史批次痕迹，适合单独收一波卫生，不要和 NEON 功能改动混写。
+- 这批的目标是把标题改回中性、可长期保留的实现描述，让 NEON include 更像稳定源码，不像项目日志。
+- 清理后这些文件只保留语义化标题，`git diff --check` 和 Release `check` 都通过，说明卫生整理没有引入新问题。
+
 ## 2026-05-11 AVX2 Lane Helper Consolidation
 
 - `AVX2SelectF32x4 / AVX2ExtractF32x4 / AVX2InsertF32x4 / AVX2SelectF64x2` 原来只是把和 scalar 完全相同的 lane 选择与边界截断逻辑在 AVX2 里又写了一遍。

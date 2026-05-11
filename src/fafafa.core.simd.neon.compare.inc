@@ -161,7 +161,7 @@ asm
   orr   w0, w0, w4, lsl #3
 end;
 
-// === ✅ P2: Saturating Arithmetic Operations (NEON) ===
+// === Saturating Arithmetic Operations (NEON) ===
 // NEON 使用 sqadd/sqsub (有符号) 和 uqadd/uqsub (无符号) 指令
 
 // I8x16 有符号饱和加法 (sqadd v.16b)
@@ -301,7 +301,7 @@ asm
   umov  x1, v0.d[1]
 end;
 
-// === ✅ Task 6.2: Narrow Integer Types (I16x8, I8x16, U16x8, U8x16) ===
+// === Narrow Integer Types (I16x8, I8x16, U16x8, U8x16) ===
 // NEON 使用 add/sub/mul v.8h/.16b 和 smin/smax/umin/umax 指令
 
 // --- I16x8 Operations (8×Int16) ---
@@ -906,7 +906,7 @@ asm
   umov  x1, v0.d[1]
 end;
 
-// === ✅ Iteration 2.4: U32x4/U32x8/U64x4 Operations (NEON ASM) ===
+// === U32x4/U32x8/U64x4 Operations (NEON ASM) ===
 // 无符号整数操作从 Scalar 回调转换为真正的 NEON ASM
 
 // --- U32x4 Operations (4×UInt32) ---
@@ -1505,7 +1505,7 @@ asm
   umov  x3, v2.d[1]
 end;
 
-// === ✅ P3: I64x2 Arithmetic, Bitwise, and Comparison Operations (NEON) ===
+// === I64x2 Arithmetic, Bitwise, and Comparison Operations (NEON) ===
 // NEON 使用 add/sub v.2d 和 and/orr/eor v.16b 指令
 
 // I64x2 加法 (add v.2d)
@@ -2585,7 +2585,7 @@ end;
 // === I32x4 Reduction Operations (NEON) ===
 // ============================================================================
 
-// ✅ I32x4 水平加法规约 (addp v.4s)
+// I32x4 水平加法规约 (addp v.4s)
 function NEONReduceAddI32x4(const a: TVecI32x4): Int32; assembler; nostackframe;
 asm
   // a: x0..x1
@@ -2600,7 +2600,7 @@ asm
   umov  w0, v0.s[0]
 end;
 
-// ✅ I32x4 水平最小值规约 (sminp v.4s - signed min pairwise)
+// I32x4 水平最小值规约 (sminp v.4s - signed min pairwise)
 function NEONReduceMinI32x4(const a: TVecI32x4): Int32; assembler; nostackframe;
 asm
   fmov  d0, x0
@@ -2613,7 +2613,7 @@ asm
   umov  w0, v0.s[0]
 end;
 
-// ✅ I32x4 水平最大值规约 (smaxp v.4s - signed max pairwise)
+// I32x4 水平最大值规约 (smaxp v.4s - signed max pairwise)
 function NEONReduceMaxI32x4(const a: TVecI32x4): Int32; assembler; nostackframe;
 asm
   fmov  d0, x0
@@ -2799,7 +2799,7 @@ end;
 // === U32x4 Reduction Operations (NEON) ===
 // ============================================================================
 
-// ✅ U32x4 水平加法规约 (addp v.4s - 无符号)
+// U32x4 水平加法规约 (addp v.4s - 无符号)
 function NEONReduceAddU32x4(const a: TVecU32x4): UInt32; assembler; nostackframe;
 asm
   fmov  d0, x0
@@ -2811,7 +2811,7 @@ asm
   umov  w0, v0.s[0]
 end;
 
-// ✅ U32x4 水平最小值规约 (uminp v.4s - unsigned min pairwise)
+// U32x4 水平最小值规约 (uminp v.4s - unsigned min pairwise)
 function NEONReduceMinU32x4(const a: TVecU32x4): UInt32; assembler; nostackframe;
 asm
   fmov  d0, x0
@@ -2823,7 +2823,7 @@ asm
   umov  w0, v0.s[0]
 end;
 
-// ✅ U32x4 水平最大值规约 (umaxp v.4s - unsigned max pairwise)
+// U32x4 水平最大值规约 (umaxp v.4s - unsigned max pairwise)
 function NEONReduceMaxU32x4(const a: TVecU32x4): UInt32; assembler; nostackframe;
 asm
   fmov  d0, x0

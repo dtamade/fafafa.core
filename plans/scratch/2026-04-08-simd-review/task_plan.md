@@ -1184,3 +1184,18 @@
 | 2. 落地 façade local dispatch mirror | completed   | 新增本地 `g_FastSimdDispatchPtr`，由 `RebindSimdFacadeFastPaths` 从 `PSimdDataPlane.Dispatch` 发布 |
 | 3. 扩展 dispatch-read-scope 护栏    | completed   | `check_dispatch_read_scope.py` 已阻止 `simd.pas` façade wrapper 回退到 per-call dataplane dispatch getter |
 | 4. Release 验证与提交收口           | completed   | `git diff --check`、Release `check`、focused seam suites、Release `gate` 全部通过；待 review + commit |
+
+## 2026-05-12 NEON Comment Hygiene
+
+### Goal
+
+把 `src/fafafa.core.simd.neon.compare.inc`、`src/fafafa.core.simd.neon.scalar.utility.inc`、`src/fafafa.core.simd.neon.scalar.reduction.inc` 里的过程标记和 emoji 注释噪音收掉，保留语义性标题，不改任何 NEON 实现。
+
+### Phases
+
+| Phase                              | Status      | Notes |
+| ---------------------------------- | ----------- | ----- |
+| 1. 锁定噪音注释范围                | completed   | 噪音主要是 `✅`、`Task 6.2`、`Iteration 2.4`、`P2/P3/P4` 这类过程标记 |
+| 2. 清理 NEON 注释标题              | completed   | 统一为中性语义标题，去掉项目过程标签 |
+| 3. 复验源码/文档/护栏              | completed   | 注释文本已不再带过程标记，函数体未改 |
+| 4. Release 验证与提交收口           | completed   | `git diff --check`、Release `check` 均通过；待 review + commit |

@@ -27,7 +27,7 @@ end;
 
 {$I fafafa.core.simd.neon.facade_scalar.inc}
 
-// ✅ P2: Saturating Arithmetic Scalar Fallback
+// Saturating Arithmetic Scalar Fallback
 // 用于 FPC < 3.3.1 或非 ARM 平台
 
 function NEONI8x16SatAdd(const a, b: TVecI8x16): TVecI8x16;
@@ -70,7 +70,7 @@ begin
   Result := ScalarU16x8SatSub(a, b);
 end;
 
-// ✅ Task 6.2: Narrow Integer Types Scalar Fallback
+// Narrow Integer Types Scalar Fallback
 // 用于 FPC < 3.3.1 或非 ARM 平台
 
 // --- I16x8 Scalar Fallback ---
@@ -182,7 +182,7 @@ begin Result := ScalarMinU8x16(a, b); end;
 function NEONMaxU8x16(const a, b: TVecU8x16): TVecU8x16;
 begin Result := ScalarMaxU8x16(a, b); end;
 
-// ✅ P3: I64x2 Scalar Fallback (用于 FPC < 3.3.1 或非 ARM 平台)
+// I64x2 Scalar Fallback (用于 FPC < 3.3.1 或非 ARM 平台)
 function NEONAddI64x2(const a, b: TVecI64x2): TVecI64x2;
 begin
   Result := ScalarAddI64x2(a, b);
@@ -333,7 +333,7 @@ begin
   Result := ScalarCmpNeI64x2(a, b);
 end;
 
-// ✅ P4: SelectF64x2 (Pascal Implementation)
+// SelectF64x2 (Pascal Implementation)
 function NEONSelectF64x2(const mask: TMask2; const a, b: TVecF64x2): TVecF64x2;
 begin
   Result := ScalarSelectF64x2(mask, a, b);
