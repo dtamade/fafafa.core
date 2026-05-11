@@ -609,3 +609,10 @@
 - 这份文档会负责冻结 C 桶，明确 `SSE2` 哪些对象永远留在 adapter，哪些对象只有在 raw leaf 迁移证据齐全后才可能进入 retire bucket。
 - 已新增 `docs/plans/2026-05-09-simd-sse2-retire-target-plan.md`，并把它接入 `plan-status-index`、`execution-index`、`global architecture plan`、`family matrix` 与 `SIMD_SSE2_MIGRATION_MAP.md`。
 - 验证已完成：`prettier --write`、`git diff --check`、`python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line`、`python3 tests/fafafa.core.simd/check_intrinsics_experimental_status.py --summary-line` 全部通过。
+
+## 2026-05-11 Experimental Hold Future Trigger Baseline
+
+- `Wave 5` 还需要一份 `experimental hold future trigger` baseline，专门冻结 `AES / SHA / AVX / FMA3 / SVE / SVE2 / LASX` 的重新开线条件。
+- 这份文档不是要把这些 family 提前 promote，而是把“什么时候值得重开一个 family 的单独计划”写成统一规则，避免后续临场判断。
+- 已新增 `docs/plans/2026-05-09-simd-experimental-hold-future-trigger-plan.md`，并把它接入 `plan-status-index`、`execution-index`、`global architecture plan` 与 `family matrix`。
+- 验证已完成：`prettier --write`、`git diff --check`、`python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line`、`python3 tests/fafafa.core.simd/check_intrinsics_experimental_status.py --summary-line` 全部通过。

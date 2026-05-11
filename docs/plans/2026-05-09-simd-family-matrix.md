@@ -62,7 +62,7 @@
 
 1. `SSE3/SSE4.1/SSE4.2/AVX-512` 只有 isolation / smoke，但缺 family-specific raw parity 文档。
 2. `NEON/RISCVV` 虽然已有 family-level qualification plan，但还没有进入 promote / hold-decision 文档阶段。
-3. `AES/SHA/AVX/FMA3/SVE/SVE2/LASX` 目前还只有“继续隔离”的判断，没有明确的 future trigger。
+3. `AES/SHA/AVX/FMA3/SVE/SVE2/LASX` 当前已有 generic hold baseline，但还没有 family-specific future trigger decision。
 
 因此它是 **execution-ready**，但还不是 **closeout-complete**。
 

@@ -34,6 +34,7 @@
 - `docs/plans/2026-05-09-simd-neon-qualification-plan.md`
 - `docs/plans/2026-05-09-simd-riscvv-qualification-plan.md`
 - `docs/plans/2026-05-09-simd-sse2-retire-target-plan.md`
+- `docs/plans/2026-05-09-simd-experimental-hold-future-trigger-plan.md`
 
 配套真相源与基线文档继续是：
 

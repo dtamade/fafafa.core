@@ -578,3 +578,17 @@
 | 1. 识别当前 retire 口径 | completed | `SSE2` 迁移图已经把 A/B/C 桶写死，但还缺一份专门冻结 retire baseline 的 closeout 文档 |
 | 2. 落地 retire target baseline | completed | 已新增 `docs/plans/2026-05-09-simd-sse2-retire-target-plan.md`，并接入 active chain、execution index、global plan、family matrix 与 migration map |
 | 3. 验证与收口 | completed | `prettier --write`、`git diff --check`、`check_sse2_structure.py --summary-line`、`check_intrinsics_experimental_status.py --summary-line` 全部通过 |
+
+## 2026-05-11 Experimental Hold Future Trigger Baseline
+
+### Goal
+
+把 `AES / SHA / AVX / FMA3 / SVE / SVE2 / LASX` 的 hold 规则写成统一的 future-trigger baseline，避免后续靠临场判断决定这些 experimental family 什么时候值得重开。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别 hold 家族 | completed | 当前需要冻结 future-trigger 规则的家族已经在 active plans 里写清：`AES / SHA / AVX / FMA3 / SVE / SVE2 / LASX` |
+| 2. 落地 future-trigger baseline | completed | 已新增 `docs/plans/2026-05-09-simd-experimental-hold-future-trigger-plan.md` 并接入 active 入口 |
+| 3. 验证与收口 | completed | `prettier --write`、`git diff --check`、`check_sse2_structure.py --summary-line`、`check_intrinsics_experimental_status.py --summary-line` 全部通过 |

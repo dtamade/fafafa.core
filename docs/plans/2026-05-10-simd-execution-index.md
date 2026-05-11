@@ -139,6 +139,7 @@
 - `docs/plans/2026-05-09-simd-x86-incremental-qualification-plan.md`
 - `docs/plans/2026-05-09-simd-family-matrix.md` 里的 `SSE2` 行
 - `docs/plans/2026-05-09-simd-sse2-retire-target-plan.md`
+- `docs/plans/2026-05-09-simd-experimental-hold-future-trigger-plan.md`
 
 目标：
 
@@ -260,7 +261,7 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-
 当前还明确未完成的是：
 
 - `SSE2` promote / split / retire 决策文档链（retire target baseline 已落盘）
-- `AES / SHA / AVX / FMA3 / SVE / SVE2 / LASX` 的 future trigger 文档
+- `AES / SHA / AVX / FMA3 / SVE / SVE2 / LASX` 的 family-specific future trigger 决策
 
 `SSSE3` 当前已经明确为 adapter-only / `no dedicated raw leaf target`，不再作为待补 raw leaf 项处理。
 `Wave 2 / seam hardening` 也已完成，不再列入未完成 closeout 项。

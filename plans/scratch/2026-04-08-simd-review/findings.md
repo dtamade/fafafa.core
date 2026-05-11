@@ -711,3 +711,10 @@
 - 当前这份新文档只负责定义 retire bucket 的准入条件和非目标，不会把任何稳定 adapter 责任误列进删表。
 - `check_sse2_structure.py` 继续通过，说明格式化和新增 retire baseline 没有破坏 migration map 的 A/B/C section 与 token 护栏。
 - `check_intrinsics_experimental_status.py` 继续通过，说明新增文档没有改变 experimental intrinsics 的默认入口隔离判断。
+
+## 2026-05-11 Experimental Hold Future Trigger Baseline
+
+- `AES / SHA / AVX / FMA3 / SVE / SVE2 / LASX` 目前已经有 generic hold baseline，但还缺一份专门冻结 future-trigger 规则的 closeout 文档。
+- 这份文档的作用是把“什么时候该重开 family 计划”与“什么不算触发条件”写成统一口径，避免后续再靠聊天上下文临场判断。
+- `check_sse2_structure.py` 继续通过，说明新增文档和 active 入口没有破坏 SSE2 migration map 的 A/B/C 护栏。
+- `check_intrinsics_experimental_status.py` 继续通过，说明新增文档没有把任何 experimental unit 拉进默认入口链。

@@ -229,6 +229,7 @@ raw leaves
 | `docs/plans/2026-05-09-simd-global-architecture-refactor-plan.md` | whole-module 总纲、波次、完成标准                                                                           |
 | `docs/plans/2026-05-09-simd-family-matrix.md`                     | 各 ISA family 的执行矩阵：truth source / disposition / verification lane / next action                      |
 | `docs/plans/2026-05-09-simd-sse2-retire-target-plan.md`           | `SSE2` retire bucket 冻结说明：哪些能进 C 桶、哪些必须留在 adapter                                          |
+| `docs/plans/2026-05-09-simd-experimental-hold-future-trigger-plan.md` | experimental hold 家族的 future-trigger baseline：什么条件下才值得重开                                       |
 | `docs/SIMD_LAYERING_IMPLEMENTATION.md`                            | 架构裁决基线：层次、seam、companion、准入规则                                                               |
 | `docs/SIMD_BACKEND_TRUTH.md`                                      | 当前 stable backend truth source 表                                                                         |
 | `docs/SIMD_INTRINSICS_DISPOSITION.md`                             | 各 intrinsics 单元状态表                                                                                    |
@@ -258,7 +259,7 @@ raw leaves
 ### 还不够的部分
 
 - `SSE2` 还没有进入 promote / split / retire 的决策文档阶段。
-- `AES / SHA / AVX / FMA3 / SVE / SVE2 / LASX` 目前仍只有 hold 判断，没有 future trigger 文档。
+- `AES / SHA / AVX / FMA3 / SVE / SVE2 / LASX` 目前已有 generic hold baseline，但还没有 family-specific future trigger 决策。
 
 因此，这份计划现在已经是 `execution-ready`，但还不是 `closeout-complete`。
 
