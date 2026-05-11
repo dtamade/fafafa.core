@@ -759,6 +759,18 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 
+## 2026-05-11 SSE4.1 Insert/Extract Lane Clamp Consolidation
+
+- 已把 `SSE41InsertF32x4 / SSE41ExtractF32x4` 共享的 lane clamp 收成私有 `SSE41ClampF32x4Index` helper。
+- 公开 dispatch 签名不变，只把边界截断逻辑集中到一处，避免 insert/extract 各自维护同一段 saturation 代码。
+- 已把 `Test_SSE41_RepresentativeSemanticParity_WithScalar_IfDispatchable` 补成 SSE4.1 insert/extract 代表性 parity，覆盖低位和高位 clamp。
+- 验证结果：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+
 ## 2026-05-11 SSE4.1 Rounding Helper Consolidation
 
 - 已把 `sse41_round_ps / sse41_round_pd / sse41_round_ss / sse41_round_sd` 的重复 rounding case 收成单一私有 `SSE41RoundScalar` helper。

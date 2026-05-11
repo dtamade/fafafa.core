@@ -480,6 +480,15 @@ begin
   end;
 end;
 
+function SSE41ClampF32x4Index(const aIndex: Integer): Integer; inline;
+begin
+  Result := aIndex;
+  if Result < 0 then
+    Result := 0
+  else if Result > 3 then
+    Result := 3;
+end;
+
 // === SSE4.1 Insert/Extract ===
 
 function SSE41InsertF32x4(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4;
@@ -488,9 +497,7 @@ var
   safeIndex: Integer;
   v: Single;
 begin
-  safeIndex := index;
-  if safeIndex < 0 then safeIndex := 0
-  else if safeIndex > 3 then safeIndex := 3;
+  safeIndex := SSE41ClampF32x4Index(index);
 
   // Make the scalar value addressable for inline asm.
   v := value;
@@ -540,9 +547,7 @@ var
   safeIndex: Integer;
   tmp: UInt32;
 begin
-  safeIndex := index;
-  if safeIndex < 0 then safeIndex := 0
-  else if safeIndex > 3 then safeIndex := 3;
+  safeIndex := SSE41ClampF32x4Index(index);
 
   tmp := 0;
   Result := 0.0;

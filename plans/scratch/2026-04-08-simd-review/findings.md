@@ -836,3 +836,9 @@
 - 这批保持了原本的 imm8 / sign-bit contract，没有引入新的 mask 解释层，也没有把 blend 逻辑推广成更抽象的泛型接口。
 - `blendv_epi8` 也一并退到单一 helper，避免 byte sign-mask 继续维护独立循环体。
 - 新增的 `Test_SSE41_Blend_ImmediateAndVariableMasks` 让 immediate mask、float sign-mask 和 byte sign-mask 三种形态都在显式 experimental 模式下被证明过。
+
+## 2026-05-11 SSE4.1 Insert/Extract Lane Clamp Consolidation
+
+- `SSE41InsertF32x4` 和 `SSE41ExtractF32x4` 共享同一段 lane index clamp，原来在两个函数里各写了一遍。
+- 把 clamp 收成 `SSE41ClampF32x4Index` 之后，公共 contract 仍然是 saturation，不是 wrap-around，也没有碰 asm 指令本身。
+- 这批把 insert/extract 的 SSE4.1 代表性 parity 也补上了，低位 / 高位 clamp 都用 scalar truth 交叉确认过。

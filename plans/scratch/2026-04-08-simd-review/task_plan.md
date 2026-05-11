@@ -817,3 +817,17 @@
 | 1. 识别 blend 重复簇         | completed | `blend_ps/pd` 与 `blendv_ps/pd/epi8` 都是同合同 lane selection 重复体，只是 mask 来源和 lane 宽度不同 |
 | 2. 落地私有 helper 与回归     | completed | 新增 `SSE41BlendF32x4/F64x2/VF32x4/VF64x2/VE8x16`，并补 `Test_SSE41_Blend_ImmediateAndVariableMasks` |
 | 3. Release 验证与收口        | completed | `git diff --check`、experimental `check`、targeted experimental suite、Release `check`、Release `gate` 全通过 |
+
+## 2026-05-11 SSE4.1 Insert/Extract Lane Clamp Consolidation
+
+### Goal
+
+把 `SSE41InsertF32x4 / SSE41ExtractF32x4` 共享的 lane clamp 收成单一私有 helper，并补上 SSE4.1 代表性 parity，保留现有 insert/extract contract 和 dispatch 签名，不碰长度 / 归一化路径。
+
+### Phases
+
+| Phase                         | Status    | Notes                                                                                       |
+| ----------------------------- | --------- | ------------------------------------------------------------------------------------------- |
+| 1. 识别重复 clamp 逻辑        | completed | `InsertF32x4` 与 `ExtractF32x4` 共享同一段 lane index saturation / clamp 逻辑              |
+| 2. 落地私有 helper 与回归     | completed | 新增 `SSE41ClampF32x4Index`，并把 `Test_SSE41_RepresentativeSemanticParity_WithScalar_IfDispatchable` 补进 insert/extract parity |
+| 3. Release 验证与收口        | completed | `git diff --check`、`TTestCase_DispatchAPI`、Release `check`、Release `gate` 全通过        |

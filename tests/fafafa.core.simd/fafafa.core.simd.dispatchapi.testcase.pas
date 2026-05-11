@@ -10385,6 +10385,7 @@ var
   LF32RoundActual, LF32RoundExpected: TVecF32x4;
   LF32SelectA, LF32SelectB: TVecF32x4;
   LF32SelectActual, LF32SelectExpected: TVecF32x4;
+  LF32InsertActual, LF32InsertExpected: TVecF32x4;
   LNormalize4Input, LNormalize4ZeroInput: TVecF32x4;
   LNormalize3Input, LNormalize3ZeroInput: TVecF32x4;
   LNormalize4Actual, LNormalize4Expected: TVecF32x4;
@@ -10393,6 +10394,7 @@ var
   LNormalize3ZeroActual, LNormalize3ZeroExpected: TVecF32x4;
   LI64CmpA, LI64CmpB: TVecI64x2;
   LMask2Actual, LMask2Expected: TMask2;
+  LExtractActual, LExtractExpected: Single;
   LDotActual, LDotExpected: Single;
   LDotA, LDotB: TVecF32x4;
   LMask4: TMask4;
@@ -10436,6 +10438,10 @@ begin
       Pointer(LSSE41Table.RoundF32x4) <> Pointer(LScalarTable.RoundF32x4));
     AssertTrue('SSE4.1 SelectF32x4 should leave the scalar slot when runtime semantic parity is checkable',
       Pointer(LSSE41Table.SelectF32x4) <> Pointer(LScalarTable.SelectF32x4));
+    AssertTrue('SSE4.1 InsertF32x4 should leave the scalar slot when runtime semantic parity is checkable',
+      Pointer(LSSE41Table.InsertF32x4) <> Pointer(LScalarTable.InsertF32x4));
+    AssertTrue('SSE4.1 ExtractF32x4 should leave the scalar slot when runtime semantic parity is checkable',
+      Pointer(LSSE41Table.ExtractF32x4) <> Pointer(LScalarTable.ExtractF32x4));
     AssertTrue('SSE4.1 NormalizeF32x4 should leave the scalar slot when runtime semantic parity is checkable',
       Pointer(LSSE41Table.NormalizeF32x4) <> Pointer(LScalarTable.NormalizeF32x4));
     AssertTrue('SSE4.1 NormalizeF32x3 should leave the scalar slot when runtime semantic parity is checkable',
@@ -10525,6 +10531,26 @@ begin
     LF32SelectActual := LCurrentDispatch^.SelectF32x4(LMask4, LF32SelectA, LF32SelectB);
     AssertVecF32x4Equal('SSE4.1 SelectF32x4 scalar parity',
       LF32SelectExpected, LF32SelectActual, 0.0);
+
+    LF32InsertExpected := ScalarInsertF32x4(LF32SelectA, 99.5, -1);
+    LF32InsertActual := LCurrentDispatch^.InsertF32x4(LF32SelectA, 99.5, -1);
+    AssertVecF32x4Equal('SSE4.1 InsertF32x4 low clamp scalar parity',
+      LF32InsertExpected, LF32InsertActual, 0.0);
+
+    LExtractExpected := ScalarExtractF32x4(LF32SelectA, -1);
+    LExtractActual := LCurrentDispatch^.ExtractF32x4(LF32SelectA, -1);
+    AssertEquals('SSE4.1 ExtractF32x4 low clamp scalar parity',
+      LExtractExpected, LExtractActual, 0.0);
+
+    LF32InsertExpected := ScalarInsertF32x4(LF32SelectB, -13.25, 7);
+    LF32InsertActual := LCurrentDispatch^.InsertF32x4(LF32SelectB, -13.25, 7);
+    AssertVecF32x4Equal('SSE4.1 InsertF32x4 high clamp scalar parity',
+      LF32InsertExpected, LF32InsertActual, 0.0);
+
+    LExtractExpected := ScalarExtractF32x4(LF32InsertActual, 7);
+    LExtractActual := LCurrentDispatch^.ExtractF32x4(LF32InsertActual, 7);
+    AssertEquals('SSE4.1 ExtractF32x4 high clamp scalar parity',
+      LExtractExpected, LExtractActual, 0.0);
 
     LNormalize4Expected := ScalarNormalizeF32x4(LNormalize4Input);
     LNormalize4Actual := LCurrentDispatch^.NormalizeF32x4(LNormalize4Input);
