@@ -954,3 +954,11 @@
 - 这批只改 no-ASM facade fallback，不碰 `riscvv.pas` 的 RVV asm path，也不动 `riscvv.register.inc` 的 backend-owned slot。
 - `check_nonx86_helper_semantics.py` 已补这 8 个 source-side 断言，helper summary 扩到 `NONX86_HELPER_SEMANTICS_SUMMARY checks=394 status=ok`。
 - release 复验已完成：`git diff --check`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿。
+
+## 2026-05-12 RISCVV Floor/Ceil Forwarder Consolidation
+
+- `src/fafafa.core.simd.riscvv.facade.inc` 里 `F32x4/F64x2/F32x8/F64x4/F32x16/F64x8` 的 `Floor/Ceil` no-ASM fallback 仍是逐 lane 调用 `Floor/Ceil` 的重复体，已经有对应 `ScalarFloor/Ceil*` 真源。
+- 本批只收 `Floor/Ceil`，不把 `Round/Trunc/Clamp` 混进来；后者仍牵涉 signed-zero 与 NaN ordering，必须另开证据线。
+- `riscvv.pas` 的 RVV asm path 与 `riscvv.register.inc` slot ownership 不变，这次只是 no-ASM facade 的第二份真源回收。
+- `check_nonx86_helper_semantics.py` 已补这 12 个 source-side 断言，helper summary 扩到 `NONX86_HELPER_SEMANTICS_SUMMARY checks=406 status=ok`。
+- release 复验已完成：`git diff --check`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿。

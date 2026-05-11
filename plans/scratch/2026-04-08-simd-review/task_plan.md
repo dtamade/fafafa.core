@@ -1052,3 +1052,18 @@
 | 2. 落地 scalar truth forwarder              | completed   | `riscvv.facade.inc` 已改成直接委托 `ScalarFma*` / `ScalarRcpF32x4` / `ScalarRsqrtF32x4`                      |
 | 3. 扩大 helper semantics 护栏                | completed   | `check_nonx86_helper_semantics.py` 已补 RISCVV Fma / `Rcp` / `Rsqrt` source-side 断言，summary 扩到 `checks=394` |
 | 4. Release 验证与收口                       | completed   | `git diff --check`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 均通过              |
+
+## 2026-05-12 RISCVV Floor/Ceil Forwarder Consolidation
+
+### Goal
+
+把 `src/fafafa.core.simd.riscvv.facade.inc` 里 `F32x4/F64x2/F32x8/F64x4/F32x16/F64x8` 的 `Floor/Ceil` no-ASM fallback 收回 `Scalar*` 真源；保留 `Round/Trunc/Clamp`、`RcpF64x4`、asm path 和 register ownership 不动。
+
+### Phases
+
+| Phase                                     | Status      | Notes                                                                                                       |
+| ----------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------- |
+| 1. 识别 exact-contract floor/ceil 重复体    | completed   | 这 12 个 `Floor/Ceil` wrapper 都已有对应 `Scalar*` helper，且属于比 `Round/Trunc/Clamp` 更低风险的纯壳 |
+| 2. 落地 scalar truth forwarder            | completed   | `riscvv.facade.inc` 已改成直接委托 `ScalarFloor/Ceil*`                                                     |
+| 3. 扩大 helper semantics 护栏              | completed   | `check_nonx86_helper_semantics.py` 已补 RISCVV `Floor/Ceil` source-side 断言，summary 扩到 `checks=406`   |
+| 4. Release 验证与收口                     | completed   | `git diff --check`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 均通过          |

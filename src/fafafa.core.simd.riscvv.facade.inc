@@ -151,23 +151,18 @@ begin
   Result := ScalarRsqrtF32x4(a);
 end;
 
-// RegisterRISCVVBackend intentionally keeps the canonical base scalar slots
-// for 128-bit rounding until these backend-local helpers are validated
-// end-to-end against the published scalar semantics.
 function RISCVVFloorF32x4(const a: TVecF32x4): TVecF32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := Floor(a.f[i]);
+  Result := ScalarFloorF32x4(a);
 end;
 
 function RISCVVCeilF32x4(const a: TVecF32x4): TVecF32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := Ceil(a.f[i]);
+  Result := ScalarCeilF32x4(a);
 end;
 
+// Round/Trunc/Clamp retain local bodies until signed-zero and NaN-ordering
+// parity is re-verified separately.
 function RISCVVRoundF32x4(const a: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
@@ -1520,41 +1515,28 @@ begin
 end;
 
 function RISCVVCeilF32x16(const a: TVecF32x16): TVecF32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.f[i] := Ceil(a.f[i]);
+  Result := ScalarCeilF32x16(a);
 end;
 
 function RISCVVCeilF32x8(const a: TVecF32x8): TVecF32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.f[i] := Ceil(a.f[i]);
+  Result := ScalarCeilF32x8(a);
 end;
 
-// RegisterRISCVVBackend intentionally keeps the canonical base scalar slots
-// for 128-bit rounding until these backend-local helpers are validated
-// end-to-end against the published scalar semantics.
 function RISCVVCeilF64x2(const a: TVecF64x2): TVecF64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.d[i] := Ceil(a.d[i]);
+  Result := ScalarCeilF64x2(a);
 end;
 
 function RISCVVCeilF64x4(const a: TVecF64x4): TVecF64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.d[i] := Ceil(a.d[i]);
+  Result := ScalarCeilF64x4(a);
 end;
 
 function RISCVVCeilF64x8(const a: TVecF64x8): TVecF64x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.d[i] := Ceil(a.d[i]);
+  Result := ScalarCeilF64x8(a);
 end;
 
 function RISCVVClampF32x16(const a, minVal, maxVal: TVecF32x16): TVecF32x16;
@@ -1968,38 +1950,28 @@ begin
 end;
 
 function RISCVVFloorF32x16(const a: TVecF32x16): TVecF32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.f[i] := Floor(a.f[i]);
+  Result := ScalarFloorF32x16(a);
 end;
 
 function RISCVVFloorF32x8(const a: TVecF32x8): TVecF32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.f[i] := Floor(a.f[i]);
+  Result := ScalarFloorF32x8(a);
 end;
 
 function RISCVVFloorF64x2(const a: TVecF64x2): TVecF64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.d[i] := Floor(a.d[i]);
+  Result := ScalarFloorF64x2(a);
 end;
 
 function RISCVVFloorF64x4(const a: TVecF64x4): TVecF64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.d[i] := Floor(a.d[i]);
+  Result := ScalarFloorF64x4(a);
 end;
 
 function RISCVVFloorF64x8(const a: TVecF64x8): TVecF64x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.d[i] := Floor(a.d[i]);
+  Result := ScalarFloorF64x8(a);
 end;
 
 function RISCVVFmaF32x16(const a, b, c: TVecF32x16): TVecF32x16;

@@ -816,6 +816,12 @@ def main() -> int:
             )
 
     for suffix in ("F32x4", "F64x2", "F32x8", "F64x4", "F32x16", "F64x8"):
+        for op in ("Floor", "Ceil"):
+            riscvv_scalar_forwarder_expectations.append(
+                (f"RISCVV{op}{suffix}", f"Scalar{op}{suffix}(a)")
+            )
+
+    for suffix in ("F32x4", "F64x2", "F32x8", "F64x4", "F32x16", "F64x8"):
         riscvv_scalar_forwarder_expectations.append(
             (f"RISCVVFma{suffix}", f"ScalarFma{suffix}(a, b, c)")
         )
