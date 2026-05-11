@@ -655,3 +655,15 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 - 注意：第一次把 `check` 和 `gate` 并发起跑时，`check` 因争同一输出目录返回 `rc=2`；串行重跑后通过，归类为调度假红，不是代码回归。
+
+## 2026-05-11 AVX2 128-bit Arithmetic/Shift Shared Kernel Consolidation
+
+- 继续把 `AVX2` 里 128-bit 整数的 `Add/Sub/ShiftLeft/ShiftRight(logical)` 收成共享 raw helper：`I32x4/U32x4`、`I16x8/U16x8` 以及 `I8x16/U8x16` 的 add/sub 都不再各自维护完整 asm body。
+- 已新增 `AVX2AddDwordVecRaw`、`AVX2SubDwordVecRaw`、`AVX2AddWordVecRaw`、`AVX2SubWordVecRaw`、`AVX2AddByteVecRaw`、`AVX2SubByteVecRaw`、`AVX2ShiftLeftDwordVecRaw`、`AVX2ShiftRightDwordVecRaw`、`AVX2ShiftLeftWordVecRaw`、`AVX2ShiftRightWordVecRaw`。
+- `src/fafafa.core.simd.avx2.pas` 的 `I32x4/U32x4`、`I16x8/U16x8`、`I8x16/U8x16` 相关入口现在都只剩 thin wrapper；`ShiftRightArith*`、`Cmp*`、`Min/Max` 仍保持原语义边界。
+- 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NarrowIntegerOps,TTestCase_AVX2VectorAsm,TTestCase_DispatchAPI,TTestCase_DirectDispatch,TTestCase_DataPlane`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

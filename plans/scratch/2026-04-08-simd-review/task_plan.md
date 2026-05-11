@@ -648,3 +648,17 @@
 | 1. 识别可安全合并的 qword repeaters | completed | `I64x4/U64x4` 的算术、bitwise、logical shift 都是同一条 qword 位语义的 exact-contract 重复体 |
 | 2. 落地 shared raw helper 并收口 wrappers | completed | `avx2.i32x8_family.inc` 新增 `AVX2*QwordVecRaw256`，`src/fafafa.core.simd.avx2.pas` 里的 `I64x4/U64x4` 入口已改成薄封装 |
 | 3. Release 验证与收口 | completed | `git diff --check`、Release targeted suite、Release `check`、Release `gate` 全部通过；`check` 首次并发起跑失败是和 `gate` 争同一输出目录，串行重跑后已恢复正常 |
+
+## 2026-05-11 AVX2 128-bit Arithmetic/Shift Shared Kernel Consolidation
+
+### Goal
+
+把 `AVX2` 里剩余的 128-bit 整数 `Add/Sub/ShiftLeft/ShiftRight(logical)` 重复体继续收回共享 raw helper：`I32x4/U32x4`、`I16x8/U16x8` 的加减和逻辑移位，以及 `I8x16/U8x16` 的加减；保留 `ShiftRightArith*`、`Cmp*`、`Min/Max` 的独立语义，不动 dispatch / register ownership。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别可安全合并的 128-bit arithmetic/shift repeaters | completed | `I32x4/U32x4`、`I16x8/U16x8`、`I8x16/U8x16` 的 add/sub 以及 dword/word logical shift 都是 exact-contract 重复体 |
+| 2. 落地 shared raw helper 并收口 wrappers | completed | `src/fafafa.core.simd.avx2.pas` 已新增 dword/word/byte add-sub raw helper 和 dword/word shift raw helper，相关 typed wrapper 已改成薄封装 |
+| 3. Release 验证与收口 | completed | `git diff --check`、`TTestCase_NarrowIntegerOps`、`TTestCase_AVX2VectorAsm`、`TTestCase_DispatchAPI`、`TTestCase_DirectDispatch`、`TTestCase_DataPlane`、`check`、`gate` 全部通过 |

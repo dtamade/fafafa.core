@@ -817,26 +817,223 @@ begin
   end;
 end;
 
+// === AVX2 Integer Add/Sub/Shift Shared Kernels ===
+// Same-width add/sub/logical-shift produce identical bit patterns across signedness.
+
+procedure AVX2AddDwordVecRaw(const aLeftPtr, aRightPtr, aResultPtr: Pointer);
+var
+  LLeftPtr, LRightPtr, LResultPtr: Pointer;
+begin
+  LLeftPtr := aLeftPtr;
+  LRightPtr := aRightPtr;
+  LResultPtr := aResultPtr;
+  asm
+    mov     rax, LLeftPtr
+    mov     rdx, LRightPtr
+    mov     rcx, LResultPtr
+    vmovdqu xmm0, [rax]
+    vpaddd  xmm0, xmm0, [rdx]
+    vmovdqu [rcx], xmm0
+  end;
+end;
+
+procedure AVX2SubDwordVecRaw(const aLeftPtr, aRightPtr, aResultPtr: Pointer);
+var
+  LLeftPtr, LRightPtr, LResultPtr: Pointer;
+begin
+  LLeftPtr := aLeftPtr;
+  LRightPtr := aRightPtr;
+  LResultPtr := aResultPtr;
+  asm
+    mov     rax, LLeftPtr
+    mov     rdx, LRightPtr
+    mov     rcx, LResultPtr
+    vmovdqu xmm0, [rax]
+    vpsubd  xmm0, xmm0, [rdx]
+    vmovdqu [rcx], xmm0
+  end;
+end;
+
+procedure AVX2AddWordVecRaw(const aLeftPtr, aRightPtr, aResultPtr: Pointer);
+var
+  LLeftPtr, LRightPtr, LResultPtr: Pointer;
+begin
+  LLeftPtr := aLeftPtr;
+  LRightPtr := aRightPtr;
+  LResultPtr := aResultPtr;
+  asm
+    mov     rax, LLeftPtr
+    mov     rdx, LRightPtr
+    mov     rcx, LResultPtr
+    vmovdqu xmm0, [rax]
+    vpaddw  xmm0, xmm0, [rdx]
+    vmovdqu [rcx], xmm0
+  end;
+end;
+
+procedure AVX2SubWordVecRaw(const aLeftPtr, aRightPtr, aResultPtr: Pointer);
+var
+  LLeftPtr, LRightPtr, LResultPtr: Pointer;
+begin
+  LLeftPtr := aLeftPtr;
+  LRightPtr := aRightPtr;
+  LResultPtr := aResultPtr;
+  asm
+    mov     rax, LLeftPtr
+    mov     rdx, LRightPtr
+    mov     rcx, LResultPtr
+    vmovdqu xmm0, [rax]
+    vpsubw  xmm0, xmm0, [rdx]
+    vmovdqu [rcx], xmm0
+  end;
+end;
+
+procedure AVX2AddByteVecRaw(const aLeftPtr, aRightPtr, aResultPtr: Pointer);
+var
+  LLeftPtr, LRightPtr, LResultPtr: Pointer;
+begin
+  LLeftPtr := aLeftPtr;
+  LRightPtr := aRightPtr;
+  LResultPtr := aResultPtr;
+  asm
+    mov     rax, LLeftPtr
+    mov     rdx, LRightPtr
+    mov     rcx, LResultPtr
+    vmovdqu xmm0, [rax]
+    vpaddb  xmm0, xmm0, [rdx]
+    vmovdqu [rcx], xmm0
+  end;
+end;
+
+procedure AVX2SubByteVecRaw(const aLeftPtr, aRightPtr, aResultPtr: Pointer);
+var
+  LLeftPtr, LRightPtr, LResultPtr: Pointer;
+begin
+  LLeftPtr := aLeftPtr;
+  LRightPtr := aRightPtr;
+  LResultPtr := aResultPtr;
+  asm
+    mov     rax, LLeftPtr
+    mov     rdx, LRightPtr
+    mov     rcx, LResultPtr
+    vmovdqu xmm0, [rax]
+    vpsubb  xmm0, xmm0, [rdx]
+    vmovdqu [rcx], xmm0
+  end;
+end;
+
+procedure AVX2ShiftLeftDwordVecRaw(const aValuePtr, aResultPtr: Pointer; aCount: Integer);
+var
+  LValuePtr, LResultPtr: Pointer;
+  LCount: Integer;
+begin
+  LValuePtr := aValuePtr;
+  LResultPtr := aResultPtr;
+  LCount := aCount;
+
+  if (LCount < 0) or (LCount >= 32) then
+  begin
+    FillChar(PByte(LResultPtr)^, SizeOf(TVecI32x4), 0);
+    Exit;
+  end;
+
+  asm
+    mov     rax, LValuePtr
+    mov     rdx, LResultPtr
+    vmovdqu xmm0, [rax]
+    mov     ecx, LCount
+    vmovd   xmm1, ecx
+    vpslld  xmm0, xmm0, xmm1
+    vmovdqu [rdx], xmm0
+  end;
+end;
+
+procedure AVX2ShiftRightDwordVecRaw(const aValuePtr, aResultPtr: Pointer; aCount: Integer);
+var
+  LValuePtr, LResultPtr: Pointer;
+  LCount: Integer;
+begin
+  LValuePtr := aValuePtr;
+  LResultPtr := aResultPtr;
+  LCount := aCount;
+
+  if (LCount < 0) or (LCount >= 32) then
+  begin
+    FillChar(PByte(LResultPtr)^, SizeOf(TVecI32x4), 0);
+    Exit;
+  end;
+
+  asm
+    mov     rax, LValuePtr
+    mov     rdx, LResultPtr
+    vmovdqu xmm0, [rax]
+    mov     ecx, LCount
+    vmovd   xmm1, ecx
+    vpsrld  xmm0, xmm0, xmm1
+    vmovdqu [rdx], xmm0
+  end;
+end;
+
+procedure AVX2ShiftLeftWordVecRaw(const aValuePtr, aResultPtr: Pointer; aCount: Integer);
+var
+  LValuePtr, LResultPtr: Pointer;
+  LCount: Integer;
+begin
+  LValuePtr := aValuePtr;
+  LResultPtr := aResultPtr;
+  LCount := aCount;
+
+  if (LCount < 0) or (LCount >= 16) then
+  begin
+    FillChar(PByte(LResultPtr)^, SizeOf(TVecI16x8), 0);
+    Exit;
+  end;
+
+  asm
+    mov     rax, LValuePtr
+    mov     rdx, LResultPtr
+    vmovdqu xmm0, [rax]
+    mov     ecx, LCount
+    vmovd   xmm1, ecx
+    vpsllw  xmm0, xmm0, xmm1
+    vmovdqu [rdx], xmm0
+  end;
+end;
+
+procedure AVX2ShiftRightWordVecRaw(const aValuePtr, aResultPtr: Pointer; aCount: Integer);
+var
+  LValuePtr, LResultPtr: Pointer;
+  LCount: Integer;
+begin
+  LValuePtr := aValuePtr;
+  LResultPtr := aResultPtr;
+  LCount := aCount;
+
+  if (LCount < 0) or (LCount >= 16) then
+  begin
+    FillChar(PByte(LResultPtr)^, SizeOf(TVecI16x8), 0);
+    Exit;
+  end;
+
+  asm
+    mov     rax, LValuePtr
+    mov     rdx, LResultPtr
+    vmovdqu xmm0, [rax]
+    mov     ecx, LCount
+    vmovd   xmm1, ecx
+    vpsrlw  xmm0, xmm0, xmm1
+    vmovdqu [rdx], xmm0
+  end;
+end;
+
 function AVX2AddI32x4(const a, b: TVecI32x4): TVecI32x4;
 begin
-  asm
-    lea    rax, a
-    lea    rdx, b
-    vmovdqu xmm0, [rax]
-    vpaddd xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2AddDwordVecRaw(@a, @b, @Result);
 end;
 
 function AVX2SubI32x4(const a, b: TVecI32x4): TVecI32x4;
 begin
-  asm
-    lea    rax, a
-    lea    rdx, b
-    vmovdqu xmm0, [rax]
-    vpsubd xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2SubDwordVecRaw(@a, @b, @Result);
 end;
 
 // === AVX2 Integer Multiply Shared Kernels ===
@@ -1127,36 +1324,12 @@ end;
 
 function AVX2ShiftLeftI32x4(const a: TVecI32x4; count: Integer): TVecI32x4;
 begin
-  if (count < 0) or (count >= 32) then
-  begin
-    Result := Default(TVecI32x4);
-    Exit;
-  end;
-  asm
-    lea     rax, a
-    vmovdqu xmm0, [rax]
-    mov     ecx, count
-    vmovd   xmm1, ecx
-    vpslld  xmm0, xmm0, xmm1
-    vmovdqu [result], xmm0
-  end;
+  AVX2ShiftLeftDwordVecRaw(@a, @Result, count);
 end;
 
 function AVX2ShiftRightI32x4(const a: TVecI32x4; count: Integer): TVecI32x4;
 begin
-  if (count < 0) or (count >= 32) then
-  begin
-    Result := Default(TVecI32x4);
-    Exit;
-  end;
-  asm
-    lea     rax, a
-    vmovdqu xmm0, [rax]
-    mov     ecx, count
-    vmovd   xmm1, ecx
-    vpsrld  xmm0, xmm0, xmm1   // Logical right shift
-    vmovdqu [result], xmm0
-  end;
+  AVX2ShiftRightDwordVecRaw(@a, @Result, count);
 end;
 
 function AVX2ShiftRightArithI32x4(const a: TVecI32x4; count: Integer): TVecI32x4;
@@ -1257,24 +1430,12 @@ end;
 
 function AVX2AddI16x8(const a, b: TVecI16x8): TVecI16x8;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpaddw  xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2AddWordVecRaw(@a, @b, @Result);
 end;
 
 function AVX2SubI16x8(const a, b: TVecI16x8): TVecI16x8;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpsubw  xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2SubWordVecRaw(@a, @b, @Result);
 end;
 
 function AVX2MulI16x8(const a, b: TVecI16x8): TVecI16x8;
@@ -1313,26 +1474,12 @@ end;
 
 function AVX2ShiftLeftI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
 begin
-  asm
-    lea     rax, a
-    vmovdqu xmm0, [rax]
-    mov     eax, count
-    vmovd   xmm1, eax
-    vpsllw  xmm0, xmm0, xmm1
-    vmovdqu [result], xmm0
-  end;
+  AVX2ShiftLeftWordVecRaw(@a, @Result, count);
 end;
 
 function AVX2ShiftRightI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
 begin
-  asm
-    lea     rax, a
-    vmovdqu xmm0, [rax]
-    mov     eax, count
-    vmovd   xmm1, eax
-    vpsrlw  xmm0, xmm0, xmm1   // Logical right shift
-    vmovdqu [result], xmm0
-  end;
+  AVX2ShiftRightWordVecRaw(@a, @Result, count);
 end;
 
 function AVX2ShiftRightArithI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
@@ -1416,24 +1563,12 @@ end;
 
 function AVX2AddI8x16(const a, b: TVecI8x16): TVecI8x16;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpaddb  xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2AddByteVecRaw(@a, @b, @Result);
 end;
 
 function AVX2SubI8x16(const a, b: TVecI8x16): TVecI8x16;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpsubb  xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2SubByteVecRaw(@a, @b, @Result);
 end;
 
 // === I8x16 Bitwise Operations (128-bit) ===
@@ -1532,24 +1667,12 @@ end;
 
 function AVX2AddU32x4(const a, b: TVecU32x4): TVecU32x4;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpaddd  xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2AddDwordVecRaw(@a, @b, @Result);
 end;
 
 function AVX2SubU32x4(const a, b: TVecU32x4): TVecU32x4;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpsubd  xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2SubDwordVecRaw(@a, @b, @Result);
 end;
 
 function AVX2MulU32x4(const a, b: TVecU32x4): TVecU32x4;
@@ -1588,26 +1711,12 @@ end;
 
 function AVX2ShiftLeftU32x4(const a: TVecU32x4; count: Integer): TVecU32x4;
 begin
-  asm
-    lea     rax, a
-    vmovdqu xmm0, [rax]
-    mov     eax, count
-    vmovd   xmm1, eax
-    vpslld  xmm0, xmm0, xmm1
-    vmovdqu [result], xmm0
-  end;
+  AVX2ShiftLeftDwordVecRaw(@a, @Result, count);
 end;
 
 function AVX2ShiftRightU32x4(const a: TVecU32x4; count: Integer): TVecU32x4;
 begin
-  asm
-    lea     rax, a
-    vmovdqu xmm0, [rax]
-    mov     eax, count
-    vmovd   xmm1, eax
-    vpsrld  xmm0, xmm0, xmm1
-    vmovdqu [result], xmm0
-  end;
+  AVX2ShiftRightDwordVecRaw(@a, @Result, count);
 end;
 
 // === U32x4 Comparison Operations (128-bit) ===
@@ -1681,24 +1790,12 @@ end;
 
 function AVX2AddU16x8(const a, b: TVecU16x8): TVecU16x8;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpaddw  xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2AddWordVecRaw(@a, @b, @Result);
 end;
 
 function AVX2SubU16x8(const a, b: TVecU16x8): TVecU16x8;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpsubw  xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2SubWordVecRaw(@a, @b, @Result);
 end;
 
 function AVX2MulU16x8(const a, b: TVecU16x8): TVecU16x8;
@@ -1737,26 +1834,12 @@ end;
 
 function AVX2ShiftLeftU16x8(const a: TVecU16x8; count: Integer): TVecU16x8;
 begin
-  asm
-    lea     rax, a
-    vmovdqu xmm0, [rax]
-    mov     eax, count
-    vmovd   xmm1, eax
-    vpsllw  xmm0, xmm0, xmm1
-    vmovdqu [result], xmm0
-  end;
+  AVX2ShiftLeftWordVecRaw(@a, @Result, count);
 end;
 
 function AVX2ShiftRightU16x8(const a: TVecU16x8; count: Integer): TVecU16x8;
 begin
-  asm
-    lea     rax, a
-    vmovdqu xmm0, [rax]
-    mov     eax, count
-    vmovd   xmm1, eax
-    vpsrlw  xmm0, xmm0, xmm1
-    vmovdqu [result], xmm0
-  end;
+  AVX2ShiftRightWordVecRaw(@a, @Result, count);
 end;
 
 // === U16x8 Comparison Operations (128-bit) ===
@@ -1836,24 +1919,12 @@ end;
 
 function AVX2AddU8x16(const a, b: TVecU8x16): TVecU8x16;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpaddb  xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2AddByteVecRaw(@a, @b, @Result);
 end;
 
 function AVX2SubU8x16(const a, b: TVecU8x16): TVecU8x16;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    vmovdqu xmm0, [rax]
-    vpsubb  xmm0, xmm0, [rdx]
-    vmovdqu [result], xmm0
-  end;
+  AVX2SubByteVecRaw(@a, @b, @Result);
 end;
 
 // === U8x16 Bitwise Operations (128-bit) ===

@@ -745,3 +745,10 @@
 - 已新增 `AVX2AddQwordVecRaw256`、`AVX2SubQwordVecRaw256`、`AVX2AndQwordVecRaw256`、`AVX2OrQwordVecRaw256`、`AVX2XorQwordVecRaw256`、`AVX2NotQwordVecRaw256`、`AVX2AndNotQwordVecRaw256`、`AVX2ShiftLeftQwordVecRaw256`、`AVX2ShiftRightQwordVecRaw256`。
 - `src/fafafa.core.simd.avx2.pas` 里的 `I64x4` / `U64x4` 入口已全部变成 thin wrapper，`Cmp*`、`Min/Max` 与别的语义边界没有被这批合并误伤。
 - 第一次同时起跑 `check` 与 `gate` 时，`check` 因输出目录竞争出现 `rc=2`；串行重跑后通过，说明这只是门禁调度问题，不是实现回归。
+
+## 2026-05-11 AVX2 128-bit Arithmetic/Shift Shared Kernel Consolidation
+
+- `I32x4/U32x4`、`I16x8/U16x8`、`I8x16/U8x16` 的 add/sub 与同宽 logical shift 是和前两批 256-bit 收口同类的 exact-contract 重复体：signedness 只改变解释，不改变硬件结果 bit pattern。
+- 本批把 128-bit dword/word/byte add-sub 收进共享 raw helper，把 dword/word logical shift 收进共享 raw helper；typed wrapper 继续保留 dispatch slot 和类型签名。
+- `ShiftRightArithI32x4`、`ShiftRightArithI16x8`、`Cmp*`、`Min/Max` 没有被合并；这些路径仍是当前 AVX2 adapter 内的独立语义边界。
+- release 复验证明这次是重复实现收口而不是 contract 漂移：`NarrowIntegerOps`、`AVX2VectorAsm`、`DispatchAPI`、`DirectDispatch`、`DataPlane`、`check`、`gate` 全绿。
