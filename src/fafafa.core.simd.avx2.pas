@@ -2608,195 +2608,58 @@ end;
 
 // I64x4 加法 (VPADDQ ymm)
 function AVX2AddI64x4(const a, b: TVecI64x4): TVecI64x4;
-var
-  pa, pb, pr: Pointer;
 begin
-  pr := @Result;
-  pa := @a;
-  pb := @b;
-
-  asm
-    mov     rax, pr
-    mov     rdx, pa
-    mov     rcx, pb
-    vmovdqu ymm0, [rdx]
-    vpaddq  ymm0, ymm0, [rcx]
-    vmovdqu [rax], ymm0
-    vzeroupper
-  end;
+  AVX2AddQwordVecRaw256(@a, @b, @Result);
 end;
 
 // I64x4 减法 (VPSUBQ ymm)
 function AVX2SubI64x4(const a, b: TVecI64x4): TVecI64x4;
-var
-  pa, pb, pr: Pointer;
 begin
-  pr := @Result;
-  pa := @a;
-  pb := @b;
-
-  asm
-    mov     rax, pr
-    mov     rdx, pa
-    mov     rcx, pb
-    vmovdqu ymm0, [rdx]
-    vpsubq  ymm0, ymm0, [rcx]
-    vmovdqu [rax], ymm0
-    vzeroupper
-  end;
+  AVX2SubQwordVecRaw256(@a, @b, @Result);
 end;
 
 // I64x4 位与 (VPAND ymm)
 function AVX2AndI64x4(const a, b: TVecI64x4): TVecI64x4;
-var
-  pa, pb, pr: Pointer;
 begin
-  pr := @Result;
-  pa := @a;
-  pb := @b;
-
-  asm
-    mov     rax, pr
-    mov     rdx, pa
-    mov     rcx, pb
-    vmovdqu ymm0, [rdx]
-    vpand   ymm0, ymm0, [rcx]
-    vmovdqu [rax], ymm0
-    vzeroupper
-  end;
+  AVX2AndQwordVecRaw256(@a, @b, @Result);
 end;
 
 // I64x4 位或 (VPOR ymm)
 function AVX2OrI64x4(const a, b: TVecI64x4): TVecI64x4;
-var
-  pa, pb, pr: Pointer;
 begin
-  pr := @Result;
-  pa := @a;
-  pb := @b;
-
-  asm
-    mov     rax, pr
-    mov     rdx, pa
-    mov     rcx, pb
-    vmovdqu ymm0, [rdx]
-    vpor    ymm0, ymm0, [rcx]
-    vmovdqu [rax], ymm0
-    vzeroupper
-  end;
+  AVX2OrQwordVecRaw256(@a, @b, @Result);
 end;
 
 // I64x4 位异或 (VPXOR ymm)
 function AVX2XorI64x4(const a, b: TVecI64x4): TVecI64x4;
-var
-  pa, pb, pr: Pointer;
 begin
-  pr := @Result;
-  pa := @a;
-  pb := @b;
-
-  asm
-    mov     rax, pr
-    mov     rdx, pa
-    mov     rcx, pb
-    vmovdqu ymm0, [rdx]
-    vpxor   ymm0, ymm0, [rcx]
-    vmovdqu [rax], ymm0
-    vzeroupper
-  end;
+  AVX2XorQwordVecRaw256(@a, @b, @Result);
 end;
 
 // I64x4 位非 (VPXOR with all 1s)
 function AVX2NotI64x4(const a: TVecI64x4): TVecI64x4;
-var
-  pa, pr: Pointer;
 begin
-  pr := @Result;
-  pa := @a;
-
-  asm
-    mov     rax, pr
-    mov     rdx, pa
-    vpcmpeqd ymm1, ymm1, ymm1   // all 1s
-    vmovdqu ymm0, [rdx]
-    vpxor   ymm0, ymm0, ymm1    // NOT = XOR with all 1s
-    vmovdqu [rax], ymm0
-    vzeroupper
-  end;
+  AVX2NotQwordVecRaw256(@a, @Result);
 end;
 
 // I64x4 位与非 (VPANDN ymm) - (NOT a) AND b
 function AVX2AndNotI64x4(const a, b: TVecI64x4): TVecI64x4;
-var
-  pa, pb, pr: Pointer;
 begin
-  pr := @Result;
-  pa := @a;
-  pb := @b;
-
-  asm
-    mov     rax, pr
-    mov     rdx, pa
-    mov     rcx, pb
-    vmovdqu ymm0, [rdx]
-    vpandn  ymm0, ymm0, [rcx]   // (NOT a) AND b
-    vmovdqu [rax], ymm0
-    vzeroupper
-  end;
+  AVX2AndNotQwordVecRaw256(@a, @b, @Result);
 end;
 
 // I64x4 Shift Operations
 
 // I64x4 逻辑左移 (VPSLLQ ymm)
 function AVX2ShiftLeftI64x4(const a: TVecI64x4; count: Integer): TVecI64x4;
-var
-  pa, pr: Pointer;
 begin
-  pr := @Result;
-  pa := @a;
-
-  if (count < 0) or (count >= 64) then
-  begin
-    FillChar(Result, SizeOf(Result), 0);
-    Exit;
-  end;
-
-  asm
-    mov     rax, pr
-    mov     rdx, pa
-    vmovdqu ymm0, [rdx]
-    mov     ecx, count
-    vmovd   xmm1, ecx
-    vpsllq  ymm0, ymm0, xmm1
-    vmovdqu [rax], ymm0
-    vzeroupper
-  end;
+  AVX2ShiftLeftQwordVecRaw256(@a, @Result, count);
 end;
 
 // I64x4 逻辑右移 (VPSRLQ ymm)
 function AVX2ShiftRightI64x4(const a: TVecI64x4; count: Integer): TVecI64x4;
-var
-  pa, pr: Pointer;
 begin
-  pr := @Result;
-  pa := @a;
-
-  if (count < 0) or (count >= 64) then
-  begin
-    FillChar(Result, SizeOf(Result), 0);
-    Exit;
-  end;
-
-  asm
-    mov     rax, pr
-    mov     rdx, pa
-    vmovdqu ymm0, [rdx]
-    mov     ecx, count
-    vmovd   xmm1, ecx
-    vpsrlq  ymm0, ymm0, xmm1    // Logical right shift
-    vmovdqu [rax], ymm0
-    vzeroupper
-  end;
+  AVX2ShiftRightQwordVecRaw256(@a, @Result, count);
 end;
 
 // I64x4 Comparison Operations
@@ -3095,173 +2958,50 @@ end;
 
 // U64x4 加法 (VPADDQ ymm) - 与有符号相同
 function AVX2AddU64x4(const a, b: TVecU64x4): TVecU64x4;
-var
-  pa, pb, pr: Pointer;
 begin
-  pr := @Result;
-  pa := @a;
-  pb := @b;
-
-  asm
-    mov     rax, pr
-    mov     rdx, pa
-    mov     rcx, pb
-    vmovdqu ymm0, [rdx]
-    vpaddq  ymm0, ymm0, [rcx]
-    vmovdqu [rax], ymm0
-    vzeroupper
-  end;
+  AVX2AddQwordVecRaw256(@a, @b, @Result);
 end;
 
 // U64x4 减法 (VPSUBQ ymm) - 与有符号相同
 function AVX2SubU64x4(const a, b: TVecU64x4): TVecU64x4;
-var
-  pa, pb, pr: Pointer;
 begin
-  pr := @Result;
-  pa := @a;
-  pb := @b;
-
-  asm
-    mov     rax, pr
-    mov     rdx, pa
-    mov     rcx, pb
-    vmovdqu ymm0, [rdx]
-    vpsubq  ymm0, ymm0, [rcx]
-    vmovdqu [rax], ymm0
-    vzeroupper
-  end;
+  AVX2SubQwordVecRaw256(@a, @b, @Result);
 end;
 
 // U64x4 位与 (VPAND ymm)
 function AVX2AndU64x4(const a, b: TVecU64x4): TVecU64x4;
-var
-  pa, pb, pr: Pointer;
 begin
-  pr := @Result;
-  pa := @a;
-  pb := @b;
-
-  asm
-    mov     rax, pr
-    mov     rdx, pa
-    mov     rcx, pb
-    vmovdqu ymm0, [rdx]
-    vpand   ymm0, ymm0, [rcx]
-    vmovdqu [rax], ymm0
-    vzeroupper
-  end;
+  AVX2AndQwordVecRaw256(@a, @b, @Result);
 end;
 
 // U64x4 位或 (VPOR ymm)
 function AVX2OrU64x4(const a, b: TVecU64x4): TVecU64x4;
-var
-  pa, pb, pr: Pointer;
 begin
-  pr := @Result;
-  pa := @a;
-  pb := @b;
-
-  asm
-    mov     rax, pr
-    mov     rdx, pa
-    mov     rcx, pb
-    vmovdqu ymm0, [rdx]
-    vpor    ymm0, ymm0, [rcx]
-    vmovdqu [rax], ymm0
-    vzeroupper
-  end;
+  AVX2OrQwordVecRaw256(@a, @b, @Result);
 end;
 
 // U64x4 位异或 (VPXOR ymm)
 function AVX2XorU64x4(const a, b: TVecU64x4): TVecU64x4;
-var
-  pa, pb, pr: Pointer;
 begin
-  pr := @Result;
-  pa := @a;
-  pb := @b;
-
-  asm
-    mov     rax, pr
-    mov     rdx, pa
-    mov     rcx, pb
-    vmovdqu ymm0, [rdx]
-    vpxor   ymm0, ymm0, [rcx]
-    vmovdqu [rax], ymm0
-    vzeroupper
-  end;
+  AVX2XorQwordVecRaw256(@a, @b, @Result);
 end;
 
 // U64x4 位非 (VPXOR with all 1s)
 function AVX2NotU64x4(const a: TVecU64x4): TVecU64x4;
-var
-  pa, pr: Pointer;
 begin
-  pr := @Result;
-  pa := @a;
-
-  asm
-    mov     rax, pr
-    mov     rdx, pa
-    vpcmpeqd ymm1, ymm1, ymm1   // all 1s
-    vmovdqu ymm0, [rdx]
-    vpxor   ymm0, ymm0, ymm1    // NOT = XOR with all 1s
-    vmovdqu [rax], ymm0
-    vzeroupper
-  end;
+  AVX2NotQwordVecRaw256(@a, @Result);
 end;
 
 // U64x4 逻辑左移 (VPSLLQ ymm)
 function AVX2ShiftLeftU64x4(const a: TVecU64x4; count: Integer): TVecU64x4;
-var
-  pa, pr: Pointer;
 begin
-  pr := @Result;
-  pa := @a;
-
-  if (count < 0) or (count >= 64) then
-  begin
-    FillChar(Result, SizeOf(Result), 0);
-    Exit;
-  end;
-
-  asm
-    mov     rax, pr
-    mov     rdx, pa
-    vmovdqu ymm0, [rdx]
-    mov     ecx, count
-    vmovd   xmm1, ecx
-    vpsllq  ymm0, ymm0, xmm1
-    vmovdqu [rax], ymm0
-    vzeroupper
-  end;
+  AVX2ShiftLeftQwordVecRaw256(@a, @Result, count);
 end;
 
 // U64x4 逻辑右移 (VPSRLQ ymm)
 function AVX2ShiftRightU64x4(const a: TVecU64x4; count: Integer): TVecU64x4;
-var
-  pa, pr: Pointer;
 begin
-  pr := @Result;
-  pa := @a;
-
-  if (count < 0) or (count >= 64) then
-  begin
-    FillChar(Result, SizeOf(Result), 0);
-    Exit;
-  end;
-
-  asm
-    mov     rax, pr
-    mov     rdx, pa
-    vmovdqu ymm0, [rdx]
-    mov     ecx, count
-    vmovd   xmm1, ecx
-    vpsrlq  ymm0, ymm0, xmm1    // Logical right shift
-    vmovdqu [rax], ymm0
-    vzeroupper
-  end;
+  AVX2ShiftRightQwordVecRaw256(@a, @Result, count);
 end;
 
 // U64x4 无符号比较操作

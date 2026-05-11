@@ -206,6 +206,192 @@ begin
   end;
 end;
 
+procedure AVX2AddQwordVecRaw256(const aLeftPtr, aRightPtr, aResultPtr: Pointer);
+var
+  LLeftPtr, LRightPtr, LResultPtr: Pointer;
+begin
+  LLeftPtr := aLeftPtr;
+  LRightPtr := aRightPtr;
+  LResultPtr := aResultPtr;
+
+  asm
+    mov     rax, LLeftPtr
+    mov     rdx, LRightPtr
+    mov     rcx, LResultPtr
+    vmovdqu ymm0, [rax]
+    vpaddq  ymm0, ymm0, [rdx]
+    vmovdqu [rcx], ymm0
+    vzeroupper
+  end;
+end;
+
+procedure AVX2SubQwordVecRaw256(const aLeftPtr, aRightPtr, aResultPtr: Pointer);
+var
+  LLeftPtr, LRightPtr, LResultPtr: Pointer;
+begin
+  LLeftPtr := aLeftPtr;
+  LRightPtr := aRightPtr;
+  LResultPtr := aResultPtr;
+
+  asm
+    mov     rax, LLeftPtr
+    mov     rdx, LRightPtr
+    mov     rcx, LResultPtr
+    vmovdqu ymm0, [rax]
+    vpsubq  ymm0, ymm0, [rdx]
+    vmovdqu [rcx], ymm0
+    vzeroupper
+  end;
+end;
+
+procedure AVX2AndQwordVecRaw256(const aLeftPtr, aRightPtr, aResultPtr: Pointer);
+var
+  LLeftPtr, LRightPtr, LResultPtr: Pointer;
+begin
+  LLeftPtr := aLeftPtr;
+  LRightPtr := aRightPtr;
+  LResultPtr := aResultPtr;
+
+  asm
+    mov     rax, LLeftPtr
+    mov     rdx, LRightPtr
+    mov     rcx, LResultPtr
+    vmovdqu ymm0, [rax]
+    vpand   ymm0, ymm0, [rdx]
+    vmovdqu [rcx], ymm0
+    vzeroupper
+  end;
+end;
+
+procedure AVX2OrQwordVecRaw256(const aLeftPtr, aRightPtr, aResultPtr: Pointer);
+var
+  LLeftPtr, LRightPtr, LResultPtr: Pointer;
+begin
+  LLeftPtr := aLeftPtr;
+  LRightPtr := aRightPtr;
+  LResultPtr := aResultPtr;
+
+  asm
+    mov     rax, LLeftPtr
+    mov     rdx, LRightPtr
+    mov     rcx, LResultPtr
+    vmovdqu ymm0, [rax]
+    vpor    ymm0, ymm0, [rdx]
+    vmovdqu [rcx], ymm0
+    vzeroupper
+  end;
+end;
+
+procedure AVX2XorQwordVecRaw256(const aLeftPtr, aRightPtr, aResultPtr: Pointer);
+var
+  LLeftPtr, LRightPtr, LResultPtr: Pointer;
+begin
+  LLeftPtr := aLeftPtr;
+  LRightPtr := aRightPtr;
+  LResultPtr := aResultPtr;
+
+  asm
+    mov     rax, LLeftPtr
+    mov     rdx, LRightPtr
+    mov     rcx, LResultPtr
+    vmovdqu ymm0, [rax]
+    vpxor   ymm0, ymm0, [rdx]
+    vmovdqu [rcx], ymm0
+    vzeroupper
+  end;
+end;
+
+procedure AVX2NotQwordVecRaw256(const aValuePtr, aResultPtr: Pointer);
+var
+  LValuePtr, LResultPtr: Pointer;
+begin
+  LValuePtr := aValuePtr;
+  LResultPtr := aResultPtr;
+
+  asm
+    mov      rax, LValuePtr
+    mov      rdx, LResultPtr
+    vpcmpeqd ymm1, ymm1, ymm1
+    vmovdqu  ymm0, [rax]
+    vpxor    ymm0, ymm0, ymm1
+    vmovdqu  [rdx], ymm0
+    vzeroupper
+  end;
+end;
+
+procedure AVX2AndNotQwordVecRaw256(const aLeftPtr, aRightPtr, aResultPtr: Pointer);
+var
+  LLeftPtr, LRightPtr, LResultPtr: Pointer;
+begin
+  LLeftPtr := aLeftPtr;
+  LRightPtr := aRightPtr;
+  LResultPtr := aResultPtr;
+
+  asm
+    mov     rax, LLeftPtr
+    mov     rdx, LRightPtr
+    mov     rcx, LResultPtr
+    vmovdqu ymm0, [rax]
+    vpandn  ymm0, ymm0, [rdx]
+    vmovdqu [rcx], ymm0
+    vzeroupper
+  end;
+end;
+
+procedure AVX2ShiftLeftQwordVecRaw256(const aValuePtr, aResultPtr: Pointer; aCount: Integer);
+var
+  LValuePtr, LResultPtr: Pointer;
+  LCount: Integer;
+begin
+  LValuePtr := aValuePtr;
+  LResultPtr := aResultPtr;
+  LCount := aCount;
+
+  if (LCount < 0) or (LCount >= 64) then
+  begin
+    FillChar(PByte(LResultPtr)^, SizeOf(TVecI64x4), 0);
+    Exit;
+  end;
+
+  asm
+    mov     rax, LValuePtr
+    mov     rdx, LResultPtr
+    vmovdqu ymm0, [rax]
+    mov     ecx, LCount
+    vmovd   xmm1, ecx
+    vpsllq  ymm0, ymm0, xmm1
+    vmovdqu [rdx], ymm0
+    vzeroupper
+  end;
+end;
+
+procedure AVX2ShiftRightQwordVecRaw256(const aValuePtr, aResultPtr: Pointer; aCount: Integer);
+var
+  LValuePtr, LResultPtr: Pointer;
+  LCount: Integer;
+begin
+  LValuePtr := aValuePtr;
+  LResultPtr := aResultPtr;
+  LCount := aCount;
+
+  if (LCount < 0) or (LCount >= 64) then
+  begin
+    FillChar(PByte(LResultPtr)^, SizeOf(TVecI64x4), 0);
+    Exit;
+  end;
+
+  asm
+    mov     rax, LValuePtr
+    mov     rdx, LResultPtr
+    vmovdqu ymm0, [rax]
+    mov     ecx, LCount
+    vmovd   xmm1, ecx
+    vpsrlq  ymm0, ymm0, xmm1
+    vmovdqu [rdx], ymm0
+    vzeroupper
+  end;
+end;
+
 // === I32x8 Operations (native 256-bit AVX2) ===
 
 function AVX2AddI32x8(const a, b: TVecI32x8): TVecI32x8;

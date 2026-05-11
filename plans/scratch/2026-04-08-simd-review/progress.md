@@ -642,3 +642,16 @@
 - `AVX2` 的 `I32x8/U32x8` 里，`Add/Sub/Mul/And/Or/Xor/Not/AndNot/ShiftLeft/ShiftRight(logical)` 都是同一条 dword 位语义的重复体，适合收成共享 raw kernel。
 - 这次把共享 kernel 放进 `avx2.i32x8_family.inc`，typed wrapper 只保留类型入口和 dispatch 绑定点；`Cmp*`、`Min/Max`、`ShiftRightArithI32x8` 仍保留独立实现。
 - release 验证已通过：`TTestCase_VecI32x8`、`TTestCase_VecU32x8`、`TTestCase_DispatchAPI`、`TTestCase_DirectDispatch`、`check`、`gate` 全绿。
+
+## 2026-05-11 AVX2 256-bit Qword Shared Kernel Consolidation
+
+- `AVX2` 的 `I64x4/U64x4` 里，`Add/Sub/And/Or/Xor/Not/ShiftLeft/ShiftRight(logical)` 都是同一条 qword 位语义的重复体，signed/unsigned 只改变类型解释，不改变 bit pattern。
+- 已在 `avx2.i32x8_family.inc` 新增 qword raw helper，并让 `src/fafafa.core.simd.avx2.pas` 的 `I64x4/U64x4` typed wrapper 只保留 dispatch 入口签名。
+- 本批没有碰 `Cmp*`、`Min/Max`、unsigned compare trick，也没有引入新的 dispatch / register ownership。
+- 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_DirectDispatch,TTestCase_DataPlane`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 注意：第一次把 `check` 和 `gate` 并发起跑时，`check` 因争同一输出目录返回 `rc=2`；串行重跑后通过，归类为调度假红，不是代码回归。

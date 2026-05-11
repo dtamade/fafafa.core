@@ -634,3 +634,17 @@
 | 1. 识别可安全合并的 dword repeaters | completed | 只收位语义同构的 arithmetic / bitwise / logical shift；`Cmp*`、`Min/Max`、`ShiftRightArithI32x8` 不动 |
 | 2. 落地 shared raw helper 并收口 wrappers | completed | `avx2.i32x8_family.inc` 新增 256-bit dword raw kernels，`I32x8/U32x8` 入口改为薄封装 |
 | 3. Release 验证与收口 | completed | `git diff --check`、Release targeted suite、Release `check`、Release `gate` 全部通过 |
+
+## 2026-05-11 AVX2 256-bit Qword Shared Kernel Consolidation
+
+### Goal
+
+把 `AVX2` 里 `I64x4/U64x4` 的 `Add/Sub/And/Or/Xor/Not/ShiftLeft/ShiftRight(logical)` 重复体收回共享 qword raw helper；保留 compare / min-max / 语义敏感边界不动，继续维持 dispatch / register ownership。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别可安全合并的 qword repeaters | completed | `I64x4/U64x4` 的算术、bitwise、logical shift 都是同一条 qword 位语义的 exact-contract 重复体 |
+| 2. 落地 shared raw helper 并收口 wrappers | completed | `avx2.i32x8_family.inc` 新增 `AVX2*QwordVecRaw256`，`src/fafafa.core.simd.avx2.pas` 里的 `I64x4/U64x4` 入口已改成薄封装 |
+| 3. Release 验证与收口 | completed | `git diff --check`、Release targeted suite、Release `check`、Release `gate` 全部通过；`check` 首次并发起跑失败是和 `gate` 争同一输出目录，串行重跑后已恢复正常 |

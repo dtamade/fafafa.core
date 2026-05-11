@@ -738,3 +738,10 @@
 - `I32x8/U32x8` 的 `Add/Sub/Mul/And/Or/Xor/Not/AndNot/ShiftLeft/ShiftRight(logical)` 是 exact-contract 重复体，位模式完全一致，适合统一到共享 raw helper。
 - 共享 helper 放在 `avx2.i32x8_family.inc` 后，typed wrapper 只剩签名和 dispatch 入口，`Cmp*`、`Min/Max`、`ShiftRightArithI32x8` 仍保持独立语义，不做误合并。
 - 这次验证已经确认：`TTestCase_VecI32x8`、`TTestCase_VecU32x8`、`TTestCase_DispatchAPI`、`TTestCase_DirectDispatch`、`check`、`gate` 都是绿的。
+
+## 2026-05-11 AVX2 256-bit Qword Shared Kernel Consolidation
+
+- `I64x4/U64x4` 的 `Add/Sub/And/Or/Xor/Not/ShiftLeft/ShiftRight(logical)` 也是 exact-contract 重复体，和 dword 批次一样，真正可收口的是 raw kernel，不是 dispatch contract。
+- 已新增 `AVX2AddQwordVecRaw256`、`AVX2SubQwordVecRaw256`、`AVX2AndQwordVecRaw256`、`AVX2OrQwordVecRaw256`、`AVX2XorQwordVecRaw256`、`AVX2NotQwordVecRaw256`、`AVX2AndNotQwordVecRaw256`、`AVX2ShiftLeftQwordVecRaw256`、`AVX2ShiftRightQwordVecRaw256`。
+- `src/fafafa.core.simd.avx2.pas` 里的 `I64x4` / `U64x4` 入口已全部变成 thin wrapper，`Cmp*`、`Min/Max` 与别的语义边界没有被这批合并误伤。
+- 第一次同时起跑 `check` 与 `gate` 时，`check` 因输出目录竞争出现 `rc=2`；串行重跑后通过，说明这只是门禁调度问题，不是实现回归。
