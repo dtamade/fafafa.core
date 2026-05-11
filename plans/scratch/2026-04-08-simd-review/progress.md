@@ -812,3 +812,15 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-11 AVX2 Normalize Helper Consolidation
+
+- 已把 `AVX2LengthF32x4 / AVX2LengthF32x3` 的 zero-w + horizontal length 逻辑收成私有 `AVX2LengthWithOptionalZeroW` helper。
+- 已把 `AVX2NormalizeF32x4 / AVX2NormalizeF32x3` 的 length divide 和 zero-vector fallback 收成私有 `AVX2NormalizeByLength` helper。
+- 四个公开 dispatch wrapper 签名不变，`F32x3` 仍然在 length 与 normalize 两侧维持 `w` lane 清零 contract。
+- 验证结果：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_AVX2VectorAsm`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

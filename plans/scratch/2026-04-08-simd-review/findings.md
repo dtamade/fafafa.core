@@ -848,3 +848,9 @@
 - `SSE41NormalizeF32x4` 和 `SSE41NormalizeF32x3` 其实是同一条 length-divide 控制流，只是 `F32x3` 需要额外把 `w` lane 清零；最干净的收口是抽一个 shared `SSE41NormalizeByLength`，让两个 wrapper 只保留 length source 和 lane policy。
 - 这次的真实风险点不是语义漂移，而是临时重构时漏写了两个 wrapper 的 `var` 声明，编译器立刻把它打回来了；补回后 `DispatchAPI / check / gate` 已经全绿。
 - 这也说明 `SSE4.1` 这条线现在更适合继续做“exact-contract helper consolidation”，而不是再去碰语义边界更敏感的 float math policy。
+
+## 2026-05-11 AVX2 Normalize Helper Consolidation
+
+- `AVX2LengthF32x4 / AVX2LengthF32x3` 以及 `AVX2NormalizeF32x4 / AVX2NormalizeF32x3` 也是同一条 length-divide 控制流，只是 `F32x3` 额外需要把 `w` lane 清零；这次把它们收成 `AVX2LengthWithOptionalZeroW` 和 `AVX2NormalizeByLength` 两个私有 helper，四个 wrapper 只保留 contract 选择。
+- 这批没有改变公开 dispatch 签名，也没有碰 AVX2 其它 arithmetic / compare / shuffle 路径；`TTestCase_AVX2VectorAsm` 和 release gate 已经把 normalize 随机一致性和门禁链路一起确认过。
+- 这也给后面继续扫 `SSE2 / SSE3 / AVX2` 的 vector-math 文件提供了统一形状：先把 zero-w / divide / sqrt 的重复骨架抽出来，再看还有没有真正值得单独保留的变体。

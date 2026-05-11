@@ -371,90 +371,102 @@ begin
   Result.f[3] := 0.0; // Ensure w=0
 end;
 
+function AVX2LengthWithOptionalZeroW(const a: TVecF32x4; aZeroW: Boolean): Single; inline;
+var
+  LPA: Pointer;
+begin
+  LPA := @a;
+  if aZeroW then
+  begin
+    asm
+      mov     rax, LPA
+      vmovups xmm0, [rax]
+      vpcmpeqd xmm1, xmm1, xmm1
+      vpsrldq  xmm1, xmm1, 4
+      vandps   xmm0, xmm0, xmm1
+      vmulps   xmm0, xmm0, xmm0
+
+      // Horizontal add
+      vshufps xmm1, xmm0, xmm0, $4E
+      vaddps  xmm0, xmm0, xmm1
+      vshufps xmm1, xmm0, xmm0, $B1
+      vaddss   xmm0, xmm0, xmm1
+
+      vsqrtss xmm0, xmm0, xmm0
+      vmovss  [result], xmm0
+    end;
+  end
+  else
+  begin
+    asm
+      mov     rax, LPA
+      vmovups xmm0, [rax]
+      vmulps  xmm0, xmm0, xmm0
+
+      // Horizontal add
+      vshufps xmm1, xmm0, xmm0, $4E
+      vaddps  xmm0, xmm0, xmm1
+      vshufps xmm1, xmm0, xmm0, $B1
+      vaddss  xmm0, xmm0, xmm1
+
+      vsqrtss xmm0, xmm0, xmm0
+      vmovss  [result], xmm0
+    end;
+  end;
+end;
+
+function AVX2NormalizeByLength(const a: TVecF32x4; const aLen: Single; aZeroW: Boolean): TVecF32x4; inline;
+var
+  LPA, LPR: Pointer;
+begin
+  if aLen > 0.0 then
+  begin
+    LPA := @a;
+    LPR := @Result;
+    asm
+      mov     rax, LPA
+      mov     rcx, LPR
+      vmovups xmm0, [rax]
+      vmovss  xmm1, aLen
+      vshufps xmm1, xmm1, xmm1, 0
+      vdivps  xmm0, xmm0, xmm1
+      vmovups [rcx], xmm0
+    end;
+    if aZeroW then
+      Result.f[3] := 0.0;
+  end
+  else
+  begin
+    Result := a;
+    if aZeroW then
+      Result.f[3] := 0.0;
+  end;
+end;
+
 function AVX2LengthF32x4(const a: TVecF32x4): Single;
 begin
-  asm
-    lea     rax, a
-    vmovups xmm0, [rax]
-    vmulps  xmm0, xmm0, xmm0
-
-    // Horizontal add
-    vshufps xmm1, xmm0, xmm0, $4E
-    vaddps  xmm0, xmm0, xmm1
-    vshufps xmm1, xmm0, xmm0, $B1
-    vaddss  xmm0, xmm0, xmm1
-
-    vsqrtss xmm0, xmm0, xmm0
-    vmovss  [result], xmm0
-  end;
+  Result := AVX2LengthWithOptionalZeroW(a, False);
 end;
 
 function AVX2LengthF32x3(const a: TVecF32x4): Single;
 begin
-  asm
-    lea      rax, a
-    vmovups  xmm0, [rax]
-
-    // Zero w (mask = [FFFFFFFF,FFFFFFFF,FFFFFFFF,00000000])
-    vpcmpeqd xmm1, xmm1, xmm1
-    vpsrldq  xmm1, xmm1, 4
-    vandps   xmm0, xmm0, xmm1
-
-    vmulps   xmm0, xmm0, xmm0
-
-    // Horizontal add
-    vshufps  xmm1, xmm0, xmm0, $4E
-    vaddps   xmm0, xmm0, xmm1
-    vshufps  xmm1, xmm0, xmm0, $B1
-    vaddss   xmm0, xmm0, xmm1
-
-    vsqrtss  xmm0, xmm0, xmm0
-    vmovss   [result], xmm0
-  end;
+  Result := AVX2LengthWithOptionalZeroW(a, True);
 end;
 
 function AVX2NormalizeF32x4(const a: TVecF32x4): TVecF32x4;
 var
   len: Single;
 begin
-  len := AVX2LengthF32x4(a);
-  if len > 0.0 then
-  begin
-    asm
-      lea     rax, a
-      vmovups xmm0, [rax]
-      vmovss  xmm1, len
-      vshufps xmm1, xmm1, xmm1, 0   // Broadcast length
-      vdivps  xmm0, xmm0, xmm1      // Divide each element by length
-      vmovups [result], xmm0
-    end;
-  end
-  else
-    Result := a;
+  len := AVX2LengthWithOptionalZeroW(a, False);
+  Result := AVX2NormalizeByLength(a, len, False);
 end;
 
 function AVX2NormalizeF32x3(const a: TVecF32x4): TVecF32x4;
 var
   len: Single;
 begin
-  len := AVX2LengthF32x3(a);
-  if len > 0.0 then
-  begin
-    asm
-      lea     rax, a
-      vmovups xmm0, [rax]
-      vmovss  xmm1, len
-      vshufps xmm1, xmm1, xmm1, 0
-      vdivps  xmm0, xmm0, xmm1
-      vmovups [result], xmm0
-    end;
-    Result.f[3] := 0.0;
-  end
-  else
-  begin
-    Result := a;
-    Result.f[3] := 0.0;
-  end;
+  len := AVX2LengthWithOptionalZeroW(a, True);
+  Result := AVX2NormalizeByLength(a, len, True);
 end;
 
 function AVX2AddF64x2(const a, b: TVecF64x2): TVecF64x2;

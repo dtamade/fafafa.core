@@ -845,3 +845,17 @@
 | 1. 识别重复 normalize body    | completed | 两个 wrapper 都是先计算 length，再按 length 分支做向量除法或 zero-vector fallback               |
 | 2. 落地私有 helper 收口       | completed | 新增 `SSE41NormalizeByLength`，`F32x4/F32x3` wrapper 只保留 length source 和 `w` lane policy |
 | 3. Release 验证与收口         | completed | `git diff --check`、`TTestCase_DispatchAPI`、Release `check`、Release `gate` 全通过             |
+
+## 2026-05-11 AVX2 Normalize Helper Consolidation
+
+### Goal
+
+把 `AVX2LengthF32x4 / AVX2LengthF32x3` 与 `AVX2NormalizeF32x4 / AVX2NormalizeF32x3` 的重复 length-divide / zero-w 逻辑收成两个私有 helper，保留 `F32x3` 的 `w=0` contract，不改 dispatch 签名。
+
+### Phases
+
+| Phase                        | Status    | Notes                                                                                          |
+| ---------------------------- | --------- | ---------------------------------------------------------------------------------------------- |
+| 1. 识别重复 length/normalize | completed | `LengthF32x4/F32x3` 与 `NormalizeF32x4/F32x3` 共享同一套 zero-w + sqrt/divide 控制流         |
+| 2. 落地私有 helper 收口       | completed | 新增 `AVX2LengthWithOptionalZeroW` 与 `AVX2NormalizeByLength`，四个 wrapper 变成 thin shell |
+| 3. Release 验证与收口         | completed | `git diff --check`、`TTestCase_AVX2VectorAsm`、Release `check`、Release `gate` 全通过        |
