@@ -674,3 +674,10 @@
 - 浮点 `Min/Max` 暂不收口到 `ScalarMin/MaxF*`，因为 NaN 和 signed-zero 语义需要单独证明，不能按循环相似度直接合并。
 - `check_nonx86_helper_semantics.py` 已加 source-side 断言，锁住这批 RISCVV fallback 的 `ScalarMin/Max*` 委托路径，避免后续再长回逐 lane loop。
 - release 复验证明这次只是 fallback 去重，不是 contract 漂移：`git diff --check`、`impl-smoke-nonx86`、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿。
+
+
+## 2026-05-11 RISCVV Facade Arithmetic/Bitwise/Compare Consolidation
+
+- `riscvv.facade.inc` 里 `I32x4 / I64x2 / I32x8 / U32x8` 仍有一批 exact-contract fallback 在手写 lane loop，和同名 `Scalar*` helper 完全同合同。
+- 本轮收口只改 non-asm fallback body：`Add/Sub/Mul/And/Or/Xor/Not/AndNot/Cmp*` 以及 `I32x4/I32x8` 的 `Min/Max` 已改为直接委托 `Scalar*`；`Shift`、`float min/max`、`select/extract/insert`、`register.inc` ownership 都没动。
+- checker 层面已经补了对应 source-side 断言，下一步重点是 release verification，不是继续扩语义范围。

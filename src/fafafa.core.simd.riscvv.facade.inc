@@ -114,52 +114,38 @@ end;
 // =============================================================
 
 function RISCVVAddI32x4(const a, b: TVecI32x4): TVecI32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.i[i] := a.i[i] + b.i[i];
+  Result := ScalarAddI32x4(a, b);
 end;
 
 function RISCVVSubI32x4(const a, b: TVecI32x4): TVecI32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.i[i] := a.i[i] - b.i[i];
+  Result := ScalarSubI32x4(a, b);
 end;
 
 function RISCVVMulI32x4(const a, b: TVecI32x4): TVecI32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.i[i] := a.i[i] * b.i[i];
+  Result := ScalarMulI32x4(a, b);
 end;
 
 function RISCVVAndI32x4(const a, b: TVecI32x4): TVecI32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.i[i] := a.i[i] and b.i[i];
+  Result := ScalarAndI32x4(a, b);
 end;
 
 function RISCVVOrI32x4(const a, b: TVecI32x4): TVecI32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.i[i] := a.i[i] or b.i[i];
+  Result := ScalarOrI32x4(a, b);
 end;
 
 function RISCVVXorI32x4(const a, b: TVecI32x4): TVecI32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.i[i] := a.i[i] xor b.i[i];
+  Result := ScalarXorI32x4(a, b);
 end;
 
 function RISCVVNotI32x4(const a: TVecI32x4): TVecI32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.i[i] := not a.i[i];
+  Result := ScalarNotI32x4(a);
 end;
 
 // =============================================================
@@ -300,57 +286,33 @@ end;
 // =============================================================
 
 function RISCVVCmpEqI32x4(const a, b: TVecI32x4): TMask4;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 3 do
-    if a.i[i] = b.i[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpEqI32x4(a, b);
 end;
 
 function RISCVVCmpLtI32x4(const a, b: TVecI32x4): TMask4;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 3 do
-    if a.i[i] < b.i[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpLtI32x4(a, b);
 end;
 
 function RISCVVCmpGtI32x4(const a, b: TVecI32x4): TMask4;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 3 do
-    if a.i[i] > b.i[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpGtI32x4(a, b);
 end;
 
 function RISCVVCmpLeI32x4(const a, b: TVecI32x4): TMask4;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 3 do
-    if a.i[i] <= b.i[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpLeI32x4(a, b);
 end;
 
 function RISCVVCmpGeI32x4(const a, b: TVecI32x4): TMask4;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 3 do
-    if a.i[i] >= b.i[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpGeI32x4(a, b);
 end;
 
 function RISCVVCmpNeI32x4(const a, b: TVecI32x4): TMask4;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 3 do
-    if a.i[i] <> b.i[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpNeI32x4(a, b);
 end;
 
 // =============================================================
@@ -358,11 +320,8 @@ end;
 // =============================================================
 
 function RISCVVAndNotI32x4(const a, b: TVecI32x4): TVecI32x4;
-var i: Integer;
 begin
-  // (~a) and b
-  for i := 0 to 3 do
-    Result.i[i] := (not a.i[i]) and b.i[i];
+  Result := ScalarAndNotI32x4(a, b);
 end;
 
 function RISCVVShiftLeftI32x4(const a: TVecI32x4; count: Integer): TVecI32x4;
@@ -418,23 +377,13 @@ begin
 end;
 
 function RISCVVMinI32x4(const a, b: TVecI32x4): TVecI32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    if a.i[i] < b.i[i] then
-      Result.i[i] := a.i[i]
-    else
-      Result.i[i] := b.i[i];
+  Result := ScalarMinI32x4(a, b);
 end;
 
 function RISCVVMaxI32x4(const a, b: TVecI32x4): TVecI32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    if a.i[i] > b.i[i] then
-      Result.i[i] := a.i[i]
-    else
-      Result.i[i] := b.i[i];
+  Result := ScalarMaxI32x4(a, b);
 end;
 
 // =============================================================
@@ -442,45 +391,33 @@ end;
 // =============================================================
 
 function RISCVVAddI64x2(const a, b: TVecI64x2): TVecI64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.i[i] := a.i[i] + b.i[i];
+  Result := ScalarAddI64x2(a, b);
 end;
 
 function RISCVVSubI64x2(const a, b: TVecI64x2): TVecI64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.i[i] := a.i[i] - b.i[i];
+  Result := ScalarSubI64x2(a, b);
 end;
 
 function RISCVVAndI64x2(const a, b: TVecI64x2): TVecI64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.i[i] := a.i[i] and b.i[i];
+  Result := ScalarAndI64x2(a, b);
 end;
 
 function RISCVVOrI64x2(const a, b: TVecI64x2): TVecI64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.i[i] := a.i[i] or b.i[i];
+  Result := ScalarOrI64x2(a, b);
 end;
 
 function RISCVVXorI64x2(const a, b: TVecI64x2): TVecI64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.i[i] := a.i[i] xor b.i[i];
+  Result := ScalarXorI64x2(a, b);
 end;
 
 function RISCVVNotI64x2(const a: TVecI64x2): TVecI64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.i[i] := not a.i[i];
+  Result := ScalarNotI64x2(a);
 end;
 
 // =============================================================
@@ -722,59 +659,43 @@ end;
 // keep stable slot ownership without lying about scalar-reuse families.
 
 function RISCVVAddI32x8(const a, b: TVecI32x8): TVecI32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] + b.i[i];
+  Result := ScalarAddI32x8(a, b);
 end;
 
 function RISCVVSubI32x8(const a, b: TVecI32x8): TVecI32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] - b.i[i];
+  Result := ScalarSubI32x8(a, b);
 end;
 
 function RISCVVMulI32x8(const a, b: TVecI32x8): TVecI32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] * b.i[i];
+  Result := ScalarMulI32x8(a, b);
 end;
 
 function RISCVVAndI32x8(const a, b: TVecI32x8): TVecI32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] and b.i[i];
+  Result := ScalarAndI32x8(a, b);
 end;
 
 function RISCVVOrI32x8(const a, b: TVecI32x8): TVecI32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] or b.i[i];
+  Result := ScalarOrI32x8(a, b);
 end;
 
 function RISCVVXorI32x8(const a, b: TVecI32x8): TVecI32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] xor b.i[i];
+  Result := ScalarXorI32x8(a, b);
 end;
 
 function RISCVVNotI32x8(const a: TVecI32x8): TVecI32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := not a.i[i];
+  Result := ScalarNotI32x8(a);
 end;
 
 function RISCVVAndNotI32x8(const a, b: TVecI32x8): TVecI32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := (not a.i[i]) and b.i[i];
+  Result := ScalarAndNotI32x8(a, b);
 end;
 
 function RISCVVShiftLeftI32x8(const a: TVecI32x8; count: Integer): TVecI32x8;
@@ -793,77 +714,43 @@ begin
 end;
 
 function RISCVVCmpEqI32x8(const a, b: TVecI32x8): TMask8;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.i[i] = b.i[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpEqI32x8(a, b);
 end;
 
 function RISCVVCmpLtI32x8(const a, b: TVecI32x8): TMask8;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.i[i] < b.i[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpLtI32x8(a, b);
 end;
 
 function RISCVVCmpGtI32x8(const a, b: TVecI32x8): TMask8;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.i[i] > b.i[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpGtI32x8(a, b);
 end;
 
 function RISCVVCmpLeI32x8(const a, b: TVecI32x8): TMask8;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.i[i] <= b.i[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpLeI32x8(a, b);
 end;
 
 function RISCVVCmpGeI32x8(const a, b: TVecI32x8): TMask8;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.i[i] >= b.i[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpGeI32x8(a, b);
 end;
 
 function RISCVVCmpNeI32x8(const a, b: TVecI32x8): TMask8;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.i[i] <> b.i[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpNeI32x8(a, b);
 end;
 
 function RISCVVMinI32x8(const a, b: TVecI32x8): TVecI32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    if a.i[i] < b.i[i] then
-      Result.i[i] := a.i[i]
-    else
-      Result.i[i] := b.i[i];
+  Result := ScalarMinI32x8(a, b);
 end;
 
 function RISCVVMaxI32x8(const a, b: TVecI32x8): TVecI32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    if a.i[i] > b.i[i] then
-      Result.i[i] := a.i[i]
-    else
-      Result.i[i] := b.i[i];
+  Result := ScalarMaxI32x8(a, b);
 end;
 
 // =============================================================
@@ -1721,59 +1608,43 @@ end;
 // Only families deliberately removed from this file (for example
 // U32x16/U64x8) are meant to reuse the base scalar slot directly.
 function RISCVVAddU32x8(const a, b: TVecU32x8): TVecU32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] + b.u[i];
+  Result := ScalarAddU32x8(a, b);
 end;
 
 function RISCVVSubU32x8(const a, b: TVecU32x8): TVecU32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] - b.u[i];
+  Result := ScalarSubU32x8(a, b);
 end;
 
 function RISCVVMulU32x8(const a, b: TVecU32x8): TVecU32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] * b.u[i];
+  Result := ScalarMulU32x8(a, b);
 end;
 
 function RISCVVAndU32x8(const a, b: TVecU32x8): TVecU32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] and b.u[i];
+  Result := ScalarAndU32x8(a, b);
 end;
 
 function RISCVVOrU32x8(const a, b: TVecU32x8): TVecU32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] or b.u[i];
+  Result := ScalarOrU32x8(a, b);
 end;
 
 function RISCVVXorU32x8(const a, b: TVecU32x8): TVecU32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] xor b.u[i];
+  Result := ScalarXorU32x8(a, b);
 end;
 
 function RISCVVNotU32x8(const a: TVecU32x8): TVecU32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := not a.u[i];
+  Result := ScalarNotU32x8(a);
 end;
 
 function RISCVVAndNotU32x8(const a, b: TVecU32x8): TVecU32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := (not a.u[i]) and b.u[i];
+  Result := ScalarAndNotU32x8(a, b);
 end;
 
 function RISCVVShiftLeftU32x8(const a: TVecU32x8; count: Integer): TVecU32x8;
@@ -1791,57 +1662,33 @@ begin
 end;
 
 function RISCVVCmpEqU32x8(const a, b: TVecU32x8): TMask8;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.u[i] = b.u[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpEqU32x8(a, b);
 end;
 
 function RISCVVCmpLtU32x8(const a, b: TVecU32x8): TMask8;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.u[i] < b.u[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpLtU32x8(a, b);
 end;
 
 function RISCVVCmpLeU32x8(const a, b: TVecU32x8): TMask8;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.u[i] <= b.u[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpLeU32x8(a, b);
 end;
 
 function RISCVVCmpGtU32x8(const a, b: TVecU32x8): TMask8;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.u[i] > b.u[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpGtU32x8(a, b);
 end;
 
 function RISCVVCmpGeU32x8(const a, b: TVecU32x8): TMask8;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.u[i] >= b.u[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpGeU32x8(a, b);
 end;
 
 function RISCVVCmpNeU32x8(const a, b: TVecU32x8): TMask8;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.u[i] <> b.u[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpNeU32x8(a, b);
 end;
 
 function RISCVVMinU32x8(const a, b: TVecU32x8): TVecU32x8;
@@ -2076,12 +1923,8 @@ begin
 end;
 
 function RISCVVCmpEqI64x2(const a, b: TVecI64x2): TMask2;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 1 do
-    if a.i[i] = b.i[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpEqI64x2(a, b);
 end;
 
 function RISCVVCmpEqI64x4(const a, b: TVecI64x4): TMask4;
@@ -2166,12 +2009,8 @@ begin
 end;
 
 function RISCVVCmpGeI64x2(const a, b: TVecI64x2): TMask2;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 1 do
-    if a.i[i] >= b.i[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpGeI64x2(a, b);
 end;
 
 function RISCVVCmpGeI64x4(const a, b: TVecI64x4): TMask4;
@@ -2256,12 +2095,8 @@ begin
 end;
 
 function RISCVVCmpGtI64x2(const a, b: TVecI64x2): TMask2;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 1 do
-    if a.i[i] > b.i[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpGtI64x2(a, b);
 end;
 
 function RISCVVCmpGtI64x4(const a, b: TVecI64x4): TMask4;
@@ -2346,12 +2181,8 @@ begin
 end;
 
 function RISCVVCmpLeI64x2(const a, b: TVecI64x2): TMask2;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 1 do
-    if a.i[i] <= b.i[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpLeI64x2(a, b);
 end;
 
 function RISCVVCmpLeI64x4(const a, b: TVecI64x4): TMask4;
@@ -2436,12 +2267,8 @@ begin
 end;
 
 function RISCVVCmpLtI64x2(const a, b: TVecI64x2): TMask2;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 1 do
-    if a.i[i] < b.i[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpLtI64x2(a, b);
 end;
 
 function RISCVVCmpLtI64x4(const a, b: TVecI64x4): TMask4;
@@ -2526,12 +2353,8 @@ begin
 end;
 
 function RISCVVCmpNeI64x2(const a, b: TVecI64x2): TMask2;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 1 do
-    if a.i[i] <> b.i[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpNeI64x2(a, b);
 end;
 
 function RISCVVCmpNeI64x4(const a, b: TVecI64x4): TMask4;

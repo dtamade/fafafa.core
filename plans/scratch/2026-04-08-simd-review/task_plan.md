@@ -508,3 +508,17 @@
 | 1. 识别 exact-contract integer fallback | completed | 已确认 `U32x8/I16x8/I8x16/U16x8/U32x4/U8x16` 的 non-ASM `Min/Max` 都只是逐 lane 标量比较；浮点 `Min/Max` 因 IEEE754 NaN / signed-zero 语义不纳入本批 |
 | 2. 收回 scalar truth | completed | 12 个 RISCVV non-ASM fallback wrapper 已改为直接委托对应 `ScalarMin/Max*`；真实 RVV asm `vmin/vmax/vminu/vmaxu` 实现保持不变 |
 | 3. Release 验证与收口 | completed | `git diff --check`、`impl-smoke-nonx86`、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过 |
+
+## 2026-05-11 RISCVV Facade Arithmetic/Bitwise/Compare Consolidation
+
+### Goal
+
+继续收 `RISCVV` non-ASM facade 里的 exact-contract 重复体，把 `I32x4 / I64x2 / I32x8 / U32x8` 这几组 arithmetic、bitwise、compare、min/max wrapper 统一收回 `Scalar*` 真源；保留 register ownership、asm path 和现有 non-x86 contract。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别可继续收口的 exact-contract wrapper | completed | 已确认 `I32x4 / I64x2 / I32x8 / U32x8` 的 add/sub/mul/bitwise/compare/min/max fallback 仍是手写 lane loop，同合同 scalar 真源都已存在 |
+| 2. 收回 scalar truth 并补 checker 护栏 | completed | `src/fafafa.core.simd.riscvv.facade.inc` 已改成直接委托 `Scalar*`；`check_nonx86_helper_semantics.py` 已补 source-side 断言，避免同合同循环壳回流 |
+| 3. Release 验证与收口 | completed | 已完成 `git diff --check`、non-x86 helper checker、`impl-smoke-nonx86`、`impl-audit-nonx86`、Release `check`、Release `gate`，结果全绿 |
