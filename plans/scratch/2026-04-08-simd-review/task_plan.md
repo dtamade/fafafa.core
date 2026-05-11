@@ -704,3 +704,32 @@
 | 1. 识别可合并的 placeholder repeaters     | completed | 这 11 个函数只是同宽 `TM512` 浮点循环的不同 load/store / op / mask 变体                     |
 | 2. 落地局部 helper 收口                  | completed | 已新增 `AVX512LoadF32x16`、`AVX512StoreF32x16`、`AVX512SetF32x16`、`AVX512ApplyF32x16Binary`、`AVX512ApplyF32x16MaskAdd`，公开函数薄封装 |
 | 3. Release / experimental 验证与收口      | completed | `git diff --check`、`tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`、Release `check`、Release `gate` 全部通过 |
+
+## 2026-05-11 Generic Intrinsics Load/Set Helper Consolidation
+
+### Goal
+
+把 `src/fafafa.core.simd.intrinsics.pas` 里 `load / loadu / store / storeu / set1_epi32 / set1_epi16 / set1_epi8` 的 placeholder 重复体收成文件内 helper，同时把该文件的混合换行整理成 LF；本批不碰 compare / min-max / shift / floating math。
+
+### Phases
+
+| Phase                                   | Status      | Notes                                                                                         |
+| --------------------------------------- | ----------- | --------------------------------------------------------------------------------------------- |
+| 1. 识别安全重复体                       | completed   | `load/loadu`、`store/storeu` 是 identical body；`set1_epi*` 只是不同 lane 宽度的重复填充值逻辑 |
+| 2. 落地局部 helper 与换行清理           | completed   | 已新增 `SIMDLoadTM128` / `SIMDStoreTM128` 与 `SIMDSetTM128I*` helper，并把文件整理成 LF         |
+| 3. Release / experimental 验证与提交收口 | completed   | `git diff --check`、experimental check、Release `check`、Release `gate` 已通过；runtime getter fallback 红点已在独立收口批次中解决 |
+
+## 2026-05-11 Runtime Getter Snapshot Fallback Closure
+
+### Goal
+
+修复 `GetCurrentBackendInfo` / dispatchable helper 在并发 `RegisterBackend` 或 vector-asm toggle 下仍可能走直接 fallback、返回非同代 runtime state 的问题；所有 runtime/control-plane getter fallback 都必须回到 `GetCurrentRuntimeSnapshot`。
+
+### Phases
+
+| Phase                                   | Status      | Notes                                                                                                  |
+| --------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------ |
+| 1. 复现 gate 红点                       | completed   | Release `gate` 在 `TTestCase_SimdConcurrentFramework` 抓到 `current backend info` 与 `dispatchable helper` mixed snapshot |
+| 2. 收紧 runtime getter fallback         | completed   | `GetCurrentBackend*`、registered/dispatchable list、best dispatchable backend 的 fallback 已统一回到 `GetCurrentRuntimeSnapshot` |
+| 3. Targeted 并发验证                    | completed   | `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentFramework` 通过 |
+| 4. Full release gate 收口               | completed   | Release `check` 与 Release `gate` 已复跑通过，runtime getter fallback 收口已被全链路门禁确认绿态       |

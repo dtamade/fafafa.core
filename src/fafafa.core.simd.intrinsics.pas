@@ -23,9 +23,9 @@ unit fafafa.core.simd.intrinsics;
   - ARM: NEON, SVE, SVE2
   - RISC-V: RVV (Vector Extension)
   - LoongArch: LASX
-  
+
   使用方式�?    uses fafafa.core.simd.intrinsics;
-    
+
     var
       a, b, result: TM128;
     begin
@@ -244,24 +244,58 @@ begin
 end;
 
 // === 基础函数实现 (Pascal 版本，后续会优化为汇�? ===
-function simd_load_si128(const Ptr: Pointer): TM128;
+function SIMDLoadTM128(const Ptr: Pointer): TM128; inline;
 begin
   Result := PTM128(Ptr)^;
+end;
+
+procedure SIMDStoreTM128(var aDest; const aSrc: TM128); inline;
+begin
+  PTM128(@aDest)^ := aSrc;
+end;
+
+procedure SIMDSetTM128I32(var aResult: TM128; const aValue: LongInt); inline;
+var
+  i: Integer;
+begin
+  for i := 0 to 3 do
+    aResult.m128i_i32[i] := aValue;
+end;
+
+procedure SIMDSetTM128I16(var aResult: TM128; const aValue: SmallInt); inline;
+var
+  i: Integer;
+begin
+  for i := 0 to 7 do
+    aResult.m128i_i16[i] := aValue;
+end;
+
+procedure SIMDSetTM128I8(var aResult: TM128; const aValue: ShortInt); inline;
+var
+  i: Integer;
+begin
+  for i := 0 to 15 do
+    aResult.m128i_i8[i] := aValue;
+end;
+
+function simd_load_si128(const Ptr: Pointer): TM128;
+begin
+  Result := SIMDLoadTM128(Ptr);
 end;
 
 function simd_loadu_si128(const Ptr: Pointer): TM128;
 begin
-  Result := PTM128(Ptr)^;
+  Result := SIMDLoadTM128(Ptr);
 end;
 
 procedure simd_store_si128(var Dest; const Src: TM128);
 begin
-  PTM128(@Dest)^ := Src;
+  SIMDStoreTM128(Dest, Src);
 end;
 
 procedure simd_storeu_si128(var Dest; const Src: TM128);
 begin
-  PTM128(@Dest)^ := Src;
+  SIMDStoreTM128(Dest, Src);
 end;
 
 function simd_setzero_si128: TM128;
@@ -271,26 +305,17 @@ end;
 
 function simd_set1_epi32(Value: LongInt): TM128;
 begin
-  Result.m128i_i32[0] := Value;
-  Result.m128i_i32[1] := Value;
-  Result.m128i_i32[2] := Value;
-  Result.m128i_i32[3] := Value;
+  SIMDSetTM128I32(Result, Value);
 end;
 
 function simd_set1_epi16(Value: SmallInt): TM128;
-var
-  i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.m128i_i16[i] := Value;
+  SIMDSetTM128I16(Result, Value);
 end;
 
 function simd_set1_epi8(Value: ShortInt): TM128;
-var
-  i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.m128i_i8[i] := Value;
+  SIMDSetTM128I8(Result, Value);
 end;
 
 function simd_add_epi32(const a, b: TM128): TM128;

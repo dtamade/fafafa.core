@@ -780,3 +780,16 @@
 - `mask_add` 与 `maskz_add` 可以共用同一个 masked-add helper；zeroing 语义由 `aUseSourceForUnmasked = False` 保留，不需要第二份 loop。
 - 本批必须停在 placeholder math layer，不能顺手扩展新的 intrinsic surface，也不能把 AVX-512 family 状态误判成 promote。
 - `git diff --check`、experimental check、Release `check`、Release `gate` 已经全绿，所以这次收口可以按稳定 batch 处理。
+
+## 2026-05-11 Generic Intrinsics Load/Set Candidate
+
+- `src/fafafa.core.simd.intrinsics.pas` 里 `simd_load_si128 / simd_loadu_si128`、`simd_store_si128 / simd_storeu_si128` 是明显的 exact-contract duplicate，适合收成单一文件内 helper。
+- `simd_set1_epi32 / simd_set1_epi16 / simd_set1_epi8` 也是同类 placeholder 填充逻辑，只是 lane 宽度不同，可以继续收成局部 helper，但本批先不碰 compare/min/max/shift 这些边界敏感路径。
+- 这份文件当前还是混合换行，适合在同一批里顺手整理成 LF，避免继续把格式噪音留在源码里。
+
+## 2026-05-11 Runtime Getter Snapshot Fallback Closure
+
+- `GetCurrentBackendInfo` / `GetDispatchableBackendList` / `GetBestDispatchableBackend` / `GetRegisteredBackendList` 的旧 fallback 直接回到 active state 或 nil，会在并发 `RegisterBackend` 读写下吐出 mixed snapshot。
+- 这次 gate 红点里，`TTestCase_SimdConcurrentFramework` 稳定抓到两类失败：`current backend info mixed snapshot` 和 `dispatchable helper mixed snapshot`，都指向同一条 fallback 路径。
+- 修复后这些 getter 在 snapshot publish 失败时改为回到 `GetCurrentRuntimeSnapshot`，让 fallback 也维持同代视图，而不是把 transient control-plane 状态直接吐给读者。
+- full Release `gate` 已通过，本轮没有再观察到 runtime getter/helper 的跨代拼接输出。

@@ -322,7 +322,7 @@ begin
   if TryGetPublishedRuntimeSnapshotAfterRefresh(LSnapshot) then
     Exit(LSnapshot.CurrentBackend);
 
-  Result := GetActiveBackend;
+  Result := GetCurrentRuntimeSnapshot.CurrentBackend;
 end;
 
 function GetCurrentBackendInfo: TSimdBackendInfo;
@@ -332,7 +332,7 @@ begin
   if TryGetPublishedRuntimeSnapshotAfterRefresh(LSnapshot) then
     Exit(LSnapshot.CurrentBackendInfo);
 
-  Result := GetBackendInfo(GetActiveBackend);
+  Result := GetCurrentRuntimeSnapshot.CurrentBackendInfo;
 end;
 
 function IsBackendRegisteredInBinary(aBackend: TSimdBackend): Boolean;
@@ -342,7 +342,7 @@ begin
   if TryGetPublishedRuntimeSnapshotAfterRefresh(LSnapshot) then
     Exit(ContainsBackend(LSnapshot.RegisteredBackends, aBackend));
 
-  Result := IsBackendRegistered(aBackend);
+  Result := ContainsBackend(GetCurrentRuntimeSnapshot.RegisteredBackends, aBackend);
 end;
 
 function GetRegisteredBackendList: TSimdBackendArray;
@@ -352,7 +352,7 @@ begin
   if TryGetPublishedRuntimeSnapshotAfterRefresh(LSnapshot) then
     Exit(LSnapshot.RegisteredBackends);
 
-  Result := nil;
+  Result := GetCurrentRuntimeSnapshot.RegisteredBackends;
 end;
 
 function GetDispatchableBackendList: TSimdBackendArray;
@@ -362,7 +362,7 @@ begin
   if TryGetPublishedRuntimeSnapshotAfterRefresh(LSnapshot) then
     Exit(LSnapshot.DispatchableBackends);
 
-  Result := nil;
+  Result := GetCurrentRuntimeSnapshot.DispatchableBackends;
 end;
 
 function GetAvailableBackendList: TSimdBackendArray;
@@ -377,7 +377,7 @@ begin
   if TryGetPublishedRuntimeSnapshotAfterRefresh(LSnapshot) then
     Exit(LSnapshot.BestDispatchableBackend);
 
-  Result := fafafa.core.simd.dispatch.GetBestDispatchableBackend;
+  Result := GetCurrentRuntimeSnapshot.BestDispatchableBackend;
 end;
 
 function TrySetCurrentBackend(aBackend: TSimdBackend): Boolean;

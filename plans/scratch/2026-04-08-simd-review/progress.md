@@ -677,6 +677,7 @@
 - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` PASS。
 - `bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight` 现在返回 `RECENT_BILLING_BLOCK`，所以 fresh Windows evidence refresh 目前被 GitHub billing 挡住了，不是 SIMD 代码回归。
 - 本轮代码侧已经没有新的可见 blocker，剩余 release gap 只有外部 evidence freshness。
+- `tests/fafafa.core.simd/__pycache__` 已清理，当前工作树只保留真实源码与计划改动。
 
 ## 2026-05-11 Family Decision Baseline
 
@@ -691,3 +692,16 @@
 - 当前这刀只动文件内重复实现，没有扩大公开 surface，也没有碰 `load/store` 或初始化门控。
 - 复验时 `git diff --check` 曾发现 `storeu` 与 `setzero` 之间有孤立 CR 空行导致 trailing whitespace；已清理并复跑通过。
 - 验证已完成：`git diff --check`、`tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`、Release `check`、Release `gate` 全部通过。
+
+## 2026-05-11 Generic Intrinsics Load/Set Helper Consolidation
+
+- 已确认 `src/fafafa.core.simd.intrinsics.pas` 还保留着一组明显的 placeholder duplicate body，当前先收 `load/store` 和 `set1_epi*` 的公共壳。
+- 这批是当前还能在本机验证的通用入口，适合作为下一刀，不碰 compare / min-max / shift / floating math 的语义边界。
+- 文件本身还是混合换行，下一步会一起整理成 LF，避免让格式噪音继续挂在通用入口上。
+
+## 2026-05-11 Runtime Getter Snapshot Fallback Closure
+
+- `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 在 `TTestCase_SimdConcurrentFramework` 抓到了真实 red：`current backend info mixed snapshot` 和 `dispatchable helper mixed snapshot`。
+- 回头对照 runtime 代码后确认，问题不在刚改的 placeholder helper，而在 `GetCurrentBackendInfo` / dispatchable helper 的 fallback 还会直接回到 active state 或 nil。
+- 已把 runtime getter fallback 收紧到 `GetCurrentRuntimeSnapshot`，并先用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentFramework` 做了 targeted 验证，结果已回绿。
+- full Release `gate` 已回绿，说明这条 fallback 收口在完整门禁链路下没有再冒 mixed snapshot。
