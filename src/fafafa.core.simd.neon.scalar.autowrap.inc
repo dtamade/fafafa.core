@@ -177,29 +177,13 @@ begin
 end;
 
 function NEONCeilF32x16(const a: TVecF32x16): TVecF32x16;
-var
-  i: Integer;
 begin
-  for i := 0 to 15 do
-  begin
-    if IsNan(a.f[i]) or IsInfinite(a.f[i]) then
-      Result.f[i] := a.f[i]
-    else
-      Result.f[i] := Ceil(a.f[i]);
-  end;
+  Result := ScalarCeilF32x16(a);
 end;
 
 function NEONCeilF32x8(const a: TVecF32x8): TVecF32x8;
-var
-  i: Integer;
 begin
-  for i := 0 to 7 do
-  begin
-    if IsNan(a.f[i]) or IsInfinite(a.f[i]) then
-      Result.f[i] := a.f[i]
-    else
-      Result.f[i] := Ceil(a.f[i]);
-  end;
+  Result := ScalarCeilF32x8(a);
 end;
 
 function NEONCeilF64x2(const a: TVecF64x2): TVecF64x2;
@@ -209,29 +193,13 @@ begin
 end;
 
 function NEONCeilF64x4(const a: TVecF64x4): TVecF64x4;
-var
-  i: Integer;
 begin
-  for i := 0 to 3 do
-  begin
-    if IsNan(a.d[i]) or IsInfinite(a.d[i]) then
-      Result.d[i] := a.d[i]
-    else
-      Result.d[i] := Ceil(a.d[i]);
-  end;
+  Result := ScalarCeilF64x4(a);
 end;
 
 function NEONCeilF64x8(const a: TVecF64x8): TVecF64x8;
-var
-  i: Integer;
 begin
-  for i := 0 to 7 do
-  begin
-    if IsNan(a.d[i]) or IsInfinite(a.d[i]) then
-      Result.d[i] := a.d[i]
-    else
-      Result.d[i] := Ceil(a.d[i]);
-  end;
+  Result := ScalarCeilF64x8(a);
 end;
 
 function NEONClampF32x16(const a, minVal, maxVal: TVecF32x16): TVecF32x16;
@@ -1033,29 +1001,13 @@ end;
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONFloorF32x16(const a: TVecF32x16): TVecF32x16;
-var
-  i: Integer;
 begin
-  for i := 0 to 15 do
-  begin
-    if IsNan(a.f[i]) or IsInfinite(a.f[i]) then
-      Result.f[i] := a.f[i]
-    else
-      Result.f[i] := Floor(a.f[i]);
-  end;
+  Result := ScalarFloorF32x16(a);
 end;
 
 function NEONFloorF32x8(const a: TVecF32x8): TVecF32x8;
-var
-  i: Integer;
 begin
-  for i := 0 to 7 do
-  begin
-    if IsNan(a.f[i]) or IsInfinite(a.f[i]) then
-      Result.f[i] := a.f[i]
-    else
-      Result.f[i] := Floor(a.f[i]);
-  end;
+  Result := ScalarFloorF32x8(a);
 end;
 
 function NEONFloorF64x2(const a: TVecF64x2): TVecF64x2;
@@ -1065,29 +1017,13 @@ begin
 end;
 
 function NEONFloorF64x4(const a: TVecF64x4): TVecF64x4;
-var
-  i: Integer;
 begin
-  for i := 0 to 3 do
-  begin
-    if IsNan(a.d[i]) or IsInfinite(a.d[i]) then
-      Result.d[i] := a.d[i]
-    else
-      Result.d[i] := Floor(a.d[i]);
-  end;
+  Result := ScalarFloorF64x4(a);
 end;
 
 function NEONFloorF64x8(const a: TVecF64x8): TVecF64x8;
-var
-  i: Integer;
 begin
-  for i := 0 to 7 do
-  begin
-    if IsNan(a.d[i]) or IsInfinite(a.d[i]) then
-      Result.d[i] := a.d[i]
-    else
-      Result.d[i] := Floor(a.d[i]);
-  end;
+  Result := ScalarFloorF64x8(a);
 end;
 
 function NEONFmaF32x16(const a, b, c: TVecF32x16): TVecF32x16;

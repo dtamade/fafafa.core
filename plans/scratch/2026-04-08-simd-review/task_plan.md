@@ -536,3 +536,17 @@
 | 1. 识别 exact-contract math/utility fallback | completed | 已确认 `NEONSplatF32x4`、`NEONAbs/SqrtF32x4`、`NEONFma/Rcp/RsqrtF32x4`、fallback-only wide `Abs/Fma` 都只是 scalar 真源的重复体 |
 | 2. 收回 scalar truth 并补 checker 护栏 | completed | `neon.scalar.utility/math/ext_math/autowrap.inc` 已改成直接委托 `Scalar*`；`check_nonx86_helper_semantics.py` 检查数提升至 176，锁住新增 forwarder |
 | 3. Release 验证与收口 | completed | `git diff --check`、`py_compile`、non-x86 helper checker、`impl-smoke-nonx86`、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过 |
+
+## 2026-05-11 NEON Scalar Floor/Ceil Wide Forwarder Consolidation
+
+### Goal
+
+继续收 `NEON` non-ASM scalar fallback 里宽向量 `Floor/Ceil` 的 exact-contract wrapper，把 `F32x8 / F32x16 / F64x4 / F64x8` 这几组从手写逐 lane 体收回 scalar 真源；`F32x4 / F64x2`、`Round/Trunc`、`Clamp` 仍保留为后续单独证明的语义敏感路径。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别 exact-contract wide floor/ceil fallback | completed | 已确认 `NEONFloor/CeilF32x8/F32x16/F64x4/F64x8` 都只是和 `ScalarFloor/Ceil*` 同合同的 guard+round wrapper |
+| 2. 收回 scalar truth 并补 checker 护栏 | completed | `neon.scalar.autowrap.inc` 已改成直接委托 `ScalarFloor/Ceil*`；`check_nonx86_helper_semantics.py` 已补 8 条 source-side 断言 |
+| 3. Release 验证与收口 | completed | `git diff --check`、`py_compile`、non-x86 helper checker、`impl-smoke-nonx86`、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过 |

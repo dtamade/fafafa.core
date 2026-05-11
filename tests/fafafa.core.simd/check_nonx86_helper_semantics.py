@@ -340,6 +340,30 @@ def main() -> int:
         (neon_scalar_autowrap_source, "NEONFmaF64x8", [
             "Result := ScalarFmaF64x8(a, b, c);",
         ]),
+        (neon_scalar_autowrap_source, "NEONCeilF32x16", [
+            "Result := ScalarCeilF32x16(a);",
+        ]),
+        (neon_scalar_autowrap_source, "NEONCeilF32x8", [
+            "Result := ScalarCeilF32x8(a);",
+        ]),
+        (neon_scalar_autowrap_source, "NEONCeilF64x4", [
+            "Result := ScalarCeilF64x4(a);",
+        ]),
+        (neon_scalar_autowrap_source, "NEONCeilF64x8", [
+            "Result := ScalarCeilF64x8(a);",
+        ]),
+        (neon_scalar_autowrap_source, "NEONFloorF32x16", [
+            "Result := ScalarFloorF32x16(a);",
+        ]),
+        (neon_scalar_autowrap_source, "NEONFloorF32x8", [
+            "Result := ScalarFloorF32x8(a);",
+        ]),
+        (neon_scalar_autowrap_source, "NEONFloorF64x4", [
+            "Result := ScalarFloorF64x4(a);",
+        ]),
+        (neon_scalar_autowrap_source, "NEONFloorF64x8", [
+            "Result := ScalarFloorF64x8(a);",
+        ]),
         (riscvv_source, "RISCVVExtractF32x4", [
             "LIndex := index;",
             "if LIndex < 0 then",

@@ -587,3 +587,11 @@
 - `Min/Max`、rounding、floor/ceil/trunc、clamp 这类浮点语义敏感路径本批没有动，后续必须先证明 NaN / signed-zero 语义再收口。
 - `check_nonx86_helper_semantics.py` 已补新增 forwarder 的 source-side 断言，当前 summary 为 `NONX86_HELPER_SEMANTICS_SUMMARY checks=176 status=ok`。
 - 已完成 release 验证：`git diff --check`、`py_compile`、helper checker、`impl-smoke-nonx86`、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿。
+
+
+## 2026-05-11 NEON Scalar Floor/Ceil Wide Forwarder Consolidation
+
+- 继续扫 `NEON` fallback 时，确认宽向量 `Floor/Ceil` 的 `F32x8 / F32x16 / F64x4 / F64x8` 都只是 `ScalarFloor/Ceil*` 的同合同重复壳。
+- 已把这些宽向量 wrapper 收回 scalar truth，保留 `F32x4 / F64x2` 和 `Round/Trunc/Clamp` 作为后续语义敏感边界。
+- `check_nonx86_helper_semantics.py` 新增了 8 个 source-side 断言，当前 summary 为 `NONX86_HELPER_SEMANTICS_SUMMARY checks=184 status=ok`。
+- release 验证已完成：`git diff --check`、`py_compile`、helper checker、`impl-smoke-nonx86`、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿。

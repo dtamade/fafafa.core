@@ -690,3 +690,11 @@
 - fallback-only wide `Abs/Fma` 原来只是递归拆到较窄 NEON fallback；现在直接委托 wide `ScalarAbs/Fma*`，避免再维护宽度拆分的第二份真源。
 - 本批刻意不碰浮点 `Min/Max`、`Floor/Ceil/Round/Trunc`、`Clamp`，因为这些路径涉及 NaN、Inf、signed-zero 或 `Math.Min/Max` 差异，不能只凭循环形状合并。
 - release 复验证明这次是 fallback 去重而非 contract 漂移：`git diff --check`、helper checker、`impl-smoke-nonx86`、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿。
+
+
+## 2026-05-11 NEON Scalar Floor/Ceil Wide Forwarder Consolidation
+
+- 宽向量 `NEONFloor/CeilF32x8/F32x16/F64x4/F64x8` 已有和 `ScalarFloor/Ceil*` 一致的 NaN / Inf guard，因此属于 exact-contract duplicate，可以安全委托 scalar truth。
+- 窄 `F32x4 / F64x2` 的 `Floor/Ceil` fallback 仍和 scalar helper 不完全同构，本轮不合并，避免把语义修复伪装成去重。
+- `Round/Trunc` 也继续保留，因为 scalar helper 额外做 signed-zero normalize；后续如要收口，应该先补明确语义测试。
+- release 复验证明这次只收宽向量 exact fallback：helper checker、`impl-smoke-nonx86`、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿。
