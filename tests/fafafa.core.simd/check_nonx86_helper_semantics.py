@@ -816,6 +816,23 @@ def main() -> int:
             ]
         )
 
+    for suffix in ("I16x8", "I64x4", "I64x8", "I8x16", "U16x8", "U32x4", "U64x4", "U8x16"):
+        for op in ("Add", "Sub", "And", "Or", "Xor"):
+            riscvv_scalar_forwarder_expectations.append(
+                (f"RISCVV{op}{suffix}", f"Scalar{op}{suffix}(a, b)")
+            )
+        riscvv_scalar_forwarder_expectations.append((f"RISCVVNot{suffix}", f"ScalarNot{suffix}(a)"))
+
+    for suffix in ("I16x8", "U16x8", "U32x4"):
+        riscvv_scalar_forwarder_expectations.append(
+            (f"RISCVVMul{suffix}", f"ScalarMul{suffix}(a, b)")
+        )
+
+    for suffix in ("I16x8", "I64x4", "U32x4"):
+        riscvv_scalar_forwarder_expectations.append(
+            (f"RISCVVAndNot{suffix}", f"ScalarAndNot{suffix}(a, b)")
+        )
+
     for suffix in ("I32x4", "I32x8"):
         riscvv_scalar_forwarder_expectations.extend(
             [

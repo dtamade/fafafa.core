@@ -917,3 +917,18 @@
 | 1. 定位 active 文档漂移            | completed   | `docs/fafafa.core.simd.publicabi.md` 仍写着兜底回读 dispatch table                     |
 | 2. 同步文档与机器护栏              | completed   | 文档已改成 dataplane fallback；`check_dispatch_read_scope.py` 已新增 active doc guard |
 | 3. Release 验证与收口              | completed   | `py_compile`、`dispatch-read-scope`、Release `check`、Release `gate` 全绿              |
+
+## 2026-05-12 RISCVV Integer Fallback Forwarder Expansion
+
+### Goal
+
+把 `src/fafafa.core.simd.riscvv.facade.inc` 里剩余一批 exact-contract integer arithmetic / bitwise non-ASM fallback 收回 `Scalar*` 真源；保留 RVV asm 路径、register ownership、compare / shift / float 语义敏感路径不动。
+
+### Phases
+
+| Phase                                | Status      | Notes                                                                                                                              |
+| ------------------------------------ | ----------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| 1. 识别可安全合并的 integer fallback | completed   | 新增覆盖 `I16x8/I8x16/I64x4/I64x8/U16x8/U32x4/U64x4/U8x16` 的 add/sub/bitwise/not，以及小范围 mul/andnot |
+| 2. 落地 scalar truth forwarder        | completed   | `riscvv.facade.inc` 的对应逐 lane 循环已改成 `Scalar*` 直调，不改 `riscvv.register.inc` 的 backend-owned slot                   |
+| 3. 扩大 helper semantics 护栏         | completed   | `check_nonx86_helper_semantics.py` 已加入新增 forwarder 断言，summary 从 197 扩到 251                                             |
+| 4. Release 验证与提交收口             | completed   | `git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过                  |

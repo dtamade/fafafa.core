@@ -877,3 +877,20 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-12 RISCVV Integer Fallback Forwarder Expansion
+
+- 接上当前 `Wave 5 / retire + redundancy cleanup`，继续收 `RISCVV` non-ASM facade 里的 exact-contract integer fallback。
+- `src/fafafa.core.simd.riscvv.facade.inc` 已把新增一批 arithmetic / bitwise / not / 小范围 mul / andnot 循环改为直接委托 `Scalar*` 真源。
+- `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 已同步新增 source-side 断言，避免这批 fallback 再回到手写逐 lane 循环。
+- 已完成轻量验证：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - 结果：通过，`NONX86_HELPER_SEMANTICS_SUMMARY checks=251 status=ok`
+- 已完成 release 级收口：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 生成的 `__pycache__` 已清理，当前工作树只保留目标改动。

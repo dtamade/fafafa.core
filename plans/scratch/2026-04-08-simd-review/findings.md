@@ -887,3 +887,10 @@
 - 最小修复不是重写 public ABI 文档，而是把这条 active 文档口径改回 dataplane fallback，并把 `dispatch-read-scope` 扩成 active-doc guard：源码禁止 consumer 直读 `GetDispatchTable`，文档也禁止把 public ABI fallback 描述成 dispatch table fallback。
 - 当前 targeted guard 已通过：`DISPATCH_READ_SCOPE ... forbidden_hits=0 active_doc_issues=0`。
 - Release `check` 和 `gate` 已通过，说明这次 guard 扩展没有破坏主 SIMD runner、public ABI smoke、adapter sync、wiring sync 或 filtered `run_all` 链路。
+
+## 2026-05-12 RISCVV Integer Fallback Forwarder Expansion
+
+- `src/fafafa.core.simd.riscvv.facade.inc` 里一批 non-ASM integer fallback 仍在手写逐 lane arithmetic / bitwise 体，和 `Scalar*` 真源完全同合同，适合继续收口。
+- 这次收掉的是 `I16x8/I64x4/I64x8/I8x16/U16x8/U32x4/U64x4/U8x16` 的 `Add/Sub/And/Or/Xor/Not`，以及 `I16x8/U16x8/U32x4` 的 `Mul` 和 `I16x8/I64x4/U32x4` 的 `AndNot`；没有碰 compare、shift、float、register ownership。
+- `check_nonx86_helper_semantics.py` 已扩到 `checks=251`，说明这批 forwarder 已被 source-side 护栏接住，不会再轻易长回重复实现。
+- 这轮已经完成“代码 + 护栏 + release 复验”三步，当前只剩提交收口。

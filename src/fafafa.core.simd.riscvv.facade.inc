@@ -1553,52 +1553,38 @@ begin
 end;
 
 function RISCVVAddI16x8(const a, b: TVecI16x8): TVecI16x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] + b.i[i];
+  Result := ScalarAddI16x8(a, b);
 end;
 
 function RISCVVAddI64x4(const a, b: TVecI64x4): TVecI64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.i[i] := a.i[i] + b.i[i];
+  Result := ScalarAddI64x4(a, b);
 end;
 
 function RISCVVAddI64x8(const a, b: TVecI64x8): TVecI64x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] + b.i[i];
+  Result := ScalarAddI64x8(a, b);
 end;
 
 function RISCVVAddI8x16(const a, b: TVecI8x16): TVecI8x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.i[i] := a.i[i] + b.i[i];
+  Result := ScalarAddI8x16(a, b);
 end;
 
 function RISCVVAddU16x8(const a, b: TVecU16x8): TVecU16x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] + b.u[i];
+  Result := ScalarAddU16x8(a, b);
 end;
 
 function RISCVVAddU32x4(const a, b: TVecU32x4): TVecU32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.u[i] := a.u[i] + b.u[i];
+  Result := ScalarAddU32x4(a, b);
 end;
 
 function RISCVVAddU64x4(const a, b: TVecU64x4): TVecU64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.u[i] := a.u[i] + b.u[i];
+  Result := ScalarAddU64x4(a, b);
 end;
 
 // U32x8 Operations (256-bit)
@@ -1713,87 +1699,63 @@ begin
 end;
 
 function RISCVVAddU8x16(const a, b: TVecU8x16): TVecU8x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.u[i] := a.u[i] + b.u[i];
+  Result := ScalarAddU8x16(a, b);
 end;
 
 function RISCVVAndI16x8(const a, b: TVecI16x8): TVecI16x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] and b.i[i];
+  Result := ScalarAndI16x8(a, b);
 end;
 
 function RISCVVAndI64x4(const a, b: TVecI64x4): TVecI64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.i[i] := a.i[i] and b.i[i];
+  Result := ScalarAndI64x4(a, b);
 end;
 
 function RISCVVAndI64x8(const a, b: TVecI64x8): TVecI64x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] and b.i[i];
+  Result := ScalarAndI64x8(a, b);
 end;
 
 function RISCVVAndI8x16(const a, b: TVecI8x16): TVecI8x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.i[i] := a.i[i] and b.i[i];
+  Result := ScalarAndI8x16(a, b);
 end;
 
 function RISCVVAndNotI16x8(const a, b: TVecI16x8): TVecI16x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := (not a.i[i]) and b.i[i];
+  Result := ScalarAndNotI16x8(a, b);
 end;
 
 function RISCVVAndNotI64x4(const a, b: TVecI64x4): TVecI64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.i[i] := (not a.i[i]) and b.i[i];
+  Result := ScalarAndNotI64x4(a, b);
 end;
 
 function RISCVVAndNotU32x4(const a, b: TVecU32x4): TVecU32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.u[i] := (not a.u[i]) and b.u[i];
+  Result := ScalarAndNotU32x4(a, b);
 end;
 
 function RISCVVAndU16x8(const a, b: TVecU16x8): TVecU16x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] and b.u[i];
+  Result := ScalarAndU16x8(a, b);
 end;
 
 function RISCVVAndU32x4(const a, b: TVecU32x4): TVecU32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.u[i] := a.u[i] and b.u[i];
+  Result := ScalarAndU32x4(a, b);
 end;
 
 function RISCVVAndU64x4(const a, b: TVecU64x4): TVecU64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.u[i] := a.u[i] and b.u[i];
+  Result := ScalarAndU64x4(a, b);
 end;
 
 function RISCVVAndU8x16(const a, b: TVecU8x16): TVecU8x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.u[i] := a.u[i] and b.u[i];
+  Result := ScalarAndU8x16(a, b);
 end;
 
 function RISCVVCeilF32x16(const a: TVecF32x16): TVecF32x16;
@@ -2880,136 +2842,98 @@ begin
 end;
 
 function RISCVVMulI16x8(const a, b: TVecI16x8): TVecI16x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] * b.i[i];
+  Result := ScalarMulI16x8(a, b);
 end;
 
 function RISCVVMulU16x8(const a, b: TVecU16x8): TVecU16x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] * b.u[i];
+  Result := ScalarMulU16x8(a, b);
 end;
 
 function RISCVVMulU32x4(const a, b: TVecU32x4): TVecU32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.u[i] := a.u[i] * b.u[i];
+  Result := ScalarMulU32x4(a, b);
 end;
 
 function RISCVVNotI16x8(const a: TVecI16x8): TVecI16x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := not a.i[i];
+  Result := ScalarNotI16x8(a);
 end;
 
 function RISCVVNotI64x4(const a: TVecI64x4): TVecI64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.i[i] := not a.i[i];
+  Result := ScalarNotI64x4(a);
 end;
 
 function RISCVVNotI64x8(const a: TVecI64x8): TVecI64x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := not a.i[i];
+  Result := ScalarNotI64x8(a);
 end;
 
 function RISCVVNotI8x16(const a: TVecI8x16): TVecI8x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.i[i] := not a.i[i];
+  Result := ScalarNotI8x16(a);
 end;
 
 function RISCVVNotU16x8(const a: TVecU16x8): TVecU16x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := not a.u[i];
+  Result := ScalarNotU16x8(a);
 end;
 
 function RISCVVNotU32x4(const a: TVecU32x4): TVecU32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.u[i] := not a.u[i];
+  Result := ScalarNotU32x4(a);
 end;
 
 function RISCVVNotU64x4(const a: TVecU64x4): TVecU64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.u[i] := not a.u[i];
+  Result := ScalarNotU64x4(a);
 end;
 
 function RISCVVNotU8x16(const a: TVecU8x16): TVecU8x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.u[i] := not a.u[i];
+  Result := ScalarNotU8x16(a);
 end;
 
 function RISCVVOrI16x8(const a, b: TVecI16x8): TVecI16x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] or b.i[i];
+  Result := ScalarOrI16x8(a, b);
 end;
 
 function RISCVVOrI64x4(const a, b: TVecI64x4): TVecI64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.i[i] := a.i[i] or b.i[i];
+  Result := ScalarOrI64x4(a, b);
 end;
 
 function RISCVVOrI64x8(const a, b: TVecI64x8): TVecI64x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] or b.i[i];
+  Result := ScalarOrI64x8(a, b);
 end;
 
 function RISCVVOrI8x16(const a, b: TVecI8x16): TVecI8x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.i[i] := a.i[i] or b.i[i];
+  Result := ScalarOrI8x16(a, b);
 end;
 
 function RISCVVOrU16x8(const a, b: TVecU16x8): TVecU16x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] or b.u[i];
+  Result := ScalarOrU16x8(a, b);
 end;
 
 function RISCVVOrU32x4(const a, b: TVecU32x4): TVecU32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.u[i] := a.u[i] or b.u[i];
+  Result := ScalarOrU32x4(a, b);
 end;
 
 function RISCVVOrU64x4(const a, b: TVecU64x4): TVecU64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.u[i] := a.u[i] or b.u[i];
+  Result := ScalarOrU64x4(a, b);
 end;
 
 function RISCVVOrU8x16(const a, b: TVecU8x16): TVecU8x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.u[i] := a.u[i] or b.u[i];
+  Result := ScalarOrU8x16(a, b);
 end;
 
 function RISCVVReduceAddF32x16(const a: TVecF32x16): Single;
@@ -3462,59 +3386,43 @@ begin
 end;
 
 function RISCVVSubI16x8(const a, b: TVecI16x8): TVecI16x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] - b.i[i];
+  Result := ScalarSubI16x8(a, b);
 end;
 
 function RISCVVSubI64x4(const a, b: TVecI64x4): TVecI64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.i[i] := a.i[i] - b.i[i];
+  Result := ScalarSubI64x4(a, b);
 end;
 
 function RISCVVSubI64x8(const a, b: TVecI64x8): TVecI64x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] - b.i[i];
+  Result := ScalarSubI64x8(a, b);
 end;
 
 function RISCVVSubI8x16(const a, b: TVecI8x16): TVecI8x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.i[i] := a.i[i] - b.i[i];
+  Result := ScalarSubI8x16(a, b);
 end;
 
 function RISCVVSubU16x8(const a, b: TVecU16x8): TVecU16x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] - b.u[i];
+  Result := ScalarSubU16x8(a, b);
 end;
 
 function RISCVVSubU32x4(const a, b: TVecU32x4): TVecU32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.u[i] := a.u[i] - b.u[i];
+  Result := ScalarSubU32x4(a, b);
 end;
 
 function RISCVVSubU64x4(const a, b: TVecU64x4): TVecU64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.u[i] := a.u[i] - b.u[i];
+  Result := ScalarSubU64x4(a, b);
 end;
 
 function RISCVVSubU8x16(const a, b: TVecU8x16): TVecU8x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.u[i] := a.u[i] - b.u[i];
+  Result := ScalarSubU8x16(a, b);
 end;
 
 function RISCVVTruncF32x16(const a: TVecF32x16): TVecF32x16;
@@ -3553,59 +3461,43 @@ begin
 end;
 
 function RISCVVXorI16x8(const a, b: TVecI16x8): TVecI16x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] xor b.i[i];
+  Result := ScalarXorI16x8(a, b);
 end;
 
 function RISCVVXorI64x4(const a, b: TVecI64x4): TVecI64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.i[i] := a.i[i] xor b.i[i];
+  Result := ScalarXorI64x4(a, b);
 end;
 
 function RISCVVXorI64x8(const a, b: TVecI64x8): TVecI64x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] xor b.i[i];
+  Result := ScalarXorI64x8(a, b);
 end;
 
 function RISCVVXorI8x16(const a, b: TVecI8x16): TVecI8x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.i[i] := a.i[i] xor b.i[i];
+  Result := ScalarXorI8x16(a, b);
 end;
 
 function RISCVVXorU16x8(const a, b: TVecU16x8): TVecU16x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] xor b.u[i];
+  Result := ScalarXorU16x8(a, b);
 end;
 
 function RISCVVXorU32x4(const a, b: TVecU32x4): TVecU32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.u[i] := a.u[i] xor b.u[i];
+  Result := ScalarXorU32x4(a, b);
 end;
 
 function RISCVVXorU64x4(const a, b: TVecU64x4): TVecU64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.u[i] := a.u[i] xor b.u[i];
+  Result := ScalarXorU64x4(a, b);
 end;
 
 function RISCVVXorU8x16(const a, b: TVecU8x16): TVecU8x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.u[i] := a.u[i] xor b.u[i];
+  Result := ScalarXorU8x16(a, b);
 end;
 
 function RISCVVZeroF32x16: TVecF32x16;
