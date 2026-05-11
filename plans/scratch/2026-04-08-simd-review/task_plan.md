@@ -831,3 +831,17 @@
 | 1. 识别重复 clamp 逻辑        | completed | `InsertF32x4` 与 `ExtractF32x4` 共享同一段 lane index saturation / clamp 逻辑              |
 | 2. 落地私有 helper 与回归     | completed | 新增 `SSE41ClampF32x4Index`，并把 `Test_SSE41_RepresentativeSemanticParity_WithScalar_IfDispatchable` 补进 insert/extract parity |
 | 3. Release 验证与收口        | completed | `git diff --check`、`TTestCase_DispatchAPI`、Release `check`、Release `gate` 全通过        |
+
+## 2026-05-11 SSE4.1 Normalize Helper Consolidation
+
+### Goal
+
+把 `SSE41NormalizeF32x4 / SSE41NormalizeF32x3` 共享的 length-divide 和 zero-vector fallback 收成单一私有 helper，保留 `F32x3` 清零 `w` lane 的 contract，不改 dispatch 签名、不碰 length 计算路径。
+
+### Phases
+
+| Phase                         | Status    | Notes                                                                                          |
+| ----------------------------- | --------- | ---------------------------------------------------------------------------------------------- |
+| 1. 识别重复 normalize body    | completed | 两个 wrapper 都是先计算 length，再按 length 分支做向量除法或 zero-vector fallback               |
+| 2. 落地私有 helper 收口       | completed | 新增 `SSE41NormalizeByLength`，`F32x4/F32x3` wrapper 只保留 length source 和 `w` lane policy |
+| 3. Release 验证与收口         | completed | `git diff --check`、`TTestCase_DispatchAPI`、Release `check`、Release `gate` 全通过             |

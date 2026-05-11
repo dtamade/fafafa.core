@@ -800,3 +800,15 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-11 SSE4.1 Normalize Helper Consolidation
+
+- 已把 `SSE41NormalizeF32x4 / SSE41NormalizeF32x3` 共享的 length divide 和 zero-vector fallback 收成私有 `SSE41NormalizeByLength` helper。
+- `F32x4` 继续保留完整四 lane normalize contract，`F32x3` 仍然在归一化后强制把 `w` lane 清零；只是现在两条 wrapper 不再各自维护同一段分支。
+- 这批修复过程中先漏掉了两个 wrapper 的 `var`，导致编译断点很明确；补回后重新跑 release gate 已经绿了。
+- 验证结果：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

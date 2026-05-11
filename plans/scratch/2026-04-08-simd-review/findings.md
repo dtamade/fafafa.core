@@ -842,3 +842,9 @@
 - `SSE41InsertF32x4` 和 `SSE41ExtractF32x4` 共享同一段 lane index clamp，原来在两个函数里各写了一遍。
 - 把 clamp 收成 `SSE41ClampF32x4Index` 之后，公共 contract 仍然是 saturation，不是 wrap-around，也没有碰 asm 指令本身。
 - 这批把 insert/extract 的 SSE4.1 代表性 parity 也补上了，低位 / 高位 clamp 都用 scalar truth 交叉确认过。
+
+## 2026-05-11 SSE4.1 Normalize Helper Consolidation
+
+- `SSE41NormalizeF32x4` 和 `SSE41NormalizeF32x3` 其实是同一条 length-divide 控制流，只是 `F32x3` 需要额外把 `w` lane 清零；最干净的收口是抽一个 shared `SSE41NormalizeByLength`，让两个 wrapper 只保留 length source 和 lane policy。
+- 这次的真实风险点不是语义漂移，而是临时重构时漏写了两个 wrapper 的 `var` 声明，编译器立刻把它打回来了；补回后 `DispatchAPI / check / gate` 已经全绿。
+- 这也说明 `SSE4.1` 这条线现在更适合继续做“exact-contract helper consolidation”，而不是再去碰语义边界更敏感的 float math policy。

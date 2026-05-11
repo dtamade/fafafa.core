@@ -689,14 +689,11 @@ begin
   end;
 end;
 
-// SSE4.1 Optimized Normalize using DPPS
-function SSE41NormalizeF32x4(const a: TVecF32x4): TVecF32x4;
+function SSE41NormalizeByLength(const a: TVecF32x4; const aLen: Single; aZeroW: Boolean): TVecF32x4; inline;
 var
   LPA, LPR: Pointer;
-  LLen: Single;
 begin
-  LLen := SSE41LengthF32x4(a);
-  if LLen > 0.0 then
+  if aLen > 0.0 then
   begin
     LPA := @a;
     LPR := @Result;
@@ -704,42 +701,37 @@ begin
       mov     rax, LPA
       mov     rcx, LPR
       movups  xmm0, [rax]
-      movss   xmm1, LLen
+      movss   xmm1, aLen
       shufps  xmm1, xmm1, 0
       divps   xmm0, xmm1
       movups  [rcx], xmm0
     end;
+    if aZeroW then
+      Result.f[3] := 0.0;
   end
   else
+  begin
     Result := a;
+    if aZeroW then
+      Result.f[3] := 0.0;
+  end;
+end;
+
+// SSE4.1 Optimized Normalize using DPPS
+function SSE41NormalizeF32x4(const a: TVecF32x4): TVecF32x4;
+var
+  LLen: Single;
+begin
+  LLen := SSE41LengthF32x4(a);
+  Result := SSE41NormalizeByLength(a, LLen, False);
 end;
 
 function SSE41NormalizeF32x3(const a: TVecF32x4): TVecF32x4;
 var
-  LPA, LPR: Pointer;
   LLen: Single;
 begin
   LLen := SSE41LengthF32x3(a);
-  if LLen > 0.0 then
-  begin
-    LPA := @a;
-    LPR := @Result;
-    asm
-      mov     rax, LPA
-      mov     rcx, LPR
-      movups  xmm0, [rax]
-      movss   xmm1, LLen
-      shufps  xmm1, xmm1, 0
-      divps   xmm0, xmm1
-      movups  [rcx], xmm0
-    end;
-    Result.f[3] := 0.0;
-  end
-  else
-  begin
-    Result := a;
-    Result.f[3] := 0.0;
-  end;
+  Result := SSE41NormalizeByLength(a, LLen, True);
 end;
 
 // SSE4.1 Select operations using BLENDVPS
