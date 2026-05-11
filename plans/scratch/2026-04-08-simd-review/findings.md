@@ -908,3 +908,11 @@
 - 这两个函数与 `ScalarMinI32x16 / ScalarMaxI32x16` 完全同合同，适合直接收回 scalar truth；float min/max 仍然不碰。
 - `check_nonx86_helper_semantics.py` 现在把这两个尾巴也纳入 source-side 断言，summary 变成 `checks=306`。
 - `impl-audit-nonx86 / check / gate` 全部通过，说明这个尾巴收口没有改变 backend-owned slot 或公开 contract。
+
+## 2026-05-12 RISCVV I32x16 Arithmetic/Bitwise Tail Completion
+
+- `src/fafafa.core.simd.riscvv.facade.inc` 的 `I32x16` non-ASM arithmetic / bitwise fallback 仍有 8 个手写逐 lane loop：`Add/Sub/Mul/And/Or/Xor/Not/AndNot`。
+- 这些 wrapper 与 `ScalarAdd/Sub/Mul/And/Or/Xor/Not/AndNotI32x16` 完全同合同，属于 Wave 5 可以继续收掉的 exact-contract redundancy。
+- 本批只收 no-ASM facade fallback，不改变 `src/fafafa.core.simd.riscvv.pas` 的 RVV asm 实现，也不改 `riscvv.register.inc` 的 backend-owned slot。
+- `check_nonx86_helper_semantics.py` 已新增这 8 个 source-side forwarder 断言，验证通过后 summary 应从 `checks=306` 增加到 `checks=314`。
+- release 级验证已通过：`git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿；说明这批是纯 fallback 去重，没有把 register ownership 或语义边界拧歪。

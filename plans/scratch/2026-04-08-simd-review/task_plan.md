@@ -962,3 +962,18 @@
 | 2. 落地 scalar truth forwarder | completed   | 两个 wrapper 已改成直接委托 `ScalarMinI32x16/ScalarMaxI32x16`                                      |
 | 3. 扩大 helper semantics 护栏   | completed   | `check_nonx86_helper_semantics.py` 已把 `I32x16` min/max 计入 compare/minmax forwarder 覆盖，checks=306 |
 | 4. Release 验证与收口          | completed   | `git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过 |
+
+## 2026-05-12 RISCVV I32x16 Arithmetic/Bitwise Tail Completion
+
+### Goal
+
+把 `src/fafafa.core.simd.riscvv.facade.inc` 里剩余的 `I32x16` arithmetic / bitwise non-ASM 手写循环收回 `Scalar*I32x16` 真源；不碰 RVV asm path、`riscvv.register.inc` ownership、shift、compare 或浮点语义边界。
+
+### Phases
+
+| Phase                          | Status      | Notes                                                                                                  |
+| ------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------ |
+| 1. 识别 arithmetic/bitwise 尾巴 | completed   | `Add/Sub/Mul/And/Or/Xor/Not/AndNotI32x16` 仍是逐 lane loop，且对应 `Scalar*I32x16` helper 已存在      |
+| 2. 落地 scalar truth forwarder | completed   | 8 个 wrapper 已改成直接委托对应 `Scalar*I32x16`                                                        |
+| 3. 扩大 helper semantics 护栏   | completed   | `check_nonx86_helper_semantics.py` 已纳入这 8 个 forwarder                                            |
+| 4. Release 验证与收口          | completed   | `git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、`gate` 全绿 |

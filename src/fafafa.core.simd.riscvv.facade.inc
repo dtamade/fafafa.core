@@ -760,59 +760,43 @@ end;
 // non-asm builds only; it is not evidence that the 512-bit path is scalar-reuse.
 
 function RISCVVAddI32x16(const a, b: TVecI32x16): TVecI32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.i[i] := a.i[i] + b.i[i];
+  Result := ScalarAddI32x16(a, b);
 end;
 
 function RISCVVSubI32x16(const a, b: TVecI32x16): TVecI32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.i[i] := a.i[i] - b.i[i];
+  Result := ScalarSubI32x16(a, b);
 end;
 
 function RISCVVMulI32x16(const a, b: TVecI32x16): TVecI32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.i[i] := a.i[i] * b.i[i];
+  Result := ScalarMulI32x16(a, b);
 end;
 
 function RISCVVAndI32x16(const a, b: TVecI32x16): TVecI32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.i[i] := a.i[i] and b.i[i];
+  Result := ScalarAndI32x16(a, b);
 end;
 
 function RISCVVOrI32x16(const a, b: TVecI32x16): TVecI32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.i[i] := a.i[i] or b.i[i];
+  Result := ScalarOrI32x16(a, b);
 end;
 
 function RISCVVXorI32x16(const a, b: TVecI32x16): TVecI32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.i[i] := a.i[i] xor b.i[i];
+  Result := ScalarXorI32x16(a, b);
 end;
 
 function RISCVVNotI32x16(const a: TVecI32x16): TVecI32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.i[i] := not a.i[i];
+  Result := ScalarNotI32x16(a);
 end;
 
 function RISCVVAndNotI32x16(const a, b: TVecI32x16): TVecI32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.i[i] := (not a.i[i]) and b.i[i];
+  Result := ScalarAndNotI32x16(a, b);
 end;
 
 function RISCVVShiftLeftI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;

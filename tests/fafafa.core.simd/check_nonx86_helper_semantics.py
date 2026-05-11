@@ -797,6 +797,12 @@ def main() -> int:
                 (f"RISCVVCmp{op}{suffix}", f"ScalarCmp{op}{suffix}(a, b)")
             )
 
+    for suffix in ("I32x16",):
+        for op in ("Add", "Sub", "Mul", "And", "Or", "Xor"):
+            riscvv_scalar_forwarder_expectations.append(
+                (f"RISCVV{op}{suffix}", f"Scalar{op}{suffix}(a, b)")
+            )
+
     for suffix in ("I64x2",):
         for op in ("Add", "Sub", "And", "Or", "Xor"):
             riscvv_scalar_forwarder_expectations.append(
@@ -808,7 +814,7 @@ def main() -> int:
             )
         riscvv_scalar_forwarder_expectations.append(("RISCVVNotI64x2", "ScalarNotI64x2(a)"))
 
-    for suffix in ("I32x4", "I32x8", "U32x8"):
+    for suffix in ("I32x4", "I32x8", "I32x16", "U32x8"):
         riscvv_scalar_forwarder_expectations.extend(
             [
                 (f"RISCVVAndNot{suffix}", f"ScalarAndNot{suffix}(a, b)"),
