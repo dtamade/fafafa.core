@@ -110,7 +110,8 @@
 
 也就是说，**不会在每次外部调用时重复查内部 dispatch table**。
 
-只有初始化尚未完成等极少数兜底路径，才会回读当前 dispatch table。
+即使初始化尚未完成等极少数兜底路径，也只会回到当前 published `dataplane`。
+`public ABI wrapper` 不直接回读 `GetDispatchTable`，也不维护第二条 publication truth。
 
 ### Snapshot Boundary
 

@@ -862,3 +862,18 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-12 Public ABI Dataplane Doc Guard
+
+- 继续按 `Wave 5 / retire + redundancy cleanup` 检查 active 文档与代码 truth，发现 `docs/fafafa.core.simd.publicabi.md` 仍保留“兜底路径回读当前 dispatch table”的旧口径。
+- 当前代码事实已经是 `public ABI wrapper` 绑定并兜底到 published `dataplane`，所以这句话会误导后续把 public ABI 写回第二条 publication/control 路径。
+- 已把 active public ABI 文档改成 dataplane fallback 口径，并让 `check_dispatch_read_scope.py` 同时检查这份 active 文档不能再出现 `fallback/兜底 -> dispatch table` 的旧描述。
+- 已完成初步验证：
+  - `python3 -m py_compile tests/fafafa.core.simd/check_dispatch_read_scope.py`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh dispatch-read-scope`
+  - 结果：通过，`active_doc_issues=0`
+- 已完成 release 收口：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

@@ -903,3 +903,17 @@
 | 1. 识别可安全收口的薄壳 | completed   | `Load/Store F32x4` 与 `ReduceAdd/ReduceMul F32x4` 都是 exact-contract 的重复壳                |
 | 2. 落地 scalar forwarder | completed   | `neon.scalar.memory.inc` 与 `neon.scalar.reduction.inc` 已改为直调 `Scalar*` 真源，并补 checker |
 | 3. Release 验证与收口   | completed   | `git diff --check`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿  |
+
+## 2026-05-12 Public ABI Dataplane Doc Guard
+
+### Goal
+
+把 active public ABI 文档里的旧 `dispatch table fallback` 口径改成当前事实：`public ABI wrapper` 的兜底路径仍消费 published `dataplane`，不再维护第二条 publication truth；同时把这条口径纳入 `dispatch-read-scope` 机器护栏。
+
+### Phases
+
+| Phase                              | Status      | Notes                                                                                  |
+| ---------------------------------- | ----------- | -------------------------------------------------------------------------------------- |
+| 1. 定位 active 文档漂移            | completed   | `docs/fafafa.core.simd.publicabi.md` 仍写着兜底回读 dispatch table                     |
+| 2. 同步文档与机器护栏              | completed   | 文档已改成 dataplane fallback；`check_dispatch_read_scope.py` 已新增 active doc guard |
+| 3. Release 验证与收口              | completed   | `py_compile`、`dispatch-read-scope`、Release `check`、Release `gate` 全绿              |

@@ -879,3 +879,11 @@
 - `src/fafafa.core.simd.neon.scalar.reduction.inc` 里 `ReduceAddF32x4 / ReduceMulF32x4` 也是同类 exact-contract duplicate；`ReduceMin/ReduceMax` 与整数 reduction 仍保留 local 实现，因为这次不碰 floating min/max 语义边界。
 - 这两块之前没有进入 `check_nonx86_helper_semantics.py`，所以它们正好是当前 NEON fallback 面上比较新的、值得继续清理的重复体。
 - release 复验证明这次只是 exact-contract forwarder 收口，不是 reduction / memory contract 漂移：`git diff --check`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿。
+
+## 2026-05-12 Public ABI Dataplane Doc Guard
+
+- `src/fafafa.core.simd.public_abi.impl.inc` 当前已经通过 `TSimdPublicApiBindingState.DataPlane`、`GetCurrentSimdDataPlane` 和 `GetSimdPublicApiFallbackDataPlane` 消费 published dataplane，public ABI 不再是第二条 dispatch publication path。
+- `docs/fafafa.core.simd.publicabi.md` 仍保留“兜底路径回读当前 dispatch table”的旧句子，这会和 `dispatch = control truth / dataplane = publication seam` 的当前架构口径冲突。
+- 最小修复不是重写 public ABI 文档，而是把这条 active 文档口径改回 dataplane fallback，并把 `dispatch-read-scope` 扩成 active-doc guard：源码禁止 consumer 直读 `GetDispatchTable`，文档也禁止把 public ABI fallback 描述成 dispatch table fallback。
+- 当前 targeted guard 已通过：`DISPATCH_READ_SCOPE ... forbidden_hits=0 active_doc_issues=0`。
+- Release `check` 和 `gate` 已通过，说明这次 guard 扩展没有破坏主 SIMD runner、public ABI smoke、adapter sync、wiring sync 或 filtered `run_all` 链路。

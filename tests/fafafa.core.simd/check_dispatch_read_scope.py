@@ -23,6 +23,16 @@ ALLOWED_DIRECT_READ_FILES = {
     "src/fafafa.core.simd.runtime.pas",
 }
 SYMBOL_RE = re.compile(rf"\b{re.escape(SYMBOL)}\b")
+ACTIVE_PUBLIC_ABI_DOC = "docs/fafafa.core.simd.publicabi.md"
+PUBLIC_ABI_DOC_FORBIDDEN_PATTERNS = (
+    re.compile(r"\u515c\u5e95.{0,80}dispatch table", re.IGNORECASE),
+    re.compile(r"fallback.{0,80}dispatch table", re.IGNORECASE),
+)
+PUBLIC_ABI_DOC_REQUIRED_FRAGMENTS = (
+    "published `dataplane`",
+    "`public ABI wrapper`",
+    "`GetDispatchTable`",
+)
 
 
 @dataclass(frozen=True)
@@ -41,10 +51,11 @@ class Report:
     scanned_files: int
     allowed_hits: list[Hit]
     forbidden_hits: list[Hit]
+    active_doc_issues: list[str]
 
     @property
     def ok(self) -> bool:
-        return len(self.forbidden_hits) == 0
+        return len(self.forbidden_hits) == 0 and len(self.active_doc_issues) == 0
 
 
 def repo_root() -> Path:
@@ -191,6 +202,7 @@ def build_report(aRoot: Path) -> Report:
     l_files = discover_source_files(aRoot)
     l_allowed_hits: list[Hit] = []
     l_forbidden_hits: list[Hit] = []
+    l_active_doc_issues = check_active_public_abi_doc(aRoot)
 
     for l_path in l_files:
         l_rel = l_path.relative_to(aRoot).as_posix()
@@ -208,7 +220,32 @@ def build_report(aRoot: Path) -> Report:
         scanned_files=len(l_files),
         allowed_hits=l_allowed_hits,
         forbidden_hits=l_forbidden_hits,
+        active_doc_issues=l_active_doc_issues,
     )
+
+
+def check_active_public_abi_doc(aRoot: Path) -> list[str]:
+    l_path = aRoot / ACTIVE_PUBLIC_ABI_DOC
+    if not l_path.is_file():
+        return [f"missing active public ABI doc: {ACTIVE_PUBLIC_ABI_DOC}"]
+
+    l_text = l_path.read_text(encoding="utf-8", errors="replace")
+    l_issues: list[str] = []
+    for l_pattern in PUBLIC_ABI_DOC_FORBIDDEN_PATTERNS:
+        l_match = l_pattern.search(l_text)
+        if l_match:
+            l_issues.append(
+                f"{ACTIVE_PUBLIC_ABI_DOC}: stale dispatch fallback wording: "
+                f"{l_match.group(0)}"
+            )
+
+    for l_fragment in PUBLIC_ABI_DOC_REQUIRED_FRAGMENTS:
+        if l_fragment not in l_text:
+            l_issues.append(
+                f"{ACTIVE_PUBLIC_ABI_DOC}: missing required fragment: {l_fragment}"
+            )
+
+    return l_issues
 
 
 def print_human_report(aReport: Report, aVerbose: bool) -> None:
@@ -228,12 +265,16 @@ def print_human_report(aReport: Report, aVerbose: bool) -> None:
                 f"{l_hit.path}:{l_hit.line}: {l_hit.text}"
             )
 
+    for l_issue in aReport.active_doc_issues:
+        print(f"[DISPATCH-READ-SCOPE] DOC-ISSUE {l_issue}")
+
     if aReport.ok:
         print("[DISPATCH-READ-SCOPE] OK")
     else:
         print(
             "[DISPATCH-READ-SCOPE] FAILED: GetDispatchTable is only allowed in "
-            "dispatch/dataplane/runtime internals."
+            "dispatch/dataplane/runtime internals, and active public ABI docs "
+            "must describe dataplane fallback semantics."
         )
 
 
@@ -244,7 +285,8 @@ def render_summary_line(aReport: Report) -> str:
         f"scanned_files={aReport.scanned_files} "
         f"allowed_files={len(aReport.allowed_files)} "
         f"allowed_hits={len(aReport.allowed_hits)} "
-        f"forbidden_hits={len(aReport.forbidden_hits)}"
+        f"forbidden_hits={len(aReport.forbidden_hits)} "
+        f"active_doc_issues={len(aReport.active_doc_issues)}"
     )
 
 
