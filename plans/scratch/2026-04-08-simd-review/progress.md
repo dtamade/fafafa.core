@@ -542,3 +542,17 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 删除孤立文件后复验：`git diff --check`、`check_sse2_structure.py --summary-line`、Release `check`
+
+## 2026-05-11 SSE2 Shift Raw Helper Consolidation
+
+- 已用 Release 策略重新确认当前 baseline：`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 通过。
+- 当前批次开始收 `SSE2` shift 家族：先新增 `word / dword / qword` 128-bit raw helper，再让 128-bit typed wrapper 与 wide-emulation 256/512-bit wrapper 统一复用这些 helper。
+- 本批实现已完成：128-bit `I16x8/I32x4/U16x8/U32x4` shift wrapper 改为调用共享 raw helper，wide-emulation 的 `I32x16/I64x4/U64x4/I64x8` 等 128-bit chunk 展开也统一调用同一批 helper。
+- 已完成验证：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NarrowIntegerOps`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DirectDispatch`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`

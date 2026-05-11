@@ -657,3 +657,11 @@
 - 计划同步会把这批加入 helper checker，保持 exact-contract 收口可追踪。
 - 当前这批已全部收口完成，`scalar_fallback.inc` 不再保留这组重复的逐 lane 基础算术体。
 - 验证时曾因 `check` / `gate` 并发占用同一输出目录触发临时失败，串行重跑后确认门禁绿。
+
+## 2026-05-11 SSE2 Shift Raw Helper Consolidation
+
+- `SSE2` 的 shift 家族是真重复，但重复点不在 dispatch contract，而在每个宽度都各自维护一份 load-shift-store 体。
+- `I16x8/I32x4/U16x8/U32x4` 可以收成同一组 `word / dword` raw helper；`I32x8/I32x16/U32x8/U64x4/I64x4/I64x8` 则可以顺着同一套 128-bit chunk helper 自然展开。
+- 这批不需要改动 `dispatch` / `dataplane` / `public ABI` 的语义，只需要把宽度展开逻辑从“复制 ASM”收回到“共享 raw helper + 逐 chunk 调用”。
+- 现有 dispatch / direct / wide parity 测试已经覆盖了这些 shift 入口，适合作为收口后验证基线。
+- 收口后保留的重复边界是有意的：typed wrapper 继续承担 dispatch slot 与类型合同，raw helper 才承担同宽 load/shift/store 真实现；这符合当前 `sse2.pas` 作为 backend adapter truth source 的边界。

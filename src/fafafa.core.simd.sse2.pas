@@ -469,6 +469,146 @@ begin
   end;
 end;
 
+// === SSE2 128-bit Shift Raw Helpers ===
+// Typed wrappers and wide-emulation lanes should delegate to these helpers
+// instead of duplicating the same load/shift/store sequence per width.
+
+procedure SSE2ShiftLeftWordVecRaw(const aPtr, rPtr: Pointer; aCount: Integer); inline;
+var
+  LPa, LPr: Pointer;
+begin
+  LPa := aPtr;
+  LPr := rPtr;
+  asm
+    mov    rax, LPa
+    mov    rcx, LPr
+    mov    edx, aCount
+    movdqu xmm0, [rax]
+    movd   xmm1, edx
+    psllw  xmm0, xmm1
+    movdqu [rcx], xmm0
+  end;
+end;
+
+procedure SSE2ShiftRightWordVecRaw(const aPtr, rPtr: Pointer; aCount: Integer); inline;
+var
+  LPa, LPr: Pointer;
+begin
+  LPa := aPtr;
+  LPr := rPtr;
+  asm
+    mov    rax, LPa
+    mov    rcx, LPr
+    mov    edx, aCount
+    movdqu xmm0, [rax]
+    movd   xmm1, edx
+    psrlw  xmm0, xmm1
+    movdqu [rcx], xmm0
+  end;
+end;
+
+procedure SSE2ShiftRightArithWordVecRaw(const aPtr, rPtr: Pointer; aCount: Integer); inline;
+var
+  LPa, LPr: Pointer;
+begin
+  LPa := aPtr;
+  LPr := rPtr;
+  asm
+    mov    rax, LPa
+    mov    rcx, LPr
+    mov    edx, aCount
+    movdqu xmm0, [rax]
+    movd   xmm1, edx
+    psraw  xmm0, xmm1
+    movdqu [rcx], xmm0
+  end;
+end;
+
+procedure SSE2ShiftLeftDwordVecRaw(const aPtr, rPtr: Pointer; aCount: Integer); inline;
+var
+  LPa, LPr: Pointer;
+begin
+  LPa := aPtr;
+  LPr := rPtr;
+  asm
+    mov    rax, LPa
+    mov    rcx, LPr
+    mov    edx, aCount
+    movdqu xmm0, [rax]
+    movd   xmm1, edx
+    pslld  xmm0, xmm1
+    movdqu [rcx], xmm0
+  end;
+end;
+
+procedure SSE2ShiftRightDwordVecRaw(const aPtr, rPtr: Pointer; aCount: Integer); inline;
+var
+  LPa, LPr: Pointer;
+begin
+  LPa := aPtr;
+  LPr := rPtr;
+  asm
+    mov    rax, LPa
+    mov    rcx, LPr
+    mov    edx, aCount
+    movdqu xmm0, [rax]
+    movd   xmm1, edx
+    psrld  xmm0, xmm1
+    movdqu [rcx], xmm0
+  end;
+end;
+
+procedure SSE2ShiftRightArithDwordVecRaw(const aPtr, rPtr: Pointer; aCount: Integer); inline;
+var
+  LPa, LPr: Pointer;
+begin
+  LPa := aPtr;
+  LPr := rPtr;
+  asm
+    mov    rax, LPa
+    mov    rcx, LPr
+    mov    edx, aCount
+    movdqu xmm0, [rax]
+    movd   xmm1, edx
+    psrad  xmm0, xmm1
+    movdqu [rcx], xmm0
+  end;
+end;
+
+procedure SSE2ShiftLeftQwordVecRaw(const aPtr, rPtr: Pointer; aCount: Integer); inline;
+var
+  LPa, LPr: Pointer;
+begin
+  LPa := aPtr;
+  LPr := rPtr;
+  asm
+    mov    rax, LPa
+    mov    rcx, LPr
+    mov    edx, aCount
+    movdqu xmm0, [rax]
+    movd   xmm1, edx
+    psllq  xmm0, xmm1
+    movdqu [rcx], xmm0
+  end;
+end;
+
+procedure SSE2ShiftRightQwordVecRaw(const aPtr, rPtr: Pointer; aCount: Integer); inline;
+var
+  LPa, LPr: Pointer;
+begin
+  LPa := aPtr;
+  LPr := rPtr;
+  asm
+    mov    rax, LPa
+    mov    rcx, LPr
+    mov    edx, aCount
+    movdqu xmm0, [rax]
+    movd   xmm1, edx
+    psrlq  xmm0, xmm1
+    movdqu [rcx], xmm0
+  end;
+end;
+
 // === SSE2 Arithmetic Operations ===
 // Note: FPC x86-64 calling convention:
 //   - First 6 integer/pointer args: RDI, RSI, RDX, RCX, R8, R9
@@ -902,56 +1042,18 @@ end;
 // ============================================================================
 
 function SSE2ShiftLeftI32x4(const a: TVecI32x4; count: Integer): TVecI32x4;
-var
-  pa, pr: Pointer;
 begin
-  pa := @a;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    mov    edx, count
-    movdqu xmm0, [rax]
-    movd   xmm1, edx
-    pslld  xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2ShiftLeftDwordVecRaw(@a, @Result, count);
 end;
 
 function SSE2ShiftRightI32x4(const a: TVecI32x4; count: Integer): TVecI32x4;
-var
-  pa, pr: Pointer;
 begin
-  pa := @a;
-  pr := @Result;
-  // Logical right shift (unsigned)
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    mov    edx, count
-    movdqu xmm0, [rax]
-    movd   xmm1, edx
-    psrld  xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2ShiftRightDwordVecRaw(@a, @Result, count);
 end;
 
 function SSE2ShiftRightArithI32x4(const a: TVecI32x4; count: Integer): TVecI32x4;
-var
-  pa, pr: Pointer;
 begin
-  pa := @a;
-  pr := @Result;
-  // Arithmetic right shift (signed, preserves sign bit)
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    mov    edx, count
-    movdqu xmm0, [rax]
-    movd   xmm1, edx
-    psrad  xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2ShiftRightArithDwordVecRaw(@a, @Result, count);
 end;
 
 // ============================================================================
@@ -1240,54 +1342,18 @@ begin
 end;
 
 function SSE2ShiftLeftI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
-var
-  pa, pr: Pointer;
 begin
-  pa := @a;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    mov    edx, count
-    movdqu xmm0, [rax]
-    movd   xmm1, edx
-    psllw  xmm0, xmm1    // 16-bit logical shift left
-    movdqu [rcx], xmm0
-  end;
+  SSE2ShiftLeftWordVecRaw(@a, @Result, count);
 end;
 
 function SSE2ShiftRightI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
-var
-  pa, pr: Pointer;
 begin
-  pa := @a;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    mov    edx, count
-    movdqu xmm0, [rax]
-    movd   xmm1, edx
-    psrlw  xmm0, xmm1    // 16-bit logical shift right
-    movdqu [rcx], xmm0
-  end;
+  SSE2ShiftRightWordVecRaw(@a, @Result, count);
 end;
 
 function SSE2ShiftRightArithI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
-var
-  pa, pr: Pointer;
 begin
-  pa := @a;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    mov    edx, count
-    movdqu xmm0, [rax]
-    movd   xmm1, edx
-    psraw  xmm0, xmm1    // 16-bit arithmetic shift right
-    movdqu [rcx], xmm0
-  end;
+  SSE2ShiftRightArithWordVecRaw(@a, @Result, count);
 end;
 
 function SSE2CmpEqI16x8(const a, b: TVecI16x8): TMask8;
@@ -1655,37 +1721,13 @@ begin
 end;
 
 function SSE2ShiftLeftU32x4(const a: TVecU32x4; count: Integer): TVecU32x4;
-var
-  pa, pr: Pointer;
 begin
-  pa := @a;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    mov    edx, count
-    movdqu xmm0, [rax]
-    movd   xmm1, edx
-    pslld  xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2ShiftLeftDwordVecRaw(@a, @Result, count);
 end;
 
 function SSE2ShiftRightU32x4(const a: TVecU32x4; count: Integer): TVecU32x4;
-var
-  pa, pr: Pointer;
 begin
-  pa := @a;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    mov    edx, count
-    movdqu xmm0, [rax]
-    movd   xmm1, edx
-    psrld  xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2ShiftRightDwordVecRaw(@a, @Result, count);
 end;
 
 function SSE2CmpEqU32x4(const a, b: TVecU32x4): TMask4;
@@ -1896,37 +1938,13 @@ begin
 end;
 
 function SSE2ShiftLeftU16x8(const a: TVecU16x8; count: Integer): TVecU16x8;
-var
-  pa, pr: Pointer;
 begin
-  pa := @a;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    mov    edx, count
-    movdqu xmm0, [rax]
-    movd   xmm1, edx
-    psllw  xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2ShiftLeftWordVecRaw(@a, @Result, count);
 end;
 
 function SSE2ShiftRightU16x8(const a: TVecU16x8; count: Integer): TVecU16x8;
-var
-  pa, pr: Pointer;
 begin
-  pa := @a;
-  pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    mov    edx, count
-    movdqu xmm0, [rax]
-    movd   xmm1, edx
-    psrlw  xmm0, xmm1
-    movdqu [rcx], xmm0
-  end;
+  SSE2ShiftRightWordVecRaw(@a, @Result, count);
 end;
 
 function SSE2CmpEqU16x8(const a, b: TVecU16x8): TMask8;
@@ -5839,21 +5857,9 @@ end;
 
 function SSE2ShiftLeftI32x8(const a: TVecI32x8; count: Integer): TVecI32x8;
 {$IFDEF CPUX64}
-var pa, pr: Pointer;
 begin
-  pa := @a; pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    mov    edx, count
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rax+16]
-    movd   xmm2, edx
-    pslld  xmm0, xmm2
-    pslld  xmm1, xmm2
-    movdqu [rcx], xmm0
-    movdqu [rcx+16], xmm1
-  end;
+  SSE2ShiftLeftDwordVecRaw(@a.lo, @Result.lo, count);
+  SSE2ShiftLeftDwordVecRaw(@a.hi, @Result.hi, count);
 {$ELSE}
 begin
   Result.lo := SSE2ShiftLeftI32x4(a.lo, count);
@@ -5863,21 +5869,9 @@ end;
 
 function SSE2ShiftRightI32x8(const a: TVecI32x8; count: Integer): TVecI32x8;
 {$IFDEF CPUX64}
-var pa, pr: Pointer;
 begin
-  pa := @a; pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    mov    edx, count
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rax+16]
-    movd   xmm2, edx
-    psrld  xmm0, xmm2
-    psrld  xmm1, xmm2
-    movdqu [rcx], xmm0
-    movdqu [rcx+16], xmm1
-  end;
+  SSE2ShiftRightDwordVecRaw(@a.lo, @Result.lo, count);
+  SSE2ShiftRightDwordVecRaw(@a.hi, @Result.hi, count);
 {$ELSE}
 begin
   Result.lo := SSE2ShiftRightI32x4(a.lo, count);
@@ -5887,21 +5881,9 @@ end;
 
 function SSE2ShiftRightArithI32x8(const a: TVecI32x8; count: Integer): TVecI32x8;
 {$IFDEF CPUX64}
-var pa, pr: Pointer;
 begin
-  pa := @a; pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    mov    edx, count
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rax+16]
-    movd   xmm2, edx
-    psrad  xmm0, xmm2      // 算术右移（保留符号位）
-    psrad  xmm1, xmm2
-    movdqu [rcx], xmm0
-    movdqu [rcx+16], xmm1
-  end;
+  SSE2ShiftRightArithDwordVecRaw(@a.lo, @Result.lo, count);
+  SSE2ShiftRightArithDwordVecRaw(@a.hi, @Result.hi, count);
 {$ELSE}
 begin
   Result.lo := SSE2ShiftRightArithI32x4(a.lo, count);

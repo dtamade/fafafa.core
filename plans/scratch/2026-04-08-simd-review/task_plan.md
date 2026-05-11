@@ -480,3 +480,17 @@
 | 2. 收口共享 raw kernel | completed | 新增 `SSE2AndVecRaw` / `SSE2OrVecRaw` / `SSE2XorVecRaw` / `SSE2NotVecRaw` / `SSE2AndNotVecRaw`，typed wrappers 改为 thin wrapper |
 | 3. 清理孤立旧实现 | completed | 删除未被任何 include 链引用的 `src/fafafa.core.simd.sse2.i64x2_compare.inc`，避免旧 scalar/compare 片段继续干扰架构判断 |
 | 4. Release 验证与收口 | completed | `git diff --check`、`check_sse2_structure.py --summary-line`、`NarrowIntegerOps`、`DispatchAPI`、`check`、`gate` 已通过；删除孤立文件后已复验 `diff --check`、SSE2 structure 与 Release `check` |
+
+## 2026-05-11 SSE2 Shift Raw Helper Consolidation
+
+### Goal
+
+把 `SSE2` 的 shift 家族收成共享 raw helper，让 128-bit typed wrapper 与 wide-emulation 256/512-bit wrapper 都复用同一套 `word / dword / qword` shift kernel，避免每个宽度 / signedness 再维护一遍 load-shift-store 体。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 识别可合并的 shift 簇 | completed | `I16x8/I32x4/U16x8/U32x4` 与 `I32x8/I32x16/U32x8/U64x4/I64x4/I64x8` 的 shift 已确认只是同一批 128-bit chunk 逻辑在不同宽度上的重复展开 |
+| 2. 收口共享 raw helper | completed | 已新增 `SSE2Shift*WordVecRaw` / `SSE2Shift*DwordVecRaw` / `SSE2Shift*QwordVecRaw`，typed wrapper 与 wide-emulation 已统一复用 |
+| 3. Release 验证与收口 | completed | `git diff --check`、`check_sse2_structure.py --summary-line`、`NarrowIntegerOps`、`DispatchAPI`、`DirectDispatch`、`check`、`gate` 全部通过 |

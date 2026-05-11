@@ -1445,92 +1445,31 @@ begin
   end;
 end;
 
-// 4×128-bit SSE2 ASM 实现 (I32x16 ShiftLeft)
+// 4×128-bit helper composition (I32x16 ShiftLeft)
 function SSE2ShiftLeftI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;
-var
-  pa, pr: Pointer;
 begin
-  pa := @a;
-  pr := @Result;
-  asm
-    mov     rax, pa
-    mov     rcx, pr
-    mov     edx, count
-    movd    xmm7, edx       // Load shift count
-    // Load 4×128-bit from a
-    movdqu  xmm0, [rax]
-    movdqu  xmm1, [rax+16]
-    movdqu  xmm2, [rax+32]
-    movdqu  xmm3, [rax+48]
-    // Shift left
-    pslld   xmm0, xmm7
-    pslld   xmm1, xmm7
-    pslld   xmm2, xmm7
-    pslld   xmm3, xmm7
-    // Store result
-    movdqu  [rcx], xmm0
-    movdqu  [rcx+16], xmm1
-    movdqu  [rcx+32], xmm2
-    movdqu  [rcx+48], xmm3
-  end;
+  SSE2ShiftLeftDwordVecRaw(@a.raw[0], @Result.raw[0], count);
+  SSE2ShiftLeftDwordVecRaw(@a.raw[16], @Result.raw[16], count);
+  SSE2ShiftLeftDwordVecRaw(@a.raw[32], @Result.raw[32], count);
+  SSE2ShiftLeftDwordVecRaw(@a.raw[48], @Result.raw[48], count);
 end;
 
-// 4×128-bit SSE2 ASM 实现 (I32x16 ShiftRight - logical)
+// 4×128-bit helper composition (I32x16 ShiftRight - logical)
 function SSE2ShiftRightI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;
-var
-  pa, pr: Pointer;
 begin
-  pa := @a;
-  pr := @Result;
-  // Logical right shift (unsigned)
-  asm
-    mov     rax, pa
-    mov     rcx, pr
-    mov     edx, count
-    movd    xmm7, edx       // Load shift count
-    movdqu  xmm0, [rax]
-    movdqu  xmm1, [rax+16]
-    movdqu  xmm2, [rax+32]
-    movdqu  xmm3, [rax+48]
-    // Logical shift right
-    psrld   xmm0, xmm7
-    psrld   xmm1, xmm7
-    psrld   xmm2, xmm7
-    psrld   xmm3, xmm7
-    movdqu  [rcx], xmm0
-    movdqu  [rcx+16], xmm1
-    movdqu  [rcx+32], xmm2
-    movdqu  [rcx+48], xmm3
-  end;
+  SSE2ShiftRightDwordVecRaw(@a.raw[0], @Result.raw[0], count);
+  SSE2ShiftRightDwordVecRaw(@a.raw[16], @Result.raw[16], count);
+  SSE2ShiftRightDwordVecRaw(@a.raw[32], @Result.raw[32], count);
+  SSE2ShiftRightDwordVecRaw(@a.raw[48], @Result.raw[48], count);
 end;
 
-// 4×128-bit SSE2 ASM 实现 (I32x16 ShiftRightArith - arithmetic)
+// 4×128-bit helper composition (I32x16 ShiftRightArith - arithmetic)
 function SSE2ShiftRightArithI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;
-var
-  pa, pr: Pointer;
 begin
-  pa := @a;
-  pr := @Result;
-  // Arithmetic right shift (signed, preserves sign bit)
-  asm
-    mov     rax, pa
-    mov     rcx, pr
-    mov     edx, count
-    movd    xmm7, edx       // Load shift count
-    movdqu  xmm0, [rax]
-    movdqu  xmm1, [rax+16]
-    movdqu  xmm2, [rax+32]
-    movdqu  xmm3, [rax+48]
-    // Arithmetic shift right
-    psrad   xmm0, xmm7
-    psrad   xmm1, xmm7
-    psrad   xmm2, xmm7
-    psrad   xmm3, xmm7
-    movdqu  [rcx], xmm0
-    movdqu  [rcx+16], xmm1
-    movdqu  [rcx+32], xmm2
-    movdqu  [rcx+48], xmm3
-  end;
+  SSE2ShiftRightArithDwordVecRaw(@a.raw[0], @Result.raw[0], count);
+  SSE2ShiftRightArithDwordVecRaw(@a.raw[16], @Result.raw[16], count);
+  SSE2ShiftRightArithDwordVecRaw(@a.raw[32], @Result.raw[32], count);
+  SSE2ShiftRightArithDwordVecRaw(@a.raw[48], @Result.raw[48], count);
 end;
 
 function SSE2CmpEqI32x16(const a, b: TVecI32x16): TMask16;
@@ -1734,21 +1673,9 @@ end;
 
 function SSE2ShiftLeftI64x4(const a: TVecI64x4; count: Integer): TVecI64x4;
 {$IFDEF CPUX64}
-var pa, pr: Pointer;
 begin
-  pa := @a; pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    mov    edx, count
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rax+16]
-    movd   xmm2, edx
-    psllq  xmm0, xmm2      // 64-bit 逻辑左移
-    psllq  xmm1, xmm2
-    movdqu [rcx], xmm0
-    movdqu [rcx+16], xmm1
-  end;
+  SSE2ShiftLeftQwordVecRaw(@a.raw[0], @Result.raw[0], count);
+  SSE2ShiftLeftQwordVecRaw(@a.raw[16], @Result.raw[16], count);
 {$ELSE}
 begin
   if count >= 64 then
@@ -1772,21 +1699,9 @@ end;
 
 function SSE2ShiftRightI64x4(const a: TVecI64x4; count: Integer): TVecI64x4;
 {$IFDEF CPUX64}
-var pa, pr: Pointer;
 begin
-  pa := @a; pr := @Result;
-  asm
-    mov    rax, pa
-    mov    rcx, pr
-    mov    edx, count
-    movdqu xmm0, [rax]
-    movdqu xmm1, [rax+16]
-    movd   xmm2, edx
-    psrlq  xmm0, xmm2      // 64-bit 逻辑右移
-    psrlq  xmm1, xmm2
-    movdqu [rcx], xmm0
-    movdqu [rcx+16], xmm1
-  end;
+  SSE2ShiftRightQwordVecRaw(@a.raw[0], @Result.raw[0], count);
+  SSE2ShiftRightQwordVecRaw(@a.raw[16], @Result.raw[16], count);
 {$ELSE}
 begin
   // Logical shift right (unsigned semantics)
@@ -2091,6 +2006,11 @@ begin
 end;
 
 function SSE2ShiftLeftU64x4(const a: TVecU64x4; count: Integer): TVecU64x4;
+{$IFDEF CPUX64}
+begin
+  SSE2ShiftLeftQwordVecRaw(@a.raw[0], @Result.raw[0], count);
+  SSE2ShiftLeftQwordVecRaw(@a.raw[16], @Result.raw[16], count);
+{$ELSE}
 begin
   if count >= 64 then
   begin
@@ -2108,9 +2028,15 @@ begin
   end
   else
     Result := a;
+{$ENDIF}
 end;
 
 function SSE2ShiftRightU64x4(const a: TVecU64x4; count: Integer): TVecU64x4;
+{$IFDEF CPUX64}
+begin
+  SSE2ShiftRightQwordVecRaw(@a.raw[0], @Result.raw[0], count);
+  SSE2ShiftRightQwordVecRaw(@a.raw[16], @Result.raw[16], count);
+{$ELSE}
 begin
   if count >= 64 then
   begin
@@ -2128,6 +2054,7 @@ begin
   end
   else
     Result := a;
+{$ENDIF}
 end;
 
 function SSE2CmpEqU64x4(const a, b: TVecU64x4): TMask4;
@@ -2391,63 +2318,22 @@ begin
   end;
 end;
 
-// 4×128-bit SSE2 ASM 实现 (I64x8 ShiftLeft)
+// 4×128-bit helper composition (I64x8 ShiftLeft)
 function SSE2ShiftLeftI64x8(const a: TVecI64x8; count: Integer): TVecI64x8;
-var
-  pa, pr: Pointer;
 begin
-  pa := @a;
-  pr := @Result;
-  asm
-    mov     rax, pa
-    mov     rcx, pr
-    mov     edx, count
-    movd    xmm7, edx       // Load shift count
-    // Load 4×128-bit from a (each holds 2 qwords)
-    movdqu  xmm0, [rax]
-    movdqu  xmm1, [rax+16]
-    movdqu  xmm2, [rax+32]
-    movdqu  xmm3, [rax+48]
-    // Shift left
-    psllq   xmm0, xmm7
-    psllq   xmm1, xmm7
-    psllq   xmm2, xmm7
-    psllq   xmm3, xmm7
-    // Store result
-    movdqu  [rcx], xmm0
-    movdqu  [rcx+16], xmm1
-    movdqu  [rcx+32], xmm2
-    movdqu  [rcx+48], xmm3
-  end;
+  SSE2ShiftLeftQwordVecRaw(@a.raw[0], @Result.raw[0], count);
+  SSE2ShiftLeftQwordVecRaw(@a.raw[16], @Result.raw[16], count);
+  SSE2ShiftLeftQwordVecRaw(@a.raw[32], @Result.raw[32], count);
+  SSE2ShiftLeftQwordVecRaw(@a.raw[48], @Result.raw[48], count);
 end;
 
-// 4×128-bit SSE2 ASM 实现 (I64x8 ShiftRight - logical)
+// 4×128-bit helper composition (I64x8 ShiftRight - logical)
 function SSE2ShiftRightI64x8(const a: TVecI64x8; count: Integer): TVecI64x8;
-var
-  pa, pr: Pointer;
 begin
-  pa := @a;
-  pr := @Result;
-  // Logical right shift (unsigned)
-  asm
-    mov     rax, pa
-    mov     rcx, pr
-    mov     edx, count
-    movd    xmm7, edx       // Load shift count
-    movdqu  xmm0, [rax]
-    movdqu  xmm1, [rax+16]
-    movdqu  xmm2, [rax+32]
-    movdqu  xmm3, [rax+48]
-    // Logical shift right
-    psrlq   xmm0, xmm7
-    psrlq   xmm1, xmm7
-    psrlq   xmm2, xmm7
-    psrlq   xmm3, xmm7
-    movdqu  [rcx], xmm0
-    movdqu  [rcx+16], xmm1
-    movdqu  [rcx+32], xmm2
-    movdqu  [rcx+48], xmm3
-  end;
+  SSE2ShiftRightQwordVecRaw(@a.raw[0], @Result.raw[0], count);
+  SSE2ShiftRightQwordVecRaw(@a.raw[16], @Result.raw[16], count);
+  SSE2ShiftRightQwordVecRaw(@a.raw[32], @Result.raw[32], count);
+  SSE2ShiftRightQwordVecRaw(@a.raw[48], @Result.raw[48], count);
 end;
 
 function SSE2CmpEqI64x8(const a, b: TVecI64x8): TMask8;
