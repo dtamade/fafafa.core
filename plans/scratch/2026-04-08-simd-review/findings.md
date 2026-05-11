@@ -916,3 +916,11 @@
 - 本批只收 no-ASM facade fallback，不改变 `src/fafafa.core.simd.riscvv.pas` 的 RVV asm 实现，也不改 `riscvv.register.inc` 的 backend-owned slot。
 - `check_nonx86_helper_semantics.py` 已新增这 8 个 source-side forwarder 断言，验证通过后 summary 应从 `checks=306` 增加到 `checks=314`。
 - release 级验证已通过：`git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿；说明这批是纯 fallback 去重，没有把 register ownership 或语义边界拧歪。
+
+## 2026-05-12 RISCVV Wide Float Arithmetic Forwarder Consolidation
+
+- `src/fafafa.core.simd.riscvv.facade.inc` 里的 `F32x16/F64x8` no-ASM `Add/Sub/Mul/Div` fallback 仍是逐 lane loop，和 `ScalarAdd/Sub/Mul/DivF32x16/F64x8` 完全同合同。
+- 本批只收基础四则运算；浮点 `Min/Max`、rounding、clamp、FMA 仍然保留当前实现边界，因为这些路径涉及 NaN、signed-zero、rounding 或 fused / non-fused 语义，不能按循环相似度合并。
+- `riscvv.pas` 的 RVV asm 实现与 `riscvv.register.inc` slot ownership 不变，这次只是 no-ASM fallback 的第二份真源回收。
+- `check_nonx86_helper_semantics.py` 已新增 8 个 source-side forwarder 断言，验证通过后 summary 应从 `checks=314` 增加到 `checks=322`。
+- release 复验证明这批只是 wide float arithmetic fallback 去重：`git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过。

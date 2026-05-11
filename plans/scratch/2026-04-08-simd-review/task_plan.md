@@ -977,3 +977,18 @@
 | 2. 落地 scalar truth forwarder | completed   | 8 个 wrapper 已改成直接委托对应 `Scalar*I32x16`                                                        |
 | 3. 扩大 helper semantics 护栏   | completed   | `check_nonx86_helper_semantics.py` 已纳入这 8 个 forwarder                                            |
 | 4. Release 验证与收口          | completed   | `git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、`gate` 全绿 |
+
+## 2026-05-12 RISCVV Wide Float Arithmetic Forwarder Consolidation
+
+### Goal
+
+把 `src/fafafa.core.simd.riscvv.facade.inc` 里的 `F32x16/F64x8` 基础四则运算 no-ASM fallback 收回 `Scalar*` 真源；只处理 `Add/Sub/Mul/Div` exact-contract wrapper，不碰 `Min/Max`、rounding、clamp、FMA、asm path 或 register ownership。
+
+### Phases
+
+| Phase                               | Status      | Notes                                                                                                       |
+| ----------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------- |
+| 1. 识别 wide float arithmetic 重复体 | completed   | `Add/Sub/Mul/DivF32x16` 和 `Add/Sub/Mul/DivF64x8` 与对应 `Scalar*` helper 是同合同逐 lane 四则运算       |
+| 2. 落地 scalar truth forwarder      | completed   | 8 个 wrapper 已改成直接委托 `ScalarAdd/Sub/Mul/DivF32x16/F64x8`                                            |
+| 3. 扩大 helper semantics 护栏        | completed   | `check_nonx86_helper_semantics.py` 已纳入这 8 个 forwarder，预期 summary 从 `checks=314` 扩到 `checks=322` |
+| 4. Release 验证与收口               | completed   | `git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、`gate` 全绿      |

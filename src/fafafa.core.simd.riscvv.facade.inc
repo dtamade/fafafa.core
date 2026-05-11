@@ -859,31 +859,23 @@ end;
 // =============================================================
 
 function RISCVVAddF32x16(const a, b: TVecF32x16): TVecF32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.f[i] := a.f[i] + b.f[i];
+  Result := ScalarAddF32x16(a, b);
 end;
 
 function RISCVVSubF32x16(const a, b: TVecF32x16): TVecF32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.f[i] := a.f[i] - b.f[i];
+  Result := ScalarSubF32x16(a, b);
 end;
 
 function RISCVVMulF32x16(const a, b: TVecF32x16): TVecF32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.f[i] := a.f[i] * b.f[i];
+  Result := ScalarMulF32x16(a, b);
 end;
 
 function RISCVVDivF32x16(const a, b: TVecF32x16): TVecF32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.f[i] := a.f[i] / b.f[i];
+  Result := ScalarDivF32x16(a, b);
 end;
 
 // =============================================================
@@ -891,31 +883,23 @@ end;
 // =============================================================
 
 function RISCVVAddF64x8(const a, b: TVecF64x8): TVecF64x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.d[i] := a.d[i] + b.d[i];
+  Result := ScalarAddF64x8(a, b);
 end;
 
 function RISCVVSubF64x8(const a, b: TVecF64x8): TVecF64x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.d[i] := a.d[i] - b.d[i];
+  Result := ScalarSubF64x8(a, b);
 end;
 
 function RISCVVMulF64x8(const a, b: TVecF64x8): TVecF64x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.d[i] := a.d[i] * b.d[i];
+  Result := ScalarMulF64x8(a, b);
 end;
 
 function RISCVVDivF64x8(const a, b: TVecF64x8): TVecF64x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.d[i] := a.d[i] / b.d[i];
+  Result := ScalarDivF64x8(a, b);
 end;
 
 // =============================================================
