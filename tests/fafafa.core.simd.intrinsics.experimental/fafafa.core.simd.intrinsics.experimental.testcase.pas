@@ -20,12 +20,26 @@ type
     procedure Test_Experimental_AES_SHA_PlaceholderSemantics;
   end;
 
+{$IFDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
+{$IFDEF CPUX86_64}
+  TTestCase_SimdIntrinsicsExperimentalX86 = class(TTestCase)
+  published
+    procedure Test_SSE3_LoaddupPd_LoadsFirstLaneTwice;
+    procedure Test_SSE41_DpPd_UsesSelectedLanes;
+    procedure Test_SSE41_RoundPs_Mode1_UpdatesEachLane;
+    procedure Test_SSE41_InsertPs_ReplacesSelectedLane;
+  end;
+{$ENDIF}
+{$ENDIF}
+
 implementation
 
 {$IFDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
 {$IFDEF CPUX86_64}
 uses
-  fafafa.core.simd.intrinsics.x86.sse2;
+  fafafa.core.simd.intrinsics.x86.sse2,
+  fafafa.core.simd.intrinsics.sse3,
+  fafafa.core.simd.intrinsics.sse41;
 {$ENDIF}
 {$ENDIF}
 
@@ -193,6 +207,82 @@ begin
       LExpectedWord, LResult.m128i_u32[LIndex]);
   end;
 end;
+
+{$IFDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
+{$IFDEF CPUX86_64}
+procedure TTestCase_SimdIntrinsicsExperimentalX86.Test_SSE3_LoaddupPd_LoadsFirstLaneTwice;
+var
+  LSource: Double;
+  LResult: TM128;
+begin
+  LSource := 7.25;
+  LResult := sse3_loaddup_pd(@LSource);
+  AssertEquals('sse3_loaddup_pd lane0', 7.25, LResult.m128d_f64[0], 0.0);
+  AssertEquals('sse3_loaddup_pd lane1', 7.25, LResult.m128d_f64[1], 0.0);
+end;
+
+procedure TTestCase_SimdIntrinsicsExperimentalX86.Test_SSE41_DpPd_UsesSelectedLanes;
+var
+  LA: TM128;
+  LB: TM128;
+  LResult: TM128;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := 1.0;
+  LA.m128d_f64[1] := 2.0;
+  LB.m128d_f64[0] := 3.0;
+  LB.m128d_f64[1] := 4.0;
+
+  LResult := sse41_dp_pd(LA, LB, $33);
+  AssertEquals('sse41_dp_pd lane0', 11.0, LResult.m128d_f64[0], 0.0);
+  AssertEquals('sse41_dp_pd lane1', 11.0, LResult.m128d_f64[1], 0.0);
+end;
+
+procedure TTestCase_SimdIntrinsicsExperimentalX86.Test_SSE41_RoundPs_Mode1_UpdatesEachLane;
+var
+  LValue: TM128;
+  LResult: TM128;
+begin
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128_f32[0] := 1.75;
+  LValue.m128_f32[1] := 2.25;
+  LValue.m128_f32[2] := 3.5;
+  LValue.m128_f32[3] := 4.1;
+
+  LResult := sse41_round_ps(LValue, 1);
+  AssertEquals('sse41_round_ps lane0', 1.0, LResult.m128_f32[0], 0.0);
+  AssertEquals('sse41_round_ps lane1', 1.0, LResult.m128_f32[1], 0.0);
+  AssertEquals('sse41_round_ps lane2', 3.0, LResult.m128_f32[2], 0.0);
+  AssertEquals('sse41_round_ps lane3', 3.0, LResult.m128_f32[3], 0.0);
+end;
+
+procedure TTestCase_SimdIntrinsicsExperimentalX86.Test_SSE41_InsertPs_ReplacesSelectedLane;
+var
+  LA: TM128;
+  LB: TM128;
+  LResult: TM128;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128_f32[0] := 10.0;
+  LA.m128_f32[1] := 20.0;
+  LA.m128_f32[2] := 30.0;
+  LA.m128_f32[3] := 40.0;
+  LB.m128_f32[0] := 100.0;
+  LB.m128_f32[1] := 200.0;
+  LB.m128_f32[2] := 300.0;
+  LB.m128_f32[3] := 400.0;
+
+  LResult := sse41_insert_ps(LA, LB, $C2);
+  AssertEquals('sse41_insert_ps lane0', 10.0, LResult.m128_f32[0], 0.0);
+  AssertEquals('sse41_insert_ps lane1', 20.0, LResult.m128_f32[1], 0.0);
+  AssertEquals('sse41_insert_ps lane2', 400.0, LResult.m128_f32[2], 0.0);
+  AssertEquals('sse41_insert_ps lane3', 40.0, LResult.m128_f32[3], 0.0);
+end;
+
+{$ENDIF}
+{$ENDIF}
 
 {$IFDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
 {$IFDEF CPUX86_64}
@@ -461,6 +551,7 @@ initialization
   RegisterTest(TTestCase_SimdIntrinsicsExperimental);
   {$IFDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
   {$IFDEF CPUX86_64}
+  RegisterTest(TTestCase_SimdIntrinsicsExperimentalX86);
   RegisterTest(TTestCase_X86Sse2ByteShifts);
   RegisterTest(TTestCase_X86Sse2AbiBasics);
   {$ENDIF}

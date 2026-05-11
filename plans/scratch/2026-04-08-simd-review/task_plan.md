@@ -747,3 +747,17 @@
 | 1. 识别安全重复体                 | completed   | `load/loadu`、`store/storeu`、`set1_ps/set1_pd` 以及一组纯占位 return 体都是同合同重复体                    |
 | 2. 落地文件内 helper 收口         | completed   | 已新增 `AVXLoadTM256`、`AVXStoreTM256`、`AVXSetTM256F32/F64`、`AVXCopyTM256`、`AVXExtractF128TM128`、`AVXInsertF128TM256` |
 | 3. Release / experimental 验证收口 | completed   | `git diff --check`、experimental `check`、Release `check`、Release `gate` 全部通过                         |
+
+## 2026-05-11 SSE3/SSE41 Experimental Intrinsics Cleanup
+
+### Goal
+
+修掉 `sse3` / `sse41` 里真实的 comment-swallow 与逻辑残缺点，把 `loaddup / dp / round / insert` 的实验性回归补齐到最小可验证集合，不扩大 scope，不改公开面。
+
+### Phases
+
+| Phase                               | Status    | Notes                                                                                                  |
+| ----------------------------------- | --------- | ------------------------------------------------------------------------------------------------------ |
+| 1. 修复源码里的真实残缺             | completed | `sse3_loaddup_pd` 恢复实际加载；`sse41_dp_pd`、`sse41_round_ps`、`sse41_insert_ps` 去掉 comment-swallow / 缺失逻辑 |
+| 2. 补最小 x86 实验性回归            | completed | 新增 `TTestCase_SimdIntrinsicsExperimentalX86`，覆盖 `sse3_loaddup_pd` / `sse41_dp_pd` / `sse41_round_ps` / `sse41_insert_ps` |
+| 3. Release 验证与收口               | completed | experimental `check`、`test --suite=TTestCase_SimdIntrinsicsExperimentalX86`、Release `check`、Release `gate` 全通过 |

@@ -152,7 +152,8 @@ function sse3_loaddup_pd(const Ptr: Pointer): TM128;
 var
   value: Double;
 begin
-  // 加载并复制双精度�?  value := PDouble(Ptr)^;
+  // 加载并复制双精度
+  value := PDouble(Ptr)^;
   Result.m128d_f64[0] := value;
   Result.m128d_f64[1] := value;
 end;

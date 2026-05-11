@@ -711,3 +711,15 @@
 - 已把 `src/fafafa.core.simd.intrinsics.avx.pas` 里的 `load/store/set1` 以及一组纯占位 `cmp/blend/shuffle/permute/unpack/test/extract/insert` 重复体收成 helper。
 - 这批仍然只保留 experimental placeholder 语义，没有扩大公开 surface，也没有碰真正的数值实现分支。
 - `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`、Release `check`、Release `gate` 已通过，helper 收口没有破坏 experimental 门禁。
+
+## 2026-05-11 SSE3/SSE41 Experimental Intrinsics Cleanup
+
+- 已修复 `src/fafafa.core.simd.intrinsics.sse3.pas` 的 `sse3_loaddup_pd`，恢复真实的 `PDouble(Ptr)^` 读取，不再把 load 语句吞进注释。
+- 已修复 `src/fafafa.core.simd.intrinsics.sse41.pas` 的 `sse41_dp_pd`、`sse41_round_ps`、`sse41_insert_ps`，把 comment-swallow 和缺失逻辑补回。
+- 已新增并注册 `TTestCase_SimdIntrinsicsExperimentalX86`，覆盖 `sse3_loaddup_pd` / `sse41_dp_pd` / `sse41_round_ps` / `sse41_insert_ps`。
+- 验证结果：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test --suite=TTestCase_SimdIntrinsicsExperimentalX86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

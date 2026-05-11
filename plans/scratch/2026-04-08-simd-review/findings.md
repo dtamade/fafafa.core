@@ -800,3 +800,11 @@
 - 这份文件已经有独立 experimental smoke 入口，所以适合用文件内 helper 收口，而不是新开更大的架构层。
 - 这批只改 placeholder 体，不碰真正的数值语义函数，目标是先把 AVX experimental 面的重复噪音压下去。
 - `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`、Release `check`、Release `gate` 已通过，说明 helper 收口没有把 AVX experimental smoke 或默认门禁打坏。
+
+## 2026-05-11 SSE3/SSE41 Experimental Intrinsics Cleanup
+
+- `sse3_loaddup_pd` 之前的真实问题不是“语义不优雅”，而是 `value := PDouble(Ptr)^;` 被注释吞掉，导致函数直接读未初始化局部变量。
+- `sse41_dp_pd`、`sse41_round_ps`、`sse41_insert_ps` 都属于 comment-swallow / 逻辑残缺的同类问题，适合这批一起收掉，不再让实验性 helper 继续悬空。
+- 新增的 `TTestCase_SimdIntrinsicsExperimentalX86` 不是只为让 `check` 绿，它必须在 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1` 下实际跑到，才能证明注册和条件编译都没断。
+- 一个容易踩的点是 experimental 测试脚本默认还是 `experimental=0`，所以新 suite 只能靠显式 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1` 跑；否则会出现“编过了但没测到”的假绿。
+- 本批最终验证通过后，`check` / targeted experimental suite / Release `check` / Release `gate` 形成了完整收口链。

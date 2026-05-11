@@ -215,7 +215,8 @@ var
   i: Integer;
   sum: Double;
 begin
-  // 简化的双精度点积实�?  sum := 0;
+  // 简化的双精度点积实现
+  sum := 0;
   for i := 0 to 1 do
     if (imm8 and (1 shl (i + 4))) <> 0 then
       sum := sum + a.m128d_f64[i] * b.m128d_f64[i];
@@ -290,7 +291,8 @@ begin
   for i := 0 to 3 do
   begin
     case rounding and 7 of
-      0: Result.m128_f32[i] := Round(a.m128_f32[i]);      // 最近偶�?      1: Result.m128_f32[i] := Int(a.m128_f32[i] - 0.5);  // 向下
+      0: Result.m128_f32[i] := Round(a.m128_f32[i]);      // 最近偶数
+      1: Result.m128_f32[i] := Int(a.m128_f32[i] - 0.5);  // 向下
       2: Result.m128_f32[i] := Int(a.m128_f32[i] + 0.5);  // 向上
       3: Result.m128_f32[i] := Int(a.m128_f32[i]);        // 向零
       else Result.m128_f32[i] := a.m128_f32[i];
@@ -342,7 +344,8 @@ end;
 function sse41_insert_ps(const a, b: TM128; imm8: Byte): TM128;
 begin
   Result := a;
-  // 简化实�?  Result.m128_f32[imm8 and 3] := b.m128_f32[(imm8 shr 6) and 3];
+  // 简化实现：按 imm8 选择目标/源 lane
+  Result.m128_f32[imm8 and 3] := b.m128_f32[(imm8 shr 6) and 3];
 end;
 
 function sse41_extract_ps(const a: TM128; imm8: Byte): Cardinal;
