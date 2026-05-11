@@ -924,3 +924,11 @@
 - `riscvv.pas` 的 RVV asm 实现与 `riscvv.register.inc` slot ownership 不变，这次只是 no-ASM fallback 的第二份真源回收。
 - `check_nonx86_helper_semantics.py` 已新增 8 个 source-side forwarder 断言，验证通过后 summary 应从 `checks=314` 增加到 `checks=322`。
 - release 复验证明这批只是 wide float arithmetic fallback 去重：`git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过。
+
+## 2026-05-12 RISCVV Narrow Float Arithmetic/Compare Forwarder Consolidation
+
+- `src/fafafa.core.simd.riscvv.facade.inc` 里的 `F32x4/F64x2` no-ASM `Add/Sub/Mul/Div` 与 `CmpEq/Lt/Gt/Le/Ge/Ne` fallback 仍是逐 lane loop，和 `Scalar*F32x4/F64x2` 完全同合同。
+- 本批只收基础 arithmetic / compare；浮点 `Min/Max`、rounding、clamp、FMA 仍然保留当前实现边界，因为这些路径不属于“只是四则运算或 compare 壳”的 exact-contract 去重面。
+- `riscvv.pas` 的 RVV asm 实现与 `riscvv.register.inc` slot ownership 不变，这次只是 no-ASM fallback 的第二份真源回收。
+- `check_nonx86_helper_semantics.py` 已新增 20 个 source-side forwarder 断言，验证通过后 summary 应从 `checks=322` 增加到 `checks=342`。
+- 复验结果已确认：`git diff --check`、`py_compile`、`check_nonx86_helper_semantics.py --summary-line`、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿，helper summary 为 `NONX86_HELPER_SEMANTICS_SUMMARY checks=342 status=ok`。

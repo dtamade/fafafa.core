@@ -949,3 +949,10 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过，`checks=322 status=ok`
+
+## 2026-05-12 RISCVV Narrow Float Arithmetic/Compare Forwarder Consolidation
+
+- 继续沿 `Wave 5 / retire + redundancy cleanup` 扫 `RISCVV` no-ASM facade，本批只收 `F32x4/F64x2` 的基础 arithmetic / compare fallback。
+- `src/fafafa.core.simd.riscvv.facade.inc` 已把 `Add/Sub/Mul/Div` 与 `CmpEq/Lt/Gt/Le/Ge/NeF32x4/F64x2` 改成对应 `Scalar*` 直调。
+- `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 已新增这 20 个 forwarder 断言，预期 summary 从 `checks=322` 扩到 `checks=342`。
+- release 级复验已完成，`git diff --check`、`py_compile`、helper checker、`impl-audit-nonx86`、Release `check`、Release `gate` 均通过，当前批次已可收口。
