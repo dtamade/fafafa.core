@@ -258,6 +258,71 @@
 - 原位置现在只保留跳转占位，不再承载正文。
 - `docs/fafafa.core.simd.md` 与 `src/fafafa.core.simd.README.md` 已补充 legacy 导流，避免读者再次把历史快照当成 active truth source。
 
+## 2026-05-12 Deep Review Refresh
+
+### Live guardrail status
+
+- `python3 tests/fafafa.core.simd/check_intrinsics_experimental_status.py --summary-line` 当前为绿：
+  - `experimental_units=15`
+  - `leaked_units=0`
+  - `missing_guard_markers=0`
+- `python3 tests/fafafa.core.simd/check_dispatch_read_scope.py --summary-line` 当前为绿：
+  - `allowed_files=3`
+  - `forbidden_hits=0`
+  - `facade_issues=0`
+- `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line` 当前为绿：
+  - `checks=459`
+  - `status=ok`
+- `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86` 当前为绿：
+  - `helper-semantics / wiring-sync / riscvv-abi-shape / register-truthfulness(neon,riscvv) / key-slot-audit / targeted-release-suites` 全部通过
+  - native evidence verifier 仍为显式 `SKIP`，因为本地没有提供 `SIMD_NONX86_NATIVE_EVIDENCE_ROOT`
+
+结论：
+
+- 当前没有新的 seam 回退、experimental 泄漏或 non-x86 helper/wiring 漂移。
+- “继续深挖 SIMD 缺失”时，默认不该再回头怀疑 `dispatch/dataplane/public ABI/direct` 主链是否重新变坏。
+
+### Confirmed current missing pieces
+
+- `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 仍失败，但失败形态已经很具体：
+  1. `qemu-cpuinfo-nonx86-evidence=SKIP`
+  2. Linux 最新 gate artifact 旧于最新源码：`src/fafafa.core.simd.neon.compare.inc`
+  3. Windows evidence log / closeout summary 已过 freshness 阈值
+- 这说明当前最真实的缺失不是 stable surface 再补接口，也不是 non-x86 helper 再补大批代码，而是：
+  - 发布级跨平台 evidence refresh
+  - gate artifact freshness 跟上最新源码
+  - Windows closeout 重新跑到新鲜时间线
+- `framework/cpuinfo` 层目前仍缺一个正式的“alias visibility / deprecation policy”：
+  - `src/fafafa.core.simd.framework.intf.inc`
+  - `src/fafafa.core.simd.cpuinfo.pas`
+  - 现在虽然 canonical 和 legacy 行为一致，但仓库还没有把“哪些名字推荐继续用、哪些只是 compatibility shell”冻结成单独规则。
+- experimental hold 家族当前只有统一的 reopen baseline：
+  - `docs/plans/2026-05-11-simd-family-decision-baseline.md`
+  - `docs/plans/2026-05-09-simd-experimental-hold-future-trigger-plan.md`
+  - 这已经够防止误开线，但还没有 family-specific trigger granularity；对 `AES/SHA/AVX/FMA3/SVE/SVE2/LASX` 来说，这仍是一种“治理层缺失”，不是实现 bug。
+
+### Confirmed current redundancies
+
+- API 命名层的重复仍在：
+  - `framework.intf.inc` 同时保留 canonical façade 与 legacy alias
+  - `cpuinfo.pas` 同时保留 `GetSupportedBackendList/GetSupportedBackends/GetAvailableBackends`、`GetBestSupportedBackend/GetBestBackendOnCPU/GetBestBackend`
+  - 这些不是实现 truth-source 冗余，但仍是接口认知冗余，会继续放大 `supported_on_cpu / dispatchable / active` 三层语义混用风险
+- 文档入口层的重复噪音仍在：
+  - `docs/NEON_ASM_IMPLEMENTATION_STATUS.md`
+  - `docs/NEON_MATH_OPTIMIZATION_ITERATION_2.5.md`
+  - `docs/SIMD_MODULE_ANALYSIS.md`
+  - `docs/SIMD_COMPREHENSIVE_AUDIT_REPORT.md`
+  - 这些文件现在都只是历史快照占位，但仍与 active `docs/SIMD_*` 真相表同目录并列，搜索/目录浏览时仍会制造视觉竞争
+
+### Non-issues to stop re-litigating
+
+- `dispatch -> dataplane -> façade/public ABI/direct` 的 publication seam 现在已有 live guardrail 证明，不应再按“可能还有第二套 truth source”反复重开。
+- `NEON/RISCVV` 当前剩下的非 thin-wrapper 局部实现，大多属于语义敏感区或 backend-owned slot，不应只因为“看起来像 scalar loop”就继续机械合并。
+- 当前更高价值的后续审查，不是继续统计 wrapper 数量，而是：
+  1. release evidence freshness
+  2. alias visibility policy
+  3. hold family trigger granularity
+
 ## 2026-05-11 NEON Vector Math Exact-Contract Finding
 
 - `src/fafafa.core.simd.neon.scalar.vector_math.inc` 的 non-ASM `Dot / Cross / Length / Normalize` fallback 与 `src/fafafa.core.simd.scalar.pas` 中的 `Scalar*` vector-math 实现同合同。

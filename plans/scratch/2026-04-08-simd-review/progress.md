@@ -518,6 +518,55 @@
 
 ## 2026-05-11 SSE2 Integer Compare Thin Wrapper Completion
 
+## 2026-05-12 Deep Review Refresh
+
+- 继续沿 scratch 主线做“缺失与冗余”复核，没有重开架构争论，先重新对齐：
+  - `plans/scratch/2026-04-08-simd-review/findings.md`
+  - `plans/scratch/2026-04-08-simd-review/task_plan.md`
+  - `docs/plans/2026-05-10-simd-plan-status-index.md`
+  - `docs/plans/2026-05-10-simd-execution-index.md`
+  - `docs/plans/2026-05-11-simd-family-decision-baseline.md`
+  - `docs/plans/2026-05-09-simd-experimental-hold-future-trigger-plan.md`
+- 重新抽查当前 alias 面和 active/historical 文档入口：
+  - `src/fafafa.core.simd.framework.intf.inc`
+  - `src/fafafa.core.simd.cpuinfo.pas`
+  - `docs/SIMD_MODULE_ANALYSIS.md`
+  - `docs/NEON_ASM_IMPLEMENTATION_STATUS.md`
+  - `docs/NEON_MATH_OPTIMIZATION_ITERATION_2.5.md`
+  - `docs/SIMD_COMPREHENSIVE_AUDIT_REPORT.md`
+- 当前 live 机器护栏复验：
+  - `python3 tests/fafafa.core.simd/check_intrinsics_experimental_status.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_dispatch_read_scope.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - 结果：全部通过
+- 当前 non-x86 implementation audit fresh 复验：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - 结果：PASS
+  - 关键摘要：
+    - `helper-semantics` OK
+    - `wiring-sync` OK
+    - `riscvv-abi-shape` OK
+    - `register-truthfulness`（`neon` / `riscvv`）OK
+    - `key-slot-audit` OK
+    - `targeted-release-suites` OK
+    - `native_evidence=skip`
+- 当前 freeze 复验：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+  - 结果：FAIL
+  - 真实阻塞已重新确认：
+    - `qemu-cpuinfo-nonx86-evidence=SKIP`
+    - `gate_summary.md` 旧于最新源码 `src/fafafa.core.simd.neon.compare.inc`
+    - `windows_b07_gate.log` / `windows_b07_closeout_summary.md` stale
+- 当前判断更新：
+  - seam / intrinsics isolation / non-x86 helper semantics 没有新红点
+  - 真正剩余缺失优先级已改写为：
+    1. release evidence freshness
+    2. canonical vs legacy alias visibility policy
+    3. hold family future-trigger granularity
+  - 真正剩余冗余优先级已改写为：
+    1. API naming alias redundancy
+    2. top-level historical placeholder docs 与 active truth docs 同目录并列造成的搜索噪音
+
 - 继续顺着整数 compare 家族往下扫，确认 `I32x4/U32x4` 的 `Lt` 也只是 `Gt(b, a)` 的同合同重复体，没有必要继续保留完整 ASM。
 - 这次把 `I32x4/U32x4` 的 `Lt` 收成参数交换薄壳，并把 `Le/Ge/Ne` 统一成 `MASK4_ALL_SET xor ...`，让 `SSE2` 整数比较家族的收口模式和 `AVX2` 保持一致。
 - 现在 `SSE2` 的整数 compare 只保留 `Eq/Gt` 作为真比较体，其他关系都走薄封装，代码面更整齐，也更容易继续扫下一批重复实现。

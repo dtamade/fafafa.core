@@ -21,6 +21,7 @@
 | 4. 形成成熟整改方案                 | completed | 当前 Linux fast-gate 已重回绿态；接口挂接完整度为绿，剩余重点转为 release 级跨平台证据刷新，而非 simd stable surface 的新增接口缺口                               |
 | 5. SIMD plan hygiene 与主链去干扰   | completed | `docs/plans/*simd*` 已明确分成 `active / historical / superseded`，并落下 `plan-status-index` 作为主入口                                                          |
 | 6. Wave 2 active 实施计划补全       | completed | 已新增当前第一波 `seam hardening` active plan，把 `dispatch / dataplane / public ABI / direct / façade fast-path` 的边界、红线、baseline 和完成标准写成独立作战单 |
+| 7. 继续深度审查缺失与冗余           | completed | 已用 live checker / non-x86 impl audit / freeze-status 复核当前真实残余，确认主缺口转为 evidence freshness、alias policy 与 hold-family trigger granularity      |
 
 ## Constraints
 
