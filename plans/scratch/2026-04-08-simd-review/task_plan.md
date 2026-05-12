@@ -1306,3 +1306,18 @@
 | 2. 修正 scalar 真源并补齐缺口     | completed   | 已新增 `ScalarAndNotI8x16/U8x16`，并修正 `ScalarAndNotU16x8/U32x8` |
 | 3. 删除 dispatch 补洞冗余         | completed   | `FillBaseDispatchTable` 已改回直接绑定 `ScalarAndNot*`，`DispatchAndNotI8x16/U16x8/U8x16` 已删除 |
 | 4. 补直接语义测试并 release 复验   | completed   | 新增 `I8x16/U16x8/U8x16/U32x8` 4 条 AndNot 语义测试，Release targeted suites、`check`、`gate` 全绿 |
+
+## 2026-05-12 Narrow Compare Direct Guard Coverage
+
+### Goal
+
+继续补 `narrowintegerops` 里缺失的直接 guard，覆盖此前只靠 parity 间接经过的窄整型 compare contract：对 `I16x8/I8x16/U16x8/U8x16` 的 `CmpLe/CmpGe/CmpNe` 增加 dispatch-level 语义测试，并为 `U32x4` 补上 façade 级 `AndNot/CmpLe/CmpGe` 直接测试。
+
+### Phases
+
+| Phase                              | Status      | Notes |
+| ---------------------------------- | ----------- | ----- |
+| 1. 复核真实 API 边界               | completed   | 已确认四组窄整型 `CmpLe/CmpGe/CmpNe` 不属于 façade，而是 dispatch/scalar contract；`U32x4` 这三项属于 façade |
+| 2. 补 dispatch / façade 直接 guard | completed   | `narrowintegerops` 已新增 12 条 narrow dispatch compare 测试和 3 条 `U32x4` façade 测试 |
+| 3. 复核 scalar 强制语义            | completed   | `TTestCase_NarrowIntegerOps.SetUp` 已固定 `ForceBackend(sbScalar)`，因此这批 dispatch-level compare 测试直接命中 scalar 真源 |
+| 4. Release 验证与提交收口          | completed   | `git diff --check`、Release `TTestCase_NarrowIntegerOps`、Release `check`、Release `gate` 全绿；待 review + commit |

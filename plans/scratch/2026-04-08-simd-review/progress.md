@@ -1291,3 +1291,22 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-12 Narrow Compare Direct Guard Coverage
+
+- 继续沿 `narrowintegerops` 深审“缺失但被 parity 掩住”的直接 guard，先核对真实边界：
+  - `I16x8/I8x16/U16x8/U8x16` 的 `CmpLe/CmpGe/CmpNe` 不属于 `src/fafafa.core.simd.pas` façade；
+  - 它们属于 `dispatch/scalar` contract；
+  - `U32x4` 的 `AndNot/CmpLe/CmpGe` 则有 façade 入口，适合直接补 façade 语义测试。
+- `tests/fafafa.core.simd/fafafa.core.simd.narrowintegerops.testcase.pas` 已新增：
+  - 12 条 dispatch-level 窄整型 compare 测试：`I16x8/I8x16/U16x8/U8x16` 的 `CmpLe/CmpGe/CmpNe`
+  - 3 条 `U32x4` façade 测试：`AndNot/CmpLe/CmpGe`
+- 复核后确认这批 dispatch-level compare 测试并不是“打当前随机 backend”：
+  - `TTestCase_NarrowIntegerOps.SetUp` 本来就 `ForceBackend(sbScalar)`；
+  - 因而这批新增测试实际是在对 `GetDispatchTable` 的 scalar active table 做直接 contract guard。
+- Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NarrowIntegerOps`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

@@ -51,6 +51,9 @@ type
     procedure Test_VecI16x8_CmpLt_Basic;
     procedure Test_VecI16x8_CmpLt_Boundary;
     procedure Test_VecI16x8_CmpGt_Basic;
+    procedure Test_DispatchI16x8_CmpLe_Basic;
+    procedure Test_DispatchI16x8_CmpGe_Basic;
+    procedure Test_DispatchI16x8_CmpNe_Basic;
 
     // I16x8 最小最大测试
     procedure Test_VecI16x8_Min_Basic;
@@ -77,6 +80,9 @@ type
     procedure Test_VecI8x16_CmpEq_Mixed;
     procedure Test_VecI8x16_CmpLt_Basic;
     procedure Test_VecI8x16_CmpGt_Basic;
+    procedure Test_DispatchI8x16_CmpLe_Basic;
+    procedure Test_DispatchI8x16_CmpGe_Basic;
+    procedure Test_DispatchI8x16_CmpNe_Basic;
 
     // I8x16 最小最大测试
     procedure Test_VecI8x16_Min_Basic;
@@ -96,6 +102,7 @@ type
     procedure Test_VecU32x4_Or_Basic;
     procedure Test_VecU32x4_Xor_Basic;
     procedure Test_VecU32x4_Not_Basic;
+    procedure Test_VecU32x4_AndNot_Basic;
 
     // U32x4 移位测试
     procedure Test_VecU32x4_ShiftLeft_Basic;
@@ -107,6 +114,8 @@ type
     procedure Test_VecU32x4_CmpLt_Unsigned;
     procedure Test_VecU32x4_CmpLt_LargeValues;
     procedure Test_VecU32x4_CmpGt_Unsigned;
+    procedure Test_VecU32x4_CmpLe_Unsigned;
+    procedure Test_VecU32x4_CmpGe_Unsigned;
 
     // U32x4 最小最大测试
     procedure Test_VecU32x4_Min_Basic;
@@ -138,6 +147,9 @@ type
     procedure Test_VecU16x8_CmpLt_Unsigned;
     procedure Test_VecU16x8_CmpLt_Boundary;
     procedure Test_VecU16x8_CmpGt_Unsigned;
+    procedure Test_DispatchU16x8_CmpLe_Unsigned;
+    procedure Test_DispatchU16x8_CmpGe_Unsigned;
+    procedure Test_DispatchU16x8_CmpNe_Basic;
 
     // U16x8 最小最大测试
     procedure Test_VecU16x8_Min_Basic;
@@ -162,6 +174,9 @@ type
     procedure Test_VecU8x16_CmpLt_Unsigned;
     procedure Test_VecU8x16_CmpLt_Boundary;
     procedure Test_VecU8x16_CmpGt_Unsigned;
+    procedure Test_DispatchU8x16_CmpLe_Unsigned;
+    procedure Test_DispatchU8x16_CmpGe_Unsigned;
+    procedure Test_DispatchU8x16_CmpNe_Basic;
 
     // U8x16 最小最大测试
     procedure Test_VecU8x16_Min_Basic;
@@ -584,6 +599,78 @@ begin
   AssertFalse('I16x8 CmpGt [1]: 10 <= 20', (m and (1 shl 1)) <> 0);
 end;
 
+procedure TTestCase_NarrowIntegerOps.Test_DispatchI16x8_CmpLe_Basic;
+var
+  a, b: TVecI16x8;
+  LDispatch: PSimdDispatchTable;
+  m: TMask8;
+begin
+  a.i[0] := 10; b.i[0] := 20;
+  a.i[1] := 20; b.i[1] := 20;
+  a.i[2] := 30; b.i[2] := 20;
+  a.i[3] := 0; b.i[3] := 0;
+  a.i[4] := 0; b.i[4] := 0;
+  a.i[5] := 0; b.i[5] := 0;
+  a.i[6] := 0; b.i[6] := 0;
+  a.i[7] := 0; b.i[7] := 0;
+
+  LDispatch := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned for I16x8 CmpLe', Assigned(LDispatch));
+  AssertTrue('Dispatch CmpLeI16x8 should be assigned', Assigned(LDispatch^.CmpLeI16x8));
+  m := LDispatch^.CmpLeI16x8(a, b);
+  AssertTrue('I16x8 CmpLe [0]: 10 <= 20', (m and (1 shl 0)) <> 0);
+  AssertTrue('I16x8 CmpLe [1]: 20 <= 20', (m and (1 shl 1)) <> 0);
+  AssertFalse('I16x8 CmpLe [2]: 30 > 20', (m and (1 shl 2)) <> 0);
+end;
+
+procedure TTestCase_NarrowIntegerOps.Test_DispatchI16x8_CmpGe_Basic;
+var
+  a, b: TVecI16x8;
+  LDispatch: PSimdDispatchTable;
+  m: TMask8;
+begin
+  a.i[0] := 30; b.i[0] := 20;
+  a.i[1] := 20; b.i[1] := 20;
+  a.i[2] := 10; b.i[2] := 20;
+  a.i[3] := 0; b.i[3] := 0;
+  a.i[4] := 0; b.i[4] := 0;
+  a.i[5] := 0; b.i[5] := 0;
+  a.i[6] := 0; b.i[6] := 0;
+  a.i[7] := 0; b.i[7] := 0;
+
+  LDispatch := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned for I16x8 CmpGe', Assigned(LDispatch));
+  AssertTrue('Dispatch CmpGeI16x8 should be assigned', Assigned(LDispatch^.CmpGeI16x8));
+  m := LDispatch^.CmpGeI16x8(a, b);
+  AssertTrue('I16x8 CmpGe [0]: 30 >= 20', (m and (1 shl 0)) <> 0);
+  AssertTrue('I16x8 CmpGe [1]: 20 >= 20', (m and (1 shl 1)) <> 0);
+  AssertFalse('I16x8 CmpGe [2]: 10 < 20', (m and (1 shl 2)) <> 0);
+end;
+
+procedure TTestCase_NarrowIntegerOps.Test_DispatchI16x8_CmpNe_Basic;
+var
+  a, b: TVecI16x8;
+  LDispatch: PSimdDispatchTable;
+  m: TMask8;
+begin
+  a.i[0] := 10; b.i[0] := 20;
+  a.i[1] := 20; b.i[1] := 20;
+  a.i[2] := -1; b.i[2] := 1;
+  a.i[3] := 0; b.i[3] := 0;
+  a.i[4] := 0; b.i[4] := 0;
+  a.i[5] := 0; b.i[5] := 0;
+  a.i[6] := 0; b.i[6] := 0;
+  a.i[7] := 0; b.i[7] := 0;
+
+  LDispatch := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned for I16x8 CmpNe', Assigned(LDispatch));
+  AssertTrue('Dispatch CmpNeI16x8 should be assigned', Assigned(LDispatch^.CmpNeI16x8));
+  m := LDispatch^.CmpNeI16x8(a, b);
+  AssertTrue('I16x8 CmpNe [0]: 10 <> 20', (m and (1 shl 0)) <> 0);
+  AssertFalse('I16x8 CmpNe [1]: 20 = 20', (m and (1 shl 1)) <> 0);
+  AssertTrue('I16x8 CmpNe [2]: -1 <> 1', (m and (1 shl 2)) <> 0);
+end;
+
 procedure TTestCase_NarrowIntegerOps.Test_VecI16x8_Min_Basic;
 var
   a, b, r: TVecI16x8;
@@ -899,6 +986,81 @@ begin
   AssertFalse('I8x16 CmpGt [1]: 10 <= 20', (m and (1 shl 1)) <> 0);
 end;
 
+procedure TTestCase_NarrowIntegerOps.Test_DispatchI8x16_CmpLe_Basic;
+var
+  a, b: TVecI8x16;
+  LDispatch: PSimdDispatchTable;
+  m: TMask16;
+  LIndex: Integer;
+begin
+  a.i[0] := 10; b.i[0] := 20;
+  a.i[1] := 20; b.i[1] := 20;
+  a.i[2] := 30; b.i[2] := 20;
+  for LIndex := 3 to 15 do
+  begin
+    a.i[LIndex] := 0;
+    b.i[LIndex] := 0;
+  end;
+
+  LDispatch := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned for I8x16 CmpLe', Assigned(LDispatch));
+  AssertTrue('Dispatch CmpLeI8x16 should be assigned', Assigned(LDispatch^.CmpLeI8x16));
+  m := LDispatch^.CmpLeI8x16(a, b);
+  AssertTrue('I8x16 CmpLe [0]: 10 <= 20', (m and (1 shl 0)) <> 0);
+  AssertTrue('I8x16 CmpLe [1]: 20 <= 20', (m and (1 shl 1)) <> 0);
+  AssertFalse('I8x16 CmpLe [2]: 30 > 20', (m and (1 shl 2)) <> 0);
+end;
+
+procedure TTestCase_NarrowIntegerOps.Test_DispatchI8x16_CmpGe_Basic;
+var
+  a, b: TVecI8x16;
+  LDispatch: PSimdDispatchTable;
+  m: TMask16;
+  LIndex: Integer;
+begin
+  a.i[0] := 30; b.i[0] := 20;
+  a.i[1] := 20; b.i[1] := 20;
+  a.i[2] := 10; b.i[2] := 20;
+  for LIndex := 3 to 15 do
+  begin
+    a.i[LIndex] := 0;
+    b.i[LIndex] := 0;
+  end;
+
+  LDispatch := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned for I8x16 CmpGe', Assigned(LDispatch));
+  AssertTrue('Dispatch CmpGeI8x16 should be assigned', Assigned(LDispatch^.CmpGeI8x16));
+  m := LDispatch^.CmpGeI8x16(a, b);
+  AssertTrue('I8x16 CmpGe [0]: 30 >= 20', (m and (1 shl 0)) <> 0);
+  AssertTrue('I8x16 CmpGe [1]: 20 >= 20', (m and (1 shl 1)) <> 0);
+  AssertFalse('I8x16 CmpGe [2]: 10 < 20', (m and (1 shl 2)) <> 0);
+end;
+
+procedure TTestCase_NarrowIntegerOps.Test_DispatchI8x16_CmpNe_Basic;
+var
+  a, b: TVecI8x16;
+  LDispatch: PSimdDispatchTable;
+  m: TMask16;
+  LIndex: Integer;
+begin
+  a.i[0] := 10; b.i[0] := 20;
+  a.i[1] := 20; b.i[1] := 20;
+  a.i[2] := -1; b.i[2] := 1;
+  for LIndex := 3 to 15 do
+  begin
+    a.i[LIndex] := 0;
+    b.i[LIndex] := 0;
+  end;
+
+  LDispatch := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned for I8x16 CmpNe', Assigned(LDispatch));
+  AssertTrue('Dispatch CmpNeI8x16 should be assigned', Assigned(LDispatch^.CmpNeI8x16));
+  m := LDispatch^.CmpNeI8x16(a, b);
+  AssertTrue('I8x16 CmpNe [0]: 10 <> 20', (m and (1 shl 0)) <> 0);
+  AssertFalse('I8x16 CmpNe [1]: 20 = 20', (m and (1 shl 1)) <> 0);
+  AssertTrue('I8x16 CmpNe [2]: -1 <> 1', (m and (1 shl 2)) <> 0);
+end;
+
 procedure TTestCase_NarrowIntegerOps.Test_VecI8x16_Min_Basic;
 var
   a, b, r: TVecI8x16;
@@ -1085,6 +1247,20 @@ begin
   AssertEquals('U32x4 Not [0]', UInt32($F0F0F0F0), r.u[0]);
 end;
 
+procedure TTestCase_NarrowIntegerOps.Test_VecU32x4_AndNot_Basic;
+var
+  a, b, r: TVecU32x4;
+begin
+  a.u[0] := $0F0F0F0F;
+  b.u[0] := $FFFFFFFF;
+  a.u[1] := 0; b.u[1] := 0;
+  a.u[2] := 0; b.u[2] := 0;
+  a.u[3] := 0; b.u[3] := 0;
+
+  r := VecU32x4AndNot(a, b);
+  AssertEquals('U32x4 AndNot [0]', UInt32($F0F0F0F0), r.u[0]);
+end;
+
 procedure TTestCase_NarrowIntegerOps.Test_VecU32x4_ShiftLeft_Basic;
 var
   a, r: TVecU32x4;
@@ -1186,6 +1362,38 @@ begin
   m := VecU32x4CmpGt(a, b);
   AssertTrue('U32x4 CmpGt [0]: 300 > 200', (m and (1 shl 0)) <> 0);
   AssertFalse('U32x4 CmpGt [1]: 100 <= 200', (m and (1 shl 1)) <> 0);
+end;
+
+procedure TTestCase_NarrowIntegerOps.Test_VecU32x4_CmpLe_Unsigned;
+var
+  a, b: TVecU32x4;
+  m: TMask4;
+begin
+  a.u[0] := 100; b.u[0] := 200;
+  a.u[1] := $FFFFFFFF; b.u[1] := $FFFFFFFF;
+  a.u[2] := $FFFFFFFF; b.u[2] := 1;
+  a.u[3] := 0; b.u[3] := 0;
+
+  m := VecU32x4CmpLe(a, b);
+  AssertTrue('U32x4 CmpLe [0]: 100 <= 200', (m and (1 shl 0)) <> 0);
+  AssertTrue('U32x4 CmpLe [1]: MaxUInt32 <= MaxUInt32', (m and (1 shl 1)) <> 0);
+  AssertFalse('U32x4 CmpLe [2]: MaxUInt32 > 1', (m and (1 shl 2)) <> 0);
+end;
+
+procedure TTestCase_NarrowIntegerOps.Test_VecU32x4_CmpGe_Unsigned;
+var
+  a, b: TVecU32x4;
+  m: TMask4;
+begin
+  a.u[0] := 300; b.u[0] := 200;
+  a.u[1] := $FFFFFFFF; b.u[1] := $FFFFFFFF;
+  a.u[2] := 1; b.u[2] := $FFFFFFFF;
+  a.u[3] := 0; b.u[3] := 0;
+
+  m := VecU32x4CmpGe(a, b);
+  AssertTrue('U32x4 CmpGe [0]: 300 >= 200', (m and (1 shl 0)) <> 0);
+  AssertTrue('U32x4 CmpGe [1]: MaxUInt32 >= MaxUInt32', (m and (1 shl 1)) <> 0);
+  AssertFalse('U32x4 CmpGe [2]: 1 < MaxUInt32', (m and (1 shl 2)) <> 0);
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecU32x4_Min_Basic;
@@ -1544,6 +1752,78 @@ begin
   AssertFalse('U16x8 CmpGt [1]: 100 <= 200', (m and (1 shl 1)) <> 0);
 end;
 
+procedure TTestCase_NarrowIntegerOps.Test_DispatchU16x8_CmpLe_Unsigned;
+var
+  a, b: TVecU16x8;
+  LDispatch: PSimdDispatchTable;
+  m: TMask8;
+begin
+  a.u[0] := 100; b.u[0] := 200;
+  a.u[1] := 65535; b.u[1] := 65535;
+  a.u[2] := 65535; b.u[2] := 1;
+  a.u[3] := 0; b.u[3] := 0;
+  a.u[4] := 0; b.u[4] := 0;
+  a.u[5] := 0; b.u[5] := 0;
+  a.u[6] := 0; b.u[6] := 0;
+  a.u[7] := 0; b.u[7] := 0;
+
+  LDispatch := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned for U16x8 CmpLe', Assigned(LDispatch));
+  AssertTrue('Dispatch CmpLeU16x8 should be assigned', Assigned(LDispatch^.CmpLeU16x8));
+  m := LDispatch^.CmpLeU16x8(a, b);
+  AssertTrue('U16x8 CmpLe [0]: 100 <= 200', (m and (1 shl 0)) <> 0);
+  AssertTrue('U16x8 CmpLe [1]: 65535 <= 65535', (m and (1 shl 1)) <> 0);
+  AssertFalse('U16x8 CmpLe [2]: 65535 > 1', (m and (1 shl 2)) <> 0);
+end;
+
+procedure TTestCase_NarrowIntegerOps.Test_DispatchU16x8_CmpGe_Unsigned;
+var
+  a, b: TVecU16x8;
+  LDispatch: PSimdDispatchTable;
+  m: TMask8;
+begin
+  a.u[0] := 300; b.u[0] := 200;
+  a.u[1] := 65535; b.u[1] := 65535;
+  a.u[2] := 1; b.u[2] := 65535;
+  a.u[3] := 0; b.u[3] := 0;
+  a.u[4] := 0; b.u[4] := 0;
+  a.u[5] := 0; b.u[5] := 0;
+  a.u[6] := 0; b.u[6] := 0;
+  a.u[7] := 0; b.u[7] := 0;
+
+  LDispatch := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned for U16x8 CmpGe', Assigned(LDispatch));
+  AssertTrue('Dispatch CmpGeU16x8 should be assigned', Assigned(LDispatch^.CmpGeU16x8));
+  m := LDispatch^.CmpGeU16x8(a, b);
+  AssertTrue('U16x8 CmpGe [0]: 300 >= 200', (m and (1 shl 0)) <> 0);
+  AssertTrue('U16x8 CmpGe [1]: 65535 >= 65535', (m and (1 shl 1)) <> 0);
+  AssertFalse('U16x8 CmpGe [2]: 1 < 65535', (m and (1 shl 2)) <> 0);
+end;
+
+procedure TTestCase_NarrowIntegerOps.Test_DispatchU16x8_CmpNe_Basic;
+var
+  a, b: TVecU16x8;
+  LDispatch: PSimdDispatchTable;
+  m: TMask8;
+begin
+  a.u[0] := 100; b.u[0] := 200;
+  a.u[1] := 65535; b.u[1] := 65535;
+  a.u[2] := 1; b.u[2] := 65535;
+  a.u[3] := 0; b.u[3] := 0;
+  a.u[4] := 0; b.u[4] := 0;
+  a.u[5] := 0; b.u[5] := 0;
+  a.u[6] := 0; b.u[6] := 0;
+  a.u[7] := 0; b.u[7] := 0;
+
+  LDispatch := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned for U16x8 CmpNe', Assigned(LDispatch));
+  AssertTrue('Dispatch CmpNeU16x8 should be assigned', Assigned(LDispatch^.CmpNeU16x8));
+  m := LDispatch^.CmpNeU16x8(a, b);
+  AssertTrue('U16x8 CmpNe [0]: 100 <> 200', (m and (1 shl 0)) <> 0);
+  AssertFalse('U16x8 CmpNe [1]: 65535 = 65535', (m and (1 shl 1)) <> 0);
+  AssertTrue('U16x8 CmpNe [2]: 1 <> 65535', (m and (1 shl 2)) <> 0);
+end;
+
 procedure TTestCase_NarrowIntegerOps.Test_VecU16x8_Min_Basic;
 var
   a, b, r: TVecU16x8;
@@ -1813,6 +2093,81 @@ begin
   m := VecU8x16CmpGt(a, b);
   AssertTrue('U8x16 CmpGt [0]: 30 > 20', (m and (1 shl 0)) <> 0);
   AssertFalse('U8x16 CmpGt [1]: 10 <= 20', (m and (1 shl 1)) <> 0);
+end;
+
+procedure TTestCase_NarrowIntegerOps.Test_DispatchU8x16_CmpLe_Unsigned;
+var
+  a, b: TVecU8x16;
+  LDispatch: PSimdDispatchTable;
+  m: TMask16;
+  LIndex: Integer;
+begin
+  a.u[0] := 10; b.u[0] := 20;
+  a.u[1] := 255; b.u[1] := 255;
+  a.u[2] := 255; b.u[2] := 1;
+  for LIndex := 3 to 15 do
+  begin
+    a.u[LIndex] := 0;
+    b.u[LIndex] := 0;
+  end;
+
+  LDispatch := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned for U8x16 CmpLe', Assigned(LDispatch));
+  AssertTrue('Dispatch CmpLeU8x16 should be assigned', Assigned(LDispatch^.CmpLeU8x16));
+  m := LDispatch^.CmpLeU8x16(a, b);
+  AssertTrue('U8x16 CmpLe [0]: 10 <= 20', (m and (1 shl 0)) <> 0);
+  AssertTrue('U8x16 CmpLe [1]: 255 <= 255', (m and (1 shl 1)) <> 0);
+  AssertFalse('U8x16 CmpLe [2]: 255 > 1', (m and (1 shl 2)) <> 0);
+end;
+
+procedure TTestCase_NarrowIntegerOps.Test_DispatchU8x16_CmpGe_Unsigned;
+var
+  a, b: TVecU8x16;
+  LDispatch: PSimdDispatchTable;
+  m: TMask16;
+  LIndex: Integer;
+begin
+  a.u[0] := 30; b.u[0] := 20;
+  a.u[1] := 255; b.u[1] := 255;
+  a.u[2] := 1; b.u[2] := 255;
+  for LIndex := 3 to 15 do
+  begin
+    a.u[LIndex] := 0;
+    b.u[LIndex] := 0;
+  end;
+
+  LDispatch := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned for U8x16 CmpGe', Assigned(LDispatch));
+  AssertTrue('Dispatch CmpGeU8x16 should be assigned', Assigned(LDispatch^.CmpGeU8x16));
+  m := LDispatch^.CmpGeU8x16(a, b);
+  AssertTrue('U8x16 CmpGe [0]: 30 >= 20', (m and (1 shl 0)) <> 0);
+  AssertTrue('U8x16 CmpGe [1]: 255 >= 255', (m and (1 shl 1)) <> 0);
+  AssertFalse('U8x16 CmpGe [2]: 1 < 255', (m and (1 shl 2)) <> 0);
+end;
+
+procedure TTestCase_NarrowIntegerOps.Test_DispatchU8x16_CmpNe_Basic;
+var
+  a, b: TVecU8x16;
+  LDispatch: PSimdDispatchTable;
+  m: TMask16;
+  LIndex: Integer;
+begin
+  a.u[0] := 10; b.u[0] := 20;
+  a.u[1] := 255; b.u[1] := 255;
+  a.u[2] := 1; b.u[2] := 255;
+  for LIndex := 3 to 15 do
+  begin
+    a.u[LIndex] := 0;
+    b.u[LIndex] := 0;
+  end;
+
+  LDispatch := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned for U8x16 CmpNe', Assigned(LDispatch));
+  AssertTrue('Dispatch CmpNeU8x16 should be assigned', Assigned(LDispatch^.CmpNeU8x16));
+  m := LDispatch^.CmpNeU8x16(a, b);
+  AssertTrue('U8x16 CmpNe [0]: 10 <> 20', (m and (1 shl 0)) <> 0);
+  AssertFalse('U8x16 CmpNe [1]: 255 = 255', (m and (1 shl 1)) <> 0);
+  AssertTrue('U8x16 CmpNe [2]: 1 <> 255', (m and (1 shl 2)) <> 0);
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecU8x16_Min_Basic;

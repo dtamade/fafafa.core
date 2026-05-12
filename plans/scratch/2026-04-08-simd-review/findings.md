@@ -258,6 +258,21 @@
 - 原位置现在只保留跳转占位，不再承载正文。
 - `docs/fafafa.core.simd.md` 与 `src/fafafa.core.simd.README.md` 已补充 legacy 导流，避免读者再次把历史快照当成 active truth source。
 
+## 2026-05-12 Narrow Compare Guard Findings
+
+- 当前窄整型 compare 的真实缺口不是“没有实现”，而是“缺少直接 guard”：
+  - `src/fafafa.core.simd.scalar.pas` 与 `src/fafafa.core.simd.dispatch.pas` 已存在 `I16x8/I8x16/U16x8/U8x16` 的 `CmpLe/CmpGe/CmpNe`；
+  - 但旧测试基本只通过 parity 间接覆盖，没有在 `narrowintegerops` 里直测这些 contract。
+- 这批 contract 的 API 边界必须区分清楚：
+  - `I16x8/I8x16/U16x8/U8x16` 的 `CmpLe/CmpGe/CmpNe` 不是 `fafafa.core.simd` façade 公共 API；
+  - 它们属于 dispatch table / scalar truth；
+  - `U32x4` 的 `AndNot/CmpLe/CmpGe` 才属于 façade 层，适合继续用 `VecU32x4*` 直接守语义。
+- `tests/fafafa.core.simd/fafafa.core.simd.narrowintegerops.testcase.pas` 的 `SetUp` 已经固定 `ForceBackend(sbScalar)`，因此新增的 dispatch-level compare 测试不是在打“某个活动 SIMD backend”，而是在对 scalar active table 做直接 guard。
+- 这批补测后，窄整型 compare contract 的覆盖形态更完整了：
+  - façade 缺口不会被误补成不存在的 API；
+  - dispatch/scalar 合同不再只靠 backend parity 间接路过；
+  - `U32x4` 的 façade `AndNot/CmpLe/CmpGe` 也不再只在 `DispatchAPI` 里有 parity 证据。
+
 ## 2026-05-12 Scalar AndNot Hidden Drift
 
 - `AndNot` 在当前仓库的公开合同是稳定且明确的：
