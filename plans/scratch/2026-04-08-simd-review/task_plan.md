@@ -1276,3 +1276,18 @@
 | 2. 收口 helper 重复实现             | completed   | `RISCVVAdd/Sub/And/Or/Xor/NotU64x2` 与 `RISCVVAndNotI64x2/U64x2` 已改成 thin scalar forwarder |
 | 3. 扩展 include-file source 护栏    | completed   | `check_nonx86_helper_semantics.py` 已新增 `RISCVV_HELPERS_FILE`，直接校验 helper include 中这 8 个 wrapper |
 | 4. Release 验证与提交收口           | completed   | `git diff --check`、`py_compile`、helper checker、Release `impl-audit-nonx86/check/gate` 全绿；待 review + commit |
+
+## 2026-05-12 RISCVV Helper Compare/Shift Forwarder Hygiene
+
+### Goal
+
+继续沿 `riscvv.helpers.inc` 收剩余的 exact-contract 重复体，但只碰已经有 scalar 真源且现有测试明确覆盖的 helper：`U64x2` 的 `CmpEq/Lt/Gt/Min/Max` 与 `I64x2` 的 `ShiftLeft/ShiftRight/ShiftRightArith`。同时把这 8 个 helper 接进 include-file source 护栏，不扩大到 `U64x2` shift、reduction、select 或其它合同面。
+
+### Phases
+
+| Phase                              | Status      | Notes |
+| ---------------------------------- | ----------- | ----- |
+| 1. 复核候选与放弃项                 | completed   | 已确认 `AVX512ShiftRightArithI32x16` invalid-count 已有测试覆盖；本批主目标回到 `riscvv.helpers.inc` 的真重复体 |
+| 2. 收口 compare/shift 重复实现      | completed   | `RISCVVCmpEq/Lt/GtU64x2`、`RISCVVMin/MaxU64x2`、`RISCVVShiftLeft/Right/RightArithI64x2` 已改成 thin scalar forwarder |
+| 3. 扩展 helper include 护栏         | completed   | `check_nonx86_helper_semantics.py` 已把这 8 个 helper 纳入 `riscvv_helper_scalar_forwarder_expectations` |
+| 4. Release 验证与提交收口           | completed   | `git diff --check`、`py_compile`、helper checker、Release `impl-audit-nonx86/check/gate` 全绿；待 review + commit |

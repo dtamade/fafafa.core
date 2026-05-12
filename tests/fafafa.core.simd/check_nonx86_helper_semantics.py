@@ -962,6 +962,14 @@ def main() -> int:
         ("RISCVVNotU64x2", "ScalarNotU64x2(a)"),
         ("RISCVVAndNotI64x2", "ScalarAndNotI64x2(a, b)"),
         ("RISCVVAndNotU64x2", "ScalarAndNotU64x2(a, b)"),
+        ("RISCVVCmpEqU64x2", "ScalarCmpEqU64x2(a, b)"),
+        ("RISCVVCmpLtU64x2", "ScalarCmpLtU64x2(a, b)"),
+        ("RISCVVCmpGtU64x2", "ScalarCmpGtU64x2(a, b)"),
+        ("RISCVVMinU64x2", "ScalarMinU64x2(a, b)"),
+        ("RISCVVMaxU64x2", "ScalarMaxU64x2(a, b)"),
+        ("RISCVVShiftLeftI64x2", "ScalarShiftLeftI64x2(a, shift)"),
+        ("RISCVVShiftRightI64x2", "ScalarShiftRightI64x2(a, shift)"),
+        ("RISCVVShiftRightArithI64x2", "ScalarShiftRightArithI64x2(a, shift)"),
     ]
 
     routine_expectations.extend(

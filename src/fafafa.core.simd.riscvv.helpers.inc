@@ -78,53 +78,27 @@ end;
 
 function RISCVVCmpEqU64x2(const a, b: TVecU64x2): TMask2;
 begin
-  Result := 0;
-  if a.u[0] = b.u[0] then Result := Result or 1;
-  if a.u[1] = b.u[1] then Result := Result or 2;
+  Result := ScalarCmpEqU64x2(a, b);
 end;
 
 function RISCVVCmpLtU64x2(const a, b: TVecU64x2): TMask2;
-const
-  SIGN_MASK: QWord = QWord($8000000000000000);
-var
-  LAdjustedA, LAdjustedB: TVecI64x2;
 begin
-  LAdjustedA.i[0] := Int64(a.u[0] xor SIGN_MASK);
-  LAdjustedA.i[1] := Int64(a.u[1] xor SIGN_MASK);
-  LAdjustedB.i[0] := Int64(b.u[0] xor SIGN_MASK);
-  LAdjustedB.i[1] := Int64(b.u[1] xor SIGN_MASK);
-  Result := RISCVVCmpLtI64x2(LAdjustedA, LAdjustedB);
+  Result := ScalarCmpLtU64x2(a, b);
 end;
 
 function RISCVVCmpGtU64x2(const a, b: TVecU64x2): TMask2;
-const
-  SIGN_MASK: QWord = QWord($8000000000000000);
-var
-  LAdjustedA, LAdjustedB: TVecI64x2;
 begin
-  LAdjustedA.i[0] := Int64(a.u[0] xor SIGN_MASK);
-  LAdjustedA.i[1] := Int64(a.u[1] xor SIGN_MASK);
-  LAdjustedB.i[0] := Int64(b.u[0] xor SIGN_MASK);
-  LAdjustedB.i[1] := Int64(b.u[1] xor SIGN_MASK);
-  Result := RISCVVCmpGtI64x2(LAdjustedA, LAdjustedB);
+  Result := ScalarCmpGtU64x2(a, b);
 end;
 
 function RISCVVMinU64x2(const a, b: TVecU64x2): TVecU64x2;
-var
-  LMask: TMask2;
 begin
-  LMask := RISCVVCmpLtU64x2(a, b);
-  if (LMask and 1) <> 0 then Result.u[0] := a.u[0] else Result.u[0] := b.u[0];
-  if (LMask and 2) <> 0 then Result.u[1] := a.u[1] else Result.u[1] := b.u[1];
+  Result := ScalarMinU64x2(a, b);
 end;
 
 function RISCVVMaxU64x2(const a, b: TVecU64x2): TVecU64x2;
-var
-  LMask: TMask2;
 begin
-  LMask := RISCVVCmpGtU64x2(a, b);
-  if (LMask and 1) <> 0 then Result.u[0] := a.u[0] else Result.u[0] := b.u[0];
-  if (LMask and 2) <> 0 then Result.u[1] := a.u[1] else Result.u[1] := b.u[1];
+  Result := ScalarMaxU64x2(a, b);
 end;
 
 function RISCVVCmpNeU32x4(const a, b: TVecU32x4): TVecU32x4;
@@ -190,45 +164,18 @@ begin
 end;
 
 function RISCVVShiftLeftI64x2(const a: TVecI64x2; shift: Integer): TVecI64x2;
-var i: Integer;
 begin
-  if (shift < 0) or (shift >= 64) then
-  begin
-    for i := 0 to 1 do
-      Result.i[i] := 0;
-    Exit;
-  end;
-
-  for i := 0 to 1 do
-    Result.i[i] := a.i[i] shl shift;
+  Result := ScalarShiftLeftI64x2(a, shift);
 end;
 
 function RISCVVShiftRightI64x2(const a: TVecI64x2; shift: Integer): TVecI64x2;
-var i: Integer;
 begin
-  if (shift < 0) or (shift >= 64) then
-  begin
-    for i := 0 to 1 do
-      Result.i[i] := 0;
-    Exit;
-  end;
-
-  for i := 0 to 1 do
-    Result.i[i] := Int64(QWord(a.i[i]) shr shift);
+  Result := ScalarShiftRightI64x2(a, shift);
 end;
 
 function RISCVVShiftRightArithI64x2(const a: TVecI64x2; shift: Integer): TVecI64x2;
-var i: Integer;
 begin
-  if (shift < 0) or (shift >= 64) then
-  begin
-    for i := 0 to 1 do
-      Result.i[i] := 0;
-    Exit;
-  end;
-
-  for i := 0 to 1 do
-    Result.i[i] := SarInt64(a.i[i], shift);
+  Result := ScalarShiftRightArithI64x2(a, shift);
 end;
 
 function RISCVVShiftRightArithI64x4(const a: TVecI64x4; shift: Integer): TVecI64x4;

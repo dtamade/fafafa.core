@@ -1101,9 +1101,24 @@
 - `RISCVVMin/MaxI64x2`、`RISCVVMin/MaxU64x2`、`RISCVVCmpLt/GtU64x2`、`RISCVVShift*`、`RISCVVReduce*`、`RISCVVLoad/Store/Splat/Zero/Select*` 仍然保留当前实现：
   - 前两类仍属于用户已明确要求谨慎的 `Min/Max` / unsigned compare 面。
   - shift / reduction 虽然能看到潜在替代，但这轮不为了去重扩大合同面。
-  - `Load/Store/Splat/Zero/Select*` 当前也没有现成同名 scalar API 可直接回收，不值得为了“去重”新造抽象。
+- `Load/Store/Splat/Zero/Select*` 当前也没有现成同名 scalar API 可直接回收，不值得为了“去重”新造抽象。
 - 已新增 `RISCVV_HELPERS_FILE` checker 输入并把这 8 个 helper 直接纳入 source-side 断言，因此后续即便 `riscvv.pas` 继续通过 `{$I fafafa.core.simd.riscvv.helpers.inc}` 挂接，这些 wrapper 也不会轻易回长成第二份手写逻辑。
 - 复验结果已确认：`git diff --check`、`py_compile`、helper checker、Release `impl-audit-nonx86`、Release `check`、Release `gate` 全绿；helper summary 从 `checks=459` 扩到 `checks=467`。
+
+## 2026-05-12 RISCVV Helper Compare/Shift Forwarder Hygiene
+
+- `src/fafafa.core.simd.riscvv.helpers.inc` 里剩余的 `RISCVVCmpEq/Lt/GtU64x2`、`RISCVVMin/MaxU64x2`、`RISCVVShiftLeft/Right/RightArithI64x2` 都已经有现成 scalar 真源，而且 dispatch/parity 测试已覆盖它们的合同，所以这批现在也可以安全收掉。
+- 这些 helper 原先只是用另一种写法重复表达同一合同：
+  - `CmpEqU64x2` 是逐 lane 比较；
+  - `CmpLt/GtU64x2` 用 sign-bit xor 转成 signed compare；
+  - `Min/MaxU64x2` 再基于该 mask 做 lane 选择；
+  - `I64x2` 三个 shift 则手写与 `ScalarShift*I64x2` 相同的负数/越界归零语义。
+- 这 8 个 helper 改成 scalar forwarder 后，`riscvv.helpers.inc` 不再维护第二份 unsigned compare / minmax / signed shift 逻辑。
+- `U64x2` shift 这轮仍然不动，因为当前没有现成 `ScalarShiftLeft/RightU64x2` 可直接回收；为了去重新造 scalar API 不属于这批“最小安全收口”。
+- `AVX512ShiftRightArithI32x16` 的 invalid-count contract 复核结果也已经明确：
+  - 当前 `dispatchapi` 测试已覆盖 `c=-1`、`c=32`、`c=64`，以及 `ShiftLeftI32x16` 的 `c=64`。
+  - 因而它目前不是“缺测试/缺护栏”的最高优先级缺口，这一轮不需要改 AVX-512 源码或额外补重复断言。
+- 复验结果已确认：`git diff --check`、`py_compile`、helper checker、Release `impl-audit-nonx86`、Release `check`、Release `gate` 全绿；helper summary 从 `checks=467` 扩到 `checks=475`。
 
 ## 2026-05-12 RISCVV Integer Fallback Forwarder Expansion
 

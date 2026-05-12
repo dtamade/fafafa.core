@@ -1234,3 +1234,36 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过，`NONX86_HELPER_SEMANTICS_SUMMARY checks=467 status=ok`
+
+## 2026-05-12 RISCVV Helper Compare/Shift Forwarder Hygiene
+
+- 先复核了两个候选方向：
+  - `riscvv.helpers.inc` 剩余的 `U64x2` compare/minmax 与 `I64x2` shift
+  - `avx512.i32x16_shift.inc` 的 invalid-count contract
+- 结论是 `AVX512ShiftRightArithI32x16` 当前不属于“缺失护栏”：
+  - 现有 `dispatchapi` 边界测试已经明确覆盖 `ShiftRightArithI32x16` 的 `c=-1/32/64`，以及 `ShiftLeftI32x16` 的 `c=64`。
+  - 因而本批没有再去改 AVX-512 源码或追加重复测试。
+- 已确认 `riscvv.helpers.inc` 里这 8 个 helper 与 scalar 侧完全同合同，且现有 dispatch/parity 测试已覆盖：
+  - `RISCVVCmpEqU64x2`
+  - `RISCVVCmpLtU64x2`
+  - `RISCVVCmpGtU64x2`
+  - `RISCVVMinU64x2`
+  - `RISCVVMaxU64x2`
+  - `RISCVVShiftLeftI64x2`
+  - `RISCVVShiftRightI64x2`
+  - `RISCVVShiftRightArithI64x2`
+- 这些 helper 现在都改成直调 `ScalarCmp* / ScalarMin/Max* / ScalarShift*` 真源，继续收掉 helper include 内第二份逻辑。
+- 本轮仍然明确不碰：
+  - `U64x2` shift（当前没有现成同名 scalar helper）
+  - reduction
+  - `Load/Store/Splat/Zero/Select`
+  - 其它未再次证明为 exact-contract 的路径
+- `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 已把这 8 个 helper 加入 `riscvv_helper_scalar_forwarder_expectations`，summary 从 `checks=467` 扩到 `checks=475`。
+- 轻量验证与 release 级收口已完成：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过，`NONX86_HELPER_SEMANTICS_SUMMARY checks=475 status=ok`
