@@ -172,6 +172,7 @@ begin
   {$ENDIF}
   {$ENDIF}
   HandleSuite('TTestCase_VectorOps', TTestCase_VectorOps.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_IntegerFacadeGuards', TTestCase_IntegerFacadeGuards.Suite, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_LargeData', TTestCase_LargeData.Suite, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_UnsignedVectorTypes', TTestCase_UnsignedVectorTypes.Suite, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_OperatorOverloads', TTestCase_OperatorOverloads.Suite, aListOnly, aTargetSuite);

@@ -1321,3 +1321,18 @@
 | 2. 补 dispatch / façade 直接 guard | completed   | `narrowintegerops` 已新增 12 条 narrow dispatch compare 测试和 3 条 `U32x4` façade 测试 |
 | 3. 复核 scalar 强制语义            | completed   | `TTestCase_NarrowIntegerOps.SetUp` 已固定 `ForceBackend(sbScalar)`，因此这批 dispatch-level compare 测试直接命中 scalar 真源 |
 | 4. Release 验证与提交收口          | completed   | `git diff --check`、Release `TTestCase_NarrowIntegerOps`、Release `check`、Release `gate` 全绿；待 review + commit |
+
+## 2026-05-13 Low-Width Integer Facade Guard Coverage
+
+### Goal
+
+继续沿“只靠 parity 间接覆盖”的证据缺口往下补，把 128-bit 低宽整数 façade 上还没有 direct guard 的公开 contract 补实：`I32x4`、`I64x2` 的 `AndNot/Eq/Lt/Gt/Le/Ge/Ne`，以及 `U64x2` 的 `AndNot/Eq/Lt/Gt`。
+
+### Phases
+
+| Phase                              | Status      | Notes |
+| ---------------------------------- | ----------- | ----- |
+| 1. 复核 façade 真实边界            | completed   | 已确认 `I32x4/I64x2` 公开暴露 `AndNot + 6 compare`，`U64x2` 公开暴露 `AndNot + Eq/Lt/Gt`，旧 direct tests 缺失 |
+| 2. 新增 scalar-forced direct suite | completed   | 已在 `fafafa.core.simd.testcase.pas` 新增 `TTestCase_IntegerFacadeGuards`，直接守这三组 façade contract |
+| 3. 同步 runner suite 清单          | completed   | `fafafa.core.simd.test.lpr` 的 `ProcessAllSuites` 已加入新 suite，避免 runner 只靠 `RegisterTest` 仍然选不到 |
+| 4. Release 验证与提交收口          | completed   | `git diff --check`、Release `TTestCase_IntegerFacadeGuards`、Release `check`、Release `gate` 全绿；待 review + commit |

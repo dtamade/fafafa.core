@@ -273,6 +273,24 @@
   - dispatch/scalar 合同不再只靠 backend parity 间接路过；
   - `U32x4` 的 façade `AndNot/CmpLe/CmpGe` 也不再只在 `DispatchAPI` 里有 parity 证据。
 
+## 2026-05-13 Low-Width Integer Facade Guard Findings
+
+- `I32x4`、`I64x2`、`U64x2` 这三组 128-bit 低宽整数 façade 之前也有同类证据空档：
+  - `src/fafafa.core.simd.pas` 已公开暴露这些函数；
+  - 但测试面主要只有 `dispatchapi.testcase` 的 façade-vs-dispatch parity；
+  - 缺少 family-local、scalar-forced 的 direct guard。
+- 这批边界必须按真实 public surface 区分：
+  - `I32x4/I64x2` 的公开合同是 `AndNot + Eq/Lt/Gt/Le/Ge/Ne`
+  - `U64x2` 的公开合同只有 `AndNot + Eq/Lt/Gt`
+  - 不能像上批 narrow compare 一样误补不存在的 façade API。
+- 新增的 `TTestCase_IntegerFacadeGuards` 证明了一点很重要的 runner 事实：
+  - 在这个仓库里，单纯 `RegisterTest(TSuiteClass)` 不足以让 `--suite=...` 可选；
+  - `tests/fafafa.core.simd/fafafa.core.simd.test.lpr` 的 `ProcessAllSuites` 共享清单也必须同步；
+  - 否则 targeted run 会出现“Tests run: 0 / suite filter matched no tests”的假红。
+- 收口后，这三组低宽整数 façade contract 已不再只剩 parity 旁证：
+  - `I32x4/I64x2/U64x2` 的位运算与 compare 公开语义现在都有 scalar-forced direct proof；
+  - runner suite manifest 也同步维持 `registered_suites=handled_suites`，不会让新增 suite 变成隐形测试。
+
 ## 2026-05-12 Scalar AndNot Hidden Drift
 
 - `AndNot` 在当前仓库的公开合同是稳定且明确的：

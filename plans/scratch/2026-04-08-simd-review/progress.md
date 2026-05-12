@@ -1310,3 +1310,24 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-13 Low-Width Integer Facade Guard Coverage
+
+- 继续沿 direct-guard 缺口往下扫后，确认下一批最真实的空档在 128-bit 低宽整数 façade：
+  - `VecI32x4AndNot/CmpEq/CmpLt/CmpGt/CmpLe/CmpGe/CmpNe`
+  - `VecI64x2AndNot/CmpEq/CmpLt/CmpGt/CmpLe/CmpGe/CmpNe`
+  - `VecU64x2AndNot/CmpEq/CmpLt/CmpGt`
+- 这三组函数此前主要只在 `dispatchapi.testcase` 里做 façade-vs-dispatch parity，没有 family-local direct guard。
+- 本轮已在 `tests/fafafa.core.simd/fafafa.core.simd.testcase.pas` 新增 `TTestCase_IntegerFacadeGuards`：
+  - `SetUp/TearDown` 固定 `ForceBackend(sbScalar)` / `ResetBackendSelection`
+  - 6 条测试覆盖三组 façade 的 compare/AndNot 公开 contract
+- 第一次 targeted run 直接暴露的不是语义问题，而是 runner contract：
+  - 新 suite 已 `RegisterTest(...)`
+  - 但 `fafafa.core.simd.test.lpr` 的 `ProcessAllSuites` 共享清单还没同步，导致 `--suite=TTestCase_IntegerFacadeGuards` 匹配不到任何测试
+  - 现已把 `HandleSuite('TTestCase_IntegerFacadeGuards', ...)` 补进 runner，suite manifest 再次为绿
+- Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IntegerFacadeGuards`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

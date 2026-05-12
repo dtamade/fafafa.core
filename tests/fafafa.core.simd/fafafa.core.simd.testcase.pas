@@ -328,6 +328,20 @@ type
     procedure Test_VecF64x2_Fma;
   end;
 
+  // 低宽整数 façade contract 直接守卫（强制 Scalar，避免只剩 parity 旁证）
+  TTestCase_IntegerFacadeGuards = class(TTestCase)
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure Test_VecI32x4_AndNot_Basic;
+    procedure Test_VecI32x4_Compare_Basic;
+    procedure Test_VecI64x2_AndNot_Basic;
+    procedure Test_VecI64x2_Compare_Basic;
+    procedure Test_VecU64x2_AndNot_Basic;
+    procedure Test_VecU64x2_Compare_Unsigned;
+  end;
+
   // 大数据量和边界测试
   TTestCase_LargeData = class(TTestCase)
   published
@@ -9796,6 +9810,180 @@ begin
   AssertEquals('FMA(3.0, -2.0, 10.0) should be 4', 4.0, r.d[1], 0.0001);
 end;
 
+{ TTestCase_IntegerFacadeGuards }
+
+procedure TTestCase_IntegerFacadeGuards.SetUp;
+begin
+  inherited SetUp;
+  ForceBackend(sbScalar);
+end;
+
+procedure TTestCase_IntegerFacadeGuards.TearDown;
+begin
+  ResetBackendSelection;
+  inherited TearDown;
+end;
+
+procedure TTestCase_IntegerFacadeGuards.Test_VecI32x4_AndNot_Basic;
+var
+  LVecA, LVecB, LResult: TVecI32x4;
+begin
+  LVecA.i[0] := LongInt($0F0F0F0F);
+  LVecA.i[1] := -1;
+  LVecA.i[2] := 0;
+  LVecA.i[3] := LongInt($AAAAAAAA);
+
+  LVecB.i[0] := -1;
+  LVecB.i[1] := LongInt($0F0F0F0F);
+  LVecB.i[2] := -1;
+  LVecB.i[3] := LongInt($55555555);
+
+  LResult := VecI32x4AndNot(LVecA, LVecB);
+
+  AssertEquals('VecI32x4AndNot lane 0', UInt32($F0F0F0F0), UInt32(LResult.i[0]));
+  AssertEquals('VecI32x4AndNot lane 1', UInt32(0), UInt32(LResult.i[1]));
+  AssertEquals('VecI32x4AndNot lane 2', UInt32($FFFFFFFF), UInt32(LResult.i[2]));
+  AssertEquals('VecI32x4AndNot lane 3', UInt32($55555555), UInt32(LResult.i[3]));
+end;
+
+procedure TTestCase_IntegerFacadeGuards.Test_VecI32x4_Compare_Basic;
+var
+  LVecA, LVecB: TVecI32x4;
+  LMaskEq, LMaskLt, LMaskGt, LMaskLe, LMaskGe, LMaskNe: TMask4;
+begin
+  LVecA.i[0] := 10;
+  LVecA.i[1] := -5;
+  LVecA.i[2] := 20;
+  LVecA.i[3] := 30;
+
+  LVecB.i[0] := 10;
+  LVecB.i[1] := 3;
+  LVecB.i[2] := 20;
+  LVecB.i[3] := -30;
+
+  LMaskEq := VecI32x4CmpEq(LVecA, LVecB);
+  LMaskLt := VecI32x4CmpLt(LVecA, LVecB);
+  LMaskGt := VecI32x4CmpGt(LVecA, LVecB);
+  LMaskLe := VecI32x4CmpLe(LVecA, LVecB);
+  LMaskGe := VecI32x4CmpGe(LVecA, LVecB);
+  LMaskNe := VecI32x4CmpNe(LVecA, LVecB);
+
+  AssertEquals('VecI32x4CmpEq mask', Integer(TMask4($5)), Integer(LMaskEq));
+  AssertEquals('VecI32x4CmpLt mask', Integer(TMask4($2)), Integer(LMaskLt));
+  AssertEquals('VecI32x4CmpGt mask', Integer(TMask4($8)), Integer(LMaskGt));
+  AssertEquals('VecI32x4CmpLe mask', Integer(TMask4($7)), Integer(LMaskLe));
+  AssertEquals('VecI32x4CmpGe mask', Integer(TMask4($D)), Integer(LMaskGe));
+  AssertEquals('VecI32x4CmpNe mask', Integer(TMask4($A)), Integer(LMaskNe));
+end;
+
+procedure TTestCase_IntegerFacadeGuards.Test_VecI64x2_AndNot_Basic;
+var
+  LVecA, LVecB, LResult: TVecI64x2;
+begin
+  LVecA.i[0] := Int64($0F0F0F0F0F0F0F0F);
+  LVecA.i[1] := -1;
+
+  LVecB.i[0] := -1;
+  LVecB.i[1] := Int64($123456789ABCDEF0);
+
+  LResult := VecI64x2AndNot(LVecA, LVecB);
+
+  AssertEquals('VecI64x2AndNot lane 0', QWord($F0F0F0F0F0F0F0F0), QWord(LResult.i[0]));
+  AssertEquals('VecI64x2AndNot lane 1', QWord(0), QWord(LResult.i[1]));
+end;
+
+procedure TTestCase_IntegerFacadeGuards.Test_VecI64x2_Compare_Basic;
+var
+  LVecA, LVecB: TVecI64x2;
+  LMaskEq, LMaskLt, LMaskGt, LMaskLe, LMaskGe, LMaskNe: TMask2;
+begin
+  LVecA.i[0] := 42;
+  LVecA.i[1] := -100;
+  LVecB.i[0] := 42;
+  LVecB.i[1] := 50;
+
+  LMaskEq := VecI64x2CmpEq(LVecA, LVecB);
+  LMaskLt := VecI64x2CmpLt(LVecA, LVecB);
+  LMaskGt := VecI64x2CmpGt(LVecA, LVecB);
+  LMaskLe := VecI64x2CmpLe(LVecA, LVecB);
+  LMaskGe := VecI64x2CmpGe(LVecA, LVecB);
+  LMaskNe := VecI64x2CmpNe(LVecA, LVecB);
+
+  AssertEquals('VecI64x2CmpEq case1', Integer(TMask2($1)), Integer(LMaskEq));
+  AssertEquals('VecI64x2CmpLt case1', Integer(TMask2($2)), Integer(LMaskLt));
+  AssertEquals('VecI64x2CmpGt case1', Integer(TMask2($0)), Integer(LMaskGt));
+  AssertEquals('VecI64x2CmpLe case1', Integer(TMask2($3)), Integer(LMaskLe));
+  AssertEquals('VecI64x2CmpGe case1', Integer(TMask2($1)), Integer(LMaskGe));
+  AssertEquals('VecI64x2CmpNe case1', Integer(TMask2($2)), Integer(LMaskNe));
+
+  LVecA.i[0] := 100;
+  LVecA.i[1] := -10;
+  LVecB.i[0] := 42;
+  LVecB.i[1] := -10;
+
+  LMaskEq := VecI64x2CmpEq(LVecA, LVecB);
+  LMaskLt := VecI64x2CmpLt(LVecA, LVecB);
+  LMaskGt := VecI64x2CmpGt(LVecA, LVecB);
+  LMaskLe := VecI64x2CmpLe(LVecA, LVecB);
+  LMaskGe := VecI64x2CmpGe(LVecA, LVecB);
+  LMaskNe := VecI64x2CmpNe(LVecA, LVecB);
+
+  AssertEquals('VecI64x2CmpEq case2', Integer(TMask2($2)), Integer(LMaskEq));
+  AssertEquals('VecI64x2CmpLt case2', Integer(TMask2($0)), Integer(LMaskLt));
+  AssertEquals('VecI64x2CmpGt case2', Integer(TMask2($1)), Integer(LMaskGt));
+  AssertEquals('VecI64x2CmpLe case2', Integer(TMask2($2)), Integer(LMaskLe));
+  AssertEquals('VecI64x2CmpGe case2', Integer(TMask2($3)), Integer(LMaskGe));
+  AssertEquals('VecI64x2CmpNe case2', Integer(TMask2($1)), Integer(LMaskNe));
+end;
+
+procedure TTestCase_IntegerFacadeGuards.Test_VecU64x2_AndNot_Basic;
+var
+  LVecA, LVecB, LResult: TVecU64x2;
+begin
+  LVecA.u[0] := QWord($0F0F0F0F0F0F0F0F);
+  LVecA.u[1] := 0;
+
+  LVecB.u[0] := High(QWord);
+  LVecB.u[1] := QWord($123456789ABCDEF0);
+
+  LResult := VecU64x2AndNot(LVecA, LVecB);
+
+  AssertEquals('VecU64x2AndNot lane 0', QWord($F0F0F0F0F0F0F0F0), LResult.u[0]);
+  AssertEquals('VecU64x2AndNot lane 1', QWord($123456789ABCDEF0), LResult.u[1]);
+end;
+
+procedure TTestCase_IntegerFacadeGuards.Test_VecU64x2_Compare_Unsigned;
+var
+  LVecA, LVecB: TVecU64x2;
+  LMaskEq, LMaskLt, LMaskGt: TMask2;
+begin
+  LVecA.u[0] := 0;
+  LVecA.u[1] := High(QWord);
+  LVecB.u[0] := High(QWord);
+  LVecB.u[1] := High(QWord);
+
+  LMaskEq := VecU64x2CmpEq(LVecA, LVecB);
+  LMaskLt := VecU64x2CmpLt(LVecA, LVecB);
+  LMaskGt := VecU64x2CmpGt(LVecA, LVecB);
+
+  AssertEquals('VecU64x2CmpEq case1', Integer(TMask2($2)), Integer(LMaskEq));
+  AssertEquals('VecU64x2CmpLt case1', Integer(TMask2($1)), Integer(LMaskLt));
+  AssertEquals('VecU64x2CmpGt case1', Integer(TMask2($0)), Integer(LMaskGt));
+
+  LVecA.u[0] := High(QWord);
+  LVecA.u[1] := 0;
+  LVecB.u[0] := 1;
+  LVecB.u[1] := 0;
+
+  LMaskEq := VecU64x2CmpEq(LVecA, LVecB);
+  LMaskLt := VecU64x2CmpLt(LVecA, LVecB);
+  LMaskGt := VecU64x2CmpGt(LVecA, LVecB);
+
+  AssertEquals('VecU64x2CmpEq case2', Integer(TMask2($2)), Integer(LMaskEq));
+  AssertEquals('VecU64x2CmpLt case2', Integer(TMask2($0)), Integer(LMaskLt));
+  AssertEquals('VecU64x2CmpGt case2', Integer(TMask2($1)), Integer(LMaskGt));
+end;
+
 { TTestCase_LargeData }
 
 procedure TTestCase_LargeData.Test_MemEqual_1MB;
@@ -12132,6 +12320,7 @@ initialization
   {$ENDIF}
   {$ENDIF}
   RegisterTest(TTestCase_VectorOps);
+  RegisterTest(TTestCase_IntegerFacadeGuards);
   RegisterTest(TTestCase_LargeData);
   RegisterTest(TTestCase_UnsignedVectorTypes);
   RegisterTest(TTestCase_OperatorOverloads);
