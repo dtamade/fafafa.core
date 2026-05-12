@@ -1331,3 +1331,25 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-13 Mid/Wide Integer Facade Guard Coverage
+
+- 继续深扫后，确认下一簇真实空档不是“没有 parity”，而是“只有 `dispatchapi` / multi-backend 旁证，没有强制 `sbScalar` 的 façade direct guard`：
+  - `VecI64x4AndNot/CmpLe/CmpGe/CmpNe`
+  - `VecI32x16AndNot/CmpEq/CmpLt/CmpGt/CmpLe/CmpGe/CmpNe`
+  - `VecU32x16AndNot/CmpEq/CmpLt/CmpGt/CmpLe/CmpGe/CmpNe`
+- 这批没有再新建 suite，而是继续扩 `TTestCase_IntegerFacadeGuards`，保持：
+  - `SetUp` 固定 `ForceBackend(sbScalar)`
+  - `TearDown` 固定 `ResetBackendSelection`
+  - 新增 6 条测试，直接打 `I64x4`、`I32x16`、`U32x16` 的 façade contract
+- 第一次 targeted build 暴露的不是实现回归，而是测试层命名歧义：
+  - `VecI32x16CmpEq/Lt/Gt` 在 `simd.utils` 里也有同名 helper，返回 `TMaskI32x16`
+  - 在通用 testcase 里若不加限定，会被解析到错误的 helper surface
+  - 现已把 `I32x16` compare 调用显式限定为 `fafafa.core.simd.VecI32x16Cmp*`
+- 这也说明当前更真实的风险点之一是“同名 helper 让 façade 测试误绑到 utils surface”，不是实现函数本身缺失。
+- Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IntegerFacadeGuards`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

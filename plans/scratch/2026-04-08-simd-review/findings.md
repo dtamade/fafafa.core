@@ -258,6 +258,14 @@
 - 原位置现在只保留跳转占位，不再承载正文。
 - `docs/fafafa.core.simd.md` 与 `src/fafafa.core.simd.README.md` 已补充 legacy 导流，避免读者再次把历史快照当成 active truth source。
 
+## 2026-05-13 Mid/Wide Integer Facade Guard Findings
+
+- `VecI64x4AndNot/CmpLe/CmpGe/CmpNe`、`VecI32x16AndNot/CmpLe/CmpGe/CmpNe`、`VecU32x16AndNot/CmpLe/CmpGe/CmpNe` 都是当前 `src/fafafa.core.simd.pas` 真实公开的 façade contract，不是误补 API。
+- 这几组在本轮之前已经有 `dispatchapi` parity 或 `direct` multi-backend 旁证，但还缺“固定 `sbScalar`、不借 dispatch parity 旁证”的 direct guard；因此当前缺口属于证据层，而不是实现层。
+- `TTestCase_IntegerFacadeGuards` 已经是仓库现成的 scalar-forced façade direct suite，继续扩这一个 suite 比再造一条平行 suite 更低风险，也不会再碰 runner manifest。
+- `simd.utils` 里存在与 façade 同名的 `VecI32x16CmpEq/Lt/Gt` helper，返回类型是 `TMaskI32x16`；通用 testcase 若不显式写 `fafafa.core.simd.VecI32x16Cmp*`，编译期就可能误绑到 utils surface。
+- 因而后续继续补 `I32x16` façade 相关 guard 时，应该把“显式限定到 `fafafa.core.simd`”视为固定写法，而不是偶发修补。
+
 ## 2026-05-12 Narrow Compare Guard Findings
 
 - 当前窄整型 compare 的真实缺口不是“没有实现”，而是“缺少直接 guard”：
