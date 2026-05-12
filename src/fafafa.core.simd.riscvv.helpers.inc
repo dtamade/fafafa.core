@@ -17,52 +17,38 @@ begin
 end;
 
 function RISCVVAddU64x2(const a, b: TVecU64x2): TVecU64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.u[i] := a.u[i] + b.u[i];
+  Result := ScalarAddU64x2(a, b);
 end;
 
 function RISCVVSubU64x2(const a, b: TVecU64x2): TVecU64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.u[i] := a.u[i] - b.u[i];
+  Result := ScalarSubU64x2(a, b);
 end;
 
 function RISCVVAndU64x2(const a, b: TVecU64x2): TVecU64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.u[i] := a.u[i] and b.u[i];
+  Result := ScalarAndU64x2(a, b);
 end;
 
 function RISCVVOrU64x2(const a, b: TVecU64x2): TVecU64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.u[i] := a.u[i] or b.u[i];
+  Result := ScalarOrU64x2(a, b);
 end;
 
 function RISCVVXorU64x2(const a, b: TVecU64x2): TVecU64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.u[i] := a.u[i] xor b.u[i];
+  Result := ScalarXorU64x2(a, b);
 end;
 
 function RISCVVNotU64x2(const a: TVecU64x2): TVecU64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.u[i] := not a.u[i];
+  Result := ScalarNotU64x2(a);
 end;
 
 function RISCVVAndNotI64x2(const a, b: TVecI64x2): TVecI64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.i[i] := (not a.i[i]) and b.i[i];
+  Result := ScalarAndNotI64x2(a, b);
 end;
 
 function RISCVVMinI64x2(const a, b: TVecI64x2): TVecI64x2;
@@ -86,10 +72,8 @@ begin
 end;
 
 function RISCVVAndNotU64x2(const a, b: TVecU64x2): TVecU64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.u[i] := (not a.u[i]) and b.u[i];
+  Result := ScalarAndNotU64x2(a, b);
 end;
 
 function RISCVVCmpEqU64x2(const a, b: TVecU64x2): TMask2;

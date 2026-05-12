@@ -20,6 +20,7 @@ NEON_SCALAR_EXT_MATH_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.ext_mat
 NEON_SCALAR_AUTOWRAP_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.autowrap.inc"
 RISCVV_FILE = ROOT / "src" / "fafafa.core.simd.riscvv.pas"
 RISCVV_FACADE_FILE = ROOT / "src" / "fafafa.core.simd.riscvv.facade.inc"
+RISCVV_HELPERS_FILE = ROOT / "src" / "fafafa.core.simd.riscvv.helpers.inc"
 RISCVV_REGISTER_FILE = ROOT / "src" / "fafafa.core.simd.riscvv.register.inc"
 DIRECT_FILE = ROOT / "tests" / "fafafa.core.simd" / "fafafa.core.simd.direct.testcase.pas"
 DISPATCHAPI_FILE = ROOT / "tests" / "fafafa.core.simd" / "fafafa.core.simd.dispatchapi.testcase.pas"
@@ -85,6 +86,7 @@ def main() -> int:
     neon_scalar_autowrap_source = read_text(NEON_SCALAR_AUTOWRAP_FILE)
     riscvv_source = read_text(RISCVV_FILE)
     riscvv_facade_source = read_text(RISCVV_FACADE_FILE)
+    riscvv_helpers_source = read_text(RISCVV_HELPERS_FILE)
     riscvv_register_source = read_text(RISCVV_REGISTER_FILE)
     direct_source = read_text(DIRECT_FILE)
     dispatchapi_source = read_text(DISPATCHAPI_FILE)
@@ -949,6 +951,22 @@ def main() -> int:
     routine_expectations.extend(
         (riscvv_facade_source, routine_name, [f"Result := {scalar_call};"])
         for routine_name, scalar_call in riscvv_scalar_forwarder_expectations
+    )
+
+    riscvv_helper_scalar_forwarder_expectations = [
+        ("RISCVVAddU64x2", "ScalarAddU64x2(a, b)"),
+        ("RISCVVSubU64x2", "ScalarSubU64x2(a, b)"),
+        ("RISCVVAndU64x2", "ScalarAndU64x2(a, b)"),
+        ("RISCVVOrU64x2", "ScalarOrU64x2(a, b)"),
+        ("RISCVVXorU64x2", "ScalarXorU64x2(a, b)"),
+        ("RISCVVNotU64x2", "ScalarNotU64x2(a)"),
+        ("RISCVVAndNotI64x2", "ScalarAndNotI64x2(a, b)"),
+        ("RISCVVAndNotU64x2", "ScalarAndNotU64x2(a, b)"),
+    ]
+
+    routine_expectations.extend(
+        (riscvv_helpers_source, routine_name, [f"Result := {scalar_call};"])
+        for routine_name, scalar_call in riscvv_helper_scalar_forwarder_expectations
     )
 
     for source, routine_name, fragments in routine_expectations:

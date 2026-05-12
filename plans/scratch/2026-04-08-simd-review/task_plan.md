@@ -1261,3 +1261,18 @@
 | 2. 区分保留特例与真删除对象         | completed   | `neon.scalar.wide_memory.inc` 保留为 audit-only checker 样本；其余 10 个 unreachable 源码确认为删除对象 |
 | 3. 落地 source reachability 护栏    | completed   | 已新增 `tests/fafafa.core.simd/check_simd_source_reachability.py` 并接入 `BuildOrTest.sh check` |
 | 4. 删除 unreachable 冗余源码并复验 | completed   | 已删除 dead SSE2 `.inc`、`neon.scalar.wide_reduce.inc`、`cpuinfo.x86.asm.pas`；待跑 release 级复验与提交 |
+
+## 2026-05-12 RISCVV Helper Include Forwarder Hygiene
+
+### Goal
+
+继续沿 `Wave 5 / retire + redundancy cleanup` 深审 `src/fafafa.core.simd.riscvv.helpers.inc`，只收掉已经有 `Scalar*` 真源、且不触碰 `Min/Max` / unsigned compare / shift / reduction / select 语义边界的 exact-contract 重复体，同时把 include-file 自身纳入 helper semantics 护栏。
+
+### Phases
+
+| Phase                              | Status      | Notes |
+| ---------------------------------- | ----------- | ----- |
+| 1. 锁定 helper include 的低风险目标 | completed   | 已确认本批只碰 `U64x2` 基础 arithmetic/bitwise 与 `AndNotI64x2/U64x2`，暂缓 `Min/Max`、unsigned `Cmp*`、shift、reduction、select |
+| 2. 收口 helper 重复实现             | completed   | `RISCVVAdd/Sub/And/Or/Xor/NotU64x2` 与 `RISCVVAndNotI64x2/U64x2` 已改成 thin scalar forwarder |
+| 3. 扩展 include-file source 护栏    | completed   | `check_nonx86_helper_semantics.py` 已新增 `RISCVV_HELPERS_FILE`，直接校验 helper include 中这 8 个 wrapper |
+| 4. Release 验证与提交收口           | completed   | `git diff --check`、`py_compile`、helper checker、Release `impl-audit-nonx86/check/gate` 全绿；待 review + commit |

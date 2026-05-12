@@ -1210,3 +1210,27 @@
   - `src/fafafa.core.simd.sse2.saturating.inc`
 - 上述 SSE2 `.inc` 都是与 `src/fafafa.core.simd.sse2.pas` 内现有实现重复的历史残片；`cpuinfo.x86.asm.pas` 则是无人使用且本身还带残缺占位代码的死单元。
 - 已新增 `tests/fafafa.core.simd/check_simd_source_reachability.py`，并接入 `tests/fafafa.core.simd/BuildOrTest.sh check`，用于防止 future batch 再落入“文件存在但永远不进 live source 链”的影子实现。
+
+## 2026-05-12 RISCVV Helper Include Forwarder Hygiene
+
+- 本轮继续深审 `riscvv.helpers.inc`，先确认 checker 当前主要锁的是 `riscvv.facade.inc` forwarder，而 helper include 自身还没有 direct source-side 护栏。
+- 已确认本批最稳的 exact-contract 重复体只有 8 个：
+  - `RISCVVAddU64x2`
+  - `RISCVVSubU64x2`
+  - `RISCVVAndU64x2`
+  - `RISCVVOrU64x2`
+  - `RISCVVXorU64x2`
+  - `RISCVVNotU64x2`
+  - `RISCVVAndNotI64x2`
+  - `RISCVVAndNotU64x2`
+- 这些 helper 现在都改成直调 `Scalar*` 真源，去掉了 helper include 内第二份逐 lane truth source。
+- `Min/Max`、unsigned `CmpLt/CmpGtU64x2`、shift、reduction、`Load/Store/Splat/Zero/Select` 这一轮都明确保留，不为了“看起来像 loop”就硬合并。
+- `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 已新增 `RISCVV_HELPERS_FILE` 并直接读取 `src/fafafa.core.simd.riscvv.helpers.inc`，把这 8 个 helper wrapper 锁进 source-side 护栏。
+- 轻量验证与 release 级收口已完成：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过，`NONX86_HELPER_SEMANTICS_SUMMARY checks=467 status=ok`

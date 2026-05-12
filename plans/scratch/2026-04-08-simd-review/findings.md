@@ -1094,6 +1094,17 @@
 - 当前 targeted guard 已通过：`DISPATCH_READ_SCOPE ... forbidden_hits=0 active_doc_issues=0`。
 - Release `check` 和 `gate` 已通过，说明这次 guard 扩展没有破坏主 SIMD runner、public ABI smoke、adapter sync、wiring sync 或 filtered `run_all` 链路。
 
+## 2026-05-12 RISCVV Helper Include Forwarder Hygiene
+
+- `src/fafafa.core.simd.riscvv.helpers.inc` 仍有一小批 live helper 在 no-ASM 分支里手写第二份整数逻辑，而当前 `check_nonx86_helper_semantics.py` 主要锁的是 `riscvv.facade.inc` forwarder，并没有直接读取 helper include。
+- 本批可安全收口的 exact-contract 重复体只有 8 个：`RISCVVAdd/Sub/And/Or/Xor/NotU64x2` 与 `RISCVVAndNotI64x2/U64x2`；它们都已有现成 `Scalar*` 真源，且不涉及 NaN、signed-zero、unsigned compare、shift count 或 reduction contract。
+- `RISCVVMin/MaxI64x2`、`RISCVVMin/MaxU64x2`、`RISCVVCmpLt/GtU64x2`、`RISCVVShift*`、`RISCVVReduce*`、`RISCVVLoad/Store/Splat/Zero/Select*` 仍然保留当前实现：
+  - 前两类仍属于用户已明确要求谨慎的 `Min/Max` / unsigned compare 面。
+  - shift / reduction 虽然能看到潜在替代，但这轮不为了去重扩大合同面。
+  - `Load/Store/Splat/Zero/Select*` 当前也没有现成同名 scalar API 可直接回收，不值得为了“去重”新造抽象。
+- 已新增 `RISCVV_HELPERS_FILE` checker 输入并把这 8 个 helper 直接纳入 source-side 断言，因此后续即便 `riscvv.pas` 继续通过 `{$I fafafa.core.simd.riscvv.helpers.inc}` 挂接，这些 wrapper 也不会轻易回长成第二份手写逻辑。
+- 复验结果已确认：`git diff --check`、`py_compile`、helper checker、Release `impl-audit-nonx86`、Release `check`、Release `gate` 全绿；helper summary 从 `checks=459` 扩到 `checks=467`。
+
 ## 2026-05-12 RISCVV Integer Fallback Forwarder Expansion
 
 - `src/fafafa.core.simd.riscvv.facade.inc` 里一批 non-ASM integer fallback 仍在手写逐 lane arithmetic / bitwise 体，和 `Scalar*` 真源完全同合同，适合继续收口。
