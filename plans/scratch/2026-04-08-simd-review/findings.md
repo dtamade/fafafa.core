@@ -258,6 +258,41 @@
 - 原位置现在只保留跳转占位，不再承载正文。
 - `docs/fafafa.core.simd.md` 与 `src/fafafa.core.simd.README.md` 已补充 legacy 导流，避免读者再次把历史快照当成 active truth source。
 
+## 2026-05-12 Source Reachability Findings
+
+- 先前“NEON scalar 散文件可能未引用”的初扫里有一批假阳性：
+  - `fafafa.core.simd.neon.scalar.compare.inc`
+  - `fafafa.core.simd.neon.scalar.math.inc`
+  - `fafafa.core.simd.neon.scalar.ext_math.inc`
+  - `fafafa.core.simd.neon.scalar.vector_math.inc`
+  - `fafafa.core.simd.neon.scalar.reduction.inc`
+  - `fafafa.core.simd.neon.scalar.memory.inc`
+  - `fafafa.core.simd.neon.scalar.utility.inc`
+  - `fafafa.core.simd.neon.scalar.autowrap.inc`
+  - `fafafa.core.simd.neon.facade_scalar.inc`
+- 它们不是死文件，而是通过 `fafafa.core.simd.neon.scalar_fallback.inc` 的嵌套 `{$I ...}` 间接进入 `src/fafafa.core.simd.neon.pas`。
+- `src/fafafa.core.simd.neon.scalar.wide_memory.inc` 目前不在 live compile 链，但它不是垃圾文件：
+  - 现有 `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 直接读取它，作为 non-x86 helper semantics / wide slot 审计样本。
+  - 因而它当前应被归类为 `audit-only retained source`，而不是 `delete candidate`。
+- 真正确认可删的 unreachable 源码只有 10 个：
+  - `src/fafafa.core.simd.cpuinfo.x86.asm.pas`
+  - `src/fafafa.core.simd.neon.scalar.wide_reduce.inc`
+  - `src/fafafa.core.simd.sse2.ext_math.inc`
+  - `src/fafafa.core.simd.sse2.f32x8_arith.inc`
+  - `src/fafafa.core.simd.sse2.f32x8_compare.inc`
+  - `src/fafafa.core.simd.sse2.facade_extra.inc`
+  - `src/fafafa.core.simd.sse2.i64x2_arith.inc`
+  - `src/fafafa.core.simd.sse2.mask.inc`
+  - `src/fafafa.core.simd.sse2.memory.inc`
+  - `src/fafafa.core.simd.sse2.saturating.inc`
+- 这批 SSE2 `.inc` 不是“尚未挂接的将来实现”，而是和 `src/fafafa.core.simd.sse2.pas` 内现有 live 定义重叠的历史残片；删除它们能减少“第二份实现看起来存在但实际上永远不编译”的误导。
+- `src/fafafa.core.simd.cpuinfo.x86.asm.pas` 也是死单元，而且质量信号更差：
+  - 仓库内没有任何 `uses` / source entry 引它。
+  - 文件内部仍保留明显残缺和不自洽代码，继续留着只会制造“也许还有另一套 x86 asm CPUID 真源”的假象。
+- 当前更有价值的缺守卫不是再写一篇文档，而是机器化 reachability：
+  - 新增 `check_simd_source_reachability.py` 后，可以稳定拦住未来再出现 unreachable private include。
+  - 允许保留的特例目前只剩 `fafafa.core.simd.neon.scalar.wide_memory.inc`，并且理由已经冻结为 audit-only checker input。
+
 ## 2026-05-12 Deep Review Refresh
 
 ### Live guardrail status

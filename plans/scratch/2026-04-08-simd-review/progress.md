@@ -1192,3 +1192,21 @@
 - 按建议已继续收口文档卫生：`docs/INDEX.md` 的过时 `docs/simd/` 导流已修正，`src/fafafa.core.simd.next-steps.md` 正式迁入 `docs/legacy/simd/`，原路径改为兼容占位。
 - 当前新增一批历史快照归档，目标是把顶层 `SIMD_*` / `NEON_*` 历史分析、审计、迭代报告全部从活入口挪走，只保留占位和 legacy 导流。
 - `docs/legacy/simd/README.md` 已补齐，当前活入口现在只指向索引页，不再把历史快照目录当成散落文件夹看待。
+
+## 2026-05-12 SIMD Source Reachability Hygiene
+
+- 已对 `src/fafafa.core.simd*.inc` 做 transitive include 闭包复核，确认先前 `neon.scalar.compare/math/...` 那批并非死文件，而是经由 `fafafa.core.simd.neon.scalar_fallback.inc` 间接挂接。
+- 已确认 `fafafa.core.simd.neon.scalar.wide_memory.inc` 虽然不在当前编译链，但仍被 `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 作为 audit-only 样本读取，因此保留。
+- 已确认下列源码当前没有任何 live source 挂接路径，可直接删除：
+  - `src/fafafa.core.simd.cpuinfo.x86.asm.pas`
+  - `src/fafafa.core.simd.neon.scalar.wide_reduce.inc`
+  - `src/fafafa.core.simd.sse2.ext_math.inc`
+  - `src/fafafa.core.simd.sse2.f32x8_arith.inc`
+  - `src/fafafa.core.simd.sse2.f32x8_compare.inc`
+  - `src/fafafa.core.simd.sse2.facade_extra.inc`
+  - `src/fafafa.core.simd.sse2.i64x2_arith.inc`
+  - `src/fafafa.core.simd.sse2.mask.inc`
+  - `src/fafafa.core.simd.sse2.memory.inc`
+  - `src/fafafa.core.simd.sse2.saturating.inc`
+- 上述 SSE2 `.inc` 都是与 `src/fafafa.core.simd.sse2.pas` 内现有实现重复的历史残片；`cpuinfo.x86.asm.pas` 则是无人使用且本身还带残缺占位代码的死单元。
+- 已新增 `tests/fafafa.core.simd/check_simd_source_reachability.py`，并接入 `tests/fafafa.core.simd/BuildOrTest.sh check`，用于防止 future batch 再落入“文件存在但永远不进 live source 链”的影子实现。

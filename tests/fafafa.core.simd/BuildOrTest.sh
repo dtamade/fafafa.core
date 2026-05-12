@@ -33,6 +33,7 @@ PUBLIC_ABI_SIGNATURE_SCRIPT="${ROOT}/check_public_abi_signature.py"
 PERF_SMOKE_CHECK_SCRIPT="${ROOT}/check_perf_smoke_log.py"
 ADAPTER_SYNC_SCRIPT="${ROOT}/check_backend_adapter_sync.py"
 REGISTER_INCLUDE_CHECK_SCRIPT="${ROOT}/check_backend_register_include_consistency.py"
+SOURCE_REACHABILITY_SCRIPT="${ROOT}/check_simd_source_reachability.py"
 SSE2_STRUCTURE_SCRIPT="${ROOT}/check_sse2_structure.py"
 SUITE_MANIFEST_CHECK_SCRIPT="${ROOT}/check_suite_manifest_sync.py"
 DISPATCH_PREINIT_SMOKE_SRC="${ROOT}/fafafa.core.simd.dispatch_preinit_smoke.pas"
@@ -66,6 +67,8 @@ KEY_SLOT_AUDIT_LOG="${LOG_DIR}/nonx86_key_slot_audit.txt"
 KEY_SLOT_AUDIT_JSON_LOG="${LOG_DIR}/nonx86_key_slot_audit.json"
 SSE2_STRUCTURE_LOG="${LOG_DIR}/sse2_structure.txt"
 SSE2_STRUCTURE_JSON_LOG="${LOG_DIR}/sse2_structure.json"
+SOURCE_REACHABILITY_LOG="${LOG_DIR}/source_reachability.txt"
+SOURCE_REACHABILITY_JSON_LOG="${LOG_DIR}/source_reachability.json"
 X86_IMPL_SMOKE_LOG="${LOG_DIR}/x86_impl_smoke.txt"
 SSE2_IMPL_SMOKE_LOG="${LOG_DIR}/sse2_impl_smoke.txt"
 NONX86_IMPL_SMOKE_LOG="${LOG_DIR}/nonx86_impl_smoke.txt"
@@ -2990,6 +2993,46 @@ run_suite_manifest_check() {
 
   echo "[SUITE-MANIFEST] Running: python3 ${SUITE_MANIFEST_CHECK_SCRIPT} --summary-line"
   python3 "${SUITE_MANIFEST_CHECK_SCRIPT}" --summary-line
+}
+
+run_source_reachability_check() {
+  local LLog
+  local LJsonLog
+  local LMainRC
+  local LSummaryLine
+
+  if [[ ! -f "${SOURCE_REACHABILITY_SCRIPT}" ]]; then
+    echo "[SOURCE-REACHABILITY] Missing checker: ${SOURCE_REACHABILITY_SCRIPT}"
+    return 2
+  fi
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "[SOURCE-REACHABILITY] FAILED (python3 runtime not found; source reachability check requires python3)"
+    return 2
+  fi
+
+  LLog="${SIMD_SOURCE_REACHABILITY_LOG_FILE:-${SOURCE_REACHABILITY_LOG}}"
+  LJsonLog="${SIMD_SOURCE_REACHABILITY_JSON_FILE:-${SOURCE_REACHABILITY_JSON_LOG}}"
+
+  echo "[SOURCE-REACHABILITY] Running: python3 ${SOURCE_REACHABILITY_SCRIPT} --summary-line"
+  : > "${LLog}"
+  python3 "${SOURCE_REACHABILITY_SCRIPT}" --summary-line 2>&1 | tee "${LLog}"
+  LMainRC="${PIPESTATUS[0]}"
+
+  if [[ "${SIMD_SOURCE_REACHABILITY_JSON:-1}" != "0" ]]; then
+    if python3 "${SOURCE_REACHABILITY_SCRIPT}" --json > "${LJsonLog}"; then
+      echo "[SOURCE-REACHABILITY] JSON snapshot: ${LJsonLog}"
+    else
+      echo "[SOURCE-REACHABILITY] WARN: failed to snapshot JSON: ${LJsonLog}"
+    fi
+  fi
+
+  LSummaryLine="$(grep -E '^SIMD_SOURCE_REACHABILITY_SUMMARY ' "${LLog}" | tail -n 1 || true)"
+  if [[ -n "${LSummaryLine}" ]]; then
+    echo "[SOURCE-REACHABILITY] Summary: ${LSummaryLine#SIMD_SOURCE_REACHABILITY_SUMMARY }"
+  fi
+
+  return "${LMainRC}"
 }
 
 check_perf_log() {
@@ -6232,6 +6275,7 @@ case "${ACTION}" in
     check_cpuinfo_runner_parity
     run_windows_cpuinfo_x86_batch_build_success_criteria_smoke
   run_register_include_check
+    run_source_reachability_check
     run_dispatch_read_scope
     run_sse2_structure_check
     run_suite_manifest_check

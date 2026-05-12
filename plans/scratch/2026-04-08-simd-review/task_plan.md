@@ -1246,3 +1246,18 @@
 | 2. 迁移正文到 legacy               | completed   | 正文已迁入 `docs/legacy/simd/` 并集中到归档索引 |
 | 3. 原路径留兼容占位                | completed   | 旧链接保留可读，但不再承载正文 |
 | 4. 更新当前入口与 scratch 记录      | completed   | 当前 docs 与 scratch 都已指向 `docs/legacy/simd/README.md` |
+
+## 2026-05-12 SIMD Source Reachability Hygiene
+
+### Goal
+
+把 SIMD 源码里“文件存在但不在 live source 链”的真冗余收掉，并补机器护栏，避免后续继续积累 unreachable private include / dead helper unit。
+
+### Phases
+
+| Phase                              | Status      | Notes |
+| ---------------------------------- | ----------- | ----- |
+| 1. 复核可疑 dead-file 列表         | completed   | 已做 transitive include 闭包，排除 `neon.scalar_fallback.inc` 间接挂接的假阳性 |
+| 2. 区分保留特例与真删除对象         | completed   | `neon.scalar.wide_memory.inc` 保留为 audit-only checker 样本；其余 10 个 unreachable 源码确认为删除对象 |
+| 3. 落地 source reachability 护栏    | completed   | 已新增 `tests/fafafa.core.simd/check_simd_source_reachability.py` 并接入 `BuildOrTest.sh check` |
+| 4. 删除 unreachable 冗余源码并复验 | completed   | 已删除 dead SSE2 `.inc`、`neon.scalar.wide_reduce.inc`、`cpuinfo.x86.asm.pas`；待跑 release 级复验与提交 |
