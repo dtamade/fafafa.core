@@ -1229,3 +1229,18 @@
 | 2. 迁移历史草案正文                | completed   | 正文已移动到 `docs/legacy/simd/fafafa.core.simd.next-steps.md` |
 | 3. 保留旧路径兼容占位              | completed   | `src/fafafa.core.simd.next-steps.md` 现在只负责跳转，不承载旧计划正文 |
 | 4. 更新当前活入口说明              | completed   | `src/fafafa.core.simd.README.md` 与 `docs/fafafa.core.simd.md` 已指明 archive 位置 |
+
+## 2026-05-12 SIMD Historical Snapshot Archive
+
+### Goal
+
+继续整治顶层 SIMD 文档噪声：把已经自标为 internal / historical snapshot 的旧分析、审计、质量迭代和 NEON 迭代文档迁入 `docs/legacy/simd/`，原路径只保留跳转占位，避免搜索结果把历史快照误当成当前 truth source。
+
+### Phases
+
+| Phase                              | Status      | Notes |
+| ---------------------------------- | ----------- | ----- |
+| 1. 锁定迁移范围                    | completed   | 顶层 `SIMD_*` / `NEON_*` 历史快照已确认，不碰 active truth docs |
+| 2. 迁移正文到 legacy               | completed   | 正文已迁入 `docs/legacy/simd/` 并集中到归档索引 |
+| 3. 原路径留兼容占位                | completed   | 旧链接保留可读，但不再承载正文 |
+| 4. 更新当前入口与 scratch 记录      | completed   | 当前 docs 与 scratch 都已指向 `docs/legacy/simd/README.md` |

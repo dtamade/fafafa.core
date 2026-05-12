@@ -1106,3 +1106,5 @@
 - 已做源码重复层初扫：当前最明显的是 `NEON/RISCVV` fallback 的大量 `Scalar*` thin forwarder，真实未收的重复实现体不多，剩余本地 loop 多数卡在 NaN / signed-zero / clamp / min-max 等语义敏感边界。
 - 本批调查已收口：文档侧以 active spine + historical snapshot 分层为主，源码侧没有发现新的大面积 duplicate truth source；后续若再动，只应针对有 replacement/parity/checker 的 exact-contract fallback。
 - 按建议已继续收口文档卫生：`docs/INDEX.md` 的过时 `docs/simd/` 导流已修正，`src/fafafa.core.simd.next-steps.md` 正式迁入 `docs/legacy/simd/`，原路径改为兼容占位。
+- 当前新增一批历史快照归档，目标是把顶层 `SIMD_*` / `NEON_*` 历史分析、审计、迭代报告全部从活入口挪走，只保留占位和 legacy 导流。
+- `docs/legacy/simd/README.md` 已补齐，当前活入口现在只指向索引页，不再把历史快照目录当成散落文件夹看待。

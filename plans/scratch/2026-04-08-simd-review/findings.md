@@ -252,6 +252,12 @@
 - 真正要继续清理代码，应只挑 `replacement + parity evidence + checker guard` 三者齐全的 exact-contract fallback。
 - `RISCVV` 当前保留的 local loop / branch 主要卡在 `Min/Max/Round/Trunc/Clamp` 等语义敏感路径，下一批不能只凭“看起来像 scalar”直接合并。
 
+## 2026-05-12 Historical Snapshot Archive Findings
+
+- 已把顶层 `SIMD_MODULE_ANALYSIS.md`、`SIMD_COMPREHENSIVE_AUDIT_REPORT.md`、`SIMD_QUALITY_ITERATION_PLAN.md`、`SIMD_ITERATIVE_OPTIMIZATION_PLAN.md`、`SIMD_QUALITY_ITERATION_5.1_REPORT.md`、`NEON_ASM_IMPLEMENTATION_STATUS.md`、`NEON_MATH_OPTIMIZATION_ITERATION_2.5.md` 迁入 `docs/legacy/simd/`，并补了 `docs/legacy/simd/README.md` 作为归档索引。
+- 原位置现在只保留跳转占位，不再承载正文。
+- `docs/fafafa.core.simd.md` 与 `src/fafafa.core.simd.README.md` 已补充 legacy 导流，避免读者再次把历史快照当成 active truth source。
+
 ## 2026-05-11 NEON Vector Math Exact-Contract Finding
 
 - `src/fafafa.core.simd.neon.scalar.vector_math.inc` 的 non-ASM `Dot / Cross / Length / Normalize` fallback 与 `src/fafafa.core.simd.scalar.pas` 中的 `Scalar*` vector-math 实现同合同。
