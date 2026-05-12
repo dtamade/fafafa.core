@@ -6,7 +6,8 @@ function GetCurrentRuntimeSnapshot: TSimdRuntimeSnapshot;
 function GetCurrentBackend: TSimdBackend;
 function GetCurrentBackendInfo: TSimdBackendInfo;
 
-// Compatibility façade alias for GetCPUInfo.
+// Compatibility façade alias for GetCPUInfo. Keep for compatibility only;
+// new code and docs should use GetCPUInfo.
 function GetCPUInformation: TCPUInfo;
 
 // Canonical CPU capability view.
@@ -19,7 +20,8 @@ function GetRegisteredBackendList: TSimdBackendArray;
 function GetDispatchableBackendList: TSimdBackendArray;
 function GetBestDispatchableBackend: TSimdBackend;
 
-// Compatibility alias for the dispatchable view.
+// Compatibility alias for the dispatchable view. Keep for compatibility only;
+// new code and docs should use GetDispatchableBackendList.
 function GetAvailableBackendList: TSimdBackendArray;
 
 // Canonical runtime control-plane mutators.
@@ -27,7 +29,8 @@ function TrySetCurrentBackend(aBackend: TSimdBackend): Boolean;
 procedure SetCurrentBackend(aBackend: TSimdBackend);
 procedure ResetCurrentBackendSelection;
 
-// Legacy façade aliases kept for compatibility.
+// Legacy façade aliases kept for compatibility only; new code and docs should
+// use the canonical runtime control-plane names above.
 function TryForceBackend(aBackend: TSimdBackend): Boolean;
 procedure ForceBackend(aBackend: TSimdBackend);
 procedure ResetBackendSelection;

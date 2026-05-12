@@ -97,12 +97,7 @@ Current decision:
 - 继续保持 `experimental isolated` / hold
 - 不进入 stable default path
 - 不因为实现看起来相似，就默认拉进主线
-
-Reopen only when all of these exist:
-
-1. 明确的 stable adapter use case
-2. family-specific raw leaf 或 representative parity lane
-3. 能把 adapter / leaf / gate 写成单一真相源
+- family-specific reopen 条件现在统一冻结在 `docs/plans/2026-05-09-simd-experimental-hold-future-trigger-plan.md`
 
 What does not change this:
 
@@ -123,7 +118,7 @@ What does not change this:
 - `SSSE3` 继续保持 adapter-only，不进入 raw-leaf promote 讨论
 - `SSE3 / SSE4.1 / SSE4.2 / AVX-512` 继续 qualification，不默认 promote
 - `NEON / RISCVV` 继续 qualification / opt-in，不默认 stable
-- `AES / SHA / AVX / FMA3 / SVE / SVE2 / LASX` 继续 hold，不默认 reopen
+- `AES / SHA / AVX / FMA3 / SVE / SVE2 / LASX` 继续 hold，不默认 reopen；如果要重开，先按 hold plan 里的 family-specific trigger table 更新判断
 
 ## Completion criteria
 

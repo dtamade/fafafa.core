@@ -52,6 +52,8 @@
 
 ## API 参考
 
+先记住一条规则：`cpuinfo` 只回答 `supported_on_cpu` 这一层能力视图，不回答 `registered / dispatchable / active`。如果你需要 runtime 视图，请改看 `fafafa.core.simd.runtime`。
+
 ### 主要函数
 
 ```pascal
@@ -64,19 +66,19 @@ function IsBackendSupportedOnCPU(aBackend: TSimdBackend): Boolean;
 // 获取 CPU/OS 语义下支持的后端列表（按优先级排序，推荐名称）
 function GetSupportedBackendList: TSimdBackendArray;
 
-// 兼容别名（等价于 GetSupportedBackendList）
+// 兼容别名（等价于 GetSupportedBackendList；新代码/文档不用）
 function GetSupportedBackends: TSimdBackendArray;
 
-// 向后兼容别名（等价于 GetSupportedBackendList）
+// 向后兼容别名（等价于 GetSupportedBackendList；新代码/文档不用）
 function GetAvailableBackends: TSimdBackendArray;
 
 // 获取 CPU/OS 语义下支持的最佳后端（推荐名称，不受运行时 active backend 影响）
 function GetBestSupportedBackend: TSimdBackend;
 
-// 原始名称（等价于 GetBestSupportedBackend）
+// 原始名称（等价于 GetBestSupportedBackend；新代码/文档不用）
 function GetBestBackendOnCPU: TSimdBackend;
 
-// 向后兼容别名（等价于 GetBestBackendOnCPU）
+// 向后兼容别名（等价于 GetBestBackendOnCPU；新代码/文档不用）
 function GetBestBackend: TSimdBackend;
 
 // 重置 CPU 信息（用于测试）
@@ -230,6 +232,8 @@ end;
 ### CPU 最佳后端 vs 当前 active 后端
 
 `GetBestSupportedBackend` / `GetBestBackendOnCPU` 只反映“当前 CPU/OS 能用的最优后端”，不会因为 runtime control-plane 被强制切换而变化。
+
+active 文档、示例和新代码默认应只使用 `GetCPUInfo`、`GetSupportedBackendList`、`GetBestSupportedBackend` 这组 canonical 名称。
 
 ```pascal
 uses

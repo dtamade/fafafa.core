@@ -567,6 +567,41 @@
     1. API naming alias redundancy
     2. top-level historical placeholder docs 与 active truth docs 同目录并列造成的搜索噪音
 
+## 2026-05-12 Plan Implementation
+
+- 已按实施方案落地 alias visibility / historical placeholder / hold-family trigger / evidence blocker 文档收口，没有触碰 SIMD 行为语义。
+- 已更新的 source/doc 主链包括：
+  - `src/fafafa.core.simd.framework.intf.inc`
+  - `src/fafafa.core.simd.cpuinfo.pas`
+  - `docs/fafafa.core.simd.interface.md`
+  - `docs/fafafa.core.simd.md`
+  - `docs/fafafa.core.simd.cpuinfo.md`
+  - `src/fafafa.core.simd.README.md`
+  - `docs/plans/2026-05-09-simd-experimental-hold-future-trigger-plan.md`
+  - `docs/plans/2026-05-11-simd-family-decision-baseline.md`
+  - `docs/plans/2026-05-09-simd-family-matrix.md`
+  - `docs/fafafa.core.simd.closeout.md`
+  - `docs/fafafa.core.simd.checklist.md`
+  - `docs/fafafa.core.simd.handoff.md`
+  - `src/fafafa.core.simd.STABLE`
+- 历史占位页也已统一成强导流模板，并在 `docs/legacy/simd/README.md` 明写“顶层单页只是 path-preserving stubs”。
+- fresh verification 已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+- 验证结果更新：
+  - `check`：PASS
+  - `gate`：PASS
+  - `freeze-status`：FAIL，但最新 gate artifact freshness 已回绿
+  - 当前剩余红点只剩：
+    - `qemu-cpuinfo-nonx86-evidence=SKIP`
+    - stale Windows evidence (`windows_b07_gate.log` / `windows_b07_closeout_summary.md`)
+- 当前判断：
+  - 仓库内计划项已收口
+  - `code-green / release-evidence-blocked` 仍是最准确状态
+  - 下一步不该回头重开 SIMD 接口/结构争论，而应在条件允许时只刷新 QEMU CPUINFO + Windows evidence lane
+
 - 继续顺着整数 compare 家族往下扫，确认 `I32x4/U32x4` 的 `Lt` 也只是 `Gt(b, a)` 的同合同重复体，没有必要继续保留完整 ASM。
 - 这次把 `I32x4/U32x4` 的 `Lt` 收成参数交换薄壳，并把 `Le/Ge/Ne` 统一成 `MASK4_ALL_SET xor ...`，让 `SSE2` 整数比较家族的收口模式和 `AVX2` 保持一致。
 - 现在 `SSE2` 的整数 compare 只保留 `Eq/Gt` 作为真比较体，其他关系都走薄封装，代码面更整齐，也更容易继续扫下一批重复实现。

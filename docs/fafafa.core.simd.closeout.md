@@ -17,7 +17,11 @@
   - `python3 tests/fafafa.core.simd/check_interface_implementation_completeness.py --strict` 最新结果为 `dispatch_slots_total=558`、`P0/P1/P2=0`
 - 发布级 closeout 还不能写成完成：
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 仍是 `ready=False`
-  - 当前红项只剩 Windows evidence freshness / source-newer-than-evidence，不是新的接口或实现回归
+  - 当前主要红项是：
+    - `qemu-cpuinfo-nonx86-evidence=SKIP`
+    - 最新 Linux gate artifact 旧于最新 SIMD 源码时触发的 `source-newer-than-gate`
+    - Windows evidence freshness / `source-newer-than-windows-evidence`
+  - 这些都属于 evidence freshness / availability 问题，不是新的接口或实现回归
 - 当前外部 blocker 已明确：
   - canonical `windows_b07_gate.log` / `windows_b07_closeout_summary.md` 仍停留在 `2026-04-19`
   - 最新 SIMD 源码时间线已经推进到 `2026-05-08`
@@ -25,6 +29,12 @@
 - 因此，在“没有 Windows 主机、也没有可用 GH Windows runner”的约束下，当前最准确的结论是：
   - `code-green / release-evidence-blocked`
   - 不要再把后续时间花在重新打开 SIMD 接口审查或实现泛审查上
+
+### 2026-05-12 evidence refresh note
+
+- 如果 `freeze-status` 里的 Linux gate artifact 旧于最新 `src/fafafa.core.simd*` 源码，先重跑一次 release `gate`，不要把旧 gate summary 当成新代码回归。
+- 如果 `win-evidence-preflight` 返回 `RECENT_BILLING_BLOCK`，当前批次默认按 `code-green / release-evidence-blocked` 收口，不把 Windows evidence 阻塞误判成 SIMD 代码回归。
+- 如果 `qemu-cpuinfo-nonx86-evidence` 仍为 `SKIP`，那说明 canonical cross-platform evidence 还没刷新完；这时可以继续做仓库内文档/policy 收口，但不要把 `freeze-status` 写成 green。
 
 ## 这一轮收了什么
 

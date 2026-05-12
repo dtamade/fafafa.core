@@ -2,6 +2,8 @@
 
 这个目录只存放 `fafafa.core.simd` 的历史分析、审计、质量迭代和迁移草案快照。
 
+顶层 `docs/SIMD_*.md` 和 `docs/NEON_*.md` 同名文件现在都只是保路径的单行占位；如果你是从搜索结果点进来的，直接回到这页或 active truth 文档链，不要把那些占位页当成当前真相源。
+
 当前 active truth 请优先看：
 
 1. `docs/fafafa.core.simd.md`

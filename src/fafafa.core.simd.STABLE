@@ -63,6 +63,12 @@ Before modifying any file under src/fafafa.core.simd.*:
    FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-YYYYMMDD-152
    FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-YYYYMMDD-152
    FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status
+   - If `win-evidence-preflight` returns a billing block, or `freeze-status`
+     still shows `qemu-cpuinfo-nonx86-evidence=SKIP`, stop at
+     `code-green / release-evidence-blocked` instead of reopening code review.
+   - If `freeze-status` reports that the latest gate artifact is older than the
+     latest `src/fafafa.core.simd*` source file, rerun release `gate` before
+     treating it as a regression.
 7. If you intentionally change the in-repo dispatch contract:
    python3 tests/fafafa.core.simd/check_dispatch_contract_signature.py --dump-current
    - update the expected signatures in the checker

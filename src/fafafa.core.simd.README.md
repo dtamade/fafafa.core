@@ -17,16 +17,16 @@
 - **想维护或修改实现**：看 `docs/fafafa.core.simd.map.md`、`docs/fafafa.core.simd.maintenance.md`、`docs/fafafa.core.simd.checklist.md`
 - **想先把 backend / intrinsics / SSE2 归属看死**：先看 `docs/SIMD_BACKEND_TRUTH.md`、`docs/SIMD_INTRINSICS_DISPOSITION.md`、`docs/SIMD_SSE2_MIGRATION_MAP.md`
 - **想先把“为什么不是两层、实施时哪些职责不能穿透 adapter”看死**：看 `docs/SIMD_LAYERING_IMPLEMENTATION.md`
-- **想看历史分析/审计/迭代快照**：看 `docs/legacy/simd/README.md`
+- **想看历史草案/分析/审计快照**：统一看 `docs/legacy/simd/README.md`；顶层 `docs/SIMD_*.md` / `docs/NEON_*.md` 单页只保路径，不是当前真相源
 - **想做完整 release closeout**：直接运行 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152`
   - 固定顺序：`impl-smoke-x86 -> closeout-host-local -> win-evidence-preflight -> win-evidence-via-gh -> freeze-status`
 - **想知道当前稳定边界**：看 `docs/fafafa.core.simd.handoff.md` 与 `src/fafafa.core.simd.STABLE`
 - **想快速看这轮收尾结果和回归矩阵**：看 `docs/fafafa.core.simd.closeout.md`
 
-有两个文件需要特别区分：
+有两个入口需要特别区分：
 
 - `src/fafafa.core.simd.architecture.md`：当前实现导向的架构说明，适合维护者阅读
-- `src/fafafa.core.simd.next-steps.md`：历史草案占位，正文已迁入 `docs/legacy/simd/fafafa.core.simd.next-steps.md`，不应再作为当前 API / 架构真相源
+- `docs/legacy/simd/README.md`：历史草案、历史分析和历史审计的统一入口；不要把顶层占位单页当成当前真相源
 
 ## 示例入口
 
@@ -214,7 +214,7 @@ WriteLn(info.Name);          // 'SSE2'
 WriteLn(info.Description);   // 'x86-64 SSE2 SIMD implementation'
 ```
 
-兼容入口 `GetCPUInformation`、`GetAvailableBackendList`、`GetAvailableBackends`、`GetBestBackendOnCPU`、`TryForceBackend`、`ForceBackend`、`ResetBackendSelection` 仍然可用，但新代码更推荐使用上面的 canonical 名称。
+兼容入口 `GetCPUInformation`、`GetAvailableBackendList`、`GetAvailableBackends`、`GetBestBackendOnCPU`、`TryForceBackend`、`ForceBackend`、`ResetBackendSelection` 仍然可用，但 active 文档、示例和新代码现在只推荐使用上面的 canonical 名称。
 更底层的 `IsBackendAvailableOnCPU` / `GetActiveBackend` / `SetActiveBackend` / `ResetToAutomaticBackend` 继续存在于 `fafafa.core.simd.dispatch`，主要面向维护和测试，不再作为默认 control-plane 入口推荐。
 
 ## 对齐内存分配

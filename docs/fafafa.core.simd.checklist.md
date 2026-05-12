@@ -8,11 +8,15 @@
 - 最新 release 证据说明：
   - `python3 tests/fafafa.core.simd/check_interface_implementation_completeness.py --strict` 为绿，`P0/P1/P2=0`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 为绿
-  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 仍红，但红点只剩 Windows evidence freshness / source-newer-than-evidence
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 仍红；当前主要红点是 `qemu-cpuinfo-nonx86-evidence=SKIP`、gate artifact freshness 旧于最新源码，以及 Windows evidence freshness / source-newer-than-evidence
 - 如果你当前既没有 Windows 实机，也没有可用 GitHub Actions Billing/额度，就把模块状态记成：
   - `code-green / release-evidence-blocked`
   - 到这里先停，不要继续重开 SIMD 接口设计审查或实现泛审查
-- 只有在 fresh Windows evidence 条件恢复后，才继续 `closeout-release` / `win-evidence-via-gh -> freeze-status` 这条发布收口链
+- 只有在 fresh Linux/QEMU + Windows evidence 条件恢复后，才继续 `closeout-release` / `win-evidence-via-gh -> freeze-status` 这条发布收口链
+
+补一条当前判断规则：
+
+- 如果最新 `freeze-status` 提示 gate artifact 旧于最新 `src/fafafa.core.simd*` 源码，先重跑 release `gate` 再判断，不要把旧 artifact 误读成新回归。
 
 ## 现在应该做什么
 

@@ -323,6 +323,41 @@
   2. alias visibility policy
   3. hold family trigger granularity
 
+## 2026-05-12 Plan Implementation Closeout
+
+### What landed
+
+- alias visibility / canonical-first policy 已正式落在：
+  - `src/fafafa.core.simd.framework.intf.inc`
+  - `src/fafafa.core.simd.cpuinfo.pas`
+  - `docs/fafafa.core.simd.interface.md`
+  - `docs/fafafa.core.simd.md`
+  - `docs/fafafa.core.simd.cpuinfo.md`
+  - `src/fafafa.core.simd.README.md`
+- `experimental hold` 当前不再只有统一 reopen prose：
+  - `docs/plans/2026-05-09-simd-experimental-hold-future-trigger-plan.md` 现已补成 family-specific trigger table
+  - `AES/SHA/AVX/FMA3/SVE/SVE2/LASX` 都各自写明了 reopen 条件、required lane 和伪触发条件
+  - `docs/plans/2026-05-11-simd-family-decision-baseline.md` 与 `docs/plans/2026-05-09-simd-family-matrix.md` 现已改成引用这张细化表，而不是各自重写一份 hold policy
+- 顶层历史占位页现在统一升级成“保路径 + 强导流”模板：
+  - 所有顶层 `docs/SIMD_*.md` / `docs/NEON_*.md` 历史快照占位都明确回指 `docs/legacy/simd/README.md`
+  - `docs/legacy/simd/README.md` 也已显式说明这些顶层单页只是 path-preserving stubs，不是当前真相源
+- active closeout 文档已同步当前 evidence blocker 口径：
+  - `docs/fafafa.core.simd.closeout.md`
+  - `docs/fafafa.core.simd.checklist.md`
+  - `docs/fafafa.core.simd.handoff.md`
+  - `src/fafafa.core.simd.STABLE`
+
+### Fresh verification after landing
+
+- `git diff --check` 通过
+- `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 通过
+- `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 通过
+- `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 仍失败，但失败已重新收敛成：
+  1. `qemu-cpuinfo-nonx86-evidence=SKIP`
+  2. `windows_b07_gate.log` / `windows_b07_closeout_summary.md` stale
+- 重要的是：这次 fresh `gate` 之后，`linux_sources_not_newer_than_gate` 已转绿。
+- 结论：本轮仓库内 policy / docs / source-comment 落地没有引入任何新的 gate 回归；剩余红点继续只属于 cross-platform evidence lane。
+
 ## 2026-05-11 NEON Vector Math Exact-Contract Finding
 
 - `src/fafafa.core.simd.neon.scalar.vector_math.inc` 的 non-ASM `Dot / Cross / Length / Normalize` fallback 与 `src/fafafa.core.simd.scalar.pas` 中的 `Scalar*` vector-math 实现同合同。

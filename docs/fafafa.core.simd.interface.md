@@ -147,6 +147,10 @@
 
 这些接口现在保留，但只按 compatibility alias 理解：
 
+- active 文档、示例和新代码默认只使用 canonical 名称
+- compatibility alias 只应该出现在兼容说明、迁移映射和契约回归测试里
+- 如果你在新文档里需要写 legacy 名称，必须同时给出唯一 canonical 对应项，不能把它写成并列推荐入口
+
 ### `cpuinfo` aliases
 
 - `GetSupportedBackends` -> `GetSupportedBackendList`

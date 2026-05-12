@@ -33,8 +33,7 @@
 - **维护策略**：`docs/fafafa.core.simd.maintenance.md`
 - **极简行动清单**：`docs/fafafa.core.simd.checklist.md`
 - **本轮收尾与回归矩阵**：`docs/fafafa.core.simd.closeout.md`
-- **历史背景**：`src/fafafa.core.simd.next-steps.md`（历史草案占位；正文已迁入 `docs/legacy/simd/fafafa.core.simd.next-steps.md`，不是当前真相源）
-- **历史分析快照**：`docs/legacy/simd/README.md`（历史分析、审计与迭代报告已迁入）
+- **历史草案与分析快照**：统一看 `docs/legacy/simd/README.md`；如果你在顶层搜索结果里看到 `docs/SIMD_*.md` 或 `docs/NEON_*.md` 单页，占位文件只用于保路径，不是当前真相源
 
 ## 示例定位
 
@@ -67,6 +66,7 @@
 - `GetAvailableBackends` / `GetBestBackendOnCPU` 继续保留，但仅作为兼容别名理解
 - façade / runtime 的 `GetDispatchableBackendList` 才说明 “这份二进制现在真的可派发”
 - façade 现在也直接提供 canonical convenience wrapper `GetCPUInfo`；legacy `GetCPUInformation` 仅为兼容保留
+- active 文档、示例和新代码默认只写 canonical 名称；legacy 名称只保留在兼容映射里
 
 ## 架构设计
 

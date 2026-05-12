@@ -44,13 +44,13 @@ function DetectCPUArchitecture: TCPUArch;
 function HasFeature(feature: TGenericFeature): Boolean;
 function IsBackendSupportedOnCPU(aBackend: TSimdBackend): Boolean;
 function GetSupportedBackendList: TSimdBackendArray; // preferred canonical name
-function GetSupportedBackends: TSimdBackendArray; // compatibility alias
-function GetAvailableBackends: TSimdBackendArray; // compatibility alias; still means supported_on_cpu, not runtime dispatchable
+function GetSupportedBackends: TSimdBackendArray; // compatibility alias; new code/docs use GetSupportedBackendList
+function GetAvailableBackends: TSimdBackendArray; // compatibility alias; still means supported_on_cpu, not runtime dispatchable; new code/docs use GetSupportedBackendList
 
 // Get best backend allowed by current CPU/OS capabilities.
 function GetBestSupportedBackend: TSimdBackend; // preferred canonical name
-function GetBestBackendOnCPU: TSimdBackend; // compatibility alias
-function GetBestBackend: TSimdBackend; // compatibility alias
+function GetBestBackendOnCPU: TSimdBackend; // compatibility alias; new code/docs use GetBestSupportedBackend
+function GetBestBackend: TSimdBackend; // compatibility alias; new code/docs use GetBestSupportedBackend
 
 // Cache and lifecycle helpers
 procedure ResetCPUInfo; // safe reset for re-initialization
