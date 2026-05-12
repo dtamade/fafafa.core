@@ -614,13 +614,14 @@ function ScalarCmpNeI16x8(const a, b: TVecI16x8): TMask8;
 function ScalarMinI16x8(const a, b: TVecI16x8): TVecI16x8;
 function ScalarMaxI16x8(const a, b: TVecI16x8): TVecI16x8;
 
-// I8x16 Operations (11 functions)
+// I8x16 Operations (12 functions)
 function ScalarAddI8x16(const a, b: TVecI8x16): TVecI8x16;
 function ScalarSubI8x16(const a, b: TVecI8x16): TVecI8x16;
 function ScalarAndI8x16(const a, b: TVecI8x16): TVecI8x16;
 function ScalarOrI8x16(const a, b: TVecI8x16): TVecI8x16;
 function ScalarXorI8x16(const a, b: TVecI8x16): TVecI8x16;
 function ScalarNotI8x16(const a: TVecI8x16): TVecI8x16;
+function ScalarAndNotI8x16(const a, b: TVecI8x16): TVecI8x16;
 function ScalarCmpEqI8x16(const a, b: TVecI8x16): TMask16;
 function ScalarCmpLtI8x16(const a, b: TVecI8x16): TMask16;
 function ScalarCmpGtI8x16(const a, b: TVecI8x16): TMask16;
@@ -669,7 +670,7 @@ function ScalarCmpNeU32x8(const a, b: TVecU32x8): TMask8;
 function ScalarMinU32x8(const a, b: TVecU32x8): TVecU32x8;
 function ScalarMaxU32x8(const a, b: TVecU32x8): TVecU32x8;
 
-// U16x8 Operations (14 functions)
+// U16x8 Operations (15 functions)
 function ScalarAddU16x8(const a, b: TVecU16x8): TVecU16x8;
 function ScalarSubU16x8(const a, b: TVecU16x8): TVecU16x8;
 function ScalarMulU16x8(const a, b: TVecU16x8): TVecU16x8;
@@ -689,13 +690,14 @@ function ScalarCmpNeU16x8(const a, b: TVecU16x8): TMask8;
 function ScalarMinU16x8(const a, b: TVecU16x8): TVecU16x8;
 function ScalarMaxU16x8(const a, b: TVecU16x8): TVecU16x8;
 
-// U8x16 Operations (11 functions)
+// U8x16 Operations (12 functions)
 function ScalarAddU8x16(const a, b: TVecU8x16): TVecU8x16;
 function ScalarSubU8x16(const a, b: TVecU8x16): TVecU8x16;
 function ScalarAndU8x16(const a, b: TVecU8x16): TVecU8x16;
 function ScalarOrU8x16(const a, b: TVecU8x16): TVecU8x16;
 function ScalarXorU8x16(const a, b: TVecU8x16): TVecU8x16;
 function ScalarNotU8x16(const a: TVecU8x16): TVecU8x16;
+function ScalarAndNotU8x16(const a, b: TVecU8x16): TVecU8x16;
 function ScalarCmpEqU8x16(const a, b: TVecU8x16): TMask16;
 function ScalarCmpLtU8x16(const a, b: TVecU8x16): TMask16;
 function ScalarCmpGtU8x16(const a, b: TVecU8x16): TMask16;
@@ -5543,7 +5545,7 @@ begin
 end;
 
 // ============================================================================
-// I8x16 Operations (11 functions)
+// I8x16 Operations (12 functions)
 // ============================================================================
 
 function ScalarAddI8x16(const a, b: TVecI8x16): TVecI8x16;
@@ -5592,6 +5594,15 @@ var
 begin
   for i := 0 to 15 do
     Result.i[i] := not a.i[i];
+end;
+
+function ScalarAndNotI8x16(const a, b: TVecI8x16): TVecI8x16;
+var
+  i: Integer;
+begin
+  // AndNot: (not a) and b - 与 SIMD 指令 PANDN 语义一致
+  for i := 0 to 15 do
+    Result.i[i] := (not a.i[i]) and b.i[i];
 end;
 
 function ScalarCmpEqI8x16(const a, b: TVecI8x16): TMask16;
@@ -5909,8 +5920,9 @@ end;
 function ScalarAndNotU32x8(const a, b: TVecU32x8): TVecU32x8;
 var i: Integer;
 begin
+  // AndNot: (not a) and b - 与 SIMD 指令 PANDN 语义一致
   for i := 0 to 7 do
-    Result.u[i] := a.u[i] and (not b.u[i]);
+    Result.u[i] := (not a.u[i]) and b.u[i];
 end;
 
 function ScalarShiftLeftU32x8(const a: TVecU32x8; count: Integer): TVecU32x8;
@@ -6022,7 +6034,7 @@ begin
 end;
 
 // ============================================================================
-// U16x8 Operations (14 functions)
+// U16x8 Operations (15 functions)
 // ============================================================================
 
 function ScalarAddU16x8(const a, b: TVecU16x8): TVecU16x8;
@@ -6085,8 +6097,9 @@ function ScalarAndNotU16x8(const a, b: TVecU16x8): TVecU16x8;
 var
   i: Integer;
 begin
+  // AndNot: (not a) and b - 与 SIMD 指令 PANDN 语义一致
   for i := 0 to 7 do
-    Result.u[i] := a.u[i] and (not b.u[i]);
+    Result.u[i] := (not a.u[i]) and b.u[i];
 end;
 
 function ScalarShiftLeftU16x8(const a: TVecU16x8; count: Integer): TVecU16x8;
@@ -6209,7 +6222,7 @@ begin
 end;
 
 // ============================================================================
-// U8x16 Operations (11 functions)
+// U8x16 Operations (12 functions)
 // ============================================================================
 
 function ScalarAddU8x16(const a, b: TVecU8x16): TVecU8x16;
@@ -6258,6 +6271,15 @@ var
 begin
   for i := 0 to 15 do
     Result.u[i] := not a.u[i];
+end;
+
+function ScalarAndNotU8x16(const a, b: TVecU8x16): TVecU8x16;
+var
+  i: Integer;
+begin
+  // AndNot: (not a) and b - 与 SIMD 指令 PANDN 语义一致
+  for i := 0 to 15 do
+    Result.u[i] := (not a.u[i]) and b.u[i];
 end;
 
 function ScalarCmpEqU8x16(const a, b: TVecU8x16): TMask16;

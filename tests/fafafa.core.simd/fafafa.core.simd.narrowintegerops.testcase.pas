@@ -70,6 +70,7 @@ type
     procedure Test_VecI8x16_Or_Basic;
     procedure Test_VecI8x16_Xor_Basic;
     procedure Test_VecI8x16_Not_Basic;
+    procedure Test_VecI8x16_AndNot_Basic;
 
     // I8x16 比较测试
     procedure Test_VecI8x16_CmpEq_AllSame;
@@ -125,6 +126,7 @@ type
     procedure Test_VecU16x8_Or_Basic;
     procedure Test_VecU16x8_Xor_Basic;
     procedure Test_VecU16x8_Not_Basic;
+    procedure Test_VecU16x8_AndNot_Basic;
 
     // U16x8 移位测试
     procedure Test_VecU16x8_ShiftLeft_Basic;
@@ -153,6 +155,7 @@ type
     procedure Test_VecU8x16_Or_Basic;
     procedure Test_VecU8x16_Xor_Basic;
     procedure Test_VecU8x16_Not_Basic;
+    procedure Test_VecU8x16_AndNot_Basic;
 
     // U8x16 比较测试 (关键: 无符号比较!)
     procedure Test_VecU8x16_CmpEq_Basic;
@@ -803,6 +806,23 @@ begin
   AssertEquals('I8x16 Not [0]', Int8($F0), r.i[0]);
 end;
 
+procedure TTestCase_NarrowIntegerOps.Test_VecI8x16_AndNot_Basic;
+var
+  a, b, r: TVecI8x16;
+  LIndex: Integer;
+begin
+  a.i[0] := $0F;
+  b.i[0] := -1;
+  for LIndex := 1 to 15 do
+  begin
+    a.i[LIndex] := 0;
+    b.i[LIndex] := 0;
+  end;
+
+  r := VecI8x16AndNot(a, b);
+  AssertEquals('I8x16 AndNot [0]', Int8($F0), r.i[0]);
+end;
+
 procedure TTestCase_NarrowIntegerOps.Test_VecI8x16_CmpEq_AllSame;
 var
   a, b: TVecI8x16;
@@ -1375,6 +1395,24 @@ begin
   AssertEquals('U16x8 Not [0]', UInt16($F0F0), r.u[0]);
 end;
 
+procedure TTestCase_NarrowIntegerOps.Test_VecU16x8_AndNot_Basic;
+var
+  a, b, r: TVecU16x8;
+begin
+  a.u[0] := $0F0F;
+  b.u[0] := $FFFF;
+  a.u[1] := 0; b.u[1] := 0;
+  a.u[2] := 0; b.u[2] := 0;
+  a.u[3] := 0; b.u[3] := 0;
+  a.u[4] := 0; b.u[4] := 0;
+  a.u[5] := 0; b.u[5] := 0;
+  a.u[6] := 0; b.u[6] := 0;
+  a.u[7] := 0; b.u[7] := 0;
+
+  r := VecU16x8AndNot(a, b);
+  AssertEquals('U16x8 AndNot [0]', UInt16($F0F0), r.u[0]);
+end;
+
 procedure TTestCase_NarrowIntegerOps.Test_VecU16x8_ShiftLeft_Basic;
 var
   a, r: TVecU16x8;
@@ -1682,6 +1720,23 @@ begin
 
   r := VecU8x16Not(a);
   AssertEquals('U8x16 Not [0]', Byte($F0), r.u[0]);
+end;
+
+procedure TTestCase_NarrowIntegerOps.Test_VecU8x16_AndNot_Basic;
+var
+  a, b, r: TVecU8x16;
+  LIndex: Integer;
+begin
+  a.u[0] := $0F;
+  b.u[0] := $FF;
+  for LIndex := 1 to 15 do
+  begin
+    a.u[LIndex] := 0;
+    b.u[LIndex] := 0;
+  end;
+
+  r := VecU8x16AndNot(a, b);
+  AssertEquals('U8x16 AndNot [0]', Byte($F0), r.u[0]);
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecU8x16_CmpEq_Basic;

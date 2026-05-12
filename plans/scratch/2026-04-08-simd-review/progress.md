@@ -1267,3 +1267,27 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过，`NONX86_HELPER_SEMANTICS_SUMMARY checks=475 status=ok`
+
+## 2026-05-12 Scalar AndNot Truth Closure
+
+- 继续深审 `AndNot` 合同时，先把 `scalar / dispatch / facade / riscvv / tests` 五处对齐，确认仓库的公开口径始终是 `AndNot(a, b) = (NOT a) AND b`，与 `PANDN` 一致。
+- 真实问题不止最初怀疑的 `U16x8`：
+  - `src/fafafa.core.simd.scalar.pas` 中 `ScalarAndNotU16x8` 与 `ScalarAndNotU32x8` 都写成了 `a and (not b)`；
+  - `ScalarAndNotI8x16` / `ScalarAndNotU8x16` 则根本缺失；
+  - `FillBaseDispatchTable` 因此借用了 `DispatchAndNotI8x16/U16x8/U8x16` 三个本地 loop wrapper，把 scalar 真源漂移掩住了。
+- 本轮已把这一簇问题一起收口：
+  - 新增 `ScalarAndNotI8x16`、`ScalarAndNotU8x16`；
+  - 修正 `ScalarAndNotU16x8`、`ScalarAndNotU32x8` 为 `(not a) and b`；
+  - `FillBaseDispatchTable` 直接改回绑定 `ScalarAndNotI8x16/U16x8/U8x16`；
+  - 删除 `dispatch.pas` 里仅为补洞存在的 `DispatchAndNotI8x16/U16x8/U8x16` 冗余实现。
+- 本轮同时补上了此前缺失的直接语义测试，避免再只靠“backend 对 scalar table 复读”：
+  - `TTestCase_NarrowIntegerOps.Test_VecI8x16_AndNot_Basic`
+  - `TTestCase_NarrowIntegerOps.Test_VecU16x8_AndNot_Basic`
+  - `TTestCase_NarrowIntegerOps.Test_VecU8x16_AndNot_Basic`
+  - `TTestCase_VecU32x8.Test_VecU32x8_AndNot`
+- release 级验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NarrowIntegerOps,TTestCase_VecU32x8,TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

@@ -1824,30 +1824,6 @@ begin
   WriteBarrier;
 end;
 
-function DispatchAndNotI8x16(const a, b: TVecI8x16): TVecI8x16;
-var
-  LIndex: Integer;
-begin
-  for LIndex := 0 to 15 do
-    Result.i[LIndex] := (not a.i[LIndex]) and b.i[LIndex];
-end;
-
-function DispatchAndNotU16x8(const a, b: TVecU16x8): TVecU16x8;
-var
-  LIndex: Integer;
-begin
-  for LIndex := 0 to 7 do
-    Result.u[LIndex] := (not a.u[LIndex]) and b.u[LIndex];
-end;
-
-function DispatchAndNotU8x16(const a, b: TVecU8x16): TVecU8x16;
-var
-  LIndex: Integer;
-begin
-  for LIndex := 0 to 15 do
-    Result.u[LIndex] := (not a.u[LIndex]) and b.u[LIndex];
-end;
-
 // === Dispatch Table Helpers ===
 
 procedure FillBaseDispatchTable(var dispatchTable: TSimdDispatchTable);
@@ -2519,7 +2495,7 @@ begin
   dispatchTable.OrI8x16 := @ScalarOrI8x16;
   dispatchTable.XorI8x16 := @ScalarXorI8x16;
   dispatchTable.NotI8x16 := @ScalarNotI8x16;
-  dispatchTable.AndNotI8x16 := @DispatchAndNotI8x16;
+  dispatchTable.AndNotI8x16 := @ScalarAndNotI8x16;
   dispatchTable.CmpEqI8x16 := @ScalarCmpEqI8x16;
   dispatchTable.CmpLtI8x16 := @ScalarCmpLtI8x16;
   dispatchTable.CmpGtI8x16 := @ScalarCmpGtI8x16;
@@ -2556,7 +2532,7 @@ begin
   dispatchTable.OrU16x8 := @ScalarOrU16x8;
   dispatchTable.XorU16x8 := @ScalarXorU16x8;
   dispatchTable.NotU16x8 := @ScalarNotU16x8;
-  dispatchTable.AndNotU16x8 := @DispatchAndNotU16x8;
+  dispatchTable.AndNotU16x8 := @ScalarAndNotU16x8;
   dispatchTable.ShiftLeftU16x8 := @ScalarShiftLeftU16x8;
   dispatchTable.ShiftRightU16x8 := @ScalarShiftRightU16x8;
   dispatchTable.CmpEqU16x8 := @ScalarCmpEqU16x8;
@@ -2575,7 +2551,7 @@ begin
   dispatchTable.OrU8x16 := @ScalarOrU8x16;
   dispatchTable.XorU8x16 := @ScalarXorU8x16;
   dispatchTable.NotU8x16 := @ScalarNotU8x16;
-  dispatchTable.AndNotU8x16 := @DispatchAndNotU8x16;
+  dispatchTable.AndNotU8x16 := @ScalarAndNotU8x16;
   dispatchTable.CmpEqU8x16 := @ScalarCmpEqU8x16;
   dispatchTable.CmpLtU8x16 := @ScalarCmpLtU8x16;
   dispatchTable.CmpGtU8x16 := @ScalarCmpGtU8x16;

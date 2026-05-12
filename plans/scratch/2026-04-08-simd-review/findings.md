@@ -258,6 +258,27 @@
 - 原位置现在只保留跳转占位，不再承载正文。
 - `docs/fafafa.core.simd.md` 与 `src/fafafa.core.simd.README.md` 已补充 legacy 导流，避免读者再次把历史快照当成 active truth source。
 
+## 2026-05-12 Scalar AndNot Hidden Drift
+
+- `AndNot` 在当前仓库的公开合同是稳定且明确的：
+  - `tests/fafafa.core.simd/fafafa.core.simd.narrowintegerops.testcase.pas` 明确写了 `AndNot(a, b) = (NOT a) AND b`
+  - `scalar` 里多处旧注释也明确写成 “与 SIMD 指令 `PANDN` 语义一致”
+  - `riscvv` fallback / facade 以及 `simd.pas` 自身 fallback 也都按 `(not a) and b` 实现
+- 但 `scalar` 真源内部之前实际存在一簇隐藏漂移：
+  - `ScalarAndNotU16x8` 与 `ScalarAndNotU32x8` 写反成了 `a and (not b)`
+  - `ScalarAndNotI8x16` 与 `ScalarAndNotU8x16` 缺失，导致 base dispatch 只能临时挂本地 wrapper
+- 真正掩盖问题的是 `FillBaseDispatchTable`：
+  - `AndNotI8x16` / `AndNotU16x8` / `AndNotU8x16` 之前并没有直接绑到 `Scalar*`
+  - 而是绑到 `dispatch.pas` 里的 `DispatchAndNot*` 本地 loop
+  - 所以大量 “backend vs scalar table parity” 只能证明各 backend 与 dispatch wrapper 一致，不能证明 `scalar.pas` 内部实现本身正确
+- 这解释了为什么该漂移能在现有 gate 下长期潜伏：
+  - `U16x8/U8x16/I8x16` 缺少强制 scalar backend 的直接语义测试
+  - `U32x8` 也缺 `VecU32x8AndNot` 的直测，导致写反的 `ScalarAndNotU32x8` 没有被单独打到
+- 收口原则应保持为：
+  - `Scalar*` 才是基础真源
+  - `FillBaseDispatchTable` 不再持有补洞式第二份局部 truth
+  - direct semantic tests 必须覆盖那些“看起来只是 bitwise 小函数、但其实容易被 parity 测试掩盖”的槽位
+
 ## 2026-05-12 Source Reachability Findings
 
 - 先前“NEON scalar 散文件可能未引用”的初扫里有一批假阳性：

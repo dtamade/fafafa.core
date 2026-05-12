@@ -1291,3 +1291,18 @@
 | 2. 收口 compare/shift 重复实现      | completed   | `RISCVVCmpEq/Lt/GtU64x2`、`RISCVVMin/MaxU64x2`、`RISCVVShiftLeft/Right/RightArithI64x2` 已改成 thin scalar forwarder |
 | 3. 扩展 helper include 护栏         | completed   | `check_nonx86_helper_semantics.py` 已把这 8 个 helper 纳入 `riscvv_helper_scalar_forwarder_expectations` |
 | 4. Release 验证与提交收口           | completed   | `git diff --check`、`py_compile`、helper checker、Release `impl-audit-nonx86/check/gate` 全绿；待 review + commit |
+
+## 2026-05-12 Scalar AndNot Truth Closure
+
+### Goal
+
+收口 `AndNot` 家族里被 dispatch wrapper 掩住的 scalar 真源漂移：补齐缺失的 `ScalarAndNotI8x16/U8x16`，修正 `ScalarAndNotU16x8/U32x8` 的反向语义，并让 `FillBaseDispatchTable` 回到直接绑定 scalar 真源，而不是继续保留 `DispatchAndNot*` 补洞实现。
+
+### Phases
+
+| Phase                              | Status      | Notes |
+| ---------------------------------- | ----------- | ----- |
+| 1. 复核公开合同与现状             | completed   | 已确认 tests / comments / facade / RISCVV 都以 `(not a) and b` 为合同，偏差只在 scalar 真源与 base dispatch 补洞面 |
+| 2. 修正 scalar 真源并补齐缺口     | completed   | 已新增 `ScalarAndNotI8x16/U8x16`，并修正 `ScalarAndNotU16x8/U32x8` |
+| 3. 删除 dispatch 补洞冗余         | completed   | `FillBaseDispatchTable` 已改回直接绑定 `ScalarAndNot*`，`DispatchAndNotI8x16/U16x8/U8x16` 已删除 |
+| 4. 补直接语义测试并 release 复验   | completed   | 新增 `I8x16/U16x8/U8x16/U32x8` 4 条 AndNot 语义测试，Release targeted suites、`check`、`gate` 全绿 |

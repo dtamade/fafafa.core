@@ -32,6 +32,7 @@ type
     procedure Test_VecU32x8_Or;
     procedure Test_VecU32x8_Xor;
     procedure Test_VecU32x8_Not;
+    procedure Test_VecU32x8_AndNot;
 
     // === 移位 ===
     procedure Test_VecU32x8_ShiftLeft;
@@ -194,6 +195,23 @@ begin
 
   for i := 0 to 7 do
     AssertEquals('U32x8 Not [' + IntToStr(i) + ']', UInt32($F0F0F0F0), r.u[i]);
+end;
+
+procedure TTestCase_VecU32x8.Test_VecU32x8_AndNot;
+var
+  a, b, r: TVecU32x8;
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+  begin
+    a.u[LIndex] := $0F0F0F0F;
+    b.u[LIndex] := $FFFFFFFF;
+  end;
+
+  r := VecU32x8AndNot(a, b);
+
+  for LIndex := 0 to 7 do
+    AssertEquals('U32x8 AndNot [' + IntToStr(LIndex) + ']', UInt32($F0F0F0F0), r.u[LIndex]);
 end;
 
 // === 移位 ===
