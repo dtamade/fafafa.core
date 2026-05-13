@@ -1393,3 +1393,17 @@
 | 1. 复核 `I64x8` 当前证据层现状     | completed   | 已确认 `src/fafafa.core.simd.pas` 公开暴露 `VecI64x8Cmp*`；现有 `vec512types/dispatchapi` 只提供普通 direct/parity，`vec512types` 本身不强制 `sbScalar` |
 | 2. 扩展现有 scalar-forced direct suite | completed | 继续扩 `TTestCase_IntegerFacadeGuards`，新增 `I64x8` signed compare mask 测试，不新增 runner 结构 |
 | 3. Release 验证与提交收口          | completed   | `git diff --check`、Release `TTestCase_IntegerFacadeGuards`、Release `check`、串行 Release `gate` 全绿；一次并行 `gate` build rc=2 已确认为共享输出目录假红 |
+
+## 2026-05-13 512-bit Integer Compare Tail Guard Coverage
+
+### Goal
+
+继续把 512-bit 整数 façade 里仍只剩 parity 旁证的 compare 面补成固定 `sbScalar` 的 direct guard：覆盖 `VecI16x32CmpEq/Lt/Gt`、`VecI8x64CmpEq/Lt/Gt` 与 `VecU8x64CmpEq/Lt/Gt`。
+
+### Phases
+
+| Phase                              | Status      | Notes |
+| ---------------------------------- | ----------- | ----- |
+| 1. 复核剩余公开 compare 边界       | completed   | 已确认 `I16x32/I8x64/U8x64` compare 都是 `src/fafafa.core.simd.pas` 的真实 façade surface；`narrowintegerops` 只覆盖窄族，不覆盖这 3 组 512-bit contract |
+| 2. 扩展现有 scalar-forced direct suite | completed | 继续扩 `TTestCase_IntegerFacadeGuards`，新增 3 条 compare guard，不新增 runner / checker / family-local suite |
+| 3. Release 验证与提交收口          | completed   | `git diff --check`、Release `TTestCase_IntegerFacadeGuards`、Release `check`、串行 Release `gate` 全绿 |

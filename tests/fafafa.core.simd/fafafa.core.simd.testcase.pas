@@ -350,7 +350,10 @@ type
     procedure Test_VecI64x8_Compare_Basic;
     procedure Test_VecU64x8_Compare_Unsigned;
     procedure Test_VecI16x32_AndNot_Basic;
+    procedure Test_VecI16x32_Compare_Basic;
     procedure Test_VecI8x64_AndNot_Basic;
+    procedure Test_VecI8x64_Compare_Basic;
+    procedure Test_VecU8x64_Compare_Unsigned;
   end;
 
   // 大数据量和边界测试
@@ -10380,6 +10383,54 @@ begin
   end;
 end;
 
+procedure TTestCase_IntegerFacadeGuards.Test_VecI16x32_Compare_Basic;
+var
+  LVecA, LVecB: TVecI16x32;
+  LMaskEq, LMaskLt, LMaskGt: TMask32;
+  LExpectedEq, LExpectedLt, LExpectedGt: TMask32;
+  LIndex: Integer;
+begin
+  LExpectedEq := 0;
+  LExpectedLt := 0;
+  LExpectedGt := 0;
+
+  for LIndex := 0 to High(LVecA.i) do
+  begin
+    case LIndex mod 3 of
+      0:
+        begin
+          LVecA.i[LIndex] := SmallInt(LIndex * 11);
+          LVecB.i[LIndex] := LVecA.i[LIndex];
+        end;
+      1:
+        begin
+          LVecA.i[LIndex] := SmallInt(-1000 + LIndex);
+          LVecB.i[LIndex] := SmallInt(LVecA.i[LIndex] + 5);
+        end;
+    else
+      begin
+        LVecA.i[LIndex] := SmallInt(1000 + LIndex);
+        LVecB.i[LIndex] := SmallInt(LVecA.i[LIndex] - 7);
+      end;
+    end;
+
+    if LVecA.i[LIndex] = LVecB.i[LIndex] then
+      LExpectedEq := TMask32(LongWord(LExpectedEq) or (LongWord(1) shl LIndex));
+    if LVecA.i[LIndex] < LVecB.i[LIndex] then
+      LExpectedLt := TMask32(LongWord(LExpectedLt) or (LongWord(1) shl LIndex));
+    if LVecA.i[LIndex] > LVecB.i[LIndex] then
+      LExpectedGt := TMask32(LongWord(LExpectedGt) or (LongWord(1) shl LIndex));
+  end;
+
+  LMaskEq := VecI16x32CmpEq(LVecA, LVecB);
+  LMaskLt := VecI16x32CmpLt(LVecA, LVecB);
+  LMaskGt := VecI16x32CmpGt(LVecA, LVecB);
+
+  AssertEquals('VecI16x32CmpEq mask', QWord(LExpectedEq), QWord(LMaskEq));
+  AssertEquals('VecI16x32CmpLt mask', QWord(LExpectedLt), QWord(LMaskLt));
+  AssertEquals('VecI16x32CmpGt mask', QWord(LExpectedGt), QWord(LMaskGt));
+end;
+
 procedure TTestCase_IntegerFacadeGuards.Test_VecI8x64_AndNot_Basic;
 var
   LVecA, LVecB, LResult: TVecI8x64;
@@ -10419,6 +10470,102 @@ begin
     LExpected := Byte(not LVecA.i[LIndex]) and Byte(LVecB.i[LIndex]);
     AssertEquals('VecI8x64AndNot lane ' + IntToStr(LIndex), LExpected, Byte(LResult.i[LIndex]));
   end;
+end;
+
+procedure TTestCase_IntegerFacadeGuards.Test_VecI8x64_Compare_Basic;
+var
+  LVecA, LVecB: TVecI8x64;
+  LMaskEq, LMaskLt, LMaskGt: TMask64;
+  LExpectedEq, LExpectedLt, LExpectedGt: TMask64;
+  LIndex: Integer;
+begin
+  LExpectedEq := 0;
+  LExpectedLt := 0;
+  LExpectedGt := 0;
+
+  for LIndex := 0 to High(LVecA.i) do
+  begin
+    case LIndex mod 3 of
+      0:
+        begin
+          LVecA.i[LIndex] := ShortInt(LIndex mod 40);
+          LVecB.i[LIndex] := LVecA.i[LIndex];
+        end;
+      1:
+        begin
+          LVecA.i[LIndex] := ShortInt(-60 + (LIndex mod 20));
+          LVecB.i[LIndex] := ShortInt(LVecA.i[LIndex] + 5);
+        end;
+    else
+      begin
+        LVecA.i[LIndex] := ShortInt(60 - (LIndex mod 20));
+        LVecB.i[LIndex] := ShortInt(LVecA.i[LIndex] - 7);
+      end;
+    end;
+
+    if LVecA.i[LIndex] = LVecB.i[LIndex] then
+      LExpectedEq := TMask64(QWord(LExpectedEq) or (QWord(1) shl LIndex));
+    if LVecA.i[LIndex] < LVecB.i[LIndex] then
+      LExpectedLt := TMask64(QWord(LExpectedLt) or (QWord(1) shl LIndex));
+    if LVecA.i[LIndex] > LVecB.i[LIndex] then
+      LExpectedGt := TMask64(QWord(LExpectedGt) or (QWord(1) shl LIndex));
+  end;
+
+  LMaskEq := VecI8x64CmpEq(LVecA, LVecB);
+  LMaskLt := VecI8x64CmpLt(LVecA, LVecB);
+  LMaskGt := VecI8x64CmpGt(LVecA, LVecB);
+
+  AssertEquals('VecI8x64CmpEq mask', QWord(LExpectedEq), QWord(LMaskEq));
+  AssertEquals('VecI8x64CmpLt mask', QWord(LExpectedLt), QWord(LMaskLt));
+  AssertEquals('VecI8x64CmpGt mask', QWord(LExpectedGt), QWord(LMaskGt));
+end;
+
+procedure TTestCase_IntegerFacadeGuards.Test_VecU8x64_Compare_Unsigned;
+var
+  LVecA, LVecB: TVecU8x64;
+  LMaskEq, LMaskLt, LMaskGt: TMask64;
+  LExpectedEq, LExpectedLt, LExpectedGt: TMask64;
+  LIndex: Integer;
+begin
+  LExpectedEq := 0;
+  LExpectedLt := 0;
+  LExpectedGt := 0;
+
+  for LIndex := 0 to High(LVecA.u) do
+  begin
+    case LIndex mod 3 of
+      0:
+        begin
+          LVecA.u[LIndex] := Byte((LIndex * 17) and $FF);
+          LVecB.u[LIndex] := LVecA.u[LIndex];
+        end;
+      1:
+        begin
+          LVecA.u[LIndex] := Byte(LIndex);
+          LVecB.u[LIndex] := Byte(255 - LIndex);
+        end;
+    else
+      begin
+        LVecA.u[LIndex] := Byte(255 - LIndex);
+        LVecB.u[LIndex] := Byte(LIndex);
+      end;
+    end;
+
+    if LVecA.u[LIndex] = LVecB.u[LIndex] then
+      LExpectedEq := TMask64(QWord(LExpectedEq) or (QWord(1) shl LIndex));
+    if LVecA.u[LIndex] < LVecB.u[LIndex] then
+      LExpectedLt := TMask64(QWord(LExpectedLt) or (QWord(1) shl LIndex));
+    if LVecA.u[LIndex] > LVecB.u[LIndex] then
+      LExpectedGt := TMask64(QWord(LExpectedGt) or (QWord(1) shl LIndex));
+  end;
+
+  LMaskEq := VecU8x64CmpEq(LVecA, LVecB);
+  LMaskLt := VecU8x64CmpLt(LVecA, LVecB);
+  LMaskGt := VecU8x64CmpGt(LVecA, LVecB);
+
+  AssertEquals('VecU8x64CmpEq mask', QWord(LExpectedEq), QWord(LMaskEq));
+  AssertEquals('VecU8x64CmpLt mask', QWord(LExpectedLt), QWord(LMaskLt));
+  AssertEquals('VecU8x64CmpGt mask', QWord(LExpectedGt), QWord(LMaskGt));
 end;
 
 { TTestCase_LargeData }

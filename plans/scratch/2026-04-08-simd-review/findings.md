@@ -1323,3 +1323,11 @@
 - 但 `vec512types` 没有 `ForceBackend(sbScalar)`，也没有 `SetUp/TearDown` 生命周期控制，因此它并不等价于 `TTestCase_IntegerFacadeGuards` 这种 scalar-forced direct guard。
 - 所以 `I64x8` 当前缺的仍然是证据层，而不是实现层；继续扩现有 `TTestCase_IntegerFacadeGuards` 比新增 `veci64x8` family-local suite 更低风险，也不会碰 runner manifest。
 - 本轮还再次证明了一个操作纪律：`check` 和 `gate` 在这个仓库里必须串行跑；共享输出目录下并行执行会出现 build 阶段 `rc=2` 的假红，不能误判为代码回归。
+
+## 2026-05-13 512-bit Integer Compare Tail Findings
+
+- `VecI16x32CmpEq/Lt/Gt`、`VecI8x64CmpEq/Lt/Gt`、`VecU8x64CmpEq/Lt/Gt` 都是当前 `src/fafafa.core.simd.pas` 的真实公开 façade compare surface，不是 backend-only 或 dispatch-only contract。
+- 这 3 组在本轮之前的显性覆盖主要停留在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 的 façade-vs-scalar parity；没有像 `I64x8` 那样的 family-local direct mask 测试，也没有进入 `TTestCase_IntegerFacadeGuards`。
+- `tests/fafafa.core.simd/fafafa.core.simd.narrowintegerops.testcase.pas` 虽然固定 `ForceBackend(sbScalar)`，但它的 contract 范围只到 `I16x8/I8x16/U16x8/U8x16/U32x4`，不能替代这 3 组 512-bit façade compare 的 direct evidence。
+- 因此这批剩余问题仍然是证据层，而不是实现层；继续扩现有 `TTestCase_IntegerFacadeGuards` 仍是最低风险落点，不需要新建 `vec512` 平行 suite。
+- 对于 32/64-lane compare，动态按 lane 累积期望 mask 比继续维护超长十六进制常量更稳，也更不容易把测试 bug 误判成实现 bug。

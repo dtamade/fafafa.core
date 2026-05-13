@@ -1349,6 +1349,28 @@
   - 改回串行后 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 最终为 `[GATE] OK`
   - 说明这次仍然只是测试证据补强，不是实现或 runner 回归
 
+## 2026-05-13 512-bit Integer Compare Tail Guard Coverage
+
+- 继续扫剩余公开整数 façade 后，确认新的真实尾巴已经从 `I64x8` 收窄到 3 组 512-bit compare contract：
+  - `VecI16x32CmpEq/CmpLt/CmpGt`
+  - `VecI8x64CmpEq/CmpLt/CmpGt`
+  - `VecU8x64CmpEq/CmpLt/CmpGt`
+- 这三组此前没有进入 `TTestCase_IntegerFacadeGuards`，也没有像 `I64x8` 那样的 family-local direct mask 测试；当前主要只有 `dispatchapi` 的 façade-vs-scalar parity。
+- `narrowintegerops` 已经确认不构成这批 contract 的替代证据：
+  - 它只固定 `sbScalar` 覆盖 `I16x8/I8x16/U16x8/U8x16/U32x4`
+  - 不覆盖这 3 组 512-bit compare
+- 本轮继续复用 `TTestCase_IntegerFacadeGuards`，新增：
+  - `Test_VecI16x32_Compare_Basic`
+  - `Test_VecI8x64_Compare_Basic`
+  - `Test_VecU8x64_Compare_Unsigned`
+- 这次没有再写硬编码大掩码常量，而是按 lane 数据动态累积期望 mask，避免 32/64-lane compare 测试继续堆砌易错常量。
+- Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IntegerFacadeGuards`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+
 ## 2026-05-13 Mid/Wide Integer Facade Guard Coverage
 
 - 继续深扫后，确认下一簇真实空档不是“没有 parity”，而是“只有 `dispatchapi` / multi-backend 旁证，没有强制 `sbScalar` 的 façade direct guard`：
