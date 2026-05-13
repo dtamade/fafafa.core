@@ -1372,3 +1372,23 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-13 U64x4 Facade Direct Guard Coverage
+
+- 继续复核剩余 public façade 后，`U64x4` 这簇是当前最像“只剩 parity 旁证”的真实尾巴：
+  - `VecU64x4CmpEq/CmpLt/CmpGt/CmpLe/CmpGe/CmpNe`
+- 当前仓库里它已经有：
+  - `dispatchapi` 的 dispatch/facade parity 与部分 expected-mask
+  - `direct` 的多 backend parity
+  - 但还没有固定 `ForceBackend(sbScalar)` 的 direct guard
+- 本轮继续复用 `TTestCase_IntegerFacadeGuards`，只新增 1 条 `U64x4` unsigned compare mask 测试，没有动实现、runner 或 checker。
+- 第一次 targeted run 暴露的仍然不是实现问题，而是测试预期写得太保守：
+  - 当前样本分布下 lane0 和 lane3 都属于 `eq`
+  - 因而 `Eq/Le/Ge` 的预期 mask 需要从单 lane 修正成包含 lane3 的版本
+  - 修正后 targeted suite 立即转绿
+- Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IntegerFacadeGuards`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

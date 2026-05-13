@@ -1365,3 +1365,17 @@
 | 1. 复核 façade 真实边界            | completed   | 已确认 `VecU64x8CmpLe/CmpGe/CmpNe`、`VecI16x32AndNot`、`VecI8x64AndNot` 都是 `src/fafafa.core.simd.pas` 的真实公开 surface |
 | 2. 扩展现有 scalar-forced direct suite | completed | 继续扩 `TTestCase_IntegerFacadeGuards`，新增 `U64x8` compare 与 `I16x32/I8x64` AndNot，不引入新的 runner/suite 结构 |
 | 3. Release 验证与提交收口          | completed   | `git diff --check`、Release `TTestCase_IntegerFacadeGuards`、Release `check`、Release `gate` 全绿；待 review + commit |
+
+## 2026-05-13 U64x4 Facade Direct Guard Coverage
+
+### Goal
+
+继续把整数 façade 的尾巴收窄到真正只剩 parity 旁证的公开 contract：为 `VecU64x4CmpEq/Lt/Gt/Le/Ge/Ne` 补一条固定 `sbScalar` 的 direct guard。
+
+### Phases
+
+| Phase                              | Status      | Notes |
+| ---------------------------------- | ----------- | ----- |
+| 1. 复核 `U64x4` 当前证据层现状     | completed   | 已确认 `dispatchapi/direct` 只有 parity 或 expected-mask 旁证，仍缺 scalar-forced direct guard |
+| 2. 扩展现有 scalar-forced direct suite | completed | 继续扩 `TTestCase_IntegerFacadeGuards`，新增 `U64x4` unsigned compare mask 测试，不新增 runner 结构 |
+| 3. Release 验证与提交收口          | completed   | `git diff --check`、Release `TTestCase_IntegerFacadeGuards`、Release `check`、Release `gate` 全绿；待 review + commit |

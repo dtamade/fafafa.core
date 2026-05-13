@@ -273,6 +273,12 @@
 - `TTestCase_IntegerFacadeGuards` 继续证明自己适合作为整数 façade direct guard 的统一承载点：同一套 `ForceBackend(sbScalar)` / `ResetBackendSelection` 生命周期足以覆盖 128/256/512-bit 整数 façade，不需要再复制出 family-local guard suite。
 - 目前整数 façade direct guard 的剩余缺口已经明显收窄；后续如果继续深扫，更值得优先看的是是否还存在公开 surface 只有 parity 证据，而不是继续扩已经足够密集的 multi-backend parity 测试。
 
+## 2026-05-13 U64x4 Facade Direct Guard Findings
+
+- `VecU64x4CmpEq/Lt/Gt/Le/Ge/Ne` 是当前 `src/fafafa.core.simd.pas` 的真实 façade compare surface；在本轮之前，它仍然主要依赖 `dispatchapi/direct` parity，而没有 scalar-forced direct guard。
+- `U64x4` 当前没有 family-local façade testcase，因此继续把它收进 `TTestCase_IntegerFacadeGuards` 是比新建 `vecu64x4` suite 更低风险的落点。
+- 本轮再次证明：当前整数 façade 的剩余工作大多已经不是“发现实现 bug”，而是“把公开 contract 的 direct evidence 补齐，并把测试预期写准”。
+
 ## 2026-05-12 Narrow Compare Guard Findings
 
 - 当前窄整型 compare 的真实缺口不是“没有实现”，而是“缺少直接 guard”：

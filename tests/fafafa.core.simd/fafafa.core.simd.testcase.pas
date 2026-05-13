@@ -346,6 +346,7 @@ type
     procedure Test_VecI32x16_Compare_Basic;
     procedure Test_VecU32x16_AndNot_Basic;
     procedure Test_VecU32x16_Compare_Unsigned;
+    procedure Test_VecU64x4_Compare_Unsigned;
     procedure Test_VecU64x8_Compare_Unsigned;
     procedure Test_VecI16x32_AndNot_Basic;
     procedure Test_VecI8x64_AndNot_Basic;
@@ -10209,6 +10210,48 @@ begin
   AssertEquals('VecU32x16CmpLe mask', LongInt(TMask16($B6DB)), LongInt(LMaskLe));
   AssertEquals('VecU32x16CmpGe mask', LongInt(TMask16($DB6D)), LongInt(LMaskGe));
   AssertEquals('VecU32x16CmpNe mask', LongInt(TMask16($6DB6)), LongInt(LMaskNe));
+end;
+
+procedure TTestCase_IntegerFacadeGuards.Test_VecU64x4_Compare_Unsigned;
+var
+  LVecA, LVecB: TVecU64x4;
+  LMaskEq, LMaskLt, LMaskGt, LMaskLe, LMaskGe, LMaskNe: TMask4;
+  LIndex: Integer;
+begin
+  for LIndex := 0 to High(LVecA.u) do
+  begin
+    case LIndex mod 3 of
+      0:
+        begin
+          LVecA.u[LIndex] := QWord(LIndex) * QWord($1111111111111111);
+          LVecB.u[LIndex] := LVecA.u[LIndex];
+        end;
+      1:
+        begin
+          LVecA.u[LIndex] := QWord(LIndex);
+          LVecB.u[LIndex] := High(QWord) - QWord(LIndex);
+        end;
+    else
+      begin
+        LVecA.u[LIndex] := High(QWord) - QWord(LIndex);
+        LVecB.u[LIndex] := QWord(LIndex);
+      end;
+    end;
+  end;
+
+  LMaskEq := VecU64x4CmpEq(LVecA, LVecB);
+  LMaskLt := VecU64x4CmpLt(LVecA, LVecB);
+  LMaskGt := VecU64x4CmpGt(LVecA, LVecB);
+  LMaskLe := VecU64x4CmpLe(LVecA, LVecB);
+  LMaskGe := VecU64x4CmpGe(LVecA, LVecB);
+  LMaskNe := VecU64x4CmpNe(LVecA, LVecB);
+
+  AssertEquals('VecU64x4CmpEq mask', Integer(TMask4($9)), Integer(LMaskEq));
+  AssertEquals('VecU64x4CmpLt mask', Integer(TMask4($2)), Integer(LMaskLt));
+  AssertEquals('VecU64x4CmpGt mask', Integer(TMask4($4)), Integer(LMaskGt));
+  AssertEquals('VecU64x4CmpLe mask', Integer(TMask4($B)), Integer(LMaskLe));
+  AssertEquals('VecU64x4CmpGe mask', Integer(TMask4($D)), Integer(LMaskGe));
+  AssertEquals('VecU64x4CmpNe mask', Integer(TMask4($6)), Integer(LMaskNe));
 end;
 
 procedure TTestCase_IntegerFacadeGuards.Test_VecU64x8_Compare_Unsigned;
