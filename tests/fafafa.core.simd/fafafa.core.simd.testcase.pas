@@ -357,9 +357,12 @@ type
     procedure Test_VecU64x8_RemainingOps_Basic;
     procedure Test_VecI16x32_AndNot_Basic;
     procedure Test_VecI16x32_Compare_Basic;
+    procedure Test_VecI16x32_RemainingOps_Basic;
     procedure Test_VecI8x64_AndNot_Basic;
     procedure Test_VecI8x64_Compare_Basic;
+    procedure Test_VecI8x64_RemainingOps_Basic;
     procedure Test_VecU8x64_Compare_Unsigned;
+    procedure Test_VecU8x64_RemainingOps_Basic;
   end;
 
   // 宽浮点 façade contract 直接守卫（强制 Scalar，避免只剩 operator/default-backend/parity 旁证）
@@ -10831,6 +10834,90 @@ begin
   AssertEquals('VecI16x32CmpGt mask', QWord(LExpectedGt), QWord(LMaskGt));
 end;
 
+procedure TTestCase_IntegerFacadeGuards.Test_VecI16x32_RemainingOps_Basic;
+const
+  C_SHIFT_LEFT = 3;
+  C_SHIFT_RIGHT = 2;
+  C_SHIFT_RIGHT_ARITH = 5;
+var
+  LVecA, LVecB: TVecI16x32;
+  LAddResult, LSubResult: TVecI16x32;
+  LAndResult, LOrResult, LXorResult, LNotResult: TVecI16x32;
+  LMinResult, LMaxResult: TVecI16x32;
+  LShiftLeftResult, LShiftRightResult, LShiftRightArithResult: TVecI16x32;
+  LExpectedSarRaw: Word;
+  LIndex: Integer;
+begin
+  for LIndex := 0 to High(LVecA.i) do
+  begin
+    LVecA.i[LIndex] := SmallInt(LIndex * 5 - 70);
+    LVecB.i[LIndex] := SmallInt(90 - LIndex * 3);
+  end;
+
+  LVecA.i[0] := High(SmallInt);
+  LVecA.i[1] := Low(SmallInt);
+  LVecA.i[2] := -1;
+  LVecA.i[3] := 0;
+  LVecA.i[4] := SmallInt($5555);
+  LVecA.i[5] := SmallInt($AAAA);
+
+  LVecB.i[0] := 1;
+  LVecB.i[1] := -1;
+  LVecB.i[2] := High(SmallInt);
+  LVecB.i[3] := SmallInt($1111);
+  LVecB.i[4] := SmallInt($AAAA);
+  LVecB.i[5] := SmallInt($0F0F);
+
+  LAddResult := VecI16x32Add(LVecA, LVecB);
+  LSubResult := VecI16x32Sub(LVecA, LVecB);
+  LAndResult := VecI16x32And(LVecA, LVecB);
+  LOrResult := VecI16x32Or(LVecA, LVecB);
+  LXorResult := VecI16x32Xor(LVecA, LVecB);
+  LNotResult := VecI16x32Not(LVecA);
+  LMinResult := VecI16x32Min(LVecA, LVecB);
+  LMaxResult := VecI16x32Max(LVecA, LVecB);
+  LShiftLeftResult := VecI16x32ShiftLeft(LVecA, C_SHIFT_LEFT);
+  LShiftRightResult := VecI16x32ShiftRight(LVecA, C_SHIFT_RIGHT);
+  LShiftRightArithResult := VecI16x32ShiftRightArith(LVecA, C_SHIFT_RIGHT_ARITH);
+
+  for LIndex := 0 to High(LVecA.i) do
+  begin
+    AssertEquals('VecI16x32Add lane ' + IntToStr(LIndex),
+      Word(SmallInt(LVecA.i[LIndex] + LVecB.i[LIndex])), Word(LAddResult.i[LIndex]));
+    AssertEquals('VecI16x32Sub lane ' + IntToStr(LIndex),
+      Word(SmallInt(LVecA.i[LIndex] - LVecB.i[LIndex])), Word(LSubResult.i[LIndex]));
+    AssertEquals('VecI16x32And lane ' + IntToStr(LIndex),
+      Word(LVecA.i[LIndex]) and Word(LVecB.i[LIndex]), Word(LAndResult.i[LIndex]));
+    AssertEquals('VecI16x32Or lane ' + IntToStr(LIndex),
+      Word(LVecA.i[LIndex]) or Word(LVecB.i[LIndex]), Word(LOrResult.i[LIndex]));
+    AssertEquals('VecI16x32Xor lane ' + IntToStr(LIndex),
+      Word(LVecA.i[LIndex]) xor Word(LVecB.i[LIndex]), Word(LXorResult.i[LIndex]));
+    AssertEquals('VecI16x32Not lane ' + IntToStr(LIndex),
+      Word(not LVecA.i[LIndex]), Word(LNotResult.i[LIndex]));
+
+    if LVecA.i[LIndex] < LVecB.i[LIndex] then
+      AssertEquals('VecI16x32Min lane ' + IntToStr(LIndex), LVecA.i[LIndex], LMinResult.i[LIndex])
+    else
+      AssertEquals('VecI16x32Min lane ' + IntToStr(LIndex), LVecB.i[LIndex], LMinResult.i[LIndex]);
+
+    if LVecA.i[LIndex] > LVecB.i[LIndex] then
+      AssertEquals('VecI16x32Max lane ' + IntToStr(LIndex), LVecA.i[LIndex], LMaxResult.i[LIndex])
+    else
+      AssertEquals('VecI16x32Max lane ' + IntToStr(LIndex), LVecB.i[LIndex], LMaxResult.i[LIndex]);
+
+    AssertEquals('VecI16x32ShiftLeft lane ' + IntToStr(LIndex),
+      Word(Word(LVecA.i[LIndex]) shl C_SHIFT_LEFT), Word(LShiftLeftResult.i[LIndex]));
+    AssertEquals('VecI16x32ShiftRight lane ' + IntToStr(LIndex),
+      Word(LVecA.i[LIndex]) shr C_SHIFT_RIGHT, Word(LShiftRightResult.i[LIndex]));
+
+    LExpectedSarRaw := Word(LVecA.i[LIndex]) shr C_SHIFT_RIGHT_ARITH;
+    if LVecA.i[LIndex] < 0 then
+      LExpectedSarRaw := LExpectedSarRaw or (Word($FFFF) shl (16 - C_SHIFT_RIGHT_ARITH));
+    AssertEquals('VecI16x32ShiftRightArith lane ' + IntToStr(LIndex),
+      Word(SmallInt(LExpectedSarRaw)), Word(LShiftRightArithResult.i[LIndex]));
+  end;
+end;
+
 procedure TTestCase_IntegerFacadeGuards.Test_VecI8x64_AndNot_Basic;
 var
   LVecA, LVecB, LResult: TVecI8x64;
@@ -10920,6 +11007,70 @@ begin
   AssertEquals('VecI8x64CmpGt mask', QWord(LExpectedGt), QWord(LMaskGt));
 end;
 
+procedure TTestCase_IntegerFacadeGuards.Test_VecI8x64_RemainingOps_Basic;
+var
+  LVecA, LVecB: TVecI8x64;
+  LAddResult, LSubResult: TVecI8x64;
+  LAndResult, LOrResult, LXorResult, LNotResult: TVecI8x64;
+  LMinResult, LMaxResult: TVecI8x64;
+  LIndex: Integer;
+begin
+  for LIndex := 0 to High(LVecA.i) do
+  begin
+    LVecA.i[LIndex] := ShortInt((LIndex mod 41) - 20);
+    LVecB.i[LIndex] := ShortInt(15 - (LIndex mod 31));
+  end;
+
+  LVecA.i[0] := High(ShortInt);
+  LVecA.i[1] := Low(ShortInt);
+  LVecA.i[2] := -1;
+  LVecA.i[3] := 0;
+  LVecA.i[4] := ShortInt($55);
+  LVecA.i[5] := ShortInt($AA);
+
+  LVecB.i[0] := 1;
+  LVecB.i[1] := -1;
+  LVecB.i[2] := High(ShortInt);
+  LVecB.i[3] := ShortInt($11);
+  LVecB.i[4] := ShortInt($AA);
+  LVecB.i[5] := ShortInt($0F);
+
+  LAddResult := VecI8x64Add(LVecA, LVecB);
+  LSubResult := VecI8x64Sub(LVecA, LVecB);
+  LAndResult := VecI8x64And(LVecA, LVecB);
+  LOrResult := VecI8x64Or(LVecA, LVecB);
+  LXorResult := VecI8x64Xor(LVecA, LVecB);
+  LNotResult := VecI8x64Not(LVecA);
+  LMinResult := VecI8x64Min(LVecA, LVecB);
+  LMaxResult := VecI8x64Max(LVecA, LVecB);
+
+  for LIndex := 0 to High(LVecA.i) do
+  begin
+    AssertEquals('VecI8x64Add lane ' + IntToStr(LIndex),
+      Byte(ShortInt(LVecA.i[LIndex] + LVecB.i[LIndex])), Byte(LAddResult.i[LIndex]));
+    AssertEquals('VecI8x64Sub lane ' + IntToStr(LIndex),
+      Byte(ShortInt(LVecA.i[LIndex] - LVecB.i[LIndex])), Byte(LSubResult.i[LIndex]));
+    AssertEquals('VecI8x64And lane ' + IntToStr(LIndex),
+      Byte(LVecA.i[LIndex]) and Byte(LVecB.i[LIndex]), Byte(LAndResult.i[LIndex]));
+    AssertEquals('VecI8x64Or lane ' + IntToStr(LIndex),
+      Byte(LVecA.i[LIndex]) or Byte(LVecB.i[LIndex]), Byte(LOrResult.i[LIndex]));
+    AssertEquals('VecI8x64Xor lane ' + IntToStr(LIndex),
+      Byte(LVecA.i[LIndex]) xor Byte(LVecB.i[LIndex]), Byte(LXorResult.i[LIndex]));
+    AssertEquals('VecI8x64Not lane ' + IntToStr(LIndex),
+      Byte(not LVecA.i[LIndex]), Byte(LNotResult.i[LIndex]));
+
+    if LVecA.i[LIndex] < LVecB.i[LIndex] then
+      AssertEquals('VecI8x64Min lane ' + IntToStr(LIndex), LVecA.i[LIndex], LMinResult.i[LIndex])
+    else
+      AssertEquals('VecI8x64Min lane ' + IntToStr(LIndex), LVecB.i[LIndex], LMinResult.i[LIndex]);
+
+    if LVecA.i[LIndex] > LVecB.i[LIndex] then
+      AssertEquals('VecI8x64Max lane ' + IntToStr(LIndex), LVecA.i[LIndex], LMaxResult.i[LIndex])
+    else
+      AssertEquals('VecI8x64Max lane ' + IntToStr(LIndex), LVecB.i[LIndex], LMaxResult.i[LIndex]);
+  end;
+end;
+
 procedure TTestCase_IntegerFacadeGuards.Test_VecU8x64_Compare_Unsigned;
 var
   LVecA, LVecB: TVecU8x64;
@@ -10966,6 +11117,68 @@ begin
   AssertEquals('VecU8x64CmpEq mask', QWord(LExpectedEq), QWord(LMaskEq));
   AssertEquals('VecU8x64CmpLt mask', QWord(LExpectedLt), QWord(LMaskLt));
   AssertEquals('VecU8x64CmpGt mask', QWord(LExpectedGt), QWord(LMaskGt));
+end;
+
+procedure TTestCase_IntegerFacadeGuards.Test_VecU8x64_RemainingOps_Basic;
+var
+  LVecA, LVecB: TVecU8x64;
+  LAddResult, LSubResult: TVecU8x64;
+  LAndResult, LOrResult, LXorResult, LNotResult: TVecU8x64;
+  LMinResult, LMaxResult: TVecU8x64;
+  LIndex: Integer;
+begin
+  for LIndex := 0 to High(LVecA.u) do
+  begin
+    LVecA.u[LIndex] := Byte((LIndex * 11 + 3) and $FF);
+    LVecB.u[LIndex] := Byte((255 - LIndex * 7) and $FF);
+  end;
+
+  LVecA.u[0] := 0;
+  LVecA.u[1] := 255;
+  LVecA.u[2] := 128;
+  LVecA.u[3] := $55;
+  LVecA.u[4] := $AA;
+
+  LVecB.u[0] := 255;
+  LVecB.u[1] := 1;
+  LVecB.u[2] := 127;
+  LVecB.u[3] := $AA;
+  LVecB.u[4] := $11;
+
+  LAddResult := VecU8x64Add(LVecA, LVecB);
+  LSubResult := VecU8x64Sub(LVecA, LVecB);
+  LAndResult := VecU8x64And(LVecA, LVecB);
+  LOrResult := VecU8x64Or(LVecA, LVecB);
+  LXorResult := VecU8x64Xor(LVecA, LVecB);
+  LNotResult := VecU8x64Not(LVecA);
+  LMinResult := VecU8x64Min(LVecA, LVecB);
+  LMaxResult := VecU8x64Max(LVecA, LVecB);
+
+  for LIndex := 0 to High(LVecA.u) do
+  begin
+    AssertEquals('VecU8x64Add lane ' + IntToStr(LIndex),
+      Byte(LVecA.u[LIndex] + LVecB.u[LIndex]), LAddResult.u[LIndex]);
+    AssertEquals('VecU8x64Sub lane ' + IntToStr(LIndex),
+      Byte(LVecA.u[LIndex] - LVecB.u[LIndex]), LSubResult.u[LIndex]);
+    AssertEquals('VecU8x64And lane ' + IntToStr(LIndex),
+      Byte(LVecA.u[LIndex] and LVecB.u[LIndex]), LAndResult.u[LIndex]);
+    AssertEquals('VecU8x64Or lane ' + IntToStr(LIndex),
+      Byte(LVecA.u[LIndex] or LVecB.u[LIndex]), LOrResult.u[LIndex]);
+    AssertEquals('VecU8x64Xor lane ' + IntToStr(LIndex),
+      Byte(LVecA.u[LIndex] xor LVecB.u[LIndex]), LXorResult.u[LIndex]);
+    AssertEquals('VecU8x64Not lane ' + IntToStr(LIndex),
+      Byte(not LVecA.u[LIndex]), LNotResult.u[LIndex]);
+
+    if LVecA.u[LIndex] < LVecB.u[LIndex] then
+      AssertEquals('VecU8x64Min lane ' + IntToStr(LIndex), LVecA.u[LIndex], LMinResult.u[LIndex])
+    else
+      AssertEquals('VecU8x64Min lane ' + IntToStr(LIndex), LVecB.u[LIndex], LMinResult.u[LIndex]);
+
+    if LVecA.u[LIndex] > LVecB.u[LIndex] then
+      AssertEquals('VecU8x64Max lane ' + IntToStr(LIndex), LVecA.u[LIndex], LMaxResult.u[LIndex])
+    else
+      AssertEquals('VecU8x64Max lane ' + IntToStr(LIndex), LVecB.u[LIndex], LMaxResult.u[LIndex]);
+  end;
 end;
 
 { TTestCase_FloatFacadeGuards }

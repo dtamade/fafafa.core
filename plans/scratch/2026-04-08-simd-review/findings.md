@@ -1383,3 +1383,22 @@
   - 把期望显式收成 `UInt32(...)` 后，targeted suite、Release `check`、串行 Release `gate` 全绿
 - 因而这批结论很干净：当前补的是 stable public façade 的 scalar direct evidence，不是 SIMD 实现修复。
 - 本轮收完后，512-bit 宽整数里更像“仍只剩 parity 旁证”的残余已经进一步收窄；下一批如果继续深扫，更值得优先看 `I16x32/I8x64/U8x64` 的非 compare/AndNot 公开操作是否要补同类 direct guard。
+
+## 2026-05-13 Wide Narrow-Lane Integer Remaining Ops Guard Findings
+
+- 继续沿上一条线往下扫后，`I16x32/I8x64/U8x64` 的“非 compare/AndNot 公开 façade”就是当前最自然的下一批：
+  - `VecI16x32Add/Sub/And/Or/Xor/Not/ShiftLeft/ShiftRight/ShiftRightArith/Min/Max`
+  - `VecI8x64Add/Sub/And/Or/Xor/Not/Min/Max`
+  - `VecU8x64Add/Sub/And/Or/Xor/Not/Min/Max`
+- 这批在本轮之前的证据主要还是 `dispatchapi.testcase` 的 façade-vs-scalar parity；本地搜索没有找到对应的 `direct.testcase` 多 backend façade parity，因此更说明它们尚未进入固定 `ForceBackend(sbScalar)` 的 direct guard。
+- `TTestCase_IntegerFacadeGuards` 在这三簇上此前只覆盖：
+  - `I16x32`：`AndNot + CmpEq/Lt/Gt`
+  - `I8x64`：`AndNot + CmpEq/Lt/Gt`
+  - `U8x64`：`CmpEq/Lt/Gt`
+- 因而继续扩这一个 suite 仍然是最低风险路径：不改 runner，不改实现，只把已知公开 contract 从 parity 旁证补成 scalar direct evidence。
+- 本轮首次 targeted run 暴露的唯一红灯再次是测试层期望，而不是实现问题：
+  - `VecI16x32ShiftLeft lane 0` 的真实 lane 语义应回收到 16-bit
+  - 失败原因只是测试期望直接拿了更宽整数的移位结果，没有显式钉回 `Word`
+  - 把期望收成 `Word(...)` 后，targeted suite、Release `check`、串行 Release `gate` 全绿
+- 这批结论也很干净：补的是 stable public façade 的 scalar direct evidence，不是实现修复。
+- 当前如果继续深扫整数 façade，优先级已经开始从“明显的大缺口”转向“少量尾部剩余 API 的证据完整度”，收益会比前几批更偏收口和证据密实化。

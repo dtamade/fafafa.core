@@ -42,6 +42,7 @@
 | 批量给旧 `simd` plan 插入状态头时首次落到了文档尾部                             | 1       | 已去掉错误的跨行匹配方式，先清除误插入块，再把状态头重插到标题下                               |
 | `check` 和 `gate` 并发编译同一 `tests/fafafa.core.simd` 输出目录导致临时 rc=2/1 | 1       | 改为串行重跑，确认不是代码回归                                                                 |
 | 新增 `SSE2` length/normalize helper 后 `check` 报 inline hints                   | 1       | 去掉 `SSE2LengthWithOptionalZeroW` / `SSE2NormalizeByLength` 的 `inline` 标记后复验通过         |
+| `mcp__ace_tool__search_context` 在宽整数继续批次里两次超时                       | 1       | 不重复卡在同一大查询，改用更窄的本地 `rg/sed` 直接核公开 API 与测试覆盖                         |
 
 ## 2026-05-09 Subtask
 
@@ -1463,3 +1464,17 @@
 | 1. 复核 wide-integer 剩余公开边界  | completed   | 已确认本轮最高价值缺口落在 `I32x16/U32x16/I64x8/U64x8` 的 remaining ops；这些函数在 `src/fafafa.core.simd.pas` 都是公开 façade surface，而不是 backend-only helper |
 | 2. 扩展现有 scalar direct suite     | completed   | 继续扩 `TTestCase_IntegerFacadeGuards`，新增 4 条测试覆盖 `I32x16/U32x16/I64x8/U64x8` 的 remaining public ops，不新增 runner/suite，也不改实现 |
 | 3. 修正测试期望并完成 Release 验证 | completed   | 首轮 targeted run 仅暴露 `VecU32x16Sub` 的 `UInt32` 回绕期望未显式钉型；修正后 `git diff --check`、Release targeted/check/gate 全绿 |
+
+## 2026-05-13 Wide Narrow-Lane Integer Remaining Ops Guard Coverage
+
+### Goal
+
+继续把 `I16x32/I8x64/U8x64` 三簇宽整数 façade 中仍主要依赖 parity 旁证的剩余公开操作补成固定 `sbScalar` 的 direct guard，优先覆盖算术、位运算、移位与最值。
+
+### Phases
+
+| Phase                              | Status      | Notes |
+| ---------------------------------- | ----------- | ----- |
+| 1. 复核这三簇剩余公开边界          | completed   | 已确认 `src/fafafa.core.simd.pas` 公开暴露 `I16x32` 的 `Add/Sub/bitwise/shift/minmax`，`I8x64/U8x64` 的 `Add/Sub/bitwise/minmax`；现有 `IntegerFacadeGuards` 仅覆盖 compare 和部分 `AndNot` |
+| 2. 扩展现有 scalar direct suite     | completed   | 继续扩 `TTestCase_IntegerFacadeGuards`，新增 `I16x32/I8x64/U8x64` 的 remaining ops guard，不新增 runner/suite，也不改实现 |
+| 3. 修正测试期望并完成 Release 验证 | completed   | 首轮 targeted run 仅暴露 `VecI16x32ShiftLeft` 期望未显式收回 16-bit lane；修正为 `Word(...)` 后 `git diff --check`、Release targeted/check/gate 全绿 |

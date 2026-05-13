@@ -250,6 +250,26 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 - 本轮收口前已清理 `tests/fafafa.core.simd/__pycache__/`，避免把 Python 缓存目录带进提交。
+
+- 继续把宽整数剩余公开 façade 往 `sbScalar` direct evidence 收口后，本轮再次扩了 `TTestCase_IntegerFacadeGuards`，仍然没有新增 runner/suite，也没有修改任何生产实现：
+  - `Test_VecI16x32_RemainingOps_Basic`
+  - `Test_VecI8x64_RemainingOps_Basic`
+  - `Test_VecU8x64_RemainingOps_Basic`
+- 这 3 条测试把此前主要只有 parity 旁证的公开 façade 操作补成了固定 `sbScalar` 的 direct guard，覆盖：
+  - `I16x32`：`Add/Sub/And/Or/Xor/Not/ShiftLeft/ShiftRight/ShiftRightArith/Min/Max`
+  - `I8x64`：`Add/Sub/And/Or/Xor/Not/Min/Max`
+  - `U8x64`：`Add/Sub/And/Or/Xor/Not/Min/Max`
+- 本轮先后两次尝试 `mcp__ace_tool__search_context` 都超时了，因此没有在同一条失败路径上反复等待，而是改用本地 `rg/sed` 直接核 API 与测试覆盖。
+- 首次 targeted run 抓到 1 个测试层红灯，不是实现回归：
+  - `TTestCase_IntegerFacadeGuards.Test_VecI16x32_RemainingOps_Basic`
+  - `VecI16x32ShiftLeft lane 0` 期望没有显式收回 16-bit lane，直接拿了更宽的移位结果
+  - 修正为 `Word(...)` 后立即转绿
+- 本轮 Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IntegerFacadeGuards`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
 - 用户随后明确目标不是“收 `SSE2` 计划”，而是“把整个 simd 模块重构好，不要冗余，正确架构”。
 - 因此本轮记录已从 `SSE2-first` pivot 到 whole-module 视角：
   - `SSE2` 保留为高债务试点 family
