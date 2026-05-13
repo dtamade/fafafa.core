@@ -1492,3 +1492,17 @@
 | 1. 复核这两簇公开剩余边界          | completed   | 已确认 `src/fafafa.core.simd.pas` 公开暴露 `I64x4` 的 `Add/Sub/And/Or/Xor/Not/ShiftLeft/ShiftRight/ShiftRightArith` 与 `U64x4` 的 `Add/Sub/And/Or/Xor/Not/ShiftLeft/ShiftRight`；现有 `IntegerFacadeGuards` 只覆盖 `I64x4` 的 `AndNot + compare` 与 `U64x4` 的 compare |
 | 2. 扩展现有 scalar direct suite     | completed   | 继续扩 `TTestCase_IntegerFacadeGuards`，新增 `Test_VecI64x4_RemainingOps_Basic` 与 `Test_VecU64x4_RemainingOps_Basic`，不新增 runner/suite，也不改实现 |
 | 3. Release 验证与提交收口          | completed   | `git diff --check`、Release `TTestCase_IntegerFacadeGuards`、Release `check`、串行 Release `gate` 全绿；没有出现新的实现回归 |
+
+## 2026-05-13 I32x8 I64x2 U64x2 Remaining Ops Guard Coverage
+
+### Goal
+
+继续把 `I32x8/I64x2/U64x2` 三簇整数 façade 中仍停留在默认后端 family-local 测试或 parity 旁证层的剩余公开操作补成固定 `sbScalar` 的 direct guard，覆盖 `I32x8` 的 `Add/Sub/Mul/bitwise/shift/minmax/Extract/Insert`、`I64x2` 的 `Add/Sub/bitwise/shift/minmax/Extract/Insert`，以及 `U64x2` 的 `Add/Sub/bitwise/minmax`。
+
+### Phases
+
+| Phase                              | Status      | Notes |
+| ---------------------------------- | ----------- | ----- |
+| 1. 复核这三簇当前证据层现状        | completed   | 已确认 `veci32x8` suite 虽然覆盖面很全，但不固定 `sbScalar`；`I64x2/U64x2` 的 remaining ops 主要停留在 `dispatchapi/direct` parity，而 `IntegerFacadeGuards` 仅覆盖 `AndNot + compare` |
+| 2. 扩展现有 scalar direct suite     | completed   | 继续扩 `TTestCase_IntegerFacadeGuards`，新增 `Test_VecI32x8_RemainingOps_Basic`、`Test_VecI64x2_RemainingOps_Basic`、`Test_VecU64x2_RemainingOps_Basic`，不新增 runner/suite，也不改实现 |
+| 3. Release 验证与提交收口          | completed   | `git diff --check`、Release `TTestCase_IntegerFacadeGuards`、Release `check`、串行 Release `gate` 全绿；没有出现新的测试期望红灯或实现回归 |

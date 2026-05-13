@@ -1414,3 +1414,17 @@
   - `U64x4`：`CmpEq/Lt/Gt/Le/Ge/Ne`
 - 因而这批缺口依旧是证据层，不是实现层；继续扩现有 `TTestCase_IntegerFacadeGuards` 仍是最低风险落点，不需要新建 256-bit family-local suite。
 - 这次新增两条 remaining-ops guard 后，targeted suite 没有抓到测试期望 bug，也没有暴露实现回归；和前几批相比，这说明整数 façade 上“明显的大缺口”正在继续收窄，剩余问题更偏尾部证据密实化。
+
+## 2026-05-13 I32x8 I64x2 U64x2 Remaining Ops Guard Findings
+
+- `VecI32x8Add/Sub/Mul/And/Or/Xor/Not/ShiftLeft/ShiftRight/ShiftRightArith/Min/Max/Extract/Insert`、`VecI64x2Add/Sub/And/Or/Xor/Not/ShiftLeft/ShiftRight/ShiftRightArith/Min/Max/Extract/Insert`、`VecU64x2Add/Sub/And/Or/Xor/Not/Min/Max` 都是当前 `src/fafafa.core.simd.pas` 的真实公开 façade surface。
+- `I32x8` 这簇当前最大的真假边界在于：
+  - `tests/fafafa.core.simd/fafafa.core.simd.veci32x8.testcase.pas` 确实覆盖了大量行为
+  - 但它的 `SetUp/TearDown` 不固定 `ForceBackend(sbScalar)` / `ResetBackendSelection`
+  - 因而它更像默认后端 family-local 回归，不等价于 scalar 真源的 public façade direct guard
+- `I64x2/U64x2` 则和前面几批 wide-integer 的形状一致：
+  - 已有 `dispatchapi.testcase` 的 façade-vs-scalar parity
+  - 已有 `direct.testcase` 的 façade-vs-direct / backend parity
+  - 但 `TTestCase_IntegerFacadeGuards` 之前只覆盖 `AndNot + compare`
+- 因而这三簇的剩余缺口依旧是证据层，不是实现层；继续扩现有 `TTestCase_IntegerFacadeGuards` 仍然是最低风险的统一收口方式。
+- 这次新增 3 条 remaining-ops guard 后，targeted suite、Release `check`、串行 Release `gate` 全绿，且没有暴露新的测试期望错误；这说明当前整数 façade 的主线问题正在从“大块缺口”进一步转向“少量尾部 contract 的证据密实化”。

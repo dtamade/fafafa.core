@@ -1559,3 +1559,25 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+## 2026-05-13 I32x8 I64x2 U64x2 Remaining Ops Guard Coverage
+
+- 继续从“公开 façade 还没被固定 `sbScalar` 的 direct guard 钉住”往下扫后，这一批最值钱的缺口落在：
+  - `I32x8`：`Add/Sub/Mul/And/Or/Xor/Not/ShiftLeft/ShiftRight/ShiftRightArith/Min/Max/Extract/Insert`
+  - `I64x2`：`Add/Sub/And/Or/Xor/Not/ShiftLeft/ShiftRight/ShiftRightArith/Min/Max/Extract/Insert`
+  - `U64x2`：`Add/Sub/And/Or/Xor/Not/Min/Max`
+- 这三簇在本轮之前并不是“没有测试”，而是各自停留在不同强度的旁证上：
+  - `I32x8`：`veci32x8` family-local suite 覆盖很全，但 `SetUp/TearDown` 不固定 `sbScalar`
+  - `I64x2/U64x2`：主要是 `dispatchapi.testcase` 与 `direct.testcase` 的 façade parity
+- 本轮继续复用 `TTestCase_IntegerFacadeGuards`，没有改 runner，也没有碰任何生产实现：
+  - 新增 `Test_VecI32x8_RemainingOps_Basic`
+  - 新增 `Test_VecI64x2_RemainingOps_Basic`
+  - 新增 `Test_VecU64x2_RemainingOps_Basic`
+- 这次 targeted suite 没有再暴露测试期望 bug，也没有打出实现回归，说明这批边界判断同样是准的：补的是 public façade 的 scalar direct evidence，不是实现修复。
+- Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IntegerFacadeGuards`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
