@@ -1601,3 +1601,28 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+## 2026-05-14 F64x2 Direct Float Facade Guard Coverage
+
+- 继续从“公开 façade 还没被固定 `sbScalar` 的 direct guard 钉住”往下扫后，`F64x2` 成了当前浮点面最明显的一块尾部缺口：
+  - `Add/Sub/Mul/Div`
+  - `CmpEq/Lt/Le/Gt/Ge/Ne`
+  - `ReduceAdd/ReduceMin/ReduceMax/ReduceMul`
+  - `Load/Store/Splat/Zero/Select`
+  - `Abs/Sqrt/Min/Max/Extract/Insert`
+- 这簇在本轮之前并不是“没有测试”，而是分散停留在三类不同强度的旁证上：
+  - `TTestCase_VectorOps` 固定 `sbScalar`，但只覆盖 `Floor/Ceil/Round/Trunc/Fma`
+  - `TTestCase_OperatorOverloads` 固定 `sbScalar`，但只覆盖 `+/-/*//`
+  - `dispatchapi.testcase` / `direct.testcase` 已有不少 façade parity，但它们都不等价于 public façade 的 scalar-direct contract guard
+- 因而这批缺口仍然是证据层，不是实现层；本轮继续复用 `TTestCase_FloatFacadeGuards`，没有改 runner，也没有碰任何生产实现：
+  - 新增 `Test_VecF64x2_Arithmetic_Basic`
+  - 新增 `Test_VecF64x2_CompareReduceSelect_Basic`
+  - 新增 `Test_VecF64x2_ExtendedMathAndLoadStore_Basic`
+  - 新增 `Test_VecF64x2_RemainingMathAndExtractInsert_Basic`
+- Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_FloatFacadeGuards`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

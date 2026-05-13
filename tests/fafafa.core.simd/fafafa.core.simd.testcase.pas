@@ -377,6 +377,10 @@ type
     procedure SetUp; override;
     procedure TearDown; override;
   published
+    procedure Test_VecF64x2_Arithmetic_Basic;
+    procedure Test_VecF64x2_CompareReduceSelect_Basic;
+    procedure Test_VecF64x2_ExtendedMathAndLoadStore_Basic;
+    procedure Test_VecF64x2_RemainingMathAndExtractInsert_Basic;
     procedure Test_VecF32x16_Arithmetic_Basic;
     procedure Test_VecF32x16_CompareReduceSelect_Basic;
     procedure Test_VecF32x16_ExtendedMathAndLoadStore_Basic;
@@ -11628,6 +11632,181 @@ procedure TTestCase_FloatFacadeGuards.TearDown;
 begin
   ResetBackendSelection;
   inherited TearDown;
+end;
+
+procedure TTestCase_FloatFacadeGuards.Test_VecF64x2_Arithmetic_Basic;
+const
+  C_EPSILON = 1e-12;
+var
+  LVecA, LVecB: TVecF64x2;
+  LAddResult, LSubResult, LMulResult, LDivResult: TVecF64x2;
+begin
+  LVecA.d[0] := 1.25;
+  LVecA.d[1] := -8.5;
+
+  LVecB.d[0] := 2.0;
+  LVecB.d[1] := 0.5;
+
+  LAddResult := fafafa.core.simd.VecF64x2Add(LVecA, LVecB);
+  LSubResult := fafafa.core.simd.VecF64x2Sub(LVecA, LVecB);
+  LMulResult := fafafa.core.simd.VecF64x2Mul(LVecA, LVecB);
+  LDivResult := fafafa.core.simd.VecF64x2Div(LVecA, LVecB);
+
+  AssertEquals('VecF64x2Add lane 0', 3.25, LAddResult.d[0], C_EPSILON);
+  AssertEquals('VecF64x2Add lane 1', -8.0, LAddResult.d[1], C_EPSILON);
+  AssertEquals('VecF64x2Sub lane 0', -0.75, LSubResult.d[0], C_EPSILON);
+  AssertEquals('VecF64x2Sub lane 1', -9.0, LSubResult.d[1], C_EPSILON);
+  AssertEquals('VecF64x2Mul lane 0', 2.5, LMulResult.d[0], C_EPSILON);
+  AssertEquals('VecF64x2Mul lane 1', -4.25, LMulResult.d[1], C_EPSILON);
+  AssertEquals('VecF64x2Div lane 0', 0.625, LDivResult.d[0], C_EPSILON);
+  AssertEquals('VecF64x2Div lane 1', -17.0, LDivResult.d[1], C_EPSILON);
+end;
+
+procedure TTestCase_FloatFacadeGuards.Test_VecF64x2_CompareReduceSelect_Basic;
+const
+  C_EPSILON = 1e-12;
+var
+  LVecA, LVecB: TVecF64x2;
+  LSelectResult: TVecF64x2;
+  LReduceInput: TVecF64x2;
+  LMaskEq, LMaskLt, LMaskLe, LMaskGt, LMaskGe, LMaskNe: TMask2;
+  LReduceAdd, LReduceMin, LReduceMax, LReduceMul: Double;
+begin
+  LVecA.d[0] := 1.5;
+  LVecA.d[1] := -2.0;
+  LVecB.d[0] := 1.5;
+  LVecB.d[1] := 3.0;
+
+  LMaskEq := fafafa.core.simd.VecF64x2CmpEq(LVecA, LVecB);
+  LMaskLt := fafafa.core.simd.VecF64x2CmpLt(LVecA, LVecB);
+  LMaskLe := fafafa.core.simd.VecF64x2CmpLe(LVecA, LVecB);
+  LMaskGt := fafafa.core.simd.VecF64x2CmpGt(LVecA, LVecB);
+  LMaskGe := fafafa.core.simd.VecF64x2CmpGe(LVecA, LVecB);
+  LMaskNe := fafafa.core.simd.VecF64x2CmpNe(LVecA, LVecB);
+
+  AssertEquals('VecF64x2CmpEq case1 mask', Integer(TMask2($1)), Integer(LMaskEq));
+  AssertEquals('VecF64x2CmpLt case1 mask', Integer(TMask2($2)), Integer(LMaskLt));
+  AssertEquals('VecF64x2CmpLe case1 mask', Integer(TMask2($3)), Integer(LMaskLe));
+  AssertEquals('VecF64x2CmpGt case1 mask', Integer(TMask2($0)), Integer(LMaskGt));
+  AssertEquals('VecF64x2CmpGe case1 mask', Integer(TMask2($1)), Integer(LMaskGe));
+  AssertEquals('VecF64x2CmpNe case1 mask', Integer(TMask2($2)), Integer(LMaskNe));
+
+  LVecA.d[0] := 10.0;
+  LVecA.d[1] := -7.0;
+  LVecB.d[0] := 2.0;
+  LVecB.d[1] := -7.0;
+
+  LMaskGt := fafafa.core.simd.VecF64x2CmpGt(LVecA, LVecB);
+  LMaskGe := fafafa.core.simd.VecF64x2CmpGe(LVecA, LVecB);
+  AssertEquals('VecF64x2CmpGt case2 mask', Integer(TMask2($1)), Integer(LMaskGt));
+  AssertEquals('VecF64x2CmpGe case2 mask', Integer(TMask2($3)), Integer(LMaskGe));
+
+  LVecA.d[0] := 10.0;
+  LVecA.d[1] := 11.0;
+  LVecB.d[0] := 20.0;
+  LVecB.d[1] := 21.0;
+  LSelectResult := fafafa.core.simd.VecF64x2Select(TMask2($1), LVecA, LVecB);
+  AssertEquals('VecF64x2Select lane 0', 10.0, LSelectResult.d[0], C_EPSILON);
+  AssertEquals('VecF64x2Select lane 1', 21.0, LSelectResult.d[1], C_EPSILON);
+
+  LReduceInput.d[0] := 2.0;
+  LReduceInput.d[1] := -3.5;
+  LReduceAdd := fafafa.core.simd.VecF64x2ReduceAdd(LReduceInput);
+  LReduceMin := fafafa.core.simd.VecF64x2ReduceMin(LReduceInput);
+  LReduceMax := fafafa.core.simd.VecF64x2ReduceMax(LReduceInput);
+  LReduceMul := fafafa.core.simd.VecF64x2ReduceMul(LReduceInput);
+
+  AssertEquals('VecF64x2ReduceAdd', -1.5, LReduceAdd, C_EPSILON);
+  AssertEquals('VecF64x2ReduceMin', -3.5, LReduceMin, C_EPSILON);
+  AssertEquals('VecF64x2ReduceMax', 2.0, LReduceMax, C_EPSILON);
+  AssertEquals('VecF64x2ReduceMul', -7.0, LReduceMul, C_EPSILON);
+end;
+
+procedure TTestCase_FloatFacadeGuards.Test_VecF64x2_ExtendedMathAndLoadStore_Basic;
+const
+  C_EPSILON = 1e-12;
+var
+  LVecA, LVecB, LVecC, LInput, LResult: TVecF64x2;
+  LSource, LRoundtrip: array[0..1] of Double;
+begin
+  LVecA.d[0] := 1.5;
+  LVecA.d[1] := -2.0;
+  LVecB := fafafa.core.simd.VecF64x2Splat(2.0);
+  LVecC := fafafa.core.simd.VecF64x2Splat(0.5);
+
+  LResult := fafafa.core.simd.VecF64x2Fma(LVecA, LVecB, LVecC);
+  AssertEquals('VecF64x2Fma lane 0', 3.5, LResult.d[0], C_EPSILON);
+  AssertEquals('VecF64x2Fma lane 1', -3.5, LResult.d[1], C_EPSILON);
+
+  LInput.d[0] := 1.2;
+  LInput.d[1] := -2.8;
+
+  LResult := fafafa.core.simd.VecF64x2Floor(LInput);
+  AssertEquals('VecF64x2Floor lane 0', 1.0, LResult.d[0], C_EPSILON);
+  AssertEquals('VecF64x2Floor lane 1', -3.0, LResult.d[1], C_EPSILON);
+
+  LResult := fafafa.core.simd.VecF64x2Ceil(LInput);
+  AssertEquals('VecF64x2Ceil lane 0', 2.0, LResult.d[0], C_EPSILON);
+  AssertEquals('VecF64x2Ceil lane 1', -2.0, LResult.d[1], C_EPSILON);
+
+  LResult := fafafa.core.simd.VecF64x2Round(LInput);
+  AssertEquals('VecF64x2Round lane 0', 1.0, LResult.d[0], C_EPSILON);
+  AssertEquals('VecF64x2Round lane 1', -3.0, LResult.d[1], C_EPSILON);
+
+  LResult := fafafa.core.simd.VecF64x2Trunc(LInput);
+  AssertEquals('VecF64x2Trunc lane 0', 1.0, LResult.d[0], C_EPSILON);
+  AssertEquals('VecF64x2Trunc lane 1', -2.0, LResult.d[1], C_EPSILON);
+
+  LSource[0] := 0.125;
+  LSource[1] := -9.5;
+  LResult := fafafa.core.simd.VecF64x2Load(@LSource[0]);
+  fafafa.core.simd.VecF64x2Store(@LRoundtrip[0], LResult);
+  AssertEquals('VecF64x2LoadStore lane 0', 0.125, LRoundtrip[0], C_EPSILON);
+  AssertEquals('VecF64x2LoadStore lane 1', -9.5, LRoundtrip[1], C_EPSILON);
+
+  LResult := fafafa.core.simd.VecF64x2Splat(6.5);
+  AssertEquals('VecF64x2Splat lane 0', 6.5, LResult.d[0], C_EPSILON);
+  AssertEquals('VecF64x2Splat lane 1', 6.5, LResult.d[1], C_EPSILON);
+
+  LResult := fafafa.core.simd.VecF64x2Zero;
+  AssertEquals('VecF64x2Zero lane 0', 0.0, LResult.d[0], C_EPSILON);
+  AssertEquals('VecF64x2Zero lane 1', 0.0, LResult.d[1], C_EPSILON);
+end;
+
+procedure TTestCase_FloatFacadeGuards.Test_VecF64x2_RemainingMathAndExtractInsert_Basic;
+const
+  C_EPSILON = 1e-12;
+var
+  LVecA, LVecB: TVecF64x2;
+  LAbsResult, LSqrtResult, LMinResult, LMaxResult, LInserted: TVecF64x2;
+begin
+  LVecA.d[0] := -0.75;
+  LVecA.d[1] := 2.25;
+  LAbsResult := fafafa.core.simd.VecF64x2Abs(LVecA);
+  AssertEquals('VecF64x2Abs lane 0', 0.75, LAbsResult.d[0], C_EPSILON);
+  AssertEquals('VecF64x2Abs lane 1', 2.25, LAbsResult.d[1], C_EPSILON);
+
+  LVecB.d[0] := 0.25;
+  LVecB.d[1] := 12.25;
+  LSqrtResult := fafafa.core.simd.VecF64x2Sqrt(LVecB);
+  AssertEquals('VecF64x2Sqrt lane 0', 0.5, LSqrtResult.d[0], C_EPSILON);
+  AssertEquals('VecF64x2Sqrt lane 1', 3.5, LSqrtResult.d[1], C_EPSILON);
+
+  LVecA.d[0] := 1.0;
+  LVecA.d[1] := 10.0;
+  LVecB.d[0] := 2.0;
+  LVecB.d[1] := 5.0;
+  LMinResult := fafafa.core.simd.VecF64x2Min(LVecA, LVecB);
+  LMaxResult := fafafa.core.simd.VecF64x2Max(LVecA, LVecB);
+  AssertEquals('VecF64x2Min lane 0', 1.0, LMinResult.d[0], C_EPSILON);
+  AssertEquals('VecF64x2Min lane 1', 5.0, LMinResult.d[1], C_EPSILON);
+  AssertEquals('VecF64x2Max lane 0', 2.0, LMaxResult.d[0], C_EPSILON);
+  AssertEquals('VecF64x2Max lane 1', 10.0, LMaxResult.d[1], C_EPSILON);
+
+  AssertEquals('VecF64x2Extract lane 1', LVecA.d[1], fafafa.core.simd.VecF64x2Extract(LVecA, 1), C_EPSILON);
+  LInserted := fafafa.core.simd.VecF64x2Insert(LVecA, 42.125, 0);
+  AssertEquals('VecF64x2Insert lane 0', 42.125, LInserted.d[0], C_EPSILON);
+  AssertEquals('VecF64x2Insert keep lane 1', LVecA.d[1], LInserted.d[1], C_EPSILON);
 end;
 
 procedure TTestCase_FloatFacadeGuards.Test_VecF32x16_Arithmetic_Basic;

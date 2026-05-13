@@ -1520,3 +1520,17 @@
 | 1. 复核 `I32x4` 当前证据层现状     | completed   | 已确认 `src/fafafa.core.simd.pas` 公开暴露 `I32x4` 的 `Add/Sub/Mul/And/Or/Xor/Not/ShiftLeft/ShiftRight/ShiftRightArith/Min/Max/Extract/Insert`；现有 `IntegerFacadeGuards` 只覆盖 `AndNot + compare` |
 | 2. 扩展现有 scalar direct suite     | completed   | 继续扩 `TTestCase_IntegerFacadeGuards`，新增 `Test_VecI32x4_RemainingOps_Basic`，不新增 runner/suite，也不改实现 |
 | 3. Release 验证与提交收口          | completed   | `git diff --check`、Release `TTestCase_IntegerFacadeGuards`、Release `check`、串行 Release `gate` 全绿；没有出现新的测试期望红灯或实现回归 |
+
+## 2026-05-14 F64x2 Direct Float Facade Guard Coverage
+
+### Goal
+
+继续把 `F64x2` 这簇 128-bit 浮点 façade 中仍停留在 rounding/FMA、operator overload 或 parity 旁证层的剩余公开操作补成固定 `sbScalar` 的 direct guard，覆盖 `Add/Sub/Mul/Div`、`compare/reduce/select`、`Abs/Sqrt/Min/Max`、`Load/Store/Splat/Zero`、`Extract/Insert`。
+
+### Phases
+
+| Phase                              | Status    | Notes |
+| ---------------------------------- | --------- | ----- |
+| 1. 复核 `F64x2` 当前证据层现状     | completed | 已确认 `TTestCase_VectorOps` 只固定 `sbScalar` 覆盖 `Floor/Ceil/Round/Trunc/Fma`，`TTestCase_OperatorOverloads` 只覆盖 `+/-/*//`，而 `dispatchapi/direct` 的 `F64x2` 主要是 parity/旁证，不等价于 public façade direct guard |
+| 2. 扩展现有 scalar direct suite     | completed | 继续扩 `TTestCase_FloatFacadeGuards`，新增 4 条 `F64x2` 测试覆盖 arithmetic、compare/reduce/select、extended math/load-store、remaining math/extract-insert，不新增 runner/suite，也不改实现 |
+| 3. Release 验证与提交收口          | completed | `git diff --check`、Release `TTestCase_FloatFacadeGuards`、Release `check`、串行 Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理，待 review + commit |

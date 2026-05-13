@@ -1438,3 +1438,18 @@
 - 但这些都不等价于固定 `ForceBackend(sbScalar)` 的 public façade direct guard；现有 `TTestCase_IntegerFacadeGuards` 在 `I32x4` 上此前只覆盖 `AndNot + compare`。
 - 因而 `I32x4` 的 remaining ops 缺口仍然是证据层，而不是实现层；继续扩现有 `TTestCase_IntegerFacadeGuards` 仍然是最低风险落点，不需要再造 128-bit family-local guard suite。
 - 这次新增 `Test_VecI32x4_RemainingOps_Basic` 后，targeted suite、Release `check`、串行 Release `gate` 全绿，且没有暴露新的测试期望错误；这说明整数 façade 的明显尾巴正在继续收窄，当前收益越来越偏向 contract 证据的最终密实化。
+
+## 2026-05-14 F64x2 Direct Float Facade Guard Findings
+
+- `VecF64x2Add/Sub/Mul/Div`、`VecF64x2CmpEq/Lt/Le/Gt/Ge/Ne`、`VecF64x2ReduceAdd/ReduceMin/ReduceMax/ReduceMul`、`VecF64x2Load/Store/Splat/Zero/Select`、`VecF64x2Abs/Sqrt/Min/Max/Extract/Insert` 都是当前 `src/fafafa.core.simd.pas` 的真实公开 façade surface。
+- `F64x2` 的真假边界此前比整数面更容易被“看起来已经测过了”误导，因为它的证据被拆散在三处：
+  - `TTestCase_VectorOps` 固定 `sbScalar`，但只覆盖 `Floor/Ceil/Round/Trunc/Fma`
+  - `TTestCase_OperatorOverloads` 固定 `sbScalar`，但只覆盖 `+/-/*//`
+  - `dispatchapi.testcase` 与 `direct.testcase` 的 `F64x2` 覆盖很密，但本质上仍是 façade-vs-scalar / façade-vs-direct parity
+- 这些覆盖都不等价于 `TTestCase_FloatFacadeGuards` 这种固定 `ForceBackend(sbScalar)` 的 public façade direct contract guard，因此 `F64x2` 当前真实缺口仍然是证据层，而不是实现层。
+- 继续扩现有 `TTestCase_FloatFacadeGuards` 是最低风险路径：
+  - 不需要新建 128-bit family-local float suite
+  - 不需要修改 `VectorOps` / `OperatorOverloads` 的生命周期和职责
+  - 也不需要碰任何生产实现文件
+- 这次新增 4 条 `F64x2` guard 后，Release targeted suite、`check`、串行 `gate` 全绿，说明这块问题确实是 public façade evidence gap，而不是实现缺陷。
+- 这也意味着浮点 façade 上这一块“看似有很多测试、其实缺 direct guard”的尾巴已经开始被实证收口；后续再继续深扫时，收益会更偏向少量 residual API 的 contract 密实化，而不是发现大块新缺口。
