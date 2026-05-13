@@ -1449,3 +1449,17 @@
 | 1. 复核 wide-float 剩余 API 当前证据层现状 | completed | 已确认这批主要还停留在 `dispatchapi` parity；`vec512types` 不固定 `sbScalar`，也没有完整覆盖 `F64x8` 剩余 math API |
 | 2. 扩展现有 scalar direct suite     | completed | 继续扩 `TTestCase_FloatFacadeGuards`，新增 2 条测试覆盖 `F32x16` 的 `Abs/Sqrt/Min/Max/Extract/Insert` 与 `F64x8` 的 `Abs/Sqrt/Min/Max`，未改 runner 结构 |
 | 3. Release 验证与提交收口           | completed | `git diff --check`、Release `TTestCase_FloatFacadeGuards`、Release `check`、串行 Release `gate` 全绿；待 review + commit |
+
+## 2026-05-13 Wide Integer Remaining Ops Guard Coverage
+
+### Goal
+
+继续把 512-bit 宽整数 façade 中仍主要依赖 parity 旁证的剩余公开操作补成固定 `sbScalar` 的 direct guard，优先覆盖 `I32x16/U32x16/I64x8/U64x8` 的算术、位运算、移位、最值与 `I32x16` 的 `Extract/Insert`。
+
+### Phases
+
+| Phase                              | Status      | Notes |
+| ---------------------------------- | ----------- | ----- |
+| 1. 复核 wide-integer 剩余公开边界  | completed   | 已确认本轮最高价值缺口落在 `I32x16/U32x16/I64x8/U64x8` 的 remaining ops；这些函数在 `src/fafafa.core.simd.pas` 都是公开 façade surface，而不是 backend-only helper |
+| 2. 扩展现有 scalar direct suite     | completed   | 继续扩 `TTestCase_IntegerFacadeGuards`，新增 4 条测试覆盖 `I32x16/U32x16/I64x8/U64x8` 的 remaining public ops，不新增 runner/suite，也不改实现 |
+| 3. 修正测试期望并完成 Release 验证 | completed   | 首轮 targeted run 仅暴露 `VecU32x16Sub` 的 `UInt32` 回绕期望未显式钉型；修正后 `git diff --check`、Release targeted/check/gate 全绿 |

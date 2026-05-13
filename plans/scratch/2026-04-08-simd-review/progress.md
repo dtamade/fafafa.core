@@ -228,6 +228,28 @@
   - `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line`
   - `python3 tests/fafafa.core.simd/check_intrinsics_experimental_status.py --summary-line`
   - 结果：全部通过
+
+- 继续沿宽整数 façade 的 direct-evidence 缺口往下补后，本轮继续扩了 `TTestCase_IntegerFacadeGuards`，没有新增 runner/suite 结构，也没有修改任何生产实现：
+  - `Test_VecI32x16_RemainingOps_Basic`
+  - `Test_VecU32x16_RemainingOps_Basic`
+  - `Test_VecI64x8_RemainingOps_Basic`
+  - `Test_VecU64x8_RemainingOps_Basic`
+- 这 4 条测试把此前主要只有 parity 旁证的公开 façade 操作补成了固定 `sbScalar` 的 direct guard，覆盖：
+  - `I32x16`：`Add/Sub/Mul/And/Or/Xor/Not/ShiftLeft/ShiftRight/ShiftRightArith/Min/Max/Extract/Insert`
+  - `U32x16`：`Add/Sub/Mul/And/Or/Xor/Not/ShiftLeft/ShiftRight/Min/Max`
+  - `I64x8`：`Add/Sub/And/Or/Xor/Not`
+  - `U64x8`：`Add/Sub/And/Or/Xor/Not/ShiftLeft/ShiftRight`
+- 首次 targeted run 抓到 1 个测试层红灯，不是实现回归：
+  - `TTestCase_IntegerFacadeGuards.Test_VecU32x16_RemainingOps_Basic`
+  - `VecU32x16Sub lane 0` 期望没有显式收成 `UInt32`，把 `0 - High(UInt32)` 错按负值解释
+  - 修正为 `UInt32(...)` 后立即转绿
+- 本轮 Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IntegerFacadeGuards`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 本轮收口前已清理 `tests/fafafa.core.simd/__pycache__/`，避免把 Python 缓存目录带进提交。
 - 用户随后明确目标不是“收 `SSE2` 计划”，而是“把整个 simd 模块重构好，不要冗余，正确架构”。
 - 因此本轮记录已从 `SSE2-first` pivot 到 whole-module 视角：
   - `SSE2` 保留为高债务试点 family

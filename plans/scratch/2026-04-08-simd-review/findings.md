@@ -1365,3 +1365,21 @@
   - `vec512types` 也没有固定 `sbScalar`，而且没有覆盖 `F64x8` 这组剩余 math API
 - 因而继续扩现有 `TTestCase_FloatFacadeGuards` 仍是最低风险路径，不需要再改 `vec512types` 生命周期，也不需要新建 family-local suite。
 - 这次直接把 wide-float 剩余公开 API 收到同一条 scalar-forced suite 后，`F32x16/F64x8` 的 stable façade direct evidence 已经明显完整得多；当前若继续深扫，更值得转去看 wide-integer 的 `Add/Sub/bitwise/shift/minmax` 是否仍只剩 parity 旁证。
+
+## 2026-05-13 Wide Integer Remaining Ops Guard Findings
+
+- 继续从“公开 façade 只有 parity 旁证、还没有固定 `sbScalar` 的 direct evidence”往下扫后，当前最值钱的一批缺口落在：
+  - `VecI32x16Add/Sub/Mul/And/Or/Xor/Not/ShiftLeft/ShiftRight/ShiftRightArith/Min/Max/Extract/Insert`
+  - `VecU32x16Add/Sub/Mul/And/Or/Xor/Not/ShiftLeft/ShiftRight/Min/Max`
+  - `VecI64x8Add/Sub/And/Or/Xor/Not`
+  - `VecU64x8Add/Sub/And/Or/Xor/Not/ShiftLeft/ShiftRight`
+- 这批在本轮之前并不是“没有测试”，而是主要停留在两类旁证：
+  - `dispatchapi.testcase` 的 façade-vs-scalar parity
+  - `direct.testcase` 的 façade-vs-direct 多 backend parity
+- 这两类旁证都不等价于 `TTestCase_IntegerFacadeGuards` 这种 `ForceBackend(sbScalar)` 的 public façade direct guard，因此继续把它们收进现有 suite 是更低风险的收口方式，不需要改 runner，也不需要碰实现文件。
+- 这次首次 targeted run 抓到的唯一红灯也再次证明当前问题是证据层而不是实现层：
+  - `VecU32x16Sub` 在 lane0 上真实 public contract 是 `UInt32` 回绕，`0 - High(UInt32)` 应该得到 `1`
+  - 失败原因只是测试期望没有显式钉回 `UInt32`，被更宽的整数解释成了负值
+  - 把期望显式收成 `UInt32(...)` 后，targeted suite、Release `check`、串行 Release `gate` 全绿
+- 因而这批结论很干净：当前补的是 stable public façade 的 scalar direct evidence，不是 SIMD 实现修复。
+- 本轮收完后，512-bit 宽整数里更像“仍只剩 parity 旁证”的残余已经进一步收窄；下一批如果继续深扫，更值得优先看 `I16x32/I8x64/U8x64` 的非 compare/AndNot 公开操作是否要补同类 direct guard。
