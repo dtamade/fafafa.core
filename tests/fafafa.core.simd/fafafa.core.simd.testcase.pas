@@ -624,6 +624,9 @@ type
 
   // Phase 4: SIMD 数学函数测试
   TTestCase_MathFunctions = class(TTestCase)
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
   published
     // 三角函数
     procedure Test_VecF32x4_Sin;
@@ -14254,6 +14257,18 @@ begin
 end;
 
 { TTestCase_MathFunctions }
+
+procedure TTestCase_MathFunctions.SetUp;
+begin
+  inherited SetUp;
+  ForceBackend(sbScalar);
+end;
+
+procedure TTestCase_MathFunctions.TearDown;
+begin
+  ResetBackendSelection;
+  inherited TearDown;
+end;
 
 procedure TTestCase_MathFunctions.Test_VecF32x4_Sin;
 const

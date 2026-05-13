@@ -1524,3 +1524,26 @@
   - 让整个 suite 自动升级成 fixed-`sbScalar` 的 façade direct evidence
 - 这批 Release `TTestCase_GatherScatter`、Release `check`、串行 Release `gate` 最终都为绿，说明当前补的是 public façade evidence gap，而不是 gather/scatter 实现缺陷。
 - 这也进一步说明：当前 `simd` 审查的高价值剩余问题，越来越集中在“现有 suite 还没进入 fixed-`sbScalar` contract 语义”这一类，而不是重新暴露出新的实现 bug；下一批若继续深扫，`TTestCase_MathFunctions` 会是更自然的候选。
+
+## 2026-05-14 Math Functions Facade Scalarization Findings
+
+- `VecF32x4Sin/Cos/SinCos/Tan/Exp/Exp2/Log/Log2/Log10/Pow/Asin/Acos/Atan/Atan2` 都是当前 `src/fafafa.core.simd.pas` 的真实公开 façade surface，不是 backend-only helper。
+- `TTestCase_MathFunctions` 在本轮之前其实已经有很完整的覆盖面：
+  - 三角：`Sin/Cos/SinCos/Tan`
+  - 指数/对数：`Exp/Exp2/Log/Log2/Log10/Pow`
+  - 反三角：`Asin/Acos/Atan/Atan2`
+- 但它和前两批 `ShuffleSWizzle`、`GatherScatter` 的问题本质一致：
+  - 覆盖面存在
+  - 调用的确是公开 façade
+  - 可 suite 本身没有 `ForceBackend(sbScalar)` / `ResetBackendSelection`
+  - 因而它更像普通行为回归，不等价于 scalar 真源的 façade direct guard
+- 复核 `MathFunctions` 的 testcase 形状后，没有发现任何一条测试显式依赖“自动 backend 选择”语义：
+  - 它们全部只断言 math façade 的公开 contract 结果和误差容忍
+  - 没有断言当前 backend 文本、自动降级、跨 backend 结果差异或向量汇编路径
+  - 因此 suite-level scalarization 的风险很低
+- 这批最优雅的收口方式同样不是复制 testcase 到新 suite，而是直接 scalarize 现有 suite：
+  - 给 `TTestCase_MathFunctions` 增加 `SetUp/TearDown`
+  - 保留现有 testcase 不动
+  - 让整个 suite 自动升级成 fixed-`sbScalar` 的 façade direct evidence
+- 这批 Release `TTestCase_MathFunctions`、Release `check`、串行 Release `gate` 最终都为绿，说明当前补的是 public math façade evidence gap，而不是 math 实现缺陷。
+- 这也进一步说明：当前 `simd` 审查里最有价值的残余，仍然优先是“现有公开 façade suite 还没进入 fixed-`sbScalar` contract 语义”这一类；下一批若继续深扫，`TTestCase_AdvancedAlgorithms` 会是更自然的候选。

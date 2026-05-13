@@ -1590,3 +1590,17 @@
 | 1. 复核 `Gather/Scatter` 当前证据层现状 | completed | 已确认 `TTestCase_GatherScatter` 现有覆盖面已经覆盖 `F32x4/I32x4` 的 gather/scatter 与零索引/大跨步边界，但 suite 自身没有 `SetUp/TearDown`，而 `dispatchapi/direct` 也没有把这簇补成 fixed-`sbScalar` direct guard |
 | 2. 收敛为 scalar direct suite      | completed | 未新开 runner，也未复制 testcase；直接给 `TTestCase_GatherScatter` 增加 `SetUp/TearDown`，统一固定 `ForceBackend(sbScalar)` / `ResetBackendSelection`，把现有 gather/scatter 测试整体升级成 façade direct evidence |
 | 3. Release 验证与提交收口          | completed | `git diff --check`、Release `TTestCase_GatherScatter`、Release `check`、串行 Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 Math Functions Facade Scalarization
+
+### Goal
+
+继续把 `MathFunctions` 这一簇公开 façade 从“普通行为测试”收成固定 `sbScalar` 的 direct guard，优先覆盖 `VecF32x4` 的三角、指数/对数与反三角函数族。
+
+### Phases
+
+| Phase                              | Status    | Notes |
+| ---------------------------------- | --------- | ----- |
+| 1. 复核 `MathFunctions` 当前证据层现状 | completed | 已确认 `TTestCase_MathFunctions` 现有覆盖面已包含 `VecF32x4Sin/Cos/SinCos/Tan/Exp/Exp2/Log/Log2/Log10/Pow/Asin/Acos/Atan/Atan2`，但 suite 自身没有 `SetUp/TearDown`，而其余测试面对这簇 mainly 仍是 edgecase / parity 旁证 |
+| 2. 收敛为 scalar direct suite      | completed | 未新开 runner，也未复制 testcase；直接给 `TTestCase_MathFunctions` 增加 `SetUp/TearDown`，统一固定 `ForceBackend(sbScalar)` / `ResetBackendSelection`，把现有 math façade 测试整体升级成 direct evidence |
+| 3. Release 验证与提交收口          | completed | `git diff --check`、Release `TTestCase_MathFunctions`、Release `check`、串行 Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
