@@ -1313,3 +1313,13 @@
 - `DotF64x2/F64x4` 后来被 release 测试证明不能直接 scalar forward，已回退到本地实现；最终只保留 F32 dot/cross/length 的 5 个 forwarder。
 - 这次没有碰 reduction、float min/max、rounding/trunc、load/store、asm path 或 `riscvv.register.inc` 的 slot ownership，边界仍然干净。
 - `check_nonx86_helper_semantics.py` 的护栏已经更新到 `checks=459 status=ok`，release `check` 和 `gate` 也都通过了。
+
+## 2026-05-13 I64x8 Facade Direct Guard Findings
+
+- `VecI64x8CmpEq/Lt/Gt/Le/Ge/Ne` 是当前 `src/fafafa.core.simd.pas` 的真实公开 façade compare surface，不是 family-local helper。
+- 这组函数在本轮之前已经有两类旁证：
+  - `tests/fafafa.core.simd/fafafa.core.simd.vec512types.testcase.pas` 的 compare mask 测试；
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 的 dispatch/facade parity。
+- 但 `vec512types` 没有 `ForceBackend(sbScalar)`，也没有 `SetUp/TearDown` 生命周期控制，因此它并不等价于 `TTestCase_IntegerFacadeGuards` 这种 scalar-forced direct guard。
+- 所以 `I64x8` 当前缺的仍然是证据层，而不是实现层；继续扩现有 `TTestCase_IntegerFacadeGuards` 比新增 `veci64x8` family-local suite 更低风险，也不会碰 runner manifest。
+- 本轮还再次证明了一个操作纪律：`check` 和 `gate` 在这个仓库里必须串行跑；共享输出目录下并行执行会出现 build 阶段 `rc=2` 的假红，不能误判为代码回归。

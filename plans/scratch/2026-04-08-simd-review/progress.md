@@ -1332,6 +1332,23 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 
+## 2026-05-13 I64x8 Facade Direct Guard Coverage
+
+- 继续沿 wide integer façade 尾巴复核后，确认 `VecI64x8CmpEq/CmpLt/CmpGt/CmpLe/CmpGe/CmpNe` 仍是一个真实证据缺口：
+  - `src/fafafa.core.simd.pas` 已公开暴露这组 `I64x8` compare；
+  - 现有可见覆盖主要来自 `vec512types` 的 compare mask 测试和 `dispatchapi` parity；
+  - 但 `vec512types` 没有 `ForceBackend/ResetBackendSelection`，也没有 `SetUp/TearDown`，因此不等价于 scalar-forced direct guard。
+- 本轮继续复用 `TTestCase_IntegerFacadeGuards`，只新增 1 条 `I64x8` signed compare mask 测试，没有动实现、runner 或 checker。
+- 定向 release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IntegerFacadeGuards`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - 结果：全部通过
+- 中途误把 `check` 和 `gate` 并行跑了一次，重现了这个仓库已知的共享输出目录假红：
+  - 并行 `gate` 在 build 阶段 `rc=2`
+  - 改回串行后 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 最终为 `[GATE] OK`
+  - 说明这次仍然只是测试证据补强，不是实现或 runner 回归
+
 ## 2026-05-13 Mid/Wide Integer Facade Guard Coverage
 
 - 继续深扫后，确认下一簇真实空档不是“没有 parity”，而是“只有 `dispatchapi` / multi-backend 旁证，没有强制 `sbScalar` 的 façade direct guard`：

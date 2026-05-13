@@ -1379,3 +1379,17 @@
 | 1. 复核 `U64x4` 当前证据层现状     | completed   | 已确认 `dispatchapi/direct` 只有 parity 或 expected-mask 旁证，仍缺 scalar-forced direct guard |
 | 2. 扩展现有 scalar-forced direct suite | completed | 继续扩 `TTestCase_IntegerFacadeGuards`，新增 `U64x4` unsigned compare mask 测试，不新增 runner 结构 |
 | 3. Release 验证与提交收口          | completed   | `git diff --check`、Release `TTestCase_IntegerFacadeGuards`、Release `check`、Release `gate` 全绿；待 review + commit |
+
+## 2026-05-13 I64x8 Facade Direct Guard Coverage
+
+### Goal
+
+继续把宽整数 façade 剩余的“只有 parity/普通 direct 旁证”收窄到固定 `sbScalar` 的统一护栏：为 `VecI64x8CmpEq/Lt/Gt/Le/Ge/Ne` 补一条 scalar-forced direct guard。
+
+### Phases
+
+| Phase                              | Status      | Notes |
+| ---------------------------------- | ----------- | ----- |
+| 1. 复核 `I64x8` 当前证据层现状     | completed   | 已确认 `src/fafafa.core.simd.pas` 公开暴露 `VecI64x8Cmp*`；现有 `vec512types/dispatchapi` 只提供普通 direct/parity，`vec512types` 本身不强制 `sbScalar` |
+| 2. 扩展现有 scalar-forced direct suite | completed | 继续扩 `TTestCase_IntegerFacadeGuards`，新增 `I64x8` signed compare mask 测试，不新增 runner 结构 |
+| 3. Release 验证与提交收口          | completed   | `git diff --check`、Release `TTestCase_IntegerFacadeGuards`、Release `check`、串行 Release `gate` 全绿；一次并行 `gate` build rc=2 已确认为共享输出目录假红 |

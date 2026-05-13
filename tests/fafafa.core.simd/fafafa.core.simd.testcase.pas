@@ -347,6 +347,7 @@ type
     procedure Test_VecU32x16_AndNot_Basic;
     procedure Test_VecU32x16_Compare_Unsigned;
     procedure Test_VecU64x4_Compare_Unsigned;
+    procedure Test_VecI64x8_Compare_Basic;
     procedure Test_VecU64x8_Compare_Unsigned;
     procedure Test_VecI16x32_AndNot_Basic;
     procedure Test_VecI8x64_AndNot_Basic;
@@ -10252,6 +10253,48 @@ begin
   AssertEquals('VecU64x4CmpLe mask', Integer(TMask4($B)), Integer(LMaskLe));
   AssertEquals('VecU64x4CmpGe mask', Integer(TMask4($D)), Integer(LMaskGe));
   AssertEquals('VecU64x4CmpNe mask', Integer(TMask4($6)), Integer(LMaskNe));
+end;
+
+procedure TTestCase_IntegerFacadeGuards.Test_VecI64x8_Compare_Basic;
+var
+  LVecA, LVecB: TVecI64x8;
+  LMaskEq, LMaskLt, LMaskGt, LMaskLe, LMaskGe, LMaskNe: TMask8;
+  LIndex: Integer;
+begin
+  for LIndex := 0 to High(LVecA.i) do
+  begin
+    case LIndex mod 3 of
+      0:
+        begin
+          LVecA.i[LIndex] := Int64(LIndex) * 17;
+          LVecB.i[LIndex] := LVecA.i[LIndex];
+        end;
+      1:
+        begin
+          LVecA.i[LIndex] := -1000 + LIndex;
+          LVecB.i[LIndex] := LVecA.i[LIndex] + 5;
+        end;
+    else
+      begin
+        LVecA.i[LIndex] := 1000 + LIndex;
+        LVecB.i[LIndex] := LVecA.i[LIndex] - 7;
+      end;
+    end;
+  end;
+
+  LMaskEq := VecI64x8CmpEq(LVecA, LVecB);
+  LMaskLt := VecI64x8CmpLt(LVecA, LVecB);
+  LMaskGt := VecI64x8CmpGt(LVecA, LVecB);
+  LMaskLe := VecI64x8CmpLe(LVecA, LVecB);
+  LMaskGe := VecI64x8CmpGe(LVecA, LVecB);
+  LMaskNe := VecI64x8CmpNe(LVecA, LVecB);
+
+  AssertEquals('VecI64x8CmpEq mask', Integer(TMask8($49)), Integer(LMaskEq));
+  AssertEquals('VecI64x8CmpLt mask', Integer(TMask8($92)), Integer(LMaskLt));
+  AssertEquals('VecI64x8CmpGt mask', Integer(TMask8($24)), Integer(LMaskGt));
+  AssertEquals('VecI64x8CmpLe mask', Integer(TMask8($DB)), Integer(LMaskLe));
+  AssertEquals('VecI64x8CmpGe mask', Integer(TMask8($6D)), Integer(LMaskGe));
+  AssertEquals('VecI64x8CmpNe mask', Integer(TMask8($B6)), Integer(LMaskNe));
 end;
 
 procedure TTestCase_IntegerFacadeGuards.Test_VecU64x8_Compare_Unsigned;
