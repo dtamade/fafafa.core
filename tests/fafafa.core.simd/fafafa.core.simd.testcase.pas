@@ -502,6 +502,9 @@ type
 
   // Phase 1.4: 类型转换函数测试
   TTestCase_TypeConversion = class(TTestCase)
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
   published
     // IntoBits / FromBits (F32x4 <-> I32x4)
     procedure Test_VecF32x4_IntoBits;
@@ -13228,6 +13231,18 @@ begin
 end;
 
 { TTestCase_TypeConversion }
+
+procedure TTestCase_TypeConversion.SetUp;
+begin
+  inherited SetUp;
+  ForceBackend(sbScalar);
+end;
+
+procedure TTestCase_TypeConversion.TearDown;
+begin
+  ResetBackendSelection;
+  inherited TearDown;
+end;
 
 procedure TTestCase_TypeConversion.Test_VecF32x4_IntoBits;
 var

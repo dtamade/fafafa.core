@@ -1597,3 +1597,26 @@
   - 让整个 suite 自动升级成 fixed-`sbScalar` 的 façade direct evidence
 - 这批 Release `TTestCase_Global`、Release `check`、串行 Release `gate` 最终都为绿，说明当前补的是 public global façade evidence gap，而不是全局 helper 实现缺陷。
 - 继续深扫剩余 public suites 后，下一块更自然的候选已经收敛到 `TTestCase_TypeConversion`：它同样没有 `SetUp/TearDown`，而且覆盖的是公开转换 façade 本身；相比之下 `LargeData` 更像默认 backend 集成/边界面，优先级反而没它高。
+
+## 2026-05-14 Type Conversion Facade Scalarization Findings
+
+- `VecF32x4IntoBits/VecI32x4FromBitsF32`、`VecF64x2IntoBits/VecI64x2FromBitsF64`、`VecF32x4CastToI32x4/VecI32x4CastToF32x4`、`VecF64x2CastToI64x2/VecI64x2CastToF64x2`、`VecI16x8WidenLoI32x4/VecI16x8WidenHiI32x4/VecI32x4NarrowToI16x8`、`VecF32x4ToF64x2Lo/VecF64x2ToF32x4` 都是当前 `src/fafafa.core.simd.pas` 的真实公开类型转换 façade，不是 backend-only helper。
+- `TTestCase_TypeConversion` 在本轮之前其实已经有很完整的覆盖面：
+  - 位级重解释：`IntoBits/FromBits`
+  - 元素级转换：`CastToI32x4/CastToF32x4/CastToI64x2/CastToF64x2`
+  - 宽窄变换：`WidenLo/WidenHi/Narrow`
+  - 精度转换：`F32x4ToF64x2Lo/F64x2ToF32x4`
+- 但它和前几批 suite-level scalarization 的问题本质一致：
+  - 覆盖面存在
+  - 调用的确是公开 façade
+  - 可 suite 本身没有 `ForceBackend(sbScalar)` / `ResetBackendSelection`
+  - 因而它更像普通行为回归，不等价于 scalar 真源的 façade direct guard
+- 复核 `TypeConversion` 的 testcase 形状后，没有发现任何一条测试显式依赖“自动 backend 选择”语义：
+  - 它们全部只断言转换 façade 的公开 contract 结果
+  - 没有断言当前 backend 文本、自动降级、跨 backend 差异或平台特化路径
+  - 因此 suite-level scalarization 的风险很低
+- 这批最优雅的收口方式同样不是复制 testcase 到新 suite，而是直接 scalarize 现有 suite：
+  - 给 `TTestCase_TypeConversion` 增加 `SetUp/TearDown`
+  - 保留现有 testcase 不动
+  - 让整个 suite 自动升级成 fixed-`sbScalar` 的 façade direct evidence
+- 这批 Release `TTestCase_TypeConversion`、Release `check`、串行 Release `gate` 最终都为绿，说明当前补的是 public type-conversion façade evidence gap，而不是转换实现缺陷。
