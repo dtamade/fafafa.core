@@ -1581,3 +1581,23 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+## 2026-05-14 I32x4 Remaining Ops Guard Coverage
+
+- 继续深扫 128-bit 整数 façade 后，`I32x4` 成了当前最自然的下一块尾部缺口：
+  - `Add/Sub/Mul/And/Or/Xor/Not/ShiftLeft/ShiftRight/ShiftRightArith/Min/Max/Extract/Insert`
+- 这簇在本轮之前并不是“没有测试”，而是主要停留在：
+  - `dispatchapi.testcase` 的 façade-vs-scalar parity
+  - 以及零散的 non-scalar/main-suite 行为测试
+- 现有 `TTestCase_IntegerFacadeGuards` 在 `I32x4` 上此前只覆盖：
+  - `AndNot + CmpEq/Lt/Gt/Le/Ge/Ne`
+- 因而这批缺口仍然是证据层，不是实现层；本轮继续复用 `TTestCase_IntegerFacadeGuards`，没有改 runner，也没有碰任何生产实现：
+  - 新增 `Test_VecI32x4_RemainingOps_Basic`
+- 这次 targeted suite 依旧没有打出测试期望 bug，也没有暴露实现回归，说明 `I32x4` 这批也是纯 public façade scalar-direct evidence 收口。
+- Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IntegerFacadeGuards`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

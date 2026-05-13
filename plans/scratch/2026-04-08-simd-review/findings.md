@@ -1428,3 +1428,13 @@
   - 但 `TTestCase_IntegerFacadeGuards` 之前只覆盖 `AndNot + compare`
 - 因而这三簇的剩余缺口依旧是证据层，不是实现层；继续扩现有 `TTestCase_IntegerFacadeGuards` 仍然是最低风险的统一收口方式。
 - 这次新增 3 条 remaining-ops guard 后，targeted suite、Release `check`、串行 Release `gate` 全绿，且没有暴露新的测试期望错误；这说明当前整数 façade 的主线问题正在从“大块缺口”进一步转向“少量尾部 contract 的证据密实化”。
+
+## 2026-05-14 I32x4 Remaining Ops Guard Findings
+
+- `VecI32x4Add/Sub/Mul/And/Or/Xor/Not/ShiftLeft/ShiftRight/ShiftRightArith/Min/Max/Extract/Insert` 都是当前 `src/fafafa.core.simd.pas` 的真实公开 façade surface。
+- 这簇在本轮之前已有的显性覆盖主要停留在：
+  - `dispatchapi.testcase` 的 façade-vs-scalar parity
+  - 若干普通行为测试 / AVX2 consistency 测试
+- 但这些都不等价于固定 `ForceBackend(sbScalar)` 的 public façade direct guard；现有 `TTestCase_IntegerFacadeGuards` 在 `I32x4` 上此前只覆盖 `AndNot + compare`。
+- 因而 `I32x4` 的 remaining ops 缺口仍然是证据层，而不是实现层；继续扩现有 `TTestCase_IntegerFacadeGuards` 仍然是最低风险落点，不需要再造 128-bit family-local guard suite。
+- 这次新增 `Test_VecI32x4_RemainingOps_Basic` 后，targeted suite、Release `check`、串行 Release `gate` 全绿，且没有暴露新的测试期望错误；这说明整数 façade 的明显尾巴正在继续收窄，当前收益越来越偏向 contract 证据的最终密实化。
