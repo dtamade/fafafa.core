@@ -302,6 +302,7 @@ type
     procedure Test_VecF32x4_ReduceMax;
     procedure Test_VecF32x4_Splat;
     procedure Test_VecF32x4_LoadStore;
+    procedure Test_VecF32x4_UtilityFacade_Basic;
     procedure Test_VecF32x4_Compare;
     // 扩展数学函数测试
     procedure Test_VecF32x4_Fma;
@@ -9462,6 +9463,67 @@ begin
   AssertEquals('dst[1] should match src[1]', src[1], dst[1], 0.0001);
   AssertEquals('dst[2] should match src[2]', src[2], dst[2], 0.0001);
   AssertEquals('dst[3] should match src[3]', src[3], dst[3], 0.0001);
+end;
+
+procedure TTestCase_VectorOps.Test_VecF32x4_UtilityFacade_Basic;
+var
+  LAligned: Pointer;
+  LAlignedF32: PSingle;
+  LVecA, LVecB, LLoaded, LSelected, LInserted, LZero: TVecF32x4;
+  LMask4: TMask4;
+begin
+  LZero := VecF32x4Zero;
+  AssertEquals('VecF32x4Zero lane 0', 0.0, LZero.f[0], 0.0);
+  AssertEquals('VecF32x4Zero lane 1', 0.0, LZero.f[1], 0.0);
+  AssertEquals('VecF32x4Zero lane 2', 0.0, LZero.f[2], 0.0);
+  AssertEquals('VecF32x4Zero lane 3', 0.0, LZero.f[3], 0.0);
+
+  LVecA.f[0] := 1.0;
+  LVecA.f[1] := 2.0;
+  LVecA.f[2] := 3.0;
+  LVecA.f[3] := 4.0;
+  LVecB.f[0] := 9.0;
+  LVecB.f[1] := 8.0;
+  LVecB.f[2] := 7.0;
+  LVecB.f[3] := 6.0;
+  LMask4 := TMask4($5); // lane0/2 -> a, lane1/3 -> b
+
+  LSelected := VecF32x4Select(LMask4, LVecA, LVecB);
+  AssertEquals('VecF32x4Select lane 0', 1.0, LSelected.f[0], 0.0001);
+  AssertEquals('VecF32x4Select lane 1', 8.0, LSelected.f[1], 0.0001);
+  AssertEquals('VecF32x4Select lane 2', 3.0, LSelected.f[2], 0.0001);
+  AssertEquals('VecF32x4Select lane 3', 6.0, LSelected.f[3], 0.0001);
+
+  AssertEquals('VecF32x4Extract lane 2', 3.0, VecF32x4Extract(LVecA, 2), 0.0001);
+  LInserted := VecF32x4Insert(LVecA, 42.5, 1);
+  AssertEquals('VecF32x4Insert lane 1', 42.5, LInserted.f[1], 0.0001);
+  AssertEquals('VecF32x4Insert keep lane 2', 3.0, LInserted.f[2], 0.0001);
+
+  LAligned := fafafa.core.simd.AllocateAligned(SizeOf(Single) * 8, 32);
+  AssertTrue('AllocateAligned should return non-nil', LAligned <> nil);
+  try
+    AssertTrue('AllocateAligned should return aligned pointer',
+      fafafa.core.simd.IsPointerAligned(LAligned, 32));
+    LAlignedF32 := PSingle(LAligned);
+    LAlignedF32[0] := 10.0;
+    LAlignedF32[1] := 20.0;
+    LAlignedF32[2] := 30.0;
+    LAlignedF32[3] := 40.0;
+
+    LLoaded := VecF32x4LoadAligned(LAlignedF32);
+    AssertEquals('VecF32x4LoadAligned lane 0', 10.0, LLoaded.f[0], 0.0001);
+    AssertEquals('VecF32x4LoadAligned lane 1', 20.0, LLoaded.f[1], 0.0001);
+    AssertEquals('VecF32x4LoadAligned lane 2', 30.0, LLoaded.f[2], 0.0001);
+    AssertEquals('VecF32x4LoadAligned lane 3', 40.0, LLoaded.f[3], 0.0001);
+
+    VecF32x4StoreAligned(LAlignedF32, LSelected);
+    AssertEquals('VecF32x4StoreAligned lane 0', 1.0, LAlignedF32[0], 0.0001);
+    AssertEquals('VecF32x4StoreAligned lane 1', 8.0, LAlignedF32[1], 0.0001);
+    AssertEquals('VecF32x4StoreAligned lane 2', 3.0, LAlignedF32[2], 0.0001);
+    AssertEquals('VecF32x4StoreAligned lane 3', 6.0, LAlignedF32[3], 0.0001);
+  finally
+    fafafa.core.simd.FreeAligned(LAligned);
+  end;
 end;
 
 procedure TTestCase_VectorOps.Test_VecF32x4_Compare;

@@ -1468,3 +1468,18 @@
   - 在 `vecf32x8/vecf64x4` 已固定 `sbScalar` 的 family-local suite 里各补 1 条 public utility façade 测试
 - 这批 targeted suite、Release `check`、串行 Release `gate` 最终都为绿，说明这次判断是准的：补的是 `F64x2/F32x8/F64x4` float utility public façade 的 direct-evidence 尾巴，不是实现层修复。
 - 这也让 256-bit 浮点 façade 的剩余问题进一步从“真假混杂的证据层”收缩成少量 residual contract 密实化，而不是大块缺实现。
+
+## 2026-05-14 F32x4 Utility Facade Tail Findings
+
+- `F32x4` 这族之前也容易被误判成“已经够了”，因为 `TTestCase_VectorOps` 本身就固定 `ForceBackend(sbScalar)`，而且覆盖了不少直接调用；但复核后发现它的 utility 面仍有一块空档：
+  - `Zero/LoadAligned/StoreAligned/Select` 主要还停留在 `dispatchapi.testcase` 的 façade-vs-scalar parity
+  - `Extract/Insert` 则主要落在 `ShuffleSWizzle` 和 `EdgeCases`，不等价于同一条 scalar-direct public façade contract 证据
+- 这和 `F32x8/F64x4` 的问题很像，但落点更轻：
+  - 不需要新建 `family-local scalar suite`
+  - 也不需要再开新的 `FloatFacadeGuards` 分支
+  - 因为 `TTestCase_VectorOps` 自己已经具备 `SetUp/TearDown -> ForceBackend(sbScalar)/ResetBackendSelection` 的生命周期
+- 因而这批最合理的收口方式就是继续扩 `TTestCase_VectorOps`：
+  - 新增 `Test_VecF32x4_UtilityFacade_Basic`
+  - 在一条测试里把 `VecF32x4Zero`、`VecF32x4LoadAligned/StoreAligned`、`VecF32x4Select`、`VecF32x4Extract/Insert` 一起钉住
+- 这批 Release `TTestCase_VectorOps`、Release `check`、串行 Release `gate` 最终都为绿，说明判断同样是准的：补的是 `F32x4` utility public façade 的 scalar-direct evidence，不是实现层修复。
+- 这也说明 128-bit 浮点 façade 的剩余问题继续朝“少量 utility/contract 尾巴密实化”收缩，而不是重新暴露出新的大块缺实现。

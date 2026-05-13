@@ -1583,6 +1583,26 @@
   - 结果：全部通过
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
 
+## 2026-05-14 F32x4 Utility Facade Tail Guard Coverage
+
+- 继续顺着浮点 façade 往下扫后，`F32x4` 暴露出另一种“看起来测得很多、其实 utility 尾巴还没收实”的边界：
+  - `TTestCase_VectorOps` 已固定 `sbScalar`，但只覆盖基础算术、基础 math、`Load/Store/Splat/Compare/Dot/Length/Normalize`
+  - `Zero/LoadAligned/StoreAligned/Select` 仍主要停留在 `dispatchapi.testcase` 的 façade parity
+  - `Extract/Insert` 则主要停留在 `ShuffleSWizzle` 与 `EdgeCases` 这种非 scalar-direct 测试面
+- 这批缺口依旧是证据层，不是实现层；这次不需要再开新 suite，直接复用已经固定 `sbScalar` 的 `TTestCase_VectorOps` 最稳：
+  - 新增 `Test_VecF32x4_UtilityFacade_Basic`
+  - 覆盖 `VecF32x4Zero`
+  - 覆盖 `VecF32x4LoadAligned/StoreAligned`
+  - 覆盖 `VecF32x4Select`
+  - 覆盖 `VecF32x4Extract/Insert`
+- Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_VectorOps`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
 ## 2026-05-13 I32x8 I64x2 U64x2 Remaining Ops Guard Coverage
 
 - 继续从“公开 façade 还没被固定 `sbScalar` 的 direct guard 钉住”往下扫后，这一批最值钱的缺口落在：
