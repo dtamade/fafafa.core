@@ -1603,6 +1603,29 @@
   - 结果：全部通过
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
 
+## 2026-05-14 Shuffle Swizzle Facade Scalarization
+
+- 继续沿 `F32x4` utility public surface 往下扫后，发现下一块高价值尾巴不是单个 API，而是整簇 `shuffle/swizzle`：
+  - `VecF32x4Shuffle/Shuffle2/Blend`
+  - `VecF64x2Blend`
+  - `VecI32x4Shuffle/Blend`
+  - 以及同一 suite 里的 `Unpack/Broadcast/Reverse/Rotate/Insert/Extract`
+- 这批之前最大的问题不是“没测”，而是“测了但没被 fixed-`sbScalar` 钉成 façade direct contract”：
+  - `TTestCase_ShuffleSWizzle` 自己覆盖已经很全
+  - 但 suite 没有 `SetUp/TearDown`
+  - `dispatchapi/direct` 也没有把这簇补成同等级的 scalar-direct 证据
+- 因而这批最小、最优雅的收口方式不是再造新测试，而是把现有 suite 自身 scalarize：
+  - 给 `TTestCase_ShuffleSWizzle` 增加 `SetUp/TearDown`
+  - 在 `SetUp` 固定 `ForceBackend(sbScalar)`
+  - 在 `TearDown` 调 `ResetBackendSelection`
+- Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_ShuffleSWizzle`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
 ## 2026-05-13 I32x8 I64x2 U64x2 Remaining Ops Guard Coverage
 
 - 继续从“公开 façade 还没被固定 `sbScalar` 的 direct guard 钉住”往下扫后，这一批最值钱的缺口落在：

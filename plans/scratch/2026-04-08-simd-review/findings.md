@@ -1483,3 +1483,21 @@
   - 在一条测试里把 `VecF32x4Zero`、`VecF32x4LoadAligned/StoreAligned`、`VecF32x4Select`、`VecF32x4Extract/Insert` 一起钉住
 - 这批 Release `TTestCase_VectorOps`、Release `check`、串行 Release `gate` 最终都为绿，说明判断同样是准的：补的是 `F32x4` utility public façade 的 scalar-direct evidence，不是实现层修复。
 - 这也说明 128-bit 浮点 façade 的剩余问题继续朝“少量 utility/contract 尾巴密实化”收缩，而不是重新暴露出新的大块缺实现。
+
+## 2026-05-14 Shuffle Swizzle Facade Scalarization Findings
+
+- `shuffle/swizzle` 这簇之前同样容易被误判成“已经够了”，因为 `TTestCase_ShuffleSWizzle` 自身已经覆盖了很多公开 façade：
+  - `F32x4`：`Shuffle/Shuffle2/Blend/Unpack/Broadcast/Reverse/Rotate/Insert/Extract`
+  - `F64x2`：`Blend`
+  - `I32x4`：`Shuffle/Blend/Unpack/Broadcast/Reverse/Rotate/Insert/Extract`
+- 但复核后发现它和前几批 family-local suite 的问题本质一致：
+  - 覆盖面存在
+  - 公开 façade 也是真的 public surface
+  - 可 suite 本身没有 `ForceBackend(sbScalar)` / `ResetBackendSelection`
+  - 因而它更像普通行为回归，不等价于 scalar 真源的 façade direct guard
+- 这批最优雅的收口方式不是复制这些 testcase 到新 suite，而是直接 scalarize 现有 suite：
+  - 给 `TTestCase_ShuffleSWizzle` 增加 `SetUp/TearDown`
+  - 保留现有 testcase 不动
+  - 让整个 suite 自动升级成 fixed-`sbScalar` 的 façade direct evidence
+- 这批 Release `TTestCase_ShuffleSWizzle`、Release `check`、串行 Release `gate` 最终都为绿，说明这个做法风险很低，而且证据价值很高：我们没有新增实现，也没有新增重复测试，却把整簇 utility public surface 一次性收成了 direct contract guard。
+- 这也意味着当前 `simd` 测试层的剩余问题越来越少是“缺测试本身”，而更多是“现有测试还没被正确放进 fixed-`sbScalar` contract 语义里”；后续继续深扫时，优先级应继续偏向这类 suite-level scalarization 或少量 residual API 的补钉。

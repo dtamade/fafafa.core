@@ -575,6 +575,9 @@ type
 
   // Phase 2: Shuffle/Swizzle 测试
   TTestCase_ShuffleSWizzle = class(TTestCase)
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
   published
     // MM_SHUFFLE 辅助函数
     procedure Test_MM_SHUFFLE;
@@ -13903,6 +13906,18 @@ begin
 end;
 
 { TTestCase_ShuffleSWizzle }
+
+procedure TTestCase_ShuffleSWizzle.SetUp;
+begin
+  inherited SetUp;
+  ForceBackend(sbScalar);
+end;
+
+procedure TTestCase_ShuffleSWizzle.TearDown;
+begin
+  ResetBackendSelection;
+  inherited TearDown;
+end;
 
 procedure TTestCase_ShuffleSWizzle.Test_MM_SHUFFLE;
 begin

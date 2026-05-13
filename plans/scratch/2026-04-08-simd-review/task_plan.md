@@ -1562,3 +1562,17 @@
 | 1. 复核 `F32x4` utility 当前证据层现状 | completed | 已确认 `TTestCase_VectorOps` 虽然固定 `sbScalar`，但只覆盖 `Add/Sub/Mul/Div`、基础 math、`Load/Store/Splat/Compare/Dot/Length/Normalize`；`Zero/LoadAligned/StoreAligned/Select` 仍主要停留在 `dispatchapi` parity，而 `Extract/Insert` 主要落在 `ShuffleSWizzle/EdgeCases` 非 scalar-direct 面 |
 | 2. 扩展现有 scalar direct suite     | completed | 继续扩已固定 `sbScalar` 的 `TTestCase_VectorOps`，新增 `Test_VecF32x4_UtilityFacade_Basic` 覆盖 `Zero/LoadAligned/StoreAligned/Select/Extract/Insert`，不新增 runner/suite，也不改实现 |
 | 3. Release 验证与提交收口          | completed | `git diff --check`、Release `TTestCase_VectorOps`、Release `check`、串行 Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 Shuffle Swizzle Facade Scalarization
+
+### Goal
+
+继续把 `shuffle/swizzle` 这一簇公开 façade 从“普通行为测试”收成固定 `sbScalar` 的 direct guard，优先覆盖 `F32x4/F64x2/I32x4` 的 `Shuffle/Shuffle2/Blend/Unpack/Broadcast/Reverse/Rotate/Insert/Extract`。
+
+### Phases
+
+| Phase                              | Status    | Notes |
+| ---------------------------------- | --------- | ----- |
+| 1. 复核 `shuffle/swizzle` 当前证据层现状 | completed | 已确认 `TTestCase_ShuffleSWizzle` 现有覆盖面其实很全，但 suite 自身没有 `SetUp/TearDown`；这些公开 façade 主要只在普通行为测试里出现，`dispatchapi/direct` 也没有把它们补成 fixed-`sbScalar` direct guard |
+| 2. 收敛为 scalar direct suite      | completed | 未新开 runner，也未补重复 testcase；直接给 `TTestCase_ShuffleSWizzle` 加 `SetUp/TearDown`，统一固定 `ForceBackend(sbScalar)` / `ResetBackendSelection`，把现有 `F32x4/F64x2/I32x4` shuffle/blend/unpack/broadcast/reverse/rotate/insert/extract` 全部收进 façade direct evidence |
+| 3. Release 验证与提交收口          | completed | `git diff --check`、Release `TTestCase_ShuffleSWizzle`、Release `check`、串行 Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
