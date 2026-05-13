@@ -555,6 +555,9 @@ type
 
   // Phase 2: Gather/Scatter 测试
   TTestCase_GatherScatter = class(TTestCase)
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
   published
     // Gather - 从不连续内存位置收集数据到向量
     procedure Test_VecF32x4_Gather_Sequential;
@@ -13641,6 +13644,18 @@ begin
 end;
 
 { TTestCase_GatherScatter }
+
+procedure TTestCase_GatherScatter.SetUp;
+begin
+  inherited SetUp;
+  ForceBackend(sbScalar);
+end;
+
+procedure TTestCase_GatherScatter.TearDown;
+begin
+  ResetBackendSelection;
+  inherited TearDown;
+end;
 
 procedure TTestCase_GatherScatter.Test_VecF32x4_Gather_Sequential;
 var

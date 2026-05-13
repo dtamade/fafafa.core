@@ -1626,6 +1626,30 @@
   - 结果：全部通过
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
 
+## 2026-05-14 Gather Scatter Facade Scalarization
+
+- 继续沿“现有 suite 覆盖很全、但还没进入 fixed-`sbScalar` façade direct contract”的路径往下扫后，`GatherScatter` 成了下一块高价值尾巴：
+  - `VecF32x4Gather`
+  - `VecI32x4Gather`
+  - `VecF32x4Scatter`
+  - `VecI32x4Scatter`
+  - 以及同一 suite 里的 `ZeroIndex/LargeStride` 边界
+- 这批之前最大的问题同样不是“没测”，而是“测了但 suite 没被固定到 scalar 真源语义”：
+  - `TTestCase_GatherScatter` 自己已经覆盖顺序、跨步、随机、负值、零索引和大跨步
+  - 但 suite 没有 `SetUp/TearDown`
+  - `dispatchapi/direct` 里也没有同等级的 scalar-direct façade 证据可替代
+- 因而这批最小、最优雅的收口方式仍然不是新造测试，而是把现有 suite 自身 scalarize：
+  - 给 `TTestCase_GatherScatter` 增加 `SetUp/TearDown`
+  - 在 `SetUp` 固定 `ForceBackend(sbScalar)`
+  - 在 `TearDown` 调 `ResetBackendSelection`
+- Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_GatherScatter`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
 ## 2026-05-13 I32x8 I64x2 U64x2 Remaining Ops Guard Coverage
 
 - 继续从“公开 façade 还没被固定 `sbScalar` 的 direct guard 钉住”往下扫后，这一批最值钱的缺口落在：
