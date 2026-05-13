@@ -651,6 +651,9 @@ type
 
   // Phase 5: 高级算法测试
   TTestCase_AdvancedAlgorithms = class(TTestCase)
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
   published
     // 排序网络 (Sorting Network)
     procedure Test_SortNet4_I32_Ascending;
@@ -14533,6 +14536,18 @@ begin
 end;
 
 { TTestCase_AdvancedAlgorithms }
+
+procedure TTestCase_AdvancedAlgorithms.SetUp;
+begin
+  inherited SetUp;
+  ForceBackend(sbScalar);
+end;
+
+procedure TTestCase_AdvancedAlgorithms.TearDown;
+begin
+  ResetBackendSelection;
+  inherited TearDown;
+end;
 
 // === 排序网络测试 ===
 
