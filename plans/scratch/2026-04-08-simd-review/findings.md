@@ -1331,3 +1331,10 @@
 - `tests/fafafa.core.simd/fafafa.core.simd.narrowintegerops.testcase.pas` 虽然固定 `ForceBackend(sbScalar)`，但它的 contract 范围只到 `I16x8/I8x16/U16x8/U8x16/U32x4`，不能替代这 3 组 512-bit façade compare 的 direct evidence。
 - 因此这批剩余问题仍然是证据层，而不是实现层；继续扩现有 `TTestCase_IntegerFacadeGuards` 仍是最低风险落点，不需要新建 `vec512` 平行 suite。
 - 对于 32/64-lane compare，动态按 lane 累积期望 mask 比继续维护超长十六进制常量更稳，也更不容易把测试 bug 误判成实现 bug。
+
+## 2026-05-13 I32x8 Facade Direct Guard Findings
+
+- `VecI32x8AndNot/CmpEq/CmpLt/CmpGt/CmpLe/CmpGe/CmpNe` 是当前 `src/fafafa.core.simd.pas` 的真实公开 façade contract。
+- `tests/fafafa.core.simd/fafafa.core.simd.veci32x8.testcase.pas` 虽然已经有一整套 family-local contract 测试，但它的 `SetUp/TearDown` 不固定 `sbScalar`；与之对应，`tests/fafafa.core.simd/fafafa.core.simd.vecu32x8.testcase.pas` 明确固定了 `ForceBackend(sbScalar)` / `ResetBackendSelection`。
+- 这意味着 `I32x8` 当前已有的是“默认后端 family-local 行为回归”，不是“固定 scalar 真源的 façade direct guard”；它在证据层上更接近前面刚收掉的 `I64x8`，而不是已经收实的 `U32x8`。
+- 因此这批也更适合继续补进 `TTestCase_IntegerFacadeGuards`，而不是直接改写现有 `veci32x8` suite 的生命周期语义。

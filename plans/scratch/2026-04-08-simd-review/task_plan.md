@@ -1407,3 +1407,17 @@
 | 1. 复核剩余公开 compare 边界       | completed   | 已确认 `I16x32/I8x64/U8x64` compare 都是 `src/fafafa.core.simd.pas` 的真实 façade surface；`narrowintegerops` 只覆盖窄族，不覆盖这 3 组 512-bit contract |
 | 2. 扩展现有 scalar-forced direct suite | completed | 继续扩 `TTestCase_IntegerFacadeGuards`，新增 3 条 compare guard，不新增 runner / checker / family-local suite |
 | 3. Release 验证与提交收口          | completed   | `git diff --check`、Release `TTestCase_IntegerFacadeGuards`、Release `check`、串行 Release `gate` 全绿 |
+
+## 2026-05-13 I32x8 Facade Direct Guard Coverage
+
+### Goal
+
+继续收掉仍停留在“默认后端 family-local 测试”层的公开 façade contract：为 `VecI32x8AndNot/CmpEq/CmpLt/CmpGt/CmpLe/CmpGe/CmpNe` 补齐固定 `sbScalar` 的 direct guard。
+
+### Phases
+
+| Phase                              | Status      | Notes |
+| ---------------------------------- | ----------- | ----- |
+| 1. 复核 `I32x8` 当前证据层现状     | completed   | 已确认 `veci32x8` suite 虽然覆盖 `AndNot + compare`，但 `SetUp/TearDown` 不固定 `sbScalar`；同目录 `vecu32x8` 则固定 `sbScalar`，两者证据强度不对称 |
+| 2. 扩展现有 scalar-forced direct suite | completed | 继续扩 `TTestCase_IntegerFacadeGuards`，新增 `I32x8` 的 `AndNot + compare`，不改旧 family-local suite 语义 |
+| 3. Release 验证与提交收口          | completed   | `git diff --check`、Release `TTestCase_IntegerFacadeGuards`、Release `check`、串行 Release `gate` 全绿 |

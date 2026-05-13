@@ -336,6 +336,8 @@ type
   published
     procedure Test_VecI32x4_AndNot_Basic;
     procedure Test_VecI32x4_Compare_Basic;
+    procedure Test_VecI32x8_AndNot_Basic;
+    procedure Test_VecI32x8_Compare_Basic;
     procedure Test_VecI64x2_AndNot_Basic;
     procedure Test_VecI64x2_Compare_Basic;
     procedure Test_VecI64x4_AndNot_Basic;
@@ -9888,6 +9890,89 @@ begin
   AssertEquals('VecI32x4CmpLe mask', Integer(TMask4($7)), Integer(LMaskLe));
   AssertEquals('VecI32x4CmpGe mask', Integer(TMask4($D)), Integer(LMaskGe));
   AssertEquals('VecI32x4CmpNe mask', Integer(TMask4($A)), Integer(LMaskNe));
+end;
+
+procedure TTestCase_IntegerFacadeGuards.Test_VecI32x8_AndNot_Basic;
+var
+  LVecA, LVecB, LResult: TVecI32x8;
+  LExpected: UInt32;
+  LIndex: Integer;
+begin
+  for LIndex := 0 to High(LVecA.i) do
+  begin
+    case LIndex mod 4 of
+      0:
+        begin
+          LVecA.i[LIndex] := LongInt($0F0F0F0F);
+          LVecB.i[LIndex] := -1;
+        end;
+      1:
+        begin
+          LVecA.i[LIndex] := -1;
+          LVecB.i[LIndex] := LongInt($12345678);
+        end;
+      2:
+        begin
+          LVecA.i[LIndex] := 0;
+          LVecB.i[LIndex] := LongInt($33333333);
+        end;
+    else
+      begin
+        LVecA.i[LIndex] := LongInt($33333333);
+        LVecB.i[LIndex] := LongInt($55555555);
+      end;
+    end;
+  end;
+
+  LResult := VecI32x8AndNot(LVecA, LVecB);
+
+  for LIndex := 0 to High(LResult.i) do
+  begin
+    LExpected := UInt32(not LVecA.i[LIndex]) and UInt32(LVecB.i[LIndex]);
+    AssertEquals('VecI32x8AndNot lane ' + IntToStr(LIndex), LExpected, UInt32(LResult.i[LIndex]));
+  end;
+end;
+
+procedure TTestCase_IntegerFacadeGuards.Test_VecI32x8_Compare_Basic;
+var
+  LVecA, LVecB: TVecI32x8;
+  LMaskEq, LMaskLt, LMaskGt, LMaskLe, LMaskGe, LMaskNe: TMask8;
+  LIndex: Integer;
+begin
+  for LIndex := 0 to High(LVecA.i) do
+  begin
+    case LIndex mod 3 of
+      0:
+        begin
+          LVecA.i[LIndex] := LIndex * 11;
+          LVecB.i[LIndex] := LVecA.i[LIndex];
+        end;
+      1:
+        begin
+          LVecA.i[LIndex] := -1000 + LIndex;
+          LVecB.i[LIndex] := LVecA.i[LIndex] + 5;
+        end;
+    else
+      begin
+        LVecA.i[LIndex] := 1000 + LIndex;
+        LVecB.i[LIndex] := LVecA.i[LIndex] - 7;
+      end;
+    end;
+  end;
+
+  LMaskEq := VecI32x8CmpEq(LVecA, LVecB);
+  LMaskLt := VecI32x8CmpLt(LVecA, LVecB);
+  LMaskGt := VecI32x8CmpGt(LVecA, LVecB);
+  LMaskLe := VecI32x8CmpLe(LVecA, LVecB);
+  LMaskGe := VecI32x8CmpGe(LVecA, LVecB);
+  LMaskNe := VecI32x8CmpNe(LVecA, LVecB);
+
+  AssertEquals('VecI32x8CmpEq mask', Integer(TMask8($49)), Integer(LMaskEq));
+  AssertEquals('VecI32x8CmpLt mask', Integer(TMask8($92)), Integer(LMaskLt));
+  AssertEquals('VecI32x8CmpGt mask', Integer(TMask8($24)), Integer(LMaskGt));
+  AssertEquals('VecI32x8CmpLe mask', Integer(TMask8($DB)), Integer(LMaskLe));
+  AssertEquals('VecI32x8CmpGe mask', Integer(TMask8($6D)), Integer(LMaskGe));
+  AssertEquals('VecI32x8CmpNe mask', Integer(TMask8($B6)), Integer(LMaskNe));
 end;
 
 procedure TTestCase_IntegerFacadeGuards.Test_VecI64x2_AndNot_Basic;

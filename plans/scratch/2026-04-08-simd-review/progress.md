@@ -1332,6 +1332,24 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 
+## 2026-05-13 I32x8 Facade Direct Guard Coverage
+
+- 继续复核后，`I32x8` 被确认是当前公开整数 façade 里一个容易被误判为“已经够了”的残余点：
+  - `tests/fafafa.core.simd/fafafa.core.simd.veci32x8.testcase.pas` 已覆盖 `AndNot + Eq/Lt/Gt/Le/Ge/Ne`
+  - 但它的 `SetUp/TearDown` 不固定 `ForceBackend(sbScalar)` / `ResetBackendSelection`
+  - 同目录 `vecu32x8` suite 则明确固定了 `sbScalar`
+- 因而 `veci32x8` 当前更接近 `I64x8/vec512types` 的证据形态：有 family-local 测试，但不是 scalar-forced direct guard。
+- 本轮继续复用 `TTestCase_IntegerFacadeGuards`，新增：
+  - `Test_VecI32x8_AndNot_Basic`
+  - `Test_VecI32x8_Compare_Basic`
+- 这次特意没有去改 `veci32x8` 现有 suite 的 `SetUp/TearDown`，避免把旧 suite 从“默认后端 family-local 行为回归”改成另一种测试语义；我们只补一条独立的 scalar-forced contract 证据。
+- Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IntegerFacadeGuards`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+
 ## 2026-05-13 I64x8 Facade Direct Guard Coverage
 
 - 继续沿 wide integer façade 尾巴复核后，确认 `VecI64x8CmpEq/CmpLt/CmpGt/CmpLe/CmpGe/CmpNe` 仍是一个真实证据缺口：
