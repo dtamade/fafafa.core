@@ -1674,3 +1674,17 @@
 | 1. 复核 `LargeData` / `UnsignedVectorTypes` 优先级 | completed | 已确认 `TTestCase_LargeData` 真实调用的是公开全局 façade `MemEqual/SumBytes/MemFindByte/CountByte`，覆盖 1MB、非对齐和 odd-size 合约；相比之下 `TTestCase_UnsignedVectorTypes` 主要是 typedef/layout/raw-access 断言，因此本轮优先级更低 |
 | 2. 收敛 `LargeData` 为 scalar direct suite | completed | 未新开 runner，也未复制 testcase；直接给 `TTestCase_LargeData` 增加 `SetUp/TearDown`，统一固定 `ForceBackend(sbScalar)` / `ResetBackendSelection`，把现有大数据边界 façade 测试整体升级成 direct evidence |
 | 3. Release 验证与提交收口          | completed | `git diff --check`、Release `TTestCase_LargeData`、Release `check`、串行 Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 Saturating Arithmetic Facade Scalarization
+
+### Goal
+
+继续把 `SaturatingArithmetic` 这一簇饱和算术 façade 从“普通边界行为测试”收成固定 `sbScalar` 的 direct guard，优先覆盖 `VecI8x16Sat*`、`VecI16x8Sat*`、`VecU8x16Sat*` 与 `VecU16x8Sat*`。
+
+### Phases
+
+| Phase                              | Status    | Notes |
+| ---------------------------------- | --------- | ----- |
+| 1. 复核剩余未 scalarize public suites 优先级 | completed | 已确认 `dispatch/dataplane/publicabi/runtime/concurrent` 属于控制面/并发面，不适合按 `sbScalar` 套；`memutils aliases` 与 `vec512types` 里混有较多别名/类型层断言，而 `TTestCase_SaturatingArithmetic` 直接覆盖公开饱和算术 façade contract，优先级更高 |
+| 2. 收敛 `SaturatingArithmetic` 为 scalar direct suite | completed | 未新开 runner，也未复制 testcase；直接给 `TTestCase_SaturatingArithmetic` 增加 `SetUp/TearDown`，统一固定 `ForceBackend(sbScalar)` / `ResetBackendSelection`，把现有饱和算术 façade 测试整体升级成 direct evidence |
+| 3. Release 验证与提交收口          | completed | `git diff --check`、Release `TTestCase_SaturatingArithmetic`、Release `check`、串行 Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |

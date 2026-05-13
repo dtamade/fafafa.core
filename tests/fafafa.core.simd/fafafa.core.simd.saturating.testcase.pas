@@ -11,11 +11,16 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry,
-  fafafa.core.simd;
+  fafafa.core.simd,
+  fafafa.core.simd.base,
+  fafafa.core.simd.dispatch;
 
 type
   // ✅ P2: 饱和算术测试 - 验证溢出/下溢边界行为
   TTestCase_SaturatingArithmetic = class(TTestCase)
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
   published
     // === 有符号 8 位 (I8x16) 饱和测试 ===
     procedure Test_I8x16SatAdd_Normal;        // 正常加法，无溢出
@@ -49,6 +54,18 @@ type
 implementation
 
 { TTestCase_SaturatingArithmetic }
+
+procedure TTestCase_SaturatingArithmetic.SetUp;
+begin
+  inherited SetUp;
+  ForceBackend(sbScalar);
+end;
+
+procedure TTestCase_SaturatingArithmetic.TearDown;
+begin
+  ResetBackendSelection;
+  inherited TearDown;
+end;
 
 // === I8x16 有符号 8 位饱和算术测试 ===
 

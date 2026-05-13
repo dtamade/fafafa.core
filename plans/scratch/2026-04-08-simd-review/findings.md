@@ -1671,3 +1671,28 @@
   - 保留现有 testcase 不动
   - 让整个 suite 自动升级成 fixed-`sbScalar` 的 façade direct evidence
 - 这批 Release `TTestCase_LargeData`、Release `check`、串行 Release `gate` 最终都为绿，说明当前补的是 public global façade 的大尺寸/边界 evidence gap，而不是大数据路径实现缺陷。
+
+## 2026-05-14 Saturating Arithmetic Facade Scalarization Findings
+
+- `VecI8x16SatAdd/SatSub`、`VecI16x8SatAdd/SatSub`、`VecU8x16SatAdd/SatSub`、`VecU16x8SatAdd/SatSub` 都是当前 `src/fafafa.core.simd.pas` 的真实公开饱和算术 façade，不是 backend-only helper。
+- `TTestCase_SaturatingArithmetic` 在本轮之前已经有很完整的边界覆盖：
+  - 正常加减
+  - 上溢/下溢饱和
+  - 有符号/无符号边界值
+- 在当前剩余未 scalarize suite 里，它比以下候选更值得优先收口：
+  - `dispatch/dataplane/publicabi/runtime/concurrent`：这些是控制面、并发面或发布面，不应强制套进 `sbScalar`
+  - `memutils.aliases`：混合了 aligned 分配工具与别名/type-size 断言，backend 语义密度更低
+  - `vec512types`：虽然夹有部分公开运算，但 suite 中也混有大量类型/布局断言，收口优先级次于纯 façade contract 的 `SaturatingArithmetic`
+- 复核 `SaturatingArithmetic` 的 testcase 形状后，没有发现任何一条测试显式依赖“自动 backend 选择”语义：
+  - 它们全部只断言饱和算术 façade 的公开结果 contract
+  - 没有断言当前 backend 文本、自动降级、跨 backend parity 或向量汇编路径
+  - 因此 suite-level scalarization 的风险很低
+- 这批最优雅的收口方式同样不是复制 testcase 到新 suite，而是直接 scalarize 现有 suite：
+  - 给 `TTestCase_SaturatingArithmetic` 增加 `SetUp/TearDown`
+  - 保留现有 testcase 不动
+  - 让整个 suite 自动升级成 fixed-`sbScalar` 的 façade direct evidence
+- 这批在首轮验证时还暴露出一个 testcase 依赖陷阱：
+  - `TTestCase_SaturatingArithmetic` 之前只 `uses fafafa.core.simd`
+  - 一旦补 `ForceBackend(sbScalar)`，编译期就会报 `Identifier not found "sbScalar"`
+  - 最小修复是补齐与同类 scalarized 独立 testcase 一致的 `fafafa.core.simd.base` / `fafafa.core.simd.dispatch` 依赖，而不是改测试语义或退回不 scalarize
+- 这批 Release `TTestCase_SaturatingArithmetic`、Release `check`、串行 Release `gate` 最终都为绿，说明当前补的是 public saturating façade evidence gap，而不是饱和算术实现缺陷。

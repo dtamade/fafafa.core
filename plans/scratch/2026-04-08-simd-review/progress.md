@@ -1800,6 +1800,38 @@
   - 结果：全部通过
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
 
+## 2026-05-14 Saturating Arithmetic Facade Scalarization
+
+- 继续按“真实 public contract 价值”而不是机械补 suite 的原则重排后，本轮没有去碰：
+  - `dispatch/dataplane/publicabi/runtime/concurrent` 这类控制面/并发面
+  - `UnsignedVectorTypes`、`memutils aliases`、`vec512types` 这类夹杂较多 typedef/layout/alias 断言的 suite
+- 本轮优先锁定 `SaturatingArithmetic`，因为它直接覆盖的是公开饱和算术 façade：
+  - `VecI8x16SatAdd/SatSub`
+  - `VecI16x8SatAdd/SatSub`
+  - `VecU8x16SatAdd/SatSub`
+  - `VecU16x8SatAdd/SatSub`
+  - 并且命中了正常值、上溢/下溢、边界值三类 contract
+- 所以这批之前最大的问题同样不是“没测”，而是“测了但 suite 没被固定到 scalar 真源语义”：
+  - `TTestCase_SaturatingArithmetic` 自己已经覆盖这簇公开 façade 的边界 contract
+  - 但 suite 没有 `SetUp/TearDown`
+  - 因而它更像普通行为回归，不等价于 fixed-`sbScalar` 的 façade direct guard
+- 因而这批最小、最优雅的收口方式依旧不是新造测试，而是把现有 suite 自身 scalarize：
+  - 给 `TTestCase_SaturatingArithmetic` 增加 `SetUp/TearDown`
+  - 在 `SetUp` 固定 `ForceBackend(sbScalar)`
+  - 在 `TearDown` 调 `ResetBackendSelection`
+- 首轮定向验证先撞到一个 testcase 依赖问题：
+  - 编译失败点：`fafafa.core.simd.saturating.testcase.pas`
+  - 错误：`Identifier not found "sbScalar"`
+  - 原因：suite 原本没引入 `sbScalar` 所在依赖
+  - 修复：补齐 `fafafa.core.simd.base` 与 `fafafa.core.simd.dispatch`，不改测试语义
+- Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SaturatingArithmetic`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
 ## 2026-05-13 I32x8 I64x2 U64x2 Remaining Ops Guard Coverage
 
 - 继续从“公开 façade 还没被固定 `sbScalar` 的 direct guard 钉住”往下扫后，这一批最值钱的缺口落在：
