@@ -1435,3 +1435,17 @@
 | 1. 复核 512-bit float 当前证据层现状 | completed | 已确认 `vec512types` 不固定 `sbScalar`，而且 `Add/Sub/Mul` 主要走 operator；`F32x16` compare 走 `TMaskF32x16` vector-mask surface，不等于公开 façade `_Mask` contract |
 | 2. 在现有主 runner 补 scalar direct guard | completed | 已在 `tests/fafafa.core.simd/fafafa.core.simd.testcase.pas` 新增并列 `TTestCase_FloatFacadeGuards`，并同步 `test.lpr` suite manifest；未改 `vec512types` 生命周期，也未新增 family-local runner |
 | 3. 修正测试期望并完成 Release 验证 | completed | 首轮 targeted run 仅暴露 `ReduceAdd` 期望值写错；修正到 `F32x16=13.5`、`F64x8=5.5` 后，Release targeted/check/gate 全绿 |
+
+## 2026-05-13 Wide Float Remaining API Guard Coverage
+
+### Goal
+
+继续把 `F32x16/F64x8` 公开 façade 里仍只剩 parity/默认后端旁证的剩余 API 收成固定 `sbScalar` 的 direct guard，覆盖 `Abs/Sqrt/Min/Max`，以及 `F32x16` 的 `Extract/Insert`。
+
+### Phases
+
+| Phase                              | Status      | Notes |
+| ---------------------------------- | ----------- | ----- |
+| 1. 复核 wide-float 剩余 API 当前证据层现状 | completed | 已确认这批主要还停留在 `dispatchapi` parity；`vec512types` 不固定 `sbScalar`，也没有完整覆盖 `F64x8` 剩余 math API |
+| 2. 扩展现有 scalar direct suite     | completed | 继续扩 `TTestCase_FloatFacadeGuards`，新增 2 条测试覆盖 `F32x16` 的 `Abs/Sqrt/Min/Max/Extract/Insert` 与 `F64x8` 的 `Abs/Sqrt/Min/Max`，未改 runner 结构 |
+| 3. Release 验证与提交收口           | completed | `git diff --check`、Release `TTestCase_FloatFacadeGuards`、Release `check`、串行 Release `gate` 全绿；待 review + commit |

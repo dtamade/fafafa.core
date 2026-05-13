@@ -1477,3 +1477,23 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-13 Wide Float Remaining API Guard Coverage
+
+- 继续往下审查 `F32x16/F64x8` 后，确认还有一簇真实缺口没有进入 scalar direct guard：
+  - `VecF32x16Abs/Sqrt/Min/Max/Extract/Insert`
+  - `VecF64x8Abs/Sqrt/Min/Max`
+- 这批已有的证据主要还是：
+  - `dispatchapi.testcase` 的 façade-vs-scalar parity
+  - 零散的 `vec512types` 默认后端覆盖
+  - 但还没有固定 `ForceBackend(sbScalar)` 的 direct guard
+- 本轮没有再开新 suite，而是继续扩现有 `TTestCase_FloatFacadeGuards`：
+  - 新增 `Test_VecF32x16_RemainingMathAndExtractInsert_Basic`
+  - 新增 `Test_VecF64x8_RemainingMath_Basic`
+- 这次 targeted suite 没有暴露实现问题，也没有再出测试预期 bug，说明边界判断是准的：这批确实只是 public façade 证据收口。
+- Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_FloatFacadeGuards`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

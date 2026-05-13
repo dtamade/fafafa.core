@@ -367,9 +367,11 @@ type
     procedure Test_VecF32x16_Arithmetic_Basic;
     procedure Test_VecF32x16_CompareReduceSelect_Basic;
     procedure Test_VecF32x16_ExtendedMathAndLoadStore_Basic;
+    procedure Test_VecF32x16_RemainingMathAndExtractInsert_Basic;
     procedure Test_VecF64x8_Arithmetic_Basic;
     procedure Test_VecF64x8_CompareReduceSelect_Basic;
     procedure Test_VecF64x8_ExtendedMathAndLoadStore_Basic;
+    procedure Test_VecF64x8_RemainingMath_Basic;
   end;
 
   // 大数据量和边界测试
@@ -10865,6 +10867,93 @@ begin
     AssertEquals('VecF32x16Zero lane ' + IntToStr(LIndex), 0.0, LResult.f[LIndex], C_EPSILON);
 end;
 
+procedure TTestCase_FloatFacadeGuards.Test_VecF32x16_RemainingMathAndExtractInsert_Basic;
+const
+  C_EPSILON = 1e-5;
+var
+  LVecA, LVecB: TVecF32x16;
+  LAbsResult, LSqrtResult, LMinResult, LMaxResult, LInserted: TVecF32x16;
+  LExtracted: Single;
+  LIndex: Integer;
+begin
+  for LIndex := 0 to High(LVecA.f) do
+  begin
+    if (LIndex and 1) = 0 then
+      LVecA.f[LIndex] := -(LIndex + 1.5)
+    else
+      LVecA.f[LIndex] := LIndex + 1.5;
+  end;
+
+  LAbsResult := fafafa.core.simd.VecF32x16Abs(LVecA);
+  for LIndex := 0 to High(LAbsResult.f) do
+    AssertEquals('VecF32x16Abs lane ' + IntToStr(LIndex), LIndex + 1.5, LAbsResult.f[LIndex], C_EPSILON);
+
+  LVecB := fafafa.core.simd.VecF32x16Zero;
+  LVecB.f[0] := 0.0;
+  LVecB.f[1] := 1.0;
+  LVecB.f[2] := 4.0;
+  LVecB.f[3] := 9.0;
+  LVecB.f[4] := 16.0;
+  LVecB.f[5] := 25.0;
+  LVecB.f[6] := 2.25;
+  LVecB.f[7] := 6.25;
+  LVecB.f[8] := 0.25;
+  LVecB.f[9] := 12.25;
+  LVecB.f[10] := 20.25;
+  LVecB.f[11] := 30.25;
+  LVecB.f[12] := 42.25;
+  LVecB.f[13] := 56.25;
+  LVecB.f[14] := 72.25;
+  LVecB.f[15] := 90.25;
+
+  LSqrtResult := fafafa.core.simd.VecF32x16Sqrt(LVecB);
+  AssertEquals('VecF32x16Sqrt lane 0', 0.0, LSqrtResult.f[0], C_EPSILON);
+  AssertEquals('VecF32x16Sqrt lane 1', 1.0, LSqrtResult.f[1], C_EPSILON);
+  AssertEquals('VecF32x16Sqrt lane 2', 2.0, LSqrtResult.f[2], C_EPSILON);
+  AssertEquals('VecF32x16Sqrt lane 3', 3.0, LSqrtResult.f[3], C_EPSILON);
+  AssertEquals('VecF32x16Sqrt lane 4', 4.0, LSqrtResult.f[4], C_EPSILON);
+  AssertEquals('VecF32x16Sqrt lane 5', 5.0, LSqrtResult.f[5], C_EPSILON);
+  AssertEquals('VecF32x16Sqrt lane 6', 1.5, LSqrtResult.f[6], C_EPSILON);
+  AssertEquals('VecF32x16Sqrt lane 7', 2.5, LSqrtResult.f[7], C_EPSILON);
+  AssertEquals('VecF32x16Sqrt lane 8', 0.5, LSqrtResult.f[8], C_EPSILON);
+  AssertEquals('VecF32x16Sqrt lane 9', 3.5, LSqrtResult.f[9], C_EPSILON);
+  AssertEquals('VecF32x16Sqrt lane 10', 4.5, LSqrtResult.f[10], C_EPSILON);
+  AssertEquals('VecF32x16Sqrt lane 11', 5.5, LSqrtResult.f[11], C_EPSILON);
+  AssertEquals('VecF32x16Sqrt lane 12', 6.5, LSqrtResult.f[12], C_EPSILON);
+  AssertEquals('VecF32x16Sqrt lane 13', 7.5, LSqrtResult.f[13], C_EPSILON);
+  AssertEquals('VecF32x16Sqrt lane 14', 8.5, LSqrtResult.f[14], C_EPSILON);
+  AssertEquals('VecF32x16Sqrt lane 15', 9.5, LSqrtResult.f[15], C_EPSILON);
+
+  for LIndex := 0 to High(LVecA.f) do
+  begin
+    LVecA.f[LIndex] := LIndex - 5.0;
+    LVecB.f[LIndex] := 5.0 - (LIndex * 0.5);
+  end;
+  LMinResult := fafafa.core.simd.VecF32x16Min(LVecA, LVecB);
+  LMaxResult := fafafa.core.simd.VecF32x16Max(LVecA, LVecB);
+  for LIndex := 0 to High(LMinResult.f) do
+  begin
+    if LVecA.f[LIndex] < LVecB.f[LIndex] then
+    begin
+      AssertEquals('VecF32x16Min lane ' + IntToStr(LIndex), LVecA.f[LIndex], LMinResult.f[LIndex], C_EPSILON);
+      AssertEquals('VecF32x16Max lane ' + IntToStr(LIndex), LVecB.f[LIndex], LMaxResult.f[LIndex], C_EPSILON);
+    end
+    else
+    begin
+      AssertEquals('VecF32x16Min lane ' + IntToStr(LIndex), LVecB.f[LIndex], LMinResult.f[LIndex], C_EPSILON);
+      AssertEquals('VecF32x16Max lane ' + IntToStr(LIndex), LVecA.f[LIndex], LMaxResult.f[LIndex], C_EPSILON);
+    end;
+  end;
+
+  LExtracted := fafafa.core.simd.VecF32x16Extract(LVecA, 10);
+  AssertEquals('VecF32x16Extract lane 10', LVecA.f[10], LExtracted, C_EPSILON);
+
+  LInserted := fafafa.core.simd.VecF32x16Insert(LVecA, 99.5, 11);
+  AssertEquals('VecF32x16Insert lane 11', 99.5, LInserted.f[11], C_EPSILON);
+  AssertEquals('VecF32x16Insert keep lane 10', LVecA.f[10], LInserted.f[10], C_EPSILON);
+  AssertEquals('VecF32x16Insert keep lane 12', LVecA.f[12], LInserted.f[12], C_EPSILON);
+end;
+
 procedure TTestCase_FloatFacadeGuards.Test_VecF64x8_Arithmetic_Basic;
 const
   C_EPSILON = 1e-9;
@@ -11047,6 +11136,66 @@ begin
   LResult := fafafa.core.simd.VecF64x8Zero;
   for LIndex := 0 to High(LResult.d) do
     AssertEquals('VecF64x8Zero lane ' + IntToStr(LIndex), 0.0, LResult.d[LIndex], C_EPSILON);
+end;
+
+procedure TTestCase_FloatFacadeGuards.Test_VecF64x8_RemainingMath_Basic;
+const
+  C_EPSILON = 1e-9;
+var
+  LVecA, LVecB: TVecF64x8;
+  LAbsResult, LSqrtResult, LMinResult, LMaxResult: TVecF64x8;
+  LIndex: Integer;
+begin
+  for LIndex := 0 to High(LVecA.d) do
+  begin
+    if (LIndex and 1) = 0 then
+      LVecA.d[LIndex] := -(LIndex + 0.75)
+    else
+      LVecA.d[LIndex] := LIndex + 0.75;
+  end;
+
+  LAbsResult := fafafa.core.simd.VecF64x8Abs(LVecA);
+  for LIndex := 0 to High(LAbsResult.d) do
+    AssertEquals('VecF64x8Abs lane ' + IntToStr(LIndex), LIndex + 0.75, LAbsResult.d[LIndex], C_EPSILON);
+
+  LVecB.d[0] := 0.0;
+  LVecB.d[1] := 1.0;
+  LVecB.d[2] := 4.0;
+  LVecB.d[3] := 9.0;
+  LVecB.d[4] := 12.25;
+  LVecB.d[5] := 20.25;
+  LVecB.d[6] := 30.25;
+  LVecB.d[7] := 42.25;
+  LSqrtResult := fafafa.core.simd.VecF64x8Sqrt(LVecB);
+  AssertEquals('VecF64x8Sqrt lane 0', 0.0, LSqrtResult.d[0], C_EPSILON);
+  AssertEquals('VecF64x8Sqrt lane 1', 1.0, LSqrtResult.d[1], C_EPSILON);
+  AssertEquals('VecF64x8Sqrt lane 2', 2.0, LSqrtResult.d[2], C_EPSILON);
+  AssertEquals('VecF64x8Sqrt lane 3', 3.0, LSqrtResult.d[3], C_EPSILON);
+  AssertEquals('VecF64x8Sqrt lane 4', 3.5, LSqrtResult.d[4], C_EPSILON);
+  AssertEquals('VecF64x8Sqrt lane 5', 4.5, LSqrtResult.d[5], C_EPSILON);
+  AssertEquals('VecF64x8Sqrt lane 6', 5.5, LSqrtResult.d[6], C_EPSILON);
+  AssertEquals('VecF64x8Sqrt lane 7', 6.5, LSqrtResult.d[7], C_EPSILON);
+
+  for LIndex := 0 to High(LVecA.d) do
+  begin
+    LVecA.d[LIndex] := LIndex - 3.0;
+    LVecB.d[LIndex] := 3.0 - (LIndex * 0.75);
+  end;
+  LMinResult := fafafa.core.simd.VecF64x8Min(LVecA, LVecB);
+  LMaxResult := fafafa.core.simd.VecF64x8Max(LVecA, LVecB);
+  for LIndex := 0 to High(LMinResult.d) do
+  begin
+    if LVecA.d[LIndex] < LVecB.d[LIndex] then
+    begin
+      AssertEquals('VecF64x8Min lane ' + IntToStr(LIndex), LVecA.d[LIndex], LMinResult.d[LIndex], C_EPSILON);
+      AssertEquals('VecF64x8Max lane ' + IntToStr(LIndex), LVecB.d[LIndex], LMaxResult.d[LIndex], C_EPSILON);
+    end
+    else
+    begin
+      AssertEquals('VecF64x8Min lane ' + IntToStr(LIndex), LVecB.d[LIndex], LMinResult.d[LIndex], C_EPSILON);
+      AssertEquals('VecF64x8Max lane ' + IntToStr(LIndex), LVecA.d[LIndex], LMaxResult.d[LIndex], C_EPSILON);
+    end;
+  end;
 end;
 
 { TTestCase_LargeData }

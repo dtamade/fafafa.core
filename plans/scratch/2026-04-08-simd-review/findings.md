@@ -1354,3 +1354,14 @@
   - `VecF32x16ReduceAdd` 真实期望应为 `13.5`，不是 `14.5`
   - `VecF64x8ReduceAdd` 真实期望应为 `5.5`，不是 `4.5`
 - 修正预期后，`TTestCase_FloatFacadeGuards`、Release `check`、串行 Release `gate` 全绿，说明这批确实只是 public façade direct-evidence closeout，不是实现补丁。
+
+## 2026-05-13 Wide Float Remaining API Guard Findings
+
+- 在上一批 wide-float guard 落地后，`F32x16/F64x8` 公开 façade 里剩下最真实的 direct-evidence 空档是：
+  - `VecF32x16Abs/Sqrt/Min/Max/Extract/Insert`
+  - `VecF64x8Abs/Sqrt/Min/Max`
+- 这批在本轮之前已经有 `dispatchapi` 的 façade-vs-scalar parity，但仍不等价于固定 `sbScalar` 的 direct guard：
+  - `dispatchapi` 更像 wiring/parity proof
+  - `vec512types` 也没有固定 `sbScalar`，而且没有覆盖 `F64x8` 这组剩余 math API
+- 因而继续扩现有 `TTestCase_FloatFacadeGuards` 仍是最低风险路径，不需要再改 `vec512types` 生命周期，也不需要新建 family-local suite。
+- 这次直接把 wide-float 剩余公开 API 收到同一条 scalar-forced suite 后，`F32x16/F64x8` 的 stable façade direct evidence 已经明显完整得多；当前若继续深扫，更值得转去看 wide-integer 的 `Add/Sub/bitwise/shift/minmax` 是否仍只剩 parity 旁证。
