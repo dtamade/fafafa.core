@@ -1539,3 +1539,23 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-13 I64x4 U64x4 Remaining Ops Guard Coverage
+
+- 继续深扫剩余整数 façade 后，确认 256-bit 的 `I64x4/U64x4` 仍留着一块典型的 direct-evidence 尾巴：
+  - `I64x4`：`Add/Sub/And/Or/Xor/Not/ShiftLeft/ShiftRight/ShiftRightArith`
+  - `U64x4`：`Add/Sub/And/Or/Xor/Not/ShiftLeft/ShiftRight`
+- 这两簇在本轮之前并不是“没有测试”，而是主要停留在：
+  - `dispatchapi.testcase` 的 façade-vs-scalar parity
+  - `direct.testcase` 的 façade-vs-direct / backend parity
+- 本轮继续复用 `TTestCase_IntegerFacadeGuards`，没有改 runner，也没有碰任何生产实现：
+  - 新增 `Test_VecI64x4_RemainingOps_Basic`
+  - 新增 `Test_VecU64x4_RemainingOps_Basic`
+- 这次 targeted suite 没有暴露新的测试期望错误，也没有打到实现回归，说明边界判断是准的：这批就是 public façade 证据收口。
+- Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IntegerFacadeGuards`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

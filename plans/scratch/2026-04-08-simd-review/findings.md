@@ -1402,3 +1402,15 @@
   - 把期望收成 `Word(...)` 后，targeted suite、Release `check`、串行 Release `gate` 全绿
 - 这批结论也很干净：补的是 stable public façade 的 scalar direct evidence，不是实现修复。
 - 当前如果继续深扫整数 façade，优先级已经开始从“明显的大缺口”转向“少量尾部剩余 API 的证据完整度”，收益会比前几批更偏收口和证据密实化。
+
+## 2026-05-13 I64x4 U64x4 Remaining Ops Guard Findings
+
+- `VecI64x4Add/Sub/And/Or/Xor/Not/ShiftLeft/ShiftRight/ShiftRightArith` 与 `VecU64x4Add/Sub/And/Or/Xor/Not/ShiftLeft/ShiftRight` 都是当前 `src/fafafa.core.simd.pas` 的真实公开 façade surface，不是 backend-only helper。
+- 这两簇在本轮之前已有的显性覆盖主要停留在两类旁证：
+  - `dispatchapi.testcase` 的 façade-vs-scalar parity
+  - `direct.testcase` 的 façade-vs-direct / backend parity
+- 现有 `TTestCase_IntegerFacadeGuards` 只覆盖：
+  - `I64x4`：`AndNot + CmpEq/Lt/Gt/Le/Ge/Ne`
+  - `U64x4`：`CmpEq/Lt/Gt/Le/Ge/Ne`
+- 因而这批缺口依旧是证据层，不是实现层；继续扩现有 `TTestCase_IntegerFacadeGuards` 仍是最低风险落点，不需要新建 256-bit family-local suite。
+- 这次新增两条 remaining-ops guard 后，targeted suite 没有抓到测试期望 bug，也没有暴露实现回归；和前几批相比，这说明整数 façade 上“明显的大缺口”正在继续收窄，剩余问题更偏尾部证据密实化。

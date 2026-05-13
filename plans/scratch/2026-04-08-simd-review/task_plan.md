@@ -1478,3 +1478,17 @@
 | 1. 复核这三簇剩余公开边界          | completed   | 已确认 `src/fafafa.core.simd.pas` 公开暴露 `I16x32` 的 `Add/Sub/bitwise/shift/minmax`，`I8x64/U8x64` 的 `Add/Sub/bitwise/minmax`；现有 `IntegerFacadeGuards` 仅覆盖 compare 和部分 `AndNot` |
 | 2. 扩展现有 scalar direct suite     | completed   | 继续扩 `TTestCase_IntegerFacadeGuards`，新增 `I16x32/I8x64/U8x64` 的 remaining ops guard，不新增 runner/suite，也不改实现 |
 | 3. 修正测试期望并完成 Release 验证 | completed   | 首轮 targeted run 仅暴露 `VecI16x32ShiftLeft` 期望未显式收回 16-bit lane；修正为 `Word(...)` 后 `git diff --check`、Release targeted/check/gate 全绿 |
+
+## 2026-05-13 I64x4 U64x4 Remaining Ops Guard Coverage
+
+### Goal
+
+继续把 `I64x4/U64x4` 两簇 256-bit 整数 façade 中仍只靠 parity 旁证的 remaining ops 收成固定 `sbScalar` 的 direct guard，覆盖 `Add/Sub/bitwise/shift`，以及 `I64x4` 的 `ShiftRightArith`。
+
+### Phases
+
+| Phase                              | Status      | Notes |
+| ---------------------------------- | ----------- | ----- |
+| 1. 复核这两簇公开剩余边界          | completed   | 已确认 `src/fafafa.core.simd.pas` 公开暴露 `I64x4` 的 `Add/Sub/And/Or/Xor/Not/ShiftLeft/ShiftRight/ShiftRightArith` 与 `U64x4` 的 `Add/Sub/And/Or/Xor/Not/ShiftLeft/ShiftRight`；现有 `IntegerFacadeGuards` 只覆盖 `I64x4` 的 `AndNot + compare` 与 `U64x4` 的 compare |
+| 2. 扩展现有 scalar direct suite     | completed   | 继续扩 `TTestCase_IntegerFacadeGuards`，新增 `Test_VecI64x4_RemainingOps_Basic` 与 `Test_VecU64x4_RemainingOps_Basic`，不新增 runner/suite，也不改实现 |
+| 3. Release 验证与提交收口          | completed   | `git diff --check`、Release `TTestCase_IntegerFacadeGuards`、Release `check`、串行 Release `gate` 全绿；没有出现新的实现回归 |

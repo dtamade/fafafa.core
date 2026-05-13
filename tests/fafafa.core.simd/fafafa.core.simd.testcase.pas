@@ -342,8 +342,10 @@ type
     procedure Test_VecI64x2_Compare_Basic;
     procedure Test_VecI64x4_AndNot_Basic;
     procedure Test_VecI64x4_Compare_Basic;
+    procedure Test_VecI64x4_RemainingOps_Basic;
     procedure Test_VecU64x2_AndNot_Basic;
     procedure Test_VecU64x2_Compare_Unsigned;
+    procedure Test_VecU64x4_RemainingOps_Basic;
     procedure Test_VecI32x16_AndNot_Basic;
     procedure Test_VecI32x16_Compare_Basic;
     procedure Test_VecI32x16_RemainingOps_Basic;
@@ -10110,6 +10112,67 @@ begin
   AssertEquals('VecI64x4CmpNe mask', Integer(TMask4($6)), Integer(LMaskNe));
 end;
 
+procedure TTestCase_IntegerFacadeGuards.Test_VecI64x4_RemainingOps_Basic;
+const
+  C_SHIFT_LEFT = 6;
+  C_SHIFT_RIGHT = 5;
+  C_SHIFT_RIGHT_ARITH = 7;
+var
+  LVecA, LVecB: TVecI64x4;
+  LAddResult, LSubResult: TVecI64x4;
+  LAndResult, LOrResult, LXorResult, LNotResult: TVecI64x4;
+  LShiftLeftResult, LShiftRightResult, LShiftRightArithResult: TVecI64x4;
+  LExpectedSar: Int64;
+  LIndex: Integer;
+begin
+  LVecA.i[0] := High(Int64);
+  LVecA.i[1] := Low(Int64);
+  LVecA.i[2] := -1;
+  LVecA.i[3] := -1234567890123456;
+
+  LVecB.i[0] := 1;
+  LVecB.i[1] := -1;
+  LVecB.i[2] := High(Int64);
+  LVecB.i[3] := Int64($0F0F0F0F0F0F0F0F);
+
+  LAddResult := VecI64x4Add(LVecA, LVecB);
+  LSubResult := VecI64x4Sub(LVecA, LVecB);
+  LAndResult := VecI64x4And(LVecA, LVecB);
+  LOrResult := VecI64x4Or(LVecA, LVecB);
+  LXorResult := VecI64x4Xor(LVecA, LVecB);
+  LNotResult := VecI64x4Not(LVecA);
+  LShiftLeftResult := VecI64x4ShiftLeft(LVecA, C_SHIFT_LEFT);
+  LShiftRightResult := VecI64x4ShiftRight(LVecA, C_SHIFT_RIGHT);
+  LShiftRightArithResult := VecI64x4ShiftRightArith(LVecA, C_SHIFT_RIGHT_ARITH);
+
+  for LIndex := 0 to High(LVecA.i) do
+  begin
+    AssertEquals('VecI64x4Add lane ' + IntToStr(LIndex),
+      QWord(LVecA.i[LIndex]) + QWord(LVecB.i[LIndex]), QWord(LAddResult.i[LIndex]));
+    AssertEquals('VecI64x4Sub lane ' + IntToStr(LIndex),
+      QWord(LVecA.i[LIndex]) - QWord(LVecB.i[LIndex]), QWord(LSubResult.i[LIndex]));
+    AssertEquals('VecI64x4And lane ' + IntToStr(LIndex),
+      QWord(LVecA.i[LIndex]) and QWord(LVecB.i[LIndex]), QWord(LAndResult.i[LIndex]));
+    AssertEquals('VecI64x4Or lane ' + IntToStr(LIndex),
+      QWord(LVecA.i[LIndex]) or QWord(LVecB.i[LIndex]), QWord(LOrResult.i[LIndex]));
+    AssertEquals('VecI64x4Xor lane ' + IntToStr(LIndex),
+      QWord(LVecA.i[LIndex]) xor QWord(LVecB.i[LIndex]), QWord(LXorResult.i[LIndex]));
+    AssertEquals('VecI64x4Not lane ' + IntToStr(LIndex),
+      QWord(not LVecA.i[LIndex]), QWord(LNotResult.i[LIndex]));
+    AssertEquals('VecI64x4ShiftLeft lane ' + IntToStr(LIndex),
+      QWord(LVecA.i[LIndex]) shl C_SHIFT_LEFT, QWord(LShiftLeftResult.i[LIndex]));
+    AssertEquals('VecI64x4ShiftRight lane ' + IntToStr(LIndex),
+      QWord(LVecA.i[LIndex]) shr C_SHIFT_RIGHT, QWord(LShiftRightResult.i[LIndex]));
+
+    if LVecA.i[LIndex] < 0 then
+      LExpectedSar := not Int64(QWord(not LVecA.i[LIndex]) shr C_SHIFT_RIGHT_ARITH)
+    else
+      LExpectedSar := Int64(QWord(LVecA.i[LIndex]) shr C_SHIFT_RIGHT_ARITH);
+    AssertEquals('VecI64x4ShiftRightArith lane ' + IntToStr(LIndex),
+      LExpectedSar, LShiftRightArithResult.i[LIndex]);
+  end;
+end;
+
 procedure TTestCase_IntegerFacadeGuards.Test_VecU64x2_AndNot_Basic;
 var
   LVecA, LVecB, LResult: TVecU64x2;
@@ -10547,6 +10610,57 @@ begin
   AssertEquals('VecU64x4CmpLe mask', Integer(TMask4($B)), Integer(LMaskLe));
   AssertEquals('VecU64x4CmpGe mask', Integer(TMask4($D)), Integer(LMaskGe));
   AssertEquals('VecU64x4CmpNe mask', Integer(TMask4($6)), Integer(LMaskNe));
+end;
+
+procedure TTestCase_IntegerFacadeGuards.Test_VecU64x4_RemainingOps_Basic;
+const
+  C_SHIFT_LEFT = 11;
+  C_SHIFT_RIGHT = 13;
+var
+  LVecA, LVecB: TVecU64x4;
+  LAddResult, LSubResult: TVecU64x4;
+  LAndResult, LOrResult, LXorResult, LNotResult: TVecU64x4;
+  LShiftLeftResult, LShiftRightResult: TVecU64x4;
+  LIndex: Integer;
+begin
+  LVecA.u[0] := 0;
+  LVecA.u[1] := 1;
+  LVecA.u[2] := High(QWord);
+  LVecA.u[3] := QWord($8000000000000000);
+
+  LVecB.u[0] := High(QWord);
+  LVecB.u[1] := 2;
+  LVecB.u[2] := 3;
+  LVecB.u[3] := QWord($7FFFFFFFFFFFFFFF);
+
+  LAddResult := VecU64x4Add(LVecA, LVecB);
+  LSubResult := VecU64x4Sub(LVecA, LVecB);
+  LAndResult := VecU64x4And(LVecA, LVecB);
+  LOrResult := VecU64x4Or(LVecA, LVecB);
+  LXorResult := VecU64x4Xor(LVecA, LVecB);
+  LNotResult := VecU64x4Not(LVecA);
+  LShiftLeftResult := VecU64x4ShiftLeft(LVecA, C_SHIFT_LEFT);
+  LShiftRightResult := VecU64x4ShiftRight(LVecA, C_SHIFT_RIGHT);
+
+  for LIndex := 0 to High(LVecA.u) do
+  begin
+    AssertEquals('VecU64x4Add lane ' + IntToStr(LIndex),
+      LVecA.u[LIndex] + LVecB.u[LIndex], LAddResult.u[LIndex]);
+    AssertEquals('VecU64x4Sub lane ' + IntToStr(LIndex),
+      LVecA.u[LIndex] - LVecB.u[LIndex], LSubResult.u[LIndex]);
+    AssertEquals('VecU64x4And lane ' + IntToStr(LIndex),
+      LVecA.u[LIndex] and LVecB.u[LIndex], LAndResult.u[LIndex]);
+    AssertEquals('VecU64x4Or lane ' + IntToStr(LIndex),
+      LVecA.u[LIndex] or LVecB.u[LIndex], LOrResult.u[LIndex]);
+    AssertEquals('VecU64x4Xor lane ' + IntToStr(LIndex),
+      LVecA.u[LIndex] xor LVecB.u[LIndex], LXorResult.u[LIndex]);
+    AssertEquals('VecU64x4Not lane ' + IntToStr(LIndex),
+      not LVecA.u[LIndex], LNotResult.u[LIndex]);
+    AssertEquals('VecU64x4ShiftLeft lane ' + IntToStr(LIndex),
+      LVecA.u[LIndex] shl C_SHIFT_LEFT, LShiftLeftResult.u[LIndex]);
+    AssertEquals('VecU64x4ShiftRight lane ' + IntToStr(LIndex),
+      LVecA.u[LIndex] shr C_SHIFT_RIGHT, LShiftRightResult.u[LIndex]);
+  end;
 end;
 
 procedure TTestCase_IntegerFacadeGuards.Test_VecI64x8_Compare_Basic;
