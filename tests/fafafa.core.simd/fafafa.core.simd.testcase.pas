@@ -397,6 +397,9 @@ type
 
   // 大数据量和边界测试
   TTestCase_LargeData = class(TTestCase)
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
   published
     procedure Test_MemEqual_1MB;
     procedure Test_SumBytes_1MB;
@@ -12421,6 +12424,18 @@ begin
 end;
 
 { TTestCase_LargeData }
+
+procedure TTestCase_LargeData.SetUp;
+begin
+  inherited SetUp;
+  ForceBackend(sbScalar);
+end;
+
+procedure TTestCase_LargeData.TearDown;
+begin
+  ResetBackendSelection;
+  inherited TearDown;
+end;
 
 procedure TTestCase_LargeData.Test_MemEqual_1MB;
 const

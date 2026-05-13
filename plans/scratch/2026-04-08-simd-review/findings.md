@@ -1644,3 +1644,30 @@
   - 保留现有 testcase 不动
   - 让整个 suite 自动升级成 fixed-`sbScalar` 的 façade direct evidence
 - 这批 Release `TTestCase_VectorMaskTypes`、Release `check`、串行 Release `gate` 最终都为绿，说明当前补的是 public mask façade evidence gap，而不是 mask helper/selector 实现缺陷。
+
+## 2026-05-14 Large Data Global Facade Scalarization Findings
+
+- `TTestCase_LargeData` 虽然名字偏“集成/边界”，但实际调用的是当前 `simd` 公共全局 façade：
+  - `MemEqual`
+  - `SumBytes`
+  - `MemFindByte`
+  - `CountByte`
+- 它覆盖的不是性能或自动 backend 选择，而是公开 contract 的大尺寸/边界语义：
+  - 1MB 相等/差异缓冲区
+  - 1MB 累加求和
+  - 大缓冲区尾部/中部查找
+  - 非对齐指针访问
+  - odd-size 与 15/16/17 等边界尺寸
+- 因而在当前剩余候选里，它比 `TTestCase_UnsignedVectorTypes` 更值得优先收口：
+  - `LargeData` 是真实 façade contract
+  - `UnsignedVectorTypes` 主要是 typedef/layout/raw-access 断言，backend 语义价值明显更低
+- 复核 `LargeData` 的 testcase 形状后，没有发现任何一条测试显式依赖“自动 backend 选择”语义：
+  - 没有断言当前 backend 文本
+  - 没有断言自动降级或跨 backend parity
+  - 只断言公开全局 façade 在大尺寸/边界条件下的结果 contract
+  - 因此 suite-level scalarization 的风险仍然很低
+- 这批最优雅的收口方式同样不是复制 testcase 到新 suite，而是直接 scalarize 现有 suite：
+  - 给 `TTestCase_LargeData` 增加 `SetUp/TearDown`
+  - 保留现有 testcase 不动
+  - 让整个 suite 自动升级成 fixed-`sbScalar` 的 façade direct evidence
+- 这批 Release `TTestCase_LargeData`、Release `check`、串行 Release `gate` 最终都为绿，说明当前补的是 public global façade 的大尺寸/边界 evidence gap，而不是大数据路径实现缺陷。

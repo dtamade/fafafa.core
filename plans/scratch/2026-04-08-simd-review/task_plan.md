@@ -1660,3 +1660,17 @@
 | 1. 复核 `VectorMaskTypes` 当前证据层现状 | completed | 已确认 `TTestCase_VectorMaskTypes` 现有覆盖面已包含 `MaskF32x4AllTrue/AllFalse/Set/Test/ToBitmask/Any/All/None`、掩码逻辑运算 `and/or/xor/not`、`MaskI32x4AllTrue/ToBitmask`、`MaskF64x2AllTrue/ToBitmask` 与 `MaskF32x4Select`，但 suite 自身没有 `SetUp/TearDown` |
 | 2. 收敛为 scalar direct suite      | completed | 未新开 runner，也未复制 testcase；直接给 `TTestCase_VectorMaskTypes` 增加 `SetUp/TearDown`，统一固定 `ForceBackend(sbScalar)` / `ResetBackendSelection`，把现有 mask façade 测试整体升级成 direct evidence |
 | 3. Release 验证与提交收口          | completed | `git diff --check`、Release `TTestCase_VectorMaskTypes`、Release `check`、串行 Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 Large Data Global Facade Scalarization
+
+### Goal
+
+继续把 `LargeData` 这一簇大尺寸/非对齐/odd-size 的公开全局 façade 测试，从“普通边界回归”收成固定 `sbScalar` 的 direct guard，优先覆盖 `MemEqual/SumBytes/MemFindByte/CountByte`。
+
+### Phases
+
+| Phase                              | Status    | Notes |
+| ---------------------------------- | --------- | ----- |
+| 1. 复核 `LargeData` / `UnsignedVectorTypes` 优先级 | completed | 已确认 `TTestCase_LargeData` 真实调用的是公开全局 façade `MemEqual/SumBytes/MemFindByte/CountByte`，覆盖 1MB、非对齐和 odd-size 合约；相比之下 `TTestCase_UnsignedVectorTypes` 主要是 typedef/layout/raw-access 断言，因此本轮优先级更低 |
+| 2. 收敛 `LargeData` 为 scalar direct suite | completed | 未新开 runner，也未复制 testcase；直接给 `TTestCase_LargeData` 增加 `SetUp/TearDown`，统一固定 `ForceBackend(sbScalar)` / `ResetBackendSelection`，把现有大数据边界 façade 测试整体升级成 direct evidence |
+| 3. Release 验证与提交收口          | completed | `git diff --check`、Release `TTestCase_LargeData`、Release `check`、串行 Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |

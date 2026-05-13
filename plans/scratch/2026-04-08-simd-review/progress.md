@@ -1773,6 +1773,33 @@
   - 结果：全部通过
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
 
+## 2026-05-14 Large Data Global Facade Scalarization
+
+- 继续深扫剩余未 scalarize suite 后，本轮先没有去碰 `UnsignedVectorTypes`，因为它主要是：
+  - `TVecU32x4/U16x8/U8x16/U64x2/U32x8/U16x16/U8x32` 的 typedef/layout/raw-access
+  - backend 语义价值偏低
+- 相比之下，`LargeData` 虽然名字更像集成边界，但它实际覆盖的是公开全局 façade 的大尺寸 contract：
+  - `MemEqual`
+  - `SumBytes`
+  - `MemFindByte`
+  - `CountByte`
+  - 并且命中了 1MB、非对齐、odd-size 等高价值边界
+- 所以这批之前最大的问题同样不是“没测”，而是“测了但 suite 没被固定到 scalar 真源语义”：
+  - `TTestCase_LargeData` 自己已经覆盖这簇公开全局 façade 的边界 contract
+  - 但 suite 没有 `SetUp/TearDown`
+  - 因而它更像普通边界回归，不等价于 fixed-`sbScalar` 的 façade direct guard
+- 因而这批最小、最优雅的收口方式依旧不是新造测试，而是把现有 suite 自身 scalarize：
+  - 给 `TTestCase_LargeData` 增加 `SetUp/TearDown`
+  - 在 `SetUp` 固定 `ForceBackend(sbScalar)`
+  - 在 `TearDown` 调 `ResetBackendSelection`
+- Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_LargeData`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
 ## 2026-05-13 I32x8 I64x2 U64x2 Remaining Ops Guard Coverage
 
 - 继续从“公开 façade 还没被固定 `sbScalar` 的 direct guard 钉住”往下扫后，这一批最值钱的缺口落在：
