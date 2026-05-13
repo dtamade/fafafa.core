@@ -1620,3 +1620,27 @@
   - 保留现有 testcase 不动
   - 让整个 suite 自动升级成 fixed-`sbScalar` 的 façade direct evidence
 - 这批 Release `TTestCase_TypeConversion`、Release `check`、串行 Release `gate` 最终都为绿，说明当前补的是 public type-conversion façade evidence gap，而不是转换实现缺陷。
+
+## 2026-05-14 Vector Mask Facade Scalarization Findings
+
+- `MaskF32x4AllTrue/AllFalse/Set/Test/ToBitmask/Any/All/None`、`MaskI32x4AllTrue/ToBitmask`、`MaskF64x2AllTrue/ToBitmask` 与 `MaskF32x4Select` 都是当前 `src/fafafa.core.simd.pas` 的真实公开 mask façade，不是 backend-only helper。
+- `TTestCase_VectorMaskTypes` 在本轮之前其实已经有很完整的覆盖面：
+  - `MaskF32x4`：构造、查询、bitmask、布尔归约、逻辑运算
+  - `MaskI32x4`：`AllTrue/ToBitmask`
+  - `MaskF64x2`：`AllTrue/ToBitmask`
+  - 选择器：`MaskF32x4Select`
+- 但它和前几批 suite-level scalarization 的问题本质一致：
+  - 覆盖面存在
+  - 调用的确是公开 façade
+  - 可 suite 本身没有 `ForceBackend(sbScalar)` / `ResetBackendSelection`
+  - 因而它更像普通行为回归，不等价于 scalar 真源的 façade direct guard
+- 复核 `VectorMaskTypes` 的 testcase 形状后，没有发现任何一条测试显式依赖“自动 backend 选择”语义：
+  - 掩码 layout/bitmask/逻辑运算断言的是稳定类型 contract
+  - `MaskF32x4Select` 也只断言公开 façade 结果
+  - 没有断言当前 backend 文本、自动降级或跨 backend 差异
+  - 因此 suite-level scalarization 的风险很低
+- 这批最优雅的收口方式同样不是复制 testcase 到新 suite，而是直接 scalarize 现有 suite：
+  - 给 `TTestCase_VectorMaskTypes` 增加 `SetUp/TearDown`
+  - 保留现有 testcase 不动
+  - 让整个 suite 自动升级成 fixed-`sbScalar` 的 façade direct evidence
+- 这批 Release `TTestCase_VectorMaskTypes`、Release `check`、串行 Release `gate` 最终都为绿，说明当前补的是 public mask façade evidence gap，而不是 mask helper/selector 实现缺陷。

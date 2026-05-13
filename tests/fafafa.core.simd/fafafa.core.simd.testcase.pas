@@ -468,6 +468,9 @@ type
 
   // Phase 1.3: 向量掩码类型测试
   TTestCase_VectorMaskTypes = class(TTestCase)
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
   published
     // TMaskF32x4 基础测试
     procedure Test_MaskF32x4_TypeDef_Size;
@@ -12980,6 +12983,18 @@ begin
 end;
 
 { TTestCase_VectorMaskTypes }
+
+procedure TTestCase_VectorMaskTypes.SetUp;
+begin
+  inherited SetUp;
+  ForceBackend(sbScalar);
+end;
+
+procedure TTestCase_VectorMaskTypes.TearDown;
+begin
+  ResetBackendSelection;
+  inherited TearDown;
+end;
 
 procedure TTestCase_VectorMaskTypes.Test_MaskF32x4_TypeDef_Size;
 var

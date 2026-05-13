@@ -1646,3 +1646,17 @@
 | 1. 复核 `TypeConversion` 当前证据层现状 | completed | 已确认 `TTestCase_TypeConversion` 现有覆盖面已包含 `VecF32x4IntoBits/VecI32x4FromBitsF32`、`VecF64x2IntoBits/VecI64x2FromBitsF64`、`VecF32x4CastToI32x4/VecI32x4CastToF32x4`、`VecF64x2CastToI64x2/VecI64x2CastToF64x2`、`VecI16x8WidenLoI32x4/VecI16x8WidenHiI32x4/VecI32x4NarrowToI16x8`、`VecF32x4ToF64x2Lo/VecF64x2ToF32x4`，但 suite 自身没有 `SetUp/TearDown` |
 | 2. 收敛为 scalar direct suite      | completed | 未新开 runner，也未复制 testcase；直接给 `TTestCase_TypeConversion` 增加 `SetUp/TearDown`，统一固定 `ForceBackend(sbScalar)` / `ResetBackendSelection`，把现有转换 façade 测试整体升级成 direct evidence |
 | 3. Release 验证与提交收口          | completed | `git diff --check`、Release `TTestCase_TypeConversion`、Release `check`、串行 Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 Vector Mask Facade Scalarization
+
+### Goal
+
+继续把 `VectorMaskTypes` 这一簇公开 mask façade 从“普通行为测试”收成固定 `sbScalar` 的 direct guard，优先覆盖 `MaskF32x4*`、`MaskI32x4*`、`MaskF64x2*` 与 `MaskF32x4Select`。
+
+### Phases
+
+| Phase                              | Status    | Notes |
+| ---------------------------------- | --------- | ----- |
+| 1. 复核 `VectorMaskTypes` 当前证据层现状 | completed | 已确认 `TTestCase_VectorMaskTypes` 现有覆盖面已包含 `MaskF32x4AllTrue/AllFalse/Set/Test/ToBitmask/Any/All/None`、掩码逻辑运算 `and/or/xor/not`、`MaskI32x4AllTrue/ToBitmask`、`MaskF64x2AllTrue/ToBitmask` 与 `MaskF32x4Select`，但 suite 自身没有 `SetUp/TearDown` |
+| 2. 收敛为 scalar direct suite      | completed | 未新开 runner，也未复制 testcase；直接给 `TTestCase_VectorMaskTypes` 增加 `SetUp/TearDown`，统一固定 `ForceBackend(sbScalar)` / `ResetBackendSelection`，把现有 mask façade 测试整体升级成 direct evidence |
+| 3. Release 验证与提交收口          | completed | `git diff --check`、Release `TTestCase_VectorMaskTypes`、Release `check`、串行 Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
