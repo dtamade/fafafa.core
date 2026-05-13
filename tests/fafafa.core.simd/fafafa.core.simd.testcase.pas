@@ -11720,6 +11720,7 @@ begin
   AssertEquals('VecF64x2ReduceMin', -3.5, LReduceMin, C_EPSILON);
   AssertEquals('VecF64x2ReduceMax', 2.0, LReduceMax, C_EPSILON);
   AssertEquals('VecF64x2ReduceMul', -7.0, LReduceMul, C_EPSILON);
+  AssertEquals('VecF64x2Dot', -33.5, fafafa.core.simd.VecF64x2Dot(LReduceInput, LVecB), C_EPSILON);
 end;
 
 procedure TTestCase_FloatFacadeGuards.Test_VecF64x2_ExtendedMathAndLoadStore_Basic;

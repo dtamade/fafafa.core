@@ -62,6 +62,7 @@ type
     procedure Test_VecF64x4_Splat;
     procedure Test_VecF64x4_Zero;
     procedure Test_VecF64x4_LoadStore;
+    procedure Test_VecF64x4_PublicUtilityFacade_Basic;
     procedure Test_VecF64x4_SizeOf;
     procedure Test_VecF64x4_LoHi;
   end;
@@ -633,6 +634,44 @@ begin
   AssertEquals('LoadStore[1]', src[1], dst[1], F64_TOLERANCE);
   AssertEquals('LoadStore[2]', src[2], dst[2], F64_TOLERANCE);
   AssertEquals('LoadStore[3]', src[3], dst[3], F64_TOLERANCE);
+end;
+
+procedure TTestCase_VecF64x4.Test_VecF64x4_PublicUtilityFacade_Basic;
+var
+  LVecA, LVecB, LExpectedSelect, LSelected, LRcp, LInserted: TVecF64x4;
+  LExpectedRcp: TVecF64x4;
+  LMask: TVecU64x4;
+  LDot: Double;
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+  begin
+    LVecA.d[LIndex] := (LIndex + 1) * 2.0;
+    LVecB.d[LIndex] := (LIndex - 1.5) * 3.0;
+    LMask.u[LIndex] := 0;
+  end;
+  LMask.u[1] := High(QWord);
+  LMask.u[3] := High(QWord);
+
+  LExpectedRcp := ScalarRcpF64x4(LVecA);
+  LRcp := VecF64x4Rcp(LVecA);
+  for LIndex := 0 to 3 do
+    AssertEquals('VecF64x4Rcp lane ' + IntToStr(LIndex),
+      LExpectedRcp.d[LIndex], LRcp.d[LIndex], F64_TOLERANCE);
+
+  LDot := VecF64x4Dot(LVecA, LVecB);
+  AssertEquals('VecF64x4Dot facade', ScalarDotF64x4(LVecA, LVecB), LDot, F64_TOLERANCE);
+
+  LExpectedSelect := ScalarSelectF64x4(LMask, LVecA, LVecB);
+  LSelected := VecF64x4Select(LMask, LVecA, LVecB);
+  for LIndex := 0 to 3 do
+    AssertEquals('VecF64x4Select lane ' + IntToStr(LIndex),
+      LExpectedSelect.d[LIndex], LSelected.d[LIndex], F64_TOLERANCE);
+
+  AssertEquals('VecF64x4Extract lane 2', LVecA.d[2], VecF64x4Extract(LVecA, 2), F64_TOLERANCE);
+  LInserted := VecF64x4Insert(LVecA, 777.25, 1);
+  AssertEquals('VecF64x4Insert lane 1', 777.25, LInserted.d[1], F64_TOLERANCE);
+  AssertEquals('VecF64x4Insert keep lane 2', LVecA.d[2], LInserted.d[2], F64_TOLERANCE);
 end;
 
 procedure TTestCase_VecF64x4.Test_VecF64x4_SizeOf;

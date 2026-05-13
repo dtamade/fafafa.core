@@ -1453,3 +1453,18 @@
   - 也不需要碰任何生产实现文件
 - 这次新增 4 条 `F64x2` guard 后，Release targeted suite、`check`、串行 `gate` 全绿，说明这块问题确实是 public façade evidence gap，而不是实现缺陷。
 - 这也意味着浮点 façade 上这一块“看似有很多测试、其实缺 direct guard”的尾巴已经开始被实证收口；后续再继续深扫时，收益会更偏向少量 residual API 的 contract 密实化，而不是发现大块新缺口。
+
+## 2026-05-14 Float Utility Facade Tail Findings
+
+- `F32x8/F64x4` 这两族之前最容易被误判成“已经够了”，因为它们确实已有 family-local scalar suite；但复核后发现 utility 面仍有真假边界：
+  - 两边都还缺 `Dot/Select/ExtractInsert` 的 scalar-direct public façade 证据；`F64x4` 还额外缺 `Rcp`
+- 回源码后又进一步确认了一条边界真相：
+  - `src/fafafa.core.simd.pas` 对 `F32x8/F64x4` 并没有公开 `Load/Store/Splat/Zero` façade
+  - 因而这几项不应再被误记成 public contract 缺口；它们属于 dispatch/scalar helper 面，而不是当前 façade 审查范围
+- 这意味着 `SetUp/TearDown` 虽然已经固定 `sbScalar`，但还不能直接等价成“utility façade 也被 guard 住了”；对 public contract 来说，调用路径本身也要被钉住。
+- `F64x2` 这边则是另一种尾巴：主 guard 已经覆盖了 arithmetic、compare、reduce、select、load-store、math、extract-insert，但还漏了 `Dot` 这一条公开 façade。
+- 这批最合理的收口方式不是新开 suite，也不是改生产实现，而是：
+  - 在已有 `F64x2` guard 上补 `Dot`
+  - 在 `vecf32x8/vecf64x4` 已固定 `sbScalar` 的 family-local suite 里各补 1 条 public utility façade 测试
+- 这批 targeted suite、Release `check`、串行 Release `gate` 最终都为绿，说明这次判断是准的：补的是 `F64x2/F32x8/F64x4` float utility public façade 的 direct-evidence 尾巴，不是实现层修复。
+- 这也让 256-bit 浮点 façade 的剩余问题进一步从“真假混杂的证据层”收缩成少量 residual contract 密实化，而不是大块缺实现。

@@ -61,6 +61,7 @@ type
     procedure Test_VecF32x8_Splat;
     procedure Test_VecF32x8_Zero;
     procedure Test_VecF32x8_LoadStore;
+    procedure Test_VecF32x8_PublicUtilityFacade_Basic;
     procedure Test_VecF32x8_SizeOf;
     procedure Test_VecF32x8_LoHi;
 
@@ -757,6 +758,39 @@ begin
   // 验证 Store 结果
   for i := 0 to 7 do
     AssertEquals('F32x8 Store [' + IntToStr(i) + ']', src[i], dst[i], F32x8_TOLERANCE);
+end;
+
+procedure TTestCase_VecF32x8.Test_VecF32x8_PublicUtilityFacade_Basic;
+var
+  LVecA, LVecB, LExpectedSelect, LSelected, LInserted: TVecF32x8;
+  LMask: TVecU32x8;
+  LDot: Single;
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+  begin
+    LVecA.f[LIndex] := (LIndex + 1) * 1.25;
+    LVecB.f[LIndex] := (8 - LIndex) * 0.5;
+    LMask.u[LIndex] := 0;
+  end;
+  LMask.u[1] := High(DWord);
+  LMask.u[3] := High(DWord);
+  LMask.u[5] := High(DWord);
+  LMask.u[7] := High(DWord);
+
+  LDot := VecF32x8Dot(LVecA, LVecB);
+  AssertEquals('VecF32x8Dot facade', ScalarDotF32x8(LVecA, LVecB), LDot, F32x8_TOLERANCE);
+
+  LExpectedSelect := ScalarSelectF32x8(LMask, LVecA, LVecB);
+  LSelected := VecF32x8Select(LMask, LVecA, LVecB);
+  for LIndex := 0 to 7 do
+    AssertEquals('VecF32x8Select lane ' + IntToStr(LIndex),
+      LExpectedSelect.f[LIndex], LSelected.f[LIndex], F32x8_TOLERANCE);
+
+  AssertEquals('VecF32x8Extract lane 3', LVecA.f[3], VecF32x8Extract(LVecA, 3), F32x8_TOLERANCE);
+  LInserted := VecF32x8Insert(LVecA, 123.5, 4);
+  AssertEquals('VecF32x8Insert lane 4', 123.5, LInserted.f[4], F32x8_TOLERANCE);
+  AssertEquals('VecF32x8Insert keep lane 3', LVecA.f[3], LInserted.f[3], F32x8_TOLERANCE);
 end;
 
 

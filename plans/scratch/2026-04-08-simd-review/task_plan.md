@@ -1534,3 +1534,17 @@
 | 1. 复核 `F64x2` 当前证据层现状     | completed | 已确认 `TTestCase_VectorOps` 只固定 `sbScalar` 覆盖 `Floor/Ceil/Round/Trunc/Fma`，`TTestCase_OperatorOverloads` 只覆盖 `+/-/*//`，而 `dispatchapi/direct` 的 `F64x2` 主要是 parity/旁证，不等价于 public façade direct guard |
 | 2. 扩展现有 scalar direct suite     | completed | 继续扩 `TTestCase_FloatFacadeGuards`，新增 4 条 `F64x2` 测试覆盖 arithmetic、compare/reduce/select、extended math/load-store、remaining math/extract-insert，不新增 runner/suite，也不改实现 |
 | 3. Release 验证与提交收口          | completed | `git diff --check`、Release `TTestCase_FloatFacadeGuards`、Release `check`、串行 Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理，待 review + commit |
+
+## 2026-05-14 Float Utility Facade Tail Guard Coverage
+
+### Goal
+
+继续把浮点公开 façade 的 utility 尾巴补成固定 `sbScalar` 的 direct guard，优先收口 `F64x2Dot`、`F32x8Dot/Select/ExtractInsert`，以及 `F64x4Rcp/Dot/Select/ExtractInsert`。
+
+### Phases
+
+| Phase                              | Status    | Notes |
+| ---------------------------------- | --------- | ----- |
+| 1. 复核 float utility 当前证据层现状 | completed | 已确认 `F32x8/F64x4` 的 family-local suite 虽然固定 `sbScalar`，但 utility 面仍缺 public façade 直调：`F32x8` 主要缺 `Dot/Select/ExtractInsert`，`F64x4` 主要缺 `Rcp/Dot/Select/ExtractInsert`；同时已回源码确认两族并不存在公开的 `Load/Store/Splat/Zero` façade |
+| 2. 补齐 float utility direct guard  | completed | 已在 `TTestCase_FloatFacadeGuards` 给 `F64x2` 补 `Dot` 断言，并在 `vecf32x8/vecf64x4` family-local scalar suite 中各新增 1 条 public utility façade 测试，不改生产实现 |
+| 3. Release 验证与提交收口          | completed | `git diff --check`、Release targeted suite、Release `check`、串行 Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理，待 review + commit |
