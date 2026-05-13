@@ -346,6 +346,9 @@ type
     procedure Test_VecI32x16_Compare_Basic;
     procedure Test_VecU32x16_AndNot_Basic;
     procedure Test_VecU32x16_Compare_Unsigned;
+    procedure Test_VecU64x8_Compare_Unsigned;
+    procedure Test_VecI16x32_AndNot_Basic;
+    procedure Test_VecI8x64_AndNot_Basic;
   end;
 
   // 大数据量和边界测试
@@ -10206,6 +10209,130 @@ begin
   AssertEquals('VecU32x16CmpLe mask', LongInt(TMask16($B6DB)), LongInt(LMaskLe));
   AssertEquals('VecU32x16CmpGe mask', LongInt(TMask16($DB6D)), LongInt(LMaskGe));
   AssertEquals('VecU32x16CmpNe mask', LongInt(TMask16($6DB6)), LongInt(LMaskNe));
+end;
+
+procedure TTestCase_IntegerFacadeGuards.Test_VecU64x8_Compare_Unsigned;
+var
+  LVecA, LVecB: TVecU64x8;
+  LMaskEq, LMaskLt, LMaskGt, LMaskLe, LMaskGe, LMaskNe: TMask8;
+  LIndex: Integer;
+begin
+  for LIndex := 0 to High(LVecA.u) do
+  begin
+    case LIndex mod 3 of
+      0:
+        begin
+          LVecA.u[LIndex] := QWord(LIndex) * QWord($1111111111111111);
+          LVecB.u[LIndex] := LVecA.u[LIndex];
+        end;
+      1:
+        begin
+          LVecA.u[LIndex] := QWord(LIndex);
+          LVecB.u[LIndex] := High(QWord) - QWord(LIndex);
+        end;
+    else
+      begin
+        LVecA.u[LIndex] := High(QWord) - QWord(LIndex);
+        LVecB.u[LIndex] := QWord(LIndex);
+      end;
+    end;
+  end;
+
+  LMaskEq := VecU64x8CmpEq(LVecA, LVecB);
+  LMaskLt := VecU64x8CmpLt(LVecA, LVecB);
+  LMaskGt := VecU64x8CmpGt(LVecA, LVecB);
+  LMaskLe := VecU64x8CmpLe(LVecA, LVecB);
+  LMaskGe := VecU64x8CmpGe(LVecA, LVecB);
+  LMaskNe := VecU64x8CmpNe(LVecA, LVecB);
+
+  AssertEquals('VecU64x8CmpEq mask', Integer(TMask8($49)), Integer(LMaskEq));
+  AssertEquals('VecU64x8CmpLt mask', Integer(TMask8($92)), Integer(LMaskLt));
+  AssertEquals('VecU64x8CmpGt mask', Integer(TMask8($24)), Integer(LMaskGt));
+  AssertEquals('VecU64x8CmpLe mask', Integer(TMask8($DB)), Integer(LMaskLe));
+  AssertEquals('VecU64x8CmpGe mask', Integer(TMask8($6D)), Integer(LMaskGe));
+  AssertEquals('VecU64x8CmpNe mask', Integer(TMask8($B6)), Integer(LMaskNe));
+end;
+
+procedure TTestCase_IntegerFacadeGuards.Test_VecI16x32_AndNot_Basic;
+var
+  LVecA, LVecB, LResult: TVecI16x32;
+  LExpected: Word;
+  LIndex: Integer;
+begin
+  for LIndex := 0 to High(LVecA.i) do
+  begin
+    case LIndex mod 4 of
+      0:
+        begin
+          LVecA.i[LIndex] := SmallInt($0F0F);
+          LVecB.i[LIndex] := SmallInt(-1);
+        end;
+      1:
+        begin
+          LVecA.i[LIndex] := SmallInt(-1);
+          LVecB.i[LIndex] := SmallInt($1234);
+        end;
+      2:
+        begin
+          LVecA.i[LIndex] := 0;
+          LVecB.i[LIndex] := SmallInt($3333);
+        end;
+    else
+      begin
+        LVecA.i[LIndex] := SmallInt($3333);
+        LVecB.i[LIndex] := SmallInt($5555);
+      end;
+    end;
+  end;
+
+  LResult := VecI16x32AndNot(LVecA, LVecB);
+
+  for LIndex := 0 to High(LResult.i) do
+  begin
+    LExpected := Word(not LVecA.i[LIndex]) and Word(LVecB.i[LIndex]);
+    AssertEquals('VecI16x32AndNot lane ' + IntToStr(LIndex), LExpected, Word(LResult.i[LIndex]));
+  end;
+end;
+
+procedure TTestCase_IntegerFacadeGuards.Test_VecI8x64_AndNot_Basic;
+var
+  LVecA, LVecB, LResult: TVecI8x64;
+  LExpected: Byte;
+  LIndex: Integer;
+begin
+  for LIndex := 0 to High(LVecA.i) do
+  begin
+    case LIndex mod 4 of
+      0:
+        begin
+          LVecA.i[LIndex] := ShortInt($0F);
+          LVecB.i[LIndex] := ShortInt(-1);
+        end;
+      1:
+        begin
+          LVecA.i[LIndex] := ShortInt(-1);
+          LVecB.i[LIndex] := ShortInt($12);
+        end;
+      2:
+        begin
+          LVecA.i[LIndex] := 0;
+          LVecB.i[LIndex] := ShortInt($33);
+        end;
+    else
+      begin
+        LVecA.i[LIndex] := ShortInt($33);
+        LVecB.i[LIndex] := ShortInt($55);
+      end;
+    end;
+  end;
+
+  LResult := VecI8x64AndNot(LVecA, LVecB);
+
+  for LIndex := 0 to High(LResult.i) do
+  begin
+    LExpected := Byte(not LVecA.i[LIndex]) and Byte(LVecB.i[LIndex]);
+    AssertEquals('VecI8x64AndNot lane ' + IntToStr(LIndex), LExpected, Byte(LResult.i[LIndex]));
+  end;
 end;
 
 { TTestCase_LargeData }

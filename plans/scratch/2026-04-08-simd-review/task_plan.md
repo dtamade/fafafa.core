@@ -1351,3 +1351,17 @@
 | 2. 扩展现有 scalar-forced direct suite | completed | 继续使用已挂接好的 `TTestCase_IntegerFacadeGuards`，新增 `I64x4`、`I32x16`、`U32x16` 的 direct guard，不再新增 runner 结构 |
 | 3. 收口测试层命名歧义              | completed   | `I32x16` 的 `CmpEq/Lt/Gt` 需显式限定到 `fafafa.core.simd.`，避免落到 `simd.utils` 的 `TMaskI32x16` 同名 helper |
 | 4. Release 验证与提交收口          | completed   | `git diff --check`、Release `TTestCase_IntegerFacadeGuards`、Release `check`、Release `gate` 全绿；待 review + commit |
+
+## 2026-05-13 Wide Tail Integer Facade Guard Coverage
+
+### Goal
+
+继续按同一证据线扫当前尾部公开 façade contract，把 `U64x8` 的 `CmpLe/CmpGe/CmpNe` 与 `I16x32/I8x64` 的 `AndNot` 从“只有 parity/multi-backend 旁证”补成 scalar-forced direct guard。
+
+### Phases
+
+| Phase                              | Status      | Notes |
+| ---------------------------------- | ----------- | ----- |
+| 1. 复核 façade 真实边界            | completed   | 已确认 `VecU64x8CmpLe/CmpGe/CmpNe`、`VecI16x32AndNot`、`VecI8x64AndNot` 都是 `src/fafafa.core.simd.pas` 的真实公开 surface |
+| 2. 扩展现有 scalar-forced direct suite | completed | 继续扩 `TTestCase_IntegerFacadeGuards`，新增 `U64x8` compare 与 `I16x32/I8x64` AndNot，不引入新的 runner/suite 结构 |
+| 3. Release 验证与提交收口          | completed   | `git diff --check`、Release `TTestCase_IntegerFacadeGuards`、Release `check`、Release `gate` 全绿；待 review + commit |

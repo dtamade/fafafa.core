@@ -1353,3 +1353,22 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-13 Wide Tail Integer Facade Guard Coverage
+
+- 继续往下扫后，当前同类 direct-guard 空档已经缩成更尾部的 3 处 façade contract：
+  - `VecU64x8CmpLe/CmpGe/CmpNe`
+  - `VecI16x32AndNot`
+  - `VecI8x64AndNot`
+- 这三项在本轮之前都已经有 `dispatchapi` parity 证据，但还没有固定 `sbScalar` 的 direct guard；因此它们仍属于“证据缺口”，不是实现缺口。
+- 本轮继续复用 `TTestCase_IntegerFacadeGuards`，没有增加 runner 结构，也没有改任何 SIMD 实现文件：
+  - 新增 1 条 `U64x8` unsigned compare mask 测试
+  - 新增 1 条 `I16x32` AndNot 逐 lane 语义测试
+  - 新增 1 条 `I8x64` AndNot 逐 lane 语义测试
+- 这批没有再遇到 `I32x16` 那种 helper 命名歧义，说明当前测试层主要风险已从“suite/命名合同”回落到单纯的 direct evidence completeness。
+- Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IntegerFacadeGuards`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

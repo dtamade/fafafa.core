@@ -266,6 +266,13 @@
 - `simd.utils` 里存在与 façade 同名的 `VecI32x16CmpEq/Lt/Gt` helper，返回类型是 `TMaskI32x16`；通用 testcase 若不显式写 `fafafa.core.simd.VecI32x16Cmp*`，编译期就可能误绑到 utils surface。
 - 因而后续继续补 `I32x16` façade 相关 guard 时，应该把“显式限定到 `fafafa.core.simd`”视为固定写法，而不是偶发修补。
 
+## 2026-05-13 Wide Tail Integer Facade Guard Findings
+
+- `VecU64x8CmpLe/CmpGe/CmpNe`、`VecI16x32AndNot`、`VecI8x64AndNot` 都是当前 `src/fafafa.core.simd.pas` 的真实 façade surface，不是补到了不存在的 API。
+- 这三项此前的覆盖主要停留在 `dispatchapi.testcase` 的 façade-vs-scalar parity；也就是说调用面已经被证明“能连上”，但还缺固定 `sbScalar`、不依赖 parity 的 direct contract 证据。
+- `TTestCase_IntegerFacadeGuards` 继续证明自己适合作为整数 façade direct guard 的统一承载点：同一套 `ForceBackend(sbScalar)` / `ResetBackendSelection` 生命周期足以覆盖 128/256/512-bit 整数 façade，不需要再复制出 family-local guard suite。
+- 目前整数 façade direct guard 的剩余缺口已经明显收窄；后续如果继续深扫，更值得优先看的是是否还存在公开 surface 只有 parity 证据，而不是继续扩已经足够密集的 multi-backend parity 测试。
+
 ## 2026-05-12 Narrow Compare Guard Findings
 
 - 当前窄整型 compare 的真实缺口不是“没有实现”，而是“缺少直接 guard”：
