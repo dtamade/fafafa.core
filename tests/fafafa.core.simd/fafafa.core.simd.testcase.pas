@@ -37,6 +37,9 @@ uses
 type
   // 全局函数测试
   TTestCase_Global = class(TTestCase)
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
   published
     // 内存操作函数测试
     procedure Test_MemEqual;
@@ -706,6 +709,18 @@ end;
 {$ENDIF}
 
 { TTestCase_Global }
+
+procedure TTestCase_Global.SetUp;
+begin
+  inherited SetUp;
+  ForceBackend(sbScalar);
+end;
+
+procedure TTestCase_Global.TearDown;
+begin
+  ResetBackendSelection;
+  inherited TearDown;
+end;
 
 // === 内存操作函数测试 ===
 

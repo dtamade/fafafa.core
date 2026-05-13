@@ -1570,3 +1570,30 @@
   - 让整个 suite 自动升级成 fixed-`sbScalar` 的 façade direct evidence
 - 这批 Release `TTestCase_AdvancedAlgorithms`、Release `check`、串行 Release `gate` 最终都为绿，说明当前补的是 public algorithm façade evidence gap，而不是算法实现缺陷。
 - 这也进一步说明：当前 `simd` 审查里高价值剩余问题仍主要是“现有公开 façade suite 还没进入 fixed-`sbScalar` contract 语义”。下一轮应优先重新扫一遍 remaining public suites，确认是否还存在同类未 scalarize 的尾巴，而不是急着回到实现层。
+
+## 2026-05-14 Global Facade Scalarization Findings
+
+- `MemEqual/MemFindByte/MemDiffRange/MemCopy/MemSet/MemReverse`、`SumBytes/MinMaxBytes/CountByte`、`Utf8Validate/AsciiIEqual/ToLowerAscii/ToUpperAscii`、`BytesIndexOf`、`BitsetPopCount` 都是当前 `src/fafafa.core.simd.pas` 的真实公开全局 façade surface，不是 backend-only helper。
+- `TTestCase_Global` 在本轮之前其实已经有很完整的覆盖面：
+  - 内存函数：`MemEqual/MemFindByte/MemDiffRange/MemCopy/MemSet/MemReverse`
+  - 统计函数：`SumBytes/MinMaxBytes/CountByte`
+  - 文本函数：`Utf8Validate/AsciiIEqual/ToLowerAscii/ToUpperAscii`
+  - 搜索/位集：`BytesIndexOf/BitsetPopCount`
+- 但它和前几批 suite-level scalarization 的问题本质一致：
+  - 覆盖面存在
+  - 调用的确是公开 façade
+  - 可 suite 本身没有 `ForceBackend(sbScalar)` / `ResetBackendSelection`
+  - 因而它更像普通行为回归，不等价于 scalar 真源的 façade direct guard
+- 这批比 `MathFunctions/AdvancedAlgorithms` 还多一层有利证据：
+  - `TTestCase_BackendConsistency` 已经单独承担了这簇全局函数的跨 backend 旁证
+  - 因而把 `TTestCase_Global` 自身 scalarize，不会削弱这簇函数的 backend parity 覆盖职责
+- 复核 `Global` 的 testcase 形状后，没有发现任何一条测试显式依赖“自动 backend 选择”语义：
+  - 它们全部只断言全局 façade 的公开 contract 结果
+  - 没有断言当前 backend 文本、自动降级、跨 backend 差异或向量汇编路径
+  - 因此 suite-level scalarization 的风险很低
+- 这批最优雅的收口方式同样不是复制 testcase 到新 suite，而是直接 scalarize 现有 suite：
+  - 给 `TTestCase_Global` 增加 `SetUp/TearDown`
+  - 保留现有 testcase 不动
+  - 让整个 suite 自动升级成 fixed-`sbScalar` 的 façade direct evidence
+- 这批 Release `TTestCase_Global`、Release `check`、串行 Release `gate` 最终都为绿，说明当前补的是 public global façade evidence gap，而不是全局 helper 实现缺陷。
+- 继续深扫剩余 public suites 后，下一块更自然的候选已经收敛到 `TTestCase_TypeConversion`：它同样没有 `SetUp/TearDown`，而且覆盖的是公开转换 façade 本身；相比之下 `LargeData` 更像默认 backend 集成/边界面，优先级反而没它高。

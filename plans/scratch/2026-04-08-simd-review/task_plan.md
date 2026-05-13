@@ -1618,3 +1618,17 @@
 | 1. 复核 `AdvancedAlgorithms` 当前证据层现状 | completed | 已确认 `TTestCase_AdvancedAlgorithms` 现有覆盖面已包含 `SortNet4/8`、`PrefixSumI32x4/F32x4`、`PrefixSumArrayI32/F32` 与 `StrFindChar`，但 suite 自身没有 `SetUp/TearDown`，其余测试面对这簇主要仍是 edgecase / checklist 旁证 |
 | 2. 收敛为 scalar direct suite      | completed | 未新开 runner，也未复制 testcase；直接给 `TTestCase_AdvancedAlgorithms` 增加 `SetUp/TearDown`，统一固定 `ForceBackend(sbScalar)` / `ResetBackendSelection`，把现有算法 façade 测试整体升级成 direct evidence |
 | 3. Release 验证与提交收口          | completed | `git diff --check`、Release `TTestCase_AdvancedAlgorithms`、Release `check`、串行 Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 Global Facade Scalarization
+
+### Goal
+
+继续把 `Global` 这一簇公开全局 façade 从“普通行为测试”收成固定 `sbScalar` 的 direct guard，优先覆盖内存、统计、文本、搜索与位集函数入口。
+
+### Phases
+
+| Phase                              | Status    | Notes |
+| ---------------------------------- | --------- | ----- |
+| 1. 复核 `Global` 当前证据层现状 | completed | 已确认 `TTestCase_Global` 现有覆盖面已包含 `MemEqual/MemFindByte/MemDiffRange/MemCopy/MemSet/MemReverse`、`SumBytes/MinMaxBytes/CountByte`、`Utf8Validate/AsciiIEqual/ToLowerAscii/ToUpperAscii`、`BytesIndexOf`、`BitsetPopCount`，但 suite 自身没有 `SetUp/TearDown`；而跨 backend 旁证则由 `TTestCase_BackendConsistency` 另行承担 |
+| 2. 收敛为 scalar direct suite      | completed | 未新开 runner，也未复制 testcase；直接给 `TTestCase_Global` 增加 `SetUp/TearDown`，统一固定 `ForceBackend(sbScalar)` / `ResetBackendSelection`，把现有全局 façade 测试整体升级成 direct evidence |
+| 3. Release 验证与提交收口          | completed | `git diff --check`、Release `TTestCase_Global`、Release `check`、串行 Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
