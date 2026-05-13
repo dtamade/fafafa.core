@@ -1449,3 +1449,31 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-13 Wide Float Facade Guard Coverage
+
+- 继续从“只剩 parity / operator / 默认后端旁证”的角度往下扫后，确认 512-bit 浮点 façade 还缺一层固定 `sbScalar` 的 direct guard：
+  - `VecF32x16Add/Sub/Mul/Div`
+  - `VecF32x16CmpEq/Lt/Le/Gt/Ge/Ne_Mask`
+  - `VecF32x16Fma/Floor/Ceil/Round/Trunc/Clamp/Reduce*/Load/Store/Splat/Zero/Select`
+  - `VecF64x8Add/Sub/Mul/Div`
+  - `VecF64x8CmpEq/Lt/Le/Gt/Ge/Ne`
+  - `VecF64x8Fma/Floor/Ceil/Round/Trunc/Clamp/Reduce*/Load/Store/Splat/Zero/Select`
+- 关键判断已经钉实：
+  - `vec512types` 没有固定 `sbScalar`
+  - 它的 `Add/Sub/Mul` 主要走 operator surface
+  - 它的 `F32x16` compare 走的是 `TMaskF32x16` vector-mask surface，不是公开 façade `_Mask`
+  - `direct.testcase` 证明的是 façade-vs-direct parity，不是 explicit-output public façade guard
+- 本轮没有去改 `vec512types` 的生命周期，也没有新增 family-local runner；而是直接在 `tests/fafafa.core.simd/fafafa.core.simd.testcase.pas` 增加并列 suite：
+  - `TTestCase_FloatFacadeGuards`
+  - `SetUp/TearDown` 固定 `ForceBackend(sbScalar)` / `ResetBackendSelection`
+  - 6 条测试覆盖 `F32x16/F64x8` 的算术、compare/reduce/select、extended math/load-store
+- 首次 targeted run 红了 2 项，但都不是实现回归，而是测试期望写错：
+  - `VecF32x16ReduceAdd` 实际应为 `13.5`
+  - `VecF64x8ReduceAdd` 实际应为 `5.5`
+- 修正期望后，这批验证已全部通过：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_FloatFacadeGuards`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

@@ -1421,3 +1421,17 @@
 | 1. 复核 `I32x8` 当前证据层现状     | completed   | 已确认 `veci32x8` suite 虽然覆盖 `AndNot + compare`，但 `SetUp/TearDown` 不固定 `sbScalar`；同目录 `vecu32x8` 则固定 `sbScalar`，两者证据强度不对称 |
 | 2. 扩展现有 scalar-forced direct suite | completed | 继续扩 `TTestCase_IntegerFacadeGuards`，新增 `I32x8` 的 `AndNot + compare`，不改旧 family-local suite 语义 |
 | 3. Release 验证与提交收口          | completed   | `git diff --check`、Release `TTestCase_IntegerFacadeGuards`、Release `check`、串行 Release `gate` 全绿 |
+
+## 2026-05-13 Wide Float Facade Guard Coverage
+
+### Goal
+
+继续把 512-bit 浮点公开 façade 从“只有 operator/default-backend/parity 旁证”补成固定 `sbScalar` 的 direct guard，覆盖 `F32x16/F64x8` 的算术、compare、extended math、reduce、load/store/select` 主 contract。
+
+### Phases
+
+| Phase                              | Status      | Notes |
+| ---------------------------------- | ----------- | ----- |
+| 1. 复核 512-bit float 当前证据层现状 | completed | 已确认 `vec512types` 不固定 `sbScalar`，而且 `Add/Sub/Mul` 主要走 operator；`F32x16` compare 走 `TMaskF32x16` vector-mask surface，不等于公开 façade `_Mask` contract |
+| 2. 在现有主 runner 补 scalar direct guard | completed | 已在 `tests/fafafa.core.simd/fafafa.core.simd.testcase.pas` 新增并列 `TTestCase_FloatFacadeGuards`，并同步 `test.lpr` suite manifest；未改 `vec512types` 生命周期，也未新增 family-local runner |
+| 3. 修正测试期望并完成 Release 验证 | completed | 首轮 targeted run 仅暴露 `ReduceAdd` 期望值写错；修正到 `F32x16=13.5`、`F64x8=5.5` 后，Release targeted/check/gate 全绿 |

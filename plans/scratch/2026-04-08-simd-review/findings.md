@@ -1338,3 +1338,19 @@
 - `tests/fafafa.core.simd/fafafa.core.simd.veci32x8.testcase.pas` 虽然已经有一整套 family-local contract 测试，但它的 `SetUp/TearDown` 不固定 `sbScalar`；与之对应，`tests/fafafa.core.simd/fafafa.core.simd.vecu32x8.testcase.pas` 明确固定了 `ForceBackend(sbScalar)` / `ResetBackendSelection`。
 - 这意味着 `I32x8` 当前已有的是“默认后端 family-local 行为回归”，不是“固定 scalar 真源的 façade direct guard”；它在证据层上更接近前面刚收掉的 `I64x8`，而不是已经收实的 `U32x8`。
 - 因此这批也更适合继续补进 `TTestCase_IntegerFacadeGuards`，而不是直接改写现有 `veci32x8` suite 的生命周期语义。
+
+## 2026-05-13 Wide Float Facade Guard Findings
+
+- `src/fafafa.core.simd.pas` 当前真实公开的 512-bit 浮点 façade 包含两簇：
+  - `VecF32x16Add/Sub/Mul/Div`、`VecF32x16CmpEq/Lt/Le/Gt/Ge/Ne_Mask`、`VecF32x16Fma/Floor/Ceil/Round/Trunc/Clamp/Reduce*/Load/Store/Splat/Zero/Select`
+  - `VecF64x8Add/Sub/Mul/Div`、`VecF64x8CmpEq/Lt/Le/Gt/Ge/Ne`、`VecF64x8Fma/Floor/Ceil/Round/Trunc/Clamp/Reduce*/Load/Store/Splat/Zero/Select`
+- `tests/fafafa.core.simd/fafafa.core.simd.vec512types.testcase.pas` 虽然已经覆盖了大量 512-bit float 行为，但它不等价于 public façade scalar direct guard：
+  - 没有 `SetUp/TearDown`，不固定 `ForceBackend(sbScalar)`
+  - `Add/Sub/Mul` 走的是 operator surface（`a + b` / `a - b` / `a * b`），不是直接命中 `VecF32x16Add` / `VecF64x8Add`
+  - `F32x16` compare 用的是 `VecF32x16CmpEq/CmpLt` 返回 `TMaskF32x16` 的 vector-mask surface，不是公开 façade 的 `_Mask` contract
+- `tests/fafafa.core.simd/fafafa.core.simd.direct.testcase.pas` 在这两族上已经有一批 scalar/direct parity，但它证明的是“façade 与 direct dispatch 一致”，不是“固定 scalar 真源、直接断言 public façade 输出”。
+- 因而当前缺口仍然是证据层，而不是实现层；最低风险落点是继续留在 `tests/fafafa.core.simd/fafafa.core.simd.testcase.pas` 这一条主 runner 里，新增并列的 `TTestCase_FloatFacadeGuards`，而不是改写 `vec512types` 生命周期或再开 family-local suite。
+- 新 suite 首次 targeted run 抓到的两处红灯都来自测试预期计算错误：
+  - `VecF32x16ReduceAdd` 真实期望应为 `13.5`，不是 `14.5`
+  - `VecF64x8ReduceAdd` 真实期望应为 `5.5`，不是 `4.5`
+- 修正预期后，`TTestCase_FloatFacadeGuards`、Release `check`、串行 Release `gate` 全绿，说明这批确实只是 public façade direct-evidence closeout，不是实现补丁。

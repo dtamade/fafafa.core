@@ -358,6 +358,20 @@ type
     procedure Test_VecU8x64_Compare_Unsigned;
   end;
 
+  // 宽浮点 façade contract 直接守卫（强制 Scalar，避免只剩 operator/default-backend/parity 旁证）
+  TTestCase_FloatFacadeGuards = class(TTestCase)
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure Test_VecF32x16_Arithmetic_Basic;
+    procedure Test_VecF32x16_CompareReduceSelect_Basic;
+    procedure Test_VecF32x16_ExtendedMathAndLoadStore_Basic;
+    procedure Test_VecF64x8_Arithmetic_Basic;
+    procedure Test_VecF64x8_CompareReduceSelect_Basic;
+    procedure Test_VecF64x8_ExtendedMathAndLoadStore_Basic;
+  end;
+
   // 大数据量和边界测试
   TTestCase_LargeData = class(TTestCase)
   published
@@ -10653,6 +10667,388 @@ begin
   AssertEquals('VecU8x64CmpGt mask', QWord(LExpectedGt), QWord(LMaskGt));
 end;
 
+{ TTestCase_FloatFacadeGuards }
+
+procedure TTestCase_FloatFacadeGuards.SetUp;
+begin
+  inherited SetUp;
+  ForceBackend(sbScalar);
+end;
+
+procedure TTestCase_FloatFacadeGuards.TearDown;
+begin
+  ResetBackendSelection;
+  inherited TearDown;
+end;
+
+procedure TTestCase_FloatFacadeGuards.Test_VecF32x16_Arithmetic_Basic;
+const
+  C_EPSILON = 1e-5;
+var
+  LVecA, LVecB: TVecF32x16;
+  LAddResult, LSubResult, LMulResult, LDivResult: TVecF32x16;
+  LIndex: Integer;
+begin
+  for LIndex := 0 to High(LVecA.f) do
+  begin
+    LVecA.f[LIndex] := (LIndex + 1) * 1.25;
+    LVecB.f[LIndex] := LIndex + 0.5;
+  end;
+
+  LAddResult := fafafa.core.simd.VecF32x16Add(LVecA, LVecB);
+  LSubResult := fafafa.core.simd.VecF32x16Sub(LVecA, LVecB);
+  LMulResult := fafafa.core.simd.VecF32x16Mul(LVecA, LVecB);
+  LDivResult := fafafa.core.simd.VecF32x16Div(LVecA, LVecB);
+
+  for LIndex := 0 to High(LVecA.f) do
+  begin
+    AssertEquals('VecF32x16Add lane ' + IntToStr(LIndex),
+      LVecA.f[LIndex] + LVecB.f[LIndex], LAddResult.f[LIndex], C_EPSILON);
+    AssertEquals('VecF32x16Sub lane ' + IntToStr(LIndex),
+      LVecA.f[LIndex] - LVecB.f[LIndex], LSubResult.f[LIndex], C_EPSILON);
+    AssertEquals('VecF32x16Mul lane ' + IntToStr(LIndex),
+      LVecA.f[LIndex] * LVecB.f[LIndex], LMulResult.f[LIndex], C_EPSILON);
+    AssertEquals('VecF32x16Div lane ' + IntToStr(LIndex),
+      LVecA.f[LIndex] / LVecB.f[LIndex], LDivResult.f[LIndex], C_EPSILON);
+  end;
+end;
+
+procedure TTestCase_FloatFacadeGuards.Test_VecF32x16_CompareReduceSelect_Basic;
+const
+  C_EPSILON = 1e-5;
+var
+  LVecA, LVecB: TVecF32x16;
+  LSelectResult: TVecF32x16;
+  LMaskEq, LMaskLt, LMaskLe, LMaskGt, LMaskGe, LMaskNe: TMask16;
+  LReduceInput: TVecF32x16;
+  LReduceAdd, LReduceMin, LReduceMax, LReduceMul: Single;
+  LIndex: Integer;
+begin
+  for LIndex := 0 to High(LVecA.f) do
+  begin
+    case LIndex mod 3 of
+      0:
+        begin
+          LVecA.f[LIndex] := LIndex + 0.25;
+          LVecB.f[LIndex] := LVecA.f[LIndex];
+        end;
+      1:
+        begin
+          LVecA.f[LIndex] := -100.0 + LIndex;
+          LVecB.f[LIndex] := LVecA.f[LIndex] + 2.0;
+        end;
+    else
+      begin
+        LVecA.f[LIndex] := 200.0 + LIndex;
+        LVecB.f[LIndex] := LVecA.f[LIndex] - 3.0;
+      end;
+    end;
+  end;
+
+  LMaskEq := fafafa.core.simd.VecF32x16CmpEq_Mask(LVecA, LVecB);
+  LMaskLt := fafafa.core.simd.VecF32x16CmpLt_Mask(LVecA, LVecB);
+  LMaskLe := fafafa.core.simd.VecF32x16CmpLe_Mask(LVecA, LVecB);
+  LMaskGt := fafafa.core.simd.VecF32x16CmpGt_Mask(LVecA, LVecB);
+  LMaskGe := fafafa.core.simd.VecF32x16CmpGe_Mask(LVecA, LVecB);
+  LMaskNe := fafafa.core.simd.VecF32x16CmpNe_Mask(LVecA, LVecB);
+
+  AssertEquals('VecF32x16CmpEq_Mask mask', LongInt(TMask16($9249)), LongInt(LMaskEq));
+  AssertEquals('VecF32x16CmpLt_Mask mask', LongInt(TMask16($2492)), LongInt(LMaskLt));
+  AssertEquals('VecF32x16CmpLe_Mask mask', LongInt(TMask16($B6DB)), LongInt(LMaskLe));
+  AssertEquals('VecF32x16CmpGt_Mask mask', LongInt(TMask16($4924)), LongInt(LMaskGt));
+  AssertEquals('VecF32x16CmpGe_Mask mask', LongInt(TMask16($DB6D)), LongInt(LMaskGe));
+  AssertEquals('VecF32x16CmpNe_Mask mask', LongInt(TMask16($6DB6)), LongInt(LMaskNe));
+
+  for LIndex := 0 to High(LVecA.f) do
+  begin
+    LVecA.f[LIndex] := 10.0 + LIndex;
+    LVecB.f[LIndex] := 20.0 + LIndex;
+  end;
+  LSelectResult := fafafa.core.simd.VecF32x16Select(TMask16($5555), LVecA, LVecB);
+  for LIndex := 0 to High(LSelectResult.f) do
+  begin
+    if (LIndex and 1) = 0 then
+      AssertEquals('VecF32x16Select even lane ' + IntToStr(LIndex), 10.0 + LIndex, LSelectResult.f[LIndex], C_EPSILON)
+    else
+      AssertEquals('VecF32x16Select odd lane ' + IntToStr(LIndex), 20.0 + LIndex, LSelectResult.f[LIndex], C_EPSILON);
+  end;
+
+  for LIndex := 0 to High(LReduceInput.f) do
+    LReduceInput.f[LIndex] := 1.0;
+  LReduceInput.f[0] := 2.0;
+  LReduceInput.f[1] := 3.0;
+  LReduceInput.f[2] := -4.0;
+  LReduceInput.f[3] := 0.5;
+
+  LReduceAdd := fafafa.core.simd.VecF32x16ReduceAdd(LReduceInput);
+  LReduceMin := fafafa.core.simd.VecF32x16ReduceMin(LReduceInput);
+  LReduceMax := fafafa.core.simd.VecF32x16ReduceMax(LReduceInput);
+  LReduceMul := fafafa.core.simd.VecF32x16ReduceMul(LReduceInput);
+
+  AssertEquals('VecF32x16ReduceAdd', 13.5, LReduceAdd, C_EPSILON);
+  AssertEquals('VecF32x16ReduceMin', -4.0, LReduceMin, C_EPSILON);
+  AssertEquals('VecF32x16ReduceMax', 3.0, LReduceMax, C_EPSILON);
+  AssertEquals('VecF32x16ReduceMul', -12.0, LReduceMul, C_EPSILON);
+end;
+
+procedure TTestCase_FloatFacadeGuards.Test_VecF32x16_ExtendedMathAndLoadStore_Basic;
+const
+  C_EPSILON = 1e-5;
+var
+  LVecA, LVecB, LVecC, LInput, LResult: TVecF32x16;
+  LSource, LRoundtrip: array[0..15] of Single;
+  LIndex: Integer;
+begin
+  LVecA := fafafa.core.simd.VecF32x16Zero;
+  LVecB := fafafa.core.simd.VecF32x16Splat(2.0);
+  LVecC := fafafa.core.simd.VecF32x16Splat(1.0);
+  for LIndex := 0 to High(LVecA.f) do
+    LVecA.f[LIndex] := LIndex + 0.25;
+
+  LResult := fafafa.core.simd.VecF32x16Fma(LVecA, LVecB, LVecC);
+  for LIndex := 0 to High(LResult.f) do
+    AssertEquals('VecF32x16Fma lane ' + IntToStr(LIndex),
+      (LIndex + 0.25) * 2.0 + 1.0, LResult.f[LIndex], C_EPSILON);
+
+  LResult := fafafa.core.simd.VecF32x16Clamp(LResult,
+    fafafa.core.simd.VecF32x16Splat(3.0),
+    fafafa.core.simd.VecF32x16Splat(20.0));
+  for LIndex := 0 to High(LResult.f) do
+  begin
+    AssertTrue('VecF32x16Clamp min lane ' + IntToStr(LIndex), LResult.f[LIndex] >= 3.0);
+    AssertTrue('VecF32x16Clamp max lane ' + IntToStr(LIndex), LResult.f[LIndex] <= 20.0);
+  end;
+
+  LInput := fafafa.core.simd.VecF32x16Zero;
+  LInput.f[0] := 1.2;
+  LInput.f[1] := -1.2;
+  LInput.f[2] := 2.8;
+  LInput.f[3] := -2.8;
+
+  LResult := fafafa.core.simd.VecF32x16Floor(LInput);
+  AssertEquals('VecF32x16Floor lane0', 1.0, LResult.f[0], C_EPSILON);
+  AssertEquals('VecF32x16Floor lane1', -2.0, LResult.f[1], C_EPSILON);
+  AssertEquals('VecF32x16Floor lane2', 2.0, LResult.f[2], C_EPSILON);
+  AssertEquals('VecF32x16Floor lane3', -3.0, LResult.f[3], C_EPSILON);
+
+  LResult := fafafa.core.simd.VecF32x16Ceil(LInput);
+  AssertEquals('VecF32x16Ceil lane0', 2.0, LResult.f[0], C_EPSILON);
+  AssertEquals('VecF32x16Ceil lane1', -1.0, LResult.f[1], C_EPSILON);
+  AssertEquals('VecF32x16Ceil lane2', 3.0, LResult.f[2], C_EPSILON);
+  AssertEquals('VecF32x16Ceil lane3', -2.0, LResult.f[3], C_EPSILON);
+
+  LResult := fafafa.core.simd.VecF32x16Round(LInput);
+  AssertEquals('VecF32x16Round lane0', 1.0, LResult.f[0], C_EPSILON);
+  AssertEquals('VecF32x16Round lane1', -1.0, LResult.f[1], C_EPSILON);
+  AssertEquals('VecF32x16Round lane2', 3.0, LResult.f[2], C_EPSILON);
+  AssertEquals('VecF32x16Round lane3', -3.0, LResult.f[3], C_EPSILON);
+
+  LResult := fafafa.core.simd.VecF32x16Trunc(LInput);
+  AssertEquals('VecF32x16Trunc lane0', 1.0, LResult.f[0], C_EPSILON);
+  AssertEquals('VecF32x16Trunc lane1', -1.0, LResult.f[1], C_EPSILON);
+  AssertEquals('VecF32x16Trunc lane2', 2.0, LResult.f[2], C_EPSILON);
+  AssertEquals('VecF32x16Trunc lane3', -2.0, LResult.f[3], C_EPSILON);
+
+  for LIndex := 0 to High(LSource) do
+    LSource[LIndex] := LIndex + 0.5;
+  LResult := fafafa.core.simd.VecF32x16Load(@LSource[0]);
+  fafafa.core.simd.VecF32x16Store(@LRoundtrip[0], LResult);
+  for LIndex := 0 to High(LRoundtrip) do
+    AssertEquals('VecF32x16LoadStore lane ' + IntToStr(LIndex), LSource[LIndex], LRoundtrip[LIndex], C_EPSILON);
+
+  LResult := fafafa.core.simd.VecF32x16Splat(3.25);
+  for LIndex := 0 to High(LResult.f) do
+    AssertEquals('VecF32x16Splat lane ' + IntToStr(LIndex), 3.25, LResult.f[LIndex], C_EPSILON);
+
+  LResult := fafafa.core.simd.VecF32x16Zero;
+  for LIndex := 0 to High(LResult.f) do
+    AssertEquals('VecF32x16Zero lane ' + IntToStr(LIndex), 0.0, LResult.f[LIndex], C_EPSILON);
+end;
+
+procedure TTestCase_FloatFacadeGuards.Test_VecF64x8_Arithmetic_Basic;
+const
+  C_EPSILON = 1e-9;
+var
+  LVecA, LVecB: TVecF64x8;
+  LAddResult, LSubResult, LMulResult, LDivResult: TVecF64x8;
+  LIndex: Integer;
+begin
+  for LIndex := 0 to High(LVecA.d) do
+  begin
+    LVecA.d[LIndex] := (LIndex + 1) * 2.5;
+    LVecB.d[LIndex] := LIndex + 0.5;
+  end;
+
+  LAddResult := fafafa.core.simd.VecF64x8Add(LVecA, LVecB);
+  LSubResult := fafafa.core.simd.VecF64x8Sub(LVecA, LVecB);
+  LMulResult := fafafa.core.simd.VecF64x8Mul(LVecA, LVecB);
+  LDivResult := fafafa.core.simd.VecF64x8Div(LVecA, LVecB);
+
+  for LIndex := 0 to High(LVecA.d) do
+  begin
+    AssertEquals('VecF64x8Add lane ' + IntToStr(LIndex),
+      LVecA.d[LIndex] + LVecB.d[LIndex], LAddResult.d[LIndex], C_EPSILON);
+    AssertEquals('VecF64x8Sub lane ' + IntToStr(LIndex),
+      LVecA.d[LIndex] - LVecB.d[LIndex], LSubResult.d[LIndex], C_EPSILON);
+    AssertEquals('VecF64x8Mul lane ' + IntToStr(LIndex),
+      LVecA.d[LIndex] * LVecB.d[LIndex], LMulResult.d[LIndex], C_EPSILON);
+    AssertEquals('VecF64x8Div lane ' + IntToStr(LIndex),
+      LVecA.d[LIndex] / LVecB.d[LIndex], LDivResult.d[LIndex], C_EPSILON);
+  end;
+end;
+
+procedure TTestCase_FloatFacadeGuards.Test_VecF64x8_CompareReduceSelect_Basic;
+const
+  C_EPSILON = 1e-9;
+var
+  LVecA, LVecB: TVecF64x8;
+  LSelectResult: TVecF64x8;
+  LMaskEq, LMaskLt, LMaskLe, LMaskGt, LMaskGe, LMaskNe: TMask8;
+  LReduceInput: TVecF64x8;
+  LReduceAdd, LReduceMin, LReduceMax, LReduceMul: Double;
+  LIndex: Integer;
+begin
+  for LIndex := 0 to High(LVecA.d) do
+  begin
+    case LIndex mod 3 of
+      0:
+        begin
+          LVecA.d[LIndex] := LIndex + 0.5;
+          LVecB.d[LIndex] := LVecA.d[LIndex];
+        end;
+      1:
+        begin
+          LVecA.d[LIndex] := -50.0 + LIndex;
+          LVecB.d[LIndex] := LVecA.d[LIndex] + 2.0;
+        end;
+    else
+      begin
+        LVecA.d[LIndex] := 100.0 + LIndex;
+        LVecB.d[LIndex] := LVecA.d[LIndex] - 3.0;
+      end;
+    end;
+  end;
+
+  LMaskEq := fafafa.core.simd.VecF64x8CmpEq(LVecA, LVecB);
+  LMaskLt := fafafa.core.simd.VecF64x8CmpLt(LVecA, LVecB);
+  LMaskLe := fafafa.core.simd.VecF64x8CmpLe(LVecA, LVecB);
+  LMaskGt := fafafa.core.simd.VecF64x8CmpGt(LVecA, LVecB);
+  LMaskGe := fafafa.core.simd.VecF64x8CmpGe(LVecA, LVecB);
+  LMaskNe := fafafa.core.simd.VecF64x8CmpNe(LVecA, LVecB);
+
+  AssertEquals('VecF64x8CmpEq mask', Integer(TMask8($49)), Integer(LMaskEq));
+  AssertEquals('VecF64x8CmpLt mask', Integer(TMask8($92)), Integer(LMaskLt));
+  AssertEquals('VecF64x8CmpLe mask', Integer(TMask8($DB)), Integer(LMaskLe));
+  AssertEquals('VecF64x8CmpGt mask', Integer(TMask8($24)), Integer(LMaskGt));
+  AssertEquals('VecF64x8CmpGe mask', Integer(TMask8($6D)), Integer(LMaskGe));
+  AssertEquals('VecF64x8CmpNe mask', Integer(TMask8($B6)), Integer(LMaskNe));
+
+  for LIndex := 0 to High(LVecA.d) do
+  begin
+    LVecA.d[LIndex] := 10.0 + LIndex;
+    LVecB.d[LIndex] := 20.0 + LIndex;
+  end;
+  LSelectResult := fafafa.core.simd.VecF64x8Select(TMask8($55), LVecA, LVecB);
+  for LIndex := 0 to High(LSelectResult.d) do
+  begin
+    if (LIndex and 1) = 0 then
+      AssertEquals('VecF64x8Select even lane ' + IntToStr(LIndex), 10.0 + LIndex, LSelectResult.d[LIndex], C_EPSILON)
+    else
+      AssertEquals('VecF64x8Select odd lane ' + IntToStr(LIndex), 20.0 + LIndex, LSelectResult.d[LIndex], C_EPSILON);
+  end;
+
+  for LIndex := 0 to High(LReduceInput.d) do
+    LReduceInput.d[LIndex] := 1.0;
+  LReduceInput.d[0] := 2.0;
+  LReduceInput.d[1] := 3.0;
+  LReduceInput.d[2] := -4.0;
+  LReduceInput.d[3] := 0.5;
+
+  LReduceAdd := fafafa.core.simd.VecF64x8ReduceAdd(LReduceInput);
+  LReduceMin := fafafa.core.simd.VecF64x8ReduceMin(LReduceInput);
+  LReduceMax := fafafa.core.simd.VecF64x8ReduceMax(LReduceInput);
+  LReduceMul := fafafa.core.simd.VecF64x8ReduceMul(LReduceInput);
+
+  AssertEquals('VecF64x8ReduceAdd', 5.5, LReduceAdd, C_EPSILON);
+  AssertEquals('VecF64x8ReduceMin', -4.0, LReduceMin, C_EPSILON);
+  AssertEquals('VecF64x8ReduceMax', 3.0, LReduceMax, C_EPSILON);
+  AssertEquals('VecF64x8ReduceMul', -12.0, LReduceMul, C_EPSILON);
+end;
+
+procedure TTestCase_FloatFacadeGuards.Test_VecF64x8_ExtendedMathAndLoadStore_Basic;
+const
+  C_EPSILON = 1e-9;
+var
+  LVecA, LVecB, LVecC, LInput, LResult: TVecF64x8;
+  LSource, LRoundtrip: array[0..7] of Double;
+  LIndex: Integer;
+begin
+  LVecA := fafafa.core.simd.VecF64x8Zero;
+  LVecB := fafafa.core.simd.VecF64x8Splat(3.0);
+  LVecC := fafafa.core.simd.VecF64x8Splat(2.0);
+  for LIndex := 0 to High(LVecA.d) do
+    LVecA.d[LIndex] := LIndex + 0.5;
+
+  LResult := fafafa.core.simd.VecF64x8Fma(LVecA, LVecB, LVecC);
+  for LIndex := 0 to High(LResult.d) do
+    AssertEquals('VecF64x8Fma lane ' + IntToStr(LIndex),
+      (LIndex + 0.5) * 3.0 + 2.0, LResult.d[LIndex], C_EPSILON);
+
+  LResult := fafafa.core.simd.VecF64x8Clamp(LResult,
+    fafafa.core.simd.VecF64x8Splat(4.0),
+    fafafa.core.simd.VecF64x8Splat(20.0));
+  for LIndex := 0 to High(LResult.d) do
+  begin
+    AssertTrue('VecF64x8Clamp min lane ' + IntToStr(LIndex), LResult.d[LIndex] >= 4.0);
+    AssertTrue('VecF64x8Clamp max lane ' + IntToStr(LIndex), LResult.d[LIndex] <= 20.0);
+  end;
+
+  LInput := fafafa.core.simd.VecF64x8Zero;
+  LInput.d[0] := 1.2;
+  LInput.d[1] := -1.2;
+  LInput.d[2] := 2.8;
+  LInput.d[3] := -2.8;
+
+  LResult := fafafa.core.simd.VecF64x8Floor(LInput);
+  AssertEquals('VecF64x8Floor lane0', 1.0, LResult.d[0], C_EPSILON);
+  AssertEquals('VecF64x8Floor lane1', -2.0, LResult.d[1], C_EPSILON);
+  AssertEquals('VecF64x8Floor lane2', 2.0, LResult.d[2], C_EPSILON);
+  AssertEquals('VecF64x8Floor lane3', -3.0, LResult.d[3], C_EPSILON);
+
+  LResult := fafafa.core.simd.VecF64x8Ceil(LInput);
+  AssertEquals('VecF64x8Ceil lane0', 2.0, LResult.d[0], C_EPSILON);
+  AssertEquals('VecF64x8Ceil lane1', -1.0, LResult.d[1], C_EPSILON);
+  AssertEquals('VecF64x8Ceil lane2', 3.0, LResult.d[2], C_EPSILON);
+  AssertEquals('VecF64x8Ceil lane3', -2.0, LResult.d[3], C_EPSILON);
+
+  LResult := fafafa.core.simd.VecF64x8Round(LInput);
+  AssertEquals('VecF64x8Round lane0', 1.0, LResult.d[0], C_EPSILON);
+  AssertEquals('VecF64x8Round lane1', -1.0, LResult.d[1], C_EPSILON);
+  AssertEquals('VecF64x8Round lane2', 3.0, LResult.d[2], C_EPSILON);
+  AssertEquals('VecF64x8Round lane3', -3.0, LResult.d[3], C_EPSILON);
+
+  LResult := fafafa.core.simd.VecF64x8Trunc(LInput);
+  AssertEquals('VecF64x8Trunc lane0', 1.0, LResult.d[0], C_EPSILON);
+  AssertEquals('VecF64x8Trunc lane1', -1.0, LResult.d[1], C_EPSILON);
+  AssertEquals('VecF64x8Trunc lane2', 2.0, LResult.d[2], C_EPSILON);
+  AssertEquals('VecF64x8Trunc lane3', -2.0, LResult.d[3], C_EPSILON);
+
+  for LIndex := 0 to High(LSource) do
+    LSource[LIndex] := LIndex + 0.125;
+  LResult := fafafa.core.simd.VecF64x8Load(@LSource[0]);
+  fafafa.core.simd.VecF64x8Store(@LRoundtrip[0], LResult);
+  for LIndex := 0 to High(LRoundtrip) do
+    AssertEquals('VecF64x8LoadStore lane ' + IntToStr(LIndex), LSource[LIndex], LRoundtrip[LIndex], C_EPSILON);
+
+  LResult := fafafa.core.simd.VecF64x8Splat(6.5);
+  for LIndex := 0 to High(LResult.d) do
+    AssertEquals('VecF64x8Splat lane ' + IntToStr(LIndex), 6.5, LResult.d[LIndex], C_EPSILON);
+
+  LResult := fafafa.core.simd.VecF64x8Zero;
+  for LIndex := 0 to High(LResult.d) do
+    AssertEquals('VecF64x8Zero lane ' + IntToStr(LIndex), 0.0, LResult.d[LIndex], C_EPSILON);
+end;
+
 { TTestCase_LargeData }
 
 procedure TTestCase_LargeData.Test_MemEqual_1MB;
@@ -12990,6 +13386,7 @@ initialization
   {$ENDIF}
   RegisterTest(TTestCase_VectorOps);
   RegisterTest(TTestCase_IntegerFacadeGuards);
+  RegisterTest(TTestCase_FloatFacadeGuards);
   RegisterTest(TTestCase_LargeData);
   RegisterTest(TTestCase_UnsignedVectorTypes);
   RegisterTest(TTestCase_OperatorOverloads);
