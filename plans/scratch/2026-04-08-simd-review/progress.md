@@ -1935,3 +1935,38 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+## 2026-05-14 ImageProc Facade Scalarization
+
+- 继续筛剩余候选时，这一轮没有去碰：
+  - `UnsignedVectorTypes` / `RustStyleAliases`
+  - `Memutils`
+  - `dispatch/dataplane/publicabi/runtime/concurrent`
+- 原因很明确：
+  - 前两类主要是 typedef/layout/alias/tooling contract，backend 语义密度低
+  - 后一类则是控制面/并发面，根本不该机械套进 `sbScalar`
+- 交叉核对后，当前更高价值的缺口落在 `TTestCase_ImageProc`：
+  - 它覆盖的是一整簇真实公开图像 API：
+    - `CreateImage/FreeImage`
+    - `GetPixelRGB/SetPixelRGB`
+    - `ImageAdd/ImageSubtract/ImageMultiply/ImageBlend`
+    - `RGBToGrayscale/GrayscaleToRGB`
+    - `ApplyBrightness/ApplyContrast/ApplyGamma`
+    - `ApplyConvolution3x3/ApplyGaussianBlur/ApplySharpen/ApplyEdgeDetection`
+  - 但 suite 的 `SetUp/TearDown` 之前只负责 fixture 初始化和 blend alpha mode 恢复，没有固定 backend 语义
+- 复核 testcase 形状后，没有发现任何一条测试显式依赖“自动 backend 选择”：
+  - 它们断言的是公开图像 API 的结果 contract
+  - 没有断言 backend 文本、自动降级、dispatch path 或多 backend 差异
+  - 因而这批最优雅的收口方式仍然不是复制 testcase，而是直接 scalarize 现有 suite
+- 本轮最小改动保持很窄：
+  - 在 `fafafa.core.simd.imageproc.testcase.pas` 增加 `fafafa.core.simd.base` / `fafafa.core.simd.dispatch` 依赖
+  - 在 `SetUp` 中加入 `ForceBackend(sbScalar)`
+  - 在 `TearDown` 中加入 `ResetBackendSelection`
+  - 保留原有 `TImage` fixture 生命周期和 `SetImageBlendAlphaMode` 恢复逻辑不动
+- Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_ImageProc`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

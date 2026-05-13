@@ -11,6 +11,8 @@ uses
   fpcunit,
   testregistry,
   fafafa.core.simd,
+  fafafa.core.simd.base,
+  fafafa.core.simd.dispatch,
   fafafa.core.simd.imageproc;
 
 type
@@ -98,6 +100,7 @@ implementation
 procedure TTestCase_ImageProc.SetUp;
 begin
   inherited SetUp;
+  ForceBackend(sbScalar);
   FillChar(FSrc1, SizeOf(FSrc1), 0);
   FillChar(FSrc2, SizeOf(FSrc2), 0);
   FillChar(FDest, SizeOf(FDest), 0);
@@ -111,6 +114,7 @@ begin
   FreeImage(FSrc1);
   FreeImage(FSrc2);
   FreeImage(FDest);
+  ResetBackendSelection;
   inherited TearDown;
 end;
 

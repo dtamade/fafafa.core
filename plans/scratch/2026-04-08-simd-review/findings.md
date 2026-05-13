@@ -1721,3 +1721,30 @@
   - `tests/fafafa.core.simd/fafafa.core.simd.test.lpr` 不是纯靠 `RegisterTest(...)` 自动发现 suite
   - 它维护一份显式 `HandleSuite(...)` manifest
   - 因而 future batch 若新增独立 suite，必须同步这份 manifest，否则 `--suite=<name>` 会出现 “suite filter matched no tests”
+
+## 2026-05-14 ImageProc Scalarization Findings
+
+- `fafafa.core.simd.imageproc.pas` 暴露的是一整簇真实 public surface，而不是测试专用 helper：
+  - `CreateImage/FreeImage`
+  - `GetPixelRGB/SetPixelRGB`
+  - `ImageAdd/ImageSubtract/ImageMultiply/ImageBlend`
+  - `RGBToGrayscale/GrayscaleToRGB`
+  - `ApplyBrightness/ApplyContrast/ApplyGamma`
+  - `ApplyConvolution3x3/ApplyGaussianBlur/ApplySharpen/ApplyEdgeDetection`
+- `TTestCase_ImageProc` 在本轮之前已经有很完整的 contract 覆盖：
+  - 饱和/裁剪、alpha 模式、银行家舍入、small image/no-change、alpha preserve、异常与越界、卷积/模糊/锐化/边缘检测
+  - 但 suite 的 `SetUp/TearDown` 只做 fixture 生命周期管理和 blend alpha mode 恢复，没有固定 backend 语义
+- 复核 testcase 形状后，没有发现任何一条测试显式依赖默认 backend 自动选择：
+  - 没有断言 backend 名称、dispatch 结果或 runtime snapshot
+  - 没有断言跨 backend parity
+  - 只断言公开图像 API 的结果 contract
+  - 因而这批缺口仍然是证据层，而不是实现层
+- 在当前剩余候选里，`ImageProc` 明显比以下几类更值得优先收口：
+  - `UnsignedVectorTypes` / `RustStyleAliases`：主要是 typedef/layout/alias 断言
+  - `Memutils`：更偏 aligned allocation 工具 contract，而不是 SIMD façade 计算 contract
+  - `dispatch/dataplane/publicabi/runtime/concurrent`：控制面或并发面，不能机械套入 `sbScalar`
+- 这批最优雅的修复方式依旧不是复制 testcase，而是直接 scalarize 现有 suite：
+  - 保留原有 fixture 生命周期和 alpha-mode 恢复逻辑
+  - 只补 `ForceBackend(sbScalar)` / `ResetBackendSelection`
+  - 补齐编译依赖 `fafafa.core.simd.base` / `fafafa.core.simd.dispatch`
+- Release `TTestCase_ImageProc`、Release `check`、串行 Release `gate` 全绿，说明这批补的是 public image façade 的 scalar-direct evidence gap，而不是图像实现缺陷。

@@ -1702,3 +1702,17 @@
 | 1. 复核 `vec512types` 的真实剩余价值 | completed | 已确认 `VecF32x16/VecF64x8/VecI32x16/VecI64x8` 大量 512-bit façade 算术与 plain-mask contract 已被 `TTestCase_FloatFacadeGuards`、`TTestCase_IntegerFacadeGuards` 与 `dispatchapi` 旁证覆盖；真正还值得 direct-guard 化的是返回 `TMaskF32x16` 的对象掩码 façade |
 | 2. 提取对象掩码 façade guard suite | completed | 在 `fafafa.core.simd.vec512types.testcase.pas` 新增 `TTestCase_Vec512MaskFacadeGuards`，补 `SetUp/TearDown` 固定 `ForceBackend(sbScalar)` / `ResetBackendSelection`，并把 `AllTrue/AllFalse/ToBitmask/Any-All-None/CmpEq/CmpLt/LogicOps/Select` 8 个方法从混合型 `TTestCase_Vec512Types` 迁出 |
 | 3. Release 验证与提交收口 | completed | 首轮定向验证先暴露 runner 集成缺口：`fafafa.core.simd.test.lpr` 的 `HandleSuite` 清单未纳入新 suite；补齐后，`git diff --check`、Release `TTestCase_Vec512MaskFacadeGuards`、Release `check`、串行 Release `gate` 全绿，并已清理 `tests/fafafa.core.simd/__pycache__/` |
+
+## 2026-05-14 ImageProc Facade Scalarization
+
+### Goal
+
+继续把高价值 public façade suite 收回 fixed-`sbScalar` contract 语义，优先处理 `fafafa.core.simd.imageproc` 这一整簇公开图像 API，而不是回头去做 `UnsignedVectorTypes` 或 `memutils aliases` 这类低价值类型/别名测试。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `ImageProc` 与剩余候选优先级 | completed | 已确认 `TTestCase_ImageProc` 覆盖的是 `CreateImage/FreeImage/GetPixelRGB/SetPixelRGB/ImageAdd/Subtract/Multiply/Blend/RGBToGrayscale/GrayscaleToRGB/ApplyBrightness/Contrast/Gamma/GaussianBlur/Sharpen/EdgeDetection` 等真实公开 API；相比之下 `UnsignedVectorTypes`、`RustStyleAliases`、`Memutils` 更偏 typedef/layout/alias/tooling 层 |
+| 2. 收敛 `ImageProc` 为 scalar direct suite | completed | 保留原有 fixture 生命周期与 alpha-mode 恢复逻辑，只补 `fafafa.core.simd.base` / `fafafa.core.simd.dispatch` 依赖，并在 `SetUp/TearDown` 中加入 `ForceBackend(sbScalar)` / `ResetBackendSelection` |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_ImageProc`、Release `check`、串行 Release `gate` 全绿，并已清理 `tests/fafafa.core.simd/__pycache__/` |
