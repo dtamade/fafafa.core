@@ -1898,3 +1898,40 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+## 2026-05-14 Vec512 Object Mask Facade Guard Extraction
+
+- 继续深扫 `vec512types` 时，这一簇第一次明确暴露出“不能机械 scalarize 整个 suite”的问题：
+  - `TTestCase_Vec512Types` 同时混有类型/布局断言、已被其它 guard 覆盖的 512-bit façade 算术，以及少量真正还缺 fixed-`sbScalar` 直证据的对象掩码 façade
+  - 因而这批不适合像 `MathFunctions/GatherScatter/VectorMaskTypes` 那样直接给原 suite 整体加 `SetUp/TearDown`
+- 交叉核对后，当前更像真实剩余缺口的是返回 `TMaskF32x16` 的对象掩码 façade，而不是 plain mask 或算术 façade：
+  - `MaskF32x16AllTrue`
+  - `MaskF32x16AllFalse`
+  - `MaskF32x16ToBitmask`
+  - `MaskF32x16Any/All/None`
+  - `VecF32x16CmpEq`
+  - `VecF32x16CmpLt`
+  - `MaskF32x16` 逻辑运算
+  - `MaskF32x16Select`
+- 本轮采用“移动职责而不是复制 testcase”的最小方案：
+  - 在 `fafafa.core.simd.vec512types.testcase.pas` 新增 `TTestCase_Vec512MaskFacadeGuards`
+  - 给新 suite 增加 `SetUp/TearDown`
+  - 在 `SetUp` 固定 `ForceBackend(sbScalar)`
+  - 在 `TearDown` 调 `ResetBackendSelection`
+  - 把上述 8 个对象掩码/对象比较方法从 `TTestCase_Vec512Types` 迁入新 suite
+  - 原 `TTestCase_Vec512Types` 保留类型/布局与旧有混合职责，不额外复制测试
+- 这批还顺手做了一个小卫生修复：
+  - `vec512types.testcase` 原本没有引入 `fafafa.core.simd.dispatch`
+  - 新 suite 需要 `sbScalar`，因此补齐 `fafafa.core.simd.dispatch` 依赖
+- 首轮定向验证没有打出 façade 逻辑错误，而是暴露了 runner 集成缺口：
+  - `TTestCase_Vec512MaskFacadeGuards` 已在 testcase 单元里 `RegisterTest(...)`
+  - 但 `tests/fafafa.core.simd/fafafa.core.simd.test.lpr` 采用手写 `HandleSuite(...)` 清单，而不是自动枚举所有注册 suite
+  - 所以第一次跑 `--suite=TTestCase_Vec512MaskFacadeGuards` 时出现 `suite filter matched no tests`
+  - 最小修复是把新 suite 补进主 runner 的 `ProcessAllSuites` 清单，而不是回退 suite 拆分方案
+- Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_Vec512MaskFacadeGuards`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

@@ -186,6 +186,7 @@ begin
   HandleSuite('TTestCase_AdvancedAlgorithms', TTestCase_AdvancedAlgorithms.Suite, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_EdgeCases', TTestCase_EdgeCases.Suite, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_Vec512Types', TTestCase_Vec512Types.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_Vec512MaskFacadeGuards', TTestCase_Vec512MaskFacadeGuards.Suite, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_Memutils', TTestCase_Memutils.Suite, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_RustStyleAliases', TTestCase_RustStyleAliases.Suite, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_SaturatingArithmetic', TTestCase_SaturatingArithmetic.Suite, aListOnly, aTargetSuite);

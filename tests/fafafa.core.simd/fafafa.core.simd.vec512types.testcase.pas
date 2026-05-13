@@ -14,7 +14,8 @@ uses
   fafafa.core.simd,
   fafafa.core.simd.base,
   fafafa.core.simd.utils,
-  fafafa.core.simd.ops;
+  fafafa.core.simd.ops,
+  fafafa.core.simd.dispatch;
 
 type
 
@@ -49,12 +50,6 @@ type
     procedure Test_Mask64_AllSet;
     procedure Test_Mask64_NoneSet;
     
-    // TMaskF32x16 向量掩码测试
-    procedure Test_MaskF32x16_AllTrue;
-    procedure Test_MaskF32x16_AllFalse;
-    procedure Test_MaskF32x16_ToBitmask;
-    procedure Test_MaskF32x16_Any_All_None;
-    
     // 512-bit 向量算术测试
     procedure Test_VecF32x16_Add;
     procedure Test_VecF32x16_Sub;
@@ -67,7 +62,18 @@ type
     procedure Test_VecF32x16_ExtendedAPI;
     procedure Test_VecF64x8_ExtendedAPI;
     
-    // 512-bit 比较和掩码逻辑测试 (Phase 4)
+  end;
+
+  // 512-bit 对象掩码 façade 测试需要固定到 scalar，避免只剩 parity 旁证。
+  TTestCase_Vec512MaskFacadeGuards = class(TTestCase)
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure Test_MaskF32x16_AllTrue;
+    procedure Test_MaskF32x16_AllFalse;
+    procedure Test_MaskF32x16_ToBitmask;
+    procedure Test_MaskF32x16_Any_All_None;
     procedure Test_VecF32x16_CmpEq;
     procedure Test_VecF32x16_CmpLt;
     procedure Test_MaskF32x16_LogicOps;
@@ -228,68 +234,82 @@ begin
   AssertEquals('TMask64 none set', 0, m);
 end;
 
-procedure TTestCase_Vec512Types.Test_MaskF32x16_AllTrue;
-var
-  m: TMaskF32x16;
-  i: Integer;
+{ TTestCase_Vec512MaskFacadeGuards }
+
+procedure TTestCase_Vec512MaskFacadeGuards.SetUp;
 begin
-  m := MaskF32x16AllTrue;
-  
-  for i := 0 to 15 do
-    AssertEquals('Element ' + IntToStr(i) + ' should be $FFFFFFFF', $FFFFFFFF, m.m[i]);
-  AssertEquals('Bits should be $FFFF', $FFFF, m.bits);
+  inherited SetUp;
+  ForceBackend(sbScalar);
 end;
 
-procedure TTestCase_Vec512Types.Test_MaskF32x16_AllFalse;
-var
-  m: TMaskF32x16;
-  i: Integer;
+procedure TTestCase_Vec512MaskFacadeGuards.TearDown;
 begin
-  m := MaskF32x16AllFalse;
-  
-  for i := 0 to 15 do
-    AssertEquals('Element ' + IntToStr(i) + ' should be 0', 0, m.m[i]);
-  AssertEquals('Bits should be 0', 0, m.bits);
+  ResetBackendSelection;
+  inherited TearDown;
 end;
 
-procedure TTestCase_Vec512Types.Test_MaskF32x16_ToBitmask;
+procedure TTestCase_Vec512MaskFacadeGuards.Test_MaskF32x16_AllTrue;
 var
-  m: TMaskF32x16;
-  bm: TMask16;
+  LMask: TMaskF32x16;
+  LIndex: Integer;
 begin
-  m := MaskF32x16AllFalse;
-  m.m[0] := $FFFFFFFF;  // bit 0
-  m.m[3] := $FFFFFFFF;  // bit 3
-  m.m[7] := $FFFFFFFF;  // bit 7
-  m.m[15] := $FFFFFFFF; // bit 15
-  
-  bm := MaskF32x16ToBitmask(m);
-  AssertEquals('Bitmask should be $8089', $8089, bm);
+  LMask := MaskF32x16AllTrue;
+
+  for LIndex := 0 to 15 do
+    AssertEquals('Element ' + IntToStr(LIndex) + ' should be $FFFFFFFF', $FFFFFFFF, LMask.m[LIndex]);
+  AssertEquals('Bits should be $FFFF', $FFFF, LMask.bits);
 end;
 
-procedure TTestCase_Vec512Types.Test_MaskF32x16_Any_All_None;
+procedure TTestCase_Vec512MaskFacadeGuards.Test_MaskF32x16_AllFalse;
 var
-  mAll, mNone, mSome: TMaskF32x16;
+  LMask: TMaskF32x16;
+  LIndex: Integer;
 begin
-  mAll := MaskF32x16AllTrue;
-  mNone := MaskF32x16AllFalse;
-  mSome := MaskF32x16AllFalse;
-  mSome.m[5] := $FFFFFFFF;
-  
+  LMask := MaskF32x16AllFalse;
+
+  for LIndex := 0 to 15 do
+    AssertEquals('Element ' + IntToStr(LIndex) + ' should be 0', 0, LMask.m[LIndex]);
+  AssertEquals('Bits should be 0', 0, LMask.bits);
+end;
+
+procedure TTestCase_Vec512MaskFacadeGuards.Test_MaskF32x16_ToBitmask;
+var
+  LMask: TMaskF32x16;
+  LBitmask: TMask16;
+begin
+  LMask := MaskF32x16AllFalse;
+  LMask.m[0] := $FFFFFFFF;  // bit 0
+  LMask.m[3] := $FFFFFFFF;  // bit 3
+  LMask.m[7] := $FFFFFFFF;  // bit 7
+  LMask.m[15] := $FFFFFFFF; // bit 15
+
+  LBitmask := MaskF32x16ToBitmask(LMask);
+  AssertEquals('Bitmask should be $8089', $8089, LBitmask);
+end;
+
+procedure TTestCase_Vec512MaskFacadeGuards.Test_MaskF32x16_Any_All_None;
+var
+  LAllMask, LNoneMask, LSomeMask: TMaskF32x16;
+begin
+  LAllMask := MaskF32x16AllTrue;
+  LNoneMask := MaskF32x16AllFalse;
+  LSomeMask := MaskF32x16AllFalse;
+  LSomeMask.m[5] := $FFFFFFFF;
+
   // Test Any
-  AssertTrue('All mask Any = True', MaskF32x16Any(mAll));
-  AssertFalse('None mask Any = False', MaskF32x16Any(mNone));
-  AssertTrue('Some mask Any = True', MaskF32x16Any(mSome));
-  
+  AssertTrue('All mask Any = True', MaskF32x16Any(LAllMask));
+  AssertFalse('None mask Any = False', MaskF32x16Any(LNoneMask));
+  AssertTrue('Some mask Any = True', MaskF32x16Any(LSomeMask));
+
   // Test All
-  AssertTrue('All mask All = True', MaskF32x16All(mAll));
-  AssertFalse('None mask All = False', MaskF32x16All(mNone));
-  AssertFalse('Some mask All = False', MaskF32x16All(mSome));
-  
+  AssertTrue('All mask All = True', MaskF32x16All(LAllMask));
+  AssertFalse('None mask All = False', MaskF32x16All(LNoneMask));
+  AssertFalse('Some mask All = False', MaskF32x16All(LSomeMask));
+
   // Test None
-  AssertFalse('All mask None = False', MaskF32x16None(mAll));
-  AssertTrue('None mask None = True', MaskF32x16None(mNone));
-  AssertFalse('Some mask None = False', MaskF32x16None(mSome));
+  AssertFalse('All mask None = False', MaskF32x16None(LAllMask));
+  AssertTrue('None mask None = True', MaskF32x16None(LNoneMask));
+  AssertFalse('Some mask None = False', MaskF32x16None(LSomeMask));
 end;
 
 procedure TTestCase_Vec512Types.Test_VecF32x16_Add;
@@ -606,104 +626,104 @@ begin
       AssertEquals('VecF64x8Select odd lane ' + IntToStr(LIndex), 20.0 + LIndex, LResult.d[LIndex], 0.000001);
 end;
 
-procedure TTestCase_Vec512Types.Test_VecF32x16_CmpEq;
+procedure TTestCase_Vec512MaskFacadeGuards.Test_VecF32x16_CmpEq;
 var
-  a, b: TVecF32x16;
-  m: TMaskF32x16;
-  i: Integer;
+  LVecA, LVecB: TVecF32x16;
+  LMask: TMaskF32x16;
+  LIndex: Integer;
 begin
-  for i := 0 to 15 do
+  for LIndex := 0 to 15 do
   begin
-    a.f[i] := i;
-    if i mod 2 = 0 then
-      b.f[i] := i    // 等于
+    LVecA.f[LIndex] := LIndex;
+    if LIndex mod 2 = 0 then
+      LVecB.f[LIndex] := LIndex    // 等于
     else
-      b.f[i] := i + 1;  // 不等
+      LVecB.f[LIndex] := LIndex + 1;  // 不等
   end;
-  
-  m := VecF32x16CmpEq(a, b);
-  
-  for i := 0 to 15 do
-    if i mod 2 = 0 then
-      AssertEquals('Element ' + IntToStr(i) + ' should be true', $FFFFFFFF, m.m[i])
+
+  LMask := VecF32x16CmpEq(LVecA, LVecB);
+
+  for LIndex := 0 to 15 do
+    if LIndex mod 2 = 0 then
+      AssertEquals('Element ' + IntToStr(LIndex) + ' should be true', $FFFFFFFF, LMask.m[LIndex])
     else
-      AssertEquals('Element ' + IntToStr(i) + ' should be false', 0, m.m[i]);
-  
+      AssertEquals('Element ' + IntToStr(LIndex) + ' should be false', 0, LMask.m[LIndex]);
+
   // 检查 bitmask: 偶数位置为 1 = $5555
-  AssertEquals('Bitmask', $5555, m.bits);
+  AssertEquals('Bitmask', $5555, LMask.bits);
 end;
 
-procedure TTestCase_Vec512Types.Test_VecF32x16_CmpLt;
+procedure TTestCase_Vec512MaskFacadeGuards.Test_VecF32x16_CmpLt;
 var
-  a, b: TVecF32x16;
-  m: TMaskF32x16;
-  i: Integer;
+  LVecA, LVecB: TVecF32x16;
+  LMask: TMaskF32x16;
+  LIndex: Integer;
 begin
-  for i := 0 to 15 do
+  for LIndex := 0 to 15 do
   begin
-    a.f[i] := i;
-    b.f[i] := 8;  // 比较与 8
+    LVecA.f[LIndex] := LIndex;
+    LVecB.f[LIndex] := 8;  // 比较与 8
   end;
-  
-  m := VecF32x16CmpLt(a, b);
-  
+
+  LMask := VecF32x16CmpLt(LVecA, LVecB);
+
   // 元素 0-7 应该小于 8，元素 8-15 不小于 8
-  for i := 0 to 7 do
-    AssertTrue('Element ' + IntToStr(i) + ' < 8', m.m[i] = $FFFFFFFF);
-  for i := 8 to 15 do
-    AssertTrue('Element ' + IntToStr(i) + ' >= 8', m.m[i] = 0);
-  
+  for LIndex := 0 to 7 do
+    AssertTrue('Element ' + IntToStr(LIndex) + ' < 8', LMask.m[LIndex] = $FFFFFFFF);
+  for LIndex := 8 to 15 do
+    AssertTrue('Element ' + IntToStr(LIndex) + ' >= 8', LMask.m[LIndex] = 0);
+
   // bitmask: 低 8 位为 1 = $00FF
-  AssertEquals('Bitmask', $00FF, m.bits);
+  AssertEquals('Bitmask', $00FF, LMask.bits);
 end;
 
-procedure TTestCase_Vec512Types.Test_MaskF32x16_LogicOps;
+procedure TTestCase_Vec512MaskFacadeGuards.Test_MaskF32x16_LogicOps;
 var
-  m1, m2, r: TMaskF32x16;
+  LMaskA, LMaskB, LResult: TMaskF32x16;
 begin
   // m1 = $5555 (偶数位), m2 = $00FF (低 8 位)
-  m1 := MaskF32x16FromBitmask($5555);
-  m2 := MaskF32x16FromBitmask($00FF);
-  
+  LMaskA := MaskF32x16FromBitmask($5555);
+  LMaskB := MaskF32x16FromBitmask($00FF);
+
   // AND: $5555 & $00FF = $0055
-  r := m1 and m2;
-  AssertEquals('AND result', $0055, r.bits);
-  
+  LResult := LMaskA and LMaskB;
+  AssertEquals('AND result', $0055, LResult.bits);
+
   // OR: $5555 | $00FF = $55FF
-  r := m1 or m2;
-  AssertEquals('OR result', $55FF, r.bits);
-  
+  LResult := LMaskA or LMaskB;
+  AssertEquals('OR result', $55FF, LResult.bits);
+
   // XOR: $5555 ^ $00FF = $55AA
-  r := m1 xor m2;
-  AssertEquals('XOR result', $55AA, r.bits);
-  
+  LResult := LMaskA xor LMaskB;
+  AssertEquals('XOR result', $55AA, LResult.bits);
+
   // NOT: ~$5555 = $AAAA
-  r := not m1;
-  AssertEquals('NOT result', $AAAA, r.bits);
+  LResult := not LMaskA;
+  AssertEquals('NOT result', $AAAA, LResult.bits);
 end;
 
-procedure TTestCase_Vec512Types.Test_MaskF32x16_Select;
+procedure TTestCase_Vec512MaskFacadeGuards.Test_MaskF32x16_Select;
 var
-  a, b, r: TVecF32x16;
-  m: TMaskF32x16;
-  i: Integer;
+  LVecTrue, LVecFalse, LResult: TVecF32x16;
+  LMask: TMaskF32x16;
+  LIndex: Integer;
 begin
-  for i := 0 to 15 do
+  for LIndex := 0 to 15 do
   begin
-    a.f[i] := 100 + i;  // 真分支
-    b.f[i] := 200 + i;  // 假分支
+    LVecTrue.f[LIndex] := 100 + LIndex;  // 真分支
+    LVecFalse.f[LIndex] := 200 + LIndex;  // 假分支
   end;
-  
+
   // 偶数位置选 a，奇数位置选 b
-  m := MaskF32x16FromBitmask($5555);
-  
-  r := MaskF32x16Select(m, a, b);
-  
-  for i := 0 to 15 do
-    if i mod 2 = 0 then
-      AssertEquals('Element ' + IntToStr(i), 100.0 + i, r.f[i], 0.0001)
+  LMask := MaskF32x16FromBitmask($5555);
+
+  LResult := MaskF32x16Select(LMask, LVecTrue, LVecFalse);
+
+  for LIndex := 0 to 15 do
+    if LIndex mod 2 = 0 then
+      AssertEquals('Element ' + IntToStr(LIndex), 100.0 + LIndex, LResult.f[LIndex], 0.0001)
     else
-      AssertEquals('Element ' + IntToStr(i), 200.0 + i, r.f[i], 0.0001);
+      AssertEquals('Element ' + IntToStr(LIndex), 200.0 + LIndex, LResult.f[LIndex], 0.0001);
 end;
 
 
@@ -711,5 +731,6 @@ end;
 
 initialization
   RegisterTest(TTestCase_Vec512Types);
+  RegisterTest(TTestCase_Vec512MaskFacadeGuards);
 
 end.

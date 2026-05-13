@@ -1696,3 +1696,28 @@
   - 一旦补 `ForceBackend(sbScalar)`，编译期就会报 `Identifier not found "sbScalar"`
   - 最小修复是补齐与同类 scalarized 独立 testcase 一致的 `fafafa.core.simd.base` / `fafafa.core.simd.dispatch` 依赖，而不是改测试语义或退回不 scalarize
 - 这批 Release `TTestCase_SaturatingArithmetic`、Release `check`、串行 Release `gate` 最终都为绿，说明当前补的是 public saturating façade evidence gap，而不是饱和算术实现缺陷。
+
+## 2026-05-14 Vec512 Mixed-Suite Findings
+
+- `TTestCase_Vec512Types` 不是一个适合“整包 scalarize”的纯 façade suite；它混合了三类不同价值的断言：
+  - 类型/布局：`Create/LoHi/SizeOf/TMask64`
+  - 已有 direct/parity 证据的 512-bit façade 算术与 plain-mask contract：`VecF32x16Add/Sub/Mul/Neg`、`VecF64x8Add`、`VecI32x16Add`、`VecI64x8Add`、`VecI64x8CompareMasks`、`VecF32x16/F64x8 ExtendedAPI`
+  - 真正还缺 fixed-`sbScalar` direct evidence 的对象掩码 façade：`TMaskF32x16` 及 `VecF32x16CmpEq/CmpLt` 返回对象掩码这一层
+- 交叉核对后确认，`FloatFacadeGuards` 与 `IntegerFacadeGuards` 已经收掉大量 512-bit façade，但它们覆盖的是另一层 contract：
+  - `FloatFacadeGuards` 主要覆盖 `VecF32x16CmpEq_Mask` 这类返回 `TMask16` 的 plain-mask façade，以及 `VecF32x16Select(TMask16, ...)`
+  - `IntegerFacadeGuards` 已覆盖 `VecI32x16` / `VecI64x8` 的比较与剩余算术 façade
+  - 因而 `vec512types` 里“返回 `TMaskF32x16` 的对象掩码 façade”不应被误判为完全重复
+- 对这类 mixed suite，当前最优雅的收口方式不是：
+  - 给整个 `TTestCase_Vec512Types` 加 `SetUp/TearDown`
+  - 或复制一份 testcase 到新 runner
+- 当前更合理的方式是“拆职责”：
+  - 保留 `TTestCase_Vec512Types` 的类型/布局和历史混合断言职责
+  - 单独抽出 `TTestCase_Vec512MaskFacadeGuards`
+  - 只把对象掩码 façade 的 8 个高价值测试迁进去，并固定 `sbScalar`
+- 这也再次证明本轮剩余工作要避免机械化策略：
+  - `dispatch/dataplane/publicabi/runtime/concurrent` 不能被当成普通 `sbScalar` façade suite
+  - `vec512types` 也不能因为名字看起来“像 public family”就整包收编
+- 这批还额外暴露出一个 runner 层事实：
+  - `tests/fafafa.core.simd/fafafa.core.simd.test.lpr` 不是纯靠 `RegisterTest(...)` 自动发现 suite
+  - 它维护一份显式 `HandleSuite(...)` manifest
+  - 因而 future batch 若新增独立 suite，必须同步这份 manifest，否则 `--suite=<name>` 会出现 “suite filter matched no tests”

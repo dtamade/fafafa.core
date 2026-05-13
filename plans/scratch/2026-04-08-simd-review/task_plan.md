@@ -1688,3 +1688,17 @@
 | 1. 复核剩余未 scalarize public suites 优先级 | completed | 已确认 `dispatch/dataplane/publicabi/runtime/concurrent` 属于控制面/并发面，不适合按 `sbScalar` 套；`memutils aliases` 与 `vec512types` 里混有较多别名/类型层断言，而 `TTestCase_SaturatingArithmetic` 直接覆盖公开饱和算术 façade contract，优先级更高 |
 | 2. 收敛 `SaturatingArithmetic` 为 scalar direct suite | completed | 未新开 runner，也未复制 testcase；直接给 `TTestCase_SaturatingArithmetic` 增加 `SetUp/TearDown`，统一固定 `ForceBackend(sbScalar)` / `ResetBackendSelection`，把现有饱和算术 façade 测试整体升级成 direct evidence |
 | 3. Release 验证与提交收口          | completed | `git diff --check`、Release `TTestCase_SaturatingArithmetic`、Release `check`、串行 Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 Vec512 Object Mask Facade Guard Extraction
+
+### Goal
+
+继续清理 `vec512types` 的“缺失与冗余”混合问题：不整包 scalarize，也不复制 testcase，只把真正仍缺 fixed-`sbScalar` direct evidence 的 `TMaskF32x16` / 对象掩码 façade 层拆成独立 guard suite。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `vec512types` 的真实剩余价值 | completed | 已确认 `VecF32x16/VecF64x8/VecI32x16/VecI64x8` 大量 512-bit façade 算术与 plain-mask contract 已被 `TTestCase_FloatFacadeGuards`、`TTestCase_IntegerFacadeGuards` 与 `dispatchapi` 旁证覆盖；真正还值得 direct-guard 化的是返回 `TMaskF32x16` 的对象掩码 façade |
+| 2. 提取对象掩码 façade guard suite | completed | 在 `fafafa.core.simd.vec512types.testcase.pas` 新增 `TTestCase_Vec512MaskFacadeGuards`，补 `SetUp/TearDown` 固定 `ForceBackend(sbScalar)` / `ResetBackendSelection`，并把 `AllTrue/AllFalse/ToBitmask/Any-All-None/CmpEq/CmpLt/LogicOps/Select` 8 个方法从混合型 `TTestCase_Vec512Types` 迁出 |
+| 3. Release 验证与提交收口 | completed | 首轮定向验证先暴露 runner 集成缺口：`fafafa.core.simd.test.lpr` 的 `HandleSuite` 清单未纳入新 suite；补齐后，`git diff --check`、Release `TTestCase_Vec512MaskFacadeGuards`、Release `check`、串行 Release `gate` 全绿，并已清理 `tests/fafafa.core.simd/__pycache__/` |
