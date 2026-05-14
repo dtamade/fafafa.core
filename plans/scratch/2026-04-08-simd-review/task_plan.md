@@ -2193,3 +2193,17 @@
 | 1. 复核 backend-only / metadata 残点 | completed | 已确认这 5 条 `dispatchapi` 测试都会在方法内显式 `ResetToAutomaticBackend` 或围绕“当前 backend”重注册做断言，但退出时要么只回 automatic，要么完全依赖外层 `TearDown` 恢复 `FSavedBackend`，与同文件大量 helper-based cleanup 契约继续分叉 |
 | 2. 统一到类级 saved-state restore 契约 | completed | 已将 `Test_SetActiveBackend_Unavailable_FallsBackToScalar` 的 finally 改为 `RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend)`；并为其余 4 条 backend-only / metadata 测试补 outer `try...finally`，让它们在内部仍保持 automatic/current-backend 语义验证，但退出测试时恢复到类级保存状态 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 DispatchAPI Facade CurrentDispatch Restore Alignment
+
+### Goal
+
+继续沿 `dispatchapi` 后段的 facade/current-dispatch 跟踪测试收尾，只补“方法退出仍把 backend 状态漂给外层 `TearDown`”这一层 restore 分叉，不改 synthetic re-register、current dispatch slot 断言和 facade 跟踪语义。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 facade/current-dispatch easy wins 残点 | completed | 已确认 9 条 `dispatchapi` facade/current-dispatch 测试仍缺 outer saved-state restore：`Test_VecF32x4ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister`、`Test_VecF64x2ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister`、`Test_VecF64x2MathFacade_Tracks_CurrentDispatchTable_After_ReRegister`、`Test_VecF32VectorMathFacade_Tracks_CurrentDispatchTable_After_ReRegister`、`Test_VecWideFloatDotFacade_Tracks_CurrentDispatchTable_After_ReRegister`、`Test_VecF64x4ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister`、`Test_VecF32x8ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister`、`Test_VecF64x8ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister`、`Test_VecF32x16ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister` |
+| 2. 统一 facade 测试的最外层退出态 restore | completed | 9 条测试都补了 outer `try...finally`，最外层统一 `RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend)`；内层 `RegisterBackend(LBackend, LOriginalTable)` 回滚、synthetic slot 注入和 facade/current-dispatch 断言保持原样 |
+| 3. Release 验证证据同步 | completed | 这批改动已跑过 `git diff --check`、Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 并全部通过；当前 turn 只需在提交前再次清理可能回流的 `tests/fafafa.core.simd/__pycache__/` 即可收口 |

@@ -2621,3 +2621,34 @@
   - current-backend / alias / availability 语义不变
   - 变化只在测试方法退出时更早恢复 saved state
 - Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿，说明这批仍然只是 `dispatchapi` 测试层 cleanup hardening，没有影响 dispatch/public ABI 生产行为。
+
+## 2026-05-14 DispatchAPI Facade CurrentDispatch Restore Alignment Findings
+
+- 继续沿 `dispatchapi` 后段往下缩时，最值得先收的是一簇 facade/current-dispatch easy wins：
+  - `Test_VecF32x4ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister`
+  - `Test_VecF64x2ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister`
+  - `Test_VecF64x2MathFacade_Tracks_CurrentDispatchTable_After_ReRegister`
+  - `Test_VecF32VectorMathFacade_Tracks_CurrentDispatchTable_After_ReRegister`
+  - `Test_VecWideFloatDotFacade_Tracks_CurrentDispatchTable_After_ReRegister`
+  - `Test_VecF64x4ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister`
+  - `Test_VecF32x8ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister`
+  - `Test_VecF64x8ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister`
+  - `Test_VecF32x16ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister`
+- 这 9 条的共同点很明确：
+  - 测试内部都会先切到 automatic/current-backend 场景，再对当前 dispatch table 重注册 synthetic slots
+  - 内层已经有 `RegisterBackend(LBackend, LOriginalTable)` 负责把被改写的表恢复回去
+  - 但最外层退出时仍完全依赖类级 `TearDown` 才把 `FSavedVectorAsm + FSavedBackend` 拉回保存状态
+  - 也就是说，table rollback 是方法内闭合的，global state rollback 却还滞后到更外层 fixture
+- 这一簇和前面已经收掉的 backend-only / metadata tests 边界也很清楚：
+  - 中途 `ResetToAutomaticBackend` 仍然是建立“当前 backend / 当前 dispatch table”场景的测试主题步骤，不动
+  - 内层 `RegisterBackend(LBackend, LOriginalTable)` 的回滚语义不动
+  - 本轮只补最外层 method-exit restore，让 facade 测试本身退出时也回到类级保存状态
+- 本轮修法因此保持最小：
+  - 9 条测试全部包 outer `try...finally`
+  - finally 统一改成 `RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend)`
+  - synthetic Reduce/Math/Dot slot 注入、`GetDispatchTable^` 断言、以及 facade 是否跟踪 current dispatch table 的断言完全不变
+- 这批收完后的价值是：
+  - `dispatchapi` 后段 facade/current-dispatch tests 不再把 backend drift 留给 outer `TearDown`
+  - current dispatch table 与 facade 跟踪语义仍只由内层 re-register/assert 路径决定，没有把 cleanup 逻辑和被测语义混在一起
+  - 这批仍属于测试层 fixture hardening / redundancy cleanup，不触碰 SIMD 生产实现
+- 已有验证链保持全绿：`git diff --check`、Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 均通过；说明这批改动只收方法级退出态 restore，没有引入 dispatch/facade 行为回归。

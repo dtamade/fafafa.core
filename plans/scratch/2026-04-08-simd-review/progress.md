@@ -2734,3 +2734,32 @@
   - `dispatchapi` 里 backend-only / metadata 这簇旧 cleanup 形状又少了一层
   - 下一轮如果继续挖，更值得看的将是 `dispatchapi` 后段 facade/current-dispatch 跟踪测试，或 `publicabi` 中少量仍依赖 outer fixture 才恢复 saved state 的同类路径
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+- 我继续沿这个 stop-point 往下收，但这轮还是避开 `publicabi` 的复杂 hook/state-machine，只处理 `dispatchapi` 后段 9 条 facade/current-dispatch easy wins：
+  - `VecF32x4ReduceFacade`
+  - `VecF64x2ReduceFacade`
+  - `VecF64x2MathFacade`
+  - `VecF32VectorMathFacade`
+  - `VecWideFloatDotFacade`
+  - `VecF64x4ReduceFacade`
+  - `VecF32x8ReduceFacade`
+  - `VecF64x8ReduceFacade`
+  - `VecF32x16ReduceFacade`
+- 这次的判断边界保持不变：
+  - 中途 `ResetToAutomaticBackend` 和 current-backend re-register 是测试主题步骤，不动
+  - 内层 `RegisterBackend(LBackend, LOriginalTable)` 已经负责表回滚，不动
+  - 只补最外层退出态，让测试方法自己恢复 `FSavedVectorAsm + FSavedBackend`
+- 本轮最小修法：
+  - 9 条测试都补 outer `try...finally`
+  - finally 统一用 `RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend)`
+  - synthetic reduce/math/dot slots、`GetDispatchTable^` 断言、facade 跟踪当前 dispatch table 的断言全部保持原样
+- 这批 release 验证链已经先行跑过并全绿：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断继续更新：
+  - `dispatchapi` 后段 facade/current-dispatch 这一簇 method-level old-shape cleanup 又少了一层
+  - 下一轮如果继续深挖，首选还是 `publicabi` 中和 current-publication / facade tracking 对应的 easy wins；备选再回头扫 `dispatchapi` 更零散的 benchmark/AVX 特化 cleanup 残点
+- 这轮提交前需要再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录跟着进入工作树。
