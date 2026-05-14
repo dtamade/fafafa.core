@@ -2703,3 +2703,27 @@
   - hook 测试也不再在 finally 里停留在 automatic，而是回到类级保存态
   - 变化仍然只在测试层 cleanup 契约，不触碰 SIMD/AVX512 生产实现或 hook 语义
 - Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿，说明这批既没有影响 AVX512 parity/contract 语义，也没有影响 dispatch hook 行为。
+
+## 2026-05-14 IEEE754 EdgeCases Restore Alignment Findings
+
+- 继续把搜索面扩到 `ieee754` 后，最稳的一批残点集中在 `TTestCase_IEEE754EdgeCases` 的 3 条 edge-case tests：
+  - `Test_F32x4_RoundTrunc_NaNInf_Scalar`
+  - `Test_F32x4_RoundTrunc_NaNInf_SSE2`
+  - `Test_Wide_RoundTrunc_NaNInf_Scalar`
+- 这 3 条的共同点很明确：
+  - 都属于同一个已经具备 `FSavedVectorAsm`、`FSavedBackend` 和 `RestoreIEEE754LocalState(...)` 的 stateful testcase
+  - 但退出态仍然沿用旧样板：要么只做 `ResetToAutomaticBackend`，要么手写 `SetVectorAsmEnabled(oldVectorAsm); ResetToAutomaticBackend`
+  - 它们和同文件前面已经收过的 helper-based restore 形状继续分叉
+- 这批与同文件其它 `ResetToAutomaticBackend` 命中的边界也需要说明：
+  - 非 x86 property/loop tests 里的 inner `ResetToAutomaticBackend` 更像 iteration-level control-plane 隔离
+  - 那些路径不只是 method-exit cleanup，贸然删改容易把“每轮回到 automatic 再切下一个 backend”的测试编排语义一起动掉
+  - 所以这轮只收最纯粹的 method-exit old-shape finally，不扩到 loop 内 reset
+- 本轮修法因此保持最小：
+  - `F32x4 ... Scalar` 与 `Wide ... Scalar` 的 finally 统一改成 `AssertTrue(..., RestoreIEEE754LocalState(FSavedVectorAsm, FSavedBackend))`
+  - `F32x4 ... SSE2` 的 finally 改成 `AssertTrue(..., RestoreIEEE754LocalState(oldVectorAsm, FSavedBackend))`
+  - 没有改断言体、没有改 backend 选择步骤，也没有改 SSE2 / scalar 的被测语义
+- 这批修法的价值在于：
+  - `ieee754.edgecases` 中最明显的 method-exit old-shape finally 又少了一层
+  - 同一个 testcase 文件内的 cleanup 形状重新向现成 helper 对齐
+  - 仍然只是测试层 fixture hardening / redundancy cleanup，不触碰 IEEE754 实现逻辑
+- Release `TTestCase_IEEE754EdgeCases`、Release `check`、Release `gate` 全绿，说明这批只是在 edge-case tests 的退出态恢复上收口，没有引入 IEEE754 行为回归。

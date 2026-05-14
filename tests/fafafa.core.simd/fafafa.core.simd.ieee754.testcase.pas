@@ -1149,7 +1149,8 @@ begin
     AssertTrue('Scalar Trunc(-Inf) should stay -Inf', IsInfinite(rTrunc.f[2]) and (rTrunc.f[2] < 0));
     AssertEquals('Scalar Trunc(-1.75)', -1.0, rTrunc.f[3], 0.0);
   finally
-    ResetToAutomaticBackend;
+    AssertTrue('IEEE754 local restore should recover previous backend selection',
+      RestoreIEEE754LocalState(FSavedVectorAsm, FSavedBackend));
   end;
 end;
 
@@ -1183,8 +1184,8 @@ begin
     AssertTrue('SSE2 Trunc(-Inf) should stay -Inf', IsInfinite(rTrunc.f[2]) and (rTrunc.f[2] < 0));
     AssertEquals('SSE2 Trunc(-1.75)', -1.0, rTrunc.f[3], 0.0);
   finally
-    SetVectorAsmEnabled(oldVectorAsm);
-    ResetToAutomaticBackend;
+    AssertTrue('IEEE754 local restore should recover previous backend selection',
+      RestoreIEEE754LocalState(oldVectorAsm, FSavedBackend));
   end;
 end;
 
@@ -1367,7 +1368,8 @@ begin
     for LIndex := 0 to 7 do
       AssertDoubleLane('Scalar F64x8[' + IntToStr(LIndex) + ']', LIndex, LRoundF64x8.d[LIndex], LTruncF64x8.d[LIndex]);
   finally
-    ResetToAutomaticBackend;
+    AssertTrue('IEEE754 local restore should recover previous backend selection',
+      RestoreIEEE754LocalState(FSavedVectorAsm, FSavedBackend));
   end;
 end;
 

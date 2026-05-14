@@ -2235,3 +2235,17 @@
 | 1. 复核 `dispatchapi` 后段 cleanup 冗余/缺口 | completed | 已确认 4 条 AVX512 tests `Test_AVX512_U32x16_U64x8_MappingAndParity`、`Test_AVX512_U32x16_U64x8_ShiftBoundary_Contracts`、`Test_AVX512_I16x32_I8x64_U8x64_MappingAndParity`、`Test_AVX512_F32x16_F64x8_IEEE754_MappingAndParity` 都存在“内层 `ResetToAutomaticBackend` + 外层 `RestoreDispatchApiLocalState(...)`”双重 method-exit cleanup；同时 `Test_DispatchChangedHooks_MultiSubscriber_Dedup_And_Remove` 的 finally 还只做 `ResetToAutomaticBackend`，把 saved backend 恢复留给 `TearDown` |
 | 2. 去掉重复退出态样板并补 hook saved-state restore | completed | 已移除 4 条 AVX512 tests 的 inner `finally ResetToAutomaticBackend`，保留外层 `RestoreDispatchApiLocalState(...)` 作为唯一 method-exit cleanup；hook 多订阅测试则保留中途用于驱动通知语义的 `ResetToAutomaticBackend` 步骤，只把 finally 收口改成 `RemoveDispatchChangedHook(...)` 后接 `RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend)` |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿；提交前仍需再次清理可能回流的 `tests/fafafa.core.simd/__pycache__/` |
+
+## 2026-05-14 IEEE754 EdgeCases Restore Alignment
+
+### Goal
+
+继续沿 `ieee754` 收 method-exit old-shape cleanup，只处理 `TTestCase_IEEE754EdgeCases` 中 3 条最稳的 edge-case tests，把“只回 automatic”或“手写 vector-asm + automatic”退出态统一对齐到现成的 `RestoreIEEE754LocalState(...)`，不碰 non-x86 loop 内可能兼具迭代隔离语义的 `ResetToAutomaticBackend`。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `ieee754` 剩余 old-shape finally | completed | 已确认 `Test_F32x4_RoundTrunc_NaNInf_Scalar`、`Test_F32x4_RoundTrunc_NaNInf_SSE2`、`Test_Wide_RoundTrunc_NaNInf_Scalar` 仍分别使用“只回 automatic”或“`SetVectorAsmEnabled(oldVectorAsm); ResetToAutomaticBackend;`”的 method-exit cleanup；而 non-x86 property/loop tests 里的同类 `ResetToAutomaticBackend` 更像 iteration-level control-plane 隔离，暂不归到这一批 |
+| 2. 统一 edge-case tests 的退出态 restore 契约 | completed | 3 条测试都改为在 finally 里 `AssertTrue(..., RestoreIEEE754LocalState(...))`；scalar tests 使用 `FSavedVectorAsm + FSavedBackend`，SSE2 test 使用 `oldVectorAsm + FSavedBackend`，与同文件既有 helper-based cleanup 形状重新对齐 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_IEEE754EdgeCases`、Release `check`、Release `gate` 全绿；提交前仍需再次清理可能回流的 `tests/fafafa.core.simd/__pycache__/` |

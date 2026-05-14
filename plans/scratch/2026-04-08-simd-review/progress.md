@@ -2815,3 +2815,26 @@
   - hook 多订阅测试也不再把 saved-state 恢复推迟到 `TearDown`
   - 下一轮如果继续深挖，更适合再缩 `publicabi/dispatchapi` 里“中途 control-plane 步骤必须保留，但 finally 仍旧 old-shape”的零散残点，而不是机械清空所有 `ResetToAutomaticBackend`
 - 这轮提交前仍要再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录跟着进入工作树。
+
+- 我继续把搜索面扩到 `ieee754`，这轮没有去动 non-x86 loop 里的 reset，而是先收 `TTestCase_IEEE754EdgeCases` 里 3 条最稳的 method-exit old-shape finally：
+  - `Test_F32x4_RoundTrunc_NaNInf_Scalar`
+  - `Test_F32x4_RoundTrunc_NaNInf_SSE2`
+  - `Test_Wide_RoundTrunc_NaNInf_Scalar`
+- 这次的核心判断是：
+  - 这 3 条都属于已有 `RestoreIEEE754LocalState(...)` helper 的 stateful testcase
+  - finally 只是在方法退出时回 automatic，或者手写 `vector asm + automatic`，没有额外测试主题语义
+  - 但 non-x86 property/loop tests 的 inner `ResetToAutomaticBackend` 更像每轮 backend 编排隔离，所以这轮刻意不动
+- 本轮最小修法：
+  - 3 条 tests 的 finally 全部切到 `AssertTrue(..., RestoreIEEE754LocalState(...))`
+  - scalar tests 用 `FSavedVectorAsm + FSavedBackend`
+  - SSE2 test 用 `oldVectorAsm + FSavedBackend`
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IEEE754EdgeCases`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断继续更新：
+  - `ieee754.edgecases` 的 method-exit old-shape cleanup 又少了一层
+  - 下一轮如果继续深挖，更值得先缩 `ieee754` 里那些已经明显是 method-exit old-shape、而不是 loop/iteration control-plane 的剩余 finally；其次再回到 `publicabi/dispatchapi` 看更零散的 easy wins
+- 这轮提交前仍要再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录跟着进入工作树。
