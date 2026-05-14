@@ -1,6 +1,8 @@
 program test_simd_boundary;
 
 {$mode objfpc}{$H+}
+{$I ../../src/fafafa.core.settings.inc}
+{$CODEPAGE UTF8}
 
 {**
  * SIMD 边界测试 - Rust 级别代码质量验证
@@ -90,7 +92,7 @@ begin
   BeginGroup('无穷大处理测试');
 
   posInf := Infinity;
-  negInf := NegInfinity;
+  negInf := -posInf;
 
   // 测试正无穷
   a.f[0] := posInf; a.f[1] := 1.0; a.f[2] := 2.0; a.f[3] := 3.0;
@@ -343,7 +345,7 @@ begin
   failCount := 0;
 
   WriteLn('========================================');
-  WriteLn('SIMD 边界测试 - Rust 级别代码质量验证');
+  WriteLn(UTF8String('SIMD 边界测试 - Rust 级别代码质量验证'));
   WriteLn('========================================');
 
   // IEEE 754 特殊值测试
@@ -368,20 +370,20 @@ begin
   // 汇总
   WriteLn;
   WriteLn('========================================');
-  WriteLn('测试汇总');
+  WriteLn(UTF8String('测试汇总'));
   WriteLn('========================================');
-  WriteLn('通过: ', passCount);
-  WriteLn('失败: ', failCount);
+  WriteLn(UTF8String('通过: '), passCount);
+  WriteLn(UTF8String('失败: '), failCount);
   WriteLn;
 
   if failCount = 0 then
   begin
-    WriteLn('所有边界测试通过!');
+    WriteLn(UTF8String('所有边界测试通过!'));
     ExitCode := 0;
   end
   else
   begin
-    WriteLn('存在失败的测试!');
+    WriteLn(UTF8String('存在失败的测试!'));
     ExitCode := 1;
   end;
 end.

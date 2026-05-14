@@ -2814,3 +2814,17 @@
 | 1. 复核 `bench` 中 backend 名称 helper 的真实使用面 | completed | 已确认 `GetBenchmarkBackendName(...)` 只服务 `TryActivateBenchmarkBackend(...)` 的 skip/fallback 文案和 `PrintBenchResults(...)` 标题标签；没有承载任何 benchmark 逻辑或 platform-specific 行为 |
 | 2. 删除本地名称表并直接复用 dispatch canonical metadata | completed | 已删除 `GetBenchmarkBackendName(...)` 与 `GetBackendName`；skip/fallback 文案和 benchmark 标题统一改为 `GetBackendInfo(...).Name`，不再在 bench unit 里重复存储 backend label 本体 |
 | 3. Release 验证与提交流水收口 | completed | `git diff --check`、Release `check`、Release `gate` 已通过；说明 bench 被主测试 runner/BuildOrTest 编译进来后仍然稳定，`run_all` 最后也继续保持 5/5 绿态 |
+
+## 2026-05-15 Standalone Program Entry Contract Repair
+
+### Goal
+
+继续把审查范围从主 runner/bench 推到仓库里残留的独立 program 入口：这次目标是修复 `test_backend_ops` / `test_simd_boundary` 的入口合同漂移，包括缺失的 `fafafa.core.settings.inc`、失真的 `test_backend_ops.lpi` 主单元指向、`test_simd_boundary` 的真实 standalone compile 断点，以及它的 UTF-8 banner/summary 输出污染。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核独立 program 入口是否仍受活跃验证覆盖 | completed | 已确认 `test_backend_ops.pas` 与 `test_simd_boundary.pas` 都缺 `{$I ../../src/fafafa.core.settings.inc}`；`test_backend_ops.lpi` 甚至错误指向 `fafafa.core.simd.test.lpr`，`lazbuild -B` 实际会去编整套主测试工程，而不是自己的 program |
+| 2. 修入口合同并收掉真实 standalone 缺陷 | completed | 已为两个 program 补 `settings.inc`；`test_backend_ops.lpi` 主单元已改回 `test_backend_ops.pas`；`test_simd_boundary` 的 `NegInfinity` 已改成 `-posInf`；其 banner/summary 文案还进一步显式收为 `UTF8String(...)`，避免旧编码污染落成 `?` |
+| 3. 独立构建/运行与主检查链复验 | completed | `git diff --check`、临时目录 `fpc` 编译并实际运行 `test_backend_ops`、临时目录 `fpc` 编译并实际运行 `test_simd_boundary`、UTF-8 输出落盘校验、`lazbuild -B tests/fafafa.core.simd/test_backend_ops.lpi`、Release `check` 已通过；说明这批入口现在既能独立自证，也不再误指向主测试 runner |

@@ -70,7 +70,7 @@
     </RequiredPackages>
     <Units>
       <Unit>
-        <Filename Value="fafafa.core.simd.test.lpr"/>
+        <Filename Value="test_backend_ops.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>

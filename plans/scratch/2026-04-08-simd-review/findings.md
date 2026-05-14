@@ -3580,3 +3580,28 @@
   - 只要某个小型 runner/unit 里的本地 helper 既不承载 suite 语义、也不承载算法语义，而只是转发 canonical metadata
   - 就优先把它收掉
   - 因为这类点改动最小、验证成本低、却能持续减少日志/标题/skip 文案再次漂移的机会
+
+## 2026-05-15 Standalone Program Entry Contract Findings
+
+- 继续往 `tests/fafafa.core.simd` 的独立入口看时，发现一类和主 `BuildOrTest` 完全不同的真实问题：
+  - 这些 program 文件不一定被主 runner/gate 真实编到
+  - 因而很容易长期带着“看上去像能用、实际上没单独自证过”的入口合同缺口
+- 这轮已经确认的具体问题有 4 个：
+  - `test_backend_ops.pas` 缺 `fafafa.core.settings.inc`
+  - `test_simd_boundary.pas` 缺 `fafafa.core.settings.inc`
+  - `test_backend_ops.lpi` 主单元错误指向 `fafafa.core.simd.test.lpr`
+  - `test_simd_boundary.pas` 还写着当前 `uses` 面并不存在的 `NegInfinity`
+- `test_backend_ops.lpi` 这一点尤其值得记下来，因为它不是“文档约定没跟上”，而是实际行为已经跑偏：
+  - `lazbuild -B tests/fafafa.core.simd/test_backend_ops.lpi`
+  - 修复前会去编整套 `fafafa.core.simd.test.lpr`
+  - 并在主 testcase 里炸出完全无关的 `Asm: word value exceeds bounds ...`
+  - 这类失败会把真正的问题掩盖掉，让人误以为 `test_backend_ops` 自己坏了
+- `test_simd_boundary` 这条线也说明了“独立入口真相”不能只看能不能过主工程编译：
+  - standalone `fpc` 编译第一次就卡在 `NegInfinity`
+  - 修掉后，断言主体其实全部通过
+  - 但 banner/summary 几行输出又暴露出旧编码污染，落盘后真值是 `?` 而不是中文
+  - 最后需要把这些字面量显式收成 `UTF8String(...)`，才真正恢复 UTF-8 输出真相
+- 这批给后续 SIMD 深查又补了一个新的优先级标准：
+  - 不只要扫主 suite / helper / bench
+  - 还要扫 repo 里那些“平时不在主 gate 上、但被留下来作为独立入口/示例/调试程序”的 program/lpi
+  - 因为它们最容易积累配置漂移、主单元误指向和 source-encoding 污染这类隐性问题

@@ -1,6 +1,7 @@
 program test_backend_ops;
 
 {$mode objfpc}{$H+}
+{$I ../../src/fafafa.core.settings.inc}
 
 uses
   SysUtils,

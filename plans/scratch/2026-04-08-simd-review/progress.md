@@ -3989,3 +3989,30 @@
   - 结果：全部通过；最终 `gate` 继续保持：
     - `Run-all summary: Passed 5 / Failed 0`
     - `[GATE] OK`
+
+## 2026-05-15 Standalone Program Entry Contract Repair
+
+- 在 `bench` 收口后，我继续扫 repo 里残留的独立 program/lpi，确认这一层也有真实入口问题：
+  - `test_backend_ops.pas` 与 `test_simd_boundary.pas` 都缺 `{$I ../../src/fafafa.core.settings.inc}`
+  - `test_backend_ops.lpi` 竟然把主单元写成了 `fafafa.core.simd.test.lpr`
+- 这不是静态猜测，我先直接做了真构建验证：
+  - `lazbuild -B tests/fafafa.core.simd/test_backend_ops.lpi`
+  - 修复前它实际去编的是整套 `fafafa.core.simd.test.lpr`
+  - 最终报出的也是主 testcase 里的无关错误，而不是 `test_backend_ops` 自身入口错误
+- 本轮入口合同修复已落地：
+  - `test_backend_ops.pas` 补 `{$I ../../src/fafafa.core.settings.inc}`
+  - `test_simd_boundary.pas` 补 `{$I ../../src/fafafa.core.settings.inc}`
+  - `test_backend_ops.lpi` 主单元改回 `test_backend_ops.pas`
+  - `test_simd_boundary.pas` 把不存在于当前 `uses` 面的 `NegInfinity` 改成 `-posInf`
+  - `test_simd_boundary.pas` 的 banner/summary 文案显式收成 `UTF8String(...)`
+- 这轮独立入口验证是分层做的：
+  - `git diff --check`
+  - 临时目录 `fpc` 编译并运行 `test_backend_ops.pas`
+  - 结果：`Passed: 15`、`Failed: 0`、`All tests PASSED!`
+  - 临时目录 `fpc` 编译并运行 `test_simd_boundary.pas`
+  - 结果：44 条边界断言全部通过
+  - 输出落盘后用 `python3` 直接按 UTF-8 解码验证，确认 `SIMD 边界测试 - Rust 级别代码质量验证`、`测试汇总`、`失败: 0` 等文案不再被降成 `?`
+  - `lazbuild -B tests/fafafa.core.simd/test_backend_ops.lpi`
+  - 结果：主编译参数中的 project source 已正确变成 `test_backend_ops.pas`，并成功生成 `bin/test_backend_ops`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - 结果：通过，说明这批独立入口修补没有反向污染主 SIMD 检查链
