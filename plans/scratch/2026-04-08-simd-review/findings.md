@@ -3429,3 +3429,20 @@
   - `dataplane` 只保留 snapshot/publication 语义断言
   - `ieee754` 只保留 rounding/NaN/Inf/signed-zero/non-x86 parity 断言
   - `fixturehelpers` 不再被这两份文件当成第二套尾部 cleanup 入口
+
+## 2026-05-15 Direct Tail Restore Split Findings
+
+- `direct.testcase` 这轮说明：有些 local helper 不是“全留”或“全删”，而是需要按调用点语义拆分。
+- 关键差异不在 helper 本身，而在调用后控制流：
+  - `Test_DirectDispatchTable_Rebind_AfterForceBackend`
+  - `Test_DirectDispatchTable_AutoRebind_AfterDispatchSetActiveBackend`
+  - 这两处 finally 之后还会继续读取 `GetDispatchTable / GetDirectDispatchTable`，验证 direct table 是否已经随恢复状态重新对齐，所以必须保留 `RestoreFixtureDirectDispatchState(...)`
+- 其余 26 处调用则提供了相反证据：
+  - 调用后直接 `end;`
+  - 或只跟 `FreeAligned(...)` 这种不依赖 backend/direct 状态的资源释放
+  - 这些点已经不再需要 helper 里的 `RebindDirectDispatch + verified restore` 组合语义
+- 这批把筛选标准又向前推进了一步：
+  - 不能只看 helper 有没有本地语义
+  - 还要看“该 helper 的哪些调用点真的消费了这层语义”
+  - 如果只有少数调用点需要，就应把 helper 保留，但把尾部 cleanup caller 清掉
+- 因而后续继续深查时，更值得优先找的是这种“helper 本身有意义，但大量 caller 已经退化成尾部 cleanup”的混合场景；这类点比“全文件统一删除”更隐蔽，也更容易长期遗留

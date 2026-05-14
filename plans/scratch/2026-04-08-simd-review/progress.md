@@ -3805,3 +3805,23 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 - 本轮收口前已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免把 Python 缓存目录带进提交。
+
+## 2026-05-15 Direct Tail Restore Split Cleanup
+
+- 在 `dataplane + ieee754` 之后继续回扫时，`direct.testcase` 暴露出一个更细的混合场景：
+  - `RestoreFixtureDirectDispatchState(...)` helper 本身仍有本地语义，因为它把 `RebindDirectDispatch` 和 verified restore 绑在了一起
+  - 但它的调用点并不都还需要这层语义
+- 机械扫描后确认：
+  - 共 28 处调用里，只有 2 处 finally 之后还继续读取 `GetDispatchTable / GetDirectDispatchTable`
+  - 这 2 处正是 `Test_DirectDispatchTable_Rebind_AfterForceBackend` 和 `Test_DirectDispatchTable_AutoRebind_AfterDispatchSetActiveBackend`
+  - 其余 26 处要么调用后直接 `end;`，要么只剩 `FreeAligned(...)` 这种资源释放
+- 因而这批不是“删 helper”，而是“按 caller 语义拆分”：
+  - 保留 2 处真正需要 post-restore direct-table 观测的调用
+  - 删除其余 26 处尾部 `RestoreFixtureDirectDispatchState(...)`
+  - `TDirectDispatchStatefulTestCase.TearDown` 继续负责 inherited restore 后的 `RebindDirectDispatch`
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

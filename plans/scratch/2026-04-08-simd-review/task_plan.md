@@ -2716,3 +2716,17 @@
 | 1. 复核 `dataplane/ieee754` direct verified-restore caller 是否还承载 post-restore 语义 | completed | 已确认 `dataplane` 仅 1 处、`ieee754` 共 10 处 `RestoreSavedBackendAndVectorAsmStateAndVerify(...)` 调用，且都位于 `finally` 尾部；机械扫描显示调用后统一直接 `end;`，没有任何一处是在恢复后继续依赖 backend/vector-asm 状态做同测断言 |
 | 2. 删除冗余 tail caller 与失效依赖 | completed | 已删除 `dataplane.testcase` 与 `ieee754.testcase` 中全部 11 处尾部 verified-restore 调用，并同步删除两文件对 `fafafa.core.simd.fixturehelpers` 的失效依赖；测试主体、异常 mask、非 x86/AVX2/SSE2 IEEE754 断言与 dataplane snapshot 断言保持不变 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DataPlane,TTestCase_IEEE754EdgeCases,TTestCase_AVX2RoundTruncIEEE754,TTestCase_NonX86IEEE754`、Release `check`、Release `gate` 全绿；说明这类 direct verified-restore caller 也只是历史 cleanup 复制体，而不是 suite-specific 状态语义 |
+
+## 2026-05-15 Direct Tail Restore Split Cleanup
+
+### Goal
+
+继续加强 `simd` 测试层审查并修复，但这次把 `direct.testcase` 里“混合 helper”进一步拆开：保留那 2 处恢复后还要继续观察 `dispatch/direct` 对齐的 `RestoreFixtureDirectDispatchState(...)` 调用，删除其余所有已经退化成纯尾部 cleanup 的调用，让 `TSimdVectorAsmStatefulTestCase.TearDown + RebindDirectDispatch` 成为这些测试的唯一收口路径。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `direct` 调用点是否混有 post-restore 语义 | completed | 已确认 `RestoreFixtureDirectDispatchState(...)` 共 28 处使用中，仅 `Test_DirectDispatchTable_Rebind_AfterForceBackend` 与 `Test_DirectDispatchTable_AutoRebind_AfterDispatchSetActiveBackend` 这 2 处在 finally 之后继续断言 `dispatch/direct` 已随恢复状态重新对齐；其余 26 处要么直接 `end;`，要么只剩 `FreeAligned(...)` 这类资源释放 |
+| 2. 删除尾部 cleanup 调用并保留必要 post-restore caller | completed | 已删除 `direct.testcase` 中 26 处尾部 `RestoreFixtureDirectDispatchState(...)` 调用，保留 2 处真正需要“恢复后继续观察 direct table”语义的调用；`RestoreFixtureDirectDispatchState` helper 本身保留，因为它仍承载 `RebindDirectDispatch + verified restore` 的组合 contract |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、Release `check`、Release `gate` 全绿；说明 `direct` 已被细分成“真 post-restore 语义”与“纯尾部 cleanup”两类，而不会把 `RebindDirectDispatch` 这条本地 contract 一起误删 |

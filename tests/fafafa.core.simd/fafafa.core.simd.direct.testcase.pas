@@ -713,7 +713,6 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -923,7 +922,6 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -1153,7 +1151,6 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -1281,7 +1278,6 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -1386,7 +1382,6 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -1493,7 +1488,6 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -1700,7 +1694,6 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -1821,7 +1814,6 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -1965,7 +1957,6 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -2226,7 +2217,6 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -2435,7 +2425,6 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -2723,7 +2712,6 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -2866,7 +2854,6 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -2942,7 +2929,6 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -3056,7 +3042,6 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -3196,7 +3181,6 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -3427,7 +3411,6 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -3632,7 +3615,6 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -3812,7 +3794,6 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -4120,7 +4101,6 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -4401,7 +4381,6 @@ begin
 
     AssertTrue('At least one backend should be tested in wide bitwise/shift matrix parity', LTestedCount > 0);
   finally
-    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -4833,7 +4812,6 @@ begin
 
     AssertTrue('At least one backend should be tested in wide arithmetic/minmax matrix parity', LTestedCount > 0);
   finally
-    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -4937,7 +4915,6 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -5099,7 +5076,6 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -5250,7 +5226,6 @@ begin
         Integer(LRefMax), Integer(LDirectMax));
     end;
   finally
-    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -5564,7 +5539,6 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    RestoreFixtureDirectDispatchState;
     FreeAligned(LAlignedBlock);
   end;
 end;
