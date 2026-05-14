@@ -3324,3 +3324,19 @@
   - helper 里只有一半动作是本地语义
   - 另一半 restore/verify 主体其实早就应该下沉
 - 因而下一轮继续深查时，更值得找的是这种“本地后处理动作 + 共用 restore 主体”仍混写的残点，而不是再去机械搜索所有 `Restore*LocalState` 名字。
+
+## 2026-05-14 Backend Fixture Restore Contract Alignment Findings
+
+- 这轮确认了一类更高优先级的冗余来源：不是某个专题 suite 的 local helper，而是共享基类自己还在保留旧版 restore choreography。
+- 一旦 `fixturehelpers` 已经提供 verified helper，共享 `TSimdBackendStatefulTestCase` 继续手写 restore 流程就会变成新的 competing truth source：
+  - helper 层说标准写法是 `RestoreSavedBackendStateAndVerify(...)`
+  - 基类层却还保留 `ResetBackendSelection + TrySetActiveBackend + getter compare`
+  - 这会让后续读代码的人再次分不清哪份才是 canonical contract
+- `publicabi` 那个 finally cleanup 也属于同一类问题，只是影响面更小：
+  - 它不再是功能 bug
+  - 但它会让 stable test path 上保留一个“只恢复、不校验”的孤岛
+- 因而后续继续深查时，优先级应该这样看：
+  - 先抓共享基类/共享 contract 自己是否还残留旧写法
+  - 再抓单个 suite 的 message-bearing wrapper
+  - 因为前者一旦收掉，整个测试层的语义标准会更统一
+- 经过这批后，stable `simd` test path 上最显眼的 raw backend-restore choreography 已经基本收平；剩余更多是 suite-local 断言包装，而不是共享 contract 级别的分叉。

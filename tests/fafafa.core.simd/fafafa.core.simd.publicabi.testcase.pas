@@ -931,7 +931,8 @@ begin
   finally
     if GetCurrentBackend <> LOriginalBackend then
       AssertTrue('Restoring original active backend should succeed',
-        RestoreSavedBackendState(LOriginalBackend));
+        RestoreSavedBackendStateAndVerify(LOriginalBackend,
+        @GetCurrentBackend));
   end;
 
   AssertEquals('Public API active backend should track the restored backend',

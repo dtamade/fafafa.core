@@ -3654,3 +3654,28 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-14 Backend Fixture Restore Contract Alignment
+
+- 在 `direct` 批次提交后，继续做精确扫描，发现真正更值钱的残点其实已经不在单个 suite，而在公共 backend fixture 本身：
+  - `TSimdBackendStatefulTestCase.TearDown` 还保留着最老式的 `ResetBackendSelection + TrySetActiveBackend + getter compare` restore 流程
+  - `publicabi.testcase` 里还留着 stable path 上唯一一处裸 `RestoreSavedBackendState(LOriginalBackend)`
+- 复核后确认这两处都应该回接 verified helper：
+  - `fixturehelpers` 既然已经定义了 backend restore + verify 的统一 contract，共享基类就不该继续维护另一份标准写法
+  - `publicabi` 那个 finally cleanup 也应该升级成“恢复并确认 backend 已回原值”，否则它会成为唯一绕开 verify 的残点
+- 本轮最小修法已落地：
+  - `TSimdBackendStatefulTestCase.TearDown`
+    - 删除手写 `ResetBackendSelection / TrySetActiveBackend / and (GetCurrentBackend = FSavedBackend)`
+    - 改为 `RestoreSavedBackendStateAndVerify(FSavedBackend, @GetCurrentBackend)`
+  - `TTestCase_PublicAbi.Test_PublicApi_ActiveBackendId_Tracks_RuntimeSelection`
+    - finally cleanup 改为 `RestoreSavedBackendStateAndVerify(LOriginalBackend, @GetCurrentBackend)`
+- 这批的收益比继续删某个 local helper 更高：
+  - 共享基类自身不再和 `fixturehelpers` 竞争“backend restore 的标准写法”
+  - `publicabi` 也不再保留 stable path 上最后一个未校验 restore caller
+  - 之后再看测试层 restore 逻辑时，backend-only 这条 contract 已经基本只有一种写法
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_RuntimeAPI,TTestCase_PublicAbi`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

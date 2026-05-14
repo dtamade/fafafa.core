@@ -723,15 +723,13 @@ procedure TSimdBackendStatefulTestCase.TearDown;
 var
   LRestoredBackend: Boolean;
 begin
-  ResetBackendSelection;
-  LRestoredBackend := True;
-  if GetCurrentBackend <> FSavedBackend then
-    LRestoredBackend := TrySetActiveBackend(FSavedBackend);
+  LRestoredBackend := RestoreSavedBackendStateAndVerify(FSavedBackend,
+    @GetCurrentBackend);
 
   inherited TearDown;
 
   AssertTrue(ClassName + ' should restore previous backend selection',
-    LRestoredBackend and (GetCurrentBackend = FSavedBackend));
+    LRestoredBackend);
 end;
 
 { TScalarBackendStatefulTestCase }

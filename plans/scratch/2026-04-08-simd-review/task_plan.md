@@ -2632,3 +2632,17 @@
 | 1. 复核 `direct` 剩余 local restore helper 的真实语义边界 | completed | 已确认 `TDirectDispatchStatefulTestCase.RestoreFixtureDirectDispatchState` 与并发 cleanup 的特殊点只剩 `RebindDirectDispatch`；restore state + verify backend restored 本体已经不应继续手写 |
 | 2. 对齐到共享 verified restore helper | completed | `RestoreFixtureDirectDispatchState` 现改用 `RestoreSavedBackendAndVectorAsmStateAndVerify(...)`；`RunDirectDispatchConcurrentReRegisterSnapshotConsistency` 的 cleanup 改用 `RestoreSavedBackendStateAndVerify(...)`，同时保留原有 `RegisterBackend(sbScalar, ...)` 与 `RebindDirectDispatch` 时序 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、Release `check`、Release `gate` 全绿；本轮继续串行验证，避免 `tests/fafafa.core.simd` 共享输出目录假红 |
+
+## 2026-05-14 Backend Fixture Restore Contract Alignment
+
+### Goal
+
+继续加强 `simd` 测试基础设施审查并修复，但这次不再盯单个 suite，而是收掉公共 `backend-stateful` 基类自身还保留的手工 restore choreography，并顺手清掉 `publicabi` 中唯一剩下的裸 `RestoreSavedBackendState(...)` 调用，让 verified helper 真正成为 backend restore 的统一 contract。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核剩余 raw backend-restore caller 的真实影响面 | completed | 精确扫描后确认 stable test path 里最显眼的残点只剩两处：`TSimdBackendStatefulTestCase.TearDown` 自己仍手写 `ResetBackendSelection + TrySetActiveBackend + getter compare`，以及 `publicabi` 一处 finally cleanup 仍只做未校验的 `RestoreSavedBackendState(...)` |
+| 2. 对齐到共享 verified helper contract | completed | `TSimdBackendStatefulTestCase.TearDown` 现改用 `RestoreSavedBackendStateAndVerify(FSavedBackend, @GetCurrentBackend)`；`publicabi` 那处 finally cleanup 同步改用 `RestoreSavedBackendStateAndVerify(LOriginalBackend, @GetCurrentBackend)` |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_RuntimeAPI,TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿；说明公共 backend fixture 收口后，`vector-asm` 派生 suite、public ABI smoke 和 run_all 链路都继续稳定 |
