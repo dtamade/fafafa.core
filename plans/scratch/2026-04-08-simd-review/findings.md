@@ -2595,3 +2595,29 @@
   - 测试内部仍然验证 helper / wrapper 是否保住 forced backend
   - 但测试方法本身退出时不再把全局 backend 状态漂移留给后续用例或更外层 fixture
 - Release `TTestCase_DispatchAPI`、Release `TTestCase_BackendVectorConsistency`、Release `check`、Release `gate` 全绿，说明改动只影响测试层 cleanup hardening，没有改变 dispatch API 或 backend consistency 生产语义。
+
+## 2026-05-14 DispatchAPI BackendOnly Metadata Restore Alignment Findings
+
+- 继续沿 `dispatchapi` 剩余命中往下分类后，又浮出一簇更适合单独收口的 backend-only / metadata 测试：
+  - `Test_SetActiveBackend_Unavailable_FallsBackToScalar`
+  - `Test_BackendInfoAvailableFalse_IsNotSelectable`
+  - `Test_SupportedAliases_StayCpuOnly_WhenBackendBecomesNonDispatchable`
+  - `Test_RegisteredBackendDispatchTable_PreservesCanonicalTextMetadata_After_ReRegister`
+  - `Test_CurrentBackendInfo_PreservesCanonicalTextMetadata_After_ReRegister`
+- 这 5 条的共同点是：
+  - 测试内部都会主动 `ResetToAutomaticBackend`，或者显式围绕“当前 backend”做重注册/metadata 断言
+  - 但退出测试时要么只回到 `automatic`，要么根本不做方法级 restore，而把状态恢复完全留给外层 `TearDown`
+  - 它们和之前已经收口的 `dispatchslots`、`dispatchapi` 前 4 条基础测试属于同一类“method-level cleanup 契约落后于类级 saved-state fixture”的问题
+- 这批和复杂 hook/state-machine 路径的边界很清楚：
+  - 中途的 `ResetToAutomaticBackend` 仍然是测试主题步骤本身，不动
+  - 改动只发生在最外层退出态
+  - 内层 `RegisterBackend(..., LOriginalTable)` 恢复表语义保持不变
+- 本轮修法因此保持最小：
+  - `SetActiveBackend_Unavailable_FallsBackToScalar` 直接把 finally 从 `ResetToAutomaticBackend` 切到 `RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend)`
+  - 其余 4 条测试补 outer `try...finally`，让它们在内部仍从 automatic/current-backend 场景出发做断言，但退出时统一恢复类级 `FSavedVectorAsm + FSavedBackend`
+  - 顺手把 `Test_BackendInfoAvailableFalse_IsNotSelectable` 的局部变量改成 `L*` 形状，和仓库约定对齐
+- 这批修法的价值在于进一步缩小 `dispatchapi` 内“backend-only current-state tests 仍把全局状态漂给 TearDown”的范围：
+  - table/metadata 断言本身不变
+  - current-backend / alias / availability 语义不变
+  - 变化只在测试方法退出时更早恢复 saved state
+- Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿，说明这批仍然只是 `dispatchapi` 测试层 cleanup hardening，没有影响 dispatch/public ABI 生产行为。

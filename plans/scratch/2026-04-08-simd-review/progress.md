@@ -2708,3 +2708,29 @@
   - backend-consistency 元测试也不再把 backend 漂移留在 automatic
   - 下一轮更值得继续看的，还是 `dispatchapi/publicabi` 剩余复杂路径里是否还有少量“方法尾声 or 异常流 restore 契约”残点，而不是 round-level 控制面动作
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+- 我继续沿 `dispatchapi` 残点往下收，但这轮仍然刻意避开复杂 hook/state-machine，改成收一批 backend-only / metadata tests：
+  - `SetActiveBackend_Unavailable_FallsBackToScalar`
+  - `BackendInfoAvailableFalse_IsNotSelectable`
+  - `SupportedAliases_StayCpuOnly_WhenBackendBecomesNonDispatchable`
+  - `RegisteredBackendDispatchTable_PreservesCanonicalTextMetadata_After_ReRegister`
+  - `CurrentBackendInfo_PreservesCanonicalTextMetadata_After_ReRegister`
+- 这次的判断依据很直接：
+  - 这些测试内部确实需要 `ResetToAutomaticBackend` 或“当前 backend”语义来建立场景
+  - 但测试结束后仍把 backend 恢复推迟给外层 `TearDown`，或者只回到 automatic
+  - 所以中途控制面步骤不改，只补最外层退出态 restore
+- 本轮最小修法：
+  - 第一条 simple test 的 finally 直接改成 `RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend)`
+  - 其余 4 条加 outer `try...finally`
+  - 内层 `RegisterBackend(..., LOriginalTable)` 和 automatic/current-backend 断言不动
+  - 顺手把一条旧变量名改成 `LOriginalBackend/LBeforeTry/LAfterAuto/LOriginalTable/LModifiedTable`
+- 本轮 Release 验证继续按串行链完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断继续更新：
+  - `dispatchapi` 里 backend-only / metadata 这簇旧 cleanup 形状又少了一层
+  - 下一轮如果继续挖，更值得看的将是 `dispatchapi` 后段 facade/current-dispatch 跟踪测试，或 `publicabi` 中少量仍依赖 outer fixture 才恢复 saved state 的同类路径
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

@@ -2179,3 +2179,17 @@
 | 1. 复核 `dispatchapi` / 根 `testcase` 的尾声 restore 形状 | completed | 已确认 `TTestCase_DispatchAPI` 最前 4 个基础 API 测试的 finally 仍只做 `ResetToAutomaticBackend`，与同文件后续大量 `RestoreDispatchApiLocalState(...)` 形状分叉；同时 `TTestCase_BackendVectorConsistency` 是 plain `TTestCase`，其 2 条元测试和 1 条 wrapper 测试虽然会校验“调用内部保持 forced backend”，但退出测试时仍只回到 automatic |
 | 2. 统一到保存 backend / 进入态 restore 契约 | completed | 已将 `dispatchapi` 这 4 条基础测试的 finally 改为复用现成 `RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend)`；在根 `testcase` 新增 `RestoreBackendVectorConsistencyLocalState(...)`，并让 backend-consistency 的 wrapper 与 2 条元测试在 finally 中回到进入前真实 backend |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAPI`、Release `TTestCase_BackendVectorConsistency`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 DispatchAPI BackendOnly Metadata Restore Alignment
+
+### Goal
+
+继续沿 `dispatchapi` 剩余 backend-only / metadata 测试收掉“方法内先把 control-plane 切到 automatic 或当前 backend 场景，但退出时仍把 backend 漂给外层 tearDown”的分叉，重点覆盖不涉及复杂 hook 状态机的 5 条测试：`SetActiveBackend_Unavailable_FallsBackToScalar`、`BackendInfoAvailableFalse_IsNotSelectable`、`SupportedAliases_StayCpuOnly_WhenBackendBecomesNonDispatchable`、`RegisteredBackendDispatchTable_PreservesCanonicalTextMetadata_After_ReRegister`、`CurrentBackendInfo_PreservesCanonicalTextMetadata_After_ReRegister`。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 backend-only / metadata 残点 | completed | 已确认这 5 条 `dispatchapi` 测试都会在方法内显式 `ResetToAutomaticBackend` 或围绕“当前 backend”重注册做断言，但退出时要么只回 automatic，要么完全依赖外层 `TearDown` 恢复 `FSavedBackend`，与同文件大量 helper-based cleanup 契约继续分叉 |
+| 2. 统一到类级 saved-state restore 契约 | completed | 已将 `Test_SetActiveBackend_Unavailable_FallsBackToScalar` 的 finally 改为 `RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend)`；并为其余 4 条 backend-only / metadata 测试补 outer `try...finally`，让它们在内部仍保持 automatic/current-backend 语义验证，但退出测试时恢复到类级保存状态 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
