@@ -2922,3 +2922,26 @@
   - 这说明之前的去重不是只适合轻量 smoke/guard suite，而是已经覆盖到 simd 测试层的核心 control-plane 回归面
   - 同时也给后续 `ieee754` 留下了一个清晰标准：先分清 exception mask / vector-asm / backend 三种状态分别属于哪一层，再决定哪些能收进公共基类
 - Release `TTestCase_PublicAbi,TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿，说明这批仍然只是测试夹具层去冗余，没有改变 public ABI / dispatch API 的被测 hook、rollback 或 publication 语义。
+
+## 2026-05-14 IEEE754 Fixture Consolidation Findings
+
+- `ieee754` 是这条线上另一块必须谨慎处理的区域，因为它的 testcase 不只是保存 backend，还夹带 IEEE754 专属状态：
+  - `TFPUExceptionMask`
+  - `vector-asm` 切换
+  - `F64` suite 里的 class-level scalar force
+- 这也意味着它不适合“看见 `FSavedBackend` 就机械切到 `TScalarBackendStatefulTestCase`”。
+- 这轮复核后确认，更稳的拆法是：
+  - backend lifecycle 是公共的
+  - exception mask 是 IEEE754 testcase 专属的
+  - `F64` 的 `SetActiveBackend(sbScalar)` 是 suite 语义，不是单纯 fixture 噪音
+  - `RestoreIEEE754LocalState(...)` 则仍是大量方法级 local restore 的公共 helper，不能顺手删
+- 因而这批最合适的收法是：
+  - 4 个 IEEE754 testcase 全部改继承 `TSimdBackendStatefulTestCase`
+  - 只删除类级 `FSavedBackend + GetDispatchTable/GetCurrentBackend` 重复体
+  - 保留 `FSavedVectorAsm`、`FSavedExceptionMask` 和 `F64` 里的 scalar force
+  - 让 `TearDown` 统一先恢复 vector-asm，再交给 inherited restore backend，然后再恢复 exception mask（如有）
+- 这批修法的价值在于：
+  - IEEE754 这种“状态比普通 backend fixture 更复杂”的 suite 也被成功拆成了“公共 backend 生命周期 + 本地数值测试语义”
+  - 进一步证明当前 cleanup 线已经覆盖到了 simd 测试层最容易误伤的几个主题区：control-plane hook、dispatch slot、IEEE754
+  - 也为最后的全量复扫提供了更清晰标准：不是看文件大小或主题，而是逐个拆出 backend / vector-asm / exception-mask / testcase 语义四层
+- Release `TTestCase_IEEE754_F64,TTestCase_IEEE754EdgeCases,TTestCase_AVX2RoundTruncIEEE754,TTestCase_NonX86IEEE754`、Release `check`、Release `gate` 全绿，说明这批仍然只是测试夹具层去冗余，没有改变 IEEE754 行为测试的被测语义。

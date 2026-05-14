@@ -2347,3 +2347,17 @@
 | 1. 复核 `publicabi` / `dispatchapi` 的类级 fixture 与方法级控制面语义边界 | completed | 已确认两边的类级基类仍重复 `GetDispatchTable -> save current backend -> TearDown restore backend`；真正 testcase 专属的类级剩余状态只剩 `vector-asm`，而方法级 helper / hook state machine 则必须保留 |
 | 2. 只把类级 backend 生命周期收回 `TSimdBackendStatefulTestCase` | completed | `TTestCase_PublicAbi` 与 `TDispatchAPIStatefulTestCase` 都已改继承 `TSimdBackendStatefulTestCase`，删除本地 `FSavedBackend`；`SetUp` 不再重复保存 backend；`publicabi` 的 `TearDown` 先 reset synthetic hooks 再恢复 vector-asm 后 `inherited TearDown`；`dispatchapi` 的 `TearDown` 则恢复 vector-asm 后 `inherited TearDown`；两边的方法级 restore helper 保持原样 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_PublicAbi,TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 IEEE754 Fixture Consolidation
+
+### Goal
+
+继续沿 stateful fixture 去重往下收，但这次目标是 `ieee754` 文件里 4 个仍自带 `FSavedBackend` 的 testcase：只把类级 backend 生命周期收回 `TSimdBackendStatefulTestCase`，保留 exception mask、scalar force 和 `RestoreIEEE754LocalState(...)` 这些数值测试语义不动。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `ieee754` 的 backend / vector-asm / exception-mask 分层 | completed | 已确认 4 个 testcase 都重复 backend fixture，但 `F64/EdgeCases/AVX2RoundTrunc` 还额外维护 `TFPUExceptionMask`，`F64` 还会 class-level force scalar，`RestoreIEEE754LocalState(...)` 也仍广泛服务于方法级 local restore |
+| 2. 只把类级 backend 生命周期收回 `TSimdBackendStatefulTestCase` | completed | 4 个 testcase 都已改继承 `TSimdBackendStatefulTestCase`，删除本地 `FSavedBackend`；`SetUp` 不再重复保存 backend；`TearDown` 统一先恢复 vector-asm 再 `inherited TearDown`，带 exception mask 的 suite 再恢复 mask；`F64` 继续保留本地 `SetActiveBackend(sbScalar)` |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_IEEE754_F64,TTestCase_IEEE754EdgeCases,TTestCase_AVX2RoundTruncIEEE754,TTestCase_NonX86IEEE754`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |

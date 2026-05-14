@@ -3044,3 +3044,42 @@
   - 说明这条 cleanup 线已经从轻量 scalar suite 一路推进到最复杂的 control-plane/hook-heavy suite，并且仍保持 release gate 绿色
   - 下一轮如果继续沿 fixture 去重收口，最自然的剩余目标就是 `ieee754` 里仍然各自保存 `FSavedBackend` 的多套 testcase
 - 这轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+- 我继续往前收的是 `ieee754` 这份还保留 4 套本地 backend fixture 的 testcase 文件：
+  - `TTestCase_IEEE754_F64`
+  - `TTestCase_IEEE754EdgeCases`
+  - `TTestCase_AVX2RoundTruncIEEE754`
+  - `TTestCase_NonX86IEEE754`
+- 这轮先把边界卡清楚了：
+  - 4 个 testcase 都重复了 `GetDispatchTable + save current backend + TearDown restore backend`
+  - 但它们的 testcase 专属状态并不一样：
+    - `F64 / EdgeCases / AVX2RoundTrunc` 还各自保存 `TFPUExceptionMask`
+    - `F64` 还会在 `SetUp` 里额外强制 `sbScalar`
+    - `NonX86IEEE754` 没有 exception mask，但仍要保留方法级 `RestoreIEEE754LocalState(...)`
+  - 所以这轮不去新造“IEEE754 专属公共基类”，也不顺手改 `F64` 的 scalar 强制方式，只抽掉类级 backend lifecycle
+- 本轮最小修法因此是：
+  - 4 个 testcase 全部改继承 `TSimdBackendStatefulTestCase`
+  - 文件引入 `fafafa.core.simd.testcase`
+  - 删除 4 处本地 `FSavedBackend`
+  - `SetUp` 不再本地重复 `GetDispatchTable / GetCurrentBackend`
+  - 3 个带 exception mask 的 testcase 在 `TearDown` 里统一改成：
+    - 先恢复 `FSavedVectorAsm`
+    - 再 `inherited TearDown`
+    - 再恢复 `FSavedExceptionMask`
+    - 最后断言 vector-asm 已回到进入态
+  - `NonX86IEEE754` 的 `TearDown` 则只恢复 `FSavedVectorAsm` 后 `inherited TearDown`，再断言 vector-asm 状态
+  - `F64` 仍保留本地 `SetActiveBackend(sbScalar)`，不把这轮扩大成“切 `TScalarBackendStatefulTestCase` + 同步调整语义”的另一种改动
+- 这轮也刻意保留了 `RestoreIEEE754LocalState(...)` 不动：
+  - 它还在大量方法级 local restore 中使用
+  - 所以这轮依然只抽“类级 backend lifecycle”，不去碰 method-level round/trunc/floor/ceil 编排语义
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IEEE754_F64,TTestCase_IEEE754EdgeCases,TTestCase_AVX2RoundTruncIEEE754,TTestCase_NonX86IEEE754`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断继续更新：
+  - `ieee754` 这块的类级 backend fixture 现在也已经全部收回公共基类
+  - 这意味着当前 `simd` 测试层里最大的一串 backend lifecycle 重复体已经基本从 scalar guard、dispatch/public ABI/control-plane，到 IEEE754 专项都连续压过了一遍
+  - 下一轮更值得做的是重新全量扫一遍 `tests/fafafa.core.simd/*.pas`，确认还剩哪些真正有必要保留的本地 fixture，而不是继续按直觉点名文件
+- 这轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

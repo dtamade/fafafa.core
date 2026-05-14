@@ -12,6 +12,7 @@ interface
 uses
   Classes, SysUtils, fafafa.core.math, fpcunit, testregistry,
   fafafa.core.simd,
+  fafafa.core.simd.testcase,
   fafafa.core.simd.base,
   fafafa.core.simd.dispatch,
   fafafa.core.simd.scalar,
@@ -21,10 +22,9 @@ type
   // ============================================================================
   // IEEE 754 F64 (双精度浮点) 特殊值专项测试
   // ============================================================================
-  TTestCase_IEEE754_F64 = class(TTestCase)
+  TTestCase_IEEE754_F64 = class(TSimdBackendStatefulTestCase)
   private
     FSavedVectorAsm: Boolean;
-    FSavedBackend: TSimdBackend;
     FSavedExceptionMask: TFPUExceptionMask;
   protected
     procedure SetUp; override;
@@ -58,10 +58,9 @@ type
   end;
 
   // IEEE 754 特殊值边界测试 - 全面覆盖 NaN、Infinity、零值、舍入边界
-  TTestCase_IEEE754EdgeCases = class(TTestCase)
+  TTestCase_IEEE754EdgeCases = class(TSimdBackendStatefulTestCase)
   private
     FSavedVectorAsm: Boolean;
-    FSavedBackend: TSimdBackend;
     FSavedExceptionMask: TFPUExceptionMask;
   protected
     procedure SetUp; override;
@@ -106,10 +105,9 @@ type
   end;
 
   // AVX2 路径专项：验证 vector-asm 打开时，Round/Trunc 与 Scalar/SSE2 语义一致
-  TTestCase_AVX2RoundTruncIEEE754 = class(TTestCase)
+  TTestCase_AVX2RoundTruncIEEE754 = class(TSimdBackendStatefulTestCase)
   private
     FSavedVectorAsm: Boolean;
-    FSavedBackend: TSimdBackend;
     FSavedExceptionMask: TFPUExceptionMask;
   protected
     procedure SetUp; override;
@@ -123,10 +121,9 @@ type
   end;
 
   // non-x86 后端专项：NEON/RISCVV 的异常值语义与 Scalar 对齐
-  TTestCase_NonX86IEEE754 = class(TTestCase)
+  TTestCase_NonX86IEEE754 = class(TSimdBackendStatefulTestCase)
   private
     FSavedVectorAsm: Boolean;
-    FSavedBackend: TSimdBackend;
   protected
     procedure SetUp; override;
     procedure TearDown; override;
@@ -197,9 +194,7 @@ const
 procedure TTestCase_IEEE754_F64.SetUp;
 begin
   inherited SetUp;
-  GetDispatchTable;
   FSavedVectorAsm := IsVectorAsmEnabled;
-  FSavedBackend := GetCurrentBackend;
   // 禁用 FPU 异常以正确测试 IEEE 754 行为
   FSavedExceptionMask := GetExceptionMask;
   SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision]);
@@ -209,10 +204,12 @@ end;
 
 procedure TTestCase_IEEE754_F64.TearDown;
 begin
-  AssertTrue('IEEE754 F64 fixture should restore previous backend selection',
-    RestoreIEEE754LocalState(FSavedVectorAsm, FSavedBackend));
-  SetExceptionMask(FSavedExceptionMask);
+  SetVectorAsmEnabled(FSavedVectorAsm);
   inherited TearDown;
+  SetExceptionMask(FSavedExceptionMask);
+
+  AssertTrue('IEEE754 F64 fixture should restore previous vector asm state',
+    IsVectorAsmEnabled = FSavedVectorAsm);
 end;
 
 // === Infinity 测试 ===
@@ -698,9 +695,7 @@ const
 procedure TTestCase_IEEE754EdgeCases.SetUp;
 begin
   inherited SetUp;
-  GetDispatchTable;
   FSavedVectorAsm := IsVectorAsmEnabled;
-  FSavedBackend := GetCurrentBackend;
   // 禁用 FPU 异常以正确测试 IEEE 754 行为
   FSavedExceptionMask := GetExceptionMask;
   SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision]);
@@ -708,10 +703,12 @@ end;
 
 procedure TTestCase_IEEE754EdgeCases.TearDown;
 begin
-  AssertTrue('IEEE754 edgecases fixture should restore previous backend selection',
-    RestoreIEEE754LocalState(FSavedVectorAsm, FSavedBackend));
-  SetExceptionMask(FSavedExceptionMask);
+  SetVectorAsmEnabled(FSavedVectorAsm);
   inherited TearDown;
+  SetExceptionMask(FSavedExceptionMask);
+
+  AssertTrue('IEEE754 edgecases fixture should restore previous vector asm state',
+    IsVectorAsmEnabled = FSavedVectorAsm);
 end;
 
 // === NaN 传播测试 (F32x4) ===
@@ -1748,34 +1745,34 @@ end;
 procedure TTestCase_AVX2RoundTruncIEEE754.SetUp;
 begin
   inherited SetUp;
-  GetDispatchTable;
   FSavedVectorAsm := IsVectorAsmEnabled;
-  FSavedBackend := GetCurrentBackend;
   FSavedExceptionMask := GetExceptionMask;
   SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision]);
 end;
 
 procedure TTestCase_AVX2RoundTruncIEEE754.TearDown;
 begin
-  AssertTrue('AVX2 IEEE754 fixture should restore previous backend selection',
-    RestoreIEEE754LocalState(FSavedVectorAsm, FSavedBackend));
-  SetExceptionMask(FSavedExceptionMask);
+  SetVectorAsmEnabled(FSavedVectorAsm);
   inherited TearDown;
+  SetExceptionMask(FSavedExceptionMask);
+
+  AssertTrue('AVX2 IEEE754 fixture should restore previous vector asm state',
+    IsVectorAsmEnabled = FSavedVectorAsm);
 end;
 
 procedure TTestCase_NonX86IEEE754.SetUp;
 begin
   inherited SetUp;
-  GetDispatchTable;
   FSavedVectorAsm := IsVectorAsmEnabled;
-  FSavedBackend := GetCurrentBackend;
 end;
 
 procedure TTestCase_NonX86IEEE754.TearDown;
 begin
-  AssertTrue('Non-x86 IEEE754 fixture should restore previous backend selection',
-    RestoreIEEE754LocalState(FSavedVectorAsm, FSavedBackend));
+  SetVectorAsmEnabled(FSavedVectorAsm);
   inherited TearDown;
+
+  AssertTrue('Non-x86 IEEE754 fixture should restore previous vector asm state',
+    IsVectorAsmEnabled = FSavedVectorAsm);
 end;
 
 procedure TTestCase_AVX2RoundTruncIEEE754.Test_AVX2_RoundTrunc_NaNInf_Consistency;
