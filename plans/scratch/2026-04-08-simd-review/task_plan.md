@@ -1913,3 +1913,17 @@
 | 1. 复核 `direct.testcase` 剩余的局部恢复不对称 | completed | 已确认类级 fixture 虽然已存在，但 `Rebind_AfterForceBackend`、`AutoRebind_AfterDispatchSetActiveBackend` 与大量 multi-backend parity test 的 `finally` 仍只 `ResetToAutomaticBackend`，会抹掉进入测试前的 forced backend 语义 |
 | 2. 抽 direct-local restore helper 并替换局部 finally | completed | 在 `TDirectDispatchStatefulTestCase` 提取 `RestoreFixtureDirectDispatchState`，统一恢复保存的 `vector asm + backend` 并 `RebindDirectDispatch`；同时让两条前导 smoke test 显式断言路径跑完后会回到原 backend，`WideIntegerHelperMatrix_Parity` 去掉局部 `LOldVectorAsm` 样板 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DirectDispatch`、Release `TTestCase_DirectDispatchConcurrent`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 PublicAbi Local Restore Consolidation
+
+### Goal
+
+继续沿 `publicabi.testcase` 深审 method-level 状态恢复冗余，先收掉一批完全同构的外层 `LOldVectorAsm + ResetToAutomaticBackend` 样板，让 `public ABI` 测试在结束时统一回到进入测试前 `vector asm + backend` 状态。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `publicabi.testcase` 的类级与局部恢复模式 | completed | 已确认文件虽有 `SetUp/TearDown` 保存 `FSavedVectorAsm/FSavedBackend`，但仍残留大量外层 `finally` 只恢复 `LOldVectorAsm` 并 `ResetToAutomaticBackend`，没有复用类级保存状态 |
+| 2. 提取 local restore helper 并替换第一批同构 finally | completed | 在 `TTestCase_PublicAbi` 提取 `RestorePublicAbiLocalState`，统一恢复 `vector asm + backend`；已替换 `VectorAsmRoundTrip`、`ActiveBackendId/StableState`、`FailedHookMutation`、`RollbackRestore`、以及一批 `HookLateForce/AutomaticReset` 路径的外层 exact-pattern finally |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |

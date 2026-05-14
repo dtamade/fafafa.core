@@ -2347,3 +2347,24 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 - 中途我误把 `TTestCase_DirectDispatchConcurrent` 和 Release `check` 同时启动了一次；这轮没有触发 `Text file busy/rc=2`，但最终验证仍全部改回串行，并再次清理了 `tests/fafafa.core.simd/__pycache__/`。
+
+- 继续往 `publicabi.testcase` 深审后，确认它虽然已经有类级 `FSavedVectorAsm/FSavedBackend`，但外层 `finally` 里仍残留一大批完全同构的 `SetVectorAsmEnabled(LOldVectorAsm); ResetToAutomaticBackend;` 样板。
+- 本轮在 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 提取了 `RestorePublicAbiLocalState`，并让 `TearDown` 也复用它；随后先替换掉第一批 exact-pattern 外层 finally。
+- 这批已覆盖的路径包括：
+  - `Test_PublicApi_VectorAsmRoundTrip_Reuses_PreviouslyPublishedMetadataTable`
+  - `Test_PublicApi_ActiveBackendId_Tracks_RegisterSlot_After_ReRegister`
+  - `Test_PublicApi_StableState_Tracks_CurrentBackend_After_ControlPlaneSwitches`
+  - `Test_PublicApi_FailedHookMutation_*`
+  - `Test_PublicApi_RollbackRestore_*`
+  - 一批 `HookLateForce/AutomaticReset` 路径
+- 本轮 Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- `gate` 中与本批直接相关的覆盖也都通过了：
+  - `public ABI smoke`
+  - `TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`
+  - `filtered run_all check chain`
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`；`publicabi.testcase` 后段仍有几处带额外语义的复杂 finally，可作为下一批继续深审入口。

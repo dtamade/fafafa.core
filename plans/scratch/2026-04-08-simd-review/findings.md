@@ -2113,3 +2113,30 @@
   - dispatch/runtime/control-plane 生产逻辑
   - 并发重注册 helper 的业务断言
 - Release `TTestCase_DirectDispatch`、Release `TTestCase_DirectDispatchConcurrent`、Release `check`、Release `gate` 全绿，说明修复点仍然是 direct 测试层的局部状态恢复不对称，而不是 direct dataplane 生产实现缺陷。
+
+## 2026-05-14 PublicAbi Local Restore Consolidation Findings
+
+- `publicabi.testcase` 和 `direct` 很像：类级 fixture 已经保存了 `FSavedVectorAsm/FSavedBackend`，但大量 test body 的外层 `finally` 仍重复写：
+  - `SetVectorAsmEnabled(LOldVectorAsm);`
+  - `ResetToAutomaticBackend;`
+- 这种写法至少有两个问题：
+  - 它重复表达了一套已经存在于 fixture 的恢复语义，形成测试层冗余样板
+  - 它只回到 automatic，不会显式复用进入测试前保存下来的 backend 选择
+- 这批最小高价值修法不是继续逐个 test body 发明新样板，而是把“本地恢复到进入测试前状态”提升成类内 helper：
+  - 在 `TTestCase_PublicAbi` 提取 `RestorePublicAbiLocalState(aOriginalVectorAsm, aOriginalBackend)`
+  - `TearDown` 也改为复用这个 helper
+  - 第一批先替换完全同构、没有额外清理副作用的外层 `finally`
+- 本轮已收掉的热点集中在：
+  - `VectorAsmRoundTrip`
+  - `ActiveBackendId/StableState`
+  - `FailedHookMutation*`
+  - `RollbackRestore*`
+  - 一批 `HookLateForce/AutomaticReset` 路径
+- 这批刻意没有一次性全扫完 `publicabi.testcase`：
+  - 文件后段仍有几处更复杂的 finally，不只是两行 exact pattern
+  - 这些块常常还夹着额外 hook/table/vector-asm 语义，下一批应逐段读证据后再收
+- 这批仍然完全没有改动：
+  - `src/` 下任何 public ABI / dataplane / dispatch 生产实现
+  - hook 业务断言本身
+  - ABI smoke contract / exported table 形状
+- Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿，并且 gate 中 `public ABI smoke` 与 `TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework` 也通过，说明这批收的是 public ABI 测试层局部恢复冗余/不对称，而不是 public ABI 生产逻辑回归。

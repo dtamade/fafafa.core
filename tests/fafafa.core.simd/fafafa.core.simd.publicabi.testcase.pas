@@ -52,6 +52,7 @@ type
   protected
     FSavedVectorAsm: Boolean;
     FSavedBackend: TSimdBackend;
+    procedure RestorePublicAbiLocalState(aOriginalVectorAsm: Boolean; aOriginalBackend: TSimdBackend);
     procedure SetUp; override;
     procedure TearDown; override;
   published
@@ -661,14 +662,20 @@ begin
   ResetPublicAbiSyntheticHookState;
 end;
 
+procedure TTestCase_PublicAbi.RestorePublicAbiLocalState(aOriginalVectorAsm: Boolean;
+  aOriginalBackend: TSimdBackend);
+begin
+  SetVectorAsmEnabled(aOriginalVectorAsm);
+  ResetToAutomaticBackend;
+  if GetCurrentBackend <> aOriginalBackend then
+    AssertTrue('Public ABI local restore should recover previous backend selection',
+      TrySetActiveBackend(aOriginalBackend));
+end;
+
 procedure TTestCase_PublicAbi.TearDown;
 begin
   ResetPublicAbiSyntheticHookState;
-  SetVectorAsmEnabled(FSavedVectorAsm);
-  ResetToAutomaticBackend;
-  if GetCurrentBackend <> FSavedBackend then
-    AssertTrue('Public ABI fixture should restore previous backend selection',
-      TrySetActiveBackend(FSavedBackend));
+  RestorePublicAbiLocalState(FSavedVectorAsm, FSavedBackend);
   inherited TearDown;
 end;
 
@@ -1165,8 +1172,7 @@ begin
     AssertTrue('Vector-asm round-trip should reuse the original published public ABI metadata table',
       PtrUInt(LApiFinal) = PtrUInt(LApiInitial));
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2250,8 +2256,7 @@ begin
           RestoreOriginalActiveBackend(LOriginalBackend));
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2348,8 +2353,7 @@ begin
     ResetToAutomaticBackend;
     AssertStableCurrentState('vector asm disabled automatic', True);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2392,8 +2396,7 @@ begin
           RestoreOriginalActiveBackend(LRequestedBackend));
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2448,8 +2451,7 @@ begin
     AssertEquals('Public API active backend id should keep tracking the actual current backend after restore',
       Ord(GetCurrentBackend), Integer(LApi^.ActiveBackendId));
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2517,8 +2519,7 @@ begin
           RestoreOriginalActiveBackend(LAutomaticBackend));
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2656,8 +2657,7 @@ begin
           RestoreOriginalActiveBackend(LRequestedBackend));
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3151,8 +3151,7 @@ begin
       GPublicAbiHookReForceBackendTarget := sbScalar;
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3225,8 +3224,7 @@ begin
     AssertTrue('Public API active flags should keep dispatchable bit after reselection',
       (LApi^.ActiveFlags and FAF_SIMD_ABI_FLAG_DISPATCHABLE) <> 0);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3274,8 +3272,7 @@ begin
       GPublicAbiHookResetLateForceTarget := sbScalar;
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3323,8 +3320,7 @@ begin
       GPublicAbiHookReForceBackendTarget := sbScalar;
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3372,8 +3368,7 @@ begin
       GPublicAbiHookResetLateForceTarget := sbScalar;
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3440,8 +3435,7 @@ begin
     AssertEquals('Public API active backend should keep tracking the actual current backend after vector-asm late-reset test',
       Ord(GetCurrentBackend), Integer(LApi^.ActiveBackendId));
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
