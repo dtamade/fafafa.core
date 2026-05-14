@@ -816,24 +816,26 @@ procedure TTestCase_PublicAbi.Test_PublicApi_CachedTable_RemainsCallable_Across_
 var
   LApiBefore: PFafafaSimdPublicApi;
   LApiAfter: PFafafaSimdPublicApi;
-  LOriginalBackend: TSimdBackend;
   LBufferA: array[0..31] of Byte;
   LBufferB: array[0..31] of Byte;
 begin
-  LApiBefore := GetSimdPublicApi;
-  AssertNotNull('Public API table should not be nil before rebind', LApiBefore);
-  LOriginalBackend := GetCurrentBackend;
-  FillChar(LBufferA, SizeOf(LBufferA), $42);
-  FillChar(LBufferB, SizeOf(LBufferB), $42);
+  try
+    LApiBefore := GetSimdPublicApi;
+    AssertNotNull('Public API table should not be nil before rebind', LApiBefore);
+    FillChar(LBufferA, SizeOf(LBufferA), $42);
+    FillChar(LBufferB, SizeOf(LBufferB), $42);
 
-  AssertTrue('TrySetActiveBackend(sbScalar) should succeed', TrySetActiveBackend(sbScalar));
-  LApiAfter := GetSimdPublicApi;
-  AssertNotNull('Public API table should not be nil after rebind', LApiAfter);
-  AssertEquals('Fresh getter should expose refreshed active backend metadata after rebind',
-    Ord(sbScalar), Integer(LApiAfter^.ActiveBackendId));
-  AssertTrue('Cached pre-rebind MemEqual pointer should remain callable after rebind',
-    Assigned(LApiBefore^.MemEqual) and
-    LApiBefore^.MemEqual(@LBufferA[0], @LBufferB[0], SizeUInt(Length(LBufferA))));
+    AssertTrue('TrySetActiveBackend(sbScalar) should succeed', TrySetActiveBackend(sbScalar));
+    LApiAfter := GetSimdPublicApi;
+    AssertNotNull('Public API table should not be nil after rebind', LApiAfter);
+    AssertEquals('Fresh getter should expose refreshed active backend metadata after rebind',
+      Ord(sbScalar), Integer(LApiAfter^.ActiveBackendId));
+    AssertTrue('Cached pre-rebind MemEqual pointer should remain callable after rebind',
+      Assigned(LApiBefore^.MemEqual) and
+      LApiBefore^.MemEqual(@LBufferA[0], @LBufferB[0], SizeUInt(Length(LBufferA))));
+  finally
+    RestorePublicAbiLocalState(FSavedVectorAsm, FSavedBackend);
+  end;
 end;
 
 procedure TTestCase_PublicAbi.Test_PublicApi_CachedTable_Preserves_PreviousSnapshot_Metadata_Across_Rebind;
@@ -847,51 +849,55 @@ var
   LFoundDifferent: Boolean;
   LIndex: Integer;
 begin
-  LApiBefore := GetSimdPublicApi;
-  AssertNotNull('Public API table should not be nil before snapshot-preservation test', LApiBefore);
-  LOriginalBackend := GetCurrentBackend;
-  LBeforeFlags := LApiBefore^.ActiveFlags;
-  LTargetBackend := LOriginalBackend;
-  LFoundDifferent := False;
+  try
+    LApiBefore := GetSimdPublicApi;
+    AssertNotNull('Public API table should not be nil before snapshot-preservation test', LApiBefore);
+    LOriginalBackend := GetCurrentBackend;
+    LBeforeFlags := LApiBefore^.ActiveFlags;
+    LTargetBackend := LOriginalBackend;
+    LFoundDifferent := False;
 
-  if LOriginalBackend <> sbScalar then
-  begin
-    LTargetBackend := sbScalar;
-    LFoundDifferent := True;
-  end
-  else
-  begin
-    LDispatchable := GetDispatchableBackendList;
-    for LIndex := 0 to High(LDispatchable) do
-      if LDispatchable[LIndex] <> LOriginalBackend then
-      begin
-        LTargetBackend := LDispatchable[LIndex];
-        LFoundDifferent := True;
-        Break;
-      end;
+    if LOriginalBackend <> sbScalar then
+    begin
+      LTargetBackend := sbScalar;
+      LFoundDifferent := True;
+    end
+    else
+    begin
+      LDispatchable := GetDispatchableBackendList;
+      for LIndex := 0 to High(LDispatchable) do
+        if LDispatchable[LIndex] <> LOriginalBackend then
+        begin
+          LTargetBackend := LDispatchable[LIndex];
+          LFoundDifferent := True;
+          Break;
+        end;
+    end;
+
+    if not LFoundDifferent then
+      Exit;
+
+    AssertTrue('TrySetActiveBackend(target) should succeed in snapshot-preservation test',
+      TrySetActiveBackend(LTargetBackend));
+
+    LApiAfter := GetSimdPublicApi;
+    AssertNotNull('Fresh public API table should not be nil after snapshot-preservation rebind', LApiAfter);
+    AssertTrue('Fresh getter should publish a different table pointer after rebind',
+      PtrUInt(LApiBefore) <> PtrUInt(LApiAfter));
+    AssertEquals('Cached pre-rebind table should preserve previous active backend metadata after rebind',
+      Ord(LOriginalBackend), Integer(LApiBefore^.ActiveBackendId));
+    AssertEquals('Cached pre-rebind table should preserve previous active flags after rebind',
+      LBeforeFlags, LApiBefore^.ActiveFlags);
+    AssertEquals('Fresh public API table should expose the new active backend after rebind',
+      Ord(LTargetBackend), Integer(LApiAfter^.ActiveBackendId));
+    AssertTrue('Fresh public API table active flags should remain non-zero after rebind',
+      LApiAfter^.ActiveFlags <> 0);
+    AssertTrue('Rebind should produce fresh metadata instead of mutating the cached snapshot in place',
+      (LApiAfter^.ActiveBackendId <> LApiBefore^.ActiveBackendId) or
+      (LApiAfter^.ActiveFlags <> LApiBefore^.ActiveFlags));
+  finally
+    RestorePublicAbiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
-
-  if not LFoundDifferent then
-    Exit;
-
-  AssertTrue('TrySetActiveBackend(target) should succeed in snapshot-preservation test',
-    TrySetActiveBackend(LTargetBackend));
-
-  LApiAfter := GetSimdPublicApi;
-  AssertNotNull('Fresh public API table should not be nil after snapshot-preservation rebind', LApiAfter);
-  AssertTrue('Fresh getter should publish a different table pointer after rebind',
-    PtrUInt(LApiBefore) <> PtrUInt(LApiAfter));
-  AssertEquals('Cached pre-rebind table should preserve previous active backend metadata after rebind',
-    Ord(LOriginalBackend), Integer(LApiBefore^.ActiveBackendId));
-  AssertEquals('Cached pre-rebind table should preserve previous active flags after rebind',
-    LBeforeFlags, LApiBefore^.ActiveFlags);
-  AssertEquals('Fresh public API table should expose the new active backend after rebind',
-    Ord(LTargetBackend), Integer(LApiAfter^.ActiveBackendId));
-  AssertTrue('Fresh public API table active flags should remain non-zero after rebind',
-    LApiAfter^.ActiveFlags <> 0);
-  AssertTrue('Rebind should produce fresh metadata instead of mutating the cached snapshot in place',
-    (LApiAfter^.ActiveBackendId <> LApiBefore^.ActiveBackendId) or
-    (LApiAfter^.ActiveFlags <> LApiBefore^.ActiveFlags));
 end;
 
 procedure TTestCase_PublicAbi.Test_PublicApi_Table_Refreshes_AfterBackendSwitch;
@@ -2140,54 +2146,58 @@ var
   LUpdatedInfo: TFafafaSimdBackendPodInfo;
   LActiveInfo: TFafafaSimdBackendPodInfo;
 begin
-  LOriginalBackend := GetCurrentBackend;
-
-  // If the platform only has the scalar backend dispatchable, this dynamic split
-  // cannot be exercised meaningfully.
-  if LOriginalBackend = sbScalar then
-    Exit;
-
-  AssertTrue('Original active backend should be registered',
-    TryGetRegisteredBackendDispatchTable(LOriginalBackend, LOriginalTable));
-  AssertTrue('Original active backend pod info should be queryable',
-    TryGetSimdBackendPodInfo(LOriginalBackend, LOriginalInfo));
-  AssertTrue('Original active backend should start as dispatchable',
-    (LOriginalInfo.Flags and FAF_SIMD_ABI_FLAG_DISPATCHABLE) <> 0);
-  AssertTrue('Original active backend should start as active',
-    (LOriginalInfo.Flags and FAF_SIMD_ABI_FLAG_ACTIVE) <> 0);
-
-  LModifiedTable := LOriginalTable;
-  LModifiedTable.BackendInfo.Available := False;
-  RegisterBackend(LOriginalBackend, LModifiedTable);
   try
-    LApi := GetSimdPublicApi;
-    AssertNotNull('Public API table should not be nil after backend re-registration', LApi);
-    AssertEquals('Public API active backend should track current backend after re-registration',
-      Ord(GetCurrentBackend), Integer(LApi^.ActiveBackendId));
-    AssertTrue('Re-selection should move away from backend marked unavailable',
-      GetCurrentBackend <> LOriginalBackend);
-    AssertTrue('Public API active flags should keep active bit after re-selection',
-      (LApi^.ActiveFlags and FAF_SIMD_ABI_FLAG_ACTIVE) <> 0);
-    AssertTrue('Public API active flags should keep dispatchable bit after re-selection',
-      (LApi^.ActiveFlags and FAF_SIMD_ABI_FLAG_DISPATCHABLE) <> 0);
+    LOriginalBackend := GetCurrentBackend;
 
-    AssertTrue('Original backend pod info should remain queryable after re-registration',
-      TryGetSimdBackendPodInfo(LOriginalBackend, LUpdatedInfo));
-    AssertTrue('Original backend should remain CPU-supported after re-registration',
-      (LUpdatedInfo.Flags and FAF_SIMD_ABI_FLAG_SUPPORTED_ON_CPU) <> 0);
-    AssertTrue('Original backend should remain registered after re-registration',
-      (LUpdatedInfo.Flags and FAF_SIMD_ABI_FLAG_REGISTERED) <> 0);
-    AssertTrue('Original backend should lose dispatchable bit after re-registration',
-      (LUpdatedInfo.Flags and FAF_SIMD_ABI_FLAG_DISPATCHABLE) = 0);
-    AssertTrue('Original backend should lose active bit after re-selection',
-      (LUpdatedInfo.Flags and FAF_SIMD_ABI_FLAG_ACTIVE) = 0);
+    // If the platform only has the scalar backend dispatchable, this dynamic split
+    // cannot be exercised meaningfully.
+    if LOriginalBackend = sbScalar then
+      Exit;
 
-    AssertTrue('New active backend pod info should be queryable',
-      TryGetSimdBackendPodInfo(GetCurrentBackend, LActiveInfo));
-    AssertEquals('Active backend pod flags should match public api active flags after re-selection',
-      LActiveInfo.Flags, LApi^.ActiveFlags);
+    AssertTrue('Original active backend should be registered',
+      TryGetRegisteredBackendDispatchTable(LOriginalBackend, LOriginalTable));
+    AssertTrue('Original active backend pod info should be queryable',
+      TryGetSimdBackendPodInfo(LOriginalBackend, LOriginalInfo));
+    AssertTrue('Original active backend should start as dispatchable',
+      (LOriginalInfo.Flags and FAF_SIMD_ABI_FLAG_DISPATCHABLE) <> 0);
+    AssertTrue('Original active backend should start as active',
+      (LOriginalInfo.Flags and FAF_SIMD_ABI_FLAG_ACTIVE) <> 0);
+
+    LModifiedTable := LOriginalTable;
+    LModifiedTable.BackendInfo.Available := False;
+    RegisterBackend(LOriginalBackend, LModifiedTable);
+    try
+      LApi := GetSimdPublicApi;
+      AssertNotNull('Public API table should not be nil after backend re-registration', LApi);
+      AssertEquals('Public API active backend should track current backend after re-registration',
+        Ord(GetCurrentBackend), Integer(LApi^.ActiveBackendId));
+      AssertTrue('Re-selection should move away from backend marked unavailable',
+        GetCurrentBackend <> LOriginalBackend);
+      AssertTrue('Public API active flags should keep active bit after re-selection',
+        (LApi^.ActiveFlags and FAF_SIMD_ABI_FLAG_ACTIVE) <> 0);
+      AssertTrue('Public API active flags should keep dispatchable bit after re-selection',
+        (LApi^.ActiveFlags and FAF_SIMD_ABI_FLAG_DISPATCHABLE) <> 0);
+
+      AssertTrue('Original backend pod info should remain queryable after re-registration',
+        TryGetSimdBackendPodInfo(LOriginalBackend, LUpdatedInfo));
+      AssertTrue('Original backend should remain CPU-supported after re-registration',
+        (LUpdatedInfo.Flags and FAF_SIMD_ABI_FLAG_SUPPORTED_ON_CPU) <> 0);
+      AssertTrue('Original backend should remain registered after re-registration',
+        (LUpdatedInfo.Flags and FAF_SIMD_ABI_FLAG_REGISTERED) <> 0);
+      AssertTrue('Original backend should lose dispatchable bit after re-registration',
+        (LUpdatedInfo.Flags and FAF_SIMD_ABI_FLAG_DISPATCHABLE) = 0);
+      AssertTrue('Original backend should lose active bit after re-selection',
+        (LUpdatedInfo.Flags and FAF_SIMD_ABI_FLAG_ACTIVE) = 0);
+
+      AssertTrue('New active backend pod info should be queryable',
+        TryGetSimdBackendPodInfo(GetCurrentBackend, LActiveInfo));
+      AssertEquals('Active backend pod flags should match public api active flags after re-selection',
+        LActiveInfo.Flags, LApi^.ActiveFlags);
+    finally
+      RegisterBackend(LOriginalBackend, LOriginalTable);
+    end;
   finally
-    RegisterBackend(LOriginalBackend, LOriginalTable);
+    RestorePublicAbiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 end;
 

@@ -2207,3 +2207,17 @@
 | 1. 复核 facade/current-dispatch easy wins 残点 | completed | 已确认 9 条 `dispatchapi` facade/current-dispatch 测试仍缺 outer saved-state restore：`Test_VecF32x4ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister`、`Test_VecF64x2ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister`、`Test_VecF64x2MathFacade_Tracks_CurrentDispatchTable_After_ReRegister`、`Test_VecF32VectorMathFacade_Tracks_CurrentDispatchTable_After_ReRegister`、`Test_VecWideFloatDotFacade_Tracks_CurrentDispatchTable_After_ReRegister`、`Test_VecF64x4ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister`、`Test_VecF32x8ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister`、`Test_VecF64x8ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister`、`Test_VecF32x16ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister` |
 | 2. 统一 facade 测试的最外层退出态 restore | completed | 9 条测试都补了 outer `try...finally`，最外层统一 `RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend)`；内层 `RegisterBackend(LBackend, LOriginalTable)` 回滚、synthetic slot 注入和 facade/current-dispatch 断言保持原样 |
 | 3. Release 验证证据同步 | completed | 这批改动已跑过 `git diff --check`、Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 并全部通过；当前 turn 只需在提交前再次清理可能回流的 `tests/fafafa.core.simd/__pycache__/` 即可收口 |
+
+## 2026-05-14 PublicAbi Cached Publication Restore Alignment
+
+### Goal
+
+继续沿 `publicabi` 里最稳的 current-publication easy wins 收口，只补“方法内改动 active backend / public ABI 当前发布态，但最外层仍把恢复留给类级 `TearDown`”这一层 cleanup 分叉，不碰 hook-heavy rollback state machine。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `publicabi` easy wins 残点 | completed | 通过精确文件审查确认最值得先收的是 3 条测试：`Test_PublicApi_CachedTable_RemainsCallable_Across_Rebind`、`Test_PublicApi_CachedTable_Preserves_PreviousSnapshot_Metadata_Across_Rebind`、`Test_PublicApi_BackendPodInfo_Refreshes_WhenBackendBecomesNonDispatchable`；前两条在 rebind 后直接退出，后一条在把当前 backend 标成 unavailable 后触发 re-selection，但三者都仍把 saved-state 恢复留给 outer `TearDown` |
+| 2. 统一到类级 `RestorePublicAbiLocalState(...)` 契约 | completed | 两条 cached/publication rebind 测试补 outer `try...finally`，统一在方法退出时恢复 `FSavedVectorAsm + FSavedBackend`；`BackendPodInfo_Refreshes_WhenBackendBecomesNonDispatchable` 也补 outer restore，同时保留内层 `RegisterBackend(LOriginalBackend, LOriginalTable)` 负责表回滚，避免混淆“当前发布态恢复”和“注册表恢复”两个层级 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿；提交前仍需再次清理可能回流的 `tests/fafafa.core.simd/__pycache__/` |

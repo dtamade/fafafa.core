@@ -2763,3 +2763,29 @@
   - `dispatchapi` 后段 facade/current-dispatch 这一簇 method-level old-shape cleanup 又少了一层
   - 下一轮如果继续深挖，首选还是 `publicabi` 中和 current-publication / facade tracking 对应的 easy wins；备选再回头扫 `dispatchapi` 更零散的 benchmark/AVX 特化 cleanup 残点
 - 这轮提交前需要再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录跟着进入工作树。
+
+- 我继续从 `dispatchapi` 切到 `publicabi`，但没有去碰 hook-heavy rollback state machine，而是先收 3 条 current-publication easy wins：
+  - `Test_PublicApi_CachedTable_RemainsCallable_Across_Rebind`
+  - `Test_PublicApi_CachedTable_Preserves_PreviousSnapshot_Metadata_Across_Rebind`
+  - `Test_PublicApi_BackendPodInfo_Refreshes_WhenBackendBecomesNonDispatchable`
+- 这次的核心判断是：
+  - 前两条会在方法内切换 active backend / public ABI 当前发布态后直接退出
+  - 第三条虽然会把被改写的 backend table 回滚回来，但 active backend 已因 unavailable 重注册发生 re-selection
+  - 三者都仍把 saved-state 恢复留给类级 `TearDown`
+- 本轮最小修法：
+  - 3 条测试都补 outer `try...finally`
+  - finally 统一调用 `RestorePublicAbiLocalState(FSavedVectorAsm, FSavedBackend)`
+  - `BackendPodInfo_Refreshes_WhenBackendBecomesNonDispatchable` 保留内层 `RegisterBackend(LOriginalBackend, LOriginalTable)`，只让它继续负责表回滚
+- 这轮还额外踩到一个工具层事实：
+  - `ace-tool/search_context` 连续两次在 `publicabi` 审查上超时
+  - 后续改成 `rg + nl -ba` 精确文件审查，避免在同一路径上空转
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断继续更新：
+  - `publicabi` 最明显的 cached/current-publication method-exit restore 分叉又少了一层
+  - 下一轮如果继续深挖，优先看 `publicabi` 里其余“内层已经闭合 table rollback、最外层仍缺 saved-state restore”的同类路径；如果没有再缩得很稳的候选，再回头扫 `dispatchapi` 更零散的 benchmark/AVX 特化 cleanup 残点
+- 这轮提交前仍要再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录跟着进入工作树。

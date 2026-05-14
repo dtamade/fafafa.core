@@ -2652,3 +2652,27 @@
   - current dispatch table 与 facade 跟踪语义仍只由内层 re-register/assert 路径决定，没有把 cleanup 逻辑和被测语义混在一起
   - 这批仍属于测试层 fixture hardening / redundancy cleanup，不触碰 SIMD 生产实现
 - 已有验证链保持全绿：`git diff --check`、Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 均通过；说明这批改动只收方法级退出态 restore，没有引入 dispatch/facade 行为回归。
+
+## 2026-05-14 PublicAbi Cached Publication Restore Alignment Findings
+
+- 继续从 `dispatchapi` 切到 `publicabi` 后，最值得先收的不是 hook-heavy rollback state machine，而是一簇 current-publication easy wins：
+  - `Test_PublicApi_CachedTable_RemainsCallable_Across_Rebind`
+  - `Test_PublicApi_CachedTable_Preserves_PreviousSnapshot_Metadata_Across_Rebind`
+  - `Test_PublicApi_BackendPodInfo_Refreshes_WhenBackendBecomesNonDispatchable`
+- 这 3 条的共同点很明确：
+  - 测试内部都会改变当前 active backend 或 public ABI 当前发布态
+  - 但最外层退出时仍没有回到类级 `FSavedVectorAsm + FSavedBackend`
+  - 其中前两条 cached/publication tests 在 rebind 后直接结束；后一条虽然内层会把 `RegisterBackend(LOriginalBackend, LOriginalTable)` 回滚掉，但 active backend 已经因为 unavailable 重注册而发生 re-selection，退出时仍把 drift 留给 `TearDown`
+- 这批和复杂 hook/state-machine 路径的边界也很清楚：
+  - 不碰 `PublicAbiHook*` 相关状态机
+  - 不改中途 control-plane 步骤和 `GetSimdPublicApi` / cached table 语义断言
+  - 只补 method-exit restore，让测试本身在退出时恢复到类级保存状态
+- 本轮修法因此保持最小：
+  - `CachedTable_RemainsCallable_Across_Rebind` 与 `CachedTable_Preserves_PreviousSnapshot_Metadata_Across_Rebind` 都补 outer `try...finally`
+  - finally 统一调用 `RestorePublicAbiLocalState(FSavedVectorAsm, FSavedBackend)`
+  - `BackendPodInfo_Refreshes_WhenBackendBecomesNonDispatchable` 也补 outer restore，但保留内层 `RegisterBackend(LOriginalBackend, LOriginalTable)` 继续只负责恢复被改写的 backend table
+- 这批修法的价值在于把 `publicabi` 的两个恢复层级重新拆开：
+  - backend table rollback 仍由内层 `RegisterBackend(..., LOriginalTable)` 闭合
+  - active backend / vector-asm saved-state rollback 则在方法退出时统一回到 `RestorePublicAbiLocalState(...)`
+  - 从而不再依赖类级 `TearDown` 才把 current-publication 场景收干净
+- Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿，说明这批仍然只是 `publicabi` 测试层 cleanup hardening，没有影响 public ABI 发布、cached table 或 hook 行为语义。
