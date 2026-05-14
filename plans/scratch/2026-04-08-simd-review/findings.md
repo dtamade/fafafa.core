@@ -3916,3 +3916,29 @@
   - 以后如果有人只改 shell/bat 一边
   - 或者把某个 standalone runner 从 `check` 移掉
   - Linux 主链就更早暴露这个 drift，而不必等人工记忆兜底
+
+## 2026-05-15 Standalone Guard Coverage Tightening Findings
+
+- 继续深看之后，前一批 guard 还有三个很具体的遗漏点：
+  - `check_daily_standalone_runner_guard()` 只覆盖了 `backend_ops/simd_boundary`，`public_smoke` 仍然在 guard 外
+  - `check_isolated_clean_coverage()` 还停留在 `dispatch.preinit.smoke`，没有把后来新增的 `public.smoke/backend.ops/simd.boundary` child output 清理路径纳入约束
+  - `check_dispatch_preinit_smoke_runner_guard()` 对 batch 侧只校验了 source/runner/build line，还没守住 `DISPATCH_PREINIT_OUTPUT_ROOT` 和 root override
+- 这说明当前最值钱的一刀不是再去改 runner 本体，而是把 guard 的“覆盖面”补齐：
+  - `public_smoke` 一旦从 batch 的 `check` 调用点或 clean 路径漂移出去，旧 guard 不会响
+  - 三个 child output 如果未来从 `clean` 漏删，旧 `isolated clean coverage` 也抓不到
+  - `dispatch_preinit` 的 batch output-root 若被改坏，旧 guard 同样可能放过
+- 这批修完后的 fresh Release `check` 已给出比上一轮更完整的证据：
+  - `[CHECK] OK (isolated clean coverage present)`
+  - `[CHECK] OK (dispatch preinit smoke guard present)`
+  - `[CHECK] OK (daily standalone runner guard present)`
+  - 随后 `BACKEND-OPS`、`SIMD-BOUNDARY`、`PUBLIC-SMOKE`、`DISPATCH-PREINIT` 继续全部真实通过
+- fresh Release `gate` 也再次通过，说明这次 tightening 没把 fast-gate 主链焊死：
+  - `Run-all summary ... Passed: 5 Failed: 0`
+  - `[GATE] OK`
+- 我还专门尝试了把 Windows batch 真实运行证明往前推一小步：
+  - 本机 `wine cmd` 能跑
+  - 临时 PATH wrapper 也能让 `where fpc` 看到 `fpc.bat`
+  - 但 `fpc -iTP` 没有形成可靠可收口的完成证据，并伴随 `wine` 剪贴板超时噪音
+  - 所以当前最准确的结论仍然是：
+    - Linux 主闭环：fresh runtime-proved
+    - Windows batch：guard 更强了，但 runtime-proof 仍未真正拿到

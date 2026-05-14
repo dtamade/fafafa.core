@@ -3026,3 +3026,17 @@
 | 1. 复核现有 guard 形态并确定最小补点 | completed | 已确认仓库已有 `check_dispatch_preinit_smoke_runner_guard()` 这类 grep/source-safe guard；当前最稳的做法不是重构 runner，而是新增同类 `check_daily_standalone_runner_guard()` 并挂到 shell `check` 与 `gate_step_build_check` |
 | 2. 增加 daily standalone runner guard | completed | 已新增 `check_daily_standalone_runner_guard()`，校验 shell/bat 中的 `BACKEND_OPS_SRC`、`SIMD_BOUNDARY_SRC`、对应 output root、runner 定义、`check` 调用点，以及 `test_backend_ops.pas` / `test_simd_boundary.pas` 的关键 sentinel |
 | 3. Release `check` 验证 guard | completed | `git diff --check` 与 fresh Release `check` 已通过；日志中已真实出现 `[CHECK] OK (daily standalone runner guard present)`，且同一次 `check` 仍继续跑完 `BACKEND-OPS`、`SIMD-BOUNDARY`、`PUBLIC-SMOKE` 与 `DISPATCH-PREINIT` |
+
+## 2026-05-15 Standalone Guard Coverage Tightening
+
+### Goal
+
+继续沿“Windows batch 真实运行证据仍偏弱”这条线补高价值低风险约束，把 standalone runner 的 guard 从“部分 source/check wiring”收紧到“source/check/clean/output-root”一体化，重点覆盖此前还没被 guard 守住的 `public_smoke` 与新增 child output 清理路径，并把 `dispatch_preinit` 的 batch output-root 合同也补完整。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核现有 guard 漏洞而不是重复跑已绿链路 | completed | 已确认 `check_daily_standalone_runner_guard()` 只守住 `backend_ops/simd_boundary`，没有纳入 `public_smoke`；`check_isolated_clean_coverage()` 也还没覆盖 `public.smoke/backend.ops/simd.boundary` 三个 child output；`check_dispatch_preinit_smoke_runner_guard()` 也没约束 batch 的 output-root/root override |
+| 2. 收紧 guard 到 clean/output-root/public-smoke 全覆盖 | completed | 已在 `BuildOrTest.sh` 中把 `public_smoke` 纳入 `check_daily_standalone_runner_guard()`，新增 `public_smoke` 源文件 sentinel，并为 batch guard 补上 `public_smoke/backend_ops/simd_boundary` 的 clean 路径和 root override；同时把 `check_isolated_clean_coverage()` 扩到三条 child output，并为 `dispatch_preinit` batch guard 补上 `DISPATCH_PREINIT_OUTPUT_ROOT` 合同 |
+| 3. Release 验证并诚实记录 Windows runtime 证据边界 | completed | `git diff --check`、Release `check`、Release `gate` 已再次通过；fresh 日志里已真实出现 `[CHECK] OK (isolated clean coverage present)`、`[CHECK] OK (dispatch preinit smoke guard present)`、`[CHECK] OK (daily standalone runner guard present)`，且 `BACKEND-OPS / SIMD-BOUNDARY / PUBLIC-SMOKE / DISPATCH-PREINIT` 全链继续通过；另外尝试用 `wine` + 临时 wrapper 探测 batch runtime proof 时，`where fpc` 可见 wrapper，但 `fpc -iTP` 未形成可靠完成证据，因此当前仍不能把它当成可发布的 Windows runtime proof |

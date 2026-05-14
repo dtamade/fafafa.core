@@ -4422,3 +4422,39 @@
     - `PUBLIC-SMOKE`
     - `DISPATCH-PREINIT`
 - 这意味着当前不仅 daily coverage 已经接上，而且这个 coverage 自身也开始被脚本自检守护了。
+
+## 2026-05-15 Standalone Guard Coverage Tightening
+
+- 继续加强审查时，我没有回头重新扫 backend label 或 runner 本体，而是专门追“guard 还有没有遗漏面”。
+- 先确认出的真实缺口有三处：
+  - `check_daily_standalone_runner_guard()` 没覆盖 `public_smoke`
+  - `check_isolated_clean_coverage()` 没覆盖 `public.smoke/backend.ops/simd.boundary`
+  - `check_dispatch_preinit_smoke_runner_guard()` 没守住 batch 的 `DISPATCH_PREINIT_OUTPUT_ROOT` / root override
+- 这轮改动只落在 `tests/fafafa.core.simd/BuildOrTest.sh`，没有再去扩大接口面：
+  - 把 `public_smoke` 纳入 `check_daily_standalone_runner_guard()`
+  - 给 `public_smoke` 增加源文件 sentinel，确保仍然输出 canonical backend name，而不是把 ordinal 又带回来
+  - 给 daily standalone batch guard 补 `public_smoke/backend_ops/simd_boundary` 的 clean 路径与 root override 合同
+  - 给 `check_isolated_clean_coverage()` 补齐三条 child output 清理路径
+  - 给 `check_dispatch_preinit_smoke_runner_guard()` 补 `DISPATCH_PREINIT_OUTPUT_ROOT` 与 root override 模式
+- 中间有一个 guard 书写层的小坑被 fresh Release `check` 立刻抓出来：
+  - 我第一次把 `public_smoke` sentinel 写成了 shell 单引号嵌单引号形式
+  - bash 在解析数组字面量时把引号吃掉，导致 `grep` 实际匹配串失真
+  - 这个问题没有进入最终结果，因为我已经把那三条模式改成双引号字符串后重新跑绿
+- 重新验证后的关键证据：
+  - `git diff --check` 通过
+  - Release `check` 里真实出现：
+    - `[CHECK] OK (isolated clean coverage present)`
+    - `[CHECK] OK (dispatch preinit smoke guard present)`
+    - `[CHECK] OK (daily standalone runner guard present)`
+    - `BACKEND-OPS` → `Passed: 15`
+    - `SIMD-BOUNDARY` → `通过: 44`
+    - `PUBLIC-SMOKE` → `Backend:    AVX2`
+    - `DISPATCH-PREINIT` → `OK`
+  - Release `gate` 最终真实通过：
+    - `Run-all summary ... Passed: 5 Failed: 0`
+    - `[GATE] OK`
+- 我还试着用 `wine` 做最小 batch runtime proof 探针：
+  - `wine cmd /c echo HI` 正常
+  - 临时 wrapper 能让 `where fpc` 看到 `fpc.bat`
+  - 但 `fpc -iTP` 这一步没有给出可靠完成结果，且伴随 `wine` 剪贴板超时噪音
+  - 我已经清理掉 `/tmp/simd-wine-probe.*` 和相关进程，没有把临时探针残留在 repo 里

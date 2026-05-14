@@ -3568,6 +3568,9 @@ check_isolated_clean_coverage() {
   LMainShellRequired=(
     'run_clean() {'
     '"${OUTPUT_ROOT}/dispatch.preinit.smoke"'
+    '"${OUTPUT_ROOT}/public.smoke"'
+    '"${OUTPUT_ROOT}/backend.ops"'
+    '"${OUTPUT_ROOT}/simd.boundary"'
     'if [[ "${OUTPUT_ROOT}" != "${ROOT}" ]]; then'
     '"${OUTPUT_ROOT}/bin"'
     '"${OUTPUT_ROOT}/lib"'
@@ -3579,6 +3582,9 @@ check_isolated_clean_coverage() {
   )
   LMainBatRequired=(
     'if exist "%OUTPUT_ROOT%\dispatch.preinit.smoke" rmdir /s /q "%OUTPUT_ROOT%\dispatch.preinit.smoke"'
+    'if exist "%OUTPUT_ROOT%\public.smoke" rmdir /s /q "%OUTPUT_ROOT%\public.smoke"'
+    'if exist "%OUTPUT_ROOT%\backend.ops" rmdir /s /q "%OUTPUT_ROOT%\backend.ops"'
+    'if exist "%OUTPUT_ROOT%\simd.boundary" rmdir /s /q "%OUTPUT_ROOT%\simd.boundary"'
     'if /I not "%OUTPUT_ROOT%"=="%ROOT%" ('
     'if exist "%OUTPUT_ROOT%\bin" rmdir /s /q "%OUTPUT_ROOT%\bin"'
     'if exist "%OUTPUT_ROOT%\lib" rmdir /s /q "%OUTPUT_ROOT%\lib"'
@@ -3863,6 +3869,8 @@ check_dispatch_preinit_smoke_runner_guard() {
     'set "DISPATCH_PREINIT_SMOKE_SRC=%ROOT%fafafa.core.simd.dispatch_preinit_smoke.pas"'
     'call :run_dispatch_preinit_smoke_internal'
     ':run_dispatch_preinit_smoke_internal'
+    'set "DISPATCH_PREINIT_OUTPUT_ROOT=%OUTPUT_ROOT%\dispatch.preinit.smoke"'
+    'if /I "%OUTPUT_ROOT%"=="%ROOT%" set "DISPATCH_PREINIT_OUTPUT_ROOT=%ROOT%dispatch.preinit.smoke"'
     'fpc -B -Mobjfpc -Scghi -O3 -Fi"%ROOT%..\..\src" -Fu"%ROOT%..\..\src" -Fu"%ROOT%" -FE"%DISPATCH_PREINIT_BIN_DIR%" -FU"%DISPATCH_PREINIT_LIB_DIR%" "%DISPATCH_PREINIT_SMOKE_SRC%" > "%DISPATCH_PREINIT_BUILD_LOG%" 2>&1'
   )
   LSmokeRequired=(
@@ -3904,21 +3912,24 @@ check_daily_standalone_runner_guard() {
   local LMainShell
   local LMainBat
   local LBackendOpsSrc
+  local LPublicSmokeSrc
   local LSimdBoundarySrc
   local LPattern
   local LMissing
   local -a LShellRequired
   local -a LBatRequired
   local -a LBackendOpsRequired
+  local -a LPublicSmokeRequired
   local -a LSimdBoundaryRequired
 
   LMainShell="${ROOT}/BuildOrTest.sh"
   LMainBat="${ROOT}/buildOrTest.bat"
   LBackendOpsSrc="${ROOT}/test_backend_ops.pas"
+  LPublicSmokeSrc="${ROOT}/fafafa.core.simd.public_smoke.pas"
   LSimdBoundarySrc="${ROOT}/test_simd_boundary.pas"
   LMissing=0
 
-  for LPattern in "${LMainShell}" "${LMainBat}" "${LBackendOpsSrc}" "${LSimdBoundarySrc}"; do
+  for LPattern in "${LMainShell}" "${LMainBat}" "${LBackendOpsSrc}" "${LPublicSmokeSrc}" "${LSimdBoundarySrc}"; do
     if [[ ! -f "${LPattern}" ]]; then
       echo "[CHECK] Missing daily standalone target: ${LPattern}"
       return 1
@@ -3927,30 +3938,54 @@ check_daily_standalone_runner_guard() {
 
   LShellRequired=(
     'BACKEND_OPS_SRC="${ROOT}/test_backend_ops.pas"'
+    'PUBLIC_SMOKE_SRC="${ROOT}/fafafa.core.simd.public_smoke.pas"'
     'SIMD_BOUNDARY_SRC="${ROOT}/test_simd_boundary.pas"'
     'backend_ops_output_root() {'
+    'public_smoke_output_root() {'
     'simd_boundary_output_root() {'
     'run_backend_ops_smoke() {'
+    'run_public_smoke() {'
     'run_simd_boundary_smoke() {'
     'run_backend_ops_smoke || return $?'
+    'run_public_smoke || return $?'
     'run_simd_boundary_smoke || return $?'
+    '"${OUTPUT_ROOT}/public.smoke"'
+    '"${OUTPUT_ROOT}/backend.ops"'
+    '"${OUTPUT_ROOT}/simd.boundary"'
     '    run_backend_ops_smoke'
+    '    run_public_smoke'
     '    run_simd_boundary_smoke'
   )
   LBatRequired=(
     'set "BACKEND_OPS_SRC=%ROOT%test_backend_ops.pas"'
+    'set "PUBLIC_SMOKE_SRC=%ROOT%fafafa.core.simd.public_smoke.pas"'
     'set "SIMD_BOUNDARY_SRC=%ROOT%test_simd_boundary.pas"'
     'call :run_backend_ops_internal'
+    'call :run_public_smoke_internal'
     'call :run_simd_boundary_internal'
     ':run_backend_ops_internal'
+    ':run_public_smoke_internal'
     ':run_simd_boundary_internal'
     'set "BACKEND_OPS_OUTPUT_ROOT=%OUTPUT_ROOT%\backend.ops"'
+    'if /I "%OUTPUT_ROOT%"=="%ROOT%" set "BACKEND_OPS_OUTPUT_ROOT=%ROOT%backend.ops"'
+    'if exist "%OUTPUT_ROOT%\backend.ops" rmdir /s /q "%OUTPUT_ROOT%\backend.ops"'
+    'set "PUBLIC_SMOKE_OUTPUT_ROOT=%OUTPUT_ROOT%\public.smoke"'
+    'if /I "%OUTPUT_ROOT%"=="%ROOT%" set "PUBLIC_SMOKE_OUTPUT_ROOT=%ROOT%public.smoke"'
+    'if exist "%OUTPUT_ROOT%\public.smoke" rmdir /s /q "%OUTPUT_ROOT%\public.smoke"'
     'set "SIMD_BOUNDARY_OUTPUT_ROOT=%OUTPUT_ROOT%\simd.boundary"'
+    'if /I "%OUTPUT_ROOT%"=="%ROOT%" set "SIMD_BOUNDARY_OUTPUT_ROOT=%ROOT%simd.boundary"'
+    'if exist "%OUTPUT_ROOT%\simd.boundary" rmdir /s /q "%OUTPUT_ROOT%\simd.boundary"'
   )
   LBackendOpsRequired=(
     'FillScalarOps(ops);'
     'RegisterBackendOps(sbScalar, ops);'
     'All tests PASSED!'
+  )
+  LPublicSmokeRequired=(
+    'PublicSmokeBackendName(const aBackend: TSimdBackend): string;'
+    "WriteLn('Backend:    ', PublicSmokeBackendName(LBackend));"
+    "Fail('Expected default backend ' + PublicSmokeBackendName(LExpectedBackend) +"
+    "WriteLn('[PASS] Default backend is ', PublicSmokeBackendName(LBackend));"
   )
   LSimdBoundaryRequired=(
     'SIMD 边界测试 - Rust 级别代码质量验证'
@@ -3975,6 +4010,13 @@ check_daily_standalone_runner_guard() {
   for LPattern in "${LBackendOpsRequired[@]}"; do
     if ! grep -F -- "${LPattern}" "${LBackendOpsSrc}" >/dev/null; then
       echo "[CHECK] Backend ops standalone source missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  for LPattern in "${LPublicSmokeRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LPublicSmokeSrc}" >/dev/null; then
+      echo "[CHECK] Public smoke standalone source missing pattern: ${LPattern}"
       LMissing=1
     fi
   done
