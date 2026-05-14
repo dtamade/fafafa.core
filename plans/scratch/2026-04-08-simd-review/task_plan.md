@@ -2914,3 +2914,17 @@
 | 1. 复核 `ieee754.testcase` 里的 backend ordinal 是否只是消息层 | completed | 已确认当前集中块都位于 `AssertSingleSemantics`、`AssertDoubleSemantics`、`Assert*Invariant*` 的首个上下文字符串参数，backend ord 并不参与任何数值计算、lane 选择或 expected/actual 生成 |
 | 2. 新增 canonical label helper 并统一替换集中块 | completed | 已新增文件级 `IEEE754BackendName(const aBackend: TSimdBackend): string`，实现为 `GetBackendInfo(aBackend).Name`；并把 `EdgeCases` / `AVX2RoundTruncIEEE754` 相关集中块中的 76 处 `IntToStr(Ord(LBackend))` 统一替换为该 helper |
 | 3. Release 验证与本批收口 | completed | `git diff --check`、Release `test --suite=TTestCase_IEEE754EdgeCases,TTestCase_AVX2RoundTruncIEEE754`、Release `check`、Release `gate` 已全部通过；说明这批只改善 IEEE754 测试诊断面，没有改变任何算术/舍入行为 |
+
+## 2026-05-15 DispatchSlots Canonical Backend Label Reuse
+
+### Goal
+
+继续沿 `tests/fafafa.core.simd/fafafa.core.simd.dispatchslots.testcase.pas` 的 report shell 收口：把 562 处 `Backend=` + ordinal 的 slot/metadata 断言文案，从本地编号文本收成 canonical backend label，同时保持 dispatch slot 绑定合同、GetBackendOps metadata 校验和所有断言语义完全不动。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `dispatchslots.testcase` 里的 backend ordinal 是否只是消息层 | completed | 已确认 557 处集中在 `AssertAllDispatchSlotsAssigned(...)` 的 slot-assigned 文案前缀，另 5 处位于 `Test_BackendAdapter_UnregisteredBackendOps_PreserveCanonicalMetadata` 的消息字符串；它们都不参与 slot 检查条件或 metadata 期望值生成 |
+| 2. 收敛到 canonical backend label helper | completed | 已新增文件级 `DispatchSlotsBackendName(const aBackend: TSimdBackend): string`，实现为 `GetBackendInfo(aBackend).Name`；`AssertAllDispatchSlotsAssigned(...)` 现统一复用 `LBackendSlotPrefix`，未注册 backend metadata 那 5 条消息也统一改走同一 helper |
+| 3. Release 验证与本批收口 | completed | `git diff --check`、Release `test --suite=TTestCase_DispatchAllSlots`、Release `check`、Release `gate` 已全部通过；说明这批只收敛 dispatchslots 诊断前缀，没有影响 dispatch wiring、adapter sync 或 fast-gate 主链 |

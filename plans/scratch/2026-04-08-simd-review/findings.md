@@ -3724,3 +3724,24 @@
   - 如果某个测试文件还在大面积用 `IntToStr(Ord(aBackend))` 只生成 slot/assert 消息
   - 它就仍属于高信号、低风险的“诊断真相源”收口对象
   - 当前下一个明显候选就是 `dispatchslots.testcase`
+
+## 2026-05-15 DispatchSlots Canonical Backend Label Findings
+
+- `tests/fafafa.core.simd/fafafa.core.simd.dispatchslots.testcase.pas` 里的 backend ordinal 文案密度比前两批都高：
+  - 总计 562 处
+  - 其中 557 处集中在 `AssertAllDispatchSlotsAssigned(...)`
+  - 另外 5 处在 `Test_BackendAdapter_UnregisteredBackendOps_PreserveCanonicalMetadata`
+- 但这块恰恰也是很纯的诊断层冗余，不是 slot 合同冗余：
+  - `AssertAllDispatchSlotsAssigned(...)` 只是逐槽 `Assigned(...)`
+  - backend 只出现在 `'Backend=... slot ... should be assigned'` 前缀
+  - `GetBackendOps` 那 5 条也只是给 metadata 断言补上下文，期望值仍来自 `GetBackendInfo(...)`
+- 这类文件适合用“helper + prefix”方式收，而不是盲目把 500 多行拆成更复杂的测试结构：
+  - 文件级 `DispatchSlotsBackendName(...)` 下沉到 `GetBackendInfo(aBackend).Name`
+  - `AssertAllDispatchSlotsAssigned(...)` 只多一个 `LBackendSlotPrefix`
+  - 这样既把 557 处重复编号前缀一次性收平，也不改变每条 slot 断言的直读性
+- 这批再次验证了一个很实用的收口策略：
+  - 当重复内容是“同一前缀 + 不同 slot 名”时，优先把前缀收成共享字符串
+  - 不要为了“看起来更抽象”去把整份 slot checklist 重构成循环/元数据表
+  - 否则会增加 review 成本，反而不利于 dispatch 合同文件的可审查性
+- 当前这一批收完后，`dispatchslots.testcase` 的 backend ordinal 文案已经清零。
+- 下一步如果继续沿同类线深查，就应该转向别的 `report shell / canonical metadata` 冗余点，而不是再回头重扫 `publicabi/ieee754/dispatchslots` 这三份文件。

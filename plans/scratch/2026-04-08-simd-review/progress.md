@@ -4179,3 +4179,39 @@
 - 这轮结束后，下一块最明显的同类目标已经更清楚了：
   - `tests/fafafa.core.simd/fafafa.core.simd.dispatchslots.testcase.pas`
   - 该文件仍保留大面积 `Backend=` + ordinal 的 slot-assigned / canonical-metadata 断言文案
+
+## 2026-05-15 DispatchSlots Canonical Backend Label Reuse
+
+- `ieee754` 批次提交后，我继续按“同类高密度 report shell 优先”往下审查，直接接住了上一条已经标出的 `dispatchslots.testcase`。
+- 先做的不是改代码，而是把这 562 处 backend ordinal 文案分布拆清楚：
+  - 557 处集中在 `AssertAllDispatchSlotsAssigned(const aBackend, const aDispatch)` 的 slot checklist
+  - 5 处在 `Test_BackendAdapter_UnregisteredBackendOps_PreserveCanonicalMetadata`
+- 复核后确认这批仍然只是消息层：
+  - slot 是否绑定仍由每条 `Assigned(aDispatch^....)` 决定
+  - metadata 期望值仍由 `GetBackendInfo(LBackend)` 生成
+  - backend ordinal 只参与断言消息前缀
+- 这轮实际修法保持最小而且偏“可审查友好”：
+  - 新增文件级 `DispatchSlotsBackendName(const aBackend: TSimdBackend): string`
+  - 实现直接复用 `GetBackendInfo(aBackend).Name`
+  - `AssertAllDispatchSlotsAssigned(...)` 新增 `LBackendSlotPrefix := 'Backend=' + DispatchSlotsBackendName(aBackend) + ' slot '`
+  - 557 条 slot 断言统一改用这个共享前缀
+  - `Test_BackendAdapter_UnregisteredBackendOps_PreserveCanonicalMetadata` 再补一个 `LBackendName`，把剩余 5 条消息也统一到同一真相源
+- 做完后的精确自检结果：
+  - `rg -n "IntToStr\\(Ord\\((L|a)Backend\\)\\)" tests/fafafa.core.simd/fafafa.core.simd.dispatchslots.testcase.pas`
+  - 结果：无匹配，说明这份文件里的 backend ordinal 文案已清零
+- 本轮 release 验证链已完整通过：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAllSlots`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- `gate` 里和这批最相关的主链也继续为绿：
+  - `ADAPTER_SYNC_SUMMARY ... missing_dispatch_slot_defs=0 missing_fill_base_assignments=0`
+  - `DISPATCH_CONTRACT_SIGNATURE ... [DISPATCH-CONTRACT] OK`
+  - `Run-all summary: Passed 5 / Failed 0`
+  - `[GATE] OK`
+- 到这里，这一条“backend ordinal 只服务断言消息”的高密度测试层收口线已经又往前推进了一大步：
+  - `publicabi.testcase`
+  - `ieee754.testcase`
+  - `dispatchslots.testcase`
+  这三份文件的 backend 诊断文案都已经收回 canonical metadata
