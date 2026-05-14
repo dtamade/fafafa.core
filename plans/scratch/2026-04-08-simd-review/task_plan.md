@@ -2688,3 +2688,17 @@
 | 1. 复核 `publicabi` local restore 是否还承载 post-restore 语义 | completed | 已确认 `RestorePublicAbiLocalState(...)` 的全部调用点后面都直接收尾，没有任何一次是在同一测试中“恢复后继续观察”；文件内仅剩一处与此无关的 backend-only `RestoreSavedBackendStateAndVerify(...)` |
 | 2. 删除冗余 tail restore 与失效 wrapper | completed | 已删除 `RestorePublicAbiLocalState(...)` 声明/实现，以及全部尾部 `RestorePublicAbiLocalState(FSavedVectorAsm/LOldVectorAsm, FSavedBackend)` 调用；`publicabi` 仍保留 `fixturehelpers`，因为 `Test_PublicApi_ActiveBackendId_Tracks_RuntimeSelection` 还直接使用 backend-only verified restore |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿；说明 public ABI table/cached snapshot/metadata/control-plane regression 链路在回归公共 teardown 后依然稳定 |
+
+## 2026-05-15 DispatchApi Tail Restore Cleanup Removal
+
+### Goal
+
+继续加强 `simd` 测试层审查并修复，但这次只处理 `dispatchapi.testcase` 里已经退化成纯尾部 cleanup 的 `RestoreDispatchApiLocalState(...)`：不改 dispatch/public/backend contract 断言本体，也不改 hook reset、register rollback 或 non-x86 parity 主体，只把所有“调用后测试立刻结束”的 local restore 和对应 wrapper 删除，让 `TSimdVectorAsmStatefulTestCase.TearDown` 继续作为唯一 backend/vector-asm restore contract。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `dispatchapi` local restore 是否还承载 post-restore 语义 | completed | 已确认 `RestoreDispatchApiLocalState(...)` 只是一层 `RestoreSavedBackendAndVectorAsmStateAndVerify(...)` 包装；调用点共 117 处，其中 `FSavedVectorAsm` 31 处、`LOldVectorAsm` 86 处。机械扫描显示绝大多数调用后直接 `end;`，少数只跟 `FreeAligned(...)`、局部变量清零或 `if LChecked = 0 then ...` 这类不依赖“已恢复 backend/vector-asm”的收尾语句 |
+| 2. 删除冗余 tail restore 与失效 wrapper | completed | 已删除 `TDispatchAPIStatefulTestCase.RestoreDispatchApiLocalState(...)` 声明/实现、`dispatchapi.testcase` 对 `fafafa.core.simd.fixturehelpers` 的依赖，以及全部 117 处尾部 `RestoreDispatchApiLocalState(FSavedVectorAsm/LOldVectorAsm, FSavedBackend)` 调用；保留所有 hook/reset/register rollback、`FreeAligned(...)`、non-x86 parity 断言与 suite-local 资源释放 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿；说明 `dispatchapi` 在回归公共 teardown 后，dispatch contract/public ABI smoke/non-x86 opt-in/cpuinfo/run_all 链路都继续稳定 |

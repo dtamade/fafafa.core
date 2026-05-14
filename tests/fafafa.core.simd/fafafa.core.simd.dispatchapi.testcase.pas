@@ -46,7 +46,6 @@ interface
 uses
   Classes, SysUtils, fafafa.core.math, fpcunit, testregistry,
   fafafa.core.simd,
-  fafafa.core.simd.fixturehelpers,
   fafafa.core.simd.testcase,
   fafafa.core.simd.base,
   fafafa.core.simd.bench,
@@ -63,9 +62,6 @@ uses
 type
 
   TDispatchAPIStatefulTestCase = class(TSimdVectorAsmStatefulTestCase)
-  protected
-    procedure RestoreDispatchApiLocalState(aOriginalVectorAsm: Boolean;
-      aOriginalBackend: TSimdBackend);
   end;
 
   // Dispatch public API contract tests
@@ -254,14 +250,6 @@ type
   end;
 
 implementation
-
-procedure TDispatchAPIStatefulTestCase.RestoreDispatchApiLocalState(
-  aOriginalVectorAsm: Boolean; aOriginalBackend: TSimdBackend);
-begin
-  AssertTrue('Dispatch API fixture should restore previous backend selection',
-    RestoreSavedBackendAndVectorAsmStateAndVerify(aOriginalVectorAsm,
-    aOriginalBackend, @GetCurrentBackend));
-end;
 
 var
   GDispatchHookCountA: Integer = 0;
@@ -975,7 +963,6 @@ begin
     AssertTrue('TryForceBackend(sbScalar) should succeed', TryForceBackend(sbScalar));
     AssertEquals('Active backend should be Scalar after TryForceBackend', Ord(sbScalar), Ord(GetActiveBackend));
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -997,7 +984,6 @@ begin
 
     AssertEquals('Active backend should remain unchanged after failed TryForceBackend', Ord(LOriginal), Ord(GetActiveBackend));
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1007,7 +993,6 @@ begin
     AssertTrue('TrySetActiveBackend(sbScalar) should succeed', TrySetActiveBackend(sbScalar));
     AssertEquals('Active backend should be Scalar after TrySetActiveBackend', Ord(sbScalar), Ord(GetActiveBackend));
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1029,7 +1014,6 @@ begin
 
     AssertEquals('Active backend should remain unchanged after failed TrySetActiveBackend', Ord(LOriginal), Ord(GetActiveBackend));
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1075,7 +1059,6 @@ begin
       RegisterBackend(LRequestedBackend, LOriginalTable);
     end;
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1137,7 +1120,6 @@ begin
     AssertTrue('Current backend should stay away from the previously failed requested backend after restore',
       GetActiveBackend <> LRequestedBackend);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1201,7 +1183,6 @@ begin
       RegisterBackend(LRequestedBackend, LOriginalTable);
     end;
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1287,7 +1268,6 @@ begin
   finally
     if LRequestedTableCaptured then
       RegisterBackend(LRequestedBackend, LRequestedOriginalTable);
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1331,7 +1311,6 @@ begin
       RegisterBackend(LRequestedBackend, LOriginalTable);
     end;
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1427,7 +1406,6 @@ begin
     GDispatchHookRollbackForceSuccessStage := 0;
     GDispatchHookRollbackForceSuccessEnabled := False;
     GDispatchHookRollbackForceSuccessInMutation := False;
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1446,7 +1424,6 @@ begin
 
     AssertEquals('SetActiveBackend(unavailable) should fall back to Scalar', Ord(sbScalar), Ord(GetActiveBackend));
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1519,7 +1496,6 @@ begin
   finally
     if LRequestedTableCaptured then
       RegisterBackend(LRequestedBackend, LOriginalTable);
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1592,7 +1568,6 @@ begin
   finally
     if LRequestedTableCaptured then
       RegisterBackend(LRequestedBackend, LOriginalTable);
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1677,7 +1652,6 @@ begin
   finally
     if LRequestedTableCaptured then
       RegisterBackend(LRequestedBackend, LRequestedOriginalTable);
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1723,7 +1697,6 @@ begin
       RegisterBackend(LOriginalBackend, LOriginalTable);
     end;
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1808,7 +1781,6 @@ begin
   finally
     if LRequestedTableCaptured then
       RegisterBackend(LRequestedBackend, LRequestedOriginalTable);
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1851,7 +1823,6 @@ begin
       GDispatchHookReForceBackendTarget := sbScalar;
     end;
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1894,7 +1865,6 @@ begin
       GDispatchHookResetLateForceTarget := sbScalar;
     end;
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1937,7 +1907,6 @@ begin
       GDispatchHookReForceBackendTarget := sbScalar;
     end;
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1980,7 +1949,6 @@ begin
       GDispatchHookResetLateForceTarget := sbScalar;
     end;
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2038,7 +2006,6 @@ begin
     AssertEquals('Re-enabling vector asm should preserve the previously forced backend even if a late hook resets to automatic during disable',
       Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2096,7 +2063,6 @@ begin
     AssertEquals('Re-enabling vector asm should preserve the previously forced backend even if a late hook resets to automatic during restore callback',
       Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2158,7 +2124,6 @@ begin
     AssertTrue('Vector-asm restore-callback late-force path should not remain stuck on scalar after re-enable',
       GetActiveBackend <> sbScalar);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2202,7 +2167,6 @@ begin
       GDispatchHookReForceBackendTarget := sbScalar;
     end;
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2269,7 +2233,6 @@ begin
   finally
     if LPreviousTableCaptured then
       RegisterBackend(LPreviousForcedBackend, LPreviousOriginalTable);
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2338,7 +2301,6 @@ begin
   finally
     if LPreviousTableCaptured then
       RegisterBackend(LPreviousForcedBackend, LPreviousOriginalTable);
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2378,7 +2340,6 @@ begin
       RegisterBackend(LOriginalBackend, LOriginalTable);
     end;
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2472,7 +2433,6 @@ begin
       RegisterBackend(LOriginalBackend, LOriginalTable);
     end;
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2515,7 +2475,6 @@ begin
       RegisterBackend(sbAVX2, LAVX2Table);
     end;
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2589,7 +2548,6 @@ begin
       AssertTrue('Dispatchable view should only contain dispatchable backends after vector asm disable',
         IsBackendDispatchable(LDispatchableView[LIndex]));
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2766,7 +2724,6 @@ begin
       RegisterBackend(LBackend, LOriginalTable);
     end;
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2816,7 +2773,6 @@ begin
       RegisterBackend(LBackend, LOriginalTable);
     end;
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2865,7 +2821,6 @@ begin
     AssertTrue('Vector-asm round-trip should reuse the original published dispatch snapshot',
       PtrUInt(LFinalDispatch) = PtrUInt(LInitialDispatch));
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2921,7 +2876,6 @@ begin
       RegisterBackend(LBackend, LOriginalTable);
     end;
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3011,7 +2965,6 @@ begin
     ResetToAutomaticBackend;
     AssertStableCurrentState('vector asm disabled automatic', True);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3064,7 +3017,6 @@ begin
       RegisterBackend(LBackend, LOriginalTable);
     end;
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3115,7 +3067,6 @@ begin
       RegisterBackend(LBackend, LOriginalTable);
     end;
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3183,7 +3134,6 @@ begin
       RegisterBackend(LBackend, LOriginalTable);
     end;
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3271,7 +3221,6 @@ begin
       RegisterBackend(LBackend, LOriginalTable);
     end;
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3350,7 +3299,6 @@ begin
       RegisterBackend(LBackend, LOriginalTable);
     end;
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3403,7 +3351,6 @@ begin
       RegisterBackend(LBackend, LOriginalTable);
     end;
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3460,7 +3407,6 @@ begin
       RegisterBackend(LBackend, LOriginalTable);
     end;
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3517,7 +3463,6 @@ begin
       RegisterBackend(LBackend, LOriginalTable);
     end;
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3582,7 +3527,6 @@ begin
       RegisterBackend(LBackend, LOriginalTable);
     end;
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -5383,7 +5327,6 @@ begin
       AssertEquals('SSE2 MulU32x4 should keep lane order ' + IntToStr(LIndex),
         QWord(LU32Expected.u[LIndex]), QWord(LU32Actual.u[LIndex]));
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -5459,7 +5402,6 @@ begin
     AssertEquals('SSE2 CmpGtI64x2 scalar parity mask2',
       Integer(LMaskExpected), Integer(LMaskActual));
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -5631,7 +5573,6 @@ begin
     AssertVecF32x4Equal('SSE2 NormalizeF32x3 zero scalar parity',
       LNormalize3ZeroExpected, LNormalize3ZeroActual, 0.0);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -7316,7 +7257,6 @@ begin
     AssertTrue('RISCVV TruncF64x4 should keep a non-scalar wide slot after register-source dedup',
       Pointer(LRISCVVTable.TruncF64x4) <> Pointer(LScalarTable.TruncF64x4));
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -7840,7 +7780,6 @@ begin
     LMask8Expected := ScalarCmpLtU64x8(LU64A, LU64B);
     AssertEquals('AVX512 CmpLtU64x8 mask parity', Integer(LMask8Expected), Integer(LMask8Result));
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -7970,7 +7909,6 @@ begin
     LU64Result := LAVX512.ShiftRightU64x8(LU64A, 64);
     AssertVecU64x8Equal('AVX512 ShiftRightU64x8 count=64', LU64Expected, LU64Result);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -8008,7 +7946,6 @@ begin
   finally
     RemoveDispatchChangedHook(@DispatchHookProbeA);
     RemoveDispatchChangedHook(@DispatchHookProbeB);
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -8112,7 +8049,6 @@ begin
     LMask64Expected := ScalarCmpLtU8x64(LU8A, LU8B);
     AssertEquals('AVX512 CmpLtU8x64 mask parity', Int64(LMask64Expected), Int64(LMask64Result));
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -8314,7 +8250,6 @@ begin
     AssertEquals('AVX512 ReduceMinF64x8 parity', LExpectedReduceMinF64x8, LActualReduceMinF64x8, 1e-12);
     AssertEquals('AVX512 ReduceMaxF64x8 parity', LExpectedReduceMaxF64x8, LActualReduceMaxF64x8, 1e-12);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -8515,7 +8450,6 @@ begin
         scShuffle in LTable.BackendInfo.Capabilities);
     end;
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -8592,7 +8526,6 @@ begin
         scMaskedOps in LTable.BackendInfo.Capabilities);
     end;
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -8669,7 +8602,6 @@ begin
         scIntegerOps in LTable.BackendInfo.Capabilities);
     end;
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -8729,7 +8661,6 @@ begin
         scIntegerOps in LTable.BackendInfo.Capabilities);
     end;
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -8808,7 +8739,6 @@ begin
         scMaskedOps in LTable.BackendInfo.Capabilities);
     end;
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -8852,7 +8782,6 @@ begin
     AssertTrue('AVX2 should advertise scFMA once FmaF32x4 is using fused hardware instructions',
       scFMA in LTable.BackendInfo.Capabilities);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -8875,7 +8804,6 @@ begin
     AssertFalse('scFMA should clear when AVX2 falls back to scalar FMA after vector asm disable',
       scFMA in LTable.BackendInfo.Capabilities);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -8921,7 +8849,6 @@ begin
     AssertTrue('Public ABI CapabilityBits should expose AVX2 scFMA once fused AVX2 FMA is contract-visible',
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scFMA))) <> 0);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9039,7 +8966,6 @@ begin
       AssertEquals('AVX2 FmaF64x8 should follow two FmaF64x4 halves on exact inputs lane ' + IntToStr(LIndex),
         LF64Expected.d[LIndex], LF64Actual.d[LIndex], 0.0);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9132,7 +9058,6 @@ begin
       AssertEquals('AVX2 SelectF64x8 scalar parity lane ' + IntToStr(LIndex),
         LF64Expected.d[LIndex], LF64Actual.d[LIndex], 0.0);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9182,7 +9107,6 @@ begin
     AssertTrue('Public ABI CapabilityBits should keep AVX2 scFMA clear when hardware FMA is unavailable',
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scFMA))) = 0);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9220,7 +9144,6 @@ begin
     AssertTrue('RISCVV scMaskedOps should be set while representative mask helper slots are native',
       scMaskedOps in LRISCVVTable.BackendInfo.Capabilities);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9258,7 +9181,6 @@ begin
     AssertTrue('Public ABI CapabilityBits should expose RISCVV scMaskedOps while representative mask helper slots are native',
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scMaskedOps))) <> 0);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9388,7 +9310,6 @@ begin
     AssertTrue('AVX512 should advertise scFMA once wide FMA slots are non-scalar',
       scFMA in LAVX512Table.BackendInfo.Capabilities);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9420,7 +9341,6 @@ begin
     AssertTrue('AVX512 should advertise scShuffle once wide select slots are non-scalar',
       scShuffle in LAVX512Table.BackendInfo.Capabilities);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9461,7 +9381,6 @@ begin
     AssertFalse('AVX512 sc512BitOps should clear when vector asm is disabled',
       sc512BitOps in LAVX512Table.BackendInfo.Capabilities);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9593,7 +9512,6 @@ begin
     AssertFalse('NEON scShuffle should clear when vector asm is disabled',
       scShuffle in LNEONTable.BackendInfo.Capabilities);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9629,7 +9547,6 @@ begin
       scIntegerOps in LRISCVVTable.BackendInfo.Capabilities);
     {$ENDIF}
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9677,7 +9594,6 @@ begin
       scFMA in LRISCVVTable.BackendInfo.Capabilities);
     {$ENDIF}
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9713,7 +9629,6 @@ begin
       scShuffle in LRISCVVTable.BackendInfo.Capabilities);
     {$ENDIF}
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9755,7 +9670,6 @@ begin
     AssertFalse('RISCVV scShuffle should clear when vector asm is disabled',
       scShuffle in LRISCVVTable.BackendInfo.Capabilities);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9791,7 +9705,6 @@ begin
     AssertTrue('AVX2 should advertise scShuffle once representative shuffle slots are non-scalar',
       scShuffle in LAVX2Table.BackendInfo.Capabilities);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9832,7 +9745,6 @@ begin
     AssertTrue('Public ABI CapabilityBits should expose AVX2 scShuffle while native AVX2 shuffle slots are contract-visible',
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) <> 0);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9867,7 +9779,6 @@ begin
     AssertFalse('scShuffle should clear when AVX2 shuffle slots fall back to scalar after vector asm disable',
       scShuffle in LAVX2Table.BackendInfo.Capabilities);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9899,7 +9810,6 @@ begin
     AssertTrue('Public ABI CapabilityBits should clear AVX2 scShuffle when vector asm is disabled',
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) = 0);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -10078,7 +9988,6 @@ begin
     AssertSlotOwnsSSE3('DotF32x4', Pointer(LSSE2Table.DotF32x4), Pointer(LSSE3Table.DotF32x4));
     AssertSlotOwnsSSE3('NormalizeF32x4', Pointer(LSSE2Table.NormalizeF32x4), Pointer(LSSE3Table.NormalizeF32x4));
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -10138,7 +10047,6 @@ begin
     AssertSlotReusesSSE3('MinI8x16', Pointer(LSSE3Table.MinI8x16), Pointer(LSSSE3Table.MinI8x16));
     AssertSlotReusesSSE3('MaxI8x16', Pointer(LSSE3Table.MaxI8x16), Pointer(LSSSE3Table.MaxI8x16));
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -10213,7 +10121,6 @@ begin
     AssertSlotOwnsSSE41('SelectF32x4', Pointer(LSSSE3Table.SelectF32x4), Pointer(LSSE41Table.SelectF32x4));
     AssertSlotOwnsSSE41('CmpEqI64x2', Pointer(LSSSE3Table.CmpEqI64x2), Pointer(LSSE41Table.CmpEqI64x2));
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -10284,7 +10191,6 @@ begin
     AssertSlotReusesSSE41('CmpEqI64x2', Pointer(LSSE41Table.CmpEqI64x2), Pointer(LSSE42Table.CmpEqI64x2));
     AssertSlotOwnsSSE42('CmpGtI64x2', Pointer(LSSE41Table.CmpGtI64x2), Pointer(LSSE42Table.CmpGtI64x2));
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -10377,7 +10283,6 @@ begin
     AssertVecF32x4Equal('SSE3 NormalizeF32x4 zero scalar parity',
       LNormalizeZeroExpected, LNormalizeZeroActual, 0.0);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -10449,7 +10354,6 @@ begin
     AssertVecI8x16Equal('SSSE3 MaxI8x16 scalar parity',
       LMaxExpected, LMaxActual);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -10658,7 +10562,6 @@ begin
     AssertEquals('SSE4.1 CmpEqI64x2 scalar parity',
       Integer(LMask2Expected), Integer(LMask2Actual));
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -10708,7 +10611,6 @@ begin
     AssertEquals('SSE4.2 CmpGtI64x2 scalar parity',
       Integer(LMaskExpected), Integer(LMaskActual));
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -10807,7 +10709,6 @@ begin
     AssertSlotReusesAVX2('MemDiffRange', Pointer(LAVX2Table.MemDiffRange), Pointer(LAVX512Table.MemDiffRange));
     AssertSlotReusesAVX2('BytesIndexOf', Pointer(LAVX2Table.BytesIndexOf), Pointer(LAVX512Table.BytesIndexOf));
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -10866,7 +10767,6 @@ begin
         scShuffle in LBackendTable.BackendInfo.Capabilities);
     end;
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -11342,7 +11242,6 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 backend registered on this host (allowed)', True);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -11529,7 +11428,6 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 backend registered/active on this host (allowed)', True);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -11676,7 +11574,6 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -11896,7 +11793,6 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -12018,7 +11914,6 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
     FreeAligned(LAligned);
   end;
 end;
@@ -12222,7 +12117,6 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -12413,7 +12307,6 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
     FreeAligned(LAlignedBlock);
   end;
 end;
@@ -12567,7 +12460,6 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -12682,7 +12574,6 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
     for LIndex := 0 to 3 do
       LF32x4A.f[LIndex] := 0.0;
   end;
@@ -12795,7 +12686,6 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -12915,7 +12805,6 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -13044,7 +12933,6 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -13314,7 +13202,6 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -13546,7 +13433,6 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -13690,7 +13576,6 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -13889,7 +13774,6 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -14033,7 +13917,6 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -14093,7 +13976,6 @@ begin
       Inc(LChecked);
     end;
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 
   if LChecked = 0 then
@@ -14319,7 +14201,6 @@ begin
       Inc(LChecked);
     end;
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 
   if LChecked = 0 then
@@ -14424,7 +14305,6 @@ begin
       Inc(LChecked);
     end;
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 
   if LChecked = 0 then
@@ -14500,7 +14380,6 @@ begin
       Inc(LChecked);
     end;
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 
   if LChecked = 0 then
@@ -14648,7 +14527,6 @@ begin
       Inc(LChecked);
     end;
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 
   if LChecked = 0 then
@@ -14765,7 +14643,6 @@ begin
       Inc(LChecked);
     end;
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 
   if LChecked = 0 then
@@ -15095,7 +14972,6 @@ begin
       Inc(LChecked);
     end;
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 
   if LChecked = 0 then
@@ -15312,7 +15188,6 @@ begin
     end;
   finally
     RandSeed := LOriginalSeed;
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 
   if LChecked = 0 then
@@ -16121,7 +15996,6 @@ begin
       Inc(LChecked);
     end;
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 
   if LChecked = 0 then
@@ -16354,7 +16228,6 @@ begin
       Inc(LChecked);
     end;
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 
   if LChecked = 0 then
@@ -16784,7 +16657,6 @@ begin
       Inc(LChecked);
     end;
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 
   if LChecked = 0 then
@@ -17304,7 +17176,6 @@ begin
       Inc(LChecked);
     end;
   finally
-    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 
   if LChecked = 0 then

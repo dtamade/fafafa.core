@@ -3756,3 +3756,26 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-15 DispatchApi Tail Restore Cleanup Removal
+
+- 继续沿 `publicabi/concurrent` 的判定标准往下扫后，`dispatchapi.testcase` 的证据也已经足够强：
+  - `TDispatchAPIStatefulTestCase.RestoreDispatchApiLocalState(...)` 只是调用 `RestoreSavedBackendAndVectorAsmStateAndVerify(...)` 再包一层断言消息
+  - 文件内对 `fixturehelpers` 的唯一直接使用也只有这一个 wrapper
+  - 调用点共 117 处：`RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend)` 31 处，`RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend)` 86 处
+- 这轮额外做了机械扫描来避免误删“恢复后继续观察”的场景：
+  - 大多数调用点后面直接 `end;`
+  - 少数 spot check 只跟 `FreeAligned(LAligned/LAlignedBlock)`、局部变量清零、或 `if LChecked = 0 then ...` 这类与恢复状态无关的尾部语句
+  - 没有发现任何一处是在恢复后继续依赖 `backend/vector-asm` 状态做同测断言
+- 本轮最小修法已落地：
+  - 删除 `TDispatchAPIStatefulTestCase.RestoreDispatchApiLocalState(...)` 声明与实现
+  - 删除 `dispatchapi.testcase` 对 `fafafa.core.simd.fixturehelpers` 的依赖
+  - 删除全部 117 处尾部 `RestoreDispatchApiLocalState(FSavedVectorAsm/LOldVectorAsm, FSavedBackend)` 调用
+  - 保留所有 hook reset、register rollback、non-x86 parity、capability、dispatch/public ABI smoke 相关断言与资源释放
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 本轮收口前已清理 `tests/fafafa.core.simd/__pycache__/`，避免把 Python 缓存目录带进提交。

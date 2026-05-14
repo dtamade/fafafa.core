@@ -3384,3 +3384,25 @@
   - 再看 wrapper 本身是否真的承载 hook/reset/rebind/register rollback 的一部分
   - 如果两者都不是，那就应该优先删，而不是继续保留一层消息文案壳
 - 经过这批后，stable test path 中 `publicabi` 也不再维护第二套尾部 backend/vector-asm restore 入口；剩余最值得继续看的，基本只剩 `dispatchapi` 这类更大、但已经出现同样调用形状的文件。
+
+## 2026-05-15 DispatchApi Tail Restore Cleanup Removal Findings
+
+- `dispatchapi.testcase` 这轮把“尾部 local restore 已经退化成 teardown contract 复制体”的模式放大到了更大的 suite：
+  - 本地 wrapper `RestoreDispatchApiLocalState(...)` 自己不承载任何 suite-specific choreography
+  - 它只包一层 `RestoreSavedBackendAndVectorAsmStateAndVerify(...)` 再换一句消息文案
+  - 文件里对 `fixturehelpers` 的唯一直接依赖，也正是这一个 wrapper
+- 这批最关键的判断信号有两个：
+  - 调用点数量虽大，但形状高度统一：`FSavedVectorAsm` 31 处、`LOldVectorAsm` 86 处
+  - 机械扫描后可以看到，调用后要么直接 `end;`，要么只剩 `FreeAligned(...)`、局部缓存清零、`if LChecked = 0 then ...` 这种与“是否已经恢复 backend/vector-asm”无关的收尾
+- 这说明复杂 suite 并不自动意味着 local restore 必须保留：
+  - `dispatchapi` 里真正复杂的部分是 hook reset、late-force rollback、register rollback、non-x86 parity 与 capability 断言
+  - 但这些语义都不在 `RestoreDispatchApiLocalState(...)` 里
+  - 因而 wrapper 本身只是把共享 teardown contract 又手工执行了一次
+- 删除后，`dispatchapi` 的边界更清楚了：
+  - 共享 fixture 负责 backend/vector-asm restore
+  - `dispatchapi` 只保留自己的 hook/register/resource rollback 与 contract 断言
+  - `fixturehelpers` 不再作为这个文件的第二条 restore 真相源存在
+- 这批也把后续继续深查的筛选标准再压实了一步：
+  - 不是看 suite 大不大，而是看 local restore helper 是否真的携带额外语义
+  - 如果 helper 只剩“共享 restore + 本地消息文案”，而调用点又全是尾部 cleanup，它就应该优先删除
+  - 因而下一步更值得继续找的，将是那些名字仍像 `Restore*LocalState`，但实际上已经只剩 suite-local rollback/resource cleanup 混写的残点，而不是继续在 `dispatchapi/publicabi/concurrent` 这种已清过的纯尾部模式上反复停留
