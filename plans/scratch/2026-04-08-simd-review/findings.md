@@ -3307,3 +3307,20 @@
 - 这也给后续审查提供了更细的边界：
   - 如果某个 local helper 只是包装共享 restore helper 再接一个 getter 比较，它大概率应该下沉
   - 如果 local helper 还带 rebind、hook reset、异常 mask、late-force rollback 等额外步骤，那才是真正的 suite-specific contract
+
+## 2026-05-14 Direct Restore Helper Alignment Findings
+
+- `direct.testcase` 这轮把 verified helper 的边界又验证清楚了一步：
+  - `RebindDirectDispatch` 这类 suite-local 后处理动作确实应该继续留在 `direct`
+  - 但 restore state 与 restore 后 backend 校验的主体，已经不该继续散落在 `direct` 自己的 helper/cleanup 里
+- 这说明后续判断 local restore helper 是否该保留时，可以更精细地拆成两层：
+  - “本地后处理动作是否必要” 和
+  - “restore 本体是否仍需要手写”
+  - 只要后者答案是否定的，就应尽量把 restore contract 收回共享 helper
+- `direct` 现在形成了一个更干净的模式：
+  - suite-local contract：`RegisterBackend(...)` / `RebindDirectDispatch`
+  - shared contract：`RestoreSavedBackendStateAndVerify(...)` / `RestoreSavedBackendAndVectorAsmStateAndVerify(...)`
+- 这批也意味着，`simd` 测试层剩余的 high-value 冗余已经越来越少地表现为“整个 helper 都多余”，而更多是：
+  - helper 里只有一半动作是本地语义
+  - 另一半 restore/verify 主体其实早就应该下沉
+- 因而下一轮继续深查时，更值得找的是这种“本地后处理动作 + 共用 restore 主体”仍混写的残点，而不是再去机械搜索所有 `Restore*LocalState` 名字。

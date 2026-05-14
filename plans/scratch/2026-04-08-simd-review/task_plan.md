@@ -2618,3 +2618,17 @@
 | 1. 复核哪些 local helper 只剩“restore + backend getter 校验” | completed | 已确认 `RestoreDispatchSlotsLocalState`、`RestoreBackendVectorConsistencyLocalState`、`RestoreIEEE754LocalState` 这类点都没有 suite-specific 语义；`concurrent/publicabi/dispatchapi/dataplane` 里的局部 restore 断言也只是在重复同一验证拼接 |
 | 2. 抽共享 verified restore helper 并收掉局部薄壳 | completed | `fixturehelpers` 已新增 `RestoreSavedBackendStateAndVerify` 与 `RestoreSavedBackendAndVectorAsmStateAndVerify`；相关 suite/helper 改为直接复用，删除 `dispatchslots` / `backend vector consistency` / `ieee754` 的冗余局部 wrapper |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release 定向 suite、Release `check`、Release `gate` 全绿；说明共享 callback-style verified restore helper 在 FPC 下可稳定工作，且未影响 run_all/public ABI/cpuinfo 外围链路 |
+
+## 2026-05-14 Direct Restore Helper Alignment
+
+### Goal
+
+继续加强 `simd` 测试层审查并修复，但这次只收 `direct.testcase` 在 verified helper 批次后仍残留的两段手工 restore 本体：保留 `RebindDirectDispatch` 这种 suite-specific 后处理动作，把“恢复 backend/vectorasm 并校验 backend 已回到原值”的主体统一交还 `fixturehelpers`。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `direct` 剩余 local restore helper 的真实语义边界 | completed | 已确认 `TDirectDispatchStatefulTestCase.RestoreFixtureDirectDispatchState` 与并发 cleanup 的特殊点只剩 `RebindDirectDispatch`；restore state + verify backend restored 本体已经不应继续手写 |
+| 2. 对齐到共享 verified restore helper | completed | `RestoreFixtureDirectDispatchState` 现改用 `RestoreSavedBackendAndVectorAsmStateAndVerify(...)`；`RunDirectDispatchConcurrentReRegisterSnapshotConsistency` 的 cleanup 改用 `RestoreSavedBackendStateAndVerify(...)`，同时保留原有 `RegisterBackend(sbScalar, ...)` 与 `RebindDirectDispatch` 时序 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、Release `check`、Release `gate` 全绿；本轮继续串行验证，避免 `tests/fafafa.core.simd` 共享输出目录假红 |

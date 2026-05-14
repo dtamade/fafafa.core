@@ -204,14 +204,11 @@ begin
 end;
 
 procedure TDirectDispatchStatefulTestCase.RestoreFixtureDirectDispatchState;
-var
-  LRestoredBackend: Boolean;
 begin
-  LRestoredBackend := RestoreSavedBackendAndVectorAsmState(
-    FSavedVectorAsm, FSavedBackend);
   RebindDirectDispatch;
   AssertTrue('Direct dispatch fixture should restore previous backend selection',
-    LRestoredBackend and (GetCurrentBackend = FSavedBackend));
+    RestoreSavedBackendAndVectorAsmStateAndVerify(FSavedVectorAsm,
+    FSavedBackend, @GetCurrentBackend));
 end;
 
 procedure TDirectDispatchStatefulTestCase.TearDown;
@@ -5650,12 +5647,11 @@ begin
       LReaders[LIndex].Free;
 
     RegisterBackend(sbScalar, LOriginalTable);
-    ResetToAutomaticBackend;
-    if GetCurrentBackend <> LOriginalBackend then
-      if not TrySetActiveBackend(LOriginalBackend) then
-        raise Exception.CreateFmt(
-          'Direct dispatch concurrent cleanup failed to restore previous backend selection (expected=%d, actual=%d)',
-          [Ord(LOriginalBackend), Ord(GetCurrentBackend)]);
+    if not RestoreSavedBackendStateAndVerify(LOriginalBackend,
+      @GetCurrentBackend) then
+      raise Exception.CreateFmt(
+        'Direct dispatch concurrent cleanup failed to restore previous backend selection (expected=%d, actual=%d)',
+        [Ord(LOriginalBackend), Ord(GetCurrentBackend)]);
     RebindDirectDispatch;
   end;
 end;

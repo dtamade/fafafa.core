@@ -3626,3 +3626,31 @@
 - 到这里，`simd` 测试层的冗余治理已经从“fixture 基类去重”推进到了“helper contract 去重”：
   - 下一轮更值得看的，应该是还带 suite-local 后处理动作的 restore helper 是否真的必要
   - 或者生产/测试 seam 上是否还残留类似的 verification thin wrapper
+
+## 2026-05-14 Direct Restore Helper Alignment
+
+- 在 verified restore helper 已经落地后，继续回扫 `direct.testcase`，发现还剩最后两段“restore 本体仍手写、但 suite-specific 语义其实只剩 rebind”的残点：
+  - `TDirectDispatchStatefulTestCase.RestoreFixtureDirectDispatchState`
+  - `RunDirectDispatchConcurrentReRegisterSnapshotConsistency` 的 finally cleanup
+- 复核后确认这两处都不再适合保留自定义 restore 主体：
+  - `RestoreFixtureDirectDispatchState` 真正特有的只剩 `RebindDirectDispatch`
+  - 并发 cleanup 真正特有的只剩 `RegisterBackend(sbScalar, LOriginalTable)` 后仍要把 direct table 重新 bind 回当前 backend
+  - backend/vector-asm restore 与“restore 后 backend getter 必须回到原值”的 contract 已经由 `fixturehelpers` 提供
+- 本轮最小修法已落地：
+  - `RestoreFixtureDirectDispatchState` 改为：
+    - 先 `RebindDirectDispatch`
+    - 再断言 `RestoreSavedBackendAndVectorAsmStateAndVerify(FSavedVectorAsm, FSavedBackend, @GetCurrentBackend)`
+  - `RunDirectDispatchConcurrentReRegisterSnapshotConsistency` 的 cleanup 改为：
+    - 保留 `RegisterBackend(sbScalar, LOriginalTable)`
+    - 用 `RestoreSavedBackendStateAndVerify(LOriginalBackend, @GetCurrentBackend)` 替代原来的 `ResetToAutomaticBackend + TrySetActiveBackend` 手写流程
+    - 保留末尾 `RebindDirectDispatch`
+- 这批的意义不是继续机械删 helper 名字，而是把 `direct` 的边界再压清一层：
+  - `direct` 自己负责 direct table 的 suite-local 后处理动作
+  - `fixturehelpers` 负责 restore state 与 restore 后的 backend 校验
+  - 这样读 `direct.testcase` 时，不再需要在本地 helper 里重新分辨哪部分是 cleanup contract，哪部分只是历史遗留写法
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
