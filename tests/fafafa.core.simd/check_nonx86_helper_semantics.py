@@ -965,6 +965,8 @@ def main() -> int:
         ("RISCVVCmpEqU64x2", "ScalarCmpEqU64x2(a, b)"),
         ("RISCVVCmpLtU64x2", "ScalarCmpLtU64x2(a, b)"),
         ("RISCVVCmpGtU64x2", "ScalarCmpGtU64x2(a, b)"),
+        ("RISCVVMinI64x2", "ScalarMinI64x2(a, b)"),
+        ("RISCVVMaxI64x2", "ScalarMaxI64x2(a, b)"),
         ("RISCVVMinU64x2", "ScalarMinU64x2(a, b)"),
         ("RISCVVMaxU64x2", "ScalarMaxU64x2(a, b)"),
         ("RISCVVShiftLeftI64x2", "ScalarShiftLeftI64x2(a, shift)"),

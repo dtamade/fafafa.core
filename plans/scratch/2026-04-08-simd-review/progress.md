@@ -4506,3 +4506,30 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`
   - 结果：`RECENT_BILLING_BLOCK`
   - 结论：fresh Windows evidence 仍是外部账单/额度阻塞，不继续做本地无效重试
+
+## 2026-05-15 RISCVV I64x2 MinMax Helper Exact-Contract Consolidation
+
+- 在确认 `win-evidence-preflight` 仍被外部 billing 阻塞之后，这一轮没有再在外部 blocker 上空转，而是回到 `RISCVV helper` 的真实残余，继续找最小安全的 exact-contract redundancy。
+- 先重新核了当前边界：
+  - `dispatchapi` 里仍明确守着 `DotF64x2/DotF64x4` 不能直接 scalar forward；
+  - `Round/Trunc` 在 register/source-shape 上仍属于需要谨慎的 float 语义面；
+  - 之前 scratch findings 也已经把 `Round/Trunc/Clamp`、`NormalizeF32x4/F32x3` 标成不能机械合并。
+- 因此本批只改了两处 helper 真源去重：
+  - `src/fafafa.core.simd.riscvv.helpers.inc`
+  - `RISCVVMinI64x2 -> ScalarMinI64x2(a, b)`
+  - `RISCVVMaxI64x2 -> ScalarMaxI64x2(a, b)`
+- 对应的 source-side guard 也一起补上了：
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - 新增 `RISCVVMinI64x2` / `RISCVVMaxI64x2` 两条期望
+- 这批的串行验证我按当前仓库纪律完整跑了一轮：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=477 status=ok`
+  - `impl-audit-nonx86` 通过
+  - Release `check` 通过
+  - Release `gate` 通过
+  - `gate` 末尾旧 Windows evidence 仍被诚实降级为 optional `SKIP`，没有误报成当前证据

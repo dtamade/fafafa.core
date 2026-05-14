@@ -1324,6 +1324,26 @@
 - 所以 `I64x8` 当前缺的仍然是证据层，而不是实现层；继续扩现有 `TTestCase_IntegerFacadeGuards` 比新增 `veci64x8` family-local suite 更低风险，也不会碰 runner manifest。
 - 本轮还再次证明了一个操作纪律：`check` 和 `gate` 在这个仓库里必须串行跑；共享输出目录下并行执行会出现 build 阶段 `rc=2` 的假红，不能误判为代码回归。
 
+## 2026-05-15 RISCVV I64x2 MinMax Helper Exact-Contract Consolidation
+
+- 在前面的 `RISCVV helper` 收口批次之后，当前还能安全继续下刀的 helper 级 exact-contract redundancy 只剩很小一块：`src/fafafa.core.simd.riscvv.helpers.inc` 里的 `RISCVVMinI64x2 / RISCVVMaxI64x2`。
+- 这两个 helper 原先仍保留逐 lane `if/else` 逻辑，但合同与 `ScalarMinI64x2 / ScalarMaxI64x2` 完全一致：
+  - 没有 NaN / signed-zero / rounding mode 问题；
+  - 也不属于 `dispatchapi` 明确要求 backend-owned 的 slot。
+- 这批刻意没有继续扩大范围：
+  - `Round/Trunc/Clamp` 仍牵涉 signed-zero 与 NaN ordering，不属于“看起来像 loop 就能合并”的面；
+  - `NormalizeF32x4/F32x3` 仍与 scalar 存在零阈值差异；
+  - `DotF64x2 / DotF64x4` 仍被 `dispatchapi` 守成 backend-owned / not-direct-scalar-forward 的路径。
+- 因而本批的正确收口方式不是再造新 helper，而是直接把 `RISCVVMinI64x2 / RISCVVMaxI64x2` 收回 scalar 真源，并同步把 checker 的 source-side 护栏补上。
+- `check_nonx86_helper_semantics.py` 现已新增这 2 个 helper 断言；复验后 summary 更新为 `NONX86_HELPER_SEMANTICS_SUMMARY checks=477 status=ok`。
+- 串行 release 证据已补齐：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果全部为绿，说明这批确实只是 helper 真源去重，没有碰坏 non-x86 wiring、RISCVV ABI shape、key-slot ownership 或 fast-gate 主链。
+
 ## 2026-05-13 512-bit Integer Compare Tail Findings
 
 - `VecI16x32CmpEq/Lt/Gt`、`VecI8x64CmpEq/Lt/Gt`、`VecU8x64CmpEq/Lt/Gt` 都是当前 `src/fafafa.core.simd.pas` 的真实公开 façade compare surface，不是 backend-only 或 dispatch-only contract。

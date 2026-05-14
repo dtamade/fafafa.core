@@ -3082,3 +3082,17 @@
 | 1. 预检 GH/Workflow 前提 | completed | `gh auth status` 可用，仓库 workflow 也能解析到 `simd-windows-b07-evidence.yml`；说明本机工具链没问题 |
 | 2. 运行 GH 预检脚本 | completed | `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight` 返回 `RECENT_BILLING_BLOCK`，说明最近一次相关 workflow run 被 GitHub 直接拒绝启动，原因是 recent account payments failed / spending limit needs to be increased |
 | 3. 处理结果 | completed | 这不是本地代码可修问题；当前应视为外部阻塞而不是实现缺陷。fresh Windows runtime evidence 的下一步必须先恢复 GitHub Billing/额度，再重新发起 GH 路径 |
+
+## 2026-05-15 RISCVV I64x2 MinMax Helper Exact-Contract Consolidation
+
+### Goal
+
+继续沿 `simd` 深审里“只收 exact-contract redundancy，不碰语义敏感 float / backend-owned 路径”的纪律往下推，在 `riscvv.helpers.inc` 里拿下当前最小且安全的整数 helper 尾巴。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 helper 边界而不是盲目继续去重 | completed | 已重新核对 `dispatchapi` 与 scratch 记录：`Round/Trunc/Clamp` 仍牵涉 signed-zero / NaN ordering，`NormalizeF32x4/F32x3` 仍有阈值差异，`DotF64x2/F64x4` 仍被测试要求保持 backend-owned；因此这批只收整数 `MinI64x2/MaxI64x2` |
+| 2. 收回 `RISCVVMin/MaxI64x2` 的第二份手写逻辑 | completed | 已把 `src/fafafa.core.simd.riscvv.helpers.inc` 中的两个逐 lane `if/else` helper 改为直接调用 `ScalarMinI64x2/ScalarMaxI64x2`，并在 `check_nonx86_helper_semantics.py` 里补上对应 source-side 断言 |
+| 3. 串行 release 验证并准备收口 | completed | `git diff --check`、`python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 已全部通过；helper summary 已更新到 `checks=477 status=ok` |

@@ -52,23 +52,13 @@ begin
 end;
 
 function RISCVVMinI64x2(const a, b: TVecI64x2): TVecI64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    if a.i[i] < b.i[i] then
-      Result.i[i] := a.i[i]
-    else
-      Result.i[i] := b.i[i];
+  Result := ScalarMinI64x2(a, b);
 end;
 
 function RISCVVMaxI64x2(const a, b: TVecI64x2): TVecI64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    if a.i[i] > b.i[i] then
-      Result.i[i] := a.i[i]
-    else
-      Result.i[i] := b.i[i];
+  Result := ScalarMaxI64x2(a, b);
 end;
 
 function RISCVVAndNotU64x2(const a, b: TVecU64x2): TVecU64x2;
