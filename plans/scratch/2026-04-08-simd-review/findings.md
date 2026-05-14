@@ -1344,6 +1344,29 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果全部为绿，说明这批确实只是 helper 真源去重，没有碰坏 non-x86 wiring、RISCVV ABI shape、key-slot ownership 或 fast-gate 主链。
 
+## 2026-05-15 RISCVV AndNot Helper Exact-Contract Consolidation
+
+- `RISCVVMin/MaxI64x2` 收完后，再往 `src/fafafa.core.simd.riscvv.helpers.inc` 深看，剩余还能继续安全收口的 helper 级 exact-contract redundancy 只剩 3 个 `AndNot`：
+  - `RISCVVAndNotI8x16`
+  - `RISCVVAndNotU16x8`
+  - `RISCVVAndNotU8x16`
+- 这 3 个 helper 原先仍写成 `RISCVVNot(...)` 再 `RISCVVAnd(..., b)` 的组合式本地逻辑，但 scalar 侧已经有现成 `ScalarAndNot*` 真源，因此继续保留第二份逻辑只会增加漂移面。
+- 这批之所以安全：
+  - 它们是纯 bitwise exact-contract，不牵涉 NaN、signed-zero、rounding 或阈值语义；
+  - `dispatchapi` 虽然要求 `AndNotU8x16` 这类 slot 继续保持 backend-owned pointer ownership，但并不要求 helper 体内部继续手写第二份逻辑；
+  - `key-slot` 审计与 `RISCVV ABI shape` 都继续通过，说明“slot ownership 不变、helper 真源回收到 scalar”这一点是成立的。
+- 这批仍然刻意没有扩大到其它剩余 helper：
+  - `Neg/Load/Store/Splat/Zero` 多数没有现成同名 scalar helper 可直接回收；
+  - `Select/Reduce` 会把这轮收口扩到更宽的合同面；
+  - float unary / rounding / clamp / normalize 仍然属于已知语义敏感区。
+- `check_nonx86_helper_semantics.py` 的 helper 护栏已补这 3 条断言；复验后 summary 更新为 `NONX86_HELPER_SEMANTICS_SUMMARY checks=480 status=ok`。
+- 串行 release 证据链继续为绿：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+
 ## 2026-05-13 512-bit Integer Compare Tail Findings
 
 - `VecI16x32CmpEq/Lt/Gt`、`VecI8x64CmpEq/Lt/Gt`、`VecU8x64CmpEq/Lt/Gt` 都是当前 `src/fafafa.core.simd.pas` 的真实公开 façade compare surface，不是 backend-only 或 dispatch-only contract。

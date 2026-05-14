@@ -3096,3 +3096,17 @@
 | 1. 复核 helper 边界而不是盲目继续去重 | completed | 已重新核对 `dispatchapi` 与 scratch 记录：`Round/Trunc/Clamp` 仍牵涉 signed-zero / NaN ordering，`NormalizeF32x4/F32x3` 仍有阈值差异，`DotF64x2/F64x4` 仍被测试要求保持 backend-owned；因此这批只收整数 `MinI64x2/MaxI64x2` |
 | 2. 收回 `RISCVVMin/MaxI64x2` 的第二份手写逻辑 | completed | 已把 `src/fafafa.core.simd.riscvv.helpers.inc` 中的两个逐 lane `if/else` helper 改为直接调用 `ScalarMinI64x2/ScalarMaxI64x2`，并在 `check_nonx86_helper_semantics.py` 里补上对应 source-side 断言 |
 | 3. 串行 release 验证并准备收口 | completed | `git diff --check`、`python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 已全部通过；helper summary 已更新到 `checks=477 status=ok` |
+
+## 2026-05-15 RISCVV AndNot Helper Exact-Contract Consolidation
+
+### Goal
+
+在 `Min/MaxI64x2` 收口后继续审 `riscvv.helpers.inc`，只挑“已有 scalar 真源、helper 仍在维护第二份 bitwise 逻辑”的小块继续去重，不把审查扩散到 `select/reduce/float unary` 这类合同面更宽的区域。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核剩余 helper 里是否还有同级别 exact-contract 尾巴 | completed | 已确认下一刀不是 `Neg/Load/Store/Splat/Zero/Select/Reduce`，因为这些多数没有现成同名 scalar helper，或会把这轮工作扩到更宽合同面；当前还能安全收的只剩 `RISCVVAndNotI8x16/U16x8/U8x16` |
+| 2. 收回 3 个 `AndNot` helper 的组合式本地实现 | completed | 已把 `RISCVVAndNotI8x16/U16x8/U8x16` 从 `RISCVVNot + RISCVVAnd` 组合逻辑改成直接调用 `ScalarAndNot*`，并在 `check_nonx86_helper_semantics.py` 的 helper 期望表里新增对应 3 条 source-side 断言 |
+| 3. 串行 release 验证并准备第二次收口 | completed | `git diff --check`、helper semantics、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 已全部通过；helper summary 已更新到 `checks=480 status=ok`，`key-slot` 与 `RISCVV ABI shape` 继续为绿 |

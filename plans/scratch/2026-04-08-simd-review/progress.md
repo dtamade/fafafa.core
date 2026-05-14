@@ -4533,3 +4533,26 @@
   - Release `check` 通过
   - Release `gate` 通过
   - `gate` 末尾旧 Windows evidence 仍被诚实降级为 optional `SKIP`，没有误报成当前证据
+
+## 2026-05-15 RISCVV AndNot Helper Exact-Contract Consolidation
+
+- `2dcc183f` 提交完 `Min/MaxI64x2` 之后，我继续往 `riscvv.helpers.inc` 里扫下一刀，不重开大范围分析，只找“已有 scalar 真源、但 helper 还在维护第二份逻辑”的同级别尾巴。
+- 快速复核后确认：
+  - `Neg/Load/Store/Splat/Zero/Select/Reduce` 这批多数没有现成同名 scalar helper，或者会把本轮收口扩到更宽合同面；
+  - 目前最值钱且风险仍然可控的只剩 3 个 `AndNot` helper。
+- 本批改动如下：
+  - `RISCVVAndNotI8x16 -> ScalarAndNotI8x16(a, b)`
+  - `RISCVVAndNotU16x8 -> ScalarAndNotU16x8(a, b)`
+  - `RISCVVAndNotU8x16 -> ScalarAndNotU8x16(a, b)`
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 同步新增这 3 条 helper expectation
+- 复验链继续按串行纪律执行：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 当前已知结果：
+  - helper summary 已升到 `NONX86_HELPER_SEMANTICS_SUMMARY checks=480 status=ok`
+  - `impl-audit-nonx86` 通过，`RISCVV ABI shape` 仍是 `direct_functions=123 / suspicious_a0_loads=0`
+  - Release `check` 已再次跑绿
+  - Release `gate` 已再次跑绿；末尾旧 Windows evidence 仍被诚实降级为 optional `SKIP`

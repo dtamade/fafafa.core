@@ -288,17 +288,17 @@ end;
 
 function RISCVVAndNotI8x16(const a, b: TVecI8x16): TVecI8x16;
 begin
-  Result := RISCVVAndI8x16(RISCVVNotI8x16(a), b);
+  Result := ScalarAndNotI8x16(a, b);
 end;
 
 function RISCVVAndNotU16x8(const a, b: TVecU16x8): TVecU16x8;
 begin
-  Result := RISCVVAndU16x8(RISCVVNotU16x8(a), b);
+  Result := ScalarAndNotU16x8(a, b);
 end;
 
 function RISCVVAndNotU8x16(const a, b: TVecU8x16): TVecU8x16;
 begin
-  Result := RISCVVAndU8x16(RISCVVNotU8x16(a), b);
+  Result := ScalarAndNotU8x16(a, b);
 end;
 
 {$ENDIF}
