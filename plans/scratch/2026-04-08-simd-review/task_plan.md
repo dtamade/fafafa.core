@@ -2970,3 +2970,17 @@
 | 1. 复核 `concurrent.testcase` 里剩余 `Ord(...)` 的角色 | completed | 已确认 `DescribeBackendInfoLocal`、`DescribeBackendArrayLocal`、`DescribeRuntimeSnapshotLocal`、mixed snapshot 错误文本以及 synthetic first-registration metadata 都只是 report shell；而 `AssertEquals(..., Ord(...))` 数值断言与 `QWord(Ord(LBackend))` seed 仍承载真实比较/随机化语义，不能机械替换 |
 | 2. 收敛到 concurrent canonical helper | completed | 已新增 `ConcurrentBackendName(const aBackend: TSimdBackend): string`，实现为 `GetBackendInfo(aBackend).Name`；并把上述描述函数、mixed snapshot 诊断文本与 `ConcurrentFirstRegister_*` metadata 统一改为 backend name |
 | 3. Release 验证与本批收口 | completed | 接手前已有 Release `TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework,TTestCase_DirectDispatchConcurrent` 与 Release `check` 绿证据；本轮继续完成 `git diff --check` 与 Release `gate`，确认 fast-gate 中 `PublicAbi` concurrent chain、`TTestCase_DirectDispatchConcurrent`、filtered `run_all` 全部通过 |
+
+## 2026-05-15 Public Smoke Canonical Backend Output
+
+### Goal
+
+继续把深审范围从 testcase/report shell 扩到独立 program 入口：修复 `tests/fafafa.core.simd/fafafa.core.simd.public_smoke.pas` 仍在 user-facing 输出里同时打印 backend ordinal 和 canonical name 的冗余，同时把这个 standalone smoke 做一次真实编译运行验证，不把它误当成主 runner 已覆盖的入口。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `public_smoke` 是否真的独立、以及当前输出冗余形态 | completed | 已确认 `public_smoke.pas` 不是主 `fafafa.core.simd.test.lpi` runner 的一部分；独立 `fpc` 编译运行时会输出 `Backend:    6 (AVX2)`，说明它还把 enum ordinal 暴露到了 user-facing smoke 输出里 |
+| 2. 收敛到文件级 canonical backend helper | completed | 已新增 `PublicSmokeBackendName(const aBackend: TSimdBackend): string`，统一让 backend 标题、default-backend fail 文案和 PASS 文案都复用 `GetBackendInfo(...).Name`；标题输出已去掉冗余 ordinal |
+| 3. 独立运行与主检查链复验 | completed | `git diff --check`、临时目录 `fpc` 编译并运行 `fafafa.core.simd.public_smoke.pas`、Release `check` 已通过；说明这批既修正了 standalone smoke 的 user-facing 输出，又没有扰动主 SIMD 检查链 |

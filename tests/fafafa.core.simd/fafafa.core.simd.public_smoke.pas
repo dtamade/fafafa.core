@@ -23,6 +23,11 @@ begin
   Halt(1);
 end;
 
+function PublicSmokeBackendName(const aBackend: TSimdBackend): string;
+begin
+  Result := GetBackendInfo(aBackend).Name;
+end;
+
 var
   LCpuInfo: TCPUInfo;
   LBackend: TSimdBackend;
@@ -35,16 +40,16 @@ begin
 
   WriteLn('CPU vendor: ', LCpuInfo.Vendor);
   WriteLn('CPU model:  ', LCpuInfo.Model);
-  WriteLn('Backend:    ', Ord(LBackend), ' (', GetBackendInfo(LBackend).Name, ')');
+  WriteLn('Backend:    ', PublicSmokeBackendName(LBackend));
 
   // Expected default backend preference follows the same canonical
   // dispatchable semantics used by the runtime selector.
   LExpectedBackend := GetExpectedPublicSmokeDefaultBackend;
 
   if LBackend <> LExpectedBackend then
-    Fail('Expected default backend ' + GetBackendInfo(LExpectedBackend).Name +
-      ', got ' + GetBackendInfo(LBackend).Name);
+    Fail('Expected default backend ' + PublicSmokeBackendName(LExpectedBackend) +
+      ', got ' + PublicSmokeBackendName(LBackend));
 
-  WriteLn('[PASS] Default backend is ', GetBackendInfo(LBackend).Name);
+  WriteLn('[PASS] Default backend is ', PublicSmokeBackendName(LBackend));
   Halt(0);
 end.

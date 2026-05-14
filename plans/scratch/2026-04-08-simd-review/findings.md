@@ -3817,3 +3817,28 @@
   - `TTestCase_DirectDispatchConcurrent` 通过
   - filtered `run_all` summary 为 `Passed 5 / Failed 0`
   - `[GATE] OK`
+
+## 2026-05-15 Public Smoke Canonical Backend Output Findings
+
+- 在 testcase 层的 backend label 冗余基本收平后，独立 program 入口里还留着一个更直接的 user-facing 残点：
+  - `tests/fafafa.core.simd/fafafa.core.simd.public_smoke.pas`
+  - 运行输出是 `Backend:    6 (AVX2)`
+  - 这不是断言消息，而是用户第一眼就会看到的 smoke banner
+- 这个点和前面几批不完全一样，因为它还带着“验证覆盖缺口”：
+  - `public_smoke.pas` 不是主 `fafafa.core.simd.test.lpi` runner 的一部分
+  - 也不在当前 `BuildOrTest.sh gate` 的既有 smoke 链里
+  - 所以不能只靠“主 gate 绿”就假设这个入口一直健康
+- 先做的是真运行，而不是静态猜：
+  - 独立 `fpc` 编译并运行 `fafafa.core.simd.public_smoke.pas`
+  - 修复前的真实输出明确包含 ordinal：`Backend:    6 (AVX2)`
+  - 这证明它确实还在对外暴露 enum 编号，而不是仅仅在源码里“看着有点冗余”
+- 这类输出最稳的收口方式和 bench / concurrent 一致：
+  - 不再让 smoke program 自己拼一份 “ordinal + name” 混合视图
+  - 新增文件级 `PublicSmokeBackendName(...)`
+  - 统一直接使用 `GetBackendInfo(...).Name`
+- 修完后再次独立运行，输出已变成：
+  - `Backend:    AVX2`
+  - `[PASS] Default backend is AVX2`
+- 这批还给后续深审补了一个筛选标准：
+  - 只要是 repo 里的独立 program 入口，就不能假设它天然被主 gate 覆盖
+  - 对这类文件，除了修代码本身，还应补一次独立编译运行证据

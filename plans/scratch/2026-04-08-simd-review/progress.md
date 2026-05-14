@@ -4316,3 +4316,26 @@
   - `TTestCase_DirectDispatchConcurrent`
   - `Run-all summary: Passed 5 / Failed 0`
   - `[GATE] OK`
+
+## 2026-05-15 Public Smoke Canonical Backend Output
+
+- 在 `concurrent` 提交后，我继续往独立 program 入口审，找到一个新的、很容易被主 runner 掩盖的 user-facing 冗余：
+  - `tests/fafafa.core.simd/fafafa.core.simd.public_smoke.pas`
+  - 独立运行前的真实输出是 `Backend:    6 (AVX2)`
+- 我没有先改文件，而是先做了 standalone 真运行验证：
+  - 临时目录 `fpc` 编译 `fafafa.core.simd.public_smoke.pas`
+  - 直接运行生成的 `fafafa.core.simd.public_smoke`
+  - 输出证明确实还在同时暴露 ordinal 和 canonical name
+- 本轮收口范围很窄，只动 user-facing backend label：
+  - 新增 `PublicSmokeBackendName(const aBackend: TSimdBackend): string`
+  - `Backend:` 标题行改成只输出 canonical backend name
+  - default-backend 失败文案与 PASS 文案统一复用同一 helper
+- 修完后再次独立编译运行，输出已收成：
+  - `CPU vendor: GenuineIntel`
+  - `CPU model:  Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz`
+  - `Backend:    AVX2`
+  - `[PASS] Default backend is AVX2`
+- 为了确认这批 standalone 收口没有反向扰动主链，我又补了一遍：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - 结果：全部通过；`dispatch preinit smoke`、source reachability、suite manifest、non-x86 opt-in list-suites 也继续为绿
