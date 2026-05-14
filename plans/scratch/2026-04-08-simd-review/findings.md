@@ -3406,3 +3406,26 @@
   - 不是看 suite 大不大，而是看 local restore helper 是否真的携带额外语义
   - 如果 helper 只剩“共享 restore + 本地消息文案”，而调用点又全是尾部 cleanup，它就应该优先删除
   - 因而下一步更值得继续找的，将是那些名字仍像 `Restore*LocalState`，但实际上已经只剩 suite-local rollback/resource cleanup 混写的残点，而不是继续在 `dispatchapi/publicabi/concurrent` 这种已清过的纯尾部模式上反复停留
+
+## 2026-05-15 DataPlane And IEEE754 Tail Verified-Restore Cleanup Findings
+
+- `dataplane` 和 `ieee754` 这轮补充了一个更细的结论：
+  - 就算已经没有 local wrapper 了
+  - 只要 direct caller 仍然是在 `TSimdVectorAsmStatefulTestCase` 派生类里、位于 `finally` 尾部、调用后立刻结束测试
+  - 它本质上仍然可能只是 teardown contract 的历史复制体
+- 这批和前面 `publicabi/dispatchapi/concurrent` 的区别在于：
+  - 之前删的是“wrapper + tail call”
+  - 这次删的是“direct verified helper tail call”
+  - 因而筛选标准从“helper 名字像不像 local restore”进一步升级成“调用位置和调用后是否还存在状态敏感逻辑”
+- 证据也更机械、更好复用：
+  - `dataplane` 仅 1 处
+  - `ieee754` 共 10 处
+  - 所有调用点后面统一直接 `end;`
+  - 两个文件对 `fixturehelpers` 的唯一依赖也都正是这些 direct tail caller
+- 这意味着后续继续深查时，不能只搜 `Restore*LocalState` 名字了：
+  - 还要搜 direct `RestoreSavedBackendAndVectorAsmStateAndVerify(...)`
+  - 再结合类继承层次和调用后控制流，判断它是不是也已经被公共 teardown contract 完全覆盖
+- 经过这批后，stable `vector-asm` 派生 suite 里的“尾部再执行一次 backend/vector-asm restore 并校验”这类重复路径又少了一块：
+  - `dataplane` 只保留 snapshot/publication 语义断言
+  - `ieee754` 只保留 rounding/NaN/Inf/signed-zero/non-x86 parity 断言
+  - `fixturehelpers` 不再被这两份文件当成第二套尾部 cleanup 入口

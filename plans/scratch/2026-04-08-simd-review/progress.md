@@ -3779,3 +3779,29 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 - 本轮收口前已清理 `tests/fafafa.core.simd/__pycache__/`，避免把 Python 缓存目录带进提交。
+
+## 2026-05-15 DataPlane And IEEE754 Tail Verified-Restore Cleanup
+
+- 在 `dispatchapi` 提交后继续全局扫描，发现 stable `vector-asm` 派生 suite 里还剩两类 direct verified helper caller：
+  - `dataplane.testcase` 1 处
+  - `ieee754.testcase` 10 处
+- 这批没有 local wrapper，但控制流形状和前面的冗余批次一致：
+  - 都在 `TSimdVectorAsmStatefulTestCase` 派生类中
+  - 都位于 `finally` 尾部
+  - 调用后统一直接 `end;`
+  - 没有任何一处是在恢复后继续依赖 backend/vector-asm 状态做同一测试内的后续断言
+- 额外扫描后还确认了一个可直接收口的信号：
+  - `dataplane` 与 `ieee754` 两个文件对 `fafafa.core.simd.fixturehelpers` 的唯一依赖，就是这些尾部 `RestoreSavedBackendAndVectorAsmStateAndVerify(...)` 调用
+  - 这意味着删掉 direct caller 后，连 `uses` 也可以一起清理，不会留下半退役依赖
+- 本轮最小修法已落地：
+  - 删除 `dataplane.testcase` 中 1 处尾部 verified-restore 调用
+  - 删除 `ieee754.testcase` 中 10 处尾部 verified-restore 调用
+  - 同步删除两文件对 `fafafa.core.simd.fixturehelpers` 的依赖
+  - 保留 dataplane snapshot round-trip 断言、IEEE754 的 SSE2/AVX2/non-x86 特殊值与 property-like 断言
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DataPlane,TTestCase_IEEE754EdgeCases,TTestCase_AVX2RoundTruncIEEE754,TTestCase_NonX86IEEE754`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 本轮收口前已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免把 Python 缓存目录带进提交。

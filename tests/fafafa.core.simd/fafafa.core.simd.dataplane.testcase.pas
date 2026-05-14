@@ -9,7 +9,6 @@ interface
 uses
   Classes, SysUtils, fpcunit, testregistry,
   fafafa.core.simd,
-  fafafa.core.simd.fixturehelpers,
   fafafa.core.simd.testcase,
   fafafa.core.simd.base,
   fafafa.core.simd.dispatch,
@@ -233,9 +232,6 @@ begin
     AssertTrue('Vector-asm round-trip should reuse the original published data-plane snapshot',
       PtrUInt(LFinal) = PtrUInt(LInitial));
   finally
-    AssertTrue('Data-plane local restore should recover previous backend selection',
-      RestoreSavedBackendAndVectorAsmStateAndVerify(LOldVectorAsm,
-      FSavedBackend, @GetCurrentBackend));
   end;
 end;
 

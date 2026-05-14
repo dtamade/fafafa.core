@@ -2702,3 +2702,17 @@
 | 1. 复核 `dispatchapi` local restore 是否还承载 post-restore 语义 | completed | 已确认 `RestoreDispatchApiLocalState(...)` 只是一层 `RestoreSavedBackendAndVectorAsmStateAndVerify(...)` 包装；调用点共 117 处，其中 `FSavedVectorAsm` 31 处、`LOldVectorAsm` 86 处。机械扫描显示绝大多数调用后直接 `end;`，少数只跟 `FreeAligned(...)`、局部变量清零或 `if LChecked = 0 then ...` 这类不依赖“已恢复 backend/vector-asm”的收尾语句 |
 | 2. 删除冗余 tail restore 与失效 wrapper | completed | 已删除 `TDispatchAPIStatefulTestCase.RestoreDispatchApiLocalState(...)` 声明/实现、`dispatchapi.testcase` 对 `fafafa.core.simd.fixturehelpers` 的依赖，以及全部 117 处尾部 `RestoreDispatchApiLocalState(FSavedVectorAsm/LOldVectorAsm, FSavedBackend)` 调用；保留所有 hook/reset/register rollback、`FreeAligned(...)`、non-x86 parity 断言与 suite-local 资源释放 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿；说明 `dispatchapi` 在回归公共 teardown 后，dispatch contract/public ABI smoke/non-x86 opt-in/cpuinfo/run_all 链路都继续稳定 |
+
+## 2026-05-15 DataPlane And IEEE754 Tail Verified-Restore Cleanup
+
+### Goal
+
+继续加强 `simd` 测试层审查并修复，但这次不再盯 local wrapper，而是收掉 `dataplane.testcase` 与 `ieee754.testcase` 里那些已经退化成纯尾部 cleanup 的 direct verified-restore caller：它们同样运行在 `TSimdVectorAsmStatefulTestCase` 派生类里，调用后直接结束测试，因此不该再重复执行公共 teardown contract。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `dataplane/ieee754` direct verified-restore caller 是否还承载 post-restore 语义 | completed | 已确认 `dataplane` 仅 1 处、`ieee754` 共 10 处 `RestoreSavedBackendAndVectorAsmStateAndVerify(...)` 调用，且都位于 `finally` 尾部；机械扫描显示调用后统一直接 `end;`，没有任何一处是在恢复后继续依赖 backend/vector-asm 状态做同测断言 |
+| 2. 删除冗余 tail caller 与失效依赖 | completed | 已删除 `dataplane.testcase` 与 `ieee754.testcase` 中全部 11 处尾部 verified-restore 调用，并同步删除两文件对 `fafafa.core.simd.fixturehelpers` 的失效依赖；测试主体、异常 mask、非 x86/AVX2/SSE2 IEEE754 断言与 dataplane snapshot 断言保持不变 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DataPlane,TTestCase_IEEE754EdgeCases,TTestCase_AVX2RoundTruncIEEE754,TTestCase_NonX86IEEE754`、Release `check`、Release `gate` 全绿；说明这类 direct verified-restore caller 也只是历史 cleanup 复制体，而不是 suite-specific 状态语义 |
