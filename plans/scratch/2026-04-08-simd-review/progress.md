@@ -2467,3 +2467,21 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 - 这批之后，`TTestCase_NonX86BackendParity` 顶层 outer finally 中的 `ResetToAutomaticBackend` 已清零；`dispatchapi.testcase` 剩余的 `ResetToAutomaticBackend` 主要落在复杂 rollback/backend mutation/helper 状态机块，下一批需要改成逐段读语义，而不是继续盲扫。
+
+- 继续按“复杂块逐段读语义”往下审后，我把 `dispatchapi.testcase` 剩余的 `ResetToAutomaticBackend` 命中重新分了类，确认还有一批是真正的尾声冗余：
+  - `RegisterBackend(..., LOriginalTable)` 已经把表恢复回去
+  - 后面马上 `end;` / 交给 outer finally / 交给 fixture `TearDown`
+  - 中间没有新的断言依赖 automatic 状态
+- 本轮因此只删除了这 20 处尾声重复 reset，没有去碰 setup reset、中途 hook reset、或手工探针路径。
+- 受影响的主要路径包括：
+  - `TrySetActiveBackend_*` hook mutation / rollback restore
+  - `RegisterBackend_*` metadata / snapshot round-trip
+  - `BenchmarkActivation_Rejects_CpuSupportedButNonDispatchable_Backend`
+  - 多条 `Vec*Facade_Tracks_CurrentDispatchTable_After_ReRegister`
+- 这轮 release 验证已串行完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断更清楚了：`dispatchapi.testcase` 剩余的 `ResetToAutomaticBackend` 已主要不是“尾声 cleanup 噪音”，而是测试前置条件或中途状态机语义点；下一批如果继续收，应优先审 `7999/8006/9316/9329` 这一类跨 hook/跨 test probe 的边界，而不是再扫普通尾声。

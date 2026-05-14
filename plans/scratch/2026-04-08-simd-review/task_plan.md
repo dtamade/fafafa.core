@@ -2011,3 +2011,17 @@
 | 1. 复核 `TTestCase_NonX86BackendParity` 里剩余的顶层 automatic-reset finally | completed | 已确认上一批 pure `vector asm` outer finally 清空后，这个 companion parity 类里还剩 12 处顶层 `finally ResetToAutomaticBackend;`，且都位于 test body 末尾，不属于内部 helper / nested procedure 局部恢复 |
 | 2. 复用 `RestoreDispatchApiLocalState` 收掉这批 backend-restore 样板 | completed | 已把这 12 处统一切到 `RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend)`；`Test_WideInteger_FuzzSeed_Parity_IfAvailable` 继续先执行 `RandSeed := LOriginalSeed;`，没有打乱已有本地清理顺序 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`、Release `check`、Release `gate` 全绿；当前 `dispatchapi.testcase` 剩余 `ResetToAutomaticBackend` 命中已主要收敛到复杂 rollback/backend mutation/helper 状态机块 |
+
+## 2026-05-14 DispatchAPI Tail Reset Redundancy Cleanup
+
+### Goal
+
+继续沿 `dispatchapi.testcase` 深审剩余 `ResetToAutomaticBackend` 命中，但这次只收真正的尾声冗余：删除 20 处“已经把原 backend table 注册回去、下一步马上退出给 `TDispatchAPIStatefulTestCase.TearDown`，却仍额外再 reset 一次 automatic”的末尾 reset，不触碰测试前置条件 reset、hook 合同断言中的中途 reset，或跨测试手工探针路径。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 分类剩余 `ResetToAutomaticBackend` 命中 | completed | 已把剩余命中缩分成四类：fixture/helper 本体、测试前置条件 reset、中途 hook/rollback 状态机 reset、以及“恢复原 table 后立刻返回”的尾声冗余 reset；本轮只处理最后一类 |
+| 2. 删除尾声重复 automatic reset | completed | 已从 `TTestCase_DispatchAPI` 相关测试里删除 20 处尾声 `ResetToAutomaticBackend`，覆盖 hook mutation、register/metadata、benchmark activation、以及一串 `Vec*Facade_Tracks_CurrentDispatchTable_After_ReRegister` 路径；保留 `RegisterBackend(..., LOriginalTable)` 本身不动 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿；这批之后剩余 `ResetToAutomaticBackend` 更集中到真正承担语义职责的 setup/mid-test/hook-state-machine 路径 |

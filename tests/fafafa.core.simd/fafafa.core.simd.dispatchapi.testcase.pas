@@ -1095,7 +1095,6 @@ begin
       GDispatchHookDisableBackendArmed := False;
       GDispatchHookDisableBackendDone := False;
       RegisterBackend(LRequestedBackend, LOriginalTable);
-      ResetToAutomaticBackend;
     end;
   finally
     RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
@@ -1222,7 +1221,6 @@ begin
       GDispatchHookDisableBackendArmed := False;
       GDispatchHookDisableBackendDone := False;
       RegisterBackend(LRequestedBackend, LOriginalTable);
-      ResetToAutomaticBackend;
     end;
   finally
     RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
@@ -1353,7 +1351,6 @@ begin
       GDispatchHookRestoreBackendEnabled := False;
       GDispatchHookRestoreBackendStage := 0;
       RegisterBackend(LRequestedBackend, LOriginalTable);
-      ResetToAutomaticBackend;
     end;
   finally
     RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
@@ -1743,7 +1740,6 @@ begin
   finally
     // Restore original table.
     RegisterBackend(originalBackend, dtOrig);
-    ResetToAutomaticBackend;
   end;
 end;
 
@@ -2396,7 +2392,6 @@ begin
         Ord(LOriginalBackend), Ord(GetBackendInfo(LOriginalBackend).Backend));
     finally
       RegisterBackend(LOriginalBackend, LOriginalTable);
-      ResetToAutomaticBackend;
     end;
   finally
     RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
@@ -2490,7 +2485,6 @@ begin
       Ord(LOriginalBestSupported), Ord(fafafa.core.simd.GetBestSupportedBackend));
   finally
     RegisterBackend(LOriginalBackend, LOriginalTable);
-    ResetToAutomaticBackend;
   end;
 end;
 
@@ -2531,7 +2525,6 @@ begin
         Ord(GetBestDispatchableBackend), Ord(GetExpectedPublicSmokeDefaultBackend));
     finally
       RegisterBackend(sbAVX2, LAVX2Table);
-      ResetToAutomaticBackend;
     end;
   finally
     RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
@@ -2782,7 +2775,6 @@ begin
       LReloadedTable.BackendInfo.Capabilities = LModifiedTable.BackendInfo.Capabilities);
   finally
     RegisterBackend(LBackend, LOriginalTable);
-    ResetToAutomaticBackend;
   end;
 end;
 
@@ -2830,7 +2822,6 @@ begin
         Pointer(LFinalDispatch^.ReduceAddF32x4) = Pointer(LOriginalTable.ReduceAddF32x4));
     finally
       RegisterBackend(LBackend, LOriginalTable);
-      ResetToAutomaticBackend;
     end;
   finally
     RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
@@ -2935,7 +2926,6 @@ begin
       LCurrentInfo.Description, string(StrPas(LDescriptionPtr)));
   finally
     RegisterBackend(LBackend, LOriginalTable);
-    ResetToAutomaticBackend;
   end;
 end;
 
@@ -3075,7 +3065,6 @@ begin
       -9.5, VecF32x4ReduceMul(LInput), 0.0);
   finally
     RegisterBackend(LBackend, LOriginalTable);
-    ResetToAutomaticBackend;
   end;
 end;
 
@@ -3123,7 +3112,6 @@ begin
       -12.75, VecF64x2ReduceMul(LInput), 0.0);
   finally
     RegisterBackend(LBackend, LOriginalTable);
-    ResetToAutomaticBackend;
   end;
 end;
 
@@ -3188,7 +3176,6 @@ begin
       LExpected, VecF64x2Max(LInputA, LInputB));
   finally
     RegisterBackend(LBackend, LOriginalTable);
-    ResetToAutomaticBackend;
   end;
 end;
 
@@ -3273,7 +3260,6 @@ begin
     end;
   finally
     RegisterBackend(LBackend, LOriginalTable);
-    ResetToAutomaticBackend;
   end;
 end;
 
@@ -3349,7 +3335,6 @@ begin
       8192.125, VecF64x4Dot(LInputF64x4A, LInputF64x4B), 0.0);
   finally
     RegisterBackend(LBackend, LOriginalTable);
-    ResetToAutomaticBackend;
   end;
 end;
 
@@ -3399,7 +3384,6 @@ begin
       -17.0, VecF64x4ReduceMul(LInput), 0.0);
   finally
     RegisterBackend(LBackend, LOriginalTable);
-    ResetToAutomaticBackend;
   end;
 end;
 
@@ -3453,7 +3437,6 @@ begin
       -33.25, VecF32x8ReduceMul(LInput), 0.0);
   finally
     RegisterBackend(LBackend, LOriginalTable);
-    ResetToAutomaticBackend;
   end;
 end;
 
@@ -3507,7 +3490,6 @@ begin
       -91.5, VecF64x8ReduceMul(LInput), 0.0);
   finally
     RegisterBackend(LBackend, LOriginalTable);
-    ResetToAutomaticBackend;
   end;
 end;
 
@@ -3569,7 +3551,6 @@ begin
       -256.5, VecF32x16ReduceMul(LInput), 0.0);
   finally
     RegisterBackend(LBackend, LOriginalTable);
-    ResetToAutomaticBackend;
   end;
 end;
 
@@ -10934,7 +10915,6 @@ begin
       Ord(LBeforeActive), Ord(GetActiveBackend));
   finally
     RegisterBackend(LOriginalBackend, LOriginalTable);
-    ResetToAutomaticBackend;
   end;
 end;
 

@@ -2277,3 +2277,29 @@
 - 收完之后，`TTestCase_NonX86BackendParity` 顶层 outer finally 里已经不再残留 `ResetToAutomaticBackend`。
 - 当前 `dispatchapi.testcase` 剩余的 `ResetToAutomaticBackend` 命中，已经主要是复杂 rollback/backend mutation/helper 状态机块；这些块不适合再做机械替换，后续要按语义逐段审。
 - Release `TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`、Release `check`、Release `gate` 全绿，说明这批继续收的是 companion parity 测试层 restore contract 的缺失/冗余，而不是 non-x86 dispatch/backend 生产语义。
+
+## 2026-05-14 DispatchAPI Tail Reset Redundancy Cleanup Findings
+
+- 在 `NonX86BackendParity` 那批之后，`dispatchapi.testcase` 里剩余的 `ResetToAutomaticBackend` 命中已经不再适合按“看到 reset 就改”处理。
+- 逐段复核后，剩余命中可以清晰分成四类：
+  - fixture/helper 本体自己的 reset
+  - 测试前置条件里显式建立 automatic 起点的 reset
+  - hook/rollback/state-machine 过程中承担语义断言的中途 reset
+  - 恢复原 backend table 后、下一步马上返回给 `TDispatchAPIStatefulTestCase.TearDown` 的尾声重复 reset
+- 本轮只处理第四类，因为这类 reset 同时满足三个条件：
+  - 它发生在 `RegisterBackend(..., LOriginalTable)` 之后
+  - 后面没有新的断言依赖 automatic 状态
+  - 方法返回后 fixture `TearDown` 本来就会恢复进入测试前的 `FSavedVectorAsm/FSavedBackend`
+- 因此这批删掉的不是“建立语义前提”的 reset，而是“退出前重复切换一次 automatic”的噪音。
+- 本轮共删 20 处，覆盖几类路径：
+  - `TrySetActiveBackend_*` hook mutation / rollback restore 结尾
+  - `RegisterBackend_*` metadata / snapshot round-trip 结尾
+  - `BenchmarkActivation_Rejects_CpuSupportedButNonDispatchable_Backend`
+  - 一串 `Vec*Facade_Tracks_CurrentDispatchTable_After_ReRegister`
+- 这些删除都保留了原始的表恢复动作：
+  - `RegisterBackend(..., LOriginalTable)` 仍在
+  - 只去掉其后的尾声 `ResetToAutomaticBackend`
+- 这批通过后可以更有把握地说：
+  - 当前 `dispatchapi.testcase` 剩余的 `ResetToAutomaticBackend`，更多是 setup/mid-test/hook-state-machine 的真实语义点
+  - 后续再往下收，必须按“是否仍有断言依赖该 reset”逐段读，而不是继续按形状盲删
+- Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿，说明这批删掉的确实是测试层尾声冗余，而不是 dispatch/backend 生产逻辑的隐性依赖。
