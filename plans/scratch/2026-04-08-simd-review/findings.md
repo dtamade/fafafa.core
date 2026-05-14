@@ -3151,3 +3151,17 @@
 - 这批修法的价值不只是少了两个 `FOldVectorAsm` 字段：
   - 它把当前 test infrastructure 里的一个“混合语义基类”拆成了基础层和专门层
   - 让后续 completion audit 更容易判断：某个 suite 如果还在 override `RestoreVectorAsmState`，那大概率就是真的有额外语义，而不是历史复制残留
+
+## 2026-05-14 EdgeCases Scalar Fixture Alignment Findings
+
+- `edgecases.testcase` 这一类 suite 的真实 fixture 语义已经很明确：
+  - backend 必须固定为 `sbScalar`
+  - 额外只需要屏蔽并恢复 FPU exception mask
+  - 没有 vector-asm 状态、runtime snapshot、public ABI 文本缓存、dispatch rebind 一类额外生命周期
+- 因而它继续继承 `TSimdBackendStatefulTestCase` 并在 `SetUp` 手动 `ForceBackend(sbScalar)`，属于“语义已经被公共基类表达，但 suite 还保留旧写法”的轻度冗余。
+- 把它改成直接继承 `TScalarBackendStatefulTestCase` 的价值有两层：
+  - 代码层：删掉重复 `ForceBackend(sbScalar)`，避免未来基类 fixture 行为变化时出现双重表达
+  - 结构层：类继承关系本身就能传达“这是 scalar-only edge-case suite”，后续继续扫 testcase 时更容易识别异常点
+- 这也进一步说明当前 `tests/fafafa.core.simd` 里剩余更值得继续抓的目标，不再是这种纯 scalar fixture 小残点，而应优先寻找：
+  - 仍手写 backend/vector-asm 保存恢复且尚未下沉到公共基类的 suite
+  - 或者保留 single-use wrapper，但其实不再附加 suite-specific 断言/编排语义的 helper

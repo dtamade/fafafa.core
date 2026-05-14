@@ -24,7 +24,7 @@ type
 
 
   // 边界条件测试 - NaN, 无穷大, 溢出, 对齐
-  TTestCase_EdgeCases = class(TSimdBackendStatefulTestCase)
+  TTestCase_EdgeCases = class(TScalarBackendStatefulTestCase)
   private
     FSavedExceptionMask: TFPUExceptionMask;
   protected
@@ -83,7 +83,6 @@ begin
   // Save current FPU exception mask and mask all FP exceptions
   // This allows testing NaN, Infinity, division by zero without triggering exceptions
   SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision]);
-  ForceBackend(sbScalar);
 end;
 
 procedure TTestCase_EdgeCases.TearDown;

@@ -3322,3 +3322,28 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 - 这轮过程中我一开始把 `test/check/gate` 并发发出去了，考虑到共享输出目录存在临时互扰风险，随后特别核对了真实结果；这次没有出现 `Text file busy` 或 `rc=1/2` 假红，最终三条验证都实绿。
+
+## 2026-05-14 EdgeCases Scalar Fixture Alignment
+
+- 继续往 `tests/fafafa.core.simd` 里扫剩余 fixture 冗余时，`edgecases.testcase` 暴露出一处很干净的小残点：
+  - suite 本身始终要求 `sbScalar`
+  - 但类还继承 `TSimdBackendStatefulTestCase`
+  - 然后在 `SetUp` 里手动再做一次 `ForceBackend(sbScalar)`
+- 复核 `fafafa.core.simd.testcase.pas` 后已确认：
+  - `TScalarBackendStatefulTestCase.SetUp` 本身就会在保存 backend 后统一 `ForceBackend(sbScalar)`
+  - `TTestCase_EdgeCases` 自己真正额外需要保留的只有 `TFPUExceptionMask` 的保存/恢复
+  - 因此这不是语义特殊，而是单纯没对齐到现成公共基类
+- 本轮最小修法已落地：
+  - `TTestCase_EdgeCases` 改继承 `TScalarBackendStatefulTestCase`
+  - 删除 `SetUp` 末尾重复的 `ForceBackend(sbScalar)`
+  - FPU exception mask 的 save/restore 逻辑不动
+- 这批调整的意义不在于少一行代码，而是把 test fixture 语义表达得更准确：
+  - 读者一看类层次就知道这是 scalar-only suite
+  - 后续如果继续扫剩余 testcase，也更容易区分“真的需要自定义 backend 编排”和“只是历史重复”
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_EdgeCases`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 这轮 `gate` 明确按串行收口；前面并发验证里出现过 `nonx86 opt-in/riscvv rc=2` 的共享输出目录假红，所以这次没有把它当代码回归处理。

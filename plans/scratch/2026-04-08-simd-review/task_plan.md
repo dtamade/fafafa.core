@@ -2476,3 +2476,17 @@
 | 1. 复核重复体与现有基类层次 | completed | 已确认 `dataplane.testcase` 与 `sse2contracts.testcase` 都仍保留同构的 `FOldVectorAsm + SetUp/TearDown`；而现有 `TSimdVectorAsmBackendStatefulTestCase` 又额外承载 `RefreshVectorAsmBackendRegistration` 语义，层级过厚，不适合这两份普通 suite 直接复用 |
 | 2. 抽出更薄的公共 `vector-asm stateful` 基类 | completed | `fafafa.core.simd.testcase.pas` 已新增 `TSimdVectorAsmStatefulTestCase`，只负责保存/恢复 `IsVectorAsmEnabled`；`TSimdVectorAsmBackendStatefulTestCase` 现改为继承它，并把 `RefreshVectorAsmBackendRegistration` 收进 `RestoreVectorAsmState` override；`dataplane` 与 `sse2contracts` 已直接改继承新薄基类 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DataPlane,TTestCase_SSE2Contracts`、Release `check`、Release `gate` 全绿；本轮没有改变 dataplane/SSE2 contract 的被测语义，只是收回了重复 fixture 生命周期 |
+
+## 2026-05-14 EdgeCases Scalar Fixture Alignment
+
+### Goal
+
+继续加强 `simd` 测试层审查并修复，但这次只处理 `edgecases` 里一处已经退化成重复表达的 scalar fixture：让 suite 直接继承现有 `TScalarBackendStatefulTestCase`，保留 FPU exception mask 的本地语义，不再在 `SetUp` 里重复 `ForceBackend(sbScalar)`。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `edgecases` 是否真的只需要 scalar fixture | completed | 已确认 `TTestCase_EdgeCases` 的本地额外语义只有保存/恢复 `TFPUExceptionMask`；backend 侧始终只是 scalar guard，没有 vector-asm、runtime snapshot 或 per-test backend 编排 |
+| 2. 对齐到公共 scalar fixture 基类 | completed | `TTestCase_EdgeCases` 已从 `TSimdBackendStatefulTestCase` 改继承 `TScalarBackendStatefulTestCase`，并删除 `SetUp` 中重复的 `ForceBackend(sbScalar)`；FPU mask 保存/恢复逻辑保持不变 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_EdgeCases`、Release `check`、Release `gate` 全绿；`gate` 本轮按串行收口，避免共享输出目录造成假红 |
