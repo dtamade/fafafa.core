@@ -2427,3 +2427,34 @@
   - `publicabi.testcase` 里 easy shape 的空壳与 duplicate table restore 已经又清掉一层
   - 剩余更值得继续查的，主要是那些中途 reset/restore 本身就是测试主题的一部分的 hook/state-machine 路径，后续必须逐段看断言依赖，不能再按形状批量删
 - Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿，说明这批收掉的确实只是 public ABI 测试层 cleanup 冗余，而不是 register/hook/rollback 生产语义依赖。
+
+## 2026-05-14 PublicAbi Failed Hook Fixture Restore Guard Findings
+
+- 在上一批 duplicate cleanup 收完之后，继续沿 `publicabi` 的 failure 路径逐段看异常兜底，发现一个比“重复恢复”更实在的夹具缺口：
+  - `Test_PublicApi_FailedHookMutation_DoesNotRevive_PreviouslyRequestedBackend_AfterRestore`
+  - 会通过 hook 把 `requested backend` 改成 non-dispatchable
+  - 正常流末尾会手工 `RegisterBackend(LRequestedBackend, LOriginalTable)` 恢复原 table
+  - 但 outer finally 只有 `RestorePublicAbiLocalState(...)`，没有 table-restore guard
+- 这意味着如果中途发生异常，尤其是：
+  - `AssertFalse(...)` 失败
+  - `TrySetActiveBackend(...)` 异常
+  - 或正常流恢复前新增其他异常
+  那么 requested backend table 的恢复会被跳过，和后面那些已经带 `LRequestedTableCaptured` 的同类路径不一致。
+- 对照同文件其它 hook/rollback 路径后，这条测试显然是一个漏网的 fixture 兜底缺口，而不是设计上故意不同：
+  - `FailedHookMutation_Restores_PreviousForcedBackend`
+  - `SetActiveBackend_HookLateFailure_Preserves_PreviousForcedBackend`
+  - `RollbackRestore_LateForce_*`
+  都已经有 outer restore guard
+- 本轮修法保持最小且与现有风格对齐：
+  - 增加 `LRequestedTableCaptured`
+  - 捕获原 table 后置 `True`
+  - 正常流 `RegisterBackend(LRequestedBackend, LOriginalTable)` 成功后置 `False`
+  - outer finally 中在 `Captured=True` 时兜底恢复
+- 这次修的不是“尾声噪音”，而是实打实的异常路径安全性：
+  - 正常流行为不变
+  - 中途 hook/断言语义不变
+  - 但测试一旦半路失败，不会把被 hook 改坏的 backend table 留给后续用例
+- 当前判断继续收紧：
+  - `publicabi.testcase` 里最明显的 easy cleanup 已经大多收完
+  - 剩余更值得继续查的，是其它 complex hook/state-machine 路径是否还存在这种“正常流能恢复，异常流却没有 outer guard”的少量漏点
+- Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿，说明这条修的是 public ABI 测试层 fixture safety，而不是 public ABI / dispatch 生产语义依赖。

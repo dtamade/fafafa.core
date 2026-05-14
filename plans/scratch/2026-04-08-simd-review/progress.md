@@ -2560,3 +2560,23 @@
   - `publicabi.testcase` 里空壳与 duplicate table restore 又清掉一层
   - 下一轮更值得查的，已经缩到那些“中途 reset/restore 本身就是测试主题”的 hook/state-machine 块，要逐段看是否还有真实的尾声噪音或 fixture 边界问题
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+- 继续沿 complex failure 路径查异常兜底后，我补了一个真正的 fixture safety 漏点，而不是继续删普通噪音：
+  - `Test_PublicApi_FailedHookMutation_DoesNotRevive_PreviouslyRequestedBackend_AfterRestore`
+  - 之前只有正常流末尾的 `RegisterBackend(LRequestedBackend, LOriginalTable)`
+  - 没有 `*TableCaptured` outer restore guard
+- 本轮把它补齐成和同文件后段 hook/rollback 路径一致的模式：
+  - 新增 `LRequestedTableCaptured`
+  - 捕获原 table 后置 `True`
+  - 正常恢复后置 `False`
+  - outer finally 里在需要时兜底 `RegisterBackend(...)`
+- 本轮 Release 验证继续按串行链完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断再次收紧：
+  - `publicabi.testcase` 里既有的 easy cleanup 冗余已经进一步收口
+  - 下一轮更值得继续挖的，是其它 complex hook/state-machine 路径里是否还存在少数“异常流没有 outer table restore guard”的漏点
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

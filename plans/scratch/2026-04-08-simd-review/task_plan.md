@@ -2081,3 +2081,17 @@
 | 1. 复核 `publicabi` 剩余 exact-contract 冗余 | completed | 已确认 3 处空 `finally` 只是在前几轮删除恢复逻辑后留下的壳；另有一批 hook/rollback/failure 路径在正常流里已经显式 `RegisterBackend(...original...)`，但 outer finally 仍会再做一遍相同恢复 |
 | 2. 删除空 `finally` 并收紧 duplicate table restore | completed | 已去掉 3 处空 `finally`；为 `CachedTable_Cdecl_EntryPoints_Follow_CurrentDataPlane_After_ReRegister` 加 `LOriginalTableRestored`，并在 7 条 hook/rollback/register 路径里把 `*TableCaptured` 在显式恢复原 table 后立刻清掉，避免 outer finally 再重复 `RegisterBackend(...)` |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 PublicAbi Failed Hook Fixture Restore Guard
+
+### Goal
+
+继续沿 `publicabi` 的复杂 failure 路径深审异常兜底，补上 `Test_PublicApi_FailedHookMutation_DoesNotRevive_PreviouslyRequestedBackend_AfterRestore` 里“requested backend table 被 hook 改掉，但异常路径没有 outer restore guard”的夹具缺口，让这条测试和后面几条同类路径一样，即使中途断言或调用异常也能恢复原 table。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 failure 路径的 table-restore 兜底差异 | completed | 已确认同文件多数 hook/rollback 测试都已有 `*TableCaptured` 外层兜底，但 `FailedHookMutation_DoesNotRevive_PreviouslyRequestedBackend_AfterRestore` 仍只在正常流末尾手工 `RegisterBackend(LRequestedBackend, LOriginalTable)`，异常路径会跳过这步 |
+| 2. 补 outer restore guard 并保留正常流语义 | completed | 已为该测试补 `LRequestedTableCaptured`，在捕获原 table 后置 `True`、在正常流恢复成功后置 `False`，并在 outer finally 中条件恢复原 table；中途 hook/断言语义不动 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |

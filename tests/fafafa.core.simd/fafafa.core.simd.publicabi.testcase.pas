@@ -2381,9 +2381,11 @@ var
   LDispatchable: TSimdBackendArray;
   LOriginalTable: TSimdDispatchTable;
   LOldVectorAsm: Boolean;
+  LRequestedTableCaptured: Boolean;
   LIndex: Integer;
 begin
   LOldVectorAsm := IsVectorAsmEnabled;
+  LRequestedTableCaptured := False;
   try
     SetVectorAsmEnabled(True);
     ResetToAutomaticBackend;
@@ -2403,6 +2405,7 @@ begin
 
     AssertTrue('Requested backend should be registered for public ABI lingering-force test',
       TryGetRegisteredBackendDispatchTable(LRequestedBackend, LOriginalTable));
+    LRequestedTableCaptured := True;
     AssertTrue('Requested backend should start dispatchable before public ABI lingering-force test',
       IsBackendDispatchable(LRequestedBackend));
 
@@ -2415,6 +2418,7 @@ begin
     end;
 
     RegisterBackend(LRequestedBackend, LOriginalTable);
+    LRequestedTableCaptured := False;
     LApi := GetSimdPublicApi;
     AssertNotNull('Public API table should remain available after restoring the requested backend table', LApi);
     AssertEquals('Public API active backend should return to automatic selection instead of reviving the previously failed requested backend',
@@ -2424,6 +2428,8 @@ begin
     AssertEquals('Public API active backend id should keep tracking the actual current backend after restore',
       Ord(GetCurrentBackend), Integer(LApi^.ActiveBackendId));
   finally
+    if LRequestedTableCaptured then
+      RegisterBackend(LRequestedBackend, LOriginalTable);
     RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
