@@ -2900,3 +2900,17 @@
 | 1. 复核 `publicabi.testcase` 里 backend 编号是否只是消息壳 | completed | 已确认本轮触及的 `Test_PublicApi_BackendPodInfo_*` 过程里，`IntToStr(Ord(LBackend))` 只拼接断言文案；同文件中保留的 `case aBackend of` 仍承担 capability/member 语义判断，不能误删 |
 | 2. 收敛到文件级 canonical label helper | completed | 已新增文件级 `PublicAbiBackendName(const aBackend: TSimdBackend): string`，实现为 `GetBackendInfo(aBackend).Name`；并把 pod-info flags、shuffle/masked/integer-ops 相关失败消息全部改用该 helper，不再输出 backend 数字编号 |
 | 3. Release 验证与本批收口 | completed | `git diff --check`、Release `check`、Release `gate` 已全部通过；说明这批只改善 public ABI 测试诊断面，没有影响 capability bits、public ABI smoke 或 fast-gate 主链 |
+
+## 2026-05-15 IEEE754 Canonical Backend Label Reuse
+
+### Goal
+
+继续沿 `tests/fafafa.core.simd/fafafa.core.simd.ieee754.testcase.pas` 的 report shell 收口：把 76 处只用于失败消息的 backend ordinal 文案，从 `IntToStr(Ord(LBackend))` 收成 canonical backend label helper，同时完全不触碰 IEEE754 算法、期望值与 invariant 断言本身。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `ieee754.testcase` 里的 backend ordinal 是否只是消息层 | completed | 已确认当前集中块都位于 `AssertSingleSemantics`、`AssertDoubleSemantics`、`Assert*Invariant*` 的首个上下文字符串参数，backend ord 并不参与任何数值计算、lane 选择或 expected/actual 生成 |
+| 2. 新增 canonical label helper 并统一替换集中块 | completed | 已新增文件级 `IEEE754BackendName(const aBackend: TSimdBackend): string`，实现为 `GetBackendInfo(aBackend).Name`；并把 `EdgeCases` / `AVX2RoundTruncIEEE754` 相关集中块中的 76 处 `IntToStr(Ord(LBackend))` 统一替换为该 helper |
+| 3. Release 验证与本批收口 | completed | `git diff --check`、Release `test --suite=TTestCase_IEEE754EdgeCases,TTestCase_AVX2RoundTruncIEEE754`、Release `check`、Release `gate` 已全部通过；说明这批只改善 IEEE754 测试诊断面，没有改变任何算术/舍入行为 |

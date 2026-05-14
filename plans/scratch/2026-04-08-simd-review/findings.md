@@ -3700,3 +3700,27 @@
 - 这批再次强化了一个后续深查纪律：
   - 对测试文件中的 `case aBackend of`，先分清它是在“决定语义”还是“只生成文本”
   - 只有后者才适合直接下沉到 canonical metadata helper
+
+## 2026-05-15 IEEE754 Canonical Backend Label Findings
+
+- `tests/fafafa.core.simd/fafafa.core.simd.ieee754.testcase.pas` 里还留着一簇非常集中的 backend ordinal 文案：
+  - 总计 76 处
+  - 全部是 `IntToStr(Ord(LBackend))`
+  - 分布在 `Round/Trunc/Floor/Ceil` 的 edge-case、signed-zero、property-like/invariant 断言上下文字符串里
+- 这里的关键判断也必须先做清楚：
+  - `LBackend` 只用于失败消息前缀
+  - expected/actual 值仍由 `LDispatch^....(...)` 与 scalar baseline 生成
+  - `LRound/LIndex/LCaseIndex` 才参与测试场景定位
+  - 所以这批是纯 report shell 冗余，不是 IEEE754 语义冗余
+- 这一类文件比 `dispatchapi/publicabi` 更容易让人误判成“只是换好看文案”，但其实收益很实：
+  - `ieee754` 失败时最需要的是快速知道到底是 `Scalar/SSE2/AVX2/NEON/RISCVV` 哪个 backend 失真
+  - 仅看 backend ordinal，会迫使排障者再回头映射一次 enum
+  - 尤其在 randomized/property-like 断言里，`backend 名称 + round 次数 + lane/case` 才是足够快的定位组合
+- 因而最稳的收口方式仍然是：
+  - 文件级保留一个 `IEEE754BackendName(...)` 语义 helper
+  - helper 本体直接下沉到 `GetBackendInfo(aBackend).Name`
+  - 不动数值逻辑、不动期望生成、不动 backend 遍历集合
+- 这批还把下一步优先级进一步压实了：
+  - 如果某个测试文件还在大面积用 `IntToStr(Ord(aBackend))` 只生成 slot/assert 消息
+  - 它就仍属于高信号、低风险的“诊断真相源”收口对象
+  - 当前下一个明显候选就是 `dispatchslots.testcase`

@@ -4146,3 +4146,36 @@
   - `Run-all summary: Passed 5 / Failed 0`
   - `[GATE] OK`
 - 当前这一批收口后，`publicabi.testcase` 的 backend 失败消息已经不再回落到 ordinal 编号；下一步可以继续找别的测试面里是否还存在类似“仅服务 report shell 的本地 truth source”。
+
+## 2026-05-15 IEEE754 Canonical Backend Label Reuse
+
+- `publicabi` 批次提交后，我继续做下一轮 SIMD 测试层深查，先按 “只收 report shell，不碰语义” 的标准筛了一圈。
+- 快速计数后，两个明显候选是：
+  - `dispatchslots.testcase`：562 处 backend ordinal 文案
+  - `ieee754.testcase`：76 处 backend ordinal 文案
+- 我先选了 diff 更小、语义更纯的 `ieee754.testcase`，并逐段复核确认：
+  - `IntToStr(Ord(LBackend))` 只出现在 `AssertSingleSemantics` / `AssertDoubleSemantics` / invariant 断言的首个上下文字符串参数
+  - 不参与任何 `Round/Trunc/Floor/Ceil` 计算
+  - 不参与 `expected/actual` 生成
+  - 不参与 backend 集合或 lane/case 选择
+- 这轮实际修法保持极小：
+  - 新增文件级 `IEEE754BackendName(const aBackend: TSimdBackend): string`
+  - 实现直接复用 `GetBackendInfo(aBackend).Name`
+  - 把 `TTestCase_IEEE754EdgeCases` 与 `TTestCase_AVX2RoundTruncIEEE754` 涉及的 5 组集中块中 76 处 backend ordinal 文案统一替换成该 helper
+- 先做的精确自检结果：
+  - `rg -n "IntToStr\\(Ord\\(LBackend\\)\\)|IntToStr\\(Ord\\(aBackend\\)\\)" tests/fafafa.core.simd/fafafa.core.simd.ieee754.testcase.pas`
+  - 结果：无匹配，说明 `ieee754.testcase` 中这批 backend ordinal 文案已清零
+- 本轮 release 验证链已完整通过：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IEEE754EdgeCases,TTestCase_AVX2RoundTruncIEEE754`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- `gate` 里的相关主链也继续保持稳定：
+  - `TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework` 通过
+  - `ADAPTER_SYNC_SUMMARY ... issues=0`
+  - `Run-all summary: Passed 5 / Failed 0`
+  - `[GATE] OK`
+- 这轮结束后，下一块最明显的同类目标已经更清楚了：
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchslots.testcase.pas`
+  - 该文件仍保留大面积 `Backend=` + ordinal 的 slot-assigned / canonical-metadata 断言文案

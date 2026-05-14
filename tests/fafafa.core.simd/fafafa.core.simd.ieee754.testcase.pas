@@ -151,6 +151,11 @@ begin
             ((LBits and QWord($000FFFFFFFFFFFFF)) <> 0);
 end;
 
+function IEEE754BackendName(const aBackend: TSimdBackend): string;
+begin
+  Result := GetBackendInfo(aBackend).Name;
+end;
+
 { TIEEE754MaskedVectorAsmStatefulTestCase }
 
 procedure TIEEE754MaskedVectorAsmStatefulTestCase.SetUp;
@@ -2968,43 +2973,43 @@ begin
 
       for LIndex := 0 to 3 do
       begin
-        AssertSingleSemantics(IntToStr(Ord(LBackend)) + ' RoundF32x4[' + IntToStr(LIndex) + ']',
+        AssertSingleSemantics(IEEE754BackendName(LBackend) + ' RoundF32x4[' + IntToStr(LIndex) + ']',
           LExpectedRoundF32x4.f[LIndex], LActualRoundF32x4.f[LIndex]);
-        AssertSingleSemantics(IntToStr(Ord(LBackend)) + ' TruncF32x4[' + IntToStr(LIndex) + ']',
+        AssertSingleSemantics(IEEE754BackendName(LBackend) + ' TruncF32x4[' + IntToStr(LIndex) + ']',
           LExpectedTruncF32x4.f[LIndex], LActualTruncF32x4.f[LIndex]);
-        AssertSingleSemantics(IntToStr(Ord(LBackend)) + ' FloorF32x4[' + IntToStr(LIndex) + ']',
+        AssertSingleSemantics(IEEE754BackendName(LBackend) + ' FloorF32x4[' + IntToStr(LIndex) + ']',
           LExpectedFloorF32x4.f[LIndex], LActualFloorF32x4.f[LIndex]);
-        AssertSingleSemantics(IntToStr(Ord(LBackend)) + ' CeilF32x4[' + IntToStr(LIndex) + ']',
+        AssertSingleSemantics(IEEE754BackendName(LBackend) + ' CeilF32x4[' + IntToStr(LIndex) + ']',
           LExpectedCeilF32x4.f[LIndex], LActualCeilF32x4.f[LIndex]);
 
-        AssertSingleSemantics(IntToStr(Ord(LBackend)) + ' SignedZero RoundF32x4[' + IntToStr(LIndex) + ']',
+        AssertSingleSemantics(IEEE754BackendName(LBackend) + ' SignedZero RoundF32x4[' + IntToStr(LIndex) + ']',
           LExpectedRoundSignedZeroF32x4.f[LIndex], LActualRoundSignedZeroF32x4.f[LIndex]);
-        AssertSingleSemantics(IntToStr(Ord(LBackend)) + ' SignedZero TruncF32x4[' + IntToStr(LIndex) + ']',
+        AssertSingleSemantics(IEEE754BackendName(LBackend) + ' SignedZero TruncF32x4[' + IntToStr(LIndex) + ']',
           LExpectedTruncSignedZeroF32x4.f[LIndex], LActualTruncSignedZeroF32x4.f[LIndex]);
-        AssertSingleZeroSign(IntToStr(Ord(LBackend)) + ' SignedZero RoundF32x4[' + IntToStr(LIndex) + ']',
+        AssertSingleZeroSign(IEEE754BackendName(LBackend) + ' SignedZero RoundF32x4[' + IntToStr(LIndex) + ']',
           LExpectedRoundSignedZeroF32x4.f[LIndex], LActualRoundSignedZeroF32x4.f[LIndex]);
-        AssertSingleZeroSign(IntToStr(Ord(LBackend)) + ' SignedZero TruncF32x4[' + IntToStr(LIndex) + ']',
+        AssertSingleZeroSign(IEEE754BackendName(LBackend) + ' SignedZero TruncF32x4[' + IntToStr(LIndex) + ']',
           LExpectedTruncSignedZeroF32x4.f[LIndex], LActualTruncSignedZeroF32x4.f[LIndex]);
       end;
 
       for LIndex := 0 to 1 do
       begin
-        AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' RoundF64x2[' + IntToStr(LIndex) + ']',
+        AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' RoundF64x2[' + IntToStr(LIndex) + ']',
           LExpectedRoundF64x2.d[LIndex], LActualRoundF64x2.d[LIndex]);
-        AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' TruncF64x2[' + IntToStr(LIndex) + ']',
+        AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' TruncF64x2[' + IntToStr(LIndex) + ']',
           LExpectedTruncF64x2.d[LIndex], LActualTruncF64x2.d[LIndex]);
-        AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' FloorF64x2[' + IntToStr(LIndex) + ']',
+        AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' FloorF64x2[' + IntToStr(LIndex) + ']',
           LExpectedFloorF64x2.d[LIndex], LActualFloorF64x2.d[LIndex]);
-        AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' CeilF64x2[' + IntToStr(LIndex) + ']',
+        AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' CeilF64x2[' + IntToStr(LIndex) + ']',
           LExpectedCeilF64x2.d[LIndex], LActualCeilF64x2.d[LIndex]);
 
-        AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' SignedZero RoundF64x2[' + IntToStr(LIndex) + ']',
+        AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' SignedZero RoundF64x2[' + IntToStr(LIndex) + ']',
           LExpectedRoundSignedZeroF64x2.d[LIndex], LActualRoundSignedZeroF64x2.d[LIndex]);
-        AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' SignedZero TruncF64x2[' + IntToStr(LIndex) + ']',
+        AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' SignedZero TruncF64x2[' + IntToStr(LIndex) + ']',
           LExpectedTruncSignedZeroF64x2.d[LIndex], LActualTruncSignedZeroF64x2.d[LIndex]);
-        AssertDoubleZeroSign(IntToStr(Ord(LBackend)) + ' SignedZero RoundF64x2[' + IntToStr(LIndex) + ']',
+        AssertDoubleZeroSign(IEEE754BackendName(LBackend) + ' SignedZero RoundF64x2[' + IntToStr(LIndex) + ']',
           LExpectedRoundSignedZeroF64x2.d[LIndex], LActualRoundSignedZeroF64x2.d[LIndex]);
-        AssertDoubleZeroSign(IntToStr(Ord(LBackend)) + ' SignedZero TruncF64x2[' + IntToStr(LIndex) + ']',
+        AssertDoubleZeroSign(IEEE754BackendName(LBackend) + ' SignedZero TruncF64x2[' + IntToStr(LIndex) + ']',
           LExpectedTruncSignedZeroF64x2.d[LIndex], LActualTruncSignedZeroF64x2.d[LIndex]);
       end;
     finally
@@ -3101,16 +3106,16 @@ begin
         for LCaseIndex := 0 to SAMPLE_CASE_COUNT - 1 do
           for LLaneIndex := 0 to 1 do
           begin
-            AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' Case ' + IntToStr(LCaseIndex) +
+            AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' Case ' + IntToStr(LCaseIndex) +
               ' RoundF64x2[' + IntToStr(LLaneIndex) + ']',
               LExpectedRound[LCaseIndex].d[LLaneIndex], LActualRound[LCaseIndex].d[LLaneIndex]);
-            AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' Case ' + IntToStr(LCaseIndex) +
+            AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' Case ' + IntToStr(LCaseIndex) +
               ' TruncF64x2[' + IntToStr(LLaneIndex) + ']',
               LExpectedTrunc[LCaseIndex].d[LLaneIndex], LActualTrunc[LCaseIndex].d[LLaneIndex]);
-            AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' Case ' + IntToStr(LCaseIndex) +
+            AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' Case ' + IntToStr(LCaseIndex) +
               ' FloorF64x2[' + IntToStr(LLaneIndex) + ']',
               LExpectedFloor[LCaseIndex].d[LLaneIndex], LActualFloor[LCaseIndex].d[LLaneIndex]);
-            AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' Case ' + IntToStr(LCaseIndex) +
+            AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' Case ' + IntToStr(LCaseIndex) +
               ' CeilF64x2[' + IntToStr(LLaneIndex) + ']',
               LExpectedCeil[LCaseIndex].d[LLaneIndex], LActualCeil[LCaseIndex].d[LLaneIndex]);
           end;
@@ -3349,81 +3354,81 @@ begin
 
       for LIndex := 0 to 7 do
       begin
-        AssertSingleSemantics(IntToStr(Ord(LBackend)) + ' RoundF32x8[' + IntToStr(LIndex) + ']',
+        AssertSingleSemantics(IEEE754BackendName(LBackend) + ' RoundF32x8[' + IntToStr(LIndex) + ']',
           LExpectedRoundF32x8.f[LIndex], LActualRoundF32x8.f[LIndex]);
-        AssertSingleSemantics(IntToStr(Ord(LBackend)) + ' TruncF32x8[' + IntToStr(LIndex) + ']',
+        AssertSingleSemantics(IEEE754BackendName(LBackend) + ' TruncF32x8[' + IntToStr(LIndex) + ']',
           LExpectedTruncF32x8.f[LIndex], LActualTruncF32x8.f[LIndex]);
-        AssertSingleSemantics(IntToStr(Ord(LBackend)) + ' FloorF32x8[' + IntToStr(LIndex) + ']',
+        AssertSingleSemantics(IEEE754BackendName(LBackend) + ' FloorF32x8[' + IntToStr(LIndex) + ']',
           LExpectedFloorF32x8.f[LIndex], LActualFloorF32x8.f[LIndex]);
-        AssertSingleSemantics(IntToStr(Ord(LBackend)) + ' CeilF32x8[' + IntToStr(LIndex) + ']',
+        AssertSingleSemantics(IEEE754BackendName(LBackend) + ' CeilF32x8[' + IntToStr(LIndex) + ']',
           LExpectedCeilF32x8.f[LIndex], LActualCeilF32x8.f[LIndex]);
-        AssertSingleSemantics(IntToStr(Ord(LBackend)) + ' SignedZero RoundF32x8[' + IntToStr(LIndex) + ']',
+        AssertSingleSemantics(IEEE754BackendName(LBackend) + ' SignedZero RoundF32x8[' + IntToStr(LIndex) + ']',
           LExpectedRoundSignedZeroF32x8.f[LIndex], LActualRoundSignedZeroF32x8.f[LIndex]);
-        AssertSingleSemantics(IntToStr(Ord(LBackend)) + ' SignedZero TruncF32x8[' + IntToStr(LIndex) + ']',
+        AssertSingleSemantics(IEEE754BackendName(LBackend) + ' SignedZero TruncF32x8[' + IntToStr(LIndex) + ']',
           LExpectedTruncSignedZeroF32x8.f[LIndex], LActualTruncSignedZeroF32x8.f[LIndex]);
-        AssertSingleZeroSign(IntToStr(Ord(LBackend)) + ' SignedZero RoundF32x8[' + IntToStr(LIndex) + ']',
+        AssertSingleZeroSign(IEEE754BackendName(LBackend) + ' SignedZero RoundF32x8[' + IntToStr(LIndex) + ']',
           LExpectedRoundSignedZeroF32x8.f[LIndex], LActualRoundSignedZeroF32x8.f[LIndex]);
-        AssertSingleZeroSign(IntToStr(Ord(LBackend)) + ' SignedZero TruncF32x8[' + IntToStr(LIndex) + ']',
+        AssertSingleZeroSign(IEEE754BackendName(LBackend) + ' SignedZero TruncF32x8[' + IntToStr(LIndex) + ']',
           LExpectedTruncSignedZeroF32x8.f[LIndex], LActualTruncSignedZeroF32x8.f[LIndex]);
       end;
 
       for LIndex := 0 to 3 do
       begin
-        AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' RoundF64x4[' + IntToStr(LIndex) + ']',
+        AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' RoundF64x4[' + IntToStr(LIndex) + ']',
           LExpectedRoundF64x4.d[LIndex], LActualRoundF64x4.d[LIndex]);
-        AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' TruncF64x4[' + IntToStr(LIndex) + ']',
+        AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' TruncF64x4[' + IntToStr(LIndex) + ']',
           LExpectedTruncF64x4.d[LIndex], LActualTruncF64x4.d[LIndex]);
-        AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' FloorF64x4[' + IntToStr(LIndex) + ']',
+        AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' FloorF64x4[' + IntToStr(LIndex) + ']',
           LExpectedFloorF64x4.d[LIndex], LActualFloorF64x4.d[LIndex]);
-        AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' CeilF64x4[' + IntToStr(LIndex) + ']',
+        AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' CeilF64x4[' + IntToStr(LIndex) + ']',
           LExpectedCeilF64x4.d[LIndex], LActualCeilF64x4.d[LIndex]);
-        AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' SignedZero RoundF64x4[' + IntToStr(LIndex) + ']',
+        AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' SignedZero RoundF64x4[' + IntToStr(LIndex) + ']',
           LExpectedRoundSignedZeroF64x4.d[LIndex], LActualRoundSignedZeroF64x4.d[LIndex]);
-        AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' SignedZero TruncF64x4[' + IntToStr(LIndex) + ']',
+        AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' SignedZero TruncF64x4[' + IntToStr(LIndex) + ']',
           LExpectedTruncSignedZeroF64x4.d[LIndex], LActualTruncSignedZeroF64x4.d[LIndex]);
-        AssertDoubleZeroSign(IntToStr(Ord(LBackend)) + ' SignedZero RoundF64x4[' + IntToStr(LIndex) + ']',
+        AssertDoubleZeroSign(IEEE754BackendName(LBackend) + ' SignedZero RoundF64x4[' + IntToStr(LIndex) + ']',
           LExpectedRoundSignedZeroF64x4.d[LIndex], LActualRoundSignedZeroF64x4.d[LIndex]);
-        AssertDoubleZeroSign(IntToStr(Ord(LBackend)) + ' SignedZero TruncF64x4[' + IntToStr(LIndex) + ']',
+        AssertDoubleZeroSign(IEEE754BackendName(LBackend) + ' SignedZero TruncF64x4[' + IntToStr(LIndex) + ']',
           LExpectedTruncSignedZeroF64x4.d[LIndex], LActualTruncSignedZeroF64x4.d[LIndex]);
       end;
 
       for LIndex := 0 to 15 do
       begin
-        AssertSingleSemantics(IntToStr(Ord(LBackend)) + ' RoundF32x16[' + IntToStr(LIndex) + ']',
+        AssertSingleSemantics(IEEE754BackendName(LBackend) + ' RoundF32x16[' + IntToStr(LIndex) + ']',
           LExpectedRoundF32x16.f[LIndex], LActualRoundF32x16.f[LIndex]);
-        AssertSingleSemantics(IntToStr(Ord(LBackend)) + ' TruncF32x16[' + IntToStr(LIndex) + ']',
+        AssertSingleSemantics(IEEE754BackendName(LBackend) + ' TruncF32x16[' + IntToStr(LIndex) + ']',
           LExpectedTruncF32x16.f[LIndex], LActualTruncF32x16.f[LIndex]);
-        AssertSingleSemantics(IntToStr(Ord(LBackend)) + ' FloorF32x16[' + IntToStr(LIndex) + ']',
+        AssertSingleSemantics(IEEE754BackendName(LBackend) + ' FloorF32x16[' + IntToStr(LIndex) + ']',
           LExpectedFloorF32x16.f[LIndex], LActualFloorF32x16.f[LIndex]);
-        AssertSingleSemantics(IntToStr(Ord(LBackend)) + ' CeilF32x16[' + IntToStr(LIndex) + ']',
+        AssertSingleSemantics(IEEE754BackendName(LBackend) + ' CeilF32x16[' + IntToStr(LIndex) + ']',
           LExpectedCeilF32x16.f[LIndex], LActualCeilF32x16.f[LIndex]);
-        AssertSingleSemantics(IntToStr(Ord(LBackend)) + ' SignedZero RoundF32x16[' + IntToStr(LIndex) + ']',
+        AssertSingleSemantics(IEEE754BackendName(LBackend) + ' SignedZero RoundF32x16[' + IntToStr(LIndex) + ']',
           LExpectedRoundSignedZeroF32x16.f[LIndex], LActualRoundSignedZeroF32x16.f[LIndex]);
-        AssertSingleSemantics(IntToStr(Ord(LBackend)) + ' SignedZero TruncF32x16[' + IntToStr(LIndex) + ']',
+        AssertSingleSemantics(IEEE754BackendName(LBackend) + ' SignedZero TruncF32x16[' + IntToStr(LIndex) + ']',
           LExpectedTruncSignedZeroF32x16.f[LIndex], LActualTruncSignedZeroF32x16.f[LIndex]);
-        AssertSingleZeroSign(IntToStr(Ord(LBackend)) + ' SignedZero RoundF32x16[' + IntToStr(LIndex) + ']',
+        AssertSingleZeroSign(IEEE754BackendName(LBackend) + ' SignedZero RoundF32x16[' + IntToStr(LIndex) + ']',
           LExpectedRoundSignedZeroF32x16.f[LIndex], LActualRoundSignedZeroF32x16.f[LIndex]);
-        AssertSingleZeroSign(IntToStr(Ord(LBackend)) + ' SignedZero TruncF32x16[' + IntToStr(LIndex) + ']',
+        AssertSingleZeroSign(IEEE754BackendName(LBackend) + ' SignedZero TruncF32x16[' + IntToStr(LIndex) + ']',
           LExpectedTruncSignedZeroF32x16.f[LIndex], LActualTruncSignedZeroF32x16.f[LIndex]);
       end;
 
       for LIndex := 0 to 7 do
       begin
-        AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' RoundF64x8[' + IntToStr(LIndex) + ']',
+        AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' RoundF64x8[' + IntToStr(LIndex) + ']',
           LExpectedRoundF64x8.d[LIndex], LActualRoundF64x8.d[LIndex]);
-        AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' TruncF64x8[' + IntToStr(LIndex) + ']',
+        AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' TruncF64x8[' + IntToStr(LIndex) + ']',
           LExpectedTruncF64x8.d[LIndex], LActualTruncF64x8.d[LIndex]);
-        AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' FloorF64x8[' + IntToStr(LIndex) + ']',
+        AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' FloorF64x8[' + IntToStr(LIndex) + ']',
           LExpectedFloorF64x8.d[LIndex], LActualFloorF64x8.d[LIndex]);
-        AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' CeilF64x8[' + IntToStr(LIndex) + ']',
+        AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' CeilF64x8[' + IntToStr(LIndex) + ']',
           LExpectedCeilF64x8.d[LIndex], LActualCeilF64x8.d[LIndex]);
-        AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' SignedZero RoundF64x8[' + IntToStr(LIndex) + ']',
+        AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' SignedZero RoundF64x8[' + IntToStr(LIndex) + ']',
           LExpectedRoundSignedZeroF64x8.d[LIndex], LActualRoundSignedZeroF64x8.d[LIndex]);
-        AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' SignedZero TruncF64x8[' + IntToStr(LIndex) + ']',
+        AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' SignedZero TruncF64x8[' + IntToStr(LIndex) + ']',
           LExpectedTruncSignedZeroF64x8.d[LIndex], LActualTruncSignedZeroF64x8.d[LIndex]);
-        AssertDoubleZeroSign(IntToStr(Ord(LBackend)) + ' SignedZero RoundF64x8[' + IntToStr(LIndex) + ']',
+        AssertDoubleZeroSign(IEEE754BackendName(LBackend) + ' SignedZero RoundF64x8[' + IntToStr(LIndex) + ']',
           LExpectedRoundSignedZeroF64x8.d[LIndex], LActualRoundSignedZeroF64x8.d[LIndex]);
-        AssertDoubleZeroSign(IntToStr(Ord(LBackend)) + ' SignedZero TruncF64x8[' + IntToStr(LIndex) + ']',
+        AssertDoubleZeroSign(IEEE754BackendName(LBackend) + ' SignedZero TruncF64x8[' + IntToStr(LIndex) + ']',
           LExpectedTruncSignedZeroF64x8.d[LIndex], LActualTruncSignedZeroF64x8.d[LIndex]);
       end;
     finally
@@ -3604,41 +3609,41 @@ begin
 
         for LIndex := 0 to 7 do
         begin
-          AssertSingleSemantics(IntToStr(Ord(LBackend)) + ' Round ' + IntToStr(LRound) + ' FloorF32x8[' + IntToStr(LIndex) + ']',
+          AssertSingleSemantics(IEEE754BackendName(LBackend) + ' Round ' + IntToStr(LRound) + ' FloorF32x8[' + IntToStr(LIndex) + ']',
             LScalarFloorF32x8.f[LIndex], LBackendFloorF32x8.f[LIndex]);
-          AssertSingleSemantics(IntToStr(Ord(LBackend)) + ' Round ' + IntToStr(LRound) + ' CeilF32x8[' + IntToStr(LIndex) + ']',
+          AssertSingleSemantics(IEEE754BackendName(LBackend) + ' Round ' + IntToStr(LRound) + ' CeilF32x8[' + IntToStr(LIndex) + ']',
             LScalarCeilF32x8.f[LIndex], LBackendCeilF32x8.f[LIndex]);
-          AssertFloorCeilInvariantSingle(IntToStr(Ord(LBackend)) + ' Round ' + IntToStr(LRound) + ' F32x8[' + IntToStr(LIndex) + ']',
+          AssertFloorCeilInvariantSingle(IEEE754BackendName(LBackend) + ' Round ' + IntToStr(LRound) + ' F32x8[' + IntToStr(LIndex) + ']',
             LInF32x8.f[LIndex], LBackendFloorF32x8.f[LIndex], LBackendCeilF32x8.f[LIndex]);
         end;
 
         for LIndex := 0 to 3 do
         begin
-          AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' Round ' + IntToStr(LRound) + ' FloorF64x4[' + IntToStr(LIndex) + ']',
+          AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' Round ' + IntToStr(LRound) + ' FloorF64x4[' + IntToStr(LIndex) + ']',
             LScalarFloorF64x4.d[LIndex], LBackendFloorF64x4.d[LIndex]);
-          AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' Round ' + IntToStr(LRound) + ' CeilF64x4[' + IntToStr(LIndex) + ']',
+          AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' Round ' + IntToStr(LRound) + ' CeilF64x4[' + IntToStr(LIndex) + ']',
             LScalarCeilF64x4.d[LIndex], LBackendCeilF64x4.d[LIndex]);
-          AssertFloorCeilInvariantDouble(IntToStr(Ord(LBackend)) + ' Round ' + IntToStr(LRound) + ' F64x4[' + IntToStr(LIndex) + ']',
+          AssertFloorCeilInvariantDouble(IEEE754BackendName(LBackend) + ' Round ' + IntToStr(LRound) + ' F64x4[' + IntToStr(LIndex) + ']',
             LInF64x4.d[LIndex], LBackendFloorF64x4.d[LIndex], LBackendCeilF64x4.d[LIndex]);
         end;
 
         for LIndex := 0 to 15 do
         begin
-          AssertSingleSemantics(IntToStr(Ord(LBackend)) + ' Round ' + IntToStr(LRound) + ' FloorF32x16[' + IntToStr(LIndex) + ']',
+          AssertSingleSemantics(IEEE754BackendName(LBackend) + ' Round ' + IntToStr(LRound) + ' FloorF32x16[' + IntToStr(LIndex) + ']',
             LScalarFloorF32x16.f[LIndex], LBackendFloorF32x16.f[LIndex]);
-          AssertSingleSemantics(IntToStr(Ord(LBackend)) + ' Round ' + IntToStr(LRound) + ' CeilF32x16[' + IntToStr(LIndex) + ']',
+          AssertSingleSemantics(IEEE754BackendName(LBackend) + ' Round ' + IntToStr(LRound) + ' CeilF32x16[' + IntToStr(LIndex) + ']',
             LScalarCeilF32x16.f[LIndex], LBackendCeilF32x16.f[LIndex]);
-          AssertFloorCeilInvariantSingle(IntToStr(Ord(LBackend)) + ' Round ' + IntToStr(LRound) + ' F32x16[' + IntToStr(LIndex) + ']',
+          AssertFloorCeilInvariantSingle(IEEE754BackendName(LBackend) + ' Round ' + IntToStr(LRound) + ' F32x16[' + IntToStr(LIndex) + ']',
             LInF32x16.f[LIndex], LBackendFloorF32x16.f[LIndex], LBackendCeilF32x16.f[LIndex]);
         end;
 
         for LIndex := 0 to 7 do
         begin
-          AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' Round ' + IntToStr(LRound) + ' FloorF64x8[' + IntToStr(LIndex) + ']',
+          AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' Round ' + IntToStr(LRound) + ' FloorF64x8[' + IntToStr(LIndex) + ']',
             LScalarFloorF64x8.d[LIndex], LBackendFloorF64x8.d[LIndex]);
-          AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' Round ' + IntToStr(LRound) + ' CeilF64x8[' + IntToStr(LIndex) + ']',
+          AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' Round ' + IntToStr(LRound) + ' CeilF64x8[' + IntToStr(LIndex) + ']',
             LScalarCeilF64x8.d[LIndex], LBackendCeilF64x8.d[LIndex]);
-          AssertFloorCeilInvariantDouble(IntToStr(Ord(LBackend)) + ' Round ' + IntToStr(LRound) + ' F64x8[' + IntToStr(LIndex) + ']',
+          AssertFloorCeilInvariantDouble(IEEE754BackendName(LBackend) + ' Round ' + IntToStr(LRound) + ' F64x8[' + IntToStr(LIndex) + ']',
             LInF64x8.d[LIndex], LBackendFloorF64x8.d[LIndex], LBackendCeilF64x8.d[LIndex]);
         end;
       end;
@@ -3846,41 +3851,41 @@ begin
 
         for LIndex := 0 to 7 do
         begin
-          AssertSingleSemantics(IntToStr(Ord(LBackend)) + ' Round ' + IntToStr(LRound) + ' RoundF32x8[' + IntToStr(LIndex) + ']',
+          AssertSingleSemantics(IEEE754BackendName(LBackend) + ' Round ' + IntToStr(LRound) + ' RoundF32x8[' + IntToStr(LIndex) + ']',
             LScalarRoundF32x8.f[LIndex], LBackendRoundF32x8.f[LIndex]);
-          AssertSingleSemantics(IntToStr(Ord(LBackend)) + ' Round ' + IntToStr(LRound) + ' TruncF32x8[' + IntToStr(LIndex) + ']',
+          AssertSingleSemantics(IEEE754BackendName(LBackend) + ' Round ' + IntToStr(LRound) + ' TruncF32x8[' + IntToStr(LIndex) + ']',
             LScalarTruncF32x8.f[LIndex], LBackendTruncF32x8.f[LIndex]);
-          AssertRoundTruncInvariantSingle(IntToStr(Ord(LBackend)) + ' Round ' + IntToStr(LRound) + ' F32x8[' + IntToStr(LIndex) + ']',
+          AssertRoundTruncInvariantSingle(IEEE754BackendName(LBackend) + ' Round ' + IntToStr(LRound) + ' F32x8[' + IntToStr(LIndex) + ']',
             LInF32x8.f[LIndex], LBackendRoundF32x8.f[LIndex], LBackendTruncF32x8.f[LIndex]);
         end;
 
         for LIndex := 0 to 3 do
         begin
-          AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' Round ' + IntToStr(LRound) + ' RoundF64x4[' + IntToStr(LIndex) + ']',
+          AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' Round ' + IntToStr(LRound) + ' RoundF64x4[' + IntToStr(LIndex) + ']',
             LScalarRoundF64x4.d[LIndex], LBackendRoundF64x4.d[LIndex]);
-          AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' Round ' + IntToStr(LRound) + ' TruncF64x4[' + IntToStr(LIndex) + ']',
+          AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' Round ' + IntToStr(LRound) + ' TruncF64x4[' + IntToStr(LIndex) + ']',
             LScalarTruncF64x4.d[LIndex], LBackendTruncF64x4.d[LIndex]);
-          AssertRoundTruncInvariantDouble(IntToStr(Ord(LBackend)) + ' Round ' + IntToStr(LRound) + ' F64x4[' + IntToStr(LIndex) + ']',
+          AssertRoundTruncInvariantDouble(IEEE754BackendName(LBackend) + ' Round ' + IntToStr(LRound) + ' F64x4[' + IntToStr(LIndex) + ']',
             LInF64x4.d[LIndex], LBackendRoundF64x4.d[LIndex], LBackendTruncF64x4.d[LIndex]);
         end;
 
         for LIndex := 0 to 15 do
         begin
-          AssertSingleSemantics(IntToStr(Ord(LBackend)) + ' Round ' + IntToStr(LRound) + ' RoundF32x16[' + IntToStr(LIndex) + ']',
+          AssertSingleSemantics(IEEE754BackendName(LBackend) + ' Round ' + IntToStr(LRound) + ' RoundF32x16[' + IntToStr(LIndex) + ']',
             LScalarRoundF32x16.f[LIndex], LBackendRoundF32x16.f[LIndex]);
-          AssertSingleSemantics(IntToStr(Ord(LBackend)) + ' Round ' + IntToStr(LRound) + ' TruncF32x16[' + IntToStr(LIndex) + ']',
+          AssertSingleSemantics(IEEE754BackendName(LBackend) + ' Round ' + IntToStr(LRound) + ' TruncF32x16[' + IntToStr(LIndex) + ']',
             LScalarTruncF32x16.f[LIndex], LBackendTruncF32x16.f[LIndex]);
-          AssertRoundTruncInvariantSingle(IntToStr(Ord(LBackend)) + ' Round ' + IntToStr(LRound) + ' F32x16[' + IntToStr(LIndex) + ']',
+          AssertRoundTruncInvariantSingle(IEEE754BackendName(LBackend) + ' Round ' + IntToStr(LRound) + ' F32x16[' + IntToStr(LIndex) + ']',
             LInF32x16.f[LIndex], LBackendRoundF32x16.f[LIndex], LBackendTruncF32x16.f[LIndex]);
         end;
 
         for LIndex := 0 to 7 do
         begin
-          AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' Round ' + IntToStr(LRound) + ' RoundF64x8[' + IntToStr(LIndex) + ']',
+          AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' Round ' + IntToStr(LRound) + ' RoundF64x8[' + IntToStr(LIndex) + ']',
             LScalarRoundF64x8.d[LIndex], LBackendRoundF64x8.d[LIndex]);
-          AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' Round ' + IntToStr(LRound) + ' TruncF64x8[' + IntToStr(LIndex) + ']',
+          AssertDoubleSemantics(IEEE754BackendName(LBackend) + ' Round ' + IntToStr(LRound) + ' TruncF64x8[' + IntToStr(LIndex) + ']',
             LScalarTruncF64x8.d[LIndex], LBackendTruncF64x8.d[LIndex]);
-          AssertRoundTruncInvariantDouble(IntToStr(Ord(LBackend)) + ' Round ' + IntToStr(LRound) + ' F64x8[' + IntToStr(LIndex) + ']',
+          AssertRoundTruncInvariantDouble(IEEE754BackendName(LBackend) + ' Round ' + IntToStr(LRound) + ' F64x8[' + IntToStr(LIndex) + ']',
             LInF64x8.d[LIndex], LBackendRoundF64x8.d[LIndex], LBackendTruncF64x8.d[LIndex]);
         end;
       end;
