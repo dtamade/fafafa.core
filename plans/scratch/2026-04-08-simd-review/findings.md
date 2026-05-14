@@ -2529,3 +2529,23 @@
   - `sse2contracts` 的 fixture 恢复契约也和其它测试文件重新对齐
   - 这批仍属于 fixture hardening / redundancy cleanup，不触碰 dispatch slot 或 SSE2 生产逻辑
 - Release `TTestCase_DispatchAllSlots`、Release `TTestCase_SSE2Contracts`、Release `check`、Release `gate` 全绿，说明这批只是在 companion testcase 层消除恢复分叉，没有引入行为回归。
+
+## 2026-05-14 Concurrent VectorAsm Restore Alignment Findings
+
+- 继续沿 `direct / concurrent` 缩小范围后，`concurrent` 里还剩最后两条同类顶层 old-shape finally：
+  - `Test_Concurrent_VectorAsmToggle_DispatchReadConsistency`
+  - `Test_Concurrent_VectorAsmToggle_MultiWriter_DispatchRead`
+  两者都在 finally 里只做 `SetVectorAsmEnabled(LOldVectorAsm)`。
+- 这两条和前几轮收掉的 `dataplane / ieee754 / dispatchslots / sse2contracts` 是同一类问题：
+  - 类级 fixture 已保存 `FSavedBackend`
+  - 同文件也已经有 `RestoreSimdLocalState(...)`
+  - 但这两条并发测试还把 backend 恢复留给更外层 tearDown，而不是在方法尾声自己回到保存状态
+- 本轮修法是目前最小、也最确定的一种：
+  - 不引入新 helper
+  - 直接复用现成的 `RestoreSimdLocalState(LOldVectorAsm, FSavedBackend)`
+  - 只改两条 finally，不碰线程逻辑、worker 生命周期和 round-level 并发断言
+- 之所以这轮没有顺手把 `direct` 一起收掉，是因为 `direct` 那个残点落在全局过程 `RunDirectDispatchConcurrentReRegisterSnapshotConsistency`，要彻底对齐需要先补原始 backend 捕获；它不像这里这样有现成 helper 和类级保存状态，所以风险边界不同，适合下一批单独做。
+- 收完后的状态是：
+  - `concurrent` 中最明显的“只恢复 vector asm、不恢复保存 backend”的顶层 finally 已清零
+  - 这批仍属于测试层 fixture hardening / redundancy cleanup，不改变并发 dispatch/vector-asm 语义
+- Release `TTestCase_SimdConcurrent`、Release `check`、Release `gate` 全绿，说明改动只影响并发测试夹具恢复契约，没有引入行为回归。

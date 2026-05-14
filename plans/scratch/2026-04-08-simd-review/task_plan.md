@@ -2137,3 +2137,17 @@
 | 1. 复核 `dispatchslots` / `sse2contracts` 剩余 restore 分叉 | completed | 已确认 `dispatchslots.testcase` 的类级 `TearDown` 仍是手写 `ResetToAutomaticBackend + TrySetActiveBackend(FSavedBackend)`，且 `Test_AllSelectableBackends_AllDispatchSlots_Assigned`、`Test_BackendAdapter_ActiveBackend_RoundTrip_NoNilAndCorePointersStable`、`Test_BackendAdapter_RegisteredBackendOps_PreserveCanonicalTextMetadata_After_ReRegister` 还残留 method-level `ResetToAutomaticBackend`；`sse2contracts.testcase` 仍有老式 `vector asm + automatic + TrySetActiveBackend` tearDown |
 | 2. 提取 helper 并统一小文件恢复契约 | completed | 已为 `dispatchslots` 补 `RestoreDispatchSlotsLocalState(...)`，为 `sse2contracts` 补 `RestoreSSE2ContractsLocalState(...)`；`dispatchslots` 的类级 tearDown 和 3 个方法尾声、`sse2contracts` 的 tearDown 全部切到 helper 返回 `Boolean` + 调用点断言的形状 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAllSlots`、Release `TTestCase_SSE2Contracts`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 Concurrent VectorAsm Restore Alignment
+
+### Goal
+
+继续沿 `concurrent` 收最后两条最确定的 method-level restore 残点，把 `TTestCase_SimdConcurrent` 中仍只恢复 `vector asm` 的两个顶层 finally 统一切回已有的 `RestoreSimdLocalState(...)`，避免这些并发夹具把 backend drift 留给更晚的 tearDown。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `concurrent` 剩余 old-shape finally | completed | 已确认 `fafafa.core.simd.concurrent.testcase.pas` 中 `Test_Concurrent_VectorAsmToggle_DispatchReadConsistency` 与 `Test_Concurrent_VectorAsmToggle_MultiWriter_DispatchRead` 的 outer finally 仍只做 `SetVectorAsmEnabled(LOldVectorAsm)`；同文件其余同类顶层恢复大多已切到 `RestoreSimdLocalState(LOldVectorAsm, FSavedBackend)` |
+| 2. 复用现有 helper 收口这两条 finally | completed | 已直接把两处 finally 改为 `RestoreSimdLocalState(LOldVectorAsm, FSavedBackend)`；没有扩到 `direct` 的全局过程 cleanup，因为那条还需要先补原始 backend 捕获，适合下一批单独处理 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_SimdConcurrent`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |

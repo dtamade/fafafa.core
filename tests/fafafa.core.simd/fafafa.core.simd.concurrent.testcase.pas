@@ -2541,7 +2541,7 @@ begin
     for LIndex := 0 to High(LReaders) do
       LReaders[LIndex].Free;
     LToggleWorker.Free;
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2603,7 +2603,7 @@ begin
       LWriters[LIndex].Free;
     for LIndex := 0 to High(LReaders) do
       LReaders[LIndex].Free;
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 

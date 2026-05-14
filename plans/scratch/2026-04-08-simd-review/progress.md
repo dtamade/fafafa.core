@@ -2646,3 +2646,22 @@
   - `dispatchslots / sse2contracts` 这类小 companion testcase 的 restore 样板又少了一层
   - 下一轮如果继续挖，更值得看的将是 `direct` 或 `concurrent` 里那些“局部 helper 已存在，但个别 method-level finally 仍留 old shape”的少数残点
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+- 我继续按上一轮的 stop-point 往下收，只动 `concurrent` 里最确定的两条残点：
+  - `Test_Concurrent_VectorAsmToggle_DispatchReadConsistency`
+  - `Test_Concurrent_VectorAsmToggle_MultiWriter_DispatchRead`
+  它们的 outer finally 之前都还只恢复 `vector asm`。
+- 这次没有扩到 `direct` 的全局过程 cleanup，因为那条需要单独补原始 backend 捕获；而 `concurrent` 这里已经有现成的 `RestoreSimdLocalState(...)`，直接复用最稳。
+- 本轮改动非常小：
+  - 两处 `SetVectorAsmEnabled(LOldVectorAsm)` 直接替换成 `RestoreSimdLocalState(LOldVectorAsm, FSavedBackend)`
+  - 不改 worker 创建/释放、并发轮次、断言和 round-level `ResetToAutomaticBackend` 语义
+- 本轮 Release 验证继续按串行链完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrent`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断继续更新：
+  - `concurrent` 里最明显的 method-level old-shape finally 又少了两条
+  - 下一轮更值得看的，基本就收缩到 `direct` 那个全局过程尾声 restore 分叉，以及 `concurrent` 里少数 round-level cleanup 是否还存在真正冗余
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
