@@ -4116,3 +4116,33 @@
 - 当前这条 `dispatchapi/nonx86 parity` 名称真相源线已经收平：
   - `DispatchApiBackendName(...)` 作为 canonical 薄封装
   - `NonX86BackendName(...)` 只作为语义别名，不再维护自己的 backend 名称表
+
+## 2026-05-15 PublicAbi Canonical Backend Label Reuse
+
+- 我继续把 SIMD 测试层的“消息真相源冗余”往下扫到 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas`。
+- 这轮没有扩大到 `public ABI` 逻辑本体，而是先确认当前 diff 只涉及失败消息：
+  - `Test_PublicApi_BackendPodInfo_Flags_AreSelfConsistent`
+  - `Test_PublicApi_BackendPodInfo_CapabilityBits_DoNotUnderclaim_Shuffle`
+  - `Test_PublicApi_BackendPodInfo_CapabilityBits_DoNotUnderclaim_X86MaskedOps`
+  - `Test_PublicApi_BackendPodInfo_CapabilityBits_Clear_X86Shuffle_WhenVectorAsmDisabled`
+  - `Test_PublicApi_BackendPodInfo_CapabilityBits_Keep_X86IntegerOps_When_AlwaysOn_NarrowSlots_Remain_NonScalar`
+  - `Test_PublicApi_BackendPodInfo_CapabilityBits_Keep_X86MaskedOps_WhenVectorAsmDisabled`
+- 实际修法保持最小：
+  - 在 implementation 区新增 `PublicAbiBackendName(const aBackend: TSimdBackend): string`
+  - 实现直接复用 `GetBackendInfo(aBackend).Name`
+  - 把上述断言里原来的 `IntToStr(Ord(LBackend))` 全部替换为 `PublicAbiBackendName(LBackend)`
+- 这轮还碰到一个工具级小阻塞，但没有让它拖慢主线：
+  - `mcp__ace_tool__.search_context` 返回 `ACE_TOKEN` 失效
+  - 我没有在同一路径上反复重试，而是直接退回 `git diff` + `rg/sed` 做局部复核
+- 当前这批 release 验证已串行跑完：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- `gate` 里和本批最相关的链路也都继续为绿：
+  - `PUBLIC_ABI_SIGNATURE ... [PUBLIC-ABI] OK`
+  - `BuildOrTest.sh ../fafafa.core.simd.publicabi/BuildOrTest.sh test` smoke 通过
+  - `TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework` 通过
+  - `Run-all summary: Passed 5 / Failed 0`
+  - `[GATE] OK`
+- 当前这一批收口后，`publicabi.testcase` 的 backend 失败消息已经不再回落到 ordinal 编号；下一步可以继续找别的测试面里是否还存在类似“仅服务 report shell 的本地 truth source”。

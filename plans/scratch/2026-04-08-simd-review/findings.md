@@ -3679,3 +3679,24 @@
 - 当前 `dispatchapi.testcase` / `TTestCase_NonX86BackendParity` 这条线上的 backend 名称 helper 已经完成去副本：
   - `DispatchApiBackendName(...)` 是 canonical 薄封装
   - `NonX86BackendName(...)` 现在只是对前者的语义别名，不再维护自己的名字表
+
+## 2026-05-15 PublicAbi Canonical Backend Label Findings
+
+- `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 里这轮最值得收的，不是 capability 判断本身，而是失败消息还在把 backend 当数字编号输出：
+  - `IntToStr(Ord(LBackend))`
+  - 它分散在 `Test_PublicApi_BackendPodInfo_Flags_AreSelfConsistent` 以及一组 `CapabilityBits_*` 断言里
+- 这里如果只看表面，很容易误判同文件里的 `case aBackend of` 也该一起删掉，但复核后边界很清楚：
+  - `IntToStr(Ord(LBackend))` 只是消息壳
+  - 若干 `case aBackend of` 仍承担 `shuffle/masked/integer-ops` capability membership 语义
+  - 所以这批只能统一 label truth source，不能动 semantic truth source
+- 最稳的收口方式和 `dispatchapi` 前几批一致：
+  - 保留 `publicabi.testcase` 自己的语义可读性
+  - 新增文件级 `PublicAbiBackendName(...)`
+  - 但把它的实现直接收成 `GetBackendInfo(aBackend).Name`
+- 这样做的诊断收益比“只把数字换成字符串”更实在：
+  - `public ABI` 这组失败本来就覆盖 pod flags、capability bits、vector-asm-disabled 分支
+  - 一旦断言失败，直接显示 `AVX2/NEON/RISCVV/...` 比 backend ordinal 更快定位问题
+  - 同时也避免 `publicabi` 测试面重新维护一份和 dispatch metadata 平行的 backend 名称真相源
+- 这批再次强化了一个后续深查纪律：
+  - 对测试文件中的 `case aBackend of`，先分清它是在“决定语义”还是“只生成文本”
+  - 只有后者才适合直接下沉到 canonical metadata helper

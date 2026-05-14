@@ -122,6 +122,11 @@ begin
   Result := False;
 end;
 
+function PublicAbiBackendName(const aBackend: TSimdBackend): string;
+begin
+  Result := GetBackendInfo(aBackend).Name;
+end;
+
 var
   GPublicAbiHookDisableBackendEnabled: Boolean = False;
   GPublicAbiHookDisableBackendArmed: Boolean = False;
@@ -1145,39 +1150,39 @@ var
 begin
   for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
   begin
-    AssertTrue('TryGetSimdBackendPodInfo should succeed for backend=' + IntToStr(Ord(LBackend)),
+    AssertTrue('TryGetSimdBackendPodInfo should succeed for backend=' + PublicAbiBackendName(LBackend),
       TryGetSimdBackendPodInfo(LBackend, LInfo));
-    AssertEquals('StructSize mismatch for backend=' + IntToStr(Ord(LBackend)),
+    AssertEquals('StructSize mismatch for backend=' + PublicAbiBackendName(LBackend),
       SizeOf(TFafafaSimdBackendPodInfo), LInfo.StructSize);
-    AssertEquals('BackendId mismatch for backend=' + IntToStr(Ord(LBackend)),
+    AssertEquals('BackendId mismatch for backend=' + PublicAbiBackendName(LBackend),
       Ord(LBackend), Integer(LInfo.BackendId));
 
     if IsBackendAvailableOnCPU(LBackend) then
-      AssertTrue('supported_on_cpu flag missing for backend=' + IntToStr(Ord(LBackend)),
+      AssertTrue('supported_on_cpu flag missing for backend=' + PublicAbiBackendName(LBackend),
         (LInfo.Flags and FAF_SIMD_ABI_FLAG_SUPPORTED_ON_CPU) <> 0)
     else
-      AssertTrue('supported_on_cpu flag should be clear for backend=' + IntToStr(Ord(LBackend)),
+      AssertTrue('supported_on_cpu flag should be clear for backend=' + PublicAbiBackendName(LBackend),
         (LInfo.Flags and FAF_SIMD_ABI_FLAG_SUPPORTED_ON_CPU) = 0);
 
     if IsBackendRegisteredInBinary(LBackend) then
-      AssertTrue('registered flag missing for backend=' + IntToStr(Ord(LBackend)),
+      AssertTrue('registered flag missing for backend=' + PublicAbiBackendName(LBackend),
         (LInfo.Flags and FAF_SIMD_ABI_FLAG_REGISTERED) <> 0)
     else
-      AssertTrue('registered flag should be clear for backend=' + IntToStr(Ord(LBackend)),
+      AssertTrue('registered flag should be clear for backend=' + PublicAbiBackendName(LBackend),
         (LInfo.Flags and FAF_SIMD_ABI_FLAG_REGISTERED) = 0);
 
     if IsBackendDispatchable(LBackend) then
-      AssertTrue('dispatchable flag missing for backend=' + IntToStr(Ord(LBackend)),
+      AssertTrue('dispatchable flag missing for backend=' + PublicAbiBackendName(LBackend),
         (LInfo.Flags and FAF_SIMD_ABI_FLAG_DISPATCHABLE) <> 0)
     else
-      AssertTrue('dispatchable flag should be clear for backend=' + IntToStr(Ord(LBackend)),
+      AssertTrue('dispatchable flag should be clear for backend=' + PublicAbiBackendName(LBackend),
         (LInfo.Flags and FAF_SIMD_ABI_FLAG_DISPATCHABLE) = 0);
 
     if GetCurrentBackend = LBackend then
-      AssertTrue('active flag missing for backend=' + IntToStr(Ord(LBackend)),
+      AssertTrue('active flag missing for backend=' + PublicAbiBackendName(LBackend),
         (LInfo.Flags and FAF_SIMD_ABI_FLAG_ACTIVE) <> 0)
     else
-      AssertTrue('active flag should be clear for backend=' + IntToStr(Ord(LBackend)),
+      AssertTrue('active flag should be clear for backend=' + PublicAbiBackendName(LBackend),
         (LInfo.Flags and FAF_SIMD_ABI_FLAG_ACTIVE) = 0);
 
     if LBackend = sbRISCVV then
@@ -1185,8 +1190,8 @@ begin
         (LInfo.Flags and FAF_SIMD_ABI_FLAG_EXPERIMENTAL) <> 0);
 
     LNamePtr := GetSimdBackendNamePtr(LBackend);
-    AssertNotNull('Backend name pointer should not be nil for backend=' + IntToStr(Ord(LBackend)), Pointer(LNamePtr));
-    AssertTrue('Backend name should not be empty for backend=' + IntToStr(Ord(LBackend)), LNamePtr^ <> #0);
+    AssertNotNull('Backend name pointer should not be nil for backend=' + PublicAbiBackendName(LBackend), Pointer(LNamePtr));
+    AssertTrue('Backend name should not be empty for backend=' + PublicAbiBackendName(LBackend), LNamePtr^ <> #0);
   end;
 end;
 
@@ -1430,7 +1435,7 @@ begin
       if not LHasNonScalarShuffleSlots then
         Continue;
 
-      AssertTrue('Public ABI CapabilityBits missing scShuffle while representative shuffle slots are non-scalar for backend=' + IntToStr(Ord(LBackend)),
+      AssertTrue('Public ABI CapabilityBits missing scShuffle while representative shuffle slots are non-scalar for backend=' + PublicAbiBackendName(LBackend),
         (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) <> 0);
     end;
   finally
@@ -1491,7 +1496,7 @@ begin
       if not LHasNonScalarMaskedSlots then
         Continue;
 
-      AssertTrue('Public ABI CapabilityBits missing scMaskedOps while representative x86 mask helper slots are non-scalar for backend=' + IntToStr(Ord(LBackend)),
+      AssertTrue('Public ABI CapabilityBits missing scMaskedOps while representative x86 mask helper slots are non-scalar for backend=' + PublicAbiBackendName(LBackend),
         (LInfo.CapabilityBits and (UInt64(1) shl Ord(scMaskedOps))) <> 0);
     end;
   finally
@@ -1569,14 +1574,14 @@ begin
       if not TryGetSimdBackendPodInfo(LBackend, LInfo) then
         Continue;
 
-      AssertEquals('Representative SelectF32x4 slot should be scalar when vector asm is disabled for backend=' + IntToStr(Ord(LBackend)),
+      AssertEquals('Representative SelectF32x4 slot should be scalar when vector asm is disabled for backend=' + PublicAbiBackendName(LBackend),
         PtrUInt(LScalarTable.SelectF32x4), PtrUInt(LBackendTable.SelectF32x4));
-      AssertEquals('Representative InsertF32x4 slot should be scalar when vector asm is disabled for backend=' + IntToStr(Ord(LBackend)),
+      AssertEquals('Representative InsertF32x4 slot should be scalar when vector asm is disabled for backend=' + PublicAbiBackendName(LBackend),
         PtrUInt(LScalarTable.InsertF32x4), PtrUInt(LBackendTable.InsertF32x4));
-      AssertEquals('Representative ExtractF32x4 slot should be scalar when vector asm is disabled for backend=' + IntToStr(Ord(LBackend)),
+      AssertEquals('Representative ExtractF32x4 slot should be scalar when vector asm is disabled for backend=' + PublicAbiBackendName(LBackend),
         PtrUInt(LScalarTable.ExtractF32x4), PtrUInt(LBackendTable.ExtractF32x4));
 
-      AssertTrue('Public ABI CapabilityBits should clear scShuffle when representative shuffle slots are scalar for backend=' + IntToStr(Ord(LBackend)),
+      AssertTrue('Public ABI CapabilityBits should clear scShuffle when representative shuffle slots are scalar for backend=' + PublicAbiBackendName(LBackend),
         (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) = 0);
     end;
   finally
@@ -1638,7 +1643,7 @@ begin
         Continue;
 
       AssertTrue('Public ABI CapabilityBits should keep scIntegerOps while always-on narrow integer slots remain non-scalar after vector asm disable for backend=' +
-        IntToStr(Ord(LBackend)),
+        PublicAbiBackendName(LBackend),
         (LInfo.CapabilityBits and (UInt64(1) shl Ord(scIntegerOps))) <> 0);
     end;
   finally
@@ -1800,7 +1805,7 @@ begin
       if not LHasNonScalarMaskedSlots then
         Continue;
 
-      AssertTrue('Public ABI CapabilityBits should keep scMaskedOps while representative x86 mask helper slots remain non-scalar after vector asm disable for backend=' + IntToStr(Ord(LBackend)),
+      AssertTrue('Public ABI CapabilityBits should keep scMaskedOps while representative x86 mask helper slots remain non-scalar after vector asm disable for backend=' + PublicAbiBackendName(LBackend),
         (LInfo.CapabilityBits and (UInt64(1) shl Ord(scMaskedOps))) <> 0);
     end;
   finally

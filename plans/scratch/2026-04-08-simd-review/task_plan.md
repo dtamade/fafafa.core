@@ -49,6 +49,7 @@
 | GH Windows evidence workflow `25860032794` 被平台 billing/spending limit 拒跑     | 1       | Linux freeze 已补绿；Windows freshness 只能等待账单恢复或改走真实可用 Windows runner 后再刷新 |
 | `BuildOrTest.sh gate` 在 `ieee754` fixture 批次首次 build 阶段报 `Can't call the linker ... /usr/bin/ld.bfd error code: -7` | 1 | 定向 `ieee754` suites 与 Release `check` 均已先绿，判断为本机链接器瞬态；串行重跑同一条 Release `gate` 后恢复 PASS |
 | `runtime.testcase` 对齐公共 backend fixture 后，首轮 Release build 报 `Syntax error, "identifier" expected but "BEGIN" found` | 1 | 定位为删除局部 cleanup 变量后留下空 `var` 段；删掉陈旧 `var` 后，Release `TTestCase_RuntimeAPI/check/gate` 全部恢复 PASS |
+| `mcp__ace_tool__.search_context` 在这轮 `publicabi` 收口前返回 `ACE_TOKEN` 失效 | 1 | 不在同一失败路径上重试，直接回退到 `git diff` 与本地 `rg/sed` 复核 helper 与断言消息调用面 |
 
 ## 2026-05-09 Subtask
 
@@ -2885,3 +2886,17 @@
 
 - 当前这个文件的 backend 名称 helper 已经都改成 canonical metadata 薄封装。
 - 下一步更适合从别的重复 truth source / report shell 入手，而不是继续在这个文件里扫同类名称表。
+
+## 2026-05-15 PublicAbi Canonical Backend Label Reuse
+
+### Goal
+
+继续沿 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 的消息层真相源收尾：把只用于失败消息的 backend 编号展示，从 `IntToStr(Ord(LBackend))` 收成 canonical backend label helper，同时保持 `public ABI capability / pod-info` 的语义判断完全不动。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `publicabi.testcase` 里 backend 编号是否只是消息壳 | completed | 已确认本轮触及的 `Test_PublicApi_BackendPodInfo_*` 过程里，`IntToStr(Ord(LBackend))` 只拼接断言文案；同文件中保留的 `case aBackend of` 仍承担 capability/member 语义判断，不能误删 |
+| 2. 收敛到文件级 canonical label helper | completed | 已新增文件级 `PublicAbiBackendName(const aBackend: TSimdBackend): string`，实现为 `GetBackendInfo(aBackend).Name`；并把 pod-info flags、shuffle/masked/integer-ops 相关失败消息全部改用该 helper，不再输出 backend 数字编号 |
+| 3. Release 验证与本批收口 | completed | `git diff --check`、Release `check`、Release `gate` 已全部通过；说明这批只改善 public ABI 测试诊断面，没有影响 capability bits、public ABI smoke 或 fast-gate 主链 |
