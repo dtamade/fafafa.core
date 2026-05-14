@@ -3524,3 +3524,38 @@
   - `tests/fafafa.core.simd` 当前最明显的机械 fixture 冗余已经基本收口
   - 下一步更值得做的，不会再是继续机械删 `SetUp/TearDown`
   - 而应转向“哪些本地 fixture/helper 仍然真的承载必要语义、哪些源码/测试层还有更深的结构冗余或缺失”
+
+## 2026-05-14 Fixture Helper Truth-Source Consolidation
+
+- 在 `vectorasm` 共享 setup 收口之后，继续从“机械 fixture 去重”往更深一层看，发现 `tests/fafafa.core.simd` 里还留着一个 infrastructure 级重复来源：
+  - `fafafa.core.simd.fixturehelpers` 已经是真正的 backend/vector-asm save-restore helper 单元
+  - 但 `fafafa.core.simd.testcase` 还在对外再包一层同名 `RestoreSavedBackendState` / `RestoreSavedBackendAndVectorAsmState`
+  - 多个 suite 通过 `testcase` 间接调用，导致测试基础设施里同一语义有两层入口
+- 复核后确认这层 `testcase` façade 没有附加任何本地语义：
+  - 不是带断言的 restore helper
+  - 不是按 suite 编排的 lifecycle contract
+  - 只是完全直通 `fixturehelpers`
+- 本轮最小修法已落地：
+  - 删除 `fafafa.core.simd.testcase.pas` 里的同名 façade 声明与实现
+  - 以下调用者直接 `uses fafafa.core.simd.fixturehelpers`
+    - `dataplane`
+    - `direct`
+    - `dispatchapi`
+    - `publicabi`
+    - `concurrent`
+    - `ieee754`
+    - `dispatchslots`
+  - `backend.consistency` 原本就直接依赖 `fixturehelpers`，无需改动
+- 这批比前面几轮更像“真相源收敛”而不是“局部生命周期清理”：
+  - 以后 save/restore 语义只需要在 `fixturehelpers` 看一处
+  - `testcase` 继续只承担 suite/base-class infrastructure，不再顺带扮演 helper re-export façade
+  - 读代码时也更容易区分“共享状态基类”和“共享状态函数 helper”
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DataPlane,TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent,TTestCase_DispatchAPI,TTestCase_PublicAbi,TTestCase_SimdConcurrent,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework,TTestCase_IEEE754_F64,TTestCase_IEEE754EdgeCases,TTestCase_AVX2RoundTruncIEEE754,TTestCase_NonX86IEEE754,TTestCase_DispatchAllSlots`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 这轮也进一步证明：
+  - 当前更值得继续抓的，不只是 testcase 层的 `SetUp/TearDown`
+  - 还包括这种“共享 helper 已独立存在，但旧 façade 还留在另一个基础设施单元里”的历史残留

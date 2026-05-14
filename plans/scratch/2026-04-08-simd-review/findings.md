@@ -3262,3 +3262,21 @@
 - 更重要的是，这批收口也给后续审查划出一个新的分水岭：
   - 明显的“共享 contract 未完全提升”型冗余基本已经扫平
   - 接下来继续深查 `simd`，重点应从“机械 fixture 去重”切换到“源码/测试/门禁层是否还有真正多余 truth source、局部 helper 漂移、或薄壳没有表达清楚语义”
+
+## 2026-05-14 Fixture Helper Truth-Source Consolidation Findings
+
+- `fafafa.core.simd.testcase` 里那两个 restore helper façade 暴露出一类比 suite-local fixture 更深的冗余：
+  - 真实 helper 已经独立存在于 `fafafa.core.simd.fixturehelpers`
+  - `testcase` 再包一层同名函数，只会制造“helper 真相源到底看哪里”的歧义
+  - 调用者如果长期只依赖 `testcase`，后续很容易把“基类 contract”和“状态函数 helper”继续混成一个大入口
+- 这批收掉之后，基础设施层次更清楚了：
+  - `fixturehelpers` 负责共享 save/restore 语义
+  - `testcase` 负责共享 suite 基类和 suite-level helper
+  - 专题 testcase 负责各自的 restore 断言、hook reset、rebind、exception mask 等本地语义
+- 这条调整的价值并不只在于少两层转发：
+  - 它消除了测试基础设施里的重复 truth source
+  - 让后续如果继续收口 helper 行为、补 restore 断言或追踪状态回滚语义时，不会再在 `fixturehelpers` 和 `testcase` 两层之间来回改
+  - 也让新的审查标准更明确：如果一个 helper 没有本地语义，就不该继续挂在更高层 façade 单元里
+- 经过这轮以后，剩余值得继续深入审查的点会更偏向：
+  - 生产/测试层真正重复的 thin wrapper 是否还在 backend/register/runtime seam 上残留
+  - 某些 suite-local helper 是否名义上“本地”，实际上已经没有额外断言或编排价值

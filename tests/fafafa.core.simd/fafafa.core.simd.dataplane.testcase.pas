@@ -9,6 +9,7 @@ interface
 uses
   Classes, SysUtils, fpcunit, testregistry,
   fafafa.core.simd,
+  fafafa.core.simd.fixturehelpers,
   fafafa.core.simd.testcase,
   fafafa.core.simd.base,
   fafafa.core.simd.dispatch,

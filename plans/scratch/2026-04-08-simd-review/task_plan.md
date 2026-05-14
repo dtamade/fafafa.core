@@ -2575,3 +2575,17 @@
 | 1. 复核 `AVX2/AVX512 vectorasm` 的本地 setup 是否已退化成重复壳 | completed | 已确认两者的 `SetUp` 完全同构：`SetVectorAsmEnabled(True)`、重新注册目标 backend 刷新 dispatch table、再 `ForceBackend(...)`；差异只剩目标 backend 枚举与具体 `Register*Backend` 实现 |
 | 2. 把 setup contract 提升到公共 backend-stateful 基类 | completed | `TSimdVectorAsmBackendStatefulTestCase` 已新增抽象 `GetVectorAsmTargetBackend` 与共享 `SetUp`；`AVX2/AVX512` suite 删除本地 `SetUp`，仅保留目标 backend 与注册实现 |
 | 3. Release 验证与提交收口 | completed | Release `TTestCase_AVX2VectorAsm,TTestCase_AVX512VectorAsm`、Release `check`、Release `gate` 全绿；本轮继续串行收口，避免 `tests/fafafa.core.simd` 共享输出目录假红 |
+
+## 2026-05-14 Fixture Helper Truth-Source Consolidation
+
+### Goal
+
+继续加强 `simd` 测试基础设施审查，但这次不再处理 suite fixture 生命周期，而是收敛一处更深的 helper 冗余：去掉 `fafafa.core.simd.testcase` 对 `fixturehelpers` 的同名转发 façade，让 backend/vector-asm save-restore 只保留一个真实 helper 来源。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `testcase` 是否只是 `fixturehelpers` 的转发表面 | completed | 已确认 `RestoreSavedBackendState` 与 `RestoreSavedBackendAndVectorAsmState` 在 `testcase` 中完全直通 `fixturehelpers`，没有附加任何 suite-specific 语义；调用者只是经由 `testcase` 间接依赖它们 |
+| 2. 让调用者直接依赖真实 helper 单元 | completed | 已删除 `testcase` 里的同名 façade；`dataplane/direct/dispatchapi/publicabi/concurrent/ieee754/dispatchslots` 现直接 `uses fafafa.core.simd.fixturehelpers` |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release 定向 suite、Release `check`、Release `gate` 全绿；说明 helper 真相源收敛没有破坏外围 runner、CPUInfo、public ABI 或 dispatch contract 链路 |

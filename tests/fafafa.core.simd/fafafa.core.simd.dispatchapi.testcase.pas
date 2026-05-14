@@ -46,6 +46,7 @@ interface
 uses
   Classes, SysUtils, fafafa.core.math, fpcunit, testregistry,
   fafafa.core.simd,
+  fafafa.core.simd.fixturehelpers,
   fafafa.core.simd.testcase,
   fafafa.core.simd.base,
   fafafa.core.simd.bench,
