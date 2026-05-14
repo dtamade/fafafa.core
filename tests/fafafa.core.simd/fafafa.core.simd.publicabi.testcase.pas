@@ -826,17 +826,14 @@ begin
   FillChar(LBufferA, SizeOf(LBufferA), $42);
   FillChar(LBufferB, SizeOf(LBufferB), $42);
 
-  try
-    AssertTrue('TrySetActiveBackend(sbScalar) should succeed', TrySetActiveBackend(sbScalar));
-    LApiAfter := GetSimdPublicApi;
-    AssertNotNull('Public API table should not be nil after rebind', LApiAfter);
-    AssertEquals('Fresh getter should expose refreshed active backend metadata after rebind',
-      Ord(sbScalar), Integer(LApiAfter^.ActiveBackendId));
-    AssertTrue('Cached pre-rebind MemEqual pointer should remain callable after rebind',
-      Assigned(LApiBefore^.MemEqual) and
-      LApiBefore^.MemEqual(@LBufferA[0], @LBufferB[0], SizeUInt(Length(LBufferA))));
-  finally
-  end;
+  AssertTrue('TrySetActiveBackend(sbScalar) should succeed', TrySetActiveBackend(sbScalar));
+  LApiAfter := GetSimdPublicApi;
+  AssertNotNull('Public API table should not be nil after rebind', LApiAfter);
+  AssertEquals('Fresh getter should expose refreshed active backend metadata after rebind',
+    Ord(sbScalar), Integer(LApiAfter^.ActiveBackendId));
+  AssertTrue('Cached pre-rebind MemEqual pointer should remain callable after rebind',
+    Assigned(LApiBefore^.MemEqual) and
+    LApiBefore^.MemEqual(@LBufferA[0], @LBufferB[0], SizeUInt(Length(LBufferA))));
 end;
 
 procedure TTestCase_PublicAbi.Test_PublicApi_CachedTable_Preserves_PreviousSnapshot_Metadata_Across_Rebind;
@@ -877,27 +874,24 @@ begin
   if not LFoundDifferent then
     Exit;
 
-  try
-    AssertTrue('TrySetActiveBackend(target) should succeed in snapshot-preservation test',
-      TrySetActiveBackend(LTargetBackend));
+  AssertTrue('TrySetActiveBackend(target) should succeed in snapshot-preservation test',
+    TrySetActiveBackend(LTargetBackend));
 
-    LApiAfter := GetSimdPublicApi;
-    AssertNotNull('Fresh public API table should not be nil after snapshot-preservation rebind', LApiAfter);
-    AssertTrue('Fresh getter should publish a different table pointer after rebind',
-      PtrUInt(LApiBefore) <> PtrUInt(LApiAfter));
-    AssertEquals('Cached pre-rebind table should preserve previous active backend metadata after rebind',
-      Ord(LOriginalBackend), Integer(LApiBefore^.ActiveBackendId));
-    AssertEquals('Cached pre-rebind table should preserve previous active flags after rebind',
-      LBeforeFlags, LApiBefore^.ActiveFlags);
-    AssertEquals('Fresh public API table should expose the new active backend after rebind',
-      Ord(LTargetBackend), Integer(LApiAfter^.ActiveBackendId));
-    AssertTrue('Fresh public API table active flags should remain non-zero after rebind',
-      LApiAfter^.ActiveFlags <> 0);
-    AssertTrue('Rebind should produce fresh metadata instead of mutating the cached snapshot in place',
-      (LApiAfter^.ActiveBackendId <> LApiBefore^.ActiveBackendId) or
-      (LApiAfter^.ActiveFlags <> LApiBefore^.ActiveFlags));
-  finally
-  end;
+  LApiAfter := GetSimdPublicApi;
+  AssertNotNull('Fresh public API table should not be nil after snapshot-preservation rebind', LApiAfter);
+  AssertTrue('Fresh getter should publish a different table pointer after rebind',
+    PtrUInt(LApiBefore) <> PtrUInt(LApiAfter));
+  AssertEquals('Cached pre-rebind table should preserve previous active backend metadata after rebind',
+    Ord(LOriginalBackend), Integer(LApiBefore^.ActiveBackendId));
+  AssertEquals('Cached pre-rebind table should preserve previous active flags after rebind',
+    LBeforeFlags, LApiBefore^.ActiveFlags);
+  AssertEquals('Fresh public API table should expose the new active backend after rebind',
+    Ord(LTargetBackend), Integer(LApiAfter^.ActiveBackendId));
+  AssertTrue('Fresh public API table active flags should remain non-zero after rebind',
+    LApiAfter^.ActiveFlags <> 0);
+  AssertTrue('Rebind should produce fresh metadata instead of mutating the cached snapshot in place',
+    (LApiAfter^.ActiveBackendId <> LApiBefore^.ActiveBackendId) or
+    (LApiAfter^.ActiveFlags <> LApiBefore^.ActiveFlags));
 end;
 
 procedure TTestCase_PublicAbi.Test_PublicApi_Table_Refreshes_AfterBackendSwitch;
@@ -1029,6 +1023,7 @@ var
   LApiAfter: PFafafaSimdPublicApi;
   LBufferA: array[0..7] of Byte;
   LBufferB: array[0..7] of Byte;
+  LOriginalTableRestored: Boolean;
 begin
   LBackend := GetCurrentBackend;
   AssertTrue('Current backend should be registered before public ABI re-register test',
@@ -1038,6 +1033,7 @@ begin
   FillChar(LBufferB, SizeOf(LBufferB), $22);
   LApiBefore := GetSimdPublicApi;
   AssertNotNull('Public API table should be assigned before public ABI re-register test', LApiBefore);
+  LOriginalTableRestored := False;
 
   LModifiedTable := LOriginalTable;
   LModifiedTable.MemEqual := @PublicAbiSyntheticMemEqualAlwaysTrue;
@@ -1060,9 +1056,11 @@ begin
         not LApiAfter^.MemEqual(@LBufferA[0], @LBufferB[0], SizeUInt(Length(LBufferA))));
     finally
       RegisterBackend(LBackend, LOriginalTable);
+      LOriginalTableRestored := True;
     end;
   finally
-    RegisterBackend(LBackend, LOriginalTable);
+    if not LOriginalTableRestored then
+      RegisterBackend(LBackend, LOriginalTable);
   end;
 end;
 
@@ -1095,25 +1093,22 @@ begin
   if not LFoundDifferent then
     Exit;
 
-  try
-    AssertTrue('TrySetActiveBackend(target) should succeed in public ABI round-trip test',
-      TrySetActiveBackend(LTargetBackend));
-    LApiMiddle := GetSimdPublicApi;
-    AssertNotNull('Public API table should be assigned for target backend in round-trip test', LApiMiddle);
-    AssertTrue('public ABI round-trip test should publish a different metadata table for the target backend',
-      PtrUInt(LApiMiddle) <> PtrUInt(LApiInitial));
+  AssertTrue('TrySetActiveBackend(target) should succeed in public ABI round-trip test',
+    TrySetActiveBackend(LTargetBackend));
+  LApiMiddle := GetSimdPublicApi;
+  AssertNotNull('Public API table should be assigned for target backend in round-trip test', LApiMiddle);
+  AssertTrue('public ABI round-trip test should publish a different metadata table for the target backend',
+    PtrUInt(LApiMiddle) <> PtrUInt(LApiInitial));
 
-    AssertTrue('TrySetActiveBackend(original) should succeed in public ABI round-trip test',
-      TrySetActiveBackend(LOriginalBackend));
-    LApiFinal := GetSimdPublicApi;
-    AssertNotNull('Public API table should be assigned after switching back in round-trip test', LApiFinal);
+  AssertTrue('TrySetActiveBackend(original) should succeed in public ABI round-trip test',
+    TrySetActiveBackend(LOriginalBackend));
+  LApiFinal := GetSimdPublicApi;
+  AssertNotNull('Public API table should be assigned after switching back in round-trip test', LApiFinal);
 
-    AssertTrue('round-trip back to the original dispatch should reuse the original public ABI metadata table',
-      PtrUInt(LApiFinal) = PtrUInt(LApiInitial));
-    AssertEquals('reused public ABI table should expose the restored active backend metadata',
-      Ord(LOriginalBackend), Integer(LApiFinal^.ActiveBackendId));
-  finally
-  end;
+  AssertTrue('round-trip back to the original dispatch should reuse the original public ABI metadata table',
+    PtrUInt(LApiFinal) = PtrUInt(LApiInitial));
+  AssertEquals('reused public ABI table should expose the restored active backend metadata',
+    Ord(LOriginalBackend), Integer(LApiFinal^.ActiveBackendId));
 end;
 
 procedure TTestCase_PublicAbi.Test_PublicApi_VectorAsmRoundTrip_Reuses_PreviouslyPublishedMetadataTable;
@@ -2570,6 +2565,7 @@ begin
     end;
 
     RegisterBackend(LRequestedBackend, LRequestedOriginalTable);
+    LRequestedTableCaptured := False;
     LApi := GetSimdPublicApi;
     AssertNotNull('Public API table should remain available after restoring the requested backend table in previous-forced rollback test', LApi);
     AssertEquals('Restoring the requested backend table after a failed switch must keep the previous forced backend active in public ABI',
@@ -2808,6 +2804,7 @@ begin
     end;
 
     RegisterBackend(LRequestedBackend, LRequestedOriginalTable);
+    LRequestedTableCaptured := False;
     LApi := GetSimdPublicApi;
     AssertNotNull('Public API table should remain available after restoring the requested backend table in SetActiveBackend late-failure test', LApi);
     AssertEquals('Restoring the requested backend table after SetActiveBackend late failure must keep the previous forced backend active in public ABI',
@@ -2886,6 +2883,7 @@ begin
     end;
 
     RegisterBackend(LRequestedBackend, LOriginalTable);
+    LRequestedTableCaptured := False;
     AssertTrue('Requested backend should become dispatchable again after restoring its original table in public ABI automatic rollback late-force test',
       IsBackendDispatchable(LRequestedBackend));
     LApi := GetSimdPublicApi;
@@ -2966,6 +2964,7 @@ begin
     end;
 
     RegisterBackend(LRequestedBackend, LOriginalTable);
+    LRequestedTableCaptured := False;
     AssertTrue('Requested backend should become dispatchable again after restoring its original table in public ABI automatic rollback restore-callback late-force test',
       IsBackendDispatchable(LRequestedBackend));
     LApi := GetSimdPublicApi;
@@ -3062,6 +3061,7 @@ begin
     end;
 
     RegisterBackend(LRequestedBackend, LRequestedOriginalTable);
+    LRequestedTableCaptured := False;
     LApi := GetSimdPublicApi;
     AssertNotNull('Public API table should remain available after restoring requested backend table in rollback late-force test', LApi);
     AssertEquals('Restoring the requested backend table after rollback late-force failure must keep the previous forced backend active in public ABI',
@@ -3634,6 +3634,7 @@ begin
     AddDispatchChangedHook(@PublicAbiHookLateAutomaticResetOnRegisterRestore);
     try
       RegisterBackend(LPreviousForcedBackend, LPreviousOriginalTable);
+      LPreviousTableCaptured := False;
       AssertEquals('Synthetic public ABI RegisterBackend late-reset hook should run through the full callback sequence',
         5, GPublicAbiHookRegisterRestoreResetStage);
       LApi := GetSimdPublicApi;
@@ -3707,6 +3708,7 @@ begin
     AddDispatchChangedHook(@PublicAbiHookReForceBackendOnAutomaticRestore);
     try
       RegisterBackend(LPreviousForcedBackend, LPreviousOriginalTable);
+      LPreviousTableCaptured := False;
       AssertEquals('Synthetic public ABI RegisterBackend restore-callback late-force hook should run through the full callback sequence',
         5, GPublicAbiHookResetLateForceStage);
       LApi := GetSimdPublicApi;

@@ -2542,3 +2542,21 @@
   - `publicabi.testcase` 顶层 pure `vector asm` outer finally 已清零
   - 剩余更值得继续查的，只会是确实夹带 hook/rollback/failure 语义的复杂 reset/restore 块，而不是普通 capability/pod-info 尾声样板
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+- 继续沿 `publicabi.testcase` 的复杂 hook/rollback/failure 路径往下看后，我这轮没有再机械扫 `ResetToAutomaticBackend`，而是收了两类更确定的 exact-contract 冗余：
+  - 3 处空 `finally`
+  - 7 条正常流已恢复原 table、但 outer finally 仍会重复 `RegisterBackend(...original...)` 的 duplicate table restore
+- 这次保持了最小修法：
+  - 空 `finally` 直接删壳
+  - 对 `CachedTable_Cdecl_EntryPoints_Follow_CurrentDataPlane_After_ReRegister` 增加 `LOriginalTableRestored`
+  - 对多条 `*TableCaptured` 路径在显式恢复原 table 成功后立刻清 capture 状态，保留 outer finally 只兜底异常路径
+- 本轮 Release 验证继续按串行链完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断继续更新：
+  - `publicabi.testcase` 里空壳与 duplicate table restore 又清掉一层
+  - 下一轮更值得查的，已经缩到那些“中途 reset/restore 本身就是测试主题”的 hook/state-machine 块，要逐段看是否还有真实的尾声噪音或 fixture 边界问题
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

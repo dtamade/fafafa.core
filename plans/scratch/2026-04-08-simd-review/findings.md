@@ -2387,3 +2387,43 @@
   - hook/state-machine 过程中确实承担断言语义的中途 reset
 - 这也意味着下一批若继续沿 public ABI 深审，已经不适合再做形状扫描；要转成逐段判断复杂 hook/rollback/failure 路径是否真的有“退出前重复 reset/restore”。
 - Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿，说明这批收掉的确实只是 capability/pod-info 测试层恢复 contract 的缺失，而不是 public ABI / runtime rebuild / backend capability 生产行为依赖。
+
+## 2026-05-14 PublicAbi Empty Finally And Duplicate Table Restore Cleanup Findings
+
+- 在 capability/pod-info 顶层恢复收完之后，继续往复杂 hook/rollback/failure 路径深审，最确定的真冗余反而不是新的 `ResetToAutomaticBackend`，而是两类更机械的 exact-contract 噪音：
+  - 空 `finally` 壳
+  - 正常流已经恢复原 table，outer finally 还会再做一遍同样的 `RegisterBackend(...original...)`
+- 空 `finally` 这次一共确认了 3 处：
+  - `Test_PublicApi_CachedTable_RemainsCallable_Across_Rebind`
+  - `Test_PublicApi_CachedTable_Preserves_PreviousSnapshot_Metadata_Across_Rebind`
+  - `Test_PublicApi_BackendRoundTrip_Reuses_PreviouslyPublishedMetadataTable`
+- 这些壳都是前几轮删掉尾声恢复后留下来的历史骨架：
+  - 没有 cleanup 逻辑
+  - 没有后续状态恢复责任
+  - 保留它们只会增加读者对“这里是不是还该有恢复语义”的误判
+- 另一簇更有价值的冗余是 duplicate table restore：
+  - 方法主体在正常流里已经显式 `RegisterBackend(...original...)`
+  - 后面还会立刻用恢复后的状态做断言
+  - outer finally 同时还保留了 `if *TableCaptured then RegisterBackend(...original...)`
+  - 这样一来，正常路径总会对同一张原 table 连续恢复两次
+- 本轮收口方式保持最小化，没有删除 outer finally 的兜底职责，而是只在“显式恢复原 table 成功后”立刻清掉 capture 状态：
+  - `LRequestedTableCaptured := False`
+  - `LPreviousTableCaptured := False`
+  - 或在重注册双层测试里用 `LOriginalTableRestored` 标出“已经恢复过”
+- 这样做的好处是：
+  - 异常路径仍然由 outer finally 兜底
+  - 正常路径不再重复 re-register 同一张原 table
+  - 中途 hook/rollback/failure 的断言语义完全不动
+- 这批具体覆盖了：
+  - `CachedTable_Cdecl_EntryPoints_Follow_CurrentDataPlane_After_ReRegister`
+  - `FailedHookMutation_Restores_PreviousForcedBackend`
+  - `SetActiveBackend_HookLateFailure_Preserves_PreviousForcedBackend`
+  - `RollbackRestore_LateForce_Restores_AutomaticBackend`
+  - `RollbackRestore_LateForce_DuringRestore_Restores_AutomaticBackend`
+  - `RollbackRestore_LateForce_Preserves_PreviousForcedBackend`
+  - `RegisterBackend_HookLateAutomaticReset_Preserves_PreviousForcedBackend`
+  - `RegisterBackend_HookLateForce_DuringRestore_Preserves_PreviousForcedBackend`
+- 当前判断也进一步收紧了：
+  - `publicabi.testcase` 里 easy shape 的空壳与 duplicate table restore 已经又清掉一层
+  - 剩余更值得继续查的，主要是那些中途 reset/restore 本身就是测试主题的一部分的 hook/state-machine 路径，后续必须逐段看断言依赖，不能再按形状批量删
+- Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿，说明这批收掉的确实只是 public ABI 测试层 cleanup 冗余，而不是 register/hook/rollback 生产语义依赖。

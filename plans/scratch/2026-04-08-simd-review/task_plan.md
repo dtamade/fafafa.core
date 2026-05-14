@@ -2067,3 +2067,17 @@
 | 1. 复核 capability/pod-info 路径剩余 pure `vector asm` outer finally | completed | 已确认 `publicabi.testcase` 里剩余 14 处顶层裸 `SetVectorAsmEnabled(LOldVectorAsm)` 都集中在 `BackendPodInfo_CapabilityBits_*` 相关用例；这些测试会通过 `SetVectorAsmEnabled(True/False)` 触发 active backend 重选，但尾声只恢复 `vector asm`，没有复用类级保存的 backend |
 | 2. 复用 `RestorePublicAbiLocalState` 收掉顶层纯恢复样板 | completed | 已把这 14 处统一切到 `RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend)`，覆盖 `x86 shuffle/masked/integer`、`AVX2/AVX512`、`NEON`、`RISCVV` capability bits 用例；不触碰 hook/reset 状态机路径与 `src/` 生产实现 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 PublicAbi Empty Finally And Duplicate Table Restore Cleanup
+
+### Goal
+
+继续沿 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 深审复杂 hook/rollback 路径，但这次只收最确定的 exact-contract 冗余：删除空 `finally` 壳，以及把“正常流已经 `RegisterBackend(...original...)` 恢复原 table，outer finally 还会再恢复一次”的双表恢复收口成条件式 cleanup，不改任何中途断言语义。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `publicabi` 剩余 exact-contract 冗余 | completed | 已确认 3 处空 `finally` 只是在前几轮删除恢复逻辑后留下的壳；另有一批 hook/rollback/failure 路径在正常流里已经显式 `RegisterBackend(...original...)`，但 outer finally 仍会再做一遍相同恢复 |
+| 2. 删除空 `finally` 并收紧 duplicate table restore | completed | 已去掉 3 处空 `finally`；为 `CachedTable_Cdecl_EntryPoints_Follow_CurrentDataPlane_After_ReRegister` 加 `LOriginalTableRestored`，并在 7 条 hook/rollback/register 路径里把 `*TableCaptured` 在显式恢复原 table 后立刻清掉，避免 outer finally 再重复 `RegisterBackend(...)` |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
