@@ -2815,3 +2815,32 @@
   - 去重颗粒度可以细到“只抽 backend 生命周期，保留本地专属状态”
   - 这为继续审 `direct/dataplane/runtime/sse2contracts` 提供了方法论：先拆清哪些状态是通用 backend fixture，哪些才是 testcase 专属语义
 - Release `TTestCase_EdgeCases,TTestCase_ImageProc`、Release `check`、Release `gate` 全绿，说明这批仍然只是测试夹具层去冗余，没有破坏 FPU edge-case 和 imageproc 行为期望。
+
+## 2026-05-14 DataPlane And SSE2Contracts Fixture Consolidation Findings
+
+- `dataplane` 和 `sse2contracts` 又展示出一类不同于 pure scalar fixture、但也没复杂到必须引入专门 vector-asm 基类的 testcase：
+  - 它们确实自带 backend save/restore
+  - 也确实自带 `vector-asm` 开关 save/restore
+  - 但并不需要 `RefreshVectorAsmBackendRegistration` 这类更重的专属生命周期
+- 两个文件的旧形状都很接近：
+  - testcase 直接继承 `TTestCase`
+  - 本地同时声明 `FOldBackend` 与 `FOldVectorAsm`
+  - `SetUp` 里重复 `GetDispatchTable; FOldVectorAsm := IsVectorAsmEnabled; FOldBackend := GetCurrentBackend`
+  - `TearDown` 里手写 `SetVectorAsmEnabled(...) + ResetToAutomaticBackend/TrySetActiveBackend + AssertTrue(...)`
+- 这批复核确认了最关键的结构事实：
+  - 仓内现成 `TSimdBackendStatefulTestCase` 已经完整承接 backend 生命周期
+  - `TSimdVectorAsmBackendStatefulTestCase` 虽然更“全”，但它受 `UNIX + CPUX86_64` 条件存在，并要求 testcase 提供 `RefreshVectorAsmBackendRegistration`
+  - 对 `dataplane/sse2contracts` 这种“只需保留一个 `vector-asm` 布尔状态”的文件来说，直接套这个更重的基类反而会把平台条件和额外 contract 带进来
+- 因而这批 testcase 的正确收法不是“继续保留整套旧样板”，也不是“机械切到 vector-asm 基类”，而是：
+  - 让类级 backend 生命周期回到 `TSimdBackendStatefulTestCase`
+  - 本地只保留 `FOldVectorAsm`
+  - `TearDown` 先恢复 `vector-asm`，再 `inherited TearDown` 恢复 backend，最后断言 `IsVectorAsmEnabled = FOldVectorAsm`
+- `dataplane` 里还暴露了一个细节风险点：
+  - 文件内部有一条方法级 local restore 之前仍调用 `RestoreDataPlaneLocalState(LOldVectorAsm, FOldBackend)`
+  - 一旦类级 `FOldBackend` 被删掉，这种调用必须同步切到 `FSavedBackend`
+  - 否则 testcase 会悄悄变成“fixture 已改基类，但方法级 cleanup 仍偷吃旧字段”的半收口状态
+- 这批修法的价值在于：
+  - simd 测试层的 stateful fixture 又少了一类重复 backend 样板
+  - 同时保住了 `vector-asm` 这部分 testcase 专属语义，不把它硬塞进更重、更窄条件的通用基类
+  - 也给下一轮继续审 `concurrent/direct/dispatchslots` 提供了更清晰的判别规则：先分清 backend 生命周期、vector-asm 状态和 testcase 专属 hook/rebind 语义分别属于哪一层
+- Release `TTestCase_SSE2Contracts,TTestCase_DataPlane`、Release `check`、Release `gate` 全绿，说明这批仍然只是测试夹具层去冗余，没有改变 dataplane 或 SSE2 contract 的被测行为。

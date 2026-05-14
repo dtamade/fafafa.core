@@ -2917,3 +2917,35 @@
   - 这证明后续剩余 testcase 不必二选一地“全保留旧样板”或“机械切到 scalar 基类”；可以按额外语义拆出更细粒度的去冗余
   - 下一轮如果继续沿这个方向深挖，更值得看的是仍在自带 backend fixture 的 `direct/dataplane/runtime/sse2contracts` 这类 testcase，先判断哪些已经有自定义基类、哪些还能继续往公共基类收
 - 这轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+- 我继续往前收的是两份“backend 保存/恢复可以回到公共基类，但 vector-asm 开关仍需 testcase 本地维护”的 testcase：
+  - `dataplane`
+  - `sse2contracts`
+- 这轮先把边界卡清楚了：
+  - 两个 testcase 旧样板都同时保存 `FOldBackend + FOldVectorAsm`
+  - 但仓内现成的 `TSimdBackendStatefulTestCase` 已经完整提供 `GetDispatchTable -> save current backend -> TearDown restore saved backend`
+  - 真正 testcase 专属的剩余状态只有 `vector-asm` 开关
+  - 同时 `TSimdVectorAsmBackendStatefulTestCase` 虽然也现成，但它受 `{$IFDEF UNIX}{$IFDEF CPUX86_64}` 条件约束，而且要求实现 `RefreshVectorAsmBackendRegistration`，对这两份文件来说过重
+- 本轮最小修法因此是：
+  - `TTestCase_DataPlane` 改继承 `TSimdBackendStatefulTestCase`
+  - `TTestCase_SSE2Contracts` 改继承 `TSimdBackendStatefulTestCase`
+  - 两个文件都引入 `fafafa.core.simd.testcase`
+  - 删除本地 `FOldBackend`
+  - `SetUp` 只保留 `FOldVectorAsm := IsVectorAsmEnabled`
+  - `TearDown` 只做 `SetVectorAsmEnabled(FOldVectorAsm); inherited TearDown; AssertTrue(... IsVectorAsmEnabled = FOldVectorAsm)`
+  - `dataplane` 内那条方法级 local restore 也从 `RestoreDataPlaneLocalState(LOldVectorAsm, FOldBackend)` 收回到 `RestoreDataPlaneLocalState(LOldVectorAsm, FSavedBackend)`，避免继续依赖已删除的本地 backend 缓存
+- 这轮也顺手验证了一个结构事实：
+  - `TSimdBackendStatefulTestCase.SetUp` 已负责 `GetDispatchTable`
+  - 所以这两份 testcase 不需要再本地重复调用一次
+  - backend 的恢复契约也可以完全由公共基类断言，不必再各自保留一套 `ResetToAutomaticBackend / TrySetActiveBackend / AssertTrue`
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SSE2Contracts,TTestCase_DataPlane`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断继续更新：
+  - `dataplane/sse2contracts` 这类“backend + vector-asm 双状态” testcase 也已经能按更细粒度拆出公共与专属生命周期
+  - 这说明后续继续深挖时，不必急着把所有 vector-asm testcase 都硬套进 `TSimdVectorAsmBackendStatefulTestCase`
+  - 更稳的做法仍然是先看 testcase 是否真的只剩 `vector-asm` 专属状态，再决定是否保留本地字段
+- 这轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

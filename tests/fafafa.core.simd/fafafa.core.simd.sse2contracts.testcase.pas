@@ -9,15 +9,15 @@ interface
 uses
   Classes, SysUtils, fpcunit, testregistry,
   fafafa.core.simd,
+  fafafa.core.simd.testcase,
   fafafa.core.simd.base,
   fafafa.core.simd.dispatch,
   fafafa.core.simd.scalar;
 
 type
-  TTestCase_SSE2Contracts = class(TTestCase)
+  TTestCase_SSE2Contracts = class(TSimdBackendStatefulTestCase)
   protected
     FOldVectorAsm: Boolean;
-    FOldBackend: TSimdBackend;
     procedure SetUp; override;
     procedure TearDown; override;
     function TryLoadSSE2AndScalarTables(out aSSE2Table, aScalarTable: TSimdDispatchTable): Boolean;
@@ -38,30 +38,19 @@ type
 
 implementation
 
-function RestoreSSE2ContractsLocalState(aOriginalVectorAsm: Boolean;
-  aOriginalBackend: TSimdBackend): Boolean;
-begin
-  SetVectorAsmEnabled(aOriginalVectorAsm);
-  ResetToAutomaticBackend;
-  if GetCurrentBackend = aOriginalBackend then
-    Exit(True);
-
-  Result := TrySetActiveBackend(aOriginalBackend);
-end;
-
 procedure TTestCase_SSE2Contracts.SetUp;
 begin
   inherited SetUp;
-  GetDispatchTable;
   FOldVectorAsm := IsVectorAsmEnabled;
-  FOldBackend := GetCurrentBackend;
 end;
 
 procedure TTestCase_SSE2Contracts.TearDown;
 begin
-  AssertTrue('SSE2 contracts fixture should restore previous backend selection',
-    RestoreSSE2ContractsLocalState(FOldVectorAsm, FOldBackend));
+  SetVectorAsmEnabled(FOldVectorAsm);
   inherited TearDown;
+
+  AssertTrue('SSE2 contracts fixture should restore previous vector asm state',
+    IsVectorAsmEnabled = FOldVectorAsm);
 end;
 
 function TTestCase_SSE2Contracts.TryLoadSSE2AndScalarTables(out aSSE2Table, aScalarTable: TSimdDispatchTable): Boolean;

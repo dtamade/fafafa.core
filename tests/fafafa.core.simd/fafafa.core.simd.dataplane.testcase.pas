@@ -9,6 +9,7 @@ interface
 uses
   Classes, SysUtils, fpcunit, testregistry,
   fafafa.core.simd,
+  fafafa.core.simd.testcase,
   fafafa.core.simd.base,
   fafafa.core.simd.dispatch,
   fafafa.core.simd.direct,
@@ -16,10 +17,9 @@ uses
   fafafa.core.simd.scalar;
 
 type
-  TTestCase_DataPlane = class(TTestCase)
+  TTestCase_DataPlane = class(TSimdBackendStatefulTestCase)
   protected
     FOldVectorAsm: Boolean;
-    FOldBackend: TSimdBackend;
     procedure SetUp; override;
     procedure TearDown; override;
   published
@@ -50,16 +50,16 @@ end;
 procedure TTestCase_DataPlane.SetUp;
 begin
   inherited SetUp;
-  GetDispatchTable;
   FOldVectorAsm := IsVectorAsmEnabled;
-  FOldBackend := GetCurrentBackend;
 end;
 
 procedure TTestCase_DataPlane.TearDown;
 begin
-  AssertTrue('Data-plane fixture should restore previous backend selection',
-    RestoreDataPlaneLocalState(FOldVectorAsm, FOldBackend));
+  SetVectorAsmEnabled(FOldVectorAsm);
   inherited TearDown;
+
+  AssertTrue('Data-plane fixture should restore previous vector asm state',
+    IsVectorAsmEnabled = FOldVectorAsm);
 end;
 
 procedure TTestCase_DataPlane.Test_DataPlane_CurrentSnapshot_Matches_Dispatch_And_Direct;
@@ -263,7 +263,7 @@ begin
       PtrUInt(LFinal) = PtrUInt(LInitial));
   finally
     AssertTrue('Data-plane local restore should recover previous backend selection',
-      RestoreDataPlaneLocalState(LOldVectorAsm, FOldBackend));
+      RestoreDataPlaneLocalState(LOldVectorAsm, FSavedBackend));
   end;
 end;
 

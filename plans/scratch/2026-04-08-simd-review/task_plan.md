@@ -2291,3 +2291,17 @@
 | 1. 复核 `edgecases` / `imageproc` 的附加清理语义 | completed | 已确认 `edgecases` 除 backend 之外还要保存/恢复 `TFPUExceptionMask`，而 `imageproc` 还要保存/恢复 `TImageBlendAlphaMode` 并释放 `FSrc1/FSrc2/FDest`；两者都不是纯 scalar fixture，不能像前几批那样机械整文件切 `TScalarBackendStatefulTestCase` |
 | 2. 只把 backend 保存/恢复收回公共基类 | completed | `TTestCase_EdgeCases` 改继承 `TSimdBackendStatefulTestCase`，本地只保留 `ForceBackend(sbScalar)` 与 FPU mask 生命周期；`TTestCase_ImageProc` 改继承 `TScalarBackendStatefulTestCase`，本地只保留 image/blend 清理；两文件均引入 `fafafa.core.simd.testcase`，移除仅给旧 backend fixture 用的 `dispatch` 依赖 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_EdgeCases,TTestCase_ImageProc`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 DataPlane And SSE2Contracts Fixture Consolidation
+
+### Goal
+
+继续沿 stateful fixture 去重往下收，但只把 `dataplane` / `sse2contracts` 里重复的 backend 保存/恢复收回公共基类；`vector-asm` 开关仍保留为 testcase 本地状态，不把这批强行升级成更重的 vector-asm 专属基类改造。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `dataplane` / `sse2contracts` 的 backend 与 vector-asm 生命周期边界 | completed | 已确认两份 testcase 都同时重复 `FOldBackend + FOldVectorAsm` 样板，但真正通用的是 backend save/restore；`vector-asm` 状态仍是 testcase 专属，而 `TSimdVectorAsmBackendStatefulTestCase` 对这批文件来说平台条件更窄、契约更重 |
+| 2. 只把 backend 保存/恢复收回 `TSimdBackendStatefulTestCase` | completed | `TTestCase_DataPlane` 与 `TTestCase_SSE2Contracts` 都已改继承 `TSimdBackendStatefulTestCase`，删除本地 `FOldBackend`，保留 `FOldVectorAsm`；`TearDown` 统一先恢复 vector-asm，再 `inherited TearDown` 恢复 backend；`dataplane` 的方法级 local restore 也同步从 `FOldBackend` 切到 `FSavedBackend` |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_SSE2Contracts,TTestCase_DataPlane`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
