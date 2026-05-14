@@ -836,9 +836,6 @@ begin
       Assigned(LApiBefore^.MemEqual) and
       LApiBefore^.MemEqual(@LBufferA[0], @LBufferB[0], SizeUInt(Length(LBufferA))));
   finally
-    if GetCurrentBackend <> LOriginalBackend then
-      AssertTrue('Restoring original active backend should succeed',
-        RestoreOriginalActiveBackend(LOriginalBackend));
   end;
 end;
 
@@ -900,9 +897,6 @@ begin
       (LApiAfter^.ActiveBackendId <> LApiBefore^.ActiveBackendId) or
       (LApiAfter^.ActiveFlags <> LApiBefore^.ActiveFlags));
   finally
-    if GetCurrentBackend <> LOriginalBackend then
-      AssertTrue('Restoring original active backend should succeed after snapshot-preservation test',
-        RestoreOriginalActiveBackend(LOriginalBackend));
   end;
 end;
 
@@ -1022,9 +1016,6 @@ begin
       GetPublicApiFuncPointer(LApiBefore, LSlotIndex) =
       GetPublicApiFuncPointer(LApiAfter, LSlotIndex));
   finally
-    if GetCurrentBackend <> LOriginalBackend then
-      AssertTrue('Restoring original active backend should succeed after data-plane rebind test',
-        RestoreOriginalActiveBackend(LOriginalBackend));
     RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
@@ -1122,9 +1113,6 @@ begin
     AssertEquals('reused public ABI table should expose the restored active backend metadata',
       Ord(LOriginalBackend), Integer(LApiFinal^.ActiveBackendId));
   finally
-    if GetCurrentBackend <> LOriginalBackend then
-      AssertTrue('restoring original backend should succeed after public ABI round-trip test',
-        RestoreOriginalActiveBackend(LOriginalBackend));
   end;
 end;
 
@@ -2205,9 +2193,6 @@ begin
       LActiveInfo.Flags, LApi^.ActiveFlags);
   finally
     RegisterBackend(LOriginalBackend, LOriginalTable);
-    if GetCurrentBackend <> LOriginalBackend then
-      AssertTrue('Restoring original active backend should succeed',
-        RestoreOriginalActiveBackend(LOriginalBackend));
   end;
 end;
 
@@ -2250,9 +2235,6 @@ begin
         LActiveInfo.Flags, LApi^.ActiveFlags);
     finally
       RegisterBackend(LOriginalBackend, LOriginalTable);
-      if GetCurrentBackend <> LOriginalBackend then
-        AssertTrue('Restoring original active backend should succeed',
-          RestoreOriginalActiveBackend(LOriginalBackend));
     end;
   finally
     RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
@@ -2390,9 +2372,6 @@ begin
     finally
       DisablePublicAbiDisableBackendHook;
       RegisterBackend(LRequestedBackend, LOriginalTable);
-      if GetCurrentBackend <> LRequestedBackend then
-        AssertTrue('Restoring original active backend should succeed',
-          RestoreOriginalActiveBackend(LRequestedBackend));
     end;
   finally
     RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
@@ -2513,9 +2492,6 @@ begin
     finally
       DisablePublicAbiDisableBackendHook;
       RegisterBackend(LRequestedBackend, LOriginalTable);
-      if GetCurrentBackend <> LAutomaticBackend then
-        AssertTrue('Restoring original automatic backend after public ABI failed-hook restore test should succeed',
-          RestoreOriginalActiveBackend(LAutomaticBackend));
     end;
   finally
     RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
@@ -2650,9 +2626,6 @@ begin
       GPublicAbiHookRestoreBackendEnabled := False;
       GPublicAbiHookRestoreBackendStage := 0;
       RegisterBackend(LRequestedBackend, LOriginalTable);
-      if GetCurrentBackend <> LRequestedBackend then
-        AssertTrue('Restoring original requested backend after public ABI rollback-restore consistency test should succeed',
-          RestoreOriginalActiveBackend(LRequestedBackend));
     end;
   finally
     RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);

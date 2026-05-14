@@ -2505,3 +2505,23 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 - 当前结论更新：`dispatchapi.testcase` 里下一类更值得继续查的，不再是普通 reset 形状，而是“测试是否把 fixture 当 helper 用”这类跨 test/probe 边界。
+
+- 继续往 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 深审后，确认这轮最值得收的已经不是再扫 `ResetToAutomaticBackend`，而是 helper 化之后残留的 `RestoreOriginalActiveBackend(...)` 双恢复尾声。
+- 逐段复核后，已定位 9 处真正的冗余点，它们都满足同一个条件：
+  - 先 `RestoreOriginalActiveBackend(...)`
+  - 后面要么直接 `end;`
+  - 要么马上再走 `RestorePublicAbiLocalState(...)`
+  - 中间没有新的断言依赖“先恢复回原 backend”的状态
+- 本轮因此只删除这 9 处尾声双恢复，没有去碰仍带后续断言依赖的调用点；`RestoreOriginalActiveBackend(...)` 在该文件里现在只保留 1 处真实需要的命中：
+  - `Test_PublicApi_Table_Refreshes_AfterBackendSwitch`
+  - 因为它在 finally 后还要断言 active backend 追踪恢复后的 backend
+- 本轮 Release 验证已串行完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断更新：
+  - `publicabi.testcase` 里简单 outer finally 与双恢复尾声都已经大幅收敛
+  - 下一批若继续沿 public ABI 深审，应优先逐段看剩余 hook/state-machine 复杂 finally 是否真的存在断言依赖，而不是继续按形状删恢复语句
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

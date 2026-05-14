@@ -2039,3 +2039,17 @@
 | 1. 复核 cross-test probe 的真实依赖 | completed | 已确认这条 probe 是全文件唯一一处手工 `Create` 测试类再直接调 `Test_*` 的模式，而被调方法 `Test_TrySetActiveBackend_RollbackRestore_Success_Preserves_ForcedSelection` 的 finally 明确依赖 `FSavedVectorAsm/FSavedBackend` |
 | 2. 显式跑 inner fixture 并去掉掩盖性 reset | completed | 已在 probe 中引入 `LInnerSetupDone`，改为显式 `LCase.SetUp -> Test_* -> LCase.TearDown`；同时删除块尾靠 `ResetToAutomaticBackend` 掩盖 inner fixture 缺失的做法 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_RISCVFallbackDispatchContract,TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿；当前这条 probe 已从“隐式依赖测试类零值”收口成显式 fixture 契约 |
+
+## 2026-05-14 PublicAbi Double Restore Cleanup
+
+### Goal
+
+继续沿 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 深审已进入 helper 化之后的复杂尾声恢复，先删掉那些“先 `RestoreOriginalActiveBackend(...)`，随后又立刻 `RestorePublicAbiLocalState(...)` 或直接返回”的双恢复冗余，只保留真正还有后续断言依赖中间 backend 状态的调用点。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `publicabi.testcase` 里剩余 `RestoreOriginalActiveBackend(...)` 的语义归属 | completed | 已逐段确认 9 处命中都属于尾声双恢复：它们后面要么直接 `end;`，要么马上再走 `RestorePublicAbiLocalState(...)`，中间没有新的断言依赖“先恢复回原 backend”的状态；仅 `Test_PublicApi_Table_Refreshes_AfterBackendSwitch` 还需要保留，因为 finally 后仍有断言要求 active backend 追踪恢复后的 backend |
+| 2. 删除双恢复冗余并保留真实依赖点 | completed | 已从 `CachedTable_*`、`Stable_Cdecl_EntryPoints`、`BackendRoundTrip`、`BackendPodInfo_Refreshes`、`ActiveBackendId_*`、`FailedHookMutation_*`、`RollbackRestore_*` 等 9 条路径删去尾声 `RestoreOriginalActiveBackend(...)`；保留唯一真实需要的 `Table_Refreshes_AfterBackendSwitch` 调用点不动 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |

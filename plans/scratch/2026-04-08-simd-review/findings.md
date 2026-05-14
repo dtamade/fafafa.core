@@ -2327,3 +2327,34 @@
 - 同时删掉块尾那个原本用于“手工拉回 automatic”的 reset，让 probe 自己真的验证 inner fixture 可以把状态恢复到外层预期，而不是继续靠外层兜底。
 - 全文件复核后，当前这类“手工 new 测试类并直接调测试方法”的模式只发现这一处，所以这是一次高价值、低扩散面的边界修复。
 - Release `TTestCase_RISCVFallbackDispatchContract,TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿，说明这条 probe 现在已经从“隐式依赖零值 + 外层 reset”切回了明确的 fixture 契约。
+
+## 2026-05-14 PublicAbi Double Restore Cleanup Findings
+
+- 在 `publicabi.testcase` 前两批 local-restore helper 收口之后，继续逐段复核剩余的尾声恢复，发现新的高价值点已经不再是 `ResetToAutomaticBackend`，而是 `RestoreOriginalActiveBackend(...)` 的双恢复冗余：
+  - 先恢复回某个“原 backend”
+  - 然后马上 `RestorePublicAbiLocalState(...)` 或直接结束测试
+  - 中间没有新的断言依赖那个中间态
+- 这类写法的问题不是“语义错误”，而是测试尾声多维护了一层没有消费方的中间恢复状态：
+  - 它让读代码的人误以为“先恢复原 backend”本身是断言前提
+  - 但真实的 restore contract 仍然是类级保存的 `FSavedVectorAsm/FSavedBackend`，或者方法直接结束交给 fixture
+- 本轮逐段确认后，真正可以删掉的双恢复点共有 9 处，覆盖：
+  - `Test_PublicApi_CachedTable_RemainsCallable_Across_Rebind`
+  - `Test_PublicApi_CachedTable_Preserves_PreviousSnapshot_Metadata_Across_Rebind`
+  - `Test_PublicApi_Table_Uses_Stable_Cdecl_EntryPoints_AfterBackendSwitch`
+  - `Test_PublicApi_BackendRoundTrip_Reuses_PreviouslyPublishedMetadataTable`
+  - `Test_PublicApi_BackendPodInfo_Refreshes_WhenBackendBecomesNonDispatchable`
+  - `Test_PublicApi_ActiveBackendId_Tracks_RegisterSlot_After_ReRegister`
+  - `Test_PublicApi_ActiveBackendId_Tracks_FinalState_When_HookReRegister_Overrides_ForcedSelection`
+  - `Test_PublicApi_FailedHookMutation_Restores_AutomaticBackend_Immediately`
+  - `Test_PublicApi_RollbackRestore_ReSelects_RequestedBackend_Before_Return`
+- 这些删除都满足同一个判定标准：
+  - 后面没有断言依赖“恢复后的中间 backend”
+  - 或者紧接着就会由 `RestorePublicAbiLocalState(...)` 把状态恢复到进入测试前保存的 `vector asm + backend`
+- 仅有 1 处 `RestoreOriginalActiveBackend(...)` 需要保留：
+  - `Test_PublicApi_Table_Refreshes_AfterBackendSwitch`
+  - 因为它在 finally 之后还有断言 `Public API active backend should track the restored backend`
+  - 这里的“先恢复回 `LOriginalBackend`”是后续断言语义的一部分，不是噪音
+- 当前判断也更清楚了：
+  - `publicabi.testcase` 里简单两行式 restore 样板和这批双恢复尾声已经基本收完
+  - 下一批若继续沿 public ABI 深审，重点应转向还夹带 hook/state-machine 语义、且确实需要逐段判断断言依赖的复杂 finally
+- Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿，说明这批删掉的确实只是 public ABI 测试层尾声冗余，而不是 public ABI / dataplane / dispatch 生产语义依赖。
