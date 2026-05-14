@@ -17,6 +17,11 @@ uses
 
 type
   TTestCase_DataPlane = class(TTestCase)
+  protected
+    FOldVectorAsm: Boolean;
+    FOldBackend: TSimdBackend;
+    procedure SetUp; override;
+    procedure TearDown; override;
   published
     procedure Test_DataPlane_CurrentSnapshot_Matches_Dispatch_And_Direct;
     procedure Test_DataPlane_BoundSlots_Match_CurrentDispatch_And_PublicAbi;
@@ -30,6 +35,24 @@ type
   end;
 
 implementation
+
+procedure TTestCase_DataPlane.SetUp;
+begin
+  inherited SetUp;
+  GetDispatchTable;
+  FOldVectorAsm := IsVectorAsmEnabled;
+  FOldBackend := GetCurrentBackend;
+end;
+
+procedure TTestCase_DataPlane.TearDown;
+begin
+  SetVectorAsmEnabled(FOldVectorAsm);
+  ResetToAutomaticBackend;
+  if GetCurrentBackend <> FOldBackend then
+    AssertTrue('Data-plane fixture should restore previous backend selection',
+      TrySetActiveBackend(FOldBackend));
+  inherited TearDown;
+end;
 
 procedure TTestCase_DataPlane.Test_DataPlane_CurrentSnapshot_Matches_Dispatch_And_Direct;
 var

@@ -1859,3 +1859,34 @@
   - `TearDown` 中在 backend reset 后恢复原始 mask
   - 不改 test body 的 backend 切换语义，不改 mixed suite 设计
 - Release `TTestCase_IEEE754_F64,TTestCase_IEEE754EdgeCases,TTestCase_AVX2RoundTruncIEEE754`、Release `check`、串行 Release `gate` 全绿，说明这批修的是 IEEE754 fixture 生命周期泄漏，而不是 IEEE754 算法/舍入实现缺陷。
+
+## 2026-05-14 Fixture Backend Restore Symmetry Findings
+
+- 这轮继续审查 mixed/control-plane/high-value suite 后，抓到的真实问题不是“还缺更多 scalarization”，而是多个测试夹具都在静默污染全局 backend 选择：
+  - `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas`
+  - `tests/fafafa.core.simd/fafafa.core.simd.sse2contracts.testcase.pas`
+  - `tests/fafafa.core.simd/fafafa.core.simd.dataplane.testcase.pas`
+  - `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas`
+- `publicabi.testcase` 的问题最直接：
+  - `TTestCase_PublicAbi.SetUp/TearDown` 只调用 `ResetPublicAbiSyntheticHookState`
+  - 而这个 helper 内部会 `SetVectorAsmEnabled(False)` + `ResetToAutomaticBackend`
+  - 结果是 suite 每跑完一条测试，都会把进入测试前的真实 backend 选择强行丢成 automatic
+- 其余高价值 suite 也有同类不对称：
+  - `TTestCase_SSE2Contracts.TearDown`
+  - `TTestCase_DataPlane` 内部若切 backend，最终常只回到 automatic
+  - `TTestCase_SimdConcurrent*` 四类 suite 普遍只保存/恢复 `vector asm`，但没有恢复进入测试前的 `GetCurrentBackend`
+- 这类问题和 `IEEE754` 的 FPU mask 泄漏是同一层级的 fixture 生命周期缺口：
+  - 不一定立刻让当前 suite 自己失败
+  - 但会污染后续 suite 的控制面起点
+  - 尤其当上游测试刻意强制 `sbScalar/sbSSE2/sbAVX2` 时，后续 suite 会在不知情下从 automatic 开始
+- 最小正确修复方式不是改生产实现，也不是给这些 suite 机械加 `sbScalar`：
+  - 只在 fixture 层保存进入测试前的 `IsVectorAsmEnabled` 与 `GetCurrentBackend`
+  - `TearDown` 时先恢复原始 `vector asm`
+  - 再 `ResetToAutomaticBackend`
+  - 如果当前 backend 仍不等于保存值，再 `TrySetActiveBackend(savedBackend)`
+- 具体落地：
+  - `TTestCase_PublicAbi` 增加 `FSavedVectorAsm/FSavedBackend`
+  - `TTestCase_SSE2Contracts` 增加 `FOldBackend`
+  - `TTestCase_DataPlane` 增加 fixture 级 `SetUp/TearDown`
+  - `concurrent.testcase` 提取 `TSimdStatefulTestCase`，统一给 `TTestCase_SimdConcurrent`、`TTestCase_SimdConcurrentPublicAbi`、`TTestCase_SimdConcurrentFramework`、`TTestCase_SimdConcurrentRegistration` 使用
+- Release `TTestCase_PublicAbi,TTestCase_DataPlane,TTestCase_SSE2Contracts,TTestCase_SimdConcurrent,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework,TTestCase_SimdConcurrentRegistration`、Release `check`、Release `gate` 全绿，说明这批修的是测试夹具状态恢复不对称，而不是 SIMD 生产实现缺陷。

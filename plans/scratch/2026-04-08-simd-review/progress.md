@@ -1560,6 +1560,29 @@
   - 结果：全部通过
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
 
+## 2026-05-14 Fixture Backend Restore Symmetry
+
+- 这轮没有回头去刷 `UnsignedVectorTypes` / `RustStyleAliases` / `Memutils`，也没有机械给 `PublicAbi`、`SSE2Contracts`、`dataplane`、`concurrent` 套 `sbScalar`。
+- 改成逐个核对高价值 suite 的 fixture 生命周期后，抓到了新的真实泄漏：
+  - 多个 suite 会保存/恢复 `vector asm`
+  - 却不会恢复进入测试前的 `GetCurrentBackend`
+  - `publicabi.testcase` 更严重，`ResetPublicAbiSyntheticHookState` 会把状态强行打回 `vector asm=False + automatic`
+- 本轮最小修复只动测试夹具：
+  - `fafafa.core.simd.publicabi.testcase.pas`：`TTestCase_PublicAbi` 增加 `FSavedVectorAsm/FSavedBackend`，`TearDown` 在 synthetic hook reset 后恢复原始 backend 选择
+  - `fafafa.core.simd.sse2contracts.testcase.pas`：`TTestCase_SSE2Contracts` 增加 `FOldBackend`
+  - `fafafa.core.simd.dataplane.testcase.pas`：`TTestCase_DataPlane` 增加 fixture 级 `SetUp/TearDown`
+  - `fafafa.core.simd.concurrent.testcase.pas`：提取 `TSimdStatefulTestCase`，统一为 `TTestCase_SimdConcurrent*` 四个 suite 保存/恢复原始 `vector asm + backend`
+- 首次 Release 定向 suite 编译时先暴露一个测试层小问题，不是设计回退：
+  - `publicabi.testcase` 的 `TearDown` 早于 `RestoreOriginalActiveBackend` helper 定义，FPC 报 `Identifier not found`
+  - 已改成在 `TearDown` 中直接做 `ResetToAutomaticBackend + TrySetActiveBackend(savedBackend)`，避免再引入 `forward` 噪音
+- 本轮 Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi,TTestCase_DataPlane,TTestCase_SSE2Contracts,TTestCase_SimdConcurrent,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework,TTestCase_SimdConcurrentRegistration`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
 ## 2026-05-14 Float Utility Facade Tail Guard Coverage
 
 - 继续顺着浮点 façade 往下扫后，当前最真实的尾巴不再是整族算术/compare，而是 utility 面的 direct-evidence 缺口：

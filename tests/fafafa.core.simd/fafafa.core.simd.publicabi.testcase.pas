@@ -50,6 +50,8 @@ uses
 type
   TTestCase_PublicAbi = class(TTestCase)
   protected
+    FSavedVectorAsm: Boolean;
+    FSavedBackend: TSimdBackend;
     procedure SetUp; override;
     procedure TearDown; override;
   published
@@ -653,12 +655,20 @@ end;
 procedure TTestCase_PublicAbi.SetUp;
 begin
   inherited SetUp;
+  GetDispatchTable;
+  FSavedVectorAsm := IsVectorAsmEnabled;
+  FSavedBackend := GetCurrentBackend;
   ResetPublicAbiSyntheticHookState;
 end;
 
 procedure TTestCase_PublicAbi.TearDown;
 begin
   ResetPublicAbiSyntheticHookState;
+  SetVectorAsmEnabled(FSavedVectorAsm);
+  ResetToAutomaticBackend;
+  if GetCurrentBackend <> FSavedBackend then
+    AssertTrue('Public ABI fixture should restore previous backend selection',
+      TrySetActiveBackend(FSavedBackend));
   inherited TearDown;
 end;
 

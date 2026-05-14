@@ -17,6 +17,7 @@ type
   TTestCase_SSE2Contracts = class(TTestCase)
   protected
     FOldVectorAsm: Boolean;
+    FOldBackend: TSimdBackend;
     procedure SetUp; override;
     procedure TearDown; override;
     function TryLoadSSE2AndScalarTables(out aSSE2Table, aScalarTable: TSimdDispatchTable): Boolean;
@@ -42,12 +43,16 @@ begin
   inherited SetUp;
   GetDispatchTable;
   FOldVectorAsm := IsVectorAsmEnabled;
+  FOldBackend := GetCurrentBackend;
 end;
 
 procedure TTestCase_SSE2Contracts.TearDown;
 begin
-  ResetToAutomaticBackend;
   SetVectorAsmEnabled(FOldVectorAsm);
+  ResetToAutomaticBackend;
+  if GetCurrentBackend <> FOldBackend then
+    AssertTrue('SSE2 contracts fixture should restore previous backend selection',
+      TrySetActiveBackend(FOldBackend));
   inherited TearDown;
 end;
 

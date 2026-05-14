@@ -31,8 +31,16 @@ uses
   fafafa.core.simd.dispatch;
 
 type
+  TSimdStatefulTestCase = class(TTestCase)
+  protected
+    FSavedVectorAsm: Boolean;
+    FSavedBackend: TSimdBackend;
+    procedure SetUp; override;
+    procedure TearDown; override;
+  end;
+
   {** @abstract(SIMD 并发测试套件) *}
-  TTestCase_SimdConcurrent = class(TTestCase)
+  TTestCase_SimdConcurrent = class(TSimdStatefulTestCase)
   published
     // === 并发计算正确性测试 ===
     {** 多线程并发 F32x4 加法正确性 *}
@@ -76,7 +84,7 @@ type
   end;
 
   {** @abstract(public ABI 并发回归套件) *}
-  TTestCase_SimdConcurrentPublicAbi = class(TTestCase)
+  TTestCase_SimdConcurrentPublicAbi = class(TSimdStatefulTestCase)
   published
     {** public ABI backend text getter 与 RegisterBackend 并发读写保护 *}
     procedure Test_Concurrent_PublicAbiBackendText_RegisterBackend_ReadConsistency;
@@ -91,7 +99,7 @@ type
   end;
 
   {** @abstract(framework active metadata 并发回归套件) *}
-  TTestCase_SimdConcurrentFramework = class(TTestCase)
+  TTestCase_SimdConcurrentFramework = class(TSimdStatefulTestCase)
   published
     {** backend adapter ops 与 RegisterBackend 并发读写保护 *}
     procedure Test_Concurrent_BackendOps_RegisterBackend_ReadConsistency;
@@ -110,7 +118,7 @@ type
   end;
 
   {** @abstract(首次注册路径的并发回归套件) *}
-  TTestCase_SimdConcurrentRegistration = class(TTestCase)
+  TTestCase_SimdConcurrentRegistration = class(TSimdStatefulTestCase)
   published
     {** registered backend list 与首次 RegisterBackend 并发读写保护 *}
     procedure Test_Concurrent_RegisteredBackendList_FirstRegistration_ReadConsistency;
@@ -567,6 +575,24 @@ type
   end;
 
 implementation
+
+procedure TSimdStatefulTestCase.SetUp;
+begin
+  inherited SetUp;
+  GetDispatchTable;
+  FSavedVectorAsm := IsVectorAsmEnabled;
+  FSavedBackend := GetCurrentBackend;
+end;
+
+procedure TSimdStatefulTestCase.TearDown;
+begin
+  SetVectorAsmEnabled(FSavedVectorAsm);
+  ResetToAutomaticBackend;
+  if GetCurrentBackend <> FSavedBackend then
+    AssertTrue('SIMD concurrent fixture should restore previous backend selection',
+      TrySetActiveBackend(FSavedBackend));
+  inherited TearDown;
+end;
 
 const
   // 默认并发参数
