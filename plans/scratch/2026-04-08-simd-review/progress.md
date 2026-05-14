@@ -1646,6 +1646,26 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 
+## 2026-05-14 DispatchAPI Fixture State Restore
+
+- `backend.consistency` 批次收口后，继续沿“真实状态恢复不对称”向下深挖，本轮把目标收窄到了 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 的 `TTestCase_DispatchAPI`。
+- 交叉核对后确认：
+  - 这个类没有 fixture 级 `SetUp/TearDown`
+  - 大量测试方法会保存 `LOldVectorAsm` 并反复跑 `TrySetActiveBackend/ResetToAutomaticBackend/SetVectorAsmEnabled`
+  - 但离开测试时通常只回到 `automatic` 或只恢复 `vector asm`
+  - 因而会把进入测试前的强制 backend 选择静默丢掉
+- 本轮选择了高杠杆修法，而不是逐个改大量 `finally`：
+  - 提取 `TDispatchAPIStatefulTestCase`
+  - 统一在 `SetUp` 保存进入测试前的 `vector asm + current backend`
+  - 统一在 `TearDown` 恢复进入测试前状态
+  - 让 `TTestCase_DispatchAPI` 继承该基类
+- 本轮 Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+
 ## 2026-05-14 Float Utility Facade Tail Guard Coverage
 
 - 继续顺着浮点 façade 往下扫后，当前最真实的尾巴不再是整族算术/compare，而是 utility 面的 direct-evidence 缺口：

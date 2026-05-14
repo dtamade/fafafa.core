@@ -60,9 +60,16 @@ uses
 
 type
 
+  TDispatchAPIStatefulTestCase = class(TTestCase)
+  protected
+    FSavedVectorAsm: Boolean;
+    FSavedBackend: TSimdBackend;
+    procedure SetUp; override;
+    procedure TearDown; override;
+  end;
 
   // Dispatch public API contract tests
-  TTestCase_DispatchAPI = class(TTestCase)
+  TTestCase_DispatchAPI = class(TDispatchAPIStatefulTestCase)
   published
     procedure Test_TryForceBackend_Scalar_ReturnsTrue;
     procedure Test_TryForceBackend_Unavailable_NoChange;
@@ -247,6 +254,28 @@ type
   end;
 
 implementation
+
+procedure TDispatchAPIStatefulTestCase.SetUp;
+begin
+  inherited SetUp;
+  GetDispatchTable;
+  FSavedVectorAsm := IsVectorAsmEnabled;
+  FSavedBackend := GetCurrentBackend;
+end;
+
+procedure TDispatchAPIStatefulTestCase.TearDown;
+var
+  LRestoredBackend: Boolean;
+begin
+  SetVectorAsmEnabled(FSavedVectorAsm);
+  ResetToAutomaticBackend;
+  LRestoredBackend := True;
+  if GetCurrentBackend <> FSavedBackend then
+    LRestoredBackend := TrySetActiveBackend(FSavedBackend);
+  AssertTrue('Dispatch API fixture should restore previous backend selection',
+    LRestoredBackend and (GetCurrentBackend = FSavedBackend));
+  inherited TearDown;
+end;
 
 var
   GDispatchHookCountA: Integer = 0;

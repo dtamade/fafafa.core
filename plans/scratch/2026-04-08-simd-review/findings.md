@@ -1959,3 +1959,25 @@
   - consistency 比对矩阵本身
   - dispatch/runtime 的生产控制面逻辑
 - Release `TTestCase_BackendVectorConsistency`、Release `check`、Release `gate` 全绿，说明这批修的是 backend consistency 测试层的状态恢复不对称，并且新增回归测试已经能覆盖“前序强制 backend 被冲掉”的场景。
+
+## 2026-05-14 DispatchAPI Fixture State Restore Findings
+
+- `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 是当前 SIMD 测试树里另一处高密度的真实 fixture 泄漏面：
+  - `TTestCase_DispatchAPI` 本身没有 fixture 级 `SetUp/TearDown`
+  - 大量测试方法都会先记 `LOldVectorAsm := IsVectorAsmEnabled`，中间再跑 `TrySetActiveBackend(...)`、`ResetToAutomaticBackend`、`SetVectorAsmEnabled(True/False)`、hook 触发的 re-register/rollback 流程
+  - 但绝大多数方法结尾只会恢复 `vector asm` 或回到 `automatic`
+  - 这意味着一旦上游 suite 以强制 backend 进入，`dispatchapi` 整个类跑完后很容易把先前 backend 选择静默冲掉
+- 这类文件不适合继续逐个 test body 打补丁：
+  - 单文件测试数量极大
+  - 绝大多数问题形态相同，都是“测试内局部 finally 只管把状态收回到一个默认值”
+  - 更高价值的修法是给整个 `TTestCase_DispatchAPI` 加统一 fixture 恢复层
+- 本轮最小正确修复：
+  - 提取 `TDispatchAPIStatefulTestCase`
+  - 在 `SetUp` 保存进入测试前的 `IsVectorAsmEnabled/GetCurrentBackend`
+  - 在 `TearDown` 里先恢复 `vector asm`，再 `ResetToAutomaticBackend`，必要时 `TrySetActiveBackend(savedBackend)`
+  - 让 `TTestCase_DispatchAPI` 继承它，而不是大面积改写现有 test body
+- 这轮刻意没有改动：
+  - dispatch 控制面生产实现
+  - hook 行为语义
+  - `TTestCase_X86MaskedFmaContract` / `TTestCase_RISCVVMaskedOpsContract` / `TTestCase_RISCVFallbackDispatchContract` / `TTestCase_NonX86BackendParity` 等其他类
+- Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿，说明这批修的是 `dispatchapi` 测试夹具层的 backend/vector-asm 恢复对称性，而不是 dispatch/hook 生产逻辑缺陷。

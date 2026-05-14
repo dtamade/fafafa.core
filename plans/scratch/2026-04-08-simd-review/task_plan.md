@@ -1828,3 +1828,17 @@
 | 1. 复核 `backend.consistency.testcase` 与外层 wrapper 的状态恢复对称性 | completed | 已确认 7 个 helper-style consistency 函数都在切 `TrySetActiveBackend/SetActiveBackend(sbScalar)/SetActiveBackend(backend)` 后只 `ResetToAutomaticBackend`；`TTestCase_BackendVectorConsistency.Test_VectorOps_Consistency` 末尾也只回 automatic |
 | 2. 修复 helper 与 wrapper 的 backend 恢复泄漏，并补回归点 | completed | 在 `backend.consistency.testcase` 提取 `SaveBackendConsistencyState/RestoreBackendConsistencyState`，统一恢复进入前 backend；同时让 `TTestCase_BackendVectorConsistency` 恢复进入前 backend，并新增 `Test_VectorOps_Helper_Preserves_PreviousForcedBackend` 与 `Test_VectorOps_Consistency_Preserves_PreviousForcedBackend` |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_BackendVectorConsistency`、Release `check`、Release `gate` 全绿 |
+
+## 2026-05-14 DispatchAPI Fixture State Restore
+
+### Goal
+
+继续沿最密集的 control-plane suite 审查 `dispatchapi.testcase`，通过类级 fixture 保存/恢复 `vector asm + current backend`，修复 `TTestCase_DispatchAPI` 大量测试在结束时只回 `automatic`、却不恢复进入前 backend 选择的状态泄漏。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `TTestCase_DispatchAPI` 的状态恢复对称性 | completed | 已确认类本身没有 fixture 级 `SetUp/TearDown`；大量测试只在局部 finally 中恢复 `vector asm` 或 `ResetToAutomaticBackend`，没有统一恢复进入前 backend 选择 |
+| 2. 提取类级 fixture 恢复层 | completed | 在 `dispatchapi.testcase` 提取 `TDispatchAPIStatefulTestCase`，统一保存/恢复进入前的 `vector asm + current backend`，并让 `TTestCase_DispatchAPI` 继承它 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿 |
