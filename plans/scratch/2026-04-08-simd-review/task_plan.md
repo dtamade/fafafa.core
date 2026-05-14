@@ -2389,3 +2389,17 @@
 | 1. 复核 `runtime` 与 backend-only 候选的语义边界 | completed | 已确认 `runtime.testcase` 的 finally 不只是恢复 backend 值，还在保“自动选择 vs 强制后端”的 control-plane 语义，因此这轮不动；真正可继续统一的是 `dispatchslots` 与 `TTestCase_BackendVectorConsistency` 的 backend-only local restore |
 | 2. 把 backend-only restore 体上提到公共 testcase helper | completed | `fafafa.core.simd.testcase.pas` 已新增 `RestoreSavedBackendState(...)`；`RestoreSavedBackendAndVectorAsmState(...)` 复用它；`RestoreBackendVectorConsistencyLocalState(...)` 与 `dispatchslots` 的 `RestoreDispatchSlotsLocalState(...)` 现改成薄转发，其中 `dispatchslots` 继续追加 `GetActiveBackend = aOriginalBackend` 的 raw dispatch 语义校验 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAllSlots,TTestCase_BackendVectorConsistency`、Release `check`、Release `gate` 全绿；提交前仍需清理可能回流的 `tests/fafafa.core.simd/__pycache__/` |
+
+## 2026-05-14 PublicAbi Active-Backend Restore Helper Consolidation
+
+### Goal
+
+继续收 backend-only restore 残点，但这次只处理 `publicabi` 里仍保留的 `RestoreOriginalActiveBackend(...)` 重复实现；保持 helper 名称和调用点语义不变，只把实现收回现成的 `RestoreSavedBackendState(...)`。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `publicabi` restore helper 是否属于普通 backend-only 语义 | completed | 已确认 `RestoreOriginalActiveBackend(...)` 只是 `ResetToAutomaticBackend -> TrySetActiveBackend(...)` 的重复体，不带 `runtime` 那种 automatic-vs-forced 分支语义，也不涉及 vector-asm / synthetic hook 生命周期 |
+| 2. 把 `publicabi` helper 改成公共 backend-only restore 薄转发 | completed | `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 中的 `RestoreOriginalActiveBackend(...)` 已改成直接调用 `RestoreSavedBackendState(...)`，保留原 helper 名称和所有调用点不动 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿；提交前仍需清理可能回流的 `tests/fafafa.core.simd/__pycache__/` |

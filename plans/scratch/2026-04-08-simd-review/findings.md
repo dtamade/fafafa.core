@@ -2995,3 +2995,20 @@
   - 同时把 `runtime` 这种“看起来像 restore，实际上是 control-plane 语义测试”的文件明确排除出当前去重目标，减少后续误动风险
   - 下一轮若继续深挖，最值得评估的是 `backend.consistency.testcase` 的 standalone helper 是否还能在不制造单元循环的前提下继续减薄
 - Release `TTestCase_DispatchAllSlots,TTestCase_BackendVectorConsistency`、Release `check`、Release `gate` 全绿，说明这批仍然只是测试 helper 层去冗余，没有改变 dispatch slot 或 backend consistency 的被测语义。
+
+## 2026-05-14 PublicAbi Active-Backend Restore Helper Findings
+
+- 在 backend-only restore helper 已经开始统一之后，`publicabi` 里还残留着一条非常典型的本地复制体：
+  - `RestoreOriginalActiveBackend(...)`
+- 这条 helper 和 `runtime.testcase` 的 finally 不同：
+  - 它不需要区分 automatic / forced backend 的恢复策略
+  - 也不承担 vector-asm、synthetic hook state 或 publication lifecycle 的恢复职责
+  - 它只是一个普通的 backend-only restore 壳
+- 因而这轮最稳的处理方式不是删除 helper 名称，而是：
+  - 保留 `RestoreOriginalActiveBackend(...)`，让 `publicabi` 调用点继续读起来像“恢复 original active backend”
+  - 只把实现收回到公共的 `RestoreSavedBackendState(...)`
+- 这批修法的价值在于：
+  - backend-only restore helper 的统一不再只覆盖 `dispatchslots` / `backend consistency`
+  - 连 `publicabi` 里语义上更贴近调用点命名的本地 helper，也能保留壳、统一实现
+  - 说明当前这条 cleanup 线已经开始从“大块 fixture 去重”进入“保留领域语义名、抽掉实现复制体”的更细粒度阶段
+- Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿，说明这批仍然只是测试 helper 层去冗余，没有改变 public ABI 的被测 active-backend / hook / restore 语义。

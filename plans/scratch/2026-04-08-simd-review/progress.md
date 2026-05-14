@@ -1619,6 +1619,28 @@
   - `runtime.testcase` 这条线当前被归类为“有意保留的 control-plane restore”，不是遗漏
   - 如果下一轮还继续深挖，更值得复核的是 `backend.consistency.testcase` 这份 standalone helper 是否还能在不引入单元循环的前提下继续减薄
 
+- 我继续扫剩余 restore helper 时，又确认出一条更小、更稳的 backend-only 残点：
+  - `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas`
+  - `RestoreOriginalActiveBackend(...)`
+- 这轮先把边界卡清楚了：
+  - 这条 helper 不带 `runtime` 那种“automatic vs forced backend”分支恢复语义
+  - 也不带 `vector-asm` 或 synthetic hook state 生命周期
+  - 它本质上就是 `ResetToAutomaticBackend -> TrySetActiveBackend(...)` 的本地复制体
+- 本轮最小修法因此是：
+  - 保留 `RestoreOriginalActiveBackend(...)` 这个本地语义名字
+  - 只把实现改成薄转发到 `RestoreSavedBackendState(...)`
+  - 不动任何 `publicabi` 调用点、断言文案和 hook 编排
+- 本轮 Release 收口证据：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断继续更新：
+  - backend-only restore helper 的重复体现在已经从 `dispatchslots`、`backend vector consistency` 继续收到了 `publicabi`
+  - `runtime.testcase` 仍然被归类为“刻意保留的 control-plane restore”
+  - 下一轮若继续深挖，最值得评估的还是 `backend.consistency.testcase` 的 standalone helper 是否值得抽成更小的共享单元，以及这样做是否值得引入新的组织复杂度
+
 ## 2026-05-14 Fixture Backend Restore Symmetry
 
 - 这轮没有回头去刷 `UnsignedVectorTypes` / `RustStyleAliases` / `Memutils`，也没有机械给 `PublicAbi`、`SSE2Contracts`、`dataplane`、`concurrent` 套 `sbScalar`。

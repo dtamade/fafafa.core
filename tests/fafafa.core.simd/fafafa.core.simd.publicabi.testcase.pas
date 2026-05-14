@@ -680,11 +680,7 @@ end;
 
 function RestoreOriginalActiveBackend(aOriginalBackend: TSimdBackend): Boolean;
 begin
-  ResetToAutomaticBackend;
-  if GetCurrentBackend = aOriginalBackend then
-    Exit(True);
-
-  Result := TrySetActiveBackend(aOriginalBackend);
+  Result := RestoreSavedBackendState(aOriginalBackend);
 end;
 
 function GetPublicApiFuncPointer(const aApi: PFafafaSimdPublicApi; aSlotIndex: Integer): Pointer;
