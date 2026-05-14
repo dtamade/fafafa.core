@@ -2087,3 +2087,29 @@
   - `Vec512Types` 本体的纯类型/布局测试
   - runner manifest / suite 注册
 - 定向 Release 验证覆盖了全部 9 个受影响 suite，再加 Release `check`、Release `gate` 全绿，说明这批修的是分散小 suite 的 backend 恢复不对称，而不是 vector family/ImageProc/edge-case 生产逻辑缺陷。
+
+## 2026-05-14 Direct Local Restore Consolidation Findings
+
+- `direct.testcase` 的大头类级 fixture 已在前几批存在，但 method-level 仍残留大量“局部 `finally` 只 `ResetToAutomaticBackend`”的收尾；这会把进入该 test 前的 forced backend 语义抹掉。
+- 当前最小且最高价值的残余切口就是：
+  - `Test_DirectDispatchTable_Rebind_AfterForceBackend`
+  - `Test_DirectDispatchTable_AutoRebind_AfterDispatchSetActiveBackend`
+  - 一串 multi-backend parity test 的统一 `finally`
+- 这批不值得继续逐个 test body 手写 `savedBackend` 样板；更干净的修法是在 `TDirectDispatchStatefulTestCase` 提取 `RestoreFixtureDirectDispatchState`，统一做：
+  - 恢复 `FSavedVectorAsm`
+  - `ResetToAutomaticBackend`
+  - 必要时 `TrySetActiveBackend(FSavedBackend)`
+  - `RebindDirectDispatch`
+- `direct` 面和其它 stateful fixture 的关键差异就在最后这步 `RebindDirectDispatch`：
+  - `GetDirectDispatchTable` 读取的是 dataplane 已发布的 dispatch 指针
+  - 只恢复 backend 还不够，必须把 direct dataplane snapshot 重新绑定到当前 dispatch
+- `Rebind_AfterForceBackend` 与 `AutoRebind_AfterDispatchSetActiveBackend` 现在都会在 test path 结束后显式断言：
+  - `GetDispatchTable/GetDirectDispatchTable` 仍已赋值
+  - backend 恢复到进入测试前选择
+  - direct dispatch backend 与 dispatch backend 重新同步
+- `WideIntegerHelperMatrix_Parity` 里原来的 `LOldVectorAsm` 已经变成冗余样板，因为共享 helper 已统一恢复 `vector asm + backend + direct rebind`。
+- 这批刻意没有改动：
+  - `src/fafafa.core.simd.direct.pas`
+  - dispatch/runtime/control-plane 生产逻辑
+  - 并发重注册 helper 的业务断言
+- Release `TTestCase_DirectDispatch`、Release `TTestCase_DirectDispatchConcurrent`、Release `check`、Release `gate` 全绿，说明修复点仍然是 direct 测试层的局部状态恢复不对称，而不是 direct dataplane 生产实现缺陷。

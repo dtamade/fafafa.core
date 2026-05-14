@@ -43,6 +43,7 @@
 | `check` 和 `gate` 并发编译同一 `tests/fafafa.core.simd` 输出目录导致临时 rc=2/1 | 1       | 改为串行重跑，确认不是代码回归                                                                 |
 | 新增 `SSE2` length/normalize helper 后 `check` 报 inline hints                   | 1       | 去掉 `SSE2LengthWithOptionalZeroW` / `SSE2NormalizeByLength` 的 `inline` 标记后复验通过         |
 | `mcp__ace_tool__search_context` 在宽整数继续批次里两次超时                       | 1       | 不重复卡在同一大查询，改用更窄的本地 `rg/sed` 直接核公开 API 与测试覆盖                         |
+| 同一轮里误把 `TTestCase_DirectDispatchConcurrent` 与 Release `check` 并发启动     | 1       | 这次未触发 `Text file busy/rc=2` 假红，但已立即改回串行验证；`tests/fafafa.core.simd` 继续禁止并发构建 |
 
 ## 2026-05-09 Subtask
 
@@ -1898,3 +1899,17 @@
 | 1. 复核小型 scalarized suite 的状态恢复模式 | completed | 已确认 `TTestCase_EdgeCases`、`TTestCase_VecF32x8`、`TTestCase_VecF64x4`、`TTestCase_VecI32x8`、`TTestCase_VecU32x8`、`TTestCase_NarrowIntegerOps`、`TTestCase_ImageProc`、`TTestCase_SaturatingArithmetic`、`TTestCase_Vec512MaskFacadeGuards` 都在 `SetUp` 里 `ForceBackend(sbScalar)`，但 `TearDown` 仍只 `ResetBackendSelection` |
 | 2. 给 9 个 suite 补进入前 backend 保存/恢复 | completed | 为每个类补 `FSavedBackend`，`SetUp` 保存 `GetCurrentBackend`，`TearDown` 在保留原有异常 mask / image resource / blend-mode 清理顺序的同时，统一 `ResetBackendSelection` 并在必要时 `TrySetActiveBackend(savedBackend)` |
 | 3. Release 验证与提交收口 | completed | 9 个受影响 suite 的定向 Release 测试、Release `check`、Release `gate` 全绿；这批没有新增 runner 或改动任何生产实现 |
+
+## 2026-05-14 Direct Local Restore Consolidation
+
+### Goal
+
+继续沿 `direct.testcase` 深审 method-level 状态恢复，修复 `TTestCase_DirectDispatch` 在内部临时切 backend/vector-asm 后只回 `automatic`、却不恢复进入测试前 direct/backend 状态的局部不对称，并补最小回归断言。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `direct.testcase` 剩余的局部恢复不对称 | completed | 已确认类级 fixture 虽然已存在，但 `Rebind_AfterForceBackend`、`AutoRebind_AfterDispatchSetActiveBackend` 与大量 multi-backend parity test 的 `finally` 仍只 `ResetToAutomaticBackend`，会抹掉进入测试前的 forced backend 语义 |
+| 2. 抽 direct-local restore helper 并替换局部 finally | completed | 在 `TDirectDispatchStatefulTestCase` 提取 `RestoreFixtureDirectDispatchState`，统一恢复保存的 `vector asm + backend` 并 `RebindDirectDispatch`；同时让两条前导 smoke test 显式断言路径跑完后会回到原 backend，`WideIntegerHelperMatrix_Parity` 去掉局部 `LOldVectorAsm` 样板 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DirectDispatch`、Release `TTestCase_DirectDispatchConcurrent`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |

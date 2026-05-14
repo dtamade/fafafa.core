@@ -2334,3 +2334,16 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+- 继续沿 `direct.testcase` 做 method-level 深审后，确认当前真实残余不是类级 fixture 缺失，而是大量 test body 的局部 `finally` 仍只 `ResetToAutomaticBackend`，会抹掉进入测试前的 forced backend 语义。
+- 在 `tests/fafafa.core.simd/fafafa.core.simd.direct.testcase.pas` 提取了 `RestoreFixtureDirectDispatchState`，统一恢复 `FSavedVectorAsm + FSavedBackend` 并 `RebindDirectDispatch`；随后把 `TTestCase_DirectDispatch` 里成批 `finally ResetToAutomaticBackend` 收口到这个 helper。
+- `Test_DirectDispatchTable_Rebind_AfterForceBackend` 与 `Test_DirectDispatchTable_AutoRebind_AfterDispatchSetActiveBackend` 现在会在路径结束后显式断言：backend 已恢复到进入测试前选择，`GetDirectDispatchTable` 与 `GetDispatchTable` 重新同步。
+- `Test_DirectDispatchTable_WideIntegerHelperMatrix_Parity` 的局部 `LOldVectorAsm` 样板已删除，因为共享 helper 已统一处理 `vector asm + backend + direct rebind` 的恢复顺序。
+- 本轮 Release 定向验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DirectDispatch`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DirectDispatchConcurrent`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 中途我误把 `TTestCase_DirectDispatchConcurrent` 和 Release `check` 同时启动了一次；这轮没有触发 `Text file busy/rc=2`，但最终验证仍全部改回串行，并再次清理了 `tests/fafafa.core.simd/__pycache__/`。

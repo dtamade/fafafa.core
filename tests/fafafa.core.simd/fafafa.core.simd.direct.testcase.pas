@@ -21,6 +21,7 @@ type
   protected
     FSavedVectorAsm: Boolean;
     FSavedBackend: TSimdBackend;
+    procedure RestoreFixtureDirectDispatchState;
     procedure SetUp; override;
     procedure TearDown; override;
   end;
@@ -211,7 +212,7 @@ begin
   FSavedBackend := GetCurrentBackend;
 end;
 
-procedure TDirectDispatchStatefulTestCase.TearDown;
+procedure TDirectDispatchStatefulTestCase.RestoreFixtureDirectDispatchState;
 var
   LRestoredBackend: Boolean;
 begin
@@ -220,8 +221,14 @@ begin
   LRestoredBackend := True;
   if GetCurrentBackend <> FSavedBackend then
     LRestoredBackend := TrySetActiveBackend(FSavedBackend);
+  RebindDirectDispatch;
   AssertTrue('Direct dispatch fixture should restore previous backend selection',
     LRestoredBackend and (GetCurrentBackend = FSavedBackend));
+end;
+
+procedure TDirectDispatchStatefulTestCase.TearDown;
+begin
+  RestoreFixtureDirectDispatchState;
   inherited TearDown;
 end;
 
@@ -471,23 +478,36 @@ procedure TTestCase_DirectDispatch.Test_DirectDispatchTable_Rebind_AfterForceBac
 var
   dt: PSimdDispatchTable;
   directDt: PSimdDispatchTable;
+  LOriginalBackend: TSimdBackend;
 begin
-  // Force backend (for testing) and ensure direct table can be re-bound.
-  ForceBackend(sbScalar);
-  RebindDirectDispatch;
+  LOriginalBackend := GetCurrentBackend;
+  try
+    // Force backend (for testing) and ensure direct table can be re-bound.
+    ForceBackend(sbScalar);
+    RebindDirectDispatch;
+
+    dt := GetDispatchTable;
+    directDt := GetDirectDispatchTable;
+
+    AssertTrue('GetDispatchTable should be assigned after ForceBackend', dt <> nil);
+    AssertTrue('GetDirectDispatchTable should be assigned after RebindDirectDispatch', directDt <> nil);
+
+    AssertEquals('Backend enum should match', Ord(dt^.Backend), Ord(directDt^.Backend));
+    AssertTrue('AddF32x4 pointer should match after rebind', dt^.AddF32x4 = directDt^.AddF32x4);
+  finally
+    RestoreFixtureDirectDispatchState;
+  end;
 
   dt := GetDispatchTable;
   directDt := GetDirectDispatchTable;
-
-  AssertTrue('GetDispatchTable should be assigned after ForceBackend', dt <> nil);
-  AssertTrue('GetDirectDispatchTable should be assigned after RebindDirectDispatch', directDt <> nil);
-
-  AssertEquals('Backend enum should match', Ord(dt^.Backend), Ord(directDt^.Backend));
-  AssertTrue('AddF32x4 pointer should match after rebind', dt^.AddF32x4 = directDt^.AddF32x4);
-
-  // Restore automatic backend selection for other tests.
-  ResetBackendSelection;
-  RebindDirectDispatch;
+  AssertTrue('GetDispatchTable should be assigned after restoring direct rebind path', dt <> nil);
+  AssertTrue('GetDirectDispatchTable should be assigned after restoring direct rebind path', directDt <> nil);
+  AssertEquals('Backend should restore to original selection after direct rebind path',
+    Ord(LOriginalBackend), Ord(dt^.Backend));
+  AssertEquals('Direct dispatch backend should restore with dispatch after direct rebind path',
+    Ord(dt^.Backend), Ord(directDt^.Backend));
+  AssertTrue('AddF32x4 pointer should match after restoring direct rebind path',
+    dt^.AddF32x4 = directDt^.AddF32x4);
 end;
 
 procedure TTestCase_DirectDispatch.Test_DirectDispatchTable_AutoRebind_AfterDispatchSetActiveBackend;
@@ -503,37 +523,48 @@ begin
   AssertTrue('Baseline GetDirectDispatchTable should be assigned', directDt <> nil);
 
   originalBackend := dt^.Backend;
+  try
+    // Switch backend via dispatch directly (bypassing fafafa.core.simd facade)
+    SetActiveBackend(sbScalar);
 
-  // Switch backend via dispatch directly (bypassing fafafa.core.simd facade)
-  SetActiveBackend(sbScalar);
+    dt := GetDispatchTable;
+    directDt := GetDirectDispatchTable;
+    AssertTrue('GetDispatchTable should be assigned after SetActiveBackend', dt <> nil);
+    AssertTrue('GetDirectDispatchTable should be assigned after SetActiveBackend', directDt <> nil);
 
-  dt := GetDispatchTable;
-  directDt := GetDirectDispatchTable;
-  AssertTrue('GetDispatchTable should be assigned after SetActiveBackend', dt <> nil);
-  AssertTrue('GetDirectDispatchTable should be assigned after SetActiveBackend', directDt <> nil);
+    AssertEquals('Dispatch backend should be Scalar after SetActiveBackend', Ord(sbScalar), Ord(dt^.Backend));
+    AssertEquals('Direct dispatch backend should track dispatch after SetActiveBackend', Ord(dt^.Backend), Ord(directDt^.Backend));
+    AssertTrue('AddF32x4 pointer should match after dispatch SetActiveBackend', dt^.AddF32x4 = directDt^.AddF32x4);
 
-  AssertEquals('Dispatch backend should be Scalar after SetActiveBackend', Ord(sbScalar), Ord(dt^.Backend));
-  AssertEquals('Direct dispatch backend should track dispatch after SetActiveBackend', Ord(dt^.Backend), Ord(directDt^.Backend));
-  AssertTrue('AddF32x4 pointer should match after dispatch SetActiveBackend', dt^.AddF32x4 = directDt^.AddF32x4);
+    // Restore automatic selection (also via dispatch)
+    ResetToAutomaticBackend;
 
-  // Restore automatic selection (also via dispatch)
-  ResetToAutomaticBackend;
+    dt := GetDispatchTable;
+    directDt := GetDirectDispatchTable;
+    AssertTrue('GetDispatchTable should be assigned after ResetToAutomaticBackend', dt <> nil);
+    AssertTrue('GetDirectDispatchTable should be assigned after ResetToAutomaticBackend', directDt <> nil);
 
-  dt := GetDispatchTable;
-  directDt := GetDirectDispatchTable;
-  AssertTrue('GetDispatchTable should be assigned after ResetToAutomaticBackend', dt <> nil);
-  AssertTrue('GetDirectDispatchTable should be assigned after ResetToAutomaticBackend', directDt <> nil);
+    // If original backend wasn't scalar, we expect it can change back. Either way, direct must match dispatch.
+    AssertEquals('Direct dispatch backend should track dispatch after ResetToAutomaticBackend', Ord(dt^.Backend), Ord(directDt^.Backend));
 
-  // If original backend wasn't scalar, we expect it can change back. Either way, direct must match dispatch.
-  AssertEquals('Direct dispatch backend should track dispatch after ResetToAutomaticBackend', Ord(dt^.Backend), Ord(directDt^.Backend));
-
-  // Keep the test stable: if automatic selection returns to original backend, fine; otherwise also fine.
-  // But we at least assert the backend is a valid enum.
-  AssertTrue('Backend enum should be within range', (Ord(dt^.Backend) >= Ord(Low(TSimdBackend))) and (Ord(dt^.Backend) <= Ord(High(TSimdBackend))));
+    // Keep the test stable: if automatic selection returns to original backend, fine; otherwise also fine.
+    // But we at least assert the backend is a valid enum.
+    AssertTrue('Backend enum should be within range', (Ord(dt^.Backend) >= Ord(Low(TSimdBackend))) and (Ord(dt^.Backend) <= Ord(High(TSimdBackend))));
+  finally
+    RestoreFixtureDirectDispatchState;
+  end;
 
   AssertTrue('Original backend enum should be within range',
     (Ord(originalBackend) >= Ord(Low(TSimdBackend))) and
     (Ord(originalBackend) <= Ord(High(TSimdBackend))));
+  dt := GetDispatchTable;
+  directDt := GetDirectDispatchTable;
+  AssertTrue('GetDispatchTable should be assigned after restoring auto rebind path', dt <> nil);
+  AssertTrue('GetDirectDispatchTable should be assigned after restoring auto rebind path', directDt <> nil);
+  AssertEquals('Backend should restore to original selection after auto rebind path',
+    Ord(originalBackend), Ord(dt^.Backend));
+  AssertEquals('Direct dispatch backend should restore with dispatch after auto rebind path',
+    Ord(dt^.Backend), Ord(directDt^.Backend));
 end;
 
 
@@ -697,7 +728,7 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    ResetToAutomaticBackend;
+    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -907,7 +938,7 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    ResetToAutomaticBackend;
+    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -1137,7 +1168,7 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    ResetToAutomaticBackend;
+    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -1265,7 +1296,7 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    ResetToAutomaticBackend;
+    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -1370,7 +1401,7 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    ResetToAutomaticBackend;
+    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -1477,7 +1508,7 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    ResetToAutomaticBackend;
+    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -1684,7 +1715,7 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    ResetToAutomaticBackend;
+    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -1805,7 +1836,7 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    ResetToAutomaticBackend;
+    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -1949,7 +1980,7 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    ResetToAutomaticBackend;
+    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -2210,7 +2241,7 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    ResetToAutomaticBackend;
+    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -2419,7 +2450,7 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    ResetToAutomaticBackend;
+    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -2707,7 +2738,7 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    ResetToAutomaticBackend;
+    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -2850,7 +2881,7 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    ResetToAutomaticBackend;
+    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -2926,7 +2957,7 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    ResetToAutomaticBackend;
+    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -3040,7 +3071,7 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    ResetToAutomaticBackend;
+    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -3180,7 +3211,7 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    ResetToAutomaticBackend;
+    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -3411,7 +3442,7 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    ResetToAutomaticBackend;
+    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -3616,7 +3647,7 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    ResetToAutomaticBackend;
+    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -3796,7 +3827,7 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    ResetToAutomaticBackend;
+    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -4104,7 +4135,7 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    ResetToAutomaticBackend;
+    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -4385,7 +4416,7 @@ begin
 
     AssertTrue('At least one backend should be tested in wide bitwise/shift matrix parity', LTestedCount > 0);
   finally
-    ResetToAutomaticBackend;
+    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -4817,7 +4848,7 @@ begin
 
     AssertTrue('At least one backend should be tested in wide arithmetic/minmax matrix parity', LTestedCount > 0);
   finally
-    ResetToAutomaticBackend;
+    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -4921,7 +4952,7 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    ResetToAutomaticBackend;
+    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -5083,7 +5114,7 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    ResetToAutomaticBackend;
+    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -5234,7 +5265,7 @@ begin
         Integer(LRefMax), Integer(LDirectMax));
     end;
   finally
-    ResetToAutomaticBackend;
+    RestoreFixtureDirectDispatchState;
   end;
 end;
 
@@ -5279,7 +5310,6 @@ var
   LIndex: Integer;
   LLane: Integer;
   LExtractIndex: Integer;
-  LOldVectorAsm: Boolean;
   LTestedCount: Integer;
 
   procedure AssertVecI64x4Equal(const aOp: string; const aBackend: TSimdBackend;
@@ -5377,7 +5407,6 @@ begin
   LI64x4Base.i[3] := Int64(-444444444444444444);
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
   LTestedCount := 0;
   try
     SetVectorAsmEnabled(True);
@@ -5550,8 +5579,7 @@ begin
 
     AssertTrue('At least one backend should be tested', LTestedCount > 0);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestoreFixtureDirectDispatchState;
     FreeAligned(LAlignedBlock);
   end;
 end;
