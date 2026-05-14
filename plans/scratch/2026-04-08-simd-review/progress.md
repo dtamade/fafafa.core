@@ -2430,4 +2430,16 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
-- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`；`dispatchapi.testcase` 下一批真实高价值入口已经收窄到 companion 类里的 pure vector-asm 路径，以及那些夹带 rollback / backend mutation 语义的复杂 finally。
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`；但继续复核后确认这个 stop-point 还不够准，`dispatchapi` 后段 capability/override 路径和两条 companion mask-contract 里其实还残留另一簇 pure `vector asm` outer finally。
+
+- 随后我继续沿这些后段命中往下收，确认这批新的 simple outer finally 残余分成两块：
+  - `TTestCase_RISCVVMaskedOpsContract` 2 处 mask capability/public-ABI contract
+  - `TTestCase_DispatchAPI` 后段 `AVX512/NEON/RISCVV/AVX2/SSE3/SSSE3/SSE4.x` capability/override 路径 18 处
+- 这次仍然没有去碰内部 helper finally，而是只把这些明确的顶层 outer finally 统一切到 `RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend)`。
+- 本轮 Release 验证再次串行跑完：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`；当前 `dispatchapi.testcase` 剩余的裸 `SetVectorAsmEnabled(LOldVectorAsm)` 命中已经缩到长方法内部 helper / nested procedure 的局部 finally，不再是顶层 test outer finally。

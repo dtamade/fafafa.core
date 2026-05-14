@@ -9223,7 +9223,7 @@ begin
     AssertTrue('RISCVV scMaskedOps should be set while representative mask helper slots are native',
       scMaskedOps in LRISCVVTable.BackendInfo.Capabilities);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9261,7 +9261,7 @@ begin
     AssertTrue('Public ABI CapabilityBits should expose RISCVV scMaskedOps while representative mask helper slots are native',
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scMaskedOps))) <> 0);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9386,7 +9386,7 @@ begin
     AssertTrue('AVX512 should advertise scFMA once wide FMA slots are non-scalar',
       scFMA in LAVX512Table.BackendInfo.Capabilities);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9418,7 +9418,7 @@ begin
     AssertTrue('AVX512 should advertise scShuffle once wide select slots are non-scalar',
       scShuffle in LAVX512Table.BackendInfo.Capabilities);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9459,7 +9459,7 @@ begin
     AssertFalse('AVX512 sc512BitOps should clear when vector asm is disabled',
       sc512BitOps in LAVX512Table.BackendInfo.Capabilities);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9591,7 +9591,7 @@ begin
     AssertFalse('NEON scShuffle should clear when vector asm is disabled',
       scShuffle in LNEONTable.BackendInfo.Capabilities);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9627,7 +9627,7 @@ begin
       scIntegerOps in LRISCVVTable.BackendInfo.Capabilities);
     {$ENDIF}
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9675,7 +9675,7 @@ begin
       scFMA in LRISCVVTable.BackendInfo.Capabilities);
     {$ENDIF}
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9711,7 +9711,7 @@ begin
       scShuffle in LRISCVVTable.BackendInfo.Capabilities);
     {$ENDIF}
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9753,7 +9753,7 @@ begin
     AssertFalse('RISCVV scShuffle should clear when vector asm is disabled',
       scShuffle in LRISCVVTable.BackendInfo.Capabilities);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9789,7 +9789,7 @@ begin
     AssertTrue('AVX2 should advertise scShuffle once representative shuffle slots are non-scalar',
       scShuffle in LAVX2Table.BackendInfo.Capabilities);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9830,7 +9830,7 @@ begin
     AssertTrue('Public ABI CapabilityBits should expose AVX2 scShuffle while native AVX2 shuffle slots are contract-visible',
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) <> 0);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9865,7 +9865,7 @@ begin
     AssertFalse('scShuffle should clear when AVX2 shuffle slots fall back to scalar after vector asm disable',
       scShuffle in LAVX2Table.BackendInfo.Capabilities);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9897,7 +9897,7 @@ begin
     AssertTrue('Public ABI CapabilityBits should clear AVX2 scShuffle when vector asm is disabled',
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) = 0);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -10076,7 +10076,7 @@ begin
     AssertSlotOwnsSSE3('DotF32x4', Pointer(LSSE2Table.DotF32x4), Pointer(LSSE3Table.DotF32x4));
     AssertSlotOwnsSSE3('NormalizeF32x4', Pointer(LSSE2Table.NormalizeF32x4), Pointer(LSSE3Table.NormalizeF32x4));
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -10136,7 +10136,7 @@ begin
     AssertSlotReusesSSE3('MinI8x16', Pointer(LSSE3Table.MinI8x16), Pointer(LSSSE3Table.MinI8x16));
     AssertSlotReusesSSE3('MaxI8x16', Pointer(LSSE3Table.MaxI8x16), Pointer(LSSSE3Table.MaxI8x16));
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -10211,7 +10211,7 @@ begin
     AssertSlotOwnsSSE41('SelectF32x4', Pointer(LSSSE3Table.SelectF32x4), Pointer(LSSE41Table.SelectF32x4));
     AssertSlotOwnsSSE41('CmpEqI64x2', Pointer(LSSSE3Table.CmpEqI64x2), Pointer(LSSE41Table.CmpEqI64x2));
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -10282,7 +10282,7 @@ begin
     AssertSlotReusesSSE41('CmpEqI64x2', Pointer(LSSE41Table.CmpEqI64x2), Pointer(LSSE42Table.CmpEqI64x2));
     AssertSlotOwnsSSE42('CmpGtI64x2', Pointer(LSSE41Table.CmpGtI64x2), Pointer(LSSE42Table.CmpGtI64x2));
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -10805,7 +10805,7 @@ begin
     AssertSlotReusesAVX2('MemDiffRange', Pointer(LAVX2Table.MemDiffRange), Pointer(LAVX512Table.MemDiffRange));
     AssertSlotReusesAVX2('BytesIndexOf', Pointer(LAVX2Table.BytesIndexOf), Pointer(LAVX512Table.BytesIndexOf));
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -10864,7 +10864,7 @@ begin
         scShuffle in LBackendTable.BackendInfo.Capabilities);
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 

@@ -2210,5 +2210,20 @@
   - companion 类里仍然只切 `vector asm`、但局部语义还需要逐段判定的路径
   - 纯 toggle / structural 审计测试
   - 内层为了下一步断言保留的 rollback / backend mutation 状态机块
-- 收完之后，`TTestCase_DispatchAPI` 本体范围内纯 `SetVectorAsmEnabled(LOldVectorAsm)` 的 procedure-level outer finally 已清空；后续如果继续沿 `dispatchapi.testcase` 深审，优先级就不再是机械样板，而是 companion 类与复杂恢复块里的真实语义差异。
+- 收完之后，当轮锁定的 15 处 `TTestCase_DispatchAPI` pure `SetVectorAsmEnabled(LOldVectorAsm)` procedure-level outer finally 已清掉；继续复核后又在 capability/override 后段与两条 companion mask-contract 路径里发现了另一簇同类命中。
 - Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 再次全绿，说明这批继续收的是 DispatchAPI 测试层恢复 contract 的缺失/冗余，而不是 backend capability / public ABI / dispatch 生产行为回归。
+
+## 2026-05-14 DispatchAPI Capability And Companion Pure Outer Finally Cleanup Findings
+
+- 继续按源码逐段复核后，确认上一轮对 `dispatchapi` pure `vector asm` 残余的边界判断仍偏乐观：
+  - `TTestCase_DispatchAPI` 的后段 `AVX512/NEON/RISCVV/AVX2/SSE3/SSSE3/SSE4.x` capability/override 路径还留着一簇 procedure 末尾纯 `SetVectorAsmEnabled(LOldVectorAsm)` outer finally
+  - 另外 `TTestCase_RISCVVMaskedOpsContract` 两条 mask capability/public-ABI contract 也还在用同样的单行恢复
+- 这批的最小正确修法依然不是重新发明样板，而是继续复用已有的 `RestoreDispatchApiLocalState(aOriginalVectorAsm, aOriginalBackend)`：
+  - 让 companion contract 与 `DispatchAPI` capability/override 路径统一回到同一个 fixture 恢复 contract
+  - 避免继续把“只恢复 vector asm、不复用保存 backend”这一历史写法扩散下去
+- 本轮新收掉的 simple outer finally 共 20 处：
+  - `TTestCase_RISCVVMaskedOpsContract` 2 处
+  - `TTestCase_DispatchAPI` 后段 capability/public-ABI/override 路径 18 处
+- 这批之后，`dispatchapi.testcase` 里剩余的裸 `SetVectorAsmEnabled(LOldVectorAsm)` 命中已经不再是顶层 test outer finally，而是长方法内部 local helper / nested procedure 自己的局部 finally。
+- 因而下一批如果继续沿 `dispatchapi.testcase` 深审，机械替换价值已经明显下降；更值得看的是真正带语义的内部 helper finally，以及尚未统一的复杂 rollback/backend mutation 块。
+- Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 再次全绿，说明这批仍然只是在收 `dispatchapi` 测试层恢复 contract 的缺失/冗余，没有触碰 dispatch/backend/public-ABI 生产行为。
