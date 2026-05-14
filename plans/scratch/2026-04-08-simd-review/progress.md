@@ -4016,3 +4016,33 @@
   - 结果：主编译参数中的 project source 已正确变成 `test_backend_ops.pas`，并成功生成 `bin/test_backend_ops`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - 结果：通过，说明这批独立入口修补没有反向污染主 SIMD 检查链
+
+## 2026-05-15 DispatchAPI Canonical Backend Name Reuse Batch 1
+
+- 继续沿“test-only 本地名字表”这条线深查时，我回到 `fafafa.core.simd.dispatchapi.testcase.pas`，先接住上一批已经落下的文件级 helper：
+  - `DispatchApiBackendName(const aBackend: TSimdBackend): string`
+  - 实现是 `GetBackendInfo(aBackend).Name`
+- 这次没有盲目全文件替换，而是先确认当前一簇 4 个 procedure 的局部 `BackendName(...)` 只拼断言消息，不参与 capability 逻辑：
+  - `Test_BackendCapabilities_DoNotUnderclaim_Shuffle`
+  - `Test_X86_BackendCapabilities_DoNotUnderclaim_MaskedOps`
+  - `Test_BackendCapabilities_Clear_IntegerOps_When_VectorAsmDisabled`
+  - `Test_X86_BackendCapabilities_Keep_MaskedOps_When_VectorAsmDisabled`
+- 确认边界后，本轮最小修法已落地：
+  - 删除这 4 个 procedure 内部各自的 `BackendName(...)`
+  - `ObserveRepresentativeSlot(...)` 与后续 `AssertTrue/AssertFalse` 文案统一改用 `DispatchApiBackendName(LBackend)`
+  - `IsX86MaskedOpsBackend(...)`、`IsVectorAsmGatedX86Backend(...)` 等真正承载 backend membership 的 helper 保持不动
+- 本轮 release 验证链已完整跑通：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- `check`/`gate` 期间还再次验证了这批改动没有破坏当前 SIMD 快门禁主链：
+  - `ADAPTER_SYNC_SUMMARY ... issues=0`
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=475 status=ok`
+  - `DISPATCH_READ_SCOPE ... forbidden_hits=0`
+  - `Run-all summary: Passed 5 / Failed 0`
+  - `[GATE] OK`
+- 当前这一批收口后，`dispatchapi.testcase` 里剩余局部 `BackendName(...)` 已缩到下一簇：
+  - 约 `10613/10788/10821/10925/10962`
+  - 文件级 `NonX86BackendName(...)` 暂不混入本批，留给后续 non-x86 小批次处理

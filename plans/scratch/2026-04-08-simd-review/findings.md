@@ -3584,8 +3584,8 @@
 ## 2026-05-15 Standalone Program Entry Contract Findings
 
 - 继续往 `tests/fafafa.core.simd` 的独立入口看时，发现一类和主 `BuildOrTest` 完全不同的真实问题：
-  - 这些 program 文件不一定被主 runner/gate 真实编到
-  - 因而很容易长期带着“看上去像能用、实际上没单独自证过”的入口合同缺口
+- 这些 program 文件不一定被主 runner/gate 真实编到
+- 因而很容易长期带着“看上去像能用、实际上没单独自证过”的入口合同缺口
 - 这轮已经确认的具体问题有 4 个：
   - `test_backend_ops.pas` 缺 `fafafa.core.settings.inc`
   - `test_simd_boundary.pas` 缺 `fafafa.core.settings.inc`
@@ -3605,3 +3605,30 @@
   - 不只要扫主 suite / helper / bench
   - 还要扫 repo 里那些“平时不在主 gate 上、但被留下来作为独立入口/示例/调试程序”的 program/lpi
   - 因为它们最容易积累配置漂移、主单元误指向和 source-encoding 污染这类隐性问题
+
+## 2026-05-15 DispatchAPI Canonical Backend Name Reuse Findings
+
+- `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 里这轮残留的 4 处局部 `BackendName(...)` 并不是 capability truth source，而只是断言消息文本来源：
+  - `Test_BackendCapabilities_DoNotUnderclaim_Shuffle`
+  - `Test_X86_BackendCapabilities_DoNotUnderclaim_MaskedOps`
+  - `Test_BackendCapabilities_Clear_IntegerOps_When_VectorAsmDisabled`
+  - `Test_X86_BackendCapabilities_Keep_MaskedOps_When_VectorAsmDisabled`
+- 这点必须先确认清楚，因为同一文件里确实还混有真正承载语义边界的局部 helper：
+  - `IsX86MaskedOpsBackend(...)`
+  - `IsVectorAsmGatedX86Backend(...)`
+  - 以及其他 `case aBackend of` capability membership 判断
+- 换句话说，本轮能安全统一的是“名字消息源”，不能把所有 `case aBackend of` 都误判成冗余表一起清掉。
+- 文件级 `DispatchApiBackendName(...)` 现在已经作为 canonical 薄封装落地：
+  - `Result := GetBackendInfo(aBackend).Name;`
+  - 这让 `dispatchapi.testcase` 当前已清掉的几簇断言文案，都直接复用 dispatch metadata，而不再自己维护 `Scalar/SSE2/AVX2/...` 的局部名称表。
+- 这批还确认了一个很实用的继续筛选原则：
+  - 如果某个 helper 只参与 `AssertTrue/AssertFalse` 的消息文本
+  - 而 backend 归类/slot ownership/capability membership 另有独立 helper 负责
+  - 那它就是优先级很高、风险很低的真冗余收口点
+- 目前 `dispatchapi.testcase` 里仍剩下一簇同类局部 `BackendName(...)`，大致在：
+  - `10613`
+  - `10788`
+  - `10821`
+  - `10925`
+  - `10962`
+- 另有文件级 `NonX86BackendName(...)` 继续服务 non-x86 测试消息面；它不适合和这次 x86/capability 小批次混做，后续应单开 non-x86 批次再收。

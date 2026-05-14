@@ -2828,3 +2828,22 @@
 | 1. 复核独立 program 入口是否仍受活跃验证覆盖 | completed | 已确认 `test_backend_ops.pas` 与 `test_simd_boundary.pas` 都缺 `{$I ../../src/fafafa.core.settings.inc}`；`test_backend_ops.lpi` 甚至错误指向 `fafafa.core.simd.test.lpr`，`lazbuild -B` 实际会去编整套主测试工程，而不是自己的 program |
 | 2. 修入口合同并收掉真实 standalone 缺陷 | completed | 已为两个 program 补 `settings.inc`；`test_backend_ops.lpi` 主单元已改回 `test_backend_ops.pas`；`test_simd_boundary` 的 `NegInfinity` 已改成 `-posInf`；其 banner/summary 文案还进一步显式收为 `UTF8String(...)`，避免旧编码污染落成 `?` |
 | 3. 独立构建/运行与主检查链复验 | completed | `git diff --check`、临时目录 `fpc` 编译并实际运行 `test_backend_ops`、临时目录 `fpc` 编译并实际运行 `test_simd_boundary`、UTF-8 输出落盘校验、`lazbuild -B tests/fafafa.core.simd/test_backend_ops.lpi`、Release `check` 已通过；说明这批入口现在既能独立自证，也不再误指向主测试 runner |
+
+## 2026-05-15 DispatchAPI Canonical Backend Name Reuse Batch 1
+
+### Goal
+
+继续加强 `simd` 测试层审查并修复，但这次严格限定在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 当前这一簇残留的局部 `BackendName(...)` 副本：把只用于断言消息的 backend 名称映射收敛到文件级 `DispatchApiBackendName(...) -> GetBackendInfo(...).Name`，不碰 capability membership / backend 分组判断。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前一簇 `BackendName(...)` 是否只是消息名来源 | completed | 已确认 `Test_BackendCapabilities_DoNotUnderclaim_Shuffle`、`Test_X86_BackendCapabilities_DoNotUnderclaim_MaskedOps`、`Test_BackendCapabilities_Clear_IntegerOps_When_VectorAsmDisabled`、`Test_X86_BackendCapabilities_Keep_MaskedOps_When_VectorAsmDisabled` 里的局部 `BackendName(...)` 只参与 `AssertTrue/AssertFalse` 文案拼接；真正的 capability 判断仍在 `IsX86MaskedOpsBackend(...)`、`IsVectorAsmGatedX86Backend(...)` 等局部 helper |
+| 2. 收敛到文件级 canonical name helper | completed | 已删除这 4 个 procedure 的局部 `BackendName(...)`，统一改用文件级 `DispatchApiBackendName(...)`；这样 `dispatchapi.testcase` 里这一簇失败消息不再自带一份本地 backend 名称表 |
+| 3. Release 验证与本批收口 | completed | `git diff --check`、Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 已全部通过；说明这批只收掉消息层冗余，没有影响 dispatch capability gate |
+
+### Next Slice
+
+- `dispatchapi.testcase` 里剩余局部 `BackendName(...)` 还在约 `10613/10788/10821/10925/10962` 一簇；适合下一批继续做。
+- 文件级 `NonX86BackendName(...)` 仍保留，涉及 non-x86 测试消息面，放到后续 non-x86 小批次单独处理更稳。

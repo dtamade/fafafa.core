@@ -350,6 +350,11 @@ begin
     Result := ExpandFileName(IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) + aRelativePath);
 end;
 
+function DispatchApiBackendName(const aBackend: TSimdBackend): string;
+begin
+  Result := GetBackendInfo(aBackend).Name;
+end;
+
 function SyntheticReduceAddF64x4CurrentDispatch(const a: TVecF64x4): Double;
 begin
   Result := 401.25;
@@ -7622,18 +7627,6 @@ var
   LTable: TSimdDispatchTable;
   LRegisteredCount: Integer;
 
-  function BackendName(const aBackend: TSimdBackend): string;
-  begin
-    case aBackend of
-      sbSSE2: Result := 'SSE2';
-      sbAVX2: Result := 'AVX2';
-      sbAVX512: Result := 'AVX512';
-      sbNEON: Result := 'NEON';
-      sbRISCVV: Result := 'RISCVV';
-      else Result := IntToStr(Ord(aBackend));
-    end;
-  end;
-
   procedure AssertAssigned(const aBackendName, aSlotName: string; aSlot: Pointer);
   begin
     AssertTrue(aSlotName + ' missing: ' + aBackendName, aSlot <> nil);
@@ -7653,25 +7646,25 @@ begin
 
     Inc(LRegisteredCount);
 
-    AssertAssigned(BackendName(LBackend), 'AddU32x16', Pointer(LTable.AddU32x16));
-    AssertAssigned(BackendName(LBackend), 'CmpEqU32x16', Pointer(LTable.CmpEqU32x16));
-    AssertAssigned(BackendName(LBackend), 'MinU32x16', Pointer(LTable.MinU32x16));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'AddU32x16', Pointer(LTable.AddU32x16));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'CmpEqU32x16', Pointer(LTable.CmpEqU32x16));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'MinU32x16', Pointer(LTable.MinU32x16));
 
-    AssertAssigned(BackendName(LBackend), 'AddU64x8', Pointer(LTable.AddU64x8));
-    AssertAssigned(BackendName(LBackend), 'CmpEqU64x8', Pointer(LTable.CmpEqU64x8));
-    AssertAssigned(BackendName(LBackend), 'ShiftRightU64x8', Pointer(LTable.ShiftRightU64x8));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'AddU64x8', Pointer(LTable.AddU64x8));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'CmpEqU64x8', Pointer(LTable.CmpEqU64x8));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'ShiftRightU64x8', Pointer(LTable.ShiftRightU64x8));
 
-    AssertAssigned(BackendName(LBackend), 'AddI16x32', Pointer(LTable.AddI16x32));
-    AssertAssigned(BackendName(LBackend), 'CmpEqI16x32', Pointer(LTable.CmpEqI16x32));
-    AssertAssigned(BackendName(LBackend), 'ShiftRightArithI16x32', Pointer(LTable.ShiftRightArithI16x32));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'AddI16x32', Pointer(LTable.AddI16x32));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'CmpEqI16x32', Pointer(LTable.CmpEqI16x32));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'ShiftRightArithI16x32', Pointer(LTable.ShiftRightArithI16x32));
 
-    AssertAssigned(BackendName(LBackend), 'AddI8x64', Pointer(LTable.AddI8x64));
-    AssertAssigned(BackendName(LBackend), 'CmpEqI8x64', Pointer(LTable.CmpEqI8x64));
-    AssertAssigned(BackendName(LBackend), 'MaxI8x64', Pointer(LTable.MaxI8x64));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'AddI8x64', Pointer(LTable.AddI8x64));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'CmpEqI8x64', Pointer(LTable.CmpEqI8x64));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'MaxI8x64', Pointer(LTable.MaxI8x64));
 
-    AssertAssigned(BackendName(LBackend), 'AddU8x64', Pointer(LTable.AddU8x64));
-    AssertAssigned(BackendName(LBackend), 'CmpEqU8x64', Pointer(LTable.CmpEqU8x64));
-    AssertAssigned(BackendName(LBackend), 'MaxU8x64', Pointer(LTable.MaxU8x64));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'AddU8x64', Pointer(LTable.AddU8x64));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'CmpEqU8x64', Pointer(LTable.CmpEqU8x64));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'MaxU8x64', Pointer(LTable.MaxU8x64));
   end;
 
   if LRegisteredCount = 0 then
@@ -8260,23 +8253,6 @@ var
   LScalar: TSimdDispatchTable;
   LClaims512: Boolean;
 
-  function BackendName(const aBackend: TSimdBackend): string;
-  begin
-    case aBackend of
-      sbScalar: Result := 'Scalar';
-      sbSSE2: Result := 'SSE2';
-      sbSSE3: Result := 'SSE3';
-      sbSSSE3: Result := 'SSSE3';
-      sbSSE41: Result := 'SSE41';
-      sbSSE42: Result := 'SSE42';
-      sbAVX2: Result := 'AVX2';
-      sbAVX512: Result := 'AVX512';
-      sbNEON: Result := 'NEON';
-      sbRISCVV: Result := 'RISCVV';
-      else Result := IntToStr(Ord(aBackend));
-    end;
-  end;
-
   procedure AssertNonScalarSlot(const aBackendName, aSlotName: string; aScalarSlot, aBackendSlot: Pointer);
   begin
     AssertTrue(aSlotName + ' missing: ' + aBackendName, aBackendSlot <> nil);
@@ -8296,25 +8272,25 @@ begin
     if not LClaims512 then
       Continue;
 
-    AssertNonScalarSlot(BackendName(LBackend), 'AddU32x16', Pointer(LScalar.AddU32x16), Pointer(LTable.AddU32x16));
-    AssertNonScalarSlot(BackendName(LBackend), 'CmpEqU32x16', Pointer(LScalar.CmpEqU32x16), Pointer(LTable.CmpEqU32x16));
-    AssertNonScalarSlot(BackendName(LBackend), 'ShiftRightU32x16', Pointer(LScalar.ShiftRightU32x16), Pointer(LTable.ShiftRightU32x16));
+    AssertNonScalarSlot(DispatchApiBackendName(LBackend), 'AddU32x16', Pointer(LScalar.AddU32x16), Pointer(LTable.AddU32x16));
+    AssertNonScalarSlot(DispatchApiBackendName(LBackend), 'CmpEqU32x16', Pointer(LScalar.CmpEqU32x16), Pointer(LTable.CmpEqU32x16));
+    AssertNonScalarSlot(DispatchApiBackendName(LBackend), 'ShiftRightU32x16', Pointer(LScalar.ShiftRightU32x16), Pointer(LTable.ShiftRightU32x16));
 
-    AssertNonScalarSlot(BackendName(LBackend), 'AddU64x8', Pointer(LScalar.AddU64x8), Pointer(LTable.AddU64x8));
-    AssertNonScalarSlot(BackendName(LBackend), 'CmpEqU64x8', Pointer(LScalar.CmpEqU64x8), Pointer(LTable.CmpEqU64x8));
-    AssertNonScalarSlot(BackendName(LBackend), 'ShiftRightU64x8', Pointer(LScalar.ShiftRightU64x8), Pointer(LTable.ShiftRightU64x8));
+    AssertNonScalarSlot(DispatchApiBackendName(LBackend), 'AddU64x8', Pointer(LScalar.AddU64x8), Pointer(LTable.AddU64x8));
+    AssertNonScalarSlot(DispatchApiBackendName(LBackend), 'CmpEqU64x8', Pointer(LScalar.CmpEqU64x8), Pointer(LTable.CmpEqU64x8));
+    AssertNonScalarSlot(DispatchApiBackendName(LBackend), 'ShiftRightU64x8', Pointer(LScalar.ShiftRightU64x8), Pointer(LTable.ShiftRightU64x8));
 
-    AssertNonScalarSlot(BackendName(LBackend), 'AddI16x32', Pointer(LScalar.AddI16x32), Pointer(LTable.AddI16x32));
-    AssertNonScalarSlot(BackendName(LBackend), 'CmpEqI16x32', Pointer(LScalar.CmpEqI16x32), Pointer(LTable.CmpEqI16x32));
-    AssertNonScalarSlot(BackendName(LBackend), 'ShiftRightArithI16x32', Pointer(LScalar.ShiftRightArithI16x32), Pointer(LTable.ShiftRightArithI16x32));
+    AssertNonScalarSlot(DispatchApiBackendName(LBackend), 'AddI16x32', Pointer(LScalar.AddI16x32), Pointer(LTable.AddI16x32));
+    AssertNonScalarSlot(DispatchApiBackendName(LBackend), 'CmpEqI16x32', Pointer(LScalar.CmpEqI16x32), Pointer(LTable.CmpEqI16x32));
+    AssertNonScalarSlot(DispatchApiBackendName(LBackend), 'ShiftRightArithI16x32', Pointer(LScalar.ShiftRightArithI16x32), Pointer(LTable.ShiftRightArithI16x32));
 
-    AssertNonScalarSlot(BackendName(LBackend), 'AddI8x64', Pointer(LScalar.AddI8x64), Pointer(LTable.AddI8x64));
-    AssertNonScalarSlot(BackendName(LBackend), 'CmpEqI8x64', Pointer(LScalar.CmpEqI8x64), Pointer(LTable.CmpEqI8x64));
-    AssertNonScalarSlot(BackendName(LBackend), 'MaxI8x64', Pointer(LScalar.MaxI8x64), Pointer(LTable.MaxI8x64));
+    AssertNonScalarSlot(DispatchApiBackendName(LBackend), 'AddI8x64', Pointer(LScalar.AddI8x64), Pointer(LTable.AddI8x64));
+    AssertNonScalarSlot(DispatchApiBackendName(LBackend), 'CmpEqI8x64', Pointer(LScalar.CmpEqI8x64), Pointer(LTable.CmpEqI8x64));
+    AssertNonScalarSlot(DispatchApiBackendName(LBackend), 'MaxI8x64', Pointer(LScalar.MaxI8x64), Pointer(LTable.MaxI8x64));
 
-    AssertNonScalarSlot(BackendName(LBackend), 'AddU8x64', Pointer(LScalar.AddU8x64), Pointer(LTable.AddU8x64));
-    AssertNonScalarSlot(BackendName(LBackend), 'CmpEqU8x64', Pointer(LScalar.CmpEqU8x64), Pointer(LTable.CmpEqU8x64));
-    AssertNonScalarSlot(BackendName(LBackend), 'MaxU8x64', Pointer(LScalar.MaxU8x64), Pointer(LTable.MaxU8x64));
+    AssertNonScalarSlot(DispatchApiBackendName(LBackend), 'AddU8x64', Pointer(LScalar.AddU8x64), Pointer(LTable.AddU8x64));
+    AssertNonScalarSlot(DispatchApiBackendName(LBackend), 'CmpEqU8x64', Pointer(LScalar.CmpEqU8x64), Pointer(LTable.CmpEqU8x64));
+    AssertNonScalarSlot(DispatchApiBackendName(LBackend), 'MaxU8x64', Pointer(LScalar.MaxU8x64), Pointer(LTable.MaxU8x64));
   end;
 
   if TryGetRegisteredBackendDispatchTable(sbAVX512, LTable) then
@@ -8335,26 +8311,9 @@ var
   LScalar: TSimdDispatchTable;
   LHasNonScalarIntegerSlots: Boolean;
 
-  function BackendName(const aBackend: TSimdBackend): string;
-  begin
-    case aBackend of
-      sbScalar: Result := 'Scalar';
-      sbSSE2: Result := 'SSE2';
-      sbSSE3: Result := 'SSE3';
-      sbSSSE3: Result := 'SSSE3';
-      sbSSE41: Result := 'SSE41';
-      sbSSE42: Result := 'SSE42';
-      sbAVX2: Result := 'AVX2';
-      sbAVX512: Result := 'AVX512';
-      sbNEON: Result := 'NEON';
-      sbRISCVV: Result := 'RISCVV';
-      else Result := IntToStr(Ord(aBackend));
-    end;
-  end;
-
   procedure ObserveRepresentativeSlot(const aSlotName: string; aScalarSlot, aBackendSlot: Pointer);
   begin
-    AssertTrue(aSlotName + ' missing: ' + BackendName(LBackend), aBackendSlot <> nil);
+    AssertTrue(aSlotName + ' missing: ' + DispatchApiBackendName(LBackend), aBackendSlot <> nil);
     if aBackendSlot <> aScalarSlot then
       LHasNonScalarIntegerSlots := True;
   end;
@@ -8382,7 +8341,7 @@ begin
     if not LHasNonScalarIntegerSlots then
       Continue;
 
-    AssertTrue('scIntegerOps missing while representative integer slots are non-scalar: ' + BackendName(LBackend),
+    AssertTrue('scIntegerOps missing while representative integer slots are non-scalar: ' + DispatchApiBackendName(LBackend),
       scIntegerOps in LTable.BackendInfo.Capabilities);
   end;
 end;
@@ -8395,26 +8354,9 @@ var
   LHasNonScalarShuffleSlots: Boolean;
   LOldVectorAsm: Boolean;
 
-  function BackendName(const aBackend: TSimdBackend): string;
-  begin
-    case aBackend of
-      sbScalar: Result := 'Scalar';
-      sbSSE2: Result := 'SSE2';
-      sbSSE3: Result := 'SSE3';
-      sbSSSE3: Result := 'SSSE3';
-      sbSSE41: Result := 'SSE41';
-      sbSSE42: Result := 'SSE42';
-      sbAVX2: Result := 'AVX2';
-      sbAVX512: Result := 'AVX512';
-      sbNEON: Result := 'NEON';
-      sbRISCVV: Result := 'RISCVV';
-      else Result := IntToStr(Ord(aBackend));
-    end;
-  end;
-
   procedure ObserveRepresentativeSlot(const aSlotName: string; aScalarSlot, aBackendSlot: Pointer);
   begin
-    AssertTrue(aSlotName + ' missing: ' + BackendName(LBackend), aBackendSlot <> nil);
+    AssertTrue(aSlotName + ' missing: ' + DispatchApiBackendName(LBackend), aBackendSlot <> nil);
     if aBackendSlot <> aScalarSlot then
       LHasNonScalarShuffleSlots := True;
   end;
@@ -8446,7 +8388,7 @@ begin
       if not LHasNonScalarShuffleSlots then
         Continue;
 
-      AssertTrue('scShuffle missing while representative shuffle slots are non-scalar: ' + BackendName(LBackend),
+      AssertTrue('scShuffle missing while representative shuffle slots are non-scalar: ' + DispatchApiBackendName(LBackend),
         scShuffle in LTable.BackendInfo.Capabilities);
     end;
   finally
@@ -8461,23 +8403,6 @@ var
   LHasNonScalarMaskedSlots: Boolean;
   LOldVectorAsm: Boolean;
 
-  function BackendName(const aBackend: TSimdBackend): string;
-  begin
-    case aBackend of
-      sbScalar: Result := 'Scalar';
-      sbSSE2: Result := 'SSE2';
-      sbSSE3: Result := 'SSE3';
-      sbSSSE3: Result := 'SSSE3';
-      sbSSE41: Result := 'SSE41';
-      sbSSE42: Result := 'SSE42';
-      sbAVX2: Result := 'AVX2';
-      sbAVX512: Result := 'AVX512';
-      sbNEON: Result := 'NEON';
-      sbRISCVV: Result := 'RISCVV';
-      else Result := IntToStr(Ord(aBackend));
-    end;
-  end;
-
   function IsX86MaskedOpsBackend(const aBackend: TSimdBackend): Boolean;
   begin
     case aBackend of
@@ -8490,7 +8415,7 @@ var
 
   procedure ObserveRepresentativeSlot(const aSlotName: string; aScalarSlot, aBackendSlot: Pointer);
   begin
-    AssertTrue(aSlotName + ' missing: ' + BackendName(LBackend), aBackendSlot <> nil);
+    AssertTrue(aSlotName + ' missing: ' + DispatchApiBackendName(LBackend), aBackendSlot <> nil);
     if aBackendSlot <> aScalarSlot then
       LHasNonScalarMaskedSlots := True;
   end;
@@ -8522,7 +8447,7 @@ begin
       if not LHasNonScalarMaskedSlots then
         Continue;
 
-      AssertTrue('scMaskedOps missing while representative x86 mask helper slots are non-scalar: ' + BackendName(LBackend),
+      AssertTrue('scMaskedOps missing while representative x86 mask helper slots are non-scalar: ' + DispatchApiBackendName(LBackend),
         scMaskedOps in LTable.BackendInfo.Capabilities);
     end;
   finally
@@ -8537,23 +8462,6 @@ var
   LOldVectorAsm: Boolean;
   LHasNonScalarIntegerSlots: Boolean;
 
-  function BackendName(const aBackend: TSimdBackend): string;
-  begin
-    case aBackend of
-      sbScalar: Result := 'Scalar';
-      sbSSE2: Result := 'SSE2';
-      sbSSE3: Result := 'SSE3';
-      sbSSSE3: Result := 'SSSE3';
-      sbSSE41: Result := 'SSE41';
-      sbSSE42: Result := 'SSE42';
-      sbAVX2: Result := 'AVX2';
-      sbAVX512: Result := 'AVX512';
-      sbNEON: Result := 'NEON';
-      sbRISCVV: Result := 'RISCVV';
-      else Result := IntToStr(Ord(aBackend));
-    end;
-  end;
-
   function IsVectorAsmGatedX86Backend(aBackend: TSimdBackend): Boolean;
   begin
     case aBackend of
@@ -8566,7 +8474,7 @@ var
 
   procedure ObserveRepresentativeSlot(const aSlotName: string; aScalarSlot, aBackendSlot: Pointer);
   begin
-    AssertTrue(aSlotName + ' missing: ' + BackendName(LBackend), aBackendSlot <> nil);
+    AssertTrue(aSlotName + ' missing: ' + DispatchApiBackendName(LBackend), aBackendSlot <> nil);
     if aBackendSlot <> aScalarSlot then
       LHasNonScalarIntegerSlots := True;
   end;
@@ -8598,7 +8506,7 @@ begin
       if LHasNonScalarIntegerSlots then
         Continue;
 
-      AssertFalse('scIntegerOps should clear when representative integer slots are scalar after vector asm disable: ' + BackendName(LBackend),
+      AssertFalse('scIntegerOps should clear when representative integer slots are scalar after vector asm disable: ' + DispatchApiBackendName(LBackend),
         scIntegerOps in LTable.BackendInfo.Capabilities);
     end;
   finally
@@ -8672,23 +8580,6 @@ var
   LHasNonScalarMaskedSlots: Boolean;
   LOldVectorAsm: Boolean;
 
-  function BackendName(const aBackend: TSimdBackend): string;
-  begin
-    case aBackend of
-      sbScalar: Result := 'Scalar';
-      sbSSE2: Result := 'SSE2';
-      sbSSE3: Result := 'SSE3';
-      sbSSSE3: Result := 'SSSE3';
-      sbSSE41: Result := 'SSE41';
-      sbSSE42: Result := 'SSE42';
-      sbAVX2: Result := 'AVX2';
-      sbAVX512: Result := 'AVX512';
-      sbNEON: Result := 'NEON';
-      sbRISCVV: Result := 'RISCVV';
-      else Result := IntToStr(Ord(aBackend));
-    end;
-  end;
-
   function IsX86MaskedOpsBackend(const aBackend: TSimdBackend): Boolean;
   begin
     case aBackend of
@@ -8701,7 +8592,7 @@ var
 
   procedure ObserveRepresentativeSlot(const aSlotName: string; aScalarSlot, aBackendSlot: Pointer);
   begin
-    AssertTrue(aSlotName + ' missing: ' + BackendName(LBackend), aBackendSlot <> nil);
+    AssertTrue(aSlotName + ' missing: ' + DispatchApiBackendName(LBackend), aBackendSlot <> nil);
     if aBackendSlot <> aScalarSlot then
       LHasNonScalarMaskedSlots := True;
   end;
@@ -8735,7 +8626,7 @@ begin
       if not LHasNonScalarMaskedSlots then
         Continue;
 
-      AssertTrue('scMaskedOps should stay set while representative x86 mask helper slots remain non-scalar after vector asm disable: ' + BackendName(LBackend),
+      AssertTrue('scMaskedOps should stay set while representative x86 mask helper slots remain non-scalar after vector asm disable: ' + DispatchApiBackendName(LBackend),
         scMaskedOps in LTable.BackendInfo.Capabilities);
     end;
   finally
