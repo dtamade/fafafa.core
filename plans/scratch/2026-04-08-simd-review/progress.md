@@ -4599,3 +4599,29 @@
   - `impl-audit-nonx86` 继续为绿
   - Release `check` 继续为绿
   - Release `gate` 继续为绿，旧 Windows evidence 仍然只是 optional `SKIP`
+
+## 2026-05-15 RISCVV Dead Load/Store/Splat/Zero Residue Removal
+
+- 继续按“先看真实消费面，再决定删还是收”的方式往下审 `RISCVV`，这次把目标锁到 `I32x4/I64x2` 的 `Load/Store/Splat/Zero` 8 个候选 internal residue。
+- 第一轮全仓检索已经把结论压得很清楚：
+  - 这 8 个名字只剩 `src/fafafa.core.simd.riscvv.pas` 和 `src/fafafa.core.simd.riscvv.helpers.inc` 两处定义；
+  - 没有 `dispatch/register/facade/tests/docs` 消费面。
+- 因此这批不是“helper exact-contract consolidation”，而是“dead dual-track residue removal”：
+  - 从 `riscvv.pas` 删除 8 个 asm dead entry；
+  - 从 `riscvv.helpers.inc` 删除 8 个 fallback dead entry。
+- 为了把这个事实变成长期护栏，我同步改了 `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`：
+  - 新增 `require_routine_absent(...)`
+  - 对这 8 个 `RISCVVLoad/Store/Splat/ZeroI32x4/I64x2` 逐条要求 source-side 缺席
+- 本批 fresh 验证：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 当前结果：
+  - helper summary 升到 `NONX86_HELPER_SEMANTICS_SUMMARY checks=498 status=ok`
+  - `impl-audit-nonx86` 继续为绿
+  - Release `check` 继续为绿
+  - Release `gate` 继续为绿
+  - `gate` 末尾仍然只把旧 `windows_b07_gate.log` 诚实降级为 optional `SKIP`
+- 收口前已清理 `tests/fafafa.core.simd/__pycache__/`，避免把 Python 缓存目录带进提交。

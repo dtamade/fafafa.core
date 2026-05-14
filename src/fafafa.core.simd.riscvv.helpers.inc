@@ -100,58 +100,6 @@ begin
       Result := Result or (1 shl i);
 end;
 
-function RISCVVLoadI32x4(p: Pointer): TVecI32x4;
-type
-  PLocalVecI32x4 = ^TVecI32x4;
-begin
-  Result := PLocalVecI32x4(p)^;
-end;
-
-function RISCVVLoadI64x2(p: Pointer): TVecI64x2;
-type
-  PLocalVecI64x2 = ^TVecI64x2;
-begin
-  Result := PLocalVecI64x2(p)^;
-end;
-
-procedure RISCVVStoreI32x4(p: Pointer; const a: TVecI32x4);
-type
-  PLocalVecI32x4 = ^TVecI32x4;
-begin
-  PLocalVecI32x4(p)^ := a;
-end;
-
-procedure RISCVVStoreI64x2(p: Pointer; const a: TVecI64x2);
-type
-  PLocalVecI64x2 = ^TVecI64x2;
-begin
-  PLocalVecI64x2(p)^ := a;
-end;
-
-function RISCVVSplatI32x4(value: Int32): TVecI32x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result.i[i] := value;
-end;
-
-function RISCVVSplatI64x2(value: Int64): TVecI64x2;
-var i: Integer;
-begin
-  for i := 0 to 1 do
-    Result.i[i] := value;
-end;
-
-function RISCVVZeroI32x4: TVecI32x4;
-begin
-  Result := Default(TVecI32x4);
-end;
-
-function RISCVVZeroI64x2: TVecI64x2;
-begin
-  Result := Default(TVecI64x2);
-end;
-
 function RISCVVShiftLeftI64x2(const a: TVecI64x2; shift: Integer): TVecI64x2;
 begin
   Result := ScalarShiftLeftI64x2(a, shift);

@@ -4090,3 +4090,40 @@
 - 当前最准确的结论是：
   - fresh Windows runtime proof 仍被外部账单/额度挡住
   - 后续只有先恢复 GitHub Billing/额度，才能继续往下刷新 evidence
+
+## 2026-05-15 RISCVV Dead Load/Store/Splat/Zero Residue Removal
+
+- 在修完 `RISCVVCmpNeU32x4` 的内部合同漂移之后，继续深审 `RISCVV` 余项时，最强的新信号已经不是“同名 helper 是否签名漂移”，而是有一组明显的双轨死残留：
+  - `RISCVVLoadI32x4`
+  - `RISCVVStoreI32x4`
+  - `RISCVVSplatI32x4`
+  - `RISCVVZeroI32x4`
+  - `RISCVVLoadI64x2`
+  - `RISCVVStoreI64x2`
+  - `RISCVVSplatI64x2`
+  - `RISCVVZeroI64x2`
+- fresh 全仓检索确认，这 8 个符号只剩两类定义点：
+  - `src/fafafa.core.simd.riscvv.pas`
+  - `src/fafafa.core.simd.riscvv.helpers.inc`
+- 更重要的是，完全没有命中：
+  - `src/fafafa.core.simd.riscvv.register.inc`
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+  - `src/fafafa.core.simd.dispatch.pas`
+  - `tests/fafafa.core.simd*`
+  - `docs/*simd*`
+- 这说明它们不是“忘了接线的能力缺口”，而是：
+  - 没有消费面的 internal residue；
+  - 并且同时保留了 asm 版本和 fallback 版本，属于双轨死代码。
+- 本批收法因此很直接，也比前几批更干净：
+  - 从 `riscvv.pas` 删除 8 个 asm 定义；
+  - 从 `riscvv.helpers.inc` 删除 8 个 fallback 定义；
+  - 不去给它们补 façade / dispatch / register，因为那会把 dead residue 错误升级成新 contract。
+- 为了防止后续“又被某次复制粘贴带回来”，`check_nonx86_helper_semantics.py` 这次新增了 source-side 缺席护栏：
+  - `require_routine_absent(...)`
+  - 明确要求这 8 个名字在 `riscvv.pas` 和 `riscvv.helpers.inc` 中都不存在。
+- fresh 结果继续是干净的：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=498 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY ... status=ok`
+  - Release `check` 通过
+  - Release `gate` 通过
+- `gate` 末尾仍然只有旧 `windows_b07_gate.log` 的 optional evidence verify 缺模式，这继续是历史 Windows 证据过期问题，不是本批 residue removal 引入的实现回归。

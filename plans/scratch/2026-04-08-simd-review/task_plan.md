@@ -3138,3 +3138,17 @@
 | 1. 复核真实合同与消费面 | completed | 已确认 `dispatch` 和 `register` 都没有 `CmpNeU32x4` 槽位，`facade` 也没有公开同名函数；`sse2.register.inc` 还明确注明 `CmpNeU32x4 not in dispatch table`，说明这条线应视为内部 helper，而不是缺失的公开 API |
 | 2. 修复 no-ASM helper 的返回合同漂移 | completed | 已把 `src/fafafa.core.simd.riscvv.helpers.inc` 里的 `RISCVVCmpNeU32x4` 从错误的 `TVecU32x4` 返回改回 `TMask4`，并把实现改成按 lane 置位的 mask 语义，与 asm 版本保持一致 |
 | 3. 给 helper checker 补内部签名/语义护栏并复验 | completed | `check_nonx86_helper_semantics.py` 已新增对 `RISCVVCmpNeU32x4` 的签名和 mask-body 断言；`git diff --check`、helper semantics、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 已全部通过，helper summary 更新到 `checks=482 status=ok` |
+
+## 2026-05-15 RISCVV Dead Load/Store/Splat/Zero Residue Removal
+
+### Goal
+
+继续深审 `RISCVV` internal helper/asm 尾巴时，优先清掉确认“只有定义、没有任何消费面”的死残留，而不是把它们错误提升成 façade 或 dispatch contract。本批目标是移除 `I32x4/I64x2` 的 `Load/Store/Splat/Zero` 双轨定义，并把“必须缺席”写进 source-side checker。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 8 个候选符号是否只剩定义 | completed | 全仓检索确认 `RISCVVLoad/Store/Splat/ZeroI32x4` 与 `RISCVVLoad/Store/Splat/ZeroI64x2` 只出现在 `src/fafafa.core.simd.riscvv.pas` 和 `src/fafafa.core.simd.riscvv.helpers.inc`，没有 `dispatch/register/facade/tests/docs` 消费面 |
+| 2. 删除 asm + helper 双轨死残留 | completed | 已从 `riscvv.pas` 删除这 8 个 asm 入口，并从 `riscvv.helpers.inc` 删除对应 fallback 定义，避免继续保留无入口的双轨内部死代码 |
+| 3. 补“必须缺席”护栏并串行复验 | completed | `check_nonx86_helper_semantics.py` 已新增 `require_routine_absent(...)`，显式要求这 8 个符号在 `riscvv.pas/helpers.inc` 中缺席；`git diff --check`、helper semantics、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 已全部通过，helper summary 更新到 `checks=498 status=ok` |

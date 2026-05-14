@@ -67,6 +67,14 @@ def require_fragments(body: str, fragments: list[str], routine_name: str) -> Non
             )
 
 
+def require_routine_absent(source: str, routine_name: str) -> None:
+    if re.search(
+        rf"(?im)^(function|procedure)\s+{re.escape(routine_name)}\b",
+        source,
+    ):
+        raise AssertionError(f"{routine_name} should be absent")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Check non-x86 helper/native-evidence semantics and source-side parity coverage from source."
@@ -998,6 +1006,29 @@ def main() -> int:
 
     for source, routine_name, fragments in routine_expectations:
         require_fragments(extract_routine_block(source, routine_name), fragments, routine_name)
+        checks += 1
+
+    absent_routine_expectations = [
+        (riscvv_source, "RISCVVLoadI32x4"),
+        (riscvv_source, "RISCVVStoreI32x4"),
+        (riscvv_source, "RISCVVSplatI32x4"),
+        (riscvv_source, "RISCVVZeroI32x4"),
+        (riscvv_source, "RISCVVLoadI64x2"),
+        (riscvv_source, "RISCVVStoreI64x2"),
+        (riscvv_source, "RISCVVSplatI64x2"),
+        (riscvv_source, "RISCVVZeroI64x2"),
+        (riscvv_helpers_source, "RISCVVLoadI32x4"),
+        (riscvv_helpers_source, "RISCVVStoreI32x4"),
+        (riscvv_helpers_source, "RISCVVSplatI32x4"),
+        (riscvv_helpers_source, "RISCVVZeroI32x4"),
+        (riscvv_helpers_source, "RISCVVLoadI64x2"),
+        (riscvv_helpers_source, "RISCVVStoreI64x2"),
+        (riscvv_helpers_source, "RISCVVSplatI64x2"),
+        (riscvv_helpers_source, "RISCVVZeroI64x2"),
+    ]
+
+    for source, routine_name in absent_routine_expectations:
+        require_routine_absent(source, routine_name)
         checks += 1
 
     document_expectations = [
