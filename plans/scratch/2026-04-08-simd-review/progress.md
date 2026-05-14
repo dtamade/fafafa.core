@@ -3024,6 +3024,21 @@
   - `run_windows_b07_closeout_via_github_actions.sh` 已把它识别成 billing block，并以 `exit=31` fail-close
   - 结论：当前 `freeze-status` 无法继续靠本地修脚本/修测试变绿，必须等 GitHub 账单恢复，或改走真实可用的 Windows runner 再重新刷新 evidence
 
+- 在 Windows freshness 外部阻塞明确之后，我继续回到 `simd` 测试层做剩余冗余扫描，并完成了一批更细粒度的“single-use exact wrapper” cleanup：
+  - `dataplane.testcase` 中的 `RestoreDataPlaneLocalState(...)` 已删除，唯一调用点直接改为 `RestoreSavedBackendAndVectorAsmState(...)`
+  - `publicabi.testcase` 中的 `RestoreOriginalActiveBackend(...)` 已删除，唯一调用点直接改为 `RestoreSavedBackendState(...)`
+  - `backend.consistency.testcase` 中的 `SaveBackendConsistencyState(...)` 已删除，7 处调用点直接改为 `SaveActiveBackendState(...)`
+  - `backend.consistency` 的 `RestoreBackendConsistencyState(...)` 保留，因为它还承担 `GetActiveBackend = saved backend` 的本地断言语义，不是纯复制体
+- 这批的判断边界是：
+  - 只删“单定义 + 单调用”或“纯 pass-through save wrapper”
+  - 不删任何仍带 backend-active 断言、hook rollback、rebind 或 control-plane 语义的本地壳
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DataPlane,TTestCase_PublicAbi,TTestCase_BackendVectorConsistency`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+
 - 我在这条线上又往前推进了一个更小的单点 batch：`vec512types` 里的 `TTestCase_Vec512MaskFacadeGuards`。
 - 这轮判断先刻意卡住边界：
   - `TTestCase_Vec512Types` 本身只是普通类型/算术 smoke，不需要 stateful fixture

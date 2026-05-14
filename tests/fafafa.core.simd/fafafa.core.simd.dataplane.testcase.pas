@@ -36,12 +36,6 @@ type
 
 implementation
 
-function RestoreDataPlaneLocalState(aOriginalVectorAsm: Boolean;
-  aOriginalBackend: TSimdBackend): Boolean;
-begin
-  Result := RestoreSavedBackendAndVectorAsmState(aOriginalVectorAsm, aOriginalBackend);
-end;
-
 procedure TTestCase_DataPlane.SetUp;
 begin
   inherited SetUp;
@@ -258,7 +252,7 @@ begin
       PtrUInt(LFinal) = PtrUInt(LInitial));
   finally
     AssertTrue('Data-plane local restore should recover previous backend selection',
-      RestoreDataPlaneLocalState(LOldVectorAsm, FSavedBackend));
+      RestoreSavedBackendAndVectorAsmState(LOldVectorAsm, FSavedBackend));
   end;
 end;
 

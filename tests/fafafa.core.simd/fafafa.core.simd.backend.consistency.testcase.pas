@@ -131,11 +131,6 @@ begin
   Result.i[3] := v3;
 end;
 
-procedure SaveBackendConsistencyState(out aState: TSimdSavedBackendState);
-begin
-  SaveActiveBackendState(aState);
-end;
-
 procedure RestoreBackendConsistencyState(const aState: TSimdSavedBackendState);
 var
   LRestoredBackend: Boolean;
@@ -166,7 +161,7 @@ begin
   Result.MaxDiff := 0;
   Result.DiffLocation := -1;
 
-  SaveBackendConsistencyState(LOriginalState);
+  SaveActiveBackendState(LOriginalState);
   try
     if not IsBackendRegistered(backend) then
     begin
@@ -280,7 +275,7 @@ begin
   Result.MaxDiff := 0;
   Result.DiffLocation := -1;
 
-  SaveBackendConsistencyState(LOriginalState);
+  SaveActiveBackendState(LOriginalState);
   try
     if not IsBackendRegistered(backend) then
     begin
@@ -392,7 +387,7 @@ begin
   Result.MaxDiff := 0;
   Result.DiffLocation := -1;
 
-  SaveBackendConsistencyState(LOriginalState);
+  SaveActiveBackendState(LOriginalState);
   try
     if not IsBackendRegistered(backend) then
     begin
@@ -480,7 +475,7 @@ begin
   Result.MaxDiff := 0;
   Result.DiffLocation := -1;
 
-  SaveBackendConsistencyState(LOriginalState);
+  SaveActiveBackendState(LOriginalState);
   try
     if not IsBackendRegistered(backend) then
     begin
@@ -587,7 +582,7 @@ begin
   Result.MaxDiff := 0;
   Result.DiffLocation := -1;
 
-  SaveBackendConsistencyState(LOriginalState);
+  SaveActiveBackendState(LOriginalState);
   try
     if not IsBackendRegistered(backend) then
     begin
@@ -678,7 +673,7 @@ begin
   Result.MaxDiff := 0;
   Result.DiffLocation := -1;
 
-  SaveBackendConsistencyState(LOriginalState);
+  SaveActiveBackendState(LOriginalState);
   try
     if not IsBackendRegistered(backend) then
     begin
@@ -786,7 +781,7 @@ begin
   Result.MaxDiff := 0;
   Result.DiffLocation := -1;
 
-  SaveBackendConsistencyState(LOriginalState);
+  SaveActiveBackendState(LOriginalState);
   try
     if not IsBackendRegistered(backend) then
     begin

@@ -678,11 +678,6 @@ begin
     IsVectorAsmEnabled = FSavedVectorAsm);
 end;
 
-function RestoreOriginalActiveBackend(aOriginalBackend: TSimdBackend): Boolean;
-begin
-  Result := RestoreSavedBackendState(aOriginalBackend);
-end;
-
 function GetPublicApiFuncPointer(const aApi: PFafafaSimdPublicApi; aSlotIndex: Integer): Pointer;
 begin
   if aApi = nil then
@@ -941,7 +936,7 @@ begin
   finally
     if GetCurrentBackend <> LOriginalBackend then
       AssertTrue('Restoring original active backend should succeed',
-        RestoreOriginalActiveBackend(LOriginalBackend));
+        RestoreSavedBackendState(LOriginalBackend));
   end;
 
   AssertEquals('Public API active backend should track the restored backend',

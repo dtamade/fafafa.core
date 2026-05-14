@@ -2434,3 +2434,17 @@
 | 1. 复核 `direct` helper 的共享部分与专属部分 | completed | 已确认 `TDirectDispatchStatefulTestCase.RestoreFixtureDirectDispatchState` 里重复的是 `SetVectorAsmEnabled -> ResetToAutomaticBackend -> TrySetActiveBackend` 主体；真正 direct 专属的只剩 `RebindDirectDispatch` 与其后的断言壳 |
 | 2. 让 `direct` fixture restore 复用共享 helper | completed | `RestoreFixtureDirectDispatchState` 已改成 `RestoreSavedBackendAndVectorAsmState(FSavedVectorAsm, FSavedBackend)` 后再 `RebindDirectDispatch`，保留 direct rebind 顺序和断言语义不变 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、Release `check`、Release `gate` 全绿；提交前仍需清理可能回流的 `tests/fafafa.core.simd/__pycache__/` |
+
+## 2026-05-14 Single-Use Wrapper Cleanup
+
+### Goal
+
+继续加强 `simd` 测试层冗余审查，但只处理已经退化成 single-use exact pass-through 的 helper：删掉没有附加语义的单次转发壳，保留仍带断言或 control-plane 语义的本地 helper。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 盘点 single-use exact wrapper 候选 | completed | 已确认 `dataplane` 的 `RestoreDataPlaneLocalState(...)`、`publicabi` 的 `RestoreOriginalActiveBackend(...)`、`backend.consistency` 的 `SaveBackendConsistencyState(...)` 都是无附加语义的单次转发壳 |
+| 2. 删除纯 pass-through 壳并保留语义 helper | completed | 已删除上述 3 个 exact wrapper；`backend.consistency` 的 `RestoreBackendConsistencyState(...)` 保留，因为它仍追加 active-backend 断言语义 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DataPlane,TTestCase_PublicAbi,TTestCase_BackendVectorConsistency`、Release `check`、Release `gate` 全绿；提交前仍需清理可能回流的 `tests/fafafa.core.simd/__pycache__/` |

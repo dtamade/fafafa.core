@@ -3077,3 +3077,22 @@
   - `simd` 模块本地代码/测试链没有再暴露新的可修缺陷
   - Linux closeout 已恢复到最新源码
   - Windows freshness 仍未闭环，但原因是外部 runner/billing 不可用，而不是仓库内部还遗漏了更多 helper cleanup 或 gate 修复
+
+## 2026-05-14 Single-Use Wrapper Cleanup Findings
+
+- 在 Windows freshness 外部阻塞被坐实之后，继续回到 `tests/fafafa.core.simd` 做剩余冗余扫描，发现还有一小批比前面更细的 exact wrapper：
+  - `dataplane.testcase` 的 `RestoreDataPlaneLocalState(...)`
+  - `publicabi.testcase` 的 `RestoreOriginalActiveBackend(...)`
+  - `backend.consistency.testcase` 的 `SaveBackendConsistencyState(...)`
+- 这 3 个点和之前保留的语义壳不同：
+  - `RestoreDataPlaneLocalState(...)` 是单定义 + 单调用的完全直通 `RestoreSavedBackendAndVectorAsmState(...)`
+  - `RestoreOriginalActiveBackend(...)` 也是单定义 + 单调用的完全直通 `RestoreSavedBackendState(...)`
+  - `SaveBackendConsistencyState(...)` 只是把 `SaveActiveBackendState(...)` 换了个名字，没有附加任何本地约束或断言
+- 因而这轮最稳的修法不是再发明新 helper，而是直接删掉这些 exact pass-through 壳：
+  - `dataplane` 直接调用共享 restore helper
+  - `publicabi` 直接调用共享 backend-only restore helper
+  - `backend.consistency` 的 7 处入口保存直接改用 `SaveActiveBackendState(...)`
+- 同时保留的边界也很明确：
+  - `backend.consistency` 的 `RestoreBackendConsistencyState(...)` 继续保留，因为它追加了 `GetActiveBackend = saved backend` 的本地断言，这是 suite-specific 语义，不是纯复制体
+  - `ieee754` 这轮扫到的几条 inner `ResetToAutomaticBackend` 更像 per-backend 迭代流程，不属于安全的机械删改目标，所以本轮没有误动
+- Release 定向 suite、Release `check`、Release `gate` 全绿，说明这批继续只是在测试层移除单次转发 wrapper，没有改变 dataplane/public ABI/backend consistency 的被测行为。
