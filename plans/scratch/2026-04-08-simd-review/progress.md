@@ -3347,3 +3347,32 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 - 这轮 `gate` 明确按串行收口；前面并发验证里出现过 `nonx86 opt-in/riscvv rc=2` 的共享输出目录假红，所以这次没有把它当代码回归处理。
+
+## 2026-05-14 Concurrent Fixture Base Alignment
+
+- 继续扫剩余 `FSavedVectorAsm` / `SetUp/TearDown` 冗余时，`concurrent.testcase` 的基类壳非常突出：
+  - `TSimdStatefulTestCase` 仍继承 `TSimdBackendStatefulTestCase`
+  - 自己再定义一份 `FSavedVectorAsm`
+  - `SetUp/TearDown` 仅做 `IsVectorAsmEnabled` 的保存/恢复
+  - 但这些动作现在已经被公共 `TSimdVectorAsmStatefulTestCase` 完整承载
+- 复核后确认：
+  - `TSimdStatefulTestCase` 真正的 suite-specific 语义只有 `RestoreSimdLocalState(...)`
+  - 这个 helper 会在测试中间态恢复时追加“backend 已恢复”的断言
+  - 它和 `SetUp/TearDown` 的重复 vector-asm 生命周期不是一回事
+- 本轮最小修法已落地：
+  - `TSimdStatefulTestCase` 改继承 `TSimdVectorAsmStatefulTestCase`
+  - 删除本地 `FSavedVectorAsm`
+  - 删除重复 `SetUp/TearDown`
+  - 保留 `RestoreSimdLocalState(...)` 与所有调用点不变
+- 这批改动覆盖到 3 组并发 suite，但仍属于测试 infrastructure 对齐，不是并发逻辑改写：
+  - `TTestCase_SimdConcurrent`
+  - `TTestCase_SimdConcurrentPublicAbi`
+  - `TTestCase_SimdConcurrentFramework`
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrent,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 这轮也再次验证了一个判断：
+  - 当前 `tests/fafafa.core.simd` 里最值得继续清的，已经不再是大块逻辑重复，而是这种“共享 fixture 基类已经存在，但个别 suite 还保留旧生命周期壳”的尾部残点。

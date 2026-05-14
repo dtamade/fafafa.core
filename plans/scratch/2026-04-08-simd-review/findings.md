@@ -3165,3 +3165,20 @@
 - 这也进一步说明当前 `tests/fafafa.core.simd` 里剩余更值得继续抓的目标，不再是这种纯 scalar fixture 小残点，而应优先寻找：
   - 仍手写 backend/vector-asm 保存恢复且尚未下沉到公共基类的 suite
   - 或者保留 single-use wrapper，但其实不再附加 suite-specific 断言/编排语义的 helper
+
+## 2026-05-14 Concurrent Fixture Base Alignment Findings
+
+- `concurrent.testcase` 证明当前 SIMD 测试层还残留一类“基类已经抽出来，但 suite 还没回接”的尾部冗余：
+  - `TSimdVectorAsmStatefulTestCase` 已经提供 `backend + vector-asm` 的标准 fixture 生命周期
+  - `TSimdStatefulTestCase` 却还保留一份完全同构的 `FSavedVectorAsm + SetUp/TearDown`
+- 这类冗余和前面的 `edgecases` 有一个共同点：
+  - 不在被测逻辑里
+  - 不在断言矩阵里
+  - 而是在测试 infrastructure 的“语义表达层”里继续重复已有公共 contract
+- 把 `TSimdStatefulTestCase` 改挂到 `TSimdVectorAsmStatefulTestCase` 后，当前结构边界更清晰：
+  - 公共基类负责统一 fixture 生命周期
+  - `RestoreSimdLocalState(...)` 保留给并发 suite 的中途恢复断言
+  - worker、hook、runtime/public ABI 并发读写路径完全不受影响
+- 这也给下一轮 completion audit 一个更明确的筛选规则：
+  - 如果某个 suite 的 `SetUp/TearDown` 只是在保存/恢复 `backend`、`vector-asm`、`scalar` 这些公共状态，那优先怀疑它应该对齐现有基类
+  - 只有当本地 helper 还附加 rebind、hook reset、per-test backend choreography、exception-mask 等额外语义时，才值得继续保留自定义 fixture

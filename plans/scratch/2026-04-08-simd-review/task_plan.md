@@ -2490,3 +2490,17 @@
 | 1. 复核 `edgecases` 是否真的只需要 scalar fixture | completed | 已确认 `TTestCase_EdgeCases` 的本地额外语义只有保存/恢复 `TFPUExceptionMask`；backend 侧始终只是 scalar guard，没有 vector-asm、runtime snapshot 或 per-test backend 编排 |
 | 2. 对齐到公共 scalar fixture 基类 | completed | `TTestCase_EdgeCases` 已从 `TSimdBackendStatefulTestCase` 改继承 `TScalarBackendStatefulTestCase`，并删除 `SetUp` 中重复的 `ForceBackend(sbScalar)`；FPU mask 保存/恢复逻辑保持不变 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_EdgeCases`、Release `check`、Release `gate` 全绿；`gate` 本轮按串行收口，避免共享输出目录造成假红 |
+
+## 2026-05-14 Concurrent Fixture Base Alignment
+
+### Goal
+
+继续加强 `simd` 测试层审查并修复，但这次目标是把 `concurrent.testcase` 自己复制的一层 `backend + vector-asm` fixture 生命周期收回现成公共基类，只保留 suite-specific 的本地 restore 断言 helper，不去动任何并发 worker 或控制面被测逻辑。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `TSimdStatefulTestCase` 与公共基类的差异 | completed | 已确认 `TSimdStatefulTestCase.SetUp/TearDown` 只是保存/恢复 `FSavedVectorAsm`，与 `TSimdVectorAsmStatefulTestCase` 完全同构；真正 suite-specific 的只剩 `RestoreSimdLocalState(...)` 这个带断言的本地 helper |
+| 2. 对齐到公共 `vector-asm stateful` 基类 | completed | `TSimdStatefulTestCase` 已改继承 `TSimdVectorAsmStatefulTestCase`，删除本地 `FSavedVectorAsm` 字段与重复 `SetUp/TearDown`；`RestoreSimdLocalState(...)` 与所有并发 suite 的调用点保持不变 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_SimdConcurrent,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`、Release `check`、Release `gate` 全绿；本轮仍按串行验证，避免共享输出目录假红 |

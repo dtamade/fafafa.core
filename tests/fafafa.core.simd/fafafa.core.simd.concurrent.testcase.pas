@@ -32,13 +32,10 @@ uses
   fafafa.core.simd.dispatch;
 
 type
-  TSimdStatefulTestCase = class(TSimdBackendStatefulTestCase)
+  TSimdStatefulTestCase = class(TSimdVectorAsmStatefulTestCase)
   protected
-    FSavedVectorAsm: Boolean;
     procedure RestoreSimdLocalState(aOriginalVectorAsm: Boolean;
       aOriginalBackend: TSimdBackend);
-    procedure SetUp; override;
-    procedure TearDown; override;
   end;
 
   {** @abstract(SIMD 并发测试套件) *}
@@ -584,21 +581,6 @@ begin
   AssertTrue('SIMD concurrent fixture should restore previous backend selection',
     RestoreSavedBackendAndVectorAsmState(aOriginalVectorAsm, aOriginalBackend) and
     (GetCurrentBackend = aOriginalBackend));
-end;
-
-procedure TSimdStatefulTestCase.SetUp;
-begin
-  inherited SetUp;
-  FSavedVectorAsm := IsVectorAsmEnabled;
-end;
-
-procedure TSimdStatefulTestCase.TearDown;
-begin
-  SetVectorAsmEnabled(FSavedVectorAsm);
-  inherited TearDown;
-
-  AssertTrue('SIMD concurrent fixture should restore previous vector asm state',
-    IsVectorAsmEnabled = FSavedVectorAsm);
 end;
 
 const
