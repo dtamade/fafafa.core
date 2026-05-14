@@ -2319,3 +2319,17 @@
 | 1. 复核 `concurrent` / `direct` 本地 stateful 基类与公共 backend 基类的重合面 | completed | 已确认 `TSimdStatefulTestCase` 与 `TDirectDispatchStatefulTestCase` 都重复了 `GetDispatchTable -> save current backend -> TearDown restore backend`；真正 testcase 专属的剩余状态分别是 `vector-asm` 与 `direct dispatch rebind` |
 | 2. 只把类级 backend 生命周期收回 `TSimdBackendStatefulTestCase` | completed | 两个本地基类都已改继承 `TSimdBackendStatefulTestCase`，删除本地 `FSavedBackend`；`SetUp` 不再重复保存 backend；`concurrent` 的 `TearDown` 改成只恢复 vector-asm 后 `inherited TearDown`；`direct` 的 `TearDown` 则在同样顺序后补 `RebindDirectDispatch` |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release 定向 suites（`SimdConcurrent/PublicAbi/Framework/Registration` 与 `DirectDispatch/DirectDispatchConcurrent`）、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 DispatchSlots Backend Fixture Consolidation
+
+### Goal
+
+继续沿 stateful fixture 去重往下收，但这次先把 `dispatchslots` 的 active/current 语义前提核实清楚；只有在确认 `GetCurrentBackend` 与 `GetActiveBackend` 都锚在同一个 published dispatch backend truth 上后，才把类级 backend fixture 收回 `TSimdBackendStatefulTestCase`。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `dispatchslots` 的 active/current backend truth source | completed | 已确认 `GetActiveBackend` 直接读取 published dispatch table 的 `Backend`；`runtime` 的 `BuildSimdRuntimePublishedState` 在有 dispatch 时也直接把 `CurrentBackend := LDispatch^.Backend`，因此类级 backend fixture 的 truth source 当前对齐 |
+| 2. 只把类级 backend 生命周期收回 `TSimdBackendStatefulTestCase` | completed | `TTestCase_DispatchAllSlots` 已改继承 `TSimdBackendStatefulTestCase`，删除本地 `FSavedBackend/SetUp/TearDown`；suite 内部的 `RestoreDispatchSlotsLocalState(...)` 与所有 `GetActiveBackend/TrySetActiveBackend/ResetToAutomaticBackend` 断言保持原样 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAllSlots`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |

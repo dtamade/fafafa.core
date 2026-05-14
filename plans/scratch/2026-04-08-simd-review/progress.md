@@ -2980,3 +2980,29 @@
   - `dispatchslots` 之所以还没动，不是遗漏，而是它当前保存/恢复的是 active-backend 语义，必须先把 `GetActiveBackend` 与 `GetCurrentBackend` 的边界核死
   - 下一轮更合适的方向就是专门复核 `dispatchslots` 这条 active/current 语义线，而不是继续盲目扩散到更多文件
 - 这轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+- 我继续往前收的是 `dispatchslots` 这份一直刻意没碰的 suite。
+- 这轮先补齐了最关键的语义证据：
+  - `GetActiveBackend` 来自当前 published dispatch table 的 `Backend`
+  - `runtime` 里的 `BuildSimdRuntimePublishedState` 在有 dispatch 时也是直接把 `CurrentBackend := LDispatch^.Backend`
+  - 也就是说，这份 suite 外层 fixture 若只保存/恢复 backend，`GetCurrentBackend` 与 `GetActiveBackend` 在当前实现里对齐到同一个 published dispatch backend truth
+- 因而这轮最小修法就成立了：
+  - 文件引入 `fafafa.core.simd.testcase`
+  - `TTestCase_DispatchAllSlots` 改继承 `TSimdBackendStatefulTestCase`
+  - 删除本地 `FSavedBackend`
+  - 删除只服务类级 fixture 的 `SetUp/TearDown`
+  - 保留 `RestoreDispatchSlotsLocalState(...)` 和测试体里的 `GetActiveBackend / TrySetActiveBackend / ResetToAutomaticBackend`，继续把 raw dispatch 语义断言留在 suite 内部
+- 这轮修法的关键不是“又少一份样板”，而是边界终于明确了：
+  - 外层 fixture 可以用公共 backend lifecycle
+  - suite 内部真正关心的 active-backend / dispatch-level 语义仍然保持原样，不被 façade/runtime 名称替换掉
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAllSlots`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断继续更新：
+  - `dispatchslots` 这条 active/current 语义线已经拿到足够证据，因此也成功收回公共 backend 基类
+  - 这意味着本轮从 pure scalar fixture、复杂 stateful fixture、本地局部基类，到 raw dispatch slot suite，已经把一整串 backend lifecycle 冗余连续压下去了
+  - 下一轮若继续深挖，更值得找的是剩余仍保留 testcase-local backend fixture 的零散文件，而不是再回头怀疑 `dispatchslots`
+- 这轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

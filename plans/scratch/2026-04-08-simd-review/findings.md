@@ -2875,3 +2875,27 @@
   - 同时把 `concurrent/direct` 的 testcase 专属语义完整留下：前者保留方法级 restore helper，后者保留 direct dispatch rebind
   - 也为后续 `dispatchslots` 的只读审查建立了清晰前提：先判定 active/current 语义，再决定是否值得收公共基类
 - Release `TTestCase_SimdConcurrent,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework,TTestCase_SimdConcurrentRegistration,TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、Release `check`、Release `gate` 全绿，说明这批仍然只是测试夹具层去冗余，没有改变并发回归或 direct dispatch 的被测语义。
+
+## 2026-05-14 DispatchSlots Backend Fixture Consolidation Findings
+
+- `dispatchslots` 之前之所以一直没动，不是因为它没冗余，而是因为它带着一条必须先核实的语义前提：
+  - suite 保存/恢复的是 `GetActiveBackend`
+  - 公共基类保存/恢复的是 `GetCurrentBackend`
+  - 如果这两者在这份 suite 的 truth source 上不完全等价，直接套基类就会把测试主题偷换掉
+- 这轮只读复核把这个前提补实了：
+  - `GetActiveBackend` 在 `dispatch.pas` 里直接读取当前 published dispatch table 的 `Backend`
+  - `runtime.pas` 的 `BuildSimdRuntimePublishedState` 在 `LDispatch <> nil` 时也是 `Snapshot.CurrentBackend := LDispatch^.Backend`
+  - 换句话说，当前实现里 `CurrentBackend` 与 `ActiveBackend` 最终都锚在同一个 published dispatch backend truth 上
+- 这就把 `dispatchslots` 分成了两层：
+  - 类级 fixture 只是保存/恢复“当前 backend 是谁”
+  - suite 内部真正要断言的仍然是 raw dispatch-level 语义：`GetActiveBackend`、`TrySetActiveBackend`、`ResetToAutomaticBackend`
+- 因而这批的正确修法是：
+  - 只把类级 fixture 收回 `TSimdBackendStatefulTestCase`
+  - 删除本地 `FSavedBackend/SetUp/TearDown`
+  - 继续保留 `RestoreDispatchSlotsLocalState(...)`
+  - 继续保留测试体里所有 `GetActiveBackend` 相关断言，不把它们改成 façade/runtime 名称
+- 这批修法的价值在于：
+  - 把最后一个“因为 active/current 语义不明而暂缓”的 raw dispatch slot suite 也安全纳入统一 backend lifecycle
+  - 同时证明这轮工作不是机械替换，而是先补足语义证据，再决定哪些层能抽、哪些层必须保留
+  - 也让后续继续审余下 testcase 时有了更清晰的方法：只要先找到真正的 published truth source，就能判断公共基类是否适配
+- Release `TTestCase_DispatchAllSlots`、Release `check`、Release `gate` 全绿，说明这批仍然只是测试夹具层去冗余，没有改变 dispatch slot 合同或 backend adapter 的被测语义。

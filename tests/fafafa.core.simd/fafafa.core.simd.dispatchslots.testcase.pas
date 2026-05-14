@@ -11,6 +11,7 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry,
+  fafafa.core.simd.testcase,
   fafafa.core.simd.base,
   fafafa.core.simd.dispatch,
   fafafa.core.simd.backend.iface,
@@ -18,13 +19,9 @@ uses
 
 type
   // Full dispatch contract: every function slot must be bound on each selectable backend.
-  TTestCase_DispatchAllSlots = class(TTestCase)
+  TTestCase_DispatchAllSlots = class(TSimdBackendStatefulTestCase)
   private
-    FSavedBackend: TSimdBackend;
     procedure AssertAllDispatchSlotsAssigned(const aBackend: TSimdBackend; const aDispatch: PSimdDispatchTable);
-  protected
-    procedure SetUp; override;
-    procedure TearDown; override;
   published
     procedure Test_AllSelectableBackends_AllDispatchSlots_Assigned;
     procedure Test_BackendAdapter_EmptyOps_Fallback_AllDispatchSlots_Assigned;
@@ -43,20 +40,6 @@ begin
     Exit(True);
 
   Result := TrySetActiveBackend(aOriginalBackend);
-end;
-
-procedure TTestCase_DispatchAllSlots.SetUp;
-begin
-  inherited SetUp;
-  GetDispatchTable;
-  FSavedBackend := GetActiveBackend;
-end;
-
-procedure TTestCase_DispatchAllSlots.TearDown;
-begin
-  AssertTrue('Dispatch slots fixture should restore previous backend selection',
-    RestoreDispatchSlotsLocalState(FSavedBackend));
-  inherited TearDown;
 end;
 
 procedure TTestCase_DispatchAllSlots.AssertAllDispatchSlotsAssigned(const aBackend: TSimdBackend; const aDispatch: PSimdDispatchTable);
