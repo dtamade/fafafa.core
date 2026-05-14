@@ -3906,3 +3906,29 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-15 Backend Consistency Dispatch-Truth Name And Report Helper Reuse
+
+- 我继续顺着 `backend consistency` 的 control/report 面往下扫，确认还剩一份更底层的本地真相源：
+  - `GetConsistencyBackendName(...)` 自己仍然维护一份 backend name `case` 表
+  - 但 `dispatch.GetBackendInfo(...)` 已经对 registered/unregistered backend 统一返回 canonical metadata
+- 同时也看到一个容易继续漂移的小壳：
+  - `PrintTestSummary(...)` 和 `TTestCase_BackendVectorConsistency.Test_VectorOps_Consistency`
+  - 都各自用 `Pos('skipped', LowerCase(...))` 解释 result
+  - 都各自拼 failure line / max diff 文案
+- 本轮最小修法已落地：
+  - `GetConsistencyBackendName(...)` 改为薄封装 `GetBackendInfo(aBackend).Name`
+  - 新增 `IsConsistencyTestSkipped(...)`
+  - 新增 `FormatConsistencyFailureText(...)`
+  - `PrintTestSummary(...)` 改复用这两个 helper
+  - `TTestCase_BackendVectorConsistency.Test_VectorOps_Consistency` 也改复用同一套 result-interpretation helper
+- 这批的价值在于把 `backend consistency` 的“名称真相源 + 结果解释壳”都继续收平：
+  - backend label 不再在 tests 里另存一份
+  - summary 和 root wrapper 不再各自判断 skip / 各自拼 fail 文案
+  - 后续如果 result record 语义调整，日志和单测失败面会一起跟着改，而不是再出现两套解释
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_BackendVectorConsistency`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

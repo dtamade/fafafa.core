@@ -3512,3 +3512,30 @@
   - 一旦某个 helper/constant 已经被确认为 test-only canonical truth source
   - 就要顺着调用链把 meta-test / diagnostics 里的最后几份局部副本也清干净
   - 否则“代码已统一、诊断仍分叉”的问题会比实现 bug 更难被第一时间看出来
+
+## 2026-05-15 Backend Consistency Dispatch-Truth Name And Report Helper Findings
+
+- 再往下看一层后，`backend consistency` 里还剩一个更底层的重复 truth source：
+  - `GetConsistencyBackendName(...)` 虽然已经被 root wrapper / summary / meta-test 统一复用
+  - 但它自己仍维护一份本地 backend name `case` 表
+  - 而 `dispatch.GetBackendInfo(...)` 早就为 registered/unregistered backend 提供了 canonical `Name/Description`
+- 这意味着如果继续保留本地 `case` 表，问题只会换个位置存在：
+  - 之前是多份局部名称表互相漂移
+  - 现在会变成“测试 helper 名称表”与 dispatch canonical metadata 漂移
+  - 尤其像 `AVX-512`、`RISC-V V` 这种带格式差异的名字，最容易再次分叉
+- 因而这批最稳的收口方式，不是再维护“唯一的一份测试名称表”，而是直接承认 dispatch 才是这类 metadata 的真相源：
+  - `GetConsistencyBackendName(...)` 只做 `GetBackendInfo(aBackend).Name` 的薄封装
+  - 让 tests 依然有自己的稳定 helper 名称
+  - 但 helper 不再重复存储 backend label 本体
+- 这轮还顺手确认了另一类更细的 report-shell 重复：
+  - `PrintTestSummary(...)` 和 `TTestCase_BackendVectorConsistency.Test_VectorOps_Consistency`
+  - 都在各自用 `Pos('skipped', LowerCase(...))` 判定 skip
+  - 都在各自拼接 failure line / max diff 细节
+- 这类重复当前虽未造成 bug，但已经具备典型 drift 条件：
+  - 结果 record 语义一旦变化
+  - summary 与 root wrapper 很可能不会同时改
+  - 人工看日志和单测失败时就会得到两套略有差异的解释
+- 所以这批的合理边界是：
+  - 名称真相源下沉到 dispatch metadata
+  - 结果解释壳上提到 `IsConsistencyTestSkipped(...)` / `FormatConsistencyFailureText(...)`
+  - 让 summary / root wrapper 都只消费同一份 result-interpretation helper

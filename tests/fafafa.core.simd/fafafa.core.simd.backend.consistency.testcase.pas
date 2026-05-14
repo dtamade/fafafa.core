@@ -49,6 +49,9 @@ const
 function RunAllConsistencyTests: TConsistencyTestResults;
 
 function GetConsistencyBackendName(aBackend: TSimdBackend): string;
+function IsConsistencyTestSkipped(const aResult: TConsistencyTestResult): Boolean;
+function FormatConsistencyFailureText(const aResult: TConsistencyTestResult;
+  const aDetailIndent: string = '  '): string;
 
 // 打印测试结果摘要
 procedure PrintTestSummary(const results: TConsistencyTestResults);
@@ -187,20 +190,22 @@ end;
 
 function GetConsistencyBackendName(aBackend: TSimdBackend): string;
 begin
-  case aBackend of
-    sbScalar: Result := 'Scalar';
-    sbSSE2: Result := 'SSE2';
-    sbSSE3: Result := 'SSE3';
-    sbSSSE3: Result := 'SSSE3';
-    sbSSE41: Result := 'SSE4.1';
-    sbSSE42: Result := 'SSE4.2';
-    sbAVX2: Result := 'AVX2';
-    sbAVX512: Result := 'AVX-512';
-    sbNEON: Result := 'NEON';
-    sbRISCVV: Result := 'RISC-V V';
-  else
-    Result := 'Unknown';
-  end;
+  Result := GetBackendInfo(aBackend).Name;
+end;
+
+function IsConsistencyTestSkipped(const aResult: TConsistencyTestResult): Boolean;
+begin
+  Result := Pos('skipped', LowerCase(aResult.ErrorMessage)) > 0;
+end;
+
+function FormatConsistencyFailureText(const aResult: TConsistencyTestResult;
+  const aDetailIndent: string): string;
+begin
+  Result := Format('%s / %s - %s',
+    [GetConsistencyBackendName(aResult.Backend), aResult.TestName, aResult.ErrorMessage]);
+  if aResult.MaxDiff > 0 then
+    Result := Result + LineEnding + Format('%sMax diff: %g at index %d',
+      [aDetailIndent, aResult.MaxDiff, aResult.DiffLocation]);
 end;
 
 // =============================================================================
@@ -874,7 +879,7 @@ begin
   begin
     backendName := GetConsistencyBackendName(results[i].Backend);
 
-    if Pos('skipped', LowerCase(results[i].ErrorMessage)) > 0 then
+    if IsConsistencyTestSkipped(results[i]) then
     begin
       WriteLn(Format('[SKIP] %s / %s - %s',
         [backendName, results[i].TestName, results[i].ErrorMessage]));
@@ -887,11 +892,7 @@ begin
     end
     else
     begin
-      WriteLn(Format('[FAIL] %s / %s - %s',
-        [backendName, results[i].TestName, results[i].ErrorMessage]));
-      if results[i].MaxDiff > 0 then
-        WriteLn(Format('       Max diff: %g at index %d',
-          [results[i].MaxDiff, results[i].DiffLocation]));
+      WriteLn('[FAIL] ' + FormatConsistencyFailureText(results[i], '       '));
       Inc(failCount);
     end;
   end;

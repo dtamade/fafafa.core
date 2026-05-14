@@ -2772,3 +2772,17 @@
 | 1. 复核 meta-test 是否还复制 backend candidate truth source | completed | 已确认 `Test_VectorOps_Helper_Preserves_PreviousForcedBackend` 仍保留本地 `CBackendCandidates`，内容与 `CONSISTENCY_BACKENDS` 相同；helper sanity failure 也只打印 `Ord(LTargetBackend)`，诊断面仍落后于刚统一好的 backend-name helper |
 | 2. 统一复用共享 candidate/name helper | completed | 已删掉本地 `CBackendCandidates`，改直接遍历 `CONSISTENCY_BACKENDS`；helper sanity failure 信息也改用 `GetConsistencyBackendName(LTargetBackend)`，不再只输出 backend 编号 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_BackendVectorConsistency`、Release `check`、Release `gate` 已通过；说明这轮把 meta-test 残余副本也收回共享 helper 后，backend consistency 主线仍保持稳定 |
+
+## 2026-05-15 Backend Consistency Dispatch-Truth Name And Report Helper Reuse
+
+### Goal
+
+继续沿 `backend consistency` 的 control/report 真相源收尾：既然 `dispatch.GetBackendInfo(...)` 已经为注册/未注册 backend 提供 canonical name/description，就不该继续在 `backend.consistency` 里维护一份本地 backend name `case` 表。同时，root wrapper 与 summary 对 `skipped`/failure 文案的解释也已经开始重复，适合收成共享 helper。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 dispatch 层能否作为 backend consistency 名称真相源 | completed | 已确认 `GetBackendInfo(...)` 对 registered/unregistered backend 都会补齐 canonical `Name/Description`，并与 `GetBackendNameTextPtr(...)` 的默认 fallback 语义对齐；因此 `GetConsistencyBackendName(...)` 的本地 `case` 映射已经是重复 truth source |
+| 2. 收敛到 dispatch truth，并合并 skip/fail 报告壳 | completed | `GetConsistencyBackendName(...)` 已改为薄封装 `GetBackendInfo(aBackend).Name`；同时新增 `IsConsistencyTestSkipped(...)` 与 `FormatConsistencyFailureText(...)`，让 `PrintTestSummary(...)` 与 `TTestCase_BackendVectorConsistency.Test_VectorOps_Consistency` 共享 `skipped` 判定和 failure 文案拼接，而不再各自解释结果 record |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_BackendVectorConsistency`、Release `check`、Release `gate` 已通过；说明这轮继续把 report/control shell 收回共享 helper 后，backend consistency 主线和整体 fast-gate 都保持稳定 |

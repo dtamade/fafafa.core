@@ -1768,18 +1768,11 @@ begin
     failMsg := '';
     for i := 0 to High(results) do
     begin
-      if Pos('skipped', LowerCase(results[i].ErrorMessage)) > 0 then
+      if IsConsistencyTestSkipped(results[i]) then
         Continue;
 
       if not results[i].Passed then
-      begin
-        failMsg := failMsg + Format('%s / %s - %s',
-          [GetConsistencyBackendName(results[i].Backend), results[i].TestName, results[i].ErrorMessage]) + LineEnding;
-
-        if results[i].MaxDiff > 0 then
-          failMsg := failMsg + Format('  Max diff: %g at index %d',
-            [results[i].MaxDiff, results[i].DiffLocation]) + LineEnding;
-      end;
+        failMsg := failMsg + FormatConsistencyFailureText(results[i]) + LineEnding;
     end;
 
     if failMsg <> '' then
