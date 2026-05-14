@@ -52,14 +52,20 @@ type
     procedure SetUp; override;
   end;
 
-  {$IFDEF UNIX}
-  {$IFDEF CPUX86_64}
-  TSimdVectorAsmBackendStatefulTestCase = class(TSimdBackendStatefulTestCase)
+  TSimdVectorAsmStatefulTestCase = class(TSimdBackendStatefulTestCase)
   protected
     FSavedVectorAsm: Boolean;
-    procedure RefreshVectorAsmBackendRegistration; virtual; abstract;
+    procedure RestoreVectorAsmState; virtual;
     procedure SetUp; override;
     procedure TearDown; override;
+  end;
+
+  {$IFDEF UNIX}
+  {$IFDEF CPUX86_64}
+  TSimdVectorAsmBackendStatefulTestCase = class(TSimdVectorAsmStatefulTestCase)
+  protected
+    procedure RefreshVectorAsmBackendRegistration; virtual; abstract;
+    procedure RestoreVectorAsmState; override;
   end;
   {$ENDIF}
   {$ENDIF}
@@ -751,28 +757,40 @@ begin
   ForceBackend(sbScalar);
 end;
 
-{$IFDEF UNIX}
-{$IFDEF CPUX86_64}
-{ TSimdVectorAsmBackendStatefulTestCase }
+{ TSimdVectorAsmStatefulTestCase }
 
-procedure TSimdVectorAsmBackendStatefulTestCase.SetUp;
+procedure TSimdVectorAsmStatefulTestCase.RestoreVectorAsmState;
+begin
+  SetVectorAsmEnabled(FSavedVectorAsm);
+end;
+
+procedure TSimdVectorAsmStatefulTestCase.SetUp;
 begin
   inherited SetUp;
   FSavedVectorAsm := IsVectorAsmEnabled;
 end;
 
-procedure TSimdVectorAsmBackendStatefulTestCase.TearDown;
+procedure TSimdVectorAsmStatefulTestCase.TearDown;
 var
   LRestoredVectorAsm: Boolean;
 begin
-  SetVectorAsmEnabled(FSavedVectorAsm);
-  RefreshVectorAsmBackendRegistration;
+  RestoreVectorAsmState;
   LRestoredVectorAsm := IsVectorAsmEnabled = FSavedVectorAsm;
 
   inherited TearDown;
 
   AssertTrue(ClassName + ' should restore previous vector asm state',
     LRestoredVectorAsm);
+end;
+
+{$IFDEF UNIX}
+{$IFDEF CPUX86_64}
+{ TSimdVectorAsmBackendStatefulTestCase }
+
+procedure TSimdVectorAsmBackendStatefulTestCase.RestoreVectorAsmState;
+begin
+  inherited RestoreVectorAsmState;
+  RefreshVectorAsmBackendRegistration;
 end;
 {$ENDIF}
 {$ENDIF}

@@ -3288,3 +3288,37 @@
   - 结果：
     - rehearsal 全绿，并新增 `case_batch_fallback_rc=0`
     - 真实仓库 `freeze-status` 仍只红 Windows freshness / source-newer-than-windows / closeout freshness，没有引入新的 Linux 假红
+
+## 2026-05-14 Shared VectorAsm Fixture Base Extraction
+
+- 这轮继续做测试层冗余审查时，没有再去碰 `publicabi/dispatchapi/ieee754` 这些重控制面，而是挑了两份还留着轻量重复体的小型 suite：
+  - `tests/fafafa.core.simd/fafafa.core.simd.dataplane.testcase.pas`
+  - `tests/fafafa.core.simd/fafafa.core.simd.sse2contracts.testcase.pas`
+- 这两份文件都还在手写同一套 fixture 生命周期：
+  - `FOldVectorAsm := IsVectorAsmEnabled`
+  - `TearDown` 时 `SetVectorAsmEnabled(FOldVectorAsm)`
+  - 最后断言 `IsVectorAsmEnabled = FOldVectorAsm`
+- 现有公共层里虽然已经有 `TSimdVectorAsmBackendStatefulTestCase`，但它比这两份 suite 需要的语义更厚：
+  - 它不仅恢复 vector-asm 状态
+  - 还要求子类提供 `RefreshVectorAsmBackendRegistration`
+  - 这个 refresh 语义只对 `AVX2/AVX512 vectorasm` 专项成立，不该强加给 `dataplane` / `sse2contracts`
+- 因而本轮最小修法不是把这两份 suite 强塞进现有厚基类，而是先把层次补对：
+  - 在 `fafafa.core.simd.testcase.pas` 新增 `TSimdVectorAsmStatefulTestCase`
+    - 只负责保存/恢复 `IsVectorAsmEnabled`
+    - 把恢复动作抽成可 override 的 `RestoreVectorAsmState`
+  - 让现有 `TSimdVectorAsmBackendStatefulTestCase` 继承这个新薄基类
+    - 仅在 override 的 `RestoreVectorAsmState` 里追加 `RefreshVectorAsmBackendRegistration`
+  - `TTestCase_DataPlane` 与 `TTestCase_SSE2Contracts` 直接改继承 `TSimdVectorAsmStatefulTestCase`
+    - 删除本地 `FOldVectorAsm`
+    - 删除重复的 `SetUp/TearDown`
+- 这批层次调整的价值在于：
+  - `vector-asm state restore` 与 `backend re-registration` 终于被拆成两个清晰层次
+  - 后续再遇到只需要“保存/恢复 vector-asm 状态”的 suite，就不必再复制 `FOldVectorAsm` 壳，也不用误依赖 `AVX2/AVX512` 那套 refresh 语义
+  - 同时现有 `AVX2/AVX512 vectorasm` 专项的生命周期没有被削弱，只是改成挂在更准确的子类上
+- 本轮验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DataPlane,TTestCase_SSE2Contracts`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 这轮过程中我一开始把 `test/check/gate` 并发发出去了，考虑到共享输出目录存在临时互扰风险，随后特别核对了真实结果；这次没有出现 `Text file busy` 或 `rc=1/2` 假红，最终三条验证都实绿。

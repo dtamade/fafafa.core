@@ -15,11 +15,8 @@ uses
   fafafa.core.simd.scalar;
 
 type
-  TTestCase_SSE2Contracts = class(TSimdBackendStatefulTestCase)
+  TTestCase_SSE2Contracts = class(TSimdVectorAsmStatefulTestCase)
   protected
-    FOldVectorAsm: Boolean;
-    procedure SetUp; override;
-    procedure TearDown; override;
     function TryLoadSSE2AndScalarTables(out aSSE2Table, aScalarTable: TSimdDispatchTable): Boolean;
     procedure AssertVecF32x16Equals(const aMessage: string; const aExpected, aActual: TVecF32x16; aDelta: Single = 0.0);
     procedure AssertVecF64x8Equals(const aMessage: string; const aExpected, aActual: TVecF64x8; aDelta: Double = 0.0);
@@ -37,21 +34,6 @@ type
   end;
 
 implementation
-
-procedure TTestCase_SSE2Contracts.SetUp;
-begin
-  inherited SetUp;
-  FOldVectorAsm := IsVectorAsmEnabled;
-end;
-
-procedure TTestCase_SSE2Contracts.TearDown;
-begin
-  SetVectorAsmEnabled(FOldVectorAsm);
-  inherited TearDown;
-
-  AssertTrue('SSE2 contracts fixture should restore previous vector asm state',
-    IsVectorAsmEnabled = FOldVectorAsm);
-end;
 
 function TTestCase_SSE2Contracts.TryLoadSSE2AndScalarTables(out aSSE2Table, aScalarTable: TSimdDispatchTable): Boolean;
 begin

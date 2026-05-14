@@ -3123,3 +3123,31 @@
   - 早一轮 closeout snapshot 才包含 `qemu-cpuinfo-nonx86-evidence` + `evidence-verify`
   - 结果必须仍为 `ready=True`
   - 并且输出里明确出现 `selected fallback closeout gate snapshot ...`
+
+## 2026-05-14 Shared VectorAsm Fixture Base Findings
+
+- 当前 `simd` 测试层里，backend lifecycle 的大块重复体已经基本压完后，还剩一类更轻的重复体：
+  - 只保存/恢复 `vector-asm` 状态
+  - 不附带 backend re-registration
+  - 也不附带 public ABI / direct / dispatchapi 那类 local restore 语义
+- `dataplane.testcase` 与 `sse2contracts.testcase` 正好都落在这类：
+  - 本地 `FOldVectorAsm`
+  - `SetUp` 里读取 `IsVectorAsmEnabled`
+  - `TearDown` 里恢复并断言
+  - 除此之外没有额外 fixture 语义
+- 现有 `TSimdVectorAsmBackendStatefulTestCase` 并不能直接代表这类轻量需求，因为它还承载了另一层更专门的语义：
+  - `RefreshVectorAsmBackendRegistration`
+  - 这层只对 `AVX2/AVX512 vectorasm` 专项合理
+  - 如果让普通 suite 也继承它，会把“刷新 backend 注册表”错误提升成所有 vector-asm suite 的通用 contract
+- 因而更优雅的结构不是继续复制 `FOldVectorAsm`，而是把层级拆开：
+  - `TSimdVectorAsmStatefulTestCase`
+    - 只负责 `IsVectorAsmEnabled` 的保存/恢复
+  - `TSimdVectorAsmBackendStatefulTestCase`
+    - 继承上述薄基类
+    - 只在恢复阶段追加 `RefreshVectorAsmBackendRegistration`
+- 这样做后，类层次的职责边界变得更干净：
+  - 普通需要 vector-asm fixture 的 suite -> 继承薄基类
+  - 真正需要“恢复状态后再刷新 backend 注册”的 suite -> 继承厚基类
+- 这批修法的价值不只是少了两个 `FOldVectorAsm` 字段：
+  - 它把当前 test infrastructure 里的一个“混合语义基类”拆成了基础层和专门层
+  - 让后续 completion audit 更容易判断：某个 suite 如果还在 override `RestoreVectorAsmState`，那大概率就是真的有额外语义，而不是历史复制残留

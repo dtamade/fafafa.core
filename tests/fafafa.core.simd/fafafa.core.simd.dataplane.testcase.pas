@@ -17,11 +17,7 @@ uses
   fafafa.core.simd.scalar;
 
 type
-  TTestCase_DataPlane = class(TSimdBackendStatefulTestCase)
-  protected
-    FOldVectorAsm: Boolean;
-    procedure SetUp; override;
-    procedure TearDown; override;
+  TTestCase_DataPlane = class(TSimdVectorAsmStatefulTestCase)
   published
     procedure Test_DataPlane_CurrentSnapshot_Matches_Dispatch_And_Direct;
     procedure Test_DataPlane_BoundSlots_Match_CurrentDispatch_And_PublicAbi;
@@ -35,21 +31,6 @@ type
   end;
 
 implementation
-
-procedure TTestCase_DataPlane.SetUp;
-begin
-  inherited SetUp;
-  FOldVectorAsm := IsVectorAsmEnabled;
-end;
-
-procedure TTestCase_DataPlane.TearDown;
-begin
-  SetVectorAsmEnabled(FOldVectorAsm);
-  inherited TearDown;
-
-  AssertTrue('Data-plane fixture should restore previous vector asm state',
-    IsVectorAsmEnabled = FOldVectorAsm);
-end;
 
 procedure TTestCase_DataPlane.Test_DataPlane_CurrentSnapshot_Matches_Dispatch_And_Direct;
 var

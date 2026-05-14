@@ -2462,3 +2462,17 @@
 | 1. 复核 `freeze-status` 与 closeout snapshot 的真实绑定方式 | completed | 已确认 `BuildOrTest.sh gate` 默认 `reset_gate_summary`，所以问题不只是“选错 latest run”，而是 canonical `logs/gate_summary.md` 会被后续普通 gate 覆盖；`evaluate_simd_freeze_status.py` 当前又只消费单一路径，因此 closeout 证据缺少稳定快照入口 |
 | 2. 修复有效 gate 摘要选择与 batch snapshot 保留 | completed | `evaluate_simd_freeze_status.py` 现会在未显式 override 时同时扫描 canonical `gate_summary.md` 与 `logs/windows-closeout/*/gate_summary.md`，只在“最新 gate 基础步骤仍绿、但缺的是 closeout 证据步骤”时回退到最近一份满足 closeout 约束的 snapshot；`run_windows_b07_closeout_finalize.sh` 也改为把实际 freeze 使用的 gate summary 保存进 batch 目录 |
 | 3. Rehearsal / real freeze 验证与提交收口 | completed | `python3 -m py_compile`、`bash -n`、`bash tests/fafafa.core.simd/rehearse_freeze_status.sh` 全绿；新增 batch-fallback rehearsal 锁住“canonical 被 fast gate 覆盖后仍可回选 closeout snapshot”场景；真实 Release `freeze-status` 继续只剩 Windows freshness 外部阻塞 |
+
+## 2026-05-14 Shared VectorAsm Fixture Base Extraction
+
+### Goal
+
+继续加强 `simd` 测试层审查并修复，但这次不再盯 backend lifecycle，而是把 `dataplane` 与 `sse2contracts` 仍重复的一层 `vector-asm` fixture 生命周期收回公共基类，同时保留 `AVX2/AVX512 vectorasm` 专项的 refresh-registration 语义。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核重复体与现有基类层次 | completed | 已确认 `dataplane.testcase` 与 `sse2contracts.testcase` 都仍保留同构的 `FOldVectorAsm + SetUp/TearDown`；而现有 `TSimdVectorAsmBackendStatefulTestCase` 又额外承载 `RefreshVectorAsmBackendRegistration` 语义，层级过厚，不适合这两份普通 suite 直接复用 |
+| 2. 抽出更薄的公共 `vector-asm stateful` 基类 | completed | `fafafa.core.simd.testcase.pas` 已新增 `TSimdVectorAsmStatefulTestCase`，只负责保存/恢复 `IsVectorAsmEnabled`；`TSimdVectorAsmBackendStatefulTestCase` 现改为继承它，并把 `RefreshVectorAsmBackendRegistration` 收进 `RestoreVectorAsmState` override；`dataplane` 与 `sse2contracts` 已直接改继承新薄基类 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DataPlane,TTestCase_SSE2Contracts`、Release `check`、Release `gate` 全绿；本轮没有改变 dataplane/SSE2 contract 的被测语义，只是收回了重复 fixture 生命周期 |
