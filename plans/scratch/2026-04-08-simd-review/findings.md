@@ -4308,3 +4308,37 @@
   - `run_all` 为 5/5 通过
   - non-x86 native evidence root 缺失仍是 optional `SKIP`
   - `windows_b07_gate.log` 仍是历史 Windows evidence 的 optional `SKIP`
+
+## 2026-05-15 NEON Wide Float Asm Shadowing Fix
+
+- 继续复核上一批 wide-float asm 接线后，发现前一版其实还没真正闭环：
+  - `neon.register.inc` 前半段 321-336 已经新增了 `@NEON..._ASM`
+  - 但后半段 465-548 又无条件把同一批 `Load/Store/Splat/Zero F32x8/F32x16/F64x4/F64x8` 重绑回 `@NEON...`
+- 这意味着上一版 source-shape 虽然能证明“某处存在 `_ASM` binding”，却还抓不到“后面又被 wrapper 覆盖”的真实 shadowing。
+- 进一步全仓检索后，16 个 `NEONLoad/Store/Splat/Zero` wide-float wrapper 也已被坐实成 dead code：
+  - 只剩 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 定义
+  - 加上 `src/fafafa.core.simd.neon.register.inc` 的 rebinding
+  - 没有任何其他 `src/tests/docs/plans` 消费面
+- 因此这批的正确修法不是再补一层 `_ASM` 赋值，而是：
+  - 删除 `neon.register.inc` 后半段的 16 条 wrapper rebinding
+  - 让 asm build 保留前半段 `_ASM` owned slot
+  - 让 no-asm build 直接继承 `FillBaseDispatchTable` 的 base scalar slot
+  - 从 `neon.scalar.autowrap.inc` 删除这 16 个已成 dead code 的 scalar-forwarder wrapper
+- 这也把 wide-float slot 的 no-asm policy 对齐到了现有 `NEON_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders` 的治理口径：
+  - 只有纯 scalar forwarder 时，不再伪装成 backend-owned slot
+- 为防止以后再出现“前面绑对、后面又覆盖”的回归，这批把护栏补到了两个层面：
+  - `dispatchapi` 现在既断言 `_ASM` binding 存在，也断言后段 `@NEON...` rebinding 缺席，还断言 16 个 dead wrapper 已从 autowrap 删除
+  - `check_nonx86_helper_semantics.py` 现在也把这 16 个名字纳入 absent guard
+- fresh 验证结果说明这次不是纯文本清理，而是真正收掉了虚假的 backend-owned wrapper：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=557 status=ok`
+  - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=neon assignments=411 asm_exact=224 asm_suffix_only=10 wrapper_only=177 scalar_passthrough=0 no_def=0 miswired=0 strict=1`
+  - 相比上一版 `assignments=427 / wrapper_only=193`，正好少掉这批 16 个 shadowing wrapper assignment
+- Release 级别结果仍保持稳定：
+  - `impl-audit-nonx86` 通过
+  - `check` 通过
+  - `gate` 通过
+- 当前 `freeze-status` 重新核实后依旧只红在发布证据链：
+  - `qemu-cpuinfo-nonx86-evidence=SKIP`
+  - `windows_b07_gate.log` / `windows_b07_closeout_summary.md` stale
+  - `windows evidence verify` 失败
+- `win-evidence-preflight` 仍返回 `RECENT_BILLING_BLOCK`，因此当前剩余 release gap 继续是外部 Windows runner/billing 问题，而不是 SIMD 代码面还有新的 active bug。

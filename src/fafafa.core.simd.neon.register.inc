@@ -462,11 +462,7 @@ begin
   table.InsertI32x4 := @NEONInsertI32x4;
   table.InsertI64x2 := @NEONInsertI64x2;
   {$ENDIF}
-  table.LoadF32x16 := @NEONLoadF32x16;
-  table.LoadF32x8 := @NEONLoadF32x8;
   table.LoadF64x2 := @NEONLoadF64x2;
-  table.LoadF64x4 := @NEONLoadF64x4;
-  table.LoadF64x8 := @NEONLoadF64x8;
   table.MaxF32x16 := @NEONMaxF32x16;
   table.MaxF32x8 := @NEONMaxF32x8;
   table.MaxF64x2 := @NEONMaxF64x2;
@@ -518,21 +514,13 @@ begin
   table.ShiftRightArithI16x8 := @NEONShiftRightArithI16x8;
   table.ShiftRightI16x8 := @NEONShiftRightI16x8;
   table.ShiftRightU16x8 := @NEONShiftRightU16x8;
-  table.SplatF32x16 := @NEONSplatF32x16;
-  table.SplatF32x8 := @NEONSplatF32x8;
   table.SplatF64x2 := @NEONSplatF64x2;
-  table.SplatF64x4 := @NEONSplatF64x4;
-  table.SplatF64x8 := @NEONSplatF64x8;
   table.SqrtF32x16 := @NEONSqrtF32x16;
   table.SqrtF32x8 := @NEONSqrtF32x8;
   table.SqrtF64x2 := @NEONSqrtF64x2;
   table.SqrtF64x4 := @NEONSqrtF64x4;
   table.SqrtF64x8 := @NEONSqrtF64x8;
-  table.StoreF32x16 := @NEONStoreF32x16;
-  table.StoreF32x8 := @NEONStoreF32x8;
   table.StoreF64x2 := @NEONStoreF64x2;
-  table.StoreF64x4 := @NEONStoreF64x4;
-  table.StoreF64x8 := @NEONStoreF64x8;
   table.SubF32x16 := @NEONSubF32x16;
   table.SubF64x4 := @NEONSubF64x4;
   table.SubF64x8 := @NEONSubF64x8;
@@ -541,11 +529,7 @@ begin
   table.TruncF64x2 := @NEONTruncF64x2;
   table.TruncF64x4 := @NEONTruncF64x4;
   table.TruncF64x8 := @NEONTruncF64x8;
-  table.ZeroF32x16 := @NEONZeroF32x16;
-  table.ZeroF32x8 := @NEONZeroF32x8;
   table.ZeroF64x2 := @NEONZeroF64x2;
-  table.ZeroF64x4 := @NEONZeroF64x4;
-  table.ZeroF64x8 := @NEONZeroF64x8;
   {$ENDIF}
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.AndNotI8x16 := @NEONAndNotI8x16;

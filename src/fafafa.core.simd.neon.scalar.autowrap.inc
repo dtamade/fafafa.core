@@ -1090,16 +1090,6 @@ begin
   Result := ScalarInsertI64x4(a, value, index);
 end;
 
-function NEONLoadF32x16(p: PSingle): TVecF32x16;
-begin
-  Result := ScalarLoadF32x16(p);
-end;
-
-function NEONLoadF32x8(p: PSingle): TVecF32x8;
-begin
-  Result := ScalarLoadF32x8(p);
-end;
-
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONLoadF64x2(p: PDouble): TVecF64x2;
@@ -1112,16 +1102,6 @@ begin
 end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
-function NEONLoadF64x4(p: PDouble): TVecF64x4;
-begin
-  Result := ScalarLoadF64x4(p);
-end;
-
-function NEONLoadF64x8(p: PDouble): TVecF64x8;
-begin
-  Result := ScalarLoadF64x8(p);
-end;
 
 function NEONLoadI64x4(p: PInt64): TVecI64x4;
 begin
@@ -1703,16 +1683,6 @@ end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
-function NEONSplatF32x16(value: Single): TVecF32x16;
-begin
-  Result := ScalarSplatF32x16(value);
-end;
-
-function NEONSplatF32x8(value: Single): TVecF32x8;
-begin
-  Result := ScalarSplatF32x8(value);
-end;
-
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONSplatF64x2(value: Double): TVecF64x2;
@@ -1722,16 +1692,6 @@ begin
 end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
-function NEONSplatF64x4(value: Double): TVecF64x4;
-begin
-  Result := ScalarSplatF64x4(value);
-end;
-
-function NEONSplatF64x8(value: Double): TVecF64x8;
-begin
-  Result := ScalarSplatF64x8(value);
-end;
 
 function NEONSplatI64x4(value: Int64): TVecI64x4;
 begin
@@ -1774,16 +1734,6 @@ end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
-procedure NEONStoreF32x16(p: PSingle; const a: TVecF32x16);
-begin
-  ScalarStoreF32x16(p, a);
-end;
-
-procedure NEONStoreF32x8(p: PSingle; const a: TVecF32x8);
-begin
-  ScalarStoreF32x8(p, a);
-end;
-
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 procedure NEONStoreF64x2(p: PDouble; const a: TVecF64x2);
@@ -1796,16 +1746,6 @@ begin
 end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
-procedure NEONStoreF64x4(p: PDouble; const a: TVecF64x4);
-begin
-  ScalarStoreF64x4(p, a);
-end;
-
-procedure NEONStoreF64x8(p: PDouble; const a: TVecF64x8);
-begin
-  ScalarStoreF64x8(p, a);
-end;
 
 procedure NEONStoreI64x4(p: PInt64; const a: TVecI64x4);
 begin
@@ -1959,16 +1899,6 @@ end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
-function NEONZeroF32x16: TVecF32x16;
-begin
-  Result := ScalarZeroF32x16;
-end;
-
-function NEONZeroF32x8: TVecF32x8;
-begin
-  Result := ScalarZeroF32x8;
-end;
-
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONZeroF64x2: TVecF64x2;
@@ -1977,16 +1907,6 @@ begin
 end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
-function NEONZeroF64x4: TVecF64x4;
-begin
-  Result := ScalarZeroF64x4;
-end;
-
-function NEONZeroF64x8: TVecF64x8;
-begin
-  Result := ScalarZeroF64x8;
-end;
 
 function NEONZeroI64x4: TVecI64x4;
 begin

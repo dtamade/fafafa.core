@@ -4763,3 +4763,30 @@
 - 已在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 增加 source-shape + runtime expectation 测试。
 - 已跑通 `git diff --check`、`impl-audit-nonx86`、Release `check`、Release `gate`。
 - `gate` 末尾仍仅把旧 `windows_b07_gate.log` 作为 optional `SKIP`，没有新回归。
+
+## 2026-05-15 NEON Wide Float Asm Shadowing Fix
+
+- 继续深审上一批 wide-float asm 接线时，发现前一版只补了前半段 `_ASM` binding，但没注意到 `neon.register.inc` 后半段还有 16 条无条件 `@NEON...` rebinding，会把前面的 `_ASM` 再覆盖掉。
+- fresh 全仓检索后确认，这 16 个 `NEONLoad/Store/Splat/Zero F32x8/F32x16/F64x4/F64x8` wrapper 只剩 `scalar.autowrap.inc + register.inc` 两处，没有其他真实消费面，因此一旦去掉 rebinding，它们就是纯 dead code。
+- 本批已完成：
+  - 从 `src/fafafa.core.simd.neon.register.inc` 删除后半段 16 条 wrapper rebinding
+  - 从 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 删除对应 16 个 dead scalar-forwarder wrapper
+  - 从 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 补上“_ASM binding 存在 + 后段 wrapper rebinding 缺席 + dead wrapper 缺席”的 source-side 护栏
+  - 从 `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 补上这 16 个名字的 absent guard
+- 本批 fresh 验证：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`
+- 当前结果：
+  - helper summary 升到 `NONX86_HELPER_SEMANTICS_SUMMARY checks=557 status=ok`
+  - `impl-audit-nonx86` 继续为绿
+  - `NEON` register truth 变为 `assignments=411 asm_exact=224 asm_suffix_only=10 wrapper_only=177 scalar_passthrough=0 no_def=0 miswired=0 strict=1`
+  - Release `check` 继续为绿
+  - Release `gate` 继续为绿
+  - `freeze-status` 现在确认 Linux gate 新鲜，但仍红在 `qemu-cpuinfo-nonx86-evidence=SKIP` 和历史 Windows evidence stale/verify fail
+  - `win-evidence-preflight` 继续返回 `RECENT_BILLING_BLOCK`，说明当前剩余 closeout gap 还是外部 GH billing / Windows evidence 刷新问题
+- 收口前会清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

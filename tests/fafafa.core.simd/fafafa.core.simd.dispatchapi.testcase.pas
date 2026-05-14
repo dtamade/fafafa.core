@@ -5800,12 +5800,26 @@ var
   LNEONTable: TSimdDispatchTable;
   LSourceLines: TStringList;
   LRegisterSourcePath: string;
+  LAutowrapSourcePath: string;
   LRegisterSource: string;
+  LAutowrapSource: string;
 
   procedure AssertSourceContains(const aLabel, aSnippet: string);
   begin
     AssertTrue(aLabel + ' source should bind the wide-float slot to its NEON asm helper',
       Pos(LowerCase(aSnippet), LRegisterSource) > 0);
+  end;
+
+  procedure AssertSourceOmits(const aLabel, aSnippet: string);
+  begin
+    AssertTrue(aLabel + ' should not be rebound to the scalar-forwarder wrapper later in RegisterNEONBackend',
+      Pos(LowerCase(aSnippet), LRegisterSource) = 0);
+  end;
+
+  procedure AssertDeadWrapperRemoved(const aLabel, aSnippet: string);
+  begin
+    AssertTrue(aLabel + ' dead scalar-forwarder wrapper should be removed from the NEON autowrap include',
+      Pos(LowerCase(aSnippet), LAutowrapSource) = 0);
   end;
 
   procedure AssertRuntimeSlotExpectation(const aLabel: string; const aScalarSlot, aBackendSlot: Pointer);
@@ -5826,6 +5840,12 @@ begin
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
     LRegisterSource := LowerCase(LSourceLines.Text);
+
+    LAutowrapSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.scalar.autowrap.inc');
+    AssertTrue('NEON scalar autowrap source should exist for implementation-shape audit: ' + LAutowrapSourcePath,
+      FileExists(LAutowrapSourcePath));
+    LSourceLines.LoadFromFile(LAutowrapSourcePath);
+    LAutowrapSource := LowerCase(LSourceLines.Text);
   finally
     LSourceLines.Free;
   end;
@@ -5846,6 +5866,40 @@ begin
   AssertSourceContains('ZeroF32x16', 'table.ZeroF32x16 := @NEONZeroF32x16_ASM;');
   AssertSourceContains('ZeroF64x4', 'table.ZeroF64x4 := @NEONZeroF64x4_ASM;');
   AssertSourceContains('ZeroF64x8', 'table.ZeroF64x8 := @NEONZeroF64x8_ASM;');
+
+  AssertSourceOmits('LoadF32x8 wrapper rebinding', 'table.LoadF32x8 := @NEONLoadF32x8;');
+  AssertSourceOmits('LoadF32x16 wrapper rebinding', 'table.LoadF32x16 := @NEONLoadF32x16;');
+  AssertSourceOmits('LoadF64x4 wrapper rebinding', 'table.LoadF64x4 := @NEONLoadF64x4;');
+  AssertSourceOmits('LoadF64x8 wrapper rebinding', 'table.LoadF64x8 := @NEONLoadF64x8;');
+  AssertSourceOmits('StoreF32x8 wrapper rebinding', 'table.StoreF32x8 := @NEONStoreF32x8;');
+  AssertSourceOmits('StoreF32x16 wrapper rebinding', 'table.StoreF32x16 := @NEONStoreF32x16;');
+  AssertSourceOmits('StoreF64x4 wrapper rebinding', 'table.StoreF64x4 := @NEONStoreF64x4;');
+  AssertSourceOmits('StoreF64x8 wrapper rebinding', 'table.StoreF64x8 := @NEONStoreF64x8;');
+  AssertSourceOmits('SplatF32x8 wrapper rebinding', 'table.SplatF32x8 := @NEONSplatF32x8;');
+  AssertSourceOmits('SplatF32x16 wrapper rebinding', 'table.SplatF32x16 := @NEONSplatF32x16;');
+  AssertSourceOmits('SplatF64x4 wrapper rebinding', 'table.SplatF64x4 := @NEONSplatF64x4;');
+  AssertSourceOmits('SplatF64x8 wrapper rebinding', 'table.SplatF64x8 := @NEONSplatF64x8;');
+  AssertSourceOmits('ZeroF32x8 wrapper rebinding', 'table.ZeroF32x8 := @NEONZeroF32x8;');
+  AssertSourceOmits('ZeroF32x16 wrapper rebinding', 'table.ZeroF32x16 := @NEONZeroF32x16;');
+  AssertSourceOmits('ZeroF64x4 wrapper rebinding', 'table.ZeroF64x4 := @NEONZeroF64x4;');
+  AssertSourceOmits('ZeroF64x8 wrapper rebinding', 'table.ZeroF64x8 := @NEONZeroF64x8;');
+
+  AssertDeadWrapperRemoved('NEONLoadF32x8', 'function NEONLoadF32x8(');
+  AssertDeadWrapperRemoved('NEONLoadF32x16', 'function NEONLoadF32x16(');
+  AssertDeadWrapperRemoved('NEONLoadF64x4', 'function NEONLoadF64x4(');
+  AssertDeadWrapperRemoved('NEONLoadF64x8', 'function NEONLoadF64x8(');
+  AssertDeadWrapperRemoved('NEONStoreF32x8', 'procedure NEONStoreF32x8(');
+  AssertDeadWrapperRemoved('NEONStoreF32x16', 'procedure NEONStoreF32x16(');
+  AssertDeadWrapperRemoved('NEONStoreF64x4', 'procedure NEONStoreF64x4(');
+  AssertDeadWrapperRemoved('NEONStoreF64x8', 'procedure NEONStoreF64x8(');
+  AssertDeadWrapperRemoved('NEONSplatF32x8', 'function NEONSplatF32x8(');
+  AssertDeadWrapperRemoved('NEONSplatF32x16', 'function NEONSplatF32x16(');
+  AssertDeadWrapperRemoved('NEONSplatF64x4', 'function NEONSplatF64x4(');
+  AssertDeadWrapperRemoved('NEONSplatF64x8', 'function NEONSplatF64x8(');
+  AssertDeadWrapperRemoved('NEONZeroF32x8', 'function NEONZeroF32x8');
+  AssertDeadWrapperRemoved('NEONZeroF32x16', 'function NEONZeroF32x16');
+  AssertDeadWrapperRemoved('NEONZeroF64x4', 'function NEONZeroF64x4');
+  AssertDeadWrapperRemoved('NEONZeroF64x8', 'function NEONZeroF64x8');
 
   AssertTrue('Scalar dispatch table should be registered',
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));

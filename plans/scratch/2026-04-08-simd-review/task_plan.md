@@ -3222,3 +3222,17 @@
 | 1. 复核 helper / register / runtime truth | completed | 已确认 `src/fafafa.core.simd.neon.scalar.wide_memory.inc` 中已存在 `Load/Store/Splat/Zero F32x8/F32x16/F64x4/F64x8` 的 `_ASM` helper，而 `src/fafafa.core.simd.neon.register.inc` 在 `FAFAFA_SIMD_NEON_ASM_ENABLED` 分支此前没有对这 16 个 slot 做 direct asm binding |
 | 2. 修复 asm register 接线缺口 | completed | 已在 `src/fafafa.core.simd.neon.register.inc` 的 asm 分支新增 16 条 `table.* := @..._ASM` 绑定，让 wide-float memory/utility slot 与 `I64x4` 同类路径一致，asm build 下真正走 native helper |
 | 3. 增加 source-shape/runtime 护栏并串行 release 复验 | completed | `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 已新增 `Test_NEON_WideFloatMemoryUtilitySlots_Bind_AsmHelpers_When_Available`；fresh `git diff --check`、`python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 全部通过，helper summary 更新到 `checks=541 status=ok`；`gate` 尾部仍只把旧 `windows_b07_gate.log` 诚实降级为 optional `SKIP` |
+
+## 2026-05-15 NEON Wide Float Asm Shadowing Fix
+
+### Goal
+
+继续深审上一批 wide-float asm 接线后，修复一个更真实的 shadowing 问题：前半段虽然新增了 `_ASM` binding，但后半段又无条件把同一批 slot 重新绑回 `NEON...` scalar-forwarder wrapper，导致 asm 路径仍可能被覆盖；同时把因此变成 dead code 的 16 个 wrapper 一并删掉。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 shadowing 和 dead-wrapper 真相 | completed | 已确认 `src/fafafa.core.simd.neon.register.inc` 在 321-336 先绑 `@..._ASM`，但 465-548 又把 `Load/Store/Splat/Zero F32x8/F32x16/F64x4/F64x8` 无条件重绑到 `@NEON...`；同时这 16 个 `NEON...` wrapper 只剩 `scalar.autowrap.inc + register.inc` 两处，没有其他消费面 |
+| 2. 去掉后段覆盖并删除 16 个 dead wrapper | completed | 已从 `neon.register.inc` 删除这 16 条后段 wrapper rebinding，让 asm 路径不再被覆盖、no-asm 直接继承 `FillBaseDispatchTable` 的 base scalar slot；并从 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 删除对应 16 个 dead scalar-forwarder wrapper |
+| 3. 补严 source-side 护栏并串行 release 复验 | completed | `dispatchapi` 现已同时断言 `_ASM` binding 存在、后段 wrapper rebinding 缺席、autowrap dead wrapper 缺席；`check_nonx86_helper_semantics.py` 也新增这 16 个 absent guard；fresh `git diff --check`、`python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 全部通过，helper summary 更新到 `checks=557 status=ok`；最新 `freeze-status` 仍只红在 Windows evidence freshness / qemu cpuinfo evidence optional skip，`win-evidence-preflight` 继续被 `RECENT_BILLING_BLOCK` 外部阻塞 |
