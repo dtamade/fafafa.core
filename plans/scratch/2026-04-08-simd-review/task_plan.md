@@ -3166,3 +3166,17 @@
 | 1. 复核第二组候选符号是否存在任何真实接线 | completed | 已确认 `RISCVVShiftLeft/RightU64x2`、`RISCVVReduce(Add/Min/Max)I32x4`、`RISCVVReduce(Min/Max)U32x4`、`RISCVVSelectI64x2/I32x8/I32x16` 在 `register/facade/dispatch/simd.pas/tests` 都没有消费面，只剩 `riscvv.pas/helpers.inc` 双轨定义 |
 | 2. 删除第二组 asm + helper 双轨死残留 | completed | 已从 `src/fafafa.core.simd.riscvv.pas` 与 `src/fafafa.core.simd.riscvv.helpers.inc` 删除这 10 组内部死入口；`riscvv_abi_shape` 计数自然从 `123` 收到 `121`，没有出现 shape 合同问题 |
 | 3. 扩 absent 护栏并串行 release 复验 | completed | `check_nonx86_helper_semantics.py` 已把这 10 组名字加入 `require_routine_absent(...)`；`git diff --check`、helper semantics、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 已全部通过，helper summary 更新到 `checks=518 status=ok` |
+
+## 2026-05-15 RISCVV Dead Neg Residue Removal
+
+### Goal
+
+继续深审 `RISCVV` 时，把最后两条没有真实接线的非 `Asm` internal residue 也收掉：`RISCVVNegF32x4` 与 `RISCVVNegF64x2`。目标不是重写语义，而是确认它们既不在 `register/facade/dispatch/tests` 的 contract 面里，也不该作为独立 helper 残留继续存在。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `RISCVVNegF32x4/F64x2` 的真实消费面 | completed | 全仓检索确认这 2 个名字只出现在 `src/fafafa.core.simd.riscvv.pas` 与 `src/fafafa.core.simd.riscvv.helpers.inc`；`register/facade/dispatch/simd.pas/tests` 都没有公开或测试消费面 |
+| 2. 删除 asm + helper 双轨死残留 | completed | 已从 `riscvv.pas` 删除 `NegF32x4/NegF64x2` 的 asm + wrapper 定义，并从 `riscvv.helpers.inc` 删除对应 fallback 定义；删后 fresh 扫描显示 `RISCVV` 非 `Asm` internal residue 数已降到 `0` |
+| 3. 扩 absent 护栏并串行 release 复验 | completed | `check_nonx86_helper_semantics.py` 已把这 2 个名字加入 `require_routine_absent(...)`；`git diff --check`、helper semantics、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 已全部通过，helper summary 更新到 `checks=522 status=ok` |

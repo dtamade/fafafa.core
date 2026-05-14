@@ -2,20 +2,6 @@
 // Missing Scalar Fallbacks for ASM-only functions
 // =============================================================
 
-function RISCVVNegF32x4(const a: TVecF32x4): TVecF32x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result.f[i] := -a.f[i];
-end;
-
-function RISCVVNegF64x2(const a: TVecF64x2): TVecF64x2;
-var i: Integer;
-begin
-  for i := 0 to 1 do
-    Result.d[i] := -a.d[i];
-end;
-
 function RISCVVAddU64x2(const a, b: TVecU64x2): TVecU64x2;
 begin
   Result := ScalarAddU64x2(a, b);

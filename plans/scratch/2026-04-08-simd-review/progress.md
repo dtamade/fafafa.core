@@ -4663,3 +4663,36 @@
   - Release `gate` 继续为绿
   - `gate` 末尾仍然只把旧 `windows_b07_gate.log` 诚实降级为 optional `SKIP`
 - 收口前再次清理了 `tests/fafafa.core.simd/__pycache__/`，避免缓存目录污染提交。
+
+## 2026-05-15 RISCVV Dead Neg Residue Removal
+
+- 在第二组 `U64x2 shift / I32x4,U32x4 reduce / I64x2,I32x8,I32x16 select` 清完并提交后，我没有立刻扩到别的 backend，而是先做了一轮“RISCVV 还有没有剩余非 Asm 内部残留”的收尾扫描。
+- fresh 扫描方法：
+  - 枚举 `src/fafafa.core.simd.riscvv.pas` 与 `src/fafafa.core.simd.riscvv.helpers.inc` 里的全部 `RISCVV*` 例程
+  - 过滤掉 `*Asm`
+  - 再与 `riscvv.facade.inc / riscvv.register.inc / dispatch.pas / simd.pas / tests / docs / plans` 做文本交叉
+- 结果只剩：
+  - `RISCVVNegF32x4`
+  - `RISCVVNegF64x2`
+- 继续追面后确认它们也是 dead residue：
+  - 仅在 `riscvv.pas` 与 `riscvv.helpers.inc` 各留一份定义
+  - 没有 `register/facade/dispatch/simd.pas/tests` 消费面
+- 因此本批继续做第三组死残留清理：
+  - 从 `riscvv.pas` 删除 `NegF32x4/NegF64x2` 的 asm + wrapper
+  - 从 `riscvv.helpers.inc` 删除对应 fallback
+  - `check_nonx86_helper_semantics.py` 把这 2 个名字加入 absent 护栏
+- 本批 fresh 验证：
+  - `git diff --check`
+  - `rg -n \"RISCVVNegF32x4|RISCVVNegF64x2\" src tests docs plans`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 当前结果：
+  - helper summary 升到 `NONX86_HELPER_SEMANTICS_SUMMARY checks=522 status=ok`
+  - `impl-audit-nonx86` 继续为绿
+  - `riscvv_abi_shape` 继续为绿，`direct_functions=121`
+  - Release `check` 继续为绿
+  - Release `gate` 继续为绿
+  - 额外残留扫描结果已到 `RESIDUE_COUNT=0`
+  - `gate` 末尾仍然只把旧 `windows_b07_gate.log` 诚实降级为 optional `SKIP`

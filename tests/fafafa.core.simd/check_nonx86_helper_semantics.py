@@ -1009,6 +1009,10 @@ def main() -> int:
         checks += 1
 
     absent_routine_expectations = [
+        (riscvv_source, "RISCVVNegF32x4"),
+        (riscvv_source, "RISCVVNegF64x2"),
+        (riscvv_helpers_source, "RISCVVNegF32x4"),
+        (riscvv_helpers_source, "RISCVVNegF64x2"),
         (riscvv_source, "RISCVVLoadI32x4"),
         (riscvv_source, "RISCVVStoreI32x4"),
         (riscvv_source, "RISCVVSplatI32x4"),

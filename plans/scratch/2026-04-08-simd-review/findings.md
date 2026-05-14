@@ -4165,3 +4165,32 @@
   - Release `check` 通过
   - Release `gate` 通过
 - `gate` 尾部仍旧只有历史 `windows_b07_gate.log` 的 optional evidence 缺模式；这依然是旧 Windows 证据新鲜度问题，不是本批删减引入的实现或 contract 回归。
+
+## 2026-05-15 RISCVV Dead Neg Residue Removal
+
+- 在前两组清理之后，我专门又跑了一轮“只看非 `Asm` 名字”的 `RISCVV` 残留筛查。
+- fresh 结果只剩最后两条：
+  - `RISCVVNegF32x4`
+  - `RISCVVNegF64x2`
+- 继续追真实消费面后，结论和前两组一致：
+  - `riscvv.pas` 里有 asm + wrapper
+  - `riscvv.helpers.inc` 里有 fallback
+  - 但 `riscvv.register.inc`、`riscvv.facade.inc`、`dispatch.pas`、`simd.pas`、`tests/fafafa.core.simd*` 都没有任何公开 contract 或验证消费
+- 这说明它们不是“漏了一条负号公开 API”，而是最后两条保留下来的内部双轨死残留。
+- 本批处理因此继续保持克制：
+  - 从 `src/fafafa.core.simd.riscvv.pas` 删除 `RISCVVNegF32x4Asm/RISCVVNegF32x4` 与 `RISCVVNegF64x2Asm/RISCVVNegF64x2`
+  - 从 `src/fafafa.core.simd.riscvv.helpers.inc` 删除对应 fallback
+  - 不往 `register/facade/dispatch` 补新接线
+- 这次额外做了一步收口审计：
+  - fresh 扫描 `riscvv.pas + riscvv.helpers.inc` 中全部非 `Asm` 例程名
+  - 再与 `register/facade/dispatch/simd.pas/tests/docs/plans` 交叉
+  - 结果：`RESIDUE_COUNT=0`
+- 护栏也同步补齐：
+  - `check_nonx86_helper_semantics.py` 继续把 `RISCVVNegF32x4` 与 `RISCVVNegF64x2` 纳入 `require_routine_absent(...)`
+- fresh 验证结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=522 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY ... status=ok`
+  - `RISCVV_ABI_SHAPE_SUMMARY direct_functions=121 explicit_checks=10 missing_result_store=0 suspicious_a0_loads=0 status=ok`
+  - Release `check` 通过
+  - Release `gate` 通过
+- 到这一刀为止，`RISCVV` 的“非 `Asm` internal residue”在 source-side 已被清到 `0`；剩余需要继续审的，就不再是这类同形死残留，而该转向别的 contract 面或别的 backend/文档层问题。

@@ -413,19 +413,6 @@ begin
   RISCVVRsqrtF32x4Asm(a, Result);
 end;
 
-procedure RISCVVNegF32x4Asm(const a: TVecF32x4; var r: TVecF32x4); assembler; nostackframe;
-asm
-  vsetivli zero, 4, 0xD0
-  vle32.v v0, (a0)
-  vfsgnjn.vv v0, v0, v0
-  vse32.v v0, (a1)
-end;
-
-function RISCVVNegF32x4(const a: TVecF32x4): TVecF32x4;
-begin
-  RISCVVNegF32x4Asm(a, Result);
-end;
-
 // =============================================================
 // F32x4 Comparison Operations (return TMask4)
 // =============================================================
@@ -693,19 +680,6 @@ end;
 function RISCVVMaxF64x2(const a, b: TVecF64x2): TVecF64x2;
 begin
   RISCVVMaxF64x2Asm(a, b, Result);
-end;
-
-procedure RISCVVNegF64x2Asm(const a: TVecF64x2; var r: TVecF64x2); assembler; nostackframe;
-asm
-  vsetivli zero, 2, 0xD8
-  vle64.v v0, (a0)
-  vfsgnjn.vv v0, v0, v0
-  vse64.v v0, (a1)
-end;
-
-function RISCVVNegF64x2(const a: TVecF64x2): TVecF64x2;
-begin
-  RISCVVNegF64x2Asm(a, Result);
 end;
 
 procedure RISCVVFmaF64x2Asm(const a, b, c: TVecF64x2; var r: TVecF64x2); assembler; nostackframe;
