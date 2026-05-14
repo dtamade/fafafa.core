@@ -3280,3 +3280,16 @@
 - 经过这轮以后，剩余值得继续深入审查的点会更偏向：
   - 生产/测试层真正重复的 thin wrapper 是否还在 backend/register/runtime seam 上残留
   - 某些 suite-local helper 是否名义上“本地”，实际上已经没有额外断言或编排价值
+
+## 2026-05-14 Runtime Backend Fixture Alignment Findings
+
+- `runtime.testcase` 证明当前 test-layer 的残余冗余已经不只表现为 helper façade 或生命周期基类壳，也可能表现为“suite 自己还在手工 cleanup，而公共 fixture 已经足够表达这层 contract”：
+  - `RuntimeAPI` 的 3 个控制面测试此前各自保存/恢复 backend
+  - 但 suite 全局并没有任何超出 `TSimdBackendStatefulTestCase` 的 fixture 语义
+- 这批对齐后，边界更清楚了：
+  - backend 生命周期由共享基类保证
+  - 测试体只表达 runtime/facade 在 switch/reset 过程中的语义断言
+  - cleanup finally 不再和被测逻辑混在一起
+- 它也补充了一个后续审查标准：
+  - 如果某个 suite 只是在局部测试里手工恢复 backend，但没有超出 backend-stateful 基类的额外 contract，那优先怀疑它应该回接公共基类
+  - 只有当 cleanup 本身还承载额外断言、hook、rebind 或跨状态 choreography 时，才值得继续保留手写 finally

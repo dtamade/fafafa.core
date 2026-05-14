@@ -3559,3 +3559,35 @@
 - 这轮也进一步证明：
   - 当前更值得继续抓的，不只是 testcase 层的 `SetUp/TearDown`
   - 还包括这种“共享 helper 已独立存在，但旧 façade 还留在另一个基础设施单元里”的历史残留
+
+## 2026-05-14 Runtime Backend Fixture Alignment
+
+- 在 helper 真相源收敛之后，继续扫剩余“还在手工维护 backend 生命周期”的点，`runtime.testcase` 很突出：
+  - `TTestCase_RuntimeAPI` 仍直接继承 `TTestCase`
+  - 其中 3 个控制面测试各自手工保存/恢复原 backend
+  - 但 suite 本身并不需要 vector-asm、hook reset、rebind、exception mask 之类额外 fixture 语义
+- 复核后确认它已经满足公共 backend fixture 的边界：
+  - `TSimdBackendStatefulTestCase` 正是保存/恢复 backend 选择的共享 contract
+  - 这些测试真正关心的是 runtime/facade 在切换与 reset 过程中的观测结果
+  - finally 里的 restore 只是 cleanup，不是被测行为的一部分
+- 本轮最小修法已落地：
+  - `TTestCase_RuntimeAPI` 改继承 `TSimdBackendStatefulTestCase`
+  - `runtime.testcase` 增加 `uses fafafa.core.simd.testcase`
+  - `Test_RuntimeControlPlane_SwitchAndReset_Match_LegacyFacade`
+  - `Test_FacadeRuntimeControlPlane_Wrappers_Interoperate_With_Legacy_Aliases`
+  - `Test_RuntimeSnapshot_Switch_Tracks_ControlPlane_And_Dispatch`
+    以上 3 个测试删除手工保存/恢复 backend 的 finally cleanup
+- 这轮还顺手抓到一个纯本地回归：
+  - 首轮 Release 定向 build 报 `Syntax error, "identifier" expected but "BEGIN" found`
+  - 根因是删掉局部 cleanup 变量后留下空 `var` 段
+  - 删掉陈旧 `var` 后，同一条 Release 验证链立刻恢复全绿
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_RuntimeAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 这批说明当前还有一类值得继续深挖的残点：
+  - suite 已经符合公共 fixture 边界
+  - 但仍保留历史手工 cleanup finally
+  - 这种点虽然不如前面的 `vectorasm` 和 `fixturehelpers` 显眼，但继续收掉能让 test infrastructure 的层次更稳定

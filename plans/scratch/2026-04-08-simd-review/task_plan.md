@@ -48,6 +48,7 @@
 | `win-evidence-via-gh` 首次以远端临时分支名 dispatch 时，本地 `git rev-parse <ref>` 未解析成 SHA | 1       | 先推远端 `simd-win-evidence-20260514-0cbc7204`，再本地创建同名分支指向 `HEAD`，之后 workflow dispatch 成功 |
 | GH Windows evidence workflow `25860032794` 被平台 billing/spending limit 拒跑     | 1       | Linux freeze 已补绿；Windows freshness 只能等待账单恢复或改走真实可用 Windows runner 后再刷新 |
 | `BuildOrTest.sh gate` 在 `ieee754` fixture 批次首次 build 阶段报 `Can't call the linker ... /usr/bin/ld.bfd error code: -7` | 1 | 定向 `ieee754` suites 与 Release `check` 均已先绿，判断为本机链接器瞬态；串行重跑同一条 Release `gate` 后恢复 PASS |
+| `runtime.testcase` 对齐公共 backend fixture 后，首轮 Release build 报 `Syntax error, "identifier" expected but "BEGIN" found` | 1 | 定位为删除局部 cleanup 变量后留下空 `var` 段；删掉陈旧 `var` 后，Release `TTestCase_RuntimeAPI/check/gate` 全部恢复 PASS |
 
 ## 2026-05-09 Subtask
 
@@ -2589,3 +2590,17 @@
 | 1. 复核 `testcase` 是否只是 `fixturehelpers` 的转发表面 | completed | 已确认 `RestoreSavedBackendState` 与 `RestoreSavedBackendAndVectorAsmState` 在 `testcase` 中完全直通 `fixturehelpers`，没有附加任何 suite-specific 语义；调用者只是经由 `testcase` 间接依赖它们 |
 | 2. 让调用者直接依赖真实 helper 单元 | completed | 已删除 `testcase` 里的同名 façade；`dataplane/direct/dispatchapi/publicabi/concurrent/ieee754/dispatchslots` 现直接 `uses fafafa.core.simd.fixturehelpers` |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release 定向 suite、Release `check`、Release `gate` 全绿；说明 helper 真相源收敛没有破坏外围 runner、CPUInfo、public ABI 或 dispatch contract 链路 |
+
+## 2026-05-14 Runtime Backend Fixture Alignment
+
+### Goal
+
+继续加强 `simd` 测试层审查并修复，但这次只处理 `runtime.testcase` 里仍手工保存/恢复 backend 的 3 个控制面测试：让 `TTestCase_RuntimeAPI` 直接挂回现有 `TSimdBackendStatefulTestCase`，把 cleanup 交还公共 fixture，而不改任何 runtime 实现或断言语义。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `runtime` suite 是否符合公共 backend fixture 边界 | completed | 已确认 `RuntimeAPI` suite 不需要 vector-asm、hook reset、rebind 或 exception-mask 语义；它的特殊点只在少数测试里手工 cleanup backend，与 `TSimdBackendStatefulTestCase` 完全同边界 |
+| 2. 对齐到公共 backend-stateful 基类 | completed | `TTestCase_RuntimeAPI` 已改继承 `TSimdBackendStatefulTestCase`；3 个控制面测试删除手工保存/恢复 backend 的 finally 清理，只保留原有 runtime/facade 行为断言 |
+| 3. Release 验证与提交收口 | completed | 首轮定向 build 因空 `var` 段报语法错，最小修正后 Release `TTestCase_RuntimeAPI`、Release `check`、Release `gate` 全绿；本轮仍然只是测试 fixture 对齐，不改 runtime 生产逻辑 |

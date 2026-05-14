@@ -9,13 +9,14 @@ interface
 uses
   Classes, SysUtils, fpcunit, testregistry,
   fafafa.core.simd,
+  fafafa.core.simd.testcase,
   fafafa.core.simd.base,
   fafafa.core.simd.cpuinfo,
   fafafa.core.simd.dispatch,
   fafafa.core.simd.runtime;
 
 type
-  TTestCase_RuntimeAPI = class(TTestCase)
+  TTestCase_RuntimeAPI = class(TSimdBackendStatefulTestCase)
   private
     class procedure AssertBackendArrayEquals(const aMessage: string;
       const aExpected, aActual: TSimdBackendArray); static;
@@ -106,44 +107,26 @@ begin
 end;
 
 procedure TTestCase_RuntimeAPI.Test_RuntimeControlPlane_SwitchAndReset_Match_LegacyFacade;
-var
-  LOriginalBackend: TSimdBackend;
-  LOriginalBestDispatchable: TSimdBackend;
-  LRestoredBackend: TSimdBackend;
 begin
-  LOriginalBackend := fafafa.core.simd.runtime.GetCurrentBackend;
-  LOriginalBestDispatchable := fafafa.core.simd.GetBestDispatchableBackend;
-  try
-    AssertTrue('TrySetCurrentBackend(sbScalar) should succeed',
-      fafafa.core.simd.runtime.TrySetCurrentBackend(sbScalar));
-    AssertEquals('runtime current backend should switch to Scalar',
-      Ord(sbScalar), Ord(fafafa.core.simd.runtime.GetCurrentBackend));
-    AssertEquals('legacy current backend should track runtime switch',
-      Ord(sbScalar), Ord(fafafa.core.simd.GetCurrentBackend));
-    AssertEquals('dispatch snapshot should track runtime switch',
-      Ord(sbScalar), Ord(GetDispatchTable^.Backend));
+  AssertTrue('TrySetCurrentBackend(sbScalar) should succeed',
+    fafafa.core.simd.runtime.TrySetCurrentBackend(sbScalar));
+  AssertEquals('runtime current backend should switch to Scalar',
+    Ord(sbScalar), Ord(fafafa.core.simd.runtime.GetCurrentBackend));
+  AssertEquals('legacy current backend should track runtime switch',
+    Ord(sbScalar), Ord(fafafa.core.simd.GetCurrentBackend));
+  AssertEquals('dispatch snapshot should track runtime switch',
+    Ord(sbScalar), Ord(GetDispatchTable^.Backend));
 
-    fafafa.core.simd.runtime.ResetCurrentBackendSelection;
-    AssertEquals('runtime reset should restore automatic best backend',
-      Ord(fafafa.core.simd.GetBestDispatchableBackend),
-      Ord(fafafa.core.simd.runtime.GetCurrentBackend));
-    AssertEquals('legacy current backend should track runtime reset',
-      Ord(fafafa.core.simd.runtime.GetCurrentBackend),
-      Ord(fafafa.core.simd.GetCurrentBackend));
-    AssertEquals('dispatch snapshot should track runtime reset',
-      Ord(fafafa.core.simd.runtime.GetCurrentBackend),
-      Ord(GetDispatchTable^.Backend));
-  finally
-    if LOriginalBackend = LOriginalBestDispatchable then
-      fafafa.core.simd.runtime.ResetCurrentBackendSelection
-    else
-      AssertTrue('runtime should restore original forced backend',
-        fafafa.core.simd.runtime.TrySetCurrentBackend(LOriginalBackend));
-
-    LRestoredBackend := fafafa.core.simd.runtime.GetCurrentBackend;
-    AssertEquals('runtime should restore original backend after test',
-      Ord(LOriginalBackend), Ord(LRestoredBackend));
-  end;
+  fafafa.core.simd.runtime.ResetCurrentBackendSelection;
+  AssertEquals('runtime reset should restore automatic best backend',
+    Ord(fafafa.core.simd.GetBestDispatchableBackend),
+    Ord(fafafa.core.simd.runtime.GetCurrentBackend));
+  AssertEquals('legacy current backend should track runtime reset',
+    Ord(fafafa.core.simd.runtime.GetCurrentBackend),
+    Ord(fafafa.core.simd.GetCurrentBackend));
+  AssertEquals('dispatch snapshot should track runtime reset',
+    Ord(fafafa.core.simd.runtime.GetCurrentBackend),
+    Ord(GetDispatchTable^.Backend));
 end;
 
 procedure TTestCase_RuntimeAPI.Test_FacadeCpuCapability_View_Uses_Canonical_Cpuinfo_Semantics;
@@ -254,40 +237,27 @@ begin
 end;
 
 procedure TTestCase_RuntimeAPI.Test_FacadeRuntimeControlPlane_Wrappers_Interoperate_With_Legacy_Aliases;
-var
-  LOriginalBackend: TSimdBackend;
-  LOriginalBestDispatchable: TSimdBackend;
 begin
-  LOriginalBackend := fafafa.core.simd.GetCurrentBackend;
-  LOriginalBestDispatchable := fafafa.core.simd.GetBestDispatchableBackend;
-  try
-    AssertTrue('facade TrySetCurrentBackend(sbScalar) should succeed',
-      fafafa.core.simd.TrySetCurrentBackend(sbScalar));
-    AssertEquals('runtime subunit getter should track facade TrySetCurrentBackend',
-      Ord(sbScalar), Ord(fafafa.core.simd.runtime.GetCurrentBackend));
-    AssertEquals('facade runtime snapshot should track facade TrySetCurrentBackend',
-      Ord(sbScalar), Ord(fafafa.core.simd.GetCurrentRuntimeSnapshot.CurrentBackend));
+  AssertTrue('facade TrySetCurrentBackend(sbScalar) should succeed',
+    fafafa.core.simd.TrySetCurrentBackend(sbScalar));
+  AssertEquals('runtime subunit getter should track facade TrySetCurrentBackend',
+    Ord(sbScalar), Ord(fafafa.core.simd.runtime.GetCurrentBackend));
+  AssertEquals('facade runtime snapshot should track facade TrySetCurrentBackend',
+    Ord(sbScalar), Ord(fafafa.core.simd.GetCurrentRuntimeSnapshot.CurrentBackend));
 
-    fafafa.core.simd.ResetBackendSelection;
-    AssertEquals('legacy ResetBackendSelection should restore best dispatchable backend after facade TrySetCurrentBackend',
-      Ord(fafafa.core.simd.GetBestDispatchableBackend), Ord(fafafa.core.simd.GetCurrentBackend));
+  fafafa.core.simd.ResetBackendSelection;
+  AssertEquals('legacy ResetBackendSelection should restore best dispatchable backend after facade TrySetCurrentBackend',
+    Ord(fafafa.core.simd.GetBestDispatchableBackend), Ord(fafafa.core.simd.GetCurrentBackend));
 
-    fafafa.core.simd.ForceBackend(sbScalar);
-    AssertEquals('facade GetCurrentBackend should track legacy ForceBackend',
-      Ord(sbScalar), Ord(fafafa.core.simd.GetCurrentBackend));
-    AssertEquals('facade runtime snapshot should track legacy ForceBackend',
-      Ord(sbScalar), Ord(fafafa.core.simd.GetCurrentRuntimeSnapshot.CurrentBackend));
+  fafafa.core.simd.ForceBackend(sbScalar);
+  AssertEquals('facade GetCurrentBackend should track legacy ForceBackend',
+    Ord(sbScalar), Ord(fafafa.core.simd.GetCurrentBackend));
+  AssertEquals('facade runtime snapshot should track legacy ForceBackend',
+    Ord(sbScalar), Ord(fafafa.core.simd.GetCurrentRuntimeSnapshot.CurrentBackend));
 
-    fafafa.core.simd.ResetCurrentBackendSelection;
-    AssertEquals('facade ResetCurrentBackendSelection should restore best dispatchable backend after legacy ForceBackend',
-      Ord(fafafa.core.simd.GetBestDispatchableBackend), Ord(fafafa.core.simd.GetCurrentBackend));
-  finally
-    if LOriginalBackend = LOriginalBestDispatchable then
-      fafafa.core.simd.ResetCurrentBackendSelection
-    else
-      AssertTrue('facade wrappers should restore original forced backend',
-        fafafa.core.simd.TrySetCurrentBackend(LOriginalBackend));
-  end;
+  fafafa.core.simd.ResetCurrentBackendSelection;
+  AssertEquals('facade ResetCurrentBackendSelection should restore best dispatchable backend after legacy ForceBackend',
+    Ord(fafafa.core.simd.GetBestDispatchableBackend), Ord(fafafa.core.simd.GetCurrentBackend));
 end;
 
 procedure TTestCase_RuntimeAPI.Test_RuntimeSnapshot_View_Matches_Runtime_And_Legacy_Helpers;
@@ -331,36 +301,28 @@ end;
 procedure TTestCase_RuntimeAPI.Test_RuntimeSnapshot_Switch_Tracks_ControlPlane_And_Dispatch;
 var
   LSnapshot: TSimdRuntimeSnapshot;
-  LOriginalBackend: TSimdBackend;
 begin
-  LOriginalBackend := fafafa.core.simd.runtime.GetCurrentBackend;
-  try
-    AssertTrue('TrySetCurrentBackend(sbScalar) should succeed in runtime snapshot test',
-      fafafa.core.simd.runtime.TrySetCurrentBackend(sbScalar));
+  AssertTrue('TrySetCurrentBackend(sbScalar) should succeed in runtime snapshot test',
+    fafafa.core.simd.runtime.TrySetCurrentBackend(sbScalar));
 
-    LSnapshot := fafafa.core.simd.runtime.GetCurrentRuntimeSnapshot;
-    AssertEquals('runtime snapshot current backend should switch to Scalar',
-      Ord(sbScalar), Ord(LSnapshot.CurrentBackend));
-    AssertEquals('runtime snapshot backend info backend should switch to Scalar',
-      Ord(sbScalar), Ord(LSnapshot.CurrentBackendInfo.Backend));
-    AssertEquals('runtime snapshot should match dispatch snapshot backend after switch',
-      Ord(GetDispatchTable^.Backend), Ord(LSnapshot.CurrentBackend));
-    AssertEquals('runtime snapshot should match runtime getter after switch',
-      Ord(fafafa.core.simd.runtime.GetCurrentBackend), Ord(LSnapshot.CurrentBackend));
+  LSnapshot := fafafa.core.simd.runtime.GetCurrentRuntimeSnapshot;
+  AssertEquals('runtime snapshot current backend should switch to Scalar',
+    Ord(sbScalar), Ord(LSnapshot.CurrentBackend));
+  AssertEquals('runtime snapshot backend info backend should switch to Scalar',
+    Ord(sbScalar), Ord(LSnapshot.CurrentBackendInfo.Backend));
+  AssertEquals('runtime snapshot should match dispatch snapshot backend after switch',
+    Ord(GetDispatchTable^.Backend), Ord(LSnapshot.CurrentBackend));
+  AssertEquals('runtime snapshot should match runtime getter after switch',
+    Ord(fafafa.core.simd.runtime.GetCurrentBackend), Ord(LSnapshot.CurrentBackend));
 
-    fafafa.core.simd.runtime.ResetCurrentBackendSelection;
-    LSnapshot := fafafa.core.simd.runtime.GetCurrentRuntimeSnapshot;
-    AssertEquals('runtime snapshot reset should restore automatic current backend',
-      Ord(fafafa.core.simd.runtime.GetBestDispatchableBackend), Ord(LSnapshot.CurrentBackend));
-    AssertEquals('runtime snapshot should match dispatch snapshot backend after reset',
-      Ord(GetDispatchTable^.Backend), Ord(LSnapshot.CurrentBackend));
-    AssertEquals('runtime snapshot backend info backend should match reset backend',
-      Ord(LSnapshot.CurrentBackend), Ord(LSnapshot.CurrentBackendInfo.Backend));
-  finally
-    if fafafa.core.simd.runtime.GetCurrentBackend <> LOriginalBackend then
-      AssertTrue('runtime snapshot test should restore original backend',
-        fafafa.core.simd.runtime.TrySetCurrentBackend(LOriginalBackend));
-  end;
+  fafafa.core.simd.runtime.ResetCurrentBackendSelection;
+  LSnapshot := fafafa.core.simd.runtime.GetCurrentRuntimeSnapshot;
+  AssertEquals('runtime snapshot reset should restore automatic current backend',
+    Ord(fafafa.core.simd.runtime.GetBestDispatchableBackend), Ord(LSnapshot.CurrentBackend));
+  AssertEquals('runtime snapshot should match dispatch snapshot backend after reset',
+    Ord(GetDispatchTable^.Backend), Ord(LSnapshot.CurrentBackend));
+  AssertEquals('runtime snapshot backend info backend should match reset backend',
+    Ord(LSnapshot.CurrentBackend), Ord(LSnapshot.CurrentBackendInfo.Backend));
 end;
 
 initialization
