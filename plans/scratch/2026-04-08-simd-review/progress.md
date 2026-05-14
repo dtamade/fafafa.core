@@ -2626,3 +2626,23 @@
   - `publicabi` 之外剩余的“顶层只恢复 automatic / 只恢复 vector asm”的老形状又少了一批
   - 下一轮更值得继续查的，已经更像其它 companion testcase 里的少量 method-level restore 分叉，而不是 `publicabi` 那种复杂 hook/state-machine cleanup 噪音
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+- 我继续沿 companion testcase 小文件往下扫，又收了一批更小但更确定的 restore 分叉：
+  - `dispatchslots.testcase` 的类级 tearDown 还是手写 backend restore
+  - 同文件有 3 条方法尾声还只做 `ResetToAutomaticBackend`
+  - `sse2contracts.testcase` 的 tearDown 也还保留着老式 `vector asm + automatic + backend` 手写恢复
+- 这次没有扩到 `direct / concurrent`，而是只收最稳定的两份小文件：
+  - 新增 `RestoreDispatchSlotsLocalState(...)`
+  - 新增 `RestoreSSE2ContractsLocalState(...)`
+  - 统一采用 helper 返回 `Boolean`、调用点 `AssertTrue(...)` 的形状，避免再踩顶层 helper 直接断言的 Pascal 作用域坑
+- 本轮 Release 验证继续按串行链完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAllSlots`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SSE2Contracts`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断继续更新：
+  - `dispatchslots / sse2contracts` 这类小 companion testcase 的 restore 样板又少了一层
+  - 下一轮如果继续挖，更值得看的将是 `direct` 或 `concurrent` 里那些“局部 helper 已存在，但个别 method-level finally 仍留 old shape”的少数残点
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

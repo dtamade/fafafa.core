@@ -2123,3 +2123,17 @@
 | 1. 复核 `dataplane` / `ieee754` 剩余旧恢复形状 | completed | 已确认 `dataplane.testcase` 还剩 1 处 `SetVectorAsmEnabled(LOldVectorAsm); ResetToAutomaticBackend;` 的顶层 finally；`ieee754.testcase` 里有 4 个 tearDown 和 6 个方法级 finally 仍沿用同类旧形状，且 `TTestCase_NonX86IEEE754.Test_NonX86_RoundTruncFloorCeil_NaNInf_IfAvailable` 外层 finally 甚至只恢复了 `vector asm` |
 | 2. 提取 helper 并统一 local restore 契约 | completed | 已为 `dataplane` / `ieee754` 各自补 `Restore*LocalState(...)` helper；`dataplane` tearDown 与 `VectorAsmRoundTrip` finally、`ieee754` 的 4 个 tearDown 与 6 个方法级 finally 全部统一到“恢复保存 backend”语义；首轮编译发现顶层 helper 不能直接调用 `AssertTrue`，随后改成返回 `Boolean` 并把断言留在类方法/测试方法里 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DataPlane`、Release `TTestCase_IEEE754EdgeCases`、Release `TTestCase_AVX2RoundTruncIEEE754`、Release `TTestCase_NonX86IEEE754`、Release `TTestCase_IEEE754_F64`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 DispatchSlots And SSE2Contracts Restore Alignment
+
+### Goal
+
+继续沿小 testcase 文件清理剩余的旧恢复形状，把 `dispatchslots` 中 backend-only 尾声只做 `ResetToAutomaticBackend` 的路径，以及 `sse2contracts` 的老式 tearDown，统一到“恢复保存 backend”契约，避免这些 companion tests 继续把 backend drift 留到更晚才暴露。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `dispatchslots` / `sse2contracts` 剩余 restore 分叉 | completed | 已确认 `dispatchslots.testcase` 的类级 `TearDown` 仍是手写 `ResetToAutomaticBackend + TrySetActiveBackend(FSavedBackend)`，且 `Test_AllSelectableBackends_AllDispatchSlots_Assigned`、`Test_BackendAdapter_ActiveBackend_RoundTrip_NoNilAndCorePointersStable`、`Test_BackendAdapter_RegisteredBackendOps_PreserveCanonicalTextMetadata_After_ReRegister` 还残留 method-level `ResetToAutomaticBackend`；`sse2contracts.testcase` 仍有老式 `vector asm + automatic + TrySetActiveBackend` tearDown |
+| 2. 提取 helper 并统一小文件恢复契约 | completed | 已为 `dispatchslots` 补 `RestoreDispatchSlotsLocalState(...)`，为 `sse2contracts` 补 `RestoreSSE2ContractsLocalState(...)`；`dispatchslots` 的类级 tearDown 和 3 个方法尾声、`sse2contracts` 的 tearDown 全部切到 helper 返回 `Boolean` + 调用点断言的形状 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAllSlots`、Release `TTestCase_SSE2Contracts`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |

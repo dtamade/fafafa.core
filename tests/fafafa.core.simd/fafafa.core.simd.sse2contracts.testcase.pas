@@ -38,6 +38,17 @@ type
 
 implementation
 
+function RestoreSSE2ContractsLocalState(aOriginalVectorAsm: Boolean;
+  aOriginalBackend: TSimdBackend): Boolean;
+begin
+  SetVectorAsmEnabled(aOriginalVectorAsm);
+  ResetToAutomaticBackend;
+  if GetCurrentBackend = aOriginalBackend then
+    Exit(True);
+
+  Result := TrySetActiveBackend(aOriginalBackend);
+end;
+
 procedure TTestCase_SSE2Contracts.SetUp;
 begin
   inherited SetUp;
@@ -48,11 +59,8 @@ end;
 
 procedure TTestCase_SSE2Contracts.TearDown;
 begin
-  SetVectorAsmEnabled(FOldVectorAsm);
-  ResetToAutomaticBackend;
-  if GetCurrentBackend <> FOldBackend then
-    AssertTrue('SSE2 contracts fixture should restore previous backend selection',
-      TrySetActiveBackend(FOldBackend));
+  AssertTrue('SSE2 contracts fixture should restore previous backend selection',
+    RestoreSSE2ContractsLocalState(FOldVectorAsm, FOldBackend));
   inherited TearDown;
 end;
 

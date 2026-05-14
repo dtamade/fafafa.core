@@ -2509,3 +2509,23 @@
   - `ieee754` 的 tearDown 与方法级 finally 对“恢复保存 backend”的契约重新对齐
   - 这批属于测试层 fixture hardening / redundancy cleanup，不改变 SIMD dataplane 或 IEEE754 算法语义
 - Release `TTestCase_DataPlane`、Release `TTestCase_IEEE754EdgeCases`、Release `TTestCase_AVX2RoundTruncIEEE754`、Release `TTestCase_NonX86IEEE754`、Release `TTestCase_IEEE754_F64`、Release `check`、Release `gate` 全绿，说明改动只影响测试恢复契约，没有引入行为回归。
+
+## 2026-05-14 DispatchSlots And SSE2Contracts Restore Alignment Findings
+
+- 继续沿剩余小 testcase 文件往下扫后，`dispatchslots` 和 `sse2contracts` 里还留着另一簇更老的恢复形状：
+  - `dispatchslots.testcase` 的 `TearDown` 仍手写 `ResetToAutomaticBackend` 后再 `TrySetActiveBackend(FSavedBackend)`
+  - 同文件 3 条方法尾声也还只做 `ResetToAutomaticBackend`
+  - `sse2contracts.testcase` 的 `TearDown` 仍手写 `SetVectorAsmEnabled(FOldVectorAsm); ResetToAutomaticBackend; TrySetActiveBackend(FOldBackend)`
+- 这批和上一轮 `dataplane / ieee754` 是同一类问题，只是分成了两个更小的 companion 文件：
+  - 测试夹具事实上都保存了原始 backend
+  - 但尾声恢复仍在重复旧的手写样板
+  - `dispatchslots` 的 method-level finally 尤其明显，会把 backend 临时留在 automatic 上，直到更外层 tearDown 才回到保存状态
+- 本轮修法仍然只动测试层：
+  - 在 `dispatchslots` 补 `RestoreDispatchSlotsLocalState(...)`
+  - 在 `sse2contracts` 补 `RestoreSSE2ContractsLocalState(...)`
+  - 两个 helper 都返回 `Boolean`，把断言保留在 `TTestCase` 方法作用域内，延续上一轮已经验证过的 Pascal 作用域安全做法
+- 收完后的效果是：
+  - `dispatchslots` 不再在类级 tearDown 和 3 条方法尾声里重复手写 restore 样板
+  - `sse2contracts` 的 fixture 恢复契约也和其它测试文件重新对齐
+  - 这批仍属于 fixture hardening / redundancy cleanup，不触碰 dispatch slot 或 SSE2 生产逻辑
+- Release `TTestCase_DispatchAllSlots`、Release `TTestCase_SSE2Contracts`、Release `check`、Release `gate` 全绿，说明这批只是在 companion testcase 层消除恢复分叉，没有引入行为回归。

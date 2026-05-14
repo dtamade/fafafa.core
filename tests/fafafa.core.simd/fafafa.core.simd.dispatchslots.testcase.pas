@@ -36,6 +36,15 @@ type
 
 implementation
 
+function RestoreDispatchSlotsLocalState(aOriginalBackend: TSimdBackend): Boolean;
+begin
+  ResetToAutomaticBackend;
+  if GetActiveBackend = aOriginalBackend then
+    Exit(True);
+
+  Result := TrySetActiveBackend(aOriginalBackend);
+end;
+
 procedure TTestCase_DispatchAllSlots.SetUp;
 begin
   inherited SetUp;
@@ -44,15 +53,9 @@ begin
 end;
 
 procedure TTestCase_DispatchAllSlots.TearDown;
-var
-  LRestoredBackend: Boolean;
 begin
-  ResetToAutomaticBackend;
-  LRestoredBackend := True;
-  if GetActiveBackend <> FSavedBackend then
-    LRestoredBackend := TrySetActiveBackend(FSavedBackend);
   AssertTrue('Dispatch slots fixture should restore previous backend selection',
-    LRestoredBackend and (GetActiveBackend = FSavedBackend));
+    RestoreDispatchSlotsLocalState(FSavedBackend));
   inherited TearDown;
 end;
 
@@ -645,7 +648,8 @@ begin
       Inc(LChecked);
     end;
   finally
-    ResetToAutomaticBackend;
+    AssertTrue('Dispatch slots local restore should recover previous backend selection',
+      RestoreDispatchSlotsLocalState(FSavedBackend));
   end;
 
   AssertTrue('At least one backend should be checked', LChecked > 0);
@@ -722,7 +726,8 @@ begin
       Inc(LChecked);
     end;
   finally
-    ResetToAutomaticBackend;
+    AssertTrue('Dispatch slots local restore should recover previous backend selection',
+      RestoreDispatchSlotsLocalState(FSavedBackend));
   end;
 
   AssertTrue('At least one backend should be checked', LChecked > 0);
@@ -801,7 +806,8 @@ begin
       LOps.BackendInfo.Capabilities = LModifiedTable.BackendInfo.Capabilities);
   finally
     RegisterBackend(LBackend, LOriginalTable);
-    ResetToAutomaticBackend;
+    AssertTrue('Dispatch slots local restore should recover previous backend selection',
+      RestoreDispatchSlotsLocalState(FSavedBackend));
   end;
 end;
 
