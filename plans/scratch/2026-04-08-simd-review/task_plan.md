@@ -2730,3 +2730,17 @@
 | 1. 复核 `direct` 调用点是否混有 post-restore 语义 | completed | 已确认 `RestoreFixtureDirectDispatchState(...)` 共 28 处使用中，仅 `Test_DirectDispatchTable_Rebind_AfterForceBackend` 与 `Test_DirectDispatchTable_AutoRebind_AfterDispatchSetActiveBackend` 这 2 处在 finally 之后继续断言 `dispatch/direct` 已随恢复状态重新对齐；其余 26 处要么直接 `end;`，要么只剩 `FreeAligned(...)` 这类资源释放 |
 | 2. 删除尾部 cleanup 调用并保留必要 post-restore caller | completed | 已删除 `direct.testcase` 中 26 处尾部 `RestoreFixtureDirectDispatchState(...)` 调用，保留 2 处真正需要“恢复后继续观察 direct table”语义的调用；`RestoreFixtureDirectDispatchState` helper 本身保留，因为它仍承载 `RebindDirectDispatch + verified restore` 的组合 contract |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、Release `check`、Release `gate` 全绿；说明 `direct` 已被细分成“真 post-restore 语义”与“纯尾部 cleanup”两类，而不会把 `RebindDirectDispatch` 这条本地 contract 一起误删 |
+
+## 2026-05-15 Backend Consistency Setup Helper Consolidation
+
+### Goal
+
+继续加强 `simd` 测试层审查并修复，但这次转向新的冗余类型：`backend.consistency.testcase` 里一批 free helper 反复复制同一段结果初始化、backend 保存/跳过判定、`TrySetActiveBackend(...)` 选择逻辑。目标不是删 fixture teardown，而是把这类共享 setup/skip contract 收回 helper，同时保留原本“fallback 不应算通过”的语义。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `backend.consistency` free helper 的重复 setup/skip 形状 | completed | 已确认 `F32x4 Arithmetic/Math/Comparison/Reduction`、`I32x4 Arithmetic/Bitwise` 与 `Facade MemOps` 这 7 个 free helper 都在重复：初始化 `TConsistencyTestResult`、保存原 backend、`IsBackendRegistered(...)` 跳过、`TrySetActiveBackend(...)` 跳过；这类逻辑不受 fixture teardown 直接覆盖 |
+| 2. 提取共享 begin/init helper 并保留原有 backend 选择语义 | completed | 已新增 `InitBackendConsistencyResult(...)` 与 `BeginBackendConsistencyTest(...)`；7 个 helper 统一改用共享入口。`Begin...` 继续使用 `TrySetActiveBackend(...)`，并在“未注册 / 当前 CPU/OS 不可用”的早退路径上显式恢复已保存 backend，避免 free helper 提前 `Exit` 后把状态泄漏给后续 case |
+| 3. Release 验证与提交收口 | completed | Release `TTestCase_BackendVectorConsistency`、Release `check`、Release `gate` 已通过；说明这轮从“尾部 restore 去重”转到“free helper setup/skip 合同收敛”后，backend consistency 主测试面和整体 gate 都继续稳定 |

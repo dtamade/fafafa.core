@@ -3446,3 +3446,26 @@
   - 还要看“该 helper 的哪些调用点真的消费了这层语义”
   - 如果只有少数调用点需要，就应把 helper 保留，但把尾部 cleanup caller 清掉
 - 因而后续继续深查时，更值得优先找的是这种“helper 本身有意义，但大量 caller 已经退化成尾部 cleanup”的混合场景；这类点比“全文件统一删除”更隐蔽，也更容易长期遗留
+
+## 2026-05-15 Backend Consistency Setup Helper Findings
+
+- 这轮确认下一类高价值冗余已经不再是“尾部 restore 被 teardown 覆盖”，而是 free helper 级别的 setup/skip boilerplate。
+- `backend.consistency.testcase` 里至少 7 个 free helper 在重复同一段前置流程：
+  - 初始化 `TConsistencyTestResult`
+  - `SaveActiveBackendState(...)`
+  - `IsBackendRegistered(...)` 跳过分支
+  - `TrySetActiveBackend(...)` 跳过分支
+- 这里和前几批最大的区别在于：
+  - 这些 helper 不是 `TSimdBackendStatefulTestCase` / `TSimdVectorAsmStatefulTestCase` 的方法尾部 cleanup
+  - 因而不能简单删除或完全依赖 inherited teardown
+  - 共享 contract 更适合落在“开始测试前”的 helper，而不是“测试结束后”的 fixture
+- 这批也暴露出一个容易被忽略的状态语义：
+  - 早退 `Exit(False)` 不只是“标记 skipped”
+  - 如果前面已经 `SaveActiveBackendState(...)`，却不在 skip 路径里恢复，free helper 会把 backend 泄漏给后续测试
+  - 因而共享 helper 必须把“未注册 / 当前 CPU/OS 不可用”这两个 skip 分支中的 restore 一起内建进去
+- `TrySetActiveBackend(...)` 这条语义这次明确保留，而没有换成 `SetActiveBackend(...)`：
+  - 原因仍然是避免 backend fallback 被误当成该 backend 自身通过
+  - 所以这轮的目标不是“把 setup 写短”，而是“把 canonical setup contract 收成一份，并维持原来的 strict 选择语义”
+- 经过这批后，`backend.consistency` 的冗余形态也更清楚了：
+  - 之前那类纯尾部 restore 重复基本已经扫得差不多
+  - 现在更值得继续找的是 free helper / meta helper 层里重复的 control-flow、result shell、message shell，而不是继续盲搜 restore caller

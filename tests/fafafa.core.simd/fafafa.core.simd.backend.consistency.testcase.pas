@@ -131,12 +131,48 @@ begin
   Result.i[3] := v3;
 end;
 
+procedure InitBackendConsistencyResult(out aResult: TConsistencyTestResult;
+  const aTestName: string; aBackend: TSimdBackend);
+begin
+  aResult.TestName := aTestName;
+  aResult.Backend := aBackend;
+  aResult.Passed := True;
+  aResult.ErrorMessage := '';
+  aResult.MaxDiff := 0;
+  aResult.DiffLocation := -1;
+end;
+
 procedure RestoreBackendConsistencyState(const aState: TSimdSavedBackendState);
 begin
   if not RestoreSavedBackendStateAndVerify(aState.Backend, @GetActiveBackend) then
     raise Exception.CreateFmt(
       'Backend consistency helper failed to restore previous backend selection (expected=%d, actual=%d)',
       [Ord(aState.Backend), Ord(GetActiveBackend)]);
+end;
+
+function BeginBackendConsistencyTest(const aTestName: string;
+  aBackend: TSimdBackend; out aResult: TConsistencyTestResult;
+  out aOriginalState: TSimdSavedBackendState): Boolean;
+begin
+  InitBackendConsistencyResult(aResult, aTestName, aBackend);
+  SaveActiveBackendState(aOriginalState);
+
+  if not IsBackendRegistered(aBackend) then
+  begin
+    aResult.ErrorMessage := 'Backend not registered (skipped)';
+    RestoreBackendConsistencyState(aOriginalState);
+    Exit(False);
+  end;
+
+  // Use TrySetActiveBackend to avoid false positives when SetActiveBackend falls back.
+  if not TrySetActiveBackend(aBackend) then
+  begin
+    aResult.ErrorMessage := 'Backend not available on this CPU/OS (skipped)';
+    RestoreBackendConsistencyState(aOriginalState);
+    Exit(False);
+  end;
+
+  Result := True;
 end;
 
 // =============================================================================
@@ -151,28 +187,11 @@ var
   maxDiff: Double;
   diffIdx: Integer;
 begin
-  Result.TestName := 'F32x4 Arithmetic';
-  Result.Backend := backend;
-  Result.Passed := True;
-  Result.ErrorMessage := '';
-  Result.MaxDiff := 0;
-  Result.DiffLocation := -1;
+  if not BeginBackendConsistencyTest('F32x4 Arithmetic', backend, Result,
+    LOriginalState) then
+    Exit;
 
-  SaveActiveBackendState(LOriginalState);
   try
-    if not IsBackendRegistered(backend) then
-    begin
-      Result.ErrorMessage := 'Backend not registered (skipped)';
-      Exit;
-    end;
-
-    // NOTE: Use TrySetActiveBackend to avoid false positives when SetActiveBackend falls back.
-    if not TrySetActiveBackend(backend) then
-    begin
-      Result.ErrorMessage := 'Backend not available on this CPU/OS (skipped)';
-      Exit;
-    end;
-
     // 测试向量
     a := MakeVecF32x4(1.5, -2.0, 3.25, 0.0);
     b := MakeVecF32x4(0.5, 2.0, -1.25, 4.0);
@@ -265,27 +284,11 @@ var
   maxDiff: Double;
   diffIdx: Integer;
 begin
-  Result.TestName := 'F32x4 Math';
-  Result.Backend := backend;
-  Result.Passed := True;
-  Result.ErrorMessage := '';
-  Result.MaxDiff := 0;
-  Result.DiffLocation := -1;
+  if not BeginBackendConsistencyTest('F32x4 Math', backend, Result,
+    LOriginalState) then
+    Exit;
 
-  SaveActiveBackendState(LOriginalState);
   try
-    if not IsBackendRegistered(backend) then
-    begin
-      Result.ErrorMessage := 'Backend not registered (skipped)';
-      Exit;
-    end;
-
-    if not TrySetActiveBackend(backend) then
-    begin
-      Result.ErrorMessage := 'Backend not available on this CPU/OS (skipped)';
-      Exit;
-    end;
-
     // 测试向量（使用正数以支持 Sqrt）
     a := MakeVecF32x4(1.5, 2.0, 3.25, 4.0);
     b := MakeVecF32x4(0.5, 3.0, 1.0, 2.0);
@@ -377,27 +380,11 @@ var
   a, b: TVecF32x4;
   expectedMask, actualMask: TMask4;
 begin
-  Result.TestName := 'F32x4 Comparison';
-  Result.Backend := backend;
-  Result.Passed := True;
-  Result.ErrorMessage := '';
-  Result.MaxDiff := 0;
-  Result.DiffLocation := -1;
+  if not BeginBackendConsistencyTest('F32x4 Comparison', backend, Result,
+    LOriginalState) then
+    Exit;
 
-  SaveActiveBackendState(LOriginalState);
   try
-    if not IsBackendRegistered(backend) then
-    begin
-      Result.ErrorMessage := 'Backend not registered (skipped)';
-      Exit;
-    end;
-
-    if not TrySetActiveBackend(backend) then
-    begin
-      Result.ErrorMessage := 'Backend not available on this CPU/OS (skipped)';
-      Exit;
-    end;
-
     a := MakeVecF32x4(1.0, 2.0, 3.0, 4.0);
     b := MakeVecF32x4(1.0, 3.0, 2.0, 4.0);
 
@@ -465,27 +452,11 @@ var
   a: TVecF32x4;
   expectedVal, actualVal: Single;
 begin
-  Result.TestName := 'F32x4 Reduction';
-  Result.Backend := backend;
-  Result.Passed := True;
-  Result.ErrorMessage := '';
-  Result.MaxDiff := 0;
-  Result.DiffLocation := -1;
+  if not BeginBackendConsistencyTest('F32x4 Reduction', backend, Result,
+    LOriginalState) then
+    Exit;
 
-  SaveActiveBackendState(LOriginalState);
   try
-    if not IsBackendRegistered(backend) then
-    begin
-      Result.ErrorMessage := 'Backend not registered (skipped)';
-      Exit;
-    end;
-
-    if not TrySetActiveBackend(backend) then
-    begin
-      Result.ErrorMessage := 'Backend not available on this CPU/OS (skipped)';
-      Exit;
-    end;
-
     a := MakeVecF32x4(1.0, 2.0, 3.0, 4.0);
 
     // 测试 ReduceAdd
@@ -572,27 +543,11 @@ var
   a, b, expected, actual: TVecI32x4;
   diffIdx: Integer;
 begin
-  Result.TestName := 'I32x4 Arithmetic';
-  Result.Backend := backend;
-  Result.Passed := True;
-  Result.ErrorMessage := '';
-  Result.MaxDiff := 0;
-  Result.DiffLocation := -1;
+  if not BeginBackendConsistencyTest('I32x4 Arithmetic', backend, Result,
+    LOriginalState) then
+    Exit;
 
-  SaveActiveBackendState(LOriginalState);
   try
-    if not IsBackendRegistered(backend) then
-    begin
-      Result.ErrorMessage := 'Backend not registered (skipped)';
-      Exit;
-    end;
-
-    if not TrySetActiveBackend(backend) then
-    begin
-      Result.ErrorMessage := 'Backend not available on this CPU/OS (skipped)';
-      Exit;
-    end;
-
     a := MakeVecI32x4(10, -20, 30, 0);
     b := MakeVecI32x4(5, 10, -15, 25);
 
@@ -663,27 +618,11 @@ var
   a, b, expected, actual: TVecI32x4;
   diffIdx: Integer;
 begin
-  Result.TestName := 'I32x4 Bitwise';
-  Result.Backend := backend;
-  Result.Passed := True;
-  Result.ErrorMessage := '';
-  Result.MaxDiff := 0;
-  Result.DiffLocation := -1;
+  if not BeginBackendConsistencyTest('I32x4 Bitwise', backend, Result,
+    LOriginalState) then
+    Exit;
 
-  SaveActiveBackendState(LOriginalState);
   try
-    if not IsBackendRegistered(backend) then
-    begin
-      Result.ErrorMessage := 'Backend not registered (skipped)';
-      Exit;
-    end;
-
-    if not TrySetActiveBackend(backend) then
-    begin
-      Result.ErrorMessage := 'Backend not available on this CPU/OS (skipped)';
-      Exit;
-    end;
-
     // NOTE: Use signed literals that are in Int32 range (Debug build enables range checking).
     a := MakeVecI32x4(-16711936, $0F0F0F0F, $12345678, -1);
     b := MakeVecI32x4($00FF00FF, -252645136, -2023406815, 0);
@@ -771,27 +710,11 @@ var
   expectedIdx, actualIdx: PtrInt;
   expectedSum, actualSum: UInt64;
 begin
-  Result.TestName := 'Facade MemOps';
-  Result.Backend := backend;
-  Result.Passed := True;
-  Result.ErrorMessage := '';
-  Result.MaxDiff := 0;
-  Result.DiffLocation := -1;
+  if not BeginBackendConsistencyTest('Facade MemOps', backend, Result,
+    LOriginalState) then
+    Exit;
 
-  SaveActiveBackendState(LOriginalState);
   try
-    if not IsBackendRegistered(backend) then
-    begin
-      Result.ErrorMessage := 'Backend not registered (skipped)';
-      Exit;
-    end;
-
-    if not TrySetActiveBackend(backend) then
-    begin
-      Result.ErrorMessage := 'Backend not available on this CPU/OS (skipped)';
-      Exit;
-    end;
-
     // 初始化测试缓冲区
     for i := 0 to 255 do
     begin

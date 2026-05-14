@@ -3825,3 +3825,35 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-15 Backend Consistency Setup Helper Consolidation
+
+- 继续往下扫时，确认“尾部 restore 冗余”这条线已经基本榨干，下一块更值得收的是 `backend.consistency.testcase` free helper 的 setup/skip boilerplate。
+- 这批重复体集中在以下 helper：
+  - `TestF32x4Arithmetic`
+  - `TestF32x4Math`
+  - `TestF32x4Comparison`
+  - `TestF32x4Reduction`
+  - `TestI32x4Arithmetic`
+  - `TestI32x4Bitwise`
+  - `TestFacadeMemOps`
+- 这些 helper 之前都重复一整段相同前置流程：
+  - 填充 `TConsistencyTestResult` 默认值
+  - `SaveActiveBackendState(LOriginalState)`
+  - `IsBackendRegistered(backend)` 的 skip 处理
+  - `TrySetActiveBackend(backend)` 的 skip 处理
+- 本轮最小修法已落地：
+  - 新增 `InitBackendConsistencyResult(...)`
+  - 新增 `BeginBackendConsistencyTest(...)`
+  - 让上面 7 个 helper 都改用共享入口
+  - `BeginBackendConsistencyTest(...)` 继续保留 `TrySetActiveBackend(...)`，避免 backend fallback 被误算成可用
+  - skip 早退路径现在会先 `RestoreBackendConsistencyState(aOriginalState)`，不再把已保存 backend 状态泄漏给后续 case
+- 这批的价值和前面几轮不同：
+  - 不是删尾部 cleanup
+  - 而是把 free helper 层的 canonical setup/skip contract 收回一处
+  - 让 `backend.consistency` 更容易区分“共享前置逻辑”和“每个向量族自己的断言主体”
+- 本轮 Release 验证链：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_BackendVectorConsistency`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
