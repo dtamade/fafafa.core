@@ -2956,3 +2956,17 @@
 | 1. 复核剩余 tail 是否仍是纯消息层 | completed | 已确认 `dispatchapi.testcase` 剩余 13 处只是 supported/registered/dispatchable 视图与 canonical metadata 断言文案，`simd.testcase` 剩余 1 处只是 backend consistency helper coverage 的消息字符串 |
 | 2. 复用既有 canonical helper 清零 tail | completed | `dispatchapi.testcase` 这 13 处已统一改为 `DispatchApiBackendName(LBackend)`；`simd.testcase` 那 1 处已改为 `GetConsistencyBackendName(LBackend)`；全目录 `rg -n "IntToStr\\(Ord\\((L|a)Backend\\)\\)" tests/fafafa.core.simd --glob '*.pas'` 已无匹配 |
 | 3. Release 验证与本批收口 | completed | `git diff --check`、Release `test --suite=TTestCase_DispatchAPI,TTestCase_NonX86BackendParity,TTestCase_BackendVectorConsistency`、Release `check`、Release `gate` 已全部通过；说明这批只清理最后的 backend ordinal 文案，没有影响 dispatch/non-x86/backend consistency 主链 |
+
+## 2026-05-15 Concurrent Canonical Backend Label Reuse
+
+### Goal
+
+在目录级 `IntToStr(Ord(...))` backend ordinal 文案已经清零后，继续深审 `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas`，把剩余通过 `Format(...%d...)`、backend array 描述和 synthetic registration metadata 泄漏出来的 backend 编号也收成 canonical backend name，同时明确保留真正参与断言/seed 的 `Ord(...)` 数值语义。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `concurrent.testcase` 里剩余 `Ord(...)` 的角色 | completed | 已确认 `DescribeBackendInfoLocal`、`DescribeBackendArrayLocal`、`DescribeRuntimeSnapshotLocal`、mixed snapshot 错误文本以及 synthetic first-registration metadata 都只是 report shell；而 `AssertEquals(..., Ord(...))` 数值断言与 `QWord(Ord(LBackend))` seed 仍承载真实比较/随机化语义，不能机械替换 |
+| 2. 收敛到 concurrent canonical helper | completed | 已新增 `ConcurrentBackendName(const aBackend: TSimdBackend): string`，实现为 `GetBackendInfo(aBackend).Name`；并把上述描述函数、mixed snapshot 诊断文本与 `ConcurrentFirstRegister_*` metadata 统一改为 backend name |
+| 3. Release 验证与本批收口 | completed | 接手前已有 Release `TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework,TTestCase_DirectDispatchConcurrent` 与 Release `check` 绿证据；本轮继续完成 `git diff --check` 与 Release `gate`，确认 fast-gate 中 `PublicAbi` concurrent chain、`TTestCase_DirectDispatchConcurrent`、filtered `run_all` 全部通过 |

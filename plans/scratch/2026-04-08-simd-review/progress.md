@@ -4289,3 +4289,30 @@
   - `direct.testcase`
   - `dispatchapi.testcase` tail
   - `simd.testcase` tail
+
+## 2026-05-15 Concurrent Canonical Backend Label Reuse
+
+- 在目录级 backend ordinal grep 已经清零后，我继续往 `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 深审，确认这里还残留一类不会被前一条 grep 捕获的诊断壳冗余：
+  - `Format(... backend=%d ...)`
+  - backend array 直接输出 ordinal
+  - mixed snapshot 错误输出 `got=%d expectedA=%d expectedB=%d`
+  - synthetic first-registration metadata 仍拼 ordinal
+- 这次没有碰并发 worker 行为、状态机或 round-level cleanup，只做 report shell 收口：
+  - 新增 `ConcurrentBackendName(const aBackend: TSimdBackend): string`
+  - `DescribeBackendInfoLocal` 改为输出 backend name
+  - `DescribeBackendArrayLocal` 改为输出 backend name 数组
+  - `DescribeRuntimeSnapshotLocal` 改为输出 backend/best 的 canonical name
+  - mixed snapshot 错误文本改为 `got=<name> expectedA=<name> expectedB=<name>`
+  - `ConcurrentFirstRegister_*` synthetic metadata 改为 backend name
+- 同时明确保留了真正承载行为语义的 `Ord(...)`：
+  - backend expected/actual 数值断言没动
+  - RNG seed 里的 `QWord(Ord(LBackend))` 没动
+- 接手这批前，Release `TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework,TTestCase_DirectDispatchConcurrent` 和 Release `check` 已经是绿的；本轮把剩下的 closeout 补完整：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 这次 `gate` 里最相关的链路继续为绿：
+  - `TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`
+  - `TTestCase_DirectDispatchConcurrent`
+  - `Run-all summary: Passed 5 / Failed 0`
+  - `[GATE] OK`

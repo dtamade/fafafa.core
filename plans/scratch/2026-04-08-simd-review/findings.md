@@ -3792,3 +3792,28 @@
   - 这条 backend label 冗余线已经收平
   - 后续更值得找的是别的 report shell、重复 truth source、或者行为/覆盖缺口
   - 不需要再回头在同一条 ordinal 文案线上反复扫
+
+## 2026-05-15 Concurrent Canonical Backend Label Findings
+
+- 目录级 `rg -n "IntToStr\\(Ord\\((L|a)Backend\\)\\)" tests/fafafa.core.simd --glob '*.pas'` 清零之后，`concurrent.testcase` 仍暴露出另一类更隐蔽的 report-shell 冗余：
+  - `DescribeBackendInfoLocal` / `DescribeRuntimeSnapshotLocal` 通过 `Format(... backend=%d ...)` 输出 backend ordinal
+  - `DescribeBackendArrayLocal` 仍把 backend 数组打印成 `[0,1,2]` 这种枚举编号串
+  - mixed snapshot 错误文本仍显示 `got=%d expectedA=%d expectedB=%d`
+  - synthetic first-registration metadata 仍拼 `ConcurrentFirstRegister_<ordinal>`
+- 这些点和前一批 tail cleanup 的共性在于：
+  - 都只影响诊断壳、描述文本和 synthetic metadata
+  - 不参与 backend 切换、dispatch 选择、并发同步或随机矩阵期望值计算
+  - 一旦失败，显示 `AVX2/NEON/RISCVV/...` 比再次回头映射 enum 编号更直接
+- 但 `concurrent.testcase` 也更容易误伤真实数值语义：
+  - `AssertEquals(..., Ord(LBackend), Ord(GetCurrentBackend))` 这种比较必须保留 ordinal
+  - `QWord(Ord(LBackend))` 这类 seed 也属于行为输入，不能因为“看起来像 backend 编号”就替掉
+  - 因而这批的关键不是“全删 `Ord(...)`”，而是先把消息层和行为层分清
+- 最稳的收口方式是复用 runtime 已公开的 canonical metadata：
+  - 新增 `ConcurrentBackendName(const aBackend: TSimdBackend): string`
+  - 直接返回 `GetBackendInfo(aBackend).Name`
+  - 让描述函数、mixed snapshot 错误文本与 synthetic metadata 都只依赖这一个 truth source
+- 本轮 `Release gate` 最相关的证据链继续保持稳定：
+  - `TTestCase_PublicAbi` / `TTestCase_SimdConcurrentPublicAbi` / `TTestCase_SimdConcurrentFramework` 通过
+  - `TTestCase_DirectDispatchConcurrent` 通过
+  - filtered `run_all` summary 为 `Passed 5 / Failed 0`
+  - `[GATE] OK`

@@ -630,10 +630,15 @@ begin
     (aInfo.Priority = aExpected.Priority);
 end;
 
+function ConcurrentBackendName(const aBackend: TSimdBackend): string;
+begin
+  Result := GetBackendInfo(aBackend).Name;
+end;
+
 function DescribeBackendInfoLocal(const aInfo: TSimdBackendInfo): string;
 begin
-  Result := Format('backend=%d available=%s caps=%d priority=%d name=%s',
-    [Ord(aInfo.Backend), BoolToStr(aInfo.Available, True),
+  Result := Format('backend=%s available=%s caps=%d priority=%d name=%s',
+    [ConcurrentBackendName(aInfo.Backend), BoolToStr(aInfo.Available, True),
      CapabilitiesToAbiBitsLocal(aInfo.Capabilities), aInfo.Priority, aInfo.Name]);
 end;
 
@@ -671,7 +676,7 @@ begin
   begin
     if LIndex > 0 then
       Result := Result + ',';
-    Result := Result + IntToStr(Ord(aBackends[LIndex]));
+    Result := Result + ConcurrentBackendName(aBackends[LIndex]);
   end;
   Result := Result + ']';
 end;
@@ -689,12 +694,12 @@ end;
 function DescribeRuntimeSnapshotLocal(const aSnapshot: TSimdRuntimeSnapshot): string;
 begin
   Result := Format(
-    'backend=%d info=(%s) registered=%s dispatchable=%s best=%d',
-    [Ord(aSnapshot.CurrentBackend),
+    'backend=%s info=(%s) registered=%s dispatchable=%s best=%s',
+    [ConcurrentBackendName(aSnapshot.CurrentBackend),
      DescribeBackendInfoLocal(aSnapshot.CurrentBackendInfo),
      DescribeBackendArrayLocal(aSnapshot.RegisteredBackends),
      DescribeBackendArrayLocal(aSnapshot.DispatchableBackends),
-     Ord(aSnapshot.BestDispatchableBackend)]);
+     ConcurrentBackendName(aSnapshot.BestDispatchableBackend)]);
 end;
 
 function DescribeBackendArrayStatesLocal(const aStates: TSimdBackendArrayStates): string;
@@ -1709,8 +1714,10 @@ begin
          (LBackend <> FExpectedBackendB) then
       begin
         FErrorMsg := Format(
-          'current backend mixed snapshot at iter %d: got=%d expectedA=%d expectedB=%d',
-          [LIndex, Ord(LBackend), Ord(FExpectedBackendA), Ord(FExpectedBackendB)]);
+          'current backend mixed snapshot at iter %d: got=%s expectedA=%s expectedB=%s',
+          [LIndex, ConcurrentBackendName(LBackend),
+           ConcurrentBackendName(FExpectedBackendA),
+           ConcurrentBackendName(FExpectedBackendB)]);
         Exit;
       end;
     end;
@@ -3809,9 +3816,9 @@ begin
   begin
     LRegisterTables[LIndex] := LSeedTable;
     LRegisterTables[LIndex].BackendInfo.Name := 'ConcurrentFirstRegister_' +
-      IntToStr(Ord(LRegistrationOrder[LIndex]));
+      ConcurrentBackendName(LRegistrationOrder[LIndex]);
     LRegisterTables[LIndex].BackendInfo.Description := 'Synthetic first-registration state for backend ' +
-      IntToStr(Ord(LRegistrationOrder[LIndex]));
+      ConcurrentBackendName(LRegistrationOrder[LIndex]);
   end;
 
   SetLength(LExpectedStates, Length(LRegistrationOrder) + 1);
