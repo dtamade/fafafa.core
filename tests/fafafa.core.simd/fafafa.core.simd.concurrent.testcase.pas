@@ -25,7 +25,6 @@ uses
   Classes, SysUtils, Math,
   fpcunit, testregistry,
   fafafa.core.simd,
-  fafafa.core.simd.fixturehelpers,
   fafafa.core.simd.testcase,
   fafafa.core.simd.base,
   fafafa.core.simd.backend.adapter,
@@ -34,9 +33,6 @@ uses
 
 type
   TSimdStatefulTestCase = class(TSimdVectorAsmStatefulTestCase)
-  protected
-    procedure RestoreSimdLocalState(aOriginalVectorAsm: Boolean;
-      aOriginalBackend: TSimdBackend);
   end;
 
   {** @abstract(SIMD 并发测试套件) *}
@@ -575,14 +571,6 @@ type
   end;
 
 implementation
-
-procedure TSimdStatefulTestCase.RestoreSimdLocalState(
-  aOriginalVectorAsm: Boolean; aOriginalBackend: TSimdBackend);
-begin
-  AssertTrue('SIMD concurrent fixture should restore previous backend selection',
-    RestoreSavedBackendAndVectorAsmStateAndVerify(aOriginalVectorAsm,
-    aOriginalBackend, @GetCurrentBackend));
-end;
 
 const
   // 默认并发参数
@@ -2523,7 +2511,6 @@ begin
     for LIndex := 0 to High(LReaders) do
       LReaders[LIndex].Free;
     LToggleWorker.Free;
-    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2585,7 +2572,6 @@ begin
       LWriters[LIndex].Free;
     for LIndex := 0 to High(LReaders) do
       LReaders[LIndex].Free;
-    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2648,7 +2634,6 @@ begin
       LWriters[LIndex].Free;
     for LIndex := 0 to High(LReaders) do
       LReaders[LIndex].Free;
-    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2744,7 +2729,6 @@ begin
       LReaders[LIndex].Free;
     if LBackend <> sbScalar then
       RegisterBackend(LBackend, LOriginalTable);
-    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2860,7 +2844,6 @@ begin
       LReaders[LIndex].Free;
     if LBackend <> sbScalar then
       RegisterBackend(LBackend, LRestoreTable);
-    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2969,7 +2952,6 @@ begin
       LWriters[LIndex].Free;
     for LIndex := 0 to High(LReaders) do
       LReaders[LIndex].Free;
-    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3063,7 +3045,6 @@ begin
       LWriters[LIndex].Free;
     for LIndex := 0 to High(LReaders) do
       LReaders[LIndex].Free;
-    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3171,7 +3152,6 @@ begin
       LWriters[LIndex].Free;
     for LIndex := 0 to High(LReaders) do
       LReaders[LIndex].Free;
-    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3268,7 +3248,6 @@ begin
       LWriters[LIndex].Free;
     for LIndex := 0 to High(LReaders) do
       LReaders[LIndex].Free;
-    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3368,7 +3347,6 @@ begin
       LWriters[LIndex].Free;
     for LIndex := 0 to High(LReaders) do
       LReaders[LIndex].Free;
-    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3471,7 +3449,6 @@ begin
       LWriters[LIndex].Free;
     for LIndex := 0 to High(LReaders) do
       LReaders[LIndex].Free;
-    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3549,7 +3526,6 @@ begin
       LWriters[LIndex].Free;
     for LIndex := 0 to High(LReaders) do
       LReaders[LIndex].Free;
-    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3627,7 +3603,6 @@ begin
       LWriters[LIndex].Free;
     for LIndex := 0 to High(LReaders) do
       LReaders[LIndex].Free;
-    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3710,7 +3685,6 @@ begin
       LWriters[LIndex].Free;
     for LIndex := 0 to High(LReaders) do
       LReaders[LIndex].Free;
-    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3787,7 +3761,6 @@ begin
       LWriters[LIndex].Free;
     for LIndex := 0 to High(LReaders) do
       LReaders[LIndex].Free;
-    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3986,7 +3959,6 @@ begin
     for LIndex := 0 to High(LReaders) do
       if Assigned(LReaders[LIndex]) then
         LReaders[LIndex].Free;
-    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 

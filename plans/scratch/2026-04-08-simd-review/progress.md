@@ -3705,3 +3705,29 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-15 Concurrent Tail Restore Cleanup Removal
+
+- 在 `dispatchslots` 之后继续沿“方法尾部 restore 是否只是重复 teardown contract”往下扫，`concurrent.testcase` 给出了更大一块高价值冗余：
+  - `TSimdStatefulTestCase.RestoreSimdLocalState(...)` 是一个只包一层消息文案的本地 helper
+  - 它的全部调用点都出现在 `finally` 的最后一行
+  - 调用之后测试立即结束，没有任何一次是“恢复后还要继续观测同一测试内状态”
+- 复核后确认，这类 restore 已经完全被 `TSimdVectorAsmStatefulTestCase.TearDown` 覆盖：
+  - 该基类本来就负责恢复 backend + vector-asm
+  - `concurrent` 自己真正需要保留的 only 是线程释放、`RegisterBackend(..., LOriginalTable/LRestoreTable)` 这类 rollback
+  - 因而 `RestoreSimdLocalState(...)` 本身和所有尾部调用都属于真冗余，而不是“换一种写法的 cleanup”
+- 本轮最小修法已落地：
+  - 删除 `TSimdStatefulTestCase.RestoreSimdLocalState(...)` 声明与实现
+  - 删除 `concurrent.testcase` 对 `fafafa.core.simd.fixturehelpers` 的依赖
+  - 删除 16 处方法尾部 `RestoreSimdLocalState(LOldVectorAsm, FSavedBackend)` 调用
+  - 保留所有线程 `Free`、backend register rollback、本地失败消息拼接和并发语义断言
+- 这批的价值在于，它比 `dispatchslots` 更进一步：
+  - 不只是删 3 个重复 finally
+  - 而是整块移除了一个只服务于尾部 cleanup 的 suite-local wrapper
+  - 同时也让 `concurrent` 文件更清楚地区分了“资源/注册表 rollback”和“已由公共 fixture 兜底的 backend/vectorasm restore”
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrent,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework,TTestCase_SimdConcurrentRegistration`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

@@ -3354,3 +3354,20 @@
   - 优先找“只在方法尾部、且被共享 fixture contract 覆盖”的残余 cleanup
   - 低优先级才是那些虽然也调用共享 helper，但仍承载中途恢复语义、hook/reset/rebind 时序或 suite 专属消息边界的 wrapper
 - 经过这批后，stable test path 里“方法尾部重复 restore 已由公共 teardown 保证的 backend state”这一类冗余基本又少了一块。
+
+## 2026-05-15 Concurrent Tail Restore Cleanup Removal Findings
+
+- `concurrent.testcase` 这轮把“尾部 restore 被 teardown 覆盖”这条判定标准再坐实了一层：
+  - 不只是单个测试里的一两处 finally
+  - 而是可以形成整个 suite-local wrapper 都应被删除的情况
+- 判断关键点不在于 wrapper 名字，而在于调用位置和后续用途：
+  - 如果所有调用都只发生在 `finally` 最后
+  - 且调用后测试立即结束
+  - 那么这个 wrapper 很可能只是把共享 teardown contract 又手工执行了一次
+- 这也说明后续继续深查时，可以优先找两类模式：
+  - “方法尾部 restore + 调用后立刻 end”
+  - “wrapper 只服务这种 tail restore，而没有中途恢复语义”
+- `concurrent` 这批删除后，剩余更值得谨慎看的点主要就会偏向：
+  - 尾部 restore 之外，还伴随 hook/reset/rebind/register rollback 的 case
+  - 或者恢复后仍有同一测试内 post-restore 断言的 case
+- 因而下一步如果继续扫 `publicabi/dispatchapi`，最需要先分辨的就是：哪些 `Restore*LocalState(...)` 仍是“中途恢复再继续观察”，哪些也已经退化成纯尾部 cleanup。

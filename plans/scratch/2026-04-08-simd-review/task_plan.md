@@ -2660,3 +2660,17 @@
 | 1. 复核 `dispatchslots` 的手工 restore 是否已被公共基类覆盖 | completed | 已确认 `TTestCase_DispatchAllSlots` 直接继承 `TSimdBackendStatefulTestCase`，而 3 个 finally 里的 `RestoreSavedBackendStateAndVerify(FSavedBackend, @GetActiveBackend)` 只发生在方法末尾；这些点与 suite teardown 的 backend restore contract 完全重叠 |
 | 2. 删除冗余 finally cleanup | completed | 已删除 `Test_AllSelectableBackends_AllDispatchSlots_Assigned`、`Test_BackendAdapter_ActiveBackend_RoundTrip_NoNilAndCorePointersStable`、`Test_BackendAdapter_RegisteredBackendOps_PreserveCanonicalTextMetadata_After_ReRegister` 末尾的手工 backend restore；第三个测试只保留必要的 `RegisterBackend(LBackend, LOriginalTable)` 注册表恢复；`dispatchslots.testcase` 也去掉了未再使用的 `fixturehelpers` |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAllSlots`、Release `check`、Release `gate` 全绿；说明 dispatch contract/adapter roundtrip/re-register 路径在回归公共 teardown 后依然稳定 |
+
+## 2026-05-15 Concurrent Tail Restore Cleanup Removal
+
+### Goal
+
+继续加强 `simd` 测试层审查并修复，但这次把 `concurrent.testcase` 中一整批只出现在方法尾部的 `RestoreSimdLocalState(...)` 清理掉：这些调用不再承载中途恢复语义，而是与 `TSimdVectorAsmStatefulTestCase.TearDown` 完全重叠。目标是不改并发断言逻辑和本地 register rollback，只删多余尾部 restore，并移除失效的 wrapper/依赖。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `concurrent` 本地 restore wrapper 的使用形状 | completed | 已确认 `TSimdStatefulTestCase.RestoreSimdLocalState(...)` 只在多个测试的 `finally` 尾部调用，调用后立即结束测试；没有任何一次是在同一测试中用于“恢复后继续断言” |
+| 2. 删除冗余 tail restore 与失效 wrapper | completed | 已删除 `TSimdStatefulTestCase.RestoreSimdLocalState(...)` 声明/实现、`concurrent.testcase` 对 `fixturehelpers` 的依赖，以及所有方法尾部 `RestoreSimdLocalState(LOldVectorAsm, FSavedBackend)` 调用；保留了线程释放、`RegisterBackend(..., LOriginalTable/LRestoreTable)` 这类真正 suite-local rollback |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_SimdConcurrent,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework,TTestCase_SimdConcurrentRegistration`、Release `check`、Release `gate` 全绿；说明并发/teardown 时序在回归公共 `vector-asm` fixture 后依然稳定 |
