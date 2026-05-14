@@ -13535,10 +13535,12 @@ end;
 procedure TTestCase_Builder.SetUp;
 begin
   inherited SetUp;
+  ForceBackend(sbScalar);
 end;
 
 procedure TTestCase_Builder.TearDown;
 begin
+  ResetBackendSelection;
   inherited TearDown;
 end;
 

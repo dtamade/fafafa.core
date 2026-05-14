@@ -1970,3 +1970,36 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+## 2026-05-14 Builder Facade Scalarization
+
+- 继续筛剩余候选时，这一轮仍然没有去碰：
+  - `UnsignedVectorTypes` / `RustStyleAliases`
+  - `Memutils`
+  - `dispatch/dataplane/publicabi/runtime/concurrent`
+- 原因保持一致：
+  - 前两类主要是 typedef/layout/alias/tooling contract，backend 语义密度低
+  - `Memutils` 更偏 aligned allocation/tooling contract
+  - 最后一类则是控制面/并发面，根本不该机械套进 `sbScalar`
+- 交叉核对后，当前更高价值的缺口落在 `TTestCase_Builder`：
+  - 它覆盖的是 `TVecF32x4Builder` 这一层真实 public fluent API：
+    - `FromValues/Splat/Load/Build`
+    - `Add/Mul/MulScalar/AddScalar`
+    - `Normalize/Clamp/Lerp`
+    - `ReduceAdd/ReduceMin/ReduceMax`
+  - 但 suite 的 `SetUp/TearDown` 之前只是空壳，没有固定 backend 语义
+- 复核 testcase 形状后，没有发现任何一条测试显式依赖“自动 backend 选择”：
+  - 它们断言的是公开 builder façade 的结果 contract
+  - 没有断言 backend 文本、自动降级、dispatch path 或 runtime snapshot
+  - 因而这批最优雅的收口方式仍然不是复制 testcase，而是直接 scalarize 现有 suite
+- 本轮最小改动保持很窄：
+  - 不新增 suite
+  - 不修改 runner manifest
+  - 只在 `fafafa.core.simd.testcase.pas` 的 `TTestCase_Builder.SetUp/TearDown` 中加入 `ForceBackend(sbScalar)` / `ResetBackendSelection`
+- Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_Builder`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

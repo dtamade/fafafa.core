@@ -1716,3 +1716,17 @@
 | 1. 复核 `ImageProc` 与剩余候选优先级 | completed | 已确认 `TTestCase_ImageProc` 覆盖的是 `CreateImage/FreeImage/GetPixelRGB/SetPixelRGB/ImageAdd/Subtract/Multiply/Blend/RGBToGrayscale/GrayscaleToRGB/ApplyBrightness/Contrast/Gamma/GaussianBlur/Sharpen/EdgeDetection` 等真实公开 API；相比之下 `UnsignedVectorTypes`、`RustStyleAliases`、`Memutils` 更偏 typedef/layout/alias/tooling 层 |
 | 2. 收敛 `ImageProc` 为 scalar direct suite | completed | 保留原有 fixture 生命周期与 alpha-mode 恢复逻辑，只补 `fafafa.core.simd.base` / `fafafa.core.simd.dispatch` 依赖，并在 `SetUp/TearDown` 中加入 `ForceBackend(sbScalar)` / `ResetBackendSelection` |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_ImageProc`、Release `check`、串行 Release `gate` 全绿，并已清理 `tests/fafafa.core.simd/__pycache__/` |
+
+## 2026-05-14 Builder Facade Scalarization
+
+### Goal
+
+继续把高价值 public façade suite 收回 fixed-`sbScalar` contract 语义，优先处理 `TVecF32x4Builder` 这一层 fluent builder façade，而不是回头去做 `UnsignedVectorTypes`、`RustStyleAliases`、`Memutils` 或控制面 suite。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `Builder` 与剩余候选优先级 | completed | 已确认 `TTestCase_Builder` 覆盖的是 `FromValues/Splat/Load/Build/Add/MulScalar/AddScalar/Normalize/Clamp/ReduceAdd/ReduceMin/ReduceMax/Lerp` 等真实 public builder façade；相比之下 `UnsignedVectorTypes`、`RustStyleAliases`、`Memutils` 更偏 typedef/layout/alias/tooling 层，而 `dispatch/dataplane/publicabi/runtime/concurrent` 属于控制面/并发面 |
+| 2. 收敛 `Builder` 为 scalar direct suite | completed | 未新开 runner，也未复制 testcase；直接给 `TTestCase_Builder` 增加 `SetUp/TearDown`，统一固定 `ForceBackend(sbScalar)` / `ResetBackendSelection`，把现有 builder façade 测试整体升级成 direct evidence |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_Builder`、Release `check`、串行 Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |

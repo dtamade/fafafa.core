@@ -1748,3 +1748,33 @@
   - 只补 `ForceBackend(sbScalar)` / `ResetBackendSelection`
   - 补齐编译依赖 `fafafa.core.simd.base` / `fafafa.core.simd.dispatch`
 - Release `TTestCase_ImageProc`、Release `check`、串行 Release `gate` 全绿，说明这批补的是 public image façade 的 scalar-direct evidence gap，而不是图像实现缺陷。
+
+## 2026-05-14 Builder Scalarization Findings
+
+- `src/fafafa.core.simd.builder.pas` 暴露的是一层真实 public builder façade，而不是测试内 helper：
+  - `FromValues/Splat/Load/From/Zero`
+  - `Add/Sub/Mul/Div_`
+  - `AddScalar/SubScalar/MulScalar/DivScalar`
+  - `Normalize/Clamp/Lerp`
+  - `ReduceAdd/ReduceMin/ReduceMax/Length`
+- `TTestCase_Builder` 在本轮之前已经有完整的结果 contract 覆盖：
+  - `FromValues/Splat/Load/Build`
+  - `Add/MulScalar/AddScalar`
+  - `Normalize/Clamp`
+  - `ReduceAdd/ReduceMin/ReduceMax`
+  - `DotProduct/Lerp`
+  - 但 suite 的 `SetUp/TearDown` 是空壳，没有固定 backend 语义
+- 复核 testcase 形状后，没有发现任何一条测试显式依赖默认 backend 自动选择：
+  - 没有断言 backend 名称、dispatch 结果或 runtime snapshot
+  - 没有断言跨 backend parity
+  - 只断言公开 builder façade 的结果 contract
+  - 因而这批缺口仍然是证据层，而不是实现层
+- 在当前剩余候选里，`Builder` 明显比以下几类更值得优先收口：
+  - `UnsignedVectorTypes` / `RustStyleAliases`：主要是 typedef/layout/alias 断言
+  - `Memutils`：更偏 aligned allocation 工具 contract，而不是 SIMD builder 计算 contract
+  - `dispatch/dataplane/publicabi/runtime/concurrent`：控制面或并发面，不能机械套入 `sbScalar`
+- 这批最优雅的修复方式依旧不是复制 testcase，而是直接 scalarize 现有 suite：
+  - 保留现有 testcase 不动
+  - 不新增 suite，也不修改 runner manifest
+  - 只补 `ForceBackend(sbScalar)` / `ResetBackendSelection`
+- Release `TTestCase_Builder`、Release `check`、串行 Release `gate` 全绿，说明这批补的是 public builder façade 的 scalar-direct evidence gap，而不是 builder 实现缺陷。
