@@ -2928,3 +2928,17 @@
 | 1. 复核 `dispatchslots.testcase` 里的 backend ordinal 是否只是消息层 | completed | 已确认 557 处集中在 `AssertAllDispatchSlotsAssigned(...)` 的 slot-assigned 文案前缀，另 5 处位于 `Test_BackendAdapter_UnregisteredBackendOps_PreserveCanonicalMetadata` 的消息字符串；它们都不参与 slot 检查条件或 metadata 期望值生成 |
 | 2. 收敛到 canonical backend label helper | completed | 已新增文件级 `DispatchSlotsBackendName(const aBackend: TSimdBackend): string`，实现为 `GetBackendInfo(aBackend).Name`；`AssertAllDispatchSlotsAssigned(...)` 现统一复用 `LBackendSlotPrefix`，未注册 backend metadata 那 5 条消息也统一改走同一 helper |
 | 3. Release 验证与本批收口 | completed | `git diff --check`、Release `test --suite=TTestCase_DispatchAllSlots`、Release `check`、Release `gate` 已全部通过；说明这批只收敛 dispatchslots 诊断前缀，没有影响 dispatch wiring、adapter sync 或 fast-gate 主链 |
+
+## 2026-05-15 DirectDispatch Canonical Backend Label Reuse
+
+### Goal
+
+继续沿 `tests/fafafa.core.simd/fafafa.core.simd.direct.testcase.pas` 的 report shell 收口：把 493 处 direct parity / direct dispatch / helper assertion 文案中的 backend ordinal，统一收成 canonical backend label，同时完全不触碰 direct dispatch table、parity 计算、lane 期望值和 concurrent 行为逻辑。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `direct.testcase` 里的 backend ordinal 是否只是消息层 | completed | 已确认这 493 处都位于 direct parity、slot assigned、mask helper、mem/text/search、extract/insert 等断言消息字符串；没有任何一处参与实际 direct/facade 结果计算或 backend 切换逻辑 |
+| 2. 收敛到 canonical backend label helper | completed | 已新增文件级 `DirectBackendName(const aBackend: TSimdBackend): string`，实现为 `GetBackendInfo(aBackend).Name`；并把 `direct.testcase` 中所有 `+ IntToStr(Ord(LBackend/aBackend))` 消息拼接统一替换为该 helper |
+| 3. Release 验证与本批收口 | completed | `git diff --check`、Release `test --suite=TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、Release `check`、Release `gate` 已全部通过；说明这批只改善 direct 测试诊断面，没有影响 direct parity、concurrent snapshot 或 fast-gate 主链 |

@@ -4215,3 +4215,44 @@
   - `ieee754.testcase`
   - `dispatchslots.testcase`
   这三份文件的 backend 诊断文案都已经收回 canonical metadata
+
+## 2026-05-15 DirectDispatch Canonical Backend Label Reuse
+
+- `dispatchslots` 批次提交后，我继续做一次余量盘点，按文件聚合 backend ordinal 文案：
+  - `direct.testcase`：493
+  - `dispatchapi.testcase`：13
+  - `fafafa.core.simd.testcase`：1
+- 因为 `direct.testcase` 的余量远高于其他文件，所以我优先继续把这一大块收口。
+- 先做的局部复核确认了这批仍然只是消息层：
+  - `Direct dispatch table should be assigned for backend ...`
+  - `Direct ... parity backend ...`
+  - `aLabel + ' lane ... backend ...'`
+  - `backend=... case=...`
+  这些都只是断言上下文文本，不参与 direct/facade 结果或 backend 切换逻辑
+- 这轮实际修法保持简单：
+  - 新增文件级 `DirectBackendName(const aBackend: TSimdBackend): string`
+  - 实现直接复用 `GetBackendInfo(aBackend).Name`
+  - 通过机械替换把整份文件里所有 `+ IntToStr(Ord(LBackend))` / `+ IntToStr(Ord(aBackend))` 统一收成 `+ DirectBackendName(...)`
+- 自检结果很直接：
+  - `rg -n "IntToStr\\(Ord\\((L|a)Backend\\)\\)" tests/fafafa.core.simd/fafafa.core.simd.direct.testcase.pas`
+  - 结果：无匹配，说明 `direct.testcase` 里的 backend ordinal 文案已经清零
+- 本轮 release 验证链已完整通过：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- `gate` 里与本批最相关的 direct 主链也继续为绿：
+  - `TTestCase_DirectDispatch` 通过
+  - `TTestCase_DirectDispatchConcurrent` 通过
+  - `DISPATCH_CONTRACT_SIGNATURE ... [DISPATCH-CONTRACT] OK`
+  - `Run-all summary: Passed 5 / Failed 0`
+  - `[GATE] OK`
+- 到这一步，高密度测试层 backend ordinal 收口已经覆盖 4 份主文件：
+  - `publicabi.testcase`
+  - `ieee754.testcase`
+  - `dispatchslots.testcase`
+  - `direct.testcase`
+- 当前这条线剩余的尾巴已经缩得很小了，只剩：
+  - `dispatchapi.testcase` 约 13 处
+  - `fafafa.core.simd.testcase` 1 处

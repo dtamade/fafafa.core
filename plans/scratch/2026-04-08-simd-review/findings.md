@@ -3745,3 +3745,28 @@
   - 否则会增加 review 成本，反而不利于 dispatch 合同文件的可审查性
 - 当前这一批收完后，`dispatchslots.testcase` 的 backend ordinal 文案已经清零。
 - 下一步如果继续沿同类线深查，就应该转向别的 `report shell / canonical metadata` 冗余点，而不是再回头重扫 `publicabi/ieee754/dispatchslots` 这三份文件。
+
+## 2026-05-15 DirectDispatch Canonical Backend Label Findings
+
+- `tests/fafafa.core.simd/fafafa.core.simd.direct.testcase.pas` 是这条线当前最大的残余点：
+  - 总计 493 处 backend ordinal 文案
+  - 覆盖 direct dispatch slot assigned、direct/facade parity、mem/text/search edge matrix、mask helper、wide integer helper、extract/insert 等多类断言
+- 但这 493 处虽然分布很广，性质却非常统一：
+  - 都是 `+ IntToStr(Ord(LBackend))` 或 `+ IntToStr(Ord(aBackend))`
+  - 只参与断言上下文文本
+  - direct/facade 真实结果、lane 期望值、随机矩阵输入、concurrent 行为完全不依赖这个 ordinal 字符串
+- 这类文件不适合像 `dispatchslots` 一样做“单前缀收口”，因为 direct 测试消息形状很多：
+  - `backend ...`
+  - `backend=...`
+  - `case=... backend ...`
+  - `lane ... backend ...`
+  所以最稳的做法反而是更简单的 helper 替换：
+  - 文件级 `DirectBackendName(...)`
+  - 然后机械地把所有 `+ IntToStr(Ord(LBackend/aBackend))` 收成 `+ DirectBackendName(...)`
+- 这批再次验证了一个新的筛选标准：
+  - 如果某个测试文件里的 backend 文案形状很多，不存在一个共享前缀能干净抽出来
+  - 那就优先做“canonical helper 替换”，而不是为了少几行 helper 去引入复杂格式化函数
+- 当前这批收完后，`direct.testcase` 的 backend ordinal 文案也已经清零。
+- 现在全目录里这类 residual 已经压缩到很小：
+  - `dispatchapi.testcase` 约 13 处
+  - `fafafa.core.simd.testcase` 1 处
