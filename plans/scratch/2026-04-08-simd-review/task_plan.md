@@ -1786,3 +1786,17 @@
 | 1. 复核高价值 suite 的状态恢复对称性 | completed | 已确认 `publicabi.testcase` 的 `SetUp/TearDown` 只会通过 `ResetPublicAbiSyntheticHookState` 强制落到 `vector asm=False + automatic backend`；`sse2contracts`、`dataplane` 及 `concurrent` 相关 suite 也普遍只恢复 `vector asm`，却没有恢复进入测试前的 active backend 选择 |
 | 2. 修复 fixture backend restore 泄漏 | completed | 给 `TTestCase_PublicAbi`、`TTestCase_SSE2Contracts`、`TTestCase_DataPlane` 增加保存/恢复进入测试前 `vector asm + current backend` 的夹具逻辑，并在 `concurrent.testcase` 提取 `TSimdStatefulTestCase` 统一为 `TTestCase_SimdConcurrent*` 四个 suite 做同样的恢复 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_PublicAbi,TTestCase_DataPlane,TTestCase_SSE2Contracts,TTestCase_SimdConcurrent,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework,TTestCase_SimdConcurrentRegistration`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 IEEE754 Fixture State Restore Symmetry
+
+### Goal
+
+继续沿 mixed/control-plane 高价值测试面审查 `ieee754.testcase`，修复“已恢复 FPU exception mask，但仍把进入测试前 backend/vector-asm 选择静默丢成 automatic”的夹具状态泄漏。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `ieee754.testcase` 的剩余状态泄漏 | completed | 已确认上一批只修了 `FSavedExceptionMask`；但 `TTestCase_IEEE754_F64` 的 `SetUp` 会强制 `sbScalar`，`TTestCase_IEEE754EdgeCases`、`TTestCase_AVX2RoundTruncIEEE754` 与 `TTestCase_NonX86IEEE754` 也都会在测试中切 `vector asm/backend`，而文件级 fixture 结束时仍只回到 `automatic`，没有恢复进入测试前的真实 backend 选择 |
+| 2. 修复 IEEE754 fixture backend/vector-asm 恢复不对称 | completed | 给 `TTestCase_IEEE754_F64`、`TTestCase_IEEE754EdgeCases`、`TTestCase_AVX2RoundTruncIEEE754` 增加 `FSavedVectorAsm/FSavedBackend`，并给 `TTestCase_NonX86IEEE754` 增加 `SetUp/TearDown` 保存/恢复进入测试前状态；恢复顺序保持为先还原 `vector asm`，再 `ResetToAutomaticBackend`，必要时 `TrySetActiveBackend(savedBackend)` |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_IEEE754_F64,TTestCase_IEEE754EdgeCases,TTestCase_AVX2RoundTruncIEEE754,TTestCase_NonX86IEEE754`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |

@@ -1890,3 +1890,26 @@
   - `TTestCase_DataPlane` 增加 fixture 级 `SetUp/TearDown`
   - `concurrent.testcase` 提取 `TSimdStatefulTestCase`，统一给 `TTestCase_SimdConcurrent`、`TTestCase_SimdConcurrentPublicAbi`、`TTestCase_SimdConcurrentFramework`、`TTestCase_SimdConcurrentRegistration` 使用
 - Release `TTestCase_PublicAbi,TTestCase_DataPlane,TTestCase_SSE2Contracts,TTestCase_SimdConcurrent,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework,TTestCase_SimdConcurrentRegistration`、Release `check`、Release `gate` 全绿，说明这批修的是测试夹具状态恢复不对称，而不是 SIMD 生产实现缺陷。
+
+## 2026-05-14 IEEE754 Fixture State Restore Symmetry Findings
+
+- `ieee754.testcase` 在上一批修完 FPU exception mask 后，仍然残留第二层真实 fixture 泄漏：backend/vector-asm 恢复不对称。
+- 具体表现：
+  - `TTestCase_IEEE754_F64.SetUp` 会直接 `SetActiveBackend(sbScalar)`，但 `TearDown` 之前只做 `ResetToAutomaticBackend`
+  - `TTestCase_IEEE754EdgeCases`、`TTestCase_AVX2RoundTruncIEEE754` 里的多条 mixed test 会切 `SetVectorAsmEnabled(...)` 与 `SetActiveBackend(...)`
+  - `TTestCase_NonX86IEEE754` 也会在多条测试中切非 x86 backend 和 `vector asm`
+  - 文件级 fixture 结束时却没有恢复进入测试前的 `GetCurrentBackend/IsVectorAsmEnabled`
+- 这说明上一批的 `FSavedExceptionMask` 修复虽然必要，但还不完整：
+  - FPU mask 已经成对恢复
+  - backend/vector-asm 状态却仍可能污染后续 suite
+  - 本质上是和 `publicabi/sse2contracts/dataplane/concurrent` 同类的全局状态恢复缺口
+- 最小正确修复方式仍然只动测试夹具，不碰 mixed suite 的测试目标：
+  - 给 `TTestCase_IEEE754_F64`、`TTestCase_IEEE754EdgeCases`、`TTestCase_AVX2RoundTruncIEEE754` 增加 `FSavedVectorAsm/FSavedBackend`
+  - `SetUp` 里先保存进入测试前状态，再保存 exception mask
+  - `TearDown` 里先恢复 `vector asm`，再 `ResetToAutomaticBackend`，必要时 `TrySetActiveBackend(savedBackend)`，最后恢复 exception mask
+  - `TTestCase_NonX86IEEE754` 补齐 fixture 级 `SetUp/TearDown`，做同样的 backend/vector-asm 恢复
+- 这轮刻意没有改动：
+  - scalar / SSE2 / AVX2 / non-x86 的比较语义
+  - mixed suite 内部的 backend 切换路径
+  - 任何生产实现
+- Release `TTestCase_IEEE754_F64,TTestCase_IEEE754EdgeCases,TTestCase_AVX2RoundTruncIEEE754,TTestCase_NonX86IEEE754`、Release `check`、Release `gate` 全绿，说明这批修的是 IEEE754 测试夹具状态恢复不对称，而不是舍入算法或 backend 逻辑缺陷。

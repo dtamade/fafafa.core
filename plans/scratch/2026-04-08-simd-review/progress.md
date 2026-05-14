@@ -1583,6 +1583,25 @@
   - 结果：全部通过
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
 
+## 2026-05-14 IEEE754 Fixture State Restore Symmetry
+
+- 继续全量扫描 mixed/high-value suite 的全局状态修改点后，本轮把落点收窄到了 `tests/fafafa.core.simd/fafafa.core.simd.ieee754.testcase.pas`。
+- 交叉核对发现，上一批虽然已经修了 `FSavedExceptionMask`，但还残留一层 backend/vector-asm 泄漏：
+  - `TTestCase_IEEE754_F64.SetUp` 会强制 `sbScalar`
+  - `TTestCase_IEEE754EdgeCases`、`TTestCase_AVX2RoundTruncIEEE754`、`TTestCase_NonX86IEEE754` 在测试内部会切 `vector asm/backend`
+  - 但 suite 结束时只会回到 `automatic`，不会恢复进入测试前的真实 backend 选择
+- 本轮最小修复仍然只动测试夹具：
+  - `TTestCase_IEEE754_F64`、`TTestCase_IEEE754EdgeCases`、`TTestCase_AVX2RoundTruncIEEE754` 各自增加 `FSavedVectorAsm/FSavedBackend`
+  - `TTestCase_NonX86IEEE754` 补了 fixture 级 `SetUp/TearDown`
+  - 恢复逻辑统一为：先 `SetVectorAsmEnabled(saved)`，再 `ResetToAutomaticBackend`，必要时 `TrySetActiveBackend(savedBackend)`；其中前三个 exception-mask suite 再恢复 `FSavedExceptionMask`
+- 本轮 Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IEEE754_F64,TTestCase_IEEE754EdgeCases,TTestCase_AVX2RoundTruncIEEE754,TTestCase_NonX86IEEE754`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
 ## 2026-05-14 Float Utility Facade Tail Guard Coverage
 
 - 继续顺着浮点 façade 往下扫后，当前最真实的尾巴不再是整族算术/compare，而是 utility 面的 direct-evidence 缺口：
