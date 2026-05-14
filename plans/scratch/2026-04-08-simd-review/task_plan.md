@@ -1842,3 +1842,17 @@
 | 1. 复核 `TTestCase_DispatchAPI` 的状态恢复对称性 | completed | 已确认类本身没有 fixture 级 `SetUp/TearDown`；大量测试只在局部 finally 中恢复 `vector asm` 或 `ResetToAutomaticBackend`，没有统一恢复进入前 backend 选择 |
 | 2. 提取类级 fixture 恢复层 | completed | 在 `dispatchapi.testcase` 提取 `TDispatchAPIStatefulTestCase`，统一保存/恢复进入前的 `vector asm + current backend`，并让 `TTestCase_DispatchAPI` 继承它 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿 |
+
+## 2026-05-14 DispatchAPI Companion Classes Fixture State Restore
+
+### Goal
+
+继续沿 `dispatchapi.testcase` 的剩余 companion 类审查状态恢复对称性，复用现有 `TDispatchAPIStatefulTestCase`，修复 `TTestCase_X86MaskedFmaContract`、`TTestCase_RISCVVMaskedOpsContract`、`TTestCase_RISCVFallbackDispatchContract`、`TTestCase_NonX86BackendParity` 在结束时不能统一恢复进入前 backend/vector-asm 状态的夹具泄漏。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 companion 类的状态恢复对称性 | completed | 已确认 4 个类都仍然裸继承 `TTestCase`，但内部会切 `SetVectorAsmEnabled(True/False)`、`TrySetActiveBackend(...)` 或 `ResetToAutomaticBackend`，没有统一 fixture 恢复层 |
+| 2. 复用现有 stateful fixture 基类 | completed | 让 `TTestCase_X86MaskedFmaContract`、`TTestCase_RISCVVMaskedOpsContract`、`TTestCase_RISCVFallbackDispatchContract`、`TTestCase_NonX86BackendParity` 全部继承 `TDispatchAPIStatefulTestCase` |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release companion suites、Release `check`、Release `gate` 全绿 |

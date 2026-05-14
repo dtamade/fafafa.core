@@ -1666,6 +1666,27 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 
+## 2026-05-14 DispatchAPI Companion Classes Fixture State Restore
+
+- `TTestCase_DispatchAPI` 收口提交后，继续审 `dispatchapi.testcase` 里剩下的 companion 类，确认还有 4 支高价值泄漏面：
+  - `TTestCase_X86MaskedFmaContract`
+  - `TTestCase_RISCVVMaskedOpsContract`
+  - `TTestCase_RISCVFallbackDispatchContract`
+  - `TTestCase_NonX86BackendParity`
+- 交叉核对发现它们都还在：
+  - 裸继承 `TTestCase`
+  - 内部切 `SetVectorAsmEnabled(True/False)`、`TrySetActiveBackend(...)` 或 `ResetToAutomaticBackend`
+  - 但没有统一 fixture 级恢复进入测试前 backend/vector-asm 状态
+- 本轮修法保持最小：
+  - 不再新建第二套状态基类
+  - 直接让这 4 个类复用现有 `TDispatchAPIStatefulTestCase`
+- 本轮 Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_X86MaskedFmaContract,TTestCase_RISCVVMaskedOpsContract,TTestCase_RISCVFallbackDispatchContract,TTestCase_NonX86BackendParity`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+
 ## 2026-05-14 Float Utility Facade Tail Guard Coverage
 
 - 继续顺着浮点 façade 往下扫后，当前最真实的尾巴不再是整族算术/compare，而是 utility 面的 direct-evidence 缺口：

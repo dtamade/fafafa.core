@@ -1981,3 +1981,25 @@
   - hook 行为语义
   - `TTestCase_X86MaskedFmaContract` / `TTestCase_RISCVVMaskedOpsContract` / `TTestCase_RISCVFallbackDispatchContract` / `TTestCase_NonX86BackendParity` 等其他类
 - Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿，说明这批修的是 `dispatchapi` 测试夹具层的 backend/vector-asm 恢复对称性，而不是 dispatch/hook 生产逻辑缺陷。
+
+## 2026-05-14 DispatchAPI Companion Classes Fixture State Restore Findings
+
+- 在 `TTestCase_DispatchAPI` 收口后，`tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 里还有 4 个 companion 类仍然裸继承 `TTestCase`：
+  - `TTestCase_X86MaskedFmaContract`
+  - `TTestCase_RISCVVMaskedOpsContract`
+  - `TTestCase_RISCVFallbackDispatchContract`
+  - `TTestCase_NonX86BackendParity`
+- 这几类不是无状态 smoke：
+  - `X86MaskedFmaContract` / `RISCVVMaskedOpsContract` 会切 `SetVectorAsmEnabled(True/False)`
+  - `RISCVFallbackDispatchContract` 会直接 `ResetToAutomaticBackend`
+  - `NonX86BackendParity` 大量测试会 `SetVectorAsmEnabled(True/False)`、`TrySetActiveBackend(LBackend)`，有些 finally 只 `ResetToAutomaticBackend`
+- 因而即使主类 `TTestCase_DispatchAPI` 已经有 fixture 恢复层，这 4 支 companion 类仍会把进入测试前的 backend/vector-asm 状态静默冲掉。
+- 这批最小正确修复不需要新发明第二套机制：
+  - 直接让上述 4 个类复用已有的 `TDispatchAPIStatefulTestCase`
+  - 统一在 fixture 层恢复进入测试前的 `vector asm + current backend`
+  - 避免继续在大量 test body 里做重复且不完整的局部收尾
+- 这轮刻意没有改动：
+  - 任何 dispatch 控制面生产实现
+  - 这些 companion 类各自的断言语义
+  - `TTestCase_RISCVFallbackDispatchContract` 里 direct-call probe 的业务检查流程
+- Release `TTestCase_X86MaskedFmaContract,TTestCase_RISCVVMaskedOpsContract,TTestCase_RISCVFallbackDispatchContract,TTestCase_NonX86BackendParity`、Release `check`、Release `gate` 全绿，说明这批修的是 `dispatchapi` companion 测试夹具状态恢复不对称，而不是 x86/RISCV/non-x86 语义回归。

@@ -203,25 +203,25 @@ type
     procedure Test_X86_DispatchTable_WiringChecklist_Grouped;
   end;
 
-  TTestCase_X86MaskedFmaContract = class(TTestCase)
+  TTestCase_X86MaskedFmaContract = class(TDispatchAPIStatefulTestCase)
   published
     procedure Test_AVX2_FmaSlots_StayScalar_When_HardwareFmaUnavailable;
   end;
 
-  TTestCase_RISCVVMaskedOpsContract = class(TTestCase)
+  TTestCase_RISCVVMaskedOpsContract = class(TDispatchAPIStatefulTestCase)
   published
     procedure Test_RISCVV_BackendCapabilities_Expose_MaskedOps_When_MaskSlots_AreNative;
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_RISCVVMaskedOps_When_MaskSlots_AreNative;
   end;
 
-  TTestCase_RISCVFallbackDispatchContract = class(TTestCase)
+  TTestCase_RISCVFallbackDispatchContract = class(TDispatchAPIStatefulTestCase)
   published
     procedure Test_ScalarAndCurrentDispatch_Keep_RepresentativeWideSlots_Assigned;
     procedure Test_RollbackRestoreSuccess_Keep_RepresentativeWideSlots_Assigned;
   end;
 
   // Non-x86 backend semantic parity smoke (NEON/RISCVV if available).
-  TTestCase_NonX86BackendParity = class(TTestCase)
+  TTestCase_NonX86BackendParity = class(TDispatchAPIStatefulTestCase)
   published
     procedure Test_NativeWideFloorCeilSlots_NotScalar_IfAvailable;
     procedure Test_NativeNarrowFloatCoreParity_WithVectorAsm_IfAvailable;
