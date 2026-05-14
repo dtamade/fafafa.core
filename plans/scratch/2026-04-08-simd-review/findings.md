@@ -3495,3 +3495,20 @@
 - 这轮也说明后续继续深查时，优先级已经从“状态 restore 冗余”进一步推进到“test-only control/report truth source 是否多份并开始漂移”：
   - 一旦同一个 suite 既有 execution matrix，又有 local name helper，又有 wrapper 内嵌名称映射
   - 即使功能测试还绿，也值得优先收掉，因为它已经会直接污染失败信息和人工诊断面
+
+## 2026-05-15 Backend Consistency Meta-Test Candidate Reuse Findings
+
+- 统一 `CONSISTENCY_BACKENDS` 与 `GetConsistencyBackendName(...)` 之后，`backend consistency` 这条线上还剩一个很小但方向不对的副本：
+  - `TTestCase_BackendVectorConsistency.Test_VectorOps_Helper_Preserves_PreviousForcedBackend` 仍保留本地 `CBackendCandidates`
+  - 失败时也还只打印 `Ord(LTargetBackend)`，没有复用刚刚统一好的 backend 名称 helper
+- 这类点看起来小，但它正好说明“统一真相源”如果不一路收到底，很容易在 meta-test 层又长回去：
+  - 主执行矩阵已经共享了
+  - 摘要名称已经共享了
+  - 但候选 backend 列表和失败信息如果还停在局部副本上，后续扩 backend 或调整名称时又会重新漂移
+- 因而这批最合适的收口方式不是再加一层 helper，而是直接让 meta-test 也回到同一真相源：
+  - 候选 backend 遍历走 `CONSISTENCY_BACKENDS`
+  - 失败信息走 `GetConsistencyBackendName(...)`
+- 这也补强了一个继续深查的判断标准：
+  - 一旦某个 helper/constant 已经被确认为 test-only canonical truth source
+  - 就要顺着调用链把 meta-test / diagnostics 里的最后几份局部副本也清干净
+  - 否则“代码已统一、诊断仍分叉”的问题会比实现 bug 更难被第一时间看出来

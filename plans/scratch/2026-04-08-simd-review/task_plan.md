@@ -2758,3 +2758,17 @@
 | 1. 复核 `backend.consistency` 剩余的名称/矩阵重复真相源 | completed | 已确认 `PrintTestSummary(...)` 只覆盖了 `Scalar/SSE2/AVX2/AVX512/NEON/RISCVV`，而 `RunAllConsistencyTests(...)` 实际会跑 `SSE3/SSSE3/SSE4.1/SSE4.2`；同时 `TTestCase_BackendVectorConsistency.Test_VectorOps_Consistency` 还内嵌了另一份本地 `BackendName(...)`，标签也和摘要不完全一致 |
 | 2. 收敛 backend 名称 helper 与执行矩阵 | completed | 已在 `backend.consistency.testcase` 对外提供 `CONSISTENCY_BACKENDS` 与 `GetConsistencyBackendName(...)`；`RunAllConsistencyTests(...)` 改用共享 backend 常量 + function-array 驱动，`PrintTestSummary(...)` 与 root wrapper 统一复用同一名称 helper；并新增 `Test_VectorOps_BackendName_Coverage` 锁住中间 x86 tiers 不再回落成 `Unknown` |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_BackendVectorConsistency`、Release `check`、Release `gate` 已通过；说明这轮既修了摘要名称 bug，也把 backend consistency 的矩阵/名称真相源从多份收回成一份，且未影响 run_all/public ABI/non-x86 门禁 |
+
+## 2026-05-15 Backend Consistency Meta-Test Candidate Reuse
+
+### Goal
+
+继续沿同一条线收尾：在 `backend consistency` 已经导出 `CONSISTENCY_BACKENDS` 与 `GetConsistencyBackendName(...)` 之后，把 `TTestCase_BackendVectorConsistency.Test_VectorOps_Helper_Preserves_PreviousForcedBackend` 里剩余的本地 candidate 列表和编号式失败信息也收回共享 helper，避免刚统一完的真相源又在 meta-test 里留一份副本。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 meta-test 是否还复制 backend candidate truth source | completed | 已确认 `Test_VectorOps_Helper_Preserves_PreviousForcedBackend` 仍保留本地 `CBackendCandidates`，内容与 `CONSISTENCY_BACKENDS` 相同；helper sanity failure 也只打印 `Ord(LTargetBackend)`，诊断面仍落后于刚统一好的 backend-name helper |
+| 2. 统一复用共享 candidate/name helper | completed | 已删掉本地 `CBackendCandidates`，改直接遍历 `CONSISTENCY_BACKENDS`；helper sanity failure 信息也改用 `GetConsistencyBackendName(LTargetBackend)`，不再只输出 backend 编号 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_BackendVectorConsistency`、Release `check`、Release `gate` 已通过；说明这轮把 meta-test 残余副本也收回共享 helper 后，backend consistency 主线仍保持稳定 |

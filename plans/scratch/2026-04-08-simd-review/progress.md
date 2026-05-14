@@ -3886,3 +3886,23 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-15 Backend Consistency Meta-Test Candidate Reuse
+
+- `backend consistency` 的名称/矩阵真相源统一后，我继续顺链往下扫，发现还有一个很轻但不该继续保留的副本：
+  - `Test_VectorOps_Helper_Preserves_PreviousForcedBackend` 还在本地维护 `CBackendCandidates`
+  - helper sanity failure 也还只输出 `Ord(LTargetBackend)`，没有复用共享 backend 名称 helper
+- 本轮最小修法已落地：
+  - 删除本地 `CBackendCandidates`
+  - 改为直接遍历 `CONSISTENCY_BACKENDS`
+  - helper sanity failure 信息改为 `GetConsistencyBackendName(LTargetBackend)`，不再只给 backend 编号
+- 这批虽然很小，但价值是把刚刚统一好的 test-only truth source 真正收到底：
+  - 不只是执行矩阵和摘要复用
+  - 连 meta-test 的候选 backend 选择和失败信息也回到同一来源
+  - 这样后续再扩 backend 或调整命名时，不会在 meta-test 上重新冒出一份旧副本
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_BackendVectorConsistency`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

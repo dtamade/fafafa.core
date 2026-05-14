@@ -1793,10 +1793,6 @@ begin
 end;
 
 procedure TTestCase_BackendVectorConsistency.Test_VectorOps_Helper_Preserves_PreviousForcedBackend;
-const
-  CBackendCandidates: array[0..8] of TSimdBackend = (
-    sbSSE2, sbSSE3, sbSSSE3, sbSSE41, sbSSE42, sbAVX2, sbAVX512, sbNEON, sbRISCVV
-  );
 var
   LEntryBackend: TSimdBackend;
   LIndex: Integer;
@@ -1818,13 +1814,13 @@ begin
       Ord(sbScalar), Ord(LOriginalBackend));
 
     LFoundBackend := False;
-    for LIndex := Low(CBackendCandidates) to High(CBackendCandidates) do
+    for LIndex := Low(CONSISTENCY_BACKENDS) to High(CONSISTENCY_BACKENDS) do
     begin
-      if not IsBackendRegistered(CBackendCandidates[LIndex]) then
+      if not IsBackendRegistered(CONSISTENCY_BACKENDS[LIndex]) then
         Continue;
-      if TrySetActiveBackend(CBackendCandidates[LIndex]) then
+      if TrySetActiveBackend(CONSISTENCY_BACKENDS[LIndex]) then
       begin
-        LTargetBackend := CBackendCandidates[LIndex];
+        LTargetBackend := CONSISTENCY_BACKENDS[LIndex];
         LFoundBackend := True;
         Break;
       end;
@@ -1838,8 +1834,8 @@ begin
       Ord(LOriginalBackend), Ord(GetCurrentBackend));
 
     LResult := TestF32x4Arithmetic(LTargetBackend);
-    AssertTrue(Format('Standalone helper sanity check failed for backend %d: %s',
-      [Ord(LTargetBackend), LResult.ErrorMessage]), LResult.Passed);
+    AssertTrue(Format('Standalone helper sanity check failed for backend %s: %s',
+      [GetConsistencyBackendName(LTargetBackend), LResult.ErrorMessage]), LResult.Passed);
     AssertEquals('Standalone backend consistency helper should preserve previous forced backend selection',
       Ord(LOriginalBackend), Ord(GetCurrentBackend));
   finally
