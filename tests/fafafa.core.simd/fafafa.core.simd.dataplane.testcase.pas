@@ -234,7 +234,8 @@ begin
       PtrUInt(LFinal) = PtrUInt(LInitial));
   finally
     AssertTrue('Data-plane local restore should recover previous backend selection',
-      RestoreSavedBackendAndVectorAsmState(LOldVectorAsm, FSavedBackend));
+      RestoreSavedBackendAndVectorAsmStateAndVerify(LOldVectorAsm,
+      FSavedBackend, @GetCurrentBackend));
   end;
 end;
 

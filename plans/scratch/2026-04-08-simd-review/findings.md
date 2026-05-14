@@ -3293,3 +3293,17 @@
 - 它也补充了一个后续审查标准：
   - 如果某个 suite 只是在局部测试里手工恢复 backend，但没有超出 backend-stateful 基类的额外 contract，那优先怀疑它应该回接公共基类
   - 只有当 cleanup 本身还承载额外断言、hook、rebind 或跨状态 choreography 时，才值得继续保留手写 finally
+
+## 2026-05-14 Verified Restore Helper Consolidation Findings
+
+- 这轮证明当前 `simd` 测试层剩余冗余已经可以继续下探到 helper contract 本身：
+  - 不是所有重复都长得像 `SetUp/TearDown`
+  - 也有很多残点只是“restore helper 最后再手写一次 backend getter 校验”
+  - 如果这层不收，测试基础设施仍会在多个 testcase 单元里分叉出不同的标准写法
+- `fixturehelpers` 补上 verified restore helper 后，层次更完整了：
+  - `RestoreSavedBackendState` / `RestoreSavedBackendAndVectorAsmState` 表达“只负责恢复”
+  - `...AndVerify` 表达“恢复后还要把 backend getter 校验回原值”
+  - testcase 单元只保留真正需要的本地语义，而不再重复拼接 `and (GetCurrentBackend = ...)`
+- 这也给后续审查提供了更细的边界：
+  - 如果某个 local helper 只是包装共享 restore helper 再接一个 getter 比较，它大概率应该下沉
+  - 如果 local helper 还带 rebind、hook reset、异常 mask、late-force rollback 等额外步骤，那才是真正的 suite-specific contract

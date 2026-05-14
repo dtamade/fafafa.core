@@ -132,11 +132,8 @@ begin
 end;
 
 procedure RestoreBackendConsistencyState(const aState: TSimdSavedBackendState);
-var
-  LRestoredBackend: Boolean;
 begin
-  LRestoredBackend := RestoreSavedBackendState(aState.Backend);
-  if (not LRestoredBackend) or (GetActiveBackend <> aState.Backend) then
+  if not RestoreSavedBackendStateAndVerify(aState.Backend, @GetActiveBackend) then
     raise Exception.CreateFmt(
       'Backend consistency helper failed to restore previous backend selection (expected=%d, actual=%d)',
       [Ord(aState.Backend), Ord(GetActiveBackend)]);

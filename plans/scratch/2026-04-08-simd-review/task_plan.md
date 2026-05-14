@@ -2604,3 +2604,17 @@
 | 1. 复核 `runtime` suite 是否符合公共 backend fixture 边界 | completed | 已确认 `RuntimeAPI` suite 不需要 vector-asm、hook reset、rebind 或 exception-mask 语义；它的特殊点只在少数测试里手工 cleanup backend，与 `TSimdBackendStatefulTestCase` 完全同边界 |
 | 2. 对齐到公共 backend-stateful 基类 | completed | `TTestCase_RuntimeAPI` 已改继承 `TSimdBackendStatefulTestCase`；3 个控制面测试删除手工保存/恢复 backend 的 finally 清理，只保留原有 runtime/facade 行为断言 |
 | 3. Release 验证与提交收口 | completed | 首轮定向 build 因空 `var` 段报语法错，最小修正后 Release `TTestCase_RuntimeAPI`、Release `check`、Release `gate` 全绿；本轮仍然只是测试 fixture 对齐，不改 runtime 生产逻辑 |
+
+## 2026-05-14 Verified Restore Helper Consolidation
+
+### Goal
+
+继续加强 `simd` 测试基础设施审查并修复，但这次不再只是对齐基类，而是把多处“restore 后再比一次 backend getter”的重复验证壳下沉到 `fixturehelpers`：统一 `backend-only` 与 `backend+vectorasm` 的 verified restore helper，收走 `dispatchslots/backend.consistency/backend vector consistency/ieee754` 的局部 wrapper，以及 `concurrent/dataplane/dispatchapi/publicabi` 的重复布尔拼接。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核哪些 local helper 只剩“restore + backend getter 校验” | completed | 已确认 `RestoreDispatchSlotsLocalState`、`RestoreBackendVectorConsistencyLocalState`、`RestoreIEEE754LocalState` 这类点都没有 suite-specific 语义；`concurrent/publicabi/dispatchapi/dataplane` 里的局部 restore 断言也只是在重复同一验证拼接 |
+| 2. 抽共享 verified restore helper 并收掉局部薄壳 | completed | `fixturehelpers` 已新增 `RestoreSavedBackendStateAndVerify` 与 `RestoreSavedBackendAndVectorAsmStateAndVerify`；相关 suite/helper 改为直接复用，删除 `dispatchslots` / `backend vector consistency` / `ieee754` 的冗余局部 wrapper |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release 定向 suite、Release `check`、Release `gate` 全绿；说明共享 callback-style verified restore helper 在 FPC 下可稳定工作，且未影响 run_all/public ABI/cpuinfo 外围链路 |

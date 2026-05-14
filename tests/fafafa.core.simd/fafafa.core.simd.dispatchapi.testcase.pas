@@ -257,13 +257,10 @@ implementation
 
 procedure TDispatchAPIStatefulTestCase.RestoreDispatchApiLocalState(
   aOriginalVectorAsm: Boolean; aOriginalBackend: TSimdBackend);
-var
-  LRestoredBackend: Boolean;
 begin
-  LRestoredBackend := RestoreSavedBackendAndVectorAsmState(
-    aOriginalVectorAsm, aOriginalBackend);
   AssertTrue('Dispatch API fixture should restore previous backend selection',
-    LRestoredBackend and (GetCurrentBackend = aOriginalBackend));
+    RestoreSavedBackendAndVectorAsmStateAndVerify(aOriginalVectorAsm,
+    aOriginalBackend, @GetCurrentBackend));
 end;
 
 var

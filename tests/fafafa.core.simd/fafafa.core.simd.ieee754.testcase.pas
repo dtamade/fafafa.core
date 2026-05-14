@@ -124,12 +124,6 @@ type
 
 implementation
 
-function RestoreIEEE754LocalState(aOriginalVectorAsm: Boolean;
-  aOriginalBackend: TSimdBackend): Boolean;
-begin
-  Result := RestoreSavedBackendAndVectorAsmState(aOriginalVectorAsm, aOriginalBackend);
-end;
-
 function BitsFromSingle(const aValue: Single): DWord; inline;
 begin
   Move(aValue, Result, SizeOf(Result));
@@ -1111,7 +1105,8 @@ begin
     AssertEquals('Scalar Trunc(-1.75)', -1.0, rTrunc.f[3], 0.0);
   finally
     AssertTrue('IEEE754 local restore should recover previous backend selection',
-      RestoreIEEE754LocalState(FSavedVectorAsm, FSavedBackend));
+      RestoreSavedBackendAndVectorAsmStateAndVerify(FSavedVectorAsm,
+      FSavedBackend, @GetCurrentBackend));
   end;
 end;
 
@@ -1146,7 +1141,8 @@ begin
     AssertEquals('SSE2 Trunc(-1.75)', -1.0, rTrunc.f[3], 0.0);
   finally
     AssertTrue('IEEE754 local restore should recover previous backend selection',
-      RestoreIEEE754LocalState(oldVectorAsm, FSavedBackend));
+      RestoreSavedBackendAndVectorAsmStateAndVerify(oldVectorAsm,
+      FSavedBackend, @GetCurrentBackend));
   end;
 end;
 
@@ -1330,7 +1326,8 @@ begin
       AssertDoubleLane('Scalar F64x8[' + IntToStr(LIndex) + ']', LIndex, LRoundF64x8.d[LIndex], LTruncF64x8.d[LIndex]);
   finally
     AssertTrue('IEEE754 local restore should recover previous backend selection',
-      RestoreIEEE754LocalState(FSavedVectorAsm, FSavedBackend));
+      RestoreSavedBackendAndVectorAsmStateAndVerify(FSavedVectorAsm,
+      FSavedBackend, @GetCurrentBackend));
   end;
 end;
 
@@ -1520,7 +1517,8 @@ begin
       AssertDoubleLane('SSE2 F64x8[' + IntToStr(LIndex) + ']', LIndex, LRoundF64x8.d[LIndex], LTruncF64x8.d[LIndex]);
   finally
     AssertTrue('IEEE754 local restore should recover previous backend selection',
-      RestoreIEEE754LocalState(LOldVectorAsm, FSavedBackend));
+      RestoreSavedBackendAndVectorAsmStateAndVerify(LOldVectorAsm,
+      FSavedBackend, @GetCurrentBackend));
   end;
 end;
 
@@ -1905,7 +1903,8 @@ begin
     end;
   finally
     AssertTrue('IEEE754 local restore should recover previous backend selection',
-      RestoreIEEE754LocalState(LOldVectorAsm, FSavedBackend));
+      RestoreSavedBackendAndVectorAsmStateAndVerify(LOldVectorAsm,
+      FSavedBackend, @GetCurrentBackend));
   end;
 end;
 
@@ -2105,7 +2104,8 @@ begin
     end;
   finally
     AssertTrue('IEEE754 local restore should recover previous backend selection',
-      RestoreIEEE754LocalState(LOldVectorAsm, FSavedBackend));
+      RestoreSavedBackendAndVectorAsmStateAndVerify(LOldVectorAsm,
+      FSavedBackend, @GetCurrentBackend));
   end;
 end;
 
@@ -2358,7 +2358,8 @@ begin
     end;
   finally
     AssertTrue('IEEE754 local restore should recover previous backend selection',
-      RestoreIEEE754LocalState(LOldVectorAsm, FSavedBackend));
+      RestoreSavedBackendAndVectorAsmStateAndVerify(LOldVectorAsm,
+      FSavedBackend, @GetCurrentBackend));
   end;
 end;
 
@@ -2639,7 +2640,8 @@ begin
     end;
   finally
     AssertTrue('IEEE754 local restore should recover previous backend selection',
-      RestoreIEEE754LocalState(LOldVectorAsm, FSavedBackend));
+      RestoreSavedBackendAndVectorAsmStateAndVerify(LOldVectorAsm,
+      FSavedBackend, @GetCurrentBackend));
   end;
 end;
 
@@ -2869,7 +2871,8 @@ begin
     end;
   finally
     AssertTrue('IEEE754 local restore should recover previous backend selection',
-      RestoreIEEE754LocalState(LOldVectorAsm, FSavedBackend));
+      RestoreSavedBackendAndVectorAsmStateAndVerify(LOldVectorAsm,
+      FSavedBackend, @GetCurrentBackend));
   end;
 end;
 
@@ -3148,7 +3151,8 @@ begin
       AssertTrue('No non-x86 backend available on this host (allowed)', True);
   finally
     AssertTrue('IEEE754 local restore should recover previous backend selection',
-      RestoreIEEE754LocalState(LOldVectorAsm, FSavedBackend));
+      RestoreSavedBackendAndVectorAsmStateAndVerify(LOldVectorAsm,
+      FSavedBackend, @GetCurrentBackend));
   end;
 end;
 

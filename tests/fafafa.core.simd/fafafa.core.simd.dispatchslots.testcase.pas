@@ -34,12 +34,6 @@ type
 
 implementation
 
-function RestoreDispatchSlotsLocalState(aOriginalBackend: TSimdBackend): Boolean;
-begin
-  Result := RestoreSavedBackendState(aOriginalBackend) and
-    (GetActiveBackend = aOriginalBackend);
-end;
-
 procedure TTestCase_DispatchAllSlots.AssertAllDispatchSlotsAssigned(const aBackend: TSimdBackend; const aDispatch: PSimdDispatchTable);
 begin
   AssertNotNull('Dispatch table should be available', aDispatch);
@@ -630,7 +624,7 @@ begin
     end;
   finally
     AssertTrue('Dispatch slots local restore should recover previous backend selection',
-      RestoreDispatchSlotsLocalState(FSavedBackend));
+      RestoreSavedBackendStateAndVerify(FSavedBackend, @GetActiveBackend));
   end;
 
   AssertTrue('At least one backend should be checked', LChecked > 0);
@@ -708,7 +702,7 @@ begin
     end;
   finally
     AssertTrue('Dispatch slots local restore should recover previous backend selection',
-      RestoreDispatchSlotsLocalState(FSavedBackend));
+      RestoreSavedBackendStateAndVerify(FSavedBackend, @GetActiveBackend));
   end;
 
   AssertTrue('At least one backend should be checked', LChecked > 0);
@@ -788,7 +782,7 @@ begin
   finally
     RegisterBackend(LBackend, LOriginalTable);
     AssertTrue('Dispatch slots local restore should recover previous backend selection',
-      RestoreDispatchSlotsLocalState(FSavedBackend));
+      RestoreSavedBackendStateAndVerify(FSavedBackend, @GetActiveBackend));
   end;
 end;
 

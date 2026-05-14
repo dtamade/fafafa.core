@@ -3591,3 +3591,38 @@
   - suite 已经符合公共 fixture 边界
   - 但仍保留历史手工 cleanup finally
   - 这种点虽然不如前面的 `vectorasm` 和 `fixturehelpers` 显眼，但继续收掉能让 test infrastructure 的层次更稳定
+
+## 2026-05-14 Verified Restore Helper Consolidation
+
+- 继续沿着“helper 自身是否还存在重复验证壳”往下挖，发现这次的高价值残点不在基类继承，而在 restore helper 的最后一厘米：
+  - `dispatchslots` 有 `RestoreSavedBackendState(...) and (GetActiveBackend = aOriginalBackend)`
+  - `backend vector consistency` 有 `RestoreSavedBackendState(...) and (GetCurrentBackend = aOriginalBackend)`
+  - `ieee754` 甚至还留着一个纯直通 `RestoreSavedBackendAndVectorAsmState(...)` 的局部 wrapper
+  - `concurrent/publicabi/dispatchapi/dataplane` 则在各自的 restore 入口里重复写同样的布尔拼接
+- 复核后确认这类点已经不该继续留在各 suite：
+  - 它们不再携带 suite-specific 编排
+  - 差异只剩“restore 哪类状态”和“用哪个 backend getter 校验”
+  - 这正适合下沉回 `fixturehelpers` 作为更低层的共享 helper contract
+- 本轮最小修法已落地：
+  - `fafafa.core.simd.fixturehelpers` 新增
+    - `RestoreSavedBackendStateAndVerify`
+    - `RestoreSavedBackendAndVectorAsmStateAndVerify`
+  - 通过 `TSimdBackendReader` callback 把 “校验 current 还是 active backend” 交给调用点决定
+  - `dispatchslots` 删除 `RestoreDispatchSlotsLocalState`
+  - `testcase` 删除 `RestoreBackendVectorConsistencyLocalState`
+  - `ieee754` 删除 `RestoreIEEE754LocalState`
+  - `backend.consistency` 改用共享 verified helper，再保留自己的异常消息
+  - `concurrent/dataplane/dispatchapi/publicabi` 改直接调用共享 verified helper
+- 这批的价值比单纯删 wrapper 更大：
+  - helper 层现在也区分清楚了“restore”与“restore + verify”两个 contract
+  - 以后再看测试 restore 逻辑，不需要在多个 testcase 单元里分辨哪一份布尔拼接才是标准写法
+  - 同时也让 `ieee754` 这类之前遗留的小 wrapper 不再继续绕一层本地名字
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_BackendVectorConsistency,TTestCase_DispatchAllSlots,TTestCase_DataPlane,TTestCase_DispatchAPI,TTestCase_PublicAbi,TTestCase_SimdConcurrent,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework,TTestCase_IEEE754_F64,TTestCase_IEEE754EdgeCases,TTestCase_AVX2RoundTruncIEEE754,TTestCase_NonX86IEEE754`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 到这里，`simd` 测试层的冗余治理已经从“fixture 基类去重”推进到了“helper contract 去重”：
+  - 下一轮更值得看的，应该是还带 suite-local 后处理动作的 restore helper 是否真的必要
+  - 或者生产/测试 seam 上是否还残留类似的 verification thin wrapper

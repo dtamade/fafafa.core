@@ -13,10 +13,16 @@ type
     Backend: TSimdBackend;
   end;
 
+  TSimdBackendReader = function: TSimdBackend;
+
 procedure SaveActiveBackendState(out aState: TSimdSavedBackendState);
 function RestoreSavedBackendState(aOriginalBackend: TSimdBackend): Boolean;
+function RestoreSavedBackendStateAndVerify(aOriginalBackend: TSimdBackend;
+  aReadBackend: TSimdBackendReader): Boolean;
 function RestoreSavedBackendAndVectorAsmState(aOriginalVectorAsm: Boolean;
   aOriginalBackend: TSimdBackend): Boolean;
+function RestoreSavedBackendAndVectorAsmStateAndVerify(aOriginalVectorAsm: Boolean;
+  aOriginalBackend: TSimdBackend; aReadBackend: TSimdBackendReader): Boolean;
 
 implementation
 
@@ -39,11 +45,42 @@ begin
   Result := TrySetActiveBackend(aOriginalBackend);
 end;
 
+function RestoreSavedBackendStateAndVerify(aOriginalBackend: TSimdBackend;
+  aReadBackend: TSimdBackendReader): Boolean;
+var
+  LObservedBackend: TSimdBackend;
+begin
+  Result := RestoreSavedBackendState(aOriginalBackend);
+  if not Result then
+    Exit(False);
+  if not Assigned(aReadBackend) then
+    Exit(False);
+
+  LObservedBackend := aReadBackend();
+  Result := LObservedBackend = aOriginalBackend;
+end;
+
 function RestoreSavedBackendAndVectorAsmState(aOriginalVectorAsm: Boolean;
   aOriginalBackend: TSimdBackend): Boolean;
 begin
   SetVectorAsmEnabled(aOriginalVectorAsm);
   Result := RestoreSavedBackendState(aOriginalBackend);
+end;
+
+function RestoreSavedBackendAndVectorAsmStateAndVerify(aOriginalVectorAsm: Boolean;
+  aOriginalBackend: TSimdBackend; aReadBackend: TSimdBackendReader): Boolean;
+var
+  LObservedBackend: TSimdBackend;
+begin
+  Result := RestoreSavedBackendAndVectorAsmState(aOriginalVectorAsm,
+    aOriginalBackend);
+  if not Result then
+    Exit(False);
+  if not Assigned(aReadBackend) then
+    Exit(False);
+
+  LObservedBackend := aReadBackend();
+  Result := LObservedBackend = aOriginalBackend;
 end;
 
 end.

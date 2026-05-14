@@ -1731,12 +1731,6 @@ begin
   AssertEquals('AVX2 should match Scalar (not found)', resScalar, resAVX2);
 end;
 
-function RestoreBackendVectorConsistencyLocalState(aOriginalBackend: TSimdBackend): Boolean;
-begin
-  Result := RestoreSavedBackendState(aOriginalBackend) and
-    (GetCurrentBackend = aOriginalBackend);
-end;
-
 procedure TTestCase_BackendVectorConsistency.Test_VectorOps_Consistency;
 var
   LOriginalBackend: TSimdBackend;
@@ -1789,7 +1783,8 @@ begin
     if failMsg <> '' then
       Fail(failMsg);
   finally
-    LRestoredBackend := RestoreBackendVectorConsistencyLocalState(LOriginalBackend);
+    LRestoredBackend := RestoreSavedBackendStateAndVerify(LOriginalBackend,
+      @GetCurrentBackend);
     AssertTrue('Backend vector consistency wrapper should restore previous backend selection',
       LRestoredBackend);
   end;
@@ -1847,7 +1842,7 @@ begin
       Ord(LOriginalBackend), Ord(GetCurrentBackend));
   finally
     AssertTrue('Backend vector consistency helper meta-test should restore entry backend selection',
-      RestoreBackendVectorConsistencyLocalState(LEntryBackend));
+      RestoreSavedBackendStateAndVerify(LEntryBackend, @GetCurrentBackend));
   end;
 end;
 
@@ -1874,7 +1869,7 @@ begin
       Ord(LOriginalBackend), Ord(GetCurrentBackend));
   finally
     AssertTrue('Backend vector consistency wrapper meta-test should restore entry backend selection',
-      RestoreBackendVectorConsistencyLocalState(LEntryBackend));
+      RestoreSavedBackendStateAndVerify(LEntryBackend, @GetCurrentBackend));
   end;
 end;
 
