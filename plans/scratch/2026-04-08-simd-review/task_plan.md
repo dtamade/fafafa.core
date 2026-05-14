@@ -2333,3 +2333,17 @@
 | 1. 复核 `dispatchslots` 的 active/current backend truth source | completed | 已确认 `GetActiveBackend` 直接读取 published dispatch table 的 `Backend`；`runtime` 的 `BuildSimdRuntimePublishedState` 在有 dispatch 时也直接把 `CurrentBackend := LDispatch^.Backend`，因此类级 backend fixture 的 truth source 当前对齐 |
 | 2. 只把类级 backend 生命周期收回 `TSimdBackendStatefulTestCase` | completed | `TTestCase_DispatchAllSlots` 已改继承 `TSimdBackendStatefulTestCase`，删除本地 `FSavedBackend/SetUp/TearDown`；suite 内部的 `RestoreDispatchSlotsLocalState(...)` 与所有 `GetActiveBackend/TrySetActiveBackend/ResetToAutomaticBackend` 断言保持原样 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAllSlots`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 PublicAbi And DispatchApi Fixture Consolidation
+
+### Goal
+
+继续沿 stateful fixture 去重往下收，但这次目标是 `publicabi` / `dispatchapi` 这两个 hook-heavy control-plane testcase：只把类级 backend 生命周期收回 `TSimdBackendStatefulTestCase`，保留方法级 restore helper、synthetic hook state 和 rollback 语义不动。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `publicabi` / `dispatchapi` 的类级 fixture 与方法级控制面语义边界 | completed | 已确认两边的类级基类仍重复 `GetDispatchTable -> save current backend -> TearDown restore backend`；真正 testcase 专属的类级剩余状态只剩 `vector-asm`，而方法级 helper / hook state machine 则必须保留 |
+| 2. 只把类级 backend 生命周期收回 `TSimdBackendStatefulTestCase` | completed | `TTestCase_PublicAbi` 与 `TDispatchAPIStatefulTestCase` 都已改继承 `TSimdBackendStatefulTestCase`，删除本地 `FSavedBackend`；`SetUp` 不再重复保存 backend；`publicabi` 的 `TearDown` 先 reset synthetic hooks 再恢复 vector-asm 后 `inherited TearDown`；`dispatchapi` 的 `TearDown` 则恢复 vector-asm 后 `inherited TearDown`；两边的方法级 restore helper 保持原样 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_PublicAbi,TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |

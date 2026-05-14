@@ -46,6 +46,7 @@ interface
 uses
   Classes, SysUtils, fafafa.core.math, fpcunit, testregistry,
   fafafa.core.simd,
+  fafafa.core.simd.testcase,
   fafafa.core.simd.base,
   fafafa.core.simd.bench,
   fafafa.core.simd.cpuinfo,
@@ -60,10 +61,9 @@ uses
 
 type
 
-  TDispatchAPIStatefulTestCase = class(TTestCase)
+  TDispatchAPIStatefulTestCase = class(TSimdBackendStatefulTestCase)
   protected
     FSavedVectorAsm: Boolean;
-    FSavedBackend: TSimdBackend;
     procedure RestoreDispatchApiLocalState(aOriginalVectorAsm: Boolean;
       aOriginalBackend: TSimdBackend);
     procedure SetUp; override;
@@ -274,15 +274,16 @@ end;
 procedure TDispatchAPIStatefulTestCase.SetUp;
 begin
   inherited SetUp;
-  GetDispatchTable;
   FSavedVectorAsm := IsVectorAsmEnabled;
-  FSavedBackend := GetCurrentBackend;
 end;
 
 procedure TDispatchAPIStatefulTestCase.TearDown;
 begin
-  RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
+  SetVectorAsmEnabled(FSavedVectorAsm);
   inherited TearDown;
+
+  AssertTrue('Dispatch API fixture should restore previous vector asm state',
+    IsVectorAsmEnabled = FSavedVectorAsm);
 end;
 
 var

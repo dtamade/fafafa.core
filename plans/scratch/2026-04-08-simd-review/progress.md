@@ -3006,3 +3006,41 @@
   - 这意味着本轮从 pure scalar fixture、复杂 stateful fixture、本地局部基类，到 raw dispatch slot suite，已经把一整串 backend lifecycle 冗余连续压下去了
   - 下一轮若继续深挖，更值得找的是剩余仍保留 testcase-local backend fixture 的零散文件，而不是再回头怀疑 `dispatchslots`
 - 这轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+- 我继续往前收的是 `publicabi` 和 `dispatchapi` 这两份 hook-heavy 测试文件里的类级 backend fixture。
+- 这轮先把边界卡清楚了：
+  - 两份文件都还有一层本地 stateful 基类
+  - 这层基类都重复了 `GetDispatchTable -> save current backend -> TearDown restore backend`
+  - testcase 专属剩余状态都只还有 `FSavedVectorAsm`
+  - `publicabi` 额外还需要在 `TearDown` 前先 `ResetPublicAbiSyntheticHookState`
+  - `dispatchapi` 则保留方法级 `RestoreDispatchApiLocalState(...)` 供测试体自己做 local cleanup
+- 本轮最小修法因此是：
+  - `TTestCase_PublicAbi` 改继承 `TSimdBackendStatefulTestCase`
+  - `TDispatchAPIStatefulTestCase` 改继承 `TSimdBackendStatefulTestCase`
+  - 两个文件都引入 `fafafa.core.simd.testcase`
+  - 删除本地 `FSavedBackend`
+  - `SetUp` 不再本地重复 `GetDispatchTable / GetCurrentBackend`
+  - `publicabi` 的 `TearDown` 改成：
+    - 先 `ResetPublicAbiSyntheticHookState`
+    - 再恢复 `FSavedVectorAsm`
+    - 再 `inherited TearDown`
+    - 最后断言 vector-asm 已回到进入态
+  - `dispatchapi` 的 `TearDown` 改成：
+    - 先恢复 `FSavedVectorAsm`
+    - 再 `inherited TearDown`
+    - 最后断言 vector-asm 已回到进入态
+- 这轮也刻意保留了两类本地 helper 不动：
+  - `RestorePublicAbiLocalState(...)` 继续服务 `publicabi` 内部的方法级 restore
+  - `RestoreDispatchApiLocalState(...)` 继续服务 `dispatchapi` 内部的方法级 restore
+  - 也就是说，这轮只抽掉“类级 backend lifecycle”，不去碰 hook state machine、本地 synthetic rollback 语义或 method-exit helper
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi,TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断继续更新：
+  - `publicabi/dispatchapi` 这两个 hook-heavy 主 testcase 也已经收回公共 backend 基类
+  - 说明这条 cleanup 线已经从轻量 scalar suite 一路推进到最复杂的 control-plane/hook-heavy suite，并且仍保持 release gate 绿色
+  - 下一轮如果继续沿 fixture 去重收口，最自然的剩余目标就是 `ieee754` 里仍然各自保存 `FSavedBackend` 的多套 testcase
+- 这轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

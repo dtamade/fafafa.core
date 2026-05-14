@@ -43,15 +43,15 @@ interface
 uses
   SysUtils, fpcunit, testregistry,
   fafafa.core.simd,
+  fafafa.core.simd.testcase,
   fafafa.core.simd.base,
   fafafa.core.simd.dispatch,
   fafafa.core.simd.api;
 
 type
-  TTestCase_PublicAbi = class(TTestCase)
+  TTestCase_PublicAbi = class(TSimdBackendStatefulTestCase)
   protected
     FSavedVectorAsm: Boolean;
-    FSavedBackend: TSimdBackend;
     procedure RestorePublicAbiLocalState(aOriginalVectorAsm: Boolean; aOriginalBackend: TSimdBackend);
     procedure SetUp; override;
     procedure TearDown; override;
@@ -656,9 +656,7 @@ end;
 procedure TTestCase_PublicAbi.SetUp;
 begin
   inherited SetUp;
-  GetDispatchTable;
   FSavedVectorAsm := IsVectorAsmEnabled;
-  FSavedBackend := GetCurrentBackend;
   ResetPublicAbiSyntheticHookState;
 end;
 
@@ -675,8 +673,11 @@ end;
 procedure TTestCase_PublicAbi.TearDown;
 begin
   ResetPublicAbiSyntheticHookState;
-  RestorePublicAbiLocalState(FSavedVectorAsm, FSavedBackend);
+  SetVectorAsmEnabled(FSavedVectorAsm);
   inherited TearDown;
+
+  AssertTrue('Public ABI fixture should restore previous vector asm state',
+    IsVectorAsmEnabled = FSavedVectorAsm);
 end;
 
 function RestoreOriginalActiveBackend(aOriginalBackend: TSimdBackend): Boolean;

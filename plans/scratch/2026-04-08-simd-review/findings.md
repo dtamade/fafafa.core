@@ -2899,3 +2899,26 @@
   - 同时证明这轮工作不是机械替换，而是先补足语义证据，再决定哪些层能抽、哪些层必须保留
   - 也让后续继续审余下 testcase 时有了更清晰的方法：只要先找到真正的 published truth source，就能判断公共基类是否适配
 - Release `TTestCase_DispatchAllSlots`、Release `check`、Release `gate` 全绿，说明这批仍然只是测试夹具层去冗余，没有改变 dispatch slot 合同或 backend adapter 的被测语义。
+
+## 2026-05-14 PublicAbi And DispatchApi Fixture Consolidation Findings
+
+- `publicabi` 和 `dispatchapi` 是这条线上最需要谨慎的一批，因为它们不只是“大文件”，更是 hook-heavy / rollback-heavy 的 control-plane 回归面。
+- 这也是为什么这批之前虽然明显有冗余，但一直没急着动：
+  - 两边都自带 `FSavedBackend + FSavedVectorAsm`
+  - 两边都还有大量方法级 restore helper
+  - `publicabi` 还有额外的 synthetic hook state reset
+  - 如果没分清“类级 fixture”和“方法级控制面语义”两层，机械替换很容易把 hook/rollback 测试主题一起改坏
+- 这轮复核后确认，它们的类级基类其实仍然和前几批同构：
+  - `SetUp` 里重复 `GetDispatchTable; FSavedBackend := GetCurrentBackend`
+  - `TearDown` 里重复 backend restore
+  - 真正 testcase 专属的类级剩余状态都只剩 `vector-asm`
+- 因而这批最合适的收法不是删 helper，也不是改测试体，而是：
+  - 让 `publicabi/dispatchapi` 的类级 lifecycle 都回到 `TSimdBackendStatefulTestCase`
+  - 本地只继续维护 `FSavedVectorAsm`
+  - 方法级 `RestorePublicAbiLocalState(...)` / `RestoreDispatchApiLocalState(...)` 全部保留原样
+  - `publicabi` 继续在 `TearDown` 最前面先 `ResetPublicAbiSyntheticHookState`，确保恢复 backend 前不会残留 hook side effect
+- 这批修法的价值在于：
+  - 我们现在已经验证，哪怕是最复杂的 hook-heavy suite，也可以把“类级 backend lifecycle”和“测试主题控制面语义”拆开处理
+  - 这说明之前的去重不是只适合轻量 smoke/guard suite，而是已经覆盖到 simd 测试层的核心 control-plane 回归面
+  - 同时也给后续 `ieee754` 留下了一个清晰标准：先分清 exception mask / vector-asm / backend 三种状态分别属于哪一层，再决定哪些能收进公共基类
+- Release `TTestCase_PublicAbi,TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿，说明这批仍然只是测试夹具层去冗余，没有改变 public ABI / dispatch API 的被测 hook、rollback 或 publication 语义。
