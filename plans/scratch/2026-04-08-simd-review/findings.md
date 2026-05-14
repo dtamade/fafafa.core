@@ -2145,3 +2145,27 @@
   - hook 业务断言本身
   - ABI smoke contract / exported table 形状
 - Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿，并且 gate 中 `public ABI smoke` 与 `TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework` 也通过，说明这批收的是 public ABI 测试层局部恢复冗余/不对称，而不是 public ABI 生产逻辑回归。
+
+## 2026-05-14 Concurrent Local Restore Consolidation Findings
+
+- `concurrent.testcase` 的形态和刚收完的 `publicabi/direct` 很接近，但更适合先做一层窄收口：
+  - `TSimdStatefulTestCase.SetUp` 已经保存 `FSavedVectorAsm/FSavedBackend`
+  - `TSimdStatefulTestCase.TearDown` 也已经负责恢复进入测试前状态
+  - 真正的冗余来自各个 test body 外层 `finally` 还在重复写 `SetVectorAsmEnabled(LOldVectorAsm); ResetToAutomaticBackend;`
+- 这种并发测试层样板有两个坏处：
+  - 它重复表达了本来就存在于 stateful fixture 的恢复 contract
+  - 它只回 `automatic`，不会显式复用进入测试前保存下来的 backend 选择
+- 本轮最小正确修法是把“本地恢复到进入测试前状态”提升成 `TSimdStatefulTestCase` 的共享 helper：
+  - 提取 `RestoreSimdLocalState(aOriginalVectorAsm, aOriginalBackend)`
+  - `TearDown` 改为复用它，避免 fixture 自己也保留重复恢复体
+  - method-level 先只替换完全同构、没有额外清理副作用的 outer finally
+- 本轮已收掉的 14 个命中覆盖了：
+  - `TTestCase_SimdConcurrentPublicAbi` 的 register/vector-asm 读写一致性路径
+  - `TTestCase_SimdConcurrentFramework` 的 current-backend/current-backend-info/backend-ops/runtime-snapshot/dispatchable-helper 路径
+  - `TTestCase_SimdConcurrentRegistration.Test_Concurrent_RegisteredBackendList_FirstRegistration_ReadConsistency`
+  - `TTestCase_SimdConcurrent.Test_Concurrent_DispatchMixed_ControlPlane`
+- 这批刻意没有继续碰两类剩余点：
+  - 只保存 `LOldVectorAsm`、本身不切 backend 的纯 toggle 测试
+  - 每轮/每分支内部还要显式 `ResetToAutomaticBackend` 才能做下一步断言的状态机块
+- 因而当前 `concurrent.testcase` 的剩余 `ResetToAutomaticBackend` 命中并不都代表冗余；下一批应优先逐段审读这些内部轮次级恢复块，而不是做全文件盲替换。
+- Release 定向 suite、Release `check`、Release `gate` 全绿，说明这次收的是 concurrent 测试层的恢复样板和状态对称性，而不是 concurrent/public-framework/dataplane 的生产实现问题。

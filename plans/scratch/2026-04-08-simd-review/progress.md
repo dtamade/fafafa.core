@@ -2375,5 +2375,23 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
-  - 结果：全部通过
+- 结果：全部通过
 - 这一轮之后，`publicabi.testcase` 里简单两行式的 `LOldVectorAsm + ResetToAutomaticBackend` 外层 finally 已清空；下一批若继续沿 public ABI 深审，应只剩那些夹杂额外 hook/restore 语义的复杂块需要逐段审读。
+
+- 继续往 `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 深审后，确认这个文件并不缺 fixture，真实残余是 `TSimdStatefulTestCase` 之下很多 test body 外层 `finally` 仍重复写 `SetVectorAsmEnabled(LOldVectorAsm); ResetToAutomaticBackend;`。
+- 期间两次尝试 `mcp__ace_tool__.search_context` 都在 120s 超时，因此这批直接切回本地源码实证：用 `sed/rg` 定位 `TSimdStatefulTestCase` 的 `SetUp/TearDown` 与 14 个 simple exact-pattern 命中，再避免盲改内部轮次级恢复块。
+- 本轮在 `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 提取了 `RestoreSimdLocalState`，并让 `TearDown` 也复用它；随后把以下路径的 simple outer finally 统一切到 `RestoreSimdLocalState(LOldVectorAsm, FSavedBackend)`：
+  - `TTestCase_SimdConcurrentPublicAbi` 的 register/vector-asm 读写一致性测试
+  - `TTestCase_SimdConcurrentFramework` 的 current-backend/current-backend-info/backend-ops/runtime-snapshot/dispatchable-helper 读写一致性测试
+  - `TTestCase_SimdConcurrentRegistration.Test_Concurrent_RegisteredBackendList_FirstRegistration_ReadConsistency`
+  - `TTestCase_SimdConcurrent.Test_Concurrent_DispatchMixed_ControlPlane`
+- 本轮刻意没有扫掉：
+  - 只恢复 `LOldVectorAsm` 的纯 toggle 测试
+  - 每轮内部用来做下一步断言的 `ResetToAutomaticBackend` 状态机块
+- 本轮 Release 定向验证已串行完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrent,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework,TTestCase_SimdConcurrentRegistration`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交；下一批若继续沿 `concurrent.testcase` 深审，应优先逐段看内部状态机块，而不是继续做全局机械替换。

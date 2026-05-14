@@ -35,6 +35,8 @@ type
   protected
     FSavedVectorAsm: Boolean;
     FSavedBackend: TSimdBackend;
+    procedure RestoreSimdLocalState(aOriginalVectorAsm: Boolean;
+      aOriginalBackend: TSimdBackend);
     procedure SetUp; override;
     procedure TearDown; override;
   end;
@@ -576,6 +578,16 @@ type
 
 implementation
 
+procedure TSimdStatefulTestCase.RestoreSimdLocalState(
+  aOriginalVectorAsm: Boolean; aOriginalBackend: TSimdBackend);
+begin
+  SetVectorAsmEnabled(aOriginalVectorAsm);
+  ResetToAutomaticBackend;
+  if GetCurrentBackend <> aOriginalBackend then
+    AssertTrue('SIMD concurrent fixture should restore previous backend selection',
+      TrySetActiveBackend(aOriginalBackend));
+end;
+
 procedure TSimdStatefulTestCase.SetUp;
 begin
   inherited SetUp;
@@ -586,11 +598,7 @@ end;
 
 procedure TSimdStatefulTestCase.TearDown;
 begin
-  SetVectorAsmEnabled(FSavedVectorAsm);
-  ResetToAutomaticBackend;
-  if GetCurrentBackend <> FSavedBackend then
-    AssertTrue('SIMD concurrent fixture should restore previous backend selection',
-      TrySetActiveBackend(FSavedBackend));
+  RestoreSimdLocalState(FSavedVectorAsm, FSavedBackend);
   inherited TearDown;
 end;
 
@@ -2658,8 +2666,7 @@ begin
       LWriters[LIndex].Free;
     for LIndex := 0 to High(LReaders) do
       LReaders[LIndex].Free;
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2755,8 +2762,7 @@ begin
       LReaders[LIndex].Free;
     if LBackend <> sbScalar then
       RegisterBackend(LBackend, LOriginalTable);
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2872,8 +2878,7 @@ begin
       LReaders[LIndex].Free;
     if LBackend <> sbScalar then
       RegisterBackend(LBackend, LRestoreTable);
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2982,8 +2987,7 @@ begin
       LWriters[LIndex].Free;
     for LIndex := 0 to High(LReaders) do
       LReaders[LIndex].Free;
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3077,8 +3081,7 @@ begin
       LWriters[LIndex].Free;
     for LIndex := 0 to High(LReaders) do
       LReaders[LIndex].Free;
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3186,8 +3189,7 @@ begin
       LWriters[LIndex].Free;
     for LIndex := 0 to High(LReaders) do
       LReaders[LIndex].Free;
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3284,8 +3286,7 @@ begin
       LWriters[LIndex].Free;
     for LIndex := 0 to High(LReaders) do
       LReaders[LIndex].Free;
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3385,8 +3386,7 @@ begin
       LWriters[LIndex].Free;
     for LIndex := 0 to High(LReaders) do
       LReaders[LIndex].Free;
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3489,8 +3489,7 @@ begin
       LWriters[LIndex].Free;
     for LIndex := 0 to High(LReaders) do
       LReaders[LIndex].Free;
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3568,8 +3567,7 @@ begin
       LWriters[LIndex].Free;
     for LIndex := 0 to High(LReaders) do
       LReaders[LIndex].Free;
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3647,8 +3645,7 @@ begin
       LWriters[LIndex].Free;
     for LIndex := 0 to High(LReaders) do
       LReaders[LIndex].Free;
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3731,8 +3728,7 @@ begin
       LWriters[LIndex].Free;
     for LIndex := 0 to High(LReaders) do
       LReaders[LIndex].Free;
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3809,8 +3805,7 @@ begin
       LWriters[LIndex].Free;
     for LIndex := 0 to High(LReaders) do
       LReaders[LIndex].Free;
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -4009,8 +4004,7 @@ begin
     for LIndex := 0 to High(LReaders) do
       if Assigned(LReaders[LIndex]) then
         LReaders[LIndex].Free;
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestoreSimdLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 

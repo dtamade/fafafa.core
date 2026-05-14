@@ -1927,3 +1927,17 @@
 | 1. 复核 `publicabi.testcase` 的类级与局部恢复模式 | completed | 已确认文件虽有 `SetUp/TearDown` 保存 `FSavedVectorAsm/FSavedBackend`，但仍残留大量外层 `finally` 只恢复 `LOldVectorAsm` 并 `ResetToAutomaticBackend`，没有复用类级保存状态 |
 | 2. 提取 local restore helper 并替换同构 finally | completed | 在 `TTestCase_PublicAbi` 提取 `RestorePublicAbiLocalState`，统一恢复 `vector asm + backend`；已覆盖 `VectorAsmRoundTrip`、`ActiveBackendId/StableState`、`FailedHookMutation`、`RollbackRestore`、以及 `HookLateForce/AutomaticReset/RegisterBackend/DataPlaneParity` 路径里剩余的 simple exact-pattern 外层 finally |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 Concurrent Local Restore Consolidation
+
+### Goal
+
+继续沿 `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 深审 method-level 状态恢复冗余，先收掉 `TSimdStatefulTestCase` 之下那批完全同构的外层 `LOldVectorAsm + ResetToAutomaticBackend` finally 样板，让 concurrent/public-framework/registration 控制面测试也统一回到进入测试前的 `vector asm + backend` 状态。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `concurrent.testcase` 的类级与局部恢复模式 | completed | 已确认 `TSimdStatefulTestCase` 本身已保存 `FSavedVectorAsm/FSavedBackend` 并在 `TearDown` 恢复，但 `TTestCase_SimdConcurrentPublicAbi`、`TTestCase_SimdConcurrentFramework`、`TTestCase_SimdConcurrentRegistration` 与 `DispatchMixed_ControlPlane` 仍残留一批外层 `finally` 只恢复 `LOldVectorAsm` 并 `ResetToAutomaticBackend` |
+| 2. 提取 concurrent-local restore helper 并替换同构 finally | completed | 在 `TSimdStatefulTestCase` 提取 `RestoreSimdLocalState`，让 `TearDown` 也复用它；随后把 14 处 simple exact-pattern 外层 finally 统一切到 `RestoreSimdLocalState(LOldVectorAsm, FSavedBackend)`，不改内部轮次级 `ResetToAutomaticBackend` 语义块 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_SimdConcurrent,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework,TTestCase_SimdConcurrentRegistration`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
