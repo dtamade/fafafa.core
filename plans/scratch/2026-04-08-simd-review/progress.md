@@ -4625,3 +4625,41 @@
   - Release `gate` 继续为绿
   - `gate` 末尾仍然只把旧 `windows_b07_gate.log` 诚实降级为 optional `SKIP`
 - 收口前已清理 `tests/fafafa.core.simd/__pycache__/`，避免把 Python 缓存目录带进提交。
+
+## 2026-05-15 RISCVV Dead Shift/Reduce/Select Residue Removal
+
+- 在第一组 `Load/Store/Splat/Zero` dead residue 清完并提交后，继续往 `RISCVV` 的内部尾巴扫第二组候选：
+  - `U64x2 shift`
+  - `I32x4/U32x4 reduce`
+  - `I64x2/I32x8/I32x16 select`
+- fresh 全仓/接线复核后，结论比上一轮更明确：
+  - 这 10 组名字没有 `register/facade/dispatch/simd.pas/tests` 消费面；
+  - 只剩 `src/fafafa.core.simd.riscvv.pas` 和 `src/fafafa.core.simd.riscvv.helpers.inc` 双轨定义。
+- 因此这批不是“没有 scalar 真源先留着”，而是第二组明确的 dead residue：
+  - 从 `riscvv.pas` 删除 10 组 asm/wrapper dead entry；
+  - 从 `riscvv.helpers.inc` 删除 10 组 fallback dead entry。
+- 为了防回流，`tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 继续扩了 source-side 缺席护栏：
+  - `RISCVVShiftLeftU64x2`
+  - `RISCVVShiftRightU64x2`
+  - `RISCVVReduceAddI32x4`
+  - `RISCVVReduceMinI32x4`
+  - `RISCVVReduceMaxI32x4`
+  - `RISCVVReduceMinU32x4`
+  - `RISCVVReduceMaxU32x4`
+  - `RISCVVSelectI64x2`
+  - `RISCVVSelectI32x8`
+  - `RISCVVSelectI32x16`
+- 本批 fresh 验证：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 当前结果：
+  - helper summary 升到 `NONX86_HELPER_SEMANTICS_SUMMARY checks=518 status=ok`
+  - `riscvv_abi_shape` 仍为绿，`direct_functions` 自然收缩到 `121`
+  - `impl-audit-nonx86` 继续为绿
+  - Release `check` 继续为绿
+  - Release `gate` 继续为绿
+  - `gate` 末尾仍然只把旧 `windows_b07_gate.log` 诚实降级为 optional `SKIP`
+- 收口前再次清理了 `tests/fafafa.core.simd/__pycache__/`，避免缓存目录污染提交。

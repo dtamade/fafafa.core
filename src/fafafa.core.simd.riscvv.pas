@@ -1440,47 +1440,6 @@ asm
   vfmv.f.s f10, v1
 end;
 
-function RISCVVReduceAddI32x4(const a: TVecI32x4): LongInt; assembler; nostackframe;
-asm
-  vsetivli zero, 4, 0xD0
-  vle32.v v0, (a0)
-  vmv.s.x v1, zero
-  vredsum.vs v1, v0, v1   // 整数规约加法
-  vmv.x.s a0, v1
-end;
-
-function RISCVVReduceMinI32x4(const a: TVecI32x4): LongInt; assembler; nostackframe;
-asm
-  vsetivli zero, 4, 0xD0
-  vle32.v v0, (a0)
-  vredmin.vs v1, v0, v0   // 有符号最小
-  vmv.x.s a0, v1
-end;
-
-function RISCVVReduceMaxI32x4(const a: TVecI32x4): LongInt; assembler; nostackframe;
-asm
-  vsetivli zero, 4, 0xD0
-  vle32.v v0, (a0)
-  vredmax.vs v1, v0, v0   // 有符号最大
-  vmv.x.s a0, v1
-end;
-
-function RISCVVReduceMinU32x4(const a: TVecU32x4): UInt32; assembler; nostackframe;
-asm
-  vsetivli zero, 4, 0xD0
-  vle32.v v0, (a0)
-  vredminu.vs v1, v0, v0  // 无符号最小
-  vmv.x.s a0, v1
-end;
-
-function RISCVVReduceMaxU32x4(const a: TVecU32x4): UInt32; assembler; nostackframe;
-asm
-  vsetivli zero, 4, 0xD0
-  vle32.v v0, (a0)
-  vredmaxu.vs v1, v0, v0  // 无符号最大
-  vmv.x.s a0, v1
-end;
-
 // =============================================================
 // F32x4 Load/Store/Splat/Zero
 // =============================================================
@@ -1902,32 +1861,6 @@ begin
   RISCVVNotU64x2Asm(a, Result);
 end;
 
-procedure RISCVVShiftLeftU64x2Asm(const a: TVecU64x2; count: Integer; var r: TVecU64x2); assembler; nostackframe;
-asm
-  vsetivli zero, 2, 0xD8
-  vle64.v v0, (a0)
-  vsll.vx v0, v0, a1
-  vse64.v v0, (a2)
-end;
-
-function RISCVVShiftLeftU64x2(const a: TVecU64x2; count: Integer): TVecU64x2;
-begin
-  RISCVVShiftLeftU64x2Asm(a, count, Result);
-end;
-
-procedure RISCVVShiftRightU64x2Asm(const a: TVecU64x2; count: Integer; var r: TVecU64x2); assembler; nostackframe;
-asm
-  vsetivli zero, 2, 0xD8
-  vle64.v v0, (a0)
-  vsrl.vx v0, v0, a1
-  vse64.v v0, (a2)
-end;
-
-function RISCVVShiftRightU64x2(const a: TVecU64x2; count: Integer): TVecU64x2;
-begin
-  RISCVVShiftRightU64x2Asm(a, count, Result);
-end;
-
 // =============================================================
 // U16x8 操作
 // =============================================================
@@ -2327,16 +2260,6 @@ begin
       Result.i[LIndex] := a.i[LIndex]
     else
       Result.i[LIndex] := b.i[LIndex];
-end;
-
-function RISCVVSelectI64x2(const mask: TMask2; const a, b: TVecI64x2): TVecI64x2; assembler; nostackframe;
-asm
-  vsetivli zero, 2, 0xD8
-  vmv.s.x v0, a0
-  vle64.v v1, (a1)
-  vle64.v v2, (a2)
-  vmerge.vvm v1, v2, v1, v0
-  vse64.v v1, (a3)
 end;
 
 // =============================================================
@@ -3995,27 +3918,7 @@ begin
       Result.d[LIndex] := b.d[LIndex];
 end;
 
-function RISCVVSelectI32x8(const mask: TMask8; const a, b: TVecI32x8): TVecI32x8; assembler; nostackframe;
-asm
-  vsetivli zero, 8, 0xD1
-  vmv.s.x v0, a1
-  vle32.v v2, (a2)
-  vle32.v v4, (a3)
-  vmerge.vvm v2, v4, v2, v0
-  vse32.v v2, (a0)
-end;
-
 function RISCVVSelectF32x16(const mask: TMask16; const a, b: TVecF32x16): TVecF32x16; assembler; nostackframe;
-asm
-  vsetivli zero, 16, 0xD2
-  vmv.s.x v0, a1
-  vle32.v v4, (a2)
-  vle32.v v8, (a3)
-  vmerge.vvm v4, v8, v4, v0
-  vse32.v v4, (a0)
-end;
-
-function RISCVVSelectI32x16(const mask: TMask16; const a, b: TVecI32x16): TVecI32x16; assembler; nostackframe;
 asm
   vsetivli zero, 16, 0xD2
   vmv.s.x v0, a1

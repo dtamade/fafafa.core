@@ -3152,3 +3152,17 @@
 | 1. 复核 8 个候选符号是否只剩定义 | completed | 全仓检索确认 `RISCVVLoad/Store/Splat/ZeroI32x4` 与 `RISCVVLoad/Store/Splat/ZeroI64x2` 只出现在 `src/fafafa.core.simd.riscvv.pas` 和 `src/fafafa.core.simd.riscvv.helpers.inc`，没有 `dispatch/register/facade/tests/docs` 消费面 |
 | 2. 删除 asm + helper 双轨死残留 | completed | 已从 `riscvv.pas` 删除这 8 个 asm 入口，并从 `riscvv.helpers.inc` 删除对应 fallback 定义，避免继续保留无入口的双轨内部死代码 |
 | 3. 补“必须缺席”护栏并串行复验 | completed | `check_nonx86_helper_semantics.py` 已新增 `require_routine_absent(...)`，显式要求这 8 个符号在 `riscvv.pas/helpers.inc` 中缺席；`git diff --check`、helper semantics、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 已全部通过，helper summary 更新到 `checks=498 status=ok` |
+
+## 2026-05-15 RISCVV Dead Shift/Reduce/Select Residue Removal
+
+### Goal
+
+继续深审 `RISCVV` internal residue 时，把第二组“只有定义、没有 slot/facade/test 消费”的死尾巴也收掉：`U64x2 shift`、`I32x4/U32x4 reduce`、以及 `I64x2/I32x8/I32x16 select`。这批目标不是抽象去重，而是删除错误保留下来的第二组 asm + helper 双轨死代码，并把缺席护栏继续扩严。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核第二组候选符号是否存在任何真实接线 | completed | 已确认 `RISCVVShiftLeft/RightU64x2`、`RISCVVReduce(Add/Min/Max)I32x4`、`RISCVVReduce(Min/Max)U32x4`、`RISCVVSelectI64x2/I32x8/I32x16` 在 `register/facade/dispatch/simd.pas/tests` 都没有消费面，只剩 `riscvv.pas/helpers.inc` 双轨定义 |
+| 2. 删除第二组 asm + helper 双轨死残留 | completed | 已从 `src/fafafa.core.simd.riscvv.pas` 与 `src/fafafa.core.simd.riscvv.helpers.inc` 删除这 10 组内部死入口；`riscvv_abi_shape` 计数自然从 `123` 收到 `121`，没有出现 shape 合同问题 |
+| 3. 扩 absent 护栏并串行 release 复验 | completed | `check_nonx86_helper_semantics.py` 已把这 10 组名字加入 `require_routine_absent(...)`；`git diff --check`、helper semantics、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 已全部通过，helper summary 更新到 `checks=518 status=ok` |

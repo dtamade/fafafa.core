@@ -4127,3 +4127,41 @@
   - Release `check` 通过
   - Release `gate` 通过
 - `gate` 末尾仍然只有旧 `windows_b07_gate.log` 的 optional evidence verify 缺模式，这继续是历史 Windows 证据过期问题，不是本批 residue removal 引入的实现回归。
+
+## 2026-05-15 RISCVV Dead Shift/Reduce/Select Residue Removal
+
+- 在收掉 `Load/Store/Splat/Zero` 那组死残留之后，我继续往 `RISCVV` 里追第二组边缘 helper，结果发现：
+  - `RISCVVShiftLeftU64x2`
+  - `RISCVVShiftRightU64x2`
+  - `RISCVVReduceAddI32x4`
+  - `RISCVVReduceMinI32x4`
+  - `RISCVVReduceMaxI32x4`
+  - `RISCVVReduceMinU32x4`
+  - `RISCVVReduceMaxU32x4`
+  - `RISCVVSelectI64x2`
+  - `RISCVVSelectI32x8`
+  - `RISCVVSelectI32x16`
+  这 10 组也只剩 `riscvv.pas` 和 `riscvv.helpers.inc` 两处定义。
+- fresh 复核更进一步确认，它们不仅“不在当前 checker 重点里”，而是根本没有接进任何真实 contract：
+  - `riscvv.register.inc` 没有对应 `table.* := @RISCVV...`
+  - `riscvv.facade.inc` 没有同名 façade
+  - `dispatch.pas` / `simd.pas` 没有公开 generic slot 消费
+  - `tests/fafafa.core.simd*` 没有针对这些名字的 runtime/source 证明
+- 因此，之前把其中一部分临时归类为“没有现成 scalar 真源，所以先不机械回收”，现在看已经不是最准判断。
+- 更准确的结论是：
+  - 它们不是“待统一的 fallback helper”；
+  - 而是第二组没有消费面的 internal dead residue。
+- 本批收法因此也从“考虑改成 scalar 真源”转为“直接移除错误保留的双轨死代码”：
+  - 从 `riscvv.pas` 删除这 10 组 asm/assembler wrapper；
+  - 从 `riscvv.helpers.inc` 删除对应 fallback 定义；
+  - 不给它们补 register/facade，因为那会把 dead residue 硬升级成新 contract。
+- 护栏同步继续扩严：
+  - `check_nonx86_helper_semantics.py` 把这 10 组名字一并纳入 `require_routine_absent(...)`
+  - 现在 source-side 会显式守住“这些名字必须不存在”
+- fresh 复验结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=518 status=ok`
+  - `RISCVV_ABI_SHAPE_SUMMARY direct_functions=121 explicit_checks=10 missing_result_store=0 suspicious_a0_loads=0 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY ... status=ok`
+  - Release `check` 通过
+  - Release `gate` 通过
+- `gate` 尾部仍旧只有历史 `windows_b07_gate.log` 的 optional evidence 缺模式；这依然是旧 Windows 证据新鲜度问题，不是本批删减引入的实现或 contract 回归。
