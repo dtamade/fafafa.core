@@ -3197,3 +3197,16 @@
   - 低风险继续清理：仅复制公共 lifecycle、但仍保留 suite-specific restore helper 的基类壳
   - 中风险暂缓：还附带 hook reset、rebind、FPU mask、per-test backend choreography 的本地 fixture
   - 高风险暂缓：直接嵌在 `ieee754` 等语义敏感 suite 里的 backend/vector-asm 切换流程
+
+## 2026-05-14 PublicAbi Fixture Base Alignment Findings
+
+- `publicabi.testcase` 进一步把“低风险可继续清理”的边界压实了：
+  - 即使 suite 自己还带 hook reset 顺序，只要这个顺序能保持在 override 里
+  - 公共的 `backend + vector-asm` 生命周期仍然应该回收给 `TSimdVectorAsmStatefulTestCase`
+- 这也让剩余候选的判别标准更具体：
+  - 如果本地 fixture 只是在公共生命周期前后加一层 reset/cleanup，而不改恢复主体，就仍可能是安全可收点
+  - 如果本地 fixture 已经把 `restore` 主体和 suite-specific 行为缠在一起，例如 rebind 之后再断言、恢复时还要触发 hook、或者依赖异常 mask/舍入流程，那么就不该继续机械合并
+- 到目前为止，`TSimdVectorAsmStatefulTestCase` 已经实际吸收了多个不同重量级入口，说明这个公共基类的抽象层次是对的，不再只是 `dataplane/sse2contracts` 的局部便利壳。
+- 因而下一步最合理的策略不是盲目继续“搜 `FSavedVectorAsm` 然后全删”，而是：
+  - 把 `direct`、`ieee754` 这类剩余候选当成中风险/高风险目标重新分类
+  - 只在确认 suite-specific 额外语义和 restore 主体可分离时再下手

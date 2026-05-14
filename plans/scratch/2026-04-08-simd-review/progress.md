@@ -3403,3 +3403,36 @@
   - `TSimdVectorAsmStatefulTestCase` 现在已经不仅服务 `dataplane/sse2contracts`
   - 它也接住了 `concurrent` 和 `dispatchapi` 这两块更重的测试入口
   - 后续如果再看 `publicabi/direct/ieee754`，就可以用更严格的标准判断它们剩下的本地 fixture 是否真的还有额外语义
+
+## 2026-05-14 PublicAbi Fixture Base Alignment
+
+- 沿着同一条基类对齐思路继续往下看，`publicabi.testcase` 也暴露出同类重复壳：
+  - `TTestCase_PublicAbi` 仍继承 `TSimdBackendStatefulTestCase`
+  - 本地再保存 `FSavedVectorAsm`
+  - `SetUp/TearDown` 手工做 vector-asm 保存/恢复
+  - 但真正额外的 suite-specific 行为只有 `ResetPublicAbiSyntheticHookState` 的前后包裹顺序，以及 `RestorePublicAbiLocalState(...)` 的 backend-restore 断言
+- 复核后确认这条可以安全下沉：
+  - `SetUp` 里去掉手工 `FSavedVectorAsm := IsVectorAsmEnabled` 后，不影响 hook reset 顺序
+  - `TearDown` 里先 `ResetPublicAbiSyntheticHookState`，再交给 `TSimdVectorAsmStatefulTestCase.TearDown` 恢复 vector-asm / backend，时序仍与原设计一致
+  - 所有 `RestorePublicAbiLocalState(...)` 调用点继续显式传入中间态保存的 `LOldVectorAsm` 或 fixture 级 `FSavedVectorAsm`
+- 本轮最小修法已落地：
+  - `TTestCase_PublicAbi` 改继承 `TSimdVectorAsmStatefulTestCase`
+  - 删除本地 `FSavedVectorAsm`
+  - `SetUp/TearDown` 只保留 hook-state reset
+  - `RestorePublicAbiLocalState(...)` 与被测 public ABI 行为不动
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 到这里，`TSimdVectorAsmStatefulTestCase` 已经实接：
+  - `dataplane`
+  - `sse2contracts`
+  - `concurrent`
+  - `dispatchapi`
+  - `publicabi`
+- 这意味着下一轮再继续扫时，风险边界已经明显抬高：
+  - `direct` 还带 `RebindDirectDispatch`
+  - `ieee754` 还混着 exception/rounding 编排
+  - 不再适合按“同构生命周期壳”直接机械收口

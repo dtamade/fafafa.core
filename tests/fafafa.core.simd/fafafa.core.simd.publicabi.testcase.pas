@@ -49,9 +49,8 @@ uses
   fafafa.core.simd.api;
 
 type
-  TTestCase_PublicAbi = class(TSimdBackendStatefulTestCase)
+  TTestCase_PublicAbi = class(TSimdVectorAsmStatefulTestCase)
   protected
-    FSavedVectorAsm: Boolean;
     procedure RestorePublicAbiLocalState(aOriginalVectorAsm: Boolean; aOriginalBackend: TSimdBackend);
     procedure SetUp; override;
     procedure TearDown; override;
@@ -656,7 +655,6 @@ end;
 procedure TTestCase_PublicAbi.SetUp;
 begin
   inherited SetUp;
-  FSavedVectorAsm := IsVectorAsmEnabled;
   ResetPublicAbiSyntheticHookState;
 end;
 
@@ -671,11 +669,7 @@ end;
 procedure TTestCase_PublicAbi.TearDown;
 begin
   ResetPublicAbiSyntheticHookState;
-  SetVectorAsmEnabled(FSavedVectorAsm);
   inherited TearDown;
-
-  AssertTrue('Public ABI fixture should restore previous vector asm state',
-    IsVectorAsmEnabled = FSavedVectorAsm);
 end;
 
 function GetPublicApiFuncPointer(const aApi: PFafafaSimdPublicApi; aSlotIndex: Integer): Pointer;

@@ -2518,3 +2518,17 @@
 | 1. 复核 `TDispatchAPIStatefulTestCase` 的本地语义边界 | completed | 已确认它的 `SetUp/TearDown` 与刚收掉的 `TSimdStatefulTestCase` 同型：仅保存/恢复 `FSavedVectorAsm`；真正 suite-specific 的只剩 `RestoreDispatchApiLocalState(...)` 对 backend restore 成功的断言 |
 | 2. 对齐到公共 `vector-asm stateful` 基类 | completed | `TDispatchAPIStatefulTestCase` 已改继承 `TSimdVectorAsmStatefulTestCase`，删除本地 `FSavedVectorAsm` 字段与重复 `SetUp/TearDown`；所有 `RestoreDispatchApiLocalState(...)` 调用点保持不变 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿；本轮同样按串行验证收口 |
+
+## 2026-05-14 PublicAbi Fixture Base Alignment
+
+### Goal
+
+继续加强 `simd` 测试层审查并修复，但这次只处理 `publicabi.testcase` 里重复的一层 `backend + vector-asm` fixture 生命周期。保留 `ResetPublicAbiSyntheticHookState` 的时序和 `RestorePublicAbiLocalState(...)` 的 suite-specific 断言 helper，只把公共 lifecycle 下沉到 `TSimdVectorAsmStatefulTestCase`。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `publicabi` 的本地 fixture 是否仍有独立时序要求 | completed | 已确认 `SetUp/TearDown` 唯一额外要求是 `ResetPublicAbiSyntheticHookState` 必须包在 fixture 前后；`FSavedVectorAsm + SetUp/TearDown` 本体仍与公共 `vector-asm stateful` 基类同构 |
+| 2. 保留 hook reset 顺序，收回重复 lifecycle | completed | `TTestCase_PublicAbi` 已改继承 `TSimdVectorAsmStatefulTestCase`，删除本地 `FSavedVectorAsm` 与手写 vector-asm restore；`SetUp/TearDown` 只保留 hook-state reset 顺序，`RestorePublicAbiLocalState(...)` 与所有调用点不变 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿；`gate` 里的 public ABI concurrent regression chain 也继续通过 |
