@@ -2443,3 +2443,16 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`；当前 `dispatchapi.testcase` 剩余的裸 `SetVectorAsmEnabled(LOldVectorAsm)` 命中已经缩到长方法内部 helper / nested procedure 的局部 finally，不再是顶层 test outer finally。
+
+- 继续沿同一文件逐段核对后，确认 `dispatchapi.testcase` 剩余的顶层裸 `SetVectorAsmEnabled(LOldVectorAsm)` 其实都集中在 `TTestCase_NonX86BackendParity`，一共 16 处。
+- 这批仍然沿最小修法处理：
+  - 不新建 helper
+  - 直接复用现有 `RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend)`
+  - 对 `FreeAligned(...)`、局部 buffer 复位等本地清理语句保持原顺序
+- 本轮 Release 定向验证已串行跑完：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`；现在 `dispatchapi.testcase` 里顶层 test outer finally 的裸 `SetVectorAsmEnabled(LOldVectorAsm)` 已经清零，剩余命中只在内部 helper / nested procedure 局部 finally。

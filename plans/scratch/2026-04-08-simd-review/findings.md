@@ -2227,3 +2227,21 @@
 - 这批之后，`dispatchapi.testcase` 里剩余的裸 `SetVectorAsmEnabled(LOldVectorAsm)` 命中已经不再是顶层 test outer finally，而是长方法内部 local helper / nested procedure 自己的局部 finally。
 - 因而下一批如果继续沿 `dispatchapi.testcase` 深审，机械替换价值已经明显下降；更值得看的是真正带语义的内部 helper finally，以及尚未统一的复杂 rollback/backend mutation 块。
 - Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 再次全绿，说明这批仍然只是在收 `dispatchapi` 测试层恢复 contract 的缺失/冗余，没有触碰 dispatch/backend/public-ABI 生产行为。
+
+## 2026-05-14 NonX86BackendParity Local Restore Cleanup Findings
+
+- 在 `DispatchAPI` 本体和前两条 companion contract 收完后，`dispatchapi.testcase` 里剩余的顶层裸 `SetVectorAsmEnabled(LOldVectorAsm)` 实际上全部集中到了 `TTestCase_NonX86BackendParity`：
+  - 共 16 处
+  - 都是顶层 test outer finally
+  - 语义上仍属于“vector-asm parity test 结束时没有复用已保存 backend”的同一类历史样板
+- 这批仍然适合用最小修法，而不该新建专用 helper：
+  - `TTestCase_NonX86BackendParity` 已经继承 `TDispatchAPIStatefulTestCase`
+  - 直接复用 `RestoreDispatchApiLocalState(aOriginalVectorAsm, aOriginalBackend)` 就能回到与 fixture 一致的恢复 contract
+- 其中少数测试在 finally 里还带本地资源收尾：
+  - `FreeAligned(LAligned)`
+  - `FreeAligned(LAlignedBlock)`
+  - 局部 buffer 复位
+  - 本轮只是在这些清理语句前补统一 helper，没有打乱它们各自的本地资源清理顺序
+- 收完之后，`dispatchapi.testcase` 里的顶层 test outer finally 已不再残留裸 `SetVectorAsmEnabled(LOldVectorAsm)`；剩余命中已经缩到内部 local helper / nested procedure 自己的局部 finally。
+- 这意味着后续如果继续沿这个文件深审，盲扫 value 已经明显下降，下一步应改成逐段审 helper 内部语义，重点看复杂 rollback/backend mutation 块是否真的需要进一步统一。
+- Release `TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`、Release `check`、Release `gate` 全绿，说明这批继续只是在收 companion parity 测试层恢复冗余/不对称，而不是 non-x86 backend 或 dispatch 生产语义回归。

@@ -1983,3 +1983,17 @@
 | 1. 复核上一批之后的剩余 pure outer finally 归属 | completed | 已确认上一批锁定的 15 处不是全部；继续复核后，又定位到 20 处新的 simple outer finally：`RISCVVMaskedOpsContract` 2 处 + `TTestCase_DispatchAPI` 后段 capability/public-ABI/override 路径 18 处 |
 | 2. 复用 `RestoreDispatchApiLocalState` 收掉剩余顶层 simple outer finally | completed | 已把这 20 处纯 `SetVectorAsmEnabled(LOldVectorAsm)` 的顶层 outer finally 统一切到 `RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend)`；长方法内部 local helper / nested procedure 的局部 finally 继续保留原位 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已再次清理 |
+
+## 2026-05-14 NonX86BackendParity Local Restore Cleanup
+
+### Goal
+
+继续沿 `dispatchapi.testcase` 里仍然继承 `TDispatchAPIStatefulTestCase` 的 companion parity 类深审，把 `TTestCase_NonX86BackendParity` 中剩余的 pure `SetVectorAsmEnabled(LOldVectorAsm)` 顶层 outer finally 统一收回 `RestoreDispatchApiLocalState`，同时保留 `FreeAligned(...)`、局部缓冲复位等本地资源清理顺序。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `TTestCase_NonX86BackendParity` 的剩余顶层 outer finally | completed | 已确认 `dispatchapi.testcase` 里剩余的顶层裸 `SetVectorAsmEnabled(LOldVectorAsm)` 已全部集中到 `TTestCase_NonX86BackendParity` 的 16 条 vector-asm parity test |
+| 2. 复用 `RestoreDispatchApiLocalState` 收掉 companion parity 样板 | completed | 已把这 16 处顶层 outer finally 统一切到 `RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend)`；对 `FreeAligned(...)`、局部 buffer 复位等 test-local 清理语句保持原有相对顺序 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已再次清理 |

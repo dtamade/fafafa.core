@@ -11341,7 +11341,7 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 backend registered on this host (allowed)', True);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -11528,7 +11528,7 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 backend registered/active on this host (allowed)', True);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -11675,7 +11675,7 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -11895,7 +11895,7 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -12017,7 +12017,7 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
     FreeAligned(LAligned);
   end;
 end;
@@ -12221,7 +12221,7 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -12412,7 +12412,7 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
     FreeAligned(LAlignedBlock);
   end;
 end;
@@ -12566,7 +12566,7 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -12681,7 +12681,7 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
     for LIndex := 0 to 3 do
       LF32x4A.f[LIndex] := 0.0;
   end;
@@ -12794,7 +12794,7 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -12914,7 +12914,7 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -13043,7 +13043,7 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -13313,7 +13313,7 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -13545,7 +13545,7 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -13689,7 +13689,7 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -13888,7 +13888,7 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -14032,7 +14032,7 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
