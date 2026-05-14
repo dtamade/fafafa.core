@@ -3194,3 +3194,17 @@
 | 1. 复核 `NEON` 零调用候选是否真的没有消费面 | completed | 已确认 `NEONCmpNeU32x4`、`NEONReduce(Add/Min/Max)I32x4`、`NEONReduce(Add/Min/Max)U32x4`、`NEONMinI64x2`、`NEONMaxI64x2` 只剩 `compare.inc/scalar.reduction.inc/scalar.utility.inc` 定义，没有 `register/facade/runtime/simd.pas/tests` 消费面 |
 | 2. 删除 `NEON` compare/reduction/minmax 死残留 | completed | 已从 `src/fafafa.core.simd.neon.compare.inc` 删除 `CmpNeU32x4` 与 `I32x4/U32x4 reduction` 入口，从 `neon.scalar.reduction.inc` 删除对应 fallback，并从 `neon.scalar.utility.inc` 删除 `Min/MaxI64x2` fallback |
 | 3. 扩 absent 护栏并串行 release 复验 | completed | `check_nonx86_helper_semantics.py` 已新增 `NEON_COMPARE_FILE` 并把上述名字加入 `require_routine_absent(...)`；`git diff --check`、helper semantics、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 已全部通过，helper summary 更新到 `checks=537 status=ok`；`gate` 末尾仍只把旧 `windows_b07_gate.log` 诚实降级为 optional `SKIP` |
+
+## 2026-05-15 NEON Single-Use Compare Wrapper Inline Cleanup
+
+### Goal
+
+继续细化 `NEON` 上一批删后只剩的 7 个内部 helper，把真正高复用的 `CombineMask*` 支撑函数与只服务单个聚合调用点的 compare thin wrapper 分开处理。本批目标是删掉 4 个单点冗余 wrapper，并保留 3 个仍有广泛 fan-out 的 mask combine helper。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核剩余 7 个 `NEON` helper 的真实角色 | completed | 已确认 `NEONCombineMask2To4/4To8/8To16` 在 `scalar.autowrap.inc` 内被大量宽比较聚合调用；而 `NEONCmpLeU64x2Wrapper`、`NEONCmpGeU64x2Wrapper`、`NEONCmpNeU64x2Wrapper`、`NEONCmpNeU32x4Wrapper` 都只是单行反相薄壳，且各自只服务单个聚合调用点 |
+| 2. 内联 4 个 compare wrapper 并删除定义 | completed | 已从 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 删除 4 个 wrapper 定义，并把 `NEONCmpGeU64x4`、`NEONCmpLeU64x4`、`NEONCmpNeU32x8`、`NEONCmpNeU64x4` 直接改为在 `NEONCombineMask*` 调用点内联 `MASK*_ALL_SET xor ...` 表达式；`CombineMask*` 保持不动 |
+| 3. 扩 absent 护栏并串行 release 复验 | completed | `check_nonx86_helper_semantics.py` 已把这 4 个 wrapper 加入 `require_routine_absent(...)`；`git diff --check`、helper semantics、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 已全部通过，helper summary 更新到 `checks=541 status=ok`；`gate` 末尾仍只把旧 `windows_b07_gate.log` 诚实降级为 optional `SKIP` |

@@ -4242,3 +4242,40 @@
   - Release `check` 通过
   - Release `gate` 通过
 - `gate` 尾部仍然只把旧 `windows_b07_gate.log` 诚实降级为 optional `SKIP`；这继续是历史 Windows evidence 新鲜度问题，不是本批 `NEON` residue removal 引入的实现或 contract 回归。
+
+## 2026-05-15 NEON Single-Use Compare Wrapper Inline Cleanup
+
+- 上一批删完 `NEON` 零调用残留后，source-side 只剩 7 个内部 helper：
+  - `NEONCmpGeU64x2Wrapper`
+  - `NEONCmpLeU64x2Wrapper`
+  - `NEONCmpNeU32x4Wrapper`
+  - `NEONCmpNeU64x2Wrapper`
+  - `NEONCombineMask2To4`
+  - `NEONCombineMask4To8`
+  - `NEONCombineMask8To16`
+- fresh 交叉检索后，这 7 个名字其实分成两类，不能再一刀切：
+  - `NEONCombineMask2To4/4To8/8To16` 在 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 内被大量 `I32/I64/U32/U64` 宽比较聚合复用，是真正的 live support helper
+  - `NEONCmpLeU64x2Wrapper`、`NEONCmpGeU64x2Wrapper`、`NEONCmpNeU64x2Wrapper`、`NEONCmpNeU32x4Wrapper` 都只是 `MASK*_ALL_SET xor NarrowCmp*` 的单行反相薄壳，而且各自只服务一个聚合调用点
+- 这说明第二类不是“死代码”，但仍然是低价值冗余：
+  - 它们没有独立 contract
+  - 不在 `register/facade/tests` 单独出现
+  - 只是把一条一眼能读懂的反相表达式多包了一层局部函数
+- 因此本批处理方式与上一批不同：
+  - 保留 `NEONCombineMask2To4/4To8/8To16`
+  - 删除 4 个 `Cmp*Wrapper`
+  - 在 `NEONCmpGeU64x4`、`NEONCmpLeU64x4`、`NEONCmpNeU32x8`、`NEONCmpNeU64x4` 的 `NEONCombineMask*` 调用点直接内联 `TMask*(Byte(MASK*_ALL_SET) xor Byte(...))`
+- 为了把“这些 wrapper 不该再回流”写成长期护栏，`check_nonx86_helper_semantics.py` 本批继续补了 source-side 缺席断言：
+  - `NEONCmpLeU64x2Wrapper`
+  - `NEONCmpGeU64x2Wrapper`
+  - `NEONCmpNeU64x2Wrapper`
+  - `NEONCmpNeU32x4Wrapper`
+- fresh 验证结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=541 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY ... status=ok`
+  - Release `check` 通过
+  - Release `gate` 通过
+- `gate` 最终尾部结论没有变化：
+  - `run_all` 为 5/5 通过
+  - non-x86 native evidence 仍因 root 不存在而 optional `SKIP`
+  - `windows_b07_gate.log` 仍因历史缺模式而 optional `SKIP`
+  - 因此这批 inline cleanup 仍然没有引入新的实现或 contract 回归。

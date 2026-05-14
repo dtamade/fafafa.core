@@ -259,27 +259,7 @@ begin
   Result := TMask16((Word(aLo) and $00FF) or ((Word(aHi) and $00FF) shl 8));
 end;
 
-function NEONCmpLeU64x2Wrapper(const a, b: TVecU64x2): TMask2; inline;
-begin
-  Result := TMask2(Byte(MASK2_ALL_SET) xor Byte(NEONCmpGtU64x2(a, b)));
-end;
-
-function NEONCmpGeU64x2Wrapper(const a, b: TVecU64x2): TMask2; inline;
-begin
-  Result := TMask2(Byte(MASK2_ALL_SET) xor Byte(NEONCmpLtU64x2(a, b)));
-end;
-
-function NEONCmpNeU64x2Wrapper(const a, b: TVecU64x2): TMask2; inline;
-begin
-  Result := TMask2(Byte(MASK2_ALL_SET) xor Byte(NEONCmpEqU64x2(a, b)));
-end;
-
 function NEONCmpEqU32x4(const a, b: TVecU32x4): TMask4; forward;
-
-function NEONCmpNeU32x4Wrapper(const a, b: TVecU32x4): TMask4; inline;
-begin
-  Result := TMask4(Byte(MASK4_ALL_SET) xor Byte(NEONCmpEqU32x4(a, b)));
-end;
 
 function NEONCmpEqI32x8(const a, b: TVecI32x8): TMask8; forward;
 function NEONCmpGeI32x8(const a, b: TVecI32x8): TMask8; forward;
@@ -490,7 +470,9 @@ end;
 
 function NEONCmpGeU64x4(const a, b: TVecU64x4): TMask4;
 begin
-  Result := NEONCombineMask2To4(NEONCmpGeU64x2Wrapper(a.lo, b.lo), NEONCmpGeU64x2Wrapper(a.hi, b.hi));
+  Result := NEONCombineMask2To4(
+    TMask2(Byte(MASK2_ALL_SET) xor Byte(NEONCmpLtU64x2(a.lo, b.lo))),
+    TMask2(Byte(MASK2_ALL_SET) xor Byte(NEONCmpLtU64x2(a.hi, b.hi))));
 end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
@@ -704,7 +686,9 @@ end;
 
 function NEONCmpLeU64x4(const a, b: TVecU64x4): TMask4;
 begin
-  Result := NEONCombineMask2To4(NEONCmpLeU64x2Wrapper(a.lo, b.lo), NEONCmpLeU64x2Wrapper(a.hi, b.hi));
+  Result := NEONCombineMask2To4(
+    TMask2(Byte(MASK2_ALL_SET) xor Byte(NEONCmpGtU64x2(a.lo, b.lo))),
+    TMask2(Byte(MASK2_ALL_SET) xor Byte(NEONCmpGtU64x2(a.hi, b.hi))));
 end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
@@ -908,12 +892,16 @@ end;
 
 function NEONCmpNeU32x8(const a, b: TVecU32x8): TMask8;
 begin
-  Result := NEONCombineMask4To8(NEONCmpNeU32x4Wrapper(a.lo, b.lo), NEONCmpNeU32x4Wrapper(a.hi, b.hi));
+  Result := NEONCombineMask4To8(
+    TMask4(Byte(MASK4_ALL_SET) xor Byte(NEONCmpEqU32x4(a.lo, b.lo))),
+    TMask4(Byte(MASK4_ALL_SET) xor Byte(NEONCmpEqU32x4(a.hi, b.hi))));
 end;
 
 function NEONCmpNeU64x4(const a, b: TVecU64x4): TMask4;
 begin
-  Result := NEONCombineMask2To4(NEONCmpNeU64x2Wrapper(a.lo, b.lo), NEONCmpNeU64x2Wrapper(a.hi, b.hi));
+  Result := NEONCombineMask2To4(
+    TMask2(Byte(MASK2_ALL_SET) xor Byte(NEONCmpEqU64x2(a.lo, b.lo))),
+    TMask2(Byte(MASK2_ALL_SET) xor Byte(NEONCmpEqU64x2(a.hi, b.hi))));
 end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}

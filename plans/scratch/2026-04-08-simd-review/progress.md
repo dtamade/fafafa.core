@@ -4727,3 +4727,31 @@
   - `NEON` 非 `_ASM` 零调用残留只剩 7 个 wrapper/combine 内部支撑函数，不再属于这类 dead residue
   - `gate` 末尾仍然只把旧 `windows_b07_gate.log` 诚实降级为 optional `SKIP`
 - 收口前会继续清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+## 2026-05-15 NEON Single-Use Compare Wrapper Inline Cleanup
+
+- 在上一批 `NEON` dead residue 清完并提交后，我没有把“剩下的 7 个 helper”继续粗暴当成一类，而是先拆成：
+  - 3 个高复用 `CombineMask*`
+  - 4 个单点 compare thin wrapper
+- fresh 交叉检索结果很清楚：
+  - `NEONCombineMask2To4/4To8/8To16` 在 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 内被大量宽比较函数复用，必须保留
+  - `NEONCmpLeU64x2Wrapper`、`NEONCmpGeU64x2Wrapper`、`NEONCmpNeU64x2Wrapper`、`NEONCmpNeU32x4Wrapper` 只是单行反相壳，而且各自只服务一个聚合调用点
+- 因此本批继续收冗余，但不误删 live support：
+  - 从 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 删除 4 个 wrapper 定义
+  - 把 `NEONCmpGeU64x4`、`NEONCmpLeU64x4`、`NEONCmpNeU32x8`、`NEONCmpNeU64x4` 改成直接在 `NEONCombineMask*` 调用点内联表达式
+  - `NEONCombineMask2To4/4To8/8To16` 原样保留
+- `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 已同步加上这 4 个名字的缺席护栏，避免后续把同类 wrapper 又绕回来。
+- 本批 fresh 验证：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 当前结果：
+  - helper summary 升到 `NONX86_HELPER_SEMANTICS_SUMMARY checks=541 status=ok`
+  - `impl-audit-nonx86` 继续为绿
+  - Release `check` 继续为绿
+  - Release `gate` 继续为绿
+  - `run_all` 仍为 5/5 通过
+  - `gate` 末尾仍然只把 non-x86 native evidence root 缺失和旧 `windows_b07_gate.log` 诚实降级为 optional `SKIP`
+- 收口前会再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
