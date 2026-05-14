@@ -3032,3 +3032,20 @@
   - 让后续再审 `backend.consistency` 时，焦点可以回到测试语义本身，而不是继续被组织结构卡住
   - 也证明当前 `simd` 测试层已经可以从“局部 fixture 去重”进一步上升到“共享 test-only 基础设施整理”
 - Release 定向大覆盖 suites、Release `check`、Release `gate` 全绿，说明这批仍然只是测试 helper/组织结构层去冗余，没有改变 `backend consistency / dispatchslots / publicabi / dataplane / dispatchapi / concurrent / ieee754` 的被测行为。
+
+## 2026-05-14 Direct Dispatch Fixture Restore Findings
+
+- 在 `fixturehelpers` 抽出来之后，`direct.testcase` 里还留着一块很典型的“共享主体 + 局部动作”组合体：
+  - `RestoreFixtureDirectDispatchState`
+- 这条 helper 的分层已经很清楚：
+  - backend/vector-asm restore 主体现在和别处一样，属于共享 fixture 基础设施
+  - `RebindDirectDispatch` 则是 direct surface 自己的局部语义，不能被抽平
+- 因而这轮最稳的收法不是删 helper，也不是把 `RebindDirectDispatch` 塞进共享层，而是：
+  - 保留 `RestoreFixtureDirectDispatchState` 名称
+  - 让它内部先调用 `RestoreSavedBackendAndVectorAsmState(...)`
+  - 再执行 `RebindDirectDispatch`
+  - 最后保留 direct 专属断言
+- 这批修法的价值在于：
+  - 它验证了当前 shared fixture helper 体系已经足够稳定，连 direct 这种“共享 restore + 局部 rebind”的测试面也可以安全复用
+  - 同时也给后续 completion audit 一个更清楚的信号：如果某个本地 helper 仍保留，那应该是因为它真的有 surface-specific 语义，而不是因为共享层还不够完整
+- Release `TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、Release `check`、Release `gate` 全绿，说明这批仍然只是测试 helper 层去冗余，没有改变 direct dispatch 的被测 rebind / parity / concurrent 语义。

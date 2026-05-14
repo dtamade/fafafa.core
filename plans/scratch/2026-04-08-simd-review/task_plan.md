@@ -2417,3 +2417,17 @@
 | 1. 复核剩余冗余的结构根因 | completed | 已确认 `backend.consistency.testcase` 的本地 `Save/RestoreBackendConsistencyState` 之所以一直保留，不是语义特殊，而是因为 `testcase.pas` 反向 `uses` 它，直接复用 `testcase` 里的公共 helper 会形成单元循环 |
 | 2. 抽出共享 fixture helper 单元 | completed | 已新增 `tests/fafafa.core.simd/fafafa.core.simd.fixturehelpers.pas`，承载 `TSimdSavedBackendState`、`SaveActiveBackendState(...)`、`RestoreSavedBackendState(...)`、`RestoreSavedBackendAndVectorAsmState(...)`；`testcase.pas` 现保留兼容 wrapper，`backend.consistency.testcase.pas` 改复用共享单元，不再自带底层 save/restore 实现 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release 定向 suites（`DispatchAllSlots / BackendVectorConsistency / PublicAbi / DataPlane / DispatchAPI / SimdConcurrent / SimdConcurrentPublicAbi / IEEE754_F64`）、Release `check`、Release `gate` 全绿；提交前仍需清理可能回流的 `tests/fafafa.core.simd/__pycache__/` |
+
+## 2026-05-14 Direct Dispatch Fixture Restore Consolidation
+
+### Goal
+
+继续加强 `simd` 测试层冗余审查，但这次只处理 `direct.testcase` 中仍手写的“shared restore 主体 + direct rebind”组合体：把 backend/vector-asm restore 主体收回共享 helper，同时保留 `RebindDirectDispatch` 和 direct 专属断言不动。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `direct` helper 的共享部分与专属部分 | completed | 已确认 `TDirectDispatchStatefulTestCase.RestoreFixtureDirectDispatchState` 里重复的是 `SetVectorAsmEnabled -> ResetToAutomaticBackend -> TrySetActiveBackend` 主体；真正 direct 专属的只剩 `RebindDirectDispatch` 与其后的断言壳 |
+| 2. 让 `direct` fixture restore 复用共享 helper | completed | `RestoreFixtureDirectDispatchState` 已改成 `RestoreSavedBackendAndVectorAsmState(FSavedVectorAsm, FSavedBackend)` 后再 `RebindDirectDispatch`，保留 direct rebind 顺序和断言语义不变 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、Release `check`、Release `gate` 全绿；提交前仍需清理可能回流的 `tests/fafafa.core.simd/__pycache__/` |

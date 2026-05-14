@@ -214,11 +214,8 @@ procedure TDirectDispatchStatefulTestCase.RestoreFixtureDirectDispatchState;
 var
   LRestoredBackend: Boolean;
 begin
-  SetVectorAsmEnabled(FSavedVectorAsm);
-  ResetToAutomaticBackend;
-  LRestoredBackend := True;
-  if GetCurrentBackend <> FSavedBackend then
-    LRestoredBackend := TrySetActiveBackend(FSavedBackend);
+  LRestoredBackend := RestoreSavedBackendAndVectorAsmState(
+    FSavedVectorAsm, FSavedBackend);
   RebindDirectDispatch;
   AssertTrue('Direct dispatch fixture should restore previous backend selection',
     LRestoredBackend and (GetCurrentBackend = FSavedBackend));

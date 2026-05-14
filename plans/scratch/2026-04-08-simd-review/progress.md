@@ -1664,6 +1664,29 @@
   - `backend.consistency` 不再是因为组织结构而无法共用 helper 的特例
   - 下一步如果还要继续深挖，重点应转成一次 completion audit：重新核所有显式 restore helper、保留的 `runtime` control-plane finally，以及是否还存在值得修的结构性重复，而不是盲目再抽象一层
 
+- 在 completion audit 前，我又补了一刀很小但明确的残点：
+  - `tests/fafafa.core.simd/fafafa.core.simd.direct.testcase.pas`
+  - `TDirectDispatchStatefulTestCase.RestoreFixtureDirectDispatchState`
+- 这轮先把边界卡清楚了：
+  - 这条 helper 里重复的仍是已经共享化的 backend/vector-asm restore 主体
+  - `direct` 自己真正独有的是 `RebindDirectDispatch`
+  - 所以这轮不动 helper 名称、不动 rebind 顺序、不动断言，只收共享主体
+- 本轮最小修法因此是：
+  - `RestoreFixtureDirectDispatchState` 改成
+    - `RestoreSavedBackendAndVectorAsmState(FSavedVectorAsm, FSavedBackend)`
+    - 然后 `RebindDirectDispatch`
+    - 然后保持原断言
+- 本轮 Release 收口证据：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断继续更新：
+  - `direct` 这条 restore helper 残点现在也已经并入 shared fixture helper 体系
+  - 当前显式保留下来的 restore helper，越来越多已经是“语义壳”而不是“实现复制体”
+  - 下一步更有价值的是补一轮发布级 completion audit，重新核 `freeze-status`、non-x86 native evidence 和是否还存在未覆盖的真实问题
+
 ## 2026-05-14 Fixture Backend Restore Symmetry
 
 - 这轮没有回头去刷 `UnsignedVectorTypes` / `RustStyleAliases` / `Memutils`，也没有机械给 `PublicAbi`、`SSE2Contracts`、`dataplane`、`concurrent` 套 `sbScalar`。
