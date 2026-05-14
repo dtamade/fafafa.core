@@ -25,21 +25,25 @@ LCaseNotReady="${LTmpRoot}/case_not_ready/tests/fafafa.core.simd"
 LCaseReady="${LTmpRoot}/case_ready/tests/fafafa.core.simd"
 LCaseLinuxLazy="${LTmpRoot}/case_linux_lazy/tests/fafafa.core.simd"
 LCaseLinuxPlatforms="${LTmpRoot}/case_linux_platforms/tests/fafafa.core.simd"
+LCaseBatchFallback="${LTmpRoot}/case_batch_fallback/tests/fafafa.core.simd"
 
 mkdir -p "${LCaseNotReady}/logs" "${LCaseNotReady}/docs" "${LTmpRoot}/case_not_ready/docs/plans"
 mkdir -p "${LCaseReady}/logs" "${LCaseReady}/docs" "${LTmpRoot}/case_ready/docs/plans"
 mkdir -p "${LCaseLinuxLazy}/logs" "${LCaseLinuxLazy}/docs" "${LTmpRoot}/case_linux_lazy/docs/plans"
 mkdir -p "${LCaseLinuxPlatforms}/logs" "${LCaseLinuxPlatforms}/docs" "${LTmpRoot}/case_linux_platforms/docs/plans"
+mkdir -p "${LCaseBatchFallback}/logs/windows-closeout/SIMD-20260210-152" "${LCaseBatchFallback}/docs" "${LTmpRoot}/case_batch_fallback/docs/plans"
 
 cp "${FREEZE_SCRIPT}" "${LCaseNotReady}/evaluate_simd_freeze_status.py"
 cp "${FREEZE_SCRIPT}" "${LCaseReady}/evaluate_simd_freeze_status.py"
 cp "${FREEZE_SCRIPT}" "${LCaseLinuxLazy}/evaluate_simd_freeze_status.py"
 cp "${FREEZE_SCRIPT}" "${LCaseLinuxPlatforms}/evaluate_simd_freeze_status.py"
+cp "${FREEZE_SCRIPT}" "${LCaseBatchFallback}/evaluate_simd_freeze_status.py"
 cp "${VERIFY_SCRIPT}" "${LCaseNotReady}/verify_windows_b07_evidence.sh"
 cp "${VERIFY_SCRIPT}" "${LCaseReady}/verify_windows_b07_evidence.sh"
 cp "${VERIFY_SCRIPT}" "${LCaseLinuxLazy}/verify_windows_b07_evidence.sh"
 cp "${VERIFY_SCRIPT}" "${LCaseLinuxPlatforms}/verify_windows_b07_evidence.sh"
-chmod +x "${LCaseNotReady}/verify_windows_b07_evidence.sh" "${LCaseReady}/verify_windows_b07_evidence.sh" "${LCaseLinuxLazy}/verify_windows_b07_evidence.sh" "${LCaseLinuxPlatforms}/verify_windows_b07_evidence.sh"
+cp "${VERIFY_SCRIPT}" "${LCaseBatchFallback}/verify_windows_b07_evidence.sh"
+chmod +x "${LCaseNotReady}/verify_windows_b07_evidence.sh" "${LCaseReady}/verify_windows_b07_evidence.sh" "${LCaseLinuxLazy}/verify_windows_b07_evidence.sh" "${LCaseLinuxPlatforms}/verify_windows_b07_evidence.sh" "${LCaseBatchFallback}/verify_windows_b07_evidence.sh"
 
 # ---------- Case A: NOT READY ----------
 cat > "${LCaseNotReady}/logs/gate_summary.md" <<'EOM'
@@ -603,7 +607,123 @@ if grep -F -- "qemu-multiarch-20260210-000022" "${LCaseLinuxPlatforms}/logs/free
   exit 1
 fi
 
-# ---------- Case E: SOURCE NEWER THAN GATE ARTIFACT ----------
+# ---------- Case G: CROSS-READY FALLBACK TO BATCH CLOSEOUT GATE SNAPSHOT ----------
+cat > "${LCaseBatchFallback}/logs/gate_summary.md" <<'EOM'
+| Time | Step | Status | DurationMs | Event | Detail | Artifacts |
+|---|---|---|---|---|---|---|
+| 2026-02-10 00:10:00 | gate | START | - | START | mode=Release | - |
+| 2026-02-10 00:10:01 | build-check | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:10:02 | interface-completeness | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:10:03 | cross-backend-parity | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:10:04 | wiring-sync | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:10:05 | coverage | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:10:06 | simd-list-suites | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:10:07 | simd-avx2-fallback | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:10:08 | cpuinfo-portable | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:10:09 | cpuinfo-x86 | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:10:10 | run-all-chain | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:10:11 | evidence-verify | SKIP | - | SKIP | require-win-evidence=0 | - |
+| 2026-02-10 00:10:12 | gate | PASS | 1000 | NORMAL | all steps passed | - |
+EOM
+
+cat > "${LCaseBatchFallback}/logs/windows-closeout/SIMD-20260210-152/gate_summary.md" <<'EOM'
+| Time | Step | Status | DurationMs | Event | Detail | Artifacts |
+|---|---|---|---|---|---|---|
+| 2026-02-10 00:05:00 | gate | START | - | START | mode=Release | - |
+| 2026-02-10 00:05:01 | build-check | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:05:02 | interface-completeness | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:05:03 | cross-backend-parity | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:05:04 | wiring-sync | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:05:05 | coverage | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:05:06 | simd-list-suites | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:05:07 | simd-avx2-fallback | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:05:08 | cpuinfo-portable | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:05:09 | cpuinfo-x86 | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:05:10 | run-all-chain | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:05:11 | qemu-cpuinfo-nonx86-evidence | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:05:12 | evidence-verify | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:05:13 | gate | PASS | 1000 | NORMAL | all steps passed | - |
+EOM
+
+cat > "${LCaseBatchFallback}/logs/windows_b07_gate.log" <<'EOM'
+[B07] Windows evidence capture
+[B07] Source: collect_windows_b07_evidence.bat
+[B07] HostOS: Windows_NT
+[B07] CmdVer: Microsoft Windows [Version 10.0.22631.4602]
+[B07] Started: 2026/02/10 00:00:00.00
+[B07] Working dir: C:\simd\tests\fafafa.core.simd\
+[B07] Command: buildOrTest.bat gate
+[B07] GateSummaryJson: /tmp/rehearse.windows_b07_gate.batch-fallback.summary-json.missing
+[GATE] 1/7 Build + check SIMD module
+[GATE] 2/7 SIMD list suites
+[GATE] 3/7 SIMD AVX2 fallback suite
+[GATE] 4/7 CPUInfo portable suites
+[GATE] 5/7 CPUInfo x86 suites
+[GATE] 6/7 Windows public ABI smoke
+[GATE] 7/7 Filtered run_all chain
+[GATE] OK
+[B07] GATE_EXIT_CODE=0
+Total:  5
+Passed: 5
+Failed: 0
+[B07] Total: 5
+[B07] Passed: 5
+[B07] Failed: 0
+EOM
+
+cat > "${LCaseBatchFallback}/logs/windows_b07_closeout_summary.md" <<'EOM'
+# SIMD Windows B07 Closeout Summary
+
+## Verification
+
+- Verifier: verify_windows_b07_evidence.sh
+- Command: bash verify_windows_b07_evidence.sh "logs/windows_b07_gate.log"
+- Result: PASS
+EOM
+
+cat > "${LTmpRoot}/case_batch_fallback/docs/plans/2026-02-09-simd-unblock-closeout-roadmap.md" <<'EOM'
+- [x] **Windows 实机证据已归档**
+EOM
+
+cat > "${LCaseBatchFallback}/docs/simd_release_candidate_checklist.md" <<'EOM'
+- [x] Windows 实机证据日志已归档
+EOM
+
+cat > "${LCaseBatchFallback}/docs/simd_completeness_matrix.md" <<'EOM'
+- Windows 证据：实机日志已归档（脚本入口 + 校验入口）
+EOM
+
+mkdir -p "${LCaseBatchFallback}/logs/qemu-multiarch-20260210-000511"
+cat > "${LCaseBatchFallback}/logs/qemu-multiarch-20260210-000511/summary.md" <<'EOM'
+# SIMD QEMU Multiarch Report
+
+- time: 2026-02-10T00:05:11+08:00
+- scenario: cpuinfo-nonx86-evidence
+- platforms: linux/arm/v7 linux/arm64 linux/riscv64
+
+| Platform | Status | Log |
+|---|---|---|
+| linux/arm/v7 | PASS | `armv7.log` |
+| linux/arm64 | PASS | `arm64.log` |
+| linux/riscv64 | PASS | `riscv64.log` |
+EOM
+
+SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=1 \
+python3 "${LCaseBatchFallback}/evaluate_simd_freeze_status.py" --root "${LCaseBatchFallback}" --json-file "${LCaseBatchFallback}/logs/freeze_status_batch_fallback.json" > "${LCaseBatchFallback}/logs/freeze_stdout_batch_fallback.txt" 2>&1
+
+if ! grep -F -- "ready=True" "${LCaseBatchFallback}/logs/freeze_stdout_batch_fallback.txt" >/dev/null; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_batch_fallback should stay ready=True via closeout snapshot"
+  cat "${LCaseBatchFallback}/logs/freeze_stdout_batch_fallback.txt"
+  exit 1
+fi
+
+if ! grep -F -- "selected fallback closeout gate snapshot" "${LCaseBatchFallback}/logs/freeze_stdout_batch_fallback.txt" >/dev/null; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_batch_fallback missing fallback selection detail"
+  cat "${LCaseBatchFallback}/logs/freeze_stdout_batch_fallback.txt"
+  exit 1
+fi
+
+# ---------- Case H: SOURCE NEWER THAN GATE ARTIFACT ----------
 LCaseSourceFresh="${LTmpRoot}/case_source_newer/tests/fafafa.core.simd"
 mkdir -p "${LCaseSourceFresh}/logs" "${LCaseSourceFresh}/docs" "${LTmpRoot}/case_source_newer/docs/plans" "${LTmpRoot}/case_source_newer/src"
 cp "${FREEZE_SCRIPT}" "${LCaseSourceFresh}/evaluate_simd_freeze_status.py"
@@ -702,7 +822,7 @@ if ! grep -F -- "linux_sources_not_newer_than_gate: artifact older than latest s
   exit 1
 fi
 
-# ---------- Case G: IGNORED COMPILE ARTIFACT NEWER THAN EVIDENCE (should stay ready) ----------
+# ---------- Case I: IGNORED COMPILE ARTIFACT NEWER THAN EVIDENCE (should stay ready) ----------
 LCaseIgnoredArtifact="${LTmpRoot}/case_ignored_artifact/tests/fafafa.core.simd"
 mkdir -p "${LCaseIgnoredArtifact}/logs" "${LCaseIgnoredArtifact}/docs" "${LTmpRoot}/case_ignored_artifact/docs/plans" "${LTmpRoot}/case_ignored_artifact/src"
 cp "${LTmpRoot}/case_ready/tests/fafafa.core.simd/evaluate_simd_freeze_status.py" "${LCaseIgnoredArtifact}/evaluate_simd_freeze_status.py"
@@ -814,5 +934,6 @@ echo "[FREEZE-REHEARSAL] case_stale_summary_rc=${LStaleRc}"
 echo "[FREEZE-REHEARSAL] case_verify_fail_rc=${LVerifyFailRc}"
 echo "[FREEZE-REHEARSAL] case_linux_lazy_missing_rc=${LLazyMissingRc}"
 echo "[FREEZE-REHEARSAL] case_linux_platform_missing_rc=${LPlatformMissingRc}"
+echo "[FREEZE-REHEARSAL] case_batch_fallback_rc=0"
 echo "[FREEZE-REHEARSAL] case_source_newer_rc=${LSourceNewerRc}"
 echo "[FREEZE-REHEARSAL] case_ignored_artifact_rc=0"

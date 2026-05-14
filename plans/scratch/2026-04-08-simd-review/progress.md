@@ -3254,3 +3254,37 @@
   - 这意味着当前 `simd` 测试层里最大的一串 backend lifecycle 重复体已经基本从 scalar guard、dispatch/public ABI/control-plane，到 IEEE754 专项都连续压过了一遍
   - 下一轮更值得做的是重新全量扫一遍 `tests/fafafa.core.simd/*.pas`，确认还剩哪些真正有必要保留的本地 fixture，而不是继续按直觉点名文件
 - 这轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+## 2026-05-14 Freeze Snapshot Fallback Hardening
+
+- 这轮没有继续碰 `src/` 或 testcase 冗余，而是转去修一个 completion audit 暴露出来的 closeout 语义坑：
+  - 普通 `BuildOrTest.sh gate` 默认会 `reset_gate_summary`
+  - 所以一旦 fresh cross gate 之后又跑了普通 fast gate，canonical `tests/fafafa.core.simd/logs/gate_summary.md` 会被覆盖
+  - 旧版 `evaluate_simd_freeze_status.py` 又只看这一份 canonical 摘要，因此会把已通过的 `qemu-cpuinfo-nonx86-evidence` / `evidence-verify` 错判回缺失
+- 这轮先把真实边界查清了：
+  - 问题不只是“latest gate run 选择太死”，更是“closeout gate 摘要没有稳定快照入口”
+  - `logs/windows-closeout/<batch-id>/` 已经是 Windows closeout 批次快照目录，但此前不稳定保留实际 freeze 使用的 `gate_summary.md`
+- 因而本轮最小修法分成两段：
+  - `evaluate_simd_freeze_status.py`
+    - 未显式设置 `SIMD_FREEZE_GATE_SUMMARY_FILE` 时，同时扫描 canonical `logs/gate_summary.md` 与 `logs/windows-closeout/*/gate_summary.md`
+    - 先按 terminal gate 时间排序
+    - 只有在“最新 gate 的基础步骤仍 PASS，但缺的是 closeout 证据步骤（如 `qemu-cpuinfo-nonx86-evidence` / `evidence-verify`）”时，才允许 fallback 到最近一份满足当前 freeze 约束的 closeout snapshot
+    - 如果最新 gate 连基础步骤都不绿，仍旧 fail-close，不会拿旧 snapshot 掩盖真实回归
+  - `run_windows_b07_closeout_finalize.sh`
+    - 现在会把实际 freeze 使用的 `gate_summary.md/json` 一并保存到 batch 目录
+    - 这样后续即使 canonical 摘要被新的 fast gate 覆盖，`freeze-status` 仍有稳定 closeout snapshot 可选
+- 本轮还补了一条新的 rehearsal：
+  - `case_batch_fallback`
+  - 场景是：最新 canonical gate 只有 fast-gate 基础步骤，缺 `qemu-cpuinfo-nonx86-evidence` / `evidence-verify`
+  - 但 `windows-closeout/<batch-id>/gate_summary.md` 里保留着更早一轮完整 closeout gate
+  - 预期结果：`freeze-status` 继续 `ready=True`，并明确打印 fallback 选中的 closeout snapshot
+- 本轮验证链：
+  - `python3 -m py_compile tests/fafafa.core.simd/evaluate_simd_freeze_status.py`
+  - `bash -n tests/fafafa.core.simd/run_windows_b07_closeout_finalize.sh`
+  - `bash -n tests/fafafa.core.simd/rehearse_freeze_status.sh`
+  - `git diff --check`
+  - `bash tests/fafafa.core.simd/rehearse_freeze_status.sh`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+  - 结果：
+    - rehearsal 全绿，并新增 `case_batch_fallback_rc=0`
+    - 真实仓库 `freeze-status` 仍只红 Windows freshness / source-newer-than-windows / closeout freshness，没有引入新的 Linux 假红

@@ -2448,3 +2448,17 @@
 | 1. 盘点 single-use exact wrapper 候选 | completed | 已确认 `dataplane` 的 `RestoreDataPlaneLocalState(...)`、`publicabi` 的 `RestoreOriginalActiveBackend(...)`、`backend.consistency` 的 `SaveBackendConsistencyState(...)` 都是无附加语义的单次转发壳 |
 | 2. 删除纯 pass-through 壳并保留语义 helper | completed | 已删除上述 3 个 exact wrapper；`backend.consistency` 的 `RestoreBackendConsistencyState(...)` 保留，因为它仍追加 active-backend 断言语义 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DataPlane,TTestCase_PublicAbi,TTestCase_BackendVectorConsistency`、Release `check`、Release `gate` 全绿；提交前仍需清理可能回流的 `tests/fafafa.core.simd/__pycache__/` |
+
+## 2026-05-14 Freeze Snapshot Fallback Hardening
+
+### Goal
+
+继续加强 `simd` closeout 审查，但这次不再碰生产实现或 testcase 冗余，而是修复 `freeze-status` 的一个真实发布收口坑点：普通 fast gate 会覆盖 canonical `gate_summary.md`，导致后续 `freeze-status` 误丢此前已通过的 closeout gate 证据。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `freeze-status` 与 closeout snapshot 的真实绑定方式 | completed | 已确认 `BuildOrTest.sh gate` 默认 `reset_gate_summary`，所以问题不只是“选错 latest run”，而是 canonical `logs/gate_summary.md` 会被后续普通 gate 覆盖；`evaluate_simd_freeze_status.py` 当前又只消费单一路径，因此 closeout 证据缺少稳定快照入口 |
+| 2. 修复有效 gate 摘要选择与 batch snapshot 保留 | completed | `evaluate_simd_freeze_status.py` 现会在未显式 override 时同时扫描 canonical `gate_summary.md` 与 `logs/windows-closeout/*/gate_summary.md`，只在“最新 gate 基础步骤仍绿、但缺的是 closeout 证据步骤”时回退到最近一份满足 closeout 约束的 snapshot；`run_windows_b07_closeout_finalize.sh` 也改为把实际 freeze 使用的 gate summary 保存进 batch 目录 |
+| 3. Rehearsal / real freeze 验证与提交收口 | completed | `python3 -m py_compile`、`bash -n`、`bash tests/fafafa.core.simd/rehearse_freeze_status.sh` 全绿；新增 batch-fallback rehearsal 锁住“canonical 被 fast gate 覆盖后仍可回选 closeout snapshot”场景；真实 Release `freeze-status` 继续只剩 Windows freshness 外部阻塞 |

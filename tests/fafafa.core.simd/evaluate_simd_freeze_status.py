@@ -111,6 +111,25 @@ class CheckItem:
     detail: str
 
 
+@dataclass
+class GateRunCandidate:
+    summary_path: Path
+    run_rows: List[Dict[str, str]]
+    terminal_row: Dict[str, str]
+    terminal_time: datetime
+
+
+@dataclass
+class GateRunAssessment:
+    candidate: GateRunCandidate
+    required_ok_base: bool
+    required_detail_base: str
+    required_ok_mainline: bool
+    required_detail_mainline: str
+    required_ok_cross: bool
+    required_detail_cross: str
+
+
 def compute_ready(check_items: List[CheckItem], include_windows: bool) -> bool:
     for item in check_items:
         if not item.required:
@@ -155,28 +174,174 @@ def parse_gate_summary_rows(summary_path: Path) -> List[Dict[str, str]]:
     return rows
 
 
-def extract_latest_gate_run(rows: List[Dict[str, str]]) -> Optional[List[Dict[str, str]]]:
-    if not rows:
-        return None
+def extract_gate_runs(rows: List[Dict[str, str]]) -> List[List[Dict[str, str]]]:
+    runs: List[List[Dict[str, str]]] = []
+    start_idx: Optional[int] = None
 
-    terminal_idx: Optional[int] = None
-    for idx in range(len(rows) - 1, -1, -1):
-        row = rows[idx]
-        if row.get("step") == "gate" and row.get("status") in {"PASS", "FAIL"}:
-            terminal_idx = idx
-            break
-
-    if terminal_idx is None:
-        return None
-
-    start_idx = 0
-    for idx in range(terminal_idx, -1, -1):
-        row = rows[idx]
+    for idx, row in enumerate(rows):
         if row.get("step") == "gate" and row.get("status") == "START":
             start_idx = idx
-            break
+            continue
+        if row.get("step") == "gate" and row.get("status") in {"PASS", "FAIL"}:
+            run_start_idx = start_idx if start_idx is not None else 0
+            runs.append(rows[run_start_idx : idx + 1])
+            start_idx = None
 
-    return rows[start_idx : terminal_idx + 1]
+    return runs
+
+
+def discover_gate_summary_candidates(
+    gate_summary: Path,
+    logs_dir: Path,
+    explicit_override: bool,
+) -> List[Path]:
+    candidates: List[Path] = []
+    seen: set[str] = set()
+
+    def add_candidate(path: Path) -> None:
+        normalized = str(path.expanduser().resolve(strict=False))
+        if normalized in seen:
+            return
+        if not path.is_file():
+            return
+        seen.add(normalized)
+        candidates.append(path)
+
+    add_candidate(gate_summary)
+    if explicit_override:
+        return candidates
+
+    closeout_root = logs_dir / "windows-closeout"
+    if closeout_root.is_dir():
+        for summary_path in sorted(closeout_root.glob("*/gate_summary.md"), reverse=True):
+            add_candidate(summary_path)
+
+    return candidates
+
+
+def assess_gate_runs(
+    summary_paths: List[Path],
+    required_gate_steps_base: List[str],
+    required_gate_steps_mainline: List[str],
+    required_gate_steps_cross: List[str],
+) -> List[GateRunAssessment]:
+    assessments: List[GateRunAssessment] = []
+
+    for summary_path in summary_paths:
+        rows = parse_gate_summary_rows(summary_path)
+        for run_rows in extract_gate_runs(rows):
+            terminal_row = run_rows[-1]
+            terminal_time = parse_gate_row_time(terminal_row)
+            if terminal_time is None:
+                terminal_time = datetime.fromtimestamp(summary_path.stat().st_mtime)
+            required_ok_base, required_detail_base = evaluate_required_gate_steps(
+                run_rows, required_gate_steps_base
+            )
+            required_ok_mainline, required_detail_mainline = evaluate_required_gate_steps(
+                run_rows, required_gate_steps_mainline
+            )
+            required_ok_cross, required_detail_cross = evaluate_required_gate_steps(
+                run_rows, required_gate_steps_cross
+            )
+            assessments.append(
+                GateRunAssessment(
+                    candidate=GateRunCandidate(
+                        summary_path=summary_path,
+                        run_rows=run_rows,
+                        terminal_row=terminal_row,
+                        terminal_time=terminal_time,
+                    ),
+                    required_ok_base=required_ok_base,
+                    required_detail_base=required_detail_base,
+                    required_ok_mainline=required_ok_mainline,
+                    required_detail_mainline=required_detail_mainline,
+                    required_ok_cross=required_ok_cross,
+                    required_detail_cross=required_detail_cross,
+                )
+            )
+
+    assessments.sort(
+        key=lambda item: (
+            item.candidate.terminal_time,
+            item.candidate.summary_path.stat().st_mtime,
+            str(item.candidate.summary_path),
+        ),
+        reverse=True,
+    )
+    return assessments
+
+
+def gate_run_label(assessment: GateRunAssessment) -> str:
+    return (
+        f"{assessment.candidate.summary_path} @ "
+        f"{assessment.candidate.terminal_row.get('time', '-')}"
+    )
+
+
+def has_cross_omission_only(
+    run_rows: List[Dict[str, str]], cross_only_steps: List[str]
+) -> bool:
+    if not cross_only_steps:
+        return False
+
+    step_status: Dict[str, str] = {}
+    step_detail: Dict[str, str] = {}
+    for row in run_rows:
+        step = row.get("step", "")
+        if step == "gate":
+            continue
+        step_status[step] = row.get("status", "")
+        step_detail[step] = row.get("detail", "")
+
+    saw_omission = False
+    for step in cross_only_steps:
+        status = step_status.get(step)
+        detail = step_detail.get(step, "").lower()
+        if status is None:
+            saw_omission = True
+            continue
+        if status == "SKIP":
+            saw_omission = True
+            continue
+        if step == "evidence-verify" and status == "PASS" and "skip" in detail:
+            saw_omission = True
+            continue
+        if status != "PASS":
+            return False
+
+    return saw_omission
+
+
+def select_effective_gate_run(
+    assessments: List[GateRunAssessment],
+    required_gate_steps_selected: List[str],
+    linux_only: bool,
+) -> tuple[Optional[GateRunAssessment], Optional[GateRunAssessment], bool]:
+    if not assessments:
+        return None, None, False
+
+    latest = assessments[0]
+    latest_selected_ok = latest.required_ok_mainline if linux_only else latest.required_ok_cross
+    if latest_selected_ok:
+        return latest, latest, False
+
+    if not latest.required_ok_base:
+        return latest, latest, False
+
+    fallback_only_steps = [
+        step for step in required_gate_steps_selected if step not in REQUIRED_GATE_STEPS_BASE
+    ]
+    if not has_cross_omission_only(latest.candidate.run_rows, fallback_only_steps):
+        return latest, latest, False
+
+    for assessment in assessments[1:]:
+        assessment_selected_ok = (
+            assessment.required_ok_mainline if linux_only else assessment.required_ok_cross
+        )
+        if assessment_selected_ok:
+            return assessment, latest, True
+
+    return latest, latest, False
 
 
 def check_line_markdown_x(path: Path, contains_text: str) -> Optional[bool]:
@@ -612,9 +777,23 @@ def main() -> int:
     )
     simd_source_candidates = list(iter_simd_source_candidates(repo_root / "src"))
 
-    rows = parse_gate_summary_rows(gate_summary)
-    latest_gate_run = extract_latest_gate_run(rows)
-    if latest_gate_run is None:
+    gate_summary_candidates = discover_gate_summary_candidates(
+        gate_summary, logs_dir, explicit_override=bool(gate_summary_override)
+    )
+    gate_run_assessments = assess_gate_runs(
+        gate_summary_candidates,
+        REQUIRED_GATE_STEPS_BASE,
+        required_gate_steps_mainline,
+        required_gate_steps_cross,
+    )
+    selected_gate_run, latest_gate_run, used_gate_fallback = select_effective_gate_run(
+        gate_run_assessments,
+        required_gate_steps,
+        args.linux_only,
+    )
+    effective_gate_summary = gate_summary
+
+    if selected_gate_run is None or latest_gate_run is None:
         checks.append(
             CheckItem(
                 name="linux_gate_summary",
@@ -625,13 +804,19 @@ def main() -> int:
         )
         next_actions.append("bash tests/fafafa.core.simd/BuildOrTest.sh gate")
     else:
-        terminal_row = latest_gate_run[-1]
-        required_ok_mainline, required_detail_mainline = evaluate_required_gate_steps(
-            latest_gate_run, required_gate_steps_mainline
-        )
-        required_ok_cross, required_detail_cross = evaluate_required_gate_steps(
-            latest_gate_run, required_gate_steps_cross
-        )
+        effective_gate_summary = selected_gate_run.candidate.summary_path
+        terminal_row = selected_gate_run.candidate.terminal_row
+        required_ok_mainline = selected_gate_run.required_ok_mainline
+        required_detail_mainline = selected_gate_run.required_detail_mainline
+        required_ok_cross = selected_gate_run.required_ok_cross
+        required_detail_cross = selected_gate_run.required_detail_cross
+        selection_suffix = ""
+        if used_gate_fallback:
+            selection_suffix = (
+                "; selected fallback closeout gate snapshot "
+                f"{gate_run_label(selected_gate_run)} because latest snapshot "
+                f"{gate_run_label(latest_gate_run)} only covers mainline-required steps"
+            )
 
         if terminal_row["status"] == "PASS":
             checks.append(
@@ -641,7 +826,8 @@ def main() -> int:
                     status="PASS",
                     detail=(
                         f"gate PASS at {terminal_row['time']}, event={terminal_row['event']}, "
-                        f"duration_ms={terminal_row['duration_ms']}"
+                        f"duration_ms={terminal_row['duration_ms']}; summary={effective_gate_summary}"
+                        f"{selection_suffix}"
                     ),
                 )
             )
@@ -652,8 +838,8 @@ def main() -> int:
                     required=True,
                     status="PASS",
                     detail=(
-                        "latest gate terminal status is FAIL but all mainline-required "
-                        "steps are PASS"
+                        "selected gate terminal status is FAIL but all mainline-required "
+                        f"steps are PASS; summary={effective_gate_summary}{selection_suffix}"
                     ),
                 )
             )
@@ -664,8 +850,8 @@ def main() -> int:
                     required=True,
                     status="FAIL",
                     detail=(
-                        f"latest gate status={terminal_row['status']} at {terminal_row['time']} "
-                        f"(detail={terminal_row['detail']})"
+                        f"selected gate status={terminal_row['status']} at {terminal_row['time']} "
+                        f"(detail={terminal_row['detail']}); summary={effective_gate_summary}"
                     ),
                 )
             )
@@ -703,8 +889,10 @@ def main() -> int:
             if not required_ok_cross:
                 next_actions.append(CROSS_GATE_FAIL_CLOSE_CMD)
 
+        selected_gate_rows = selected_gate_run.candidate.run_rows
+
         qemu_cpuinfo_nonx86_row = find_latest_step_row(
-            latest_gate_run, QEMU_CPUINFO_NONX86_STEP
+            selected_gate_rows, QEMU_CPUINFO_NONX86_STEP
         )
         if qemu_cpuinfo_nonx86_row is None:
             checks.append(
@@ -713,7 +901,7 @@ def main() -> int:
                     required=require_qemu_cpuinfo_nonx86_step,
                     status="FAIL" if require_qemu_cpuinfo_nonx86_step else "SKIP",
                     detail=(
-                        f"missing {QEMU_CPUINFO_NONX86_STEP} in latest gate run; "
+                        f"missing {QEMU_CPUINFO_NONX86_STEP} in selected gate run; "
                         f"set {QEMU_CPUINFO_NONX86_REQUIRE_ENV}=1 to require this step"
                     ),
                 )
@@ -762,7 +950,7 @@ def main() -> int:
                         required=False,
                         status="SKIP",
                         detail=(
-                            f"step SKIP in latest gate run ({qemu_cpuinfo_nonx86_detail}); "
+                            f"step SKIP in selected gate run ({qemu_cpuinfo_nonx86_detail}); "
                             f"set {QEMU_CPUINFO_NONX86_REQUIRE_ENV}=1 to enforce"
                         ),
                     )
@@ -784,7 +972,7 @@ def main() -> int:
                 )
 
         qemu_cpuinfo_nonx86_full_row = find_latest_step_row(
-            latest_gate_run, QEMU_CPUINFO_NONX86_FULL_STEP
+            selected_gate_rows, QEMU_CPUINFO_NONX86_FULL_STEP
         )
         if qemu_cpuinfo_nonx86_full_row is None:
             checks.append(
@@ -793,7 +981,7 @@ def main() -> int:
                     required=require_qemu_cpuinfo_nonx86_full_step,
                     status="FAIL" if require_qemu_cpuinfo_nonx86_full_step else "SKIP",
                     detail=(
-                        f"missing {QEMU_CPUINFO_NONX86_FULL_STEP} in latest gate run; "
+                        f"missing {QEMU_CPUINFO_NONX86_FULL_STEP} in selected gate run; "
                         f"set {QEMU_CPUINFO_NONX86_FULL_REQUIRE_ENV}=1 to require this step"
                     ),
                 )
@@ -840,7 +1028,7 @@ def main() -> int:
                         required=False,
                         status="SKIP",
                         detail=(
-                            f"step SKIP in latest gate run ({qemu_cpuinfo_nonx86_full_detail}); "
+                            f"step SKIP in selected gate run ({qemu_cpuinfo_nonx86_full_detail}); "
                             f"set {QEMU_CPUINFO_NONX86_FULL_REQUIRE_ENV}=1 to enforce"
                         ),
                     )
@@ -860,7 +1048,7 @@ def main() -> int:
                 next_actions.append(QEMU_CPUINFO_NONX86_FULL_GATE_CMD)
 
         qemu_cpuinfo_nonx86_full_repeat_row = find_latest_step_row(
-            latest_gate_run, QEMU_CPUINFO_NONX86_FULL_REPEAT_STEP
+            selected_gate_rows, QEMU_CPUINFO_NONX86_FULL_REPEAT_STEP
         )
         if qemu_cpuinfo_nonx86_full_repeat_row is None:
             checks.append(
@@ -869,7 +1057,7 @@ def main() -> int:
                     required=require_qemu_cpuinfo_nonx86_full_repeat_step,
                     status="FAIL" if require_qemu_cpuinfo_nonx86_full_repeat_step else "SKIP",
                     detail=(
-                        f"missing {QEMU_CPUINFO_NONX86_FULL_REPEAT_STEP} in latest gate run; "
+                        f"missing {QEMU_CPUINFO_NONX86_FULL_REPEAT_STEP} in selected gate run; "
                         f"set {QEMU_CPUINFO_NONX86_FULL_REPEAT_REQUIRE_ENV}=1 to require this step"
                     ),
                 )
@@ -920,7 +1108,7 @@ def main() -> int:
                         required=False,
                         status="SKIP",
                         detail=(
-                            f"step SKIP in latest gate run ({qemu_cpuinfo_nonx86_full_repeat_detail}); "
+                            f"step SKIP in selected gate run ({qemu_cpuinfo_nonx86_full_repeat_detail}); "
                             f"set {QEMU_CPUINFO_NONX86_FULL_REPEAT_REQUIRE_ENV}=1 to enforce"
                         ),
                     )
@@ -940,7 +1128,7 @@ def main() -> int:
                 next_actions.append(QEMU_CPUINFO_NONX86_FULL_REPEAT_GATE_CMD)
 
         cpuinfo_lazy_repeat_row = find_latest_step_row(
-            latest_gate_run, CPUINFO_LAZY_REPEAT_STEP
+            selected_gate_rows, CPUINFO_LAZY_REPEAT_STEP
         )
         if cpuinfo_lazy_repeat_row is None:
             checks.append(
@@ -949,7 +1137,7 @@ def main() -> int:
                     required=require_cpuinfo_lazy_repeat_step,
                     status="FAIL" if require_cpuinfo_lazy_repeat_step else "SKIP",
                     detail=(
-                        f"missing {CPUINFO_LAZY_REPEAT_STEP} in latest gate run; "
+                        f"missing {CPUINFO_LAZY_REPEAT_STEP} in selected gate run; "
                         f"set {CPUINFO_LAZY_REPEAT_REQUIRE_ENV}=1 to require this step"
                     ),
                 )
@@ -982,7 +1170,7 @@ def main() -> int:
                         required=False,
                         status="SKIP",
                         detail=(
-                            f"step SKIP in latest gate run ({cpuinfo_lazy_repeat_detail}); "
+                            f"step SKIP in selected gate run ({cpuinfo_lazy_repeat_detail}); "
                             f"set {CPUINFO_LAZY_REPEAT_REQUIRE_ENV}=1 to enforce"
                         ),
                     )
@@ -1001,13 +1189,20 @@ def main() -> int:
                 )
                 next_actions.append(CPUINFO_LAZY_REPEAT_GATE_CMD)
 
-    checks.append(freshness_check("linux_gate_summary_freshness", gate_summary, args.fresh_hours, required=True))
+    checks.append(
+        freshness_check(
+            "linux_gate_summary_freshness",
+            effective_gate_summary,
+            args.fresh_hours,
+            required=True,
+        )
+    )
     if checks[-1].status != "PASS":
         next_actions.append("bash tests/fafafa.core.simd/BuildOrTest.sh gate")
     checks.append(
         sources_not_newer_than_artifact_check(
             "linux_sources_not_newer_than_gate",
-            gate_summary,
+            effective_gate_summary,
             simd_source_candidates,
             required=True,
         )
@@ -1318,6 +1513,11 @@ def main() -> int:
         "required_gate_steps": required_gate_steps,
         "required_gate_steps_mainline": required_gate_steps_mainline,
         "required_gate_steps_cross": required_gate_steps_cross,
+        "gate_summary_file": str(effective_gate_summary),
+        "gate_summary_fallback_used": used_gate_fallback,
+        "latest_gate_summary_file": (
+            str(latest_gate_run.candidate.summary_path) if latest_gate_run is not None else ""
+        ),
         "checks": [asdict(item) for item in checks],
         "next_actions": dedup_actions,
     }

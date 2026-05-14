@@ -3096,3 +3096,30 @@
   - `backend.consistency` 的 `RestoreBackendConsistencyState(...)` 继续保留，因为它追加了 `GetActiveBackend = saved backend` 的本地断言，这是 suite-specific 语义，不是纯复制体
   - `ieee754` 这轮扫到的几条 inner `ResetToAutomaticBackend` 更像 per-backend 迭代流程，不属于安全的机械删改目标，所以本轮没有误动
 - Release 定向 suite、Release `check`、Release `gate` 全绿，说明这批继续只是在测试层移除单次转发 wrapper，没有改变 dataplane/public ABI/backend consistency 的被测行为。
+
+## 2026-05-14 Freeze Snapshot Fallback Findings
+
+- `freeze-status` 当前有一条真实的 closeout 易碎点：
+  - `BuildOrTest.sh gate` 默认会 `reset_gate_summary`
+  - 也就是说，fresh cross gate 之后再跑一轮普通 fast gate，canonical `tests/fafafa.core.simd/logs/gate_summary.md` 会直接被后者覆盖
+  - 旧版 `evaluate_simd_freeze_status.py` 又只消费这一份 canonical 摘要，因此会把 `qemu-cpuinfo-nonx86-evidence` / `evidence-verify` 这类 closeout 证据错判回缺失
+- 这个问题本质上不是“release 语义要不要放松”，而是：
+  - `freeze-status` 需要找到“最近一份仍然代表当前源码的 closeout gate 摘要”
+  - 同时又不能拿旧快照掩盖一个真正更新、更差的基础 gate 回归
+- 因而最稳的选择规则应当是：
+  - 如果最新 gate 连基础步骤（`REQUIRED_GATE_STEPS_BASE`）都没通过，必须直接 fail-close，不能回退旧 snapshot
+  - 只有当最新 gate 的基础步骤仍绿，缺的只是 closeout 附加证据步骤时，才允许回退到最近一份满足当前 freeze 约束的 closeout snapshot
+- 这条规则能精确覆盖当前真实痛点：
+  - “后来又跑了一次普通 fast gate，只是没再附带 qemu/windows 证据” -> 允许 fallback
+  - “后来跑出来的是新的 build / wiring / cpuinfo 基础回归” -> 不允许 fallback，继续红
+- 另一个结构性缺口是 batch snapshot 保留不稳定：
+  - `logs/windows-closeout/<batch-id>/` 里原本不总能稳定留住实际 freeze 使用的 `gate_summary.md`
+  - 这会让 `freeze-status` 即使想 fallback，也不一定有可用快照
+- 因而 closeout 脚本也需要同步修：
+  - `run_windows_b07_closeout_finalize.sh` 应保留实际 freeze 使用的 `gate_summary.md/json`
+  - 这样 batch 目录才能成为后续 `freeze-status` 的可靠历史输入，而不是只留 Windows log / closeout summary
+- 新增的 `case_batch_fallback` rehearsal 已把这条策略直接锁住：
+  - 最新 canonical gate 只保留基础 fast-gate 步骤
+  - 早一轮 closeout snapshot 才包含 `qemu-cpuinfo-nonx86-evidence` + `evidence-verify`
+  - 结果必须仍为 `ready=True`
+  - 并且输出里明确出现 `selected fallback closeout gate snapshot ...`

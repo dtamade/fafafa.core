@@ -95,33 +95,31 @@ if [[ -n "${LBATCH_DIR}" ]]; then
   LBatchGateSummaryJson="${LBATCH_DIR}/gate_summary.json"
   LCanonicalGateSummaryMd="${ROOT}/logs/gate_summary.md"
   LCanonicalGateSummaryJson="${ROOT}/logs/gate_summary.json"
+  LFreezeGateSummarySource="${SIMD_FREEZE_GATE_SUMMARY_FILE:-${LCanonicalGateSummaryMd}}"
+  LFreezeGateSummaryJsonSource=""
   mkdir -p "${LBATCH_DIR}"
   if [[ -f "${LEVIDENCE_LOG}" ]]; then
     if ! paths_equal "${LEVIDENCE_LOG}" "${LBatchEvidenceLog}"; then
       cp "${LEVIDENCE_LOG}" "${LBatchEvidenceLog}"
     fi
   fi
-  if [[ "${LGateRunnerMode}" == "bash-optin" ]]; then
-    if [[ -f "${LCanonicalGateSummaryMd}" ]]; then
-      if ! paths_equal "${LCanonicalGateSummaryMd}" "${LBatchGateSummaryMd}"; then
-        cp "${LCanonicalGateSummaryMd}" "${LBatchGateSummaryMd}"
-      fi
-    elif ! paths_equal "${LCanonicalGateSummaryMd}" "${LBatchGateSummaryMd}"; then
-      rm -f "${LBatchGateSummaryMd}"
+  if [[ "${LFreezeGateSummarySource}" == *.md ]]; then
+    LDerivedGateSummaryJson="${LFreezeGateSummarySource%.md}.json"
+    if [[ -f "${LDerivedGateSummaryJson}" ]]; then
+      LFreezeGateSummaryJsonSource="${LDerivedGateSummaryJson}"
     fi
-    if [[ -f "${LCanonicalGateSummaryJson}" ]]; then
-      if ! paths_equal "${LCanonicalGateSummaryJson}" "${LBatchGateSummaryJson}"; then
-        cp "${LCanonicalGateSummaryJson}" "${LBatchGateSummaryJson}"
-      fi
-    elif ! paths_equal "${LCanonicalGateSummaryJson}" "${LBatchGateSummaryJson}"; then
-      rm -f "${LBatchGateSummaryJson}"
+  fi
+  if [[ -z "${LFreezeGateSummaryJsonSource}" && "${LGateRunnerMode}" == "bash-optin" && -f "${LCanonicalGateSummaryJson}" ]]; then
+    LFreezeGateSummaryJsonSource="${LCanonicalGateSummaryJson}"
+  fi
+  if [[ -f "${LFreezeGateSummarySource}" ]]; then
+    if ! paths_equal "${LFreezeGateSummarySource}" "${LBatchGateSummaryMd}"; then
+      cp "${LFreezeGateSummarySource}" "${LBatchGateSummaryMd}"
     fi
-  else
-    if ! paths_equal "${LCanonicalGateSummaryMd}" "${LBatchGateSummaryMd}"; then
-      rm -f "${LBatchGateSummaryMd}"
-    fi
-    if ! paths_equal "${LCanonicalGateSummaryJson}" "${LBatchGateSummaryJson}"; then
-      rm -f "${LBatchGateSummaryJson}"
+  fi
+  if [[ -n "${LFreezeGateSummaryJsonSource}" && -f "${LFreezeGateSummaryJsonSource}" ]]; then
+    if ! paths_equal "${LFreezeGateSummaryJsonSource}" "${LBatchGateSummaryJson}"; then
+      cp "${LFreezeGateSummaryJsonSource}" "${LBatchGateSummaryJson}"
     fi
   fi
 fi
