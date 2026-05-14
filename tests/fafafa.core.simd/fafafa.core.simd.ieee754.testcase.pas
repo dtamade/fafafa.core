@@ -140,6 +140,17 @@ type
 
 implementation
 
+function RestoreIEEE754LocalState(aOriginalVectorAsm: Boolean;
+  aOriginalBackend: TSimdBackend): Boolean;
+begin
+  SetVectorAsmEnabled(aOriginalVectorAsm);
+  ResetToAutomaticBackend;
+  if GetCurrentBackend = aOriginalBackend then
+    Exit(True);
+
+  Result := TrySetActiveBackend(aOriginalBackend);
+end;
+
 function BitsFromSingle(const aValue: Single): DWord; inline;
 begin
   Move(aValue, Result, SizeOf(Result));
@@ -197,17 +208,10 @@ begin
 end;
 
 procedure TTestCase_IEEE754_F64.TearDown;
-var
-  LRestoredBackend: Boolean;
 begin
-  SetVectorAsmEnabled(FSavedVectorAsm);
-  ResetToAutomaticBackend;
-  LRestoredBackend := True;
-  if GetCurrentBackend <> FSavedBackend then
-    LRestoredBackend := TrySetActiveBackend(FSavedBackend);
-  SetExceptionMask(FSavedExceptionMask);
   AssertTrue('IEEE754 F64 fixture should restore previous backend selection',
-    LRestoredBackend and (GetCurrentBackend = FSavedBackend));
+    RestoreIEEE754LocalState(FSavedVectorAsm, FSavedBackend));
+  SetExceptionMask(FSavedExceptionMask);
   inherited TearDown;
 end;
 
@@ -703,17 +707,10 @@ begin
 end;
 
 procedure TTestCase_IEEE754EdgeCases.TearDown;
-var
-  LRestoredBackend: Boolean;
 begin
-  SetVectorAsmEnabled(FSavedVectorAsm);
-  ResetToAutomaticBackend;
-  LRestoredBackend := True;
-  if GetCurrentBackend <> FSavedBackend then
-    LRestoredBackend := TrySetActiveBackend(FSavedBackend);
-  SetExceptionMask(FSavedExceptionMask);
   AssertTrue('IEEE754 edgecases fixture should restore previous backend selection',
-    LRestoredBackend and (GetCurrentBackend = FSavedBackend));
+    RestoreIEEE754LocalState(FSavedVectorAsm, FSavedBackend));
+  SetExceptionMask(FSavedExceptionMask);
   inherited TearDown;
 end;
 
@@ -1559,8 +1556,8 @@ begin
     for LIndex := 0 to 7 do
       AssertDoubleLane('SSE2 F64x8[' + IntToStr(LIndex) + ']', LIndex, LRoundF64x8.d[LIndex], LTruncF64x8.d[LIndex]);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    AssertTrue('IEEE754 local restore should recover previous backend selection',
+      RestoreIEEE754LocalState(LOldVectorAsm, FSavedBackend));
   end;
 end;
 
@@ -1757,17 +1754,10 @@ begin
 end;
 
 procedure TTestCase_AVX2RoundTruncIEEE754.TearDown;
-var
-  LRestoredBackend: Boolean;
 begin
-  SetVectorAsmEnabled(FSavedVectorAsm);
-  ResetToAutomaticBackend;
-  LRestoredBackend := True;
-  if GetCurrentBackend <> FSavedBackend then
-    LRestoredBackend := TrySetActiveBackend(FSavedBackend);
-  SetExceptionMask(FSavedExceptionMask);
   AssertTrue('AVX2 IEEE754 fixture should restore previous backend selection',
-    LRestoredBackend and (GetCurrentBackend = FSavedBackend));
+    RestoreIEEE754LocalState(FSavedVectorAsm, FSavedBackend));
+  SetExceptionMask(FSavedExceptionMask);
   inherited TearDown;
 end;
 
@@ -1780,16 +1770,9 @@ begin
 end;
 
 procedure TTestCase_NonX86IEEE754.TearDown;
-var
-  LRestoredBackend: Boolean;
 begin
-  SetVectorAsmEnabled(FSavedVectorAsm);
-  ResetToAutomaticBackend;
-  LRestoredBackend := True;
-  if GetCurrentBackend <> FSavedBackend then
-    LRestoredBackend := TrySetActiveBackend(FSavedBackend);
   AssertTrue('Non-x86 IEEE754 fixture should restore previous backend selection',
-    LRestoredBackend and (GetCurrentBackend = FSavedBackend));
+    RestoreIEEE754LocalState(FSavedVectorAsm, FSavedBackend));
   inherited TearDown;
 end;
 
@@ -1991,8 +1974,8 @@ begin
       end;
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    AssertTrue('IEEE754 local restore should recover previous backend selection',
+      RestoreIEEE754LocalState(LOldVectorAsm, FSavedBackend));
   end;
 end;
 
@@ -2191,8 +2174,8 @@ begin
       end;
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    AssertTrue('IEEE754 local restore should recover previous backend selection',
+      RestoreIEEE754LocalState(LOldVectorAsm, FSavedBackend));
   end;
 end;
 
@@ -2444,8 +2427,8 @@ begin
       end;
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    AssertTrue('IEEE754 local restore should recover previous backend selection',
+      RestoreIEEE754LocalState(LOldVectorAsm, FSavedBackend));
   end;
 end;
 
@@ -2725,8 +2708,8 @@ begin
       end;
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    AssertTrue('IEEE754 local restore should recover previous backend selection',
+      RestoreIEEE754LocalState(LOldVectorAsm, FSavedBackend));
   end;
 end;
 
@@ -2955,8 +2938,8 @@ begin
       end;
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    AssertTrue('IEEE754 local restore should recover previous backend selection',
+      RestoreIEEE754LocalState(LOldVectorAsm, FSavedBackend));
   end;
 end;
 
@@ -3234,7 +3217,8 @@ begin
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 backend available on this host (allowed)', True);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    AssertTrue('IEEE754 local restore should recover previous backend selection',
+      RestoreIEEE754LocalState(LOldVectorAsm, FSavedBackend));
   end;
 end;
 

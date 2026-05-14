@@ -2484,3 +2484,28 @@
   - `publicabi.testcase` 里显而易见的 duplicate restore 又少了一层
   - 剩余 complex 路径更值得关注的，主要是其它多对象/多阶段 hook 流里是否还有类似“normal path 已恢复，outer finally 仍重复恢复”的隐藏点
 - Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿，说明这批修的是 public ABI 测试层成功流 cleanup 冗余，而不是 rollback force-success 语义依赖。
+
+## 2026-05-14 DataPlane And IEEE754 Local Restore Alignment Findings
+
+- 把视野从 `publicabi` 稍微放宽后，`dataplane` 和 `ieee754` 里还残留一批和前几轮同类的顶层 fixture 恢复旧形状：
+  - `dataplane.testcase` 的 `Test_DataPlane_VectorAsmRoundTrip_Reuses_PreviouslyPublishedSnapshot` 在 finally 里只做 `SetVectorAsmEnabled(LOldVectorAsm); ResetToAutomaticBackend;`
+  - `ieee754.testcase` 的 4 个 test class tearDown 以及 6 个方法级 finally 也还是同类模式
+  - `TTestCase_NonX86IEEE754.Test_NonX86_RoundTruncFloorCeil_NaNInf_IfAvailable` 的 outer finally 更明显，只恢复了 `vector asm`，把 backend 恢复完全留给后续 fixture
+- 这类点的共同问题不是功能断言错，而是测试夹具恢复契约继续分叉：
+  - 类级 fixture 已经保存了 `FSavedBackend/FOldBackend`
+  - 但 method-level finally 还停留在“回到 automatic backend 即可”的旧假设
+  - 一旦测试后续再插入断言、局部 cleanup 或更多状态机步骤，这种分叉会把真实 backend drift 藏到 TearDown 才暴露
+- 本轮修法保持测试层最小闭环，不碰生产实现：
+  - 在 `dataplane` 补 `RestoreDataPlaneLocalState(...)`
+  - 在 `ieee754` 补 `RestoreIEEE754LocalState(...)`
+  - helper 统一执行：恢复 `vector asm` -> `ResetToAutomaticBackend` -> 如有需要 `TrySetActiveBackend(saved_backend)`
+- 本轮还踩到一个真实但低风险的 Pascal 作用域细节：
+  - 首版 helper 直接在顶层 procedure 里调用 `AssertTrue`
+  - FPC 编译报 `Identifier not found "AssertTrue"`
+  - 原因不是测试语义问题，而是顶层 helper 不在 `TTestCase` 方法作用域里
+  - 最终改成 helper 返回 `Boolean`，把断言留回各个 tearDown / finally 调用点，语义更清楚也更符合 Pascal 作用域事实
+- 收完之后的状态是：
+  - `dataplane` 不再保留“只恢复 automatic backend”的尾声旧形状
+  - `ieee754` 的 tearDown 与方法级 finally 对“恢复保存 backend”的契约重新对齐
+  - 这批属于测试层 fixture hardening / redundancy cleanup，不改变 SIMD dataplane 或 IEEE754 算法语义
+- Release `TTestCase_DataPlane`、Release `TTestCase_IEEE754EdgeCases`、Release `TTestCase_AVX2RoundTruncIEEE754`、Release `TTestCase_NonX86IEEE754`、Release `TTestCase_IEEE754_F64`、Release `check`、Release `gate` 全绿，说明改动只影响测试恢复契约，没有引入行为回归。

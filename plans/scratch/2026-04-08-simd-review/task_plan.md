@@ -2109,3 +2109,17 @@
 | 1. 复核 rollback-force-success hook 的真实变更范围 | completed | 已核对 `PublicAbiHookRollbackForceSuccessWithoutForcedIntent`：hook 会临时改 target table 和一批 higher-priority backend tables；正常流在 `TrySetActiveBackend(...)` 成功后会先恢复 higher-priority backends，而 outer finally 仍按 `LTargetTableCaptured + HigherCount` 再恢复一次 |
 | 2. 在成功恢复完成后清掉 duplicate restore 状态 | completed | 已在成功流末尾、完成 higher-priority backend 恢复并做完 active-backend 断言后，将 `LTargetTableCaptured := False` 与 `GPublicAbiHookRollbackForceSuccessHigherCount := 0`，让 outer finally 只继续承担异常路径兜底 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 DataPlane And IEEE754 Local Restore Alignment
+
+### Goal
+
+把 `tests/fafafa.core.simd` 里剩余的两类顶层旧夹具恢复形状继续收口：`dataplane` 中只恢复 `vector asm + automatic` 的 local finally，以及 `ieee754` 中跨多个类反复出现的同类 finally / tearDown，统一改成“恢复到保存的 backend”语义，避免测试体尾声和类级 fixture 恢复契约继续分叉。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `dataplane` / `ieee754` 剩余旧恢复形状 | completed | 已确认 `dataplane.testcase` 还剩 1 处 `SetVectorAsmEnabled(LOldVectorAsm); ResetToAutomaticBackend;` 的顶层 finally；`ieee754.testcase` 里有 4 个 tearDown 和 6 个方法级 finally 仍沿用同类旧形状，且 `TTestCase_NonX86IEEE754.Test_NonX86_RoundTruncFloorCeil_NaNInf_IfAvailable` 外层 finally 甚至只恢复了 `vector asm` |
+| 2. 提取 helper 并统一 local restore 契约 | completed | 已为 `dataplane` / `ieee754` 各自补 `Restore*LocalState(...)` helper；`dataplane` tearDown 与 `VectorAsmRoundTrip` finally、`ieee754` 的 4 个 tearDown 与 6 个方法级 finally 全部统一到“恢复保存 backend”语义；首轮编译发现顶层 helper 不能直接调用 `AssertTrue`，随后改成返回 `Boolean` 并把断言留在类方法/测试方法里 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DataPlane`、Release `TTestCase_IEEE754EdgeCases`、Release `TTestCase_AVX2RoundTruncIEEE754`、Release `TTestCase_NonX86IEEE754`、Release `TTestCase_IEEE754_F64`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |

@@ -2598,3 +2598,31 @@
   - `publicabi` 里 easy duplicate restore 和 failure restore guard 都在往下收
   - 下一轮更值得继续查的，是其它 multi-object hook/state-machine 路径里是否还有类似“normal path 已恢复，outer finally 还重复恢复”的隐藏点
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+- 继续把视野从 `publicabi` 放宽到整个 `tests/fafafa.core.simd` 后，我又收掉一批同类 fixture 恢复分叉，但这次落点在 `dataplane + ieee754`：
+  - `dataplane.testcase` 的 `VectorAsmRoundTrip` finally 还只恢复 `vector asm + automatic`
+  - `ieee754.testcase` 里 4 个 tearDown 和 6 个方法级 finally 也在重复同一旧形状
+  - 其中 `NonX86_RoundTruncFloorCeil_NaNInf_IfAvailable` 的外层 finally 甚至只恢复了 `vector asm`
+- 我先补了两个 helper：
+  - `RestoreDataPlaneLocalState(...)`
+  - `RestoreIEEE754LocalState(...)`
+  然后把这些 tearDown / finally 全部统一到“恢复保存 backend”的语义。
+- 中途踩到一个很具体的 Pascal 编译边界：
+  - 顶层 helper 里直接写 `AssertTrue(...)`
+  - Release build 立刻红在 `Identifier not found "AssertTrue"`
+  - 说明顶层 helper 不在 `TTestCase` 方法作用域
+  - 随后我把 helper 收成 `Boolean` 返回值，再由各个 tearDown / finally 自己断言，问题即消失
+- 本轮 Release 验证按串行链完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DataPlane`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IEEE754EdgeCases`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_AVX2RoundTruncIEEE754`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NonX86IEEE754`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IEEE754_F64`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断继续更新：
+  - `publicabi` 之外剩余的“顶层只恢复 automatic / 只恢复 vector asm”的老形状又少了一批
+  - 下一轮更值得继续查的，已经更像其它 companion testcase 里的少量 method-level restore 分叉，而不是 `publicabi` 那种复杂 hook/state-machine cleanup 噪音
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

@@ -36,6 +36,17 @@ type
 
 implementation
 
+function RestoreDataPlaneLocalState(aOriginalVectorAsm: Boolean;
+  aOriginalBackend: TSimdBackend): Boolean;
+begin
+  SetVectorAsmEnabled(aOriginalVectorAsm);
+  ResetToAutomaticBackend;
+  if GetCurrentBackend = aOriginalBackend then
+    Exit(True);
+
+  Result := TrySetActiveBackend(aOriginalBackend);
+end;
+
 procedure TTestCase_DataPlane.SetUp;
 begin
   inherited SetUp;
@@ -46,11 +57,8 @@ end;
 
 procedure TTestCase_DataPlane.TearDown;
 begin
-  SetVectorAsmEnabled(FOldVectorAsm);
-  ResetToAutomaticBackend;
-  if GetCurrentBackend <> FOldBackend then
-    AssertTrue('Data-plane fixture should restore previous backend selection',
-      TrySetActiveBackend(FOldBackend));
+  AssertTrue('Data-plane fixture should restore previous backend selection',
+    RestoreDataPlaneLocalState(FOldVectorAsm, FOldBackend));
   inherited TearDown;
 end;
 
@@ -254,8 +262,8 @@ begin
     AssertTrue('Vector-asm round-trip should reuse the original published data-plane snapshot',
       PtrUInt(LFinal) = PtrUInt(LInitial));
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    AssertTrue('Data-plane local restore should recover previous backend selection',
+      RestoreDataPlaneLocalState(LOldVectorAsm, FOldBackend));
   end;
 end;
 
