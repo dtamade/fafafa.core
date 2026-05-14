@@ -2245,3 +2245,35 @@
 - 收完之后，`dispatchapi.testcase` 里的顶层 test outer finally 已不再残留裸 `SetVectorAsmEnabled(LOldVectorAsm)`；剩余命中已经缩到内部 local helper / nested procedure 自己的局部 finally。
 - 这意味着后续如果继续沿这个文件深审，盲扫 value 已经明显下降，下一步应改成逐段审 helper 内部语义，重点看复杂 rollback/backend mutation 块是否真的需要进一步统一。
 - Release `TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`、Release `check`、Release `gate` 全绿，说明这批继续只是在收 companion parity 测试层恢复冗余/不对称，而不是 non-x86 backend 或 dispatch 生产语义回归。
+
+## 2026-05-14 NonX86BackendParity Backend Restore Cleanup Findings
+
+- 在上一批把 `TTestCase_NonX86BackendParity` 的 pure `SetVectorAsmEnabled(LOldVectorAsm)` 顶层 outer finally 清空之后，继续逐段复核同一类测试，发现还残留一簇更隐蔽但同样不对称的历史样板：
+  - 顶层 `finally` 里直接 `ResetToAutomaticBackend;`
+  - 共 12 处
+  - 都位于 test body 末尾，不属于内部 helper / nested procedure 的局部恢复
+- 这类写法的问题和前几批一致，只是形态更窄：
+  - 它仍然绕开了 `TDispatchAPIStatefulTestCase` 已保存的 `FSavedVectorAsm/FSavedBackend`
+  - 一旦测试是在非默认 backend 语义下进入，只回 automatic 仍然与 fixture contract 不一致
+- 本轮最小正确修法仍然不是新建专用 helper，而是继续复用现有的：
+  - `RestoreDispatchApiLocalState(aOriginalVectorAsm, aOriginalBackend)`
+  - 这次直接用保存下来的 `FSavedVectorAsm + FSavedBackend`，让顶层收口与 fixture `TearDown` 完全同源
+- 12 处命中全部在 `TTestCase_NonX86BackendParity`，覆盖：
+  - `MinimalDispatchParity`
+  - `ExtendedFloatParity`
+  - `NarrowAndNotParity`
+  - `DotParity`
+  - `I16x32_CoreParity`
+  - `I8x64_CoreParity`
+  - `U32x16_U64x8_CoreParity`
+  - `WideInteger_FuzzSeed_Parity`
+  - `WideCompareMaskParity`
+  - `I32x4_BitwiseShiftParity`
+  - `WideSignedBitwiseShiftParity`
+  - `WideIntegerArithmeticMinMaxParity`
+- 其中 `Test_WideInteger_FuzzSeed_Parity_IfAvailable` 有额外顺序要求：
+  - `RandSeed := LOriginalSeed;` 仍需保留在 helper 调用之前
+  - 本轮没有改变这条测试的随机种子恢复顺序
+- 收完之后，`TTestCase_NonX86BackendParity` 顶层 outer finally 里已经不再残留 `ResetToAutomaticBackend`。
+- 当前 `dispatchapi.testcase` 剩余的 `ResetToAutomaticBackend` 命中，已经主要是复杂 rollback/backend mutation/helper 状态机块；这些块不适合再做机械替换，后续要按语义逐段审。
+- Release `TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`、Release `check`、Release `gate` 全绿，说明这批继续收的是 companion parity 测试层 restore contract 的缺失/冗余，而不是 non-x86 dispatch/backend 生产语义。

@@ -2456,3 +2456,14 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`；现在 `dispatchapi.testcase` 里顶层 test outer finally 的裸 `SetVectorAsmEnabled(LOldVectorAsm)` 已经清零，剩余命中只在内部 helper / nested procedure 局部 finally。
+
+- 在上面那批 pure `vector asm` outer finally 收完后，我继续沿 `TTestCase_NonX86BackendParity` 逐段复核，确认同一类 companion parity 测试里还残留 12 处顶层 `finally ResetToAutomaticBackend;`。
+- 这批仍然没有扩 scope 到生产实现或内部 helper，而是把这 12 处统一切到 `RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend)`，让顶层 restore contract 直接回到进入测试前保存的 `vector asm + backend`。
+- `Test_WideInteger_FuzzSeed_Parity_IfAvailable` 的 `RandSeed := LOriginalSeed;` 继续保留在 helper 之前，没有改变随机种子恢复顺序。
+- 这轮复验仍按串行 release 链执行：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 这批之后，`TTestCase_NonX86BackendParity` 顶层 outer finally 中的 `ResetToAutomaticBackend` 已清零；`dispatchapi.testcase` 剩余的 `ResetToAutomaticBackend` 主要落在复杂 rollback/backend mutation/helper 状态机块，下一批需要改成逐段读语义，而不是继续盲扫。

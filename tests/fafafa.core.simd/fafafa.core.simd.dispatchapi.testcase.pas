@@ -14092,7 +14092,7 @@ begin
       Inc(LChecked);
     end;
   finally
-    ResetToAutomaticBackend;
+    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 
   if LChecked = 0 then
@@ -14318,7 +14318,7 @@ begin
       Inc(LChecked);
     end;
   finally
-    ResetToAutomaticBackend;
+    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 
   if LChecked = 0 then
@@ -14423,7 +14423,7 @@ begin
       Inc(LChecked);
     end;
   finally
-    ResetToAutomaticBackend;
+    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 
   if LChecked = 0 then
@@ -14499,7 +14499,7 @@ begin
       Inc(LChecked);
     end;
   finally
-    ResetToAutomaticBackend;
+    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 
   if LChecked = 0 then
@@ -14647,7 +14647,7 @@ begin
       Inc(LChecked);
     end;
   finally
-    ResetToAutomaticBackend;
+    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 
   if LChecked = 0 then
@@ -14764,7 +14764,7 @@ begin
       Inc(LChecked);
     end;
   finally
-    ResetToAutomaticBackend;
+    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 
   if LChecked = 0 then
@@ -15094,7 +15094,7 @@ begin
       Inc(LChecked);
     end;
   finally
-    ResetToAutomaticBackend;
+    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 
   if LChecked = 0 then
@@ -15311,7 +15311,7 @@ begin
     end;
   finally
     RandSeed := LOriginalSeed;
-    ResetToAutomaticBackend;
+    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 
   if LChecked = 0 then
@@ -16120,7 +16120,7 @@ begin
       Inc(LChecked);
     end;
   finally
-    ResetToAutomaticBackend;
+    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 
   if LChecked = 0 then
@@ -16353,7 +16353,7 @@ begin
       Inc(LChecked);
     end;
   finally
-    ResetToAutomaticBackend;
+    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 
   if LChecked = 0 then
@@ -16783,7 +16783,7 @@ begin
       Inc(LChecked);
     end;
   finally
-    ResetToAutomaticBackend;
+    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 
   if LChecked = 0 then
@@ -17303,7 +17303,7 @@ begin
       Inc(LChecked);
     end;
   finally
-    ResetToAutomaticBackend;
+    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 
   if LChecked = 0 then

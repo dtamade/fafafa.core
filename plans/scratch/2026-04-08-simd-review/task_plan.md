@@ -1997,3 +1997,17 @@
 | 1. 复核 `TTestCase_NonX86BackendParity` 的剩余顶层 outer finally | completed | 已确认 `dispatchapi.testcase` 里剩余的顶层裸 `SetVectorAsmEnabled(LOldVectorAsm)` 已全部集中到 `TTestCase_NonX86BackendParity` 的 16 条 vector-asm parity test |
 | 2. 复用 `RestoreDispatchApiLocalState` 收掉 companion parity 样板 | completed | 已把这 16 处顶层 outer finally 统一切到 `RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend)`；对 `FreeAligned(...)`、局部 buffer 复位等 test-local 清理语句保持原有相对顺序 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已再次清理 |
+
+## 2026-05-14 NonX86BackendParity Backend Restore Cleanup
+
+### Goal
+
+继续沿同一组 `TTestCase_NonX86BackendParity` 做更细一层收口：把 12 处顶层 `finally ResetToAutomaticBackend;` 从“回 automatic”改成恢复进入测试前保存的 `FSavedVectorAsm + FSavedBackend`，并保留 `RandSeed` 与本地资源清理顺序，不机械触碰内部 rollback/helper 状态机块。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `TTestCase_NonX86BackendParity` 里剩余的顶层 automatic-reset finally | completed | 已确认上一批 pure `vector asm` outer finally 清空后，这个 companion parity 类里还剩 12 处顶层 `finally ResetToAutomaticBackend;`，且都位于 test body 末尾，不属于内部 helper / nested procedure 局部恢复 |
+| 2. 复用 `RestoreDispatchApiLocalState` 收掉这批 backend-restore 样板 | completed | 已把这 12 处统一切到 `RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend)`；`Test_WideInteger_FuzzSeed_Parity_IfAvailable` 继续先执行 `RandSeed := LOriginalSeed;`，没有打乱已有本地清理顺序 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`、Release `check`、Release `gate` 全绿；当前 `dispatchapi.testcase` 剩余 `ResetToAutomaticBackend` 命中已主要收敛到复杂 rollback/backend mutation/helper 状态机块 |
