@@ -4084,3 +4084,35 @@
 - 下一个合理切入点已经变成：
   - 文件级 `NonX86BackendName(...)`
   - 以及它所服务的 `TTestCase_NonX86BackendParity` 那一组 non-x86 消息壳是否还能进一步下沉到 canonical metadata
+
+## 2026-05-15 NonX86BackendName Thin Wrapper Dedup
+
+- 在上一批把 `dispatchapi.testcase` 的 procedure-local `BackendName(...)` 清空之后，我继续顺着同一条线往下查到文件级 `NonX86BackendName(...)`。
+- 这次没有选择把调用点全量改成 `DispatchApiBackendName(...)`，因为实际调用面已经扩到了整组 `TTestCase_NonX86BackendParity`：
+  - `slot-not-scalar`
+  - `dispatch-table parity`
+  - `facade parity`
+  - `lane-tag / shift parity`
+  - 调用量大，但 helper 本体仍然纯
+- 复核后确认它没有额外 label policy 语义，只是消息文案 helper：
+  - backend 覆盖集合仍由各测试自己的 `LBackends[...]` 决定
+  - `NEON/RISCVV asm compiled` 参与条件仍由编译宏控制
+  - active backend 切换和 dispatch-table/facade 调用仍是测试语义真源
+- 因此本轮采用了更稳的最小修法：
+  - 保留 `NonX86BackendName(...)` 这个对 non-x86 测试更可读的 helper 名
+  - 但把其实现从本地 `case sbNEON/sbRISCVV` 名称表改成 `Result := DispatchApiBackendName(aBackend);`
+- 本轮针对性验证也扩到了真正受影响的两组 suite：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 这轮继续验证到的相关门禁仍保持稳定：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=475 status=ok`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=20 issues=0 status=ok`
+  - `WIRING_SYNC_SUMMARY legacy=60 grouped=60 helper=60 missing=0 extra=0 ...`
+  - `Run-all summary: Passed 5 / Failed 0`
+  - `[GATE] OK`
+- 当前这条 `dispatchapi/nonx86 parity` 名称真相源线已经收平：
+  - `DispatchApiBackendName(...)` 作为 canonical 薄封装
+  - `NonX86BackendName(...)` 只作为语义别名，不再维护自己的 backend 名称表

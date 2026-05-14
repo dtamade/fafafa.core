@@ -2866,3 +2866,22 @@
 
 - 当前 `dispatchapi.testcase` 已不再有局部 `BackendName(...)`。
 - 剩余明确的名字 helper 是文件级 `NonX86BackendName(...)`；它服务 `TTestCase_NonX86BackendParity` 等 non-x86 测试消息面，更适合作为后续 non-x86 专项小批次处理。
+
+## 2026-05-15 NonX86BackendName Thin Wrapper Dedup
+
+### Goal
+
+继续沿 `dispatchapi.testcase` / `TTestCase_NonX86BackendParity` 的消息层真相源收尾：不大面积改调用点，而是把文件级 `NonX86BackendName(...)` 本体从本地 `case` 名称表收成 `DispatchApiBackendName(...)` 的薄封装，消除 non-x86 名称副本，同时保留现有断言与 parity 测试结构。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `NonX86BackendName(...)` 是否承载额外语义 | completed | 已确认该 helper 虽被 `TTestCase_NonX86BackendParity` 广泛使用，但只向断言消息和 parity 文案提供 backend 名称；backend 集合、asm opt-in、active backend 切换、slot/数值语义都由别处控制 |
+| 2. 将 helper 本体收成 canonical thin wrapper | completed | 已把 `NonX86BackendName(...)` 从本地 `case sbNEON/sbRISCVV` 名称表改为 `Result := DispatchApiBackendName(aBackend);`，去掉重复名字真相源但不触碰调用面 |
+| 3. Release 验证与本批收口 | completed | `git diff --check`、Release `TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`、Release `check`、Release `gate` 全部通过；`nonx86 helper semantics`、`nonx86 key-slot audit`、`wiring-sync` 继续为绿 |
+
+### Next Slice
+
+- 当前这个文件的 backend 名称 helper 已经都改成 canonical metadata 薄封装。
+- 下一步更适合从别的重复 truth source / report shell 入手，而不是继续在这个文件里扫同类名称表。

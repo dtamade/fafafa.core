@@ -3658,3 +3658,24 @@
 - 因而下一步的优先级已经更清楚了：
   - 不再需要继续在 `dispatchapi.testcase` 里扫 procedure-local `BackendName(...)`
   - 下一批应转向 `NonX86BackendName(...)` 是否也能安全下沉到 canonical metadata，前提是先核清它所在的 `TTestCase_NonX86BackendParity` 族是否没有额外的 label policy 语义
+
+## 2026-05-15 NonX86BackendName Thin Wrapper Findings
+
+- 文件级 `NonX86BackendName(...)` 的特殊点不在于“它是不是副本”，而在于它的调用面非常广：
+  - `TTestCase_NonX86BackendParity` 里大量 slot-not-scalar、dispatch-table parity、facade parity、lane-tag parity、shift parity 断言都复用它
+  - 因此如果贸然全量改调用点，虽然风险不高，但 diff 会显著膨胀
+- 复核后确认它依旧只是纯消息 helper：
+  - backend 集合由各测试里的 `LBackends[...]` 控制
+  - `{$IFNDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}` / `{$IFNDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}` 决定参与性
+  - `TrySetActiveBackend(...)` / dispatch-table 调用决定真实执行路径
+  - `NonX86BackendName(...)` 本身不参与任何判断
+- 所以最优解不是“把一百多处调用全改成 `DispatchApiBackendName(...)`”，而是：
+  - 保留 `NonX86BackendName(...)` 这个 non-x86 测试语义上可读的 helper 名
+  - 但把它的实现体收成 `DispatchApiBackendName(...)` 的 thin wrapper
+  - 这样既消除了重复名称表，也避免无意义的大 diff
+- 这批说明后续继续深查时，可以把重复真相源分成两类来处理：
+  - `调用点很少` 的，直接删 helper、改调用点
+  - `调用点很多但 helper 仍纯` 的，优先改 helper 本体为 canonical thin wrapper
+- 当前 `dispatchapi.testcase` / `TTestCase_NonX86BackendParity` 这条线上的 backend 名称 helper 已经完成去副本：
+  - `DispatchApiBackendName(...)` 是 canonical 薄封装
+  - `NonX86BackendName(...)` 现在只是对前者的语义别名，不再维护自己的名字表

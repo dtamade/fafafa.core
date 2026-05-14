@@ -11091,11 +11091,7 @@ end;
 
 function NonX86BackendName(const aBackend: TSimdBackend): string;
 begin
-  case aBackend of
-    sbNEON: Result := 'NEON';
-    sbRISCVV: Result := 'RISCVV';
-    else Result := IntToStr(Ord(aBackend));
-  end;
+  Result := DispatchApiBackendName(aBackend);
 end;
 
 procedure TTestCase_NonX86BackendParity.Test_NativeWideFloorCeilSlots_NotScalar_IfAvailable;
