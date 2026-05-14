@@ -3982,3 +3982,17 @@
   - 旧 Windows `windows_b07_gate.log` 仍然会被 evidence verifier fail 掉
 - 这一步的价值是把 contract 口径收紧，而不是放松证据：
   - 同一条 gate 在 shell/batch/evidence/rehearsal 里终于说同一种话
+
+## 2026-05-15 Windows Evidence GH Preflight Blocked
+
+- 我继续复核 fresh Windows evidence 的外部前提，结果仍然是阻塞：
+  - `gh auth status` 正常
+  - 仓库 workflow 也能解析到 `simd-windows-b07-evidence.yml`
+  - 但 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight` 返回 `RECENT_BILLING_BLOCK`
+- 这个 blocker 的含义很明确：
+  - GitHub 直接拒跑相关 workflow run
+  - 原因是 recent account payments failed 或 spending limit 需要提高
+  - 这不是本地 `simd` 代码、脚本或 gate 逻辑可修的问题
+- 当前最准确的结论是：
+  - fresh Windows runtime proof 仍被外部账单/额度挡住
+  - 后续只有先恢复 GitHub Billing/额度，才能继续往下刷新 evidence

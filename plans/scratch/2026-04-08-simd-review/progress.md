@@ -4501,3 +4501,8 @@
   - `verify_windows_b07_evidence.{sh,bat}` 仍然会把旧 `windows_b07_gate.log` 判成 fail
 - 这一步只是收敛命名，不是放松合同：
   - 同一条 gate 的口径现在更一致了
+- 2026-05-15 继续复核 GH preflight：
+  - `gh auth status` 正常，workflow 也能解析到 `simd-windows-b07-evidence.yml`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`
+  - 结果：`RECENT_BILLING_BLOCK`
+  - 结论：fresh Windows evidence 仍是外部账单/额度阻塞，不继续做本地无效重试

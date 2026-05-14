@@ -3068,3 +3068,17 @@
 | 1. 复核是否只剩一条 shell 文案漂移 | completed | `rg` 已确认 `tests/fafafa.core.simd/BuildOrTest.sh` 里只有 `echo "[GATE] 3/6 SIMD AVX2 fallback suite"` 还在用旧词，而 batch/evidence/rehearsal 已统一为 `stable vector suites` |
 | 2. 对齐 shell gate label | completed | 已把 shell `gate` 的 `3/6` label 改成 `SIMD AVX2 stable vector suites`，其余 step id / gate 行为保持不变 |
 | 3. 真实 gate 验证 | completed | `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 已再次通过，日志中真实出现新的 `3/6 SIMD AVX2 stable vector suites`，同时旧 `windows_b07_gate.log` 仍会被 evidence verifier 判 FAIL，说明这次只是统一命名，不是放松合同 |
+
+## 2026-05-15 Windows Evidence GH Preflight Blocked
+
+### Goal
+
+确认 GH Windows evidence 的外部前提是否满足，判断能否继续把 fresh Windows runtime proof 往前推。如果环境被 billing/runner 阻塞，就明确记录阻塞，不继续把时间耗在本地无效重试上。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 预检 GH/Workflow 前提 | completed | `gh auth status` 可用，仓库 workflow 也能解析到 `simd-windows-b07-evidence.yml`；说明本机工具链没问题 |
+| 2. 运行 GH 预检脚本 | completed | `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight` 返回 `RECENT_BILLING_BLOCK`，说明最近一次相关 workflow run 被 GitHub 直接拒绝启动，原因是 recent account payments failed / spending limit needs to be increased |
+| 3. 处理结果 | completed | 这不是本地代码可修问题；当前应视为外部阻塞而不是实现缺陷。fresh Windows runtime evidence 的下一步必须先恢复 GitHub Billing/额度，再重新发起 GH 路径 |
