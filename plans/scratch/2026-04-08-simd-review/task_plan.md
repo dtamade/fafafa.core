@@ -1884,3 +1884,17 @@
 | 1. 复核 `simd.testcase` 主文件里的状态泄漏与重复夹具 | completed | 已确认 `TTestCase_Global`、`TTestCase_BackendSmoke`、`TTestCase_AVX2VectorAsm`、`TTestCase_AVX512VectorAsm` 以及 `VectorOps/IntegerFacadeGuards/FloatFacadeGuards/LargeData/OperatorOverloads/VectorMaskTypes/TypeConversion/Builder/GatherScatter/ShuffleSWizzle/MathFunctions/AdvancedAlgorithms` 都存在同类问题：切 backend 或 vector-asm 后只 `ResetBackendSelection`，没有恢复进入测试前真实状态 |
 | 2. 抽共享 stateful fixture 并替换重复 `SetUp/TearDown` | completed | 在 `fafafa.core.simd.testcase.pas` 提取 `TSimdBackendStatefulTestCase`、`TScalarBackendStatefulTestCase` 与 `TSimdVectorAsmBackendStatefulTestCase`；让 `Global/BackendSmoke/AVX2/AVX512` 与整串 scalar suite 统一继承，恢复顺序固定为先恢复 `vector asm`，再 `ResetBackendSelection`，必要时 `TrySetActiveBackend(savedBackend)` |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_Global`、`TTestCase_BackendSmoke`、`TTestCase_AVX2VectorAsm`、`TTestCase_IntegerFacadeGuards`、Release `check`、Release `gate` 全绿；过程中已确认并行跑同一 Lazarus runner 会产生 `Text file busy/rc=2` 假红，因此最终验证全部改回串行 |
+
+## 2026-05-14 Scalarized Small Suites Backend Restore
+
+### Goal
+
+继续沿分散的小型 façade/test utility suite 审查“已经 scalarize，但 `TearDown` 仍只回 automatic”的残余状态泄漏，统一修复 `edgecases/vecf32x8/vecf64x4/veci32x8/vecu32x8/narrowintegerops/imageproc/saturating/vec512types` 这一批小文件对进入测试前 backend 选择的不对称恢复。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核小型 scalarized suite 的状态恢复模式 | completed | 已确认 `TTestCase_EdgeCases`、`TTestCase_VecF32x8`、`TTestCase_VecF64x4`、`TTestCase_VecI32x8`、`TTestCase_VecU32x8`、`TTestCase_NarrowIntegerOps`、`TTestCase_ImageProc`、`TTestCase_SaturatingArithmetic`、`TTestCase_Vec512MaskFacadeGuards` 都在 `SetUp` 里 `ForceBackend(sbScalar)`，但 `TearDown` 仍只 `ResetBackendSelection` |
+| 2. 给 9 个 suite 补进入前 backend 保存/恢复 | completed | 为每个类补 `FSavedBackend`，`SetUp` 保存 `GetCurrentBackend`，`TearDown` 在保留原有异常 mask / image resource / blend-mode 清理顺序的同时，统一 `ResetBackendSelection` 并在必要时 `TrySetActiveBackend(savedBackend)` |
+| 3. Release 验证与提交收口 | completed | 9 个受影响 suite 的定向 Release 测试、Release `check`、Release `gate` 全绿；这批没有新增 runner 或改动任何生产实现 |

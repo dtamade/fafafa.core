@@ -20,6 +20,7 @@ type
   // === TVecI32x8 (256-bit 有符号整数向量) 完整测试套件 ===
   TTestCase_VecI32x8 = class(TTestCase)
   protected
+    FSavedBackend: TSimdBackend;
     procedure SetUp; override;
     procedure TearDown; override;
   published
@@ -69,15 +70,25 @@ implementation
 procedure TTestCase_VecI32x8.SetUp;
 begin
   inherited SetUp;
+  GetDispatchTable;
+  FSavedBackend := GetCurrentBackend;
   // 强制使用 Scalar 后端以确保测试结果一致
   ForceBackend(sbScalar);
 end;
 
 procedure TTestCase_VecI32x8.TearDown;
+var
+  LRestoredBackend: Boolean;
 begin
   // 恢复自动后端选择
   ResetBackendSelection;
+  LRestoredBackend := True;
+  if GetCurrentBackend <> FSavedBackend then
+    LRestoredBackend := TrySetActiveBackend(FSavedBackend);
   inherited TearDown;
+
+  AssertTrue('VecI32x8 fixture should restore previous backend selection',
+    LRestoredBackend and (GetCurrentBackend = FSavedBackend));
 end;
 
 // === 算术操作测试 ===

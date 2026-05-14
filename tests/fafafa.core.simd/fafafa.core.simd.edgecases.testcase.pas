@@ -26,6 +26,7 @@ type
   // 边界条件测试 - NaN, 无穷大, 溢出, 对齐
   TTestCase_EdgeCases = class(TTestCase)
   private
+    FSavedBackend: TSimdBackend;
     FSavedExceptionMask: TFPUExceptionMask;
   protected
     procedure SetUp; override;
@@ -78,6 +79,8 @@ implementation
 procedure TTestCase_EdgeCases.SetUp;
 begin
   inherited SetUp;
+  GetDispatchTable;
+  FSavedBackend := GetCurrentBackend;
   // Save current FPU exception mask and mask all FP exceptions
   // This allows testing NaN, Infinity, division by zero without triggering exceptions
   FSavedExceptionMask := GetExceptionMask;
@@ -86,11 +89,19 @@ begin
 end;
 
 procedure TTestCase_EdgeCases.TearDown;
+var
+  LRestoredBackend: Boolean;
 begin
   ResetBackendSelection;
+  LRestoredBackend := True;
+  if GetCurrentBackend <> FSavedBackend then
+    LRestoredBackend := TrySetActiveBackend(FSavedBackend);
   // Restore original FPU exception mask
   SetExceptionMask(FSavedExceptionMask);
   inherited TearDown;
+
+  AssertTrue('EdgeCases fixture should restore previous backend selection',
+    LRestoredBackend and (GetCurrentBackend = FSavedBackend));
 end;
 
 // === NaN 处理测试 ===

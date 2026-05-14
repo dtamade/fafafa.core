@@ -2300,3 +2300,37 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+## 2026-05-14 Scalarized Small Suites Backend Restore
+
+- 继续往剩余 `simd` 测试树深扫后，发现还有一批分散的小 suite 虽然已经 fixed 到 `sbScalar`，但 fixture 仍是旧式只回 automatic：
+  - `TTestCase_EdgeCases`
+  - `TTestCase_VecF32x8`
+  - `TTestCase_VecF64x4`
+  - `TTestCase_VecI32x8`
+  - `TTestCase_VecU32x8`
+  - `TTestCase_NarrowIntegerOps`
+  - `TTestCase_ImageProc`
+  - `TTestCase_SaturatingArithmetic`
+  - `TTestCase_Vec512MaskFacadeGuards`
+- 这批修法保持很窄，没有去抽新 shared unit，而是直接按各文件自身语义补 `FSavedBackend`：
+  - `SetUp` 统一 `GetDispatchTable` -> 保存 `GetCurrentBackend` -> 再 `ForceBackend(sbScalar)`
+  - `TearDown` 保留各自已有清理逻辑，再 `ResetBackendSelection`，必要时 `TrySetActiveBackend(FSavedBackend)`，最后断言恢复成功
+- 两个特殊文件已按本地语义保序处理：
+  - `EdgeCases` 继续保留原有 `FSavedExceptionMask` 恢复
+  - `ImageProc` 继续先恢复 `ImageBlendAlphaMode` 并 `FreeImage(...)`，再恢复 backend
+- 本轮 Release 定向验证已完整串行跑完 9 个受影响 suite：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_EdgeCases`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_VecF32x8`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_VecF64x4`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_VecI32x8`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_VecU32x8`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NarrowIntegerOps`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_ImageProc`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SaturatingArithmetic`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_Vec512MaskFacadeGuards`
+- 本轮完整 Release 收口也已通过：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

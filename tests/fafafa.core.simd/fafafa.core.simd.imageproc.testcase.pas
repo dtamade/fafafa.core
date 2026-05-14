@@ -22,6 +22,7 @@ type
     FSrc2: TImage;
     FDest: TImage;
     FPreviousBlendAlphaMode: TImageBlendAlphaMode;
+    FSavedBackend: TSimdBackend;
 
     procedure FillImage(var aImg: TImage; const aValues: array of Byte);
     procedure AssertPixelRGBEquals(const aMessage: string; const aPixel: TVecF32x4;
@@ -100,6 +101,8 @@ implementation
 procedure TTestCase_ImageProc.SetUp;
 begin
   inherited SetUp;
+  GetDispatchTable;
+  FSavedBackend := GetCurrentBackend;
   ForceBackend(sbScalar);
   FillChar(FSrc1, SizeOf(FSrc1), 0);
   FillChar(FSrc2, SizeOf(FSrc2), 0);
@@ -109,13 +112,21 @@ begin
 end;
 
 procedure TTestCase_ImageProc.TearDown;
+var
+  LRestoredBackend: Boolean;
 begin
   SetImageBlendAlphaMode(FPreviousBlendAlphaMode);
   FreeImage(FSrc1);
   FreeImage(FSrc2);
   FreeImage(FDest);
   ResetBackendSelection;
+  LRestoredBackend := True;
+  if GetCurrentBackend <> FSavedBackend then
+    LRestoredBackend := TrySetActiveBackend(FSavedBackend);
   inherited TearDown;
+
+  AssertTrue('ImageProc fixture should restore previous backend selection',
+    LRestoredBackend and (GetCurrentBackend = FSavedBackend));
 end;
 
 procedure TTestCase_ImageProc.FillImage(var aImg: TImage; const aValues: array of Byte);

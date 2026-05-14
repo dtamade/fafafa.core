@@ -2053,3 +2053,37 @@
   - 这会导致 `Text file busy` 或 `rc=2` 之类的假红，不应误判成代码回归
   - 这个 runner 在本仓库应继续保持串行验证
 - Release `TTestCase_Global`、Release `TTestCase_BackendSmoke`、Release `TTestCase_AVX2VectorAsm`、Release `TTestCase_IntegerFacadeGuards`、Release `check`、Release `gate` 全绿，说明这批修的是主 testcase 文件里的夹具恢复不对称，并且共享基类没有引入 suite 回归。
+
+## 2026-05-14 Scalarized Small Suites Backend Restore Findings
+
+- 在主 testcase 文件收口后，`tests/fafafa.core.simd/` 里还残留一串分散的小 suite，问题模式完全一致：
+  - `fafafa.core.simd.edgecases.testcase.pas`
+  - `fafafa.core.simd.vecf32x8.testcase.pas`
+  - `fafafa.core.simd.vecf64x4.testcase.pas`
+  - `fafafa.core.simd.veci32x8.testcase.pas`
+  - `fafafa.core.simd.vecu32x8.testcase.pas`
+  - `fafafa.core.simd.narrowintegerops.testcase.pas`
+  - `fafafa.core.simd.imageproc.testcase.pas`
+  - `fafafa.core.simd.saturating.testcase.pas`
+  - `fafafa.core.simd.vec512types.testcase.pas` 里的 `TTestCase_Vec512MaskFacadeGuards`
+- 它们并不是“还没 scalarize”的问题，而是已经为了稳定 contract 测试把 `SetUp` 改成了 `ForceBackend(sbScalar)`，却仍保留旧式 `TearDown`：
+  - 只 `ResetBackendSelection`
+  - 不恢复进入测试前的真实 backend 选择
+  - 一旦上游用强制 backend 进入，这些 suite 跑完后就会把先前选择静默冲掉
+- 这批文件虽然分散，但修法不适合再发明新的共享单元：
+  - 每个文件都已经有自己的轻量 fixture 语义
+  - `EdgeCases` 还带 `FSavedExceptionMask`
+  - `ImageProc` 还带 `FreeImage` 和 `SetImageBlendAlphaMode` 清理顺序
+  - 最小正确修复就是在各自现有夹具上补 `FSavedBackend`
+- 本轮统一落下的 contract 是：
+  - `SetUp`：`GetDispatchTable` -> 保存 `FSavedBackend` -> 再 `ForceBackend(sbScalar)`
+  - `TearDown`：保留原有资源/异常状态清理顺序，同时 `ResetBackendSelection`，必要时 `TrySetActiveBackend(FSavedBackend)`，最后断言恢复成功
+- 其中两处需要保留额外注意事项：
+  - `TTestCase_EdgeCases` 不能丢掉原有 `FPU exception mask` 生命周期
+  - `TTestCase_ImageProc` 不能打乱 `blend alpha mode` 与 `FreeImage` 的清理顺序
+- 这轮刻意没有改动：
+  - 任何公开 façade 语义
+  - `ImageProc` 算法实现
+  - `Vec512Types` 本体的纯类型/布局测试
+  - runner manifest / suite 注册
+- 定向 Release 验证覆盖了全部 9 个受影响 suite，再加 Release `check`、Release `gate` 全绿，说明这批修的是分散小 suite 的 backend 恢复不对称，而不是 vector family/ImageProc/edge-case 生产逻辑缺陷。

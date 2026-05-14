@@ -67,6 +67,7 @@ type
   // 512-bit 对象掩码 façade 测试需要固定到 scalar，避免只剩 parity 旁证。
   TTestCase_Vec512MaskFacadeGuards = class(TTestCase)
   protected
+    FSavedBackend: TSimdBackend;
     procedure SetUp; override;
     procedure TearDown; override;
   published
@@ -239,13 +240,23 @@ end;
 procedure TTestCase_Vec512MaskFacadeGuards.SetUp;
 begin
   inherited SetUp;
+  GetDispatchTable;
+  FSavedBackend := GetCurrentBackend;
   ForceBackend(sbScalar);
 end;
 
 procedure TTestCase_Vec512MaskFacadeGuards.TearDown;
+var
+  LRestoredBackend: Boolean;
 begin
   ResetBackendSelection;
+  LRestoredBackend := True;
+  if GetCurrentBackend <> FSavedBackend then
+    LRestoredBackend := TrySetActiveBackend(FSavedBackend);
   inherited TearDown;
+
+  AssertTrue('Vec512MaskFacadeGuards fixture should restore previous backend selection',
+    LRestoredBackend and (GetCurrentBackend = FSavedBackend));
 end;
 
 procedure TTestCase_Vec512MaskFacadeGuards.Test_MaskF32x16_AllTrue;
