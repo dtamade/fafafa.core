@@ -2665,3 +2665,22 @@
   - `concurrent` 里最明显的 method-level old-shape finally 又少了两条
   - 下一轮更值得看的，基本就收缩到 `direct` 那个全局过程尾声 restore 分叉，以及 `concurrent` 里少数 round-level cleanup 是否还存在真正冗余
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+- 我继续按这个 stop-point 往下收，直接处理了 `direct` 里那条全局过程 cleanup 分叉：
+  - `RunDirectDispatchConcurrentReRegisterSnapshotConsistency`
+  - 之前 finally 只会恢复 scalar 原表、回到 automatic、然后 rebind direct dispatch
+  - 没有回到调用前真实 backend
+- 这次没有重构成新 helper，而是做最小闭环：
+  - 过程入口捕获 `LOriginalBackend := GetCurrentBackend`
+  - finally 里恢复 scalar 原表后，如果当前 backend 不是原 backend，就 `TrySetActiveBackend(LOriginalBackend)`
+  - 恢复失败时抛出明确异常，再 `RebindDirectDispatch`
+- 本轮 Release 验证继续按串行链完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DirectDispatchConcurrent`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断继续更新：
+  - `direct / concurrent` 这一簇最显眼的 old-shape cleanup 又少了一层
+  - 下一轮如果继续挖，就该从“简单 restore 分叉”切换到再判断剩余 `concurrent` round-level `ResetToAutomaticBackend` 是否是真正冗余，还是测试主题本身需要的控制面动作
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

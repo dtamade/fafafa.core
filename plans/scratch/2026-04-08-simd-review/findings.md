@@ -2549,3 +2549,24 @@
   - `concurrent` 中最明显的“只恢复 vector asm、不恢复保存 backend”的顶层 finally 已清零
   - 这批仍属于测试层 fixture hardening / redundancy cleanup，不改变并发 dispatch/vector-asm 语义
 - Release `TTestCase_SimdConcurrent`、Release `check`、Release `gate` 全绿，说明改动只影响并发测试夹具恢复契约，没有引入行为回归。
+
+## 2026-05-14 Direct Concurrent Snapshot Cleanup Restore Alignment Findings
+
+- 顺着上一轮留下的 stop-point 继续看 `direct` 后，最值得动的残点就是全局过程 `RunDirectDispatchConcurrentReRegisterSnapshotConsistency`：
+  - 进入过程前没有保存原 backend
+  - finally 只做 `RegisterBackend(sbScalar, LOriginalTable); ResetToAutomaticBackend; RebindDirectDispatch;`
+  - 这意味着该过程返回时 direct/dispatch 状态只回到 automatic，而不是回到调用前真实 backend
+- 这条和之前几轮所有 testcase 层 restore 分叉的本质一致，只是位置更隐蔽：
+  - 它不在 `TTestCase` 方法里，而在全局过程里
+  - 没有现成 `FSavedBackend`
+  - 所以不能直接套前几轮的类级 helper，而要先补 entry capture
+- 本轮修法保持最小：
+  - 新增 `LOriginalBackend := GetCurrentBackend`
+  - finally 中恢复 scalar 原表后，若当前 backend 不是原 backend，就 `TrySetActiveBackend(LOriginalBackend)`
+  - 若恢复失败，抛出明确异常，避免静默把 drift 留给外层 fixture
+  - 之后再 `RebindDirectDispatch`
+- 这样做的效果是：
+  - 全局过程自己闭合自己的 cleanup 契约
+  - `TTestCase_DirectDispatchConcurrent` 不再需要依赖更外层 tearDown 才把 backend 拉回调用前状态
+  - synthetic table 并发测试语义和 direct dispatch publication 逻辑都不变
+- Release `TTestCase_DirectDispatchConcurrent`、Release `check`、Release `gate` 全绿，说明这批仍然只是测试层 cleanup hardening，没有引入 direct dispatch 行为回归。

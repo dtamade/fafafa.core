@@ -5592,6 +5592,7 @@ const
   READER_ITERATIONS = 2500;
 var
   LOriginalTable: TSimdDispatchTable;
+  LOriginalBackend: TSimdBackend;
   LTableA: TSimdDispatchTable;
   LTableB: TSimdDispatchTable;
   LWriters: array of TDirectDispatchMutationWorker;
@@ -5600,6 +5601,7 @@ var
   LAllSuccess: Boolean;
   LErrorMsgs: string;
 begin
+  LOriginalBackend := GetCurrentBackend;
   if not TryGetRegisteredBackendDispatchTable(sbScalar, LOriginalTable) then
     raise Exception.Create('Scalar backend should be registered for synthetic direct-dispatch re-register test');
 
@@ -5661,6 +5663,11 @@ begin
 
     RegisterBackend(sbScalar, LOriginalTable);
     ResetToAutomaticBackend;
+    if GetCurrentBackend <> LOriginalBackend then
+      if not TrySetActiveBackend(LOriginalBackend) then
+        raise Exception.CreateFmt(
+          'Direct dispatch concurrent cleanup failed to restore previous backend selection (expected=%d, actual=%d)',
+          [Ord(LOriginalBackend), Ord(GetCurrentBackend)]);
     RebindDirectDispatch;
   end;
 end;

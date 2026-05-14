@@ -2151,3 +2151,17 @@
 | 1. 复核 `concurrent` 剩余 old-shape finally | completed | 已确认 `fafafa.core.simd.concurrent.testcase.pas` 中 `Test_Concurrent_VectorAsmToggle_DispatchReadConsistency` 与 `Test_Concurrent_VectorAsmToggle_MultiWriter_DispatchRead` 的 outer finally 仍只做 `SetVectorAsmEnabled(LOldVectorAsm)`；同文件其余同类顶层恢复大多已切到 `RestoreSimdLocalState(LOldVectorAsm, FSavedBackend)` |
 | 2. 复用现有 helper 收口这两条 finally | completed | 已直接把两处 finally 改为 `RestoreSimdLocalState(LOldVectorAsm, FSavedBackend)`；没有扩到 `direct` 的全局过程 cleanup，因为那条还需要先补原始 backend 捕获，适合下一批单独处理 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_SimdConcurrent`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 Direct Concurrent Snapshot Cleanup Restore Alignment
+
+### Goal
+
+继续沿上一轮锁定的 `direct` 残点收口 `RunDirectDispatchConcurrentReRegisterSnapshotConsistency`：在恢复 scalar 原表后，不再只回到 `automatic`，而是回到调用前真实 backend 再 rebind direct dispatch，避免这个全局过程把 backend drift 留给外层 fixture。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `direct` 全局过程 cleanup 的真实缺口 | completed | 已确认 `fafafa.core.simd.direct.testcase.pas` 中 `RunDirectDispatchConcurrentReRegisterSnapshotConsistency` 的 finally 只做 `RegisterBackend(sbScalar, LOriginalTable); ResetToAutomaticBackend; RebindDirectDispatch;`；该过程在进入时没有保存原 backend，因此返回后会把状态留在 automatic，直到更外层 `TearDown` 才恢复 |
+| 2. 补原 backend 捕获并在 finally 中恢复 | completed | 已为该过程补 `LOriginalBackend := GetCurrentBackend`，并在恢复 scalar 原表后于 finally 中尝试 `TrySetActiveBackend(LOriginalBackend)`；若失败则抛出明确异常，随后再 `RebindDirectDispatch` |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DirectDispatchConcurrent`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
