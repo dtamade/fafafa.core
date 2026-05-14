@@ -8,6 +8,7 @@ interface
 uses
   SysUtils, Math,
   fafafa.core.simd.base,
+  fafafa.core.simd.fixturehelpers,
   fafafa.core.simd.dispatch,
   fafafa.core.simd.scalar;
 
@@ -38,10 +39,6 @@ type
   end;
 
   TConsistencyTestResults = array of TConsistencyTestResult;
-
-  TBackendConsistencySavedState = record
-    Backend: TSimdBackend;
-  end;
 
 // 运行所有一致性测试
 function RunAllConsistencyTests: TConsistencyTestResults;
@@ -134,20 +131,16 @@ begin
   Result.i[3] := v3;
 end;
 
-procedure SaveBackendConsistencyState(out aState: TBackendConsistencySavedState);
+procedure SaveBackendConsistencyState(out aState: TSimdSavedBackendState);
 begin
-  GetDispatchTable;
-  aState.Backend := GetActiveBackend;
+  SaveActiveBackendState(aState);
 end;
 
-procedure RestoreBackendConsistencyState(const aState: TBackendConsistencySavedState);
+procedure RestoreBackendConsistencyState(const aState: TSimdSavedBackendState);
 var
   LRestoredBackend: Boolean;
 begin
-  ResetToAutomaticBackend;
-  LRestoredBackend := True;
-  if GetActiveBackend <> aState.Backend then
-    LRestoredBackend := TrySetActiveBackend(aState.Backend);
+  LRestoredBackend := RestoreSavedBackendState(aState.Backend);
   if (not LRestoredBackend) or (GetActiveBackend <> aState.Backend) then
     raise Exception.CreateFmt(
       'Backend consistency helper failed to restore previous backend selection (expected=%d, actual=%d)',
@@ -160,7 +153,7 @@ end;
 
 function TestF32x4Arithmetic(backend: TSimdBackend): TConsistencyTestResult;
 var
-  LOriginalState: TBackendConsistencySavedState;
+  LOriginalState: TSimdSavedBackendState;
   dispatch: PSimdDispatchTable;
   a, b, expected, actual: TVecF32x4;
   maxDiff: Double;
@@ -274,7 +267,7 @@ end;
 
 function TestF32x4Math(backend: TSimdBackend): TConsistencyTestResult;
 var
-  LOriginalState: TBackendConsistencySavedState;
+  LOriginalState: TSimdSavedBackendState;
   dispatch: PSimdDispatchTable;
   a, b, expected, actual: TVecF32x4;
   maxDiff: Double;
@@ -387,7 +380,7 @@ end;
 
 function TestF32x4Comparison(backend: TSimdBackend): TConsistencyTestResult;
 var
-  LOriginalState: TBackendConsistencySavedState;
+  LOriginalState: TSimdSavedBackendState;
   dispatch: PSimdDispatchTable;
   a, b: TVecF32x4;
   expectedMask, actualMask: TMask4;
@@ -475,7 +468,7 @@ end;
 
 function TestF32x4Reduction(backend: TSimdBackend): TConsistencyTestResult;
 var
-  LOriginalState: TBackendConsistencySavedState;
+  LOriginalState: TSimdSavedBackendState;
   dispatch: PSimdDispatchTable;
   a: TVecF32x4;
   expectedVal, actualVal: Single;
@@ -582,7 +575,7 @@ end;
 
 function TestI32x4Arithmetic(backend: TSimdBackend): TConsistencyTestResult;
 var
-  LOriginalState: TBackendConsistencySavedState;
+  LOriginalState: TSimdSavedBackendState;
   dispatch: PSimdDispatchTable;
   a, b, expected, actual: TVecI32x4;
   diffIdx: Integer;
@@ -673,7 +666,7 @@ end;
 
 function TestI32x4Bitwise(backend: TSimdBackend): TConsistencyTestResult;
 var
-  LOriginalState: TBackendConsistencySavedState;
+  LOriginalState: TSimdSavedBackendState;
   dispatch: PSimdDispatchTable;
   a, b, expected, actual: TVecI32x4;
   diffIdx: Integer;
@@ -778,7 +771,7 @@ end;
 
 function TestFacadeMemOps(backend: TSimdBackend): TConsistencyTestResult;
 var
-  LOriginalState: TBackendConsistencySavedState;
+  LOriginalState: TSimdSavedBackendState;
   dispatch: PSimdDispatchTable;
   buf1, buf2: array[0..255] of Byte;
   i: Integer;

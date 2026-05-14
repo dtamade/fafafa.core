@@ -2403,3 +2403,17 @@
 | 1. 复核 `publicabi` restore helper 是否属于普通 backend-only 语义 | completed | 已确认 `RestoreOriginalActiveBackend(...)` 只是 `ResetToAutomaticBackend -> TrySetActiveBackend(...)` 的重复体，不带 `runtime` 那种 automatic-vs-forced 分支语义，也不涉及 vector-asm / synthetic hook 生命周期 |
 | 2. 把 `publicabi` helper 改成公共 backend-only restore 薄转发 | completed | `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 中的 `RestoreOriginalActiveBackend(...)` 已改成直接调用 `RestoreSavedBackendState(...)`，保留原 helper 名称和所有调用点不动 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿；提交前仍需清理可能回流的 `tests/fafafa.core.simd/__pycache__/` |
+
+## 2026-05-14 Shared Fixture Helper Unit Extraction
+
+### Goal
+
+继续加强 `simd` 测试层审查并修复，但这次目标不是再做一个局部替换，而是把已经被多轮验证稳定的 backend/vector-asm fixture helper 正式抽成一个 test-only 共享单元，解除 `backend.consistency` 因依赖方向导致的 helper 隔离。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核剩余冗余的结构根因 | completed | 已确认 `backend.consistency.testcase` 的本地 `Save/RestoreBackendConsistencyState` 之所以一直保留，不是语义特殊，而是因为 `testcase.pas` 反向 `uses` 它，直接复用 `testcase` 里的公共 helper 会形成单元循环 |
+| 2. 抽出共享 fixture helper 单元 | completed | 已新增 `tests/fafafa.core.simd/fafafa.core.simd.fixturehelpers.pas`，承载 `TSimdSavedBackendState`、`SaveActiveBackendState(...)`、`RestoreSavedBackendState(...)`、`RestoreSavedBackendAndVectorAsmState(...)`；`testcase.pas` 现保留兼容 wrapper，`backend.consistency.testcase.pas` 改复用共享单元，不再自带底层 save/restore 实现 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release 定向 suites（`DispatchAllSlots / BackendVectorConsistency / PublicAbi / DataPlane / DispatchAPI / SimdConcurrent / SimdConcurrentPublicAbi / IEEE754_F64`）、Release `check`、Release `gate` 全绿；提交前仍需清理可能回流的 `tests/fafafa.core.simd/__pycache__/` |

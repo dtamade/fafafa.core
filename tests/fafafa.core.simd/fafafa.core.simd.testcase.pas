@@ -15,6 +15,7 @@ uses
   Classes, SysUtils, fafafa.core.math, fpcunit, testregistry,
   fafafa.core.simd,
   fafafa.core.simd.base,
+  fafafa.core.simd.fixturehelpers,
   fafafa.core.simd.utils,
   fafafa.core.simd.ops,
   fafafa.core.simd.api,
@@ -684,17 +685,14 @@ implementation
 function RestoreSavedBackendAndVectorAsmState(aOriginalVectorAsm: Boolean;
   aOriginalBackend: TSimdBackend): Boolean;
 begin
-  SetVectorAsmEnabled(aOriginalVectorAsm);
-  Result := RestoreSavedBackendState(aOriginalBackend);
+  Result := fafafa.core.simd.fixturehelpers.RestoreSavedBackendAndVectorAsmState(
+    aOriginalVectorAsm, aOriginalBackend);
 end;
 
 function RestoreSavedBackendState(aOriginalBackend: TSimdBackend): Boolean;
 begin
-  ResetToAutomaticBackend;
-  if GetCurrentBackend = aOriginalBackend then
-    Exit(True);
-
-  Result := TrySetActiveBackend(aOriginalBackend);
+  Result := fafafa.core.simd.fixturehelpers.RestoreSavedBackendState(
+    aOriginalBackend);
 end;
 
 {$IFDEF CPUX86_64}

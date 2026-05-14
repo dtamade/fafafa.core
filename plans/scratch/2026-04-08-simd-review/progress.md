@@ -1641,6 +1641,29 @@
   - `runtime.testcase` 仍然被归类为“刻意保留的 control-plane restore”
   - 下一轮若继续深挖，最值得评估的还是 `backend.consistency.testcase` 的 standalone helper 是否值得抽成更小的共享单元，以及这样做是否值得引入新的组织复杂度
 
+- 我继续往下做时，确认了 `backend.consistency` 这条线的真正阻塞不是“helper 还没看见”，而是依赖方向：
+  - `tests/fafafa.core.simd/fafafa.core.simd.testcase.pas` 反向 `uses` `backend.consistency.testcase`
+  - 因而 `backend.consistency.testcase` 无法直接依赖 `testcase.pas` 里的公共 helper，否则会形成单元循环
+- 这轮最小而正确的修法因此升级成了一个 test-only 结构收口：
+  - 新增 `tests/fafafa.core.simd/fafafa.core.simd.fixturehelpers.pas`
+  - 单元里只承载稳定的 fixture helper：
+    - `TSimdSavedBackendState`
+    - `SaveActiveBackendState(...)`
+    - `RestoreSavedBackendState(...)`
+    - `RestoreSavedBackendAndVectorAsmState(...)`
+  - `testcase.pas` 现保留原 helper 名称，但实现转成调用 `fixturehelpers`
+  - `backend.consistency.testcase.pas` 则改复用 `fixturehelpers`，删除本地底层 save/restore 实现，只保留自己那层 `GetActiveBackend` 断言与异常语义
+- 这轮 Release 收口证据：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAllSlots,TTestCase_BackendVectorConsistency,TTestCase_PublicAbi,TTestCase_DataPlane,TTestCase_DispatchAPI,TTestCase_SimdConcurrent,TTestCase_SimdConcurrentPublicAbi,TTestCase_IEEE754_F64`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断继续更新：
+  - `simd` 测试层这条去冗余主线现在已经从“收 testcase-local 样板”推进到“抽共享 helper 单元，解除循环导致的隔离”
+  - `backend.consistency` 不再是因为组织结构而无法共用 helper 的特例
+  - 下一步如果还要继续深挖，重点应转成一次 completion audit：重新核所有显式 restore helper、保留的 `runtime` control-plane finally，以及是否还存在值得修的结构性重复，而不是盲目再抽象一层
+
 ## 2026-05-14 Fixture Backend Restore Symmetry
 
 - 这轮没有回头去刷 `UnsignedVectorTypes` / `RustStyleAliases` / `Memutils`，也没有机械给 `PublicAbi`、`SSE2Contracts`、`dataplane`、`concurrent` 套 `sbScalar`。

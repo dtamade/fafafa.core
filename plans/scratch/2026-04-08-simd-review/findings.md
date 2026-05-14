@@ -3012,3 +3012,23 @@
   - 连 `publicabi` 里语义上更贴近调用点命名的本地 helper，也能保留壳、统一实现
   - 说明当前这条 cleanup 线已经开始从“大块 fixture 去重”进入“保留领域语义名、抽掉实现复制体”的更细粒度阶段
 - Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿，说明这批仍然只是测试 helper 层去冗余，没有改变 public ABI 的被测 active-backend / hook / restore 语义。
+
+## 2026-05-14 Shared Fixture Helper Unit Findings
+
+- `backend.consistency.testcase` 之前之所以一直保留本地 save/restore helper，不是因为它有更特殊的语义，而是因为依赖方向：
+  - `testcase.pas` 反向 `uses` `backend.consistency.testcase`
+  - 所以它不能直接依赖 `testcase.pas` 里的公共 helper，否则会形成循环
+- 这说明当前剩余的一块结构性冗余，根因已经从“没人整理”变成了“helper 所在单元位置不对”。
+- 最合适的修法因此不是继续复制 wrapper，也不是把 `backend.consistency` 强塞进 `testcase`，而是抽一个只负责 fixture state 的 test-only 共享单元：
+  - `fafafa.core.simd.fixturehelpers`
+  - 只承载 backend/vector-asm state helper
+  - 不承载 fpcunit testcase、suite 注册或业务断言
+- 这批抽取后的结构更清楚了：
+  - `fixturehelpers`：稳定共享的底层状态 helper
+  - `testcase.pas`：公共 testcase 基类 + 面向现有 suite 的兼容 wrapper
+  - `backend.consistency.testcase.pas`：保留自身的 active-backend 校验和异常语义，但不再复制底层 helper 主体
+- 这批修法的价值在于：
+  - 真正解除了一条由单元循环造成的 helper 孤岛
+  - 让后续再审 `backend.consistency` 时，焦点可以回到测试语义本身，而不是继续被组织结构卡住
+  - 也证明当前 `simd` 测试层已经可以从“局部 fixture 去重”进一步上升到“共享 test-only 基础设施整理”
+- Release 定向大覆盖 suites、Release `check`、Release `gate` 全绿，说明这批仍然只是测试 helper/组织结构层去冗余，没有改变 `backend consistency / dispatchslots / publicabi / dataplane / dispatchapi / concurrent / ieee754` 的被测行为。
