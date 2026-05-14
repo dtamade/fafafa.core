@@ -2800,3 +2800,17 @@
 | 1. 复核 smoke 工具残余重复 helper 与独立编译合同 | completed | 已确认 `dispatch_preinit_smoke` 与 `public_smoke` 都保留本地 `BackendName(...)` 包装；其中 `public_smoke` 还缺 `{$mode objfpc}{$H+}`，在 raw `fpc` 独立编译时会因为 `Result` 关键字不可用而失败 |
 | 2. 收敛到 dispatch canonical metadata 并补齐 standalone build 依赖 | completed | 两个 smoke 工具都已删除本地 `BackendName(...)` 薄壳，直接复用 `GetBackendInfo(...).Name`；`public_smoke` 已补 `{$mode objfpc}{$H+}`、引入 `fafafa.core.simd.dispatch`，并顺手把局部变量/参数名收敛到仓库命名规范 |
 | 3. Release 验证与提交流水收口 | completed | `git diff --check`、临时目录独立 `fpc` 编译并实际运行 `public_smoke`、Release `check`、Release `gate` 已通过；期间还修正了“raw `fpc` 编译把 `.o/.ppu` 落进 `src/` 导致 gate hygiene 红灯”的验证陷阱，最终 `run_all` 明确回到 `src tree hygiene: no .o/.ppu/.bak artifacts` 绿态 |
+
+## 2026-05-15 Bench Canonical Backend Label Reuse
+
+### Goal
+
+继续沿“小型 runner/utility 的本地真相源”这条线收尾，但这次只处理 `fafafa.core.simd.bench`：它仍保留一份 `GetBenchmarkBackendName(...)` 名称表和一层 `GetBackendName` 包装。目标是把 benchmark 的 skip 文案与标题标签统一下沉到 `dispatch.GetBackendInfo(...).Name`，不碰 benchmark 本体、迭代参数或输出布局。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `bench` 中 backend 名称 helper 的真实使用面 | completed | 已确认 `GetBenchmarkBackendName(...)` 只服务 `TryActivateBenchmarkBackend(...)` 的 skip/fallback 文案和 `PrintBenchResults(...)` 标题标签；没有承载任何 benchmark 逻辑或 platform-specific 行为 |
+| 2. 删除本地名称表并直接复用 dispatch canonical metadata | completed | 已删除 `GetBenchmarkBackendName(...)` 与 `GetBackendName`；skip/fallback 文案和 benchmark 标题统一改为 `GetBackendInfo(...).Name`，不再在 bench unit 里重复存储 backend label 本体 |
+| 3. Release 验证与提交流水收口 | completed | `git diff --check`、Release `check`、Release `gate` 已通过；说明 bench 被主测试 runner/BuildOrTest 编译进来后仍然稳定，`run_all` 最后也继续保持 5/5 绿态 |

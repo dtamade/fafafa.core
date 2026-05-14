@@ -3964,3 +3964,28 @@
     - `src tree hygiene: no .o/.ppu/.bak artifacts`
     - `Run-all summary: Passed 5 / Failed 0`
     - `[GATE] OK`
+
+## 2026-05-15 Bench Canonical Backend Label Reuse
+
+- 在 smoke 工具收口并提交后，我继续沿“小型 runner/utility 的本地 metadata 真相源”往下扫，定位到 `fafafa.core.simd.bench`：
+  - `GetBenchmarkBackendName(...)` 仍维护一份 backend 名称表
+  - `GetBackendName` 只是再包一层 `GetActiveBackend`
+- 复核调用面后确认，这两层 helper 只服务两类展示/诊断文本：
+  - `TryActivateBenchmarkBackend(...)` 的 unavailable / non-dispatchable / fallback 文案
+  - `PrintBenchResults(...)` 的 benchmark 标题 backend 标签
+- 本轮最小修法已落地：
+  - 删除 `GetBenchmarkBackendName(...)`
+  - 删除 `GetBackendName`
+  - `TryActivateBenchmarkBackend(...)` 全部改为直接使用 `GetBackendInfo(...).Name`
+  - `PrintBenchResults(...)` 标题改为直接显示 `GetBackendInfo(GetActiveBackend).Name`
+- 这批没有碰 benchmark 本体：
+  - `WARMUP_ITERATIONS / MIN_ITERATIONS / TARGET_TIME_MS`
+  - `PUBLIC_ABI_HOT_INNER / WIDE_VECTOR_INNER`
+  - 结果 record、格式化输出和测量顺序都保持不变
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过；最终 `gate` 继续保持：
+    - `Run-all summary: Passed 5 / Failed 0`
+    - `[GATE] OK`

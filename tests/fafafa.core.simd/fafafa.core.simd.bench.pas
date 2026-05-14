@@ -49,23 +49,6 @@ implementation
 uses
   fafafa.core.time.stopwatch;
 
-function GetBenchmarkBackendName(aBackend: TSimdBackend): string;
-begin
-  Result := 'Unknown';
-  case aBackend of
-    sbScalar: Result := 'Scalar';
-    sbSSE2: Result := 'SSE2';
-    sbSSE3: Result := 'SSE3';
-    sbSSSE3: Result := 'SSSE3';
-    sbSSE41: Result := 'SSE4.1';
-    sbSSE42: Result := 'SSE4.2';
-    sbAVX2: Result := 'AVX2';
-    sbAVX512: Result := 'AVX-512';
-    sbNEON: Result := 'NEON';
-    sbRISCVV: Result := 'RISC-V V';
-  end;
-end;
-
 const
   // Benchmark parameters
   WARMUP_ITERATIONS = 100;
@@ -91,28 +74,28 @@ begin
 
   if not IsBackendAvailableOnCPU(aBackend) then
   begin
-    aSkipReason := GetBenchmarkBackendName(aBackend) + ' backend is not available on this CPU';
+    aSkipReason := GetBackendInfo(aBackend).Name + ' backend is not available on this CPU';
     Exit(False);
   end;
 
   if not IsBackendDispatchable(aBackend) then
   begin
-    aSkipReason := GetBenchmarkBackendName(aBackend) +
+    aSkipReason := GetBackendInfo(aBackend).Name +
       ' backend is CPU-supported but not dispatchable in this binary';
     Exit(False);
   end;
 
   if not TrySetActiveBackend(aBackend) then
   begin
-    aSkipReason := GetBenchmarkBackendName(aBackend) + ' backend activation was rejected by dispatch';
+    aSkipReason := GetBackendInfo(aBackend).Name + ' backend activation was rejected by dispatch';
     Exit(False);
   end;
 
   LActiveBackend := GetActiveBackend;
   if LActiveBackend <> aBackend then
   begin
-    aSkipReason := GetBenchmarkBackendName(aBackend) + ' backend activation fell back to ' +
-      GetBenchmarkBackendName(LActiveBackend);
+    aSkipReason := GetBackendInfo(aBackend).Name + ' backend activation fell back to ' +
+      GetBackendInfo(LActiveBackend).Name;
     Exit(False);
   end;
 
@@ -996,14 +979,6 @@ begin
     Result := Format('%.0f  ', [Ops]);
 end;
 
-function GetBackendName: string;
-var
-  LBackend: TSimdBackend;
-begin
-  LBackend := GetActiveBackend;
-  Result := GetBenchmarkBackendName(LBackend);
-end;
-
 function GetArchName: string;
 begin
   {$IF defined(CPUX86_64)}
@@ -1030,7 +1005,7 @@ var
   LCompareStr: string;
 begin
   WriteLn;
-  WriteLn('=== SIMD Benchmark (', GetArchName, '/', GetBackendName, ') ===');
+  WriteLn('=== SIMD Benchmark (', GetArchName, '/', GetBackendInfo(GetActiveBackend).Name, ') ===');
   WriteLn;
   WriteLn('Operation              Size     Compare            Base ops/s   Candidate ops/s   Speedup');
   WriteLn('--------------------------------------------------------------------------------------------');

@@ -3561,3 +3561,22 @@
 - 这批说明后续继续深查时，不能只盯“大测试用例里有没有重复 helper”：
   - 小型 standalone/smoke 工具也可能藏着真实合同缺口
   - 而且这类文件一旦少了 `{$mode ...}` / `uses` 依赖，主工程未必马上暴露，往往要到独立 smoke 或 hygiene gate 才显形
+
+## 2026-05-15 Bench Canonical Backend Label Findings
+
+- 顺着同一条线继续往下看，`fafafa.core.simd.bench` 也还留着一份明显的本地 metadata 副本：
+  - `GetBenchmarkBackendName(...)`
+  - `GetBackendName`
+  - 它们只负责 benchmark skip/fallback 文案和标题标签，不参与任何测量逻辑
+- 这类 helper 的问题不在于“代码多几行”，而在于 bench 已经天然处在人工诊断面上：
+  - backend 不可用时，第一眼看到的就是 skip/fallback 文案
+  - benchmark 输出标题也会直接展示 backend label
+  - 如果这里继续自己维护一份名称表，就会把之前刚清掉的 drift 风险重新带回 perf-smoke/bench 面
+- 因而这批最稳的收口方式和 smoke 工具一致：
+  - 不再把“bench 专用 backend 名称表”当成测试层本地真相源
+  - 直接承认 `dispatch.GetBackendInfo(...).Name` 才是 canonical metadata
+  - 让 bench 只保留“如何测量/如何展示”这层职责，而不再重复存储 label 本体
+- 这批还强化了一个继续深查的筛选标准：
+  - 只要某个小型 runner/unit 里的本地 helper 既不承载 suite 语义、也不承载算法语义，而只是转发 canonical metadata
+  - 就优先把它收掉
+  - 因为这类点改动最小、验证成本低、却能持续减少日志/标题/skip 文案再次漂移的机会
