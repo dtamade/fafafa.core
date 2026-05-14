@@ -52,7 +52,6 @@ uses
 type
   TTestCase_PublicAbi = class(TSimdVectorAsmStatefulTestCase)
   protected
-    procedure RestorePublicAbiLocalState(aOriginalVectorAsm: Boolean; aOriginalBackend: TSimdBackend);
     procedure SetUp; override;
     procedure TearDown; override;
   published
@@ -659,14 +658,6 @@ begin
   ResetPublicAbiSyntheticHookState;
 end;
 
-procedure TTestCase_PublicAbi.RestorePublicAbiLocalState(aOriginalVectorAsm: Boolean;
-  aOriginalBackend: TSimdBackend);
-begin
-  AssertTrue('Public ABI local restore should recover previous backend selection',
-    RestoreSavedBackendAndVectorAsmStateAndVerify(aOriginalVectorAsm,
-    aOriginalBackend, @GetCurrentBackend));
-end;
-
 procedure TTestCase_PublicAbi.TearDown;
 begin
   ResetPublicAbiSyntheticHookState;
@@ -819,7 +810,6 @@ begin
       Assigned(LApiBefore^.MemEqual) and
       LApiBefore^.MemEqual(@LBufferA[0], @LBufferB[0], SizeUInt(Length(LBufferA))));
   finally
-    RestorePublicAbiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -881,7 +871,6 @@ begin
       (LApiAfter^.ActiveBackendId <> LApiBefore^.ActiveBackendId) or
       (LApiAfter^.ActiveFlags <> LApiBefore^.ActiveFlags));
   finally
-    RestorePublicAbiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1002,7 +991,6 @@ begin
       GetPublicApiFuncPointer(LApiBefore, LSlotIndex) =
       GetPublicApiFuncPointer(LApiAfter, LSlotIndex));
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1146,7 +1134,6 @@ begin
     AssertTrue('Vector-asm round-trip should reuse the original published public ABI metadata table',
       PtrUInt(LApiFinal) = PtrUInt(LApiInitial));
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1447,7 +1434,6 @@ begin
         (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) <> 0);
     end;
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1509,7 +1495,6 @@ begin
         (LInfo.CapabilityBits and (UInt64(1) shl Ord(scMaskedOps))) <> 0);
     end;
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1544,7 +1529,6 @@ begin
     AssertTrue('Public ABI CapabilityBits should expose AVX2 scShuffle when representative shuffle slots are non-scalar',
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) <> 0);
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1596,7 +1580,6 @@ begin
         (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) = 0);
     end;
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1659,7 +1642,6 @@ begin
         (LInfo.CapabilityBits and (UInt64(1) shl Ord(scIntegerOps))) <> 0);
     end;
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1694,7 +1676,6 @@ begin
     AssertTrue('Public ABI CapabilityBits should expose AVX512 scFMA when wide FMA slots are non-scalar',
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scFMA))) <> 0);
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1726,7 +1707,6 @@ begin
     AssertTrue('Public ABI CapabilityBits should expose AVX512 scShuffle when wide select slots are non-scalar',
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) <> 0);
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1761,7 +1741,6 @@ begin
     AssertTrue('Public ABI CapabilityBits should clear AVX512 sc512BitOps when vector asm is disabled',
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(sc512BitOps))) = 0);
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1825,7 +1804,6 @@ begin
         (LInfo.CapabilityBits and (UInt64(1) shl Ord(scMaskedOps))) <> 0);
     end;
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1955,7 +1933,6 @@ begin
     AssertTrue('Public ABI CapabilityBits should clear NEON scShuffle when vector asm is disabled',
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) = 0);
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1996,7 +1973,6 @@ begin
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scIntegerOps))) = 0);
     {$ENDIF}
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2045,7 +2021,6 @@ begin
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scFMA))) = 0);
     {$ENDIF}
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2086,7 +2061,6 @@ begin
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) = 0);
     {$ENDIF}
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2118,7 +2092,6 @@ begin
     AssertTrue('Public ABI CapabilityBits should clear RISCVV scShuffle when vector asm is disabled',
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) = 0);
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2183,7 +2156,6 @@ begin
       RegisterBackend(LOriginalBackend, LOriginalTable);
     end;
   finally
-    RestorePublicAbiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2228,7 +2200,6 @@ begin
       RegisterBackend(LOriginalBackend, LOriginalTable);
     end;
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2325,7 +2296,6 @@ begin
     ResetToAutomaticBackend;
     AssertStableCurrentState('vector asm disabled automatic', True);
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2365,7 +2335,6 @@ begin
       RegisterBackend(LRequestedBackend, LOriginalTable);
     end;
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2426,7 +2395,6 @@ begin
   finally
     if LRequestedTableCaptured then
       RegisterBackend(LRequestedBackend, LOriginalTable);
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2491,7 +2459,6 @@ begin
       RegisterBackend(LRequestedBackend, LOriginalTable);
     end;
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2577,7 +2544,6 @@ begin
   finally
     if LRequestedTableCaptured then
       RegisterBackend(LRequestedBackend, LRequestedOriginalTable);
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2626,7 +2592,6 @@ begin
       RegisterBackend(LRequestedBackend, LOriginalTable);
     end;
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2731,7 +2696,6 @@ begin
     GPublicAbiHookRollbackForceSuccessStage := 0;
     GPublicAbiHookRollbackForceSuccessEnabled := False;
     GPublicAbiHookRollbackForceSuccessInMutation := False;
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2816,7 +2780,6 @@ begin
   finally
     if LRequestedTableCaptured then
       RegisterBackend(LRequestedBackend, LRequestedOriginalTable);
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2897,7 +2860,6 @@ begin
   finally
     if LRequestedTableCaptured then
       RegisterBackend(LRequestedBackend, LOriginalTable);
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2978,7 +2940,6 @@ begin
   finally
     if LRequestedTableCaptured then
       RegisterBackend(LRequestedBackend, LOriginalTable);
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3073,7 +3034,6 @@ begin
   finally
     if LRequestedTableCaptured then
       RegisterBackend(LRequestedBackend, LRequestedOriginalTable);
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3121,7 +3081,6 @@ begin
       GPublicAbiHookReForceBackendTarget := sbScalar;
     end;
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3194,7 +3153,6 @@ begin
     AssertTrue('Public API active flags should keep dispatchable bit after reselection',
       (LApi^.ActiveFlags and FAF_SIMD_ABI_FLAG_DISPATCHABLE) <> 0);
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3242,7 +3200,6 @@ begin
       GPublicAbiHookResetLateForceTarget := sbScalar;
     end;
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3290,7 +3247,6 @@ begin
       GPublicAbiHookReForceBackendTarget := sbScalar;
     end;
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3338,7 +3294,6 @@ begin
       GPublicAbiHookResetLateForceTarget := sbScalar;
     end;
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3405,7 +3360,6 @@ begin
     AssertEquals('Public API active backend should keep tracking the actual current backend after vector-asm late-reset test',
       Ord(GetCurrentBackend), Integer(LApi^.ActiveBackendId));
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3468,7 +3422,6 @@ begin
     AssertEquals('Public API should preserve the previously forced backend after vector-asm re-enable even if a late hook resets to automatic during restore callback',
       Ord(LPreviousForcedBackend), Integer(LApi^.ActiveBackendId));
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3535,7 +3488,6 @@ begin
     AssertTrue('Public ABI vector-asm restore-callback late-force path should not remain stuck on scalar after re-enable',
       Integer(LApi^.ActiveBackendId) <> Ord(sbScalar));
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3584,7 +3536,6 @@ begin
       GPublicAbiHookReForceBackendTarget := sbScalar;
     end;
   finally
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3657,7 +3608,6 @@ begin
   finally
     if LPreviousTableCaptured then
       RegisterBackend(LPreviousForcedBackend, LPreviousOriginalTable);
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3734,7 +3684,6 @@ begin
   finally
     if LPreviousTableCaptured then
       RegisterBackend(LPreviousForcedBackend, LPreviousOriginalTable);
-    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 

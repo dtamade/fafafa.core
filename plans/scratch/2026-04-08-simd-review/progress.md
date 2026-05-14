@@ -3731,3 +3731,28 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-15 PublicAbi Tail Restore Cleanup Removal
+
+- 顺着 `concurrent` 的判断标准继续扫 `publicabi.testcase` 后，证据更直接：
+  - `RestorePublicAbiLocalState(...)` 的每一个调用点后面都是直接 `end;`
+  - 没有任何一次是在恢复后还要继续做 same-test 观察
+  - 这说明它已经彻底退化成“测试尾部再手工跑一遍公共 teardown contract”
+- 复核后确认这批可以整体删除，而不是再一处处换 helper：
+  - `TTestCase_PublicAbi` 本身继承 `TSimdVectorAsmStatefulTestCase`
+  - `TTestCase_PublicAbi.TearDown` 负责 hook state reset，再调用 inherited 恢复 backend/vector-asm
+  - 文件里与真正 suite 语义相关的 still 是 register rollback、hook flags rollback、以及个别 backend-only restore，不是 `RestorePublicAbiLocalState(...)` 本身
+- 本轮最小修法已落地：
+  - 删除 `RestorePublicAbiLocalState(...)` 声明与实现
+  - 删除全部 42 处尾部 `RestorePublicAbiLocalState(FSavedVectorAsm/LOldVectorAsm, FSavedBackend)` 调用
+  - 保留文件里唯一仍有意义的 `RestoreSavedBackendStateAndVerify(LOriginalBackend, @GetCurrentBackend)` 直调，以及所有 hook/register rollback
+- 这批的价值在于，它把 `publicabi` 的 restore contract 也收回成了单一路径：
+  - `publicabi` 不再维护自己的“尾部 local restore”壳
+  - 读这个文件时，更容易把 `public ABI` 真正关心的 metadata/public-table/control-plane 断言，与共享 fixture cleanup 区分开
+  - 也进一步证明了“如果调用后立刻结束测试，这层 local restore 大概率该删”的标准在不同 suite 上都成立
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

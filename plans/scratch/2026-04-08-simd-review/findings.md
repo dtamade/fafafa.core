@@ -3371,3 +3371,16 @@
   - 尾部 restore 之外，还伴随 hook/reset/rebind/register rollback 的 case
   - 或者恢复后仍有同一测试内 post-restore 断言的 case
 - 因而下一步如果继续扫 `publicabi/dispatchapi`，最需要先分辨的就是：哪些 `Restore*LocalState(...)` 仍是“中途恢复再继续观察”，哪些也已经退化成纯尾部 cleanup。
+
+## 2026-05-15 PublicAbi Tail Restore Cleanup Removal Findings
+
+- `publicabi.testcase` 这轮进一步证明：当 local restore wrapper 的所有调用点都已经退化成“调用后立刻结束测试”，它就不再是 suite 语义，而只是共享 teardown contract 的历史复制体。
+- 和 `concurrent` 相比，`publicabi` 提供了一个额外判断信号：
+  - 即便 suite 自己还带 hook reset、register rollback、metadata/public-table 专题断言
+  - 只要某个 local restore wrapper 本身不参与这些时序，而只是 finally 尾部收口
+  - 它依然可以整块删除，而不需要因为 suite 更复杂就保留
+- 这让下一步继续扫 `dispatchapi` 时，筛选标准更完整了：
+  - 先看调用后是否立刻结束
+  - 再看 wrapper 本身是否真的承载 hook/reset/rebind/register rollback 的一部分
+  - 如果两者都不是，那就应该优先删，而不是继续保留一层消息文案壳
+- 经过这批后，stable test path 中 `publicabi` 也不再维护第二套尾部 backend/vector-asm restore 入口；剩余最值得继续看的，基本只剩 `dispatchapi` 这类更大、但已经出现同样调用形状的文件。

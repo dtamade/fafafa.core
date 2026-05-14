@@ -2674,3 +2674,17 @@
 | 1. 复核 `concurrent` 本地 restore wrapper 的使用形状 | completed | 已确认 `TSimdStatefulTestCase.RestoreSimdLocalState(...)` 只在多个测试的 `finally` 尾部调用，调用后立即结束测试；没有任何一次是在同一测试中用于“恢复后继续断言” |
 | 2. 删除冗余 tail restore 与失效 wrapper | completed | 已删除 `TSimdStatefulTestCase.RestoreSimdLocalState(...)` 声明/实现、`concurrent.testcase` 对 `fixturehelpers` 的依赖，以及所有方法尾部 `RestoreSimdLocalState(LOldVectorAsm, FSavedBackend)` 调用；保留了线程释放、`RegisterBackend(..., LOriginalTable/LRestoreTable)` 这类真正 suite-local rollback |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_SimdConcurrent,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework,TTestCase_SimdConcurrentRegistration`、Release `check`、Release `gate` 全绿；说明并发/teardown 时序在回归公共 `vector-asm` fixture 后依然稳定 |
+
+## 2026-05-15 PublicAbi Tail Restore Cleanup Removal
+
+### Goal
+
+继续加强 `simd` 测试层审查并修复，但这次只处理 `publicabi.testcase` 里已经退化成纯尾部 cleanup 的 `RestorePublicAbiLocalState(...)`：不改 public ABI 断言本体，也不改 hook/reset/register rollback，只把所有“调用后测试立刻结束”的 local restore 和对应 wrapper 删除，让 `TSimdVectorAsmStatefulTestCase.TearDown` 成为唯一 restore contract。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `publicabi` local restore 是否还承载 post-restore 语义 | completed | 已确认 `RestorePublicAbiLocalState(...)` 的全部调用点后面都直接收尾，没有任何一次是在同一测试中“恢复后继续观察”；文件内仅剩一处与此无关的 backend-only `RestoreSavedBackendStateAndVerify(...)` |
+| 2. 删除冗余 tail restore 与失效 wrapper | completed | 已删除 `RestorePublicAbiLocalState(...)` 声明/实现，以及全部尾部 `RestorePublicAbiLocalState(FSavedVectorAsm/LOldVectorAsm, FSavedBackend)` 调用；`publicabi` 仍保留 `fixturehelpers`，因为 `Test_PublicApi_ActiveBackendId_Tracks_RuntimeSelection` 还直接使用 backend-only verified restore |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿；说明 public ABI table/cached snapshot/metadata/control-plane regression 链路在回归公共 teardown 后依然稳定 |
