@@ -138,6 +138,7 @@ type
     procedure Test_SSE2_F32VectorMath_Use_NonScalar_Impl_And_Keep_Parity;
     procedure Test_NEON_PlatformFacadeSlots_Reuse_BaseScalar_When_AlwaysScalarByDesign;
     procedure Test_NEON_FacadeFastSlots_OnlyBind_When_NEONAsm_Is_Compiled;
+    procedure Test_NEON_WideFloatMemoryUtilitySlots_Bind_AsmHelpers_When_Available;
     procedure Test_NEON_DotFallbackSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_NEON_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_NEON_MaskHelperSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
@@ -5791,6 +5792,88 @@ begin
   AssertRuntimeSlotExpectation('ToLowerAscii', Pointer(LScalarTable.ToLowerAscii), Pointer(LNEONTable.ToLowerAscii));
   AssertRuntimeSlotExpectation('ToUpperAscii', Pointer(LScalarTable.ToUpperAscii), Pointer(LNEONTable.ToUpperAscii));
   AssertRuntimeSlotExpectation('BitsetPopCount', Pointer(LScalarTable.BitsetPopCount), Pointer(LNEONTable.BitsetPopCount));
+end;
+
+procedure TTestCase_DispatchAPI.Test_NEON_WideFloatMemoryUtilitySlots_Bind_AsmHelpers_When_Available;
+var
+  LScalarTable: TSimdDispatchTable;
+  LNEONTable: TSimdDispatchTable;
+  LSourceLines: TStringList;
+  LRegisterSourcePath: string;
+  LRegisterSource: string;
+
+  procedure AssertSourceContains(const aLabel, aSnippet: string);
+  begin
+    AssertTrue(aLabel + ' source should bind the wide-float slot to its NEON asm helper',
+      Pos(LowerCase(aSnippet), LRegisterSource) > 0);
+  end;
+
+  procedure AssertRuntimeSlotExpectation(const aLabel: string; const aScalarSlot, aBackendSlot: Pointer);
+  begin
+    {$IFDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
+    AssertTrue('NEON ' + aLabel + ' should stay native when wide-float asm helpers are compiled',
+      aBackendSlot <> aScalarSlot);
+    {$ELSE}
+    AssertEquals('NEON ' + aLabel + ' should stay scalar when wide-float asm helpers are not compiled',
+      PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
+    {$ENDIF}
+  end;
+begin
+  LSourceLines := TStringList.Create;
+  try
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.register.inc');
+    AssertTrue('NEON register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
+      FileExists(LRegisterSourcePath));
+    LSourceLines.LoadFromFile(LRegisterSourcePath);
+    LRegisterSource := LowerCase(LSourceLines.Text);
+  finally
+    LSourceLines.Free;
+  end;
+
+  AssertSourceContains('LoadF32x8', 'table.LoadF32x8 := @NEONLoadF32x8_ASM;');
+  AssertSourceContains('LoadF32x16', 'table.LoadF32x16 := @NEONLoadF32x16_ASM;');
+  AssertSourceContains('LoadF64x4', 'table.LoadF64x4 := @NEONLoadF64x4_ASM;');
+  AssertSourceContains('LoadF64x8', 'table.LoadF64x8 := @NEONLoadF64x8_ASM;');
+  AssertSourceContains('StoreF32x8', 'table.StoreF32x8 := @NEONStoreF32x8_ASM;');
+  AssertSourceContains('StoreF32x16', 'table.StoreF32x16 := @NEONStoreF32x16_ASM;');
+  AssertSourceContains('StoreF64x4', 'table.StoreF64x4 := @NEONStoreF64x4_ASM;');
+  AssertSourceContains('StoreF64x8', 'table.StoreF64x8 := @NEONStoreF64x8_ASM;');
+  AssertSourceContains('SplatF32x8', 'table.SplatF32x8 := @NEONSplatF32x8_ASM;');
+  AssertSourceContains('SplatF32x16', 'table.SplatF32x16 := @NEONSplatF32x16_ASM;');
+  AssertSourceContains('SplatF64x4', 'table.SplatF64x4 := @NEONSplatF64x4_ASM;');
+  AssertSourceContains('SplatF64x8', 'table.SplatF64x8 := @NEONSplatF64x8_ASM;');
+  AssertSourceContains('ZeroF32x8', 'table.ZeroF32x8 := @NEONZeroF32x8_ASM;');
+  AssertSourceContains('ZeroF32x16', 'table.ZeroF32x16 := @NEONZeroF32x16_ASM;');
+  AssertSourceContains('ZeroF64x4', 'table.ZeroF64x4 := @NEONZeroF64x4_ASM;');
+  AssertSourceContains('ZeroF64x8', 'table.ZeroF64x8 := @NEONZeroF64x8_ASM;');
+
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND}
+  AssertTrue('NEON opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable) then
+    Exit;
+  {$ENDIF}
+
+  AssertRuntimeSlotExpectation('LoadF32x8', Pointer(LScalarTable.LoadF32x8), Pointer(LNEONTable.LoadF32x8));
+  AssertRuntimeSlotExpectation('LoadF32x16', Pointer(LScalarTable.LoadF32x16), Pointer(LNEONTable.LoadF32x16));
+  AssertRuntimeSlotExpectation('LoadF64x4', Pointer(LScalarTable.LoadF64x4), Pointer(LNEONTable.LoadF64x4));
+  AssertRuntimeSlotExpectation('LoadF64x8', Pointer(LScalarTable.LoadF64x8), Pointer(LNEONTable.LoadF64x8));
+  AssertRuntimeSlotExpectation('StoreF32x8', Pointer(LScalarTable.StoreF32x8), Pointer(LNEONTable.StoreF32x8));
+  AssertRuntimeSlotExpectation('StoreF32x16', Pointer(LScalarTable.StoreF32x16), Pointer(LNEONTable.StoreF32x16));
+  AssertRuntimeSlotExpectation('StoreF64x4', Pointer(LScalarTable.StoreF64x4), Pointer(LNEONTable.StoreF64x4));
+  AssertRuntimeSlotExpectation('StoreF64x8', Pointer(LScalarTable.StoreF64x8), Pointer(LNEONTable.StoreF64x8));
+  AssertRuntimeSlotExpectation('SplatF32x8', Pointer(LScalarTable.SplatF32x8), Pointer(LNEONTable.SplatF32x8));
+  AssertRuntimeSlotExpectation('SplatF32x16', Pointer(LScalarTable.SplatF32x16), Pointer(LNEONTable.SplatF32x16));
+  AssertRuntimeSlotExpectation('SplatF64x4', Pointer(LScalarTable.SplatF64x4), Pointer(LNEONTable.SplatF64x4));
+  AssertRuntimeSlotExpectation('SplatF64x8', Pointer(LScalarTable.SplatF64x8), Pointer(LNEONTable.SplatF64x8));
+  AssertRuntimeSlotExpectation('ZeroF32x8', Pointer(LScalarTable.ZeroF32x8), Pointer(LNEONTable.ZeroF32x8));
+  AssertRuntimeSlotExpectation('ZeroF32x16', Pointer(LScalarTable.ZeroF32x16), Pointer(LNEONTable.ZeroF32x16));
+  AssertRuntimeSlotExpectation('ZeroF64x4', Pointer(LScalarTable.ZeroF64x4), Pointer(LNEONTable.ZeroF64x4));
+  AssertRuntimeSlotExpectation('ZeroF64x8', Pointer(LScalarTable.ZeroF64x8), Pointer(LNEONTable.ZeroF64x8));
 end;
 
 procedure TTestCase_DispatchAPI.Test_NEON_DotFallbackSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;

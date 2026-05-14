@@ -4279,3 +4279,32 @@
   - non-x86 native evidence 仍因 root 不存在而 optional `SKIP`
   - `windows_b07_gate.log` 仍因历史缺模式而 optional `SKIP`
   - 因此这批 inline cleanup 仍然没有引入新的实现或 contract 回归。
+
+## 2026-05-15 NEON Wide Float Memory Utility Asm Binding Repair
+
+- 继续往 `NEON` 深审时，抓到的是一个真实接线缺口，不是新的抽象争论：
+  - wide-float memory/utility 的 `_ASM` helper 早已存在
+  - 但 asm 分支的 `register` 没有把这 16 个 slot 直接绑定过去
+- `src/fafafa.core.simd.neon.scalar.wide_memory.inc` 已有以下 helper：
+  - `NEONLoad/Store/Splat/ZeroF32x8_ASM`
+  - `NEONLoad/Store/Splat/ZeroF32x16_ASM`
+  - `NEONLoad/Store/Splat/ZeroF64x4_ASM`
+  - `NEONLoad/Store/Splat/ZeroF64x8_ASM`
+- `src/fafafa.core.simd.neon.register.inc` 原本只在 asm 分支直绑了 `I64x4` 同类 slot，wide-float 这批却还停留在 scalar companion 面。
+- 这会让 asm build 下的 wide-float slot 继续被 scalar wrapper 阴影，和 `I64x4` 的 register truth 不一致。
+- 本批修复保持最小范围：
+  - 在 `neon.register.inc` 的 asm 分支新增 16 条 `table.* := @..._ASM`
+  - 不改 no-asm policy
+  - 不扩大到 façade/source companion 清理
+- 为了把这个缺口写成长期护栏，`tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 已新增 `Test_NEON_WideFloatMemoryUtilitySlots_Bind_AsmHelpers_When_Available`：
+  - source-shape：断言 16 条 `@..._ASM` 绑定存在
+  - runtime expectation：`FAFAFA_SIMD_TEST_NEON_ASM_COMPILED` 下 backend slot 必须 `<>` scalar slot，否则必须 `==`
+- fresh 验证结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=541 status=ok`
+  - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=neon assignments=427 asm_exact=224 asm_suffix_only=10 wrapper_only=193 miswired=0 strict=1`
+  - Release `check` 通过
+  - Release `gate` 通过
+- `gate` 尾部结论保持诚实不变：
+  - `run_all` 为 5/5 通过
+  - non-x86 native evidence root 缺失仍是 optional `SKIP`
+  - `windows_b07_gate.log` 仍是历史 Windows evidence 的 optional `SKIP`

@@ -3208,3 +3208,17 @@
 | 1. 复核剩余 7 个 `NEON` helper 的真实角色 | completed | 已确认 `NEONCombineMask2To4/4To8/8To16` 在 `scalar.autowrap.inc` 内被大量宽比较聚合调用；而 `NEONCmpLeU64x2Wrapper`、`NEONCmpGeU64x2Wrapper`、`NEONCmpNeU64x2Wrapper`、`NEONCmpNeU32x4Wrapper` 都只是单行反相薄壳，且各自只服务单个聚合调用点 |
 | 2. 内联 4 个 compare wrapper 并删除定义 | completed | 已从 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 删除 4 个 wrapper 定义，并把 `NEONCmpGeU64x4`、`NEONCmpLeU64x4`、`NEONCmpNeU32x8`、`NEONCmpNeU64x4` 直接改为在 `NEONCombineMask*` 调用点内联 `MASK*_ALL_SET xor ...` 表达式；`CombineMask*` 保持不动 |
 | 3. 扩 absent 护栏并串行 release 复验 | completed | `check_nonx86_helper_semantics.py` 已把这 4 个 wrapper 加入 `require_routine_absent(...)`；`git diff --check`、helper semantics、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 已全部通过，helper summary 更新到 `checks=541 status=ok`；`gate` 末尾仍只把旧 `windows_b07_gate.log` 诚实降级为 optional `SKIP` |
+
+## 2026-05-15 NEON Wide Float Memory Utility Asm Binding Repair
+
+### Goal
+
+继续深审 `NEON` 时，修复一个真实接线缺口：wide-float memory/utility 的 `_ASM` helper 早已存在，但 `neon.register.inc` 在 asm 编译路径下没有把这些 slot 直接绑定过去，导致 arm64 native helper 可能被 scalar companion 阴影掉。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 helper / register / runtime truth | completed | 已确认 `src/fafafa.core.simd.neon.scalar.wide_memory.inc` 中已存在 `Load/Store/Splat/Zero F32x8/F32x16/F64x4/F64x8` 的 `_ASM` helper，而 `src/fafafa.core.simd.neon.register.inc` 在 `FAFAFA_SIMD_NEON_ASM_ENABLED` 分支此前没有对这 16 个 slot 做 direct asm binding |
+| 2. 修复 asm register 接线缺口 | completed | 已在 `src/fafafa.core.simd.neon.register.inc` 的 asm 分支新增 16 条 `table.* := @..._ASM` 绑定，让 wide-float memory/utility slot 与 `I64x4` 同类路径一致，asm build 下真正走 native helper |
+| 3. 增加 source-shape/runtime 护栏并串行 release 复验 | completed | `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 已新增 `Test_NEON_WideFloatMemoryUtilitySlots_Bind_AsmHelpers_When_Available`；fresh `git diff --check`、`python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 全部通过，helper summary 更新到 `checks=541 status=ok`；`gate` 尾部仍只把旧 `windows_b07_gate.log` 诚实降级为 optional `SKIP` |

@@ -4755,3 +4755,11 @@
   - `run_all` 仍为 5/5 通过
   - `gate` 末尾仍然只把 non-x86 native evidence root 缺失和旧 `windows_b07_gate.log` 诚实降级为 optional `SKIP`
 - 收口前会再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+## 2026-05-15 NEON Wide Float Memory Utility Asm Binding Repair
+
+- 已完成对 `NEON` wide-float memory/utility slot 的 asm 接线补修。
+- 已在 `src/fafafa.core.simd.neon.register.inc` 的 asm 分支补上 16 条 direct binding。
+- 已在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 增加 source-shape + runtime expectation 测试。
+- 已跑通 `git diff --check`、`impl-audit-nonx86`、Release `check`、Release `gate`。
+- `gate` 末尾仍仅把旧 `windows_b07_gate.log` 作为 optional `SKIP`，没有新回归。

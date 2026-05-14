@@ -314,6 +314,26 @@ begin
   table.SplatI64x4 := @NEONSplatI64x4_ASM;
   table.StoreI64x4 := @NEONStoreI64x4_ASM;
   table.ZeroI64x4 := @NEONZeroI64x4_ASM;
+
+  // Wide float memory/utility slots should use the real NEON helper path when
+  // asm is compiled. The scalar companion wrappers remain for no-asm builds,
+  // but they must not shadow the native helper on arm64.
+  table.LoadF32x8 := @NEONLoadF32x8_ASM;
+  table.LoadF32x16 := @NEONLoadF32x16_ASM;
+  table.LoadF64x4 := @NEONLoadF64x4_ASM;
+  table.LoadF64x8 := @NEONLoadF64x8_ASM;
+  table.SplatF32x8 := @NEONSplatF32x8_ASM;
+  table.SplatF32x16 := @NEONSplatF32x16_ASM;
+  table.SplatF64x4 := @NEONSplatF64x4_ASM;
+  table.SplatF64x8 := @NEONSplatF64x8_ASM;
+  table.StoreF32x8 := @NEONStoreF32x8_ASM;
+  table.StoreF32x16 := @NEONStoreF32x16_ASM;
+  table.StoreF64x4 := @NEONStoreF64x4_ASM;
+  table.StoreF64x8 := @NEONStoreF64x8_ASM;
+  table.ZeroF32x8 := @NEONZeroF32x8_ASM;
+  table.ZeroF32x16 := @NEONZeroF32x16_ASM;
+  table.ZeroF64x4 := @NEONZeroF64x4_ASM;
+  table.ZeroF64x8 := @NEONZeroF64x8_ASM;
   {$ENDIF}
 
   // Wide integer compare wrappers are backend-owned in both asm/no-asm
