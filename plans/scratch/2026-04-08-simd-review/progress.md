@@ -4572,3 +4572,30 @@
   - `impl-audit-nonx86` 通过
   - Release `check` 已再次跑绿
   - Release `gate` 已再次跑绿；末尾旧 Windows evidence 继续被诚实降级为 optional `SKIP`
+
+## 2026-05-15 RISCVV CmpNeU32x4 Internal Contract Drift Fix
+
+- 在上一批 helper exact-contract 收口后，我没有继续机械扫 `reduce/select`，而是改成针对剩余 internal helper 做“签名和真实消费面”复核。
+- 这次抓到的真实问题不是冗余，而是内部合同漂移：
+  - `RISCVVCmpNeU32x4` 在 `riscvv.pas` asm 路径里返回 `TMask4`
+  - 但在 `riscvv.helpers.inc` no-ASM fallback 里却返回了 `TVecU32x4`
+- 我继续往下核了消费面，确认这条线当前不是公开 surface：
+  - `dispatch.pas` 没有 `CmpNeU32x4` 槽位
+  - `riscvv.register.inc` 没有给它赋值
+  - `riscvv.facade.inc` 没有公开同名 façade
+  - `sse2.register.inc` 还明确注释 `CmpNeU32x4 not in dispatch table`
+- 因此这批修的是“内部 helper 也必须自洽”，而不是“补一个新公开 API”：
+  - `RISCVVCmpNeU32x4` fallback 返回类型改回 `TMask4`
+  - loop 逻辑改成 mask-bit accumulation，而不是再写 vector-lane all-ones
+  - `check_nonx86_helper_semantics.py` 同步加了签名 + 关键语义片段断言
+- fresh 验证结果：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 当前结果：
+  - helper summary 升到 `NONX86_HELPER_SEMANTICS_SUMMARY checks=482 status=ok`
+  - `impl-audit-nonx86` 继续为绿
+  - Release `check` 继续为绿
+  - Release `gate` 继续为绿，旧 Windows evidence 仍然只是 optional `SKIP`

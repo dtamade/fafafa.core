@@ -983,6 +983,19 @@ def main() -> int:
         for routine_name, scalar_call in riscvv_helper_scalar_forwarder_expectations
     )
 
+    routine_expectations.append(
+        (
+            riscvv_helpers_source,
+            "RISCVVCmpNeU32x4",
+            [
+                "function RISCVVCmpNeU32x4(const a, b: TVecU32x4): TMask4;",
+                "Result := 0;",
+                "if a.u[i] <> b.u[i] then",
+                "Result := Result or (1 shl i);",
+            ],
+        )
+    )
+
     for source, routine_name, fragments in routine_expectations:
         require_fragments(extract_routine_block(source, routine_name), fragments, routine_name)
         checks += 1

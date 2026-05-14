@@ -91,14 +91,13 @@ begin
   Result := ScalarMaxU64x2(a, b);
 end;
 
-function RISCVVCmpNeU32x4(const a, b: TVecU32x4): TVecU32x4;
+function RISCVVCmpNeU32x4(const a, b: TVecU32x4): TMask4;
 var i: Integer;
 begin
+  Result := 0;
   for i := 0 to 3 do
     if a.u[i] <> b.u[i] then
-      Result.u[i] := $FFFFFFFF
-    else
-      Result.u[i] := 0;
+      Result := Result or (1 shl i);
 end;
 
 function RISCVVLoadI32x4(p: Pointer): TVecI32x4;

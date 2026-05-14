@@ -1387,6 +1387,37 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
 
+## 2026-05-15 RISCVV CmpNeU32x4 Internal Contract Drift Fix
+
+- 在把 `helpers.inc` 里现成 scalar 真源能回收的尾巴基本清完之后，继续深审发现一个更像真实 bug 的内部合同漂移：
+  - `src/fafafa.core.simd.riscvv.pas` 中 `RISCVVCmpNeU32x4` asm 版本返回 `TMask4`
+  - 但 `src/fafafa.core.simd.riscvv.helpers.inc` 中同名 no-ASM helper 却错误地返回 `TVecU32x4`
+- 继续追消费面后，真实结论更明确：
+  - `dispatch.pas` 没有 `CmpNeU32x4` 槽位；
+  - `riscvv.register.inc` 也没有给它赋值；
+  - `riscvv.facade.inc` 没有公开同名 façade；
+  - `sse2.register.inc` 还明确写了 `CmpNeU32x4 not in dispatch table`。
+- 这说明这里不该被误判成“缺一条公开 API”，而应该被视为：
+  - dispatch 外的内部 helper 残留；
+  - 但即便是内部 helper，也必须和同名 asm 路径保持自洽一致，不能一边返回 mask，一边返回 vector。
+- 本批修法因此非常克制：
+  - 不把 `CmpNeU32x4` 擅自补进 dispatch；
+  - 只把 `riscvv.helpers.inc` 的 fallback 签名改回 `TMask4`；
+  - 并把 loop 语义改成按 lane 置位 `Result := Result or (1 shl i)` 的 mask 生成方式，与 asm 路径对齐。
+- 为了避免以后再次漂移，`check_nonx86_helper_semantics.py` 这次不只是看 helper 名字，还显式守住：
+  - `function RISCVVCmpNeU32x4(const a, b: TVecU32x4): TMask4;`
+  - `Result := 0;`
+  - `if a.u[i] <> b.u[i] then`
+  - `Result := Result or (1 shl i);`
+- fresh 复验结果继续为绿：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=482 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY ... status=ok`
+  - Release `check` 通过
+  - Release `gate` 通过
+- 这批收口后，`RISCVV` 剩余值得继续看的重点已不再是这类 helper-return-contract 漂移；后续更像是：
+  - 是否还存在别的 helper/asm 同名签名不一致残留；
+  - 以及 `U64x2 shift / reduce / select` 这类没有现成 scalar 真源的 helper 是否值得单独建立统一真源。
+
 ## 2026-05-13 512-bit Integer Compare Tail Findings
 
 - `VecI16x32CmpEq/Lt/Gt`、`VecI8x64CmpEq/Lt/Gt`、`VecU8x64CmpEq/Lt/Gt` 都是当前 `src/fafafa.core.simd.pas` 的真实公开 façade compare surface，不是 backend-only 或 dispatch-only contract。

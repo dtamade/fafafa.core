@@ -3124,3 +3124,17 @@
 | 1. 复核第三刀是否仍属同风险 exact-contract | completed | 已确认 `ScalarShiftRightArithI64x4` 现成存在，且其负 count / `count>=64` 归零与 `SarInt64` 逻辑与 helper 本地实现完全一致；反过来 `U64x2 shift`、`reduce`、`select` 仍没有同级别可直接回收的 scalar 真源 |
 | 2. 收回 `RISCVVShiftRightArithI64x4` 的本地 loop | completed | 已把 helper 中手写的 count 边界和逐 lane `SarInt64` loop 改成 `Result := ScalarShiftRightArithI64x4(a, shift);`，并在 helper semantics checker 中新增对应 source-side 断言 |
 | 3. 串行 release 验证并准备第三次收口 | completed | `git diff --check`、helper semantics、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 已全部通过；helper summary 已更新到 `checks=481 status=ok`，说明这类 helper 级 exact-contract 尾巴已基本清到头 |
+
+## 2026-05-15 RISCVV CmpNeU32x4 Internal Contract Drift Fix
+
+### Goal
+
+继续深审 `RISCVV` 剩余 helper 时，优先修复真实的内部合同漂移，而不是继续机械去重：把 `CmpNeU32x4` 从“asm 路径返回 `TMask4`、fallback helper 却返回 `TVecU32x4`”的分裂状态收回一致，同时保持它仍然是 dispatch 外的内部 helper，不擅自扩公开 surface。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核真实合同与消费面 | completed | 已确认 `dispatch` 和 `register` 都没有 `CmpNeU32x4` 槽位，`facade` 也没有公开同名函数；`sse2.register.inc` 还明确注明 `CmpNeU32x4 not in dispatch table`，说明这条线应视为内部 helper，而不是缺失的公开 API |
+| 2. 修复 no-ASM helper 的返回合同漂移 | completed | 已把 `src/fafafa.core.simd.riscvv.helpers.inc` 里的 `RISCVVCmpNeU32x4` 从错误的 `TVecU32x4` 返回改回 `TMask4`，并把实现改成按 lane 置位的 mask 语义，与 asm 版本保持一致 |
+| 3. 给 helper checker 补内部签名/语义护栏并复验 | completed | `check_nonx86_helper_semantics.py` 已新增对 `RISCVVCmpNeU32x4` 的签名和 mask-body 断言；`git diff --check`、helper semantics、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 已全部通过，helper summary 更新到 `checks=482 status=ok` |
