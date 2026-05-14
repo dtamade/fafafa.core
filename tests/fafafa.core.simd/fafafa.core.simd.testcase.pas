@@ -133,6 +133,7 @@ type
   // SIMD 向量运算一致性测试（跨后端 vs Scalar）
   TTestCase_BackendVectorConsistency = class(TTestCase)
   published
+    procedure Test_VectorOps_BackendName_Coverage;
     procedure Test_VectorOps_Consistency;
     procedure Test_VectorOps_Helper_Preserves_PreviousForcedBackend;
     procedure Test_VectorOps_Consistency_Preserves_PreviousForcedBackend;
@@ -1729,6 +1730,28 @@ begin
   AssertEquals('AVX2 should match Scalar (not found)', resScalar, resAVX2);
 end;
 
+procedure TTestCase_BackendVectorConsistency.Test_VectorOps_BackendName_Coverage;
+var
+  LBackendIndex: Integer;
+  LBackend: TSimdBackend;
+begin
+  for LBackendIndex := Low(CONSISTENCY_BACKENDS) to High(CONSISTENCY_BACKENDS) do
+  begin
+    LBackend := CONSISTENCY_BACKENDS[LBackendIndex];
+    AssertTrue('Backend consistency name helper should not return Unknown for backend=' +
+      IntToStr(Ord(LBackend)), GetConsistencyBackendName(LBackend) <> 'Unknown');
+  end;
+
+  AssertEquals('SSE4.1 backend consistency name mismatch', 'SSE4.1',
+    GetConsistencyBackendName(sbSSE41));
+  AssertEquals('SSE4.2 backend consistency name mismatch', 'SSE4.2',
+    GetConsistencyBackendName(sbSSE42));
+  AssertEquals('AVX-512 backend consistency name mismatch', 'AVX-512',
+    GetConsistencyBackendName(sbAVX512));
+  AssertEquals('RISC-V V backend consistency name mismatch', 'RISC-V V',
+    GetConsistencyBackendName(sbRISCVV));
+end;
+
 procedure TTestCase_BackendVectorConsistency.Test_VectorOps_Consistency;
 var
   LOriginalBackend: TSimdBackend;
@@ -1736,25 +1759,6 @@ var
   results: TConsistencyTestResults;
   i: Integer;
   failMsg: string;
-
-  function BackendName(b: TSimdBackend): string;
-  begin
-    case b of
-      sbScalar: Result := 'Scalar';
-      sbSSE2: Result := 'SSE2';
-      sbSSE3: Result := 'SSE3';
-      sbSSSE3: Result := 'SSSE3';
-      sbSSE41: Result := 'SSE4.1';
-      sbSSE42: Result := 'SSE4.2';
-      sbAVX2: Result := 'AVX2';
-      sbAVX512: Result := 'AVX512';
-      sbNEON: Result := 'NEON';
-      sbRISCVV: Result := 'RISCVV';
-    else
-      Result := 'Unknown';
-    end;
-  end;
-
 begin
   GetDispatchTable;
   LOriginalBackend := GetCurrentBackend;
@@ -1770,7 +1774,7 @@ begin
       if not results[i].Passed then
       begin
         failMsg := failMsg + Format('%s / %s - %s',
-          [BackendName(results[i].Backend), results[i].TestName, results[i].ErrorMessage]) + LineEnding;
+          [GetConsistencyBackendName(results[i].Backend), results[i].TestName, results[i].ErrorMessage]) + LineEnding;
 
         if results[i].MaxDiff > 0 then
           failMsg := failMsg + Format('  Max diff: %g at index %d',

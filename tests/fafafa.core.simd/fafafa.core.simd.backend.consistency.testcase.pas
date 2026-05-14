@@ -40,8 +40,15 @@ type
 
   TConsistencyTestResults = array of TConsistencyTestResult;
 
+const
+  CONSISTENCY_BACKENDS: array[0..8] of TSimdBackend = (
+    sbSSE2, sbSSE3, sbSSSE3, sbSSE41, sbSSE42, sbAVX2, sbAVX512, sbNEON, sbRISCVV
+  );
+
 // 运行所有一致性测试
 function RunAllConsistencyTests: TConsistencyTestResults;
+
+function GetConsistencyBackendName(aBackend: TSimdBackend): string;
 
 // 打印测试结果摘要
 procedure PrintTestSummary(const results: TConsistencyTestResults);
@@ -56,6 +63,9 @@ function TestI32x4Bitwise(backend: TSimdBackend): TConsistencyTestResult;
 function TestFacadeMemOps(backend: TSimdBackend): TConsistencyTestResult;
 
 implementation
+
+type
+  TConsistencyTestFunc = function(aBackend: TSimdBackend): TConsistencyTestResult;
 
 const
   // 浮点比较容差
@@ -173,6 +183,24 @@ begin
   end;
 
   Result := True;
+end;
+
+function GetConsistencyBackendName(aBackend: TSimdBackend): string;
+begin
+  case aBackend of
+    sbScalar: Result := 'Scalar';
+    sbSSE2: Result := 'SSE2';
+    sbSSE3: Result := 'SSE3';
+    sbSSSE3: Result := 'SSSE3';
+    sbSSE41: Result := 'SSE4.1';
+    sbSSE42: Result := 'SSE4.2';
+    sbAVX2: Result := 'AVX2';
+    sbAVX512: Result := 'AVX-512';
+    sbNEON: Result := 'NEON';
+    sbRISCVV: Result := 'RISC-V V';
+  else
+    Result := 'Unknown';
+  end;
 end;
 
 // =============================================================================
@@ -795,54 +823,33 @@ end;
 // =============================================================================
 
 function RunAllConsistencyTests: TConsistencyTestResults;
+const
+  CTestFuncs: array[0..6] of TConsistencyTestFunc = (
+    @TestF32x4Arithmetic,
+    @TestF32x4Math,
+    @TestF32x4Comparison,
+    @TestF32x4Reduction,
+    @TestI32x4Arithmetic,
+    @TestI32x4Bitwise,
+    @TestFacadeMemOps
+  );
 var
-  backends: array of TSimdBackend;
-  backend: TSimdBackend;
-  i, resultIdx: Integer;
+  LBackend: TSimdBackend;
+  LBackendIndex, LResultIndex, LTestIndex: Integer;
 begin
-  backends := nil;
   Result := nil;
-  // 获取要测试的后端列表
-  // NOTE: Keep this list aligned with dispatch tier order so we cover all x86_64 tiers.
-  SetLength(backends, 9);
-  backends[0] := sbSSE2;
-  backends[1] := sbSSE3;
-  backends[2] := sbSSSE3;
-  backends[3] := sbSSE41;
-  backends[4] := sbSSE42;
-  backends[5] := sbAVX2;
-  backends[6] := sbAVX512;
-  backends[7] := sbNEON;
-  backends[8] := sbRISCVV;
 
-  // 每个后端 7 个测试
-  SetLength(Result, Length(backends) * 7);
-  resultIdx := 0;
+  SetLength(Result, Length(CONSISTENCY_BACKENDS) * Length(CTestFuncs));
+  LResultIndex := 0;
 
-  for i := 0 to High(backends) do
+  for LBackendIndex := Low(CONSISTENCY_BACKENDS) to High(CONSISTENCY_BACKENDS) do
   begin
-    backend := backends[i];
-
-    Result[resultIdx] := TestF32x4Arithmetic(backend);
-    Inc(resultIdx);
-
-    Result[resultIdx] := TestF32x4Math(backend);
-    Inc(resultIdx);
-
-    Result[resultIdx] := TestF32x4Comparison(backend);
-    Inc(resultIdx);
-
-    Result[resultIdx] := TestF32x4Reduction(backend);
-    Inc(resultIdx);
-
-    Result[resultIdx] := TestI32x4Arithmetic(backend);
-    Inc(resultIdx);
-
-    Result[resultIdx] := TestI32x4Bitwise(backend);
-    Inc(resultIdx);
-
-    Result[resultIdx] := TestFacadeMemOps(backend);
-    Inc(resultIdx);
+    LBackend := CONSISTENCY_BACKENDS[LBackendIndex];
+    for LTestIndex := Low(CTestFuncs) to High(CTestFuncs) do
+    begin
+      Result[LResultIndex] := CTestFuncs[LTestIndex](LBackend);
+      Inc(LResultIndex);
+    end;
   end;
 end;
 
@@ -865,16 +872,7 @@ begin
 
   for i := 0 to High(results) do
   begin
-    case results[i].Backend of
-      sbScalar:  backendName := 'Scalar';
-      sbSSE2:    backendName := 'SSE2';
-      sbAVX2:    backendName := 'AVX2';
-      sbAVX512:  backendName := 'AVX512';
-      sbNEON:    backendName := 'NEON';
-      sbRISCVV:  backendName := 'RISCVV';
-    else
-      backendName := 'Unknown';
-    end;
+    backendName := GetConsistencyBackendName(results[i].Backend);
 
     if Pos('skipped', LowerCase(results[i].ErrorMessage)) > 0 then
     begin

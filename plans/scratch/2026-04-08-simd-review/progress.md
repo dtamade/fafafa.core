@@ -3857,3 +3857,32 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-15 Backend Consistency Name And Matrix Truth Consolidation
+
+- `backend.consistency` 的 setup/skip 合同收平后，我继续扫 meta/helper 层，发现剩下一块已经产生真实可见问题的分叉：
+  - `RunAllConsistencyTests(...)` 会跑 `SSE3/SSSE3/SSE4.1/SSE4.2`
+  - 但 `PrintTestSummary(...)` 没给这些 backend 名称映射
+  - 结果 consistency 摘要在这些 tier 上会输出 `Unknown`
+- 进一步复核后确认，这不是单个 `case` 漏项，而是同一主题分裂成多份 test-only truth source：
+  - `backend.consistency.testcase` 自己维护了一份 backend 执行列表
+  - `PrintTestSummary(...)` 单独维护了一份 backend name 映射
+  - `TTestCase_BackendVectorConsistency.Test_VectorOps_Consistency` 又内嵌了另一份 `BackendName(...)`
+  - helper meta-test 还复制了一份 backend candidate 列表
+- 本轮最小修法已落地：
+  - 在 `backend.consistency.testcase` interface 新增 `CONSISTENCY_BACKENDS`
+  - 新增 `GetConsistencyBackendName(...)`
+  - `RunAllConsistencyTests(...)` 改为共享 backend 常量 + `TConsistencyTestFunc` array 驱动，不再手写 9 个 backend × 7 个 helper 调用骨架
+  - `PrintTestSummary(...)` 改用 `GetConsistencyBackendName(...)`
+  - `TTestCase_BackendVectorConsistency.Test_VectorOps_Consistency` 删除本地 `BackendName(...)`，统一复用共享 helper
+  - 新增 `Test_VectorOps_BackendName_Coverage`，锁住 `SSE4.1/SSE4.2/AVX-512/RISC-V V` 等容易漂移的名称不会再次回落成 `Unknown`
+- 这批的价值不只是去重：
+  - 它修掉了真实摘要 bug
+  - 同时把 backend consistency 的“执行矩阵 + 失败输出名称”收回同一真相源
+  - 让后续继续扩测试时，不需要再手改多处 backend/name 列表才能保持一致
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_BackendVectorConsistency`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

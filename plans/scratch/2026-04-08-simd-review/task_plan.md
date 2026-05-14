@@ -2744,3 +2744,17 @@
 | 1. 复核 `backend.consistency` free helper 的重复 setup/skip 形状 | completed | 已确认 `F32x4 Arithmetic/Math/Comparison/Reduction`、`I32x4 Arithmetic/Bitwise` 与 `Facade MemOps` 这 7 个 free helper 都在重复：初始化 `TConsistencyTestResult`、保存原 backend、`IsBackendRegistered(...)` 跳过、`TrySetActiveBackend(...)` 跳过；这类逻辑不受 fixture teardown 直接覆盖 |
 | 2. 提取共享 begin/init helper 并保留原有 backend 选择语义 | completed | 已新增 `InitBackendConsistencyResult(...)` 与 `BeginBackendConsistencyTest(...)`；7 个 helper 统一改用共享入口。`Begin...` 继续使用 `TrySetActiveBackend(...)`，并在“未注册 / 当前 CPU/OS 不可用”的早退路径上显式恢复已保存 backend，避免 free helper 提前 `Exit` 后把状态泄漏给后续 case |
 | 3. Release 验证与提交收口 | completed | Release `TTestCase_BackendVectorConsistency`、Release `check`、Release `gate` 已通过；说明这轮从“尾部 restore 去重”转到“free helper setup/skip 合同收敛”后，backend consistency 主测试面和整体 gate 都继续稳定 |
+
+## 2026-05-15 Backend Consistency Name And Matrix Truth Consolidation
+
+### Goal
+
+继续加强 `simd` 测试层审查并修复，这次处理 `backend.consistency` 剩余的一处真实真相源分叉：`RunAllConsistencyTests`、`PrintTestSummary`、root wrapper 和 helper meta-test 各自维护 backend 名称/候选 backend/执行矩阵，结果 `SSE3/SSSE3/SSE4.1/SSE4.2` 在摘要里会被打成 `Unknown`。目标是把 backend 名称与 backend 矩阵收成一处，并补回归点锁住这类 drift。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `backend.consistency` 剩余的名称/矩阵重复真相源 | completed | 已确认 `PrintTestSummary(...)` 只覆盖了 `Scalar/SSE2/AVX2/AVX512/NEON/RISCVV`，而 `RunAllConsistencyTests(...)` 实际会跑 `SSE3/SSSE3/SSE4.1/SSE4.2`；同时 `TTestCase_BackendVectorConsistency.Test_VectorOps_Consistency` 还内嵌了另一份本地 `BackendName(...)`，标签也和摘要不完全一致 |
+| 2. 收敛 backend 名称 helper 与执行矩阵 | completed | 已在 `backend.consistency.testcase` 对外提供 `CONSISTENCY_BACKENDS` 与 `GetConsistencyBackendName(...)`；`RunAllConsistencyTests(...)` 改用共享 backend 常量 + function-array 驱动，`PrintTestSummary(...)` 与 root wrapper 统一复用同一名称 helper；并新增 `Test_VectorOps_BackendName_Coverage` 锁住中间 x86 tiers 不再回落成 `Unknown` |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_BackendVectorConsistency`、Release `check`、Release `gate` 已通过；说明这轮既修了摘要名称 bug，也把 backend consistency 的矩阵/名称真相源从多份收回成一份，且未影响 run_all/public ABI/non-x86 门禁 |

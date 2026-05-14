@@ -3469,3 +3469,29 @@
 - 经过这批后，`backend.consistency` 的冗余形态也更清楚了：
   - 之前那类纯尾部 restore 重复基本已经扫得差不多
   - 现在更值得继续找的是 free helper / meta helper 层里重复的 control-flow、result shell、message shell，而不是继续盲搜 restore caller
+
+## 2026-05-15 Backend Consistency Name And Matrix Truth Findings
+
+- 这轮往下看时，发现 `backend.consistency` 还留着一处“不是代码算错，但输出与控制面已经分叉”的真实问题：
+  - `RunAllConsistencyTests(...)` 会跑 `SSE2/SSE3/SSSE3/SSE4.1/SSE4.2/AVX2/AVX-512/NEON/RISCVV`
+  - 但 `PrintTestSummary(...)` 只给 `Scalar/SSE2/AVX2/AVX512/NEON/RISCVV` 映射了名字
+  - 结果 `SSE3/SSSE3/SSE4.1/SSE4.2` 在摘要里都会落成 `Unknown`
+- 这不是单点漏写那么简单，因为同一主题已经分裂出多份真相源：
+  - `backend.consistency.testcase` 里有一份 backend 执行矩阵
+  - `PrintTestSummary(...)` 里有一份 backend name 映射
+  - `TTestCase_BackendVectorConsistency.Test_VectorOps_Consistency` 里又嵌了一份本地 `BackendName(...)`
+  - helper meta-test 还单独保留了一份 `CBackendCandidates`
+- 这些重复体已经开始产生实际漂移：
+  - 摘要里缺了 4 个中间 x86 tier
+  - root wrapper 的标签写法和摘要也不完全一致，例如 `AVX512` vs `AVX-512`、`RISCVV` vs `RISC-V V`
+- 这批最安全的收口点因此不是再 patch 一处 `case`，而是把这层 test-only truth source 正式收成一份：
+  - `CONSISTENCY_BACKENDS`
+  - `GetConsistencyBackendName(...)`
+  - `RunAllConsistencyTests(...)` 内部的 function-array
+- 这样做的价值有三层：
+  - 先把已经存在的摘要输出 bug 修掉
+  - 再让执行矩阵长度和执行顺序不必继续靠“手写 7 次函数调用 + 手写 9 个 backend”
+  - 最后让 root wrapper / meta-test 和 summary 共享同一套名称语义，避免下一次又在另一个局部 `case` 上漂移
+- 这轮也说明后续继续深查时，优先级已经从“状态 restore 冗余”进一步推进到“test-only control/report truth source 是否多份并开始漂移”：
+  - 一旦同一个 suite 既有 execution matrix，又有 local name helper，又有 wrapper 内嵌名称映射
+  - 即使功能测试还绿，也值得优先收掉，因为它已经会直接污染失败信息和人工诊断面
