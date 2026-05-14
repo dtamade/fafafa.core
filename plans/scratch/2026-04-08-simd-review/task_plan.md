@@ -22,7 +22,7 @@
 | 5. SIMD plan hygiene 与主链去干扰   | completed | `docs/plans/*simd*` 已明确分成 `active / historical / superseded`，并落下 `plan-status-index` 作为主入口                                                          |
 | 6. Wave 2 active 实施计划补全       | completed | 已新增当前第一波 `seam hardening` active plan，把 `dispatch / dataplane / public ABI / direct / façade fast-path` 的边界、红线、baseline 和完成标准写成独立作战单 |
 | 7. 继续深度审查缺失与冗余           | completed | 已用 live checker / non-x86 impl audit / freeze-status 复核当前真实残余，确认主缺口转为 evidence freshness、alias policy 与 hold-family trigger granularity      |
-| 8. 落地仓库内收口方案               | completed | 已完成 alias visibility policy、history placeholder demotion、hold-family trigger table 和 evidence blocker 文档同步；release `check/gate` 继续为绿               |
+| 8. 落地仓库内收口方案               | completed | 已完成 alias visibility policy、history placeholder demotion、hold-family trigger table 和 evidence blocker 文档同步；release `check/gate` 继续为绿；当前仅剩 Windows evidence freshness 外部阻塞 |
 
 ## Constraints
 
@@ -44,6 +44,9 @@
 | 新增 `SSE2` length/normalize helper 后 `check` 报 inline hints                   | 1       | 去掉 `SSE2LengthWithOptionalZeroW` / `SSE2NormalizeByLength` 的 `inline` 标记后复验通过         |
 | `mcp__ace_tool__search_context` 在宽整数继续批次里两次超时                       | 1       | 不重复卡在同一大查询，改用更窄的本地 `rg/sed` 直接核公开 API 与测试覆盖                         |
 | 同一轮里误把 `TTestCase_DirectDispatchConcurrent` 与 Release `check` 并发启动     | 1       | 这次未触发 `Text file busy/rc=2` 假红，但已立即改回串行验证；`tests/fafafa.core.simd` 继续禁止并发构建 |
+| `mcp__ace_tool__search_context` 在 gate/summary 真相检索上再次超时                | 1       | 直接回退到 `tests/fafafa.core.simd/BuildOrTest.sh` 与 `evaluate_simd_freeze_status.py` 读控制流 |
+| `win-evidence-via-gh` 首次以远端临时分支名 dispatch 时，本地 `git rev-parse <ref>` 未解析成 SHA | 1       | 先推远端 `simd-win-evidence-20260514-0cbc7204`，再本地创建同名分支指向 `HEAD`，之后 workflow dispatch 成功 |
+| GH Windows evidence workflow `25860032794` 被平台 billing/spending limit 拒跑     | 1       | Linux freeze 已补绿；Windows freshness 只能等待账单恢复或改走真实可用 Windows runner 后再刷新 |
 
 ## 2026-05-09 Subtask
 

@@ -2995,6 +2995,35 @@
   - 后续如果继续沿这个方向深挖，优先再看同类纯 fixture 文件；带 FPU exception mask、image 生命周期或 AVX512 guard 语义的 testcase 仍应单独审，不适合机械切基类
 - 这轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
 
+- 这轮已经把发布级 Linux 证据链重新收口到真实绿态，而不是继续停在 helper cleanup：
+  - 先复核 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+  - 确认真红项缩到两组：
+    - `linux_gate_summary`: 缺 terminal gate row
+    - Windows evidence freshness / source-newer-than-evidence / closeout freshness
+  - 随后按 release 策略串行重跑：
+    - `FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：
+    - `tests/fafafa.core.simd/logs/gate_summary.md` 已补出 terminal row
+    - `qemu-cpuinfo-nonx86-evidence` 在 `2026-05-14 20:25:03` PASS
+    - `tests/fafafa.core.simd/logs/qemu-multiarch-20260514-201939-906920/summary.md` 中 `linux/arm/v7`、`linux/arm64`、`linux/riscv64` 全部 PASS
+  - 再跑 `freeze-status` 后，Linux 侧已全部转绿，剩余红项只剩 Windows freshness
+
+- 针对 Windows evidence，本轮把“脚本是否真能跑到 blocker”也查清了：
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`
+  - 结果：`STATUS=PASS`，workflow=`simd-windows-b07-evidence.yml`，repo=`dtamade/fafafa.core`
+  - 当前本地 `main` 仍相对 `origin/main` 为 `ahead 126`
+  - 为了不把 126 个提交直接推上主干，本轮先把当前 `HEAD` 推到临时远端分支：
+    - `simd-win-evidence-20260514-0cbc7204`
+  - 另外补了本地同名分支，让 `SIMD_WIN_EVIDENCE_REF=simd-win-evidence-20260514-0cbc7204` 能被 `win-evidence-via-gh` 正确解析到当前提交
+
+- 当前真正的剩余 blocker 也已经拿到直接证据，不再是猜测：
+  - `FAFAFA_BUILD_MODE=Release SIMD_WIN_EVIDENCE_REF=simd-win-evidence-20260514-0cbc7204 bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-20260514-152`
+  - workflow dispatch 成功，run id=`25860032794`
+  - 但 GitHub Actions 立刻失败，注释原文是：
+    - `The job was not started because recent account payments have failed or your spending limit needs to be increased.`
+  - `run_windows_b07_closeout_via_github_actions.sh` 已把它识别成 billing block，并以 `exit=31` fail-close
+  - 结论：当前 `freeze-status` 无法继续靠本地修脚本/修测试变绿，必须等 GitHub 账单恢复，或改走真实可用的 Windows runner 再重新刷新 evidence
+
 - 我在这条线上又往前推进了一个更小的单点 batch：`vec512types` 里的 `TTestCase_Vec512MaskFacadeGuards`。
 - 这轮判断先刻意卡住边界：
   - `TTestCase_Vec512Types` 本身只是普通类型/算术 smoke，不需要 stateful fixture

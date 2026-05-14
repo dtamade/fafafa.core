@@ -3049,3 +3049,31 @@
   - 它验证了当前 shared fixture helper 体系已经足够稳定，连 direct 这种“共享 restore + 局部 rebind”的测试面也可以安全复用
   - 同时也给后续 completion audit 一个更清楚的信号：如果某个本地 helper 仍保留，那应该是因为它真的有 surface-specific 语义，而不是因为共享层还不够完整
 - Release `TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、Release `check`、Release `gate` 全绿，说明这批仍然只是测试 helper 层去冗余，没有改变 direct dispatch 的被测 rebind / parity / concurrent 语义。
+
+## 2026-05-14 Freeze Closeout Findings
+
+- 当前 helper cleanup 线已经不是发布收口的真实阻塞面。
+- 最新 release 证据复核后，Linux 侧已经补回完整 closeout 语义：
+  - `gate_summary.md` 现在存在 terminal `gate | PASS | all steps passed`
+  - `qemu-cpuinfo-nonx86-evidence` 在同一轮 gate 中 PASS
+  - `linux/arm/v7`、`linux/arm64`、`linux/riscv64` 的 `cpuinfo-nonx86-evidence` summary 全部 PASS
+  - `freeze-status` 对 Linux 的 `gate_summary / required steps / qemu platform coverage / freshness / source-newer-than-gate` 已全部转绿
+- 这说明此前的 `linux_gate_summary` 红灯不是 gate/freeze 规则错误，而是那次 cross gate 没真正收口到 terminal row。
+
+- 现在 `freeze-status` 剩余的红项已纯化为 Windows evidence freshness：
+  - `windows_evidence_freshness`
+  - `linux_sources_not_newer_than_windows_evidence`
+  - `windows_closeout_freshness`
+- 本轮还继续验证了 Windows 刷新主线本身是通的：
+  - `win-evidence-preflight` PASS
+  - GH token / workflow scope 正常
+  - 用临时远端分支 `simd-win-evidence-20260514-0cbc7204` 可以让 `win-evidence-via-gh` 精确指向当前 `HEAD`，避免误用落后的 `origin/main`
+
+- 但最终阻塞已经明确不是仓库内代码，而是 GitHub Actions 外部计费状态：
+  - workflow run `25860032794`
+  - failure annotation: `The job was not started because recent account payments have failed or your spending limit needs to be increased.`
+  - `run_windows_b07_closeout_via_github_actions.sh` 已把这类输出识别成 billing block，并以 `exit=31` fail-close
+- 因而当前最真实的结论是：
+  - `simd` 模块本地代码/测试链没有再暴露新的可修缺陷
+  - Linux closeout 已恢复到最新源码
+  - Windows freshness 仍未闭环，但原因是外部 runner/billing 不可用，而不是仓库内部还遗漏了更多 helper cleanup 或 gate 修复
