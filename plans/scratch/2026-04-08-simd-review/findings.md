@@ -3868,3 +3868,29 @@
 - 这批说明一个很实用的继续审查原则：
   - 发现 standalone 入口问题时，修文件本身只解决“当前对”
   - 把它接进现有验证链，才解决“以后不容易再悄悄坏掉”
+
+## 2026-05-15 BackendOps And Boundary Check Coverage Wiring Findings
+
+- `public_smoke` 接进 `check` 之后，再往同类入口看，剩下最明显的两个 manual-only 程序就是：
+  - `tests/fafafa.core.simd/test_backend_ops.pas`
+  - `tests/fafafa.core.simd/test_simd_boundary.pas`
+- 这次先确认的不是“要不要接”，而是它们当前是否真的值得接：
+  - `test_backend_ops` fresh 独立运行结果是 `Passed: 15 / Failed: 0`
+  - `test_simd_boundary` fresh 独立运行结果是 `通过: 44 / 失败: 0`
+  - 这说明当前问题不是程序坏了，而是它们修好后仍然没有被 daily `check` / fast `gate` 自动覆盖
+- 这批和 `public_smoke` 的区别在于：不只是 `case check)` 要接，`gate_step_build_check()` 也要接
+  - 否则 `Release check` 会绿，但 `Release gate` 的 build-check 仍然可能漏掉这两个入口
+  - 因而 shell 这次同步改了两条真实执行路径：
+    - `gate_step_build_check()`
+    - `case "${ACTION}" in ... check)`
+- fresh 证据已经从“手动单跑”升级成“主链自动跑”：
+  - Release `check` 中真实出现：
+    - `[BACKEND-OPS] Building standalone program: .../test_backend_ops.pas`
+    - `Passed: 15`
+    - `[SIMD-BOUNDARY] Building standalone program: .../test_simd_boundary.pas`
+    - `通过: 44`
+  - Release `gate` 的 `1/6 Build + check SIMD module` 中也真实出现同样两段，再接着跑 `PUBLIC-SMOKE` 与 `DISPATCH-PREINIT`
+- 这次也暴露了一个当前仍需诚实记录的边界：
+  - shell 侧 `check` / `gate` 已经过 fresh release 实跑
+  - batch 侧 runner 虽然做了同构接线和清理路径补齐，但本轮没有真实 Windows 执行证据
+  - 因而当前最准确的结论是：Linux 主闭环已经覆盖，Windows batch 仍有“源码已对齐、真实运行待补证”的残余风险

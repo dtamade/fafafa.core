@@ -42,6 +42,8 @@ set "GATE_SUMMARY_LOG=%LOG_DIR%\gate_summary.md"
 set "GATE_SUMMARY_JSON_LOG=%LOG_DIR%\gate_summary.json"
 set "DISPATCH_PREINIT_SMOKE_SRC=%ROOT%fafafa.core.simd.dispatch_preinit_smoke.pas"
 set "PUBLIC_SMOKE_SRC=%ROOT%fafafa.core.simd.public_smoke.pas"
+set "BACKEND_OPS_SRC=%ROOT%test_backend_ops.pas"
+set "SIMD_BOUNDARY_SRC=%ROOT%test_simd_boundary.pas"
 
 if not exist "%BIN_DIR%" mkdir "%BIN_DIR%"
 if not exist "%UNIT_DIR%" mkdir "%UNIT_DIR%"
@@ -183,6 +185,8 @@ if exist "%LOG_DIR%" rmdir /s /q "%LOG_DIR%"
 if exist "%OUTPUT_ROOT%\nonx86.optin" rmdir /s /q "%OUTPUT_ROOT%\nonx86.optin"
 if exist "%OUTPUT_ROOT%\dispatch.preinit.smoke" rmdir /s /q "%OUTPUT_ROOT%\dispatch.preinit.smoke"
 if exist "%OUTPUT_ROOT%\public.smoke" rmdir /s /q "%OUTPUT_ROOT%\public.smoke"
+if exist "%OUTPUT_ROOT%\backend.ops" rmdir /s /q "%OUTPUT_ROOT%\backend.ops"
+if exist "%OUTPUT_ROOT%\simd.boundary" rmdir /s /q "%OUTPUT_ROOT%\simd.boundary"
 if /I not "%OUTPUT_ROOT%"=="%ROOT%" (
   echo [CLEAN] Removing isolated child outputs under %OUTPUT_ROOT%
   if exist "%OUTPUT_ROOT%\bin" rmdir /s /q "%OUTPUT_ROOT%\bin"
@@ -267,6 +271,12 @@ call :suite_manifest_check
 if errorlevel 1 exit /b 1
 
 call "%ROOT%buildOrTest.bat" nonx86-optin-list-suites
+if errorlevel 1 exit /b 1
+
+call :run_backend_ops_internal
+if errorlevel 1 exit /b 1
+
+call :run_simd_boundary_internal
 if errorlevel 1 exit /b 1
 
 call :run_public_smoke_internal
@@ -954,6 +964,82 @@ if errorlevel 1 (
   exit /b 1
 )
 echo [DISPATCH-PREINIT] OK
+exit /b 0
+
+:run_backend_ops_internal
+if not exist "%BACKEND_OPS_SRC%" (
+  echo [BACKEND-OPS] Missing source: %BACKEND_OPS_SRC%
+  exit /b 2
+)
+set "BACKEND_OPS_OUTPUT_ROOT=%OUTPUT_ROOT%\backend.ops"
+if /I "%OUTPUT_ROOT%"=="%ROOT%" set "BACKEND_OPS_OUTPUT_ROOT=%ROOT%backend.ops"
+set "BACKEND_OPS_BIN_DIR=%BACKEND_OPS_OUTPUT_ROOT%\bin"
+set "BACKEND_OPS_LIB_DIR=%BACKEND_OPS_OUTPUT_ROOT%\lib\%TARGET_CPU%-%TARGET_OS%"
+set "BACKEND_OPS_LOG_DIR=%BACKEND_OPS_OUTPUT_ROOT%\logs"
+set "BACKEND_OPS_BUILD_LOG=%BACKEND_OPS_LOG_DIR%\build.txt"
+set "BACKEND_OPS_TEST_LOG=%BACKEND_OPS_LOG_DIR%\test.txt"
+set "BACKEND_OPS_BIN=%BACKEND_OPS_BIN_DIR%\test_backend_ops.exe"
+if not exist "%BACKEND_OPS_BIN_DIR%" mkdir "%BACKEND_OPS_BIN_DIR%"
+if not exist "%BACKEND_OPS_LIB_DIR%" mkdir "%BACKEND_OPS_LIB_DIR%"
+if not exist "%BACKEND_OPS_LOG_DIR%" mkdir "%BACKEND_OPS_LOG_DIR%"
+echo [BACKEND-OPS] Building standalone program: %BACKEND_OPS_SRC%
+fpc -B -Mobjfpc -Scghi -O3 -Fi"%ROOT%..\..\src" -Fu"%ROOT%..\..\src" -Fu"%ROOT%" -FE"%BACKEND_OPS_BIN_DIR%" -FU"%BACKEND_OPS_LIB_DIR%" "%BACKEND_OPS_SRC%" > "%BACKEND_OPS_BUILD_LOG%" 2>&1
+if errorlevel 1 (
+  echo [BACKEND-OPS] BUILD FAILED ^(see %BACKEND_OPS_BUILD_LOG%^)
+  type "%BACKEND_OPS_BUILD_LOG%"
+  exit /b 1
+)
+if not exist "%BACKEND_OPS_BIN%" (
+  echo [BACKEND-OPS] BUILD FAILED ^(binary missing: %BACKEND_OPS_BIN%^)
+  type "%BACKEND_OPS_BUILD_LOG%"
+  exit /b 1
+)
+echo [BACKEND-OPS] Running standalone program: %BACKEND_OPS_BIN%
+"%BACKEND_OPS_BIN%" > "%BACKEND_OPS_TEST_LOG%" 2>&1
+if errorlevel 1 (
+  echo [BACKEND-OPS] FAILED ^(see %BACKEND_OPS_TEST_LOG%^)
+  type "%BACKEND_OPS_TEST_LOG%"
+  exit /b 1
+)
+type "%BACKEND_OPS_TEST_LOG%"
+exit /b 0
+
+:run_simd_boundary_internal
+if not exist "%SIMD_BOUNDARY_SRC%" (
+  echo [SIMD-BOUNDARY] Missing source: %SIMD_BOUNDARY_SRC%
+  exit /b 2
+)
+set "SIMD_BOUNDARY_OUTPUT_ROOT=%OUTPUT_ROOT%\simd.boundary"
+if /I "%OUTPUT_ROOT%"=="%ROOT%" set "SIMD_BOUNDARY_OUTPUT_ROOT=%ROOT%simd.boundary"
+set "SIMD_BOUNDARY_BIN_DIR=%SIMD_BOUNDARY_OUTPUT_ROOT%\bin"
+set "SIMD_BOUNDARY_LIB_DIR=%SIMD_BOUNDARY_OUTPUT_ROOT%\lib\%TARGET_CPU%-%TARGET_OS%"
+set "SIMD_BOUNDARY_LOG_DIR=%SIMD_BOUNDARY_OUTPUT_ROOT%\logs"
+set "SIMD_BOUNDARY_BUILD_LOG=%SIMD_BOUNDARY_LOG_DIR%\build.txt"
+set "SIMD_BOUNDARY_TEST_LOG=%SIMD_BOUNDARY_LOG_DIR%\test.txt"
+set "SIMD_BOUNDARY_BIN=%SIMD_BOUNDARY_BIN_DIR%\test_simd_boundary.exe"
+if not exist "%SIMD_BOUNDARY_BIN_DIR%" mkdir "%SIMD_BOUNDARY_BIN_DIR%"
+if not exist "%SIMD_BOUNDARY_LIB_DIR%" mkdir "%SIMD_BOUNDARY_LIB_DIR%"
+if not exist "%SIMD_BOUNDARY_LOG_DIR%" mkdir "%SIMD_BOUNDARY_LOG_DIR%"
+echo [SIMD-BOUNDARY] Building standalone program: %SIMD_BOUNDARY_SRC%
+fpc -B -Mobjfpc -Scghi -O3 -Fi"%ROOT%..\..\src" -Fu"%ROOT%..\..\src" -Fu"%ROOT%" -FE"%SIMD_BOUNDARY_BIN_DIR%" -FU"%SIMD_BOUNDARY_LIB_DIR%" "%SIMD_BOUNDARY_SRC%" > "%SIMD_BOUNDARY_BUILD_LOG%" 2>&1
+if errorlevel 1 (
+  echo [SIMD-BOUNDARY] BUILD FAILED ^(see %SIMD_BOUNDARY_BUILD_LOG%^)
+  type "%SIMD_BOUNDARY_BUILD_LOG%"
+  exit /b 1
+)
+if not exist "%SIMD_BOUNDARY_BIN%" (
+  echo [SIMD-BOUNDARY] BUILD FAILED ^(binary missing: %SIMD_BOUNDARY_BIN%^)
+  type "%SIMD_BOUNDARY_BUILD_LOG%"
+  exit /b 1
+)
+echo [SIMD-BOUNDARY] Running standalone program: %SIMD_BOUNDARY_BIN%
+"%SIMD_BOUNDARY_BIN%" > "%SIMD_BOUNDARY_TEST_LOG%" 2>&1
+if errorlevel 1 (
+  echo [SIMD-BOUNDARY] FAILED ^(see %SIMD_BOUNDARY_TEST_LOG%^)
+  type "%SIMD_BOUNDARY_TEST_LOG%"
+  exit /b 1
+)
+type "%SIMD_BOUNDARY_TEST_LOG%"
 exit /b 0
 
 :run_public_smoke_internal

@@ -4363,3 +4363,39 @@
   - `dispatch preinit smoke` OK
   - `experimental intrinsics isolation` OK
   - 说明这次不只是修了一个 standalone 程序，而是把它真正纳入了日常 SIMD 检查闭环
+
+## 2026-05-15 BackendOps And Boundary Check Coverage Wiring
+
+- 在 `public_smoke` 接进 `check/gate` 之后，我继续往同类 standalone 程序审，先重新做 fresh 独立真运行：
+  - `test_backend_ops.pas`：`Passed: 15`、`Failed: 0`
+  - `test_simd_boundary.pas`：`通过: 44`、`失败: 0`
+- 这说明这两个入口的真实问题不是程序本体坏了，而是它们仍然没有进入自动闭环。
+- 本轮接线改动集中在两个脚本：
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+- shell 侧新增：
+  - `BACKEND_OPS_SRC`
+  - `SIMD_BOUNDARY_SRC`
+  - `backend.ops` / `simd.boundary` child output root
+  - `run_backend_ops_smoke()`
+  - `run_simd_boundary_smoke()`
+- batch 侧也同步补了对应内部 runner 和 `clean` 清理路径。
+- shell 的两条真实执行路径都已经接上：
+  - `gate_step_build_check()`
+  - `case "${ACTION}" in ... check)`
+- fresh Release `check` 的关键日志证据：
+  - `[BACKEND-OPS] Building standalone program: /home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/test_backend_ops.pas`
+  - `Passed: 15`
+  - `[SIMD-BOUNDARY] Building standalone program: /home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/test_simd_boundary.pas`
+  - `通过: 44`
+  - 随后 `PUBLIC-SMOKE` 与 `DISPATCH-PREINIT` 也继续通过
+- fresh Release `gate` 的 `1/6 Build + check SIMD module` 中也已经真实出现：
+  - `BACKEND-OPS`
+  - `SIMD-BOUNDARY`
+  - `PUBLIC-SMOKE`
+  - `DISPATCH-PREINIT`
+  - 最终 `Run-all summary: Passed 5 / Failed 0`
+  - `[GATE] OK`
+- 当前这批的实情我也在这里留档：
+  - shell 侧 `check/gate` 已经被真实 release 运行覆盖
+  - batch 侧改动本轮没有真实 Windows 执行证据，仍属于 source-aligned but not runtime-proved 状态

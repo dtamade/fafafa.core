@@ -2998,3 +2998,17 @@
 | 1. 复核 `public_smoke` 未接入 `check` 的真实原因 | completed | 已确认 `BuildOrTest.sh` / `buildOrTest.bat` 里都没有 `public_smoke` runner；而 shell 的 `check` 真执行路径是底部 `case` 里的内联块，不是前面那个看起来相似的辅助段，首次补丁若只落在辅助块上不会生效 |
 | 2. 给 shell/bat `check` 补内部 runner 与 output root 清理 | completed | 已为 shell/bat 都补上 `PUBLIC_SMOKE_SRC`、独立 `public.smoke` child output root、内部 `run_public_smoke`/`:run_public_smoke_internal`，并把 `check` 与 `clean` 路径接上，不扩 CLI action 面 |
 | 3. Release `check` 验证新接线 | completed | `git diff --check`、Release `check` 已通过；日志中已真实出现 `[PUBLIC-SMOKE] Building...`、`Running...`、`Backend:    AVX2` 与 `[PASS] Default backend is AVX2`，说明这条 smoke 已纳入日常检查链 |
+
+## 2026-05-15 BackendOps And Boundary Check Coverage Wiring
+
+### Goal
+
+继续沿“独立 program 入口没有进入日常闭环”这条线往下补，把已经单独修好但仍偏 manual-only 的 `test_backend_ops` 和 `test_simd_boundary` 真正接进 `tests/fafafa.core.simd` 的 shell/bat `check` 路径，以及 shell `gate` 的 `build-check` 辅助链，同时补齐 child output 清理。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核两个 standalone program 的当前健康度与覆盖缺口 | completed | fresh 独立 `fpc` 编译运行已确认 `test_backend_ops` 为 `Passed 15 / Failed 0`、`test_simd_boundary` 为 `通过 44 / 失败 0`；但 `BuildOrTest.sh` / `buildOrTest.bat` 里都还没有对应 runner，当前只能手动跑到 |
+| 2. 给 shell/bat `check` 与 shell `gate_step_build_check` 补内部 runner | completed | 已为 shell 补 `BACKEND_OPS_SRC` / `SIMD_BOUNDARY_SRC`、独立 `backend.ops` / `simd.boundary` child output root、`run_backend_ops_smoke()` / `run_simd_boundary_smoke()`；batch 也补了对应内部 runner 和 `clean` 清理；shell 的 `gate_step_build_check` 与 `case check)` 都已接上这两条路径 |
+| 3. Release `check/gate` 验证新接线 | completed | `git diff --check`、Release `check`、Release `gate` 已通过；日志中已真实出现 `BACKEND-OPS`、`SIMD-BOUNDARY`、`PUBLIC-SMOKE`、`DISPATCH-PREINIT` 四段顺序执行，说明这两个 standalone 程序已经进入 daily check 与 fast-gate 的 build-check 闭环 |
