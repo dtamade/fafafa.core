@@ -69,42 +69,41 @@ echo [GATE] Note: gate/gate-strict PASS does not imply every experimental path i
 
 if "%USE_BASH_GATE%"=="1" goto :bash_gate
 
-echo [GATE] 1/7 Build + check SIMD module >> "%TMP_LOG%"
-call "%ROOT%buildOrTest.bat" build >> "%TMP_LOG%" 2>&1
-set "BUILD_STEP_RC=%ERRORLEVEL%"
-if not exist "%BIN%" (
+echo [GATE] 1/6 Build + check SIMD module >> "%TMP_LOG%"
+call "%ROOT%buildOrTest.bat" check >> "%TMP_LOG%" 2>&1
+if errorlevel 1 (
   set "GATE_RC=1"
   goto :after_gate
 )
-findstr /c:"Fatal:" /c:"returned an error exitcode" "%ROOT%logs\build.txt" >nul 2>nul
-if not errorlevel 1 (
-  set "GATE_RC=1"
-  goto :after_gate
-)
-if not "%BUILD_STEP_RC%"=="0" (
-  echo [B07] WARN: build command returned rc=%BUILD_STEP_RC% but artifact and build log look usable >> "%TMP_LOG%"
-)
-findstr /r /c:"src\fafafa\.core\.simd\..*Warning:" /c:"src\fafafa\.core\.simd\..*Hint:" "%ROOT%logs\build.txt" | findstr /v /c:"src\fafafa.core.simd.intrinsics.avx2.pas" >nul 2>nul
-if not errorlevel 1 (
-  echo [CHECK] Found warnings/hints from stable SIMD units in build log >> "%TMP_LOG%"
-  type "%ROOT%logs\build.txt" >> "%TMP_LOG%"
-  set "GATE_RC=1"
-  goto :after_gate
-)
-echo [CHECK] OK ^(no SIMD-unit warnings/hints on stable path^) >> "%TMP_LOG%"
 
-echo [GATE] 2/7 SIMD list suites >> "%TMP_LOG%"
 if not exist "%BIN%" (
   set "GATE_RC=1"
   goto :after_gate
 )
+
+echo [GATE] Optional public ABI smoke >> "%TMP_LOG%"
+pushd "%TESTS_ROOT%\fafafa.core.simd.publicabi"
+if not exist ".\BuildOrTest.bat" (
+  set "GATE_RC=1"
+  popd
+  goto :after_gate
+)
+call ".\BuildOrTest.bat" test >> "%TMP_LOG%" 2>&1
+if errorlevel 1 (
+  set "GATE_RC=1"
+  popd
+  goto :after_gate
+)
+popd
+
+echo [GATE] 2/6 SIMD list suites >> "%TMP_LOG%"
 "%BIN%" --list-suites >> "%TMP_LOG%" 2>&1
 if errorlevel 1 (
   set "GATE_RC=1"
   goto :after_gate
 )
 
-echo [GATE] 3/7 SIMD AVX2 fallback suite >> "%TMP_LOG%"
+echo [GATE] 3/6 SIMD AVX2 stable vector suites >> "%TMP_LOG%"
 "%BIN%" --suite=TTestCase_VecI32x8 >> "%TMP_LOG%" 2>&1
 if errorlevel 1 set "GATE_RC=1"
 if not "%GATE_RC%"=="0" goto :after_gate
@@ -117,7 +116,7 @@ if errorlevel 1 (
   goto :after_gate
 )
 
-echo [GATE] 4/7 CPUInfo portable suites >> "%TMP_LOG%"
+echo [GATE] 4/6 CPUInfo portable suites >> "%TMP_LOG%"
 pushd "%TESTS_ROOT%\fafafa.core.simd.cpuinfo"
 call ".\buildOrTest.bat" build >> "%TMP_LOG%" 2>&1
 set "CPUINFO_BUILD_RC=%ERRORLEVEL%"
@@ -149,7 +148,7 @@ if errorlevel 1 (
 )
 popd
 
-echo [GATE] 5/7 CPUInfo x86 suites >> "%TMP_LOG%"
+echo [GATE] 5/6 CPUInfo x86 suites >> "%TMP_LOG%"
 pushd "%TESTS_ROOT%\fafafa.core.simd.cpuinfo.x86"
 call ".\buildOrTest.bat" build >> "%TMP_LOG%" 2>&1
 set "CPUINFO_X86_BUILD_RC=%ERRORLEVEL%"
@@ -181,22 +180,7 @@ if errorlevel 1 (
 )
 popd
 
-echo [GATE] 6/7 Windows public ABI smoke >> "%TMP_LOG%"
-pushd "%TESTS_ROOT%\fafafa.core.simd.publicabi"
-if not exist ".\BuildOrTest.bat" (
-  set "GATE_RC=1"
-  popd
-  goto :after_gate
-)
-call ".\BuildOrTest.bat" test >> "%TMP_LOG%" 2>&1
-if errorlevel 1 (
-  set "GATE_RC=1"
-  popd
-  goto :after_gate
-)
-popd
-
-echo [GATE] 7/7 Filtered run_all chain >> "%TMP_LOG%"
+echo [GATE] 6/6 Filtered run_all check chain >> "%TMP_LOG%"
 set "RUNALL_TOTAL=5"
 set "RUNALL_PASSED=5"
 set "RUNALL_FAILED=0"

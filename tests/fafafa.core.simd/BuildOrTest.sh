@@ -1387,29 +1387,32 @@ check_windows_evidence_collector_guard() {
   done
 
   LCollectorRequired=(
-    'echo [GATE] 1/7 Build + check SIMD module >> "%TMP_LOG%"'
-    'echo [GATE] 5/7 CPUInfo x86 suites >> "%TMP_LOG%"'
-    'echo [GATE] 6/7 Windows public ABI smoke >> "%TMP_LOG%"'
+    'echo [GATE] 1/6 Build + check SIMD module >> "%TMP_LOG%"'
+    'call "%ROOT%buildOrTest.bat" check >> "%TMP_LOG%" 2>&1'
+    'echo [GATE] Optional public ABI smoke >> "%TMP_LOG%"'
     'pushd "%TESTS_ROOT%\fafafa.core.simd.publicabi"'
     'call ".\BuildOrTest.bat" test >> "%TMP_LOG%" 2>&1'
-    'echo [GATE] 7/7 Filtered run_all chain >> "%TMP_LOG%"'
+    'echo [GATE] 3/6 SIMD AVX2 stable vector suites >> "%TMP_LOG%"'
+    'echo [GATE] 5/6 CPUInfo x86 suites >> "%TMP_LOG%"'
+    'echo [GATE] 6/6 Filtered run_all check chain >> "%TMP_LOG%"'
   )
 
   LVerifyBatRequired=(
-    'call :check_fixed "[GATE] 1/7 Build + check SIMD module"'
-    'call :check_fixed "[GATE] 6/7 Windows public ABI smoke"'
-    'call :check_fixed "[GATE] 7/7 Filtered run_all chain"'
+    'call :check_fixed "[GATE] 1/6 Build + check SIMD module"'
+    'call :check_fixed "[GATE] Optional public ABI smoke"'
+    'call :check_fixed "[GATE] 6/6 Filtered run_all check chain"'
   )
 
   LVerifyShRequired=(
-    'check_fixed "[GATE] 1/7 Build + check SIMD module" || LFail=1'
-    'check_fixed "[GATE] 6/7 Windows public ABI smoke" || LFail=1'
-    'check_fixed "[GATE] 7/7 Filtered run_all chain" || LFail=1'
+    'check_fixed "[GATE] 1/6 Build + check SIMD module" || LFail=1'
+    'check_fixed "[GATE] Optional public ABI smoke" || LFail=1'
+    'check_fixed "[GATE] 6/6 Filtered run_all check chain" || LFail=1'
   )
 
   LForbidden=(
-    '[GATE] 6/6 Filtered run_all chain'
-    '[GATE] 5/6 CPUInfo x86 suites'
+    '[GATE] 1/7 Build + check SIMD module'
+    '[GATE] 6/7 Windows public ABI smoke'
+    '[GATE] 7/7 Filtered run_all chain'
   )
 
   for LPattern in "${LCollectorRequired[@]}"; do
@@ -1446,7 +1449,7 @@ check_windows_evidence_collector_guard() {
     return 1
   fi
 
-  echo "[CHECK] OK (Windows evidence collector public ABI guard present)"
+  echo "[CHECK] OK (Windows evidence collector guard present)"
 }
 
 check_windows_simulated_evidence_guard() {
@@ -1472,23 +1475,33 @@ check_windows_simulated_evidence_guard() {
   LSimulatorRequired=(
     'SUMMARY_JSON_SENTINEL="${LOG_PATH%.log}.summary-json.missing"'
     '[B07] GateSummaryJson: ${SUMMARY_JSON_SENTINEL}'
-    '[GATE] 1/7 Build + check SIMD module'
-    '[GATE] 6/7 Windows public ABI smoke'
-    '[GATE] 7/7 Filtered run_all chain'
+    '[GATE] 1/6 Build + check SIMD module'
+    '[BACKEND-OPS] Building standalone program:'
+    '[SIMD-BOUNDARY] Building standalone program:'
+    '[PUBLIC-SMOKE] Building standalone smoke:'
+    '[PASS] Default backend is AVX2'
+    '[DISPATCH-PREINIT] OK'
+    '[GATE] Optional public ABI smoke'
+    '[GATE] 6/6 Filtered run_all check chain'
   )
 
   LRehearsalRequired=(
     '[B07] GateSummaryJson: /tmp/rehearse.windows_b07_gate.simulated.summary-json.missing'
     '[B07] GateSummaryJson: /tmp/rehearse.windows_b07_gate.summary-json.missing'
     '[B07] GateSummaryJson: /tmp/rehearse.windows_b07_gate.source-fresh.summary-json.missing'
-    '[GATE] 1/7 Build + check SIMD module'
-    '[GATE] 6/7 Windows public ABI smoke'
-    '[GATE] 7/7 Filtered run_all chain'
+    '[GATE] 1/6 Build + check SIMD module'
+    '[BACKEND-OPS] Building standalone program:'
+    '[SIMD-BOUNDARY] Building standalone program:'
+    '[PUBLIC-SMOKE] Building standalone smoke:'
+    '[DISPATCH-PREINIT] OK'
+    '[GATE] Optional public ABI smoke'
+    '[GATE] 6/6 Filtered run_all check chain'
   )
 
   LForbidden=(
-    '[GATE] 1/6 Build + check SIMD module'
-    '[GATE] 6/6 Filtered run_all chain'
+    '[GATE] 1/7 Build + check SIMD module'
+    '[GATE] 6/7 Windows public ABI smoke'
+    '[GATE] 7/7 Filtered run_all chain'
   )
 
   for LPattern in "${LSimulatorRequired[@]}"; do

@@ -173,6 +173,16 @@ check_regex '^\[B07\][[:space:]]+Working dir:[[:space:]]+[A-Za-z]:\\.*$' || LFai
 fi
 check_fixed "[GATE] OK" || LFail=1
 check_fixed "[B07] GATE_EXIT_CODE=0" || LFail=1
+check_fixed "[BACKEND-OPS] Building standalone program:" || LFail=1
+check_fixed "[BACKEND-OPS] Running standalone program:" || LFail=1
+check_fixed "[SIMD-BOUNDARY] Building standalone program:" || LFail=1
+check_fixed "[SIMD-BOUNDARY] Running standalone program:" || LFail=1
+check_fixed "[PUBLIC-SMOKE] Building standalone smoke:" || LFail=1
+check_fixed "[PUBLIC-SMOKE] Running standalone smoke:" || LFail=1
+check_fixed "[PASS] Default backend is " || LFail=1
+check_fixed "[DISPATCH-PREINIT] Building standalone smoke:" || LFail=1
+check_fixed "[DISPATCH-PREINIT] Running standalone smoke:" || LFail=1
+check_fixed "[DISPATCH-PREINIT] OK" || LFail=1
 
 if grep -E -- '^\[B07\][[:space:]]+Simulated:[[:space:]]+yes$' "${CHECK_LOG_PATH}" >/dev/null || \
    grep -E -- '^\[SIMULATE\]' "${CHECK_LOG_PATH}" >/dev/null || \
@@ -199,13 +209,13 @@ case "${LSummaryJsonRc}" in
   0)
     ;;
   10)
-    check_fixed "[GATE] 1/7 Build + check SIMD module" || LFail=1
-    check_fixed "[GATE] 2/7 SIMD list suites" || LFail=1
-    check_fixed "[GATE] 3/7 SIMD AVX2 fallback suite" || LFail=1
-    check_fixed "[GATE] 4/7 CPUInfo portable suites" || LFail=1
-    check_fixed "[GATE] 5/7 CPUInfo x86 suites" || LFail=1
-    check_fixed "[GATE] 6/7 Windows public ABI smoke" || LFail=1
-    check_fixed "[GATE] 7/7 Filtered run_all chain" || LFail=1
+    check_fixed "[GATE] 1/6 Build + check SIMD module" || LFail=1
+    check_fixed "[GATE] Optional public ABI smoke" || LFail=1
+    check_fixed "[GATE] 2/6 SIMD list suites" || LFail=1
+    check_fixed "[GATE] 3/6 SIMD AVX2 stable vector suites" || LFail=1
+    check_fixed "[GATE] 4/6 CPUInfo portable suites" || LFail=1
+    check_fixed "[GATE] 5/6 CPUInfo x86 suites" || LFail=1
+    check_fixed "[GATE] 6/6 Filtered run_all check chain" || LFail=1
     ;;
   *)
     LFail=1

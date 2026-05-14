@@ -3040,3 +3040,17 @@
 | 1. 复核现有 guard 漏洞而不是重复跑已绿链路 | completed | 已确认 `check_daily_standalone_runner_guard()` 只守住 `backend_ops/simd_boundary`，没有纳入 `public_smoke`；`check_isolated_clean_coverage()` 也还没覆盖 `public.smoke/backend.ops/simd.boundary` 三个 child output；`check_dispatch_preinit_smoke_runner_guard()` 也没约束 batch 的 output-root/root override |
 | 2. 收紧 guard 到 clean/output-root/public-smoke 全覆盖 | completed | 已在 `BuildOrTest.sh` 中把 `public_smoke` 纳入 `check_daily_standalone_runner_guard()`，新增 `public_smoke` 源文件 sentinel，并为 batch guard 补上 `public_smoke/backend_ops/simd_boundary` 的 clean 路径和 root override；同时把 `check_isolated_clean_coverage()` 扩到三条 child output，并为 `dispatch_preinit` batch guard 补上 `DISPATCH_PREINIT_OUTPUT_ROOT` 合同 |
 | 3. Release 验证并诚实记录 Windows runtime 证据边界 | completed | `git diff --check`、Release `check`、Release `gate` 已再次通过；fresh 日志里已真实出现 `[CHECK] OK (isolated clean coverage present)`、`[CHECK] OK (dispatch preinit smoke guard present)`、`[CHECK] OK (daily standalone runner guard present)`，且 `BACKEND-OPS / SIMD-BOUNDARY / PUBLIC-SMOKE / DISPATCH-PREINIT` 全链继续通过；另外尝试用 `wine` + 临时 wrapper 探测 batch runtime proof 时，`where fpc` 可见 wrapper，但 `fpc -iTP` 未形成可靠完成证据，因此当前仍不能把它当成可发布的 Windows runtime proof |
+
+## 2026-05-15 Windows Evidence Contract Tightening
+
+### Goal
+
+继续沿“Windows batch 真实运行证明仍偏弱”这条主线往前推，但不再强行追整条 gate 真机编译，而是收紧证据层本身：修复 `verify_windows_b07_evidence.{sh,bat}` 会把旧 `windows_b07_gate.log` 误判为 `OK` 的问题，让 verifier、evidence collector、simulated helper、freeze rehearsal 与当前 `1/6 + optional public ABI smoke + standalone runners` 合同重新对齐，并尽量给 batch verifier 这一层补到真实运行证据。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 Windows evidence 真正的覆盖缺口 | completed | 已确认当前仓库里的 `tests/fafafa.core.simd/logs/windows_b07_gate.log` 仍是 2026-04-18 的旧 shape，既没有 `BACKEND-OPS / SIMD-BOUNDARY / PUBLIC-SMOKE / DISPATCH-PREINIT`，也还是 `1/7` 步骤文案；但旧 `verify_windows_b07_evidence.sh` 仍会把它判成 `OK`，说明 verifier 对最近接入的 standalone coverage 完全失明 |
+| 2. 收紧 verifier/collector/simulated/rehearsal 到当前合同 | completed | 已更新 `verify_windows_b07_evidence.{sh,bat}`，要求 current gate step shape 与四个 standalone runner 的关键日志标记；同时把 `collect_windows_b07_evidence.bat` 改为在 `1/6` 直接调用 `buildOrTest.bat check`，让 standalone runner 痕迹真实进入 Windows evidence；`simulate_windows_b07_evidence.sh` 与 `rehearse_freeze_status.sh` 里的 PASS 夹具也已同步到新合同；`BuildOrTest.sh` 中守这些文件的 source-safe guard 也全部跟着更新 |
+| 3. 多层验证并记录新的 evidence truth | completed | `git diff --check`、`bash tests/fafafa.core.simd/verify_windows_b07_evidence.sh tests/fafafa.core.simd/logs/windows_b07_gate.log`、`wine cmd /c ...verify_windows_b07_evidence.bat ...windows_b07_gate.log`、合成 PASS log 下 shell/batch verifier 双通过、`bash tests/fafafa.core.simd/rehearse_freeze_status.sh`、Release `gate` 已全部按预期完成；最终行为已变成：旧 Windows log 会被 verifier 判 FAIL，而 Linux `gate` 在 `SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0` 下会诚实降级为 optional evidence `SKIP` 后继续 `OK` |

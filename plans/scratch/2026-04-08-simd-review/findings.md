@@ -3942,3 +3942,27 @@
   - 所以当前最准确的结论仍然是：
     - Linux 主闭环：fresh runtime-proved
     - Windows batch：guard 更强了，但 runtime-proof 仍未真正拿到
+
+## 2026-05-15 Windows Evidence Contract Tightening Findings
+
+- 继续往下审，真正的问题已经不是“有没有 Windows log”，而是“verifier 会不会把旧 log 误判成当前证据”：
+  - 仓库里的 `tests/fafafa.core.simd/logs/windows_b07_gate.log` 仍停留在 2026-04-18 的旧 gate shape
+  - 它没有 `BACKEND-OPS / SIMD-BOUNDARY / PUBLIC-SMOKE / DISPATCH-PREINIT` 四段 standalone 日志，也仍然是 `1/7` 步骤编号
+  - 但修补前的 `verify_windows_b07_evidence.sh` 依然会把它判成 `OK`
+- 这批真正要修的不是 SIMD 实现，而是证据合同：
+  - shell/batch verifier 现在都要求 current gate 文案 `1/6 + optional public ABI smoke + 6/6 Filtered run_all check chain`
+  - 它们同时要求四个 standalone runner 的 build/run/OK 痕迹
+  - 这样 `windows_b07_gate.log` 只有在真的包含新的 daily standalone coverage 时才会过
+- 为了让 evidence layer 真正闭环，我把采集/模拟/演练一起同步了：
+  - `collect_windows_b07_evidence.bat` 现在在 `1/6` 直接调用 `buildOrTest.bat check`
+  - `simulate_windows_b07_evidence.sh`、`rehearse_freeze_status.sh` 的 PASS 夹具都按 current contract 更新
+  - `BuildOrTest.sh` 里守这些文件的 source-safe guard 也一起收紧
+- 真实验证结果现在非常明确：
+  - 旧 `windows_b07_gate.log` 在 shell verifier 下会 fail
+  - 旧 `windows_b07_gate.log` 在 `wine cmd /c ...verify_windows_b07_evidence.bat ...` 下也会 fail
+  - 合成的 current-contract Windows log 则能被 shell/batch verifier 都接受
+  - `bash tests/fafafa.core.simd/rehearse_freeze_status.sh` 继续 OK
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 也继续 OK，但现在会把旧 Windows log 诚实降级为 optional evidence `SKIP`，不再误报 `OK`
+- 这批留下的最重要结论是：
+  - Windows evidence 的真实含义终于和当前 SIMD daily coverage 对上了
+  - 以后如果 evidence 里没有新接入的 standalone runner，脚本会直接说不，不再悄悄放行

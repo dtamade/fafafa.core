@@ -4458,3 +4458,31 @@
   - 临时 wrapper 能让 `where fpc` 看到 `fpc.bat`
   - 但 `fpc -iTP` 这一步没有给出可靠完成结果，且伴随 `wine` 剪贴板超时噪音
   - 我已经清理掉 `/tmp/simd-wine-probe.*` 和相关进程，没有把临时探针残留在 repo 里
+
+## 2026-05-15 Windows Evidence Contract Tightening
+
+- 我继续往下追的是证据层，而不是 SIMD 实现层：
+  - 旧 `tests/fafafa.core.simd/logs/windows_b07_gate.log` 仍是 2026-04-18 的老 shape
+  - 它没有 `BACKEND-OPS / SIMD-BOUNDARY / PUBLIC-SMOKE / DISPATCH-PREINIT`
+  - 但旧 verifier 还会把它判成 `OK`
+- 这轮修的是证据合同本身：
+  - `verify_windows_b07_evidence.sh`
+  - `verify_windows_b07_evidence.bat`
+  - `collect_windows_b07_evidence.bat`
+  - `simulate_windows_b07_evidence.sh`
+  - `rehearse_freeze_status.sh`
+  - `BuildOrTest.sh` 里的对应 source-safe guard
+- 我把采集脚本改成了更真实的 current contract：
+  - `1/6 Build + check SIMD module` 直接走 `buildOrTest.bat check`
+  - `Optional public ABI smoke`
+  - `2/6` 到 `6/6` 的 current gate 文案
+  - 四个 standalone runner 的 build/run 痕迹会进入证据日志
+- 最关键的验证结果：
+  - `bash tests/fafafa.core.simd/verify_windows_b07_evidence.sh tests/fafafa.core.simd/logs/windows_b07_gate.log` 现在会 fail
+  - `wine cmd /c ...verify_windows_b07_evidence.bat ...windows_b07_gate.log` 也会 fail
+  - 合成的 current-contract Windows log 在 shell 和 batch verifier 下都能通过
+  - `bash tests/fafafa.core.simd/rehearse_freeze_status.sh` 继续 OK
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 也继续 OK，但旧 Windows evidence 会被降级成 optional `SKIP`
+- 这意味着现在 Windows evidence 终于不再误报“够新够全”：
+  - 没有新接入的 standalone coverage，就不该被当成当前证据
+  - 旧日志只能作为历史快照，不能再充当现成的 release proof

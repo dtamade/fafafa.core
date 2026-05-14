@@ -42,13 +42,23 @@ cat > "${LOG_PATH}" <<EOM
 [B07] Command: buildOrTest.bat gate
 [B07] GateSummaryJson: ${SUMMARY_JSON_SENTINEL}
 
-[GATE] 1/7 Build + check SIMD module
-[GATE] 2/7 SIMD list suites
-[GATE] 3/7 SIMD AVX2 fallback suite
-[GATE] 4/7 CPUInfo portable suites
-[GATE] 5/7 CPUInfo x86 suites
-[GATE] 6/7 Windows public ABI smoke
-[GATE] 7/7 Filtered run_all chain
+[GATE] 1/6 Build + check SIMD module
+[BACKEND-OPS] Building standalone program: C:\simd\tests\fafafa.core.simd\test_backend_ops.pas
+[BACKEND-OPS] Running standalone program: C:\simd\tests\fafafa.core.simd\backend.ops\bin\test_backend_ops.exe
+[SIMD-BOUNDARY] Building standalone program: C:\simd\tests\fafafa.core.simd\test_simd_boundary.pas
+[SIMD-BOUNDARY] Running standalone program: C:\simd\tests\fafafa.core.simd\simd.boundary\bin\test_simd_boundary.exe
+[PUBLIC-SMOKE] Building standalone smoke: C:\simd\tests\fafafa.core.simd\fafafa.core.simd.public_smoke.pas
+[PUBLIC-SMOKE] Running standalone smoke: C:\simd\tests\fafafa.core.simd\public.smoke\bin\fafafa.core.simd.public_smoke.exe
+[PASS] Default backend is AVX2
+[DISPATCH-PREINIT] Building standalone smoke: C:\simd\tests\fafafa.core.simd\fafafa.core.simd.dispatch_preinit_smoke.pas
+[DISPATCH-PREINIT] Running standalone smoke: C:\simd\tests\fafafa.core.simd\dispatch.preinit.smoke\bin\fafafa.core.simd.dispatch_preinit_smoke.exe
+[DISPATCH-PREINIT] OK
+[GATE] Optional public ABI smoke
+[GATE] 2/6 SIMD list suites
+[GATE] 3/6 SIMD AVX2 stable vector suites
+[GATE] 4/6 CPUInfo portable suites
+[GATE] 5/6 CPUInfo x86 suites
+[GATE] 6/6 Filtered run_all check chain
 [GATE] OK
 
 [B07] GATE_EXIT_CODE=0

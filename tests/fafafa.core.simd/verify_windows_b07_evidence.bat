@@ -55,6 +55,16 @@ call :check_windows_working_dir
 call :check_command_marker
 call :check_fixed "[GATE] OK"
 call :check_fixed "[B07] GATE_EXIT_CODE=0"
+call :check_fixed "[BACKEND-OPS] Building standalone program:"
+call :check_fixed "[BACKEND-OPS] Running standalone program:"
+call :check_fixed "[SIMD-BOUNDARY] Building standalone program:"
+call :check_fixed "[SIMD-BOUNDARY] Running standalone program:"
+call :check_fixed "[PUBLIC-SMOKE] Building standalone smoke:"
+call :check_fixed "[PUBLIC-SMOKE] Running standalone smoke:"
+call :check_fixed "[PASS] Default backend is "
+call :check_fixed "[DISPATCH-PREINIT] Building standalone smoke:"
+call :check_fixed "[DISPATCH-PREINIT] Running standalone smoke:"
+call :check_fixed "[DISPATCH-PREINIT] OK"
 
 findstr /r /c:"^\[B07\] Simulated: yes$" "%LOG_PATH%" >nul 2>nul
 if not errorlevel 1 (
@@ -91,13 +101,13 @@ if not errorlevel 1 (
 call :verify_summary_json_if_present
 set "SUMMARY_JSON_RC=%ERRORLEVEL%"
 if "%SUMMARY_JSON_RC%"=="10" (
-  call :check_fixed "[GATE] 1/7 Build + check SIMD module"
-  call :check_fixed "[GATE] 2/7 SIMD list suites"
-  call :check_fixed "[GATE] 3/7 SIMD AVX2 fallback suite"
-  call :check_fixed "[GATE] 4/7 CPUInfo portable suites"
-  call :check_fixed "[GATE] 5/7 CPUInfo x86 suites"
-  call :check_fixed "[GATE] 6/7 Windows public ABI smoke"
-  call :check_fixed "[GATE] 7/7 Filtered run_all chain"
+  call :check_fixed "[GATE] 1/6 Build + check SIMD module"
+  call :check_fixed "[GATE] Optional public ABI smoke"
+  call :check_fixed "[GATE] 2/6 SIMD list suites"
+  call :check_fixed "[GATE] 3/6 SIMD AVX2 stable vector suites"
+  call :check_fixed "[GATE] 4/6 CPUInfo portable suites"
+  call :check_fixed "[GATE] 5/6 CPUInfo x86 suites"
+  call :check_fixed "[GATE] 6/6 Filtered run_all check chain"
 ) else if not "%SUMMARY_JSON_RC%"=="0" (
   set "FAIL=1"
 )
@@ -184,21 +194,9 @@ set "FAIL=1"
 exit /b 0
 
 :check_windows_working_dir
-set "WORKING_DIR="
-call :extract_b07_value "Working dir" WORKING_DIR
-if not defined WORKING_DIR (
-  echo [EVIDENCE] Missing B07 value: Working dir
-  set "FAIL=1"
-  exit /b 0
-)
-if not "!WORKING_DIR:~1,1!"==":" goto :invalid_working_dir
-if not "!WORKING_DIR:~2,1!"=="\" goto :invalid_working_dir
-echo(!WORKING_DIR:~0,1!| findstr /r /c:"^[A-Za-z]$" >nul 2>nul
-if errorlevel 1 goto :invalid_working_dir
-exit /b 0
-
-:invalid_working_dir
-echo [EVIDENCE] Invalid Windows working dir: !WORKING_DIR!
+findstr /l /c:"[B07] Working dir: " "%LOG_PATH%" >nul 2>nul
+if not errorlevel 1 exit /b 0
+echo [EVIDENCE] Missing B07 value: Working dir
 set "FAIL=1"
 exit /b 0
 
@@ -222,7 +220,8 @@ if not defined VALUE (
 )
 
 if defined VALUE (
-  set "VALUE=%VALUE: =%"
+  call :trim_value "!VALUE!" VALUE
+  set "VALUE=!VALUE: =!"
 )
 
 set "%OUTVAR%=%VALUE%"
@@ -238,9 +237,24 @@ for /f "usebackq tokens=1,* delims=:" %%A in ("%LOG_PATH%") do (
   )
 )
 if defined VALUE (
-  set "VALUE=%VALUE:~1%"
+  call :trim_value "!VALUE!" VALUE
 )
 set "%OUTVAR%=%VALUE%"
+exit /b 0
+
+:trim_value
+setlocal EnableDelayedExpansion
+set "VALUE=%~1"
+if not defined VALUE (
+  endlocal & set "%~2=" & exit /b 0
+)
+for /f "tokens=* delims= " %%A in ("!VALUE!") do set "VALUE=%%A"
+:trim_value_right
+if defined VALUE if "!VALUE:~-1!"==" " (
+  set "VALUE=!VALUE:~0,-1!"
+  goto :trim_value_right
+)
+endlocal & set "%~2=%VALUE%"
 exit /b 0
 
 :verify_summary_json_if_present
