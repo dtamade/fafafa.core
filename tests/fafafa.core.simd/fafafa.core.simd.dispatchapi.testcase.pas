@@ -10610,16 +10610,6 @@ var
   LBackendTable: TSimdDispatchTable;
   LOldVectorAsm: Boolean;
 
-  function BackendName(const aBackend: TSimdBackend): string;
-  begin
-    case aBackend of
-      sbSSE41: Result := 'SSE41';
-      sbSSE42: Result := 'SSE42';
-      sbAVX2: Result := 'AVX2';
-      else Result := IntToStr(Ord(aBackend));
-    end;
-  end;
-
   function IsShuffleCapabilityGatedBackend(const aBackend: TSimdBackend): Boolean;
   begin
     case aBackend of
@@ -10647,14 +10637,14 @@ begin
       if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
         Continue;
 
-      AssertEquals(BackendName(LBackend) + ' SelectF32x4 should fall back to scalar when vector asm is disabled',
+      AssertEquals(DispatchApiBackendName(LBackend) + ' SelectF32x4 should fall back to scalar when vector asm is disabled',
         PtrUInt(LScalarTable.SelectF32x4), PtrUInt(LBackendTable.SelectF32x4));
-      AssertEquals(BackendName(LBackend) + ' InsertF32x4 should fall back to scalar when vector asm is disabled',
+      AssertEquals(DispatchApiBackendName(LBackend) + ' InsertF32x4 should fall back to scalar when vector asm is disabled',
         PtrUInt(LScalarTable.InsertF32x4), PtrUInt(LBackendTable.InsertF32x4));
-      AssertEquals(BackendName(LBackend) + ' ExtractF32x4 should fall back to scalar when vector asm is disabled',
+      AssertEquals(DispatchApiBackendName(LBackend) + ' ExtractF32x4 should fall back to scalar when vector asm is disabled',
         PtrUInt(LScalarTable.ExtractF32x4), PtrUInt(LBackendTable.ExtractF32x4));
 
-      AssertFalse('scShuffle should clear when representative shuffle slots are scalar after vector asm disable: ' + BackendName(LBackend),
+      AssertFalse('scShuffle should clear when representative shuffle slots are scalar after vector asm disable: ' + DispatchApiBackendName(LBackend),
         scShuffle in LBackendTable.BackendInfo.Capabilities);
     end;
   finally
@@ -10784,15 +10774,6 @@ var
   LBackend: TSimdBackend;
   LTable: TSimdDispatchTable;
   LRegisteredCount: Integer;
-
-  function BackendName(const aBackend: TSimdBackend): string;
-  begin
-    case aBackend of
-      sbNEON: Result := 'NEON';
-      sbRISCVV: Result := 'RISCVV';
-      else Result := IntToStr(Ord(aBackend));
-    end;
-  end;
 begin
   LBackends[0] := sbNEON;
   LBackends[1] := sbRISCVV;
@@ -10804,7 +10785,7 @@ begin
       Continue;
 
     Inc(LRegisteredCount);
-    AssertNonX86DispatchTableWiringGroupsAssigned(Self, BackendName(LBackend), LTable);
+    AssertNonX86DispatchTableWiringGroupsAssigned(Self, DispatchApiBackendName(LBackend), LTable);
   end;
 
   if LRegisteredCount = 0 then
@@ -10817,16 +10798,6 @@ var
   LBackend: TSimdBackend;
   LTable: TSimdDispatchTable;
   LRegisteredCount: Integer;
-
-  function BackendName(const aBackend: TSimdBackend): string;
-  begin
-    case aBackend of
-      sbSSE2: Result := 'SSE2';
-      sbAVX2: Result := 'AVX2';
-      sbAVX512: Result := 'AVX512';
-      else Result := IntToStr(Ord(aBackend));
-    end;
-  end;
 
   procedure AssertAssigned(const aBackendName, aSlotName: string; aSlot: Pointer);
   begin
@@ -10845,70 +10816,70 @@ begin
 
     Inc(LRegisteredCount);
 
-    AssertAssigned(BackendName(LBackend), 'AndNotI64x2', Pointer(LTable.AndNotI64x2));
-    AssertAssigned(BackendName(LBackend), 'ShiftLeftI64x2', Pointer(LTable.ShiftLeftI64x2));
-    AssertAssigned(BackendName(LBackend), 'ShiftRightI64x2', Pointer(LTable.ShiftRightI64x2));
-    AssertAssigned(BackendName(LBackend), 'ShiftRightArithI64x2', Pointer(LTable.ShiftRightArithI64x2));
-    AssertAssigned(BackendName(LBackend), 'MinI64x2', Pointer(LTable.MinI64x2));
-    AssertAssigned(BackendName(LBackend), 'MaxI64x2', Pointer(LTable.MaxI64x2));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'AndNotI64x2', Pointer(LTable.AndNotI64x2));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'ShiftLeftI64x2', Pointer(LTable.ShiftLeftI64x2));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'ShiftRightI64x2', Pointer(LTable.ShiftRightI64x2));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'ShiftRightArithI64x2', Pointer(LTable.ShiftRightArithI64x2));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'MinI64x2', Pointer(LTable.MinI64x2));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'MaxI64x2', Pointer(LTable.MaxI64x2));
 
-    AssertAssigned(BackendName(LBackend), 'AddU64x2', Pointer(LTable.AddU64x2));
-    AssertAssigned(BackendName(LBackend), 'SubU64x2', Pointer(LTable.SubU64x2));
-    AssertAssigned(BackendName(LBackend), 'AndU64x2', Pointer(LTable.AndU64x2));
-    AssertAssigned(BackendName(LBackend), 'OrU64x2', Pointer(LTable.OrU64x2));
-    AssertAssigned(BackendName(LBackend), 'XorU64x2', Pointer(LTable.XorU64x2));
-    AssertAssigned(BackendName(LBackend), 'NotU64x2', Pointer(LTable.NotU64x2));
-    AssertAssigned(BackendName(LBackend), 'AndNotU64x2', Pointer(LTable.AndNotU64x2));
-    AssertAssigned(BackendName(LBackend), 'CmpEqU64x2', Pointer(LTable.CmpEqU64x2));
-    AssertAssigned(BackendName(LBackend), 'CmpLtU64x2', Pointer(LTable.CmpLtU64x2));
-    AssertAssigned(BackendName(LBackend), 'CmpGtU64x2', Pointer(LTable.CmpGtU64x2));
-    AssertAssigned(BackendName(LBackend), 'MinU64x2', Pointer(LTable.MinU64x2));
-    AssertAssigned(BackendName(LBackend), 'MaxU64x2', Pointer(LTable.MaxU64x2));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'AddU64x2', Pointer(LTable.AddU64x2));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'SubU64x2', Pointer(LTable.SubU64x2));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'AndU64x2', Pointer(LTable.AndU64x2));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'OrU64x2', Pointer(LTable.OrU64x2));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'XorU64x2', Pointer(LTable.XorU64x2));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'NotU64x2', Pointer(LTable.NotU64x2));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'AndNotU64x2', Pointer(LTable.AndNotU64x2));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'CmpEqU64x2', Pointer(LTable.CmpEqU64x2));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'CmpLtU64x2', Pointer(LTable.CmpLtU64x2));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'CmpGtU64x2', Pointer(LTable.CmpGtU64x2));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'MinU64x2', Pointer(LTable.MinU64x2));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'MaxU64x2', Pointer(LTable.MaxU64x2));
 
-    AssertAssigned(BackendName(LBackend), 'AddI64x4', Pointer(LTable.AddI64x4));
-    AssertAssigned(BackendName(LBackend), 'SubI64x4', Pointer(LTable.SubI64x4));
-    AssertAssigned(BackendName(LBackend), 'AndI64x4', Pointer(LTable.AndI64x4));
-    AssertAssigned(BackendName(LBackend), 'OrI64x4', Pointer(LTable.OrI64x4));
-    AssertAssigned(BackendName(LBackend), 'XorI64x4', Pointer(LTable.XorI64x4));
-    AssertAssigned(BackendName(LBackend), 'NotI64x4', Pointer(LTable.NotI64x4));
-    AssertAssigned(BackendName(LBackend), 'AndNotI64x4', Pointer(LTable.AndNotI64x4));
-    AssertAssigned(BackendName(LBackend), 'ShiftLeftI64x4', Pointer(LTable.ShiftLeftI64x4));
-    AssertAssigned(BackendName(LBackend), 'ShiftRightI64x4', Pointer(LTable.ShiftRightI64x4));
-    AssertAssigned(BackendName(LBackend), 'ShiftRightArithI64x4', Pointer(LTable.ShiftRightArithI64x4));
-    AssertAssigned(BackendName(LBackend), 'CmpEqI64x4', Pointer(LTable.CmpEqI64x4));
-    AssertAssigned(BackendName(LBackend), 'CmpLtI64x4', Pointer(LTable.CmpLtI64x4));
-    AssertAssigned(BackendName(LBackend), 'CmpGtI64x4', Pointer(LTable.CmpGtI64x4));
-    AssertAssigned(BackendName(LBackend), 'CmpLeI64x4', Pointer(LTable.CmpLeI64x4));
-    AssertAssigned(BackendName(LBackend), 'CmpGeI64x4', Pointer(LTable.CmpGeI64x4));
-    AssertAssigned(BackendName(LBackend), 'CmpNeI64x4', Pointer(LTable.CmpNeI64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'AddI64x4', Pointer(LTable.AddI64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'SubI64x4', Pointer(LTable.SubI64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'AndI64x4', Pointer(LTable.AndI64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'OrI64x4', Pointer(LTable.OrI64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'XorI64x4', Pointer(LTable.XorI64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'NotI64x4', Pointer(LTable.NotI64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'AndNotI64x4', Pointer(LTable.AndNotI64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'ShiftLeftI64x4', Pointer(LTable.ShiftLeftI64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'ShiftRightI64x4', Pointer(LTable.ShiftRightI64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'ShiftRightArithI64x4', Pointer(LTable.ShiftRightArithI64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'CmpEqI64x4', Pointer(LTable.CmpEqI64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'CmpLtI64x4', Pointer(LTable.CmpLtI64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'CmpGtI64x4', Pointer(LTable.CmpGtI64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'CmpLeI64x4', Pointer(LTable.CmpLeI64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'CmpGeI64x4', Pointer(LTable.CmpGeI64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'CmpNeI64x4', Pointer(LTable.CmpNeI64x4));
 
-    AssertAssigned(BackendName(LBackend), 'AddU64x4', Pointer(LTable.AddU64x4));
-    AssertAssigned(BackendName(LBackend), 'SubU64x4', Pointer(LTable.SubU64x4));
-    AssertAssigned(BackendName(LBackend), 'AndU64x4', Pointer(LTable.AndU64x4));
-    AssertAssigned(BackendName(LBackend), 'OrU64x4', Pointer(LTable.OrU64x4));
-    AssertAssigned(BackendName(LBackend), 'XorU64x4', Pointer(LTable.XorU64x4));
-    AssertAssigned(BackendName(LBackend), 'NotU64x4', Pointer(LTable.NotU64x4));
-    AssertAssigned(BackendName(LBackend), 'ShiftLeftU64x4', Pointer(LTable.ShiftLeftU64x4));
-    AssertAssigned(BackendName(LBackend), 'ShiftRightU64x4', Pointer(LTable.ShiftRightU64x4));
-    AssertAssigned(BackendName(LBackend), 'CmpEqU64x4', Pointer(LTable.CmpEqU64x4));
-    AssertAssigned(BackendName(LBackend), 'CmpLtU64x4', Pointer(LTable.CmpLtU64x4));
-    AssertAssigned(BackendName(LBackend), 'CmpGtU64x4', Pointer(LTable.CmpGtU64x4));
-    AssertAssigned(BackendName(LBackend), 'CmpLeU64x4', Pointer(LTable.CmpLeU64x4));
-    AssertAssigned(BackendName(LBackend), 'CmpGeU64x4', Pointer(LTable.CmpGeU64x4));
-    AssertAssigned(BackendName(LBackend), 'CmpNeU64x4', Pointer(LTable.CmpNeU64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'AddU64x4', Pointer(LTable.AddU64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'SubU64x4', Pointer(LTable.SubU64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'AndU64x4', Pointer(LTable.AndU64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'OrU64x4', Pointer(LTable.OrU64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'XorU64x4', Pointer(LTable.XorU64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'NotU64x4', Pointer(LTable.NotU64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'ShiftLeftU64x4', Pointer(LTable.ShiftLeftU64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'ShiftRightU64x4', Pointer(LTable.ShiftRightU64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'CmpEqU64x4', Pointer(LTable.CmpEqU64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'CmpLtU64x4', Pointer(LTable.CmpLtU64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'CmpGtU64x4', Pointer(LTable.CmpGtU64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'CmpLeU64x4', Pointer(LTable.CmpLeU64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'CmpGeU64x4', Pointer(LTable.CmpGeU64x4));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'CmpNeU64x4', Pointer(LTable.CmpNeU64x4));
 
-    AssertAssigned(BackendName(LBackend), 'AddI64x8', Pointer(LTable.AddI64x8));
-    AssertAssigned(BackendName(LBackend), 'SubI64x8', Pointer(LTable.SubI64x8));
-    AssertAssigned(BackendName(LBackend), 'AndI64x8', Pointer(LTable.AndI64x8));
-    AssertAssigned(BackendName(LBackend), 'OrI64x8', Pointer(LTable.OrI64x8));
-    AssertAssigned(BackendName(LBackend), 'XorI64x8', Pointer(LTable.XorI64x8));
-    AssertAssigned(BackendName(LBackend), 'NotI64x8', Pointer(LTable.NotI64x8));
-    AssertAssigned(BackendName(LBackend), 'CmpEqI64x8', Pointer(LTable.CmpEqI64x8));
-    AssertAssigned(BackendName(LBackend), 'CmpLtI64x8', Pointer(LTable.CmpLtI64x8));
-    AssertAssigned(BackendName(LBackend), 'CmpGtI64x8', Pointer(LTable.CmpGtI64x8));
-    AssertAssigned(BackendName(LBackend), 'CmpLeI64x8', Pointer(LTable.CmpLeI64x8));
-    AssertAssigned(BackendName(LBackend), 'CmpGeI64x8', Pointer(LTable.CmpGeI64x8));
-    AssertAssigned(BackendName(LBackend), 'CmpNeI64x8', Pointer(LTable.CmpNeI64x8));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'AddI64x8', Pointer(LTable.AddI64x8));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'SubI64x8', Pointer(LTable.SubI64x8));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'AndI64x8', Pointer(LTable.AndI64x8));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'OrI64x8', Pointer(LTable.OrI64x8));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'XorI64x8', Pointer(LTable.XorI64x8));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'NotI64x8', Pointer(LTable.NotI64x8));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'CmpEqI64x8', Pointer(LTable.CmpEqI64x8));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'CmpLtI64x8', Pointer(LTable.CmpLtI64x8));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'CmpGtI64x8', Pointer(LTable.CmpGtI64x8));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'CmpLeI64x8', Pointer(LTable.CmpLeI64x8));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'CmpGeI64x8', Pointer(LTable.CmpGeI64x8));
+    AssertAssigned(DispatchApiBackendName(LBackend), 'CmpNeI64x8', Pointer(LTable.CmpNeI64x8));
   end;
 
   if LRegisteredCount = 0 then
@@ -10921,15 +10892,6 @@ var
   LBackend: TSimdBackend;
   LTable: TSimdDispatchTable;
   LRegisteredCount: Integer;
-
-  function BackendName(const aBackend: TSimdBackend): string;
-  begin
-    case aBackend of
-      sbNEON: Result := 'NEON';
-      sbRISCVV: Result := 'RISCVV';
-      else Result := IntToStr(Ord(aBackend));
-    end;
-  end;
 begin
   LBackends[0] := sbNEON;
   LBackends[1] := sbRISCVV;
@@ -10941,9 +10903,9 @@ begin
       Continue;
 
     Inc(LRegisteredCount);
-    AssertTrue('TryGetRegisteredBackendDispatchTable failed: ' + BackendName(LBackend),
+    AssertTrue('TryGetRegisteredBackendDispatchTable failed: ' + DispatchApiBackendName(LBackend),
       TryGetRegisteredBackendDispatchTable(LBackend, LTable));
-    AssertNonX86DispatchTableWiringGroupsAssigned(Self, BackendName(LBackend), LTable);
+    AssertNonX86DispatchTableWiringGroupsAssigned(Self, DispatchApiBackendName(LBackend), LTable);
   end;
 
   if LRegisteredCount = 0 then
@@ -10958,15 +10920,6 @@ var
   LBackendTable: TSimdDispatchTable;
   LCheckedBackends: Integer;
   LOldVectorAsm: Boolean;
-
-  function BackendName(const aBackend: TSimdBackend): string;
-  begin
-    case aBackend of
-      sbNEON: Result := 'NEON';
-      sbRISCVV: Result := 'RISCVV';
-      else Result := IntToStr(Ord(aBackend));
-    end;
-  end;
 
   procedure AssertNativeSlotNotScalar(const aBackendName, aSlotName: string; const aScalarSlot, aBackendSlot: Pointer);
   begin
@@ -11012,121 +10965,121 @@ begin
       Inc(LCheckedBackends);
 
     // Native-slot contract (only for explicitly marked non-x86 wide Floor/Ceil targets).
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'FloorF32x8',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'FloorF32x8',
       Pointer(LScalarTable.FloorF32x8), Pointer(LBackendTable.FloorF32x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'CeilF32x8',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'CeilF32x8',
       Pointer(LScalarTable.CeilF32x8), Pointer(LBackendTable.CeilF32x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'RoundF32x8',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'RoundF32x8',
       Pointer(LScalarTable.RoundF32x8), Pointer(LBackendTable.RoundF32x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'TruncF32x8',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'TruncF32x8',
       Pointer(LScalarTable.TruncF32x8), Pointer(LBackendTable.TruncF32x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'FloorF64x4',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'FloorF64x4',
       Pointer(LScalarTable.FloorF64x4), Pointer(LBackendTable.FloorF64x4));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'CeilF64x4',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'CeilF64x4',
       Pointer(LScalarTable.CeilF64x4), Pointer(LBackendTable.CeilF64x4));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'RoundF64x4',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'RoundF64x4',
       Pointer(LScalarTable.RoundF64x4), Pointer(LBackendTable.RoundF64x4));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'TruncF64x4',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'TruncF64x4',
       Pointer(LScalarTable.TruncF64x4), Pointer(LBackendTable.TruncF64x4));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'FloorF32x16',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'FloorF32x16',
       Pointer(LScalarTable.FloorF32x16), Pointer(LBackendTable.FloorF32x16));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'CeilF32x16',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'CeilF32x16',
       Pointer(LScalarTable.CeilF32x16), Pointer(LBackendTable.CeilF32x16));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'RoundF32x16',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'RoundF32x16',
       Pointer(LScalarTable.RoundF32x16), Pointer(LBackendTable.RoundF32x16));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'TruncF32x16',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'TruncF32x16',
       Pointer(LScalarTable.TruncF32x16), Pointer(LBackendTable.TruncF32x16));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'FloorF64x8',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'FloorF64x8',
       Pointer(LScalarTable.FloorF64x8), Pointer(LBackendTable.FloorF64x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'CeilF64x8',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'CeilF64x8',
       Pointer(LScalarTable.CeilF64x8), Pointer(LBackendTable.CeilF64x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'RoundF64x8',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'RoundF64x8',
       Pointer(LScalarTable.RoundF64x8), Pointer(LBackendTable.RoundF64x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'TruncF64x8',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'TruncF64x8',
       Pointer(LScalarTable.TruncF64x8), Pointer(LBackendTable.TruncF64x8));
 
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'AddF32x8',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'AddF32x8',
       Pointer(LScalarTable.AddF32x8), Pointer(LBackendTable.AddF32x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'SubF32x8',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'SubF32x8',
       Pointer(LScalarTable.SubF32x8), Pointer(LBackendTable.SubF32x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'MulF32x8',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'MulF32x8',
       Pointer(LScalarTable.MulF32x8), Pointer(LBackendTable.MulF32x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'DivF32x8',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'DivF32x8',
       Pointer(LScalarTable.DivF32x8), Pointer(LBackendTable.DivF32x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'MinF32x8',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'MinF32x8',
       Pointer(LScalarTable.MinF32x8), Pointer(LBackendTable.MinF32x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'MaxF32x8',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'MaxF32x8',
       Pointer(LScalarTable.MaxF32x8), Pointer(LBackendTable.MaxF32x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'AbsF32x8',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'AbsF32x8',
       Pointer(LScalarTable.AbsF32x8), Pointer(LBackendTable.AbsF32x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'SqrtF32x8',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'SqrtF32x8',
       Pointer(LScalarTable.SqrtF32x8), Pointer(LBackendTable.SqrtF32x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'FmaF32x8',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'FmaF32x8',
       Pointer(LScalarTable.FmaF32x8), Pointer(LBackendTable.FmaF32x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'ClampF32x8',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'ClampF32x8',
       Pointer(LScalarTable.ClampF32x8), Pointer(LBackendTable.ClampF32x8));
 
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'AddF64x4',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'AddF64x4',
       Pointer(LScalarTable.AddF64x4), Pointer(LBackendTable.AddF64x4));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'SubF64x4',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'SubF64x4',
       Pointer(LScalarTable.SubF64x4), Pointer(LBackendTable.SubF64x4));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'MulF64x4',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'MulF64x4',
       Pointer(LScalarTable.MulF64x4), Pointer(LBackendTable.MulF64x4));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'DivF64x4',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'DivF64x4',
       Pointer(LScalarTable.DivF64x4), Pointer(LBackendTable.DivF64x4));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'MinF64x4',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'MinF64x4',
       Pointer(LScalarTable.MinF64x4), Pointer(LBackendTable.MinF64x4));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'MaxF64x4',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'MaxF64x4',
       Pointer(LScalarTable.MaxF64x4), Pointer(LBackendTable.MaxF64x4));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'AbsF64x4',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'AbsF64x4',
       Pointer(LScalarTable.AbsF64x4), Pointer(LBackendTable.AbsF64x4));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'SqrtF64x4',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'SqrtF64x4',
       Pointer(LScalarTable.SqrtF64x4), Pointer(LBackendTable.SqrtF64x4));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'FmaF64x4',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'FmaF64x4',
       Pointer(LScalarTable.FmaF64x4), Pointer(LBackendTable.FmaF64x4));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'ClampF64x4',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'ClampF64x4',
       Pointer(LScalarTable.ClampF64x4), Pointer(LBackendTable.ClampF64x4));
 
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'AddF32x16',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'AddF32x16',
       Pointer(LScalarTable.AddF32x16), Pointer(LBackendTable.AddF32x16));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'SubF32x16',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'SubF32x16',
       Pointer(LScalarTable.SubF32x16), Pointer(LBackendTable.SubF32x16));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'MulF32x16',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'MulF32x16',
       Pointer(LScalarTable.MulF32x16), Pointer(LBackendTable.MulF32x16));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'DivF32x16',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'DivF32x16',
       Pointer(LScalarTable.DivF32x16), Pointer(LBackendTable.DivF32x16));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'MinF32x16',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'MinF32x16',
       Pointer(LScalarTable.MinF32x16), Pointer(LBackendTable.MinF32x16));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'MaxF32x16',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'MaxF32x16',
       Pointer(LScalarTable.MaxF32x16), Pointer(LBackendTable.MaxF32x16));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'AbsF32x16',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'AbsF32x16',
       Pointer(LScalarTable.AbsF32x16), Pointer(LBackendTable.AbsF32x16));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'SqrtF32x16',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'SqrtF32x16',
       Pointer(LScalarTable.SqrtF32x16), Pointer(LBackendTable.SqrtF32x16));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'FmaF32x16',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'FmaF32x16',
       Pointer(LScalarTable.FmaF32x16), Pointer(LBackendTable.FmaF32x16));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'ClampF32x16',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'ClampF32x16',
       Pointer(LScalarTable.ClampF32x16), Pointer(LBackendTable.ClampF32x16));
 
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'AddF64x8',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'AddF64x8',
       Pointer(LScalarTable.AddF64x8), Pointer(LBackendTable.AddF64x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'SubF64x8',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'SubF64x8',
       Pointer(LScalarTable.SubF64x8), Pointer(LBackendTable.SubF64x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'MulF64x8',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'MulF64x8',
       Pointer(LScalarTable.MulF64x8), Pointer(LBackendTable.MulF64x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'DivF64x8',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'DivF64x8',
       Pointer(LScalarTable.DivF64x8), Pointer(LBackendTable.DivF64x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'MinF64x8',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'MinF64x8',
       Pointer(LScalarTable.MinF64x8), Pointer(LBackendTable.MinF64x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'MaxF64x8',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'MaxF64x8',
       Pointer(LScalarTable.MaxF64x8), Pointer(LBackendTable.MaxF64x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'AbsF64x8',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'AbsF64x8',
       Pointer(LScalarTable.AbsF64x8), Pointer(LBackendTable.AbsF64x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'SqrtF64x8',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'SqrtF64x8',
       Pointer(LScalarTable.SqrtF64x8), Pointer(LBackendTable.SqrtF64x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'FmaF64x8',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'FmaF64x8',
       Pointer(LScalarTable.FmaF64x8), Pointer(LBackendTable.FmaF64x8));
-    AssertNativeSlotNotScalar(BackendName(LBackend), 'ClampF64x8',
+    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'ClampF64x8',
       Pointer(LScalarTable.ClampF64x8), Pointer(LBackendTable.ClampF64x8));
     end;
 

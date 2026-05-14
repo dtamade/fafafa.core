@@ -4046,3 +4046,41 @@
 - 当前这一批收口后，`dispatchapi.testcase` 里剩余局部 `BackendName(...)` 已缩到下一簇：
   - 约 `10613/10788/10821/10925/10962`
   - 文件级 `NonX86BackendName(...)` 暂不混入本批，留给后续 non-x86 小批次处理
+
+## 2026-05-15 DispatchAPI Canonical Backend Name Reuse Batch 2
+
+- 我继续接着上一批的“下一簇”往下做，这次没有扩大到别的文件，还是只处理 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`。
+- 先逐段复核后确认，这 5 个过程里的局部 `BackendName(...)` 也都只是断言消息源：
+  - `Test_X86_BackendCapabilities_Clear_Shuffle_When_VectorAsmDisabled`
+  - `Test_NonX86_DispatchTable_WiringChecklist_Grouped`
+  - `Test_X86_DispatchTable_WiringChecklist_Grouped`
+  - `Test_NonX86_DispatchTable_WiringChecklist`
+  - `Test_NonX86_NativeWideFloorCeil_Slots_NotScalar_IfAvailable`
+- 真正的测试语义边界仍保持原状：
+  - `IsShuffleCapabilityGatedBackend(...)` 继续负责 x86 gated backend 判定
+  - `LBackends[...]` 继续定义 x86 / non-x86 checklist 覆盖集合
+  - `{$IFNDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}` / `{$IFNDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}` 继续决定 native wide slot 测试是否参与
+- 本轮最小修法已落地：
+  - 删除这 5 个过程各自的局部 `BackendName(...)`
+  - 所有断言消息统一改走 `DispatchApiBackendName(LBackend)`
+  - 文件级 `NonX86BackendName(...)` 先不动，留给后续 non-x86 parity 批次单独审查
+- 改完后做了精确复核：
+  - `rg -n "function BackendName\\(|function NonX86BackendName\\(|DispatchApiBackendName\\(" tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+  - 结果显示：当前这个文件已不再有局部 `function BackendName(...)`，只剩文件级 `DispatchApiBackendName(...)` 与 `NonX86BackendName(...)`
+- 本轮 release 验证链已完整通过：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 这轮还额外看到与本批非常相关的门禁继续保持稳定：
+  - `DISPATCH_READ_SCOPE ... forbidden_hits=0`
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=475 status=ok`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=20 issues=0 status=ok`
+  - `WIRING_SYNC_SUMMARY legacy=60 grouped=60 helper=60 missing=0 extra=0 ...`
+  - `Run-all summary: Passed 5 / Failed 0`
+  - `[GATE] OK`
+- 当前这一批收口后，`dispatchapi.testcase` 的 procedure-local backend 名称表已经清零。
+- 下一个合理切入点已经变成：
+  - 文件级 `NonX86BackendName(...)`
+  - 以及它所服务的 `TTestCase_NonX86BackendParity` 那一组 non-x86 消息壳是否还能进一步下沉到 canonical metadata

@@ -2847,3 +2847,22 @@
 
 - `dispatchapi.testcase` 里剩余局部 `BackendName(...)` 还在约 `10613/10788/10821/10925/10962` 一簇；适合下一批继续做。
 - 文件级 `NonX86BackendName(...)` 仍保留，涉及 non-x86 测试消息面，放到后续 non-x86 小批次单独处理更稳。
+
+## 2026-05-15 DispatchAPI Canonical Backend Name Reuse Batch 2
+
+### Goal
+
+继续沿 `dispatchapi.testcase` 的同一条线收尾，把上一批标记出来的下一簇局部 `BackendName(...)` 一次性收掉：覆盖 `x86 shuffle capability`、`x86 grouped wiring checklist`、`non-x86 grouped wiring checklist`、`non-x86 wiring checklist` 与 `non-x86 native wide floor/ceil slot` 这 5 个过程，但仍然只收“断言消息用的 backend 名称源”，不碰 backend gating / asm enable / non-x86 opt-in 判定。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核下一簇局部 `BackendName(...)` 的真实职责 | completed | 已确认 `Test_X86_BackendCapabilities_Clear_Shuffle_When_VectorAsmDisabled`、`Test_NonX86_DispatchTable_WiringChecklist_Grouped`、`Test_X86_DispatchTable_WiringChecklist_Grouped`、`Test_NonX86_DispatchTable_WiringChecklist`、`Test_NonX86_NativeWideFloorCeil_Slots_NotScalar_IfAvailable` 中的局部 `BackendName(...)` 都只参与断言消息拼接；真正的 backend 归类仍由 `IsShuffleCapabilityGatedBackend(...)`、`LBackends[...]`、`{$IFNDEF FAFAFA_SIMD_TEST_*}` 等边界控制 |
+| 2. 收敛到文件级 canonical name helper | completed | 已删除这 5 个过程各自的局部 `BackendName(...)`，全部统一改用 `DispatchApiBackendName(...)`；这让 `dispatchapi.testcase` 不再残留 procedure-local backend 名称表 |
+| 3. Release 验证与本批收口 | completed | `git diff --check`、Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全部通过；`wiring-sync`、`dispatch-read-scope`、`nonx86 helper semantics`、`nonx86 key-slot audit` 也继续为绿 |
+
+### Next Slice
+
+- 当前 `dispatchapi.testcase` 已不再有局部 `BackendName(...)`。
+- 剩余明确的名字 helper 是文件级 `NonX86BackendName(...)`；它服务 `TTestCase_NonX86BackendParity` 等 non-x86 测试消息面，更适合作为后续 non-x86 专项小批次处理。

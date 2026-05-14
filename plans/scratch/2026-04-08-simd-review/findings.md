@@ -3632,3 +3632,29 @@
   - `10925`
   - `10962`
 - 另有文件级 `NonX86BackendName(...)` 继续服务 non-x86 测试消息面；它不适合和这次 x86/capability 小批次混做，后续应单开 non-x86 批次再收。
+
+## 2026-05-15 DispatchAPI Canonical Backend Name Reuse Batch 2 Findings
+
+- 上一批留下的下一簇局部 `BackendName(...)` 已继续复核清楚，分别落在：
+  - `Test_X86_BackendCapabilities_Clear_Shuffle_When_VectorAsmDisabled`
+  - `Test_NonX86_DispatchTable_WiringChecklist_Grouped`
+  - `Test_X86_DispatchTable_WiringChecklist_Grouped`
+  - `Test_NonX86_DispatchTable_WiringChecklist`
+  - `Test_NonX86_NativeWideFloorCeil_Slots_NotScalar_IfAvailable`
+- 这 5 个过程虽然覆盖面比上一批更杂，但局部 `BackendName(...)` 的职责依然很纯：
+  - 只给 `AssertEquals/AssertTrue/AssertFalse` 提供 backend 名称
+  - 不参与 `x86 shuffle` capability gating
+  - 不参与 `non-x86 asm compiled` 的 `{$IFNDEF ...}` 选择
+  - 不参与 `LBackends[...]` 的 backend 集合定义
+- 这意味着它们仍然属于“消息真相源冗余”，而不是“测试语义真相源冗余”。
+- 其中最容易混淆的一点是 non-x86 两个 checklist / parity 过程：
+  - `dispatchapi.testcase` 里的这批局部 `BackendName(...)` 和后面文件级 `NonX86BackendName(...)` 作用域不同
+  - 前者只是 procedure-local 副本，可以安全收掉
+  - 后者仍被 `TTestCase_NonX86BackendParity` 等另一组测试共享使用，适合后续单独批次处理
+- 本批收完后，`dispatchapi.testcase` 已经不再有局部 `BackendName(...)`。
+- 当前在这个文件里剩下的明确名称 helper 只剩：
+  - 文件级 `DispatchApiBackendName(...)`，它现在是统一的 canonical 薄封装
+  - 文件级 `NonX86BackendName(...)`，它仍服务 non-x86 parity / slot 断言消息面
+- 因而下一步的优先级已经更清楚了：
+  - 不再需要继续在 `dispatchapi.testcase` 里扫 procedure-local `BackendName(...)`
+  - 下一批应转向 `NonX86BackendName(...)` 是否也能安全下沉到 canonical metadata，前提是先核清它所在的 `TTestCase_NonX86BackendParity` 族是否没有额外的 label policy 语义
