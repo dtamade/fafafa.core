@@ -2504,3 +2504,17 @@
 | 1. 复核 `TSimdStatefulTestCase` 与公共基类的差异 | completed | 已确认 `TSimdStatefulTestCase.SetUp/TearDown` 只是保存/恢复 `FSavedVectorAsm`，与 `TSimdVectorAsmStatefulTestCase` 完全同构；真正 suite-specific 的只剩 `RestoreSimdLocalState(...)` 这个带断言的本地 helper |
 | 2. 对齐到公共 `vector-asm stateful` 基类 | completed | `TSimdStatefulTestCase` 已改继承 `TSimdVectorAsmStatefulTestCase`，删除本地 `FSavedVectorAsm` 字段与重复 `SetUp/TearDown`；`RestoreSimdLocalState(...)` 与所有并发 suite 的调用点保持不变 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_SimdConcurrent,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`、Release `check`、Release `gate` 全绿；本轮仍按串行验证，避免共享输出目录假红 |
+
+## 2026-05-14 DispatchAPI Fixture Base Alignment
+
+### Goal
+
+继续加强 `simd` 测试层审查并修复，但这次只处理 `dispatchapi.testcase` 里仍复制的一层 `backend + vector-asm` fixture 生命周期，把它对齐到现成的 `TSimdVectorAsmStatefulTestCase`，保留 `RestoreDispatchApiLocalState(...)` 这种 suite-specific 的中途恢复断言 helper，不改任何 Dispatch API 被测逻辑。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `TDispatchAPIStatefulTestCase` 的本地语义边界 | completed | 已确认它的 `SetUp/TearDown` 与刚收掉的 `TSimdStatefulTestCase` 同型：仅保存/恢复 `FSavedVectorAsm`；真正 suite-specific 的只剩 `RestoreDispatchApiLocalState(...)` 对 backend restore 成功的断言 |
+| 2. 对齐到公共 `vector-asm stateful` 基类 | completed | `TDispatchAPIStatefulTestCase` 已改继承 `TSimdVectorAsmStatefulTestCase`，删除本地 `FSavedVectorAsm` 字段与重复 `SetUp/TearDown`；所有 `RestoreDispatchApiLocalState(...)` 调用点保持不变 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿；本轮同样按串行验证收口 |

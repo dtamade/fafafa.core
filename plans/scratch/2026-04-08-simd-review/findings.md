@@ -3182,3 +3182,18 @@
 - 这也给下一轮 completion audit 一个更明确的筛选规则：
   - 如果某个 suite 的 `SetUp/TearDown` 只是在保存/恢复 `backend`、`vector-asm`、`scalar` 这些公共状态，那优先怀疑它应该对齐现有基类
   - 只有当本地 helper 还附加 rebind、hook reset、per-test backend choreography、exception-mask 等额外语义时，才值得继续保留自定义 fixture
+
+## 2026-05-14 DispatchAPI Fixture Base Alignment Findings
+
+- `dispatchapi.testcase` 进一步坐实了一个模式：
+  - 当前剩余的 test-layer 冗余已经越来越像“suite-local lifecycle 壳没挂回公共基类”
+  - 而不是“还缺新的共享 helper”
+- `TDispatchAPIStatefulTestCase` 的本地 `FSavedVectorAsm + SetUp/TearDown` 与公共 `TSimdVectorAsmStatefulTestCase` 完全同构；保留价值只落在 `RestoreDispatchApiLocalState(...)` 上，因为它承载 suite-specific 的 backend-restore 断言。
+- 这类点一旦对齐，收益不只是少代码：
+  - fixture 语义会更一致
+  - 以后公共 `vector-asm` 生命周期如果再补断言或收口策略，`dispatchapi` 不会继续漂在旧壳上
+  - completion audit 更容易把真正“有必要保留本地 fixture”的 suite 和历史残留区分开
+- 目前已经可以把剩余候选按更清晰的风险等级分组：
+  - 低风险继续清理：仅复制公共 lifecycle、但仍保留 suite-specific restore helper 的基类壳
+  - 中风险暂缓：还附带 hook reset、rebind、FPU mask、per-test backend choreography 的本地 fixture
+  - 高风险暂缓：直接嵌在 `ieee754` 等语义敏感 suite 里的 backend/vector-asm 切换流程

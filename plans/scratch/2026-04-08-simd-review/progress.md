@@ -3376,3 +3376,30 @@
   - 结果：全部通过
 - 这轮也再次验证了一个判断：
   - 当前 `tests/fafafa.core.simd` 里最值得继续清的，已经不再是大块逻辑重复，而是这种“共享 fixture 基类已经存在，但个别 suite 还保留旧生命周期壳”的尾部残点。
+
+## 2026-05-14 DispatchAPI Fixture Base Alignment
+
+- 顺着同一条 `FSavedVectorAsm` 线继续扫，`dispatchapi.testcase` 里又出现了几乎同构的一层基类壳：
+  - `TDispatchAPIStatefulTestCase` 仍继承 `TSimdBackendStatefulTestCase`
+  - 本地再保存一份 `FSavedVectorAsm`
+  - `SetUp/TearDown` 只做 `IsVectorAsmEnabled` 的保存/恢复
+  - 但 suite-specific 的真正语义只在 `RestoreDispatchApiLocalState(...)`
+- 复核后确认这个点和 `concurrent` 的边界一致：
+  - 公共 fixture 生命周期可以交给 `TSimdVectorAsmStatefulTestCase`
+  - `RestoreDispatchApiLocalState(...)` 继续保留，负责测试中途恢复时的 backend-restore 断言
+  - 不需要也不应该去动 `DispatchHook*`、public smoke、non-x86 audit、wide family parity 等被测逻辑
+- 本轮最小修法已落地：
+  - `TDispatchAPIStatefulTestCase` 改继承 `TSimdVectorAsmStatefulTestCase`
+  - 删除本地 `FSavedVectorAsm`
+  - 删除重复 `SetUp/TearDown`
+  - 保留 `RestoreDispatchApiLocalState(...)` 与所有调用点不变
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 到这里可以更明确地说：
+  - `TSimdVectorAsmStatefulTestCase` 现在已经不仅服务 `dataplane/sse2contracts`
+  - 它也接住了 `concurrent` 和 `dispatchapi` 这两块更重的测试入口
+  - 后续如果再看 `publicabi/direct/ieee754`，就可以用更严格的标准判断它们剩下的本地 fixture 是否真的还有额外语义

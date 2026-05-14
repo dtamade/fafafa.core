@@ -61,13 +61,10 @@ uses
 
 type
 
-  TDispatchAPIStatefulTestCase = class(TSimdBackendStatefulTestCase)
+  TDispatchAPIStatefulTestCase = class(TSimdVectorAsmStatefulTestCase)
   protected
-    FSavedVectorAsm: Boolean;
     procedure RestoreDispatchApiLocalState(aOriginalVectorAsm: Boolean;
       aOriginalBackend: TSimdBackend);
-    procedure SetUp; override;
-    procedure TearDown; override;
   end;
 
   // Dispatch public API contract tests
@@ -266,21 +263,6 @@ begin
     aOriginalVectorAsm, aOriginalBackend);
   AssertTrue('Dispatch API fixture should restore previous backend selection',
     LRestoredBackend and (GetCurrentBackend = aOriginalBackend));
-end;
-
-procedure TDispatchAPIStatefulTestCase.SetUp;
-begin
-  inherited SetUp;
-  FSavedVectorAsm := IsVectorAsmEnabled;
-end;
-
-procedure TDispatchAPIStatefulTestCase.TearDown;
-begin
-  SetVectorAsmEnabled(FSavedVectorAsm);
-  inherited TearDown;
-
-  AssertTrue('Dispatch API fixture should restore previous vector asm state',
-    IsVectorAsmEnabled = FSavedVectorAsm);
 end;
 
 var
