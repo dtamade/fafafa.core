@@ -2368,3 +2368,12 @@
   - `TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`
   - `filtered run_all check chain`
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`；`publicabi.testcase` 后段仍有几处带额外语义的复杂 finally，可作为下一批继续深审入口。
+
+- 随后继续在同一文件做第二次收口，把剩余的 simple exact-pattern 外层 finally 也统一切到 `RestorePublicAbiLocalState`，覆盖了 `DataPlane_Parity`、后段 `SetVectorAsmEnabled_*`、`RegisterBackend_*` 和几条带 table-capture 清理的 restore-path 测试。
+- 第二次修改后的复验链也已重新串行跑完：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 这一轮之后，`publicabi.testcase` 里简单两行式的 `LOldVectorAsm + ResetToAutomaticBackend` 外层 finally 已清空；下一批若继续沿 public ABI 深审，应只剩那些夹杂额外 hook/restore 语义的复杂块需要逐段审读。

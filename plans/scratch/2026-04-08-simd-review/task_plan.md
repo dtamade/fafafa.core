@@ -1925,5 +1925,5 @@
 | Phase | Status | Notes |
 | --- | --- | --- |
 | 1. 复核 `publicabi.testcase` 的类级与局部恢复模式 | completed | 已确认文件虽有 `SetUp/TearDown` 保存 `FSavedVectorAsm/FSavedBackend`，但仍残留大量外层 `finally` 只恢复 `LOldVectorAsm` 并 `ResetToAutomaticBackend`，没有复用类级保存状态 |
-| 2. 提取 local restore helper 并替换第一批同构 finally | completed | 在 `TTestCase_PublicAbi` 提取 `RestorePublicAbiLocalState`，统一恢复 `vector asm + backend`；已替换 `VectorAsmRoundTrip`、`ActiveBackendId/StableState`、`FailedHookMutation`、`RollbackRestore`、以及一批 `HookLateForce/AutomaticReset` 路径的外层 exact-pattern finally |
+| 2. 提取 local restore helper 并替换同构 finally | completed | 在 `TTestCase_PublicAbi` 提取 `RestorePublicAbiLocalState`，统一恢复 `vector asm + backend`；已覆盖 `VectorAsmRoundTrip`、`ActiveBackendId/StableState`、`FailedHookMutation`、`RollbackRestore`、以及 `HookLateForce/AutomaticReset/RegisterBackend/DataPlaneParity` 路径里剩余的 simple exact-pattern 外层 finally |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |

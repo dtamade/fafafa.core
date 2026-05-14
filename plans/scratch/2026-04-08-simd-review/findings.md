@@ -2132,6 +2132,11 @@
   - `FailedHookMutation*`
   - `RollbackRestore*`
   - 一批 `HookLateForce/AutomaticReset` 路径
+- 继续第二次同文件收口后，`publicabi.testcase` 里剩余的 simple exact-pattern 外层 finally 也已清掉，补到了：
+  - `DataPlane_Parity`
+  - 后段 `SetVectorAsmEnabled_*`
+  - `RegisterBackend_*`
+  - 几个带 `LRequestedTableCaptured/LPreviousTableCaptured` 的 restore-path 测试
 - 这批刻意没有一次性全扫完 `publicabi.testcase`：
   - 文件后段仍有几处更复杂的 finally，不只是两行 exact pattern
   - 这些块常常还夹着额外 hook/table/vector-asm 语义，下一批应逐段读证据后再收

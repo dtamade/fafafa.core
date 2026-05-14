@@ -1025,8 +1025,7 @@ begin
     if GetCurrentBackend <> LOriginalBackend then
       AssertTrue('Restoring original active backend should succeed after data-plane rebind test',
         RestoreOriginalActiveBackend(LOriginalBackend));
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2604,8 +2603,7 @@ begin
   finally
     if LRequestedTableCaptured then
       RegisterBackend(LRequestedBackend, LRequestedOriginalTable);
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2760,8 +2758,7 @@ begin
     GPublicAbiHookRollbackForceSuccessStage := 0;
     GPublicAbiHookRollbackForceSuccessEnabled := False;
     GPublicAbiHookRollbackForceSuccessInMutation := False;
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2845,8 +2842,7 @@ begin
   finally
     if LRequestedTableCaptured then
       RegisterBackend(LRequestedBackend, LRequestedOriginalTable);
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2926,8 +2922,7 @@ begin
   finally
     if LRequestedTableCaptured then
       RegisterBackend(LRequestedBackend, LOriginalTable);
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3007,8 +3002,7 @@ begin
   finally
     if LRequestedTableCaptured then
       RegisterBackend(LRequestedBackend, LOriginalTable);
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3102,8 +3096,7 @@ begin
   finally
     if LRequestedTableCaptured then
       RegisterBackend(LRequestedBackend, LRequestedOriginalTable);
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3498,8 +3491,7 @@ begin
     AssertEquals('Public API should preserve the previously forced backend after vector-asm re-enable even if a late hook resets to automatic during restore callback',
       Ord(LPreviousForcedBackend), Integer(LApi^.ActiveBackendId));
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3566,8 +3558,7 @@ begin
     AssertTrue('Public ABI vector-asm restore-callback late-force path should not remain stuck on scalar after re-enable',
       Integer(LApi^.ActiveBackendId) <> Ord(sbScalar));
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3616,8 +3607,7 @@ begin
       GPublicAbiHookReForceBackendTarget := sbScalar;
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3689,8 +3679,7 @@ begin
   finally
     if LPreviousTableCaptured then
       RegisterBackend(LPreviousForcedBackend, LPreviousOriginalTable);
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -3766,8 +3755,7 @@ begin
   finally
     if LPreviousTableCaptured then
       RegisterBackend(LPreviousForcedBackend, LPreviousOriginalTable);
-    SetVectorAsmEnabled(LOldVectorAsm);
-    ResetToAutomaticBackend;
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
