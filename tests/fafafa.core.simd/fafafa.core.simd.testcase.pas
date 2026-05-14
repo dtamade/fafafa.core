@@ -36,6 +36,7 @@ uses
 
 function RestoreSavedBackendAndVectorAsmState(aOriginalVectorAsm: Boolean;
   aOriginalBackend: TSimdBackend): Boolean;
+function RestoreSavedBackendState(aOriginalBackend: TSimdBackend): Boolean;
 
 type
   TSimdBackendStatefulTestCase = class(TTestCase)
@@ -684,6 +685,11 @@ function RestoreSavedBackendAndVectorAsmState(aOriginalVectorAsm: Boolean;
   aOriginalBackend: TSimdBackend): Boolean;
 begin
   SetVectorAsmEnabled(aOriginalVectorAsm);
+  Result := RestoreSavedBackendState(aOriginalBackend);
+end;
+
+function RestoreSavedBackendState(aOriginalBackend: TSimdBackend): Boolean;
+begin
   ResetToAutomaticBackend;
   if GetCurrentBackend = aOriginalBackend then
     Exit(True);
@@ -1716,11 +1722,7 @@ end;
 
 function RestoreBackendVectorConsistencyLocalState(aOriginalBackend: TSimdBackend): Boolean;
 begin
-  ResetToAutomaticBackend;
-  if GetCurrentBackend = aOriginalBackend then
-    Exit(True);
-
-  Result := TrySetActiveBackend(aOriginalBackend) and
+  Result := RestoreSavedBackendState(aOriginalBackend) and
     (GetCurrentBackend = aOriginalBackend);
 end;
 

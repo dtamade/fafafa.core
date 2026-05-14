@@ -2972,3 +2972,26 @@
   - 未来若需要调整 restore 契约，只需改公共 testcase helper，不必再跨多个 suite 同步复制体
   - 同时又没有把 suite 专属断言、hook rollback 或 IEEE754 语义包装抹平
 - Release `check` 与 Release `gate` 全绿，说明这批仍然只是测试 helper 层去冗余，没有改变 `DataPlane / PublicAbi / DispatchAPI / Concurrent / IEEE754` 的被测行为。
+
+## 2026-05-14 Backend-Only Restore Helper Consolidation Findings
+
+- 继续往下复扫后，`simd` 测试层剩余 restore helper 可以明显分成两类：
+  - backend-only restore
+  - control-plane aware restore
+- `runtime.testcase` 属于第二类，而不是遗漏的普通样板：
+  - 它在 finally 里根据 `original backend` 与 `best dispatchable backend` 的关系，决定是 `ResetCurrentBackendSelection` 还是 `TrySetCurrentBackend(...)`
+  - 这不是单纯恢复 backend 值，而是在保留“automatic vs forced”这层 control-plane 语义
+  - 因此当前把它留在本地是对的，不能为了去重硬套通用 restore helper
+- 真正还能继续统一的是 backend-only restore 这层：
+  - `RestoreBackendVectorConsistencyLocalState(...)`
+  - `dispatchslots` 里的 `RestoreDispatchSlotsLocalState(...)`
+  - 它们都共享同一段 `ResetToAutomaticBackend -> TrySetActiveBackend(...)` 主体
+- 这轮最稳的抽象点因此是新加一个 backend-only 公共 helper，而不是继续拉高 testcase 基类：
+  - `RestoreSavedBackendState(aOriginalBackend): Boolean`
+  - `RestoreSavedBackendAndVectorAsmState(...)` 也顺势复用它
+  - `dispatchslots` 保留本地壳，继续追加 `GetActiveBackend = aOriginalBackend`，这样 raw dispatch 语义仍然显式可见
+- 这批修法的价值在于：
+  - restore helper 的统一不再只覆盖 `vector-asm + backend` 组合态，也开始覆盖 backend-only 这条线
+  - 同时把 `runtime` 这种“看起来像 restore，实际上是 control-plane 语义测试”的文件明确排除出当前去重目标，减少后续误动风险
+  - 下一轮若继续深挖，最值得评估的是 `backend.consistency.testcase` 的 standalone helper 是否还能在不制造单元循环的前提下继续减薄
+- Release `TTestCase_DispatchAllSlots,TTestCase_BackendVectorConsistency`、Release `check`、Release `gate` 全绿，说明这批仍然只是测试 helper 层去冗余，没有改变 dispatch slot 或 backend consistency 的被测语义。

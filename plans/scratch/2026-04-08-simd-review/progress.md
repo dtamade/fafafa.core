@@ -1592,6 +1592,33 @@
   - 这一轮把最稳定的一批 restore 体成功上提后，后续再深挖时，更值得扫的是 `runtime` / `backend.consistency` 这类还没纳入统一 helper 策略的零散残点
   - `search_context` 在这组超窄查询上连续超时两次，因此这轮直接以 worktree 真实 diff 和 release gate 证据为准，没有再把收口卡在工具可用性上
 
+- 我又继续往下扫了一层，这次先把候选分成了两类：
+  - `runtime.testcase`
+  - backend-only restore helper 残点
+- 只读复核后确认：
+  - `runtime.testcase` 的 finally 不只是“把 backend 值改回去”
+  - 它还在区分“原本是 automatic best backend”还是“原本是 forced backend”
+  - 因此它更像 control-plane 语义测试，不能为了去重直接替换成普通 restore helper
+  - 真正还能继续统一的是 `dispatchslots` 与 `TTestCase_BackendVectorConsistency` 里那段 backend-only 恢复体
+- 本轮最小修法因此是：
+  - 在 `tests/fafafa.core.simd/fafafa.core.simd.testcase.pas` 新增
+    - `RestoreSavedBackendState(aOriginalBackend): Boolean`
+  - 让现有 `RestoreSavedBackendAndVectorAsmState(...)` 复用这条 backend-only helper
+  - `RestoreBackendVectorConsistencyLocalState(...)` 改成薄转发
+  - `dispatchslots` 的 `RestoreDispatchSlotsLocalState(...)` 也改成薄转发，但额外保留
+    - `GetActiveBackend = aOriginalBackend`
+    这层 raw dispatch 语义校验
+- 这轮 Release 收口证据：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAllSlots,TTestCase_BackendVectorConsistency`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断继续更新：
+  - `simd` 测试层的 restore helper 去重现在已经覆盖了两层：`vector-asm + backend` 和 backend-only
+  - `runtime.testcase` 这条线当前被归类为“有意保留的 control-plane restore”，不是遗漏
+  - 如果下一轮还继续深挖，更值得复核的是 `backend.consistency.testcase` 这份 standalone helper 是否还能在不引入单元循环的前提下继续减薄
+
 ## 2026-05-14 Fixture Backend Restore Symmetry
 
 - 这轮没有回头去刷 `UnsignedVectorTypes` / `RustStyleAliases` / `Memutils`，也没有机械给 `PublicAbi`、`SSE2Contracts`、`dataplane`、`concurrent` 套 `sbScalar`。

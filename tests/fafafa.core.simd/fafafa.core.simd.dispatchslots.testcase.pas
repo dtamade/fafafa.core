@@ -35,11 +35,8 @@ implementation
 
 function RestoreDispatchSlotsLocalState(aOriginalBackend: TSimdBackend): Boolean;
 begin
-  ResetToAutomaticBackend;
-  if GetActiveBackend = aOriginalBackend then
-    Exit(True);
-
-  Result := TrySetActiveBackend(aOriginalBackend);
+  Result := RestoreSavedBackendState(aOriginalBackend) and
+    (GetActiveBackend = aOriginalBackend);
 end;
 
 procedure TTestCase_DispatchAllSlots.AssertAllDispatchSlotsAssigned(const aBackend: TSimdBackend; const aDispatch: PSimdDispatchTable);

@@ -2375,3 +2375,17 @@
 | 1. 复核 restore helper 的同构范围与保留边界 | completed | 已确认 `dataplane`、`publicabi`、`dispatchapi`、`concurrent`、`ieee754` 都还保留同构的 `SetVectorAsmEnabled -> ResetToAutomaticBackend -> TrySetActiveBackend` 恢复体；但各文件在调用点周围的断言、hook rollback 或数值测试编排仍是 testcase 专属，不能一并抹平 |
 | 2. 把共享 restore 体上提到公共 testcase 单元 | completed | `fafafa.core.simd.testcase.pas` 已新增 `RestoreSavedBackendAndVectorAsmState(...)`；`RestoreDataPlaneLocalState(...)`、`RestoreIEEE754LocalState(...)`、`TTestCase_PublicAbi.RestorePublicAbiLocalState(...)`、`TDispatchAPIStatefulTestCase.RestoreDispatchApiLocalState(...)`、`TSimdStatefulTestCase.RestoreSimdLocalState(...)` 现都只保留各自 suite 的断言壳或薄转发 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、此前已跑绿的 focused suites 继续成立；本轮 closeout 重新串行跑过 Release `check` 与 Release `gate`，全部通过；提交前仍需清理可能回流的 `tests/fafafa.core.simd/__pycache__/` |
+
+## 2026-05-14 Backend-Only Restore Helper Consolidation
+
+### Goal
+
+继续沿 restore helper 去重往下收，但这次只处理 backend-only 的恢复体：把 `dispatchslots` 与 `backend vector consistency` 仍重复的 `ResetToAutomaticBackend -> TrySetActiveBackend` 公共部分收回 testcase 公共 helper，同时保留 `dispatchslots` 的 `GetActiveBackend` 语义断言壳不变。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `runtime` 与 backend-only 候选的语义边界 | completed | 已确认 `runtime.testcase` 的 finally 不只是恢复 backend 值，还在保“自动选择 vs 强制后端”的 control-plane 语义，因此这轮不动；真正可继续统一的是 `dispatchslots` 与 `TTestCase_BackendVectorConsistency` 的 backend-only local restore |
+| 2. 把 backend-only restore 体上提到公共 testcase helper | completed | `fafafa.core.simd.testcase.pas` 已新增 `RestoreSavedBackendState(...)`；`RestoreSavedBackendAndVectorAsmState(...)` 复用它；`RestoreBackendVectorConsistencyLocalState(...)` 与 `dispatchslots` 的 `RestoreDispatchSlotsLocalState(...)` 现改成薄转发，其中 `dispatchslots` 继续追加 `GetActiveBackend = aOriginalBackend` 的 raw dispatch 语义校验 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAllSlots,TTestCase_BackendVectorConsistency`、Release `check`、Release `gate` 全绿；提交前仍需清理可能回流的 `tests/fafafa.core.simd/__pycache__/` |
