@@ -2038,3 +2038,41 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+## 2026-05-14 VecI32x8 Family Scalarization
+
+- 继续筛剩余候选时，这一轮仍然没有去碰：
+  - `UnsignedVectorTypes` / `RustStyleAliases`
+  - `Memutils`
+  - `dispatch/dataplane/publicabi/runtime/concurrent`
+  - `PublicAbi` / `SSE2Contracts`
+- 原因继续保持明确：
+  - 前三类主要是 typedef/layout/alias/tooling contract，或控制面/并发面
+  - `PublicAbi` 是 published ABI/control-plane suite
+  - `SSE2Contracts` 是 backend-owned / scalar-parity contract，不应机械套进 `sbScalar`
+- 交叉核对后，当前更高价值的缺口落在 `TTestCase_VecI32x8`：
+  - 它是独立的 public 256-bit family suite，覆盖：
+    - `Add/Sub/Mul/Neg`
+    - `And/Or/Xor/Not/AndNot`
+    - `ShiftLeft/ShiftRight`
+    - `CmpEq/Lt/Gt/Le/Ge/Ne`
+    - `Min/Max`
+    - `Splat/Zero/LoadStore/SizeOf`
+    - overflow / max-min 边界
+  - 其 `SetUp/TearDown` 原本仍写成“确保默认后端”，没有固定 backend 语义
+- 复核 testcase 形状后，没有发现任何一条测试显式依赖“自动 backend 选择”：
+  - 它们断言的是公开 `VecI32x8` façade 的结果 contract
+  - 没有断言 backend 文本、自动降级、dispatch path 或 runtime snapshot
+  - 这也让它和已经 scalarized 的 `VecU32x8` / `VecF32x8` / `VecF64x4` 形成一致口径
+- 本轮最小改动保持很窄：
+  - 不新增 suite
+  - 不修改 runner manifest
+  - 只补 `fafafa.core.simd.base` 依赖
+  - 只在 `fafafa.core.simd.veci32x8.testcase.pas` 的 `SetUp/TearDown` 中加入 `ForceBackend(sbScalar)` / `ResetBackendSelection`
+- Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_VecI32x8`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

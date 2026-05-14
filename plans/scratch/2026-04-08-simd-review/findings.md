@@ -1805,3 +1805,32 @@
   - 不新增 suite，也不改 runner manifest
   - 只补 `ForceBackend(sbScalar)` / `ResetBackendSelection`
 - Release `TTestCase_EdgeCases`、Release `check`、串行 Release `gate` 全绿，说明这批补的是边界 contract 的 scalar-direct evidence gap，而不是 edgecase 实现缺陷。
+
+## 2026-05-14 VecI32x8 Family Scalarization Findings
+
+- `TTestCase_VecI32x8` 是独立的 public 256-bit family suite，不是控制面或别名层测试：
+  - `Add/Sub/Mul/Neg`
+  - `And/Or/Xor/Not/AndNot`
+  - `ShiftLeft/ShiftRight`
+  - `CmpEq/Lt/Gt/Le/Ge/Ne`
+  - `Min/Max`
+  - `Splat/Zero/LoadStore/SizeOf`
+  - overflow / max-min 边界
+- 它和已经 fixed-`sbScalar` 的 `VecU32x8` / `VecF32x8` / `VecF64x4` 属于同一类“family-local public contract”：
+  - 前三者已经固定 `sbScalar`
+  - `VecI32x8` 却仍停在 “确保使用默认后端”
+  - 因而当前缺口是证据层口径不一致，不是实现层空缺
+- 在当前剩余候选里，它明显比以下几类更值得优先收口：
+  - `UnsignedVectorTypes` / `RustStyleAliases`：主要是 typedef/layout/alias 断言
+  - `Memutils`：更偏 aligned allocation 工具 contract
+  - `PublicAbi`：published ABI / control-plane suite
+  - `SSE2Contracts`：backend-owned / scalar-parity contract，不应机械改成 public scalar-direct suite
+- 复核 testcase 形状后，没有发现任何一条测试显式依赖默认 backend 自动选择：
+  - 没有断言 backend 名称、dispatch 结果或 runtime snapshot
+  - 没有断言跨 backend parity
+  - 只断言公开 `VecI32x8` façade 的结果 contract
+- 这批最优雅的修复方式仍然不是复制 testcase，而是直接 scalarize 现有 suite：
+  - 不新增 suite，也不改 runner manifest
+  - 补齐 `fafafa.core.simd.base` 依赖
+  - 只补 `ForceBackend(sbScalar)` / `ResetBackendSelection`
+- Release `TTestCase_VecI32x8`、Release `check`、串行 Release `gate` 全绿，说明这批补的是 `VecI32x8` family contract 的 scalar-direct evidence gap，而不是 `VecI32x8` 实现缺陷。

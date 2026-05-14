@@ -12,6 +12,7 @@ interface
 uses
   Classes, SysUtils, fpcunit, testregistry,
   fafafa.core.simd,
+  fafafa.core.simd.base,
   fafafa.core.simd.ops,
   fafafa.core.simd.dispatch;
 
@@ -68,11 +69,14 @@ implementation
 procedure TTestCase_VecI32x8.SetUp;
 begin
   inherited SetUp;
-  // 确保使用默认后端
+  // 强制使用 Scalar 后端以确保测试结果一致
+  ForceBackend(sbScalar);
 end;
 
 procedure TTestCase_VecI32x8.TearDown;
 begin
+  // 恢复自动后端选择
+  ResetBackendSelection;
   inherited TearDown;
 end;
 
