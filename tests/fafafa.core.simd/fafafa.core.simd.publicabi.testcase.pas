@@ -1460,7 +1460,7 @@ begin
         (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) <> 0);
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1522,7 +1522,7 @@ begin
         (LInfo.CapabilityBits and (UInt64(1) shl Ord(scMaskedOps))) <> 0);
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1557,7 +1557,7 @@ begin
     AssertTrue('Public ABI CapabilityBits should expose AVX2 scShuffle when representative shuffle slots are non-scalar',
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) <> 0);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1609,7 +1609,7 @@ begin
         (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) = 0);
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1672,7 +1672,7 @@ begin
         (LInfo.CapabilityBits and (UInt64(1) shl Ord(scIntegerOps))) <> 0);
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1707,7 +1707,7 @@ begin
     AssertTrue('Public ABI CapabilityBits should expose AVX512 scFMA when wide FMA slots are non-scalar',
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scFMA))) <> 0);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1739,7 +1739,7 @@ begin
     AssertTrue('Public ABI CapabilityBits should expose AVX512 scShuffle when wide select slots are non-scalar',
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) <> 0);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1774,7 +1774,7 @@ begin
     AssertTrue('Public ABI CapabilityBits should clear AVX512 sc512BitOps when vector asm is disabled',
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(sc512BitOps))) = 0);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1838,7 +1838,7 @@ begin
         (LInfo.CapabilityBits and (UInt64(1) shl Ord(scMaskedOps))) <> 0);
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1968,7 +1968,7 @@ begin
     AssertTrue('Public ABI CapabilityBits should clear NEON scShuffle when vector asm is disabled',
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) = 0);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2009,7 +2009,7 @@ begin
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scIntegerOps))) = 0);
     {$ENDIF}
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2058,7 +2058,7 @@ begin
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scFMA))) = 0);
     {$ENDIF}
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2099,7 +2099,7 @@ begin
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) = 0);
     {$ENDIF}
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -2131,7 +2131,7 @@ begin
     AssertTrue('Public ABI CapabilityBits should clear RISCVV scShuffle when vector asm is disabled',
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) = 0);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 

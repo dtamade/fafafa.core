@@ -2525,3 +2525,20 @@
   - `publicabi.testcase` 里简单 outer finally 与双恢复尾声都已经大幅收敛
   - 下一批若继续沿 public ABI 深审，应优先逐段看剩余 hook/state-machine 复杂 finally 是否真的存在断言依赖，而不是继续按形状删恢复语句
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+- 继续沿 `publicabi.testcase` 逐段看剩余恢复点后，我确认新的高价值并不在 hook/state-machine 中途 reset，而是在 capability/pod-info 用例那 14 处顶层 pure `SetVectorAsmEnabled(LOldVectorAsm)` outer finally。
+- 这些用例都会通过 `SetVectorAsmEnabled(True/False)` 触发 runtime rebuild 和 active backend 重选，但尾声只恢复 `vector asm`，没有回到类级 `FSavedBackend`；因此它们和前几批 `dispatchapi/publicabi` 的顶层恢复不对称问题是同一类。
+- 本轮因此没有去碰复杂 hook 路径，而是把这 14 处统一切到 `RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend)`，覆盖：
+  - `x86` capability bits 路径
+  - `AVX2/AVX512` capability bits 路径
+  - `NEON/RISCVV` capability bits 路径
+- 本轮 Release 验证继续按串行链完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断再次收紧：
+  - `publicabi.testcase` 顶层 pure `vector asm` outer finally 已清零
+  - 剩余更值得继续查的，只会是确实夹带 hook/rollback/failure 语义的复杂 reset/restore 块，而不是普通 capability/pod-info 尾声样板
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

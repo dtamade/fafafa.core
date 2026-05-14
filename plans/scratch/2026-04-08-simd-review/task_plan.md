@@ -2053,3 +2053,17 @@
 | 1. 复核 `publicabi.testcase` 里剩余 `RestoreOriginalActiveBackend(...)` 的语义归属 | completed | 已逐段确认 9 处命中都属于尾声双恢复：它们后面要么直接 `end;`，要么马上再走 `RestorePublicAbiLocalState(...)`，中间没有新的断言依赖“先恢复回原 backend”的状态；仅 `Test_PublicApi_Table_Refreshes_AfterBackendSwitch` 还需要保留，因为 finally 后仍有断言要求 active backend 追踪恢复后的 backend |
 | 2. 删除双恢复冗余并保留真实依赖点 | completed | 已从 `CachedTable_*`、`Stable_Cdecl_EntryPoints`、`BackendRoundTrip`、`BackendPodInfo_Refreshes`、`ActiveBackendId_*`、`FailedHookMutation_*`、`RollbackRestore_*` 等 9 条路径删去尾声 `RestoreOriginalActiveBackend(...)`；保留唯一真实需要的 `Table_Refreshes_AfterBackendSwitch` 调用点不动 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 PublicAbi Capability Pure Outer Finally Cleanup
+
+### Goal
+
+继续沿 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 深审 capability/pod-info 路径，把那批顶层 pure `SetVectorAsmEnabled(LOldVectorAsm)` outer finally 统一收回 `RestorePublicAbiLocalState(...)`，让这些测试在切换 `vector asm` 触发 backend 重选后，也回到类级保存的 `FSavedVectorAsm/FSavedBackend`，而不是只恢复 `vector asm`。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 capability/pod-info 路径剩余 pure `vector asm` outer finally | completed | 已确认 `publicabi.testcase` 里剩余 14 处顶层裸 `SetVectorAsmEnabled(LOldVectorAsm)` 都集中在 `BackendPodInfo_CapabilityBits_*` 相关用例；这些测试会通过 `SetVectorAsmEnabled(True/False)` 触发 active backend 重选，但尾声只恢复 `vector asm`，没有复用类级保存的 backend |
+| 2. 复用 `RestorePublicAbiLocalState` 收掉顶层纯恢复样板 | completed | 已把这 14 处统一切到 `RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend)`，覆盖 `x86 shuffle/masked/integer`、`AVX2/AVX512`、`NEON`、`RISCVV` capability bits 用例；不触碰 hook/reset 状态机路径与 `src/` 生产实现 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |

@@ -2358,3 +2358,32 @@
   - `publicabi.testcase` 里简单两行式 restore 样板和这批双恢复尾声已经基本收完
   - 下一批若继续沿 public ABI 深审，重点应转向还夹带 hook/state-machine 语义、且确实需要逐段判断断言依赖的复杂 finally
 - Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿，说明这批删掉的确实只是 public ABI 测试层尾声冗余，而不是 public ABI / dataplane / dispatch 生产语义依赖。
+
+## 2026-05-14 PublicAbi Capability Pure Outer Finally Cleanup Findings
+
+- 在上一批双恢复清理之后，`publicabi.testcase` 里剩余最整齐的一簇 restore contract 缺口，转成了 capability/pod-info 用例的顶层 pure `vector asm` outer finally：
+  - `finally`
+  - `SetVectorAsmEnabled(LOldVectorAsm);`
+  - `end;`
+- 这类写法看起来比 `ResetToAutomaticBackend` 温和，但本质问题相同：
+  - 测试过程中会显式 `SetVectorAsmEnabled(True/False)`
+  - 这些切换本身可能触发 active backend 重选
+  - 末尾只恢复 `vector asm`，却没有回到类级 fixture 已保存的 `FSavedBackend`
+- 逐段确认后，这批可安全统一的命中共 14 处，全部位于 `BackendPodInfo_CapabilityBits_*` 路径，覆盖：
+  - `x86 shuffle / masked ops / always-on integer ops`
+  - `AVX2 shuffle`
+  - `AVX512 FMA / shuffle / vector-asm-gated bits`
+  - `NEON vector-asm-gated bits / integer ops / FMA / shuffle`
+  - `RISCVV integer ops / FMA / shuffle / vector-asm-gated bits`
+- 这些点适合统一收回 helper，而不该继续保留单行恢复，原因是：
+  - 它们都是顶层 test outer finally，不是内层 helper / nested procedure 的局部清理
+  - 没有后续断言依赖“只恢复 `vector asm`、不恢复 backend”的中间态
+  - `TTestCase_PublicAbi` 已经有现成的 `RestorePublicAbiLocalState(aOriginalVectorAsm, aOriginalBackend)`，而且 `TearDown` 本身也复用它
+- 因而本轮最小正确修法仍然不是引入新 helper，而是把这 14 处统一切到：
+  - `RestorePublicAbiLocalState(LOldVectorAsm, FSavedBackend)`
+- 收完之后，`publicabi.testcase` 里顶层裸 `SetVectorAsmEnabled(LOldVectorAsm)` 已经清零；剩余 restore/reset 命中主要是：
+  - helper 本体
+  - 作为前置条件建立 automatic 基线的 reset
+  - hook/state-machine 过程中确实承担断言语义的中途 reset
+- 这也意味着下一批若继续沿 public ABI 深审，已经不适合再做形状扫描；要转成逐段判断复杂 hook/rollback/failure 路径是否真的有“退出前重复 reset/restore”。
+- Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿，说明这批收掉的确实只是 capability/pod-info 测试层恢复 contract 的缺失，而不是 public ABI / runtime rebuild / backend capability 生产行为依赖。
