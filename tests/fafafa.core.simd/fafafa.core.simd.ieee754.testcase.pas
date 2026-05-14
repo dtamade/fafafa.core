@@ -22,6 +22,8 @@ type
   // IEEE 754 F64 (双精度浮点) 特殊值专项测试
   // ============================================================================
   TTestCase_IEEE754_F64 = class(TTestCase)
+  private
+    FSavedExceptionMask: TFPUExceptionMask;
   protected
     procedure SetUp; override;
     procedure TearDown; override;
@@ -55,6 +57,8 @@ type
 
   // IEEE 754 特殊值边界测试 - 全面覆盖 NaN、Infinity、零值、舍入边界
   TTestCase_IEEE754EdgeCases = class(TTestCase)
+  private
+    FSavedExceptionMask: TFPUExceptionMask;
   protected
     procedure SetUp; override;
     procedure TearDown; override;
@@ -99,6 +103,8 @@ type
 
   // AVX2 路径专项：验证 vector-asm 打开时，Round/Trunc 与 Scalar/SSE2 语义一致
   TTestCase_AVX2RoundTruncIEEE754 = class(TTestCase)
+  private
+    FSavedExceptionMask: TFPUExceptionMask;
   protected
     procedure SetUp; override;
     procedure TearDown; override;
@@ -169,6 +175,7 @@ procedure TTestCase_IEEE754_F64.SetUp;
 begin
   inherited SetUp;
   // 禁用 FPU 异常以正确测试 IEEE 754 行为
+  FSavedExceptionMask := GetExceptionMask;
   SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision]);
   // 强制使用 Scalar 后端以确保测试一致性
   SetActiveBackend(sbScalar);
@@ -177,6 +184,7 @@ end;
 procedure TTestCase_IEEE754_F64.TearDown;
 begin
   ResetToAutomaticBackend;
+  SetExceptionMask(FSavedExceptionMask);
   inherited TearDown;
 end;
 
@@ -664,12 +672,14 @@ procedure TTestCase_IEEE754EdgeCases.SetUp;
 begin
   inherited SetUp;
   // 禁用 FPU 异常以正确测试 IEEE 754 行为
+  FSavedExceptionMask := GetExceptionMask;
   SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision]);
 end;
 
 procedure TTestCase_IEEE754EdgeCases.TearDown;
 begin
   ResetToAutomaticBackend;
+  SetExceptionMask(FSavedExceptionMask);
   inherited TearDown;
 end;
 
@@ -1705,12 +1715,14 @@ end;
 procedure TTestCase_AVX2RoundTruncIEEE754.SetUp;
 begin
   inherited SetUp;
+  FSavedExceptionMask := GetExceptionMask;
   SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision]);
 end;
 
 procedure TTestCase_AVX2RoundTruncIEEE754.TearDown;
 begin
   ResetToAutomaticBackend;
+  SetExceptionMask(FSavedExceptionMask);
   inherited TearDown;
 end;
 

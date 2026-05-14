@@ -1834,3 +1834,28 @@
   - 补齐 `fafafa.core.simd.base` 依赖
   - 只补 `ForceBackend(sbScalar)` / `ResetBackendSelection`
 - Release `TTestCase_VecI32x8`、Release `check`、串行 Release `gate` 全绿，说明这批补的是 `VecI32x8` family contract 的 scalar-direct evidence gap，而不是 `VecI32x8` 实现缺陷。
+
+## 2026-05-14 IEEE754 Fixture Mask Restore Findings
+
+- `ieee754.testcase` 当前有一类真实 fixture 泄漏，不是“还没 scalarize”的证据层问题：
+  - `TTestCase_IEEE754_F64.SetUp`
+  - `TTestCase_IEEE754EdgeCases.SetUp`
+  - `TTestCase_AVX2RoundTruncIEEE754.SetUp`
+  - 这三处都会直接 `SetExceptionMask([...])`
+  - 但本轮之前对应 `TearDown` 只做 `ResetToAutomaticBackend`
+  - 原始 FPU exception mask 没有恢复
+- 这和仓库中已有的安全模式明显不一致：
+  - `TTestCase_EdgeCases` 已通过 `FSavedExceptionMask` 成对保存/恢复
+  - `vecf32x8.testcase` 与 `testcase.pas` 多处局部 NaN/Inf 测试也都用 `oldMask/savedMask` 包住 `SetExceptionMask`
+  - 因而这里不是“项目默认就不恢复 mask”，而是 `ieee754.testcase` 的 fixture 缺口
+- `IEEE754EdgeCases` 与 `AVX2RoundTruncIEEE754` 都是 mixed suite：
+  - 内部有 scalar / SSE2 / AVX2 对照
+  - 还有 `TrySetActiveBackend` / `SetActiveBackend` 的显式切换
+  - 所以它们本来就不适合像普通 public façade suite 那样整体 fixed-`sbScalar`
+  - 这也说明本轮最值得修的不是 backend 选择，而是 test fixture 自身的状态恢复
+- 最小正确修复方式是：
+  - 每个相关 suite 各自持有 `FSavedExceptionMask`
+  - `SetUp` 中先 `GetExceptionMask`
+  - `TearDown` 中在 backend reset 后恢复原始 mask
+  - 不改 test body 的 backend 切换语义，不改 mixed suite 设计
+- Release `TTestCase_IEEE754_F64,TTestCase_IEEE754EdgeCases,TTestCase_AVX2RoundTruncIEEE754`、Release `check`、串行 Release `gate` 全绿，说明这批修的是 IEEE754 fixture 生命周期泄漏，而不是 IEEE754 算法/舍入实现缺陷。

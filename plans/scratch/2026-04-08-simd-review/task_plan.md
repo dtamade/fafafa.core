@@ -1758,3 +1758,17 @@
 | 1. 复核 `VecI32x8` 与剩余候选优先级 | completed | 已确认 `TTestCase_VecI32x8` 覆盖的是 `Add/Sub/Mul/Neg`、`And/Or/Xor/Not/AndNot`、`ShiftLeft/ShiftRight`、`CmpEq/Lt/Gt/Le/Ge/Ne`、`Min/Max`、`Splat/Zero/LoadStore/SizeOf` 与 overflow/max-min 边界；相比之下 `UnsignedVectorTypes`、`RustStyleAliases`、`Memutils` 更偏 typedef/layout/alias/tooling 层，而 `PublicAbi`、`SSE2Contracts` 属于控制面或 backend-owned 合同 |
 | 2. 收敛 `VecI32x8` 为 scalar direct suite | completed | 不新开 runner，也不复制 testcase；补齐 `fafafa.core.simd.base` 依赖，并直接给 `TTestCase_VecI32x8` 增加 `ForceBackend(sbScalar)` / `ResetBackendSelection`，把现有 family suite 升级成 fixed-`sbScalar` 的 direct evidence |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_VecI32x8`、Release `check`、串行 Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 IEEE754 Fixture Mask Restore
+
+### Goal
+
+继续加强审查混合型 IEEE754 suites，优先修复真实 fixture 泄漏，而不是继续机械做 scalarization：让 `TTestCase_IEEE754_F64`、`TTestCase_IEEE754EdgeCases` 与 `TTestCase_AVX2RoundTruncIEEE754` 在 `SetUp` 修改 FPU exception mask 后，`TearDown` 必须恢复原始 mask。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `ieee754.testcase` 的真实风险点 | completed | 已确认这三组 suite 都会在 `SetUp` 里 `SetExceptionMask([...])`，但 `TearDown` 只做 `ResetToAutomaticBackend`，没有恢复原始 FPU mask；对比 `EdgeCases` 与多个局部测试的 `savedMask -> SetExceptionMask(savedMask)` 模式，这属于真实测试层状态泄漏 |
+| 2. 修复 FPU mask fixture 泄漏 | completed | 给 `TTestCase_IEEE754_F64`、`TTestCase_IEEE754EdgeCases` 与 `TTestCase_AVX2RoundTruncIEEE754` 各自增加 `FSavedExceptionMask`，在 `SetUp` 里先 `GetExceptionMask` 再改 mask，并在 `TearDown` 里恢复原始 mask，同时保留既有 backend reset 语义不变 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_IEEE754_F64,TTestCase_IEEE754EdgeCases,TTestCase_AVX2RoundTruncIEEE754`、Release `check`、串行 Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |

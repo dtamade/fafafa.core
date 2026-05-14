@@ -2076,3 +2076,36 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+## 2026-05-14 IEEE754 Fixture Mask Restore
+
+- 这轮没有继续机械给 mixed suite 套 `sbScalar`，而是转去复核 `ieee754.testcase` 的真实 fixture 风险。
+- 交叉核对后确认，下面三组 suite 都存在同一类状态泄漏：
+  - `TTestCase_IEEE754_F64`
+  - `TTestCase_IEEE754EdgeCases`
+  - `TTestCase_AVX2RoundTruncIEEE754`
+- 它们在 `SetUp` 里都会执行：
+  - `SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision])`
+- 但在本轮之前，它们的 `TearDown` 只做：
+  - `ResetToAutomaticBackend`
+  - 没有把原始 FPU exception mask 恢复回去
+- 这和仓库里其它已知安全模式不一致：
+  - `TTestCase_EdgeCases` 已经有 `FSavedExceptionMask`
+  - `vecf32x8.testcase` 与 `testcase.pas` 里多处局部异常值测试也都是 `oldMask/savedMask -> SetExceptionMask(oldMask)` 的成对恢复
+- 因而这轮修的是一个真实 fixture bug，而不是证据层口径问题：
+  - 给上述三个 suite 各自增加 `FSavedExceptionMask`
+  - `SetUp` 里先 `GetExceptionMask`
+  - 再 `SetExceptionMask([...])`
+  - `TearDown` 里保留 `ResetToAutomaticBackend`
+  - 再补 `SetExceptionMask(FSavedExceptionMask)`
+- 这轮刻意没有改 mixed suite 的语义设计：
+  - `IEEE754EdgeCases` 里仍然允许单个 test 自己切 `sbScalar/sbSSE2/sbAVX2`
+  - `AVX2RoundTruncIEEE754` 仍然是 AVX2/SSE2/scalar 对照链
+  - 本批只修 fixture 生命周期，不改测试目标
+- Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IEEE754_F64,TTestCase_IEEE754EdgeCases,TTestCase_AVX2RoundTruncIEEE754`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
