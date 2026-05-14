@@ -5647,7 +5647,7 @@ run_gate() {
     return 1
   fi
 
-  echo "[GATE] 3/6 SIMD AVX2 fallback suite"
+  echo "[GATE] 3/6 SIMD AVX2 stable vector suites"
   if ! run_gate_step "simd-avx2-fallback" "suite + leak-check passed" "see ${TEST_LOG}" "${TEST_LOG}" gate_step_simd_avx2_fallback; then
     LGateEndMs="$(now_ms)"
     LGateDurationMs="$(( LGateEndMs - LGateStartMs ))"

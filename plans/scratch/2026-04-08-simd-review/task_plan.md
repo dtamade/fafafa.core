@@ -3054,3 +3054,17 @@
 | 1. 复核 Windows evidence 真正的覆盖缺口 | completed | 已确认当前仓库里的 `tests/fafafa.core.simd/logs/windows_b07_gate.log` 仍是 2026-04-18 的旧 shape，既没有 `BACKEND-OPS / SIMD-BOUNDARY / PUBLIC-SMOKE / DISPATCH-PREINIT`，也还是 `1/7` 步骤文案；但旧 `verify_windows_b07_evidence.sh` 仍会把它判成 `OK`，说明 verifier 对最近接入的 standalone coverage 完全失明 |
 | 2. 收紧 verifier/collector/simulated/rehearsal 到当前合同 | completed | 已更新 `verify_windows_b07_evidence.{sh,bat}`，要求 current gate step shape 与四个 standalone runner 的关键日志标记；同时把 `collect_windows_b07_evidence.bat` 改为在 `1/6` 直接调用 `buildOrTest.bat check`，让 standalone runner 痕迹真实进入 Windows evidence；`simulate_windows_b07_evidence.sh` 与 `rehearse_freeze_status.sh` 里的 PASS 夹具也已同步到新合同；`BuildOrTest.sh` 中守这些文件的 source-safe guard 也全部跟着更新 |
 | 3. 多层验证并记录新的 evidence truth | completed | `git diff --check`、`bash tests/fafafa.core.simd/verify_windows_b07_evidence.sh tests/fafafa.core.simd/logs/windows_b07_gate.log`、`wine cmd /c ...verify_windows_b07_evidence.bat ...windows_b07_gate.log`、合成 PASS log 下 shell/batch verifier 双通过、`bash tests/fafafa.core.simd/rehearse_freeze_status.sh`、Release `gate` 已全部按预期完成；最终行为已变成：旧 Windows log 会被 verifier 判 FAIL，而 Linux `gate` 在 `SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0` 下会诚实降级为 optional evidence `SKIP` 后继续 `OK` |
+
+## 2026-05-15 Gate Label Harmonization
+
+### Goal
+
+再做一次极小的 contract 对齐，消掉 shell `gate` 里残留的 `3/6 SIMD AVX2 fallback suite` 叫法，让它和 batch/evidence/rehearsal 统一成 `3/6 SIMD AVX2 stable vector suites`，避免同一条门禁在不同入口上出现两种口径。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核是否只剩一条 shell 文案漂移 | completed | `rg` 已确认 `tests/fafafa.core.simd/BuildOrTest.sh` 里只有 `echo "[GATE] 3/6 SIMD AVX2 fallback suite"` 还在用旧词，而 batch/evidence/rehearsal 已统一为 `stable vector suites` |
+| 2. 对齐 shell gate label | completed | 已把 shell `gate` 的 `3/6` label 改成 `SIMD AVX2 stable vector suites`，其余 step id / gate 行为保持不变 |
+| 3. 真实 gate 验证 | completed | `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 已再次通过，日志中真实出现新的 `3/6 SIMD AVX2 stable vector suites`，同时旧 `windows_b07_gate.log` 仍会被 evidence verifier 判 FAIL，说明这次只是统一命名，不是放松合同 |

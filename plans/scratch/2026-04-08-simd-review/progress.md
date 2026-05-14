@@ -4486,3 +4486,18 @@
 - 这意味着现在 Windows evidence 终于不再误报“够新够全”：
   - 没有新接入的 standalone coverage，就不该被当成当前证据
   - 旧日志只能作为历史快照，不能再充当现成的 release proof
+
+## 2026-05-15 Gate Label Harmonization
+
+- 我再做了一刀纯 contract 对齐：
+  - shell `BuildOrTest.sh gate` 里原来还留着 `3/6 SIMD AVX2 fallback suite`
+  - batch/evidence/rehearsal 早就已经是 `3/6 SIMD AVX2 stable vector suites`
+- 这次只改了一行 shell 文案，不动 gate 逻辑：
+  - 把 shell 的 `3/6` step label 也统一成 `stable vector suites`
+  - 让 shell/batch/evidence/rehearsal 对同一条门禁说同一种话
+- 再次验证的结果：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 继续 `OK`
+  - gate 日志里已经出现新的 `3/6 SIMD AVX2 stable vector suites`
+  - `verify_windows_b07_evidence.{sh,bat}` 仍然会把旧 `windows_b07_gate.log` 判成 fail
+- 这一步只是收敛命名，不是放松合同：
+  - 同一条 gate 的口径现在更一致了

@@ -3966,3 +3966,19 @@
 - 这批留下的最重要结论是：
   - Windows evidence 的真实含义终于和当前 SIMD daily coverage 对上了
   - 以后如果 evidence 里没有新接入的 standalone runner，脚本会直接说不，不再悄悄放行
+
+## 2026-05-15 Gate Label Harmonization Findings
+
+- 进一步扫尾时，我发现还有一处纯文案漂移：
+  - shell `BuildOrTest.sh gate` 仍写着 `3/6 SIMD AVX2 fallback suite`
+  - batch/evidence/rehearsal 已经统一成 `3/6 SIMD AVX2 stable vector suites`
+- 这不是行为问题，但会让同一条 gate contract 在不同入口上看起来像两条路：
+  - 入口命名不一致会增加后续审查成本
+  - 尤其是在追 Windows evidence 时，label 不统一会让人误以为 gate 语义不同
+- 因而我把 shell 的 `3/6` label 也统一成了 `stable vector suites`
+- 真实验证已经确认：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 继续 `OK`
+  - 日志里出现了新的 `3/6 SIMD AVX2 stable vector suites`
+  - 旧 Windows `windows_b07_gate.log` 仍然会被 evidence verifier fail 掉
+- 这一步的价值是把 contract 口径收紧，而不是放松证据：
+  - 同一条 gate 在 shell/batch/evidence/rehearsal 里终于说同一种话
