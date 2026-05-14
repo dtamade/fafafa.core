@@ -3900,6 +3900,99 @@ check_dispatch_preinit_smoke_runner_guard() {
   echo "[CHECK] OK (dispatch preinit smoke guard present)"
 }
 
+check_daily_standalone_runner_guard() {
+  local LMainShell
+  local LMainBat
+  local LBackendOpsSrc
+  local LSimdBoundarySrc
+  local LPattern
+  local LMissing
+  local -a LShellRequired
+  local -a LBatRequired
+  local -a LBackendOpsRequired
+  local -a LSimdBoundaryRequired
+
+  LMainShell="${ROOT}/BuildOrTest.sh"
+  LMainBat="${ROOT}/buildOrTest.bat"
+  LBackendOpsSrc="${ROOT}/test_backend_ops.pas"
+  LSimdBoundarySrc="${ROOT}/test_simd_boundary.pas"
+  LMissing=0
+
+  for LPattern in "${LMainShell}" "${LMainBat}" "${LBackendOpsSrc}" "${LSimdBoundarySrc}"; do
+    if [[ ! -f "${LPattern}" ]]; then
+      echo "[CHECK] Missing daily standalone target: ${LPattern}"
+      return 1
+    fi
+  done
+
+  LShellRequired=(
+    'BACKEND_OPS_SRC="${ROOT}/test_backend_ops.pas"'
+    'SIMD_BOUNDARY_SRC="${ROOT}/test_simd_boundary.pas"'
+    'backend_ops_output_root() {'
+    'simd_boundary_output_root() {'
+    'run_backend_ops_smoke() {'
+    'run_simd_boundary_smoke() {'
+    'run_backend_ops_smoke || return $?'
+    'run_simd_boundary_smoke || return $?'
+    '    run_backend_ops_smoke'
+    '    run_simd_boundary_smoke'
+  )
+  LBatRequired=(
+    'set "BACKEND_OPS_SRC=%ROOT%test_backend_ops.pas"'
+    'set "SIMD_BOUNDARY_SRC=%ROOT%test_simd_boundary.pas"'
+    'call :run_backend_ops_internal'
+    'call :run_simd_boundary_internal'
+    ':run_backend_ops_internal'
+    ':run_simd_boundary_internal'
+    'set "BACKEND_OPS_OUTPUT_ROOT=%OUTPUT_ROOT%\backend.ops"'
+    'set "SIMD_BOUNDARY_OUTPUT_ROOT=%OUTPUT_ROOT%\simd.boundary"'
+  )
+  LBackendOpsRequired=(
+    'FillScalarOps(ops);'
+    'RegisterBackendOps(sbScalar, ops);'
+    'All tests PASSED!'
+  )
+  LSimdBoundaryRequired=(
+    'SIMD 边界测试 - Rust 级别代码质量验证'
+    'ReduceAdd 含 NaN 产生 NaN'
+    '所有边界测试通过!'
+  )
+
+  for LPattern in "${LShellRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LMainShell}" >/dev/null; then
+      echo "[CHECK] Daily standalone shell guard missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  for LPattern in "${LBatRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LMainBat}" >/dev/null; then
+      echo "[CHECK] Daily standalone batch guard missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  for LPattern in "${LBackendOpsRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LBackendOpsSrc}" >/dev/null; then
+      echo "[CHECK] Backend ops standalone source missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  for LPattern in "${LSimdBoundaryRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LSimdBoundarySrc}" >/dev/null; then
+      echo "[CHECK] SIMD boundary standalone source missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  if [[ "${LMissing}" != "0" ]]; then
+    return 1
+  fi
+
+  echo "[CHECK] OK (daily standalone runner guard present)"
+}
+
 check_linux_evidence_output_isolation() {
   local LEvidenceScript
   local LBenchScript
@@ -4421,6 +4514,7 @@ gate_step_build_check() {
   check_intrinsics_runner_output_isolation || return $?
   check_experimental_intrinsics_output_isolation || return $?
   check_dispatch_preinit_smoke_runner_guard || return $?
+  check_daily_standalone_runner_guard || return $?
   check_linux_evidence_output_isolation || return $?
   check_freeze_status_output_isolation || return $?
   check_cpuinfo_runner_parity || return $?
@@ -6471,6 +6565,7 @@ case "${ACTION}" in
     check_intrinsics_runner_output_isolation
     check_experimental_intrinsics_output_isolation
     check_dispatch_preinit_smoke_runner_guard
+    check_daily_standalone_runner_guard
     check_linux_evidence_output_isolation
     check_freeze_status_output_isolation
     check_cpuinfo_runner_parity

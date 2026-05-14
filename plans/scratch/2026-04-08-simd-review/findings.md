@@ -3894,3 +3894,25 @@
   - shell 侧 `check` / `gate` 已经过 fresh release 实跑
   - batch 侧 runner 虽然做了同构接线和清理路径补齐，但本轮没有真实 Windows 执行证据
   - 因而当前最准确的结论是：Linux 主闭环已经覆盖，Windows batch 仍有“源码已对齐、真实运行待补证”的残余风险
+
+## 2026-05-15 Daily Standalone Runner Guard Findings
+
+- 在把两个 standalone program 真正接进 `check/gate` 之后，新的风险已经从“没覆盖”切到“以后是否会悄悄漂移”：
+  - shell / batch runner 现在各有一套 source、output root、调用点
+  - 如果后续只改一边、或删掉某个调用点，主逻辑本身未必立刻报错
+  - 这种情况下，最有效的防线不是等 Windows 侧人工发现，而是在 Linux 主链里先做 source-safe guard
+- 仓库里已经有成熟先例：
+  - `check_dispatch_preinit_smoke_runner_guard()`
+  - 它就是用 grep/source sentinel 的方式，同时校验 shell、batch 和目标 smoke 源文件
+- 因而这批最稳的修法是复用同一模式，而不是现在就去大改 runner 结构：
+  - 新增 `check_daily_standalone_runner_guard()`
+  - 校验 shell/bat 两边是否都保留了 `BACKEND_OPS_SRC`、`SIMD_BOUNDARY_SRC`
+  - 校验 output root、runner 定义和 `check`/`gate build-check` 调用点是否还在
+  - 再给 `test_backend_ops.pas` / `test_simd_boundary.pas` 各加几条关键 sentinel，防止脚本指错源文件却不自知
+- fresh 证据已经明确表明 guard 生效：
+  - Release `check` 中真实出现 `[CHECK] OK (daily standalone runner guard present)`
+  - 之后同一次 `check` 仍然继续完成 `BACKEND-OPS`、`SIMD-BOUNDARY`、`PUBLIC-SMOKE`、`DISPATCH-PREINIT`
+- 这批的价值不在于多跑了一次程序，而在于把“已补进去的 coverage”也纳入了防回退机制：
+  - 以后如果有人只改 shell/bat 一边
+  - 或者把某个 standalone runner 从 `check` 移掉
+  - Linux 主链就更早暴露这个 drift，而不必等人工记忆兜底

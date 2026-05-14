@@ -3012,3 +3012,17 @@
 | 1. 复核两个 standalone program 的当前健康度与覆盖缺口 | completed | fresh 独立 `fpc` 编译运行已确认 `test_backend_ops` 为 `Passed 15 / Failed 0`、`test_simd_boundary` 为 `通过 44 / 失败 0`；但 `BuildOrTest.sh` / `buildOrTest.bat` 里都还没有对应 runner，当前只能手动跑到 |
 | 2. 给 shell/bat `check` 与 shell `gate_step_build_check` 补内部 runner | completed | 已为 shell 补 `BACKEND_OPS_SRC` / `SIMD_BOUNDARY_SRC`、独立 `backend.ops` / `simd.boundary` child output root、`run_backend_ops_smoke()` / `run_simd_boundary_smoke()`；batch 也补了对应内部 runner 和 `clean` 清理；shell 的 `gate_step_build_check` 与 `case check)` 都已接上这两条路径 |
 | 3. Release `check/gate` 验证新接线 | completed | `git diff --check`、Release `check`、Release `gate` 已通过；日志中已真实出现 `BACKEND-OPS`、`SIMD-BOUNDARY`、`PUBLIC-SMOKE`、`DISPATCH-PREINIT` 四段顺序执行，说明这两个 standalone 程序已经进入 daily check 与 fast-gate 的 build-check 闭环 |
+
+## 2026-05-15 Daily Standalone Runner Guard
+
+### Goal
+
+在 `backend_ops / simd_boundary / public_smoke / dispatch_preinit` 已进入 daily coverage 之后，继续补上防回退的脚本自检：给 `BuildOrTest.sh` 增加一条 source-safe guard，确保 shell/bat 两边都还保留这些 standalone runner 的 source、output root、check 调用和关键源文件 sentinel，避免后续又静默漂移回 manual-only。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核现有 guard 形态并确定最小补点 | completed | 已确认仓库已有 `check_dispatch_preinit_smoke_runner_guard()` 这类 grep/source-safe guard；当前最稳的做法不是重构 runner，而是新增同类 `check_daily_standalone_runner_guard()` 并挂到 shell `check` 与 `gate_step_build_check` |
+| 2. 增加 daily standalone runner guard | completed | 已新增 `check_daily_standalone_runner_guard()`，校验 shell/bat 中的 `BACKEND_OPS_SRC`、`SIMD_BOUNDARY_SRC`、对应 output root、runner 定义、`check` 调用点，以及 `test_backend_ops.pas` / `test_simd_boundary.pas` 的关键 sentinel |
+| 3. Release `check` 验证 guard | completed | `git diff --check` 与 fresh Release `check` 已通过；日志中已真实出现 `[CHECK] OK (daily standalone runner guard present)`，且同一次 `check` 仍继续跑完 `BACKEND-OPS`、`SIMD-BOUNDARY`、`PUBLIC-SMOKE` 与 `DISPATCH-PREINIT` |

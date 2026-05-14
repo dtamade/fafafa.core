@@ -4399,3 +4399,26 @@
 - 当前这批的实情我也在这里留档：
   - shell 侧 `check/gate` 已经被真实 release 运行覆盖
   - batch 侧改动本轮没有真实 Windows 执行证据，仍属于 source-aligned but not runtime-proved 状态
+
+## 2026-05-15 Daily Standalone Runner Guard
+
+- 在 `backend_ops / simd_boundary` 接进 daily coverage 并提交后，我继续往脚本工具层补一层“防回退”机制，而不是立刻去做更大范围的 runner 重构。
+- 先对照了现有先例：
+  - `check_dispatch_preinit_smoke_runner_guard()`
+  - 它已经证明这种 grep/source-safe guard 很适合在 Linux 主链里提前抓 shell/bat 漂移
+- 本轮新增了：
+  - `check_daily_standalone_runner_guard()`
+- 这条 guard 现在会同时校验：
+  - shell/bat 里是否还保留 `BACKEND_OPS_SRC`
+  - shell/bat 里是否还保留 `SIMD_BOUNDARY_SRC`
+  - 对应 output root 和 runner 定义是否还在
+  - `check` / `gate build-check` 的调用点是否还在
+  - `test_backend_ops.pas` / `test_simd_boundary.pas` 的关键 sentinel 是否还在
+- fresh Release `check` 的关键证据：
+  - `[CHECK] OK (daily standalone runner guard present)`
+  - 同一次 `check` 后半段继续真实跑完：
+    - `BACKEND-OPS`
+    - `SIMD-BOUNDARY`
+    - `PUBLIC-SMOKE`
+    - `DISPATCH-PREINIT`
+- 这意味着当前不仅 daily coverage 已经接上，而且这个 coverage 自身也开始被脚本自检守护了。
