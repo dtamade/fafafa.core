@@ -1622,6 +1622,30 @@
   - 结果：全部通过
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
 
+## 2026-05-14 Backend Consistency Helper State Restore
+
+- direct 批次提交后，继续沿“真实 fixture / helper 状态恢复不对称”往下扫，下一处高价值落点是：
+  - `tests/fafafa.core.simd/fafafa.core.simd.backend.consistency.testcase.pas`
+  - 以及它在 `tests/fafafa.core.simd/fafafa.core.simd.testcase.pas` 里的 wrapper `TTestCase_BackendVectorConsistency`
+- 本轮先确认到两个同类泄漏面：
+  - 7 个 helper-style consistency 测试函数结束时都只 `ResetToAutomaticBackend`
+  - `TTestCase_BackendVectorConsistency.Test_VectorOps_Consistency` 结束时也只 `ResetToAutomaticBackend`
+- 本轮修复与加固：
+  - 在 `backend.consistency.testcase` 提取 `SaveBackendConsistencyState/RestoreBackendConsistencyState`
+  - 让 `TestF32x4Arithmetic/TestF32x4Math/TestF32x4Comparison/TestF32x4Reduction/TestI32x4Arithmetic/TestI32x4Bitwise/TestFacadeMemOps` 全部恢复进入前 backend
+  - 让 `TTestCase_BackendVectorConsistency.Test_VectorOps_Consistency` 恢复进入前 backend
+  - 新增 `Test_VectorOps_Helper_Preserves_PreviousForcedBackend`
+  - 新增 `Test_VectorOps_Consistency_Preserves_PreviousForcedBackend`
+- 本轮中途遇到两个小收口问题并已解决：
+  - helper 单元没有 `GetCurrentBackend`，应改用 `dispatch` 层的 `GetActiveBackend`
+  - 新增回归测试初版漏了 `try`，编译器直接在定向 suite 把语法问题挡住，随后已修正
+- 本轮 Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_BackendVectorConsistency`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+
 ## 2026-05-14 Float Utility Facade Tail Guard Coverage
 
 - 继续顺着浮点 façade 往下扫后，当前最真实的尾巴不再是整族算术/compare，而是 utility 面的 direct-evidence 缺口：

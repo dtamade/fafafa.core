@@ -104,6 +104,8 @@ type
   TTestCase_BackendVectorConsistency = class(TTestCase)
   published
     procedure Test_VectorOps_Consistency;
+    procedure Test_VectorOps_Helper_Preserves_PreviousForcedBackend;
+    procedure Test_VectorOps_Consistency_Preserves_PreviousForcedBackend;
   end;
   {$ENDIF}
 
@@ -1672,6 +1674,8 @@ end;
 
 procedure TTestCase_BackendVectorConsistency.Test_VectorOps_Consistency;
 var
+  LOriginalBackend: TSimdBackend;
+  LRestoredBackend: Boolean;
   results: TConsistencyTestResults;
   i: Integer;
   failMsg: string;
@@ -1695,6 +1699,8 @@ var
   end;
 
 begin
+  GetDispatchTable;
+  LOriginalBackend := GetCurrentBackend;
   try
     results := RunAllConsistencyTests;
 
@@ -1717,6 +1723,88 @@ begin
 
     if failMsg <> '' then
       Fail(failMsg);
+  finally
+    ResetToAutomaticBackend;
+    LRestoredBackend := True;
+    if GetCurrentBackend <> LOriginalBackend then
+      LRestoredBackend := TrySetActiveBackend(LOriginalBackend);
+    AssertTrue('Backend vector consistency wrapper should restore previous backend selection',
+      LRestoredBackend and (GetCurrentBackend = LOriginalBackend));
+  end;
+end;
+
+procedure TTestCase_BackendVectorConsistency.Test_VectorOps_Helper_Preserves_PreviousForcedBackend;
+const
+  CBackendCandidates: array[0..8] of TSimdBackend = (
+    sbSSE2, sbSSE3, sbSSSE3, sbSSE41, sbSSE42, sbAVX2, sbAVX512, sbNEON, sbRISCVV
+  );
+var
+  LIndex: Integer;
+  LOriginalBackend: TSimdBackend;
+  LTargetBackend: TSimdBackend;
+  LFoundBackend: Boolean;
+  LResult: TConsistencyTestResult;
+begin
+  try
+    GetDispatchTable;
+    if GetBestDispatchableBackend = sbScalar then
+      Exit;
+
+    AssertTrue('Scalar force setup should succeed before helper restore test',
+      TrySetActiveBackend(sbScalar));
+    LOriginalBackend := GetCurrentBackend;
+    AssertEquals('Scalar should be active before helper restore test',
+      Ord(sbScalar), Ord(LOriginalBackend));
+
+    LFoundBackend := False;
+    for LIndex := Low(CBackendCandidates) to High(CBackendCandidates) do
+    begin
+      if not IsBackendRegistered(CBackendCandidates[LIndex]) then
+        Continue;
+      if TrySetActiveBackend(CBackendCandidates[LIndex]) then
+      begin
+        LTargetBackend := CBackendCandidates[LIndex];
+        LFoundBackend := True;
+        Break;
+      end;
+    end;
+
+    AssertTrue('At least one non-scalar backend should be available for helper restore test',
+      LFoundBackend);
+    AssertTrue('Scalar should be re-forced before helper restore test',
+      TrySetActiveBackend(sbScalar));
+    AssertEquals('Scalar should remain forced before helper restore test executes',
+      Ord(LOriginalBackend), Ord(GetCurrentBackend));
+
+    LResult := TestF32x4Arithmetic(LTargetBackend);
+    AssertTrue(Format('Standalone helper sanity check failed for backend %d: %s',
+      [Ord(LTargetBackend), LResult.ErrorMessage]), LResult.Passed);
+    AssertEquals('Standalone backend consistency helper should preserve previous forced backend selection',
+      Ord(LOriginalBackend), Ord(GetCurrentBackend));
+  finally
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_BackendVectorConsistency.Test_VectorOps_Consistency_Preserves_PreviousForcedBackend;
+var
+  LOriginalBackend: TSimdBackend;
+begin
+  try
+    GetDispatchTable;
+    if GetBestDispatchableBackend = sbScalar then
+      Exit;
+
+    AssertTrue('Scalar force setup should succeed before backend consistency wrapper restore test',
+      TrySetActiveBackend(sbScalar));
+    LOriginalBackend := GetCurrentBackend;
+    AssertEquals('Scalar should be active before backend consistency wrapper restore test',
+      Ord(sbScalar), Ord(LOriginalBackend));
+
+    Test_VectorOps_Consistency;
+
+    AssertEquals('Backend consistency wrapper should preserve previous forced backend selection',
+      Ord(LOriginalBackend), Ord(GetCurrentBackend));
   finally
     ResetToAutomaticBackend;
   end;

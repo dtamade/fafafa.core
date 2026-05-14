@@ -1814,3 +1814,17 @@
 | 1. 复核 `direct.testcase` 的 fixture 恢复对称性 | completed | 已确认 `TTestCase_DirectDispatch` 与 `TTestCase_DirectDispatchConcurrent` 都没有 fixture 级 `SetUp/TearDown`；大量测试方法与 `RunDirectDispatchConcurrentReRegisterSnapshotConsistency` 结束时只做 `ResetToAutomaticBackend`，有些还会切 `SetVectorAsmEnabled(True/False)`，但不会恢复进入测试前的真实 backend 选择 |
 | 2. 修复 direct suite 的状态恢复泄漏 | completed | 在 `fafafa.core.simd.direct.testcase.pas` 提取 `TDirectDispatchStatefulTestCase`，统一给 `TTestCase_DirectDispatch` 与 `TTestCase_DirectDispatchConcurrent` 保存/恢复进入测试前的 `vector asm + current backend`，避免逐个改动几十个 test body |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 Backend Consistency Helper State Restore
+
+### Goal
+
+继续沿高价值 control-plane/helper 测试往下审查 `backend.consistency.testcase`，修复其 helper-style consistency 测试与 `TTestCase_BackendVectorConsistency` wrapper 在结束时只回 `automatic`、却不恢复进入前 backend 选择的状态泄漏，并补上可证伪的强制-backend 回归点。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `backend.consistency.testcase` 与外层 wrapper 的状态恢复对称性 | completed | 已确认 7 个 helper-style consistency 函数都在切 `TrySetActiveBackend/SetActiveBackend(sbScalar)/SetActiveBackend(backend)` 后只 `ResetToAutomaticBackend`；`TTestCase_BackendVectorConsistency.Test_VectorOps_Consistency` 末尾也只回 automatic |
+| 2. 修复 helper 与 wrapper 的 backend 恢复泄漏，并补回归点 | completed | 在 `backend.consistency.testcase` 提取 `SaveBackendConsistencyState/RestoreBackendConsistencyState`，统一恢复进入前 backend；同时让 `TTestCase_BackendVectorConsistency` 恢复进入前 backend，并新增 `Test_VectorOps_Helper_Preserves_PreviousForcedBackend` 与 `Test_VectorOps_Consistency_Preserves_PreviousForcedBackend` |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_BackendVectorConsistency`、Release `check`、Release `gate` 全绿 |

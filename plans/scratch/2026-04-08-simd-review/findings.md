@@ -1935,3 +1935,27 @@
   - multi-backend parity 的测试目标
   - synthetic re-register 并发测试的内部流程
 - Release `TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、Release `check`、Release `gate` 全绿，说明这批修的是 direct suite 的测试夹具状态恢复不对称，而不是 direct dispatch 逻辑缺陷。
+
+## 2026-05-14 Backend Consistency Helper State Restore Findings
+
+- `tests/fafafa.core.simd/fafafa.core.simd.backend.consistency.testcase.pas` 是当前 SIMD 测试树里一个很隐蔽但真实的 helper-style 泄漏点：
+  - 它不是普通 `TTestCase` fixture，而是 `RunAllConsistencyTests` + `TestF32x4Arithmetic/TestF32x4Math/...` 这类可单独调用的 helper 函数组合
+  - 每个 helper 都会先 `TrySetActiveBackend(backend)`，随后在一次测试里多次 `SetActiveBackend(sbScalar)` / `SetActiveBackend(backend)`
+  - 但退出时都只 `ResetToAutomaticBackend`
+  - 这会把进入 helper 前的强制 backend 选择静默丢掉
+- 外层 `tests/fafafa.core.simd/fafafa.core.simd.testcase.pas` 的 `TTestCase_BackendVectorConsistency.Test_VectorOps_Consistency` 也有同类问题：
+  - 它最终只 `ResetToAutomaticBackend`
+  - 即使 helper 层都单独修好，wrapper 末尾仍可能把上游强制 backend 冲回 automatic
+- 这批最小正确修复分两层收口：
+  - 在 `backend.consistency.testcase` 提取 `SaveBackendConsistencyState/RestoreBackendConsistencyState`
+  - 让 7 个 helper-style consistency 测试都恢复进入前的 backend
+  - 让 `TTestCase_BackendVectorConsistency.Test_VectorOps_Consistency` 也恢复进入前 backend
+- 这批额外补了两个高价值回归点，而不是只做“静默修复”：
+  - `Test_VectorOps_Helper_Preserves_PreviousForcedBackend`
+  - `Test_VectorOps_Consistency_Preserves_PreviousForcedBackend`
+  - 两者都先强制 `sbScalar`，再验证 standalone helper / 外层 wrapper 跑完后不会把先前强制 backend 冲掉
+- 这轮刻意没有改动：
+  - 任何 SIMD 生产实现
+  - consistency 比对矩阵本身
+  - dispatch/runtime 的生产控制面逻辑
+- Release `TTestCase_BackendVectorConsistency`、Release `check`、Release `gate` 全绿，说明这批修的是 backend consistency 测试层的状态恢复不对称，并且新增回归测试已经能覆盖“前序强制 backend 被冲掉”的场景。
