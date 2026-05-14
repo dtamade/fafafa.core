@@ -1739,7 +1739,7 @@ begin
   begin
     LBackend := CONSISTENCY_BACKENDS[LBackendIndex];
     AssertTrue('Backend consistency name helper should not return Unknown for backend=' +
-      IntToStr(Ord(LBackend)), GetConsistencyBackendName(LBackend) <> 'Unknown');
+      GetConsistencyBackendName(LBackend), GetConsistencyBackendName(LBackend) <> 'Unknown');
   end;
 
   AssertEquals('SSE4.1 backend consistency name mismatch', 'SSE4.1',

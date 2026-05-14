@@ -4256,3 +4256,36 @@
 - 当前这条线剩余的尾巴已经缩得很小了，只剩：
   - `dispatchapi.testcase` 约 13 处
   - `fafafa.core.simd.testcase` 1 处
+
+## 2026-05-15 Backend Ordinal Tail Cleanup
+
+- `direct` 批次提交后，我立刻做了一次目录级余量盘点，结果只剩最后 14 处 backend ordinal 文案：
+  - `dispatchapi.testcase`：13
+  - `simd.testcase`：1
+- 这次没有再引入新 helper，而是直接复用文件里已经存在的 canonical helper：
+  - `dispatchapi.testcase` 统一改用 `DispatchApiBackendName(LBackend)`
+  - `simd.testcase` 那 1 处直接改用 `GetConsistencyBackendName(LBackend)`
+- 这轮最重要的自检不是单文件，而是整目录：
+  - `rg -n "IntToStr\\(Ord\\((L|a)Backend\\)\\)" tests/fafafa.core.simd --glob '*.pas'`
+  - 结果：空
+  - 这说明当前 `tests/fafafa.core.simd` 下 Pascal 测试文件里的 backend ordinal 消息壳已经全部清零
+- 本轮定向 release 验证链已完整通过：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_NonX86BackendParity,TTestCase_BackendVectorConsistency`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- `gate` 里和这批最相关的链路也继续保持稳定：
+  - `TTestCase_DispatchAPI` 通过
+  - `TTestCase_DirectDispatch` / `TTestCase_DirectDispatchConcurrent` 继续通过
+  - `DISPATCH_CONTRACT_SIGNATURE ... [DISPATCH-CONTRACT] OK`
+  - `WIRING_SYNC_SUMMARY ... missing=0 extra=0`
+  - `Run-all summary: Passed 5 / Failed 0`
+  - `[GATE] OK`
+- 到这里，这条“backend ordinal 仅作断言消息壳”的测试层清理线已经在 `tests/fafafa.core.simd` 范围内完全收平：
+  - `publicabi.testcase`
+  - `ieee754.testcase`
+  - `dispatchslots.testcase`
+  - `direct.testcase`
+  - `dispatchapi.testcase` tail
+  - `simd.testcase` tail

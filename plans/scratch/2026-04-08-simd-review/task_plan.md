@@ -2942,3 +2942,17 @@
 | 1. 复核 `direct.testcase` 里的 backend ordinal 是否只是消息层 | completed | 已确认这 493 处都位于 direct parity、slot assigned、mask helper、mem/text/search、extract/insert 等断言消息字符串；没有任何一处参与实际 direct/facade 结果计算或 backend 切换逻辑 |
 | 2. 收敛到 canonical backend label helper | completed | 已新增文件级 `DirectBackendName(const aBackend: TSimdBackend): string`，实现为 `GetBackendInfo(aBackend).Name`；并把 `direct.testcase` 中所有 `+ IntToStr(Ord(LBackend/aBackend))` 消息拼接统一替换为该 helper |
 | 3. Release 验证与本批收口 | completed | `git diff --check`、Release `test --suite=TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、Release `check`、Release `gate` 已全部通过；说明这批只改善 direct 测试诊断面，没有影响 direct parity、concurrent snapshot 或 fast-gate 主链 |
+
+## 2026-05-15 Backend Ordinal Tail Cleanup
+
+### Goal
+
+把 `tests/fafafa.core.simd` 里剩下的最后 14 处 backend ordinal 消息壳一次性清零：`dispatchapi.testcase` 复用既有 `DispatchApiBackendName(...)`，`simd.testcase` 复用既有 `GetConsistencyBackendName(...)`，同时验证整个 `tests/fafafa.core.simd` 目录内不再残留 `IntToStr(Ord(LBackend/aBackend))` 这类 backend 编号文案。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核剩余 tail 是否仍是纯消息层 | completed | 已确认 `dispatchapi.testcase` 剩余 13 处只是 supported/registered/dispatchable 视图与 canonical metadata 断言文案，`simd.testcase` 剩余 1 处只是 backend consistency helper coverage 的消息字符串 |
+| 2. 复用既有 canonical helper 清零 tail | completed | `dispatchapi.testcase` 这 13 处已统一改为 `DispatchApiBackendName(LBackend)`；`simd.testcase` 那 1 处已改为 `GetConsistencyBackendName(LBackend)`；全目录 `rg -n "IntToStr\\(Ord\\((L|a)Backend\\)\\)" tests/fafafa.core.simd --glob '*.pas'` 已无匹配 |
+| 3. Release 验证与本批收口 | completed | `git diff --check`、Release `test --suite=TTestCase_DispatchAPI,TTestCase_NonX86BackendParity,TTestCase_BackendVectorConsistency`、Release `check`、Release `gate` 已全部通过；说明这批只清理最后的 backend ordinal 文案，没有影响 dispatch/non-x86/backend consistency 主链 |

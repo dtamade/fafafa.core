@@ -2585,25 +2585,25 @@ begin
   for LIndex := 0 to High(LSupported) do
   begin
     LBackend := LSupported[LIndex];
-    AssertTrue('Supported view must satisfy cpu-support predicate for backend=' + IntToStr(Ord(LBackend)),
+    AssertTrue('Supported view must satisfy cpu-support predicate for backend=' + DispatchApiBackendName(LBackend),
       IsBackendAvailableOnCPU(LBackend));
   end;
 
   for LIndex := 0 to High(LRegistered) do
   begin
     LBackend := LRegistered[LIndex];
-    AssertTrue('Registered view must satisfy registered predicate for backend=' + IntToStr(Ord(LBackend)),
+    AssertTrue('Registered view must satisfy registered predicate for backend=' + DispatchApiBackendName(LBackend),
       fafafa.core.simd.IsBackendRegisteredInBinary(LBackend));
   end;
 
   for LIndex := 0 to High(LDispatchable) do
   begin
     LBackend := LDispatchable[LIndex];
-    AssertTrue('Dispatchable view must satisfy dispatchable predicate for backend=' + IntToStr(Ord(LBackend)),
+    AssertTrue('Dispatchable view must satisfy dispatchable predicate for backend=' + DispatchApiBackendName(LBackend),
       IsBackendDispatchable(LBackend));
-    AssertTrue('Dispatchable view must be subset of registered view for backend=' + IntToStr(Ord(LBackend)),
+    AssertTrue('Dispatchable view must be subset of registered view for backend=' + DispatchApiBackendName(LBackend),
       BackendInArray(LRegistered, LBackend));
-    AssertTrue('Dispatchable view must be subset of supported view for backend=' + IntToStr(Ord(LBackend)),
+    AssertTrue('Dispatchable view must be subset of supported view for backend=' + DispatchApiBackendName(LBackend),
       BackendInArray(LSupported, LBackend));
   end;
 
@@ -2642,7 +2642,7 @@ begin
     if not TryGetRegisteredBackendDispatchTable(LBackend, LTable) then
       Continue;
 
-    AssertEquals('Registered table priority should match canonical priority for backend=' + IntToStr(Ord(LBackend)),
+    AssertEquals('Registered table priority should match canonical priority for backend=' + DispatchApiBackendName(LBackend),
       GetSimdBackendPriorityValue(LBackend), LTable.BackendInfo.Priority);
   end;
 end;
@@ -2666,17 +2666,17 @@ begin
     LNamePtr := GetSimdBackendNamePtr(LBackend);
     LDescriptionPtr := GetSimdBackendDescriptionPtr(LBackend);
 
-    AssertTrue('GetBackendInfo should preserve non-empty name for unregistered backend=' + IntToStr(Ord(LBackend)),
+    AssertTrue('GetBackendInfo should preserve non-empty name for unregistered backend=' + DispatchApiBackendName(LBackend),
       LInfo.Name <> '');
-    AssertTrue('GetBackendInfo should preserve non-empty description for unregistered backend=' + IntToStr(Ord(LBackend)),
+    AssertTrue('GetBackendInfo should preserve non-empty description for unregistered backend=' + DispatchApiBackendName(LBackend),
       LInfo.Description <> '');
-    AssertNotNull('Public ABI backend name pointer should not be nil for unregistered backend=' + IntToStr(Ord(LBackend)),
+    AssertNotNull('Public ABI backend name pointer should not be nil for unregistered backend=' + DispatchApiBackendName(LBackend),
       Pointer(LNamePtr));
-    AssertNotNull('Public ABI backend description pointer should not be nil for unregistered backend=' + IntToStr(Ord(LBackend)),
+    AssertNotNull('Public ABI backend description pointer should not be nil for unregistered backend=' + DispatchApiBackendName(LBackend),
       Pointer(LDescriptionPtr));
-    AssertEquals('Dispatch/public ABI backend name should stay aligned for unregistered backend=' + IntToStr(Ord(LBackend)),
+    AssertEquals('Dispatch/public ABI backend name should stay aligned for unregistered backend=' + DispatchApiBackendName(LBackend),
       LInfo.Name, string(StrPas(LNamePtr)));
-    AssertEquals('Dispatch/public ABI backend description should stay aligned for unregistered backend=' + IntToStr(Ord(LBackend)),
+    AssertEquals('Dispatch/public ABI backend description should stay aligned for unregistered backend=' + DispatchApiBackendName(LBackend),
       LInfo.Description, string(StrPas(LDescriptionPtr)));
   end;
 
@@ -8565,7 +8565,7 @@ begin
         Continue;
 
       AssertTrue('scIntegerOps should stay set while always-on narrow integer slots remain non-scalar after vector asm disable: ' +
-        IntToStr(Ord(LBackend)),
+        DispatchApiBackendName(LBackend),
         scIntegerOps in LTable.BackendInfo.Capabilities);
     end;
   finally

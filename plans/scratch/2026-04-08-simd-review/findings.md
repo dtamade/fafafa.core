@@ -3770,3 +3770,25 @@
 - 现在全目录里这类 residual 已经压缩到很小：
   - `dispatchapi.testcase` 约 13 处
   - `fafafa.core.simd.testcase` 1 处
+
+## 2026-05-15 Backend Ordinal Tail Cleanup Findings
+
+- `direct.testcase` 收口后，再做按文件聚合的余量盘点，backend ordinal 文案只剩最后 14 处：
+  - `dispatchapi.testcase`：13
+  - `fafafa.core.simd.testcase`：1
+- 这说明之前的判断是对的：
+  - 真正高密度的大块都已经被清掉
+  - 剩下的只是零散尾差
+  - 最优策略不再是“开新结构”，而是直接复用文件里已经存在的 canonical helper
+- 这批的两个改动点都非常纯：
+  - `dispatchapi.testcase` 已经有 `DispatchApiBackendName(...)`
+  - `simd.testcase` 已经有 `GetConsistencyBackendName(...)`
+  - 因而不需要再新增任何 helper 或 wrapper
+- 这轮最关键的收口证据不是某一个 suite，而是目录级 grep：
+  - `rg -n "IntToStr\\(Ord\\((L|a)Backend\\)\\)" tests/fafafa.core.simd --glob '*.pas'`
+  - 结果为空
+  - 这代表“backend ordinal 只服务断言消息”这条特定冗余线，在当前 `tests/fafafa.core.simd` Pascal 测试文件里已经被清空
+- 这批也说明后续如果继续做“加强审查”，就该换问题类型了：
+  - 这条 backend label 冗余线已经收平
+  - 后续更值得找的是别的 report shell、重复 truth source、或者行为/覆盖缺口
+  - 不需要再回头在同一条 ordinal 文案线上反复扫
