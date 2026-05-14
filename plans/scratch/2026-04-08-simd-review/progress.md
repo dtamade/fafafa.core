@@ -3436,3 +3436,29 @@
   - `direct` 还带 `RebindDirectDispatch`
   - `ieee754` 还混着 exception/rounding 编排
   - 不再适合按“同构生命周期壳”直接机械收口
+
+## 2026-05-14 Direct Fixture Base Alignment
+
+- 在 `publicabi` 收完之后，回头复核 `direct.testcase`，确认它虽然比前几批多一个 `RebindDirectDispatch`，但这层额外语义和公共 lifecycle 仍然是可分离的：
+  - `SetUp` 只是在保存 `FSavedVectorAsm`
+  - `RestoreFixtureDirectDispatchState(...)` 的 suite-specific 语义是“restore backend/vector-asm 后立即 rebind direct table，并断言 backend 恢复成功”
+  - `TearDown` 的 suite-specific 语义则是“公共 restore 完成后，再做一次 `RebindDirectDispatch`”
+- 这意味着本轮最小修法可以继续保持在 fixture 基类层：
+  - `TDirectDispatchStatefulTestCase` 改继承 `TSimdVectorAsmStatefulTestCase`
+  - 删除本地 `FSavedVectorAsm`
+  - 删除重复 `SetUp`
+  - `TearDown` 只保留 `inherited TearDown` 之后的 `RebindDirectDispatch`
+  - `RestoreFixtureDirectDispatchState(...)` 完全不动
+- 这样做的价值是：
+  - direct suite 继续保有它真正需要的 rebind contract
+  - 但 `vector-asm` 生命周期不再维护第二份壳
+  - 当前公共 `TSimdVectorAsmStatefulTestCase` 的抽象边界因此又多覆盖了一条更特殊的测试入口
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 到这里可以更细地给剩余候选分层：
+  - `direct` 这种“公共 lifecycle + suite-specific post-restore action”仍然是可安全下沉的
+  - `ieee754` 则已经不只是 post-restore action，而是把 exception mask、scalar forcing、rounding 路径编排一起揉进 fixture，必须单独重新拆

@@ -2532,3 +2532,17 @@
 | 1. 复核 `publicabi` 的本地 fixture 是否仍有独立时序要求 | completed | 已确认 `SetUp/TearDown` 唯一额外要求是 `ResetPublicAbiSyntheticHookState` 必须包在 fixture 前后；`FSavedVectorAsm + SetUp/TearDown` 本体仍与公共 `vector-asm stateful` 基类同构 |
 | 2. 保留 hook reset 顺序，收回重复 lifecycle | completed | `TTestCase_PublicAbi` 已改继承 `TSimdVectorAsmStatefulTestCase`，删除本地 `FSavedVectorAsm` 与手写 vector-asm restore；`SetUp/TearDown` 只保留 hook-state reset 顺序，`RestorePublicAbiLocalState(...)` 与所有调用点不变 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿；`gate` 里的 public ABI concurrent regression chain 也继续通过 |
+
+## 2026-05-14 Direct Fixture Base Alignment
+
+### Goal
+
+继续加强 `simd` 测试层审查并修复，但这次只处理 `direct.testcase` 里重复的一层 `backend + vector-asm` fixture 生命周期。保留 `RestoreFixtureDirectDispatchState(...)` 里的 `RebindDirectDispatch` 语义，只把公共 lifecycle 下沉到 `TSimdVectorAsmStatefulTestCase`。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `direct` 的本地 fixture 和公共基类差异 | completed | 已确认 `TDirectDispatchStatefulTestCase.SetUp` 只是在保存 `FSavedVectorAsm`；本地真正额外语义只剩中途 restore 后需要 `RebindDirectDispatch`，以及最终 teardown 后也要再 rebind 一次 direct table |
+| 2. 对齐到公共 `vector-asm stateful` 基类 | completed | `TDirectDispatchStatefulTestCase` 已改继承 `TSimdVectorAsmStatefulTestCase`，删除本地 `FSavedVectorAsm` 与重复 `SetUp`；`TearDown` 只保留 `inherited TearDown` 后的 `RebindDirectDispatch`，`RestoreFixtureDirectDispatchState(...)` 保持不变 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、Release `check`、Release `gate` 全绿；`direct` 的 rebind 语义在定向 suite 和 gate 里都继续通过 |

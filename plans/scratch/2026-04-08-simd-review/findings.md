@@ -3210,3 +3210,22 @@
 - 因而下一步最合理的策略不是盲目继续“搜 `FSavedVectorAsm` 然后全删”，而是：
   - 把 `direct`、`ieee754` 这类剩余候选当成中风险/高风险目标重新分类
   - 只在确认 suite-specific 额外语义和 restore 主体可分离时再下手
+
+## 2026-05-14 Direct Fixture Base Alignment Findings
+
+- `direct.testcase` 说明“中风险候选”里还可以继续再细分：
+  - 如果额外语义只是 `restore` 之后再做一个 suite-local action，例如 `RebindDirectDispatch`
+  - 而公共 `backend + vector-asm` restore 主体本身没有被改写
+  - 那么它仍属于可安全下沉的范围
+- 这类点和 `publicabi` 的差别在于：
+  - `publicabi` 的额外语义是 reset hook state 的前后顺序
+  - `direct` 的额外语义是 restore 之后 rebind direct table
+  - 但两者都没有把公共 lifecycle 主体打散成不可分离的流程
+- 因而现在剩余真正更高风险的，主要就集中在 `ieee754` 这种会同时混入：
+  - exception mask
+  - scalar forcing
+  - non-x86 / AVX2 / rounding path 编排
+  - 中途切换 vector-asm/backend 的 property-like 测试流程
+- 这进一步支持下一步策略：
+  - 停止只按 `FSavedVectorAsm` 搜索做机械清理
+  - 对 `ieee754` 先做“可分离语义”梳理，再决定是否要抽本地专用基类

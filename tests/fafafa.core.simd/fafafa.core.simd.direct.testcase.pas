@@ -18,11 +18,9 @@ uses
   fafafa.core.simd.scalar;
 
 type
-  TDirectDispatchStatefulTestCase = class(TSimdBackendStatefulTestCase)
+  TDirectDispatchStatefulTestCase = class(TSimdVectorAsmStatefulTestCase)
   protected
-    FSavedVectorAsm: Boolean;
     procedure RestoreFixtureDirectDispatchState;
-    procedure SetUp; override;
     procedure TearDown; override;
   end;
 
@@ -204,12 +202,6 @@ begin
   Result := DirectDispatchSyntheticCountByteImpl(p, len, value);
 end;
 
-procedure TDirectDispatchStatefulTestCase.SetUp;
-begin
-  inherited SetUp;
-  FSavedVectorAsm := IsVectorAsmEnabled;
-end;
-
 procedure TDirectDispatchStatefulTestCase.RestoreFixtureDirectDispatchState;
 var
   LRestoredBackend: Boolean;
@@ -223,12 +215,8 @@ end;
 
 procedure TDirectDispatchStatefulTestCase.TearDown;
 begin
-  SetVectorAsmEnabled(FSavedVectorAsm);
   inherited TearDown;
   RebindDirectDispatch;
-
-  AssertTrue('Direct dispatch fixture should restore previous vector asm state',
-    IsVectorAsmEnabled = FSavedVectorAsm);
 end;
 
 function DirectDispatchSyntheticBitsetPopCountImpl(p: Pointer; byteLen: SizeUInt): SizeUInt;
