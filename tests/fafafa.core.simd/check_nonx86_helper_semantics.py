@@ -18,6 +18,7 @@ NEON_SCALAR_UTILITY_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.utility.
 NEON_SCALAR_MATH_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.math.inc"
 NEON_SCALAR_EXT_MATH_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.ext_math.inc"
 NEON_SCALAR_AUTOWRAP_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.autowrap.inc"
+NEON_COMPARE_FILE = ROOT / "src" / "fafafa.core.simd.neon.compare.inc"
 RISCVV_FILE = ROOT / "src" / "fafafa.core.simd.riscvv.pas"
 RISCVV_FACADE_FILE = ROOT / "src" / "fafafa.core.simd.riscvv.facade.inc"
 RISCVV_HELPERS_FILE = ROOT / "src" / "fafafa.core.simd.riscvv.helpers.inc"
@@ -92,6 +93,7 @@ def main() -> int:
     neon_scalar_math_source = read_text(NEON_SCALAR_MATH_FILE)
     neon_scalar_ext_math_source = read_text(NEON_SCALAR_EXT_MATH_FILE)
     neon_scalar_autowrap_source = read_text(NEON_SCALAR_AUTOWRAP_FILE)
+    neon_compare_source = read_text(NEON_COMPARE_FILE)
     riscvv_source = read_text(RISCVV_FILE)
     riscvv_facade_source = read_text(RISCVV_FACADE_FILE)
     riscvv_helpers_source = read_text(RISCVV_HELPERS_FILE)
@@ -1009,6 +1011,21 @@ def main() -> int:
         checks += 1
 
     absent_routine_expectations = [
+        (neon_compare_source, "NEONCmpNeU32x4"),
+        (neon_compare_source, "NEONReduceAddI32x4"),
+        (neon_compare_source, "NEONReduceMinI32x4"),
+        (neon_compare_source, "NEONReduceMaxI32x4"),
+        (neon_compare_source, "NEONReduceAddU32x4"),
+        (neon_compare_source, "NEONReduceMinU32x4"),
+        (neon_compare_source, "NEONReduceMaxU32x4"),
+        (neon_scalar_utility_source, "NEONMinI64x2"),
+        (neon_scalar_utility_source, "NEONMaxI64x2"),
+        (neon_scalar_reduction_source, "NEONReduceAddI32x4"),
+        (neon_scalar_reduction_source, "NEONReduceMinI32x4"),
+        (neon_scalar_reduction_source, "NEONReduceMaxI32x4"),
+        (neon_scalar_reduction_source, "NEONReduceAddU32x4"),
+        (neon_scalar_reduction_source, "NEONReduceMinU32x4"),
+        (neon_scalar_reduction_source, "NEONReduceMaxU32x4"),
         (riscvv_source, "RISCVVNegF32x4"),
         (riscvv_source, "RISCVVNegF64x2"),
         (riscvv_helpers_source, "RISCVVNegF32x4"),

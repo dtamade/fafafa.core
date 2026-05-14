@@ -4194,3 +4194,51 @@
   - Release `check` 通过
   - Release `gate` 通过
 - 到这一刀为止，`RISCVV` 的“非 `Asm` internal residue”在 source-side 已被清到 `0`；剩余需要继续审的，就不再是这类同形死残留，而该转向别的 contract 面或别的 backend/文档层问题。
+
+## 2026-05-15 NEON Dead Compare/Reduction/MinMax Residue Removal
+
+- 在 `RISCVV` source-side residue 清到 `0` 之后，继续对 `NEON` 做同一口径的“只有定义、没有消费面”审查，fresh zero-ref 候选收敛为：
+  - `NEONCmpNeU32x4`
+  - `NEONReduceAddI32x4`
+  - `NEONReduceMinI32x4`
+  - `NEONReduceMaxI32x4`
+  - `NEONReduceAddU32x4`
+  - `NEONReduceMinU32x4`
+  - `NEONReduceMaxU32x4`
+  - `NEONMinI64x2`
+  - `NEONMaxI64x2`
+- 这批名字的共同点已经很明确：
+  - 只出现在 `src/fafafa.core.simd.neon.compare.inc`
+  - 或 `src/fafafa.core.simd.neon.scalar.reduction.inc`
+  - 或 `src/fafafa.core.simd.neon.scalar.utility.inc`
+  - 没有 `register/facade/runtime/simd.pas/tests/docs/plans` 的消费面
+- 因此它们不是“NEON 缺一块能力没接上”，而是保留下来的 dead residue：
+  - `compare.inc` 同时保留了 `CmpNeU32x4` 与 `I32x4/U32x4 reduction` 的 no-consumer 实现
+  - `scalar.reduction.inc` 还维护着同名 fallback 第二份实现
+  - `scalar.utility.inc` 还保留了 `Min/MaxI64x2` fallback 第二份实现
+- 本批处理保持克制，只做 dead residue removal，不扩 contract：
+  - 从 `neon.compare.inc` 删除 `NEONCmpNeU32x4`
+  - 从 `neon.compare.inc` 删除 `NEONReduce(Add/Min/Max)I32x4/U32x4`
+  - 从 `neon.scalar.reduction.inc` 删除对应 scalar fallback
+  - 从 `neon.scalar.utility.inc` 删除 `NEONMinI64x2/NEONMaxI64x2`
+- 为了防回流，`check_nonx86_helper_semantics.py` 本批新增：
+  - `NEON_COMPARE_FILE`
+  - 针对上述 15 个 `NEON` 名字的 `require_routine_absent(...)` source-side 缺席断言
+- fresh 删除后再次扫 `NEON` 非 `_ASM` 零调用残留，只剩 7 个内部支撑名字：
+  - `NEONCmpGeU64x2Wrapper`
+  - `NEONCmpLeU64x2Wrapper`
+  - `NEONCmpNeU32x4Wrapper`
+  - `NEONCmpNeU64x2Wrapper`
+  - `NEONCombineMask2To4`
+  - `NEONCombineMask4To8`
+  - `NEONCombineMask8To16`
+- 这 7 个名字不是同类 dead residue：
+  - 前 4 个是 `compare` 内部 wrapper/bridge
+  - 后 3 个是 mask packing 支撑 helper
+  - 它们不属于“total == defs 的零接线死代码”
+- fresh 验证结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=537 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY ... status=ok`
+  - Release `check` 通过
+  - Release `gate` 通过
+- `gate` 尾部仍然只把旧 `windows_b07_gate.log` 诚实降级为 optional `SKIP`；这继续是历史 Windows evidence 新鲜度问题，不是本批 `NEON` residue removal 引入的实现或 contract 回归。

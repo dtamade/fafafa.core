@@ -233,16 +233,6 @@ begin
   Result := ScalarShiftRightArithI64x2(a, count);
 end;
 
-function NEONMinI64x2(const a, b: TVecI64x2): TVecI64x2;
-begin
-  Result := ScalarMinI64x2(a, b);
-end;
-
-function NEONMaxI64x2(const a, b: TVecI64x2): TVecI64x2;
-begin
-  Result := ScalarMaxI64x2(a, b);
-end;
-
 function NEONAddU64x2(const a, b: TVecU64x2): TVecU64x2;
 begin
   Result := ScalarAddU64x2(a, b);

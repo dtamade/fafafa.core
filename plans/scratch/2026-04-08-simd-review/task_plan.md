@@ -3180,3 +3180,17 @@
 | 1. 复核 `RISCVVNegF32x4/F64x2` 的真实消费面 | completed | 全仓检索确认这 2 个名字只出现在 `src/fafafa.core.simd.riscvv.pas` 与 `src/fafafa.core.simd.riscvv.helpers.inc`；`register/facade/dispatch/simd.pas/tests` 都没有公开或测试消费面 |
 | 2. 删除 asm + helper 双轨死残留 | completed | 已从 `riscvv.pas` 删除 `NegF32x4/NegF64x2` 的 asm + wrapper 定义，并从 `riscvv.helpers.inc` 删除对应 fallback 定义；删后 fresh 扫描显示 `RISCVV` 非 `Asm` internal residue 数已降到 `0` |
 | 3. 扩 absent 护栏并串行 release 复验 | completed | `check_nonx86_helper_semantics.py` 已把这 2 个名字加入 `require_routine_absent(...)`；`git diff --check`、helper semantics、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 已全部通过，helper summary 更新到 `checks=522 status=ok` |
+
+## 2026-05-15 NEON Dead Compare/Reduction/MinMax Residue Removal
+
+### Goal
+
+在 `RISCVV` 非 `Asm` internal residue 清到 `0` 之后，继续把同类“只有定义、没有 register/facade/runtime/tests 消费”的 `NEON` 零调用残留也收掉。本批只删除确认无接线的 `CmpNeU32x4`、`I32x4/U32x4 reduction`、以及 `Min/MaxI64x2`，不把它们错误升级成新 contract。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `NEON` 零调用候选是否真的没有消费面 | completed | 已确认 `NEONCmpNeU32x4`、`NEONReduce(Add/Min/Max)I32x4`、`NEONReduce(Add/Min/Max)U32x4`、`NEONMinI64x2`、`NEONMaxI64x2` 只剩 `compare.inc/scalar.reduction.inc/scalar.utility.inc` 定义，没有 `register/facade/runtime/simd.pas/tests` 消费面 |
+| 2. 删除 `NEON` compare/reduction/minmax 死残留 | completed | 已从 `src/fafafa.core.simd.neon.compare.inc` 删除 `CmpNeU32x4` 与 `I32x4/U32x4 reduction` 入口，从 `neon.scalar.reduction.inc` 删除对应 fallback，并从 `neon.scalar.utility.inc` 删除 `Min/MaxI64x2` fallback |
+| 3. 扩 absent 护栏并串行 release 复验 | completed | `check_nonx86_helper_semantics.py` 已新增 `NEON_COMPARE_FILE` 并把上述名字加入 `require_routine_absent(...)`；`git diff --check`、helper semantics、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 已全部通过，helper summary 更新到 `checks=537 status=ok`；`gate` 末尾仍只把旧 `windows_b07_gate.log` 诚实降级为 optional `SKIP` |

@@ -4696,3 +4696,34 @@
   - Release `gate` 继续为绿
   - 额外残留扫描结果已到 `RESIDUE_COUNT=0`
   - `gate` 末尾仍然只把旧 `windows_b07_gate.log` 诚实降级为 optional `SKIP`
+
+## 2026-05-15 NEON Dead Compare/Reduction/MinMax Residue Removal
+
+- `RISCVV` 非 `Asm` internal residue 清到 `0` 之后，下一刀没有跳去新主题，而是沿同一口径继续扫 `NEON` 的零调用尾巴。
+- fresh 复核后确认，本批只删真正没有消费面的 9 组名字：
+  - `NEONCmpNeU32x4`
+  - `NEONReduce(Add/Min/Max)I32x4`
+  - `NEONReduce(Add/Min/Max)U32x4`
+  - `NEONMinI64x2`
+  - `NEONMaxI64x2`
+- 这些名字当前都没有 `register/facade/runtime/simd.pas/tests` 接线，因此本批不是“补能力”，而是“删错误保留的 dead residue”：
+  - 从 `src/fafafa.core.simd.neon.compare.inc` 删除 compare/reduction 入口
+  - 从 `src/fafafa.core.simd.neon.scalar.reduction.inc` 删除对应 fallback
+  - 从 `src/fafafa.core.simd.neon.scalar.utility.inc` 删除 `Min/MaxI64x2`
+- `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 已同步补齐缺席护栏：
+  - 新增 `NEON_COMPARE_FILE`
+  - 把上述名字全部纳入 `require_routine_absent(...)`
+- 本批 fresh 验证：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 当前结果：
+  - helper summary 升到 `NONX86_HELPER_SEMANTICS_SUMMARY checks=537 status=ok`
+  - `impl-audit-nonx86` 继续为绿
+  - Release `check` 继续为绿
+  - Release `gate` 继续为绿
+  - `NEON` 非 `_ASM` 零调用残留只剩 7 个 wrapper/combine 内部支撑函数，不再属于这类 dead residue
+  - `gate` 末尾仍然只把旧 `windows_b07_gate.log` 诚实降级为 optional `SKIP`
+- 收口前会继续清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

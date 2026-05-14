@@ -2582,51 +2582,6 @@ asm
 end;
 
 // ============================================================================
-// === I32x4 Reduction Operations (NEON) ===
-// ============================================================================
-
-// I32x4 水平加法规约 (addp v.4s)
-function NEONReduceAddI32x4(const a: TVecI32x4): Int32; assembler; nostackframe;
-asm
-  // a: x0..x1
-  fmov  d0, x0
-  fmov  d2, x1
-  ins   v0.d[1], v2.d[0]
-
-  // Horizontal sum using addp (integer pairwise add)
-  addp  v0.4s, v0.4s, v0.4s  // [a0+a1, a2+a3, a0+a1, a2+a3]
-  addp  v0.4s, v0.4s, v0.4s  // [sum(a0..a3), ...]
-  // Result in w0 (v0.s[0])
-  umov  w0, v0.s[0]
-end;
-
-// I32x4 水平最小值规约 (sminp v.4s - signed min pairwise)
-function NEONReduceMinI32x4(const a: TVecI32x4): Int32; assembler; nostackframe;
-asm
-  fmov  d0, x0
-  fmov  d2, x1
-  ins   v0.d[1], v2.d[0]
-
-  // Pairwise min reduction
-  sminp v0.4s, v0.4s, v0.4s
-  sminp v0.4s, v0.4s, v0.4s
-  umov  w0, v0.s[0]
-end;
-
-// I32x4 水平最大值规约 (smaxp v.4s - signed max pairwise)
-function NEONReduceMaxI32x4(const a: TVecI32x4): Int32; assembler; nostackframe;
-asm
-  fmov  d0, x0
-  fmov  d2, x1
-  ins   v0.d[1], v2.d[0]
-
-  // Pairwise max reduction
-  smaxp v0.4s, v0.4s, v0.4s
-  smaxp v0.4s, v0.4s, v0.4s
-  umov  w0, v0.s[0]
-end;
-
-// ============================================================================
 // === U32x4 Comparison Operations (NEON) ===
 // ============================================================================
 // 无符号比较使用 cmhi (无符号大于) 和 cmhs (无符号大于等于)
@@ -2767,73 +2722,9 @@ asm
   orr   w0, w0, w4, lsl #3
 end;
 
-// U32x4 不等比较 (a != b = NOT(a == b))
-function NEONCmpNeU32x4(const a, b: TVecU32x4): TMask4; assembler; nostackframe;
-asm
-  fmov  d0, x0
-  fmov  d2, x1
-  ins   v0.d[1], v2.d[0]
-
-  fmov  d1, x2
-  fmov  d2, x3
-  ins   v1.d[1], v2.d[0]
-
-  cmeq  v0.4s, v0.4s, v1.4s
-  mvn   v0.16b, v0.16b
-
-  umov  w1, v0.s[0]
-  lsr   w1, w1, #31
-  umov  w2, v0.s[1]
-  lsr   w2, w2, #31
-  umov  w3, v0.s[2]
-  lsr   w3, w3, #31
-  umov  w4, v0.s[3]
-  lsr   w4, w4, #31
-
-  orr   w0, w1, w2, lsl #1
-  orr   w0, w0, w3, lsl #2
-  orr   w0, w0, w4, lsl #3
-end;
-
 // ============================================================================
 // === U32x4 Reduction Operations (NEON) ===
 // ============================================================================
-
-// U32x4 水平加法规约 (addp v.4s - 无符号)
-function NEONReduceAddU32x4(const a: TVecU32x4): UInt32; assembler; nostackframe;
-asm
-  fmov  d0, x0
-  fmov  d2, x1
-  ins   v0.d[1], v2.d[0]
-
-  addp  v0.4s, v0.4s, v0.4s
-  addp  v0.4s, v0.4s, v0.4s
-  umov  w0, v0.s[0]
-end;
-
-// U32x4 水平最小值规约 (uminp v.4s - unsigned min pairwise)
-function NEONReduceMinU32x4(const a: TVecU32x4): UInt32; assembler; nostackframe;
-asm
-  fmov  d0, x0
-  fmov  d2, x1
-  ins   v0.d[1], v2.d[0]
-
-  uminp v0.4s, v0.4s, v0.4s
-  uminp v0.4s, v0.4s, v0.4s
-  umov  w0, v0.s[0]
-end;
-
-// U32x4 水平最大值规约 (umaxp v.4s - unsigned max pairwise)
-function NEONReduceMaxU32x4(const a: TVecU32x4): UInt32; assembler; nostackframe;
-asm
-  fmov  d0, x0
-  fmov  d2, x1
-  ins   v0.d[1], v2.d[0]
-
-  umaxp v0.4s, v0.4s, v0.4s
-  umaxp v0.4s, v0.4s, v0.4s
-  umov  w0, v0.s[0]
-end;
 
 // ============================================================================
 // === U16x8 Comparison Operations (NEON) ===
