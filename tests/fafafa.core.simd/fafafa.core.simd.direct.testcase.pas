@@ -10,6 +10,7 @@ uses
   Math,
   fpcunit, testregistry,
   fafafa.core.simd,
+  fafafa.core.simd.testcase,
   fafafa.core.simd.base,
   fafafa.core.simd.api,
   fafafa.core.simd.dispatch,
@@ -17,10 +18,9 @@ uses
   fafafa.core.simd.scalar;
 
 type
-  TDirectDispatchStatefulTestCase = class(TTestCase)
+  TDirectDispatchStatefulTestCase = class(TSimdBackendStatefulTestCase)
   protected
     FSavedVectorAsm: Boolean;
-    FSavedBackend: TSimdBackend;
     procedure RestoreFixtureDirectDispatchState;
     procedure SetUp; override;
     procedure TearDown; override;
@@ -207,9 +207,7 @@ end;
 procedure TDirectDispatchStatefulTestCase.SetUp;
 begin
   inherited SetUp;
-  GetDispatchTable;
   FSavedVectorAsm := IsVectorAsmEnabled;
-  FSavedBackend := GetCurrentBackend;
 end;
 
 procedure TDirectDispatchStatefulTestCase.RestoreFixtureDirectDispatchState;
@@ -228,8 +226,12 @@ end;
 
 procedure TDirectDispatchStatefulTestCase.TearDown;
 begin
-  RestoreFixtureDirectDispatchState;
+  SetVectorAsmEnabled(FSavedVectorAsm);
   inherited TearDown;
+  RebindDirectDispatch;
+
+  AssertTrue('Direct dispatch fixture should restore previous vector asm state',
+    IsVectorAsmEnabled = FSavedVectorAsm);
 end;
 
 function DirectDispatchSyntheticBitsetPopCountImpl(p: Pointer; byteLen: SizeUInt): SizeUInt;

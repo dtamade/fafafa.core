@@ -2844,3 +2844,34 @@
   - 同时保住了 `vector-asm` 这部分 testcase 专属语义，不把它硬塞进更重、更窄条件的通用基类
   - 也给下一轮继续审 `concurrent/direct/dispatchslots` 提供了更清晰的判别规则：先分清 backend 生命周期、vector-asm 状态和 testcase 专属 hook/rebind 语义分别属于哪一层
 - Release `TTestCase_SSE2Contracts,TTestCase_DataPlane`、Release `check`、Release `gate` 全绿，说明这批仍然只是测试夹具层去冗余，没有改变 dataplane 或 SSE2 contract 的被测行为。
+
+## 2026-05-14 Concurrent And Direct Stateful Base Consolidation Findings
+
+- `concurrent` 与 `direct` 进一步暴露出另一层测试冗余：
+  - 它们不是单个 testcase 重复 `SetUp/TearDown`
+  - 而是各自先造了一层本地 stateful 基类
+  - 然后这层本地基类里又重复了一遍仓内已有的 backend 生命周期
+- 两份文件的共同点很明确：
+  - 都自带 `FSavedBackend + FSavedVectorAsm`
+  - `SetUp` 里重复 `GetDispatchTable; ... := GetCurrentBackend`
+  - `TearDown` 里重复 `ResetToAutomaticBackend/TrySetActiveBackend`
+  - 而仓内现成 `TSimdBackendStatefulTestCase` 已经把这套 backend save/restore 契约固定好了
+- 但它们与 `dataplane/sse2contracts` 也有一个关键差异：
+  - `concurrent` 仍需要方法级 `RestoreSimdLocalState(...)` 帮助测试在中途恢复 local control-plane
+  - `direct` 的 fixture restore 和大量方法级 cleanup 还需要 `RebindDirectDispatch`
+  - 所以正确收法不是删除本地基类，而是让本地基类只保留 testcase 专属状态与动作，把 backend 生命周期回收到公共基类
+- 因而这批最合适的落点是：
+  - `TSimdStatefulTestCase = class(TSimdBackendStatefulTestCase)`
+  - `TDirectDispatchStatefulTestCase = class(TSimdBackendStatefulTestCase)`
+  - 两者本地只再维护 `FSavedVectorAsm`
+  - `concurrent` 在 `TearDown` 里先恢复 vector-asm，再交给 inherited restore backend，最后断言 vector-asm 已回到进入态
+  - `direct` 同样先恢复 vector-asm，再交给 inherited restore backend，之后补 `RebindDirectDispatch`
+- 这批复核也顺便确认了一个重要的停止点：
+  - `dispatchslots` 虽然表面也有保存/恢复 backend 的重复体
+  - 但它保存的是 `GetActiveBackend`，而公共基类保存的是 `GetCurrentBackend`
+  - 在没先核实 active/current 是否对这个 suite 完全等价前，不能为了“继续去重”就直接套基类
+- 这批修法的价值在于：
+  - simd 测试层的冗余不只在 testcase 级别，连文件内自建 stateful 基类也开始向统一 backend lifecycle 收口
+  - 同时把 `concurrent/direct` 的 testcase 专属语义完整留下：前者保留方法级 restore helper，后者保留 direct dispatch rebind
+  - 也为后续 `dispatchslots` 的只读审查建立了清晰前提：先判定 active/current 语义，再决定是否值得收公共基类
+- Release `TTestCase_SimdConcurrent,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework,TTestCase_SimdConcurrentRegistration,TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、Release `check`、Release `gate` 全绿，说明这批仍然只是测试夹具层去冗余，没有改变并发回归或 direct dispatch 的被测语义。

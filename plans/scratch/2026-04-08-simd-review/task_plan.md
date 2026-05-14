@@ -2305,3 +2305,17 @@
 | 1. 复核 `dataplane` / `sse2contracts` 的 backend 与 vector-asm 生命周期边界 | completed | 已确认两份 testcase 都同时重复 `FOldBackend + FOldVectorAsm` 样板，但真正通用的是 backend save/restore；`vector-asm` 状态仍是 testcase 专属，而 `TSimdVectorAsmBackendStatefulTestCase` 对这批文件来说平台条件更窄、契约更重 |
 | 2. 只把 backend 保存/恢复收回 `TSimdBackendStatefulTestCase` | completed | `TTestCase_DataPlane` 与 `TTestCase_SSE2Contracts` 都已改继承 `TSimdBackendStatefulTestCase`，删除本地 `FOldBackend`，保留 `FOldVectorAsm`；`TearDown` 统一先恢复 vector-asm，再 `inherited TearDown` 恢复 backend；`dataplane` 的方法级 local restore 也同步从 `FOldBackend` 切到 `FSavedBackend` |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_SSE2Contracts,TTestCase_DataPlane`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 Concurrent And Direct Stateful Base Consolidation
+
+### Goal
+
+继续沿 stateful fixture 去重往下收，但这次目标是 `concurrent` / `direct` 里各自的本地 stateful 基类：把重复的 backend 生命周期收回 `TSimdBackendStatefulTestCase`，保留方法级 restore helper 与 `RebindDirectDispatch` 这类 testcase 专属语义。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `concurrent` / `direct` 本地 stateful 基类与公共 backend 基类的重合面 | completed | 已确认 `TSimdStatefulTestCase` 与 `TDirectDispatchStatefulTestCase` 都重复了 `GetDispatchTable -> save current backend -> TearDown restore backend`；真正 testcase 专属的剩余状态分别是 `vector-asm` 与 `direct dispatch rebind` |
+| 2. 只把类级 backend 生命周期收回 `TSimdBackendStatefulTestCase` | completed | 两个本地基类都已改继承 `TSimdBackendStatefulTestCase`，删除本地 `FSavedBackend`；`SetUp` 不再重复保存 backend；`concurrent` 的 `TearDown` 改成只恢复 vector-asm 后 `inherited TearDown`；`direct` 的 `TearDown` 则在同样顺序后补 `RebindDirectDispatch` |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release 定向 suites（`SimdConcurrent/PublicAbi/Framework/Registration` 与 `DirectDispatch/DirectDispatchConcurrent`）、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |

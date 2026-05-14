@@ -2949,3 +2949,34 @@
   - 这说明后续继续深挖时，不必急着把所有 vector-asm testcase 都硬套进 `TSimdVectorAsmBackendStatefulTestCase`
   - 更稳的做法仍然是先看 testcase 是否真的只剩 `vector-asm` 专属状态，再决定是否保留本地字段
 - 这轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+- 我继续往前收的是两份“各自维护一个本地 stateful 基类，但 backend 生命周期其实已经和公共基类同构”的 testcase：
+  - `concurrent`
+  - `direct`
+- 这轮先把边界卡清楚了：
+  - `concurrent` 的 `TSimdStatefulTestCase` 重复了 `GetDispatchTable + save backend + TearDown restore backend`，额外本地状态只剩 `FSavedVectorAsm`
+  - `direct` 的 `TDirectDispatchStatefulTestCase` 也重复了同一套 backend fixture，只是在 fixture restore 时额外需要 `RebindDirectDispatch`
+  - `dispatchslots` 虽然也像候选，但它保存的是 `GetActiveBackend`，不是 `GetCurrentBackend`，这轮先不混进来
+- 本轮最小修法因此是：
+  - `TSimdStatefulTestCase` 改继承 `TSimdBackendStatefulTestCase`
+  - `TDirectDispatchStatefulTestCase` 改继承 `TSimdBackendStatefulTestCase`
+  - 两个文件都引入 `fafafa.core.simd.testcase`
+  - 删除各自本地的 `FSavedBackend`
+  - `SetUp` 不再本地重复 `GetDispatchTable / GetCurrentBackend`
+  - `concurrent` 的 `TearDown` 改成只恢复 `FSavedVectorAsm`，然后 `inherited TearDown`，最后断言 vector-asm 已回到进入态
+  - `direct` 的 `TearDown` 也改成同样顺序，但在 `inherited TearDown` 后追加 `RebindDirectDispatch`
+- 这轮还刻意保留了两类本地 helper 语义不动：
+  - `RestoreSimdLocalState(...)` 继续服务 `concurrent` 里方法级 local restore
+  - `RestoreFixtureDirectDispatchState` 继续服务 `direct` 里方法级 restore 与 rebind
+  - 也就是说，这轮只抽“类级 backend lifecycle”，不去碰并发编排或 direct dispatch 语义
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrent,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework,TTestCase_SimdConcurrentRegistration,TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断继续更新：
+  - simd 测试层已经不只是“单 testcase 自带一份 fixture”，连文件内自建的局部 stateful 基类也可以继续向公共 backend 基类收口
+  - `dispatchslots` 之所以还没动，不是遗漏，而是它当前保存/恢复的是 active-backend 语义，必须先把 `GetActiveBackend` 与 `GetCurrentBackend` 的边界核死
+  - 下一轮更合适的方向就是专门复核 `dispatchslots` 这条 active/current 语义线，而不是继续盲目扩散到更多文件
+- 这轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

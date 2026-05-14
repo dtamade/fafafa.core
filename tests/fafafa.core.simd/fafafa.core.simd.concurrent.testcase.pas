@@ -25,16 +25,16 @@ uses
   Classes, SysUtils, Math,
   fpcunit, testregistry,
   fafafa.core.simd,
+  fafafa.core.simd.testcase,
   fafafa.core.simd.base,
   fafafa.core.simd.backend.adapter,
   fafafa.core.simd.runtime,
   fafafa.core.simd.dispatch;
 
 type
-  TSimdStatefulTestCase = class(TTestCase)
+  TSimdStatefulTestCase = class(TSimdBackendStatefulTestCase)
   protected
     FSavedVectorAsm: Boolean;
-    FSavedBackend: TSimdBackend;
     procedure RestoreSimdLocalState(aOriginalVectorAsm: Boolean;
       aOriginalBackend: TSimdBackend);
     procedure SetUp; override;
@@ -591,15 +591,16 @@ end;
 procedure TSimdStatefulTestCase.SetUp;
 begin
   inherited SetUp;
-  GetDispatchTable;
   FSavedVectorAsm := IsVectorAsmEnabled;
-  FSavedBackend := GetCurrentBackend;
 end;
 
 procedure TSimdStatefulTestCase.TearDown;
 begin
-  RestoreSimdLocalState(FSavedVectorAsm, FSavedBackend);
+  SetVectorAsmEnabled(FSavedVectorAsm);
   inherited TearDown;
+
+  AssertTrue('SIMD concurrent fixture should restore previous vector asm state',
+    IsVectorAsmEnabled = FSavedVectorAsm);
 end;
 
 const
