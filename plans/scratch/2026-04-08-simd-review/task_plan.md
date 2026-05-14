@@ -2646,3 +2646,17 @@
 | 1. 复核剩余 raw backend-restore caller 的真实影响面 | completed | 精确扫描后确认 stable test path 里最显眼的残点只剩两处：`TSimdBackendStatefulTestCase.TearDown` 自己仍手写 `ResetBackendSelection + TrySetActiveBackend + getter compare`，以及 `publicabi` 一处 finally cleanup 仍只做未校验的 `RestoreSavedBackendState(...)` |
 | 2. 对齐到共享 verified helper contract | completed | `TSimdBackendStatefulTestCase.TearDown` 现改用 `RestoreSavedBackendStateAndVerify(FSavedBackend, @GetCurrentBackend)`；`publicabi` 那处 finally cleanup 同步改用 `RestoreSavedBackendStateAndVerify(LOriginalBackend, @GetCurrentBackend)` |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_RuntimeAPI,TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿；说明公共 backend fixture 收口后，`vector-asm` 派生 suite、public ABI smoke 和 run_all 链路都继续稳定 |
+
+## 2026-05-14 DispatchSlots Redundant Finally Cleanup Removal
+
+### Goal
+
+继续加强 `simd` 测试层审查并修复，但这次只清 `dispatchslots.testcase` 里三处与公共 `TSimdBackendStatefulTestCase` teardown 完全重叠的手工 backend-restore finally：不改 dispatch contract 断言本体，只删冗余 cleanup，并同步去掉不再需要的 `fixturehelpers` 依赖。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `dispatchslots` 的手工 restore 是否已被公共基类覆盖 | completed | 已确认 `TTestCase_DispatchAllSlots` 直接继承 `TSimdBackendStatefulTestCase`，而 3 个 finally 里的 `RestoreSavedBackendStateAndVerify(FSavedBackend, @GetActiveBackend)` 只发生在方法末尾；这些点与 suite teardown 的 backend restore contract 完全重叠 |
+| 2. 删除冗余 finally cleanup | completed | 已删除 `Test_AllSelectableBackends_AllDispatchSlots_Assigned`、`Test_BackendAdapter_ActiveBackend_RoundTrip_NoNilAndCorePointersStable`、`Test_BackendAdapter_RegisteredBackendOps_PreserveCanonicalTextMetadata_After_ReRegister` 末尾的手工 backend restore；第三个测试只保留必要的 `RegisterBackend(LBackend, LOriginalTable)` 注册表恢复；`dispatchslots.testcase` 也去掉了未再使用的 `fixturehelpers` |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAllSlots`、Release `check`、Release `gate` 全绿；说明 dispatch contract/adapter roundtrip/re-register 路径在回归公共 teardown 后依然稳定 |

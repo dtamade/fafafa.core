@@ -3679,3 +3679,29 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-14 DispatchSlots Redundant Finally Cleanup Removal
+
+- 继续精确下探 backend-restore 冗余时，`dispatchslots.testcase` 暴露出一个更干净的删除点：
+  - `TTestCase_DispatchAllSlots` 本身继承的就是 `TSimdBackendStatefulTestCase`
+  - 但有 3 个测试在方法尾部 still 手工执行 `RestoreSavedBackendStateAndVerify(FSavedBackend, @GetActiveBackend)`
+  - 这些 restore 不参与任何中途断言，只是在测试结束前重复做一遍 teardown 已经承诺的事情
+- 复核后确认这 3 处都属于真正冗余，而不是 suite-specific 语义：
+  - `Test_AllSelectableBackends_AllDispatchSlots_Assigned`
+  - `Test_BackendAdapter_ActiveBackend_RoundTrip_NoNilAndCorePointersStable`
+  - `Test_BackendAdapter_RegisteredBackendOps_PreserveCanonicalTextMetadata_After_ReRegister`
+  - 第三个测试里真正必须保留的是 `RegisterBackend(LBackend, LOriginalTable)` 对注册表文本元数据的回滚，不是 backend selection 的额外 restore
+- 本轮最小修法已落地：
+  - 删除上述 3 处末尾的 backend restore finally
+  - 保留所有 dispatch slot / roundtrip / canonical metadata 断言
+  - `dispatchslots.testcase` 也同步移除了不再使用的 `fafafa.core.simd.fixturehelpers`
+- 这批的价值在于，它不是把手工 restore 换一种写法，而是直接删掉了与共享 contract 重叠的一层：
+  - backend teardown 的真相源继续只保留在 `TSimdBackendStatefulTestCase`
+  - `dispatchslots` 不再额外维护一份“测试结束时也要自己 restore”的局部约定
+  - 读这个 suite 时，更容易区分“必要的 register rollback”和“已经由基类兜底的 backend selection restore”
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAllSlots`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过

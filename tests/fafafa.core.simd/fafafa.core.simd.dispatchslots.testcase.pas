@@ -11,7 +11,6 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry,
-  fafafa.core.simd.fixturehelpers,
   fafafa.core.simd.testcase,
   fafafa.core.simd.base,
   fafafa.core.simd.dispatch,
@@ -609,22 +608,17 @@ var
   LDispatch: PSimdDispatchTable;
 begin
   LChecked := 0;
-  try
-    for LBackend in BACKENDS do
-    begin
-      if not IsBackendRegistered(LBackend) then
-        Continue;
-      if not TrySetActiveBackend(LBackend) then
-        Continue;
+  for LBackend in BACKENDS do
+  begin
+    if not IsBackendRegistered(LBackend) then
+      Continue;
+    if not TrySetActiveBackend(LBackend) then
+      Continue;
 
-      LDispatch := GetDispatchTable;
-      AssertEquals('Active backend mismatch', Ord(LBackend), Ord(GetActiveBackend));
-      AssertAllDispatchSlotsAssigned(LBackend, LDispatch);
-      Inc(LChecked);
-    end;
-  finally
-    AssertTrue('Dispatch slots local restore should recover previous backend selection',
-      RestoreSavedBackendStateAndVerify(FSavedBackend, @GetActiveBackend));
+    LDispatch := GetDispatchTable;
+    AssertEquals('Active backend mismatch', Ord(LBackend), Ord(GetActiveBackend));
+    AssertAllDispatchSlotsAssigned(LBackend, LDispatch);
+    Inc(LChecked);
   end;
 
   AssertTrue('At least one backend should be checked', LChecked > 0);
@@ -655,54 +649,49 @@ var
   LOps: TSimdBackendOps;
 begin
   LChecked := 0;
-  try
-    for LBackend in BACKENDS do
-    begin
-      if not IsBackendRegistered(LBackend) then
-        Continue;
-      if not TrySetActiveBackend(LBackend) then
-        Continue;
+  for LBackend in BACKENDS do
+  begin
+    if not IsBackendRegistered(LBackend) then
+      Continue;
+    if not TrySetActiveBackend(LBackend) then
+      Continue;
 
-      LDispatch := GetDispatchTable;
-      AssertNotNull('Dispatch table should be available', LDispatch);
-      AssertEquals('Active backend mismatch', Ord(LBackend), Ord(GetActiveBackend));
+    LDispatch := GetDispatchTable;
+    AssertNotNull('Dispatch table should be available', LDispatch);
+    AssertEquals('Active backend mismatch', Ord(LBackend), Ord(GetActiveBackend));
 
-      LSourceTable := LDispatch^;
-      LOps := Default(TSimdBackendOps);
-      DispatchTableToBackendOps(LSourceTable, LOps);
-      BackendOpsToDispatchTable(LOps, LRoundTripTable);
-      AssertAllDispatchSlotsAssigned(LBackend, @LRoundTripTable);
+    LSourceTable := LDispatch^;
+    LOps := Default(TSimdBackendOps);
+    DispatchTableToBackendOps(LSourceTable, LOps);
+    BackendOpsToDispatchTable(LOps, LRoundTripTable);
+    AssertAllDispatchSlotsAssigned(LBackend, @LRoundTripTable);
 
-      AssertEquals('Roundtrip backend field mismatch', Ord(LSourceTable.Backend), Ord(LRoundTripTable.Backend));
-      AssertEquals('Roundtrip BackendInfo.Backend mismatch', Ord(LSourceTable.BackendInfo.Backend), Ord(LRoundTripTable.BackendInfo.Backend));
-      AssertEquals('Roundtrip BackendInfo.Name mismatch', LSourceTable.BackendInfo.Name, LRoundTripTable.BackendInfo.Name);
-      AssertEquals('Roundtrip BackendInfo.Description mismatch', LSourceTable.BackendInfo.Description, LRoundTripTable.BackendInfo.Description);
-      AssertEquals('Roundtrip BackendInfo.Available mismatch',
-        LSourceTable.BackendInfo.Available, LRoundTripTable.BackendInfo.Available);
-      AssertEquals('Roundtrip BackendInfo.Priority mismatch',
-        LSourceTable.BackendInfo.Priority, LRoundTripTable.BackendInfo.Priority);
-      AssertTrue('Roundtrip BackendInfo.Capabilities mismatch',
-        LSourceTable.BackendInfo.Capabilities = LRoundTripTable.BackendInfo.Capabilities);
-      AssertTrue('BackendInfo.Name should stay non-empty for registered backend',
-        LRoundTripTable.BackendInfo.Name <> '');
+    AssertEquals('Roundtrip backend field mismatch', Ord(LSourceTable.Backend), Ord(LRoundTripTable.Backend));
+    AssertEquals('Roundtrip BackendInfo.Backend mismatch', Ord(LSourceTable.BackendInfo.Backend), Ord(LRoundTripTable.BackendInfo.Backend));
+    AssertEquals('Roundtrip BackendInfo.Name mismatch', LSourceTable.BackendInfo.Name, LRoundTripTable.BackendInfo.Name);
+    AssertEquals('Roundtrip BackendInfo.Description mismatch', LSourceTable.BackendInfo.Description, LRoundTripTable.BackendInfo.Description);
+    AssertEquals('Roundtrip BackendInfo.Available mismatch',
+      LSourceTable.BackendInfo.Available, LRoundTripTable.BackendInfo.Available);
+    AssertEquals('Roundtrip BackendInfo.Priority mismatch',
+      LSourceTable.BackendInfo.Priority, LRoundTripTable.BackendInfo.Priority);
+    AssertTrue('Roundtrip BackendInfo.Capabilities mismatch',
+      LSourceTable.BackendInfo.Capabilities = LRoundTripTable.BackendInfo.Capabilities);
+    AssertTrue('BackendInfo.Name should stay non-empty for registered backend',
+      LRoundTripTable.BackendInfo.Name <> '');
 
-      // Contract smoke: representative core slots must keep exact function-pointer identity.
-      AssertTrue('AddF32x4 pointer changed after roundtrip', LSourceTable.AddF32x4 = LRoundTripTable.AddF32x4);
-      AssertTrue('MulF32x4 pointer changed after roundtrip', LSourceTable.MulF32x4 = LRoundTripTable.MulF32x4);
-      AssertTrue('RoundF32x4 pointer changed after roundtrip', LSourceTable.RoundF32x4 = LRoundTripTable.RoundF32x4);
-      AssertTrue('TruncF32x4 pointer changed after roundtrip', LSourceTable.TruncF32x4 = LRoundTripTable.TruncF32x4);
-      AssertTrue('AddI32x4 pointer changed after roundtrip', LSourceTable.AddI32x4 = LRoundTripTable.AddI32x4);
-      AssertTrue('AndI32x4 pointer changed after roundtrip', LSourceTable.AndI32x4 = LRoundTripTable.AndI32x4);
-      AssertTrue('LoadF32x4 pointer changed after roundtrip', LSourceTable.LoadF32x4 = LRoundTripTable.LoadF32x4);
-      AssertTrue('StoreF32x4 pointer changed after roundtrip', LSourceTable.StoreF32x4 = LRoundTripTable.StoreF32x4);
-      AssertTrue('MemEqual pointer changed after roundtrip', LSourceTable.MemEqual = LRoundTripTable.MemEqual);
-      AssertTrue('BitsetPopCount pointer changed after roundtrip', LSourceTable.BitsetPopCount = LRoundTripTable.BitsetPopCount);
+    // Contract smoke: representative core slots must keep exact function-pointer identity.
+    AssertTrue('AddF32x4 pointer changed after roundtrip', LSourceTable.AddF32x4 = LRoundTripTable.AddF32x4);
+    AssertTrue('MulF32x4 pointer changed after roundtrip', LSourceTable.MulF32x4 = LRoundTripTable.MulF32x4);
+    AssertTrue('RoundF32x4 pointer changed after roundtrip', LSourceTable.RoundF32x4 = LRoundTripTable.RoundF32x4);
+    AssertTrue('TruncF32x4 pointer changed after roundtrip', LSourceTable.TruncF32x4 = LRoundTripTable.TruncF32x4);
+    AssertTrue('AddI32x4 pointer changed after roundtrip', LSourceTable.AddI32x4 = LRoundTripTable.AddI32x4);
+    AssertTrue('AndI32x4 pointer changed after roundtrip', LSourceTable.AndI32x4 = LRoundTripTable.AndI32x4);
+    AssertTrue('LoadF32x4 pointer changed after roundtrip', LSourceTable.LoadF32x4 = LRoundTripTable.LoadF32x4);
+    AssertTrue('StoreF32x4 pointer changed after roundtrip', LSourceTable.StoreF32x4 = LRoundTripTable.StoreF32x4);
+    AssertTrue('MemEqual pointer changed after roundtrip', LSourceTable.MemEqual = LRoundTripTable.MemEqual);
+    AssertTrue('BitsetPopCount pointer changed after roundtrip', LSourceTable.BitsetPopCount = LRoundTripTable.BitsetPopCount);
 
-      Inc(LChecked);
-    end;
-  finally
-    AssertTrue('Dispatch slots local restore should recover previous backend selection',
-      RestoreSavedBackendStateAndVerify(FSavedBackend, @GetActiveBackend));
+    Inc(LChecked);
   end;
 
   AssertTrue('At least one backend should be checked', LChecked > 0);
@@ -781,8 +770,6 @@ begin
       LOps.BackendInfo.Capabilities = LModifiedTable.BackendInfo.Capabilities);
   finally
     RegisterBackend(LBackend, LOriginalTable);
-    AssertTrue('Dispatch slots local restore should recover previous backend selection',
-      RestoreSavedBackendStateAndVerify(FSavedBackend, @GetActiveBackend));
   end;
 end;
 

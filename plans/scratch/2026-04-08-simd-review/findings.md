@@ -3340,3 +3340,17 @@
   - 再抓单个 suite 的 message-bearing wrapper
   - 因为前者一旦收掉，整个测试层的语义标准会更统一
 - 经过这批后，stable `simd` test path 上最显眼的 raw backend-restore choreography 已经基本收平；剩余更多是 suite-local 断言包装，而不是共享 contract 级别的分叉。
+
+## 2026-05-14 DispatchSlots Redundant Finally Cleanup Removal Findings
+
+- `dispatchslots.testcase` 这批确认了另一类值得优先删除的冗余：不是“局部 wrapper 还在用共享 helper”，而是“suite 自己在测试尾部重复执行了基类 already-guaranteed cleanup”。
+- 判断这类点时，一个很实用的标准已经更清楚了：
+  - 如果测试类本身继承了 `TSimdBackendStatefulTestCase`
+  - 手工 restore 又只发生在方法尾部
+  - 而 finally 之后没有依赖“已恢复 backend”的额外断言
+  - 那么这层 restore 很可能就是 teardown contract 的重复体
+- `dispatchslots` 里的 3 处恰好都满足这个条件，所以这轮可以直接删，而不是继续换成别的 helper 调用。
+- 这也把下一轮审查方向进一步收窄了：
+  - 优先找“只在方法尾部、且被共享 fixture contract 覆盖”的残余 cleanup
+  - 低优先级才是那些虽然也调用共享 helper，但仍承载中途恢复语义、hook/reset/rebind 时序或 suite 专属消息边界的 wrapper
+- 经过这批后，stable test path 里“方法尾部重复 restore 已由公共 teardown 保证的 backend state”这一类冗余基本又少了一块。
