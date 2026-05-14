@@ -82,10 +82,12 @@ begin
   // This allows testing NaN, Infinity, division by zero without triggering exceptions
   FSavedExceptionMask := GetExceptionMask;
   SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision]);
+  ForceBackend(sbScalar);
 end;
 
 procedure TTestCase_EdgeCases.TearDown;
 begin
+  ResetBackendSelection;
   // Restore original FPU exception mask
   SetExceptionMask(FSavedExceptionMask);
   inherited TearDown;

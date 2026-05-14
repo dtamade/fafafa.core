@@ -2003,3 +2003,38 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+## 2026-05-14 EdgeCases Scalarization
+
+- 继续筛剩余候选时，这一轮仍然没有去碰：
+  - `UnsignedVectorTypes` / `RustStyleAliases`
+  - `Memutils`
+  - `dispatch/dataplane/publicabi/runtime/concurrent`
+- 原因保持一致：
+  - 前两类主要是 typedef/layout/alias/tooling contract，backend 语义密度低
+  - `Memutils` 更偏 aligned allocation/tooling contract
+  - 最后一类则是控制面/并发面，根本不该机械套进 `sbScalar`
+- 交叉核对后，当前更高价值的缺口落在 `TTestCase_EdgeCases`：
+  - 它覆盖的是一组真实 contract 的边界语义：
+    - `VecF32x4` 的 NaN / Infinity / div-by-zero
+    - `SortNet4F32` 的 NaN 排序约定
+    - `VecI32x4` / `PrefixSumI32` 的 overflow 语义
+    - `MemEqual/MemFindByte/SumBytes` 的极端非对齐/跨页场景
+    - `VecF32x4Extract/Insert` 与 `MaskF32x4Test` 的 index saturation
+  - suite 的 `SetUp/TearDown` 原本只负责 FPU exception mask 生命周期，没有固定 backend 语义
+- 复核 testcase 形状后，没有发现任何一条测试显式依赖“自动 backend 选择”：
+  - 它们断言的是公开 façade 与 utility contract 的边界结果
+  - 没有断言 backend 文本、自动降级、dispatch path 或 runtime snapshot
+  - 虽然混有少量 `utils` helper 边界，但固定 `sbScalar` 不会改变这些 contract 的测试目标
+- 本轮最小改动保持很窄：
+  - 不新增 suite
+  - 不修改 runner manifest
+  - 保留原有 FPU exception mask 保存/恢复逻辑
+  - 只在 `fafafa.core.simd.edgecases.testcase.pas` 的 `SetUp/TearDown` 中叠加 `ForceBackend(sbScalar)` / `ResetBackendSelection`
+- Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_EdgeCases`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

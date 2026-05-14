@@ -1730,3 +1730,17 @@
 | 1. 复核 `Builder` 与剩余候选优先级 | completed | 已确认 `TTestCase_Builder` 覆盖的是 `FromValues/Splat/Load/Build/Add/MulScalar/AddScalar/Normalize/Clamp/ReduceAdd/ReduceMin/ReduceMax/Lerp` 等真实 public builder façade；相比之下 `UnsignedVectorTypes`、`RustStyleAliases`、`Memutils` 更偏 typedef/layout/alias/tooling 层，而 `dispatch/dataplane/publicabi/runtime/concurrent` 属于控制面/并发面 |
 | 2. 收敛 `Builder` 为 scalar direct suite | completed | 未新开 runner，也未复制 testcase；直接给 `TTestCase_Builder` 增加 `SetUp/TearDown`，统一固定 `ForceBackend(sbScalar)` / `ResetBackendSelection`，把现有 builder façade 测试整体升级成 direct evidence |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_Builder`、Release `check`、串行 Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 EdgeCases Scalarization
+
+### Goal
+
+继续把仍有高价值 contract 的边界语义测试收回 fixed-`sbScalar` 语义，优先处理 `TTestCase_EdgeCases` 这一簇 NaN/Inf/overflow/unaligned/index-saturation 边界，而不是回头去做 `UnsignedVectorTypes`、`RustStyleAliases`、`Memutils` 这类低价值类型/工具层测试。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `EdgeCases` 与剩余候选优先级 | completed | 已确认 `TTestCase_EdgeCases` 覆盖的是 `VecF32x4 +/-/*//` 的 NaN/Inf contract、`SortNet4F32` 的 NaN 排序语义、`VecI32x4` overflow、`PrefixSumI32` overflow、`MemEqual/MemFindByte/SumBytes` 的极端非对齐/跨页行为，以及 `VecF32x4Extract/Insert` index saturation；虽然混有少量 `utils` helper 边界，但语义价值仍明显高于 `UnsignedVectorTypes`、`RustStyleAliases`、`Memutils` |
+| 2. 收敛 `EdgeCases` 为 scalar direct suite | completed | 不新开 runner，也不复制 testcase；在保留 FPU exception mask fixture 的前提下，直接给 `TTestCase_EdgeCases` 增加 `ForceBackend(sbScalar)` / `ResetBackendSelection`，把现有边界 contract 测试整体升级成 direct evidence |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_EdgeCases`、Release `check`、串行 Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |

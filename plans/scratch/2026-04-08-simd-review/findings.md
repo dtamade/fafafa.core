@@ -1778,3 +1778,30 @@
   - 不新增 suite，也不修改 runner manifest
   - 只补 `ForceBackend(sbScalar)` / `ResetBackendSelection`
 - Release `TTestCase_Builder`、Release `check`、串行 Release `gate` 全绿，说明这批补的是 public builder façade 的 scalar-direct evidence gap，而不是 builder 实现缺陷。
+
+## 2026-05-14 EdgeCases Scalarization Findings
+
+- `TTestCase_EdgeCases` 不是纯类型/别名测试，而是一组真实 contract 的边界语义集合：
+  - `VecF32x4` 的 NaN / Infinity / divide-by-zero / invalid-domain
+  - `SortNet4F32` 的 NaN 放尾约定
+  - `VecI32x4` / `PrefixSumI32` 的 wraparound overflow 语义
+  - `MemEqual/MemFindByte/SumBytes` 的极端非对齐、odd-size、跨页边界
+  - `VecF32x4Extract/Insert` 与 `MaskF32x4Test` 的 index saturation
+- 它虽然混有少量 `utils` helper 边界，但整体语义价值仍明显高于以下候选：
+  - `UnsignedVectorTypes` / `RustStyleAliases`：主要是 typedef/layout/alias 断言
+  - `Memutils`：更偏 aligned allocation 工具 contract
+  - `dispatch/dataplane/publicabi/runtime/concurrent`：控制面或并发面，不能机械套入 `sbScalar`
+- `TTestCase_EdgeCases` 在本轮之前已经有专门的 fixture 语义：
+  - `SetUp` 保存并放宽 FPU exception mask
+  - `TearDown` 恢复原 mask
+  - 但没有固定 backend 语义
+- 复核 testcase 形状后，没有发现任何一条测试显式依赖默认 backend 自动选择：
+  - 没有断言 backend 名称、dispatch 结果或 runtime snapshot
+  - 没有断言跨 backend parity
+  - 只断言公开 façade / utility contract 的边界行为
+  - 因而这批缺口仍然是证据层，而不是实现层
+- 这批最优雅的修复方式仍然不是复制 testcase，而是在现有 fixture 上叠加 backend 固定：
+  - 保留原有 FPU exception mask 生命周期不动
+  - 不新增 suite，也不改 runner manifest
+  - 只补 `ForceBackend(sbScalar)` / `ResetBackendSelection`
+- Release `TTestCase_EdgeCases`、Release `check`、串行 Release `gate` 全绿，说明这批补的是边界 contract 的 scalar-direct evidence gap，而不是 edgecase 实现缺陷。
