@@ -35,11 +35,32 @@ uses
   fafafa.core.simd.builder;
 
 type
-  // 全局函数测试
-  TTestCase_Global = class(TTestCase)
+  TSimdBackendStatefulTestCase = class(TTestCase)
   protected
+    FSavedBackend: TSimdBackend;
     procedure SetUp; override;
     procedure TearDown; override;
+  end;
+
+  TScalarBackendStatefulTestCase = class(TSimdBackendStatefulTestCase)
+  protected
+    procedure SetUp; override;
+  end;
+
+  {$IFDEF UNIX}
+  {$IFDEF CPUX86_64}
+  TSimdVectorAsmBackendStatefulTestCase = class(TSimdBackendStatefulTestCase)
+  protected
+    FSavedVectorAsm: Boolean;
+    procedure RefreshVectorAsmBackendRegistration; virtual; abstract;
+    procedure SetUp; override;
+    procedure TearDown; override;
+  end;
+  {$ENDIF}
+  {$ENDIF}
+
+  // 全局函数测试
+  TTestCase_Global = class(TScalarBackendStatefulTestCase)
   published
     // 内存操作函数测试
     procedure Test_MemEqual;
@@ -110,10 +131,9 @@ type
   {$ENDIF}
 
   // 后端烟雾测试 - 验证 backend 选择后基础向量操作不会崩溃且结果正确
-  TTestCase_BackendSmoke = class(TTestCase)
+  TTestCase_BackendSmoke = class(TSimdBackendStatefulTestCase)
   protected
     procedure RunVecF32x4Smoke;
-    procedure TearDown; override;
   published
     procedure Test_VectorAsmEnabled_Toggle_Roundtrip;
 
@@ -156,11 +176,10 @@ type
   {$IFDEF UNIX}
   {$IFDEF CPUX86_64}
   // AVX2 VectorAsm 专项测试：聚焦于向量汇编路径的正确性（小步推进）
-  TTestCase_AVX2VectorAsm = class(TTestCase)
+  TTestCase_AVX2VectorAsm = class(TSimdVectorAsmBackendStatefulTestCase)
   protected
-    FOldVectorAsm: Boolean;
+    procedure RefreshVectorAsmBackendRegistration; override;
     procedure SetUp; override;
-    procedure TearDown; override;
   published
     procedure Test_VecF32x4_Fma_FusedWhenFMAAvailable;
     procedure Test_VecF32x8_AddSubMulDiv_RandomConsistency;
@@ -230,11 +249,10 @@ type
   {$IFDEF SIMD_BACKEND_AVX512}
   // AVX-512 VectorAsm 专项测试：聚焦于 512-bit 向量汇编路径的正确性
   // 全面覆盖所有 AVX-512 注册函数
-  TTestCase_AVX512VectorAsm = class(TTestCase)
+  TTestCase_AVX512VectorAsm = class(TSimdVectorAsmBackendStatefulTestCase)
   protected
-    FOldVectorAsm: Boolean;
+    procedure RefreshVectorAsmBackendRegistration; override;
     procedure SetUp; override;
-    procedure TearDown; override;
   published
     // === F32x16 算术运算一致性测试 ===
     procedure Test_VecF32x16_AddSubMulDiv_RandomConsistency;
@@ -289,10 +307,7 @@ type
   {$ENDIF}
 
   // 向量运算测试 (强制使用 Scalar 后端以避免 AVX2 实现的问题)
-  TTestCase_VectorOps = class(TTestCase)
-  protected
-    procedure SetUp; override;
-    procedure TearDown; override;
+  TTestCase_VectorOps = class(TScalarBackendStatefulTestCase)
   published
     procedure Test_VecF32x4_Add;
     procedure Test_VecF32x4_Sub;
@@ -335,10 +350,7 @@ type
   end;
 
   // 低宽整数 façade contract 直接守卫（强制 Scalar，避免只剩 parity 旁证）
-  TTestCase_IntegerFacadeGuards = class(TTestCase)
-  protected
-    procedure SetUp; override;
-    procedure TearDown; override;
+  TTestCase_IntegerFacadeGuards = class(TScalarBackendStatefulTestCase)
   published
     procedure Test_VecI32x4_AndNot_Basic;
     procedure Test_VecI32x4_Compare_Basic;
@@ -378,10 +390,7 @@ type
   end;
 
   // 宽浮点 façade contract 直接守卫（强制 Scalar，避免只剩 operator/default-backend/parity 旁证）
-  TTestCase_FloatFacadeGuards = class(TTestCase)
-  protected
-    procedure SetUp; override;
-    procedure TearDown; override;
+  TTestCase_FloatFacadeGuards = class(TScalarBackendStatefulTestCase)
   published
     procedure Test_VecF64x2_Arithmetic_Basic;
     procedure Test_VecF64x2_CompareReduceSelect_Basic;
@@ -398,10 +407,7 @@ type
   end;
 
   // 大数据量和边界测试
-  TTestCase_LargeData = class(TTestCase)
-  protected
-    procedure SetUp; override;
-    procedure TearDown; override;
+  TTestCase_LargeData = class(TScalarBackendStatefulTestCase)
   published
     procedure Test_MemEqual_1MB;
     procedure Test_SumBytes_1MB;
@@ -443,10 +449,7 @@ type
   end;
 
   // Phase 1.2: 运算符重载测试
-  TTestCase_OperatorOverloads = class(TTestCase)
-  protected
-    procedure SetUp; override;
-    procedure TearDown; override;
+  TTestCase_OperatorOverloads = class(TScalarBackendStatefulTestCase)
   published
     // TVecF32x4 运算符测试
     procedure Test_VecF32x4_Op_Add;
@@ -472,10 +475,7 @@ type
   end;
 
   // Phase 1.3: 向量掩码类型测试
-  TTestCase_VectorMaskTypes = class(TTestCase)
-  protected
-    procedure SetUp; override;
-    procedure TearDown; override;
+  TTestCase_VectorMaskTypes = class(TScalarBackendStatefulTestCase)
   published
     // TMaskF32x4 基础测试
     procedure Test_MaskF32x4_TypeDef_Size;
@@ -509,10 +509,7 @@ type
   end;
 
   // Phase 1.4: 类型转换函数测试
-  TTestCase_TypeConversion = class(TTestCase)
-  protected
-    procedure SetUp; override;
-    procedure TearDown; override;
+  TTestCase_TypeConversion = class(TScalarBackendStatefulTestCase)
   published
     // IntoBits / FromBits (F32x4 <-> I32x4)
     procedure Test_VecF32x4_IntoBits;
@@ -540,10 +537,7 @@ type
   end;
 
   // Phase 3: Builder 模式测试
-  TTestCase_Builder = class(TTestCase)
-  protected
-    procedure SetUp; override;
-    procedure TearDown; override;
+  TTestCase_Builder = class(TScalarBackendStatefulTestCase)
   published
     // TVecF32x4Builder 基础测试
     procedure Test_Builder_Create_FromValues;
@@ -568,10 +562,7 @@ type
   end;
 
   // Phase 2: Gather/Scatter 测试
-  TTestCase_GatherScatter = class(TTestCase)
-  protected
-    procedure SetUp; override;
-    procedure TearDown; override;
+  TTestCase_GatherScatter = class(TScalarBackendStatefulTestCase)
   published
     // Gather - 从不连续内存位置收集数据到向量
     procedure Test_VecF32x4_Gather_Sequential;
@@ -591,10 +582,7 @@ type
   end;
 
   // Phase 2: Shuffle/Swizzle 测试
-  TTestCase_ShuffleSWizzle = class(TTestCase)
-  protected
-    procedure SetUp; override;
-    procedure TearDown; override;
+  TTestCase_ShuffleSWizzle = class(TScalarBackendStatefulTestCase)
   published
     // MM_SHUFFLE 辅助函数
     procedure Test_MM_SHUFFLE;
@@ -637,10 +625,7 @@ type
   end;
 
   // Phase 4: SIMD 数学函数测试
-  TTestCase_MathFunctions = class(TTestCase)
-  protected
-    procedure SetUp; override;
-    procedure TearDown; override;
+  TTestCase_MathFunctions = class(TScalarBackendStatefulTestCase)
   published
     // 三角函数
     procedure Test_VecF32x4_Sin;
@@ -664,10 +649,7 @@ type
   end;
 
   // Phase 5: 高级算法测试
-  TTestCase_AdvancedAlgorithms = class(TTestCase)
-  protected
-    procedure SetUp; override;
-    procedure TearDown; override;
+  TTestCase_AdvancedAlgorithms = class(TScalarBackendStatefulTestCase)
   published
     // 排序网络 (Sorting Network)
     procedure Test_SortNet4_I32_Ascending;
@@ -719,19 +701,65 @@ end;
 {$ENDIF}
 {$ENDIF}
 
-{ TTestCase_Global }
+{ TSimdBackendStatefulTestCase }
 
-procedure TTestCase_Global.SetUp;
+procedure TSimdBackendStatefulTestCase.SetUp;
+begin
+  inherited SetUp;
+  GetDispatchTable;
+  FSavedBackend := GetCurrentBackend;
+end;
+
+procedure TSimdBackendStatefulTestCase.TearDown;
+var
+  LRestoredBackend: Boolean;
+begin
+  ResetBackendSelection;
+  LRestoredBackend := True;
+  if GetCurrentBackend <> FSavedBackend then
+    LRestoredBackend := TrySetActiveBackend(FSavedBackend);
+
+  inherited TearDown;
+
+  AssertTrue(ClassName + ' should restore previous backend selection',
+    LRestoredBackend and (GetCurrentBackend = FSavedBackend));
+end;
+
+{ TScalarBackendStatefulTestCase }
+
+procedure TScalarBackendStatefulTestCase.SetUp;
 begin
   inherited SetUp;
   ForceBackend(sbScalar);
 end;
 
-procedure TTestCase_Global.TearDown;
+{$IFDEF UNIX}
+{$IFDEF CPUX86_64}
+{ TSimdVectorAsmBackendStatefulTestCase }
+
+procedure TSimdVectorAsmBackendStatefulTestCase.SetUp;
 begin
-  ResetBackendSelection;
-  inherited TearDown;
+  inherited SetUp;
+  FSavedVectorAsm := IsVectorAsmEnabled;
 end;
+
+procedure TSimdVectorAsmBackendStatefulTestCase.TearDown;
+var
+  LRestoredVectorAsm: Boolean;
+begin
+  SetVectorAsmEnabled(FSavedVectorAsm);
+  RefreshVectorAsmBackendRegistration;
+  LRestoredVectorAsm := IsVectorAsmEnabled = FSavedVectorAsm;
+
+  inherited TearDown;
+
+  AssertTrue(ClassName + ' should restore previous vector asm state',
+    LRestoredVectorAsm);
+end;
+{$ENDIF}
+{$ENDIF}
+
+{ TTestCase_Global }
 
 // === 内存操作函数测试 ===
 
@@ -2054,12 +2082,6 @@ begin
   VecF32x4Store(@dst[0], w);
   AssertEquals('Normalize4 X', 1.0, dst[0], 0.001);  // Relaxed for rsqrtps
   AssertEquals('Normalize4 Y', 0.0, dst[1], 0.0001);
-end;
-
-procedure TTestCase_BackendSmoke.TearDown;
-begin
-  ResetBackendSelection;
-  inherited TearDown;
 end;
 
 procedure TTestCase_BackendSmoke.Test_VectorAsmEnabled_Toggle_Roundtrip;
@@ -4573,11 +4595,14 @@ asm
   add rsp, 16
 end;
 
+procedure TTestCase_AVX2VectorAsm.RefreshVectorAsmBackendRegistration;
+begin
+  RegisterAVX2Backend;
+end;
+
 procedure TTestCase_AVX2VectorAsm.SetUp;
 begin
   inherited SetUp;
-
-  FOldVectorAsm := IsVectorAsmEnabled;
 
   // 强制开启 vector asm，并重新注册后端以更新 dispatch table
   SetVectorAsmEnabled(True);
@@ -4585,16 +4610,6 @@ begin
 
   // 在 AVX2 可用的机器上强制使用 AVX2；否则会自动回退到 Scalar
   ForceBackend(sbAVX2);
-end;
-
-procedure TTestCase_AVX2VectorAsm.TearDown;
-begin
-  // 恢复 vector asm 开关，并重新注册后端，避免影响其他测试
-  SetVectorAsmEnabled(FOldVectorAsm);
-  RegisterAVX2Backend;
-
-  ResetBackendSelection;
-  inherited TearDown;
 end;
 
 procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_Fma_FusedWhenFMAAvailable;
@@ -8098,11 +8113,14 @@ end;
 {$IFDEF SIMD_BACKEND_AVX512}
 { TTestCase_AVX512VectorAsm }
 
+procedure TTestCase_AVX512VectorAsm.RefreshVectorAsmBackendRegistration;
+begin
+  RegisterAVX512Backend;
+end;
+
 procedure TTestCase_AVX512VectorAsm.SetUp;
 begin
   inherited SetUp;
-
-  FOldVectorAsm := IsVectorAsmEnabled;
 
   // 强制开启 vector asm，并重新注册后端以更新 dispatch table
   SetVectorAsmEnabled(True);
@@ -8110,16 +8128,6 @@ begin
 
   // 在 AVX-512 可用的机器上强制使用 AVX-512；否则会自动回退到 Scalar
   ForceBackend(sbAVX512);
-end;
-
-procedure TTestCase_AVX512VectorAsm.TearDown;
-begin
-  // 恢复 vector asm 开关，并重新注册后端，避免影响其他测试
-  SetVectorAsmEnabled(FOldVectorAsm);
-  RegisterAVX512Backend;
-
-  ResetBackendSelection;
-  inherited TearDown;
 end;
 
 procedure TTestCase_AVX512VectorAsm.Test_VecF32x16_AddSubMulDiv_RandomConsistency;
@@ -9386,21 +9394,6 @@ end;
 
 { TTestCase_VectorOps }
 
-
-procedure TTestCase_VectorOps.SetUp;
-begin
-  inherited SetUp;
-  // 强制使用 Scalar 后端，避免 AVX2 汇编实现的问题
-  ForceBackend(sbScalar);
-end;
-
-procedure TTestCase_VectorOps.TearDown;
-begin
-  // 恢复自动后端选择
-  ResetBackendSelection;
-  inherited TearDown;
-end;
-
 procedure TTestCase_VectorOps.Test_VecF32x4_Add;
 var
   a, b, c: TVecF32x4;
@@ -10046,18 +10039,6 @@ begin
 end;
 
 { TTestCase_IntegerFacadeGuards }
-
-procedure TTestCase_IntegerFacadeGuards.SetUp;
-begin
-  inherited SetUp;
-  ForceBackend(sbScalar);
-end;
-
-procedure TTestCase_IntegerFacadeGuards.TearDown;
-begin
-  ResetBackendSelection;
-  inherited TearDown;
-end;
 
 procedure TTestCase_IntegerFacadeGuards.Test_VecI32x4_AndNot_Basic;
 var
@@ -11808,18 +11789,6 @@ end;
 
 { TTestCase_FloatFacadeGuards }
 
-procedure TTestCase_FloatFacadeGuards.SetUp;
-begin
-  inherited SetUp;
-  ForceBackend(sbScalar);
-end;
-
-procedure TTestCase_FloatFacadeGuards.TearDown;
-begin
-  ResetBackendSelection;
-  inherited TearDown;
-end;
-
 procedure TTestCase_FloatFacadeGuards.Test_VecF64x2_Arithmetic_Basic;
 const
   C_EPSILON = 1e-12;
@@ -12513,18 +12482,6 @@ end;
 
 { TTestCase_LargeData }
 
-procedure TTestCase_LargeData.SetUp;
-begin
-  inherited SetUp;
-  ForceBackend(sbScalar);
-end;
-
-procedure TTestCase_LargeData.TearDown;
-begin
-  ResetBackendSelection;
-  inherited TearDown;
-end;
-
 procedure TTestCase_LargeData.Test_MemEqual_1MB;
 const
   SIZE = 1024 * 1024;  // 1 MB
@@ -12885,18 +12842,6 @@ end;
 
 { TTestCase_OperatorOverloads }
 
-procedure TTestCase_OperatorOverloads.SetUp;
-begin
-  inherited SetUp;
-  ForceBackend(sbScalar);
-end;
-
-procedure TTestCase_OperatorOverloads.TearDown;
-begin
-  ResetBackendSelection;
-  inherited TearDown;
-end;
-
 procedure TTestCase_OperatorOverloads.Test_VecF32x4_Op_Add;
 var
   a, b, c: TVecF32x4;
@@ -13086,18 +13031,6 @@ begin
 end;
 
 { TTestCase_VectorMaskTypes }
-
-procedure TTestCase_VectorMaskTypes.SetUp;
-begin
-  inherited SetUp;
-  ForceBackend(sbScalar);
-end;
-
-procedure TTestCase_VectorMaskTypes.TearDown;
-begin
-  ResetBackendSelection;
-  inherited TearDown;
-end;
 
 procedure TTestCase_VectorMaskTypes.Test_MaskF32x4_TypeDef_Size;
 var
@@ -13349,18 +13282,6 @@ begin
 end;
 
 { TTestCase_TypeConversion }
-
-procedure TTestCase_TypeConversion.SetUp;
-begin
-  inherited SetUp;
-  ForceBackend(sbScalar);
-end;
-
-procedure TTestCase_TypeConversion.TearDown;
-begin
-  ResetBackendSelection;
-  inherited TearDown;
-end;
 
 procedure TTestCase_TypeConversion.Test_VecF32x4_IntoBits;
 var
@@ -13620,18 +13541,6 @@ end;
 
 { TTestCase_Builder }
 
-procedure TTestCase_Builder.SetUp;
-begin
-  inherited SetUp;
-  ForceBackend(sbScalar);
-end;
-
-procedure TTestCase_Builder.TearDown;
-begin
-  ResetBackendSelection;
-  inherited TearDown;
-end;
-
 procedure TTestCase_Builder.Test_Builder_Create_FromValues;
 var
   v: TVecF32x4;
@@ -13800,18 +13709,6 @@ begin
 end;
 
 { TTestCase_GatherScatter }
-
-procedure TTestCase_GatherScatter.SetUp;
-begin
-  inherited SetUp;
-  ForceBackend(sbScalar);
-end;
-
-procedure TTestCase_GatherScatter.TearDown;
-begin
-  ResetBackendSelection;
-  inherited TearDown;
-end;
 
 procedure TTestCase_GatherScatter.Test_VecF32x4_Gather_Sequential;
 var
@@ -14077,18 +13974,6 @@ begin
 end;
 
 { TTestCase_ShuffleSWizzle }
-
-procedure TTestCase_ShuffleSWizzle.SetUp;
-begin
-  inherited SetUp;
-  ForceBackend(sbScalar);
-end;
-
-procedure TTestCase_ShuffleSWizzle.TearDown;
-begin
-  ResetBackendSelection;
-  inherited TearDown;
-end;
 
 procedure TTestCase_ShuffleSWizzle.Test_MM_SHUFFLE;
 begin
@@ -14411,18 +14296,6 @@ end;
 
 { TTestCase_MathFunctions }
 
-procedure TTestCase_MathFunctions.SetUp;
-begin
-  inherited SetUp;
-  ForceBackend(sbScalar);
-end;
-
-procedure TTestCase_MathFunctions.TearDown;
-begin
-  ResetBackendSelection;
-  inherited TearDown;
-end;
-
 procedure TTestCase_MathFunctions.Test_VecF32x4_Sin;
 const
   PI = 3.14159265358979323846;
@@ -14686,18 +14559,6 @@ begin
 end;
 
 { TTestCase_AdvancedAlgorithms }
-
-procedure TTestCase_AdvancedAlgorithms.SetUp;
-begin
-  inherited SetUp;
-  ForceBackend(sbScalar);
-end;
-
-procedure TTestCase_AdvancedAlgorithms.TearDown;
-begin
-  ResetBackendSelection;
-  inherited TearDown;
-end;
 
 // === 排序网络测试 ===
 

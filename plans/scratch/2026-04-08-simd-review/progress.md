@@ -2253,3 +2253,50 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+## 2026-05-14 Simd.TestCase Stateful Fixture Consolidation
+
+- 继续沿 `tests/fafafa.core.simd/fafafa.core.simd.testcase.pas` 往下深审后，确认当前最高价值缺口已经不再是 alias/type 噪音，而是主 testcase 文件里大面积重复且不对称的 fixture：
+  - `TTestCase_Global`
+  - `TTestCase_BackendSmoke`
+  - `TTestCase_AVX2VectorAsm`
+  - `TTestCase_AVX512VectorAsm`
+  - `TTestCase_VectorOps`
+  - `TTestCase_IntegerFacadeGuards`
+  - `TTestCase_FloatFacadeGuards`
+  - `TTestCase_LargeData`
+  - `TTestCase_OperatorOverloads`
+  - `TTestCase_VectorMaskTypes`
+  - `TTestCase_TypeConversion`
+  - `TTestCase_Builder`
+  - `TTestCase_GatherScatter`
+  - `TTestCase_ShuffleSWizzle`
+  - `TTestCase_MathFunctions`
+  - `TTestCase_AdvancedAlgorithms`
+- 这些类原先要么在 `SetUp` 里 `ForceBackend(sbScalar)`、退出时只 `ResetBackendSelection`，要么会切 `vector asm/backend` 后只回 `automatic`，没有恢复进入测试前真实状态。
+- 本轮没有去碰任何生产实现，而是在同一文件里抽了 3 个共享 fixture：
+  - `TSimdBackendStatefulTestCase`
+  - `TScalarBackendStatefulTestCase`
+  - `TSimdVectorAsmBackendStatefulTestCase`
+- 具体改动落点：
+  - `Global` 改为继承 `TScalarBackendStatefulTestCase`
+  - `BackendSmoke` 改为继承 `TSimdBackendStatefulTestCase`
+  - `AVX2VectorAsm` / `AVX512VectorAsm` 改为继承 `TSimdVectorAsmBackendStatefulTestCase`，并通过 `RefreshVectorAsmBackendRegistration` 覆盖各自的 `RegisterAVX2Backend/RegisterAVX512Backend`
+  - 一串 scalar façade suite 全部改为继承 `TScalarBackendStatefulTestCase`
+  - 删除各自重复的 `SetUp/TearDown`
+- 过程中还复现并确认了一个非代码回归的 runner 陷阱：
+  - 并行起多个 `BuildOrTest.sh test --suite=...` 会共享同一个 `bin2/lib2` 输出树
+  - 实际会出现：
+    - `Text file busy`
+    - `build rc=2`
+  - 这是 runner 并发竞争，不是本批代码错误；后续验证已全部切回串行
+- 本轮 Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_Global`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_BackendSmoke`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_AVX2VectorAsm`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IntegerFacadeGuards`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

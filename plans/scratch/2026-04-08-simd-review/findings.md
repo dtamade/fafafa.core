@@ -2021,3 +2021,35 @@
   - backend adapter 生产实现
   - 任何 vector-asm 逻辑
 - Release `TTestCase_DispatchAllSlots`、Release `check`、Release `gate` 全绿，说明这批修的是 `dispatchslots` 测试夹具 backend 恢复不对称，而不是 slot 绑定或 adapter 行为缺陷。
+
+## 2026-05-14 Simd.TestCase Stateful Fixture Consolidation Findings
+
+- `tests/fafafa.core.simd/fafafa.core.simd.testcase.pas` 仍然是当前主 runner 里最大的一块真实 fixture 泄漏源：
+  - `TTestCase_Global` 在 `SetUp` 里 `ForceBackend(sbScalar)`，退出时只 `ResetBackendSelection`
+  - `TTestCase_BackendSmoke` 多个 test body 会 `ForceBackend(...)`，类级 `TearDown` 也只回 `automatic`
+  - `TTestCase_AVX2VectorAsm` / `TTestCase_AVX512VectorAsm` 会切 `SetVectorAsmEnabled(True)`、重新注册 backend，再 `ForceBackend(sbAVX2/sbAVX512)`，但退出时只恢复 `vector asm` 并 `ResetBackendSelection`
+  - `TTestCase_VectorOps`、`TTestCase_IntegerFacadeGuards`、`TTestCase_FloatFacadeGuards`、`TTestCase_LargeData`、`TTestCase_OperatorOverloads`、`TTestCase_VectorMaskTypes`、`TTestCase_TypeConversion`、`TTestCase_Builder`、`TTestCase_GatherScatter`、`TTestCase_ShuffleSWizzle`、`TTestCase_MathFunctions`、`TTestCase_AdvancedAlgorithms` 也都重复着“强制 `sbScalar` + 只回 `automatic`”的同构夹具
+- 这类问题继续逐个类补 `SetUp/TearDown` 已经不划算：
+  - 问题形态完全同构
+  - 文件本身已经有大量历史样板
+  - 继续逐个打补丁只会让重复夹具越来越多
+- 本轮最小正确修复是把“恢复进入测试前状态”提升成共享 fixture contract：
+  - 提取 `TSimdBackendStatefulTestCase`，统一保存进入测试前的 `GetCurrentBackend`
+  - 提取 `TScalarBackendStatefulTestCase`，统一承接“先保存状态，再强制 `sbScalar`”
+  - 提取 `TSimdVectorAsmBackendStatefulTestCase`，统一承接“先恢复 `vector asm`，再恢复 backend”，并把 backend re-register 留给具体子类覆盖
+  - 让 `TTestCase_Global`、`TTestCase_BackendSmoke`、`TTestCase_AVX2VectorAsm`、`TTestCase_AVX512VectorAsm` 与整串 scalar façade suite 全部切到共享基类
+- 这批修复同时解决了两类债务：
+  - 真实 fixture/state leak
+  - 重复 `SetUp/TearDown` 冗余
+- `AVX2/AVX512VectorAsm` 这次没有去改任何向量实现或测试语义：
+  - 只把“恢复 `vector asm` 后需要重新注册 backend”收进基类协议
+  - `RefreshVectorAsmBackendRegistration` 仍由具体 suite 自己覆盖调用 `RegisterAVX2Backend/RegisterAVX512Backend`
+- 这轮刻意没有改动：
+  - 任何 SIMD 生产实现
+  - suite manifest / runner 注册逻辑
+  - `UnsignedVectorTypes` / `RustStyleAliases` 这类低价值 alias/layout 噪音
+- 额外流程发现也需要保留：
+  - 并行启动多个 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=...` 会共享同一个 Lazarus 输出树
+  - 这会导致 `Text file busy` 或 `rc=2` 之类的假红，不应误判成代码回归
+  - 这个 runner 在本仓库应继续保持串行验证
+- Release `TTestCase_Global`、Release `TTestCase_BackendSmoke`、Release `TTestCase_AVX2VectorAsm`、Release `TTestCase_IntegerFacadeGuards`、Release `check`、Release `gate` 全绿，说明这批修的是主 testcase 文件里的夹具恢复不对称，并且共享基类没有引入 suite 回归。

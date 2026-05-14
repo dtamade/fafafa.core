@@ -1870,3 +1870,17 @@
 | 1. 复核 `TTestCase_DispatchAllSlots` 的状态恢复对称性 | completed | 已确认多个测试会遍历 `TrySetActiveBackend(...)` 或直接 `ResetToAutomaticBackend`，但类本身没有 fixture 级 `SetUp/TearDown` |
 | 2. 提取类级 backend 恢复层 | completed | 在 `TTestCase_DispatchAllSlots` 增加 `FSavedBackend` 与 `SetUp/TearDown`，统一保存/恢复进入测试前 backend |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAllSlots`、Release `check`、Release `gate` 全绿 |
+
+## 2026-05-14 Simd.TestCase Stateful Fixture Consolidation
+
+### Goal
+
+继续沿主入口 `tests/fafafa.core.simd/fafafa.core.simd.testcase.pas` 审查 fixture 恢复对称性，统一修复 `Global`、`BackendSmoke`、`AVX2/AVX512VectorAsm` 和一串强制 `sbScalar` 的 façade suite 在结束时只回 `automatic`、却不恢复进入测试前 backend/vector-asm 状态的泄漏，并顺手去掉重复 `SetUp/TearDown` 样板。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `simd.testcase` 主文件里的状态泄漏与重复夹具 | completed | 已确认 `TTestCase_Global`、`TTestCase_BackendSmoke`、`TTestCase_AVX2VectorAsm`、`TTestCase_AVX512VectorAsm` 以及 `VectorOps/IntegerFacadeGuards/FloatFacadeGuards/LargeData/OperatorOverloads/VectorMaskTypes/TypeConversion/Builder/GatherScatter/ShuffleSWizzle/MathFunctions/AdvancedAlgorithms` 都存在同类问题：切 backend 或 vector-asm 后只 `ResetBackendSelection`，没有恢复进入测试前真实状态 |
+| 2. 抽共享 stateful fixture 并替换重复 `SetUp/TearDown` | completed | 在 `fafafa.core.simd.testcase.pas` 提取 `TSimdBackendStatefulTestCase`、`TScalarBackendStatefulTestCase` 与 `TSimdVectorAsmBackendStatefulTestCase`；让 `Global/BackendSmoke/AVX2/AVX512` 与整串 scalar suite 统一继承，恢复顺序固定为先恢复 `vector asm`，再 `ResetBackendSelection`，必要时 `TrySetActiveBackend(savedBackend)` |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_Global`、`TTestCase_BackendSmoke`、`TTestCase_AVX2VectorAsm`、`TTestCase_IntegerFacadeGuards`、Release `check`、Release `gate` 全绿；过程中已确认并行跑同一 Lazarus runner 会产生 `Text file busy/rc=2` 假红，因此最终验证全部改回串行 |
