@@ -3229,3 +3229,19 @@
 - 这进一步支持下一步策略：
   - 停止只按 `FSavedVectorAsm` 搜索做机械清理
   - 对 `ieee754` 先做“可分离语义”梳理，再决定是否要抽本地专用基类
+
+## 2026-05-14 IEEE754 Fixture Base Alignment Findings
+
+- `ieee754.testcase` 最终证明确实不是“不能动”，而是“不能按前几批那样直接拿全局公共基类硬套”：
+  - 它有自己专属的异常 mask 生命周期
+  - `F64` 还多一层 scalar forcing
+  - `NonX86IEEE754` 又只需要其中一半语义
+- 因而这轮最稳的结构不是继续把规则塞回 `fafafa.core.simd.testcase.pas`，而是在 `ieee754.testcase.pas` 内部建立局部专用基类。
+- 这条处理方式给后续审查一个更重要的判断标准：
+  - 如果冗余已经跨进“领域专用 fixture contract”，优先考虑在该专题 testcase 文件内部抽局部基类
+  - 只有当 contract 已经被多个独立专题共享时，才值得再往全局 testcase infrastructure 提升
+- 这也意味着当前 `simd` 测试层的冗余治理已经进入更成熟的后期阶段：
+  - 低风险：直接对齐全局公共基类
+  - 中风险：保留 suite-specific post-restore action，再对齐公共 lifecycle
+  - 高一点但可控：在专题 testcase 内抽局部专用基类
+- 经过 `edgecases/concurrent/dispatchapi/publicabi/direct/ieee754` 这一串收口后，剩余更像“必要的 suite-specific fixture”，而不再是明显的历史重复壳。

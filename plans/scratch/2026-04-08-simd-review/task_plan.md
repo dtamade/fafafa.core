@@ -47,6 +47,7 @@
 | `mcp__ace_tool__search_context` 在 gate/summary 真相检索上再次超时                | 1       | 直接回退到 `tests/fafafa.core.simd/BuildOrTest.sh` 与 `evaluate_simd_freeze_status.py` 读控制流 |
 | `win-evidence-via-gh` 首次以远端临时分支名 dispatch 时，本地 `git rev-parse <ref>` 未解析成 SHA | 1       | 先推远端 `simd-win-evidence-20260514-0cbc7204`，再本地创建同名分支指向 `HEAD`，之后 workflow dispatch 成功 |
 | GH Windows evidence workflow `25860032794` 被平台 billing/spending limit 拒跑     | 1       | Linux freeze 已补绿；Windows freshness 只能等待账单恢复或改走真实可用 Windows runner 后再刷新 |
+| `BuildOrTest.sh gate` 在 `ieee754` fixture 批次首次 build 阶段报 `Can't call the linker ... /usr/bin/ld.bfd error code: -7` | 1 | 定向 `ieee754` suites 与 Release `check` 均已先绿，判断为本机链接器瞬态；串行重跑同一条 Release `gate` 后恢复 PASS |
 
 ## 2026-05-09 Subtask
 
@@ -2546,3 +2547,17 @@
 | 1. 复核 `direct` 的本地 fixture 和公共基类差异 | completed | 已确认 `TDirectDispatchStatefulTestCase.SetUp` 只是在保存 `FSavedVectorAsm`；本地真正额外语义只剩中途 restore 后需要 `RebindDirectDispatch`，以及最终 teardown 后也要再 rebind 一次 direct table |
 | 2. 对齐到公共 `vector-asm stateful` 基类 | completed | `TDirectDispatchStatefulTestCase` 已改继承 `TSimdVectorAsmStatefulTestCase`，删除本地 `FSavedVectorAsm` 与重复 `SetUp`；`TearDown` 只保留 `inherited TearDown` 后的 `RebindDirectDispatch`，`RestoreFixtureDirectDispatchState(...)` 保持不变 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、Release `check`、Release `gate` 全绿；`direct` 的 rebind 语义在定向 suite 和 gate 里都继续通过 |
+
+## 2026-05-14 IEEE754 Fixture Base Alignment
+
+### Goal
+
+继续加强 `simd` 测试层审查并修复，但这次不碰任何 rounding/special-value 测试体，只把 `ieee754.testcase` 里重复的 fixture 生命周期抽成局部专用基类：统一 `exception mask + vector-asm restore`，并让 `NonX86IEEE754` 直接复用公共 `TSimdVectorAsmStatefulTestCase`。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核四个 IEEE754 suite 的 fixture 差异 | completed | 已确认 `F64`、`EdgeCases`、`AVX2RoundTrunc` 三组只是重复 `FSavedVectorAsm + FSavedExceptionMask + SetUp/TearDown`，其中 `F64` 额外多一步 `SetActiveBackend(sbScalar)`；`NonX86IEEE754` 则只重复了 `vector-asm` lifecycle |
+| 2. 抽本地 `masked vector-asm` 基类并对齐 suite | completed | `ieee754.testcase.pas` 已新增局部 `TIEEE754MaskedVectorAsmStatefulTestCase`；`F64` 现只 override `SetUp` 追加 `SetActiveBackend(sbScalar)`；`EdgeCases` 和 `AVX2RoundTrunc` 直接复用新基类；`NonX86IEEE754` 直接改继承 `TSimdVectorAsmStatefulTestCase` |
+| 3. Release 验证与提交收口 | completed | Release `TTestCase_IEEE754_F64,TTestCase_IEEE754EdgeCases,TTestCase_AVX2RoundTruncIEEE754,TTestCase_NonX86IEEE754`、Release `check`、Release `gate` 全绿；期间首轮 gate 遇到链接器瞬态，串行重跑后恢复 PASS |

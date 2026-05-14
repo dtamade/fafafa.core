@@ -3462,3 +3462,31 @@
 - 到这里可以更细地给剩余候选分层：
   - `direct` 这种“公共 lifecycle + suite-specific post-restore action”仍然是可安全下沉的
   - `ieee754` 则已经不只是 post-restore action，而是把 exception mask、scalar forcing、rounding 路径编排一起揉进 fixture，必须单独重新拆
+
+## 2026-05-14 IEEE754 Fixture Base Alignment
+
+- 重新逐段核对 `ieee754.testcase` 后，确认这里的冗余虽然风险更高，但仍然主要落在 fixture 生命周期，而不在具体测试体：
+  - `TTestCase_IEEE754_F64`、`TTestCase_IEEE754EdgeCases`、`TTestCase_AVX2RoundTruncIEEE754` 都在重复
+    - `FSavedVectorAsm`
+    - `FSavedExceptionMask`
+    - `SetUp/TearDown`
+  - 其中真正的 suite-specific 差异只有：
+    - `F64` 额外在 `SetUp` 里 `SetActiveBackend(sbScalar)`
+    - `NonX86IEEE754` 根本不需要异常 mask，只是在重复 `vector-asm` lifecycle
+- 因而这轮没有把基类抽到全局 `testcase.pas`，而是采取更稳的本地化修法：
+  - 在 `ieee754.testcase.pas` 内新增 `TIEEE754MaskedVectorAsmStatefulTestCase`
+  - 让它统一处理 `GetExceptionMask/SetExceptionMask` 与公共 `TSimdVectorAsmStatefulTestCase` 生命周期
+  - `F64` 只保留自己的 `SetActiveBackend(sbScalar)` override
+  - `EdgeCases` / `AVX2RoundTrunc` 直接复用这个本地基类
+  - `NonX86IEEE754` 直接改继承 `TSimdVectorAsmStatefulTestCase`
+- 这轮验证里还抓到一个和代码本身无关的环境瞬态：
+  - 首次 `Release gate` 在 build 阶段报 `Can't call the linker ... /usr/bin/ld.bfd error code: -7`
+  - 但定向 `ieee754` 四套件与 Release `check` 已先绿
+  - 串行重跑同一条 `gate` 后完整 PASS，说明这是本机链接器瞬态，不是本轮代码回归
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IEEE754_F64,TTestCase_IEEE754EdgeCases,TTestCase_AVX2RoundTruncIEEE754,TTestCase_NonX86IEEE754`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：最终全部通过
+- 到这里，`ieee754` 这组原本最像“别碰”的 fixture 冗余，也已经在不动测试语义的前提下完成了结构收口。
