@@ -1913,3 +1913,25 @@
   - mixed suite 内部的 backend 切换路径
   - 任何生产实现
 - Release `TTestCase_IEEE754_F64,TTestCase_IEEE754EdgeCases,TTestCase_AVX2RoundTruncIEEE754,TTestCase_NonX86IEEE754`、Release `check`、Release `gate` 全绿，说明这批修的是 IEEE754 测试夹具状态恢复不对称，而不是舍入算法或 backend 逻辑缺陷。
+
+## 2026-05-14 Direct Fixture State Restore Symmetry Findings
+
+- `tests/fafafa.core.simd/fafafa.core.simd.direct.testcase.pas` 也存在和前几批同类的真实 fixture 泄漏：
+  - `TTestCase_DirectDispatch` 没有 fixture 级 `SetUp/TearDown`
+  - 文件里大量 multi-backend parity 测试会 `TrySetActiveBackend(...)`、`SetActiveBackend(sbScalar)`、`SetVectorAsmEnabled(True/False)`
+  - 但绝大多数方法 `finally` 只做 `ResetToAutomaticBackend`
+  - `TTestCase_DirectDispatchConcurrent` 通过 `RunDirectDispatchConcurrentReRegisterSnapshotConsistency` 修改 backend/register 状态后，最后也只回到 automatic
+- 这意味着 direct suite 自己虽然通常能通过，但会把进入测试前的强制 backend 选择静默丢掉：
+  - 如果上游 suite 刻意把当前 backend 固定到 `sbScalar/sbSSE2/...`
+  - direct suite 跑完后会把全局状态冲成 automatic
+  - 本质上仍是测试夹具生命周期问题，不是 direct dispatch 生产实现问题
+- 这批最小正确修复方式仍然是夹具层统一收口，而不是逐个改几十个 test body：
+  - 新增 `TDirectDispatchStatefulTestCase`
+  - 在 `SetUp` 保存进入测试前的 `IsVectorAsmEnabled/GetCurrentBackend`
+  - 在 `TearDown` 里先恢复 `vector asm`，再 `ResetToAutomaticBackend`，必要时 `TrySetActiveBackend(savedBackend)`
+  - 让 `TTestCase_DirectDispatch` 与 `TTestCase_DirectDispatchConcurrent` 都继承它
+- 这轮刻意没有改动：
+  - direct dispatch 的任何生产实现
+  - multi-backend parity 的测试目标
+  - synthetic re-register 并发测试的内部流程
+- Release `TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、Release `check`、Release `gate` 全绿，说明这批修的是 direct suite 的测试夹具状态恢复不对称，而不是 direct dispatch 逻辑缺陷。

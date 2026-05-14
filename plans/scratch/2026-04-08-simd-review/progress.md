@@ -1602,6 +1602,26 @@
   - 结果：全部通过
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
 
+## 2026-05-14 Direct Fixture State Restore Symmetry
+
+- 继续从 control-plane 高价值 suite 往下扫后，本轮把落点收窄到了 `tests/fafafa.core.simd/fafafa.core.simd.direct.testcase.pas`。
+- 交叉核对发现：
+  - `TTestCase_DirectDispatch` 与 `TTestCase_DirectDispatchConcurrent` 都没有 fixture 级 `SetUp/TearDown`
+  - 大量方法内部会切 `TrySetActiveBackend(...)`、`SetActiveBackend(sbScalar)`、`SetVectorAsmEnabled(True/False)`
+  - 但退出时通常只做 `ResetToAutomaticBackend`
+  - 因而会把进入测试前的强制 backend 选择静默丢掉
+- 本轮最小修复只动测试夹具，不去改几十个 test body：
+  - 提取 `TDirectDispatchStatefulTestCase`
+  - 统一保存/恢复进入测试前的 `vector asm + current backend`
+  - 让 `TTestCase_DirectDispatch` 与 `TTestCase_DirectDispatchConcurrent` 都继承它
+- 本轮 Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
 ## 2026-05-14 Float Utility Facade Tail Guard Coverage
 
 - 继续顺着浮点 façade 往下扫后，当前最真实的尾巴不再是整族算术/compare，而是 utility 面的 direct-evidence 缺口：

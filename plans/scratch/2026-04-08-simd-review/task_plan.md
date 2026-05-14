@@ -1800,3 +1800,17 @@
 | 1. 复核 `ieee754.testcase` 的剩余状态泄漏 | completed | 已确认上一批只修了 `FSavedExceptionMask`；但 `TTestCase_IEEE754_F64` 的 `SetUp` 会强制 `sbScalar`，`TTestCase_IEEE754EdgeCases`、`TTestCase_AVX2RoundTruncIEEE754` 与 `TTestCase_NonX86IEEE754` 也都会在测试中切 `vector asm/backend`，而文件级 fixture 结束时仍只回到 `automatic`，没有恢复进入测试前的真实 backend 选择 |
 | 2. 修复 IEEE754 fixture backend/vector-asm 恢复不对称 | completed | 给 `TTestCase_IEEE754_F64`、`TTestCase_IEEE754EdgeCases`、`TTestCase_AVX2RoundTruncIEEE754` 增加 `FSavedVectorAsm/FSavedBackend`，并给 `TTestCase_NonX86IEEE754` 增加 `SetUp/TearDown` 保存/恢复进入测试前状态；恢复顺序保持为先还原 `vector asm`，再 `ResetToAutomaticBackend`，必要时 `TrySetActiveBackend(savedBackend)` |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_IEEE754_F64,TTestCase_IEEE754EdgeCases,TTestCase_AVX2RoundTruncIEEE754,TTestCase_NonX86IEEE754`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 Direct Fixture State Restore Symmetry
+
+### Goal
+
+继续沿 control-plane 高价值 suite 审查 `direct.testcase`，修复其大量 multi-backend parity / concurrent 测试在结束时只回 `automatic`、却不恢复进入测试前 backend/vector-asm 选择的夹具泄漏。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `direct.testcase` 的 fixture 恢复对称性 | completed | 已确认 `TTestCase_DirectDispatch` 与 `TTestCase_DirectDispatchConcurrent` 都没有 fixture 级 `SetUp/TearDown`；大量测试方法与 `RunDirectDispatchConcurrentReRegisterSnapshotConsistency` 结束时只做 `ResetToAutomaticBackend`，有些还会切 `SetVectorAsmEnabled(True/False)`，但不会恢复进入测试前的真实 backend 选择 |
+| 2. 修复 direct suite 的状态恢复泄漏 | completed | 在 `fafafa.core.simd.direct.testcase.pas` 提取 `TDirectDispatchStatefulTestCase`，统一给 `TTestCase_DirectDispatch` 与 `TTestCase_DirectDispatchConcurrent` 保存/恢复进入测试前的 `vector asm + current backend`，避免逐个改动几十个 test body |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |

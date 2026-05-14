@@ -17,7 +17,15 @@ uses
   fafafa.core.simd.scalar;
 
 type
-  TTestCase_DirectDispatch = class(TTestCase)
+  TDirectDispatchStatefulTestCase = class(TTestCase)
+  protected
+    FSavedVectorAsm: Boolean;
+    FSavedBackend: TSimdBackend;
+    procedure SetUp; override;
+    procedure TearDown; override;
+  end;
+
+  TTestCase_DirectDispatch = class(TDirectDispatchStatefulTestCase)
   published
     procedure Test_DirectDispatchTable_Assigned;
     procedure Test_DirectDispatchTable_MatchesGetDispatchTable;
@@ -53,7 +61,7 @@ type
     procedure Test_DirectDispatchTable_WideIntegerHelperMatrix_Parity;
   end;
 
-  TTestCase_DirectDispatchConcurrent = class(TTestCase)
+  TTestCase_DirectDispatchConcurrent = class(TDirectDispatchStatefulTestCase)
   published
     procedure Test_DirectDispatchTable_Concurrent_ReRegister_SnapshotConsistency;
   end;
@@ -193,6 +201,28 @@ end;
 function DirectDispatchSyntheticCountByteB(p: Pointer; len: SizeUInt; value: Byte): SizeUInt;
 begin
   Result := DirectDispatchSyntheticCountByteImpl(p, len, value);
+end;
+
+procedure TDirectDispatchStatefulTestCase.SetUp;
+begin
+  inherited SetUp;
+  GetDispatchTable;
+  FSavedVectorAsm := IsVectorAsmEnabled;
+  FSavedBackend := GetCurrentBackend;
+end;
+
+procedure TDirectDispatchStatefulTestCase.TearDown;
+var
+  LRestoredBackend: Boolean;
+begin
+  SetVectorAsmEnabled(FSavedVectorAsm);
+  ResetToAutomaticBackend;
+  LRestoredBackend := True;
+  if GetCurrentBackend <> FSavedBackend then
+    LRestoredBackend := TrySetActiveBackend(FSavedBackend);
+  AssertTrue('Direct dispatch fixture should restore previous backend selection',
+    LRestoredBackend and (GetCurrentBackend = FSavedBackend));
+  inherited TearDown;
 end;
 
 function DirectDispatchSyntheticBitsetPopCountImpl(p: Pointer; byteLen: SizeUInt): SizeUInt;
