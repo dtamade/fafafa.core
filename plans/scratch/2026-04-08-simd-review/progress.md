@@ -2867,3 +2867,24 @@
   - simd 测试层“每个小 testcase 都自带一份 scalar backend fixture”这类冗余又少了一层
   - 后续如果继续沿这个方向深挖，优先再看同类纯 fixture 文件；带 FPU exception mask、image 生命周期或 AVX512 guard 语义的 testcase 仍应单独审，不适合机械切基类
 - 这轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+- 我在这条线上又往前推进了一个更小的单点 batch：`vec512types` 里的 `TTestCase_Vec512MaskFacadeGuards`。
+- 这轮判断先刻意卡住边界：
+  - `TTestCase_Vec512Types` 本身只是普通类型/算术 smoke，不需要 stateful fixture
+  - 真正重复 scalar backend 样板的是 `TTestCase_Vec512MaskFacadeGuards`
+  - 这个 guard suite 固定 `sbScalar` 的目的只是补 façade direct evidence，不夹带 vector-asm、FPU mask 或 image 生命周期
+- 因而本轮最小修法就是：
+  - 给文件引入 `fafafa.core.simd.testcase`
+  - 把 `TTestCase_Vec512MaskFacadeGuards` 改成继承 `TScalarBackendStatefulTestCase`
+  - 删除本地 `FSavedBackend/SetUp/TearDown`
+  - 顺手移除只给旧夹具用的 `fafafa.core.simd.dispatch`
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_Vec512MaskFacadeGuards`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断继续更新：
+  - `vec512types` 里 pure scalar façade guard 的重复 fixture 也已经收回统一基类
+  - 下一轮如果继续沿 fixture 去重走，优先级更高的将是先复核 `edgecases/imageproc` 这类“确实 stateful，但还夹带额外清理语义”的文件，不能按这批的机械方式直接切
+- 这轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

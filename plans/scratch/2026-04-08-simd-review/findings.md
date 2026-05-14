@@ -2759,3 +2759,29 @@
   - backend 保存/恢复契约进一步集中到一处基类实现
   - 同时没有碰生产实现、没有改变 suite/runner 结构，也没有机械误改带额外清理语义的复杂 testcase
 - Release 定向 suites、Release `check`、Release `gate` 全绿，说明这次基类收敛只是在测试夹具层去冗余，没有改变向量测试的行为期望。
+
+## 2026-05-14 Vec512 Mask Guard Fixture Consolidation Findings
+
+- `vec512types` 文件里有两类 testcase：
+  - `TTestCase_Vec512Types`：普通类型/算术 smoke，不需要 backend-stateful fixture
+  - `TTestCase_Vec512MaskFacadeGuards`：固定 `sbScalar` 的 façade direct guard，正好重复了一整套 scalar backend fixture
+- `TTestCase_Vec512MaskFacadeGuards` 的旧形状与前一批 6 个 pure scalar testcase 本质相同：
+  - 直接继承 `TTestCase`
+  - 自带 `FSavedBackend`
+  - `SetUp` 里 `GetDispatchTable; FSavedBackend := GetCurrentBackend; ForceBackend(sbScalar);`
+  - `TearDown` 里 `ResetBackendSelection; TrySetActiveBackend(FSavedBackend); AssertTrue(...)`
+- 这说明 `vec512types` 不是“整文件都该统一改基类”，而是只该收其中真正 stateful 的那个 guard suite；这一点很关键，避免把普通类型测试也强行绑到 backend-stateful lifecycle。
+- 这条线也再次验证了一个经验：
+  - “是否能切到 `TScalarBackendStatefulTestCase`”要按 testcase 级别判断
+  - 而不是按文件名或模块主题判断
+  - 同一文件里完全可以同时存在无状态 smoke suite 和需要统一 scalar fixture 的 guard suite
+- 本轮修法因此保持单点最小：
+  - 只把 `TTestCase_Vec512MaskFacadeGuards` 改成继承 `TScalarBackendStatefulTestCase`
+  - 文件新增 `fafafa.core.simd.testcase`
+  - 删除本地重复的 `FSavedBackend/SetUp/TearDown`
+  - 顺手拿掉仅被旧夹具使用的 `fafafa.core.simd.dispatch`
+- 这批修法的价值在于：
+  - `vec512` façade direct guard 不再自带一份重复 backend fixture
+  - 同时保住了 `vec512types` 文件内“stateful guard / stateless smoke”这条边界
+  - 也为后续审 `edgecases/imageproc` 这种复杂 fixture 文件提供了反例：不是所有剩余 stateful testcase 都能像这批这样机械切基类
+- Release `TTestCase_Vec512MaskFacadeGuards`、Release `check`、Release `gate` 全绿，说明这次仍然只是测试夹具层去冗余，没有改变 vec512 mask façade guard 的行为期望。

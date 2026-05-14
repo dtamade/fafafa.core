@@ -2263,3 +2263,17 @@
 | 1. 复核纯 scalar fixture 候选与基类契约 | completed | 已确认 `vecf32x8`、`veci32x8`、`vecu32x8`、`narrowintegerops`、`vecf64x4`、`saturating` 6 份 testcase 都重复了同一套 `GetDispatchTable -> save backend -> ForceBackend(sbScalar)` / `ResetBackendSelection -> TrySetActiveBackend(FSavedBackend)` 样板；仓内现成 `TScalarBackendStatefulTestCase` 已提供同等契约 |
 | 2. 统一继承到 `TScalarBackendStatefulTestCase` | completed | 6 个 testcase 全部改继承 `TScalarBackendStatefulTestCase`，删除各自的 `FSavedBackend/SetUp/TearDown` 重复实现；`vecf32x8` 与 `vecf64x4` 保留 `fafafa.core.simd.scalar`，因为文件内部仍显式调用 `Scalar*` helper 作为期望值来源 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release 定向 suites（`VecF32x8/VecI32x8/VecU32x8/NarrowIntegerOps/VecF64x4/SaturatingArithmetic`）、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 Vec512 Mask Guard Fixture Consolidation
+
+### Goal
+
+继续沿“纯 scalar fixture 去重”往下推进，但只收 `vec512types` 里最稳的 `TTestCase_Vec512MaskFacadeGuards`，不碰同文件普通类型测试，也不把这次扩成更复杂的 AVX512/guard 语义改动。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `Vec512MaskFacadeGuards` 是否只是 pure scalar guard | completed | 已确认该 suite 只是在 fixed `sbScalar` 下验证 `MaskF32x16` façade contract，本身没有额外 vector-asm/FPU/image 生命周期语义；文件内重复的 `FSavedBackend/SetUp/TearDown` 形状与上一批 6 个纯 fixture testcase 一致 |
+| 2. 切到统一 scalar fixture 基类 | completed | `TTestCase_Vec512MaskFacadeGuards` 已改继承 `TScalarBackendStatefulTestCase`，删除本地 `FSavedBackend/SetUp/TearDown`；文件增加 `fafafa.core.simd.testcase`，并移除只被旧夹具使用的 `fafafa.core.simd.dispatch` |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_Vec512MaskFacadeGuards`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
