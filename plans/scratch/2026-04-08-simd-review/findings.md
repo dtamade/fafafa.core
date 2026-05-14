@@ -3245,3 +3245,20 @@
   - 中风险：保留 suite-specific post-restore action，再对齐公共 lifecycle
   - 高一点但可控：在专题 testcase 内抽局部专用基类
 - 经过 `edgecases/concurrent/dispatchapi/publicabi/direct/ieee754` 这一串收口后，剩余更像“必要的 suite-specific fixture”，而不再是明显的历史重复壳。
+
+## 2026-05-14 VectorAsm Backend Setup Sharing Findings
+
+- `AVX2/AVX512 vectorasm` 两组 suite 证明，当前 test-layer 剩余冗余已经不再只藏在专题 testcase 文件里，也可能残留在共享 infrastructure 自己的 contract 边界上：
+  - `TSimdVectorAsmBackendStatefulTestCase` 已经统一了承载 restore 期的 vector-asm/backend re-registration 语义
+  - 但 setup 期的同一套 contract 还没有一起提升到基类
+  - 于是 `TTestCase_AVX2VectorAsm` 与 `TTestCase_AVX512VectorAsm` 各自保留了完全同构的 `SetUp`
+- 这轮对齐后，可以更清楚地定义这个基类的职责：
+  - 共享层负责 `vector asm enabled + backend registration refresh + target backend force`
+  - suite-specific 层只负责“目标 backend 是谁”和“如何注册该 backend”
+- 这比继续把两份 `SetUp` 留在 suite 里更稳，因为：
+  - 如果以后 `vectorasm` setup contract 再补断言或前置步骤，只需要改一处
+  - `AVX2` / `AVX512` 不会再因为历史复制而悄悄漂出不同语义
+  - 读者看到类层次就能理解：这是一个“backend-aware vectorasm fixture”，而不是两个各自维护 setup 协议的重型 suite
+- 更重要的是，这批收口也给后续审查划出一个新的分水岭：
+  - 明显的“共享 contract 未完全提升”型冗余基本已经扫平
+  - 接下来继续深查 `simd`，重点应从“机械 fixture 去重”切换到“源码/测试/门禁层是否还有真正多余 truth source、局部 helper 漂移、或薄壳没有表达清楚语义”

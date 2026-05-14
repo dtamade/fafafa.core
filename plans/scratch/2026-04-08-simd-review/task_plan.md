@@ -2561,3 +2561,17 @@
 | 1. 复核四个 IEEE754 suite 的 fixture 差异 | completed | 已确认 `F64`、`EdgeCases`、`AVX2RoundTrunc` 三组只是重复 `FSavedVectorAsm + FSavedExceptionMask + SetUp/TearDown`，其中 `F64` 额外多一步 `SetActiveBackend(sbScalar)`；`NonX86IEEE754` 则只重复了 `vector-asm` lifecycle |
 | 2. 抽本地 `masked vector-asm` 基类并对齐 suite | completed | `ieee754.testcase.pas` 已新增局部 `TIEEE754MaskedVectorAsmStatefulTestCase`；`F64` 现只 override `SetUp` 追加 `SetActiveBackend(sbScalar)`；`EdgeCases` 和 `AVX2RoundTrunc` 直接复用新基类；`NonX86IEEE754` 直接改继承 `TSimdVectorAsmStatefulTestCase` |
 | 3. Release 验证与提交收口 | completed | Release `TTestCase_IEEE754_F64,TTestCase_IEEE754EdgeCases,TTestCase_AVX2RoundTruncIEEE754,TTestCase_NonX86IEEE754`、Release `check`、Release `gate` 全绿；期间首轮 gate 遇到链接器瞬态，串行重跑后恢复 PASS |
+
+## 2026-05-14 VectorAsm Backend Setup Sharing
+
+### Goal
+
+继续加强 `simd` 测试层审查并修复，但这次只处理 `AVX2/AVX512 vectorasm` 两个 suite 仍保留的同构 `SetUp` 壳：把“开启 vector asm + refresh backend registration + force target backend”的 setup contract 下沉到现有 `TSimdVectorAsmBackendStatefulTestCase`，不改任何向量算法或生产实现。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `AVX2/AVX512 vectorasm` 的本地 setup 是否已退化成重复壳 | completed | 已确认两者的 `SetUp` 完全同构：`SetVectorAsmEnabled(True)`、重新注册目标 backend 刷新 dispatch table、再 `ForceBackend(...)`；差异只剩目标 backend 枚举与具体 `Register*Backend` 实现 |
+| 2. 把 setup contract 提升到公共 backend-stateful 基类 | completed | `TSimdVectorAsmBackendStatefulTestCase` 已新增抽象 `GetVectorAsmTargetBackend` 与共享 `SetUp`；`AVX2/AVX512` suite 删除本地 `SetUp`，仅保留目标 backend 与注册实现 |
+| 3. Release 验证与提交收口 | completed | Release `TTestCase_AVX2VectorAsm,TTestCase_AVX512VectorAsm`、Release `check`、Release `gate` 全绿；本轮继续串行收口，避免 `tests/fafafa.core.simd` 共享输出目录假红 |

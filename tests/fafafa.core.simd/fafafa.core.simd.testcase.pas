@@ -64,8 +64,10 @@ type
   {$IFDEF CPUX86_64}
   TSimdVectorAsmBackendStatefulTestCase = class(TSimdVectorAsmStatefulTestCase)
   protected
+    function GetVectorAsmTargetBackend: TSimdBackend; virtual; abstract;
     procedure RefreshVectorAsmBackendRegistration; virtual; abstract;
     procedure RestoreVectorAsmState; override;
+    procedure SetUp; override;
   end;
   {$ENDIF}
   {$ENDIF}
@@ -189,8 +191,8 @@ type
   // AVX2 VectorAsm 专项测试：聚焦于向量汇编路径的正确性（小步推进）
   TTestCase_AVX2VectorAsm = class(TSimdVectorAsmBackendStatefulTestCase)
   protected
+    function GetVectorAsmTargetBackend: TSimdBackend; override;
     procedure RefreshVectorAsmBackendRegistration; override;
-    procedure SetUp; override;
   published
     procedure Test_VecF32x4_Fma_FusedWhenFMAAvailable;
     procedure Test_VecF32x8_AddSubMulDiv_RandomConsistency;
@@ -262,8 +264,8 @@ type
   // 全面覆盖所有 AVX-512 注册函数
   TTestCase_AVX512VectorAsm = class(TSimdVectorAsmBackendStatefulTestCase)
   protected
+    function GetVectorAsmTargetBackend: TSimdBackend; override;
     procedure RefreshVectorAsmBackendRegistration; override;
-    procedure SetUp; override;
   published
     // === F32x16 算术运算一致性测试 ===
     procedure Test_VecF32x16_AddSubMulDiv_RandomConsistency;
@@ -791,6 +793,16 @@ procedure TSimdVectorAsmBackendStatefulTestCase.RestoreVectorAsmState;
 begin
   inherited RestoreVectorAsmState;
   RefreshVectorAsmBackendRegistration;
+end;
+
+procedure TSimdVectorAsmBackendStatefulTestCase.SetUp;
+begin
+  inherited SetUp;
+
+  // 强制开启 vector asm，并重新注册目标后端以刷新 dispatch table。
+  SetVectorAsmEnabled(True);
+  RefreshVectorAsmBackendRegistration;
+  ForceBackend(GetVectorAsmTargetBackend);
 end;
 {$ENDIF}
 {$ENDIF}
@@ -4640,21 +4652,14 @@ asm
   add rsp, 16
 end;
 
+function TTestCase_AVX2VectorAsm.GetVectorAsmTargetBackend: TSimdBackend;
+begin
+  Result := sbAVX2;
+end;
+
 procedure TTestCase_AVX2VectorAsm.RefreshVectorAsmBackendRegistration;
 begin
   RegisterAVX2Backend;
-end;
-
-procedure TTestCase_AVX2VectorAsm.SetUp;
-begin
-  inherited SetUp;
-
-  // 强制开启 vector asm，并重新注册后端以更新 dispatch table
-  SetVectorAsmEnabled(True);
-  RegisterAVX2Backend;
-
-  // 在 AVX2 可用的机器上强制使用 AVX2；否则会自动回退到 Scalar
-  ForceBackend(sbAVX2);
 end;
 
 procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_Fma_FusedWhenFMAAvailable;
@@ -8158,21 +8163,14 @@ end;
 {$IFDEF SIMD_BACKEND_AVX512}
 { TTestCase_AVX512VectorAsm }
 
+function TTestCase_AVX512VectorAsm.GetVectorAsmTargetBackend: TSimdBackend;
+begin
+  Result := sbAVX512;
+end;
+
 procedure TTestCase_AVX512VectorAsm.RefreshVectorAsmBackendRegistration;
 begin
   RegisterAVX512Backend;
-end;
-
-procedure TTestCase_AVX512VectorAsm.SetUp;
-begin
-  inherited SetUp;
-
-  // 强制开启 vector asm，并重新注册后端以更新 dispatch table
-  SetVectorAsmEnabled(True);
-  RegisterAVX512Backend;
-
-  // 在 AVX-512 可用的机器上强制使用 AVX-512；否则会自动回退到 Scalar
-  ForceBackend(sbAVX512);
 end;
 
 procedure TTestCase_AVX512VectorAsm.Test_VecF32x16_AddSubMulDiv_RandomConsistency;

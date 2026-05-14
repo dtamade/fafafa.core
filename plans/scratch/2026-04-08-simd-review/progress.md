@@ -3490,3 +3490,37 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：最终全部通过
 - 到这里，`ieee754` 这组原本最像“别碰”的 fixture 冗余，也已经在不动测试语义的前提下完成了结构收口。
+
+## 2026-05-14 VectorAsm Backend Setup Sharing
+
+- 继续沿着“共享 fixture 已经存在，但个别 suite 还保留旧生命周期壳”的线往下扫，`fafafa.core.simd.testcase.pas` 里 `AVX2/AVX512 vectorasm` 两组很突出：
+  - 都继承 `TSimdVectorAsmBackendStatefulTestCase`
+  - 都还保留一份本地 `SetUp`
+  - 内容完全同构，都是：
+    - `SetVectorAsmEnabled(True)`
+    - 重新注册目标 backend 刷新 dispatch table
+    - `ForceBackend(...)`
+- 复核后确认这不是 suite-specific 编排，而是共享 contract 没有完全提升：
+  - `TSimdVectorAsmBackendStatefulTestCase` 已经承载 restore 后的 `RefreshVectorAsmBackendRegistration`
+  - 但 setup 侧的“开启 vector asm + refresh + force target backend” 还散落在 `AVX2` / `AVX512` 各自的 suite 里
+  - 两个 suite 真正独有的只剩：
+    - 目标 backend 枚举值
+    - 具体 `Register*Backend` 实现
+- 本轮最小修法已落地：
+  - `TSimdVectorAsmBackendStatefulTestCase` 新增抽象 `GetVectorAsmTargetBackend`
+  - 新增共享 `SetUp`
+  - `TTestCase_AVX2VectorAsm` / `TTestCase_AVX512VectorAsm` 删除本地重复 `SetUp`
+  - 分别只实现 `GetVectorAsmTargetBackend` 和 `RefreshVectorAsmBackendRegistration`
+- 这批的意义不是“少了几行代码”，而是把 vectorasm backend-stateful 基类的 contract 补完整了：
+  - restore 阶段负责恢复 vector asm 状态并重新注册目标 backend
+  - setup 阶段负责开启 vector asm、刷新注册并强制目标 backend
+  - suite 本身只保留 backend-specific 的最小差异面
+- 本轮 Release 验证链：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_AVX2VectorAsm,TTestCase_AVX512VectorAsm`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 本轮也再次确认一个边界：
+  - `tests/fafafa.core.simd` 当前最明显的机械 fixture 冗余已经基本收口
+  - 下一步更值得做的，不会再是继续机械删 `SetUp/TearDown`
+  - 而应转向“哪些本地 fixture/helper 仍然真的承载必要语义、哪些源码/测试层还有更深的结构冗余或缺失”
