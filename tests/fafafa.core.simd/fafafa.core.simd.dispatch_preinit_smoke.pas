@@ -33,24 +33,6 @@ begin
   Halt(1);
 end;
 
-function BackendName(aBackend: TSimdBackend): string;
-begin
-  case aBackend of
-    sbScalar: Result := 'Scalar';
-    sbSSE2: Result := 'SSE2';
-    sbSSE3: Result := 'SSE3';
-    sbSSSE3: Result := 'SSSE3';
-    sbSSE41: Result := 'SSE4.1';
-    sbSSE42: Result := 'SSE4.2';
-    sbAVX2: Result := 'AVX2';
-    sbAVX512: Result := 'AVX512';
-    sbNEON: Result := 'NEON';
-    sbRISCVV: Result := 'RISCVV';
-  else
-    Result := 'Unknown';
-  end;
-end;
-
 procedure CheckBackendMarkedUnavailable(const aBackend: TSimdBackend);
 var
   LTable: TSimdDispatchTable;
@@ -59,7 +41,8 @@ begin
     Exit;
 
   if LTable.BackendInfo.Available then
-    Fail(BackendName(aBackend) + ' should not remain marked Available after pre-init SetVectorAsmEnabled(False)');
+    Fail(GetBackendInfo(aBackend).Name +
+      ' should not remain marked Available after pre-init SetVectorAsmEnabled(False)');
 end;
 
 begin
@@ -70,11 +53,11 @@ begin
 
   if GetBestDispatchableBackend <> sbScalar then
     Fail('Best dispatchable backend should be Scalar after pre-init SetVectorAsmEnabled(False), got ' +
-      BackendName(GetBestDispatchableBackend));
+      GetBackendInfo(GetBestDispatchableBackend).Name);
 
   if GetActiveBackend <> sbScalar then
     Fail('Active backend should be Scalar after pre-init SetVectorAsmEnabled(False), got ' +
-      BackendName(GetActiveBackend));
+      GetBackendInfo(GetActiveBackend).Name);
 
   {$IFDEF CPUX86_64}
   CheckBackendMarkedUnavailable(sbAVX2);

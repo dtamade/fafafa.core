@@ -3932,3 +3932,35 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
+
+## 2026-05-15 Smoke Tool Canonical Name Reuse And Standalone Build Fix
+
+- 我继续把审查面从大 testcase 扫到独立 smoke 工具后，确认有两处小但真实的问题：
+  - `fafafa.core.simd.dispatch_preinit_smoke.pas`
+  - `fafafa.core.simd.public_smoke.pas`
+  - 两文件都留着本地 `BackendName(...)` 薄壳；`public_smoke` 另外缺 `{$mode objfpc}{$H+}`，raw `fpc` 编译会直接挂在 `Result` 关键字上
+- 本轮最小修法已落地：
+  - `dispatch_preinit_smoke` 删除本地 `BackendName(...)`，失败文案直接使用 `GetBackendInfo(...).Name`
+  - `public_smoke` 补 `{$mode objfpc}{$H+}` 与 `fafafa.core.simd.dispatch`
+  - `public_smoke` 删除本地 `BackendName(...)`，统一直读 `GetBackendInfo(...).Name`
+  - 顺手把 `public_smoke` 的参数/局部变量命名收回仓库规范：`aMessage`、`LCpuInfo`、`LBackend`、`LExpectedBackend`
+- 这轮验证中途先撞到一个非代码回归的 hygiene 陷阱：
+  - 早先 raw `fpc` 独立编译 `public_smoke` 时把 `.o/.ppu` 落进了 `src/`
+  - 导致首轮 `Release gate` 在最后 `run_all` 链的 `src tree hygiene` 检查红掉
+  - 清理 `src/*.o`、`src/*.ppu`、`tests/fafafa.core.simd/__pycache__/` 与临时 `public_smoke` 二进制后，问题消失
+- 这轮重新按不污染源码树的方式完成了独立 smoke 证据：
+  - `git diff --check`
+  - `fpc -B -Fu./tests/fafafa.core.simd -Fu./src -FE"$tmpdir" -FU"$tmpdir" ./tests/fafafa.core.simd/fafafa.core.simd.public_smoke.pas`
+  - 运行结果：
+    - `CPU vendor: GenuineIntel`
+    - `CPU model: Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz`
+    - `Backend: 6 (AVX2)`
+    - `[PASS] Default backend is AVX2`
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过；最终 `gate` 明确恢复到：
+    - `src tree hygiene: no .o/.ppu/.bak artifacts`
+    - `Run-all summary: Passed 5 / Failed 0`
+    - `[GATE] OK`

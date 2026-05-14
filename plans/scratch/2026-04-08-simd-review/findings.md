@@ -3539,3 +3539,25 @@
   - 名称真相源下沉到 dispatch metadata
   - 结果解释壳上提到 `IsConsistencyTestSkipped(...)` / `FormatConsistencyFailureText(...)`
   - 让 summary / root wrapper 都只消费同一份 result-interpretation helper
+
+## 2026-05-15 Smoke Tool Canonical Name And Standalone Build Findings
+
+- 继续从 `backend consistency` 往外围扫后，发现 `tests/fafafa.core.simd` 里两个独立 smoke 工具还留着很典型的 test-only 薄壳冗余：
+  - `fafafa.core.simd.dispatch_preinit_smoke.pas`
+  - `fafafa.core.simd.public_smoke.pas`
+  - 它们都各自维护了 `BackendName(...)`，而名字本体其实早已由 `dispatch.GetBackendInfo(...)` 提供 canonical metadata。
+- 这里不只是“本地 helper 有点多”这么简单，`public_smoke` 还暴露了一个真实编译合同缺口：
+  - 文件顶部缺少 `{$mode objfpc}{$H+}`
+  - 在独立 `fpc` 编译时，`Result := ...` 会直接报错
+  - 说明这个 smoke 之前更像“被主工程顺带编进来时没出事”，而不是“可以独立作为最小入口自证”
+- 这批也顺手暴露出一个验证层陷阱：
+  - 如果直接用 raw `fpc -Fu./tests/fafafa.core.simd -Fu./src ...` 去编 `public_smoke`
+  - `.o/.ppu` 会默认落进 `src/`
+  - 随后的 `BuildOrTest.sh gate` 会在最后的 `run_all` hygiene 检查里红掉
+  - 这种红灯是验证产物污染，不是代码回归
+- 因而这轮的正确收口方式有两个要点：
+  - 代码上，把名称真相源直接下沉到 `GetBackendInfo(...).Name`，不要继续留一层 smoke-local `BackendName(...)`
+  - 验证上，用临时输出目录跑独立 `fpc` smoke，既证明 standalone compile contract 已补齐，也不再往 `src/` 树里写生成物
+- 这批说明后续继续深查时，不能只盯“大测试用例里有没有重复 helper”：
+  - 小型 standalone/smoke 工具也可能藏着真实合同缺口
+  - 而且这类文件一旦少了 `{$mode ...}` / `uses` 依赖，主工程未必马上暴露，往往要到独立 smoke 或 hygiene gate 才显形

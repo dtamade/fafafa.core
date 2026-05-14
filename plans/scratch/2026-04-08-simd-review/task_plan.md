@@ -2786,3 +2786,17 @@
 | 1. 复核 dispatch 层能否作为 backend consistency 名称真相源 | completed | 已确认 `GetBackendInfo(...)` 对 registered/unregistered backend 都会补齐 canonical `Name/Description`，并与 `GetBackendNameTextPtr(...)` 的默认 fallback 语义对齐；因此 `GetConsistencyBackendName(...)` 的本地 `case` 映射已经是重复 truth source |
 | 2. 收敛到 dispatch truth，并合并 skip/fail 报告壳 | completed | `GetConsistencyBackendName(...)` 已改为薄封装 `GetBackendInfo(aBackend).Name`；同时新增 `IsConsistencyTestSkipped(...)` 与 `FormatConsistencyFailureText(...)`，让 `PrintTestSummary(...)` 与 `TTestCase_BackendVectorConsistency.Test_VectorOps_Consistency` 共享 `skipped` 判定和 failure 文案拼接，而不再各自解释结果 record |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_BackendVectorConsistency`、Release `check`、Release `gate` 已通过；说明这轮继续把 report/control shell 收回共享 helper 后，backend consistency 主线和整体 fast-gate 都保持稳定 |
+
+## 2026-05-15 Smoke Tool Canonical Name Reuse And Standalone Build Fix
+
+### Goal
+
+继续加强 `simd` 辅助 smoke 工具的审查并修复，但这次只处理两类真实问题：一是 `dispatch_preinit_smoke/public_smoke` 仍保留本地 backend-name 薄壳，二是 `public_smoke` 缺少 `{$mode objfpc}{$H+}`，导致它作为独立 `fpc` smoke 入口时会直接编译失败。目标是把名称真相源下沉到 `dispatch.GetBackendInfo(...)`，补齐独立编译合同，并确保手工 smoke 验证不会再次污染 `src/` 树卫生。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 smoke 工具残余重复 helper 与独立编译合同 | completed | 已确认 `dispatch_preinit_smoke` 与 `public_smoke` 都保留本地 `BackendName(...)` 包装；其中 `public_smoke` 还缺 `{$mode objfpc}{$H+}`，在 raw `fpc` 独立编译时会因为 `Result` 关键字不可用而失败 |
+| 2. 收敛到 dispatch canonical metadata 并补齐 standalone build 依赖 | completed | 两个 smoke 工具都已删除本地 `BackendName(...)` 薄壳，直接复用 `GetBackendInfo(...).Name`；`public_smoke` 已补 `{$mode objfpc}{$H+}`、引入 `fafafa.core.simd.dispatch`，并顺手把局部变量/参数名收敛到仓库命名规范 |
+| 3. Release 验证与提交流水收口 | completed | `git diff --check`、临时目录独立 `fpc` 编译并实际运行 `public_smoke`、Release `check`、Release `gate` 已通过；期间还修正了“raw `fpc` 编译把 `.o/.ppu` 落进 `src/` 导致 gate hygiene 红灯”的验证陷阱，最终 `run_all` 明确回到 `src tree hygiene: no .o/.ppu/.bak artifacts` 绿态 |
