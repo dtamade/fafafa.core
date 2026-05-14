@@ -12,16 +12,13 @@ interface
 uses
   Classes, SysUtils, fpcunit, testregistry,
   fafafa.core.simd,
+  fafafa.core.simd.testcase,
   fafafa.core.simd.base,
   fafafa.core.simd.dispatch;
 
 type
   // ✅ 窄整数向量完整测试 - I16x8, I8x16, U32x4, U16x8, U8x16
-  TTestCase_NarrowIntegerOps = class(TTestCase)
-  protected
-    FSavedBackend: TSimdBackend;
-    procedure SetUp; override;
-    procedure TearDown; override;
+  TTestCase_NarrowIntegerOps = class(TScalarBackendStatefulTestCase)
   published
     // === I16x8 (8×Int16) 测试 ===
     // I16x8 算术测试
@@ -187,30 +184,6 @@ type
 implementation
 
 { TTestCase_NarrowIntegerOps }
-
-procedure TTestCase_NarrowIntegerOps.SetUp;
-begin
-  inherited SetUp;
-  GetDispatchTable;
-  FSavedBackend := GetCurrentBackend;
-  // 强制使用 Scalar 后端以确保测试结果一致
-  ForceBackend(sbScalar);
-end;
-
-procedure TTestCase_NarrowIntegerOps.TearDown;
-var
-  LRestoredBackend: Boolean;
-begin
-  // 恢复自动后端选择
-  ResetBackendSelection;
-  LRestoredBackend := True;
-  if GetCurrentBackend <> FSavedBackend then
-    LRestoredBackend := TrySetActiveBackend(FSavedBackend);
-  inherited TearDown;
-
-  AssertTrue('NarrowIntegerOps fixture should restore previous backend selection',
-    LRestoredBackend and (GetCurrentBackend = FSavedBackend));
-end;
 
 // === I16x8 (8×Int16) 测试实现 ===
 

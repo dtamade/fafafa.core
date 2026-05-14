@@ -2249,3 +2249,17 @@
 | 1. 复核 `ieee754` 剩余 old-shape finally | completed | 已确认 `Test_F32x4_RoundTrunc_NaNInf_Scalar`、`Test_F32x4_RoundTrunc_NaNInf_SSE2`、`Test_Wide_RoundTrunc_NaNInf_Scalar` 仍分别使用“只回 automatic”或“`SetVectorAsmEnabled(oldVectorAsm); ResetToAutomaticBackend;`”的 method-exit cleanup；而 non-x86 property/loop tests 里的同类 `ResetToAutomaticBackend` 更像 iteration-level control-plane 隔离，暂不归到这一批 |
 | 2. 统一 edge-case tests 的退出态 restore 契约 | completed | 3 条测试都改为在 finally 里 `AssertTrue(..., RestoreIEEE754LocalState(...))`；scalar tests 使用 `FSavedVectorAsm + FSavedBackend`，SSE2 test 使用 `oldVectorAsm + FSavedBackend`，与同文件既有 helper-based cleanup 形状重新对齐 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_IEEE754EdgeCases`、Release `check`、Release `gate` 全绿；提交前仍需再次清理可能回流的 `tests/fafafa.core.simd/__pycache__/` |
+
+## 2026-05-14 Scalar Backend Fixture Base-Class Consolidation
+
+### Goal
+
+继续沿 simd 测试层 cleanup/去冗余往下收，把几份“小 testcase 文件重复 backend fixture 样板”统一切到现成的 `TScalarBackendStatefulTestCase`，只动纯 scalar fixture，不碰带额外 FPU/image 清理语义的复杂 testcase。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核纯 scalar fixture 候选与基类契约 | completed | 已确认 `vecf32x8`、`veci32x8`、`vecu32x8`、`narrowintegerops`、`vecf64x4`、`saturating` 6 份 testcase 都重复了同一套 `GetDispatchTable -> save backend -> ForceBackend(sbScalar)` / `ResetBackendSelection -> TrySetActiveBackend(FSavedBackend)` 样板；仓内现成 `TScalarBackendStatefulTestCase` 已提供同等契约 |
+| 2. 统一继承到 `TScalarBackendStatefulTestCase` | completed | 6 个 testcase 全部改继承 `TScalarBackendStatefulTestCase`，删除各自的 `FSavedBackend/SetUp/TearDown` 重复实现；`vecf32x8` 与 `vecf64x4` 保留 `fafafa.core.simd.scalar`，因为文件内部仍显式调用 `Scalar*` helper 作为期望值来源 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release 定向 suites（`VecF32x8/VecI32x8/VecU32x8/NarrowIntegerOps/VecF64x4/SaturatingArithmetic`）、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |

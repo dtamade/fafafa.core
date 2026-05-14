@@ -12,6 +12,7 @@ interface
 uses
   Classes, SysUtils, fafafa.core.math, fpcunit, testregistry,
   fafafa.core.simd,
+  fafafa.core.simd.testcase,
   fafafa.core.simd.base,
   fafafa.core.simd.dispatch,
   fafafa.core.simd.scalar,
@@ -19,11 +20,7 @@ uses
 
 type
   // ✅ TVecF32x8 (256-bit 单精度浮点向量) 完整测试套件 (2026-02-05)
-  TTestCase_VecF32x8 = class(TTestCase)
-  protected
-    FSavedBackend: TSimdBackend;
-    procedure SetUp; override;
-    procedure TearDown; override;
+  TTestCase_VecF32x8 = class(TScalarBackendStatefulTestCase)
   published
     // === 算术操作 ===
     procedure Test_VecF32x8_Add;
@@ -83,30 +80,6 @@ implementation
 const
   F32x8_TOLERANCE: Single = 1e-5;
   F32x8_RCP_TOLERANCE: Single = 1e-2;  // Rcp/Rsqrt 使用较大容差
-
-procedure TTestCase_VecF32x8.SetUp;
-begin
-  inherited SetUp;
-  GetDispatchTable;
-  FSavedBackend := GetCurrentBackend;
-  // 强制使用 Scalar 后端以确保测试结果一致
-  ForceBackend(sbScalar);
-end;
-
-procedure TTestCase_VecF32x8.TearDown;
-var
-  LRestoredBackend: Boolean;
-begin
-  // 恢复自动后端选择
-  ResetBackendSelection;
-  LRestoredBackend := True;
-  if GetCurrentBackend <> FSavedBackend then
-    LRestoredBackend := TrySetActiveBackend(FSavedBackend);
-  inherited TearDown;
-
-  AssertTrue('VecF32x8 fixture should restore previous backend selection',
-    LRestoredBackend and (GetCurrentBackend = FSavedBackend));
-end;
 
 // === 算术操作 ===
 

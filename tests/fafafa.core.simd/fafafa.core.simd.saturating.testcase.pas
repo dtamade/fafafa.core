@@ -12,16 +12,12 @@ interface
 uses
   Classes, SysUtils, fpcunit, testregistry,
   fafafa.core.simd,
-  fafafa.core.simd.base,
-  fafafa.core.simd.dispatch;
+  fafafa.core.simd.testcase,
+  fafafa.core.simd.base;
 
 type
   // ✅ P2: 饱和算术测试 - 验证溢出/下溢边界行为
-  TTestCase_SaturatingArithmetic = class(TTestCase)
-  protected
-    FSavedBackend: TSimdBackend;
-    procedure SetUp; override;
-    procedure TearDown; override;
+  TTestCase_SaturatingArithmetic = class(TScalarBackendStatefulTestCase)
   published
     // === 有符号 8 位 (I8x16) 饱和测试 ===
     procedure Test_I8x16SatAdd_Normal;        // 正常加法，无溢出
@@ -55,28 +51,6 @@ type
 implementation
 
 { TTestCase_SaturatingArithmetic }
-
-procedure TTestCase_SaturatingArithmetic.SetUp;
-begin
-  inherited SetUp;
-  GetDispatchTable;
-  FSavedBackend := GetCurrentBackend;
-  ForceBackend(sbScalar);
-end;
-
-procedure TTestCase_SaturatingArithmetic.TearDown;
-var
-  LRestoredBackend: Boolean;
-begin
-  ResetBackendSelection;
-  LRestoredBackend := True;
-  if GetCurrentBackend <> FSavedBackend then
-    LRestoredBackend := TrySetActiveBackend(FSavedBackend);
-  inherited TearDown;
-
-  AssertTrue('SaturatingArithmetic fixture should restore previous backend selection',
-    LRestoredBackend and (GetCurrentBackend = FSavedBackend));
-end;
 
 // === I8x16 有符号 8 位饱和算术测试 ===
 

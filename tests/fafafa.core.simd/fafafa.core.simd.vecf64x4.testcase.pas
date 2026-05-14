@@ -12,19 +12,15 @@ interface
 uses
   Classes, SysUtils, fafafa.core.math, fpcunit, testregistry,
   fafafa.core.simd,
+  fafafa.core.simd.testcase,
   fafafa.core.simd.base,
-  fafafa.core.simd.dispatch,
   fafafa.core.simd.utils,
   fafafa.core.simd.scalar,
   fafafa.core.simd.ops;
 
 type
   // ✅ TVecF64x4 (256-bit 双精度浮点向量) 完整测试套件 (2026-02-05)
-  TTestCase_VecF64x4 = class(TTestCase)
-  protected
-    FSavedBackend: TSimdBackend;
-    procedure SetUp; override;
-    procedure TearDown; override;
+  TTestCase_VecF64x4 = class(TScalarBackendStatefulTestCase)
   published
     // === 算术操作 ===
     procedure Test_VecF64x4_Add;
@@ -73,30 +69,6 @@ implementation
 
 const
   F64_TOLERANCE = 1e-10;  // 双精度浮点容差
-
-procedure TTestCase_VecF64x4.SetUp;
-begin
-  inherited SetUp;
-  GetDispatchTable;
-  FSavedBackend := GetCurrentBackend;
-  // 强制使用 Scalar 后端，确保测试一致性
-  ForceBackend(sbScalar);
-end;
-
-procedure TTestCase_VecF64x4.TearDown;
-var
-  LRestoredBackend: Boolean;
-begin
-  // 恢复自动后端选择
-  ResetBackendSelection;
-  LRestoredBackend := True;
-  if GetCurrentBackend <> FSavedBackend then
-    LRestoredBackend := TrySetActiveBackend(FSavedBackend);
-  inherited TearDown;
-
-  AssertTrue('VecF64x4 fixture should restore previous backend selection',
-    LRestoredBackend and (GetCurrentBackend = FSavedBackend));
-end;
 
 // === 算术操作测试 ===
 

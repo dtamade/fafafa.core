@@ -2727,3 +2727,35 @@
   - 同一个 testcase 文件内的 cleanup 形状重新向现成 helper 对齐
   - 仍然只是测试层 fixture hardening / redundancy cleanup，不触碰 IEEE754 实现逻辑
 - Release `TTestCase_IEEE754EdgeCases`、Release `check`、Release `gate` 全绿，说明这批只是在 edge-case tests 的退出态恢复上收口，没有引入 IEEE754 行为回归。
+
+## 2026-05-14 Scalar Backend Fixture Base-Class Consolidation Findings
+
+- 继续从“method-exit cleanup”往外一层看时，simd 测试目录里还留着一类更粗粒度的冗余：多个小 testcase 文件各自复制了一整套 scalar backend fixture。
+- 当前最适合先收的 6 份是：
+  - `fafafa.core.simd.vecf32x8.testcase`
+  - `fafafa.core.simd.veci32x8.testcase`
+  - `fafafa.core.simd.vecu32x8.testcase`
+  - `fafafa.core.simd.narrowintegerops.testcase`
+  - `fafafa.core.simd.vecf64x4.testcase`
+  - `fafafa.core.simd.saturating.testcase`
+- 它们的共同点很明确：
+  - testcase 都直接继承 `TTestCase`
+  - 都自己声明 `FSavedBackend`
+  - 都重复写 `GetDispatchTable; FSavedBackend := GetCurrentBackend; ForceBackend(sbScalar);`
+  - 以及配套的 `ResetBackendSelection; TrySetActiveBackend(FSavedBackend); AssertTrue(...)`
+- 仓内其实已经有现成、等价的统一基类：
+  - `fafafa.core.simd.testcase`
+  - `TSimdBackendStatefulTestCase`
+  - `TScalarBackendStatefulTestCase`
+  - 其中 `TScalarBackendStatefulTestCase` 正是“保存当前 backend + 强制 scalar + 退出时恢复 saved backend”的标准契约
+- 因而这批冗余的正确修法不是再造 helper，也不是继续复制 `SetUp/TearDown`，而是让这些 testcase 直接继承 `TScalarBackendStatefulTestCase`。
+- 这批里还验证到一个容易误判的依赖事实：
+  - `vecf32x8` 与 `vecf64x4` 不只是“需要 scalar backend 被注册”
+  - 它们的测试体里还显式调用 `ScalarSplatF32x8/ScalarDotF32x8`、`ScalarClampF64x4/ScalarRoundF64x4/ScalarDotF64x4` 等 helper 作为期望值来源
+  - 所以把 fixture 收回基类之后，不能顺手把 `fafafa.core.simd.scalar` 都删光；至少这两份文件还要继续 `uses` 该 unit
+- 相反，其余几份当前没有显式 `Scalar*` helper 依赖，说明“是否能删掉 `scalar/dispatch` uses”必须按文件内真实符号引用判断，而不是按“已经改继承基类”一刀切。
+- 这批修法的价值在于：
+  - simd 测试层“文件级 backend fixture 重复实现”显著收缩
+  - backend 保存/恢复契约进一步集中到一处基类实现
+  - 同时没有碰生产实现、没有改变 suite/runner 结构，也没有机械误改带额外清理语义的复杂 testcase
+- Release 定向 suites、Release `check`、Release `gate` 全绿，说明这次基类收敛只是在测试夹具层去冗余，没有改变向量测试的行为期望。

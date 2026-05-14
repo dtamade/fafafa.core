@@ -2838,3 +2838,32 @@
   - `ieee754.edgecases` 的 method-exit old-shape cleanup 又少了一层
   - 下一轮如果继续深挖，更值得先缩 `ieee754` 里那些已经明显是 method-exit old-shape、而不是 loop/iteration control-plane 的剩余 finally；其次再回到 `publicabi/dispatchapi` 看更零散的 easy wins
 - 这轮提交前仍要再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录跟着进入工作树。
+
+- 我继续往“测试文件级冗余 fixture”这一层收，没有碰生产实现，也暂时避开 `edgecases/imageproc/vec512types` 这类带额外清理语义的文件，只先处理 6 个纯 scalar fixture testcase：
+  - `vecf32x8`
+  - `veci32x8`
+  - `vecu32x8`
+  - `narrowintegerops`
+  - `vecf64x4`
+  - `saturating`
+- 这轮的核心判断是：
+  - 仓里已经有统一的 `TScalarBackendStatefulTestCase`
+  - 上面 6 份 testcase 仍各自重复 `GetDispatchTable; FSavedBackend := GetCurrentBackend; ForceBackend(sbScalar);` 和对应 restore/assert 样板
+  - 这属于纯测试夹具冗余，不需要再新造 helper，也不需要改任何测试语义
+- 本轮最小修法：
+  - 6 个 testcase 全部改为继承 `TScalarBackendStatefulTestCase`
+  - 删除各自重复的 `FSavedBackend/SetUp/TearDown`
+  - `vecf32x8` 与 `vecf64x4` 增加/保留 `fafafa.core.simd.scalar`，因为文件内部仍显式调用 `ScalarSplat/Clamp/Floor/...` helper 做期望值，不是单纯为了 backend 注册
+- 这轮中途抓到一个很直接的编译层事实：
+  - 初版顺手删掉 `vecf64x4`（以及潜在的 `vecf32x8`）里的 `fafafa.core.simd.scalar` 后，Release build 立即报 `Identifier not found "Scalar*F64x4"` 一串错误
+  - 修正方式不是回退基类收敛，而是只恢复真正仍被测试体显式调用的 `scalar` unit 依赖
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_VecF32x8,TTestCase_VecI32x8,TTestCase_VecU32x8,TTestCase_NarrowIntegerOps,TTestCase_VecF64x4,TTestCase_SaturatingArithmetic`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断继续更新：
+  - simd 测试层“每个小 testcase 都自带一份 scalar backend fixture”这类冗余又少了一层
+  - 后续如果继续沿这个方向深挖，优先再看同类纯 fixture 文件；带 FPU exception mask、image 生命周期或 AVX512 guard 语义的 testcase 仍应单独审，不适合机械切基类
+- 这轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
