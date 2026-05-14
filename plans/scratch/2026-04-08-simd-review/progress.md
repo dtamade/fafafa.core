@@ -2395,3 +2395,25 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交；下一批若继续沿 `concurrent.testcase` 深审，应优先逐段看内部状态机块，而不是继续做全局机械替换。
+
+- 继续横向扫描整个 `tests/fafafa.core.simd/` 后，发现当前最厚的残余样板已经转到 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`：
+  - 文件本身已有 `TDispatchAPIStatefulTestCase`
+  - 但 method-level outer finally 仍成批手写 `vector asm + automatic reset`
+  - 前半段多为 `SetVectorAsmEnabled(LOldVectorAsm); ResetToAutomaticBackend;`
+  - 后半段 SSE2/AVX/SSE3/SSSE3/SSE4.x parity 区则常写成反序 `ResetToAutomaticBackend; SetVectorAsmEnabled(LOldVectorAsm);`
+- 本轮在 `dispatchapi.testcase` 提取了 `RestoreDispatchApiLocalState`，并让 `TearDown` 也复用它；随后分两步收口：
+  - 第一步收前半段 control-plane / metadata 区的 26 处 exact-pattern outer finally
+  - 第二步收后半段 SSE2/AVX/SSE3/SSSE3/SSE4.x parity 区 8 处反序 outer finally
+- 这次没有盲扫所有 `ResetToAutomaticBackend`：
+  - 内层 rollback / hook 状态机块仍保留原位
+  - 只恢复 `LOldVectorAsm`、本身不切 backend 的纯结构/审计 test 不动
+- 本轮两次 Release 验证都已串行跑完，最终以最后一次为准：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- `dispatchapi.testcase` 里明确的两行式 outer finally 形态现在都已清空：
+  - `SetVectorAsmEnabled(LOldVectorAsm); ResetToAutomaticBackend;`
+  - `ResetToAutomaticBackend; SetVectorAsmEnabled(LOldVectorAsm);`
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`；下一批如果继续沿 `dispatchapi.testcase` 深审，重点应转向那些不是两行式样板、而是夹带局部 rollback / backend mutation 语义的复杂恢复块。

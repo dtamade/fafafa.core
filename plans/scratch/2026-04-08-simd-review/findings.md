@@ -2169,3 +2169,27 @@
   - 每轮/每分支内部还要显式 `ResetToAutomaticBackend` 才能做下一步断言的状态机块
 - 因而当前 `concurrent.testcase` 的剩余 `ResetToAutomaticBackend` 命中并不都代表冗余；下一批应优先逐段审读这些内部轮次级恢复块，而不是做全文件盲替换。
 - Release 定向 suite、Release `check`、Release `gate` 全绿，说明这次收的是 concurrent 测试层的恢复样板和状态对称性，而不是 concurrent/public-framework/dataplane 的生产实现问题。
+
+## 2026-05-14 DispatchAPI Local Restore Consolidation Findings
+
+- `dispatchapi.testcase` 在前几批已经补上了类级 `TDispatchAPIStatefulTestCase`，但 method-level 仍留着最厚的一层历史样板：
+  - 前半段 control-plane / hook / metadata 测试大量 outer finally 手写 `SetVectorAsmEnabled(LOldVectorAsm); ResetToAutomaticBackend;`
+  - 后半段 SSE2/AVX/SSE3/SSSE3/SSE4.x 语义 parity 测试则常写成反序 `ResetToAutomaticBackend; SetVectorAsmEnabled(LOldVectorAsm);`
+- 这类样板的问题和前几批完全同构：
+  - 重复表达了本来就存在于 stateful fixture 的恢复 contract
+  - 只回 automatic，不会显式复用进入测试前保存下来的 backend 选择
+- 这批最小正确修法不是继续扩散手写 finally，而是把“本地恢复到进入测试前状态”提升成 `TDispatchAPIStatefulTestCase` 的共享 helper：
+  - 提取 `RestoreDispatchApiLocalState(aOriginalVectorAsm, aOriginalBackend)`
+  - `TearDown` 改为复用这个 helper
+  - method-level 只替换明确位于 procedure 末尾的 outer finally，不去碰内部 rollback / hook 状态机块
+- 本轮已收掉两簇命中：
+  - 前半段 control-plane / metadata 区 26 处 exact-pattern outer finally
+  - 后半段 SSE2/AVX/SSE3/SSSE3/SSE4.x parity 区 8 处反序 outer finally
+- 这批之后，`dispatchapi.testcase` 里明确的两行式 outer finally 形态已清空：
+  - `SetVectorAsmEnabled(LOldVectorAsm); ResetToAutomaticBackend;`
+  - `ResetToAutomaticBackend; SetVectorAsmEnabled(LOldVectorAsm);`
+- 这批刻意没有继续碰：
+  - 内层 `try/finally` 里为了下一步断言而保留的 `ResetToAutomaticBackend`
+  - 只恢复 `LOldVectorAsm`、本身不切 backend 的纯 vector-asm 审计/structural test
+  - `src/` 下任何 dispatch / backend / runtime 生产实现
+- Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿，并且 `gate` 里的 `TTestCase_DispatchAPI`、`PublicAbi` concurrent chain、`DataPlane`、`DirectDispatch` 和 filtered run_all 也都通过，说明这批收的是 DispatchAPI 测试层 outer finally 样板与状态对称性，而不是 dispatch 生产逻辑回归。

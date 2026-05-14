@@ -1941,3 +1941,17 @@
 | 1. 复核 `concurrent.testcase` 的类级与局部恢复模式 | completed | 已确认 `TSimdStatefulTestCase` 本身已保存 `FSavedVectorAsm/FSavedBackend` 并在 `TearDown` 恢复，但 `TTestCase_SimdConcurrentPublicAbi`、`TTestCase_SimdConcurrentFramework`、`TTestCase_SimdConcurrentRegistration` 与 `DispatchMixed_ControlPlane` 仍残留一批外层 `finally` 只恢复 `LOldVectorAsm` 并 `ResetToAutomaticBackend` |
 | 2. 提取 concurrent-local restore helper 并替换同构 finally | completed | 在 `TSimdStatefulTestCase` 提取 `RestoreSimdLocalState`，让 `TearDown` 也复用它；随后把 14 处 simple exact-pattern 外层 finally 统一切到 `RestoreSimdLocalState(LOldVectorAsm, FSavedBackend)`，不改内部轮次级 `ResetToAutomaticBackend` 语义块 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_SimdConcurrent,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework,TTestCase_SimdConcurrentRegistration`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 DispatchAPI Local Restore Consolidation
+
+### Goal
+
+继续沿 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 深审 method-level 状态恢复冗余，复用现有 `TDispatchAPIStatefulTestCase`，把 control-plane 与后段 SSE2/AVX/SSE4.x 语义 parity 测试里成批 outer finally 的 `vector asm + automatic reset` 两行样板统一收回 helper。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `dispatchapi.testcase` 的类级与局部恢复模式 | completed | 已确认文件虽然已有 `TDispatchAPIStatefulTestCase` 保存 `FSavedVectorAsm/FSavedBackend`，但 method-level 仍残留大量 outer finally 手写 `SetVectorAsmEnabled(LOldVectorAsm); ResetToAutomaticBackend;`，以及后段同义的反序 `ResetToAutomaticBackend; SetVectorAsmEnabled(LOldVectorAsm);` |
+| 2. 提取 dispatchapi-local restore helper 并替换同构 finally | completed | 在 `TDispatchAPIStatefulTestCase` 提取 `RestoreDispatchApiLocalState`，让 `TearDown` 也复用它；随后先清掉前半段 control-plane/metadata 区的 26 处 exact-pattern outer finally，再清掉后半段 SSE2/AVX/SSE3/SSSE3/SSE4.x parity 区 8 处反序 outer finally |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
