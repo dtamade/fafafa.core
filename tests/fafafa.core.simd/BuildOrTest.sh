@@ -37,6 +37,7 @@ SOURCE_REACHABILITY_SCRIPT="${ROOT}/check_simd_source_reachability.py"
 SSE2_STRUCTURE_SCRIPT="${ROOT}/check_sse2_structure.py"
 SUITE_MANIFEST_CHECK_SCRIPT="${ROOT}/check_suite_manifest_sync.py"
 DISPATCH_PREINIT_SMOKE_SRC="${ROOT}/fafafa.core.simd.dispatch_preinit_smoke.pas"
+PUBLIC_SMOKE_SRC="${ROOT}/fafafa.core.simd.public_smoke.pas"
 EXPERIMENTAL_INTRINSICS_SCRIPT="${ROOT}/check_intrinsics_experimental_status.py"
 WIRING_SYNC_SCRIPT="${ROOT}/check_nonx86_wiring_sync.py"
 REGISTER_TRUTHFULNESS_SCRIPT="${ROOT}/check_nonx86_register_truthfulness.py"
@@ -498,6 +499,14 @@ dispatch_preinit_smoke_output_root() {
   fi
 }
 
+public_smoke_output_root() {
+  if [[ "${OUTPUT_ROOT}" == "${ROOT}" ]]; then
+    echo "${ROOT}/public.smoke"
+  else
+    echo "${OUTPUT_ROOT}/public.smoke"
+  fi
+}
+
 nonx86_optin_output_root() {
   local aBackend
   aBackend="${1}"
@@ -517,7 +526,7 @@ nonx86_impl_audit_output_root() {
 run_clean() {
   local -a LPaths
 
-  LPaths=("${BIN_DIR}" "${OUTPUT_ROOT}/lib2" "${LOG_DIR}" "${OUTPUT_ROOT}/nonx86.optin" "${OUTPUT_ROOT}/dispatch.preinit.smoke")
+  LPaths=("${BIN_DIR}" "${OUTPUT_ROOT}/lib2" "${LOG_DIR}" "${OUTPUT_ROOT}/nonx86.optin" "${OUTPUT_ROOT}/dispatch.preinit.smoke" "${OUTPUT_ROOT}/public.smoke")
   if [[ "${OUTPUT_ROOT}" != "${ROOT}" ]]; then
     LPaths+=(
       "${OUTPUT_ROOT}/bin"
@@ -589,6 +598,63 @@ run_dispatch_preinit_smoke() {
   fi
 
   echo "[DISPATCH-PREINIT] OK"
+}
+
+run_public_smoke() {
+  local LSmokeOutputRoot
+  local LSmokeBinDir
+  local LSmokeLibDir
+  local LSmokeLogDir
+  local LSmokeBuildLog
+  local LSmokeTestLog
+  local LSmokeBin
+
+  if [[ ! -f "${PUBLIC_SMOKE_SRC}" ]]; then
+    echo "[PUBLIC-SMOKE] Missing smoke source: ${PUBLIC_SMOKE_SRC}"
+    return 2
+  fi
+
+  LSmokeOutputRoot="$(public_smoke_output_root)"
+  LSmokeBinDir="${LSmokeOutputRoot}/bin"
+  LSmokeLibDir="${LSmokeOutputRoot}/lib/${TARGET_CPU}-${TARGET_OS}"
+  LSmokeLogDir="${LSmokeOutputRoot}/logs"
+  LSmokeBuildLog="${LSmokeLogDir}/build.txt"
+  LSmokeTestLog="${LSmokeLogDir}/test.txt"
+  LSmokeBin="${LSmokeBinDir}/fafafa.core.simd.public_smoke"
+
+  mkdir -p "${LSmokeBinDir}" "${LSmokeLibDir}" "${LSmokeLogDir}"
+
+  echo "[PUBLIC-SMOKE] Building standalone smoke: ${PUBLIC_SMOKE_SRC}"
+  if ! "${FPC_BIN}" -B -Mobjfpc -Scghi -O3 \
+      -Fi"${REPO_ROOT}/src" \
+      -Fu"${REPO_ROOT}/src" \
+      -Fu"${ROOT}" \
+      -FE"${LSmokeBinDir}" \
+      -FU"${LSmokeLibDir}" \
+      "${PUBLIC_SMOKE_SRC}" > "${LSmokeBuildLog}" 2>&1; then
+    echo "[PUBLIC-SMOKE] BUILD FAILED (see ${LSmokeBuildLog})"
+    tail -n 80 "${LSmokeBuildLog}" || true
+    return 1
+  fi
+
+  if [[ ! -x "${LSmokeBin}" && -x "${LSmokeBin}.exe" ]]; then
+    LSmokeBin="${LSmokeBin}.exe"
+  fi
+
+  if [[ ! -x "${LSmokeBin}" ]]; then
+    echo "[PUBLIC-SMOKE] BUILD FAILED (binary missing: ${LSmokeBin})"
+    tail -n 80 "${LSmokeBuildLog}" || true
+    return 1
+  fi
+
+  echo "[PUBLIC-SMOKE] Running standalone smoke: ${LSmokeBin}"
+  if ! "${LSmokeBin}" > "${LSmokeTestLog}" 2>&1; then
+    echo "[PUBLIC-SMOKE] FAILED (see ${LSmokeTestLog})"
+    cat "${LSmokeTestLog}" || true
+    return 1
+  fi
+
+  cat "${LSmokeTestLog}"
 }
 
 run_cpuinfo_lazy_repeat() {
@@ -4230,6 +4296,7 @@ gate_step_build_check() {
   run_dispatch_read_scope || return $?
   run_suite_manifest_check || return $?
   run_nonx86_optin_list_suites || return $?
+  run_public_smoke || return $?
   run_dispatch_preinit_smoke || return $?
 }
 
@@ -6280,6 +6347,7 @@ case "${ACTION}" in
     run_sse2_structure_check
     run_suite_manifest_check
     run_nonx86_optin_list_suites
+    run_public_smoke
     run_dispatch_preinit_smoke
     if [[ "${SIMD_CHECK_WIRING_SYNC:-0}" != "0" ]]; then
       echo "[CHECK] Optional wiring-sync enabled"

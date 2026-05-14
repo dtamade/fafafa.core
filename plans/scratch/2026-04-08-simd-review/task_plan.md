@@ -2984,3 +2984,17 @@
 | 1. 复核 `public_smoke` 是否真的独立、以及当前输出冗余形态 | completed | 已确认 `public_smoke.pas` 不是主 `fafafa.core.simd.test.lpi` runner 的一部分；独立 `fpc` 编译运行时会输出 `Backend:    6 (AVX2)`，说明它还把 enum ordinal 暴露到了 user-facing smoke 输出里 |
 | 2. 收敛到文件级 canonical backend helper | completed | 已新增 `PublicSmokeBackendName(const aBackend: TSimdBackend): string`，统一让 backend 标题、default-backend fail 文案和 PASS 文案都复用 `GetBackendInfo(...).Name`；标题输出已去掉冗余 ordinal |
 | 3. 独立运行与主检查链复验 | completed | `git diff --check`、临时目录 `fpc` 编译并运行 `fafafa.core.simd.public_smoke.pas`、Release `check` 已通过；说明这批既修正了 standalone smoke 的 user-facing 输出，又没有扰动主 SIMD 检查链 |
+
+## 2026-05-15 Public Smoke Check Coverage Wiring
+
+### Goal
+
+在 `public_smoke` 输出已经 canonical 化之后，继续补上它的真实覆盖缺口：把这个 standalone smoke 真正接进 `tests/fafafa.core.simd` 的日常 `check` 链和 Windows batch 对应路径，并补齐 child output 清理，避免它再次变回“只能手动跑”的孤岛入口。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `public_smoke` 未接入 `check` 的真实原因 | completed | 已确认 `BuildOrTest.sh` / `buildOrTest.bat` 里都没有 `public_smoke` runner；而 shell 的 `check` 真执行路径是底部 `case` 里的内联块，不是前面那个看起来相似的辅助段，首次补丁若只落在辅助块上不会生效 |
+| 2. 给 shell/bat `check` 补内部 runner 与 output root 清理 | completed | 已为 shell/bat 都补上 `PUBLIC_SMOKE_SRC`、独立 `public.smoke` child output root、内部 `run_public_smoke`/`:run_public_smoke_internal`，并把 `check` 与 `clean` 路径接上，不扩 CLI action 面 |
+| 3. Release `check` 验证新接线 | completed | `git diff --check`、Release `check` 已通过；日志中已真实出现 `[PUBLIC-SMOKE] Building...`、`Running...`、`Backend:    AVX2` 与 `[PASS] Default backend is AVX2`，说明这条 smoke 已纳入日常检查链 |

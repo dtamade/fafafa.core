@@ -3842,3 +3842,29 @@
 - 这批还给后续深审补了一个筛选标准：
   - 只要是 repo 里的独立 program 入口，就不能假设它天然被主 gate 覆盖
   - 对这类文件，除了修代码本身，还应补一次独立编译运行证据
+
+## 2026-05-15 Public Smoke Check Coverage Wiring Findings
+
+- `public_smoke` 的更深一层问题不是输出里多了一个 ordinal，而是它在修复前仍然属于“手动才会跑到”的孤岛入口：
+  - `BuildOrTest.sh check`
+  - `buildOrTest.bat check`
+  - 都没有任何 `public_smoke` runner
+- 这次还顺手澄清了一个脚本真相，后续非常值得记住：
+  - shell 里确实有一段很像 `run_check` 的辅助块
+  - 但真正被 `ACTION=check` 走到的是底部 `case` 里的内联 `check)` 分支
+  - 因而第一次把 `run_public_smoke` 调用只补进辅助块时，`Release check` 虽然仍然是绿的，但日志里完全没有 `[PUBLIC-SMOKE]`
+  - 只有把调用补到 `case` 的真实执行路径里，runner 才会真的生效
+- 最稳的修法不是新开 CLI 动作，而是直接补内部 runner：
+  - shell：`PUBLIC_SMOKE_SRC`、`public_smoke_output_root()`、`run_public_smoke()`
+  - batch：`PUBLIC_SMOKE_SRC`、`:run_public_smoke_internal`
+  - 两边都把 child output root 统一定到 `public.smoke`
+  - `clean` 也同步清理这个 child root，避免 standalone smoke 输出长期堆在 repo 里
+- fresh `Release check` 的关键证据已经从“人工单独跑”升级成“日常链路自动跑”：
+  - `[PUBLIC-SMOKE] Building standalone smoke: ...fafafa.core.simd.public_smoke.pas`
+  - `[PUBLIC-SMOKE] Running standalone smoke: .../public.smoke/bin/fafafa.core.simd.public_smoke`
+  - `Backend:    AVX2`
+  - `[PASS] Default backend is AVX2`
+  - 之后 `dispatch preinit smoke`、experimental isolation 仍继续通过
+- 这批说明一个很实用的继续审查原则：
+  - 发现 standalone 入口问题时，修文件本身只解决“当前对”
+  - 把它接进现有验证链，才解决“以后不容易再悄悄坏掉”

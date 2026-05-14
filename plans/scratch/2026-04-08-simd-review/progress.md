@@ -4339,3 +4339,27 @@
   - `git diff --check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - 结果：全部通过；`dispatch preinit smoke`、source reachability、suite manifest、non-x86 opt-in list-suites 也继续为绿
+
+## 2026-05-15 Public Smoke Check Coverage Wiring
+
+- 在 `public_smoke` 输出收口并提交后，我继续追了一层更真实的问题：它还是没被 `BuildOrTest check` 自动覆盖。
+- 先做的是接线真相核对，而不是直接改：
+  - `BuildOrTest.sh` / `buildOrTest.bat` 都没有 `public_smoke` runner
+  - shell 的 `check` 实际执行落点在底部 `case "${ACTION}" in ... check)` 分支
+  - 我第一次把 `run_public_smoke` 调用只补到前面的辅助块里，`Release check` 仍然会绿，但日志里完全没有 `[PUBLIC-SMOKE]`
+- 定位清楚后，这次修的是最小必要接线：
+  - shell 增加 `PUBLIC_SMOKE_SRC`、`public_smoke_output_root()`、`run_public_smoke()`
+  - batch 增加 `PUBLIC_SMOKE_SRC`、`:run_public_smoke_internal`
+  - shell/bat 的 `check` 都接入 `public_smoke`
+  - shell/bat 的 `clean` 都补 `public.smoke` child output root 清理
+- 修正真正执行落点后，再跑 fresh Release `check`，日志里已经真实出现：
+  - `[PUBLIC-SMOKE] Building standalone smoke: /home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/fafafa.core.simd.public_smoke.pas`
+  - `[PUBLIC-SMOKE] Running standalone smoke: /home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/public.smoke/bin/fafafa.core.simd.public_smoke`
+  - `CPU vendor: GenuineIntel`
+  - `CPU model:  Intel(R) Xeon(R) CPU E5-2680 v4 @ 2.40GHz`
+  - `Backend:    AVX2`
+  - `[PASS] Default backend is AVX2`
+- 同一次 `Release check` 里，后续链路也继续为绿：
+  - `dispatch preinit smoke` OK
+  - `experimental intrinsics isolation` OK
+  - 说明这次不只是修了一个 standalone 程序，而是把它真正纳入了日常 SIMD 检查闭环

@@ -41,6 +41,7 @@ set "TEST_LOG=%LOG_DIR%\test.txt"
 set "GATE_SUMMARY_LOG=%LOG_DIR%\gate_summary.md"
 set "GATE_SUMMARY_JSON_LOG=%LOG_DIR%\gate_summary.json"
 set "DISPATCH_PREINIT_SMOKE_SRC=%ROOT%fafafa.core.simd.dispatch_preinit_smoke.pas"
+set "PUBLIC_SMOKE_SRC=%ROOT%fafafa.core.simd.public_smoke.pas"
 
 if not exist "%BIN_DIR%" mkdir "%BIN_DIR%"
 if not exist "%UNIT_DIR%" mkdir "%UNIT_DIR%"
@@ -181,6 +182,7 @@ if exist "%LIB_DIR%" rmdir /s /q "%LIB_DIR%"
 if exist "%LOG_DIR%" rmdir /s /q "%LOG_DIR%"
 if exist "%OUTPUT_ROOT%\nonx86.optin" rmdir /s /q "%OUTPUT_ROOT%\nonx86.optin"
 if exist "%OUTPUT_ROOT%\dispatch.preinit.smoke" rmdir /s /q "%OUTPUT_ROOT%\dispatch.preinit.smoke"
+if exist "%OUTPUT_ROOT%\public.smoke" rmdir /s /q "%OUTPUT_ROOT%\public.smoke"
 if /I not "%OUTPUT_ROOT%"=="%ROOT%" (
   echo [CLEAN] Removing isolated child outputs under %OUTPUT_ROOT%
   if exist "%OUTPUT_ROOT%\bin" rmdir /s /q "%OUTPUT_ROOT%\bin"
@@ -265,6 +267,9 @@ call :suite_manifest_check
 if errorlevel 1 exit /b 1
 
 call "%ROOT%buildOrTest.bat" nonx86-optin-list-suites
+if errorlevel 1 exit /b 1
+
+call :run_public_smoke_internal
 if errorlevel 1 exit /b 1
 
 call :run_dispatch_preinit_smoke_internal
@@ -949,6 +954,44 @@ if errorlevel 1 (
   exit /b 1
 )
 echo [DISPATCH-PREINIT] OK
+exit /b 0
+
+:run_public_smoke_internal
+if not exist "%PUBLIC_SMOKE_SRC%" (
+  echo [PUBLIC-SMOKE] Missing smoke source: %PUBLIC_SMOKE_SRC%
+  exit /b 2
+)
+set "PUBLIC_SMOKE_OUTPUT_ROOT=%OUTPUT_ROOT%\public.smoke"
+if /I "%OUTPUT_ROOT%"=="%ROOT%" set "PUBLIC_SMOKE_OUTPUT_ROOT=%ROOT%public.smoke"
+set "PUBLIC_SMOKE_BIN_DIR=%PUBLIC_SMOKE_OUTPUT_ROOT%\bin"
+set "PUBLIC_SMOKE_LIB_DIR=%PUBLIC_SMOKE_OUTPUT_ROOT%\lib\%TARGET_CPU%-%TARGET_OS%"
+set "PUBLIC_SMOKE_LOG_DIR=%PUBLIC_SMOKE_OUTPUT_ROOT%\logs"
+set "PUBLIC_SMOKE_BUILD_LOG=%PUBLIC_SMOKE_LOG_DIR%\build.txt"
+set "PUBLIC_SMOKE_TEST_LOG=%PUBLIC_SMOKE_LOG_DIR%\test.txt"
+set "PUBLIC_SMOKE_BIN=%PUBLIC_SMOKE_BIN_DIR%\fafafa.core.simd.public_smoke.exe"
+if not exist "%PUBLIC_SMOKE_BIN_DIR%" mkdir "%PUBLIC_SMOKE_BIN_DIR%"
+if not exist "%PUBLIC_SMOKE_LIB_DIR%" mkdir "%PUBLIC_SMOKE_LIB_DIR%"
+if not exist "%PUBLIC_SMOKE_LOG_DIR%" mkdir "%PUBLIC_SMOKE_LOG_DIR%"
+echo [PUBLIC-SMOKE] Building standalone smoke: %PUBLIC_SMOKE_SRC%
+fpc -B -Mobjfpc -Scghi -O3 -Fi"%ROOT%..\..\src" -Fu"%ROOT%..\..\src" -Fu"%ROOT%" -FE"%PUBLIC_SMOKE_BIN_DIR%" -FU"%PUBLIC_SMOKE_LIB_DIR%" "%PUBLIC_SMOKE_SRC%" > "%PUBLIC_SMOKE_BUILD_LOG%" 2>&1
+if errorlevel 1 (
+  echo [PUBLIC-SMOKE] BUILD FAILED ^(see %PUBLIC_SMOKE_BUILD_LOG%^)
+  type "%PUBLIC_SMOKE_BUILD_LOG%"
+  exit /b 1
+)
+if not exist "%PUBLIC_SMOKE_BIN%" (
+  echo [PUBLIC-SMOKE] BUILD FAILED ^(binary missing: %PUBLIC_SMOKE_BIN%^)
+  type "%PUBLIC_SMOKE_BUILD_LOG%"
+  exit /b 1
+)
+echo [PUBLIC-SMOKE] Running standalone smoke: %PUBLIC_SMOKE_BIN%
+"%PUBLIC_SMOKE_BIN%" > "%PUBLIC_SMOKE_TEST_LOG%" 2>&1
+if errorlevel 1 (
+  echo [PUBLIC-SMOKE] FAILED ^(see %PUBLIC_SMOKE_TEST_LOG%^)
+  type "%PUBLIC_SMOKE_TEST_LOG%"
+  exit /b 1
+)
+type "%PUBLIC_SMOKE_TEST_LOG%"
 exit /b 0
 
 :nonx86_ieee754
