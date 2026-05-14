@@ -2417,3 +2417,17 @@
   - `SetVectorAsmEnabled(LOldVectorAsm); ResetToAutomaticBackend;`
   - `ResetToAutomaticBackend; SetVectorAsmEnabled(LOldVectorAsm);`
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`；下一批如果继续沿 `dispatchapi.testcase` 深审，重点应转向那些不是两行式样板、而是夹带局部 rollback / backend mutation 语义的复杂恢复块。
+
+- 在上面两簇两行式清空后，我继续沿 `TTestCase_DispatchAPI` 本体逐段复核，确认还残留第三类更隐蔽的 procedure-level outer finally：只写 `SetVectorAsmEnabled(LOldVectorAsm);`，但同样没有复用 `FSavedBackend`。
+- 这批没有扩 scope 到 companion 类，而是只把 `TTestCase_DispatchAPI` 本体里明确的 15 处 pure `vector-asm-only` outer finally 统一切到 `RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend)`。
+- 这次刻意不碰的范围仍保持不变：
+  - companion 类里需要逐段判断的局部恢复语义
+  - 纯 toggle / structural 审计路径
+  - 内层 rollback / backend mutation 状态机块
+- 这轮 Release 验证已重新串行跑完：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`；`dispatchapi.testcase` 下一批真实高价值入口已经收窄到 companion 类里的 pure vector-asm 路径，以及那些夹带 rollback / backend mutation 语义的复杂 finally。

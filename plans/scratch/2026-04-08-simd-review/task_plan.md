@@ -1955,3 +1955,17 @@
 | 1. 复核 `dispatchapi.testcase` 的类级与局部恢复模式 | completed | 已确认文件虽然已有 `TDispatchAPIStatefulTestCase` 保存 `FSavedVectorAsm/FSavedBackend`，但 method-level 仍残留大量 outer finally 手写 `SetVectorAsmEnabled(LOldVectorAsm); ResetToAutomaticBackend;`，以及后段同义的反序 `ResetToAutomaticBackend; SetVectorAsmEnabled(LOldVectorAsm);` |
 | 2. 提取 dispatchapi-local restore helper 并替换同构 finally | completed | 在 `TDispatchAPIStatefulTestCase` 提取 `RestoreDispatchApiLocalState`，让 `TearDown` 也复用它；随后先清掉前半段 control-plane/metadata 区的 26 处 exact-pattern outer finally，再清掉后半段 SSE2/AVX/SSE3/SSSE3/SSE4.x parity 区 8 处反序 outer finally |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 DispatchAPI Pure VectorAsm Outer Finally Cleanup
+
+### Goal
+
+继续沿同一份 `dispatchapi.testcase` 深审 `TTestCase_DispatchAPI` 本体里剩余的 pure `SetVectorAsmEnabled(LOldVectorAsm)` outer finally，把这第三类局部恢复残余也统一收回 `RestoreDispatchApiLocalState`，但不越界去动 companion 类或内层 rollback/backend mutation 状态机块。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `TTestCase_DispatchAPI` 剩余 pure vector-asm-only outer finally | completed | 已确认前两批两行式 outer finally 清空后，`TTestCase_DispatchAPI` 本体里还残留 15 处 procedure 末尾只写 `SetVectorAsmEnabled(LOldVectorAsm);` 的 outer finally；这些路径同样会绕开已保存的 `FSavedBackend` |
+| 2. 复用 `RestoreDispatchApiLocalState` 收掉第三类残余 | completed | 已把这 15 处 pure `vector asm` outer finally 统一切到 `RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend)`；仍刻意保留 companion 类、纯 toggle 审计路径与内层 `ResetToAutomaticBackend` 状态机块不动 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已再次清理 |

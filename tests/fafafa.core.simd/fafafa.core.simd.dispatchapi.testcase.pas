@@ -5370,7 +5370,7 @@ begin
       AssertEquals('SSE2 MulU32x4 should keep lane order ' + IntToStr(LIndex),
         QWord(LU32Expected.u[LIndex]), QWord(LU32Actual.u[LIndex]));
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -7303,7 +7303,7 @@ begin
     AssertTrue('RISCVV TruncF64x4 should keep a non-scalar wide slot after register-source dedup',
       Pointer(LRISCVVTable.TruncF64x4) <> Pointer(LScalarTable.TruncF64x4));
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -7831,7 +7831,7 @@ begin
       ResetToAutomaticBackend;
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -7965,7 +7965,7 @@ begin
       ResetToAutomaticBackend;
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -8111,7 +8111,7 @@ begin
       ResetToAutomaticBackend;
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -8317,7 +8317,7 @@ begin
       ResetToAutomaticBackend;
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -8518,7 +8518,7 @@ begin
         scShuffle in LTable.BackendInfo.Capabilities);
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -8595,7 +8595,7 @@ begin
         scMaskedOps in LTable.BackendInfo.Capabilities);
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -8672,7 +8672,7 @@ begin
         scIntegerOps in LTable.BackendInfo.Capabilities);
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -8732,7 +8732,7 @@ begin
         scIntegerOps in LTable.BackendInfo.Capabilities);
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -8811,7 +8811,7 @@ begin
         scMaskedOps in LTable.BackendInfo.Capabilities);
     end;
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -8855,7 +8855,7 @@ begin
     AssertTrue('AVX2 should advertise scFMA once FmaF32x4 is using fused hardware instructions',
       scFMA in LTable.BackendInfo.Capabilities);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -8878,7 +8878,7 @@ begin
     AssertFalse('scFMA should clear when AVX2 falls back to scalar FMA after vector asm disable',
       scFMA in LTable.BackendInfo.Capabilities);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -8924,7 +8924,7 @@ begin
     AssertTrue('Public ABI CapabilityBits should expose AVX2 scFMA once fused AVX2 FMA is contract-visible',
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scFMA))) <> 0);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -9185,7 +9185,7 @@ begin
     AssertTrue('Public ABI CapabilityBits should keep AVX2 scFMA clear when hardware FMA is unavailable',
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scFMA))) = 0);
   finally
-    SetVectorAsmEnabled(LOldVectorAsm);
+    RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
 end;
 

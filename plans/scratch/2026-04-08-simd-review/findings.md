@@ -2193,3 +2193,22 @@
   - 只恢复 `LOldVectorAsm`、本身不切 backend 的纯 vector-asm 审计/structural test
   - `src/` 下任何 dispatch / backend / runtime 生产实现
 - Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿，并且 `gate` 里的 `TTestCase_DispatchAPI`、`PublicAbi` concurrent chain、`DataPlane`、`DirectDispatch` 和 filtered run_all 也都通过，说明这批收的是 DispatchAPI 测试层 outer finally 样板与状态对称性，而不是 dispatch 生产逻辑回归。
+
+## 2026-05-14 DispatchAPI Pure VectorAsm Outer Finally Cleanup Findings
+
+- 在前两批 `dispatchapi` local-restore 收口后，`TTestCase_DispatchAPI` 本体里还残留第三类更隐蔽的历史样板：
+  - outer finally 只写 `SetVectorAsmEnabled(LOldVectorAsm);`
+  - 它们虽然不像前两批那样显式 `ResetToAutomaticBackend`，但同样绕开了类级 fixture 已保存的 `FSavedBackend`
+  - 一旦测试是在非 automatic / 非默认 forced backend 语义下进入，这种恢复方式仍然会让局部路径与 fixture contract 不一致
+- 这批最小正确修法仍然不是新增第四套样板，而是继续复用已存在的共享 helper：
+  - `RestoreDispatchApiLocalState(aOriginalVectorAsm, aOriginalBackend)`
+  - 让 procedure 末尾的 outer finally 回到和 `TearDown` 一致的恢复顺序
+- 本轮只收 `TTestCase_DispatchAPI` 本体里明确的 15 处 pure `vector asm` outer finally：
+  - 包括 `RISCVV` capability/public-ABI contract 末尾恢复
+  - 以及 `AVX512/AVX2/SSE4.x` capability 与 parity 路径里那批 procedure 末尾的单行恢复
+- 这批刻意继续不碰三类点：
+  - companion 类里仍然只切 `vector asm`、但局部语义还需要逐段判定的路径
+  - 纯 toggle / structural 审计测试
+  - 内层为了下一步断言保留的 rollback / backend mutation 状态机块
+- 收完之后，`TTestCase_DispatchAPI` 本体范围内纯 `SetVectorAsmEnabled(LOldVectorAsm)` 的 procedure-level outer finally 已清空；后续如果继续沿 `dispatchapi.testcase` 深审，优先级就不再是机械样板，而是 companion 类与复杂恢复块里的真实语义差异。
+- Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 再次全绿，说明这批继续收的是 DispatchAPI 测试层恢复 contract 的缺失/冗余，而不是 backend capability / public ABI / dispatch 生产行为回归。
