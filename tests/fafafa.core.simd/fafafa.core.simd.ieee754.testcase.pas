@@ -140,12 +140,7 @@ implementation
 function RestoreIEEE754LocalState(aOriginalVectorAsm: Boolean;
   aOriginalBackend: TSimdBackend): Boolean;
 begin
-  SetVectorAsmEnabled(aOriginalVectorAsm);
-  ResetToAutomaticBackend;
-  if GetCurrentBackend = aOriginalBackend then
-    Exit(True);
-
-  Result := TrySetActiveBackend(aOriginalBackend);
+  Result := RestoreSavedBackendAndVectorAsmState(aOriginalVectorAsm, aOriginalBackend);
 end;
 
 function BitsFromSingle(const aValue: Single): DWord; inline;

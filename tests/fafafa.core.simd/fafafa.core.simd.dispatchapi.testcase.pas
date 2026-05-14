@@ -262,11 +262,8 @@ procedure TDispatchAPIStatefulTestCase.RestoreDispatchApiLocalState(
 var
   LRestoredBackend: Boolean;
 begin
-  SetVectorAsmEnabled(aOriginalVectorAsm);
-  ResetToAutomaticBackend;
-  LRestoredBackend := True;
-  if GetCurrentBackend <> aOriginalBackend then
-    LRestoredBackend := TrySetActiveBackend(aOriginalBackend);
+  LRestoredBackend := RestoreSavedBackendAndVectorAsmState(
+    aOriginalVectorAsm, aOriginalBackend);
   AssertTrue('Dispatch API fixture should restore previous backend selection',
     LRestoredBackend and (GetCurrentBackend = aOriginalBackend));
 end;

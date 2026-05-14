@@ -1560,6 +1560,38 @@
   - 结果：全部通过
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
 
+- 我继续往前收的是几份 testcase 里已经变成“只差最后一步”的本地 restore helper 重复体：
+  - `dataplane`
+  - `publicabi`
+  - `dispatchapi`
+  - `concurrent`
+  - `ieee754`
+- 这轮先把边界卡清楚了：
+  - 重复的是同一段 `SetVectorAsmEnabled(...) -> ResetToAutomaticBackend -> TrySetActiveBackend(...)`
+  - 但各文件在 helper 外层包着的语义并不完全一样：
+    - `publicabi / dispatchapi / concurrent` 还各自带断言文案或 fixture 语义
+    - `dataplane / ieee754` 则更像函数式 local restore helper
+  - 所以这轮不去新造更重的 testcase 基类，也不去删除本地 helper 名称，而是只把完全同构的 restore 体上提成公共实现
+- 本轮最小修法因此是：
+  - 在 `tests/fafafa.core.simd/fafafa.core.simd.testcase.pas` 新增
+    - `RestoreSavedBackendAndVectorAsmState(aOriginalVectorAsm, aOriginalBackend): Boolean`
+  - 让以下本地 helper 改成薄转发或断言壳：
+    - `RestoreDataPlaneLocalState(...)`
+    - `RestoreIEEE754LocalState(...)`
+    - `TTestCase_PublicAbi.RestorePublicAbiLocalState(...)`
+    - `TDispatchAPIStatefulTestCase.RestoreDispatchApiLocalState(...)`
+    - `TSimdStatefulTestCase.RestoreSimdLocalState(...)`
+  - 也就是说，这轮只抽“共享 restore 体”，不碰各 suite 现有的 method-level control-plane 编排、hook rollback 或 IEEE754 数值测试意图
+- 这轮 Release 收口证据：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断继续更新：
+  - 当前 `simd` 测试层剩余的一类明显冗余，已经从“谁在保存 backend fixture”继续收缩到“谁还保留同构的 local restore helper 体”
+  - 这一轮把最稳定的一批 restore 体成功上提后，后续再深挖时，更值得扫的是 `runtime` / `backend.consistency` 这类还没纳入统一 helper 策略的零散残点
+  - `search_context` 在这组超窄查询上连续超时两次，因此这轮直接以 worktree 真实 diff 和 release gate 证据为准，没有再把收口卡在工具可用性上
+
 ## 2026-05-14 Fixture Backend Restore Symmetry
 
 - 这轮没有回头去刷 `UnsignedVectorTypes` / `RustStyleAliases` / `Memutils`，也没有机械给 `PublicAbi`、`SSE2Contracts`、`dataplane`、`concurrent` 套 `sbScalar`。

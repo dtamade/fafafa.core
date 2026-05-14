@@ -34,6 +34,9 @@ uses
   fafafa.core.simd.memutils,
   fafafa.core.simd.builder;
 
+function RestoreSavedBackendAndVectorAsmState(aOriginalVectorAsm: Boolean;
+  aOriginalBackend: TSimdBackend): Boolean;
+
 type
   TSimdBackendStatefulTestCase = class(TTestCase)
   protected
@@ -676,6 +679,17 @@ type
 
 
 implementation
+
+function RestoreSavedBackendAndVectorAsmState(aOriginalVectorAsm: Boolean;
+  aOriginalBackend: TSimdBackend): Boolean;
+begin
+  SetVectorAsmEnabled(aOriginalVectorAsm);
+  ResetToAutomaticBackend;
+  if GetCurrentBackend = aOriginalBackend then
+    Exit(True);
+
+  Result := TrySetActiveBackend(aOriginalBackend);
+end;
 
 {$IFDEF CPUX86_64}
 function X86AllowsDirectAVX512Execution(const aX86: TX86Features;

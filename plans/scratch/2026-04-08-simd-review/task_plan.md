@@ -2361,3 +2361,17 @@
 | 1. 复核 `ieee754` 的 backend / vector-asm / exception-mask 分层 | completed | 已确认 4 个 testcase 都重复 backend fixture，但 `F64/EdgeCases/AVX2RoundTrunc` 还额外维护 `TFPUExceptionMask`，`F64` 还会 class-level force scalar，`RestoreIEEE754LocalState(...)` 也仍广泛服务于方法级 local restore |
 | 2. 只把类级 backend 生命周期收回 `TSimdBackendStatefulTestCase` | completed | 4 个 testcase 都已改继承 `TSimdBackendStatefulTestCase`，删除本地 `FSavedBackend`；`SetUp` 不再重复保存 backend；`TearDown` 统一先恢复 vector-asm 再 `inherited TearDown`，带 exception mask 的 suite 再恢复 mask；`F64` 继续保留本地 `SetActiveBackend(sbScalar)` |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_IEEE754_F64,TTestCase_IEEE754EdgeCases,TTestCase_AVX2RoundTruncIEEE754,TTestCase_NonX86IEEE754`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 Restore-State Helper Consolidation
+
+### Goal
+
+继续沿 stateful fixture 去重往下收，但这次只上提多份 testcase 里完全同构的“恢复 `vector-asm + backend`” helper；保留各文件的 testcase 专属断言、method-level cleanup 编排和 `ieee754` 的数值语义不动。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 restore helper 的同构范围与保留边界 | completed | 已确认 `dataplane`、`publicabi`、`dispatchapi`、`concurrent`、`ieee754` 都还保留同构的 `SetVectorAsmEnabled -> ResetToAutomaticBackend -> TrySetActiveBackend` 恢复体；但各文件在调用点周围的断言、hook rollback 或数值测试编排仍是 testcase 专属，不能一并抹平 |
+| 2. 把共享 restore 体上提到公共 testcase 单元 | completed | `fafafa.core.simd.testcase.pas` 已新增 `RestoreSavedBackendAndVectorAsmState(...)`；`RestoreDataPlaneLocalState(...)`、`RestoreIEEE754LocalState(...)`、`TTestCase_PublicAbi.RestorePublicAbiLocalState(...)`、`TDispatchAPIStatefulTestCase.RestoreDispatchApiLocalState(...)`、`TSimdStatefulTestCase.RestoreSimdLocalState(...)` 现都只保留各自 suite 的断言壳或薄转发 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、此前已跑绿的 focused suites 继续成立；本轮 closeout 重新串行跑过 Release `check` 与 Release `gate`，全部通过；提交前仍需清理可能回流的 `tests/fafafa.core.simd/__pycache__/` |

@@ -39,12 +39,7 @@ implementation
 function RestoreDataPlaneLocalState(aOriginalVectorAsm: Boolean;
   aOriginalBackend: TSimdBackend): Boolean;
 begin
-  SetVectorAsmEnabled(aOriginalVectorAsm);
-  ResetToAutomaticBackend;
-  if GetCurrentBackend = aOriginalBackend then
-    Exit(True);
-
-  Result := TrySetActiveBackend(aOriginalBackend);
+  Result := RestoreSavedBackendAndVectorAsmState(aOriginalVectorAsm, aOriginalBackend);
 end;
 
 procedure TTestCase_DataPlane.SetUp;

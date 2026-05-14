@@ -581,11 +581,9 @@ implementation
 procedure TSimdStatefulTestCase.RestoreSimdLocalState(
   aOriginalVectorAsm: Boolean; aOriginalBackend: TSimdBackend);
 begin
-  SetVectorAsmEnabled(aOriginalVectorAsm);
-  ResetToAutomaticBackend;
-  if GetCurrentBackend <> aOriginalBackend then
-    AssertTrue('SIMD concurrent fixture should restore previous backend selection',
-      TrySetActiveBackend(aOriginalBackend));
+  AssertTrue('SIMD concurrent fixture should restore previous backend selection',
+    RestoreSavedBackendAndVectorAsmState(aOriginalVectorAsm, aOriginalBackend) and
+    (GetCurrentBackend = aOriginalBackend));
 end;
 
 procedure TSimdStatefulTestCase.SetUp;

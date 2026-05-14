@@ -663,11 +663,9 @@ end;
 procedure TTestCase_PublicAbi.RestorePublicAbiLocalState(aOriginalVectorAsm: Boolean;
   aOriginalBackend: TSimdBackend);
 begin
-  SetVectorAsmEnabled(aOriginalVectorAsm);
-  ResetToAutomaticBackend;
-  if GetCurrentBackend <> aOriginalBackend then
-    AssertTrue('Public ABI local restore should recover previous backend selection',
-      TrySetActiveBackend(aOriginalBackend));
+  AssertTrue('Public ABI local restore should recover previous backend selection',
+    RestoreSavedBackendAndVectorAsmState(aOriginalVectorAsm, aOriginalBackend) and
+    (GetCurrentBackend = aOriginalBackend));
 end;
 
 procedure TTestCase_PublicAbi.TearDown;

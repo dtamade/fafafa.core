@@ -2945,3 +2945,30 @@
   - 进一步证明当前 cleanup 线已经覆盖到了 simd 测试层最容易误伤的几个主题区：control-plane hook、dispatch slot、IEEE754
   - 也为最后的全量复扫提供了更清晰标准：不是看文件大小或主题，而是逐个拆出 backend / vector-asm / exception-mask / testcase 语义四层
 - Release `TTestCase_IEEE754_F64,TTestCase_IEEE754EdgeCases,TTestCase_AVX2RoundTruncIEEE754,TTestCase_NonX86IEEE754`、Release `check`、Release `gate` 全绿，说明这批仍然只是测试夹具层去冗余，没有改变 IEEE754 行为测试的被测语义。
+
+## 2026-05-14 Restore-State Helper Consolidation Findings
+
+- 当前 `simd` 测试层去冗余已经推进到一个更细的阶段：
+  - 类级 backend fixture 大片重复体已经被前几批连续压下去
+  - 但多个 testcase 文件里还各自留着完全同构的 “`vector-asm + backend` local restore” helper
+  - 如果继续让这些 helper 各自复制实现，后面改 restore 契约时就又会回到多点同步
+- 这轮复核后确认，更稳的抽象点不是再造一个新 testcase 基类，而是只上提那段真正完全同构的 restore 体：
+  - `SetVectorAsmEnabled(aOriginalVectorAsm)`
+  - `ResetToAutomaticBackend`
+  - `if GetCurrentBackend = aOriginalBackend then Exit(True)`
+  - `Result := TrySetActiveBackend(aOriginalBackend)`
+- 这批涉及的 testcase 文件虽然主题不同，但 helper 体已经足够同构：
+  - `dataplane`
+  - `publicabi`
+  - `dispatchapi`
+  - `concurrent`
+  - `ieee754`
+- 同时也确认了必须保留的本地层：
+  - `publicabi / dispatchapi / concurrent` 的 restore 调用点还带着 suite 专属断言和 control-plane 语义
+  - `ieee754` 的 helper 名称本身仍服务大量数值测试编排，可读性比“全部直接调公共 helper”更重要
+  - 所以正确收法是“共享实现 + 保留本地语义壳”，而不是把所有 helper 名称都删光
+- 这批修法的价值在于：
+  - backend lifecycle 冗余之外，连 method-level local restore 这层也开始有统一 truth source
+  - 未来若需要调整 restore 契约，只需改公共 testcase helper，不必再跨多个 suite 同步复制体
+  - 同时又没有把 suite 专属断言、hook rollback 或 IEEE754 语义包装抹平
+- Release `check` 与 Release `gate` 全绿，说明这批仍然只是测试 helper 层去冗余，没有改变 `DataPlane / PublicAbi / DispatchAPI / Concurrent / IEEE754` 的被测行为。
