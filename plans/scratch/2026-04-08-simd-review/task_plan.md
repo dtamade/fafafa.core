@@ -2095,3 +2095,17 @@
 | 1. 复核 failure 路径的 table-restore 兜底差异 | completed | 已确认同文件多数 hook/rollback 测试都已有 `*TableCaptured` 外层兜底，但 `FailedHookMutation_DoesNotRevive_PreviouslyRequestedBackend_AfterRestore` 仍只在正常流末尾手工 `RegisterBackend(LRequestedBackend, LOriginalTable)`，异常路径会跳过这步 |
 | 2. 补 outer restore guard 并保留正常流语义 | completed | 已为该测试补 `LRequestedTableCaptured`，在捕获原 table 后置 `True`、在正常流恢复成功后置 `False`，并在 outer finally 中条件恢复原 table；中途 hook/断言语义不动 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 PublicAbi RollbackForceSuccess Higher-Restore Dedup
+
+### Goal
+
+继续沿 `publicabi` 的 complex hook/state-machine 路径深审成功分支 cleanup，收掉 `Test_PublicApi_RollbackRestore_Success_Preserves_ForcedSelection` 中“normal path 已恢复 higher-priority backends，但 outer finally 还会再恢复一轮”的重复 restore，同时保留异常路径兜底。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 rollback-force-success hook 的真实变更范围 | completed | 已核对 `PublicAbiHookRollbackForceSuccessWithoutForcedIntent`：hook 会临时改 target table 和一批 higher-priority backend tables；正常流在 `TrySetActiveBackend(...)` 成功后会先恢复 higher-priority backends，而 outer finally 仍按 `LTargetTableCaptured + HigherCount` 再恢复一次 |
+| 2. 在成功恢复完成后清掉 duplicate restore 状态 | completed | 已在成功流末尾、完成 higher-priority backend 恢复并做完 active-backend 断言后，将 `LTargetTableCaptured := False` 与 `GPublicAbiHookRollbackForceSuccessHigherCount := 0`，让 outer finally 只继续承担异常路径兜底 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |

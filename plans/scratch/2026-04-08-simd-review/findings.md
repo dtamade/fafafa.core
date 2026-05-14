@@ -2458,3 +2458,29 @@
   - `publicabi.testcase` 里最明显的 easy cleanup 已经大多收完
   - 剩余更值得继续查的，是其它 complex hook/state-machine 路径是否还存在这种“正常流能恢复，异常流却没有 outer guard”的少量漏点
 - Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿，说明这条修的是 public ABI 测试层 fixture safety，而不是 public ABI / dispatch 生产语义依赖。
+
+## 2026-05-14 PublicAbi RollbackForceSuccess Higher-Restore Dedup Findings
+
+- 继续往 `publicabi` 的 state-machine 路径深读后，`RollbackForceSuccess` 这条成功流里还有一处更隐蔽的 duplicate restore：
+  - `PublicAbiHookRollbackForceSuccessWithoutForcedIntent` 会先把 target table 标 unavailable，再恢复 target table，同时把一批 higher-priority backend tables 标 unavailable
+  - 测试成功返回后，normal path 已显式执行一轮 `for ... RegisterBackend(higher, original_table)`
+  - 但 outer finally 仍会根据 `GPublicAbiHookRollbackForceSuccessHigherCount` 再跑一轮相同恢复
+- 这和前几批 duplicate cleanup 的判断标准一致：
+  - 恢复动作已经在正常流完成
+  - 后续只剩状态断言，没有新的步骤依赖“再恢复一次”
+  - outer finally 仍然应该保留异常路径兜底，但不该在成功流里重复跑
+- 这条路径比普通 `RegisterBackend(...original...)` 更难一眼看出，因为：
+  - 恢复对象不是单个 backend，而是一组 `higher-priority backends`
+  - capture/restore 状态散在全局 helper 变量里：`GPublicAbiHookRollbackForceSuccessHigherCount`、`...HigherBackends`、`...HigherTables`
+  - target table 的恢复又是通过 hook 第二阶段隐式完成的，不是测试主体里显式写一行
+- 本轮最小修法没有碰 hook 过程本身，而是在“成功流已经恢复完成”之后把 outer finally 的重复恢复条件关掉：
+  - `LTargetTableCaptured := False`
+  - `GPublicAbiHookRollbackForceSuccessHigherCount := 0`
+- 这样做的效果是：
+  - 如果 `TrySetActiveBackend(...)` 或后续断言在恢复前失败，outer finally 仍会兜底
+  - 如果成功流已经完成恢复，outer finally 就不再对 target/higher tables 再跑一遍相同 restore
+  - 中途 hook/stage 语义完全不变
+- 当前判断继续收紧：
+  - `publicabi.testcase` 里显而易见的 duplicate restore 又少了一层
+  - 剩余 complex 路径更值得关注的，主要是其它多对象/多阶段 hook 流里是否还有类似“normal path 已恢复，outer finally 仍重复恢复”的隐藏点
+- Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿，说明这批修的是 public ABI 测试层成功流 cleanup 冗余，而不是 rollback force-success 语义依赖。

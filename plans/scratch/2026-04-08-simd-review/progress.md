@@ -2580,3 +2580,21 @@
   - `publicabi.testcase` 里既有的 easy cleanup 冗余已经进一步收口
   - 下一轮更值得继续挖的，是其它 complex hook/state-machine 路径里是否还存在少数“异常流没有 outer table restore guard”的漏点
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+- 继续沿 complex hook/state-machine 路径往下审后，我又收了一条不那么显眼的 duplicate restore：
+  - `Test_PublicApi_RollbackRestore_Success_Preserves_ForcedSelection`
+  - 成功流里已经先恢复了一轮 higher-priority backends
+  - outer finally 还会再按 `GPublicAbiHookRollbackForceSuccessHigherCount` 跑一轮相同恢复
+- 这次没有改 hook helper 的阶段语义，而是只在成功恢复完成后关掉 outer finally 的重复 restore 条件：
+  - `LTargetTableCaptured := False`
+  - `GPublicAbiHookRollbackForceSuccessHigherCount := 0`
+- 本轮 Release 验证继续按串行链完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断继续更新：
+  - `publicabi` 里 easy duplicate restore 和 failure restore guard 都在往下收
+  - 下一轮更值得继续查的，是其它 multi-object hook/state-machine 路径里是否还有类似“normal path 已恢复，outer finally 还重复恢复”的隐藏点
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

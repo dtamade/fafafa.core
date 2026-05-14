@@ -2721,6 +2721,8 @@ begin
       Ord(LRequestedBackend), Integer(LApi^.ActiveBackendId));
     AssertEquals('Public API active backend should keep tracking the actual current backend after restoring higher-priority backends',
       Ord(GetCurrentBackend), Integer(LApi^.ActiveBackendId));
+    LTargetTableCaptured := False;
+    GPublicAbiHookRollbackForceSuccessHigherCount := 0;
   finally
     if LTargetTableCaptured then
       RegisterBackend(GPublicAbiHookRollbackForceSuccessTarget,
