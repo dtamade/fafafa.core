@@ -2003,3 +2003,21 @@
   - 这些 companion 类各自的断言语义
   - `TTestCase_RISCVFallbackDispatchContract` 里 direct-call probe 的业务检查流程
 - Release `TTestCase_X86MaskedFmaContract,TTestCase_RISCVVMaskedOpsContract,TTestCase_RISCVFallbackDispatchContract,TTestCase_NonX86BackendParity`、Release `check`、Release `gate` 全绿，说明这批修的是 `dispatchapi` companion 测试夹具状态恢复不对称，而不是 x86/RISCV/non-x86 语义回归。
+
+## 2026-05-14 DispatchSlots Fixture Backend Restore Findings
+
+- `tests/fafafa.core.simd/fafafa.core.simd.dispatchslots.testcase.pas` 是当前剩余较小但真实的 backend 状态泄漏点：
+  - 文件只有一个 `TTestCase_DispatchAllSlots`
+  - 其中 `Test_AllSelectableBackends_AllDispatchSlots_Assigned` / `Test_BackendAdapter_ActiveBackend_RoundTrip_NoNilAndCorePointersStable` 会遍历 `TrySetActiveBackend(LBackend)`
+  - `Test_BackendAdapter_RegisteredBackendOps_PreserveCanonicalTextMetadata_After_ReRegister` 与其他测试也会直接 `ResetToAutomaticBackend`
+  - 但类本身没有 fixture 级 `SetUp/TearDown`
+  - 所以这些测试结束后只会回到 `automatic`，无法恢复进入测试前的强制 backend 选择
+- 这批最小正确修复不需要再抽公共基类：
+  - 直接在 `TTestCase_DispatchAllSlots` 上保存 `FSavedBackend`
+  - `SetUp` 保存进入测试前的 `GetActiveBackend`
+  - `TearDown` 统一 `ResetToAutomaticBackend`，必要时 `TrySetActiveBackend(savedBackend)`
+- 这轮刻意没有改动：
+  - dispatch slot contract 本身
+  - backend adapter 生产实现
+  - 任何 vector-asm 逻辑
+- Release `TTestCase_DispatchAllSlots`、Release `check`、Release `gate` 全绿，说明这批修的是 `dispatchslots` 测试夹具 backend 恢复不对称，而不是 slot 绑定或 adapter 行为缺陷。

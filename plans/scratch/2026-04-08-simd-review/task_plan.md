@@ -1856,3 +1856,17 @@
 | 1. 复核 companion 类的状态恢复对称性 | completed | 已确认 4 个类都仍然裸继承 `TTestCase`，但内部会切 `SetVectorAsmEnabled(True/False)`、`TrySetActiveBackend(...)` 或 `ResetToAutomaticBackend`，没有统一 fixture 恢复层 |
 | 2. 复用现有 stateful fixture 基类 | completed | 让 `TTestCase_X86MaskedFmaContract`、`TTestCase_RISCVVMaskedOpsContract`、`TTestCase_RISCVFallbackDispatchContract`、`TTestCase_NonX86BackendParity` 全部继承 `TDispatchAPIStatefulTestCase` |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release companion suites、Release `check`、Release `gate` 全绿 |
+
+## 2026-05-14 DispatchSlots Fixture Backend Restore
+
+### Goal
+
+继续沿剩余裸 `TTestCase` + backend 切换热点审查 `dispatchslots.testcase`，通过类级 fixture 保存/恢复进入测试前 backend，修复 `TTestCase_DispatchAllSlots` 结束时只回 `automatic`、却不恢复进入前强制 backend 选择的状态泄漏。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `TTestCase_DispatchAllSlots` 的状态恢复对称性 | completed | 已确认多个测试会遍历 `TrySetActiveBackend(...)` 或直接 `ResetToAutomaticBackend`，但类本身没有 fixture 级 `SetUp/TearDown` |
+| 2. 提取类级 backend 恢复层 | completed | 在 `TTestCase_DispatchAllSlots` 增加 `FSavedBackend` 与 `SetUp/TearDown`，统一保存/恢复进入测试前 backend |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAllSlots`、Release `check`、Release `gate` 全绿 |

@@ -20,7 +20,11 @@ type
   // Full dispatch contract: every function slot must be bound on each selectable backend.
   TTestCase_DispatchAllSlots = class(TTestCase)
   private
+    FSavedBackend: TSimdBackend;
     procedure AssertAllDispatchSlotsAssigned(const aBackend: TSimdBackend; const aDispatch: PSimdDispatchTable);
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
   published
     procedure Test_AllSelectableBackends_AllDispatchSlots_Assigned;
     procedure Test_BackendAdapter_EmptyOps_Fallback_AllDispatchSlots_Assigned;
@@ -31,6 +35,26 @@ type
   end;
 
 implementation
+
+procedure TTestCase_DispatchAllSlots.SetUp;
+begin
+  inherited SetUp;
+  GetDispatchTable;
+  FSavedBackend := GetActiveBackend;
+end;
+
+procedure TTestCase_DispatchAllSlots.TearDown;
+var
+  LRestoredBackend: Boolean;
+begin
+  ResetToAutomaticBackend;
+  LRestoredBackend := True;
+  if GetActiveBackend <> FSavedBackend then
+    LRestoredBackend := TrySetActiveBackend(FSavedBackend);
+  AssertTrue('Dispatch slots fixture should restore previous backend selection',
+    LRestoredBackend and (GetActiveBackend = FSavedBackend));
+  inherited TearDown;
+end;
 
 procedure TTestCase_DispatchAllSlots.AssertAllDispatchSlotsAssigned(const aBackend: TSimdBackend; const aDispatch: PSimdDispatchTable);
 begin

@@ -1687,6 +1687,23 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 
+## 2026-05-14 DispatchSlots Fixture Backend Restore
+
+- 在 `dispatchapi` companion 类收口后，继续窄扫剩余裸 `TTestCase` + backend 切换热点，下一处真实漏点收敛到了 `tests/fafafa.core.simd/fafafa.core.simd.dispatchslots.testcase.pas`。
+- 交叉核对确认：
+  - `TTestCase_DispatchAllSlots` 没有 fixture 级 `SetUp/TearDown`
+  - 多个测试会 `TrySetActiveBackend(LBackend)` 或直接 `ResetToAutomaticBackend`
+  - 但结束时只回 `automatic`，无法恢复进入测试前的强制 backend 选择
+- 本轮修法保持最小：
+  - 直接在 `TTestCase_DispatchAllSlots` 增加 `FSavedBackend`
+  - 在 `SetUp/TearDown` 统一保存/恢复进入测试前 backend
+- 本轮 Release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAllSlots`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+
 ## 2026-05-14 Float Utility Facade Tail Guard Coverage
 
 - 继续顺着浮点 façade 往下扫后，当前最真实的尾巴不再是整族算术/compare，而是 utility 面的 direct-evidence 缺口：
