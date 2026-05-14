@@ -972,6 +972,7 @@ def main() -> int:
         ("RISCVVShiftLeftI64x2", "ScalarShiftLeftI64x2(a, shift)"),
         ("RISCVVShiftRightI64x2", "ScalarShiftRightI64x2(a, shift)"),
         ("RISCVVShiftRightArithI64x2", "ScalarShiftRightArithI64x2(a, shift)"),
+        ("RISCVVShiftRightArithI64x4", "ScalarShiftRightArithI64x4(a, shift)"),
         ("RISCVVAndNotI8x16", "ScalarAndNotI8x16(a, b)"),
         ("RISCVVAndNotU16x8", "ScalarAndNotU16x8(a, b)"),
         ("RISCVVAndNotU8x16", "ScalarAndNotU8x16(a, b)"),

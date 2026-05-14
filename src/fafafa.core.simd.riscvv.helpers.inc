@@ -169,17 +169,8 @@ begin
 end;
 
 function RISCVVShiftRightArithI64x4(const a: TVecI64x4; shift: Integer): TVecI64x4;
-var i: Integer;
 begin
-  if (shift < 0) or (shift >= 64) then
-  begin
-    for i := 0 to 3 do
-      Result.i[i] := 0;
-    Exit;
-  end;
-
-  for i := 0 to 3 do
-    Result.i[i] := SarInt64(a.i[i], shift);
+  Result := ScalarShiftRightArithI64x4(a, shift);
 end;
 
 function RISCVVShiftLeftU64x2(const a: TVecU64x2; shift: Integer): TVecU64x2;

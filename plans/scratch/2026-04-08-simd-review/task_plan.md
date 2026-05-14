@@ -3110,3 +3110,17 @@
 | 1. 复核剩余 helper 里是否还有同级别 exact-contract 尾巴 | completed | 已确认下一刀不是 `Neg/Load/Store/Splat/Zero/Select/Reduce`，因为这些多数没有现成同名 scalar helper，或会把这轮工作扩到更宽合同面；当前还能安全收的只剩 `RISCVVAndNotI8x16/U16x8/U8x16` |
 | 2. 收回 3 个 `AndNot` helper 的组合式本地实现 | completed | 已把 `RISCVVAndNotI8x16/U16x8/U8x16` 从 `RISCVVNot + RISCVVAnd` 组合逻辑改成直接调用 `ScalarAndNot*`，并在 `check_nonx86_helper_semantics.py` 的 helper 期望表里新增对应 3 条 source-side 断言 |
 | 3. 串行 release 验证并准备第二次收口 | completed | `git diff --check`、helper semantics、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 已全部通过；helper summary 已更新到 `checks=480 status=ok`，`key-slot` 与 `RISCVV ABI shape` 继续为绿 |
+
+## 2026-05-15 RISCVV I64x4 Arithmetic-Shift Helper Exact-Contract Consolidation
+
+### Goal
+
+把 `riscvv.helpers.inc` 里最后一个仍保留“已有 scalar 真源、但 helper 还手写着同合同逻辑”的 `ShiftRightArithI64x4` 收回统一真源，然后在同一边界上停手，不再扩大到没有现成 scalar helper 的 `U64x2 shift`、`reduce` 或 `select` 区域。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核第三刀是否仍属同风险 exact-contract | completed | 已确认 `ScalarShiftRightArithI64x4` 现成存在，且其负 count / `count>=64` 归零与 `SarInt64` 逻辑与 helper 本地实现完全一致；反过来 `U64x2 shift`、`reduce`、`select` 仍没有同级别可直接回收的 scalar 真源 |
+| 2. 收回 `RISCVVShiftRightArithI64x4` 的本地 loop | completed | 已把 helper 中手写的 count 边界和逐 lane `SarInt64` loop 改成 `Result := ScalarShiftRightArithI64x4(a, shift);`，并在 helper semantics checker 中新增对应 source-side 断言 |
+| 3. 串行 release 验证并准备第三次收口 | completed | `git diff --check`、helper semantics、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 已全部通过；helper summary 已更新到 `checks=481 status=ok`，说明这类 helper 级 exact-contract 尾巴已基本清到头 |

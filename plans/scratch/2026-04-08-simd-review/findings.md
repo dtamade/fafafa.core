@@ -1367,6 +1367,26 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
 
+## 2026-05-15 RISCVV I64x4 Arithmetic-Shift Helper Exact-Contract Consolidation
+
+- 继续往 `riscvv.helpers.inc` 收口后，第三刀里仍属同风险等级的 exact-contract helper 实际上只剩 1 个：
+  - `RISCVVShiftRightArithI64x4`
+- 这条 helper 之所以还能安全继续收：
+  - scalar 侧已经有现成 `ScalarShiftRightArithI64x4`；
+  - 它对 `shift < 0`、`shift >= 64` 的归零处理，以及有效范围内的 `SarInt64` 逻辑，与 helper 原先本地实现完全一致；
+  - `dispatchapi` / `key-slot` 守的是 backend-owned slot ownership，而不是要求 helper 体内部继续手写那段循环。
+- 与它相邻但这轮仍然不动的区域也更明确了：
+  - `RISCVVShiftLeftU64x2 / ShiftRightU64x2` 当前没有同级别 scalar 真源可直接回收；
+  - `Reduce*`、`Select*` 会把这轮 helper 收口扩大到更宽的合同面；
+  - 因此 `ShiftRightArithI64x4` 收掉后，这一类“helpers.inc 中已有 scalar 真源的 exact-contract 尾巴”基本就见底了。
+- `check_nonx86_helper_semantics.py` 已补上 `RISCVVShiftRightArithI64x4 -> ScalarShiftRightArithI64x4(a, shift)` 断言；复验后 summary 更新为 `NONX86_HELPER_SEMANTICS_SUMMARY checks=481 status=ok`。
+- 串行 release 证据链继续保持为绿：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+
 ## 2026-05-13 512-bit Integer Compare Tail Findings
 
 - `VecI16x32CmpEq/Lt/Gt`、`VecI8x64CmpEq/Lt/Gt`、`VecU8x64CmpEq/Lt/Gt` 都是当前 `src/fafafa.core.simd.pas` 的真实公开 façade compare surface，不是 backend-only 或 dispatch-only contract。

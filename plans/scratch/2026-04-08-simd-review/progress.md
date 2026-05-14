@@ -4556,3 +4556,19 @@
   - `impl-audit-nonx86` 通过，`RISCVV ABI shape` 仍是 `direct_functions=123 / suspicious_a0_loads=0`
   - Release `check` 已再次跑绿
   - Release `gate` 已再次跑绿；末尾旧 Windows evidence 仍被诚实降级为 optional `SKIP`
+
+## 2026-05-15 RISCVV I64x4 Arithmetic-Shift Helper Exact-Contract Consolidation
+
+- 第二个小提交之后，我再做了一次“有没有最后一个同级别尾巴”的边界扫描。
+- 结论很清楚：
+  - `RISCVVShiftRightArithI64x4` 仍然是已有 scalar 真源、helper 还手写着第二份完全同合同逻辑的最后一条；
+  - 相邻的 `U64x2 shift`、`Reduce*`、`Select*` 这批要么没有现成 scalar helper，要么会把工作扩到更宽合同面，因此不再继续顺手扩大。
+- 本批改动非常小：
+  - `RISCVVShiftRightArithI64x4 -> ScalarShiftRightArithI64x4(a, shift)`
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 补 1 条 helper expectation
+- 当前已知复验结果：
+  - `git diff --check` 通过
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=481 status=ok`
+  - `impl-audit-nonx86` 通过
+  - Release `check` 已再次跑绿
+  - Release `gate` 已再次跑绿；末尾旧 Windows evidence 继续被诚实降级为 optional `SKIP`
