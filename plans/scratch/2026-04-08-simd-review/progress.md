@@ -2684,3 +2684,27 @@
   - `direct / concurrent` 这一簇最显眼的 old-shape cleanup 又少了一层
   - 下一轮如果继续挖，就该从“简单 restore 分叉”切换到再判断剩余 `concurrent` round-level `ResetToAutomaticBackend` 是否是真正冗余，还是测试主题本身需要的控制面动作
 - 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+- 我继续按“先挑最稳的 method-level 尾声残点”往下收，这一批没有去碰 `publicabi/dispatchapi` 的复杂 hook 状态机，而是只动两簇已经具备明确 restore 语义的基础测试：
+  - `dispatchapi` 最前 4 条基础 API 测试
+  - 根 `testcase` 的 backend-consistency wrapper / meta tests
+- 这次的核心判断是：
+  - `dispatchapi` 已经有 `RestoreDispatchApiLocalState(...)`，前 4 条老测试却还只回 automatic
+  - `TTestCase_BackendVectorConsistency` 的两条“preserves previous forced backend”元测试内部语义没问题，但测试退出时把 backend 留在 automatic，不回到进入测试前状态
+- 本轮最小修法：
+  - `dispatchapi` 的 4 个 finally 统一改成 `RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend)`
+  - 根 `testcase` 新增 `RestoreBackendVectorConsistencyLocalState(...)`
+  - `Test_VectorOps_Consistency` 复用这个 helper 去掉手写 restore 样板
+  - 两条 backend-consistency 元测试补 `LEntryBackend`，finally 中恢复进入态 backend
+- 本轮 Release 验证继续按串行链完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_BackendVectorConsistency`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断继续更新：
+  - `dispatchapi` 里最前面的基础 API 测试已经不再和后续 helper-based cleanup 形状分叉
+  - backend-consistency 元测试也不再把 backend 漂移留在 automatic
+  - 下一轮更值得继续看的，还是 `dispatchapi/publicabi` 剩余复杂路径里是否还有少量“方法尾声 or 异常流 restore 契约”残点，而不是 round-level 控制面动作
+- 本轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

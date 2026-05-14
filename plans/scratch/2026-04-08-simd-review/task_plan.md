@@ -2165,3 +2165,17 @@
 | 1. 复核 `direct` 全局过程 cleanup 的真实缺口 | completed | 已确认 `fafafa.core.simd.direct.testcase.pas` 中 `RunDirectDispatchConcurrentReRegisterSnapshotConsistency` 的 finally 只做 `RegisterBackend(sbScalar, LOriginalTable); ResetToAutomaticBackend; RebindDirectDispatch;`；该过程在进入时没有保存原 backend，因此返回后会把状态留在 automatic，直到更外层 `TearDown` 才恢复 |
 | 2. 补原 backend 捕获并在 finally 中恢复 | completed | 已为该过程补 `LOriginalBackend := GetCurrentBackend`，并在恢复 scalar 原表后于 finally 中尝试 `TrySetActiveBackend(LOriginalBackend)`；若失败则抛出明确异常，随后再 `RebindDirectDispatch` |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DirectDispatchConcurrent`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 DispatchAPI Basic Restore And BackendConsistency Entry-State Alignment
+
+### Goal
+
+继续沿“方法尾声只回 automatic”的残点收口两簇低风险测试夹具：一是 `dispatchapi` 最前面的基础 API 测试，它们已经有类级 `FSavedBackend + RestoreDispatchApiLocalState(...)` 却还在方法级 finally 只做 `ResetToAutomaticBackend`；二是根 `testcase` 里 backend-consistency 的包装/元测试，在 plain `TTestCase` 下验证过程中会强制切 backend，但退出时仍停在 automatic 而不是回到进入前真实 backend。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `dispatchapi` / 根 `testcase` 的尾声 restore 形状 | completed | 已确认 `TTestCase_DispatchAPI` 最前 4 个基础 API 测试的 finally 仍只做 `ResetToAutomaticBackend`，与同文件后续大量 `RestoreDispatchApiLocalState(...)` 形状分叉；同时 `TTestCase_BackendVectorConsistency` 是 plain `TTestCase`，其 2 条元测试和 1 条 wrapper 测试虽然会校验“调用内部保持 forced backend”，但退出测试时仍只回到 automatic |
+| 2. 统一到保存 backend / 进入态 restore 契约 | completed | 已将 `dispatchapi` 这 4 条基础测试的 finally 改为复用现成 `RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend)`；在根 `testcase` 新增 `RestoreBackendVectorConsistencyLocalState(...)`，并让 backend-consistency 的 wrapper 与 2 条元测试在 finally 中回到进入前真实 backend |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAPI`、Release `TTestCase_BackendVectorConsistency`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |

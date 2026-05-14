@@ -2570,3 +2570,28 @@
   - `TTestCase_DirectDispatchConcurrent` 不再需要依赖更外层 tearDown 才把 backend 拉回调用前状态
   - synthetic table 并发测试语义和 direct dispatch publication 逻辑都不变
 - Release `TTestCase_DirectDispatchConcurrent`、Release `check`、Release `gate` 全绿，说明这批仍然只是测试层 cleanup hardening，没有引入 direct dispatch 行为回归。
+
+## 2026-05-14 DispatchAPI Basic Restore And BackendConsistency Entry-State Alignment Findings
+
+- 继续沿剩余 `ResetToAutomaticBackend` 命中做分类后，最稳的一批残点不在复杂 hook/state-machine，而在两簇更基础的测试尾声：
+  - `dispatchapi.testcase` 的 `Test_TryForceBackend_*` / `Test_TrySetActiveBackend_*` 前 4 条基础 API 测试
+  - 根 `testcase` 的 `TTestCase_BackendVectorConsistency` 包装/元测试
+- `dispatchapi` 这簇的问题很直接：
+  - 类级 `TDispatchAPIStatefulTestCase` 已经有 `FSavedVectorAsm`、`FSavedBackend` 和 `RestoreDispatchApiLocalState(...)`
+  - 同文件后面绝大多数需要局部 cleanup 的测试也已经复用这个 helper
+  - 但最前面的 4 条老测试方法级 finally 仍只做 `ResetToAutomaticBackend`
+  - 这会把方法级 cleanup 契约继续停留在“回到 automatic 就够了”的旧假设上，而不是尽早回到进入测试时保存的 backend
+- 根 `testcase` 这簇更隐蔽一点：
+  - `TTestCase_BackendVectorConsistency` 不是 stateful testcase，而是 plain `TTestCase`
+  - `Test_VectorOps_Consistency` 自己会保存入口 backend 并在 finally 里手写 restore
+  - 但它下面两条“preserves previous forced backend”元测试在执行过程中会主动 force 到 scalar，再调用 helper / wrapper 验证局部语义，测试退出时却只做 `ResetToAutomaticBackend`
+  - 结果是：测试内部断言的是“调用过程保持 forced backend”，但测试结束后的真实全局状态仍被留在 automatic，而不是恢复到进入元测试前的 backend
+- 本轮修法仍然只动测试层 restore 契约：
+  - `dispatchapi` 的 4 条基础测试全部切到 `RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend)`
+  - 根 `testcase` 新增 `RestoreBackendVectorConsistencyLocalState(...)`
+  - `Test_VectorOps_Consistency` 用这个 helper 取代手写 restore 样板
+  - 两条 backend-consistency 元测试额外捕获 `LEntryBackend`，在 finally 中恢复到进入测试前真实 backend，而不是停在 automatic
+- 这批修法的价值在于把“局部语义断言”和“测试退出 cleanup”彻底拆开：
+  - 测试内部仍然验证 helper / wrapper 是否保住 forced backend
+  - 但测试方法本身退出时不再把全局 backend 状态漂移留给后续用例或更外层 fixture
+- Release `TTestCase_DispatchAPI`、Release `TTestCase_BackendVectorConsistency`、Release `check`、Release `gate` 全绿，说明改动只影响测试层 cleanup hardening，没有改变 dispatch API 或 backend consistency 生产语义。

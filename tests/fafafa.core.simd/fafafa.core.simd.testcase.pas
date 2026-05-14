@@ -1700,6 +1700,16 @@ begin
   AssertEquals('AVX2 should match Scalar (not found)', resScalar, resAVX2);
 end;
 
+function RestoreBackendVectorConsistencyLocalState(aOriginalBackend: TSimdBackend): Boolean;
+begin
+  ResetToAutomaticBackend;
+  if GetCurrentBackend = aOriginalBackend then
+    Exit(True);
+
+  Result := TrySetActiveBackend(aOriginalBackend) and
+    (GetCurrentBackend = aOriginalBackend);
+end;
+
 procedure TTestCase_BackendVectorConsistency.Test_VectorOps_Consistency;
 var
   LOriginalBackend: TSimdBackend;
@@ -1752,12 +1762,9 @@ begin
     if failMsg <> '' then
       Fail(failMsg);
   finally
-    ResetToAutomaticBackend;
-    LRestoredBackend := True;
-    if GetCurrentBackend <> LOriginalBackend then
-      LRestoredBackend := TrySetActiveBackend(LOriginalBackend);
+    LRestoredBackend := RestoreBackendVectorConsistencyLocalState(LOriginalBackend);
     AssertTrue('Backend vector consistency wrapper should restore previous backend selection',
-      LRestoredBackend and (GetCurrentBackend = LOriginalBackend));
+      LRestoredBackend);
   end;
 end;
 
@@ -1767,6 +1774,7 @@ const
     sbSSE2, sbSSE3, sbSSSE3, sbSSE41, sbSSE42, sbAVX2, sbAVX512, sbNEON, sbRISCVV
   );
 var
+  LEntryBackend: TSimdBackend;
   LIndex: Integer;
   LOriginalBackend: TSimdBackend;
   LTargetBackend: TSimdBackend;
@@ -1775,6 +1783,7 @@ var
 begin
   try
     GetDispatchTable;
+    LEntryBackend := GetCurrentBackend;
     if GetBestDispatchableBackend = sbScalar then
       Exit;
 
@@ -1810,16 +1819,19 @@ begin
     AssertEquals('Standalone backend consistency helper should preserve previous forced backend selection',
       Ord(LOriginalBackend), Ord(GetCurrentBackend));
   finally
-    ResetToAutomaticBackend;
+    AssertTrue('Backend vector consistency helper meta-test should restore entry backend selection',
+      RestoreBackendVectorConsistencyLocalState(LEntryBackend));
   end;
 end;
 
 procedure TTestCase_BackendVectorConsistency.Test_VectorOps_Consistency_Preserves_PreviousForcedBackend;
 var
+  LEntryBackend: TSimdBackend;
   LOriginalBackend: TSimdBackend;
 begin
   try
     GetDispatchTable;
+    LEntryBackend := GetCurrentBackend;
     if GetBestDispatchableBackend = sbScalar then
       Exit;
 
@@ -1834,7 +1846,8 @@ begin
     AssertEquals('Backend consistency wrapper should preserve previous forced backend selection',
       Ord(LOriginalBackend), Ord(GetCurrentBackend));
   finally
-    ResetToAutomaticBackend;
+    AssertTrue('Backend vector consistency wrapper meta-test should restore entry backend selection',
+      RestoreBackendVectorConsistencyLocalState(LEntryBackend));
   end;
 end;
 

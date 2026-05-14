@@ -997,7 +997,7 @@ begin
     AssertTrue('TryForceBackend(sbScalar) should succeed', TryForceBackend(sbScalar));
     AssertEquals('Active backend should be Scalar after TryForceBackend', Ord(sbScalar), Ord(GetActiveBackend));
   finally
-    ResetToAutomaticBackend;
+    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1019,7 +1019,7 @@ begin
 
     AssertEquals('Active backend should remain unchanged after failed TryForceBackend', Ord(LOriginal), Ord(GetActiveBackend));
   finally
-    ResetToAutomaticBackend;
+    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -1029,15 +1029,15 @@ begin
     AssertTrue('TrySetActiveBackend(sbScalar) should succeed', TrySetActiveBackend(sbScalar));
     AssertEquals('Active backend should be Scalar after TrySetActiveBackend', Ord(sbScalar), Ord(GetActiveBackend));
   finally
-    ResetToAutomaticBackend;
+    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 end;
 
 procedure TTestCase_DispatchAPI.Test_TrySetActiveBackend_Unavailable_NoChange;
 var
-  original: TSimdBackend;
+  LOriginal: TSimdBackend;
 begin
-  original := GetActiveBackend;
+  LOriginal := GetActiveBackend;
   try
     {$IFDEF CPUX86_64}
     AssertFalse('TrySetActiveBackend(sbNEON) should fail on x86_64', TrySetActiveBackend(sbNEON));
@@ -1049,9 +1049,9 @@ begin
     {$ENDIF}
     {$ENDIF}
 
-    AssertEquals('Active backend should remain unchanged after failed TrySetActiveBackend', Ord(original), Ord(GetActiveBackend));
+    AssertEquals('Active backend should remain unchanged after failed TrySetActiveBackend', Ord(LOriginal), Ord(GetActiveBackend));
   finally
-    ResetToAutomaticBackend;
+    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 end;
 
