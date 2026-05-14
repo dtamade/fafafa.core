@@ -2221,3 +2221,17 @@
 | 1. 复核 `publicabi` easy wins 残点 | completed | 通过精确文件审查确认最值得先收的是 3 条测试：`Test_PublicApi_CachedTable_RemainsCallable_Across_Rebind`、`Test_PublicApi_CachedTable_Preserves_PreviousSnapshot_Metadata_Across_Rebind`、`Test_PublicApi_BackendPodInfo_Refreshes_WhenBackendBecomesNonDispatchable`；前两条在 rebind 后直接退出，后一条在把当前 backend 标成 unavailable 后触发 re-selection，但三者都仍把 saved-state 恢复留给 outer `TearDown` |
 | 2. 统一到类级 `RestorePublicAbiLocalState(...)` 契约 | completed | 两条 cached/publication rebind 测试补 outer `try...finally`，统一在方法退出时恢复 `FSavedVectorAsm + FSavedBackend`；`BackendPodInfo_Refreshes_WhenBackendBecomesNonDispatchable` 也补 outer restore，同时保留内层 `RegisterBackend(LOriginalBackend, LOriginalTable)` 负责表回滚，避免混淆“当前发布态恢复”和“注册表恢复”两个层级 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿；提交前仍需再次清理可能回流的 `tests/fafafa.core.simd/__pycache__/` |
+
+## 2026-05-14 DispatchAPI AVX512 Cleanup Dedup And Hook Restore Alignment
+
+### Goal
+
+继续沿 `dispatchapi` 收更后段的 cleanup 冗余和缺口：清掉 AVX512 parity/contract tests 中“内层 `ResetToAutomaticBackend` + 外层 saved-state restore”的重复退出态样板，同时把 hook 多订阅测试的 finally 从“只回 automatic”对齐到类级保存态恢复。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `dispatchapi` 后段 cleanup 冗余/缺口 | completed | 已确认 4 条 AVX512 tests `Test_AVX512_U32x16_U64x8_MappingAndParity`、`Test_AVX512_U32x16_U64x8_ShiftBoundary_Contracts`、`Test_AVX512_I16x32_I8x64_U8x64_MappingAndParity`、`Test_AVX512_F32x16_F64x8_IEEE754_MappingAndParity` 都存在“内层 `ResetToAutomaticBackend` + 外层 `RestoreDispatchApiLocalState(...)`”双重 method-exit cleanup；同时 `Test_DispatchChangedHooks_MultiSubscriber_Dedup_And_Remove` 的 finally 还只做 `ResetToAutomaticBackend`，把 saved backend 恢复留给 `TearDown` |
+| 2. 去掉重复退出态样板并补 hook saved-state restore | completed | 已移除 4 条 AVX512 tests 的 inner `finally ResetToAutomaticBackend`，保留外层 `RestoreDispatchApiLocalState(...)` 作为唯一 method-exit cleanup；hook 多订阅测试则保留中途用于驱动通知语义的 `ResetToAutomaticBackend` 步骤，只把 finally 收口改成 `RemoveDispatchChangedHook(...)` 后接 `RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend)` |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿；提交前仍需再次清理可能回流的 `tests/fafafa.core.simd/__pycache__/` |

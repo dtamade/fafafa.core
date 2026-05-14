@@ -7804,67 +7804,63 @@ begin
     if not LCanRunAVX512 then
       Exit;
 
-    try
-      for LIndex := 0 to 15 do
-      begin
-        LU32A.u[LIndex] := DWord($F0000000 + DWord(LIndex) * DWord($1111111));
-        LU32B.u[LIndex] := DWord($0F0F0F0F + DWord(LIndex) * DWord(97));
-      end;
+    for LIndex := 0 to 15 do
+    begin
+      LU32A.u[LIndex] := DWord($F0000000 + DWord(LIndex) * DWord($1111111));
+      LU32B.u[LIndex] := DWord($0F0F0F0F + DWord(LIndex) * DWord(97));
+    end;
 
-      for LIndex := 0 to 7 do
-      begin
-        LU64A.u[LIndex] := QWord($F000000000000000) + QWord(LIndex) * QWord($0102030405060708);
-        LU64B.u[LIndex] := QWord($00FF00FF00FF00FF) + QWord(LIndex) * QWord($0001000100010001);
-      end;
+    for LIndex := 0 to 7 do
+    begin
+      LU64A.u[LIndex] := QWord($F000000000000000) + QWord(LIndex) * QWord($0102030405060708);
+      LU64B.u[LIndex] := QWord($00FF00FF00FF00FF) + QWord(LIndex) * QWord($0001000100010001);
+    end;
 
-      LU32Result := LAVX512.AddU32x16(LU32A, LU32B);
-      LU32Expected := ScalarAddU32x16(LU32A, LU32B);
-      for LIndex := 0 to 15 do
-        AssertEquals('AVX512 AddU32x16 lane ' + IntToStr(LIndex), LU32Expected.u[LIndex], LU32Result.u[LIndex]);
+    LU32Result := LAVX512.AddU32x16(LU32A, LU32B);
+    LU32Expected := ScalarAddU32x16(LU32A, LU32B);
+    for LIndex := 0 to 15 do
+      AssertEquals('AVX512 AddU32x16 lane ' + IntToStr(LIndex), LU32Expected.u[LIndex], LU32Result.u[LIndex]);
 
-      LU32Result := LAVX512.AndU32x16(LU32A, LU32B);
-      LU32Expected := ScalarAndU32x16(LU32A, LU32B);
-      for LIndex := 0 to 15 do
-        AssertEquals('AVX512 AndU32x16 lane ' + IntToStr(LIndex), LU32Expected.u[LIndex], LU32Result.u[LIndex]);
+    LU32Result := LAVX512.AndU32x16(LU32A, LU32B);
+    LU32Expected := ScalarAndU32x16(LU32A, LU32B);
+    for LIndex := 0 to 15 do
+      AssertEquals('AVX512 AndU32x16 lane ' + IntToStr(LIndex), LU32Expected.u[LIndex], LU32Result.u[LIndex]);
 
-      LU32Result := LAVX512.ShiftRightU32x16(LU32A, 5);
-      LU32Expected := ScalarShiftRightU32x16(LU32A, 5);
-      for LIndex := 0 to 15 do
-        AssertEquals('AVX512 ShiftRightU32x16 lane ' + IntToStr(LIndex), LU32Expected.u[LIndex], LU32Result.u[LIndex]);
+    LU32Result := LAVX512.ShiftRightU32x16(LU32A, 5);
+    LU32Expected := ScalarShiftRightU32x16(LU32A, 5);
+    for LIndex := 0 to 15 do
+      AssertEquals('AVX512 ShiftRightU32x16 lane ' + IntToStr(LIndex), LU32Expected.u[LIndex], LU32Result.u[LIndex]);
 
-      LMask16Result := LAVX512.CmpEqU32x16(LU32A, LU32B);
-      LMask16Expected := ScalarCmpEqU32x16(LU32A, LU32B);
-      AssertEquals('AVX512 CmpEqU32x16 mask parity', Integer(LMask16Expected), Integer(LMask16Result));
+    LMask16Result := LAVX512.CmpEqU32x16(LU32A, LU32B);
+    LMask16Expected := ScalarCmpEqU32x16(LU32A, LU32B);
+    AssertEquals('AVX512 CmpEqU32x16 mask parity', Integer(LMask16Expected), Integer(LMask16Result));
 
-      LMask16Result := LAVX512.CmpGtU32x16(LU32A, LU32B);
-      LMask16Expected := ScalarCmpGtU32x16(LU32A, LU32B);
-      AssertEquals('AVX512 CmpGtU32x16 mask parity', Integer(LMask16Expected), Integer(LMask16Result));
+    LMask16Result := LAVX512.CmpGtU32x16(LU32A, LU32B);
+    LMask16Expected := ScalarCmpGtU32x16(LU32A, LU32B);
+    AssertEquals('AVX512 CmpGtU32x16 mask parity', Integer(LMask16Expected), Integer(LMask16Result));
 
-      LU64Result := LAVX512.AddU64x8(LU64A, LU64B);
-      LU64Expected := ScalarAddU64x8(LU64A, LU64B);
-      for LIndex := 0 to 7 do
-        AssertEquals('AVX512 AddU64x8 lane ' + IntToStr(LIndex), LU64Expected.u[LIndex], LU64Result.u[LIndex]);
+    LU64Result := LAVX512.AddU64x8(LU64A, LU64B);
+    LU64Expected := ScalarAddU64x8(LU64A, LU64B);
+    for LIndex := 0 to 7 do
+      AssertEquals('AVX512 AddU64x8 lane ' + IntToStr(LIndex), LU64Expected.u[LIndex], LU64Result.u[LIndex]);
 
-      LU64Result := LAVX512.XorU64x8(LU64A, LU64B);
-      LU64Expected := ScalarXorU64x8(LU64A, LU64B);
-      for LIndex := 0 to 7 do
-        AssertEquals('AVX512 XorU64x8 lane ' + IntToStr(LIndex), LU64Expected.u[LIndex], LU64Result.u[LIndex]);
+    LU64Result := LAVX512.XorU64x8(LU64A, LU64B);
+    LU64Expected := ScalarXorU64x8(LU64A, LU64B);
+    for LIndex := 0 to 7 do
+      AssertEquals('AVX512 XorU64x8 lane ' + IntToStr(LIndex), LU64Expected.u[LIndex], LU64Result.u[LIndex]);
 
-      LU64Result := LAVX512.ShiftRightU64x8(LU64A, 11);
-      LU64Expected := ScalarShiftRightU64x8(LU64A, 11);
-      for LIndex := 0 to 7 do
-        AssertEquals('AVX512 ShiftRightU64x8 lane ' + IntToStr(LIndex), LU64Expected.u[LIndex], LU64Result.u[LIndex]);
+    LU64Result := LAVX512.ShiftRightU64x8(LU64A, 11);
+    LU64Expected := ScalarShiftRightU64x8(LU64A, 11);
+    for LIndex := 0 to 7 do
+      AssertEquals('AVX512 ShiftRightU64x8 lane ' + IntToStr(LIndex), LU64Expected.u[LIndex], LU64Result.u[LIndex]);
 
-      LMask8Result := LAVX512.CmpEqU64x8(LU64A, LU64B);
-      LMask8Expected := ScalarCmpEqU64x8(LU64A, LU64B);
-      AssertEquals('AVX512 CmpEqU64x8 mask parity', Integer(LMask8Expected), Integer(LMask8Result));
+    LMask8Result := LAVX512.CmpEqU64x8(LU64A, LU64B);
+    LMask8Expected := ScalarCmpEqU64x8(LU64A, LU64B);
+    AssertEquals('AVX512 CmpEqU64x8 mask parity', Integer(LMask8Expected), Integer(LMask8Result));
 
     LMask8Result := LAVX512.CmpLtU64x8(LU64A, LU64B);
     LMask8Expected := ScalarCmpLtU64x8(LU64A, LU64B);
     AssertEquals('AVX512 CmpLtU64x8 mask parity', Integer(LMask8Expected), Integer(LMask8Result));
-    finally
-      ResetToAutomaticBackend;
-    end;
   finally
     RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
@@ -7942,63 +7938,59 @@ begin
     if not LCanRunAVX512 then
       Exit;
 
-    try
-      for LIndex := 0 to 15 do
-        LU32A.u[LIndex] := DWord($80000000 xor (DWord(LIndex) * DWord($11111111)));
+    for LIndex := 0 to 15 do
+      LU32A.u[LIndex] := DWord($80000000 xor (DWord(LIndex) * DWord($11111111)));
 
-      for LIndex := 0 to 7 do
-        LU64A.u[LIndex] := QWord($8000000000000000) xor (QWord(LIndex) * QWord($0101010101010101));
+    for LIndex := 0 to 7 do
+      LU64A.u[LIndex] := QWord($8000000000000000) xor (QWord(LIndex) * QWord($0101010101010101));
 
-      LU32Expected := ScalarShiftLeftU32x16(LU32A, 0);
-      LU32Result := LAVX512.ShiftLeftU32x16(LU32A, 0);
-      AssertVecU32x16Equal('AVX512 ShiftLeftU32x16 count=0', LU32Expected, LU32Result);
+    LU32Expected := ScalarShiftLeftU32x16(LU32A, 0);
+    LU32Result := LAVX512.ShiftLeftU32x16(LU32A, 0);
+    AssertVecU32x16Equal('AVX512 ShiftLeftU32x16 count=0', LU32Expected, LU32Result);
 
-      LU32Expected := ScalarShiftLeftU32x16(LU32A, 31);
-      LU32Result := LAVX512.ShiftLeftU32x16(LU32A, 31);
-      AssertVecU32x16Equal('AVX512 ShiftLeftU32x16 count=31', LU32Expected, LU32Result);
+    LU32Expected := ScalarShiftLeftU32x16(LU32A, 31);
+    LU32Result := LAVX512.ShiftLeftU32x16(LU32A, 31);
+    AssertVecU32x16Equal('AVX512 ShiftLeftU32x16 count=31', LU32Expected, LU32Result);
 
-      LU32Expected := ScalarShiftLeftU32x16(LU32A, 32);
-      LU32Result := LAVX512.ShiftLeftU32x16(LU32A, 32);
-      AssertVecU32x16Equal('AVX512 ShiftLeftU32x16 count=32', LU32Expected, LU32Result);
+    LU32Expected := ScalarShiftLeftU32x16(LU32A, 32);
+    LU32Result := LAVX512.ShiftLeftU32x16(LU32A, 32);
+    AssertVecU32x16Equal('AVX512 ShiftLeftU32x16 count=32', LU32Expected, LU32Result);
 
-      LU32Expected := ScalarShiftRightU32x16(LU32A, 0);
-      LU32Result := LAVX512.ShiftRightU32x16(LU32A, 0);
-      AssertVecU32x16Equal('AVX512 ShiftRightU32x16 count=0', LU32Expected, LU32Result);
+    LU32Expected := ScalarShiftRightU32x16(LU32A, 0);
+    LU32Result := LAVX512.ShiftRightU32x16(LU32A, 0);
+    AssertVecU32x16Equal('AVX512 ShiftRightU32x16 count=0', LU32Expected, LU32Result);
 
-      LU32Expected := ScalarShiftRightU32x16(LU32A, 31);
-      LU32Result := LAVX512.ShiftRightU32x16(LU32A, 31);
-      AssertVecU32x16Equal('AVX512 ShiftRightU32x16 count=31', LU32Expected, LU32Result);
+    LU32Expected := ScalarShiftRightU32x16(LU32A, 31);
+    LU32Result := LAVX512.ShiftRightU32x16(LU32A, 31);
+    AssertVecU32x16Equal('AVX512 ShiftRightU32x16 count=31', LU32Expected, LU32Result);
 
-      LU32Expected := ScalarShiftRightU32x16(LU32A, 32);
-      LU32Result := LAVX512.ShiftRightU32x16(LU32A, 32);
-      AssertVecU32x16Equal('AVX512 ShiftRightU32x16 count=32', LU32Expected, LU32Result);
+    LU32Expected := ScalarShiftRightU32x16(LU32A, 32);
+    LU32Result := LAVX512.ShiftRightU32x16(LU32A, 32);
+    AssertVecU32x16Equal('AVX512 ShiftRightU32x16 count=32', LU32Expected, LU32Result);
 
-      LU64Expected := ScalarShiftLeftU64x8(LU64A, 0);
-      LU64Result := LAVX512.ShiftLeftU64x8(LU64A, 0);
-      AssertVecU64x8Equal('AVX512 ShiftLeftU64x8 count=0', LU64Expected, LU64Result);
+    LU64Expected := ScalarShiftLeftU64x8(LU64A, 0);
+    LU64Result := LAVX512.ShiftLeftU64x8(LU64A, 0);
+    AssertVecU64x8Equal('AVX512 ShiftLeftU64x8 count=0', LU64Expected, LU64Result);
 
-      LU64Expected := ScalarShiftLeftU64x8(LU64A, 63);
-      LU64Result := LAVX512.ShiftLeftU64x8(LU64A, 63);
-      AssertVecU64x8Equal('AVX512 ShiftLeftU64x8 count=63', LU64Expected, LU64Result);
+    LU64Expected := ScalarShiftLeftU64x8(LU64A, 63);
+    LU64Result := LAVX512.ShiftLeftU64x8(LU64A, 63);
+    AssertVecU64x8Equal('AVX512 ShiftLeftU64x8 count=63', LU64Expected, LU64Result);
 
-      LU64Expected := ScalarShiftLeftU64x8(LU64A, 64);
-      LU64Result := LAVX512.ShiftLeftU64x8(LU64A, 64);
-      AssertVecU64x8Equal('AVX512 ShiftLeftU64x8 count=64', LU64Expected, LU64Result);
+    LU64Expected := ScalarShiftLeftU64x8(LU64A, 64);
+    LU64Result := LAVX512.ShiftLeftU64x8(LU64A, 64);
+    AssertVecU64x8Equal('AVX512 ShiftLeftU64x8 count=64', LU64Expected, LU64Result);
 
-      LU64Expected := ScalarShiftRightU64x8(LU64A, 0);
-      LU64Result := LAVX512.ShiftRightU64x8(LU64A, 0);
-      AssertVecU64x8Equal('AVX512 ShiftRightU64x8 count=0', LU64Expected, LU64Result);
+    LU64Expected := ScalarShiftRightU64x8(LU64A, 0);
+    LU64Result := LAVX512.ShiftRightU64x8(LU64A, 0);
+    AssertVecU64x8Equal('AVX512 ShiftRightU64x8 count=0', LU64Expected, LU64Result);
 
-      LU64Expected := ScalarShiftRightU64x8(LU64A, 63);
-      LU64Result := LAVX512.ShiftRightU64x8(LU64A, 63);
-      AssertVecU64x8Equal('AVX512 ShiftRightU64x8 count=63', LU64Expected, LU64Result);
+    LU64Expected := ScalarShiftRightU64x8(LU64A, 63);
+    LU64Result := LAVX512.ShiftRightU64x8(LU64A, 63);
+    AssertVecU64x8Equal('AVX512 ShiftRightU64x8 count=63', LU64Expected, LU64Result);
 
-      LU64Expected := ScalarShiftRightU64x8(LU64A, 64);
-      LU64Result := LAVX512.ShiftRightU64x8(LU64A, 64);
-      AssertVecU64x8Equal('AVX512 ShiftRightU64x8 count=64', LU64Expected, LU64Result);
-    finally
-      ResetToAutomaticBackend;
-    end;
+    LU64Expected := ScalarShiftRightU64x8(LU64A, 64);
+    LU64Result := LAVX512.ShiftRightU64x8(LU64A, 64);
+    AssertVecU64x8Equal('AVX512 ShiftRightU64x8 count=64', LU64Expected, LU64Result);
   finally
     RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
@@ -8038,7 +8030,7 @@ begin
   finally
     RemoveDispatchChangedHook(@DispatchHookProbeA);
     RemoveDispatchChangedHook(@DispatchHookProbeB);
-    ResetToAutomaticBackend;
+    RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend);
   end;
 end;
 
@@ -8091,7 +8083,6 @@ begin
     if not LCanRunAVX512 then
       Exit;
 
-    try
     for LIndex := 0 to 31 do
     begin
       LI16A.i[LIndex] := Int16(LIndex * 97 - 1400);
@@ -8142,9 +8133,6 @@ begin
     LMask64Result := LAVX512.CmpLtU8x64(LU8A, LU8B);
     LMask64Expected := ScalarCmpLtU8x64(LU8A, LU8B);
     AssertEquals('AVX512 CmpLtU8x64 mask parity', Int64(LMask64Expected), Int64(LMask64Result));
-    finally
-      ResetToAutomaticBackend;
-    end;
   finally
     RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;
@@ -8252,7 +8240,6 @@ begin
     if not LCanRunAVX512 then
       Exit;
 
-    try
     for LIndex := 0 to 15 do
     begin
       case (LIndex mod 5) of
@@ -8348,9 +8335,6 @@ begin
     AssertEquals('AVX512 ReduceMulF64x8 parity', LExpectedReduceMulF64x8, LActualReduceMulF64x8, 1e-10);
     AssertEquals('AVX512 ReduceMinF64x8 parity', LExpectedReduceMinF64x8, LActualReduceMinF64x8, 1e-12);
     AssertEquals('AVX512 ReduceMaxF64x8 parity', LExpectedReduceMaxF64x8, LActualReduceMaxF64x8, 1e-12);
-    finally
-      ResetToAutomaticBackend;
-    end;
   finally
     RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend);
   end;

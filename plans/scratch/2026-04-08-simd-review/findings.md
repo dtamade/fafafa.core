@@ -2676,3 +2676,30 @@
   - active backend / vector-asm saved-state rollback 则在方法退出时统一回到 `RestorePublicAbiLocalState(...)`
   - 从而不再依赖类级 `TearDown` 才把 current-publication 场景收干净
 - Release `TTestCase_PublicAbi`、Release `check`、Release `gate` 全绿，说明这批仍然只是 `publicabi` 测试层 cleanup hardening，没有影响 public ABI 发布、cached table 或 hook 行为语义。
+
+## 2026-05-14 DispatchAPI AVX512 Cleanup Dedup And Hook Restore Alignment Findings
+
+- 继续沿 `dispatchapi` 更后段审查时，浮出的不是新的 missing coverage，而是两种测试层 cleanup 结构问题：
+  - 4 条 AVX512 parity/contract tests 里，内层已经有 `ResetToAutomaticBackend`，外层又统一 `RestoreDispatchApiLocalState(...)`，形成重复 method-exit cleanup
+  - `Test_DispatchChangedHooks_MultiSubscriber_Dedup_And_Remove` 的 finally 则相反，只回到 automatic，仍把 saved-state 恢复留给类级 `TearDown`
+- 这 4 条 AVX512 tests 是：
+  - `Test_AVX512_U32x16_U64x8_MappingAndParity`
+  - `Test_AVX512_U32x16_U64x8_ShiftBoundary_Contracts`
+  - `Test_AVX512_I16x32_I8x64_U8x64_MappingAndParity`
+  - `Test_AVX512_F32x16_F64x8_IEEE754_MappingAndParity`
+- 它们的共同点很清楚：
+  - active backend 只在方法里切到 `sbAVX512`
+  - 后续没有任何依赖“先回 automatic 再继续断言”的代码
+  - 最外层已经统一用 `RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend)` 收尾
+  - 因此 inner `finally ResetToAutomaticBackend` 只是在 method-exit 再做一层重复 cleanup，没有额外语义价值
+- hook 多订阅测试的边界也需要单独说明：
+  - 测试体里的 `ResetToAutomaticBackend` 是被测控制面步骤本身，因为它负责触发第二轮 hook 通知，这一条不能动
+  - 真正该收的是 finally 里的 cleanup；那里在 hook 已经移除后，只回 automatic 不回 saved backend，属于典型“把恢复留给 `TearDown`”的旧形状
+- 本轮修法因此分成两类：
+  - 对 4 条 AVX512 tests，直接删掉 inner `finally ResetToAutomaticBackend`，只保留外层 `RestoreDispatchApiLocalState(...)`
+  - 对 hook 多订阅测试，保留中途 `ResetToAutomaticBackend` 作为测试主题步骤，把 finally 改成 `RemoveDispatchChangedHook(...)` 后接 `RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend)`
+- 这批修法的价值在于把“测试主题动作”和“退出态 cleanup”重新拆开：
+  - AVX512 tests 不再重复做两层 method-exit backend reset
+  - hook 测试也不再在 finally 里停留在 automatic，而是回到类级保存态
+  - 变化仍然只在测试层 cleanup 契约，不触碰 SIMD/AVX512 生产实现或 hook 语义
+- Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿，说明这批既没有影响 AVX512 parity/contract 语义，也没有影响 dispatch hook 行为。

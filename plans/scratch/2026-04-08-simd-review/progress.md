@@ -2789,3 +2789,29 @@
   - `publicabi` 最明显的 cached/current-publication method-exit restore 分叉又少了一层
   - 下一轮如果继续深挖，优先看 `publicabi` 里其余“内层已经闭合 table rollback、最外层仍缺 saved-state restore”的同类路径；如果没有再缩得很稳的候选，再回头扫 `dispatchapi` 更零散的 benchmark/AVX 特化 cleanup 残点
 - 这轮提交前仍要再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录跟着进入工作树。
+
+- 我继续按这个 stop-point 回到 `dispatchapi` 后段，这轮收的是一簇 cleanup 冗余/缺口混合的 easy wins：
+  - 4 条 AVX512 tests 的 inner `ResetToAutomaticBackend` 与 outer `RestoreDispatchApiLocalState(...)` 重复收尾
+  - `Test_DispatchChangedHooks_MultiSubscriber_Dedup_And_Remove` 的 finally 还只回 automatic
+- 这次的关键判断边界是：
+  - AVX512 tests 里被测语义是 mapping/parity/IEEE754 contract，本身不依赖“先回 automatic 再做后续断言”
+  - hook 多订阅测试体内的 `ResetToAutomaticBackend` 仍然是被测通知步骤，不能删
+  - 真正该改的是 method-exit cleanup，而不是中途 control-plane 动作
+- 本轮最小修法：
+  - 4 条 AVX512 tests 直接删掉 inner `finally ResetToAutomaticBackend`
+  - 保留 outer `RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend)` 作为唯一 method-exit cleanup
+  - hook 多订阅测试的 finally 改成移除 hook 后调用 `RestoreDispatchApiLocalState(FSavedVectorAsm, FSavedBackend)`
+- 这轮工具层也有一个重复现象：
+  - `ace-tool/search_context` 针对这簇 `dispatchapi` 残点再次超时
+  - 仍然改走 `nl -ba` 精确片段审查，没有继续在超时路径上空转
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断继续更新：
+  - `dispatchapi` 后段 AVX512 特化 tests 的重复退出态 cleanup 又少了一层
+  - hook 多订阅测试也不再把 saved-state 恢复推迟到 `TearDown`
+  - 下一轮如果继续深挖，更适合再缩 `publicabi/dispatchapi` 里“中途 control-plane 步骤必须保留，但 finally 仍旧 old-shape”的零散残点，而不是机械清空所有 `ResetToAutomaticBackend`
+- 这轮提交前仍要再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录跟着进入工作树。
