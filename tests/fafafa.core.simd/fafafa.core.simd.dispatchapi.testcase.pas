@@ -9284,6 +9284,7 @@ var
   LCase: TTestCase_DispatchAPI;
   LCurrentDispatch: PSimdDispatchTable;
   LScalarTable: TSimdDispatchTable;
+  LInnerSetupDone: Boolean;
 begin
   {$IFNDEF CPURISCV64}
   {$IFNDEF CPURISCV32}
@@ -9302,12 +9303,16 @@ begin
   AssertTrue('Current dispatch AndNotI64x2 should start assigned before rollback-restore success probe',
     Assigned(LCurrentDispatch^.AndNotI64x2));
 
+  LInnerSetupDone := False;
   LCase := TTestCase_DispatchAPI.Create;
   try
+    LCase.SetUp;
+    LInnerSetupDone := True;
     LCase.Test_TrySetActiveBackend_RollbackRestore_Success_Preserves_ForcedSelection;
   finally
+    if LInnerSetupDone then
+      LCase.TearDown;
     LCase.Free;
-    ResetToAutomaticBackend;
   end;
 
   AssertTrue('Scalar backend should remain registered after rollback-restore success probe',

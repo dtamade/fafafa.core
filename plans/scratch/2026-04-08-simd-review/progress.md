@@ -2485,3 +2485,23 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：全部通过
 - 当前判断更清楚了：`dispatchapi.testcase` 剩余的 `ResetToAutomaticBackend` 已主要不是“尾声 cleanup 噪音”，而是测试前置条件或中途状态机语义点；下一批如果继续收，应优先审 `7999/8006/9316/9329` 这一类跨 hook/跨 test probe 的边界，而不是再扫普通尾声。
+
+- 继续按这组复杂点往下审时，我确认 `7999/8006` 里的真正高价值不是再删一个 cleanup reset，而是 `9305` 这条 cross-test probe：
+  - 手工 `Create` 了 `TTestCase_DispatchAPI`
+  - 直接调了 `Test_TrySetActiveBackend_RollbackRestore_Success_Preserves_ForcedSelection`
+  - 却没有显式跑 inner `SetUp/TearDown`
+- 被调的 inner test 自己又在 finally 里用到了 `RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend)`，所以这条 probe 原本其实在隐式依赖测试类零值，并且靠块尾 `ResetToAutomaticBackend` 收拾现场。
+- 本轮把这条 probe 改成了显式 fixture 契约：
+  - 新增 `LInnerSetupDone`
+  - `LCase.SetUp`
+  - 调用 inner `Test_*`
+  - `LCase.TearDown`
+  - `LCase.Free`
+  - 同时删掉原来的块尾 `ResetToAutomaticBackend`
+- 这轮 release 验证已串行完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_RISCVFallbackDispatchContract,TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前结论更新：`dispatchapi.testcase` 里下一类更值得继续查的，不再是普通 reset 形状，而是“测试是否把 fixture 当 helper 用”这类跨 test/probe 边界。

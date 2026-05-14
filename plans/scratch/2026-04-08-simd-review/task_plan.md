@@ -2025,3 +2025,17 @@
 | 1. 分类剩余 `ResetToAutomaticBackend` 命中 | completed | 已把剩余命中缩分成四类：fixture/helper 本体、测试前置条件 reset、中途 hook/rollback 状态机 reset、以及“恢复原 table 后立刻返回”的尾声冗余 reset；本轮只处理最后一类 |
 | 2. 删除尾声重复 automatic reset | completed | 已从 `TTestCase_DispatchAPI` 相关测试里删除 20 处尾声 `ResetToAutomaticBackend`，覆盖 hook mutation、register/metadata、benchmark activation、以及一串 `Vec*Facade_Tracks_CurrentDispatchTable_After_ReRegister` 路径；保留 `RegisterBackend(..., LOriginalTable)` 本身不动 |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿；这批之后剩余 `ResetToAutomaticBackend` 更集中到真正承担语义职责的 setup/mid-test/hook-state-machine 路径 |
+
+## 2026-05-14 RISCV Fallback Probe Fixture Hardening
+
+### Goal
+
+继续沿剩余复杂点深审 `dispatchapi.testcase`，修掉 `TTestCase_RISCVFallbackDispatchContract.Test_RollbackRestoreSuccess_Keep_RepresentativeWideSlots_Assigned` 里“手工创建 `TTestCase_DispatchAPI` 并直接调用测试方法、但没有显式跑 inner `SetUp/TearDown`”的夹具边界风险，让这条 cross-test probe 不再依赖对象零值或外层手工 reset 掩盖。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 cross-test probe 的真实依赖 | completed | 已确认这条 probe 是全文件唯一一处手工 `Create` 测试类再直接调 `Test_*` 的模式，而被调方法 `Test_TrySetActiveBackend_RollbackRestore_Success_Preserves_ForcedSelection` 的 finally 明确依赖 `FSavedVectorAsm/FSavedBackend` |
+| 2. 显式跑 inner fixture 并去掉掩盖性 reset | completed | 已在 probe 中引入 `LInnerSetupDone`，改为显式 `LCase.SetUp -> Test_* -> LCase.TearDown`；同时删除块尾靠 `ResetToAutomaticBackend` 掩盖 inner fixture 缺失的做法 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_RISCVFallbackDispatchContract,TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿；当前这条 probe 已从“隐式依赖测试类零值”收口成显式 fixture 契约 |

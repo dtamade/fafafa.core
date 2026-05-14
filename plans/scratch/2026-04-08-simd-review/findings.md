@@ -2303,3 +2303,27 @@
   - 当前 `dispatchapi.testcase` 剩余的 `ResetToAutomaticBackend`，更多是 setup/mid-test/hook-state-machine 的真实语义点
   - 后续再往下收，必须按“是否仍有断言依赖该 reset”逐段读，而不是继续按形状盲删
 - Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿，说明这批删掉的确实是测试层尾声冗余，而不是 dispatch/backend 生产逻辑的隐性依赖。
+
+## 2026-05-14 RISCV Fallback Probe Fixture Hardening Findings
+
+- 在继续审 `7999/8006/9316/9329` 这组复杂点时，真正更值得修的不是另一个尾声 reset，而是 `TTestCase_RISCVFallbackDispatchContract.Test_RollbackRestoreSuccess_Keep_RepresentativeWideSlots_Assigned` 的 inner fixture 边界。
+- 这条 probe 原本的模式是：
+  - `LCase := TTestCase_DispatchAPI.Create;`
+  - 直接调用 `LCase.Test_TrySetActiveBackend_RollbackRestore_Success_Preserves_ForcedSelection;`
+  - 块尾再 `ResetToAutomaticBackend;`
+- 但被调用的 inner test 的 finally 明确会走：
+  - `RestoreDispatchApiLocalState(LOldVectorAsm, FSavedBackend)`
+  - 也就是说，它依赖 `TDispatchAPIStatefulTestCase.SetUp` 已经正确填好了 `FSavedVectorAsm/FSavedBackend`
+- 在没有显式 `SetUp/TearDown` 的前提下，这条 probe 的正确性实际上依赖两件脆弱事实：
+  - 测试类字段的零值碰巧不会把恢复逻辑带偏太远
+  - 外层块尾的 `ResetToAutomaticBackend` 会把状态重新拉回去
+- 这是比“冗余 reset”更实在的风险，因为它把测试方法当普通 helper 调用，却没有带上它自己的 fixture contract。
+- 本轮修法不是去改生产实现，也不是继续清空 reset，而是把这条 cross-test probe 的 inner fixture 显式化：
+  - 增加 `LInnerSetupDone`
+  - `LCase.SetUp`
+  - 调用 inner `Test_*`
+  - `LCase.TearDown`
+  - 最后 `LCase.Free`
+- 同时删掉块尾那个原本用于“手工拉回 automatic”的 reset，让 probe 自己真的验证 inner fixture 可以把状态恢复到外层预期，而不是继续靠外层兜底。
+- 全文件复核后，当前这类“手工 new 测试类并直接调测试方法”的模式只发现这一处，所以这是一次高价值、低扩散面的边界修复。
+- Release `TTestCase_RISCVFallbackDispatchContract,TTestCase_DispatchAPI`、Release `check`、Release `gate` 全绿，说明这条 probe 现在已经从“隐式依赖零值 + 外层 reset”切回了明确的 fixture 契约。
