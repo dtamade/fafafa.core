@@ -2277,3 +2277,17 @@
 | 1. 复核 `Vec512MaskFacadeGuards` 是否只是 pure scalar guard | completed | 已确认该 suite 只是在 fixed `sbScalar` 下验证 `MaskF32x16` façade contract，本身没有额外 vector-asm/FPU/image 生命周期语义；文件内重复的 `FSavedBackend/SetUp/TearDown` 形状与上一批 6 个纯 fixture testcase 一致 |
 | 2. 切到统一 scalar fixture 基类 | completed | `TTestCase_Vec512MaskFacadeGuards` 已改继承 `TScalarBackendStatefulTestCase`，删除本地 `FSavedBackend/SetUp/TearDown`；文件增加 `fafafa.core.simd.testcase`，并移除只被旧夹具使用的 `fafafa.core.simd.dispatch` |
 | 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_Vec512MaskFacadeGuards`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |
+
+## 2026-05-14 EdgeCases And ImageProc Fixture Consolidation
+
+### Goal
+
+继续沿 stateful fixture 去重往下收，但保留 `edgecases` 的 FPU exception mask 生命周期和 `imageproc` 的 image/blend-mode 生命周期，只把重复的 backend 保存/恢复收回现成公共基类。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `edgecases` / `imageproc` 的附加清理语义 | completed | 已确认 `edgecases` 除 backend 之外还要保存/恢复 `TFPUExceptionMask`，而 `imageproc` 还要保存/恢复 `TImageBlendAlphaMode` 并释放 `FSrc1/FSrc2/FDest`；两者都不是纯 scalar fixture，不能像前几批那样机械整文件切 `TScalarBackendStatefulTestCase` |
+| 2. 只把 backend 保存/恢复收回公共基类 | completed | `TTestCase_EdgeCases` 改继承 `TSimdBackendStatefulTestCase`，本地只保留 `ForceBackend(sbScalar)` 与 FPU mask 生命周期；`TTestCase_ImageProc` 改继承 `TScalarBackendStatefulTestCase`，本地只保留 image/blend 清理；两文件均引入 `fafafa.core.simd.testcase`，移除仅给旧 backend fixture 用的 `dispatch` 依赖 |
+| 3. Release 验证与提交收口 | completed | `git diff --check`、Release `TTestCase_EdgeCases,TTestCase_ImageProc`、Release `check`、Release `gate` 全绿；`tests/fafafa.core.simd/__pycache__/` 已清理 |

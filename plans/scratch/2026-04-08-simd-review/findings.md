@@ -2785,3 +2785,33 @@
   - 同时保住了 `vec512types` 文件内“stateful guard / stateless smoke”这条边界
   - 也为后续审 `edgecases/imageproc` 这种复杂 fixture 文件提供了反例：不是所有剩余 stateful testcase 都能像这批这样机械切基类
 - Release `TTestCase_Vec512MaskFacadeGuards`、Release `check`、Release `gate` 全绿，说明这次仍然只是测试夹具层去冗余，没有改变 vec512 mask façade guard 的行为期望。
+
+## 2026-05-14 EdgeCases And ImageProc Fixture Consolidation Findings
+
+- `edgecases` 和 `imageproc` 这两份文件证明了一类比 pure scalar fixture 更细的情况：
+  - backend 保存/恢复是重复的
+  - 但 testcase 自己还挂着额外的生命周期状态
+  - 所以不能简单地用“要么原样保留、要么整套删掉”来处理
+- `edgecases` 的真实结构是：
+  - 旧样板里既有 `FSavedBackend`，又有 `FSavedExceptionMask`
+  - backend 生命周期只是为 `ForceBackend(sbScalar)` 服务
+  - 真正 testcase 特有的是 `GetExceptionMask / SetExceptionMask(...)`
+  - 而且当前顺序要求仍然是：先保存 backend，再保存/修改 FPU mask，再 `ForceBackend(sbScalar)`
+- 因此 `edgecases` 最合适的落点不是 `TScalarBackendStatefulTestCase`，而是 `TSimdBackendStatefulTestCase`：
+  - 让公共基类接管 backend save/restore
+  - 本地继续保留 `ForceBackend(sbScalar)`，同时保住 FPU mask 的设置顺序
+  - 这样既减少重复，又不把 FPU 语义顺序悄悄改乱
+- `imageproc` 则是另一种形状：
+  - backend lifecycle 完全是标准的 fixed `sbScalar`
+  - testcase 自己真正特有的是 image zero-init、blend alpha mode 保存/恢复，以及 `FreeImage(FSrc1/FSrc2/FDest)`
+  - 所以它正好适合直接切到 `TScalarBackendStatefulTestCase`
+  - 然后把本地生命周期缩到“image/blend 专属清理”
+- 这批修法还有一个额外信号：
+  - 两个文件里的 `fafafa.core.simd.dispatch` 都只是给旧 backend fixture 用的
+  - 一旦把 backend 保存/恢复收回公共基类，这个依赖就自然消失
+  - 说明有些 `uses` 冗余其实是 fixture 冗余的伴生物，不需要单独再开一轮“清理 unused units”
+- 这批修法的价值在于：
+  - 复杂 stateful testcase 也能做“部分 fixture 去重”
+  - 去重颗粒度可以细到“只抽 backend 生命周期，保留本地专属状态”
+  - 这为继续审 `direct/dataplane/runtime/sse2contracts` 提供了方法论：先拆清哪些状态是通用 backend fixture，哪些才是 testcase 专属语义
+- Release `TTestCase_EdgeCases,TTestCase_ImageProc`、Release `check`、Release `gate` 全绿，说明这批仍然只是测试夹具层去冗余，没有破坏 FPU edge-case 和 imageproc 行为期望。

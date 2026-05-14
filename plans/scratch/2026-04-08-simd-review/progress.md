@@ -2888,3 +2888,32 @@
   - `vec512types` 里 pure scalar façade guard 的重复 fixture 也已经收回统一基类
   - 下一轮如果继续沿 fixture 去重走，优先级更高的将是先复核 `edgecases/imageproc` 这类“确实 stateful，但还夹带额外清理语义”的文件，不能按这批的机械方式直接切
 - 这轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+- 我继续往前收的是两份“不是纯 scalar fixture，但 backend 保存/恢复仍然重复”的 testcase：
+  - `edgecases`
+  - `imageproc`
+- 这轮先把边界卡死了：
+  - `edgecases` 还要保存/恢复 `TFPUExceptionMask`
+  - `imageproc` 还要保存/恢复 `TImageBlendAlphaMode`，并负责 `FSrc1/FSrc2/FDest` 的释放
+  - 所以不能像 `vecf32x8`/`vec512 mask guard` 那样直接把整个本地 lifecycle 全删掉
+- 本轮最小修法因此拆成两种：
+  - `TTestCase_EdgeCases` 改继承 `TSimdBackendStatefulTestCase`
+    - backend 的 `GetDispatchTable/FSavedBackend/ResetBackendSelection/TrySetActiveBackend` 全部回到公共基类
+    - 本地只保留 `FSavedExceptionMask`、`SetExceptionMask(...)` 和 `ForceBackend(sbScalar)`
+  - `TTestCase_ImageProc` 改继承 `TScalarBackendStatefulTestCase`
+    - backend force/restore 全部回到公共基类
+    - 本地只保留 `FillChar(FSrc1/2/Dest)`、`Get/SetImageBlendAlphaMode` 和 `FreeImage(...)`
+- 这轮也顺手缩掉了两个只服务旧 backend fixture 的 `uses`：
+  - `edgecases` 去掉 `fafafa.core.simd.dispatch`
+  - `imageproc` 去掉 `fafafa.core.simd.dispatch`
+- 本轮 Release 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_EdgeCases,TTestCase_ImageProc`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过
+- 当前判断继续更新：
+  - `edgecases/imageproc` 这类“带额外清理语义的 stateful fixture”也已经能部分收回公共基类
+  - 这证明后续剩余 testcase 不必二选一地“全保留旧样板”或“机械切到 scalar 基类”；可以按额外语义拆出更细粒度的去冗余
+  - 下一轮如果继续沿这个方向深挖，更值得看的是仍在自带 backend fixture 的 `direct/dataplane/runtime/sse2contracts` 这类 testcase，先判断哪些已经有自定义基类、哪些还能继续往公共基类收
+- 这轮收口后已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
