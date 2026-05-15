@@ -60,7 +60,6 @@ ALLOWED_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
         "ZeroF64x2",
         "AndNotI8x16", "AndNotU16x8", "AndNotU8x16",
         "SelectF32x16", "SelectF32x8", "SelectF64x4", "SelectF64x8", "SelectI32x4",
-        "ShiftLeftI16x8", "ShiftLeftU16x8", "ShiftRightArithI16x8", "ShiftRightI16x8", "ShiftRightU16x8",
     } | NEON_WIDE_COMPARE_WRAPPER_SLOTS,
     "riscvv": {
         "AndNotI64x2", "AndNotI8x16", "AndNotU16x8", "AndNotU64x2",

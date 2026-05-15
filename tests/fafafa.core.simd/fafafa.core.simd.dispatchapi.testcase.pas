@@ -145,6 +145,7 @@ type
     procedure Test_NEON_WideRcpAndReductionSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_NEON_NoAsmFMASlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_NEON_NoAsmNarrowReciprocalSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
+    procedure Test_NEON_NoAsmNarrowI16U16ShiftSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_NEON_NoAsmWideF32x8ArithmeticSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_NEON_NoAsmWideLeafFloatArithmeticSlots_Keep_SourceCompanions_But_Reuse_BaseScalar;
     procedure Test_NEON_NoAsmWideMinMaxSlots_Keep_Necessary_Wrappers_But_Reuse_BaseScalar;
@@ -6686,6 +6687,85 @@ begin
 
   AssertSlotReusesScalar('RcpF32x4', Pointer(LScalarTable.RcpF32x4), Pointer(LNEONTable.RcpF32x4));
   AssertSlotReusesScalar('RsqrtF32x4', Pointer(LScalarTable.RsqrtF32x4), Pointer(LNEONTable.RsqrtF32x4));
+end;
+
+procedure TTestCase_DispatchAPI.Test_NEON_NoAsmNarrowI16U16ShiftSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
+var
+  LScalarTable: TSimdDispatchTable;
+  LNEONTable: TSimdDispatchTable;
+  LSourceLines: TStringList;
+  LRegisterSourcePath: string;
+  LAutowrapSourcePath: string;
+  LRegisterSource: string;
+  LAutowrapSource: string;
+
+  procedure AssertDeadWrapperRemoved(const aLabel, aSnippet: string);
+  begin
+    AssertTrue(aLabel + ' dead wrapper should be removed from the NEON scalar autowrap include',
+      Pos(LowerCase(aSnippet), LAutowrapSource) = 0);
+  end;
+
+  procedure AssertAsmBindingStillPresent(const aLabel, aSnippet: string);
+  begin
+    AssertTrue('RegisterNEONBackend should still keep the asm-enabled binding source for ' + aLabel,
+      Pos(LowerCase(aSnippet), LRegisterSource) > 0);
+  end;
+
+  procedure AssertSlotReusesScalar(const aLabel: string; const aScalarSlot, aBackendSlot: Pointer);
+  begin
+    AssertEquals('NEON ' + aLabel + ' should reuse the base scalar slot when the no-asm NEON wrapper is only a scalar forwarder',
+      PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
+  end;
+begin
+  {$IFDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
+  Exit;
+  {$ENDIF}
+
+  LSourceLines := TStringList.Create;
+  try
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.register.inc');
+    AssertTrue('NEON register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
+      FileExists(LRegisterSourcePath));
+    LSourceLines.LoadFromFile(LRegisterSourcePath);
+    LRegisterSource := LowerCase(LSourceLines.Text);
+
+    LAutowrapSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.scalar.autowrap.inc');
+    AssertTrue('NEON scalar autowrap source should exist for implementation-shape audit: ' + LAutowrapSourcePath,
+      FileExists(LAutowrapSourcePath));
+    LSourceLines.LoadFromFile(LAutowrapSourcePath);
+    LAutowrapSource := LowerCase(LSourceLines.Text);
+  finally
+    LSourceLines.Free;
+  end;
+
+  AssertDeadWrapperRemoved('NEONShiftLeftI16x8', 'function NEONShiftLeftI16x8(');
+  AssertDeadWrapperRemoved('NEONShiftLeftU16x8', 'function NEONShiftLeftU16x8(');
+  AssertDeadWrapperRemoved('NEONShiftRightArithI16x8', 'function NEONShiftRightArithI16x8(');
+  AssertDeadWrapperRemoved('NEONShiftRightI16x8', 'function NEONShiftRightI16x8(');
+  AssertDeadWrapperRemoved('NEONShiftRightU16x8', 'function NEONShiftRightU16x8(');
+
+  AssertAsmBindingStillPresent('ShiftLeftI16x8', 'table.ShiftLeftI16x8 := @NEONShiftLeftI16x8;');
+  AssertAsmBindingStillPresent('ShiftLeftU16x8', 'table.ShiftLeftU16x8 := @NEONShiftLeftU16x8;');
+  AssertAsmBindingStillPresent('ShiftRightArithI16x8', 'table.ShiftRightArithI16x8 := @NEONShiftRightArithI16x8;');
+  AssertAsmBindingStillPresent('ShiftRightI16x8', 'table.ShiftRightI16x8 := @NEONShiftRightI16x8;');
+  AssertAsmBindingStillPresent('ShiftRightU16x8', 'table.ShiftRightU16x8 := @NEONShiftRightU16x8;');
+
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND}
+  AssertTrue('NEON opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable) then
+    Exit;
+  {$ENDIF}
+
+  AssertSlotReusesScalar('ShiftLeftI16x8', Pointer(LScalarTable.ShiftLeftI16x8), Pointer(LNEONTable.ShiftLeftI16x8));
+  AssertSlotReusesScalar('ShiftLeftU16x8', Pointer(LScalarTable.ShiftLeftU16x8), Pointer(LNEONTable.ShiftLeftU16x8));
+  AssertSlotReusesScalar('ShiftRightArithI16x8', Pointer(LScalarTable.ShiftRightArithI16x8), Pointer(LNEONTable.ShiftRightArithI16x8));
+  AssertSlotReusesScalar('ShiftRightI16x8', Pointer(LScalarTable.ShiftRightI16x8), Pointer(LNEONTable.ShiftRightI16x8));
+  AssertSlotReusesScalar('ShiftRightU16x8', Pointer(LScalarTable.ShiftRightU16x8), Pointer(LNEONTable.ShiftRightU16x8));
 end;
 
 procedure TTestCase_DispatchAPI.Test_NEON_NoAsmWideF32x8ArithmeticSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;

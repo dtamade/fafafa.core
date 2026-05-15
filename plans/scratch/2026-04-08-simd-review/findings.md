@@ -260,6 +260,24 @@
 - 这批修完后，`unused_allowlist_count` 应回到 `0`；以后这项也应该作为 summary 和 human report 的固定输出，避免 allowlist 又悄悄膨胀。
 - fresh 修复后，`NEON` 与 `RISCVV` 的 truthfulness summary 都已回到 `unused_allowlist=0`；说明 allowlist 已重新与当前真实 slot ownership 对齐。
 
+## 2026-05-15 NEON Narrow Shift Residual
+
+- 在 allowlist hygiene 收口之后，`ALLOWED_ALWAYS_ASM_HELPER_SLOTS_BY_BACKEND` 这条线已经是干净的；下一处真正有价值的残余落在 `NEON` 当前 `wrapper_only` 分布里最后 5 个 `no-asm + scalar_forwarder` slot。
+- 这 5 个 slot 是：
+  - `ShiftLeftI16x8`
+  - `ShiftLeftU16x8`
+  - `ShiftRightArithI16x8`
+  - `ShiftRightI16x8`
+  - `ShiftRightU16x8`
+- 它们的结构和之前已收掉的 `Fma/Rcp/F32x8 arithmetic` 很像，但更干净：
+  - no-asm 实现都只是 exact `ScalarShift*` forwarder
+  - 全仓没有任何更宽 no-asm source consumer 再引用这些 wrapper
+  - asm build 里同名函数仍有真实 `neon.pas` owner
+- 这意味着它们在 no-asm 下继续占着 `NEON` dispatch slot 没有真实语义价值，只会让 published ownership 比 runtime truth 更松。
+- 收完这 5 个之后，一个重要里程碑是：
+  - 当前 `NEON wrapper_only` 分组里不再剩 `no-asm + scalar_forwarder`
+  - 也就是 `NEON` 当前 residual 已从“死转发占 slot”收窄到真正 unavoidable 的 `pascal_owned` / asm companion 类别
+
 ### Cleanup candidates
 
 - `docs/INDEX.md` 先前声称 `simd` 专题文档已归位到 `docs/simd/`，这已经修正为模块级顶层文档 + `docs/legacy/simd/` 历史草案入口。

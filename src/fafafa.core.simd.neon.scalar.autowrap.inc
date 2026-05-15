@@ -1241,11 +1241,6 @@ end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
-function NEONShiftLeftI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
-begin
-  Result := ScalarShiftLeftI16x8(a, count);
-end;
-
 function NEONShiftLeftI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;
 begin
   Result := ScalarShiftLeftI32x16(a, count);
@@ -1266,11 +1261,6 @@ begin
   Result := ScalarShiftLeftI64x4(a, count);
 end;
 
-function NEONShiftLeftU16x8(const a: TVecU16x8; count: Integer): TVecU16x8;
-begin
-  Result := ScalarShiftLeftU16x8(a, count);
-end;
-
 function NEONShiftLeftU32x4(const a: TVecU32x4; count: Integer): TVecU32x4;
 begin
   Result := ScalarShiftLeftU32x4(a, count);
@@ -1286,11 +1276,6 @@ begin
   Result := ScalarShiftLeftU64x4(a, count);
 end;
 
-function NEONShiftRightArithI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
-begin
-  Result := ScalarShiftRightArithI16x8(a, count);
-end;
-
 function NEONShiftRightArithI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;
 begin
   Result := ScalarShiftRightArithI32x16(a, count);
@@ -1304,11 +1289,6 @@ end;
 function NEONShiftRightArithI32x8(const a: TVecI32x8; count: Integer): TVecI32x8;
 begin
   Result := ScalarShiftRightArithI32x8(a, count);
-end;
-
-function NEONShiftRightI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
-begin
-  Result := ScalarShiftRightI16x8(a, count);
 end;
 
 function NEONShiftRightI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;
@@ -1334,11 +1314,6 @@ end;
 function NEONShiftRightArithI64x4(const a: TVecI64x4; count: Integer): TVecI64x4;
 begin
   Result := ScalarShiftRightArithI64x4(a, count);
-end;
-
-function NEONShiftRightU16x8(const a: TVecU16x8; count: Integer): TVecU16x8;
-begin
-  Result := ScalarShiftRightU16x8(a, count);
 end;
 
 function NEONShiftRightU32x4(const a: TVecU32x4; count: Integer): TVecU32x4;

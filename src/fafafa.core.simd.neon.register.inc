@@ -497,12 +497,12 @@ begin
   table.SelectF64x4 := @NEONSelectF64x4;
   table.SelectF64x8 := @NEONSelectF64x8;
   table.SelectI32x4 := @NEONSelectI32x4;
-  {$ENDIF}
   table.ShiftLeftI16x8 := @NEONShiftLeftI16x8;
   table.ShiftLeftU16x8 := @NEONShiftLeftU16x8;
   table.ShiftRightArithI16x8 := @NEONShiftRightArithI16x8;
   table.ShiftRightI16x8 := @NEONShiftRightI16x8;
   table.ShiftRightU16x8 := @NEONShiftRightU16x8;
+  {$ENDIF}
   table.SplatF64x2 := @NEONSplatF64x2;
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.SqrtF32x16 := @NEONSqrtF32x16;

@@ -3404,3 +3404,17 @@
 | 1. 复核真实 `wrapper_only` 集合与 allowlist 差值 | completed | 已确认当前 `NEON` allowlist 有 `134` 项，但真实 `wrapper_only` 只有 `108` 个唯一 slot，存在 `26` 个 stale allowlist 名字；`RISCVV` 当前 `26/26` 完全对齐，没有旧豁免残留 |
 | 2. 收紧 `NEON` allowlist 并把 stale allowlist 变成 fail-close | completed | 已从 `ALLOWED_WRAPPER_SLOTS_BY_BACKEND['neon']` 删除 `ClampF32x8/F32x16`、`LoadF32x8/F32x16/F64x4/F64x8`、`Min/MaxF32x8/F64x4`、`Splat*`、`Sqrt*`、`Store*`、`Zero*` 这 26 个旧名字；report 现新增 `unused_allowlist_count/slots`，只要 allowlist 宽于当前真实 `wrapper_only` 集合就直接失败 |
 | 3. 更新 scratch 并串行 release 复验 | completed | 已同步更新 scratch 三件套，并完成 `git diff --check`、`py_compile`、`truthfulness --backend neon/riscvv --strict`、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate`；fresh 结果里 `unused_allowlist=0`（neon/riscvv）且 `gate` 尾部仍只剩 optional non-x86 native evidence skip 与历史 `windows_b07_gate.log` evidence skip；提交前会清理 `tests/fafafa.core.simd/__pycache__/` |
+
+## 2026-05-15 NEON No-Asm Narrow I16/U16 Shift Slot-Ownership Cleanup
+
+### Goal
+
+继续沿 `NEON` no-asm slot ownership truth 线，把最后一簇仍然以 `scalar_forwarder` 形态占着发布 slot 的 narrow `I16x8/U16x8` shift 收回到 base scalar truth：`ShiftLeftI16x8`、`ShiftLeftU16x8`、`ShiftRightArithI16x8`、`ShiftRightI16x8`、`ShiftRightU16x8`。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `I16x8/U16x8` narrow shift 的 source role 与消费面 | completed | 全仓检索确认这 5 个名字只出现在 `src/fafafa.core.simd.neon.register.inc`、`src/fafafa.core.simd.neon.scalar.autowrap.inc` 和 `src/fafafa.core.simd.neon.pas`；no-asm 下它们都只是 exact `ScalarShift*` forwarder，没有更宽 no-asm source consumer，asm build 里则仍有真实 owner |
+| 2. 改成 asm-only binding 并删除 5 个 no-asm dead wrapper | completed | 已把 `register.inc` 中这 5 个 shift slot 改成 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}` 绑定，并从 `neon.scalar.autowrap.inc` 删除对应 5 个 no-asm dead wrapper；`check_nonx86_helper_semantics.py` 已把这 5 个名字改成 absent guard，`check_nonx86_register_truthfulness.py` 已从 `NEON` wrapper allowlist 删除它们 |
+| 3. 补 dispatchapi 护栏并串行 release 复验 | completed | 已新增 `Test_NEON_NoAsmNarrowI16U16ShiftSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders`；fresh `git diff --check`、`py_compile`、helper semantics、`truthfulness --backend neon/riscvv --strict`、Release `DispatchAPI`、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 全部通过；`NEON` truthfulness 现为 `asm_exact=244 wrapper_only=103 unused_allowlist=0` |

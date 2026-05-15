@@ -5314,3 +5314,55 @@
   - Release `gate` 继续为绿，尾部结论不变：
     - non-x86 native evidence root not present -> optional `SKIP`
     - 历史 `windows_b07_gate.log` evidence verify 失败 -> optional `SKIP`
+
+## 2026-05-15 NEON No-Asm Narrow I16/U16 Shift Slot-Ownership Cleanup
+
+- 在 `NEON` allowlist hygiene 收口后，先做了两类定量复核：
+  - `ALLOWED_ALWAYS_ASM_HELPER_SLOTS_BY_BACKEND` 当前没有 stale 豁免，`riscvv` 的 `9/9` 仍对齐
+  - `NEON wrapper_only` 分组里只剩 5 个 `no-asm + scalar_forwarder`
+- 这 5 个 narrow shift slot 是：
+  - `ShiftLeftI16x8`
+  - `ShiftLeftU16x8`
+  - `ShiftRightArithI16x8`
+  - `ShiftRightI16x8`
+  - `ShiftRightU16x8`
+- 全仓检索确认：
+  - 它们只出现在 `neon.register.inc`、`neon.scalar.autowrap.inc` 和 `neon.pas`
+  - no-asm 下都只是 exact `ScalarShift*` forwarder
+  - 没有任何更宽 no-asm source consumer
+  - asm build 里仍有真实 owner
+- 本批实现收正：
+  - `src/fafafa.core.simd.neon.register.inc`
+    - 把这 5 个 slot 改成 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}` 绑定
+  - `src/fafafa.core.simd.neon.scalar.autowrap.inc`
+    - 删除 `NEONShiftLeftI16x8`
+    - 删除 `NEONShiftLeftU16x8`
+    - 删除 `NEONShiftRightArithI16x8`
+    - 删除 `NEONShiftRightI16x8`
+    - 删除 `NEONShiftRightU16x8`
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 把这 5 个名字改成 absent guard
+  - `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+    - 从 `NEON` wrapper allowlist 删除这 5 个旧名字
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 新增 `Test_NEON_NoAsmNarrowI16U16ShiftSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders`
+- 本批 fresh 复验已经完成：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 当前结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=610 status=ok`
+  - `backend=neon` truthfulness：`assignments=357 asm_exact=244 asm_suffix_only=10 wrapper_only=103 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `backend=riscvv` truthfulness：`assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `check` 继续为绿
+  - Release `gate` 继续为绿，尾部仍只诚实保留：
+    - non-x86 native evidence root not present -> optional `SKIP`
+    - 历史 `windows_b07_gate.log` evidence verify 失败 -> optional `SKIP`
+- 这批完成后，`NEON` 当前 `wrapper_only` 里已经不再剩 `no-asm + scalar_forwarder` 残余。
