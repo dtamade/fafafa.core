@@ -4998,3 +4998,36 @@
   - `NEON wrapper_only` 已从上一批的 `59` 再降到 `57`
   - `Max/MinF64x2` 这对已从 no-asm fake backend-owned published slot 收口完毕
   - 下一批最高价值 residual 可以继续锁定 `ReduceMaxF64x2/ReduceMinF64x2`，但应单独审它们和 scalar `Math.Max/Min` 的 NaN/次序边界，不要再和 `Min/Max` 混批
+
+## 2026-05-16 NEON No-Asm Narrow F64 Extrema Reduction Findings
+
+- `ReduceMax/ReduceMinF64x2` 这对和上一批 `Max/MinF64x2` 的关键差异，不在语义复杂度本身，而在 source role：
+  - `NEONMax/MinF64x2` 仍被 `NEONMax/MinF64x4` no-asm graph 消费，所以只能保留成 source companion
+  - `NEONReduceMax/ReduceMinF64x2` 在 `src/` 里已经没有任何更宽 no-asm consumer，因此如果语义能对齐 scalar，它们就属于纯 dead wrapper
+- 这批在真正动源码前，先补了一个本地 Pascal probe 来核当前 FPC truth，而不是只凭直觉回收：
+  - `NaN, 3.0`：`ScalarReduceMin/MaxF64x2` 与 no-asm `if` 版本都返回 `3.0`
+  - `3.0, NaN`：两者都返回 `NaN`
+  - `+0, -0`：两者都保留 `-0` 的符号位
+  - `-0, +0`：两者都保留 `+0` 的符号位
+  - `5.0, 5.0`：两者都返回 `5.0`
+- 既然 source role 是 dead wrapper，语义又和 scalar truth 对齐，这批最优雅的修法就不是“保留 exact scalar forwarder”，而是直接删壳：
+  - 从 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 删除 `NEONReduceMaxF64x2/NEONReduceMinF64x2`
+  - 把 `table.ReduceMaxF64x2` / `table.ReduceMinF64x2` 收回 asm-only 绑定
+  - 让 no-asm runtime 下 `sbNEON` 自动复用 base scalar slot
+- 这批还顺手把 repo 内的“当前 scalar truth”固化成了测试，而不是只留在会话推理里：
+  - `tests/fafafa.core.simd/fafafa.core.simd.ieee754.testcase.pas` 新增 `Test_F64_ReduceMinMax_SpecialCases`
+  - 它直接验证 `ScalarReduceMin/MaxF64x2` 在 `NaN` 次序和 `+0/-0` 符号位上的当前行为
+  - 这样下次即使有人想再改 `ReduceMin/Max`，也不会把现在这个 order-sensitive truth 默默改掉
+- dedicated `DispatchAPI` 护栏这次也补成了“删壳型”版本：
+  - `NEONReduceMaxF64x2/NEONReduceMinF64x2` dead wrapper 必须从 `autowrap` 消失
+  - `register.inc` 里 asm binding source 仍必须存在
+  - no-asm runtime 下 `sbNEON.ReduceMax/ReduceMinF64x2` 必须和 scalar slot 指针完全一致
+- 本批 fresh 结果：
+  - `backend=neon` truthfulness：`assignments=342 asm_exact=277 asm_suffix_only=10 wrapper_only=55 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `backend=riscvv` truthfulness：`assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `TTestCase_DispatchAPI`、`TTestCase_IEEE754_F64`、`check`、`gate` 全绿；`gate` 最终仍是 `GATE OK`
+- 关键结论：
+  - `NEON wrapper_only` 已从上一批的 `57` 再降到 `55`
+  - `ReduceMaxF64x2/ReduceMinF64x2` 已从 no-asm fake backend-owned published slot 收口完毕
+  - 当前高价值 residual 更集中到 `ClampF64x2/ClampF64x4/ClampF64x8` 这一条仍保留本地 fallback 语义的链，而不是 `ReduceMax/ReduceMin` 这种已证实可直接删壳的 extrema reduction

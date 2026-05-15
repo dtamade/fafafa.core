@@ -494,13 +494,14 @@ begin
   table.MulF64x8 := @NEONMulF64x8;
   {$ENDIF}
   // Keep wide reciprocal/reduction slots on the published scalar table when
-  // the NEON wrappers only forward to Scalar* helpers. The F64x2 reductions
-  // below remain backend-owned because they still carry local behavior.
+  // the NEON wrappers only forward to Scalar* helpers.
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.ReduceAddF64x2 := @NEONReduceAddF64x2;
   {$ENDIF}
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.ReduceMaxF64x2 := @NEONReduceMaxF64x2;
   table.ReduceMinF64x2 := @NEONReduceMinF64x2;
+  {$ENDIF}
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.ReduceMulF64x2 := @NEONReduceMulF64x2;
   {$ENDIF}

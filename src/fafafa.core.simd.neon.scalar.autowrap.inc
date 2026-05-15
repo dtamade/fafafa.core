@@ -997,24 +997,6 @@ end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
-function NEONReduceMaxF64x2(const a: TVecF64x2): Double;
-begin
-  if a.d[0] > a.d[1] then Result := a.d[0] else Result := a.d[1];
-end;
-
-{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
-{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-
-function NEONReduceMinF64x2(const a: TVecF64x2): Double;
-begin
-  if a.d[0] < a.d[1] then Result := a.d[0] else Result := a.d[1];
-end;
-
-{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
-{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-
 function NEONRoundF64x2(const a: TVecF64x2): TVecF64x2;
 begin
   Result := ScalarRoundF64x2(a);

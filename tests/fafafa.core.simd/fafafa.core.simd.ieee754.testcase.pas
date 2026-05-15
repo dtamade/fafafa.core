@@ -45,6 +45,7 @@ type
     procedure Test_F64_NaN_Comparison;            // NaN 比较总是 false
     procedure Test_F64_NaN_Min;                   // Min(NaN, x) 行为
     procedure Test_F64_NaN_Max;                   // Max(NaN, x) 行为
+    procedure Test_F64_ReduceMinMax_SpecialCases; // ReduceMin/Max 的 NaN/零值次序语义
 
     // === 负零测试 ===
     procedure Test_F64_NegativeZero_Add;          // -0 + 0 = 0
@@ -449,6 +450,45 @@ begin
     AssertEquals('Max(NaN, 3.0) if not NaN should be 3.0', 3.0, r.d[0], 0.0);
   if not IsNaN(r.d[1]) then
     AssertEquals('Max(5.0, NaN) if not NaN should be 5.0', 5.0, r.d[1], 0.0);
+end;
+
+procedure TTestCase_IEEE754_F64.Test_F64_ReduceMinMax_SpecialCases;
+var
+  LInput: TVecF64x2;
+  LReduceMin: Double;
+  LReduceMax: Double;
+begin
+  LInput.d[0] := NaNF64;
+  LInput.d[1] := 3.0;
+  LReduceMin := ScalarReduceMinF64x2(LInput);
+  LReduceMax := ScalarReduceMaxF64x2(LInput);
+  AssertEquals('ReduceMin(NaN, 3.0) should match current scalar truth', 3.0, LReduceMin, 0.0);
+  AssertEquals('ReduceMax(NaN, 3.0) should match current scalar truth', 3.0, LReduceMax, 0.0);
+
+  LInput.d[0] := 3.0;
+  LInput.d[1] := NaNF64;
+  LReduceMin := ScalarReduceMinF64x2(LInput);
+  LReduceMax := ScalarReduceMaxF64x2(LInput);
+  AssertTrue('ReduceMin(3.0, NaN) should stay NaN in the current scalar truth', IsNaNDouble(LReduceMin));
+  AssertTrue('ReduceMax(3.0, NaN) should stay NaN in the current scalar truth', IsNaNDouble(LReduceMax));
+
+  LInput.d[0] := 0.0;
+  LInput.d[1] := NegZeroF64;
+  LReduceMin := ScalarReduceMinF64x2(LInput);
+  LReduceMax := ScalarReduceMaxF64x2(LInput);
+  AssertTrue('ReduceMin(+0, -0) should preserve the current scalar sign bit',
+    BitsFromDouble(LReduceMin) = BitsFromDouble(NegZeroF64));
+  AssertTrue('ReduceMax(+0, -0) should preserve the current scalar sign bit',
+    BitsFromDouble(LReduceMax) = BitsFromDouble(NegZeroF64));
+
+  LInput.d[0] := NegZeroF64;
+  LInput.d[1] := 0.0;
+  LReduceMin := ScalarReduceMinF64x2(LInput);
+  LReduceMax := ScalarReduceMaxF64x2(LInput);
+  AssertTrue('ReduceMin(-0, +0) should preserve the current scalar sign bit',
+    BitsFromDouble(LReduceMin) = BitsFromDouble(0.0));
+  AssertTrue('ReduceMax(-0, +0) should preserve the current scalar sign bit',
+    BitsFromDouble(LReduceMax) = BitsFromDouble(0.0));
 end;
 
 // === 负零测试 ===

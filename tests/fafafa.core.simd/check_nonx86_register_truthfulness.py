@@ -39,7 +39,6 @@ ALLOWED_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
         "MaxF32x16", "MaxF64x8",
         "MinF32x16", "MinF64x8",
         "MulF32x16", "MulF64x8",
-        "ReduceMaxF64x2", "ReduceMinF64x2",
         "SubF32x16", "SubF64x8",
         "AndNotI8x16", "AndNotU16x8", "AndNotU8x16",
     } | NEON_WIDE_COMPARE_WRAPPER_SLOTS,

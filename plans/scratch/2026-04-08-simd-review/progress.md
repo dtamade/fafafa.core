@@ -5800,3 +5800,54 @@
   - `run_all` 过滤链结果仍为 `Total: 5 Passed: 5 Failed: 0`
   - `NEON wrapper_only` 从上一批的 `59` 再降到 `57`
   - 收口前已清理 `tests/fafafa.core.simd/__pycache__/`
+
+## 2026-05-16 NEON No-Asm Narrow F64 Extrema Reduction Slot Cleanup
+
+- 接着上一批 `Min/MaxF64x2` 收口继续扫 `F64` residual 时，先重新核了 `ReduceMax/ReduceMinF64x2` 的 source role：
+  - 这两个名字在 `src/` 里只剩 `neon.pas + register.inc + scalar.autowrap.inc`
+  - 不像 `Max/MinF64x2`，它们没有任何更宽 no-asm consumer
+  - 因此只要语义能和 scalar truth 对齐，这批就应直接删 wrapper，而不是保留 source companion
+- 为了避免把 `Math.Max/Min` 的细节想当然，本批先做了一个最小本地 Pascal probe：
+  - `NaN,3` -> scalar/no-asm 都是 `3`
+  - `3,NaN` -> scalar/no-asm 都是 `NaN`
+  - `+0,-0` -> scalar/no-asm 都保留 `-0`
+  - `-0,+0` -> scalar/no-asm 都保留 `+0`
+  - `eq5,eq5` -> scalar/no-asm 都是 `5`
+- 已完成代码修正：
+  - `src/fafafa.core.simd.neon.scalar.autowrap.inc`
+    - 删除 dead `NEONReduceMaxF64x2`
+    - 删除 dead `NEONReduceMinF64x2`
+  - `src/fafafa.core.simd.neon.register.inc`
+    - `table.ReduceMaxF64x2 := @NEONReduceMaxF64x2;`
+    - `table.ReduceMinF64x2 := @NEONReduceMinF64x2;`
+    - 以上 2 个绑定都已收进 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}`
+  - `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+    - 从 `ALLOWED_WRAPPER_SLOTS_BY_BACKEND['neon']` 删除 `ReduceMaxF64x2/ReduceMinF64x2`
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 新增 `Test_NEON_NoAsmNarrowF64ExtremaReductionSlots_Reuse_BaseScalar_When_Wrappers_Have_No_SourceConsumers`
+    - 断言 `NEONReduceMax/ReduceMinF64x2` dead wrapper 已从 source 消失
+    - 断言 asm binding source 仍保留
+    - 断言 no-asm runtime 下 `sbNEON.ReduceMax/ReduceMinF64x2` slot 复用 scalar
+  - `tests/fafafa.core.simd/fafafa.core.simd.ieee754.testcase.pas`
+    - 新增 `Test_F64_ReduceMinMax_SpecialCases`
+    - 把当前 scalar `ReduceMin/MaxF64x2` 的 `NaN` 与 `+0/-0` 次序语义固定成 suite 证据
+- 本批静态与 checker 复核：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+  - 结果：
+    - `backend=neon assignments=342 asm_exact=277 asm_suffix_only=10 wrapper_only=55 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+    - `backend=riscvv assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+- 本批 release 复验链全部通过：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IEEE754_F64`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 本批关键结果：
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok`
+  - Release `gate` 最终 `GATE OK`
+  - `run_all` 过滤链结果仍为 `Total: 5 Passed: 5 Failed: 0`
+  - `NEON wrapper_only` 从上一批的 `57` 再降到 `55`
+  - 收口前已清理 `tests/fafafa.core.simd/__pycache__/` 与本地临时 Pascal probe
