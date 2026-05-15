@@ -4590,3 +4590,32 @@
   - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 通过
   - Release `check` / `gate` 继续通过，尾部仍只剩 optional non-x86 native evidence skip 与历史 Windows evidence skip
+
+## 2026-05-15 NEON No-Asm Wide Leaf Float Arithmetic Slot-Ownership Cleanup
+
+- `Add/Sub/Mul/DivF32x16` 与 `Add/Sub/Mul/DivF64x8` 是下一层值得收正的 wide leaf arithmetic slot：
+  - 它们在 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 里始终存在
+  - 不像 `F32x8` 那样是 no-asm dead wrapper，因为 asm build 也需要这些组合 wrapper 作为宽向量 owner
+  - 但在 no-asm build 下，它们只是组合更小宽度 helper，没有独立 backend-local 语义
+- 这批和上一批 `F32x8` 的治理差别必须明确：
+  - `F32x8`：wrapper 可以删，slot 也回落到 scalar
+  - `F32x16/F64x8`：wrapper 不能删，只能把 no-asm runtime slot ownership 收正到 scalar
+- 因此这批的正确治理是：
+  - `register.inc` 中 `Add/Sub/Mul/DivF32x16`
+  - `register.inc` 中 `Add/Sub/Mul/DivF64x8`
+  - 都改成 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}` 绑定
+  - `scalar.autowrap.inc` 中 8 个 wrapper 继续保留
+- 这批还补了一个和上一批不同类型的护栏：
+  - `Test_NEON_NoAsmWideLeafFloatArithmeticSlots_Keep_SourceCompanions_But_Reuse_BaseScalar`
+  - 它在 no-asm 编译下断言：
+    - `scalar.autowrap.inc` 中 8 个 wrapper 仍然存在
+    - `register.inc` 中 asm binding source 仍在
+    - 运行时 `sbNEON` 的 `Add/Sub/Mul/DivF32x16` 与 `Add/Sub/Mul/DivF64x8` slot 都与 scalar slot 相等
+- 通用 capability 断言也已同步收正：
+  - 两处 `DispatchAPI` 宽浮点 capability 断言原先都把这些 slot 写成“总是 native”
+  - 现在已改成“NEON 在 no-asm 下复用 scalar，其他 backend 仍要求 native”
+- fresh 结果说明这批没有破坏 source/runtime contract：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 通过
+  - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=neon assignments=357 asm_exact=229 asm_suffix_only=10 wrapper_only=118 scalar_passthrough=0 no_def=0 miswired=0 strict=1`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok`
+  - Release `check` / `gate` 继续通过，尾部仍只剩 optional non-x86 native evidence skip 与历史 Windows evidence skip

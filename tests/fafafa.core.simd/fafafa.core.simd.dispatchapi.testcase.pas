@@ -146,6 +146,7 @@ type
     procedure Test_NEON_NoAsmFMASlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_NEON_NoAsmNarrowReciprocalSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_NEON_NoAsmWideF32x8ArithmeticSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
+    procedure Test_NEON_NoAsmWideLeafFloatArithmeticSlots_Keep_SourceCompanions_But_Reuse_BaseScalar;
     procedure Test_NEON_NoAsmAbsAndWideFloorCeilSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_NEON_MaskHelperSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_NEON_NoAsmIntegerFallbackSlots_Reuse_BaseScalar_When_Wrappers_Are_Not_BackendOwned;
@@ -6760,6 +6761,94 @@ begin
   AssertSlotReusesScalar('DivF32x8', Pointer(LScalarTable.DivF32x8), Pointer(LNEONTable.DivF32x8));
 end;
 
+procedure TTestCase_DispatchAPI.Test_NEON_NoAsmWideLeafFloatArithmeticSlots_Keep_SourceCompanions_But_Reuse_BaseScalar;
+var
+  LScalarTable: TSimdDispatchTable;
+  LNEONTable: TSimdDispatchTable;
+  LSourceLines: TStringList;
+  LRegisterSourcePath: string;
+  LAutowrapSourcePath: string;
+  LRegisterSource: string;
+  LAutowrapSource: string;
+
+  procedure AssertWrapperStillPresent(const aLabel, aSnippet: string);
+  begin
+    AssertTrue(aLabel + ' source companion should remain in the NEON scalar autowrap include',
+      Pos(LowerCase(aSnippet), LAutowrapSource) > 0);
+  end;
+
+  procedure AssertAsmBindingStillPresent(const aLabel, aSnippet: string);
+  begin
+    AssertTrue('RegisterNEONBackend should still keep the asm-enabled binding source for ' + aLabel,
+      Pos(LowerCase(aSnippet), LRegisterSource) > 0);
+  end;
+
+  procedure AssertSlotReusesScalar(const aLabel: string; const aScalarSlot, aBackendSlot: Pointer);
+  begin
+    AssertEquals('NEON ' + aLabel + ' should reuse the base scalar slot when the no-asm wide wrapper is only a backend-local composition',
+      PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
+  end;
+begin
+  {$IFDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
+  Exit;
+  {$ENDIF}
+
+  LSourceLines := TStringList.Create;
+  try
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.register.inc');
+    AssertTrue('NEON register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
+      FileExists(LRegisterSourcePath));
+    LSourceLines.LoadFromFile(LRegisterSourcePath);
+    LRegisterSource := LowerCase(LSourceLines.Text);
+
+    LAutowrapSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.scalar.autowrap.inc');
+    AssertTrue('NEON scalar autowrap source should exist for implementation-shape audit: ' + LAutowrapSourcePath,
+      FileExists(LAutowrapSourcePath));
+    LSourceLines.LoadFromFile(LAutowrapSourcePath);
+    LAutowrapSource := LowerCase(LSourceLines.Text);
+  finally
+    LSourceLines.Free;
+  end;
+
+  AssertWrapperStillPresent('NEONAddF32x16', 'function NEONAddF32x16(');
+  AssertWrapperStillPresent('NEONSubF32x16', 'function NEONSubF32x16(');
+  AssertWrapperStillPresent('NEONMulF32x16', 'function NEONMulF32x16(');
+  AssertWrapperStillPresent('NEONDivF32x16', 'function NEONDivF32x16(');
+  AssertWrapperStillPresent('NEONAddF64x8', 'function NEONAddF64x8(');
+  AssertWrapperStillPresent('NEONSubF64x8', 'function NEONSubF64x8(');
+  AssertWrapperStillPresent('NEONMulF64x8', 'function NEONMulF64x8(');
+  AssertWrapperStillPresent('NEONDivF64x8', 'function NEONDivF64x8(');
+
+  AssertAsmBindingStillPresent('AddF32x16', 'table.AddF32x16 := @NEONAddF32x16;');
+  AssertAsmBindingStillPresent('SubF32x16', 'table.SubF32x16 := @NEONSubF32x16;');
+  AssertAsmBindingStillPresent('MulF32x16', 'table.MulF32x16 := @NEONMulF32x16;');
+  AssertAsmBindingStillPresent('DivF32x16', 'table.DivF32x16 := @NEONDivF32x16;');
+  AssertAsmBindingStillPresent('AddF64x8', 'table.AddF64x8 := @NEONAddF64x8;');
+  AssertAsmBindingStillPresent('SubF64x8', 'table.SubF64x8 := @NEONSubF64x8;');
+  AssertAsmBindingStillPresent('MulF64x8', 'table.MulF64x8 := @NEONMulF64x8;');
+  AssertAsmBindingStillPresent('DivF64x8', 'table.DivF64x8 := @NEONDivF64x8;');
+
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND}
+  AssertTrue('NEON opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable) then
+    Exit;
+  {$ENDIF}
+
+  AssertSlotReusesScalar('AddF32x16', Pointer(LScalarTable.AddF32x16), Pointer(LNEONTable.AddF32x16));
+  AssertSlotReusesScalar('SubF32x16', Pointer(LScalarTable.SubF32x16), Pointer(LNEONTable.SubF32x16));
+  AssertSlotReusesScalar('MulF32x16', Pointer(LScalarTable.MulF32x16), Pointer(LNEONTable.MulF32x16));
+  AssertSlotReusesScalar('DivF32x16', Pointer(LScalarTable.DivF32x16), Pointer(LNEONTable.DivF32x16));
+  AssertSlotReusesScalar('AddF64x8', Pointer(LScalarTable.AddF64x8), Pointer(LNEONTable.AddF64x8));
+  AssertSlotReusesScalar('SubF64x8', Pointer(LScalarTable.SubF64x8), Pointer(LNEONTable.SubF64x8));
+  AssertSlotReusesScalar('MulF64x8', Pointer(LScalarTable.MulF64x8), Pointer(LNEONTable.MulF64x8));
+  AssertSlotReusesScalar('DivF64x8', Pointer(LScalarTable.DivF64x8), Pointer(LNEONTable.DivF64x8));
+end;
+
 procedure TTestCase_DispatchAPI.Test_NEON_NoAsmAbsAndWideFloorCeilSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
 var
   LScalarTable: TSimdDispatchTable;
@@ -11778,13 +11867,13 @@ begin
     AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'ClampF64x4',
       Pointer(LScalarTable.ClampF64x4), Pointer(LBackendTable.ClampF64x4));
 
-    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'AddF32x16',
+    AssertNeonReusesScalarOtherwiseNative('AddF32x16',
       Pointer(LScalarTable.AddF32x16), Pointer(LBackendTable.AddF32x16));
-    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'SubF32x16',
+    AssertNeonReusesScalarOtherwiseNative('SubF32x16',
       Pointer(LScalarTable.SubF32x16), Pointer(LBackendTable.SubF32x16));
-    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'MulF32x16',
+    AssertNeonReusesScalarOtherwiseNative('MulF32x16',
       Pointer(LScalarTable.MulF32x16), Pointer(LBackendTable.MulF32x16));
-    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'DivF32x16',
+    AssertNeonReusesScalarOtherwiseNative('DivF32x16',
       Pointer(LScalarTable.DivF32x16), Pointer(LBackendTable.DivF32x16));
     AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'MinF32x16',
       Pointer(LScalarTable.MinF32x16), Pointer(LBackendTable.MinF32x16));
@@ -11799,13 +11888,13 @@ begin
     AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'ClampF32x16',
       Pointer(LScalarTable.ClampF32x16), Pointer(LBackendTable.ClampF32x16));
 
-    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'AddF64x8',
+    AssertNeonReusesScalarOtherwiseNative('AddF64x8',
       Pointer(LScalarTable.AddF64x8), Pointer(LBackendTable.AddF64x8));
-    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'SubF64x8',
+    AssertNeonReusesScalarOtherwiseNative('SubF64x8',
       Pointer(LScalarTable.SubF64x8), Pointer(LBackendTable.SubF64x8));
-    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'MulF64x8',
+    AssertNeonReusesScalarOtherwiseNative('MulF64x8',
       Pointer(LScalarTable.MulF64x8), Pointer(LBackendTable.MulF64x8));
-    AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'DivF64x8',
+    AssertNeonReusesScalarOtherwiseNative('DivF64x8',
       Pointer(LScalarTable.DivF64x8), Pointer(LBackendTable.DivF64x8));
     AssertNativeSlotNotScalar(DispatchApiBackendName(LBackend), 'MinF64x8',
       Pointer(LScalarTable.MinF64x8), Pointer(LBackendTable.MinF64x8));
@@ -11971,13 +12060,13 @@ begin
     AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'ClampF64x4',
       Pointer(LScalarTable.ClampF64x4), Pointer(LBackendTable.ClampF64x4));
 
-    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'AddF32x16',
+    AssertNeonReusesScalarOtherwiseNative('AddF32x16',
       Pointer(LScalarTable.AddF32x16), Pointer(LBackendTable.AddF32x16));
-    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'SubF32x16',
+    AssertNeonReusesScalarOtherwiseNative('SubF32x16',
       Pointer(LScalarTable.SubF32x16), Pointer(LBackendTable.SubF32x16));
-    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'MulF32x16',
+    AssertNeonReusesScalarOtherwiseNative('MulF32x16',
       Pointer(LScalarTable.MulF32x16), Pointer(LBackendTable.MulF32x16));
-    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'DivF32x16',
+    AssertNeonReusesScalarOtherwiseNative('DivF32x16',
       Pointer(LScalarTable.DivF32x16), Pointer(LBackendTable.DivF32x16));
     AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'MinF32x16',
       Pointer(LScalarTable.MinF32x16), Pointer(LBackendTable.MinF32x16));
@@ -11992,13 +12081,13 @@ begin
     AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'ClampF32x16',
       Pointer(LScalarTable.ClampF32x16), Pointer(LBackendTable.ClampF32x16));
 
-    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'AddF64x8',
+    AssertNeonReusesScalarOtherwiseNative('AddF64x8',
       Pointer(LScalarTable.AddF64x8), Pointer(LBackendTable.AddF64x8));
-    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'SubF64x8',
+    AssertNeonReusesScalarOtherwiseNative('SubF64x8',
       Pointer(LScalarTable.SubF64x8), Pointer(LBackendTable.SubF64x8));
-    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'MulF64x8',
+    AssertNeonReusesScalarOtherwiseNative('MulF64x8',
       Pointer(LScalarTable.MulF64x8), Pointer(LBackendTable.MulF64x8));
-    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'DivF64x8',
+    AssertNeonReusesScalarOtherwiseNative('DivF64x8',
       Pointer(LScalarTable.DivF64x8), Pointer(LBackendTable.DivF64x8));
     AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'MinF64x8',
       Pointer(LScalarTable.MinF64x8), Pointer(LBackendTable.MinF64x8));

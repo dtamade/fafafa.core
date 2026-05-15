@@ -386,9 +386,13 @@ begin
   // but they should not become NEON-owned dispatch slots when NEON asm is absent.
 
   // === Auto-generated Registration for 100% Coverage ===
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.AddF32x16 := @NEONAddF32x16;
+  {$ENDIF}
   table.AddF64x4 := @NEONAddF64x4;
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.AddF64x8 := @NEONAddF64x8;
+  {$ENDIF}
   // Wide integer arithmetic/bitwise families intentionally inherit
   // FillBaseDispatchTable in no-asm builds; shared wide compare wrappers are
   // registered above and should stay backend-owned.
@@ -410,9 +414,13 @@ begin
   // Keep no-asm wide float compare slots on the published scalar table when
   // the NEON wrappers are only scalar forwarders. The local F64x2 loops above
   // remain backend-owned because they still carry real backend-local behavior.
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.DivF32x16 := @NEONDivF32x16;
+  {$ENDIF}
   table.DivF64x4 := @NEONDivF64x4;
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.DivF64x8 := @NEONDivF64x8;
+  {$ENDIF}
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.ExtractF32x16 := @NEONExtractF32x16;
   table.ExtractF32x8 := @NEONExtractF32x8;
@@ -451,9 +459,13 @@ begin
   table.MinF64x2 := @NEONMinF64x2;
   table.MinF64x4 := @NEONMinF64x4;
   table.MinF64x8 := @NEONMinF64x8;
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.MulF32x16 := @NEONMulF32x16;
+  {$ENDIF}
   table.MulF64x4 := @NEONMulF64x4;
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.MulF64x8 := @NEONMulF64x8;
+  {$ENDIF}
   // Keep wide reciprocal/reduction slots on the published scalar table when
   // the NEON wrappers only forward to Scalar* helpers. The F64x2 reductions
   // below remain backend-owned because they still carry local behavior.
@@ -485,9 +497,13 @@ begin
   table.SqrtF64x4 := @NEONSqrtF64x4;
   table.SqrtF64x8 := @NEONSqrtF64x8;
   table.StoreF64x2 := @NEONStoreF64x2;
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.SubF32x16 := @NEONSubF32x16;
+  {$ENDIF}
   table.SubF64x4 := @NEONSubF64x4;
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.SubF64x8 := @NEONSubF64x8;
+  {$ENDIF}
   table.TruncF32x16 := @NEONTruncF32x16;
   table.TruncF32x8 := @NEONTruncF32x8;
   table.TruncF64x2 := @NEONTruncF64x2;

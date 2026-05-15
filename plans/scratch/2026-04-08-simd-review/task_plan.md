@@ -3334,3 +3334,17 @@
 | 1. 复核 `F32x8 Add/Sub/Mul/Div` 的 asm/no-asm 真相与消费面 | completed | 已确认 `src/fafafa.core.simd.neon.scalar_fallback.inc` 里的 `NEONAdd/Sub/Mul/DivF32x8` 都只是 exact `Scalar*F32x8` forwarder；`src/fafafa.core.simd.neon.pas` 里仍有真实 asm owner；全仓源码检索确认 no-asm 下没有其他 live source consumer |
 | 2. 改成 asm-only binding 并删除 4 个 no-asm dead wrapper | completed | 已把 `src/fafafa.core.simd.neon.register.inc` 中 `Add/Sub/Mul/DivF32x8` 改成 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}` 绑定，并从 `src/fafafa.core.simd.neon.scalar_fallback.inc` 删除 4 个 no-asm dead wrapper |
 | 3. 收正通用 capability 断言并串行 release 复验 | completed | `dispatchapi` 已新增 `Test_NEON_NoAsmWideF32x8ArithmeticSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders`，同时把两处通用 `Add/Sub/Mul/DivF32x8` 断言从“总是 native”收正为“NEON 复用 scalar、其余 backend 仍要求 native”；`check_nonx86_helper_semantics.py` 已把这 4 个名字改成 absent guard；fresh `git diff --check`、`py_compile`、helper semantics、`DispatchAPI`、`truthfulness --backend neon/riscvv --strict`、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 全部通过 |
+
+## 2026-05-15 NEON No-Asm Wide Leaf Float Arithmetic Slot-Ownership Cleanup
+
+### Goal
+
+继续沿同一 truth 线往上层 wide leaf arithmetic 收，但这次不删除 wrapper，只修 no-asm runtime slot ownership：`Add/Sub/Mul/DivF32x16` 与 `Add/Sub/Mul/DivF64x8`。这些 wrapper 仍是 asm build 的组合 owner，因此 source companion 要保留；但 no-asm build 不应继续把它们发布成伪 `NEON` native slot。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `F32x16/F64x8 Add/Sub/Mul/Div` 的 source role | completed | 已确认这 8 个 wrapper 位于 `scalar.autowrap.inc`，在 asm build 也承担宽向量组合 owner，因此不能像 `F32x8` 那样直接删除；但它们的 no-asm 路径只是在更小宽度 helper 上做组合，不该继续占据发布后的 `NEON` slot |
+| 2. 改成 asm-only binding，保留 source companion | completed | 已把 `register.inc` 中 `Add/Sub/Mul/DivF32x16` 与 `Add/Sub/Mul/DivF64x8` 改成 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}` 绑定；`scalar.autowrap.inc` 中 wrapper 全部保留，继续供 asm build 的宽向量组合 owner 使用 |
+| 3. 补 source/runtime 护栏并串行 release 复验 | completed | `dispatchapi` 已新增 `Test_NEON_NoAsmWideLeafFloatArithmeticSlots_Keep_SourceCompanions_But_Reuse_BaseScalar`，断言 source companion 仍在、asm binding source 仍在、no-asm runtime slot 复用 scalar；两处通用 `Add/Sub/Mul/DivF32x16/F64x8` capability 断言也已从“总是 native”收正为“NEON 复用 scalar、其余 backend 仍要求 native”；fresh `git diff --check`、`DispatchAPI`、`truthfulness --backend neon/riscvv --strict`、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 全部通过 |
