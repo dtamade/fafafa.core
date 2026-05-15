@@ -55,6 +55,7 @@ uses
   fafafa.core.simd.ops,
   fafafa.core.simd.api,
   fafafa.core.simd.dispatch,
+  fafafa.core.simd.dataplane,
   fafafa.core.simd.backend.priority,
   fafafa.core.simd.public_smoke_support,
   fafafa.core.simd.scalar;
@@ -143,6 +144,7 @@ type
     procedure Test_NEON_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_NEON_NoAsmFloatCompareSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_NEON_WideRcpAndReductionSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
+    procedure Test_NEON_ExtractInsertSelectSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_NEON_NoAsmFMASlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_NEON_NoAsmNarrowReciprocalSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_NEON_NoAsmNarrowI16U16ShiftSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
@@ -6523,6 +6525,123 @@ begin
   AssertSlotReusesScalar('ReduceMulF64x8', Pointer(LScalarTable.ReduceMulF64x8), Pointer(LNEONTable.ReduceMulF64x8));
 end;
 
+procedure TTestCase_DispatchAPI.Test_NEON_ExtractInsertSelectSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
+var
+  LScalarTable: TSimdDispatchTable;
+  LNEONTable: TSimdDispatchTable;
+  LSourceLines: TStringList;
+  LRegisterSourcePath: string;
+  LAutowrapSourcePath: string;
+  LRegisterSource: string;
+  LAutowrapSource: string;
+  LOldVectorAsm: Boolean;
+
+  procedure AssertDeadWrapperRemoved(const aLabel, aSnippet: string);
+  begin
+    AssertTrue(aLabel + ' dead wrapper should be removed from the NEON scalar autowrap include',
+      Pos(LowerCase(aSnippet), LAutowrapSource) = 0);
+  end;
+
+  procedure AssertRegisterKeepsBaseScalar(const aLabel, aSnippet: string);
+  begin
+    AssertTrue('RegisterNEONBackend should keep base scalar ' + aLabel + ' when the NEON wrapper is only a scalar forwarder',
+      Pos(LowerCase(aSnippet), LRegisterSource) = 0);
+  end;
+
+  procedure AssertSlotReusesScalar(const aLabel: string; const aScalarSlot, aBackendSlot: Pointer);
+  begin
+    AssertEquals('NEON ' + aLabel + ' should reuse the base scalar slot when the NEON wrapper is only a scalar forwarder',
+      PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
+  end;
+begin
+  LSourceLines := TStringList.Create;
+  try
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.register.inc');
+    AssertTrue('NEON register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
+      FileExists(LRegisterSourcePath));
+    LSourceLines.LoadFromFile(LRegisterSourcePath);
+    LRegisterSource := LowerCase(LSourceLines.Text);
+
+    LAutowrapSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.scalar.autowrap.inc');
+    AssertTrue('NEON scalar autowrap source should exist for implementation-shape audit: ' + LAutowrapSourcePath,
+      FileExists(LAutowrapSourcePath));
+    LSourceLines.LoadFromFile(LAutowrapSourcePath);
+    LAutowrapSource := LowerCase(LSourceLines.Text);
+  finally
+    LSourceLines.Free;
+  end;
+
+  AssertDeadWrapperRemoved('NEONExtractF32x16', 'function NEONExtractF32x16(');
+  AssertDeadWrapperRemoved('NEONExtractF32x8', 'function NEONExtractF32x8(');
+  AssertDeadWrapperRemoved('NEONExtractF64x4', 'function NEONExtractF64x4(');
+  AssertDeadWrapperRemoved('NEONExtractI32x4', 'function NEONExtractI32x4(');
+  AssertDeadWrapperRemoved('NEONExtractI64x2', 'function NEONExtractI64x2(');
+  AssertDeadWrapperRemoved('NEONInsertF32x16', 'function NEONInsertF32x16(');
+  AssertDeadWrapperRemoved('NEONInsertF32x8', 'function NEONInsertF32x8(');
+  AssertDeadWrapperRemoved('NEONInsertF64x4', 'function NEONInsertF64x4(');
+  AssertDeadWrapperRemoved('NEONInsertI32x4', 'function NEONInsertI32x4(');
+  AssertDeadWrapperRemoved('NEONInsertI64x2', 'function NEONInsertI64x2(');
+  AssertDeadWrapperRemoved('NEONSelectF32x16', 'function NEONSelectF32x16(');
+  AssertDeadWrapperRemoved('NEONSelectF32x8', 'function NEONSelectF32x8(');
+  AssertDeadWrapperRemoved('NEONSelectF64x4', 'function NEONSelectF64x4(');
+  AssertDeadWrapperRemoved('NEONSelectF64x8', 'function NEONSelectF64x8(');
+  AssertDeadWrapperRemoved('NEONSelectI32x4', 'function NEONSelectI32x4(');
+
+  AssertRegisterKeepsBaseScalar('ExtractF32x16', 'table.ExtractF32x16 := @NEONExtractF32x16;');
+  AssertRegisterKeepsBaseScalar('ExtractF32x8', 'table.ExtractF32x8 := @NEONExtractF32x8;');
+  AssertRegisterKeepsBaseScalar('ExtractF64x4', 'table.ExtractF64x4 := @NEONExtractF64x4;');
+  AssertRegisterKeepsBaseScalar('ExtractI32x4', 'table.ExtractI32x4 := @NEONExtractI32x4;');
+  AssertRegisterKeepsBaseScalar('ExtractI64x2', 'table.ExtractI64x2 := @NEONExtractI64x2;');
+  AssertRegisterKeepsBaseScalar('InsertF32x16', 'table.InsertF32x16 := @NEONInsertF32x16;');
+  AssertRegisterKeepsBaseScalar('InsertF32x8', 'table.InsertF32x8 := @NEONInsertF32x8;');
+  AssertRegisterKeepsBaseScalar('InsertF64x4', 'table.InsertF64x4 := @NEONInsertF64x4;');
+  AssertRegisterKeepsBaseScalar('InsertI32x4', 'table.InsertI32x4 := @NEONInsertI32x4;');
+  AssertRegisterKeepsBaseScalar('InsertI64x2', 'table.InsertI64x2 := @NEONInsertI64x2;');
+  AssertRegisterKeepsBaseScalar('SelectF32x16', 'table.SelectF32x16 := @NEONSelectF32x16;');
+  AssertRegisterKeepsBaseScalar('SelectF32x8', 'table.SelectF32x8 := @NEONSelectF32x8;');
+  AssertRegisterKeepsBaseScalar('SelectF64x4', 'table.SelectF64x4 := @NEONSelectF64x4;');
+  AssertRegisterKeepsBaseScalar('SelectF64x8', 'table.SelectF64x8 := @NEONSelectF64x8;');
+  AssertRegisterKeepsBaseScalar('SelectI32x4', 'table.SelectI32x4 := @NEONSelectI32x4;');
+
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+
+    {$IFDEF FAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND}
+    AssertTrue('NEON opt-in test registration should be present',
+      TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable));
+    {$ELSE}
+    if not TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable) then
+      Exit;
+    {$ENDIF}
+
+    AssertSlotReusesScalar('ExtractF32x16', Pointer(LScalarTable.ExtractF32x16), Pointer(LNEONTable.ExtractF32x16));
+    AssertSlotReusesScalar('ExtractF32x8', Pointer(LScalarTable.ExtractF32x8), Pointer(LNEONTable.ExtractF32x8));
+    AssertSlotReusesScalar('ExtractF64x4', Pointer(LScalarTable.ExtractF64x4), Pointer(LNEONTable.ExtractF64x4));
+    AssertSlotReusesScalar('ExtractI32x4', Pointer(LScalarTable.ExtractI32x4), Pointer(LNEONTable.ExtractI32x4));
+    AssertSlotReusesScalar('ExtractI64x2', Pointer(LScalarTable.ExtractI64x2), Pointer(LNEONTable.ExtractI64x2));
+    AssertSlotReusesScalar('InsertF32x16', Pointer(LScalarTable.InsertF32x16), Pointer(LNEONTable.InsertF32x16));
+    AssertSlotReusesScalar('InsertF32x8', Pointer(LScalarTable.InsertF32x8), Pointer(LNEONTable.InsertF32x8));
+    AssertSlotReusesScalar('InsertF64x4', Pointer(LScalarTable.InsertF64x4), Pointer(LNEONTable.InsertF64x4));
+    AssertSlotReusesScalar('InsertI32x4', Pointer(LScalarTable.InsertI32x4), Pointer(LNEONTable.InsertI32x4));
+    AssertSlotReusesScalar('InsertI64x2', Pointer(LScalarTable.InsertI64x2), Pointer(LNEONTable.InsertI64x2));
+    AssertSlotReusesScalar('SelectF32x16', Pointer(LScalarTable.SelectF32x16), Pointer(LNEONTable.SelectF32x16));
+    AssertSlotReusesScalar('SelectF32x8', Pointer(LScalarTable.SelectF32x8), Pointer(LNEONTable.SelectF32x8));
+    AssertSlotReusesScalar('SelectF64x4', Pointer(LScalarTable.SelectF64x4), Pointer(LNEONTable.SelectF64x4));
+    AssertSlotReusesScalar('SelectF64x8', Pointer(LScalarTable.SelectF64x8), Pointer(LNEONTable.SelectF64x8));
+    AssertSlotReusesScalar('SelectI32x4', Pointer(LScalarTable.SelectI32x4), Pointer(LNEONTable.SelectI32x4));
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    RebindSimdDataPlane;
+  end;
+end;
+
 procedure TTestCase_DispatchAPI.Test_NEON_NoAsmFMASlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
 var
   LScalarTable: TSimdDispatchTable;
@@ -12672,6 +12791,23 @@ var
       aBackendSlot <> aScalarSlot);
   end;
 
+  procedure AssertBackendOwnedSlotIfExpected(
+    const aBackend: TSimdBackend;
+    const aBackendName, aSlotName: string;
+    const aScalarSlot, aBackendSlot: Pointer
+  );
+  begin
+    AssertTrue(aSlotName + ' missing: ' + aBackendName, aBackendSlot <> nil);
+    case aBackend of
+      sbNEON:
+        AssertEquals(aSlotName + ' should intentionally reuse the published scalar slot on ' + aBackendName,
+          PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
+    else
+      AssertTrue(aSlotName + ' unexpectedly falls back to scalar slot: ' + aBackendName,
+        aBackendSlot <> aScalarSlot);
+    end;
+  end;
+
   procedure AssertVecF32x4Equal(const aOp, aBackendName: string; const aExpected, aActual: TVecF32x4; const aEps: Single);
   var
     LLane: Integer;
@@ -12832,9 +12968,9 @@ begin
       AssertEquals('ExtractF64x2 dispatch-table parity: ' + NonX86BackendName(LBackend),
         LScalarTable.ExtractF64x2(LF64x2A, 1), LBackendTable.ExtractF64x2(LF64x2A, 1), 1e-12);
 
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'SelectI32x4',
+      AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'SelectI32x4',
         Pointer(LScalarTable.SelectI32x4), Pointer(LBackendTable.SelectI32x4));
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'ExtractI32x4',
+      AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'ExtractI32x4',
         Pointer(LScalarTable.ExtractI32x4), Pointer(LBackendTable.ExtractI32x4));
 
       LI32x4ByBackend := LBackendTable.SelectI32x4(LI32x4Mask, LI32x4A, LI32x4B);
@@ -12849,7 +12985,7 @@ begin
       AssertEquals('ExtractI32x4 dispatch-table parity: ' + NonX86BackendName(LBackend),
         LScalarTable.ExtractI32x4(LI32x4A, 3), LBackendTable.ExtractI32x4(LI32x4A, 3));
 
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'ExtractI64x2',
+      AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'ExtractI64x2',
         Pointer(LScalarTable.ExtractI64x2), Pointer(LBackendTable.ExtractI64x2));
 
       AssertEquals('ExtractI64x2 facade parity: ' + NonX86BackendName(LBackend),
@@ -14061,6 +14197,23 @@ var
     end;
   end;
 
+  procedure AssertBackendOwnedFloatSlotIfExpected(
+    const aBackend: TSimdBackend;
+    const aBackendName, aSlotName: string;
+    const aScalarSlot, aBackendSlot: Pointer
+  );
+  begin
+    AssertTrue(aSlotName + ' missing: ' + aBackendName, aBackendSlot <> nil);
+    case aBackend of
+      sbNEON:
+        AssertEquals(aSlotName + ' should intentionally reuse the published scalar slot on ' + aBackendName,
+          PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
+    else
+      AssertTrue(aSlotName + ' unexpectedly falls back to scalar slot: ' + aBackendName,
+        aBackendSlot <> aScalarSlot);
+    end;
+  end;
+
   procedure AssertVecF32x8Equal(const aOp, aBackendName: string; const aExpected, aActual: TVecF32x8; const aEps: Single);
   var
     LLane: Integer;
@@ -14170,17 +14323,17 @@ begin
 
       Inc(LCheckedBackends);
 
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'InsertF32x8',
+      AssertBackendOwnedFloatSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertF32x8',
         Pointer(LScalarTable.InsertF32x8), Pointer(LBackendTable.InsertF32x8));
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'InsertF32x16',
+      AssertBackendOwnedFloatSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertF32x16',
         Pointer(LScalarTable.InsertF32x16), Pointer(LBackendTable.InsertF32x16));
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'InsertF64x4',
+      AssertBackendOwnedFloatSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertF64x4',
         Pointer(LScalarTable.InsertF64x4), Pointer(LBackendTable.InsertF64x4));
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'ExtractF32x8',
+      AssertBackendOwnedFloatSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'ExtractF32x8',
         Pointer(LScalarTable.ExtractF32x8), Pointer(LBackendTable.ExtractF32x8));
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'ExtractF32x16',
+      AssertBackendOwnedFloatSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'ExtractF32x16',
         Pointer(LScalarTable.ExtractF32x16), Pointer(LBackendTable.ExtractF32x16));
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'ExtractF64x4',
+      AssertBackendOwnedFloatSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'ExtractF64x4',
         Pointer(LScalarTable.ExtractF64x4), Pointer(LBackendTable.ExtractF64x4));
       AssertBackendOwnedIntegerSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertI32x8',
         Pointer(LScalarTable.InsertI32x8), Pointer(LBackendTable.InsertI32x8));
@@ -14690,11 +14843,11 @@ var
     AssertTrue(aSlotName + ' missing: ' + aBackendName, aBackendSlot <> nil);
     case aBackend of
       sbNEON:
-        AssertTrue(aSlotName + ' may intentionally reuse the published scalar slot on ' + aBackendName,
-          True);
-      else
-        AssertTrue(aSlotName + ' unexpectedly falls back to scalar slot: ' + aBackendName,
-          aBackendSlot <> aScalarSlot);
+        AssertEquals(aSlotName + ' should intentionally reuse the published scalar slot on ' + aBackendName,
+          PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
+    else
+      AssertTrue(aSlotName + ' unexpectedly falls back to scalar slot: ' + aBackendName,
+        aBackendSlot <> aScalarSlot);
     end;
   end;
 
@@ -14877,6 +15030,23 @@ var
       aBackendSlot <> aScalarSlot);
   end;
 
+  procedure AssertBackendOwnedSlotIfExpected(
+    const aBackend: TSimdBackend;
+    const aBackendName, aSlotName: string;
+    const aScalarSlot, aBackendSlot: Pointer
+  );
+  begin
+    AssertTrue(aSlotName + ' missing: ' + aBackendName, aBackendSlot <> nil);
+    case aBackend of
+      sbNEON:
+        AssertEquals(aSlotName + ' should intentionally reuse the published scalar slot on ' + aBackendName,
+          PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
+    else
+      AssertTrue(aSlotName + ' unexpectedly falls back to scalar slot: ' + aBackendName,
+        aBackendSlot <> aScalarSlot);
+    end;
+  end;
+
   procedure AssertVecI32x4Equal(const aOp, aBackendName: string; const aExpected, aActual: TVecI32x4);
   var
     LLane: Integer;
@@ -14942,9 +15112,9 @@ begin
 
       Inc(LCheckedBackends);
 
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'InsertI32x4',
+      AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertI32x4',
         Pointer(LScalarTable.InsertI32x4), Pointer(LBackendTable.InsertI32x4));
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'InsertI64x2',
+      AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertI64x2',
         Pointer(LScalarTable.InsertI64x2), Pointer(LBackendTable.InsertI64x2));
 
       LI32x4ByBackend := LBackendTable.InsertI32x4(LI32x4Base, -777, 2);

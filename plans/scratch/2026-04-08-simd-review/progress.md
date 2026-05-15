@@ -5422,3 +5422,40 @@
     - non-x86 native evidence root not present -> optional `SKIP`
     - 历史 `windows_b07_gate.log` evidence verify 失败 -> optional `SKIP`
 - 收口前已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入本批 commit。
+
+## 2026-05-15 NEON Extract/Insert/Select Scalar-Only Slot Cleanup
+
+- 接手上一批 mixed-body checker 修复后的真实工作树，确认未提交改动集中在：
+  - `src/fafafa.core.simd.neon.register.inc`
+  - `src/fafafa.core.simd.neon.scalar.autowrap.inc`
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+- 先对 `dispatchapi` 做作用域收口：
+  - 修正 `Test_NativeNarrowHelperSurfaceParity_WithVectorAsm_IfAvailable` 的本地 `AssertBackendOwnedSlotIfExpected`
+  - 修正 `Test_NativeWideInsertHelperParity_WithVectorAsm_IfAvailable` 的本地 `AssertBackendOwnedFloatSlotIfExpected`
+  - 修正 `Test_NativeNarrowIntegerCoreParity_WithVectorAsm_IfAvailable` 与 `Test_NativeNarrowIntegerHelperParity_WithVectorAsm_IfAvailable` 的本地 `AssertBackendOwnedSlotIfExpected`
+  - 把新 testcase 收尾里误用的 `InvalidateSimdDataPlane` 改成公开 `RebindSimdDataPlane`，并补上 `fafafa.core.simd.dataplane` uses
+- 先做快速静态复核：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+  - 结果：通过
+- 再做 checker 真值链：
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+  - 结果：
+    - `NONX86_HELPER_SEMANTICS_SUMMARY checks=625 status=ok`
+    - `backend=neon assignments=342 asm_exact=244 asm_suffix_only=10 wrapper_only=88 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+    - `backend=riscvv assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+- 串行 release 验证链全部通过：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 本批关键结果：
+  - mixed-body 修正后残余的 `NEON asm-only + scalar_forwarder` 15 个 slot 已全部收掉
+  - `backend=neon wrapper_only` 从 `103` 降到 `88`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok`
+  - Release `gate` 继续 `OK`，尾部仍只诚实保留 optional non-x86 native evidence skip 与历史 `windows_b07_gate.log` evidence skip
+- 收口前已清理 `tests/fafafa.core.simd/__pycache__/`

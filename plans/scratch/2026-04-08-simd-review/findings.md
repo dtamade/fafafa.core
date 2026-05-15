@@ -4758,3 +4758,37 @@
   - `NEONSelectF32x4` 已从误判的 `scalar_forwarder` 回到 `pascal_owned`
   - 当前 `NEON` 的 `asm-only + scalar_forwarder` 分组从 `16` 降到 `15`
   - 这减少的是 checker 误报，不是运行时 slot 语义被偷偷改写
+
+## 2026-05-15 NEON Extract/Insert/Select Scalar-Only Slot Findings
+
+- mixed-body 分类修正后，`NEON` 残余的 `asm-only + scalar_forwarder` 正好只剩 15 个 slot：
+  - `ExtractF32x16/F32x8/F64x4/I32x4/I64x2`
+  - `InsertF32x16/F32x8/F64x4/I32x4/I64x2`
+  - `SelectF32x16/F32x8/F64x4/F64x8/I32x4`
+- 这 15 个名字的 source truth 非常干净：
+  - 全仓只命中 `src/fafafa.core.simd.neon.register.inc`
+  - 以及 `src/fafafa.core.simd.neon.scalar.autowrap.inc`
+  - `autowrap` 里的 body 全部是 exact `Result := Scalar...`
+  - 没有任何更宽 no-asm source graph 或其他单元继续消费它们
+- 因此这批和 earlier `Clamp/Sqrt/MinMax` 的“保留 source companion”不同：
+  - 这里不是“no-asm slot 不该 backend-owned，但 wrapper 仍有 source 价值”
+  - 而是“wrapper 本身已经彻底 dead，slot truth 和 source truth 都该一起收回 scalar”
+- `dispatchapi` 这轮暴露出的阻塞并非行为回归，而是 testcase 局部 helper 作用域被误插入到了相似模板过程里：
+  - `Test_NativeNarrowHelperSurfaceParity_WithVectorAsm_IfAvailable`
+  - `Test_NativeWideInsertHelperParity_WithVectorAsm_IfAvailable`
+  - `Test_NativeNarrowIntegerCoreParity_WithVectorAsm_IfAvailable`
+  - `Test_NativeNarrowIntegerHelperParity_WithVectorAsm_IfAvailable`
+  - 都需要各自拥有本地 `AssertBackendOwnedSlotIfExpected` / `AssertBackendOwnedFloatSlotIfExpected`
+- 另外，新 testcase 收尾时直接调用 `InvalidateSimdDataPlane` 也暴露出一条边界纪律：
+  - `InvalidateSimdDataPlane` 是 `fafafa.core.simd.dataplane` 的实现细节，不在接口面
+  - 测试应调用公开的 `RebindSimdDataPlane`，而不是碰内部 invalidation hook
+- 本批收正后，checker/runtime/test 三线重新对齐：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=625 status=ok`
+  - `backend=neon` truthfulness：`assignments=342 asm_exact=244 asm_suffix_only=10 wrapper_only=88 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `backend=riscvv` truthfulness：`assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok`
+  - Release `DispatchAPI` / `check` / `gate` 全绿
+- 关键结论：
+  - mixed-body 修正后残留的 `NEON asm-only + scalar_forwarder` 已归零
+  - `backend=neon wrapper_only` 已从上一批的 `103` 降到 `88`
+  - 这一批收掉的是“已无 source consumer 的真死壳”，不是仅仅把 allowlist 做漂亮

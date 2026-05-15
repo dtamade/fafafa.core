@@ -754,16 +754,6 @@ begin
   Result.hi := NEONDivF64x4(a.hi, b.hi);
 end;
 
-function NEONExtractF32x16(const a: TVecF32x16; index: Integer): Single;
-begin
-  Result := ScalarExtractF32x16(a, index);
-end;
-
-function NEONExtractF32x8(const a: TVecF32x8; index: Integer): Single;
-begin
-  Result := ScalarExtractF32x8(a, index);
-end;
-
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONExtractF64x2(const a: TVecF64x2; index: Integer): Double;
@@ -773,29 +763,14 @@ end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
-function NEONExtractF64x4(const a: TVecF64x4; index: Integer): Double;
-begin
-  Result := ScalarExtractF64x4(a, index);
-end;
-
 function NEONExtractI32x16(const a: TVecI32x16; index: Integer): Int32;
 begin
   Result := ScalarExtractI32x16(a, index);
 end;
 
-function NEONExtractI32x4(const a: TVecI32x4; index: Integer): Int32;
-begin
-  Result := ScalarExtractI32x4(a, index);
-end;
-
 function NEONExtractI32x8(const a: TVecI32x8; index: Integer): Int32;
 begin
   Result := ScalarExtractI32x8(a, index);
-end;
-
-function NEONExtractI64x2(const a: TVecI64x2; index: Integer): Int64;
-begin
-  Result := ScalarExtractI64x2(a, index);
 end;
 
 function NEONExtractI64x4(const a: TVecI64x4; index: Integer): Int64;
@@ -813,16 +788,6 @@ end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
-function NEONInsertF32x16(const a: TVecF32x16; value: Single; index: Integer): TVecF32x16;
-begin
-  Result := ScalarInsertF32x16(a, value, index);
-end;
-
-function NEONInsertF32x8(const a: TVecF32x8; value: Single; index: Integer): TVecF32x8;
-begin
-  Result := ScalarInsertF32x8(a, value, index);
-end;
-
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONInsertF64x2(const a: TVecF64x2; value: Double; index: Integer): TVecF64x2;
@@ -832,29 +797,14 @@ end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
-function NEONInsertF64x4(const a: TVecF64x4; value: Double; index: Integer): TVecF64x4;
-begin
-  Result := ScalarInsertF64x4(a, value, index);
-end;
-
 function NEONInsertI32x16(const a: TVecI32x16; value: Int32; index: Integer): TVecI32x16;
 begin
   Result := ScalarInsertI32x16(a, value, index);
 end;
 
-function NEONInsertI32x4(const a: TVecI32x4; value: Int32; index: Integer): TVecI32x4;
-begin
-  Result := ScalarInsertI32x4(a, value, index);
-end;
-
 function NEONInsertI32x8(const a: TVecI32x8; value: Int32; index: Integer): TVecI32x8;
 begin
   Result := ScalarInsertI32x8(a, value, index);
-end;
-
-function NEONInsertI64x2(const a: TVecI64x2; value: Int64; index: Integer): TVecI64x2;
-begin
-  Result := ScalarInsertI64x2(a, value, index);
 end;
 
 function NEONInsertI64x4(const a: TVecI64x4; value: Int64; index: Integer): TVecI64x4;
@@ -1213,31 +1163,6 @@ begin
 end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
-function NEONSelectF32x16(const mask: TMask16; const a, b: TVecF32x16): TVecF32x16;
-begin
-  Result := ScalarSelectF32x16(mask, a, b);
-end;
-
-function NEONSelectF32x8(const mask: TVecU32x8; const a, b: TVecF32x8): TVecF32x8;
-begin
-  Result := ScalarSelectF32x8(mask, a, b);
-end;
-
-function NEONSelectF64x4(const mask: TVecU64x4; const a, b: TVecF64x4): TVecF64x4;
-begin
-  Result := ScalarSelectF64x4(mask, a, b);
-end;
-
-function NEONSelectF64x8(const mask: TMask8; const a, b: TVecF64x8): TVecF64x8;
-begin
-  Result := ScalarSelectF64x8(mask, a, b);
-end;
-
-function NEONSelectI32x4(const mask: TVecI32x4; const a, b: TVecI32x4): TVecI32x4;
-begin
-  Result := ScalarSelectI32x4(mask, a, b);
-end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 

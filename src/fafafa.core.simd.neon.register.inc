@@ -428,13 +428,10 @@ begin
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.DivF64x8 := @NEONDivF64x8;
   {$ENDIF}
+  // Keep exact Scalar* extract/insert wrappers on the published scalar table
+  // even in asm builds. These autowrap routines do not own backend-local behavior.
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  table.ExtractF32x16 := @NEONExtractF32x16;
-  table.ExtractF32x8 := @NEONExtractF32x8;
   table.ExtractF64x2 := @NEONExtractF64x2;
-  table.ExtractF64x4 := @NEONExtractF64x4;
-  table.ExtractI32x4 := @NEONExtractI32x4;
-  table.ExtractI64x2 := @NEONExtractI64x2;
   {$ENDIF}
   table.FloorF64x2 := @NEONFloorF64x2;
   // Keep FMA slots on the published scalar table when NEON asm is absent.
@@ -448,12 +445,7 @@ begin
   table.FmaF64x8 := @NEONFmaF64x8;
   {$ENDIF}
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  table.InsertF32x16 := @NEONInsertF32x16;
-  table.InsertF32x8 := @NEONInsertF32x8;
   table.InsertF64x2 := @NEONInsertF64x2;
-  table.InsertF64x4 := @NEONInsertF64x4;
-  table.InsertI32x4 := @NEONInsertI32x4;
-  table.InsertI64x2 := @NEONInsertI64x2;
   {$ENDIF}
   table.LoadF64x2 := @NEONLoadF64x2;
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
@@ -491,12 +483,9 @@ begin
   table.RoundF64x2 := @NEONRoundF64x2;
   table.RoundF64x4 := @NEONRoundF64x4;
   table.RoundF64x8 := @NEONRoundF64x8;
+  // Keep exact Scalar* select wrappers on the published scalar table even when
+  // NEON asm is compiled. They are not backend-local owners.
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  table.SelectF32x16 := @NEONSelectF32x16;
-  table.SelectF32x8 := @NEONSelectF32x8;
-  table.SelectF64x4 := @NEONSelectF64x4;
-  table.SelectF64x8 := @NEONSelectF64x8;
-  table.SelectI32x4 := @NEONSelectI32x4;
   table.ShiftLeftI16x8 := @NEONShiftLeftI16x8;
   table.ShiftLeftU16x8 := @NEONShiftLeftU16x8;
   table.ShiftRightArithI16x8 := @NEONShiftRightArithI16x8;

@@ -38,8 +38,6 @@ ALLOWED_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
         "CmpLeF64x2",
         "CmpLtF64x2",
         "CmpNeF64x2",
-        "ExtractF32x16", "ExtractF32x8", "ExtractF64x4", "ExtractI32x4", "ExtractI64x2",
-        "InsertF32x16", "InsertF32x8", "InsertF64x4", "InsertI32x4", "InsertI64x2",
         "SelectF32x4",
         "AddF32x16", "AddF64x4", "AddF64x8",
         "CeilF64x2",
@@ -59,7 +57,6 @@ ALLOWED_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
         "TruncF32x16", "TruncF32x8", "TruncF64x2", "TruncF64x4", "TruncF64x8",
         "ZeroF64x2",
         "AndNotI8x16", "AndNotU16x8", "AndNotU8x16",
-        "SelectF32x16", "SelectF32x8", "SelectF64x4", "SelectF64x8", "SelectI32x4",
     } | NEON_WIDE_COMPARE_WRAPPER_SLOTS,
     "riscvv": {
         "AndNotI64x2", "AndNotI8x16", "AndNotU16x8", "AndNotU64x2",
