@@ -904,12 +904,6 @@ end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
-function NEONMaxF32x8(const a, b: TVecF32x8): TVecF32x8;
-begin
-  Result.lo := NEONMaxF32x4(a.lo, b.lo);
-  Result.hi := NEONMaxF32x4(a.hi, b.hi);
-end;
-
 function NEONMaxF64x2(const a, b: TVecF64x2): TVecF64x2;
 begin
   if a.d[0] > b.d[0] then Result.d[0] := a.d[0] else Result.d[0] := b.d[0];
@@ -968,12 +962,6 @@ begin
 end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-
-function NEONMinF32x8(const a, b: TVecF32x8): TVecF32x8;
-begin
-  Result.lo := NEONMinF32x4(a.lo, b.lo);
-  Result.hi := NEONMinF32x4(a.hi, b.hi);
-end;
 
 function NEONMinF64x2(const a, b: TVecF64x2): TVecF64x2;
 begin

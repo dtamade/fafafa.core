@@ -3362,3 +3362,17 @@
 | 1. 复核 `Sqrt` 候选的 source role 与消费面 | completed | 已确认 `NEONSqrtF32x8/F32x16/F64x8` 在 no-asm 下只是 exact scalar/leaf 组合且无其他 live source consumer，属于可删 dead wrapper；`NEONSqrtF64x4` 虽然 no-asm runtime slot 也应回落到 scalar，但它仍被 `NEONSqrtF64x8` 的 no-asm source graph 消费，因此只能保留为 source companion |
 | 2. 改成 asm-only binding，并只删除真正 dead 的 no-asm wrapper | completed | 已把 `src/fafafa.core.simd.neon.register.inc` 中 `SqrtF32x8/F32x16/F64x4/F64x8` 改成 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}` 绑定；已从 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 删除 `NEONSqrtF32x8/F32x16/F64x8` 的 no-asm dead wrapper，保留 `NEONSqrtF64x4` 作为仍被消费的 source companion；`SqrtF64x2` 保持原样 |
 | 3. 补 source/runtime/helper 护栏并串行 release 复验 | completed | `dispatchapi` 已新增 `Test_NEON_NoAsmWideSqrtSlots_Keep_Only_Consumed_Companions_And_Reuse_BaseScalar`；两处通用 `SqrtF32x8/F32x16/F64x4/F64x8` capability 断言已从“总是 native”收正为“NEON 复用 scalar、其余 backend 仍要求 native”；`check_nonx86_helper_semantics.py` 已把 `NEONSqrtF32x8/F32x16/F64x8` 改成 absent guard；fresh `git diff --check`、`py_compile`、helper semantics、`DispatchAPI`、`truthfulness --backend neon/riscvv --strict`、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 全部通过；helper summary 现为 `checks=601`，`NEON` truthfulness 现为 `assignments=357 asm_exact=233 asm_suffix_only=10 wrapper_only=114 miswired=0 conflicting_assign=0`，`gate` 尾部为 `GATE OK`，仅诚实保留 optional non-x86 native evidence skip 与历史 `windows_b07_gate.log` evidence skip |
+
+## 2026-05-15 NEON No-Asm Wide MinMax Slot-Ownership Cleanup
+
+### Goal
+
+继续沿同一 slot-ownership truth 线收正 `NEON` no-asm 的 wide `Min/Max`：`Min/MaxF32x8`、`Min/MaxF32x16`、`Min/MaxF64x4`、`Min/MaxF64x8`。这批先确认 `Math.Min/Max` 与 no-asm 本地 `if a<b / if a>b` 语义在 `NaN/±0/相等值` 上一致，再把确实不该继续占 slot 的 no-asm published truth 收回 scalar。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 wide `Min/Max` 的语义与消费面 | completed | 已确认 `NEONMin/MaxF32x4` 与 `NEONMin/MaxF64x2` 的 no-asm 本地比较虽不是 `ScalarMin/Max` 直接转发，但本地 Pascal probe 已验证它们和 `Math.Min/Max` 在 `NaN/±0/相等值` 上语义一致；同时 `NEONMin/MaxF32x8` 在 no-asm 下无其他 live source consumer，而 `F32x16/F64x4/F64x8` wrapper 仍需为 asm build 或更宽 source graph 保留 |
+| 2. 改成 asm-only binding，并只删除真正 dead 的 no-asm wrapper | completed | 已把 `src/fafafa.core.simd.neon.register.inc` 中 `Min/MaxF32x8/F32x16/F64x4/F64x8` 改成 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}` 绑定；已从 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 删除 `NEONMin/MaxF32x8` 的 no-asm dead wrapper，保留 `NEONMin/MaxF32x16/F64x4/F64x8` 作为仍有 asm/source companion 价值的 wrapper；`Min/MaxF64x2` 保持原样 |
+| 3. 补 source/runtime/helper 护栏并串行 release 复验 | completed | `dispatchapi` 已新增 `Test_NEON_NoAsmWideMinMaxSlots_Keep_Necessary_Wrappers_But_Reuse_BaseScalar`；两处通用 `Min/MaxF32x8/F32x16/F64x4/F64x8` capability 断言已从“总是 native”收正为“NEON 复用 scalar、其余 backend 仍要求 native”；`check_nonx86_helper_semantics.py` 已把 `NEONMin/MaxF32x8` 改成 absent guard；fresh `git diff --check`、`py_compile`、helper semantics、`DispatchAPI`、`truthfulness --backend neon/riscvv --strict`、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 全部通过；helper summary 现为 `checks=603`，`NEON` truthfulness 现为 `assignments=357 asm_exact=237 asm_suffix_only=10 wrapper_only=110 miswired=0 conflicting_assign=0`，`gate` 尾部为 `GATE OK`，仍只诚实保留 optional non-x86 native evidence skip 与历史 `windows_b07_gate.log` evidence skip |

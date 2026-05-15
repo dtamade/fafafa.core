@@ -272,9 +272,35 @@
   - `NONX86_HELPER_SEMANTICS_SUMMARY checks=601 status=ok`
   - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=neon assignments=357 asm_exact=233 asm_suffix_only=10 wrapper_only=114 scalar_passthrough=0 no_def=0 miswired=0 strict=1`
   - `backend=riscvv` 继续保持 `assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 miswired=0`
+- `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok`
+- Release `check` / `gate` 全部通过，`gate` 最终明确到 `GATE OK`
+- 下一批仍不建议直接机械扩到 `Round/Trunc/Clamp`；`Min/Max` 如果要继续做，也必须先重新审 `NaN/compare/ordering` 语义，而不是按 `Sqrt` 套模板。
+
+## 2026-05-15 NEON No-Asm Wide MinMax Findings
+
+- `NEON` wide `Min/Max` 这批最开始看上去像 `Sqrt` 的同类，但真正的审查重点不是 wrapper 拓扑，而是 no-asm 下的浮点选择语义。
+- 先做的本地 Pascal probe 已确认：`Math.Min/Max` 与 no-asm 的 `if a < b then a else b` / `if a > b then a else b` 在以下关键场景上结果一致：
+  - `NaN, x`
+  - `x, NaN`
+  - `-0, +0`
+  - `+0, -0`
+  - 相等普通值
+- 这意味着 `NEONMin/MaxF32x4` 与 `NEONMin/MaxF64x2` 虽然源码上不是 `ScalarMin/Max` 单行转发，但它们当前并不构成额外的 published semantic truth source；wide `Min/Max` 的 no-asm slot 可以像 `Sqrt` 一样回落到 scalar，而不会把 `NaN/±0` 语义悄悄改坏。
+- 这批仍然要分清三类角色：
+  - `NEONMin/MaxF32x8`：no-asm dead wrapper，可删
+  - `NEONMin/MaxF32x16`：asm build 仍需要的 source wrapper，保留
+  - `NEONMin/MaxF64x4/F64x8`：更宽 source graph 或 asm build 仍会消费的 wrapper，保留
+- 因此正确修法不是“所有 wide Min/Max 都删掉”，而是：
+  - `register.inc` 中 `Min/MaxF32x8/F32x16/F64x4/F64x8` 改成 asm-only binding
+  - `scalar.autowrap.inc` 中仅删除 `NEONMin/MaxF32x8`
+  - 其余 `F32x16/F64x4/F64x8` wrapper 继续保留
+- fresh 结果继续证明这批是实质性收正，不是只改测试文案：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=603 status=ok`
+  - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=neon assignments=357 asm_exact=237 asm_suffix_only=10 wrapper_only=110 scalar_passthrough=0 no_def=0 miswired=0 strict=1`
+  - `backend=riscvv` 继续保持 `assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 miswired=0`
   - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok`
   - Release `check` / `gate` 全部通过，`gate` 最终明确到 `GATE OK`
-- 下一批仍不建议直接机械扩到 `Round/Trunc/Clamp`；`Min/Max` 如果要继续做，也必须先重新审 `NaN/compare/ordering` 语义，而不是按 `Sqrt` 套模板。
+- 这批也再次说明一个规则：`wrapper_only` 的治理不能只按“看起来像宽 wrapper”分组，必须先做最小语义 probe，确认 `NaN/ordering` 没有隐含分歧，再决定是否把 published slot 收回 scalar。
 
 ## 2026-05-13 Mid/Wide Integer Facade Guard Findings
 

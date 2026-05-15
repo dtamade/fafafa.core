@@ -449,16 +449,22 @@ begin
   table.InsertI64x2 := @NEONInsertI64x2;
   {$ENDIF}
   table.LoadF64x2 := @NEONLoadF64x2;
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.MaxF32x16 := @NEONMaxF32x16;
   table.MaxF32x8 := @NEONMaxF32x8;
+  {$ENDIF}
   table.MaxF64x2 := @NEONMaxF64x2;
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.MaxF64x4 := @NEONMaxF64x4;
   table.MaxF64x8 := @NEONMaxF64x8;
   table.MinF32x16 := @NEONMinF32x16;
   table.MinF32x8 := @NEONMinF32x8;
+  {$ENDIF}
   table.MinF64x2 := @NEONMinF64x2;
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.MinF64x4 := @NEONMinF64x4;
   table.MinF64x8 := @NEONMinF64x8;
+  {$ENDIF}
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.MulF32x16 := @NEONMulF32x16;
   {$ENDIF}

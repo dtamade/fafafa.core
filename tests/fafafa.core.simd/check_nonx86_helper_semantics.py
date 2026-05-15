@@ -1031,6 +1031,8 @@ def main() -> int:
         (neon_scalar_autowrap_source, "NEONReduceMulF32x8"),
         (neon_scalar_autowrap_source, "NEONReduceMulF64x4"),
         (neon_scalar_autowrap_source, "NEONReduceMulF64x8"),
+        (neon_scalar_autowrap_source, "NEONMaxF32x8"),
+        (neon_scalar_autowrap_source, "NEONMinF32x8"),
         (neon_scalar_autowrap_source, "NEONSqrtF32x16"),
         (neon_scalar_autowrap_source, "NEONSqrtF32x8"),
         (neon_scalar_autowrap_source, "NEONSqrtF64x8"),
