@@ -4827,3 +4827,31 @@
   - 这批收掉的是“已无 source consumer 的 narrow F64x2 memory/construction 死壳”
   - 不是只改 checker allowlist，也不是只改 capability 注释
   - runtime no-asm truth、source truth、checker truth 已重新对齐
+
+## 2026-05-15 NEON No-Asm F64x4 Wide Leaf Arithmetic Slot Findings
+
+- `Add/Sub/Mul/DivF64x4` 和上一批 `F64x2` 最大的区别，不在语义，而在 source graph：
+  - `NEONAdd/Sub/Mul/DivF64x4` 的 no-asm body 都只是两次 `NEON*F64x2`
+  - 但 `NEONAdd/Sub/Mul/DivF64x8` 仍通过 `Result.lo := NEON*F64x4(...); Result.hi := NEON*F64x4(...);` 继续消费这些 wrapper
+  - 所以这批不能像 `Load/Store/Splat/ZeroF64x2` 那样删 wrapper，只能回收 runtime slot ownership
+- 这使它们和此前 `F32x16/F64x8` 那一批 wide leaf arithmetic 完全同型：
+  - wrapper 继续作为 asm build / 更宽 no-asm graph 的 source companion
+  - no-asm published `sbNEON` slot 不再占着 fake backend-owned truth
+- 现有 `DispatchAPI` 里已经有最合适的 dedicated truth test：
+  - `Test_NEON_NoAsmWideLeafFloatArithmeticSlots_Keep_SourceCompanions_But_Reuse_BaseScalar`
+  - 这次不需要新增新 testcase，只需把 `F64x4` 的 12 个断言补进去：
+    - wrapper 仍在
+    - asm binding source 仍在
+    - runtime slot 与 scalar slot 相等
+- 通用 capability 断言也需要同步，不然会出现“dedicated test 说应复用 scalar，但 generic test 还写死必须 native”的内部矛盾：
+  - 两处 `DispatchAPI` 宽浮点 capability 段里，`Add/Sub/Mul/DivF64x4` 之前都还是 `AssertNativeSlotNotScalar(...)`
+  - 这次已全部改成 `AssertNeonReusesScalarOtherwiseNative(...)`
+- fresh 结果说明这 4 个 slot 已经真正退出 `wrapper_only` 发布集：
+  - `backend=neon` truthfulness：`assignments=342 asm_exact=252 asm_suffix_only=10 wrapper_only=80 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - 相比上一批 `wrapper_only=84`，这批再次正好减少了 4 个 slot
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=629 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok`
+  - Release `DispatchAPI / check / gate` 继续全绿，`gate` 尾部仍只剩 optional non-x86 native evidence skip 与历史 `windows_b07_gate.log` evidence skip
+- 关键结论：
+  - 这批收掉的不是 dead wrapper，而是“仍有 source companion 价值、但不该继续 no-asm backend-owned 的 mid-width `F64x4` arithmetic slot”
+  - `NEON` 当前残余 `wrapper_only` 已进一步降到 `80`
