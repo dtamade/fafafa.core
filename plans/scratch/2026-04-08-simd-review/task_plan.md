@@ -3532,3 +3532,17 @@
 | 1. 复核 `Floor/Ceil` 与 `Round/Trunc` 的 source role 差异 | completed | 已确认 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 中 `NEONRound/TruncF64x4` 仍通过两次 `NEONRound/TruncF64x2` 消费窄 wrapper；相反，`NEONFloor/CeilF64x2` 在 `src/` 中已没有任何 no-asm source consumer，wide `F64x4/F64x8` floor/ceil wrapper 只剩 asm 叶子 |
 | 2. 收正 no-asm fallback 形态并收回 4 个 narrow `F64x2` published slot | completed | 已从 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 删除 dead `NEONCeilF64x2/NEONFloorF64x2`；已把 `NEONRoundF64x2/NEONTruncF64x2` 改成 `Result := ScalarRound/TruncF64x2(a);`；`src/fafafa.core.simd.neon.register.inc` 中 `table.Ceil/Floor/Round/TruncF64x2 := @NEON...` 已全部收进 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}`；`tests/fafafa.core.simd/check_nonx86_register_truthfulness.py` 已从 `NEON` allowlist 删除这 4 个名字 |
 | 3. 补 dedicated 护栏并串行 release 复验 | completed | `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 已新增 `Test_NEON_NoAsmNarrowF64RoundFamilySlots_Keep_Only_Necessary_SourceCompanions_And_Reuse_BaseScalar`，同时本批 `git diff --check`、`py_compile`、`truthfulness --backend neon/riscvv --summary-line --strict`、Release `TTestCase_DispatchAPI`、Release `TTestCase_IEEE754EdgeCases`、Release `impl-audit-nonx86`、Release `check`、Release `gate` 全部通过；当前 `backend=neon` truthfulness 为 `assignments=342 asm_exact=273 asm_suffix_only=10 wrapper_only=59 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`，说明 `wrapper_only` 已从 `63` 再降到 `59` |
+
+## 2026-05-16 NEON No-Asm Narrow F64 Min/Max Slot/Fallback Alignment
+
+### Goal
+
+继续沿 `NEON` no-asm slot ownership truth 线，把 `MaxF64x2/MinF64x2` 的 published slot 收回到 base scalar truth；同时保留窄 `F64x2` source companion 给 `F64x4/F64x8` no-asm fallback graph 使用。本批明确不混入 `ReduceMax/ReduceMinF64x2`，避免把更高风险的语义链和 `Min/Max` 一起处理。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `Max/MinF64x2` 的 source role 与语义边界 | completed | 已确认 `NEONMax/MinF64x4` 的 no-asm graph 仍通过两次 `NEONMax/MinF64x2` 消费窄 wrapper，因此 `Max/MinF64x2` 不是 dead wrapper；同时 `ScalarMax/MinF64x2` 已是当前 stable scalar truth，本批只把窄 no-asm body 收正为 exact `Scalar*` forwarder，并明确把 `ReduceMax/ReduceMinF64x2` 留在下一批单独审查 |
+| 2. 收正 no-asm fallback 形态并收回 2 个 narrow `F64x2` published slot | completed | `src/fafafa.core.simd.neon.scalar.autowrap.inc` 中 `NEONMaxF64x2/NEONMinF64x2` 已改成 `Result := ScalarMax/MinF64x2(a, b);`；`src/fafafa.core.simd.neon.register.inc` 中 `table.MaxF64x2 := @NEONMaxF64x2;` 与 `table.MinF64x2 := @NEONMinF64x2;` 已全部收进 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}`；`tests/fafafa.core.simd/check_nonx86_register_truthfulness.py` 已从 `NEON` allowlist 删除 `MaxF64x2/MinF64x2` |
+| 3. 补 dedicated 护栏并串行 release 复验 | completed | `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 已新增 `Test_NEON_NoAsmNarrowF64MinMaxSlots_Keep_SourceCompanion_But_Reuse_BaseScalar`，同时本批 `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`、`truthfulness --backend neon/riscvv --summary-line --strict`、Release `TTestCase_DispatchAPI`、Release `TTestCase_IEEE754EdgeCases`、Release `impl-audit-nonx86`、Release `check`、Release `gate` 全部通过；当前 `backend=neon` truthfulness 为 `assignments=342 asm_exact=275 asm_suffix_only=10 wrapper_only=57 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`，说明 `wrapper_only` 已从 `59` 再降到 `57` |

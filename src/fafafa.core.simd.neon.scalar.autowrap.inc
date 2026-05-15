@@ -747,8 +747,7 @@ end;
 
 function NEONMaxF64x2(const a, b: TVecF64x2): TVecF64x2;
 begin
-  if a.d[0] > b.d[0] then Result.d[0] := a.d[0] else Result.d[0] := b.d[0];
-  if a.d[1] > b.d[1] then Result.d[1] := a.d[1] else Result.d[1] := b.d[1];
+  Result := ScalarMaxF64x2(a, b);
 end;
 
 function NEONMaxF64x4(const a, b: TVecF64x4): TVecF64x4;
@@ -806,8 +805,7 @@ end;
 
 function NEONMinF64x2(const a, b: TVecF64x2): TVecF64x2;
 begin
-  if a.d[0] < b.d[0] then Result.d[0] := a.d[0] else Result.d[0] := b.d[0];
-  if a.d[1] < b.d[1] then Result.d[1] := a.d[1] else Result.d[1] := b.d[1];
+  Result := ScalarMinF64x2(a, b);
 end;
 
 function NEONMinF64x4(const a, b: TVecF64x4): TVecF64x4;

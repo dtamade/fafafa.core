@@ -465,14 +465,21 @@ begin
   table.MaxF32x16 := @NEONMaxF32x16;
   table.MaxF32x8 := @NEONMaxF32x8;
   {$ENDIF}
+  // Keep the narrow F64x2 Min/Max source companions for the F64x4/F64x8
+  // no-asm fallback graph, but publish the base scalar slots whenever NEON
+  // asm is absent because the no-asm wrappers now align exactly with Scalar*.
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.MaxF64x2 := @NEONMaxF64x2;
+  {$ENDIF}
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.MaxF64x4 := @NEONMaxF64x4;
   table.MaxF64x8 := @NEONMaxF64x8;
   table.MinF32x16 := @NEONMinF32x16;
   table.MinF32x8 := @NEONMinF32x8;
   {$ENDIF}
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.MinF64x2 := @NEONMinF64x2;
+  {$ENDIF}
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.MinF64x4 := @NEONMinF64x4;
   table.MinF64x8 := @NEONMinF64x8;

@@ -4974,3 +4974,27 @@
   - 这批收掉的不只是 4 个 narrow `F64x2` published slot，更是把 `Floor/Ceil` 与 `Round/Trunc` 的 no-asm fallback 架构真正拆回了“dead wrapper vs necessary source companion”的正确边界
   - `NEON wrapper_only` 已从上一批的 `63` 再降到 `59`
   - 接下来的高价值残余更集中在 `Clamp/Max/Min/ReduceMax/ReduceMinF64x2` 这条真正还带本地次序/NaN/signed-zero 语义争议的链上
+
+## 2026-05-16 NEON No-Asm Narrow F64 Min/Max Findings
+
+- `Max/MinF64x2` 和上一批 `Round/TruncF64x2` 的结构相似，但又比 `ReduceMax/ReduceMinF64x2` 更适合先收：
+  - `src/fafafa.core.simd.neon.scalar.autowrap.inc` 里，`NEONMax/MinF64x4` 仍明确消费 `NEONMax/MinF64x2`
+  - 所以 `Max/MinF64x2` 不是 dead wrapper，只能做“保留 source companion、收回 published slot ownership”
+  - 相比之下，`ReduceMax/ReduceMinF64x2` 仍是单点 reduction 语义，不适合和 `Min/Max` 一批混改
+- 这批的正确收法不是继续保留一份本地 `if a > b then ... else ...` / `if a < b then ... else ...` no-asm 副本，而是把窄 wrapper 直接收正成 exact scalar truth：
+  - `NEONMaxF64x2` -> `Result := ScalarMaxF64x2(a, b);`
+  - `NEONMinF64x2` -> `Result := ScalarMinF64x2(a, b);`
+  - 然后把 `table.MaxF64x2` / `table.MinF64x2` 收回 asm-only 绑定，让 no-asm runtime 自动复用 base scalar slot
+- dedicated `DispatchAPI` 护栏的价值在于同时固定三层 truth：
+  - `NEONMaxF64x2/NEONMinF64x2` wrapper 仍在 `autowrap` 中，说明 source companion 没断
+  - 它们的 body 已精确对齐 `ScalarMax/MinF64x2`
+  - `NEONMax/MinF64x4` 仍继续消费窄 companion，而 no-asm runtime 下 `sbNEON.Max/MinF64x2` 已复用 scalar slot
+- 本批 fresh 结果：
+  - `backend=neon` truthfulness：`assignments=342 asm_exact=275 asm_suffix_only=10 wrapper_only=57 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `backend=riscvv` truthfulness：`assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `TTestCase_DispatchAPI`、`TTestCase_IEEE754EdgeCases`、`check`、`gate` 全绿；`gate` 最终仍是 `GATE OK`
+- 关键结论：
+  - `NEON wrapper_only` 已从上一批的 `59` 再降到 `57`
+  - `Max/MinF64x2` 这对已从 no-asm fake backend-owned published slot 收口完毕
+  - 下一批最高价值 residual 可以继续锁定 `ReduceMaxF64x2/ReduceMinF64x2`，但应单独审它们和 scalar `Math.Max/Min` 的 NaN/次序边界，不要再和 `Min/Max` 混批

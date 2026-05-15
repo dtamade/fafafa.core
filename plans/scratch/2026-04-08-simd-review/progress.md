@@ -5759,3 +5759,44 @@
   - Release `gate` 最终 `GATE OK`
   - `run_all` 过滤链结果仍为 `Total: 5 Passed: 5 Failed: 0`
   - `NEON wrapper_only` 从上一批的 `63` 再降到 `59`
+
+## 2026-05-16 NEON No-Asm Narrow F64 Min/Max Slot/Fallback Alignment
+
+- 接着上一批 `Round/TruncF64x2` 收口继续扫 `F64` residual 时，先重新核对了 `Max/Min` 与 `ReduceMax/ReduceMin` 的 source role：
+  - `NEONMax/MinF64x4` 仍通过 `NEONMax/MinF64x2` 组装，所以 `Max/MinF64x2` 只能保留为 source companion
+  - `ReduceMax/ReduceMinF64x2` 仍是另一条高风险 reduction 语义链，本批不混入
+- 已完成代码修正：
+  - `src/fafafa.core.simd.neon.scalar.autowrap.inc`
+    - `NEONMaxF64x2` 改成 `Result := ScalarMaxF64x2(a, b);`
+    - `NEONMinF64x2` 改成 `Result := ScalarMinF64x2(a, b);`
+  - `src/fafafa.core.simd.neon.register.inc`
+    - `table.MaxF64x2 := @NEONMaxF64x2;`
+    - `table.MinF64x2 := @NEONMinF64x2;`
+    - 以上 2 个绑定都已收进 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}`
+  - `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+    - 从 `ALLOWED_WRAPPER_SLOTS_BY_BACKEND['neon']` 删除 `MaxF64x2/MinF64x2`
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 新增 `Test_NEON_NoAsmNarrowF64MinMaxSlots_Keep_SourceCompanion_But_Reuse_BaseScalar`
+    - 断言 `NEONMax/MinF64x2` wrapper 仍在且 body 已精确对齐 `ScalarMax/MinF64x2`
+    - 断言 `NEONMax/MinF64x4` 仍继续消费窄 companion
+    - 断言 no-asm runtime 下 `sbNEON.Max/MinF64x2` slot 全部复用 scalar
+- 本批静态与 checker 复核：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+  - 结果：
+    - `backend=neon assignments=342 asm_exact=275 asm_suffix_only=10 wrapper_only=57 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+    - `backend=riscvv assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+- 本批 release 复验链全部通过：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IEEE754EdgeCases`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 本批关键结果：
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok`
+  - Release `gate` 最终 `GATE OK`
+  - `run_all` 过滤链结果仍为 `Total: 5 Passed: 5 Failed: 0`
+  - `NEON wrapper_only` 从上一批的 `59` 再降到 `57`
+  - 收口前已清理 `tests/fafafa.core.simd/__pycache__/`

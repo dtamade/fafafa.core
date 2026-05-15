@@ -152,6 +152,7 @@ type
     procedure Test_NEON_NoAsmWideF32x8ArithmeticSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_NEON_NoAsmWideLeafFloatArithmeticSlots_Keep_SourceCompanions_But_Reuse_BaseScalar;
     procedure Test_NEON_NoAsmWideMinMaxSlots_Keep_Necessary_Wrappers_But_Reuse_BaseScalar;
+    procedure Test_NEON_NoAsmNarrowF64MinMaxSlots_Keep_SourceCompanion_But_Reuse_BaseScalar;
     procedure Test_NEON_NoAsmNarrowF64SqrtSlot_Keep_SourceCompanion_But_Reuse_BaseScalar;
     procedure Test_NEON_NoAsmNarrowF64RoundFamilySlots_Keep_Only_Necessary_SourceCompanions_And_Reuse_BaseScalar;
     procedure Test_NEON_NoAsmWideSqrtSlots_Keep_Only_Consumed_Companions_And_Reuse_BaseScalar;
@@ -7237,6 +7238,88 @@ begin
   AssertSlotReusesScalar('MinF32x8', Pointer(LScalarTable.MinF32x8), Pointer(LNEONTable.MinF32x8));
   AssertSlotReusesScalar('MinF64x4', Pointer(LScalarTable.MinF64x4), Pointer(LNEONTable.MinF64x4));
   AssertSlotReusesScalar('MinF64x8', Pointer(LScalarTable.MinF64x8), Pointer(LNEONTable.MinF64x8));
+end;
+
+procedure TTestCase_DispatchAPI.Test_NEON_NoAsmNarrowF64MinMaxSlots_Keep_SourceCompanion_But_Reuse_BaseScalar;
+var
+  LScalarTable: TSimdDispatchTable;
+  LNEONTable: TSimdDispatchTable;
+  LSourceLines: TStringList;
+  LRegisterSourcePath: string;
+  LAutowrapSourcePath: string;
+  LRegisterSource: string;
+  LAutowrapSource: string;
+
+  procedure AssertScalarAlignedWrapper(const aLabel, aSignatureSnippet, aBodySnippet: string);
+  begin
+    AssertTrue(aLabel + ' source companion should remain in the NEON scalar autowrap include',
+      Pos(LowerCase(aSignatureSnippet), LAutowrapSource) > 0);
+    AssertTrue(aLabel + ' should now align exactly with the scalar F64x2 min/max semantics in no-asm builds',
+      Pos(LowerCase(aBodySnippet), LAutowrapSource) > 0);
+  end;
+
+  procedure AssertSourceConsumerStillPresent(const aLabel, aSignatureSnippet, aBodySnippet: string);
+  begin
+    AssertTrue(aLabel + ' should remain in the NEON scalar autowrap include as the narrow F64x2 source consumer',
+      Pos(LowerCase(aSignatureSnippet), LAutowrapSource) > 0);
+    AssertTrue(aLabel + ' should still consume the narrow F64x2 companion in the no-asm fallback graph',
+      Pos(LowerCase(aBodySnippet), LAutowrapSource) > 0);
+  end;
+
+  procedure AssertAsmBindingStillPresent(const aLabel, aSnippet: string);
+  begin
+    AssertTrue('RegisterNEONBackend should still keep the asm-enabled binding source for ' + aLabel,
+      Pos(LowerCase(aSnippet), LRegisterSource) > 0);
+  end;
+
+  procedure AssertSlotReusesScalar(const aLabel: string; const aScalarSlot, aBackendSlot: Pointer);
+  begin
+    AssertEquals('NEON ' + aLabel + ' should reuse the base scalar slot when the no-asm narrow F64 min/max wrapper only remains as a source companion for wider fallback graphs',
+      PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
+  end;
+begin
+  {$IFDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
+  Exit;
+  {$ENDIF}
+
+  LSourceLines := TStringList.Create;
+  try
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.register.inc');
+    AssertTrue('NEON register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
+      FileExists(LRegisterSourcePath));
+    LSourceLines.LoadFromFile(LRegisterSourcePath);
+    LRegisterSource := LowerCase(LSourceLines.Text);
+
+    LAutowrapSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.scalar.autowrap.inc');
+    AssertTrue('NEON scalar autowrap source should exist for implementation-shape audit: ' + LAutowrapSourcePath,
+      FileExists(LAutowrapSourcePath));
+    LSourceLines.LoadFromFile(LAutowrapSourcePath);
+    LAutowrapSource := LowerCase(LSourceLines.Text);
+  finally
+    LSourceLines.Free;
+  end;
+
+  AssertScalarAlignedWrapper('NEONMaxF64x2', 'function NEONMaxF64x2(', 'Result := ScalarMaxF64x2(a, b);');
+  AssertScalarAlignedWrapper('NEONMinF64x2', 'function NEONMinF64x2(', 'Result := ScalarMinF64x2(a, b);');
+  AssertSourceConsumerStillPresent('NEONMaxF64x4', 'function NEONMaxF64x4(', 'Result.lo := NEONMaxF64x2(a.lo, b.lo);');
+  AssertSourceConsumerStillPresent('NEONMinF64x4', 'function NEONMinF64x4(', 'Result.lo := NEONMinF64x2(a.lo, b.lo);');
+
+  AssertAsmBindingStillPresent('MaxF64x2', 'table.MaxF64x2 := @NEONMaxF64x2;');
+  AssertAsmBindingStillPresent('MinF64x2', 'table.MinF64x2 := @NEONMinF64x2;');
+
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND}
+  AssertTrue('NEON opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable) then
+    Exit;
+  {$ENDIF}
+
+  AssertSlotReusesScalar('MaxF64x2', Pointer(LScalarTable.MaxF64x2), Pointer(LNEONTable.MaxF64x2));
+  AssertSlotReusesScalar('MinF64x2', Pointer(LScalarTable.MinF64x2), Pointer(LNEONTable.MinF64x2));
 end;
 
 procedure TTestCase_DispatchAPI.Test_NEON_NoAsmNarrowF64SqrtSlot_Keep_SourceCompanion_But_Reuse_BaseScalar;
