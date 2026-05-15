@@ -3348,3 +3348,17 @@
 | 1. 复核 `F32x16/F64x8 Add/Sub/Mul/Div` 的 source role | completed | 已确认这 8 个 wrapper 位于 `scalar.autowrap.inc`，在 asm build 也承担宽向量组合 owner，因此不能像 `F32x8` 那样直接删除；但它们的 no-asm 路径只是在更小宽度 helper 上做组合，不该继续占据发布后的 `NEON` slot |
 | 2. 改成 asm-only binding，保留 source companion | completed | 已把 `register.inc` 中 `Add/Sub/Mul/DivF32x16` 与 `Add/Sub/Mul/DivF64x8` 改成 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}` 绑定；`scalar.autowrap.inc` 中 wrapper 全部保留，继续供 asm build 的宽向量组合 owner 使用 |
 | 3. 补 source/runtime 护栏并串行 release 复验 | completed | `dispatchapi` 已新增 `Test_NEON_NoAsmWideLeafFloatArithmeticSlots_Keep_SourceCompanions_But_Reuse_BaseScalar`，断言 source companion 仍在、asm binding source 仍在、no-asm runtime slot 复用 scalar；两处通用 `Add/Sub/Mul/DivF32x16/F64x8` capability 断言也已从“总是 native”收正为“NEON 复用 scalar、其余 backend 仍要求 native”；fresh `git diff --check`、`DispatchAPI`、`truthfulness --backend neon/riscvv --strict`、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 全部通过 |
+
+## 2026-05-15 NEON No-Asm Wide Sqrt Slot-Ownership Cleanup
+
+### Goal
+
+继续沿同一 slot-ownership truth 线收正 `NEON` no-asm 的 wide `Sqrt`：`SqrtF32x8`、`SqrtF32x16`、`SqrtF64x4`、`SqrtF64x8`。其中 dead wrapper 要删除，仍被更宽 no-asm graph 消费的 source companion 要保留；但这 4 个 runtime slot 在 no-asm 下都不应继续伪装成 backend-owned。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `Sqrt` 候选的 source role 与消费面 | completed | 已确认 `NEONSqrtF32x8/F32x16/F64x8` 在 no-asm 下只是 exact scalar/leaf 组合且无其他 live source consumer，属于可删 dead wrapper；`NEONSqrtF64x4` 虽然 no-asm runtime slot 也应回落到 scalar，但它仍被 `NEONSqrtF64x8` 的 no-asm source graph 消费，因此只能保留为 source companion |
+| 2. 改成 asm-only binding，并只删除真正 dead 的 no-asm wrapper | completed | 已把 `src/fafafa.core.simd.neon.register.inc` 中 `SqrtF32x8/F32x16/F64x4/F64x8` 改成 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}` 绑定；已从 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 删除 `NEONSqrtF32x8/F32x16/F64x8` 的 no-asm dead wrapper，保留 `NEONSqrtF64x4` 作为仍被消费的 source companion；`SqrtF64x2` 保持原样 |
+| 3. 补 source/runtime/helper 护栏并串行 release 复验 | completed | `dispatchapi` 已新增 `Test_NEON_NoAsmWideSqrtSlots_Keep_Only_Consumed_Companions_And_Reuse_BaseScalar`；两处通用 `SqrtF32x8/F32x16/F64x4/F64x8` capability 断言已从“总是 native”收正为“NEON 复用 scalar、其余 backend 仍要求 native”；`check_nonx86_helper_semantics.py` 已把 `NEONSqrtF32x8/F32x16/F64x8` 改成 absent guard；fresh `git diff --check`、`py_compile`、helper semantics、`DispatchAPI`、`truthfulness --backend neon/riscvv --strict`、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 全部通过；helper summary 现为 `checks=601`，`NEON` truthfulness 现为 `assignments=357 asm_exact=233 asm_suffix_only=10 wrapper_only=114 miswired=0 conflicting_assign=0`，`gate` 尾部为 `GATE OK`，仅诚实保留 optional non-x86 native evidence skip 与历史 `windows_b07_gate.log` evidence skip |

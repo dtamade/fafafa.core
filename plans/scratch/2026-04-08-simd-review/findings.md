@@ -258,6 +258,24 @@
 - 原位置现在只保留跳转占位，不再承载正文。
 - `docs/fafafa.core.simd.md` 与 `src/fafafa.core.simd.README.md` 已补充 legacy 导流，避免读者再次把历史快照当成 active truth source。
 
+## 2026-05-15 NEON No-Asm Wide Sqrt Findings
+
+- `NEON` wide `Sqrt` 这批不能机械套用上一批 `Add/Sub/Mul/Div` 的模式，必须先区分“dead wrapper”和“仍被 source graph 消费的 companion”。
+- `NEONSqrtF32x8`、`NEONSqrtF32x16`、`NEONSqrtF64x8` 在 no-asm 下都只是 exact scalar/leaf 组合，而且全仓没有其他 live source consumer；它们既不该继续占据 `NEON` runtime slot，也没有继续保留 no-asm wrapper 的必要。
+- `NEONSqrtF64x4` 则不同：虽然它的 no-asm runtime slot 同样不该继续伪装成 backend-owned，但 `NEONSqrtF64x8` 的 no-asm source graph 仍会消费它，所以它不是 dead wrapper，只能收回 slot ownership，不能把 source companion 一并删掉。
+- 这批再次证明“删 wrapper”和“slot 回 scalar”是两件不同的事：
+  - `F32x8/F32x16/F64x8`：dead wrapper，可删源码壳，slot 也回落到 scalar
+  - `F64x4`：source companion 仍有消费面，只能把 no-asm published slot 收回 scalar
+- 正确收法是让 `src/fafafa.core.simd.neon.register.inc` 中 `SqrtF32x8/F32x16/F64x4/F64x8` 只在 `FAFAFA_SIMD_NEON_ASM_ENABLED` 下绑定，同时把 `scalar.autowrap.inc` 中 3 个 dead wrapper 删掉，保留 `NEONSqrtF64x4`。
+- `dispatchapi` 两处旧 capability 断言此前把这 4 个 wide `Sqrt` 一概视为 native-slot，这和当前更诚实的 no-asm truth 冲突；现在已统一改成“NEON 复用 scalar、其余 backend 仍要求 native”。
+- fresh 现场数据继续支持这是实质性收正，不是只改注释：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=601 status=ok`
+  - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=neon assignments=357 asm_exact=233 asm_suffix_only=10 wrapper_only=114 scalar_passthrough=0 no_def=0 miswired=0 strict=1`
+  - `backend=riscvv` 继续保持 `assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 miswired=0`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok`
+  - Release `check` / `gate` 全部通过，`gate` 最终明确到 `GATE OK`
+- 下一批仍不建议直接机械扩到 `Round/Trunc/Clamp`；`Min/Max` 如果要继续做，也必须先重新审 `NaN/compare/ordering` 语义，而不是按 `Sqrt` 套模板。
+
 ## 2026-05-13 Mid/Wide Integer Facade Guard Findings
 
 - `VecI64x4AndNot/CmpLe/CmpGe/CmpNe`、`VecI32x16AndNot/CmpLe/CmpGe/CmpNe`、`VecU32x16AndNot/CmpLe/CmpGe/CmpNe` 都是当前 `src/fafafa.core.simd.pas` 真实公开的 façade contract，不是误补 API。

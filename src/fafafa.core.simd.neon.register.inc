@@ -491,11 +491,15 @@ begin
   table.ShiftRightI16x8 := @NEONShiftRightI16x8;
   table.ShiftRightU16x8 := @NEONShiftRightU16x8;
   table.SplatF64x2 := @NEONSplatF64x2;
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.SqrtF32x16 := @NEONSqrtF32x16;
   table.SqrtF32x8 := @NEONSqrtF32x8;
+  {$ENDIF}
   table.SqrtF64x2 := @NEONSqrtF64x2;
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.SqrtF64x4 := @NEONSqrtF64x4;
   table.SqrtF64x8 := @NEONSqrtF64x8;
+  {$ENDIF}
   table.StoreF64x2 := @NEONStoreF64x2;
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.SubF32x16 := @NEONSubF32x16;
