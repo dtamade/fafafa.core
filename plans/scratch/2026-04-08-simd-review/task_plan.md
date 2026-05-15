@@ -3390,3 +3390,17 @@
 | 1. 复核 `Clamp` 的 no-asm 语义与消费面 | completed | 已确认 `NEONClampF32x8/F32x16` 在 no-asm 下只是 `NEONClampF32x4` 的分段 forwarder，而 `NEONClampF32x4` 本身又是 exact `ScalarClampF32x4`；同时本地 Pascal probe 已证明 `NEONClampF64x2` 的 no-asm `if/else` loop 与 `ScalarClampF64x2` 在 `NaN` 和 `-0` witness 上不一致，因此 `F64x2/F64x4/F64x8` 不能一起回 scalar |
 | 2. 改成部分 asm-only binding，并只删除真正 dead 的 no-asm wrapper | completed | 已把 `src/fafafa.core.simd.neon.register.inc` 中 `ClampF32x8/F32x16` 改成 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}` 绑定；保留 `ClampF64x2/F64x4/F64x8` 的 backend-owned register 绑定；已从 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 删除 `NEONClampF32x8/F32x16` dead wrapper，保留 `NEONClampF64x2/F64x4/F64x8` |
 | 3. 补 source/runtime/helper 护栏并串行 release 复验 | completed | `dispatchapi` 已新增 `Test_NEON_NoAsmWideClampSlots_Reuse_BaseScalar_Only_For_F32Forwarders_And_Keep_F64LocalFallback`，断言 `F32x8/F32x16` dead wrapper 缺席、asm binding source 仍在、运行时 slot 复用 scalar，同时用 `ClampF64x2` 的 `NaN/-0` witness 钉住 `F64` 链为何继续 backend-owned；两处通用 `ClampF32x8/F32x16` capability 断言已从“总是 native”收正为“NEON 复用 scalar、其余 backend 仍要求 native”；`check_nonx86_helper_semantics.py` 已把 `NEONClampF32x8/F32x16` 改成 absent guard；fresh `git diff --check`、helper semantics、`DispatchAPI`、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 全部通过；helper summary 更新为 `checks=605`，`NEON` truthfulness 更新为 `assignments=357 asm_exact=239 asm_suffix_only=10 wrapper_only=108 miswired=0 conflicting_assign=0`，`gate` 尾部为 `GATE OK`，仍只诚实保留 optional non-x86 native evidence skip 与历史 `windows_b07_gate.log` evidence skip |
+
+## 2026-05-15 Register Truthfulness Allowlist Hygiene Tightening
+
+### Goal
+
+把 `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py` 自己的 `NEON` wrapper allowlist 收回到当前真实状态，并把 “allowlist 比现实更宽” 也纳入 fail-close，避免后续已经修掉的 slot 名字继续留在豁免名单里。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核真实 `wrapper_only` 集合与 allowlist 差值 | completed | 已确认当前 `NEON` allowlist 有 `134` 项，但真实 `wrapper_only` 只有 `108` 个唯一 slot，存在 `26` 个 stale allowlist 名字；`RISCVV` 当前 `26/26` 完全对齐，没有旧豁免残留 |
+| 2. 收紧 `NEON` allowlist 并把 stale allowlist 变成 fail-close | completed | 已从 `ALLOWED_WRAPPER_SLOTS_BY_BACKEND['neon']` 删除 `ClampF32x8/F32x16`、`LoadF32x8/F32x16/F64x4/F64x8`、`Min/MaxF32x8/F64x4`、`Splat*`、`Sqrt*`、`Store*`、`Zero*` 这 26 个旧名字；report 现新增 `unused_allowlist_count/slots`，只要 allowlist 宽于当前真实 `wrapper_only` 集合就直接失败 |
+| 3. 更新 scratch 并串行 release 复验 | completed | 已同步更新 scratch 三件套，并完成 `git diff --check`、`py_compile`、`truthfulness --backend neon/riscvv --strict`、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate`；fresh 结果里 `unused_allowlist=0`（neon/riscvv）且 `gate` 尾部仍只剩 optional non-x86 native evidence skip 与历史 `windows_b07_gate.log` evidence skip；提交前会清理 `tests/fafafa.core.simd/__pycache__/` |

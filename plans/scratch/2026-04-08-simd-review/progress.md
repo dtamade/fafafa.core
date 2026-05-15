@@ -5267,3 +5267,50 @@
     - non-x86 native evidence root not present
     - 历史 `windows_b07_gate.log` evidence verify 失败但仍为 optional
 - 收口前已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+## 2026-05-15 Register Truthfulness Allowlist Hygiene Tightening
+
+- 续接上一批 `Clamp` 收口后，先核对当前工作树，确认本轮开始时源码仍干净，只有 `tests/fafafa.core.simd/__pycache__/` 需要在收口前清理。
+- 继续深挖 `NEON wrapper_only` 余量时，发现更高价值的缺口已经不在 backend 代码，而在 `check_nonx86_register_truthfulness.py` 自己：
+  - 当前 `NEON` allowlist 有 `134` 项
+  - 当前真实 `wrapper_only` 只有 `108` 个唯一 slot
+  - `unused_allowlist=26`
+  - `RISCVV` 则是 `26/26` 完全对齐
+- 这说明 checker 还在对一批已经修掉的 `NEON` slot 过度宽容，属于“检查器比源码现实更松”的残余冗余。
+- 已完成代码修正：
+  - 从 `ALLOWED_WRAPPER_SLOTS_BY_BACKEND['neon']` 删除 26 个 stale allowlist 名字：
+    - `ClampF32x8/F32x16`
+    - `LoadF32x8/F32x16/F64x4/F64x8`
+    - `MinF32x8/F64x4`
+    - `MaxF32x8/F64x4`
+    - `SplatF32x8/F32x16/F64x4/F64x8`
+    - `SqrtF32x8/F32x16/F64x4/F64x8`
+    - `StoreF32x8/F32x16/F64x4/F64x8`
+    - `ZeroF32x8/F32x16/F64x4/F64x8`
+  - checker report 新增：
+    - `allowed_wrapper_slot_count`
+    - `current_wrapper_only_slot_count`
+    - `current_wrapper_only_slots`
+    - `unused_allowlist_count`
+    - `unused_allowlist_slots`
+  - `render_summary_line` 与 human report 都已输出 `unused_allowlist`
+  - `ok/exit_code` 现在同时要求：
+    - `miswired_count == 0`
+    - `unused_allowlist_count == 0`
+- 这次收口的目标不是压低 `wrapper_only` 数字，而是把 allowlist 卫生也变成自动门禁，防止以后再出现“代码已修，豁免名单却没收”的假绿。
+- 本批 fresh 复验已经完成：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 当前结果：
+  - `backend=neon` truthfulness：`assignments=357 asm_exact=239 asm_suffix_only=10 wrapper_only=108 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `backend=riscvv` truthfulness：`assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `check` 继续为绿
+  - Release `gate` 继续为绿，尾部结论不变：
+    - non-x86 native evidence root not present -> optional `SKIP`
+    - 历史 `windows_b07_gate.log` evidence verify 失败 -> optional `SKIP`

@@ -239,6 +239,27 @@
 
 这些文件当前不该再进入 active reading path；如果要进一步卫生整理，优先移动/归档，而不是先删除。
 
+## 2026-05-15 Register Truthfulness Allowlist Hygiene Gap
+
+- 当前最值当的新问题不在 `NEON` backend 代码本身，而在 `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py` 的 `ALLOWED_WRAPPER_SLOTS_BY_BACKEND['neon']` 仍保留了过多旧豁免。
+- 实测当前 `NEON` allowlist 有 `134` 项，但按 checker 自己的实时分类口径，真实 `wrapper_only` 只有 `108` 个唯一 slot；两者之间多出的 `26` 项全部是已经在前几批里收正过的名字。
+- 这 26 个 stale allowlist 名字是：
+  - `ClampF32x8/F32x16`
+  - `LoadF32x8/F32x16/F64x4/F64x8`
+  - `MinF32x8/F64x4`
+  - `MaxF32x8/F64x4`
+  - `SplatF32x8/F32x16/F64x4/F64x8`
+  - `SqrtF32x8/F32x16/F64x4/F64x8`
+  - `StoreF32x8/F32x16/F64x4/F64x8`
+  - `ZeroF32x8/F32x16/F64x4/F64x8`
+- `RISCVV` allowlist 当前是干净的：`26` 个允许项和 `26` 个真实 `wrapper_only` slot 完全一致，没有 stale allowlist。
+- 这类 stale allowlist 的风险不是“数字难看”，而是 checker 会继续把已经修掉的 `NEON` fake backend-owned slot 视为合法例外；后续若有人把这些名字重新绑回 wrapper，truthfulness checker 可能第一时间抓不出来。
+- 因此 checker 自己也需要 fail-close：
+  - 允许项必须是“当前真实仍然 unavoidable 的 wrapper-only slot”
+  - `allowed_wrapper_slots - current_wrapper_only_slots` 只要非空，就说明 allowlist 落后于源码真相，应该直接报错而不是悄悄放过
+- 这批修完后，`unused_allowlist_count` 应回到 `0`；以后这项也应该作为 summary 和 human report 的固定输出，避免 allowlist 又悄悄膨胀。
+- fresh 修复后，`NEON` 与 `RISCVV` 的 truthfulness summary 都已回到 `unused_allowlist=0`；说明 allowlist 已重新与当前真实 slot ownership 对齐。
+
 ### Cleanup candidates
 
 - `docs/INDEX.md` 先前声称 `simd` 专题文档已归位到 `docs/simd/`，这已经修正为模块级顶层文档 + `docs/legacy/simd/` 历史草案入口。

@@ -43,27 +43,24 @@ ALLOWED_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
         "SelectF32x4",
         "AddF32x16", "AddF64x4", "AddF64x8",
         "CeilF64x2",
-        "ClampF32x16", "ClampF32x8", "ClampF64x2", "ClampF64x4", "ClampF64x8",
+        "ClampF64x2", "ClampF64x4", "ClampF64x8",
         "DivF32x16", "DivF64x4", "DivF64x8",
         "FloorF64x2",
         "LoadF64x2",
-        "MaxF32x16", "MaxF32x8", "MaxF64x2", "MaxF64x4", "MaxF64x8",
-        "MinF32x16", "MinF32x8", "MinF64x2", "MinF64x4", "MinF64x8",
+        "MaxF32x16", "MaxF64x2", "MaxF64x8",
+        "MinF32x16", "MinF64x2", "MinF64x8",
         "MulF32x16", "MulF64x4", "MulF64x8",
         "ReduceAddF64x2", "ReduceMaxF64x2", "ReduceMinF64x2", "ReduceMulF64x2",
         "RoundF32x16", "RoundF32x8", "RoundF64x2", "RoundF64x4", "RoundF64x8",
         "SplatF64x2",
-        "SqrtF32x16", "SqrtF32x8", "SqrtF64x2", "SqrtF64x4", "SqrtF64x8",
+        "SqrtF64x2",
         "StoreF64x2",
         "SubF32x16", "SubF64x4", "SubF64x8",
         "TruncF32x16", "TruncF32x8", "TruncF64x2", "TruncF64x4", "TruncF64x8",
-        "ZeroF32x16", "ZeroF32x8", "ZeroF64x2", "ZeroF64x4", "ZeroF64x8",
+        "ZeroF64x2",
         "AndNotI8x16", "AndNotU16x8", "AndNotU8x16",
-        "LoadF32x16", "LoadF32x8", "LoadF64x4", "LoadF64x8",
         "SelectF32x16", "SelectF32x8", "SelectF64x4", "SelectF64x8", "SelectI32x4",
         "ShiftLeftI16x8", "ShiftLeftU16x8", "ShiftRightArithI16x8", "ShiftRightI16x8", "ShiftRightU16x8",
-        "SplatF32x16", "SplatF32x8", "SplatF64x4", "SplatF64x8",
-        "StoreF32x16", "StoreF32x8", "StoreF64x4", "StoreF64x8",
     } | NEON_WIDE_COMPARE_WRAPPER_SLOTS,
     "riscvv": {
         "AndNotI64x2", "AndNotI8x16", "AndNotU16x8", "AndNotU64x2",
@@ -434,6 +431,7 @@ def render_summary_line(a_result: dict[str, Any]) -> str:
         f"scalar_passthrough={a_result['scalar_passthrough_count']} "
         f"no_def={a_result['no_def_count']} "
         f"miswired={a_result['miswired_count']} "
+        f"unused_allowlist={a_result['unused_allowlist_count']} "
         f"strict={1 if a_result['strict'] else 0}"
     )
 
@@ -449,7 +447,13 @@ def print_human_result(a_result: dict[str, Any]) -> None:
     print(f"  - scalar passthrough:  {a_result['scalar_passthrough_count']}")
     print(f"  - no definition:       {a_result['no_def_count']}")
     print(f"  - miswired:            {a_result['miswired_count']}")
+    print(f"  - unused allowlist:    {a_result['unused_allowlist_count']}")
     print(f"  - conflicting assign:  {a_result['conflicting_assignment_count']}")
+
+    if a_result["unused_allowlist_slots"]:
+        print("[REG-TRUTH] Unused allowlist slots:")
+        for l_slot in a_result["unused_allowlist_slots"]:
+            print(f"  - {l_slot}")
 
     if a_result["miswired_slots"]:
         print("[REG-TRUTH] Miswired slots:")
@@ -539,6 +543,15 @@ def build_report(a_config: CheckerConfig, a_strict: bool) -> dict[str, Any]:
         if l_record["reasons"] or l_record["conflicts"]
     ]
     l_conflicting_assignment_count = sum(1 for l_record in l_assignment_records if l_record["conflicts"])
+    l_allowed_wrapper_slots = ALLOWED_WRAPPER_SLOTS_BY_BACKEND.get(a_config.backend, set())
+    l_current_wrapper_only_slots = sorted(
+        {
+            l_record["slot"]
+            for l_record in l_assignment_records
+            if l_record["classification"] == "wrapper_only"
+        }
+    )
+    l_unused_allowlist_slots = sorted(l_allowed_wrapper_slots.difference(l_current_wrapper_only_slots))
 
     l_result: dict[str, Any] = {
         "backend": a_config.backend,
@@ -555,10 +568,15 @@ def build_report(a_config: CheckerConfig, a_strict: bool) -> dict[str, Any]:
         "scalar_forwarder_count": l_counts["scalar_forwarder_count"],
         "pascal_owned_count": l_counts["pascal_owned_count"],
         "miswired_count": len(l_miswired),
+        "allowed_wrapper_slot_count": len(l_allowed_wrapper_slots),
+        "current_wrapper_only_slot_count": len(l_current_wrapper_only_slots),
+        "current_wrapper_only_slots": l_current_wrapper_only_slots,
+        "unused_allowlist_count": len(l_unused_allowlist_slots),
+        "unused_allowlist_slots": l_unused_allowlist_slots,
         "conflicting_assignment_count": l_conflicting_assignment_count,
         "miswired_slots": l_miswired,
     }
-    l_result["ok"] = l_result["miswired_count"] == 0
+    l_result["ok"] = (l_result["miswired_count"] == 0) and (l_result["unused_allowlist_count"] == 0)
     l_result["exit_code"] = 0 if l_result["ok"] else 1
     return l_result
 
