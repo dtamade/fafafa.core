@@ -48,10 +48,12 @@ begin
   table.DivF32x4 := @NEONDivF32x4;
 
   // Arithmetic operations - F32x8 (emulated via 2x F32x4)
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.AddF32x8 := @NEONAddF32x8;
   table.SubF32x8 := @NEONSubF32x8;
   table.MulF32x8 := @NEONMulF32x8;
   table.DivF32x8 := @NEONDivF32x8;
+  {$ENDIF}
 
   // Arithmetic operations - F64x2
   table.AddF64x2 := @NEONAddF64x2;

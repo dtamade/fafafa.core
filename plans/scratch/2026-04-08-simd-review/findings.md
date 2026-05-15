@@ -4558,3 +4558,35 @@
   - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok`
   - Release `check` / `gate` 继续通过
   - `gate` 尾部结论没有变化：仍只剩 optional non-x86 native evidence skip 与历史 Windows evidence skip
+
+## 2026-05-15 NEON No-Asm F32x8 Arithmetic Dead-Wrapper Cleanup
+
+- `Add/Sub/Mul/DivF32x8` 是比 `Add/Sub/Mul/DivF32x4` 更适合马上下手的一簇：
+  - `src/fafafa.core.simd.neon.scalar_fallback.inc` 里的 no-asm 版本都只是 exact `Scalar*F32x8` forwarder
+  - `src/fafafa.core.simd.neon.pas` 里同名函数仍然有真实 asm owner
+  - 全仓源码检索确认没有任何更宽 no-asm 组合路径继续消费 `NEONAdd/Sub/Mul/DivF32x8`
+- 这和 `NEONAdd/Sub/Mul/DivF32x4` 的关键差别在于：
+  - `F32x4` 仍被 `NEONAdd/Sub/Mul/DivF32x16` no-asm 组合路径引用
+  - `F32x8` 则已经是 no-asm source graph 的叶子，slot 之外再无 live consumer
+- 因此这批可以采用和 `Fma/Rcp` 相同的最干净治理：
+  - `register.inc` 中 `Add/Sub/Mul/DivF32x8` 改成 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}` 绑定
+  - `scalar_fallback.inc` 中 4 个 no-asm dead wrapper 直接删除
+  - no-asm runtime 下由 `FillBaseDispatchTable` 提供 scalar slot
+- 这批还暴露出一个之前漏收的测试口径问题：
+  - `dispatchapi` 两处通用 capability 断言此前仍把 `Add/Sub/Mul/DivF32x8` 写成“non-x86 总是 native slot”
+  - 这与当前更诚实的 no-asm truth 冲突
+  - 已同步改成和 `Abs/Floor/Ceil` 一样的口径：
+    - `NEON` 在 no-asm 下复用 scalar slot
+    - 其他 backend 仍要求 native slot
+- 专门护栏也已补上：
+  - `Test_NEON_NoAsmWideF32x8ArithmeticSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders`
+  - 它断言：
+    - `scalar_fallback.inc` 中 4 个 dead wrapper 缺席
+    - `register.inc` 中 asm binding source 仍在
+    - 运行时 `sbNEON` 的 `Add/Sub/Mul/DivF32x8` slot 都与 scalar slot 相等
+- fresh 结果表明这批是 runtime/source/checker 三线一致的收正：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=598 status=ok`
+  - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=neon assignments=357 asm_exact=229 asm_suffix_only=10 wrapper_only=118 scalar_passthrough=0 no_def=0 miswired=0 strict=1`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 通过
+  - Release `check` / `gate` 继续通过，尾部仍只剩 optional non-x86 native evidence skip 与历史 Windows evidence skip

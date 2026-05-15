@@ -220,18 +220,6 @@ def main() -> int:
         (neon_scalar_fallback_source, "NEONDivF32x4", [
             "Result := ScalarDivF32x4(a, b);",
         ]),
-        (neon_scalar_fallback_source, "NEONAddF32x8", [
-            "Result := ScalarAddF32x8(a, b);",
-        ]),
-        (neon_scalar_fallback_source, "NEONSubF32x8", [
-            "Result := ScalarSubF32x8(a, b);",
-        ]),
-        (neon_scalar_fallback_source, "NEONMulF32x8", [
-            "Result := ScalarMulF32x8(a, b);",
-        ]),
-        (neon_scalar_fallback_source, "NEONDivF32x8", [
-            "Result := ScalarDivF32x8(a, b);",
-        ]),
         (neon_scalar_fallback_source, "NEONAddF64x2", [
             "Result := ScalarAddF64x2(a, b);",
         ]),
@@ -1043,6 +1031,10 @@ def main() -> int:
         (neon_scalar_autowrap_source, "NEONReduceMulF32x8"),
         (neon_scalar_autowrap_source, "NEONReduceMulF64x4"),
         (neon_scalar_autowrap_source, "NEONReduceMulF64x8"),
+        (neon_scalar_fallback_source, "NEONAddF32x8"),
+        (neon_scalar_fallback_source, "NEONSubF32x8"),
+        (neon_scalar_fallback_source, "NEONMulF32x8"),
+        (neon_scalar_fallback_source, "NEONDivF32x8"),
         (neon_scalar_ext_math_source, "NEONRcpF32x4"),
         (neon_scalar_ext_math_source, "NEONRsqrtF32x4"),
         (riscvv_source, "RISCVVNegF32x4"),

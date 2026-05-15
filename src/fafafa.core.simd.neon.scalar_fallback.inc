@@ -26,26 +26,6 @@ begin
   Result := ScalarDivF32x4(a, b);
 end;
 
-function NEONAddF32x8(const a, b: TVecF32x8): TVecF32x8;
-begin
-  Result := ScalarAddF32x8(a, b);
-end;
-
-function NEONSubF32x8(const a, b: TVecF32x8): TVecF32x8;
-begin
-  Result := ScalarSubF32x8(a, b);
-end;
-
-function NEONMulF32x8(const a, b: TVecF32x8): TVecF32x8;
-begin
-  Result := ScalarMulF32x8(a, b);
-end;
-
-function NEONDivF32x8(const a, b: TVecF32x8): TVecF32x8;
-begin
-  Result := ScalarDivF32x8(a, b);
-end;
-
 function NEONAddF64x2(const a, b: TVecF64x2): TVecF64x2;
 begin
   Result := ScalarAddF64x2(a, b);
