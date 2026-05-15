@@ -3236,3 +3236,17 @@
 | 1. 复核 shadowing 和 dead-wrapper 真相 | completed | 已确认 `src/fafafa.core.simd.neon.register.inc` 在 321-336 先绑 `@..._ASM`，但 465-548 又把 `Load/Store/Splat/Zero F32x8/F32x16/F64x4/F64x8` 无条件重绑到 `@NEON...`；同时这 16 个 `NEON...` wrapper 只剩 `scalar.autowrap.inc + register.inc` 两处，没有其他消费面 |
 | 2. 去掉后段覆盖并删除 16 个 dead wrapper | completed | 已从 `neon.register.inc` 删除这 16 条后段 wrapper rebinding，让 asm 路径不再被覆盖、no-asm 直接继承 `FillBaseDispatchTable` 的 base scalar slot；并从 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 删除对应 16 个 dead scalar-forwarder wrapper |
 | 3. 补严 source-side 护栏并串行 release 复验 | completed | `dispatchapi` 现已同时断言 `_ASM` binding 存在、后段 wrapper rebinding 缺席、autowrap dead wrapper 缺席；`check_nonx86_helper_semantics.py` 也新增这 16 个 absent guard；fresh `git diff --check`、`python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 全部通过，helper summary 更新到 `checks=557 status=ok`；最新 `freeze-status` 仍只红在 Windows evidence freshness / qemu cpuinfo evidence optional skip，`win-evidence-preflight` 继续被 `RECENT_BILLING_BLOCK` 外部阻塞 |
+
+## 2026-05-15 Register Truthfulness Shadowing Guard Upgrade
+
+### Goal
+
+把上一批 `NEON` shadowing 问题提升成通用审计护栏：让 `check_nonx86_register_truthfulness.py` 不再只逐条分类赋值，而是能识别“同一 slot 在会同时生效的上下文里被不同 target 重绑”的 overlapping rebinding，并用 fixture 固化这类回归。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 checker 漏检根因 | completed | 已确认 `check_nonx86_register_truthfulness.py` 之前只按单条 assignment 做 `asm_exact / wrapper_only / ...` 分类，不会判断同一 slot 是否被后续不同 target 覆盖；因此前一版 `NEON` shadowing 才能以 `miswired=0` 漏过 |
+| 2. 升级 truthfulness checker 并补 shadowed fixture | completed | 已为脚本新增 overlapping-context rebinding 检测、`conflicting assign` 输出，并新增 `tests/fafafa.core.simd/fixtures/nonx86_register_truthfulness/shadowed/`，能稳定复现“asm-only 先绑、always 后盖”的冲突模式 |
+| 3. 用 fixture + 真实仓库串行复验 | completed | `--fixture good` 继续 PASS，`--fixture bad` 继续 FAIL，`--fixture shadowed` 现在正确 FAIL；真实 `--backend neon/riscvv --strict` 仍为 `miswired=0 conflicting_assign=0`；fresh `impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 全部通过，`gate` 尾部仍只把 non-x86 native evidence root 缺失和旧 `windows_b07_gate.log` 诚实降级为 optional `SKIP` |

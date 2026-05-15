@@ -126,7 +126,7 @@ class CheckerConfig:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Check non-x86 register truthfulness")
     parser.add_argument("--backend", choices=("neon", "riscvv"), help="Backend to inspect")
-    parser.add_argument("--fixture", choices=("good", "bad"), help="Run against a local fixture instead of real sources")
+    parser.add_argument("--fixture", choices=("good", "bad", "shadowed"), help="Run against a local fixture instead of real sources")
     parser.add_argument("--json", action="store_true", help="Print machine-readable JSON")
     parser.add_argument("--summary-line", action="store_true", help="Print one-line summary for log scraping")
     parser.add_argument("--strict", action="store_true", help="Treat wrapper / helper-forwarder bindings as failures")
@@ -430,6 +430,12 @@ def build_reason_list(
     return l_reasons
 
 
+def contexts_overlap(a_left: str, a_right: str) -> bool:
+    if a_left == "always" or a_right == "always":
+        return True
+    return a_left == a_right
+
+
 def render_summary_line(a_result: dict[str, Any]) -> str:
     return (
         "NONX86_REGISTER_TRUTHFULNESS_SUMMARY "
@@ -456,15 +462,19 @@ def print_human_result(a_result: dict[str, Any]) -> None:
     print(f"  - scalar passthrough:  {a_result['scalar_passthrough_count']}")
     print(f"  - no definition:       {a_result['no_def_count']}")
     print(f"  - miswired:            {a_result['miswired_count']}")
+    print(f"  - conflicting assign:  {a_result['conflicting_assignment_count']}")
 
     if a_result["miswired_slots"]:
         print("[REG-TRUTH] Miswired slots:")
         for l_item in a_result["miswired_slots"]:
             l_helper = f", helper={l_item['helper']}" if l_item["helper"] else ""
             l_reason = ",".join(l_item["reasons"])
+            l_conflicts = ""
+            if l_item["conflicts"]:
+                l_conflicts = f", conflicts={'; '.join(l_item['conflicts'])}"
             print(
                 f"  - {l_item['slot']} -> {l_item['target']} "
-                f"(line={l_item['line']}, context={l_item['context']}, class={l_item['classification']}{l_helper}, reason={l_reason})"
+                f"(line={l_item['line']}, context={l_item['context']}, class={l_item['classification']}{l_helper}, reason={l_reason}{l_conflicts})"
             )
 
     if a_result["ok"]:
@@ -485,7 +495,7 @@ def build_report(a_config: CheckerConfig, a_strict: bool) -> dict[str, Any]:
         "scalar_forwarder_count": 0,
         "pascal_owned_count": 0,
     }
-    l_miswired: list[dict[str, Any]] = []
+    l_assignment_records: list[dict[str, Any]] = []
 
     for l_assignment in l_assignments:
         l_facts = l_facts_asm if l_assignment.context != "no-asm" else l_facts_no_asm
@@ -499,19 +509,49 @@ def build_report(a_config: CheckerConfig, a_strict: bool) -> dict[str, Any]:
             l_counts["pascal_owned_count"] += 1
 
         l_reasons = build_reason_list(a_config.backend, l_assignment, l_classification, l_wrapper_kind, a_strict)
-        if l_reasons:
-            l_miswired.append(
-                {
-                    "slot": l_assignment.slot,
-                    "target": l_assignment.target,
-                    "line": l_assignment.line,
-                    "context": l_assignment.context,
-                    "classification": l_classification,
-                    "wrapper_kind": l_wrapper_kind,
-                    "helper": l_helper,
-                    "reasons": l_reasons,
-                }
-            )
+        l_assignment_records.append(
+            {
+                "slot": l_assignment.slot,
+                "target": l_assignment.target,
+                "line": l_assignment.line,
+                "context": l_assignment.context,
+                "classification": l_classification,
+                "wrapper_kind": l_wrapper_kind,
+                "helper": l_helper,
+                "reasons": list(l_reasons),
+                "conflicts": [],
+            }
+        )
+
+    l_records_by_slot: dict[str, list[dict[str, Any]]] = {}
+    for l_record in l_assignment_records:
+        l_records_by_slot.setdefault(l_record["slot"], []).append(l_record)
+
+    for l_slot_records in l_records_by_slot.values():
+        for l_index, l_record in enumerate(l_slot_records):
+            for l_other in l_slot_records[l_index + 1:]:
+                if l_record["target"] == l_other["target"]:
+                    continue
+                if not contexts_overlap(l_record["context"], l_other["context"]):
+                    continue
+
+                l_record["conflicts"].append(
+                    f"line={l_other['line']} target={l_other['target']} context={l_other['context']}"
+                )
+                l_other["conflicts"].append(
+                    f"line={l_record['line']} target={l_record['target']} context={l_record['context']}"
+                )
+
+                if "overlapping-slot-rebinding" not in l_record["reasons"]:
+                    l_record["reasons"].append("overlapping-slot-rebinding")
+                if "overlapping-slot-rebinding" not in l_other["reasons"]:
+                    l_other["reasons"].append("overlapping-slot-rebinding")
+
+    l_miswired = [
+        l_record for l_record in l_assignment_records
+        if l_record["reasons"] or l_record["conflicts"]
+    ]
+    l_conflicting_assignment_count = sum(1 for l_record in l_assignment_records if l_record["conflicts"])
 
     l_result: dict[str, Any] = {
         "backend": a_config.backend,
@@ -528,6 +568,7 @@ def build_report(a_config: CheckerConfig, a_strict: bool) -> dict[str, Any]:
         "scalar_forwarder_count": l_counts["scalar_forwarder_count"],
         "pascal_owned_count": l_counts["pascal_owned_count"],
         "miswired_count": len(l_miswired),
+        "conflicting_assignment_count": l_conflicting_assignment_count,
         "miswired_slots": l_miswired,
     }
     l_result["ok"] = l_result["miswired_count"] == 0

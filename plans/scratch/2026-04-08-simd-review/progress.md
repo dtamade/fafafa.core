@@ -4790,3 +4790,39 @@
   - `freeze-status` 现在确认 Linux gate 新鲜，但仍红在 `qemu-cpuinfo-nonx86-evidence=SKIP` 和历史 Windows evidence stale/verify fail
   - `win-evidence-preflight` 继续返回 `RECENT_BILLING_BLOCK`，说明当前剩余 closeout gap 还是外部 GH billing / Windows evidence 刷新问题
 - 收口前会清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+## 2026-05-15 Register Truthfulness Shadowing Guard Upgrade
+
+- 继续沿着上一批 `NEON` shadowing 的真实 bug 深挖后，确认当前更高价值的工作不是再扫一轮局部 wrapper，而是把这类“slot 前后被不同 target 重绑”的问题变成通用 checker 护栏。
+- `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py` 已完成升级：
+  - `--fixture` 新增 `shadowed`
+  - 新增 `contexts_overlap(...)`
+  - report 现在会保留每条 assignment record，并对同一 slot 做 overlapping-context rebinding 检查
+  - human 输出新增 `conflicting assign`
+  - miswired 条目现在会附带 `conflicts=...`
+- 已新增 fixture：
+  - `tests/fafafa.core.simd/fixtures/nonx86_register_truthfulness/shadowed/mock.backend.register.inc`
+  - `tests/fafafa.core.simd/fixtures/nonx86_register_truthfulness/shadowed/mock.backend.pas`
+  - 该 fixture 稳定复现“asm-only 先绑一个 target，always 再盖另一个 target”的冲突模式
+- 本批 fresh 复验：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --fixture good --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --fixture bad --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --fixture shadowed --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 当前结果：
+  - `git diff --check` 通过，`py_compile` 通过
+  - `fixture good`：`miswired=0 conflicting assign=0`，继续 PASS
+  - `fixture bad`：继续 FAIL，`miswired=2 conflicting assign=0`
+  - `fixture shadowed`：新增 FAIL，`miswired=2 conflicting assign=2`，并稳定报出 `overlapping-slot-rebinding`
+  - `backend=neon`：`assignments=411 asm_exact=224 asm_suffix_only=10 wrapper_only=177 scalar_passthrough=0 no_def=0 miswired=0 conflicting assign=0`
+  - `backend=riscvv`：`assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 scalar_passthrough=0 no_def=0 miswired=0 conflicting assign=0`
+  - `impl-audit-nonx86` 继续为绿，summary 为 `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `check` 继续为绿
+  - Release `gate` 继续为绿，`run_all` 为 `5/5` 通过
+  - `gate` 尾部结论保持不变：non-x86 native evidence root 缺失仍是 optional `SKIP`，旧 `windows_b07_gate.log` 仍因历史内容不满足当前 pattern 而 optional `SKIP`

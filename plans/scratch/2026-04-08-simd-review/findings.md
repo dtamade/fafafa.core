@@ -4342,3 +4342,45 @@
   - `windows_b07_gate.log` / `windows_b07_closeout_summary.md` stale
   - `windows evidence verify` 失败
 - `win-evidence-preflight` 仍返回 `RECENT_BILLING_BLOCK`，因此当前剩余 release gap 继续是外部 Windows runner/billing 问题，而不是 SIMD 代码面还有新的 active bug。
+
+## 2026-05-15 Register Truthfulness Shadowing Guard Upgrade
+
+- 上一批 `NEON` wide-float shadowing bug 已经修掉，但它也暴露了一个更深的审计盲点：
+  - `check_nonx86_register_truthfulness.py` 之前只逐条给 assignment 做 `asm_exact / wrapper_only / scalar_passthrough / ...` 分类
+  - 只要每一条单独看都“像是合法 target”，脚本就可能继续给出 `miswired=0`
+  - 因此“前面先绑对、后面又被另一个 target 覆盖”的 overlapping rebinding，过去是可能漏过的
+- 这次把那条经验升成了通用 fail-close 护栏，而不是继续靠人工肉眼扫 `register.inc`：
+  - `check_nonx86_register_truthfulness.py` 新增 `contexts_overlap(...)`
+  - 规则很保守：`always` 与所有上下文重叠；其余只有相同 context 才算重叠
+  - `build_report(...)` 现在会先保留同一 slot 的全部 assignment record，再按 slot 交叉检查“不同 target + 重叠 context”
+  - 一旦命中，会同时：
+    - 给两条 record 都补 `overlapping-slot-rebinding`
+    - 在 human 输出里打印 `conflicting assign`
+    - 把对方行号/target/context 填进 `conflicts=...`
+- 为了把这类回归稳定固化，新增了 fixture：
+  - `tests/fafafa.core.simd/fixtures/nonx86_register_truthfulness/shadowed/mock.backend.register.inc`
+  - `tests/fafafa.core.simd/fixtures/nonx86_register_truthfulness/shadowed/mock.backend.pas`
+  - 模式就是这次 `NEON` 真实 bug 的抽象版：
+    - `{$IFDEF MOCK_ASM}` 先把 slot 绑到 `@MOCKSuffix_ASM`
+    - 后面再无条件绑回 `@MOCKWrapper`
+  - 旧 checker 只会看到“两条 assignment 都有定义”；新 checker 现在会 fail-close 报 overlapping rebinding
+- 这批的价值在于，它把“source-side 有 `_ASM` binding”提升成“最终有效 slot ownership 没有被后续冲掉”：
+  - 不再只证明“某处绑过”
+  - 而是开始证明“不会在同一生效上下文里被另一个 target 重绑”
+- 这也解释了为什么上一批 `NEON` 修复之后，下一步不是继续删 wrapper，而是先补 checker：
+  - 真正高价值的是防住同类型 bug 再次溜过
+  - 这比继续做又一轮 family-local 手工扫尾更能提升整个 non-x86 审计链的可信度
+- fresh 复验目标也很清晰：
+  - fixture `good` 继续 PASS，避免误伤已有合法模式
+  - fixture `bad` 继续 FAIL，保住旧 fail-close 语义
+  - fixture `shadowed` 必须新失败，证明 overlapping rebinding 已被稳定抓住
+  - 真实 `neon` / `riscvv` 后端继续保持 `miswired=0` 且 `conflicting assign=0`
+  - Release `impl-audit-nonx86`、`check`、`gate` 继续全绿，说明这批是审计护栏升级，不是运行时行为变更
+- fresh 结果与预期一致：
+  - `fixture-good`：PASS，`miswired=0 conflicting assign=0`
+  - `fixture-bad`：FAIL，`miswired=2 conflicting assign=0`
+  - `fixture-shadowed`：FAIL，`miswired=2 conflicting assign=2`，两条 assignment 都会带上 `overlapping-slot-rebinding`
+  - `backend=neon`：`assignments=411 ... miswired=0 conflicting assign=0`
+  - `backend=riscvv`：`assignments=473 ... miswired=0 conflicting assign=0`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok`
+  - Release `check` / `gate` 继续通过，`gate` 尾部仍只剩 optional non-x86 native evidence skip 与历史 Windows evidence skip
