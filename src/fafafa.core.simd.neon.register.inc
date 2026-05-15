@@ -399,9 +399,12 @@ begin
   // FillBaseDispatchTable in no-asm builds; shared wide compare wrappers are
   // registered above and should stay backend-owned.
   // Keep no-asm wide Abs/Floor/Ceil slots on the published scalar table when
-  // the NEON wrappers only forward to Scalar*. The F64x2 Floor/Ceil loops
-  // remain backend-owned because they still carry local fallback behavior.
+  // the NEON wrappers only forward to Scalar*. The narrow F64x2 Floor/Ceil
+  // wrappers no longer own any local fallback behavior, so they should only be
+  // published when the real asm leaf is available.
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.CeilF64x2 := @NEONCeilF64x2;
+  {$ENDIF}
   // Keep no-asm wide Clamp slots on the published scalar table only when the
   // wrapper is a pure F32x4 scalar-equivalent forwarder. The F64x2 Clamp loop
   // still carries local NaN/signed-zero fallback behavior, so the F64x2/F64x4/
@@ -439,7 +442,9 @@ begin
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.ExtractF64x2 := @NEONExtractF64x2;
   {$ENDIF}
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.FloorF64x2 := @NEONFloorF64x2;
+  {$ENDIF}
   // Keep FMA slots on the published scalar table when NEON asm is absent.
   // The no-asm helpers are exact ScalarFma* forwarders, while the asm build
   // below still owns real backend-local implementations.
@@ -496,7 +501,12 @@ begin
   table.RoundF32x16 := @NEONRoundF32x16;
   table.RoundF32x8 := @NEONRoundF32x8;
   {$ENDIF}
+  // Keep the narrow F64x2 Round/Trunc source companions for the F64x4 no-asm
+  // fallback graph, but publish the base scalar slot whenever NEON asm is not
+  // compiled because the no-asm wrappers now align exactly with Scalar*.
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.RoundF64x2 := @NEONRoundF64x2;
+  {$ENDIF}
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.RoundF64x4 := @NEONRoundF64x4;
   table.RoundF64x8 := @NEONRoundF64x8;
@@ -540,7 +550,9 @@ begin
   table.TruncF32x16 := @NEONTruncF32x16;
   table.TruncF32x8 := @NEONTruncF32x8;
   {$ENDIF}
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.TruncF64x2 := @NEONTruncF64x2;
+  {$ENDIF}
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.TruncF64x4 := @NEONTruncF64x4;
   table.TruncF64x8 := @NEONTruncF64x8;

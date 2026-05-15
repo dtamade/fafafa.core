@@ -5716,3 +5716,46 @@
   - `gate` 尾部仍只诚实保留：
     - non-x86 native evidence root not present -> optional `SKIP`
     - 历史 `windows_b07_gate.log` evidence verify 失败 -> optional `SKIP`
+
+## 2026-05-16 NEON No-Asm Narrow F64 Round-Family Slot/Fallback Alignment
+
+- 接着上一批 `SqrtF64x2` 收口继续扫 residual 时，先重新核了 `src/` 里的真实消费图，发现 `Ceil/Floor` 和 `Round/Trunc` 不能再混看：
+  - `NEONRoundF64x4` / `NEONTruncF64x4` 仍在 `autowrap` 中通过两次 `NEONRound/TruncF64x2` 组装
+  - `NEONFloor/CeilF64x4/F64x8` 的 no-asm wrapper 已经不存在，只剩 asm 叶子
+  - 因此 `NEONFloor/CeilF64x2` 已没有任何 no-asm source consumer，而 `NEONRound/TruncF64x2` 仍是 live source companion
+- 在这层 source role 拆清后，本批实现分成了两段：
+  - `src/fafafa.core.simd.neon.scalar.autowrap.inc`
+    - 删除 dead `NEONCeilF64x2`
+    - 删除 dead `NEONFloorF64x2`
+    - 把 `NEONRoundF64x2` 改成 `Result := ScalarRoundF64x2(a);`
+    - 把 `NEONTruncF64x2` 改成 `Result := ScalarTruncF64x2(a);`
+  - `src/fafafa.core.simd.neon.register.inc`
+    - 把 `table.Ceil/Floor/Round/TruncF64x2 := @NEON...` 全部收进 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}`
+    - 同时更新注释，把这组 slot 的 no-asm published truth 改成“复用 scalar，只有 asm build 才发布 backend-owned leaf”
+  - `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+    - 从 `ALLOWED_WRAPPER_SLOTS_BY_BACKEND['neon']` 删除 `CeilF64x2/FloorF64x2/RoundF64x2/TruncF64x2`
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 新增 `Test_NEON_NoAsmNarrowF64RoundFamilySlots_Keep_Only_Necessary_SourceCompanions_And_Reuse_BaseScalar`
+    - 断言 `NEONCeil/FloorF64x2` dead wrapper 已消失
+    - 断言 `NEONRound/TruncF64x2` 仍在且源码中已精确对齐 `ScalarRound/TruncF64x2`
+    - 断言 `NEONRound/TruncF64x4` 仍消费窄 companion
+    - 断言 no-asm runtime 下 `sbNEON` 的 `Ceil/Floor/Round/TruncF64x2` slot 全部复用 scalar
+- 本批静态与 checker 复核：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+  - 结果：
+    - `backend=neon assignments=342 asm_exact=273 asm_suffix_only=10 wrapper_only=59 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+    - `backend=riscvv assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+- 本批 release 复验链也全部通过：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IEEE754EdgeCases`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 本批关键结果：
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok`
+  - Release `gate` 最终 `GATE OK`
+  - `run_all` 过滤链结果仍为 `Total: 5 Passed: 5 Failed: 0`
+  - `NEON wrapper_only` 从上一批的 `63` 再降到 `59`

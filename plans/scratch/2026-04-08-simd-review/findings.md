@@ -4946,3 +4946,31 @@
   - `SqrtF64x2` 属于“published slot 应回 scalar，但 wrapper 仍保留 source companion 价值”的窄 `F64` 场景
   - 当前 `NEON wrapper_only` 已从上一批的 `64` 再降到 `63`
   - 接下来的高价值残余不再是这种纯同义 sqrt，而是 `Ceil/Floor/Round/Trunc` 与 `Clamp/Max/Min/ReduceMax/ReduceMin` 这类带更强标量语义或次序边界的 `F64x2`
+
+## 2026-05-16 NEON No-Asm Narrow F64 Round-Family Findings
+
+- `Ceil/Floor/Round/TruncF64x2` 这一组在进入实现前，必须先拆成两种 source role，不能再把它们混成一个“round-family residual”：
+  - `NEONRoundF64x2` / `NEONTruncF64x2` 仍被 `NEONRoundF64x4` / `NEONTruncF64x4` 的 no-asm graph 消费，所以它们不是 dead wrapper
+  - `NEONCeilF64x2` / `NEONFloorF64x2` 则已经没有任何 no-asm source consumer；wide `F64` floor/ceil wrapper 早在前一批就收掉了，所以这两个窄 wrapper 已经是纯死壳
+- 因此这批真正优雅的修法不是“4 个一起保留 source companion”，而是两段式收口：
+  - `Floor/CeilF64x2`：直接删除 no-asm dead wrapper，并把 published slot 收回 scalar
+  - `Round/TruncF64x2`：保留窄 wrapper 给 `F64x4` no-asm graph 用，但 body 改成 exact `ScalarRound/TruncF64x2` forwarder，再把 published slot 收回 scalar
+- 这批也把上一批刚钉住的语义边界，真的从“风险说明”变成了“源码收正”：
+  - 之前 `ScalarFloor/CeilF64x2` 自带 `NaN/Inf` guard，而 no-asm `NEONFloor/CeilF64x2` 只是直接 `Floor/Ceil`
+  - 之前 `ScalarRound/TruncF64x2` 还会做 signed-zero 归一化，而 no-asm `NEONRound/TruncF64x2` 只是直接 `Round/Trunc`
+  - 现在 `Round/TruncF64x2` 已直接走 `ScalarRound/TruncF64x2`
+  - `Floor/CeilF64x2` 则不再保留一份较弱的本地 no-asm 副本
+- `dispatchapi` 这批的 dedicated 护栏价值很高，因为它同时固定了三层 truth：
+  - `NEONCeilF64x2` / `NEONFloorF64x2` dead wrapper 已从 `autowrap` 消失
+  - `NEONRoundF64x2` / `NEONTruncF64x2` 仍在 `autowrap`，且源码中明确是 `Result := ScalarRound/TruncF64x2(a);`
+  - `NEONRoundF64x4` / `NEONTruncF64x4` 仍继续消费窄 companion
+  - no-asm runtime 下 `sbNEON` 的 `Ceil/Floor/Round/TruncF64x2` slot 全部复用 base scalar
+- 本批 fresh 结果：
+  - `backend=neon` truthfulness：`assignments=342 asm_exact=273 asm_suffix_only=10 wrapper_only=59 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `backend=riscvv` truthfulness：`assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `TTestCase_DispatchAPI`、`TTestCase_IEEE754EdgeCases`、`check`、`gate` 全绿；`gate` 最终仍是 `GATE OK`
+- 关键结论：
+  - 这批收掉的不只是 4 个 narrow `F64x2` published slot，更是把 `Floor/Ceil` 与 `Round/Trunc` 的 no-asm fallback 架构真正拆回了“dead wrapper vs necessary source companion”的正确边界
+  - `NEON wrapper_only` 已从上一批的 `63` 再降到 `59`
+  - 接下来的高价值残余更集中在 `Clamp/Max/Min/ReduceMax/ReduceMinF64x2` 这条真正还带本地次序/NaN/signed-zero 语义争议的链上

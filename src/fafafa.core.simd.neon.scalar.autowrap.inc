@@ -147,12 +147,6 @@ begin
   Result := ScalarAndU64x4(a, b);
 end;
 
-function NEONCeilF64x2(const a: TVecF64x2): TVecF64x2;
-begin
-  Result.d[0] := Ceil(a.d[0]);
-  Result.d[1] := Ceil(a.d[1]);
-end;
-
 function NEONClampF64x2(const a, minVal, maxVal: TVecF64x2): TVecF64x2;
 var i: Integer;
 begin
@@ -714,16 +708,6 @@ end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
-function NEONFloorF64x2(const a: TVecF64x2): TVecF64x2;
-begin
-  Result.d[0] := Floor(a.d[0]);
-  Result.d[1] := Floor(a.d[1]);
-end;
-
-{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
-{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-
 function NEONInsertF64x2(const a: TVecF64x2; value: Double; index: Integer): TVecF64x2;
 begin
   Result := ScalarInsertF64x2(a, value, index);
@@ -1035,8 +1019,7 @@ end;
 
 function NEONRoundF64x2(const a: TVecF64x2): TVecF64x2;
 begin
-  Result.d[0] := Round(a.d[0]);
-  Result.d[1] := Round(a.d[1]);
+  Result := ScalarRoundF64x2(a);
 end;
 
 function NEONRoundF64x4(const a: TVecF64x4): TVecF64x4;
@@ -1234,8 +1217,7 @@ end;
 
 function NEONTruncF64x2(const a: TVecF64x2): TVecF64x2;
 begin
-  Result.d[0] := Trunc(a.d[0]);
-  Result.d[1] := Trunc(a.d[1]);
+  Result := ScalarTruncF64x2(a);
 end;
 
 function NEONTruncF64x4(const a: TVecF64x4): TVecF64x4;
