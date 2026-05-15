@@ -3376,3 +3376,17 @@
 | 1. 复核 wide `Min/Max` 的语义与消费面 | completed | 已确认 `NEONMin/MaxF32x4` 与 `NEONMin/MaxF64x2` 的 no-asm 本地比较虽不是 `ScalarMin/Max` 直接转发，但本地 Pascal probe 已验证它们和 `Math.Min/Max` 在 `NaN/±0/相等值` 上语义一致；同时 `NEONMin/MaxF32x8` 在 no-asm 下无其他 live source consumer，而 `F32x16/F64x4/F64x8` wrapper 仍需为 asm build 或更宽 source graph 保留 |
 | 2. 改成 asm-only binding，并只删除真正 dead 的 no-asm wrapper | completed | 已把 `src/fafafa.core.simd.neon.register.inc` 中 `Min/MaxF32x8/F32x16/F64x4/F64x8` 改成 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}` 绑定；已从 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 删除 `NEONMin/MaxF32x8` 的 no-asm dead wrapper，保留 `NEONMin/MaxF32x16/F64x4/F64x8` 作为仍有 asm/source companion 价值的 wrapper；`Min/MaxF64x2` 保持原样 |
 | 3. 补 source/runtime/helper 护栏并串行 release 复验 | completed | `dispatchapi` 已新增 `Test_NEON_NoAsmWideMinMaxSlots_Keep_Necessary_Wrappers_But_Reuse_BaseScalar`；两处通用 `Min/MaxF32x8/F32x16/F64x4/F64x8` capability 断言已从“总是 native”收正为“NEON 复用 scalar、其余 backend 仍要求 native”；`check_nonx86_helper_semantics.py` 已把 `NEONMin/MaxF32x8` 改成 absent guard；fresh `git diff --check`、`py_compile`、helper semantics、`DispatchAPI`、`truthfulness --backend neon/riscvv --strict`、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 全部通过；helper summary 现为 `checks=603`，`NEON` truthfulness 现为 `assignments=357 asm_exact=237 asm_suffix_only=10 wrapper_only=110 miswired=0 conflicting_assign=0`，`gate` 尾部为 `GATE OK`，仍只诚实保留 optional non-x86 native evidence skip 与历史 `windows_b07_gate.log` evidence skip |
+
+## 2026-05-15 NEON No-Asm Wide Clamp Slot-Ownership Cleanup
+
+### Goal
+
+继续沿同一 slot-ownership truth 线收正 `NEON` no-asm 的 wide `Clamp`，但这次不机械套 `Sqrt/MinMax`：只把 `ClampF32x8/F32x16` 的 fake backend-owned slot 收回 scalar，并删除对应 dead wrapper；`ClampF64x2/F64x4/F64x8` 因为仍保留本地 `NaN/signed-zero` fallback 语义，继续保持 backend-owned。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `Clamp` 的 no-asm 语义与消费面 | completed | 已确认 `NEONClampF32x8/F32x16` 在 no-asm 下只是 `NEONClampF32x4` 的分段 forwarder，而 `NEONClampF32x4` 本身又是 exact `ScalarClampF32x4`；同时本地 Pascal probe 已证明 `NEONClampF64x2` 的 no-asm `if/else` loop 与 `ScalarClampF64x2` 在 `NaN` 和 `-0` witness 上不一致，因此 `F64x2/F64x4/F64x8` 不能一起回 scalar |
+| 2. 改成部分 asm-only binding，并只删除真正 dead 的 no-asm wrapper | completed | 已把 `src/fafafa.core.simd.neon.register.inc` 中 `ClampF32x8/F32x16` 改成 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}` 绑定；保留 `ClampF64x2/F64x4/F64x8` 的 backend-owned register 绑定；已从 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 删除 `NEONClampF32x8/F32x16` dead wrapper，保留 `NEONClampF64x2/F64x4/F64x8` |
+| 3. 补 source/runtime/helper 护栏并串行 release 复验 | completed | `dispatchapi` 已新增 `Test_NEON_NoAsmWideClampSlots_Reuse_BaseScalar_Only_For_F32Forwarders_And_Keep_F64LocalFallback`，断言 `F32x8/F32x16` dead wrapper 缺席、asm binding source 仍在、运行时 slot 复用 scalar，同时用 `ClampF64x2` 的 `NaN/-0` witness 钉住 `F64` 链为何继续 backend-owned；两处通用 `ClampF32x8/F32x16` capability 断言已从“总是 native”收正为“NEON 复用 scalar、其余 backend 仍要求 native”；`check_nonx86_helper_semantics.py` 已把 `NEONClampF32x8/F32x16` 改成 absent guard；fresh `git diff --check`、helper semantics、`DispatchAPI`、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 全部通过；helper summary 更新为 `checks=605`，`NEON` truthfulness 更新为 `assignments=357 asm_exact=239 asm_suffix_only=10 wrapper_only=108 miswired=0 conflicting_assign=0`，`gate` 尾部为 `GATE OK`，仍只诚实保留 optional non-x86 native evidence skip 与历史 `windows_b07_gate.log` evidence skip |

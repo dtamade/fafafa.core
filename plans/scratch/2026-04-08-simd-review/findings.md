@@ -4663,3 +4663,31 @@
   - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=neon assignments=357 asm_exact=229 asm_suffix_only=10 wrapper_only=118 scalar_passthrough=0 no_def=0 miswired=0 strict=1`
   - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok`
   - Release `check` / `gate` 继续通过，尾部仍只剩 optional non-x86 native evidence skip 与历史 Windows evidence skip
+
+## 2026-05-15 NEON No-Asm Wide Clamp Findings
+
+- `Clamp` 这批的真实分界不在“宽度”，而在底层叶子 helper 是否仍携带 backend-local fallback 语义：
+  - `NEONClampF32x8/F32x16` 在 no-asm 下只是 `NEONClampF32x4` 的分段 forwarder，而 `NEONClampF32x4` 本身又是 exact `ScalarClampF32x4`
+  - `NEONClampF64x2` 则仍是本地 `if/else` loop，不是 `ScalarClampF64x2` 的单行转发
+- 本地 Pascal probe 已把 `F64x2` 的语义差异钉实：
+  - `a=NaN, min=0, max=10` 时，scalar `Clamp` 会折到 `max`
+  - no-asm `NEONClampF64x2` 会保留 `NaN`
+  - `a=-0, min=0, max=0` 时，scalar `Clamp` 会归一成 `+0`
+  - no-asm `NEONClampF64x2` 会保留 `-0`
+- 因此这批不能像 `Sqrt/MinMax` 一样把 `F64x4/F64x8` 一起回到 scalar：
+  - `F32x8/F32x16`：dead wrapper，可删，slot 应回 scalar truth
+  - `F64x2/F64x4/F64x8`：仍携带或消费本地 `F64x2` fallback 语义，继续 backend-owned
+- 正确收法已经落地成三条护栏：
+  - `src/fafafa.core.simd.neon.register.inc` 中 `ClampF32x8/F32x16` 改成 asm-only binding，`F64x2/F64x4/F64x8` 保持 backend-owned
+  - `src/fafafa.core.simd.neon.scalar.autowrap.inc` 删除 `NEONClampF32x8/F32x16` dead wrapper，保留 `NEONClampF64x2/F64x4/F64x8`
+  - `dispatchapi` 新增 no-asm witness 测试，用 `ClampF64x2` 的 `NaN/-0` case 直接证明为什么 `F64` 链不能回 scalar
+- fresh 现场数据继续支持这是实质性收正，而不是只动注释：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=605 status=ok`
+  - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=neon assignments=357 asm_exact=239 asm_suffix_only=10 wrapper_only=108 scalar_passthrough=0 no_def=0 miswired=0 strict=1`
+  - `backend=riscvv` 继续保持 `assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 miswired=0`
+- `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok`
+- Release `check` / `gate` 全部通过，`gate` 最终明确到 `GATE OK`
+- 这批同时再次验证了后续审查纪律：
+  - 不能只看 wrapper 形状决定去重
+  - 必须先证明 helper contract 是否与 scalar truth 等价
+  - `Clamp/Round/Trunc` 仍是比 `Sqrt/MinMax` 更容易藏语义例外的族

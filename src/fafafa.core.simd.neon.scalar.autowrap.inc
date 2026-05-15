@@ -153,20 +153,6 @@ begin
   Result.d[1] := Ceil(a.d[1]);
 end;
 
-function NEONClampF32x16(const a, minVal, maxVal: TVecF32x16): TVecF32x16;
-begin
-  Result.lo.lo := NEONClampF32x4(a.lo.lo, minVal.lo.lo, maxVal.lo.lo);
-  Result.lo.hi := NEONClampF32x4(a.lo.hi, minVal.lo.hi, maxVal.lo.hi);
-  Result.hi.lo := NEONClampF32x4(a.hi.lo, minVal.hi.lo, maxVal.hi.lo);
-  Result.hi.hi := NEONClampF32x4(a.hi.hi, minVal.hi.hi, maxVal.hi.hi);
-end;
-
-function NEONClampF32x8(const a, minVal, maxVal: TVecF32x8): TVecF32x8;
-begin
-  Result.lo := NEONClampF32x4(a.lo, minVal.lo, maxVal.lo);
-  Result.hi := NEONClampF32x4(a.hi, minVal.hi, maxVal.hi);
-end;
-
 function NEONClampF64x2(const a, minVal, maxVal: TVecF64x2): TVecF64x2;
 var i: Integer;
 begin

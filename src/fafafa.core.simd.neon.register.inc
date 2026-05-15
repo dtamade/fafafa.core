@@ -400,8 +400,15 @@ begin
   // the NEON wrappers only forward to Scalar*. The F64x2 Floor/Ceil loops
   // remain backend-owned because they still carry local fallback behavior.
   table.CeilF64x2 := @NEONCeilF64x2;
+  // Keep no-asm wide Clamp slots on the published scalar table only when the
+  // wrapper is a pure F32x4 scalar-equivalent forwarder. The F64x2 Clamp loop
+  // still carries local NaN/signed-zero fallback behavior, so the F64x2/F64x4/
+  // F64x8 Clamp chain remains backend-owned until that behavior is retired on
+  // purpose.
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.ClampF32x16 := @NEONClampF32x16;
   table.ClampF32x8 := @NEONClampF32x8;
+  {$ENDIF}
   table.ClampF64x2 := @NEONClampF64x2;
   table.ClampF64x4 := @NEONClampF64x4;
   table.ClampF64x8 := @NEONClampF64x8;
