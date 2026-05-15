@@ -455,27 +455,13 @@ begin
   table.MulF32x16 := @NEONMulF32x16;
   table.MulF64x4 := @NEONMulF64x4;
   table.MulF64x8 := @NEONMulF64x8;
-  table.RcpF64x4 := @NEONRcpF64x4;
-  table.ReduceAddF32x16 := @NEONReduceAddF32x16;
-  table.ReduceAddF32x8 := @NEONReduceAddF32x8;
+  // Keep wide reciprocal/reduction slots on the published scalar table when
+  // the NEON wrappers only forward to Scalar* helpers. The F64x2 reductions
+  // below remain backend-owned because they still carry local behavior.
   table.ReduceAddF64x2 := @NEONReduceAddF64x2;
-  table.ReduceAddF64x4 := @NEONReduceAddF64x4;
-  table.ReduceAddF64x8 := @NEONReduceAddF64x8;
-  table.ReduceMaxF32x16 := @NEONReduceMaxF32x16;
-  table.ReduceMaxF32x8 := @NEONReduceMaxF32x8;
   table.ReduceMaxF64x2 := @NEONReduceMaxF64x2;
-  table.ReduceMaxF64x4 := @NEONReduceMaxF64x4;
-  table.ReduceMaxF64x8 := @NEONReduceMaxF64x8;
-  table.ReduceMinF32x16 := @NEONReduceMinF32x16;
-  table.ReduceMinF32x8 := @NEONReduceMinF32x8;
   table.ReduceMinF64x2 := @NEONReduceMinF64x2;
-  table.ReduceMinF64x4 := @NEONReduceMinF64x4;
-  table.ReduceMinF64x8 := @NEONReduceMinF64x8;
-  table.ReduceMulF32x16 := @NEONReduceMulF32x16;
-  table.ReduceMulF32x8 := @NEONReduceMulF32x8;
   table.ReduceMulF64x2 := @NEONReduceMulF64x2;
-  table.ReduceMulF64x4 := @NEONReduceMulF64x4;
-  table.ReduceMulF64x8 := @NEONReduceMulF64x8;
   table.RoundF32x16 := @NEONRoundF32x16;
   table.RoundF32x8 := @NEONRoundF32x8;
   table.RoundF64x2 := @NEONRoundF64x2;

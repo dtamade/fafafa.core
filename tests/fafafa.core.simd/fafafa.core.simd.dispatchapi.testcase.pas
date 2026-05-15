@@ -142,6 +142,7 @@ type
     procedure Test_NEON_DotFallbackSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_NEON_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_NEON_NoAsmFloatCompareSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
+    procedure Test_NEON_WideRcpAndReductionSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_NEON_MaskHelperSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_NEON_NoAsmIntegerFallbackSlots_Reuse_BaseScalar_When_Wrappers_Are_Not_BackendOwned;
     procedure Test_NEON_SelectF32x4_AsmEnabledSource_Does_Not_ScalarForward;
@@ -6400,6 +6401,117 @@ begin
   AssertSlotReusesScalar('CmpNeF32x8', Pointer(LScalarTable.CmpNeF32x8), Pointer(LNEONTable.CmpNeF32x8));
   AssertSlotReusesScalar('CmpNeF64x4', Pointer(LScalarTable.CmpNeF64x4), Pointer(LNEONTable.CmpNeF64x4));
   AssertSlotReusesScalar('CmpNeF64x8', Pointer(LScalarTable.CmpNeF64x8), Pointer(LNEONTable.CmpNeF64x8));
+end;
+
+procedure TTestCase_DispatchAPI.Test_NEON_WideRcpAndReductionSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
+var
+  LScalarTable: TSimdDispatchTable;
+  LNEONTable: TSimdDispatchTable;
+  LSourceLines: TStringList;
+  LRegisterSourcePath: string;
+  LAutowrapSourcePath: string;
+  LRegisterSource: string;
+  LAutowrapSource: string;
+
+  procedure AssertDeadWrapperRemoved(const aLabel, aSnippet: string);
+  begin
+    AssertTrue(aLabel + ' dead wrapper should be removed from the NEON scalar autowrap include',
+      Pos(LowerCase(aSnippet), LAutowrapSource) = 0);
+  end;
+
+  procedure AssertRegisterKeepsBaseScalar(const aLabel, aSnippet: string);
+  begin
+    AssertTrue('RegisterNEONBackend should keep base scalar ' + aLabel + ' when the NEON wrapper is only a scalar forwarder',
+      Pos(LowerCase(aSnippet), LRegisterSource) = 0);
+  end;
+
+  procedure AssertSlotReusesScalar(const aLabel: string; const aScalarSlot, aBackendSlot: Pointer);
+  begin
+    AssertEquals('NEON ' + aLabel + ' should reuse the base scalar slot when the NEON wrapper is only a scalar forwarder',
+      PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
+  end;
+begin
+  LSourceLines := TStringList.Create;
+  try
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.register.inc');
+    AssertTrue('NEON register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
+      FileExists(LRegisterSourcePath));
+    LSourceLines.LoadFromFile(LRegisterSourcePath);
+    LRegisterSource := LowerCase(LSourceLines.Text);
+
+    LAutowrapSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.scalar.autowrap.inc');
+    AssertTrue('NEON scalar autowrap source should exist for implementation-shape audit: ' + LAutowrapSourcePath,
+      FileExists(LAutowrapSourcePath));
+    LSourceLines.LoadFromFile(LAutowrapSourcePath);
+    LAutowrapSource := LowerCase(LSourceLines.Text);
+  finally
+    LSourceLines.Free;
+  end;
+
+  AssertDeadWrapperRemoved('NEONRcpF64x4', 'function NEONRcpF64x4(');
+  AssertDeadWrapperRemoved('NEONReduceAddF32x16', 'function NEONReduceAddF32x16(');
+  AssertDeadWrapperRemoved('NEONReduceAddF32x8', 'function NEONReduceAddF32x8(');
+  AssertDeadWrapperRemoved('NEONReduceAddF64x4', 'function NEONReduceAddF64x4(');
+  AssertDeadWrapperRemoved('NEONReduceAddF64x8', 'function NEONReduceAddF64x8(');
+  AssertDeadWrapperRemoved('NEONReduceMaxF32x16', 'function NEONReduceMaxF32x16(');
+  AssertDeadWrapperRemoved('NEONReduceMaxF32x8', 'function NEONReduceMaxF32x8(');
+  AssertDeadWrapperRemoved('NEONReduceMaxF64x4', 'function NEONReduceMaxF64x4(');
+  AssertDeadWrapperRemoved('NEONReduceMaxF64x8', 'function NEONReduceMaxF64x8(');
+  AssertDeadWrapperRemoved('NEONReduceMinF32x16', 'function NEONReduceMinF32x16(');
+  AssertDeadWrapperRemoved('NEONReduceMinF32x8', 'function NEONReduceMinF32x8(');
+  AssertDeadWrapperRemoved('NEONReduceMinF64x4', 'function NEONReduceMinF64x4(');
+  AssertDeadWrapperRemoved('NEONReduceMinF64x8', 'function NEONReduceMinF64x8(');
+  AssertDeadWrapperRemoved('NEONReduceMulF32x16', 'function NEONReduceMulF32x16(');
+  AssertDeadWrapperRemoved('NEONReduceMulF32x8', 'function NEONReduceMulF32x8(');
+  AssertDeadWrapperRemoved('NEONReduceMulF64x4', 'function NEONReduceMulF64x4(');
+  AssertDeadWrapperRemoved('NEONReduceMulF64x8', 'function NEONReduceMulF64x8(');
+
+  AssertRegisterKeepsBaseScalar('RcpF64x4', 'table.RcpF64x4 := @NEONRcpF64x4;');
+  AssertRegisterKeepsBaseScalar('ReduceAddF32x16', 'table.ReduceAddF32x16 := @NEONReduceAddF32x16;');
+  AssertRegisterKeepsBaseScalar('ReduceAddF32x8', 'table.ReduceAddF32x8 := @NEONReduceAddF32x8;');
+  AssertRegisterKeepsBaseScalar('ReduceAddF64x4', 'table.ReduceAddF64x4 := @NEONReduceAddF64x4;');
+  AssertRegisterKeepsBaseScalar('ReduceAddF64x8', 'table.ReduceAddF64x8 := @NEONReduceAddF64x8;');
+  AssertRegisterKeepsBaseScalar('ReduceMaxF32x16', 'table.ReduceMaxF32x16 := @NEONReduceMaxF32x16;');
+  AssertRegisterKeepsBaseScalar('ReduceMaxF32x8', 'table.ReduceMaxF32x8 := @NEONReduceMaxF32x8;');
+  AssertRegisterKeepsBaseScalar('ReduceMaxF64x4', 'table.ReduceMaxF64x4 := @NEONReduceMaxF64x4;');
+  AssertRegisterKeepsBaseScalar('ReduceMaxF64x8', 'table.ReduceMaxF64x8 := @NEONReduceMaxF64x8;');
+  AssertRegisterKeepsBaseScalar('ReduceMinF32x16', 'table.ReduceMinF32x16 := @NEONReduceMinF32x16;');
+  AssertRegisterKeepsBaseScalar('ReduceMinF32x8', 'table.ReduceMinF32x8 := @NEONReduceMinF32x8;');
+  AssertRegisterKeepsBaseScalar('ReduceMinF64x4', 'table.ReduceMinF64x4 := @NEONReduceMinF64x4;');
+  AssertRegisterKeepsBaseScalar('ReduceMinF64x8', 'table.ReduceMinF64x8 := @NEONReduceMinF64x8;');
+  AssertRegisterKeepsBaseScalar('ReduceMulF32x16', 'table.ReduceMulF32x16 := @NEONReduceMulF32x16;');
+  AssertRegisterKeepsBaseScalar('ReduceMulF32x8', 'table.ReduceMulF32x8 := @NEONReduceMulF32x8;');
+  AssertRegisterKeepsBaseScalar('ReduceMulF64x4', 'table.ReduceMulF64x4 := @NEONReduceMulF64x4;');
+  AssertRegisterKeepsBaseScalar('ReduceMulF64x8', 'table.ReduceMulF64x8 := @NEONReduceMulF64x8;');
+
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND}
+  AssertTrue('NEON opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable) then
+    Exit;
+  {$ENDIF}
+
+  AssertSlotReusesScalar('RcpF64x4', Pointer(LScalarTable.RcpF64x4), Pointer(LNEONTable.RcpF64x4));
+  AssertSlotReusesScalar('ReduceAddF32x16', Pointer(LScalarTable.ReduceAddF32x16), Pointer(LNEONTable.ReduceAddF32x16));
+  AssertSlotReusesScalar('ReduceAddF32x8', Pointer(LScalarTable.ReduceAddF32x8), Pointer(LNEONTable.ReduceAddF32x8));
+  AssertSlotReusesScalar('ReduceAddF64x4', Pointer(LScalarTable.ReduceAddF64x4), Pointer(LNEONTable.ReduceAddF64x4));
+  AssertSlotReusesScalar('ReduceAddF64x8', Pointer(LScalarTable.ReduceAddF64x8), Pointer(LNEONTable.ReduceAddF64x8));
+  AssertSlotReusesScalar('ReduceMaxF32x16', Pointer(LScalarTable.ReduceMaxF32x16), Pointer(LNEONTable.ReduceMaxF32x16));
+  AssertSlotReusesScalar('ReduceMaxF32x8', Pointer(LScalarTable.ReduceMaxF32x8), Pointer(LNEONTable.ReduceMaxF32x8));
+  AssertSlotReusesScalar('ReduceMaxF64x4', Pointer(LScalarTable.ReduceMaxF64x4), Pointer(LNEONTable.ReduceMaxF64x4));
+  AssertSlotReusesScalar('ReduceMaxF64x8', Pointer(LScalarTable.ReduceMaxF64x8), Pointer(LNEONTable.ReduceMaxF64x8));
+  AssertSlotReusesScalar('ReduceMinF32x16', Pointer(LScalarTable.ReduceMinF32x16), Pointer(LNEONTable.ReduceMinF32x16));
+  AssertSlotReusesScalar('ReduceMinF32x8', Pointer(LScalarTable.ReduceMinF32x8), Pointer(LNEONTable.ReduceMinF32x8));
+  AssertSlotReusesScalar('ReduceMinF64x4', Pointer(LScalarTable.ReduceMinF64x4), Pointer(LNEONTable.ReduceMinF64x4));
+  AssertSlotReusesScalar('ReduceMinF64x8', Pointer(LScalarTable.ReduceMinF64x8), Pointer(LNEONTable.ReduceMinF64x8));
+  AssertSlotReusesScalar('ReduceMulF32x16', Pointer(LScalarTable.ReduceMulF32x16), Pointer(LNEONTable.ReduceMulF32x16));
+  AssertSlotReusesScalar('ReduceMulF32x8', Pointer(LScalarTable.ReduceMulF32x8), Pointer(LNEONTable.ReduceMulF32x8));
+  AssertSlotReusesScalar('ReduceMulF64x4', Pointer(LScalarTable.ReduceMulF64x4), Pointer(LNEONTable.ReduceMulF64x4));
+  AssertSlotReusesScalar('ReduceMulF64x8', Pointer(LScalarTable.ReduceMulF64x8), Pointer(LNEONTable.ReduceMulF64x8));
 end;
 
 procedure TTestCase_DispatchAPI.Test_NEON_MaskHelperSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
@@ -12878,10 +12990,20 @@ begin
 
       Inc(LCheckedBackends);
 
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'ReduceAddF64x4',
-        Pointer(LScalarTable.ReduceAddF64x4), Pointer(LBackendTable.ReduceAddF64x4));
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'ReduceAddF64x8',
-        Pointer(LScalarTable.ReduceAddF64x8), Pointer(LBackendTable.ReduceAddF64x8));
+      if LBackend = sbNEON then
+      begin
+        AssertEquals('ReduceAddF64x4 should reuse the scalar slot when the NEON wide wrapper is only a scalar forwarder',
+          PtrUInt(Pointer(LScalarTable.ReduceAddF64x4)), PtrUInt(Pointer(LBackendTable.ReduceAddF64x4)));
+        AssertEquals('ReduceAddF64x8 should reuse the scalar slot when the NEON wide wrapper is only a scalar forwarder',
+          PtrUInt(Pointer(LScalarTable.ReduceAddF64x8)), PtrUInt(Pointer(LBackendTable.ReduceAddF64x8)));
+      end
+      else
+      begin
+        AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'ReduceAddF64x4',
+          Pointer(LScalarTable.ReduceAddF64x4), Pointer(LBackendTable.ReduceAddF64x4));
+        AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'ReduceAddF64x8',
+          Pointer(LScalarTable.ReduceAddF64x8), Pointer(LBackendTable.ReduceAddF64x8));
+      end;
 
       AssertTrue('ReduceMaxF64x4 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ReduceMaxF64x4));
       LPoisonValue := LBackendTable.ReduceMaxF64x4(LF64x4Poison);

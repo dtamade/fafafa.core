@@ -3264,3 +3264,17 @@
 | 1. 复核 24 个 compare wrapper 的真实消费面 | completed | 已确认 `CmpEq/Ge/Gt/Le/Lt/Ne × {F32x16,F32x8,F64x4,F64x8}` 在 `src/fafafa.core.simd.neon.register.inc` 里只出现在 no-asm 注册分支；对应 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 函数体全部是单行 `Result := ScalarCmp...`；多数名字全仓只剩 `register + autowrap` 两处，没有其他真实消费面 |
 | 2. 回落到 base scalar 并删除 dead wrapper | completed | 已从 `neon.register.inc` 删除这 24 条 no-asm compare assignment，保留 `F64x2` 的本地 loop compare 作为 backend-owned 例外；已从 `neon.scalar.autowrap.inc` 删除对应 24 个 dead scalar-forwarder wrapper |
 | 3. 补三层护栏并串行 release 复验 | completed | `dispatchapi` 已新增 `Test_NEON_NoAsmFloatCompareSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders`；`check_nonx86_helper_semantics.py` 已新增 24 个 absent guard；`check_nonx86_register_truthfulness.py` 已收紧 `ALLOWED_WRAPPER_SLOTS_BY_BACKEND['neon']`；fresh `git diff --check`、helper semantics、truthfulness、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 全部通过；`NEON` truthfulness 现为 `assignments=387 wrapper_only=153 miswired=0 conflicting_assign=0`，`gate` 尾部仍只剩 optional non-x86 native evidence skip 与历史 Windows evidence skip |
+
+## 2026-05-15 NEON Wide Rcp/Reduction Scalar-Forwarder Cleanup
+
+### Goal
+
+继续收敛 `NEON` 的 `wrapper_only` 余量：把 `RcpF64x4` 与 `ReduceAdd/Max/Min/Mul × {F32x16,F32x8,F64x4,F64x8}` 这 17 个只会转发到 `Scalar*` 的 wide wrapper 从 `register` / `autowrap` 中移除，让这些 slot 直接继承 `FillBaseDispatchTable` 的 base scalar truth，并同步收正一处把 `NEON` wide reduction slot 误当成 backend-owned 的 asm-path 测试口径。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 wide `Rcp/Reduce` wrapper 的真实合同与消费面 | completed | 已确认 `NEONRcpF64x4` 与 `ReduceAdd/Max/Min/Mul × {F32x16,F32x8,F64x4,F64x8}` 在 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 里全部只是 `Scalar*` 单行转发；`F64x2` reductions 仍保留 backend-local 实现，因此不在这批 |
+| 2. 回落到 base scalar 并删除 17 个 dead wrapper | completed | 已从 `neon.register.inc` 删除 `RcpF64x4` 与 16 个 wide reduction assignment；已从 `neon.scalar.autowrap.inc` 删除对应 17 个 dead scalar-forwarder wrapper，保留 `F64x2` reductions |
+| 3. 收正测试口径并串行 release 复验 | completed | `dispatchapi` 已新增 `Test_NEON_WideRcpAndReductionSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders`；`Test_NativeF64ReduceAddSeedParity_WithVectorAsm_IfAvailable` 已改成对 `NEON` 断言 scalar-slot reuse、对 `RISCVV` 仍要求 native slot；`check_nonx86_helper_semantics.py` 已新增 17 个 absent guard；`check_nonx86_register_truthfulness.py` 已收紧 `ALLOWED_WRAPPER_SLOTS_BY_BACKEND['neon']`；fresh helper semantics、truthfulness、`impl-audit-nonx86`、`TTestCase_NonX86BackendParity`、串行 Release `check`、串行 Release `gate` 全部通过；`NEON` truthfulness 现为 `assignments=370 wrapper_only=136 miswired=0 conflicting_assign=0`，`gate` 尾部仍只剩 optional non-x86 native evidence skip 与历史 Windows evidence skip |

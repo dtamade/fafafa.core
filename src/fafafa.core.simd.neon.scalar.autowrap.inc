@@ -1262,21 +1262,6 @@ end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
-function NEONRcpF64x4(const a: TVecF64x4): TVecF64x4;
-begin
-  Result := ScalarRcpF64x4(a);
-end;
-
-function NEONReduceAddF32x16(const a: TVecF32x16): Single;
-begin
-  Result := ScalarReduceAddF32x16(a);
-end;
-
-function NEONReduceAddF32x8(const a: TVecF32x8): Single;
-begin
-  Result := ScalarReduceAddF32x8(a);
-end;
-
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONReduceAddF64x2(const a: TVecF64x2): Double;
@@ -1285,26 +1270,6 @@ begin
 end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
-function NEONReduceAddF64x4(const a: TVecF64x4): Double;
-begin
-  Result := ScalarReduceAddF64x4(a);
-end;
-
-function NEONReduceAddF64x8(const a: TVecF64x8): Double;
-begin
-  Result := ScalarReduceAddF64x8(a);
-end;
-
-function NEONReduceMaxF32x16(const a: TVecF32x16): Single;
-begin
-  Result := ScalarReduceMaxF32x16(a);
-end;
-
-function NEONReduceMaxF32x8(const a: TVecF32x8): Single;
-begin
-  Result := ScalarReduceMaxF32x8(a);
-end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
@@ -1315,26 +1280,6 @@ end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
-function NEONReduceMaxF64x4(const a: TVecF64x4): Double;
-begin
-  Result := ScalarReduceMaxF64x4(a);
-end;
-
-function NEONReduceMaxF64x8(const a: TVecF64x8): Double;
-begin
-  Result := ScalarReduceMaxF64x8(a);
-end;
-
-function NEONReduceMinF32x16(const a: TVecF32x16): Single;
-begin
-  Result := ScalarReduceMinF32x16(a);
-end;
-
-function NEONReduceMinF32x8(const a: TVecF32x8): Single;
-begin
-  Result := ScalarReduceMinF32x8(a);
-end;
-
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONReduceMinF64x2(const a: TVecF64x2): Double;
@@ -1344,26 +1289,6 @@ end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
-function NEONReduceMinF64x4(const a: TVecF64x4): Double;
-begin
-  Result := ScalarReduceMinF64x4(a);
-end;
-
-function NEONReduceMinF64x8(const a: TVecF64x8): Double;
-begin
-  Result := ScalarReduceMinF64x8(a);
-end;
-
-function NEONReduceMulF32x16(const a: TVecF32x16): Single;
-begin
-  Result := ScalarReduceMulF32x16(a);
-end;
-
-function NEONReduceMulF32x8(const a: TVecF32x8): Single;
-begin
-  Result := ScalarReduceMulF32x8(a);
-end;
-
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONReduceMulF64x2(const a: TVecF64x2): Double;
@@ -1372,16 +1297,6 @@ begin
 end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
-function NEONReduceMulF64x4(const a: TVecF64x4): Double;
-begin
-  Result := ScalarReduceMulF64x4(a);
-end;
-
-function NEONReduceMulF64x8(const a: TVecF64x8): Double;
-begin
-  Result := ScalarReduceMulF64x8(a);
-end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 

@@ -4414,3 +4414,36 @@
   - `backend=riscvv` 保持 `assignments=473 / wrapper_only=26 / miswired=0`
   - `NONX86_IMPL_AUDIT_SUMMARY ... status=ok`
   - Release `check` / `gate` 继续通过，`gate` 尾部仍只剩 optional non-x86 native evidence skip 与历史 Windows evidence skip
+
+## 2026-05-15 NEON Wide Rcp/Reduction Scalar-Forwarder Cleanup
+
+- `NEON` 的 `wrapper_only` 余量里还有一簇更隐蔽的假 backend-owned slot：
+  - `RcpF64x4`
+  - `ReduceAdd/Max/Min/Mul × {F32x16,F32x8,F64x4,F64x8}`
+  - 对应 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 函数体全部只是直接转发到 `Scalar*`
+- 这批与前一批 compare 不同的点在于：其中多数 assignment 不是 no-asm 专属，而是始终在 `neon.register.inc` 里绑定 `NEON...` 名字。
+  - 也就是说，即使在 asm 编译路径下，这些 wide slot 仍只是“靠 wrapper 名字伪装成 backend-owned”，不代表真的有 NEON-local 行为。
+  - `F64x2` reductions 仍保留 backend-local 实现，不属于这批 dead wrapper。
+- 进一步复核后确认 `RcpF64x4` 在当前 `NEON` 上也没有额外合同：
+  - `NEONRcpF64x4` 只是 `Result := ScalarRcpF64x4(a);`
+  - `ScalarRcpF64x4` 当前也只是逐 lane `1.0 / a.d[i]`
+  - 因此它和这批 wide reductions 一样，都应回落到 base scalar truth
+- 这批同时暴露出一处测试口径偏乐观：
+  - `TTestCase_NonX86BackendParity.Test_NativeF64ReduceAddSeedParity_WithVectorAsm_IfAvailable` 之前会对 `NEON` 和 `RISCVV` 一起断言 `ReduceAddF64x4/F64x8` slot “不应等于 scalar”
+  - 但对 `NEON` 来说，这只是 wrapper 身份假象，并非真实 backend-owned 行为
+  - 因此测试也应改成“`NEON` 诚实复用 scalar slot，`RISCVV` 仍要求 native slot”
+- 正确修法为四层联动：
+  - 从 `neon.register.inc` 删除 `RcpF64x4` 与 16 个 wide reduction assignment
+  - 从 `neon.scalar.autowrap.inc` 删除对应 17 个 dead scalar-forwarder wrapper
+  - `dispatchapi` 新增 `Test_NEON_WideRcpAndReductionSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders`
+  - 同步修正 `Test_NativeF64ReduceAddSeedParity_WithVectorAsm_IfAvailable` 的 ownership 断言口径
+  - `check_nonx86_helper_semantics.py` 增加这 17 个 absent guard
+  - `check_nonx86_register_truthfulness.py` 把这 17 个 slot 从 `ALLOWED_WRAPPER_SLOTS_BY_BACKEND['neon']` 中移除
+- fresh 结果继续证明这是“真收缩”而不是只改名字：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=598 status=ok`
+  - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=neon assignments=370 asm_exact=224 asm_suffix_only=10 wrapper_only=136 scalar_passthrough=0 no_def=0 miswired=0 strict=1`
+  - 相比上一批 `assignments=387 / wrapper_only=153`，正好又少掉这 17 个 wide scalar-forwarder assignment
+  - `backend=riscvv` 继续保持 `assignments=473 / wrapper_only=26 / miswired=0`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NonX86BackendParity` 通过
+  - Release `check` / `gate` 继续通过，`gate` 尾部结论不变：只剩 optional non-x86 native evidence skip 与历史 Windows evidence skip

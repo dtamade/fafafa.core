@@ -4857,3 +4857,41 @@
   - Release `check` 继续为绿
   - Release `gate` 继续为绿，`run_all` 仍为 `5/5` 通过
   - `gate` 尾部结论没有变化：non-x86 native evidence root 缺失仍是 optional `SKIP`，旧 `windows_b07_gate.log` 仍是历史 Windows evidence 的 optional `SKIP`
+
+## 2026-05-15 NEON Wide Rcp/Reduction Scalar-Forwarder Cleanup
+
+- 接着上一批 compare cleanup 继续扫 `NEON wrapper_only` 余量后，锁定了 17 个仍然占着 slot 的 wide scalar-forwarder：
+  - `RcpF64x4`
+  - `ReduceAdd/Max/Min/Mul × {F32x16,F32x8,F64x4,F64x8}`
+  - 它们在 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 里全部只是 `Scalar*` 单行转发
+  - `F64x2` reductions 仍是本地实现，所以保留
+- 这批还同步修正了一条过度乐观的 asm-path 测试口径：
+  - `TTestCase_NonX86BackendParity.Test_NativeF64ReduceAddSeedParity_WithVectorAsm_IfAvailable`
+  - 现在对 `NEON` 改为要求 `ReduceAddF64x4/F64x8` 诚实复用 scalar slot
+  - 对 `RISCVV` 仍保留 native-slot 断言
+- 本批已完成：
+  - 从 `src/fafafa.core.simd.neon.register.inc` 删除这 17 条 wide `Rcp/Reduce` assignment
+  - 从 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 删除对应 17 个 dead scalar-forwarder wrapper
+  - 从 `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py` 收紧 `ALLOWED_WRAPPER_SLOTS_BY_BACKEND['neon']`
+  - 从 `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 补上这 17 个 absent guard
+  - 从 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_NEON_WideRcpAndReductionSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders`
+  - 并同步修正 `Test_NativeF64ReduceAddSeedParity_WithVectorAsm_IfAvailable` 的 ownership 断言
+- 本批 fresh 复验：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_register_truthfulness.py tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NonX86BackendParity`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 当前结果：
+  - helper summary 升到 `NONX86_HELPER_SEMANTICS_SUMMARY checks=598 status=ok`
+  - `backend=neon` truthfulness 变为 `assignments=370 asm_exact=224 asm_suffix_only=10 wrapper_only=136 scalar_passthrough=0 no_def=0 miswired=0 conflicting assign=0`
+  - 相比上一批 `assignments=387 / wrapper_only=153`，正好少掉这 17 个 wide scalar-forwarder assignment
+  - `backend=riscvv` 保持 `assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 scalar_passthrough=0 no_def=0 miswired=0 conflicting assign=0`
+  - `impl-audit-nonx86` 继续为绿，summary 为 `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `check` 继续为绿
+  - Release `gate` 继续为绿，`run_all` 仍为 `5/5` 通过
+  - `gate` 尾部结论仍没有变化：non-x86 native evidence root 缺失仍是 optional `SKIP`，旧 `windows_b07_gate.log` 仍是历史 Windows evidence 的 optional `SKIP`
