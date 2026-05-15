@@ -4915,3 +4915,34 @@
   - 这批收掉的是 8 个真正的窄 `F64x2` compare/simple reduction dead wrapper
   - 当前 `NEON` 残余 `wrapper_only` 已从上一批的 `72` 再降到 `64`
   - fresh residual 已明显收敛到“仍带本地 fallback 语义或仍充当 source companion 的 `F64` 家族”，而不是这类纯同义窄壳
+
+## 2026-05-15 NEON No-Asm Narrow F64 Sqrt Slot Findings
+
+- `SqrtF64x2` 是 compare/simple reduction 之后最干净的下一项 residual，但它和前一批窄壳仍有一个关键区别：
+  - `src/fafafa.core.simd.neon.scalar.autowrap.inc` 中 `NEONSqrtF64x2` 的 no-asm body 只是逐 lane `Sqrt`
+  - `src/fafafa.core.simd.scalar.pas` 中 `ScalarSqrtF64x2` 也是逐 lane `Sqrt`
+  - 语义上它们是同义的
+  - 但 `NEONSqrtF64x4` 的 no-asm graph 仍通过两次 `NEONSqrtF64x2` 消费这个 wrapper
+- 因此这批的正确修法不是“删 wrapper + 回 scalar”，而是更精细的“保留 source companion，但回收 published slot ownership”：
+  - `src/fafafa.core.simd.neon.register.inc` 中 `table.SqrtF64x2 := @NEONSqrtF64x2;` 只在 `FAFAFA_SIMD_NEON_ASM_ENABLED` 下绑定
+  - `NEONSqrtF64x2` / `NEONSqrtF64x4` 继续留在 `src/fafafa.core.simd.neon.scalar.autowrap.inc`
+  - `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py` 已从 `ALLOWED_WRAPPER_SLOTS_BY_BACKEND['neon']` 删除 `SqrtF64x2`
+  - `dispatchapi` 新增 `Test_NEON_NoAsmNarrowF64SqrtSlot_Keep_SourceCompanion_But_Reuse_BaseScalar`，同时钉住 wrapper/source/runtime 三层 truth
+- 这批也顺手把当前最容易误收的边界再次钉死了：
+  - `ScalarFloorF64x2` / `ScalarCeilF64x2` 明确带 `IsNan/IsInfinite` guard
+  - `ScalarRoundF64x2` / `ScalarTruncF64x2` 除了 `NaN/Inf` guard，还会走 `ScalarNormalizeSignedZeroDouble(...)`
+  - 而 no-asm `NEONFloor/Ceil/Round/TruncF64x2` 只是直接 `Floor/Ceil/Round/Trunc`
+  - 所以 `Ceil/Floor/Round/TruncF64x2` 不能像 `SqrtF64x2` 这样按“纯形状同义”继续回收
+- 本批 fresh 结果：
+  - `backend=neon` truthfulness：`assignments=342 asm_exact=269 asm_suffix_only=10 wrapper_only=63 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `backend=riscvv` truthfulness：`assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `DispatchAPI` / `check` / `gate` 全绿；`gate` 尾部仍只诚实保留 optional non-x86 native evidence skip 与历史 `windows_b07_gate.log` evidence skip
+- 另一个这批实际踩到的坑也值得记下来：
+  - 为了验证 `Ceil/FloorF64x2` 的语义差异，临时 `fpc` probe 曾把 `.o/.ppu` 落进 `src/`
+  - 这会直接让 `gate` 的 `6/6 Filtered run_all check chain` 在源码树卫生检查处失败
+  - 当前已清掉这些派生产物，fresh `gate` 里 `src tree hygiene` 已重新通过
+- 关键结论：
+  - `SqrtF64x2` 属于“published slot 应回 scalar，但 wrapper 仍保留 source companion 价值”的窄 `F64` 场景
+  - 当前 `NEON wrapper_only` 已从上一批的 `64` 再降到 `63`
+  - 接下来的高价值残余不再是这种纯同义 sqrt，而是 `Ceil/Floor/Round/Trunc` 与 `Clamp/Max/Min/ReduceMax/ReduceMin` 这类带更强标量语义或次序边界的 `F64x2`

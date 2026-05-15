@@ -43,7 +43,6 @@ ALLOWED_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
         "MulF32x16", "MulF64x8",
         "ReduceMaxF64x2", "ReduceMinF64x2",
         "RoundF64x2",
-        "SqrtF64x2",
         "SubF32x16", "SubF64x8",
         "TruncF64x2",
         "AndNotI8x16", "AndNotU16x8", "AndNotU8x16",

@@ -517,7 +517,9 @@ begin
   table.SqrtF32x16 := @NEONSqrtF32x16;
   table.SqrtF32x8 := @NEONSqrtF32x8;
   {$ENDIF}
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.SqrtF64x2 := @NEONSqrtF64x2;
+  {$ENDIF}
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.SqrtF64x4 := @NEONSqrtF64x4;
   table.SqrtF64x8 := @NEONSqrtF64x8;

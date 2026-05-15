@@ -5668,3 +5668,51 @@
   - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok`
   - Release `gate` 继续 `OK`，尾部仍只诚实保留 optional non-x86 native evidence skip 与历史 `windows_b07_gate.log` evidence skip
 - 收口前已清理 `tests/fafafa.core.simd/__pycache__/`
+
+## 2026-05-15 NEON No-Asm Narrow F64 Sqrt Slot Cleanup
+
+- 继续沿上一批 compare/simple reduction 收口后的真实工作树推进，先确认未提交改动集中在：
+  - `src/fafafa.core.simd.neon.register.inc`
+  - `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+  - 以及提交前要清理的 `tests/fafafa.core.simd/__pycache__/`
+- 为避免并发重开 SIMD 测试链，这一批先守住已有 `gate` 会话单线程重跑，并补做源码级复核：
+  - `src/fafafa.core.simd.neon.scalar.autowrap.inc` 中 `NEONSqrtF64x2` 是逐 lane `Sqrt`
+  - `NEONSqrtF64x4` 则仍通过两次 `NEONSqrtF64x2` 组装
+  - `src/fafafa.core.simd.scalar.pas` 中 `ScalarSqrtF64x2/ScalarSqrtF64x4` 与其同义
+  - 但 `ScalarFloor/Ceil/Round/TruncF64x2` 明确带 `NaN/Inf` guard，且 `Round/Trunc` 还要做 signed-zero 归一化
+  - no-asm `NEONFloor/Ceil/Round/TruncF64x2` 只是直接 `Floor/Ceil/Round/Trunc`
+  - 因此这批只能先收 `SqrtF64x2`，不能顺手把 `Ceil/Floor/Round/TruncF64x2` 也一起回 scalar
+- 已完成代码修正：
+  - `src/fafafa.core.simd.neon.register.inc`
+    - 把 `table.SqrtF64x2 := @NEONSqrtF64x2;` 收进 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}`
+    - `table.SqrtF64x4 := @NEONSqrtF64x4;` 继续保持 asm-only 绑定
+  - `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+    - 从 `ALLOWED_WRAPPER_SLOTS_BY_BACKEND['neon']` 删除 `SqrtF64x2`
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 新增 `Test_NEON_NoAsmNarrowF64SqrtSlot_Keep_SourceCompanion_But_Reuse_BaseScalar`
+    - 断言 `NEONSqrtF64x2/NEONSqrtF64x4` wrapper 仍在 source 中
+    - 断言 asm binding source 仍保留
+    - 断言 no-asm 下 `sbNEON.SqrtF64x2` 与 `sbNEON.SqrtF64x4` 都复用 scalar slot
+- 本批 targeted 复验已完成：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- 结果：
+  - `backend=neon assignments=342 asm_exact=269 asm_suffix_only=10 wrapper_only=63 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `backend=riscvv assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - 相比上一批 `wrapper_only=64`，这一批正好只再减少 1 个 slot，即 `SqrtF64x2`
+- 这一批还额外踩到一个卫生坑：
+  - 为了 probe `Ceil/FloorF64x2` 语义差异，临时 `fpc` 编译一度把 `.o/.ppu` 落进 `src/`
+  - 这会让 `gate` 的 `6/6 Filtered run_all check chain` 直接在源码树卫生处失败
+  - 已使用 `find src -maxdepth 1 \( -name '*.o' -o -name '*.ppu' \) -print -delete` 清理
+- 在清理完卫生产物后，继续守住同一个 `gate` 会话串行重跑，最终尾屏通过：
+  - `run_all` 过滤链结果为 `Total: 5 Passed: 5 Failed: 0`
+  - Release `gate` 最终 `GATE OK`
+  - `gate` 尾部仍只诚实保留：
+    - non-x86 native evidence root not present -> optional `SKIP`
+    - 历史 `windows_b07_gate.log` evidence verify 失败 -> optional `SKIP`
