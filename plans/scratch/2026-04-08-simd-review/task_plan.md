@@ -3278,3 +3278,17 @@
 | 1. 复核 wide `Rcp/Reduce` wrapper 的真实合同与消费面 | completed | 已确认 `NEONRcpF64x4` 与 `ReduceAdd/Max/Min/Mul × {F32x16,F32x8,F64x4,F64x8}` 在 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 里全部只是 `Scalar*` 单行转发；`F64x2` reductions 仍保留 backend-local 实现，因此不在这批 |
 | 2. 回落到 base scalar 并删除 17 个 dead wrapper | completed | 已从 `neon.register.inc` 删除 `RcpF64x4` 与 16 个 wide reduction assignment；已从 `neon.scalar.autowrap.inc` 删除对应 17 个 dead scalar-forwarder wrapper，保留 `F64x2` reductions |
 | 3. 收正测试口径并串行 release 复验 | completed | `dispatchapi` 已新增 `Test_NEON_WideRcpAndReductionSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders`；`Test_NativeF64ReduceAddSeedParity_WithVectorAsm_IfAvailable` 已改成对 `NEON` 断言 scalar-slot reuse、对 `RISCVV` 仍要求 native slot；`check_nonx86_helper_semantics.py` 已新增 17 个 absent guard；`check_nonx86_register_truthfulness.py` 已收紧 `ALLOWED_WRAPPER_SLOTS_BY_BACKEND['neon']`；fresh helper semantics、truthfulness、`impl-audit-nonx86`、`TTestCase_NonX86BackendParity`、串行 Release `check`、串行 Release `gate` 全部通过；`NEON` truthfulness 现为 `assignments=370 wrapper_only=136 miswired=0 conflicting_assign=0`，`gate` 尾部仍只剩 optional non-x86 native evidence skip 与历史 Windows evidence skip |
+
+## 2026-05-15 NEON No-Asm Abs/Wide FloorCeil Scalar-Forwarder Cleanup
+
+### Goal
+
+继续沿 `NEON wrapper_only` 余量往下收，只清理 no-asm 分支里“源码上就是 exact `Scalar*` forwarder”的 `Abs` / wide `Floor/Ceil` slot，让这些发布位重新诚实继承 base scalar truth；保留 `CeilF64x2` / `FloorF64x2` 这两个仍带 backend-local loop 的例外，不误碰 `Round/Trunc` 这类语义更宽的家族。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `Abs/Floor/Ceil` 候选是否真的是 dead scalar-forwarder | completed | 已确认 `Abs × {F32x16,F32x8,F64x2,F64x4,F64x8}`、`Ceil × {F32x16,F32x8,F64x4,F64x8}`、`Floor × {F32x16,F32x8,F64x4,F64x8}` 在 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 里都只是单行 `Scalar*` 转发；只有 `CeilF64x2` / `FloorF64x2` 仍是 backend-local loop，因此显式保留 |
+| 2. 回落到 base scalar 并删除 13 个 dead wrapper/assignment | completed | 已从 `src/fafafa.core.simd.neon.register.inc` 删除上述 13 个 no-asm assignment，并从 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 删除对应 13 个 dead wrapper；`CeilF64x2` / `FloorF64x2` 继续保留 backend-owned 路径 |
+| 3. 收正 truth/test 口径并串行 release 复验 | completed | `dispatchapi` 已新增 `Test_NEON_NoAsmAbsAndWideFloorCeilSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders`，并把 `wide Floor/Ceil` 与 `Abs` 的旧“native-slot”断言收正为“NEON 复用 scalar、RISCVV 仍要求 native”；`check_nonx86_helper_semantics.py` 已把这 13 个名字改成 absent guard，`check_nonx86_register_truthfulness.py` 已收紧 `ALLOWED_WRAPPER_SLOTS_BY_BACKEND['neon']`；fresh `git diff --check`、`py_compile`、helper semantics、`truthfulness --backend neon/riscvv --strict`、`impl-audit-nonx86`、`TTestCase_NonX86BackendParity`、串行 Release `check`、串行 Release `gate` 全部通过；`NEON` truthfulness 现为 `assignments=357 wrapper_only=123 miswired=0 conflicting_assign=0` |

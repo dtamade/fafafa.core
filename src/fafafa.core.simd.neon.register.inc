@@ -382,22 +382,16 @@ begin
   // but they should not become NEON-owned dispatch slots when NEON asm is absent.
 
   // === Auto-generated Registration for 100% Coverage ===
-  table.AbsF32x16 := @NEONAbsF32x16;
-  table.AbsF32x8 := @NEONAbsF32x8;
-  table.AbsF64x2 := @NEONAbsF64x2;
-  table.AbsF64x4 := @NEONAbsF64x4;
-  table.AbsF64x8 := @NEONAbsF64x8;
   table.AddF32x16 := @NEONAddF32x16;
   table.AddF64x4 := @NEONAddF64x4;
   table.AddF64x8 := @NEONAddF64x8;
   // Wide integer arithmetic/bitwise families intentionally inherit
   // FillBaseDispatchTable in no-asm builds; shared wide compare wrappers are
   // registered above and should stay backend-owned.
-  table.CeilF32x16 := @NEONCeilF32x16;
-  table.CeilF32x8 := @NEONCeilF32x8;
+  // Keep no-asm wide Abs/Floor/Ceil slots on the published scalar table when
+  // the NEON wrappers only forward to Scalar*. The F64x2 Floor/Ceil loops
+  // remain backend-owned because they still carry local fallback behavior.
   table.CeilF64x2 := @NEONCeilF64x2;
-  table.CeilF64x4 := @NEONCeilF64x4;
-  table.CeilF64x8 := @NEONCeilF64x8;
   table.ClampF32x16 := @NEONClampF32x16;
   table.ClampF32x8 := @NEONClampF32x8;
   table.ClampF64x2 := @NEONClampF64x2;
@@ -423,11 +417,7 @@ begin
   table.ExtractI32x4 := @NEONExtractI32x4;
   table.ExtractI64x2 := @NEONExtractI64x2;
   {$ENDIF}
-  table.FloorF32x16 := @NEONFloorF32x16;
-  table.FloorF32x8 := @NEONFloorF32x8;
   table.FloorF64x2 := @NEONFloorF64x2;
-  table.FloorF64x4 := @NEONFloorF64x4;
-  table.FloorF64x8 := @NEONFloorF64x8;
   table.FmaF32x16 := @NEONFmaF32x16;
   table.FmaF32x8 := @NEONFmaF32x8;
   table.FmaF64x2 := @NEONFmaF64x2;

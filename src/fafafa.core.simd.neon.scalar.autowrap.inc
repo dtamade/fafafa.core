@@ -1,35 +1,6 @@
 // === Auto-generated NEON Wrapper Functions (Scalar Fallback) ===
 // These wrappers delegate to scalar implementations for 100% coverage
 
-{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-
-function NEONAbsF32x16(const a: TVecF32x16): TVecF32x16;
-begin
-  Result := ScalarAbsF32x16(a);
-end;
-
-function NEONAbsF32x8(const a: TVecF32x8): TVecF32x8;
-begin
-  Result := ScalarAbsF32x8(a);
-end;
-
-function NEONAbsF64x2(const a: TVecF64x2): TVecF64x2;
-begin
-  Result := ScalarAbsF64x2(a);
-end;
-
-function NEONAbsF64x4(const a: TVecF64x4): TVecF64x4;
-begin
-  Result := ScalarAbsF64x4(a);
-end;
-
-function NEONAbsF64x8(const a: TVecF64x8): TVecF64x8;
-begin
-  Result := ScalarAbsF64x8(a);
-end;
-
-{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
 function NEONAddF32x16(const a, b: TVecF32x16): TVecF32x16;
 begin
   Result.lo.lo := NEONAddF32x4(a.lo.lo, b.lo.lo);
@@ -176,30 +147,10 @@ begin
   Result := ScalarAndU64x4(a, b);
 end;
 
-function NEONCeilF32x16(const a: TVecF32x16): TVecF32x16;
-begin
-  Result := ScalarCeilF32x16(a);
-end;
-
-function NEONCeilF32x8(const a: TVecF32x8): TVecF32x8;
-begin
-  Result := ScalarCeilF32x8(a);
-end;
-
 function NEONCeilF64x2(const a: TVecF64x2): TVecF64x2;
 begin
   Result.d[0] := Ceil(a.d[0]);
   Result.d[1] := Ceil(a.d[1]);
-end;
-
-function NEONCeilF64x4(const a: TVecF64x4): TVecF64x4;
-begin
-  Result := ScalarCeilF64x4(a);
-end;
-
-function NEONCeilF64x8(const a: TVecF64x8): TVecF64x8;
-begin
-  Result := ScalarCeilF64x8(a);
 end;
 
 function NEONClampF32x16(const a, minVal, maxVal: TVecF32x16): TVecF32x16;
@@ -868,30 +819,10 @@ end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
-function NEONFloorF32x16(const a: TVecF32x16): TVecF32x16;
-begin
-  Result := ScalarFloorF32x16(a);
-end;
-
-function NEONFloorF32x8(const a: TVecF32x8): TVecF32x8;
-begin
-  Result := ScalarFloorF32x8(a);
-end;
-
 function NEONFloorF64x2(const a: TVecF64x2): TVecF64x2;
 begin
   Result.d[0] := Floor(a.d[0]);
   Result.d[1] := Floor(a.d[1]);
-end;
-
-function NEONFloorF64x4(const a: TVecF64x4): TVecF64x4;
-begin
-  Result := ScalarFloorF64x4(a);
-end;
-
-function NEONFloorF64x8(const a: TVecF64x8): TVecF64x8;
-begin
-  Result := ScalarFloorF64x8(a);
 end;
 
 function NEONFmaF32x16(const a, b, c: TVecF32x16): TVecF32x16;

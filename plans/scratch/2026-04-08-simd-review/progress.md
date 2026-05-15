@@ -4895,3 +4895,42 @@
   - Release `check` 继续为绿
   - Release `gate` 继续为绿，`run_all` 仍为 `5/5` 通过
   - `gate` 尾部结论仍没有变化：non-x86 native evidence root 缺失仍是 optional `SKIP`，旧 `windows_b07_gate.log` 仍是历史 Windows evidence 的 optional `SKIP`
+
+## 2026-05-15 NEON No-Asm Abs/Wide FloorCeil Scalar-Forwarder Cleanup
+
+- 继续沿 `NEON wrapper_only` 往下扫后，这一批锁定的是 13 个 no-asm `Abs/Floor/Ceil` scalar-forwarder：
+  - `Abs × {F32x16,F32x8,F64x2,F64x4,F64x8}`
+  - `Ceil × {F32x16,F32x8,F64x4,F64x8}`
+  - `Floor × {F32x16,F32x8,F64x4,F64x8}`
+- 已确认这 13 个名字在 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 里都只是单行 `Scalar*` 转发，因此继续挂在 `NEON` register 上只会制造虚假的 backend-owned truth。
+- 本批特意停手的两个例外也已复核清楚：
+  - `NEONCeilF64x2`
+  - `NEONFloorF64x2`
+- 这两个函数在 no-asm 路径里仍保留 backend-local loop，所以继续留在 `register` 中，不和 wide family 一起删。
+- 本批已完成：
+  - 从 `src/fafafa.core.simd.neon.register.inc` 删除 13 条 no-asm assignment
+  - 从 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 删除对应 13 个 dead wrapper
+  - 从 `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py` 收紧 `ALLOWED_WRAPPER_SLOTS_BY_BACKEND['neon']`
+  - 从 `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 把这 13 个名字改成 absent guard
+  - 从 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_NEON_NoAsmAbsAndWideFloorCeilSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders`
+  - 并同步把两条旧的 `wide Floor/Ceil` ownership 测试收正为“NEON 复用 scalar，否则 native”
+- 本批 fresh 复验：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_register_truthfulness.py tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NonX86BackendParity`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 当前结果：
+  - helper summary 维持 `NONX86_HELPER_SEMANTICS_SUMMARY checks=598 status=ok`
+  - `backend=neon` truthfulness 变为 `assignments=357 asm_exact=224 asm_suffix_only=10 wrapper_only=123 scalar_passthrough=0 no_def=0 miswired=0 conflicting assign=0`
+  - 相比上一批 `assignments=370 / wrapper_only=136`，正好少掉这 13 个 `Abs/Floor/Ceil` scalar-forwarder assignment
+  - `backend=riscvv` 保持 `assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 scalar_passthrough=0 no_def=0 miswired=0 conflicting assign=0`
+  - `impl-audit-nonx86` 继续为绿，summary 为 `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `check` 继续为绿
+  - Release `gate` 继续为绿，`run_all` 为 `5/5` 通过
+  - `gate` 尾部仍然只把 non-x86 native evidence root 缺失和历史 `windows_b07_gate.log` 诚实降级为 optional `SKIP`
+- 收口前已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

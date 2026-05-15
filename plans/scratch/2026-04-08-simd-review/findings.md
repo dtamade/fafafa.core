@@ -4447,3 +4447,41 @@
   - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NonX86BackendParity` 通过
   - Release `check` / `gate` 继续通过，`gate` 尾部结论不变：只剩 optional non-x86 native evidence skip 与历史 Windows evidence skip
+
+## 2026-05-15 NEON No-Asm Abs/Wide FloorCeil Scalar-Forwarder Cleanup
+
+- `NEON wrapper_only` 继续往下收时，下一簇真实假 backend-owned slot 出现在 no-asm 的 `Abs` / wide `Floor/Ceil`：
+  - `Abs × {F32x16,F32x8,F64x2,F64x4,F64x8}`
+  - `Ceil × {F32x16,F32x8,F64x4,F64x8}`
+  - `Floor × {F32x16,F32x8,F64x4,F64x8}`
+- 这 13 个名字在 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 里都只是 exact `Scalar*` 单行转发，因此和前两批 compare / reduction 一样，不该继续伪装成 backend-owned slot。
+- 这批唯一需要显式停手的例外是：
+  - `NEONCeilF64x2`
+  - `NEONFloorF64x2`
+- 它们在 no-asm 路径里仍然保留 backend-local loop：
+  - `Result.d[0] := Ceil/Floor(a.d[0])`
+  - `Result.d[1] := Ceil/Floor(a.d[1])`
+  - 因此它们不是 dead scalar-forwarder，不能和 wide family 一起机械删除。
+- 正确修法仍是“回落 published truth，而不是硬造新 helper”：
+  - 从 `src/fafafa.core.simd.neon.register.inc` 删除 13 条 no-asm assignment
+  - 从 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 删除对应 13 个 dead wrapper
+  - 保留 `CeilF64x2` / `FloorF64x2`
+- 这批还暴露出旧测试口径偏乐观的问题：
+  - `TTestCase_DispatchAPI.Test_NonX86_NativeWideFloorCeil_Slots_NotScalar_IfAvailable`
+  - `TTestCase_NonX86BackendParity.Test_NativeWideFloorCeilSlots_NotScalar_IfAvailable`
+- 上述两条旧测试之前会把 `NEON` 的 wide `Floor/Ceil` 与 `Abs` 统一当成 native-slot。
+- 但源码事实已经表明：
+  - `NEON` 在这些 no-asm slot 上只是 scalar forwarder，应断言 `scalar-slot reuse`
+  - `RISCVV` 的对应 wide `Floor/Ceil` 仍保留 native/backend-local 路径，应继续断言 `backend slot <> scalar slot`
+- 因此这批不是单纯删函数，而是把三层真相一起收正：
+  - `dispatchapi` 新增 `Test_NEON_NoAsmAbsAndWideFloorCeilSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders`
+  - 两条旧 `wide Floor/Ceil` 测试改成“NEON 复用 scalar，否则 native”
+  - `check_nonx86_helper_semantics.py` 把这 13 个名字从 routine expectation 改成 absent guard
+  - `check_nonx86_register_truthfulness.py` 把这 13 个 slot 从 `ALLOWED_WRAPPER_SLOTS_BY_BACKEND['neon']` 中移除
+- fresh 结果继续证明这批是“真收缩 truthfulness 冗余”，不是只改文案：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=598 status=ok`
+  - `backend=neon`：`assignments=357 asm_exact=224 asm_suffix_only=10 wrapper_only=123 miswired=0 conflicting assign=0`
+  - 相比上一批 `assignments=370 / wrapper_only=136`，正好少掉这 13 个 no-asm `Abs/Floor/Ceil` scalar-forwarder assignment
+  - `backend=riscvv` 继续保持 `assignments=473 ... wrapper_only=26 ... miswired=0`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NonX86BackendParity` 通过
+  - Release `check` / `gate` 继续通过，`gate` 末尾仍只剩 optional non-x86 native evidence skip 与历史 Windows evidence skip
