@@ -32,12 +32,6 @@ NEON_WIDE_COMPARE_WRAPPER_SLOTS: set[str] = {
 
 ALLOWED_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
     "neon": {
-        "CmpEqF64x2",
-        "CmpGeF64x2",
-        "CmpGtF64x2",
-        "CmpLeF64x2",
-        "CmpLtF64x2",
-        "CmpNeF64x2",
         "SelectF32x4",
         "AddF32x16", "AddF64x8",
         "CeilF64x2",
@@ -47,7 +41,7 @@ ALLOWED_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
         "MaxF32x16", "MaxF64x2", "MaxF64x8",
         "MinF32x16", "MinF64x2", "MinF64x8",
         "MulF32x16", "MulF64x8",
-        "ReduceAddF64x2", "ReduceMaxF64x2", "ReduceMinF64x2", "ReduceMulF64x2",
+        "ReduceMaxF64x2", "ReduceMinF64x2",
         "RoundF64x2",
         "SqrtF64x2",
         "SubF32x16", "SubF64x8",

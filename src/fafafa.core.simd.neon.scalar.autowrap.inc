@@ -207,17 +207,6 @@ function NEONCmpNeI32x8(const a, b: TVecI32x8): TMask8; forward;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
-function NEONCmpEqF64x2(const a, b: TVecF64x2): TMask2;
-begin
-  Result := 0;
-  if a.d[0] = b.d[0] then Result := Result or 1;
-  if a.d[1] = b.d[1] then Result := Result or 2;
-end;
-
-{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
-{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-
 function NEONCmpEqI16x8(const a, b: TVecI16x8): TMask8;
 begin
   Result := ScalarCmpEqI16x8(a, b);
@@ -288,17 +277,6 @@ end;
 function NEONCmpEqU8x16(const a, b: TVecU8x16): TMask16;
 begin
   Result := ScalarCmpEqU8x16(a, b);
-end;
-
-{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
-{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-
-function NEONCmpGeF64x2(const a, b: TVecF64x2): TMask2;
-begin
-  Result := 0;
-  if a.d[0] >= b.d[0] then Result := Result or 1;
-  if a.d[1] >= b.d[1] then Result := Result or 2;
 end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
@@ -383,17 +361,6 @@ end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
-function NEONCmpGtF64x2(const a, b: TVecF64x2): TMask2;
-begin
-  Result := 0;
-  if a.d[0] > b.d[0] then Result := Result or 1;
-  if a.d[1] > b.d[1] then Result := Result or 2;
-end;
-
-{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
-{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-
 function NEONCmpGtI16x8(const a, b: TVecI16x8): TMask8;
 begin
   Result := ScalarCmpGtI16x8(a, b);
@@ -464,17 +431,6 @@ end;
 function NEONCmpGtU8x16(const a, b: TVecU8x16): TMask16;
 begin
   Result := ScalarCmpGtU8x16(a, b);
-end;
-
-{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
-{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-
-function NEONCmpLeF64x2(const a, b: TVecF64x2): TMask2;
-begin
-  Result := 0;
-  if a.d[0] <= b.d[0] then Result := Result or 1;
-  if a.d[1] <= b.d[1] then Result := Result or 2;
 end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
@@ -559,17 +515,6 @@ end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
-function NEONCmpLtF64x2(const a, b: TVecF64x2): TMask2;
-begin
-  Result := 0;
-  if a.d[0] < b.d[0] then Result := Result or 1;
-  if a.d[1] < b.d[1] then Result := Result or 2;
-end;
-
-{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
-{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-
 function NEONCmpLtI16x8(const a, b: TVecI16x8): TMask8;
 begin
   Result := ScalarCmpLtI16x8(a, b);
@@ -640,17 +585,6 @@ end;
 function NEONCmpLtU8x16(const a, b: TVecU8x16): TMask16;
 begin
   Result := ScalarCmpLtU8x16(a, b);
-end;
-
-{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
-{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-
-function NEONCmpNeF64x2(const a, b: TVecF64x2): TMask2;
-begin
-  Result := 0;
-  if a.d[0] <> b.d[0] then Result := Result or 1;
-  if a.d[1] <> b.d[1] then Result := Result or 2;
 end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
@@ -1081,15 +1015,6 @@ end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
-function NEONReduceAddF64x2(const a: TVecF64x2): Double;
-begin
-  Result := a.d[0] + a.d[1];
-end;
-
-{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
-{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-
 function NEONReduceMaxF64x2(const a: TVecF64x2): Double;
 begin
   if a.d[0] > a.d[1] then Result := a.d[0] else Result := a.d[1];
@@ -1102,15 +1027,6 @@ end;
 function NEONReduceMinF64x2(const a: TVecF64x2): Double;
 begin
   if a.d[0] < a.d[1] then Result := a.d[0] else Result := a.d[1];
-end;
-
-{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
-{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-
-function NEONReduceMulF64x2(const a: TVecF64x2): Double;
-begin
-  Result := a.d[0] * a.d[1];
 end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED

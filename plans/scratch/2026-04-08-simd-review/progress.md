@@ -277,6 +277,63 @@
   - `Round/TruncF32x8/F32x16/F64x8` 的 no-asm dead wrapper 已清掉
   - `Round/TruncF64x4` source companion 仍完整保留，但 published slot 已回到 base scalar truth
 
+## 2026-05-15 NEON No-Asm Narrow F64 Compare/Simple Reduction Slot Cleanup
+
+- 继续沿 fresh residual 往下切，这一批选择 8 个最干净的窄 `F64x2` compare/simple reduction slot：
+  - `CmpEqF64x2`
+  - `CmpGeF64x2`
+  - `CmpGtF64x2`
+  - `CmpLeF64x2`
+  - `CmpLtF64x2`
+  - `CmpNeF64x2`
+  - `ReduceAddF64x2`
+  - `ReduceMulF64x2`
+- 选这批的理由已经核实为两点同时成立：
+  - 它们在 `src/` 内只剩 `neon.pas / register.inc / scalar.autowrap.inc`，没有更宽 no-asm consumer
+  - 其 no-asm body 与 `ScalarCmp*F64x2`、`ScalarReduceAdd/ReduceMulF64x2` 逐字同义，不像 `Clamp/Max/Min/ReduceMax/ReduceMinF64x2` 那样还保留本地 fallback 语义争议
+- 已落地的源码/测试收口：
+  - `src/fafafa.core.simd.neon.register.inc`
+    - 把 `CmpEq/Ge/Gt/Le/Lt/NeF64x2` 改成 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}` 绑定
+    - 把 `ReduceAdd/ReduceMulF64x2` 改成 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}` 绑定
+  - `src/fafafa.core.simd.neon.scalar.autowrap.inc`
+    - 删除 `NEONCmpEqF64x2`
+    - 删除 `NEONCmpGeF64x2`
+    - 删除 `NEONCmpGtF64x2`
+    - 删除 `NEONCmpLeF64x2`
+    - 删除 `NEONCmpLtF64x2`
+    - 删除 `NEONCmpNeF64x2`
+    - 删除 `NEONReduceAddF64x2`
+    - 删除 `NEONReduceMulF64x2`
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 把这 8 个名字改成 absent guard
+  - `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+    - 从 `NEON` allowlist 删除 6 个 compare 与 `ReduceAdd/ReduceMulF64x2`
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 新增 `Test_NEON_NoAsmNarrowF64CompareAndSimpleReductionSlots_Reuse_BaseScalar_When_Wrappers_Have_No_SourceConsumers`
+- 本批 fresh 复验已经完成：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 当前结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=643 status=ok`
+  - `backend=neon` truthfulness：`assignments=342 asm_exact=268 asm_suffix_only=10 wrapper_only=64 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `backend=riscvv` truthfulness：`assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `check` 通过
+  - Release `gate` 通过，尾部仍只诚实保留：
+    - optional non-x86 native evidence verify skip
+    - 历史 `windows_b07_gate.log` evidence verify fail -> optional `SKIP`
+- 当前阶段结论：
+  - `NEON` 当前 `wrapper_only` 已从上一批的 `72` 进一步降到 `64`
+  - 这 8 个 `F64x2` compare/simple reduction no-asm dead wrapper 已清掉
+  - fresh residual 进一步收敛到仍带本地 fallback 语义或仍有 source companion 价值的 `F64` 家族
+
 ## 2026-05-09
 
 - 按当前 `SIMD` 方案重新核对了 `src/fafafa.core.simd.sse2.pas`、`src/fafafa.core.simd.intrinsics.sse2.pas`、`src/fafafa.core.simd.intrinsics.x86.sse2.pas` 与现有 experimental/structure 护栏，确认此前仓库文档虽然强调 stable/experimental 边界，但还缺少 SSE2 归属的明确真相表。

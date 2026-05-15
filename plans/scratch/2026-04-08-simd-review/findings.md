@@ -4884,3 +4884,34 @@
   - 这批真正收掉的是 6 个 dead wrapper 加 8 个 no-asm fake backend-owned wide `Round/Trunc` slot
   - `Round/TruncF64x4` 继续保留为 source companion，但它们的 published slot 已回到 base scalar truth
   - `NEON` 当前残余 `wrapper_only` 已从上一批的 `80` 进一步降到 `72`
+
+## 2026-05-15 NEON No-Asm Narrow F64 Compare/Simple Reduction Findings
+
+- 这批 residual 里最干净的一簇，不是 `Clamp/Max/Min` 这种仍带本地 fallback 语义的 `F64x2`，而是 8 个“没有 source consumer 且与 scalar 逐字同义”的窄壳：
+  - `CmpEqF64x2`
+  - `CmpGeF64x2`
+  - `CmpGtF64x2`
+  - `CmpLeF64x2`
+  - `CmpLtF64x2`
+  - `CmpNeF64x2`
+  - `ReduceAddF64x2`
+  - `ReduceMulF64x2`
+- 它们之所以比 `ReduceMax/MinF64x2`、`Max/MinF64x2` 更适合先收，有两个硬证据：
+  - source graph 上，这 8 个名字在 `src/` 内只剩 `neon.pas + register.inc + scalar.autowrap.inc`，没有任何更宽 no-asm consumer
+  - 语义上，`NEONCmp*F64x2` 与 `ScalarCmp*F64x2`、`NEONReduceAdd/ReduceMulF64x2` 与 `ScalarReduceAdd/ReduceMulF64x2` 是逐字同义；不像 `ClampF64x2` 或 `ReduceMax/MinF64x2` 那样仍可能保留 NaN/signed-zero 或 `Math.Min/Max` 相关的本地次序差异
+- 因而这批属于最纯粹的 dead wrapper + fake backend-owned slot 回收：
+  - no-asm wrapper 已没有 source companion 价值
+  - runtime published `sbNEON` slot 也不该继续占着 backend-local owner 的名义
+- `dispatchapi` 这批之前并没有专门的 ownership 护栏，只有“assigned + parity”覆盖：
+  - `CmpLtF64x2` / `ReduceAddF64x2` 只在 generic parity 段里验证过结果
+  - 所以这次新增 `Test_NEON_NoAsmNarrowF64CompareAndSimpleReductionSlots_Reuse_BaseScalar_When_Wrappers_Have_No_SourceConsumers` 是必要的，它把“wrapper 已删 + asm binding source 仍在 + runtime slot 复用 scalar” 三件事一次钉死
+- fresh checker/runtime/test 结果说明这批 8 个槽位已完整退出 residual：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=643 status=ok`
+  - `backend=neon` truthfulness：`assignments=342 asm_exact=268 asm_suffix_only=10 wrapper_only=64 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `backend=riscvv` truthfulness：`assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok`
+  - Release `DispatchAPI / check / gate` 全绿；`gate` 尾部仍只诚实保留 optional non-x86 native evidence skip 与历史 `windows_b07_gate.log` evidence skip
+- 关键结论：
+  - 这批收掉的是 8 个真正的窄 `F64x2` compare/simple reduction dead wrapper
+  - 当前 `NEON` 残余 `wrapper_only` 已从上一批的 `72` 再降到 `64`
+  - fresh residual 已明显收敛到“仍带本地 fallback 语义或仍充当 source companion 的 `F64` 家族”，而不是这类纯同义窄壳

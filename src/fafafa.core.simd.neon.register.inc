@@ -414,12 +414,14 @@ begin
   table.ClampF64x2 := @NEONClampF64x2;
   table.ClampF64x4 := @NEONClampF64x4;
   table.ClampF64x8 := @NEONClampF64x8;
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.CmpEqF64x2 := @NEONCmpEqF64x2;
   table.CmpGeF64x2 := @NEONCmpGeF64x2;
   table.CmpGtF64x2 := @NEONCmpGtF64x2;
   table.CmpLeF64x2 := @NEONCmpLeF64x2;
   table.CmpLtF64x2 := @NEONCmpLtF64x2;
   table.CmpNeF64x2 := @NEONCmpNeF64x2;
+  {$ENDIF}
   // Keep no-asm wide float compare slots on the published scalar table when
   // the NEON wrappers are only scalar forwarders. The local F64x2 loops above
   // remain backend-owned because they still carry real backend-local behavior.
@@ -482,10 +484,14 @@ begin
   // Keep wide reciprocal/reduction slots on the published scalar table when
   // the NEON wrappers only forward to Scalar* helpers. The F64x2 reductions
   // below remain backend-owned because they still carry local behavior.
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.ReduceAddF64x2 := @NEONReduceAddF64x2;
+  {$ENDIF}
   table.ReduceMaxF64x2 := @NEONReduceMaxF64x2;
   table.ReduceMinF64x2 := @NEONReduceMinF64x2;
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.ReduceMulF64x2 := @NEONReduceMulF64x2;
+  {$ENDIF}
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.RoundF32x16 := @NEONRoundF32x16;
   table.RoundF32x8 := @NEONRoundF32x8;
