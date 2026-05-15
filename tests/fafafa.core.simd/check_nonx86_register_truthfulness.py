@@ -48,10 +48,10 @@ ALLOWED_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
         "MinF32x16", "MinF64x2", "MinF64x8",
         "MulF32x16", "MulF64x8",
         "ReduceAddF64x2", "ReduceMaxF64x2", "ReduceMinF64x2", "ReduceMulF64x2",
-        "RoundF32x16", "RoundF32x8", "RoundF64x2", "RoundF64x4", "RoundF64x8",
+        "RoundF64x2",
         "SqrtF64x2",
         "SubF32x16", "SubF64x8",
-        "TruncF32x16", "TruncF32x8", "TruncF64x2", "TruncF64x4", "TruncF64x8",
+        "TruncF64x2",
         "AndNotI8x16", "AndNotU16x8", "AndNotU8x16",
     } | NEON_WIDE_COMPARE_WRAPPER_SLOTS,
     "riscvv": {

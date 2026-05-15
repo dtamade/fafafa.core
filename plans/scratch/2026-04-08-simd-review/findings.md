@@ -4855,3 +4855,32 @@
 - 关键结论：
   - 这批收掉的不是 dead wrapper，而是“仍有 source companion 价值、但不该继续 no-asm backend-owned 的 mid-width `F64x4` arithmetic slot”
   - `NEON` 当前残余 `wrapper_only` 已进一步降到 `80`
+
+## 2026-05-15 NEON No-Asm Wide Round/Trunc Slot Findings
+
+- 这批 residual 比 `F64x4` arithmetic 更适合再细分成两种 source role：
+  - `Round/TruncF32x8/F32x16/F64x8`：no-asm wrapper 已无 live source consumer，属于真 dead wrapper
+  - `Round/TruncF64x4`：虽然 runtime slot 不该继续 no-asm backend-owned，但它仍被 `Round/TruncF64x8` no-asm graph 消费，必须保留成 source companion
+- `src/fafafa.core.simd.neon.scalar.autowrap.inc` 的真实调用链已经把这个差异写得很清楚：
+  - `RoundF32x8` 只是两次 `NEONRoundF32x4`
+  - `RoundF32x16` 直接展开到四个 `NEONRoundF32x4`
+  - `RoundF64x8` 调两次 `NEONRoundF64x4`
+  - `RoundF64x4` 自己才是 `RoundF64x8` 的 no-asm source companion
+  - `Trunc` 家族完全同型
+- 因此这批不能简单一刀切成“全部删 wrapper”或“全部只回收 runtime slot”：
+  - 删 `Round/TruncF64x4` 会直接断掉 `F64x8` 的 no-asm source graph
+  - 保留 `Round/TruncF32x8/F32x16/F64x8` 则只是继续养死壳，并让 `sbNEON` 在 no-asm 下假装自己仍有 backend-local owner
+- `dispatchapi` 这批 dedicated 护栏的必要性也很高，因为 generic capability 断言此前还是旧口径：
+  - 新增 `Test_NEON_NoAsmWideRoundTruncSlots_Keep_Only_Consumed_Companions_And_Reuse_BaseScalar`
+  - 两处 `DispatchAPI` wide `Round/Trunc` 段都已从“总是 native”收正为 `AssertNeonReusesScalarOtherwiseNative(...)`
+  - 这样 dedicated truth 和 generic parity 不会再次互相打架
+- fresh checker/runtime/test 结果说明这批回收吃到了完整收益：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=635 status=ok`
+  - `backend=neon` truthfulness：`assignments=342 asm_exact=260 asm_suffix_only=10 wrapper_only=72 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `backend=riscvv` truthfulness：`assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok`
+  - Release `DispatchAPI / check / gate` 全绿；`gate` 尾部仍只诚实保留 optional non-x86 native evidence skip 与历史 `windows_b07_gate.log` evidence skip
+- 关键结论：
+  - 这批真正收掉的是 6 个 dead wrapper 加 8 个 no-asm fake backend-owned wide `Round/Trunc` slot
+  - `Round/TruncF64x4` 继续保留为 source companion，但它们的 published slot 已回到 base scalar truth
+  - `NEON` 当前残余 `wrapper_only` 已从上一批的 `80` 进一步降到 `72`

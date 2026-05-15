@@ -217,6 +217,66 @@
   - `NEON` 当前 `wrapper_only` 已从上一批的 `84` 进一步降到 `80`
   - `Add/Sub/Mul/DivF64x4` 已不再占着 no-asm fake backend-owned truth，同时 source companion 仍完整保留
 
+## 2026-05-15 NEON No-Asm Wide Round/Trunc Slot-Ownership Cleanup
+
+- 接着上一批 `F64x4` arithmetic residual 继续往下切，本轮先锁定 wide `Round/Trunc`：
+  - `RoundF32x8`
+  - `RoundF32x16`
+  - `RoundF64x4`
+  - `RoundF64x8`
+  - `TruncF32x8`
+  - `TruncF32x16`
+  - `TruncF64x4`
+  - `TruncF64x8`
+- 先依据 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 复核 no-asm source graph：
+  - `Round/TruncF32x8` 都只是两次 `*F32x4`
+  - `Round/TruncF32x16` 直接展开到四个 `*F32x4`
+  - `Round/TruncF64x8` 继续消费 `Round/TruncF64x4`
+  - `Round/TruncF64x4` 再消费 `Round/TruncF64x2`
+  - 因而 `F32x8/F32x16/F64x8` 属于 dead wrapper，`F64x4` 属于应保留的 source companion，`F64x2` 继续保持 backend-owned
+- 已落地的源码/测试收口：
+  - `src/fafafa.core.simd.neon.register.inc`
+    - 把 `Round/TruncF32x8/F32x16/F64x4/F64x8` 改成 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}` 绑定
+  - `src/fafafa.core.simd.neon.scalar.autowrap.inc`
+    - 删除 `NEONRoundF32x8`
+    - 删除 `NEONRoundF32x16`
+    - 删除 `NEONRoundF64x8`
+    - 删除 `NEONTruncF32x8`
+    - 删除 `NEONTruncF32x16`
+    - 删除 `NEONTruncF64x8`
+    - 保留 `NEONRoundF64x4`
+    - 保留 `NEONTruncF64x4`
+  - `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+    - 从 `NEON` allowlist 删除 wide `Round/Trunc` 名字，仅保留 `RoundF64x2` / `TruncF64x2`
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 把被删除的 6 个 wrapper 改成 absent guard
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 新增 `Test_NEON_NoAsmWideRoundTruncSlots_Keep_Only_Consumed_Companions_And_Reuse_BaseScalar`
+    - 两处 wide `Round/Trunc` capability 断言从 `AssertNativeSlotNotScalar(...)` 收正为 `AssertNeonReusesScalarOtherwiseNative(...)`
+- 本批 fresh 复验已经完成：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 当前结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=635 status=ok`
+  - `backend=neon` truthfulness：`assignments=342 asm_exact=260 asm_suffix_only=10 wrapper_only=72 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `backend=riscvv` truthfulness：`assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `check` 通过
+  - Release `gate` 通过，尾部仍只诚实保留：
+    - optional non-x86 native evidence verify skip
+    - 历史 `windows_b07_gate.log` evidence verify fail -> optional `SKIP`
+- 当前阶段结论：
+  - `NEON` 当前 `wrapper_only` 已从上一批的 `80` 进一步降到 `72`
+  - `Round/TruncF32x8/F32x16/F64x8` 的 no-asm dead wrapper 已清掉
+  - `Round/TruncF64x4` source companion 仍完整保留，但 published slot 已回到 base scalar truth
+
 ## 2026-05-09
 
 - 按当前 `SIMD` 方案重新核对了 `src/fafafa.core.simd.sse2.pas`、`src/fafafa.core.simd.intrinsics.sse2.pas`、`src/fafafa.core.simd.intrinsics.x86.sse2.pas` 与现有 experimental/structure 护栏，确认此前仓库文档虽然强调 stable/experimental 边界，但还缺少 SSE2 归属的明确真相表。

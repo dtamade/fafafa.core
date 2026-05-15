@@ -486,11 +486,15 @@ begin
   table.ReduceMaxF64x2 := @NEONReduceMaxF64x2;
   table.ReduceMinF64x2 := @NEONReduceMinF64x2;
   table.ReduceMulF64x2 := @NEONReduceMulF64x2;
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.RoundF32x16 := @NEONRoundF32x16;
   table.RoundF32x8 := @NEONRoundF32x8;
+  {$ENDIF}
   table.RoundF64x2 := @NEONRoundF64x2;
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.RoundF64x4 := @NEONRoundF64x4;
   table.RoundF64x8 := @NEONRoundF64x8;
+  {$ENDIF}
   // Keep exact Scalar* select wrappers on the published scalar table even when
   // NEON asm is compiled. They are not backend-local owners.
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
@@ -524,11 +528,15 @@ begin
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.SubF64x8 := @NEONSubF64x8;
   {$ENDIF}
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.TruncF32x16 := @NEONTruncF32x16;
   table.TruncF32x8 := @NEONTruncF32x8;
+  {$ENDIF}
   table.TruncF64x2 := @NEONTruncF64x2;
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.TruncF64x4 := @NEONTruncF64x4;
   table.TruncF64x8 := @NEONTruncF64x8;
+  {$ENDIF}
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.ZeroF64x2 := @NEONZeroF64x2;
   {$ENDIF}
