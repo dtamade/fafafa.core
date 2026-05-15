@@ -447,7 +447,9 @@ begin
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.InsertF64x2 := @NEONInsertF64x2;
   {$ENDIF}
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.LoadF64x2 := @NEONLoadF64x2;
+  {$ENDIF}
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.MaxF32x16 := @NEONMaxF32x16;
   table.MaxF32x8 := @NEONMaxF32x8;
@@ -492,7 +494,9 @@ begin
   table.ShiftRightI16x8 := @NEONShiftRightI16x8;
   table.ShiftRightU16x8 := @NEONShiftRightU16x8;
   {$ENDIF}
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.SplatF64x2 := @NEONSplatF64x2;
+  {$ENDIF}
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.SqrtF32x16 := @NEONSqrtF32x16;
   table.SqrtF32x8 := @NEONSqrtF32x8;
@@ -502,7 +506,9 @@ begin
   table.SqrtF64x4 := @NEONSqrtF64x4;
   table.SqrtF64x8 := @NEONSqrtF64x8;
   {$ENDIF}
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.StoreF64x2 := @NEONStoreF64x2;
+  {$ENDIF}
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.SubF32x16 := @NEONSubF32x16;
   {$ENDIF}
@@ -515,7 +521,9 @@ begin
   table.TruncF64x2 := @NEONTruncF64x2;
   table.TruncF64x4 := @NEONTruncF64x4;
   table.TruncF64x8 := @NEONTruncF64x8;
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.ZeroF64x2 := @NEONZeroF64x2;
+  {$ENDIF}
   {$ENDIF}
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.AndNotI8x16 := @NEONAndNotI8x16;

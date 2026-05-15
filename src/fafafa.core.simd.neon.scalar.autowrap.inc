@@ -812,19 +812,6 @@ begin
   Result := ScalarInsertI64x4(a, value, index);
 end;
 
-{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-
-function NEONLoadF64x2(p: PDouble): TVecF64x2;
-type
-  TDoubleLanes = array[0..1] of Double;
-  PDoubleLanes = ^TDoubleLanes;
-begin
-  Result.d[0] := PDoubleLanes(p)^[0];
-  Result.d[1] := PDoubleLanes(p)^[1];
-end;
-
-{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
 function NEONLoadI64x4(p: PInt64): TVecI64x4;
 begin
   Result := ScalarLoadI64x4(p);
@@ -1258,16 +1245,6 @@ end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
-{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-
-function NEONSplatF64x2(value: Double): TVecF64x2;
-begin
-  Result.d[0] := value;
-  Result.d[1] := value;
-end;
-
-{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
 function NEONSplatI64x4(value: Int64): TVecI64x4;
 begin
   Result := ScalarSplatI64x4(value);
@@ -1285,19 +1262,6 @@ function NEONSqrtF64x4(const a: TVecF64x4): TVecF64x4;
 begin
   Result.lo := NEONSqrtF64x2(a.lo);
   Result.hi := NEONSqrtF64x2(a.hi);
-end;
-
-{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
-{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-
-procedure NEONStoreF64x2(p: PDouble; const a: TVecF64x2);
-type
-  TDoubleLanes = array[0..1] of Double;
-  PDoubleLanes = ^TDoubleLanes;
-begin
-  PDoubleLanes(p)^[0] := a.d[0];
-  PDoubleLanes(p)^[1] := a.d[1];
 end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
@@ -1450,15 +1414,6 @@ end;
 function NEONXorU64x4(const a, b: TVecU64x4): TVecU64x4;
 begin
   Result := ScalarXorU64x4(a, b);
-end;
-
-{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
-{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-
-function NEONZeroF64x2: TVecF64x2;
-begin
-  Result := Default(TVecF64x2);
 end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED

@@ -4792,3 +4792,38 @@
   - mixed-body 修正后残留的 `NEON asm-only + scalar_forwarder` 已归零
   - `backend=neon wrapper_only` 已从上一批的 `103` 降到 `88`
   - 这一批收掉的是“已无 source consumer 的真死壳”，不是仅仅把 allowlist 做漂亮
+
+## 2026-05-15 NEON Narrow F64x2 Memory/Construction Slot Findings
+
+- 当前最干净的下一簇 residual 是 4 个 narrow `F64x2` memory/construction slot：
+  - `LoadF64x2`
+  - `StoreF64x2`
+  - `SplatF64x2`
+  - `ZeroF64x2`
+- 这 4 个名字的 source truth 比 `Clamp/Sqrt/MinMax` 更简单：
+  - 全仓 `src/` 内只命中 `src/fafafa.core.simd.neon.pas`
+  - `src/fafafa.core.simd.neon.scalar.autowrap.inc`
+  - `src/fafafa.core.simd.neon.register.inc`
+  - 没有其他 live source consumer
+- 因此这批不属于“保留 source companion 但回收 runtime slot”的类型，而是更纯粹的 dead wrapper 清理：
+  - asm build 里真实 owner 仍是 `src/fafafa.core.simd.neon.pas` 的 assembler leaf
+  - no-asm build 里的 `autowrap` body 已经没有独立存在价值
+  - 发布后的 `sbNEON` slot 也不该继续伪装成 backend-owned
+- 这批还有一个行为层面的额外收益：
+  - `ScalarLoadF64x2/ScalarStoreF64x2` 自带 `Assert(p <> nil, ...)`
+  - 旧 no-asm `NEONLoadF64x2/StoreF64x2` 本地 body 没有显式 nil assert
+  - 当 runtime slot 回到 scalar 后，no-asm 下的 `Load/StoreF64x2` 会自然继承 base scalar 的指针契约，而不是继续保留一份较弱的本地副本
+- `DispatchAPI` 这批除了 dedicated test，还同步收正了两个通用 capability 判断：
+  - `Test_NativeNarrowHelperSurfaceParity_WithVectorAsm_IfAvailable` 中 `LoadF64x2/SplatF64x2`
+  - `Test_NativeAlignedLoadAndZeroParity_WithVectorAsm_IfAvailable` 中 `ZeroF64x2`
+  - 它们都不再把 NEON 写死为“总是 native”，而是跟随当前 backend truth
+- fresh 结果证明这 4 个 slot 已真正从 residual 集合里退出：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=629 status=ok`
+  - `backend=neon` truthfulness：`assignments=342 asm_exact=248 asm_suffix_only=10 wrapper_only=84 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - 相比上一批 `wrapper_only=88`，这批正好又减少了 4 个 slot
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok`
+  - Release `DispatchAPI` / `check` / `gate` 全绿，`gate` 最终仍是 `GATE OK`
+- 关键结论：
+  - 这批收掉的是“已无 source consumer 的 narrow F64x2 memory/construction 死壳”
+  - 不是只改 checker allowlist，也不是只改 capability 注释
+  - runtime no-asm truth、source truth、checker truth 已重新对齐
