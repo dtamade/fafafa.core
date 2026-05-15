@@ -153,11 +153,11 @@ type
     procedure Test_NEON_NoAsmWideLeafFloatArithmeticSlots_Keep_SourceCompanions_But_Reuse_BaseScalar;
     procedure Test_NEON_NoAsmWideMinMaxSlots_Keep_Necessary_Wrappers_But_Reuse_BaseScalar;
     procedure Test_NEON_NoAsmNarrowF64MinMaxSlots_Keep_SourceCompanion_But_Reuse_BaseScalar;
-    procedure Test_NEON_NoAsmNarrowF64SqrtSlot_Keep_SourceCompanion_But_Reuse_BaseScalar;
+    procedure Test_NEON_NoAsmNarrowF64SqrtSlots_Reuse_BaseScalar_When_Wrappers_Are_Dead;
     procedure Test_NEON_NoAsmNarrowF64ExtremaReductionSlots_Reuse_BaseScalar_When_Wrappers_Have_No_SourceConsumers;
-    procedure Test_NEON_NoAsmNarrowF64RoundFamilySlots_Keep_Only_Necessary_SourceCompanions_And_Reuse_BaseScalar;
-    procedure Test_NEON_NoAsmWideSqrtSlots_Keep_Only_Consumed_Companions_And_Reuse_BaseScalar;
-    procedure Test_NEON_NoAsmWideRoundTruncSlots_Keep_Only_Consumed_Companions_And_Reuse_BaseScalar;
+    procedure Test_NEON_NoAsmNarrowF64RoundFamilySlots_Reuse_BaseScalar_When_Wrappers_Are_Dead;
+    procedure Test_NEON_NoAsmWideSqrtSlots_Reuse_BaseScalar_When_Wrappers_Are_Dead;
+    procedure Test_NEON_NoAsmWideRoundTruncSlots_Reuse_BaseScalar_When_Wrappers_Are_Dead;
     procedure Test_NEON_NoAsmNarrowF64CompareAndSimpleReductionSlots_Reuse_BaseScalar_When_Wrappers_Have_No_SourceConsumers;
     procedure Test_NEON_NoAsmWideClampSlots_Reuse_BaseScalar_Only_For_F32Forwarders_And_Keep_F64LocalFallback;
     procedure Test_NEON_NoAsmAbsAndWideFloorCeilSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
@@ -7323,7 +7323,7 @@ begin
   AssertSlotReusesScalar('MinF64x2', Pointer(LScalarTable.MinF64x2), Pointer(LNEONTable.MinF64x2));
 end;
 
-procedure TTestCase_DispatchAPI.Test_NEON_NoAsmNarrowF64SqrtSlot_Keep_SourceCompanion_But_Reuse_BaseScalar;
+procedure TTestCase_DispatchAPI.Test_NEON_NoAsmNarrowF64SqrtSlots_Reuse_BaseScalar_When_Wrappers_Are_Dead;
 var
   LScalarTable: TSimdDispatchTable;
   LNEONTable: TSimdDispatchTable;
@@ -7333,10 +7333,10 @@ var
   LRegisterSource: string;
   LAutowrapSource: string;
 
-  procedure AssertWrapperStillPresent(const aLabel, aSnippet: string);
+  procedure AssertDeadWrapperRemoved(const aLabel, aSnippet: string);
   begin
-    AssertTrue(aLabel + ' source companion should remain in the NEON scalar autowrap include because F64x4 still consumes it',
-      Pos(LowerCase(aSnippet), LAutowrapSource) > 0);
+    AssertTrue(aLabel + ' dead wrapper should be removed from the NEON scalar autowrap include',
+      Pos(LowerCase(aSnippet), LAutowrapSource) = 0);
   end;
 
   procedure AssertAsmBindingStillPresent(const aLabel, aSnippet: string);
@@ -7347,7 +7347,7 @@ var
 
   procedure AssertSlotReusesScalar(const aLabel: string; const aScalarSlot, aBackendSlot: Pointer);
   begin
-    AssertEquals('NEON ' + aLabel + ' should reuse the base scalar slot when the no-asm narrow F64 sqrt wrapper only remains as a source companion for wider fallback graphs',
+    AssertEquals('NEON ' + aLabel + ' should reuse the base scalar slot when the no-asm narrow F64 sqrt wrapper has no standalone backend-local truth or wider source consumer',
       PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
   end;
 begin
@@ -7372,8 +7372,8 @@ begin
     LSourceLines.Free;
   end;
 
-  AssertWrapperStillPresent('NEONSqrtF64x2', 'function NEONSqrtF64x2(');
-  AssertWrapperStillPresent('NEONSqrtF64x4', 'function NEONSqrtF64x4(');
+  AssertDeadWrapperRemoved('NEONSqrtF64x2', 'function NEONSqrtF64x2(');
+  AssertDeadWrapperRemoved('NEONSqrtF64x4', 'function NEONSqrtF64x4(');
 
   AssertAsmBindingStillPresent('SqrtF64x2', 'table.SqrtF64x2 := @NEONSqrtF64x2;');
   AssertAsmBindingStillPresent('SqrtF64x4', 'table.SqrtF64x4 := @NEONSqrtF64x4;');
@@ -7463,7 +7463,7 @@ begin
   AssertSlotReusesScalar('ReduceMinF64x2', Pointer(LScalarTable.ReduceMinF64x2), Pointer(LNEONTable.ReduceMinF64x2));
 end;
 
-procedure TTestCase_DispatchAPI.Test_NEON_NoAsmNarrowF64RoundFamilySlots_Keep_Only_Necessary_SourceCompanions_And_Reuse_BaseScalar;
+procedure TTestCase_DispatchAPI.Test_NEON_NoAsmNarrowF64RoundFamilySlots_Reuse_BaseScalar_When_Wrappers_Are_Dead;
 var
   LScalarTable: TSimdDispatchTable;
   LNEONTable: TSimdDispatchTable;
@@ -7479,22 +7479,6 @@ var
       Pos(LowerCase(aSnippet), LAutowrapSource) = 0);
   end;
 
-  procedure AssertScalarAlignedWrapper(const aLabel, aSignatureSnippet, aBodySnippet: string);
-  begin
-    AssertTrue(aLabel + ' source companion should remain in the NEON scalar autowrap include',
-      Pos(LowerCase(aSignatureSnippet), LAutowrapSource) > 0);
-    AssertTrue(aLabel + ' should now align exactly with the scalar F64x2 semantics in no-asm builds',
-      Pos(LowerCase(aBodySnippet), LAutowrapSource) > 0);
-  end;
-
-  procedure AssertSourceConsumerStillPresent(const aLabel, aSignatureSnippet, aBodySnippet: string);
-  begin
-    AssertTrue(aLabel + ' should remain in the NEON scalar autowrap include as the narrow F64x2 source consumer',
-      Pos(LowerCase(aSignatureSnippet), LAutowrapSource) > 0);
-    AssertTrue(aLabel + ' should still consume the narrow F64x2 companion in the no-asm fallback graph',
-      Pos(LowerCase(aBodySnippet), LAutowrapSource) > 0);
-  end;
-
   procedure AssertAsmBindingStillPresent(const aLabel, aSnippet: string);
   begin
     AssertTrue('RegisterNEONBackend should still keep the asm-enabled binding source for ' + aLabel,
@@ -7503,7 +7487,7 @@ var
 
   procedure AssertSlotReusesScalar(const aLabel: string; const aScalarSlot, aBackendSlot: Pointer);
   begin
-    AssertEquals('NEON ' + aLabel + ' should reuse the base scalar slot when the no-asm narrow F64 round-family wrapper no longer owns published backend-local behavior',
+    AssertEquals('NEON ' + aLabel + ' should reuse the base scalar slot when the no-asm narrow F64 round-family wrapper has no standalone backend-local truth or live source consumer',
       PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
   end;
 begin
@@ -7530,10 +7514,10 @@ begin
 
   AssertDeadWrapperRemoved('NEONCeilF64x2', 'function NEONCeilF64x2(');
   AssertDeadWrapperRemoved('NEONFloorF64x2', 'function NEONFloorF64x2(');
-  AssertScalarAlignedWrapper('NEONRoundF64x2', 'function NEONRoundF64x2(', 'result := scalarroundf64x2(a);');
-  AssertScalarAlignedWrapper('NEONTruncF64x2', 'function NEONTruncF64x2(', 'result := scalartruncf64x2(a);');
-  AssertSourceConsumerStillPresent('NEONRoundF64x4', 'function NEONRoundF64x4(', 'result.lo := neonroundf64x2(a.lo);');
-  AssertSourceConsumerStillPresent('NEONTruncF64x4', 'function NEONTruncF64x4(', 'result.lo := neontruncf64x2(a.lo);');
+  AssertDeadWrapperRemoved('NEONRoundF64x2', 'function NEONRoundF64x2(');
+  AssertDeadWrapperRemoved('NEONTruncF64x2', 'function NEONTruncF64x2(');
+  AssertDeadWrapperRemoved('NEONRoundF64x4', 'function NEONRoundF64x4(');
+  AssertDeadWrapperRemoved('NEONTruncF64x4', 'function NEONTruncF64x4(');
 
   AssertAsmBindingStillPresent('CeilF64x2', 'table.CeilF64x2 := @NEONCeilF64x2;');
   AssertAsmBindingStillPresent('FloorF64x2', 'table.FloorF64x2 := @NEONFloorF64x2;');
@@ -7557,7 +7541,7 @@ begin
   AssertSlotReusesScalar('TruncF64x2', Pointer(LScalarTable.TruncF64x2), Pointer(LNEONTable.TruncF64x2));
 end;
 
-procedure TTestCase_DispatchAPI.Test_NEON_NoAsmWideSqrtSlots_Keep_Only_Consumed_Companions_And_Reuse_BaseScalar;
+procedure TTestCase_DispatchAPI.Test_NEON_NoAsmWideSqrtSlots_Reuse_BaseScalar_When_Wrappers_Are_Dead;
 var
   LScalarTable: TSimdDispatchTable;
   LNEONTable: TSimdDispatchTable;
@@ -7573,12 +7557,6 @@ var
       Pos(LowerCase(aSnippet), LAutowrapSource) = 0);
   end;
 
-  procedure AssertWrapperStillPresent(const aLabel, aSnippet: string);
-  begin
-    AssertTrue(aLabel + ' source companion should remain in the NEON scalar autowrap include',
-      Pos(LowerCase(aSnippet), LAutowrapSource) > 0);
-  end;
-
   procedure AssertAsmBindingStillPresent(const aLabel, aSnippet: string);
   begin
     AssertTrue('RegisterNEONBackend should still keep the asm-enabled binding source for ' + aLabel,
@@ -7587,7 +7565,7 @@ var
 
   procedure AssertSlotReusesScalar(const aLabel: string; const aScalarSlot, aBackendSlot: Pointer);
   begin
-    AssertEquals('NEON ' + aLabel + ' should reuse the base scalar slot when the no-asm wide sqrt wrapper has no standalone backend-local truth',
+    AssertEquals('NEON ' + aLabel + ' should reuse the base scalar slot when the no-asm wide sqrt wrapper is fully dead outside the asm-only publication path',
       PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
   end;
 begin
@@ -7614,7 +7592,7 @@ begin
 
   AssertDeadWrapperRemoved('NEONSqrtF32x16', 'function NEONSqrtF32x16(');
   AssertDeadWrapperRemoved('NEONSqrtF32x8', 'function NEONSqrtF32x8(');
-  AssertWrapperStillPresent('NEONSqrtF64x4', 'function NEONSqrtF64x4(');
+  AssertDeadWrapperRemoved('NEONSqrtF64x4', 'function NEONSqrtF64x4(');
   AssertDeadWrapperRemoved('NEONSqrtF64x8', 'function NEONSqrtF64x8(');
 
   AssertAsmBindingStillPresent('SqrtF32x16', 'table.SqrtF32x16 := @NEONSqrtF32x16;');
@@ -7639,7 +7617,7 @@ begin
   AssertSlotReusesScalar('SqrtF64x8', Pointer(LScalarTable.SqrtF64x8), Pointer(LNEONTable.SqrtF64x8));
 end;
 
-procedure TTestCase_DispatchAPI.Test_NEON_NoAsmWideRoundTruncSlots_Keep_Only_Consumed_Companions_And_Reuse_BaseScalar;
+procedure TTestCase_DispatchAPI.Test_NEON_NoAsmWideRoundTruncSlots_Reuse_BaseScalar_When_Wrappers_Are_Dead;
 var
   LScalarTable: TSimdDispatchTable;
   LNEONTable: TSimdDispatchTable;
@@ -7655,12 +7633,6 @@ var
       Pos(LowerCase(aSnippet), LAutowrapSource) = 0);
   end;
 
-  procedure AssertWrapperStillPresent(const aLabel, aSnippet: string);
-  begin
-    AssertTrue(aLabel + ' source companion should remain in the NEON scalar autowrap include',
-      Pos(LowerCase(aSnippet), LAutowrapSource) > 0);
-  end;
-
   procedure AssertAsmBindingStillPresent(const aLabel, aSnippet: string);
   begin
     AssertTrue('RegisterNEONBackend should still keep the asm-enabled binding source for ' + aLabel,
@@ -7669,7 +7641,7 @@ var
 
   procedure AssertSlotReusesScalar(const aLabel: string; const aScalarSlot, aBackendSlot: Pointer);
   begin
-    AssertEquals('NEON ' + aLabel + ' should reuse the base scalar slot when the no-asm wide round/trunc wrapper has no standalone backend-local truth',
+    AssertEquals('NEON ' + aLabel + ' should reuse the base scalar slot when the no-asm wide round/trunc wrapper is fully dead outside the asm-only publication path',
       PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
   end;
 begin
@@ -7696,11 +7668,11 @@ begin
 
   AssertDeadWrapperRemoved('NEONRoundF32x8', 'function NEONRoundF32x8(');
   AssertDeadWrapperRemoved('NEONRoundF32x16', 'function NEONRoundF32x16(');
-  AssertWrapperStillPresent('NEONRoundF64x4', 'function NEONRoundF64x4(');
+  AssertDeadWrapperRemoved('NEONRoundF64x4', 'function NEONRoundF64x4(');
   AssertDeadWrapperRemoved('NEONRoundF64x8', 'function NEONRoundF64x8(');
   AssertDeadWrapperRemoved('NEONTruncF32x8', 'function NEONTruncF32x8(');
   AssertDeadWrapperRemoved('NEONTruncF32x16', 'function NEONTruncF32x16(');
-  AssertWrapperStillPresent('NEONTruncF64x4', 'function NEONTruncF64x4(');
+  AssertDeadWrapperRemoved('NEONTruncF64x4', 'function NEONTruncF64x4(');
   AssertDeadWrapperRemoved('NEONTruncF64x8', 'function NEONTruncF64x8(');
 
   AssertAsmBindingStillPresent('RoundF32x8', 'table.RoundF32x8 := @NEONRoundF32x8;');

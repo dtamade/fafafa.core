@@ -50,6 +50,21 @@
 | `BuildOrTest.sh gate` 在 `ieee754` fixture 批次首次 build 阶段报 `Can't call the linker ... /usr/bin/ld.bfd error code: -7` | 1 | 定向 `ieee754` suites 与 Release `check` 均已先绿，判断为本机链接器瞬态；串行重跑同一条 Release `gate` 后恢复 PASS |
 | `runtime.testcase` 对齐公共 backend fixture 后，首轮 Release build 报 `Syntax error, "identifier" expected but "BEGIN" found` | 1 | 定位为删除局部 cleanup 变量后留下空 `var` 段；删掉陈旧 `var` 后，Release `TTestCase_RuntimeAPI/check/gate` 全部恢复 PASS |
 | `mcp__ace_tool__.search_context` 在这轮 `publicabi` 收口前返回 `ACE_TOKEN` 失效 | 1 | 不在同一失败路径上重试，直接回退到 `git diff` 与本地 `rg/sed` 复核 helper 与断言消息调用面 |
+| `DispatchAPI` 长块补丁首轮因上下文未精确命中而未应用 | 1 | 先按区段重新读取 `dispatchapi.testcase` 的目标过程，再做定点 patch，避免误伤长测试块 |
+
+## 2026-05-16 NEON No-Asm F64 Sqrt/Round/Trunc Dead-Wrapper Cleanup
+
+### Goal
+
+继续收口 `NEON` no-asm `F64` 残余，把已经没有 live source consumer 的 `Sqrt/Round/Trunc` wrapper 从 published ownership 链里彻底移除。
+
+### Phases
+
+| Phase                               | Status    | Notes                                                                                                                                                                           |
+| ----------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. 复核 source-consumer graph       | completed | 已确认 `NEON(Sqrt|Round|Trunc)F64x2/F64x4` 在 no-asm 下只剩 `scalar.autowrap.inc` 自供、`register.inc` 的 asm 绑定源码，以及 `DispatchAPI` 旧护栏，没有其他 live 消费者        |
+| 2. 删除 dead wrapper 并收正护栏     | completed | 已删除 `NEONRound/Sqrt/TruncF64x2/F64x4` no-asm wrapper；`DispatchAPI` 四个 dedicated 护栏改成“dead wrapper removed + asm binding still present + no-asm runtime reuse scalar” |
+| 3. Release 验证与收口               | completed | `git diff --check`、truthfulness(neon/riscvv)、Release `DispatchAPI`、Release `IEEE754EdgeCases`、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过                  |
 
 ## 2026-05-09 Subtask
 

@@ -996,18 +996,6 @@ end;
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-
-function NEONRoundF64x2(const a: TVecF64x2): TVecF64x2;
-begin
-  Result := ScalarRoundF64x2(a);
-end;
-
-function NEONRoundF64x4(const a: TVecF64x4): TVecF64x4;
-begin
-  Result.lo := NEONRoundF64x2(a.lo);
-  Result.hi := NEONRoundF64x2(a.hi);
-end;
-
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
@@ -1110,19 +1098,6 @@ begin
 end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-
-function NEONSqrtF64x2(const a: TVecF64x2): TVecF64x2;
-begin
-  Result.d[0] := Sqrt(a.d[0]);
-  Result.d[1] := Sqrt(a.d[1]);
-end;
-
-function NEONSqrtF64x4(const a: TVecF64x4): TVecF64x4;
-begin
-  Result.lo := NEONSqrtF64x2(a.lo);
-  Result.hi := NEONSqrtF64x2(a.hi);
-end;
-
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 procedure NEONStoreI64x4(p: PInt64; const a: TVecI64x4);
@@ -1193,17 +1168,6 @@ end;
 function NEONSubU64x4(const a, b: TVecU64x4): TVecU64x4;
 begin
   Result := ScalarSubU64x4(a, b);
-end;
-
-function NEONTruncF64x2(const a: TVecF64x2): TVecF64x2;
-begin
-  Result := ScalarTruncF64x2(a);
-end;
-
-function NEONTruncF64x4(const a: TVecF64x4): TVecF64x4;
-begin
-  Result.lo := NEONTruncF64x2(a.lo);
-  Result.hi := NEONTruncF64x2(a.hi);
 end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED

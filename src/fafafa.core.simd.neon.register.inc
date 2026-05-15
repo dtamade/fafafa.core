@@ -509,9 +509,8 @@ begin
   table.RoundF32x16 := @NEONRoundF32x16;
   table.RoundF32x8 := @NEONRoundF32x8;
   {$ENDIF}
-  // Keep the narrow F64x2 Round/Trunc source companions for the F64x4 no-asm
-  // fallback graph, but publish the base scalar slot whenever NEON asm is not
-  // compiled because the no-asm wrappers now align exactly with Scalar*.
+  // The F64 Round/Trunc no-asm wrappers are fully dead now; only asm builds
+  // should publish backend-owned bindings for these slots.
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.RoundF64x2 := @NEONRoundF64x2;
   {$ENDIF}

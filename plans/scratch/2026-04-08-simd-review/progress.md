@@ -5851,3 +5851,54 @@
   - `run_all` 过滤链结果仍为 `Total: 5 Passed: 5 Failed: 0`
   - `NEON wrapper_only` 从上一批的 `57` 再降到 `55`
   - 收口前已清理 `tests/fafafa.core.simd/__pycache__/` 与本地临时 Pascal probe
+
+## 2026-05-16 NEON No-Asm F64 Sqrt/Round/Trunc Dead-Wrapper Cleanup
+
+- 继续沿 `NEON` no-asm `F64` residual 审查时，先全仓复核 `NEONRound/Sqrt/TruncF64x2/F64x4`：
+  - 命中只剩 `src/fafafa.core.simd.neon.scalar.autowrap.inc`
+  - `src/fafafa.core.simd.neon.register.inc`
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+  - `src/fafafa.core.simd.neon.pas` 的 asm owner
+- 结论确认：
+  - `F64x4` no-asm wrapper 已不再被任何更宽 no-asm graph 消费
+  - 因而 `F64x2` companion 也同时失去 live source-consumer
+  - 这一簇不再是“保留 companion、收回 slot ownership”，而是完整的 dead-wrapper 删除批
+- 已完成代码改动：
+  - `src/fafafa.core.simd.neon.scalar.autowrap.inc`
+    - 删除 `NEONRoundF64x2`
+    - 删除 `NEONRoundF64x4`
+    - 删除 `NEONSqrtF64x2`
+    - 删除 `NEONSqrtF64x4`
+    - 删除 `NEONTruncF64x2`
+    - 删除 `NEONTruncF64x4`
+  - `src/fafafa.core.simd.neon.register.inc`
+    - 把误导性的 `Round/Trunc` 注释改成“no-asm wrappers are fully dead; only asm builds publish backend-owned bindings”
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 4 个 dedicated 护栏改名并收正为 dead-wrapper 口径
+    - `NarrowF64Sqrt`
+    - `NarrowF64RoundFamily`
+    - `WideSqrt`
+    - `WideRoundTrunc`
+    - 断言统一改成：
+      - wrapper absent in `autowrap`
+      - asm binding source still present in `register.inc`
+      - no-asm runtime slot equals scalar slot
+- 本批静态与 checker 验证：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+  - 结果：
+    - `backend=neon assignments=342 asm_exact=277 asm_suffix_only=10 wrapper_only=55 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+    - `backend=riscvv assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+- 本批 Release 验证全部通过：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IEEE754EdgeCases`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 本批关键结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=643 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `gate` 最终 `GATE OK`
+  - `run_all` 过滤链结果仍为 `Total: 5 Passed: 5 Failed: 0`
+  - 收口前已再次清理 `tests/fafafa.core.simd/__pycache__/`

@@ -5031,3 +5031,33 @@
   - `NEON wrapper_only` 已从上一批的 `57` 再降到 `55`
   - `ReduceMaxF64x2/ReduceMinF64x2` 已从 no-asm fake backend-owned published slot 收口完毕
   - 当前高价值 residual 更集中到 `ClampF64x2/ClampF64x4/ClampF64x8` 这一条仍保留本地 fallback 语义的链，而不是 `ReduceMax/ReduceMin` 这种已证实可直接删壳的 extrema reduction
+
+## 2026-05-16 NEON No-Asm F64 Sqrt/Round/Trunc Dead-Wrapper Findings
+
+- 这 6 个 no-asm wrapper：
+  - `NEONRoundF64x2/F64x4`
+  - `NEONSqrtF64x2/F64x4`
+  - `NEONTruncF64x2/F64x4`
+  在当前仓库里已经不再承担 source companion 角色；全仓窄搜索确认它们只剩 `scalar.autowrap.inc` 自供、`register.inc` 的 asm 绑定源码，以及 `DispatchAPI` 旧护栏引用。
+- `src/fafafa.core.simd.neon.pas` 里的同名 assembler routine 仍是 asm build 的真实 owner，因此正确修法不是碰 asm 叶子，而是直接删除 no-asm wrapper，让 no-asm runtime 回落到 base scalar slot。
+- 这批和 `ClampF64*` 的性质完全不同：
+  - `Sqrt/Round/Trunc F64`：dead wrapper，可删壳
+  - `ClampF64*`：现有专门护栏已经证明仍保留本地 `NaN/signed-zero` fallback 语义，当前不应混改
+- `DispatchAPI` 原先还在用“保留 source companion / consumed companion”的口径保护这几条链；那已经落后于源码真相。现在 dedicated 护栏都已切到更诚实的三层事实：
+  - no-asm wrapper 必须从 `autowrap` 消失
+  - asm binding source 仍必须存在于 `register.inc`
+  - no-asm runtime 下 `sbNEON` 对应 slot 必须与 scalar slot 指针完全一致
+- fresh 结果显示这批不是只改测试文案，而是继续收紧了 published ownership：
+  - `backend=neon assignments=342 asm_exact=277 asm_suffix_only=10 wrapper_only=55 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `backend=riscvv assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=643 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+- Release `DispatchAPI`、`IEEE754EdgeCases`、`check`、`gate` 全绿，`gate` 仍只保留两条历史已知的 optional skip：
+  - non-x86 native evidence root not present
+  - 历史 `windows_b07_gate.log` evidence verify fail
+
+## 2026-05-16 Next Residual After F64 Sqrt/Round/Trunc Cleanup
+
+- 这批收完后，`NEON` 当前高价值 residual 继续集中在“仍保留本地 fallback 语义”而不是“纯 dead wrapper”：
+  - `ClampF64x2/F64x4/F64x8` 暂时不要动
+- 如果继续沿“缺失与冗余”主线推进，下一批更值得审的是其余 `wrapper_only=55` 里仍可能存在的 orphaned no-asm forwarder，而不是回头重碰已经证实必须保留本地语义的 `Clamp` 链。
