@@ -74,7 +74,9 @@ begin
   table.MaxF32x4 := @NEONMaxF32x4;
 
   // Extended math functions
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.FmaF32x4 := @NEONFmaF32x4;
+  {$ENDIF}
   table.RcpF32x4 := @NEONRcpF32x4;
   table.RsqrtF32x4 := @NEONRsqrtF32x4;
   table.FloorF32x4 := @NEONFloorF32x4;
@@ -418,11 +420,16 @@ begin
   table.ExtractI64x2 := @NEONExtractI64x2;
   {$ENDIF}
   table.FloorF64x2 := @NEONFloorF64x2;
+  // Keep FMA slots on the published scalar table when NEON asm is absent.
+  // The no-asm helpers are exact ScalarFma* forwarders, while the asm build
+  // below still owns real backend-local implementations.
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.FmaF32x16 := @NEONFmaF32x16;
   table.FmaF32x8 := @NEONFmaF32x8;
   table.FmaF64x2 := @NEONFmaF64x2;
   table.FmaF64x4 := @NEONFmaF64x4;
   table.FmaF64x8 := @NEONFmaF64x8;
+  {$ENDIF}
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.InsertF32x16 := @NEONInsertF32x16;
   table.InsertF32x8 := @NEONInsertF32x8;

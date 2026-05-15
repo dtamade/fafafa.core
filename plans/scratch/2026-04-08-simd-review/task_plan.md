@@ -3292,3 +3292,17 @@
 | 1. 复核 `Abs/Floor/Ceil` 候选是否真的是 dead scalar-forwarder | completed | 已确认 `Abs × {F32x16,F32x8,F64x2,F64x4,F64x8}`、`Ceil × {F32x16,F32x8,F64x4,F64x8}`、`Floor × {F32x16,F32x8,F64x4,F64x8}` 在 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 里都只是单行 `Scalar*` 转发；只有 `CeilF64x2` / `FloorF64x2` 仍是 backend-local loop，因此显式保留 |
 | 2. 回落到 base scalar 并删除 13 个 dead wrapper/assignment | completed | 已从 `src/fafafa.core.simd.neon.register.inc` 删除上述 13 个 no-asm assignment，并从 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 删除对应 13 个 dead wrapper；`CeilF64x2` / `FloorF64x2` 继续保留 backend-owned 路径 |
 | 3. 收正 truth/test 口径并串行 release 复验 | completed | `dispatchapi` 已新增 `Test_NEON_NoAsmAbsAndWideFloorCeilSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders`，并把 `wide Floor/Ceil` 与 `Abs` 的旧“native-slot”断言收正为“NEON 复用 scalar、RISCVV 仍要求 native”；`check_nonx86_helper_semantics.py` 已把这 13 个名字改成 absent guard，`check_nonx86_register_truthfulness.py` 已收紧 `ALLOWED_WRAPPER_SLOTS_BY_BACKEND['neon']`；fresh `git diff --check`、`py_compile`、helper semantics、`truthfulness --backend neon/riscvv --strict`、`impl-audit-nonx86`、`TTestCase_NonX86BackendParity`、串行 Release `check`、串行 Release `gate` 全部通过；`NEON` truthfulness 现为 `assignments=357 wrapper_only=123 miswired=0 conflicting_assign=0` |
+
+## 2026-05-15 NEON No-Asm FMA Scalar-Forwarder Cleanup
+
+### Goal
+
+继续沿 `NEON wrapper_only` 收口，但这次针对 `FMA` 家族采用更精确的治理：asm build 继续保留 `neon.pas` 里的真实 backend-local `Fma` 实现，no-asm build 则不再把 exact `ScalarFma*` forwarder 伪装成 backend-owned slot，而是回落到 base scalar truth。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `Fma` 候选的 asm/no-asm 双轨真相 | completed | 已确认 `NEONFmaF32x4` 在 `scalar.ext_math.inc`、`NEONFmaF32x16/F32x8/F64x2/F64x4/F64x8` 在 `scalar.autowrap.inc` 的 no-asm 版本都只是 exact `ScalarFma*` forwarder；但同名函数在 `src/fafafa.core.simd.neon.pas` 里仍有真实 asm 实现，因此不能像前两批那样简单整段删掉 register binding |
+| 2. 改成 asm-only binding 并删除 6 个 no-asm dead wrapper | completed | 已把 `register.inc` 中 `FmaF32x4/F32x16/F32x8/F64x2/F64x4/F64x8` 改成 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}` 绑定，让 no-asm 直接继承 `FillBaseDispatchTable`；并从 `scalar.ext_math.inc` / `scalar.autowrap.inc` 删除 6 个 no-asm dead scalar-forwarder wrapper |
+| 3. 补 no-asm runtime/source 护栏并串行 release 复验 | completed | `dispatchapi` 已新增 `Test_NEON_NoAsmFMASlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders`，断言 no-asm 下 dead wrapper 缺席、asm binding source 仍在、运行时 slot 复用 scalar；`check_nonx86_helper_semantics.py` 已把 6 个名字改成 absent guard，`check_nonx86_register_truthfulness.py` 已移除 wide `Fma` wrapper allowlist；fresh `git diff --check`、`py_compile`、helper semantics、`truthfulness --backend neon/riscvv --strict`、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 全部通过；`NEON` truthfulness 现为 `assignments=357 asm_exact=229 wrapper_only=118 miswired=0 conflicting_assign=0` |

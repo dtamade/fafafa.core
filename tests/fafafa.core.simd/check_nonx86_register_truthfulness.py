@@ -46,7 +46,6 @@ ALLOWED_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
         "ClampF32x16", "ClampF32x8", "ClampF64x2", "ClampF64x4", "ClampF64x8",
         "DivF32x16", "DivF64x4", "DivF64x8",
         "FloorF64x2",
-        "FmaF32x16", "FmaF32x8", "FmaF64x2", "FmaF64x4", "FmaF64x8",
         "LoadF64x2",
         "MaxF32x16", "MaxF32x8", "MaxF64x2", "MaxF64x4", "MaxF64x8",
         "MinF32x16", "MinF32x8", "MinF64x2", "MinF64x4", "MinF64x8",

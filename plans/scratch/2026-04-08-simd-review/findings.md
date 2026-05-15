@@ -4485,3 +4485,44 @@
   - `backend=riscvv` 继续保持 `assignments=473 ... wrapper_only=26 ... miswired=0`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NonX86BackendParity` 通过
   - Release `check` / `gate` 继续通过，`gate` 末尾仍只剩 optional non-x86 native evidence skip 与历史 Windows evidence skip
+
+## 2026-05-15 NEON No-Asm FMA Scalar-Forwarder Cleanup
+
+- `NEON wrapper_only` 再往下看时，`Fma` 家族的治理边界和前两批不一样：
+  - `NEONFmaF32x4` 在 `src/fafafa.core.simd.neon.scalar.ext_math.inc` 的 no-asm 版本只是 `Result := ScalarFmaF32x4(a, b, c);`
+  - `NEONFmaF32x16/F32x8/F64x2/F64x4/F64x8` 在 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 的 no-asm 版本也都只是 exact `ScalarFma*` forwarder
+- 但它们不是纯 dead name，因为同名符号在 `src/fafafa.core.simd.neon.pas` 里仍有真实 asm 实现：
+  - `NEONFmaF32x4`
+  - `NEONFmaF32x8`
+  - `NEONFmaF64x2`
+  - `NEONFmaF64x4`
+  - `NEONFmaF32x16`
+  - `NEONFmaF64x8`
+- 这意味着这批不能像 compare / reduction / abs-floor-ceil 一样简单“删 assignment”：
+  - asm build 仍需要这些 `register` binding 去连真实 backend-local helper
+  - no-asm build 才应该回落到 `FillBaseDispatchTable` 的 base scalar slot
+- 所以这批的正确修法是“asm-only binding”，不是“全局删掉 slot 名字”：
+  - 把 `register.inc` 中 `FmaF32x4/F32x16/F32x8/F64x2/F64x4/F64x8` 改成 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}` 绑定
+  - 删除 `scalar.ext_math.inc` / `scalar.autowrap.inc` 中那 6 个 no-asm dead scalar-forwarder wrapper
+  - 让 no-asm `NEON` backend 直接继承 base scalar `Fma` slot
+- 这批同时说明 `register truthfulness` 统计值不一定只看 assignment 总数：
+  - assignment 仍是 `357`
+  - 但 `asm_exact` 从 `224` 升到 `229`
+  - `wrapper_only` 从 `123` 降到 `118`
+- 原因正是这 5 个 wide `Fma` slot 没有被“删出 register 文件”，而是从“wrapper-only/上下文不诚实”改成了“asm-only/exact asm owner”。
+- `FmaF32x4` 之前就不在 `ALLOWED_WRAPPER_SLOTS_BY_BACKEND['neon']` 里，这次仍然说明同一个 slot 的治理方式要看 `asm/no-asm` 双轨真相，而不是只看 no-asm body。
+- 因此这批补的护栏也和前两批不同：
+  - `dispatchapi` 新增 `Test_NEON_NoAsmFMASlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders`
+  - 这条测试在 no-asm 编译下断言：
+    - `scalar.ext_math.inc` / `scalar.autowrap.inc` 里的 6 个 dead wrapper 缺席
+    - `register.inc` 里 asm binding source 仍然存在
+    - 运行时 `sbNEON` 的 `FmaF32x4/F32x16/F32x8/F64x2/F64x4/F64x8` slot 全部与 scalar slot 相等
+  - `check_nonx86_helper_semantics.py` 把这 6 个名字从 routine expectation 改成 absent guard
+  - `check_nonx86_register_truthfulness.py` 把 wide `Fma` slot 从 `ALLOWED_WRAPPER_SLOTS_BY_BACKEND['neon']` 中移除
+- fresh 结果表明这批不是只做条件编译整理，而是真把 no-asm ownership 收正了：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=598 status=ok`
+  - `backend=neon`：`assignments=357 asm_exact=229 asm_suffix_only=10 wrapper_only=118 miswired=0 conflicting assign=0`
+  - 相比上一批 `assignments=357 asm_exact=224 wrapper_only=123`，正好把 5 个 wide `Fma` slot 从 `wrapper_only` 收进了 `asm_exact`
+  - `backend=riscvv` 继续保持 `assignments=473 ... wrapper_only=26 ... miswired=0`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok`
+  - Release `check` / `gate` 继续通过，`gate` 末尾仍只剩 optional non-x86 native evidence skip 与历史 Windows evidence skip

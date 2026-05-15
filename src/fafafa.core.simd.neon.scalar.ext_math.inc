@@ -1,10 +1,5 @@
 // === Extended Math Operations ===
 
-function NEONFmaF32x4(const a, b, c: TVecF32x4): TVecF32x4;
-begin
-  Result := ScalarFmaF32x4(a, b, c);
-end;
-
 function NEONRcpF32x4(const a: TVecF32x4): TVecF32x4;
 begin
   Result := ScalarRcpF32x4(a);

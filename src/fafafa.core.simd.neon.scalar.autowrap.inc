@@ -825,31 +825,6 @@ begin
   Result.d[1] := Floor(a.d[1]);
 end;
 
-function NEONFmaF32x16(const a, b, c: TVecF32x16): TVecF32x16;
-begin
-  Result := ScalarFmaF32x16(a, b, c);
-end;
-
-function NEONFmaF32x8(const a, b, c: TVecF32x8): TVecF32x8;
-begin
-  Result := ScalarFmaF32x8(a, b, c);
-end;
-
-function NEONFmaF64x2(const a, b, c: TVecF64x2): TVecF64x2;
-begin
-  Result := ScalarFmaF64x2(a, b, c);
-end;
-
-function NEONFmaF64x4(const a, b, c: TVecF64x4): TVecF64x4;
-begin
-  Result := ScalarFmaF64x4(a, b, c);
-end;
-
-function NEONFmaF64x8(const a, b, c: TVecF64x8): TVecF64x8;
-begin
-  Result := ScalarFmaF64x8(a, b, c);
-end;
-
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONInsertF32x16(const a: TVecF32x16; value: Single; index: Integer): TVecF32x16;

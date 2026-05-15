@@ -358,29 +358,11 @@ def main() -> int:
         (neon_scalar_math_source, "NEONSqrtF32x4", [
             "Result := ScalarSqrtF32x4(a);",
         ]),
-        (neon_scalar_ext_math_source, "NEONFmaF32x4", [
-            "Result := ScalarFmaF32x4(a, b, c);",
-        ]),
         (neon_scalar_ext_math_source, "NEONRcpF32x4", [
             "Result := ScalarRcpF32x4(a);",
         ]),
         (neon_scalar_ext_math_source, "NEONRsqrtF32x4", [
             "Result := ScalarRsqrtF32x4(a);",
-        ]),
-        (neon_scalar_autowrap_source, "NEONFmaF32x16", [
-            "Result := ScalarFmaF32x16(a, b, c);",
-        ]),
-        (neon_scalar_autowrap_source, "NEONFmaF32x8", [
-            "Result := ScalarFmaF32x8(a, b, c);",
-        ]),
-        (neon_scalar_autowrap_source, "NEONFmaF64x2", [
-            "Result := ScalarFmaF64x2(a, b, c);",
-        ]),
-        (neon_scalar_autowrap_source, "NEONFmaF64x4", [
-            "Result := ScalarFmaF64x4(a, b, c);",
-        ]),
-        (neon_scalar_autowrap_source, "NEONFmaF64x8", [
-            "Result := ScalarFmaF64x8(a, b, c);",
         ]),
         (riscvv_source, "RISCVVExtractF32x4", [
             "LIndex := index;",
@@ -1044,6 +1026,12 @@ def main() -> int:
         (neon_scalar_autowrap_source, "NEONFloorF32x8"),
         (neon_scalar_autowrap_source, "NEONFloorF64x4"),
         (neon_scalar_autowrap_source, "NEONFloorF64x8"),
+        (neon_scalar_ext_math_source, "NEONFmaF32x4"),
+        (neon_scalar_autowrap_source, "NEONFmaF32x16"),
+        (neon_scalar_autowrap_source, "NEONFmaF32x8"),
+        (neon_scalar_autowrap_source, "NEONFmaF64x2"),
+        (neon_scalar_autowrap_source, "NEONFmaF64x4"),
+        (neon_scalar_autowrap_source, "NEONFmaF64x8"),
         (neon_scalar_autowrap_source, "NEONRcpF64x4"),
         (neon_scalar_autowrap_source, "NEONReduceAddF32x16"),
         (neon_scalar_autowrap_source, "NEONReduceAddF32x8"),
