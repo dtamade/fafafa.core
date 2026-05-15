@@ -403,36 +403,15 @@ begin
   table.ClampF64x2 := @NEONClampF64x2;
   table.ClampF64x4 := @NEONClampF64x4;
   table.ClampF64x8 := @NEONClampF64x8;
-  table.CmpEqF32x16 := @NEONCmpEqF32x16;
-  table.CmpEqF32x8 := @NEONCmpEqF32x8;
   table.CmpEqF64x2 := @NEONCmpEqF64x2;
-  table.CmpEqF64x4 := @NEONCmpEqF64x4;
-  table.CmpEqF64x8 := @NEONCmpEqF64x8;
-  table.CmpGeF32x16 := @NEONCmpGeF32x16;
-  table.CmpGeF32x8 := @NEONCmpGeF32x8;
   table.CmpGeF64x2 := @NEONCmpGeF64x2;
-  table.CmpGeF64x4 := @NEONCmpGeF64x4;
-  table.CmpGeF64x8 := @NEONCmpGeF64x8;
-  table.CmpGtF32x16 := @NEONCmpGtF32x16;
-  table.CmpGtF32x8 := @NEONCmpGtF32x8;
   table.CmpGtF64x2 := @NEONCmpGtF64x2;
-  table.CmpGtF64x4 := @NEONCmpGtF64x4;
-  table.CmpGtF64x8 := @NEONCmpGtF64x8;
-  table.CmpLeF32x16 := @NEONCmpLeF32x16;
-  table.CmpLeF32x8 := @NEONCmpLeF32x8;
   table.CmpLeF64x2 := @NEONCmpLeF64x2;
-  table.CmpLeF64x4 := @NEONCmpLeF64x4;
-  table.CmpLeF64x8 := @NEONCmpLeF64x8;
-  table.CmpLtF32x16 := @NEONCmpLtF32x16;
-  table.CmpLtF32x8 := @NEONCmpLtF32x8;
   table.CmpLtF64x2 := @NEONCmpLtF64x2;
-  table.CmpLtF64x4 := @NEONCmpLtF64x4;
-  table.CmpLtF64x8 := @NEONCmpLtF64x8;
-  table.CmpNeF32x16 := @NEONCmpNeF32x16;
-  table.CmpNeF32x8 := @NEONCmpNeF32x8;
   table.CmpNeF64x2 := @NEONCmpNeF64x2;
-  table.CmpNeF64x4 := @NEONCmpNeF64x4;
-  table.CmpNeF64x8 := @NEONCmpNeF64x8;
+  // Keep no-asm wide float compare slots on the published scalar table when
+  // the NEON wrappers are only scalar forwarders. The local F64x2 loops above
+  // remain backend-owned because they still carry real backend-local behavior.
   table.DivF32x16 := @NEONDivF32x16;
   table.DivF64x4 := @NEONDivF64x4;
   table.DivF64x8 := @NEONDivF64x8;

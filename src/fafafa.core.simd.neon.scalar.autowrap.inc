@@ -268,16 +268,6 @@ function NEONCmpLeI32x8(const a, b: TVecI32x8): TMask8; forward;
 function NEONCmpLtI32x8(const a, b: TVecI32x8): TMask8; forward;
 function NEONCmpNeI32x8(const a, b: TVecI32x8): TMask8; forward;
 
-function NEONCmpEqF32x16(const a, b: TVecF32x16): TMask16;
-begin
-  Result := ScalarCmpEqF32x16(a, b);
-end;
-
-function NEONCmpEqF32x8(const a, b: TVecF32x8): TMask8;
-begin
-  Result := ScalarCmpEqF32x8(a, b);
-end;
-
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONCmpEqF64x2(const a, b: TVecF64x2): TMask2;
@@ -288,16 +278,6 @@ begin
 end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
-function NEONCmpEqF64x4(const a, b: TVecF64x4): TMask4;
-begin
-  Result := ScalarCmpEqF64x4(a, b);
-end;
-
-function NEONCmpEqF64x8(const a, b: TVecF64x8): TMask8;
-begin
-  Result := ScalarCmpEqF64x8(a, b);
-end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
@@ -375,16 +355,6 @@ end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
-function NEONCmpGeF32x16(const a, b: TVecF32x16): TMask16;
-begin
-  Result := ScalarCmpGeF32x16(a, b);
-end;
-
-function NEONCmpGeF32x8(const a, b: TVecF32x8): TMask8;
-begin
-  Result := ScalarCmpGeF32x8(a, b);
-end;
-
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONCmpGeF64x2(const a, b: TVecF64x2): TMask2;
@@ -395,16 +365,6 @@ begin
 end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
-function NEONCmpGeF64x4(const a, b: TVecF64x4): TMask4;
-begin
-  Result := ScalarCmpGeF64x4(a, b);
-end;
-
-function NEONCmpGeF64x8(const a, b: TVecF64x8): TMask8;
-begin
-  Result := ScalarCmpGeF64x8(a, b);
-end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
@@ -484,16 +444,6 @@ end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
-function NEONCmpGtF32x16(const a, b: TVecF32x16): TMask16;
-begin
-  Result := ScalarCmpGtF32x16(a, b);
-end;
-
-function NEONCmpGtF32x8(const a, b: TVecF32x8): TMask8;
-begin
-  Result := ScalarCmpGtF32x8(a, b);
-end;
-
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONCmpGtF64x2(const a, b: TVecF64x2): TMask2;
@@ -504,16 +454,6 @@ begin
 end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
-function NEONCmpGtF64x4(const a, b: TVecF64x4): TMask4;
-begin
-  Result := ScalarCmpGtF64x4(a, b);
-end;
-
-function NEONCmpGtF64x8(const a, b: TVecF64x8): TMask8;
-begin
-  Result := ScalarCmpGtF64x8(a, b);
-end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
@@ -591,16 +531,6 @@ end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
-function NEONCmpLeF32x16(const a, b: TVecF32x16): TMask16;
-begin
-  Result := ScalarCmpLeF32x16(a, b);
-end;
-
-function NEONCmpLeF32x8(const a, b: TVecF32x8): TMask8;
-begin
-  Result := ScalarCmpLeF32x8(a, b);
-end;
-
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONCmpLeF64x2(const a, b: TVecF64x2): TMask2;
@@ -611,16 +541,6 @@ begin
 end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
-function NEONCmpLeF64x4(const a, b: TVecF64x4): TMask4;
-begin
-  Result := ScalarCmpLeF64x4(a, b);
-end;
-
-function NEONCmpLeF64x8(const a, b: TVecF64x8): TMask8;
-begin
-  Result := ScalarCmpLeF64x8(a, b);
-end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
@@ -700,16 +620,6 @@ end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
-function NEONCmpLtF32x16(const a, b: TVecF32x16): TMask16;
-begin
-  Result := ScalarCmpLtF32x16(a, b);
-end;
-
-function NEONCmpLtF32x8(const a, b: TVecF32x8): TMask8;
-begin
-  Result := ScalarCmpLtF32x8(a, b);
-end;
-
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONCmpLtF64x2(const a, b: TVecF64x2): TMask2;
@@ -720,16 +630,6 @@ begin
 end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
-function NEONCmpLtF64x4(const a, b: TVecF64x4): TMask4;
-begin
-  Result := ScalarCmpLtF64x4(a, b);
-end;
-
-function NEONCmpLtF64x8(const a, b: TVecF64x8): TMask8;
-begin
-  Result := ScalarCmpLtF64x8(a, b);
-end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
@@ -807,16 +707,6 @@ end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
-function NEONCmpNeF32x16(const a, b: TVecF32x16): TMask16;
-begin
-  Result := ScalarCmpNeF32x16(a, b);
-end;
-
-function NEONCmpNeF32x8(const a, b: TVecF32x8): TMask8;
-begin
-  Result := ScalarCmpNeF32x8(a, b);
-end;
-
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONCmpNeF64x2(const a, b: TVecF64x2): TMask2;
@@ -827,16 +717,6 @@ begin
 end;
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
-function NEONCmpNeF64x4(const a, b: TVecF64x4): TMask4;
-begin
-  Result := ScalarCmpNeF64x4(a, b);
-end;
-
-function NEONCmpNeF64x8(const a, b: TVecF64x8): TMask8;
-begin
-  Result := ScalarCmpNeF64x8(a, b);
-end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 

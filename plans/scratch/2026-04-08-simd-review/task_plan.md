@@ -3250,3 +3250,17 @@
 | 1. 复核 checker 漏检根因 | completed | 已确认 `check_nonx86_register_truthfulness.py` 之前只按单条 assignment 做 `asm_exact / wrapper_only / ...` 分类，不会判断同一 slot 是否被后续不同 target 覆盖；因此前一版 `NEON` shadowing 才能以 `miswired=0` 漏过 |
 | 2. 升级 truthfulness checker 并补 shadowed fixture | completed | 已为脚本新增 overlapping-context rebinding 检测、`conflicting assign` 输出，并新增 `tests/fafafa.core.simd/fixtures/nonx86_register_truthfulness/shadowed/`，能稳定复现“asm-only 先绑、always 后盖”的冲突模式 |
 | 3. 用 fixture + 真实仓库串行复验 | completed | `--fixture good` 继续 PASS，`--fixture bad` 继续 FAIL，`--fixture shadowed` 现在正确 FAIL；真实 `--backend neon/riscvv --strict` 仍为 `miswired=0 conflicting_assign=0`；fresh `impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 全部通过，`gate` 尾部仍只把 non-x86 native evidence root 缺失和旧 `windows_b07_gate.log` 诚实降级为 optional `SKIP` |
+
+## 2026-05-15 NEON No-Asm Float Compare Scalar-Forwarder Cleanup
+
+### Goal
+
+继续收敛 `NEON` 的 `wrapper_only` 余量：把 no-asm 分支里 24 个只会直接转发到 `ScalarCmp*` 的 float compare wrapper 从 `register` / `autowrap` 中移除，让这些 slot 直接继承 `FillBaseDispatchTable` 的 base scalar truth，而不是继续伪装成 backend-owned。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 24 个 compare wrapper 的真实消费面 | completed | 已确认 `CmpEq/Ge/Gt/Le/Lt/Ne × {F32x16,F32x8,F64x4,F64x8}` 在 `src/fafafa.core.simd.neon.register.inc` 里只出现在 no-asm 注册分支；对应 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 函数体全部是单行 `Result := ScalarCmp...`；多数名字全仓只剩 `register + autowrap` 两处，没有其他真实消费面 |
+| 2. 回落到 base scalar 并删除 dead wrapper | completed | 已从 `neon.register.inc` 删除这 24 条 no-asm compare assignment，保留 `F64x2` 的本地 loop compare 作为 backend-owned 例外；已从 `neon.scalar.autowrap.inc` 删除对应 24 个 dead scalar-forwarder wrapper |
+| 3. 补三层护栏并串行 release 复验 | completed | `dispatchapi` 已新增 `Test_NEON_NoAsmFloatCompareSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders`；`check_nonx86_helper_semantics.py` 已新增 24 个 absent guard；`check_nonx86_register_truthfulness.py` 已收紧 `ALLOWED_WRAPPER_SLOTS_BY_BACKEND['neon']`；fresh `git diff --check`、helper semantics、truthfulness、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 全部通过；`NEON` truthfulness 现为 `assignments=387 wrapper_only=153 miswired=0 conflicting_assign=0`，`gate` 尾部仍只剩 optional non-x86 native evidence skip 与历史 Windows evidence skip |

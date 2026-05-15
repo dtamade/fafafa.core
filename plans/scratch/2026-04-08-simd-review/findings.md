@@ -4384,3 +4384,33 @@
   - `backend=riscvv`：`assignments=473 ... miswired=0 conflicting assign=0`
   - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok`
   - Release `check` / `gate` 继续通过，`gate` 尾部仍只剩 optional non-x86 native evidence skip 与历史 Windows evidence skip
+
+## 2026-05-15 NEON No-Asm Float Compare Scalar-Forwarder Cleanup
+
+- 下一层真实冗余并不在 asm path，而是在 `NEON` 的 no-asm compare fallback 面：
+  - `src/fafafa.core.simd.neon.register.inc` 里有 24 条 `CmpEq/Ge/Gt/Le/Lt/Ne × {F32x16,F32x8,F64x4,F64x8}` assignment
+  - 这些 assignment 都落在 no-asm 分支
+  - 对应 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 函数体全部只是单行 `Result := ScalarCmp...`
+- 这意味着它们和前面已经清掉的 wide-fallback dead wrapper 属于同一种“伪 backend-owned”问题：
+  - backend 没有提供本地 no-asm compare 行为
+  - wrapper 也没有额外语义，只是在 register 里换了个 `NEON...` 名字
+  - 真正的 published truth 仍然来自 `FillBaseDispatchTable` 里的 scalar slot
+- 进一步全仓交叉检索后，信号更强：
+  - 大多数名字全仓只剩 `register + autowrap` 两处
+  - 少数额外命中也只是 legacy docs/plan snapshot，不是活代码消费面
+  - 与之相对，`F64x2` compare 仍保留 no-asm 本地 loop 语义，不属于这批 dead scalar-forwarder
+- 因此正确修法不是继续把它们保留在 `ALLOWED_WRAPPER_SLOTS_BY_BACKEND['neon']`，而是把 no-asm compare policy 收回 base scalar：
+  - 从 `neon.register.inc` 删除 24 条 no-asm compare assignment
+  - 从 `neon.scalar.autowrap.inc` 删除对应 24 个 dead scalar-forwarder wrapper
+  - 保留 `Cmp*F64x2` 作为 backend-owned 例外
+- 这批同时把护栏补成了三层：
+  - `dispatchapi`：新增 `Test_NEON_NoAsmFloatCompareSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders`，同时断言 register 缺席、dead wrapper 缺席、运行时 slot 仍与 scalar 相等
+  - `check_nonx86_helper_semantics.py`：新增 24 个 absent guard，防止 wrapper 又被带回来
+  - `check_nonx86_register_truthfulness.py`：把这 24 个 slot 从 `ALLOWED_WRAPPER_SLOTS_BY_BACKEND['neon']` 中移除，防止 future rebinding 再被“允许 wrapper”静默放过
+- fresh 结果说明这次不是简单删代码，而是真正收缩了 non-x86 truthfulness 冗余面：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=581 status=ok`
+  - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=neon assignments=387 asm_exact=224 asm_suffix_only=10 wrapper_only=153 scalar_passthrough=0 no_def=0 miswired=0 strict=1`
+  - 相比上一批 `assignments=411 / wrapper_only=177`，正好少掉这 24 个 no-asm float compare scalar-forwarder assignment
+  - `backend=riscvv` 保持 `assignments=473 / wrapper_only=26 / miswired=0`
+  - `NONX86_IMPL_AUDIT_SUMMARY ... status=ok`
+  - Release `check` / `gate` 继续通过，`gate` 尾部仍只剩 optional non-x86 native evidence skip 与历史 Windows evidence skip

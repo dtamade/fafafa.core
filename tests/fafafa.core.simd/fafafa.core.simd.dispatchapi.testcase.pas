@@ -141,6 +141,7 @@ type
     procedure Test_NEON_WideFloatMemoryUtilitySlots_Bind_AsmHelpers_When_Available;
     procedure Test_NEON_DotFallbackSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_NEON_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
+    procedure Test_NEON_NoAsmFloatCompareSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_NEON_MaskHelperSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_NEON_NoAsmIntegerFallbackSlots_Reuse_BaseScalar_When_Wrappers_Are_Not_BackendOwned;
     procedure Test_NEON_SelectF32x4_AsmEnabledSource_Does_Not_ScalarForward;
@@ -6267,6 +6268,138 @@ begin
   AssertSlotReusesScalar('CmpLeU64x8', Pointer(LScalarTable.CmpLeU64x8), Pointer(LNEONTable.CmpLeU64x8));
   AssertSlotReusesScalar('CmpGeU64x8', Pointer(LScalarTable.CmpGeU64x8), Pointer(LNEONTable.CmpGeU64x8));
   AssertSlotReusesScalar('CmpNeU64x8', Pointer(LScalarTable.CmpNeU64x8), Pointer(LNEONTable.CmpNeU64x8));
+end;
+
+procedure TTestCase_DispatchAPI.Test_NEON_NoAsmFloatCompareSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
+var
+  LScalarTable: TSimdDispatchTable;
+  LNEONTable: TSimdDispatchTable;
+  LSourceLines: TStringList;
+  LRegisterSourcePath: string;
+  LAutowrapSourcePath: string;
+  LRegisterSource: string;
+  LAutowrapSource: string;
+
+  procedure AssertDeadWrapperRemoved(const aLabel, aSnippet: string);
+  begin
+    AssertTrue(aLabel + ' dead wrapper should be removed from the NEON scalar autowrap include',
+      Pos(LowerCase(aSnippet), LAutowrapSource) = 0);
+  end;
+
+  procedure AssertRegisterKeepsBaseScalar(const aLabel, aSnippet: string);
+  begin
+    AssertTrue('RegisterNEONBackend should keep base scalar ' + aLabel + ' when the no-asm NEON wrapper is only a scalar forwarder',
+      Pos(LowerCase(aSnippet), LRegisterSource) = 0);
+  end;
+
+  procedure AssertSlotReusesScalar(const aLabel: string; const aScalarSlot, aBackendSlot: Pointer);
+  begin
+    AssertEquals('NEON ' + aLabel + ' should reuse the base scalar slot when the no-asm NEON wrapper is only a scalar forwarder',
+      PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
+  end;
+begin
+  LSourceLines := TStringList.Create;
+  try
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.register.inc');
+    AssertTrue('NEON register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
+      FileExists(LRegisterSourcePath));
+    LSourceLines.LoadFromFile(LRegisterSourcePath);
+    LRegisterSource := LowerCase(LSourceLines.Text);
+
+    LAutowrapSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.scalar.autowrap.inc');
+    AssertTrue('NEON scalar autowrap source should exist for implementation-shape audit: ' + LAutowrapSourcePath,
+      FileExists(LAutowrapSourcePath));
+    LSourceLines.LoadFromFile(LAutowrapSourcePath);
+    LAutowrapSource := LowerCase(LSourceLines.Text);
+  finally
+    LSourceLines.Free;
+  end;
+
+  AssertDeadWrapperRemoved('NEONCmpEqF32x16', 'function NEONCmpEqF32x16(');
+  AssertDeadWrapperRemoved('NEONCmpEqF32x8', 'function NEONCmpEqF32x8(');
+  AssertDeadWrapperRemoved('NEONCmpEqF64x4', 'function NEONCmpEqF64x4(');
+  AssertDeadWrapperRemoved('NEONCmpEqF64x8', 'function NEONCmpEqF64x8(');
+  AssertDeadWrapperRemoved('NEONCmpGeF32x16', 'function NEONCmpGeF32x16(');
+  AssertDeadWrapperRemoved('NEONCmpGeF32x8', 'function NEONCmpGeF32x8(');
+  AssertDeadWrapperRemoved('NEONCmpGeF64x4', 'function NEONCmpGeF64x4(');
+  AssertDeadWrapperRemoved('NEONCmpGeF64x8', 'function NEONCmpGeF64x8(');
+  AssertDeadWrapperRemoved('NEONCmpGtF32x16', 'function NEONCmpGtF32x16(');
+  AssertDeadWrapperRemoved('NEONCmpGtF32x8', 'function NEONCmpGtF32x8(');
+  AssertDeadWrapperRemoved('NEONCmpGtF64x4', 'function NEONCmpGtF64x4(');
+  AssertDeadWrapperRemoved('NEONCmpGtF64x8', 'function NEONCmpGtF64x8(');
+  AssertDeadWrapperRemoved('NEONCmpLeF32x16', 'function NEONCmpLeF32x16(');
+  AssertDeadWrapperRemoved('NEONCmpLeF32x8', 'function NEONCmpLeF32x8(');
+  AssertDeadWrapperRemoved('NEONCmpLeF64x4', 'function NEONCmpLeF64x4(');
+  AssertDeadWrapperRemoved('NEONCmpLeF64x8', 'function NEONCmpLeF64x8(');
+  AssertDeadWrapperRemoved('NEONCmpLtF32x16', 'function NEONCmpLtF32x16(');
+  AssertDeadWrapperRemoved('NEONCmpLtF32x8', 'function NEONCmpLtF32x8(');
+  AssertDeadWrapperRemoved('NEONCmpLtF64x4', 'function NEONCmpLtF64x4(');
+  AssertDeadWrapperRemoved('NEONCmpLtF64x8', 'function NEONCmpLtF64x8(');
+  AssertDeadWrapperRemoved('NEONCmpNeF32x16', 'function NEONCmpNeF32x16(');
+  AssertDeadWrapperRemoved('NEONCmpNeF32x8', 'function NEONCmpNeF32x8(');
+  AssertDeadWrapperRemoved('NEONCmpNeF64x4', 'function NEONCmpNeF64x4(');
+  AssertDeadWrapperRemoved('NEONCmpNeF64x8', 'function NEONCmpNeF64x8(');
+
+  AssertRegisterKeepsBaseScalar('CmpEqF32x16', 'table.CmpEqF32x16 := @NEONCmpEqF32x16;');
+  AssertRegisterKeepsBaseScalar('CmpEqF32x8', 'table.CmpEqF32x8 := @NEONCmpEqF32x8;');
+  AssertRegisterKeepsBaseScalar('CmpEqF64x4', 'table.CmpEqF64x4 := @NEONCmpEqF64x4;');
+  AssertRegisterKeepsBaseScalar('CmpEqF64x8', 'table.CmpEqF64x8 := @NEONCmpEqF64x8;');
+  AssertRegisterKeepsBaseScalar('CmpGeF32x16', 'table.CmpGeF32x16 := @NEONCmpGeF32x16;');
+  AssertRegisterKeepsBaseScalar('CmpGeF32x8', 'table.CmpGeF32x8 := @NEONCmpGeF32x8;');
+  AssertRegisterKeepsBaseScalar('CmpGeF64x4', 'table.CmpGeF64x4 := @NEONCmpGeF64x4;');
+  AssertRegisterKeepsBaseScalar('CmpGeF64x8', 'table.CmpGeF64x8 := @NEONCmpGeF64x8;');
+  AssertRegisterKeepsBaseScalar('CmpGtF32x16', 'table.CmpGtF32x16 := @NEONCmpGtF32x16;');
+  AssertRegisterKeepsBaseScalar('CmpGtF32x8', 'table.CmpGtF32x8 := @NEONCmpGtF32x8;');
+  AssertRegisterKeepsBaseScalar('CmpGtF64x4', 'table.CmpGtF64x4 := @NEONCmpGtF64x4;');
+  AssertRegisterKeepsBaseScalar('CmpGtF64x8', 'table.CmpGtF64x8 := @NEONCmpGtF64x8;');
+  AssertRegisterKeepsBaseScalar('CmpLeF32x16', 'table.CmpLeF32x16 := @NEONCmpLeF32x16;');
+  AssertRegisterKeepsBaseScalar('CmpLeF32x8', 'table.CmpLeF32x8 := @NEONCmpLeF32x8;');
+  AssertRegisterKeepsBaseScalar('CmpLeF64x4', 'table.CmpLeF64x4 := @NEONCmpLeF64x4;');
+  AssertRegisterKeepsBaseScalar('CmpLeF64x8', 'table.CmpLeF64x8 := @NEONCmpLeF64x8;');
+  AssertRegisterKeepsBaseScalar('CmpLtF32x16', 'table.CmpLtF32x16 := @NEONCmpLtF32x16;');
+  AssertRegisterKeepsBaseScalar('CmpLtF32x8', 'table.CmpLtF32x8 := @NEONCmpLtF32x8;');
+  AssertRegisterKeepsBaseScalar('CmpLtF64x4', 'table.CmpLtF64x4 := @NEONCmpLtF64x4;');
+  AssertRegisterKeepsBaseScalar('CmpLtF64x8', 'table.CmpLtF64x8 := @NEONCmpLtF64x8;');
+  AssertRegisterKeepsBaseScalar('CmpNeF32x16', 'table.CmpNeF32x16 := @NEONCmpNeF32x16;');
+  AssertRegisterKeepsBaseScalar('CmpNeF32x8', 'table.CmpNeF32x8 := @NEONCmpNeF32x8;');
+  AssertRegisterKeepsBaseScalar('CmpNeF64x4', 'table.CmpNeF64x4 := @NEONCmpNeF64x4;');
+  AssertRegisterKeepsBaseScalar('CmpNeF64x8', 'table.CmpNeF64x8 := @NEONCmpNeF64x8;');
+
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND}
+  AssertTrue('NEON opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable) then
+    Exit;
+  {$ENDIF}
+
+  AssertSlotReusesScalar('CmpEqF32x16', Pointer(LScalarTable.CmpEqF32x16), Pointer(LNEONTable.CmpEqF32x16));
+  AssertSlotReusesScalar('CmpEqF32x8', Pointer(LScalarTable.CmpEqF32x8), Pointer(LNEONTable.CmpEqF32x8));
+  AssertSlotReusesScalar('CmpEqF64x4', Pointer(LScalarTable.CmpEqF64x4), Pointer(LNEONTable.CmpEqF64x4));
+  AssertSlotReusesScalar('CmpEqF64x8', Pointer(LScalarTable.CmpEqF64x8), Pointer(LNEONTable.CmpEqF64x8));
+  AssertSlotReusesScalar('CmpGeF32x16', Pointer(LScalarTable.CmpGeF32x16), Pointer(LNEONTable.CmpGeF32x16));
+  AssertSlotReusesScalar('CmpGeF32x8', Pointer(LScalarTable.CmpGeF32x8), Pointer(LNEONTable.CmpGeF32x8));
+  AssertSlotReusesScalar('CmpGeF64x4', Pointer(LScalarTable.CmpGeF64x4), Pointer(LNEONTable.CmpGeF64x4));
+  AssertSlotReusesScalar('CmpGeF64x8', Pointer(LScalarTable.CmpGeF64x8), Pointer(LNEONTable.CmpGeF64x8));
+  AssertSlotReusesScalar('CmpGtF32x16', Pointer(LScalarTable.CmpGtF32x16), Pointer(LNEONTable.CmpGtF32x16));
+  AssertSlotReusesScalar('CmpGtF32x8', Pointer(LScalarTable.CmpGtF32x8), Pointer(LNEONTable.CmpGtF32x8));
+  AssertSlotReusesScalar('CmpGtF64x4', Pointer(LScalarTable.CmpGtF64x4), Pointer(LNEONTable.CmpGtF64x4));
+  AssertSlotReusesScalar('CmpGtF64x8', Pointer(LScalarTable.CmpGtF64x8), Pointer(LNEONTable.CmpGtF64x8));
+  AssertSlotReusesScalar('CmpLeF32x16', Pointer(LScalarTable.CmpLeF32x16), Pointer(LNEONTable.CmpLeF32x16));
+  AssertSlotReusesScalar('CmpLeF32x8', Pointer(LScalarTable.CmpLeF32x8), Pointer(LNEONTable.CmpLeF32x8));
+  AssertSlotReusesScalar('CmpLeF64x4', Pointer(LScalarTable.CmpLeF64x4), Pointer(LNEONTable.CmpLeF64x4));
+  AssertSlotReusesScalar('CmpLeF64x8', Pointer(LScalarTable.CmpLeF64x8), Pointer(LNEONTable.CmpLeF64x8));
+  AssertSlotReusesScalar('CmpLtF32x16', Pointer(LScalarTable.CmpLtF32x16), Pointer(LNEONTable.CmpLtF32x16));
+  AssertSlotReusesScalar('CmpLtF32x8', Pointer(LScalarTable.CmpLtF32x8), Pointer(LNEONTable.CmpLtF32x8));
+  AssertSlotReusesScalar('CmpLtF64x4', Pointer(LScalarTable.CmpLtF64x4), Pointer(LNEONTable.CmpLtF64x4));
+  AssertSlotReusesScalar('CmpLtF64x8', Pointer(LScalarTable.CmpLtF64x8), Pointer(LNEONTable.CmpLtF64x8));
+  AssertSlotReusesScalar('CmpNeF32x16', Pointer(LScalarTable.CmpNeF32x16), Pointer(LNEONTable.CmpNeF32x16));
+  AssertSlotReusesScalar('CmpNeF32x8', Pointer(LScalarTable.CmpNeF32x8), Pointer(LNEONTable.CmpNeF32x8));
+  AssertSlotReusesScalar('CmpNeF64x4', Pointer(LScalarTable.CmpNeF64x4), Pointer(LNEONTable.CmpNeF64x4));
+  AssertSlotReusesScalar('CmpNeF64x8', Pointer(LScalarTable.CmpNeF64x8), Pointer(LNEONTable.CmpNeF64x8));
 end;
 
 procedure TTestCase_DispatchAPI.Test_NEON_MaskHelperSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;

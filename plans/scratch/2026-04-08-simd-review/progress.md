@@ -4826,3 +4826,34 @@
   - Release `check` 继续为绿
   - Release `gate` 继续为绿，`run_all` 为 `5/5` 通过
   - `gate` 尾部结论保持不变：non-x86 native evidence root 缺失仍是 optional `SKIP`，旧 `windows_b07_gate.log` 仍因历史内容不满足当前 pattern 而 optional `SKIP`
+
+## 2026-05-15 NEON No-Asm Float Compare Scalar-Forwarder Cleanup
+
+- 继续从 `wrapper_only` 余量往下扫后，锁定了一个更成体系的 `NEON` 冗余面：
+  - no-asm 分支里有 24 个 `CmpEq/Ge/Gt/Le/Lt/Ne × {F32x16,F32x8,F64x4,F64x8}` slot 仍被绑到 `NEON...`
+  - 但对应 wrapper 在 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 里全部只是 `ScalarCmp...` 单行转发
+  - `F64x2` compare 仍是本地 loop，不属于这批
+- 本批已完成：
+  - 从 `src/fafafa.core.simd.neon.register.inc` 删除这 24 条 no-asm compare assignment
+  - 从 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 删除对应 24 个 dead scalar-forwarder wrapper
+  - 从 `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py` 收紧 `ALLOWED_WRAPPER_SLOTS_BY_BACKEND['neon']`
+  - 从 `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 补上这 24 个 absent guard
+  - 从 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_NEON_NoAsmFloatCompareSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders`
+- 本批 fresh 复验：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_register_truthfulness.py tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 当前结果：
+  - helper summary 升到 `NONX86_HELPER_SEMANTICS_SUMMARY checks=581 status=ok`
+  - `backend=neon` truthfulness 变为 `assignments=387 asm_exact=224 asm_suffix_only=10 wrapper_only=153 scalar_passthrough=0 no_def=0 miswired=0 conflicting assign=0`
+  - 相比上一批 `assignments=411 / wrapper_only=177`，正好少掉这 24 个 no-asm float compare scalar-forwarder assignment
+  - `backend=riscvv` 保持 `assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 scalar_passthrough=0 no_def=0 miswired=0 conflicting assign=0`
+  - `impl-audit-nonx86` 继续为绿，summary 为 `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `check` 继续为绿
+  - Release `gate` 继续为绿，`run_all` 仍为 `5/5` 通过
+  - `gate` 尾部结论没有变化：non-x86 native evidence root 缺失仍是 optional `SKIP`，旧 `windows_b07_gate.log` 仍是历史 Windows evidence 的 optional `SKIP`
