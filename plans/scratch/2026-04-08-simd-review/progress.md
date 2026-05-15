@@ -4989,3 +4989,50 @@
   - Release `gate` 继续为绿，`run_all` 为 `5/5` 通过
   - `gate` 尾部仍然只把 non-x86 native evidence root 缺失和历史 `windows_b07_gate.log` 诚实降级为 optional `SKIP`
 - 收口前已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。
+
+## 2026-05-15 NEON No-Asm Narrow Reciprocal Scalar-Forwarder Cleanup
+
+- 继续沿 `NEON` no-asm ownership 深挖后，这一批只收最小安全簇：
+  - `RcpF32x4`
+  - `RsqrtF32x4`
+- 已确认这 2 个名字的 no-asm 版本在 `src/fafafa.core.simd.neon.scalar.ext_math.inc` 里只是：
+  - `Result := ScalarRcpF32x4(a);`
+  - `Result := ScalarRsqrtF32x4(a);`
+- 同时，它们在 `src/fafafa.core.simd.neon.pas` 里仍有真实 asm owner：
+  - `NEONRcpF32x4`
+  - `NEONRsqrtF32x4`
+- 和 `NEONAddF32x4` / `NEONSqrtF32x4` 不同的是，这 2 个名字没有被宽向量 no-asm 组合路径复用，所以这批可以采用最干净的 `Fma` 式修法：
+  - `src/fafafa.core.simd.neon.register.inc`
+    - 把 `table.RcpF32x4 := @NEONRcpF32x4;`
+    - `table.RsqrtF32x4 := @NEONRsqrtF32x4;`
+    - 都改成 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}` 绑定
+  - `src/fafafa.core.simd.neon.scalar.ext_math.inc`
+    - 删除 `NEONRcpF32x4`
+    - 删除 `NEONRsqrtF32x4`
+- 这样 asm build 仍保留真实 reciprocal owner，no-asm build 则直接继承 `FillBaseDispatchTable` 的 scalar slot。
+- 本批还补了一条专门的 no-asm runtime/source 回归：
+  - `TTestCase_DispatchAPI.Test_NEON_NoAsmNarrowReciprocalSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders`
+  - 这条测试在 no-asm 编译下断言：
+    - `scalar.ext_math.inc` 里 2 个 dead wrapper 缺席
+    - `register.inc` 里 asm binding source 仍在
+    - 运行时 `sbNEON` 的 `RcpF32x4/RsqrtF32x4` slot 全部复用 scalar slot
+- `check_nonx86_helper_semantics.py` 也已同步把这 2 个名字改成 absent guard。
+- 本批 fresh 复验：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 当前结果：
+  - helper summary 维持 `NONX86_HELPER_SEMANTICS_SUMMARY checks=598 status=ok`
+  - `backend=neon` truthfulness 继续为 `assignments=357 asm_exact=229 asm_suffix_only=10 wrapper_only=118 scalar_passthrough=0 no_def=0 miswired=0 conflicting assign=0`
+  - 这批没有再压低 summary 数字，但 runtime/source truth 已被新测试直接钉住
+  - `backend=riscvv` 保持 `assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 scalar_passthrough=0 no_def=0 miswired=0 conflicting assign=0`
+  - `impl-audit-nonx86` 继续为绿，summary 为 `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `check` 继续为绿
+  - Release `gate` 继续为绿，`run_all` 为 `5/5` 通过
+  - `gate` 尾部仍然只把 non-x86 native evidence root 缺失和历史 `windows_b07_gate.log` 诚实降级为 optional `SKIP`
+- 收口前已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入提交。

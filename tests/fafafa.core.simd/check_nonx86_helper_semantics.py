@@ -358,12 +358,6 @@ def main() -> int:
         (neon_scalar_math_source, "NEONSqrtF32x4", [
             "Result := ScalarSqrtF32x4(a);",
         ]),
-        (neon_scalar_ext_math_source, "NEONRcpF32x4", [
-            "Result := ScalarRcpF32x4(a);",
-        ]),
-        (neon_scalar_ext_math_source, "NEONRsqrtF32x4", [
-            "Result := ScalarRsqrtF32x4(a);",
-        ]),
         (riscvv_source, "RISCVVExtractF32x4", [
             "LIndex := index;",
             "if LIndex < 0 then",
@@ -1049,6 +1043,8 @@ def main() -> int:
         (neon_scalar_autowrap_source, "NEONReduceMulF32x8"),
         (neon_scalar_autowrap_source, "NEONReduceMulF64x4"),
         (neon_scalar_autowrap_source, "NEONReduceMulF64x8"),
+        (neon_scalar_ext_math_source, "NEONRcpF32x4"),
+        (neon_scalar_ext_math_source, "NEONRsqrtF32x4"),
         (riscvv_source, "RISCVVNegF32x4"),
         (riscvv_source, "RISCVVNegF64x2"),
         (riscvv_helpers_source, "RISCVVNegF32x4"),

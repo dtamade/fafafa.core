@@ -76,9 +76,9 @@ begin
   // Extended math functions
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.FmaF32x4 := @NEONFmaF32x4;
-  {$ENDIF}
   table.RcpF32x4 := @NEONRcpF32x4;
   table.RsqrtF32x4 := @NEONRsqrtF32x4;
+  {$ENDIF}
   table.FloorF32x4 := @NEONFloorF32x4;
   table.CeilF32x4 := @NEONCeilF32x4;
   table.RoundF32x4 := @NEONRoundF32x4;

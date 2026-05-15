@@ -4526,3 +4526,35 @@
   - `backend=riscvv` 继续保持 `assignments=473 ... wrapper_only=26 ... miswired=0`
   - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok`
   - Release `check` / `gate` 继续通过，`gate` 末尾仍只剩 optional non-x86 native evidence skip 与历史 Windows evidence skip
+
+## 2026-05-15 NEON No-Asm Narrow Reciprocal Scalar-Forwarder Cleanup
+
+- `Rcp/RsqrtF32x4` 是比窄 `Add/Sub/Mul/Div/Abs/Sqrt` 更干净的下一刀：
+  - `NEONRcpF32x4`
+  - `NEONRsqrtF32x4`
+- 它们在 `src/fafafa.core.simd.neon.scalar.ext_math.inc` 的 no-asm 版本都只是 exact `ScalarRcp/RsqrtF32x4` forwarder。
+- 同时，这两个名字在 `src/fafafa.core.simd.neon.pas` 里仍然有真实 asm owner：
+  - `frecpe v0.4s, v0.4s`
+  - `frsqrte v0.4s, v0.4s`
+- 更重要的是，这两个名字没有像 `NEONAddF32x4` / `NEONSqrtF32x4` 那样被宽向量 no-asm 组合路径复用。
+- 这让它们可以采用最干净的 `Fma` 式治理，而不用保留 no-asm source companion：
+  - `register.inc` 把 `RcpF32x4/RsqrtF32x4` 改成 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}` 绑定
+  - `scalar.ext_math.inc` 里的 2 个 no-asm dead wrapper 可以直接删除
+  - no-asm runtime 下由 `FillBaseDispatchTable` 直接提供 scalar slot
+- 这批和上一批 `Fma` 的一个细节差异也需要记住：
+  - `register truthfulness` 汇总数值没有变化，仍是 `assignments=357 asm_exact=229 wrapper_only=118`
+  - 说明这 2 个 slot 在 checker 的当前分类里本来就没有形成额外的 `wrapper_only` 计数
+  - 但 runtime/source truth 仍然是值得修的，因为 no-asm 下它们之前确实还占着 `NEON` dispatch slot
+- 因此这批价值主要体现在“补 runtime truth 护栏”，而不是再压低 summary 数字：
+  - `dispatchapi` 新增 `Test_NEON_NoAsmNarrowReciprocalSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders`
+  - 这条测试在 no-asm 编译下断言：
+    - `scalar.ext_math.inc` 中 `NEONRcpF32x4/NEONRsqrtF32x4` dead wrapper 缺席
+    - `register.inc` 中 asm binding source 仍在
+    - 运行时 `sbNEON` 的 `RcpF32x4/RsqrtF32x4` slot 都与 scalar slot 相等
+  - `check_nonx86_helper_semantics.py` 把这 2 个名字改成 absent guard，防止以后又把 dead wrapper 带回来
+- fresh 结果说明这批确实把 no-asm ownership 收正了，而不是只删文本：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=598 status=ok`
+  - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=neon assignments=357 asm_exact=229 asm_suffix_only=10 wrapper_only=118 scalar_passthrough=0 no_def=0 miswired=0 strict=1`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok`
+  - Release `check` / `gate` 继续通过
+  - `gate` 尾部结论没有变化：仍只剩 optional non-x86 native evidence skip 与历史 Windows evidence skip
