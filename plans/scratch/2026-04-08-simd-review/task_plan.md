@@ -3418,3 +3418,17 @@
 | 1. 复核 `I16x8/U16x8` narrow shift 的 source role 与消费面 | completed | 全仓检索确认这 5 个名字只出现在 `src/fafafa.core.simd.neon.register.inc`、`src/fafafa.core.simd.neon.scalar.autowrap.inc` 和 `src/fafafa.core.simd.neon.pas`；no-asm 下它们都只是 exact `ScalarShift*` forwarder，没有更宽 no-asm source consumer，asm build 里则仍有真实 owner |
 | 2. 改成 asm-only binding 并删除 5 个 no-asm dead wrapper | completed | 已把 `register.inc` 中这 5 个 shift slot 改成 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}` 绑定，并从 `neon.scalar.autowrap.inc` 删除对应 5 个 no-asm dead wrapper；`check_nonx86_helper_semantics.py` 已把这 5 个名字改成 absent guard，`check_nonx86_register_truthfulness.py` 已从 `NEON` wrapper allowlist 删除它们 |
 | 3. 补 dispatchapi 护栏并串行 release 复验 | completed | 已新增 `Test_NEON_NoAsmNarrowI16U16ShiftSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders`；fresh `git diff --check`、`py_compile`、helper semantics、`truthfulness --backend neon/riscvv --strict`、Release `DispatchAPI`、`impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 全部通过；`NEON` truthfulness 现为 `asm_exact=244 wrapper_only=103 unused_allowlist=0` |
+
+## 2026-05-15 Register Truthfulness Mixed-Body Classification Fix
+
+### Goal
+
+修正 `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py` 对“同名 symbol 有多份 Pascal body”时的误判：不能再因为其中一份 body 含有 `Scalar*` forwarder，就把整个 target 错判成 `scalar_forwarder`。这批要把 `NEONSelectF32x4` 这类 mixed body 真相收正，并用 fixture 固化回归。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 mixed-body 误判根因与真实 witness | completed | 已确认旧 `detect_wrapper_kind(...)` 会把 `a_info.bodies` 直接拼成一个字符串后再做 `Scalar*` 搜索；只要任一 body 是 scalar forwarder，整个 target 就会被压成 `scalar_forwarder`。`NEONSelectF32x4` 正是实锤：`src/fafafa.core.simd.neon.pas` 里有本地 per-lane 实现，而 `src/fafafa.core.simd.neon.scalar.utility.inc` 里又有同名 `ScalarSelectF32x4` forwarder，旧逻辑会错把它算成 `wrapper_only + scalar_forwarder` |
+| 2. 拆成逐 body 分类并补 mixed fixture | completed | 已新增 `classify_wrapper_body(...)`，并把 `detect_wrapper_kind(...)` 改成逐个 body 归类：只要任一 body 是非 scalar 的本地实现，就直接返回 `pascal_owned`；若没有本地实现但存在 asm helper body，则返回 `asm_helper_forwarder`；仅当所有 body 都是 scalar forwarder 时才返回 `scalar_forwarder`。同时 `parse_args()` 已支持 `--fixture mixed`，并新增 `fixtures/nonx86_register_truthfulness/mixed/` 固化“同名函数同时存在本地 body 与 scalar body”的回归场景 |
+| 3. 更新 scratch 并串行 release 复验 | completed | `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`、`truthfulness --fixture good/bad/shadowed/mixed --summary-line --strict`、`truthfulness --backend neon/riscvv --summary-line --strict`、Release `impl-audit-nonx86`、串行 Release `check`、串行 Release `gate` 均已通过；`NEONSelectF32x4` 当前已回到 `wrapper_only + pascal_owned`，`NEON` 的 `asm-only + scalar_forwarder` 分组从 `16` 降到 `15`，`gate` 尾部仍只诚实保留 optional non-x86 native evidence skip 与历史 `windows_b07_gate.log` evidence skip |

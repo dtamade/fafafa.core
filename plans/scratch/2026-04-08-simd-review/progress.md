@@ -5366,3 +5366,59 @@
     - non-x86 native evidence root not present -> optional `SKIP`
     - 历史 `windows_b07_gate.log` evidence verify 失败 -> optional `SKIP`
 - 这批完成后，`NEON` 当前 `wrapper_only` 里已经不再剩 `no-asm + scalar_forwarder` 残余。
+
+## 2026-05-15 Register Truthfulness Mixed-Body Classification Fix
+
+- 继续往 `check_nonx86_register_truthfulness.py` 本身深挖后，抓到的不是新的 backend 残余，而是 checker 对 mixed body 的真实误判：
+  - worktree 当前未提交内容集中在 `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+  - 新增 fixture 目录为 `tests/fafafa.core.simd/fixtures/nonx86_register_truthfulness/mixed/`
+  - 另有 `tests/fafafa.core.simd/__pycache__/` 需要在提交前清理
+- 已定位旧逻辑的精确缺口：
+  - `collect_symbol_facts(...)` 会为同名非 assembler 定义积累多份 `bodies`
+  - 旧版 `detect_wrapper_kind(...)` 直接把所有 body 拼成一个字符串
+  - 因此只要任一 body 含有 `Scalar*` 调用，整个 target 就会被压成 `scalar_forwarder`
+- 真实 witness 已在源码中坐实：
+  - `src/fafafa.core.simd.neon.pas` 里的 `NEONSelectF32x4` 是本地 per-lane Pascal 实现
+  - `src/fafafa.core.simd.neon.scalar.utility.inc` 里的同名 `NEONSelectF32x4` 只是 `ScalarSelectF32x4` forwarder
+  - 旧逻辑会把它误判成 `('wrapper_only', 'scalar_forwarder', None)`；修正后当前分类已回到 `('wrapper_only', 'pascal_owned', None)`
+- 本批代码修正已落地：
+  - `parse_args()` 的 `--fixture` 选项已扩到 `good/bad/shadowed/mixed`
+  - 新增 `classify_wrapper_body(...)`
+  - `detect_wrapper_kind(...)` 改成逐 body 归类，并采用：
+    - 任一 `pascal_owned` 即整体 `pascal_owned`
+    - 否则若存在 asm helper body，则为 `asm_helper_forwarder`
+    - 仅当所有 body 都是 scalar forwarder 时，才为 `scalar_forwarder`
+  - 新增 `fixtures/nonx86_register_truthfulness/mixed/mock.backend.pas`
+  - 新增 `fixtures/nonx86_register_truthfulness/mixed/mock.backend.register.inc`
+- `mixed` fixture 的当前行为已符合预期：
+  - 仍然 FAIL
+  - 但失败原因现在是 `wrapper-only-bound-inside-asm-block`
+  - 不再因为 body 拼接误判成 scalar-forwarder 相关路径
+- 本批 fresh 复验已经完成：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --fixture good --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --fixture bad --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --fixture shadowed --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --fixture mixed --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 当前结果：
+  - `NEONSelectF32x4` 当前已回到 `wrapper_only + pascal_owned`
+  - `NEON` wrapper-only 分组当前为：
+    - `('always', 'pascal_owned') = 36`
+    - `('asm-only', 'pascal_owned') = 16`
+    - `('asm-only', 'scalar_forwarder') = 15`
+    - `('no-asm', 'pascal_owned') = 36`
+  - 相比修复前，`asm-only + scalar_forwarder` 已从 `16` 降到 `15`
+  - `backend=neon` truthfulness 继续保持：`assignments=357 asm_exact=244 asm_suffix_only=10 wrapper_only=103 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `backend=riscvv` truthfulness 继续保持：`assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `check` / `gate` 继续为绿
+  - `gate` 尾部仍只诚实保留：
+    - non-x86 native evidence root not present -> optional `SKIP`
+    - 历史 `windows_b07_gate.log` evidence verify 失败 -> optional `SKIP`
+- 收口前已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 缓存目录进入本批 commit。

@@ -4730,3 +4730,31 @@
   - 不能只看 wrapper 形状决定去重
   - 必须先证明 helper contract 是否与 scalar truth 等价
   - `Clamp/Round/Trunc` 仍是比 `Sqrt/MinMax` 更容易藏语义例外的族
+
+## 2026-05-15 Register Truthfulness Mixed-Body Classification Findings
+
+- `check_nonx86_register_truthfulness.py` 这次暴露出的高价值问题，不在 backend 源码，而在 checker 自己对 mixed body 的分类模型：
+  - `collect_symbol_facts(...)` 会把同名非 assembler 定义全部收进 `SymbolFacts.bodies`
+  - 旧版 `detect_wrapper_kind(...)` 却把这些 body 直接拼成一个大字符串
+  - 结果只要其中任一 body 调用了 `Scalar*`，整个 target 就会被误判成 `scalar_forwarder`
+- `NEONSelectF32x4` 是真实仓库里的直接 witness：
+  - `src/fafafa.core.simd.neon.pas` 中有本地 per-lane `NEONSelectF32x4` 实现
+  - `src/fafafa.core.simd.neon.scalar.utility.inc` 中又有同名 `NEONSelectF32x4`，其 body 为 `Result := ScalarSelectF32x4(mask, a, b);`
+  - 旧 checker 会因为拼接后的大字符串里看到了 `ScalarSelectF32x4(`，把整个 target 误报成 `('wrapper_only', 'scalar_forwarder', None)`
+  - 但更真实的分类应是 `('wrapper_only', 'pascal_owned', None)`，因为它至少有一份 body 明确是 backend-local Pascal owner，而不是纯 forwarder
+- 这说明当前 residual 图不能只看“slot 名字是否 mixed”，更要看 mixed 的哪一份 body 才代表该 target 的 owner 语义：
+  - “任一 body 是 scalar” 不代表 “整个 target 只是 scalar forwarder”
+  - 真正需要 fail-close 的，是“所有可生效 body 都只是 scalar forwarder”或“只有 asm helper forwarder”
+- 因此新的分类优先级必须是逐 body、而不是拼接后扫关键字：
+  - 只要任一 body 是非 scalar 的本地实现，整 target 就应回到 `pascal_owned`
+  - 若没有 `pascal_owned`，但存在调用 `*_ASM` / `*Asm` 的 body，才归到 `asm_helper_forwarder`
+  - 只有在所有 body 都只是 `Scalar*` 转发时，才归到 `scalar_forwarder`
+- 新增的 `mixed` fixture 不是为了把报告“做漂亮”，而是为了锁住这类真实误判：
+  - `mock.backend.pas` 人工制造一份本地 body 和一份 `ScalarMixed` forwarder body
+  - `mock.backend.register.inc` 故意把 `@MOCKMixed` 绑在 `{$IFDEF MOCK_ASM}` 分支里
+  - 在新逻辑下，它应继续 FAIL，但失败原因必须是 `wrapper-only-bound-inside-asm-block`
+  - 如果以后分类又退回“拼 body 扫关键字”，这个 fixture 就会把错误行为重新抓出来
+- 这批修复的价值是把 residual 图重新对准“源码真实 owner”，而不是让 summary 数字更好看：
+  - `NEONSelectF32x4` 已从误判的 `scalar_forwarder` 回到 `pascal_owned`
+  - 当前 `NEON` 的 `asm-only + scalar_forwarder` 分组从 `16` 降到 `15`
+  - 这减少的是 checker 误报，不是运行时 slot 语义被偷偷改写

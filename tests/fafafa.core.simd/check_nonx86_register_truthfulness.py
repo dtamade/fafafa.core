@@ -109,7 +109,7 @@ class CheckerConfig:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Check non-x86 register truthfulness")
     parser.add_argument("--backend", choices=("neon", "riscvv"), help="Backend to inspect")
-    parser.add_argument("--fixture", choices=("good", "bad", "shadowed"), help="Run against a local fixture instead of real sources")
+    parser.add_argument("--fixture", choices=("good", "bad", "shadowed", "mixed"), help="Run against a local fixture instead of real sources")
     parser.add_argument("--json", action="store_true", help="Print machine-readable JSON")
     parser.add_argument("--summary-line", action="store_true", help="Print one-line summary for log scraping")
     parser.add_argument("--strict", action="store_true", help="Treat wrapper / helper-forwarder bindings as failures")
@@ -344,14 +344,32 @@ def parse_assignments(a_register_file: Path, a_asm_symbol: str) -> list[Assignme
     return l_assignments
 
 
-def detect_wrapper_kind(a_target: str, a_info: SymbolFacts, a_facts: dict[str, SymbolFacts]) -> tuple[str, str | None]:
-    l_body_text = "\n".join(a_info.bodies)
+def classify_wrapper_body(a_target: str, a_body_text: str, a_facts: dict[str, SymbolFacts]) -> tuple[str, str | None]:
     for l_helper in (f"{a_target}_ASM", f"{a_target}Asm"):
         l_helper_info = a_facts.get(l_helper)
         if l_helper_info is not None and l_helper_info.has_assembler:
-            if re.search(rf"\b{re.escape(l_helper)}(?:\s*\(|\b)", l_body_text):
+            if re.search(rf"\b{re.escape(l_helper)}(?:\s*\(|\b)", a_body_text):
                 return "asm_helper_forwarder", l_helper
-    if re.search(r"\bScalar[A-Za-z0-9_]+\s*\(", l_body_text):
+    if re.search(r"\bScalar[A-Za-z0-9_]+\s*\(", a_body_text):
+        return "scalar_forwarder", None
+    return "pascal_owned", None
+
+
+def detect_wrapper_kind(a_target: str, a_info: SymbolFacts, a_facts: dict[str, SymbolFacts]) -> tuple[str, str | None]:
+    l_seen_kinds: set[str] = set()
+    l_helper: str | None = None
+
+    for l_body_text in a_info.bodies:
+        l_kind, l_body_helper = classify_wrapper_body(a_target, l_body_text, a_facts)
+        l_seen_kinds.add(l_kind)
+        if l_kind == "pascal_owned":
+            return "pascal_owned", None
+        if (l_helper is None) and (l_body_helper is not None):
+            l_helper = l_body_helper
+
+    if "asm_helper_forwarder" in l_seen_kinds:
+        return "asm_helper_forwarder", l_helper
+    if "scalar_forwarder" in l_seen_kinds:
         return "scalar_forwarder", None
     return "pascal_owned", None
 
