@@ -3954,3 +3954,17 @@
 | 1. 复核候选是否具备和前批相同的安全前提 | completed | 已确认 `TTestCase_PublicAbi = class(TSimdVectorAsmStatefulTestCase)`，因此 `TearDown` 仍会恢复 `FSavedVectorAsm` 与 `FSavedBackend`；前部两处命中都表现为 `LOldVectorAsm := IsVectorAsmEnabled` 后无读取，且 outer `finally` 为空，符合“空壳 cleanup”特征 |
 | 2. 只清前部两处高确定性命中 | completed | 已在 `Test_PublicApi_Table_Uses_Stable_Cdecl_EntryPoints_AfterBackendSwitch` 与 `Test_PublicApi_VectorAsmRoundTrip_Reuses_PreviouslyPublishedMetadataTable` 删除未使用的 `LOldVectorAsm` 及纯空 outer `try/finally`；backend/vector-asm 切换流程和断言保持不变 |
 | 3. 做定向 release 验证并收口 | completed | 已跑 `git diff --check`，并用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi` 验证；构建、测试与 leak check 均通过 |
+
+## 2026-05-16 PublicAbi CapabilityBits Empty Finally Cleanup
+
+### Goal
+
+继续沿 `publicabi.testcase` 的同一条高确定性冗余线推进，把前部一串 capability-bits 测试里共享同样基类恢复前提、未使用 `LOldVectorAsm`、且 outer `finally` 为空的命中一次性收掉，同时保持验证仍只落在 `TTestCase_PublicAbi`。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核这一串命中是否都还是“空壳 cleanup” | completed | 已复核 `1394..1815` 一带的 capability-bits 用例：它们都在 `TTestCase_PublicAbi` 下，流程只做 `SetVectorAsmEnabled(True/False)` + capability bit / representative slot 断言，没有 method-local restore；`LOldVectorAsm` 统一只赋值不读取，outer `finally` 统一为空 |
+| 2. 成组删除死变量与空 `finally` | completed | 已在 9 个 capability-bits 用例中删除未使用的 `LOldVectorAsm` 与纯空 outer `try/finally`：x86 shuffle/masked ops/always-on integer、AVX2 shuffle、AVX512 FMA/shuffle/vector-asm gated bits 等断言逻辑保持不变 |
+| 3. 继续用单 suite release 验证收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi` 验证；构建、测试与 leak check 均通过 |

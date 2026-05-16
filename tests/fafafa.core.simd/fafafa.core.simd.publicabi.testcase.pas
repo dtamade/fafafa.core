@@ -1388,7 +1388,6 @@ var
   LBackendTable: TSimdDispatchTable;
   LInfo: TFafafaSimdBackendPodInfo;
   LHasNonScalarShuffleSlots: Boolean;
-  LOldVectorAsm: Boolean;
 
   procedure ObserveRepresentativeSlot(aScalarSlot, aBackendSlot: Pointer);
   begin
@@ -1400,35 +1399,31 @@ begin
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
 
-    for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
-    begin
-      if LBackend = sbScalar then
-        Continue;
-      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
-        Continue;
-      if not TryGetSimdBackendPodInfo(LBackend, LInfo) then
-        Continue;
+  for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
+  begin
+    if LBackend = sbScalar then
+      Continue;
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+      Continue;
+    if not TryGetSimdBackendPodInfo(LBackend, LInfo) then
+      Continue;
 
-      LHasNonScalarShuffleSlots := False;
-      ObserveRepresentativeSlot(Pointer(LScalarTable.SelectF32x4), Pointer(LBackendTable.SelectF32x4));
-      ObserveRepresentativeSlot(Pointer(LScalarTable.InsertF32x4), Pointer(LBackendTable.InsertF32x4));
-      ObserveRepresentativeSlot(Pointer(LScalarTable.ExtractF32x4), Pointer(LBackendTable.ExtractF32x4));
-      ObserveRepresentativeSlot(Pointer(LScalarTable.SelectF32x8), Pointer(LBackendTable.SelectF32x8));
-      ObserveRepresentativeSlot(Pointer(LScalarTable.SelectF64x4), Pointer(LBackendTable.SelectF64x4));
+    LHasNonScalarShuffleSlots := False;
+    ObserveRepresentativeSlot(Pointer(LScalarTable.SelectF32x4), Pointer(LBackendTable.SelectF32x4));
+    ObserveRepresentativeSlot(Pointer(LScalarTable.InsertF32x4), Pointer(LBackendTable.InsertF32x4));
+    ObserveRepresentativeSlot(Pointer(LScalarTable.ExtractF32x4), Pointer(LBackendTable.ExtractF32x4));
+    ObserveRepresentativeSlot(Pointer(LScalarTable.SelectF32x8), Pointer(LBackendTable.SelectF32x8));
+    ObserveRepresentativeSlot(Pointer(LScalarTable.SelectF64x4), Pointer(LBackendTable.SelectF64x4));
 
-      if not LHasNonScalarShuffleSlots then
-        Continue;
+    if not LHasNonScalarShuffleSlots then
+      Continue;
 
-      AssertTrue('Public ABI CapabilityBits missing scShuffle while representative shuffle slots are non-scalar for backend=' + PublicAbiBackendName(LBackend),
-        (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) <> 0);
-    end;
-  finally
+    AssertTrue('Public ABI CapabilityBits missing scShuffle while representative shuffle slots are non-scalar for backend=' + PublicAbiBackendName(LBackend),
+      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) <> 0);
   end;
 end;
 
@@ -1439,7 +1434,6 @@ var
   LBackendTable: TSimdDispatchTable;
   LInfo: TFafafaSimdBackendPodInfo;
   LHasNonScalarMaskedSlots: Boolean;
-  LOldVectorAsm: Boolean;
 
   function IsX86MaskedOpsBackend(const aBackend: TSimdBackend): Boolean;
   begin
@@ -1461,35 +1455,31 @@ begin
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
 
-    for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
-    begin
-      if not IsX86MaskedOpsBackend(LBackend) then
-        Continue;
-      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
-        Continue;
-      if not TryGetSimdBackendPodInfo(LBackend, LInfo) then
-        Continue;
+  for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
+  begin
+    if not IsX86MaskedOpsBackend(LBackend) then
+      Continue;
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+      Continue;
+    if not TryGetSimdBackendPodInfo(LBackend, LInfo) then
+      Continue;
 
-      LHasNonScalarMaskedSlots := False;
-      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask2All), Pointer(LBackendTable.Mask2All));
-      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask4PopCount), Pointer(LBackendTable.Mask4PopCount));
-      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask8All), Pointer(LBackendTable.Mask8All));
-      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask8PopCount), Pointer(LBackendTable.Mask8PopCount));
-      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask16FirstSet), Pointer(LBackendTable.Mask16FirstSet));
+    LHasNonScalarMaskedSlots := False;
+    ObserveRepresentativeSlot(Pointer(LScalarTable.Mask2All), Pointer(LBackendTable.Mask2All));
+    ObserveRepresentativeSlot(Pointer(LScalarTable.Mask4PopCount), Pointer(LBackendTable.Mask4PopCount));
+    ObserveRepresentativeSlot(Pointer(LScalarTable.Mask8All), Pointer(LBackendTable.Mask8All));
+    ObserveRepresentativeSlot(Pointer(LScalarTable.Mask8PopCount), Pointer(LBackendTable.Mask8PopCount));
+    ObserveRepresentativeSlot(Pointer(LScalarTable.Mask16FirstSet), Pointer(LBackendTable.Mask16FirstSet));
 
-      if not LHasNonScalarMaskedSlots then
-        Continue;
+    if not LHasNonScalarMaskedSlots then
+      Continue;
 
-      AssertTrue('Public ABI CapabilityBits missing scMaskedOps while representative x86 mask helper slots are non-scalar for backend=' + PublicAbiBackendName(LBackend),
-        (LInfo.CapabilityBits and (UInt64(1) shl Ord(scMaskedOps))) <> 0);
-    end;
-  finally
+    AssertTrue('Public ABI CapabilityBits missing scMaskedOps while representative x86 mask helper slots are non-scalar for backend=' + PublicAbiBackendName(LBackend),
+      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scMaskedOps))) <> 0);
   end;
 end;
 
@@ -1498,33 +1488,28 @@ var
   LScalarTable: TSimdDispatchTable;
   LAVX2Table: TSimdDispatchTable;
   LInfo: TFafafaSimdBackendPodInfo;
-  LOldVectorAsm: Boolean;
 begin
   AssertTrue('Scalar dispatch table should be registered',
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
-    if not TryGetRegisteredBackendDispatchTable(sbAVX2, LAVX2Table) then
-      Exit;
-    if not TryGetSimdBackendPodInfo(sbAVX2, LInfo) then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
+  if not TryGetRegisteredBackendDispatchTable(sbAVX2, LAVX2Table) then
+    Exit;
+  if not TryGetSimdBackendPodInfo(sbAVX2, LInfo) then
+    Exit;
 
-    if (Pointer(LAVX2Table.SelectF32x4) = Pointer(LScalarTable.SelectF32x4)) and
-       (Pointer(LAVX2Table.InsertF32x4) = Pointer(LScalarTable.InsertF32x4)) and
-       (Pointer(LAVX2Table.ExtractF32x4) = Pointer(LScalarTable.ExtractF32x4)) and
-       (Pointer(LAVX2Table.SelectF32x8) = Pointer(LScalarTable.SelectF32x8)) and
-       (Pointer(LAVX2Table.SelectF64x4) = Pointer(LScalarTable.SelectF64x4)) then
-      Exit;
+  if (Pointer(LAVX2Table.SelectF32x4) = Pointer(LScalarTable.SelectF32x4)) and
+     (Pointer(LAVX2Table.InsertF32x4) = Pointer(LScalarTable.InsertF32x4)) and
+     (Pointer(LAVX2Table.ExtractF32x4) = Pointer(LScalarTable.ExtractF32x4)) and
+     (Pointer(LAVX2Table.SelectF32x8) = Pointer(LScalarTable.SelectF32x8)) and
+     (Pointer(LAVX2Table.SelectF64x4) = Pointer(LScalarTable.SelectF64x4)) then
+    Exit;
 
-    AssertTrue('Public ABI CapabilityBits should expose AVX2 scShuffle when representative shuffle slots are non-scalar',
-      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) <> 0);
-  finally
-  end;
+  AssertTrue('Public ABI CapabilityBits should expose AVX2 scShuffle when representative shuffle slots are non-scalar',
+    (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) <> 0);
 end;
 
 procedure TTestCase_PublicAbi.Test_PublicApi_BackendPodInfo_CapabilityBits_Clear_X86Shuffle_WhenVectorAsmDisabled;
@@ -1533,7 +1518,6 @@ var
   LScalarTable: TSimdDispatchTable;
   LBackendTable: TSimdDispatchTable;
   LInfo: TFafafaSimdBackendPodInfo;
-  LOldVectorAsm: Boolean;
 
   function IsShuffleCapabilityGatedBackend(const aBackend: TSimdBackend): Boolean;
   begin
@@ -1549,32 +1533,28 @@ begin
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    SetVectorAsmEnabled(False);
-    AssertFalse('Vector asm should be disabled for x86 shuffle public ABI rebuild test', IsVectorAsmEnabled);
+  SetVectorAsmEnabled(True);
+  SetVectorAsmEnabled(False);
+  AssertFalse('Vector asm should be disabled for x86 shuffle public ABI rebuild test', IsVectorAsmEnabled);
 
-    for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
-    begin
-      if not IsShuffleCapabilityGatedBackend(LBackend) then
-        Continue;
-      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
-        Continue;
-      if not TryGetSimdBackendPodInfo(LBackend, LInfo) then
-        Continue;
+  for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
+  begin
+    if not IsShuffleCapabilityGatedBackend(LBackend) then
+      Continue;
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+      Continue;
+    if not TryGetSimdBackendPodInfo(LBackend, LInfo) then
+      Continue;
 
-      AssertEquals('Representative SelectF32x4 slot should be scalar when vector asm is disabled for backend=' + PublicAbiBackendName(LBackend),
-        PtrUInt(LScalarTable.SelectF32x4), PtrUInt(LBackendTable.SelectF32x4));
-      AssertEquals('Representative InsertF32x4 slot should be scalar when vector asm is disabled for backend=' + PublicAbiBackendName(LBackend),
-        PtrUInt(LScalarTable.InsertF32x4), PtrUInt(LBackendTable.InsertF32x4));
-      AssertEquals('Representative ExtractF32x4 slot should be scalar when vector asm is disabled for backend=' + PublicAbiBackendName(LBackend),
-        PtrUInt(LScalarTable.ExtractF32x4), PtrUInt(LBackendTable.ExtractF32x4));
+    AssertEquals('Representative SelectF32x4 slot should be scalar when vector asm is disabled for backend=' + PublicAbiBackendName(LBackend),
+      PtrUInt(LScalarTable.SelectF32x4), PtrUInt(LBackendTable.SelectF32x4));
+    AssertEquals('Representative InsertF32x4 slot should be scalar when vector asm is disabled for backend=' + PublicAbiBackendName(LBackend),
+      PtrUInt(LScalarTable.InsertF32x4), PtrUInt(LBackendTable.InsertF32x4));
+    AssertEquals('Representative ExtractF32x4 slot should be scalar when vector asm is disabled for backend=' + PublicAbiBackendName(LBackend),
+      PtrUInt(LScalarTable.ExtractF32x4), PtrUInt(LBackendTable.ExtractF32x4));
 
-      AssertTrue('Public ABI CapabilityBits should clear scShuffle when representative shuffle slots are scalar for backend=' + PublicAbiBackendName(LBackend),
-        (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) = 0);
-    end;
-  finally
+    AssertTrue('Public ABI CapabilityBits should clear scShuffle when representative shuffle slots are scalar for backend=' + PublicAbiBackendName(LBackend),
+      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) = 0);
   end;
 end;
 
@@ -1585,7 +1565,6 @@ var
   LBackendTable: TSimdDispatchTable;
   LInfo: TFafafaSimdBackendPodInfo;
   LHasNonScalarAlwaysOnIntegerSlots: Boolean;
-  LOldVectorAsm: Boolean;
 
   function IsAlwaysOnNarrowIntegerBackend(const aBackend: TSimdBackend): Boolean;
   begin
@@ -1607,36 +1586,32 @@ begin
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    SetVectorAsmEnabled(False);
-    AssertFalse('Vector asm should be disabled for always-on x86 integer public ABI rebuild test', IsVectorAsmEnabled);
+  SetVectorAsmEnabled(True);
+  SetVectorAsmEnabled(False);
+  AssertFalse('Vector asm should be disabled for always-on x86 integer public ABI rebuild test', IsVectorAsmEnabled);
 
-    for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
-    begin
-      if not IsAlwaysOnNarrowIntegerBackend(LBackend) then
-        Continue;
-      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
-        Continue;
-      if not TryGetSimdBackendPodInfo(LBackend, LInfo) then
-        Continue;
+  for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
+  begin
+    if not IsAlwaysOnNarrowIntegerBackend(LBackend) then
+      Continue;
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+      Continue;
+    if not TryGetSimdBackendPodInfo(LBackend, LInfo) then
+      Continue;
 
-      LHasNonScalarAlwaysOnIntegerSlots := False;
-      ObserveRepresentativeSlot(Pointer(LScalarTable.AddI16x8), Pointer(LBackendTable.AddI16x8));
-      ObserveRepresentativeSlot(Pointer(LScalarTable.AndI16x8), Pointer(LBackendTable.AndI16x8));
-      ObserveRepresentativeSlot(Pointer(LScalarTable.CmpEqI16x8), Pointer(LBackendTable.CmpEqI16x8));
-      ObserveRepresentativeSlot(Pointer(LScalarTable.AddU8x16), Pointer(LBackendTable.AddU8x16));
-      ObserveRepresentativeSlot(Pointer(LScalarTable.MaxU8x16), Pointer(LBackendTable.MaxU8x16));
+    LHasNonScalarAlwaysOnIntegerSlots := False;
+    ObserveRepresentativeSlot(Pointer(LScalarTable.AddI16x8), Pointer(LBackendTable.AddI16x8));
+    ObserveRepresentativeSlot(Pointer(LScalarTable.AndI16x8), Pointer(LBackendTable.AndI16x8));
+    ObserveRepresentativeSlot(Pointer(LScalarTable.CmpEqI16x8), Pointer(LBackendTable.CmpEqI16x8));
+    ObserveRepresentativeSlot(Pointer(LScalarTable.AddU8x16), Pointer(LBackendTable.AddU8x16));
+    ObserveRepresentativeSlot(Pointer(LScalarTable.MaxU8x16), Pointer(LBackendTable.MaxU8x16));
 
-      if not LHasNonScalarAlwaysOnIntegerSlots then
-        Continue;
+    if not LHasNonScalarAlwaysOnIntegerSlots then
+      Continue;
 
-      AssertTrue('Public ABI CapabilityBits should keep scIntegerOps while always-on narrow integer slots remain non-scalar after vector asm disable for backend=' +
-        PublicAbiBackendName(LBackend),
-        (LInfo.CapabilityBits and (UInt64(1) shl Ord(scIntegerOps))) <> 0);
-    end;
-  finally
+    AssertTrue('Public ABI CapabilityBits should keep scIntegerOps while always-on narrow integer slots remain non-scalar after vector asm disable for backend=' +
+      PublicAbiBackendName(LBackend),
+      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scIntegerOps))) <> 0);
   end;
 end;
 
@@ -1645,33 +1620,28 @@ var
   LScalarTable: TSimdDispatchTable;
   LAVX512Table: TSimdDispatchTable;
   LInfo: TFafafaSimdBackendPodInfo;
-  LOldVectorAsm: Boolean;
 begin
   AssertTrue('Scalar dispatch table should be registered',
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
-    if not TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512Table) then
-      Exit;
-    if not TryGetSimdBackendPodInfo(sbAVX512, LInfo) then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
+  if not TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512Table) then
+    Exit;
+  if not TryGetSimdBackendPodInfo(sbAVX512, LInfo) then
+    Exit;
 
-    AssertTrue('AVX512 FmaF32x16 should be assigned', Assigned(LAVX512Table.FmaF32x16));
-    AssertTrue('AVX512 FmaF64x8 should be assigned', Assigned(LAVX512Table.FmaF64x8));
+  AssertTrue('AVX512 FmaF32x16 should be assigned', Assigned(LAVX512Table.FmaF32x16));
+  AssertTrue('AVX512 FmaF64x8 should be assigned', Assigned(LAVX512Table.FmaF64x8));
 
-    if (Pointer(LAVX512Table.FmaF32x16) = Pointer(LScalarTable.FmaF32x16)) and
-       (Pointer(LAVX512Table.FmaF64x8) = Pointer(LScalarTable.FmaF64x8)) then
-      Exit;
+  if (Pointer(LAVX512Table.FmaF32x16) = Pointer(LScalarTable.FmaF32x16)) and
+     (Pointer(LAVX512Table.FmaF64x8) = Pointer(LScalarTable.FmaF64x8)) then
+    Exit;
 
-    AssertTrue('Public ABI CapabilityBits should expose AVX512 scFMA when wide FMA slots are non-scalar',
-      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scFMA))) <> 0);
-  finally
-  end;
+  AssertTrue('Public ABI CapabilityBits should expose AVX512 scFMA when wide FMA slots are non-scalar',
+    (LInfo.CapabilityBits and (UInt64(1) shl Ord(scFMA))) <> 0);
 end;
 
 procedure TTestCase_PublicAbi.Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_AVX512Shuffle_WhenNativeSlotsPresent;
@@ -1679,64 +1649,54 @@ var
   LScalarTable: TSimdDispatchTable;
   LAVX512Table: TSimdDispatchTable;
   LInfo: TFafafaSimdBackendPodInfo;
-  LOldVectorAsm: Boolean;
 begin
   AssertTrue('Scalar dispatch table should be registered',
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
-    if not TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512Table) then
-      Exit;
-    if not TryGetSimdBackendPodInfo(sbAVX512, LInfo) then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
+  if not TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512Table) then
+    Exit;
+  if not TryGetSimdBackendPodInfo(sbAVX512, LInfo) then
+    Exit;
 
-    if (Pointer(LAVX512Table.SelectF32x16) = Pointer(LScalarTable.SelectF32x16)) and
-       (Pointer(LAVX512Table.SelectF64x8) = Pointer(LScalarTable.SelectF64x8)) then
-      Exit;
+  if (Pointer(LAVX512Table.SelectF32x16) = Pointer(LScalarTable.SelectF32x16)) and
+     (Pointer(LAVX512Table.SelectF64x8) = Pointer(LScalarTable.SelectF64x8)) then
+    Exit;
 
-    AssertTrue('Public ABI CapabilityBits should expose AVX512 scShuffle when wide select slots are non-scalar',
-      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) <> 0);
-  finally
-  end;
+  AssertTrue('Public ABI CapabilityBits should expose AVX512 scShuffle when wide select slots are non-scalar',
+    (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) <> 0);
 end;
 
 procedure TTestCase_PublicAbi.Test_PublicApi_BackendPodInfo_CapabilityBits_Clear_AVX512VectorAsmGatedBits_WhenVectorAsmDisabled;
 var
   LAVX512Table: TSimdDispatchTable;
   LInfo: TFafafaSimdBackendPodInfo;
-  LOldVectorAsm: Boolean;
 begin
   if not TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512Table) then
     Exit;
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
-    SetVectorAsmEnabled(False);
-    AssertFalse('Vector asm should be disabled for AVX512 public ABI rebuild test', IsVectorAsmEnabled);
-    AssertTrue('AVX512 backend should remain registered after runtime rebuild',
-      TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512Table));
-    AssertTrue('AVX512 backend pod info should remain queryable after runtime rebuild',
-      TryGetSimdBackendPodInfo(sbAVX512, LInfo));
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
+  SetVectorAsmEnabled(False);
+  AssertFalse('Vector asm should be disabled for AVX512 public ABI rebuild test', IsVectorAsmEnabled);
+  AssertTrue('AVX512 backend should remain registered after runtime rebuild',
+    TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512Table));
+  AssertTrue('AVX512 backend pod info should remain queryable after runtime rebuild',
+    TryGetSimdBackendPodInfo(sbAVX512, LInfo));
 
-    AssertTrue('Public ABI CapabilityBits should clear AVX512 scFMA when vector asm is disabled',
-      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scFMA))) = 0);
-    AssertTrue('Public ABI CapabilityBits should clear AVX512 scShuffle when vector asm is disabled',
-      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) = 0);
-    AssertTrue('Public ABI CapabilityBits should clear AVX512 scIntegerOps when vector asm is disabled',
-      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scIntegerOps))) = 0);
-    AssertTrue('Public ABI CapabilityBits should clear AVX512 sc512BitOps when vector asm is disabled',
-      (LInfo.CapabilityBits and (UInt64(1) shl Ord(sc512BitOps))) = 0);
-  finally
-  end;
+  AssertTrue('Public ABI CapabilityBits should clear AVX512 scFMA when vector asm is disabled',
+    (LInfo.CapabilityBits and (UInt64(1) shl Ord(scFMA))) = 0);
+  AssertTrue('Public ABI CapabilityBits should clear AVX512 scShuffle when vector asm is disabled',
+    (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) = 0);
+  AssertTrue('Public ABI CapabilityBits should clear AVX512 scIntegerOps when vector asm is disabled',
+    (LInfo.CapabilityBits and (UInt64(1) shl Ord(scIntegerOps))) = 0);
+  AssertTrue('Public ABI CapabilityBits should clear AVX512 sc512BitOps when vector asm is disabled',
+    (LInfo.CapabilityBits and (UInt64(1) shl Ord(sc512BitOps))) = 0);
 end;
 
 procedure TTestCase_PublicAbi.Test_PublicApi_BackendPodInfo_CapabilityBits_Keep_X86MaskedOps_WhenVectorAsmDisabled;
@@ -1746,7 +1706,6 @@ var
   LBackendTable: TSimdDispatchTable;
   LInfo: TFafafaSimdBackendPodInfo;
   LHasNonScalarMaskedSlots: Boolean;
-  LOldVectorAsm: Boolean;
 
   function IsX86MaskedOpsBackend(const aBackend: TSimdBackend): Boolean;
   begin
@@ -1768,37 +1727,33 @@ begin
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
-    SetVectorAsmEnabled(False);
-    AssertFalse('Vector asm should be disabled for x86 masked-ops public ABI rebuild test', IsVectorAsmEnabled);
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
+  SetVectorAsmEnabled(False);
+  AssertFalse('Vector asm should be disabled for x86 masked-ops public ABI rebuild test', IsVectorAsmEnabled);
 
-    for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
-    begin
-      if not IsX86MaskedOpsBackend(LBackend) then
-        Continue;
-      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
-        Continue;
-      if not TryGetSimdBackendPodInfo(LBackend, LInfo) then
-        Continue;
+  for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
+  begin
+    if not IsX86MaskedOpsBackend(LBackend) then
+      Continue;
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+      Continue;
+    if not TryGetSimdBackendPodInfo(LBackend, LInfo) then
+      Continue;
 
-      LHasNonScalarMaskedSlots := False;
-      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask2All), Pointer(LBackendTable.Mask2All));
-      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask4PopCount), Pointer(LBackendTable.Mask4PopCount));
-      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask8All), Pointer(LBackendTable.Mask8All));
-      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask8PopCount), Pointer(LBackendTable.Mask8PopCount));
-      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask16FirstSet), Pointer(LBackendTable.Mask16FirstSet));
+    LHasNonScalarMaskedSlots := False;
+    ObserveRepresentativeSlot(Pointer(LScalarTable.Mask2All), Pointer(LBackendTable.Mask2All));
+    ObserveRepresentativeSlot(Pointer(LScalarTable.Mask4PopCount), Pointer(LBackendTable.Mask4PopCount));
+    ObserveRepresentativeSlot(Pointer(LScalarTable.Mask8All), Pointer(LBackendTable.Mask8All));
+    ObserveRepresentativeSlot(Pointer(LScalarTable.Mask8PopCount), Pointer(LBackendTable.Mask8PopCount));
+    ObserveRepresentativeSlot(Pointer(LScalarTable.Mask16FirstSet), Pointer(LBackendTable.Mask16FirstSet));
 
-      if not LHasNonScalarMaskedSlots then
-        Continue;
+    if not LHasNonScalarMaskedSlots then
+      Continue;
 
-      AssertTrue('Public ABI CapabilityBits should keep scMaskedOps while representative x86 mask helper slots remain non-scalar after vector asm disable for backend=' + PublicAbiBackendName(LBackend),
-        (LInfo.CapabilityBits and (UInt64(1) shl Ord(scMaskedOps))) <> 0);
-    end;
-  finally
+    AssertTrue('Public ABI CapabilityBits should keep scMaskedOps while representative x86 mask helper slots remain non-scalar after vector asm disable for backend=' + PublicAbiBackendName(LBackend),
+      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scMaskedOps))) <> 0);
   end;
 end;
 

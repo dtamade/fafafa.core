@@ -5785,3 +5785,36 @@
 - 当前阶段结论：
   - 这批仍是纯测试层冗余清理，没有改 public ABI 发布逻辑或 SIMD 生产实现
   - `publicabi.testcase` 前部这两处“伪 cleanup”已经收掉；如果下一轮继续沿这条线推进，应优先找同一文件里仍具备相同基类恢复前提、且语义简单的前部命中，而不是马上跳去 hook/rollback 深水区
+
+## 2026-05-16 PublicAbi CapabilityBits Empty Finally Cleanup
+
+- 在前部两处 `publicabi` 命中收口后，我没有切回别的文件，而是继续沿同一文件前部做分段复核，这次锁定的是 capability-bits 测试簇。
+- 这组命中之所以适合成批处理，是因为它们共享四个关键特征：
+  - 都属于 `TTestCase_PublicAbi = class(TSimdVectorAsmStatefulTestCase)`
+  - 都只围绕 `SetVectorAsmEnabled(True/False)`、代表性 slot 对比和 capability bit 断言展开
+  - 都保留 `LOldVectorAsm := IsVectorAsmEnabled`，但没有任何读取
+  - 都有纯空 outer `try/finally`
+- fresh 复核后，这一串里前部 9 个用例都符合“空壳 cleanup”而非“隐藏 restore”：
+  - `...DoNotUnderclaim_Shuffle`
+  - `...DoNotUnderclaim_X86MaskedOps`
+  - `...Expose_AVX2Shuffle_WhenNativeSlotsPresent`
+  - `...Clear_X86Shuffle_WhenVectorAsmDisabled`
+  - `...Keep_X86IntegerOps_When_AlwaysOn_NarrowSlots_Remain_NonScalar`
+  - `...Expose_AVX512FMA_WhenNativeSlotsPresent`
+  - `...Expose_AVX512Shuffle_WhenNativeSlotsPresent`
+  - `...Clear_AVX512VectorAsmGatedBits_WhenVectorAsmDisabled`
+  - `...Keep_X86MaskedOps_WhenVectorAsmDisabled`
+- 本轮已完成的源码收口：
+  - 删除上述 9 个用例中的 `LOldVectorAsm` 局部变量与赋值
+  - 删除对应纯空 outer `try/finally`
+  - 保留所有 capability bit 判定、dispatch slot 对比、vector-asm enable/disable 路径与 backend 范围筛选不变
+- fresh 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+- fresh 结果：
+  - `[BUILD] OK`
+  - `[TEST] OK`
+  - `[LEAK] OK`
+- 当前阶段结论：
+  - 这批依然是纯测试层冗余清理，没有改 public ABI 发布逻辑或 SIMD 生产实现
+  - `publicabi` 前部 capability-bits 簇里最整齐的一段“死状态捕获 + 空 finally”已经收掉；后续如果继续深审同文件，优先级应继续沿“前部简单语义段”往下，而不是立刻切到 hook/rollback 段

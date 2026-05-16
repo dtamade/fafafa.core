@@ -6864,3 +6864,29 @@
 - 当前阶段结论：
   - 这批已经形成完整小闭环，可以直接提交
   - 当前工作法是有效的：缩候选面、只改高确定性命中、用单 suite release 验证后立即收口
+
+## 2026-05-16 PublicAbi CapabilityBits Empty Finally Cleanup
+
+- 这一批继续沿同一文件推进，没有重新打开大范围搜索，只在 `publicabi.testcase` 已读过的前部 capability-bits 区段继续深挖。
+- 候选筛选过程：
+  - 基于前一批已经确认的基类恢复前提，继续读 `1394..1815` 一段
+  - 用 `rg -n -U "finally\\s*\\n\\s*end;"` 与 `rg -n "LOldVectorAsm"` 的交集确认这是一串连续同形态命中
+  - 逐段肉眼复核，确认没有 hook/rollback/mutation 之类需要 method-local restore 的特殊流程
+- 已完成的源码改动：
+  - 文件：`tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas`
+  - 成组清理 9 个 capability-bits 用例中的未使用 `LOldVectorAsm`
+  - 同时删除这些用例的纯空 outer `try/finally`
+- 安全依据：
+  - `TTestCase_PublicAbi` 继承 `TSimdVectorAsmStatefulTestCase`
+  - `TearDown` 仍会统一恢复 vector-asm/backend 状态
+  - 这批方法本体只做 capability bit 和 dispatch slot 断言，不包含额外 restore 责任
+- 本轮验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+- fresh 结果：
+  - `[BUILD] OK`
+  - `[TEST] OK`
+  - `[LEAK] OK`
+- 当前阶段结论：
+  - 这批已经形成完整小闭环，可以直接提交
+  - 当前节奏依然正确：在一个已读透的文件段内连续收掉同形态冗余，比重新扫别的大文件更高效
