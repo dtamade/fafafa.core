@@ -5545,3 +5545,46 @@
 - 当前最准确的阶段结论：
   - 这批修的不是 SIMD 算法语义，而是 runner 操作面和 parity 护栏的真实漂移
   - 收完以后，后续继续深审 non-x86 Python 审查时终于可以按单条 action 快速执行，而不必默认重跑整条 `check`
+
+## 2026-05-16 Windows Closeout Wrapper Parity Findings
+
+- 在把 targeted Python 审查 action 暴露完以后，我继续做 completion audit，不再扫 backend，而是直接比对 shell/batch runner 的公开 action 差集。
+- 差集结果很明确，且不是设计上“理应缺失”的一团模糊状态：
+  - shell 已公开但 batch 缺入口的核心收口动作是：
+    - `win-evidence-via-gh`
+    - `win-closeout-dryrun`
+    - `win-closeout-snippets`
+    - `freeze-status`
+    - `freeze-status-linux`
+    - `freeze-status-rehearsal`
+  - 这几条都属于 release closeout / freeze readiness 的公开操作面
+  - 与之相比，`evidence-linux`、`native-evidence`、`verify-nonx86-native-evidence`、`restore-nightly-evidence`、`gate-summary-selfcheck` 还更像仍然可接受的 shell-only 留白
+- 这说明 batch 当前的问题已经不是“个别 Python checker 少一个入口”，而是 Windows closeout 路径本身的公开 action 表不完整：
+  - `win_closeout_3cmd` 文本里已经多次引导用户去跑 `freeze-status`
+  - shell usage/help 也已经把这几条写成正式 action
+  - 但 batch 顶部 dispatch 和 usage/help 却没有对应入口
+  - 这会让 Windows/CMD 用户看到一套文案、手里却拿不到同名入口
+- 这批最正确的修法不是把 batch 重写成原生实现，而是明确承认这些动作的 canonical 执行面仍在 shell：
+  - batch 只补 `bash %ROOT%BuildOrTest.sh ...` wrapper
+  - 这样不会分叉实现
+  - 但可以把 Windows 侧的公开操作面收正
+- 这批还抓到了一个更高价值的 runner 治理结论：
+  - `check_windows_runner_parity()` 之前把这几条列进 `LAllowedShellOnly`
+  - 所以即使 batch usage/help 和 dispatch 一直缺失，主门禁也不会红
+  - 也就是说，这不是单纯的 batch 少几行 wrapper，而是 parity guard 自己在给这组公开 closeout action 开“长期豁免”
+- 因而真正的修复必须同时做两件事：
+  - batch 补入口
+  - shell 的 parity guard 撤掉这 6 条的 shell-only allow，并把 dispatch / usage / help / wrapper run-line 纳入 required pattern
+- fresh 证据也说明这批不是只做文案同步：
+  - action 差集脚本 fresh 结果已经缩小为：
+    - shell-only: `evidence-linux`、`gate-summary-selfcheck`、`native-evidence`、`restore-nightly-evidence`、`verify-nonx86-native-evidence`、`verify-win-evidence` 加上批处理内联处理的 `debug/release`
+    - batch-only: `evidence-win`
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-dryrun`
+    - `[CLOSEOUT] DRYRUN OK: simulated summary stayed preview-only`
+  - `FAFAFA_BUILD_MODE=Release SIMD_CHECK_NONX86_OPTIN=0 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - `[CHECK] OK (windows runner parity signatures present)`
+    - 说明主门禁已经把这组新 wrapper 纳回真相源
+- 当前最准确的阶段结论：
+  - 这批修到的是 Windows closeout runner 的公开操作面缺口，以及 parity guard 对这组缺口的长期豁免
+  - 现在 batch 至少能桥接 shell 已公开的 freeze / closeout 入口，不再让文档、shell usage 与 batch action 表长期分叉
+  - 仍未完成的是 Windows 实机运行时证据；但源码和 source-safe parity 这层已经收口

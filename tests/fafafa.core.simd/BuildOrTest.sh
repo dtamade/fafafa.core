@@ -939,13 +939,7 @@ check_windows_runner_parity() {
     verify-nonx86-native-evidence
     import-nonx86-native-evidence
     restore-nightly-evidence
-    freeze-status
-    freeze-status-linux
-    freeze-status-rehearsal
     gate-summary-selfcheck
-    win-closeout-dryrun
-    win-closeout-snippets
-    win-evidence-via-gh
   )
 
   # These aliases are intentionally Windows-only entry points for native evidence capture.
@@ -993,11 +987,17 @@ check_windows_runner_parity() {
     'if /I "%ACTION%"=="qemu-experimental-baseline-check" goto :qemu_experimental_baseline_check'
     'if /I "%ACTION%"=="evidence-win" goto :evidence_win'
     'if /I "%ACTION%"=="win-evidence-preflight" goto :win_evidence_preflight'
+    'if /I "%ACTION%"=="win-evidence-via-gh" goto :win_evidence_via_gh'
     'if /I "%ACTION%"=="verify-win-evidence" ('
     'if /I "%ACTION%"=="evidence-win-verify" ('
     'if /I "%ACTION%"=="finalize-win-evidence" goto :finalize_win_evidence'
+    'if /I "%ACTION%"=="win-closeout-dryrun" goto :win_closeout_dryrun'
+    'if /I "%ACTION%"=="win-closeout-snippets" goto :win_closeout_snippets'
     'if /I "%ACTION%"=="win-closeout-3cmd" goto :win_closeout_3cmd'
+    'if /I "%ACTION%"=="freeze-status" goto :freeze_status'
+    'if /I "%ACTION%"=="freeze-status-linux" goto :freeze_status_linux'
     'if /I "%ACTION%"=="win-closeout-finalize" goto :win_closeout_finalize'
+    'if /I "%ACTION%"=="freeze-status-rehearsal" goto :freeze_status_rehearsal'
     'if /I "%ACTION%"=="impl-smoke-x86" goto :impl_smoke_x86'
     'if /I "%ACTION%"=="helper-semantics" goto :helper_semantics'
     'set "NORMALIZED_TEST_ARGS=!NORMALIZED_TEST_ARGS! %1"'
@@ -1010,8 +1010,14 @@ check_windows_runner_parity() {
     'if /I "%ACTION%"=="gate-summary-inject" goto :gate_summary_inject'
     'if /I "%ACTION%"=="gate-summary-rollback" goto :gate_summary_rollback'
     'if /I "%ACTION%"=="gate-summary-backups" goto :gate_summary_backups'
-    'echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|key-slot-audit^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]'
+    'echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|key-slot-audit^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|win-evidence-via-gh^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-dryrun^|win-closeout-snippets^|win-closeout-3cmd^|freeze-status^|freeze-status-linux^|win-closeout-finalize^|freeze-status-rehearsal] [test-args...]'
     'echo   closeout-release  Canonical release closeout entry ^(delegates to shell runner^)'
+    'echo   win-evidence-via-gh  Dispatch GitHub-hosted Windows evidence collection ^(delegates to shell runner^)'
+    'echo   win-closeout-dryrun  Print Windows closeout dry-run guidance ^(delegates to shell runner^)'
+    'echo   win-closeout-snippets  Print Windows closeout copyable snippets ^(delegates to shell runner^)'
+    'echo   freeze-status  Evaluate current release freeze readiness ^(delegates to shell runner^)'
+    'echo   freeze-status-linux  Evaluate freeze readiness using Linux-side evidence only ^(delegates to shell runner^)'
+    'echo   freeze-status-rehearsal  Rehearse freeze-status failure shaping ^(delegates to shell runner^)'
     'echo [IMPL-SMOKE-X86] Running: bash %ROOT%BuildOrTest.sh impl-smoke-x86 %NORMALIZED_TEST_ARGS%'
     'findstr /r /c:"src\fafafa\.core\.simd\..*Warning:" /c:"src\fafafa\.core\.simd\..*Hint:" "%BUILD_LOG%" | findstr /v /c:"src\fafafa.core.simd.intrinsics.avx2.pas" >nul 2>nul'
     'call :nonx86_helper_semantics_check'
@@ -1037,6 +1043,18 @@ check_windows_runner_parity() {
     ':source_reachability_check'
     'set "SOURCE_REACHABILITY_SCRIPT=%ROOT%check_simd_source_reachability.py"'
     'echo [SOURCE-REACHABILITY] FAILED (python runtime not found; tried py and python)'
+    ':win_evidence_via_gh'
+    'echo [WIN-EVIDENCE-VIA-GH] Running: bash %ROOT%BuildOrTest.sh win-evidence-via-gh %NORMALIZED_TEST_ARGS%'
+    ':win_closeout_dryrun'
+    'echo [WIN-CLOSEOUT-DRYRUN] Running: bash %ROOT%BuildOrTest.sh win-closeout-dryrun %NORMALIZED_TEST_ARGS%'
+    ':win_closeout_snippets'
+    'echo [WIN-CLOSEOUT-SNIPPETS] Running: bash %ROOT%BuildOrTest.sh win-closeout-snippets %NORMALIZED_TEST_ARGS%'
+    ':freeze_status'
+    'echo [FREEZE-STATUS] Running: bash %ROOT%BuildOrTest.sh freeze-status %NORMALIZED_TEST_ARGS%'
+    ':freeze_status_linux'
+    'echo [FREEZE-STATUS-LINUX] Running: bash %ROOT%BuildOrTest.sh freeze-status-linux %NORMALIZED_TEST_ARGS%'
+    ':freeze_status_rehearsal'
+    'echo [FREEZE-STATUS-REHEARSAL] Running: bash %ROOT%BuildOrTest.sh freeze-status-rehearsal %NORMALIZED_TEST_ARGS%'
     'findstr /b /c:"Invalid option" "%TEST_LOG%" >nul 2>nul'
     'findstr /r /c:"Number of failures:[ ]*[1-9][0-9]*" /c:"Number of errors:[ ]*[1-9][0-9]*" /c:"Time:.* E:[1-9][0-9]*" /c:"Time:.* F:[1-9][0-9]*" "%TEST_LOG%" >nul 2>nul'
     'findstr /r /c:"^[1-9][0-9]* unfreed memory blocks" "%TEST_LOG%" >nul 2>nul'

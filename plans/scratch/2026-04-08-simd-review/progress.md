@@ -6535,3 +6535,58 @@
 - 当前阶段结论：
   - 这批把后续继续深审时最常见的一类低效路径收成了单条 action
   - 以后继续审 non-x86 Python checker 时，可以先直接跑目标 action，再按需决定是否补一条整链 `check`
+
+## 2026-05-16 Windows Closeout Wrapper Parity
+
+- 这批我继续保持小闭环，没有再回头扫 backend/source，而是先审计 shell/batch 的公开 action 差集：
+  - `python3 - <<'PY' ...` 提取 `BuildOrTest.sh` case action 与 `buildOrTest.bat` 顶部 dispatch action
+  - `rg -n "gate-summary-selfcheck|evidence-linux|native-evidence|verify-nonx86-native-evidence|restore-nightly-evidence|win-evidence-via-gh|win-closeout-dryrun|win-closeout-snippets|freeze-status|freeze-status-linux|freeze-status-rehearsal" tests/fafafa.core.simd/buildOrTest.bat tests/fafafa.core.simd/BuildOrTest.sh`
+- 差集证据很直接：
+  - shell-only 里最值钱、且明显不该长期缺失的一组是：
+    - `win-evidence-via-gh`
+    - `win-closeout-dryrun`
+    - `win-closeout-snippets`
+    - `freeze-status`
+    - `freeze-status-linux`
+    - `freeze-status-rehearsal`
+  - 它们都已经在 shell usage/help 与 closeout 文档流里作为公开入口存在
+  - 但 batch 顶部 dispatch、usage/help 还没有对应入口
+- 本批已完成的代码修改：
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+    - 新增顶部 dispatch：
+      - `win-evidence-via-gh`
+      - `win-closeout-dryrun`
+      - `win-closeout-snippets`
+      - `freeze-status`
+      - `freeze-status-linux`
+      - `freeze-status-rehearsal`
+    - usage/help 同步补齐
+    - 新增对应 `bash %ROOT%BuildOrTest.sh ...` wrapper label
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - `check_windows_runner_parity()` 中把这 6 条从 `LAllowedShellOnly` 移除
+    - 新增 required pattern：
+      - batch 顶部 dispatch
+      - batch usage 行
+      - batch help 行
+      - batch wrapper label / run-line
+- 这批的关键修法不是“让 batch 自己实现 freeze-status”，而是明确保持单一实现面：
+  - Windows batch 只做公开桥接
+  - 真实实现仍然由 shell runner 承担
+  - 这样能收正操作面，又不引入第二套 closeout 逻辑
+- 本批 fresh 验证链：
+  - `git diff --check`
+  - `bash -n tests/fafafa.core.simd/BuildOrTest.sh`
+  - action 差集脚本 fresh 对比
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-dryrun`
+  - `FAFAFA_BUILD_MODE=Release SIMD_CHECK_NONX86_OPTIN=0 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - action 差集已缩到：
+    - shell-only：`evidence-linux`、`gate-summary-selfcheck`、`native-evidence`、`restore-nightly-evidence`、`verify-nonx86-native-evidence`、`verify-win-evidence`，外加 batch 内联处理的 `debug/release`
+    - batch-only：`evidence-win`
+  - `win-closeout-dryrun` 轻量烟测通过：
+    - `[CLOSEOUT] DRYRUN OK: simulated summary stayed preview-only`
+  - `Release check` 通过，且 `windows runner parity signatures present` 继续为绿
+- 当前阶段结论：
+  - 这批把 Windows closeout 路径里一组真实缺失的公开入口补回来了
+  - 同时也把这组入口重新纳回 parity guard 的真相源
+  - 仍待后续补的是 Windows 实机运行时证据，不是 runner action 表本身

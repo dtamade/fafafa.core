@@ -3814,3 +3814,17 @@
 | 1. 复核当前 runner 真实缺口 | completed | 已确认 `BuildOrTest.sh` 只有内部函数没有公开 case；`buildOrTest.bat` 只有内部 label 没有顶部 dispatch / usage 暴露；这导致后续要跑单条 Python 审查时只能借道整条 `check` |
 | 2. 暴露 shell/batch 公开 action，并补齐 parity 真相源 | completed | 已在 shell case/usage 中新增 `helper-semantics`、`source-reachability`、`riscvv-abi-shape`；已在 batch 顶部 dispatch、usage/help 中同步公开这 3 个 action，并补 `check_windows_runner_parity()` 的 required pattern，避免 shell/batch action 表再次漂移 |
 | 3. 串行最小验证并收口 | completed | 已串行跑 `git diff --check`、`bash -n tests/fafafa.core.simd/BuildOrTest.sh`、`bash tests/fafafa.core.simd/BuildOrTest.sh helper-semantics`、`bash tests/fafafa.core.simd/BuildOrTest.sh source-reachability`、`bash tests/fafafa.core.simd/BuildOrTest.sh riscvv-abi-shape`、`FAFAFA_BUILD_MODE=Release SIMD_CHECK_NONX86_OPTIN=0 bash tests/fafafa.core.simd/BuildOrTest.sh check`；全部通过。Windows batch 本轮仍是 source-safe 对齐，未做实机运行 |
+
+## 2026-05-16 Windows Closeout Wrapper Parity
+
+### Goal
+
+把 batch runner 里已经缺失的一组 Windows closeout / freeze-status 公开入口补齐到与 shell runner 更一致，让 Windows/CMD 用户也能直达 shell 已公开的收口 action，同时继续由 `check_windows_runner_parity()` 守住 action 表、usage/help 和 wrapper 真相源。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 审计 shell/batch 公开 action 差集 | completed | 已对比 `BuildOrTest.sh` 与 `buildOrTest.bat` 的 action 表，确认 `win-evidence-via-gh`、`win-closeout-dryrun`、`win-closeout-snippets`、`freeze-status`、`freeze-status-linux`、`freeze-status-rehearsal` 都是 shell 已公开、batch 缺入口的真实差集；剩余 shell-only 只保留 `evidence-linux`、`native-evidence`、`verify-nonx86-native-evidence`、`restore-nightly-evidence`、`gate-summary-selfcheck` 这类仍未桥接的动作 |
+| 2. 补 batch bash-delegate wrapper，并同步 parity required pattern | completed | 已在 `tests/fafafa.core.simd/buildOrTest.bat` 为上述 6 个 action 新增顶部 dispatch、usage/help 和 `bash %ROOT%BuildOrTest.sh ...` wrapper label；已在 `tests/fafafa.core.simd/BuildOrTest.sh` 的 `check_windows_runner_parity()` 中移除它们的 shell-only 豁免，并补 required dispatch / usage / help / run-line pattern |
+| 3. 做轻量 shell 烟测与 Release `check` 复验 | completed | 已跑 `git diff --check`、`bash -n tests/fafafa.core.simd/BuildOrTest.sh`、action 差集脚本、`bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-dryrun`、`FAFAFA_BUILD_MODE=Release SIMD_CHECK_NONX86_OPTIN=0 bash tests/fafafa.core.simd/BuildOrTest.sh check`；`win-closeout-dryrun` 与整条 Release `check` 均通过。Windows batch 仍未做实机执行，本轮验证仍以 source-safe parity 为主 |

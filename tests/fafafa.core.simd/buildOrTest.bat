@@ -119,6 +119,7 @@ if /I "%ACTION%"=="experimental-intrinsics" goto :experimental_intrinsics
 if /I "%ACTION%"=="experimental-intrinsics-tests" goto :experimental_intrinsics_tests
 if /I "%ACTION%"=="evidence-win" goto :evidence_win
 if /I "%ACTION%"=="win-evidence-preflight" goto :win_evidence_preflight
+if /I "%ACTION%"=="win-evidence-via-gh" goto :win_evidence_via_gh
 if /I "%ACTION%"=="verify-win-evidence" (
   set "VERIFY_SCRIPT=%ROOT%verify_windows_b07_evidence.bat"
   set "VERIFY_ARGS=%NORMALIZED_TEST_ARGS%"
@@ -155,10 +156,15 @@ if /I "%ACTION%"=="evidence-win-verify" (
   exit /b %ERRORLEVEL%
 )
 if /I "%ACTION%"=="finalize-win-evidence" goto :finalize_win_evidence
+if /I "%ACTION%"=="win-closeout-dryrun" goto :win_closeout_dryrun
+if /I "%ACTION%"=="win-closeout-snippets" goto :win_closeout_snippets
 if /I "%ACTION%"=="win-closeout-3cmd" goto :win_closeout_3cmd
+if /I "%ACTION%"=="freeze-status" goto :freeze_status
+if /I "%ACTION%"=="freeze-status-linux" goto :freeze_status_linux
 if /I "%ACTION%"=="win-closeout-finalize" goto :win_closeout_finalize
+if /I "%ACTION%"=="freeze-status-rehearsal" goto :freeze_status_rehearsal
 
-echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|key-slot-audit^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]
+echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|key-slot-audit^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|win-evidence-via-gh^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-dryrun^|win-closeout-snippets^|win-closeout-3cmd^|freeze-status^|freeze-status-linux^|win-closeout-finalize^|freeze-status-rehearsal] [test-args...]
 echo   Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks.
 echo   gate/gate-strict PASS is not blanket release-grade approval for every experimental path.
 echo   gate         Fast/base gate for routine SIMD changes
@@ -175,6 +181,12 @@ echo   key-slot-audit  Audit key non-x86 wide slots against backend-owned/base-s
 echo   riscvv-abi-shape  Run the RISCVV ABI-shape Python audit only
 echo   source-reachability  Run the SIMD source reachability Python audit only
 echo   closeout-host-local  Host-local strict closeout ^(non-x86 native evidence fail-close, windows evidence optional^)
+echo   win-evidence-via-gh  Dispatch GitHub-hosted Windows evidence collection ^(delegates to shell runner^)
+echo   win-closeout-dryrun  Print Windows closeout dry-run guidance ^(delegates to shell runner^)
+echo   win-closeout-snippets  Print Windows closeout copyable snippets ^(delegates to shell runner^)
+echo   freeze-status  Evaluate current release freeze readiness ^(delegates to shell runner^)
+echo   freeze-status-linux  Evaluate freeze readiness using Linux-side evidence only ^(delegates to shell runner^)
+echo   freeze-status-rehearsal  Rehearse freeze-status failure shaping ^(delegates to shell runner^)
 echo Suggested flow: check -^> targeted suites -^> gate; use gate-strict before release/closeout.
 echo QEMU env: SIMD_QEMU_BUILD_POLICY=always^|if-missing^|skip ^(default: if-missing^)
 echo Isolation env: SIMD_OUTPUT_ROOT=C:\temp\simd-run-123 ^(override bin2/lib2/logs root^)
@@ -193,6 +205,72 @@ exit /b %ERRORLEVEL%
 
 :source_reachability
 call :source_reachability_check
+exit /b %ERRORLEVEL%
+
+:win_evidence_via_gh
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [WIN-EVIDENCE-VIA-GH] FAILED ^(bash runtime not found; win-evidence-via-gh requires Git Bash / WSL as the canonical entrypoint^)
+  exit /b 2
+)
+
+echo [WIN-EVIDENCE-VIA-GH] Running: bash %ROOT%BuildOrTest.sh win-evidence-via-gh %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" win-evidence-via-gh %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:win_closeout_dryrun
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [WIN-CLOSEOUT-DRYRUN] FAILED ^(bash runtime not found; win-closeout-dryrun requires bash to preserve shell parity^)
+  exit /b 2
+)
+
+echo [WIN-CLOSEOUT-DRYRUN] Running: bash %ROOT%BuildOrTest.sh win-closeout-dryrun %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" win-closeout-dryrun %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:win_closeout_snippets
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [WIN-CLOSEOUT-SNIPPETS] FAILED ^(bash runtime not found; win-closeout-snippets requires bash to preserve shell parity^)
+  exit /b 2
+)
+
+echo [WIN-CLOSEOUT-SNIPPETS] Running: bash %ROOT%BuildOrTest.sh win-closeout-snippets %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" win-closeout-snippets %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:freeze_status
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [FREEZE-STATUS] FAILED ^(bash runtime not found; freeze-status requires bash to preserve shell parity^)
+  exit /b 2
+)
+
+echo [FREEZE-STATUS] Running: bash %ROOT%BuildOrTest.sh freeze-status %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" freeze-status %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:freeze_status_linux
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [FREEZE-STATUS-LINUX] FAILED ^(bash runtime not found; freeze-status-linux requires bash to preserve shell parity^)
+  exit /b 2
+)
+
+echo [FREEZE-STATUS-LINUX] Running: bash %ROOT%BuildOrTest.sh freeze-status-linux %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" freeze-status-linux %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:freeze_status_rehearsal
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [FREEZE-STATUS-REHEARSAL] FAILED ^(bash runtime not found; freeze-status-rehearsal requires bash to preserve shell parity^)
+  exit /b 2
+)
+
+echo [FREEZE-STATUS-REHEARSAL] Running: bash %ROOT%BuildOrTest.sh freeze-status-rehearsal %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" freeze-status-rehearsal %NORMALIZED_TEST_ARGS%
 exit /b %ERRORLEVEL%
 
 :clean
