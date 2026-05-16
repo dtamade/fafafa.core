@@ -82,6 +82,7 @@ if /I "%ACTION%"=="import-nonx86-native-evidence" goto :import_nonx86_native_evi
 if /I "%ACTION%"=="closeout-host-local-from-import" goto :closeout_host_local_from_import
 if /I "%ACTION%"=="interface-completeness" goto :interface_completeness
 if /I "%ACTION%"=="dispatch-read-scope" goto :dispatch_read_scope
+if /I "%ACTION%"=="metadata-query-scope" goto :metadata_query_scope
 if /I "%ACTION%"=="contract-signature" goto :contract_signature
 if /I "%ACTION%"=="publicabi-signature" goto :publicabi_signature
 if /I "%ACTION%"=="publicabi-smoke" goto :publicabi_smoke
@@ -132,7 +133,7 @@ if /I "%ACTION%"=="freeze-status-linux" goto :freeze_status_linux
 if /I "%ACTION%"=="win-closeout-finalize" goto :win_closeout_finalize
 if /I "%ACTION%"=="freeze-status-rehearsal" goto :freeze_status_rehearsal
 
-echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|key-slot-audit^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|runner-parity^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|gate-summary-selfcheck^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-linux^|native-evidence^|verify-nonx86-native-evidence^|restore-nightly-evidence^|evidence-win^|win-evidence-preflight^|win-evidence-via-gh^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-dryrun^|win-closeout-snippets^|win-closeout-3cmd^|freeze-status^|freeze-status-linux^|win-closeout-finalize^|freeze-status-rehearsal] [test-args...]
+echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|key-slot-audit^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|metadata-query-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|runner-parity^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|gate-summary-selfcheck^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-linux^|native-evidence^|verify-nonx86-native-evidence^|restore-nightly-evidence^|evidence-win^|win-evidence-preflight^|win-evidence-via-gh^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-dryrun^|win-closeout-snippets^|win-closeout-3cmd^|freeze-status^|freeze-status-linux^|win-closeout-finalize^|freeze-status-rehearsal] [test-args...]
 echo   Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks.
 echo   gate/gate-strict PASS is not blanket release-grade approval for every experimental path.
 echo   gate         Fast/base gate for routine SIMD changes
@@ -449,6 +450,9 @@ call :register_include_check
 if errorlevel 1 exit /b 1
 
 call :source_reachability_check
+if errorlevel 1 exit /b 1
+
+call :metadata_query_scope
 if errorlevel 1 exit /b 1
 
 call :dispatch_read_scope
@@ -770,6 +774,31 @@ if not errorlevel 1 (
 )
 
 echo [DISPATCH-READ-SCOPE] FAILED (python runtime not found; tried py and python)
+exit /b 2
+
+:metadata_query_scope
+set "METADATA_QUERY_SCOPE_SCRIPT=%ROOT%check_metadata_query_scope.py"
+if not exist "%METADATA_QUERY_SCOPE_SCRIPT%" (
+  echo [METADATA-SCOPE] Missing checker: %METADATA_QUERY_SCOPE_SCRIPT%
+  exit /b 2
+)
+if "%SIMD_METADATA_QUERY_SCOPE_JSON_FILE%"=="" set "SIMD_METADATA_QUERY_SCOPE_JSON_FILE=%LOG_DIR%\metadata_query_scope.json"
+
+where py >nul 2>nul
+if not errorlevel 1 (
+  echo [METADATA-SCOPE] Running: py -3 %METADATA_QUERY_SCOPE_SCRIPT% --summary-line --json-file "%SIMD_METADATA_QUERY_SCOPE_JSON_FILE%"
+  py -3 "%METADATA_QUERY_SCOPE_SCRIPT%" --summary-line --json-file "%SIMD_METADATA_QUERY_SCOPE_JSON_FILE%"
+  exit /b %ERRORLEVEL%
+)
+
+where python >nul 2>nul
+if not errorlevel 1 (
+  echo [METADATA-SCOPE] Running: python %METADATA_QUERY_SCOPE_SCRIPT% --summary-line --json-file "%SIMD_METADATA_QUERY_SCOPE_JSON_FILE%"
+  python "%METADATA_QUERY_SCOPE_SCRIPT%" --summary-line --json-file "%SIMD_METADATA_QUERY_SCOPE_JSON_FILE%"
+  exit /b %ERRORLEVEL%
+)
+
+echo [METADATA-SCOPE] FAILED (python runtime not found; tried py and python)
 exit /b 2
 
 :contract_signature

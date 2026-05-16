@@ -4494,3 +4494,17 @@
 | 1. 复核当前 gap 是否真实存在 | completed | 已确认 `BuildOrTest.sh check` 当前仍输出 `[REG-TRUTH] SKIP (enable SIMD_ENABLE_NEON_BACKEND=1 or SIMD_ENABLE_RISCVV_BACKEND=1)`；但直接运行 `check_nonx86_register_truthfulness.py --backend neon/riscvv --summary-line --strict` 都能稳定通过，说明这是门禁覆盖缺口，不是编译前置条件 |
 | 2. shell/batch runner 收口 | completed | 已把 shell/batch 的 `register_truthfulness_check` 改成无条件同时审 `neon` + `riscvv`，并把 `gate` 中对应步骤从 opt-in skip 改成默认执行 |
 | 3. release 验证与收口 | completed | `git diff --check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 已通过；默认 `check` 与 `gate` 中的 `REG-TRUTH` 现在都会真实执行 `neon+riscvv` 两条静态 truth 审查 |
+
+## 2026-05-17 Metadata Query Scope Guard
+
+### Goal
+
+把 `GetBackendInfo` / `TryGetRegisteredBackendDispatchTable` / backend text getters 的使用边界也拉进默认门禁，防止 `dispatch-read-scope` 之外又悄悄长出第二条 metadata truth path。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前是否存在护栏缺口 | completed | 已确认当前只有 `dispatch-read-scope` 守 `GetDispatchTable`；production 源里虽然 `GetBackendInfo` / `TryGetRegisteredBackendDispatchTable` 还只停留在 `dispatch/runtime/public ABI/backend adapter` 这些内部面，但默认 `check` 没有任何 checker 固化这条边界 |
+| 2. 新 checker + runner 收口 | completed | 已新增 `check_metadata_query_scope.py`，静态扫描 `src/fafafa.core.simd*.pas/inc` 中 4 个 metadata-query helpers 的调用面；并把 `metadata-query-scope` action 接进 shell/batch runner 与默认 `check` 主链 |
+| 3. release 验证与收口 | completed | `git diff --check`、`python3 tests/fafafa.core.simd/check_metadata_query_scope.py --summary-line`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已通过；新 checker 在 release `check` 中真实执行并返回 `forbidden_hits=0` |

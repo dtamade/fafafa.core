@@ -7956,3 +7956,36 @@
 - 当前阶段结论：
   - 这批不是后端语义修复，而是默认门禁覆盖面的真实补强
   - 现在 non-x86 register ownership truth 已经进入日常 `check/gate` 主链，而不是只有 opt-in 环境下才会被看到
+
+## 2026-05-17 Metadata Query Scope Guard
+
+- 继续按“小闭环”推进，没有重开 family 级大扫，而是沿着 publication seam 往下收一层 metadata-query 边界。
+- 已复核：
+  - `src/fafafa.core.simd.runtime.pas`
+  - `src/fafafa.core.simd.public_abi.impl.inc`
+  - `src/fafafa.core.simd.backend.adapter.pas`
+  - `tests/fafafa.core.simd/check_dispatch_read_scope.py`
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+- 当前结论：
+  - 现在只有 `dispatch-read-scope` 在守 `GetDispatchTable`
+  - `GetBackendInfo` / `TryGetRegisteredBackendDispatchTable` / backend text getters 这条 metadata-query 边界还没被默认门禁固化
+  - 当前 production 命中虽仍干净，但这属于“目前没漂、以后没人守”的真实 coverage gap
+- 已完成收口：
+  - 新增 `tests/fafafa.core.simd/check_metadata_query_scope.py`
+  - shell/batch 都新增 `metadata-query-scope` action
+  - 默认 `check` 已接入该 checker
+  - `docs/fafafa.core.simd.maintenance.md` 已补这条新护栏说明
+- 已完成最小验证：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_metadata_query_scope.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - 新 checker 直接输出 `METADATA_QUERY_SCOPE scanned_files=146 symbols=4 allowed_hits=18 forbidden_hits=0`
+  - release `check` 中已真实执行：
+    - `[METADATA-SCOPE] Running: python3 ... check_metadata_query_scope.py --summary-line --json-file ...`
+    - `METADATA_QUERY_SCOPE scanned_files=146 symbols=4 allowed_hits=18 forbidden_hits=0`
+  - 整体 release `check` 继续通过
+- 当前阶段结论：
+  - 这批依然不是 SIMD 语义修复，而是 seam-level 审查护栏补强
+  - 现在不仅 `GetDispatchTable` 受默认门禁约束，metadata-query helper 的 production 边界也已经进入日常 `check` 主链

@@ -6544,3 +6544,25 @@
 - 这样改的性质是“覆盖面提升”，不是“验证成本爆炸”：
   - 它不引入新的编译
   - 只把已存在、已成熟、已 cheap 的 Python truth checker 抬进默认门禁
+
+## 2026-05-17 Metadata Query Scope Guard Gap
+
+- 在 `register-truthfulness` 收口之后，当前 `simd` 默认门禁里还剩一个更细的护栏空洞：
+  - `dispatch-read-scope` 已经在守 `GetDispatchTable`
+  - 但 `GetBackendInfo` / `TryGetRegisteredBackendDispatchTable` / `GetBackendNameTextPtr` / `GetBackendDescriptionTextPtr` 这些 metadata-query helpers 还没有对应的默认 checker
+- 当前源码状态虽然还没漂：
+  - production 命中只落在
+    - `src/fafafa.core.simd.dispatch.pas`
+    - `src/fafafa.core.simd.runtime.pas`
+    - `src/fafafa.core.simd.public_abi.impl.inc`
+    - `src/fafafa.core.simd.backend.adapter.pas`
+  - 也就是边界事实上还在
+- 但真正的问题是“边界没被固化”：
+  - façade / direct / 其他 companion surface 以后如果直接回读这些 metadata helpers
+  - 现在默认 `check` 不会第一时间报红
+  - 这会让 `dispatch-read-scope` 之外又悄悄长出第二条 metadata truth path
+- 所以这批的正确修法不是重构 runtime/public ABI 语义，而是补一条与 `dispatch-read-scope` 同级的静态护栏：
+  - 新增 `check_metadata_query_scope.py`
+  - 扫描 `src/fafafa.core.simd*.pas/inc`
+  - 把 4 个 metadata-query helpers 的 production 允许面固定在 `dispatch/runtime/public ABI/backend adapter`
+  - 并把它接进 shell/batch 的默认 `check`
