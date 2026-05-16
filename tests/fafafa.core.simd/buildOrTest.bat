@@ -99,6 +99,7 @@ if /I "%ACTION%"=="gate-summary-rehearsal" goto :gate_summary_rehearsal
 if /I "%ACTION%"=="gate-summary-inject" goto :gate_summary_inject
 if /I "%ACTION%"=="gate-summary-rollback" goto :gate_summary_rollback
 if /I "%ACTION%"=="gate-summary-backups" goto :gate_summary_backups
+if /I "%ACTION%"=="gate-summary-selfcheck" goto :gate_summary_selfcheck
 if /I "%ACTION%"=="perf-smoke" goto :perf_smoke
 if /I "%ACTION%"=="nonx86-optin-list-suites" goto :nonx86_optin_list_suites
 if /I "%ACTION%"=="nonx86-ieee754" goto :nonx86_ieee754
@@ -117,6 +118,10 @@ if /I "%ACTION%"=="coverage" goto :coverage
 if /I "%ACTION%"=="wiring-sync" goto :wiring_sync
 if /I "%ACTION%"=="experimental-intrinsics" goto :experimental_intrinsics
 if /I "%ACTION%"=="experimental-intrinsics-tests" goto :experimental_intrinsics_tests
+if /I "%ACTION%"=="evidence-linux" goto :evidence_linux
+if /I "%ACTION%"=="native-evidence" goto :native_evidence
+if /I "%ACTION%"=="verify-nonx86-native-evidence" goto :verify_nonx86_native_evidence
+if /I "%ACTION%"=="restore-nightly-evidence" goto :restore_nightly_evidence
 if /I "%ACTION%"=="evidence-win" goto :evidence_win
 if /I "%ACTION%"=="win-evidence-preflight" goto :win_evidence_preflight
 if /I "%ACTION%"=="win-evidence-via-gh" goto :win_evidence_via_gh
@@ -164,7 +169,7 @@ if /I "%ACTION%"=="freeze-status-linux" goto :freeze_status_linux
 if /I "%ACTION%"=="win-closeout-finalize" goto :win_closeout_finalize
 if /I "%ACTION%"=="freeze-status-rehearsal" goto :freeze_status_rehearsal
 
-echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|key-slot-audit^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|win-evidence-via-gh^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-dryrun^|win-closeout-snippets^|win-closeout-3cmd^|freeze-status^|freeze-status-linux^|win-closeout-finalize^|freeze-status-rehearsal] [test-args...]
+echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|key-slot-audit^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|gate-summary-selfcheck^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-linux^|native-evidence^|verify-nonx86-native-evidence^|restore-nightly-evidence^|evidence-win^|win-evidence-preflight^|win-evidence-via-gh^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-dryrun^|win-closeout-snippets^|win-closeout-3cmd^|freeze-status^|freeze-status-linux^|win-closeout-finalize^|freeze-status-rehearsal] [test-args...]
 echo   Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks.
 echo   gate/gate-strict PASS is not blanket release-grade approval for every experimental path.
 echo   gate         Fast/base gate for routine SIMD changes
@@ -181,6 +186,11 @@ echo   key-slot-audit  Audit key non-x86 wide slots against backend-owned/base-s
 echo   riscvv-abi-shape  Run the RISCVV ABI-shape Python audit only
 echo   source-reachability  Run the SIMD source reachability Python audit only
 echo   closeout-host-local  Host-local strict closeout ^(non-x86 native evidence fail-close, windows evidence optional^)
+echo   gate-summary-selfcheck  Rehearse gate-summary/freeze-status selfcheck ^(delegates to shell runner^)
+echo   evidence-linux  Collect Linux-side release evidence ^(delegates to shell runner^)
+echo   native-evidence  Collect non-x86 native evidence ^(delegates to shell runner^)
+echo   verify-nonx86-native-evidence  Verify imported non-x86 native evidence ^(delegates to shell runner^)
+echo   restore-nightly-evidence  Restore nightly evidence into canonical logs ^(delegates to shell runner^)
 echo   win-evidence-via-gh  Dispatch GitHub-hosted Windows evidence collection ^(delegates to shell runner^)
 echo   win-closeout-dryrun  Print Windows closeout dry-run guidance ^(delegates to shell runner^)
 echo   win-closeout-snippets  Print Windows closeout copyable snippets ^(delegates to shell runner^)
@@ -205,6 +215,61 @@ exit /b %ERRORLEVEL%
 
 :source_reachability
 call :source_reachability_check
+exit /b %ERRORLEVEL%
+
+:gate_summary_selfcheck
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [GATE-SUMMARY-SELFCHECK] FAILED ^(bash runtime not found; gate-summary-selfcheck requires bash to preserve shell parity^)
+  exit /b 2
+)
+
+echo [GATE-SUMMARY-SELFCHECK] Running: bash %ROOT%BuildOrTest.sh gate-summary-selfcheck %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" gate-summary-selfcheck %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:evidence_linux
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [EVIDENCE-LINUX] FAILED ^(bash runtime not found; evidence-linux requires bash to preserve shell parity^)
+  exit /b 2
+)
+
+echo [EVIDENCE-LINUX] Running: bash %ROOT%BuildOrTest.sh evidence-linux %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" evidence-linux %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:native_evidence
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [NATIVE-EVIDENCE] FAILED ^(bash runtime not found; native-evidence requires bash to preserve shell parity^)
+  exit /b 2
+)
+
+echo [NATIVE-EVIDENCE] Running: bash %ROOT%BuildOrTest.sh native-evidence %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" native-evidence %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:verify_nonx86_native_evidence
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [VERIFY-NONX86-NATIVE-EVIDENCE] FAILED ^(bash runtime not found; verify-nonx86-native-evidence requires bash to preserve shell parity^)
+  exit /b 2
+)
+
+echo [VERIFY-NONX86-NATIVE-EVIDENCE] Running: bash %ROOT%BuildOrTest.sh verify-nonx86-native-evidence %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" verify-nonx86-native-evidence %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:restore_nightly_evidence
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [RESTORE-NIGHTLY-EVIDENCE] FAILED ^(bash runtime not found; restore-nightly-evidence requires bash to preserve shell parity^)
+  exit /b 2
+)
+
+echo [RESTORE-NIGHTLY-EVIDENCE] Running: bash %ROOT%BuildOrTest.sh restore-nightly-evidence %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" restore-nightly-evidence %NORMALIZED_TEST_ARGS%
 exit /b %ERRORLEVEL%
 
 :win_evidence_via_gh

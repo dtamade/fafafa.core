@@ -5588,3 +5588,41 @@
   - 这批修到的是 Windows closeout runner 的公开操作面缺口，以及 parity guard 对这组缺口的长期豁免
   - 现在 batch 至少能桥接 shell 已公开的 freeze / closeout 入口，不再让文档、shell usage 与 batch action 表长期分叉
   - 仍未完成的是 Windows 实机运行时证据；但源码和 source-safe parity 这层已经收口
+
+## 2026-05-16 Remaining Evidence Action Parity Findings
+
+- 把 closeout/freeze 入口补齐后，我没有假设 runner parity 已经完成，而是继续做 fresh action diff。
+- diff 结果比上一批更干净，也更能说明问题：
+  - shell-only 已缩到：
+    - `evidence-linux`
+    - `gate-summary-selfcheck`
+    - `native-evidence`
+    - `restore-nightly-evidence`
+    - `verify-nonx86-native-evidence`
+    - 外加 batch 内联/特例的 `debug`、`release`、`verify-win-evidence`
+  - batch-only 则只剩 Windows 原生 alias：`evidence-win`
+- 这说明 runner 公开操作面的真实尾巴已经只剩一小组同构动作：
+  - 都是 shell 已公开的 evidence/selfcheck 入口
+  - 都还被 `check_windows_runner_parity()` 当作 shell-only 豁免
+  - 都可以用和上一批同样的 bash-delegate wrapper 方式收掉
+- 因而本批最值钱的判断，不是“还能不能继续补”，而是“剩余差集是不是已经收敛到足够统一的一组动作”。
+  - 答案是肯定的
+  - 这 5 条不是散乱的偶发缺口，而是最后一组同类 evidence/selfcheck 公开入口
+- 这批也进一步证明了一个 runner 治理规律：
+  - 如果 `LAllowedShellOnly` 长期放着这些公开 action
+  - shell usage/help 与 batch action 表就会一直可以分叉而不被 `Release check` 抓到
+  - 所以最后的真正收口，不只是补 wrapper，而是持续缩减 allowlist 到只剩确实必须 shell-only 的动作
+- fresh 证据已经把这点说得很清楚：
+  - `python3 ...` action diff 现在只剩：
+    - shell-only：`debug`、`release`、`verify-win-evidence` 这类内联/特例
+    - batch-only：`evidence-win` 这类 Windows alias
+  - 说明 runner 公共 action 表基本已经收拢完毕
+- 本批用 `gate-summary-selfcheck` 做轻量烟测也很合适，因为它正好覆盖了这轮 runner 设计里最敏感的一条线：
+  - gate-summary 导出
+  - filter 行为
+  - JSON 自检
+  - `freeze-status-rehearsal`
+  - 这条通过，意味着新 wrapper 并不是“能跳进去就算完”，而是背后关键自检链条仍然有效
+- 当前最准确的阶段结论：
+  - `simd` runner 的公开 action parity 已经从“大量 shell-only 漂移”收缩到“只剩内联控制流和平台别名差异”
+  - 后续如果还要继续深审 runner，这条线应从“继续补 action 表”转向“验证剩余特例是否值得保持特例”

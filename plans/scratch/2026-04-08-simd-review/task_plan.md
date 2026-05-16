@@ -3828,3 +3828,17 @@
 | 1. 审计 shell/batch 公开 action 差集 | completed | 已对比 `BuildOrTest.sh` 与 `buildOrTest.bat` 的 action 表，确认 `win-evidence-via-gh`、`win-closeout-dryrun`、`win-closeout-snippets`、`freeze-status`、`freeze-status-linux`、`freeze-status-rehearsal` 都是 shell 已公开、batch 缺入口的真实差集；剩余 shell-only 只保留 `evidence-linux`、`native-evidence`、`verify-nonx86-native-evidence`、`restore-nightly-evidence`、`gate-summary-selfcheck` 这类仍未桥接的动作 |
 | 2. 补 batch bash-delegate wrapper，并同步 parity required pattern | completed | 已在 `tests/fafafa.core.simd/buildOrTest.bat` 为上述 6 个 action 新增顶部 dispatch、usage/help 和 `bash %ROOT%BuildOrTest.sh ...` wrapper label；已在 `tests/fafafa.core.simd/BuildOrTest.sh` 的 `check_windows_runner_parity()` 中移除它们的 shell-only 豁免，并补 required dispatch / usage / help / run-line pattern |
 | 3. 做轻量 shell 烟测与 Release `check` 复验 | completed | 已跑 `git diff --check`、`bash -n tests/fafafa.core.simd/BuildOrTest.sh`、action 差集脚本、`bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-dryrun`、`FAFAFA_BUILD_MODE=Release SIMD_CHECK_NONX86_OPTIN=0 bash tests/fafafa.core.simd/BuildOrTest.sh check`；`win-closeout-dryrun` 与整条 Release `check` 均通过。Windows batch 仍未做实机执行，本轮验证仍以 source-safe parity 为主 |
+
+## 2026-05-16 Remaining Evidence Action Parity
+
+### Goal
+
+把 runner parity 里剩余的 shell-only 公开证据/自检动作继续收缩到只剩内联特例：补齐 `gate-summary-selfcheck`、`evidence-linux`、`native-evidence`、`verify-nonx86-native-evidence`、`restore-nightly-evidence` 的 batch wrapper，并让 shell parity guard 不再对它们长期豁免。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核剩余差集是否真的是公开入口缺口 | completed | fresh action diff 已确认 runner 剩余 shell-only 只剩 `evidence-linux`、`gate-summary-selfcheck`、`native-evidence`、`restore-nightly-evidence`、`verify-nonx86-native-evidence`，再加上 batch 内联/特例的 `debug`、`release`、`verify-win-evidence`；说明这 5 条是最后一组可对齐的公开入口 |
+| 2. 补 batch wrapper 并撤掉 parity guard 的 shell-only allow | completed | 已在 `tests/fafafa.core.simd/buildOrTest.bat` 为这 5 条动作新增顶部 dispatch、usage/help 与 `bash %ROOT%BuildOrTest.sh ...` wrapper；已在 `tests/fafafa.core.simd/BuildOrTest.sh` 的 `LAllowedShellOnly` 中只保留 `import-nonx86-native-evidence`，并把这 5 条补进 required dispatch / usage / help / run-line pattern |
+| 3. 用轻量 selfcheck 和 Release `check` 做收口验证 | completed | 已跑 `git diff --check`、`bash -n tests/fafafa.core.simd/BuildOrTest.sh`、fresh action diff、`bash tests/fafafa.core.simd/BuildOrTest.sh gate-summary-selfcheck`、`FAFAFA_BUILD_MODE=Release SIMD_CHECK_NONX86_OPTIN=0 bash tests/fafafa.core.simd/BuildOrTest.sh check`；`gate-summary-selfcheck` 与 Release `check` 均通过，剩余 action 差集已收缩到 shell 内联/特例与 Windows alias |

@@ -6590,3 +6590,46 @@
   - 这批把 Windows closeout 路径里一组真实缺失的公开入口补回来了
   - 同时也把这组入口重新纳回 parity guard 的真相源
   - 仍待后续补的是 Windows 实机运行时证据，不是 runner action 表本身
+
+## 2026-05-16 Remaining Evidence Action Parity
+
+- closeout/freeze wrapper parity 提交后，我没有直接停，而是继续用 fresh action diff 看 runner 还剩什么尾巴：
+  - `python3 - <<'PY' ...` 提取 shell case action 与 batch 顶部 dispatch action
+  - fresh 结果已经收缩成：
+    - shell-only：`evidence-linux`、`gate-summary-selfcheck`、`native-evidence`、`restore-nightly-evidence`、`verify-nonx86-native-evidence`，外加 `debug/release/verify-win-evidence`
+    - batch-only：`evidence-win`
+- 这说明 runner 公开操作面的缺口已经缩成最后一组同构 evidence/selfcheck action，适合再做一个小批次一口气收掉。
+- 本批已完成的代码修改：
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+    - 新增顶部 dispatch：
+      - `gate-summary-selfcheck`
+      - `evidence-linux`
+      - `native-evidence`
+      - `verify-nonx86-native-evidence`
+      - `restore-nightly-evidence`
+    - usage/help 同步补齐
+    - 新增对应 `bash %ROOT%BuildOrTest.sh ...` wrapper label
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - `LAllowedShellOnly` 继续收缩，只保留 `import-nonx86-native-evidence`
+    - `check_windows_runner_parity()` 新增这 5 条的 required dispatch / usage / help / run-line pattern
+- 这批的一个重要事实判断是：
+  - runner parity 现在不该再被表述成“shell/batch 大致一致”
+  - 它已经可以更准确地描述为：
+    - 公开 action 表几乎完全一致
+    - 剩余差异只在 batch 内联控制流或 Windows alias 上
+- 本批 fresh 验证链：
+  - `git diff --check`
+  - `bash -n tests/fafafa.core.simd/BuildOrTest.sh`
+  - fresh action diff
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh gate-summary-selfcheck`
+  - `FAFAFA_BUILD_MODE=Release SIMD_CHECK_NONX86_OPTIN=0 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - action diff 已缩到：
+    - shell-only：`debug`、`release`、`verify-win-evidence`
+    - batch-only：`evidence-win`
+  - `gate-summary-selfcheck` 通过：
+    - `[GATE-SUMMARY-SELFCHECK] OK`
+  - `Release check` 通过，`windows runner parity signatures present` 继续为绿
+- 当前阶段结论：
+  - 这批把 runner parity 的最后一组 evidence/selfcheck 公开入口也补齐了
+  - 现在若继续深审 runner，更值得看的不再是“还有哪些 action 没暴露”，而是剩余内联/特例是否还应该保持特例

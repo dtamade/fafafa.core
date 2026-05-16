@@ -934,12 +934,7 @@ check_windows_runner_parity() {
   # These actions are intentionally shell-only because they orchestrate bash/Python/GitHub workflows
   # rather than native batch execution.
   LAllowedShellOnly=(
-    evidence-linux
-    native-evidence
-    verify-nonx86-native-evidence
     import-nonx86-native-evidence
-    restore-nightly-evidence
-    gate-summary-selfcheck
   )
 
   # These aliases are intentionally Windows-only entry points for native evidence capture.
@@ -1010,8 +1005,18 @@ check_windows_runner_parity() {
     'if /I "%ACTION%"=="gate-summary-inject" goto :gate_summary_inject'
     'if /I "%ACTION%"=="gate-summary-rollback" goto :gate_summary_rollback'
     'if /I "%ACTION%"=="gate-summary-backups" goto :gate_summary_backups'
-    'echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|key-slot-audit^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|win-evidence-via-gh^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-dryrun^|win-closeout-snippets^|win-closeout-3cmd^|freeze-status^|freeze-status-linux^|win-closeout-finalize^|freeze-status-rehearsal] [test-args...]'
+    'if /I "%ACTION%"=="gate-summary-selfcheck" goto :gate_summary_selfcheck'
+    'if /I "%ACTION%"=="evidence-linux" goto :evidence_linux'
+    'if /I "%ACTION%"=="native-evidence" goto :native_evidence'
+    'if /I "%ACTION%"=="verify-nonx86-native-evidence" goto :verify_nonx86_native_evidence'
+    'if /I "%ACTION%"=="restore-nightly-evidence" goto :restore_nightly_evidence'
+    'echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|key-slot-audit^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|gate-summary-selfcheck^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-linux^|native-evidence^|verify-nonx86-native-evidence^|restore-nightly-evidence^|evidence-win^|win-evidence-preflight^|win-evidence-via-gh^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-dryrun^|win-closeout-snippets^|win-closeout-3cmd^|freeze-status^|freeze-status-linux^|win-closeout-finalize^|freeze-status-rehearsal] [test-args...]'
     'echo   closeout-release  Canonical release closeout entry ^(delegates to shell runner^)'
+    'echo   gate-summary-selfcheck  Rehearse gate-summary/freeze-status selfcheck ^(delegates to shell runner^)'
+    'echo   evidence-linux  Collect Linux-side release evidence ^(delegates to shell runner^)'
+    'echo   native-evidence  Collect non-x86 native evidence ^(delegates to shell runner^)'
+    'echo   verify-nonx86-native-evidence  Verify imported non-x86 native evidence ^(delegates to shell runner^)'
+    'echo   restore-nightly-evidence  Restore nightly evidence into canonical logs ^(delegates to shell runner^)'
     'echo   win-evidence-via-gh  Dispatch GitHub-hosted Windows evidence collection ^(delegates to shell runner^)'
     'echo   win-closeout-dryrun  Print Windows closeout dry-run guidance ^(delegates to shell runner^)'
     'echo   win-closeout-snippets  Print Windows closeout copyable snippets ^(delegates to shell runner^)'
@@ -1043,6 +1048,16 @@ check_windows_runner_parity() {
     ':source_reachability_check'
     'set "SOURCE_REACHABILITY_SCRIPT=%ROOT%check_simd_source_reachability.py"'
     'echo [SOURCE-REACHABILITY] FAILED (python runtime not found; tried py and python)'
+    ':gate_summary_selfcheck'
+    'echo [GATE-SUMMARY-SELFCHECK] Running: bash %ROOT%BuildOrTest.sh gate-summary-selfcheck %NORMALIZED_TEST_ARGS%'
+    ':evidence_linux'
+    'echo [EVIDENCE-LINUX] Running: bash %ROOT%BuildOrTest.sh evidence-linux %NORMALIZED_TEST_ARGS%'
+    ':native_evidence'
+    'echo [NATIVE-EVIDENCE] Running: bash %ROOT%BuildOrTest.sh native-evidence %NORMALIZED_TEST_ARGS%'
+    ':verify_nonx86_native_evidence'
+    'echo [VERIFY-NONX86-NATIVE-EVIDENCE] Running: bash %ROOT%BuildOrTest.sh verify-nonx86-native-evidence %NORMALIZED_TEST_ARGS%'
+    ':restore_nightly_evidence'
+    'echo [RESTORE-NIGHTLY-EVIDENCE] Running: bash %ROOT%BuildOrTest.sh restore-nightly-evidence %NORMALIZED_TEST_ARGS%'
     ':win_evidence_via_gh'
     'echo [WIN-EVIDENCE-VIA-GH] Running: bash %ROOT%BuildOrTest.sh win-evidence-via-gh %NORMALIZED_TEST_ARGS%'
     ':win_closeout_dryrun'
