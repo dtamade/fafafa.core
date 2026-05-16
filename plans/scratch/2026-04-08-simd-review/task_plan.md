@@ -3912,3 +3912,17 @@
 | 1. 复核当前剩余差异哪些是有意的 | completed | fresh 清单比对显示，`check` 与 `gate_step_build_check()` 在补完 coverage 后，真正剩余差异已只剩 `check` 的 `Backend adapter sync (python-only)` 提示、`SIMD_CHECK_NONX86_OPTIN` 分支、`wiring-sync`、`register truthfulness` 与 experimental isolation；共同静态核心从 `run_runner_parity` 到 `run_dispatch_preinit_smoke` 已完全同构 |
 | 2. 抽共享 helper 并保留各自差异 | completed | 已在 `tests/fafafa.core.simd/BuildOrTest.sh` 新增 `run_static_build_check_core()`，把共同静态 core 收到一处；`check` case 改为 `build/check log + adapter-sync echo + run_static_build_check_core + check-only optionals`，`gate_step_build_check()` 改为 `build/check log + run_static_build_check_core + gate-only nonx86-optin list` |
 | 3. 验证共享 helper 没改坏 check/gate | completed | 已跑 `git diff --check`、`bash -n tests/fafafa.core.simd/BuildOrTest.sh`、`FAFAFA_BUILD_MODE=Release SIMD_CHECK_NONX86_OPTIN=0 bash tests/fafafa.core.simd/BuildOrTest.sh check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`；两条主链均通过，说明这次是结构去重，不是行为漂移 |
+
+## 2026-05-16 IEEE754 Empty Finally Cleanup
+
+### Goal
+
+按更高效的工作法收一个小闭环：不再继续机械深挖 runner/build-check，而是只清 `tests/fafafa.core.simd/fafafa.core.simd.ieee754.testcase.pas` 里已确认的空 `finally` 与失效 `oldVectorAsm` 捕获，保留所有仍承载真实 restore 语义的 `ResetToAutomaticBackend` 块不动。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 区分空壳 cleanup 与真实 restore 块 | completed | 已确认 `ieee754.testcase` 顶层仍有 10 处空 `finally`，其中多处还保留未使用的 `oldVectorAsm/LOldVectorAsm`；而 non-x86 每后端迭代里的 `finally ResetToAutomaticBackend` 仍承载真实 backend 切换收尾，不能混改 |
+| 2. 删除空 `finally` 与失效局部变量 | completed | 已删除 `IEEE754EdgeCases`、`AVX2RoundTruncIEEE754`、`NonX86IEEE754` 中这些纯空 outer `finally`，并同步删掉对应的 `oldVectorAsm`/`LOldVectorAsm` 局部变量与赋值；测试逻辑、backend 选择与数值断言保持不变 |
+| 3. 做轻量 release 验证 | completed | 已跑 `git diff --check`，并用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IEEE754EdgeCases --suite=TTestCase_AVX2RoundTruncIEEE754 --suite=TTestCase_NonX86IEEE754` 验证；构建、测试与 leak check 均通过 |

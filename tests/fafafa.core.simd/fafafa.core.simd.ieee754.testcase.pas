@@ -1129,59 +1129,51 @@ var
   a, rRound, rTrunc: TVecF32x4;
 begin
   SetActiveBackend(sbScalar);
-  try
-    a.f[0] := NaNF32;
-    a.f[1] := PosInfF32;
-    a.f[2] := NegInfF32;
-    a.f[3] := -1.75;
+  a.f[0] := NaNF32;
+  a.f[1] := PosInfF32;
+  a.f[2] := NegInfF32;
+  a.f[3] := -1.75;
 
-    rRound := VecF32x4Round(a);
-    rTrunc := VecF32x4Trunc(a);
+  rRound := VecF32x4Round(a);
+  rTrunc := VecF32x4Trunc(a);
 
-    AssertTrue('Scalar Round(NaN) should stay NaN', IsNaNSingle(rRound.f[0]));
-    AssertTrue('Scalar Round(+Inf) should stay +Inf', IsInfinite(rRound.f[1]) and (rRound.f[1] > 0));
-    AssertTrue('Scalar Round(-Inf) should stay -Inf', IsInfinite(rRound.f[2]) and (rRound.f[2] < 0));
-    AssertEquals('Scalar Round(-1.75)', -2.0, rRound.f[3], 0.0);
+  AssertTrue('Scalar Round(NaN) should stay NaN', IsNaNSingle(rRound.f[0]));
+  AssertTrue('Scalar Round(+Inf) should stay +Inf', IsInfinite(rRound.f[1]) and (rRound.f[1] > 0));
+  AssertTrue('Scalar Round(-Inf) should stay -Inf', IsInfinite(rRound.f[2]) and (rRound.f[2] < 0));
+  AssertEquals('Scalar Round(-1.75)', -2.0, rRound.f[3], 0.0);
 
-    AssertTrue('Scalar Trunc(NaN) should stay NaN', IsNaNSingle(rTrunc.f[0]));
-    AssertTrue('Scalar Trunc(+Inf) should stay +Inf', IsInfinite(rTrunc.f[1]) and (rTrunc.f[1] > 0));
-    AssertTrue('Scalar Trunc(-Inf) should stay -Inf', IsInfinite(rTrunc.f[2]) and (rTrunc.f[2] < 0));
-    AssertEquals('Scalar Trunc(-1.75)', -1.0, rTrunc.f[3], 0.0);
-  finally
-  end;
+  AssertTrue('Scalar Trunc(NaN) should stay NaN', IsNaNSingle(rTrunc.f[0]));
+  AssertTrue('Scalar Trunc(+Inf) should stay +Inf', IsInfinite(rTrunc.f[1]) and (rTrunc.f[1] > 0));
+  AssertTrue('Scalar Trunc(-Inf) should stay -Inf', IsInfinite(rTrunc.f[2]) and (rTrunc.f[2] < 0));
+  AssertEquals('Scalar Trunc(-1.75)', -1.0, rTrunc.f[3], 0.0);
 end;
 
 procedure TTestCase_IEEE754EdgeCases.Test_F32x4_RoundTrunc_NaNInf_SSE2;
 var
   a, rRound, rTrunc: TVecF32x4;
-  oldVectorAsm: Boolean;
 begin
   if not IsBackendRegistered(sbSSE2) then
     Exit;
 
-  oldVectorAsm := IsVectorAsmEnabled;
   SetVectorAsmEnabled(True);
   SetActiveBackend(sbSSE2);
-  try
-    a.f[0] := NaNF32;
-    a.f[1] := PosInfF32;
-    a.f[2] := NegInfF32;
-    a.f[3] := -1.75;
+  a.f[0] := NaNF32;
+  a.f[1] := PosInfF32;
+  a.f[2] := NegInfF32;
+  a.f[3] := -1.75;
 
-    rRound := VecF32x4Round(a);
-    rTrunc := VecF32x4Trunc(a);
+  rRound := VecF32x4Round(a);
+  rTrunc := VecF32x4Trunc(a);
 
-    AssertTrue('SSE2 Round(NaN) should stay NaN', IsNaNSingle(rRound.f[0]));
-    AssertTrue('SSE2 Round(+Inf) should stay +Inf', IsInfinite(rRound.f[1]) and (rRound.f[1] > 0));
-    AssertTrue('SSE2 Round(-Inf) should stay -Inf', IsInfinite(rRound.f[2]) and (rRound.f[2] < 0));
-    AssertEquals('SSE2 Round(-1.75)', -2.0, rRound.f[3], 0.0);
+  AssertTrue('SSE2 Round(NaN) should stay NaN', IsNaNSingle(rRound.f[0]));
+  AssertTrue('SSE2 Round(+Inf) should stay +Inf', IsInfinite(rRound.f[1]) and (rRound.f[1] > 0));
+  AssertTrue('SSE2 Round(-Inf) should stay -Inf', IsInfinite(rRound.f[2]) and (rRound.f[2] < 0));
+  AssertEquals('SSE2 Round(-1.75)', -2.0, rRound.f[3], 0.0);
 
-    AssertTrue('SSE2 Trunc(NaN) should stay NaN', IsNaNSingle(rTrunc.f[0]));
-    AssertTrue('SSE2 Trunc(+Inf) should stay +Inf', IsInfinite(rTrunc.f[1]) and (rTrunc.f[1] > 0));
-    AssertTrue('SSE2 Trunc(-Inf) should stay -Inf', IsInfinite(rTrunc.f[2]) and (rTrunc.f[2] < 0));
-    AssertEquals('SSE2 Trunc(-1.75)', -1.0, rTrunc.f[3], 0.0);
-  finally
-  end;
+  AssertTrue('SSE2 Trunc(NaN) should stay NaN', IsNaNSingle(rTrunc.f[0]));
+  AssertTrue('SSE2 Trunc(+Inf) should stay +Inf', IsInfinite(rTrunc.f[1]) and (rTrunc.f[1] > 0));
+  AssertTrue('SSE2 Trunc(-Inf) should stay -Inf', IsInfinite(rTrunc.f[2]) and (rTrunc.f[2] < 0));
+  AssertEquals('SSE2 Trunc(-1.75)', -1.0, rTrunc.f[3], 0.0);
 end;
 
 procedure TTestCase_IEEE754EdgeCases.Test_Wide_RoundTrunc_NaNInf_Scalar;
@@ -1280,96 +1272,92 @@ var
 
 begin
   SetActiveBackend(sbScalar);
-  try
-    LDispatch := GetDispatchTable;
-    AssertTrue('Scalar dispatch for wide Round/Trunc should exist',
-      (LDispatch <> nil) and
-      Assigned(LDispatch^.RoundF32x8) and Assigned(LDispatch^.TruncF32x8) and
-      Assigned(LDispatch^.RoundF64x4) and Assigned(LDispatch^.TruncF64x4));
+  LDispatch := GetDispatchTable;
+  AssertTrue('Scalar dispatch for wide Round/Trunc should exist',
+    (LDispatch <> nil) and
+    Assigned(LDispatch^.RoundF32x8) and Assigned(LDispatch^.TruncF32x8) and
+    Assigned(LDispatch^.RoundF64x4) and Assigned(LDispatch^.TruncF64x4));
 
-    for LIndex := 0 to 7 do
-    begin
-      case (LIndex mod 8) of
-        0: LInF32x8.f[LIndex] := NaNF32;
-        1: LInF32x8.f[LIndex] := PosInfF32;
-        2: LInF32x8.f[LIndex] := NegInfF32;
-        3: LInF32x8.f[LIndex] := 1.75;
-        4: LInF32x8.f[LIndex] := -1.75;
-        5: LInF32x8.f[LIndex] := 0.0;
-        6: LInF32x8.f[LIndex] := 123456.75;
-      else
-        LInF32x8.f[LIndex] := -123456.75;
-      end;
+  for LIndex := 0 to 7 do
+  begin
+    case (LIndex mod 8) of
+      0: LInF32x8.f[LIndex] := NaNF32;
+      1: LInF32x8.f[LIndex] := PosInfF32;
+      2: LInF32x8.f[LIndex] := NegInfF32;
+      3: LInF32x8.f[LIndex] := 1.75;
+      4: LInF32x8.f[LIndex] := -1.75;
+      5: LInF32x8.f[LIndex] := 0.0;
+      6: LInF32x8.f[LIndex] := 123456.75;
+    else
+      LInF32x8.f[LIndex] := -123456.75;
+    end;
+  end;
+
+  LRoundF32x8 := LDispatch^.RoundF32x8(LInF32x8);
+  LTruncF32x8 := LDispatch^.TruncF32x8(LInF32x8);
+  for LIndex := 0 to 7 do
+    AssertSingleLane('Scalar F32x8[' + IntToStr(LIndex) + ']', LIndex, LRoundF32x8.f[LIndex], LTruncF32x8.f[LIndex]);
+
+  for LIndex := 0 to 15 do
+    LInF32x16.f[LIndex] := LInF32x8.f[LIndex mod 8];
+
+  LRoundF32x16 := VecF32x16Round(LInF32x16);
+  LTruncF32x16 := VecF32x16Trunc(LInF32x16);
+  for LIndex := 0 to 15 do
+    AssertSingleLane('Scalar F32x16[' + IntToStr(LIndex) + ']', LIndex, LRoundF32x16.f[LIndex], LTruncF32x16.f[LIndex]);
+
+  for LIndex := 0 to 1 do
+    case (LIndex mod 6) of
+      0: LInF64x2.d[LIndex] := NaNF64;
+      1: LInF64x2.d[LIndex] := PosInfF64;
+      2: LInF64x2.d[LIndex] := NegInfF64;
+      3: LInF64x2.d[LIndex] := 2.75;
+      4: LInF64x2.d[LIndex] := -2.75;
+    else
+      LInF64x2.d[LIndex] := 1000000.75;
     end;
 
-    LRoundF32x8 := LDispatch^.RoundF32x8(LInF32x8);
-    LTruncF32x8 := LDispatch^.TruncF32x8(LInF32x8);
-    for LIndex := 0 to 7 do
-      AssertSingleLane('Scalar F32x8[' + IntToStr(LIndex) + ']', LIndex, LRoundF32x8.f[LIndex], LTruncF32x8.f[LIndex]);
+  LRoundF64x2 := VecF64x2Round(LInF64x2);
+  LTruncF64x2 := VecF64x2Trunc(LInF64x2);
+  for LIndex := 0 to 1 do
+    AssertDoubleLane('Scalar F64x2[' + IntToStr(LIndex) + ']', LIndex, LRoundF64x2.d[LIndex], LTruncF64x2.d[LIndex]);
 
-    for LIndex := 0 to 15 do
-      LInF32x16.f[LIndex] := LInF32x8.f[LIndex mod 8];
+  for LIndex := 0 to 3 do
+    case (LIndex mod 6) of
+      0: LInF64x4.d[LIndex] := NaNF64;
+      1: LInF64x4.d[LIndex] := PosInfF64;
+      2: LInF64x4.d[LIndex] := NegInfF64;
+      3: LInF64x4.d[LIndex] := 2.75;
+      4: LInF64x4.d[LIndex] := -2.75;
+    else
+      LInF64x4.d[LIndex] := 1000000.75;
+    end;
 
-    LRoundF32x16 := VecF32x16Round(LInF32x16);
-    LTruncF32x16 := VecF32x16Trunc(LInF32x16);
-    for LIndex := 0 to 15 do
-      AssertSingleLane('Scalar F32x16[' + IntToStr(LIndex) + ']', LIndex, LRoundF32x16.f[LIndex], LTruncF32x16.f[LIndex]);
+  LRoundF64x4 := LDispatch^.RoundF64x4(LInF64x4);
+  LTruncF64x4 := LDispatch^.TruncF64x4(LInF64x4);
+  for LIndex := 0 to 3 do
+    AssertDoubleLane('Scalar F64x4[' + IntToStr(LIndex) + ']', LIndex, LRoundF64x4.d[LIndex], LTruncF64x4.d[LIndex]);
 
-    for LIndex := 0 to 1 do
-      case (LIndex mod 6) of
-        0: LInF64x2.d[LIndex] := NaNF64;
-        1: LInF64x2.d[LIndex] := PosInfF64;
-        2: LInF64x2.d[LIndex] := NegInfF64;
-        3: LInF64x2.d[LIndex] := 2.75;
-        4: LInF64x2.d[LIndex] := -2.75;
-      else
-        LInF64x2.d[LIndex] := 1000000.75;
-      end;
+  for LIndex := 0 to 7 do
+    case (LIndex mod 6) of
+      0: LInF64x8.d[LIndex] := NaNF64;
+      1: LInF64x8.d[LIndex] := PosInfF64;
+      2: LInF64x8.d[LIndex] := NegInfF64;
+      3: LInF64x8.d[LIndex] := 2.75;
+      4: LInF64x8.d[LIndex] := -2.75;
+    else
+      LInF64x8.d[LIndex] := 1000000.75;
+    end;
 
-    LRoundF64x2 := VecF64x2Round(LInF64x2);
-    LTruncF64x2 := VecF64x2Trunc(LInF64x2);
-    for LIndex := 0 to 1 do
-      AssertDoubleLane('Scalar F64x2[' + IntToStr(LIndex) + ']', LIndex, LRoundF64x2.d[LIndex], LTruncF64x2.d[LIndex]);
-
-    for LIndex := 0 to 3 do
-      case (LIndex mod 6) of
-        0: LInF64x4.d[LIndex] := NaNF64;
-        1: LInF64x4.d[LIndex] := PosInfF64;
-        2: LInF64x4.d[LIndex] := NegInfF64;
-        3: LInF64x4.d[LIndex] := 2.75;
-        4: LInF64x4.d[LIndex] := -2.75;
-      else
-        LInF64x4.d[LIndex] := 1000000.75;
-      end;
-
-    LRoundF64x4 := LDispatch^.RoundF64x4(LInF64x4);
-    LTruncF64x4 := LDispatch^.TruncF64x4(LInF64x4);
-    for LIndex := 0 to 3 do
-      AssertDoubleLane('Scalar F64x4[' + IntToStr(LIndex) + ']', LIndex, LRoundF64x4.d[LIndex], LTruncF64x4.d[LIndex]);
-
-    for LIndex := 0 to 7 do
-      case (LIndex mod 6) of
-        0: LInF64x8.d[LIndex] := NaNF64;
-        1: LInF64x8.d[LIndex] := PosInfF64;
-        2: LInF64x8.d[LIndex] := NegInfF64;
-        3: LInF64x8.d[LIndex] := 2.75;
-        4: LInF64x8.d[LIndex] := -2.75;
-      else
-        LInF64x8.d[LIndex] := 1000000.75;
-      end;
-
-    LRoundF64x8 := VecF64x8Round(LInF64x8);
-    LTruncF64x8 := VecF64x8Trunc(LInF64x8);
-    for LIndex := 0 to 7 do
-      AssertDoubleLane('Scalar F64x8[' + IntToStr(LIndex) + ']', LIndex, LRoundF64x8.d[LIndex], LTruncF64x8.d[LIndex]);
-  finally
-  end;
+  LRoundF64x8 := VecF64x8Round(LInF64x8);
+  LTruncF64x8 := VecF64x8Trunc(LInF64x8);
+  for LIndex := 0 to 7 do
+    AssertDoubleLane('Scalar F64x8[' + IntToStr(LIndex) + ']', LIndex, LRoundF64x8.d[LIndex], LTruncF64x8.d[LIndex]);
 end;
 
 procedure TTestCase_IEEE754EdgeCases.Test_Wide_RoundTrunc_NaNInf_SSE2;
 var
   LDispatch: PSimdDispatchTable;
-  LOldVectorAsm: Boolean;
   LIndex: Integer;
 
   LInF32x8, LRoundF32x8, LTruncF32x8: TVecF32x8;
@@ -1465,93 +1453,89 @@ begin
   if not IsBackendRegistered(sbSSE2) then
     Exit;
 
-  LOldVectorAsm := IsVectorAsmEnabled;
   SetVectorAsmEnabled(True);
   SetActiveBackend(sbSSE2);
-  try
-    LDispatch := GetDispatchTable;
-    AssertTrue('SSE2 dispatch for wide Round/Trunc should exist',
-      (LDispatch <> nil) and
-      Assigned(LDispatch^.RoundF32x8) and Assigned(LDispatch^.TruncF32x8) and
-      Assigned(LDispatch^.RoundF64x4) and Assigned(LDispatch^.TruncF64x4));
+  LDispatch := GetDispatchTable;
+  AssertTrue('SSE2 dispatch for wide Round/Trunc should exist',
+    (LDispatch <> nil) and
+    Assigned(LDispatch^.RoundF32x8) and Assigned(LDispatch^.TruncF32x8) and
+    Assigned(LDispatch^.RoundF64x4) and Assigned(LDispatch^.TruncF64x4));
 
-    for LIndex := 0 to 7 do
-    begin
-      case (LIndex mod 8) of
-        0: LInF32x8.f[LIndex] := NaNF32;
-        1: LInF32x8.f[LIndex] := PosInfF32;
-        2: LInF32x8.f[LIndex] := NegInfF32;
-        3: LInF32x8.f[LIndex] := 1.75;
-        4: LInF32x8.f[LIndex] := -1.75;
-        5: LInF32x8.f[LIndex] := 0.0;
-        6: LInF32x8.f[LIndex] := 123456.75;
-      else
-        LInF32x8.f[LIndex] := -123456.75;
-      end;
+  for LIndex := 0 to 7 do
+  begin
+    case (LIndex mod 8) of
+      0: LInF32x8.f[LIndex] := NaNF32;
+      1: LInF32x8.f[LIndex] := PosInfF32;
+      2: LInF32x8.f[LIndex] := NegInfF32;
+      3: LInF32x8.f[LIndex] := 1.75;
+      4: LInF32x8.f[LIndex] := -1.75;
+      5: LInF32x8.f[LIndex] := 0.0;
+      6: LInF32x8.f[LIndex] := 123456.75;
+    else
+      LInF32x8.f[LIndex] := -123456.75;
+    end;
+  end;
+
+  LRoundF32x8 := LDispatch^.RoundF32x8(LInF32x8);
+  LTruncF32x8 := LDispatch^.TruncF32x8(LInF32x8);
+  for LIndex := 0 to 7 do
+    AssertSingleLane('SSE2 F32x8[' + IntToStr(LIndex) + ']', LIndex, LRoundF32x8.f[LIndex], LTruncF32x8.f[LIndex]);
+
+  for LIndex := 0 to 15 do
+    LInF32x16.f[LIndex] := LInF32x8.f[LIndex mod 8];
+
+  LRoundF32x16 := VecF32x16Round(LInF32x16);
+  LTruncF32x16 := VecF32x16Trunc(LInF32x16);
+  for LIndex := 0 to 15 do
+    AssertSingleLane('SSE2 F32x16[' + IntToStr(LIndex) + ']', LIndex, LRoundF32x16.f[LIndex], LTruncF32x16.f[LIndex]);
+
+  for LIndex := 0 to 1 do
+    case (LIndex mod 6) of
+      0: LInF64x2.d[LIndex] := NaNF64;
+      1: LInF64x2.d[LIndex] := PosInfF64;
+      2: LInF64x2.d[LIndex] := NegInfF64;
+      3: LInF64x2.d[LIndex] := 2.75;
+      4: LInF64x2.d[LIndex] := -2.75;
+    else
+      LInF64x2.d[LIndex] := 1000000.75;
     end;
 
-    LRoundF32x8 := LDispatch^.RoundF32x8(LInF32x8);
-    LTruncF32x8 := LDispatch^.TruncF32x8(LInF32x8);
-    for LIndex := 0 to 7 do
-      AssertSingleLane('SSE2 F32x8[' + IntToStr(LIndex) + ']', LIndex, LRoundF32x8.f[LIndex], LTruncF32x8.f[LIndex]);
+  LRoundF64x2 := VecF64x2Round(LInF64x2);
+  LTruncF64x2 := VecF64x2Trunc(LInF64x2);
+  for LIndex := 0 to 1 do
+    AssertDoubleLane('SSE2 F64x2[' + IntToStr(LIndex) + ']', LIndex, LRoundF64x2.d[LIndex], LTruncF64x2.d[LIndex]);
 
-    for LIndex := 0 to 15 do
-      LInF32x16.f[LIndex] := LInF32x8.f[LIndex mod 8];
+  for LIndex := 0 to 3 do
+    case (LIndex mod 6) of
+      0: LInF64x4.d[LIndex] := NaNF64;
+      1: LInF64x4.d[LIndex] := PosInfF64;
+      2: LInF64x4.d[LIndex] := NegInfF64;
+      3: LInF64x4.d[LIndex] := 2.75;
+      4: LInF64x4.d[LIndex] := -2.75;
+    else
+      LInF64x4.d[LIndex] := 1000000.75;
+    end;
 
-    LRoundF32x16 := VecF32x16Round(LInF32x16);
-    LTruncF32x16 := VecF32x16Trunc(LInF32x16);
-    for LIndex := 0 to 15 do
-      AssertSingleLane('SSE2 F32x16[' + IntToStr(LIndex) + ']', LIndex, LRoundF32x16.f[LIndex], LTruncF32x16.f[LIndex]);
+  LRoundF64x4 := LDispatch^.RoundF64x4(LInF64x4);
+  LTruncF64x4 := LDispatch^.TruncF64x4(LInF64x4);
+  for LIndex := 0 to 3 do
+    AssertDoubleLane('SSE2 F64x4[' + IntToStr(LIndex) + ']', LIndex, LRoundF64x4.d[LIndex], LTruncF64x4.d[LIndex]);
 
-    for LIndex := 0 to 1 do
-      case (LIndex mod 6) of
-        0: LInF64x2.d[LIndex] := NaNF64;
-        1: LInF64x2.d[LIndex] := PosInfF64;
-        2: LInF64x2.d[LIndex] := NegInfF64;
-        3: LInF64x2.d[LIndex] := 2.75;
-        4: LInF64x2.d[LIndex] := -2.75;
-      else
-        LInF64x2.d[LIndex] := 1000000.75;
-      end;
+  for LIndex := 0 to 7 do
+    case (LIndex mod 6) of
+      0: LInF64x8.d[LIndex] := NaNF64;
+      1: LInF64x8.d[LIndex] := PosInfF64;
+      2: LInF64x8.d[LIndex] := NegInfF64;
+      3: LInF64x8.d[LIndex] := 2.75;
+      4: LInF64x8.d[LIndex] := -2.75;
+    else
+      LInF64x8.d[LIndex] := 1000000.75;
+    end;
 
-    LRoundF64x2 := VecF64x2Round(LInF64x2);
-    LTruncF64x2 := VecF64x2Trunc(LInF64x2);
-    for LIndex := 0 to 1 do
-      AssertDoubleLane('SSE2 F64x2[' + IntToStr(LIndex) + ']', LIndex, LRoundF64x2.d[LIndex], LTruncF64x2.d[LIndex]);
-
-    for LIndex := 0 to 3 do
-      case (LIndex mod 6) of
-        0: LInF64x4.d[LIndex] := NaNF64;
-        1: LInF64x4.d[LIndex] := PosInfF64;
-        2: LInF64x4.d[LIndex] := NegInfF64;
-        3: LInF64x4.d[LIndex] := 2.75;
-        4: LInF64x4.d[LIndex] := -2.75;
-      else
-        LInF64x4.d[LIndex] := 1000000.75;
-      end;
-
-    LRoundF64x4 := LDispatch^.RoundF64x4(LInF64x4);
-    LTruncF64x4 := LDispatch^.TruncF64x4(LInF64x4);
-    for LIndex := 0 to 3 do
-      AssertDoubleLane('SSE2 F64x4[' + IntToStr(LIndex) + ']', LIndex, LRoundF64x4.d[LIndex], LTruncF64x4.d[LIndex]);
-
-    for LIndex := 0 to 7 do
-      case (LIndex mod 6) of
-        0: LInF64x8.d[LIndex] := NaNF64;
-        1: LInF64x8.d[LIndex] := PosInfF64;
-        2: LInF64x8.d[LIndex] := NegInfF64;
-        3: LInF64x8.d[LIndex] := 2.75;
-        4: LInF64x8.d[LIndex] := -2.75;
-      else
-        LInF64x8.d[LIndex] := 1000000.75;
-      end;
-
-    LRoundF64x8 := VecF64x8Round(LInF64x8);
-    LTruncF64x8 := VecF64x8Trunc(LInF64x8);
-    for LIndex := 0 to 7 do
-      AssertDoubleLane('SSE2 F64x8[' + IntToStr(LIndex) + ']', LIndex, LRoundF64x8.d[LIndex], LTruncF64x8.d[LIndex]);
-  finally
-  end;
+  LRoundF64x8 := VecF64x8Round(LInF64x8);
+  LTruncF64x8 := VecF64x8Trunc(LInF64x8);
+  for LIndex := 0 to 7 do
+    AssertDoubleLane('SSE2 F64x8[' + IntToStr(LIndex) + ']', LIndex, LRoundF64x8.d[LIndex], LTruncF64x8.d[LIndex]);
 end;
 
 // === 256-bit 向量特殊值测试 ===
@@ -1738,7 +1722,6 @@ end;
 
 procedure TTestCase_AVX2RoundTruncIEEE754.Test_AVX2_RoundTrunc_NaNInf_Consistency;
 var
-  LOldVectorAsm: Boolean;
   LHaveSSE2: Boolean;
   LIndex: Integer;
   LDispatch: PSimdDispatchTable;
@@ -1773,7 +1756,6 @@ begin
     Exit;
 
   LHaveSSE2 := IsBackendRegistered(sbSSE2);
-  LOldVectorAsm := IsVectorAsmEnabled;
 
   for LIndex := 0 to 7 do
     case (LIndex mod 8) of
@@ -1813,133 +1795,129 @@ begin
       LInF64x8.d[LIndex] := 1000000.75;
     end;
 
-  try
-    // Scalar baseline
-    SetVectorAsmEnabled(False);
-    SetActiveBackend(sbScalar);
+  // Scalar baseline
+  SetVectorAsmEnabled(False);
+  SetActiveBackend(sbScalar);
+  LDispatch := GetDispatchTable;
+  AssertTrue('Scalar dispatch should provide wide Round/Trunc',
+    (LDispatch <> nil) and
+    Assigned(LDispatch^.RoundF32x8) and Assigned(LDispatch^.TruncF32x8) and
+    Assigned(LDispatch^.RoundF64x4) and Assigned(LDispatch^.TruncF64x4));
+
+  LScalarRoundF32x8 := LDispatch^.RoundF32x8(LInF32x8);
+  LScalarTruncF32x8 := LDispatch^.TruncF32x8(LInF32x8);
+  LScalarRoundF64x4 := LDispatch^.RoundF64x4(LInF64x4);
+  LScalarTruncF64x4 := LDispatch^.TruncF64x4(LInF64x4);
+  LScalarRoundF32x16 := VecF32x16Round(LInF32x16);
+  LScalarTruncF32x16 := VecF32x16Trunc(LInF32x16);
+  LScalarRoundF64x8 := VecF64x8Round(LInF64x8);
+  LScalarTruncF64x8 := VecF64x8Trunc(LInF64x8);
+
+  // SSE2 reference (if available)
+  if LHaveSSE2 then
+  begin
+    SetVectorAsmEnabled(True);
+    SetActiveBackend(sbSSE2);
     LDispatch := GetDispatchTable;
-    AssertTrue('Scalar dispatch should provide wide Round/Trunc',
+    AssertTrue('SSE2 dispatch should provide wide Round/Trunc',
       (LDispatch <> nil) and
       Assigned(LDispatch^.RoundF32x8) and Assigned(LDispatch^.TruncF32x8) and
       Assigned(LDispatch^.RoundF64x4) and Assigned(LDispatch^.TruncF64x4));
 
-    LScalarRoundF32x8 := LDispatch^.RoundF32x8(LInF32x8);
-    LScalarTruncF32x8 := LDispatch^.TruncF32x8(LInF32x8);
-    LScalarRoundF64x4 := LDispatch^.RoundF64x4(LInF64x4);
-    LScalarTruncF64x4 := LDispatch^.TruncF64x4(LInF64x4);
-    LScalarRoundF32x16 := VecF32x16Round(LInF32x16);
-    LScalarTruncF32x16 := VecF32x16Trunc(LInF32x16);
-    LScalarRoundF64x8 := VecF64x8Round(LInF64x8);
-    LScalarTruncF64x8 := VecF64x8Trunc(LInF64x8);
+    LSSE2RoundF32x8 := LDispatch^.RoundF32x8(LInF32x8);
+    LSSE2TruncF32x8 := LDispatch^.TruncF32x8(LInF32x8);
+    LSSE2RoundF64x4 := LDispatch^.RoundF64x4(LInF64x4);
+    LSSE2TruncF64x4 := LDispatch^.TruncF64x4(LInF64x4);
+    LSSE2RoundF32x16 := VecF32x16Round(LInF32x16);
+    LSSE2TruncF32x16 := VecF32x16Trunc(LInF32x16);
+    LSSE2RoundF64x8 := VecF64x8Round(LInF64x8);
+    LSSE2TruncF64x8 := VecF64x8Trunc(LInF64x8);
+  end;
 
-    // SSE2 reference (if available)
+  // AVX2 target (vector-asm required)
+  SetVectorAsmEnabled(True);
+  SetActiveBackend(sbAVX2);
+  if GetActiveBackend <> sbAVX2 then
+    Exit;
+
+  LDispatch := GetDispatchTable;
+  AssertTrue('AVX2 dispatch should provide wide Round/Trunc',
+    (LDispatch <> nil) and
+    Assigned(LDispatch^.RoundF32x8) and Assigned(LDispatch^.TruncF32x8) and
+    Assigned(LDispatch^.RoundF64x4) and Assigned(LDispatch^.TruncF64x4));
+
+  LAVX2RoundF32x8 := LDispatch^.RoundF32x8(LInF32x8);
+  LAVX2TruncF32x8 := LDispatch^.TruncF32x8(LInF32x8);
+  LAVX2RoundF64x4 := LDispatch^.RoundF64x4(LInF64x4);
+  LAVX2TruncF64x4 := LDispatch^.TruncF64x4(LInF64x4);
+  LAVX2RoundF32x16 := VecF32x16Round(LInF32x16);
+  LAVX2TruncF32x16 := VecF32x16Trunc(LInF32x16);
+  LAVX2RoundF64x8 := VecF64x8Round(LInF64x8);
+  LAVX2TruncF64x8 := VecF64x8Trunc(LInF64x8);
+
+  for LIndex := 0 to 7 do
+  begin
+    AssertSingleSemantics('AVX2 vs Scalar RoundF32x8[' + IntToStr(LIndex) + ']',
+      LScalarRoundF32x8.f[LIndex], LAVX2RoundF32x8.f[LIndex]);
+    AssertSingleSemantics('AVX2 vs Scalar TruncF32x8[' + IntToStr(LIndex) + ']',
+      LScalarTruncF32x8.f[LIndex], LAVX2TruncF32x8.f[LIndex]);
     if LHaveSSE2 then
     begin
-      SetVectorAsmEnabled(True);
-      SetActiveBackend(sbSSE2);
-      LDispatch := GetDispatchTable;
-      AssertTrue('SSE2 dispatch should provide wide Round/Trunc',
-        (LDispatch <> nil) and
-        Assigned(LDispatch^.RoundF32x8) and Assigned(LDispatch^.TruncF32x8) and
-        Assigned(LDispatch^.RoundF64x4) and Assigned(LDispatch^.TruncF64x4));
-
-      LSSE2RoundF32x8 := LDispatch^.RoundF32x8(LInF32x8);
-      LSSE2TruncF32x8 := LDispatch^.TruncF32x8(LInF32x8);
-      LSSE2RoundF64x4 := LDispatch^.RoundF64x4(LInF64x4);
-      LSSE2TruncF64x4 := LDispatch^.TruncF64x4(LInF64x4);
-      LSSE2RoundF32x16 := VecF32x16Round(LInF32x16);
-      LSSE2TruncF32x16 := VecF32x16Trunc(LInF32x16);
-      LSSE2RoundF64x8 := VecF64x8Round(LInF64x8);
-      LSSE2TruncF64x8 := VecF64x8Trunc(LInF64x8);
+      AssertSingleSemantics('AVX2 vs SSE2 RoundF32x8[' + IntToStr(LIndex) + ']',
+        LSSE2RoundF32x8.f[LIndex], LAVX2RoundF32x8.f[LIndex]);
+      AssertSingleSemantics('AVX2 vs SSE2 TruncF32x8[' + IntToStr(LIndex) + ']',
+        LSSE2TruncF32x8.f[LIndex], LAVX2TruncF32x8.f[LIndex]);
     end;
+  end;
 
-    // AVX2 target (vector-asm required)
-    SetVectorAsmEnabled(True);
-    SetActiveBackend(sbAVX2);
-    if GetActiveBackend <> sbAVX2 then
-      Exit;
-
-    LDispatch := GetDispatchTable;
-    AssertTrue('AVX2 dispatch should provide wide Round/Trunc',
-      (LDispatch <> nil) and
-      Assigned(LDispatch^.RoundF32x8) and Assigned(LDispatch^.TruncF32x8) and
-      Assigned(LDispatch^.RoundF64x4) and Assigned(LDispatch^.TruncF64x4));
-
-    LAVX2RoundF32x8 := LDispatch^.RoundF32x8(LInF32x8);
-    LAVX2TruncF32x8 := LDispatch^.TruncF32x8(LInF32x8);
-    LAVX2RoundF64x4 := LDispatch^.RoundF64x4(LInF64x4);
-    LAVX2TruncF64x4 := LDispatch^.TruncF64x4(LInF64x4);
-    LAVX2RoundF32x16 := VecF32x16Round(LInF32x16);
-    LAVX2TruncF32x16 := VecF32x16Trunc(LInF32x16);
-    LAVX2RoundF64x8 := VecF64x8Round(LInF64x8);
-    LAVX2TruncF64x8 := VecF64x8Trunc(LInF64x8);
-
-    for LIndex := 0 to 7 do
+  for LIndex := 0 to 3 do
+  begin
+    AssertDoubleSemantics('AVX2 vs Scalar RoundF64x4[' + IntToStr(LIndex) + ']',
+      LScalarRoundF64x4.d[LIndex], LAVX2RoundF64x4.d[LIndex]);
+    AssertDoubleSemantics('AVX2 vs Scalar TruncF64x4[' + IntToStr(LIndex) + ']',
+      LScalarTruncF64x4.d[LIndex], LAVX2TruncF64x4.d[LIndex]);
+    if LHaveSSE2 then
     begin
-      AssertSingleSemantics('AVX2 vs Scalar RoundF32x8[' + IntToStr(LIndex) + ']',
-        LScalarRoundF32x8.f[LIndex], LAVX2RoundF32x8.f[LIndex]);
-      AssertSingleSemantics('AVX2 vs Scalar TruncF32x8[' + IntToStr(LIndex) + ']',
-        LScalarTruncF32x8.f[LIndex], LAVX2TruncF32x8.f[LIndex]);
-      if LHaveSSE2 then
-      begin
-        AssertSingleSemantics('AVX2 vs SSE2 RoundF32x8[' + IntToStr(LIndex) + ']',
-          LSSE2RoundF32x8.f[LIndex], LAVX2RoundF32x8.f[LIndex]);
-        AssertSingleSemantics('AVX2 vs SSE2 TruncF32x8[' + IntToStr(LIndex) + ']',
-          LSSE2TruncF32x8.f[LIndex], LAVX2TruncF32x8.f[LIndex]);
-      end;
+      AssertDoubleSemantics('AVX2 vs SSE2 RoundF64x4[' + IntToStr(LIndex) + ']',
+        LSSE2RoundF64x4.d[LIndex], LAVX2RoundF64x4.d[LIndex]);
+      AssertDoubleSemantics('AVX2 vs SSE2 TruncF64x4[' + IntToStr(LIndex) + ']',
+        LSSE2TruncF64x4.d[LIndex], LAVX2TruncF64x4.d[LIndex]);
     end;
+  end;
 
-    for LIndex := 0 to 3 do
+  for LIndex := 0 to 15 do
+  begin
+    AssertSingleSemantics('AVX2 vs Scalar RoundF32x16[' + IntToStr(LIndex) + ']',
+      LScalarRoundF32x16.f[LIndex], LAVX2RoundF32x16.f[LIndex]);
+    AssertSingleSemantics('AVX2 vs Scalar TruncF32x16[' + IntToStr(LIndex) + ']',
+      LScalarTruncF32x16.f[LIndex], LAVX2TruncF32x16.f[LIndex]);
+    if LHaveSSE2 then
     begin
-      AssertDoubleSemantics('AVX2 vs Scalar RoundF64x4[' + IntToStr(LIndex) + ']',
-        LScalarRoundF64x4.d[LIndex], LAVX2RoundF64x4.d[LIndex]);
-      AssertDoubleSemantics('AVX2 vs Scalar TruncF64x4[' + IntToStr(LIndex) + ']',
-        LScalarTruncF64x4.d[LIndex], LAVX2TruncF64x4.d[LIndex]);
-      if LHaveSSE2 then
-      begin
-        AssertDoubleSemantics('AVX2 vs SSE2 RoundF64x4[' + IntToStr(LIndex) + ']',
-          LSSE2RoundF64x4.d[LIndex], LAVX2RoundF64x4.d[LIndex]);
-        AssertDoubleSemantics('AVX2 vs SSE2 TruncF64x4[' + IntToStr(LIndex) + ']',
-          LSSE2TruncF64x4.d[LIndex], LAVX2TruncF64x4.d[LIndex]);
-      end;
+      AssertSingleSemantics('AVX2 vs SSE2 RoundF32x16[' + IntToStr(LIndex) + ']',
+        LSSE2RoundF32x16.f[LIndex], LAVX2RoundF32x16.f[LIndex]);
+      AssertSingleSemantics('AVX2 vs SSE2 TruncF32x16[' + IntToStr(LIndex) + ']',
+        LSSE2TruncF32x16.f[LIndex], LAVX2TruncF32x16.f[LIndex]);
     end;
+  end;
 
-    for LIndex := 0 to 15 do
+  for LIndex := 0 to 7 do
+  begin
+    AssertDoubleSemantics('AVX2 vs Scalar RoundF64x8[' + IntToStr(LIndex) + ']',
+      LScalarRoundF64x8.d[LIndex], LAVX2RoundF64x8.d[LIndex]);
+    AssertDoubleSemantics('AVX2 vs Scalar TruncF64x8[' + IntToStr(LIndex) + ']',
+      LScalarTruncF64x8.d[LIndex], LAVX2TruncF64x8.d[LIndex]);
+    if LHaveSSE2 then
     begin
-      AssertSingleSemantics('AVX2 vs Scalar RoundF32x16[' + IntToStr(LIndex) + ']',
-        LScalarRoundF32x16.f[LIndex], LAVX2RoundF32x16.f[LIndex]);
-      AssertSingleSemantics('AVX2 vs Scalar TruncF32x16[' + IntToStr(LIndex) + ']',
-        LScalarTruncF32x16.f[LIndex], LAVX2TruncF32x16.f[LIndex]);
-      if LHaveSSE2 then
-      begin
-        AssertSingleSemantics('AVX2 vs SSE2 RoundF32x16[' + IntToStr(LIndex) + ']',
-          LSSE2RoundF32x16.f[LIndex], LAVX2RoundF32x16.f[LIndex]);
-        AssertSingleSemantics('AVX2 vs SSE2 TruncF32x16[' + IntToStr(LIndex) + ']',
-          LSSE2TruncF32x16.f[LIndex], LAVX2TruncF32x16.f[LIndex]);
-      end;
+      AssertDoubleSemantics('AVX2 vs SSE2 RoundF64x8[' + IntToStr(LIndex) + ']',
+        LSSE2RoundF64x8.d[LIndex], LAVX2RoundF64x8.d[LIndex]);
+      AssertDoubleSemantics('AVX2 vs SSE2 TruncF64x8[' + IntToStr(LIndex) + ']',
+        LSSE2TruncF64x8.d[LIndex], LAVX2TruncF64x8.d[LIndex]);
     end;
-
-    for LIndex := 0 to 7 do
-    begin
-      AssertDoubleSemantics('AVX2 vs Scalar RoundF64x8[' + IntToStr(LIndex) + ']',
-        LScalarRoundF64x8.d[LIndex], LAVX2RoundF64x8.d[LIndex]);
-      AssertDoubleSemantics('AVX2 vs Scalar TruncF64x8[' + IntToStr(LIndex) + ']',
-        LScalarTruncF64x8.d[LIndex], LAVX2TruncF64x8.d[LIndex]);
-      if LHaveSSE2 then
-      begin
-        AssertDoubleSemantics('AVX2 vs SSE2 RoundF64x8[' + IntToStr(LIndex) + ']',
-          LSSE2RoundF64x8.d[LIndex], LAVX2RoundF64x8.d[LIndex]);
-        AssertDoubleSemantics('AVX2 vs SSE2 TruncF64x8[' + IntToStr(LIndex) + ']',
-          LSSE2TruncF64x8.d[LIndex], LAVX2TruncF64x8.d[LIndex]);
-      end;
-    end;
-  finally
   end;
 end;
 
 procedure TTestCase_AVX2RoundTruncIEEE754.Test_AVX2_FloorCeil_NaNInf_Consistency;
 var
-  LOldVectorAsm: Boolean;
   LHaveSSE2: Boolean;
   LIndex: Integer;
   LDispatch: PSimdDispatchTable;
@@ -1974,8 +1952,6 @@ begin
     Exit;
 
   LHaveSSE2 := IsBackendRegistered(sbSSE2);
-  LOldVectorAsm := IsVectorAsmEnabled;
-
   for LIndex := 0 to 7 do
     case (LIndex mod 8) of
       0: LInF32x8.f[LIndex] := NaNF32;
@@ -2014,8 +1990,7 @@ begin
       LInF64x8.d[LIndex] := 1000000.75;
     end;
 
-  try
-    SetVectorAsmEnabled(False);
+  SetVectorAsmEnabled(False);
     SetActiveBackend(sbScalar);
     LDispatch := GetDispatchTable;
     AssertTrue('Scalar dispatch should provide wide Floor/Ceil',
@@ -2131,15 +2106,12 @@ begin
           LSSE2CeilF64x8.d[LIndex], LAVX2CeilF64x8.d[LIndex]);
       end;
     end;
-  finally
-  end;
 end;
 
 procedure TTestCase_AVX2RoundTruncIEEE754.Test_AVX2_FloorCeil_PropertyLike_Randomized;
 const
   SAMPLE_ROUNDS = 128;
 var
-  LOldVectorAsm: Boolean;
   LHaveSSE2: Boolean;
   LRound: Integer;
   LIndex: Integer;
@@ -2242,11 +2214,9 @@ begin
     Exit;
 
   LHaveSSE2 := IsBackendRegistered(sbSSE2);
-  LOldVectorAsm := IsVectorAsmEnabled;
   LSeed := QWord($A5A55A5A1234FEDC);
 
-  try
-    for LRound := 1 to SAMPLE_ROUNDS do
+  for LRound := 1 to SAMPLE_ROUNDS do
     begin
       for LIndex := 0 to 7 do
         LInF32x8.f[LIndex] := NextSingleValue;
@@ -2382,15 +2352,12 @@ begin
         end;
       end;
     end;
-  finally
-  end;
 end;
 
 procedure TTestCase_AVX2RoundTruncIEEE754.Test_AVX2_RoundTrunc_PropertyLike_Randomized;
 const
   SAMPLE_ROUNDS = 128;
 var
-  LOldVectorAsm: Boolean;
   LHaveSSE2: Boolean;
   LRound: Integer;
   LIndex: Integer;
@@ -2521,11 +2488,9 @@ begin
     Exit;
 
   LHaveSSE2 := IsBackendRegistered(sbSSE2);
-  LOldVectorAsm := IsVectorAsmEnabled;
   LSeed := QWord($7E57A11D23B5C0DE);
 
-  try
-    for LRound := 1 to SAMPLE_ROUNDS do
+  for LRound := 1 to SAMPLE_ROUNDS do
     begin
       for LIndex := 0 to 7 do
         LInF32x8.f[LIndex] := NextSingleValue;
@@ -2661,13 +2626,10 @@ begin
         end;
       end;
     end;
-  finally
-  end;
 end;
 
 procedure TTestCase_AVX2RoundTruncIEEE754.Test_AVX2_RoundTrunc_SignedZero_Consistency;
 var
-  LOldVectorAsm: Boolean;
   LHaveSSE2: Boolean;
   LIndex: Integer;
   LDispatch: PSimdDispatchTable;
@@ -2714,8 +2676,6 @@ begin
     Exit;
 
   LHaveSSE2 := IsBackendRegistered(sbSSE2);
-  LOldVectorAsm := IsVectorAsmEnabled;
-
   LInF32x8.f[0] := 0.0;
   LInF32x8.f[1] := -0.0;
   LInF32x8.f[2] := 0.25;
@@ -2740,8 +2700,7 @@ begin
   LInF64x8.d[4] := 1.0e-100;
   LInF64x8.d[5] := -1.0e-100;
 
-  try
-    SetVectorAsmEnabled(False);
+  SetVectorAsmEnabled(False);
     SetActiveBackend(sbScalar);
     LDispatch := GetDispatchTable;
     AssertTrue('Scalar dispatch should provide wide Round/Trunc',
@@ -2889,8 +2848,6 @@ begin
           LSSE2TruncF64x8.d[LIndex], LAVX2TruncF64x8.d[LIndex]);
       end;
     end;
-  finally
-  end;
 end;
 
 procedure TTestCase_NonX86IEEE754.Test_NonX86_RoundTruncFloorCeil_NaNInf_IfAvailable;
@@ -3071,7 +3028,6 @@ var
   LDispatch: PSimdDispatchTable;
   LCaseIndex: Integer;
   LLaneIndex: Integer;
-  LOldVectorAsm: Boolean;
   LInputs: array[0..SAMPLE_CASE_COUNT - 1] of TVecF64x2;
   LExpectedRound: array[0..SAMPLE_CASE_COUNT - 1] of TVecF64x2;
   LExpectedTrunc: array[0..SAMPLE_CASE_COUNT - 1] of TVecF64x2;
@@ -3094,7 +3050,6 @@ var
   end;
 begin
   LCheckedBackends := 0;
-  LOldVectorAsm := IsVectorAsmEnabled;
 
   LInputs[0].d[0] := 1.25;
   LInputs[0].d[1] := -1.25;
@@ -3103,8 +3058,7 @@ begin
   LInputs[2].d[0] := 2.5;
   LInputs[2].d[1] := -2.5;
 
-  try
-    SetVectorAsmEnabled(True);
+  SetVectorAsmEnabled(True);
 
     for LBackend in NON_X86_BACKENDS do
     begin
@@ -3166,8 +3120,6 @@ begin
 
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 backend available on this host (allowed)', True);
-  finally
-  end;
 end;
 
 procedure TTestCase_NonX86IEEE754.Test_NonX86_Wide_RoundTruncFloorCeil_NaNInf_IfAvailable;

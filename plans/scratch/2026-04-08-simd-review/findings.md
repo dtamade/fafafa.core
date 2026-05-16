@@ -5710,3 +5710,23 @@
   - `gate` 独有：在 build-check 阶段无条件跑一次 `run_nonx86_optin_list_suites`
   - 其余从 `run_runner_parity` 到 `run_dispatch_preinit_smoke` 的静态 core 已完全同构
 - 因而最小正确修法不再是继续补单点，而是把这段共同 core 提成共享 helper，让未来再加/删静态 guard 时默认只改一处
+
+## 2026-05-16 IEEE754 Empty Finally Cleanup
+
+- 在用户明确要求改进工作方法后，我没有再继续围绕 runner 线做大范围只读深挖，而是重新选择一个证据更硬的小目标：`tests/fafafa.core.simd/fafafa.core.simd.ieee754.testcase.pas` 中仍残留一组顶层空 `finally`。
+- 这批命中的共同特征非常明确：
+  - 都是 top-level test body 的 outer `try/finally`
+  - `finally` 体完全为空
+  - 其中多处还保留 `oldVectorAsm/LOldVectorAsm := IsVectorAsmEnabled`，但后续没有任何读取
+- 这些块与前面已经保留的真实恢复点不同：
+  - `NonX86IEEE754` 每后端迭代里的 `finally ResetToAutomaticBackend` 仍然有真实状态语义
+  - 当前保留下来的 `finally` 命中，也都仍是这种 non-empty restore 块
+  - 所以这轮不该再按 `finally` 形状盲扫，而应只删除“空壳 cleanup”
+- 这批清理的真实价值不只是少几行代码：
+  - 去掉了“看起来像手工恢复、实际上什么也没做”的误导结构
+  - 去掉了未使用的状态捕获，降低以后继续误以为这里还依赖 method-local restore 的概率
+  - 同时完全不触碰 `TearDown` 与 inner restore 语义，风险边界很清楚
+- fresh 验证也证明这是纯冗余清理，不是行为变更：
+  - `git diff --check` 通过
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IEEE754EdgeCases --suite=TTestCase_AVX2RoundTruncIEEE754 --suite=TTestCase_NonX86IEEE754`
+  - 输出为 `[BUILD] OK`、`[TEST] OK`、`[LEAK] OK`

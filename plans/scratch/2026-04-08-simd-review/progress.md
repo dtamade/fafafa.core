@@ -6784,3 +6784,30 @@
 - 当前阶段结论：
   - 这批继续没有改 SIMD 生产逻辑，但把同一段静态 build-check 证明链正式收成了单一真相源
   - 后续再审 runner/static guard drift 时，主风险点已经从“两份清单可能忘同步”降到了“共享 helper 内部是否正确”这一处
+
+## 2026-05-16 IEEE754 Empty Finally Cleanup
+
+- 这轮先收工作方法，而不是先扩扫描面：
+  - 不再重复跑 `gate`
+  - 不再继续在 runner/build-check 线上做没有新证据的深挖
+  - 先挑一个可在一轮内完成的小问题
+- fresh 复核后，`tests/fafafa.core.simd/fafafa.core.simd.ieee754.testcase.pas` 暴露出一组高置信度冗余：
+  - 10 处 top-level 空 `finally`
+  - 多处伴随未使用的 `oldVectorAsm/LOldVectorAsm` 捕获
+  - 所有仍保留的 `finally` 命中则都带真实 `ResetToAutomaticBackend`
+- 本轮已完成的源码收口：
+  - 删除 `TTestCase_IEEE754EdgeCases` 里 `Test_F32x4_RoundTrunc_NaNInf_{Scalar,SSE2}` 与 `Test_Wide_RoundTrunc_NaNInf_{Scalar,SSE2}` 的空 `finally`
+  - 删除 `TTestCase_AVX2RoundTruncIEEE754` 里 5 个 AVX2/Scalar/SSE2 对比测试的空 `finally`
+  - 删除 `TTestCase_NonX86IEEE754.Test_NonX86_NarrowF64x2_RoundTruncFloorCeil_Finite_IfAvailable` 的 outer 空 `finally`
+  - 同步删掉这些路径中已失效的 `oldVectorAsm/LOldVectorAsm` 局部变量与赋值
+- 本轮验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IEEE754EdgeCases --suite=TTestCase_AVX2RoundTruncIEEE754 --suite=TTestCase_NonX86IEEE754`
+- fresh 结果：
+  - `git diff --check` 通过
+  - `[BUILD] OK`
+  - `[TEST] OK`
+  - `[LEAK] OK`
+- 当前阶段结论：
+  - 这批是一次纯测试层冗余清理，没有改 SIMD 生产逻辑
+  - `ieee754.testcase` 里最显眼的“空壳 cleanup”已经清掉；若下一轮还继续沿这条线深审，应优先看剩余 non-empty `finally` 是否还有局部重复，而不是再扫空块
