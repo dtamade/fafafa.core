@@ -258,7 +258,19 @@ set "SIMD_ADAPTER_SYNC_SKIP_BUILD="
 set "SIMD_ADAPTER_SYNC_PASCAL_SMOKE="
 if not "%ADAPTER_SYNC_RC%"=="0" exit /b %ADAPTER_SYNC_RC%
 
+call :nonx86_helper_semantics_check
+if errorlevel 1 exit /b 1
+
+call :key_slot_audit_check_internal
+if errorlevel 1 exit /b 1
+
+call :riscvv_abi_shape_check
+if errorlevel 1 exit /b 1
+
 call :register_include_check
+if errorlevel 1 exit /b 1
+
+call :source_reachability_check
 if errorlevel 1 exit /b 1
 
 call :dispatch_read_scope
@@ -333,6 +345,102 @@ if not errorlevel 1 (
 )
 
 echo [REGISTER-INCLUDE] FAILED (python runtime not found; tried py and python)
+exit /b 2
+
+:nonx86_helper_semantics_check
+set "HELPER_SEMANTICS_SCRIPT=%ROOT%check_nonx86_helper_semantics.py"
+if not exist "%HELPER_SEMANTICS_SCRIPT%" (
+  echo [HELPER-SEMANTICS] Missing checker: %HELPER_SEMANTICS_SCRIPT%
+  exit /b 2
+)
+
+where py >nul 2>nul
+if not errorlevel 1 (
+  echo [HELPER-SEMANTICS] Running: py -3 %HELPER_SEMANTICS_SCRIPT% --summary-line
+  py -3 "%HELPER_SEMANTICS_SCRIPT%" --summary-line
+  exit /b %ERRORLEVEL%
+)
+
+where python >nul 2>nul
+if not errorlevel 1 (
+  echo [HELPER-SEMANTICS] Running: python %HELPER_SEMANTICS_SCRIPT% --summary-line
+  python "%HELPER_SEMANTICS_SCRIPT%" --summary-line
+  exit /b %ERRORLEVEL%
+)
+
+echo [HELPER-SEMANTICS] FAILED (python runtime not found; tried py and python)
+exit /b 2
+
+:key_slot_audit_check_internal
+set "KEY_SLOT_AUDIT_SCRIPT=%ROOT%check_nonx86_key_slot_audit.py"
+if not exist "%KEY_SLOT_AUDIT_SCRIPT%" (
+  echo [KEY-SLOT-AUDIT] Missing checker: %KEY_SLOT_AUDIT_SCRIPT%
+  exit /b 2
+)
+
+where py >nul 2>nul
+if not errorlevel 1 (
+  echo [KEY-SLOT-AUDIT] Running: py -3 %KEY_SLOT_AUDIT_SCRIPT% --summary-line
+  py -3 "%KEY_SLOT_AUDIT_SCRIPT%" --summary-line
+  exit /b %ERRORLEVEL%
+)
+
+where python >nul 2>nul
+if not errorlevel 1 (
+  echo [KEY-SLOT-AUDIT] Running: python %KEY_SLOT_AUDIT_SCRIPT% --summary-line
+  python "%KEY_SLOT_AUDIT_SCRIPT%" --summary-line
+  exit /b %ERRORLEVEL%
+)
+
+echo [KEY-SLOT-AUDIT] FAILED (python runtime not found; tried py and python)
+exit /b 2
+
+:riscvv_abi_shape_check
+set "RISCVV_ABI_SHAPE_SCRIPT=%ROOT%check_riscvv_abi_shape.py"
+if not exist "%RISCVV_ABI_SHAPE_SCRIPT%" (
+  echo [RISCVV-ABI] Missing checker: %RISCVV_ABI_SHAPE_SCRIPT%
+  exit /b 2
+)
+
+where py >nul 2>nul
+if not errorlevel 1 (
+  echo [RISCVV-ABI] Running: py -3 %RISCVV_ABI_SHAPE_SCRIPT% --summary-line
+  py -3 "%RISCVV_ABI_SHAPE_SCRIPT%" --summary-line
+  exit /b %ERRORLEVEL%
+)
+
+where python >nul 2>nul
+if not errorlevel 1 (
+  echo [RISCVV-ABI] Running: python %RISCVV_ABI_SHAPE_SCRIPT% --summary-line
+  python "%RISCVV_ABI_SHAPE_SCRIPT%" --summary-line
+  exit /b %ERRORLEVEL%
+)
+
+echo [RISCVV-ABI] FAILED (python runtime not found; tried py and python)
+exit /b 2
+
+:source_reachability_check
+set "SOURCE_REACHABILITY_SCRIPT=%ROOT%check_simd_source_reachability.py"
+if not exist "%SOURCE_REACHABILITY_SCRIPT%" (
+  echo [SOURCE-REACHABILITY] Missing checker: %SOURCE_REACHABILITY_SCRIPT%
+  exit /b 2
+)
+
+where py >nul 2>nul
+if not errorlevel 1 (
+  echo [SOURCE-REACHABILITY] Running: py -3 %SOURCE_REACHABILITY_SCRIPT% --summary-line
+  py -3 "%SOURCE_REACHABILITY_SCRIPT%" --summary-line
+  exit /b %ERRORLEVEL%
+)
+
+where python >nul 2>nul
+if not errorlevel 1 (
+  echo [SOURCE-REACHABILITY] Running: python %SOURCE_REACHABILITY_SCRIPT% --summary-line
+  python "%SOURCE_REACHABILITY_SCRIPT%" --summary-line
+  exit /b %ERRORLEVEL%
+)
+
+echo [SOURCE-REACHABILITY] FAILED (python runtime not found; tried py and python)
 exit /b 2
 
 :sse2_structure_check

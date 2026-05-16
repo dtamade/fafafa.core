@@ -6442,3 +6442,42 @@
 - 当前阶段结论：
   - 这批把纯审查批次的一个真实重路径收成了 optional lane
   - 默认覆盖面没变，但以后做 Python/checker 小批次时可以显式跳过这段 non-x86 opt-in 构建
+
+## 2026-05-16 Windows Check Non-x86 Audit Parity
+
+- 在把 `SIMD_CHECK_NONX86_OPTIN` 收口后，我继续看 `check` 的真实剩余问题，没有再回头扫 slot，而是专门对照了 shell/batch 的 `check` 主线：
+  - `sed -n '6580,6725p' tests/fafafa.core.simd/BuildOrTest.sh`
+  - `sed -n '245,325p' tests/fafafa.core.simd/buildOrTest.bat`
+  - `rg -n 'helper_semantics|key_slot_audit|riscvv_abi|source_reachability' tests/fafafa.core.simd/BuildOrTest.sh tests/fafafa.core.simd/buildOrTest.bat`
+- 对出来的真实差异比预期更具体：
+  - batch `check` 不只是没跑 `helper-semantics`
+  - 连 shell 默认主线里的 `key-slot-audit`、`riscvv-abi-shape`、`source-reachability` 也一起掉线了
+- 本批已完成的最小修复：
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+    - 新增 `:nonx86_helper_semantics_check`
+    - 新增 `:key_slot_audit_check_internal`
+    - 新增 `:riscvv_abi_shape_check`
+    - 新增 `:source_reachability_check`
+    - 并把这 4 条接回 `check` 主线，位置与 shell `check` 的逻辑顺序保持一致
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - 扩充 `check_windows_runner_parity()` 的 required source-safe pattern
+    - 让 Linux 主链以后能自动盯住 batch 这 4 条 non-x86 审查不再掉线
+- 这批的目标不是让 shell/batch 完全同实现，而是把 Windows `check` 的真实漏看面补回来：
+  - shell 继续用现有 bash/python helper
+  - batch 用原生 `py/python` 路径直接执行同一批 checker
+  - 避免把“补齐覆盖面”误做成“再引入一层桥接依赖”
+- 本批 fresh 验证链已完成：
+  - `git diff --check`
+  - `bash -n tests/fafafa.core.simd/BuildOrTest.sh`
+  - `FAFAFA_BUILD_MODE=Release SIMD_CHECK_NONX86_OPTIN=0 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - 辅助静态对照：`rg -n "call :nonx86_helper_semantics_check|call :key_slot_audit_check_internal|call :riscvv_abi_shape_check|call :source_reachability_check|set \"HELPER_SEMANTICS_SCRIPT=|set \"KEY_SLOT_AUDIT_SCRIPT=|set \"RISCVV_ABI_SHAPE_SCRIPT=|set \"SOURCE_REACHABILITY_SCRIPT=" tests/fafafa.core.simd/buildOrTest.bat`
+- fresh 结果：
+  - shell 语法检查通过
+  - Release `check` 继续通过
+  - 日志里 `windows runner parity signatures present` 与 `Python checker runtime guard present` 都为绿
+  - `helper-semantics / key-slot-audit / riscvv-abi / source-reachability` 四条 non-x86 审查在同一条 Release `check` 下继续全部通过
+  - batch 文件中的新调用点与脚本变量也已静态对照命中
+- 当前阶段结论：
+  - 这批把 Windows `check` 的一个真实 non-x86 审查漏看面补回来了
+  - 现在 Linux 主链至少会守住 batch 侧这 4 条路径不再悄悄掉线
+  - 仍待后续补的是 Windows 实机运行时证据，而不是源码或 source-safe parity 本身

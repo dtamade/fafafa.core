@@ -5471,3 +5471,38 @@
   - `FAFAFA_BUILD_MODE=Release SIMD_CHECK_NONX86_OPTIN=0 bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - 日志中明确出现 `[CHECK] SKIP optional non-x86 opt-in suite listing (set SIMD_CHECK_NONX86_OPTIN=1 to enable)`
   - 同一条 Release `check` 其余门禁继续通过，说明这是“可控缩窄验证成本”，不是误删覆盖
+
+## 2026-05-16 Windows Check Non-x86 Audit Parity Findings
+
+- 继续做 completion audit 时，真正更硬的 runner 缺口不在文档，而在 batch `check` 的实际覆盖面：
+  - shell `check` 默认会跑：
+    - `helper-semantics`
+    - `key-slot-audit`
+    - `riscvv-abi-shape`
+    - `source-reachability`
+  - 但 `buildOrTest.bat check` 之前没有这 4 条
+- 这不是抽象上的“shell/batch 不完全同实现”，而是具体的门禁漂移：
+  - `key-slot-audit` 在 batch 里虽然有公开 action，但 `check` 主线并没有调用
+  - `helper-semantics` / `riscvv-abi-shape` / `source-reachability` 连 batch 内部入口都没有
+  - 结果就是 Windows 用户执行 `buildOrTest.bat check` 时，会少看掉一块已经被 Linux 默认守住的 non-x86 审查面
+- 本批最合适的修法不是把 batch `check` 再桥接回 shell，也不是重写 shell 逻辑：
+  - 直接在 `buildOrTest.bat` 里补最小原生 Python 入口
+  - 避免把新的 bash 依赖强行引入 Windows `check`
+  - 让 batch `check` 自己具备这 4 条检查的执行能力
+- 同时只补 batch 还不够，因为之后最容易再次退化成“源码补了，未来又掉线”：
+  - 所以 `BuildOrTest.sh` 里守 Windows runner 的 source-safe parity guard 也要同步点名这些新入口与调用点
+  - 这样 Linux 主链会更早暴露未来的 batch drift
+- fresh 复验也证明这批不是“只把文本补齐”，而是已经回到 Linux 主链的守护范围里：
+  - `bash -n tests/fafafa.core.simd/BuildOrTest.sh`
+  - `FAFAFA_BUILD_MODE=Release SIMD_CHECK_NONX86_OPTIN=0 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - 日志明确出现：
+    - `[CHECK] OK (windows runner parity signatures present)`
+    - `[CHECK] OK (Python checker runtime guard present)`
+    - `NONX86_HELPER_SEMANTICS_SUMMARY checks=643 status=ok`
+    - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=101 issues=0 status=ok`
+    - `RISCVV_ABI_SHAPE_SUMMARY direct_functions=121 explicit_checks=10 missing_result_store=0 suspicious_a0_loads=0 status=ok`
+    - `SIMD_SOURCE_REACHABILITY_SUMMARY tracked_includes=84 reachable_includes=83 allowed_unreachable=1 unexpected_unreachable=0 missing_include_refs=0`
+- 这次仍需诚实保留一个边界：
+  - 我们已经证明 shell 主门禁会守住新补的 batch 路径
+  - 但还没有 Windows 实机直接执行 `buildOrTest.bat check` 的 fresh 运行时证据
+  - 所以当前最准确的说法是：source-safe parity 已补齐，Windows runtime 证据仍待后续补实

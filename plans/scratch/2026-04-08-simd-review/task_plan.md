@@ -3786,3 +3786,17 @@
 | 1. 复核 `check` 的重路径是否已有开关 | completed | 已确认 `BuildOrTest.sh check` / `buildOrTest.bat check` 当前都无 `nonx86 opt-in list-suites` 跳过开关；`wiring-sync` 与 `experimental` 有 env 开关，但 non-x86 opt-in 没有，因此纯 Python 审查也会被额外拖进 `neon/riscvv` opt-in 构建 |
 | 2. 为 shell/batch `check` 对齐 optional 开关 | completed | 已为 shell 与 batch 都新增 `SIMD_CHECK_NONX86_OPTIN` 分支：默认未设时继续执行 `nonx86-optin-list-suites`，设为 `0` 时明确跳过并输出原因 |
 | 3. 按脚本批次最小链复验并收口 | completed | 已跑 `git diff --check`、`bash -n tests/fafafa.core.simd/BuildOrTest.sh`、`FAFAFA_BUILD_MODE=Release SIMD_CHECK_NONX86_OPTIN=0 bash tests/fafafa.core.simd/BuildOrTest.sh check`；日志已明确出现 `[CHECK] SKIP optional non-x86 opt-in suite listing`，且整条 Release `check` 继续通过。Windows 批处理本轮只做静态对照，未在本机执行 |
+
+## 2026-05-16 Windows Check Non-x86 Audit Parity
+
+### Goal
+
+把 `tests/fafafa.core.simd/buildOrTest.bat check` 当前落后的 non-x86 Python 审查补齐到与 shell `check` 更一致的覆盖面，至少收回 `helper-semantics`、`key-slot-audit`、`riscvv-abi-shape`、`source-reachability` 这 4 条已经在 shell 默认门禁里的检查。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 batch `check` 与 shell `check` 的真实差异 | completed | 已确认 shell `check` 默认会跑 `run_nonx86_helper_semantics_check`、`run_nonx86_key_slot_audit_check`、`run_riscvv_abi_shape_check`、`run_source_reachability_check`；而 batch `check` 之前只跑到 `register_include/dispatch_read_scope/sse2_structure/suite_manifest`，这 4 条 non-x86 审查都掉线了 |
+| 2. 在 batch runner 补齐最小原生 Python 入口并接回 `check` | completed | 已在 `tests/fafafa.core.simd/buildOrTest.bat` 新增 `:nonx86_helper_semantics_check`、`:key_slot_audit_check_internal`、`:riscvv_abi_shape_check`、`:source_reachability_check` 四个原生 Python 入口，并把它们接回 `check` 主线；同时在 `BuildOrTest.sh` 的 Windows runner parity guard 中增加对应 source-safe pattern，防止以后再次掉线 |
+| 3. 按 shell 主门禁做 source-safe 复验并收口 | completed | 已跑 `git diff --check`、`bash -n tests/fafafa.core.simd/BuildOrTest.sh`、`FAFAFA_BUILD_MODE=Release SIMD_CHECK_NONX86_OPTIN=0 bash tests/fafafa.core.simd/BuildOrTest.sh check`；日志显示 `windows runner parity signatures present`、`Python checker runtime guard present`，且 `helper-semantics / key-slot-audit / riscvv-abi / source-reachability` 都继续通过。Windows batch 本轮仍未做实机运行，只能算静态对齐已收口 |
