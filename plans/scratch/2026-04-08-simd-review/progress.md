@@ -7713,3 +7713,40 @@
   - 这批没有把 `SVE/SVE2/LASX` promote 进 stable lane
   - 修掉的是 hold-family experimental runtime 在 non-qualified host 上“误装载”的边界漏洞
   - 当前仍保留一个诚实 residual：`LASX` 还没有 feature-level `cpuinfo` gate，文档已明确记账
+
+## 2026-05-17 NEON RVV Qualification-Leaf Runtime Fail-Close
+
+- 继续按小闭环推进，没有切去 stable adapter、Windows closeout 或 LoongArch cpuinfo 扩面。
+- 已复核：
+  - `src/fafafa.core.simd.intrinsics.neon.pas`
+  - `src/fafafa.core.simd.intrinsics.rvv.pas`
+  - `tests/fafafa.core.simd/check_intrinsics_experimental_status.py`
+  - `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh`
+  - `docs/SIMD_INTRINSICS_DISPOSITION.md`
+  - `docs/plans/2026-05-09-simd-family-matrix.md`
+- 当前结论：
+  - `intrinsics.neon/rvv` 之前仍允许 non-qualified host 在 experimental=1 下静默装载；
+  - 这和当前 `experimental isolated` / qualification-family truth 不一致；
+  - 应该把 leaf runtime 收紧到 `cpuinfo` 已确认的 `NEON/RVV` 主机，但不去碰 `simd.neon/simd.riscvv` 的 adapter lane 判据。
+- 已完成收口：
+  - `src/fafafa.core.simd.intrinsics.neon.pas`
+  - `src/fafafa.core.simd.intrinsics.rvv.pas`
+  - `tests/fafafa.core.simd/check_intrinsics_experimental_status.py`
+  - `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh`
+  - `docs/SIMD_INTRINSICS_DISPOSITION.md`
+  - `docs/plans/2026-05-09-simd-family-matrix.md`
+  现在都已同步到 “qualification-family leaf runtime 只在对应 ISA 主机放行” 口径。
+- 本批串行验证已经 fresh 跑通：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_experimental_status.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- fresh 结果：
+  - `INTRINSICS_EXPERIMENTAL_SUMMARY ... missing_qualification_runtime_fail_close=0`
+  - 默认态 experimental intrinsics test：`[TEST] OK`、`[LEAK] OK`
+  - experimental=1：`NEON/RVV` runtime reject smoke 在当前 `x86_64` 主机全部 `[CHECK] OK`
+  - experimental=1 主测试程序：`[TEST] OK`、`[LEAK] OK`
+- 当前阶段结论：
+  - 这批仍然没有 promote `NEON/RISCVV`
+  - 修掉的是 qualification-family experimental leaf 在 non-qualified host 上“误装载”的边界漏洞
+  - `NEON/RISCVV` adapter qualification lane 与 leaf runtime qualification 现在比之前更清楚地分开了

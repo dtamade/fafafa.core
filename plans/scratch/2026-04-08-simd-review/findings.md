@@ -6433,3 +6433,20 @@
   - `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh` 之前没有任何 dedicated smoke 覆盖这条边界
   - `cpuinfo` 已经能给出 `ARM.HasSVE`，足以先把 `SVE/SVE2` 的 base qualification 收紧
   - `LASX` 还没有独立 `cpuinfo` feature bit，因此当前最安全的收口是：先对非 `LoongArch64` 主机 fail-close，并在 docs 里诚实记录 feature-level gap
+
+## 2026-05-17 NEON RVV Qualification Leaf Missing Runtime Qualification
+
+- `src/fafafa.core.simd.intrinsics.neon.pas` 和 `src/fafafa.core.simd.intrinsics.rvv.pas` 也存在同类缺口：
+  - 当前都只有 generic experimental guard；
+  - 在非 ARM / 非 RISC-V 主机上，只要打开 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS`，unit initialization 就会静默通过；
+  - `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh` 之前对这条边界没有 dedicated smoke。
+- 这条问题和 `NEON/RISCVV` 的 adapter qualification lane 需要明确分开：
+  - `simd.neon` / `simd.riscvv` 的 qualification / opt-in / evidence 路线继续由 `family matrix` 现有 lane 决定；
+  - 这轮收的只是 `intrinsics.neon` / `intrinsics.rvv` experimental leaf 本身，不再允许 any-host opt-in runtime。
+- 仓库现成能力位也足以支持这次收口，而不必扩架构模型：
+  - `fafafa.core.simd.cpuinfo.HasNEON`
+  - `fafafa.core.simd.cpuinfo.HasRISCVV`
+- 因而这批最正确的修法不是再给 cross-host placeholder 找语义，而是：
+  - runtime 只允许 `cpuinfo` 已确认对应 ISA 的目标主机放行；
+  - checker 和 experimental smoke 同步 fail-close；
+  - 文档明确写清：这是 qualification-family leaf runtime 收紧，不是 stable adapter promote

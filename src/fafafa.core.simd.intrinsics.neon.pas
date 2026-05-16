@@ -92,7 +92,8 @@ function neon_vminq_f32(const a, b: TNeon128): TNeon128;
 implementation
 
 uses
-  SysUtils;
+  SysUtils,
+  fafafa.core.simd.cpuinfo;
 
 procedure EnsureExperimentalIntrinsicsEnabled; inline;
 begin
@@ -101,6 +102,11 @@ begin
     'fafafa.core.simd.intrinsics.neon is experimental placeholder semantics. ' +
     'Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt in.'
   );
+  {$ELSE}
+  if not HasNEON then
+    raise ENotSupportedException.Create(
+      'fafafa.core.simd.intrinsics.neon placeholder semantics are only qualified on ARM-class targets whose cpuinfo reports NEON.'
+    );
   {$ENDIF}
 end;
 

@@ -4407,3 +4407,18 @@
 | 2. 收紧源码与验证脚本 | completed | 已补 `cpuinfo.HasSVE`，并把 `intrinsics.sve/sve2/lasx` 收紧为 target-specific runtime fail-close；`BuildOrTest.sh` 现已新增 3 个 non-qualified-host runtime reject smoke；`check_intrinsics_experimental_status.py` 也已升格这条边界 |
 | 3. 文档和 scratch 真相同步 | completed | `SIMD_INTRINSICS_DISPOSITION.md`、`simd-family-matrix.md`、`simd-experimental-hold-future-trigger-plan.md` 与 scratch 记录已同步到 “hold family + runtime fail-close” 口径 |
 | 4. 最小验证与收口 | completed | `git diff --check`、`check_intrinsics_experimental_status.py --summary-line`、默认/experimental 两轮 `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test` 全部通过；在当前 `x86_64` 主机上 `SVE/SVE2/LASX` runtime reject smoke 均为绿 |
+
+## 2026-05-17 NEON RVV Qualification-Leaf Runtime Fail-Close
+
+### Goal
+
+继续加强 intrinsics 审查，但不混入 stable adapter qualification：只把 `intrinsics.neon` / `intrinsics.rvv` 这两个 experimental leaf 的 runtime 资格收紧到对应 ISA 主机，避免在非合格主机上因 experimental define 而静默装载。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 leaf 现状与验证缺口 | completed | 已确认 `intrinsics.neon/rvv` 目前只有 generic experimental guard，没有 target-specific runtime qualification；`BuildOrTest.sh` 也没有 dedicated reject smoke |
+| 2. 收紧源码与验证脚本 | completed | `intrinsics.neon` 现已要求 `HasNEON`，`intrinsics.rvv` 现已要求 `HasRISCVV`；`BuildOrTest.sh` 与 `check_intrinsics_experimental_status.py` 已新增 qualification-family runtime fail-close 覆盖 |
+| 3. 文档和 scratch 真相同步 | completed | `SIMD_INTRINSICS_DISPOSITION.md` 与 `simd-family-matrix.md` 已同步到 “qualification family 仍不 promote，但 leaf runtime 不再 any-host opt-in” 口径 |
+| 4. 最小验证与收口 | completed | `git diff --check`、`check_intrinsics_experimental_status.py --summary-line`、默认/experimental 两轮 `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test` 全部通过；当前 `x86_64` 主机上的 `NEON/RVV` runtime reject smoke 已 fresh 变绿 |

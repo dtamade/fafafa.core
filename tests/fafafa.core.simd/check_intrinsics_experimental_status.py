@@ -58,6 +58,10 @@ HOLD_RUNTIME_FAIL_CLOSE_TOKENS = {
     "src/fafafa.core.simd.intrinsics.sve2.pas": "only qualified on aarch64 targets whose cpuinfo reports sve",
     "src/fafafa.core.simd.intrinsics.lasx.pas": "only qualified on loongarch64 experimental hosts",
 }
+QUALIFICATION_RUNTIME_FAIL_CLOSE_TOKENS = {
+    "src/fafafa.core.simd.intrinsics.neon.pas": "only qualified on arm-class targets whose cpuinfo reports neon",
+    "src/fafafa.core.simd.intrinsics.rvv.pas": "only qualified on risc-v targets whose cpuinfo reports rvv",
+}
 FORBIDDEN_DEFAULT_DEFINE_PATTERNS = [
     r"(?i)-dFAFAFA_SIMD_EXPERIMENTAL_INTRINSICS\b",
     r"(?i)\{\$DEFINE\s+FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS\}",
@@ -145,7 +149,8 @@ def _render_summary_line(a_result: dict[str, Any]) -> str:
         f"missing_guard_markers={a_result['missing_guard_markers']} "
         f"default_define_leaks={a_result['default_define_leaks']} "
         f"missing_x86_runtime_fail_close={a_result['missing_x86_runtime_fail_close']} "
-        f"missing_hold_runtime_fail_close={a_result['missing_hold_runtime_fail_close']}"
+        f"missing_hold_runtime_fail_close={a_result['missing_hold_runtime_fail_close']} "
+        f"missing_qualification_runtime_fail_close={a_result['missing_qualification_runtime_fail_close']}"
     )
 
 
@@ -159,6 +164,7 @@ def _print_human_result(a_result: dict[str, Any]) -> None:
     print(f"  - default-define leaks:       {a_result['default_define_leaks']}")
     print(f"  - missing x86 fail-close:     {a_result['missing_x86_runtime_fail_close']}")
     print(f"  - missing hold fail-close:    {a_result['missing_hold_runtime_fail_close']}")
+    print(f"  - missing qualification fail-close: {a_result['missing_qualification_runtime_fail_close']}")
 
     if a_result["leaks"]:
         print("[EXPERIMENTAL] Leaks found:")
@@ -186,12 +192,18 @@ def _print_human_result(a_result: dict[str, Any]) -> None:
         for l_file in a_result["missing_hold_runtime_fail_close_files"]:
             print(f"  - {l_file}")
 
+    if a_result["missing_qualification_runtime_fail_close_files"]:
+        print("[EXPERIMENTAL] Missing qualification-family runtime fail-close marker in:")
+        for l_file in a_result["missing_qualification_runtime_fail_close_files"]:
+            print(f"  - {l_file}")
+
     if (
         (not a_result["leaks"])
         and (not a_result["missing_guard_files"])
         and (not a_result["default_define_files"])
         and (not a_result["missing_x86_runtime_fail_close_files"])
         and (not a_result["missing_hold_runtime_fail_close_files"])
+        and (not a_result["missing_qualification_runtime_fail_close_files"])
     ):
         print("[EXPERIMENTAL] OK (no experimental units in default entry chain)")
 
@@ -232,6 +244,10 @@ def main() -> int:
         a_repo_root=l_repo_root,
         a_file_tokens=HOLD_RUNTIME_FAIL_CLOSE_TOKENS,
     )
+    l_missing_qualification_runtime_fail_close_files = _scan_required_runtime_fail_close_tokens(
+        a_repo_root=l_repo_root,
+        a_file_tokens=QUALIFICATION_RUNTIME_FAIL_CLOSE_TOKENS,
+    )
 
     l_result: dict[str, Any] = {
         "ok": (
@@ -240,6 +256,7 @@ def main() -> int:
             and (len(l_default_define_files) == 0)
             and (len(l_missing_x86_runtime_fail_close_files) == 0)
             and (len(l_missing_hold_runtime_fail_close_files) == 0)
+            and (len(l_missing_qualification_runtime_fail_close_files) == 0)
         ),
         "experimental_units": len(EXPERIMENTAL_UNITS),
         "entry_files": len(l_entry_files),
@@ -249,6 +266,7 @@ def main() -> int:
         "default_define_leaks": len(l_default_define_files),
         "missing_x86_runtime_fail_close": len(l_missing_x86_runtime_fail_close_files),
         "missing_hold_runtime_fail_close": len(l_missing_hold_runtime_fail_close_files),
+        "missing_qualification_runtime_fail_close": len(l_missing_qualification_runtime_fail_close_files),
         "entry_file_list": l_entry_files,
         "leaks": l_leaks,
         "leaked_unit_list": l_leaked_units,
@@ -256,6 +274,7 @@ def main() -> int:
         "default_define_files": l_default_define_files,
         "missing_x86_runtime_fail_close_files": l_missing_x86_runtime_fail_close_files,
         "missing_hold_runtime_fail_close_files": l_missing_hold_runtime_fail_close_files,
+        "missing_qualification_runtime_fail_close_files": l_missing_qualification_runtime_fail_close_files,
     }
 
     if l_args.json:

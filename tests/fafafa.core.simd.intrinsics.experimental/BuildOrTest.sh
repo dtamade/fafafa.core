@@ -44,6 +44,12 @@ AVX512_SMOKE_BIN="${BIN_DIR}/avx512_smoke"
 FMA3_SMOKE_LOG="${LOG_DIR}/fma3_smoke.txt"
 FMA3_SMOKE_SOURCE="${LOG_DIR}/fma3_smoke.pas"
 FMA3_SMOKE_BIN="${BIN_DIR}/fma3_smoke"
+NEON_FAIL_CLOSE_LOG="${LOG_DIR}/neon_fail_close.txt"
+NEON_FAIL_CLOSE_SOURCE="${LOG_DIR}/neon_fail_close.pas"
+NEON_FAIL_CLOSE_BIN="${BIN_DIR}/neon_fail_close"
+RVV_FAIL_CLOSE_LOG="${LOG_DIR}/rvv_fail_close.txt"
+RVV_FAIL_CLOSE_SOURCE="${LOG_DIR}/rvv_fail_close.pas"
+RVV_FAIL_CLOSE_BIN="${BIN_DIR}/rvv_fail_close"
 SVE_FAIL_CLOSE_LOG="${LOG_DIR}/sve_fail_close.txt"
 SVE_FAIL_CLOSE_SOURCE="${LOG_DIR}/sve_fail_close.pas"
 SVE_FAIL_CLOSE_BIN="${BIN_DIR}/sve_fail_close"
@@ -316,7 +322,7 @@ check_fma3_backend_smoke() {
 
 check_nonqualified_host_runtime_reject() {
   local aLabel
-  local aQualifiedCpu
+  local aQualifiedCpuRegex
   local aUnit
   local aSourcePath
   local aLogPath
@@ -324,7 +330,7 @@ check_nonqualified_host_runtime_reject() {
   local aExpectedToken
 
   aLabel="$1"
-  aQualifiedCpu="$2"
+  aQualifiedCpuRegex="$2"
   aUnit="$3"
   aSourcePath="$4"
   aLogPath="$5"
@@ -336,7 +342,7 @@ check_nonqualified_host_runtime_reject() {
     return 0
   fi
 
-  if [[ "${CPU}" == "${aQualifiedCpu}" ]]; then
+  if [[ "${CPU}" =~ ${aQualifiedCpuRegex} ]]; then
     echo "[CHECK] SKIP ${aLabel} runtime reject smoke (target CPU=${CPU} needs host-specific feature evidence)"
     return 0
   fi
@@ -384,10 +390,32 @@ check_nonqualified_host_runtime_reject() {
   echo "[CHECK] OK ${aLabel} runtime reject smoke"
 }
 
+check_neon_runtime_fail_close() {
+  check_nonqualified_host_runtime_reject \
+    "NEON" \
+    "^(arm|aarch64)$" \
+    "fafafa.core.simd.intrinsics.neon" \
+    "${NEON_FAIL_CLOSE_SOURCE}" \
+    "${NEON_FAIL_CLOSE_LOG}" \
+    "${NEON_FAIL_CLOSE_BIN}" \
+    "only qualified on arm-class targets whose cpuinfo reports neon"
+}
+
+check_rvv_runtime_fail_close() {
+  check_nonqualified_host_runtime_reject \
+    "RVV" \
+    "^riscv64$" \
+    "fafafa.core.simd.intrinsics.rvv" \
+    "${RVV_FAIL_CLOSE_SOURCE}" \
+    "${RVV_FAIL_CLOSE_LOG}" \
+    "${RVV_FAIL_CLOSE_BIN}" \
+    "only qualified on risc-v targets whose cpuinfo reports rvv"
+}
+
 check_sve_runtime_fail_close() {
   check_nonqualified_host_runtime_reject \
     "SVE" \
-    "aarch64" \
+    "^aarch64$" \
     "fafafa.core.simd.intrinsics.sve" \
     "${SVE_FAIL_CLOSE_SOURCE}" \
     "${SVE_FAIL_CLOSE_LOG}" \
@@ -398,7 +426,7 @@ check_sve_runtime_fail_close() {
 check_sve2_runtime_fail_close() {
   check_nonqualified_host_runtime_reject \
     "SVE2" \
-    "aarch64" \
+    "^aarch64$" \
     "fafafa.core.simd.intrinsics.sve2" \
     "${SVE2_FAIL_CLOSE_SOURCE}" \
     "${SVE2_FAIL_CLOSE_LOG}" \
@@ -409,7 +437,7 @@ check_sve2_runtime_fail_close() {
 check_lasx_runtime_fail_close() {
   check_nonqualified_host_runtime_reject \
     "LASX" \
-    "loongarch64" \
+    "^loongarch64$" \
     "fafafa.core.simd.intrinsics.lasx" \
     "${LASX_FAIL_CLOSE_SOURCE}" \
     "${LASX_FAIL_CLOSE_LOG}" \
@@ -501,6 +529,8 @@ case "${ACTION}" in
     check_avx2_backend_smoke
     check_avx512_backend_smoke
     check_fma3_backend_smoke
+    check_neon_runtime_fail_close
+    check_rvv_runtime_fail_close
     check_sve_runtime_fail_close
     check_sve2_runtime_fail_close
     check_lasx_runtime_fail_close
@@ -522,6 +552,8 @@ case "${ACTION}" in
     check_avx2_backend_smoke
     check_avx512_backend_smoke
     check_fma3_backend_smoke
+    check_neon_runtime_fail_close
+    check_rvv_runtime_fail_close
     check_sve_runtime_fail_close
     check_sve2_runtime_fail_close
     check_lasx_runtime_fail_close
