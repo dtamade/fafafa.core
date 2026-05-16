@@ -6500,3 +6500,24 @@
   - 当前仅跑 Python checker 就已在 `tests/fafafa.core.simd/__pycache__/` 留下未跟踪目录
   - 这类噪音会持续污染 `git status`，降低下一批“小闭环”判断效率
   - 该问题与本轮 SIMD review 工具链直接相关，值得顺手一次收掉
+
+## 2026-05-17 SIMD Generated Artifact Hygiene Gap
+
+- `tests/fafafa.core.simd/` 当前还有一类比 `__pycache__` 更重的 hygiene 问题：真实生成产物已经被跟踪进 Git。
+- 已确认的 4 个 tracked artifacts：
+  - `tests/fafafa.core.simd/simd_test`
+  - `tests/fafafa.core.simd/qemu_fafafa.core.simd.test_20260220-232704_195.core`
+  - `tests/fafafa.core.simd/bin2-smoke/link60.res`
+  - `tests/fafafa.core.simd/bin2-smoke/ppas.sh`
+- 文件级证据直接表明它们都不是源码资产：
+  - `simd_test` 是 `ELF 64-bit LSB executable, x86-64`
+  - `qemu_...core` 是 `ELF 64-bit LSB core file, ARM aarch64`
+  - `ppas.sh` / `link60.res` 是 `rvv_opcode_smoke` 交叉编译生成的 shell/linker 产物
+- git 历史也说明这是误带入，而不是刻意 fixture：
+  - `simd_test` 在 `5d2c8751 simd-only: update SIMD implementations` 被加入
+  - 其余 3 个产物在 `0c42875e Merge preserved unrelated workspace changes` 被加入
+- `tests/fafafa.core.simd/.gitignore` 之前只忽略了 `/bin2/`、`/lib2/`、`/logs/`，没有覆盖：
+  - `/bin2-smoke/`
+  - `/simd_test`
+  - `/*.core`
+- 因而这不是“当前工作树脏了”的问题，而是“仓库历史已经收进了明显的生成垃圾”，值得优先清掉。

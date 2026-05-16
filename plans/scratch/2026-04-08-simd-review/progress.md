@@ -7877,3 +7877,47 @@
   - 这批没有重开 family promote 或 stable contract 讨论
   - 修掉的是一类真实但低成本的 truth drift 和工作树噪音源
   - 这一批收口后，下一轮仍应继续找“有直接证据的小问题”，而不是回到整面泛扫
+
+## 2026-05-17 SIMD Generated Artifact Hygiene Cleanup
+
+- 延续“小闭环”方法，没有去重跑大 gate，先用目录真相找下一个高价值小问题。
+- 已复核：
+  - `tests/fafafa.core.simd/.gitignore`
+  - `tests/fafafa.core.simd/bin2-smoke/link60.res`
+  - `tests/fafafa.core.simd/bin2-smoke/ppas.sh`
+  - `tests/fafafa.core.simd/qemu_fafafa.core.simd.test_20260220-232704_195.core`
+  - `tests/fafafa.core.simd/simd_test`
+  - `tests/fafafa.core.simd/docker/run_rvv_opcode_smoke.sh`
+  - `git log --diff-filter=A -- ...`
+- 当前结论：
+  - 这 4 个文件都属于生成产物，不是源码/fixture
+  - `simd_test` 和 `qemu_...core` 的存在尤其会误导后续审查，把生成二进制和 crash 现场伪装成仓库内容
+  - 本地 `.gitignore` 对这类产物的防护不完整，是它们能再次误入版本库的直接原因
+- 已完成收口：
+  - 删除 `tests/fafafa.core.simd/simd_test`
+  - 删除 `tests/fafafa.core.simd/qemu_fafafa.core.simd.test_20260220-232704_195.core`
+  - 删除 `tests/fafafa.core.simd/bin2-smoke/link60.res`
+  - 删除 `tests/fafafa.core.simd/bin2-smoke/ppas.sh`
+  - 更新 `tests/fafafa.core.simd/.gitignore`
+  现在 `bin2-smoke`、无扩展名测试二进制和 core dump 都被明确划回“生成物/垃圾”而不是 repo 资产。
+- 下一步做最小验证：
+  - `git diff --check`
+  - 复核 `git status --short` 中只剩预期删除/ignore 改动
+  - 跑 1-2 条静态 SIMD 审查脚本确认这批卫生清理没有影响 checker 工作流
+- 已完成最小验证：
+  - `git diff --check`
+  - `git check-ignore -v --no-index tests/fafafa.core.simd/simd_test tests/fafafa.core.simd/foo.core tests/fafafa.core.simd/bin2-smoke/dummy`
+  - `python3 tests/fafafa.core.simd/check_simd_source_reachability.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_experimental_status.py --summary-line`
+- fresh 结果：
+  - 工作树只剩 `.gitignore` / scratch 更新和 4 个预期删除
+  - ignore 命中：
+    - `/simd_test`
+    - `/*.core`
+    - `/bin2-smoke/`
+  - `SIMD_SOURCE_REACHABILITY_SUMMARY ... unexpected_unreachable=0 missing_include_refs=0`
+  - `INTRINSICS_EXPERIMENTAL_SUMMARY ... missing_x86_runtime_fail_close=0 missing_hold_runtime_fail_close=0 missing_qualification_runtime_fail_close=0`
+- 当前阶段结论：
+  - 这批没有改动 SIMD 语义或测试 contract
+  - 收掉的是仓库内已经被提交的生成垃圾和对应 ignore 漏口
+  - 这能直接降低后续 SIMD 审查时的假信号和仓库体积噪音

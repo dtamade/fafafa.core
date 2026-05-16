@@ -4466,3 +4466,17 @@
 | 1. 复核是否存在真漂移 | completed | 已确认这 5 个单元在实现层早就有 experimental + non-x86 fail-close 护栏，但源码头没有像 `intrinsics.avx` 那样显式写出当前 contract；另外 `.gitignore` 仍未忽略 `__pycache__/`，当前 worktree 已出现 `tests/fafafa.core.simd/__pycache__/` 噪音 |
 | 2. 最小源码/仓库卫生收口 | completed | 这 5 个 x86 intrinsics 单元已补统一 experimental status 说明；`.gitignore` 已补 `__pycache__/` 规则，避免 Python checker 再把 status 弄脏 |
 | 3. 验证与 closeout | completed | `git diff --check`、`check_intrinsics_experimental_status.py --summary-line`、默认/experimental 两轮 `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test` 已通过；`comment_swallow` hygiene 与 x86/hold-family smoke 全绿 |
+
+## 2026-05-17 SIMD Generated Artifact Hygiene Cleanup
+
+### Goal
+
+清理 `tests/fafafa.core.simd/` 下误入版本库的生成产物，避免 core dump、smoke 编译输出和无扩展名 ELF 测试二进制继续污染 SIMD 审查面，并补足对应 ignore 护栏。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核哪些文件是误跟踪的生成产物 | completed | 已确认 `simd_test` 是 x86_64 ELF 可执行文件，`qemu_fafafa.core.simd.test_20260220-232704_195.core` 是 9.3M AArch64 core dump，`bin2-smoke/link60.res` 与 `bin2-smoke/ppas.sh` 是 `rvv_opcode_smoke` 编译生成物；`rg` 未发现真实源码/脚本依赖它们 |
+| 2. 删除误入版本库的产物并补 ignore | completed | 已删除上述 4 个 tracked artifacts，并在 `tests/fafafa.core.simd/.gitignore` 补 `/bin2-smoke/`、`/simd_test`、`/*.core`，把这类 SIMD 生成产物收进仓库卫生护栏 |
+| 3. 最小验证与收口 | completed | `git diff --check` 通过；`git check-ignore -v --no-index` 已命中 `/bin2-smoke/`、`/simd_test`、`/*.core`；`check_simd_source_reachability.py --summary-line` 与 `check_intrinsics_experimental_status.py --summary-line` 继续为绿 |
