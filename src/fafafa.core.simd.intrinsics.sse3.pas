@@ -22,6 +22,13 @@ interface
 uses
   fafafa.core.simd.intrinsics.base;
 
+{
+  Experimental status (2026-05-17):
+  - This unit remains on the experimental x86 intrinsics lane.
+  - It must not be treated as a default stable raw leaf.
+  - Non-x86 branches remain compile scaffolding; runtime fail-close is intentional.
+}
+
 // === SSE3 水平运算 ===
 // Horizontal Add/Sub (单精�?
 function sse3_hadd_ps(const a, b: TM128): TM128;

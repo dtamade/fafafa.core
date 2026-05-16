@@ -4452,3 +4452,17 @@
 | 2. 补 `cpuinfo` 与 `intrinsics.sve2` | completed | 已为 `TARMFeatures`/`cpuinfo.arm`/`cpuinfo.pas` 补 `HasSVE2`，并把 `intrinsics.sve2` runtime guard 从 `HasSVE` 收紧到 `HasSVE2` |
 | 3. 同步 checker / smoke / docs | completed | `check_intrinsics_experimental_status.py`、`BuildOrTest.sh` 与 active docs 已同步到 `SVE2` 精确资格口径；非 `AArch64` 主机上的 reject smoke 允许观察到依赖 `intrinsics.sve` 的上游 fail-close token |
 | 4. 最小验证与收口 | completed | `git diff --check`、`check_intrinsics_experimental_status.py --summary-line`、默认/experimental 两轮 `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test` 全部通过；`SVE2` reject smoke 已恢复为绿 |
+
+## 2026-05-17 Experimental X86 Header Truth Sync And Python Cache Hygiene
+
+### Goal
+
+停止“大扫除式泛查”，只收一个最小真问题：把 `sse3/sse41/sse42/avx512/fma3` 这些 experimental x86 intrinsics 单元的源码头口径收正到当前 disposition/runtime 真相，同时消掉 Python checker 反复制造的 worktree 噪音。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核是否存在真漂移 | completed | 已确认这 5 个单元在实现层早就有 experimental + non-x86 fail-close 护栏，但源码头没有像 `intrinsics.avx` 那样显式写出当前 contract；另外 `.gitignore` 仍未忽略 `__pycache__/`，当前 worktree 已出现 `tests/fafafa.core.simd/__pycache__/` 噪音 |
+| 2. 最小源码/仓库卫生收口 | completed | 这 5 个 x86 intrinsics 单元已补统一 experimental status 说明；`.gitignore` 已补 `__pycache__/` 规则，避免 Python checker 再把 status 弄脏 |
+| 3. 验证与 closeout | completed | `git diff --check`、`check_intrinsics_experimental_status.py --summary-line`、默认/experimental 两轮 `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test` 已通过；`comment_swallow` hygiene 与 x86/hold-family smoke 全绿 |

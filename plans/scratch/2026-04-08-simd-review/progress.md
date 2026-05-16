@@ -7833,3 +7833,47 @@
   - `LASX` 现在不再停留在“只要是 `LoongArch64` experimental host 就放行”的近似 contract
   - 这批仍然没有 promote `LASX` 进入 stable adapter / backend lane
   - 当前收口的是 experimental leaf 的 feature-level qualification，不是 stable family 决策变化
+
+## 2026-05-17 Experimental X86 Header Truth Sync And Python Cache Hygiene
+
+- 本轮明确改工作方法：
+  - 不再继续大范围 SIMD 泛扫
+  - 先用当前 `git status` 和 x86 hold-lane 复核挑一个最小真问题
+  - 只做与问题严格匹配的修复和验证
+- 已复核：
+  - `.gitignore`
+  - `src/fafafa.core.simd.intrinsics.avx.pas`
+  - `src/fafafa.core.simd.intrinsics.sse3.pas`
+  - `src/fafafa.core.simd.intrinsics.sse41.pas`
+  - `src/fafafa.core.simd.intrinsics.sse42.pas`
+  - `src/fafafa.core.simd.intrinsics.avx512.pas`
+  - `src/fafafa.core.simd.intrinsics.fma3.pas`
+  - `docs/SIMD_INTRINSICS_DISPOSITION.md`
+  - `docs/plans/2026-05-09-simd-family-matrix.md`
+- 当前结论：
+  - x86 hold-lane 当前没有新的 runtime qualification 漏口
+  - 但 `sse3/sse41/sse42/avx512/fma3` 的源码头说明明显落后于 disposition/runtime 真相
+  - `.gitignore` 缺 `__pycache__/` 规则，当前已出现 `tests/fafafa.core.simd/__pycache__/` worktree 噪音
+- 已完成收口：
+  - `src/fafafa.core.simd.intrinsics.sse3.pas`
+  - `src/fafafa.core.simd.intrinsics.sse41.pas`
+  - `src/fafafa.core.simd.intrinsics.sse42.pas`
+  - `src/fafafa.core.simd.intrinsics.avx512.pas`
+  - `src/fafafa.core.simd.intrinsics.fma3.pas`
+  - `.gitignore`
+  现在都已同步到“experimental x86 intrinsics lane + non-x86 runtime fail-close intentional”的显式口径，并把 Python cache 噪音纳入忽略规则。
+- 已完成最小验证与卫生收口：
+  - 已清掉现有 `tests/fafafa.core.simd/__pycache__/`
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_experimental_status.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- fresh 结果：
+  - `INTRINSICS_EXPERIMENTAL_SUMMARY ... missing_x86_runtime_fail_close=0 missing_hold_runtime_fail_close=0 missing_qualification_runtime_fail_close=0`
+  - 默认态/experimental 态 `intrinsics.experimental` 测试均 `[TEST] OK`
+  - `check_intrinsics_comment_swallow.py --summary-line` 在两轮构建前检查均 `PASS`
+  - `SSE3/AVX/AVX512/FMA3` x86 backend smoke 继续为绿，`NEON/RVV/SVE/SVE2/LASX` fail-close smoke 也继续为绿
+- 当前阶段结论：
+  - 这批没有重开 family promote 或 stable contract 讨论
+  - 修掉的是一类真实但低成本的 truth drift 和工作树噪音源
+  - 这一批收口后，下一轮仍应继续找“有直接证据的小问题”，而不是回到整面泛扫

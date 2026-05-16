@@ -20,6 +20,13 @@ interface
 uses
   fafafa.core.simd.intrinsics.base;
 
+{
+  Experimental status (2026-05-17):
+  - This unit remains on the experimental x86 intrinsics lane.
+  - It must not be treated as a default stable raw leaf.
+  - Non-x86 branches remain compile scaffolding; runtime fail-close is intentional.
+}
+
 // === FMA3 单精度浮点指�?===
 // Fused Multiply-Add: a * b + c
 function fma3_fmadd_ps(const a, b, c: TM128): TM128;

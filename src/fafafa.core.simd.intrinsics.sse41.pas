@@ -23,6 +23,13 @@ interface
 uses
   fafafa.core.simd.intrinsics.base;
 
+{
+  Experimental status (2026-05-17):
+  - This unit remains on the experimental x86 intrinsics lane.
+  - It must not be treated as a default stable raw leaf.
+  - Non-x86 branches remain compile scaffolding; runtime fail-close is intentional.
+}
+
 // === SSE4.1 扩展 Min/Max 操作 ===
 function sse41_max_epi8(const a, b: TM128): TM128;
 function sse41_max_epi32(const a, b: TM128): TM128;

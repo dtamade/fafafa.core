@@ -6481,3 +6481,22 @@
   - `intrinsics.sve2` 依赖 `intrinsics.sve`
   - 在完全非 `AArch64` 主机上导入 `sve2` 时，unit initialization 可能先被 `intrinsics.sve` 的 fail-close 拦下
   - 这不影响 “non-qualified host 必须 reject” 的目标，但意味着 `SVE2` reject smoke 在这类主机上要允许匹配上游 `SVE` token
+
+## 2026-05-17 Experimental X86 Header Truth Drift And Python Cache Noise
+
+- 当前 `sse3/sse41/sse42/avx512/fma3` 这 5 个 x86 experimental intrinsics 单元，在实现层都已经有两层真实护栏：
+  - `EnsureExperimentalIntrinsicsEnabled`
+  - `EnsureExperimental*TargetSupported` 的 non-x86 runtime fail-close
+- 但它们的 interface/file-header 区域仍主要在讲 ISA 特性与“兼容性”，没有像 `intrinsics.avx` 那样显式写出当前 experimental/placeholder/runtime-fail-close 口径。
+- 这会制造一类低级 truth drift：
+  - disposition/docs/checker 都已经把这些单元定义成 `experimental isolated`
+  - 源码头读起来却像“稳定叶子能力介绍”
+  - 后续审查时容易再次浪费时间去确认“这些是不是已经准备 promote 了”
+- 因而这里最合适的修法不是继续补测试，也不是重开 family promote 讨论，而是把源码头直接收正到当前 contract：
+  - experimental x86 intrinsics lane
+  - not a default stable raw leaf
+  - non-x86 branch is compile scaffolding and intentionally fail-close at runtime
+- 另一个直接的仓库卫生问题是：`.gitignore` 还没忽略 `__pycache__/`。
+  - 当前仅跑 Python checker 就已在 `tests/fafafa.core.simd/__pycache__/` 留下未跟踪目录
+  - 这类噪音会持续污染 `git status`，降低下一批“小闭环”判断效率
+  - 该问题与本轮 SIMD review 工具链直接相关，值得顺手一次收掉

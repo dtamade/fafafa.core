@@ -19,6 +19,13 @@ interface
 uses
   fafafa.core.simd.intrinsics.base;
 
+{
+  Experimental status (2026-05-17):
+  - This unit remains on the experimental x86 intrinsics lane.
+  - It must not be treated as a default stable raw leaf.
+  - Non-x86 branches remain compile scaffolding; runtime fail-close is intentional.
+}
+
 // === AVX-512 基础函数 (占位�? ===
 // Load/Store
 function avx512_load_ps512(const Ptr: Pointer): TM512;
@@ -187,4 +194,3 @@ initialization
   EnsureExperimentalAvx512TargetSupported;
 
 end.
-

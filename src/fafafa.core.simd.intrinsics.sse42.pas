@@ -21,6 +21,13 @@ interface
 uses
   fafafa.core.simd.intrinsics.base;
 
+{
+  Experimental status (2026-05-17):
+  - This unit remains on the experimental x86 intrinsics lane.
+  - It must not be treated as a default stable raw leaf.
+  - Non-x86 branches remain compile scaffolding; runtime fail-close is intentional.
+}
+
 // === SSE4.2 字符串比较指�?===
 // Explicit Length String Compare
 function sse42_cmpestrm(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): TM128;
