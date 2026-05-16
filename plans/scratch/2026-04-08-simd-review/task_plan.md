@@ -4024,3 +4024,17 @@
 | 1. 给 previous-forced preserve 段继续做语义分层 | completed | 已复核 `3183..3454` 一带：`SetVectorAsmEnabled_HookLateAutomaticReset_Preserves_PreviousForcedBackend`、`...DuringRestore...`、`SetVectorAsmEnabled_HookLateForce_DuringRestore_Preserves_PreviousForcedBackend`、`RegisterBackend_HookLateForce_Restores_AutomaticBackend` 都满足“`LOldVectorAsm` 无读取 + outer finally 为空 + 真正 hook cleanup 在内层 finally”；而 `RegisterBackend_HookLateAutomaticReset_Preserves_PreviousForcedBackend` / `RegisterBackend_HookLateForce_DuringRestore_Preserves_PreviousForcedBackend` 的外层 finally 还承担 `if LPreviousTableCaptured then RegisterBackend(...)`，明确排除 |
 | 2. 只清 4 个高确定性命中 | completed | 已在上述 4 个方法中删除未使用的 `LOldVectorAsm` 与纯空 outer `try/finally`；previous forced backend、hook reset/late-force、RegisterBackend late-force 的实际 cleanup 逻辑保持不变 |
 | 3. 继续用单 suite release 验证收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi` 验证；构建、测试与 leak check 均通过 |
+
+## 2026-05-16 PublicAbi Remaining Empty Finally Cleanup Repair
+
+### Goal
+
+收掉 `publicabi.testcase` 本轮最后 4 个同类空壳 cleanup 命中，并修平半途删改留下的 Pascal 结构错误；继续坚持“只动 testcase、只跑 `TTestCase_PublicAbi` release 验证”的最小闭环。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核最后 4 个目标方法的真实边界 | completed | 已确认 `CachedTable_RemainsCallable_Across_Rebind` 与 `CachedTable_Preserves_PreviousSnapshot_Metadata_Across_Rebind` 只是纯空 outer `try/finally`；`BackendPodInfo_Refreshes_WhenBackendBecomesNonDispatchable` 与 `RollbackRestore_ReSelects_RequestedBackend_Before_Return` 的真实 restore 仍分别由内层 `RegisterBackend(...)` / hook cleanup `finally` 承担 |
+| 2. 修正半删状态并完成剩余 cleanup | completed | 已删除前两处纯空 outer `try/finally`；并把后两处误留下的孤立 outer `try` 一并去掉，顺手删除 `RollbackRestore_ReSelects_RequestedBackend_Before_Return` 中未使用的 `LOldVectorAsm` |
+| 3. 用单 suite release 复验收口 | completed | 已跑 `git diff --check`，并用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi` 复验；构建、测试与 leak check 全部通过 |

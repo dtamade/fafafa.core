@@ -6993,3 +6993,36 @@
 - 当前阶段结论：
   - 这批已经形成完整小闭环，可以直接提交
   - 当前方法继续有效：同一文件里先把“真空壳 cleanup”收干净，再把带条件 restore 的剩余点单独看，能明显降低误删风险
+
+## 2026-05-16 PublicAbi Remaining Empty Finally Cleanup Repair
+
+- 这一批先没有继续扩 `dispatchapi/direct/concurrent`，而是回到 `publicabi.testcase` 当前编译失败现场，按“先修结构、再复验”的方式收口。
+- 真实现场确认：
+  - 当前工作树只剩 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 在改
+  - 编译失败根因不是行为回归，而是上轮删除 empty `finally` 时，在 2 个方法里留下了孤立 outer `try`
+- 这轮实际处理的 4 个方法：
+  - `Test_PublicApi_CachedTable_RemainsCallable_Across_Rebind`
+  - `Test_PublicApi_CachedTable_Preserves_PreviousSnapshot_Metadata_Across_Rebind`
+  - `Test_PublicApi_BackendPodInfo_Refreshes_WhenBackendBecomesNonDispatchable`
+  - `Test_PublicApi_RollbackRestore_ReSelects_RequestedBackend_Before_Return`
+- 已完成的源码收口：
+  - 删除前 2 个方法里的纯空 outer `try/finally`
+  - 修平后 2 个方法里误留下的 outer `try`
+  - 删除 `Test_PublicApi_RollbackRestore_ReSelects_RequestedBackend_Before_Return` 中未使用的 `LOldVectorAsm`
+  - 保留内层真实 restore 不变：
+    - `RegisterBackend(LOriginalBackend, LOriginalTable)`
+    - `RemoveDispatchChangedHook(...)`
+    - hook flag / stage reset
+- 这轮额外做的卫生确认：
+  - `git diff --check` 通过
+  - `rg -n -U "finally\\s*\\n\\s*end;" tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 无命中
+- 本轮验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+- fresh 结果：
+  - `[BUILD] OK`
+  - `[TEST] OK`
+  - `[LEAK] OK`
+- 当前阶段结论：
+  - 这批仍然只是 `publicabi` 测试层冗余/结构修复，没有改 SIMD 生产实现
+  - `publicabi.testcase` 这条“纯空 finally”线在当前文件里已经基本收干净；下一步如果继续深审，应只看那些外层 finally 还承担条件 restore 的剩余路径

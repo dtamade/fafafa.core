@@ -5949,3 +5949,23 @@
 - 当前阶段结论：
   - 这批依旧是纯测试层冗余清理，没有改 public ABI 发布逻辑或 SIMD 生产实现
   - 现在 `publicabi` 里剩下最值得继续深审的，就是那些外层 finally 已开始承担条件 table restore 的路径；它们不能再按当前模式机械推进
+
+## 2026-05-16 PublicAbi Remaining Empty Finally Cleanup Repair
+
+- 本轮最后 4 个 `publicabi` 同类命中里，真正值得警惕的不是“还有没有空 finally”，而是“前一轮把 empty `finally` 删掉后，outer `try` 是否也同步消失”。
+- fresh 现场已证明这一点会直接变成 Pascal 结构错误：
+  - `Test_PublicApi_BackendPodInfo_Refreshes_WhenBackendBecomesNonDispatchable`
+  - `Test_PublicApi_RollbackRestore_ReSelects_RequestedBackend_Before_Return`
+  - 两处都曾留下孤立 outer `try`，从而触发 `Syntax error, "EXCEPT" expected but "END" found`
+- 这轮修复后再次确认：
+  - `CachedTable_RemainsCallable_Across_Rebind`
+  - `CachedTable_Preserves_PreviousSnapshot_Metadata_Across_Rebind`
+  - 这两处只是纯空 outer `try/finally`，删除后没有额外 restore 责任残留
+- 同时确认 `RollbackRestore_ReSelects_RequestedBackend_Before_Return` 中的 `LOldVectorAsm` 也是死变量：
+  - 只赋值 `IsVectorAsmEnabled`
+  - 后续没有任何读取
+  - 真正的 hook remove / stage reset / `RegisterBackend(...)` restore 仍在内层 `finally`
+- `rg -n -U "finally\\s*\\n\\s*end;" tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 本轮已无命中，说明这批“纯空 finally”残余已经从当前 `publicabi.testcase` 清干净。
+- 当前最重要的审查边界进一步收紧为：
+  - 可以继续收：外层 `finally` 为空，且真实 restore 由内层 `finally` 或基类 `TearDown` 承担
+  - 不能机械收：外层 `finally` 还承担 `if ...Captured then RegisterBackend(...)` 之类的条件 restore
