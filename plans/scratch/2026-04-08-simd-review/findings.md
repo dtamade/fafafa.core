@@ -5192,3 +5192,26 @@
   - 以前：`DispatchAPI` 知道，Python key-slot audit 不知道
   - 现在：`DispatchAPI` 与 `key-slot audit` 都知道
   - 以后这 12 个 slot 的 register/source drift 会先被日常 `check` 抓住，而不是等人去读 testcase 才发现
+
+## 2026-05-16 RISCVV Select Key-Slot Explicit Ownership Coverage Findings
+
+- 沿着上一批 `key-slot` 对齐继续往下看，新的真实缺口已经很具体：
+  - `check_nonx86_register_truthfulness.py` 早就把 `RISCVV SelectF32x8/SelectF64x4/SelectI32x4` 归类成合法 `asm-only wrapper-only`
+  - 但 `check_nonx86_key_slot_audit.py` 之前完全不跟踪这 3 个 slot
+  - 现有 `DispatchAPI` dedicated test 里也只显式固定了 `SelectF64x4`，`SelectF32x8/SelectI32x4` 仍只靠 generic parity 间接覆盖
+- 这类缺口的风险不在“当前实现错误”，而在 drift 过于容易漏报：
+  - 一旦有人把 `table.SelectF32x8` 或 `table.SelectI32x4` 静悄悄收回 scalar，register-truthfulness 仍可能先把它当成“合法 wrapper-only”
+  - 由于 `key-slot audit` 与 dedicated `DispatchAPI` 没有同时点名，这种 ownership 漂移不容易在日常小批次里被第一时间抓住
+- 这 3 个 slot 的真实结构也支持把它们提升成显式 truth source：
+  - `src/fafafa.core.simd.riscvv.register.inc` 在 `{$IFDEF RISCVV_ASSEMBLY}` 分支里明确把 `table.SelectF32x8/SelectF64x4/SelectI32x4` 绑定到 `@RISCVVSelect*`
+  - `src/fafafa.core.simd.riscvv.pas` 里对应实现是 backend-local Pascal loop，不是 dead scalar wrapper
+  - 因而当前正确 policy 是：asm-enabled register wiring 下，这 3 个 slot 应继续 backend-owned
+- 本批最小修法因此很集中，也没有扩散到新 testcase：
+  - 把 `SelectF32x8/SelectF64x4/SelectI32x4` 纳入 `KEY_SLOTS_BY_BACKEND['riscvv']`
+  - 同步加入 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['riscvv']`
+  - 直接在现有 `Test_RISCVV_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders` 中补齐这 3 个 slot 的 `AssertRegisterOwnsBackendSlot` 与 runtime ownership 断言
+- 修完后的关键变化不是单纯计数增加，而是三层真相终于对齐：
+  - truthfulness checker 显式知道
+  - key-slot audit 显式知道
+  - dedicated `DispatchAPI` 也显式知道
+  - fresh summary 现为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=35 issues=0 status=ok`，其中 `riscvv` slot 总数从 `22` 提升到 `25`

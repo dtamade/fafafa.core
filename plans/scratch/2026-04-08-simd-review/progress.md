@@ -6065,3 +6065,35 @@
 - 当前阶段结论：
   - 这批把我们刚补上的 `RISCVV` helper-owned ownership truth，正式抬进了 Python 常规门禁
   - 也是这轮里第一次明确验证了新工作法有效：先最小验证，立刻抓漏，再最小补验，不再先跑整轮 `gate`
+
+## 2026-05-16 RISCVV Select Key-Slot Explicit Ownership Coverage
+
+- 继续沿同一条 `RISCVV` ownership 审查线往下切时，先没有再大面积扫 `Extract*`，而是直接核对当前最像真缺口的一簇：
+  - `SelectF32x8`
+  - `SelectF64x4`
+  - `SelectI32x4`
+- 先用现有源码与测试事实收敛判断：
+  - `check_nonx86_register_truthfulness.py` 已明确把这 3 个 slot 归类成合法 `asm-only wrapper-only`
+  - `dispatchapi` dedicated `RISCVV` wide fallback test 里之前只显式钉住了 `SelectF64x4`
+  - `check_nonx86_key_slot_audit.py` 之前完全没把这 3 个 slot 当 key-slot
+- 已完成的最小修复：
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 把 `SelectF32x8/SelectF64x4/SelectI32x4` 纳入 `KEY_SLOTS_BY_BACKEND['riscvv']`
+    - 同步纳入 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['riscvv']`
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 在 `Test_RISCVV_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders` 中补齐这 3 个 slot 的 `AssertRegisterOwnsBackendSlot`
+    - 同时补齐 runtime ownership 断言：asm-compiled 时必须 backend-owned，否则回退 scalar
+- 本批按新工作法执行的最小验证链：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `backend=riscvv ok slots=25`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=35 issues=0 status=ok`
+  - Release `TTestCase_DispatchAPI` 通过
+  - Release `check` 通过
+- 当前阶段结论：
+  - 这批没有改 backend 行为，而是把 `RISCVV Select*` 这 3 个关键位点从“allowlist 隐性知识”提升成了 Python 审计与 dedicated testcase 的显性真相
+  - 收口前仍需清理 `tests/fafafa.core.simd/__pycache__/`，避免把 Python 产物带进提交

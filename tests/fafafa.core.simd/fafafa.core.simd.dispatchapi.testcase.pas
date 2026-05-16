@@ -8979,7 +8979,9 @@ begin
   AssertRegisterKeepsBaseScalar('CmpLeU64x8', 'table.CmpLeU64x8 := @RISCVVCmpLeU64x8;');
   AssertRegisterKeepsBaseScalar('CmpGeU64x8', 'table.CmpGeU64x8 := @RISCVVCmpGeU64x8;');
   AssertRegisterKeepsBaseScalar('CmpNeU64x8', 'table.CmpNeU64x8 := @RISCVVCmpNeU64x8;');
+  AssertRegisterOwnsBackendSlot('SelectF32x8', 'table.SelectF32x8 := @RISCVVSelectF32x8;');
   AssertRegisterOwnsBackendSlot('SelectF64x4', 'table.SelectF64x4 := @RISCVVSelectF64x4;');
+  AssertRegisterOwnsBackendSlot('SelectI32x4', 'table.SelectI32x4 := @RISCVVSelectI32x4;');
   AssertRegisterOwnsBackendSlot('AndNotU8x16', 'table.AndNotU8x16 := @RISCVVAndNotU8x16;');
 
   AssertTrue('Scalar dispatch table should be registered',
@@ -9065,9 +9067,13 @@ begin
   AssertSlotReusesScalar('CmpGeU64x8', Pointer(LScalarTable.CmpGeU64x8), Pointer(LRISCVVTable.CmpGeU64x8));
   AssertSlotReusesScalar('CmpNeU64x8', Pointer(LScalarTable.CmpNeU64x8), Pointer(LRISCVVTable.CmpNeU64x8));
   {$IFDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
+  AssertSlotKeepsBackendOwnership('SelectF32x8', Pointer(LScalarTable.SelectF32x8), Pointer(LRISCVVTable.SelectF32x8));
   AssertSlotKeepsBackendOwnership('SelectF64x4', Pointer(LScalarTable.SelectF64x4), Pointer(LRISCVVTable.SelectF64x4));
+  AssertSlotKeepsBackendOwnership('SelectI32x4', Pointer(LScalarTable.SelectI32x4), Pointer(LRISCVVTable.SelectI32x4));
   {$ELSE}
+  AssertSlotReusesScalar('SelectF32x8', Pointer(LScalarTable.SelectF32x8), Pointer(LRISCVVTable.SelectF32x8));
   AssertSlotReusesScalar('SelectF64x4', Pointer(LScalarTable.SelectF64x4), Pointer(LRISCVVTable.SelectF64x4));
+  AssertSlotReusesScalar('SelectI32x4', Pointer(LScalarTable.SelectI32x4), Pointer(LRISCVVTable.SelectI32x4));
   {$ENDIF}
   AssertSlotKeepsBackendOwnership('AndNotU8x16', Pointer(LScalarTable.AndNotU8x16), Pointer(LRISCVVTable.AndNotU8x16));
 end;
