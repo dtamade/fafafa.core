@@ -4351,3 +4351,17 @@
 | 1. 复核实验测试与文档契约 | completed | 已确认现有 `experimental` 测试只约束 `x86_64` 路径；non-x86 分支没有任何 runtime 语义证据，当前 placeholder body 只会误导 bring-up |
 | 2. 收口 non-x86 runtime 边界 | completed | `intrinsics.sse2` 现已在 initialization 里对 non-x86 experimental 运行期 fail-close，并把源码注释、disposition 与 migration map 同步到“compile scaffolding only” |
 | 3. 最小验证与收口 | completed | `git diff --check`、`check_sse2_structure.py --summary-line`、`tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`、`FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 ... BuildOrTest.sh test` 全部通过 |
+
+## 2026-05-17 AVX Hold-Lane Truth Sync
+
+### Goal
+
+继续沿 experimental intrinsics 的高确定性边界收口 `AVX`：修掉“internal bridge for AVX2-focused tests”的陈旧口径，并禁止 non-x86 experimental runtime 静默执行 placeholder 语义。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核真实 consumer 与验证 lane | completed | 已确认 `intrinsics.avx` 当前没有任何仓库内 consumer，只有 `check_avx_backend_smoke` 与 `experimental-intrinsics` isolation；family matrix 旧行把 lane 写窄了 |
+| 2. 收口源码与文档真相 | completed | `intrinsics.avx` 现已在 initialization 里对 non-x86 experimental 运行期 fail-close；源文件头、disposition 与 family matrix 已同步到“hold family / no current bridge consumer / check_avx_backend_smoke” |
+| 3. 最小验证与收口 | completed | `git diff --check`、关键 `rg` 复核、`tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`、`FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 ... BuildOrTest.sh test` 全部通过 |

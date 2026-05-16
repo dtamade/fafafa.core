@@ -7603,3 +7603,26 @@
   - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
   - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
   - 结果：全部通过；默认拒绝链和 x86 opt-in 实验链都未被误伤
+
+## 2026-05-17 AVX Hold-Lane Truth Sync
+
+- 继续沿 experimental intrinsics 的高确定性边界推进，没有回到 stable adapter 或 Windows closeout。
+- 已复核：
+  - `src/fafafa.core.simd.intrinsics.avx.pas`
+  - `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh`
+  - `docs/SIMD_INTRINSICS_DISPOSITION.md`
+  - `docs/plans/2026-05-09-simd-family-matrix.md`
+  - `docs/plans/2026-05-09-simd-experimental-hold-future-trigger-plan.md`
+- 当前结论：
+  - `intrinsics.avx` 现在没有任何仓库内 bridge consumer，旧源文件头口径已经漂移；
+  - family matrix 当前也把 `AVX` verification lane 写成了 “experimental-intrinsics isolation only”，但实际还存在 `check_avx_backend_smoke`；
+  - 下一步应把源码头注释、non-x86 runtime 边界和 active docs 一起收正。
+- 已完成收口：
+  - `src/fafafa.core.simd.intrinsics.avx.pas` 新增 `EnsureExperimentalAvxTargetSupported`
+  - `AVX` 源文件头已去掉 “internal bridge for AVX2-focused tests” 的陈旧口径
+  - `docs/SIMD_INTRINSICS_DISPOSITION.md` 与 `docs/plans/2026-05-09-simd-family-matrix.md` 已同步到当前 truth
+- 最小验证结果：
+  - `git diff --check`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 结果：全部通过；`check_avx_backend_smoke`、默认拒绝链与 x86 opt-in 实验链都未被误伤

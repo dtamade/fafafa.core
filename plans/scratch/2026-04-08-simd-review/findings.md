@@ -6366,3 +6366,19 @@
 - 因而更正确的收口不是去补全这批 non-x86 placeholder，而是显式 fail-close：
   - compile 可以继续留给结构检查或未来 bring-up；
   - runtime 必须在 initialization 阶段直接拒绝 non-x86 experimental 执行，避免“可编译”被误读成“有语义”。
+
+## 2026-05-17 AVX Hold-Lane Truth Drift
+
+- `src/fafafa.core.simd.intrinsics.avx.pas` 的文件头仍写着 “It remains available as an internal bridge for AVX2-focused tests”，但全仓对 `fafafa.core.simd.intrinsics.avx` 的命中只剩：
+  - `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh` 的 `check_avx_backend_smoke`
+  - 若干 checker / docs / status 脚本
+  - 没有任何实际源码 consumer 或 AVX2 测试桥接依赖。
+- 这说明当前更真实的定位是 hold family 的 isolated opt-in leaf，而不是“仍在被 AVX2-focused tests 消费的内部桥”。
+- 同时它和刚处理过的 `intrinsics.sse2` 有同类风险：
+  - `AVX` 是 x86 ISA；
+  - 但当前 non-x86 若打开 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS`，仍可静默执行 placeholder / Pascal 近似实现；
+  - 仓库没有任何 non-x86 runtime 证据把这条路径定义成有效 contract。
+- 因而这条线的正确修复仍然不是补 placeholder，而是：
+  - 把源文件头从“AVX2-focused bridge”收正为“no current in-repo consumer beyond isolated smoke / opt-in bring-up”
+  - 在 initialization 阶段对 non-x86 experimental runtime fail-close
+  - 同步 `docs/SIMD_INTRINSICS_DISPOSITION.md` 与 `docs/plans/2026-05-09-simd-family-matrix.md`，避免 docs 继续把 `AVX` 说成只有 isolation lane 或隐含 bridge 角色

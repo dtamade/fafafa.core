@@ -24,7 +24,7 @@ uses
   Experimental status (2026-02-17):
   - This unit still contains placeholder implementations for several AVX APIs.
   - It should not be used as a default public entry path.
-  - It remains available as an internal bridge for AVX2-focused tests.
+  - There is no current in-repo consumer beyond isolated smoke / opt-in bring-up.
 }
 
 // === AVX 256-bit 浮点运算 ===
@@ -139,6 +139,18 @@ begin
     'fafafa.core.simd.intrinsics.avx is experimental placeholder semantics. ' +
     'Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt in.'
   );
+  {$ENDIF}
+end;
+
+procedure EnsureExperimentalAvxTargetSupported; inline;
+begin
+  {$IFNDEF CPUX86_64}
+  {$IFNDEF CPUX86}
+  raise ENotSupportedException.Create(
+    'fafafa.core.simd.intrinsics.avx experimental runtime is only qualified on x86/x86_64. ' +
+    'The non-x86 branch remains compile scaffolding, not executable semantics.'
+  );
+  {$ENDIF}
   {$ENDIF}
 end;
 
@@ -616,6 +628,7 @@ procedure avx_zeroall; begin end;
 
 initialization
   EnsureExperimentalIntrinsicsEnabled;
+  EnsureExperimentalAvxTargetSupported;
 
 end.
 
