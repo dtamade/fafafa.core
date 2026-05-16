@@ -6326,3 +6326,13 @@
   - `win-evidence-via-gh SIMD-20260516-152` 被脚本主动拒绝
   - 原因是 `Refuse dispatch: local worktree has uncommitted changes.`
   - 也就是说，下一步不该再盲修 SIMD，而是先把这轮 scratch 更新和 `__pycache__` 生成物清干净、提交，然后重试 GH dispatch
+- 本轮把 hygiene 挡板清掉以后，Windows closeout 的最终根因也已经拿到真实远端证据：
+  - 清理工作树、提交 `731cc0d7`、推送 `origin/main` 之后，`win-evidence-via-gh SIMD-20260516-152` 已成功 dispatch
+  - GitHub Actions run id 为 `25967172435`
+  - 该 run 在 `Prepare Windows SIMD Source` 阶段即失败，Windows 收集 job 未真正启动
+  - 失败注解为：`The job was not started because recent account payments have failed or your spending limit needs to be increased`
+- 这说明当前 freeze-status 的唯一剩余红态已经被定性为外部平台 blocker：
+  - 不是本地 worktree hygiene
+  - 不是 SIMD gate / qemu / runner parity
+  - 不是 `win-evidence-preflight` 自身逻辑
+  - 而是 GitHub Actions billing/runner 配额问题

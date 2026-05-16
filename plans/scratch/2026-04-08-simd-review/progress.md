@@ -7523,3 +7523,23 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-20260516-152`
   - 结果并不是平台拒绝，而是本地脚本 fail-close：`Refuse dispatch: local worktree has uncommitted changes.`
   - 因而当前最真实的下一步已经缩到 repo hygiene：清掉本轮 scratch 改动与 `tests/fafafa.core.simd/__pycache__/`，提交后再重试 GH Windows evidence
+
+- 为了把这个 hygiene 挡板彻底排除：
+  - 已删除 `tests/fafafa.core.simd/__pycache__/`
+  - 已确认 `git diff --check` 通过
+  - 已提交本轮 scratch closeout：`731cc0d7 docs(simd): record closeout audit reset state`
+  - 已推送 `origin/main`，远端 `main` 从 `cf395b0f` 前进到 `731cc0d7`
+- 随后再次执行：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-20260516-152`
+  - 首次重试因为 remote ref 仍落后于本地 `HEAD` 被脚本拒绝；推送后再次重试成功 dispatch
+  - GitHub Actions run id：`25967172435`
+- 这次终于拿到了远端最终结论：
+  - `win-evidence-preflight` 在 dispatch 前仍是 `STATUS=PASS CODE=OK EXIT=0`
+  - 但 run `25967172435` 在 `Prepare Windows SIMD Source` 阶段 4 秒内失败
+  - 注解：`The job was not started because recent account payments have failed or your spending limit needs to be increased`
+  - `Collect Windows B07 Evidence` job 根本没有真正启动
+  - wrapper 最终以 `Billing/runner block detected (exit=31)` 收口
+- 因而本轮 closeout audit 的最终 stop-point 已非常明确：
+  - Linux/QEMU/mainline-required steps 已全部 fresh 变绿
+  - 当前 freeze-status 剩余红项全部来自旧 Windows evidence 还没法被新 run 刷新
+  - 根因不是本地 SIMD 实现、runner parity 或 closeout 方法，而是 GitHub Actions billing/runner 外部阻塞
