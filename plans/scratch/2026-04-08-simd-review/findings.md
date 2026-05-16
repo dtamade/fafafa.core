@@ -6215,3 +6215,18 @@
 - 这继续强化当前准则：
   - 即使测试主题切到 non-x86 backend 可达性筛选和 wide slot 合同，只要 outer `finally` 不承担真实恢复职责，就仍然可以按同一 fail-close 规则剥掉机械空壳
   - `dispatchapi` 当前的高确定性冗余已继续扩展到 non-x86 wide slot 合同簇
+
+## 2026-05-16 NonX86 Runtime Parity Empty Finally Cleanup
+
+- `dispatchapi.testcase` / `TTestCase_NonX86BackendParity` 的 `13343..14054` 说明，空 outer `finally` 与死 `LOldVectorAsm` 还继续分布在 non-x86 runtime parity 合同测试里。
+- 这次确认可安全清理的 3 条方法是：
+  - `TTestCase_NonX86BackendParity.Test_NativeNarrowFloatCoreParity_WithVectorAsm_IfAvailable`
+  - `TTestCase_NonX86BackendParity.Test_NativeNarrowHelperSurfaceParity_WithVectorAsm_IfAvailable`
+  - `TTestCase_NonX86BackendParity.Test_NativeWideLoadAndZeroParity_WithVectorAsm_IfAvailable`
+- 它们的共同边界和前几批保持一致：
+  - 运行期部分只做 `SetVectorAsmEnabled(True)`、筛选 `NEON/RISCVV` backend、可能 `TrySetActiveBackend(...)`、再做 dispatch-table 与 facade parity 断言
+  - outer `finally` 本身完全为空
+  - `LOldVectorAsm := IsVectorAsmEnabled` 只是机械捕获，没有 restore、没有断言、也没有后续读取
+- 这继续强化当前准则：
+  - 即使测试主题切到 non-x86 runtime parity 和 facade parity，只要 outer `finally` 不承担真实恢复职责，就仍然可以按同一 fail-close 规则剥掉机械空壳
+  - `FreeAligned(...)` 这类真实清理仍然必须保留，因此相邻 `memory edge` 测试不在本批范围内

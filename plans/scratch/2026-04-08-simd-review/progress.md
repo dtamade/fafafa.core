@@ -7379,3 +7379,30 @@
 - 当前阶段结论：
   - 这批依旧只是 `dispatchapi` 测试层冗余清理，没有改 SIMD 生产实现
   - `dispatchapi` 当前最值当的下一批入口已进一步后移到 `13343+` 的后续 non-x86 runtime parity 合同区段
+
+## 2026-05-16 NonX86 Runtime Parity Empty Finally Cleanup
+
+- 这一批继续留在 `TTestCase_NonX86BackendParity`，没有切到 `direct`、`runtimeapi` 或生产实现，只把候选区段推进到 `13343..14054` 的 non-x86 runtime parity 合同测试簇。
+- 候选筛选过程：
+  - 逐段读取 `13343..14054`
+  - 确认 3 条 non-x86 runtime parity 测试都带未读取的 `LOldVectorAsm`
+  - 确认这 3 条方法的 outer `finally` 全为空，没有任何 backend/table restore、hook cleanup 或其他真实清理逻辑
+  - 同时确认相邻 `Test_NativeAlignedLoadAndZeroParity_WithVectorAsm_IfAvailable` 和 `Test_NativeWideIntegerMemoryEdgeParity_WithVectorAsm_IfAvailable` 含 `FreeAligned(...)`，不纳入本批
+- 已完成的源码改动：
+  - 文件：`tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+  - 删除 3 个方法中的纯空 outer `try/finally`
+  - 删除 3 个方法中的未使用 `LOldVectorAsm`
+  - 保留所有 dispatch-table / facade parity、slot-native 断言与 `LCheckedBackends` 逻辑不变
+- 这轮额外做的卫生确认：
+  - 再次复读 `13343..14054`，确认现在只剩正常断言流
+  - 轻量后续定位显示，下一个高确定性入口已经后移到 `14056+`，但必须先跳过带 `FreeAligned(...)` 的真实清理测试
+- 本轮验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+- fresh 结果：
+  - `[BUILD] OK`
+  - `[TEST] OK`
+  - `[LEAK] OK`
+- 当前阶段结论：
+  - 这批依旧只是 `dispatchapi` / `TTestCase_NonX86BackendParity` 的测试层冗余清理，没有改 SIMD 生产实现
+  - 下一步应继续沿 `14056+` 往后找，但先跳过含 `FreeAligned(...)` 的真实清理测试，再收同级空壳

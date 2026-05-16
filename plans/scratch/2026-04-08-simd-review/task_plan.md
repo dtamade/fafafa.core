@@ -4240,3 +4240,19 @@
 | 1. 复核 non-x86 wide-slot 合同簇的真实边界 | completed | 已逐段复核 `Test_NonX86_NativeWideFloorCeil_Slots_NotScalar_IfAvailable`、`TTestCase_NonX86BackendParity.Test_NativeWideFloorCeilSlots_NotScalar_IfAvailable`：两条测试都只做 `SetVectorAsmEnabled(True)`、backend 注册可达性筛选、wide slot 合同断言与 `LCheckedBackends` 统计；outer `finally` 完全为空，没有任何 backend/table restore；`LOldVectorAsm` 仅做 `IsVectorAsmEnabled` 捕获且后续无读取 |
 | 2. 只收这一簇高确定性命中 | completed | 已在上述 2 个 non-x86 wide-slot 合同测试中删除纯空 outer `try/finally`，并删除对应未使用的 `LOldVectorAsm`；所有 slot-not-scalar / NEON scalar-reuse 例外断言与 `LCheckedBackends` 逻辑保持不变 |
 | 3. 用单 suite release 复验收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 复验；构建、测试与 leak check 全部通过 |
+
+## 2026-05-16 NonX86 Runtime Parity Empty Finally Cleanup
+
+### Goal
+
+继续沿 non-x86 runtime parity 合同测试推进到 `13343..14054`，只收掉这 3 条测试里的两类确定性冗余：
+- `LOldVectorAsm` 只声明和赋值、但从不读取
+- outer `try/finally` 的 `finally` 体完全为空
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 non-x86 runtime parity 簇的真实边界 | completed | 已逐段复核 `TTestCase_NonX86BackendParity.Test_NativeNarrowFloatCoreParity_WithVectorAsm_IfAvailable`、`TTestCase_NonX86BackendParity.Test_NativeNarrowHelperSurfaceParity_WithVectorAsm_IfAvailable`、`TTestCase_NonX86BackendParity.Test_NativeWideLoadAndZeroParity_WithVectorAsm_IfAvailable`：3 条测试都只做 `SetVectorAsmEnabled(True)`、backend 注册/激活筛选、dispatch-table 与 facade parity 断言，以及 `LCheckedBackends` 统计；outer `finally` 完全为空，没有任何 backend/table restore；`LOldVectorAsm` 仅做 `IsVectorAsmEnabled` 捕获且后续无读取 |
+| 2. 只收这一簇高确定性命中 | completed | 已在上述 3 个 non-x86 runtime parity 测试中删除纯空 outer `try/finally`，并删除对应未使用的 `LOldVectorAsm`；所有 dispatch-table / facade parity、slot-native 断言与 `LCheckedBackends` 逻辑保持不变 |
+| 3. 用单 suite release 复验收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 复验；构建、测试与 leak check 全部通过 |
