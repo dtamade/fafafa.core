@@ -270,8 +270,13 @@ if errorlevel 1 exit /b 1
 call :suite_manifest_check
 if errorlevel 1 exit /b 1
 
-call "%ROOT%buildOrTest.bat" nonx86-optin-list-suites
-if errorlevel 1 exit /b 1
+if /I "%SIMD_CHECK_NONX86_OPTIN%"=="0" (
+  echo [CHECK] SKIP optional non-x86 opt-in suite listing ^(set SIMD_CHECK_NONX86_OPTIN=1 to enable^)
+) else (
+  echo [CHECK] Optional non-x86 opt-in suite listing enabled
+  call "%ROOT%buildOrTest.bat" nonx86-optin-list-suites
+  if errorlevel 1 exit /b 1
+)
 
 call :run_backend_ops_internal
 if errorlevel 1 exit /b 1

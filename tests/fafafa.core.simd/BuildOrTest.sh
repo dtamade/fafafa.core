@@ -6625,12 +6625,17 @@ case "${ACTION}" in
     check_freeze_status_output_isolation
     check_cpuinfo_runner_parity
     run_windows_cpuinfo_x86_batch_build_success_criteria_smoke
-  run_register_include_check
+    run_register_include_check
     run_source_reachability_check
     run_dispatch_read_scope
     run_sse2_structure_check
     run_suite_manifest_check
-    run_nonx86_optin_list_suites
+    if [[ "${SIMD_CHECK_NONX86_OPTIN:-1}" != "0" ]]; then
+      echo "[CHECK] Optional non-x86 opt-in suite listing enabled"
+      run_nonx86_optin_list_suites
+    else
+      echo "[CHECK] SKIP optional non-x86 opt-in suite listing (set SIMD_CHECK_NONX86_OPTIN=1 to enable)"
+    fi
     run_backend_ops_smoke
     run_simd_boundary_smoke
     run_public_smoke

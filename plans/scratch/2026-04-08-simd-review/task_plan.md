@@ -3772,3 +3772,17 @@
 | 1. 复核当前结构冗余是否真实存在 | completed | 已确认同一批 slot 名字同时散落在 `KEY_SLOTS_BY_BACKEND`、`REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS` 与局部 backend 例外里；尤其是 `NEON` 36 个 wide compare、`RISCVV` 9 个 extract、12 个 helper-owned slot 都已出现“同一真相多处手填”的形态 |
 | 2. 抽出共享 slot 簇并让门禁常量复用 | completed | 已在脚本顶部提炼 `NEON_*` / `RISCVV_*` 共享 tuple 簇，并让 `KEY_SLOTS_BY_BACKEND`、`REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS`、`ALLOWED_BACKEND_OWNED_NO_ASM_SCALAR_WRAPPER_SLOTS_BY_BACKEND` 复用同一真源，保持计数与语义不变 |
 | 3. 按 checker 批次最小链复验并收口 | completed | 已跑 `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`、`python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --summary-line`、Release `check`；summary 继续保持 `backend=neon ok slots=65`、`backend=riscvv ok slots=36`、`NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=101 issues=0 status=ok`，说明本批只做结构去冗余，没有改变审计语义 |
+
+## 2026-05-16 Check Optional Non-x86 Opt-In Listing
+
+### Goal
+
+把 `tests/fafafa.core.simd/BuildOrTest.sh check` 与 `tests/fafafa.core.simd/buildOrTest.bat check` 里的 `nonx86 opt-in list-suites` 阶段收成可显式跳过的 optional 检查，保留默认行为不变，但让纯 checker / Python 审查批次能避免额外非必要构建。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `check` 的重路径是否已有开关 | completed | 已确认 `BuildOrTest.sh check` / `buildOrTest.bat check` 当前都无 `nonx86 opt-in list-suites` 跳过开关；`wiring-sync` 与 `experimental` 有 env 开关，但 non-x86 opt-in 没有，因此纯 Python 审查也会被额外拖进 `neon/riscvv` opt-in 构建 |
+| 2. 为 shell/batch `check` 对齐 optional 开关 | completed | 已为 shell 与 batch 都新增 `SIMD_CHECK_NONX86_OPTIN` 分支：默认未设时继续执行 `nonx86-optin-list-suites`，设为 `0` 时明确跳过并输出原因 |
+| 3. 按脚本批次最小链复验并收口 | completed | 已跑 `git diff --check`、`bash -n tests/fafafa.core.simd/BuildOrTest.sh`、`FAFAFA_BUILD_MODE=Release SIMD_CHECK_NONX86_OPTIN=0 bash tests/fafafa.core.simd/BuildOrTest.sh check`；日志已明确出现 `[CHECK] SKIP optional non-x86 opt-in suite listing`，且整条 Release `check` 继续通过。Windows 批处理本轮只做静态对照，未在本机执行 |

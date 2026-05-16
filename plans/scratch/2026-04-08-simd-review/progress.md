@@ -6410,3 +6410,35 @@
 - 当前阶段结论：
   - 这批确认只是 checker 结构去冗余，没有改动任何 non-x86 ownership 语义
   - 下一轮再继续审查时，可以优先找新的真实缺口，而不是在这份脚本里继续手工同步同一批 slot 名字
+
+## 2026-05-16 Check Optional Non-x86 Opt-In Listing
+
+- 收完 `03caabc6 test(simd): dedupe nonx86 key-slot clusters` 后，我先没有回头继续扫 slot，而是专门查了 `check` 为什么在纯 Python 审查批次里仍然偏重：
+  - `sed -n '6580,6715p' tests/fafafa.core.simd/BuildOrTest.sh`
+  - `sed -n '250,330p' tests/fafafa.core.simd/buildOrTest.bat`
+- 读出来的真实问题很直接：
+  - shell 与 batch 的 `check` 都无条件执行 `nonx86-optin-list-suites`
+  - 但同一段里 `wiring-sync` / `experimental` 已经有现成 optional env 分支
+  - 这让纯 checker / Python / scratch 批次也会被强行拖进 `neon/riscvv` opt-in 构建
+- 本批已完成的最小修复：
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - 给 `run_nonx86_optin_list_suites` 增加 `SIMD_CHECK_NONX86_OPTIN` 开关
+    - 默认未设时继续执行，设为 `0` 时显式跳过并输出提示
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+    - 同步加入相同语义的 `%SIMD_CHECK_NONX86_OPTIN%` 分支
+- 这批的目标不是减少默认覆盖面，而是把“窄批次可以显式跳过重路径”这件事编码进脚本：
+  - 默认行为不变
+  - 但后续若只改 Python checker，就不必总为 `nonx86 opt-in list-suites` 付费
+- 本批 fresh 验证链已完成：
+  - `git diff --check`
+  - `bash -n tests/fafafa.core.simd/BuildOrTest.sh`
+  - `FAFAFA_BUILD_MODE=Release SIMD_CHECK_NONX86_OPTIN=0 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - 辅助环境探测：`command -v cmd.exe || command -v wine || command -v pwsh || command -v powershell`
+- fresh 结果：
+  - shell 脚本语法检查通过
+  - Release `check` 明确输出 `[CHECK] SKIP optional non-x86 opt-in suite listing (set SIMD_CHECK_NONX86_OPTIN=1 to enable)`
+  - 同一条 Release `check` 最终通过
+  - 本机存在 `/usr/bin/wine`，但本轮未实际执行 Windows `buildOrTest.bat check`，因此 batch 侧验证仍是静态对照而非运行时实证
+- 当前阶段结论：
+  - 这批把纯审查批次的一个真实重路径收成了 optional lane
+  - 默认覆盖面没变，但以后做 Python/checker 小批次时可以显式跳过这段 non-x86 opt-in 构建

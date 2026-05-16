@@ -5443,3 +5443,31 @@
   - `backend=riscvv ok slots=36`
   - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=101 issues=0 status=ok`
   - Release `check` 继续通过
+
+## 2026-05-16 Check Optional Non-x86 Opt-In Listing Findings
+
+- 继续做 completion audit 时，当前最真实的新问题不在 SIMD backend 语义，而在审查工具本身的重路径：
+  - `tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `tests/fafafa.core.simd/buildOrTest.bat check`
+  - 都会无条件执行 `nonx86-optin-list-suites`
+- 这和当前工作方式已经开始冲突：
+  - 很多批次只改 Python checker / scratch / docs
+  - 但 `check` 仍会额外触发 `neon` 与 `riscvv` 的 opt-in 构建与 `--list-suites`
+  - 导致“验证目标很窄、构建代价却偏大”
+- 更关键的是，这一步和 `wiring-sync` / `experimental isolation` 不同，之前没有现成开关：
+  - 现有脚本只给了 `SIMD_CHECK_WIRING_SYNC`
+  - 以及 `SIMD_CHECK_EXPERIMENTAL`
+  - `nonx86 opt-in list-suites` 没有对应的显式 skip knob
+- 因而本批最正确的修法不是删掉这条检查，而是把它降成可显式跳过的 optional lane：
+  - 默认值保持开启，避免日常 `check` 的覆盖面无声缩水
+  - 当批次只涉及 Python/checker/文档时，可用 `SIMD_CHECK_NONX86_OPTIN=0` 跳过
+  - shell 与 batch 入口都要同步，不然会形成平台行为分叉
+- 这批收益主要体现在工作流效率，而不是 backend 行为变化：
+  - 它不会改变 SIMD 语义
+  - 但能减少后续继续深审时不必要的 non-x86 opt-in 构建成本
+  - 也让“默认全查”与“窄批跳过”之间的边界变得明确可控
+- fresh 验证已经证明新开关是活的，而不是死配置：
+  - `bash -n tests/fafafa.core.simd/BuildOrTest.sh`
+  - `FAFAFA_BUILD_MODE=Release SIMD_CHECK_NONX86_OPTIN=0 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - 日志中明确出现 `[CHECK] SKIP optional non-x86 opt-in suite listing (set SIMD_CHECK_NONX86_OPTIN=1 to enable)`
+  - 同一条 Release `check` 其余门禁继续通过，说明这是“可控缩窄验证成本”，不是误删覆盖
