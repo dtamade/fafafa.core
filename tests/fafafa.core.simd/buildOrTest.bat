@@ -78,7 +78,10 @@ if /I "%ACTION%"=="impl-smoke-sse2" goto :impl_smoke_sse2
 if /I "%ACTION%"=="impl-smoke-x86" goto :impl_smoke_x86
 if /I "%ACTION%"=="impl-smoke-nonx86" goto :impl_smoke_nonx86
 if /I "%ACTION%"=="impl-audit-nonx86" goto :impl_audit_nonx86
+if /I "%ACTION%"=="helper-semantics" goto :helper_semantics
 if /I "%ACTION%"=="key-slot-audit" goto :key_slot_audit
+if /I "%ACTION%"=="riscvv-abi-shape" goto :riscvv_abi_shape
+if /I "%ACTION%"=="source-reachability" goto :source_reachability
 if /I "%ACTION%"=="closeout-host-local" goto :closeout_host_local
 if /I "%ACTION%"=="import-nonx86-native-evidence" goto :import_nonx86_native_evidence
 if /I "%ACTION%"=="closeout-host-local-from-import" goto :closeout_host_local_from_import
@@ -155,7 +158,7 @@ if /I "%ACTION%"=="finalize-win-evidence" goto :finalize_win_evidence
 if /I "%ACTION%"=="win-closeout-3cmd" goto :win_closeout_3cmd
 if /I "%ACTION%"=="win-closeout-finalize" goto :win_closeout_finalize
 
-echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|key-slot-audit^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]
+echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|key-slot-audit^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]
 echo   Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks.
 echo   gate/gate-strict PASS is not blanket release-grade approval for every experimental path.
 echo   gate         Fast/base gate for routine SIMD changes
@@ -167,7 +170,10 @@ echo   impl-smoke-sse2  Targeted SSE2 structure + contract/backend/runtime/datap
 echo   impl-smoke-x86  Lightweight bounded x86 implementation smoke via DispatchAPI frontier proofs
 echo   impl-smoke-nonx86  Lightweight daily non-x86 implementation smoke
 echo   impl-audit-nonx86  Aggregate implementation-side non-x86 audit
+echo   helper-semantics  Run the non-x86 helper semantics Python audit only
 echo   key-slot-audit  Audit key non-x86 wide slots against backend-owned/base-scalar expectations
+echo   riscvv-abi-shape  Run the RISCVV ABI-shape Python audit only
+echo   source-reachability  Run the SIMD source reachability Python audit only
 echo   closeout-host-local  Host-local strict closeout ^(non-x86 native evidence fail-close, windows evidence optional^)
 echo Suggested flow: check -^> targeted suites -^> gate; use gate-strict before release/closeout.
 echo QEMU env: SIMD_QEMU_BUILD_POLICY=always^|if-missing^|skip ^(default: if-missing^)
@@ -176,6 +182,18 @@ echo Build env: SIMD_ENABLE_NEON_BACKEND=1 ^(compile NEON backend into the test 
 echo Build env: SIMD_ENABLE_RISCVV_BACKEND=1 ^(compile RISCV-V backend into the test binary for opt-in verification/fallback coverage^)
 echo Build env: SIMD_ENABLE_AVX512_BACKEND=1 ^(compile AVX-512 backend into the test binary for opt-in verification^)
 exit /b 2
+
+:helper_semantics
+call :nonx86_helper_semantics_check
+exit /b %ERRORLEVEL%
+
+:riscvv_abi_shape
+call :riscvv_abi_shape_check
+exit /b %ERRORLEVEL%
+
+:source_reachability
+call :source_reachability_check
+exit /b %ERRORLEVEL%
 
 :clean
 echo [CLEAN] Removing %BIN_DIR%, %LIB_DIR%, %LOG_DIR%

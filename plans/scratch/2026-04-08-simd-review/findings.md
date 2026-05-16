@@ -5506,3 +5506,42 @@
   - 我们已经证明 shell 主门禁会守住新补的 batch 路径
   - 但还没有 Windows 实机直接执行 `buildOrTest.bat check` 的 fresh 运行时证据
   - 所以当前最准确的说法是：source-safe parity 已补齐，Windows runtime 证据仍待后续补实
+
+## 2026-05-16 Targeted Python Audit Actions Exposure Findings
+
+- 在把 batch `check` 漏跑面补齐之后，下一个真实低效点就暴露出来了：
+  - `helper-semantics`
+  - `source-reachability`
+  - `riscvv-abi-shape`
+  - 这 3 条都已经是成熟的独立 Python 审查，但此前只能作为 `check` 内部步骤存在
+- 这会直接拖慢后续继续深审的节奏：
+  - 明明只是想验证一条 Python 审查
+  - 但没有公开 action，就只能再绕回整条 `check`
+  - 最终把“验证范围很窄”和“执行成本很高”绑死在一起
+- 因而这批最值钱的改法不是再补 checker 本体，而是把 runner 的操作面收正：
+  - shell 公开 case 要补齐
+  - batch 顶部 dispatch / usage / help 要同步补齐
+  - `check_windows_runner_parity()` 还要把这些 action 名字纳入 required pattern，避免刚公开完又被未来改动悄悄删回去
+- 这批中途也抓到一个很典型的 drift 证据：
+  - 首轮只改 shell/batch action 表后，`Release check` 并没有红在功能上
+  - 它直接红在 `check_windows_runner_parity()` 里仍匹配旧 usage 字符串
+  - 说明 runner 现在的真实风险已经不只是“功能缺失”，而是“护栏自身也会滞后于 action 表”
+- 这也解释了为什么工作方式必须收窄成小闭环：
+  - 先做 action 暴露
+  - 立即跑 targeted action
+  - 再跑一条 `check` 把 parity guard 逼出来
+  - 出现旧签名漂移后当场收正
+  - 这样比一上来继续大范围扫 SIMD family 更容易快速产出确定性结果
+- fresh 证据已经表明这批修复是真闭环，而不是只补帮助文本：
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh helper-semantics`
+    - `NONX86_HELPER_SEMANTICS_SUMMARY checks=643 status=ok`
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh source-reachability`
+    - `SIMD_SOURCE_REACHABILITY_SUMMARY tracked_includes=84 reachable_includes=83 allowed_unreachable=1 unexpected_unreachable=0 missing_include_refs=0`
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh riscvv-abi-shape`
+    - `RISCVV_ABI_SHAPE_SUMMARY direct_functions=121 explicit_checks=10 missing_result_store=0 suspicious_a0_loads=0 status=ok`
+  - `FAFAFA_BUILD_MODE=Release SIMD_CHECK_NONX86_OPTIN=0 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - `[CHECK] OK (windows runner parity signatures present)`
+    - 三条 Python 审查继续在主门禁下通过
+- 当前最准确的阶段结论：
+  - 这批修的不是 SIMD 算法语义，而是 runner 操作面和 parity 护栏的真实漂移
+  - 收完以后，后续继续深审 non-x86 Python 审查时终于可以按单条 action 快速执行，而不必默认重跑整条 `check`

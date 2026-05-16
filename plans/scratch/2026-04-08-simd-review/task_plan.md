@@ -3800,3 +3800,17 @@
 | 1. 复核 batch `check` 与 shell `check` 的真实差异 | completed | 已确认 shell `check` 默认会跑 `run_nonx86_helper_semantics_check`、`run_nonx86_key_slot_audit_check`、`run_riscvv_abi_shape_check`、`run_source_reachability_check`；而 batch `check` 之前只跑到 `register_include/dispatch_read_scope/sse2_structure/suite_manifest`，这 4 条 non-x86 审查都掉线了 |
 | 2. 在 batch runner 补齐最小原生 Python 入口并接回 `check` | completed | 已在 `tests/fafafa.core.simd/buildOrTest.bat` 新增 `:nonx86_helper_semantics_check`、`:key_slot_audit_check_internal`、`:riscvv_abi_shape_check`、`:source_reachability_check` 四个原生 Python 入口，并把它们接回 `check` 主线；同时在 `BuildOrTest.sh` 的 Windows runner parity guard 中增加对应 source-safe pattern，防止以后再次掉线 |
 | 3. 按 shell 主门禁做 source-safe 复验并收口 | completed | 已跑 `git diff --check`、`bash -n tests/fafafa.core.simd/BuildOrTest.sh`、`FAFAFA_BUILD_MODE=Release SIMD_CHECK_NONX86_OPTIN=0 bash tests/fafafa.core.simd/BuildOrTest.sh check`；日志显示 `windows runner parity signatures present`、`Python checker runtime guard present`，且 `helper-semantics / key-slot-audit / riscvv-abi / source-reachability` 都继续通过。Windows batch 本轮仍未做实机运行，只能算静态对齐已收口 |
+
+## 2026-05-16 Targeted Python Audit Actions Exposure
+
+### Goal
+
+把 `helper-semantics`、`source-reachability`、`riscvv-abi-shape` 从“只挂在 `check` 主线内部”的状态提升成可直接调用的公开 action，减少后续纯 Python 审查批次为整条 `check` 付费的次数，同时保持 shell/batch usage 和 parity guard 一致。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前 runner 真实缺口 | completed | 已确认 `BuildOrTest.sh` 只有内部函数没有公开 case；`buildOrTest.bat` 只有内部 label 没有顶部 dispatch / usage 暴露；这导致后续要跑单条 Python 审查时只能借道整条 `check` |
+| 2. 暴露 shell/batch 公开 action，并补齐 parity 真相源 | completed | 已在 shell case/usage 中新增 `helper-semantics`、`source-reachability`、`riscvv-abi-shape`；已在 batch 顶部 dispatch、usage/help 中同步公开这 3 个 action，并补 `check_windows_runner_parity()` 的 required pattern，避免 shell/batch action 表再次漂移 |
+| 3. 串行最小验证并收口 | completed | 已串行跑 `git diff --check`、`bash -n tests/fafafa.core.simd/BuildOrTest.sh`、`bash tests/fafafa.core.simd/BuildOrTest.sh helper-semantics`、`bash tests/fafafa.core.simd/BuildOrTest.sh source-reachability`、`bash tests/fafafa.core.simd/BuildOrTest.sh riscvv-abi-shape`、`FAFAFA_BUILD_MODE=Release SIMD_CHECK_NONX86_OPTIN=0 bash tests/fafafa.core.simd/BuildOrTest.sh check`；全部通过。Windows batch 本轮仍是 source-safe 对齐，未做实机运行 |

@@ -6481,3 +6481,57 @@
   - 这批把 Windows `check` 的一个真实 non-x86 审查漏看面补回来了
   - 现在 Linux 主链至少会守住 batch 侧这 4 条路径不再悄悄掉线
   - 仍待后续补的是 Windows 实机运行时证据，而不是源码或 source-safe parity 本身
+
+## 2026-05-16 Targeted Python Audit Actions Exposure
+
+- 这批我主动把方法收窄成一个小闭环，只处理 runner 操作面：
+  - 先 `git status --short --branch` 确认工作树干净，分支为 `main...origin/main [ahead 223]`
+  - 再只读核对 `BuildOrTest.sh` / `buildOrTest.bat` / scratch 当前状态
+  - 目标不再是“继续泛化深审”，而是把 3 个已经成熟的 Python 审查暴露成直接 action
+- 读出来的真实缺口：
+  - `BuildOrTest.sh` 里有：
+    - `run_nonx86_helper_semantics_check`
+    - `run_source_reachability_check`
+    - `run_riscvv_abi_shape_check`
+  - 但没有对应公开 case
+  - `buildOrTest.bat` 虽然已有内部 label，但没有顶部 dispatch / usage 暴露
+  - 这导致后续要跑单条 Python 审查时，仍常常被迫绕回整条 `check`
+- 本批已完成的代码修改：
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - 新增公开 action：
+      - `helper-semantics`
+      - `source-reachability`
+      - `riscvv-abi-shape`
+    - usage/help 同步补齐
+    - `check_windows_runner_parity()` 的 required pattern 同步更新，纳入新 action 与新 usage
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+    - 顶部 dispatch 新增：
+      - `helper-semantics`
+      - `source-reachability`
+      - `riscvv-abi-shape`
+    - 新增公开 label：
+      - `:helper_semantics`
+      - `:source_reachability`
+      - `:riscvv_abi_shape`
+    - usage/help 同步补齐
+- 本批中途唯一一次真实返工也已被收住：
+  - 首轮跑 `Release check` 时，直接抓到 `check_windows_runner_parity()` 还在匹配旧 usage 行
+  - 我没有继续扩散排查，而是只补这条 parity required pattern，再重跑
+  - 第二轮 `Release check` 恢复全绿，说明这次返工是 runner guard 自身滞后，不是功能设计问题
+- 本批 fresh 验证链：
+  - `git diff --check`
+  - `bash -n tests/fafafa.core.simd/BuildOrTest.sh`
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh helper-semantics`
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh source-reachability`
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh riscvv-abi-shape`
+  - `FAFAFA_BUILD_MODE=Release SIMD_CHECK_NONX86_OPTIN=0 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `find tests/fafafa.core.simd -type d -name __pycache__ -print`
+  - `rm -rf tests/fafafa.core.simd/__pycache__`
+- fresh 结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=643 status=ok`
+  - `SIMD_SOURCE_REACHABILITY_SUMMARY tracked_includes=84 reachable_includes=83 allowed_unreachable=1 unexpected_unreachable=0 missing_include_refs=0`
+  - `RISCVV_ABI_SHAPE_SUMMARY direct_functions=121 explicit_checks=10 missing_result_store=0 suspicious_a0_loads=0 status=ok`
+  - `Release check` 通过，并恢复 `windows runner parity signatures present`
+- 当前阶段结论：
+  - 这批把后续继续深审时最常见的一类低效路径收成了单条 action
+  - 以后继续审 non-x86 Python checker 时，可以先直接跑目标 action，再按需决定是否补一条整链 `check`

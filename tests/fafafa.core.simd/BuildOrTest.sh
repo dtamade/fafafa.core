@@ -999,7 +999,10 @@ check_windows_runner_parity() {
     'if /I "%ACTION%"=="win-closeout-3cmd" goto :win_closeout_3cmd'
     'if /I "%ACTION%"=="win-closeout-finalize" goto :win_closeout_finalize'
     'if /I "%ACTION%"=="impl-smoke-x86" goto :impl_smoke_x86'
+    'if /I "%ACTION%"=="helper-semantics" goto :helper_semantics'
     'set "NORMALIZED_TEST_ARGS=!NORMALIZED_TEST_ARGS! %1"'
+    'if /I "%ACTION%"=="riscvv-abi-shape" goto :riscvv_abi_shape'
+    'if /I "%ACTION%"=="source-reachability" goto :source_reachability'
     'if /I "%ACTION%"=="wiring-sync" goto :wiring_sync'
     'if /I "%ACTION%"=="gate-summary" goto :gate_summary'
     'if /I "%ACTION%"=="gate-summary-sample" goto :gate_summary_sample'
@@ -1007,7 +1010,7 @@ check_windows_runner_parity() {
     'if /I "%ACTION%"=="gate-summary-inject" goto :gate_summary_inject'
     'if /I "%ACTION%"=="gate-summary-rollback" goto :gate_summary_rollback'
     'if /I "%ACTION%"=="gate-summary-backups" goto :gate_summary_backups'
-    'echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|key-slot-audit^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]'
+    'echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|key-slot-audit^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]'
     'echo   closeout-release  Canonical release closeout entry ^(delegates to shell runner^)'
     'echo [IMPL-SMOKE-X86] Running: bash %ROOT%BuildOrTest.sh impl-smoke-x86 %NORMALIZED_TEST_ARGS%'
     'findstr /r /c:"src\fafafa\.core\.simd\..*Warning:" /c:"src\fafafa\.core\.simd\..*Hint:" "%BUILD_LOG%" | findstr /v /c:"src\fafafa.core.simd.intrinsics.avx2.pas" >nul 2>nul'
@@ -1015,11 +1018,13 @@ check_windows_runner_parity() {
     ':nonx86_helper_semantics_check'
     'set "HELPER_SEMANTICS_SCRIPT=%ROOT%check_nonx86_helper_semantics.py"'
     'echo [HELPER-SEMANTICS] FAILED (python runtime not found; tried py and python)'
+    ':helper_semantics'
     'call :key_slot_audit_check_internal'
     ':key_slot_audit_check_internal'
     'set "KEY_SLOT_AUDIT_SCRIPT=%ROOT%check_nonx86_key_slot_audit.py"'
     'echo [KEY-SLOT-AUDIT] FAILED (python runtime not found; tried py and python)'
     'call :riscvv_abi_shape_check'
+    ':riscvv_abi_shape'
     ':riscvv_abi_shape_check'
     'set "RISCVV_ABI_SHAPE_SCRIPT=%ROOT%check_riscvv_abi_shape.py"'
     'echo [RISCVV-ABI] FAILED (python runtime not found; tried py and python)'
@@ -1028,6 +1033,7 @@ check_windows_runner_parity() {
     'set "REGISTER_INCLUDE_SCRIPT=%ROOT%check_backend_register_include_consistency.py"'
     'echo [REGISTER-INCLUDE] FAILED (python runtime not found; tried py and python)'
     'call :source_reachability_check'
+    ':source_reachability'
     ':source_reachability_check'
     'set "SOURCE_REACHABILITY_SCRIPT=%ROOT%check_simd_source_reachability.py"'
     'echo [SOURCE-REACHABILITY] FAILED (python runtime not found; tried py and python)'
@@ -6831,8 +6837,17 @@ case "${ACTION}" in
   experimental-intrinsics-tests)
     run_experimental_intrinsics_tests
     ;;
+  helper-semantics)
+    run_nonx86_helper_semantics_check
+    ;;
   key-slot-audit)
     run_nonx86_key_slot_audit_check
+    ;;
+  riscvv-abi-shape)
+    run_riscvv_abi_shape_check
+    ;;
+  source-reachability)
+    run_source_reachability_check
     ;;
   wiring-sync)
     run_wiring_sync
@@ -6889,7 +6904,7 @@ case "${ACTION}" in
     run_freeze_status_rehearsal "$@"
     ;;
   *)
-    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|closeout-release|sse2-structure-check|sse2-contracts|impl-smoke-sse2|impl-smoke-x86|impl-smoke-nonx86|impl-audit-nonx86|key-slot-audit|closeout-host-local|import-nonx86-native-evidence|closeout-host-local-from-import|interface-completeness|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|verify-nonx86-native-evidence|restore-nightly-evidence|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
+    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|closeout-release|sse2-structure-check|sse2-contracts|impl-smoke-sse2|impl-smoke-x86|impl-smoke-nonx86|impl-audit-nonx86|helper-semantics|key-slot-audit|riscvv-abi-shape|source-reachability|closeout-host-local|import-nonx86-native-evidence|closeout-host-local-from-import|interface-completeness|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|verify-nonx86-native-evidence|restore-nightly-evidence|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
     echo "  Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks."
     echo "  gate/gate-strict PASS is not blanket release-grade approval for every experimental path."
     echo "  gate         Fast/base gate for routine SIMD changes"
@@ -6901,7 +6916,10 @@ case "${ACTION}" in
     echo "  impl-smoke-x86  Lightweight bounded x86 implementation smoke via DispatchAPI frontier proofs"
     echo "  impl-smoke-nonx86  Lightweight daily non-x86 implementation smoke"
     echo "  impl-audit-nonx86  Aggregate implementation-side non-x86 audit"
+    echo "  helper-semantics  Run the non-x86 helper semantics Python audit only"
     echo "  key-slot-audit  Audit non-x86 key wide slots for implementation ownership"
+    echo "  riscvv-abi-shape  Run the RISCVV ABI-shape Python audit only"
+    echo "  source-reachability  Run the SIMD source reachability Python audit only"
     echo "  closeout-host-local  Host-local strict closeout (non-x86 native evidence fail-close, windows evidence optional)"
     echo "  import-nonx86-native-evidence  Import external arm64/riscv64 native evidence into fixtures/ and verify it"
     echo "  closeout-host-local-from-import  Import external arm64/riscv64 native evidence, verify it, then run host-local strict closeout"
