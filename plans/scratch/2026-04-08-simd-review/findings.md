@@ -5969,3 +5969,20 @@
 - 当前最重要的审查边界进一步收紧为：
   - 可以继续收：外层 `finally` 为空，且真实 restore 由内层 `finally` 或基类 `TearDown` 承担
   - 不能机械收：外层 `finally` 还承担 `if ...Captured then RegisterBackend(...)` 之类的条件 restore
+
+## 2026-05-16 PublicAbi Remaining Dead VectorAsm Capture Cleanup
+
+- 当前 `publicabi.testcase` 在清完纯空 `finally` 后，剩余最高确定性的冗余已经进一步收敛成：`LOldVectorAsm := IsVectorAsmEnabled` 的死状态捕获。
+- 这轮用 `rg -n "LOldVectorAsm"` 复核后，当前文件剩余 9 组命中都满足同一个事实：
+  - 只有局部变量声明
+  - 只有一次 `IsVectorAsmEnabled` 赋值
+  - 文件内没有任何对应读取
+- 这 9 个方法之所以前一轮没有一起删，不是因为变量还有语义，而是因为它们的 outer `finally` 仍承担真实 restore：
+  - `if LRequestedTableCaptured then RegisterBackend(...)`
+  - `if LPreviousTableCaptured then RegisterBackend(...)`
+  - 或 rollback higher-priority backend 的恢复
+- 因此这轮新的安全边界是：
+  - 只删 `LOldVectorAsm` 这个死变量
+  - 不动这些方法现有的 inner/outer `finally`
+  - 不再把“有 restore 的 finally”误当成“空壳 cleanup”
+- fresh 复核后，`publicabi.testcase` 里已经没有任何 `LOldVectorAsm` 残留；这说明同一条“无读取状态捕获”冗余线在当前文件里也已收干净。

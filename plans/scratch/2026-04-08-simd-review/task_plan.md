@@ -4038,3 +4038,17 @@
 | 1. 复核最后 4 个目标方法的真实边界 | completed | 已确认 `CachedTable_RemainsCallable_Across_Rebind` 与 `CachedTable_Preserves_PreviousSnapshot_Metadata_Across_Rebind` 只是纯空 outer `try/finally`；`BackendPodInfo_Refreshes_WhenBackendBecomesNonDispatchable` 与 `RollbackRestore_ReSelects_RequestedBackend_Before_Return` 的真实 restore 仍分别由内层 `RegisterBackend(...)` / hook cleanup `finally` 承担 |
 | 2. 修正半删状态并完成剩余 cleanup | completed | 已删除前两处纯空 outer `try/finally`；并把后两处误留下的孤立 outer `try` 一并去掉，顺手删除 `RollbackRestore_ReSelects_RequestedBackend_Before_Return` 中未使用的 `LOldVectorAsm` |
 | 3. 用单 suite release 复验收口 | completed | 已跑 `git diff --check`，并用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi` 复验；构建、测试与 leak check 全部通过 |
+
+## 2026-05-16 PublicAbi Remaining Dead VectorAsm Capture Cleanup
+
+### Goal
+
+继续留在 `publicabi.testcase` 同一条高确定性收口线上，但这次不再碰任何 `finally` 结构，只清掉剩余 9 个“声明 + 赋值但从不读取”的 `LOldVectorAsm` 死变量。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核剩余 `LOldVectorAsm` 是否全部为死变量 | completed | 已用 `rg -n "LOldVectorAsm"` 复核当前文件只剩 9 组“声明 + `IsVectorAsmEnabled` 赋值”，没有任何读取；这些方法的 outer `finally` 仍承担条件 `RegisterBackend(...)` restore，因此本批明确只删变量不动 restore 结构 |
+| 2. 删除剩余 9 个死变量捕获 | completed | 已在失败 hook、rollback restore、late-force、RegisterBackend previous-forced preserve 等 9 个 `publicabi` 方法中删除 `LOldVectorAsm` 局部变量与赋值，不改其 inner/outer `finally` 逻辑 |
+| 3. 用同一条最小 release 验证链收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi` 验证；构建、测试与 leak check 全部通过 |

@@ -2246,11 +2246,9 @@ var
   LRequestedBackend: TSimdBackend;
   LDispatchable: TSimdBackendArray;
   LOriginalTable: TSimdDispatchTable;
-  LOldVectorAsm: Boolean;
   LRequestedTableCaptured: Boolean;
   LIndex: Integer;
 begin
-  LOldVectorAsm := IsVectorAsmEnabled;
   LRequestedTableCaptured := False;
   try
     SetVectorAsmEnabled(True);
@@ -2366,12 +2364,10 @@ var
   LPreviousForcedBackend: TSimdBackend;
   LRequestedBackend: TSimdBackend;
   LRequestedOriginalTable: TSimdDispatchTable;
-  LOldVectorAsm: Boolean;
   LRequestedTableCaptured: Boolean;
   LSelectedCount: Integer;
   LIndex: Integer;
 begin
-  LOldVectorAsm := IsVectorAsmEnabled;
   LRequestedTableCaptured := False;
   try
     SetVectorAsmEnabled(True);
@@ -2493,11 +2489,9 @@ var
   LAutomaticBackend: TSimdBackend;
   LRequestedBackend: TSimdBackend;
   LBackend: TSimdBackend;
-  LOldVectorAsm: Boolean;
   LTargetTableCaptured: Boolean;
   LIndex: Integer;
 begin
-  LOldVectorAsm := IsVectorAsmEnabled;
   LTargetTableCaptured := False;
   GPublicAbiHookRollbackForceSuccessHigherCount := 0;
   GPublicAbiHookRollbackForceSuccessTarget := sbScalar;
@@ -2598,12 +2592,10 @@ var
   LPreviousForcedBackend: TSimdBackend;
   LRequestedBackend: TSimdBackend;
   LRequestedOriginalTable: TSimdDispatchTable;
-  LOldVectorAsm: Boolean;
   LRequestedTableCaptured: Boolean;
   LSelectedCount: Integer;
   LIndex: Integer;
 begin
-  LOldVectorAsm := IsVectorAsmEnabled;
   LRequestedTableCaptured := False;
   try
     SetVectorAsmEnabled(True);
@@ -2681,11 +2673,9 @@ var
   LRequestedBackend: TSimdBackend;
   LDispatchable: TSimdBackendArray;
   LOriginalTable: TSimdDispatchTable;
-  LOldVectorAsm: Boolean;
   LRequestedTableCaptured: Boolean;
   LIndex: Integer;
 begin
-  LOldVectorAsm := IsVectorAsmEnabled;
   LRequestedTableCaptured := False;
   try
     SetVectorAsmEnabled(True);
@@ -2761,11 +2751,9 @@ var
   LRequestedBackend: TSimdBackend;
   LDispatchable: TSimdBackendArray;
   LOriginalTable: TSimdDispatchTable;
-  LOldVectorAsm: Boolean;
   LRequestedTableCaptured: Boolean;
   LIndex: Integer;
 begin
-  LOldVectorAsm := IsVectorAsmEnabled;
   LRequestedTableCaptured := False;
   try
     SetVectorAsmEnabled(True);
@@ -2842,12 +2830,10 @@ var
   LPreviousForcedBackend: TSimdBackend;
   LRequestedBackend: TSimdBackend;
   LRequestedOriginalTable: TSimdDispatchTable;
-  LOldVectorAsm: Boolean;
   LRequestedTableCaptured: Boolean;
   LSelectedCount: Integer;
   LIndex: Integer;
 begin
-  LOldVectorAsm := IsVectorAsmEnabled;
   LRequestedTableCaptured := False;
   try
     SetVectorAsmEnabled(True);
@@ -3392,11 +3378,9 @@ var
   LAutomaticBackend: TSimdBackend;
   LPreviousForcedBackend: TSimdBackend;
   LPreviousOriginalTable: TSimdDispatchTable;
-  LOldVectorAsm: Boolean;
   LPreviousTableCaptured: Boolean;
   LIndex: Integer;
 begin
-  LOldVectorAsm := IsVectorAsmEnabled;
   LPreviousTableCaptured := False;
   try
     SetVectorAsmEnabled(True);
@@ -3464,11 +3448,9 @@ var
   LAutomaticBackend: TSimdBackend;
   LPreviousForcedBackend: TSimdBackend;
   LPreviousOriginalTable: TSimdDispatchTable;
-  LOldVectorAsm: Boolean;
   LPreviousTableCaptured: Boolean;
   LIndex: Integer;
 begin
-  LOldVectorAsm := IsVectorAsmEnabled;
   LPreviousTableCaptured := False;
   try
     SetVectorAsmEnabled(True);

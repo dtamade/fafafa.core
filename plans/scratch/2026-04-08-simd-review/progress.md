@@ -7026,3 +7026,31 @@
 - 当前阶段结论：
   - 这批仍然只是 `publicabi` 测试层冗余/结构修复，没有改 SIMD 生产实现
   - `publicabi.testcase` 这条“纯空 finally”线在当前文件里已经基本收干净；下一步如果继续深审，应只看那些外层 finally 还承担条件 restore 的剩余路径
+
+## 2026-05-16 PublicAbi Remaining Dead VectorAsm Capture Cleanup
+
+- 这一批继续不换文件、不换 suite，也没有重新打开 `gate`；只针对 `publicabi.testcase` 里剩余的死状态捕获做清理。
+- 候选筛选过程：
+  - 先用 `rg -n "LOldVectorAsm"` 找到剩余命中
+  - 再按方法体核对这些命中都只剩“声明 + 赋值”，没有任何读取
+  - 同时确认这些方法的 outer `finally` 仍承担条件 `RegisterBackend(...)` restore，所以这轮明确不改 `finally` 结构
+- 已完成的源码改动：
+  - 文件：`tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas`
+  - 删除 9 个 `publicabi` 方法中的 `LOldVectorAsm` 局部变量
+  - 删除对应的 `LOldVectorAsm := IsVectorAsmEnabled` 赋值
+  - 保留所有 inner/outer `finally` 与 hook / table restore 逻辑不变
+- 这轮额外做的卫生确认：
+  - `rg -n "LOldVectorAsm" tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 已无命中
+  - `git diff --check` 通过
+- 本轮验证链：
+  - `rg -n "LOldVectorAsm" tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas`
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+- fresh 结果：
+  - `LOldVectorAsm` 搜索无输出
+  - `[BUILD] OK`
+  - `[TEST] OK`
+  - `[LEAK] OK`
+- 当前阶段结论：
+  - 这批依旧只是 `publicabi` 测试层冗余清理，没有改 SIMD 生产实现
+  - `publicabi.testcase` 当前文件里，“空 finally”与“死 vector-asm 状态捕获”这两条高确定性冗余线都已经收干净
