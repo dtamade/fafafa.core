@@ -4392,3 +4392,18 @@
 | --- | --- | --- |
 | 1. 复核 active docs 与实验测试真相 | completed | 已确认 family matrix / disposition 仍把 `AES/SHA` 写得过窄，但 `TTestCase_SimdIntrinsicsExperimental` 已明确覆盖 default reject 与 opt-in placeholder semantics |
 | 2. 文档真相同步 | completed | `SIMD_INTRINSICS_DISPOSITION.md`、`simd-family-matrix.md`、`simd-experimental-hold-future-trigger-plan.md` 已同步到当前真实 lane；`git diff --check` 与关键 `rg` 复核通过 |
+
+## 2026-05-17 SVE SVE2 LASX Hold-Family Runtime Fail-Close
+
+### Goal
+
+继续沿 hold-family 小闭环收口 `SVE/SVE2/LASX` 的运行期资格问题：避免它们在非目标主机或明显不具备 base 资格的主机上，仅因打开 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS` 就静默装载 placeholder semantics。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `cpuinfo` 能力面与当前 runtime guard 缺口 | completed | 已确认仓库已有 `ARM.HasSVE` 检测但没有 `HasSVE` quick helper；`SVE/SVE2/LASX` 当前都只看 experimental define，没有 target-specific runtime fail-close |
+| 2. 收紧源码与验证脚本 | completed | 已补 `cpuinfo.HasSVE`，并把 `intrinsics.sve/sve2/lasx` 收紧为 target-specific runtime fail-close；`BuildOrTest.sh` 现已新增 3 个 non-qualified-host runtime reject smoke；`check_intrinsics_experimental_status.py` 也已升格这条边界 |
+| 3. 文档和 scratch 真相同步 | completed | `SIMD_INTRINSICS_DISPOSITION.md`、`simd-family-matrix.md`、`simd-experimental-hold-future-trigger-plan.md` 与 scratch 记录已同步到 “hold family + runtime fail-close” 口径 |
+| 4. 最小验证与收口 | completed | `git diff --check`、`check_intrinsics_experimental_status.py --summary-line`、默认/experimental 两轮 `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test` 全部通过；在当前 `x86_64` 主机上 `SVE/SVE2/LASX` runtime reject smoke 均为绿 |

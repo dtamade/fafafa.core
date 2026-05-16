@@ -7670,3 +7670,46 @@
   - `AES/SHA` 现在不只是 isolation-only；
   - 当前真实 lane 还包含 default-reject + placeholder semantics 实验测试；
   - 但这条 lane 只是在锁 experimental contract，不是 stable leaf / stable adapter contract。
+
+## 2026-05-17 SVE SVE2 LASX Hold-Family Runtime Fail-Close
+
+- 继续沿 hold-family 小闭环推进，没有回到 Windows evidence、stable adapter 或大范围 redundancy 扫描。
+- 已复核：
+  - `src/fafafa.core.simd.cpuinfo.pas`
+  - `src/fafafa.core.simd.intrinsics.sve.pas`
+  - `src/fafafa.core.simd.intrinsics.sve2.pas`
+  - `src/fafafa.core.simd.intrinsics.lasx.pas`
+  - `tests/fafafa.core.simd/check_intrinsics_experimental_status.py`
+  - `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh`
+  - `docs/SIMD_INTRINSICS_DISPOSITION.md`
+  - `docs/plans/2026-05-09-simd-family-matrix.md`
+  - `docs/plans/2026-05-09-simd-experimental-hold-future-trigger-plan.md`
+- 当前结论：
+  - `SVE/SVE2/LASX` 原先都只有 generic experimental guard，没有 target-specific runtime qualification；
+  - 这会让 non-qualified host 在打开 experimental define 后也静默装载 hold-family placeholder semantics；
+  - `cpuinfo` 已足够先把 `SVE/SVE2` 收紧到 base-`SVE` 资格，`LASX` 则至少要先对非 `LoongArch64` 主机 fail-close。
+- 已完成收口：
+  - `src/fafafa.core.simd.cpuinfo.pas` 新增 `HasSVE`
+  - `src/fafafa.core.simd.intrinsics.sve.pas`
+  - `src/fafafa.core.simd.intrinsics.sve2.pas`
+  - `src/fafafa.core.simd.intrinsics.lasx.pas`
+  - `tests/fafafa.core.simd/check_intrinsics_experimental_status.py`
+  - `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh`
+  - `docs/SIMD_INTRINSICS_DISPOSITION.md`
+  - `docs/plans/2026-05-09-simd-family-matrix.md`
+  - `docs/plans/2026-05-09-simd-experimental-hold-future-trigger-plan.md`
+  现在都已同步到 “hold family + target-specific runtime fail-close” 口径。
+- 本批串行验证已经 fresh 跑通：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_experimental_status.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- fresh 结果：
+  - `INTRINSICS_EXPERIMENTAL_SUMMARY ... missing_x86_runtime_fail_close=0 missing_hold_runtime_fail_close=0`
+  - 默认态 experimental intrinsics test：`[TEST] OK`、`[LEAK] OK`
+  - experimental=1：`SVE/SVE2/LASX runtime reject smoke` 在当前 `x86_64` 主机全部 `[CHECK] OK`
+  - experimental=1 主测试程序：`[TEST] OK`、`[LEAK] OK`
+- 当前阶段结论：
+  - 这批没有把 `SVE/SVE2/LASX` promote 进 stable lane
+  - 修掉的是 hold-family experimental runtime 在 non-qualified host 上“误装载”的边界漏洞
+  - 当前仍保留一个诚实 residual：`LASX` 还没有 feature-level `cpuinfo` gate，文档已明确记账

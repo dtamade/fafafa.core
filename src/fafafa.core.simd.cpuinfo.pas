@@ -64,6 +64,7 @@ function HasSSE42: Boolean;
 function HasAVX2: Boolean;
 function HasAVX512: Boolean;
 function HasNEON: Boolean;
+function HasSVE: Boolean;
 function HasRISCVV: Boolean;
 
 {$IFDEF SIMD_X86_AVAILABLE}
@@ -775,6 +776,21 @@ begin
   {$IFDEF SIMD_ARM_AVAILABLE}
   cpuInfo := GetCPUInfo;
   Result := (cpuInfo.Arch = caARM) and cpuInfo.ARM.HasNEON;
+  {$ELSE}
+  Result := False;
+  {$ENDIF}
+end;
+
+function HasSVE: Boolean;
+{$IFDEF SIMD_ARM_AVAILABLE}
+var
+  cpuInfo: TCPUInfo;
+{$ENDIF}
+begin
+  {$IFDEF SIMD_ARM_AVAILABLE}
+  cpuInfo := GetCPUInfo;
+  Result := (cpuInfo.Arch = caARM) and cpuInfo.ARM.HasSVE and
+            ((gfSimd256 in cpuInfo.GenericUsable) or (gfSimd512 in cpuInfo.GenericUsable));
   {$ELSE}
   Result := False;
   {$ENDIF}

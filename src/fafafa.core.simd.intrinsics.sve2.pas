@@ -31,7 +31,8 @@ function sve2_mul_lane_u32(const a: TSVEVector; const b: TSVEVector; lane: Integ
 implementation
 
 uses
-  SysUtils;
+  SysUtils,
+  fafafa.core.simd.cpuinfo;
 
 procedure EnsureExperimentalIntrinsicsEnabled; inline;
 begin
@@ -40,6 +41,11 @@ begin
     'fafafa.core.simd.intrinsics.sve2 is experimental placeholder semantics. ' +
     'Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt in.'
   );
+  {$ELSE}
+  if not HasSVE then
+    raise ENotSupportedException.Create(
+      'fafafa.core.simd.intrinsics.sve2 placeholder semantics are only qualified on AArch64 targets whose cpuinfo reports SVE.'
+    );
   {$ENDIF}
 end;
 

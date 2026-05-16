@@ -6417,3 +6417,19 @@
   - `AES/SHA` 继续 hold / experimental isolated
   - 当前实验验证 lane 包含 `experimental-intrinsics` isolation + default-reject + placeholder semantics tests
   - 但这仍然不是 stable adapter / stable leaf contract，更不能据此 reopen
+
+## 2026-05-17 SVE SVE2 LASX Missing Runtime Qualification
+
+- `src/fafafa.core.simd.intrinsics.sve.pas`、`src/fafafa.core.simd.intrinsics.sve2.pas`、`src/fafafa.core.simd.intrinsics.lasx.pas` 当前都只有 generic `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS` guard，没有 target-specific runtime fail-close。
+- 这意味着在非目标主机上，只要打开 experimental define，这几个 hold leaf 也会像“可用 experimental 语义”一样静默装载：
+  - `SVE/SVE2` 在 `x86_64` 等非 `AArch64` 主机上如此；
+  - `LASX` 在非 `LoongArch64` 主机上如此；
+  - `SVE/SVE2` 甚至在 `AArch64` 下原先也不要求 `cpuinfo` 真的报告 `SVE`。
+- 这和前面已经收紧的 `AVX/SSE2/SSE3/SSE4.1/SSE4.2/AVX-512/FMA3` 边界不一致：
+  - 那批 x86-only hold / experimental lane 已明确把 non-qualified host 收成 runtime fail-close；
+  - `SVE/SVE2/LASX` 当时还留着“只要开宏就可装载”的漏口。
+- 现有仓库证据也支持把它们收紧，而不是补伪语义：
+  - current active docs 把它们定义成 hold family / `experimental isolated`
+  - `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh` 之前没有任何 dedicated smoke 覆盖这条边界
+  - `cpuinfo` 已经能给出 `ARM.HasSVE`，足以先把 `SVE/SVE2` 的 base qualification 收紧
+  - `LASX` 还没有独立 `cpuinfo` feature bit，因此当前最安全的收口是：先对非 `LoongArch64` 主机 fail-close，并在 docs 里诚实记录 feature-level gap

@@ -44,6 +44,15 @@ AVX512_SMOKE_BIN="${BIN_DIR}/avx512_smoke"
 FMA3_SMOKE_LOG="${LOG_DIR}/fma3_smoke.txt"
 FMA3_SMOKE_SOURCE="${LOG_DIR}/fma3_smoke.pas"
 FMA3_SMOKE_BIN="${BIN_DIR}/fma3_smoke"
+SVE_FAIL_CLOSE_LOG="${LOG_DIR}/sve_fail_close.txt"
+SVE_FAIL_CLOSE_SOURCE="${LOG_DIR}/sve_fail_close.pas"
+SVE_FAIL_CLOSE_BIN="${BIN_DIR}/sve_fail_close"
+SVE2_FAIL_CLOSE_LOG="${LOG_DIR}/sve2_fail_close.txt"
+SVE2_FAIL_CLOSE_SOURCE="${LOG_DIR}/sve2_fail_close.pas"
+SVE2_FAIL_CLOSE_BIN="${BIN_DIR}/sve2_fail_close"
+LASX_FAIL_CLOSE_LOG="${LOG_DIR}/lasx_fail_close.txt"
+LASX_FAIL_CLOSE_SOURCE="${LOG_DIR}/lasx_fail_close.pas"
+LASX_FAIL_CLOSE_BIN="${BIN_DIR}/lasx_fail_close"
 HYGIENE_CHECKER="${REPO_ROOT}/tests/fafafa.core.simd/check_intrinsics_comment_swallow.py"
 
 mkdir -p "${BIN_DIR}" "${LIB_DIR}" "${LOG_DIR}"
@@ -305,6 +314,109 @@ check_fma3_backend_smoke() {
     fafafa.core.simd.intrinsics.fma3
 }
 
+check_nonqualified_host_runtime_reject() {
+  local aLabel
+  local aQualifiedCpu
+  local aUnit
+  local aSourcePath
+  local aLogPath
+  local aBinPath
+  local aExpectedToken
+
+  aLabel="$1"
+  aQualifiedCpu="$2"
+  aUnit="$3"
+  aSourcePath="$4"
+  aLogPath="$5"
+  aBinPath="$6"
+  aExpectedToken="$7"
+
+  if [[ "${EXPERIMENTAL_FLAG}" == "0" ]]; then
+    echo "[CHECK] SKIP ${aLabel} runtime reject smoke (experimental=0)"
+    return 0
+  fi
+
+  if [[ "${CPU}" == "${aQualifiedCpu}" ]]; then
+    echo "[CHECK] SKIP ${aLabel} runtime reject smoke (target CPU=${CPU} needs host-specific feature evidence)"
+    return 0
+  fi
+
+  {
+    printf 'program %s;\n' "${aLabel// /_}_fail_close"
+    printf '{\$mode objfpc}{\$H+}\n'
+    printf '{\$I %s/src/fafafa.core.settings.inc}\n' "${REPO_ROOT}"
+    printf 'uses\n'
+    printf '  %s;\n' "${aUnit}"
+    printf 'begin\n'
+    printf 'end.\n'
+  } >"${aSourcePath}"
+
+  echo "[CHECK] Running ${aLabel} runtime reject smoke: ${aSourcePath}"
+  : >"${aLogPath}"
+  if "${FPC_BIN}" \
+    "${FU[@]}" \
+    "${FI[@]}" \
+    "${DEFINES[@]}" \
+    -FE"${BIN_DIR}" \
+    -FU"${LIB_DIR}" \
+    -o"${aBinPath}" \
+    "${aSourcePath}" >"${aLogPath}" 2>&1; then
+    :
+  else
+    local LRC=$?
+    echo "[CHECK] FAILED ${aLabel} runtime reject smoke build rc=${LRC} (see ${aLogPath})"
+    tail -n 120 "${aLogPath}" || true
+    return "${LRC}"
+  fi
+
+  if "${aBinPath}" >>"${aLogPath}" 2>&1; then
+    echo "[CHECK] FAILED ${aLabel} runtime reject smoke: program unexpectedly succeeded"
+    tail -n 120 "${aLogPath}" || true
+    return 1
+  fi
+
+  if ! grep -qi "${aExpectedToken}" "${aLogPath}"; then
+    echo "[CHECK] FAILED ${aLabel} runtime reject smoke: missing token ${aExpectedToken}"
+    tail -n 120 "${aLogPath}" || true
+    return 1
+  fi
+
+  echo "[CHECK] OK ${aLabel} runtime reject smoke"
+}
+
+check_sve_runtime_fail_close() {
+  check_nonqualified_host_runtime_reject \
+    "SVE" \
+    "aarch64" \
+    "fafafa.core.simd.intrinsics.sve" \
+    "${SVE_FAIL_CLOSE_SOURCE}" \
+    "${SVE_FAIL_CLOSE_LOG}" \
+    "${SVE_FAIL_CLOSE_BIN}" \
+    "only qualified on aarch64 targets whose cpuinfo reports sve"
+}
+
+check_sve2_runtime_fail_close() {
+  check_nonqualified_host_runtime_reject \
+    "SVE2" \
+    "aarch64" \
+    "fafafa.core.simd.intrinsics.sve2" \
+    "${SVE2_FAIL_CLOSE_SOURCE}" \
+    "${SVE2_FAIL_CLOSE_LOG}" \
+    "${SVE2_FAIL_CLOSE_BIN}" \
+    "only qualified on aarch64 targets whose cpuinfo reports sve"
+}
+
+check_lasx_runtime_fail_close() {
+  check_nonqualified_host_runtime_reject \
+    "LASX" \
+    "loongarch64" \
+    "fafafa.core.simd.intrinsics.lasx" \
+    "${LASX_FAIL_CLOSE_SOURCE}" \
+    "${LASX_FAIL_CLOSE_LOG}" \
+    "${LASX_FAIL_CLOSE_BIN}" \
+    "only qualified on loongarch64 experimental hosts"
+}
+
 normalize_test_args() {
   local LArg
   local -a LArgs
@@ -389,6 +501,9 @@ case "${ACTION}" in
     check_avx2_backend_smoke
     check_avx512_backend_smoke
     check_fma3_backend_smoke
+    check_sve_runtime_fail_close
+    check_sve2_runtime_fail_close
+    check_lasx_runtime_fail_close
     ;;
   test-all)
     echo "[TEST-ALL] Running default mode (experimental=0)"
@@ -407,6 +522,9 @@ case "${ACTION}" in
     check_avx2_backend_smoke
     check_avx512_backend_smoke
     check_fma3_backend_smoke
+    check_sve_runtime_fail_close
+    check_sve2_runtime_fail_close
+    check_lasx_runtime_fail_close
     run_tests "$@"
     check_heap_leaks
     ;;

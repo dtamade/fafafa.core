@@ -53,7 +53,8 @@ function sve_mul_u32_z(const pred: TSVEPredicate; const a, b: TSVEVector): TSVEV
 implementation
 
 uses
-  SysUtils;
+  SysUtils,
+  fafafa.core.simd.cpuinfo;
 
 procedure EnsureExperimentalIntrinsicsEnabled; inline;
 begin
@@ -62,6 +63,11 @@ begin
     'fafafa.core.simd.intrinsics.sve is experimental placeholder semantics. ' +
     'Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt in.'
   );
+  {$ELSE}
+  if not HasSVE then
+    raise ENotSupportedException.Create(
+      'fafafa.core.simd.intrinsics.sve placeholder semantics are only qualified on AArch64 targets whose cpuinfo reports SVE.'
+    );
   {$ENDIF}
 end;
 

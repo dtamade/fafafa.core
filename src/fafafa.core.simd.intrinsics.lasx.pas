@@ -83,6 +83,12 @@ begin
     'fafafa.core.simd.intrinsics.lasx is experimental placeholder semantics. ' +
     'Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt in.'
   );
+  {$ELSE}
+    {$IFNDEF CPULOONGARCH64}
+    raise ENotSupportedException.Create(
+      'fafafa.core.simd.intrinsics.lasx placeholder semantics are only qualified on LoongArch64 experimental hosts.'
+    );
+    {$ENDIF}
   {$ENDIF}
 end;
 
