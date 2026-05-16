@@ -3898,3 +3898,17 @@
 | 1. 确认差异是否真的未被 gate 后续步骤覆盖 | completed | 已逐段复核 `run_gate()`：`experimental intrinsics` 与 `register truthfulness` 确实会在 gate 后半段单独建步；但 `helper-semantics`、`key-slot-audit`、`source-reachability`、`sse2-structure` 以及 `windows cpuinfo.x86 batch success-criteria smoke` 并没有被任何后续 gate step 补跑，属于真实 coverage 缺口 |
 | 2. 把缺失的低成本静态护栏补回 `gate_step_build_check()` | completed | 已在 `tests/fafafa.core.simd/BuildOrTest.sh` 的 `gate_step_build_check()` 中补入 `run_nonx86_helper_semantics_check`、`run_nonx86_key_slot_audit_check`、`run_windows_cpuinfo_x86_batch_build_success_criteria_smoke`、`run_source_reachability_check`、`run_sse2_structure_check`；保留 `experimental` / `register truthfulness` 继续由 gate 独立步骤负责，避免重复建步 |
 | 3. 用 gate 级定向验证确认主门禁已补齐 | completed | 已跑 `git diff --check`、`bash -n tests/fafafa.core.simd/BuildOrTest.sh`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`；fresh gate 通过，build-check 段现在已实际输出 `HELPER-SEMANTICS`、`KEY-SLOT-AUDIT`、`SOURCE-REACHABILITY`、`SSE2-STRUCTURE` 与 `windows cpuinfo.x86 batch success-criteria smoke` 的结果 |
+
+## 2026-05-16 Shared Static Build-Check Core
+
+### Goal
+
+在 `check` 与 `gate_step_build_check()` 已经多次出现 drift 之后，把两边共同的静态 build-check 核心提成单一 helper，减少后续再出现“先补一边、忘另一边”的结构性风险。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前剩余差异哪些是有意的 | completed | fresh 清单比对显示，`check` 与 `gate_step_build_check()` 在补完 coverage 后，真正剩余差异已只剩 `check` 的 `Backend adapter sync (python-only)` 提示、`SIMD_CHECK_NONX86_OPTIN` 分支、`wiring-sync`、`register truthfulness` 与 experimental isolation；共同静态核心从 `run_runner_parity` 到 `run_dispatch_preinit_smoke` 已完全同构 |
+| 2. 抽共享 helper 并保留各自差异 | completed | 已在 `tests/fafafa.core.simd/BuildOrTest.sh` 新增 `run_static_build_check_core()`，把共同静态 core 收到一处；`check` case 改为 `build/check log + adapter-sync echo + run_static_build_check_core + check-only optionals`，`gate_step_build_check()` 改为 `build/check log + run_static_build_check_core + gate-only nonx86-optin list` |
+| 3. 验证共享 helper 没改坏 check/gate | completed | 已跑 `git diff --check`、`bash -n tests/fafafa.core.simd/BuildOrTest.sh`、`FAFAFA_BUILD_MODE=Release SIMD_CHECK_NONX86_OPTIN=0 bash tests/fafafa.core.simd/BuildOrTest.sh check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`；两条主链均通过，说明这次是结构去重，不是行为漂移 |

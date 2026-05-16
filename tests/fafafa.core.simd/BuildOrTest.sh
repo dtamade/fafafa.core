@@ -3248,6 +3248,57 @@ run_runner_parity() {
   echo "[CHECK] OK (runner parity quick path)"
 }
 
+run_static_build_check_core() {
+  run_runner_parity || return $?
+  check_avx512_optin_runner_guard || return $?
+  check_nonx86_optin_runner_guard || return $?
+  check_windows_experimental_tests_runner_guard || return $?
+  check_windows_experimental_direct_runner_guard || return $?
+  check_windows_publicabi_runner_guard || return $?
+  check_windows_evidence_collector_guard || return $?
+  check_windows_simulated_evidence_guard || return $?
+  check_windows_gate_summary_helper_guard || return $?
+  check_windows_manual_closeout_guard_source_safety || return $?
+  check_windows_manual_closeout_guard || return $?
+  check_windows_closeout_helper_runtime_guard || return $?
+  check_windows_via_gh_cross_gate_guard || return $?
+  check_closeout_release_entrypoint_guard || return $?
+  check_gate_summary_json_runtime_guard || return $?
+  check_perf_smoke_scalar_guard || return $?
+  check_perf_smoke_public_abi_shape_guard || return $?
+  check_windows_qemu_runner_guard || return $?
+  check_windows_bash_helper_runner_guard || return $?
+  check_riscvv_opcode_lane_contract_guard || return $?
+  check_nonx86_native_evidence_runner_guard || return $?
+  check_qemu_nonx86_evidence_runner_guard || return $?
+  check_restore_nightly_evidence_runner_guard || return $?
+  check_qemu_experimental_python_helper_guard || return $?
+  check_python_checker_runtime_guard || return $?
+  run_nonx86_helper_semantics_check || return $?
+  run_nonx86_key_slot_audit_check || return $?
+  run_riscvv_abi_shape_check || return $?
+  check_publicabi_output_isolation || return $?
+  check_publicabi_shell_export_guard || return $?
+  check_isolated_clean_coverage || return $?
+  check_run_all_output_isolation || return $?
+  check_intrinsics_runner_output_isolation || return $?
+  check_experimental_intrinsics_output_isolation || return $?
+  check_dispatch_preinit_smoke_runner_guard || return $?
+  check_daily_standalone_runner_guard || return $?
+  check_linux_evidence_output_isolation || return $?
+  check_freeze_status_output_isolation || return $?
+  run_windows_cpuinfo_x86_batch_build_success_criteria_smoke || return $?
+  run_register_include_check || return $?
+  run_source_reachability_check || return $?
+  run_dispatch_read_scope || return $?
+  run_sse2_structure_check || return $?
+  run_suite_manifest_check || return $?
+  run_backend_ops_smoke || return $?
+  run_simd_boundary_smoke || return $?
+  run_public_smoke || return $?
+  run_dispatch_preinit_smoke || return $?
+}
+
 run_register_include_check() {
   if [[ ! -f "${REGISTER_INCLUDE_CHECK_SCRIPT}" ]]; then
     echo "[REGISTER-INCLUDE] Missing checker: ${REGISTER_INCLUDE_CHECK_SCRIPT}"
@@ -4608,55 +4659,8 @@ run_gate_step() {
 gate_step_build_check() {
   build_project || return $?
   check_build_log || return $?
-  run_runner_parity || return $?
-  check_avx512_optin_runner_guard || return $?
-  check_nonx86_optin_runner_guard || return $?
-  check_windows_experimental_tests_runner_guard || return $?
-  check_windows_experimental_direct_runner_guard || return $?
-  check_windows_publicabi_runner_guard || return $?
-  check_windows_evidence_collector_guard || return $?
-  check_windows_simulated_evidence_guard || return $?
-  check_windows_gate_summary_helper_guard || return $?
-  check_windows_manual_closeout_guard_source_safety || return $?
-  check_windows_manual_closeout_guard || return $?
-  check_windows_closeout_helper_runtime_guard || return $?
-  check_windows_via_gh_cross_gate_guard || return $?
-  check_closeout_release_entrypoint_guard || return $?
-  check_gate_summary_json_runtime_guard || return $?
-  check_perf_smoke_scalar_guard || return $?
-  check_perf_smoke_public_abi_shape_guard || return $?
-  check_windows_qemu_runner_guard || return $?
-  check_windows_bash_helper_runner_guard || return $?
-  check_riscvv_opcode_lane_contract_guard || return $?
-  check_nonx86_native_evidence_runner_guard || return $?
-  check_qemu_nonx86_evidence_runner_guard || return $?
-  check_restore_nightly_evidence_runner_guard || return $?
-  check_qemu_experimental_python_helper_guard || return $?
-  check_python_checker_runtime_guard || return $?
-  run_nonx86_helper_semantics_check || return $?
-  run_nonx86_key_slot_audit_check || return $?
-  run_riscvv_abi_shape_check || return $?
-  check_publicabi_output_isolation || return $?
-  check_publicabi_shell_export_guard || return $?
-  check_isolated_clean_coverage || return $?
-  check_run_all_output_isolation || return $?
-  check_intrinsics_runner_output_isolation || return $?
-  check_experimental_intrinsics_output_isolation || return $?
-  check_dispatch_preinit_smoke_runner_guard || return $?
-  check_daily_standalone_runner_guard || return $?
-  check_linux_evidence_output_isolation || return $?
-  check_freeze_status_output_isolation || return $?
-  run_windows_cpuinfo_x86_batch_build_success_criteria_smoke || return $?
-  run_register_include_check || return $?
-  run_source_reachability_check || return $?
-  run_dispatch_read_scope || return $?
-  run_sse2_structure_check || return $?
-  run_suite_manifest_check || return $?
+  run_static_build_check_core || return $?
   run_nonx86_optin_list_suites || return $?
-  run_backend_ops_smoke || return $?
-  run_simd_boundary_smoke || return $?
-  run_public_smoke || return $?
-  run_dispatch_preinit_smoke || return $?
 }
 
 gate_step_interface_completeness() {
@@ -6661,60 +6665,13 @@ case "${ACTION}" in
   check_build_log
   echo "[CHECK] Backend adapter sync (python-only)"
   SIMD_ADAPTER_SYNC_SKIP_BUILD=1 SIMD_ADAPTER_SYNC_PASCAL_SMOKE=0 run_backend_adapter_sync
-  run_runner_parity
-  check_avx512_optin_runner_guard
-  check_nonx86_optin_runner_guard
-  check_windows_experimental_tests_runner_guard
-  check_windows_experimental_direct_runner_guard
-  check_windows_publicabi_runner_guard
-  check_windows_evidence_collector_guard
-  check_windows_simulated_evidence_guard
-  check_windows_gate_summary_helper_guard
-  check_windows_manual_closeout_guard_source_safety
-  check_windows_manual_closeout_guard
-  check_windows_closeout_helper_runtime_guard
-  check_windows_via_gh_cross_gate_guard
-  check_closeout_release_entrypoint_guard
-  check_gate_summary_json_runtime_guard
-  check_perf_smoke_scalar_guard
-  check_perf_smoke_public_abi_shape_guard
-  check_windows_qemu_runner_guard
-  check_windows_bash_helper_runner_guard
-  check_riscvv_opcode_lane_contract_guard
-  check_nonx86_native_evidence_runner_guard
-  check_qemu_nonx86_evidence_runner_guard
-  check_restore_nightly_evidence_runner_guard
-  check_qemu_experimental_python_helper_guard
-  check_python_checker_runtime_guard
-  run_nonx86_helper_semantics_check
-  run_nonx86_key_slot_audit_check
-  run_riscvv_abi_shape_check
-    check_publicabi_output_isolation
-    check_publicabi_shell_export_guard
-    check_isolated_clean_coverage
-    check_run_all_output_isolation
-    check_intrinsics_runner_output_isolation
-    check_experimental_intrinsics_output_isolation
-  check_dispatch_preinit_smoke_runner_guard
-  check_daily_standalone_runner_guard
-  check_linux_evidence_output_isolation
-  check_freeze_status_output_isolation
-    run_windows_cpuinfo_x86_batch_build_success_criteria_smoke
-    run_register_include_check
-    run_source_reachability_check
-    run_dispatch_read_scope
-    run_sse2_structure_check
-    run_suite_manifest_check
+  run_static_build_check_core
     if [[ "${SIMD_CHECK_NONX86_OPTIN:-1}" != "0" ]]; then
       echo "[CHECK] Optional non-x86 opt-in suite listing enabled"
       run_nonx86_optin_list_suites
     else
       echo "[CHECK] SKIP optional non-x86 opt-in suite listing (set SIMD_CHECK_NONX86_OPTIN=1 to enable)"
     fi
-    run_backend_ops_smoke
-    run_simd_boundary_smoke
-    run_public_smoke
-    run_dispatch_preinit_smoke
     if [[ "${SIMD_CHECK_WIRING_SYNC:-0}" != "0" ]]; then
       echo "[CHECK] Optional wiring-sync enabled"
       run_wiring_sync

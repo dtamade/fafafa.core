@@ -6760,3 +6760,27 @@
 - 当前阶段结论：
   - 这批没有改 SIMD 生产逻辑，而是把 gate 真正补回了一组先前未覆盖的静态护栏
   - 现在 `gate` 的 build-check 段与 `check` 在这组低成本审查上的口径明显更接近了，不再出现 “check 绿但 gate 根本没看过这些护栏” 的 coverage 漏洞
+
+## 2026-05-16 Shared Static Build-Check Core
+
+- 在补完 gate build-check 的静态护栏后，我又做了一次 fresh 清单比对，确认结构性根因已经收敛得足够干净，可以直接去重：
+  - `check` 与 `gate_step_build_check()` 的共同静态 core 现在已经完全同构
+  - 剩余差异只剩 check/gate 各自有意保留的 optionals，不再夹着隐蔽 coverage 差异
+- 本轮已完成的源码收口：
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - 新增 `run_static_build_check_core()`
+    - 把 `run_runner_parity`、所有 shared runner/output/py-check guard、`helper-semantics`、`key-slot-audit`、`riscvv-abi-shape`、`windows cpuinfo.x86 batch success-criteria smoke`、`register/include/source/sse2` 静态检查，以及 `backend_ops/simd_boundary/public_smoke/dispatch_preinit` smoke 统一收到这一个 helper
+    - `gate_step_build_check()` 改为 `build/check log + run_static_build_check_core + run_nonx86_optin_list_suites`
+    - `check` case 改为 `build/check log + adapter-sync echo + run_static_build_check_core + check-only optionals`
+- 本轮验证链：
+  - `git diff --check`
+  - `bash -n tests/fafafa.core.simd/BuildOrTest.sh`
+  - `FAFAFA_BUILD_MODE=Release SIMD_CHECK_NONX86_OPTIN=0 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- fresh 结果：
+  - release `check` 通过
+  - release `gate` 通过
+  - 说明这次不是“减少重复时不小心漏调用”，而是共同静态 core 真正被两个主入口共享
+- 当前阶段结论：
+  - 这批继续没有改 SIMD 生产逻辑，但把同一段静态 build-check 证明链正式收成了单一真相源
+  - 后续再审 runner/static guard drift 时，主风险点已经从“两份清单可能忘同步”降到了“共享 helper 内部是否正确”这一处

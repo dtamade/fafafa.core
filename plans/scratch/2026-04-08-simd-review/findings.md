@@ -5699,3 +5699,14 @@
   - 都是 source-safe / 低成本检查
   - 不会引入新的 artifact branch 或复杂摘要维度
   - 语义上都属于 “build + static guard” 同一阶段
+
+## 2026-05-16 Shared Static Build-Check Core
+
+- 继续往下看后，coverage 缺口虽然已经补上，但结构性根因还在：
+  - `check` case 与 `gate_step_build_check()` 仍分别维护一整段几乎相同的静态 guard/smoke 清单
+  - 这正是本轮连续出现 runner parity drift、coverage drift 的根源
+- fresh 对比后，当前这两段已经缩到只剩“有意差异”：
+  - `check` 独有：adapter-sync 提示、`SIMD_CHECK_NONX86_OPTIN` 条件分支、`wiring-sync`、`register truthfulness`、experimental isolation
+  - `gate` 独有：在 build-check 阶段无条件跑一次 `run_nonx86_optin_list_suites`
+  - 其余从 `run_runner_parity` 到 `run_dispatch_preinit_smoke` 的静态 core 已完全同构
+- 因而最小正确修法不再是继续补单点，而是把这段共同 core 提成共享 helper，让未来再加/删静态 guard 时默认只改一处
