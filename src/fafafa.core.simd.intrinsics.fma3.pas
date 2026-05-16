@@ -90,6 +90,18 @@ begin
   {$ENDIF}
 end;
 
+procedure EnsureExperimentalFma3TargetSupported; inline;
+begin
+  {$IFNDEF CPUX86_64}
+  {$IFNDEF CPUX86}
+  raise ENotSupportedException.Create(
+    'fafafa.core.simd.intrinsics.fma3 experimental runtime is only qualified on x86/x86_64. ' +
+    'The non-x86 branch remains compile scaffolding, not executable semantics.'
+  );
+  {$ENDIF}
+  {$ENDIF}
+end;
+
 // === 128-bit 单精度浮点实�?===
 function fma3_fmadd_ps(const a, b, c: TM128): TM128;
 var
@@ -361,6 +373,7 @@ end;
 
 initialization
   EnsureExperimentalIntrinsicsEnabled;
+  EnsureExperimentalFma3TargetSupported;
 
 end.
 

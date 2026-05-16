@@ -103,6 +103,18 @@ begin
   {$ENDIF}
 end;
 
+procedure EnsureExperimentalSse41TargetSupported; inline;
+begin
+  {$IFNDEF CPUX86_64}
+  {$IFNDEF CPUX86}
+  raise ENotSupportedException.Create(
+    'fafafa.core.simd.intrinsics.sse41 experimental runtime is only qualified on x86/x86_64. ' +
+    'The non-x86 branch remains compile scaffolding, not executable semantics.'
+  );
+  {$ENDIF}
+  {$ENDIF}
+end;
+
 function SSE41RoundScalar(const aValue: Extended; aRounding: Byte): Extended; inline;
 begin
   case aRounding and 7 of
@@ -658,6 +670,7 @@ end;
 
 initialization
   EnsureExperimentalIntrinsicsEnabled;
+  EnsureExperimentalSse41TargetSupported;
 
 end.
 

@@ -4365,3 +4365,17 @@
 | 1. 复核真实 consumer 与验证 lane | completed | 已确认 `intrinsics.avx` 当前没有任何仓库内 consumer，只有 `check_avx_backend_smoke` 与 `experimental-intrinsics` isolation；family matrix 旧行把 lane 写窄了 |
 | 2. 收口源码与文档真相 | completed | `intrinsics.avx` 现已在 initialization 里对 non-x86 experimental 运行期 fail-close；源文件头、disposition 与 family matrix 已同步到“hold family / no current bridge consumer / check_avx_backend_smoke” |
 | 3. 最小验证与收口 | completed | `git diff --check`、关键 `rg` 复核、`tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`、`FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 ... BuildOrTest.sh test` 全部通过 |
+
+## 2026-05-17 X86 Experimental Lane Fail-Close Batch
+
+### Goal
+
+把 `SSE3/SSE4.1/SSE4.2/AVX-512/FMA3` 这批仍允许 non-x86 experimental runtime 静默执行的 x86-only intrinsics 单元一起收正，并让 `check_intrinsics_experimental_status.py` 对这条边界 fail-close。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核同类命中是否成批存在 | completed | 已确认 `sse3/sse41/sse42/avx512/fma3` 当前都只有 `EnsureExperimentalIntrinsicsEnabled`，无 x86-target runtime guard；现有 verification lane 也都仍是 x86 smoke / representative parity / isolation |
+| 2. 源码 + docs + checker 一起收口 | completed | 这 5 个单元现已全部补上 non-x86 fail-close；`docs/SIMD_INTRINSICS_DISPOSITION.md` 与 `check_intrinsics_experimental_status.py` 已同步成静态护栏 |
+| 3. 最小验证与收口 | completed | `git diff --check`、`check_intrinsics_experimental_status.py --summary-line`、`tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`、`FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 ... BuildOrTest.sh test` 全部通过 |

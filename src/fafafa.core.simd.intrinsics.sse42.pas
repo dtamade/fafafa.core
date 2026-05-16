@@ -62,6 +62,18 @@ begin
   {$ENDIF}
 end;
 
+procedure EnsureExperimentalSse42TargetSupported; inline;
+begin
+  {$IFNDEF CPUX86_64}
+  {$IFNDEF CPUX86}
+  raise ENotSupportedException.Create(
+    'fafafa.core.simd.intrinsics.sse42 experimental runtime is only qualified on x86/x86_64. ' +
+    'The non-x86 branch remains compile scaffolding, not executable semantics.'
+  );
+  {$ENDIF}
+  {$ENDIF}
+end;
+
 // === 字符串比较指令的简化实�?===
 function sse42_cmpestrm(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): TM128;
 begin
@@ -182,6 +194,7 @@ end;
 
 initialization
   EnsureExperimentalIntrinsicsEnabled;
+  EnsureExperimentalSse42TargetSupported;
 
 end.
 

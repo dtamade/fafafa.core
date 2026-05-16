@@ -58,6 +58,18 @@ begin
   {$ENDIF}
 end;
 
+procedure EnsureExperimentalAvx512TargetSupported; inline;
+begin
+  {$IFNDEF CPUX86_64}
+  {$IFNDEF CPUX86}
+  raise ENotSupportedException.Create(
+    'fafafa.core.simd.intrinsics.avx512 experimental runtime is only qualified on x86/x86_64. ' +
+    'The non-x86 branch remains compile scaffolding, not executable semantics.'
+  );
+  {$ENDIF}
+  {$ENDIF}
+end;
+
 function AVX512LoadF32x16(const Ptr: Pointer): TM512; inline;
 begin
   Result := PTM512(Ptr)^;
@@ -172,7 +184,7 @@ end;
 
 initialization
   EnsureExperimentalIntrinsicsEnabled;
+  EnsureExperimentalAvx512TargetSupported;
 
 end.
-
 

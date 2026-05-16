@@ -7626,3 +7626,34 @@
   - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
   - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
   - 结果：全部通过；`check_avx_backend_smoke`、默认拒绝链与 x86 opt-in 实验链都未被误伤
+
+## 2026-05-17 X86 Experimental Lane Fail-Close Batch
+
+- 继续沿同类问题批量收口，没有切回 stable adapter 或 release closeout。
+- 已复核：
+  - `src/fafafa.core.simd.intrinsics.sse3.pas`
+  - `src/fafafa.core.simd.intrinsics.sse41.pas`
+  - `src/fafafa.core.simd.intrinsics.sse42.pas`
+  - `src/fafafa.core.simd.intrinsics.avx512.pas`
+  - `src/fafafa.core.simd.intrinsics.fma3.pas`
+  - `tests/fafafa.core.simd/check_intrinsics_experimental_status.py`
+  - `docs/SIMD_INTRINSICS_DISPOSITION.md`
+- 当前结论：
+  - 这 5 个单元和已收口的 `SSE2/AVX` 属于同一类 x86-only experimental lane；
+  - 之前缺的是 target-specific runtime guard，不是 generic experimental guard；
+  - 下一步应把 guard 和 checker 一起收口，避免以后又回退成“只剩 opt-in 宏，但 non-x86 还能静默运行 placeholder”。
+- 已完成收口：
+  - `src/fafafa.core.simd.intrinsics.sse3.pas`
+  - `src/fafafa.core.simd.intrinsics.sse41.pas`
+  - `src/fafafa.core.simd.intrinsics.sse42.pas`
+  - `src/fafafa.core.simd.intrinsics.avx512.pas`
+  - `src/fafafa.core.simd.intrinsics.fma3.pas`
+  - `tests/fafafa.core.simd/check_intrinsics_experimental_status.py`
+  - `docs/SIMD_INTRINSICS_DISPOSITION.md`
+  现在都已同步到 “x86-only experimental runtime / non-x86 fail-close” 口径。
+- 最小验证结果：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_experimental_status.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 结果：全部通过；新的静态护栏、默认拒绝链和 x86 opt-in 实验链都未被误伤

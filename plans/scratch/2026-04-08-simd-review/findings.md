@@ -6382,3 +6382,23 @@
   - 把源文件头从“AVX2-focused bridge”收正为“no current in-repo consumer beyond isolated smoke / opt-in bring-up”
   - 在 initialization 阶段对 non-x86 experimental runtime fail-close
   - 同步 `docs/SIMD_INTRINSICS_DISPOSITION.md` 与 `docs/plans/2026-05-09-simd-family-matrix.md`，避免 docs 继续把 `AVX` 说成只有 isolation lane 或隐含 bridge 角色
+
+## 2026-05-17 X86 Experimental Lane Missing Fail-Close Batch
+
+- 在 `SSE2/AVX` 收口之后继续复核发现，同类问题并不是孤点：
+  - `src/fafafa.core.simd.intrinsics.sse3.pas`
+  - `src/fafafa.core.simd.intrinsics.sse41.pas`
+  - `src/fafafa.core.simd.intrinsics.sse42.pas`
+  - `src/fafafa.core.simd.intrinsics.avx512.pas`
+  - `src/fafafa.core.simd.intrinsics.fma3.pas`
+  这 5 个 x86-only experimental 单元当前都只有 `EnsureExperimentalIntrinsicsEnabled`，没有 non-x86 runtime fail-close。
+- 现有验证 lane 也都支持这一判断：
+  - `SSE3` 有 `check_sse3_backend_smoke`
+  - `AVX-512` 有 `check_avx512_backend_smoke`
+  - `FMA3` 有 `check_fma3_backend_smoke`
+  - `SSE4.1/4.2` 当前走 representative parity + isolation lane
+  - 没有任何 non-x86 runtime parity/evidence 把这些 raw leaf 定义成非 x86 可执行 contract。
+- 因而这批的正确修复仍然不是给 non-x86 补伪语义，而是把边界说死：
+  - non-x86 只允许保留 compile scaffolding
+  - runtime 必须 fail-close
+  - `check_intrinsics_experimental_status.py` 也要把这条规则升成静态护栏，防止以后回退成“有 experimental guard 但没有 target guard”
