@@ -3842,3 +3842,17 @@
 | 1. 复核剩余差集是否真的是公开入口缺口 | completed | fresh action diff 已确认 runner 剩余 shell-only 只剩 `evidence-linux`、`gate-summary-selfcheck`、`native-evidence`、`restore-nightly-evidence`、`verify-nonx86-native-evidence`，再加上 batch 内联/特例的 `debug`、`release`、`verify-win-evidence`；说明这 5 条是最后一组可对齐的公开入口 |
 | 2. 补 batch wrapper 并撤掉 parity guard 的 shell-only allow | completed | 已在 `tests/fafafa.core.simd/buildOrTest.bat` 为这 5 条动作新增顶部 dispatch、usage/help 与 `bash %ROOT%BuildOrTest.sh ...` wrapper；已在 `tests/fafafa.core.simd/BuildOrTest.sh` 的 `LAllowedShellOnly` 中只保留 `import-nonx86-native-evidence`，并把这 5 条补进 required dispatch / usage / help / run-line pattern |
 | 3. 用轻量 selfcheck 和 Release `check` 做收口验证 | completed | 已跑 `git diff --check`、`bash -n tests/fafafa.core.simd/BuildOrTest.sh`、fresh action diff、`bash tests/fafafa.core.simd/BuildOrTest.sh gate-summary-selfcheck`、`FAFAFA_BUILD_MODE=Release SIMD_CHECK_NONX86_OPTIN=0 bash tests/fafafa.core.simd/BuildOrTest.sh check`；`gate-summary-selfcheck` 与 Release `check` 均通过，剩余 action 差集已收缩到 shell 内联/特例与 Windows alias |
+
+## 2026-05-16 Batch Inline Action Normalization
+
+### Goal
+
+继续把 runner parity 从“还剩内联特例”收成“只剩平台 alias”：将 batch 顶部仍内联处理的 `debug`、`release`、`verify-win-evidence`、`evidence-win-verify` 全部标准化成显式 label dispatch，并让 shell parity guard 按新结构守住它们。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 确认剩余差集已收敛到内联特例 | completed | fresh action diff 证明，在上一批后 runner 剩余 shell-only 已只剩 `debug`、`release`、`verify-win-evidence` 这类 batch 内联控制流，而 batch-only 只剩 Windows alias `evidence-win`；这说明继续补 action 表已没意义，真正剩下的是 dispatch 结构标准化 |
+| 2. 把内联分支改成显式 label，并同步 parity required pattern | completed | 已在 `tests/fafafa.core.simd/buildOrTest.bat` 把 `debug`、`release`、`verify-win-evidence`、`evidence-win-verify` 改为 `goto :debug_action / :release_action / :verify_win_evidence / :evidence_win_verify`，并把原逻辑迁到显式 label；已在 `tests/fafafa.core.simd/BuildOrTest.sh` 的 `check_windows_runner_parity()` required pattern 中同步改成新 dispatch 线并补 label/script variable 线索 |
+| 3. 用差集脚本与 Release `check` 验证“只剩 alias” | completed | 已跑 `git diff --check`、`bash -n tests/fafafa.core.simd/BuildOrTest.sh`、fresh action diff、`FAFAFA_BUILD_MODE=Release SIMD_CHECK_NONX86_OPTIN=0 bash tests/fafafa.core.simd/BuildOrTest.sh check`；结果已收缩到 `remaining shell_only: []`、`remaining batch_only: ['evidence-win', 'evidence-win-verify']`，且 Release `check` 继续通过 |

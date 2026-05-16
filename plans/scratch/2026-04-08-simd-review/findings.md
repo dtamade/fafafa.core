@@ -5626,3 +5626,41 @@
 - 当前最准确的阶段结论：
   - `simd` runner 的公开 action parity 已经从“大量 shell-only 漂移”收缩到“只剩内联控制流和平台别名差异”
   - 后续如果还要继续深审 runner，这条线应从“继续补 action 表”转向“验证剩余特例是否值得保持特例”
+
+## 2026-05-16 Batch Inline Action Normalization Findings
+
+- 在把最后一组 evidence/selfcheck wrapper 补齐后，我没有把“只剩少量差异”直接当完成，而是继续对差异本身做分类。
+- fresh action diff 给出的关键信号是：
+  - shell-only 已经不再是功能缺口，而只剩 batch 顶部的内联控制流：
+    - `debug`
+    - `release`
+    - `verify-win-evidence`
+  - batch-only 则是 Windows alias：
+    - `evidence-win`
+    - `evidence-win-verify`
+- 这说明 runner parity 线已经进入最后一个更细的阶段：
+  - 不再是“缺动作”
+  - 而是“同一个动作是否还要以特殊分支存在”
+- 因而这批最合适的修法不是继续补 wrapper，而是把 batch 顶部剩余的内联特例收成显式 label dispatch：
+  - `debug -> :debug_action`
+  - `release -> :release_action`
+  - `verify-win-evidence -> :verify_win_evidence`
+  - `evidence-win-verify -> :evidence_win_verify`
+- 这批的价值主要在可审计性，而不是行为变化：
+  - 顶部 action 表终于能被同一种 `goto` 结构完整扫描
+  - `check_windows_runner_parity()` 不用再对 `verify-win-evidence` 这类动作写特殊 inline 模式
+  - 后续再做 action diff 时，结果可以直接收敛到“只剩 Windows alias”
+- fresh 证据也正好验证了这一点：
+  - 标准化前：
+    - shell-only 还会显示 `debug`、`release`、`verify-win-evidence`
+  - 标准化后：
+    - `remaining shell_only: []`
+    - `remaining batch_only: ['evidence-win', 'evidence-win-verify']`
+  - 这说明 runner 的公开 action parity 现在已经不是“基本一致”，而是“公共 action 表完全收平，剩余差异只剩平台 alias”
+- `Release check` 继续通过也很关键，因为它证明这次不是“为了好看去改 dispatch 表”，而是：
+  - parity guard 继续为绿
+  - 主门禁仍能完整穿过 adapter/checker/standalone smoke/selfcheck 链
+  - 说明这次结构标准化没有把 batch 调度行为改坏
+- 当前最准确的阶段结论：
+  - runner parity 这条线现在已经真正收到了“只剩 alias，不剩隐藏特例”的状态
+  - 后续若继续审 `simd` runner，更值得看的将不是 dispatch 表，而是 Windows alias 是否还要长期保留双名字入口

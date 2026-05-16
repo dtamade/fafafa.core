@@ -6633,3 +6633,39 @@
 - 当前阶段结论：
   - 这批把 runner parity 的最后一组 evidence/selfcheck 公开入口也补齐了
   - 现在若继续深审 runner，更值得看的不再是“还有哪些 action 没暴露”，而是剩余内联/特例是否还应该保持特例
+
+## 2026-05-16 Batch Inline Action Normalization
+
+- evidence/selfcheck wrapper parity 提交后，我继续做了最后一次 fresh action diff：
+  - `python3 - <<'PY' ...` 对比 shell case action 与 batch 顶部 `goto` action
+  - fresh 结果已经不是“缺少动作”，而是“还有几条内联分支”：
+    - shell-only：`debug`、`release`、`verify-win-evidence`
+    - batch-only：`evidence-win`
+- 这说明 runner parity 线已经不该继续按“补 action”思路推进，而应该把 batch 顶部最后几条内联特例标准化成显式 label dispatch。
+- 本批已完成的代码修改：
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+    - `debug` 改成 `goto :debug_action`
+    - `release` 改成 `goto :release_action`
+    - `verify-win-evidence` 改成 `goto :verify_win_evidence`
+    - `evidence-win-verify` 改成 `goto :evidence_win_verify`
+    - 原有逻辑整体迁移到对应 label，行为不变
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - `check_windows_runner_parity()` required pattern 改为匹配新的 `goto` 结构
+    - 同步补上 `:debug_action` / `:release_action` / `:verify_win_evidence` / `:evidence_win_verify` 的 label 或关键脚本变量线索
+- 这批的关键收益不在功能新增，而在调度面彻底收平：
+  - batch 顶部公开 action 表现在终于可以用同一类规则扫描
+  - parity guard 对 `verify-win-evidence` 不再依赖特殊 inline 模式
+  - action diff 的结果也可以更干净地表达“只剩 alias”
+- 本批 fresh 验证链：
+  - `git diff --check`
+  - `bash -n tests/fafafa.core.simd/BuildOrTest.sh`
+  - fresh action diff
+  - `FAFAFA_BUILD_MODE=Release SIMD_CHECK_NONX86_OPTIN=0 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - action diff 已收敛为：
+    - `remaining shell_only: []`
+    - `remaining batch_only: ['evidence-win', 'evidence-win-verify']`
+  - `Release check` 继续通过，`windows runner parity signatures present` 仍为绿
+- 当前阶段结论：
+  - runner parity 现在已经真正进入“只剩 Windows alias”的状态
+  - 如果还继续深审这条线，下一步应该判断 `evidence-win` / `evidence-win-verify` 是否值得长期保留为 alias，而不是继续改 dispatch 结构

@@ -62,13 +62,8 @@ if /I "%ACTION%"=="check" goto :check
 if /I "%ACTION%"=="test" goto :test
 if /I "%ACTION%"=="test-concurrent-repeat" goto :test_concurrent_repeat
 if /I "%ACTION%"=="cpuinfo-lazy-repeat" goto :cpuinfo_lazy_repeat
-if /I "%ACTION%"=="debug" (
-  set "MODE=Debug"
-  goto :test
-)
-if /I "%ACTION%"=="release" (
-  goto :release
-)
+if /I "%ACTION%"=="debug" goto :debug_action
+if /I "%ACTION%"=="release" goto :release_action
 if /I "%ACTION%"=="gate" goto :gate
 if /I "%ACTION%"=="gate-strict" goto :gate_strict
 if /I "%ACTION%"=="closeout-release" goto :closeout_release
@@ -125,41 +120,8 @@ if /I "%ACTION%"=="restore-nightly-evidence" goto :restore_nightly_evidence
 if /I "%ACTION%"=="evidence-win" goto :evidence_win
 if /I "%ACTION%"=="win-evidence-preflight" goto :win_evidence_preflight
 if /I "%ACTION%"=="win-evidence-via-gh" goto :win_evidence_via_gh
-if /I "%ACTION%"=="verify-win-evidence" (
-  set "VERIFY_SCRIPT=%ROOT%verify_windows_b07_evidence.bat"
-  set "VERIFY_ARGS=%NORMALIZED_TEST_ARGS%"
-  if not exist "%VERIFY_SCRIPT%" (
-    echo [EVIDENCE] Missing verifier: %VERIFY_SCRIPT%
-    exit /b 2
-  )
-  if "%VERIFY_ARGS%"=="" (
-    call "%VERIFY_SCRIPT%" "%ROOT%logs\windows_b07_gate.log"
-  ) else (
-    call "%VERIFY_SCRIPT%" %VERIFY_ARGS%
-  )
-  exit /b %ERRORLEVEL%
-)
-if /I "%ACTION%"=="evidence-win-verify" (
-  set "EVIDENCE_SCRIPT=%ROOT%collect_windows_b07_evidence.bat"
-  set "VERIFY_SCRIPT=%ROOT%verify_windows_b07_evidence.bat"
-  set "VERIFY_ARGS=%NORMALIZED_TEST_ARGS%"
-  if not exist "%EVIDENCE_SCRIPT%" (
-    echo [EVIDENCE] Missing collector: %EVIDENCE_SCRIPT%
-    exit /b 2
-  )
-  if not exist "%VERIFY_SCRIPT%" (
-    echo [EVIDENCE] Missing verifier: %VERIFY_SCRIPT%
-    exit /b 2
-  )
-  call "%EVIDENCE_SCRIPT%"
-  if errorlevel 1 exit /b 1
-  if "%VERIFY_ARGS%"=="" (
-    call "%VERIFY_SCRIPT%" "%ROOT%logs\windows_b07_gate.log"
-  ) else (
-    call "%VERIFY_SCRIPT%" %VERIFY_ARGS%
-  )
-  exit /b %ERRORLEVEL%
-)
+if /I "%ACTION%"=="verify-win-evidence" goto :verify_win_evidence
+if /I "%ACTION%"=="evidence-win-verify" goto :evidence_win_verify
 if /I "%ACTION%"=="finalize-win-evidence" goto :finalize_win_evidence
 if /I "%ACTION%"=="win-closeout-dryrun" goto :win_closeout_dryrun
 if /I "%ACTION%"=="win-closeout-snippets" goto :win_closeout_snippets
@@ -209,12 +171,54 @@ exit /b 2
 call :nonx86_helper_semantics_check
 exit /b %ERRORLEVEL%
 
+:debug_action
+set "MODE=Debug"
+goto :test
+
+:release_action
+goto :release
+
 :riscvv_abi_shape
 call :riscvv_abi_shape_check
 exit /b %ERRORLEVEL%
 
 :source_reachability
 call :source_reachability_check
+exit /b %ERRORLEVEL%
+
+:verify_win_evidence
+set "VERIFY_SCRIPT=%ROOT%verify_windows_b07_evidence.bat"
+set "VERIFY_ARGS=%NORMALIZED_TEST_ARGS%"
+if not exist "%VERIFY_SCRIPT%" (
+  echo [EVIDENCE] Missing verifier: %VERIFY_SCRIPT%
+  exit /b 2
+)
+if "%VERIFY_ARGS%"=="" (
+  call "%VERIFY_SCRIPT%" "%ROOT%logs\windows_b07_gate.log"
+) else (
+  call "%VERIFY_SCRIPT%" %VERIFY_ARGS%
+)
+exit /b %ERRORLEVEL%
+
+:evidence_win_verify
+set "EVIDENCE_SCRIPT=%ROOT%collect_windows_b07_evidence.bat"
+set "VERIFY_SCRIPT=%ROOT%verify_windows_b07_evidence.bat"
+set "VERIFY_ARGS=%NORMALIZED_TEST_ARGS%"
+if not exist "%EVIDENCE_SCRIPT%" (
+  echo [EVIDENCE] Missing collector: %EVIDENCE_SCRIPT%
+  exit /b 2
+)
+if not exist "%VERIFY_SCRIPT%" (
+  echo [EVIDENCE] Missing verifier: %VERIFY_SCRIPT%
+  exit /b 2
+)
+call "%EVIDENCE_SCRIPT%"
+if errorlevel 1 exit /b 1
+if "%VERIFY_ARGS%"=="" (
+  call "%VERIFY_SCRIPT%" "%ROOT%logs\windows_b07_gate.log"
+) else (
+  call "%VERIFY_SCRIPT%" %VERIFY_ARGS%
+)
 exit /b %ERRORLEVEL%
 
 :gate_summary_selfcheck
