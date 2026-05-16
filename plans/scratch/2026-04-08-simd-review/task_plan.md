@@ -3758,3 +3758,17 @@
 | 1. 复核现成 dedicated truth source 是否足够覆盖整簇 | completed | 已确认 `python3 ...check_nonx86_register_truthfulness.py --backend neon --json --strict` 对账后，`NEON missing_from_key` 仅剩 `CmpEq/CmpGe/CmpGt/CmpLe/CmpLt/CmpNe` 六大家族共 36 个 `asm-only wrapper-only` slot；同时 `Test_NEON_NoAsmWideIntegerCompareSlots_Keep_SourceCompanions_But_Reuse_BaseScalar` 已现成固定了 source companion、关键 composition witness、register asm binding 与 runtime scalar-reuse truth，无需再改 Pascal testcase |
 | 2. 把 36 个 wide integer compare slot 提升成常规 key-slot | completed | 已在 `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py` 把这 36 个 `Cmp*` slot 全部纳入 `KEY_SLOTS_BY_BACKEND['neon']`；把 `Test_NEON_NoAsmWideIntegerCompareSlots_Keep_SourceCompanions_But_Reuse_BaseScalar` 纳入 `EXPECTATION_PROCEDURES['neon']`；并对这 36 个 slot 开启 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['neon']` |
 | 3. 按脚本批次最小链复验并收口 | completed | 本批只跑 `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`、`python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend neon --summary-line`、Release `check`；全部通过，fresh summary 已更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon slots=65 issues=0 status=ok`，全局 summary 亦为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=101 issues=0 status=ok` |
+
+## 2026-05-16 Non-x86 Key-Slot Cluster Dedup
+
+### Goal
+
+把 `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py` 里已经重复硬编码的 key-slot 簇抽成共享定义，降低后续继续扩 `NEON/RISCVV` ownership 门禁时的 drift 风险，同时保持现有审计语义不变。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前结构冗余是否真实存在 | completed | 已确认同一批 slot 名字同时散落在 `KEY_SLOTS_BY_BACKEND`、`REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS` 与局部 backend 例外里；尤其是 `NEON` 36 个 wide compare、`RISCVV` 9 个 extract、12 个 helper-owned slot 都已出现“同一真相多处手填”的形态 |
+| 2. 抽出共享 slot 簇并让门禁常量复用 | completed | 已在脚本顶部提炼 `NEON_*` / `RISCVV_*` 共享 tuple 簇，并让 `KEY_SLOTS_BY_BACKEND`、`REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS`、`ALLOWED_BACKEND_OWNED_NO_ASM_SCALAR_WRAPPER_SLOTS_BY_BACKEND` 复用同一真源，保持计数与语义不变 |
+| 3. 按 checker 批次最小链复验并收口 | completed | 已跑 `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`、`python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --summary-line`、Release `check`；summary 继续保持 `backend=neon ok slots=65`、`backend=riscvv ok slots=36`、`NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=101 issues=0 status=ok`，说明本批只做结构去冗余，没有改变审计语义 |

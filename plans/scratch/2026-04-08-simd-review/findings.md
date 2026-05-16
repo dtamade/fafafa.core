@@ -5416,3 +5416,30 @@
   - 以前：`NEON missing_from_key=36`
   - 现在：`NEON missing_from_key=0`
   - fresh summary 已更新为 `backend=neon ok slots=65`，全局 summary 已更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=101 issues=0 status=ok`
+
+## 2026-05-16 Non-x86 Key-Slot Cluster Dedup Findings
+
+- 在 `NEON missing_from_key=0` 收口后继续做 completion audit，当前更真实的问题已经不再是 coverage 缺口，而是 checker 自身的结构冗余：
+  - 同一批 slot 名字同时散落在 `KEY_SLOTS_BY_BACKEND`
+  - `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS`
+  - 个别 backend 例外集
+- 这种重复在近几轮已经开始危险，最明显的是：
+  - `NEON` 36 个 `wide compare` slot
+  - `RISCVV` 9 个 `Extract*` slot
+  - `RISCVV` 12 个 helper-owned exact-scalar slot
+- 风险不在今天的行为错误，而在未来很容易出现“改了一处、漏了一处”的 drift：
+  - key-slot 集合更新了，explicit-assert 必须集没更新
+  - 或者 backend mixed-context 例外还留着旧名字
+- 因而这批最合适的修法不是再开新 testcase，而是把 checker 的 shared truth 收回单点：
+  - 提炼 `NEON_*` / `RISCVV_*` slot 簇
+  - 让 `KEY_SLOTS_BY_BACKEND` 与 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS` 组合式复用
+  - `RISCVV` 的 no-asm scalar companion 例外直接复用 `Extract*` 共享簇
+- 这样做的收益很直接：
+  - 本批不改变任何 backend/source/runtime 语义
+  - 但后续继续扩 ownership 门禁时，不必再在多处手工同步同一簇名字
+  - checker 自己的 drift 风险会明显下降
+- fresh 复验也证明这次是“真去冗余、零语义漂移”：
+  - `backend=neon ok slots=65`
+  - `backend=riscvv ok slots=36`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=101 issues=0 status=ok`
+  - Release `check` 继续通过

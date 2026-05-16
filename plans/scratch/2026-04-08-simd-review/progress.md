@@ -6376,3 +6376,37 @@
   - 这批没有改 backend 行为，而是把 `NEON wide integer compare` 这整簇 36 个合法 `asm-only wrapper-only` 位点一次性正式接进了 `check` 常规门禁
   - 按当前 checker 模型，`NEON missing_from_key` 已经清零
   - 收口前仍会清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 产物带进提交
+
+## 2026-05-16 Non-x86 Key-Slot Cluster Dedup
+
+- 提交 `57ae0ed0 test(simd): lift neon wide compare key-slot audit` 后，我先没有继续机械深挖新 slot，而是按改进后的工作法做了一轮只读 completion audit：
+  - `git status --short --branch`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --json --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --json --strict`
+- completion audit 先确认了两个关键事实：
+  - 当前 `NEON` wrapper-only 已稳定为 `55`，`RISCVV` 为 `26`
+  - allowlist 已无冗余项，`key-slot` coverage 线也已收口
+- 在这个前提下，新一轮最真实的问题不再是“还有哪个 slot 没接进门禁”，而是 `check_nonx86_key_slot_audit.py` 自己开始出现结构性重复：
+  - 同一簇 slot 名字在 `KEY_SLOTS_BY_BACKEND` 与 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS` 里重复维护
+  - `RISCVV Extract*` 还额外在 mixed-context 例外集里再次手填
+- 本批已完成的最小修复：
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 新增 `combine_slot_groups(...)`
+    - 抽出 `NEON_*` 与 `RISCVV_*` 共享 key-slot tuple 簇
+    - 让 `KEY_SLOTS_BY_BACKEND`、`REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS`、`ALLOWED_BACKEND_OWNED_NO_ASM_SCALAR_WRAPPER_SLOTS_BY_BACKEND` 复用共享真源
+- 这批的目标不是改计数，而是压低 checker 自己的 drift 风险：
+  - 以后再扩某一簇 ownership slot 时，不需要在多块常量里重复手改同一批名字
+  - 如果 summary 保持不变，就说明这次只做了结构去冗余，没有碰审计语义
+- 本批 fresh 验证链已完成：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `backend=neon ok slots=65`
+  - `backend=riscvv ok slots=36`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=101 issues=0 status=ok`
+  - Release `check` 通过
+- 当前阶段结论：
+  - 这批确认只是 checker 结构去冗余，没有改动任何 non-x86 ownership 语义
+  - 下一轮再继续审查时，可以优先找新的真实缺口，而不是在这份脚本里继续手工同步同一批 slot 名字
