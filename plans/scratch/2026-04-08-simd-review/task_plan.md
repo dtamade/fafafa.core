@@ -4337,3 +4337,17 @@
 | 1. 复核脚本真行为与 active docs 漂移 | completed | 已确认 `closeout-host-local` / `gate-strict` 仍主要消费 `qemu-nonx86-evidence`，而 canonical `gate` / `freeze-status` / `win-closeout-finalize` 另外要求 `qemu-cpuinfo-nonx86-evidence`；`docs/fafafa.core.simd.closeout.md` / `docs/fafafa.core.simd.checklist.md` 仍把两者混写 |
 | 2. 修正文档真相源 | completed | 已同步 `docs/fafafa.core.simd.closeout.md`、`docs/fafafa.core.simd.checklist.md`、`docs/fafafa.core.simd.implementation-matrix.md`：明确 host-local runtime evidence 与 CPUInfo cross evidence 的双轨语义，并把 Windows blocker 更新为 GH run `25967172435` 的 billing/spending-limit 失败 |
 | 3. 最小验证并准备提交 | in_progress | `git diff --check` 已通过；active 文档关键事实已用 `rg` 复核到位。下一步给出简短 review 结论后提交这一批 docs truth-sync |
+
+## 2026-05-17 SSE2 Transitional Non-x86 Fail-Close
+
+### Goal
+
+继续沿 `SSE2 transitional debt` 收口一个真实契约问题：禁止 `src/fafafa.core.simd.intrinsics.sse2.pas` 在 non-x86 + `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS` 下把 placeholder body 误当成可执行语义。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核实验测试与文档契约 | completed | 已确认现有 `experimental` 测试只约束 `x86_64` 路径；non-x86 分支没有任何 runtime 语义证据，当前 placeholder body 只会误导 bring-up |
+| 2. 收口 non-x86 runtime 边界 | completed | `intrinsics.sse2` 现已在 initialization 里对 non-x86 experimental 运行期 fail-close，并把源码注释、disposition 与 migration map 同步到“compile scaffolding only” |
+| 3. 最小验证与收口 | completed | `git diff --check`、`check_sse2_structure.py --summary-line`、`tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`、`FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 ... BuildOrTest.sh test` 全部通过 |

@@ -6355,3 +6355,14 @@
   - 把 host-local implementation closeout 和 release freeze closeout 的证据语义重新拉开
   - 把最新 Windows external blocker 固定成可复述的 run id / failure mode
   - 防止后续会话再次因为旧文档而回到“为什么 Linux 都绿了 freeze-status 还红”的重复排障
+
+## 2026-05-17 SSE2 Transitional Non-x86 Runtime Drift
+
+- `src/fafafa.core.simd.intrinsics.sse2.pas` 在 `CPUX86/CPUX86_64` 下会走 `fafafa.core.simd.intrinsics.sse2.x86.inc`，而现有 `experimental` 测试也只在 `x86_64` 下对这条路径施加语义约束。
+- 同一个单元的 non-x86 分支仍保留大量 `Result := a` / `Result := 0` / `Result := simd_add_*` 这类 placeholder body；一旦有人在 non-x86 上打开 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS`，这些假语义会静默运行。
+- 这不属于“允许的实验口径”：
+  - disposition / migration map 都把 `intrinsics.sse2` 定义成 x86 迁移中的 transitional wrapper，而不是 non-x86 experimental runtime surface；
+  - 当前也没有任何 non-x86 runtime parity / suite / smoke 证明这些 placeholder body 可以被当成 contract。
+- 因而更正确的收口不是去补全这批 non-x86 placeholder，而是显式 fail-close：
+  - compile 可以继续留给结构检查或未来 bring-up；
+  - runtime 必须在 initialization 阶段直接拒绝 non-x86 experimental 执行，避免“可编译”被误读成“有语义”。

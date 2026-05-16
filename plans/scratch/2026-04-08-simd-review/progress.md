@@ -7579,3 +7579,27 @@
   - 这批仍然没有改 SIMD 生产实现
   - 修掉的是 active truth-source 文档的真实歧义和 stop-point 漂移
   - 下次继续 closeout 时，不会再因为旧文档把 `closeout-host-local`、`qemu-nonx86-evidence`、`qemu-cpuinfo-nonx86-evidence`、`freeze-status` 误读成一条链
+
+## 2026-05-17 SSE2 Transitional Non-x86 Fail-Close
+
+- 这轮不再重开 Windows evidence，也不再泛扫 `dispatchapi`；先把范围压到 `intrinsics.sse2 transitional debt` 的一个真实契约问题上。
+- 已复核：
+  - `src/fafafa.core.simd.intrinsics.sse2.pas`
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+  - `docs/SIMD_SSE2_MIGRATION_MAP.md`
+  - `docs/SIMD_INTRINSICS_DISPOSITION.md`
+  - `docs/plans/2026-05-09-simd-sse2-retire-target-plan.md`
+- 当前结论：
+  - x86 experimental 路径有真实测试和 raw include；
+  - non-x86 experimental 路径没有 runtime 证据，却仍暴露大量 placeholder body；
+  - 下一步应把 non-x86 runtime 收成 fail-close，而不是继续给 placeholder 补伪语义。
+- 已完成收口：
+  - `src/fafafa.core.simd.intrinsics.sse2.pas` 新增 `EnsureExperimentalSse2TargetSupported`
+  - non-x86 placeholder 段新增注释，明确它只保留 compile scaffolding
+  - `docs/SIMD_INTRINSICS_DISPOSITION.md` 与 `docs/SIMD_SSE2_MIGRATION_MAP.md` 已同步到相同口径
+- 最小验证结果：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 结果：全部通过；默认拒绝链和 x86 opt-in 实验链都未被误伤

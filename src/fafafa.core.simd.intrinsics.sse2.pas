@@ -259,6 +259,18 @@ begin
   {$ENDIF}
 end;
 
+procedure EnsureExperimentalSse2TargetSupported; inline;
+begin
+  {$IFNDEF CPUX86_64}
+  {$IFNDEF CPUX86}
+  raise ENotSupportedException.Create(
+    'fafafa.core.simd.intrinsics.sse2 experimental runtime is only qualified on x86/x86_64. ' +
+    'The non-x86 branch remains transitional compile scaffolding, not executable semantics.'
+  );
+  {$ENDIF}
+  {$ENDIF}
+end;
+
 {$IFDEF CPUX86_64}
 {$I fafafa.core.simd.intrinsics.sse2.x86.inc}
 {$ELSEIF CPUX86}
@@ -266,7 +278,8 @@ end;
 {$ELSE}
 
 // === 基础函数实现 (Pascal 版本) ===
-// 这里只实现几个关键函数作为示例，完整实现将在后续添加
+// 非 x86 分支当前只保留编译脚手架；运行期会在 initialization fail-close。
+// 这里只实现几个关键函数作为示例，完整实现将在后续添加。
 
 function simd_load_si128(const Ptr: Pointer): TM128;
 begin
@@ -815,6 +828,7 @@ procedure simd_clflush(const Ptr: Pointer); begin end;
 
 initialization
   EnsureExperimentalIntrinsicsEnabled;
+  EnsureExperimentalSse2TargetSupported;
 
 end.
 

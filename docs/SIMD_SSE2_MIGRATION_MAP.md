@@ -25,6 +25,7 @@
 
 - A 桶迁的是 leaf，不是 façade symbol 本身。
 - `intrinsics.x86.sse2` 只接受 `TM128` / raw intrinsic 风格接口。
+- `intrinsics.sse2` 的 non-x86 分支只允许保留 compile scaffolding；不能再把 placeholder body 当成 experimental runtime 语义。
 - 迁一族，补一族 raw semantic parity 证据。
 - 只要 `intrinsics.x86.sse2` 的 disposition 仍是 `experimental isolated`，A 桶仍只是目标归属图，不是 stable adapter 可直接依赖它的授权。
 - `simd.sse2` 想开始默认委托给 A 桶对象，前提是：目标 leaf 已经是 `active leaf`，或者先拆出新的 `active leaf` 子集。
