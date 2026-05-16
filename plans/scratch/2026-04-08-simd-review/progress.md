@@ -7921,3 +7921,38 @@
   - 这批没有改动 SIMD 语义或测试 contract
   - 收掉的是仓库内已经被提交的生成垃圾和对应 ignore 漏口
   - 这能直接降低后续 SIMD 审查时的假信号和仓库体积噪音
+
+## 2026-05-17 Register Truthfulness Gate Promotion
+
+- 继续按“小闭环”推进，没有继续盲扫源码，而是从 fresh `Release check` 输出里抓门禁残余。
+- 已复核：
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+  - `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 的现状日志
+- 当前结论：
+  - 默认 `check` 里的 `[REG-TRUTH] SKIP ...` 不是设计必需，而是遗留 gating
+  - `register truthfulness` 当前已经是纯静态 Python 审查，不依赖 opt-in backend 编译
+  - 因而这是一条真实的默认门禁覆盖缺口，值得直接提升到主链
+- 已完成收口：
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+  - `plans/scratch/2026-04-08-simd-review/*`
+  现在 shell/batch 的 `register truthfulness` 都默认同时审 `neon` + `riscvv`，`gate` 也不再把它当成 opt-in skip。
+- 已完成 release 验证：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- fresh 结果：
+  - 默认 `check` 不再输出 `[REG-TRUTH] SKIP ...`
+  - `check` 中已真实执行：
+    - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=neon ... strict=0`
+    - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=riscvv ... strict=0`
+  - `gate` 中已真实执行：
+    - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=neon ... strict=1`
+    - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=riscvv ... strict=1`
+  - release `gate` 最终继续 `[GATE] OK`
+  - 仍然诚实保留旧的 optional Windows evidence verify skip，不属于本批回归
+- 当前阶段结论：
+  - 这批不是后端语义修复，而是默认门禁覆盖面的真实补强
+  - 现在 non-x86 register ownership truth 已经进入日常 `check/gate` 主链，而不是只有 opt-in 环境下才会被看到

@@ -6521,3 +6521,26 @@
   - `/simd_test`
   - `/*.core`
 - 因而这不是“当前工作树脏了”的问题，而是“仓库历史已经收进了明显的生成垃圾”，值得优先清掉。
+
+## 2026-05-17 Register Truthfulness Default-Gate Gap
+
+- 当前 `tests/fafafa.core.simd/BuildOrTest.sh check` 和 `buildOrTest.bat check` 还有一个真实 coverage gap：
+  - `register truthfulness` 明明是纯 Python 静态审查
+  - 但 runner 仍把它绑在 `SIMD_ENABLE_NEON_BACKEND=1` / `SIMD_ENABLE_RISCVV_BACKEND=1` 这类 opt-in 编译开关上
+- 这条约束现在已经与 checker 真相脱节：
+  - 直接运行
+    - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --summary-line --strict`
+    - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+    都能在当前源码上稳定通过
+  - 说明它不需要把 `NEON/RISCVV` backend 编进测试二进制，也不依赖运行期 opt-in host
+- 因而现状的真正问题不是“这个检查太重”，而是“默认主门禁无声少守了一层”：
+  - `helper-semantics`、`key-slot-audit`、`riscvv-abi-shape` 已经在默认 `check` 里
+  - `register truthfulness` 却还停在 opt-in 条件下才运行
+  - 导致最核心的 non-x86 register ownership truth 仍可能在日常 `check` 里被跳过
+- 这批最正确的修法不是再补新的 checker，而是把 runner 自己收正：
+  - shell `run_register_truthfulness_check()` 默认同时跑 `neon` + `riscvv`
+  - batch `:register_truthfulness_check` 同步改成默认同时跑两边
+  - `gate` 不再把这一步当成“只有开了 opt-in backend 才启用”的可选步骤
+- 这样改的性质是“覆盖面提升”，不是“验证成本爆炸”：
+  - 它不引入新的编译
+  - 只把已存在、已成熟、已 cheap 的 Python truth checker 抬进默认门禁

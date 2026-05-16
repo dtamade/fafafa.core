@@ -4480,3 +4480,17 @@
 | 1. 复核哪些文件是误跟踪的生成产物 | completed | 已确认 `simd_test` 是 x86_64 ELF 可执行文件，`qemu_fafafa.core.simd.test_20260220-232704_195.core` 是 9.3M AArch64 core dump，`bin2-smoke/link60.res` 与 `bin2-smoke/ppas.sh` 是 `rvv_opcode_smoke` 编译生成物；`rg` 未发现真实源码/脚本依赖它们 |
 | 2. 删除误入版本库的产物并补 ignore | completed | 已删除上述 4 个 tracked artifacts，并在 `tests/fafafa.core.simd/.gitignore` 补 `/bin2-smoke/`、`/simd_test`、`/*.core`，把这类 SIMD 生成产物收进仓库卫生护栏 |
 | 3. 最小验证与收口 | completed | `git diff --check` 通过；`git check-ignore -v --no-index` 已命中 `/bin2-smoke/`、`/simd_test`、`/*.core`；`check_simd_source_reachability.py --summary-line` 与 `check_intrinsics_experimental_status.py --summary-line` 继续为绿 |
+
+## 2026-05-17 Register Truthfulness Gate Promotion
+
+### Goal
+
+把 `check_nonx86_register_truthfulness.py` 从“依赖 `SIMD_ENABLE_*` 的可选 lane”收正为默认静态门禁，因为它本身不需要 opt-in backend 编译，却能直接守住 non-x86 register ownership truth。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前 gap 是否真实存在 | completed | 已确认 `BuildOrTest.sh check` 当前仍输出 `[REG-TRUTH] SKIP (enable SIMD_ENABLE_NEON_BACKEND=1 or SIMD_ENABLE_RISCVV_BACKEND=1)`；但直接运行 `check_nonx86_register_truthfulness.py --backend neon/riscvv --summary-line --strict` 都能稳定通过，说明这是门禁覆盖缺口，不是编译前置条件 |
+| 2. shell/batch runner 收口 | completed | 已把 shell/batch 的 `register_truthfulness_check` 改成无条件同时审 `neon` + `riscvv`，并把 `gate` 中对应步骤从 opt-in skip 改成默认执行 |
+| 3. release 验证与收口 | completed | `git diff --check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 已通过；默认 `check` 与 `gate` 中的 `REG-TRUTH` 现在都会真实执行 `neon+riscvv` 两条静态 truth 审查 |

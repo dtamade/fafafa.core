@@ -654,7 +654,6 @@ exit /b 0
 set "REGISTER_TRUTH_SCRIPT=%ROOT%check_nonx86_register_truthfulness.py"
 set "REGISTER_TRUTH_STRICT=%~1"
 set "REGISTER_TRUTH_ARGS="
-set "REGISTER_TRUTH_RAN=0"
 if /I "%REGISTER_TRUTH_STRICT%"=="1" set "REGISTER_TRUTH_ARGS=--strict"
 
 if not exist "%REGISTER_TRUTH_SCRIPT%" (
@@ -662,48 +661,38 @@ if not exist "%REGISTER_TRUTH_SCRIPT%" (
   exit /b 2
 )
 
-if /I "%SIMD_ENABLE_NEON_BACKEND%"=="1" (
-  set "REGISTER_TRUTH_RAN=1"
-  where py >nul 2>nul
+where py >nul 2>nul
+if not errorlevel 1 (
+  echo [REG-TRUTH] Running: py -3 %REGISTER_TRUTH_SCRIPT% --backend neon --summary-line %REGISTER_TRUTH_ARGS%
+  py -3 "%REGISTER_TRUTH_SCRIPT%" --backend neon --summary-line %REGISTER_TRUTH_ARGS%
+  if errorlevel 1 exit /b %ERRORLEVEL%
+) else (
+  where python >nul 2>nul
   if not errorlevel 1 (
-    echo [REG-TRUTH] Running: py -3 %REGISTER_TRUTH_SCRIPT% --backend neon --summary-line %REGISTER_TRUTH_ARGS%
-    py -3 "%REGISTER_TRUTH_SCRIPT%" --backend neon --summary-line %REGISTER_TRUTH_ARGS%
+    echo [REG-TRUTH] Running: python %REGISTER_TRUTH_SCRIPT% --backend neon --summary-line %REGISTER_TRUTH_ARGS%
+    python "%REGISTER_TRUTH_SCRIPT%" --backend neon --summary-line %REGISTER_TRUTH_ARGS%
     if errorlevel 1 exit /b %ERRORLEVEL%
   ) else (
-    where python >nul 2>nul
-    if not errorlevel 1 (
-      echo [REG-TRUTH] Running: python %REGISTER_TRUTH_SCRIPT% --backend neon --summary-line %REGISTER_TRUTH_ARGS%
-      python "%REGISTER_TRUTH_SCRIPT%" --backend neon --summary-line %REGISTER_TRUTH_ARGS%
-      if errorlevel 1 exit /b %ERRORLEVEL%
-    ) else (
-      echo [REG-TRUTH] FAILED (python runtime not found; tried py and python)
-      exit /b 2
-    )
+    echo [REG-TRUTH] FAILED (python runtime not found; tried py and python)
+    exit /b 2
   )
 )
 
-if /I "%SIMD_ENABLE_RISCVV_BACKEND%"=="1" (
-  set "REGISTER_TRUTH_RAN=1"
-  where py >nul 2>nul
+where py >nul 2>nul
+if not errorlevel 1 (
+  echo [REG-TRUTH] Running: py -3 %REGISTER_TRUTH_SCRIPT% --backend riscvv --summary-line %REGISTER_TRUTH_ARGS%
+  py -3 "%REGISTER_TRUTH_SCRIPT%" --backend riscvv --summary-line %REGISTER_TRUTH_ARGS%
+  if errorlevel 1 exit /b %ERRORLEVEL%
+) else (
+  where python >nul 2>nul
   if not errorlevel 1 (
-    echo [REG-TRUTH] Running: py -3 %REGISTER_TRUTH_SCRIPT% --backend riscvv --summary-line %REGISTER_TRUTH_ARGS%
-    py -3 "%REGISTER_TRUTH_SCRIPT%" --backend riscvv --summary-line %REGISTER_TRUTH_ARGS%
+    echo [REG-TRUTH] Running: python %REGISTER_TRUTH_SCRIPT% --backend riscvv --summary-line %REGISTER_TRUTH_ARGS%
+    python "%REGISTER_TRUTH_SCRIPT%" --backend riscvv --summary-line %REGISTER_TRUTH_ARGS%
     if errorlevel 1 exit /b %ERRORLEVEL%
   ) else (
-    where python >nul 2>nul
-    if not errorlevel 1 (
-      echo [REG-TRUTH] Running: python %REGISTER_TRUTH_SCRIPT% --backend riscvv --summary-line %REGISTER_TRUTH_ARGS%
-      python "%REGISTER_TRUTH_SCRIPT%" --backend riscvv --summary-line %REGISTER_TRUTH_ARGS%
-      if errorlevel 1 exit /b %ERRORLEVEL%
-    ) else (
-      echo [REG-TRUTH] FAILED (python runtime not found; tried py and python)
-      exit /b 2
-    )
+    echo [REG-TRUTH] FAILED (python runtime not found; tried py and python)
+    exit /b 2
   )
-)
-
-if /I "%REGISTER_TRUTH_RAN%"=="0" (
-  echo [REG-TRUTH] SKIP ^(enable SIMD_ENABLE_NEON_BACKEND=1 or SIMD_ENABLE_RISCVV_BACKEND=1^)
 )
 exit /b 0
 
@@ -2017,17 +2006,9 @@ if /I "%SIMD_GATE_WIRING_SYNC%"=="1" (
   echo [GATE] SKIP optional wiring-sync ^(set SIMD_GATE_WIRING_SYNC=1 to enable^)
 )
 
-if /I "%SIMD_ENABLE_NEON_BACKEND%"=="1" (
-  echo [GATE] Optional register-truthfulness enabled
-  call :register_truthfulness_check 1
-  if errorlevel 1 exit /b 1
-) else if /I "%SIMD_ENABLE_RISCVV_BACKEND%"=="1" (
-  echo [GATE] Optional register-truthfulness enabled
-  call :register_truthfulness_check 1
-  if errorlevel 1 exit /b 1
-) else (
-  echo [GATE] SKIP optional register-truthfulness ^(enable SIMD_ENABLE_NEON_BACKEND=1 or SIMD_ENABLE_RISCVV_BACKEND=1^)
-)
+echo [GATE] Register-truthfulness
+call :register_truthfulness_check 1
+if errorlevel 1 exit /b 1
 
 if /I "%SIMD_GATE_QEMU_NONX86_EVIDENCE%"=="1" (
   echo [GATE] Optional qemu non-x86 evidence

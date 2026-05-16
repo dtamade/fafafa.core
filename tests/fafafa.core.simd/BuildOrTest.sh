@@ -5301,24 +5301,10 @@ run_register_truthfulness_backend() {
 
 run_register_truthfulness_check() {
   local LStrict
-  local LRan
 
   LStrict="${1:-0}"
-  LRan=0
-
-  if [[ "${SIMD_ENABLE_NEON_BACKEND:-0}" == "1" ]]; then
-    run_register_truthfulness_backend "neon" "${LStrict}" || return $?
-    LRan=1
-  fi
-
-  if [[ "${SIMD_ENABLE_RISCVV_BACKEND:-0}" == "1" ]]; then
-    run_register_truthfulness_backend "riscvv" "${LStrict}" || return $?
-    LRan=1
-  fi
-
-  if [[ "${LRan}" == "0" ]]; then
-    echo "[REG-TRUTH] SKIP (enable SIMD_ENABLE_NEON_BACKEND=1 or SIMD_ENABLE_RISCVV_BACKEND=1)"
-  fi
+  run_register_truthfulness_backend "neon" "${LStrict}" || return $?
+  run_register_truthfulness_backend "riscvv" "${LStrict}" || return $?
 }
 
 run_perf_smoke() {
@@ -5695,28 +5681,24 @@ run_gate() {
     append_gate_summary "wiring-sync" "SKIP" "SIMD_GATE_WIRING_SYNC=0" "-" "SKIP" "-"
   fi
 
-  if [[ "${SIMD_ENABLE_NEON_BACKEND:-0}" == "1" || "${SIMD_ENABLE_RISCVV_BACKEND:-0}" == "1" ]]; then
-    echo "[GATE] Optional register-truthfulness enabled"
-    LWiringStartMs="$(now_ms)"
-    if run_register_truthfulness_check "1"; then
-      LWiringEndMs="$(now_ms)"
-      LWiringDurationMs="$(( LWiringEndMs - LWiringStartMs ))"
-      LWiringEvent="$(gate_step_event "${LWiringDurationMs}")"
-      LWiringSummary="$(collect_register_truthfulness_summary)"
-      append_gate_summary "register-truthfulness" "PASS" "${LWiringSummary:-summary-missing}" "${LWiringDurationMs}" "${LWiringEvent}" "${REGISTER_TRUTHFULNESS_NEON_LOG}; ${REGISTER_TRUTHFULNESS_RISCVV_LOG}"
-    else
-      LWiringRC=$?
-      LWiringEndMs="$(now_ms)"
-      LWiringDurationMs="$(( LWiringEndMs - LWiringStartMs ))"
-      LWiringSummary="$(collect_register_truthfulness_summary)"
-      append_gate_summary "register-truthfulness" "FAIL" "rc=${LWiringRC}; ${LWiringSummary:-run-failed}" "${LWiringDurationMs}" "FAILED" "${REGISTER_TRUTHFULNESS_NEON_LOG}; ${REGISTER_TRUTHFULNESS_RISCVV_LOG}"
-      LGateEndMs="$(now_ms)"
-      LGateDurationMs="$(( LGateEndMs - LGateStartMs ))"
-      append_gate_summary "gate" "FAIL" "failed-step=register-truthfulness" "${LGateDurationMs}" "FAILED"
-      return "${LWiringRC}"
-    fi
+  echo "[GATE] Register-truthfulness"
+  LWiringStartMs="$(now_ms)"
+  if run_register_truthfulness_check "1"; then
+    LWiringEndMs="$(now_ms)"
+    LWiringDurationMs="$(( LWiringEndMs - LWiringStartMs ))"
+    LWiringEvent="$(gate_step_event "${LWiringDurationMs}")"
+    LWiringSummary="$(collect_register_truthfulness_summary)"
+    append_gate_summary "register-truthfulness" "PASS" "${LWiringSummary:-summary-missing}" "${LWiringDurationMs}" "${LWiringEvent}" "${REGISTER_TRUTHFULNESS_NEON_LOG}; ${REGISTER_TRUTHFULNESS_RISCVV_LOG}"
   else
-    append_gate_summary "register-truthfulness" "SKIP" "no non-x86 opt-in backend enabled" "-" "SKIP" "-"
+    LWiringRC=$?
+    LWiringEndMs="$(now_ms)"
+    LWiringDurationMs="$(( LWiringEndMs - LWiringStartMs ))"
+    LWiringSummary="$(collect_register_truthfulness_summary)"
+    append_gate_summary "register-truthfulness" "FAIL" "rc=${LWiringRC}; ${LWiringSummary:-run-failed}" "${LWiringDurationMs}" "FAILED" "${REGISTER_TRUTHFULNESS_NEON_LOG}; ${REGISTER_TRUTHFULNESS_RISCVV_LOG}"
+    LGateEndMs="$(now_ms)"
+    LGateDurationMs="$(( LGateEndMs - LGateStartMs ))"
+    append_gate_summary "gate" "FAIL" "failed-step=register-truthfulness" "${LGateDurationMs}" "FAILED"
+    return "${LWiringRC}"
   fi
 
   echo "[GATE] 2/6 SIMD list suites"
