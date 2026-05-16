@@ -3590,3 +3590,17 @@
 | 1. 复核 `ReduceMax/ReduceMinF64x2` 的语义边界与 source consumer | completed | 已确认 `NEONReduceMax/ReduceMinF64x2` 在 `src/` 内只命中 `src/fafafa.core.simd.neon.pas`、`src/fafafa.core.simd.neon.register.inc`、`src/fafafa.core.simd.neon.scalar.autowrap.inc`，没有任何更宽 no-asm source consumer；并通过本地 Pascal probe 复核了 `ScalarReduceMin/MaxF64x2` 的 `Math.Min/Max` 与 no-asm `if a<b` / `if a>b` 在 `NaN`、`+0/-0`、相等值上的当前 FPC 行为一致 |
 | 2. 删除 dead wrapper、收回 published slot，并补 dedicated/runtime/IEEE754 护栏 | completed | 已从 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 删除 `NEONReduceMaxF64x2/NEONReduceMinF64x2` no-asm dead wrapper；`src/fafafa.core.simd.neon.register.inc` 中 `table.ReduceMaxF64x2 := @NEONReduceMaxF64x2;` 与 `table.ReduceMinF64x2 := @NEONReduceMinF64x2;` 已全部收进 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}`；`tests/fafafa.core.simd/check_nonx86_register_truthfulness.py` 已从 `NEON` allowlist 删除 `ReduceMaxF64x2/ReduceMinF64x2`；`dispatchapi` 新增 `Test_NEON_NoAsmNarrowF64ExtremaReductionSlots_Reuse_BaseScalar_When_Wrappers_Have_No_SourceConsumers`；`ieee754.testcase` 新增 `Test_F64_ReduceMinMax_SpecialCases` 固定 scalar 当前 NaN/zero-order truth |
 | 3. 串行 release 复验并更新残余图 | completed | 本批 `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`、`truthfulness --backend neon/riscvv --summary-line --strict`、Release `TTestCase_DispatchAPI`、Release `TTestCase_IEEE754_F64`、Release `impl-audit-nonx86`、Release `check`、Release `gate` 全部通过；当前 `backend=neon` truthfulness 为 `assignments=342 asm_exact=277 asm_suffix_only=10 wrapper_only=55 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`，说明 `wrapper_only` 已从 `57` 再降到 `55` |
+
+## 2026-05-16 Non-x86 Wrapper Context Truthfulness Checker Hardening
+
+### Goal
+
+继续收紧 `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py` 自身的真值模型，不再把所有 `wrapper_only` 豁免混成一类；明确区分 `always / asm-only / no-asm` 三种合法上下文，避免 checker 既放过错误的 published ownership，又把合法的 companion wrapper 误报成 miswired。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前 `wrapper_only` 的真实上下文归属 | completed | 已确认旧 checker 的盲区不在 backend 源码，而在 allowlist 语义过粗：`NEON ClampF64x2/F64x4/F64x8` 与 `RISCVV Extract*` 实际属于 `no-asm wrapper-only`；`NEON` wide float/select/andnot 与 wide integer compare，以及 `RISCVV SelectF32x8/F64x4/I32x4` 则属于 `asm-only wrapper-only`；`RISCVV` 其余少量 `wrapper_only` 才是 `always` |
+| 2. 收紧 checker 规则与 report 口径 | completed | 已把旧的通用 `ALLOWED_WRAPPER_SLOTS_BY_BACKEND` 拆成 `ALLOWED_ALWAYS_WRAPPER_SLOTS_BY_BACKEND`、`ALLOWED_ASM_ONLY_WRAPPER_SLOTS_BY_BACKEND`、`ALLOWED_NO_ASM_ONLY_WRAPPER_SLOTS_BY_BACKEND`；`build_reason_list()` 现在按 assignment `context` 精确校验；human/json report 也新增 `always wrapper ok / asm-only wrapper ok / no-asm wrapper ok` 与对应 slot 列表 |
+| 3. 严格复验并同步 scratch 收口 | completed | 本批源码状态下 `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`、`truthfulness --backend neon --summary-line --strict`、`truthfulness --backend riscvv --summary-line --strict`、Release `impl-audit-nonx86`、Release `check`、Release `gate` 均已通过；fresh strict 结果为 `neon: assignments=342 asm_exact=277 asm_suffix_only=10 wrapper_only=55 miswired=0 unused_allowlist=0`，其 context split 为 `always=0 / asm-only=52 / no-asm=3`；`riscvv: assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 miswired=0 unused_allowlist=0`，其 context split 为 `always=14 / asm-only=3 / no-asm=9` |

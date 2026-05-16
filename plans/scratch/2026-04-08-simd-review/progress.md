@@ -5955,3 +5955,46 @@
   - `run_all` 过滤链结果仍为 `Total: 5 Passed: 5 Failed: 0`
   - 这批没有继续降低 `wrapper_only` 数量，但把 36 个 wide compare slot 的 no-asm published ownership 真相纠正回了 scalar
   - 收口前已再次清理 `tests/fafafa.core.simd/__pycache__/`
+
+## 2026-05-16 Non-x86 Wrapper Context Truthfulness Checker Hardening
+
+- 接手当前工作树时，未提交改动已只剩：
+  - `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+  - 以及需清理的 `tests/fafafa.core.simd/__pycache__/`
+- 先把 `__pycache__` 清掉，确保这批提交只承载 checker 自身的真值加固，不混入 Python 产物。
+- 这批继续深审时，发现前面几轮虽然已经把不少 `NEON`/`RISCVV` published ownership 收正了，但 checker 自身仍有语义盲区：
+  - 旧版只知道“generic wrapper allowlist”与“asm-only allowlist”
+  - 不知道 `wrapper_only` 还存在合法的 `no-asm` 分支
+  - 也不能把 `always` 与 `asm-only` 的 companion wrapper 区分开
+- 已完成的 checker 收紧：
+  - 新增 `NEON_FACADE_ASM_ONLY_WRAPPER_SLOTS`
+  - 新增 `RISCVV_SELECT_ASM_ONLY_WRAPPER_SLOTS`
+  - 新增 `NEON_NO_ASM_ONLY_WRAPPER_SLOTS`
+  - 新增 `RISCVV_EXTRACT_NO_ASM_ONLY_WRAPPER_SLOTS`
+  - 旧 allowlist 已拆成三类：
+    - `ALLOWED_ALWAYS_WRAPPER_SLOTS_BY_BACKEND`
+    - `ALLOWED_ASM_ONLY_WRAPPER_SLOTS_BY_BACKEND`
+    - `ALLOWED_NO_ASM_ONLY_WRAPPER_SLOTS_BY_BACKEND`
+  - `build_reason_list()` 现在会按 assignment `context` 精确判断 `wrapper_only` 是否合规
+  - human/json report 现在也会直接输出 `always wrapper ok / asm-only wrapper ok / no-asm wrapper ok`
+- 这批明确编码进去的新真相：
+  - `NEON ClampF64x2/F64x4/F64x8` 是合法 `no-asm wrapper-only`
+  - `RISCVV Extract*` 是合法 `no-asm wrapper-only`
+  - `NEON` wide float/select/andnot 与 wide integer compare 是合法 `asm-only wrapper-only`
+  - `RISCVV SelectF32x8/SelectF64x4/SelectI32x4` 是合法 `asm-only wrapper-only`
+- 当前这批的 fresh strict 结果已与源码真相对齐：
+  - `backend=neon assignments=342 asm_exact=277 asm_suffix_only=10 wrapper_only=55 miswired=0 unused_allowlist=0`
+  - `backend=neon context split: always=0 asm-only=52 no-asm=3`
+  - `backend=riscvv assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 miswired=0 unused_allowlist=0`
+  - `backend=riscvv context split: always=14 asm-only=3 no-asm=9`
+- 沿用本批源码状态下刚完成的复验结果：
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：全部通过；`gate` 最终仍是 `GATE OK`
+- 当前阶段结论：
+  - 这批没有改 backend/source 行为，只是把 non-x86 truthfulness checker 从“两态 allowlist”收紧成“三态上下文模型”
+  - 这样后续继续扫 residual 时，不会再把 `ClampF64*`、`RISCVV Extract*` 之类合法 wrapper-only 错当问题，也不会把真正的 branch-owned 漏洞藏在过宽的豁免里

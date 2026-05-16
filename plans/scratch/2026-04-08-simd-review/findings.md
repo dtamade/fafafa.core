@@ -5095,3 +5095,50 @@
   - wrapper/source companion 仍需保留给 asm/wider graph
   - no-asm runtime slot 已经复用 scalar
 - 在当前 `NEON wrapper_only=55` 的残余里，更值得继续扫的是其余可能还停留在“always backend-owned 但 no-asm 只是 narrower-helper composition”的簇，而不是回头重开已经固定边界的 `Clamp` 或宽浮点 arithmetic/minmax。
+
+## 2026-05-16 Non-x86 Wrapper Context Truthfulness Checker Hardening Findings
+
+- 当前这批发现的真实问题不在 `NEON`/`RISCVV` backend 代码，而在 `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py` 自身：旧模型只区分“generic wrapper allowlist”与“asm-only allowlist”，表达不了 `wrapper_only` 在不同 publication branch 下的合法性差异。
+- 这个盲区会同时制造两类风险：
+  - 误放过：把只应在 `no-asm` 合法出现的 slot，当成任意上下文都可豁免
+  - 误报错：把只应在 `asm-only` 合法出现的 source companion wrapper，误判成 miswired/backend-owned
+- 当前已经核清的三类真实上下文是：
+  - `always wrapper-only`
+    - `RISCVV` 的 `AndNotI64x2/AndNotI8x16/AndNotU16x8/AndNotU64x2/AndNotU8x16`
+    - `CmpEqU64x2/CmpGtU64x2/CmpLtU64x2`
+    - `DotF64x2/DotF64x4`
+    - `MaxI64x2/MaxU64x2/MinI64x2/MinU64x2`
+  - `asm-only wrapper-only`
+    - `NEON` wide integer compare 36 项
+    - `NEON SelectF32x4`
+    - `NEON` wide float arithmetic/minmax：`Add/Sub/Mul/DivF32x16/F64x8`、`Max/MinF32x16/F64x8`
+    - `NEON AndNotI8x16/AndNotU16x8/AndNotU8x16`
+    - `RISCVV SelectF32x8/SelectF64x4/SelectI32x4`
+  - `no-asm wrapper-only`
+    - `NEON ClampF64x2/ClampF64x4/ClampF64x8`
+    - `RISCVV ExtractF32x8/F32x16/F64x2/F64x4/I32x4/I32x8/I32x16/I64x2/I64x4`
+- 因而这批最正确的修法不是继续膨胀一个总 allowlist，而是 fail-close：
+  - `build_reason_list()` 必须按 assignment `context` 去对照不同 allowlist
+  - `unused_allowlist` 仍必须保持 `0`
+  - report 必须能直接看出 `always / asm-only / no-asm` 三个桶各自的真实数量
+- fresh strict 结果已经证明三态模型与当前源码真相一致：
+  - `neon`
+    - `assignments=342`
+    - `asm_exact=277`
+    - `asm_suffix_only=10`
+    - `wrapper_only=55`
+    - `miswired=0`
+    - `unused_allowlist=0`
+    - context split：`always=0 / asm-only=52 / no-asm=3`
+  - `riscvv`
+    - `assignments=473`
+    - `asm_exact=330`
+    - `asm_suffix_only=117`
+    - `wrapper_only=26`
+    - `miswired=0`
+    - `unused_allowlist=0`
+    - context split：`always=14 / asm-only=3 / no-asm=9`
+- 关键结论：
+  - 这批修的是 checker 精度，不是 backend 行为
+  - `ClampF64x2/F64x4/F64x8` 现在被明确归类为合法 `no-asm wrapper-only`，不该再被当作“下一刀 residual”
+  - `RISCVV Extract*` 也同理，后续不应再把它们误当成 published ownership 漏洞

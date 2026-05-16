@@ -30,33 +30,51 @@ NEON_WIDE_COMPARE_ASM_ONLY_WRAPPER_SLOTS: set[str] = {
     "CmpNeI32x16", "CmpNeI32x8", "CmpNeI64x4", "CmpNeI64x8", "CmpNeU32x8", "CmpNeU64x4",
 }
 
-ALLOWED_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
-    "neon": {
-        "SelectF32x4",
-        "AddF32x16", "AddF64x8",
-        "ClampF64x2", "ClampF64x4", "ClampF64x8",
-        "DivF32x16", "DivF64x8",
-        "MaxF32x16", "MaxF64x8",
-        "MinF32x16", "MinF64x8",
-        "MulF32x16", "MulF64x8",
-        "SubF32x16", "SubF64x8",
-        "AndNotI8x16", "AndNotU16x8", "AndNotU8x16",
-    },
+NEON_FACADE_ASM_ONLY_WRAPPER_SLOTS: set[str] = {
+    "SelectF32x4",
+    "AddF32x16", "AddF64x8",
+    "DivF32x16", "DivF64x8",
+    "MaxF32x16", "MaxF64x8",
+    "MinF32x16", "MinF64x8",
+    "MulF32x16", "MulF64x8",
+    "SubF32x16", "SubF64x8",
+    "AndNotI8x16", "AndNotU16x8", "AndNotU8x16",
+}
+
+RISCVV_SELECT_ASM_ONLY_WRAPPER_SLOTS: set[str] = {
+    "SelectF32x8", "SelectF64x4", "SelectI32x4",
+}
+
+NEON_NO_ASM_ONLY_WRAPPER_SLOTS: set[str] = {
+    "ClampF64x2", "ClampF64x4", "ClampF64x8",
+}
+
+RISCVV_EXTRACT_NO_ASM_ONLY_WRAPPER_SLOTS: set[str] = {
+    "ExtractF32x8", "ExtractF32x16",
+    "ExtractF64x2", "ExtractF64x4",
+    "ExtractI32x4", "ExtractI32x8", "ExtractI32x16",
+    "ExtractI64x2", "ExtractI64x4",
+}
+
+ALLOWED_ALWAYS_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
+    "neon": set(),
     "riscvv": {
         "AndNotI64x2", "AndNotI8x16", "AndNotU16x8", "AndNotU64x2",
         "AndNotU8x16",
         "CmpEqU64x2", "CmpGtU64x2", "CmpLtU64x2",
-        "ExtractF32x8", "ExtractF32x16", "ExtractF64x2", "ExtractF64x4",
-        "ExtractI32x4", "ExtractI32x8", "ExtractI32x16",
-        "ExtractI64x2", "ExtractI64x4",
         "DotF64x2", "DotF64x4",
         "MaxI64x2", "MaxU64x2", "MinI64x2", "MinU64x2",
-        "SelectF32x8", "SelectF64x4", "SelectI32x4",
     },
 }
 
 ALLOWED_ASM_ONLY_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
-    "neon": NEON_WIDE_COMPARE_ASM_ONLY_WRAPPER_SLOTS,
+    "neon": NEON_WIDE_COMPARE_ASM_ONLY_WRAPPER_SLOTS | NEON_FACADE_ASM_ONLY_WRAPPER_SLOTS,
+    "riscvv": RISCVV_SELECT_ASM_ONLY_WRAPPER_SLOTS,
+}
+
+ALLOWED_NO_ASM_ONLY_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
+    "neon": NEON_NO_ASM_ONLY_WRAPPER_SLOTS,
+    "riscvv": RISCVV_EXTRACT_NO_ASM_ONLY_WRAPPER_SLOTS,
 }
 
 ALLOWED_ALWAYS_ASM_HELPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
@@ -389,8 +407,9 @@ def build_reason_list(
     a_strict: bool,
 ) -> list[str]:
     l_reasons: list[str] = []
-    l_allowed_wrapper_slots = ALLOWED_WRAPPER_SLOTS_BY_BACKEND.get(a_backend, set())
+    l_allowed_always_wrapper_slots = ALLOWED_ALWAYS_WRAPPER_SLOTS_BY_BACKEND.get(a_backend, set())
     l_allowed_asm_only_wrapper_slots = ALLOWED_ASM_ONLY_WRAPPER_SLOTS_BY_BACKEND.get(a_backend, set())
+    l_allowed_no_asm_only_wrapper_slots = ALLOWED_NO_ASM_ONLY_WRAPPER_SLOTS_BY_BACKEND.get(a_backend, set())
     l_allowed_always_asm_helper_slots = ALLOWED_ALWAYS_ASM_HELPER_SLOTS_BY_BACKEND.get(a_backend, set())
 
     if a_classification == "scalar_passthrough":
@@ -407,14 +426,13 @@ def build_reason_list(
             l_reasons.append("asm-helper-wrapper-not-gated-to-asm-only-branch")
     elif a_classification == "wrapper_only":
         if a_assignment.context == "asm-only":
-            if (a_assignment.slot not in l_allowed_asm_only_wrapper_slots) and (
-                a_assignment.slot not in l_allowed_wrapper_slots
-            ):
+            if a_assignment.slot not in l_allowed_asm_only_wrapper_slots:
                 l_reasons.append("wrapper-only-bound-inside-asm-block")
-        elif a_assignment.slot not in l_allowed_wrapper_slots:
-            if a_assignment.context == "no-asm":
+        elif a_assignment.context == "no-asm":
+            if a_assignment.slot not in l_allowed_no_asm_only_wrapper_slots:
                 l_reasons.append("wrapper-only-bound-inside-no-asm-block")
-            elif a_strict:
+        elif a_assignment.slot not in l_allowed_always_wrapper_slots:
+            if a_strict:
                 l_reasons.append("wrapper-only-backend-owned-slot")
 
     return l_reasons
@@ -453,6 +471,9 @@ def print_human_result(a_result: dict[str, Any]) -> None:
     print(f"  - scalar passthrough:  {a_result['scalar_passthrough_count']}")
     print(f"  - no definition:       {a_result['no_def_count']}")
     print(f"  - miswired:            {a_result['miswired_count']}")
+    print(f"  - always wrapper ok:   {a_result['allowed_always_wrapper_slot_count']}")
+    print(f"  - asm-only wrapper ok: {a_result['allowed_asm_only_wrapper_slot_count']}")
+    print(f"  - no-asm wrapper ok:   {a_result['allowed_no_asm_only_wrapper_slot_count']}")
     print(f"  - unused allowlist:    {a_result['unused_allowlist_count']}")
     print(f"  - conflicting assign:  {a_result['conflicting_assignment_count']}")
 
@@ -549,13 +570,21 @@ def build_report(a_config: CheckerConfig, a_strict: bool) -> dict[str, Any]:
         if l_record["reasons"] or l_record["conflicts"]
     ]
     l_conflicting_assignment_count = sum(1 for l_record in l_assignment_records if l_record["conflicts"])
-    l_allowed_wrapper_slots = ALLOWED_WRAPPER_SLOTS_BY_BACKEND.get(a_config.backend, set())
+    l_allowed_always_wrapper_slots = ALLOWED_ALWAYS_WRAPPER_SLOTS_BY_BACKEND.get(a_config.backend, set())
     l_allowed_asm_only_wrapper_slots = ALLOWED_ASM_ONLY_WRAPPER_SLOTS_BY_BACKEND.get(a_config.backend, set())
+    l_allowed_no_asm_only_wrapper_slots = ALLOWED_NO_ASM_ONLY_WRAPPER_SLOTS_BY_BACKEND.get(a_config.backend, set())
     l_current_wrapper_only_slots = sorted(
         {
             l_record["slot"]
             for l_record in l_assignment_records
             if l_record["classification"] == "wrapper_only"
+        }
+    )
+    l_current_always_wrapper_slots = sorted(
+        {
+            l_record["slot"]
+            for l_record in l_assignment_records
+            if (l_record["classification"] == "wrapper_only") and (l_record["context"] == "always")
         }
     )
     l_current_asm_only_wrapper_slots = sorted(
@@ -565,9 +594,17 @@ def build_report(a_config: CheckerConfig, a_strict: bool) -> dict[str, Any]:
             if (l_record["classification"] == "wrapper_only") and (l_record["context"] == "asm-only")
         }
     )
+    l_current_no_asm_wrapper_slots = sorted(
+        {
+            l_record["slot"]
+            for l_record in l_assignment_records
+            if (l_record["classification"] == "wrapper_only") and (l_record["context"] == "no-asm")
+        }
+    )
     l_unused_allowlist_slots = sorted(
-        l_allowed_wrapper_slots.difference(l_current_wrapper_only_slots).union(
-            l_allowed_asm_only_wrapper_slots.difference(l_current_asm_only_wrapper_slots)
+        l_allowed_always_wrapper_slots.difference(l_current_always_wrapper_slots).union(
+            l_allowed_asm_only_wrapper_slots.difference(l_current_asm_only_wrapper_slots),
+            l_allowed_no_asm_only_wrapper_slots.difference(l_current_no_asm_wrapper_slots),
         )
     )
 
@@ -586,12 +623,17 @@ def build_report(a_config: CheckerConfig, a_strict: bool) -> dict[str, Any]:
         "scalar_forwarder_count": l_counts["scalar_forwarder_count"],
         "pascal_owned_count": l_counts["pascal_owned_count"],
         "miswired_count": len(l_miswired),
-        "allowed_wrapper_slot_count": len(l_allowed_wrapper_slots),
+        "allowed_always_wrapper_slot_count": len(l_allowed_always_wrapper_slots),
         "allowed_asm_only_wrapper_slot_count": len(l_allowed_asm_only_wrapper_slots),
+        "allowed_no_asm_only_wrapper_slot_count": len(l_allowed_no_asm_only_wrapper_slots),
         "current_wrapper_only_slot_count": len(l_current_wrapper_only_slots),
         "current_wrapper_only_slots": l_current_wrapper_only_slots,
+        "current_always_wrapper_slot_count": len(l_current_always_wrapper_slots),
+        "current_always_wrapper_slots": l_current_always_wrapper_slots,
         "current_asm_only_wrapper_slot_count": len(l_current_asm_only_wrapper_slots),
         "current_asm_only_wrapper_slots": l_current_asm_only_wrapper_slots,
+        "current_no_asm_wrapper_slot_count": len(l_current_no_asm_wrapper_slots),
+        "current_no_asm_wrapper_slots": l_current_no_asm_wrapper_slots,
         "unused_allowlist_count": len(l_unused_allowlist_slots),
         "unused_allowlist_slots": l_unused_allowlist_slots,
         "conflicting_assignment_count": l_conflicting_assignment_count,
