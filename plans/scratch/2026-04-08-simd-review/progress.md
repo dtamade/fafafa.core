@@ -7750,3 +7750,46 @@
   - 这批仍然没有 promote `NEON/RISCVV`
   - 修掉的是 qualification-family experimental leaf 在 non-qualified host 上“误装载”的边界漏洞
   - `NEON/RISCVV` adapter qualification lane 与 leaf runtime qualification 现在比之前更清楚地分开了
+
+## 2026-05-17 SVE2 Exact Runtime Qualification
+
+- 继续按小闭环推进，没有去碰 `LASX cpuinfo`、non-x86 adapter promote 或 broader ARM feature taxonomy。
+- 已复核：
+  - `src/fafafa.core.simd.cpuinfo.base.pas`
+  - `src/fafafa.core.simd.cpuinfo.arm.pas`
+  - `src/fafafa.core.simd.cpuinfo.pas`
+  - `src/fafafa.core.simd.intrinsics.sve2.pas`
+  - `tests/fafafa.core.simd/check_intrinsics_experimental_status.py`
+  - `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh`
+  - `docs/SIMD_INTRINSICS_DISPOSITION.md`
+  - `docs/plans/2026-05-09-simd-family-matrix.md`
+  - `docs/plans/2026-05-09-simd-experimental-hold-future-trigger-plan.md`
+- 当前结论：
+  - `SVE2` 的真实 residual 不是缺 reject，而是 reject 条件还停在 base-`SVE`
+  - 本机头文件给出了 `HWCAP2_SVE2` 直接证据，因此这条可以落成真实实现，而不是继续停在文档近似
+  - `intrinsics.sve2` 对 `intrinsics.sve` 的依赖会让非 `AArch64` 主机先命中上游 `SVE` fail-close；smoke 需要诚实接受这条验证细节
+- 已完成收口：
+  - `src/fafafa.core.simd.cpuinfo.base.pas`
+  - `src/fafafa.core.simd.cpuinfo.arm.pas`
+  - `src/fafafa.core.simd.cpuinfo.pas`
+  - `src/fafafa.core.simd.intrinsics.sve2.pas`
+  - `tests/fafafa.core.simd/check_intrinsics_experimental_status.py`
+  - `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh`
+  - `docs/SIMD_INTRINSICS_DISPOSITION.md`
+  - `docs/plans/2026-05-09-simd-family-matrix.md`
+  - `docs/plans/2026-05-09-simd-experimental-hold-future-trigger-plan.md`
+  现在都已同步到 “`SVE2` 需要 `cpuinfo` 报告 `SVE2`” 的精确资格口径。
+- 本批串行验证已经 fresh 跑通：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_experimental_status.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- fresh 结果：
+  - `INTRINSICS_EXPERIMENTAL_SUMMARY ... missing_hold_runtime_fail_close=0 missing_qualification_runtime_fail_close=0`
+  - 默认态 experimental intrinsics test：`[TEST] OK`、`[LEAK] OK`
+  - experimental=1：`SVE2` runtime reject smoke 已 `[CHECK] OK`
+  - experimental=1 主测试程序：`[TEST] OK`、`[LEAK] OK`
+- 当前阶段结论：
+  - 这批没有把 `SVE2` promote 进 stable lane
+  - 修掉的是 `SVE2` experimental leaf 从 base-`SVE` 近似资格到 exact `SVE2` 资格的残余漏洞
+  - 当前最像下一刀真实 blocker 的仍是 `LASX` 没有 feature-level `cpuinfo` gate

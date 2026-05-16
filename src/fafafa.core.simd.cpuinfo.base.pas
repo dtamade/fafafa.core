@@ -65,6 +65,7 @@ type
     HasFP: Boolean;
     HasAdvSIMD: Boolean;
     HasSVE: Boolean;
+    HasSVE2: Boolean;
     HasCrypto: Boolean;
   end;
 

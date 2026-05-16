@@ -31,6 +31,7 @@ procedure DetectARMVendorAndModel(var cpuInfo: TCPUInfo);
 function IsNEONAvailable: Boolean;
 function IsAdvSIMDAvailable: Boolean;
 function IsSVEAvailable: Boolean;
+function IsSVE2Available: Boolean;
 
 // Get ARM processor information
 function GetARMProcessorInfo: TARMProcessorInfo;
@@ -169,6 +170,7 @@ const
   ARM64_HWCAP_SHA1  = QWord(1) shl 5;
   ARM64_HWCAP_SHA2  = QWord(1) shl 6;
   ARM64_HWCAP_SVE   = QWord(1) shl 22;
+  ARM64_HWCAP2_SVE2 = QWord(1) shl 1;
   {$ELSE}
   // ARM32 HWCAP/HWCAP2 bits (linux uapi asm/hwcap.h).
   ARM_HWCAP_VFP    = QWord(1) shl 6;
@@ -193,6 +195,11 @@ begin
   end;
   if (aHWCAP and ARM64_HWCAP_SVE) <> 0 then
     aFeatures.HasSVE := True;
+  if (aHWCAP2 and ARM64_HWCAP2_SVE2) <> 0 then
+  begin
+    aFeatures.HasSVE := True;
+    aFeatures.HasSVE2 := True;
+  end;
   if (aHWCAP and (ARM64_HWCAP_AES or ARM64_HWCAP_PMULL or ARM64_HWCAP_SHA1 or ARM64_HWCAP_SHA2)) <> 0 then
     aFeatures.HasCrypto := True;
   {$ELSE}
@@ -371,7 +378,12 @@ begin
      (Copy(LToken, 1, 3) = 'vfp') then
     aFeatures.HasFP := True;
 
-  if Copy(LToken, 1, 3) = 'sve' then
+  if Copy(LToken, 1, 4) = 'sve2' then
+  begin
+    aFeatures.HasSVE := True;
+    aFeatures.HasSVE2 := True;
+  end
+  else if Copy(LToken, 1, 3) = 'sve' then
     aFeatures.HasSVE := True;
 
   if IsARMAESToken(LToken) or
@@ -1130,6 +1142,14 @@ begin
   Result := features.HasSVE;
 end;
 
+function IsSVE2Available: Boolean;
+var
+  features: TARMFeatures;
+begin
+  features := DetectARMFeatures;
+  Result := features.HasSVE2;
+end;
+
 // === ARM Processor Information ===
 
 function GetARMProcessorInfo: TARMProcessorInfo;
@@ -1203,6 +1223,11 @@ begin
 end;
 
 function IsSVEAvailable: Boolean;
+begin
+  Result := False;
+end;
+
+function IsSVE2Available: Boolean;
 begin
   Result := False;
 end;

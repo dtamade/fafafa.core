@@ -55,7 +55,7 @@ X86_ONLY_RUNTIME_FAIL_CLOSE_FILES = [
 REQUIRED_X86_ONLY_RUNTIME_FAIL_CLOSE_TOKEN = "only qualified on x86/x86_64"
 HOLD_RUNTIME_FAIL_CLOSE_TOKENS = {
     "src/fafafa.core.simd.intrinsics.sve.pas": "only qualified on aarch64 targets whose cpuinfo reports sve",
-    "src/fafafa.core.simd.intrinsics.sve2.pas": "only qualified on aarch64 targets whose cpuinfo reports sve",
+    "src/fafafa.core.simd.intrinsics.sve2.pas": "only qualified on aarch64 targets whose cpuinfo reports sve2",
     "src/fafafa.core.simd.intrinsics.lasx.pas": "only qualified on loongarch64 experimental hosts",
 }
 QUALIFICATION_RUNTIME_FAIL_CLOSE_TOKENS = {

@@ -4422,3 +4422,18 @@
 | 2. 收紧源码与验证脚本 | completed | `intrinsics.neon` 现已要求 `HasNEON`，`intrinsics.rvv` 现已要求 `HasRISCVV`；`BuildOrTest.sh` 与 `check_intrinsics_experimental_status.py` 已新增 qualification-family runtime fail-close 覆盖 |
 | 3. 文档和 scratch 真相同步 | completed | `SIMD_INTRINSICS_DISPOSITION.md` 与 `simd-family-matrix.md` 已同步到 “qualification family 仍不 promote，但 leaf runtime 不再 any-host opt-in” 口径 |
 | 4. 最小验证与收口 | completed | `git diff --check`、`check_intrinsics_experimental_status.py --summary-line`、默认/experimental 两轮 `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test` 全部通过；当前 `x86_64` 主机上的 `NEON/RVV` runtime reject smoke 已 fresh 变绿 |
+
+## 2026-05-17 SVE2 Exact Runtime Qualification
+
+### Goal
+
+继续收口一个已知 residual：把 `intrinsics.sve2` 从“借用 base-`SVE` 资格”的近似状态，升级成真正要求 `SVE2` 能力的 runtime qualification。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核仓库与本机头文件证据 | completed | 已确认仓库当前只有 `HasSVE`、没有 `HasSVE2`；本机 Linux 头文件存在 `HWCAP2_SVE2` 定义，因此这条能力位可直接建模 |
+| 2. 补 `cpuinfo` 与 `intrinsics.sve2` | completed | 已为 `TARMFeatures`/`cpuinfo.arm`/`cpuinfo.pas` 补 `HasSVE2`，并把 `intrinsics.sve2` runtime guard 从 `HasSVE` 收紧到 `HasSVE2` |
+| 3. 同步 checker / smoke / docs | completed | `check_intrinsics_experimental_status.py`、`BuildOrTest.sh` 与 active docs 已同步到 `SVE2` 精确资格口径；非 `AArch64` 主机上的 reject smoke 允许观察到依赖 `intrinsics.sve` 的上游 fail-close token |
+| 4. 最小验证与收口 | completed | `git diff --check`、`check_intrinsics_experimental_status.py --summary-line`、默认/experimental 两轮 `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test` 全部通过；`SVE2` reject smoke 已恢复为绿 |

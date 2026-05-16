@@ -6450,3 +6450,19 @@
   - runtime 只允许 `cpuinfo` 已确认对应 ISA 的目标主机放行；
   - checker 和 experimental smoke 同步 fail-close；
   - 文档明确写清：这是 qualification-family leaf runtime 收紧，不是 stable adapter promote
+
+## 2026-05-17 SVE2 Base-SVE Approximation Gap
+
+- `intrinsics.sve2` 在上一批里虽然已经从 any-host opt-in 收紧成了 `AArch64` + `HasSVE` 才放行，但这仍然只是 base-`SVE` 近似资格，不是 `SVE2` 精确资格。
+- 这条 residual 现在有直接证据可修：
+  - 仓库 `cpuinfo.arm` 还没有 `HasSVE2`
+  - 但本机 Linux 头文件里存在 `HWCAP2_SVE2`
+  - `ParseARMFeaturesFromCpuInfo` 也已经有 token 通道，补 `sve2` 分支即可
+- 因而这批的正确修法不是继续在文档里承认“近似”，而是：
+  - 给 `TARMFeatures` 和 façade helper 补 `HasSVE2`
+  - 把 `intrinsics.sve2` 的 runtime guard 切到 `HasSVE2`
+  - 同步 checker / smoke / docs
+- 一个需要诚实记账的验证细节是：
+  - `intrinsics.sve2` 依赖 `intrinsics.sve`
+  - 在完全非 `AArch64` 主机上导入 `sve2` 时，unit initialization 可能先被 `intrinsics.sve` 的 fail-close 拦下
+  - 这不影响 “non-qualified host 必须 reject” 的目标，但意味着 `SVE2` reject smoke 在这类主机上要允许匹配上游 `SVE` token

@@ -327,7 +327,7 @@ check_nonqualified_host_runtime_reject() {
   local aSourcePath
   local aLogPath
   local aBinPath
-  local aExpectedToken
+  local aExpectedTokenPattern
 
   aLabel="$1"
   aQualifiedCpuRegex="$2"
@@ -335,7 +335,7 @@ check_nonqualified_host_runtime_reject() {
   aSourcePath="$4"
   aLogPath="$5"
   aBinPath="$6"
-  aExpectedToken="$7"
+  aExpectedTokenPattern="$7"
 
   if [[ "${EXPERIMENTAL_FLAG}" == "0" ]]; then
     echo "[CHECK] SKIP ${aLabel} runtime reject smoke (experimental=0)"
@@ -381,8 +381,8 @@ check_nonqualified_host_runtime_reject() {
     return 1
   fi
 
-  if ! grep -qi "${aExpectedToken}" "${aLogPath}"; then
-    echo "[CHECK] FAILED ${aLabel} runtime reject smoke: missing token ${aExpectedToken}"
+  if ! grep -Eqi "${aExpectedTokenPattern}" "${aLogPath}"; then
+    echo "[CHECK] FAILED ${aLabel} runtime reject smoke: missing token pattern ${aExpectedTokenPattern}"
     tail -n 120 "${aLogPath}" || true
     return 1
   fi
@@ -431,7 +431,7 @@ check_sve2_runtime_fail_close() {
     "${SVE2_FAIL_CLOSE_SOURCE}" \
     "${SVE2_FAIL_CLOSE_LOG}" \
     "${SVE2_FAIL_CLOSE_BIN}" \
-    "only qualified on aarch64 targets whose cpuinfo reports sve"
+    "only qualified on aarch64 targets whose cpuinfo reports sve2|only qualified on aarch64 targets whose cpuinfo reports sve"
 }
 
 check_lasx_runtime_fail_close() {

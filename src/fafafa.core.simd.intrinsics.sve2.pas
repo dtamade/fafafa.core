@@ -42,9 +42,9 @@ begin
     'Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt in.'
   );
   {$ELSE}
-  if not HasSVE then
+  if not HasSVE2 then
     raise ENotSupportedException.Create(
-      'fafafa.core.simd.intrinsics.sve2 placeholder semantics are only qualified on AArch64 targets whose cpuinfo reports SVE.'
+      'fafafa.core.simd.intrinsics.sve2 placeholder semantics are only qualified on AArch64 targets whose cpuinfo reports SVE2.'
     );
   {$ENDIF}
 end;
