@@ -6271,3 +6271,41 @@
 - 当前阶段结论：
   - 这批仍然没有改 backend 行为，也没有新建 Pascal testcase，只是把 `NEON wide leaf float arithmetic` 这 8 个合法 `asm-only wrapper-only` 位点正式抬进了 `check` 常规门禁
   - 收口前已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免把 Python 产物带进提交
+
+## 2026-05-16 NEON SelectF32x4 Dedicated Truth Lift
+
+- 继续沿 `NEON` residual 往下切时，没有直接跳去 32 个 integer-compare，而是先核对单点 `SelectF32x4`：
+  - `check_nonx86_register_truthfulness.py` 已把它归类为 `asm-only wrapper-only`
+  - `src/fafafa.core.simd.neon.pas` 中 asm-enabled `NEONSelectF32x4` 不直接转 `ScalarSelectF32x4`
+  - `src/fafafa.core.simd.neon.scalar.utility.inc` 中 no-asm `NEONSelectF32x4` 则明确转到 `ScalarSelectF32x4`
+  - `src/fafafa.core.simd.neon.register.inc` 中 `table.SelectF32x4 := @NEONSelectF32x4;` 仅在 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}` 下发布
+- 这说明当前缺口不是 backend 行为错误，而是 dedicated truth source 还不够收敛：
+  - 原 testcase 只检查 asm source
+  - runtime/register 事实分散在 generic capability / representative parity 测试里
+  - `key-slot audit` 不能直接消费
+- 本批已完成的最小修复：
+  - 扩展 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - `Test_NEON_SelectF32x4_AsmEnabledSource_Does_Not_ScalarForward`
+    - 现在同时固定：
+      - asm source 不直接 scalar-forward
+      - no-asm scalar companion 仍存在
+      - register asm-only binding 仍存在
+      - runtime `sbNEON` slot 在 asm-compiled 时 backend-owned、否则回落 scalar
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 把 `SelectF32x4` 纳入 `KEY_SLOTS_BY_BACKEND['neon']`
+    - 把该 dedicated testcase 纳入 `EXPECTATION_PROCEDURES['neon']`
+    - 对 `SelectF32x4` 开启 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['neon']`
+- 本批按 Pascal 批次执行的最小验证链：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend neon --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `backend=neon ok slots=26`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=62 issues=0 status=ok`
+  - Release `TTestCase_DispatchAPI` 通过
+  - Release `check` 通过
+- 当前阶段结论：
+  - 这批没有改 backend 行为，而是把 `SelectF32x4` 从“分散 truth”收成了 dedicated truth source，并正式接进 `check` 常规门禁
+  - 收口前已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免把 Python 产物带进提交

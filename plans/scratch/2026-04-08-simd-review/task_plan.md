@@ -3716,3 +3716,17 @@
 | 1. 复核当前 coverage 缺口是否真实存在 | completed | 已对照 `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --json --strict` 与当前 `KEY_SLOTS_BY_BACKEND['neon']`，确认 `AddF32x16/AddF64x8/SubF32x16/SubF64x8/MulF32x16/MulF64x8/DivF32x16/DivF64x8` 仍属于 `NEON missing_from_key`；同时 `Test_NEON_NoAsmWideLeafFloatArithmeticSlots_Keep_SourceCompanions_But_Reuse_BaseScalar` 已现成固定了 `AssertAsmBindingStillPresent` 与 runtime scalar-reuse truth |
 | 2. 把 8 个 wide arithmetic slot 提升成常规 key-slot | completed | 已在 `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py` 把 `Add/Sub/Mul/DivF32x16` 与 `Add/Sub/Mul/DivF64x8` 纳入 `KEY_SLOTS_BY_BACKEND['neon']`；把 `Test_NEON_NoAsmWideLeafFloatArithmeticSlots_Keep_SourceCompanions_But_Reuse_BaseScalar` 纳入 `EXPECTATION_PROCEDURES['neon']`；并对这 8 个 slot 开启 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['neon']` |
 | 3. 按脚本批次最小链复验并收口 | completed | 本批只跑 `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`、`python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend neon --summary-line`、Release `check`；全部通过，fresh summary 已更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon slots=25 issues=0 status=ok`，全局 summary 更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=61 issues=0 status=ok` |
+
+## 2026-05-16 NEON SelectF32x4 Dedicated Truth Lift
+
+### Goal
+
+把 `NEON SelectF32x4` 从“只有 asm source 断言和分散的泛化能力测试知道”的状态，补成 dedicated `source + register + runtime` truth source，并正式提升进 `key-slot audit` 常规门禁。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前 truth 是否缺 dedicated coverage | completed | 已确认 `SelectF32x4` 在 `check_nonx86_register_truthfulness.py` 中属于合法 `asm-only wrapper-only`，`src/fafafa.core.simd.neon.pas` 提供 asm-enabled backend-local lane loop，`src/fafafa.core.simd.neon.scalar.utility.inc` 提供 no-asm `ScalarSelectF32x4` companion wrapper，`src/fafafa.core.simd.neon.register.inc` 仅在 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}` 下绑定 `table.SelectF32x4 := @NEONSelectF32x4;`；但旧 dedicated testcase 只检查 asm source 不直接 scalar-forward，仍缺 register/runtime 明示护栏 |
+| 2. 补 dedicated testcase 并接进 key-slot audit | completed | 已扩展 `Test_NEON_SelectF32x4_AsmEnabledSource_Does_Not_ScalarForward`，让它同时固定 asm source 不直转 scalar、no-asm scalar companion 仍存在、register asm-only binding 仍存在，以及 runtime `sbNEON` slot 在 asm-compiled 时 backend-owned、否则回落 scalar；同时已把 `SelectF32x4` 纳入 `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py` 的 `KEY_SLOTS_BY_BACKEND['neon']`、`EXPECTATION_PROCEDURES['neon']` 与 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['neon']` |
+| 3. 按 Pascal 批次最小链复验并收口 | completed | 本批跑 `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`、`python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend neon --summary-line`、Release `TTestCase_DispatchAPI`、Release `check`；全部通过，fresh summary 已更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon slots=26 issues=0 status=ok`，全局 summary 更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=62 issues=0 status=ok` |

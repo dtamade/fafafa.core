@@ -5340,3 +5340,26 @@
   - 以前：truthfulness checker 知道，dedicated `DispatchAPI` 知道，key-slot audit 不知道
   - 现在：这 8 个 `NEON wide leaf float arithmetic` slot 也被 `key-slot audit` 正式接管
   - fresh summary 已更新为 `backend=neon ok slots=25`，全局 summary 已更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=61 issues=0 status=ok`
+
+## 2026-05-16 NEON SelectF32x4 Dedicated Truth Lift Findings
+
+- 继续往下切 residual 时，`SelectF32x4` 是一个比 32 个 integer-compare 更值当的单点缺口：
+  - `check_nonx86_register_truthfulness.py` 已把它归类为合法 `asm-only wrapper-only`
+  - `src/fafafa.core.simd.neon.pas` 里的 `NEONSelectF32x4` 是 asm-enabled backend-local lane loop
+  - `src/fafafa.core.simd.neon.scalar.utility.inc` 里的 `NEONSelectF32x4` 则是 no-asm `ScalarSelectF32x4` companion wrapper
+  - `src/fafafa.core.simd.neon.register.inc` 仅在 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}` 下绑定 `table.SelectF32x4 := @NEONSelectF32x4;`
+- 这说明它的真实性质并不是“应删的 wrapper”，而是一个需要被 dedicated truth 明确守住的双相 policy slot：
+  - asm-enabled：backend-owned
+  - no-asm：回落 scalar
+- 旧测试的问题不在于完全没覆盖，而在于覆盖太分散：
+  - 原有 `Test_NEON_SelectF32x4_AsmEnabledSource_Does_Not_ScalarForward` 只看 asm source
+  - 其余 runtime 事实散落在 capability / representative parity 一类泛化测试里
+  - `key-slot audit` 因此没有一个可直接消费的 dedicated truth source
+- 因而这批正确修法不是改 backend，而是把真相收拢成一个 dedicated testcase，再交给 checker：
+  - 扩展 `Test_NEON_SelectF32x4_AsmEnabledSource_Does_Not_ScalarForward`
+  - 让它同时钉住 asm source、no-asm scalar companion、register asm-only binding、runtime ownership/fallback
+  - 再把 `SelectF32x4` 纳入 `KEY_SLOTS_BY_BACKEND['neon']`、`EXPECTATION_PROCEDURES['neon']` 与 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['neon']`
+- 修完后的关键变化不是行为变更，而是 `SelectF32x4` 不再只靠分散的理解存活：
+  - 以前：truthfulness checker 知道，零散泛化测试知道，key-slot audit 不知道
+  - 现在：`SelectF32x4` 已有 dedicated truth source，且被 `key-slot audit` 正式接管
+  - fresh summary 已更新为 `backend=neon ok slots=26`，全局 summary 已更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=62 issues=0 status=ok`

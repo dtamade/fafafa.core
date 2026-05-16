@@ -8577,7 +8577,38 @@ procedure TTestCase_DispatchAPI.Test_NEON_SelectF32x4_AsmEnabledSource_Does_Not_
 var
   LSourceLines: TStringList;
   LNEONSourcePath: string;
+  LScalarUtilityPath: string;
+  LRegisterSourcePath: string;
   LNEONSource: string;
+  LScalarUtilitySource: string;
+  LRegisterSource: string;
+  LScalarTable: TSimdDispatchTable;
+  LNEONTable: TSimdDispatchTable;
+
+  procedure AssertScalarCompanionStillPresent(const aLabel, aSnippet: string);
+  begin
+    AssertTrue(aLabel + ' should keep the no-asm scalar companion wrapper',
+      Pos(LowerCase(aSnippet), LScalarUtilitySource) > 0);
+  end;
+
+  procedure AssertRegisterHasAsmOwnedSlot(const aLabel, aSnippet: string);
+  begin
+    AssertTrue('RegisterNEONBackend should keep the asm-enabled binding source for ' + aLabel,
+      Pos(LowerCase(aSnippet), LRegisterSource) > 0);
+  end;
+
+  procedure AssertSlotKeepsBackendOwnership(const aLabel: string; const aScalarSlot, aBackendSlot: Pointer);
+  begin
+    AssertTrue('NEON ' + aLabel + ' should stay assigned in the registered backend table', aBackendSlot <> nil);
+    AssertTrue('NEON ' + aLabel + ' should keep backend ownership when asm-backed vector shuffle is compiled',
+      aBackendSlot <> aScalarSlot);
+  end;
+
+  procedure AssertSlotReusesScalar(const aLabel: string; const aScalarSlot, aBackendSlot: Pointer);
+  begin
+    AssertEquals('NEON ' + aLabel + ' should fall back to the base scalar slot when vector asm is not compiled',
+      PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
+  end;
 begin
   LSourceLines := TStringList.Create;
   try
@@ -8586,12 +8617,43 @@ begin
       FileExists(LNEONSourcePath));
     LSourceLines.LoadFromFile(LNEONSourcePath);
     LNEONSource := LowerCase(LSourceLines.Text);
+
+    LScalarUtilityPath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.scalar.utility.inc');
+    AssertTrue('NEON scalar utility source should exist for implementation-shape audit: ' + LScalarUtilityPath,
+      FileExists(LScalarUtilityPath));
+    LSourceLines.LoadFromFile(LScalarUtilityPath);
+    LScalarUtilitySource := LowerCase(LSourceLines.Text);
+
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.register.inc');
+    AssertTrue('NEON register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
+      FileExists(LRegisterSourcePath));
+    LSourceLines.LoadFromFile(LRegisterSourcePath);
+    LRegisterSource := LowerCase(LSourceLines.Text);
   finally
     LSourceLines.Free;
   end;
 
   AssertTrue('asm-enabled NEONSelectF32x4 should not forward directly to ScalarSelectF32x4',
     Pos('result := scalarselectf32x4(mask, a, b);', LNEONSource) = 0);
+  AssertScalarCompanionStillPresent('NEONSelectF32x4', 'result := scalarselectf32x4(mask, a, b);');
+  AssertRegisterHasAsmOwnedSlot('SelectF32x4', 'table.SelectF32x4 := @NEONSelectF32x4;');
+
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND}
+  AssertTrue('NEON opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable) then
+    Exit;
+  {$ENDIF}
+
+  {$IFDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
+  AssertSlotKeepsBackendOwnership('SelectF32x4', Pointer(LScalarTable.SelectF32x4), Pointer(LNEONTable.SelectF32x4));
+  {$ELSE}
+  AssertSlotReusesScalar('SelectF32x4', Pointer(LScalarTable.SelectF32x4), Pointer(LNEONTable.SelectF32x4));
+  {$ENDIF}
 end;
 
 procedure TTestCase_DispatchAPI.Test_RISCVV_FacadeDotF64_NoAsmSource_Does_Not_ScalarForward;
