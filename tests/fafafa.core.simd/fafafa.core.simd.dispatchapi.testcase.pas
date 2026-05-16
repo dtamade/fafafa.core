@@ -2795,7 +2795,6 @@ end;
 
 procedure TTestCase_DispatchAPI.Test_CurrentBackendHelpers_StayAligned_After_ControlPlaneSwitches;
 var
-  LOldVectorAsm: Boolean;
   LAvailableBackends: TSimdBackendArray;
   LForcedBackend: TSimdBackend;
   LIndex: Integer;
@@ -2848,38 +2847,34 @@ var
         Ord(GetBestDispatchableBackend), Ord(LCurrentBackend));
   end;
 begin
-  LOldVectorAsm := IsVectorAsmEnabled;
   LForcedBackend := sbScalar;
   LHasForcedBackend := False;
 
-  try
-    SetVectorAsmEnabled(True);
-    ResetToAutomaticBackend;
-    AssertStableCurrentState('vector asm enabled automatic', True);
+  SetVectorAsmEnabled(True);
+  ResetToAutomaticBackend;
+  AssertStableCurrentState('vector asm enabled automatic', True);
 
-    LAvailableBackends := GetAvailableBackendList;
-    for LIndex := 0 to High(LAvailableBackends) do
-      if LAvailableBackends[LIndex] <> GetCurrentBackend then
-      begin
-        LForcedBackend := LAvailableBackends[LIndex];
-        LHasForcedBackend := True;
-        Break;
-      end;
-
-    if LHasForcedBackend then
+  LAvailableBackends := GetAvailableBackendList;
+  for LIndex := 0 to High(LAvailableBackends) do
+    if LAvailableBackends[LIndex] <> GetCurrentBackend then
     begin
-      SetActiveBackend(LForcedBackend);
-      AssertStableCurrentState('forced backend stable state', False);
+      LForcedBackend := LAvailableBackends[LIndex];
+      LHasForcedBackend := True;
+      Break;
     end;
 
-    ResetToAutomaticBackend;
-    AssertStableCurrentState('automatic reset stable state', True);
-
-    SetVectorAsmEnabled(False);
-    ResetToAutomaticBackend;
-    AssertStableCurrentState('vector asm disabled automatic', True);
-  finally
+  if LHasForcedBackend then
+  begin
+    SetActiveBackend(LForcedBackend);
+    AssertStableCurrentState('forced backend stable state', False);
   end;
+
+  ResetToAutomaticBackend;
+  AssertStableCurrentState('automatic reset stable state', True);
+
+  SetVectorAsmEnabled(False);
+  ResetToAutomaticBackend;
+  AssertStableCurrentState('vector asm disabled automatic', True);
 end;
 
 procedure TTestCase_DispatchAPI.Test_VecF32x4ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister;
@@ -2889,48 +2884,45 @@ var
   LModifiedTable: TSimdDispatchTable;
   LInput: TVecF32x4;
 begin
+  ResetToAutomaticBackend;
+  LBackend := GetCurrentBackend;
+
+  AssertTrue('Current backend should be registered for VecF32x4 reduce facade dispatch test',
+    TryGetRegisteredBackendDispatchTable(LBackend, LOriginalTable));
+
+  LInput.f[0] := 1.25;
+  LInput.f[1] := -2.5;
+  LInput.f[2] := 3.75;
+  LInput.f[3] := -4.125;
+
+  LModifiedTable := LOriginalTable;
+  LModifiedTable.ReduceAddF32x4 := @SyntheticReduceAddF32x4CurrentDispatch;
+  LModifiedTable.ReduceMinF32x4 := @SyntheticReduceMinF32x4CurrentDispatch;
+  LModifiedTable.ReduceMaxF32x4 := @SyntheticReduceMaxF32x4CurrentDispatch;
+  LModifiedTable.ReduceMulF32x4 := @SyntheticReduceMulF32x4CurrentDispatch;
+  RegisterBackend(LBackend, LModifiedTable);
   try
-    ResetToAutomaticBackend;
-    LBackend := GetCurrentBackend;
+    AssertEquals('Re-registering the current backend should preserve the active backend id for VecF32x4 reduce facade dispatch test',
+      Ord(LBackend), Ord(GetCurrentBackend));
+    AssertEquals('Current dispatch table should expose synthetic ReduceAddF32x4 after re-register',
+      42.25, GetDispatchTable^.ReduceAddF32x4(LInput), 0.0);
+    AssertEquals('Current dispatch table should expose synthetic ReduceMinF32x4 after re-register',
+      -314.5, GetDispatchTable^.ReduceMinF32x4(LInput), 0.0);
+    AssertEquals('Current dispatch table should expose synthetic ReduceMaxF32x4 after re-register',
+      271.75, GetDispatchTable^.ReduceMaxF32x4(LInput), 0.0);
+    AssertEquals('Current dispatch table should expose synthetic ReduceMulF32x4 after re-register',
+      -9.5, GetDispatchTable^.ReduceMulF32x4(LInput), 0.0);
 
-    AssertTrue('Current backend should be registered for VecF32x4 reduce facade dispatch test',
-      TryGetRegisteredBackendDispatchTable(LBackend, LOriginalTable));
-
-    LInput.f[0] := 1.25;
-    LInput.f[1] := -2.5;
-    LInput.f[2] := 3.75;
-    LInput.f[3] := -4.125;
-
-    LModifiedTable := LOriginalTable;
-    LModifiedTable.ReduceAddF32x4 := @SyntheticReduceAddF32x4CurrentDispatch;
-    LModifiedTable.ReduceMinF32x4 := @SyntheticReduceMinF32x4CurrentDispatch;
-    LModifiedTable.ReduceMaxF32x4 := @SyntheticReduceMaxF32x4CurrentDispatch;
-    LModifiedTable.ReduceMulF32x4 := @SyntheticReduceMulF32x4CurrentDispatch;
-    RegisterBackend(LBackend, LModifiedTable);
-    try
-      AssertEquals('Re-registering the current backend should preserve the active backend id for VecF32x4 reduce facade dispatch test',
-        Ord(LBackend), Ord(GetCurrentBackend));
-      AssertEquals('Current dispatch table should expose synthetic ReduceAddF32x4 after re-register',
-        42.25, GetDispatchTable^.ReduceAddF32x4(LInput), 0.0);
-      AssertEquals('Current dispatch table should expose synthetic ReduceMinF32x4 after re-register',
-        -314.5, GetDispatchTable^.ReduceMinF32x4(LInput), 0.0);
-      AssertEquals('Current dispatch table should expose synthetic ReduceMaxF32x4 after re-register',
-        271.75, GetDispatchTable^.ReduceMaxF32x4(LInput), 0.0);
-      AssertEquals('Current dispatch table should expose synthetic ReduceMulF32x4 after re-register',
-        -9.5, GetDispatchTable^.ReduceMulF32x4(LInput), 0.0);
-
-      AssertEquals('VecF32x4ReduceAdd should track current dispatch table after re-register',
-        42.25, VecF32x4ReduceAdd(LInput), 0.0);
-      AssertEquals('VecF32x4ReduceMin should track current dispatch table after re-register',
-        -314.5, VecF32x4ReduceMin(LInput), 0.0);
-      AssertEquals('VecF32x4ReduceMax should track current dispatch table after re-register',
-        271.75, VecF32x4ReduceMax(LInput), 0.0);
-      AssertEquals('VecF32x4ReduceMul should track current dispatch table after re-register',
-        -9.5, VecF32x4ReduceMul(LInput), 0.0);
-    finally
-      RegisterBackend(LBackend, LOriginalTable);
-    end;
+    AssertEquals('VecF32x4ReduceAdd should track current dispatch table after re-register',
+      42.25, VecF32x4ReduceAdd(LInput), 0.0);
+    AssertEquals('VecF32x4ReduceMin should track current dispatch table after re-register',
+      -314.5, VecF32x4ReduceMin(LInput), 0.0);
+    AssertEquals('VecF32x4ReduceMax should track current dispatch table after re-register',
+      271.75, VecF32x4ReduceMax(LInput), 0.0);
+    AssertEquals('VecF32x4ReduceMul should track current dispatch table after re-register',
+      -9.5, VecF32x4ReduceMul(LInput), 0.0);
   finally
+    RegisterBackend(LBackend, LOriginalTable);
   end;
 end;
 
@@ -2941,46 +2933,43 @@ var
   LModifiedTable: TSimdDispatchTable;
   LInput: TVecF64x2;
 begin
+  ResetToAutomaticBackend;
+  LBackend := GetCurrentBackend;
+
+  AssertTrue('Current backend should be registered for VecF64x2 reduce facade dispatch test',
+    TryGetRegisteredBackendDispatchTable(LBackend, LOriginalTable));
+
+  LInput.d[0] := 6.5;
+  LInput.d[1] := -1.25;
+
+  LModifiedTable := LOriginalTable;
+  LModifiedTable.ReduceAddF64x2 := @SyntheticReduceAddF64x2CurrentDispatch;
+  LModifiedTable.ReduceMinF64x2 := @SyntheticReduceMinF64x2CurrentDispatch;
+  LModifiedTable.ReduceMaxF64x2 := @SyntheticReduceMaxF64x2CurrentDispatch;
+  LModifiedTable.ReduceMulF64x2 := @SyntheticReduceMulF64x2CurrentDispatch;
+  RegisterBackend(LBackend, LModifiedTable);
   try
-    ResetToAutomaticBackend;
-    LBackend := GetCurrentBackend;
+    AssertEquals('Re-registering the current backend should preserve the active backend id for VecF64x2 reduce facade dispatch test',
+      Ord(LBackend), Ord(GetCurrentBackend));
+    AssertEquals('Current dispatch table should expose synthetic ReduceAddF64x2 after re-register',
+      77.5, GetDispatchTable^.ReduceAddF64x2(LInput), 0.0);
+    AssertEquals('Current dispatch table should expose synthetic ReduceMinF64x2 after re-register',
+      -88.25, GetDispatchTable^.ReduceMinF64x2(LInput), 0.0);
+    AssertEquals('Current dispatch table should expose synthetic ReduceMaxF64x2 after re-register',
+      909.5, GetDispatchTable^.ReduceMaxF64x2(LInput), 0.0);
+    AssertEquals('Current dispatch table should expose synthetic ReduceMulF64x2 after re-register',
+      -12.75, GetDispatchTable^.ReduceMulF64x2(LInput), 0.0);
 
-    AssertTrue('Current backend should be registered for VecF64x2 reduce facade dispatch test',
-      TryGetRegisteredBackendDispatchTable(LBackend, LOriginalTable));
-
-    LInput.d[0] := 6.5;
-    LInput.d[1] := -1.25;
-
-    LModifiedTable := LOriginalTable;
-    LModifiedTable.ReduceAddF64x2 := @SyntheticReduceAddF64x2CurrentDispatch;
-    LModifiedTable.ReduceMinF64x2 := @SyntheticReduceMinF64x2CurrentDispatch;
-    LModifiedTable.ReduceMaxF64x2 := @SyntheticReduceMaxF64x2CurrentDispatch;
-    LModifiedTable.ReduceMulF64x2 := @SyntheticReduceMulF64x2CurrentDispatch;
-    RegisterBackend(LBackend, LModifiedTable);
-    try
-      AssertEquals('Re-registering the current backend should preserve the active backend id for VecF64x2 reduce facade dispatch test',
-        Ord(LBackend), Ord(GetCurrentBackend));
-      AssertEquals('Current dispatch table should expose synthetic ReduceAddF64x2 after re-register',
-        77.5, GetDispatchTable^.ReduceAddF64x2(LInput), 0.0);
-      AssertEquals('Current dispatch table should expose synthetic ReduceMinF64x2 after re-register',
-        -88.25, GetDispatchTable^.ReduceMinF64x2(LInput), 0.0);
-      AssertEquals('Current dispatch table should expose synthetic ReduceMaxF64x2 after re-register',
-        909.5, GetDispatchTable^.ReduceMaxF64x2(LInput), 0.0);
-      AssertEquals('Current dispatch table should expose synthetic ReduceMulF64x2 after re-register',
-        -12.75, GetDispatchTable^.ReduceMulF64x2(LInput), 0.0);
-
-      AssertEquals('VecF64x2ReduceAdd should track current dispatch table after re-register',
-        77.5, VecF64x2ReduceAdd(LInput), 0.0);
-      AssertEquals('VecF64x2ReduceMin should track current dispatch table after re-register',
-        -88.25, VecF64x2ReduceMin(LInput), 0.0);
-      AssertEquals('VecF64x2ReduceMax should track current dispatch table after re-register',
-        909.5, VecF64x2ReduceMax(LInput), 0.0);
-      AssertEquals('VecF64x2ReduceMul should track current dispatch table after re-register',
-        -12.75, VecF64x2ReduceMul(LInput), 0.0);
-    finally
-      RegisterBackend(LBackend, LOriginalTable);
-    end;
+    AssertEquals('VecF64x2ReduceAdd should track current dispatch table after re-register',
+      77.5, VecF64x2ReduceAdd(LInput), 0.0);
+    AssertEquals('VecF64x2ReduceMin should track current dispatch table after re-register',
+      -88.25, VecF64x2ReduceMin(LInput), 0.0);
+    AssertEquals('VecF64x2ReduceMax should track current dispatch table after re-register',
+      909.5, VecF64x2ReduceMax(LInput), 0.0);
+    AssertEquals('VecF64x2ReduceMul should track current dispatch table after re-register',
+      -12.75, VecF64x2ReduceMul(LInput), 0.0);
   finally
+    RegisterBackend(LBackend, LOriginalTable);
   end;
 end;
 
@@ -2999,9 +2988,8 @@ var
     AssertEquals(aOp + ' lane 1', aExpected.d[1], aActual.d[1], 0.0);
   end;
 begin
-  try
-    ResetToAutomaticBackend;
-    LBackend := GetCurrentBackend;
+  ResetToAutomaticBackend;
+  LBackend := GetCurrentBackend;
 
     AssertTrue('Current backend should be registered for VecF64x2 math facade dispatch test',
       TryGetRegisteredBackendDispatchTable(LBackend, LOriginalTable));
@@ -3011,43 +2999,41 @@ begin
     LInputB.d[0] := 4.25;
     LInputB.d[1] := -3.75;
 
-    LModifiedTable := LOriginalTable;
-    LModifiedTable.AbsF64x2 := @SyntheticAbsF64x2CurrentDispatch;
-    LModifiedTable.SqrtF64x2 := @SyntheticSqrtF64x2CurrentDispatch;
-    LModifiedTable.MinF64x2 := @SyntheticMinF64x2CurrentDispatch;
-    LModifiedTable.MaxF64x2 := @SyntheticMaxF64x2CurrentDispatch;
-    RegisterBackend(LBackend, LModifiedTable);
-    try
-      AssertEquals('Re-registering the current backend should preserve the active backend id for VecF64x2 math facade dispatch test',
-        Ord(LBackend), Ord(GetCurrentBackend));
+  LModifiedTable := LOriginalTable;
+  LModifiedTable.AbsF64x2 := @SyntheticAbsF64x2CurrentDispatch;
+  LModifiedTable.SqrtF64x2 := @SyntheticSqrtF64x2CurrentDispatch;
+  LModifiedTable.MinF64x2 := @SyntheticMinF64x2CurrentDispatch;
+  LModifiedTable.MaxF64x2 := @SyntheticMaxF64x2CurrentDispatch;
+  RegisterBackend(LBackend, LModifiedTable);
+  try
+    AssertEquals('Re-registering the current backend should preserve the active backend id for VecF64x2 math facade dispatch test',
+      Ord(LBackend), Ord(GetCurrentBackend));
 
-      LExpected := GetDispatchTable^.AbsF64x2(LInputA);
-      AssertVecF64x2Equal('Current dispatch table should expose synthetic AbsF64x2 after re-register',
-        SyntheticAbsF64x2CurrentDispatch(LInputA), LExpected);
-      AssertVecF64x2Equal('VecF64x2Abs should track current dispatch table after re-register',
-        LExpected, VecF64x2Abs(LInputA));
+    LExpected := GetDispatchTable^.AbsF64x2(LInputA);
+    AssertVecF64x2Equal('Current dispatch table should expose synthetic AbsF64x2 after re-register',
+      SyntheticAbsF64x2CurrentDispatch(LInputA), LExpected);
+    AssertVecF64x2Equal('VecF64x2Abs should track current dispatch table after re-register',
+      LExpected, VecF64x2Abs(LInputA));
 
-      LExpected := GetDispatchTable^.SqrtF64x2(LInputA);
-      AssertVecF64x2Equal('Current dispatch table should expose synthetic SqrtF64x2 after re-register',
-        SyntheticSqrtF64x2CurrentDispatch(LInputA), LExpected);
-      AssertVecF64x2Equal('VecF64x2Sqrt should track current dispatch table after re-register',
-        LExpected, VecF64x2Sqrt(LInputA));
+    LExpected := GetDispatchTable^.SqrtF64x2(LInputA);
+    AssertVecF64x2Equal('Current dispatch table should expose synthetic SqrtF64x2 after re-register',
+      SyntheticSqrtF64x2CurrentDispatch(LInputA), LExpected);
+    AssertVecF64x2Equal('VecF64x2Sqrt should track current dispatch table after re-register',
+      LExpected, VecF64x2Sqrt(LInputA));
 
-      LExpected := GetDispatchTable^.MinF64x2(LInputA, LInputB);
-      AssertVecF64x2Equal('Current dispatch table should expose synthetic MinF64x2 after re-register',
-        SyntheticMinF64x2CurrentDispatch(LInputA, LInputB), LExpected);
-      AssertVecF64x2Equal('VecF64x2Min should track current dispatch table after re-register',
-        LExpected, VecF64x2Min(LInputA, LInputB));
+    LExpected := GetDispatchTable^.MinF64x2(LInputA, LInputB);
+    AssertVecF64x2Equal('Current dispatch table should expose synthetic MinF64x2 after re-register',
+      SyntheticMinF64x2CurrentDispatch(LInputA, LInputB), LExpected);
+    AssertVecF64x2Equal('VecF64x2Min should track current dispatch table after re-register',
+      LExpected, VecF64x2Min(LInputA, LInputB));
 
-      LExpected := GetDispatchTable^.MaxF64x2(LInputA, LInputB);
-      AssertVecF64x2Equal('Current dispatch table should expose synthetic MaxF64x2 after re-register',
-        SyntheticMaxF64x2CurrentDispatch(LInputA, LInputB), LExpected);
-      AssertVecF64x2Equal('VecF64x2Max should track current dispatch table after re-register',
-        LExpected, VecF64x2Max(LInputA, LInputB));
-    finally
-      RegisterBackend(LBackend, LOriginalTable);
-    end;
+    LExpected := GetDispatchTable^.MaxF64x2(LInputA, LInputB);
+    AssertVecF64x2Equal('Current dispatch table should expose synthetic MaxF64x2 after re-register',
+      SyntheticMaxF64x2CurrentDispatch(LInputA, LInputB), LExpected);
+    AssertVecF64x2Equal('VecF64x2Max should track current dispatch table after re-register',
+      LExpected, VecF64x2Max(LInputA, LInputB));
   finally
+    RegisterBackend(LBackend, LOriginalTable);
   end;
 end;
 
@@ -3064,9 +3050,8 @@ var
   LActualNormalize3: TVecF32x4;
   LIndex: Integer;
 begin
-  try
-    ResetToAutomaticBackend;
-    LBackend := GetCurrentBackend;
+  ResetToAutomaticBackend;
+  LBackend := GetCurrentBackend;
 
     AssertTrue('Current backend should be registered for VecF32 vector math facade dispatch test',
       TryGetRegisteredBackendDispatchTable(LBackend, LOriginalTable));
@@ -3083,58 +3068,56 @@ begin
     LExpectedNormalize4 := SyntheticNormalizeF32x4CurrentDispatch(LInputA);
     LExpectedNormalize3 := SyntheticNormalizeF32x3CurrentDispatch(LInputA);
 
-    LModifiedTable := LOriginalTable;
-    LModifiedTable.DotF32x4 := @SyntheticDotF32x4CurrentDispatch;
-    LModifiedTable.DotF32x3 := @SyntheticDotF32x3CurrentDispatch;
-    LModifiedTable.LengthF32x4 := @SyntheticLengthF32x4CurrentDispatch;
-    LModifiedTable.LengthF32x3 := @SyntheticLengthF32x3CurrentDispatch;
-    LModifiedTable.NormalizeF32x4 := @SyntheticNormalizeF32x4CurrentDispatch;
-    LModifiedTable.NormalizeF32x3 := @SyntheticNormalizeF32x3CurrentDispatch;
-    RegisterBackend(LBackend, LModifiedTable);
-    try
-      AssertEquals('Re-registering the current backend should preserve the active backend id for VecF32 vector math facade dispatch test',
-        Ord(LBackend), Ord(GetCurrentBackend));
-      AssertEquals('Current dispatch table should expose synthetic DotF32x4 after re-register',
-        37.125, GetDispatchTable^.DotF32x4(LInputA, LInputB), 0.0);
-      AssertEquals('Current dispatch table should expose synthetic DotF32x3 after re-register',
-        -18.75, GetDispatchTable^.DotF32x3(LInputA, LInputB), 0.0);
-      AssertEquals('Current dispatch table should expose synthetic LengthF32x4 after re-register',
-        99.5, GetDispatchTable^.LengthF32x4(LInputA), 0.0);
-      AssertEquals('Current dispatch table should expose synthetic LengthF32x3 after re-register',
-        55.25, GetDispatchTable^.LengthF32x3(LInputA), 0.0);
+  LModifiedTable := LOriginalTable;
+  LModifiedTable.DotF32x4 := @SyntheticDotF32x4CurrentDispatch;
+  LModifiedTable.DotF32x3 := @SyntheticDotF32x3CurrentDispatch;
+  LModifiedTable.LengthF32x4 := @SyntheticLengthF32x4CurrentDispatch;
+  LModifiedTable.LengthF32x3 := @SyntheticLengthF32x3CurrentDispatch;
+  LModifiedTable.NormalizeF32x4 := @SyntheticNormalizeF32x4CurrentDispatch;
+  LModifiedTable.NormalizeF32x3 := @SyntheticNormalizeF32x3CurrentDispatch;
+  RegisterBackend(LBackend, LModifiedTable);
+  try
+    AssertEquals('Re-registering the current backend should preserve the active backend id for VecF32 vector math facade dispatch test',
+      Ord(LBackend), Ord(GetCurrentBackend));
+    AssertEquals('Current dispatch table should expose synthetic DotF32x4 after re-register',
+      37.125, GetDispatchTable^.DotF32x4(LInputA, LInputB), 0.0);
+    AssertEquals('Current dispatch table should expose synthetic DotF32x3 after re-register',
+      -18.75, GetDispatchTable^.DotF32x3(LInputA, LInputB), 0.0);
+    AssertEquals('Current dispatch table should expose synthetic LengthF32x4 after re-register',
+      99.5, GetDispatchTable^.LengthF32x4(LInputA), 0.0);
+    AssertEquals('Current dispatch table should expose synthetic LengthF32x3 after re-register',
+      55.25, GetDispatchTable^.LengthF32x3(LInputA), 0.0);
 
-      LActualNormalize4 := GetDispatchTable^.NormalizeF32x4(LInputA);
-      LActualNormalize3 := GetDispatchTable^.NormalizeF32x3(LInputA);
-      for LIndex := 0 to 3 do
-      begin
-        AssertEquals('Current dispatch table should expose synthetic NormalizeF32x4 after re-register lane ' + IntToStr(LIndex),
-          LExpectedNormalize4.f[LIndex], LActualNormalize4.f[LIndex], 0.0);
-        AssertEquals('Current dispatch table should expose synthetic NormalizeF32x3 after re-register lane ' + IntToStr(LIndex),
-          LExpectedNormalize3.f[LIndex], LActualNormalize3.f[LIndex], 0.0);
-      end;
+    LActualNormalize4 := GetDispatchTable^.NormalizeF32x4(LInputA);
+    LActualNormalize3 := GetDispatchTable^.NormalizeF32x3(LInputA);
+    for LIndex := 0 to 3 do
+    begin
+      AssertEquals('Current dispatch table should expose synthetic NormalizeF32x4 after re-register lane ' + IntToStr(LIndex),
+        LExpectedNormalize4.f[LIndex], LActualNormalize4.f[LIndex], 0.0);
+      AssertEquals('Current dispatch table should expose synthetic NormalizeF32x3 after re-register lane ' + IntToStr(LIndex),
+        LExpectedNormalize3.f[LIndex], LActualNormalize3.f[LIndex], 0.0);
+    end;
 
-      AssertEquals('VecF32x4Dot should track current dispatch table after re-register',
-        37.125, VecF32x4Dot(LInputA, LInputB), 0.0);
-      AssertEquals('VecF32x3Dot should track current dispatch table after re-register',
-        -18.75, VecF32x3Dot(LInputA, LInputB), 0.0);
-      AssertEquals('VecF32x4Length should track current dispatch table after re-register',
-        99.5, VecF32x4Length(LInputA), 0.0);
-      AssertEquals('VecF32x3Length should track current dispatch table after re-register',
-        55.25, VecF32x3Length(LInputA), 0.0);
+    AssertEquals('VecF32x4Dot should track current dispatch table after re-register',
+      37.125, VecF32x4Dot(LInputA, LInputB), 0.0);
+    AssertEquals('VecF32x3Dot should track current dispatch table after re-register',
+      -18.75, VecF32x3Dot(LInputA, LInputB), 0.0);
+    AssertEquals('VecF32x4Length should track current dispatch table after re-register',
+      99.5, VecF32x4Length(LInputA), 0.0);
+    AssertEquals('VecF32x3Length should track current dispatch table after re-register',
+      55.25, VecF32x3Length(LInputA), 0.0);
 
-      LActualNormalize4 := VecF32x4Normalize(LInputA);
-      LActualNormalize3 := VecF32x3Normalize(LInputA);
-      for LIndex := 0 to 3 do
-      begin
-        AssertEquals('VecF32x4Normalize should track current dispatch table after re-register lane ' + IntToStr(LIndex),
-          LExpectedNormalize4.f[LIndex], LActualNormalize4.f[LIndex], 0.0);
-        AssertEquals('VecF32x3Normalize should track current dispatch table after re-register lane ' + IntToStr(LIndex),
-          LExpectedNormalize3.f[LIndex], LActualNormalize3.f[LIndex], 0.0);
-      end;
-    finally
-      RegisterBackend(LBackend, LOriginalTable);
+    LActualNormalize4 := VecF32x4Normalize(LInputA);
+    LActualNormalize3 := VecF32x3Normalize(LInputA);
+    for LIndex := 0 to 3 do
+    begin
+      AssertEquals('VecF32x4Normalize should track current dispatch table after re-register lane ' + IntToStr(LIndex),
+        LExpectedNormalize4.f[LIndex], LActualNormalize4.f[LIndex], 0.0);
+      AssertEquals('VecF32x3Normalize should track current dispatch table after re-register lane ' + IntToStr(LIndex),
+        LExpectedNormalize3.f[LIndex], LActualNormalize3.f[LIndex], 0.0);
     end;
   finally
+    RegisterBackend(LBackend, LOriginalTable);
   end;
 end;
 
@@ -3150,9 +3133,8 @@ var
   LInputF64x4A: TVecF64x4;
   LInputF64x4B: TVecF64x4;
 begin
-  try
-    ResetToAutomaticBackend;
-    LBackend := GetCurrentBackend;
+  ResetToAutomaticBackend;
+  LBackend := GetCurrentBackend;
 
     AssertTrue('Current backend should be registered for wide float dot facade dispatch test',
       TryGetRegisteredBackendDispatchTable(LBackend, LOriginalTable));
@@ -3188,31 +3170,29 @@ begin
     LInputF64x4B.d[2] := -7.75;
     LInputF64x4B.d[3] := 8.0;
 
-    LModifiedTable := LOriginalTable;
-    LModifiedTable.DotF32x8 := @SyntheticDotF32x8CurrentDispatch;
-    LModifiedTable.DotF64x2 := @SyntheticDotF64x2CurrentDispatch;
-    LModifiedTable.DotF64x4 := @SyntheticDotF64x4CurrentDispatch;
-    RegisterBackend(LBackend, LModifiedTable);
-    try
-      AssertEquals('Re-registering the current backend should preserve the active backend id for wide float dot facade dispatch test',
-        Ord(LBackend), Ord(GetCurrentBackend));
-      AssertEquals('Current dispatch table should expose synthetic DotF32x8 after re-register',
-        512.25, GetDispatchTable^.DotF32x8(LInputF32x8A, LInputF32x8B), 0.0);
-      AssertEquals('Current dispatch table should expose synthetic DotF64x2 after re-register',
-        -204.5, GetDispatchTable^.DotF64x2(LInputF64x2A, LInputF64x2B), 0.0);
-      AssertEquals('Current dispatch table should expose synthetic DotF64x4 after re-register',
-        8192.125, GetDispatchTable^.DotF64x4(LInputF64x4A, LInputF64x4B), 0.0);
+  LModifiedTable := LOriginalTable;
+  LModifiedTable.DotF32x8 := @SyntheticDotF32x8CurrentDispatch;
+  LModifiedTable.DotF64x2 := @SyntheticDotF64x2CurrentDispatch;
+  LModifiedTable.DotF64x4 := @SyntheticDotF64x4CurrentDispatch;
+  RegisterBackend(LBackend, LModifiedTable);
+  try
+    AssertEquals('Re-registering the current backend should preserve the active backend id for wide float dot facade dispatch test',
+      Ord(LBackend), Ord(GetCurrentBackend));
+    AssertEquals('Current dispatch table should expose synthetic DotF32x8 after re-register',
+      512.25, GetDispatchTable^.DotF32x8(LInputF32x8A, LInputF32x8B), 0.0);
+    AssertEquals('Current dispatch table should expose synthetic DotF64x2 after re-register',
+      -204.5, GetDispatchTable^.DotF64x2(LInputF64x2A, LInputF64x2B), 0.0);
+    AssertEquals('Current dispatch table should expose synthetic DotF64x4 after re-register',
+      8192.125, GetDispatchTable^.DotF64x4(LInputF64x4A, LInputF64x4B), 0.0);
 
-      AssertEquals('VecF32x8Dot should track current dispatch table after re-register',
-        512.25, VecF32x8Dot(LInputF32x8A, LInputF32x8B), 0.0);
-      AssertEquals('VecF64x2Dot should track current dispatch table after re-register',
-        -204.5, VecF64x2Dot(LInputF64x2A, LInputF64x2B), 0.0);
-      AssertEquals('VecF64x4Dot should track current dispatch table after re-register',
-        8192.125, VecF64x4Dot(LInputF64x4A, LInputF64x4B), 0.0);
-    finally
-      RegisterBackend(LBackend, LOriginalTable);
-    end;
+    AssertEquals('VecF32x8Dot should track current dispatch table after re-register',
+      512.25, VecF32x8Dot(LInputF32x8A, LInputF32x8B), 0.0);
+    AssertEquals('VecF64x2Dot should track current dispatch table after re-register',
+      -204.5, VecF64x2Dot(LInputF64x2A, LInputF64x2B), 0.0);
+    AssertEquals('VecF64x4Dot should track current dispatch table after re-register',
+      8192.125, VecF64x4Dot(LInputF64x4A, LInputF64x4B), 0.0);
   finally
+    RegisterBackend(LBackend, LOriginalTable);
   end;
 end;
 
@@ -3223,9 +3203,8 @@ var
   LModifiedTable: TSimdDispatchTable;
   LInput: TVecF64x4;
 begin
-  try
-    ResetToAutomaticBackend;
-    LBackend := GetCurrentBackend;
+  ResetToAutomaticBackend;
+  LBackend := GetCurrentBackend;
 
     AssertTrue('Current backend should be registered for VecF64x4 reduce facade dispatch test',
       TryGetRegisteredBackendDispatchTable(LBackend, LOriginalTable));
@@ -3235,36 +3214,34 @@ begin
     LInput.d[2] := 3.25;
     LInput.d[3] := -4.75;
 
-    LModifiedTable := LOriginalTable;
-    LModifiedTable.ReduceAddF64x4 := @SyntheticReduceAddF64x4CurrentDispatch;
-    LModifiedTable.ReduceMinF64x4 := @SyntheticReduceMinF64x4CurrentDispatch;
-    LModifiedTable.ReduceMaxF64x4 := @SyntheticReduceMaxF64x4CurrentDispatch;
-    LModifiedTable.ReduceMulF64x4 := @SyntheticReduceMulF64x4CurrentDispatch;
-    RegisterBackend(LBackend, LModifiedTable);
-    try
-      AssertEquals('Re-registering the current backend should preserve the active backend id for VecF64x4 reduce facade dispatch test',
-        Ord(LBackend), Ord(GetCurrentBackend));
-      AssertEquals('Current dispatch table should expose synthetic ReduceAddF64x4 after re-register',
-        401.25, GetDispatchTable^.ReduceAddF64x4(LInput), 0.0);
-      AssertEquals('Current dispatch table should expose synthetic ReduceMinF64x4 after re-register',
-        -222.5, GetDispatchTable^.ReduceMinF64x4(LInput), 0.0);
-      AssertEquals('Current dispatch table should expose synthetic ReduceMaxF64x4 after re-register',
-        909.75, GetDispatchTable^.ReduceMaxF64x4(LInput), 0.0);
-      AssertEquals('Current dispatch table should expose synthetic ReduceMulF64x4 after re-register',
-        -17.0, GetDispatchTable^.ReduceMulF64x4(LInput), 0.0);
+  LModifiedTable := LOriginalTable;
+  LModifiedTable.ReduceAddF64x4 := @SyntheticReduceAddF64x4CurrentDispatch;
+  LModifiedTable.ReduceMinF64x4 := @SyntheticReduceMinF64x4CurrentDispatch;
+  LModifiedTable.ReduceMaxF64x4 := @SyntheticReduceMaxF64x4CurrentDispatch;
+  LModifiedTable.ReduceMulF64x4 := @SyntheticReduceMulF64x4CurrentDispatch;
+  RegisterBackend(LBackend, LModifiedTable);
+  try
+    AssertEquals('Re-registering the current backend should preserve the active backend id for VecF64x4 reduce facade dispatch test',
+      Ord(LBackend), Ord(GetCurrentBackend));
+    AssertEquals('Current dispatch table should expose synthetic ReduceAddF64x4 after re-register',
+      401.25, GetDispatchTable^.ReduceAddF64x4(LInput), 0.0);
+    AssertEquals('Current dispatch table should expose synthetic ReduceMinF64x4 after re-register',
+      -222.5, GetDispatchTable^.ReduceMinF64x4(LInput), 0.0);
+    AssertEquals('Current dispatch table should expose synthetic ReduceMaxF64x4 after re-register',
+      909.75, GetDispatchTable^.ReduceMaxF64x4(LInput), 0.0);
+    AssertEquals('Current dispatch table should expose synthetic ReduceMulF64x4 after re-register',
+      -17.0, GetDispatchTable^.ReduceMulF64x4(LInput), 0.0);
 
-      AssertEquals('VecF64x4ReduceAdd should track current dispatch table after re-register',
-        401.25, VecF64x4ReduceAdd(LInput), 0.0);
-      AssertEquals('VecF64x4ReduceMin should track current dispatch table after re-register',
-        -222.5, VecF64x4ReduceMin(LInput), 0.0);
-      AssertEquals('VecF64x4ReduceMax should track current dispatch table after re-register',
-        909.75, VecF64x4ReduceMax(LInput), 0.0);
-      AssertEquals('VecF64x4ReduceMul should track current dispatch table after re-register',
-        -17.0, VecF64x4ReduceMul(LInput), 0.0);
-    finally
-      RegisterBackend(LBackend, LOriginalTable);
-    end;
+    AssertEquals('VecF64x4ReduceAdd should track current dispatch table after re-register',
+      401.25, VecF64x4ReduceAdd(LInput), 0.0);
+    AssertEquals('VecF64x4ReduceMin should track current dispatch table after re-register',
+      -222.5, VecF64x4ReduceMin(LInput), 0.0);
+    AssertEquals('VecF64x4ReduceMax should track current dispatch table after re-register',
+      909.75, VecF64x4ReduceMax(LInput), 0.0);
+    AssertEquals('VecF64x4ReduceMul should track current dispatch table after re-register',
+      -17.0, VecF64x4ReduceMul(LInput), 0.0);
   finally
+    RegisterBackend(LBackend, LOriginalTable);
   end;
 end;
 
@@ -3275,9 +3252,8 @@ var
   LModifiedTable: TSimdDispatchTable;
   LInput: TVecF32x8;
 begin
-  try
-    ResetToAutomaticBackend;
-    LBackend := GetCurrentBackend;
+  ResetToAutomaticBackend;
+  LBackend := GetCurrentBackend;
 
     AssertTrue('Current backend should be registered for VecF32x8 reduce facade dispatch test',
       TryGetRegisteredBackendDispatchTable(LBackend, LOriginalTable));
@@ -3291,36 +3267,34 @@ begin
     LInput.f[6] := 7.875;
     LInput.f[7] := -8.25;
 
-    LModifiedTable := LOriginalTable;
-    LModifiedTable.ReduceAddF32x8 := @SyntheticReduceAddF32x8CurrentDispatch;
-    LModifiedTable.ReduceMinF32x8 := @SyntheticReduceMinF32x8CurrentDispatch;
-    LModifiedTable.ReduceMaxF32x8 := @SyntheticReduceMaxF32x8CurrentDispatch;
-    LModifiedTable.ReduceMulF32x8 := @SyntheticReduceMulF32x8CurrentDispatch;
-    RegisterBackend(LBackend, LModifiedTable);
-    try
-      AssertEquals('Re-registering the current backend should preserve the active backend id for VecF32x8 reduce facade dispatch test',
-        Ord(LBackend), Ord(GetCurrentBackend));
-      AssertEquals('Current dispatch table should expose synthetic ReduceAddF32x8 after re-register',
-        123.5, GetDispatchTable^.ReduceAddF32x8(LInput), 0.0);
-      AssertEquals('Current dispatch table should expose synthetic ReduceMinF32x8 after re-register',
-        -456.75, GetDispatchTable^.ReduceMinF32x8(LInput), 0.0);
-      AssertEquals('Current dispatch table should expose synthetic ReduceMaxF32x8 after re-register',
-        789.125, GetDispatchTable^.ReduceMaxF32x8(LInput), 0.0);
-      AssertEquals('Current dispatch table should expose synthetic ReduceMulF32x8 after re-register',
-        -33.25, GetDispatchTable^.ReduceMulF32x8(LInput), 0.0);
+  LModifiedTable := LOriginalTable;
+  LModifiedTable.ReduceAddF32x8 := @SyntheticReduceAddF32x8CurrentDispatch;
+  LModifiedTable.ReduceMinF32x8 := @SyntheticReduceMinF32x8CurrentDispatch;
+  LModifiedTable.ReduceMaxF32x8 := @SyntheticReduceMaxF32x8CurrentDispatch;
+  LModifiedTable.ReduceMulF32x8 := @SyntheticReduceMulF32x8CurrentDispatch;
+  RegisterBackend(LBackend, LModifiedTable);
+  try
+    AssertEquals('Re-registering the current backend should preserve the active backend id for VecF32x8 reduce facade dispatch test',
+      Ord(LBackend), Ord(GetCurrentBackend));
+    AssertEquals('Current dispatch table should expose synthetic ReduceAddF32x8 after re-register',
+      123.5, GetDispatchTable^.ReduceAddF32x8(LInput), 0.0);
+    AssertEquals('Current dispatch table should expose synthetic ReduceMinF32x8 after re-register',
+      -456.75, GetDispatchTable^.ReduceMinF32x8(LInput), 0.0);
+    AssertEquals('Current dispatch table should expose synthetic ReduceMaxF32x8 after re-register',
+      789.125, GetDispatchTable^.ReduceMaxF32x8(LInput), 0.0);
+    AssertEquals('Current dispatch table should expose synthetic ReduceMulF32x8 after re-register',
+      -33.25, GetDispatchTable^.ReduceMulF32x8(LInput), 0.0);
 
-      AssertEquals('VecF32x8ReduceAdd should track current dispatch table after re-register',
-        123.5, VecF32x8ReduceAdd(LInput), 0.0);
-      AssertEquals('VecF32x8ReduceMin should track current dispatch table after re-register',
-        -456.75, VecF32x8ReduceMin(LInput), 0.0);
-      AssertEquals('VecF32x8ReduceMax should track current dispatch table after re-register',
-        789.125, VecF32x8ReduceMax(LInput), 0.0);
-      AssertEquals('VecF32x8ReduceMul should track current dispatch table after re-register',
-        -33.25, VecF32x8ReduceMul(LInput), 0.0);
-    finally
-      RegisterBackend(LBackend, LOriginalTable);
-    end;
+    AssertEquals('VecF32x8ReduceAdd should track current dispatch table after re-register',
+      123.5, VecF32x8ReduceAdd(LInput), 0.0);
+    AssertEquals('VecF32x8ReduceMin should track current dispatch table after re-register',
+      -456.75, VecF32x8ReduceMin(LInput), 0.0);
+    AssertEquals('VecF32x8ReduceMax should track current dispatch table after re-register',
+      789.125, VecF32x8ReduceMax(LInput), 0.0);
+    AssertEquals('VecF32x8ReduceMul should track current dispatch table after re-register',
+      -33.25, VecF32x8ReduceMul(LInput), 0.0);
   finally
+    RegisterBackend(LBackend, LOriginalTable);
   end;
 end;
 
@@ -3331,9 +3305,8 @@ var
   LModifiedTable: TSimdDispatchTable;
   LInput: TVecF64x8;
 begin
-  try
-    ResetToAutomaticBackend;
-    LBackend := GetCurrentBackend;
+  ResetToAutomaticBackend;
+  LBackend := GetCurrentBackend;
 
     AssertTrue('Current backend should be registered for VecF64x8 reduce facade dispatch test',
       TryGetRegisteredBackendDispatchTable(LBackend, LOriginalTable));
@@ -3347,36 +3320,34 @@ begin
     LInput.d[6] := 7.0;
     LInput.d[7] := -8.0;
 
-    LModifiedTable := LOriginalTable;
-    LModifiedTable.ReduceAddF64x8 := @SyntheticReduceAddF64x8CurrentDispatch;
-    LModifiedTable.ReduceMinF64x8 := @SyntheticReduceMinF64x8CurrentDispatch;
-    LModifiedTable.ReduceMaxF64x8 := @SyntheticReduceMaxF64x8CurrentDispatch;
-    LModifiedTable.ReduceMulF64x8 := @SyntheticReduceMulF64x8CurrentDispatch;
-    RegisterBackend(LBackend, LModifiedTable);
-    try
-      AssertEquals('Re-registering the current backend should preserve the active backend id for VecF64x8 reduce facade dispatch test',
-        Ord(LBackend), Ord(GetCurrentBackend));
-      AssertEquals('Current dispatch table should expose synthetic ReduceAddF64x8 after re-register',
-        615.875, GetDispatchTable^.ReduceAddF64x8(LInput), 0.0);
-      AssertEquals('Current dispatch table should expose synthetic ReduceMinF64x8 after re-register',
-        -712.5, GetDispatchTable^.ReduceMinF64x8(LInput), 0.0);
-      AssertEquals('Current dispatch table should expose synthetic ReduceMaxF64x8 after re-register',
-        1337.25, GetDispatchTable^.ReduceMaxF64x8(LInput), 0.0);
-      AssertEquals('Current dispatch table should expose synthetic ReduceMulF64x8 after re-register',
-        -91.5, GetDispatchTable^.ReduceMulF64x8(LInput), 0.0);
+  LModifiedTable := LOriginalTable;
+  LModifiedTable.ReduceAddF64x8 := @SyntheticReduceAddF64x8CurrentDispatch;
+  LModifiedTable.ReduceMinF64x8 := @SyntheticReduceMinF64x8CurrentDispatch;
+  LModifiedTable.ReduceMaxF64x8 := @SyntheticReduceMaxF64x8CurrentDispatch;
+  LModifiedTable.ReduceMulF64x8 := @SyntheticReduceMulF64x8CurrentDispatch;
+  RegisterBackend(LBackend, LModifiedTable);
+  try
+    AssertEquals('Re-registering the current backend should preserve the active backend id for VecF64x8 reduce facade dispatch test',
+      Ord(LBackend), Ord(GetCurrentBackend));
+    AssertEquals('Current dispatch table should expose synthetic ReduceAddF64x8 after re-register',
+      615.875, GetDispatchTable^.ReduceAddF64x8(LInput), 0.0);
+    AssertEquals('Current dispatch table should expose synthetic ReduceMinF64x8 after re-register',
+      -712.5, GetDispatchTable^.ReduceMinF64x8(LInput), 0.0);
+    AssertEquals('Current dispatch table should expose synthetic ReduceMaxF64x8 after re-register',
+      1337.25, GetDispatchTable^.ReduceMaxF64x8(LInput), 0.0);
+    AssertEquals('Current dispatch table should expose synthetic ReduceMulF64x8 after re-register',
+      -91.5, GetDispatchTable^.ReduceMulF64x8(LInput), 0.0);
 
-      AssertEquals('VecF64x8ReduceAdd should track current dispatch table after re-register',
-        615.875, VecF64x8ReduceAdd(LInput), 0.0);
-      AssertEquals('VecF64x8ReduceMin should track current dispatch table after re-register',
-        -712.5, VecF64x8ReduceMin(LInput), 0.0);
-      AssertEquals('VecF64x8ReduceMax should track current dispatch table after re-register',
-        1337.25, VecF64x8ReduceMax(LInput), 0.0);
-      AssertEquals('VecF64x8ReduceMul should track current dispatch table after re-register',
-        -91.5, VecF64x8ReduceMul(LInput), 0.0);
-    finally
-      RegisterBackend(LBackend, LOriginalTable);
-    end;
+    AssertEquals('VecF64x8ReduceAdd should track current dispatch table after re-register',
+      615.875, VecF64x8ReduceAdd(LInput), 0.0);
+    AssertEquals('VecF64x8ReduceMin should track current dispatch table after re-register',
+      -712.5, VecF64x8ReduceMin(LInput), 0.0);
+    AssertEquals('VecF64x8ReduceMax should track current dispatch table after re-register',
+      1337.25, VecF64x8ReduceMax(LInput), 0.0);
+    AssertEquals('VecF64x8ReduceMul should track current dispatch table after re-register',
+      -91.5, VecF64x8ReduceMul(LInput), 0.0);
   finally
+    RegisterBackend(LBackend, LOriginalTable);
   end;
 end;
 
@@ -3387,9 +3358,8 @@ var
   LModifiedTable: TSimdDispatchTable;
   LInput: TVecF32x16;
 begin
-  try
-    ResetToAutomaticBackend;
-    LBackend := GetCurrentBackend;
+  ResetToAutomaticBackend;
+  LBackend := GetCurrentBackend;
 
     AssertTrue('Current backend should be registered for VecF32x16 reduce facade dispatch test',
       TryGetRegisteredBackendDispatchTable(LBackend, LOriginalTable));
@@ -3411,36 +3381,34 @@ begin
     LInput.f[14] := 15.0;
     LInput.f[15] := -16.0;
 
-    LModifiedTable := LOriginalTable;
-    LModifiedTable.ReduceAddF32x16 := @SyntheticReduceAddF32x16CurrentDispatch;
-    LModifiedTable.ReduceMinF32x16 := @SyntheticReduceMinF32x16CurrentDispatch;
-    LModifiedTable.ReduceMaxF32x16 := @SyntheticReduceMaxF32x16CurrentDispatch;
-    LModifiedTable.ReduceMulF32x16 := @SyntheticReduceMulF32x16CurrentDispatch;
-    RegisterBackend(LBackend, LModifiedTable);
-    try
-      AssertEquals('Re-registering the current backend should preserve the active backend id for VecF32x16 reduce facade dispatch test',
-        Ord(LBackend), Ord(GetCurrentBackend));
-      AssertEquals('Current dispatch table should expose synthetic ReduceAddF32x16 after re-register',
-        2048.5, GetDispatchTable^.ReduceAddF32x16(LInput), 0.0);
-      AssertEquals('Current dispatch table should expose synthetic ReduceMinF32x16 after re-register',
-        -1024.25, GetDispatchTable^.ReduceMinF32x16(LInput), 0.0);
-      AssertEquals('Current dispatch table should expose synthetic ReduceMaxF32x16 after re-register',
-        4096.75, GetDispatchTable^.ReduceMaxF32x16(LInput), 0.0);
-      AssertEquals('Current dispatch table should expose synthetic ReduceMulF32x16 after re-register',
-        -256.5, GetDispatchTable^.ReduceMulF32x16(LInput), 0.0);
+  LModifiedTable := LOriginalTable;
+  LModifiedTable.ReduceAddF32x16 := @SyntheticReduceAddF32x16CurrentDispatch;
+  LModifiedTable.ReduceMinF32x16 := @SyntheticReduceMinF32x16CurrentDispatch;
+  LModifiedTable.ReduceMaxF32x16 := @SyntheticReduceMaxF32x16CurrentDispatch;
+  LModifiedTable.ReduceMulF32x16 := @SyntheticReduceMulF32x16CurrentDispatch;
+  RegisterBackend(LBackend, LModifiedTable);
+  try
+    AssertEquals('Re-registering the current backend should preserve the active backend id for VecF32x16 reduce facade dispatch test',
+      Ord(LBackend), Ord(GetCurrentBackend));
+    AssertEquals('Current dispatch table should expose synthetic ReduceAddF32x16 after re-register',
+      2048.5, GetDispatchTable^.ReduceAddF32x16(LInput), 0.0);
+    AssertEquals('Current dispatch table should expose synthetic ReduceMinF32x16 after re-register',
+      -1024.25, GetDispatchTable^.ReduceMinF32x16(LInput), 0.0);
+    AssertEquals('Current dispatch table should expose synthetic ReduceMaxF32x16 after re-register',
+      4096.75, GetDispatchTable^.ReduceMaxF32x16(LInput), 0.0);
+    AssertEquals('Current dispatch table should expose synthetic ReduceMulF32x16 after re-register',
+      -256.5, GetDispatchTable^.ReduceMulF32x16(LInput), 0.0);
 
-      AssertEquals('VecF32x16ReduceAdd should track current dispatch table after re-register',
-        2048.5, VecF32x16ReduceAdd(LInput), 0.0);
-      AssertEquals('VecF32x16ReduceMin should track current dispatch table after re-register',
-        -1024.25, VecF32x16ReduceMin(LInput), 0.0);
-      AssertEquals('VecF32x16ReduceMax should track current dispatch table after re-register',
-        4096.75, VecF32x16ReduceMax(LInput), 0.0);
-      AssertEquals('VecF32x16ReduceMul should track current dispatch table after re-register',
-        -256.5, VecF32x16ReduceMul(LInput), 0.0);
-    finally
-      RegisterBackend(LBackend, LOriginalTable);
-    end;
+    AssertEquals('VecF32x16ReduceAdd should track current dispatch table after re-register',
+      2048.5, VecF32x16ReduceAdd(LInput), 0.0);
+    AssertEquals('VecF32x16ReduceMin should track current dispatch table after re-register',
+      -1024.25, VecF32x16ReduceMin(LInput), 0.0);
+    AssertEquals('VecF32x16ReduceMax should track current dispatch table after re-register',
+      4096.75, VecF32x16ReduceMax(LInput), 0.0);
+    AssertEquals('VecF32x16ReduceMul should track current dispatch table after re-register',
+      -256.5, VecF32x16ReduceMul(LInput), 0.0);
   finally
+    RegisterBackend(LBackend, LOriginalTable);
   end;
 end;
 

@@ -6051,3 +6051,25 @@
 - 新的判断更新为：
   - `dispatchapi` 里“空 outer finally + 死状态捕获”已经从控制流类测试扩展到 metadata / snapshot consistency 测试
   - 但只要 restore 责任仍明确落在内层 `finally`，这类冗余同样可以安全拆掉
+
+## 2026-05-16 DispatchApi Facade Dispatch Tracking Empty Finally Cleanup
+
+- `dispatchapi.testcase` 的 `2796..3445` 进一步证明，纯空 outer `finally` 还广泛存在于“facade 必须跟随 current dispatch table”的追踪测试簇里。
+- 这一簇的形态非常统一：
+  - 外层只是 `ResetToAutomaticBackend` 后改造当前 backend table
+  - 真正的 restore 都在内层 `finally` 里做 `RegisterBackend(LBackend, LOriginalTable)`
+  - 外层 `finally` 为空
+- 当前可直接删壳的代表包括：
+  - `Test_VecF32x4ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister`
+  - `Test_VecF64x2ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister`
+  - `Test_VecF64x2MathFacade_Tracks_CurrentDispatchTable_After_ReRegister`
+  - `Test_VecF32VectorMathFacade_Tracks_CurrentDispatchTable_After_ReRegister`
+  - `Test_VecWideFloatDotFacade_Tracks_CurrentDispatchTable_After_ReRegister`
+  - `Test_VecF64x4ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister`
+  - `Test_VecF32x8ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister`
+  - `Test_VecF64x8ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister`
+  - `Test_VecF32x16ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister`
+- 同簇里的 `Test_CurrentBackendHelpers_StayAligned_After_ControlPlaneSwitches` 还额外带了一个未读取的 `LOldVectorAsm`，但同样不承担 restore 责任，因此也可以一起安全剥离。
+- 这轮的新增判断是：
+  - 当测试目的只是验证“facade 是否跟随当前 dispatch snapshot”，而 restore 明确由内层 `RegisterBackend(...)` 承担时，外层 `try/finally` 几乎都是机械遗留
+  - `dispatchapi` 里的高确定性冗余已经从 control-plane / metadata 簇进一步扩到了 façade tracking 簇

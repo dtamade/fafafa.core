@@ -4098,3 +4098,17 @@
 | 1. 复核 metadata/snapshot 簇的真实边界 | completed | 已逐段复核 `2277..2810`：`SupportedAliases_StayCpuOnly_WhenBackendBecomesNonDispatchable`、`RegisteredBackendDispatchTable_PreservesCanonicalTextMetadata_After_ReRegister`、`CurrentBackendInfo_PreservesCanonicalTextMetadata_After_ReRegister` 都只剩纯空 outer `finally`；`PublicSmokeDefaultBackendPredictor...`、`VectorAsmDisabled_ReSelects_Away...`、`RegisterBackend_SameBackendRoundTrip...`、`SetVectorAsmEnabled_RoundTrip...` 同时带纯空 outer `finally` 和未读取 `LOldVectorAsm` |
 | 2. 只收这一簇高确定性命中 | completed | 已删除 7 个方法中的纯空 outer `try/finally`，并删除 4 个方法中的未使用 `LOldVectorAsm`；内层 `RegisterBackend(...)` restore 与 snapshot 断言保持不变 |
 | 3. 用单 suite release 复验收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 复验；构建、测试与 leak check 全部通过 |
+
+## 2026-05-16 DispatchApi Facade Dispatch Tracking Empty Finally Cleanup
+
+### Goal
+
+继续沿 `dispatchapi.testcase` 的高确定性清理线推进到 `2796..3445`，把 `current backend stable-state` 与一组 facade dispatch tracking 测试中的纯空 outer `finally` 和未读取的 `LOldVectorAsm` 收掉。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 facade tracking 簇的真实边界 | completed | 已逐段复核 `2796..3445`：`CurrentBackendHelpers_StayAligned_After_ControlPlaneSwitches` 带未读取 `LOldVectorAsm` 且 outer `finally` 为空；`VecF32x4Reduce`、`VecF64x2Reduce`、`VecF64x2Math`、`VecF32VectorMath`、`VecWideFloatDot`、`VecF64x4Reduce`、`VecF32x8Reduce`、`VecF64x8Reduce`、`VecF32x16Reduce` 这串 facade dispatch tracking 测试都由内层 `RegisterBackend(...)` restore，outer `finally` 纯空 |
+| 2. 只收这一簇高确定性命中 | completed | 已删除 10 个方法中的纯空 outer `try/finally`，并删除 `CurrentBackendHelpers_StayAligned_After_ControlPlaneSwitches` 中未使用的 `LOldVectorAsm`；所有内层 restore 和 facade parity / dispatch 跟踪断言保持不变 |
+| 3. 用单 suite release 复验收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 复验；构建、测试与 leak check 全部通过 |
