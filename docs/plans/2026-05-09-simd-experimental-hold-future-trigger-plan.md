@@ -14,7 +14,7 @@
 - `AES/SHA` 当前除 isolation 之外，还保留 `Test_Default_AES_SHA_Rejects` / `Test_Experimental_AES_SHA_PlaceholderSemantics` 这条实验测试 lane；它锁的是 default-reject + placeholder semantics，不是 stable adapter contract
 - `FMA3` 保留自己的 smoke lane，但仍不进入 stable default 路径
 - `SVE/SVE2` 当前新增的是 non-qualified-host runtime fail-close，不是 new stable lane：`SVE` 只在 `cpuinfo` 报告 `SVE` 时放行，`SVE2` 只在 `cpuinfo` 报告 `SVE2` 时放行 experimental placeholder semantics
-- `LASX` 当前也只新增了 non-`LoongArch64` runtime fail-close；feature-level `LASX` qualification 仍缺 `cpuinfo` 支撑
+- `LASX` 当前也不是“任何 `LoongArch64` experimental host 都能跑”的 contract：只有 `cpuinfo` 报告 `LASX` 时才放行 experimental placeholder semantics
 - 当前没有任何一个 family 进入新的 default stable adapter 依赖
 
 ## 重新开线的触发条件

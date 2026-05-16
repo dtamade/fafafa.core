@@ -442,7 +442,7 @@ check_lasx_runtime_fail_close() {
     "${LASX_FAIL_CLOSE_SOURCE}" \
     "${LASX_FAIL_CLOSE_LOG}" \
     "${LASX_FAIL_CLOSE_BIN}" \
-    "only qualified on loongarch64 experimental hosts"
+    "only qualified on loongarch64 targets whose cpuinfo reports lasx"
 }
 
 normalize_test_args() {

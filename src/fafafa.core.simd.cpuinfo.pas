@@ -67,6 +67,7 @@ function HasNEON: Boolean;
 function HasSVE: Boolean;
 function HasSVE2: Boolean;
 function HasRISCVV: Boolean;
+function HasLASX: Boolean;
 
 {$IFDEF SIMD_X86_AVAILABLE}
 function GetX86CPUInfo: TX86Features;
@@ -80,26 +81,36 @@ function GetARMCPUInfo: TARMFeatures;
 function GetRISCVCPUInfo: TRISCVFeatures;
 {$ENDIF}
 
+{$IFDEF SIMD_LOONGARCH_AVAILABLE}
+function GetLoongArchCPUInfo: TLoongArchFeatures;
+{$ENDIF}
+
 implementation
 
 // Platform-specific imports
-{$IF DEFINED(SIMD_X86_AVAILABLE) OR DEFINED(SIMD_ARM_AVAILABLE) OR DEFINED(SIMD_RISCV_AVAILABLE)}
+{$IF DEFINED(SIMD_X86_AVAILABLE) OR DEFINED(SIMD_ARM_AVAILABLE) OR DEFINED(SIMD_RISCV_AVAILABLE) OR DEFINED(SIMD_LOONGARCH_AVAILABLE)}
 uses
   fafafa.core.simd.backend.priority,
   {$IFDEF SIMD_X86_AVAILABLE}
   fafafa.core.simd.cpuinfo.x86
-    {$IF DEFINED(SIMD_ARM_AVAILABLE) OR DEFINED(SIMD_RISCV_AVAILABLE)}
+    {$IF DEFINED(SIMD_ARM_AVAILABLE) OR DEFINED(SIMD_RISCV_AVAILABLE) OR DEFINED(SIMD_LOONGARCH_AVAILABLE)}
     ,
     {$ENDIF}
   {$ENDIF}
   {$IFDEF SIMD_ARM_AVAILABLE}
   fafafa.core.simd.cpuinfo.arm
-    {$IFDEF SIMD_RISCV_AVAILABLE}
+    {$IF DEFINED(SIMD_RISCV_AVAILABLE) OR DEFINED(SIMD_LOONGARCH_AVAILABLE)}
     ,
     {$ENDIF}
   {$ENDIF}
   {$IFDEF SIMD_RISCV_AVAILABLE}
   fafafa.core.simd.cpuinfo.riscv
+    {$IFDEF SIMD_LOONGARCH_AVAILABLE}
+    ,
+    {$ENDIF}
+  {$ENDIF}
+  {$IFDEF SIMD_LOONGARCH_AVAILABLE}
+  fafafa.core.simd.cpuinfo.loongarch
   {$ENDIF}
   ;
 {$ENDIF}
@@ -152,7 +163,11 @@ begin
       {$IFDEF SIMD_RISCV_AVAILABLE}
       Result := caRISCV;
       {$ELSE}
-      Result := caUnknown;
+        {$IFDEF SIMD_LOONGARCH_AVAILABLE}
+        Result := caLoongArch;
+        {$ELSE}
+        Result := caUnknown;
+        {$ENDIF}
       {$ENDIF}
     {$ENDIF}
   {$ENDIF}
@@ -390,6 +405,21 @@ begin
       G_CPUInfo.Cache.LineSize := 64;
   end;
   {$ENDIF}
+
+  {$IFDEF SIMD_LOONGARCH_AVAILABLE}
+  if G_CPUInfo.Arch = caLoongArch then
+  begin
+    fafafa.core.simd.cpuinfo.loongarch.DetectLoongArchVendorAndModel(G_CPUInfo);
+    G_CPUInfo.LoongArch := fafafa.core.simd.cpuinfo.loongarch.DetectLoongArchFeatures;
+
+    {$IFDEF LINUX}
+    FillCacheInfoFromLinuxSysfs(G_CPUInfo.Cache);
+    {$ENDIF}
+
+    if G_CPUInfo.Cache.LineSize = 0 then
+      G_CPUInfo.Cache.LineSize := 64;
+  end;
+  {$ENDIF}
   
   // Fallback for unknown architectures
   if G_CPUInfo.Arch = caUnknown then
@@ -465,6 +495,14 @@ begin
           Include(G_CPUInfo.GenericRaw, gfSimd256);
           Include(G_CPUInfo.GenericRaw, gfSimd512);
         end;
+        G_CPUInfo.GenericUsable := G_CPUInfo.GenericRaw;
+      end;
+    {$ENDIF}
+    {$IFDEF SIMD_LOONGARCH_AVAILABLE}
+    caLoongArch:
+      begin
+        if G_CPUInfo.LoongArch.HasLASX then
+          Include(G_CPUInfo.GenericRaw, gfSimd256);
         G_CPUInfo.GenericUsable := G_CPUInfo.GenericRaw;
       end;
     {$ENDIF}
@@ -656,6 +694,18 @@ begin
 end;
 {$ENDIF}
 
+{$IFDEF SIMD_LOONGARCH_AVAILABLE}
+function GetLoongArchCPUInfo: TLoongArchFeatures;
+var
+  LCPUInfo: TCPUInfo;
+begin
+  Result := Default(TLoongArchFeatures);
+  LCPUInfo := GetCPUInfo;
+  if LCPUInfo.Arch = caLoongArch then
+    Result := LCPUInfo.LoongArch;
+end;
+{$ENDIF}
+
 
 // Safe reset to force re-detection on next query
 procedure ResetCPUInfo;
@@ -821,6 +871,21 @@ begin
   {$IFDEF SIMD_RISCV_AVAILABLE}
   cpuInfo := GetCPUInfo;
   Result := (cpuInfo.Arch = caRISCV) and cpuInfo.RISCV.HasV;
+  {$ELSE}
+  Result := False;
+  {$ENDIF}
+end;
+
+function HasLASX: Boolean;
+{$IFDEF SIMD_LOONGARCH_AVAILABLE}
+var
+  LCPUInfo: TCPUInfo;
+{$ENDIF}
+begin
+  {$IFDEF SIMD_LOONGARCH_AVAILABLE}
+  LCPUInfo := GetCPUInfo;
+  Result := (LCPUInfo.Arch = caLoongArch) and LCPUInfo.LoongArch.HasLASX and
+            (gfSimd256 in LCPUInfo.GenericUsable);
   {$ELSE}
   Result := False;
   {$ENDIF}

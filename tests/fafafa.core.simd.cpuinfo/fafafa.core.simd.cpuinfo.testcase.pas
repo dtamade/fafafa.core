@@ -56,6 +56,7 @@ type
     procedure Test_AVX512Usable_XCR0Semantics;
     procedure Test_DiagnosticReport_UsableViewConsistency;
     procedure Test_ARMFeatures;
+    procedure Test_LoongArchFeatures;
     procedure Test_ARMFeatureParserSamples;
     procedure Test_ARMHWCAPMergeSamples;
     procedure Test_ARMVendorModelParserSamples;
@@ -983,6 +984,31 @@ begin
   {$ENDIF}
 end;
 
+procedure TTestCase_PlatformSpecific.Test_LoongArchFeatures;
+var
+  LCPUInfo: TCPUInfo;
+begin
+  LCPUInfo := GetCPUInfo;
+
+  {$IFDEF SIMD_LOONGARCH_AVAILABLE}
+  if LCPUInfo.Arch = caLoongArch then
+  begin
+    WriteLn('LoongArch Features:');
+    WriteLn('  LASX: ', LCPUInfo.LoongArch.HasLASX);
+    AssertEquals('HasLASX should match cpuinfo record', LCPUInfo.LoongArch.HasLASX, HasLASX);
+    AssertEquals(
+      'LoongArch LASX capability should map to GenericUsable SIMD-256 flag',
+      LCPUInfo.LoongArch.HasLASX,
+      gfSimd256 in LCPUInfo.GenericUsable
+    );
+  end
+  else
+    AssertFalse('HasLASX should be false on non-LoongArch arch', HasLASX);
+  {$ELSE}
+  AssertFalse('HasLASX should be false when loongarch cpuinfo is disabled', HasLASX);
+  {$ENDIF}
+end;
+
 procedure TTestCase_PlatformSpecific.Test_ARMFeatureParserSamples;
 {$IFDEF SIMD_ARM_AVAILABLE}
 var
@@ -1384,7 +1410,7 @@ var
 begin
   {$IFDEF LINUX}
   LCPUInfo := GetCPUInfo;
-  if not (LCPUInfo.Arch in [caARM, caRISCV]) then
+  if not (LCPUInfo.Arch in [caARM, caRISCV, caLoongArch]) then
     Exit;
 
   AssertTrue('Non-x86 cache line size should be positive', LCPUInfo.Cache.LineSize > 0);

@@ -198,7 +198,7 @@ begin
   ResetCPUInfo;
 
   LLazyInfo := GetCPUInfoLazy;
-  if not (LLazyInfo.Arch in [caARM, caRISCV]) then
+  if not (LLazyInfo.Arch in [caARM, caRISCV, caLoongArch]) then
     Exit;
 
   LEagerInfo := GetCPUInfo;

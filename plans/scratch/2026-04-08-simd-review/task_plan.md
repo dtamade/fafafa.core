@@ -4408,6 +4408,21 @@
 | 3. 文档和 scratch 真相同步 | completed | `SIMD_INTRINSICS_DISPOSITION.md`、`simd-family-matrix.md`、`simd-experimental-hold-future-trigger-plan.md` 与 scratch 记录已同步到 “hold family + runtime fail-close” 口径 |
 | 4. 最小验证与收口 | completed | `git diff --check`、`check_intrinsics_experimental_status.py --summary-line`、默认/experimental 两轮 `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test` 全部通过；在当前 `x86_64` 主机上 `SVE/SVE2/LASX` runtime reject smoke 均为绿 |
 
+## 2026-05-17 LASX Cpuinfo Feature-Level Qualification
+
+### Goal
+
+继续沿 `LASX` 这条最小残余收口，把 `intrinsics.lasx` 从“只按 `LoongArch64` 主机级放行”收紧到“只有 `cpuinfo` 报告 `LASX` 才放行”，同时不打开 stable backend 路线。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核最小可行面 | completed | 已确认可以只补 `SIMD_LOONGARCH_AVAILABLE + cpuinfo.loongarch + HasLASX`，不需要引入 stable backend / dispatch 新路径 |
+| 2. 落地最小 cpuinfo 链 | completed | 已新增 `cpuinfo.loongarch` 最小骨架，并把 eager/lazy/diagnostic 以及 `intrinsics.lasx` runtime guard 接到 `HasLASX` |
+| 3. 测试与 closeout 护栏同步 | completed | 已同步 `cpuinfo` 测试、experimental checker/smoke、`closeout` 文档护栏与 active docs |
+| 4. 最小验证与收口 | completed | `git diff --check`、`check_intrinsics_experimental_status.py --summary-line`、默认/experimental 两轮 `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`、`tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test`、`tests/fafafa.core.simd/BuildOrTest.sh check` 已通过 |
+
 ## 2026-05-17 NEON RVV Qualification-Leaf Runtime Fail-Close
 
 ### Goal

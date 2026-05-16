@@ -6,7 +6,7 @@ unit fafafa.core.simd.cpuinfo.base;
 interface
 
 type
-  TCPUArch = (caUnknown, caX86, caARM, caRISCV);
+  TCPUArch = (caUnknown, caX86, caARM, caRISCV, caLoongArch);
   // Generic, cross-arch features for upper layers
   TGenericFeature = (
     gfSimd128,   // 128-bit SIMD available
@@ -88,6 +88,14 @@ type
 
   TRISCVISA = (rvV, rvF, rvD, rvA, rvC);
 
+  // LoongArch CPU features
+  TLoongArchFeatures = record
+    HasLASX: Boolean;
+    // Raw Linux auxv evidence for diagnostics/future extension mapping.
+    LinuxHWCAP: QWord;
+    LinuxHWCAP2: QWord;
+  end;
+
   // x86 Cache information
   TX86CacheInfo = record
     L1DataCache: Integer;        // KB
@@ -126,6 +134,9 @@ type
     {$ENDIF}
     {$IFDEF SIMD_RISCV_AVAILABLE}
     RISCV: TRISCVFeatures;
+    {$ENDIF}
+    {$IFDEF SIMD_LOONGARCH_AVAILABLE}
+    LoongArch: TLoongArchFeatures;
     {$ENDIF}
   end;
 

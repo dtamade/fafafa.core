@@ -87,6 +87,7 @@ begin
     caX86: Result := 'x86';
     caARM: Result := 'ARM';
     caRISCV: Result := 'RISC-V';
+    caLoongArch: Result := 'LoongArch';
     else Result := 'Unknown';
   end;
 end;

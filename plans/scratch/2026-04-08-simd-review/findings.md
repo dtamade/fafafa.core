@@ -6434,6 +6434,21 @@
   - `cpuinfo` 已经能给出 `ARM.HasSVE`，足以先把 `SVE/SVE2` 的 base qualification 收紧
   - `LASX` 还没有独立 `cpuinfo` feature bit，因此当前最安全的收口是：先对非 `LoongArch64` 主机 fail-close，并在 docs 里诚实记录 feature-level gap
 
+## 2026-05-17 LASX Cpuinfo Feature-Level Qualification Feasibility
+
+- `LASX` 和 `SVE2` 不同，之前真正缺的是一条最小 LoongArch `cpuinfo` 骨架，而不是再补一个现成 feature bit。
+- 这条缺口仍然可以控制在小面：
+  - `settings.inc` 只新增 `SIMD_LOONGARCH_AVAILABLE`
+  - `cpuinfo.base/pas/lazy/diagnostic` 只新增 `caLoongArch`、`TLoongArchFeatures` 和 `HasLASX`
+  - 新的 `cpuinfo.loongarch` 只做 `LASX` feature detection 与 vendor/model best-effort
+  - 不新增 stable backend、不改 dispatch priority、不改 adapter qualification contract
+- Linux 头文件已有直接证据：`HWCAP_LOONGARCH_LASX (1 << 5)`，因此最小实现可以优先基于 `auxv`，再用 `/proc/cpuinfo` token 作为补充证据。
+- 这条补完后，`intrinsics.lasx` 的真实 contract 会变成：
+  - experimental define 仍然必需
+  - 非 `LoongArch64` 主机 runtime fail-close
+  - `LoongArch64` 但 `cpuinfo` 未报告 `LASX` 也 runtime fail-close
+  - 这仍然不是 stable `LASX` adapter/leaf promote
+
 ## 2026-05-17 NEON RVV Qualification Leaf Missing Runtime Qualification
 
 - `src/fafafa.core.simd.intrinsics.neon.pas` 和 `src/fafafa.core.simd.intrinsics.rvv.pas` 也存在同类缺口：

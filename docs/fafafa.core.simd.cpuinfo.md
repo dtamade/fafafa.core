@@ -2,7 +2,7 @@
 
 ## 概述
 
-`fafafa.core.simd.cpuinfo` 模块提供跨平台的 CPU 特性检测功能，支持 x86/x64、ARM 与 RISC-V 架构的 SIMD 指令集检测。
+`fafafa.core.simd.cpuinfo` 模块提供跨平台的 CPU 特性检测功能，支持 x86/x64、ARM、RISC-V 与最小 LoongArch 资格检测。
 
 ## 主要功能
 
@@ -22,7 +22,12 @@
 - **NEON**: ARM Advanced SIMD
 - **浮点**: 硬件浮点支持
 - **SVE**: Scalable Vector Extension
+- **SVE2**: Scalable Vector Extension 2
 - **加密**: 硬件加密指令
+
+#### LoongArch 平台
+- **LASX**: 当前只建模到 `HasLASX`
+- **定位**: 这条能力目前只服务 `intrinsics.lasx` 的 experimental runtime qualification，不代表已经接纳 stable backend 路线
 
 ### 后端管理
 - **自动选择**: 根据 CPU 特性自动选择最佳 SIMD 后端
@@ -37,7 +42,7 @@
 通用能力 (TGenericFeature) 到各 ISA 的基线映射：
 
 - gfSimd128：x86(SSE2+) / ARM(NEON/AdvSIMD) / RISC-V(V)
-- gfSimd256：x86(AVX2)
+- gfSimd256：x86(AVX2) / ARM(SVE) / RISC-V(V) / LoongArch(LASX qualification)
 - gfSimd512：x86(AVX-512F)
 - gfAES：x86(AES-NI) / ARM(Crypto)
 - gfSHA：x86(SHA ext) / ARM(Crypto)
@@ -83,6 +88,9 @@ function GetBestBackend: TSimdBackend;
 
 // 重置 CPU 信息（用于测试）
 procedure ResetCPUInfo;
+
+// LoongArch LASX 快速资格检查
+function HasLASX: Boolean;
 ```
 
 ### 数据结构
@@ -90,7 +98,7 @@ procedure ResetCPUInfo;
 ```pascal
 // CPU 信息结构
 TCPUInfo = record
-  Arch: TCPUArch;                     // CPU 架构 (caUnknown, caX86, caARM, caRISCV)
+  Arch: TCPUArch;                     // CPU 架构 (caUnknown, caX86, caARM, caRISCV, caLoongArch)
   Vendor: string;                     // CPU 厂商
   Model: string;                      // CPU 型号
   LogicalCores: Integer;              // 逻辑核心数
@@ -103,10 +111,11 @@ TCPUInfo = record
   X86: TX86Features;                  // x86 特性 (条件编译: SIMD_X86_AVAILABLE)
   ARM: TARMFeatures;                  // ARM 特性 (条件编译: SIMD_ARM_AVAILABLE)
   RISCV: TRISCVFeatures;              // RISC-V 特性 (条件编译: SIMD_RISCV_AVAILABLE)
+  LoongArch: TLoongArchFeatures;      // LoongArch 特性 (条件编译: SIMD_LOONGARCH_AVAILABLE)
 end;
 
 // CPU 架构枚举
-TCPUArch = (caUnknown, caX86, caARM, caRISCV);
+TCPUArch = (caUnknown, caX86, caARM, caRISCV, caLoongArch);
 
 // 通用特性枚举 (跨架构抽象)
 TGenericFeature = (
@@ -168,6 +177,7 @@ TARMFeatures = record
   HasFP: Boolean;
   HasAdvSIMD: Boolean;
   HasSVE: Boolean;
+  HasSVE2: Boolean;
   HasCrypto: Boolean;
 end;
 
@@ -181,6 +191,13 @@ TRISCVFeatures = record
   HasD: Boolean;        // 双精度浮点扩展
   HasC: Boolean;        // 压缩指令扩展
   HasV: Boolean;        // 向量扩展
+end;
+
+// LoongArch 特性
+TLoongArchFeatures = record
+  HasLASX: Boolean;     // 256-bit LASX 扩展
+  LinuxHWCAP: QWord;    // Linux auxv HWCAP 原始值
+  LinuxHWCAP2: QWord;   // Linux auxv HWCAP2 原始值
 end;
 
 // SIMD 后端枚举

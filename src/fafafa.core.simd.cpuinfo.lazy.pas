@@ -144,6 +144,9 @@ uses
   {$IFDEF SIMD_RISCV_AVAILABLE}
   , fafafa.core.simd.cpuinfo.riscv
   {$ENDIF}
+  {$IFDEF SIMD_LOONGARCH_AVAILABLE}
+  , fafafa.core.simd.cpuinfo.loongarch
+  {$ENDIF}
   ;
 
 var
@@ -355,6 +358,9 @@ var
   {$IFDEF SIMD_RISCV_AVAILABLE}
   LRISCVInfo: TCPUInfo;
   {$ENDIF}
+  {$IFDEF SIMD_LOONGARCH_AVAILABLE}
+  LLoongArchInfo: TCPUInfo;
+  {$ENDIF}
   {$IFDEF UNIX}
   LPhysCores: LongInt;
   LLogCores: LongInt;
@@ -386,10 +392,14 @@ begin
                     {$IFDEF CPURISCV64}
                     FBasicInfo.Arch := caRISCV;
                     {$ELSE}
-                      {$IFDEF CPURISCV32}
-                      FBasicInfo.Arch := caRISCV;
+                    {$IFDEF CPURISCV32}
+                    FBasicInfo.Arch := caRISCV;
+                    {$ELSE}
+                      {$IFDEF CPULOONGARCH64}
+                      FBasicInfo.Arch := caLoongArch;
                       {$ELSE}
                       FBasicInfo.Arch := caUnknown;
+                      {$ENDIF}
                       {$ENDIF}
                     {$ENDIF}
                   {$ENDIF}
@@ -432,6 +442,22 @@ begin
                 FBasicInfo.Model := LRISCVInfo.Model
               else
                 FBasicInfo.Model := 'RISC-V Processor';
+            end;
+            {$ENDIF}
+
+            {$IFDEF SIMD_LOONGARCH_AVAILABLE}
+            if FBasicInfo.Arch = caLoongArch then
+            begin
+              LLoongArchInfo := Default(TCPUInfo);
+              DetectLoongArchVendorAndModel(LLoongArchInfo);
+              if LLoongArchInfo.Vendor <> '' then
+                FBasicInfo.Vendor := LLoongArchInfo.Vendor
+              else
+                FBasicInfo.Vendor := 'LoongArch';
+              if LLoongArchInfo.Model <> '' then
+                FBasicInfo.Model := LLoongArchInfo.Model
+              else
+                FBasicInfo.Model := 'Unknown LoongArch Processor';
             end;
             {$ENDIF}
 
@@ -995,6 +1021,16 @@ begin
       Include(Result.GenericRaw, gfSimd256);
       Include(Result.GenericRaw, gfSimd512);
     end;
+    Result.GenericUsable := Result.GenericRaw;
+  end;
+  {$ENDIF}
+
+  {$IFDEF SIMD_LOONGARCH_AVAILABLE}
+  if Result.Arch = caLoongArch then
+  begin
+    Result.LoongArch := DetectLoongArchFeatures;
+    if Result.LoongArch.HasLASX then
+      Include(Result.GenericRaw, gfSimd256);
     Result.GenericUsable := Result.GenericRaw;
   end;
   {$ENDIF}

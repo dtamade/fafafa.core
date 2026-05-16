@@ -433,6 +433,12 @@
   {$DEFINE SIMD_LITTLE_ENDIAN}
 {$ENDIF}
 
+{$IFDEF CPULOONGARCH64}
+  {$DEFINE SIMD_LOONGARCH64}
+  {$DEFINE SIMD_LOONGARCH_AVAILABLE}
+  {$DEFINE SIMD_LITTLE_ENDIAN}
+{$ENDIF}
+
 { === Backend Feature Flags === }
 
 { Always enable scalar backend as fallback }

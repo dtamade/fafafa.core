@@ -74,7 +74,8 @@ function lasx_xvmin_d(const a, b: TLASXVector): TLASXVector;
 implementation
 
 uses
-  SysUtils;
+  SysUtils,
+  fafafa.core.simd.cpuinfo;
 
 procedure EnsureExperimentalIntrinsicsEnabled; inline;
 begin
@@ -86,8 +87,13 @@ begin
   {$ELSE}
     {$IFNDEF CPULOONGARCH64}
     raise ENotSupportedException.Create(
-      'fafafa.core.simd.intrinsics.lasx placeholder semantics are only qualified on LoongArch64 experimental hosts.'
+      'fafafa.core.simd.intrinsics.lasx placeholder semantics are only qualified on LoongArch64 targets whose cpuinfo reports LASX.'
     );
+    {$ELSE}
+    if not HasLASX then
+      raise ENotSupportedException.Create(
+        'fafafa.core.simd.intrinsics.lasx placeholder semantics are only qualified on LoongArch64 targets whose cpuinfo reports LASX.'
+      );
     {$ENDIF}
   {$ENDIF}
 end;

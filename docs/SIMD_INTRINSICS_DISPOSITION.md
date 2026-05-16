@@ -32,7 +32,7 @@
 | `fafafa.core.simd.intrinsics.rvv` | `experimental isolated` | RISC-V V leaf | 默认入口隔离，仍需 opt-in；只有 `cpuinfo` 报告 `RVV` 的 RISC-V 目标才允许运行 placeholder semantics，其余主机 runtime fail-close |
 | `fafafa.core.simd.intrinsics.sve` | `experimental isolated` | ARM SVE leaf | 默认入口隔离，仍需 opt-in；只有 `cpuinfo` 报告 `SVE` 的 `AArch64` 目标才允许运行 placeholder semantics，其余主机 runtime fail-close |
 | `fafafa.core.simd.intrinsics.sve2` | `experimental isolated` | ARM SVE2 leaf | 默认入口隔离，仍需 opt-in；当前已按 `cpuinfo` 的 `SVE2` 资格收紧 runtime，其余主机 fail-close；这还不是 stable `SVE2` qualification contract |
-| `fafafa.core.simd.intrinsics.lasx` | `experimental isolated` | LoongArch LASX leaf | 默认入口隔离，仍需 opt-in；非 `LoongArch64` 主机 runtime fail-close；当前 `cpuinfo` 还没有独立 `LASX` feature gate |
+| `fafafa.core.simd.intrinsics.lasx` | `experimental isolated` | LoongArch LASX leaf | 默认入口隔离，仍需 opt-in；只有 `cpuinfo` 报告 `LASX` 的 `LoongArch64` 目标才允许运行 placeholder semantics，其余主机 runtime fail-close |
 
 ## 解释规则
 
@@ -59,7 +59,7 @@
 - `fafafa.core.simd.intrinsics.aes/sha` 和上面这批不同：当前有实验测试明确锁住 default-reject + placeholder semantics，但这仍然不是 stable leaf contract。
 - `fafafa.core.simd.intrinsics.neon/rvv` 也不是“任何主机开了 experimental 宏都能跑”的 contract；当前只允许 `cpuinfo` 已确认对应 ISA 的目标主机进入 runtime placeholder semantics。
 - `fafafa.core.simd.intrinsics.sve/sve2` 当前也不是“任何 `AArch64` experimental host 都能跑”的 contract；`sve` 只在 `cpuinfo` 报告 `SVE` 时放行，`sve2` 只在 `cpuinfo` 报告 `SVE2` 时放行。
-- `fafafa.core.simd.intrinsics.lasx` 当前只先收到了 `LoongArch64` 主机级 fail-close；feature-level qualification 仍缺 `cpuinfo` 建模。
+- `fafafa.core.simd.intrinsics.lasx` 现在也不是“任何 `LoongArch64` experimental host 都能跑”的 contract；只有 `cpuinfo` 报告 `LASX` 时才放行。
 - `fafafa.core.simd.intrinsics.x86.sse2` 也不是当前 SSE2 发布真相源。
 - 当前 SSE2 发布真相源仍然是 `src/fafafa.core.simd.sse2.pas`。
 - 只要 `fafafa.core.simd.intrinsics.x86.sse2` 仍是 `experimental isolated`，default stable `simd.sse2` 就不应新增对它的默认依赖。

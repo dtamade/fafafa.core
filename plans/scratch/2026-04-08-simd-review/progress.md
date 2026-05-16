@@ -7793,3 +7793,43 @@
   - 这批没有把 `SVE2` promote 进 stable lane
   - 修掉的是 `SVE2` experimental leaf 从 base-`SVE` 近似资格到 exact `SVE2` 资格的残余漏洞
   - 当前最像下一刀真实 blocker 的仍是 `LASX` 没有 feature-level `cpuinfo` gate
+
+## 2026-05-17 LASX Cpuinfo Feature-Level Qualification
+
+- 继续按“小闭环、真判据、真验证”推进，这一批只围绕 `LASX` 最后那条 feature-level qualification 残余，没有重开 broader simd 扫描。
+- 已复核：
+  - `src/fafafa.core.settings.inc`
+  - `src/fafafa.core.simd.cpuinfo.base.pas`
+  - `src/fafafa.core.simd.cpuinfo.pas`
+  - `src/fafafa.core.simd.cpuinfo.lazy.pas`
+  - `src/fafafa.core.simd.cpuinfo.diagnostic.pas`
+  - `src/fafafa.core.simd.intrinsics.lasx.pas`
+  - `tests/fafafa.core.simd.cpuinfo/*`
+  - `tests/fafafa.core.simd/check_intrinsics_experimental_status.py`
+  - `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh`
+- 已完成收口：
+  - `src/fafafa.core.settings.inc` 新增 `SIMD_LOONGARCH_AVAILABLE`
+  - `src/fafafa.core.simd.cpuinfo.base.pas` 新增 `caLoongArch` 与 `TLoongArchFeatures`
+  - `src/fafafa.core.simd.cpuinfo.loongarch.pas` 新增最小 LoongArch cpuinfo 叶子，只建模 `HasLASX` + raw `LinuxHWCAP`
+  - `src/fafafa.core.simd.cpuinfo.pas` / `lazy.pas` / `diagnostic.pas` 已接入 `HasLASX`
+  - `src/fafafa.core.simd.intrinsics.lasx.pas` 现在要求 `cpuinfo` 报告 `LASX`
+  - `tests/fafafa.core.simd.cpuinfo` 已补 `LoongArch` 快速语义检查，non-x86 cache parity 也已纳入 `caLoongArch`
+  - `docs/SIMD_INTRINSICS_DISPOSITION.md`、`docs/plans/2026-05-09-simd-family-matrix.md`、`docs/plans/2026-05-09-simd-experimental-hold-future-trigger-plan.md`、`docs/fafafa.core.simd.cpuinfo.md` 已同步
+  - `docs/fafafa.core.simd.closeout.md` 已补回 `check_nonx86_helper_semantics.py` 要求的 closeout 片段
+- 本批 fresh 验证已经串行跑通：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_experimental_status.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test`
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `INTRINSICS_EXPERIMENTAL_SUMMARY ... missing_hold_runtime_fail_close=0 missing_qualification_runtime_fail_close=0`
+  - 默认态/experimental 态 `intrinsics.experimental` 测试均 `[TEST] OK`
+  - `LASX runtime reject smoke` 在当前 `x86_64` 主机 `[CHECK] OK`
+  - `cpuinfo` 测试 `[TEST] OK`
+  - `simd check` 最终恢复 `[CHECK] OK`
+- 当前阶段结论：
+  - `LASX` 现在不再停留在“只要是 `LoongArch64` experimental host 就放行”的近似 contract
+  - 这批仍然没有 promote `LASX` 进入 stable adapter / backend lane
+  - 当前收口的是 experimental leaf 的 feature-level qualification，不是 stable family 决策变化

@@ -184,6 +184,8 @@ FAFAFA_BUILD_MODE=Release SIMD_ENABLE_NEON_BACKEND=1 SIMD_ENABLE_RISCVV_BACKEND=
 QEMU non-x86 runtime evidence 现在就是当前 non-x86 收口主线的一部分。
 当前项目口径下，只要 `qemu-nonx86-evidence` 在 `linux/arm64` / `linux/riscv64` fresh 通过，就把它作为当前 host-local non-x86 runtime closeout 的充分证明；这轮最新 fresh 证据就是上面的 `qemu-multiarch-20260419-012508-1690172` / `qemu-multiarch-20260419-013630-1748481`。但如果目标是让 canonical `freeze-status` 变绿，还必须额外刷新 `qemu-cpuinfo-nonx86-evidence`；`2026-05-16` 这条 Linux CPUInfo cross evidence 已经补绿，当前剩余 blocker 只在 Windows evidence。没有硬件时，不再把 native host 当成 blocker。native host evidence 仍可补充，但不再是这轮收口的前置条件。
 
+当前 arm64 / riscv64 closeout 的充分证明，仍然以上面这组 fresh `QEMU non-x86 runtime evidence` 为准。
+
 ## Task 2 / Task 3 closeout facts (2026-04-14 fresh)
 
 - `Task 2 / shift-bitwise`：
