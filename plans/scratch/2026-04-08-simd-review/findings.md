@@ -5386,3 +5386,33 @@
   - 以前：truthfulness checker 知道，generic parity 知道，key-slot audit 不知道
   - 现在：它们已有 dedicated truth source，且被 `key-slot audit` 正式接管
   - fresh summary 已更新为 `backend=neon ok slots=29`，全局 summary 已更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=65 issues=0 status=ok`
+
+## 2026-05-16 NEON Wide Integer Compare Key-Slot Audit Lift Findings
+
+- 把 `AndNot*` 收口后再次对账，`NEON` 侧剩余 `missing_from_key` 已经收敛成一整簇、而且只有一整簇：
+  - `CmpEq*`
+  - `CmpGe*`
+  - `CmpGt*`
+  - `CmpLe*`
+  - `CmpLt*`
+  - `CmpNe*`
+  - 共 `36` 个，全部是合法 `asm-only wrapper-only`
+- 这簇的价值在于它已经具备“整簇一次 lift”的条件：
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+  - `Test_NEON_NoAsmWideIntegerCompareSlots_Keep_SourceCompanions_But_Reuse_BaseScalar`
+  - 已经现成固定了：
+    - source companion 仍存在
+    - 关键 composition witness 仍存在
+    - register asm binding 仍存在
+    - runtime no-asm 时复用 scalar
+- 因而这批不该再拆成六小刀，也不该改 Pascal backend：
+  - 问题不在行为
+  - 问题只在 Python 常规门禁还没把这组现成 truth 接进来
+- 这批的正确修法因此就是一次纯 checker-level lift：
+  - 把 36 个 `Cmp*` slot 全纳入 `KEY_SLOTS_BY_BACKEND['neon']`
+  - 把现成 compare dedicated testcase 纳入 `EXPECTATION_PROCEDURES['neon']`
+  - 对这 36 个 slot 全开 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['neon']`
+- 修完后的关键变化不是代码行为变更，而是 `NEON` 这条 non-x86 ownership 审查线在当前 checker 模型下已经收口：
+  - 以前：`NEON missing_from_key=36`
+  - 现在：`NEON missing_from_key=0`
+  - fresh summary 已更新为 `backend=neon ok slots=65`，全局 summary 已更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=101 issues=0 status=ok`

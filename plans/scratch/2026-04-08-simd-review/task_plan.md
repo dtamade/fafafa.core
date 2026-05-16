@@ -3744,3 +3744,17 @@
 | 1. 复核当前 truth 是否缺 dedicated coverage | completed | 已确认这 3 个 slot 在 `check_nonx86_register_truthfulness.py` 中都属于合法 `asm-only wrapper-only`；`src/fafafa.core.simd.neon.compare.inc` 中对应实现不是 scalar-forward，而是 backend-local composition（`NEONAnd*` + `NEONNot*`）；`src/fafafa.core.simd.neon.register.inc` 在 asm-enabled 下显式发布 `table.AndNotI8x16/U16x8/U8x16 := @NEONAndNot*`；当前缺口是没有 dedicated testcase 把这组 source/register/runtime truth 收拢成单一事实源 |
 | 2. 补 dedicated testcase 并接进 key-slot audit | completed | 已在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_NEON_AndNotSlots_Keep_AsmOwnedCompositions_And_RuntimeOwnership`，让它同时固定 compare source 中 backend-local composition 仍存在、register asm-only binding 仍存在，以及 runtime `sbNEON` slot 在 asm-compiled 时 backend-owned、否则回落 scalar；同时已把这 3 个 slot 纳入 `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py` 的 `KEY_SLOTS_BY_BACKEND['neon']`、`EXPECTATION_PROCEDURES['neon']` 与 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['neon']` |
 | 3. 按 Pascal 批次最小链复验并收口 | completed | 本批跑 `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`、`python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend neon --summary-line`、Release `TTestCase_DispatchAPI`、Release `check`；全部通过，fresh summary 已更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon slots=29 issues=0 status=ok`，全局 summary 更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=65 issues=0 status=ok` |
+
+## 2026-05-16 NEON Wide Integer Compare Key-Slot Audit Lift
+
+### Goal
+
+把 `NEON` 当前剩余的 36 个 `wide integer compare` 合法 `asm-only wrapper-only` slot，一次性提升进 `key-slot audit` 常规门禁，收口 `NEON missing_from_key`。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核现成 dedicated truth source 是否足够覆盖整簇 | completed | 已确认 `python3 ...check_nonx86_register_truthfulness.py --backend neon --json --strict` 对账后，`NEON missing_from_key` 仅剩 `CmpEq/CmpGe/CmpGt/CmpLe/CmpLt/CmpNe` 六大家族共 36 个 `asm-only wrapper-only` slot；同时 `Test_NEON_NoAsmWideIntegerCompareSlots_Keep_SourceCompanions_But_Reuse_BaseScalar` 已现成固定了 source companion、关键 composition witness、register asm binding 与 runtime scalar-reuse truth，无需再改 Pascal testcase |
+| 2. 把 36 个 wide integer compare slot 提升成常规 key-slot | completed | 已在 `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py` 把这 36 个 `Cmp*` slot 全部纳入 `KEY_SLOTS_BY_BACKEND['neon']`；把 `Test_NEON_NoAsmWideIntegerCompareSlots_Keep_SourceCompanions_But_Reuse_BaseScalar` 纳入 `EXPECTATION_PROCEDURES['neon']`；并对这 36 个 slot 开启 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['neon']` |
+| 3. 按脚本批次最小链复验并收口 | completed | 本批只跑 `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`、`python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend neon --summary-line`、Release `check`；全部通过，fresh summary 已更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon slots=65 issues=0 status=ok`，全局 summary 亦为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=101 issues=0 status=ok` |

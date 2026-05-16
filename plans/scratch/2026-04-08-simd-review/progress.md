@@ -6347,3 +6347,32 @@
 - 当前阶段结论：
   - 这批没有改 backend 行为，而是把 `AndNotI8x16/U16x8/U8x16` 从分散 truth 收成了 dedicated truth source，并正式接进 `check` 常规门禁
   - 收口前已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免把 Python 产物带进提交
+
+## 2026-05-16 NEON Wide Integer Compare Key-Slot Audit Lift
+
+- `AndNot*` 提交后，我先没有继续分散找小点，而是重新做了一次对账：
+  - `python3 ...check_nonx86_register_truthfulness.py --backend neon --json --strict`
+  - 结果显示 `NEON missing_from_key=36`
+  - 且这 36 个名字全部属于 `CmpEq/CmpGe/CmpGt/CmpLe/CmpLt/CmpNe` 六大家族
+- 继续对照现有 testcase 后，确认这次可以高效一点：
+  - `Test_NEON_NoAsmWideIntegerCompareSlots_Keep_SourceCompanions_But_Reuse_BaseScalar`
+  - 已经现成固定 source companion、关键 composition witness、register asm binding、runtime scalar-reuse
+  - 因而这批不需要再改 Pascal testcase，也不需要拆成六个小批次
+- 本批已完成的最小修复：
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 把 36 个 `Cmp*` slot 全部纳入 `KEY_SLOTS_BY_BACKEND['neon']`
+    - 把 `Test_NEON_NoAsmWideIntegerCompareSlots_Keep_SourceCompanions_But_Reuse_BaseScalar` 纳入 `EXPECTATION_PROCEDURES['neon']`
+    - 对这 36 个 slot 全部开启 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['neon']`
+- 本批按脚本批次执行的最小验证链：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend neon --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `backend=neon ok slots=65`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=101 issues=0 status=ok`
+  - Release `check` 通过
+- 当前阶段结论：
+  - 这批没有改 backend 行为，而是把 `NEON wide integer compare` 这整簇 36 个合法 `asm-only wrapper-only` 位点一次性正式接进了 `check` 常规门禁
+  - 按当前 checker 模型，`NEON missing_from_key` 已经清零
+  - 收口前仍会清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 产物带进提交
