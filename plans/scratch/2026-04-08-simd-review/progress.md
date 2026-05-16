@@ -6146,3 +6146,31 @@
 - 当前阶段结论：
   - 这批没有改 backend 行为，而是把 `RISCVV Extract*` 从“审计模型误报区”收成了显式、可执行、可复验的 ownership truth
   - 收口前已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免把 Python 产物带进提交
+
+## 2026-05-16 RISCVV Dot Key-Slot Audit Lift
+
+- 继续沿同一条 `wrapper_only` 审查线做 residual 对账时，先用一条很小的只读对比确认当前剩余 gap：
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --json --strict`
+  - 对照当前 `KEY_SLOTS_BY_BACKEND['riscvv']`
+  - 结果：`missing_from_key=['DotF64x2', 'DotF64x4']`
+- 这说明当前 `riscvv wrapper_only` policy 位点里，还没进入 `key-slot audit` 常规门禁的只剩 `DotF64x2/F64x4`。
+- 因为这两个名字已经有现成 dedicated truth source，所以本批不再扩展 Pascal 测试：
+  - `TTestCase_DispatchAPI.Test_RISCVV_FacadeSlots_Reuse_BaseScalar_When_Wrappers_Are_ScalarPassThrough`
+    - 已显式固定 `AssertRegisterOwnsBackendSlot('DotF64x2/F64x4', ...)`
+    - 已显式固定 runtime `AssertSlotKeepsBackendOwnership('DotF64x2/F64x4', ...)`
+- 本批只做了脚本级提升：
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 把 `DotF64x2/ DotF64x4` 纳入 `KEY_SLOTS_BY_BACKEND['riscvv']`
+    - 同步纳入 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['riscvv']`
+- 按脚本批次执行的最小验证链：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend riscvv --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `backend=riscvv ok slots=36`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=46 issues=0 status=ok`
+  - Release `check` 通过
+- 当前阶段结论：
+  - 这批没有改 backend 行为，也没有新建 testcase，只是把最后一对 `RISCVV Dot*` `wrapper_only` policy 位点正式抬进了 `check` 常规门禁
+  - 收口前已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 产物带进提交

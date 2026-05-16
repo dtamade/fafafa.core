@@ -3660,3 +3660,17 @@
 | 1. 复核 `Extract*` 的真实 source/register/runtime 形态 | completed | 已确认 `src/fafafa.core.simd.riscvv.facade.inc` 中 9 个 `Extract*` 在 no-asm 侧都是 exact `ScalarExtract*` companion wrapper；`src/fafafa.core.simd.riscvv.pas` 中同名 wrapper 在 asm-enabled 侧继续做索引饱和并调用 `RISCVVExtract*Asm`；`src/fafafa.core.simd.riscvv.register.inc` 对每个 slot 都保留了显式 `{$IFDEF RISCVV_ASSEMBLY}` / `{$ELSE}` 双分支绑定，因此它们不是“应回收到 scalar”的 residual，而是合法的双相 backend-owned companion slot |
 | 2. 把 9 个 `Extract*` 提升成显式 truth source，并补齐 key-slot 审计模型 | completed | 已在 `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py` 把 9 个 `Extract*` 纳入 `KEY_SLOTS_BY_BACKEND['riscvv']`、`EXPECTATION_PROCEDURES['riscvv']`、`REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['riscvv']`；并在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_RISCVV_ExtractSlots_Keep_NoAsmCompanionWrappers_And_RuntimeOwnership`；同时修正 key-slot audit 本身，使其显式接受这类“asm 侧 helper-backed、no-asm 侧 exact scalar companion wrapper、但 runtime slot 继续 backend-owned”的合法 mixed-context 形态 |
 | 3. 按最小 release 链复验并收口 | completed | 本批先用 `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend riscvv --summary-line` 抓到审计模型缺口，再补齐模型后重跑 `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`、`python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend riscvv --summary-line`、Release `TTestCase_DispatchAPI`、Release `check`；全部通过，fresh summary 已更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=44 issues=0 status=ok`，其中 `backend=riscvv ok slots=34` |
+
+## 2026-05-16 RISCVV Dot Key-Slot Audit Lift
+
+### Goal
+
+把 `RISCVV DotF64x2/DotF64x4` 这最后一对尚未进入 `key-slot audit` 的 `wrapper_only` policy slot 提升进常规 `check` 门禁，避免它们继续只活在 dedicated `DispatchAPI` testcase 里。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前 residual 是否真实存在 | completed | 已对照 `check_nonx86_register_truthfulness.py --backend riscvv --json --strict` 与当前 `KEY_SLOTS_BY_BACKEND['riscvv']`，确认 `RISCVV current_wrapper_only_slots` 里仍未进入 `key-slot audit` 的只剩 `DotF64x2/DotF64x4` 这两个名字 |
+| 2. 把 `DotF64x2/F64x4` 提升成常规 key-slot | completed | 已在 `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py` 把 `DotF64x2/ DotF64x4` 纳入 `KEY_SLOTS_BY_BACKEND['riscvv']` 与 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['riscvv']`；无需新增 Pascal testcase，因为 `TTestCase_DispatchAPI.Test_RISCVV_FacadeSlots_Reuse_BaseScalar_When_Wrappers_Are_ScalarPassThrough` 已经显式固定了 register ownership 与 runtime slot ownership |
+| 3. 按脚本批次最小链复验并收口 | completed | 本批只跑了 `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`、`python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend riscvv --summary-line`、Release `check`；全部通过，fresh summary 已更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=46 issues=0 status=ok`，其中 `backend=riscvv ok slots=36` |

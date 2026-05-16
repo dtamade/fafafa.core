@@ -5238,3 +5238,21 @@
   - 以前：truthfulness checker 知道，helper-semantics 知道，但 key-slot audit 不理解
   - 现在：truthfulness checker、helper-semantics、key-slot audit、dedicated `DispatchAPI` 四层都知道
   - fresh summary 已更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=44 issues=0 status=ok`，其中 `riscvv` slot 总数从 `25` 提升到 `34`
+
+## 2026-05-16 RISCVV Dot Key-Slot Audit Lift Findings
+
+- 把 `Extract*` 收口后继续盘点 `riscvv current_wrapper_only_slots`，发现剩下还没被 `key-slot audit` 追踪的 `wrapper_only` policy 位点已经只剩：
+  - `DotF64x2`
+  - `DotF64x4`
+- 这两个名字和前面的 `Extract*` 不同，它们并不存在审计模型误解：
+  - dedicated `DispatchAPI` 早就显式固定了它们
+  - `check_nonx86_register_truthfulness.py` 也早就知道它们属于合法 `always wrapper-only`
+  - 唯一缺口只是它们还没进 Python 常规 `check` 的 `key-slot audit`
+- 因而这批正确修法不该再新起 testcase，也不该动 backend：
+  - 只要把 `DotF64x2/F64x4` 纳入 `KEY_SLOTS_BY_BACKEND['riscvv']`
+  - 同步纳入 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['riscvv']`
+  - 让现有 `Test_RISCVV_FacadeSlots_Reuse_BaseScalar_When_Wrappers_Are_ScalarPassThrough` 继续作为显式 truth source 即可
+- 这批的收益很朴素但很值当：
+  - 以前：`DotF64x2/F64x4` 只在 dedicated suite 里被守住
+  - 现在：`Release check` 也会通过 `key-slot audit` 直接守住
+  - fresh summary 已更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=46 issues=0 status=ok`，其中 `riscvv` slot 总数从 `34` 提升到 `36`
