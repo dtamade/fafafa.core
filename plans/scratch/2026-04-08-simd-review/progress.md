@@ -5998,3 +5998,36 @@
 - 当前阶段结论：
   - 这批没有改 backend/source 行为，只是把 non-x86 truthfulness checker 从“两态 allowlist”收紧成“三态上下文模型”
   - 这样后续继续扫 residual 时，不会再把 `ClampF64*`、`RISCVV Extract*` 之类合法 wrapper-only 错当问题，也不会把真正的 branch-owned 漏洞藏在过宽的豁免里
+
+## 2026-05-16 RISCVV Helper-Owned Exact-Scalar Slot Ownership Guard
+
+- 收完上一批 checker 三态模型之后，继续往 `RISCVV always wrapper-only=14` 深挖，优先排除了已明确有专门护栏的 `DotF64x2/F64x4`。
+- 进一步对照 `src/fafafa.core.simd.riscvv.helpers.inc`、`src/fafafa.core.simd.riscvv.register.inc` 与现有 `DispatchAPI` 测试后，定位到新的真实缺口：
+  - `AndNotI64x2/MinI64x2/MaxI64x2/AndNotU64x2/CmpEqU64x2/CmpLtU64x2/CmpGtU64x2/MinU64x2/MaxU64x2/AndNotI8x16/AndNotU16x8/AndNotU8x16`
+  - 这些 slot 在 no-asm source 里都是 exact scalar helper forwarder
+  - 但 register 仍有意保持 backend-owned 绑定
+  - 现有 suite 之前只覆盖了其中个别 representative slot，没有把这整簇 policy 固定成 dedicated truth
+- 已完成代码修正：
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 新增 `Test_RISCVV_HelperOwnedExactScalarSlots_Stay_BackendOwned`
+    - 该测试同时固定三层事实：
+      - `helpers.inc` 里 12 个 slot 的 exact scalar helper body 仍存在
+      - `register.inc` 里 12 个 slot 仍保持 `table.* := @RISCVV*` backend-owned 绑定
+      - runtime `sbRISCVV` dispatch table 上 12 个 slot 仍不复用 scalar 指针
+- 本批 `Release` 串行验证已 fresh 跑通：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 关键结果：
+  - `TTestCase_DispatchAPI` 通过
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=643 status=ok`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=20 issues=0 status=ok`
+  - Release `check` 通过
+  - Release `gate` 通过，最终 `GATE OK`
+  - 尾部仍只保留两个已知 optional 项：
+    - non-x86 native evidence verify skip
+    - 历史 `windows_b07_gate.log` evidence verify optional skip
+- 当前阶段结论：
+  - 这批仍然没有改 backend 行为，而是补上了 `RISCVV` 一簇 exact-scalar helper-owned slot 的缺失护栏
+  - 下一轮如果继续深审，优先目标应是继续找“还有哪些 non-x86 ownership policy 只存在于 allowlist/口头理解、但没有 dedicated source+register+runtime 证据”的簇，而不是回头重开已经固定边界的 `ClampF64*`

@@ -168,6 +168,7 @@ type
     procedure Test_RISCVV_FacadeDotF64_NoAsmSource_Does_Not_ScalarForward;
     procedure Test_RISCVV_FacadeSlots_Reuse_BaseScalar_When_Wrappers_Are_ScalarPassThrough;
     procedure Test_RISCVV_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
+    procedure Test_RISCVV_HelperOwnedExactScalarSlots_Stay_BackendOwned;
     procedure Test_RISCVV_KeyOwnedWideSlots_Stay_BackendOwned;
     procedure Test_RISCVV_RegisterSource_Deduplicates_WideRoundingAssignments_And_Keeps_F64x2_Exception;
     procedure Test_AllRegisteredBackends_Wide512IntegerSlots_Assigned;
@@ -9134,6 +9135,108 @@ begin
   AssertSlotKeepsBackendOwnership('AddI64x4', Pointer(LScalarTable.AddI64x4), Pointer(LRISCVVTable.AddI64x4));
   AssertSlotKeepsBackendOwnership('MulI32x16', Pointer(LScalarTable.MulI32x16), Pointer(LRISCVVTable.MulI32x16));
   AssertSlotKeepsBackendOwnership('SubI64x8', Pointer(LScalarTable.SubI64x8), Pointer(LRISCVVTable.SubI64x8));
+end;
+
+procedure TTestCase_DispatchAPI.Test_RISCVV_HelperOwnedExactScalarSlots_Stay_BackendOwned;
+var
+  LScalarTable: TSimdDispatchTable;
+  LRISCVVTable: TSimdDispatchTable;
+  LSourceLines: TStringList;
+  LHelpersSourcePath: string;
+  LRegisterSourcePath: string;
+  LHelpersSource: string;
+  LRegisterSource: string;
+
+  procedure AssertHelperOwnedExactScalarSlot(
+    const aLabel, aHelperSnippet, aRegisterSnippet: string;
+    const aScalarSlot, aBackendSlot: Pointer);
+  begin
+    AssertTrue('RISCVV helper source should keep exact scalar forwarder for ' + aLabel,
+      Pos(LowerCase(aHelperSnippet), LHelpersSource) > 0);
+    AssertTrue('RegisterRISCVVBackend should keep a backend-owned assignment for ' + aLabel,
+      Pos(LowerCase(aRegisterSnippet), LRegisterSource) > 0);
+    AssertTrue('RISCVV ' + aLabel + ' should stay assigned in the backend dispatch table',
+      aBackendSlot <> nil);
+    AssertTrue('RISCVV ' + aLabel + ' should stay backend-owned instead of reusing the scalar slot',
+      PtrUInt(aScalarSlot) <> PtrUInt(aBackendSlot));
+  end;
+begin
+  LSourceLines := TStringList.Create;
+  try
+    LHelpersSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.helpers.inc');
+    AssertTrue('RISCVV helper source should exist for implementation-shape audit: ' + LHelpersSourcePath,
+      FileExists(LHelpersSourcePath));
+    LSourceLines.LoadFromFile(LHelpersSourcePath);
+    LHelpersSource := LowerCase(LSourceLines.Text);
+
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.register.inc');
+    AssertTrue('RISCVV register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
+      FileExists(LRegisterSourcePath));
+    LSourceLines.LoadFromFile(LRegisterSourcePath);
+    LRegisterSource := LowerCase(LSourceLines.Text);
+  finally
+    LSourceLines.Free;
+  end;
+
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+  AssertTrue('RISCVV opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
+    Exit;
+  {$ENDIF}
+
+  AssertHelperOwnedExactScalarSlot('AndNotI64x2',
+    'Result := ScalarAndNotI64x2(a, b);',
+    'table.AndNotI64x2 := @RISCVVAndNotI64x2;',
+    Pointer(LScalarTable.AndNotI64x2), Pointer(LRISCVVTable.AndNotI64x2));
+  AssertHelperOwnedExactScalarSlot('MinI64x2',
+    'Result := ScalarMinI64x2(a, b);',
+    'table.MinI64x2 := @RISCVVMinI64x2;',
+    Pointer(LScalarTable.MinI64x2), Pointer(LRISCVVTable.MinI64x2));
+  AssertHelperOwnedExactScalarSlot('MaxI64x2',
+    'Result := ScalarMaxI64x2(a, b);',
+    'table.MaxI64x2 := @RISCVVMaxI64x2;',
+    Pointer(LScalarTable.MaxI64x2), Pointer(LRISCVVTable.MaxI64x2));
+  AssertHelperOwnedExactScalarSlot('AndNotU64x2',
+    'Result := ScalarAndNotU64x2(a, b);',
+    'table.AndNotU64x2 := @RISCVVAndNotU64x2;',
+    Pointer(LScalarTable.AndNotU64x2), Pointer(LRISCVVTable.AndNotU64x2));
+  AssertHelperOwnedExactScalarSlot('CmpEqU64x2',
+    'Result := ScalarCmpEqU64x2(a, b);',
+    'table.CmpEqU64x2 := @RISCVVCmpEqU64x2;',
+    Pointer(LScalarTable.CmpEqU64x2), Pointer(LRISCVVTable.CmpEqU64x2));
+  AssertHelperOwnedExactScalarSlot('CmpLtU64x2',
+    'Result := ScalarCmpLtU64x2(a, b);',
+    'table.CmpLtU64x2 := @RISCVVCmpLtU64x2;',
+    Pointer(LScalarTable.CmpLtU64x2), Pointer(LRISCVVTable.CmpLtU64x2));
+  AssertHelperOwnedExactScalarSlot('CmpGtU64x2',
+    'Result := ScalarCmpGtU64x2(a, b);',
+    'table.CmpGtU64x2 := @RISCVVCmpGtU64x2;',
+    Pointer(LScalarTable.CmpGtU64x2), Pointer(LRISCVVTable.CmpGtU64x2));
+  AssertHelperOwnedExactScalarSlot('MinU64x2',
+    'Result := ScalarMinU64x2(a, b);',
+    'table.MinU64x2 := @RISCVVMinU64x2;',
+    Pointer(LScalarTable.MinU64x2), Pointer(LRISCVVTable.MinU64x2));
+  AssertHelperOwnedExactScalarSlot('MaxU64x2',
+    'Result := ScalarMaxU64x2(a, b);',
+    'table.MaxU64x2 := @RISCVVMaxU64x2;',
+    Pointer(LScalarTable.MaxU64x2), Pointer(LRISCVVTable.MaxU64x2));
+  AssertHelperOwnedExactScalarSlot('AndNotI8x16',
+    'Result := ScalarAndNotI8x16(a, b);',
+    'table.AndNotI8x16 := @RISCVVAndNotI8x16;',
+    Pointer(LScalarTable.AndNotI8x16), Pointer(LRISCVVTable.AndNotI8x16));
+  AssertHelperOwnedExactScalarSlot('AndNotU16x8',
+    'Result := ScalarAndNotU16x8(a, b);',
+    'table.AndNotU16x8 := @RISCVVAndNotU16x8;',
+    Pointer(LScalarTable.AndNotU16x8), Pointer(LRISCVVTable.AndNotU16x8));
+  AssertHelperOwnedExactScalarSlot('AndNotU8x16',
+    'Result := ScalarAndNotU8x16(a, b);',
+    'table.AndNotU8x16 := @RISCVVAndNotU8x16;',
+    Pointer(LScalarTable.AndNotU8x16), Pointer(LRISCVVTable.AndNotU8x16));
 end;
 
 procedure TTestCase_DispatchAPI.Test_RISCVV_RegisterSource_Deduplicates_WideRoundingAssignments_And_Keeps_F64x2_Exception;

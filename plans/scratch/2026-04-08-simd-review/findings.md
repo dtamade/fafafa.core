@@ -5142,3 +5142,34 @@
   - 这批修的是 checker 精度，不是 backend 行为
   - `ClampF64x2/F64x4/F64x8` 现在被明确归类为合法 `no-asm wrapper-only`，不该再被当作“下一刀 residual”
   - `RISCVV Extract*` 也同理，后续不应再把它们误当成 published ownership 漏洞
+
+## 2026-05-16 RISCVV Helper-Owned Exact-Scalar Slot Ownership Guard Findings
+
+- 继续往 `RISCVV` 当前 `always wrapper-only=14` 深挖后，发现一个真实的审查缺口不在源码行为，而在测试真相层：
+  - `DotF64x2/F64x4` 已有 dedicated 护栏，明确“no-asm source 不直接 scalar-forward，published slot 继续 backend-owned”
+  - 但另外一簇 exact-scalar helper slot 之前没有同等级的 `source + register + runtime ownership` 三层护栏
+- 这簇缺口具体是 12 个名字：
+  - `AndNotI64x2`
+  - `MinI64x2`
+  - `MaxI64x2`
+  - `AndNotU64x2`
+  - `CmpEqU64x2`
+  - `CmpLtU64x2`
+  - `CmpGtU64x2`
+  - `MinU64x2`
+  - `MaxU64x2`
+  - `AndNotI8x16`
+  - `AndNotU16x8`
+  - `AndNotU8x16`
+- 它们的真实结构和前面很多“应回收到 scalar”的 residual 不同：
+  - `src/fafafa.core.simd.riscvv.helpers.inc` 中，这 12 个函数在 no-asm 侧确实都是 exact `Scalar*` forwarder
+  - 但 `src/fafafa.core.simd.riscvv.register.inc` 仍无条件把相应 slot 绑定到 `RISCVV*`
+  - 这表示当前仓库的有意策略是：helper body 可以是 scalar truth，但 published slot ownership 仍属于 `RISCVV`
+- 如果没有 dedicated 护栏，这里会有两种后续风险：
+  - 有人看到 helper 是 exact scalar，就把 register 静悄悄收回到 base scalar，改掉 published ownership 却不自知
+  - 或者有人改了 helper body / register 绑定，allowlist 仍会说“合法”，但仓库已经没人固定这 12 个 slot 的 policy
+- 因而这批最正确的修法不是动 backend，而是把策略写成测试事实：
+  - helper source 仍必须包含 exact scalar body
+  - register source 仍必须保持 backend-owned assignment
+  - runtime `sbRISCVV` dispatch table 上这些 slot 的指针仍必须不同于 scalar
+- 这批修完后，`RISCVV` 这类“exact-scalar helper 但故意 backend-owned”的槽位终于不再只靠口头理解或 checker allowlist 存活，而有了可执行的 dedicated truth。

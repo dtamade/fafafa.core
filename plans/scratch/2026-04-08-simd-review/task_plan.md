@@ -3604,3 +3604,17 @@
 | 1. 复核当前 `wrapper_only` 的真实上下文归属 | completed | 已确认旧 checker 的盲区不在 backend 源码，而在 allowlist 语义过粗：`NEON ClampF64x2/F64x4/F64x8` 与 `RISCVV Extract*` 实际属于 `no-asm wrapper-only`；`NEON` wide float/select/andnot 与 wide integer compare，以及 `RISCVV SelectF32x8/F64x4/I32x4` 则属于 `asm-only wrapper-only`；`RISCVV` 其余少量 `wrapper_only` 才是 `always` |
 | 2. 收紧 checker 规则与 report 口径 | completed | 已把旧的通用 `ALLOWED_WRAPPER_SLOTS_BY_BACKEND` 拆成 `ALLOWED_ALWAYS_WRAPPER_SLOTS_BY_BACKEND`、`ALLOWED_ASM_ONLY_WRAPPER_SLOTS_BY_BACKEND`、`ALLOWED_NO_ASM_ONLY_WRAPPER_SLOTS_BY_BACKEND`；`build_reason_list()` 现在按 assignment `context` 精确校验；human/json report 也新增 `always wrapper ok / asm-only wrapper ok / no-asm wrapper ok` 与对应 slot 列表 |
 | 3. 严格复验并同步 scratch 收口 | completed | 本批源码状态下 `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`、`truthfulness --backend neon --summary-line --strict`、`truthfulness --backend riscvv --summary-line --strict`、Release `impl-audit-nonx86`、Release `check`、Release `gate` 均已通过；fresh strict 结果为 `neon: assignments=342 asm_exact=277 asm_suffix_only=10 wrapper_only=55 miswired=0 unused_allowlist=0`，其 context split 为 `always=0 / asm-only=52 / no-asm=3`；`riscvv: assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 miswired=0 unused_allowlist=0`，其 context split 为 `always=14 / asm-only=3 / no-asm=9` |
+
+## 2026-05-16 RISCVV Helper-Owned Exact-Scalar Slot Ownership Guard
+
+### Goal
+
+继续沿 non-x86 truth 审查往下切，把 `RISCVV` 当前 `always wrapper-only` 里那一簇“no-asm source 是 exact scalar helper forwarder，但 published slot 仍故意 backend-owned”的 `I64/U64`/窄 `AndNot` 槽位补成 dedicated `DispatchAPI` 护栏，避免仓库里只剩 allowlist 知道它们“合法”，却没人守住它们为什么合法。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核这簇 `RISCVV always wrapper-only` 的真实 source/register/runtime 关系 | completed | 已确认 `AndNotI64x2/MinI64x2/MaxI64x2/AndNotU64x2/CmpEqU64x2/CmpLtU64x2/CmpGtU64x2/MinU64x2/MaxU64x2/AndNotI8x16/AndNotU16x8/AndNotU8x16` 在 `src/fafafa.core.simd.riscvv.helpers.inc` 中都是 exact `Scalar*` forwarder，但 `src/fafafa.core.simd.riscvv.register.inc` 仍无条件把这些 slot 绑定到 `RISCVV*` 符号，因此它们的真实性质不是“应回收到 scalar”，而是“helper-owned but intentionally backend-owned” |
+| 2. 新增 dedicated ownership 护栏 | completed | 已在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_RISCVV_HelperOwnedExactScalarSlots_Stay_BackendOwned`，对上述 12 个 slot 同时固定三层真相：`helpers.inc` 里 exact scalar body 仍存在、`register.inc` 仍保持 backend-owned 绑定、runtime `sbRISCVV` dispatch slot 仍不复用 scalar 指针 |
+| 3. 串行 Release 复验并同步 scratch 收口 | completed | 本批 `git diff --check`、Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全部通过；`check` 里 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=20 issues=0 status=ok`、`NONX86_HELPER_SEMANTICS_SUMMARY checks=643 status=ok` 继续保持绿态，`gate` 末尾仍只诚实保留 optional non-x86 native evidence skip 与历史 Windows evidence optional skip |
