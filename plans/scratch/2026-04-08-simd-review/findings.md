@@ -5676,3 +5676,14 @@
 - 本轮修法应是补轻量入口，而不是继续扩大 alias 面或重跑大链：
   - 新增 `runner-parity` 后，后续 runner 批次可以直接用它证明 shell/batch/cpuinfo parity
   - `evidence-win` / `evidence-win-verify` 继续保留为有意的 Windows-only alias，不再把它们当成待消灭的差集
+
+## 2026-05-16 Runner Parity Call-Site Unification
+
+- `runner-parity` 入口补完后，`BuildOrTest.sh` 里仍有一层轻微漂移：
+  - `check` case 自己直调一次 `check_windows_runner_parity()` 与 `check_cpuinfo_runner_parity()`
+  - `gate_step_build_check()` 也再直调一次同一对函数
+- 这不再是功能 bug，但属于典型“同一证明链已经封装、主门禁却继续保留旧入口”的调用面冗余。
+- 这类冗余的真实风险不是运行结果错误，而是后续如果 `run_runner_parity()` 再补额外 guard，`check` / gate 若忘记同步，就会重新出现“action 绿了但主门禁没跟上”的次级漂移。
+- 因而最小正确修法就是：
+  - 保留 `run_runner_parity()` 作为唯一封装入口
+  - `check` 与 `gate_step_build_check()` 都只调它，不再各自拼同一对底层函数

@@ -4608,7 +4608,7 @@ run_gate_step() {
 gate_step_build_check() {
   build_project || return $?
   check_build_log || return $?
-  check_windows_runner_parity || return $?
+  run_runner_parity || return $?
   check_avx512_optin_runner_guard || return $?
   check_nonx86_optin_runner_guard || return $?
   check_windows_experimental_tests_runner_guard || return $?
@@ -4644,7 +4644,6 @@ gate_step_build_check() {
   check_daily_standalone_runner_guard || return $?
   check_linux_evidence_output_isolation || return $?
   check_freeze_status_output_isolation || return $?
-  check_cpuinfo_runner_parity || return $?
   run_register_include_check || return $?
   run_dispatch_read_scope || return $?
   run_suite_manifest_check || return $?
@@ -6657,7 +6656,7 @@ case "${ACTION}" in
   check_build_log
   echo "[CHECK] Backend adapter sync (python-only)"
   SIMD_ADAPTER_SYNC_SKIP_BUILD=1 SIMD_ADAPTER_SYNC_PASCAL_SMOKE=0 run_backend_adapter_sync
-  check_windows_runner_parity
+  run_runner_parity
   check_avx512_optin_runner_guard
   check_nonx86_optin_runner_guard
   check_windows_experimental_tests_runner_guard
@@ -6691,11 +6690,10 @@ case "${ACTION}" in
     check_run_all_output_isolation
     check_intrinsics_runner_output_isolation
     check_experimental_intrinsics_output_isolation
-    check_dispatch_preinit_smoke_runner_guard
-    check_daily_standalone_runner_guard
-    check_linux_evidence_output_isolation
-    check_freeze_status_output_isolation
-    check_cpuinfo_runner_parity
+  check_dispatch_preinit_smoke_runner_guard
+  check_daily_standalone_runner_guard
+  check_linux_evidence_output_isolation
+  check_freeze_status_output_isolation
     run_windows_cpuinfo_x86_batch_build_success_criteria_smoke
     run_register_include_check
     run_source_reachability_check

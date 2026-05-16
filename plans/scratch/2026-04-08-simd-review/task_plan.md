@@ -3870,3 +3870,17 @@
 | 1. 复核剩余问题是否真在 action namespace，而不是功能逻辑 | completed | 已确认正式 `check_windows_runner_parity()` / `check_cpuinfo_runner_parity()` 本来就能静态证明当前 shell/batch 与 cpuinfo runner 的 dispatch/help/guard 口径；真正低效点是这些证明只能挂在 `BuildOrTest.sh check` 大链里顺带执行 |
 | 2. 暴露专用 `runner-parity` 轻量入口并接通 batch 代理 | completed | 已在 `tests/fafafa.core.simd/BuildOrTest.sh` 新增 `runner-parity` action，专门调用 `check_windows_runner_parity()` 与 `check_cpuinfo_runner_parity()`；同时在 `tests/fafafa.core.simd/buildOrTest.bat` 新增同名 wrapper，经 `bash %ROOT%BuildOrTest.sh runner-parity` 代理执行，并同步补齐 shell/batch usage/help/parity required pattern |
 | 3. 用轻量验证证明以后无需再借道大链 | completed | 已跑 `git diff --check`、`bash -n tests/fafafa.core.simd/BuildOrTest.sh`、fresh action diff、`bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity`；结果为 `remaining shell_only: []`、`remaining batch_only: ['evidence-win', 'evidence-win-verify']`，且输出同时给出 `windows runner parity signatures present`、`cpuinfo runner parity signatures present`、`runner parity quick path` |
+
+## 2026-05-16 Runner Parity Call-Site Unification
+
+### Goal
+
+在 `runner-parity` 已经成为正式 fast path 之后，把 `check` 与 `gate_step_build_check()` 中还残留的分散旧调用也统一收口，避免同一条 runner 证明链在主门禁里继续保留两套入口。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核主门禁里是否仍有旧调用残留 | completed | 已确认 `tests/fafafa.core.simd/BuildOrTest.sh` 里除 `run_runner_parity()` 本体外，`check` case 与 `gate_step_build_check()` 仍各自直接调用一遍 `check_windows_runner_parity()` / `check_cpuinfo_runner_parity()`；这正是 fast path 落地后留下的调用面冗余 |
+| 2. 统一主门禁调用面 | completed | 已把 `check` case 与 `gate_step_build_check()` 中的成对旧调用改为单次 `run_runner_parity`，让 runner 证明链在主门禁和显式 action 上都只剩一个入口 |
+| 3. 轻量验证并确认无行为漂移 | completed | 已跑 `git diff --check`、`bash -n tests/fafafa.core.simd/BuildOrTest.sh`、`bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity`；输出仍为 `windows runner parity signatures present`、`cpuinfo runner parity signatures present`、`runner parity quick path`，说明统一后快路径本体未受影响 |

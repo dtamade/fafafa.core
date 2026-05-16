@@ -6701,3 +6701,26 @@
 - 当前阶段结论：
   - 这批没有改 SIMD 功能逻辑，而是把 runner parity 证明从 `check` 大链里拆成了一个专用 fast path
   - `evidence-win` / `evidence-win-verify` 继续保留为有意的 Windows-only alias；以后审这条线应优先跑 `runner-parity`，而不是再拿大链做静态问题的证明
+
+## 2026-05-16 Runner Parity Call-Site Unification
+
+- 在 `runner-parity` fast path 落地后，我又回头对 `BuildOrTest.sh` 做了一次更窄的调用面复核，确认还有一层真实冗余残留：
+  - `check` case 仍手写 `check_windows_runner_parity` + `check_cpuinfo_runner_parity`
+  - `gate_step_build_check()` 也仍手写同一对调用
+- 这说明上一批虽然已经给了专用 action，但主门禁还没有真正收敛到“只剩一个 runner parity 入口”。
+- 本轮已完成的源码收口：
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - `gate_step_build_check()` 里的 runner parity 旧调用已改为 `run_runner_parity || return $?`
+    - `check` case 里的成对旧调用已改为单次 `run_runner_parity`
+    - 其余 guard 顺序保持不动，只是把同一条 runner 证明链收口到单入口
+- 本轮轻量验证链：
+  - `git diff --check`
+  - `bash -n tests/fafafa.core.simd/BuildOrTest.sh`
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity`
+- fresh 结果：
+  - `[CHECK] OK (windows runner parity signatures present)`
+  - `[CHECK] OK (cpuinfo runner parity signatures present)`
+  - `[CHECK] OK (runner parity quick path)`
+- 当前阶段结论：
+  - runner parity 现在不只是“有了 fast path action”，而是 `check` / gate build-check / 显式 action 三处都统一吃同一个封装入口
+  - 这批继续没有改 SIMD 功能逻辑，但把一处真实的调用面冗余收平了，也降低了以后主门禁忘同步 `run_runner_parity()` 的漂移风险
