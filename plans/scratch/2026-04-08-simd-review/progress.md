@@ -7543,3 +7543,39 @@
   - Linux/QEMU/mainline-required steps 已全部 fresh 变绿
   - 当前 freeze-status 剩余红项全部来自旧 Windows evidence 还没法被新 run 刷新
   - 根因不是本地 SIMD 实现、runner parity 或 closeout 方法，而是 GitHub Actions billing/runner 外部阻塞
+
+## 2026-05-17 Closeout Doc Truth-Sync
+
+- 继续加强 SIMD 审查时，没有重新打开生产实现或 family policy，而是先检查 active closeout 文档是不是还在说旧真相。
+- 先对比了 active docs 与脚本真行为：
+  - `docs/fafafa.core.simd.closeout.md`
+  - `docs/fafafa.core.simd.checklist.md`
+  - `docs/fafafa.core.simd.implementation-matrix.md`
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+- 这轮确认的真实 doc drift 是：
+  - 文档还把 `qemu-nonx86-evidence` 和 `qemu-cpuinfo-nonx86-evidence` 混写成同一类 “Linux QEMU 已完成”
+  - 但脚本当前明确是双轨：
+    - `closeout-host-local` / `gate-strict` 主要消费 `qemu-nonx86-evidence`
+    - canonical `gate` / `freeze-status` / `win-closeout-finalize` 另外要求 `qemu-cpuinfo-nonx86-evidence`
+  - 顶层 stop-point 也还停在旧的 `2026-05-08` / `qemu-cpuinfo-nonx86-evidence=SKIP` 口径，没有反映 `2026-05-16` Linux CPUInfo cross evidence 已补绿、Windows blocker 已具体收敛到 GH run `25967172435`
+- 已完成的文档修正：
+  - `docs/fafafa.core.simd.closeout.md`
+    - 顶部 stop-point 更新到 `2026-05-17`
+    - 明确 Linux 侧 `qemu-cpuinfo-nonx86-evidence` 已在 `2026-05-16 20:43:40` PASS
+    - 明确 Windows blocker 是 GH run `25967172435` 的 billing / spending limit 失败
+    - 补写 `qemu-nonx86-evidence` 与 `qemu-cpuinfo-nonx86-evidence` 的双轨语义
+    - 顺手修正了顶部重复的 interface completeness 结果行，以及 “完成了 5 组工作” 和实际 8 组条目的数量漂移
+  - `docs/fafafa.core.simd.checklist.md`
+    - 顶部 stop-point 更新到 `2026-05-17`
+    - 明确 `closeout-host-local` 绿不等于 `freeze-status` 绿
+    - 补入 `qemu-cpuinfo-nonx86-evidence` / canonical cross gate 的单独命令与说明
+  - `docs/fafafa.core.simd.implementation-matrix.md`
+    - 在 current focus 增加一条 guard：不要把 `qemu-nonx86-evidence` 和 `qemu-cpuinfo-nonx86-evidence` 混成同一条 lane
+- 本轮最小验证：
+  - `git diff --check`
+  - `rg -n "2026-05-17 当前收口判断|25967172435|qemu-cpuinfo-nonx86-evidence|closeout-host-local.*qemu-nonx86-evidence|code-green / release-evidence-blocked" docs/fafafa.core.simd.closeout.md docs/fafafa.core.simd.checklist.md docs/fafafa.core.simd.implementation-matrix.md`
+  - 结果：通过；active 文档里的关键事实和双轨语义已能直接搜到
+- 当前阶段结论：
+  - 这批仍然没有改 SIMD 生产实现
+  - 修掉的是 active truth-source 文档的真实歧义和 stop-point 漂移
+  - 下次继续 closeout 时，不会再因为旧文档把 `closeout-host-local`、`qemu-nonx86-evidence`、`qemu-cpuinfo-nonx86-evidence`、`freeze-status` 误读成一条链

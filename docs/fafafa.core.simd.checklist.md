@@ -2,21 +2,27 @@
 
 这页只回答两件事：现在应该做什么，以及现在不要做什么。
 
-## 当前停点（2026-05-08）
+## 当前停点（2026-05-17）
 
 - 当前 `simd` 不应再按“接口/实现仍未收口”处理。
 - 最新 release 证据说明：
   - `python3 tests/fafafa.core.simd/check_interface_implementation_completeness.py --strict` 为绿，`P0/P1/P2=0`
-  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 为绿
-  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 仍红；当前主要红点是 `qemu-cpuinfo-nonx86-evidence=SKIP`、gate artifact freshness 旧于最新源码，以及 Windows evidence freshness / source-newer-than-evidence
+  - canonical `gate_summary.md` 已在 `2026-05-16 20:43:40` fresh 刷新；`linux_gate_required_steps_mainline` 与 `linux_qemu_cpuinfo_nonx86_evidence` 都为 PASS
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 仍红，但当前唯一剩余 cross red item 已压缩成 `evidence-verify=FAIL`
+  - 其余红点全部来自旧 `windows_b07_gate.log` / `windows_b07_closeout_summary.md` 的 freshness / verify
 - 如果你当前既没有 Windows 实机，也没有可用 GitHub Actions Billing/额度，就把模块状态记成：
   - `code-green / release-evidence-blocked`
   - 到这里先停，不要继续重开 SIMD 接口设计审查或实现泛审查
 - 只有在 fresh Linux/QEMU + Windows evidence 条件恢复后，才继续 `closeout-release` / `win-evidence-via-gh -> freeze-status` 这条发布收口链
+- 当前 Windows 外部 blocker 的真实证据是：
+  - `win-evidence-preflight` 在 `2026-05-16` 返回 `STATUS=PASS CODE=OK EXIT=0`
+  - `win-evidence-via-gh SIMD-20260516-152` 已成功 dispatch 到 GitHub Actions run `25967172435`
+  - 该 run 在 `Prepare Windows SIMD Source` 阶段即失败，原因是 `recent account payments have failed or your spending limit needs to be increased`
 
 补一条当前判断规则：
 
 - 如果最新 `freeze-status` 提示 gate artifact 旧于最新 `src/fafafa.core.simd*` 源码，先重跑 release `gate` 再判断，不要把旧 artifact 误读成新回归。
+- 如果 `closeout-host-local` 为绿，不要直接把它当成 `freeze-status` 绿：前者消费的是 `qemu-nonx86-evidence`，后者在当前口径下还额外要求 `qemu-cpuinfo-nonx86-evidence`。
 
 ## 现在应该做什么
 
@@ -118,6 +124,7 @@ SIMD_QEMU_PLATFORMS='linux/arm64 linux/riscv64' SIMD_GATE_REQUIRE_WINDOWS_EVIDEN
 ```
 
 `closeout-host-local` 的固定顺序是 `impl-audit-nonx86 -> gate-strict`。当前口径下，它默认会把 `qemu-nonx86-evidence` 打开，并把 `SIMD_GATE_REQUIRE_NONX86_NATIVE_EVIDENCE` 降到 `0`；也就是说，在没有真实 `arm64/riscv64` 硬件时，`linux/arm64 + linux/riscv64` 的 QEMU runtime evidence 就是当前 closeout 的充分证明。
+但这条证明只服务 host-local strict closeout。若目标是 canonical `freeze-status` / Windows finalize 主线，还要额外把 `qemu-cpuinfo-nonx86-evidence` 刷进最新 `gate_summary.md`；两者不要混写成同一条“Linux QEMU 已完成”。
 `gate-strict` 会在 `gate` 的基础上额外打开 repeat、coverage/wiring strict、non-x86 / evidence 等更重的检查，更适合发布前或阶段性收口时运行。当前默认 release-gate 口径是 `SIMD_GATE_QEMU_NONX86_EVIDENCE=1`、`SIMD_GATE_REQUIRE_NONX86_NATIVE_EVIDENCE=0`；native evidence 仍可作为附加证据导入和校验，但没有硬件时，不再把 native host 当成 blocker。
 当前默认 `gate` 已包含 `contract-signature` 与 `publicabi-signature` 结构护栏；如果仓库内 dispatch contract 或 public ABI wrapper 漂移，会直接在 gate 红掉。
 当前默认 `check/gate` 也会把 non-x86 opt-in smoke 放到隔离子目录 `nonx86.optin/neon`、`nonx86.optin/riscvv` 下做 fresh `--list-suites` 编译验证；如果只想单独复验这层，也可以直接跑：
@@ -230,6 +237,15 @@ bash tests/fafafa.core.simd/BuildOrTest.sh verify-nonx86-native-evidence
 ```bash
 SIMD_QEMU_BUILD_POLICY=if-missing SIMD_QEMU_PLATFORMS='linux/arm64 linux/riscv64' FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh qemu-nonx86-evidence
 ```
+
+- `freeze-status` / 手工 Windows closeout 主线现在还额外要求 QEMU CPUInfo cross evidence；它和上面的 runtime parity 不是同一条 lane：
+
+```bash
+FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh qemu-cpuinfo-nonx86-evidence
+FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate
+```
+
+- 当前最新真实状态是：`2026-05-16 20:43:40` 的 canonical gate 已把 `qemu-cpuinfo-nonx86-evidence` 刷成 PASS；所以 Linux 侧 `freeze-status` 红点已经清掉，剩余 blocker 只在 Windows evidence。
 
 - 如果后面补到真实硬件，`native-evidence` 仍然会串行采集 `DispatchAPI/PublicAbi` 以及 `TTestCase_NonX86BackendParity,TTestCase_DataPlane`；但在当前项目约束里，没有硬件时，不再把 native host 当成 blocker：
 

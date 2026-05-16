@@ -8,6 +8,7 @@
 - 目标二：`BuildOrTest.sh impl-audit-nonx86` 必须能把 source / runtime / evidence 三层证据串成一条可复验链。
 - 目标三：后续 implementation 审查按矩阵推进，不再散点翻文件。
 - 目标四：`impl-smoke-nonx86` 作为高频实现回归层，只负责尽快暴露 non-x86 contract 漂移；完整实现审计 / strict closeout 仍分别看 `impl-audit-nonx86` / `closeout-host-local`。
+- 目标五：不要把 `qemu-nonx86-evidence` 和 `qemu-cpuinfo-nonx86-evidence` 混成同一条 lane；前者服务 implementation / host-local runtime closeout，后者服务 canonical `gate` / `freeze-status` 的 CPUInfo cross evidence。
 - 当前额外约束：
   - 这张表可以做 working ledger，但不能单独当成 “Task 2/Task 3 已完成” 的证明。
   - `Task 2 / Task 3` 相关 family 现在都已经有 2026-04-19 fresh evidence，可以按 closeout-ready 理解。

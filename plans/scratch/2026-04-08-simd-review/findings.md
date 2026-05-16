@@ -6336,3 +6336,22 @@
   - 不是 SIMD gate / qemu / runner parity
   - 不是 `win-evidence-preflight` 自身逻辑
   - 而是 GitHub Actions billing/runner 配额问题
+
+## 2026-05-17 Closeout Doc Truth-Sync Findings
+
+- 在继续加强 SIMD 审查时，active closeout 文档里出现了一个真实误导点：
+  - `docs/fafafa.core.simd.closeout.md` / `docs/fafafa.core.simd.checklist.md` 仍把 `qemu-nonx86-evidence` 和 `qemu-cpuinfo-nonx86-evidence` 混写成同一类 “Linux QEMU 已完成”
+  - 但脚本真实行为已经分成双轨：
+    - `closeout-host-local` / `gate-strict` 的 host-local strict closeout 主要消费 `qemu-nonx86-evidence`
+    - canonical `gate` / `freeze-status` / `win-closeout-finalize` 另外要求 `qemu-cpuinfo-nonx86-evidence`
+- 这不是纯文案风格问题，而是会直接误导后续实施顺序：
+  - 只看到 `closeout-host-local` 绿，不能推出 `freeze-status` 会绿
+  - 只刷新 runtime parity summary，也不能代替 CPUInfo cross evidence 写回 canonical `gate_summary.md`
+- 当前最值得修的不是再碰 SIMD 生产实现，而是把 active 真相源同步到最新 stop-point：
+  - Linux 侧 `qemu-cpuinfo-nonx86-evidence` 已在 `2026-05-16 20:43:40` 随 canonical gate 刷成 PASS
+  - `freeze-status` 当前唯一剩余 cross red item 是旧 Windows evidence 的 `evidence-verify=FAIL`
+  - Windows GH run `25967172435` 的真实失败原因是 billing / spending limit，而不是 workflow 入口、repo hygiene 或 SIMD 代码回归
+- 因此本轮文档修正的真实价值是：
+  - 把 host-local implementation closeout 和 release freeze closeout 的证据语义重新拉开
+  - 把最新 Windows external blocker 固定成可复述的 run id / failure mode
+  - 防止后续会话再次因为旧文档而回到“为什么 Linux 都绿了 freeze-status 还红”的重复排障

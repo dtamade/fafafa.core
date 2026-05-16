@@ -4323,3 +4323,17 @@
 | 4. 复核 Windows evidence 是否仍为外部阻塞 | completed | `win-evidence-preflight` 当前返回 `STATUS=PASS CODE=OK EXIT=0`，说明 workflow 入口本身当前可用；`freeze-status` 现只剩旧 `windows_b07_gate.log` freshness / verify / closeout freshness 红态 |
 | 5. 清理工作树并重试 GH Windows evidence | completed | 已清掉 `__pycache__`、提交并推送 `731cc0d7`，随后成功 dispatch `win-evidence-via-gh SIMD-20260516-152`；run id=`25967172435` |
 | 6. 确认最终外部阻塞并收口 | completed | 远端 workflow 已给出最终结论：`25967172435` 在 `Prepare Windows SIMD Source` 阶段即失败，原因是 `recent account payments have failed or your spending limit needs to be increased`；当前剩余 blocker 已确定为 GitHub Actions billing/runner 外部问题，而不是本地 SIMD 实现、gate 或脚本逻辑 |
+
+## 2026-05-17 Closeout Doc Truth-Sync
+
+### Goal
+
+继续加强 SIMD 审查时，不再重开实现层泛审查，而是修掉 active closeout/checklist 文档里对 QEMU 证据链的混写和 stop-point 漂移，避免后续会话继续误判 `freeze-status` 红点。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核脚本真行为与 active docs 漂移 | completed | 已确认 `closeout-host-local` / `gate-strict` 仍主要消费 `qemu-nonx86-evidence`，而 canonical `gate` / `freeze-status` / `win-closeout-finalize` 另外要求 `qemu-cpuinfo-nonx86-evidence`；`docs/fafafa.core.simd.closeout.md` / `docs/fafafa.core.simd.checklist.md` 仍把两者混写 |
+| 2. 修正文档真相源 | completed | 已同步 `docs/fafafa.core.simd.closeout.md`、`docs/fafafa.core.simd.checklist.md`、`docs/fafafa.core.simd.implementation-matrix.md`：明确 host-local runtime evidence 与 CPUInfo cross evidence 的双轨语义，并把 Windows blocker 更新为 GH run `25967172435` 的 billing/spending-limit 失败 |
+| 3. 最小验证并准备提交 | in_progress | `git diff --check` 已通过；active 文档关键事实已用 `rg` 复核到位。下一步给出简短 review 结论后提交这一批 docs truth-sync |
