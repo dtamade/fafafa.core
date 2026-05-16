@@ -4176,3 +4176,19 @@
 | 1. 复核 wide/source-shape 与 capability 合同簇的真实边界 | completed | 已逐段复核 `Test_AVX2_WideFma_ExactInputs_FollowsHalfComposition`、`Test_AVX2_WideSelect_Parity_WithScalar_When_VectorAsmEnabled`、`TTestCase_X86MaskedFmaContract.Test_AVX2_FmaSlots_StayScalar_When_HardwareFmaUnavailable`、`TTestCase_RISCVVMaskedOpsContract.Test_RISCVV_BackendCapabilities_Expose_MaskedOps_When_MaskSlots_AreNative`、`TTestCase_RISCVVMaskedOpsContract.Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_RISCVVMaskedOps_When_MaskSlots_AreNative`、`Test_AVX512_BackendCapabilities_Expose_FMA_When_WideFmaSlots_AreNative`、`Test_AVX512_BackendCapabilities_Expose_Shuffle_When_WideSelectSlots_AreNative`、`Test_AVX512_BackendCapabilities_Clear_VectorAsmGatedBits_When_VectorAsmDisabled`：这 8 条测试的 outer `finally` 都完全为空，没有任何 backend/table restore；source-shape 相关真实释放只在内层 `LSourceLines.Free` 承担；`LOldVectorAsm` 仅做 `IsVectorAsmEnabled` 捕获且后续无读取 |
 | 2. 只收这一簇高确定性命中 | completed | 已在上述 8 个测试中删除纯空 outer `try/finally`，并删除对应未使用的 `LOldVectorAsm`；所有 wide-FMA half composition、wide-select parity、hardware-FMA absence、RISCVV masked-ops 与 AVX512 capability 断言保持不变 |
 | 3. 用单 suite release 复验收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 复验；构建、测试与 leak check 全部通过 |
+
+## 2026-05-16 DispatchApi Neon Riscvv And AVX2 Shuffle Capability Empty Finally Cleanup
+
+### Goal
+
+继续沿 `dispatchapi.testcase` 的高确定性清理线推进到 `11485..11825`，只收掉 `NEON` / `RISCVV` backend-capability、`AVX2` shuffle capability 与 public-ABI 合同测试里的两类确定性冗余：
+- `LOldVectorAsm` 只声明和赋值、但从不读取
+- outer `try/finally` 的 `finally` 体完全为空
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `NEON/RISCVV/AVX2 shuffle` 合同簇的真实边界 | completed | 已逐段复核 `Test_NEON_BackendCapabilities_Clear_VectorAsmGatedBits_When_VectorAsmDisabled`、`Test_RISCVV_BackendCapabilities_Expose_IntegerOps_When_IntegerSlots_AreNative`、`Test_RISCVV_BackendCapabilities_Expose_FMA_When_FmaSlots_AreNonScalar`、`Test_RISCVV_BackendCapabilities_Expose_Shuffle_When_RepresentativeSlots_AreNonScalar`、`Test_RISCVV_BackendCapabilities_Clear_VectorAsmGatedBits_When_VectorAsmDisabled`、`Test_AVX2_BackendCapabilities_Expose_Shuffle_When_NativeShuffleSlotsUsable`、`Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_AVX2Shuffle_When_NativeShuffleSlotsUsable`、`Test_AVX2_BackendCapabilities_Clear_Shuffle_When_VectorAsmDisabled`、`Test_PublicApi_BackendPodInfo_CapabilityBits_Clear_AVX2VectorAsmGatedBits_When_VectorAsmDisabled`：这 9 条测试都只做 `SetVectorAsmEnabled(True/False)`、backend/public-ABI 信息读取与 capability/slot 合同断言，outer `finally` 完全为空，没有任何 backend/table restore；`LOldVectorAsm` 仅做 `IsVectorAsmEnabled` 捕获且后续无读取 |
+| 2. 只收这一簇高确定性命中 | completed | 已在上述 9 个 `NEON/RISCVV/AVX2 shuffle` 合同测试中删除纯空 outer `try/finally`，并删除对应未使用的 `LOldVectorAsm`；所有 vector-asm disable、capability、slot fallback 与 public ABI 位断言保持不变 |
+| 3. 用单 suite release 复验收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 复验；构建、测试与 leak check 全部通过 |

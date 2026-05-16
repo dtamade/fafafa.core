@@ -6147,3 +6147,24 @@
 - 这进一步强化当前准则：
   - “测试里有内层真实 `finally`” 不等于 “外层 `finally` 也有价值”；必须按层判断职责，保留真实释放，剥离空 outer 壳
   - `dispatchapi` 当前的高确定性冗余已扩展到 source-shape + runtime parity 混合测试、hardware-unavailable 合同、RISCVV public-ABI mask 合同，以及 AVX512 capability rebuild 合同
+
+## 2026-05-16 DispatchApi Neon Riscvv And AVX2 Shuffle Capability Empty Finally Cleanup
+
+- `dispatchapi.testcase` 的 `11485..11825` 说明，空 outer `finally` 与死 `LOldVectorAsm` 还继续分布在 `NEON` capability rebuild、`RISCVV` capability expose/rebuild，以及 `AVX2` shuffle capability/public-ABI 合同测试里。
+- 这次确认可安全清理的 9 条方法是：
+  - `Test_NEON_BackendCapabilities_Clear_VectorAsmGatedBits_When_VectorAsmDisabled`
+  - `Test_RISCVV_BackendCapabilities_Expose_IntegerOps_When_IntegerSlots_AreNative`
+  - `Test_RISCVV_BackendCapabilities_Expose_FMA_When_FmaSlots_AreNonScalar`
+  - `Test_RISCVV_BackendCapabilities_Expose_Shuffle_When_RepresentativeSlots_AreNonScalar`
+  - `Test_RISCVV_BackendCapabilities_Clear_VectorAsmGatedBits_When_VectorAsmDisabled`
+  - `Test_AVX2_BackendCapabilities_Expose_Shuffle_When_NativeShuffleSlotsUsable`
+  - `Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_AVX2Shuffle_When_NativeShuffleSlotsUsable`
+  - `Test_AVX2_BackendCapabilities_Clear_Shuffle_When_VectorAsmDisabled`
+  - `Test_PublicApi_BackendPodInfo_CapabilityBits_Clear_AVX2VectorAsmGatedBits_When_VectorAsmDisabled`
+- 它们的共同边界和前几批一致：
+  - 运行期部分只做 `SetVectorAsmEnabled(True/False)`、读取 backend table / public ABI pod info、再做 capability 或 slot fallback 合同断言
+  - outer `finally` 本身完全为空
+  - `LOldVectorAsm := IsVectorAsmEnabled` 只是机械捕获，没有 restore、没有断言、也没有后续读取
+- 这继续强化当前准则：
+  - 即使测试主题从 wide/source-shape 混合流切回 capability expose/clear 与 public-ABI capability bits，只要 outer `finally` 不承担真实恢复职责，就仍然可以按同一 fail-close 规则剥掉机械空壳
+  - `dispatchapi` 当前的高确定性冗余已继续扩展到 `NEON` vector-asm-gated capability rebuild、`RISCVV` capability surface，以及 `AVX2` shuffle/public-ABI 合同簇

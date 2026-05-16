@@ -7273,3 +7273,29 @@
 - 当前阶段结论：
   - 这批依旧只是 `dispatchapi` 与同文件 contract testcase 的测试层冗余清理，没有改 SIMD 生产实现
   - `dispatchapi` 当前最值当的下一批入口已进一步后移到 `11438+` 的后续 backend-capability / public-ABI 合同区段
+
+## 2026-05-16 DispatchApi Neon Riscvv And AVX2 Shuffle Capability Empty Finally Cleanup
+
+- 这一批继续留在 `dispatchapi.testcase`，没有切到 `direct`、`runtimeapi` 或生产实现，只把候选区段推进到 `11485..11825` 的 `NEON` / `RISCVV` backend-capability 与 `AVX2` shuffle/public-ABI 合同测试簇。
+- 候选筛选过程：
+  - 逐段读取 `11485..11825`
+  - 确认 1 条 `NEON` capability rebuild、4 条 `RISCVV` capability expose/rebuild、4 条 `AVX2` shuffle/public-ABI 合同测试都带未读取的 `LOldVectorAsm`
+  - 确认这 9 条方法的 outer `finally` 全为空，没有任何 backend/table restore、hook cleanup 或其他真实清理逻辑
+- 已完成的源码改动：
+  - 文件：`tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+  - 删除 9 个方法中的纯空 outer `try/finally`
+  - 删除 9 个方法中的未使用 `LOldVectorAsm`
+  - 保留所有 `NEON` / `RISCVV` capability expose/clear、`AVX2` shuffle fallback、slot-native 与 public ABI 位断言不变
+- 这轮额外做的卫生确认：
+  - 再次复读 `11485..11825`，确认现在只剩正常断言流
+  - 轻量后续定位显示，下一个高确定性入口已经后移到 `12026+` 的后续 AVX2 facade/public-ABI/source-shape 合同区段，需要继续区分内层真实释放与 outer 空壳
+- 本轮验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+- fresh 结果：
+  - `[BUILD] OK`
+  - `[TEST] OK`
+  - `[LEAK] OK`
+- 当前阶段结论：
+  - 这批依旧只是 `dispatchapi` 测试层冗余清理，没有改 SIMD 生产实现
+  - `dispatchapi` 当前最值当的下一批入口已进一步后移到 `12026+` 的 AVX2 facade/public-ABI/source-shape 合同区段

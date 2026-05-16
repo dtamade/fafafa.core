@@ -11486,7 +11486,6 @@ procedure TTestCase_DispatchAPI.Test_NEON_BackendCapabilities_Clear_VectorAsmGat
 var
   LExpectedBaseTable: TSimdDispatchTable;
   LNEONTable: TSimdDispatchTable;
-  LOldVectorAsm: Boolean;
 begin
   {$IFNDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
   Exit;
@@ -11499,155 +11498,135 @@ begin
     Assigned(LExpectedBaseTable.SelectF32x4));
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    SetVectorAsmEnabled(False);
-    AssertFalse('Vector asm should be disabled for NEON capability rebuild test', IsVectorAsmEnabled);
-    AssertTrue('NEON backend should remain registered after runtime rebuild',
-      TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable));
+  SetVectorAsmEnabled(True);
+  SetVectorAsmEnabled(False);
+  AssertFalse('Vector asm should be disabled for NEON capability rebuild test', IsVectorAsmEnabled);
+  AssertTrue('NEON backend should remain registered after runtime rebuild',
+    TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable));
 
-    AssertEquals('NEON FmaF32x4 should fall back to the base scalar table when vector asm is disabled',
-      PtrUInt(LExpectedBaseTable.FmaF32x4), PtrUInt(LNEONTable.FmaF32x4));
-    AssertEquals('NEON SelectF32x4 should fall back to the base scalar table when vector asm is disabled',
-      PtrUInt(LExpectedBaseTable.SelectF32x4), PtrUInt(LNEONTable.SelectF32x4));
-    AssertEquals('NEON InsertF32x4 should fall back to the base scalar table when vector asm is disabled',
-      PtrUInt(LExpectedBaseTable.InsertF32x4), PtrUInt(LNEONTable.InsertF32x4));
-    AssertEquals('NEON ExtractF32x4 should fall back to the base scalar table when vector asm is disabled',
-      PtrUInt(LExpectedBaseTable.ExtractF32x4), PtrUInt(LNEONTable.ExtractF32x4));
+  AssertEquals('NEON FmaF32x4 should fall back to the base scalar table when vector asm is disabled',
+    PtrUInt(LExpectedBaseTable.FmaF32x4), PtrUInt(LNEONTable.FmaF32x4));
+  AssertEquals('NEON SelectF32x4 should fall back to the base scalar table when vector asm is disabled',
+    PtrUInt(LExpectedBaseTable.SelectF32x4), PtrUInt(LNEONTable.SelectF32x4));
+  AssertEquals('NEON InsertF32x4 should fall back to the base scalar table when vector asm is disabled',
+    PtrUInt(LExpectedBaseTable.InsertF32x4), PtrUInt(LNEONTable.InsertF32x4));
+  AssertEquals('NEON ExtractF32x4 should fall back to the base scalar table when vector asm is disabled',
+    PtrUInt(LExpectedBaseTable.ExtractF32x4), PtrUInt(LNEONTable.ExtractF32x4));
 
-    AssertFalse('NEON scFMA should clear when vector asm is disabled',
-      scFMA in LNEONTable.BackendInfo.Capabilities);
-    AssertFalse('NEON scIntegerOps should clear when vector asm is disabled',
-      scIntegerOps in LNEONTable.BackendInfo.Capabilities);
-    AssertFalse('NEON scShuffle should clear when vector asm is disabled',
-      scShuffle in LNEONTable.BackendInfo.Capabilities);
-  finally
-  end;
+  AssertFalse('NEON scFMA should clear when vector asm is disabled',
+    scFMA in LNEONTable.BackendInfo.Capabilities);
+  AssertFalse('NEON scIntegerOps should clear when vector asm is disabled',
+    scIntegerOps in LNEONTable.BackendInfo.Capabilities);
+  AssertFalse('NEON scShuffle should clear when vector asm is disabled',
+    scShuffle in LNEONTable.BackendInfo.Capabilities);
 end;
 
 procedure TTestCase_DispatchAPI.Test_RISCVV_BackendCapabilities_Expose_IntegerOps_When_IntegerSlots_AreNative;
 var
   LRISCVVTable: TSimdDispatchTable;
-  LOldVectorAsm: Boolean;
 begin
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
 
-    {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
-    AssertTrue('RISCVV opt-in test registration should be present',
-      TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
-    {$ELSE}
-    if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
-      Exit;
-    {$ENDIF}
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+  AssertTrue('RISCVV opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
+    Exit;
+  {$ENDIF}
 
-    AssertTrue('RISCVV AddI32x4 should be assigned', Assigned(LRISCVVTable.AddI32x4));
-    AssertTrue('RISCVV AndI32x4 should be assigned', Assigned(LRISCVVTable.AndI32x4));
-    AssertTrue('RISCVV AddI64x2 should be assigned', Assigned(LRISCVVTable.AddI64x2));
+  AssertTrue('RISCVV AddI32x4 should be assigned', Assigned(LRISCVVTable.AddI32x4));
+  AssertTrue('RISCVV AndI32x4 should be assigned', Assigned(LRISCVVTable.AndI32x4));
+  AssertTrue('RISCVV AddI64x2 should be assigned', Assigned(LRISCVVTable.AddI64x2));
 
-    {$IFDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
-    AssertTrue('RISCVV should advertise scIntegerOps when RVV asm-backed integer slots are compiled',
-      scIntegerOps in LRISCVVTable.BackendInfo.Capabilities);
-    {$ELSE}
-    AssertFalse('RISCVV should not advertise scIntegerOps when only scalar/common fallback integer slots are compiled',
-      scIntegerOps in LRISCVVTable.BackendInfo.Capabilities);
-    {$ENDIF}
-  finally
-  end;
+  {$IFDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
+  AssertTrue('RISCVV should advertise scIntegerOps when RVV asm-backed integer slots are compiled',
+    scIntegerOps in LRISCVVTable.BackendInfo.Capabilities);
+  {$ELSE}
+  AssertFalse('RISCVV should not advertise scIntegerOps when only scalar/common fallback integer slots are compiled',
+    scIntegerOps in LRISCVVTable.BackendInfo.Capabilities);
+  {$ENDIF}
 end;
 
 procedure TTestCase_DispatchAPI.Test_RISCVV_BackendCapabilities_Expose_FMA_When_FmaSlots_AreNonScalar;
 var
   LScalarTable: TSimdDispatchTable;
   LRISCVVTable: TSimdDispatchTable;
-  LOldVectorAsm: Boolean;
 begin
   AssertTrue('Scalar dispatch table should be registered',
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
 
-    {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
-    AssertTrue('RISCVV opt-in test registration should be present',
-      TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
-    {$ELSE}
-    if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
-      Exit;
-    {$ENDIF}
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+  AssertTrue('RISCVV opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
+    Exit;
+  {$ENDIF}
 
-    AssertTrue('RISCVV FmaF32x4 should be assigned', Assigned(LRISCVVTable.FmaF32x4));
-    AssertTrue('RISCVV FmaF32x8 should be assigned', Assigned(LRISCVVTable.FmaF32x8));
-    AssertTrue('RISCVV FmaF64x4 should be assigned', Assigned(LRISCVVTable.FmaF64x4));
+  AssertTrue('RISCVV FmaF32x4 should be assigned', Assigned(LRISCVVTable.FmaF32x4));
+  AssertTrue('RISCVV FmaF32x8 should be assigned', Assigned(LRISCVVTable.FmaF32x8));
+  AssertTrue('RISCVV FmaF64x4 should be assigned', Assigned(LRISCVVTable.FmaF64x4));
 
-    if (Pointer(LRISCVVTable.FmaF32x4) = Pointer(LScalarTable.FmaF32x4)) and
-       (Pointer(LRISCVVTable.FmaF32x8) = Pointer(LScalarTable.FmaF32x8)) and
-       (Pointer(LRISCVVTable.FmaF64x2) = Pointer(LScalarTable.FmaF64x2)) and
-       (Pointer(LRISCVVTable.FmaF64x4) = Pointer(LScalarTable.FmaF64x4)) and
-       (Pointer(LRISCVVTable.FmaF32x16) = Pointer(LScalarTable.FmaF32x16)) and
-       (Pointer(LRISCVVTable.FmaF64x8) = Pointer(LScalarTable.FmaF64x8)) then
-      Exit;
+  if (Pointer(LRISCVVTable.FmaF32x4) = Pointer(LScalarTable.FmaF32x4)) and
+     (Pointer(LRISCVVTable.FmaF32x8) = Pointer(LScalarTable.FmaF32x8)) and
+     (Pointer(LRISCVVTable.FmaF64x2) = Pointer(LScalarTable.FmaF64x2)) and
+     (Pointer(LRISCVVTable.FmaF64x4) = Pointer(LScalarTable.FmaF64x4)) and
+     (Pointer(LRISCVVTable.FmaF32x16) = Pointer(LScalarTable.FmaF32x16)) and
+     (Pointer(LRISCVVTable.FmaF64x8) = Pointer(LScalarTable.FmaF64x8)) then
+    Exit;
 
-    {$IFDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
-    AssertTrue('RISCVV should advertise scFMA when RVV asm-backed representative FMA slots are non-scalar',
-      scFMA in LRISCVVTable.BackendInfo.Capabilities);
-    {$ELSE}
-    AssertFalse('RISCVV should not advertise scFMA when only scalar fallback FMA slots are compiled',
-      scFMA in LRISCVVTable.BackendInfo.Capabilities);
-    {$ENDIF}
-  finally
-  end;
+  {$IFDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
+  AssertTrue('RISCVV should advertise scFMA when RVV asm-backed representative FMA slots are non-scalar',
+    scFMA in LRISCVVTable.BackendInfo.Capabilities);
+  {$ELSE}
+  AssertFalse('RISCVV should not advertise scFMA when only scalar fallback FMA slots are compiled',
+    scFMA in LRISCVVTable.BackendInfo.Capabilities);
+  {$ENDIF}
 end;
 
 procedure TTestCase_DispatchAPI.Test_RISCVV_BackendCapabilities_Expose_Shuffle_When_RepresentativeSlots_AreNonScalar;
 var
   LRISCVVTable: TSimdDispatchTable;
-  LOldVectorAsm: Boolean;
 begin
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
 
-    {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
-    AssertTrue('RISCVV opt-in test registration should be present',
-      TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
-    {$ELSE}
-    if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
-      Exit;
-    {$ENDIF}
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+  AssertTrue('RISCVV opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
+    Exit;
+  {$ENDIF}
 
-    AssertTrue('RISCVV SelectF32x4 should be assigned', Assigned(LRISCVVTable.SelectF32x4));
-    AssertTrue('RISCVV InsertF32x4 should be assigned', Assigned(LRISCVVTable.InsertF32x4));
-    AssertTrue('RISCVV ExtractF32x4 should be assigned', Assigned(LRISCVVTable.ExtractF32x4));
+  AssertTrue('RISCVV SelectF32x4 should be assigned', Assigned(LRISCVVTable.SelectF32x4));
+  AssertTrue('RISCVV InsertF32x4 should be assigned', Assigned(LRISCVVTable.InsertF32x4));
+  AssertTrue('RISCVV ExtractF32x4 should be assigned', Assigned(LRISCVVTable.ExtractF32x4));
 
-    {$IFDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
-    AssertTrue('RISCVV should advertise scShuffle when RVV asm-backed representative shuffle slots are compiled',
-      scShuffle in LRISCVVTable.BackendInfo.Capabilities);
-    {$ELSE}
-    AssertFalse('RISCVV should not advertise scShuffle when only scalar/common fallback shuffle slots are compiled',
-      scShuffle in LRISCVVTable.BackendInfo.Capabilities);
-    {$ENDIF}
-  finally
-  end;
+  {$IFDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
+  AssertTrue('RISCVV should advertise scShuffle when RVV asm-backed representative shuffle slots are compiled',
+    scShuffle in LRISCVVTable.BackendInfo.Capabilities);
+  {$ELSE}
+  AssertFalse('RISCVV should not advertise scShuffle when only scalar/common fallback shuffle slots are compiled',
+    scShuffle in LRISCVVTable.BackendInfo.Capabilities);
+  {$ENDIF}
 end;
 
 procedure TTestCase_DispatchAPI.Test_RISCVV_BackendCapabilities_Clear_VectorAsmGatedBits_When_VectorAsmDisabled;
 var
   LScalarTable: TSimdDispatchTable;
   LRISCVVTable: TSimdDispatchTable;
-  LOldVectorAsm: Boolean;
 begin
   {$IFNDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
   Exit;
@@ -11657,66 +11636,57 @@ begin
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    SetVectorAsmEnabled(False);
-    AssertFalse('Vector asm should be disabled for RISCVV capability rebuild test', IsVectorAsmEnabled);
-    AssertTrue('RISCVV backend should remain registered after runtime rebuild',
-      TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+  SetVectorAsmEnabled(True);
+  SetVectorAsmEnabled(False);
+  AssertFalse('Vector asm should be disabled for RISCVV capability rebuild test', IsVectorAsmEnabled);
+  AssertTrue('RISCVV backend should remain registered after runtime rebuild',
+    TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
 
-    AssertEquals('RISCVV FmaF32x4 should fall back to scalar when vector asm is disabled',
-      PtrUInt(LScalarTable.FmaF32x4), PtrUInt(LRISCVVTable.FmaF32x4));
-    AssertEquals('RISCVV SelectF32x4 should fall back to scalar when vector asm is disabled',
-      PtrUInt(LScalarTable.SelectF32x4), PtrUInt(LRISCVVTable.SelectF32x4));
-    AssertEquals('RISCVV InsertF32x4 should fall back to scalar when vector asm is disabled',
-      PtrUInt(LScalarTable.InsertF32x4), PtrUInt(LRISCVVTable.InsertF32x4));
-    AssertEquals('RISCVV ExtractF32x4 should fall back to scalar when vector asm is disabled',
-      PtrUInt(LScalarTable.ExtractF32x4), PtrUInt(LRISCVVTable.ExtractF32x4));
+  AssertEquals('RISCVV FmaF32x4 should fall back to scalar when vector asm is disabled',
+    PtrUInt(LScalarTable.FmaF32x4), PtrUInt(LRISCVVTable.FmaF32x4));
+  AssertEquals('RISCVV SelectF32x4 should fall back to scalar when vector asm is disabled',
+    PtrUInt(LScalarTable.SelectF32x4), PtrUInt(LRISCVVTable.SelectF32x4));
+  AssertEquals('RISCVV InsertF32x4 should fall back to scalar when vector asm is disabled',
+    PtrUInt(LScalarTable.InsertF32x4), PtrUInt(LRISCVVTable.InsertF32x4));
+  AssertEquals('RISCVV ExtractF32x4 should fall back to scalar when vector asm is disabled',
+    PtrUInt(LScalarTable.ExtractF32x4), PtrUInt(LRISCVVTable.ExtractF32x4));
 
-    AssertFalse('RISCVV scFMA should clear when vector asm is disabled',
-      scFMA in LRISCVVTable.BackendInfo.Capabilities);
-    AssertFalse('RISCVV scIntegerOps should clear when vector asm is disabled',
-      scIntegerOps in LRISCVVTable.BackendInfo.Capabilities);
-    AssertFalse('RISCVV scShuffle should clear when vector asm is disabled',
-      scShuffle in LRISCVVTable.BackendInfo.Capabilities);
-  finally
-  end;
+  AssertFalse('RISCVV scFMA should clear when vector asm is disabled',
+    scFMA in LRISCVVTable.BackendInfo.Capabilities);
+  AssertFalse('RISCVV scIntegerOps should clear when vector asm is disabled',
+    scIntegerOps in LRISCVVTable.BackendInfo.Capabilities);
+  AssertFalse('RISCVV scShuffle should clear when vector asm is disabled',
+    scShuffle in LRISCVVTable.BackendInfo.Capabilities);
 end;
 
 procedure TTestCase_DispatchAPI.Test_AVX2_BackendCapabilities_Expose_Shuffle_When_NativeShuffleSlotsUsable;
 var
   LScalarTable: TSimdDispatchTable;
   LAVX2Table: TSimdDispatchTable;
-  LOldVectorAsm: Boolean;
 begin
   AssertTrue('Scalar dispatch table should be registered',
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
-    if not TryGetRegisteredBackendDispatchTable(sbAVX2, LAVX2Table) then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
+  if not TryGetRegisteredBackendDispatchTable(sbAVX2, LAVX2Table) then
+    Exit;
 
-    AssertTrue('AVX2 SelectF32x4 should be assigned', Assigned(LAVX2Table.SelectF32x4));
-    AssertTrue('AVX2 InsertF32x4 should be assigned', Assigned(LAVX2Table.InsertF32x4));
-    AssertTrue('AVX2 ExtractF32x4 should be assigned', Assigned(LAVX2Table.ExtractF32x4));
+  AssertTrue('AVX2 SelectF32x4 should be assigned', Assigned(LAVX2Table.SelectF32x4));
+  AssertTrue('AVX2 InsertF32x4 should be assigned', Assigned(LAVX2Table.InsertF32x4));
+  AssertTrue('AVX2 ExtractF32x4 should be assigned', Assigned(LAVX2Table.ExtractF32x4));
 
-    if (Pointer(LAVX2Table.SelectF32x4) = Pointer(LScalarTable.SelectF32x4)) and
-       (Pointer(LAVX2Table.InsertF32x4) = Pointer(LScalarTable.InsertF32x4)) and
-       (Pointer(LAVX2Table.ExtractF32x4) = Pointer(LScalarTable.ExtractF32x4)) and
-       (Pointer(LAVX2Table.SelectF32x8) = Pointer(LScalarTable.SelectF32x8)) and
-       (Pointer(LAVX2Table.SelectF64x4) = Pointer(LScalarTable.SelectF64x4)) then
-      Exit;
+  if (Pointer(LAVX2Table.SelectF32x4) = Pointer(LScalarTable.SelectF32x4)) and
+     (Pointer(LAVX2Table.InsertF32x4) = Pointer(LScalarTable.InsertF32x4)) and
+     (Pointer(LAVX2Table.ExtractF32x4) = Pointer(LScalarTable.ExtractF32x4)) and
+     (Pointer(LAVX2Table.SelectF32x8) = Pointer(LScalarTable.SelectF32x8)) and
+     (Pointer(LAVX2Table.SelectF64x4) = Pointer(LScalarTable.SelectF64x4)) then
+    Exit;
 
-    AssertTrue('AVX2 should advertise scShuffle once representative shuffle slots are non-scalar',
-      scShuffle in LAVX2Table.BackendInfo.Capabilities);
-  finally
-  end;
+  AssertTrue('AVX2 should advertise scShuffle once representative shuffle slots are non-scalar',
+    scShuffle in LAVX2Table.BackendInfo.Capabilities);
 end;
 
 procedure TTestCase_DispatchAPI.Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_AVX2Shuffle_When_NativeShuffleSlotsUsable;
@@ -11724,104 +11694,89 @@ var
   LInfo: TFafafaSimdBackendPodInfo;
   LScalarTable: TSimdDispatchTable;
   LAVX2Table: TSimdDispatchTable;
-  LOldVectorAsm: Boolean;
 begin
   AssertTrue('Scalar dispatch table should be registered',
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
-    if not TryGetRegisteredBackendDispatchTable(sbAVX2, LAVX2Table) then
-      Exit;
-    if not (scShuffle in LAVX2Table.BackendInfo.Capabilities) then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
+  if not TryGetRegisteredBackendDispatchTable(sbAVX2, LAVX2Table) then
+    Exit;
+  if not (scShuffle in LAVX2Table.BackendInfo.Capabilities) then
+    Exit;
 
-    AssertTrue('AVX2 SelectF32x4 should leave the scalar slot once scShuffle is advertised',
-      Pointer(LAVX2Table.SelectF32x4) <> Pointer(LScalarTable.SelectF32x4));
-    AssertTrue('AVX2 InsertF32x4 should leave the scalar slot once scShuffle is advertised',
-      Pointer(LAVX2Table.InsertF32x4) <> Pointer(LScalarTable.InsertF32x4));
-    AssertTrue('AVX2 ExtractF32x4 should leave the scalar slot once scShuffle is advertised',
-      Pointer(LAVX2Table.ExtractF32x4) <> Pointer(LScalarTable.ExtractF32x4));
-    AssertTrue('AVX2 SelectF32x8 should leave the scalar slot once scShuffle is advertised',
-      Pointer(LAVX2Table.SelectF32x8) <> Pointer(LScalarTable.SelectF32x8));
-    AssertTrue('AVX2 SelectF64x4 should leave the scalar slot once scShuffle is advertised',
-      Pointer(LAVX2Table.SelectF64x4) <> Pointer(LScalarTable.SelectF64x4));
+  AssertTrue('AVX2 SelectF32x4 should leave the scalar slot once scShuffle is advertised',
+    Pointer(LAVX2Table.SelectF32x4) <> Pointer(LScalarTable.SelectF32x4));
+  AssertTrue('AVX2 InsertF32x4 should leave the scalar slot once scShuffle is advertised',
+    Pointer(LAVX2Table.InsertF32x4) <> Pointer(LScalarTable.InsertF32x4));
+  AssertTrue('AVX2 ExtractF32x4 should leave the scalar slot once scShuffle is advertised',
+    Pointer(LAVX2Table.ExtractF32x4) <> Pointer(LScalarTable.ExtractF32x4));
+  AssertTrue('AVX2 SelectF32x8 should leave the scalar slot once scShuffle is advertised',
+    Pointer(LAVX2Table.SelectF32x8) <> Pointer(LScalarTable.SelectF32x8));
+  AssertTrue('AVX2 SelectF64x4 should leave the scalar slot once scShuffle is advertised',
+    Pointer(LAVX2Table.SelectF64x4) <> Pointer(LScalarTable.SelectF64x4));
 
-    AssertTrue('Public ABI pod info should be available for AVX2 shuffle contract test',
-      TryGetSimdBackendPodInfo(sbAVX2, LInfo));
-    AssertTrue('Public ABI CapabilityBits should expose AVX2 scShuffle while native AVX2 shuffle slots are contract-visible',
-      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) <> 0);
-  finally
-  end;
+  AssertTrue('Public ABI pod info should be available for AVX2 shuffle contract test',
+    TryGetSimdBackendPodInfo(sbAVX2, LInfo));
+  AssertTrue('Public ABI CapabilityBits should expose AVX2 scShuffle while native AVX2 shuffle slots are contract-visible',
+    (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) <> 0);
 end;
 
 procedure TTestCase_DispatchAPI.Test_AVX2_BackendCapabilities_Clear_Shuffle_When_VectorAsmDisabled;
 var
   LScalarTable: TSimdDispatchTable;
   LAVX2Table: TSimdDispatchTable;
-  LOldVectorAsm: Boolean;
 begin
   AssertTrue('Scalar dispatch table should be registered',
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(False);
-    AssertFalse('Vector asm should be disabled for AVX2 shuffle capability rebuild test', IsVectorAsmEnabled);
-    if not TryGetRegisteredBackendDispatchTable(sbAVX2, LAVX2Table) then
-      Exit;
+  SetVectorAsmEnabled(False);
+  AssertFalse('Vector asm should be disabled for AVX2 shuffle capability rebuild test', IsVectorAsmEnabled);
+  if not TryGetRegisteredBackendDispatchTable(sbAVX2, LAVX2Table) then
+    Exit;
 
-    AssertEquals('AVX2 SelectF32x4 should fall back to scalar when vector asm is disabled',
-      PtrUInt(LScalarTable.SelectF32x4), PtrUInt(LAVX2Table.SelectF32x4));
-    AssertEquals('AVX2 InsertF32x4 should fall back to scalar when vector asm is disabled',
-      PtrUInt(LScalarTable.InsertF32x4), PtrUInt(LAVX2Table.InsertF32x4));
-    AssertEquals('AVX2 ExtractF32x4 should fall back to scalar when vector asm is disabled',
-      PtrUInt(LScalarTable.ExtractF32x4), PtrUInt(LAVX2Table.ExtractF32x4));
-    AssertEquals('AVX2 SelectF32x8 should fall back to scalar when vector asm is disabled',
-      PtrUInt(LScalarTable.SelectF32x8), PtrUInt(LAVX2Table.SelectF32x8));
-    AssertEquals('AVX2 SelectF64x4 should fall back to scalar when vector asm is disabled',
-      PtrUInt(LScalarTable.SelectF64x4), PtrUInt(LAVX2Table.SelectF64x4));
+  AssertEquals('AVX2 SelectF32x4 should fall back to scalar when vector asm is disabled',
+    PtrUInt(LScalarTable.SelectF32x4), PtrUInt(LAVX2Table.SelectF32x4));
+  AssertEquals('AVX2 InsertF32x4 should fall back to scalar when vector asm is disabled',
+    PtrUInt(LScalarTable.InsertF32x4), PtrUInt(LAVX2Table.InsertF32x4));
+  AssertEquals('AVX2 ExtractF32x4 should fall back to scalar when vector asm is disabled',
+    PtrUInt(LScalarTable.ExtractF32x4), PtrUInt(LAVX2Table.ExtractF32x4));
+  AssertEquals('AVX2 SelectF32x8 should fall back to scalar when vector asm is disabled',
+    PtrUInt(LScalarTable.SelectF32x8), PtrUInt(LAVX2Table.SelectF32x8));
+  AssertEquals('AVX2 SelectF64x4 should fall back to scalar when vector asm is disabled',
+    PtrUInt(LScalarTable.SelectF64x4), PtrUInt(LAVX2Table.SelectF64x4));
 
-    AssertFalse('scShuffle should clear when AVX2 shuffle slots fall back to scalar after vector asm disable',
-      scShuffle in LAVX2Table.BackendInfo.Capabilities);
-  finally
-  end;
+  AssertFalse('scShuffle should clear when AVX2 shuffle slots fall back to scalar after vector asm disable',
+    scShuffle in LAVX2Table.BackendInfo.Capabilities);
 end;
 
 procedure TTestCase_DispatchAPI.Test_PublicApi_BackendPodInfo_CapabilityBits_Clear_AVX2VectorAsmGatedBits_When_VectorAsmDisabled;
 var
   LInfo: TFafafaSimdBackendPodInfo;
   LAVX2Table: TSimdDispatchTable;
-  LOldVectorAsm: Boolean;
 begin
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
-    SetVectorAsmEnabled(False);
-    AssertFalse('Vector asm should be disabled for AVX2 public ABI capability rebuild test', IsVectorAsmEnabled);
-    if not TryGetRegisteredBackendDispatchTable(sbAVX2, LAVX2Table) then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
+  SetVectorAsmEnabled(False);
+  AssertFalse('Vector asm should be disabled for AVX2 public ABI capability rebuild test', IsVectorAsmEnabled);
+  if not TryGetRegisteredBackendDispatchTable(sbAVX2, LAVX2Table) then
+    Exit;
 
-    AssertTrue('Public ABI pod info should be available for AVX2 vector-asm-disabled contract test',
-      TryGetSimdBackendPodInfo(sbAVX2, LInfo));
-    AssertFalse('Registered AVX2 scFMA should clear when vector asm is disabled',
-      scFMA in LAVX2Table.BackendInfo.Capabilities);
-    AssertFalse('Registered AVX2 scShuffle should clear when vector asm is disabled',
-      scShuffle in LAVX2Table.BackendInfo.Capabilities);
-    AssertTrue('Public ABI CapabilityBits should clear AVX2 scFMA when vector asm is disabled',
-      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scFMA))) = 0);
-    AssertTrue('Public ABI CapabilityBits should clear AVX2 scShuffle when vector asm is disabled',
-      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) = 0);
-  finally
-  end;
+  AssertTrue('Public ABI pod info should be available for AVX2 vector-asm-disabled contract test',
+    TryGetSimdBackendPodInfo(sbAVX2, LInfo));
+  AssertFalse('Registered AVX2 scFMA should clear when vector asm is disabled',
+    scFMA in LAVX2Table.BackendInfo.Capabilities);
+  AssertFalse('Registered AVX2 scShuffle should clear when vector asm is disabled',
+    scShuffle in LAVX2Table.BackendInfo.Capabilities);
+  AssertTrue('Public ABI CapabilityBits should clear AVX2 scFMA when vector asm is disabled',
+    (LInfo.CapabilityBits and (UInt64(1) shl Ord(scFMA))) = 0);
+  AssertTrue('Public ABI CapabilityBits should clear AVX2 scShuffle when vector asm is disabled',
+    (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) = 0);
 end;
 
 procedure TTestCase_DispatchAPI.Test_AVX2_FacadeScalarFallback_Uses_BaseFill_Without_Redundant_Win64_Rebinds;
