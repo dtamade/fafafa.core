@@ -7434,3 +7434,29 @@
 - 当前阶段结论：
   - 这批依旧只是 `dispatchapi` / `TTestCase_NonX86BackendParity` 的测试层冗余清理，没有改 SIMD 生产实现
   - 下一步若继续，应从 `14866+` 往后找，并继续跳过任何非空 `finally` 与真实资源释放测试
+
+## 2026-05-16 NonX86 Helper And Core Parity Empty Finally Cleanup
+
+- 这一批继续留在 `TTestCase_NonX86BackendParity`，没有切到 `direct`、`runtimeapi` 或生产实现，但为了提速，把 `14847..16921` 这段连续的 helper/core parity 空壳一次性收掉。
+- 候选筛选过程：
+  - 先逐段读取 `14847..15863`，确认前 5 条方法都同时带未读取 `LOldVectorAsm` 和空 outer `finally`
+  - 再轻量外扩到 `15865..16921`，确认 `MinimalDispatchParity`、`ExtendedFloatParity`、`NarrowAndNotParity`、`DotParity`、`I16x32_CoreParity`、`I8x64_CoreParity`、`U32x16_U64x8_CoreParity` 这 7 条方法虽然没有 `LOldVectorAsm`，但 outer `finally` 同样完全为空
+  - 同时把本轮停点固定在 `16923+`，不把 `WideInteger_FuzzSeed` 及其后续更长的 fuzz/mask/wide integer 段带进来
+- 已完成的源码改动：
+  - 文件：`tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+  - 删除 12 个方法中的纯空 outer `try/finally`
+  - 删除前 5 个方法中的未使用 `LOldVectorAsm`
+  - 保留所有 helper/core parity、slot presence、lane/mask/shift 断言与 `LChecked/LCheckedBackends` 逻辑不变
+- 这轮额外做的卫生确认：
+  - 改完后再用 `rg` 复核，目标区段已不再残留 `LOldVectorAsm` 或空 `finally`
+  - 当前下一步若继续，应从 `16923+` 的 `WideInteger_FuzzSeed_Parity_IfAvailable` 往后推进，并继续先排除任何真实清理或非空 `finally`
+- 本轮验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+- fresh 结果：
+  - `[BUILD] OK`
+  - `[TEST] OK`
+  - `[LEAK] OK`
+- 当前阶段结论：
+  - 这批依旧只是 `dispatchapi` / `TTestCase_NonX86BackendParity` 的测试层冗余清理，没有改 SIMD 生产实现
+  - 下一步若继续，应从 `16923+` 的 `WideInteger_FuzzSeed_Parity_IfAvailable` 往后找，并继续先排除任何真实清理或非空 `finally`

@@ -4272,3 +4272,19 @@
 | 1. 复核 `14232..14865` 候选簇的真实边界 | completed | 已逐段复核 `TTestCase_NonX86BackendParity.Test_NativeWideSplatParity_WithVectorAsm_IfAvailable`、`TTestCase_NonX86BackendParity.Test_NativeF64DotParity_WithVectorAsm_IfAvailable`、`TTestCase_NonX86BackendParity.Test_NativeF64ReduceAddSeedParity_WithVectorAsm_IfAvailable`、`TTestCase_NonX86BackendParity.Test_NativeNormalizeEdgeParity_WithVectorAsm_IfAvailable`：4 条测试都只做 `SetVectorAsmEnabled(True)`、backend 注册/激活筛选、dispatch-table 与 facade parity 或 slot 断言，以及 `LCheckedBackends` 统计；outer `finally` 完全为空，没有任何 backend/table restore；`LOldVectorAsm` 仅做 `IsVectorAsmEnabled` 捕获且后续无读取。相邻 `Test_NativeVectorMathParity_WithVectorAsm_IfAvailable` 的 `finally` 非空，`14056..14230` 的 `FreeAligned(...)` 真实清理也已继续排除 |
 | 2. 只收这一簇高确定性命中 | completed | 已在上述 4 个 non-x86 parity 测试中删除纯空 outer `try/finally`，并删除对应未使用的 `LOldVectorAsm`；所有 splat/dot/reduce/normalize 断言、NEON scalar-reuse 例外与 `LCheckedBackends` 逻辑保持不变 |
 | 3. 用单 suite release 复验收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 复验；构建、测试与 leak check 全部通过 |
+
+## 2026-05-16 NonX86 Helper And Core Parity Empty Finally Cleanup
+
+### Goal
+
+继续沿 `TTestCase_NonX86BackendParity` 的高确定性清理线推进到 `14847..16921`，一次性收掉这段连续 helper/core parity 测试里的两类确定性冗余：
+- `LOldVectorAsm` 只声明和赋值、但从不读取
+- outer `try/finally` 的 `finally` 体完全为空
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `14847..16921` 连续候选簇的真实边界 | completed | 已逐段复核 12 条连续方法：`Test_NativeWideInsertHelperParity_WithVectorAsm_IfAvailable`、`Test_NativeWideIntegerExtractEdgeParity_WithVectorAsm_IfAvailable`、`Test_NativeNarrowFloatHelperParity_WithVectorAsm_IfAvailable`、`Test_NativeNarrowIntegerCoreParity_WithVectorAsm_IfAvailable`、`Test_NativeNarrowIntegerHelperParity_WithVectorAsm_IfAvailable`、`Test_MinimalDispatchParity_IfAvailable`、`Test_ExtendedFloatParity_IfAvailable`、`Test_NarrowAndNotParity_IfAvailable`、`Test_DotParity_IfAvailable`、`Test_I16x32_CoreParity_IfAvailable`、`Test_I8x64_CoreParity_IfAvailable`、`Test_U32x16_U64x8_CoreParity_IfAvailable`；前 5 条同时带未读取 `LOldVectorAsm` 和空 outer `finally`，后 7 条只带空 outer `finally`。这 12 条都只做 backend 注册/激活筛选、dispatch-table/facade parity 与 slot 断言，没有任何 backend/table restore、hook cleanup 或资源释放；当前批次明确停在 `16923+` 之前，不把 `WideInteger_FuzzSeed` 及后续长段带进来 |
+| 2. 只收这一簇高确定性命中 | completed | 已在上述 12 个 non-x86 helper/core parity 测试中删除纯空 outer `try/finally`；其中前 5 条同步删除未使用 `LOldVectorAsm`。所有 helper/core parity、lane/mask/shift 断言与 `LChecked/LCheckedBackends` 逻辑保持不变 |
+| 3. 用单 suite release 复验收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 复验；构建、测试与 leak check 全部通过 |

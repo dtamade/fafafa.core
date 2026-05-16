@@ -6249,3 +6249,29 @@
 - 这继续强化当前准则：
   - 即使测试主题切到 non-x86 wide splat、F64 dot、seeded reduce 与 normalize edge parity，只要 outer `finally` 不承担真实恢复职责，就仍然可以按同一 fail-close 规则剥掉机械空壳
   - 相邻的非空 `finally` 与资源释放路径依然要按“真实职责优先”保留，不能为了统一样式机械收平
+
+## 2026-05-16 NonX86 Helper And Core Parity Empty Finally Cleanup
+
+- `dispatchapi.testcase` / `TTestCase_NonX86BackendParity` 的 `14847..16921` 说明，空 outer `finally` 与死 `LOldVectorAsm` 还继续成片分布在后段的 helper/core parity 测试里。
+- 这次确认可安全清理的 12 条方法是：
+  - `TTestCase_NonX86BackendParity.Test_NativeWideInsertHelperParity_WithVectorAsm_IfAvailable`
+  - `TTestCase_NonX86BackendParity.Test_NativeWideIntegerExtractEdgeParity_WithVectorAsm_IfAvailable`
+  - `TTestCase_NonX86BackendParity.Test_NativeNarrowFloatHelperParity_WithVectorAsm_IfAvailable`
+  - `TTestCase_NonX86BackendParity.Test_NativeNarrowIntegerCoreParity_WithVectorAsm_IfAvailable`
+  - `TTestCase_NonX86BackendParity.Test_NativeNarrowIntegerHelperParity_WithVectorAsm_IfAvailable`
+  - `TTestCase_NonX86BackendParity.Test_MinimalDispatchParity_IfAvailable`
+  - `TTestCase_NonX86BackendParity.Test_ExtendedFloatParity_IfAvailable`
+  - `TTestCase_NonX86BackendParity.Test_NarrowAndNotParity_IfAvailable`
+  - `TTestCase_NonX86BackendParity.Test_DotParity_IfAvailable`
+  - `TTestCase_NonX86BackendParity.Test_I16x32_CoreParity_IfAvailable`
+  - `TTestCase_NonX86BackendParity.Test_I8x64_CoreParity_IfAvailable`
+  - `TTestCase_NonX86BackendParity.Test_U32x16_U64x8_CoreParity_IfAvailable`
+- 它们的共同边界比前几批更清楚：
+  - 前 5 条测试都带 `LOldVectorAsm := IsVectorAsmEnabled`，但后续完全不读取，同时 outer `finally` 为空
+  - 后 7 条虽然没有 `LOldVectorAsm`，但 outer `try/finally` 同样只包裹 backend 循环，`finally` 体完全为空
+  - 这 12 条都只做 backend 注册/激活筛选、dispatch-table/facade parity、slot presence、lane/mask/shift 合同断言，不承担任何 restore、hook cleanup 或资源释放职责
+- 这次也额外确认了新的停点：
+  - 当前批次明确停在 `Test_WideInteger_FuzzSeed_Parity_IfAvailable` 之前，不把 `16923+` 的 fuzz/mask 长段和后续更重的 wide integer parity 混进同一批
+- 这继续强化当前准则：
+  - 即使测试主题切到 non-x86 narrow/wide helper、core arithmetic、mask parity 或 minimal dispatch，只要 outer `finally` 不承担真实恢复职责，就仍然可以按同一 fail-close 规则剥掉机械空壳
+  - 当连续区段只剩同构空壳时，可以适度扩大同批处理范围提升效率，但仍要用明确停点避免重新扩散 scope

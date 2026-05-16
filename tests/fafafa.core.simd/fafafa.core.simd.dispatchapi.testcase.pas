@@ -14865,7 +14865,6 @@ var
   LIndex: Integer;
   LExtractIndex: Integer;
   LCheckedBackends: Integer;
-  LOldVectorAsm: Boolean;
 
   procedure AssertNativeSlotNotScalar(const aBackendName, aSlotName: string; const aScalarSlot, aBackendSlot: Pointer);
   begin
@@ -14986,148 +14985,144 @@ begin
   end;
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
 
-    for LBackend in LBackends do
+  for LBackend in LBackends do
+  begin
+    case LBackend of
+      sbNEON:
+        begin
+          {$IFNDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
+          Continue;
+          {$ENDIF}
+        end;
+      sbRISCVV:
+        begin
+          {$IFNDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
+          Continue;
+          {$ENDIF}
+        end;
+    end;
+    if not IsBackendRegistered(LBackend) then
+      Continue;
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+      Continue;
+    if not TrySetActiveBackend(LBackend) then
+      Continue;
+
+    Inc(LCheckedBackends);
+
+    AssertBackendOwnedFloatSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertF32x8',
+      Pointer(LScalarTable.InsertF32x8), Pointer(LBackendTable.InsertF32x8));
+    AssertBackendOwnedFloatSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertF32x16',
+      Pointer(LScalarTable.InsertF32x16), Pointer(LBackendTable.InsertF32x16));
+    AssertBackendOwnedFloatSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertF64x4',
+      Pointer(LScalarTable.InsertF64x4), Pointer(LBackendTable.InsertF64x4));
+    AssertBackendOwnedFloatSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'ExtractF32x8',
+      Pointer(LScalarTable.ExtractF32x8), Pointer(LBackendTable.ExtractF32x8));
+    AssertBackendOwnedFloatSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'ExtractF32x16',
+      Pointer(LScalarTable.ExtractF32x16), Pointer(LBackendTable.ExtractF32x16));
+    AssertBackendOwnedFloatSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'ExtractF64x4',
+      Pointer(LScalarTable.ExtractF64x4), Pointer(LBackendTable.ExtractF64x4));
+    AssertBackendOwnedIntegerSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertI32x8',
+      Pointer(LScalarTable.InsertI32x8), Pointer(LBackendTable.InsertI32x8));
+    AssertBackendOwnedIntegerSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertI32x16',
+      Pointer(LScalarTable.InsertI32x16), Pointer(LBackendTable.InsertI32x16));
+    AssertBackendOwnedIntegerSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertI64x4',
+      Pointer(LScalarTable.InsertI64x4), Pointer(LBackendTable.InsertI64x4));
+
+    LF32x8ByBackend := LBackendTable.InsertF32x8(LF32x8Base, -77.5, 4);
+    LF32x8ByScalar := LScalarTable.InsertF32x8(LF32x8Base, -77.5, 4);
+    AssertVecF32x8Equal('InsertF32x8 dispatch-table', NonX86BackendName(LBackend), LF32x8ByScalar, LF32x8ByBackend, 1e-6);
+
+    LF32x8ByFacade := VecF32x8Insert(LF32x8Base, -77.5, 4);
+    AssertVecF32x8Equal('InsertF32x8 facade', NonX86BackendName(LBackend), LF32x8ByScalar, LF32x8ByFacade, 1e-6);
+
+    LF32x16ByBackend := LBackendTable.InsertF32x16(LF32x16Base, 88.25, 11);
+    LF32x16ByScalar := LScalarTable.InsertF32x16(LF32x16Base, 88.25, 11);
+    AssertVecF32x16Equal('InsertF32x16 dispatch-table', NonX86BackendName(LBackend), LF32x16ByScalar, LF32x16ByBackend, 1e-6);
+
+    LF32x16ByFacade := VecF32x16Insert(LF32x16Base, 88.25, 11);
+    AssertVecF32x16Equal('InsertF32x16 facade', NonX86BackendName(LBackend), LF32x16ByScalar, LF32x16ByFacade, 1e-6);
+
+    LF64x4ByBackend := LBackendTable.InsertF64x4(LF64x4Base, -999.125, 1);
+    LF64x4ByScalar := LScalarTable.InsertF64x4(LF64x4Base, -999.125, 1);
+    AssertVecF64x4Equal('InsertF64x4 dispatch-table', NonX86BackendName(LBackend), LF64x4ByScalar, LF64x4ByBackend, 1e-12);
+
+    LF64x4ByFacade := VecF64x4Insert(LF64x4Base, -999.125, 1);
+    AssertVecF64x4Equal('InsertF64x4 facade', NonX86BackendName(LBackend), LF64x4ByScalar, LF64x4ByFacade, 1e-12);
+
+    for LIndex := 0 to 3 do
     begin
-      case LBackend of
-        sbNEON:
-          begin
-            {$IFNDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
-            Continue;
-            {$ENDIF}
-          end;
-        sbRISCVV:
-          begin
-            {$IFNDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
-            Continue;
-            {$ENDIF}
-          end;
+      case LIndex of
+        0: LExtractIndex := -99;
+        1: LExtractIndex := 0;
+        2: LExtractIndex := 7;
+      else
+        LExtractIndex := 99;
       end;
-      if not IsBackendRegistered(LBackend) then
-        Continue;
-      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
-        Continue;
-      if not TrySetActiveBackend(LBackend) then
-        Continue;
-
-      Inc(LCheckedBackends);
-
-      AssertBackendOwnedFloatSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertF32x8',
-        Pointer(LScalarTable.InsertF32x8), Pointer(LBackendTable.InsertF32x8));
-      AssertBackendOwnedFloatSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertF32x16',
-        Pointer(LScalarTable.InsertF32x16), Pointer(LBackendTable.InsertF32x16));
-      AssertBackendOwnedFloatSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertF64x4',
-        Pointer(LScalarTable.InsertF64x4), Pointer(LBackendTable.InsertF64x4));
-      AssertBackendOwnedFloatSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'ExtractF32x8',
-        Pointer(LScalarTable.ExtractF32x8), Pointer(LBackendTable.ExtractF32x8));
-      AssertBackendOwnedFloatSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'ExtractF32x16',
-        Pointer(LScalarTable.ExtractF32x16), Pointer(LBackendTable.ExtractF32x16));
-      AssertBackendOwnedFloatSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'ExtractF64x4',
-        Pointer(LScalarTable.ExtractF64x4), Pointer(LBackendTable.ExtractF64x4));
-      AssertBackendOwnedIntegerSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertI32x8',
-        Pointer(LScalarTable.InsertI32x8), Pointer(LBackendTable.InsertI32x8));
-      AssertBackendOwnedIntegerSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertI32x16',
-        Pointer(LScalarTable.InsertI32x16), Pointer(LBackendTable.InsertI32x16));
-      AssertBackendOwnedIntegerSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertI64x4',
-        Pointer(LScalarTable.InsertI64x4), Pointer(LBackendTable.InsertI64x4));
-
-      LF32x8ByBackend := LBackendTable.InsertF32x8(LF32x8Base, -77.5, 4);
-      LF32x8ByScalar := LScalarTable.InsertF32x8(LF32x8Base, -77.5, 4);
-      AssertVecF32x8Equal('InsertF32x8 dispatch-table', NonX86BackendName(LBackend), LF32x8ByScalar, LF32x8ByBackend, 1e-6);
-
-      LF32x8ByFacade := VecF32x8Insert(LF32x8Base, -77.5, 4);
-      AssertVecF32x8Equal('InsertF32x8 facade', NonX86BackendName(LBackend), LF32x8ByScalar, LF32x8ByFacade, 1e-6);
-
-      LF32x16ByBackend := LBackendTable.InsertF32x16(LF32x16Base, 88.25, 11);
-      LF32x16ByScalar := LScalarTable.InsertF32x16(LF32x16Base, 88.25, 11);
-      AssertVecF32x16Equal('InsertF32x16 dispatch-table', NonX86BackendName(LBackend), LF32x16ByScalar, LF32x16ByBackend, 1e-6);
-
-      LF32x16ByFacade := VecF32x16Insert(LF32x16Base, 88.25, 11);
-      AssertVecF32x16Equal('InsertF32x16 facade', NonX86BackendName(LBackend), LF32x16ByScalar, LF32x16ByFacade, 1e-6);
-
-      LF64x4ByBackend := LBackendTable.InsertF64x4(LF64x4Base, -999.125, 1);
-      LF64x4ByScalar := LScalarTable.InsertF64x4(LF64x4Base, -999.125, 1);
-      AssertVecF64x4Equal('InsertF64x4 dispatch-table', NonX86BackendName(LBackend), LF64x4ByScalar, LF64x4ByBackend, 1e-12);
-
-      LF64x4ByFacade := VecF64x4Insert(LF64x4Base, -999.125, 1);
-      AssertVecF64x4Equal('InsertF64x4 facade', NonX86BackendName(LBackend), LF64x4ByScalar, LF64x4ByFacade, 1e-12);
-
-      for LIndex := 0 to 3 do
-      begin
-        case LIndex of
-          0: LExtractIndex := -99;
-          1: LExtractIndex := 0;
-          2: LExtractIndex := 7;
-        else
-          LExtractIndex := 99;
-        end;
-        AssertEquals('ExtractF32x8 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
-          LScalarTable.ExtractF32x8(LF32x8Base, LExtractIndex), LBackendTable.ExtractF32x8(LF32x8Base, LExtractIndex), 1e-6);
-        AssertEquals('ExtractF32x8 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
-          LScalarTable.ExtractF32x8(LF32x8Base, LExtractIndex), VecF32x8Extract(LF32x8Base, LExtractIndex), 1e-6);
-      end;
-
-      for LIndex := 0 to 3 do
-      begin
-        case LIndex of
-          0: LExtractIndex := -99;
-          1: LExtractIndex := 0;
-          2: LExtractIndex := 15;
-        else
-          LExtractIndex := 99;
-        end;
-        AssertEquals('ExtractF32x16 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
-          LScalarTable.ExtractF32x16(LF32x16Base, LExtractIndex), LBackendTable.ExtractF32x16(LF32x16Base, LExtractIndex), 1e-6);
-        AssertEquals('ExtractF32x16 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
-          LScalarTable.ExtractF32x16(LF32x16Base, LExtractIndex), VecF32x16Extract(LF32x16Base, LExtractIndex), 1e-6);
-      end;
-
-      for LIndex := 0 to 3 do
-      begin
-        case LIndex of
-          0: LExtractIndex := -99;
-          1: LExtractIndex := 0;
-          2: LExtractIndex := 3;
-        else
-          LExtractIndex := 99;
-        end;
-        AssertEquals('ExtractF64x4 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
-          LScalarTable.ExtractF64x4(LF64x4Base, LExtractIndex), LBackendTable.ExtractF64x4(LF64x4Base, LExtractIndex), 1e-12);
-        AssertEquals('ExtractF64x4 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
-          LScalarTable.ExtractF64x4(LF64x4Base, LExtractIndex), VecF64x4Extract(LF64x4Base, LExtractIndex), 1e-12);
-      end;
-
-      LI32x8ByBackend := LBackendTable.InsertI32x8(LI32x8Base, -2026, 5);
-      LI32x8ByScalar := LScalarTable.InsertI32x8(LI32x8Base, -2026, 5);
-      AssertVecI32x8Equal('InsertI32x8 dispatch-table', NonX86BackendName(LBackend), LI32x8ByScalar, LI32x8ByBackend);
-
-      LI32x8ByFacade := VecI32x8Insert(LI32x8Base, -2026, 5);
-      AssertVecI32x8Equal('InsertI32x8 facade', NonX86BackendName(LBackend), LI32x8ByScalar, LI32x8ByFacade);
-
-      LI32x16ByBackend := LBackendTable.InsertI32x16(LI32x16Base, 314159, 9);
-      LI32x16ByScalar := LScalarTable.InsertI32x16(LI32x16Base, 314159, 9);
-      AssertVecI32x16Equal('InsertI32x16 dispatch-table', NonX86BackendName(LBackend), LI32x16ByScalar, LI32x16ByBackend);
-
-      LI32x16ByFacade := VecI32x16Insert(LI32x16Base, 314159, 9);
-      AssertVecI32x16Equal('InsertI32x16 facade', NonX86BackendName(LBackend), LI32x16ByScalar, LI32x16ByFacade);
-
-      LI64x4ByBackend := LBackendTable.InsertI64x4(LI64x4Base, Int64(-888888888), 1);
-      LI64x4ByScalar := LScalarTable.InsertI64x4(LI64x4Base, Int64(-888888888), 1);
-      AssertVecI64x4Equal('InsertI64x4 dispatch-table', NonX86BackendName(LBackend), LI64x4ByScalar, LI64x4ByBackend);
-
-      LI64x4ByFacade := VecI64x4Insert(LI64x4Base, Int64(-888888888), 1);
-      AssertVecI64x4Equal('InsertI64x4 facade', NonX86BackendName(LBackend), LI64x4ByScalar, LI64x4ByFacade);
+      AssertEquals('ExtractF32x8 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+        LScalarTable.ExtractF32x8(LF32x8Base, LExtractIndex), LBackendTable.ExtractF32x8(LF32x8Base, LExtractIndex), 1e-6);
+      AssertEquals('ExtractF32x8 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+        LScalarTable.ExtractF32x8(LF32x8Base, LExtractIndex), VecF32x8Extract(LF32x8Base, LExtractIndex), 1e-6);
     end;
 
-    if LCheckedBackends = 0 then
-      AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
-  finally
+    for LIndex := 0 to 3 do
+    begin
+      case LIndex of
+        0: LExtractIndex := -99;
+        1: LExtractIndex := 0;
+        2: LExtractIndex := 15;
+      else
+        LExtractIndex := 99;
+      end;
+      AssertEquals('ExtractF32x16 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+        LScalarTable.ExtractF32x16(LF32x16Base, LExtractIndex), LBackendTable.ExtractF32x16(LF32x16Base, LExtractIndex), 1e-6);
+      AssertEquals('ExtractF32x16 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+        LScalarTable.ExtractF32x16(LF32x16Base, LExtractIndex), VecF32x16Extract(LF32x16Base, LExtractIndex), 1e-6);
+    end;
+
+    for LIndex := 0 to 3 do
+    begin
+      case LIndex of
+        0: LExtractIndex := -99;
+        1: LExtractIndex := 0;
+        2: LExtractIndex := 3;
+      else
+        LExtractIndex := 99;
+      end;
+      AssertEquals('ExtractF64x4 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+        LScalarTable.ExtractF64x4(LF64x4Base, LExtractIndex), LBackendTable.ExtractF64x4(LF64x4Base, LExtractIndex), 1e-12);
+      AssertEquals('ExtractF64x4 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+        LScalarTable.ExtractF64x4(LF64x4Base, LExtractIndex), VecF64x4Extract(LF64x4Base, LExtractIndex), 1e-12);
+    end;
+
+    LI32x8ByBackend := LBackendTable.InsertI32x8(LI32x8Base, -2026, 5);
+    LI32x8ByScalar := LScalarTable.InsertI32x8(LI32x8Base, -2026, 5);
+    AssertVecI32x8Equal('InsertI32x8 dispatch-table', NonX86BackendName(LBackend), LI32x8ByScalar, LI32x8ByBackend);
+
+    LI32x8ByFacade := VecI32x8Insert(LI32x8Base, -2026, 5);
+    AssertVecI32x8Equal('InsertI32x8 facade', NonX86BackendName(LBackend), LI32x8ByScalar, LI32x8ByFacade);
+
+    LI32x16ByBackend := LBackendTable.InsertI32x16(LI32x16Base, 314159, 9);
+    LI32x16ByScalar := LScalarTable.InsertI32x16(LI32x16Base, 314159, 9);
+    AssertVecI32x16Equal('InsertI32x16 dispatch-table', NonX86BackendName(LBackend), LI32x16ByScalar, LI32x16ByBackend);
+
+    LI32x16ByFacade := VecI32x16Insert(LI32x16Base, 314159, 9);
+    AssertVecI32x16Equal('InsertI32x16 facade', NonX86BackendName(LBackend), LI32x16ByScalar, LI32x16ByFacade);
+
+    LI64x4ByBackend := LBackendTable.InsertI64x4(LI64x4Base, Int64(-888888888), 1);
+    LI64x4ByScalar := LScalarTable.InsertI64x4(LI64x4Base, Int64(-888888888), 1);
+    AssertVecI64x4Equal('InsertI64x4 dispatch-table', NonX86BackendName(LBackend), LI64x4ByScalar, LI64x4ByBackend);
+
+    LI64x4ByFacade := VecI64x4Insert(LI64x4Base, Int64(-888888888), 1);
+    AssertVecI64x4Equal('InsertI64x4 facade', NonX86BackendName(LBackend), LI64x4ByScalar, LI64x4ByFacade);
   end;
+
+  if LCheckedBackends = 0 then
+    AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
 end;
 
 procedure TTestCase_NonX86BackendParity.Test_NativeWideIntegerExtractEdgeParity_WithVectorAsm_IfAvailable;
@@ -15151,7 +15146,6 @@ var
   LIndex: Integer;
   LExtractIndex: Integer;
   LCheckedBackends: Integer;
-  LOldVectorAsm: Boolean;
 
   procedure AssertBackendOwnedSlotIfExpected(
     const aBackend: TSimdBackend;
@@ -15229,136 +15223,132 @@ begin
   LI64x4Base.i[3] := Int64(-444444444444444444);
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
 
-    for LBackend in LBackends do
+  for LBackend in LBackends do
+  begin
+    case LBackend of
+      sbNEON:
+        begin
+          {$IFNDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
+          Continue;
+          {$ENDIF}
+        end;
+      sbRISCVV:
+        begin
+          {$IFNDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
+          Continue;
+          {$ENDIF}
+        end;
+    end;
+    if not IsBackendRegistered(LBackend) then
+      Continue;
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+      Continue;
+    if not TrySetActiveBackend(LBackend) then
+      Continue;
+
+    Inc(LCheckedBackends);
+
+    AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'ExtractI32x8',
+      Pointer(LScalarTable.ExtractI32x8), Pointer(LBackendTable.ExtractI32x8));
+    AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertI32x8',
+      Pointer(LScalarTable.InsertI32x8), Pointer(LBackendTable.InsertI32x8));
+    AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'ExtractI32x16',
+      Pointer(LScalarTable.ExtractI32x16), Pointer(LBackendTable.ExtractI32x16));
+    AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertI32x16',
+      Pointer(LScalarTable.InsertI32x16), Pointer(LBackendTable.InsertI32x16));
+    AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'ExtractI64x4',
+      Pointer(LScalarTable.ExtractI64x4), Pointer(LBackendTable.ExtractI64x4));
+    AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertI64x4',
+      Pointer(LScalarTable.InsertI64x4), Pointer(LBackendTable.InsertI64x4));
+
+    for LIndex := 0 to 3 do
     begin
-      case LBackend of
-        sbNEON:
-          begin
-            {$IFNDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
-            Continue;
-            {$ENDIF}
-          end;
-        sbRISCVV:
-          begin
-            {$IFNDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
-            Continue;
-            {$ENDIF}
-          end;
-      end;
-      if not IsBackendRegistered(LBackend) then
-        Continue;
-      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
-        Continue;
-      if not TrySetActiveBackend(LBackend) then
-        Continue;
-
-      Inc(LCheckedBackends);
-
-      AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'ExtractI32x8',
-        Pointer(LScalarTable.ExtractI32x8), Pointer(LBackendTable.ExtractI32x8));
-      AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertI32x8',
-        Pointer(LScalarTable.InsertI32x8), Pointer(LBackendTable.InsertI32x8));
-      AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'ExtractI32x16',
-        Pointer(LScalarTable.ExtractI32x16), Pointer(LBackendTable.ExtractI32x16));
-      AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertI32x16',
-        Pointer(LScalarTable.InsertI32x16), Pointer(LBackendTable.InsertI32x16));
-      AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'ExtractI64x4',
-        Pointer(LScalarTable.ExtractI64x4), Pointer(LBackendTable.ExtractI64x4));
-      AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertI64x4',
-        Pointer(LScalarTable.InsertI64x4), Pointer(LBackendTable.InsertI64x4));
-
-      for LIndex := 0 to 3 do
-      begin
-        case LIndex of
-          0: LExtractIndex := -99;
-          1: LExtractIndex := 0;
-          2: LExtractIndex := 7;
-        else
-          LExtractIndex := 99;
-        end;
-
-        LExpectedI32 := LScalarTable.ExtractI32x8(LI32x8Base, LExtractIndex);
-        LActualI32 := LBackendTable.ExtractI32x8(LI32x8Base, LExtractIndex);
-        AssertEquals('ExtractI32x8 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
-          LExpectedI32, LActualI32);
-
-        LFacadeI32 := VecI32x8Extract(LI32x8Base, LExtractIndex);
-        AssertEquals('ExtractI32x8 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
-          LExpectedI32, LFacadeI32);
-
-        LI32x8ByBackend := LBackendTable.InsertI32x8(LI32x8Base, High(Int32) - LIndex, LExtractIndex);
-        LI32x8ByScalar := LScalarTable.InsertI32x8(LI32x8Base, High(Int32) - LIndex, LExtractIndex);
-        AssertVecI32x8Equal('InsertI32x8 dispatch-table idx ' + IntToStr(LExtractIndex), NonX86BackendName(LBackend), LI32x8ByScalar, LI32x8ByBackend);
-
-        LI32x8ByFacade := VecI32x8Insert(LI32x8Base, High(Int32) - LIndex, LExtractIndex);
-        AssertVecI32x8Equal('InsertI32x8 facade idx ' + IntToStr(LExtractIndex), NonX86BackendName(LBackend), LI32x8ByScalar, LI32x8ByFacade);
+      case LIndex of
+        0: LExtractIndex := -99;
+        1: LExtractIndex := 0;
+        2: LExtractIndex := 7;
+      else
+        LExtractIndex := 99;
       end;
 
-      for LIndex := 0 to 3 do
-      begin
-        case LIndex of
-          0: LExtractIndex := -99;
-          1: LExtractIndex := 0;
-          2: LExtractIndex := 15;
-        else
-          LExtractIndex := 99;
-        end;
+      LExpectedI32 := LScalarTable.ExtractI32x8(LI32x8Base, LExtractIndex);
+      LActualI32 := LBackendTable.ExtractI32x8(LI32x8Base, LExtractIndex);
+      AssertEquals('ExtractI32x8 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+        LExpectedI32, LActualI32);
 
-        LExpectedI32 := LScalarTable.ExtractI32x16(LI32x16Base, LExtractIndex);
-        LActualI32 := LBackendTable.ExtractI32x16(LI32x16Base, LExtractIndex);
-        AssertEquals('ExtractI32x16 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
-          LExpectedI32, LActualI32);
+      LFacadeI32 := VecI32x8Extract(LI32x8Base, LExtractIndex);
+      AssertEquals('ExtractI32x8 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+        LExpectedI32, LFacadeI32);
 
-        LFacadeI32 := VecI32x16Extract(LI32x16Base, LExtractIndex);
-        AssertEquals('ExtractI32x16 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
-          LExpectedI32, LFacadeI32);
+      LI32x8ByBackend := LBackendTable.InsertI32x8(LI32x8Base, High(Int32) - LIndex, LExtractIndex);
+      LI32x8ByScalar := LScalarTable.InsertI32x8(LI32x8Base, High(Int32) - LIndex, LExtractIndex);
+      AssertVecI32x8Equal('InsertI32x8 dispatch-table idx ' + IntToStr(LExtractIndex), NonX86BackendName(LBackend), LI32x8ByScalar, LI32x8ByBackend);
 
-        LI32x16ByBackend := LBackendTable.InsertI32x16(LI32x16Base, Low(Int32) + LIndex, LExtractIndex);
-        LI32x16ByScalar := LScalarTable.InsertI32x16(LI32x16Base, Low(Int32) + LIndex, LExtractIndex);
-        AssertVecI32x16Equal('InsertI32x16 dispatch-table idx ' + IntToStr(LExtractIndex), NonX86BackendName(LBackend), LI32x16ByScalar, LI32x16ByBackend);
-
-        LI32x16ByFacade := VecI32x16Insert(LI32x16Base, Low(Int32) + LIndex, LExtractIndex);
-        AssertVecI32x16Equal('InsertI32x16 facade idx ' + IntToStr(LExtractIndex), NonX86BackendName(LBackend), LI32x16ByScalar, LI32x16ByFacade);
-      end;
-
-      for LIndex := 0 to 3 do
-      begin
-        case LIndex of
-          0: LExtractIndex := -99;
-          1: LExtractIndex := 0;
-          2: LExtractIndex := 3;
-        else
-          LExtractIndex := 99;
-        end;
-
-        LExpectedI64 := LScalarTable.ExtractI64x4(LI64x4Base, LExtractIndex);
-        LActualI64 := LBackendTable.ExtractI64x4(LI64x4Base, LExtractIndex);
-        AssertEquals('ExtractI64x4 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
-          LExpectedI64, LActualI64);
-
-        LFacadeI64 := VecI64x4Extract(LI64x4Base, LExtractIndex);
-        AssertEquals('ExtractI64x4 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
-          LExpectedI64, LFacadeI64);
-
-        LI64x4ByBackend := LBackendTable.InsertI64x4(LI64x4Base, Int64(Low(Int64) + LIndex), LExtractIndex);
-        LI64x4ByScalar := LScalarTable.InsertI64x4(LI64x4Base, Int64(Low(Int64) + LIndex), LExtractIndex);
-        AssertVecI64x4Equal('InsertI64x4 dispatch-table idx ' + IntToStr(LExtractIndex), NonX86BackendName(LBackend), LI64x4ByScalar, LI64x4ByBackend);
-
-        LI64x4ByFacade := VecI64x4Insert(LI64x4Base, Int64(Low(Int64) + LIndex), LExtractIndex);
-        AssertVecI64x4Equal('InsertI64x4 facade idx ' + IntToStr(LExtractIndex), NonX86BackendName(LBackend), LI64x4ByScalar, LI64x4ByFacade);
-      end;
+      LI32x8ByFacade := VecI32x8Insert(LI32x8Base, High(Int32) - LIndex, LExtractIndex);
+      AssertVecI32x8Equal('InsertI32x8 facade idx ' + IntToStr(LExtractIndex), NonX86BackendName(LBackend), LI32x8ByScalar, LI32x8ByFacade);
     end;
 
-    if LCheckedBackends = 0 then
-      AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
-  finally
+    for LIndex := 0 to 3 do
+    begin
+      case LIndex of
+        0: LExtractIndex := -99;
+        1: LExtractIndex := 0;
+        2: LExtractIndex := 15;
+      else
+        LExtractIndex := 99;
+      end;
+
+      LExpectedI32 := LScalarTable.ExtractI32x16(LI32x16Base, LExtractIndex);
+      LActualI32 := LBackendTable.ExtractI32x16(LI32x16Base, LExtractIndex);
+      AssertEquals('ExtractI32x16 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+        LExpectedI32, LActualI32);
+
+      LFacadeI32 := VecI32x16Extract(LI32x16Base, LExtractIndex);
+      AssertEquals('ExtractI32x16 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+        LExpectedI32, LFacadeI32);
+
+      LI32x16ByBackend := LBackendTable.InsertI32x16(LI32x16Base, Low(Int32) + LIndex, LExtractIndex);
+      LI32x16ByScalar := LScalarTable.InsertI32x16(LI32x16Base, Low(Int32) + LIndex, LExtractIndex);
+      AssertVecI32x16Equal('InsertI32x16 dispatch-table idx ' + IntToStr(LExtractIndex), NonX86BackendName(LBackend), LI32x16ByScalar, LI32x16ByBackend);
+
+      LI32x16ByFacade := VecI32x16Insert(LI32x16Base, Low(Int32) + LIndex, LExtractIndex);
+      AssertVecI32x16Equal('InsertI32x16 facade idx ' + IntToStr(LExtractIndex), NonX86BackendName(LBackend), LI32x16ByScalar, LI32x16ByFacade);
+    end;
+
+    for LIndex := 0 to 3 do
+    begin
+      case LIndex of
+        0: LExtractIndex := -99;
+        1: LExtractIndex := 0;
+        2: LExtractIndex := 3;
+      else
+        LExtractIndex := 99;
+      end;
+
+      LExpectedI64 := LScalarTable.ExtractI64x4(LI64x4Base, LExtractIndex);
+      LActualI64 := LBackendTable.ExtractI64x4(LI64x4Base, LExtractIndex);
+      AssertEquals('ExtractI64x4 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+        LExpectedI64, LActualI64);
+
+      LFacadeI64 := VecI64x4Extract(LI64x4Base, LExtractIndex);
+      AssertEquals('ExtractI64x4 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+        LExpectedI64, LFacadeI64);
+
+      LI64x4ByBackend := LBackendTable.InsertI64x4(LI64x4Base, Int64(Low(Int64) + LIndex), LExtractIndex);
+      LI64x4ByScalar := LScalarTable.InsertI64x4(LI64x4Base, Int64(Low(Int64) + LIndex), LExtractIndex);
+      AssertVecI64x4Equal('InsertI64x4 dispatch-table idx ' + IntToStr(LExtractIndex), NonX86BackendName(LBackend), LI64x4ByScalar, LI64x4ByBackend);
+
+      LI64x4ByFacade := VecI64x4Insert(LI64x4Base, Int64(Low(Int64) + LIndex), LExtractIndex);
+      AssertVecI64x4Equal('InsertI64x4 facade idx ' + IntToStr(LExtractIndex), NonX86BackendName(LBackend), LI64x4ByScalar, LI64x4ByFacade);
+    end;
   end;
+
+  if LCheckedBackends = 0 then
+    AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
 end;
 
 procedure TTestCase_NonX86BackendParity.Test_NativeNarrowFloatHelperParity_WithVectorAsm_IfAvailable;
@@ -15374,7 +15364,6 @@ var
   LIndex: Integer;
   LExtractIndex: Integer;
   LCheckedBackends: Integer;
-  LOldVectorAsm: Boolean;
 
   procedure AssertNativeSlotNotScalar(const aBackendName, aSlotName: string; const aScalarSlot, aBackendSlot: Pointer);
   begin
@@ -15417,91 +15406,87 @@ begin
   LF64x2Base.d[1] := -987.25;
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
 
-    for LBackend in LBackends do
+  for LBackend in LBackends do
+  begin
+    case LBackend of
+      sbNEON:
+        begin
+          {$IFNDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
+          Continue;
+          {$ENDIF}
+        end;
+      sbRISCVV:
+        begin
+          {$IFNDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
+          Continue;
+          {$ENDIF}
+        end;
+    end;
+    if not IsBackendRegistered(LBackend) then
+      Continue;
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+      Continue;
+    if not TrySetActiveBackend(LBackend) then
+      Continue;
+
+    Inc(LCheckedBackends);
+
+    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'InsertF32x4',
+      Pointer(LScalarTable.InsertF32x4), Pointer(LBackendTable.InsertF32x4));
+    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'InsertF64x2',
+      Pointer(LScalarTable.InsertF64x2), Pointer(LBackendTable.InsertF64x2));
+
+    LF32x4ByBackend := LBackendTable.InsertF32x4(LF32x4Base, 42.5, 2);
+    LF32x4ByScalar := LScalarTable.InsertF32x4(LF32x4Base, 42.5, 2);
+    AssertVecF32x4Equal('InsertF32x4 dispatch-table', NonX86BackendName(LBackend), LF32x4ByScalar, LF32x4ByBackend, 1e-6);
+
+    LF32x4ByFacade := VecF32x4Insert(LF32x4Base, 42.5, 2);
+    AssertVecF32x4Equal('InsertF32x4 facade', NonX86BackendName(LBackend), LF32x4ByScalar, LF32x4ByFacade, 1e-6);
+
+    for LIndex := 0 to 3 do
     begin
-      case LBackend of
-        sbNEON:
-          begin
-            {$IFNDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
-            Continue;
-            {$ENDIF}
-          end;
-        sbRISCVV:
-          begin
-            {$IFNDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
-            Continue;
-            {$ENDIF}
-          end;
+      case LIndex of
+        0: LExtractIndex := -99;
+        1: LExtractIndex := 0;
+        2: LExtractIndex := 3;
+      else
+        LExtractIndex := 99;
       end;
-      if not IsBackendRegistered(LBackend) then
-        Continue;
-      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
-        Continue;
-      if not TrySetActiveBackend(LBackend) then
-        Continue;
-
-      Inc(LCheckedBackends);
-
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'InsertF32x4',
-        Pointer(LScalarTable.InsertF32x4), Pointer(LBackendTable.InsertF32x4));
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'InsertF64x2',
-        Pointer(LScalarTable.InsertF64x2), Pointer(LBackendTable.InsertF64x2));
-
-      LF32x4ByBackend := LBackendTable.InsertF32x4(LF32x4Base, 42.5, 2);
-      LF32x4ByScalar := LScalarTable.InsertF32x4(LF32x4Base, 42.5, 2);
-      AssertVecF32x4Equal('InsertF32x4 dispatch-table', NonX86BackendName(LBackend), LF32x4ByScalar, LF32x4ByBackend, 1e-6);
-
-      LF32x4ByFacade := VecF32x4Insert(LF32x4Base, 42.5, 2);
-      AssertVecF32x4Equal('InsertF32x4 facade', NonX86BackendName(LBackend), LF32x4ByScalar, LF32x4ByFacade, 1e-6);
-
-      for LIndex := 0 to 3 do
-      begin
-        case LIndex of
-          0: LExtractIndex := -99;
-          1: LExtractIndex := 0;
-          2: LExtractIndex := 3;
-        else
-          LExtractIndex := 99;
-        end;
-        AssertEquals('ExtractF32x4 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
-          LScalarTable.ExtractF32x4(LF32x4Base, LExtractIndex), LBackendTable.ExtractF32x4(LF32x4Base, LExtractIndex), 1e-6);
-        AssertEquals('ExtractF32x4 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
-          LScalarTable.ExtractF32x4(LF32x4Base, LExtractIndex), VecF32x4Extract(LF32x4Base, LExtractIndex), 1e-6);
-      end;
-
-      LF64x2ByBackend := LBackendTable.InsertF64x2(LF64x2Base, 55.75, 0);
-      LF64x2ByScalar := LScalarTable.InsertF64x2(LF64x2Base, 55.75, 0);
-      AssertVecF64x2Equal('InsertF64x2 dispatch-table', NonX86BackendName(LBackend), LF64x2ByScalar, LF64x2ByBackend, 1e-12);
-
-      LF64x2ByFacade := VecF64x2Insert(LF64x2Base, 55.75, 0);
-      AssertVecF64x2Equal('InsertF64x2 facade', NonX86BackendName(LBackend), LF64x2ByScalar, LF64x2ByFacade, 1e-12);
-
-      for LIndex := 0 to 3 do
-      begin
-        case LIndex of
-          0: LExtractIndex := -99;
-          1: LExtractIndex := 0;
-          2: LExtractIndex := 1;
-        else
-          LExtractIndex := 99;
-        end;
-        AssertEquals('ExtractF64x2 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
-          LScalarTable.ExtractF64x2(LF64x2Base, LExtractIndex), LBackendTable.ExtractF64x2(LF64x2Base, LExtractIndex), 1e-12);
-        AssertEquals('ExtractF64x2 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
-          LScalarTable.ExtractF64x2(LF64x2Base, LExtractIndex), VecF64x2Extract(LF64x2Base, LExtractIndex), 1e-12);
-      end;
+      AssertEquals('ExtractF32x4 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+        LScalarTable.ExtractF32x4(LF32x4Base, LExtractIndex), LBackendTable.ExtractF32x4(LF32x4Base, LExtractIndex), 1e-6);
+      AssertEquals('ExtractF32x4 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+        LScalarTable.ExtractF32x4(LF32x4Base, LExtractIndex), VecF32x4Extract(LF32x4Base, LExtractIndex), 1e-6);
     end;
 
-    if LCheckedBackends = 0 then
-      AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
-  finally
+    LF64x2ByBackend := LBackendTable.InsertF64x2(LF64x2Base, 55.75, 0);
+    LF64x2ByScalar := LScalarTable.InsertF64x2(LF64x2Base, 55.75, 0);
+    AssertVecF64x2Equal('InsertF64x2 dispatch-table', NonX86BackendName(LBackend), LF64x2ByScalar, LF64x2ByBackend, 1e-12);
+
+    LF64x2ByFacade := VecF64x2Insert(LF64x2Base, 55.75, 0);
+    AssertVecF64x2Equal('InsertF64x2 facade', NonX86BackendName(LBackend), LF64x2ByScalar, LF64x2ByFacade, 1e-12);
+
+    for LIndex := 0 to 3 do
+    begin
+      case LIndex of
+        0: LExtractIndex := -99;
+        1: LExtractIndex := 0;
+        2: LExtractIndex := 1;
+      else
+        LExtractIndex := 99;
+      end;
+      AssertEquals('ExtractF64x2 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+        LScalarTable.ExtractF64x2(LF64x2Base, LExtractIndex), LBackendTable.ExtractF64x2(LF64x2Base, LExtractIndex), 1e-12);
+      AssertEquals('ExtractF64x2 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+        LScalarTable.ExtractF64x2(LF64x2Base, LExtractIndex), VecF64x2Extract(LF64x2Base, LExtractIndex), 1e-12);
+    end;
   end;
+
+  if LCheckedBackends = 0 then
+    AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
 end;
 
 procedure TTestCase_NonX86BackendParity.Test_NativeNarrowIntegerCoreParity_WithVectorAsm_IfAvailable;
@@ -15519,7 +15504,6 @@ var
   LU64x2A, LU64x2B: TVecU64x2;
   LU64x2ByBackend, LU64x2ByScalar: TVecU64x2;
   LCheckedBackends: Integer;
-  LOldVectorAsm: Boolean;
 
   procedure AssertNativeSlotNotScalar(const aBackendName, aSlotName: string; const aScalarSlot, aBackendSlot: Pointer);
   begin
@@ -15617,89 +15601,85 @@ begin
   LU64x2B.u[1] := QWord($1111111111111111);
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
 
-    for LBackend in LBackends do
-    begin
-      case LBackend of
-        sbNEON:
-          begin
-            {$IFNDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
-            Continue;
-            {$ENDIF}
-          end;
-        sbRISCVV:
-          begin
-            {$IFNDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
-            Continue;
-            {$ENDIF}
-          end;
-      end;
-      if not IsBackendRegistered(LBackend) then
-        Continue;
-      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
-        Continue;
-
-      Inc(LCheckedBackends);
-
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'AddI32x4',
-        Pointer(LScalarTable.AddI32x4), Pointer(LBackendTable.AddI32x4));
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'AndI32x4',
-        Pointer(LScalarTable.AndI32x4), Pointer(LBackendTable.AndI32x4));
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'ShiftLeftI32x4',
-        Pointer(LScalarTable.ShiftLeftI32x4), Pointer(LBackendTable.ShiftLeftI32x4));
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'ShiftRightArithI32x4',
-        Pointer(LScalarTable.ShiftRightArithI32x4), Pointer(LBackendTable.ShiftRightArithI32x4));
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'AddI64x2',
-        Pointer(LScalarTable.AddI64x2), Pointer(LBackendTable.AddI64x2));
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'AndI64x2',
-        Pointer(LScalarTable.AndI64x2), Pointer(LBackendTable.AndI64x2));
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'AddU32x4',
-        Pointer(LScalarTable.AddU32x4), Pointer(LBackendTable.AddU32x4));
-      AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'AddU64x2',
-        Pointer(LScalarTable.AddU64x2), Pointer(LBackendTable.AddU64x2));
-
-      LI32x4ByBackend := LBackendTable.AddI32x4(LI32x4A, LI32x4B);
-      LI32x4ByScalar := LScalarTable.AddI32x4(LI32x4A, LI32x4B);
-      AssertVecI32x4Equal('AddI32x4', NonX86BackendName(LBackend), LI32x4ByScalar, LI32x4ByBackend);
-
-      LI32x4ByBackend := LBackendTable.AndI32x4(LI32x4A, LI32x4B);
-      LI32x4ByScalar := LScalarTable.AndI32x4(LI32x4A, LI32x4B);
-      AssertVecI32x4Equal('AndI32x4', NonX86BackendName(LBackend), LI32x4ByScalar, LI32x4ByBackend);
-
-      LI32x4ByBackend := LBackendTable.ShiftLeftI32x4(LI32x4A, 5);
-      LI32x4ByScalar := LScalarTable.ShiftLeftI32x4(LI32x4A, 5);
-      AssertVecI32x4Equal('ShiftLeftI32x4', NonX86BackendName(LBackend), LI32x4ByScalar, LI32x4ByBackend);
-
-      LI32x4ByBackend := LBackendTable.ShiftRightArithI32x4(LI32x4A, 5);
-      LI32x4ByScalar := LScalarTable.ShiftRightArithI32x4(LI32x4A, 5);
-      AssertVecI32x4Equal('ShiftRightArithI32x4', NonX86BackendName(LBackend), LI32x4ByScalar, LI32x4ByBackend);
-
-      LI64x2ByBackend := LBackendTable.AddI64x2(LI64x2A, LI64x2B);
-      LI64x2ByScalar := LScalarTable.AddI64x2(LI64x2A, LI64x2B);
-      AssertVecI64x2Equal('AddI64x2', NonX86BackendName(LBackend), LI64x2ByScalar, LI64x2ByBackend);
-
-      LI64x2ByBackend := LBackendTable.AndI64x2(LI64x2A, LI64x2B);
-      LI64x2ByScalar := LScalarTable.AndI64x2(LI64x2A, LI64x2B);
-      AssertVecI64x2Equal('AndI64x2', NonX86BackendName(LBackend), LI64x2ByScalar, LI64x2ByBackend);
-
-      LU32x4ByBackend := LBackendTable.AddU32x4(LU32x4A, LU32x4B);
-      LU32x4ByScalar := LScalarTable.AddU32x4(LU32x4A, LU32x4B);
-      AssertVecU32x4Equal('AddU32x4', NonX86BackendName(LBackend), LU32x4ByScalar, LU32x4ByBackend);
-
-      LU64x2ByBackend := LBackendTable.AddU64x2(LU64x2A, LU64x2B);
-      LU64x2ByScalar := LScalarTable.AddU64x2(LU64x2A, LU64x2B);
-      AssertVecU64x2Equal('AddU64x2', NonX86BackendName(LBackend), LU64x2ByScalar, LU64x2ByBackend);
+  for LBackend in LBackends do
+  begin
+    case LBackend of
+      sbNEON:
+        begin
+          {$IFNDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
+          Continue;
+          {$ENDIF}
+        end;
+      sbRISCVV:
+        begin
+          {$IFNDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
+          Continue;
+          {$ENDIF}
+        end;
     end;
+    if not IsBackendRegistered(LBackend) then
+      Continue;
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+      Continue;
 
-    if LCheckedBackends = 0 then
-      AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
-  finally
+    Inc(LCheckedBackends);
+
+    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'AddI32x4',
+      Pointer(LScalarTable.AddI32x4), Pointer(LBackendTable.AddI32x4));
+    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'AndI32x4',
+      Pointer(LScalarTable.AndI32x4), Pointer(LBackendTable.AndI32x4));
+    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'ShiftLeftI32x4',
+      Pointer(LScalarTable.ShiftLeftI32x4), Pointer(LBackendTable.ShiftLeftI32x4));
+    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'ShiftRightArithI32x4',
+      Pointer(LScalarTable.ShiftRightArithI32x4), Pointer(LBackendTable.ShiftRightArithI32x4));
+    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'AddI64x2',
+      Pointer(LScalarTable.AddI64x2), Pointer(LBackendTable.AddI64x2));
+    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'AndI64x2',
+      Pointer(LScalarTable.AndI64x2), Pointer(LBackendTable.AndI64x2));
+    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'AddU32x4',
+      Pointer(LScalarTable.AddU32x4), Pointer(LBackendTable.AddU32x4));
+    AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'AddU64x2',
+      Pointer(LScalarTable.AddU64x2), Pointer(LBackendTable.AddU64x2));
+
+    LI32x4ByBackend := LBackendTable.AddI32x4(LI32x4A, LI32x4B);
+    LI32x4ByScalar := LScalarTable.AddI32x4(LI32x4A, LI32x4B);
+    AssertVecI32x4Equal('AddI32x4', NonX86BackendName(LBackend), LI32x4ByScalar, LI32x4ByBackend);
+
+    LI32x4ByBackend := LBackendTable.AndI32x4(LI32x4A, LI32x4B);
+    LI32x4ByScalar := LScalarTable.AndI32x4(LI32x4A, LI32x4B);
+    AssertVecI32x4Equal('AndI32x4', NonX86BackendName(LBackend), LI32x4ByScalar, LI32x4ByBackend);
+
+    LI32x4ByBackend := LBackendTable.ShiftLeftI32x4(LI32x4A, 5);
+    LI32x4ByScalar := LScalarTable.ShiftLeftI32x4(LI32x4A, 5);
+    AssertVecI32x4Equal('ShiftLeftI32x4', NonX86BackendName(LBackend), LI32x4ByScalar, LI32x4ByBackend);
+
+    LI32x4ByBackend := LBackendTable.ShiftRightArithI32x4(LI32x4A, 5);
+    LI32x4ByScalar := LScalarTable.ShiftRightArithI32x4(LI32x4A, 5);
+    AssertVecI32x4Equal('ShiftRightArithI32x4', NonX86BackendName(LBackend), LI32x4ByScalar, LI32x4ByBackend);
+
+    LI64x2ByBackend := LBackendTable.AddI64x2(LI64x2A, LI64x2B);
+    LI64x2ByScalar := LScalarTable.AddI64x2(LI64x2A, LI64x2B);
+    AssertVecI64x2Equal('AddI64x2', NonX86BackendName(LBackend), LI64x2ByScalar, LI64x2ByBackend);
+
+    LI64x2ByBackend := LBackendTable.AndI64x2(LI64x2A, LI64x2B);
+    LI64x2ByScalar := LScalarTable.AndI64x2(LI64x2A, LI64x2B);
+    AssertVecI64x2Equal('AndI64x2', NonX86BackendName(LBackend), LI64x2ByScalar, LI64x2ByBackend);
+
+    LU32x4ByBackend := LBackendTable.AddU32x4(LU32x4A, LU32x4B);
+    LU32x4ByScalar := LScalarTable.AddU32x4(LU32x4A, LU32x4B);
+    AssertVecU32x4Equal('AddU32x4', NonX86BackendName(LBackend), LU32x4ByScalar, LU32x4ByBackend);
+
+    LU64x2ByBackend := LBackendTable.AddU64x2(LU64x2A, LU64x2B);
+    LU64x2ByScalar := LScalarTable.AddU64x2(LU64x2A, LU64x2B);
+    AssertVecU64x2Equal('AddU64x2', NonX86BackendName(LBackend), LU64x2ByScalar, LU64x2ByBackend);
   end;
+
+  if LCheckedBackends = 0 then
+    AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
 end;
 
 procedure TTestCase_NonX86BackendParity.Test_NativeNarrowIntegerHelperParity_WithVectorAsm_IfAvailable;
@@ -15715,7 +15695,6 @@ var
   LIndex: Integer;
   LExtractIndex: Integer;
   LCheckedBackends: Integer;
-  LOldVectorAsm: Boolean;
 
   procedure AssertNativeSlotNotScalar(const aBackendName, aSlotName: string; const aScalarSlot, aBackendSlot: Pointer);
   begin
@@ -15775,91 +15754,87 @@ begin
   LI64x2Base.i[1] := -223344556677889900;
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
 
-    for LBackend in LBackends do
+  for LBackend in LBackends do
+  begin
+    case LBackend of
+      sbNEON:
+        begin
+          {$IFNDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
+          Continue;
+          {$ENDIF}
+        end;
+      sbRISCVV:
+        begin
+          {$IFNDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
+          Continue;
+          {$ENDIF}
+        end;
+    end;
+    if not IsBackendRegistered(LBackend) then
+      Continue;
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+      Continue;
+    if not TrySetActiveBackend(LBackend) then
+      Continue;
+
+    Inc(LCheckedBackends);
+
+    AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertI32x4',
+      Pointer(LScalarTable.InsertI32x4), Pointer(LBackendTable.InsertI32x4));
+    AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertI64x2',
+      Pointer(LScalarTable.InsertI64x2), Pointer(LBackendTable.InsertI64x2));
+
+    LI32x4ByBackend := LBackendTable.InsertI32x4(LI32x4Base, -777, 2);
+    LI32x4ByScalar := LScalarTable.InsertI32x4(LI32x4Base, -777, 2);
+    AssertVecI32x4Equal('InsertI32x4 dispatch-table', NonX86BackendName(LBackend), LI32x4ByScalar, LI32x4ByBackend);
+
+    LI32x4ByFacade := VecI32x4Insert(LI32x4Base, -777, 2);
+    AssertVecI32x4Equal('InsertI32x4 facade', NonX86BackendName(LBackend), LI32x4ByScalar, LI32x4ByFacade);
+
+    for LIndex := 0 to 3 do
     begin
-      case LBackend of
-        sbNEON:
-          begin
-            {$IFNDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
-            Continue;
-            {$ENDIF}
-          end;
-        sbRISCVV:
-          begin
-            {$IFNDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
-            Continue;
-            {$ENDIF}
-          end;
+      case LIndex of
+        0: LExtractIndex := -99;
+        1: LExtractIndex := 0;
+        2: LExtractIndex := 3;
+      else
+        LExtractIndex := 99;
       end;
-      if not IsBackendRegistered(LBackend) then
-        Continue;
-      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
-        Continue;
-      if not TrySetActiveBackend(LBackend) then
-        Continue;
-
-      Inc(LCheckedBackends);
-
-      AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertI32x4',
-        Pointer(LScalarTable.InsertI32x4), Pointer(LBackendTable.InsertI32x4));
-      AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'InsertI64x2',
-        Pointer(LScalarTable.InsertI64x2), Pointer(LBackendTable.InsertI64x2));
-
-      LI32x4ByBackend := LBackendTable.InsertI32x4(LI32x4Base, -777, 2);
-      LI32x4ByScalar := LScalarTable.InsertI32x4(LI32x4Base, -777, 2);
-      AssertVecI32x4Equal('InsertI32x4 dispatch-table', NonX86BackendName(LBackend), LI32x4ByScalar, LI32x4ByBackend);
-
-      LI32x4ByFacade := VecI32x4Insert(LI32x4Base, -777, 2);
-      AssertVecI32x4Equal('InsertI32x4 facade', NonX86BackendName(LBackend), LI32x4ByScalar, LI32x4ByFacade);
-
-      for LIndex := 0 to 3 do
-      begin
-        case LIndex of
-          0: LExtractIndex := -99;
-          1: LExtractIndex := 0;
-          2: LExtractIndex := 3;
-        else
-          LExtractIndex := 99;
-        end;
-        AssertEquals('ExtractI32x4 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
-          LScalarTable.ExtractI32x4(LI32x4Base, LExtractIndex), LBackendTable.ExtractI32x4(LI32x4Base, LExtractIndex));
-        AssertEquals('ExtractI32x4 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
-          LScalarTable.ExtractI32x4(LI32x4Base, LExtractIndex), VecI32x4Extract(LI32x4Base, LExtractIndex));
-      end;
-
-      LI64x2ByBackend := LBackendTable.InsertI64x2(LI64x2Base, Int64(-998877665544332211), 1);
-      LI64x2ByScalar := LScalarTable.InsertI64x2(LI64x2Base, Int64(-998877665544332211), 1);
-      AssertVecI64x2Equal('InsertI64x2 dispatch-table', NonX86BackendName(LBackend), LI64x2ByScalar, LI64x2ByBackend);
-
-      LI64x2ByFacade := VecI64x2Insert(LI64x2Base, Int64(-998877665544332211), 1);
-      AssertVecI64x2Equal('InsertI64x2 facade', NonX86BackendName(LBackend), LI64x2ByScalar, LI64x2ByFacade);
-
-      for LIndex := 0 to 3 do
-      begin
-        case LIndex of
-          0: LExtractIndex := -99;
-          1: LExtractIndex := 0;
-          2: LExtractIndex := 1;
-        else
-          LExtractIndex := 99;
-        end;
-        AssertEquals('ExtractI64x2 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
-          LScalarTable.ExtractI64x2(LI64x2Base, LExtractIndex), LBackendTable.ExtractI64x2(LI64x2Base, LExtractIndex));
-        AssertEquals('ExtractI64x2 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
-          LScalarTable.ExtractI64x2(LI64x2Base, LExtractIndex), VecI64x2Extract(LI64x2Base, LExtractIndex));
-      end;
+      AssertEquals('ExtractI32x4 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+        LScalarTable.ExtractI32x4(LI32x4Base, LExtractIndex), LBackendTable.ExtractI32x4(LI32x4Base, LExtractIndex));
+      AssertEquals('ExtractI32x4 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+        LScalarTable.ExtractI32x4(LI32x4Base, LExtractIndex), VecI32x4Extract(LI32x4Base, LExtractIndex));
     end;
 
-    if LCheckedBackends = 0 then
-      AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
-  finally
+    LI64x2ByBackend := LBackendTable.InsertI64x2(LI64x2Base, Int64(-998877665544332211), 1);
+    LI64x2ByScalar := LScalarTable.InsertI64x2(LI64x2Base, Int64(-998877665544332211), 1);
+    AssertVecI64x2Equal('InsertI64x2 dispatch-table', NonX86BackendName(LBackend), LI64x2ByScalar, LI64x2ByBackend);
+
+    LI64x2ByFacade := VecI64x2Insert(LI64x2Base, Int64(-998877665544332211), 1);
+    AssertVecI64x2Equal('InsertI64x2 facade', NonX86BackendName(LBackend), LI64x2ByScalar, LI64x2ByFacade);
+
+    for LIndex := 0 to 3 do
+    begin
+      case LIndex of
+        0: LExtractIndex := -99;
+        1: LExtractIndex := 0;
+        2: LExtractIndex := 1;
+      else
+        LExtractIndex := 99;
+      end;
+      AssertEquals('ExtractI64x2 dispatch-table idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+        LScalarTable.ExtractI64x2(LI64x2Base, LExtractIndex), LBackendTable.ExtractI64x2(LI64x2Base, LExtractIndex));
+      AssertEquals('ExtractI64x2 facade idx ' + IntToStr(LExtractIndex) + ': ' + NonX86BackendName(LBackend),
+        LScalarTable.ExtractI64x2(LI64x2Base, LExtractIndex), VecI64x2Extract(LI64x2Base, LExtractIndex));
+    end;
   end;
+
+  if LCheckedBackends = 0 then
+    AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
 end;
 
 procedure TTestCase_NonX86BackendParity.Test_MinimalDispatchParity_IfAvailable;
@@ -15887,37 +15862,34 @@ begin
   LA.f[2] := 0.0;   LB.f[2] := -1.0;
   LA.f[3] := 7.75;  LB.f[3] := 7.75;
 
-  try
-    for LBackend in LBackends do
-    begin
-      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
-        Continue;
-      if not TrySetActiveBackend(LBackend) then
-        Continue;
+  for LBackend in LBackends do
+  begin
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+      Continue;
+    if not TrySetActiveBackend(LBackend) then
+      Continue;
 
-      AssertTrue('AddF32x4 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.AddF32x4));
-      AssertTrue('CmpLtF32x4 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.CmpLtF32x4));
-      AssertTrue('ReduceAddF32x4 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ReduceAddF32x4));
+    AssertTrue('AddF32x4 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.AddF32x4));
+    AssertTrue('CmpLtF32x4 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.CmpLtF32x4));
+    AssertTrue('ReduceAddF32x4 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ReduceAddF32x4));
 
-      LVecByBackend := LBackendTable.AddF32x4(LA, LB);
-      LVecByScalar := LScalarTable.AddF32x4(LA, LB);
-      for LIndex := 0 to 3 do
-        AssertEquals('AddF32x4 parity lane ' + IntToStr(LIndex) + ': ' + NonX86BackendName(LBackend),
-          LVecByScalar.f[LIndex], LVecByBackend.f[LIndex], 1e-6);
+    LVecByBackend := LBackendTable.AddF32x4(LA, LB);
+    LVecByScalar := LScalarTable.AddF32x4(LA, LB);
+    for LIndex := 0 to 3 do
+      AssertEquals('AddF32x4 parity lane ' + IntToStr(LIndex) + ': ' + NonX86BackendName(LBackend),
+        LVecByScalar.f[LIndex], LVecByBackend.f[LIndex], 1e-6);
 
-      LMaskByBackend := LBackendTable.CmpLtF32x4(LA, LB);
-      LMaskByScalar := LScalarTable.CmpLtF32x4(LA, LB);
-      AssertEquals('CmpLtF32x4 parity: ' + NonX86BackendName(LBackend),
-        Integer(LMaskByScalar), Integer(LMaskByBackend));
+    LMaskByBackend := LBackendTable.CmpLtF32x4(LA, LB);
+    LMaskByScalar := LScalarTable.CmpLtF32x4(LA, LB);
+    AssertEquals('CmpLtF32x4 parity: ' + NonX86BackendName(LBackend),
+      Integer(LMaskByScalar), Integer(LMaskByBackend));
 
-      LReduceByBackend := LBackendTable.ReduceAddF32x4(LA);
-      LReduceByScalar := LScalarTable.ReduceAddF32x4(LA);
-      AssertEquals('ReduceAddF32x4 parity: ' + NonX86BackendName(LBackend),
-        LReduceByScalar, LReduceByBackend, 1e-6);
+    LReduceByBackend := LBackendTable.ReduceAddF32x4(LA);
+    LReduceByScalar := LScalarTable.ReduceAddF32x4(LA);
+    AssertEquals('ReduceAddF32x4 parity: ' + NonX86BackendName(LBackend),
+      LReduceByScalar, LReduceByBackend, 1e-6);
 
-      Inc(LChecked);
-    end;
-  finally
+    Inc(LChecked);
   end;
 
   if LChecked = 0 then
@@ -16002,13 +15974,12 @@ begin
     LF64x8Max.d[LIndex] := 12.0 + LIndex;
   end;
 
-  try
-    for LBackend in LBackends do
-    begin
-      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
-        Continue;
-      if not TrySetActiveBackend(LBackend) then
-        Continue;
+  for LBackend in LBackends do
+  begin
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+      Continue;
+    if not TrySetActiveBackend(LBackend) then
+      Continue;
 
       AssertTrue('AddF64x2 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.AddF64x2));
       AssertTrue('CmpLtF64x2 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.CmpLtF64x2));
@@ -16140,9 +16111,7 @@ begin
       LF64x8ByScalar := LScalarTable.ClampF64x8(LF64x8A, LF64x8Min, LF64x8Max);
       AssertVecF64x8Equal('ClampF64x8', NonX86BackendName(LBackend), LF64x8ByScalar, LF64x8ByBackend, 0.0);
 
-      Inc(LChecked);
-    end;
-  finally
+    Inc(LChecked);
   end;
 
   if LChecked = 0 then
@@ -16214,13 +16183,12 @@ begin
   LU8A.u[14] := $CC; LU8B.u[14] := $DD;
   LU8A.u[15] := $EE; LU8B.u[15] := $FF;
 
-  try
-    for LBackend in LBackends do
-    begin
-      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
-        Continue;
-      if not TrySetActiveBackend(LBackend) then
-        Continue;
+  for LBackend in LBackends do
+  begin
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+      Continue;
+    if not TrySetActiveBackend(LBackend) then
+      Continue;
 
       AssertTrue('AndNotI8x16 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.AndNotI8x16));
       AssertTrue('AndNotU16x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.AndNotU16x8));
@@ -16244,9 +16212,7 @@ begin
         AssertEquals('AndNotU8x16 lane ' + IntToStr(LIndex) + ': ' + NonX86BackendName(LBackend),
           QWord(LU8ByScalar.u[LIndex]), QWord(LU8ByBackend.u[LIndex]));
 
-      Inc(LChecked);
-    end;
-  finally
+    Inc(LChecked);
   end;
 
   if LChecked = 0 then
@@ -16292,13 +16258,12 @@ begin
     LF64x4B.d[LIndex] := (LIndex - 1) * -1.75;
   end;
 
-  try
-    for LBackend in LBackends do
-    begin
-      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
-        Continue;
-      if not TrySetActiveBackend(LBackend) then
-        Continue;
+  for LBackend in LBackends do
+  begin
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+      Continue;
+    if not TrySetActiveBackend(LBackend) then
+      Continue;
 
       AssertTrue('DotF32x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.DotF32x8));
       AssertTrue('DotF64x2 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.DotF64x2));
@@ -16319,9 +16284,7 @@ begin
       AssertEquals('DotF64x4 parity: ' + NonX86BackendName(LBackend),
         LDotF64x4ByScalar, LDotF64x4ByBackend, 1e-12);
 
-      Inc(LChecked);
-    end;
-  finally
+    Inc(LChecked);
   end;
 
   if LChecked = 0 then
@@ -16371,13 +16334,12 @@ begin
   LShiftCounts[3] := 15;
   LShiftCounts[4] := 16;
 
-  try
-    for LBackend in LBackends do
-    begin
-      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
-        Continue;
-      if not TrySetActiveBackend(LBackend) then
-        Continue;
+  for LBackend in LBackends do
+  begin
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+      Continue;
+    if not TrySetActiveBackend(LBackend) then
+      Continue;
 
       AssertTrue('AddI16x32 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.AddI16x32));
       AssertTrue('SubI16x32 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.SubI16x32));
@@ -16466,9 +16428,7 @@ begin
       LVecByScalar := LScalarTable.MaxI16x32(LA, LB);
       AssertVecI16x32Equal('MaxI16x32 parity: ' + NonX86BackendName(LBackend), LVecByScalar, LVecByBackend);
 
-      Inc(LChecked);
-    end;
-  finally
+    Inc(LChecked);
   end;
 
   if LChecked = 0 then
@@ -16510,13 +16470,12 @@ begin
       LB.i[LIndex] := LA.i[LIndex];
   end;
 
-  try
-    for LBackend in LBackends do
-    begin
-      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
-        Continue;
-      if not TrySetActiveBackend(LBackend) then
-        Continue;
+  for LBackend in LBackends do
+  begin
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+      Continue;
+    if not TrySetActiveBackend(LBackend) then
+      Continue;
 
       AssertTrue('AddI8x64 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.AddI8x64));
       AssertTrue('SubI8x64 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.SubI8x64));
@@ -16582,9 +16541,7 @@ begin
       LVecByScalar := LScalarTable.MaxI8x64(LA, LB);
       AssertVecI8x64Equal('MaxI8x64 parity: ' + NonX86BackendName(LBackend), LVecByScalar, LVecByBackend);
 
-      Inc(LChecked);
-    end;
-  finally
+    Inc(LChecked);
   end;
 
   if LChecked = 0 then
@@ -16679,13 +16636,12 @@ begin
   LU64ShiftCounts[3] := 63;
   LU64ShiftCounts[4] := 64;
 
-  try
-    for LBackend in LBackends do
-    begin
-      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
-        Continue;
-      if not TrySetActiveBackend(LBackend) then
-        Continue;
+  for LBackend in LBackends do
+  begin
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+      Continue;
+    if not TrySetActiveBackend(LBackend) then
+      Continue;
 
       AssertTrue('AddU32x16 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.AddU32x16));
       AssertTrue('SubU32x16 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.SubU32x16));
@@ -16911,9 +16867,7 @@ begin
       LU8ByScalar := LScalarTable.MaxU8x64(LU8A, LU8B);
       AssertVecU8x64Equal('MaxU8x64 parity: ' + NonX86BackendName(LBackend), LU8ByScalar, LU8ByBackend);
 
-      Inc(LChecked);
-    end;
-  finally
+    Inc(LChecked);
   end;
 
   if LChecked = 0 then
