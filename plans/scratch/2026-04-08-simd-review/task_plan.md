@@ -4288,3 +4288,21 @@
 | 1. 复核 `14847..16921` 连续候选簇的真实边界 | completed | 已逐段复核 12 条连续方法：`Test_NativeWideInsertHelperParity_WithVectorAsm_IfAvailable`、`Test_NativeWideIntegerExtractEdgeParity_WithVectorAsm_IfAvailable`、`Test_NativeNarrowFloatHelperParity_WithVectorAsm_IfAvailable`、`Test_NativeNarrowIntegerCoreParity_WithVectorAsm_IfAvailable`、`Test_NativeNarrowIntegerHelperParity_WithVectorAsm_IfAvailable`、`Test_MinimalDispatchParity_IfAvailable`、`Test_ExtendedFloatParity_IfAvailable`、`Test_NarrowAndNotParity_IfAvailable`、`Test_DotParity_IfAvailable`、`Test_I16x32_CoreParity_IfAvailable`、`Test_I8x64_CoreParity_IfAvailable`、`Test_U32x16_U64x8_CoreParity_IfAvailable`；前 5 条同时带未读取 `LOldVectorAsm` 和空 outer `finally`，后 7 条只带空 outer `finally`。这 12 条都只做 backend 注册/激活筛选、dispatch-table/facade parity 与 slot 断言，没有任何 backend/table restore、hook cleanup 或资源释放；当前批次明确停在 `16923+` 之前，不把 `WideInteger_FuzzSeed` 及后续长段带进来 |
 | 2. 只收这一簇高确定性命中 | completed | 已在上述 12 个 non-x86 helper/core parity 测试中删除纯空 outer `try/finally`；其中前 5 条同步删除未使用 `LOldVectorAsm`。所有 helper/core parity、lane/mask/shift 断言与 `LChecked/LCheckedBackends` 逻辑保持不变 |
 | 3. 用单 suite release 复验收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 复验；构建、测试与 leak check 全部通过 |
+
+## 2026-05-16 NonX86 Mask And Shift Empty Finally Cleanup
+
+### Goal
+
+继续沿 `TTestCase_NonX86BackendParity` 的高确定性清理线推进到 `17092..19067`，只收掉这 4 条 mask/shift/minmax 测试里的纯空 outer `finally`，同时明确跳过带真实 `RandSeed` restore 的 fuzz 段：
+- `Test_WideCompareMaskParity_IfAvailable`
+- `Test_I32x4_BitwiseShiftParity_IfAvailable`
+- `Test_WideSignedBitwiseShiftParity_IfAvailable`
+- `Test_WideIntegerArithmeticMinMaxParity_IfAvailable`
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `17092..19067` 候选簇的真实边界 | completed | 已逐段复核 `Test_WideInteger_FuzzSeed_Parity_IfAvailable` 到 `Test_WideIntegerArithmeticMinMaxParity_IfAvailable`：`WideInteger_FuzzSeed` 的 `finally` 会恢复 `RandSeed`，属于真实状态清理，必须跳过；其后的 `WideCompareMaskParity`、`I32x4_BitwiseShiftParity`、`WideSignedBitwiseShiftParity`、`WideIntegerArithmeticMinMaxParity` 都只做 backend 注册/激活筛选、compare/mask/shift/minmax parity 与 facade/helper 断言，outer `finally` 完全为空，没有任何 restore、hook cleanup 或资源释放 |
+| 2. 只收这一簇高确定性命中 | completed | 已在 `WideCompareMaskParity`、`I32x4_BitwiseShiftParity`、`WideSignedBitwiseShiftParity`、`WideIntegerArithmeticMinMaxParity` 中删除纯空 outer `try/finally`；同时补回 `WideInteger_FuzzSeed` 包裹 `RandSeed` restore 的真实 outer `try`，保留所有 compare/mask helper、exact shift probe、lane contract 与 arithmetic/minmax 断言不变 |
+| 3. 用单 suite release 复验收口 | completed | `git diff --check` 已通过；`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 已绿，结果为 `[BUILD] OK`、`[TEST] OK`、`[LEAK] OK` |

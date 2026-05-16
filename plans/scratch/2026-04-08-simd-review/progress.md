@@ -7460,3 +7460,20 @@
 - 当前阶段结论：
   - 这批依旧只是 `dispatchapi` / `TTestCase_NonX86BackendParity` 的测试层冗余清理，没有改 SIMD 生产实现
   - 下一步若继续，应从 `16923+` 的 `WideInteger_FuzzSeed_Parity_IfAvailable` 往后找，并继续先排除任何真实清理或非空 `finally`
+
+## 2026-05-16 NonX86 Mask And Shift Empty Finally Cleanup
+
+- 这一批继续留在 `TTestCase_NonX86BackendParity`，没有切到 `direct`、`runtimeapi` 或生产实现，只把候选区段推进到 `17092..19067` 的 compare/mask/shift/minmax parity 测试簇。
+- 候选筛选过程：
+  - 先逐段复核 `Test_WideInteger_FuzzSeed_Parity_IfAvailable`，确认它的 `finally` 会恢复 `RandSeed`，因此明确排除
+  - 再确认 `WideCompareMaskParity`、`I32x4_BitwiseShiftParity`、`WideSignedBitwiseShiftParity`、`WideIntegerArithmeticMinMaxParity` 这 4 条方法都只剩空 outer `finally`
+  - 这 4 条测试都只做 backend 注册/激活筛选、compare/mask helper、exact shift probe、bitwise/arithmetic/minmax parity 与 facade/helper 合同断言，没有任何 restore、hook cleanup 或资源释放
+- 已完成的源码改动：
+  - 文件：`tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+  - 删除 4 个方法中的纯空 outer `try/finally`
+  - 为 `WideInteger_FuzzSeed` 补回与 `RandSeed` restore 配对的真实 outer `try`，不改任何 compare/mask/shift/minmax 断言逻辑
+- 这轮额外做的卫生确认：
+  - 改完后再次复读目标区段，确认 `WideInteger_FuzzSeed` 的真实恢复还在，同时把 `WideCompareMaskParity` 里残留的空 outer `try` 一并清掉
+  - 首次 release 复验失败，`tests/fafafa.core.simd/logs/build.txt` 报 `fafafa.core.simd.dispatchapi.testcase.pas(17085,5) Fatal: (2003) Syntax error, "EXCEPT" expected but "END" found`；根因是补回 `FuzzSeed` outer `try` 时多留了一个 `end;`
+  - 删除多余 `end;` 后再次执行固定最小验证，`git diff --check` 通过，且 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 返回 `[BUILD] OK`、`[TEST] OK`、`[LEAK] OK`
+  - 当前下一步若继续，应从 `19069` 之后的收尾区域重新确认是否还存在同级空壳；若没有，就需要重新换一个更高价值入口，而不是机械扫尾

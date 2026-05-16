@@ -16988,99 +16988,99 @@ begin
       if not TrySetActiveBackend(LBackend) then
         Continue;
 
-      for LIter := 1 to 24 do
-      begin
-        for LIndex := 0 to 31 do
+        for LIter := 1 to 24 do
         begin
-          LI16A.i[LIndex] := Int16(Random(65536) - 32768);
-          LI16B.i[LIndex] := Int16(Random(65536) - 32768);
+          for LIndex := 0 to 31 do
+          begin
+            LI16A.i[LIndex] := Int16(Random(65536) - 32768);
+            LI16B.i[LIndex] := Int16(Random(65536) - 32768);
+          end;
+
+          for LIndex := 0 to 63 do
+          begin
+            LI8A.i[LIndex] := Int8(Random(256) - 128);
+            LI8B.i[LIndex] := Int8(Random(256) - 128);
+            LU8A.u[LIndex] := Byte(Random(256));
+            LU8B.u[LIndex] := Byte(Random(256));
+          end;
+
+          for LIndex := 0 to 15 do
+          begin
+            LU32A.u[LIndex] := NextU32;
+            LU32B.u[LIndex] := NextU32;
+          end;
+
+          for LIndex := 0 to 7 do
+          begin
+            LU64A.u[LIndex] := NextU64;
+            LU64B.u[LIndex] := NextU64;
+          end;
+
+          LI16ByBackend := LBackendTable.AddI16x32(LI16A, LI16B);
+          LI16ByScalar := LScalarTable.AddI16x32(LI16A, LI16B);
+          AssertVecI16x32Equal('Fuzz AddI16x32 iter ' + IntToStr(LIter) + ': ' + NonX86BackendName(LBackend), LI16ByScalar, LI16ByBackend);
+
+          LShiftCount := LI16ShiftChoices[Random(Length(LI16ShiftChoices))];
+          LI16ByBackend := LBackendTable.ShiftRightArithI16x32(LI16A, LShiftCount);
+          LI16ByScalar := LScalarTable.ShiftRightArithI16x32(LI16A, LShiftCount);
+          AssertVecI16x32Equal('Fuzz ShiftRightArithI16x32 iter ' + IntToStr(LIter) + ' c=' + IntToStr(LShiftCount) + ': ' + NonX86BackendName(LBackend),
+            LI16ByScalar, LI16ByBackend);
+
+          LMask32ByBackend := LBackendTable.CmpLtI16x32(LI16A, LI16B);
+          LMask32ByScalar := LScalarTable.CmpLtI16x32(LI16A, LI16B);
+          AssertEquals('Fuzz CmpLtI16x32 iter ' + IntToStr(LIter) + ': ' + NonX86BackendName(LBackend),
+            QWord(LMask32ByScalar), QWord(LMask32ByBackend));
+
+          LI8ByBackend := LBackendTable.AndNotI8x64(LI8A, LI8B);
+          LI8ByScalar := LScalarTable.AndNotI8x64(LI8A, LI8B);
+          AssertVecI8x64Equal('Fuzz AndNotI8x64 iter ' + IntToStr(LIter) + ': ' + NonX86BackendName(LBackend), LI8ByScalar, LI8ByBackend);
+
+          LMask64ByBackend := LBackendTable.CmpEqI8x64(LI8A, LI8B);
+          LMask64ByScalar := LScalarTable.CmpEqI8x64(LI8A, LI8B);
+          AssertEquals('Fuzz CmpEqI8x64 iter ' + IntToStr(LIter) + ': ' + NonX86BackendName(LBackend),
+            QWord(LMask64ByScalar), QWord(LMask64ByBackend));
+
+          LU32ByBackend := LBackendTable.MulU32x16(LU32A, LU32B);
+          LU32ByScalar := LScalarTable.MulU32x16(LU32A, LU32B);
+          AssertVecU32x16Equal('Fuzz MulU32x16 iter ' + IntToStr(LIter) + ': ' + NonX86BackendName(LBackend), LU32ByScalar, LU32ByBackend);
+
+          LShiftCount := LU32ShiftChoices[Random(Length(LU32ShiftChoices))];
+          LU32ByBackend := LBackendTable.ShiftRightU32x16(LU32A, LShiftCount);
+          LU32ByScalar := LScalarTable.ShiftRightU32x16(LU32A, LShiftCount);
+          AssertVecU32x16Equal('Fuzz ShiftRightU32x16 iter ' + IntToStr(LIter) + ' c=' + IntToStr(LShiftCount) + ': ' + NonX86BackendName(LBackend),
+            LU32ByScalar, LU32ByBackend);
+
+          LMask16ByBackend := LBackendTable.CmpLeU32x16(LU32A, LU32B);
+          LMask16ByScalar := LScalarTable.CmpLeU32x16(LU32A, LU32B);
+          AssertEquals('Fuzz CmpLeU32x16 iter ' + IntToStr(LIter) + ': ' + NonX86BackendName(LBackend),
+            QWord(LMask16ByScalar), QWord(LMask16ByBackend));
+
+          LU64ByBackend := LBackendTable.AddU64x8(LU64A, LU64B);
+          LU64ByScalar := LScalarTable.AddU64x8(LU64A, LU64B);
+          AssertVecU64x8Equal('Fuzz AddU64x8 iter ' + IntToStr(LIter) + ': ' + NonX86BackendName(LBackend), LU64ByScalar, LU64ByBackend);
+
+          LShiftCount := LU64ShiftChoices[Random(Length(LU64ShiftChoices))];
+          LU64ByBackend := LBackendTable.ShiftLeftU64x8(LU64A, LShiftCount);
+          LU64ByScalar := LScalarTable.ShiftLeftU64x8(LU64A, LShiftCount);
+          AssertVecU64x8Equal('Fuzz ShiftLeftU64x8 iter ' + IntToStr(LIter) + ' c=' + IntToStr(LShiftCount) + ': ' + NonX86BackendName(LBackend),
+            LU64ByScalar, LU64ByBackend);
+
+          LMask8ByBackend := LBackendTable.CmpNeU64x8(LU64A, LU64B);
+          LMask8ByScalar := LScalarTable.CmpNeU64x8(LU64A, LU64B);
+          AssertEquals('Fuzz CmpNeU64x8 iter ' + IntToStr(LIter) + ': ' + NonX86BackendName(LBackend),
+            QWord(LMask8ByScalar), QWord(LMask8ByBackend));
+
+          LU8ByBackend := LBackendTable.XorU8x64(LU8A, LU8B);
+          LU8ByScalar := LScalarTable.XorU8x64(LU8A, LU8B);
+          AssertVecU8x64Equal('Fuzz XorU8x64 iter ' + IntToStr(LIter) + ': ' + NonX86BackendName(LBackend), LU8ByScalar, LU8ByBackend);
+
+          LMask64ByBackend := LBackendTable.CmpGtU8x64(LU8A, LU8B);
+          LMask64ByScalar := LScalarTable.CmpGtU8x64(LU8A, LU8B);
+          AssertEquals('Fuzz CmpGtU8x64 iter ' + IntToStr(LIter) + ': ' + NonX86BackendName(LBackend),
+            QWord(LMask64ByScalar), QWord(LMask64ByBackend));
         end;
 
-        for LIndex := 0 to 63 do
-        begin
-          LI8A.i[LIndex] := Int8(Random(256) - 128);
-          LI8B.i[LIndex] := Int8(Random(256) - 128);
-          LU8A.u[LIndex] := Byte(Random(256));
-          LU8B.u[LIndex] := Byte(Random(256));
-        end;
-
-        for LIndex := 0 to 15 do
-        begin
-          LU32A.u[LIndex] := NextU32;
-          LU32B.u[LIndex] := NextU32;
-        end;
-
-        for LIndex := 0 to 7 do
-        begin
-          LU64A.u[LIndex] := NextU64;
-          LU64B.u[LIndex] := NextU64;
-        end;
-
-        LI16ByBackend := LBackendTable.AddI16x32(LI16A, LI16B);
-        LI16ByScalar := LScalarTable.AddI16x32(LI16A, LI16B);
-        AssertVecI16x32Equal('Fuzz AddI16x32 iter ' + IntToStr(LIter) + ': ' + NonX86BackendName(LBackend), LI16ByScalar, LI16ByBackend);
-
-        LShiftCount := LI16ShiftChoices[Random(Length(LI16ShiftChoices))];
-        LI16ByBackend := LBackendTable.ShiftRightArithI16x32(LI16A, LShiftCount);
-        LI16ByScalar := LScalarTable.ShiftRightArithI16x32(LI16A, LShiftCount);
-        AssertVecI16x32Equal('Fuzz ShiftRightArithI16x32 iter ' + IntToStr(LIter) + ' c=' + IntToStr(LShiftCount) + ': ' + NonX86BackendName(LBackend),
-          LI16ByScalar, LI16ByBackend);
-
-        LMask32ByBackend := LBackendTable.CmpLtI16x32(LI16A, LI16B);
-        LMask32ByScalar := LScalarTable.CmpLtI16x32(LI16A, LI16B);
-        AssertEquals('Fuzz CmpLtI16x32 iter ' + IntToStr(LIter) + ': ' + NonX86BackendName(LBackend),
-          QWord(LMask32ByScalar), QWord(LMask32ByBackend));
-
-        LI8ByBackend := LBackendTable.AndNotI8x64(LI8A, LI8B);
-        LI8ByScalar := LScalarTable.AndNotI8x64(LI8A, LI8B);
-        AssertVecI8x64Equal('Fuzz AndNotI8x64 iter ' + IntToStr(LIter) + ': ' + NonX86BackendName(LBackend), LI8ByScalar, LI8ByBackend);
-
-        LMask64ByBackend := LBackendTable.CmpEqI8x64(LI8A, LI8B);
-        LMask64ByScalar := LScalarTable.CmpEqI8x64(LI8A, LI8B);
-        AssertEquals('Fuzz CmpEqI8x64 iter ' + IntToStr(LIter) + ': ' + NonX86BackendName(LBackend),
-          QWord(LMask64ByScalar), QWord(LMask64ByBackend));
-
-        LU32ByBackend := LBackendTable.MulU32x16(LU32A, LU32B);
-        LU32ByScalar := LScalarTable.MulU32x16(LU32A, LU32B);
-        AssertVecU32x16Equal('Fuzz MulU32x16 iter ' + IntToStr(LIter) + ': ' + NonX86BackendName(LBackend), LU32ByScalar, LU32ByBackend);
-
-        LShiftCount := LU32ShiftChoices[Random(Length(LU32ShiftChoices))];
-        LU32ByBackend := LBackendTable.ShiftRightU32x16(LU32A, LShiftCount);
-        LU32ByScalar := LScalarTable.ShiftRightU32x16(LU32A, LShiftCount);
-        AssertVecU32x16Equal('Fuzz ShiftRightU32x16 iter ' + IntToStr(LIter) + ' c=' + IntToStr(LShiftCount) + ': ' + NonX86BackendName(LBackend),
-          LU32ByScalar, LU32ByBackend);
-
-        LMask16ByBackend := LBackendTable.CmpLeU32x16(LU32A, LU32B);
-        LMask16ByScalar := LScalarTable.CmpLeU32x16(LU32A, LU32B);
-        AssertEquals('Fuzz CmpLeU32x16 iter ' + IntToStr(LIter) + ': ' + NonX86BackendName(LBackend),
-          QWord(LMask16ByScalar), QWord(LMask16ByBackend));
-
-        LU64ByBackend := LBackendTable.AddU64x8(LU64A, LU64B);
-        LU64ByScalar := LScalarTable.AddU64x8(LU64A, LU64B);
-        AssertVecU64x8Equal('Fuzz AddU64x8 iter ' + IntToStr(LIter) + ': ' + NonX86BackendName(LBackend), LU64ByScalar, LU64ByBackend);
-
-        LShiftCount := LU64ShiftChoices[Random(Length(LU64ShiftChoices))];
-        LU64ByBackend := LBackendTable.ShiftLeftU64x8(LU64A, LShiftCount);
-        LU64ByScalar := LScalarTable.ShiftLeftU64x8(LU64A, LShiftCount);
-        AssertVecU64x8Equal('Fuzz ShiftLeftU64x8 iter ' + IntToStr(LIter) + ' c=' + IntToStr(LShiftCount) + ': ' + NonX86BackendName(LBackend),
-          LU64ByScalar, LU64ByBackend);
-
-        LMask8ByBackend := LBackendTable.CmpNeU64x8(LU64A, LU64B);
-        LMask8ByScalar := LScalarTable.CmpNeU64x8(LU64A, LU64B);
-        AssertEquals('Fuzz CmpNeU64x8 iter ' + IntToStr(LIter) + ': ' + NonX86BackendName(LBackend),
-          QWord(LMask8ByScalar), QWord(LMask8ByBackend));
-
-        LU8ByBackend := LBackendTable.XorU8x64(LU8A, LU8B);
-        LU8ByScalar := LScalarTable.XorU8x64(LU8A, LU8B);
-        AssertVecU8x64Equal('Fuzz XorU8x64 iter ' + IntToStr(LIter) + ': ' + NonX86BackendName(LBackend), LU8ByScalar, LU8ByBackend);
-
-        LMask64ByBackend := LBackendTable.CmpGtU8x64(LU8A, LU8B);
-        LMask64ByScalar := LScalarTable.CmpGtU8x64(LU8A, LU8B);
-        AssertEquals('Fuzz CmpGtU8x64 iter ' + IntToStr(LIter) + ': ' + NonX86BackendName(LBackend),
-          QWord(LMask64ByScalar), QWord(LMask64ByBackend));
-      end;
-
-      Inc(LChecked);
+        Inc(LChecked);
     end;
   finally
     RandSeed := LOriginalSeed;
@@ -17378,13 +17378,12 @@ begin
   LBackends[1] := sbRISCVV;
   LChecked := 0;
 
-  try
-    for LBackend in LBackends do
-    begin
-      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
-        Continue;
-      if not TrySetActiveBackend(LBackend) then
-        Continue;
+  for LBackend in LBackends do
+  begin
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+      Continue;
+    if not TrySetActiveBackend(LBackend) then
+      Continue;
 
       AssertTrue('CmpEqI32x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.CmpEqI32x8));
       AssertTrue('CmpLtI32x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.CmpLtI32x8));
@@ -17854,44 +17853,42 @@ begin
         AssertMask4HelperParity('U64x4 onehot-gt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend), LExpectedMask4);
       end;
 
-      for LLane := 0 to 15 do
-      begin
-        LExpectedMask16 := TMask16(1 shl LLane);
+    for LLane := 0 to 15 do
+    begin
+      LExpectedMask16 := TMask16(1 shl LLane);
 
-        LoadI32x16OneHotProbe(LLane, True);
-        AssertMask16Equal('CmpLtI32x16 onehot-lt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend),
-          LExpectedMask16, LBackendTable.CmpLtI32x16(LI32x16A, LI32x16B));
-        AssertMask16Equal('CmpEqI32x16 onehot-lt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend),
-          TMask16($FFFF xor LExpectedMask16), LBackendTable.CmpEqI32x16(LI32x16A, LI32x16B));
-        AssertMask16Equal('CmpGtI32x16 onehot-lt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend),
-          0, LBackendTable.CmpGtI32x16(LI32x16A, LI32x16B));
-        AssertMask16Equal('CmpLeI32x16 onehot-lt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend),
-          TMask16($FFFF), LBackendTable.CmpLeI32x16(LI32x16A, LI32x16B));
-        AssertMask16Equal('CmpGeI32x16 onehot-lt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend),
-          TMask16($FFFF xor LExpectedMask16), LBackendTable.CmpGeI32x16(LI32x16A, LI32x16B));
-        AssertMask16Equal('CmpNeI32x16 onehot-lt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend),
-          LExpectedMask16, LBackendTable.CmpNeI32x16(LI32x16A, LI32x16B));
-        AssertMask16HelperParity('I32x16 onehot-lt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend), LExpectedMask16);
+      LoadI32x16OneHotProbe(LLane, True);
+      AssertMask16Equal('CmpLtI32x16 onehot-lt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend),
+        LExpectedMask16, LBackendTable.CmpLtI32x16(LI32x16A, LI32x16B));
+      AssertMask16Equal('CmpEqI32x16 onehot-lt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend),
+        TMask16($FFFF xor LExpectedMask16), LBackendTable.CmpEqI32x16(LI32x16A, LI32x16B));
+      AssertMask16Equal('CmpGtI32x16 onehot-lt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend),
+        0, LBackendTable.CmpGtI32x16(LI32x16A, LI32x16B));
+      AssertMask16Equal('CmpLeI32x16 onehot-lt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend),
+        TMask16($FFFF), LBackendTable.CmpLeI32x16(LI32x16A, LI32x16B));
+      AssertMask16Equal('CmpGeI32x16 onehot-lt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend),
+        TMask16($FFFF xor LExpectedMask16), LBackendTable.CmpGeI32x16(LI32x16A, LI32x16B));
+      AssertMask16Equal('CmpNeI32x16 onehot-lt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend),
+        LExpectedMask16, LBackendTable.CmpNeI32x16(LI32x16A, LI32x16B));
+      AssertMask16HelperParity('I32x16 onehot-lt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend), LExpectedMask16);
 
-        LoadI32x16OneHotProbe(LLane, False);
-        AssertMask16Equal('CmpLtI32x16 onehot-gt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend),
-          0, LBackendTable.CmpLtI32x16(LI32x16A, LI32x16B));
-        AssertMask16Equal('CmpEqI32x16 onehot-gt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend),
-          TMask16($FFFF xor LExpectedMask16), LBackendTable.CmpEqI32x16(LI32x16A, LI32x16B));
-        AssertMask16Equal('CmpGtI32x16 onehot-gt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend),
-          LExpectedMask16, LBackendTable.CmpGtI32x16(LI32x16A, LI32x16B));
-        AssertMask16Equal('CmpLeI32x16 onehot-gt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend),
-          TMask16($FFFF xor LExpectedMask16), LBackendTable.CmpLeI32x16(LI32x16A, LI32x16B));
-        AssertMask16Equal('CmpGeI32x16 onehot-gt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend),
-          TMask16($FFFF), LBackendTable.CmpGeI32x16(LI32x16A, LI32x16B));
-        AssertMask16Equal('CmpNeI32x16 onehot-gt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend),
-          LExpectedMask16, LBackendTable.CmpNeI32x16(LI32x16A, LI32x16B));
-        AssertMask16HelperParity('I32x16 onehot-gt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend), LExpectedMask16);
-      end;
-
-      Inc(LChecked);
+      LoadI32x16OneHotProbe(LLane, False);
+      AssertMask16Equal('CmpLtI32x16 onehot-gt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend),
+        0, LBackendTable.CmpLtI32x16(LI32x16A, LI32x16B));
+      AssertMask16Equal('CmpEqI32x16 onehot-gt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend),
+        TMask16($FFFF xor LExpectedMask16), LBackendTable.CmpEqI32x16(LI32x16A, LI32x16B));
+      AssertMask16Equal('CmpGtI32x16 onehot-gt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend),
+        LExpectedMask16, LBackendTable.CmpGtI32x16(LI32x16A, LI32x16B));
+      AssertMask16Equal('CmpLeI32x16 onehot-gt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend),
+        TMask16($FFFF xor LExpectedMask16), LBackendTable.CmpLeI32x16(LI32x16A, LI32x16B));
+      AssertMask16Equal('CmpGeI32x16 onehot-gt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend),
+        TMask16($FFFF), LBackendTable.CmpGeI32x16(LI32x16A, LI32x16B));
+      AssertMask16Equal('CmpNeI32x16 onehot-gt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend),
+        LExpectedMask16, LBackendTable.CmpNeI32x16(LI32x16A, LI32x16B));
+      AssertMask16HelperParity('I32x16 onehot-gt lane=' + IntToStr(LLane) + ': ' + NonX86BackendName(LBackend), LExpectedMask16);
     end;
-  finally
+
+    Inc(LChecked);
   end;
 
   if LChecked = 0 then
@@ -17998,13 +17995,12 @@ begin
   LU64x4A.u[2] := 1;
   LU64x4A.u[3] := QWord($0123456789ABCDEF);
 
-  try
-    for LBackend in LBackends do
-    begin
-      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
-        Continue;
-      if not TrySetActiveBackend(LBackend) then
-        Continue;
+  for LBackend in LBackends do
+  begin
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+      Continue;
+    if not TrySetActiveBackend(LBackend) then
+      Continue;
 
       AssertTrue('AndI32x4 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.AndI32x4));
       AssertTrue('OrI32x4 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.OrI32x4));
@@ -18121,9 +18117,7 @@ begin
           LU64x4ByScalar, LU64x4ByBackend);
       end;
 
-      Inc(LChecked);
-    end;
-  finally
+    Inc(LChecked);
   end;
 
   if LChecked = 0 then
@@ -18304,13 +18298,12 @@ begin
   LI64x8B.i[2] := High(Int64);
   LI64x8B.i[7] := Low(Int64);
 
-  try
-    for LBackend in LBackends do
-    begin
-      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
-        Continue;
-      if not TrySetActiveBackend(LBackend) then
-        Continue;
+  for LBackend in LBackends do
+  begin
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+      Continue;
+    if not TrySetActiveBackend(LBackend) then
+      Continue;
 
       AssertTrue('AndI32x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.AndI32x8));
       AssertTrue('OrI32x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.OrI32x8));
@@ -18550,9 +18543,7 @@ begin
           LI64x4ByScalar, LI64x4ByBackend);
       end;
 
-      Inc(LChecked);
-    end;
-  finally
+    Inc(LChecked);
   end;
 
   if LChecked = 0 then
@@ -18853,13 +18844,12 @@ begin
   LU64x4SubProbeExpected.u[2] := QWord($E0DFFFFFFFFFFFFD);
   LU64x4SubProbeExpected.u[3] := QWord($F1F0FFFFFFFFFFFC);
 
-  try
-    for LBackend in LBackends do
-    begin
-      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
-        Continue;
-      if not TrySetActiveBackend(LBackend) then
-        Continue;
+  for LBackend in LBackends do
+  begin
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+      Continue;
+    if not TrySetActiveBackend(LBackend) then
+      Continue;
 
       AssertTrue('AddI32x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.AddI32x8));
       AssertTrue('SubI32x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.SubI32x8));
@@ -19069,9 +19059,7 @@ begin
       LU64x8ByScalar := LScalarTable.AddU64x8(LU64x8A, LU64x8B);
       AssertVecU64x8Equal('Facade AddU64x8 parity: ' + NonX86BackendName(LBackend), LU64x8ByScalar, LU64x8ByBackend);
 
-      Inc(LChecked);
-    end;
-  finally
+    Inc(LChecked);
   end;
 
   if LChecked = 0 then

@@ -6275,3 +6275,23 @@
 - 这继续强化当前准则：
   - 即使测试主题切到 non-x86 narrow/wide helper、core arithmetic、mask parity 或 minimal dispatch，只要 outer `finally` 不承担真实恢复职责，就仍然可以按同一 fail-close 规则剥掉机械空壳
   - 当连续区段只剩同构空壳时，可以适度扩大同批处理范围提升效率，但仍要用明确停点避免重新扩散 scope
+
+## 2026-05-16 NonX86 Mask And Shift Empty Finally Cleanup
+
+- `dispatchapi.testcase` / `TTestCase_NonX86BackendParity` 的 `17092..19067` 说明，空 outer `finally` 仍继续分布在更后段的 compare/mask/shift/minmax parity 测试里。
+- 这次确认可安全清理的 4 条方法是：
+  - `TTestCase_NonX86BackendParity.Test_WideCompareMaskParity_IfAvailable`
+  - `TTestCase_NonX86BackendParity.Test_I32x4_BitwiseShiftParity_IfAvailable`
+  - `TTestCase_NonX86BackendParity.Test_WideSignedBitwiseShiftParity_IfAvailable`
+  - `TTestCase_NonX86BackendParity.Test_WideIntegerArithmeticMinMaxParity_IfAvailable`
+- 它们的共同边界和当前准则完全一致：
+  - 运行期部分只做 backend 注册/激活筛选、compare mask/helper parity、exact shift probe、bitwise/arithmetic/minmax parity 和 facade/helper 合同断言
+  - outer `finally` 本身完全为空，不承担任何 restore、hook cleanup 或资源释放
+- 这次也额外确认了一个必须继续跳过的相邻测试：
+  - `Test_WideInteger_FuzzSeed_Parity_IfAvailable` 的 `finally` 会恢复 `RandSeed`，这是明确的真实状态清理，不能机械删除
+- 实施时又暴露出两个结构性事实，后续继续扫尾时必须记住：
+  - `WideInteger_FuzzSeed` 不是“只保留 finally 就行”，它要求成对保留 outer `try/finally`；去掉 `try` 会直接把 `finally` 变成孤立语法错误
+  - `WideCompareMaskParity` 在当前工作树里仍残留一个空 outer `try`，不能只看方法尾部；继续推进时要同时搜方法体里的 `try/finally` 关键字，避免留下半截结构
+- 这继续强化当前准则：
+  - 即使测试主题切到更长的 compare-mask、bitwise-shift 和 wide integer arithmetic/minmax parity，只要 outer `finally` 不承担真实恢复职责，就仍然可以按同一 fail-close 规则剥掉机械空壳
+  - 任何显式状态回滚（这里是 `RandSeed`）都必须继续视为真实职责，而不是“样板代码”
