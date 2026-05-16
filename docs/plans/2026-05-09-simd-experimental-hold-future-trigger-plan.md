@@ -11,6 +11,7 @@
 ## 当前基线
 
 - `AES`、`SHA`、`AVX`、`SVE`、`SVE2`、`LASX` 继续保持 `experimental isolated`
+- `AES/SHA` 当前除 isolation 之外，还保留 `Test_Default_AES_SHA_Rejects` / `Test_Experimental_AES_SHA_PlaceholderSemantics` 这条实验测试 lane；它锁的是 default-reject + placeholder semantics，不是 stable adapter contract
 - `FMA3` 保留自己的 smoke lane，但仍不进入 stable default 路径
 - 当前没有任何一个 family 进入新的 default stable adapter 依赖
 
@@ -26,8 +27,8 @@
 
 | Family | Current state | Reopen only when | Required lane before reopen | Not a trigger |
 | ------ | ------------- | ---------------- | --------------------------- | ------------- |
-| `AES` | `experimental isolated` | `simd` 主线里出现必须由 stable adapter 暴露的 AES block/round/helper use-case，而不是继续放在独立 crypto 路径 | `experimental-intrinsics` isolation + family-specific backend smoke + representative parity/reference-vector lane | 只是在源码里看起来能复用 AES 指令，或只是想减少文件数 |
-| `SHA` | `experimental isolated` | `simd` 主线里出现必须由 stable adapter 暴露的 SHA round/hash helper use-case，而不是继续停在实验 leaf | `experimental-intrinsics` isolation + family-specific backend smoke + representative parity/reference-vector lane | smoke 先绿，或只是觉得 SHA 和 AES 规则应该一起放开 |
+| `AES` | `experimental isolated` | `simd` 主线里出现必须由 stable adapter 暴露的 AES block/round/helper use-case，而不是继续放在独立 crypto 路径 | 当前 `experimental-intrinsics` isolation + `Test_Default_AES_SHA_Rejects` / `Test_Experimental_AES_SHA_PlaceholderSemantics`，外加 family-specific backend smoke + representative parity/reference-vector lane | 只是在源码里看起来能复用 AES 指令，或只是想减少文件数 |
+| `SHA` | `experimental isolated` | `simd` 主线里出现必须由 stable adapter 暴露的 SHA round/hash helper use-case，而不是继续停在实验 leaf | 当前 `experimental-intrinsics` isolation + `Test_Default_AES_SHA_Rejects` / `Test_Experimental_AES_SHA_PlaceholderSemantics`，外加 family-specific backend smoke + representative parity/reference-vector lane | smoke 先绿，或只是觉得 SHA 和 AES 规则应该一起放开 |
 | `AVX` | `experimental isolated` | 出现一个不能继续落在 `AVX2`/现有 x86 adapter 上的稳定 `AVX-only` adapter target | `experimental-intrinsics` isolation + `check_avx_backend_smoke` 类 lane + representative parity lane | 仅因为 `AVX` 和 `AVX2` 很接近，或希望把文件名统一 |
 | `FMA3` | `experimental isolated` | stable adapter 需要显式承诺 fused-multiply-add 语义，且不能继续由 `AVX2` adapter/internal helper 吸收 | 现有 `check_fma3_backend_smoke` + representative parity lane + single-source adapter/leaf mapping | 只因为已有 smoke，或某几个 helper 看起来可以直接接线 |
 | `SVE` | `experimental isolated` | 出现 distinct-from-NEON 的稳定 ARM scalable-vector use-case，并且需要 `simd` 主线默认维护 | `experimental-intrinsics` isolation + opt-in smoke + representative parity lane + evidence path | 仅因为目标机器支持 SVE，或想提前为未来平台铺文件 |

@@ -7657,3 +7657,16 @@
   - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
   - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
   - 结果：全部通过；新的静态护栏、默认拒绝链和 x86 opt-in 实验链都未被误伤
+
+## 2026-05-17 AES SHA Hold-Lane Truth Sync
+
+- 这轮没有继续改代码，而是收一处 hold family 的 active docs 真相漂移。
+- 已复核：
+  - `docs/SIMD_INTRINSICS_DISPOSITION.md`
+  - `docs/plans/2026-05-09-simd-family-matrix.md`
+  - `docs/plans/2026-05-09-simd-experimental-hold-future-trigger-plan.md`
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+- 当前结论：
+  - `AES/SHA` 现在不只是 isolation-only；
+  - 当前真实 lane 还包含 default-reject + placeholder semantics 实验测试；
+  - 但这条 lane 只是在锁 experimental contract，不是 stable leaf / stable adapter contract。

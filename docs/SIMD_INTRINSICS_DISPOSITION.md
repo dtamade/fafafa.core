@@ -18,8 +18,8 @@
 | `fafafa.core.simd.intrinsics.mmx` | `active leaf` | 低层 MMX leaf | 有独立测试 lane |
 | `fafafa.core.simd.intrinsics.sse` | `active leaf` | 低层 SSE leaf | 有独立测试 lane |
 | `fafafa.core.simd.intrinsics.avx2` | `active leaf` | 低层 AVX2 leaf | 当前保留的 active exception；有专门 coverage/test lane |
-| `fafafa.core.simd.intrinsics.aes` | `experimental isolated` | x86 AES leaf | 默认入口隔离，仍需 opt-in |
-| `fafafa.core.simd.intrinsics.sha` | `experimental isolated` | x86 SHA leaf | 默认入口隔离，仍需 opt-in |
+| `fafafa.core.simd.intrinsics.aes` | `experimental isolated` | x86 AES leaf | 默认入口隔离，仍需 opt-in；当前 experimental tests 锁住 default-reject + placeholder semantics |
+| `fafafa.core.simd.intrinsics.sha` | `experimental isolated` | x86 SHA leaf | 默认入口隔离，仍需 opt-in；当前 experimental tests 锁住 default-reject + placeholder semantics |
 | `fafafa.core.simd.intrinsics.avx` | `experimental isolated` | x86 AVX leaf | 默认入口隔离，仍需 opt-in；无当前 in-repo bridge consumer；non-x86 分支只保留 compile scaffolding，runtime fail-close |
 | `fafafa.core.simd.intrinsics.sse2` | `transitional` | SSE2 compatibility / wrapper layer | experimental opt-in only；non-x86 分支只保留 compile scaffolding，runtime fail-close；迁移完成后进入 retire path |
 | `fafafa.core.simd.intrinsics.x86.sse2` | `experimental isolated` | SSE2 raw x86 leaf target | 未来只接收纯 `TM128` raw primitive；当前仍受 experimental guard 保护 |
@@ -56,6 +56,7 @@
 - `fafafa.core.simd.intrinsics.sse2` 的 non-x86 分支也不是 experimental runtime 合同；它只保留编译脚手架。
 - `fafafa.core.simd.intrinsics.avx` 继续是 hold family；当前也没有任何仓库内 bridge consumer 可以把它误当成活跃依赖。
 - `fafafa.core.simd.intrinsics.sse3/sse41/sse42/avx512/fma3` 也都是 x86-only experimental lane；non-x86 运行期同样不是 contract。
+- `fafafa.core.simd.intrinsics.aes/sha` 和上面这批不同：当前有实验测试明确锁住 default-reject + placeholder semantics，但这仍然不是 stable leaf contract。
 - `fafafa.core.simd.intrinsics.x86.sse2` 也不是当前 SSE2 发布真相源。
 - 当前 SSE2 发布真相源仍然是 `src/fafafa.core.simd.sse2.pas`。
 - 只要 `fafafa.core.simd.intrinsics.x86.sse2` 仍是 `experimental isolated`，default stable `simd.sse2` 就不应新增对它的默认依赖。

@@ -4379,3 +4379,16 @@
 | 1. 复核同类命中是否成批存在 | completed | 已确认 `sse3/sse41/sse42/avx512/fma3` 当前都只有 `EnsureExperimentalIntrinsicsEnabled`，无 x86-target runtime guard；现有 verification lane 也都仍是 x86 smoke / representative parity / isolation |
 | 2. 源码 + docs + checker 一起收口 | completed | 这 5 个单元现已全部补上 non-x86 fail-close；`docs/SIMD_INTRINSICS_DISPOSITION.md` 与 `check_intrinsics_experimental_status.py` 已同步成静态护栏 |
 | 3. 最小验证与收口 | completed | `git diff --check`、`check_intrinsics_experimental_status.py --summary-line`、`tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`、`FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 ... BuildOrTest.sh test` 全部通过 |
+
+## 2026-05-17 AES SHA Hold-Lane Truth Sync
+
+### Goal
+
+把 `AES/SHA` 这类 hold family 的 active docs 从 “experimental-intrinsics isolation only” 收正到当前真实口径：它们还有 default-reject + placeholder semantics 的实验测试 lane，但这仍然不是 stable contract。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 active docs 与实验测试真相 | completed | 已确认 family matrix / disposition 仍把 `AES/SHA` 写得过窄，但 `TTestCase_SimdIntrinsicsExperimental` 已明确覆盖 default reject 与 opt-in placeholder semantics |
+| 2. 文档真相同步 | completed | `SIMD_INTRINSICS_DISPOSITION.md`、`simd-family-matrix.md`、`simd-experimental-hold-future-trigger-plan.md` 已同步到当前真实 lane；`git diff --check` 与关键 `rg` 复核通过 |

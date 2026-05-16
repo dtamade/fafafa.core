@@ -6402,3 +6402,18 @@
   - non-x86 只允许保留 compile scaffolding
   - runtime 必须 fail-close
   - `check_intrinsics_experimental_status.py` 也要把这条规则升成静态护栏，防止以后回退成“有 experimental guard 但没有 target guard”
+
+## 2026-05-17 AES SHA Hold-Lane Truth Drift
+
+- `docs/plans/2026-05-09-simd-family-matrix.md` 目前把 `AES/SHA` 的 verification lane 写成了 `experimental-intrinsics isolation only`。
+- 但仓库里的真实实验测试更宽：
+  - `TTestCase_SimdIntrinsicsExperimental.Test_Default_AES_SHA_Rejects`
+  - `TTestCase_SimdIntrinsicsExperimental.Test_Experimental_AES_SHA_PlaceholderSemantics`
+  这两条都在 `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 里，前者锁默认拒绝，后者锁 opt-in placeholder semantics。
+- 这说明 `AES/SHA` 和刚收口的 `SSE3/SSE4.1/SSE4.2/AVX-512/FMA3` 不是同一类 experimental lane：
+  - 后者是真正的 x86-only runtime lane，non-x86 应 fail-close；
+  - `AES/SHA` 当前则保留了一条跨平台 experimental placeholder-semantics lane。
+- 因而更正确的文档口径应该是：
+  - `AES/SHA` 继续 hold / experimental isolated
+  - 当前实验验证 lane 包含 `experimental-intrinsics` isolation + default-reject + placeholder semantics tests
+  - 但这仍然不是 stable adapter / stable leaf contract，更不能据此 reopen
