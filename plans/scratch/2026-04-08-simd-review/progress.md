@@ -6967,3 +6967,29 @@
 - 当前阶段结论：
   - 这批已经形成完整小闭环，可以直接提交
   - 当前工作法继续有效：保持同一文件、同一 suite、同一语义边界，推进速度和安全性都更稳
+
+## 2026-05-16 PublicAbi Previous Forced Empty Finally Cleanup
+
+- 这一批继续不换文件、不换 suite，只在 previous-forced preserve 这段里继续做语义分层。
+- 候选筛选过程：
+  - 先通读 `3183..3454` 一带完整方法体，而不是只凭 `rg` 命中
+  - 只保留 4 个“外层 finally 为空、内层 finally 已承担 hook cleanup”的方法
+  - 明确把外层 finally 还带 `LPreviousTableCaptured` 条件 restore 的 `RegisterBackend` 路径排除
+- 已完成的源码改动：
+  - 文件：`tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas`
+  - 清理 4 个 previous-forced/`RegisterBackend` late-force 方法中的未使用 `LOldVectorAsm`
+  - 删除这 4 个方法的纯空 outer `try/finally`
+- 安全依据：
+  - 真实 hook remove / stage reset 仍留在内层 finally
+  - 外层 finally 仅在被确认为空壳时才删除
+  - 复杂的 table-capture restore 路径已显式跳过
+- 本轮验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+- fresh 结果：
+  - `[BUILD] OK`
+  - `[TEST] OK`
+  - `[LEAK] OK`
+- 当前阶段结论：
+  - 这批已经形成完整小闭环，可以直接提交
+  - 当前方法继续有效：同一文件里先把“真空壳 cleanup”收干净，再把带条件 restore 的剩余点单独看，能明显降低误删风险

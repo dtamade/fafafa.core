@@ -4010,3 +4010,17 @@
 | 1. 复核 automatic/vector-asm late-force 组的语义边界 | completed | 已复核 `2946..3201` 一带：`ResetToAutomaticBackend_HookLateForce_Restores_AutomaticBackend`、`Refreshes_WhenVectorAsmDisabled_ReSelects_Away_From_ScalarBacked_CurrentBackend`、`ResetToAutomaticBackend_HookLateForce_DuringRestore_Restores_AutomaticBackend`、`SetVectorAsmEnabled_HookLateForce_Restores_AutomaticBackend`、`SetVectorAsmEnabled_HookLateForce_DuringRestore_Restores_AutomaticBackend` 都满足“`LOldVectorAsm` 无读取 + outer finally 为空 + 真正 hook cleanup 在内层 finally 或由 TearDown 统一恢复”；而更后面的 previous-forced preserve 路径先不碰 |
 | 2. 只清 5 个同类命中 | completed | 已在上述 5 个方法中删除未使用的 `LOldVectorAsm` 与纯空 outer `try/finally`；automatic best backend、scalar force、dispatch hook remove/reset 的实际收尾逻辑保持不变 |
 | 3. 继续用单 suite release 验证收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi` 验证；构建、测试与 leak check 均通过 |
+
+## 2026-05-16 PublicAbi Previous Forced Empty Finally Cleanup
+
+### Goal
+
+继续推进到 `publicabi.testcase` 里的 previous-forced preserve 段，但只收 4 个仍然满足“外层 finally 为空、真实 restore 在内层 finally 或 TearDown”条件的命中，不碰后面那些外层 finally 自带 table-capture restore 的 `RegisterBackend ... preserves previous forced backend` 路径。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 给 previous-forced preserve 段继续做语义分层 | completed | 已复核 `3183..3454` 一带：`SetVectorAsmEnabled_HookLateAutomaticReset_Preserves_PreviousForcedBackend`、`...DuringRestore...`、`SetVectorAsmEnabled_HookLateForce_DuringRestore_Preserves_PreviousForcedBackend`、`RegisterBackend_HookLateForce_Restores_AutomaticBackend` 都满足“`LOldVectorAsm` 无读取 + outer finally 为空 + 真正 hook cleanup 在内层 finally”；而 `RegisterBackend_HookLateAutomaticReset_Preserves_PreviousForcedBackend` / `RegisterBackend_HookLateForce_DuringRestore_Preserves_PreviousForcedBackend` 的外层 finally 还承担 `if LPreviousTableCaptured then RegisterBackend(...)`，明确排除 |
+| 2. 只清 4 个高确定性命中 | completed | 已在上述 4 个方法中删除未使用的 `LOldVectorAsm` 与纯空 outer `try/finally`；previous forced backend、hook reset/late-force、RegisterBackend late-force 的实际 cleanup 逻辑保持不变 |
+| 3. 继续用单 suite release 验证收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi` 验证；构建、测试与 leak check 均通过 |
