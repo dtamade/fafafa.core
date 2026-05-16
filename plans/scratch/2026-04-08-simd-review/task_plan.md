@@ -4522,3 +4522,17 @@
 | 1. 复核当前是否存在护栏缺口 | completed | 已确认 production 命中面当前仍干净：`GetCurrentSimdDataPlane` 只在 `dataplane/public_abi.impl/simd.pas`，`GetCurrentSimdDataPlaneDispatch` 只在 `dataplane/public_abi.impl/direct`，`RebindSimdDataPlane` 只在 `dataplane/direct`；但默认 `check` 尚无任何 checker 固化这条边界 |
 | 2. checker + shell/batch parity 收口 | completed | 已新增 `check_dataplane_consumer_scope.py`，并补齐 `BuildOrTest.sh` / `buildOrTest.bat` 的 `dataplane-consumer-scope` action、默认 `check` 接线、usage/parity/selfcheck 字符串与 maintenance 说明 |
 | 3. release 验证与收口 | completed | `git diff --check`、`python3 tests/fafafa.core.simd/check_dataplane_consumer_scope.py --summary-line`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已通过；新 checker 在 release `check` 中真实执行并返回 `forbidden_hits=0` |
+
+## 2026-05-17 Direct Dispatch Scope Guard
+
+### Goal
+
+把 `GetDirectDispatchTable` 这条 companion fast-path 的 production 使用边界也固化进默认门禁，防止 `api/arrays/ops/direct` 之外再悄悄长出新的 direct fast-path surface。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前是否存在护栏缺口 | completed | 已确认 production 命中面当前只落在 `src/fafafa.core.simd.api.pas`、`src/fafafa.core.simd.arrays.pas`、`src/fafafa.core.simd.ops.pas`、`src/fafafa.core.simd.direct.pas`；`RebindDirectDispatch` 则只在 `direct` 自身，没有其他 production caller；但默认 `check` 尚无任何 checker 固化 `GetDirectDispatchTable` 这条边界 |
+| 2. checker + shell/batch parity 收口 | completed | 已新增 `check_direct_dispatch_scope.py`，并补齐 `BuildOrTest.sh` / `buildOrTest.bat` 的 `direct-dispatch-scope` action、默认 `check` 接线、usage/parity/selfcheck 字符串与 maintenance 说明 |
+| 3. release 验证与收口 | completed | `git diff --check`、`python3 tests/fafafa.core.simd/check_direct_dispatch_scope.py --summary-line`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已通过；新 checker 在 release `check` 中真实执行并返回 `forbidden_hits=0` |

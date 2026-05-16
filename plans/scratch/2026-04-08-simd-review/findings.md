@@ -6594,3 +6594,27 @@
   - 扫描 `src/fafafa.core.simd*.pas/inc`
   - 把 3 个 dataplane consumer helper 的 production 允许面固定在 `dataplane/direct/public ABI/facade companion`
   - 并把它接进 shell/batch 的默认 `check`
+
+## 2026-05-17 Direct Dispatch Scope Guard Gap
+
+- 在 `dataplane-consumer-scope` 收口之后，默认门禁里还剩一条同层 companion fast-path 缺口：
+  - `dispatch-read-scope` 已经守 `GetDispatchTable`
+  - `dataplane-consumer-scope` 已经守 `GetCurrentSimdDataPlane*`
+  - 但 `GetDirectDispatchTable` 这条 direct companion getter 还没有独立 checker 固化其 production 边界
+- 当前 production 真相已经很清楚，而且命中面比 dataplane 更窄：
+  - `src/fafafa.core.simd.api.pas`
+  - `src/fafafa.core.simd.arrays.pas`
+  - `src/fafafa.core.simd.ops.pas`
+  - `src/fafafa.core.simd.direct.pas`
+- 文档真相也支持这是一个应当冻结的 companion 边界，而不是任意 public helper：
+  - `docs/SIMD_LAYERING_IMPLEMENTATION.md` 明确把 `direct` 定义成 `direct dispatch companion`
+  - `docs/fafafa.core.simd.maintenance.md` 明确写着它只给“仓库内热点路径、测试和 wiring”提供 direct pointer 访问
+- 这说明问题不在“当前用错了”，而在“边界还没被默认门禁 fail-close 固化”：
+  - 以后如果其他模块也开始直接抓 `GetDirectDispatchTable`
+  - 当前默认 `check` 不会第一时间报红
+  - 这会让 `direct` 从 companion fast-path 慢慢漂成新的随处可读 truth path
+- 因而这批最正确的修法不是去重写 `api/arrays/ops`，而是补一条同级静态护栏：
+  - 新增 `check_direct_dispatch_scope.py`
+  - 扫描 `src/fafafa.core.simd*.pas/inc`
+  - 把 `GetDirectDispatchTable` 的 production 允许面固定在 `api/arrays/ops/direct`
+  - 并把它接进 shell/batch 的默认 `check`

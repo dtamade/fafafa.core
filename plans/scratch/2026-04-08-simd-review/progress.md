@@ -8029,3 +8029,47 @@
 - 当前阶段结论：
   - 这批依然不是 SIMD 算法或 backend 语义修复
   - 收掉的是默认门禁对 `dataplane` publication-consumer seam 的最后一条明显漏口
+
+## 2026-05-17 Direct Dispatch Scope Guard
+
+- 继续按“小闭环”推进，没有回头重开 family 面，而是顺着 `direct dispatch companion` 再补一层默认门禁固化。
+- 已复核：
+  - `src/fafafa.core.simd.api.pas`
+  - `src/fafafa.core.simd.arrays.pas`
+  - `src/fafafa.core.simd.ops.pas`
+  - `src/fafafa.core.simd.direct.pas`
+  - `docs/SIMD_LAYERING_IMPLEMENTATION.md`
+  - `docs/fafafa.core.simd.maintenance.md`
+  - `tests/fafafa.core.simd/check_dispatch_read_scope.py`
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+- 当前结论：
+  - `GetDirectDispatchTable` 当前 production 命中面只有 `api/arrays/ops/direct` 四个文件，已经天然形成 companion fast-path 边界
+  - 但默认 `check` 还没有 guard 去固定这条边界
+  - 这是一条真实的 seam-level coverage gap，不是当前 direct/runtime 语义 bug
+- 已完成收口：
+  - 新增 `tests/fafafa.core.simd/check_direct_dispatch_scope.py`
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - 默认 `check` 已接入 `run_direct_dispatch_scope`
+    - shell action / usage / runner parity 自检字符串已补齐 `direct-dispatch-scope`
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+    - 已新增 `direct-dispatch-scope` action
+    - `:check` 主链已接入 `call :direct_dispatch_scope`
+    - usage 文本与 Python runtime fail-close 都已同步
+  - `docs/fafafa.core.simd.maintenance.md`
+    - 已把 `direct-dispatch-scope` 补进默认 `check` 护栏说明
+- 已完成最小验证：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_direct_dispatch_scope.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - 新 checker 直接输出：
+    - `DIRECT_DISPATCH_SCOPE symbol=GetDirectDispatchTable scanned_files=146 allowed_files=4 allowed_hits=70 forbidden_hits=0`
+  - release `check` 中已真实执行：
+    - `[DIRECT-SCOPE] Running: python3 ... check_direct_dispatch_scope.py --summary-line --json-file ...`
+    - `DIRECT_DISPATCH_SCOPE symbol=GetDirectDispatchTable scanned_files=146 allowed_files=4 allowed_hits=70 forbidden_hits=0`
+  - `windows runner parity signatures present`
+  - 整体 release `check` 最终继续通过
+- 当前阶段结论：
+  - 这批依然不是 SIMD 算法或 backend 语义修复
+  - 收掉的是默认门禁对 `direct dispatch companion` 使用边界的明显漏口
