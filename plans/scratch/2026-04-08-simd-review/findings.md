@@ -5687,3 +5687,15 @@
 - 因而最小正确修法就是：
   - 保留 `run_runner_parity()` 作为唯一封装入口
   - `check` 与 `gate_step_build_check()` 都只调它，不再各自拼同一对底层函数
+
+## 2026-05-16 Gate Build-Check Static Guard Parity
+
+- `run_runner_parity()` 调用面收平后，再对 `check` case 和 `gate_step_build_check()` 做清单比对，暴露出一处更实质的 coverage drift：
+  - gate 后续确实会单独跑 `experimental intrinsics isolation`
+  - gate 也会在 opt-in backend 打开时单独跑 `register truthfulness`
+  - 但 `helper-semantics`、`key-slot-audit`、`source-reachability`、`sse2-structure`，以及 `windows cpuinfo.x86 batch success-criteria smoke` 没有任何后续 gate step 补跑
+- 这意味着之前的 `gate` 绿灯并不真正覆盖这一组已经被 `check` 视为默认静态门禁的审查项。
+- 这些项的共同点正好说明它们应补进 `gate_step_build_check()`，而不是另开新的 gate phase：
+  - 都是 source-safe / 低成本检查
+  - 不会引入新的 artifact branch 或复杂摘要维度
+  - 语义上都属于 “build + static guard” 同一阶段

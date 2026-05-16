@@ -3884,3 +3884,17 @@
 | 1. 复核主门禁里是否仍有旧调用残留 | completed | 已确认 `tests/fafafa.core.simd/BuildOrTest.sh` 里除 `run_runner_parity()` 本体外，`check` case 与 `gate_step_build_check()` 仍各自直接调用一遍 `check_windows_runner_parity()` / `check_cpuinfo_runner_parity()`；这正是 fast path 落地后留下的调用面冗余 |
 | 2. 统一主门禁调用面 | completed | 已把 `check` case 与 `gate_step_build_check()` 中的成对旧调用改为单次 `run_runner_parity`，让 runner 证明链在主门禁和显式 action 上都只剩一个入口 |
 | 3. 轻量验证并确认无行为漂移 | completed | 已跑 `git diff --check`、`bash -n tests/fafafa.core.simd/BuildOrTest.sh`、`bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity`；输出仍为 `windows runner parity signatures present`、`cpuinfo runner parity signatures present`、`runner parity quick path`，说明统一后快路径本体未受影响 |
+
+## 2026-05-16 Gate Build-Check Static Guard Parity
+
+### Goal
+
+继续沿主门禁 drift 线收口，把 `gate_step_build_check()` 中遗漏的一组低成本静态护栏补齐到与 `check` 更一致，避免 gate 绿了却没有覆盖 `helper-semantics`、`key-slot-audit`、`source-reachability`、`sse2-structure` 这类已经被日常 `check` 视为默认门禁的审查。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 确认差异是否真的未被 gate 后续步骤覆盖 | completed | 已逐段复核 `run_gate()`：`experimental intrinsics` 与 `register truthfulness` 确实会在 gate 后半段单独建步；但 `helper-semantics`、`key-slot-audit`、`source-reachability`、`sse2-structure` 以及 `windows cpuinfo.x86 batch success-criteria smoke` 并没有被任何后续 gate step 补跑，属于真实 coverage 缺口 |
+| 2. 把缺失的低成本静态护栏补回 `gate_step_build_check()` | completed | 已在 `tests/fafafa.core.simd/BuildOrTest.sh` 的 `gate_step_build_check()` 中补入 `run_nonx86_helper_semantics_check`、`run_nonx86_key_slot_audit_check`、`run_windows_cpuinfo_x86_batch_build_success_criteria_smoke`、`run_source_reachability_check`、`run_sse2_structure_check`；保留 `experimental` / `register truthfulness` 继续由 gate 独立步骤负责，避免重复建步 |
+| 3. 用 gate 级定向验证确认主门禁已补齐 | completed | 已跑 `git diff --check`、`bash -n tests/fafafa.core.simd/BuildOrTest.sh`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`；fresh gate 通过，build-check 段现在已实际输出 `HELPER-SEMANTICS`、`KEY-SLOT-AUDIT`、`SOURCE-REACHABILITY`、`SSE2-STRUCTURE` 与 `windows cpuinfo.x86 batch success-criteria smoke` 的结果 |

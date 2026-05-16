@@ -6724,3 +6724,39 @@
 - 当前阶段结论：
   - runner parity 现在不只是“有了 fast path action”，而是 `check` / gate build-check / 显式 action 三处都统一吃同一个封装入口
   - 这批继续没有改 SIMD 功能逻辑，但把一处真实的调用面冗余收平了，也降低了以后主门禁忘同步 `run_runner_parity()` 的漂移风险
+
+## 2026-05-16 Gate Build-Check Static Guard Parity
+
+- 把 `run_runner_parity()` 调用面统一后，我继续对 `check` case 和 `gate_step_build_check()` 做了精确清单比对，确认新的真实缺口不是“谁在调 runner parity”，而是 gate 的 build-check 阶段少跑了一组低成本静态护栏：
+  - `run_nonx86_helper_semantics_check`
+  - `run_nonx86_key_slot_audit_check`
+  - `run_windows_cpuinfo_x86_batch_build_success_criteria_smoke`
+  - `run_source_reachability_check`
+  - `run_sse2_structure_check`
+- 同时也确认这不是误报：
+  - `run_intrinsics_experimental_status` 本来就在 gate 后半段作为独立 step 存在
+  - `run_register_truthfulness_check "1"` 也在 gate wiring 后单独建步
+  - 但上面这 5 条此前确实没有任何 gate step 覆盖
+- 本轮已完成的源码收口：
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - 在 `gate_step_build_check()` 中补入 `run_nonx86_helper_semantics_check`
+    - 补入 `run_nonx86_key_slot_audit_check`
+    - 补入 `run_windows_cpuinfo_x86_batch_build_success_criteria_smoke`
+    - 补入 `run_source_reachability_check`
+    - 补入 `run_sse2_structure_check`
+  - 其余 gate phase 不做结构改写，先只收 coverage 缺口
+- 本轮验证链：
+  - `git diff --check`
+  - `bash -n tests/fafafa.core.simd/BuildOrTest.sh`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- fresh 结果：
+  - gate 通过
+  - build-check 段现在已实际输出：
+    - `NONX86_HELPER_SEMANTICS_SUMMARY ... status=ok`
+    - `NONX86_KEY_SLOT_AUDIT_SUMMARY ... status=ok`
+    - `SIMD_SOURCE_REACHABILITY_SUMMARY ... status=ok`
+    - `SSE2_STRUCTURE_SUMMARY ... status=ok`
+    - `[PASS] windows SIMD cpuinfo.x86 batch build success criteria verified`
+- 当前阶段结论：
+  - 这批没有改 SIMD 生产逻辑，而是把 gate 真正补回了一组先前未覆盖的静态护栏
+  - 现在 `gate` 的 build-check 段与 `check` 在这组低成本审查上的口径明显更接近了，不再出现 “check 绿但 gate 根本没看过这些护栏” 的 coverage 漏洞

@@ -4633,6 +4633,8 @@ gate_step_build_check() {
   check_restore_nightly_evidence_runner_guard || return $?
   check_qemu_experimental_python_helper_guard || return $?
   check_python_checker_runtime_guard || return $?
+  run_nonx86_helper_semantics_check || return $?
+  run_nonx86_key_slot_audit_check || return $?
   run_riscvv_abi_shape_check || return $?
   check_publicabi_output_isolation || return $?
   check_publicabi_shell_export_guard || return $?
@@ -4644,8 +4646,11 @@ gate_step_build_check() {
   check_daily_standalone_runner_guard || return $?
   check_linux_evidence_output_isolation || return $?
   check_freeze_status_output_isolation || return $?
+  run_windows_cpuinfo_x86_batch_build_success_criteria_smoke || return $?
   run_register_include_check || return $?
+  run_source_reachability_check || return $?
   run_dispatch_read_scope || return $?
+  run_sse2_structure_check || return $?
   run_suite_manifest_check || return $?
   run_nonx86_optin_list_suites || return $?
   run_backend_ops_smoke || return $?
