@@ -6206,3 +6206,35 @@
 - 当前阶段结论：
   - 这批仍然没有改 backend 行为，也没有新建 Pascal testcase，只是把 `NEON ClampF64*` 这 3 个合法 policy 位点正式抬进了 `check` 常规门禁
   - 收口前已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免把 Python 产物带进提交
+
+## 2026-05-16 NEON Wide MinMax Key-Slot Audit Lift
+
+- 继续按“先差异对账、再选最小簇”的工作法往下切时，先没有直接改代码，而是先算清当前 `NEON` 还剩哪些 `wrapper_only` 没进 `key-slot audit`：
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --json --strict`
+  - 配合当前 `KEY_SLOTS_BY_BACKEND['neon']` 对账后，确认剩余 `missing_from_key=52`
+  - 其中最小且已有现成 dedicated truth source 的一簇是：
+    - `MaxF32x16`
+    - `MaxF64x8`
+    - `MinF32x16`
+    - `MinF64x8`
+- 已确认现成 truth source 充分存在：
+  - `Test_NEON_NoAsmWideMinMaxSlots_Keep_Necessary_Wrappers_But_Reuse_BaseScalar`
+  - 已显式固定 `AssertAsmBindingStillPresent(...)`
+  - 也已显式固定 runtime `AssertSlotReusesScalar(...)`
+- 本批已完成的最小修复：
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 把 `MaxF32x16/MaxF64x8/MinF32x16/MinF64x8` 纳入 `KEY_SLOTS_BY_BACKEND['neon']`
+    - 把 `Test_NEON_NoAsmWideMinMaxSlots_Keep_Necessary_Wrappers_But_Reuse_BaseScalar` 纳入 `EXPECTATION_PROCEDURES['neon']`
+    - 对这 4 个 slot 开启 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['neon']`
+- 本批按脚本批次执行的最小验证链：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend neon --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `backend=neon ok slots=17`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=53 issues=0 status=ok`
+  - Release `check` 通过
+- 当前阶段结论：
+  - 这批仍然没有改 backend 行为，也没有新建 Pascal testcase，只是把 `NEON wide Min/Max` 这 4 个合法 `asm-only wrapper-only` 位点正式抬进了 `check` 常规门禁
+  - 收口前已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免把 Python 产物带进提交

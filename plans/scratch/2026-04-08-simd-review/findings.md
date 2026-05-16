@@ -5284,3 +5284,29 @@
   - 以前：truthfulness checker 知道，dedicated `DispatchAPI` 知道，key-slot audit 不知道
   - 现在：truthfulness checker、dedicated `DispatchAPI`、key-slot audit 三层都知道
   - fresh summary 已更新为 `backend=neon ok slots=13`，全局 summary 已更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=49 issues=0 status=ok`
+
+## 2026-05-16 NEON Wide MinMax Key-Slot Audit Lift Findings
+
+- 继续对账 `NEON wrapper_only` 与 `key-slot audit` 覆盖差异后，当前最小的现成 lift 簇是：
+  - `MaxF32x16`
+  - `MaxF64x8`
+  - `MinF32x16`
+  - `MinF64x8`
+- 这 4 个名字的真实形态已经被现成 `DispatchAPI` testcase 充分固定：
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+  - `Test_NEON_NoAsmWideMinMaxSlots_Keep_Necessary_Wrappers_But_Reuse_BaseScalar`
+  - 已显式包含：
+    - `AssertAsmBindingStillPresent('MaxF32x16'/'MaxF64x8'/'MinF32x16'/'MinF64x8', ...)`
+    - `AssertSlotReusesScalar(...)`
+- 这说明它们和上一批 `ClampF64*` 一样，问题不在 backend 行为，而在常规 Python 审计没有把这层 truth 接进来：
+  - `check_nonx86_register_truthfulness.py` 已把它们归类为合法 `asm-only wrapper-only`
+  - dedicated `DispatchAPI` 已知道它们为什么合法
+  - 旧 `check_nonx86_key_slot_audit.py` 还不知道
+- 因而这批最正确的修法仍然是 checker-level lift：
+  - 把这 4 个 slot 纳入 `KEY_SLOTS_BY_BACKEND['neon']`
+  - 把现成 min/max dedicated testcase 纳入 `EXPECTATION_PROCEDURES['neon']`
+  - 把这 4 个 slot 纳入 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['neon']`
+- 修完后的关键变化不是行为变更，而是门禁层次继续向前推进了一小步：
+  - 以前：truthfulness checker 知道，dedicated `DispatchAPI` 知道，key-slot audit 不知道
+  - 现在：这 4 个 `NEON wide Min/Max` slot 也被 `key-slot audit` 正式接管
+  - fresh summary 已更新为 `backend=neon ok slots=17`，全局 summary 已更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=53 issues=0 status=ok`

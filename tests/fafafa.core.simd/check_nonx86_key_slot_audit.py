@@ -32,6 +32,10 @@ KEY_SLOTS_BY_BACKEND: dict[str, tuple[str, ...]] = {
         "ClampF64x2",
         "ClampF64x4",
         "ClampF64x8",
+        "MaxF32x16",
+        "MaxF64x8",
+        "MinF32x16",
+        "MinF64x8",
     ),
     "riscvv": (
         "AndI64x8",
@@ -88,6 +92,7 @@ EXPECTATION_PROCEDURES = {
         "TTestCase_DispatchAPI.Test_NEON_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders",
         "TTestCase_DispatchAPI.Test_NEON_NoAsmIntegerFallbackSlots_Reuse_BaseScalar_When_Wrappers_Are_Not_BackendOwned",
         "TTestCase_DispatchAPI.Test_NEON_NoAsmWideClampSlots_Reuse_BaseScalar_Only_For_F32Forwarders_And_Keep_F64LocalFallback",
+        "TTestCase_DispatchAPI.Test_NEON_NoAsmWideMinMaxSlots_Keep_Necessary_Wrappers_But_Reuse_BaseScalar",
     ),
     "riscvv": (
         "TTestCase_DispatchAPI.Test_RISCVV_FacadeSlots_Reuse_BaseScalar_When_Wrappers_Are_ScalarPassThrough",
@@ -111,6 +116,10 @@ REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS: dict[str, set[str]] = {
         "ClampF64x2",
         "ClampF64x4",
         "ClampF64x8",
+        "MaxF32x16",
+        "MaxF64x8",
+        "MinF32x16",
+        "MinF64x8",
     },
     "riscvv": {
         "AndI64x8",
