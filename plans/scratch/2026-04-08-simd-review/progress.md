@@ -8073,3 +8073,45 @@
 - 当前阶段结论：
   - 这批依然不是 SIMD 算法或 backend 语义修复
   - 收掉的是默认门禁对 `direct dispatch companion` 使用边界的明显漏口
+
+## 2026-05-17 Check Default Wiring-Sync Promotion
+
+- 继续按“小闭环”推进，没有回头重开架构讨论，而是专门复核 `check` 主链里还剩什么真缺口。
+- 已复核：
+  - `tests/fafafa.core.simd/check_nonx86_wiring_sync.py`
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+  - `docs/fafafa.core.simd.maintenance.md`
+  - `tests/fafafa.core.simd/docs/intrinsics_coverage_workflow.md`
+  - `docs/plans/2026-02-09-simd-nonx86-interface-target-checklist.md`
+- 当前结论：
+  - `gate` 早已默认包含 `wiring-sync`
+  - 真正残留的覆盖缺口是 `check` 仍把它放在 `SIMD_CHECK_WIRING_SYNC=1` 的 opt-in 分支里
+  - 但这条 checker 本身只是纯 Python 静态对账，不引入新的 Pascal 构建；direct strict run 与启用后的 Release `check` 都已证明它足够成熟
+- 已完成收口：
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - `check` 已改成默认执行 `wiring-sync`
+    - 仅在 `SIMD_CHECK_WIRING_SYNC=0` 时显式跳过
+    - shell 里的 Windows batch parity 签名已同步改成 `if /I not "%SIMD_CHECK_WIRING_SYNC%"=="0" (`
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+    - `check` 主链已改成默认执行 `wiring-sync`
+    - 仅在 `%SIMD_CHECK_WIRING_SYNC%` 为 `0` 时跳过
+  - 活跃文档与 scratch 真相已同步：
+    - `docs/fafafa.core.simd.maintenance.md`
+    - `tests/fafafa.core.simd/docs/intrinsics_coverage_workflow.md`
+    - `docs/plans/2026-02-09-simd-nonx86-interface-target-checklist.md`
+    - `plans/scratch/2026-04-08-simd-review/{task_plan,findings,progress}.md`
+- 已完成最小验证：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_nonx86_wiring_sync.py --summary-line --strict-extra`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - strict checker 直接输出：
+    - `WIRING_SYNC_SUMMARY legacy=60 grouped=60 helper=60 missing=0 extra=0 markers_missing=0 strict_extra=1 shared_legacy=1 shared_grouped=1`
+  - release `check` 中已真实执行：
+    - `[CHECK] wiring-sync`
+    - `WIRING_SYNC_SUMMARY legacy=60 grouped=60 helper=60 missing=0 extra=0 markers_missing=0 strict_extra=0 shared_legacy=1 shared_grouped=1`
+  - 整体 Release `check` 最终继续通过
+- 当前阶段结论：
+  - 这批依然不是 SIMD 算法或 backend 语义修复
+  - 收掉的是默认 `check` 对 `wiring-sync` 的最后一处明显漏口

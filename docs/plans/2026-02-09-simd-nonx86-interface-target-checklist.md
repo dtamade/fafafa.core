@@ -95,10 +95,10 @@
 - [x] `check_nonx86_wiring_sync.py`：自动核对 legacy/grouped/checklist 三方一致性
 - [x] `BuildOrTest.sh wiring-sync`：本地一键执行对账
 - [x] strict mode：`SIMD_WIRING_SYNC_STRICT_EXTRA=1 bash tests/fafafa.core.simd/BuildOrTest.sh wiring-sync`
-- [x] check 可选强约束：`SIMD_CHECK_WIRING_SYNC=1 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- [x] check 默认约束：`bash tests/fafafa.core.simd/BuildOrTest.sh check`（如需临时关闭：`SIMD_CHECK_WIRING_SYNC=0`）
 - [x] gate 可选强约束：`SIMD_GATE_WIRING_SYNC=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
 - [x] Windows runner action：`buildOrTest.bat wiring-sync`（脚本级对齐，待 Windows 实机复核）
-- [x] Windows runner gate/check 开关：`SIMD_GATE_WIRING_SYNC=1` / `SIMD_CHECK_WIRING_SYNC=1`
+- [x] Windows runner gate/check 开关：`SIMD_GATE_WIRING_SYNC=1` / `SIMD_CHECK_WIRING_SYNC=0`（仅用于显式关闭默认 check 对账）
 - [x] gate 摘要：`BuildOrTest.sh gate-summary` + `logs/gate_summary.md`
 - [x] wiring-sync 产物：`logs/wiring_sync.txt` + `logs/wiring_sync.json`
 - [x] gate 摘要包含失败链路（step + status + detail），便于快速回溯

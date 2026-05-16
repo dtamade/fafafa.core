@@ -492,12 +492,12 @@ if errorlevel 1 exit /b 1
 call :run_dispatch_preinit_smoke_internal
 if errorlevel 1 exit /b 1
 
-if /I "%SIMD_CHECK_WIRING_SYNC%"=="1" (
-  echo [CHECK] Optional wiring-sync enabled
+if /I not "%SIMD_CHECK_WIRING_SYNC%"=="0" (
+  echo [CHECK] wiring-sync
   call "%ROOT%buildOrTest.bat" wiring-sync
   if errorlevel 1 exit /b 1
 ) else (
-  echo [CHECK] SKIP optional wiring-sync ^(set SIMD_CHECK_WIRING_SYNC=1 to enable^)
+  echo [CHECK] SKIP wiring-sync ^(set SIMD_CHECK_WIRING_SYNC=0 to disable^)
 )
 
 call :register_truthfulness_check 0

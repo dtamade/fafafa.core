@@ -170,8 +170,8 @@ nightly 固定口径：
 # 独立对账（strict）
 SIMD_WIRING_SYNC_STRICT_EXTRA=1 bash tests/fafafa.core.simd/BuildOrTest.sh wiring-sync
 
-# check 阶段附加对账
-SIMD_CHECK_WIRING_SYNC=1 SIMD_WIRING_SYNC_STRICT_EXTRA=1 bash tests/fafafa.core.simd/BuildOrTest.sh check
+# check 默认会跑 wiring-sync；如需 strict-extra，再叠加这个环境变量
+SIMD_WIRING_SYNC_STRICT_EXTRA=1 bash tests/fafafa.core.simd/BuildOrTest.sh check
 
 # gate 阶段附加对账并生成摘要
 SIMD_GATE_WIRING_SYNC=1 SIMD_WIRING_SYNC_STRICT_EXTRA=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate
@@ -192,10 +192,12 @@ bash tests/fafafa.core.simd/BuildOrTest.sh gate-summary
 
 ```bat
 tests\fafafa.core.simd\buildOrTest.bat wiring-sync
-set SIMD_CHECK_WIRING_SYNC=1 && tests\fafafa.core.simd\buildOrTest.bat check
+tests\fafafa.core.simd\buildOrTest.bat check
 set SIMD_GATE_WIRING_SYNC=1 && tests\fafafa.core.simd\buildOrTest.bat gate
 tests\fafafa.core.simd\buildOrTest.bat gate-summary
 ```
+
+如需临时关闭 `check` 里的这条默认对账，显式设置 `SIMD_CHECK_WIRING_SYNC=0`。
 
 
 ### gate 失败链路记录（Linux）

@@ -6618,3 +6618,19 @@
   - 扫描 `src/fafafa.core.simd*.pas/inc`
   - 把 `GetDirectDispatchTable` 的 production 允许面固定在 `api/arrays/ops/direct`
   - 并把它接进 shell/batch 的默认 `check`
+
+## 2026-05-17 Check Default Wiring-Sync Gap
+
+- 在 `direct-dispatch-scope` 收口之后，默认 `check` 主链里还剩一个更窄但真实的覆盖缺口：
+  - `tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `tests/fafafa.core.simd/buildOrTest.bat check`
+  - 仍把 `wiring-sync` 放在 `SIMD_CHECK_WIRING_SYNC=1` 的 opt-in 分支里
+- 这和当前 `wiring-sync` 的真实成熟度已经不一致：
+  - `check_nonx86_wiring_sync.py` 是纯 Python 静态对账，不依赖额外 Pascal 构建
+  - 直接跑 `python3 tests/fafafa.core.simd/check_nonx86_wiring_sync.py --summary-line --strict-extra` 已稳定返回 `missing=0 extra=0 markers_missing=0`
+  - 把 `SIMD_CHECK_WIRING_SYNC=1` 打开后再跑 Release `check` 也已通过，说明这条 lane 已经足够成熟，不该再默认漏掉
+- 因而本批最正确的修法不是再加一个更复杂的开关，而是把语义收正成：
+  - `check` 默认执行 `wiring-sync`
+  - 只有显式设置 `SIMD_CHECK_WIRING_SYNC=0` 时才跳过
+  - shell 与 batch runner 必须同步，不然会形成平台行为分叉
+- 这也意味着前面那条“`wiring-sync` 只是现成 optional lane”的判断只适用于当时比较 `nonx86-optin-list-suites` 是否已有 skip knob 的上下文；到 2026-05-17 这一步，它已经是过时结论，不能再当作当前真相。

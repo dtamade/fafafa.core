@@ -4536,3 +4536,17 @@
 | 1. 复核当前是否存在护栏缺口 | completed | 已确认 production 命中面当前只落在 `src/fafafa.core.simd.api.pas`、`src/fafafa.core.simd.arrays.pas`、`src/fafafa.core.simd.ops.pas`、`src/fafafa.core.simd.direct.pas`；`RebindDirectDispatch` 则只在 `direct` 自身，没有其他 production caller；但默认 `check` 尚无任何 checker 固化 `GetDirectDispatchTable` 这条边界 |
 | 2. checker + shell/batch parity 收口 | completed | 已新增 `check_direct_dispatch_scope.py`，并补齐 `BuildOrTest.sh` / `buildOrTest.bat` 的 `direct-dispatch-scope` action、默认 `check` 接线、usage/parity/selfcheck 字符串与 maintenance 说明 |
 | 3. release 验证与收口 | completed | `git diff --check`、`python3 tests/fafafa.core.simd/check_direct_dispatch_scope.py --summary-line`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已通过；新 checker 在 release `check` 中真实执行并返回 `forbidden_hits=0` |
+
+## 2026-05-17 Check Default Wiring-Sync Promotion
+
+### Goal
+
+把 `wiring-sync` 从 `check` 里的 opt-in lane 收正成默认门禁，因为它已经是成熟、纯 Python、低成本的静态对账，不该继续默认漏掉。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核这是不是当前真实缺口 | completed | 已确认 `gate` 默认已包含 `wiring-sync`，真正遗漏的是 shell/batch `check` 仍要求 `SIMD_CHECK_WIRING_SYNC=1`；同时 direct strict run 与开启该变量后的 Release `check` 都已通过，说明不是实验态 lane |
+| 2. shell/batch + 活跃文档同步收口 | completed | 已把 shell `check` 改成默认执行 `wiring-sync`、仅在 `SIMD_CHECK_WIRING_SYNC=0` 时跳过；batch 入口和 shell 内部的 batch parity 签名也同步收正，并更新 maintenance/workflow/checklist/scratch 真相 |
+| 3. Release 验证与本批收口 | completed | `git diff --check`、strict `check_nonx86_wiring_sync.py`、Release `BuildOrTest.sh check` 已通过；默认 `check` 现在会真实执行 `wiring-sync`，且仍允许用 `SIMD_CHECK_WIRING_SYNC=0` 显式降载 |

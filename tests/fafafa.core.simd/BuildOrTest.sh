@@ -1107,7 +1107,7 @@ check_windows_runner_parity() {
     'findstr /r /c:"^[1-9][0-9]* unfreed memory blocks" "%TEST_LOG%" >nul 2>nul'
     'call "%SELF%" check'
     'call "%ROOT%buildOrTest.bat" nonx86-optin-list-suites'
-    'if /I "%SIMD_CHECK_WIRING_SYNC%"=="1" ('
+    'if /I not "%SIMD_CHECK_WIRING_SYNC%"=="0" ('
     'call "%SELF%" wiring-sync'
     'call "%SELF%" test --list-suites'
     'call "%SELF%" test --suite=TTestCase_VecI32x8'
@@ -6827,11 +6827,11 @@ case "${ACTION}" in
     else
       echo "[CHECK] SKIP optional non-x86 opt-in suite listing (set SIMD_CHECK_NONX86_OPTIN=1 to enable)"
     fi
-    if [[ "${SIMD_CHECK_WIRING_SYNC:-0}" != "0" ]]; then
-      echo "[CHECK] Optional wiring-sync enabled"
+    if [[ "${SIMD_CHECK_WIRING_SYNC:-1}" != "0" ]]; then
+      echo "[CHECK] wiring-sync"
       run_wiring_sync
     else
-      echo "[CHECK] SKIP optional wiring-sync (set SIMD_CHECK_WIRING_SYNC=1 to enable)"
+      echo "[CHECK] SKIP wiring-sync (set SIMD_CHECK_WIRING_SYNC=0 to disable)"
     fi
     run_register_truthfulness_check "0"
     if [[ "${SIMD_CHECK_EXPERIMENTAL:-1}" != "0" ]]; then
