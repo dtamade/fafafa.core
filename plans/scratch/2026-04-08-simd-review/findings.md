@@ -6230,3 +6230,22 @@
 - 这继续强化当前准则：
   - 即使测试主题切到 non-x86 runtime parity 和 facade parity，只要 outer `finally` 不承担真实恢复职责，就仍然可以按同一 fail-close 规则剥掉机械空壳
   - `FreeAligned(...)` 这类真实清理仍然必须保留，因此相邻 `memory edge` 测试不在本批范围内
+
+## 2026-05-16 NonX86 Wide Splat Dot Reduce Normalize Empty Finally Cleanup
+
+- `dispatchapi.testcase` / `TTestCase_NonX86BackendParity` 的 `14232..14865` 说明，空 outer `finally` 与死 `LOldVectorAsm` 还继续分布在更后段的 non-x86 wide/runtime parity 合同测试里。
+- 这次确认可安全清理的 4 条方法是：
+  - `TTestCase_NonX86BackendParity.Test_NativeWideSplatParity_WithVectorAsm_IfAvailable`
+  - `TTestCase_NonX86BackendParity.Test_NativeF64DotParity_WithVectorAsm_IfAvailable`
+  - `TTestCase_NonX86BackendParity.Test_NativeF64ReduceAddSeedParity_WithVectorAsm_IfAvailable`
+  - `TTestCase_NonX86BackendParity.Test_NativeNormalizeEdgeParity_WithVectorAsm_IfAvailable`
+- 它们的共同边界和前几批保持一致：
+  - 运行期部分只做 `SetVectorAsmEnabled(True)`、筛选 `NEON/RISCVV` backend、可能 `TrySetActiveBackend(...)`、再做 dispatch-table 与 facade parity 或 slot 合同断言
+  - outer `finally` 本身完全为空
+  - `LOldVectorAsm := IsVectorAsmEnabled` 只是机械捕获，没有 restore、没有断言、也没有后续读取
+- 这次也额外确认了两类必须跳过的相邻测试：
+  - `Test_NativeVectorMathParity_WithVectorAsm_IfAvailable` 的 `finally` 非空，当前准则下不机械删除
+  - `Test_NativeWideIntegerMemoryEdgeParity_WithVectorAsm_IfAvailable` 带 `FreeAligned(...)` 真实清理，必须保留
+- 这继续强化当前准则：
+  - 即使测试主题切到 non-x86 wide splat、F64 dot、seeded reduce 与 normalize edge parity，只要 outer `finally` 不承担真实恢复职责，就仍然可以按同一 fail-close 规则剥掉机械空壳
+  - 相邻的非空 `finally` 与资源释放路径依然要按“真实职责优先”保留，不能为了统一样式机械收平

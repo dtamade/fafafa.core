@@ -14241,7 +14241,6 @@ var
   LF64x8ByBackend, LF64x8ByFacade, LF64x8ByScalar: TVecF64x8;
   LI64x4ByBackend, LI64x4ByFacade, LI64x4ByScalar: TVecI64x4;
   LCheckedBackends: Integer;
-  LOldVectorAsm: Boolean;
 
   procedure AssertNativeSlotNotScalar(const aBackendName, aSlotName: string; const aScalarSlot, aBackendSlot: Pointer);
   begin
@@ -14303,82 +14302,78 @@ begin
   LCheckedBackends := 0;
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
 
-    for LBackend in LBackends do
-    begin
-      case LBackend of
-        sbNEON:
-          begin
-            {$IFNDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
-            Continue;
-            {$ENDIF}
-          end;
-        sbRISCVV:
-          begin
-            {$IFNDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
-            Continue;
-            {$ENDIF}
-          end;
-      end;
-      if not IsBackendRegistered(LBackend) then
-        Continue;
-      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
-        Continue;
-      if not TrySetActiveBackend(LBackend) then
-        Continue;
-
-      Inc(LCheckedBackends);
-
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'SplatF32x8',
-        Pointer(LScalarTable.SplatF32x8), Pointer(LBackendTable.SplatF32x8));
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'SplatF32x16',
-        Pointer(LScalarTable.SplatF32x16), Pointer(LBackendTable.SplatF32x16));
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'SplatF64x4',
-        Pointer(LScalarTable.SplatF64x4), Pointer(LBackendTable.SplatF64x4));
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'SplatF64x8',
-        Pointer(LScalarTable.SplatF64x8), Pointer(LBackendTable.SplatF64x8));
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'SplatI64x4',
-        Pointer(LScalarTable.SplatI64x4), Pointer(LBackendTable.SplatI64x4));
-
-      LF32x8ByBackend := LBackendTable.SplatF32x8(-12.75);
-      LF32x8ByScalar := LScalarTable.SplatF32x8(-12.75);
-      AssertVecF32x8Equal('SplatF32x8 dispatch-table', NonX86BackendName(LBackend), LF32x8ByScalar, LF32x8ByBackend, 1e-6);
-
-      LF32x16ByBackend := LBackendTable.SplatF32x16(88.25);
-      LF32x16ByScalar := LScalarTable.SplatF32x16(88.25);
-      AssertVecF32x16Equal('SplatF32x16 dispatch-table', NonX86BackendName(LBackend), LF32x16ByScalar, LF32x16ByBackend, 1e-6);
-
-      LF32x16ByFacade := VecF32x16Splat(88.25);
-      AssertVecF32x16Equal('SplatF32x16 facade', NonX86BackendName(LBackend), LF32x16ByScalar, LF32x16ByFacade, 1e-6);
-
-      LF64x4ByBackend := LBackendTable.SplatF64x4(-999.125);
-      LF64x4ByScalar := LScalarTable.SplatF64x4(-999.125);
-      AssertVecF64x4Equal('SplatF64x4 dispatch-table', NonX86BackendName(LBackend), LF64x4ByScalar, LF64x4ByBackend, 1e-12);
-
-      LF64x8ByBackend := LBackendTable.SplatF64x8(12345.0625);
-      LF64x8ByScalar := LScalarTable.SplatF64x8(12345.0625);
-      AssertVecF64x8Equal('SplatF64x8 dispatch-table', NonX86BackendName(LBackend), LF64x8ByScalar, LF64x8ByBackend, 1e-12);
-
-      LF64x8ByFacade := VecF64x8Splat(12345.0625);
-      AssertVecF64x8Equal('SplatF64x8 facade', NonX86BackendName(LBackend), LF64x8ByScalar, LF64x8ByFacade, 1e-12);
-
-      LI64x4ByBackend := LBackendTable.SplatI64x4(Int64(-888888888));
-      LI64x4ByScalar := LScalarTable.SplatI64x4(Int64(-888888888));
-      AssertVecI64x4Equal('SplatI64x4 dispatch-table', NonX86BackendName(LBackend), LI64x4ByScalar, LI64x4ByBackend);
-
-      LI64x4ByFacade := VecI64x4Splat(Int64(-888888888));
-      AssertVecI64x4Equal('SplatI64x4 facade', NonX86BackendName(LBackend), LI64x4ByScalar, LI64x4ByFacade);
+  for LBackend in LBackends do
+  begin
+    case LBackend of
+      sbNEON:
+        begin
+          {$IFNDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
+          Continue;
+          {$ENDIF}
+        end;
+      sbRISCVV:
+        begin
+          {$IFNDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
+          Continue;
+          {$ENDIF}
+        end;
     end;
+    if not IsBackendRegistered(LBackend) then
+      Continue;
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+      Continue;
+    if not TrySetActiveBackend(LBackend) then
+      Continue;
 
-    if LCheckedBackends = 0 then
-      AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
-  finally
+    Inc(LCheckedBackends);
+
+    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'SplatF32x8',
+      Pointer(LScalarTable.SplatF32x8), Pointer(LBackendTable.SplatF32x8));
+    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'SplatF32x16',
+      Pointer(LScalarTable.SplatF32x16), Pointer(LBackendTable.SplatF32x16));
+    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'SplatF64x4',
+      Pointer(LScalarTable.SplatF64x4), Pointer(LBackendTable.SplatF64x4));
+    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'SplatF64x8',
+      Pointer(LScalarTable.SplatF64x8), Pointer(LBackendTable.SplatF64x8));
+    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'SplatI64x4',
+      Pointer(LScalarTable.SplatI64x4), Pointer(LBackendTable.SplatI64x4));
+
+    LF32x8ByBackend := LBackendTable.SplatF32x8(-12.75);
+    LF32x8ByScalar := LScalarTable.SplatF32x8(-12.75);
+    AssertVecF32x8Equal('SplatF32x8 dispatch-table', NonX86BackendName(LBackend), LF32x8ByScalar, LF32x8ByBackend, 1e-6);
+
+    LF32x16ByBackend := LBackendTable.SplatF32x16(88.25);
+    LF32x16ByScalar := LScalarTable.SplatF32x16(88.25);
+    AssertVecF32x16Equal('SplatF32x16 dispatch-table', NonX86BackendName(LBackend), LF32x16ByScalar, LF32x16ByBackend, 1e-6);
+
+    LF32x16ByFacade := VecF32x16Splat(88.25);
+    AssertVecF32x16Equal('SplatF32x16 facade', NonX86BackendName(LBackend), LF32x16ByScalar, LF32x16ByFacade, 1e-6);
+
+    LF64x4ByBackend := LBackendTable.SplatF64x4(-999.125);
+    LF64x4ByScalar := LScalarTable.SplatF64x4(-999.125);
+    AssertVecF64x4Equal('SplatF64x4 dispatch-table', NonX86BackendName(LBackend), LF64x4ByScalar, LF64x4ByBackend, 1e-12);
+
+    LF64x8ByBackend := LBackendTable.SplatF64x8(12345.0625);
+    LF64x8ByScalar := LScalarTable.SplatF64x8(12345.0625);
+    AssertVecF64x8Equal('SplatF64x8 dispatch-table', NonX86BackendName(LBackend), LF64x8ByScalar, LF64x8ByBackend, 1e-12);
+
+    LF64x8ByFacade := VecF64x8Splat(12345.0625);
+    AssertVecF64x8Equal('SplatF64x8 facade', NonX86BackendName(LBackend), LF64x8ByScalar, LF64x8ByFacade, 1e-12);
+
+    LI64x4ByBackend := LBackendTable.SplatI64x4(Int64(-888888888));
+    LI64x4ByScalar := LScalarTable.SplatI64x4(Int64(-888888888));
+    AssertVecI64x4Equal('SplatI64x4 dispatch-table', NonX86BackendName(LBackend), LI64x4ByScalar, LI64x4ByBackend);
+
+    LI64x4ByFacade := VecI64x4Splat(Int64(-888888888));
+    AssertVecI64x4Equal('SplatI64x4 facade', NonX86BackendName(LBackend), LI64x4ByScalar, LI64x4ByFacade);
   end;
+
+  if LCheckedBackends = 0 then
+    AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
 end;
 
 procedure TTestCase_NonX86BackendParity.Test_NativeVectorMathParity_WithVectorAsm_IfAvailable;
@@ -14509,7 +14504,6 @@ var
   LDotF64x4ByBackend, LDotF64x4ByFacade, LDotF64x4ByScalar: Double;
   LIndex: Integer;
   LCheckedBackends: Integer;
-  LOldVectorAsm: Boolean;
 
   procedure AssertBackendOwnedSlotIfExpected(
     const aBackend: TSimdBackend;
@@ -14546,65 +14540,61 @@ begin
   end;
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
 
-    for LBackend in LBackends do
-    begin
-      case LBackend of
-        sbNEON:
-          begin
-            {$IFNDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
-            Continue;
-            {$ENDIF}
-          end;
-        sbRISCVV:
-          begin
-            {$IFNDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
-            Continue;
-            {$ENDIF}
-          end;
-      end;
-      if not IsBackendRegistered(LBackend) then
-        Continue;
-      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
-        Continue;
-      if not TrySetActiveBackend(LBackend) then
-        Continue;
-
-      Inc(LCheckedBackends);
-
-      AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'DotF64x2',
-        Pointer(LScalarTable.DotF64x2), Pointer(LBackendTable.DotF64x2));
-      AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'DotF64x4',
-        Pointer(LScalarTable.DotF64x4), Pointer(LBackendTable.DotF64x4));
-
-      LDotF64x2ByBackend := LBackendTable.DotF64x2(LF64x2A, LF64x2B);
-      LDotF64x2ByScalar := LScalarTable.DotF64x2(LF64x2A, LF64x2B);
-      AssertEquals('DotF64x2 dispatch-table: ' + NonX86BackendName(LBackend),
-        LDotF64x2ByScalar, LDotF64x2ByBackend, 1e-12);
-
-      LDotF64x2ByFacade := VecF64x2Dot(LF64x2A, LF64x2B);
-      AssertEquals('DotF64x2 facade: ' + NonX86BackendName(LBackend),
-        LDotF64x2ByScalar, LDotF64x2ByFacade, 1e-12);
-
-      LDotF64x4ByBackend := LBackendTable.DotF64x4(LF64x4A, LF64x4B);
-      LDotF64x4ByScalar := LScalarTable.DotF64x4(LF64x4A, LF64x4B);
-      AssertEquals('DotF64x4 dispatch-table: ' + NonX86BackendName(LBackend),
-        LDotF64x4ByScalar, LDotF64x4ByBackend, 1e-12);
-
-      LDotF64x4ByFacade := VecF64x4Dot(LF64x4A, LF64x4B);
-      AssertEquals('DotF64x4 facade: ' + NonX86BackendName(LBackend),
-        LDotF64x4ByScalar, LDotF64x4ByFacade, 1e-12);
+  for LBackend in LBackends do
+  begin
+    case LBackend of
+      sbNEON:
+        begin
+          {$IFNDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
+          Continue;
+          {$ENDIF}
+        end;
+      sbRISCVV:
+        begin
+          {$IFNDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
+          Continue;
+          {$ENDIF}
+        end;
     end;
+    if not IsBackendRegistered(LBackend) then
+      Continue;
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+      Continue;
+    if not TrySetActiveBackend(LBackend) then
+      Continue;
 
-    if LCheckedBackends = 0 then
-      AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
-  finally
+    Inc(LCheckedBackends);
+
+    AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'DotF64x2',
+      Pointer(LScalarTable.DotF64x2), Pointer(LBackendTable.DotF64x2));
+    AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'DotF64x4',
+      Pointer(LScalarTable.DotF64x4), Pointer(LBackendTable.DotF64x4));
+
+    LDotF64x2ByBackend := LBackendTable.DotF64x2(LF64x2A, LF64x2B);
+    LDotF64x2ByScalar := LScalarTable.DotF64x2(LF64x2A, LF64x2B);
+    AssertEquals('DotF64x2 dispatch-table: ' + NonX86BackendName(LBackend),
+      LDotF64x2ByScalar, LDotF64x2ByBackend, 1e-12);
+
+    LDotF64x2ByFacade := VecF64x2Dot(LF64x2A, LF64x2B);
+    AssertEquals('DotF64x2 facade: ' + NonX86BackendName(LBackend),
+      LDotF64x2ByScalar, LDotF64x2ByFacade, 1e-12);
+
+    LDotF64x4ByBackend := LBackendTable.DotF64x4(LF64x4A, LF64x4B);
+    LDotF64x4ByScalar := LScalarTable.DotF64x4(LF64x4A, LF64x4B);
+    AssertEquals('DotF64x4 dispatch-table: ' + NonX86BackendName(LBackend),
+      LDotF64x4ByScalar, LDotF64x4ByBackend, 1e-12);
+
+    LDotF64x4ByFacade := VecF64x4Dot(LF64x4A, LF64x4B);
+    AssertEquals('DotF64x4 facade: ' + NonX86BackendName(LBackend),
+      LDotF64x4ByScalar, LDotF64x4ByFacade, 1e-12);
   end;
+
+  if LCheckedBackends = 0 then
+    AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
 end;
 
 procedure TTestCase_NonX86BackendParity.Test_NativeF64ReduceAddSeedParity_WithVectorAsm_IfAvailable;
@@ -14620,7 +14610,6 @@ var
   LPoisonValue, LExpectedPoison: Double;
   LIndex: Integer;
   LCheckedBackends: Integer;
-  LOldVectorAsm: Boolean;
 
   procedure AssertNativeSlotNotScalar(const aBackendName, aSlotName: string; const aScalarSlot, aBackendSlot: Pointer);
   begin
@@ -14655,85 +14644,81 @@ begin
   LReduceF64x8ByScalar := LScalarTable.ReduceAddF64x8(LF64x8Input);
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
 
-    for LBackend in LBackends do
+  for LBackend in LBackends do
+  begin
+    case LBackend of
+      sbNEON:
+        begin
+          {$IFNDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
+          Continue;
+          {$ENDIF}
+        end;
+      sbRISCVV:
+        begin
+          {$IFNDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
+          Continue;
+          {$ENDIF}
+        end;
+    end;
+    if not IsBackendRegistered(LBackend) then
+      Continue;
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+      Continue;
+    if not TrySetActiveBackend(LBackend) then
+      Continue;
+
+    Inc(LCheckedBackends);
+
+    if LBackend = sbNEON then
     begin
-      case LBackend of
-        sbNEON:
-          begin
-            {$IFNDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
-            Continue;
-            {$ENDIF}
-          end;
-        sbRISCVV:
-          begin
-            {$IFNDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
-            Continue;
-            {$ENDIF}
-          end;
-      end;
-      if not IsBackendRegistered(LBackend) then
-        Continue;
-      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
-        Continue;
-      if not TrySetActiveBackend(LBackend) then
-        Continue;
-
-      Inc(LCheckedBackends);
-
-      if LBackend = sbNEON then
-      begin
-        AssertEquals('ReduceAddF64x4 should reuse the scalar slot when the NEON wide wrapper is only a scalar forwarder',
-          PtrUInt(Pointer(LScalarTable.ReduceAddF64x4)), PtrUInt(Pointer(LBackendTable.ReduceAddF64x4)));
-        AssertEquals('ReduceAddF64x8 should reuse the scalar slot when the NEON wide wrapper is only a scalar forwarder',
-          PtrUInt(Pointer(LScalarTable.ReduceAddF64x8)), PtrUInt(Pointer(LBackendTable.ReduceAddF64x8)));
-      end
-      else
-      begin
-        AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'ReduceAddF64x4',
-          Pointer(LScalarTable.ReduceAddF64x4), Pointer(LBackendTable.ReduceAddF64x4));
-        AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'ReduceAddF64x8',
-          Pointer(LScalarTable.ReduceAddF64x8), Pointer(LBackendTable.ReduceAddF64x8));
-      end;
-
-      AssertTrue('ReduceMaxF64x4 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ReduceMaxF64x4));
-      LPoisonValue := LBackendTable.ReduceMaxF64x4(LF64x4Poison);
-      LExpectedPoison := LScalarTable.ReduceMaxF64x4(LF64x4Poison);
-      AssertEquals('ReduceMaxF64x4 poison sanity: ' + NonX86BackendName(LBackend),
-        LExpectedPoison, LPoisonValue, 1e-12);
-
-      LReduceF64x4ByBackend := LBackendTable.ReduceAddF64x4(LF64x4Input);
-      AssertEquals('ReduceAddF64x4 dispatch-table: ' + NonX86BackendName(LBackend),
-        LReduceF64x4ByScalar, LReduceF64x4ByBackend, 1e-12);
-
-      AssertTrue('ReduceMaxF64x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ReduceMaxF64x8));
-      LPoisonValue := LBackendTable.ReduceMaxF64x8(LF64x8Poison);
-      LExpectedPoison := LScalarTable.ReduceMaxF64x8(LF64x8Poison);
-      AssertEquals('ReduceMaxF64x8 poison sanity: ' + NonX86BackendName(LBackend),
-        LExpectedPoison, LPoisonValue, 1e-12);
-
-      LReduceF64x8ByBackend := LBackendTable.ReduceAddF64x8(LF64x8Input);
-      AssertEquals('ReduceAddF64x8 dispatch-table: ' + NonX86BackendName(LBackend),
-        LReduceF64x8ByScalar, LReduceF64x8ByBackend, 1e-12);
-
-      LPoisonValue := LBackendTable.ReduceMaxF64x8(LF64x8Poison);
-      AssertEquals('ReduceMaxF64x8 facade poison sanity: ' + NonX86BackendName(LBackend),
-        LExpectedPoison, LPoisonValue, 1e-12);
-
-      LReduceF64x8ByFacade := VecF64x8ReduceAdd(LF64x8Input);
-      AssertEquals('ReduceAddF64x8 facade: ' + NonX86BackendName(LBackend),
-        LReduceF64x8ByScalar, LReduceF64x8ByFacade, 1e-12);
+      AssertEquals('ReduceAddF64x4 should reuse the scalar slot when the NEON wide wrapper is only a scalar forwarder',
+        PtrUInt(Pointer(LScalarTable.ReduceAddF64x4)), PtrUInt(Pointer(LBackendTable.ReduceAddF64x4)));
+      AssertEquals('ReduceAddF64x8 should reuse the scalar slot when the NEON wide wrapper is only a scalar forwarder',
+        PtrUInt(Pointer(LScalarTable.ReduceAddF64x8)), PtrUInt(Pointer(LBackendTable.ReduceAddF64x8)));
+    end
+    else
+    begin
+      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'ReduceAddF64x4',
+        Pointer(LScalarTable.ReduceAddF64x4), Pointer(LBackendTable.ReduceAddF64x4));
+      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'ReduceAddF64x8',
+        Pointer(LScalarTable.ReduceAddF64x8), Pointer(LBackendTable.ReduceAddF64x8));
     end;
 
-    if LCheckedBackends = 0 then
-      AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
-  finally
+    AssertTrue('ReduceMaxF64x4 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ReduceMaxF64x4));
+    LPoisonValue := LBackendTable.ReduceMaxF64x4(LF64x4Poison);
+    LExpectedPoison := LScalarTable.ReduceMaxF64x4(LF64x4Poison);
+    AssertEquals('ReduceMaxF64x4 poison sanity: ' + NonX86BackendName(LBackend),
+      LExpectedPoison, LPoisonValue, 1e-12);
+
+    LReduceF64x4ByBackend := LBackendTable.ReduceAddF64x4(LF64x4Input);
+    AssertEquals('ReduceAddF64x4 dispatch-table: ' + NonX86BackendName(LBackend),
+      LReduceF64x4ByScalar, LReduceF64x4ByBackend, 1e-12);
+
+    AssertTrue('ReduceMaxF64x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ReduceMaxF64x8));
+    LPoisonValue := LBackendTable.ReduceMaxF64x8(LF64x8Poison);
+    LExpectedPoison := LScalarTable.ReduceMaxF64x8(LF64x8Poison);
+    AssertEquals('ReduceMaxF64x8 poison sanity: ' + NonX86BackendName(LBackend),
+      LExpectedPoison, LPoisonValue, 1e-12);
+
+    LReduceF64x8ByBackend := LBackendTable.ReduceAddF64x8(LF64x8Input);
+    AssertEquals('ReduceAddF64x8 dispatch-table: ' + NonX86BackendName(LBackend),
+      LReduceF64x8ByScalar, LReduceF64x8ByBackend, 1e-12);
+
+    LPoisonValue := LBackendTable.ReduceMaxF64x8(LF64x8Poison);
+    AssertEquals('ReduceMaxF64x8 facade poison sanity: ' + NonX86BackendName(LBackend),
+      LExpectedPoison, LPoisonValue, 1e-12);
+
+    LReduceF64x8ByFacade := VecF64x8ReduceAdd(LF64x8Input);
+    AssertEquals('ReduceAddF64x8 facade: ' + NonX86BackendName(LBackend),
+      LReduceF64x8ByScalar, LReduceF64x8ByFacade, 1e-12);
   end;
+
+  if LCheckedBackends = 0 then
+    AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
 end;
 
 procedure TTestCase_NonX86BackendParity.Test_NativeNormalizeEdgeParity_WithVectorAsm_IfAvailable;
@@ -14747,7 +14732,6 @@ var
   LNormalize3ByBackend, LNormalize3ByFacade, LNormalize3ByScalar: TVecF32x4;
   LNormalize4ByBackend, LNormalize4ByFacade, LNormalize4ByScalar: TVecF32x4;
   LCheckedBackends: Integer;
-  LOldVectorAsm: Boolean;
 
   procedure AssertNativeSlotNotScalar(const aBackendName, aSlotName: string; const aScalarSlot, aBackendSlot: Pointer);
   begin
@@ -14793,75 +14777,71 @@ begin
   LTiny4.f[3] := -4.0e-20;
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
 
-    for LBackend in LBackends do
-    begin
-      case LBackend of
-        sbNEON:
-          begin
-            {$IFNDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
-            Continue;
-            {$ENDIF}
-          end;
-        sbRISCVV:
-          begin
-            {$IFNDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
-            Continue;
-            {$ENDIF}
-          end;
-      end;
-      if not IsBackendRegistered(LBackend) then
-        Continue;
-      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
-        Continue;
-      if not TrySetActiveBackend(LBackend) then
-        Continue;
-
-      Inc(LCheckedBackends);
-
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'NormalizeF32x3',
-        Pointer(LScalarTable.NormalizeF32x3), Pointer(LBackendTable.NormalizeF32x3));
-      AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'NormalizeF32x4',
-        Pointer(LScalarTable.NormalizeF32x4), Pointer(LBackendTable.NormalizeF32x4));
-
-      LNormalize3ByBackend := LBackendTable.NormalizeF32x3(LZero3);
-      LNormalize3ByScalar := LScalarTable.NormalizeF32x3(LZero3);
-      AssertVecF32x4Equal('NormalizeF32x3 zero dispatch-table', NonX86BackendName(LBackend), LNormalize3ByScalar, LNormalize3ByBackend, 0.0);
-
-      LNormalize3ByFacade := VecF32x3Normalize(LZero3);
-      AssertVecF32x4Equal('NormalizeF32x3 zero facade', NonX86BackendName(LBackend), LNormalize3ByScalar, LNormalize3ByFacade, 0.0);
-
-      LNormalize3ByBackend := LBackendTable.NormalizeF32x3(LTiny3);
-      LNormalize3ByScalar := LScalarTable.NormalizeF32x3(LTiny3);
-      AssertVecF32x4Equal('NormalizeF32x3 tiny dispatch-table', NonX86BackendName(LBackend), LNormalize3ByScalar, LNormalize3ByBackend, 1e-5);
-
-      LNormalize3ByFacade := VecF32x3Normalize(LTiny3);
-      AssertVecF32x4Equal('NormalizeF32x3 tiny facade', NonX86BackendName(LBackend), LNormalize3ByScalar, LNormalize3ByFacade, 1e-5);
-
-      LNormalize4ByBackend := LBackendTable.NormalizeF32x4(LZero4);
-      LNormalize4ByScalar := LScalarTable.NormalizeF32x4(LZero4);
-      AssertVecF32x4Equal('NormalizeF32x4 zero dispatch-table', NonX86BackendName(LBackend), LNormalize4ByScalar, LNormalize4ByBackend, 0.0);
-
-      LNormalize4ByFacade := VecF32x4Normalize(LZero4);
-      AssertVecF32x4Equal('NormalizeF32x4 zero facade', NonX86BackendName(LBackend), LNormalize4ByScalar, LNormalize4ByFacade, 0.0);
-
-      LNormalize4ByBackend := LBackendTable.NormalizeF32x4(LTiny4);
-      LNormalize4ByScalar := LScalarTable.NormalizeF32x4(LTiny4);
-      AssertVecF32x4Equal('NormalizeF32x4 tiny dispatch-table', NonX86BackendName(LBackend), LNormalize4ByScalar, LNormalize4ByBackend, 1e-5);
-
-      LNormalize4ByFacade := VecF32x4Normalize(LTiny4);
-      AssertVecF32x4Equal('NormalizeF32x4 tiny facade', NonX86BackendName(LBackend), LNormalize4ByScalar, LNormalize4ByFacade, 1e-5);
+  for LBackend in LBackends do
+  begin
+    case LBackend of
+      sbNEON:
+        begin
+          {$IFNDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
+          Continue;
+          {$ENDIF}
+        end;
+      sbRISCVV:
+        begin
+          {$IFNDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
+          Continue;
+          {$ENDIF}
+        end;
     end;
+    if not IsBackendRegistered(LBackend) then
+      Continue;
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+      Continue;
+    if not TrySetActiveBackend(LBackend) then
+      Continue;
 
-    if LCheckedBackends = 0 then
-      AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
-  finally
+    Inc(LCheckedBackends);
+
+    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'NormalizeF32x3',
+      Pointer(LScalarTable.NormalizeF32x3), Pointer(LBackendTable.NormalizeF32x3));
+    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'NormalizeF32x4',
+      Pointer(LScalarTable.NormalizeF32x4), Pointer(LBackendTable.NormalizeF32x4));
+
+    LNormalize3ByBackend := LBackendTable.NormalizeF32x3(LZero3);
+    LNormalize3ByScalar := LScalarTable.NormalizeF32x3(LZero3);
+    AssertVecF32x4Equal('NormalizeF32x3 zero dispatch-table', NonX86BackendName(LBackend), LNormalize3ByScalar, LNormalize3ByBackend, 0.0);
+
+    LNormalize3ByFacade := VecF32x3Normalize(LZero3);
+    AssertVecF32x4Equal('NormalizeF32x3 zero facade', NonX86BackendName(LBackend), LNormalize3ByScalar, LNormalize3ByFacade, 0.0);
+
+    LNormalize3ByBackend := LBackendTable.NormalizeF32x3(LTiny3);
+    LNormalize3ByScalar := LScalarTable.NormalizeF32x3(LTiny3);
+    AssertVecF32x4Equal('NormalizeF32x3 tiny dispatch-table', NonX86BackendName(LBackend), LNormalize3ByScalar, LNormalize3ByBackend, 1e-5);
+
+    LNormalize3ByFacade := VecF32x3Normalize(LTiny3);
+    AssertVecF32x4Equal('NormalizeF32x3 tiny facade', NonX86BackendName(LBackend), LNormalize3ByScalar, LNormalize3ByFacade, 1e-5);
+
+    LNormalize4ByBackend := LBackendTable.NormalizeF32x4(LZero4);
+    LNormalize4ByScalar := LScalarTable.NormalizeF32x4(LZero4);
+    AssertVecF32x4Equal('NormalizeF32x4 zero dispatch-table', NonX86BackendName(LBackend), LNormalize4ByScalar, LNormalize4ByBackend, 0.0);
+
+    LNormalize4ByFacade := VecF32x4Normalize(LZero4);
+    AssertVecF32x4Equal('NormalizeF32x4 zero facade', NonX86BackendName(LBackend), LNormalize4ByScalar, LNormalize4ByFacade, 0.0);
+
+    LNormalize4ByBackend := LBackendTable.NormalizeF32x4(LTiny4);
+    LNormalize4ByScalar := LScalarTable.NormalizeF32x4(LTiny4);
+    AssertVecF32x4Equal('NormalizeF32x4 tiny dispatch-table', NonX86BackendName(LBackend), LNormalize4ByScalar, LNormalize4ByBackend, 1e-5);
+
+    LNormalize4ByFacade := VecF32x4Normalize(LTiny4);
+    AssertVecF32x4Equal('NormalizeF32x4 tiny facade', NonX86BackendName(LBackend), LNormalize4ByScalar, LNormalize4ByFacade, 1e-5);
   end;
+
+  if LCheckedBackends = 0 then
+    AssertTrue('No non-x86 asm backend registered on this host (allowed)', True);
 end;
 
 procedure TTestCase_NonX86BackendParity.Test_NativeWideInsertHelperParity_WithVectorAsm_IfAvailable;

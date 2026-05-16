@@ -7406,3 +7406,31 @@
 - 当前阶段结论：
   - 这批依旧只是 `dispatchapi` / `TTestCase_NonX86BackendParity` 的测试层冗余清理，没有改 SIMD 生产实现
   - 下一步应继续沿 `14056+` 往后找，但先跳过含 `FreeAligned(...)` 的真实清理测试，再收同级空壳
+
+## 2026-05-16 NonX86 Wide Splat Dot Reduce Normalize Empty Finally Cleanup
+
+- 这一批继续留在 `TTestCase_NonX86BackendParity`，没有切到 `direct`、`runtimeapi` 或生产实现，只把候选区段推进到 `14232..14865` 的 non-x86 wide/runtime parity 合同测试簇。
+- 候选筛选过程：
+  - 逐段读取 `14232..14865`
+  - 确认 4 条测试都带未读取的 `LOldVectorAsm`
+  - 确认这 4 条方法的 outer `finally` 全为空，没有任何 backend/table restore、hook cleanup 或其他真实清理逻辑
+  - 同时确认相邻 `Test_NativeVectorMathParity_WithVectorAsm_IfAvailable` 的 `finally` 非空，不纳入本批
+  - 同时延续前一批判断，`14056..14230` 的 `FreeAligned(...)` 真实清理测试继续排除
+- 已完成的源码改动：
+  - 文件：`tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+  - 删除 4 个方法中的纯空 outer `try/finally`
+  - 删除 4 个方法中的未使用 `LOldVectorAsm`
+  - 保留所有 splat/dot/reduce/normalize parity、NEON scalar-reuse 例外断言与 `LCheckedBackends` 逻辑不变
+- 这轮额外做的卫生确认：
+  - 再次复读 `14232..14865`，确认现在只剩正常断言流
+  - 下一步若继续沿同一文件往后推进，应从 `14866+` 开始，但仍要先排除任何非空 `finally` 与真实资源释放
+- 本轮验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+- fresh 结果：
+  - `[BUILD] OK`
+  - `[TEST] OK`
+  - `[LEAK] OK`
+- 当前阶段结论：
+  - 这批依旧只是 `dispatchapi` / `TTestCase_NonX86BackendParity` 的测试层冗余清理，没有改 SIMD 生产实现
+  - 下一步若继续，应从 `14866+` 往后找，并继续跳过任何非空 `finally` 与真实资源释放测试
