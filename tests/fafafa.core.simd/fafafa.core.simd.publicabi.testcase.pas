@@ -942,61 +942,56 @@ var
   LDispatchable: TSimdBackendArray;
   LOriginalBackend: TSimdBackend;
   LTargetBackend: TSimdBackend;
-  LOldVectorAsm: Boolean;
   LSlotIndex: Integer;
   LIndex: Integer;
   LFoundDifferentBinding: Boolean;
 begin
-  LOldVectorAsm := IsVectorAsmEnabled;
   LOriginalBackend := GetCurrentBackend;
-  try
-    SetVectorAsmEnabled(True);
-    ResetToAutomaticBackend;
-    LOriginalBackend := GetCurrentBackend;
-    LApiBefore := GetSimdPublicApi;
-    LDispatchBefore := GetDispatchTable;
-    AssertNotNull('Public API table should not be nil before data-plane rebind test', LApiBefore);
-    AssertNotNull('Dispatch table should not be nil before data-plane rebind test', LDispatchBefore);
+  SetVectorAsmEnabled(True);
+  ResetToAutomaticBackend;
+  LOriginalBackend := GetCurrentBackend;
+  LApiBefore := GetSimdPublicApi;
+  LDispatchBefore := GetDispatchTable;
+  AssertNotNull('Public API table should not be nil before data-plane rebind test', LApiBefore);
+  AssertNotNull('Dispatch table should not be nil before data-plane rebind test', LDispatchBefore);
 
-    LDispatchable := GetDispatchableBackendList;
-    LFoundDifferentBinding := False;
-    LTargetBackend := LOriginalBackend;
-    LSlotIndex := -1;
+  LDispatchable := GetDispatchableBackendList;
+  LFoundDifferentBinding := False;
+  LTargetBackend := LOriginalBackend;
+  LSlotIndex := -1;
 
-    for LIndex := 0 to High(LDispatchable) do
-    begin
-      if LDispatchable[LIndex] = LOriginalBackend then
-        Continue;
-      if not TrySetActiveBackend(LDispatchable[LIndex]) then
-        Continue;
+  for LIndex := 0 to High(LDispatchable) do
+  begin
+    if LDispatchable[LIndex] = LOriginalBackend then
+      Continue;
+    if not TrySetActiveBackend(LDispatchable[LIndex]) then
+      Continue;
 
-      LDispatchAfter := GetDispatchTable;
-      if FindDifferingPublicApiDispatchSlot(LDispatchBefore, LDispatchAfter, LSlotIndex) then
-      begin
-        LFoundDifferentBinding := True;
-        LTargetBackend := LDispatchable[LIndex];
-        Break;
-      end;
-    end;
-
-    if not LFoundDifferentBinding then
-      Exit;
-
-    LApiAfter := GetSimdPublicApi;
     LDispatchAfter := GetDispatchTable;
-    AssertNotNull('Fresh public API table should not be nil after backend switch', LApiAfter);
-    AssertNotNull('Dispatch table should not be nil after backend switch', LDispatchAfter);
-    AssertEquals('Public API active backend should track switched backend in data-plane rebind test',
-      Ord(LTargetBackend), Integer(LApiAfter^.ActiveBackendId));
-    AssertTrue('Underlying dispatch slot should actually change in data-plane rebind test',
-      GetDispatchTableFuncPointer(LDispatchBefore, LSlotIndex) <>
-      GetDispatchTableFuncPointer(LDispatchAfter, LSlotIndex));
-    AssertTrue('Public API should keep a stable cdecl ABI entry point for ' +
-      GetPublicApiFuncName(LSlotIndex),
-      GetPublicApiFuncPointer(LApiBefore, LSlotIndex) =
-      GetPublicApiFuncPointer(LApiAfter, LSlotIndex));
-  finally
+    if FindDifferingPublicApiDispatchSlot(LDispatchBefore, LDispatchAfter, LSlotIndex) then
+    begin
+      LFoundDifferentBinding := True;
+      LTargetBackend := LDispatchable[LIndex];
+      Break;
+    end;
   end;
+
+  if not LFoundDifferentBinding then
+    Exit;
+
+  LApiAfter := GetSimdPublicApi;
+  LDispatchAfter := GetDispatchTable;
+  AssertNotNull('Fresh public API table should not be nil after backend switch', LApiAfter);
+  AssertNotNull('Dispatch table should not be nil after backend switch', LDispatchAfter);
+  AssertEquals('Public API active backend should track switched backend in data-plane rebind test',
+    Ord(LTargetBackend), Integer(LApiAfter^.ActiveBackendId));
+  AssertTrue('Underlying dispatch slot should actually change in data-plane rebind test',
+    GetDispatchTableFuncPointer(LDispatchBefore, LSlotIndex) <>
+    GetDispatchTableFuncPointer(LDispatchAfter, LSlotIndex));
+  AssertTrue('Public API should keep a stable cdecl ABI entry point for ' +
+    GetPublicApiFuncName(LSlotIndex),
+    GetPublicApiFuncPointer(LApiBefore, LSlotIndex) =
+    GetPublicApiFuncPointer(LApiAfter, LSlotIndex));
 end;
 
 procedure TTestCase_PublicAbi.Test_PublicApi_CachedTable_Cdecl_EntryPoints_Follow_CurrentDataPlane_After_ReRegister;
@@ -1103,43 +1098,38 @@ var
   LApiFinal: PFafafaSimdPublicApi;
   LInitialBackend: TSimdBackend;
   LMiddleBackend: TSimdBackend;
-  LOldVectorAsm: Boolean;
 begin
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    ResetToAutomaticBackend;
-    LInitialBackend := GetCurrentBackend;
-    if LInitialBackend = sbScalar then
-      Exit;
+  SetVectorAsmEnabled(True);
+  ResetToAutomaticBackend;
+  LInitialBackend := GetCurrentBackend;
+  if LInitialBackend = sbScalar then
+    Exit;
 
-    LApiInitial := GetSimdPublicApi;
-    AssertNotNull('Public API table should be assigned before vector-asm round-trip test', LApiInitial);
-    AssertEquals('Initial public API table should expose the current backend before vector-asm round-trip test',
-      Ord(LInitialBackend), Integer(LApiInitial^.ActiveBackendId));
+  LApiInitial := GetSimdPublicApi;
+  AssertNotNull('Public API table should be assigned before vector-asm round-trip test', LApiInitial);
+  AssertEquals('Initial public API table should expose the current backend before vector-asm round-trip test',
+    Ord(LInitialBackend), Integer(LApiInitial^.ActiveBackendId));
 
-    SetVectorAsmEnabled(False);
-    LMiddleBackend := GetCurrentBackend;
-    LApiMiddle := GetSimdPublicApi;
-    AssertNotNull('Public API table should stay assigned after disabling vector asm', LApiMiddle);
+  SetVectorAsmEnabled(False);
+  LMiddleBackend := GetCurrentBackend;
+  LApiMiddle := GetSimdPublicApi;
+  AssertNotNull('Public API table should stay assigned after disabling vector asm', LApiMiddle);
 
-    if LMiddleBackend = LInitialBackend then
-      Exit;
+  if LMiddleBackend = LInitialBackend then
+    Exit;
 
-    AssertTrue('Disabling vector asm should publish a different public ABI metadata table for the fallback backend',
-      PtrUInt(LApiMiddle) <> PtrUInt(LApiInitial));
+  AssertTrue('Disabling vector asm should publish a different public ABI metadata table for the fallback backend',
+    PtrUInt(LApiMiddle) <> PtrUInt(LApiInitial));
 
-    SetVectorAsmEnabled(True);
-    LApiFinal := GetSimdPublicApi;
-    AssertNotNull('Public API table should stay assigned after re-enabling vector asm', LApiFinal);
+  SetVectorAsmEnabled(True);
+  LApiFinal := GetSimdPublicApi;
+  AssertNotNull('Public API table should stay assigned after re-enabling vector asm', LApiFinal);
 
-    AssertEquals('Re-enabling vector asm should restore the original automatic backend for public ABI',
-      Ord(LInitialBackend), Integer(LApiFinal^.ActiveBackendId));
-    AssertTrue('Vector-asm round-trip should reuse the original published public ABI metadata table',
-      PtrUInt(LApiFinal) = PtrUInt(LApiInitial));
-  finally
-  end;
+  AssertEquals('Re-enabling vector asm should restore the original automatic backend for public ABI',
+    Ord(LInitialBackend), Integer(LApiFinal^.ActiveBackendId));
+  AssertTrue('Vector-asm round-trip should reuse the original published public ABI metadata table',
+    PtrUInt(LApiFinal) = PtrUInt(LApiInitial));
 end;
 
 procedure TTestCase_PublicAbi.Test_PublicApi_BackendPodInfo_Flags_AreSelfConsistent;

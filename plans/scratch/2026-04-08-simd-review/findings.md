@@ -5757,3 +5757,31 @@
 - 当前阶段结论：
   - 这批仍是纯测试层冗余清理，没有改 dataplane 发布逻辑或 SIMD 生产实现
   - `dataplane.testcase` 这个 round-trip 用例里“假装在做 cleanup、实际上没有任何恢复语义”的外层壳已经去掉；后续若继续沿这条线深审，应优先挑类似小范围、高置信度的空壳 cleanup，而不是重新铺开大文件盲扫
+
+## 2026-05-16 PublicAbi Early Empty Finally Cleanup
+
+- 这轮继续保持“小闭环直收口”，没有重新铺开 `dispatchapi`/`direct` 这种超大文件，而是先拿 `publicabi.testcase` 前部两处最早命中做 fresh 复核。
+- 这两处之所以能归到和 `dataplane/ieee754` 同类，不只是因为形状相似，而是因为它们共享同一个基类恢复前提：
+  - `TTestCase_PublicAbi = class(TSimdVectorAsmStatefulTestCase)`
+  - `TSimdVectorAsmStatefulTestCase.TearDown` 负责恢复 `FSavedVectorAsm`
+  - `TSimdBackendStatefulTestCase.TearDown` 负责恢复 `FSavedBackend`
+  - 因而 method body 外层的空 `finally` 并不承担额外 restore 职责
+- fresh 读到的两个前部命中点都符合高确定性冗余特征：
+  - `Test_PublicApi_Table_Uses_Stable_Cdecl_EntryPoints_AfterBackendSwitch`
+  - `Test_PublicApi_VectorAsmRoundTrip_Reuses_PreviouslyPublishedMetadataTable`
+  - 都保留 `LOldVectorAsm := IsVectorAsmEnabled`，但后续没有任何读取
+  - 都有纯空 outer `try/finally`
+- 本轮已完成的源码收口：
+  - 删除上述两个用例中的 `LOldVectorAsm` 局部变量与赋值
+  - 删除对应纯空 outer `try/finally`
+  - 保留 `SetVectorAsmEnabled`、`ResetToAutomaticBackend`、backend 选择、public ABI metadata table / cdecl entry-point 断言不变
+- fresh 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+- fresh 结果：
+  - `[BUILD] OK`
+  - `[TEST] OK`
+  - `[LEAK] OK`
+- 当前阶段结论：
+  - 这批仍是纯测试层冗余清理，没有改 public ABI 发布逻辑或 SIMD 生产实现
+  - `publicabi.testcase` 前部这两处“伪 cleanup”已经收掉；如果下一轮继续沿这条线推进，应优先找同一文件里仍具备相同基类恢复前提、且语义简单的前部命中，而不是马上跳去 hook/rollback 深水区

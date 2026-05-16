@@ -6836,3 +6836,31 @@
 - 当前阶段结论：
   - 这批已经形成完整小闭环，可以直接提交
   - 后续如果继续深审 `simd`，应保持同样节奏：只挑已证实的局部冗余点，小验证后立即收口
+
+## 2026-05-16 PublicAbi Early Empty Finally Cleanup
+
+- 本轮没有重新跑慢链，也没有重新开全库审查，而是直接沿上一轮的高确定性冗余线继续前进。
+- 候选筛选过程：
+  - 先用 `rg -n -U "finally\\s*\\n\\s*end;"` 收窄剩余空 `finally` 热点，确认主要集中在 `dispatchapi/direct/publicabi`
+  - 再结合 `rg -n "LOldVectorAsm"` 与已有 nonx86 build 日志里的 `assigned but never used` 提示，把下一刀缩到 `publicabi.testcase` 前部两处最简单命中
+  - 明确避开更大的 `dispatchapi` 和后段 hook/rollback 复杂测试
+- 已完成的源码改动：
+  - 文件：`tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas`
+  - 用例 1：`Test_PublicApi_Table_Uses_Stable_Cdecl_EntryPoints_AfterBackendSwitch`
+  - 用例 2：`Test_PublicApi_VectorAsmRoundTrip_Reuses_PreviouslyPublishedMetadataTable`
+  - 内容：删除未使用的 `LOldVectorAsm` 及其赋值；删除纯空 outer `try/finally`
+- 安全依据：
+  - `TTestCase_PublicAbi` 继承 `TSimdVectorAsmStatefulTestCase`
+  - `TSimdVectorAsmStatefulTestCase.TearDown` 仍负责恢复 `FSavedVectorAsm`
+  - `TSimdBackendStatefulTestCase.TearDown` 仍负责恢复 `FSavedBackend`
+  - 因而这两处都不需要额外 method-local restore
+- 本轮验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+- fresh 结果：
+  - `[BUILD] OK`
+  - `[TEST] OK`
+  - `[LEAK] OK`
+- 当前阶段结论：
+  - 这批已经形成完整小闭环，可以直接提交
+  - 当前工作法是有效的：缩候选面、只改高确定性命中、用单 suite release 验证后立即收口

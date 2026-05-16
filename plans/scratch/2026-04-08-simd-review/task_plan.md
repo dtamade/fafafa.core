@@ -3940,3 +3940,17 @@
 | 1. 确认该 cleanup 是否真的冗余 | completed | 已复核 `TTestCase_DataPlane` 的基类链：`TSimdVectorAsmStatefulTestCase.TearDown` 会恢复 `FSavedVectorAsm`，`TSimdBackendStatefulTestCase.TearDown` 会恢复 `FSavedBackend`；因此该用例外层空 `finally` 与未使用的 `LOldVectorAsm` 不再承担 method-local restore 责任 |
 | 2. 删除空 `finally` 与失效局部变量 | completed | 已在 `Test_DataPlane_VectorAsmRoundTrip_Reuses_PreviouslyPublishedSnapshot` 删除未使用的 `LOldVectorAsm` 及其赋值，并移除纯空 outer `try/finally`；向量汇编开关切换、backend 判定与 dataplane 快照断言保持不变 |
 | 3. 做定向 release 验证并收口 | completed | 已跑 `git diff --check`，并用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DataPlane` 验证；构建、测试与 leak check 均通过 |
+
+## 2026-05-16 PublicAbi Early Empty Finally Cleanup
+
+### Goal
+
+继续沿 `empty finally + assigned-but-never-used vector-asm state capture` 这条高确定性冗余线，先收 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 前部两处与 `dataplane/ieee754` 同类的空壳 cleanup，不扩到后面更复杂的 hook/rollback 语义测试。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核候选是否具备和前批相同的安全前提 | completed | 已确认 `TTestCase_PublicAbi = class(TSimdVectorAsmStatefulTestCase)`，因此 `TearDown` 仍会恢复 `FSavedVectorAsm` 与 `FSavedBackend`；前部两处命中都表现为 `LOldVectorAsm := IsVectorAsmEnabled` 后无读取，且 outer `finally` 为空，符合“空壳 cleanup”特征 |
+| 2. 只清前部两处高确定性命中 | completed | 已在 `Test_PublicApi_Table_Uses_Stable_Cdecl_EntryPoints_AfterBackendSwitch` 与 `Test_PublicApi_VectorAsmRoundTrip_Reuses_PreviouslyPublishedMetadataTable` 删除未使用的 `LOldVectorAsm` 及纯空 outer `try/finally`；backend/vector-asm 切换流程和断言保持不变 |
+| 3. 做定向 release 验证并收口 | completed | 已跑 `git diff --check`，并用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi` 验证；构建、测试与 leak check 均通过 |
