@@ -4052,3 +4052,19 @@
 | 1. 复核剩余 `LOldVectorAsm` 是否全部为死变量 | completed | 已用 `rg -n "LOldVectorAsm"` 复核当前文件只剩 9 组“声明 + `IsVectorAsmEnabled` 赋值”，没有任何读取；这些方法的 outer `finally` 仍承担条件 `RegisterBackend(...)` restore，因此本批明确只删变量不动 restore 结构 |
 | 2. 删除剩余 9 个死变量捕获 | completed | 已在失败 hook、rollback restore、late-force、RegisterBackend previous-forced preserve 等 9 个 `publicabi` 方法中删除 `LOldVectorAsm` 局部变量与赋值，不改其 inner/outer `finally` 逻辑 |
 | 3. 用同一条最小 release 验证链收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi` 验证；构建、测试与 leak check 全部通过 |
+
+## 2026-05-16 DispatchApi Front Empty Finally And Dead VectorAsm Cleanup
+
+### Goal
+
+把同样的高确定性清理方法扩到 `dispatchapi.testcase` 前段，但仍然只处理两类命中：
+- 纯空 outer `try/finally`
+- `LOldVectorAsm` 只声明和赋值、但从不读取的死状态捕获
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `dispatchapi` 前段候选的真实边界 | completed | 已逐段复核 `990..1675`：前部 5 个简单 API 用例与数个 hook/rollback 用例里存在纯空 outer `finally`；另有一组 rollback / previous-forced 用例虽然 outer `finally` 仍承担条件 `RegisterBackend(...)` restore，但 `LOldVectorAsm` 依旧只声明和赋值、无任何读取 |
+| 2. 只收高确定性前段命中 | completed | 已删除 5 个简单 API 用例和 4 个 hook/rollback 用例中的纯空 outer `try/finally`；并在 8 个 rollback / previous-forced 方法里删除未使用的 `LOldVectorAsm`，保留所有 inner/outer restore 逻辑不变 |
+| 3. 用单 suite release 复验收口 | completed | 已跑 `git diff --check`，并用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 复验；构建、测试与 leak check 全部通过 |

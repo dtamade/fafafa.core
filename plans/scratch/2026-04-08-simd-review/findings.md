@@ -5986,3 +5986,25 @@
   - 不动这些方法现有的 inner/outer `finally`
   - 不再把“有 restore 的 finally”误当成“空壳 cleanup”
 - fresh 复核后，`publicabi.testcase` 里已经没有任何 `LOldVectorAsm` 残留；这说明同一条“无读取状态捕获”冗余线在当前文件里也已收干净。
+
+## 2026-05-16 DispatchApi Front Empty Finally And Dead VectorAsm Cleanup
+
+- 把同样的审查法扩到 `dispatchapi.testcase` 前段后，前 `990..1675` 区间也出现了和 `publicabi` 类似的双重冗余：
+  - 一批简单 API smoke 用例包着纯空 outer `try/finally`
+  - 一批 hook / rollback / previous-forced 用例的 `LOldVectorAsm := IsVectorAsmEnabled` 只赋值不读取
+- 这一段最重要的边界和 `publicabi` 一致：
+  - `Test_TrySetActiveBackend_FailedHookMutation_Restores_PreviousForcedBackend`
+  - `Test_TrySetActiveBackend_RollbackRestore_Success_Preserves_ForcedSelection`
+  - `Test_TrySetActiveBackend_RollbackRestore_LateForce_Restores_AutomaticBackend`
+  - `...Preserves_PreviousForcedBackend`
+  - 这些方法的 outer `finally` 仍承担条件 `RegisterBackend(...)` restore，因此只能删死变量，不能机械删掉 `finally`
+- 与此同时，前部这些方法则是纯空壳，可直接去掉 outer `try/finally`：
+  - `Test_TryForceBackend_Scalar_ReturnsTrue`
+  - `Test_TryForceBackend_Unavailable_NoChange`
+  - `Test_TrySetActiveBackend_Scalar_ReturnsTrue`
+  - `Test_TrySetActiveBackend_Unavailable_NoChange`
+  - `Test_SetActiveBackend_Unavailable_FallsBackToScalar`
+  - 以及几条真正 restore 已由 inner `finally` 承担的 hook/rollback 用例
+- 这说明当前 `dispatchapi` 也能沿同样的 fail-close 准则推进：
+  - 先分清“真空壳 finally”和“承担 restore 的 finally”
+  - 再把“只声明 + 只赋值”的 vector-asm 状态捕获单独剥离
