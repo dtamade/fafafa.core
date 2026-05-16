@@ -4084,3 +4084,17 @@
 | 1. 复核中段候选的真实边界 | completed | 已逐段复核 `1684..2328`：`BackendInfoAvailableFalse_IsNotSelectable`、`ResetToAutomaticBackend...`、`SetVectorAsmEnabled...`、`RegisterBackend_HookLateForce...`、`RegisterBackend_Canonicalizes...` 等方法存在纯空 outer `finally`；而 `SetActiveBackend_HookLateFailure_Preserves_PreviousForcedBackend`、`RegisterBackend_HookLateAutomaticReset_Preserves_PreviousForcedBackend`、`RegisterBackend_HookLateForce_DuringRestore_Preserves_PreviousForcedBackend` 的 outer `finally` 仍承担条件 `RegisterBackend(...)` restore，只能删 `LOldVectorAsm` |
 | 2. 只收中段高确定性命中 | completed | 已删除 10 个方法中的纯空 outer `try/finally`，并在 12 个方法中删除未使用的 `LOldVectorAsm`；所有 inner `finally`、hook reset 与条件 restore 保持不变 |
 | 3. 用单 suite release 复验收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 复验；构建、测试与 leak check 全部通过 |
+
+## 2026-05-16 DispatchApi Metadata And Snapshot Empty Finally Cleanup
+
+### Goal
+
+继续把同样的 fail-close 清理法推进到 `dispatchapi.testcase` 的 `2277..2810` 区间，重点收掉 metadata / snapshot round-trip 这一簇里的纯空 outer `finally` 与未读取的 `LOldVectorAsm`。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 metadata/snapshot 簇的真实边界 | completed | 已逐段复核 `2277..2810`：`SupportedAliases_StayCpuOnly_WhenBackendBecomesNonDispatchable`、`RegisteredBackendDispatchTable_PreservesCanonicalTextMetadata_After_ReRegister`、`CurrentBackendInfo_PreservesCanonicalTextMetadata_After_ReRegister` 都只剩纯空 outer `finally`；`PublicSmokeDefaultBackendPredictor...`、`VectorAsmDisabled_ReSelects_Away...`、`RegisterBackend_SameBackendRoundTrip...`、`SetVectorAsmEnabled_RoundTrip...` 同时带纯空 outer `finally` 和未读取 `LOldVectorAsm` |
+| 2. 只收这一簇高确定性命中 | completed | 已删除 7 个方法中的纯空 outer `try/finally`，并删除 4 个方法中的未使用 `LOldVectorAsm`；内层 `RegisterBackend(...)` restore 与 snapshot 断言保持不变 |
+| 3. 用单 suite release 复验收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 复验；构建、测试与 leak check 全部通过 |

@@ -7111,3 +7111,30 @@
 - 当前阶段结论：
   - 这批依旧只是 `dispatchapi` 测试层冗余清理，没有改 SIMD 生产实现
   - `dispatchapi` 当前最值当的下一批入口已经进一步后移到 `2363/2374` 之后，可继续沿相同 fail-close 边界推进
+
+## 2026-05-16 DispatchApi Metadata And Snapshot Empty Finally Cleanup
+
+- 这一批继续不换文件、不换 suite，只把候选区间推进到 `2277..2810` 的 metadata / snapshot consistency 簇。
+- 候选筛选过程：
+  - 先逐段读 `2277..2810` 的真实方法体
+  - 识别出两类命中：
+    - outer `finally` 本身为空，真实 restore 在内层 `finally`
+    - `LOldVectorAsm` 只声明和赋值、没有任何读取
+- 已完成的源码改动：
+  - 文件：`tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+  - 删除 7 个方法中的纯空 outer `try/finally`
+  - 删除 4 个方法中的未使用 `LOldVectorAsm`
+  - 保留所有内层 `RegisterBackend(...)` restore 与 metadata/snapshot 断言不变
+- 这轮额外做的卫生确认：
+  - `git diff --check` 通过
+  - `rg -n "LOldVectorAsm|finally$" ...dispatchapi.testcase.pas | sed -n '140,240p'` 显示下一批高确定性候选继续后移到了 `2815+`
+- 本轮验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+- fresh 结果：
+  - `[BUILD] OK`
+  - `[TEST] OK`
+  - `[LEAK] OK`
+- 当前阶段结论：
+  - 这批依旧只是 `dispatchapi` 测试层冗余清理，没有改 SIMD 生产实现
+  - `dispatchapi` 现在的下一个高确定性入口已继续后移到 `2815+` 一带

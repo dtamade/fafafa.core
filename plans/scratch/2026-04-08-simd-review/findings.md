@@ -6030,3 +6030,24 @@
 - 这轮新的实证结论是：
   - `dispatchapi` 里“纯空 outer finally”与“死 vector-asm 状态捕获”并不是随机散点，而是沿 hook/rollback/restore 家族成簇出现
   - 但这些簇内部仍必须按 restore 责任再分层，不能整簇机械删除
+
+## 2026-05-16 DispatchApi Metadata And Snapshot Empty Finally Cleanup
+
+- `dispatchapi.testcase` 的再下一簇 `2277..2810` 说明，高确定性冗余不只存在于 hook/rollback 家族，也存在于 metadata / snapshot round-trip 这类“断言链长但 restore 简单”的测试。
+- 这簇里最干净的纯空 outer `finally` 命中是：
+  - `Test_SupportedAliases_StayCpuOnly_WhenBackendBecomesNonDispatchable`
+  - `Test_RegisteredBackendDispatchTable_PreservesCanonicalTextMetadata_After_ReRegister`
+  - `Test_CurrentBackendInfo_PreservesCanonicalTextMetadata_After_ReRegister`
+- 同时，这几个方法既有纯空 outer `finally`，也带未读取的 `LOldVectorAsm`：
+  - `Test_PublicSmokeDefaultBackendPredictor_Tracks_CanonicalDispatchPriority`
+  - `Test_VectorAsmDisabled_ReSelects_Away_From_ScalarBacked_CurrentBackend`
+  - `Test_RegisterBackend_SameBackendRoundTrip_Reuses_PreviouslyPublishedDispatchSnapshot`
+  - `Test_SetVectorAsmEnabled_RoundTrip_Reuses_PreviouslyPublishedDispatchSnapshot`
+- 这批之所以仍然安全，是因为它们的真实 restore 责任都在内层 `finally`：
+  - `RegisterBackend(LOriginalBackend, LOriginalTable)`
+  - `RegisterBackend(sbAVX2, LAVX2Table)`
+  - `RegisterBackend(LBackend, LOriginalTable)`
+  - 外层 `finally` 本身完全为空
+- 新的判断更新为：
+  - `dispatchapi` 里“空 outer finally + 死状态捕获”已经从控制流类测试扩展到 metadata / snapshot consistency 测试
+  - 但只要 restore 责任仍明确落在内层 `finally`，这类冗余同样可以安全拆掉

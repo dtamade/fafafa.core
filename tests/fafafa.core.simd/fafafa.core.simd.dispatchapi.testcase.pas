@@ -2296,74 +2296,71 @@ var
     Result := False;
   end;
 begin
+  ResetToAutomaticBackend;
+  LOriginalBackend := GetActiveBackend;
+
+  // On targets where Scalar is the only meaningful runtime backend, this
+  // semantic split cannot be exercised.
+  if LOriginalBackend = sbScalar then
+    Exit;
+
+  AssertTrue('Original active backend should be CPU-supported',
+    IsBackendAvailableOnCPU(LOriginalBackend));
+  AssertTrue('Original active backend should be dispatchable',
+    IsBackendDispatchable(LOriginalBackend));
+  AssertEquals('Automatic selection should start from best dispatchable backend',
+    Ord(LOriginalBackend), Ord(GetBestDispatchableBackend));
+  LOriginalBestSupported := fafafa.core.simd.GetBestSupportedBackend;
+
+  AssertTrue('Original active backend should be registered',
+    TryGetRegisteredBackendDispatchTable(LOriginalBackend, LOriginalTable));
+
+  LSupportedView := fafafa.core.simd.GetSupportedBackendList;
+  LSupportedCompatView := fafafa.core.simd.cpuinfo.GetAvailableBackends;
+  LDispatchableView := fafafa.core.simd.GetDispatchableBackendList;
+  LAvailableView := fafafa.core.simd.GetAvailableBackendList;
+  AssertTrue('Supported view should include original active backend',
+    BackendInArray(LSupportedView, LOriginalBackend));
+  AssertTrue('cpuinfo compatibility alias should include original active backend',
+    BackendInArray(LSupportedCompatView, LOriginalBackend));
+  AssertTrue('Dispatchable view should include original active backend',
+    BackendInArray(LDispatchableView, LOriginalBackend));
+  AssertTrue('Available backend list should include original active backend',
+    BackendInArray(LAvailableView, LOriginalBackend));
+
+  LModifiedTable := LOriginalTable;
+  LModifiedTable.BackendInfo.Available := False;
+  RegisterBackend(LOriginalBackend, LModifiedTable);
   try
-    ResetToAutomaticBackend;
-    LOriginalBackend := GetActiveBackend;
-
-    // On targets where Scalar is the only meaningful runtime backend, this
-    // semantic split cannot be exercised.
-    if LOriginalBackend = sbScalar then
-      Exit;
-
-    AssertTrue('Original active backend should be CPU-supported',
+    AssertTrue('CPU-supported predicate should not change when dispatch wiring is disabled',
       IsBackendAvailableOnCPU(LOriginalBackend));
-    AssertTrue('Original active backend should be dispatchable',
+    AssertFalse('Dispatchable predicate should clear when BackendInfo.Available=False',
       IsBackendDispatchable(LOriginalBackend));
-    AssertEquals('Automatic selection should start from best dispatchable backend',
-      Ord(LOriginalBackend), Ord(GetBestDispatchableBackend));
-    LOriginalBestSupported := fafafa.core.simd.GetBestSupportedBackend;
-
-    AssertTrue('Original active backend should be registered',
-      TryGetRegisteredBackendDispatchTable(LOriginalBackend, LOriginalTable));
 
     LSupportedView := fafafa.core.simd.GetSupportedBackendList;
     LSupportedCompatView := fafafa.core.simd.cpuinfo.GetAvailableBackends;
     LDispatchableView := fafafa.core.simd.GetDispatchableBackendList;
     LAvailableView := fafafa.core.simd.GetAvailableBackendList;
-    AssertTrue('Supported view should include original active backend',
+
+    AssertTrue('Supported view should remain CPU-only when dispatchability changes',
       BackendInArray(LSupportedView, LOriginalBackend));
-    AssertTrue('cpuinfo compatibility alias should include original active backend',
+    AssertTrue('cpuinfo compatibility alias should remain CPU-only when dispatchability changes',
       BackendInArray(LSupportedCompatView, LOriginalBackend));
-    AssertTrue('Dispatchable view should include original active backend',
+    AssertFalse('Dispatchable view should exclude backend marked unavailable for dispatch',
       BackendInArray(LDispatchableView, LOriginalBackend));
-    AssertTrue('Available backend list should include original active backend',
+    AssertFalse('Available backend list should continue to alias dispatchable view',
       BackendInArray(LAvailableView, LOriginalBackend));
+    AssertEquals('Best supported backend should remain tied to CPU-only semantics',
+      Ord(LOriginalBestSupported), Ord(fafafa.core.simd.GetBestSupportedBackend));
 
-    LModifiedTable := LOriginalTable;
-    LModifiedTable.BackendInfo.Available := False;
-    RegisterBackend(LOriginalBackend, LModifiedTable);
-    try
-      AssertTrue('CPU-supported predicate should not change when dispatch wiring is disabled',
-        IsBackendAvailableOnCPU(LOriginalBackend));
-      AssertFalse('Dispatchable predicate should clear when BackendInfo.Available=False',
-        IsBackendDispatchable(LOriginalBackend));
-
-      LSupportedView := fafafa.core.simd.GetSupportedBackendList;
-      LSupportedCompatView := fafafa.core.simd.cpuinfo.GetAvailableBackends;
-      LDispatchableView := fafafa.core.simd.GetDispatchableBackendList;
-      LAvailableView := fafafa.core.simd.GetAvailableBackendList;
-
-      AssertTrue('Supported view should remain CPU-only when dispatchability changes',
-        BackendInArray(LSupportedView, LOriginalBackend));
-      AssertTrue('cpuinfo compatibility alias should remain CPU-only when dispatchability changes',
-        BackendInArray(LSupportedCompatView, LOriginalBackend));
-      AssertFalse('Dispatchable view should exclude backend marked unavailable for dispatch',
-        BackendInArray(LDispatchableView, LOriginalBackend));
-      AssertFalse('Available backend list should continue to alias dispatchable view',
-        BackendInArray(LAvailableView, LOriginalBackend));
-      AssertEquals('Best supported backend should remain tied to CPU-only semantics',
-        Ord(LOriginalBestSupported), Ord(fafafa.core.simd.GetBestSupportedBackend));
-
-      ResetToAutomaticBackend;
-      LAfterAuto := GetActiveBackend;
-      AssertTrue('Automatic selection should move away from backend marked unavailable',
-        LAfterAuto <> LOriginalBackend);
-      AssertEquals('Best supported backend should remain stable after automatic reselection',
-        Ord(LOriginalBestSupported), Ord(fafafa.core.simd.GetBestSupportedBackend));
-    finally
-      RegisterBackend(LOriginalBackend, LOriginalTable);
-    end;
+    ResetToAutomaticBackend;
+    LAfterAuto := GetActiveBackend;
+    AssertTrue('Automatic selection should move away from backend marked unavailable',
+      LAfterAuto <> LOriginalBackend);
+    AssertEquals('Best supported backend should remain stable after automatic reselection',
+      Ord(LOriginalBestSupported), Ord(fafafa.core.simd.GetBestSupportedBackend));
   finally
+    RegisterBackend(LOriginalBackend, LOriginalTable);
   end;
 end;
 
@@ -2371,14 +2368,12 @@ procedure TTestCase_DispatchAPI.Test_PublicSmokeDefaultBackendPredictor_Tracks_C
 var
   LAVX2Table: TSimdDispatchTable;
   LModifiedAVX2Table: TSimdDispatchTable;
-  LOldVectorAsm: Boolean;
 begin
   {$IFNDEF SIMD_X86_AVAILABLE}
   Exit;
   {$ENDIF}
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
   try
     SetVectorAsmEnabled(True);
     if not IsVectorAsmEnabled then
@@ -2416,7 +2411,6 @@ var
   LScalarTable: TSimdDispatchTable;
   LDispatchableView: TSimdBackendArray;
   LAvailableView: TSimdBackendArray;
-  LOldVectorAsm: Boolean;
   LIndex: Integer;
 
   function BackendInArray(const aItems: TSimdBackendArray; aBackend: TSimdBackend): Boolean;
@@ -2449,7 +2443,6 @@ begin
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
   try
     SetVectorAsmEnabled(True);
     SetVectorAsmEnabled(False);
@@ -2618,43 +2611,40 @@ var
   LReloadedTable: TSimdDispatchTable;
   LCanonicalInfo: TSimdBackendInfo;
 begin
+  ResetToAutomaticBackend;
+  LBackend := GetCurrentBackend;
+
+  AssertTrue('Current backend should be registered for registered-table canonical text test',
+    TryGetRegisteredBackendDispatchTable(LBackend, LOriginalTable));
+
+  LModifiedTable := LOriginalTable;
+  LModifiedTable.BackendInfo.Name := '';
+  LModifiedTable.BackendInfo.Description := '';
+  RegisterBackend(LBackend, LModifiedTable);
   try
-    ResetToAutomaticBackend;
-    LBackend := GetCurrentBackend;
+    AssertTrue('Registered backend table should still be readable after re-register',
+      TryGetRegisteredBackendDispatchTable(LBackend, LReloadedTable));
 
-    AssertTrue('Current backend should be registered for registered-table canonical text test',
-      TryGetRegisteredBackendDispatchTable(LBackend, LOriginalTable));
+    LCanonicalInfo := GetBackendInfo(LBackend);
 
-    LModifiedTable := LOriginalTable;
-    LModifiedTable.BackendInfo.Name := '';
-    LModifiedTable.BackendInfo.Description := '';
-    RegisterBackend(LBackend, LModifiedTable);
-    try
-      AssertTrue('Registered backend table should still be readable after re-register',
-        TryGetRegisteredBackendDispatchTable(LBackend, LReloadedTable));
-
-      LCanonicalInfo := GetBackendInfo(LBackend);
-
-      AssertEquals('Registered table backend id should stay canonical after re-register',
-        Ord(LBackend), Ord(LReloadedTable.Backend));
-      AssertEquals('Registered table BackendInfo.Backend should stay canonical after re-register',
-        Ord(LBackend), Ord(LReloadedTable.BackendInfo.Backend));
-      AssertTrue('Registered backend table should preserve non-empty name after re-register',
-        LReloadedTable.BackendInfo.Name <> '');
-      AssertTrue('Registered backend table should preserve non-empty description after re-register',
-        LReloadedTable.BackendInfo.Description <> '');
-      AssertEquals('Registered backend table name should stay aligned with canonical backend info after re-register',
-        LCanonicalInfo.Name, LReloadedTable.BackendInfo.Name);
-      AssertEquals('Registered backend table description should stay aligned with canonical backend info after re-register',
-        LCanonicalInfo.Description, LReloadedTable.BackendInfo.Description);
-      AssertEquals('Registered backend table should preserve current availability after re-register',
-        LModifiedTable.BackendInfo.Available, LReloadedTable.BackendInfo.Available);
-      AssertTrue('Registered backend table should preserve current capability set after re-register',
-        LReloadedTable.BackendInfo.Capabilities = LModifiedTable.BackendInfo.Capabilities);
-    finally
-      RegisterBackend(LBackend, LOriginalTable);
-    end;
+    AssertEquals('Registered table backend id should stay canonical after re-register',
+      Ord(LBackend), Ord(LReloadedTable.Backend));
+    AssertEquals('Registered table BackendInfo.Backend should stay canonical after re-register',
+      Ord(LBackend), Ord(LReloadedTable.BackendInfo.Backend));
+    AssertTrue('Registered backend table should preserve non-empty name after re-register',
+      LReloadedTable.BackendInfo.Name <> '');
+    AssertTrue('Registered backend table should preserve non-empty description after re-register',
+      LReloadedTable.BackendInfo.Description <> '');
+    AssertEquals('Registered backend table name should stay aligned with canonical backend info after re-register',
+      LCanonicalInfo.Name, LReloadedTable.BackendInfo.Name);
+    AssertEquals('Registered backend table description should stay aligned with canonical backend info after re-register',
+      LCanonicalInfo.Description, LReloadedTable.BackendInfo.Description);
+    AssertEquals('Registered backend table should preserve current availability after re-register',
+      LModifiedTable.BackendInfo.Available, LReloadedTable.BackendInfo.Available);
+    AssertTrue('Registered backend table should preserve current capability set after re-register',
+      LReloadedTable.BackendInfo.Capabilities = LModifiedTable.BackendInfo.Capabilities);
   finally
+    RegisterBackend(LBackend, LOriginalTable);
   end;
 end;
 
@@ -2666,9 +2656,7 @@ var
   LInitialDispatch: PSimdDispatchTable;
   LModifiedDispatch: PSimdDispatchTable;
   LFinalDispatch: PSimdDispatchTable;
-  LOldVectorAsm: Boolean;
 begin
-  LOldVectorAsm := IsVectorAsmEnabled;
   try
     SetVectorAsmEnabled(True);
     ResetToAutomaticBackend;
@@ -2715,10 +2703,8 @@ var
   LInitialBackend: TSimdBackend;
   LMiddleBackend: TSimdBackend;
   LFinalBackend: TSimdBackend;
-  LOldVectorAsm: Boolean;
 begin
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
   try
     SetVectorAsmEnabled(True);
     ResetToAutomaticBackend;
@@ -2765,48 +2751,45 @@ var
   LNamePtr: PAnsiChar;
   LDescriptionPtr: PAnsiChar;
 begin
+  ResetToAutomaticBackend;
+  LBackend := GetCurrentBackend;
+
+  AssertTrue('Current backend should be registered for current-info canonical text test',
+    TryGetRegisteredBackendDispatchTable(LBackend, LOriginalTable));
+
+  LModifiedTable := LOriginalTable;
+  LModifiedTable.BackendInfo.Name := '';
+  LModifiedTable.BackendInfo.Description := '';
+  RegisterBackend(LBackend, LModifiedTable);
   try
-    ResetToAutomaticBackend;
-    LBackend := GetCurrentBackend;
+    AssertEquals('Re-registering the active backend should preserve the active backend id',
+      Ord(LBackend), Ord(GetCurrentBackend));
 
-    AssertTrue('Current backend should be registered for current-info canonical text test',
-      TryGetRegisteredBackendDispatchTable(LBackend, LOriginalTable));
+    LCurrentInfo := GetCurrentBackendInfo;
+    LCanonicalInfo := GetBackendInfo(LBackend);
+    LNamePtr := GetSimdBackendNamePtr(LBackend);
+    LDescriptionPtr := GetSimdBackendDescriptionPtr(LBackend);
 
-    LModifiedTable := LOriginalTable;
-    LModifiedTable.BackendInfo.Name := '';
-    LModifiedTable.BackendInfo.Description := '';
-    RegisterBackend(LBackend, LModifiedTable);
-    try
-      AssertEquals('Re-registering the active backend should preserve the active backend id',
-        Ord(LBackend), Ord(GetCurrentBackend));
-
-      LCurrentInfo := GetCurrentBackendInfo;
-      LCanonicalInfo := GetBackendInfo(LBackend);
-      LNamePtr := GetSimdBackendNamePtr(LBackend);
-      LDescriptionPtr := GetSimdBackendDescriptionPtr(LBackend);
-
-      AssertTrue('GetCurrentBackendInfo should preserve non-empty name after re-register',
-        LCurrentInfo.Name <> '');
-      AssertTrue('GetCurrentBackendInfo should preserve non-empty description after re-register',
-        LCurrentInfo.Description <> '');
-      AssertNotNull('Public ABI backend name pointer should not be nil for current backend after re-register',
-        Pointer(LNamePtr));
-      AssertNotNull('Public ABI backend description pointer should not be nil for current backend after re-register',
-        Pointer(LDescriptionPtr));
-      AssertEquals('GetCurrentBackendInfo.Backend should stay canonical after re-register',
-        Ord(LBackend), Ord(LCurrentInfo.Backend));
-      AssertEquals('Current backend info name should stay aligned with canonical backend info after re-register',
-        LCanonicalInfo.Name, LCurrentInfo.Name);
-      AssertEquals('Current backend info description should stay aligned with canonical backend info after re-register',
-        LCanonicalInfo.Description, LCurrentInfo.Description);
-      AssertEquals('Current backend info name should stay aligned with public ABI text getter after re-register',
-        LCurrentInfo.Name, string(StrPas(LNamePtr)));
-      AssertEquals('Current backend info description should stay aligned with public ABI text getter after re-register',
-        LCurrentInfo.Description, string(StrPas(LDescriptionPtr)));
-    finally
-      RegisterBackend(LBackend, LOriginalTable);
-    end;
+    AssertTrue('GetCurrentBackendInfo should preserve non-empty name after re-register',
+      LCurrentInfo.Name <> '');
+    AssertTrue('GetCurrentBackendInfo should preserve non-empty description after re-register',
+      LCurrentInfo.Description <> '');
+    AssertNotNull('Public ABI backend name pointer should not be nil for current backend after re-register',
+      Pointer(LNamePtr));
+    AssertNotNull('Public ABI backend description pointer should not be nil for current backend after re-register',
+      Pointer(LDescriptionPtr));
+    AssertEquals('GetCurrentBackendInfo.Backend should stay canonical after re-register',
+      Ord(LBackend), Ord(LCurrentInfo.Backend));
+    AssertEquals('Current backend info name should stay aligned with canonical backend info after re-register',
+      LCanonicalInfo.Name, LCurrentInfo.Name);
+    AssertEquals('Current backend info description should stay aligned with canonical backend info after re-register',
+      LCanonicalInfo.Description, LCurrentInfo.Description);
+    AssertEquals('Current backend info name should stay aligned with public ABI text getter after re-register',
+      LCurrentInfo.Name, string(StrPas(LNamePtr)));
+    AssertEquals('Current backend info description should stay aligned with public ABI text getter after re-register',
+      LCurrentInfo.Description, string(StrPas(LDescriptionPtr)));
   finally
+    RegisterBackend(LBackend, LOriginalTable);
   end;
 end;
 
