@@ -5363,3 +5363,26 @@
   - 以前：truthfulness checker 知道，零散泛化测试知道，key-slot audit 不知道
   - 现在：`SelectF32x4` 已有 dedicated truth source，且被 `key-slot audit` 正式接管
   - fresh summary 已更新为 `backend=neon ok slots=26`，全局 summary 已更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=62 issues=0 status=ok`
+
+## 2026-05-16 NEON AndNot Ownership Lift Findings
+
+- 继续沿 `NEON` residual 往下切时，`AndNotI8x16/AndNotU16x8/AndNotU8x16` 是下一簇最小但真实的缺口：
+  - `check_nonx86_register_truthfulness.py` 已把它们归类为合法 `asm-only wrapper-only`
+  - `src/fafafa.core.simd.neon.compare.inc` 中对应实现不是 scalar-forward，而是 backend-local composition：
+    - `NEONAndNotI8x16` = `NEONAndI8x16(NEONNotI8x16(a), b)`
+    - `NEONAndNotU16x8` = `NEONAndU16x8(NEONNotU16x8(a), b)`
+    - `NEONAndNotU8x16` = `NEONAndU8x16(NEONNotU8x16(a), b)`
+  - `src/fafafa.core.simd.neon.register.inc` 也在 asm-enabled 下显式发布这 3 个 slot
+- 这说明它们不是“应回 scalar”的 stale wrapper，而是 asm-enabled 时故意 backend-owned、vector asm 关闭时回落 scalar 的双相 policy slot。
+- 当前真正缺的是 dedicated truth source：
+  - 旧测试里只有 generic parity / presence 断言
+  - 没有一个 dedicated testcase 同时固定 source、register、runtime 三层事实
+  - `key-slot audit` 也无法直接消费它们
+- 因而这批正确修法不是改 backend，而是补 dedicated testcase 再 lift：
+  - 新增 `Test_NEON_AndNotSlots_Keep_AsmOwnedCompositions_And_RuntimeOwnership`
+  - 让它同时钉住 backend-local composition、register asm binding、runtime ownership/fallback
+  - 再把这 3 个 slot 纳入 `KEY_SLOTS_BY_BACKEND['neon']`、`EXPECTATION_PROCEDURES['neon']` 与 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['neon']`
+- 修完后的关键变化不是行为变更，而是这 3 个 `AndNot*` 位点不再只靠 truthfulness allowlist 活着：
+  - 以前：truthfulness checker 知道，generic parity 知道，key-slot audit 不知道
+  - 现在：它们已有 dedicated truth source，且被 `key-slot audit` 正式接管
+  - fresh summary 已更新为 `backend=neon ok slots=29`，全局 summary 已更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=65 issues=0 status=ok`

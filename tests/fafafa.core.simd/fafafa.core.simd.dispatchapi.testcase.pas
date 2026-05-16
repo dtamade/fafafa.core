@@ -165,6 +165,7 @@ type
     procedure Test_NEON_NoAsmWideIntegerCompareSlots_Keep_SourceCompanions_But_Reuse_BaseScalar;
     procedure Test_NEON_NoAsmIntegerFallbackSlots_Reuse_BaseScalar_When_Wrappers_Are_Not_BackendOwned;
     procedure Test_NEON_SelectF32x4_AsmEnabledSource_Does_Not_ScalarForward;
+    procedure Test_NEON_AndNotSlots_Keep_AsmOwnedCompositions_And_RuntimeOwnership;
     procedure Test_RISCVV_FacadeDotF64_NoAsmSource_Does_Not_ScalarForward;
     procedure Test_RISCVV_FacadeSlots_Reuse_BaseScalar_When_Wrappers_Are_ScalarPassThrough;
     procedure Test_RISCVV_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
@@ -8653,6 +8654,88 @@ begin
   AssertSlotKeepsBackendOwnership('SelectF32x4', Pointer(LScalarTable.SelectF32x4), Pointer(LNEONTable.SelectF32x4));
   {$ELSE}
   AssertSlotReusesScalar('SelectF32x4', Pointer(LScalarTable.SelectF32x4), Pointer(LNEONTable.SelectF32x4));
+  {$ENDIF}
+end;
+
+procedure TTestCase_DispatchAPI.Test_NEON_AndNotSlots_Keep_AsmOwnedCompositions_And_RuntimeOwnership;
+var
+  LSourceLines: TStringList;
+  LCompareSourcePath: string;
+  LRegisterSourcePath: string;
+  LCompareSource: string;
+  LRegisterSource: string;
+  LScalarTable: TSimdDispatchTable;
+  LNEONTable: TSimdDispatchTable;
+
+  procedure AssertWrapperStillPresent(const aLabel, aSnippet: string);
+  begin
+    AssertTrue(aLabel + ' should keep its backend-local composition in the NEON compare source',
+      Pos(LowerCase(aSnippet), LCompareSource) > 0);
+  end;
+
+  procedure AssertRegisterHasAsmOwnedSlot(const aLabel, aSnippet: string);
+  begin
+    AssertTrue('RegisterNEONBackend should keep the asm-enabled binding source for ' + aLabel,
+      Pos(LowerCase(aSnippet), LRegisterSource) > 0);
+  end;
+
+  procedure AssertSlotKeepsBackendOwnership(const aLabel: string; const aScalarSlot, aBackendSlot: Pointer);
+  begin
+    AssertTrue('NEON ' + aLabel + ' should stay assigned in the registered backend table', aBackendSlot <> nil);
+    AssertTrue('NEON ' + aLabel + ' should keep backend ownership when vector asm is compiled',
+      aBackendSlot <> aScalarSlot);
+  end;
+
+  procedure AssertSlotReusesScalar(const aLabel: string; const aScalarSlot, aBackendSlot: Pointer);
+  begin
+    AssertEquals('NEON ' + aLabel + ' should fall back to the base scalar slot when vector asm is not compiled',
+      PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
+  end;
+begin
+  LSourceLines := TStringList.Create;
+  try
+    LCompareSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.compare.inc');
+    AssertTrue('NEON compare source should exist for implementation-shape audit: ' + LCompareSourcePath,
+      FileExists(LCompareSourcePath));
+    LSourceLines.LoadFromFile(LCompareSourcePath);
+    LCompareSource := LowerCase(LSourceLines.Text);
+
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.register.inc');
+    AssertTrue('NEON register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
+      FileExists(LRegisterSourcePath));
+    LSourceLines.LoadFromFile(LRegisterSourcePath);
+    LRegisterSource := LowerCase(LSourceLines.Text);
+  finally
+    LSourceLines.Free;
+  end;
+
+  AssertWrapperStillPresent('NEONAndNotI8x16', 'result := neonandi8x16(neonnoti8x16(a), b);');
+  AssertWrapperStillPresent('NEONAndNotU16x8', 'result := neonandu16x8(neonnotu16x8(a), b);');
+  AssertWrapperStillPresent('NEONAndNotU8x16', 'result := neonandu8x16(neonnotu8x16(a), b);');
+
+  AssertRegisterHasAsmOwnedSlot('AndNotI8x16', 'table.AndNotI8x16 := @NEONAndNotI8x16;');
+  AssertRegisterHasAsmOwnedSlot('AndNotU16x8', 'table.AndNotU16x8 := @NEONAndNotU16x8;');
+  AssertRegisterHasAsmOwnedSlot('AndNotU8x16', 'table.AndNotU8x16 := @NEONAndNotU8x16;');
+
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND}
+  AssertTrue('NEON opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable) then
+    Exit;
+  {$ENDIF}
+
+  {$IFDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
+  AssertSlotKeepsBackendOwnership('AndNotI8x16', Pointer(LScalarTable.AndNotI8x16), Pointer(LNEONTable.AndNotI8x16));
+  AssertSlotKeepsBackendOwnership('AndNotU16x8', Pointer(LScalarTable.AndNotU16x8), Pointer(LNEONTable.AndNotU16x8));
+  AssertSlotKeepsBackendOwnership('AndNotU8x16', Pointer(LScalarTable.AndNotU8x16), Pointer(LNEONTable.AndNotU8x16));
+  {$ELSE}
+  AssertSlotReusesScalar('AndNotI8x16', Pointer(LScalarTable.AndNotI8x16), Pointer(LNEONTable.AndNotI8x16));
+  AssertSlotReusesScalar('AndNotU16x8', Pointer(LScalarTable.AndNotU16x8), Pointer(LNEONTable.AndNotU16x8));
+  AssertSlotReusesScalar('AndNotU8x16', Pointer(LScalarTable.AndNotU8x16), Pointer(LNEONTable.AndNotU8x16));
   {$ENDIF}
 end;
 

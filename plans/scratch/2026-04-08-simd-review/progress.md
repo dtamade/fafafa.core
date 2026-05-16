@@ -6309,3 +6309,41 @@
 - 当前阶段结论：
   - 这批没有改 backend 行为，而是把 `SelectF32x4` 从“分散 truth”收成了 dedicated truth source，并正式接进 `check` 常规门禁
   - 收口前已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免把 Python 产物带进提交
+
+## 2026-05-16 NEON AndNot Ownership Lift
+
+- 继续沿 `NEON` residual 往下切时，先没有直接进入 32 个 wide integer compare，而是先锁定更小的一簇：
+  - `AndNotI8x16`
+  - `AndNotU16x8`
+  - `AndNotU8x16`
+- 已确认这 3 个 slot 的真实结构是：
+  - `check_nonx86_register_truthfulness.py` 中都属于 `asm-only wrapper-only`
+  - `src/fafafa.core.simd.neon.compare.inc` 中是 backend-local composition，不是 scalar-forward
+  - `src/fafafa.core.simd.neon.register.inc` 中在 asm-enabled 下显式发布相应 slot
+- 当前缺口不在 backend 行为，而在 dedicated truth source 不够集中：
+  - 旧测试里只有 generic parity / presence 断言
+  - `key-slot audit` 没有可直接消费的 dedicated source
+- 本批已完成的最小修复：
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 新增 `Test_NEON_AndNotSlots_Keep_AsmOwnedCompositions_And_RuntimeOwnership`
+    - 固定 compare source 中 backend-local composition
+    - 固定 register asm-only binding
+    - 固定 runtime asm-compiled 时 backend-owned、否则回落 scalar
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 把 `AndNotI8x16/AndNotU16x8/AndNotU8x16` 纳入 `KEY_SLOTS_BY_BACKEND['neon']`
+    - 把该 dedicated testcase 纳入 `EXPECTATION_PROCEDURES['neon']`
+    - 对这 3 个 slot 开启 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['neon']`
+- 本批按 Pascal 批次执行的最小验证链：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend neon --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `backend=neon ok slots=29`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=65 issues=0 status=ok`
+  - Release `TTestCase_DispatchAPI` 通过
+  - Release `check` 通过
+- 当前阶段结论：
+  - 这批没有改 backend 行为，而是把 `AndNotI8x16/U16x8/U8x16` 从分散 truth 收成了 dedicated truth source，并正式接进 `check` 常规门禁
+  - 收口前已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免把 Python 产物带进提交

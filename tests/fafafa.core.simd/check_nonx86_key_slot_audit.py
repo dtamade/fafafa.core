@@ -45,6 +45,9 @@ KEY_SLOTS_BY_BACKEND: dict[str, tuple[str, ...]] = {
         "DivF32x16",
         "DivF64x8",
         "SelectF32x4",
+        "AndNotI8x16",
+        "AndNotU16x8",
+        "AndNotU8x16",
     ),
     "riscvv": (
         "AndI64x8",
@@ -104,6 +107,7 @@ EXPECTATION_PROCEDURES = {
         "TTestCase_DispatchAPI.Test_NEON_NoAsmWideMinMaxSlots_Keep_Necessary_Wrappers_But_Reuse_BaseScalar",
         "TTestCase_DispatchAPI.Test_NEON_NoAsmWideLeafFloatArithmeticSlots_Keep_SourceCompanions_But_Reuse_BaseScalar",
         "TTestCase_DispatchAPI.Test_NEON_SelectF32x4_AsmEnabledSource_Does_Not_ScalarForward",
+        "TTestCase_DispatchAPI.Test_NEON_AndNotSlots_Keep_AsmOwnedCompositions_And_RuntimeOwnership",
     ),
     "riscvv": (
         "TTestCase_DispatchAPI.Test_RISCVV_FacadeSlots_Reuse_BaseScalar_When_Wrappers_Are_ScalarPassThrough",
@@ -140,6 +144,9 @@ REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS: dict[str, set[str]] = {
         "DivF32x16",
         "DivF64x8",
         "SelectF32x4",
+        "AndNotI8x16",
+        "AndNotU16x8",
+        "AndNotU8x16",
     },
     "riscvv": {
         "AndI64x8",
