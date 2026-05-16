@@ -7246,3 +7246,30 @@
 - 当前阶段结论：
   - 这批依旧只是 `dispatchapi` 测试层冗余清理，没有改 SIMD 生产实现
   - `dispatchapi` 当前最值当的下一批入口已进一步后移到 `10946+` 的 AVX2 wide-FMA / source-shape 合同测试簇
+
+## 2026-05-16 DispatchApi WideFma WideSelect And BackendCapability Empty Finally Cleanup
+
+- 这一批继续留在 `dispatchapi.testcase` 及其同文件内相邻 contract testcase，没有切到 `direct`、`runtimeapi` 或生产实现，只把候选区段推进到 `10946..11435` 的 AVX2 wide-FMA / wide-select / RISCVV masked-ops / AVX512 capability 混合合同簇。
+- 候选筛选过程：
+  - 先逐段读取 `10946..11435`
+  - 明确区分 `AVX2` wide/source-shape 测试里的内层 `LSourceLines.Free` 和外层空壳 `finally`
+  - 确认 2 条 `AVX2` wide 测试、1 条 `X86MaskedFmaContract`、2 条 `RISCVVMaskedOpsContract`、3 条 `AVX512` capability 测试都带未读取的 `LOldVectorAsm`
+  - 确认这 8 条方法的 outer `finally` 全为空，没有任何 backend/table restore、hook cleanup 或其他真实清理逻辑
+- 已完成的源码改动：
+  - 文件：`tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+  - 删除 8 个方法中的纯空 outer `try/finally`
+  - 删除 8 个方法中的未使用 `LOldVectorAsm`
+  - 保留所有内层 `LSourceLines.Free`、wide-FMA half-composition 断言、wide-select parity、hardware-FMA absence、RISCVV masked-ops/public-ABI 与 AVX512 capability rebuild 断言不变
+- 这轮额外做的卫生确认：
+  - 再次复读 `10946..11435`，确认现在只剩内层真实释放逻辑与正常断言流
+  - 轻量后续定位显示，下一个高确定性入口已经后移到 `11438+` 的后续 backend-capability / public-ABI 合同区段，需要继续区分纯空 outer 壳和真实 restore
+- 本轮验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+- fresh 结果：
+  - `[BUILD] OK`
+  - `[TEST] OK`
+  - `[LEAK] OK`
+- 当前阶段结论：
+  - 这批依旧只是 `dispatchapi` 与同文件 contract testcase 的测试层冗余清理，没有改 SIMD 生产实现
+  - `dispatchapi` 当前最值当的下一批入口已进一步后移到 `11438+` 的后续 backend-capability / public-ABI 合同区段

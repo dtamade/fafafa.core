@@ -6127,3 +6127,23 @@
 - 这再次强化当前准则：
   - 即使测试主题从 parity/source-shape 切换成 capability bits、public ABI pod info 或 fused-FMA witness，只要 outer `finally` 不承担真实恢复职责，就仍然可以按同一 fail-close 规则剥掉机械空壳
   - `dispatchapi` 当前的高确定性冗余已经覆盖 control-plane、metadata/snapshot、facade tracking、SSE2 审计、RISCVV/AVX512 parity，以及 capability/FMA 合同测试六类簇
+
+## 2026-05-16 DispatchApi WideFma WideSelect And BackendCapability Empty Finally Cleanup
+
+- `dispatchapi.testcase` 的 `10946..11435` 说明，空 outer `finally` 与死 `LOldVectorAsm` 还继续分布在更混合的测试形态里：既有带 source-shape 审计内层释放的 `AVX2` wide-FMA / wide-select，也有 `X86MaskedFmaContract`、`RISCVVMaskedOpsContract`、`AVX512` capability 合同测试。
+- 这次确认可安全清理的 8 条方法是：
+  - `Test_AVX2_WideFma_ExactInputs_FollowsHalfComposition`
+  - `Test_AVX2_WideSelect_Parity_WithScalar_When_VectorAsmEnabled`
+  - `TTestCase_X86MaskedFmaContract.Test_AVX2_FmaSlots_StayScalar_When_HardwareFmaUnavailable`
+  - `TTestCase_RISCVVMaskedOpsContract.Test_RISCVV_BackendCapabilities_Expose_MaskedOps_When_MaskSlots_AreNative`
+  - `TTestCase_RISCVVMaskedOpsContract.Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_RISCVVMaskedOps_When_MaskSlots_AreNative`
+  - `Test_AVX512_BackendCapabilities_Expose_FMA_When_WideFmaSlots_AreNative`
+  - `Test_AVX512_BackendCapabilities_Expose_Shuffle_When_WideSelectSlots_AreNative`
+  - `Test_AVX512_BackendCapabilities_Clear_VectorAsmGatedBits_When_VectorAsmDisabled`
+- 它们的共同边界比前几批更清楚了：
+  - `AVX2` wide/source-shape 测试虽然有 `TStringList` 资源释放，但真实释放只由内层 `LSourceLines.Free` 承担，外层 `finally` 仍是纯空壳
+  - 其余合同测试只做 `SetVectorAsmEnabled(True/False)`、读取 backend/public-ABI 信息、再做 capability 或 slot parity 断言
+  - 所有目标方法中的 `LOldVectorAsm := IsVectorAsmEnabled` 都只是机械捕获，没有 restore、没有断言、也没有后续读取
+- 这进一步强化当前准则：
+  - “测试里有内层真实 `finally`” 不等于 “外层 `finally` 也有价值”；必须按层判断职责，保留真实释放，剥离空 outer 壳
+  - `dispatchapi` 当前的高确定性冗余已扩展到 source-shape + runtime parity 混合测试、hardware-unavailable 合同、RISCVV public-ABI mask 合同，以及 AVX512 capability rebuild 合同
