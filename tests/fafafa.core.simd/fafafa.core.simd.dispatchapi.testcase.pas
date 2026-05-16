@@ -12558,7 +12558,6 @@ var
   LRegisterSource: string;
   LFacadeSource: string;
   LFallbackSource: string;
-  LOldVectorAsm: Boolean;
 
   procedure AssertRegisterKeepsClonedAVX2(const aLabel, aSnippet: string);
   begin
@@ -12625,22 +12624,18 @@ begin
   AssertRegisterKeepsClonedAVX2('BytesIndexOf', 'dispatchTable.BytesIndexOf := @BytesIndexOf_AVX512;');
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
-    if not TryGetRegisteredBackendDispatchTable(sbAVX2, LAVX2Table) then
-      Exit;
-    if not TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512Table) then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
+  if not TryGetRegisteredBackendDispatchTable(sbAVX2, LAVX2Table) then
+    Exit;
+  if not TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512Table) then
+    Exit;
 
-    AssertSlotReusesAVX2('Utf8Validate', Pointer(LAVX2Table.Utf8Validate), Pointer(LAVX512Table.Utf8Validate));
-    AssertSlotReusesAVX2('MemReverse', Pointer(LAVX2Table.MemReverse), Pointer(LAVX512Table.MemReverse));
-    AssertSlotReusesAVX2('MemDiffRange', Pointer(LAVX2Table.MemDiffRange), Pointer(LAVX512Table.MemDiffRange));
-    AssertSlotReusesAVX2('BytesIndexOf', Pointer(LAVX2Table.BytesIndexOf), Pointer(LAVX512Table.BytesIndexOf));
-  finally
-  end;
+  AssertSlotReusesAVX2('Utf8Validate', Pointer(LAVX2Table.Utf8Validate), Pointer(LAVX512Table.Utf8Validate));
+  AssertSlotReusesAVX2('MemReverse', Pointer(LAVX2Table.MemReverse), Pointer(LAVX512Table.MemReverse));
+  AssertSlotReusesAVX2('MemDiffRange', Pointer(LAVX2Table.MemDiffRange), Pointer(LAVX512Table.MemDiffRange));
+  AssertSlotReusesAVX2('BytesIndexOf', Pointer(LAVX2Table.BytesIndexOf), Pointer(LAVX512Table.BytesIndexOf));
 end;
 
 procedure TTestCase_DispatchAPI.Test_X86_BackendCapabilities_Clear_Shuffle_When_VectorAsmDisabled;
@@ -12648,7 +12643,6 @@ var
   LBackend: TSimdBackend;
   LScalarTable: TSimdDispatchTable;
   LBackendTable: TSimdDispatchTable;
-  LOldVectorAsm: Boolean;
 
   function IsShuffleCapabilityGatedBackend(const aBackend: TSimdBackend): Boolean;
   begin
@@ -12664,30 +12658,26 @@ begin
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    SetVectorAsmEnabled(False);
-    AssertFalse('Vector asm should be disabled for x86 shuffle capability rebuild test', IsVectorAsmEnabled);
+  SetVectorAsmEnabled(True);
+  SetVectorAsmEnabled(False);
+  AssertFalse('Vector asm should be disabled for x86 shuffle capability rebuild test', IsVectorAsmEnabled);
 
-    for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
-    begin
-      if not IsShuffleCapabilityGatedBackend(LBackend) then
-        Continue;
-      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
-        Continue;
+  for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
+  begin
+    if not IsShuffleCapabilityGatedBackend(LBackend) then
+      Continue;
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+      Continue;
 
-      AssertEquals(DispatchApiBackendName(LBackend) + ' SelectF32x4 should fall back to scalar when vector asm is disabled',
-        PtrUInt(LScalarTable.SelectF32x4), PtrUInt(LBackendTable.SelectF32x4));
-      AssertEquals(DispatchApiBackendName(LBackend) + ' InsertF32x4 should fall back to scalar when vector asm is disabled',
-        PtrUInt(LScalarTable.InsertF32x4), PtrUInt(LBackendTable.InsertF32x4));
-      AssertEquals(DispatchApiBackendName(LBackend) + ' ExtractF32x4 should fall back to scalar when vector asm is disabled',
-        PtrUInt(LScalarTable.ExtractF32x4), PtrUInt(LBackendTable.ExtractF32x4));
+    AssertEquals(DispatchApiBackendName(LBackend) + ' SelectF32x4 should fall back to scalar when vector asm is disabled',
+      PtrUInt(LScalarTable.SelectF32x4), PtrUInt(LBackendTable.SelectF32x4));
+    AssertEquals(DispatchApiBackendName(LBackend) + ' InsertF32x4 should fall back to scalar when vector asm is disabled',
+      PtrUInt(LScalarTable.InsertF32x4), PtrUInt(LBackendTable.InsertF32x4));
+    AssertEquals(DispatchApiBackendName(LBackend) + ' ExtractF32x4 should fall back to scalar when vector asm is disabled',
+      PtrUInt(LScalarTable.ExtractF32x4), PtrUInt(LBackendTable.ExtractF32x4));
 
-      AssertFalse('scShuffle should clear when representative shuffle slots are scalar after vector asm disable: ' + DispatchApiBackendName(LBackend),
-        scShuffle in LBackendTable.BackendInfo.Capabilities);
-    end;
-  finally
+    AssertFalse('scShuffle should clear when representative shuffle slots are scalar after vector asm disable: ' + DispatchApiBackendName(LBackend),
+      scShuffle in LBackendTable.BackendInfo.Capabilities);
   end;
 end;
 

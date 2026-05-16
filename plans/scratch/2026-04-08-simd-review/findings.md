@@ -6187,3 +6187,17 @@
 - 这进一步强化当前准则：
   - 当测试主题切到 x86 clone-reuse/source-shape 或 dispatchable semantic parity，只要 outer `finally` 不承担真实恢复职责，仍然可以按同一 fail-close 规则剥掉机械空壳
   - `dispatchapi` 当前的高确定性冗余已继续扩展到 x86 family override-reuse 与 runtime semantic parity 合同簇
+
+## 2026-05-16 DispatchApi AVX512 PassThrough And X86 Shuffle Capability Empty Finally Cleanup
+
+- `dispatchapi.testcase` 的 `12548..12692` 说明，空 outer `finally` 与死 `LOldVectorAsm` 还继续分布在 `AVX512` pass-through facade/source-shape 审计，以及 x86 shuffle capability rebuild 合同测试里。
+- 这次确认可安全清理的 2 条方法是：
+  - `Test_AVX512_PassThroughFacadeSlots_Reuse_AVX2_When_Wrappers_Are_Just_Forwarders`
+  - `Test_X86_BackendCapabilities_Clear_Shuffle_When_VectorAsmDisabled`
+- 它们的共同边界和前几批保持一致：
+  - `AVX512` pass-through 测试虽然有 `TStringList` 资源释放，但真实释放只由内层 `LSourceLines.Free` 承担，外层 `finally` 仍是纯空壳
+  - x86 shuffle capability rebuild 测试只做 `SetVectorAsmEnabled(True/False)`、读取 backend table、再做 scalar fallback / capability clear 合同断言
+  - 两个目标方法里的 `LOldVectorAsm := IsVectorAsmEnabled` 都只是机械捕获，没有 restore、没有断言、也没有后续读取
+- 这继续强化当前准则：
+  - 即使测试主题切到 pass-through wrapper/source-shape 与 grouped x86 capability rebuild，只要 outer `finally` 不承担真实恢复职责，就仍然可以按同一 fail-close 规则剥掉机械空壳
+  - `dispatchapi` 当前的高确定性冗余已继续扩展到 AVX512 facade/source-shape 与 x86 grouped capability clear 合同簇
