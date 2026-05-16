@@ -4112,3 +4112,19 @@
 | 1. 复核 facade tracking 簇的真实边界 | completed | 已逐段复核 `2796..3445`：`CurrentBackendHelpers_StayAligned_After_ControlPlaneSwitches` 带未读取 `LOldVectorAsm` 且 outer `finally` 为空；`VecF32x4Reduce`、`VecF64x2Reduce`、`VecF64x2Math`、`VecF32VectorMath`、`VecWideFloatDot`、`VecF64x4Reduce`、`VecF32x8Reduce`、`VecF64x8Reduce`、`VecF32x16Reduce` 这串 facade dispatch tracking 测试都由内层 `RegisterBackend(...)` restore，outer `finally` 纯空 |
 | 2. 只收这一簇高确定性命中 | completed | 已删除 10 个方法中的纯空 outer `try/finally`，并删除 `CurrentBackendHelpers_StayAligned_After_ControlPlaneSwitches` 中未使用的 `LOldVectorAsm`；所有内层 restore 和 facade parity / dispatch 跟踪断言保持不变 |
 | 3. 用单 suite release 复验收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 复验；构建、测试与 leak check 全部通过 |
+
+## 2026-05-16 DispatchApi SSE2 Impl Audit Empty Finally Cleanup
+
+### Goal
+
+继续沿 `dispatchapi.testcase` 的高确定性清理线推进到 `5128..5459` 这一簇 SSE2 实现审计测试，只收两类已证实无行为价值的冗余：
+- `LOldVectorAsm` 只声明和赋值、但从不读取
+- outer `try/finally` 的 `finally` 体完全为空
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 SSE2 审计簇的真实边界 | completed | 已逐段复核 `Test_SSE2_I32x4_U32x4_Mul_Use_NonScalar_Impl_And_Keep_Parity`、`Test_SSE2_I64x2_Compare_Use_NonScalar_Impl_And_Keep_Parity`、`Test_SSE2_F32VectorMath_Use_NonScalar_Impl_And_Keep_Parity`：三者都只有 `SetVectorAsmEnabled(True)`、backend 选择与 parity 断言，没有任何 outer restore；其 `LOldVectorAsm` 仅做 `IsVectorAsmEnabled` 捕获且后续无读取 |
+| 2. 只收这一簇高确定性命中 | completed | 已在上述 3 个 SSE2 测试中删除纯空 outer `try/finally`，并删除对应未使用的 `LOldVectorAsm`；所有 SSE2 source-shape 审计、dispatch/backend 断言与 parity 断言保持不变 |
+| 3. 用单 suite release 复验收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 复验；构建、测试与 leak check 全部通过 |

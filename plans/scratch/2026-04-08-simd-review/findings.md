@@ -6073,3 +6073,19 @@
 - 这轮的新增判断是：
   - 当测试目的只是验证“facade 是否跟随当前 dispatch snapshot”，而 restore 明确由内层 `RegisterBackend(...)` 承担时，外层 `try/finally` 几乎都是机械遗留
   - `dispatchapi` 里的高确定性冗余已经从 control-plane / metadata 簇进一步扩到了 façade tracking 簇
+
+## 2026-05-16 DispatchApi SSE2 Impl Audit Empty Finally Cleanup
+
+- `dispatchapi.testcase` 的 `5128..5459` 证明，高确定性冗余并不只出现在 rollback / snapshot / facade tracking 测试里，连带 source-shape 审计的 SSE2 parity 测试也出现了同一种机械壳。
+- 这次确认可安全清理的 3 条方法是：
+  - `Test_SSE2_I32x4_U32x4_Mul_Use_NonScalar_Impl_And_Keep_Parity`
+  - `Test_SSE2_I64x2_Compare_Use_NonScalar_Impl_And_Keep_Parity`
+  - `Test_SSE2_F32VectorMath_Use_NonScalar_Impl_And_Keep_Parity`
+- 它们的共同边界非常一致：
+  - 前半段只做 SSE2 源码/实现形态审计，真实资源释放仅由 `LSourceLines.Free` 这种内层 `finally` 承担
+  - 后半段只是 `SetVectorAsmEnabled(True)`、选择 `sbSSE2`、再做 dispatch/parity 断言
+  - outer `finally` 体完全为空
+  - `LOldVectorAsm := IsVectorAsmEnabled` 仅被捕获，从未参与 restore 或断言
+- 这进一步收紧了当前准则：
+  - 只要 outer `finally` 不承担 `RegisterBackend(...)`、hook cleanup 或其他真实 restore，哪怕测试本身同时包含 source-shape 审计和 runtime parity，也仍然可以按同一 fail-close 规则剥掉空壳
+  - `dispatchapi` 当前的冗余分布已覆盖 control-plane、metadata/snapshot、facade tracking，以及 SSE2 implementation audit 四类测试簇

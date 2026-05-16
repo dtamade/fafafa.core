@@ -7164,3 +7164,29 @@
 - 当前阶段结论：
   - 这批依旧只是 `dispatchapi` 测试层冗余清理，没有改 SIMD 生产实现
   - `dispatchapi` 当前最值当的下一批入口已继续后移到 `3447+`
+
+## 2026-05-16 DispatchApi SSE2 Impl Audit Empty Finally Cleanup
+
+- 这一批继续留在 `dispatchapi.testcase`，没有切到 `direct`、`concurrent` 或生产实现，只把候选区段推进到 `5128..5459` 的 SSE2 实现审计簇。
+- 候选筛选过程：
+  - 先逐段读取 `5128..5459`
+  - 确认 `Mul`、`I64x2 Compare`、`F32VectorMath` 这 3 条 SSE2 测试都带未读取的 `LOldVectorAsm`
+  - 确认三者的 outer `finally` 都为空，真实资源释放只在内层 `LSourceLines.Free` 或普通流程控制里完成，没有任何 backend/table restore
+- 已完成的源码改动：
+  - 文件：`tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+  - 删除 3 个方法中的纯空 outer `try/finally`
+  - 删除 3 个方法中的未使用 `LOldVectorAsm`
+  - 保留所有 SSE2 source-shape 审计、dispatch/backend 断言与 parity 断言不变
+- 这轮额外做的卫生确认：
+  - `git diff --check` 通过
+  - 再次复读 `5128..5462`，确认现在只剩内层真实释放逻辑与正常断言流
+- 本轮验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+- fresh 结果：
+  - `[BUILD] OK`
+  - `[TEST] OK`
+  - `[LEAK] OK`
+- 当前阶段结论：
+  - 这批依旧只是 `dispatchapi` 测试层冗余清理，没有改 SIMD 生产实现
+  - 当前方法已经收口到“小区段审计 -> 单簇修复 -> 单 suite release 验证 -> 立刻提交”，适合后续继续按同样节奏推进
