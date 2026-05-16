@@ -6008,3 +6008,25 @@
 - 这说明当前 `dispatchapi` 也能沿同样的 fail-close 准则推进：
   - 先分清“真空壳 finally”和“承担 restore 的 finally”
   - 再把“只声明 + 只赋值”的 vector-asm 状态捕获单独剥离
+
+## 2026-05-16 DispatchApi Mid Empty Finally And Dead VectorAsm Cleanup
+
+- `dispatchapi.testcase` 的下一段 `1684..2328` 继续证明了上一批的判断：真正该防止误删的，不是 `try/finally` 语法本身，而是 outer `finally` 有没有承担 restore 职责。
+- 这段里可以直接删壳的空 outer `finally` 主要集中在：
+  - `Test_BackendInfoAvailableFalse_IsNotSelectable`
+  - `Test_ResetToAutomaticBackend_HookLateForce_Restores_AutomaticBackend`
+  - `Test_ResetToAutomaticBackend_HookLateForce_DuringRestore_Restores_AutomaticBackend`
+  - `Test_SetVectorAsmEnabled_HookLateForce_Restores_AutomaticBackend`
+  - `Test_SetVectorAsmEnabled_HookLateForce_DuringRestore_Restores_AutomaticBackend`
+  - `Test_SetVectorAsmEnabled_HookLateAutomaticReset_Preserves_PreviousForcedBackend`
+  - `Test_SetVectorAsmEnabled_HookLateAutomaticReset_DuringRestore_Preserves_PreviousForcedBackend`
+  - `Test_SetVectorAsmEnabled_HookLateForce_DuringRestore_Preserves_PreviousForcedBackend`
+  - `Test_RegisterBackend_HookLateForce_Restores_AutomaticBackend`
+  - `Test_RegisterBackend_Canonicalizes_TableIdentity_For_ForcedSelection`
+- 与之相对，这几条方法虽然也带未读取的 `LOldVectorAsm`，但 outer `finally` 还承担条件 table restore，因此只能删变量，不能删壳：
+  - `Test_SetActiveBackend_HookLateFailure_Preserves_PreviousForcedBackend`
+  - `Test_RegisterBackend_HookLateAutomaticReset_Preserves_PreviousForcedBackend`
+  - `Test_RegisterBackend_HookLateForce_DuringRestore_Preserves_PreviousForcedBackend`
+- 这轮新的实证结论是：
+  - `dispatchapi` 里“纯空 outer finally”与“死 vector-asm 状态捕获”并不是随机散点，而是沿 hook/rollback/restore 家族成簇出现
+  - 但这些簇内部仍必须按 restore 责任再分层，不能整簇机械删除

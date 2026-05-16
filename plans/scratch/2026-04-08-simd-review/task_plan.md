@@ -4068,3 +4068,19 @@
 | 1. 复核 `dispatchapi` 前段候选的真实边界 | completed | 已逐段复核 `990..1675`：前部 5 个简单 API 用例与数个 hook/rollback 用例里存在纯空 outer `finally`；另有一组 rollback / previous-forced 用例虽然 outer `finally` 仍承担条件 `RegisterBackend(...)` restore，但 `LOldVectorAsm` 依旧只声明和赋值、无任何读取 |
 | 2. 只收高确定性前段命中 | completed | 已删除 5 个简单 API 用例和 4 个 hook/rollback 用例中的纯空 outer `try/finally`；并在 8 个 rollback / previous-forced 方法里删除未使用的 `LOldVectorAsm`，保留所有 inner/outer restore 逻辑不变 |
 | 3. 用单 suite release 复验收口 | completed | 已跑 `git diff --check`，并用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 复验；构建、测试与 leak check 全部通过 |
+
+## 2026-05-16 DispatchApi Mid Empty Finally And Dead VectorAsm Cleanup
+
+### Goal
+
+继续沿 `dispatchapi.testcase` 同一条高确定性清理线推进到 `1684..2328` 区间，只收两类命中：
+- outer `finally` 真正为空的测试壳
+- `LOldVectorAsm` 只声明和赋值、但不读取的死状态捕获
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核中段候选的真实边界 | completed | 已逐段复核 `1684..2328`：`BackendInfoAvailableFalse_IsNotSelectable`、`ResetToAutomaticBackend...`、`SetVectorAsmEnabled...`、`RegisterBackend_HookLateForce...`、`RegisterBackend_Canonicalizes...` 等方法存在纯空 outer `finally`；而 `SetActiveBackend_HookLateFailure_Preserves_PreviousForcedBackend`、`RegisterBackend_HookLateAutomaticReset_Preserves_PreviousForcedBackend`、`RegisterBackend_HookLateForce_DuringRestore_Preserves_PreviousForcedBackend` 的 outer `finally` 仍承担条件 `RegisterBackend(...)` restore，只能删 `LOldVectorAsm` |
+| 2. 只收中段高确定性命中 | completed | 已删除 10 个方法中的纯空 outer `try/finally`，并在 12 个方法中删除未使用的 `LOldVectorAsm`；所有 inner `finally`、hook reset 与条件 restore 保持不变 |
+| 3. 用单 suite release 复验收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 复验；构建、测试与 leak check 全部通过 |

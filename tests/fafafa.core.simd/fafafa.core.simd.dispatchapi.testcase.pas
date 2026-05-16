@@ -1648,40 +1648,37 @@ var
   LOriginalTable: TSimdDispatchTable;
   LModifiedTable: TSimdDispatchTable;
 begin
+  ResetToAutomaticBackend;
+  LOriginalBackend := GetActiveBackend;
+
+  // If we ended up on Scalar, there's nothing meaningful to test.
+  if LOriginalBackend = sbScalar then
+    Exit;
+
+  AssertTrue('Active backend should be registered',
+    TryGetRegisteredBackendDispatchTable(LOriginalBackend, LOriginalTable));
+
+  LModifiedTable := LOriginalTable;
+  LModifiedTable.BackendInfo.Available := False;
+
+  // Re-register same backend but mark it unavailable.
+  RegisterBackend(LOriginalBackend, LModifiedTable);
   try
+    // Forced selection must now fail.
+    LBeforeTry := GetActiveBackend;
+    AssertFalse('TrySetActiveBackend should fail when BackendInfo.Available=False',
+      TrySetActiveBackend(LOriginalBackend));
+    AssertEquals('Active backend should remain unchanged after failed TrySetActiveBackend',
+      Ord(LBeforeTry), Ord(GetActiveBackend));
+
+    // Automatic selection must not pick this backend anymore.
     ResetToAutomaticBackend;
-    LOriginalBackend := GetActiveBackend;
-
-    // If we ended up on Scalar, there's nothing meaningful to test.
-    if LOriginalBackend = sbScalar then
-      Exit;
-
-    AssertTrue('Active backend should be registered',
-      TryGetRegisteredBackendDispatchTable(LOriginalBackend, LOriginalTable));
-
-    LModifiedTable := LOriginalTable;
-    LModifiedTable.BackendInfo.Available := False;
-
-    // Re-register same backend but mark it unavailable.
-    RegisterBackend(LOriginalBackend, LModifiedTable);
-    try
-      // Forced selection must now fail.
-      LBeforeTry := GetActiveBackend;
-      AssertFalse('TrySetActiveBackend should fail when BackendInfo.Available=False',
-        TrySetActiveBackend(LOriginalBackend));
-      AssertEquals('Active backend should remain unchanged after failed TrySetActiveBackend',
-        Ord(LBeforeTry), Ord(GetActiveBackend));
-
-      // Automatic selection must not pick this backend anymore.
-      ResetToAutomaticBackend;
-      LAfterAuto := GetActiveBackend;
-      AssertTrue('Automatic selection should skip backend marked unavailable',
-        LAfterAuto <> LOriginalBackend);
-    finally
-      // Restore original table.
-      RegisterBackend(LOriginalBackend, LOriginalTable);
-    end;
+    LAfterAuto := GetActiveBackend;
+    AssertTrue('Automatic selection should skip backend marked unavailable',
+      LAfterAuto <> LOriginalBackend);
   finally
+    // Restore original table.
+    RegisterBackend(LOriginalBackend, LOriginalTable);
   end;
 end;
 
@@ -1692,12 +1689,10 @@ var
   LPreviousForcedBackend: TSimdBackend;
   LRequestedBackend: TSimdBackend;
   LRequestedOriginalTable: TSimdDispatchTable;
-  LOldVectorAsm: Boolean;
   LRequestedTableCaptured: Boolean;
   LSelectedCount: Integer;
   LIndex: Integer;
 begin
-  LOldVectorAsm := IsVectorAsmEnabled;
   LRequestedTableCaptured := False;
   try
     SetVectorAsmEnabled(True);
@@ -1772,168 +1767,148 @@ end;
 procedure TTestCase_DispatchAPI.Test_ResetToAutomaticBackend_HookLateForce_Restores_AutomaticBackend;
 var
   LAutomaticBackend: TSimdBackend;
-  LOldVectorAsm: Boolean;
 begin
-  LOldVectorAsm := IsVectorAsmEnabled;
+  SetVectorAsmEnabled(True);
+  ResetToAutomaticBackend;
+  LAutomaticBackend := GetBestDispatchableBackend;
+  if LAutomaticBackend = sbScalar then
+    Exit;
+
+  AssertTrue('Scalar force setup should succeed before ResetToAutomaticBackend late-force test',
+    TrySetActiveBackend(sbScalar));
+  AssertEquals('Scalar should be active before ResetToAutomaticBackend late-force test',
+    Ord(sbScalar), Ord(GetActiveBackend));
+
+  GDispatchHookReForceBackendTarget := sbScalar;
+  GDispatchHookReForceBackendEnabled := True;
+  GDispatchHookReForceBackendStage := 0;
+  AddDispatchChangedHook(@DispatchHookReForceBackendOnce);
   try
-    SetVectorAsmEnabled(True);
     ResetToAutomaticBackend;
-    LAutomaticBackend := GetBestDispatchableBackend;
-    if LAutomaticBackend = sbScalar then
-      Exit;
-
-    AssertTrue('Scalar force setup should succeed before ResetToAutomaticBackend late-force test',
-      TrySetActiveBackend(sbScalar));
-    AssertEquals('Scalar should be active before ResetToAutomaticBackend late-force test',
-      Ord(sbScalar), Ord(GetActiveBackend));
-
-    GDispatchHookReForceBackendTarget := sbScalar;
-    GDispatchHookReForceBackendEnabled := True;
-    GDispatchHookReForceBackendStage := 0;
-    AddDispatchChangedHook(@DispatchHookReForceBackendOnce);
-    try
-      ResetToAutomaticBackend;
-      AssertEquals('Synthetic late-force hook should run through the real ResetToAutomaticBackend callback sequence',
-        2, GDispatchHookReForceBackendStage);
-      AssertEquals('ResetToAutomaticBackend should restore automatic best backend even if a late hook re-forces scalar during notification',
-        Ord(LAutomaticBackend), Ord(GetActiveBackend));
-      AssertTrue('ResetToAutomaticBackend should not return with stale scalar forced fallback when a better automatic backend exists',
-        GetActiveBackend <> sbScalar);
-      AssertEquals('ResetToAutomaticBackend should leave active backend aligned with best dispatchable backend after late hook mutation',
-        Ord(GetBestDispatchableBackend), Ord(GetActiveBackend));
-    finally
-      RemoveDispatchChangedHook(@DispatchHookReForceBackendOnce);
-      GDispatchHookReForceBackendEnabled := False;
-      GDispatchHookReForceBackendStage := 0;
-      GDispatchHookReForceBackendTarget := sbScalar;
-    end;
+    AssertEquals('Synthetic late-force hook should run through the real ResetToAutomaticBackend callback sequence',
+      2, GDispatchHookReForceBackendStage);
+    AssertEquals('ResetToAutomaticBackend should restore automatic best backend even if a late hook re-forces scalar during notification',
+      Ord(LAutomaticBackend), Ord(GetActiveBackend));
+    AssertTrue('ResetToAutomaticBackend should not return with stale scalar forced fallback when a better automatic backend exists',
+      GetActiveBackend <> sbScalar);
+    AssertEquals('ResetToAutomaticBackend should leave active backend aligned with best dispatchable backend after late hook mutation',
+      Ord(GetBestDispatchableBackend), Ord(GetActiveBackend));
   finally
+    RemoveDispatchChangedHook(@DispatchHookReForceBackendOnce);
+    GDispatchHookReForceBackendEnabled := False;
+    GDispatchHookReForceBackendStage := 0;
+    GDispatchHookReForceBackendTarget := sbScalar;
   end;
 end;
 
 procedure TTestCase_DispatchAPI.Test_ResetToAutomaticBackend_HookLateForce_DuringRestore_Restores_AutomaticBackend;
 var
   LAutomaticBackend: TSimdBackend;
-  LOldVectorAsm: Boolean;
 begin
-  LOldVectorAsm := IsVectorAsmEnabled;
+  SetVectorAsmEnabled(True);
+  ResetToAutomaticBackend;
+  LAutomaticBackend := GetBestDispatchableBackend;
+  if LAutomaticBackend = sbScalar then
+    Exit;
+
+  AssertTrue('Scalar force setup should succeed before ResetToAutomaticBackend restore-callback late-force test',
+    TrySetActiveBackend(sbScalar));
+  AssertEquals('Scalar should be active before ResetToAutomaticBackend restore-callback late-force test',
+    Ord(sbScalar), Ord(GetActiveBackend));
+
+  GDispatchHookResetLateForceTarget := sbScalar;
+  GDispatchHookResetLateForceEnabled := True;
+  GDispatchHookResetLateForceStage := 0;
+  AddDispatchChangedHook(@DispatchHookReForceBackendOnAutomaticRestore);
   try
-    SetVectorAsmEnabled(True);
     ResetToAutomaticBackend;
-    LAutomaticBackend := GetBestDispatchableBackend;
-    if LAutomaticBackend = sbScalar then
-      Exit;
-
-    AssertTrue('Scalar force setup should succeed before ResetToAutomaticBackend restore-callback late-force test',
-      TrySetActiveBackend(sbScalar));
-    AssertEquals('Scalar should be active before ResetToAutomaticBackend restore-callback late-force test',
-      Ord(sbScalar), Ord(GetActiveBackend));
-
-    GDispatchHookResetLateForceTarget := sbScalar;
-    GDispatchHookResetLateForceEnabled := True;
-    GDispatchHookResetLateForceStage := 0;
-    AddDispatchChangedHook(@DispatchHookReForceBackendOnAutomaticRestore);
-    try
-      ResetToAutomaticBackend;
-      AssertEquals('Synthetic second-late-force hook should run through the full ResetToAutomaticBackend callback sequence',
-        5, GDispatchHookResetLateForceStage);
-      AssertEquals('ResetToAutomaticBackend should still restore automatic best backend even if a late hook re-forces scalar during restore callback',
-        Ord(LAutomaticBackend), Ord(GetActiveBackend));
-      AssertTrue('ResetToAutomaticBackend restore-callback late-force path should not return with stale scalar forced fallback when a better automatic backend exists',
-        GetActiveBackend <> sbScalar);
-      AssertEquals('ResetToAutomaticBackend restore-callback late-force path should leave active backend aligned with best dispatchable backend',
-        Ord(GetBestDispatchableBackend), Ord(GetActiveBackend));
-    finally
-      RemoveDispatchChangedHook(@DispatchHookReForceBackendOnAutomaticRestore);
-      GDispatchHookResetLateForceEnabled := False;
-      GDispatchHookResetLateForceStage := 0;
-      GDispatchHookResetLateForceTarget := sbScalar;
-    end;
+    AssertEquals('Synthetic second-late-force hook should run through the full ResetToAutomaticBackend callback sequence',
+      5, GDispatchHookResetLateForceStage);
+    AssertEquals('ResetToAutomaticBackend should still restore automatic best backend even if a late hook re-forces scalar during restore callback',
+      Ord(LAutomaticBackend), Ord(GetActiveBackend));
+    AssertTrue('ResetToAutomaticBackend restore-callback late-force path should not return with stale scalar forced fallback when a better automatic backend exists',
+      GetActiveBackend <> sbScalar);
+    AssertEquals('ResetToAutomaticBackend restore-callback late-force path should leave active backend aligned with best dispatchable backend',
+      Ord(GetBestDispatchableBackend), Ord(GetActiveBackend));
   finally
+    RemoveDispatchChangedHook(@DispatchHookReForceBackendOnAutomaticRestore);
+    GDispatchHookResetLateForceEnabled := False;
+    GDispatchHookResetLateForceStage := 0;
+    GDispatchHookResetLateForceTarget := sbScalar;
   end;
 end;
 
 procedure TTestCase_DispatchAPI.Test_SetVectorAsmEnabled_HookLateForce_Restores_AutomaticBackend;
 var
   LAutomaticBackend: TSimdBackend;
-  LOldVectorAsm: Boolean;
 begin
-  LOldVectorAsm := IsVectorAsmEnabled;
+  SetVectorAsmEnabled(True);
+  ResetToAutomaticBackend;
+  LAutomaticBackend := GetBestDispatchableBackend;
+  if LAutomaticBackend = sbScalar then
+    Exit;
+
+  SetVectorAsmEnabled(False);
+  ResetToAutomaticBackend;
+  AssertEquals('Vector-asm disable precondition should leave active backend aligned with automatic best backend',
+    Ord(GetBestDispatchableBackend), Ord(GetActiveBackend));
+
+  GDispatchHookReForceBackendTarget := sbScalar;
+  GDispatchHookReForceBackendEnabled := True;
+  GDispatchHookReForceBackendStage := 0;
+  AddDispatchChangedHook(@DispatchHookReForceBackendOnce);
   try
     SetVectorAsmEnabled(True);
-    ResetToAutomaticBackend;
-    LAutomaticBackend := GetBestDispatchableBackend;
-    if LAutomaticBackend = sbScalar then
-      Exit;
-
-    SetVectorAsmEnabled(False);
-    ResetToAutomaticBackend;
-    AssertEquals('Vector-asm disable precondition should leave active backend aligned with automatic best backend',
+    AssertEquals('Synthetic vector-asm late-force hook should run through the real SetVectorAsmEnabled callback sequence',
+      2, GDispatchHookReForceBackendStage);
+    AssertEquals('SetVectorAsmEnabled should restore automatic best backend even if a late hook re-forces scalar during re-enable notification',
+      Ord(LAutomaticBackend), Ord(GetActiveBackend));
+    AssertTrue('SetVectorAsmEnabled re-enable late-force path should not return with stale scalar forced fallback when a better automatic backend exists',
+      GetActiveBackend <> sbScalar);
+    AssertEquals('SetVectorAsmEnabled re-enable late-force path should leave active backend aligned with best dispatchable backend',
       Ord(GetBestDispatchableBackend), Ord(GetActiveBackend));
-
-    GDispatchHookReForceBackendTarget := sbScalar;
-    GDispatchHookReForceBackendEnabled := True;
-    GDispatchHookReForceBackendStage := 0;
-    AddDispatchChangedHook(@DispatchHookReForceBackendOnce);
-    try
-      SetVectorAsmEnabled(True);
-      AssertEquals('Synthetic vector-asm late-force hook should run through the real SetVectorAsmEnabled callback sequence',
-        2, GDispatchHookReForceBackendStage);
-      AssertEquals('SetVectorAsmEnabled should restore automatic best backend even if a late hook re-forces scalar during re-enable notification',
-        Ord(LAutomaticBackend), Ord(GetActiveBackend));
-      AssertTrue('SetVectorAsmEnabled re-enable late-force path should not return with stale scalar forced fallback when a better automatic backend exists',
-        GetActiveBackend <> sbScalar);
-      AssertEquals('SetVectorAsmEnabled re-enable late-force path should leave active backend aligned with best dispatchable backend',
-        Ord(GetBestDispatchableBackend), Ord(GetActiveBackend));
-    finally
-      RemoveDispatchChangedHook(@DispatchHookReForceBackendOnce);
-      GDispatchHookReForceBackendEnabled := False;
-      GDispatchHookReForceBackendStage := 0;
-      GDispatchHookReForceBackendTarget := sbScalar;
-    end;
   finally
+    RemoveDispatchChangedHook(@DispatchHookReForceBackendOnce);
+    GDispatchHookReForceBackendEnabled := False;
+    GDispatchHookReForceBackendStage := 0;
+    GDispatchHookReForceBackendTarget := sbScalar;
   end;
 end;
 
 procedure TTestCase_DispatchAPI.Test_SetVectorAsmEnabled_HookLateForce_DuringRestore_Restores_AutomaticBackend;
 var
   LAutomaticBackend: TSimdBackend;
-  LOldVectorAsm: Boolean;
 begin
-  LOldVectorAsm := IsVectorAsmEnabled;
+  SetVectorAsmEnabled(True);
+  ResetToAutomaticBackend;
+  LAutomaticBackend := GetBestDispatchableBackend;
+  if LAutomaticBackend = sbScalar then
+    Exit;
+
+  SetVectorAsmEnabled(False);
+  ResetToAutomaticBackend;
+  AssertEquals('Vector-asm disable precondition should keep active backend aligned with automatic best backend before restore-callback late-force test',
+    Ord(GetBestDispatchableBackend), Ord(GetActiveBackend));
+
+  GDispatchHookResetLateForceTarget := sbScalar;
+  GDispatchHookResetLateForceEnabled := True;
+  GDispatchHookResetLateForceStage := 0;
+  AddDispatchChangedHook(@DispatchHookReForceBackendOnAutomaticRestore);
   try
     SetVectorAsmEnabled(True);
-    ResetToAutomaticBackend;
-    LAutomaticBackend := GetBestDispatchableBackend;
-    if LAutomaticBackend = sbScalar then
-      Exit;
-
-    SetVectorAsmEnabled(False);
-    ResetToAutomaticBackend;
-    AssertEquals('Vector-asm disable precondition should keep active backend aligned with automatic best backend before restore-callback late-force test',
+    AssertEquals('Synthetic vector-asm second-late-force hook should run through the full SetVectorAsmEnabled callback sequence',
+      5, GDispatchHookResetLateForceStage);
+    AssertEquals('SetVectorAsmEnabled should still restore automatic best backend even if a late hook re-forces scalar during restore callback',
+      Ord(LAutomaticBackend), Ord(GetActiveBackend));
+    AssertTrue('SetVectorAsmEnabled restore-callback late-force path should not return with stale scalar forced fallback when a better automatic backend exists',
+      GetActiveBackend <> sbScalar);
+    AssertEquals('SetVectorAsmEnabled restore-callback late-force path should leave active backend aligned with best dispatchable backend',
       Ord(GetBestDispatchableBackend), Ord(GetActiveBackend));
-
-    GDispatchHookResetLateForceTarget := sbScalar;
-    GDispatchHookResetLateForceEnabled := True;
-    GDispatchHookResetLateForceStage := 0;
-    AddDispatchChangedHook(@DispatchHookReForceBackendOnAutomaticRestore);
-    try
-      SetVectorAsmEnabled(True);
-      AssertEquals('Synthetic vector-asm second-late-force hook should run through the full SetVectorAsmEnabled callback sequence',
-        5, GDispatchHookResetLateForceStage);
-      AssertEquals('SetVectorAsmEnabled should still restore automatic best backend even if a late hook re-forces scalar during restore callback',
-        Ord(LAutomaticBackend), Ord(GetActiveBackend));
-      AssertTrue('SetVectorAsmEnabled restore-callback late-force path should not return with stale scalar forced fallback when a better automatic backend exists',
-        GetActiveBackend <> sbScalar);
-      AssertEquals('SetVectorAsmEnabled restore-callback late-force path should leave active backend aligned with best dispatchable backend',
-        Ord(GetBestDispatchableBackend), Ord(GetActiveBackend));
-    finally
-      RemoveDispatchChangedHook(@DispatchHookReForceBackendOnAutomaticRestore);
-      GDispatchHookResetLateForceEnabled := False;
-      GDispatchHookResetLateForceStage := 0;
-      GDispatchHookResetLateForceTarget := sbScalar;
-    end;
   finally
+    RemoveDispatchChangedHook(@DispatchHookReForceBackendOnAutomaticRestore);
+    GDispatchHookResetLateForceEnabled := False;
+    GDispatchHookResetLateForceStage := 0;
+    GDispatchHookResetLateForceTarget := sbScalar;
   end;
 end;
 
@@ -1942,56 +1917,51 @@ var
   LDispatchable: TSimdBackendArray;
   LAutomaticBackend: TSimdBackend;
   LPreviousForcedBackend: TSimdBackend;
-  LOldVectorAsm: Boolean;
   LIndex: Integer;
 begin
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    ResetToAutomaticBackend;
-    LDispatchable := GetDispatchableBackendList;
-    if Length(LDispatchable) < 2 then
-      Exit;
+  SetVectorAsmEnabled(True);
+  ResetToAutomaticBackend;
+  LDispatchable := GetDispatchableBackendList;
+  if Length(LDispatchable) < 2 then
+    Exit;
 
-    LAutomaticBackend := GetBestDispatchableBackend;
-    LPreviousForcedBackend := sbScalar;
-    for LIndex := High(LDispatchable) downto 0 do
-      if (LDispatchable[LIndex] <> sbScalar) and (LDispatchable[LIndex] <> LAutomaticBackend) then
-      begin
-        LPreviousForcedBackend := LDispatchable[LIndex];
-        Break;
-      end;
-
-    if LPreviousForcedBackend = sbScalar then
-      Exit;
-
-    AssertTrue('Previous forced backend should differ from automatic best backend in vector-asm late-reset test',
-      LPreviousForcedBackend <> LAutomaticBackend);
-    AssertTrue('Previous forced backend setup should succeed before vector-asm late-reset test',
-      TrySetActiveBackend(LPreviousForcedBackend));
-    AssertEquals('Previous forced backend should be active before vector-asm late-reset test',
-      Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
-
-    GDispatchHookResetToAutomaticEnabled := True;
-    GDispatchHookResetToAutomaticStage := 0;
-    AddDispatchChangedHook(@DispatchHookResetToAutomaticOnce);
-    try
-      SetVectorAsmEnabled(False);
-      AssertEquals('Synthetic vector-asm late-reset hook should run through the real SetVectorAsmEnabled callback sequence',
-        2, GDispatchHookResetToAutomaticStage);
-      AssertTrue('Disabling vector asm should move current backend away from the previously forced backend when it becomes non-dispatchable',
-        GetActiveBackend <> LPreviousForcedBackend);
-    finally
-      RemoveDispatchChangedHook(@DispatchHookResetToAutomaticOnce);
-      GDispatchHookResetToAutomaticEnabled := False;
-      GDispatchHookResetToAutomaticStage := 0;
+  LAutomaticBackend := GetBestDispatchableBackend;
+  LPreviousForcedBackend := sbScalar;
+  for LIndex := High(LDispatchable) downto 0 do
+    if (LDispatchable[LIndex] <> sbScalar) and (LDispatchable[LIndex] <> LAutomaticBackend) then
+    begin
+      LPreviousForcedBackend := LDispatchable[LIndex];
+      Break;
     end;
 
-    SetVectorAsmEnabled(True);
-    AssertEquals('Re-enabling vector asm should preserve the previously forced backend even if a late hook resets to automatic during disable',
-      Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+  if LPreviousForcedBackend = sbScalar then
+    Exit;
+
+  AssertTrue('Previous forced backend should differ from automatic best backend in vector-asm late-reset test',
+    LPreviousForcedBackend <> LAutomaticBackend);
+  AssertTrue('Previous forced backend setup should succeed before vector-asm late-reset test',
+    TrySetActiveBackend(LPreviousForcedBackend));
+  AssertEquals('Previous forced backend should be active before vector-asm late-reset test',
+    Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+
+  GDispatchHookResetToAutomaticEnabled := True;
+  GDispatchHookResetToAutomaticStage := 0;
+  AddDispatchChangedHook(@DispatchHookResetToAutomaticOnce);
+  try
+    SetVectorAsmEnabled(False);
+    AssertEquals('Synthetic vector-asm late-reset hook should run through the real SetVectorAsmEnabled callback sequence',
+      2, GDispatchHookResetToAutomaticStage);
+    AssertTrue('Disabling vector asm should move current backend away from the previously forced backend when it becomes non-dispatchable',
+      GetActiveBackend <> LPreviousForcedBackend);
   finally
+    RemoveDispatchChangedHook(@DispatchHookResetToAutomaticOnce);
+    GDispatchHookResetToAutomaticEnabled := False;
+    GDispatchHookResetToAutomaticStage := 0;
   end;
+
+  SetVectorAsmEnabled(True);
+  AssertEquals('Re-enabling vector asm should preserve the previously forced backend even if a late hook resets to automatic during disable',
+    Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
 end;
 
 procedure TTestCase_DispatchAPI.Test_SetVectorAsmEnabled_HookLateAutomaticReset_DuringRestore_Preserves_PreviousForcedBackend;
@@ -1999,56 +1969,51 @@ var
   LDispatchable: TSimdBackendArray;
   LAutomaticBackend: TSimdBackend;
   LPreviousForcedBackend: TSimdBackend;
-  LOldVectorAsm: Boolean;
   LIndex: Integer;
 begin
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    ResetToAutomaticBackend;
-    LDispatchable := GetDispatchableBackendList;
-    if Length(LDispatchable) < 2 then
-      Exit;
+  SetVectorAsmEnabled(True);
+  ResetToAutomaticBackend;
+  LDispatchable := GetDispatchableBackendList;
+  if Length(LDispatchable) < 2 then
+    Exit;
 
-    LAutomaticBackend := GetBestDispatchableBackend;
-    LPreviousForcedBackend := sbScalar;
-    for LIndex := High(LDispatchable) downto 0 do
-      if (LDispatchable[LIndex] <> sbScalar) and (LDispatchable[LIndex] <> LAutomaticBackend) then
-      begin
-        LPreviousForcedBackend := LDispatchable[LIndex];
-        Break;
-      end;
-
-    if LPreviousForcedBackend = sbScalar then
-      Exit;
-
-    AssertTrue('Previous forced backend should differ from automatic best backend in vector-asm restore-callback late-reset test',
-      LPreviousForcedBackend <> LAutomaticBackend);
-    AssertTrue('Previous forced backend setup should succeed before vector-asm restore-callback late-reset test',
-      TrySetActiveBackend(LPreviousForcedBackend));
-    AssertEquals('Previous forced backend should be active before vector-asm restore-callback late-reset test',
-      Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
-
-    GDispatchHookToggleRestoreResetEnabled := True;
-    GDispatchHookToggleRestoreResetStage := 0;
-    AddDispatchChangedHook(@DispatchHookResetToAutomaticOnToggleRestore);
-    try
-      SetVectorAsmEnabled(False);
-      AssertEquals('Synthetic vector-asm restore-callback late-reset hook should run through the full callback sequence',
-        5, GDispatchHookToggleRestoreResetStage);
-      AssertTrue('Disabling vector asm should move current backend away from the previously forced backend when it becomes non-dispatchable',
-        GetActiveBackend <> LPreviousForcedBackend);
-    finally
-      RemoveDispatchChangedHook(@DispatchHookResetToAutomaticOnToggleRestore);
-      GDispatchHookToggleRestoreResetEnabled := False;
-      GDispatchHookToggleRestoreResetStage := 0;
+  LAutomaticBackend := GetBestDispatchableBackend;
+  LPreviousForcedBackend := sbScalar;
+  for LIndex := High(LDispatchable) downto 0 do
+    if (LDispatchable[LIndex] <> sbScalar) and (LDispatchable[LIndex] <> LAutomaticBackend) then
+    begin
+      LPreviousForcedBackend := LDispatchable[LIndex];
+      Break;
     end;
 
-    SetVectorAsmEnabled(True);
-    AssertEquals('Re-enabling vector asm should preserve the previously forced backend even if a late hook resets to automatic during restore callback',
-      Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+  if LPreviousForcedBackend = sbScalar then
+    Exit;
+
+  AssertTrue('Previous forced backend should differ from automatic best backend in vector-asm restore-callback late-reset test',
+    LPreviousForcedBackend <> LAutomaticBackend);
+  AssertTrue('Previous forced backend setup should succeed before vector-asm restore-callback late-reset test',
+    TrySetActiveBackend(LPreviousForcedBackend));
+  AssertEquals('Previous forced backend should be active before vector-asm restore-callback late-reset test',
+    Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+
+  GDispatchHookToggleRestoreResetEnabled := True;
+  GDispatchHookToggleRestoreResetStage := 0;
+  AddDispatchChangedHook(@DispatchHookResetToAutomaticOnToggleRestore);
+  try
+    SetVectorAsmEnabled(False);
+    AssertEquals('Synthetic vector-asm restore-callback late-reset hook should run through the full callback sequence',
+      5, GDispatchHookToggleRestoreResetStage);
+    AssertTrue('Disabling vector asm should move current backend away from the previously forced backend when it becomes non-dispatchable',
+      GetActiveBackend <> LPreviousForcedBackend);
   finally
+    RemoveDispatchChangedHook(@DispatchHookResetToAutomaticOnToggleRestore);
+    GDispatchHookToggleRestoreResetEnabled := False;
+    GDispatchHookToggleRestoreResetStage := 0;
   end;
+
+  SetVectorAsmEnabled(True);
+  AssertEquals('Re-enabling vector asm should preserve the previously forced backend even if a late hook resets to automatic during restore callback',
+    Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
 end;
 
 procedure TTestCase_DispatchAPI.Test_SetVectorAsmEnabled_HookLateForce_DuringRestore_Preserves_PreviousForcedBackend;
@@ -2056,102 +2021,92 @@ var
   LDispatchable: TSimdBackendArray;
   LAutomaticBackend: TSimdBackend;
   LPreviousForcedBackend: TSimdBackend;
-  LOldVectorAsm: Boolean;
   LIndex: Integer;
 begin
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    ResetToAutomaticBackend;
-    LDispatchable := GetDispatchableBackendList;
-    if Length(LDispatchable) < 2 then
-      Exit;
+  SetVectorAsmEnabled(True);
+  ResetToAutomaticBackend;
+  LDispatchable := GetDispatchableBackendList;
+  if Length(LDispatchable) < 2 then
+    Exit;
 
-    LAutomaticBackend := GetBestDispatchableBackend;
-    LPreviousForcedBackend := sbScalar;
-    for LIndex := High(LDispatchable) downto 0 do
-      if (LDispatchable[LIndex] <> sbScalar) and (LDispatchable[LIndex] <> LAutomaticBackend) then
-      begin
-        LPreviousForcedBackend := LDispatchable[LIndex];
-        Break;
-      end;
-
-    if LPreviousForcedBackend = sbScalar then
-      Exit;
-
-    AssertTrue('Previous forced backend should differ from automatic best backend in vector-asm restore-callback late-force test',
-      LPreviousForcedBackend <> LAutomaticBackend);
-    AssertTrue('Previous forced backend setup should succeed before vector-asm restore-callback late-force test',
-      TrySetActiveBackend(LPreviousForcedBackend));
-    AssertEquals('Previous forced backend should be active before vector-asm restore-callback late-force test',
-      Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
-
-    GDispatchHookResetLateForceEnabled := True;
-    GDispatchHookResetLateForceStage := 0;
-    GDispatchHookResetLateForceTarget := sbScalar;
-    AddDispatchChangedHook(@DispatchHookReForceBackendOnAutomaticRestore);
-    try
-      SetVectorAsmEnabled(False);
-      AssertEquals('Synthetic vector-asm restore-callback late-force hook should run through the full callback sequence',
-        5, GDispatchHookResetLateForceStage);
-      AssertTrue('Disabling vector asm should move current backend away from the previously forced backend when it becomes non-dispatchable',
-        GetActiveBackend <> LPreviousForcedBackend);
-    finally
-      RemoveDispatchChangedHook(@DispatchHookReForceBackendOnAutomaticRestore);
-      GDispatchHookResetLateForceEnabled := False;
-      GDispatchHookResetLateForceStage := 0;
-      GDispatchHookResetLateForceTarget := sbScalar;
+  LAutomaticBackend := GetBestDispatchableBackend;
+  LPreviousForcedBackend := sbScalar;
+  for LIndex := High(LDispatchable) downto 0 do
+    if (LDispatchable[LIndex] <> sbScalar) and (LDispatchable[LIndex] <> LAutomaticBackend) then
+    begin
+      LPreviousForcedBackend := LDispatchable[LIndex];
+      Break;
     end;
 
-    SetVectorAsmEnabled(True);
-    AssertEquals('Re-enabling vector asm should preserve the previously forced backend even if a late hook re-forces scalar during restore callback',
-      Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
-    AssertTrue('Vector-asm restore-callback late-force path should not remain stuck on scalar after re-enable',
-      GetActiveBackend <> sbScalar);
+  if LPreviousForcedBackend = sbScalar then
+    Exit;
+
+  AssertTrue('Previous forced backend should differ from automatic best backend in vector-asm restore-callback late-force test',
+    LPreviousForcedBackend <> LAutomaticBackend);
+  AssertTrue('Previous forced backend setup should succeed before vector-asm restore-callback late-force test',
+    TrySetActiveBackend(LPreviousForcedBackend));
+  AssertEquals('Previous forced backend should be active before vector-asm restore-callback late-force test',
+    Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+
+  GDispatchHookResetLateForceEnabled := True;
+  GDispatchHookResetLateForceStage := 0;
+  GDispatchHookResetLateForceTarget := sbScalar;
+  AddDispatchChangedHook(@DispatchHookReForceBackendOnAutomaticRestore);
+  try
+    SetVectorAsmEnabled(False);
+    AssertEquals('Synthetic vector-asm restore-callback late-force hook should run through the full callback sequence',
+      5, GDispatchHookResetLateForceStage);
+    AssertTrue('Disabling vector asm should move current backend away from the previously forced backend when it becomes non-dispatchable',
+      GetActiveBackend <> LPreviousForcedBackend);
   finally
+    RemoveDispatchChangedHook(@DispatchHookReForceBackendOnAutomaticRestore);
+    GDispatchHookResetLateForceEnabled := False;
+    GDispatchHookResetLateForceStage := 0;
+    GDispatchHookResetLateForceTarget := sbScalar;
   end;
+
+  SetVectorAsmEnabled(True);
+  AssertEquals('Re-enabling vector asm should preserve the previously forced backend even if a late hook re-forces scalar during restore callback',
+    Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+  AssertTrue('Vector-asm restore-callback late-force path should not remain stuck on scalar after re-enable',
+    GetActiveBackend <> sbScalar);
 end;
 
 procedure TTestCase_DispatchAPI.Test_RegisterBackend_HookLateForce_Restores_AutomaticBackend;
 var
   LAutomaticBackend: TSimdBackend;
   LOriginalTable: TSimdDispatchTable;
-  LOldVectorAsm: Boolean;
 begin
-  LOldVectorAsm := IsVectorAsmEnabled;
+  SetVectorAsmEnabled(True);
+  ResetToAutomaticBackend;
+  LAutomaticBackend := GetBestDispatchableBackend;
+  if LAutomaticBackend = sbScalar then
+    Exit;
+
+  AssertEquals('Automatic backend should be active before RegisterBackend late-force test',
+    Ord(LAutomaticBackend), Ord(GetActiveBackend));
+  AssertTrue('Automatic backend table should be registered for RegisterBackend late-force test',
+    TryGetRegisteredBackendDispatchTable(LAutomaticBackend, LOriginalTable));
+
+  GDispatchHookReForceBackendTarget := sbScalar;
+  GDispatchHookReForceBackendEnabled := True;
+  GDispatchHookReForceBackendStage := 0;
+  AddDispatchChangedHook(@DispatchHookReForceBackendOnce);
   try
-    SetVectorAsmEnabled(True);
-    ResetToAutomaticBackend;
-    LAutomaticBackend := GetBestDispatchableBackend;
-    if LAutomaticBackend = sbScalar then
-      Exit;
-
-    AssertEquals('Automatic backend should be active before RegisterBackend late-force test',
+    RegisterBackend(LAutomaticBackend, LOriginalTable);
+    AssertEquals('Synthetic RegisterBackend late-force hook should run through the real callback sequence',
+      2, GDispatchHookReForceBackendStage);
+    AssertEquals('RegisterBackend should restore automatic best backend even if a late hook re-forces scalar during notification',
       Ord(LAutomaticBackend), Ord(GetActiveBackend));
-    AssertTrue('Automatic backend table should be registered for RegisterBackend late-force test',
-      TryGetRegisteredBackendDispatchTable(LAutomaticBackend, LOriginalTable));
-
-    GDispatchHookReForceBackendTarget := sbScalar;
-    GDispatchHookReForceBackendEnabled := True;
-    GDispatchHookReForceBackendStage := 0;
-    AddDispatchChangedHook(@DispatchHookReForceBackendOnce);
-    try
-      RegisterBackend(LAutomaticBackend, LOriginalTable);
-      AssertEquals('Synthetic RegisterBackend late-force hook should run through the real callback sequence',
-        2, GDispatchHookReForceBackendStage);
-      AssertEquals('RegisterBackend should restore automatic best backend even if a late hook re-forces scalar during notification',
-        Ord(LAutomaticBackend), Ord(GetActiveBackend));
-      AssertTrue('RegisterBackend should not return with stale scalar forced fallback when automatic best backend remains non-scalar',
-        GetActiveBackend <> sbScalar);
-      AssertEquals('RegisterBackend should leave active backend aligned with best dispatchable backend after late hook mutation',
-        Ord(GetBestDispatchableBackend), Ord(GetActiveBackend));
-    finally
-      RemoveDispatchChangedHook(@DispatchHookReForceBackendOnce);
-      GDispatchHookReForceBackendEnabled := False;
-      GDispatchHookReForceBackendStage := 0;
-      GDispatchHookReForceBackendTarget := sbScalar;
-    end;
+    AssertTrue('RegisterBackend should not return with stale scalar forced fallback when automatic best backend remains non-scalar',
+      GetActiveBackend <> sbScalar);
+    AssertEquals('RegisterBackend should leave active backend aligned with best dispatchable backend after late hook mutation',
+      Ord(GetBestDispatchableBackend), Ord(GetActiveBackend));
   finally
+    RemoveDispatchChangedHook(@DispatchHookReForceBackendOnce);
+    GDispatchHookReForceBackendEnabled := False;
+    GDispatchHookReForceBackendStage := 0;
+    GDispatchHookReForceBackendTarget := sbScalar;
   end;
 end;
 
@@ -2161,11 +2116,9 @@ var
   LAutomaticBackend: TSimdBackend;
   LPreviousForcedBackend: TSimdBackend;
   LPreviousOriginalTable: TSimdDispatchTable;
-  LOldVectorAsm: Boolean;
   LPreviousTableCaptured: Boolean;
   LIndex: Integer;
 begin
-  LOldVectorAsm := IsVectorAsmEnabled;
   LPreviousTableCaptured := False;
   try
     SetVectorAsmEnabled(True);
@@ -2227,11 +2180,9 @@ var
   LAutomaticBackend: TSimdBackend;
   LPreviousForcedBackend: TSimdBackend;
   LPreviousOriginalTable: TSimdDispatchTable;
-  LOldVectorAsm: Boolean;
   LPreviousTableCaptured: Boolean;
   LIndex: Integer;
 begin
-  LOldVectorAsm := IsVectorAsmEnabled;
   LPreviousTableCaptured := False;
   try
     SetVectorAsmEnabled(True);
@@ -2294,37 +2245,32 @@ var
   LOriginalBackend: TSimdBackend;
   LOriginalTable: TSimdDispatchTable;
   LModifiedTable: TSimdDispatchTable;
-  LOldVectorAsm: Boolean;
 begin
+  GetDispatchTable;
+  SetVectorAsmEnabled(True);
+  ResetToAutomaticBackend;
+  LOriginalBackend := GetActiveBackend;
+  if LOriginalBackend = sbScalar then
+    Exit;
+
+  AssertTrue('Original active backend should be registered for canonical identity test',
+    TryGetRegisteredBackendDispatchTable(LOriginalBackend, LOriginalTable));
+
+  LModifiedTable := LOriginalTable;
+  LModifiedTable.Backend := sbScalar;
+  LModifiedTable.BackendInfo.Backend := sbScalar;
+  RegisterBackend(LOriginalBackend, LModifiedTable);
   try
-    GetDispatchTable;
-    LOldVectorAsm := IsVectorAsmEnabled;
-    SetVectorAsmEnabled(True);
-    ResetToAutomaticBackend;
-    LOriginalBackend := GetActiveBackend;
-    if LOriginalBackend = sbScalar then
-      Exit;
-
-    AssertTrue('Original active backend should be registered for canonical identity test',
-      TryGetRegisteredBackendDispatchTable(LOriginalBackend, LOriginalTable));
-
-    LModifiedTable := LOriginalTable;
-    LModifiedTable.Backend := sbScalar;
-    LModifiedTable.BackendInfo.Backend := sbScalar;
-    RegisterBackend(LOriginalBackend, LModifiedTable);
-    try
-      AssertTrue('Synthetic identity-mismatch setup should keep the backend dispatchable',
-        IsBackendDispatchable(LOriginalBackend));
-      AssertTrue('TrySetActiveBackend should still report success for the requested backend slot',
-        TrySetActiveBackend(LOriginalBackend));
-      AssertEquals('Forced selection should expose the requested backend id, not the stale table Backend field',
-        Ord(LOriginalBackend), Ord(GetActiveBackend));
-      AssertEquals('GetBackendInfo should expose the canonical backend id after RegisterBackend',
-        Ord(LOriginalBackend), Ord(GetBackendInfo(LOriginalBackend).Backend));
-    finally
-      RegisterBackend(LOriginalBackend, LOriginalTable);
-    end;
+    AssertTrue('Synthetic identity-mismatch setup should keep the backend dispatchable',
+      IsBackendDispatchable(LOriginalBackend));
+    AssertTrue('TrySetActiveBackend should still report success for the requested backend slot',
+      TrySetActiveBackend(LOriginalBackend));
+    AssertEquals('Forced selection should expose the requested backend id, not the stale table Backend field',
+      Ord(LOriginalBackend), Ord(GetActiveBackend));
+    AssertEquals('GetBackendInfo should expose the canonical backend id after RegisterBackend',
+      Ord(LOriginalBackend), Ord(GetBackendInfo(LOriginalBackend).Backend));
   finally
+    RegisterBackend(LOriginalBackend, LOriginalTable);
   end;
 end;
 
