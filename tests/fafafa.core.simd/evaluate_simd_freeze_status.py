@@ -211,6 +211,11 @@ def discover_gate_summary_candidates(
     if explicit_override:
         return candidates
 
+    backup_root = logs_dir / "rehearsal" / "backups"
+    if backup_root.is_dir():
+        for summary_path in sorted(backup_root.glob("gate_summary.backup.*.md"), reverse=True):
+            add_candidate(summary_path)
+
     closeout_root = logs_dir / "windows-closeout"
     if closeout_root.is_dir():
         for summary_path in sorted(closeout_root.glob("*/gate_summary.md"), reverse=True):
@@ -813,7 +818,7 @@ def main() -> int:
         selection_suffix = ""
         if used_gate_fallback:
             selection_suffix = (
-                "; selected fallback closeout gate snapshot "
+                "; selected fallback gate snapshot "
                 f"{gate_run_label(selected_gate_run)} because latest snapshot "
                 f"{gate_run_label(latest_gate_run)} only covers mainline-required steps"
             )

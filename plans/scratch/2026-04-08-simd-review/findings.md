@@ -6634,3 +6634,22 @@
   - 只有显式设置 `SIMD_CHECK_WIRING_SYNC=0` 时才跳过
   - shell 与 batch runner 必须同步，不然会形成平台行为分叉
 - 这也意味着前面那条“`wiring-sync` 只是现成 optional lane”的判断只适用于当时比较 `nonx86-optin-list-suites` 是否已有 skip knob 的上下文；到 2026-05-17 这一步，它已经是过时结论，不能再当作当前真相。
+
+## 2026-05-17 Freeze Gate-Summary Fallback Gap
+
+- 在 `check` 主链缺口继续收紧之后，closeout 侧出现了一个更偏 runner/artifact 的真实漂移：
+  - `2026-05-16` 的 cross gate 确实把 `qemu-cpuinfo-nonx86-evidence` 刷成过 PASS
+  - 但 `2026-05-17` 再跑 routine `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 后，`logs/gate_summary.md` 被新的 fast-gate 摘要覆盖，里面这一步回到了 `SKIP`
+  - 随后 `freeze-status` 就重新把 `linux_gate_required_steps_mainline` / `cross_gate_required_steps` 打红
+- 这说明当前问题不在 SIMD 语义，而在 closeout artifact 的保留与选择：
+  - `evaluate_simd_freeze_status.py` 虽然已经支持从 `logs/windows-closeout/<batch>/gate_summary.md` 回退
+  - 但仓库当前没有这类 batch gate summary 可用
+  - `logs/rehearsal/backups/` 也只有 sample-inject 相关脚手架，没有真实 gate 覆盖前自动备份
+- 因而本批最正确的修法不是把 `qemu-cpuinfo-nonx86-evidence` 强行抬进所有日常 `gate`，而是把 artifact 链路收正：
+  - `reset_gate_summary` 在覆盖前自动备份旧的真实 gate summary
+  - `freeze-status` 把 `logs/rehearsal/backups/gate_summary.backup.*.md` 也纳入候选
+  - 这样 latest fast-gate 只要只是“缺少 closeout-only step”，`freeze-status` 就能回退到较早但仍有效的 closeout snapshot
+- 这条修法的收益是：
+  - 不改变日常 `gate` 的默认成本
+  - 不把 closeout 口径重新绑死到“最后一次 gate 恰好是 cross gate”
+  - 也不必把 docs 继续写成“canonical gate_summary.md 永远等于 Linux closeout 真相”

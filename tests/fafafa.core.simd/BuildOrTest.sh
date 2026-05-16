@@ -91,6 +91,7 @@ RISCVV_ABI_SHAPE_LOG="${LOG_DIR}/riscvv_abi_shape.txt"
 RISCVV_ABI_SHAPE_JSON_LOG="${LOG_DIR}/riscvv_abi_shape.json"
 GATE_SUMMARY_LOG="${LOG_DIR}/gate_summary.md"
 GATE_SUMMARY_JSON_LOG="${LOG_DIR}/gate_summary.json"
+GATE_SUMMARY_BACKUP_DIR="${LOG_DIR}/rehearsal/backups"
 GATE_SUMMARY_EXPORT_SCRIPT="${ROOT}/export_gate_summary_json.py"
 GATE_SUMMARY_SAMPLE_SCRIPT="${ROOT}/generate_gate_summary_sample.py"
 GATE_SUMMARY_REHEARSAL_SCRIPT="${ROOT}/rehearse_gate_summary_thresholds.sh"
@@ -4752,10 +4753,51 @@ append_gate_summary() {
   printf '| %s | %s | %s | %s | %s | %s | %s |\n' "$(date '+%Y-%m-%d %H:%M:%S')" "${LStep}" "${LStatus}" "${LDurationMs}" "${LEvent}" "${LDetail}" "${LArtifacts}" >> "${LSummaryFile}"
 }
 
+backup_gate_summary_if_present() {
+  local LSummaryFile
+  local LBackupDir
+  local LStamp
+  local LBackupBase
+  local LJsonSource
+  local LLineCount
+
+  LSummaryFile="${1:-${SIMD_GATE_SUMMARY_FILE:-${GATE_SUMMARY_LOG}}}"
+  if [[ ! -f "${LSummaryFile}" ]]; then
+    return 0
+  fi
+
+  LLineCount="$(wc -l < "${LSummaryFile}" 2>/dev/null || echo 0)"
+  if [[ ! "${LLineCount}" =~ ^[0-9]+$ ]] || (( LLineCount <= 2 )); then
+    return 0
+  fi
+
+  LBackupDir="${SIMD_GATE_SUMMARY_BACKUP_DIR:-${GATE_SUMMARY_BACKUP_DIR}}"
+  mkdir -p "${LBackupDir}"
+  if date +%Y%m%d-%H%M%S-%3N >/dev/null 2>&1; then
+    LStamp="$(date +%Y%m%d-%H%M%S-%3N)"
+  else
+    LStamp="$(date +%Y%m%d-%H%M%S)-$$"
+  fi
+  LBackupBase="${LBackupDir}/gate_summary.backup.${LStamp}"
+  cp "${LSummaryFile}" "${LBackupBase}.md"
+
+  LJsonSource=""
+  if [[ "${LSummaryFile}" == *.md ]]; then
+    LJsonSource="${LSummaryFile%.md}.json"
+  fi
+  if [[ -z "${LJsonSource}" || ! -f "${LJsonSource}" ]]; then
+    LJsonSource="${SIMD_GATE_SUMMARY_JSON_FILE:-${GATE_SUMMARY_JSON_LOG}}"
+  fi
+  if [[ -f "${LJsonSource}" ]]; then
+    cp "${LJsonSource}" "${LBackupBase}.json"
+  fi
+}
+
 reset_gate_summary() {
   local LSummaryFile
 
   LSummaryFile="${SIMD_GATE_SUMMARY_FILE:-${GATE_SUMMARY_LOG}}"
+  backup_gate_summary_if_present "${LSummaryFile}"
   mkdir -p "$(dirname "${LSummaryFile}")"
   echo "| Time | Step | Status | DurationMs | Event | Detail | Artifacts |" > "${LSummaryFile}"
   echo "|---|---|---|---|---|---|---|" >> "${LSummaryFile}"

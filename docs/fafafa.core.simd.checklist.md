@@ -7,9 +7,9 @@
 - 当前 `simd` 不应再按“接口/实现仍未收口”处理。
 - 最新 release 证据说明：
   - `python3 tests/fafafa.core.simd/check_interface_implementation_completeness.py --strict` 为绿，`P0/P1/P2=0`
-  - canonical `gate_summary.md` 已在 `2026-05-16 20:43:40` fresh 刷新；`linux_gate_required_steps_mainline` 与 `linux_qemu_cpuinfo_nonx86_evidence` 都为 PASS
-  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 仍红，但当前唯一剩余 cross red item 已压缩成 `evidence-verify=FAIL`
-  - 其余红点全部来自旧 `windows_b07_gate.log` / `windows_b07_closeout_summary.md` 的 freshness / verify
+  - `2026-05-16 20:43:40` 的 cross gate 仍证明过 `linux_gate_required_steps_mainline` 与 `linux_qemu_cpuinfo_nonx86_evidence` 都可为 PASS；但 `2026-05-17` 的 routine `gate` 又把 `logs/gate_summary.md` 刷成了 fast-gate 摘要，所以不能再把单一 canonical 文件名直接等同于当前 closeout 真相
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 当前仍红；直接红项既包括 latest fast-gate 里的 `qemu-cpuinfo-nonx86-evidence=SKIP`，也包括旧 `windows_b07_gate.log` / `windows_b07_closeout_summary.md` 的 freshness / verify
+  - 其中真正的外部 blocker 仍只在 Windows evidence；Linux 这边现在靠 gate summary fallback 机制避免 routine gate 把旧 closeout truth 冲掉
 - 如果你当前既没有 Windows 实机，也没有可用 GitHub Actions Billing/额度，就把模块状态记成：
   - `code-green / release-evidence-blocked`
   - 到这里先停，不要继续重开 SIMD 接口设计审查或实现泛审查
@@ -22,6 +22,7 @@
 补一条当前判断规则：
 
 - 如果最新 `freeze-status` 提示 gate artifact 旧于最新 `src/fafafa.core.simd*` 源码，先重跑 release `gate` 再判断，不要把旧 artifact 误读成新回归。
+- 如果 latest `gate_summary.md` 只是 fast-gate，导致 `qemu-cpuinfo-nonx86-evidence=SKIP`，先看 `logs/rehearsal/backups/` 或 `logs/windows-closeout/<batch>/gate_summary.md`；`freeze-status` 现在会自动回退到仍满足 closeout 口径的 gate snapshot。
 - 如果 `closeout-host-local` 为绿，不要直接把它当成 `freeze-status` 绿：前者消费的是 `qemu-nonx86-evidence`，后者在当前口径下还额外要求 `qemu-cpuinfo-nonx86-evidence`。
 
 ## 现在应该做什么

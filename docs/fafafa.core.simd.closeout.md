@@ -14,15 +14,16 @@
 
 - 代码主线可以按“已收口”理解：
   - `python3 tests/fafafa.core.simd/check_interface_implementation_completeness.py --strict` 最新结果仍为 `dispatch_slots_total=558`、`P0/P1/P2=0`
-  - canonical `gate_summary.md` 已在 `2026-05-16 20:43:40` fresh 刷新；当前 `linux_gate_required_steps_mainline` 与 `linux_qemu_cpuinfo_nonx86_evidence` 都为 PASS
+  - `2026-05-16 20:43:40` 的 cross gate 仍证明过 `linux_gate_required_steps_mainline` 与 `linux_qemu_cpuinfo_nonx86_evidence` 都可为 PASS；但 `2026-05-17` routine `gate` 又把 `logs/gate_summary.md` 刷成了不含 closeout-only step 的 fast-gate 摘要，因此不能再把单一 canonical 文件名直接等同于“当前 Linux closeout 真相”
 - 发布级 closeout 还不能写成完成：
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 仍是 `ready=False`
-  - 当前唯一剩余 cross red item 是：
-    - `cross_gate_required_steps: evidence-verify=FAIL`
-  - 其余红项都收敛到旧 Windows evidence：
+  - 当前直接红项包括两类：
+    - latest fast-gate 把 `qemu-cpuinfo-nonx86-evidence` 留成 `SKIP`
+    - 旧 `windows_b07_gate.log` / `windows_b07_closeout_summary.md` 的 freshness / verify
+  - 其中第二类仍然是当前唯一外部 blocker：
     - `windows_b07_gate.log` freshness / `source-newer-than-windows-evidence`
     - `windows_b07_closeout_summary.md` freshness / verify
-  - 这些都属于 evidence freshness / availability 问题，不是新的接口或实现回归
+  - 第一类不是新的实现回归，而是 closeout summary 被 routine gate 覆盖后的 artifact 选择问题；脚本现在会优先回退到 `logs/rehearsal/backups/` 或 `logs/windows-closeout/<batch>/gate_summary.md` 中仍满足 closeout 口径的旧摘要
 - 当前外部 blocker 已明确：
   - `win-evidence-preflight` 在 `2026-05-16` 返回 `STATUS=PASS CODE=OK EXIT=0`
   - `win-evidence-via-gh SIMD-20260516-152` 已成功 dispatch，GitHub Actions run id 是 `25967172435`
@@ -35,6 +36,7 @@
 ### 2026-05-17 evidence refresh note
 
 - 如果 `freeze-status` 里的 Linux gate artifact 旧于最新 `src/fafafa.core.simd*` 源码，先重跑一次 release `gate`，不要把旧 gate summary 当成新代码回归。
+- 如果 latest `gate_summary.md` 只是日常 fast-gate，导致 `qemu-cpuinfo-nonx86-evidence=SKIP`，先看 `logs/rehearsal/backups/` 或 `logs/windows-closeout/<batch>/gate_summary.md` 是否仍保留了更早的 closeout gate snapshot；`freeze-status` 现在会自动把这些 snapshot 当 fallback candidate。
 - 如果 `win-evidence-preflight` 已 PASS，但 GH run 像 `25967172435` 一样在 `Prepare Windows SIMD Source` 阶段被 billing / spending limit 拦下，当前批次同样按 `code-green / release-evidence-blocked` 收口，不把 Windows evidence 阻塞误判成 SIMD 代码回归。
 - 如果 `qemu-cpuinfo-nonx86-evidence` 仍为 `SKIP`，那说明 canonical cross-platform evidence 还没刷新完；这时可以继续做仓库内文档/policy 收口，但不要把 `freeze-status` 写成 green。
 - `qemu-nonx86-evidence` 和 `qemu-cpuinfo-nonx86-evidence` 现在必须分开理解：

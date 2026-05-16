@@ -4550,3 +4550,17 @@
 | 1. 复核这是不是当前真实缺口 | completed | 已确认 `gate` 默认已包含 `wiring-sync`，真正遗漏的是 shell/batch `check` 仍要求 `SIMD_CHECK_WIRING_SYNC=1`；同时 direct strict run 与开启该变量后的 Release `check` 都已通过，说明不是实验态 lane |
 | 2. shell/batch + 活跃文档同步收口 | completed | 已把 shell `check` 改成默认执行 `wiring-sync`、仅在 `SIMD_CHECK_WIRING_SYNC=0` 时跳过；batch 入口和 shell 内部的 batch parity 签名也同步收正，并更新 maintenance/workflow/checklist/scratch 真相 |
 | 3. Release 验证与本批收口 | completed | `git diff --check`、strict `check_nonx86_wiring_sync.py`、Release `BuildOrTest.sh check` 已通过；默认 `check` 现在会真实执行 `wiring-sync`，且仍允许用 `SIMD_CHECK_WIRING_SYNC=0` 显式降载 |
+
+## 2026-05-17 Freeze Gate-Summary Fallback
+
+### Goal
+
+收掉 `freeze-status` 的一个 runner/artifact 级真缺口：routine `gate` 会覆盖 `logs/gate_summary.md`，导致较早那份带 `qemu-cpuinfo-nonx86-evidence` 的 closeout gate truth 丢失；需要让 gate summary 在覆盖前自动留档，并让 `freeze-status` 能把这些留档当 fallback candidate。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核这是不是当前真实缺口 | completed | fresh `freeze-status` 已直接显示 latest `gate_summary.md` 里的 `qemu-cpuinfo-nonx86-evidence=SKIP` 会把 `linux_gate_required_steps_mainline` / `cross_gate_required_steps` 打红；而 `evaluate_simd_freeze_status.py` 现有 fallback 只扫 `logs/windows-closeout/<batch>/gate_summary.md`，当前仓库并无这类 batch gate summary 可回退 |
+| 2. gate summary 留档 + freeze fallback 收口 | completed | 已让 shell `reset_gate_summary` 在覆盖前自动备份旧 summary 到 `logs/rehearsal/backups/`，并让 `evaluate_simd_freeze_status.py` 把这些 backup 也纳入候选；selection suffix 也从“closeout gate snapshot”收正成更准确的通用“gate snapshot” |
+| 3. active docs / scratch 真相同步 | completed | 已把 `closeout.md` / `checklist.md` 里“canonical gate_summary.md 恒等于 closeout truth”的旧说法收正成“latest fast-gate 可能覆盖 canonical，freeze-status 会优先回退到 backup/batch snapshot”的口径，并记录本批 gap/repair |

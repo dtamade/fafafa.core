@@ -8115,3 +8115,32 @@
 - 当前阶段结论：
   - 这批依然不是 SIMD 算法或 backend 语义修复
   - 收掉的是默认 `check` 对 `wiring-sync` 的最后一处明显漏口
+
+## 2026-05-17 Freeze Gate-Summary Fallback
+
+- 继续按“小闭环”推进，这次不再扫算法面，而是直接核对 `freeze-status` 为什么和 active closeout 文档出现了真漂移。
+- 已复核：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+  - `tests/fafafa.core.simd/logs/gate_summary.md`
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+  - `tests/fafafa.core.simd/evaluate_simd_freeze_status.py`
+  - `docs/fafafa.core.simd.closeout.md`
+  - `docs/fafafa.core.simd.checklist.md`
+- 当前结论：
+  - `2026-05-16` 的 cross gate 的确证明过 `qemu-cpuinfo-nonx86-evidence` 可为 PASS
+  - 但 `2026-05-17` 的 routine `gate` 又把 `logs/gate_summary.md` 刷成了 fast-gate 摘要，里面这一步回到 `SKIP`
+  - `freeze-status` 虽然已有 fallback 机制，但当前只扫描 `logs/windows-closeout/<batch>/gate_summary.md`；仓库里没有这类 batch gate summary，且 routine gate 覆盖前也没自动备份，所以 closeout truth 会被最新 fast-gate 冲掉
+- 已完成收口：
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - 新增 gate summary 覆盖前自动备份，目标目录为 `logs/rehearsal/backups/`
+    - 备份同时保留同基名 `.json`（若存在）
+  - `tests/fafafa.core.simd/evaluate_simd_freeze_status.py`
+    - `discover_gate_summary_candidates()` 已把 `logs/rehearsal/backups/gate_summary.backup.*.md` 纳入候选
+    - fallback 说明文字已从“closeout gate snapshot”收正成更准确的通用“gate snapshot”
+  - active 文档与 scratch 真相已同步：
+    - `docs/fafafa.core.simd.closeout.md`
+    - `docs/fafafa.core.simd.checklist.md`
+    - `plans/scratch/2026-04-08-simd-review/{task_plan,findings,progress}.md`
+- 预期收益：
+  - 日常 `gate` 仍保持原有成本，不必强行把 `qemu-cpuinfo-nonx86-evidence` 抬进所有 routine run
+  - 但 `freeze-status` 不会再因为“最后一次 gate 恰好是 fast-gate”而把较早的 closeout truth 完全遗失
