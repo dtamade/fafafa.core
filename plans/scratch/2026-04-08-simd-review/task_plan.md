@@ -3646,3 +3646,17 @@
 | 1. 复核当前 coverage 缺口是否真实存在 | completed | 已确认 `check_nonx86_register_truthfulness.py` 明确把 `RISCVV SelectF32x8/SelectF64x4/SelectI32x4` 归类为合法 `asm-only wrapper-only`，但 `check_nonx86_key_slot_audit.py` 之前完全不跟踪这 3 个 slot；`DispatchAPI` dedicated test 里也只显式钉住了 `SelectF64x4`，`SelectF32x8/SelectI32x4` 仍只靠 generic parity 与 allowlist 间接覆盖 |
 | 2. 把 3 个 Select slot 提升为显式 truth source | completed | 已在 `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py` 把 `SelectF32x8/SelectF64x4/SelectI32x4` 纳入 `KEY_SLOTS_BY_BACKEND['riscvv']` 与 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['riscvv']`；并在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 的 `Test_RISCVV_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders` 中补齐这 3 个 slot 的 `AssertRegisterOwnsBackendSlot` 与 runtime ownership 断言 |
 | 3. 按最小 release 链复验并收口 | completed | 本批按新工作法只跑了 `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`、`python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --summary-line`、Release `TTestCase_DispatchAPI`、Release `check`；全部通过，fresh summary 已更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=35 issues=0 status=ok`，其中 `backend=riscvv ok slots=25` |
+
+## 2026-05-16 RISCVV Extract Companion Ownership Coverage
+
+### Goal
+
+把 `RISCVV ExtractF32x8/F32x16/F64x2/F64x4/I32x4/I32x8/I32x16/I64x2/I64x4` 这 9 个合法 `no-asm wrapper-only` 槽位，从“truthfulness checker 知道但 key-slot audit 不理解”的状态，提升成 `key-slot audit + DispatchAPI dedicated testcase` 都显式覆盖的 ownership truth。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `Extract*` 的真实 source/register/runtime 形态 | completed | 已确认 `src/fafafa.core.simd.riscvv.facade.inc` 中 9 个 `Extract*` 在 no-asm 侧都是 exact `ScalarExtract*` companion wrapper；`src/fafafa.core.simd.riscvv.pas` 中同名 wrapper 在 asm-enabled 侧继续做索引饱和并调用 `RISCVVExtract*Asm`；`src/fafafa.core.simd.riscvv.register.inc` 对每个 slot 都保留了显式 `{$IFDEF RISCVV_ASSEMBLY}` / `{$ELSE}` 双分支绑定，因此它们不是“应回收到 scalar”的 residual，而是合法的双相 backend-owned companion slot |
+| 2. 把 9 个 `Extract*` 提升成显式 truth source，并补齐 key-slot 审计模型 | completed | 已在 `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py` 把 9 个 `Extract*` 纳入 `KEY_SLOTS_BY_BACKEND['riscvv']`、`EXPECTATION_PROCEDURES['riscvv']`、`REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['riscvv']`；并在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_RISCVV_ExtractSlots_Keep_NoAsmCompanionWrappers_And_RuntimeOwnership`；同时修正 key-slot audit 本身，使其显式接受这类“asm 侧 helper-backed、no-asm 侧 exact scalar companion wrapper、但 runtime slot 继续 backend-owned”的合法 mixed-context 形态 |
+| 3. 按最小 release 链复验并收口 | completed | 本批先用 `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend riscvv --summary-line` 抓到审计模型缺口，再补齐模型后重跑 `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`、`python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend riscvv --summary-line`、Release `TTestCase_DispatchAPI`、Release `check`；全部通过，fresh summary 已更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=44 issues=0 status=ok`，其中 `backend=riscvv ok slots=34` |

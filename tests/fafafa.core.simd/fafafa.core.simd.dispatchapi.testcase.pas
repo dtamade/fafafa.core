@@ -168,6 +168,7 @@ type
     procedure Test_RISCVV_FacadeDotF64_NoAsmSource_Does_Not_ScalarForward;
     procedure Test_RISCVV_FacadeSlots_Reuse_BaseScalar_When_Wrappers_Are_ScalarPassThrough;
     procedure Test_RISCVV_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
+    procedure Test_RISCVV_ExtractSlots_Keep_NoAsmCompanionWrappers_And_RuntimeOwnership;
     procedure Test_RISCVV_HelperOwnedExactScalarSlots_Stay_BackendOwned;
     procedure Test_RISCVV_KeyOwnedWideSlots_Stay_BackendOwned;
     procedure Test_RISCVV_RegisterSource_Deduplicates_WideRoundingAssignments_And_Keeps_F64x2_Exception;
@@ -9243,6 +9244,133 @@ begin
     'Result := ScalarAndNotU8x16(a, b);',
     'table.AndNotU8x16 := @RISCVVAndNotU8x16;',
     Pointer(LScalarTable.AndNotU8x16), Pointer(LRISCVVTable.AndNotU8x16));
+end;
+
+procedure TTestCase_DispatchAPI.Test_RISCVV_ExtractSlots_Keep_NoAsmCompanionWrappers_And_RuntimeOwnership;
+var
+  LScalarTable: TSimdDispatchTable;
+  LRISCVVTable: TSimdDispatchTable;
+  LSourceLines: TStringList;
+  LFacadeSourcePath: string;
+  LAsmSourcePath: string;
+  LRegisterSourcePath: string;
+  LFacadeSource: string;
+  LAsmSource: string;
+  LRegisterSource: string;
+
+  function CountRegisterAssignments(const aSnippet: string): Integer;
+  var
+    LNeedle: string;
+    LRest: string;
+    LPos: SizeInt;
+  begin
+    Result := 0;
+    LNeedle := LowerCase(aSnippet);
+    LRest := LRegisterSource;
+    LPos := Pos(LNeedle, LRest);
+    while LPos > 0 do
+    begin
+      Inc(Result);
+      Delete(LRest, 1, LPos + Length(LNeedle) - 1);
+      LPos := Pos(LNeedle, LRest);
+    end;
+  end;
+
+  procedure AssertExtractCompanionSlot(
+    const aLabel, aFacadeSnippet, aAsmSnippet, aRegisterSnippet: string;
+    const aScalarSlot, aBackendSlot: Pointer);
+  begin
+    AssertTrue('RISCVV no-asm facade should keep exact scalar companion wrapper for ' + aLabel,
+      Pos(LowerCase(aFacadeSnippet), LFacadeSource) > 0);
+    AssertTrue('RISCVV asm source should keep dedicated helper-backed wrapper for ' + aLabel,
+      Pos(LowerCase(aAsmSnippet), LAsmSource) > 0);
+    AssertEquals('RegisterRISCVVBackend should keep explicit asm/no-asm wrapper wiring for ' + aLabel,
+      2, CountRegisterAssignments(aRegisterSnippet));
+    AssertTrue('RISCVV ' + aLabel + ' should stay assigned in the backend dispatch table',
+      aBackendSlot <> nil);
+    AssertTrue('RISCVV ' + aLabel + ' should keep wrapper-owned runtime slot instead of reusing scalar directly',
+      PtrUInt(aScalarSlot) <> PtrUInt(aBackendSlot));
+  end;
+begin
+  LSourceLines := TStringList.Create;
+  try
+    LFacadeSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.facade.inc');
+    AssertTrue('RISCVV facade source should exist for implementation-shape audit: ' + LFacadeSourcePath,
+      FileExists(LFacadeSourcePath));
+    LSourceLines.LoadFromFile(LFacadeSourcePath);
+    LFacadeSource := LowerCase(LSourceLines.Text);
+
+    LAsmSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.pas');
+    AssertTrue('RISCVV asm source should exist for implementation-shape audit: ' + LAsmSourcePath,
+      FileExists(LAsmSourcePath));
+    LSourceLines.LoadFromFile(LAsmSourcePath);
+    LAsmSource := LowerCase(LSourceLines.Text);
+
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.register.inc');
+    AssertTrue('RISCVV register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
+      FileExists(LRegisterSourcePath));
+    LSourceLines.LoadFromFile(LRegisterSourcePath);
+    LRegisterSource := LowerCase(LSourceLines.Text);
+  finally
+    LSourceLines.Free;
+  end;
+
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+  AssertTrue('RISCVV opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
+    Exit;
+  {$ENDIF}
+
+  AssertExtractCompanionSlot('ExtractF32x8',
+    'Result := ScalarExtractF32x8(a, index);',
+    'Result := RISCVVExtractF32x8Asm(a, LIndex);',
+    'table.ExtractF32x8 := @RISCVVExtractF32x8;',
+    Pointer(LScalarTable.ExtractF32x8), Pointer(LRISCVVTable.ExtractF32x8));
+  AssertExtractCompanionSlot('ExtractF32x16',
+    'Result := ScalarExtractF32x16(a, index);',
+    'Result := RISCVVExtractF32x16Asm(a, LIndex);',
+    'table.ExtractF32x16 := @RISCVVExtractF32x16;',
+    Pointer(LScalarTable.ExtractF32x16), Pointer(LRISCVVTable.ExtractF32x16));
+  AssertExtractCompanionSlot('ExtractF64x2',
+    'Result := ScalarExtractF64x2(a, index);',
+    'Result := RISCVVExtractF64x2Asm(a, LIndex);',
+    'table.ExtractF64x2 := @RISCVVExtractF64x2;',
+    Pointer(LScalarTable.ExtractF64x2), Pointer(LRISCVVTable.ExtractF64x2));
+  AssertExtractCompanionSlot('ExtractF64x4',
+    'Result := ScalarExtractF64x4(a, index);',
+    'Result := RISCVVExtractF64x4Asm(a, LIndex);',
+    'table.ExtractF64x4 := @RISCVVExtractF64x4;',
+    Pointer(LScalarTable.ExtractF64x4), Pointer(LRISCVVTable.ExtractF64x4));
+  AssertExtractCompanionSlot('ExtractI32x4',
+    'Result := ScalarExtractI32x4(a, index);',
+    'Result := RISCVVExtractI32x4Asm(a, LIndex);',
+    'table.ExtractI32x4 := @RISCVVExtractI32x4;',
+    Pointer(LScalarTable.ExtractI32x4), Pointer(LRISCVVTable.ExtractI32x4));
+  AssertExtractCompanionSlot('ExtractI32x8',
+    'Result := ScalarExtractI32x8(a, index);',
+    'Result := RISCVVExtractI32x8Asm(a, LIndex);',
+    'table.ExtractI32x8 := @RISCVVExtractI32x8;',
+    Pointer(LScalarTable.ExtractI32x8), Pointer(LRISCVVTable.ExtractI32x8));
+  AssertExtractCompanionSlot('ExtractI32x16',
+    'Result := ScalarExtractI32x16(a, index);',
+    'Result := RISCVVExtractI32x16Asm(a, LIndex);',
+    'table.ExtractI32x16 := @RISCVVExtractI32x16;',
+    Pointer(LScalarTable.ExtractI32x16), Pointer(LRISCVVTable.ExtractI32x16));
+  AssertExtractCompanionSlot('ExtractI64x2',
+    'Result := ScalarExtractI64x2(a, index);',
+    'Result := RISCVVExtractI64x2Asm(a, LIndex);',
+    'table.ExtractI64x2 := @RISCVVExtractI64x2;',
+    Pointer(LScalarTable.ExtractI64x2), Pointer(LRISCVVTable.ExtractI64x2));
+  AssertExtractCompanionSlot('ExtractI64x4',
+    'Result := ScalarExtractI64x4(a, index);',
+    'Result := RISCVVExtractI64x4Asm(a, LIndex);',
+    'table.ExtractI64x4 := @RISCVVExtractI64x4;',
+    Pointer(LScalarTable.ExtractI64x4), Pointer(LRISCVVTable.ExtractI64x4));
 end;
 
 procedure TTestCase_DispatchAPI.Test_RISCVV_RegisterSource_Deduplicates_WideRoundingAssignments_And_Keeps_F64x2_Exception;

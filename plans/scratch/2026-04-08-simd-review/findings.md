@@ -5215,3 +5215,26 @@
   - key-slot audit 显式知道
   - dedicated `DispatchAPI` 也显式知道
   - fresh summary 现为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=35 issues=0 status=ok`，其中 `riscvv` slot 总数从 `22` 提升到 `25`
+
+## 2026-05-16 RISCVV Extract Companion Ownership Coverage Findings
+
+- 把 `Select*` 收口后继续往下看，真正更值得补的不是再扩大 generic parity，而是 `RISCVV Extract*` 这 9 个 slot 的 truth 还没有被 `key-slot audit` 正确表达：
+  - `check_nonx86_register_truthfulness.py` 已明确它们属于合法 `no-asm wrapper-only`
+  - `check_nonx86_helper_semantics.py` 也知道 asm 侧 wrapper 会做索引饱和并调用 `RISCVVExtract*Asm`
+  - 但旧 `key-slot audit` 既不跟踪这 9 个 slot，也不理解“同一个 backend-owned slot 同时存在 asm-only helper wrapper 与 no-asm exact scalar companion wrapper”这种 mixed-context 合法形态
+- 这说明缺口已经不在 backend 行为，而在审计模型：
+  - `src/fafafa.core.simd.riscvv.facade.inc` 中 9 个 `Extract*` 在 no-asm 侧都只是 exact `ScalarExtract*` companion wrapper
+  - `src/fafafa.core.simd.riscvv.pas` 中同名函数在 asm-enabled 侧继续做索引饱和并调用 `RISCVVExtract*Asm`
+  - `src/fafafa.core.simd.riscvv.register.inc` 对每个 slot 都保留了显式 `{$IFDEF RISCVV_ASSEMBLY}` / `{$ELSE}` 双分支绑定
+  - 因而真实 policy 是：published slot 继续 backend-owned，但其 source truth 在 asm/no-asm 两个分支上是不同的 companion shape
+- 第一轮最小验证已经直接证明旧模型不够：
+  - 只跑 `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend riscvv --summary-line`
+  - 就立刻抓到 `issues=9`
+  - 问题不是 register 漏绑，而是旧模型把这 9 个 `no-asm scalar_forwarder companion wrapper` 全误判成异常
+- 因而这批的正确修法必须同时补两层：
+  - 在 `DispatchAPI` 新增 dedicated testcase，显式固定 `facade no-asm source + asm source + register 双分支 + runtime ownership`
+  - 在 `check_nonx86_key_slot_audit.py` 里显式允许 `riscvv` 这 9 个 slot 以“backend-owned + no-asm scalar companion wrapper”的 mixed-context 合法形态通过
+- 修完后最大的收益不是又多了 9 个名字，而是 audit 真相终于和源码真相对齐：
+  - 以前：truthfulness checker 知道，helper-semantics 知道，但 key-slot audit 不理解
+  - 现在：truthfulness checker、helper-semantics、key-slot audit、dedicated `DispatchAPI` 四层都知道
+  - fresh summary 已更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=44 issues=0 status=ok`，其中 `riscvv` slot 总数从 `25` 提升到 `34`

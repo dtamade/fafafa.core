@@ -6097,3 +6097,52 @@
 - 当前阶段结论：
   - 这批没有改 backend 行为，而是把 `RISCVV Select*` 这 3 个关键位点从“allowlist 隐性知识”提升成了 Python 审计与 dedicated testcase 的显性真相
   - 收口前仍需清理 `tests/fafafa.core.simd/__pycache__/`，避免把 Python 产物带进提交
+
+## 2026-05-16 RISCVV Extract Companion Ownership Coverage
+
+- 接着上一批 `Select*` 再往下切时，没有直接假设 `Extract*` 该复用同一种修法，而是先把真实 source role 读清：
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - `RISCVVExtractF32x8/F32x16/F64x2/F64x4/I32x4/I32x8/I32x16/I64x2/I64x4`
+    - no-asm 侧全部是 exact `ScalarExtract*` companion wrapper
+  - `src/fafafa.core.simd.riscvv.pas`
+    - 同名 wrapper 在 asm-enabled 侧继续做索引饱和并调用 `RISCVVExtract*Asm`
+  - `src/fafafa.core.simd.riscvv.register.inc`
+    - 每个 `Extract*` 都保留显式 `{$IFDEF RISCVV_ASSEMBLY}` / `{$ELSE}` 双分支绑定
+- 这说明真实 policy 不是“应退回 scalar”，而是：
+  - asm 侧保持 helper-backed wrapper
+  - no-asm 侧保持 exact scalar companion wrapper
+  - published runtime slot 继续 backend-owned
+- 第一轮最小验证没有先跑 `Release`，而是只跑：
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend riscvv --summary-line`
+- 这一条立刻抓到真实审计缺口：
+  - `backend=riscvv issues=9`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=riscvv slots=34 issues=9 status=fail`
+  - 问题不是 register 漏绑，而是旧 key-slot audit 模型把这些合法 `no-asm scalar_forwarder companion wrapper` 误判成异常
+- 已完成的代码收口：
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 新增 `Test_RISCVV_ExtractSlots_Keep_NoAsmCompanionWrappers_And_RuntimeOwnership`
+    - 固定四层真相：
+      - facade no-asm source 仍是 exact `ScalarExtract*`
+      - asm source 仍调用 `RISCVVExtract*Asm`
+      - register source 仍保留双分支 wrapper 绑定
+      - runtime `sbRISCVV` dispatch slot 仍不同于 scalar 指针
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 把 9 个 `Extract*` 纳入 `KEY_SLOTS_BY_BACKEND['riscvv']`
+    - 把新 testcase 纳入 `EXPECTATION_PROCEDURES['riscvv']`
+    - 把这 9 个 slot 纳入 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['riscvv']`
+    - 新增 `ALLOWED_BACKEND_OWNED_NO_ASM_SCALAR_WRAPPER_SLOTS_BY_BACKEND['riscvv']`
+    - 让 key-slot audit 显式接受这类 mixed-context 合法形态
+- 修完审计模型后重新执行的最小验证链：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend riscvv --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `backend=riscvv ok slots=34`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=44 issues=0 status=ok`
+  - Release `TTestCase_DispatchAPI` 通过
+  - Release `check` 通过
+- 当前阶段结论：
+  - 这批没有改 backend 行为，而是把 `RISCVV Extract*` 从“审计模型误报区”收成了显式、可执行、可复验的 ownership truth
+  - 收口前已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免把 Python 产物带进提交

@@ -44,6 +44,15 @@ KEY_SLOTS_BY_BACKEND: dict[str, tuple[str, ...]] = {
         "SelectF32x8",
         "SelectF64x4",
         "SelectI32x4",
+        "ExtractF32x8",
+        "ExtractF32x16",
+        "ExtractF64x2",
+        "ExtractF64x4",
+        "ExtractI32x4",
+        "ExtractI32x8",
+        "ExtractI32x16",
+        "ExtractI64x2",
+        "ExtractI64x4",
         "AndNotI64x2",
         "MinI64x2",
         "MaxI64x2",
@@ -66,7 +75,7 @@ ROUTINE_BLOCK_PATTERN = (
 )
 ASSERT_CALL_RE = re.compile(
     r"(?m)^\s*"
-    r"(AssertRegisterKeepsBaseScalar|AssertRegisterHasAsmOwnedSlot|AssertRegisterOwnsBackendSlot|AssertHelperOwnedExactScalarSlot)"
+    r"(AssertRegisterKeepsBaseScalar|AssertRegisterHasAsmOwnedSlot|AssertRegisterOwnsBackendSlot|AssertHelperOwnedExactScalarSlot|AssertExtractCompanionSlot)"
     r"\(\s*'([^']+)'\s*,"
 )
 EXPECTATION_PROCEDURES = {
@@ -77,6 +86,7 @@ EXPECTATION_PROCEDURES = {
     "riscvv": (
         "TTestCase_DispatchAPI.Test_RISCVV_FacadeSlots_Reuse_BaseScalar_When_Wrappers_Are_ScalarPassThrough",
         "TTestCase_DispatchAPI.Test_RISCVV_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders",
+        "TTestCase_DispatchAPI.Test_RISCVV_ExtractSlots_Keep_NoAsmCompanionWrappers_And_RuntimeOwnership",
         "TTestCase_DispatchAPI.Test_RISCVV_HelperOwnedExactScalarSlots_Stay_BackendOwned",
         "TTestCase_DispatchAPI.Test_RISCVV_KeyOwnedWideSlots_Stay_BackendOwned",
     ),
@@ -86,6 +96,7 @@ ASSERT_MODE_TO_EXPECTATION = {
     "AssertRegisterHasAsmOwnedSlot": "backend_owned",
     "AssertRegisterOwnsBackendSlot": "backend_owned",
     "AssertHelperOwnedExactScalarSlot": "backend_owned",
+    "AssertExtractCompanionSlot": "backend_owned",
 }
 DEFAULT_UNASSERTED_KEY_SLOT_MODE = "backend_owned"
 REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS: dict[str, set[str]] = {
@@ -102,6 +113,15 @@ REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS: dict[str, set[str]] = {
         "SelectF32x8",
         "SelectF64x4",
         "SelectI32x4",
+        "ExtractF32x8",
+        "ExtractF32x16",
+        "ExtractF64x2",
+        "ExtractF64x4",
+        "ExtractI32x4",
+        "ExtractI32x8",
+        "ExtractI32x16",
+        "ExtractI64x2",
+        "ExtractI64x4",
         "AndNotI64x2",
         "MinI64x2",
         "MaxI64x2",
@@ -114,6 +134,20 @@ REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS: dict[str, set[str]] = {
         "AndNotI8x16",
         "AndNotU16x8",
         "AndNotU8x16",
+    },
+}
+
+ALLOWED_BACKEND_OWNED_NO_ASM_SCALAR_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
+    "riscvv": {
+        "ExtractF32x8",
+        "ExtractF32x16",
+        "ExtractF64x2",
+        "ExtractF64x4",
+        "ExtractI32x4",
+        "ExtractI32x8",
+        "ExtractI32x16",
+        "ExtractI64x2",
+        "ExtractI64x4",
     },
 }
 
@@ -256,6 +290,24 @@ def make_reason_list(
     return reasons
 
 
+def filter_allowed_backend_owned_reasons(
+    backend: str,
+    slot: str,
+    assignment: register_truthfulness.Assignment,
+    classification: str,
+    wrapper_kind: str | None,
+    reasons: list[str],
+) -> list[str]:
+    if (
+        assignment.context == "no-asm"
+        and classification == "wrapper_only"
+        and wrapper_kind == "scalar_forwarder"
+        and slot in ALLOWED_BACKEND_OWNED_NO_ASM_SCALAR_WRAPPER_SLOTS_BY_BACKEND.get(backend, set())
+    ):
+        return [reason for reason in reasons if reason not in {"wrapper_only", "scalar-forwarder"}]
+    return reasons
+
+
 def make_missing_record(slot: str, expected_mode: str) -> dict[str, object]:
     return {
         "slot": slot,
@@ -389,6 +441,9 @@ def audit_backend(backend: str) -> dict[str, object]:
             )
             reasons = make_reason_list(
                 backend, assignment, classification, wrapper_kind
+            )
+            reasons = filter_allowed_backend_owned_reasons(
+                backend, slot, assignment, classification, wrapper_kind, reasons
             )
             if not expectation.explicit_assert_present:
                 reasons.insert(0, "missing-explicit-dispatchapi-assert")
