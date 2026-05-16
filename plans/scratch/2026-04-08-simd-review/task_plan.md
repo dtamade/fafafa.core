@@ -4224,3 +4224,19 @@
 | 1. 复核 AVX512 pass-through / x86 shuffle capability 簇的真实边界 | completed | 已逐段复核 `Test_AVX512_PassThroughFacadeSlots_Reuse_AVX2_When_Wrappers_Are_Just_Forwarders`、`Test_X86_BackendCapabilities_Clear_Shuffle_When_VectorAsmDisabled`：前者的 source-shape 资源释放仍只由内层 `LSourceLines.Free` 承担，后者只做 capability rebuild 断言；2 条测试的 outer `finally` 都为空，没有任何 backend/table restore；`LOldVectorAsm` 仅做 `IsVectorAsmEnabled` 捕获且后续无读取 |
 | 2. 只收这一簇高确定性命中 | completed | 已在上述 2 个 AVX512/x86 合同测试中删除纯空 outer `try/finally`，并删除对应未使用的 `LOldVectorAsm`；所有 pass-through wrapper/source-shape、cloned-slot 复用与 x86 shuffle capability clear 断言保持不变 |
 | 3. 用单 suite release 复验收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 复验；构建、测试与 leak check 全部通过 |
+
+## 2026-05-16 DispatchApi NonX86 Wide Slot Contract Empty Finally Cleanup
+
+### Goal
+
+继续沿 `dispatchapi.testcase` 的高确定性清理线推进到 `12945..13340`，只收掉 `non-x86 wide slot` 合同测试里的两类确定性冗余：
+- `LOldVectorAsm` 只声明和赋值、但从不读取
+- outer `try/finally` 的 `finally` 体完全为空
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 non-x86 wide-slot 合同簇的真实边界 | completed | 已逐段复核 `Test_NonX86_NativeWideFloorCeil_Slots_NotScalar_IfAvailable`、`TTestCase_NonX86BackendParity.Test_NativeWideFloorCeilSlots_NotScalar_IfAvailable`：两条测试都只做 `SetVectorAsmEnabled(True)`、backend 注册可达性筛选、wide slot 合同断言与 `LCheckedBackends` 统计；outer `finally` 完全为空，没有任何 backend/table restore；`LOldVectorAsm` 仅做 `IsVectorAsmEnabled` 捕获且后续无读取 |
+| 2. 只收这一簇高确定性命中 | completed | 已在上述 2 个 non-x86 wide-slot 合同测试中删除纯空 outer `try/finally`，并删除对应未使用的 `LOldVectorAsm`；所有 slot-not-scalar / NEON scalar-reuse 例外断言与 `LCheckedBackends` 逻辑保持不变 |
+| 3. 用单 suite release 复验收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 复验；构建、测试与 leak check 全部通过 |
