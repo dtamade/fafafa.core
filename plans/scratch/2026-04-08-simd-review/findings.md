@@ -6089,3 +6089,21 @@
 - 这进一步收紧了当前准则：
   - 只要 outer `finally` 不承担 `RegisterBackend(...)`、hook cleanup 或其他真实 restore，哪怕测试本身同时包含 source-shape 审计和 runtime parity，也仍然可以按同一 fail-close 规则剥掉空壳
   - `dispatchapi` 当前的冗余分布已覆盖 control-plane、metadata/snapshot、facade tracking，以及 SSE2 implementation audit 四类测试簇
+
+## 2026-05-16 DispatchApi RISCVV And AVX512 Empty Finally Cleanup
+
+- `dispatchapi.testcase` 的 `9358..10471` 说明，空 outer `finally` 与死 `LOldVectorAsm` 还继续分布在 `RISCVV` register-source 审计和一组 `AVX512` mapping/parity 测试里，不只存在于 earlier SSE2 和 façade tracking 簇。
+- 这次确认可安全清理的 5 条方法是：
+  - `Test_RISCVV_RegisterSource_Deduplicates_WideRoundingAssignments_And_Keeps_F64x2_Exception`
+  - `Test_AVX512_U32x16_U64x8_MappingAndParity`
+  - `Test_AVX512_U32x16_U64x8_ShiftBoundary_Contracts`
+  - `Test_AVX512_I16x32_I8x64_U8x64_MappingAndParity`
+  - `Test_AVX512_F32x16_F64x8_IEEE754_MappingAndParity`
+- 它们的共同边界和前几批完全一致：
+  - source file 的真实资源释放仍只由内层 `LSourceLines.Free` 一类 `finally` 承担
+  - 运行期部分只做 `SetVectorAsmEnabled(True)`、选择 backend、做 mapping/capability/parity 断言
+  - outer `finally` 本身完全为空
+  - `LOldVectorAsm := IsVectorAsmEnabled` 只是机械捕获，没有 restore、没有断言、也没有后续读取
+- 新的收敛判断是：
+  - 当测试只是验证 published slot / parity / source-shape 合同，而 outer `finally` 不承担任何 restore 时，可以继续机械剥离这类空壳
+  - `dispatchapi` 当前的高确定性冗余已经从 SSE2 和 façade tracking，继续扩展到了 `RISCVV` rounding register-source audit 与 `AVX512` family mapping/parity 簇

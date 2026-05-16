@@ -9362,7 +9362,6 @@ var
   LSourceLines: TStringList;
   LRegisterSourcePath: string;
   LRegisterSource: string;
-  LOldVectorAsm: Boolean;
 
   function CountOccurrences(const aNeedle: string): Integer;
   var
@@ -9447,47 +9446,43 @@ begin
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
 
-    {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
-    AssertTrue('RISCVV opt-in test registration should be present for rounding register-source audit',
-      TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
-    {$ELSE}
-    if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
-      Exit;
-    {$ENDIF}
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+  AssertTrue('RISCVV opt-in test registration should be present for rounding register-source audit',
+    TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
+    Exit;
+  {$ENDIF}
 
-    AssertEquals('RISCVV F32x4 Floor should now reuse the canonical base scalar slot',
-      PtrUInt(LScalarTable.FloorF32x4), PtrUInt(LRISCVVTable.FloorF32x4));
-    AssertEquals('RISCVV F32x4 Ceil should now reuse the canonical base scalar slot',
-      PtrUInt(LScalarTable.CeilF32x4), PtrUInt(LRISCVVTable.CeilF32x4));
-    AssertEquals('RISCVV F32x4 Round should now reuse the canonical base scalar slot',
-      PtrUInt(LScalarTable.RoundF32x4), PtrUInt(LRISCVVTable.RoundF32x4));
-    AssertEquals('RISCVV F32x4 Trunc should now reuse the canonical base scalar slot',
-      PtrUInt(LScalarTable.TruncF32x4), PtrUInt(LRISCVVTable.TruncF32x4));
-    AssertEquals('RISCVV F64x2 Floor should now reuse the canonical base scalar slot',
-      PtrUInt(LScalarTable.FloorF64x2), PtrUInt(LRISCVVTable.FloorF64x2));
-    AssertEquals('RISCVV F64x2 Ceil should now reuse the canonical base scalar slot',
-      PtrUInt(LScalarTable.CeilF64x2), PtrUInt(LRISCVVTable.CeilF64x2));
-    AssertEquals('RISCVV F64x2 Round should now reuse the canonical base scalar slot',
-      PtrUInt(LScalarTable.RoundF64x2), PtrUInt(LRISCVVTable.RoundF64x2));
-    AssertEquals('RISCVV F64x2 Trunc should now reuse the canonical base scalar slot',
-      PtrUInt(LScalarTable.TruncF64x2), PtrUInt(LRISCVVTable.TruncF64x2));
+  AssertEquals('RISCVV F32x4 Floor should now reuse the canonical base scalar slot',
+    PtrUInt(LScalarTable.FloorF32x4), PtrUInt(LRISCVVTable.FloorF32x4));
+  AssertEquals('RISCVV F32x4 Ceil should now reuse the canonical base scalar slot',
+    PtrUInt(LScalarTable.CeilF32x4), PtrUInt(LRISCVVTable.CeilF32x4));
+  AssertEquals('RISCVV F32x4 Round should now reuse the canonical base scalar slot',
+    PtrUInt(LScalarTable.RoundF32x4), PtrUInt(LRISCVVTable.RoundF32x4));
+  AssertEquals('RISCVV F32x4 Trunc should now reuse the canonical base scalar slot',
+    PtrUInt(LScalarTable.TruncF32x4), PtrUInt(LRISCVVTable.TruncF32x4));
+  AssertEquals('RISCVV F64x2 Floor should now reuse the canonical base scalar slot',
+    PtrUInt(LScalarTable.FloorF64x2), PtrUInt(LRISCVVTable.FloorF64x2));
+  AssertEquals('RISCVV F64x2 Ceil should now reuse the canonical base scalar slot',
+    PtrUInt(LScalarTable.CeilF64x2), PtrUInt(LRISCVVTable.CeilF64x2));
+  AssertEquals('RISCVV F64x2 Round should now reuse the canonical base scalar slot',
+    PtrUInt(LScalarTable.RoundF64x2), PtrUInt(LRISCVVTable.RoundF64x2));
+  AssertEquals('RISCVV F64x2 Trunc should now reuse the canonical base scalar slot',
+    PtrUInt(LScalarTable.TruncF64x2), PtrUInt(LRISCVVTable.TruncF64x2));
 
-    AssertTrue('RISCVV FloorF32x16 should keep a non-scalar wide slot after register-source dedup',
-      Pointer(LRISCVVTable.FloorF32x16) <> Pointer(LScalarTable.FloorF32x16));
-    AssertTrue('RISCVV CeilF32x16 should keep a non-scalar wide slot after register-source dedup',
-      Pointer(LRISCVVTable.CeilF32x16) <> Pointer(LScalarTable.CeilF32x16));
-    AssertTrue('RISCVV RoundF64x4 should keep a non-scalar wide slot after register-source dedup',
-      Pointer(LRISCVVTable.RoundF64x4) <> Pointer(LScalarTable.RoundF64x4));
-    AssertTrue('RISCVV TruncF64x4 should keep a non-scalar wide slot after register-source dedup',
-      Pointer(LRISCVVTable.TruncF64x4) <> Pointer(LScalarTable.TruncF64x4));
-  finally
-  end;
+  AssertTrue('RISCVV FloorF32x16 should keep a non-scalar wide slot after register-source dedup',
+    Pointer(LRISCVVTable.FloorF32x16) <> Pointer(LScalarTable.FloorF32x16));
+  AssertTrue('RISCVV CeilF32x16 should keep a non-scalar wide slot after register-source dedup',
+    Pointer(LRISCVVTable.CeilF32x16) <> Pointer(LScalarTable.CeilF32x16));
+  AssertTrue('RISCVV RoundF64x4 should keep a non-scalar wide slot after register-source dedup',
+    Pointer(LRISCVVTable.RoundF64x4) <> Pointer(LScalarTable.RoundF64x4));
+  AssertTrue('RISCVV TruncF64x4 should keep a non-scalar wide slot after register-source dedup',
+    Pointer(LRISCVVTable.TruncF64x4) <> Pointer(LScalarTable.TruncF64x4));
 end;
 
 procedure TTestCase_DispatchAPI.Test_BacklogParityAndSmoke_Batch3;
@@ -9901,7 +9896,6 @@ var
   LScalar: TSimdDispatchTable;
   LAVX512: TSimdDispatchTable;
   LCanRunAVX512: Boolean;
-  LOldVectorAsm: Boolean;
   LIndex: Integer;
   LU32A, LU32B, LU32Result, LU32Expected: TVecU32x16;
   LU64A, LU64B, LU64Result, LU64Expected: TVecU64x8;
@@ -9912,93 +9906,89 @@ begin
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalar));
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
 
-    if not TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512) then
-      Exit;
+  if not TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512) then
+    Exit;
 
-    // Mapping check: these slots must no longer point to scalar fallback.
-    AssertTrue('AVX512 AddU32x16 should not be scalar slot',
-      Pointer(LAVX512.AddU32x16) <> Pointer(LScalar.AddU32x16));
-    AssertTrue('AVX512 CmpEqU32x16 should not be scalar slot',
-      Pointer(LAVX512.CmpEqU32x16) <> Pointer(LScalar.CmpEqU32x16));
-    AssertTrue('AVX512 ShiftRightU32x16 should not be scalar slot',
-      Pointer(LAVX512.ShiftRightU32x16) <> Pointer(LScalar.ShiftRightU32x16));
-    AssertTrue('AVX512 AddU64x8 should not be scalar slot',
-      Pointer(LAVX512.AddU64x8) <> Pointer(LScalar.AddU64x8));
-    AssertTrue('AVX512 CmpEqU64x8 should not be scalar slot',
-      Pointer(LAVX512.CmpEqU64x8) <> Pointer(LScalar.CmpEqU64x8));
-    AssertTrue('AVX512 ShiftRightU64x8 should not be scalar slot',
-      Pointer(LAVX512.ShiftRightU64x8) <> Pointer(LScalar.ShiftRightU64x8));
+  // Mapping check: these slots must no longer point to scalar fallback.
+  AssertTrue('AVX512 AddU32x16 should not be scalar slot',
+    Pointer(LAVX512.AddU32x16) <> Pointer(LScalar.AddU32x16));
+  AssertTrue('AVX512 CmpEqU32x16 should not be scalar slot',
+    Pointer(LAVX512.CmpEqU32x16) <> Pointer(LScalar.CmpEqU32x16));
+  AssertTrue('AVX512 ShiftRightU32x16 should not be scalar slot',
+    Pointer(LAVX512.ShiftRightU32x16) <> Pointer(LScalar.ShiftRightU32x16));
+  AssertTrue('AVX512 AddU64x8 should not be scalar slot',
+    Pointer(LAVX512.AddU64x8) <> Pointer(LScalar.AddU64x8));
+  AssertTrue('AVX512 CmpEqU64x8 should not be scalar slot',
+    Pointer(LAVX512.CmpEqU64x8) <> Pointer(LScalar.CmpEqU64x8));
+  AssertTrue('AVX512 ShiftRightU64x8 should not be scalar slot',
+    Pointer(LAVX512.ShiftRightU64x8) <> Pointer(LScalar.ShiftRightU64x8));
 
-    // Parity check only on hosts where AVX512 backend is dispatch-available.
-    LCanRunAVX512 := LAVX512.BackendInfo.Available and TrySetActiveBackend(sbAVX512);
-    if not LCanRunAVX512 then
-      Exit;
+  // Parity check only on hosts where AVX512 backend is dispatch-available.
+  LCanRunAVX512 := LAVX512.BackendInfo.Available and TrySetActiveBackend(sbAVX512);
+  if not LCanRunAVX512 then
+    Exit;
 
-    for LIndex := 0 to 15 do
-    begin
-      LU32A.u[LIndex] := DWord($F0000000 + DWord(LIndex) * DWord($1111111));
-      LU32B.u[LIndex] := DWord($0F0F0F0F + DWord(LIndex) * DWord(97));
-    end;
-
-    for LIndex := 0 to 7 do
-    begin
-      LU64A.u[LIndex] := QWord($F000000000000000) + QWord(LIndex) * QWord($0102030405060708);
-      LU64B.u[LIndex] := QWord($00FF00FF00FF00FF) + QWord(LIndex) * QWord($0001000100010001);
-    end;
-
-    LU32Result := LAVX512.AddU32x16(LU32A, LU32B);
-    LU32Expected := ScalarAddU32x16(LU32A, LU32B);
-    for LIndex := 0 to 15 do
-      AssertEquals('AVX512 AddU32x16 lane ' + IntToStr(LIndex), LU32Expected.u[LIndex], LU32Result.u[LIndex]);
-
-    LU32Result := LAVX512.AndU32x16(LU32A, LU32B);
-    LU32Expected := ScalarAndU32x16(LU32A, LU32B);
-    for LIndex := 0 to 15 do
-      AssertEquals('AVX512 AndU32x16 lane ' + IntToStr(LIndex), LU32Expected.u[LIndex], LU32Result.u[LIndex]);
-
-    LU32Result := LAVX512.ShiftRightU32x16(LU32A, 5);
-    LU32Expected := ScalarShiftRightU32x16(LU32A, 5);
-    for LIndex := 0 to 15 do
-      AssertEquals('AVX512 ShiftRightU32x16 lane ' + IntToStr(LIndex), LU32Expected.u[LIndex], LU32Result.u[LIndex]);
-
-    LMask16Result := LAVX512.CmpEqU32x16(LU32A, LU32B);
-    LMask16Expected := ScalarCmpEqU32x16(LU32A, LU32B);
-    AssertEquals('AVX512 CmpEqU32x16 mask parity', Integer(LMask16Expected), Integer(LMask16Result));
-
-    LMask16Result := LAVX512.CmpGtU32x16(LU32A, LU32B);
-    LMask16Expected := ScalarCmpGtU32x16(LU32A, LU32B);
-    AssertEquals('AVX512 CmpGtU32x16 mask parity', Integer(LMask16Expected), Integer(LMask16Result));
-
-    LU64Result := LAVX512.AddU64x8(LU64A, LU64B);
-    LU64Expected := ScalarAddU64x8(LU64A, LU64B);
-    for LIndex := 0 to 7 do
-      AssertEquals('AVX512 AddU64x8 lane ' + IntToStr(LIndex), LU64Expected.u[LIndex], LU64Result.u[LIndex]);
-
-    LU64Result := LAVX512.XorU64x8(LU64A, LU64B);
-    LU64Expected := ScalarXorU64x8(LU64A, LU64B);
-    for LIndex := 0 to 7 do
-      AssertEquals('AVX512 XorU64x8 lane ' + IntToStr(LIndex), LU64Expected.u[LIndex], LU64Result.u[LIndex]);
-
-    LU64Result := LAVX512.ShiftRightU64x8(LU64A, 11);
-    LU64Expected := ScalarShiftRightU64x8(LU64A, 11);
-    for LIndex := 0 to 7 do
-      AssertEquals('AVX512 ShiftRightU64x8 lane ' + IntToStr(LIndex), LU64Expected.u[LIndex], LU64Result.u[LIndex]);
-
-    LMask8Result := LAVX512.CmpEqU64x8(LU64A, LU64B);
-    LMask8Expected := ScalarCmpEqU64x8(LU64A, LU64B);
-    AssertEquals('AVX512 CmpEqU64x8 mask parity', Integer(LMask8Expected), Integer(LMask8Result));
-
-    LMask8Result := LAVX512.CmpLtU64x8(LU64A, LU64B);
-    LMask8Expected := ScalarCmpLtU64x8(LU64A, LU64B);
-    AssertEquals('AVX512 CmpLtU64x8 mask parity', Integer(LMask8Expected), Integer(LMask8Result));
-  finally
+  for LIndex := 0 to 15 do
+  begin
+    LU32A.u[LIndex] := DWord($F0000000 + DWord(LIndex) * DWord($1111111));
+    LU32B.u[LIndex] := DWord($0F0F0F0F + DWord(LIndex) * DWord(97));
   end;
+
+  for LIndex := 0 to 7 do
+  begin
+    LU64A.u[LIndex] := QWord($F000000000000000) + QWord(LIndex) * QWord($0102030405060708);
+    LU64B.u[LIndex] := QWord($00FF00FF00FF00FF) + QWord(LIndex) * QWord($0001000100010001);
+  end;
+
+  LU32Result := LAVX512.AddU32x16(LU32A, LU32B);
+  LU32Expected := ScalarAddU32x16(LU32A, LU32B);
+  for LIndex := 0 to 15 do
+    AssertEquals('AVX512 AddU32x16 lane ' + IntToStr(LIndex), LU32Expected.u[LIndex], LU32Result.u[LIndex]);
+
+  LU32Result := LAVX512.AndU32x16(LU32A, LU32B);
+  LU32Expected := ScalarAndU32x16(LU32A, LU32B);
+  for LIndex := 0 to 15 do
+    AssertEquals('AVX512 AndU32x16 lane ' + IntToStr(LIndex), LU32Expected.u[LIndex], LU32Result.u[LIndex]);
+
+  LU32Result := LAVX512.ShiftRightU32x16(LU32A, 5);
+  LU32Expected := ScalarShiftRightU32x16(LU32A, 5);
+  for LIndex := 0 to 15 do
+    AssertEquals('AVX512 ShiftRightU32x16 lane ' + IntToStr(LIndex), LU32Expected.u[LIndex], LU32Result.u[LIndex]);
+
+  LMask16Result := LAVX512.CmpEqU32x16(LU32A, LU32B);
+  LMask16Expected := ScalarCmpEqU32x16(LU32A, LU32B);
+  AssertEquals('AVX512 CmpEqU32x16 mask parity', Integer(LMask16Expected), Integer(LMask16Result));
+
+  LMask16Result := LAVX512.CmpGtU32x16(LU32A, LU32B);
+  LMask16Expected := ScalarCmpGtU32x16(LU32A, LU32B);
+  AssertEquals('AVX512 CmpGtU32x16 mask parity', Integer(LMask16Expected), Integer(LMask16Result));
+
+  LU64Result := LAVX512.AddU64x8(LU64A, LU64B);
+  LU64Expected := ScalarAddU64x8(LU64A, LU64B);
+  for LIndex := 0 to 7 do
+    AssertEquals('AVX512 AddU64x8 lane ' + IntToStr(LIndex), LU64Expected.u[LIndex], LU64Result.u[LIndex]);
+
+  LU64Result := LAVX512.XorU64x8(LU64A, LU64B);
+  LU64Expected := ScalarXorU64x8(LU64A, LU64B);
+  for LIndex := 0 to 7 do
+    AssertEquals('AVX512 XorU64x8 lane ' + IntToStr(LIndex), LU64Expected.u[LIndex], LU64Result.u[LIndex]);
+
+  LU64Result := LAVX512.ShiftRightU64x8(LU64A, 11);
+  LU64Expected := ScalarShiftRightU64x8(LU64A, 11);
+  for LIndex := 0 to 7 do
+    AssertEquals('AVX512 ShiftRightU64x8 lane ' + IntToStr(LIndex), LU64Expected.u[LIndex], LU64Result.u[LIndex]);
+
+  LMask8Result := LAVX512.CmpEqU64x8(LU64A, LU64B);
+  LMask8Expected := ScalarCmpEqU64x8(LU64A, LU64B);
+  AssertEquals('AVX512 CmpEqU64x8 mask parity', Integer(LMask8Expected), Integer(LMask8Result));
+
+  LMask8Result := LAVX512.CmpLtU64x8(LU64A, LU64B);
+  LMask8Expected := ScalarCmpLtU64x8(LU64A, LU64B);
+  AssertEquals('AVX512 CmpLtU64x8 mask parity', Integer(LMask8Expected), Integer(LMask8Result));
 end;
 
 procedure TTestCase_DispatchAPI.Test_AVX512_U32x16_U64x8_ShiftBoundary_Contracts;
@@ -10006,7 +9996,6 @@ var
   LScalar: TSimdDispatchTable;
   LAVX512: TSimdDispatchTable;
   LCanRunAVX512: Boolean;
-  LOldVectorAsm: Boolean;
   LIndex: Integer;
   LU32SourcePath, LU64SourcePath: string;
   LU32Source, LU64Source: string;
@@ -10060,74 +10049,70 @@ begin
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalar));
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
 
-    if not TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512) then
-      Exit;
+  if not TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512) then
+    Exit;
 
-    LCanRunAVX512 := LAVX512.BackendInfo.Available and TrySetActiveBackend(sbAVX512);
-    if not LCanRunAVX512 then
-      Exit;
+  LCanRunAVX512 := LAVX512.BackendInfo.Available and TrySetActiveBackend(sbAVX512);
+  if not LCanRunAVX512 then
+    Exit;
 
-    for LIndex := 0 to 15 do
-      LU32A.u[LIndex] := DWord($80000000 xor (DWord(LIndex) * DWord($11111111)));
+  for LIndex := 0 to 15 do
+    LU32A.u[LIndex] := DWord($80000000 xor (DWord(LIndex) * DWord($11111111)));
 
-    for LIndex := 0 to 7 do
-      LU64A.u[LIndex] := QWord($8000000000000000) xor (QWord(LIndex) * QWord($0101010101010101));
+  for LIndex := 0 to 7 do
+    LU64A.u[LIndex] := QWord($8000000000000000) xor (QWord(LIndex) * QWord($0101010101010101));
 
-    LU32Expected := ScalarShiftLeftU32x16(LU32A, 0);
-    LU32Result := LAVX512.ShiftLeftU32x16(LU32A, 0);
-    AssertVecU32x16Equal('AVX512 ShiftLeftU32x16 count=0', LU32Expected, LU32Result);
+  LU32Expected := ScalarShiftLeftU32x16(LU32A, 0);
+  LU32Result := LAVX512.ShiftLeftU32x16(LU32A, 0);
+  AssertVecU32x16Equal('AVX512 ShiftLeftU32x16 count=0', LU32Expected, LU32Result);
 
-    LU32Expected := ScalarShiftLeftU32x16(LU32A, 31);
-    LU32Result := LAVX512.ShiftLeftU32x16(LU32A, 31);
-    AssertVecU32x16Equal('AVX512 ShiftLeftU32x16 count=31', LU32Expected, LU32Result);
+  LU32Expected := ScalarShiftLeftU32x16(LU32A, 31);
+  LU32Result := LAVX512.ShiftLeftU32x16(LU32A, 31);
+  AssertVecU32x16Equal('AVX512 ShiftLeftU32x16 count=31', LU32Expected, LU32Result);
 
-    LU32Expected := ScalarShiftLeftU32x16(LU32A, 32);
-    LU32Result := LAVX512.ShiftLeftU32x16(LU32A, 32);
-    AssertVecU32x16Equal('AVX512 ShiftLeftU32x16 count=32', LU32Expected, LU32Result);
+  LU32Expected := ScalarShiftLeftU32x16(LU32A, 32);
+  LU32Result := LAVX512.ShiftLeftU32x16(LU32A, 32);
+  AssertVecU32x16Equal('AVX512 ShiftLeftU32x16 count=32', LU32Expected, LU32Result);
 
-    LU32Expected := ScalarShiftRightU32x16(LU32A, 0);
-    LU32Result := LAVX512.ShiftRightU32x16(LU32A, 0);
-    AssertVecU32x16Equal('AVX512 ShiftRightU32x16 count=0', LU32Expected, LU32Result);
+  LU32Expected := ScalarShiftRightU32x16(LU32A, 0);
+  LU32Result := LAVX512.ShiftRightU32x16(LU32A, 0);
+  AssertVecU32x16Equal('AVX512 ShiftRightU32x16 count=0', LU32Expected, LU32Result);
 
-    LU32Expected := ScalarShiftRightU32x16(LU32A, 31);
-    LU32Result := LAVX512.ShiftRightU32x16(LU32A, 31);
-    AssertVecU32x16Equal('AVX512 ShiftRightU32x16 count=31', LU32Expected, LU32Result);
+  LU32Expected := ScalarShiftRightU32x16(LU32A, 31);
+  LU32Result := LAVX512.ShiftRightU32x16(LU32A, 31);
+  AssertVecU32x16Equal('AVX512 ShiftRightU32x16 count=31', LU32Expected, LU32Result);
 
-    LU32Expected := ScalarShiftRightU32x16(LU32A, 32);
-    LU32Result := LAVX512.ShiftRightU32x16(LU32A, 32);
-    AssertVecU32x16Equal('AVX512 ShiftRightU32x16 count=32', LU32Expected, LU32Result);
+  LU32Expected := ScalarShiftRightU32x16(LU32A, 32);
+  LU32Result := LAVX512.ShiftRightU32x16(LU32A, 32);
+  AssertVecU32x16Equal('AVX512 ShiftRightU32x16 count=32', LU32Expected, LU32Result);
 
-    LU64Expected := ScalarShiftLeftU64x8(LU64A, 0);
-    LU64Result := LAVX512.ShiftLeftU64x8(LU64A, 0);
-    AssertVecU64x8Equal('AVX512 ShiftLeftU64x8 count=0', LU64Expected, LU64Result);
+  LU64Expected := ScalarShiftLeftU64x8(LU64A, 0);
+  LU64Result := LAVX512.ShiftLeftU64x8(LU64A, 0);
+  AssertVecU64x8Equal('AVX512 ShiftLeftU64x8 count=0', LU64Expected, LU64Result);
 
-    LU64Expected := ScalarShiftLeftU64x8(LU64A, 63);
-    LU64Result := LAVX512.ShiftLeftU64x8(LU64A, 63);
-    AssertVecU64x8Equal('AVX512 ShiftLeftU64x8 count=63', LU64Expected, LU64Result);
+  LU64Expected := ScalarShiftLeftU64x8(LU64A, 63);
+  LU64Result := LAVX512.ShiftLeftU64x8(LU64A, 63);
+  AssertVecU64x8Equal('AVX512 ShiftLeftU64x8 count=63', LU64Expected, LU64Result);
 
-    LU64Expected := ScalarShiftLeftU64x8(LU64A, 64);
-    LU64Result := LAVX512.ShiftLeftU64x8(LU64A, 64);
-    AssertVecU64x8Equal('AVX512 ShiftLeftU64x8 count=64', LU64Expected, LU64Result);
+  LU64Expected := ScalarShiftLeftU64x8(LU64A, 64);
+  LU64Result := LAVX512.ShiftLeftU64x8(LU64A, 64);
+  AssertVecU64x8Equal('AVX512 ShiftLeftU64x8 count=64', LU64Expected, LU64Result);
 
-    LU64Expected := ScalarShiftRightU64x8(LU64A, 0);
-    LU64Result := LAVX512.ShiftRightU64x8(LU64A, 0);
-    AssertVecU64x8Equal('AVX512 ShiftRightU64x8 count=0', LU64Expected, LU64Result);
+  LU64Expected := ScalarShiftRightU64x8(LU64A, 0);
+  LU64Result := LAVX512.ShiftRightU64x8(LU64A, 0);
+  AssertVecU64x8Equal('AVX512 ShiftRightU64x8 count=0', LU64Expected, LU64Result);
 
-    LU64Expected := ScalarShiftRightU64x8(LU64A, 63);
-    LU64Result := LAVX512.ShiftRightU64x8(LU64A, 63);
-    AssertVecU64x8Equal('AVX512 ShiftRightU64x8 count=63', LU64Expected, LU64Result);
+  LU64Expected := ScalarShiftRightU64x8(LU64A, 63);
+  LU64Result := LAVX512.ShiftRightU64x8(LU64A, 63);
+  AssertVecU64x8Equal('AVX512 ShiftRightU64x8 count=63', LU64Expected, LU64Result);
 
-    LU64Expected := ScalarShiftRightU64x8(LU64A, 64);
-    LU64Result := LAVX512.ShiftRightU64x8(LU64A, 64);
-    AssertVecU64x8Equal('AVX512 ShiftRightU64x8 count=64', LU64Expected, LU64Result);
-  finally
-  end;
+  LU64Expected := ScalarShiftRightU64x8(LU64A, 64);
+  LU64Result := LAVX512.ShiftRightU64x8(LU64A, 64);
+  AssertVecU64x8Equal('AVX512 ShiftRightU64x8 count=64', LU64Expected, LU64Result);
 end;
 
 procedure TTestCase_DispatchAPI.Test_DispatchChangedHooks_MultiSubscriber_Dedup_And_Remove;
@@ -10172,7 +10157,6 @@ var
   LScalar: TSimdDispatchTable;
   LAVX512: TSimdDispatchTable;
   LCanRunAVX512: Boolean;
-  LOldVectorAsm: Boolean;
   LIndex: Integer;
   LI16A, LI16B, LI16Result, LI16Expected: TVecI16x32;
   LI8A, LI8B, LI8Result, LI8Expected: TVecI8x64;
@@ -10184,14 +10168,12 @@ begin
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalar));
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
 
-    if not TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512) then
-      Exit;
+  if not TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512) then
+    Exit;
 
   AssertTrue('AVX512 AddI16x32 should not be scalar slot',
     Pointer(LAVX512.AddI16x32) <> Pointer(LScalar.AddI16x32));
@@ -10212,62 +10194,60 @@ begin
   AssertTrue('AVX512 MaxU8x64 should not be scalar slot',
     Pointer(LAVX512.MaxU8x64) <> Pointer(LScalar.MaxU8x64));
 
-    LCanRunAVX512 := LAVX512.BackendInfo.Available and TrySetActiveBackend(sbAVX512);
-    if not LCanRunAVX512 then
-      Exit;
+  LCanRunAVX512 := LAVX512.BackendInfo.Available and TrySetActiveBackend(sbAVX512);
+  if not LCanRunAVX512 then
+    Exit;
 
-    for LIndex := 0 to 31 do
-    begin
-      LI16A.i[LIndex] := Int16(LIndex * 97 - 1400);
-      LI16B.i[LIndex] := Int16(700 - LIndex * 41);
-    end;
-
-    for LIndex := 0 to 63 do
-    begin
-      LI8A.i[LIndex] := Int8((LIndex mod 31) - 15);
-      LI8B.i[LIndex] := Int8(20 - (LIndex mod 29));
-      LU8A.u[LIndex] := Byte((LIndex * 13) and $FF);
-      LU8B.u[LIndex] := Byte((255 - LIndex * 9) and $FF);
-    end;
-
-    LI16Result := LAVX512.AddI16x32(LI16A, LI16B);
-    LI16Expected := ScalarAddI16x32(LI16A, LI16B);
-    for LIndex := 0 to 31 do
-      AssertEquals('AVX512 AddI16x32 lane ' + IntToStr(LIndex), LI16Expected.i[LIndex], LI16Result.i[LIndex]);
-
-    LI16Result := LAVX512.ShiftRightArithI16x32(LI16A, 3);
-    LI16Expected := ScalarShiftRightArithI16x32(LI16A, 3);
-    for LIndex := 0 to 31 do
-      AssertEquals('AVX512 ShiftRightArithI16x32 lane ' + IntToStr(LIndex), LI16Expected.i[LIndex], LI16Result.i[LIndex]);
-
-    LMask32Result := LAVX512.CmpLtI16x32(LI16A, LI16B);
-    LMask32Expected := ScalarCmpLtI16x32(LI16A, LI16B);
-    AssertEquals('AVX512 CmpLtI16x32 mask parity', Integer(LMask32Expected), Integer(LMask32Result));
-
-    LI8Result := LAVX512.AndNotI8x64(LI8A, LI8B);
-    LI8Expected := ScalarAndNotI8x64(LI8A, LI8B);
-    for LIndex := 0 to 63 do
-      AssertEquals('AVX512 AndNotI8x64 lane ' + IntToStr(LIndex), LI8Expected.i[LIndex], LI8Result.i[LIndex]);
-
-    LMask64Result := LAVX512.CmpGtI8x64(LI8A, LI8B);
-    LMask64Expected := ScalarCmpGtI8x64(LI8A, LI8B);
-    AssertEquals('AVX512 CmpGtI8x64 mask parity', Int64(LMask64Expected), Int64(LMask64Result));
-
-    LU8Result := LAVX512.AddU8x64(LU8A, LU8B);
-    LU8Expected := ScalarAddU8x64(LU8A, LU8B);
-    for LIndex := 0 to 63 do
-      AssertEquals('AVX512 AddU8x64 lane ' + IntToStr(LIndex), LU8Expected.u[LIndex], LU8Result.u[LIndex]);
-
-    LU8Result := LAVX512.XorU8x64(LU8A, LU8B);
-    LU8Expected := ScalarXorU8x64(LU8A, LU8B);
-    for LIndex := 0 to 63 do
-      AssertEquals('AVX512 XorU8x64 lane ' + IntToStr(LIndex), LU8Expected.u[LIndex], LU8Result.u[LIndex]);
-
-    LMask64Result := LAVX512.CmpLtU8x64(LU8A, LU8B);
-    LMask64Expected := ScalarCmpLtU8x64(LU8A, LU8B);
-    AssertEquals('AVX512 CmpLtU8x64 mask parity', Int64(LMask64Expected), Int64(LMask64Result));
-  finally
+  for LIndex := 0 to 31 do
+  begin
+    LI16A.i[LIndex] := Int16(LIndex * 97 - 1400);
+    LI16B.i[LIndex] := Int16(700 - LIndex * 41);
   end;
+
+  for LIndex := 0 to 63 do
+  begin
+    LI8A.i[LIndex] := Int8((LIndex mod 31) - 15);
+    LI8B.i[LIndex] := Int8(20 - (LIndex mod 29));
+    LU8A.u[LIndex] := Byte((LIndex * 13) and $FF);
+    LU8B.u[LIndex] := Byte((255 - LIndex * 9) and $FF);
+  end;
+
+  LI16Result := LAVX512.AddI16x32(LI16A, LI16B);
+  LI16Expected := ScalarAddI16x32(LI16A, LI16B);
+  for LIndex := 0 to 31 do
+    AssertEquals('AVX512 AddI16x32 lane ' + IntToStr(LIndex), LI16Expected.i[LIndex], LI16Result.i[LIndex]);
+
+  LI16Result := LAVX512.ShiftRightArithI16x32(LI16A, 3);
+  LI16Expected := ScalarShiftRightArithI16x32(LI16A, 3);
+  for LIndex := 0 to 31 do
+    AssertEquals('AVX512 ShiftRightArithI16x32 lane ' + IntToStr(LIndex), LI16Expected.i[LIndex], LI16Result.i[LIndex]);
+
+  LMask32Result := LAVX512.CmpLtI16x32(LI16A, LI16B);
+  LMask32Expected := ScalarCmpLtI16x32(LI16A, LI16B);
+  AssertEquals('AVX512 CmpLtI16x32 mask parity', Integer(LMask32Expected), Integer(LMask32Result));
+
+  LI8Result := LAVX512.AndNotI8x64(LI8A, LI8B);
+  LI8Expected := ScalarAndNotI8x64(LI8A, LI8B);
+  for LIndex := 0 to 63 do
+    AssertEquals('AVX512 AndNotI8x64 lane ' + IntToStr(LIndex), LI8Expected.i[LIndex], LI8Result.i[LIndex]);
+
+  LMask64Result := LAVX512.CmpGtI8x64(LI8A, LI8B);
+  LMask64Expected := ScalarCmpGtI8x64(LI8A, LI8B);
+  AssertEquals('AVX512 CmpGtI8x64 mask parity', Int64(LMask64Expected), Int64(LMask64Result));
+
+  LU8Result := LAVX512.AddU8x64(LU8A, LU8B);
+  LU8Expected := ScalarAddU8x64(LU8A, LU8B);
+  for LIndex := 0 to 63 do
+    AssertEquals('AVX512 AddU8x64 lane ' + IntToStr(LIndex), LU8Expected.u[LIndex], LU8Result.u[LIndex]);
+
+  LU8Result := LAVX512.XorU8x64(LU8A, LU8B);
+  LU8Expected := ScalarXorU8x64(LU8A, LU8B);
+  for LIndex := 0 to 63 do
+    AssertEquals('AVX512 XorU8x64 lane ' + IntToStr(LIndex), LU8Expected.u[LIndex], LU8Result.u[LIndex]);
+
+  LMask64Result := LAVX512.CmpLtU8x64(LU8A, LU8B);
+  LMask64Expected := ScalarCmpLtU8x64(LU8A, LU8B);
+  AssertEquals('AVX512 CmpLtU8x64 mask parity', Int64(LMask64Expected), Int64(LMask64Result));
 end;
 
 procedure TTestCase_DispatchAPI.Test_AVX512_F32x16_F64x8_IEEE754_MappingAndParity;
@@ -10277,7 +10257,6 @@ var
   LAVX512: TSimdDispatchTable;
   LHasAVX2: Boolean;
   LCanRunAVX512: Boolean;
-  LOldVectorAsm: Boolean;
   LIndex: Integer;
 
   LInF32x16, LRoundF32x16, LTruncF32x16, LFloorF32x16, LCeilF32x16: TVecF32x16;
@@ -10318,16 +10297,14 @@ begin
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalar));
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
 
-    if not TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512) then
-      Exit;
+  if not TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512) then
+    Exit;
 
-    LHasAVX2 := TryGetRegisteredBackendDispatchTable(sbAVX2, LAVX2);
+  LHasAVX2 := TryGetRegisteredBackendDispatchTable(sbAVX2, LAVX2);
 
   AssertTrue('AVX512 RoundF32x16 should not be scalar slot',
     Pointer(LAVX512.RoundF32x16) <> Pointer(LScalar.RoundF32x16));
@@ -10368,9 +10345,9 @@ begin
       Pointer(LAVX512.CeilF64x8) <> Pointer(LAVX2.CeilF64x8));
   end;
 
-    LCanRunAVX512 := LAVX512.BackendInfo.Available and TrySetActiveBackend(sbAVX512);
-    if not LCanRunAVX512 then
-      Exit;
+  LCanRunAVX512 := LAVX512.BackendInfo.Available and TrySetActiveBackend(sbAVX512);
+  if not LCanRunAVX512 then
+    Exit;
 
     for LIndex := 0 to 15 do
     begin
@@ -10467,8 +10444,6 @@ begin
     AssertEquals('AVX512 ReduceMulF64x8 parity', LExpectedReduceMulF64x8, LActualReduceMulF64x8, 1e-10);
     AssertEquals('AVX512 ReduceMinF64x8 parity', LExpectedReduceMinF64x8, LActualReduceMinF64x8, 1e-12);
     AssertEquals('AVX512 ReduceMaxF64x8 parity', LExpectedReduceMaxF64x8, LActualReduceMaxF64x8, 1e-12);
-  finally
-  end;
 end;
 
 procedure TTestCase_DispatchAPI.Test_BackendCapabilities_DoNotOverclaim_512BitOps;

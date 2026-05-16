@@ -7190,3 +7190,31 @@
 - 当前阶段结论：
   - 这批依旧只是 `dispatchapi` 测试层冗余清理，没有改 SIMD 生产实现
   - 当前方法已经收口到“小区段审计 -> 单簇修复 -> 单 suite release 验证 -> 立刻提交”，适合后续继续按同样节奏推进
+
+## 2026-05-16 DispatchApi RISCVV And AVX512 Empty Finally Cleanup
+
+- 这一批继续留在 `dispatchapi.testcase`，没有切到 `direct`、`concurrent` 或生产实现，只把候选区段推进到 `9358..10471` 的 `RISCVV/AVX512` 审计与 parity 簇。
+- 候选筛选过程：
+  - 先用 `rg -nUP "finally\\n\\s*end;"` 精确抓空 outer `finally`
+  - 再逐段读取 `9358..10471`
+  - 确认 1 条 `RISCVV` rounding register-source 测试和 4 条 `AVX512` mapping/shift/IEEE754 parity 测试都带未读取的 `LOldVectorAsm`
+  - 确认这 5 条方法的 outer `finally` 全为空，真实资源释放只在内层 `LSourceLines.Free` 或正常流程里完成，没有任何 backend/table restore
+- 已完成的源码改动：
+  - 文件：`tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+  - 删除 5 个方法中的纯空 outer `try/finally`
+  - 删除 5 个方法中的未使用 `LOldVectorAsm`
+  - 保留所有 register-source、mapping、shift-boundary、IEEE754 与 reduction parity 断言不变
+- 这轮额外做的卫生确认：
+  - `git diff --check` 通过
+  - 再次复读 `9358..10480`，确认现在只剩内层真实释放逻辑与正常断言流
+  - 轻量后续定位显示，下一个高确定性入口已经后移到 `10570..10943` 的 capability/FMA 簇
+- 本轮验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+- fresh 结果：
+  - `[BUILD] OK`
+  - `[TEST] OK`
+  - `[LEAK] OK`
+- 当前阶段结论：
+  - 这批依旧只是 `dispatchapi` 测试层冗余清理，没有改 SIMD 生产实现
+  - `dispatchapi` 当前最值当的下一批入口已进一步后移到 `10570..10943` 的 backend-capability / AVX2-FMA 合同测试簇

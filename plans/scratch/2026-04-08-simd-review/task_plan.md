@@ -4128,3 +4128,19 @@
 | 1. 复核 SSE2 审计簇的真实边界 | completed | 已逐段复核 `Test_SSE2_I32x4_U32x4_Mul_Use_NonScalar_Impl_And_Keep_Parity`、`Test_SSE2_I64x2_Compare_Use_NonScalar_Impl_And_Keep_Parity`、`Test_SSE2_F32VectorMath_Use_NonScalar_Impl_And_Keep_Parity`：三者都只有 `SetVectorAsmEnabled(True)`、backend 选择与 parity 断言，没有任何 outer restore；其 `LOldVectorAsm` 仅做 `IsVectorAsmEnabled` 捕获且后续无读取 |
 | 2. 只收这一簇高确定性命中 | completed | 已在上述 3 个 SSE2 测试中删除纯空 outer `try/finally`，并删除对应未使用的 `LOldVectorAsm`；所有 SSE2 source-shape 审计、dispatch/backend 断言与 parity 断言保持不变 |
 | 3. 用单 suite release 复验收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 复验；构建、测试与 leak check 全部通过 |
+
+## 2026-05-16 DispatchApi RISCVV And AVX512 Empty Finally Cleanup
+
+### Goal
+
+继续沿 `dispatchapi.testcase` 的高确定性清理线推进到 `9358..10471`，只收掉 5 条 `RISCVV/AVX512` 审计与 parity 测试里的两类确定性冗余：
+- `LOldVectorAsm` 只声明和赋值、但从不读取
+- outer `try/finally` 的 `finally` 体完全为空
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 RISCVV/AVX512 簇的真实边界 | completed | 已逐段复核 `Test_RISCVV_RegisterSource_Deduplicates_WideRoundingAssignments_And_Keeps_F64x2_Exception`、`Test_AVX512_U32x16_U64x8_MappingAndParity`、`Test_AVX512_U32x16_U64x8_ShiftBoundary_Contracts`、`Test_AVX512_I16x32_I8x64_U8x64_MappingAndParity`、`Test_AVX512_F32x16_F64x8_IEEE754_MappingAndParity`：这 5 条测试都只有 source-shape / mapping / parity 断言，outer `finally` 完全为空，没有任何 backend/table restore；`LOldVectorAsm` 仅做 `IsVectorAsmEnabled` 捕获且后续无读取 |
+| 2. 只收这一簇高确定性命中 | completed | 已在上述 5 个 `RISCVV/AVX512` 测试中删除纯空 outer `try/finally`，并删除对应未使用的 `LOldVectorAsm`；所有 source-shape、mapping、capability 与 parity 断言保持不变 |
+| 3. 用单 suite release 复验收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 复验；构建、测试与 leak check 全部通过 |
