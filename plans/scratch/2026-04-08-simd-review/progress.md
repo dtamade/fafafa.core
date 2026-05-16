@@ -6811,3 +6811,28 @@
 - 当前阶段结论：
   - 这批是一次纯测试层冗余清理，没有改 SIMD 生产逻辑
   - `ieee754.testcase` 里最显眼的“空壳 cleanup”已经清掉；若下一轮还继续沿这条线深审，应优先看剩余 non-empty `finally` 是否还有局部重复，而不是再扫空块
+
+## 2026-05-16 DataPlane Empty Finally Cleanup
+
+- 本轮严格按改进后的工作法执行，没有重新打开 `gate` 或大范围扫描，而是直接收工作树里唯一一个未提交的 `dataplane` 小改动。
+- 已完成的源码改动：
+  - 文件：`tests/fafafa.core.simd/fafafa.core.simd.dataplane.testcase.pas`
+  - 位置：`TTestCase_DataPlane.Test_DataPlane_VectorAsmRoundTrip_Reuses_PreviouslyPublishedSnapshot`
+  - 内容：删除未使用的 `LOldVectorAsm` 及其赋值；删除纯空 outer `try/finally`
+- 之所以可以安全删除，不是凭形状判断，而是基于 fresh 基类链复核：
+  - `TSimdVectorAsmStatefulTestCase.TearDown` 仍会恢复 `FSavedVectorAsm`
+  - `TSimdBackendStatefulTestCase.TearDown` 仍会恢复 `FSavedBackend`
+  - 所以这个用例不需要额外 method-local restore
+- 本轮验证链：
+  - `git status --short --branch` 先确认工作树只剩这一处未提交改动
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DataPlane`
+- fresh 结果：
+  - `## main...origin/main [ahead 232]`
+  - `git diff --check` 通过
+  - `[BUILD] OK`
+  - `[TEST] OK`
+  - `[LEAK] OK`
+- 当前阶段结论：
+  - 这批已经形成完整小闭环，可以直接提交
+  - 后续如果继续深审 `simd`，应保持同样节奏：只挑已证实的局部冗余点，小验证后立即收口

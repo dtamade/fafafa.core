@@ -5730,3 +5730,30 @@
   - `git diff --check` 通过
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IEEE754EdgeCases --suite=TTestCase_AVX2RoundTruncIEEE754 --suite=TTestCase_NonX86IEEE754`
   - 输出为 `[BUILD] OK`、`[TEST] OK`、`[LEAK] OK`
+
+## 2026-05-16 DataPlane Empty Finally Cleanup
+
+- 这轮没有重新扩散扫描，而是延续上一批的高确定性冗余线，只收 `tests/fafafa.core.simd/fafafa.core.simd.dataplane.testcase.pas` 中一个 dataplane 用例的空壳 cleanup。
+- fresh 复核后，这个点和前一批 `ieee754` 的纯空 `finally` 属于同类，但判断依据更明确：
+  - `TTestCase_DataPlane = class(TSimdVectorAsmStatefulTestCase)`
+  - `TSimdVectorAsmStatefulTestCase.TearDown` 负责恢复 `FSavedVectorAsm`
+  - `TSimdBackendStatefulTestCase.TearDown` 负责恢复 `FSavedBackend`
+  - 因而 `Test_DataPlane_VectorAsmRoundTrip_Reuses_PreviouslyPublishedSnapshot` 外层的空 `finally` 并不承担任何 method-local 状态恢复职责
+- 该用例里同时还残留一个失效信号：
+  - `LOldVectorAsm := IsVectorAsmEnabled`
+  - 后续没有任何读取
+  - 这会制造“这里似乎还依赖局部 restore”的错觉
+- 本轮已完成的源码收口：
+  - 删除 `LOldVectorAsm` 局部变量与赋值
+  - 删除对应纯空 outer `try/finally`
+  - 保留 `SetVectorAsmEnabled(True/False)` 切换、`ResetToAutomaticBackend`、backend 分支提前退出和 dataplane 快照断言不变
+- fresh 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DataPlane`
+- fresh 结果：
+  - `[BUILD] OK`
+  - `[TEST] OK`
+  - `[LEAK] OK`
+- 当前阶段结论：
+  - 这批仍是纯测试层冗余清理，没有改 dataplane 发布逻辑或 SIMD 生产实现
+  - `dataplane.testcase` 这个 round-trip 用例里“假装在做 cleanup、实际上没有任何恢复语义”的外层壳已经去掉；后续若继续沿这条线深审，应优先挑类似小范围、高置信度的空壳 cleanup，而不是重新铺开大文件盲扫

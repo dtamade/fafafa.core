@@ -3926,3 +3926,17 @@
 | 1. 区分空壳 cleanup 与真实 restore 块 | completed | 已确认 `ieee754.testcase` 顶层仍有 10 处空 `finally`，其中多处还保留未使用的 `oldVectorAsm/LOldVectorAsm`；而 non-x86 每后端迭代里的 `finally ResetToAutomaticBackend` 仍承载真实 backend 切换收尾，不能混改 |
 | 2. 删除空 `finally` 与失效局部变量 | completed | 已删除 `IEEE754EdgeCases`、`AVX2RoundTruncIEEE754`、`NonX86IEEE754` 中这些纯空 outer `finally`，并同步删掉对应的 `oldVectorAsm`/`LOldVectorAsm` 局部变量与赋值；测试逻辑、backend 选择与数值断言保持不变 |
 | 3. 做轻量 release 验证 | completed | 已跑 `git diff --check`，并用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_IEEE754EdgeCases --suite=TTestCase_AVX2RoundTruncIEEE754 --suite=TTestCase_NonX86IEEE754` 验证；构建、测试与 leak check 均通过 |
+
+## 2026-05-16 DataPlane Empty Finally Cleanup
+
+### Goal
+
+继续按小闭环方式清理 `tests/fafafa.core.simd/fafafa.core.simd.dataplane.testcase.pas` 中一个已证实无语义负担的空 `finally`，去掉误导性的局部状态捕获，但不改任何 SIMD 生产逻辑或 dataplane 发布语义。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 确认该 cleanup 是否真的冗余 | completed | 已复核 `TTestCase_DataPlane` 的基类链：`TSimdVectorAsmStatefulTestCase.TearDown` 会恢复 `FSavedVectorAsm`，`TSimdBackendStatefulTestCase.TearDown` 会恢复 `FSavedBackend`；因此该用例外层空 `finally` 与未使用的 `LOldVectorAsm` 不再承担 method-local restore 责任 |
+| 2. 删除空 `finally` 与失效局部变量 | completed | 已在 `Test_DataPlane_VectorAsmRoundTrip_Reuses_PreviouslyPublishedSnapshot` 删除未使用的 `LOldVectorAsm` 及其赋值，并移除纯空 outer `try/finally`；向量汇编开关切换、backend 判定与 dataplane 快照断言保持不变 |
+| 3. 做定向 release 验证并收口 | completed | 已跑 `git diff --check`，并用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DataPlane` 验证；构建、测试与 leak check 均通过 |

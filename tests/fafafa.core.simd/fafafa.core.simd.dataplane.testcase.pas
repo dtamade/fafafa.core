@@ -196,43 +196,38 @@ var
   LFinal: PSimdDataPlane;
   LInitialBackend: TSimdBackend;
   LMiddleBackend: TSimdBackend;
-  LOldVectorAsm: Boolean;
 begin
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    ResetToAutomaticBackend;
-    LInitialBackend := GetCurrentBackend;
-    if LInitialBackend = sbScalar then
-      Exit;
+  SetVectorAsmEnabled(True);
+  ResetToAutomaticBackend;
+  LInitialBackend := GetCurrentBackend;
+  if LInitialBackend = sbScalar then
+    Exit;
 
-    LInitial := GetCurrentSimdDataPlane;
-    AssertNotNull('data-plane snapshot should be assigned before vector-asm round-trip test', LInitial);
-    AssertEquals('initial data-plane backend should match current backend before vector-asm round-trip test',
-      Ord(LInitialBackend), Ord(LInitial^.ActiveBackend));
+  LInitial := GetCurrentSimdDataPlane;
+  AssertNotNull('data-plane snapshot should be assigned before vector-asm round-trip test', LInitial);
+  AssertEquals('initial data-plane backend should match current backend before vector-asm round-trip test',
+    Ord(LInitialBackend), Ord(LInitial^.ActiveBackend));
 
-    SetVectorAsmEnabled(False);
-    LMiddleBackend := GetCurrentBackend;
-    LMiddle := GetCurrentSimdDataPlane;
-    AssertNotNull('data-plane snapshot should stay assigned after disabling vector asm', LMiddle);
+  SetVectorAsmEnabled(False);
+  LMiddleBackend := GetCurrentBackend;
+  LMiddle := GetCurrentSimdDataPlane;
+  AssertNotNull('data-plane snapshot should stay assigned after disabling vector asm', LMiddle);
 
-    if LMiddleBackend = LInitialBackend then
-      Exit;
+  if LMiddleBackend = LInitialBackend then
+    Exit;
 
-    AssertTrue('Disabling vector asm should publish a different data-plane snapshot for the fallback backend',
-      PtrUInt(LMiddle) <> PtrUInt(LInitial));
+  AssertTrue('Disabling vector asm should publish a different data-plane snapshot for the fallback backend',
+    PtrUInt(LMiddle) <> PtrUInt(LInitial));
 
-    SetVectorAsmEnabled(True);
-    LFinal := GetCurrentSimdDataPlane;
-    AssertNotNull('data-plane snapshot should stay assigned after re-enabling vector asm', LFinal);
+  SetVectorAsmEnabled(True);
+  LFinal := GetCurrentSimdDataPlane;
+  AssertNotNull('data-plane snapshot should stay assigned after re-enabling vector asm', LFinal);
 
-    AssertEquals('Re-enabling vector asm should restore the original automatic backend for data-plane',
-      Ord(LInitialBackend), Ord(LFinal^.ActiveBackend));
-    AssertTrue('Vector-asm round-trip should reuse the original published data-plane snapshot',
-      PtrUInt(LFinal) = PtrUInt(LInitial));
-  finally
-  end;
+  AssertEquals('Re-enabling vector asm should restore the original automatic backend for data-plane',
+    Ord(LInitialBackend), Ord(LFinal^.ActiveBackend));
+  AssertTrue('Vector-asm round-trip should reuse the original published data-plane snapshot',
+    PtrUInt(LFinal) = PtrUInt(LInitial));
 end;
 
 procedure TTestCase_DataPlane.Test_DataPlane_CompareMaskSnapshot_Follows_CurrentDispatchSemantics;
