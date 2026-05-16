@@ -3968,3 +3968,17 @@
 | 1. 复核这一串命中是否都还是“空壳 cleanup” | completed | 已复核 `1394..1815` 一带的 capability-bits 用例：它们都在 `TTestCase_PublicAbi` 下，流程只做 `SetVectorAsmEnabled(True/False)` + capability bit / representative slot 断言，没有 method-local restore；`LOldVectorAsm` 统一只赋值不读取，outer `finally` 统一为空 |
 | 2. 成组删除死变量与空 `finally` | completed | 已在 9 个 capability-bits 用例中删除未使用的 `LOldVectorAsm` 与纯空 outer `try/finally`：x86 shuffle/masked ops/always-on integer、AVX2 shuffle、AVX512 FMA/shuffle/vector-asm gated bits 等断言逻辑保持不变 |
 | 3. 继续用单 suite release 验证收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi` 验证；构建、测试与 leak check 均通过 |
+
+## 2026-05-16 PublicAbi NEON RISCVV Empty Finally Cleanup
+
+### Goal
+
+继续沿 `publicabi.testcase` 的 capability-bits 线往下推进，但只覆盖已证实和前两批同形态的 5 个 `NEON/RISCVV` 用例：删除未使用 `LOldVectorAsm` 与纯空 outer `try/finally`，不触碰后续真正带 restore 的 refresh/hook 逻辑。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 NEON/RISCVV 段里哪些还是同类冗余 | completed | 已逐段读 `1859..2108` 一带：`Clear_NEONVectorAsmGatedBits_WhenVectorAsmDisabled` 以及 4 个 `RISCVV` capability/gated-bits 用例都只做 vector-asm 开关与 capability bit/slot 断言；而后续 `Refreshes_WhenBackendBecomesNonDispatchable` 已带真实 `RegisterBackend` restore，明确排除 |
+| 2. 只清 5 个同类命中 | completed | 已在 `Clear_NEON...`、`Expose_RISCVVIntegerOps...`、`Expose_RISCVVFMA...`、`Expose_RISCVVShuffle...`、`Clear_RISCVVVectorAsmGatedBits...` 中删除未使用的 `LOldVectorAsm` 与纯空 outer `try/finally`；NEON/RISCVV capability 判定与 runtime rebuild 断言保持不变 |
+| 3. 继续用单 suite release 验证收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi` 验证；构建、测试与 leak check 均通过 |

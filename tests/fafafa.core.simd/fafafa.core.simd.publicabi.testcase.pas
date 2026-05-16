@@ -1859,71 +1859,61 @@ procedure TTestCase_PublicAbi.Test_PublicApi_BackendPodInfo_CapabilityBits_Clear
 var
   LNEONTable: TSimdDispatchTable;
   LInfo: TFafafaSimdBackendPodInfo;
-  LOldVectorAsm: Boolean;
 begin
   {$IFNDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
   Exit;
   {$ENDIF}
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    SetVectorAsmEnabled(False);
-    AssertFalse('Vector asm should be disabled for NEON public ABI rebuild test', IsVectorAsmEnabled);
-    AssertTrue('NEON backend should remain registered after runtime rebuild',
-      TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable));
-    AssertTrue('NEON backend pod info should remain queryable after runtime rebuild',
-      TryGetSimdBackendPodInfo(sbNEON, LInfo));
+  SetVectorAsmEnabled(True);
+  SetVectorAsmEnabled(False);
+  AssertFalse('Vector asm should be disabled for NEON public ABI rebuild test', IsVectorAsmEnabled);
+  AssertTrue('NEON backend should remain registered after runtime rebuild',
+    TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable));
+  AssertTrue('NEON backend pod info should remain queryable after runtime rebuild',
+    TryGetSimdBackendPodInfo(sbNEON, LInfo));
 
-    AssertTrue('Public ABI CapabilityBits should clear NEON scFMA when vector asm is disabled',
-      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scFMA))) = 0);
-    AssertTrue('Public ABI CapabilityBits should clear NEON scIntegerOps when vector asm is disabled',
-      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scIntegerOps))) = 0);
-    AssertTrue('Public ABI CapabilityBits should clear NEON scShuffle when vector asm is disabled',
-      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) = 0);
-  finally
-  end;
+  AssertTrue('Public ABI CapabilityBits should clear NEON scFMA when vector asm is disabled',
+    (LInfo.CapabilityBits and (UInt64(1) shl Ord(scFMA))) = 0);
+  AssertTrue('Public ABI CapabilityBits should clear NEON scIntegerOps when vector asm is disabled',
+    (LInfo.CapabilityBits and (UInt64(1) shl Ord(scIntegerOps))) = 0);
+  AssertTrue('Public ABI CapabilityBits should clear NEON scShuffle when vector asm is disabled',
+    (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) = 0);
 end;
 
 procedure TTestCase_PublicAbi.Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_RISCVVIntegerOps_WhenNativeSlotsPresent;
 var
   LRISCVVTable: TSimdDispatchTable;
   LInfo: TFafafaSimdBackendPodInfo;
-  LOldVectorAsm: Boolean;
 begin
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
 
-    {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
-    AssertTrue('RISCVV opt-in test registration should be present',
-      TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
-    AssertTrue('RISCVV opt-in public ABI pod info should be present',
-      TryGetSimdBackendPodInfo(sbRISCVV, LInfo));
-    {$ELSE}
-    if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
-      Exit;
-    if not TryGetSimdBackendPodInfo(sbRISCVV, LInfo) then
-      Exit;
-    {$ENDIF}
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+  AssertTrue('RISCVV opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+  AssertTrue('RISCVV opt-in public ABI pod info should be present',
+    TryGetSimdBackendPodInfo(sbRISCVV, LInfo));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
+    Exit;
+  if not TryGetSimdBackendPodInfo(sbRISCVV, LInfo) then
+    Exit;
+  {$ENDIF}
 
-    AssertTrue('RISCVV AddI32x4 should be assigned', Assigned(LRISCVVTable.AddI32x4));
-    AssertTrue('RISCVV AndI32x4 should be assigned', Assigned(LRISCVVTable.AndI32x4));
-    AssertTrue('RISCVV AddI64x2 should be assigned', Assigned(LRISCVVTable.AddI64x2));
+  AssertTrue('RISCVV AddI32x4 should be assigned', Assigned(LRISCVVTable.AddI32x4));
+  AssertTrue('RISCVV AndI32x4 should be assigned', Assigned(LRISCVVTable.AndI32x4));
+  AssertTrue('RISCVV AddI64x2 should be assigned', Assigned(LRISCVVTable.AddI64x2));
 
-    {$IFDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
-    AssertTrue('Public ABI CapabilityBits should expose RISCVV scIntegerOps when RVV asm-backed integer slots are compiled',
-      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scIntegerOps))) <> 0);
-    {$ELSE}
-    AssertTrue('Public ABI CapabilityBits should clear RISCVV scIntegerOps when only scalar/common fallback integer slots are compiled',
-      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scIntegerOps))) = 0);
-    {$ENDIF}
-  finally
-  end;
+  {$IFDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
+  AssertTrue('Public ABI CapabilityBits should expose RISCVV scIntegerOps when RVV asm-backed integer slots are compiled',
+    (LInfo.CapabilityBits and (UInt64(1) shl Ord(scIntegerOps))) <> 0);
+  {$ELSE}
+  AssertTrue('Public ABI CapabilityBits should clear RISCVV scIntegerOps when only scalar/common fallback integer slots are compiled',
+    (LInfo.CapabilityBits and (UInt64(1) shl Ord(scIntegerOps))) = 0);
+  {$ENDIF}
 end;
 
 procedure TTestCase_PublicAbi.Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_RISCVVFMA_WhenNativeSlotsPresent;
@@ -1931,118 +1921,103 @@ var
   LScalarTable: TSimdDispatchTable;
   LRISCVVTable: TSimdDispatchTable;
   LInfo: TFafafaSimdBackendPodInfo;
-  LOldVectorAsm: Boolean;
 begin
   AssertTrue('Scalar dispatch table should be registered',
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
 
-    {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
-    AssertTrue('RISCVV opt-in test registration should be present',
-      TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
-    AssertTrue('RISCVV opt-in public ABI pod info should be present',
-      TryGetSimdBackendPodInfo(sbRISCVV, LInfo));
-    {$ELSE}
-    if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
-      Exit;
-    if not TryGetSimdBackendPodInfo(sbRISCVV, LInfo) then
-      Exit;
-    {$ENDIF}
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+  AssertTrue('RISCVV opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+  AssertTrue('RISCVV opt-in public ABI pod info should be present',
+    TryGetSimdBackendPodInfo(sbRISCVV, LInfo));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
+    Exit;
+  if not TryGetSimdBackendPodInfo(sbRISCVV, LInfo) then
+    Exit;
+  {$ENDIF}
 
-    if (Pointer(LRISCVVTable.FmaF32x4) = Pointer(LScalarTable.FmaF32x4)) and
-       (Pointer(LRISCVVTable.FmaF32x8) = Pointer(LScalarTable.FmaF32x8)) and
-       (Pointer(LRISCVVTable.FmaF64x2) = Pointer(LScalarTable.FmaF64x2)) and
-       (Pointer(LRISCVVTable.FmaF64x4) = Pointer(LScalarTable.FmaF64x4)) and
-       (Pointer(LRISCVVTable.FmaF32x16) = Pointer(LScalarTable.FmaF32x16)) and
-       (Pointer(LRISCVVTable.FmaF64x8) = Pointer(LScalarTable.FmaF64x8)) then
-      Exit;
+  if (Pointer(LRISCVVTable.FmaF32x4) = Pointer(LScalarTable.FmaF32x4)) and
+     (Pointer(LRISCVVTable.FmaF32x8) = Pointer(LScalarTable.FmaF32x8)) and
+     (Pointer(LRISCVVTable.FmaF64x2) = Pointer(LScalarTable.FmaF64x2)) and
+     (Pointer(LRISCVVTable.FmaF64x4) = Pointer(LScalarTable.FmaF64x4)) and
+     (Pointer(LRISCVVTable.FmaF32x16) = Pointer(LScalarTable.FmaF32x16)) and
+     (Pointer(LRISCVVTable.FmaF64x8) = Pointer(LScalarTable.FmaF64x8)) then
+    Exit;
 
-    {$IFDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
-    AssertTrue('Public ABI CapabilityBits should expose RISCVV scFMA when RVV asm-backed representative FMA slots are non-scalar',
-      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scFMA))) <> 0);
-    {$ELSE}
-    AssertTrue('Public ABI CapabilityBits should clear RISCVV scFMA when only scalar fallback FMA slots are compiled',
-      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scFMA))) = 0);
-    {$ENDIF}
-  finally
-  end;
+  {$IFDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
+  AssertTrue('Public ABI CapabilityBits should expose RISCVV scFMA when RVV asm-backed representative FMA slots are non-scalar',
+    (LInfo.CapabilityBits and (UInt64(1) shl Ord(scFMA))) <> 0);
+  {$ELSE}
+  AssertTrue('Public ABI CapabilityBits should clear RISCVV scFMA when only scalar fallback FMA slots are compiled',
+    (LInfo.CapabilityBits and (UInt64(1) shl Ord(scFMA))) = 0);
+  {$ENDIF}
 end;
 
 procedure TTestCase_PublicAbi.Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_RISCVVShuffle_WhenNativeSlotsPresent;
 var
   LRISCVVTable: TSimdDispatchTable;
   LInfo: TFafafaSimdBackendPodInfo;
-  LOldVectorAsm: Boolean;
 begin
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
 
-    {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
-    AssertTrue('RISCVV opt-in test registration should be present',
-      TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
-    AssertTrue('RISCVV opt-in public ABI pod info should be present',
-      TryGetSimdBackendPodInfo(sbRISCVV, LInfo));
-    {$ELSE}
-    if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
-      Exit;
-    if not TryGetSimdBackendPodInfo(sbRISCVV, LInfo) then
-      Exit;
-    {$ENDIF}
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+  AssertTrue('RISCVV opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+  AssertTrue('RISCVV opt-in public ABI pod info should be present',
+    TryGetSimdBackendPodInfo(sbRISCVV, LInfo));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
+    Exit;
+  if not TryGetSimdBackendPodInfo(sbRISCVV, LInfo) then
+    Exit;
+  {$ENDIF}
 
-    AssertTrue('RISCVV SelectF32x4 should be assigned', Assigned(LRISCVVTable.SelectF32x4));
-    AssertTrue('RISCVV InsertF32x4 should be assigned', Assigned(LRISCVVTable.InsertF32x4));
-    AssertTrue('RISCVV ExtractF32x4 should be assigned', Assigned(LRISCVVTable.ExtractF32x4));
+  AssertTrue('RISCVV SelectF32x4 should be assigned', Assigned(LRISCVVTable.SelectF32x4));
+  AssertTrue('RISCVV InsertF32x4 should be assigned', Assigned(LRISCVVTable.InsertF32x4));
+  AssertTrue('RISCVV ExtractF32x4 should be assigned', Assigned(LRISCVVTable.ExtractF32x4));
 
-    {$IFDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
-    AssertTrue('Public ABI CapabilityBits should expose RISCVV scShuffle when RVV asm-backed representative shuffle slots are compiled',
-      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) <> 0);
-    {$ELSE}
-    AssertTrue('Public ABI CapabilityBits should clear RISCVV scShuffle when only scalar/common fallback shuffle slots are compiled',
-      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) = 0);
-    {$ENDIF}
-  finally
-  end;
+  {$IFDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
+  AssertTrue('Public ABI CapabilityBits should expose RISCVV scShuffle when RVV asm-backed representative shuffle slots are compiled',
+    (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) <> 0);
+  {$ELSE}
+  AssertTrue('Public ABI CapabilityBits should clear RISCVV scShuffle when only scalar/common fallback shuffle slots are compiled',
+    (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) = 0);
+  {$ENDIF}
 end;
 
 procedure TTestCase_PublicAbi.Test_PublicApi_BackendPodInfo_CapabilityBits_Clear_RISCVVVectorAsmGatedBits_WhenVectorAsmDisabled;
 var
   LRISCVVTable: TSimdDispatchTable;
   LInfo: TFafafaSimdBackendPodInfo;
-  LOldVectorAsm: Boolean;
 begin
   {$IFNDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
   Exit;
   {$ENDIF}
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    SetVectorAsmEnabled(False);
-    AssertFalse('Vector asm should be disabled for RISCVV public ABI rebuild test', IsVectorAsmEnabled);
-    AssertTrue('RISCVV backend should remain registered after runtime rebuild',
-      TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
-    AssertTrue('RISCVV backend pod info should remain queryable after runtime rebuild',
-      TryGetSimdBackendPodInfo(sbRISCVV, LInfo));
+  SetVectorAsmEnabled(True);
+  SetVectorAsmEnabled(False);
+  AssertFalse('Vector asm should be disabled for RISCVV public ABI rebuild test', IsVectorAsmEnabled);
+  AssertTrue('RISCVV backend should remain registered after runtime rebuild',
+    TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+  AssertTrue('RISCVV backend pod info should remain queryable after runtime rebuild',
+    TryGetSimdBackendPodInfo(sbRISCVV, LInfo));
 
-    AssertTrue('Public ABI CapabilityBits should clear RISCVV scFMA when vector asm is disabled',
-      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scFMA))) = 0);
-    AssertTrue('Public ABI CapabilityBits should clear RISCVV scIntegerOps when vector asm is disabled',
-      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scIntegerOps))) = 0);
-    AssertTrue('Public ABI CapabilityBits should clear RISCVV scShuffle when vector asm is disabled',
-      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) = 0);
-  finally
-  end;
+  AssertTrue('Public ABI CapabilityBits should clear RISCVV scFMA when vector asm is disabled',
+    (LInfo.CapabilityBits and (UInt64(1) shl Ord(scFMA))) = 0);
+  AssertTrue('Public ABI CapabilityBits should clear RISCVV scIntegerOps when vector asm is disabled',
+    (LInfo.CapabilityBits and (UInt64(1) shl Ord(scIntegerOps))) = 0);
+  AssertTrue('Public ABI CapabilityBits should clear RISCVV scShuffle when vector asm is disabled',
+    (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) = 0);
 end;
 
 procedure TTestCase_PublicAbi.Test_PublicApi_BackendPodInfo_Refreshes_WhenBackendBecomesNonDispatchable;

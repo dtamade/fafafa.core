@@ -5818,3 +5818,36 @@
 - 当前阶段结论：
   - 这批依然是纯测试层冗余清理，没有改 public ABI 发布逻辑或 SIMD 生产实现
   - `publicabi` 前部 capability-bits 簇里最整齐的一段“死状态捕获 + 空 finally”已经收掉；后续如果继续深审同文件，优先级应继续沿“前部简单语义段”往下，而不是立刻切到 hook/rollback 段
+
+## 2026-05-16 PublicAbi NEON RISCVV Empty Finally Cleanup
+
+- 这轮继续沿同一文件、同一条 capability-bits 冗余线往下推进，但没有把后续整段一起扫掉，而是先按语义分层。
+- fresh 复核后，这一段里真正和前两批同类的只有 5 个用例：
+  - `Test_PublicApi_BackendPodInfo_CapabilityBits_Clear_NEONVectorAsmGatedBits_WhenVectorAsmDisabled`
+  - `Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_RISCVVIntegerOps_WhenNativeSlotsPresent`
+  - `Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_RISCVVFMA_WhenNativeSlotsPresent`
+  - `Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_RISCVVShuffle_WhenNativeSlotsPresent`
+  - `Test_PublicApi_BackendPodInfo_CapabilityBits_Clear_RISCVVVectorAsmGatedBits_WhenVectorAsmDisabled`
+- 它们共同满足的安全前提依旧成立：
+  - 仍处于 `TTestCase_PublicAbi = class(TSimdVectorAsmStatefulTestCase)` 下
+  - `TearDown` 继续统一恢复 vector-asm/backend 状态
+  - 方法体只做 capability bit / representative slot / runtime rebuild 断言
+  - `LOldVectorAsm` 统一只赋值不读取，outer `finally` 统一为空
+- 同时也明确识别了边界：
+  - 紧随其后的 `Test_PublicApi_BackendPodInfo_Refreshes_WhenBackendBecomesNonDispatchable`
+  - 外层 `try/finally` 虽也存在，但内部有真实 `RegisterBackend(LOriginalBackend, LOriginalTable)` restore 链
+  - 所以这一轮明确不碰它
+- 本轮已完成的源码收口：
+  - 删除上述 5 个用例中的 `LOldVectorAsm` 局部变量与赋值
+  - 删除对应纯空 outer `try/finally`
+  - 保留 NEON/RISCVV capability 判定、runtime rebuild 路径与 backend 查询断言不变
+- fresh 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+- fresh 结果：
+  - `[BUILD] OK`
+  - `[TEST] OK`
+  - `[LEAK] OK`
+- 当前阶段结论：
+  - 这批仍然是纯测试层冗余清理，没有改 public ABI 发布逻辑或 SIMD 生产实现
+  - `publicabi` capability-bits 段里 NEON/RISCVV 这组同形态“死状态捕获 + 空 finally”也已经收掉；后续继续深审同文件时，下一步要更谨慎地区分“空 finally”与“包着真实 restore 的 finally”

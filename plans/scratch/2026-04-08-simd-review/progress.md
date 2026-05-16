@@ -6890,3 +6890,28 @@
 - 当前阶段结论：
   - 这批已经形成完整小闭环，可以直接提交
   - 当前节奏依然正确：在一个已读透的文件段内连续收掉同形态冗余，比重新扫别的大文件更高效
+
+## 2026-05-16 PublicAbi NEON RISCVV Empty Finally Cleanup
+
+- 这一批继续保持“同文件、同验证链、只收同类命中”的节奏，没有重新打开别的 suite。
+- 候选筛选过程：
+  - 继续读取 `publicabi.testcase` 的 capability-bits 后续区段
+  - 用语义而不是命中数量分层：只保留 5 个 `NEON/RISCVV` 同类命中，明确跳过后续带真实 `RegisterBackend` restore 的 refresh 测试
+- 已完成的源码改动：
+  - 文件：`tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas`
+  - 删除 5 个 `NEON/RISCVV` 用例中的未使用 `LOldVectorAsm`
+  - 删除这些用例的纯空 outer `try/finally`
+- 安全依据：
+  - `TTestCase_PublicAbi` 仍由 `TSimdVectorAsmStatefulTestCase.TearDown` 统一恢复状态
+  - 本批用例只做 capability bit / runtime rebuild 断言
+  - 后续真正带 restore 的测试已被显式排除在本批之外
+- 本轮验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+- fresh 结果：
+  - `[BUILD] OK`
+  - `[TEST] OK`
+  - `[LEAK] OK`
+- 当前阶段结论：
+  - 这批已经形成完整小闭环，可以直接提交
+  - 当前工作法继续有效：先分出“真正空壳 cleanup”和“包着真实 restore 的 finally”，再动手，效率和安全性都更高
