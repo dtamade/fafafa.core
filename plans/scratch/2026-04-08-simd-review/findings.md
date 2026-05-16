@@ -5884,3 +5884,35 @@
 - 当前阶段结论：
   - 这批依旧是纯测试层冗余清理，没有改 public ABI 发布逻辑或 SIMD 生产实现
   - 现在 `publicabi` 中最危险的误判点已经从“空 finally”本身转成“外层 finally 是否还承担条件 restore”；后续继续深审时必须沿这个边界做
+
+## 2026-05-16 PublicAbi Automatic Restore Empty Finally Cleanup
+
+- 这轮继续沿 `publicabi.testcase` 向后推进，但只拿 automatic backend / vector-asm late-force 这一小组开刀，没有把后面更复杂的 previous-forced preserve 路径一起带上。
+- fresh 复核后，这一组里 5 个方法仍然满足同样的高确定性冗余模式：
+  - `Test_PublicApi_ResetToAutomaticBackend_HookLateForce_Restores_AutomaticBackend`
+  - `Test_PublicApi_Refreshes_WhenVectorAsmDisabled_ReSelects_Away_From_ScalarBacked_CurrentBackend`
+  - `Test_PublicApi_ResetToAutomaticBackend_HookLateForce_DuringRestore_Restores_AutomaticBackend`
+  - `Test_PublicApi_SetVectorAsmEnabled_HookLateForce_Restores_AutomaticBackend`
+  - `Test_PublicApi_SetVectorAsmEnabled_HookLateForce_DuringRestore_Restores_AutomaticBackend`
+- 这 5 个点可安全清理的依据：
+  - `LOldVectorAsm := IsVectorAsmEnabled` 后没有任何读取
+  - 外层 `finally` 为空
+  - 真正的 hook remove / flag reset 仍在内层 `finally`
+  - 剩余 vector-asm/backend 状态仍由 `TSimdVectorAsmStatefulTestCase.TearDown` 和 `TSimdBackendStatefulTestCase.TearDown` 统一恢复
+- 这轮也继续保持边界意识：
+  - 没有把后面 `SetVectorAsmEnabled_HookLateAutomaticReset_Preserves_PreviousForcedBackend` 及同族 previous-forced preserve 测试一起带上
+  - 那一串虽然形态相似，但语义上更强调“保留先前强制后端”的稳定性路径，适合单独分层再处理
+- 本轮已完成的源码收口：
+  - 删除上述 5 个方法中的 `LOldVectorAsm` 局部变量与赋值
+  - 删除对应纯空 outer `try/finally`
+  - 保留 automatic backend、scalar precondition、dispatch hook cleanup、public ABI active-backend 断言不变
+- fresh 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+- fresh 结果：
+  - `[BUILD] OK`
+  - `[TEST] OK`
+  - `[LEAK] OK`
+- 当前阶段结论：
+  - 这批依旧是纯测试层冗余清理，没有改 public ABI 发布逻辑或 SIMD 生产实现
+  - `publicabi` 后半段里 automatic/vector-asm late-force 这一组同形态空壳 cleanup 也已收掉；后续继续深审时，最值得看的下一层就是 previous-forced preserve 那串是否也能按同一边界安全拆分

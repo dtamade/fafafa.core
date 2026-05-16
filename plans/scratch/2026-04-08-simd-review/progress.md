@@ -6941,3 +6941,29 @@
 - 当前阶段结论：
   - 这批已经形成完整小闭环，可以直接提交
   - 当前方法继续证明有效：先用语义分层切掉高风险命中，再收同类空壳 cleanup，避免误删真实 restore
+
+## 2026-05-16 PublicAbi Automatic Restore Empty Finally Cleanup
+
+- 这一批继续在 `publicabi.testcase` 单文件内推进，没有改验证路径，也没有切换到其他 suite。
+- 候选筛选过程：
+  - 先读 `2946..3201` 一带完整方法体
+  - 只保留 automatic/vector-asm late-force 这组“外层 finally 为空、内层 finally 已承担 hook cleanup”的方法
+  - 明确把 previous-forced preserve 那串留到下一轮再单独分层
+- 已完成的源码改动：
+  - 文件：`tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas`
+  - 清理 5 个 automatic/vector-asm late-force 方法中的未使用 `LOldVectorAsm`
+  - 删除这 5 个方法的纯空 outer `try/finally`
+- 安全依据：
+  - 本批方法的真实 hook remove / flag reset 仍在内层 finally
+  - 其余状态恢复仍由基类 `TearDown` 统一负责
+  - 语义更重的 previous-forced preserve 路径已被显式排除
+- 本轮验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+- fresh 结果：
+  - `[BUILD] OK`
+  - `[TEST] OK`
+  - `[LEAK] OK`
+- 当前阶段结论：
+  - 这批已经形成完整小闭环，可以直接提交
+  - 当前工作法继续有效：保持同一文件、同一 suite、同一语义边界，推进速度和安全性都更稳

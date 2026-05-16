@@ -3996,3 +3996,17 @@
 | 1. 给后续命中做语义分层 | completed | 已复核 `2091..2403` 一带：`ActiveBackendId_Tracks_RegisterSlot_After_ReRegister`、`StableState_Tracks_CurrentBackend_After_ControlPlaneSwitches`、`ActiveBackendId_Tracks_FinalState_When_HookReRegister_Overrides_ForcedSelection`、`FailedHookMutation_Restores_AutomaticBackend_Immediately` 都满足“`LOldVectorAsm` 无读取 + outer finally 为空 + 真正 restore 在内层 finally 或 TearDown”；而 `FailedHookMutation_DoesNotRevive...` / `Restores_PreviousForcedBackend` 这类外层 finally 自带条件 restore，明确排除 |
 | 2. 只清 4 个高确定性命中 | completed | 已在上述 4 个方法中删除未使用的 `LOldVectorAsm` 与纯空 outer `try/finally`；identity re-register、stable-state、failed-hook automatic restore 的实际 backend/hook restore 逻辑保持不变 |
 | 3. 继续用单 suite release 验证收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi` 验证；构建、测试与 leak check 均通过 |
+
+## 2026-05-16 PublicAbi Automatic Restore Empty Finally Cleanup
+
+### Goal
+
+继续在 `publicabi.testcase` 后半段清理一组 automatic-backend / vector-asm late-force 同类空壳 cleanup，只覆盖外层 `finally` 为空、真实 hook cleanup 已由内层 finally 承担的方法；不碰更后面“previous forced backend preserve”那串语义更重的路径。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 automatic/vector-asm late-force 组的语义边界 | completed | 已复核 `2946..3201` 一带：`ResetToAutomaticBackend_HookLateForce_Restores_AutomaticBackend`、`Refreshes_WhenVectorAsmDisabled_ReSelects_Away_From_ScalarBacked_CurrentBackend`、`ResetToAutomaticBackend_HookLateForce_DuringRestore_Restores_AutomaticBackend`、`SetVectorAsmEnabled_HookLateForce_Restores_AutomaticBackend`、`SetVectorAsmEnabled_HookLateForce_DuringRestore_Restores_AutomaticBackend` 都满足“`LOldVectorAsm` 无读取 + outer finally 为空 + 真正 hook cleanup 在内层 finally 或由 TearDown 统一恢复”；而更后面的 previous-forced preserve 路径先不碰 |
+| 2. 只清 5 个同类命中 | completed | 已在上述 5 个方法中删除未使用的 `LOldVectorAsm` 与纯空 outer `try/finally`；automatic best backend、scalar force、dispatch hook remove/reset 的实际收尾逻辑保持不变 |
+| 3. 继续用单 suite release 验证收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi` 验证；构建、测试与 leak check 均通过 |
