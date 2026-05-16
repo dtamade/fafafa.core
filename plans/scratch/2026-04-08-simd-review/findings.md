@@ -5664,3 +5664,15 @@
 - 当前最准确的阶段结论：
   - runner parity 这条线现在已经真正收到了“只剩 alias，不剩隐藏特例”的状态
   - 后续若继续审 `simd` runner，更值得看的将不是 dispatch 表，而是 Windows alias 是否还要长期保留双名字入口
+
+## 2026-05-16 Runner Parity Quick Path
+
+- 当前剩余的 `evidence-win` / `evidence-win-verify` 不是“忘删的 drift action”，而是仓库显式允许的 `Windows-only` native evidence alias：
+  - `tests/fafafa.core.simd/BuildOrTest.sh` 的 `check_windows_runner_parity()` 已把它们放进 `LAllowedWindowsOnly`
+  - runbook / checklist / freeze evaluator / closeout helper 仍真实引用这两条入口
+- 因而这条线的真实问题已经不再是“删 alias”，而是“证明 runner parity 没坏的成本过高”：
+  - 之前每次改 batch/shell dispatch/help，都要借道 `BuildOrTest.sh check` 大链顺带跑到 parity guard
+  - 这会把一个 source-safe 静态问题，拖成一次耗时的 release-style 验证
+- 本轮修法应是补轻量入口，而不是继续扩大 alias 面或重跑大链：
+  - 新增 `runner-parity` 后，后续 runner 批次可以直接用它证明 shell/batch/cpuinfo parity
+  - `evidence-win` / `evidence-win-verify` 继续保留为有意的 Windows-only alias，不再把它们当成待消灭的差集

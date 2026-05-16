@@ -3856,3 +3856,17 @@
 | 1. 确认剩余差集已收敛到内联特例 | completed | fresh action diff 证明，在上一批后 runner 剩余 shell-only 已只剩 `debug`、`release`、`verify-win-evidence` 这类 batch 内联控制流，而 batch-only 只剩 Windows alias `evidence-win`；这说明继续补 action 表已没意义，真正剩下的是 dispatch 结构标准化 |
 | 2. 把内联分支改成显式 label，并同步 parity required pattern | completed | 已在 `tests/fafafa.core.simd/buildOrTest.bat` 把 `debug`、`release`、`verify-win-evidence`、`evidence-win-verify` 改为 `goto :debug_action / :release_action / :verify_win_evidence / :evidence_win_verify`，并把原逻辑迁到显式 label；已在 `tests/fafafa.core.simd/BuildOrTest.sh` 的 `check_windows_runner_parity()` required pattern 中同步改成新 dispatch 线并补 label/script variable 线索 |
 | 3. 用差集脚本与 Release `check` 验证“只剩 alias” | completed | 已跑 `git diff --check`、`bash -n tests/fafafa.core.simd/BuildOrTest.sh`、fresh action diff、`FAFAFA_BUILD_MODE=Release SIMD_CHECK_NONX86_OPTIN=0 bash tests/fafafa.core.simd/BuildOrTest.sh check`；结果已收缩到 `remaining shell_only: []`、`remaining batch_only: ['evidence-win', 'evidence-win-verify']`，且 Release `check` 继续通过 |
+
+## 2026-05-16 Runner Parity Quick Path
+
+### Goal
+
+把 runner 相关批次从“每次都要借道 `BuildOrTest.sh check` 才能证明 action parity 没坏”收紧成一个专用轻量入口，避免后续继续在这条线上反复跑大链。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核剩余问题是否真在 action namespace，而不是功能逻辑 | completed | 已确认正式 `check_windows_runner_parity()` / `check_cpuinfo_runner_parity()` 本来就能静态证明当前 shell/batch 与 cpuinfo runner 的 dispatch/help/guard 口径；真正低效点是这些证明只能挂在 `BuildOrTest.sh check` 大链里顺带执行 |
+| 2. 暴露专用 `runner-parity` 轻量入口并接通 batch 代理 | completed | 已在 `tests/fafafa.core.simd/BuildOrTest.sh` 新增 `runner-parity` action，专门调用 `check_windows_runner_parity()` 与 `check_cpuinfo_runner_parity()`；同时在 `tests/fafafa.core.simd/buildOrTest.bat` 新增同名 wrapper，经 `bash %ROOT%BuildOrTest.sh runner-parity` 代理执行，并同步补齐 shell/batch usage/help/parity required pattern |
+| 3. 用轻量验证证明以后无需再借道大链 | completed | 已跑 `git diff --check`、`bash -n tests/fafafa.core.simd/BuildOrTest.sh`、fresh action diff、`bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity`；结果为 `remaining shell_only: []`、`remaining batch_only: ['evidence-win', 'evidence-win-verify']`，且输出同时给出 `windows runner parity signatures present`、`cpuinfo runner parity signatures present`、`runner parity quick path` |

@@ -6669,3 +6669,35 @@
 - 当前阶段结论：
   - runner parity 现在已经真正进入“只剩 Windows alias”的状态
   - 如果还继续深审这条线，下一步应该判断 `evidence-win` / `evidence-win-verify` 是否值得长期保留为 alias，而不是继续改 dispatch 结构
+
+## 2026-05-16 Runner Parity Quick Path
+
+- 先回到仓库现状核对后，确认当前工作树在这条线上的上一批改动已经落进 `HEAD`，不能再假设还有“未提交 runner parity 补丁”。
+- 按改进后的工作法，这次没有再拿 `BuildOrTest.sh check` 做顺带证明，而是先确认真实问题：
+  - fresh action diff 仍是 `remaining shell_only: []`
+  - `remaining batch_only: ['evidence-win', 'evidence-win-verify']`
+  - 但 `BuildOrTest.sh` 的 `check_windows_runner_parity()` 已明确把它们视作 `LAllowedWindowsOnly`
+  - `windows_b07_closeout_runbook.md`、`simd_release_candidate_checklist.md`、`evaluate_simd_freeze_status.py`、`print_windows_b07_closeout_3cmd.sh`、`apply_windows_b07_closeout_updates.sh` 也都还在真实消费
+- 因而本轮没有去删除 alias，而是补一个真正能提速的轻量入口：
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - 新增 `runner-parity)` case
+    - 新增 `run_runner_parity()`，只执行 `check_windows_runner_parity()` 与 `check_cpuinfo_runner_parity()`
+    - 同步把 usage/help 补入 `runner-parity`
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+    - 新增顶部 dispatch：`if /I "%ACTION%"=="runner-parity" goto :runner_parity`
+    - 新增 `:runner_parity` wrapper，经 `bash %ROOT%BuildOrTest.sh runner-parity` 代理执行
+    - 同步补齐 usage/help
+- 本轮轻量验证链：
+  - `git diff --check`
+  - `bash -n tests/fafafa.core.simd/BuildOrTest.sh`
+  - fresh action diff
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity`
+- fresh 结果：
+  - `remaining shell_only: []`
+  - `remaining batch_only: ['evidence-win', 'evidence-win-verify']`
+  - `[CHECK] OK (windows runner parity signatures present)`
+  - `[CHECK] OK (cpuinfo runner parity signatures present)`
+  - `[CHECK] OK (runner parity quick path)`
+- 当前阶段结论：
+  - 这批没有改 SIMD 功能逻辑，而是把 runner parity 证明从 `check` 大链里拆成了一个专用 fast path
+  - `evidence-win` / `evidence-win-verify` 继续保留为有意的 Windows-only alias；以后审这条线应优先跑 `runner-parity`，而不是再拿大链做静态问题的证明
