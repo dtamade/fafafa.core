@@ -6295,3 +6295,34 @@
 - 这继续强化当前准则：
   - 即使测试主题切到更长的 compare-mask、bitwise-shift 和 wide integer arithmetic/minmax parity，只要 outer `finally` 不承担真实恢复职责，就仍然可以按同一 fail-close 规则剥掉机械空壳
   - 任何显式状态回滚（这里是 `RandSeed`）都必须继续视为真实职责，而不是“样板代码”
+
+## 2026-05-16 Completion Audit Reset Findings
+
+- 本轮 completion audit 复核后，`dispatchapi.testcase` 继续机械扫空壳 `finally` 的收益已经很低：
+  - `17092..19067` 是这条线最后一批高确定性命中
+  - `WideInteger_FuzzSeed` 的真实 `RandSeed` restore 已明确保留
+  - 同文件后续已没有值得继续靠这条线机械推进的新残点
+- 当前真实绿态已经足够说明 SIMD 主实现和非 x86 checker 基本稳定：
+  - `git diff --check`
+  - Release `TTestCase_DispatchAPI`
+  - `check_nonx86_register_truthfulness.py --backend neon --summary-line --strict`
+  - `check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+  - `check_nonx86_key_slot_audit.py`
+  - `check_nonx86_helper_semantics.py`
+  - `check_nonx86_wiring_sync.py`
+  - Release `check`
+- 这轮 closeout 继续验证后，Linux 侧的真实剩余点已经被补平：
+  - `qemu-cpuinfo-nonx86-evidence` 首次失败并不是 SIMD 代码或脚本语义问题，而是 Docker socket 权限不足
+  - 提权后同一动作在 `linux/arm/v7`、`linux/arm64`、`linux/riscv64` 全平台 PASS
+  - 再按 `freeze-status` 官方 next-action 重跑 canonical `gate` 后，`linux_gate_required_steps_mainline` 与 `linux_qemu_cpuinfo_nonx86_evidence` 都已转绿
+- 最新 `freeze-status` 已把问题压缩成纯 Windows evidence closeout：
+  - `ready=False`
+  - `mainline-ready=False`
+  - `cross-ready=False`
+  - `cross_gate_required_steps` 现在只剩 `evidence-verify=FAIL`
+  - 红点全部收敛到旧 `windows_b07_gate.log` / `windows_b07_closeout_summary.md` 的 freshness、source-newer-than-evidence 与 verify
+- `win-evidence-preflight` 当前返回 `STATUS=PASS CODE=OK EXIT=0`，说明当前并不是 workflow 入口、账单预检或最近失败 run 在阻塞。
+- 当前 GH Windows evidence 的真实挡板已经进一步缩小为本地 hygiene：
+  - `win-evidence-via-gh SIMD-20260516-152` 被脚本主动拒绝
+  - 原因是 `Refuse dispatch: local worktree has uncommitted changes.`
+  - 也就是说，下一步不该再盲修 SIMD，而是先把这轮 scratch 更新和 `__pycache__` 生成物清干净、提交，然后重试 GH dispatch

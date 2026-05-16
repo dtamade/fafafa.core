@@ -4306,3 +4306,19 @@
 | 1. 复核 `17092..19067` 候选簇的真实边界 | completed | 已逐段复核 `Test_WideInteger_FuzzSeed_Parity_IfAvailable` 到 `Test_WideIntegerArithmeticMinMaxParity_IfAvailable`：`WideInteger_FuzzSeed` 的 `finally` 会恢复 `RandSeed`，属于真实状态清理，必须跳过；其后的 `WideCompareMaskParity`、`I32x4_BitwiseShiftParity`、`WideSignedBitwiseShiftParity`、`WideIntegerArithmeticMinMaxParity` 都只做 backend 注册/激活筛选、compare/mask/shift/minmax parity 与 facade/helper 断言，outer `finally` 完全为空，没有任何 restore、hook cleanup 或资源释放 |
 | 2. 只收这一簇高确定性命中 | completed | 已在 `WideCompareMaskParity`、`I32x4_BitwiseShiftParity`、`WideSignedBitwiseShiftParity`、`WideIntegerArithmeticMinMaxParity` 中删除纯空 outer `try/finally`；同时补回 `WideInteger_FuzzSeed` 包裹 `RandSeed` restore 的真实 outer `try`，保留所有 compare/mask helper、exact shift probe、lane contract 与 arithmetic/minmax 断言不变 |
 | 3. 用单 suite release 复验收口 | completed | `git diff --check` 已通过；`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 已绿，结果为 `[BUILD] OK`、`[TEST] OK`、`[LEAK] OK` |
+
+## 2026-05-16 Completion Audit Reset
+
+### Goal
+
+停止继续机械扫描 `dispatchapi.testcase` 的空壳 `finally`，切回真正决定 `freeze-status` 的 closeout/evidence 路径，只做小闭环、高确定性的收口动作。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 对齐当前真实 stop-point | completed | 已确认 `dispatchapi.testcase` 最后一批 `17092..19067` 已收口，`WideInteger_FuzzSeed` 的真实 `RandSeed` restore 已保住；继续沿这条线机械删空壳的价值已经很低 |
+| 2. 回写当前 completion-audit 真状态 | completed | 已确认这轮真实绿态是：`git diff --check`、Release `TTestCase_DispatchAPI`、`check_nonx86_register_truthfulness.py --backend neon/riscvv --strict`、`check_nonx86_key_slot_audit.py`、`check_nonx86_helper_semantics.py`、`check_nonx86_wiring_sync.py`、Release `check`；当前真实红态来自 `freeze-status` |
+| 3. 串行验证本地可推进 blocker | completed | `qemu-cpuinfo-nonx86-evidence` 已验证：未提权时失败于 Docker socket 权限；提权后 `linux/arm/v7`、`linux/arm64`、`linux/riscv64` 全平台 PASS。随后按 `freeze-status` next-action 重跑 canonical `gate`，Linux mainline-required steps 已全部转绿 |
+| 4. 复核 Windows evidence 是否仍为外部阻塞 | completed | `win-evidence-preflight` 当前返回 `STATUS=PASS CODE=OK EXIT=0`，说明 workflow 入口本身当前可用；`freeze-status` 现只剩旧 `windows_b07_gate.log` freshness / verify / closeout freshness 红态 |
+| 5. 清理工作树并重试 GH Windows evidence | in_progress | `win-evidence-via-gh SIMD-20260516-152` 当前不是被平台拒绝，而是被本地脚本 fail-close：`Refuse dispatch: local worktree has uncommitted changes.`；下一步先清掉本轮 scratch 与 `__pycache__` 脏状态并提交，再重试 dispatch |

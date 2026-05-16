@@ -7477,3 +7477,49 @@
   - 首次 release 复验失败，`tests/fafafa.core.simd/logs/build.txt` 报 `fafafa.core.simd.dispatchapi.testcase.pas(17085,5) Fatal: (2003) Syntax error, "EXCEPT" expected but "END" found`；根因是补回 `FuzzSeed` outer `try` 时多留了一个 `end;`
   - 删除多余 `end;` 后再次执行固定最小验证，`git diff --check` 通过，且 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 返回 `[BUILD] OK`、`[TEST] OK`、`[LEAK] OK`
   - 当前下一步若继续，应从 `19069` 之后的收尾区域重新确认是否还存在同级空壳；若没有，就需要重新换一个更高价值入口，而不是机械扫尾
+
+## 2026-05-16 Completion Audit Reset
+
+- 接手上一轮后，先停止继续扫 `dispatchapi.testcase` 的空壳 `finally`，改按真正的 release closeout 判据收口。
+- 当前工作树真实状态复核：
+  - `git status --short --branch` 为 `## main...origin/main [ahead 257]`
+  - 额外出现了一个未跟踪生成物：`tests/fafafa.core.simd/__pycache__/`
+- 先对齐了当前 high-signal 证据：
+  - `git diff --check`
+  - Release `TTestCase_DispatchAPI`
+  - `check_nonx86_register_truthfulness.py --backend neon --summary-line --strict`
+  - `check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+  - `check_nonx86_key_slot_audit.py`
+  - `check_nonx86_helper_semantics.py`
+  - `check_nonx86_wiring_sync.py`
+  - Release `check`
+  - 结果都已是绿
+- 随后回到 `freeze-status` 真判据，当前剩余红点被重新压缩为两类：
+  - Linux/QEMU 侧：`qemu-cpuinfo-nonx86-evidence=SKIP`
+  - Windows closeout 侧：freshness / source-newer-than-evidence / verify / closeout freshness
+- 这意味着当前更真实的 stop-point 已经不是“继续扫源码冗余”，而是：
+  - 先跑 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh qemu-cpuinfo-nonx86-evidence`
+  - 再跑 `bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`
+  - 如果 Windows 仍是外部阻塞，就按 blocker 收口，不再继续本地盲修
+
+- 按这个小闭环继续向前推进后，最新实证已经进一步收口：
+  - 首次直接跑 `qemu-cpuinfo-nonx86-evidence` 时，`linux/arm/v7`、`linux/arm64`、`linux/riscv64` 都在 Docker API 处 `permission denied`
+  - 这一步确认 Linux blocker 不是 SIMD 代码回归，而是本地 Docker 权限
+  - 申请提权后，同一条 `qemu-cpuinfo-nonx86-evidence` 在 3 个平台上全部 PASS
+- 为了把这份 QEMU 证据写回 canonical `gate_summary.md`，随后按 `freeze-status` 给出的官方命令重跑了：
+  - `FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：主链 gate steps 与 QEMU CPUInfo evidence 已全部 PASS；整个 gate 只因旧 `windows_b07_gate.log` 的 `evidence-verify` 失败而返回非零
+- 最新 `freeze-status` 复核结果：
+  - `linux_gate_required_steps_mainline: PASS`
+  - `linux_qemu_cpuinfo_nonx86_evidence: PASS`
+  - `linux_qemu_cpuinfo_nonx86_evidence_platforms: PASS`
+  - 当前唯一剩余 cross red item 是 `cross_gate_required_steps: evidence-verify=FAIL`
+  - 其余红点全部来自旧 Windows evidence freshness / source-newer-than-evidence / verify / closeout freshness
+- Windows 侧也补做了当前真预检：
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`
+  - 结果：`[PREFLIGHT] STATUS=PASS CODE=OK EXIT=0`
+  - 说明当前不是 workflow 入口、账单预检或 24h 内失败 run 在阻塞
+- 随后直接尝试：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-20260516-152`
+  - 结果并不是平台拒绝，而是本地脚本 fail-close：`Refuse dispatch: local worktree has uncommitted changes.`
+  - 因而当前最真实的下一步已经缩到 repo hygiene：清掉本轮 scratch 改动与 `tests/fafafa.core.simd/__pycache__/`，提交后再重试 GH Windows evidence
