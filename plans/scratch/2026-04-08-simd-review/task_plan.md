@@ -3702,3 +3702,17 @@
 | 1. 复核当前 coverage 缺口是否真实存在 | completed | 已对照 `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --json --strict` 与当前 `KEY_SLOTS_BY_BACKEND['neon']`，确认 `MaxF32x16/MaxF64x8/MinF32x16/MinF64x8` 仍属于 `NEON missing_from_key`；同时 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 里的 `Test_NEON_NoAsmWideMinMaxSlots_Keep_Necessary_Wrappers_But_Reuse_BaseScalar` 已现成固定了 `AssertAsmBindingStillPresent` 与 runtime scalar-reuse truth |
 | 2. 把 4 个 wide `Min/Max` slot 提升成常规 key-slot | completed | 已在 `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py` 把 `MaxF32x16/MaxF64x8/MinF32x16/MinF64x8` 纳入 `KEY_SLOTS_BY_BACKEND['neon']`；把 `Test_NEON_NoAsmWideMinMaxSlots_Keep_Necessary_Wrappers_But_Reuse_BaseScalar` 纳入 `EXPECTATION_PROCEDURES['neon']`；并对这 4 个 slot 开启 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['neon']` |
 | 3. 按脚本批次最小链复验并收口 | completed | 本批只跑 `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`、`python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend neon --summary-line`、Release `check`；全部通过，fresh summary 已更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon slots=17 issues=0 status=ok`，全局 summary 更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=53 issues=0 status=ok` |
+
+## 2026-05-16 NEON Wide Leaf Float Arithmetic Key-Slot Audit Lift
+
+### Goal
+
+把 `NEON Add/Sub/Mul/DivF32x16` 与 `Add/Sub/Mul/DivF64x8` 这 8 个当前仅活在 truthfulness allowlist 与 dedicated `DispatchAPI` testcase 里的合法 `asm-only wrapper-only` slot，正式提升进 `key-slot audit` 常规门禁。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前 coverage 缺口是否真实存在 | completed | 已对照 `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --json --strict` 与当前 `KEY_SLOTS_BY_BACKEND['neon']`，确认 `AddF32x16/AddF64x8/SubF32x16/SubF64x8/MulF32x16/MulF64x8/DivF32x16/DivF64x8` 仍属于 `NEON missing_from_key`；同时 `Test_NEON_NoAsmWideLeafFloatArithmeticSlots_Keep_SourceCompanions_But_Reuse_BaseScalar` 已现成固定了 `AssertAsmBindingStillPresent` 与 runtime scalar-reuse truth |
+| 2. 把 8 个 wide arithmetic slot 提升成常规 key-slot | completed | 已在 `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py` 把 `Add/Sub/Mul/DivF32x16` 与 `Add/Sub/Mul/DivF64x8` 纳入 `KEY_SLOTS_BY_BACKEND['neon']`；把 `Test_NEON_NoAsmWideLeafFloatArithmeticSlots_Keep_SourceCompanions_But_Reuse_BaseScalar` 纳入 `EXPECTATION_PROCEDURES['neon']`；并对这 8 个 slot 开启 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['neon']` |
+| 3. 按脚本批次最小链复验并收口 | completed | 本批只跑 `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`、`python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend neon --summary-line`、Release `check`；全部通过，fresh summary 已更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon slots=25 issues=0 status=ok`，全局 summary 更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=61 issues=0 status=ok` |
