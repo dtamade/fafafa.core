@@ -5173,3 +5173,22 @@
   - register source 仍必须保持 backend-owned assignment
   - runtime `sbRISCVV` dispatch table 上这些 slot 的指针仍必须不同于 scalar
 - 这批修完后，`RISCVV` 这类“exact-scalar helper 但故意 backend-owned”的槽位终于不再只靠口头理解或 checker allowlist 存活，而有了可执行的 dedicated truth。
+
+## 2026-05-16 Non-x86 Key-Slot Audit Coverage Expansion Findings
+
+- 刚补完 `DispatchAPI` 之后继续收口时，立刻暴露出下一层真实缺口：
+  - Pascal testcase 已经知道那 12 个 `RISCVV` helper-owned slot
+  - 但 `check_nonx86_key_slot_audit.py` 还停留在旧的 10 个 key slot，完全不知道它们
+- 这意味着如果只看 `Release check` 里的 Python 审计视角，仓库仍然会漏掉这 12 个名字；新的 ownership truth 只活在单个 testcase 里，还没有进入“检查器级别”的常规门禁。
+- 当前脚本缺口有两个具体面：
+  - 仍使用单一 `KEY_SLOTS`，表达不了 backend-specific key slot 集
+  - 解析器只认识 `AssertRegisterKeepsBaseScalar/AssertRegisterHasAsmOwnedSlot/AssertRegisterOwnsBackendSlot`，认不出新 testcase 里的 `AssertHelperOwnedExactScalarSlot`
+- 因而这批的正确修法不是再补一个 testcase，而是把 Python 审计模型补齐：
+  - 改成 `KEY_SLOTS_BY_BACKEND`
+  - `riscvv` 明确把 12 个 helper-owned slot 纳入 key-slot audit
+  - 解析器显式把 `AssertHelperOwnedExactScalarSlot` 视为 `backend_owned` truth source
+  - `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['riscvv']` 也同步要求这 12 个 slot 必须有 dedicated assert
+- 修完后最关键的变化不是“数字变大”，而是门禁层次对齐了：
+  - 以前：`DispatchAPI` 知道，Python key-slot audit 不知道
+  - 现在：`DispatchAPI` 与 `key-slot audit` 都知道
+  - 以后这 12 个 slot 的 register/source drift 会先被日常 `check` 抓住，而不是等人去读 testcase 才发现

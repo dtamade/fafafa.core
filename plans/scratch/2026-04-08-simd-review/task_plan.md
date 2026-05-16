@@ -3618,3 +3618,17 @@
 | 1. 复核这簇 `RISCVV always wrapper-only` 的真实 source/register/runtime 关系 | completed | 已确认 `AndNotI64x2/MinI64x2/MaxI64x2/AndNotU64x2/CmpEqU64x2/CmpLtU64x2/CmpGtU64x2/MinU64x2/MaxU64x2/AndNotI8x16/AndNotU16x8/AndNotU8x16` 在 `src/fafafa.core.simd.riscvv.helpers.inc` 中都是 exact `Scalar*` forwarder，但 `src/fafafa.core.simd.riscvv.register.inc` 仍无条件把这些 slot 绑定到 `RISCVV*` 符号，因此它们的真实性质不是“应回收到 scalar”，而是“helper-owned but intentionally backend-owned” |
 | 2. 新增 dedicated ownership 护栏 | completed | 已在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_RISCVV_HelperOwnedExactScalarSlots_Stay_BackendOwned`，对上述 12 个 slot 同时固定三层真相：`helpers.inc` 里 exact scalar body 仍存在、`register.inc` 仍保持 backend-owned 绑定、runtime `sbRISCVV` dispatch slot 仍不复用 scalar 指针 |
 | 3. 串行 Release 复验并同步 scratch 收口 | completed | 本批 `git diff --check`、Release `TTestCase_DispatchAPI`、Release `check`、Release `gate` 全部通过；`check` 里 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=20 issues=0 status=ok`、`NONX86_HELPER_SEMANTICS_SUMMARY checks=643 status=ok` 继续保持绿态，`gate` 末尾仍只诚实保留 optional non-x86 native evidence skip 与历史 Windows evidence optional skip |
+
+## 2026-05-16 Non-x86 Key-Slot Audit Coverage Expansion
+
+### Goal
+
+把刚补上的 `RISCVV` 12 个 helper-owned exact-scalar slot 继续纳入 Python 侧 `check_nonx86_key_slot_audit.py`，让 `check` 阶段也能直接审计这批 truth，而不是只靠单个 `DispatchAPI` testcase。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 让 key-slot audit 认识新的 truth source | completed | 已把 `check_nonx86_key_slot_audit.py` 从全局 `KEY_SLOTS` 改成按 backend 维护的 `KEY_SLOTS_BY_BACKEND`；`riscvv` 新增 12 个 helper-owned slot；`EXPECTATION_PROCEDURES['riscvv']` 已纳入 `Test_RISCVV_HelperOwnedExactScalarSlots_Stay_BackendOwned`；解析器也新增识别 `AssertHelperOwnedExactScalarSlot` |
+| 2. 收正显式断言要求与报告口径 | completed | `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['riscvv']` 已补入这 12 个 slot，避免它们再次退回“默认 backend_owned 例外”；fresh `key-slot-audit` 输出现已直接列出 `AndNotI64x2/MinI64x2/.../AndNotU8x16`，并把 `riscvv` slot 总数从 `10` 提升到 `22` |
+| 3. 最小必要复验并收口 | completed | 按新工作法只跑了 `git diff --check`、`python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --summary-line`、Release `check`；结果全部通过，summary 现为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=32 issues=0 status=ok` |

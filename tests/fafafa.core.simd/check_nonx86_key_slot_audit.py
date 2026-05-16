@@ -17,18 +17,44 @@ if str(SCRIPT_DIR) not in sys.path:
 import check_nonx86_register_truthfulness as register_truthfulness
 
 
-KEY_SLOTS: tuple[str, ...] = (
-    "AndI64x8",
-    "NotI64x8",
-    "ShiftLeftI32x16",
-    "ShiftRightArithI64x4",
-    "SubI32x8",
-    "MinU32x8",
-    "AddI64x4",
-    "MulI32x16",
-    "MaxU32x16",
-    "SubI64x8",
-)
+KEY_SLOTS_BY_BACKEND: dict[str, tuple[str, ...]] = {
+    "neon": (
+        "AndI64x8",
+        "NotI64x8",
+        "ShiftLeftI32x16",
+        "ShiftRightArithI64x4",
+        "SubI32x8",
+        "MinU32x8",
+        "AddI64x4",
+        "MulI32x16",
+        "MaxU32x16",
+        "SubI64x8",
+    ),
+    "riscvv": (
+        "AndI64x8",
+        "NotI64x8",
+        "ShiftLeftI32x16",
+        "ShiftRightArithI64x4",
+        "SubI32x8",
+        "MinU32x8",
+        "AddI64x4",
+        "MulI32x16",
+        "MaxU32x16",
+        "SubI64x8",
+        "AndNotI64x2",
+        "MinI64x2",
+        "MaxI64x2",
+        "AndNotU64x2",
+        "CmpEqU64x2",
+        "CmpLtU64x2",
+        "CmpGtU64x2",
+        "MinU64x2",
+        "MaxU64x2",
+        "AndNotI8x16",
+        "AndNotU16x8",
+        "AndNotU8x16",
+    ),
+}
 
 DISPATCHAPI_FILE = SCRIPT_DIR / "fafafa.core.simd.dispatchapi.testcase.pas"
 ROUTINE_BLOCK_PATTERN = (
@@ -37,7 +63,7 @@ ROUTINE_BLOCK_PATTERN = (
 )
 ASSERT_CALL_RE = re.compile(
     r"(?m)^\s*"
-    r"(AssertRegisterKeepsBaseScalar|AssertRegisterHasAsmOwnedSlot|AssertRegisterOwnsBackendSlot)"
+    r"(AssertRegisterKeepsBaseScalar|AssertRegisterHasAsmOwnedSlot|AssertRegisterOwnsBackendSlot|AssertHelperOwnedExactScalarSlot)"
     r"\(\s*'([^']+)'\s*,"
 )
 EXPECTATION_PROCEDURES = {
@@ -48,6 +74,7 @@ EXPECTATION_PROCEDURES = {
     "riscvv": (
         "TTestCase_DispatchAPI.Test_RISCVV_FacadeSlots_Reuse_BaseScalar_When_Wrappers_Are_ScalarPassThrough",
         "TTestCase_DispatchAPI.Test_RISCVV_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders",
+        "TTestCase_DispatchAPI.Test_RISCVV_HelperOwnedExactScalarSlots_Stay_BackendOwned",
         "TTestCase_DispatchAPI.Test_RISCVV_KeyOwnedWideSlots_Stay_BackendOwned",
     ),
 }
@@ -55,6 +82,7 @@ ASSERT_MODE_TO_EXPECTATION = {
     "AssertRegisterKeepsBaseScalar": "reuse_base_scalar",
     "AssertRegisterHasAsmOwnedSlot": "backend_owned",
     "AssertRegisterOwnsBackendSlot": "backend_owned",
+    "AssertHelperOwnedExactScalarSlot": "backend_owned",
 }
 DEFAULT_UNASSERTED_KEY_SLOT_MODE = "backend_owned"
 REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS: dict[str, set[str]] = {
@@ -68,6 +96,18 @@ REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS: dict[str, set[str]] = {
         "AddI64x4",
         "MulI32x16",
         "SubI64x8",
+        "AndNotI64x2",
+        "MinI64x2",
+        "MaxI64x2",
+        "AndNotU64x2",
+        "CmpEqU64x2",
+        "CmpLtU64x2",
+        "CmpGtU64x2",
+        "MinU64x2",
+        "MaxU64x2",
+        "AndNotI8x16",
+        "AndNotU16x8",
+        "AndNotU8x16",
     },
 }
 
@@ -125,10 +165,10 @@ def extract_procedure_block(source: str, procedure_name: str) -> str:
 
 def collect_expected_slot_modes_from_dispatchapi() -> dict[str, dict[str, SlotExpectation]]:
     dispatchapi_source = read_text(DISPATCHAPI_FILE)
-    expected_slots = set(KEY_SLOTS)
     expectations: dict[str, dict[str, SlotExpectation]] = {}
 
     for backend, procedures in EXPECTATION_PROCEDURES.items():
+        expected_slots = set(KEY_SLOTS_BY_BACKEND[backend])
         backend_expectations: dict[str, SlotExpectation] = {}
         for procedure_name in procedures:
             block = extract_procedure_block(dispatchapi_source, procedure_name)
@@ -150,7 +190,7 @@ def collect_expected_slot_modes_from_dispatchapi() -> dict[str, dict[str, SlotEx
                 )
 
         explicit_required_slots = REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS.get(backend, set())
-        for slot in KEY_SLOTS:
+        for slot in expected_slots:
             backend_expectations.setdefault(
                 slot,
                 SlotExpectation(
@@ -173,7 +213,6 @@ def collect_expected_slot_modes_from_dispatchapi() -> dict[str, dict[str, SlotEx
 def validate_expected_slot_modes(
     expectations: dict[str, dict[str, SlotExpectation]]
 ) -> None:
-    expected_slots = set(KEY_SLOTS)
     expected_backends = set(EXPECTATION_PROCEDURES)
     actual_backends = set(expectations)
     if actual_backends != expected_backends:
@@ -183,6 +222,7 @@ def validate_expected_slot_modes(
         )
 
     for backend, slot_modes in expectations.items():
+        expected_slots = set(KEY_SLOTS_BY_BACKEND[backend])
         backend_slots = set(slot_modes)
         if backend_slots != expected_slots:
             missing = sorted(expected_slots - backend_slots)
@@ -286,8 +326,9 @@ def audit_backend(backend: str) -> dict[str, object]:
     slot_records: list[dict[str, object]] = []
     issues: list[dict[str, object]] = []
     expected_modes = collect_expected_slot_modes_from_dispatchapi()[backend]
+    key_slots = KEY_SLOTS_BY_BACKEND[backend]
 
-    for slot in KEY_SLOTS:
+    for slot in key_slots:
         expectation = expected_modes[slot]
         expected_mode = expectation.mode
         slot_assignments = [item for item in assignments if item.slot == slot]
@@ -362,7 +403,7 @@ def audit_backend(backend: str) -> dict[str, object]:
     return {
         "backend": backend,
         "register_file": str(config.register_file),
-        "slots_checked": len(KEY_SLOTS),
+        "slots_checked": len(key_slots),
         "records": slot_records,
         "issue_count": len(issues),
         "issues": issues,
@@ -424,7 +465,7 @@ def main() -> int:
     backend_reports = [audit_backend(backend) for backend in selected_backends]
     report = {
         "backends": backend_reports,
-        "slots_checked": len(KEY_SLOTS) * len(backend_reports),
+        "slots_checked": sum(len(KEY_SLOTS_BY_BACKEND[item["backend"]]) for item in backend_reports),
         "issue_count": sum(int(item["issue_count"]) for item in backend_reports),
         "ok": all(bool(item["ok"]) for item in backend_reports),
     }

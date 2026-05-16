@@ -6031,3 +6031,37 @@
 - 当前阶段结论：
   - 这批仍然没有改 backend 行为，而是补上了 `RISCVV` 一簇 exact-scalar helper-owned slot 的缺失护栏
   - 下一轮如果继续深审，优先目标应是继续找“还有哪些 non-x86 ownership policy 只存在于 allowlist/口头理解、但没有 dedicated source+register+runtime 证据”的簇，而不是回头重开已经固定边界的 `ClampF64*`
+
+## 2026-05-16 Non-x86 Key-Slot Audit Coverage Expansion
+
+- 按改进后的工作法，这一批没有再先跑全量 gate，而是先做最小验证：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --summary-line`
+- 第一轮最小验证就立刻抓到真实收尾漏点：
+  - `NameError: name 'KEY_SLOTS' is not defined`
+  - 原因是把脚本改成 `KEY_SLOTS_BY_BACKEND` 后，`collect_expected_slot_modes_from_dispatchapi()` 里还残留了一处旧变量引用
+- 修掉这处残留后，再跑同一组最小验证，`key-slot-audit` 已成功把新 truth 吃进去：
+  - `backend=neon ok slots=10`
+  - `backend=riscvv ok slots=22`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=32 issues=0 status=ok`
+  - 输出中已直接列出：
+    - `AndNotI64x2`
+    - `MinI64x2`
+    - `MaxI64x2`
+    - `AndNotU64x2`
+    - `CmpEqU64x2`
+    - `CmpLtU64x2`
+    - `CmpGtU64x2`
+    - `MinU64x2`
+    - `MaxU64x2`
+    - `AndNotI8x16`
+    - `AndNotU16x8`
+    - `AndNotU8x16`
+- 之后只补跑了新方法下的最小必要 `Release` 验证：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - 结果通过
+  - 其中 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=32 issues=0 status=ok`
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=643 status=ok`
+- 当前阶段结论：
+  - 这批把我们刚补上的 `RISCVV` helper-owned ownership truth，正式抬进了 Python 常规门禁
+  - 也是这轮里第一次明确验证了新工作法有效：先最小验证，立刻抓漏，再最小补验，不再先跑整轮 `gate`
