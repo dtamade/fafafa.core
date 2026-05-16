@@ -5256,3 +5256,31 @@
   - 以前：`DotF64x2/F64x4` 只在 dedicated suite 里被守住
   - 现在：`Release check` 也会通过 `key-slot audit` 直接守住
   - fresh summary 已更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=46 issues=0 status=ok`，其中 `riscvv` slot 总数从 `34` 提升到 `36`
+
+## 2026-05-16 NEON Clamp Key-Slot Audit Lift Findings
+
+- 继续把 non-x86 ownership truth 往 `check` 常规门禁里抬时，`NEON` 这边最小且最独立的 residual 已经很清楚：
+  - `check_nonx86_register_truthfulness.py --backend neon --json --strict`
+  - 显示当前 `wrapper_only=55`
+  - 其中唯一的 `no-asm wrapper-only` 只剩：
+    - `ClampF64x2`
+    - `ClampF64x4`
+    - `ClampF64x8`
+- 这 3 个名字和之前已收掉的 fake backend-owned residual 不同，它们当前是合法 policy，而不是待删除代码：
+  - `src/fafafa.core.simd.neon.register.inc` 仍保留 `table.ClampF64x2/F64x4/F64x8 := @NEONClamp...`
+  - `src/fafafa.core.simd.neon.scalar.autowrap.inc` 里 `NEONClampF64x2/F64x4/F64x8` 仍存在，且宽版本继续消费窄版本
+  - `dispatchapi` 的 `Test_NEON_NoAsmWideClampSlots_Reuse_BaseScalar_Only_For_F32Forwarders_And_Keep_F64LocalFallback` 已显式钉住：
+    - `F32x8/F32x16` 回 scalar
+    - `F64x2/F64x4/F64x8` 因本地 `NaN/signed-zero` fallback 语义而继续 backend-owned
+- 当前缺口不在 backend 行为，而在 Python 审计层的“识字率”：
+  - 旧 `check_nonx86_key_slot_audit.py` 没把 `ClampF64x2/F64x4/F64x8` 纳入 `KEY_SLOTS_BY_BACKEND['neon']`
+  - 旧解析器也不认识 `AssertAsmBindingStillPresent(...)`，所以现成 dedicated testcase 里的 source truth 进不了常规 key-slot audit
+- 因而这批正确修法仍然是 checker-level lift，而不是动 Pascal backend：
+  - 把这 3 个 slot 提升进 `KEY_SLOTS_BY_BACKEND['neon']`
+  - 把现成的 clamp dedicated testcase 纳入 `EXPECTATION_PROCEDURES['neon']`
+  - 让解析器显式把 `AssertAsmBindingStillPresent` 识别为 `backend_owned`
+  - 同时要求 `ClampF64x2/F64x4/F64x8` 必须有 dedicated explicit assert，避免以后又退回“allowlist 知道、常规 audit 不知道”的状态
+- 修完后的关键变化不是行为变更，而是门禁层次对齐：
+  - 以前：truthfulness checker 知道，dedicated `DispatchAPI` 知道，key-slot audit 不知道
+  - 现在：truthfulness checker、dedicated `DispatchAPI`、key-slot audit 三层都知道
+  - fresh summary 已更新为 `backend=neon ok slots=13`，全局 summary 已更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=49 issues=0 status=ok`

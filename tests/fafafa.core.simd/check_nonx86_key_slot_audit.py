@@ -29,6 +29,9 @@ KEY_SLOTS_BY_BACKEND: dict[str, tuple[str, ...]] = {
         "MulI32x16",
         "MaxU32x16",
         "SubI64x8",
+        "ClampF64x2",
+        "ClampF64x4",
+        "ClampF64x8",
     ),
     "riscvv": (
         "AndI64x8",
@@ -77,13 +80,14 @@ ROUTINE_BLOCK_PATTERN = (
 )
 ASSERT_CALL_RE = re.compile(
     r"(?m)^\s*"
-    r"(AssertRegisterKeepsBaseScalar|AssertRegisterHasAsmOwnedSlot|AssertRegisterOwnsBackendSlot|AssertHelperOwnedExactScalarSlot|AssertExtractCompanionSlot)"
+    r"(AssertRegisterKeepsBaseScalar|AssertRegisterHasAsmOwnedSlot|AssertRegisterOwnsBackendSlot|AssertHelperOwnedExactScalarSlot|AssertExtractCompanionSlot|AssertAsmBindingStillPresent)"
     r"\(\s*'([^']+)'\s*,"
 )
 EXPECTATION_PROCEDURES = {
     "neon": (
         "TTestCase_DispatchAPI.Test_NEON_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders",
         "TTestCase_DispatchAPI.Test_NEON_NoAsmIntegerFallbackSlots_Reuse_BaseScalar_When_Wrappers_Are_Not_BackendOwned",
+        "TTestCase_DispatchAPI.Test_NEON_NoAsmWideClampSlots_Reuse_BaseScalar_Only_For_F32Forwarders_And_Keep_F64LocalFallback",
     ),
     "riscvv": (
         "TTestCase_DispatchAPI.Test_RISCVV_FacadeSlots_Reuse_BaseScalar_When_Wrappers_Are_ScalarPassThrough",
@@ -99,9 +103,15 @@ ASSERT_MODE_TO_EXPECTATION = {
     "AssertRegisterOwnsBackendSlot": "backend_owned",
     "AssertHelperOwnedExactScalarSlot": "backend_owned",
     "AssertExtractCompanionSlot": "backend_owned",
+    "AssertAsmBindingStillPresent": "backend_owned",
 }
 DEFAULT_UNASSERTED_KEY_SLOT_MODE = "backend_owned"
 REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS: dict[str, set[str]] = {
+    "neon": {
+        "ClampF64x2",
+        "ClampF64x4",
+        "ClampF64x8",
+    },
     "riscvv": {
         "AndI64x8",
         "NotI64x8",

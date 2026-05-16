@@ -6174,3 +6174,35 @@
 - 当前阶段结论：
   - 这批没有改 backend 行为，也没有新建 testcase，只是把最后一对 `RISCVV Dot*` `wrapper_only` policy 位点正式抬进了 `check` 常规门禁
   - 收口前已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免 Python 产物带进提交
+
+## 2026-05-16 NEON Clamp Key-Slot Audit Lift
+
+- 按改进后的工作法，这一批先没有再跑 `gate` 或 Pascal suite，而是先用两条最小证据确认 gap：
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --json --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend neon --summary-line`
+- 第一条直接确认当前 `NEON` 的 residual 已经缩到：
+  - `current_no_asm_wrapper_slots = ['ClampF64x2', 'ClampF64x4', 'ClampF64x8']`
+  - 也就是 `wrapper_only=55` 里唯一 3 个 `no-asm wrapper-only`
+- 第二条则确认旧 key-slot audit 还停在：
+  - `backend=neon ok slots=10`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon slots=10 issues=0 status=ok`
+  - 说明这 3 个 `ClampF64*` 还没有进常规 `check`
+- 已完成的最小修复：
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 把 `ClampF64x2/F64x4/F64x8` 纳入 `KEY_SLOTS_BY_BACKEND['neon']`
+    - 把 `Test_NEON_NoAsmWideClampSlots_Reuse_BaseScalar_Only_For_F32Forwarders_And_Keep_F64LocalFallback` 纳入 `EXPECTATION_PROCEDURES['neon']`
+    - 让解析器识别 `AssertAsmBindingStillPresent`
+    - 把 `AssertAsmBindingStillPresent` 映射为 `backend_owned`
+    - 对 `ClampF64x2/F64x4/F64x8` 开启 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['neon']`
+- 本批按脚本批次执行的最小验证链：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend neon --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `backend=neon ok slots=13`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=49 issues=0 status=ok`
+  - Release `check` 通过
+- 当前阶段结论：
+  - 这批仍然没有改 backend 行为，也没有新建 Pascal testcase，只是把 `NEON ClampF64*` 这 3 个合法 policy 位点正式抬进了 `check` 常规门禁
+  - 收口前已再次清理 `tests/fafafa.core.simd/__pycache__/`，避免把 Python 产物带进提交

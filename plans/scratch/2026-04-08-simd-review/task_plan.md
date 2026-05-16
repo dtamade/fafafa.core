@@ -3674,3 +3674,17 @@
 | 1. 复核当前 residual 是否真实存在 | completed | 已对照 `check_nonx86_register_truthfulness.py --backend riscvv --json --strict` 与当前 `KEY_SLOTS_BY_BACKEND['riscvv']`，确认 `RISCVV current_wrapper_only_slots` 里仍未进入 `key-slot audit` 的只剩 `DotF64x2/DotF64x4` 这两个名字 |
 | 2. 把 `DotF64x2/F64x4` 提升成常规 key-slot | completed | 已在 `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py` 把 `DotF64x2/ DotF64x4` 纳入 `KEY_SLOTS_BY_BACKEND['riscvv']` 与 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['riscvv']`；无需新增 Pascal testcase，因为 `TTestCase_DispatchAPI.Test_RISCVV_FacadeSlots_Reuse_BaseScalar_When_Wrappers_Are_ScalarPassThrough` 已经显式固定了 register ownership 与 runtime slot ownership |
 | 3. 按脚本批次最小链复验并收口 | completed | 本批只跑了 `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`、`python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend riscvv --summary-line`、Release `check`；全部通过，fresh summary 已更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=46 issues=0 status=ok`，其中 `backend=riscvv ok slots=36` |
+
+## 2026-05-16 NEON Clamp Key-Slot Audit Lift
+
+### Goal
+
+把 `NEON ClampF64x2/F64x4/F64x8` 这 3 个当前仅活在 truthfulness allowlist 与 dedicated `DispatchAPI` testcase 里的合法 `no-asm wrapper-only` slot，正式提升进 `key-slot audit` 常规门禁。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前 coverage 缺口是否真实存在 | completed | 已用 `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --json --strict` 复核，确认 `NEON current_no_asm_wrapper_slots` 只剩 `ClampF64x2/F64x4/F64x8`；同时现有 `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend neon --summary-line` 仍只审计 10 个旧 key slot，说明这 3 个名字尚未进入常规 `check` |
+| 2. 把 3 个 `ClampF64*` 提升成常规 key-slot | completed | 已在 `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py` 把 `ClampF64x2/F64x4/F64x8` 纳入 `KEY_SLOTS_BY_BACKEND['neon']`；把 `TTestCase_DispatchAPI.Test_NEON_NoAsmWideClampSlots_Reuse_BaseScalar_Only_For_F32Forwarders_And_Keep_F64LocalFallback` 纳入 `EXPECTATION_PROCEDURES['neon']`；并让解析器显式识别 `AssertAsmBindingStillPresent` 作为 `backend_owned` truth source，同时对这 3 个 slot 开启 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['neon']` |
+| 3. 按脚本批次最小链复验并收口 | completed | 本批只跑 `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`、`python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend neon --summary-line`、Release `check`；全部通过，fresh summary 已更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon slots=13 issues=0 status=ok`，全局 summary 更新为 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=49 issues=0 status=ok` |
