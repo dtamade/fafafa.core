@@ -5851,3 +5851,36 @@
 - 当前阶段结论：
   - 这批仍然是纯测试层冗余清理，没有改 public ABI 发布逻辑或 SIMD 生产实现
   - `publicabi` capability-bits 段里 NEON/RISCVV 这组同形态“死状态捕获 + 空 finally”也已经收掉；后续继续深审同文件时，下一步要更谨慎地区分“空 finally”与“包着真实 restore 的 finally”
+
+## 2026-05-16 PublicAbi PostCapability Empty Finally Cleanup
+
+- 这轮继续沿 `publicabi.testcase` 往后推进，但没有再把“空 finally”当成单一形状问题，而是先精确区分谁的真实 restore 在哪里。
+- fresh 复核后，这一段里适合继续清理的只有 4 个方法：
+  - `Test_PublicApi_ActiveBackendId_Tracks_RegisterSlot_After_ReRegister`
+  - `Test_PublicApi_StableState_Tracks_CurrentBackend_After_ControlPlaneSwitches`
+  - `Test_PublicApi_ActiveBackendId_Tracks_FinalState_When_HookReRegister_Overrides_ForcedSelection`
+  - `Test_PublicApi_FailedHookMutation_Restores_AutomaticBackend_Immediately`
+- 它们之所以仍然属于高确定性冗余，是因为：
+  - `LOldVectorAsm := IsVectorAsmEnabled` 后没有任何读取
+  - 外层 `finally` 为空
+  - 真正 restore 已由内层 `finally` 承担，例如 `RegisterBackend(...)` / `DisablePublicAbiDisableBackendHook`
+  - 或由 `TSimdVectorAsmStatefulTestCase.TearDown` / `TSimdBackendStatefulTestCase.TearDown` 统一恢复
+- 同时这轮也明确踩住了边界，没有误清后续更复杂的路径：
+  - `Test_PublicApi_FailedHookMutation_DoesNotRevive_PreviouslyRequestedBackend_AfterRestore`
+  - `Test_PublicApi_FailedHookMutation_Restores_PreviousForcedBackend`
+  - 这类方法的外层 `finally` 自身带条件 restore，例如 `if LRequestedTableCaptured then RegisterBackend(...)`
+  - 所以不能按“空 finally”同类处理
+- 本轮已完成的源码收口：
+  - 删除上述 4 个方法中的 `LOldVectorAsm` 局部变量与赋值
+  - 删除对应纯空 outer `try/finally`
+  - 保留 identity re-register、stable-state、hook disable/restore、automatic backend 回退断言不变
+- fresh 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+- fresh 结果：
+  - `[BUILD] OK`
+  - `[TEST] OK`
+  - `[LEAK] OK`
+- 当前阶段结论：
+  - 这批依旧是纯测试层冗余清理，没有改 public ABI 发布逻辑或 SIMD 生产实现
+  - 现在 `publicabi` 中最危险的误判点已经从“空 finally”本身转成“外层 finally 是否还承担条件 restore”；后续继续深审时必须沿这个边界做

@@ -6915,3 +6915,29 @@
 - 当前阶段结论：
   - 这批已经形成完整小闭环，可以直接提交
   - 当前工作法继续有效：先分出“真正空壳 cleanup”和“包着真实 restore 的 finally”，再动手，效率和安全性都更高
+
+## 2026-05-16 PublicAbi PostCapability Empty Finally Cleanup
+
+- 这一批继续不换文件、不换 suite，只在 `publicabi.testcase` 后续区段里继续做分层清理。
+- 候选筛选过程：
+  - 先读取 `2091..2403` 一带真实代码，而不是仅看 `rg` 命中
+  - 明确区分“外层 finally 为空，但内层 finally 已负责真实 restore”的方法
+  - 与“外层 finally 本身带条件 restore”的方法
+- 已完成的源码改动：
+  - 文件：`tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas`
+  - 清理 4 个方法中的未使用 `LOldVectorAsm`
+  - 删除这 4 个方法的纯空 outer `try/finally`
+- 安全依据：
+  - `TTestCase_PublicAbi` 仍由基类统一恢复 vector-asm/backend 状态
+  - 这批方法的真实 backend/hook restore 已留在内层 finally
+  - 后续外层 finally 带 `if ... then RegisterBackend(...)` 的方法已被显式排除
+- 本轮验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+- fresh 结果：
+  - `[BUILD] OK`
+  - `[TEST] OK`
+  - `[LEAK] OK`
+- 当前阶段结论：
+  - 这批已经形成完整小闭环，可以直接提交
+  - 当前方法继续证明有效：先用语义分层切掉高风险命中，再收同类空壳 cleanup，避免误删真实 restore

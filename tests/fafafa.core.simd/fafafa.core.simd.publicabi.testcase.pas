@@ -2091,46 +2091,40 @@ var
   LOriginalTable: TSimdDispatchTable;
   LModifiedTable: TSimdDispatchTable;
   LActiveInfo: TFafafaSimdBackendPodInfo;
-  LOldVectorAsm: Boolean;
 begin
+  GetSimdPublicApi;
+  SetVectorAsmEnabled(True);
+  ResetToAutomaticBackend;
+  LOriginalBackend := GetCurrentBackend;
+  if LOriginalBackend = sbScalar then
+    Exit;
+
+  AssertTrue('Original active backend should be registered for public ABI identity test',
+    TryGetRegisteredBackendDispatchTable(LOriginalBackend, LOriginalTable));
+
+  LModifiedTable := LOriginalTable;
+  LModifiedTable.Backend := sbScalar;
+  LModifiedTable.BackendInfo.Backend := sbScalar;
+  RegisterBackend(LOriginalBackend, LModifiedTable);
   try
-    GetSimdPublicApi;
-    LOldVectorAsm := IsVectorAsmEnabled;
-    SetVectorAsmEnabled(True);
-    ResetToAutomaticBackend;
-    LOriginalBackend := GetCurrentBackend;
-    if LOriginalBackend = sbScalar then
-      Exit;
+    AssertTrue('TrySetActiveBackend should succeed for the requested backend slot after re-register',
+      TrySetActiveBackend(LOriginalBackend));
 
-    AssertTrue('Original active backend should be registered for public ABI identity test',
-      TryGetRegisteredBackendDispatchTable(LOriginalBackend, LOriginalTable));
-
-    LModifiedTable := LOriginalTable;
-    LModifiedTable.Backend := sbScalar;
-    LModifiedTable.BackendInfo.Backend := sbScalar;
-    RegisterBackend(LOriginalBackend, LModifiedTable);
-    try
-      AssertTrue('TrySetActiveBackend should succeed for the requested backend slot after re-register',
-        TrySetActiveBackend(LOriginalBackend));
-
-      LApi := GetSimdPublicApi;
-      AssertNotNull('Public API table should remain available after identity-mismatch re-register', LApi);
-      AssertEquals('Public API active backend id should track the registered backend slot, not the stale table Backend field',
-        Ord(LOriginalBackend), Integer(LApi^.ActiveBackendId));
-      AssertTrue('Backend pod info should remain queryable for the requested backend slot',
-        TryGetSimdBackendPodInfo(LOriginalBackend, LActiveInfo));
-      AssertEquals('Public API active flags should match the requested backend pod flags after re-register',
-        LActiveInfo.Flags, LApi^.ActiveFlags);
-    finally
-      RegisterBackend(LOriginalBackend, LOriginalTable);
-    end;
+    LApi := GetSimdPublicApi;
+    AssertNotNull('Public API table should remain available after identity-mismatch re-register', LApi);
+    AssertEquals('Public API active backend id should track the registered backend slot, not the stale table Backend field',
+      Ord(LOriginalBackend), Integer(LApi^.ActiveBackendId));
+    AssertTrue('Backend pod info should remain queryable for the requested backend slot',
+      TryGetSimdBackendPodInfo(LOriginalBackend, LActiveInfo));
+    AssertEquals('Public API active flags should match the requested backend pod flags after re-register',
+      LActiveInfo.Flags, LApi^.ActiveFlags);
   finally
+    RegisterBackend(LOriginalBackend, LOriginalTable);
   end;
 end;
 
 procedure TTestCase_PublicAbi.Test_PublicApi_StableState_Tracks_CurrentBackend_After_ControlPlaneSwitches;
 var
-  LOldVectorAsm: Boolean;
   LAvailableBackends: TSimdBackendArray;
   LForcedBackend: TSimdBackend;
   LIndex: Integer;
@@ -2190,38 +2184,34 @@ var
         Ord(GetBestDispatchableBackend), Ord(LCurrentBackend));
   end;
 begin
-  LOldVectorAsm := IsVectorAsmEnabled;
   LForcedBackend := sbScalar;
   LHasForcedBackend := False;
 
-  try
-    SetVectorAsmEnabled(True);
-    ResetToAutomaticBackend;
-    AssertStableCurrentState('vector asm enabled automatic', True);
+  SetVectorAsmEnabled(True);
+  ResetToAutomaticBackend;
+  AssertStableCurrentState('vector asm enabled automatic', True);
 
-    LAvailableBackends := GetAvailableBackendList;
-    for LIndex := 0 to High(LAvailableBackends) do
-      if LAvailableBackends[LIndex] <> GetCurrentBackend then
-      begin
-        LForcedBackend := LAvailableBackends[LIndex];
-        LHasForcedBackend := True;
-        Break;
-      end;
-
-    if LHasForcedBackend then
+  LAvailableBackends := GetAvailableBackendList;
+  for LIndex := 0 to High(LAvailableBackends) do
+    if LAvailableBackends[LIndex] <> GetCurrentBackend then
     begin
-      SetActiveBackend(LForcedBackend);
-      AssertStableCurrentState('forced backend stable state', False);
+      LForcedBackend := LAvailableBackends[LIndex];
+      LHasForcedBackend := True;
+      Break;
     end;
 
-    ResetToAutomaticBackend;
-    AssertStableCurrentState('automatic reset stable state', True);
-
-    SetVectorAsmEnabled(False);
-    ResetToAutomaticBackend;
-    AssertStableCurrentState('vector asm disabled automatic', True);
-  finally
+  if LHasForcedBackend then
+  begin
+    SetActiveBackend(LForcedBackend);
+    AssertStableCurrentState('forced backend stable state', False);
   end;
+
+  ResetToAutomaticBackend;
+  AssertStableCurrentState('automatic reset stable state', True);
+
+  SetVectorAsmEnabled(False);
+  ResetToAutomaticBackend;
+  AssertStableCurrentState('vector asm disabled automatic', True);
 end;
 
 procedure TTestCase_PublicAbi.Test_PublicApi_ActiveBackendId_Tracks_FinalState_When_HookReRegister_Overrides_ForcedSelection;
@@ -2229,37 +2219,32 @@ var
   LApi: PFafafaSimdPublicApi;
   LRequestedBackend: TSimdBackend;
   LOriginalTable: TSimdDispatchTable;
-  LOldVectorAsm: Boolean;
 begin
+  SetVectorAsmEnabled(True);
+  ResetToAutomaticBackend;
+  LRequestedBackend := GetCurrentBackend;
+  if LRequestedBackend = sbScalar then
+    Exit;
+
+  AssertTrue('Requested backend should be registered for public ABI hook-driven reselection test',
+    TryGetRegisteredBackendDispatchTable(LRequestedBackend, LOriginalTable));
+  AssertTrue('Requested backend should start dispatchable before hook-driven mutation',
+    IsBackendDispatchable(LRequestedBackend));
+
+  EnablePublicAbiDisableBackendHook(LRequestedBackend, LOriginalTable);
   try
-    LOldVectorAsm := IsVectorAsmEnabled;
-    SetVectorAsmEnabled(True);
-    ResetToAutomaticBackend;
-    LRequestedBackend := GetCurrentBackend;
-    if LRequestedBackend = sbScalar then
-      Exit;
+    AssertFalse('TrySetActiveBackend should fail when hook-driven re-register makes the requested backend non-dispatchable before the call completes',
+      TrySetActiveBackend(LRequestedBackend));
 
-    AssertTrue('Requested backend should be registered for public ABI hook-driven reselection test',
-      TryGetRegisteredBackendDispatchTable(LRequestedBackend, LOriginalTable));
-    AssertTrue('Requested backend should start dispatchable before hook-driven mutation',
-      IsBackendDispatchable(LRequestedBackend));
-
-    EnablePublicAbiDisableBackendHook(LRequestedBackend, LOriginalTable);
-    try
-      AssertFalse('TrySetActiveBackend should fail when hook-driven re-register makes the requested backend non-dispatchable before the call completes',
-        TrySetActiveBackend(LRequestedBackend));
-
-      LApi := GetSimdPublicApi;
-      AssertNotNull('Public API table should remain available after hook-driven re-selection', LApi);
-      AssertEquals('Public API active backend id should track the final active backend after hook-driven re-selection',
-        Ord(GetCurrentBackend), Integer(LApi^.ActiveBackendId));
-      AssertTrue('Hook-driven re-selection should move public API active backend away from the requested backend',
-        Integer(LApi^.ActiveBackendId) <> Ord(LRequestedBackend));
-    finally
-      DisablePublicAbiDisableBackendHook;
-      RegisterBackend(LRequestedBackend, LOriginalTable);
-    end;
+    LApi := GetSimdPublicApi;
+    AssertNotNull('Public API table should remain available after hook-driven re-selection', LApi);
+    AssertEquals('Public API active backend id should track the final active backend after hook-driven re-selection',
+      Ord(GetCurrentBackend), Integer(LApi^.ActiveBackendId));
+    AssertTrue('Hook-driven re-selection should move public API active backend away from the requested backend',
+      Integer(LApi^.ActiveBackendId) <> Ord(LRequestedBackend));
   finally
+    DisablePublicAbiDisableBackendHook;
+    RegisterBackend(LRequestedBackend, LOriginalTable);
   end;
 end;
 
@@ -2331,59 +2316,54 @@ var
   LRequestedBackend: TSimdBackend;
   LDispatchable: TSimdBackendArray;
   LOriginalTable: TSimdDispatchTable;
-  LOldVectorAsm: Boolean;
   LIndex: Integer;
 begin
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    ResetToAutomaticBackend;
-    LAutomaticBackend := GetCurrentBackend;
-    if LAutomaticBackend = sbScalar then
-      Exit;
+  SetVectorAsmEnabled(True);
+  ResetToAutomaticBackend;
+  LAutomaticBackend := GetCurrentBackend;
+  if LAutomaticBackend = sbScalar then
+    Exit;
 
-    AssertEquals('Automatic selection should start from best dispatchable backend before public ABI failed-hook restore test',
-      Ord(LAutomaticBackend), Ord(GetBestDispatchableBackend));
+  AssertEquals('Automatic selection should start from best dispatchable backend before public ABI failed-hook restore test',
+    Ord(LAutomaticBackend), Ord(GetBestDispatchableBackend));
 
-    LRequestedBackend := sbScalar;
-    LDispatchable := GetDispatchableBackendList;
-    for LIndex := 0 to High(LDispatchable) do
-      if (LDispatchable[LIndex] <> LAutomaticBackend) and (LDispatchable[LIndex] <> sbScalar) then
-      begin
-        LRequestedBackend := LDispatchable[LIndex];
-        Break;
-      end;
-
-    if LRequestedBackend = sbScalar then
-      Exit;
-
-    AssertTrue('Requested backend should be registered for public ABI failed-hook automatic-restore test',
-      TryGetRegisteredBackendDispatchTable(LRequestedBackend, LOriginalTable));
-    AssertTrue('Requested backend should start dispatchable before public ABI failed-hook automatic-restore test',
-      IsBackendDispatchable(LRequestedBackend));
-
-    EnablePublicAbiDisableBackendHook(LRequestedBackend, LOriginalTable);
-    try
-      AssertFalse('TrySetActiveBackend should fail when hook-driven mutation makes the requested backend non-dispatchable before public ABI automatic restore',
-        TrySetActiveBackend(LRequestedBackend));
-
-      LApi := GetSimdPublicApi;
-      AssertNotNull('Public API table should remain available after failed hook-driven automatic restore', LApi);
-      AssertEquals('Public API active backend should immediately return to automatic best backend after failed hook-driven selection',
-        Ord(LAutomaticBackend), Integer(LApi^.ActiveBackendId));
-      AssertEquals('Public API active backend id should keep tracking the actual current backend after failed hook-driven selection',
-        Ord(GetCurrentBackend), Integer(LApi^.ActiveBackendId));
-      AssertTrue('Public API active backend should not remain Scalar when automatic mode has a better backend',
-        Integer(LApi^.ActiveBackendId) <> Ord(sbScalar));
-      AssertTrue('Backend pod info for the restored automatic backend should remain queryable',
-        TryGetSimdBackendPodInfo(LAutomaticBackend, LActiveInfo));
-      AssertEquals('Public API active flags should stay aligned with the automatic backend pod flags after failed hook-driven selection',
-        LActiveInfo.Flags, LApi^.ActiveFlags);
-    finally
-      DisablePublicAbiDisableBackendHook;
-      RegisterBackend(LRequestedBackend, LOriginalTable);
+  LRequestedBackend := sbScalar;
+  LDispatchable := GetDispatchableBackendList;
+  for LIndex := 0 to High(LDispatchable) do
+    if (LDispatchable[LIndex] <> LAutomaticBackend) and (LDispatchable[LIndex] <> sbScalar) then
+    begin
+      LRequestedBackend := LDispatchable[LIndex];
+      Break;
     end;
+
+  if LRequestedBackend = sbScalar then
+    Exit;
+
+  AssertTrue('Requested backend should be registered for public ABI failed-hook automatic-restore test',
+    TryGetRegisteredBackendDispatchTable(LRequestedBackend, LOriginalTable));
+  AssertTrue('Requested backend should start dispatchable before public ABI failed-hook automatic-restore test',
+    IsBackendDispatchable(LRequestedBackend));
+
+  EnablePublicAbiDisableBackendHook(LRequestedBackend, LOriginalTable);
+  try
+    AssertFalse('TrySetActiveBackend should fail when hook-driven mutation makes the requested backend non-dispatchable before public ABI automatic restore',
+      TrySetActiveBackend(LRequestedBackend));
+
+    LApi := GetSimdPublicApi;
+    AssertNotNull('Public API table should remain available after failed hook-driven automatic restore', LApi);
+    AssertEquals('Public API active backend should immediately return to automatic best backend after failed hook-driven selection',
+      Ord(LAutomaticBackend), Integer(LApi^.ActiveBackendId));
+    AssertEquals('Public API active backend id should keep tracking the actual current backend after failed hook-driven selection',
+      Ord(GetCurrentBackend), Integer(LApi^.ActiveBackendId));
+    AssertTrue('Public API active backend should not remain Scalar when automatic mode has a better backend',
+      Integer(LApi^.ActiveBackendId) <> Ord(sbScalar));
+    AssertTrue('Backend pod info for the restored automatic backend should remain queryable',
+      TryGetSimdBackendPodInfo(LAutomaticBackend, LActiveInfo));
+    AssertEquals('Public API active flags should stay aligned with the automatic backend pod flags after failed hook-driven selection',
+      LActiveInfo.Flags, LApi^.ActiveFlags);
   finally
+    DisablePublicAbiDisableBackendHook;
+    RegisterBackend(LRequestedBackend, LOriginalTable);
   end;
 end;
 
