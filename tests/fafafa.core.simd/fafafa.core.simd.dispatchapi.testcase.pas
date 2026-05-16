@@ -11964,7 +11964,6 @@ var
   LSourceLines: TStringList;
   LRegisterSourcePath: string;
   LRegisterSource: string;
-  LOldVectorAsm: Boolean;
 
   procedure AssertRegisterKeepsClonedSSE3(const aLabel, aSnippet: string);
   begin
@@ -11998,22 +11997,18 @@ begin
   AssertRegisterKeepsClonedSSE3('DotF32x4', 'dispatchTable.DotF32x4 := @SSSE3');
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
-    if not TryGetRegisteredBackendDispatchTable(sbSSE3, LSSE3Table) then
-      Exit;
-    if not TryGetRegisteredBackendDispatchTable(sbSSSE3, LSSSE3Table) then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
+  if not TryGetRegisteredBackendDispatchTable(sbSSE3, LSSE3Table) then
+    Exit;
+  if not TryGetRegisteredBackendDispatchTable(sbSSSE3, LSSSE3Table) then
+    Exit;
 
-    AssertSlotReusesSSE3('ReduceAddF32x4', Pointer(LSSE3Table.ReduceAddF32x4), Pointer(LSSSE3Table.ReduceAddF32x4));
-    AssertSlotReusesSSE3('DotF32x4', Pointer(LSSE3Table.DotF32x4), Pointer(LSSSE3Table.DotF32x4));
-    AssertSlotReusesSSE3('MinI8x16', Pointer(LSSE3Table.MinI8x16), Pointer(LSSSE3Table.MinI8x16));
-    AssertSlotReusesSSE3('MaxI8x16', Pointer(LSSE3Table.MaxI8x16), Pointer(LSSSE3Table.MaxI8x16));
-  finally
-  end;
+  AssertSlotReusesSSE3('ReduceAddF32x4', Pointer(LSSE3Table.ReduceAddF32x4), Pointer(LSSSE3Table.ReduceAddF32x4));
+  AssertSlotReusesSSE3('DotF32x4', Pointer(LSSE3Table.DotF32x4), Pointer(LSSSE3Table.DotF32x4));
+  AssertSlotReusesSSE3('MinI8x16', Pointer(LSSE3Table.MinI8x16), Pointer(LSSSE3Table.MinI8x16));
+  AssertSlotReusesSSE3('MaxI8x16', Pointer(LSSE3Table.MaxI8x16), Pointer(LSSSE3Table.MaxI8x16));
 end;
 
 procedure TTestCase_DispatchAPI.Test_SSE41_RepresentativeOverrides_Reuse_SSSE3_CoreSlots;
@@ -12023,7 +12018,6 @@ var
   LSourceLines: TStringList;
   LRegisterSourcePath: string;
   LRegisterSource: string;
-  LOldVectorAsm: Boolean;
 
   procedure AssertRegisterBinds(const aLabel, aSnippet: string);
   begin
@@ -12070,24 +12064,20 @@ begin
   AssertRegisterKeepsClonedSSSE3('ReduceAddF32x4', 'dispatchTable.ReduceAddF32x4 := @SSE41');
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
-    if not TryGetRegisteredBackendDispatchTable(sbSSSE3, LSSSE3Table) then
-      Exit;
-    if not TryGetRegisteredBackendDispatchTable(sbSSE41, LSSE41Table) then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
+  if not TryGetRegisteredBackendDispatchTable(sbSSSE3, LSSSE3Table) then
+    Exit;
+  if not TryGetRegisteredBackendDispatchTable(sbSSE41, LSSE41Table) then
+    Exit;
 
-    AssertSlotReusesSSSE3('ReduceAddF32x4', Pointer(LSSSE3Table.ReduceAddF32x4), Pointer(LSSE41Table.ReduceAddF32x4));
-    AssertSlotOwnsSSE41('MulI32x4', Pointer(LSSSE3Table.MulI32x4), Pointer(LSSE41Table.MulI32x4));
-    AssertSlotOwnsSSE41('DotF32x4', Pointer(LSSSE3Table.DotF32x4), Pointer(LSSE41Table.DotF32x4));
-    AssertSlotOwnsSSE41('RoundF32x4', Pointer(LSSSE3Table.RoundF32x4), Pointer(LSSE41Table.RoundF32x4));
-    AssertSlotOwnsSSE41('SelectF32x4', Pointer(LSSSE3Table.SelectF32x4), Pointer(LSSE41Table.SelectF32x4));
-    AssertSlotOwnsSSE41('CmpEqI64x2', Pointer(LSSSE3Table.CmpEqI64x2), Pointer(LSSE41Table.CmpEqI64x2));
-  finally
-  end;
+  AssertSlotReusesSSSE3('ReduceAddF32x4', Pointer(LSSSE3Table.ReduceAddF32x4), Pointer(LSSE41Table.ReduceAddF32x4));
+  AssertSlotOwnsSSE41('MulI32x4', Pointer(LSSSE3Table.MulI32x4), Pointer(LSSE41Table.MulI32x4));
+  AssertSlotOwnsSSE41('DotF32x4', Pointer(LSSSE3Table.DotF32x4), Pointer(LSSE41Table.DotF32x4));
+  AssertSlotOwnsSSE41('RoundF32x4', Pointer(LSSSE3Table.RoundF32x4), Pointer(LSSE41Table.RoundF32x4));
+  AssertSlotOwnsSSE41('SelectF32x4', Pointer(LSSSE3Table.SelectF32x4), Pointer(LSSE41Table.SelectF32x4));
+  AssertSlotOwnsSSE41('CmpEqI64x2', Pointer(LSSSE3Table.CmpEqI64x2), Pointer(LSSE41Table.CmpEqI64x2));
 end;
 
 procedure TTestCase_DispatchAPI.Test_SSE42_RepresentativeOverride_Reuse_SSE41_CoreSlots;
@@ -12097,7 +12087,6 @@ var
   LSourceLines: TStringList;
   LRegisterSourcePath: string;
   LRegisterSource: string;
-  LOldVectorAsm: Boolean;
 
   procedure AssertRegisterBinds(const aLabel, aSnippet: string);
   begin
@@ -12142,22 +12131,18 @@ begin
   AssertRegisterKeepsClonedSSE41('CmpEqI64x2', 'dispatchTable.CmpEqI64x2 := @SSE42');
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
-    if not TryGetRegisteredBackendDispatchTable(sbSSE41, LSSE41Table) then
-      Exit;
-    if not TryGetRegisteredBackendDispatchTable(sbSSE42, LSSE42Table) then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
+  if not TryGetRegisteredBackendDispatchTable(sbSSE41, LSSE41Table) then
+    Exit;
+  if not TryGetRegisteredBackendDispatchTable(sbSSE42, LSSE42Table) then
+    Exit;
 
-    AssertSlotReusesSSE41('ReduceAddF32x4', Pointer(LSSE41Table.ReduceAddF32x4), Pointer(LSSE42Table.ReduceAddF32x4));
-    AssertSlotReusesSSE41('SelectF32x4', Pointer(LSSE41Table.SelectF32x4), Pointer(LSSE42Table.SelectF32x4));
-    AssertSlotReusesSSE41('CmpEqI64x2', Pointer(LSSE41Table.CmpEqI64x2), Pointer(LSSE42Table.CmpEqI64x2));
-    AssertSlotOwnsSSE42('CmpGtI64x2', Pointer(LSSE41Table.CmpGtI64x2), Pointer(LSSE42Table.CmpGtI64x2));
-  finally
-  end;
+  AssertSlotReusesSSE41('ReduceAddF32x4', Pointer(LSSE41Table.ReduceAddF32x4), Pointer(LSSE42Table.ReduceAddF32x4));
+  AssertSlotReusesSSE41('SelectF32x4', Pointer(LSSE41Table.SelectF32x4), Pointer(LSSE42Table.SelectF32x4));
+  AssertSlotReusesSSE41('CmpEqI64x2', Pointer(LSSE41Table.CmpEqI64x2), Pointer(LSSE42Table.CmpEqI64x2));
+  AssertSlotOwnsSSE42('CmpGtI64x2', Pointer(LSSE41Table.CmpGtI64x2), Pointer(LSSE42Table.CmpGtI64x2));
 end;
 
 procedure TTestCase_DispatchAPI.Test_SSE3_RepresentativeSemanticParity_WithScalar_IfDispatchable;
@@ -12166,7 +12151,6 @@ var
   LSSE3Table: TSimdDispatchTable;
   LCurrentDispatch: PSimdDispatchTable;
   LCanRunSSE3: Boolean;
-  LOldVectorAsm: Boolean;
   LA, LB, LNormalizeInput, LNormalizeZeroInput: TVecF32x4;
   LNormalizeActual, LNormalizeExpected: TVecF32x4;
   LNormalizeZeroActual, LNormalizeZeroExpected: TVecF32x4;
@@ -12186,70 +12170,66 @@ begin
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
 
-    if not TryGetRegisteredBackendDispatchTable(sbSSE3, LSSE3Table) then
-      Exit;
+  if not TryGetRegisteredBackendDispatchTable(sbSSE3, LSSE3Table) then
+    Exit;
 
-    AssertTrue('SSE3 ReduceAddF32x4 should leave the scalar slot when runtime semantic parity is checkable',
-      Pointer(LSSE3Table.ReduceAddF32x4) <> Pointer(LScalarTable.ReduceAddF32x4));
-    AssertTrue('SSE3 DotF32x4 should leave the scalar slot when runtime semantic parity is checkable',
-      Pointer(LSSE3Table.DotF32x4) <> Pointer(LScalarTable.DotF32x4));
-    AssertTrue('SSE3 NormalizeF32x4 should leave the scalar slot when runtime semantic parity is checkable',
-      Pointer(LSSE3Table.NormalizeF32x4) <> Pointer(LScalarTable.NormalizeF32x4));
+  AssertTrue('SSE3 ReduceAddF32x4 should leave the scalar slot when runtime semantic parity is checkable',
+    Pointer(LSSE3Table.ReduceAddF32x4) <> Pointer(LScalarTable.ReduceAddF32x4));
+  AssertTrue('SSE3 DotF32x4 should leave the scalar slot when runtime semantic parity is checkable',
+    Pointer(LSSE3Table.DotF32x4) <> Pointer(LScalarTable.DotF32x4));
+  AssertTrue('SSE3 NormalizeF32x4 should leave the scalar slot when runtime semantic parity is checkable',
+    Pointer(LSSE3Table.NormalizeF32x4) <> Pointer(LScalarTable.NormalizeF32x4));
 
-    LCanRunSSE3 := LSSE3Table.BackendInfo.Available and TrySetActiveBackend(sbSSE3);
-    if not LCanRunSSE3 then
-      Exit;
+  LCanRunSSE3 := LSSE3Table.BackendInfo.Available and TrySetActiveBackend(sbSSE3);
+  if not LCanRunSSE3 then
+    Exit;
 
-    LCurrentDispatch := GetDispatchTable;
-    AssertEquals('Active backend should be SSE3 for runtime semantic parity',
-      Ord(sbSSE3), Ord(GetActiveBackend));
-    AssertEquals('Current dispatch table should resolve to SSE3 after forcing the backend',
-      Ord(sbSSE3), Ord(LCurrentDispatch^.Backend));
+  LCurrentDispatch := GetDispatchTable;
+  AssertEquals('Active backend should be SSE3 for runtime semantic parity',
+    Ord(sbSSE3), Ord(GetActiveBackend));
+  AssertEquals('Current dispatch table should resolve to SSE3 after forcing the backend',
+    Ord(sbSSE3), Ord(LCurrentDispatch^.Backend));
 
-    LA.f[0] := 1.0;
-    LA.f[1] := 2.0;
-    LA.f[2] := 3.0;
-    LA.f[3] := 4.0;
-    LB.f[0] := -5.0;
-    LB.f[1] := 6.0;
-    LB.f[2] := -7.0;
-    LB.f[3] := 8.0;
-    LNormalizeInput.f[0] := 4.0;
-    LNormalizeInput.f[1] := 0.0;
-    LNormalizeInput.f[2] := 0.0;
-    LNormalizeInput.f[3] := 0.0;
-    LNormalizeZeroInput.f[0] := 0.0;
-    LNormalizeZeroInput.f[1] := 0.0;
-    LNormalizeZeroInput.f[2] := 0.0;
-    LNormalizeZeroInput.f[3] := 0.0;
+  LA.f[0] := 1.0;
+  LA.f[1] := 2.0;
+  LA.f[2] := 3.0;
+  LA.f[3] := 4.0;
+  LB.f[0] := -5.0;
+  LB.f[1] := 6.0;
+  LB.f[2] := -7.0;
+  LB.f[3] := 8.0;
+  LNormalizeInput.f[0] := 4.0;
+  LNormalizeInput.f[1] := 0.0;
+  LNormalizeInput.f[2] := 0.0;
+  LNormalizeInput.f[3] := 0.0;
+  LNormalizeZeroInput.f[0] := 0.0;
+  LNormalizeZeroInput.f[1] := 0.0;
+  LNormalizeZeroInput.f[2] := 0.0;
+  LNormalizeZeroInput.f[3] := 0.0;
 
-    LReduceExpected := ScalarReduceAddF32x4(LA);
-    LReduceActual := LCurrentDispatch^.ReduceAddF32x4(LA);
-    AssertEquals('SSE3 ReduceAddF32x4 scalar parity',
-      LReduceExpected, LReduceActual, 0.0);
+  LReduceExpected := ScalarReduceAddF32x4(LA);
+  LReduceActual := LCurrentDispatch^.ReduceAddF32x4(LA);
+  AssertEquals('SSE3 ReduceAddF32x4 scalar parity',
+    LReduceExpected, LReduceActual, 0.0);
 
-    LDotExpected := ScalarDotF32x4(LA, LB);
-    LDotActual := LCurrentDispatch^.DotF32x4(LA, LB);
-    AssertEquals('SSE3 DotF32x4 scalar parity',
-      LDotExpected, LDotActual, 0.0);
+  LDotExpected := ScalarDotF32x4(LA, LB);
+  LDotActual := LCurrentDispatch^.DotF32x4(LA, LB);
+  AssertEquals('SSE3 DotF32x4 scalar parity',
+    LDotExpected, LDotActual, 0.0);
 
-    LNormalizeExpected := ScalarNormalizeF32x4(LNormalizeInput);
-    LNormalizeActual := LCurrentDispatch^.NormalizeF32x4(LNormalizeInput);
-    AssertVecF32x4Equal('SSE3 NormalizeF32x4 scalar parity',
-      LNormalizeExpected, LNormalizeActual, 0.0);
+  LNormalizeExpected := ScalarNormalizeF32x4(LNormalizeInput);
+  LNormalizeActual := LCurrentDispatch^.NormalizeF32x4(LNormalizeInput);
+  AssertVecF32x4Equal('SSE3 NormalizeF32x4 scalar parity',
+    LNormalizeExpected, LNormalizeActual, 0.0);
 
-    LNormalizeZeroExpected := ScalarNormalizeF32x4(LNormalizeZeroInput);
-    LNormalizeZeroActual := LCurrentDispatch^.NormalizeF32x4(LNormalizeZeroInput);
-    AssertVecF32x4Equal('SSE3 NormalizeF32x4 zero scalar parity',
-      LNormalizeZeroExpected, LNormalizeZeroActual, 0.0);
-  finally
-  end;
+  LNormalizeZeroExpected := ScalarNormalizeF32x4(LNormalizeZeroInput);
+  LNormalizeZeroActual := LCurrentDispatch^.NormalizeF32x4(LNormalizeZeroInput);
+  AssertVecF32x4Equal('SSE3 NormalizeF32x4 zero scalar parity',
+    LNormalizeZeroExpected, LNormalizeZeroActual, 0.0);
 end;
 
 procedure TTestCase_DispatchAPI.Test_SSSE3_RepresentativeSemanticParity_WithScalar_IfDispatchable;
@@ -12258,7 +12238,6 @@ var
   LSSSE3Table: TSimdDispatchTable;
   LCurrentDispatch: PSimdDispatchTable;
   LCanRunSSSE3: Boolean;
-  LOldVectorAsm: Boolean;
   LA, LB: TVecI8x16;
   LMinActual, LMinExpected: TVecI8x16;
   LMaxActual, LMaxExpected: TVecI8x16;
@@ -12277,50 +12256,46 @@ begin
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
 
-    if not TryGetRegisteredBackendDispatchTable(sbSSSE3, LSSSE3Table) then
-      Exit;
+  if not TryGetRegisteredBackendDispatchTable(sbSSSE3, LSSSE3Table) then
+    Exit;
 
-    AssertTrue('SSSE3 MinI8x16 should leave the scalar slot when runtime semantic parity is checkable',
-      Pointer(LSSSE3Table.MinI8x16) <> Pointer(LScalarTable.MinI8x16));
-    AssertTrue('SSSE3 MaxI8x16 should leave the scalar slot when runtime semantic parity is checkable',
-      Pointer(LSSSE3Table.MaxI8x16) <> Pointer(LScalarTable.MaxI8x16));
+  AssertTrue('SSSE3 MinI8x16 should leave the scalar slot when runtime semantic parity is checkable',
+    Pointer(LSSSE3Table.MinI8x16) <> Pointer(LScalarTable.MinI8x16));
+  AssertTrue('SSSE3 MaxI8x16 should leave the scalar slot when runtime semantic parity is checkable',
+    Pointer(LSSSE3Table.MaxI8x16) <> Pointer(LScalarTable.MaxI8x16));
 
-    LCanRunSSSE3 := LSSSE3Table.BackendInfo.Available and TrySetActiveBackend(sbSSSE3);
-    if not LCanRunSSSE3 then
-      Exit;
+  LCanRunSSSE3 := LSSSE3Table.BackendInfo.Available and TrySetActiveBackend(sbSSSE3);
+  if not LCanRunSSSE3 then
+    Exit;
 
-    LCurrentDispatch := GetDispatchTable;
-    AssertEquals('Active backend should be SSSE3 for runtime semantic parity',
-      Ord(sbSSSE3), Ord(GetActiveBackend));
-    AssertEquals('Current dispatch table should resolve to SSSE3 after forcing the backend',
-      Ord(sbSSSE3), Ord(LCurrentDispatch^.Backend));
+  LCurrentDispatch := GetDispatchTable;
+  AssertEquals('Active backend should be SSSE3 for runtime semantic parity',
+    Ord(sbSSSE3), Ord(GetActiveBackend));
+  AssertEquals('Current dispatch table should resolve to SSSE3 after forcing the backend',
+    Ord(sbSSSE3), Ord(LCurrentDispatch^.Backend));
 
-    LA.i[0] := -104; LA.i[1] := -91; LA.i[2] := -78; LA.i[3] := -65;
-    LA.i[4] := -52;  LA.i[5] := -39; LA.i[6] := -26; LA.i[7] := -13;
-    LA.i[8] := 0;    LA.i[9] := 13;  LA.i[10] := 26; LA.i[11] := 39;
-    LA.i[12] := 52;  LA.i[13] := 65; LA.i[14] := 78; LA.i[15] := 91;
-    LB.i[0] := 96;   LB.i[1] := 85;  LB.i[2] := 74;  LB.i[3] := 63;
-    LB.i[4] := 52;   LB.i[5] := 41;  LB.i[6] := 30;  LB.i[7] := 19;
-    LB.i[8] := 8;    LB.i[9] := -3;  LB.i[10] := -14; LB.i[11] := -25;
-    LB.i[12] := -36; LB.i[13] := -47; LB.i[14] := -58; LB.i[15] := -69;
+  LA.i[0] := -104; LA.i[1] := -91; LA.i[2] := -78; LA.i[3] := -65;
+  LA.i[4] := -52;  LA.i[5] := -39; LA.i[6] := -26; LA.i[7] := -13;
+  LA.i[8] := 0;    LA.i[9] := 13;  LA.i[10] := 26; LA.i[11] := 39;
+  LA.i[12] := 52;  LA.i[13] := 65; LA.i[14] := 78; LA.i[15] := 91;
+  LB.i[0] := 96;   LB.i[1] := 85;  LB.i[2] := 74;  LB.i[3] := 63;
+  LB.i[4] := 52;   LB.i[5] := 41;  LB.i[6] := 30;  LB.i[7] := 19;
+  LB.i[8] := 8;    LB.i[9] := -3;  LB.i[10] := -14; LB.i[11] := -25;
+  LB.i[12] := -36; LB.i[13] := -47; LB.i[14] := -58; LB.i[15] := -69;
 
-    LMinExpected := ScalarMinI8x16(LA, LB);
-    LMinActual := LCurrentDispatch^.MinI8x16(LA, LB);
-    AssertVecI8x16Equal('SSSE3 MinI8x16 scalar parity',
-      LMinExpected, LMinActual);
+  LMinExpected := ScalarMinI8x16(LA, LB);
+  LMinActual := LCurrentDispatch^.MinI8x16(LA, LB);
+  AssertVecI8x16Equal('SSSE3 MinI8x16 scalar parity',
+    LMinExpected, LMinActual);
 
-    LMaxExpected := ScalarMaxI8x16(LA, LB);
-    LMaxActual := LCurrentDispatch^.MaxI8x16(LA, LB);
-    AssertVecI8x16Equal('SSSE3 MaxI8x16 scalar parity',
-      LMaxExpected, LMaxActual);
-  finally
-  end;
+  LMaxExpected := ScalarMaxI8x16(LA, LB);
+  LMaxActual := LCurrentDispatch^.MaxI8x16(LA, LB);
+  AssertVecI8x16Equal('SSSE3 MaxI8x16 scalar parity',
+    LMaxExpected, LMaxActual);
 end;
 
 procedure TTestCase_DispatchAPI.Test_SSE41_RepresentativeSemanticParity_WithScalar_IfDispatchable;
@@ -12329,7 +12304,6 @@ var
   LSSE41Table: TSimdDispatchTable;
   LCurrentDispatch: PSimdDispatchTable;
   LCanRunSSE41: Boolean;
-  LOldVectorAsm: Boolean;
   LI32A, LI32B: TVecI32x4;
   LI32Actual, LI32Expected: TVecI32x4;
   LF32RoundInput: TVecF32x4;
@@ -12372,43 +12346,41 @@ begin
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
 
-    if not TryGetRegisteredBackendDispatchTable(sbSSE41, LSSE41Table) then
-      Exit;
+  if not TryGetRegisteredBackendDispatchTable(sbSSE41, LSSE41Table) then
+    Exit;
 
-    AssertTrue('SSE4.1 MulI32x4 should leave the scalar slot when runtime semantic parity is checkable',
-      Pointer(LSSE41Table.MulI32x4) <> Pointer(LScalarTable.MulI32x4));
-    AssertTrue('SSE4.1 DotF32x4 should leave the scalar slot when runtime semantic parity is checkable',
-      Pointer(LSSE41Table.DotF32x4) <> Pointer(LScalarTable.DotF32x4));
-    AssertTrue('SSE4.1 RoundF32x4 should leave the scalar slot when runtime semantic parity is checkable',
-      Pointer(LSSE41Table.RoundF32x4) <> Pointer(LScalarTable.RoundF32x4));
-    AssertTrue('SSE4.1 SelectF32x4 should leave the scalar slot when runtime semantic parity is checkable',
-      Pointer(LSSE41Table.SelectF32x4) <> Pointer(LScalarTable.SelectF32x4));
-    AssertTrue('SSE4.1 InsertF32x4 should leave the scalar slot when runtime semantic parity is checkable',
-      Pointer(LSSE41Table.InsertF32x4) <> Pointer(LScalarTable.InsertF32x4));
-    AssertTrue('SSE4.1 ExtractF32x4 should leave the scalar slot when runtime semantic parity is checkable',
-      Pointer(LSSE41Table.ExtractF32x4) <> Pointer(LScalarTable.ExtractF32x4));
-    AssertTrue('SSE4.1 NormalizeF32x4 should leave the scalar slot when runtime semantic parity is checkable',
-      Pointer(LSSE41Table.NormalizeF32x4) <> Pointer(LScalarTable.NormalizeF32x4));
-    AssertTrue('SSE4.1 NormalizeF32x3 should leave the scalar slot when runtime semantic parity is checkable',
-      Pointer(LSSE41Table.NormalizeF32x3) <> Pointer(LScalarTable.NormalizeF32x3));
-    AssertTrue('SSE4.1 CmpEqI64x2 should leave the scalar slot when runtime semantic parity is checkable',
-      Pointer(LSSE41Table.CmpEqI64x2) <> Pointer(LScalarTable.CmpEqI64x2));
+  AssertTrue('SSE4.1 MulI32x4 should leave the scalar slot when runtime semantic parity is checkable',
+    Pointer(LSSE41Table.MulI32x4) <> Pointer(LScalarTable.MulI32x4));
+  AssertTrue('SSE4.1 DotF32x4 should leave the scalar slot when runtime semantic parity is checkable',
+    Pointer(LSSE41Table.DotF32x4) <> Pointer(LScalarTable.DotF32x4));
+  AssertTrue('SSE4.1 RoundF32x4 should leave the scalar slot when runtime semantic parity is checkable',
+    Pointer(LSSE41Table.RoundF32x4) <> Pointer(LScalarTable.RoundF32x4));
+  AssertTrue('SSE4.1 SelectF32x4 should leave the scalar slot when runtime semantic parity is checkable',
+    Pointer(LSSE41Table.SelectF32x4) <> Pointer(LScalarTable.SelectF32x4));
+  AssertTrue('SSE4.1 InsertF32x4 should leave the scalar slot when runtime semantic parity is checkable',
+    Pointer(LSSE41Table.InsertF32x4) <> Pointer(LScalarTable.InsertF32x4));
+  AssertTrue('SSE4.1 ExtractF32x4 should leave the scalar slot when runtime semantic parity is checkable',
+    Pointer(LSSE41Table.ExtractF32x4) <> Pointer(LScalarTable.ExtractF32x4));
+  AssertTrue('SSE4.1 NormalizeF32x4 should leave the scalar slot when runtime semantic parity is checkable',
+    Pointer(LSSE41Table.NormalizeF32x4) <> Pointer(LScalarTable.NormalizeF32x4));
+  AssertTrue('SSE4.1 NormalizeF32x3 should leave the scalar slot when runtime semantic parity is checkable',
+    Pointer(LSSE41Table.NormalizeF32x3) <> Pointer(LScalarTable.NormalizeF32x3));
+  AssertTrue('SSE4.1 CmpEqI64x2 should leave the scalar slot when runtime semantic parity is checkable',
+    Pointer(LSSE41Table.CmpEqI64x2) <> Pointer(LScalarTable.CmpEqI64x2));
 
-    LCanRunSSE41 := LSSE41Table.BackendInfo.Available and TrySetActiveBackend(sbSSE41);
-    if not LCanRunSSE41 then
-      Exit;
+  LCanRunSSE41 := LSSE41Table.BackendInfo.Available and TrySetActiveBackend(sbSSE41);
+  if not LCanRunSSE41 then
+    Exit;
 
-    LCurrentDispatch := GetDispatchTable;
-    AssertEquals('Active backend should be SSE4.1 for runtime semantic parity',
-      Ord(sbSSE41), Ord(GetActiveBackend));
-    AssertEquals('Current dispatch table should resolve to SSE4.1 after forcing the backend',
-      Ord(sbSSE41), Ord(LCurrentDispatch^.Backend));
+  LCurrentDispatch := GetDispatchTable;
+  AssertEquals('Active backend should be SSE4.1 for runtime semantic parity',
+    Ord(sbSSE41), Ord(GetActiveBackend));
+  AssertEquals('Current dispatch table should resolve to SSE4.1 after forcing the backend',
+    Ord(sbSSE41), Ord(LCurrentDispatch^.Backend));
 
     LI32A.i[0] := 2;
     LI32A.i[1] := -3;
@@ -12523,12 +12495,10 @@ begin
     AssertVecF32x4Equal('SSE4.1 NormalizeF32x3 zero scalar parity',
       LNormalize3ZeroExpected, LNormalize3ZeroActual, 0.0);
 
-    LMask2Expected := ScalarCmpEqI64x2(LI64CmpA, LI64CmpB);
-    LMask2Actual := LCurrentDispatch^.CmpEqI64x2(LI64CmpA, LI64CmpB);
-    AssertEquals('SSE4.1 CmpEqI64x2 scalar parity',
-      Integer(LMask2Expected), Integer(LMask2Actual));
-  finally
-  end;
+  LMask2Expected := ScalarCmpEqI64x2(LI64CmpA, LI64CmpB);
+  LMask2Actual := LCurrentDispatch^.CmpEqI64x2(LI64CmpA, LI64CmpB);
+  AssertEquals('SSE4.1 CmpEqI64x2 scalar parity',
+    Integer(LMask2Expected), Integer(LMask2Actual));
 end;
 
 procedure TTestCase_DispatchAPI.Test_SSE42_RepresentativeSemanticParity_WithScalar_IfDispatchable;
@@ -12537,7 +12507,6 @@ var
   LSSE42Table: TSimdDispatchTable;
   LCurrentDispatch: PSimdDispatchTable;
   LCanRunSSE42: Boolean;
-  LOldVectorAsm: Boolean;
   LA, LB: TVecI64x2;
   LMaskActual, LMaskExpected: TMask2;
 begin
@@ -12545,39 +12514,35 @@ begin
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
 
   GetDispatchTable;
-  LOldVectorAsm := IsVectorAsmEnabled;
-  try
-    SetVectorAsmEnabled(True);
-    if not IsVectorAsmEnabled then
-      Exit;
+  SetVectorAsmEnabled(True);
+  if not IsVectorAsmEnabled then
+    Exit;
 
-    if not TryGetRegisteredBackendDispatchTable(sbSSE42, LSSE42Table) then
-      Exit;
+  if not TryGetRegisteredBackendDispatchTable(sbSSE42, LSSE42Table) then
+    Exit;
 
-    AssertTrue('SSE4.2 CmpGtI64x2 should leave the scalar slot when runtime semantic parity is checkable',
-      Pointer(LSSE42Table.CmpGtI64x2) <> Pointer(LScalarTable.CmpGtI64x2));
+  AssertTrue('SSE4.2 CmpGtI64x2 should leave the scalar slot when runtime semantic parity is checkable',
+    Pointer(LSSE42Table.CmpGtI64x2) <> Pointer(LScalarTable.CmpGtI64x2));
 
-    LCanRunSSE42 := LSSE42Table.BackendInfo.Available and TrySetActiveBackend(sbSSE42);
-    if not LCanRunSSE42 then
-      Exit;
+  LCanRunSSE42 := LSSE42Table.BackendInfo.Available and TrySetActiveBackend(sbSSE42);
+  if not LCanRunSSE42 then
+    Exit;
 
-    LCurrentDispatch := GetDispatchTable;
-    AssertEquals('Active backend should be SSE4.2 for runtime semantic parity',
-      Ord(sbSSE42), Ord(GetActiveBackend));
-    AssertEquals('Current dispatch table should resolve to SSE4.2 after forcing the backend',
-      Ord(sbSSE42), Ord(LCurrentDispatch^.Backend));
+  LCurrentDispatch := GetDispatchTable;
+  AssertEquals('Active backend should be SSE4.2 for runtime semantic parity',
+    Ord(sbSSE42), Ord(GetActiveBackend));
+  AssertEquals('Current dispatch table should resolve to SSE4.2 after forcing the backend',
+    Ord(sbSSE42), Ord(LCurrentDispatch^.Backend));
 
-    LA.i[0] := 1234567890123;
-    LA.i[1] := -10;
-    LB.i[0] := 1234567890000;
-    LB.i[1] := 20;
+  LA.i[0] := 1234567890123;
+  LA.i[1] := -10;
+  LB.i[0] := 1234567890000;
+  LB.i[1] := 20;
 
-    LMaskExpected := ScalarCmpGtI64x2(LA, LB);
-    LMaskActual := LCurrentDispatch^.CmpGtI64x2(LA, LB);
-    AssertEquals('SSE4.2 CmpGtI64x2 scalar parity',
-      Integer(LMaskExpected), Integer(LMaskActual));
-  finally
-  end;
+  LMaskExpected := ScalarCmpGtI64x2(LA, LB);
+  LMaskActual := LCurrentDispatch^.CmpGtI64x2(LA, LB);
+  AssertEquals('SSE4.2 CmpGtI64x2 scalar parity',
+    Integer(LMaskExpected), Integer(LMaskActual));
 end;
 
 procedure TTestCase_DispatchAPI.Test_AVX512_PassThroughFacadeSlots_Reuse_AVX2_When_Wrappers_Are_Just_Forwarders;

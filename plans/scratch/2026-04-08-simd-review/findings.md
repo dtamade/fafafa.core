@@ -6168,3 +6168,22 @@
 - 这继续强化当前准则：
   - 即使测试主题从 wide/source-shape 混合流切回 capability expose/clear 与 public-ABI capability bits，只要 outer `finally` 不承担真实恢复职责，就仍然可以按同一 fail-close 规则剥掉机械空壳
   - `dispatchapi` 当前的高确定性冗余已继续扩展到 `NEON` vector-asm-gated capability rebuild、`RISCVV` capability surface，以及 `AVX2` shuffle/public-ABI 合同簇
+
+## 2026-05-16 DispatchApi X86 Override Reuse And Semantic Parity Empty Finally Cleanup
+
+- `dispatchapi.testcase` 的 `11960..12580` 说明，空 outer `finally` 与死 `LOldVectorAsm` 还继续分布在 `SSSE3/SSE41/SSE42` cloned-slot/source-shape 审计，以及 `SSE3/SSSE3/SSE41/SSE42` runtime semantic parity 测试里。
+- 这次确认可安全清理的 7 条方法是：
+  - `Test_SSSE3_RepresentativeOverrides_Reuse_SSE3_CoreSlots`
+  - `Test_SSE41_RepresentativeOverrides_Reuse_SSSE3_CoreSlots`
+  - `Test_SSE42_RepresentativeOverride_Reuse_SSE41_CoreSlots`
+  - `Test_SSE3_RepresentativeSemanticParity_WithScalar_IfDispatchable`
+  - `Test_SSSE3_RepresentativeSemanticParity_WithScalar_IfDispatchable`
+  - `Test_SSE41_RepresentativeSemanticParity_WithScalar_IfDispatchable`
+  - `Test_SSE42_RepresentativeSemanticParity_WithScalar_IfDispatchable`
+- 它们的共同边界比前几批又进一步清晰：
+  - override/source-shape 审计虽然有 `TStringList` 资源释放，但真实释放只由内层 `LSourceLines.Free` 承担，外层 `finally` 仍是纯空壳
+  - runtime semantic parity 测试只做 `SetVectorAsmEnabled(True)`、读取 backend、尝试 `TrySetActiveBackend(...)`、再做 parity 断言
+  - 所有目标方法中的 `LOldVectorAsm := IsVectorAsmEnabled` 都只是机械捕获，没有 restore、没有断言、也没有后续读取
+- 这进一步强化当前准则：
+  - 当测试主题切到 x86 clone-reuse/source-shape 或 dispatchable semantic parity，只要 outer `finally` 不承担真实恢复职责，仍然可以按同一 fail-close 规则剥掉机械空壳
+  - `dispatchapi` 当前的高确定性冗余已继续扩展到 x86 family override-reuse 与 runtime semantic parity 合同簇

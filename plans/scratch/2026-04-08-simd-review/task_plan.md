@@ -4192,3 +4192,19 @@
 | 1. 复核 `NEON/RISCVV/AVX2 shuffle` 合同簇的真实边界 | completed | 已逐段复核 `Test_NEON_BackendCapabilities_Clear_VectorAsmGatedBits_When_VectorAsmDisabled`、`Test_RISCVV_BackendCapabilities_Expose_IntegerOps_When_IntegerSlots_AreNative`、`Test_RISCVV_BackendCapabilities_Expose_FMA_When_FmaSlots_AreNonScalar`、`Test_RISCVV_BackendCapabilities_Expose_Shuffle_When_RepresentativeSlots_AreNonScalar`、`Test_RISCVV_BackendCapabilities_Clear_VectorAsmGatedBits_When_VectorAsmDisabled`、`Test_AVX2_BackendCapabilities_Expose_Shuffle_When_NativeShuffleSlotsUsable`、`Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_AVX2Shuffle_When_NativeShuffleSlotsUsable`、`Test_AVX2_BackendCapabilities_Clear_Shuffle_When_VectorAsmDisabled`、`Test_PublicApi_BackendPodInfo_CapabilityBits_Clear_AVX2VectorAsmGatedBits_When_VectorAsmDisabled`：这 9 条测试都只做 `SetVectorAsmEnabled(True/False)`、backend/public-ABI 信息读取与 capability/slot 合同断言，outer `finally` 完全为空，没有任何 backend/table restore；`LOldVectorAsm` 仅做 `IsVectorAsmEnabled` 捕获且后续无读取 |
 | 2. 只收这一簇高确定性命中 | completed | 已在上述 9 个 `NEON/RISCVV/AVX2 shuffle` 合同测试中删除纯空 outer `try/finally`，并删除对应未使用的 `LOldVectorAsm`；所有 vector-asm disable、capability、slot fallback 与 public ABI 位断言保持不变 |
 | 3. 用单 suite release 复验收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 复验；构建、测试与 leak check 全部通过 |
+
+## 2026-05-16 DispatchApi X86 Override Reuse And Semantic Parity Empty Finally Cleanup
+
+### Goal
+
+继续沿 `dispatchapi.testcase` 的高确定性清理线推进到 `11960..12580`，只收掉 `SSSE3/SSE41/SSE42` override-reuse 审计和 `SSE3/SSSE3/SSE41/SSE42` runtime semantic parity 测试里的两类确定性冗余：
+- `LOldVectorAsm` 只声明和赋值、但从不读取
+- outer `try/finally` 的 `finally` 体完全为空
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 x86 override reuse / semantic parity 簇的真实边界 | completed | 已逐段复核 `Test_SSSE3_RepresentativeOverrides_Reuse_SSE3_CoreSlots`、`Test_SSE41_RepresentativeOverrides_Reuse_SSSE3_CoreSlots`、`Test_SSE42_RepresentativeOverride_Reuse_SSE41_CoreSlots`、`Test_SSE3_RepresentativeSemanticParity_WithScalar_IfDispatchable`、`Test_SSSE3_RepresentativeSemanticParity_WithScalar_IfDispatchable`、`Test_SSE41_RepresentativeSemanticParity_WithScalar_IfDispatchable`、`Test_SSE42_RepresentativeSemanticParity_WithScalar_IfDispatchable`：前 3 条测试的 source-shape 资源释放仍只由内层 `LSourceLines.Free` 承担；7 条测试的 outer `finally` 全都为空，没有任何 backend/table restore；`LOldVectorAsm` 仅做 `IsVectorAsmEnabled` 捕获且后续无读取 |
+| 2. 只收这一簇高确定性命中 | completed | 已在上述 7 个 x86 override-reuse / semantic parity 测试中删除纯空 outer `try/finally`，并删除对应未使用的 `LOldVectorAsm`；所有 cloned-slot/source-shape、dispatchable parity 与 backend/slot 断言保持不变 |
+| 3. 用单 suite release 复验收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 复验；构建、测试与 leak check 全部通过 |

@@ -7299,3 +7299,30 @@
 - 当前阶段结论：
   - 这批依旧只是 `dispatchapi` 测试层冗余清理，没有改 SIMD 生产实现
   - `dispatchapi` 当前最值当的下一批入口已进一步后移到 `12026+` 的 AVX2 facade/public-ABI/source-shape 合同区段
+
+## 2026-05-16 DispatchApi X86 Override Reuse And Semantic Parity Empty Finally Cleanup
+
+- 这一批继续留在 `dispatchapi.testcase`，没有切到 `direct`、`runtimeapi` 或生产实现，只把候选区段推进到 `11960..12580` 的 x86 override-reuse/source-shape 与 runtime semantic parity 合同测试簇。
+- 候选筛选过程：
+  - 逐段读取 `11960..12580`
+  - 明确区分前 3 条 override/source-shape 审计里的内层 `LSourceLines.Free` 和外层空壳 `finally`
+  - 确认 3 条 x86 override-reuse 测试和 4 条 x86 semantic parity 测试都带未读取的 `LOldVectorAsm`
+  - 确认这 7 条方法的 outer `finally` 全为空，没有任何 backend/table restore、hook cleanup 或其他真实清理逻辑
+- 已完成的源码改动：
+  - 文件：`tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+  - 删除 7 个方法中的纯空 outer `try/finally`
+  - 删除 7 个方法中的未使用 `LOldVectorAsm`
+  - 保留所有 `LSourceLines.Free`、override-reuse/source-shape、dispatchable runtime parity 与 backend/slot 断言不变
+- 这轮额外做的卫生确认：
+  - 再次复读 `11960..12580`，确认现在只剩内层真实释放逻辑与正常断言流
+  - 轻量后续定位显示，下一个高确定性入口已经后移到 `12583+` 的后续 AVX512 facade/source-shape 合同区段，需要继续区分内层真实释放与 outer 空壳
+- 本轮验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+- fresh 结果：
+  - `[BUILD] OK`
+  - `[TEST] OK`
+  - `[LEAK] OK`
+- 当前阶段结论：
+  - 这批依旧只是 `dispatchapi` 测试层冗余清理，没有改 SIMD 生产实现
+  - `dispatchapi` 当前最值当的下一批入口已进一步后移到 `12583+` 的 AVX512 facade/source-shape 合同区段
