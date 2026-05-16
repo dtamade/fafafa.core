@@ -6107,3 +6107,23 @@
 - 新的收敛判断是：
   - 当测试只是验证 published slot / parity / source-shape 合同，而 outer `finally` 不承担任何 restore 时，可以继续机械剥离这类空壳
   - `dispatchapi` 当前的高确定性冗余已经从 SSE2 和 façade tracking，继续扩展到了 `RISCVV` rounding register-source audit 与 `AVX512` family mapping/parity 簇
+
+## 2026-05-16 DispatchApi Capability And AVX2 FMA Empty Finally Cleanup
+
+- `dispatchapi.testcase` 的 `10549..10944` 说明，空 outer `finally` 与死 `LOldVectorAsm` 还继续分布在 backend capability 合同测试和 `AVX2` FMA 能力位合同测试里，不只存在于 earlier parity/source-shape 簇。
+- 这次确认可安全清理的 8 条方法是：
+  - `Test_BackendCapabilities_DoNotUnderclaim_Shuffle`
+  - `Test_X86_BackendCapabilities_DoNotUnderclaim_MaskedOps`
+  - `Test_BackendCapabilities_Clear_IntegerOps_When_VectorAsmDisabled`
+  - `Test_X86_BackendCapabilities_Keep_IntegerOps_When_AlwaysOn_NarrowSlots_Remain_NonScalar`
+  - `Test_X86_BackendCapabilities_Keep_MaskedOps_When_VectorAsmDisabled`
+  - `Test_AVX2_BackendCapabilities_Expose_FMA_When_FusedPathUsable`
+  - `Test_AVX2_BackendCapabilities_Clear_FMA_When_VectorAsmDisabled`
+  - `Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_AVX2FMA_When_FusedPathUsable`
+- 它们的共同边界和前几批仍然一致：
+  - 运行期部分只做 `SetVectorAsmEnabled(True/False)`、读取 backend table、再做 capability 或 FMA witness 合同断言
+  - outer `finally` 本身完全为空
+  - `LOldVectorAsm := IsVectorAsmEnabled` 只是机械捕获，没有 restore、没有断言、也没有后续读取
+- 这再次强化当前准则：
+  - 即使测试主题从 parity/source-shape 切换成 capability bits、public ABI pod info 或 fused-FMA witness，只要 outer `finally` 不承担真实恢复职责，就仍然可以按同一 fail-close 规则剥掉机械空壳
+  - `dispatchapi` 当前的高确定性冗余已经覆盖 control-plane、metadata/snapshot、facade tracking、SSE2 审计、RISCVV/AVX512 parity，以及 capability/FMA 合同测试六类簇

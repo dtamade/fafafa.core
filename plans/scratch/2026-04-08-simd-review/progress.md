@@ -7218,3 +7218,31 @@
 - 当前阶段结论：
   - 这批依旧只是 `dispatchapi` 测试层冗余清理，没有改 SIMD 生产实现
   - `dispatchapi` 当前最值当的下一批入口已进一步后移到 `10570..10943` 的 backend-capability / AVX2-FMA 合同测试簇
+
+## 2026-05-16 DispatchApi Capability And AVX2 FMA Empty Finally Cleanup
+
+- 这一批继续留在 `dispatchapi.testcase`，没有切到 `direct`、`concurrent` 或生产实现，只把候选区段推进到 `10549..10944` 的 backend-capability / AVX2-FMA 合同测试簇。
+- 候选筛选过程：
+  - 先用 `rg -nUP "finally\\n\\s*end;"` 精确抓空 outer `finally`
+  - 再逐段读取 `10549..10944`
+  - 确认 5 条 capability 测试和 3 条 AVX2-FMA 合同测试都带未读取的 `LOldVectorAsm`
+  - 确认这 8 条方法的 outer `finally` 全为空，没有任何 backend/table restore，也没有真实清理逻辑
+- 已完成的源码改动：
+  - 文件：`tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+  - 删除 8 个方法中的纯空 outer `try/finally`
+  - 删除 8 个方法中的未使用 `LOldVectorAsm`
+  - 保留所有 capability、masked/int/shuffle contracts、FMA witness 与 public ABI 能力位断言不变
+- 这轮额外做的卫生确认：
+  - `git diff --check` 通过
+  - 再次复读 `10549..10944`，确认现在只剩正常断言流
+  - 轻量后续定位显示，下一个高确定性入口已经后移到 `10946+` 的 `AVX2_WideFma_ExactInputs_FollowsHalfComposition` 一带，需要再区分 source-shape 内层释放和 outer 壳是否为空
+- 本轮验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+- fresh 结果：
+  - `[BUILD] OK`
+  - `[TEST] OK`
+  - `[LEAK] OK`
+- 当前阶段结论：
+  - 这批依旧只是 `dispatchapi` 测试层冗余清理，没有改 SIMD 生产实现
+  - `dispatchapi` 当前最值当的下一批入口已进一步后移到 `10946+` 的 AVX2 wide-FMA / source-shape 合同测试簇

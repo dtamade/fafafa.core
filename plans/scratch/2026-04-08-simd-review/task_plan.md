@@ -4144,3 +4144,19 @@
 | 1. 复核 RISCVV/AVX512 簇的真实边界 | completed | 已逐段复核 `Test_RISCVV_RegisterSource_Deduplicates_WideRoundingAssignments_And_Keeps_F64x2_Exception`、`Test_AVX512_U32x16_U64x8_MappingAndParity`、`Test_AVX512_U32x16_U64x8_ShiftBoundary_Contracts`、`Test_AVX512_I16x32_I8x64_U8x64_MappingAndParity`、`Test_AVX512_F32x16_F64x8_IEEE754_MappingAndParity`：这 5 条测试都只有 source-shape / mapping / parity 断言，outer `finally` 完全为空，没有任何 backend/table restore；`LOldVectorAsm` 仅做 `IsVectorAsmEnabled` 捕获且后续无读取 |
 | 2. 只收这一簇高确定性命中 | completed | 已在上述 5 个 `RISCVV/AVX512` 测试中删除纯空 outer `try/finally`，并删除对应未使用的 `LOldVectorAsm`；所有 source-shape、mapping、capability 与 parity 断言保持不变 |
 | 3. 用单 suite release 复验收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 复验；构建、测试与 leak check 全部通过 |
+
+## 2026-05-16 DispatchApi Capability And AVX2 FMA Empty Finally Cleanup
+
+### Goal
+
+继续沿 `dispatchapi.testcase` 的高确定性清理线推进到 `10549..10944`，只收掉 backend-capability / AVX2-FMA 合同测试里的两类确定性冗余：
+- `LOldVectorAsm` 只声明和赋值、但从不读取
+- outer `try/finally` 的 `finally` 体完全为空
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 capability/FMA 簇的真实边界 | completed | 已逐段复核 `Test_BackendCapabilities_DoNotUnderclaim_Shuffle`、`Test_X86_BackendCapabilities_DoNotUnderclaim_MaskedOps`、`Test_BackendCapabilities_Clear_IntegerOps_When_VectorAsmDisabled`、`Test_X86_BackendCapabilities_Keep_IntegerOps_When_AlwaysOn_NarrowSlots_Remain_NonScalar`、`Test_X86_BackendCapabilities_Keep_MaskedOps_When_VectorAsmDisabled`、`Test_AVX2_BackendCapabilities_Expose_FMA_When_FusedPathUsable`、`Test_AVX2_BackendCapabilities_Clear_FMA_When_VectorAsmDisabled`、`Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_AVX2FMA_When_FusedPathUsable`：这 8 条测试都只做 capability/FMA 合同断言，outer `finally` 完全为空，没有任何 backend/table restore；`LOldVectorAsm` 仅做 `IsVectorAsmEnabled` 捕获且后续无读取 |
+| 2. 只收这一簇高确定性命中 | completed | 已在上述 8 个 capability/FMA 测试中删除纯空 outer `try/finally`，并删除对应未使用的 `LOldVectorAsm`；所有 capability、FMA witness、public ABI 能力位与 vector-asm disable 合同断言保持不变 |
+| 3. 用单 suite release 复验收口 | completed | 已跑 `git diff --check`，并再次用 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 复验；构建、测试与 leak check 全部通过 |
