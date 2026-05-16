@@ -5061,3 +5061,37 @@
 - 这批收完后，`NEON` 当前高价值 residual 继续集中在“仍保留本地 fallback 语义”而不是“纯 dead wrapper”：
   - `ClampF64x2/F64x4/F64x8` 暂时不要动
 - 如果继续沿“缺失与冗余”主线推进，下一批更值得审的是其余 `wrapper_only=55` 里仍可能存在的 orphaned no-asm forwarder，而不是回头重碰已经证实必须保留本地语义的 `Clamp` 链。
+
+## 2026-05-16 NEON No-Asm Wide Integer Compare Findings
+
+- `CmpEq/Ge/Gt/Le/Lt/Ne` 的 `I32x8/I32x16/I64x4/I64x8/U32x8/U64x4` 共 36 个 wide integer compare slot，之前在 `src/fafafa.core.simd.neon.register.inc` 里是无条件 backend-owned；这让 no-asm runtime 也继续挂着 `NEONCmp*` published slot。
+- 但 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 的 wide compare no-asm body，并没有新的 backend-local truth：
+  - `I32x16` 只是 `NEONCombineMask8To16(NEONCmp*I32x8(lo), NEONCmp*I32x8(hi))`
+  - `I32x8/U32x8` 只是组合 `*32x4`
+  - `I64x4/U64x4` 只是组合或派生 `*64x2`
+  - `I64x8` 再继续消费 `I64x4`
+- 因而这 36 个名字的真实边界不是“删 wrapper”，而是：
+  - asm build：仍可保留 backend-owned source/binding
+  - no-asm runtime：published slot 应复用 base scalar
+  - source file：wide compare wrapper 仍保留，给 narrower-helper fallback graph 用
+- 这批也暴露了 checker 自己的旧盲区：
+  - 只把 compare binding 改成 `asm-only` 之后，`check_nonx86_register_truthfulness.py` 首轮把 16 个既有的 NEON `asm-only wrapper_only` float slot 一并误报成 miswired
+  - 根因是旧 checker 只区分 generic `ALLOWED_WRAPPER_SLOTS_BY_BACKEND`，不知道“某些 wrapper_only 只允许出现在 asm-only 上下文”
+  - 现在已经把 wide compare 单独收进 `ALLOWED_ASM_ONLY_WRAPPER_SLOTS_BY_BACKEND['neon']`，并允许旧 wrapper allowlist 在 asm-only 上下文继续合法命中
+- `DispatchAPI` 现在也不再把这 36 个 compare slot 混在“大整数 fallback 混合护栏”里，而是有了 dedicated truth：
+  - wide compare source companion 必须仍在 `neon.scalar.autowrap.inc`
+  - asm binding source 必须仍在 `neon.register.inc`
+  - no-asm runtime 下 `sbNEON.Cmp*` slot 必须和 scalar slot 指针完全一致
+- fresh 结果说明这批收口的是 ownership truth，而不是继续删 companion：
+  - `backend=neon assignments=342 asm_exact=277 asm_suffix_only=10 wrapper_only=55 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `backend=riscvv assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `DispatchAPI`、`check`、`gate` 继续全绿
+
+## 2026-05-16 Next Residual After Wide Integer Compare Ownership Cleanup
+
+- `ClampF64x2/F64x4/F64x8` 仍然不要动；现有 dedicated 护栏已经证明它们保留本地 `NaN/signed-zero` fallback 语义，不属于这类 published ownership cleanup。
+- wide float arithmetic/minmax 也不是下一刀；当前 register/test 已经明确：
+  - wrapper/source companion 仍需保留给 asm/wider graph
+  - no-asm runtime slot 已经复用 scalar
+- 在当前 `NEON wrapper_only=55` 的残余里，更值得继续扫的是其余可能还停留在“always backend-owned 但 no-asm 只是 narrower-helper composition”的簇，而不是回头重开已经固定边界的 `Clamp` 或宽浮点 arithmetic/minmax。

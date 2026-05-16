@@ -21,7 +21,7 @@ IFNDEF_RE = re.compile(r"^\s*\{\$IFNDEF\s+([A-Za-z_][A-Za-z0-9_]*)\s*\}\s*$", re
 ELSE_RE = re.compile(r"^\s*\{\$ELSE\s*\}\s*$", re.IGNORECASE)
 ENDIF_RE = re.compile(r"^\s*\{\$ENDIF\s*\}\s*$", re.IGNORECASE)
 
-NEON_WIDE_COMPARE_WRAPPER_SLOTS: set[str] = {
+NEON_WIDE_COMPARE_ASM_ONLY_WRAPPER_SLOTS: set[str] = {
     "CmpEqI32x16", "CmpEqI32x8", "CmpEqI64x4", "CmpEqI64x8", "CmpEqU32x8", "CmpEqU64x4",
     "CmpGeI32x16", "CmpGeI32x8", "CmpGeI64x4", "CmpGeI64x8", "CmpGeU32x8", "CmpGeU64x4",
     "CmpGtI32x16", "CmpGtI32x8", "CmpGtI64x4", "CmpGtI64x8", "CmpGtU32x8", "CmpGtU64x4",
@@ -41,7 +41,7 @@ ALLOWED_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
         "MulF32x16", "MulF64x8",
         "SubF32x16", "SubF64x8",
         "AndNotI8x16", "AndNotU16x8", "AndNotU8x16",
-    } | NEON_WIDE_COMPARE_WRAPPER_SLOTS,
+    },
     "riscvv": {
         "AndNotI64x2", "AndNotI8x16", "AndNotU16x8", "AndNotU64x2",
         "AndNotU8x16",
@@ -53,6 +53,10 @@ ALLOWED_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
         "MaxI64x2", "MaxU64x2", "MinI64x2", "MinU64x2",
         "SelectF32x8", "SelectF64x4", "SelectI32x4",
     },
+}
+
+ALLOWED_ASM_ONLY_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
+    "neon": NEON_WIDE_COMPARE_ASM_ONLY_WRAPPER_SLOTS,
 }
 
 ALLOWED_ALWAYS_ASM_HELPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
@@ -386,6 +390,7 @@ def build_reason_list(
 ) -> list[str]:
     l_reasons: list[str] = []
     l_allowed_wrapper_slots = ALLOWED_WRAPPER_SLOTS_BY_BACKEND.get(a_backend, set())
+    l_allowed_asm_only_wrapper_slots = ALLOWED_ASM_ONLY_WRAPPER_SLOTS_BY_BACKEND.get(a_backend, set())
     l_allowed_always_asm_helper_slots = ALLOWED_ALWAYS_ASM_HELPER_SLOTS_BY_BACKEND.get(a_backend, set())
 
     if a_classification == "scalar_passthrough":
@@ -401,10 +406,13 @@ def build_reason_list(
         elif (a_assignment.context != "asm-only") and (a_assignment.slot not in l_allowed_always_asm_helper_slots):
             l_reasons.append("asm-helper-wrapper-not-gated-to-asm-only-branch")
     elif a_classification == "wrapper_only":
-        if a_assignment.slot not in l_allowed_wrapper_slots:
-            if a_assignment.context == "asm-only":
+        if a_assignment.context == "asm-only":
+            if (a_assignment.slot not in l_allowed_asm_only_wrapper_slots) and (
+                a_assignment.slot not in l_allowed_wrapper_slots
+            ):
                 l_reasons.append("wrapper-only-bound-inside-asm-block")
-            elif a_assignment.context == "no-asm":
+        elif a_assignment.slot not in l_allowed_wrapper_slots:
+            if a_assignment.context == "no-asm":
                 l_reasons.append("wrapper-only-bound-inside-no-asm-block")
             elif a_strict:
                 l_reasons.append("wrapper-only-backend-owned-slot")
@@ -542,6 +550,7 @@ def build_report(a_config: CheckerConfig, a_strict: bool) -> dict[str, Any]:
     ]
     l_conflicting_assignment_count = sum(1 for l_record in l_assignment_records if l_record["conflicts"])
     l_allowed_wrapper_slots = ALLOWED_WRAPPER_SLOTS_BY_BACKEND.get(a_config.backend, set())
+    l_allowed_asm_only_wrapper_slots = ALLOWED_ASM_ONLY_WRAPPER_SLOTS_BY_BACKEND.get(a_config.backend, set())
     l_current_wrapper_only_slots = sorted(
         {
             l_record["slot"]
@@ -549,7 +558,18 @@ def build_report(a_config: CheckerConfig, a_strict: bool) -> dict[str, Any]:
             if l_record["classification"] == "wrapper_only"
         }
     )
-    l_unused_allowlist_slots = sorted(l_allowed_wrapper_slots.difference(l_current_wrapper_only_slots))
+    l_current_asm_only_wrapper_slots = sorted(
+        {
+            l_record["slot"]
+            for l_record in l_assignment_records
+            if (l_record["classification"] == "wrapper_only") and (l_record["context"] == "asm-only")
+        }
+    )
+    l_unused_allowlist_slots = sorted(
+        l_allowed_wrapper_slots.difference(l_current_wrapper_only_slots).union(
+            l_allowed_asm_only_wrapper_slots.difference(l_current_asm_only_wrapper_slots)
+        )
+    )
 
     l_result: dict[str, Any] = {
         "backend": a_config.backend,
@@ -567,8 +587,11 @@ def build_report(a_config: CheckerConfig, a_strict: bool) -> dict[str, Any]:
         "pascal_owned_count": l_counts["pascal_owned_count"],
         "miswired_count": len(l_miswired),
         "allowed_wrapper_slot_count": len(l_allowed_wrapper_slots),
+        "allowed_asm_only_wrapper_slot_count": len(l_allowed_asm_only_wrapper_slots),
         "current_wrapper_only_slot_count": len(l_current_wrapper_only_slots),
         "current_wrapper_only_slots": l_current_wrapper_only_slots,
+        "current_asm_only_wrapper_slot_count": len(l_current_asm_only_wrapper_slots),
+        "current_asm_only_wrapper_slots": l_current_asm_only_wrapper_slots,
         "unused_allowlist_count": len(l_unused_allowlist_slots),
         "unused_allowlist_slots": l_unused_allowlist_slots,
         "conflicting_assignment_count": l_conflicting_assignment_count,

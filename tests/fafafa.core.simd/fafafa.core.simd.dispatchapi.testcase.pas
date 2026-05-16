@@ -162,6 +162,7 @@ type
     procedure Test_NEON_NoAsmWideClampSlots_Reuse_BaseScalar_Only_For_F32Forwarders_And_Keep_F64LocalFallback;
     procedure Test_NEON_NoAsmAbsAndWideFloorCeilSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_NEON_MaskHelperSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
+    procedure Test_NEON_NoAsmWideIntegerCompareSlots_Keep_SourceCompanions_But_Reuse_BaseScalar;
     procedure Test_NEON_NoAsmIntegerFallbackSlots_Reuse_BaseScalar_When_Wrappers_Are_Not_BackendOwned;
     procedure Test_NEON_SelectF32x4_AsmEnabledSource_Does_Not_ScalarForward;
     procedure Test_RISCVV_FacadeDotF64_NoAsmSource_Does_Not_ScalarForward;
@@ -8142,6 +8143,199 @@ begin
   AssertSlotReusesScalar('Mask16FirstSet', Pointer(LScalarTable.Mask16FirstSet), Pointer(LNEONTable.Mask16FirstSet));
 end;
 
+procedure TTestCase_DispatchAPI.Test_NEON_NoAsmWideIntegerCompareSlots_Keep_SourceCompanions_But_Reuse_BaseScalar;
+var
+  LScalarTable: TSimdDispatchTable;
+  LNEONTable: TSimdDispatchTable;
+  LSourceLines: TStringList;
+  LRegisterSourcePath: string;
+  LAutowrapSourcePath: string;
+  LRegisterSource: string;
+  LAutowrapSource: string;
+
+  procedure AssertSourceCompanionStillPresent(const aLabel, aSignatureSnippet: string);
+  begin
+    AssertTrue(aLabel + ' source companion should remain in the NEON scalar autowrap include',
+      Pos(LowerCase(aSignatureSnippet), LAutowrapSource) > 0);
+  end;
+
+  procedure AssertSourceCompositionStillPresent(const aLabel, aBodySnippet: string);
+  begin
+    AssertTrue(aLabel + ' should still compose narrower compare helpers in the NEON scalar autowrap include',
+      Pos(LowerCase(aBodySnippet), LAutowrapSource) > 0);
+  end;
+
+  procedure AssertAsmBindingStillPresent(const aLabel, aSnippet: string);
+  begin
+    AssertTrue('RegisterNEONBackend should still keep the asm-enabled binding source for ' + aLabel,
+      Pos(LowerCase(aSnippet), LRegisterSource) > 0);
+  end;
+
+  procedure AssertSlotReusesScalar(const aLabel: string; const aScalarSlot, aBackendSlot: Pointer);
+  begin
+    AssertEquals('NEON ' + aLabel + ' should reuse the base scalar slot when the no-asm wide integer compare wrapper only remains as a source companion for narrower helper composition',
+      PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
+  end;
+begin
+  {$IFDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
+  Exit;
+  {$ENDIF}
+
+  LSourceLines := TStringList.Create;
+  try
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.register.inc');
+    AssertTrue('NEON register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
+      FileExists(LRegisterSourcePath));
+    LSourceLines.LoadFromFile(LRegisterSourcePath);
+    LRegisterSource := LowerCase(LSourceLines.Text);
+
+    LAutowrapSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.neon.scalar.autowrap.inc');
+    AssertTrue('NEON scalar autowrap source should exist for implementation-shape audit: ' + LAutowrapSourcePath,
+      FileExists(LAutowrapSourcePath));
+    LSourceLines.LoadFromFile(LAutowrapSourcePath);
+    LAutowrapSource := LowerCase(LSourceLines.Text);
+  finally
+    LSourceLines.Free;
+  end;
+
+  AssertSourceCompanionStillPresent('NEONCmpEqI32x16', 'function NEONCmpEqI32x16(');
+  AssertSourceCompanionStillPresent('NEONCmpEqI32x8', 'function NEONCmpEqI32x8(');
+  AssertSourceCompanionStillPresent('NEONCmpEqI64x4', 'function NEONCmpEqI64x4(');
+  AssertSourceCompanionStillPresent('NEONCmpEqI64x8', 'function NEONCmpEqI64x8(');
+  AssertSourceCompanionStillPresent('NEONCmpEqU32x8', 'function NEONCmpEqU32x8(');
+  AssertSourceCompanionStillPresent('NEONCmpEqU64x4', 'function NEONCmpEqU64x4(');
+  AssertSourceCompanionStillPresent('NEONCmpGeI32x16', 'function NEONCmpGeI32x16(');
+  AssertSourceCompanionStillPresent('NEONCmpGeI32x8', 'function NEONCmpGeI32x8(');
+  AssertSourceCompanionStillPresent('NEONCmpGeI64x4', 'function NEONCmpGeI64x4(');
+  AssertSourceCompanionStillPresent('NEONCmpGeI64x8', 'function NEONCmpGeI64x8(');
+  AssertSourceCompanionStillPresent('NEONCmpGeU32x8', 'function NEONCmpGeU32x8(');
+  AssertSourceCompanionStillPresent('NEONCmpGeU64x4', 'function NEONCmpGeU64x4(');
+  AssertSourceCompanionStillPresent('NEONCmpGtI32x16', 'function NEONCmpGtI32x16(');
+  AssertSourceCompanionStillPresent('NEONCmpGtI32x8', 'function NEONCmpGtI32x8(');
+  AssertSourceCompanionStillPresent('NEONCmpGtI64x4', 'function NEONCmpGtI64x4(');
+  AssertSourceCompanionStillPresent('NEONCmpGtI64x8', 'function NEONCmpGtI64x8(');
+  AssertSourceCompanionStillPresent('NEONCmpGtU32x8', 'function NEONCmpGtU32x8(');
+  AssertSourceCompanionStillPresent('NEONCmpGtU64x4', 'function NEONCmpGtU64x4(');
+  AssertSourceCompanionStillPresent('NEONCmpLeI32x16', 'function NEONCmpLeI32x16(');
+  AssertSourceCompanionStillPresent('NEONCmpLeI32x8', 'function NEONCmpLeI32x8(');
+  AssertSourceCompanionStillPresent('NEONCmpLeI64x4', 'function NEONCmpLeI64x4(');
+  AssertSourceCompanionStillPresent('NEONCmpLeI64x8', 'function NEONCmpLeI64x8(');
+  AssertSourceCompanionStillPresent('NEONCmpLeU32x8', 'function NEONCmpLeU32x8(');
+  AssertSourceCompanionStillPresent('NEONCmpLeU64x4', 'function NEONCmpLeU64x4(');
+  AssertSourceCompanionStillPresent('NEONCmpLtI32x16', 'function NEONCmpLtI32x16(');
+  AssertSourceCompanionStillPresent('NEONCmpLtI32x8', 'function NEONCmpLtI32x8(');
+  AssertSourceCompanionStillPresent('NEONCmpLtI64x4', 'function NEONCmpLtI64x4(');
+  AssertSourceCompanionStillPresent('NEONCmpLtI64x8', 'function NEONCmpLtI64x8(');
+  AssertSourceCompanionStillPresent('NEONCmpLtU32x8', 'function NEONCmpLtU32x8(');
+  AssertSourceCompanionStillPresent('NEONCmpLtU64x4', 'function NEONCmpLtU64x4(');
+  AssertSourceCompanionStillPresent('NEONCmpNeI32x16', 'function NEONCmpNeI32x16(');
+  AssertSourceCompanionStillPresent('NEONCmpNeI32x8', 'function NEONCmpNeI32x8(');
+  AssertSourceCompanionStillPresent('NEONCmpNeI64x4', 'function NEONCmpNeI64x4(');
+  AssertSourceCompanionStillPresent('NEONCmpNeI64x8', 'function NEONCmpNeI64x8(');
+  AssertSourceCompanionStillPresent('NEONCmpNeU32x8', 'function NEONCmpNeU32x8(');
+  AssertSourceCompanionStillPresent('NEONCmpNeU64x4', 'function NEONCmpNeU64x4(');
+
+  AssertSourceCompositionStillPresent('NEONCmpEqI32x16',
+    'Result := NEONCombineMask8To16(NEONCmpEqI32x8(a.lo, b.lo), NEONCmpEqI32x8(a.hi, b.hi));');
+  AssertSourceCompositionStillPresent('NEONCmpEqI32x8',
+    'Result := NEONCombineMask4To8(NEONCmpEqI32x4(a.lo, b.lo), NEONCmpEqI32x4(a.hi, b.hi));');
+  AssertSourceCompositionStillPresent('NEONCmpEqI64x4',
+    'Result := NEONCombineMask2To4(NEONCmpEqI64x2(a.lo, b.lo), NEONCmpEqI64x2(a.hi, b.hi));');
+  AssertSourceCompositionStillPresent('NEONCmpEqI64x8',
+    'Result := NEONCombineMask4To8(NEONCmpEqI64x4(a.lo, b.lo), NEONCmpEqI64x4(a.hi, b.hi));');
+  AssertSourceCompositionStillPresent('NEONCmpEqU32x8',
+    'Result := NEONCombineMask4To8(NEONCmpEqU32x4(a.lo, b.lo), NEONCmpEqU32x4(a.hi, b.hi));');
+  AssertSourceCompositionStillPresent('NEONCmpEqU64x4',
+    'Result := NEONCombineMask2To4(NEONCmpEqU64x2(a.lo, b.lo), NEONCmpEqU64x2(a.hi, b.hi));');
+  AssertSourceCompositionStillPresent('NEONCmpGeU64x4',
+    'TMask2(Byte(MASK2_ALL_SET) xor Byte(NEONCmpLtU64x2(a.lo, b.lo)))');
+
+  AssertAsmBindingStillPresent('CmpEqI32x16', 'table.CmpEqI32x16 := @NEONCmpEqI32x16;');
+  AssertAsmBindingStillPresent('CmpEqI32x8', 'table.CmpEqI32x8 := @NEONCmpEqI32x8;');
+  AssertAsmBindingStillPresent('CmpEqI64x4', 'table.CmpEqI64x4 := @NEONCmpEqI64x4;');
+  AssertAsmBindingStillPresent('CmpEqI64x8', 'table.CmpEqI64x8 := @NEONCmpEqI64x8;');
+  AssertAsmBindingStillPresent('CmpEqU32x8', 'table.CmpEqU32x8 := @NEONCmpEqU32x8;');
+  AssertAsmBindingStillPresent('CmpEqU64x4', 'table.CmpEqU64x4 := @NEONCmpEqU64x4;');
+  AssertAsmBindingStillPresent('CmpGeI32x16', 'table.CmpGeI32x16 := @NEONCmpGeI32x16;');
+  AssertAsmBindingStillPresent('CmpGeI32x8', 'table.CmpGeI32x8 := @NEONCmpGeI32x8;');
+  AssertAsmBindingStillPresent('CmpGeI64x4', 'table.CmpGeI64x4 := @NEONCmpGeI64x4;');
+  AssertAsmBindingStillPresent('CmpGeI64x8', 'table.CmpGeI64x8 := @NEONCmpGeI64x8;');
+  AssertAsmBindingStillPresent('CmpGeU32x8', 'table.CmpGeU32x8 := @NEONCmpGeU32x8;');
+  AssertAsmBindingStillPresent('CmpGeU64x4', 'table.CmpGeU64x4 := @NEONCmpGeU64x4;');
+  AssertAsmBindingStillPresent('CmpGtI32x16', 'table.CmpGtI32x16 := @NEONCmpGtI32x16;');
+  AssertAsmBindingStillPresent('CmpGtI32x8', 'table.CmpGtI32x8 := @NEONCmpGtI32x8;');
+  AssertAsmBindingStillPresent('CmpGtI64x4', 'table.CmpGtI64x4 := @NEONCmpGtI64x4;');
+  AssertAsmBindingStillPresent('CmpGtI64x8', 'table.CmpGtI64x8 := @NEONCmpGtI64x8;');
+  AssertAsmBindingStillPresent('CmpGtU32x8', 'table.CmpGtU32x8 := @NEONCmpGtU32x8;');
+  AssertAsmBindingStillPresent('CmpGtU64x4', 'table.CmpGtU64x4 := @NEONCmpGtU64x4;');
+  AssertAsmBindingStillPresent('CmpLeI32x16', 'table.CmpLeI32x16 := @NEONCmpLeI32x16;');
+  AssertAsmBindingStillPresent('CmpLeI32x8', 'table.CmpLeI32x8 := @NEONCmpLeI32x8;');
+  AssertAsmBindingStillPresent('CmpLeI64x4', 'table.CmpLeI64x4 := @NEONCmpLeI64x4;');
+  AssertAsmBindingStillPresent('CmpLeI64x8', 'table.CmpLeI64x8 := @NEONCmpLeI64x8;');
+  AssertAsmBindingStillPresent('CmpLeU32x8', 'table.CmpLeU32x8 := @NEONCmpLeU32x8;');
+  AssertAsmBindingStillPresent('CmpLeU64x4', 'table.CmpLeU64x4 := @NEONCmpLeU64x4;');
+  AssertAsmBindingStillPresent('CmpLtI32x16', 'table.CmpLtI32x16 := @NEONCmpLtI32x16;');
+  AssertAsmBindingStillPresent('CmpLtI32x8', 'table.CmpLtI32x8 := @NEONCmpLtI32x8;');
+  AssertAsmBindingStillPresent('CmpLtI64x4', 'table.CmpLtI64x4 := @NEONCmpLtI64x4;');
+  AssertAsmBindingStillPresent('CmpLtI64x8', 'table.CmpLtI64x8 := @NEONCmpLtI64x8;');
+  AssertAsmBindingStillPresent('CmpLtU32x8', 'table.CmpLtU32x8 := @NEONCmpLtU32x8;');
+  AssertAsmBindingStillPresent('CmpLtU64x4', 'table.CmpLtU64x4 := @NEONCmpLtU64x4;');
+  AssertAsmBindingStillPresent('CmpNeI32x16', 'table.CmpNeI32x16 := @NEONCmpNeI32x16;');
+  AssertAsmBindingStillPresent('CmpNeI32x8', 'table.CmpNeI32x8 := @NEONCmpNeI32x8;');
+  AssertAsmBindingStillPresent('CmpNeI64x4', 'table.CmpNeI64x4 := @NEONCmpNeI64x4;');
+  AssertAsmBindingStillPresent('CmpNeI64x8', 'table.CmpNeI64x8 := @NEONCmpNeI64x8;');
+  AssertAsmBindingStillPresent('CmpNeU32x8', 'table.CmpNeU32x8 := @NEONCmpNeU32x8;');
+  AssertAsmBindingStillPresent('CmpNeU64x4', 'table.CmpNeU64x4 := @NEONCmpNeU64x4;');
+
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND}
+  AssertTrue('NEON opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable) then
+    Exit;
+  {$ENDIF}
+
+  AssertSlotReusesScalar('CmpEqI32x16', Pointer(LScalarTable.CmpEqI32x16), Pointer(LNEONTable.CmpEqI32x16));
+  AssertSlotReusesScalar('CmpEqI32x8', Pointer(LScalarTable.CmpEqI32x8), Pointer(LNEONTable.CmpEqI32x8));
+  AssertSlotReusesScalar('CmpEqI64x4', Pointer(LScalarTable.CmpEqI64x4), Pointer(LNEONTable.CmpEqI64x4));
+  AssertSlotReusesScalar('CmpEqI64x8', Pointer(LScalarTable.CmpEqI64x8), Pointer(LNEONTable.CmpEqI64x8));
+  AssertSlotReusesScalar('CmpEqU32x8', Pointer(LScalarTable.CmpEqU32x8), Pointer(LNEONTable.CmpEqU32x8));
+  AssertSlotReusesScalar('CmpEqU64x4', Pointer(LScalarTable.CmpEqU64x4), Pointer(LNEONTable.CmpEqU64x4));
+  AssertSlotReusesScalar('CmpGeI32x16', Pointer(LScalarTable.CmpGeI32x16), Pointer(LNEONTable.CmpGeI32x16));
+  AssertSlotReusesScalar('CmpGeI32x8', Pointer(LScalarTable.CmpGeI32x8), Pointer(LNEONTable.CmpGeI32x8));
+  AssertSlotReusesScalar('CmpGeI64x4', Pointer(LScalarTable.CmpGeI64x4), Pointer(LNEONTable.CmpGeI64x4));
+  AssertSlotReusesScalar('CmpGeI64x8', Pointer(LScalarTable.CmpGeI64x8), Pointer(LNEONTable.CmpGeI64x8));
+  AssertSlotReusesScalar('CmpGeU32x8', Pointer(LScalarTable.CmpGeU32x8), Pointer(LNEONTable.CmpGeU32x8));
+  AssertSlotReusesScalar('CmpGeU64x4', Pointer(LScalarTable.CmpGeU64x4), Pointer(LNEONTable.CmpGeU64x4));
+  AssertSlotReusesScalar('CmpGtI32x16', Pointer(LScalarTable.CmpGtI32x16), Pointer(LNEONTable.CmpGtI32x16));
+  AssertSlotReusesScalar('CmpGtI32x8', Pointer(LScalarTable.CmpGtI32x8), Pointer(LNEONTable.CmpGtI32x8));
+  AssertSlotReusesScalar('CmpGtI64x4', Pointer(LScalarTable.CmpGtI64x4), Pointer(LNEONTable.CmpGtI64x4));
+  AssertSlotReusesScalar('CmpGtI64x8', Pointer(LScalarTable.CmpGtI64x8), Pointer(LNEONTable.CmpGtI64x8));
+  AssertSlotReusesScalar('CmpGtU32x8', Pointer(LScalarTable.CmpGtU32x8), Pointer(LNEONTable.CmpGtU32x8));
+  AssertSlotReusesScalar('CmpGtU64x4', Pointer(LScalarTable.CmpGtU64x4), Pointer(LNEONTable.CmpGtU64x4));
+  AssertSlotReusesScalar('CmpLeI32x16', Pointer(LScalarTable.CmpLeI32x16), Pointer(LNEONTable.CmpLeI32x16));
+  AssertSlotReusesScalar('CmpLeI32x8', Pointer(LScalarTable.CmpLeI32x8), Pointer(LNEONTable.CmpLeI32x8));
+  AssertSlotReusesScalar('CmpLeI64x4', Pointer(LScalarTable.CmpLeI64x4), Pointer(LNEONTable.CmpLeI64x4));
+  AssertSlotReusesScalar('CmpLeI64x8', Pointer(LScalarTable.CmpLeI64x8), Pointer(LNEONTable.CmpLeI64x8));
+  AssertSlotReusesScalar('CmpLeU32x8', Pointer(LScalarTable.CmpLeU32x8), Pointer(LNEONTable.CmpLeU32x8));
+  AssertSlotReusesScalar('CmpLeU64x4', Pointer(LScalarTable.CmpLeU64x4), Pointer(LNEONTable.CmpLeU64x4));
+  AssertSlotReusesScalar('CmpLtI32x16', Pointer(LScalarTable.CmpLtI32x16), Pointer(LNEONTable.CmpLtI32x16));
+  AssertSlotReusesScalar('CmpLtI32x8', Pointer(LScalarTable.CmpLtI32x8), Pointer(LNEONTable.CmpLtI32x8));
+  AssertSlotReusesScalar('CmpLtI64x4', Pointer(LScalarTable.CmpLtI64x4), Pointer(LNEONTable.CmpLtI64x4));
+  AssertSlotReusesScalar('CmpLtI64x8', Pointer(LScalarTable.CmpLtI64x8), Pointer(LNEONTable.CmpLtI64x8));
+  AssertSlotReusesScalar('CmpLtU32x8', Pointer(LScalarTable.CmpLtU32x8), Pointer(LNEONTable.CmpLtU32x8));
+  AssertSlotReusesScalar('CmpLtU64x4', Pointer(LScalarTable.CmpLtU64x4), Pointer(LNEONTable.CmpLtU64x4));
+  AssertSlotReusesScalar('CmpNeI32x16', Pointer(LScalarTable.CmpNeI32x16), Pointer(LNEONTable.CmpNeI32x16));
+  AssertSlotReusesScalar('CmpNeI32x8', Pointer(LScalarTable.CmpNeI32x8), Pointer(LNEONTable.CmpNeI32x8));
+  AssertSlotReusesScalar('CmpNeI64x4', Pointer(LScalarTable.CmpNeI64x4), Pointer(LNEONTable.CmpNeI64x4));
+  AssertSlotReusesScalar('CmpNeI64x8', Pointer(LScalarTable.CmpNeI64x8), Pointer(LNEONTable.CmpNeI64x8));
+  AssertSlotReusesScalar('CmpNeU32x8', Pointer(LScalarTable.CmpNeU32x8), Pointer(LNEONTable.CmpNeU32x8));
+  AssertSlotReusesScalar('CmpNeU64x4', Pointer(LScalarTable.CmpNeU64x4), Pointer(LNEONTable.CmpNeU64x4));
+end;
+
 procedure TTestCase_DispatchAPI.Test_NEON_NoAsmIntegerFallbackSlots_Reuse_BaseScalar_When_Wrappers_Are_Not_BackendOwned;
 var
   LScalarTable: TSimdDispatchTable;
@@ -8168,12 +8362,6 @@ var
   begin
     AssertEquals('NEON ' + aLabel + ' should reuse the base scalar slot when no NEON asm-backed integer ownership exists',
       PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
-  end;
-
-  procedure AssertSlotOwnedByBackend(const aLabel: string; const aScalarSlot, aBackendSlot: Pointer);
-  begin
-    AssertTrue('NEON ' + aLabel + ' should bind to a backend-owned wrapper instead of reusing the base scalar slot',
-      PtrUInt(aScalarSlot) <> PtrUInt(aBackendSlot));
   end;
 begin
   LSourceLines := TStringList.Create;
@@ -8254,42 +8442,6 @@ begin
   AssertRegisterKeepsBaseScalar('AndI32x16', 'table.AndI32x16 := @NEONAndI32x16;');
   AssertRegisterKeepsBaseScalar('AndI64x8', 'table.AndI64x8 := @NEONAndI64x8;');
   AssertRegisterKeepsBaseScalar('AndNotI32x16', 'table.AndNotI32x16 := @NEONAndNotI32x16;');
-  AssertRegisterHasAsmOwnedSlot('CmpEqI32x16', 'table.CmpEqI32x16 := @NEONCmpEqI32x16;');
-  AssertRegisterHasAsmOwnedSlot('CmpEqI32x8', 'table.CmpEqI32x8 := @NEONCmpEqI32x8;');
-  AssertRegisterHasAsmOwnedSlot('CmpEqI64x4', 'table.CmpEqI64x4 := @NEONCmpEqI64x4;');
-  AssertRegisterHasAsmOwnedSlot('CmpEqI64x8', 'table.CmpEqI64x8 := @NEONCmpEqI64x8;');
-  AssertRegisterHasAsmOwnedSlot('CmpEqU32x8', 'table.CmpEqU32x8 := @NEONCmpEqU32x8;');
-  AssertRegisterHasAsmOwnedSlot('CmpEqU64x4', 'table.CmpEqU64x4 := @NEONCmpEqU64x4;');
-  AssertRegisterHasAsmOwnedSlot('CmpGeI32x16', 'table.CmpGeI32x16 := @NEONCmpGeI32x16;');
-  AssertRegisterHasAsmOwnedSlot('CmpGeI32x8', 'table.CmpGeI32x8 := @NEONCmpGeI32x8;');
-  AssertRegisterHasAsmOwnedSlot('CmpGeI64x4', 'table.CmpGeI64x4 := @NEONCmpGeI64x4;');
-  AssertRegisterHasAsmOwnedSlot('CmpGeI64x8', 'table.CmpGeI64x8 := @NEONCmpGeI64x8;');
-  AssertRegisterHasAsmOwnedSlot('CmpGeU32x8', 'table.CmpGeU32x8 := @NEONCmpGeU32x8;');
-  AssertRegisterHasAsmOwnedSlot('CmpGeU64x4', 'table.CmpGeU64x4 := @NEONCmpGeU64x4;');
-  AssertRegisterHasAsmOwnedSlot('CmpGtI32x16', 'table.CmpGtI32x16 := @NEONCmpGtI32x16;');
-  AssertRegisterHasAsmOwnedSlot('CmpGtI32x8', 'table.CmpGtI32x8 := @NEONCmpGtI32x8;');
-  AssertRegisterHasAsmOwnedSlot('CmpGtI64x4', 'table.CmpGtI64x4 := @NEONCmpGtI64x4;');
-  AssertRegisterHasAsmOwnedSlot('CmpGtI64x8', 'table.CmpGtI64x8 := @NEONCmpGtI64x8;');
-  AssertRegisterHasAsmOwnedSlot('CmpGtU32x8', 'table.CmpGtU32x8 := @NEONCmpGtU32x8;');
-  AssertRegisterHasAsmOwnedSlot('CmpGtU64x4', 'table.CmpGtU64x4 := @NEONCmpGtU64x4;');
-  AssertRegisterHasAsmOwnedSlot('CmpLeI32x16', 'table.CmpLeI32x16 := @NEONCmpLeI32x16;');
-  AssertRegisterHasAsmOwnedSlot('CmpLeI32x8', 'table.CmpLeI32x8 := @NEONCmpLeI32x8;');
-  AssertRegisterHasAsmOwnedSlot('CmpLeI64x4', 'table.CmpLeI64x4 := @NEONCmpLeI64x4;');
-  AssertRegisterHasAsmOwnedSlot('CmpLeI64x8', 'table.CmpLeI64x8 := @NEONCmpLeI64x8;');
-  AssertRegisterHasAsmOwnedSlot('CmpLeU32x8', 'table.CmpLeU32x8 := @NEONCmpLeU32x8;');
-  AssertRegisterHasAsmOwnedSlot('CmpLeU64x4', 'table.CmpLeU64x4 := @NEONCmpLeU64x4;');
-  AssertRegisterHasAsmOwnedSlot('CmpLtI32x16', 'table.CmpLtI32x16 := @NEONCmpLtI32x16;');
-  AssertRegisterHasAsmOwnedSlot('CmpLtI32x8', 'table.CmpLtI32x8 := @NEONCmpLtI32x8;');
-  AssertRegisterHasAsmOwnedSlot('CmpLtI64x4', 'table.CmpLtI64x4 := @NEONCmpLtI64x4;');
-  AssertRegisterHasAsmOwnedSlot('CmpLtI64x8', 'table.CmpLtI64x8 := @NEONCmpLtI64x8;');
-  AssertRegisterHasAsmOwnedSlot('CmpLtU32x8', 'table.CmpLtU32x8 := @NEONCmpLtU32x8;');
-  AssertRegisterHasAsmOwnedSlot('CmpLtU64x4', 'table.CmpLtU64x4 := @NEONCmpLtU64x4;');
-  AssertRegisterHasAsmOwnedSlot('CmpNeI32x16', 'table.CmpNeI32x16 := @NEONCmpNeI32x16;');
-  AssertRegisterHasAsmOwnedSlot('CmpNeI32x8', 'table.CmpNeI32x8 := @NEONCmpNeI32x8;');
-  AssertRegisterHasAsmOwnedSlot('CmpNeI64x4', 'table.CmpNeI64x4 := @NEONCmpNeI64x4;');
-  AssertRegisterHasAsmOwnedSlot('CmpNeI64x8', 'table.CmpNeI64x8 := @NEONCmpNeI64x8;');
-  AssertRegisterHasAsmOwnedSlot('CmpNeU32x8', 'table.CmpNeU32x8 := @NEONCmpNeU32x8;');
-  AssertRegisterHasAsmOwnedSlot('CmpNeU64x4', 'table.CmpNeU64x4 := @NEONCmpNeU64x4;');
   AssertRegisterKeepsBaseScalar('ExtractI32x16', 'table.ExtractI32x16 := @NEONExtractI32x16;');
   AssertRegisterKeepsBaseScalar('ExtractI32x8', 'table.ExtractI32x8 := @NEONExtractI32x8;');
   AssertRegisterKeepsBaseScalar('ExtractI64x4', 'table.ExtractI64x4 := @NEONExtractI64x4;');
@@ -8334,42 +8486,6 @@ begin
   AssertSlotReusesScalar('AndI32x16', Pointer(LScalarTable.AndI32x16), Pointer(LNEONTable.AndI32x16));
   AssertSlotReusesScalar('AndI64x8', Pointer(LScalarTable.AndI64x8), Pointer(LNEONTable.AndI64x8));
   AssertSlotReusesScalar('AndNotI32x16', Pointer(LScalarTable.AndNotI32x16), Pointer(LNEONTable.AndNotI32x16));
-  AssertSlotOwnedByBackend('CmpEqI32x16', Pointer(LScalarTable.CmpEqI32x16), Pointer(LNEONTable.CmpEqI32x16));
-  AssertSlotOwnedByBackend('CmpEqI32x8', Pointer(LScalarTable.CmpEqI32x8), Pointer(LNEONTable.CmpEqI32x8));
-  AssertSlotOwnedByBackend('CmpEqI64x4', Pointer(LScalarTable.CmpEqI64x4), Pointer(LNEONTable.CmpEqI64x4));
-  AssertSlotOwnedByBackend('CmpEqI64x8', Pointer(LScalarTable.CmpEqI64x8), Pointer(LNEONTable.CmpEqI64x8));
-  AssertSlotOwnedByBackend('CmpEqU32x8', Pointer(LScalarTable.CmpEqU32x8), Pointer(LNEONTable.CmpEqU32x8));
-  AssertSlotOwnedByBackend('CmpEqU64x4', Pointer(LScalarTable.CmpEqU64x4), Pointer(LNEONTable.CmpEqU64x4));
-  AssertSlotOwnedByBackend('CmpGeI32x16', Pointer(LScalarTable.CmpGeI32x16), Pointer(LNEONTable.CmpGeI32x16));
-  AssertSlotOwnedByBackend('CmpGeI32x8', Pointer(LScalarTable.CmpGeI32x8), Pointer(LNEONTable.CmpGeI32x8));
-  AssertSlotOwnedByBackend('CmpGeI64x4', Pointer(LScalarTable.CmpGeI64x4), Pointer(LNEONTable.CmpGeI64x4));
-  AssertSlotOwnedByBackend('CmpGeI64x8', Pointer(LScalarTable.CmpGeI64x8), Pointer(LNEONTable.CmpGeI64x8));
-  AssertSlotOwnedByBackend('CmpGeU32x8', Pointer(LScalarTable.CmpGeU32x8), Pointer(LNEONTable.CmpGeU32x8));
-  AssertSlotOwnedByBackend('CmpGeU64x4', Pointer(LScalarTable.CmpGeU64x4), Pointer(LNEONTable.CmpGeU64x4));
-  AssertSlotOwnedByBackend('CmpGtI32x16', Pointer(LScalarTable.CmpGtI32x16), Pointer(LNEONTable.CmpGtI32x16));
-  AssertSlotOwnedByBackend('CmpGtI32x8', Pointer(LScalarTable.CmpGtI32x8), Pointer(LNEONTable.CmpGtI32x8));
-  AssertSlotOwnedByBackend('CmpGtI64x4', Pointer(LScalarTable.CmpGtI64x4), Pointer(LNEONTable.CmpGtI64x4));
-  AssertSlotOwnedByBackend('CmpGtI64x8', Pointer(LScalarTable.CmpGtI64x8), Pointer(LNEONTable.CmpGtI64x8));
-  AssertSlotOwnedByBackend('CmpGtU32x8', Pointer(LScalarTable.CmpGtU32x8), Pointer(LNEONTable.CmpGtU32x8));
-  AssertSlotOwnedByBackend('CmpGtU64x4', Pointer(LScalarTable.CmpGtU64x4), Pointer(LNEONTable.CmpGtU64x4));
-  AssertSlotOwnedByBackend('CmpLeI32x16', Pointer(LScalarTable.CmpLeI32x16), Pointer(LNEONTable.CmpLeI32x16));
-  AssertSlotOwnedByBackend('CmpLeI32x8', Pointer(LScalarTable.CmpLeI32x8), Pointer(LNEONTable.CmpLeI32x8));
-  AssertSlotOwnedByBackend('CmpLeI64x4', Pointer(LScalarTable.CmpLeI64x4), Pointer(LNEONTable.CmpLeI64x4));
-  AssertSlotOwnedByBackend('CmpLeI64x8', Pointer(LScalarTable.CmpLeI64x8), Pointer(LNEONTable.CmpLeI64x8));
-  AssertSlotOwnedByBackend('CmpLeU32x8', Pointer(LScalarTable.CmpLeU32x8), Pointer(LNEONTable.CmpLeU32x8));
-  AssertSlotOwnedByBackend('CmpLeU64x4', Pointer(LScalarTable.CmpLeU64x4), Pointer(LNEONTable.CmpLeU64x4));
-  AssertSlotOwnedByBackend('CmpLtI32x16', Pointer(LScalarTable.CmpLtI32x16), Pointer(LNEONTable.CmpLtI32x16));
-  AssertSlotOwnedByBackend('CmpLtI32x8', Pointer(LScalarTable.CmpLtI32x8), Pointer(LNEONTable.CmpLtI32x8));
-  AssertSlotOwnedByBackend('CmpLtI64x4', Pointer(LScalarTable.CmpLtI64x4), Pointer(LNEONTable.CmpLtI64x4));
-  AssertSlotOwnedByBackend('CmpLtI64x8', Pointer(LScalarTable.CmpLtI64x8), Pointer(LNEONTable.CmpLtI64x8));
-  AssertSlotOwnedByBackend('CmpLtU32x8', Pointer(LScalarTable.CmpLtU32x8), Pointer(LNEONTable.CmpLtU32x8));
-  AssertSlotOwnedByBackend('CmpLtU64x4', Pointer(LScalarTable.CmpLtU64x4), Pointer(LNEONTable.CmpLtU64x4));
-  AssertSlotOwnedByBackend('CmpNeI32x16', Pointer(LScalarTable.CmpNeI32x16), Pointer(LNEONTable.CmpNeI32x16));
-  AssertSlotOwnedByBackend('CmpNeI32x8', Pointer(LScalarTable.CmpNeI32x8), Pointer(LNEONTable.CmpNeI32x8));
-  AssertSlotOwnedByBackend('CmpNeI64x4', Pointer(LScalarTable.CmpNeI64x4), Pointer(LNEONTable.CmpNeI64x4));
-  AssertSlotOwnedByBackend('CmpNeI64x8', Pointer(LScalarTable.CmpNeI64x8), Pointer(LNEONTable.CmpNeI64x8));
-  AssertSlotOwnedByBackend('CmpNeU32x8', Pointer(LScalarTable.CmpNeU32x8), Pointer(LNEONTable.CmpNeU32x8));
-  AssertSlotOwnedByBackend('CmpNeU64x4', Pointer(LScalarTable.CmpNeU64x4), Pointer(LNEONTable.CmpNeU64x4));
   AssertSlotReusesScalar('ExtractI32x16', Pointer(LScalarTable.ExtractI32x16), Pointer(LNEONTable.ExtractI32x16));
   AssertSlotReusesScalar('ExtractI32x8', Pointer(LScalarTable.ExtractI32x8), Pointer(LNEONTable.ExtractI32x8));
   AssertSlotReusesScalar('ExtractI64x4', Pointer(LScalarTable.ExtractI64x4), Pointer(LNEONTable.ExtractI64x4));

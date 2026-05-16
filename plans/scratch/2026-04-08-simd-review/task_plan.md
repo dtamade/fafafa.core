@@ -51,6 +51,7 @@
 | `runtime.testcase` 对齐公共 backend fixture 后，首轮 Release build 报 `Syntax error, "identifier" expected but "BEGIN" found` | 1 | 定位为删除局部 cleanup 变量后留下空 `var` 段；删掉陈旧 `var` 后，Release `TTestCase_RuntimeAPI/check/gate` 全部恢复 PASS |
 | `mcp__ace_tool__.search_context` 在这轮 `publicabi` 收口前返回 `ACE_TOKEN` 失效 | 1 | 不在同一失败路径上重试，直接回退到 `git diff` 与本地 `rg/sed` 复核 helper 与断言消息调用面 |
 | `DispatchAPI` 长块补丁首轮因上下文未精确命中而未应用 | 1 | 先按区段重新读取 `dispatchapi.testcase` 的目标过程，再做定点 patch，避免误伤长测试块 |
+| `check_nonx86_register_truthfulness.py` 首轮把 16 个既有 asm-only wrapper slot 误判成 miswired | 1 | 收紧规则时保留旧 allowlist 仅在 asm-only 上下文同样生效，并为 NEON wide compare 单独引入 asm-only allowlist 后，neon/riscvv strict 复验恢复全绿 |
 
 ## 2026-05-16 NEON No-Asm F64 Sqrt/Round/Trunc Dead-Wrapper Cleanup
 
@@ -65,6 +66,20 @@
 | 1. 复核 source-consumer graph       | completed | 已确认 `NEON(Sqrt|Round|Trunc)F64x2/F64x4` 在 no-asm 下只剩 `scalar.autowrap.inc` 自供、`register.inc` 的 asm 绑定源码，以及 `DispatchAPI` 旧护栏，没有其他 live 消费者        |
 | 2. 删除 dead wrapper 并收正护栏     | completed | 已删除 `NEONRound/Sqrt/TruncF64x2/F64x4` no-asm wrapper；`DispatchAPI` 四个 dedicated 护栏改成“dead wrapper removed + asm binding still present + no-asm runtime reuse scalar” |
 | 3. Release 验证与收口               | completed | `git diff --check`、truthfulness(neon/riscvv)、Release `DispatchAPI`、Release `IEEE754EdgeCases`、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过                  |
+
+## 2026-05-16 NEON No-Asm Wide Integer Compare Slot-Ownership Cleanup
+
+### Goal
+
+继续沿 `NEON` no-asm slot ownership truth 线，把 wide integer compare 这 36 个 published slot 从“no-asm 仍声称 backend-owned”收回到 base scalar truth；同时保留 wide compare wrapper 作为 narrower-helper composition 的 source companion，并让 checker/dispatch 护栏都按这个真实边界说话。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 wide integer compare 的 source role、register truth 与 checker 旧豁免 | completed | 已确认 `CmpEq/Ge/Gt/Le/Lt/Ne` 的 `I32x8/I32x16/I64x4/I64x8/U32x8/U64x4` 共 36 个 slot 之前在 `src/fafafa.core.simd.neon.register.inc` 里是无条件 backend-owned；但 `src/fafafa.core.simd.neon.scalar.autowrap.inc` 的 no-asm body 只是在组合更窄 helper，没有独立 backend-local truth；旧的 `check_nonx86_register_truthfulness.py` 也只靠宽 compare allowlist 粗放放行 |
+| 2. 收回 no-asm published ownership，并同步 checker/dedicated test 语义 | completed | 已把 `src/fafafa.core.simd.neon.register.inc` 中这 36 个 compare 绑定改成 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}`；`tests/fafafa.core.simd/check_nonx86_register_truthfulness.py` 已把它们从 generic `ALLOWED_WRAPPER_SLOTS_BY_BACKEND['neon']` 拆出，改为 `ALLOWED_ASM_ONLY_WRAPPER_SLOTS_BY_BACKEND['neon']`，同时保留既有 float wrapper allowlist 在 asm-only 上下文的合法性；`dispatchapi` 已新增 `Test_NEON_NoAsmWideIntegerCompareSlots_Keep_SourceCompanions_But_Reuse_BaseScalar`，并把旧 `NoAsmIntegerFallback` 大护栏里的 compare 断言拆出 |
+| 3. 串行 release 复验并更新当前 truth | completed | fresh `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`、`truthfulness --backend neon/riscvv --summary-line --strict`、Release `TTestCase_DispatchAPI`、Release `impl-audit-nonx86`、Release `check`、Release `gate` 全部通过；当前 `backend=neon` truthfulness 仍为 `assignments=342 asm_exact=277 asm_suffix_only=10 wrapper_only=55 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`，说明这批收的是 no-asm published ownership 真相，而不是继续删 source companion |
 
 ## 2026-05-09 Subtask
 

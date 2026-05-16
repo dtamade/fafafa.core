@@ -340,9 +340,10 @@ begin
   table.ZeroF64x8 := @NEONZeroF64x8_ASM;
   {$ENDIF}
 
-  // Wide integer compare wrappers are backend-owned in both asm/no-asm
-  // builds because they now compose narrower NEON helpers. Keep them explicit
-  // here so source/runtime ownership audits can prove NEON owns the slot.
+  // Wide integer compare wrappers remain as Pascal source companions so wider
+  // fallback graphs can compose narrower helpers, but published NEON slot
+  // ownership is only truthful when asm is actually compiled.
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.CmpEqI32x16 := @NEONCmpEqI32x16;
   table.CmpEqI32x8 := @NEONCmpEqI32x8;
   table.CmpEqI64x4 := @NEONCmpEqI64x4;
@@ -379,6 +380,7 @@ begin
   table.CmpNeI64x8 := @NEONCmpNeI64x8;
   table.CmpNeU32x8 := @NEONCmpNeU32x8;
   table.CmpNeU64x4 := @NEONCmpNeU64x4;
+  {$ENDIF}
 
   {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   // Keep no-asm integer arithmetic/bitwise/memory slots on the published

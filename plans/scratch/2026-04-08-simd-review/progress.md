@@ -5902,3 +5902,56 @@
   - Release `gate` 最终 `GATE OK`
   - `run_all` 过滤链结果仍为 `Total: 5 Passed: 5 Failed: 0`
   - 收口前已再次清理 `tests/fafafa.core.simd/__pycache__/`
+
+## 2026-05-16 NEON No-Asm Wide Integer Compare Slot-Ownership Cleanup
+
+- 继续沿 `NEON` no-asm residual 审查时，这次先把 wide integer compare 单独拎出来复核，而不是继续混在旧的大整数 fallback 护栏里：
+  - `CmpEq/Ge/Gt/Le/Lt/Ne`
+  - `I32x8/I32x16`
+  - `I64x4/I64x8`
+  - `U32x8/U64x4`
+  - 共 36 个 slot
+- 已确认旧真相问题：
+  - `src/fafafa.core.simd.neon.register.inc` 之前无条件绑定这 36 个 `table.Cmp* := @NEONCmp*`
+  - `src/fafafa.core.simd.neon.scalar.autowrap.inc` 的 wide compare no-asm body 只是组合更窄 helper，没有独立 backend-local truth
+  - `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py` 之前也只是把它们整个塞进 generic `NEON` wrapper allowlist
+- 已完成代码修正：
+  - `src/fafafa.core.simd.neon.register.inc`
+    - 将这 36 个 wide compare 绑定全部收进 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}`
+    - 注释改成“wrapper 仍保留 source companion 角色，但 published slot ownership 只有 asm build 才成立”
+  - `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+    - 旧的 `NEON_WIDE_COMPARE_WRAPPER_SLOTS` 已改成 `NEON_WIDE_COMPARE_ASM_ONLY_WRAPPER_SLOTS`
+    - 新增 `ALLOWED_ASM_ONLY_WRAPPER_SLOTS_BY_BACKEND['neon']`
+    - `wrapper_only` 规则已收正为：
+      - generic allowlist 继续允许既有 asm-only float wrapper
+      - wide compare 这 36 个名字只允许在 asm-only 上下文命中
+    - report 现在也会单独输出 `allowed_asm_only_wrapper_slot_count/current_asm_only_wrapper_slot_count`
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 新增 `Test_NEON_NoAsmWideIntegerCompareSlots_Keep_SourceCompanions_But_Reuse_BaseScalar`
+    - 新护栏固定三层 truth：
+      - wide compare wrapper/source companion 仍在 `autowrap`
+      - asm binding source 仍在 `register.inc`
+      - no-asm runtime 下 `sbNEON.Cmp*` slot 全部复用 scalar
+    - 旧 `Test_NEON_NoAsmIntegerFallbackSlots_Reuse_BaseScalar_When_Wrappers_Are_Not_BackendOwned` 里的 compare 断言已全部拆出，不再混成“大整数 fallback”一锅
+- 本批中途出现的唯一真实偏差：
+  - 首轮 checker 规则收得太窄，把 16 个既有的 NEON `asm-only wrapper_only` float slot 一并报成 miswired
+  - 已立即收正为“asm-only 时，generic allowlist 和 compare 专属 asm-only allowlist 都可合法命中”
+- 本批静态与 checker 复核：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+  - 结果：
+    - `backend=neon assignments=342 asm_exact=277 asm_suffix_only=10 wrapper_only=55 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+    - `backend=riscvv assignments=473 asm_exact=330 asm_suffix_only=117 wrapper_only=26 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+- 本批 release 复验链全部通过：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 本批关键结果：
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `gate` 最终 `GATE OK`
+  - `run_all` 过滤链结果仍为 `Total: 5 Passed: 5 Failed: 0`
+  - 这批没有继续降低 `wrapper_only` 数量，但把 36 个 wide compare slot 的 no-asm published ownership 真相纠正回了 scalar
+  - 收口前已再次清理 `tests/fafafa.core.simd/__pycache__/`
