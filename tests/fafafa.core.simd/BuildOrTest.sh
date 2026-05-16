@@ -28,6 +28,7 @@ HELPER_SEMANTICS_SCRIPT="${ROOT}/check_nonx86_helper_semantics.py"
 KEY_SLOT_AUDIT_SCRIPT="${ROOT}/check_nonx86_key_slot_audit.py"
 INTERFACE_COMPLETENESS_SCRIPT="${ROOT}/check_interface_implementation_completeness.py"
 DISPATCH_READ_SCOPE_SCRIPT="${ROOT}/check_dispatch_read_scope.py"
+DATAPLANE_CONSUMER_SCOPE_SCRIPT="${ROOT}/check_dataplane_consumer_scope.py"
 METADATA_QUERY_SCOPE_SCRIPT="${ROOT}/check_metadata_query_scope.py"
 DISPATCH_CONTRACT_SIGNATURE_SCRIPT="${ROOT}/check_dispatch_contract_signature.py"
 PUBLIC_ABI_SIGNATURE_SCRIPT="${ROOT}/check_public_abi_signature.py"
@@ -53,6 +54,8 @@ INTERFACE_COMPLETENESS_JSON_LOG="${LOG_DIR}/interface_completeness.json"
 INTERFACE_COMPLETENESS_MD_LOG="${LOG_DIR}/interface_completeness.md"
 DISPATCH_READ_SCOPE_LOG="${LOG_DIR}/dispatch_read_scope.txt"
 DISPATCH_READ_SCOPE_JSON_LOG="${LOG_DIR}/dispatch_read_scope.json"
+DATAPLANE_CONSUMER_SCOPE_LOG="${LOG_DIR}/dataplane_consumer_scope.txt"
+DATAPLANE_CONSUMER_SCOPE_JSON_LOG="${LOG_DIR}/dataplane_consumer_scope.json"
 METADATA_QUERY_SCOPE_LOG="${LOG_DIR}/metadata_query_scope.txt"
 METADATA_QUERY_SCOPE_JSON_LOG="${LOG_DIR}/metadata_query_scope.json"
 DISPATCH_CONTRACT_SIGNATURE_LOG="${LOG_DIR}/dispatch_contract_signature.txt"
@@ -966,6 +969,8 @@ check_windows_runner_parity() {
     'if /I "%ACTION%"=="import-nonx86-native-evidence" goto :import_nonx86_native_evidence'
     'if /I "%ACTION%"=="closeout-host-local-from-import" goto :closeout_host_local_from_import'
     'if /I "%ACTION%"=="interface-completeness" goto :interface_completeness'
+    'if /I "%ACTION%"=="dispatch-read-scope" goto :dispatch_read_scope'
+    'if /I "%ACTION%"=="dataplane-consumer-scope" goto :dataplane_consumer_scope'
     'if /I "%ACTION%"=="metadata-query-scope" goto :metadata_query_scope'
     'if /I "%ACTION%"=="contract-signature" goto :contract_signature'
     'if /I "%ACTION%"=="publicabi-signature" goto :publicabi_signature'
@@ -1017,7 +1022,7 @@ check_windows_runner_parity() {
     'if /I "%ACTION%"=="native-evidence" goto :native_evidence'
     'if /I "%ACTION%"=="verify-nonx86-native-evidence" goto :verify_nonx86_native_evidence'
     'if /I "%ACTION%"=="restore-nightly-evidence" goto :restore_nightly_evidence'
-    'echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|key-slot-audit^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|metadata-query-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|runner-parity^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|gate-summary-selfcheck^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-linux^|native-evidence^|verify-nonx86-native-evidence^|restore-nightly-evidence^|evidence-win^|win-evidence-preflight^|win-evidence-via-gh^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-dryrun^|win-closeout-snippets^|win-closeout-3cmd^|freeze-status^|freeze-status-linux^|win-closeout-finalize^|freeze-status-rehearsal] [test-args...]'
+    'echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|key-slot-audit^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|dataplane-consumer-scope^|metadata-query-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|runner-parity^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|gate-summary-selfcheck^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-linux^|native-evidence^|verify-nonx86-native-evidence^|restore-nightly-evidence^|evidence-win^|win-evidence-preflight^|win-evidence-via-gh^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-dryrun^|win-closeout-snippets^|win-closeout-3cmd^|freeze-status^|freeze-status-linux^|win-closeout-finalize^|freeze-status-rehearsal] [test-args...]'
     'echo   runner-parity  Fast shell/batch runner parity selfcheck ^(delegates to shell runner^)'
     'echo [RUNNER-PARITY] Running: bash %ROOT%BuildOrTest.sh runner-parity %NORMALIZED_TEST_ARGS%'
     'echo   closeout-release  Canonical release closeout entry ^(delegates to shell runner^)'
@@ -2980,6 +2985,7 @@ check_python_checker_runtime_guard() {
   local LSuiteManifestFunction
   local LInterfaceFunction
   local LDispatchReadScopeFunction
+  local LDataplaneConsumerFunction
   local LMetadataQueryFunction
   local LContractFunction
   local LPublicAbiFunction
@@ -3007,6 +3013,7 @@ check_python_checker_runtime_guard() {
   LSuiteManifestFunction="$(sed -n '/^run_suite_manifest_check()/,/^}/p' "${LShell}")"
   LInterfaceFunction="$(sed -n '/^run_interface_completeness()/,/^}/p' "${LShell}")"
   LDispatchReadScopeFunction="$(sed -n '/^run_dispatch_read_scope()/,/^}/p' "${LShell}")"
+  LDataplaneConsumerFunction="$(sed -n '/^run_dataplane_consumer_scope()/,/^}/p' "${LShell}")"
   LMetadataQueryFunction="$(sed -n '/^run_metadata_query_scope()/,/^}/p' "${LShell}")"
   LContractFunction="$(sed -n '/^run_dispatch_contract_signature()/,/^}/p' "${LShell}")"
   LPublicAbiFunction="$(sed -n '/^run_public_abi_signature()/,/^}/p' "${LShell}")"
@@ -3020,6 +3027,7 @@ check_python_checker_runtime_guard() {
     'echo "[SUITE-MANIFEST] FAILED (python3 runtime not found; suite-manifest check requires python3)"'
     'echo "[INTERFACE-CHECK] FAILED (python3 runtime not found; interface-completeness requires python3)"'
     'echo "[DISPATCH-READ-SCOPE] FAILED (python3 runtime not found; dispatch-read-scope requires python3)"'
+    'echo "[DATAPLANE-SCOPE] FAILED (python3 runtime not found; dataplane-consumer-scope requires python3)"'
     'echo "[METADATA-SCOPE] FAILED (python3 runtime not found; metadata-query-scope requires python3)"'
     'echo "[DISPATCH-CONTRACT] FAILED (python3 runtime not found; contract-signature requires python3)"'
     'echo "[PUBLIC-ABI] FAILED (python3 runtime not found; publicabi-signature requires python3)"'
@@ -3034,6 +3042,7 @@ check_python_checker_runtime_guard() {
     'echo [SUITE-MANIFEST] FAILED (python runtime not found; tried py and python)'
     'echo [INTERFACE-CHECK] FAILED (python runtime not found; tried py and python)'
     'echo [DISPATCH-READ-SCOPE] FAILED (python runtime not found; tried py and python)'
+    'echo [DATAPLANE-SCOPE] FAILED (python runtime not found; tried py and python)'
     'echo [METADATA-SCOPE] FAILED (python runtime not found; tried py and python)'
     'echo [DISPATCH-CONTRACT] FAILED (python runtime not found; tried py and python)'
     'echo [PUBLIC-ABI] FAILED (python runtime not found; tried py and python)'
@@ -3047,6 +3056,7 @@ check_python_checker_runtime_guard() {
     'echo "[REGISTER-INCLUDE] SKIP (python3 not found)"'
     'echo "[SUITE-MANIFEST] SKIP (python3 not found)"'
     'echo "[INTERFACE-CHECK] SKIP (python3 not found)"'
+    'echo "[DATAPLANE-SCOPE] SKIP (python3 not found)"'
     'echo "[METADATA-SCOPE] SKIP (python3 not found)"'
     'echo "[DISPATCH-CONTRACT] SKIP (python3 not found)"'
     'echo "[PUBLIC-ABI] SKIP (python3 not found)"'
@@ -3060,6 +3070,7 @@ check_python_checker_runtime_guard() {
     'echo [REGISTER-INCLUDE] SKIP (python runtime not found)'
     'echo [SUITE-MANIFEST] SKIP (python runtime not found)'
     'echo [INTERFACE-CHECK] SKIP (python runtime not found)'
+    'echo [DATAPLANE-SCOPE] SKIP (python runtime not found)'
     'echo [METADATA-SCOPE] SKIP (python runtime not found)'
     'echo [DISPATCH-CONTRACT] SKIP (python runtime not found)'
     'echo [PUBLIC-ABI] SKIP (python runtime not found)'
@@ -3092,6 +3103,12 @@ check_python_checker_runtime_guard() {
       *DISPATCH-READ-SCOPE*)
         if ! grep -F -- "${LPattern}" <<<"${LDispatchReadScopeFunction}" >/dev/null; then
           echo "[CHECK] Shell dispatch-read-scope helper missing pattern: ${LPattern}"
+          LMissing=1
+        fi
+        ;;
+      *DATAPLANE-SCOPE*)
+        if ! grep -F -- "${LPattern}" <<<"${LDataplaneConsumerFunction}" >/dev/null; then
+          echo "[CHECK] Shell dataplane-consumer-scope helper missing pattern: ${LPattern}"
           LMissing=1
         fi
         ;;
@@ -3164,6 +3181,12 @@ check_python_checker_runtime_guard() {
       *INTERFACE-CHECK*)
         if grep -F -- "${LPattern}" <<<"${LInterfaceFunction}" >/dev/null; then
           echo "[CHECK] Shell interface-completeness helper still allows silent skip: ${LPattern}"
+          LMissing=1
+        fi
+        ;;
+      *DATAPLANE-SCOPE*)
+        if grep -F -- "${LPattern}" <<<"${LDataplaneConsumerFunction}" >/dev/null; then
+          echo "[CHECK] Shell dataplane-consumer-scope helper still allows silent skip: ${LPattern}"
           LMissing=1
         fi
         ;;
@@ -3317,6 +3340,7 @@ run_static_build_check_core() {
   run_register_include_check || return $?
   run_source_reachability_check || return $?
   run_metadata_query_scope || return $?
+  run_dataplane_consumer_scope || return $?
   run_dispatch_read_scope || return $?
   run_sse2_structure_check || return $?
   run_suite_manifest_check || return $?
@@ -3490,6 +3514,38 @@ run_dispatch_read_scope() {
   LSummaryLine="$(grep -E '^DISPATCH_READ_SCOPE ' "${LReadScopeLog}" | tail -n 1 || true)"
   if [[ -n "${LSummaryLine}" ]]; then
     echo "[DISPATCH-READ-SCOPE] Summary: ${LSummaryLine#DISPATCH_READ_SCOPE }"
+  fi
+
+  return "${LMainRC}"
+}
+
+run_dataplane_consumer_scope() {
+  if [[ ! -f "${DATAPLANE_CONSUMER_SCOPE_SCRIPT}" ]]; then
+    echo "[DATAPLANE-SCOPE] Missing checker: ${DATAPLANE_CONSUMER_SCOPE_SCRIPT}"
+    return 2
+  fi
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "[DATAPLANE-SCOPE] FAILED (python3 runtime not found; dataplane-consumer-scope requires python3)"
+    return 2
+  fi
+
+  local LDataplaneScopeLog
+  local LDataplaneScopeJsonLog
+  local LMainRC
+  local LSummaryLine
+
+  LDataplaneScopeLog="${SIMD_DATAPLANE_CONSUMER_SCOPE_LOG_FILE:-${DATAPLANE_CONSUMER_SCOPE_LOG}}"
+  LDataplaneScopeJsonLog="${SIMD_DATAPLANE_CONSUMER_SCOPE_JSON_FILE:-${DATAPLANE_CONSUMER_SCOPE_JSON_LOG}}"
+
+  echo "[DATAPLANE-SCOPE] Running: python3 ${DATAPLANE_CONSUMER_SCOPE_SCRIPT} --summary-line --json-file ${LDataplaneScopeJsonLog}"
+  : > "${LDataplaneScopeLog}"
+  python3 "${DATAPLANE_CONSUMER_SCOPE_SCRIPT}" --summary-line --json-file "${LDataplaneScopeJsonLog}" 2>&1 | tee "${LDataplaneScopeLog}"
+  LMainRC="${PIPESTATUS[0]}"
+
+  LSummaryLine="$(grep -E '^DATAPLANE_CONSUMER_SCOPE ' "${LDataplaneScopeLog}" | tail -n 1 || true)"
+  if [[ -n "${LSummaryLine}" ]]; then
+    echo "[DATAPLANE-SCOPE] Summary: ${LSummaryLine#DATAPLANE_CONSUMER_SCOPE }"
   fi
 
   return "${LMainRC}"
@@ -6796,6 +6852,9 @@ case "${ACTION}" in
   dispatch-read-scope)
     run_dispatch_read_scope
     ;;
+  dataplane-consumer-scope)
+    run_dataplane_consumer_scope
+    ;;
   metadata-query-scope)
     run_metadata_query_scope
     ;;
@@ -6961,7 +7020,7 @@ case "${ACTION}" in
     run_freeze_status_rehearsal "$@"
     ;;
   *)
-    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|closeout-release|sse2-structure-check|sse2-contracts|impl-smoke-sse2|impl-smoke-x86|impl-smoke-nonx86|impl-audit-nonx86|helper-semantics|key-slot-audit|riscvv-abi-shape|source-reachability|closeout-host-local|import-nonx86-native-evidence|closeout-host-local-from-import|interface-completeness|dispatch-read-scope|metadata-query-scope|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|runner-parity|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|verify-nonx86-native-evidence|restore-nightly-evidence|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
+    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|closeout-release|sse2-structure-check|sse2-contracts|impl-smoke-sse2|impl-smoke-x86|impl-smoke-nonx86|impl-audit-nonx86|helper-semantics|key-slot-audit|riscvv-abi-shape|source-reachability|closeout-host-local|import-nonx86-native-evidence|closeout-host-local-from-import|interface-completeness|dispatch-read-scope|dataplane-consumer-scope|metadata-query-scope|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|runner-parity|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|verify-nonx86-native-evidence|restore-nightly-evidence|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
     echo "  Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks."
     echo "  gate/gate-strict PASS is not blanket release-grade approval for every experimental path."
     echo "  gate         Fast/base gate for routine SIMD changes"

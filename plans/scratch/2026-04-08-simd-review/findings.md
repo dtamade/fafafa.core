@@ -6566,3 +6566,31 @@
   - 扫描 `src/fafafa.core.simd*.pas/inc`
   - 把 4 个 metadata-query helpers 的 production 允许面固定在 `dispatch/runtime/public ABI/backend adapter`
   - 并把它接进 shell/batch 的默认 `check`
+
+## 2026-05-17 Dataplane Consumer Scope Guard Gap
+
+- 在 `metadata-query-scope` 收口之后，默认门禁里还剩一条同层但更贴近 publication seam 的缺口：
+  - `dispatch-read-scope` 已经守 `GetDispatchTable`
+  - `metadata-query-scope` 已经守 metadata helper
+  - 但 `GetCurrentSimdDataPlane` / `GetCurrentSimdDataPlaneDispatch` / `RebindSimdDataPlane` 这些 dataplane consumer helper 还没有独立 checker 固化其 production 边界
+- 当前 production 真相仍然干净：
+  - `GetCurrentSimdDataPlane`
+    - `src/fafafa.core.simd.dataplane.pas`
+    - `src/fafafa.core.simd.public_abi.impl.inc`
+    - `src/fafafa.core.simd.pas`
+  - `GetCurrentSimdDataPlaneDispatch`
+    - `src/fafafa.core.simd.dataplane.pas`
+    - `src/fafafa.core.simd.public_abi.impl.inc`
+    - `src/fafafa.core.simd.direct.pas`
+  - `RebindSimdDataPlane`
+    - `src/fafafa.core.simd.dataplane.pas`
+    - `src/fafafa.core.simd.direct.pas`
+- 这说明问题不在“当前已经漂了”，而在“边界还没被默认门禁 fail-close 固化”：
+  - façade / companion / 其他 surface 以后如果直接消费这些 helper
+  - 目前默认 `check` 不会第一时间报红
+  - 这会让 `dataplane` seam 之外悄悄长出第二条 publication-consumer path
+- 因而这批最正确的修法不是继续改 `dataplane` 语义，而是补一条与 `dispatch-read-scope` / `metadata-query-scope` 同级的静态护栏：
+  - 新增 `check_dataplane_consumer_scope.py`
+  - 扫描 `src/fafafa.core.simd*.pas/inc`
+  - 把 3 个 dataplane consumer helper 的 production 允许面固定在 `dataplane/direct/public ABI/facade companion`
+  - 并把它接进 shell/batch 的默认 `check`

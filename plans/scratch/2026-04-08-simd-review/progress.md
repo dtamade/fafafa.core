@@ -7989,3 +7989,43 @@
 - 当前阶段结论：
   - 这批依然不是 SIMD 语义修复，而是 seam-level 审查护栏补强
   - 现在不仅 `GetDispatchTable` 受默认门禁约束，metadata-query helper 的 production 边界也已经进入日常 `check` 主链
+
+## 2026-05-17 Dataplane Consumer Scope Guard
+
+- 继续按“小闭环”推进，没有重开新的 SIMD 语义面，而是顺着已有 `dispatch-read-scope` / `metadata-query-scope` 再补一层 dataplane consumer 边界固化。
+- 已复核：
+  - `src/fafafa.core.simd.dataplane.pas`
+  - `src/fafafa.core.simd.public_abi.impl.inc`
+  - `src/fafafa.core.simd.pas`
+  - `src/fafafa.core.simd.direct.pas`
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+- 当前结论：
+  - production 命中面虽然仍干净，但默认 `check` 还没有 guard 去固定 `GetCurrentSimdDataPlane` / `GetCurrentSimdDataPlaneDispatch` / `RebindSimdDataPlane` 的消费边界
+  - 这是一条真实的 seam-level coverage gap，不是当前 dataplane 语义 bug
+- 已完成收口：
+  - 新增 `tests/fafafa.core.simd/check_dataplane_consumer_scope.py`
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - 默认 `check` 已接入 `run_dataplane_consumer_scope`
+    - shell action / usage / runner parity 自检字符串已补齐 `dataplane-consumer-scope`
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+    - 已新增 `dataplane-consumer-scope` action
+    - `:check` 主链已接入 `call :dataplane_consumer_scope`
+    - usage 文本与 Python runtime fail-close 都已同步
+  - `docs/fafafa.core.simd.maintenance.md`
+    - 已把 `dataplane-consumer-scope` 补进默认 `check` 护栏说明
+- 已完成最小验证：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_dataplane_consumer_scope.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - 新 checker 直接输出：
+    - `DATAPLANE_CONSUMER_SCOPE scanned_files=146 symbols=3 allowed_hits=17 forbidden_hits=0`
+  - release `check` 中已真实执行：
+    - `[DATAPLANE-SCOPE] Running: python3 ... check_dataplane_consumer_scope.py --summary-line --json-file ...`
+    - `DATAPLANE_CONSUMER_SCOPE scanned_files=146 symbols=3 allowed_hits=17 forbidden_hits=0`
+  - `windows runner parity signatures present`
+  - 整体 release `check` 最终继续通过
+- 当前阶段结论：
+  - 这批依然不是 SIMD 算法或 backend 语义修复
+  - 收掉的是默认门禁对 `dataplane` publication-consumer seam 的最后一条明显漏口

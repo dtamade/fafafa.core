@@ -4508,3 +4508,17 @@
 | 1. 复核当前是否存在护栏缺口 | completed | 已确认当前只有 `dispatch-read-scope` 守 `GetDispatchTable`；production 源里虽然 `GetBackendInfo` / `TryGetRegisteredBackendDispatchTable` 还只停留在 `dispatch/runtime/public ABI/backend adapter` 这些内部面，但默认 `check` 没有任何 checker 固化这条边界 |
 | 2. 新 checker + runner 收口 | completed | 已新增 `check_metadata_query_scope.py`，静态扫描 `src/fafafa.core.simd*.pas/inc` 中 4 个 metadata-query helpers 的调用面；并把 `metadata-query-scope` action 接进 shell/batch runner 与默认 `check` 主链 |
 | 3. release 验证与收口 | completed | `git diff --check`、`python3 tests/fafafa.core.simd/check_metadata_query_scope.py --summary-line`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已通过；新 checker 在 release `check` 中真实执行并返回 `forbidden_hits=0` |
+
+## 2026-05-17 Dataplane Consumer Scope Guard
+
+### Goal
+
+把 `GetCurrentSimdDataPlane` / `GetCurrentSimdDataPlaneDispatch` / `RebindSimdDataPlane` 这组 publication-consumer helper 的 production 使用边界也固化进默认门禁，防止 `dataplane` seam 之外悄悄长出第二条 dataplane consumer path。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前是否存在护栏缺口 | completed | 已确认 production 命中面当前仍干净：`GetCurrentSimdDataPlane` 只在 `dataplane/public_abi.impl/simd.pas`，`GetCurrentSimdDataPlaneDispatch` 只在 `dataplane/public_abi.impl/direct`，`RebindSimdDataPlane` 只在 `dataplane/direct`；但默认 `check` 尚无任何 checker 固化这条边界 |
+| 2. checker + shell/batch parity 收口 | completed | 已新增 `check_dataplane_consumer_scope.py`，并补齐 `BuildOrTest.sh` / `buildOrTest.bat` 的 `dataplane-consumer-scope` action、默认 `check` 接线、usage/parity/selfcheck 字符串与 maintenance 说明 |
+| 3. release 验证与收口 | completed | `git diff --check`、`python3 tests/fafafa.core.simd/check_dataplane_consumer_scope.py --summary-line`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已通过；新 checker 在 release `check` 中真实执行并返回 `forbidden_hits=0` |
