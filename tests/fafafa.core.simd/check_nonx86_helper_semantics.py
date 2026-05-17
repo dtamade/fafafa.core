@@ -903,7 +903,7 @@ def main() -> int:
                 (f"RISCVV{op}{suffix}", f"Scalar{op}{suffix}(a, b)")
             )
 
-    for suffix in ("I32x4", "I32x8", "U32x8"):
+    for suffix in ("I32x8", "U32x8"):
         for op in ("Eq", "Lt", "Gt", "Le", "Ge", "Ne"):
             riscvv_scalar_forwarder_expectations.append(
                 (f"RISCVVCmp{op}{suffix}", f"ScalarCmp{op}{suffix}(a, b)")
@@ -913,12 +913,6 @@ def main() -> int:
         for op in ("Add", "Sub", "Mul", "And", "Or", "Xor"):
             riscvv_scalar_forwarder_expectations.append(
                 (f"RISCVV{op}{suffix}", f"Scalar{op}{suffix}(a, b)")
-            )
-
-    for suffix in ("I64x2",):
-        for op in ("Eq", "Lt", "Gt", "Le", "Ge", "Ne"):
-            riscvv_scalar_forwarder_expectations.append(
-                (f"RISCVVCmp{op}{suffix}", f"ScalarCmp{op}{suffix}(a, b)")
             )
 
     for suffix in ("I32x8", "I32x16", "U32x8"):
@@ -1306,6 +1300,18 @@ def main() -> int:
         (riscvv_facade_source, "RISCVVOrI64x2"),
         (riscvv_facade_source, "RISCVVXorI64x2"),
         (riscvv_facade_source, "RISCVVNotI64x2"),
+        (riscvv_facade_source, "RISCVVCmpEqI32x4"),
+        (riscvv_facade_source, "RISCVVCmpLtI32x4"),
+        (riscvv_facade_source, "RISCVVCmpGtI32x4"),
+        (riscvv_facade_source, "RISCVVCmpLeI32x4"),
+        (riscvv_facade_source, "RISCVVCmpGeI32x4"),
+        (riscvv_facade_source, "RISCVVCmpNeI32x4"),
+        (riscvv_facade_source, "RISCVVCmpEqI64x2"),
+        (riscvv_facade_source, "RISCVVCmpLtI64x2"),
+        (riscvv_facade_source, "RISCVVCmpGtI64x2"),
+        (riscvv_facade_source, "RISCVVCmpLeI64x2"),
+        (riscvv_facade_source, "RISCVVCmpGeI64x2"),
+        (riscvv_facade_source, "RISCVVCmpNeI64x2"),
     ]
 
     for source, routine_name in absent_routine_expectations:

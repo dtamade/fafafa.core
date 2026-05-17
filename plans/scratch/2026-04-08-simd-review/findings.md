@@ -8764,3 +8764,26 @@
 - 更准确的口径现在是：
   - conditional arithmetic/bitwise/shift/minmax：dead facade，应该删
   - unconditional compare：live scalar-forward wrapper，先留
+
+## 2026-05-18 RISCVV Narrow Compare Wrappers Were Not Stable Runtime Truth Either
+
+- 在把 `I32x4/I64x2` compare 从上一批暂时拆出去后，继续 fresh 复核 register/runtime contract，新的更准确结论是：
+  - 这些 compare 并不需要永久保留成 no-asm `RISCVV` wrapper
+  - 它们真正应保留的是 asm side 的 source truth
+  - no-asm host 上 runtime 直接 reuse base scalar slot 就够了
+- 让这个判断翻正的关键证据不是“compare 看起来和 arithmetic 差不多”，而是 source-role 与现有 precedent 同时对齐：
+  - `src/fafafa.core.simd.riscvv.register.inc`
+    - compare 绑定现在收进 `{$IFDEF RISCVV_ASSEMBLY}`，和“只有 asm 编译时才 backend-owned”的 contract 对齐
+  - `src/fafafa.core.simd.riscvv.pas`
+    - compare 的 asm wrapper / opcode body 继续作为 backend truth source 保留
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - 之前那 12 个 `Result := ScalarCmp...` body 在 no-asm runtime 下不再有 live consumer，因此应从 wrapper truth 改判为 dead facade
+  - `NEON` precedent
+    - 同类 compare slot 已经由护栏明确约束成 “asm backend when compiled, scalar slot reuse when not”
+- 这条 finding 的价值，是把又一个很容易拖慢审查的误区钉死：
+  - 不能因为 compare 语义重要，就默认它必须保留一份 family-local no-asm wrapper
+  - 先问 runtime contract 现在怎么发布
+  - 如果 runtime 已经可以直接退回 base scalar slot，那 facade 名字本身不是 contract
+- 因而当前对这组 residual 的更准口径已经变成：
+  - `RISCVV` compare asm/runtime contract：仍是真正要守的 family 证据
+  - `RISCVV` compare no-asm facade body：已经是 dead source，应删除

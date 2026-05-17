@@ -62,40 +62,6 @@ begin
 end;
 
 // =============================================================
-// I32x4 Comparison Operations
-// =============================================================
-
-function RISCVVCmpEqI32x4(const a, b: TVecI32x4): TMask4;
-begin
-  Result := ScalarCmpEqI32x4(a, b);
-end;
-
-function RISCVVCmpLtI32x4(const a, b: TVecI32x4): TMask4;
-begin
-  Result := ScalarCmpLtI32x4(a, b);
-end;
-
-function RISCVVCmpGtI32x4(const a, b: TVecI32x4): TMask4;
-begin
-  Result := ScalarCmpGtI32x4(a, b);
-end;
-
-function RISCVVCmpLeI32x4(const a, b: TVecI32x4): TMask4;
-begin
-  Result := ScalarCmpLeI32x4(a, b);
-end;
-
-function RISCVVCmpGeI32x4(const a, b: TVecI32x4): TMask4;
-begin
-  Result := ScalarCmpGeI32x4(a, b);
-end;
-
-function RISCVVCmpNeI32x4(const a, b: TVecI32x4): TMask4;
-begin
-  Result := ScalarCmpNeI32x4(a, b);
-end;
-
-// =============================================================
 // F32x4 Vector Math Operations
 // =============================================================
 
@@ -1178,11 +1144,6 @@ begin
   Result := ScalarCmpEqI16x8(a, b);
 end;
 
-function RISCVVCmpEqI64x2(const a, b: TVecI64x2): TMask2;
-begin
-  Result := ScalarCmpEqI64x2(a, b);
-end;
-
 function RISCVVCmpEqI64x4(const a, b: TVecI64x4): TMask4;
 begin
   Result := ScalarCmpEqI64x4(a, b);
@@ -1226,11 +1187,6 @@ end;
 function RISCVVCmpGeI16x8(const a, b: TVecI16x8): TMask8;
 begin
   Result := ScalarCmpGeI16x8(a, b);
-end;
-
-function RISCVVCmpGeI64x2(const a, b: TVecI64x2): TMask2;
-begin
-  Result := ScalarCmpGeI64x2(a, b);
 end;
 
 function RISCVVCmpGeI64x4(const a, b: TVecI64x4): TMask4;
@@ -1278,11 +1234,6 @@ begin
   Result := ScalarCmpGtI16x8(a, b);
 end;
 
-function RISCVVCmpGtI64x2(const a, b: TVecI64x2): TMask2;
-begin
-  Result := ScalarCmpGtI64x2(a, b);
-end;
-
 function RISCVVCmpGtI64x4(const a, b: TVecI64x4): TMask4;
 begin
   Result := ScalarCmpGtI64x4(a, b);
@@ -1326,11 +1277,6 @@ end;
 function RISCVVCmpLeI16x8(const a, b: TVecI16x8): TMask8;
 begin
   Result := ScalarCmpLeI16x8(a, b);
-end;
-
-function RISCVVCmpLeI64x2(const a, b: TVecI64x2): TMask2;
-begin
-  Result := ScalarCmpLeI64x2(a, b);
 end;
 
 function RISCVVCmpLeI64x4(const a, b: TVecI64x4): TMask4;
@@ -1378,11 +1324,6 @@ begin
   Result := ScalarCmpLtI16x8(a, b);
 end;
 
-function RISCVVCmpLtI64x2(const a, b: TVecI64x2): TMask2;
-begin
-  Result := ScalarCmpLtI64x2(a, b);
-end;
-
 function RISCVVCmpLtI64x4(const a, b: TVecI64x4): TMask4;
 begin
   Result := ScalarCmpLtI64x4(a, b);
@@ -1426,11 +1367,6 @@ end;
 function RISCVVCmpNeI16x8(const a, b: TVecI16x8): TMask8;
 begin
   Result := ScalarCmpNeI16x8(a, b);
-end;
-
-function RISCVVCmpNeI64x2(const a, b: TVecI64x2): TMask2;
-begin
-  Result := ScalarCmpNeI64x2(a, b);
 end;
 
 function RISCVVCmpNeI64x4(const a, b: TVecI64x4): TMask4;

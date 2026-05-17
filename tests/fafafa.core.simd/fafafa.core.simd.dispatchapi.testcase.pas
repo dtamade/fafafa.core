@@ -178,6 +178,8 @@ type
     procedure Test_RISCVV_ArithmeticF32x4Slots_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
     procedure Test_RISCVV_I32x4ConditionalIntegerSlots_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
     procedure Test_RISCVV_I64x2ConditionalIntegerSlots_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
+    procedure Test_RISCVV_I32x4CompareSlots_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
+    procedure Test_RISCVV_I64x2CompareSlots_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
     procedure Test_RISCVV_ExactF32x4Slots_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
     procedure Test_RISCVV_LocalExtremaF64x2_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
     procedure Test_RISCVV_LocalExtremaF32x4_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
@@ -9889,6 +9891,256 @@ begin
     'procedure RISCVVNotI64x2Asm(const a: TVecI64x2; var r: TVecI64x2);',
     'vxor.vi v0, v0, -1',
     Pointer(LScalarTable.NotI64x2), Pointer(LRISCVVTable.NotI64x2));
+end;
+
+procedure TTestCase_DispatchAPI.Test_RISCVV_I32x4CompareSlots_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
+var
+  LScalarTable: TSimdDispatchTable;
+  LRISCVVTable: TSimdDispatchTable;
+  LSourceLines: TStringList;
+  LRegisterSourcePath: string;
+  LFacadeSourcePath: string;
+  LAsmSourcePath: string;
+  LRegisterSource: string;
+  LFacadeSource: string;
+  LAsmSource: string;
+
+  function CountOccurrences(const aHaystack, aNeedle: string): Integer;
+  var
+    LRest: string;
+    LPos: SizeInt;
+  begin
+    Result := 0;
+    LRest := aHaystack;
+    LPos := Pos(aNeedle, LRest);
+    while LPos > 0 do
+    begin
+      Inc(Result);
+      Delete(LRest, 1, LPos + Length(aNeedle) - 1);
+      LPos := Pos(aNeedle, LRest);
+    end;
+  end;
+
+  procedure AssertRegisterHasAsmOwnedSlot(const aLabel, aSnippet: string);
+  var
+    LNeedle: string;
+  begin
+    LNeedle := LowerCase(aSnippet);
+    AssertEquals('RegisterRISCVVBackend should keep exactly one ' + aLabel + ' source assignment site',
+      1, CountOccurrences(LRegisterSource, LNeedle));
+    AssertTrue('RegisterRISCVVBackend should keep a dedicated asm-gated ' + aLabel + ' source assignment',
+      Pos(LNeedle, LRegisterSource) > 0);
+  end;
+
+  procedure AssertAsmConditionalI32x4CompareSlot(
+    const aLabel, aFunctionSnippet, aAsmOpSnippet: string;
+    const aScalarSlot, aBackendSlot: Pointer);
+  begin
+    AssertTrue('no-asm RISCVV facade should no longer define the dead ' + aLabel + ' witness',
+      Pos(LowerCase(aFunctionSnippet), LFacadeSource) = 0);
+    AssertTrue('RVV asm source should keep the dedicated compare body for ' + aLabel,
+      Pos(LowerCase(aAsmOpSnippet), LAsmSource) > 0);
+    AssertTrue('RISCVV ' + aLabel + ' should stay assigned in the backend dispatch table',
+      aBackendSlot <> nil);
+    {$IFDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
+    AssertTrue('RISCVV ' + aLabel + ' should keep a backend-owned runtime slot when RVV asm is compiled',
+      PtrUInt(aScalarSlot) <> PtrUInt(aBackendSlot));
+    {$ELSE}
+    AssertEquals('RISCVV ' + aLabel + ' should reuse the base scalar runtime slot when RVV asm is not compiled on this host',
+      PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
+    {$ENDIF}
+  end;
+begin
+  LSourceLines := TStringList.Create;
+  try
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.register.inc');
+    AssertTrue('RISCVV register source should exist for I32x4 compare dead-facade audit: ' + LRegisterSourcePath,
+      FileExists(LRegisterSourcePath));
+    LSourceLines.LoadFromFile(LRegisterSourcePath);
+    LRegisterSource := LowerCase(LSourceLines.Text);
+
+    LFacadeSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.facade.inc');
+    AssertTrue('RISCVV facade source should exist for I32x4 compare dead-facade audit: ' + LFacadeSourcePath,
+      FileExists(LFacadeSourcePath));
+    LSourceLines.LoadFromFile(LFacadeSourcePath);
+    LFacadeSource := LowerCase(LSourceLines.Text);
+
+    LAsmSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.pas');
+    AssertTrue('RISCVV unit source should exist for I32x4 compare dead-facade audit: ' + LAsmSourcePath,
+      FileExists(LAsmSourcePath));
+    LSourceLines.LoadFromFile(LAsmSourcePath);
+    LAsmSource := LowerCase(LSourceLines.Text);
+  finally
+    LSourceLines.Free;
+  end;
+
+  AssertRegisterHasAsmOwnedSlot('CmpEqI32x4', 'table.CmpEqI32x4 := @RISCVVCmpEqI32x4;');
+  AssertRegisterHasAsmOwnedSlot('CmpLtI32x4', 'table.CmpLtI32x4 := @RISCVVCmpLtI32x4;');
+  AssertRegisterHasAsmOwnedSlot('CmpGtI32x4', 'table.CmpGtI32x4 := @RISCVVCmpGtI32x4;');
+  AssertRegisterHasAsmOwnedSlot('CmpLeI32x4', 'table.CmpLeI32x4 := @RISCVVCmpLeI32x4;');
+  AssertRegisterHasAsmOwnedSlot('CmpGeI32x4', 'table.CmpGeI32x4 := @RISCVVCmpGeI32x4;');
+  AssertRegisterHasAsmOwnedSlot('CmpNeI32x4', 'table.CmpNeI32x4 := @RISCVVCmpNeI32x4;');
+
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+  AssertTrue('RISCVV opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
+    Exit;
+  {$ENDIF}
+
+  AssertAsmConditionalI32x4CompareSlot('CmpEqI32x4',
+    'function RISCVVCmpEqI32x4(const a, b: TVecI32x4): TMask4;',
+    'vmseq.vv v0, v0, v1',
+    Pointer(LScalarTable.CmpEqI32x4), Pointer(LRISCVVTable.CmpEqI32x4));
+  AssertAsmConditionalI32x4CompareSlot('CmpLtI32x4',
+    'function RISCVVCmpLtI32x4(const a, b: TVecI32x4): TMask4;',
+    'vmslt.vv v0, v0, v1',
+    Pointer(LScalarTable.CmpLtI32x4), Pointer(LRISCVVTable.CmpLtI32x4));
+  AssertAsmConditionalI32x4CompareSlot('CmpGtI32x4',
+    'function RISCVVCmpGtI32x4(const a, b: TVecI32x4): TMask4;',
+    'vmslt.vv v0, v1, v0',
+    Pointer(LScalarTable.CmpGtI32x4), Pointer(LRISCVVTable.CmpGtI32x4));
+  AssertAsmConditionalI32x4CompareSlot('CmpLeI32x4',
+    'function RISCVVCmpLeI32x4(const a, b: TVecI32x4): TMask4;',
+    'vmsle.vv v0, v0, v1',
+    Pointer(LScalarTable.CmpLeI32x4), Pointer(LRISCVVTable.CmpLeI32x4));
+  AssertAsmConditionalI32x4CompareSlot('CmpGeI32x4',
+    'function RISCVVCmpGeI32x4(const a, b: TVecI32x4): TMask4;',
+    'vmnand.mm v0, v0, v0',
+    Pointer(LScalarTable.CmpGeI32x4), Pointer(LRISCVVTable.CmpGeI32x4));
+  AssertAsmConditionalI32x4CompareSlot('CmpNeI32x4',
+    'function RISCVVCmpNeI32x4(const a, b: TVecI32x4): TMask4;',
+    'vmsne.vv v0, v0, v1',
+    Pointer(LScalarTable.CmpNeI32x4), Pointer(LRISCVVTable.CmpNeI32x4));
+end;
+
+procedure TTestCase_DispatchAPI.Test_RISCVV_I64x2CompareSlots_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
+var
+  LScalarTable: TSimdDispatchTable;
+  LRISCVVTable: TSimdDispatchTable;
+  LSourceLines: TStringList;
+  LRegisterSourcePath: string;
+  LFacadeSourcePath: string;
+  LAsmSourcePath: string;
+  LRegisterSource: string;
+  LFacadeSource: string;
+  LAsmSource: string;
+
+  function CountOccurrences(const aHaystack, aNeedle: string): Integer;
+  var
+    LRest: string;
+    LPos: SizeInt;
+  begin
+    Result := 0;
+    LRest := aHaystack;
+    LPos := Pos(aNeedle, LRest);
+    while LPos > 0 do
+    begin
+      Inc(Result);
+      Delete(LRest, 1, LPos + Length(aNeedle) - 1);
+      LPos := Pos(aNeedle, LRest);
+    end;
+  end;
+
+  procedure AssertRegisterHasAsmOwnedSlot(const aLabel, aSnippet: string);
+  var
+    LNeedle: string;
+  begin
+    LNeedle := LowerCase(aSnippet);
+    AssertEquals('RegisterRISCVVBackend should keep exactly one ' + aLabel + ' source assignment site',
+      1, CountOccurrences(LRegisterSource, LNeedle));
+    AssertTrue('RegisterRISCVVBackend should keep a dedicated asm-gated ' + aLabel + ' source assignment',
+      Pos(LNeedle, LRegisterSource) > 0);
+  end;
+
+  procedure AssertAsmConditionalI64x2CompareSlot(
+    const aLabel, aFunctionSnippet, aAsmOpSnippet: string;
+    const aScalarSlot, aBackendSlot: Pointer);
+  begin
+    AssertTrue('no-asm RISCVV facade should no longer define the dead ' + aLabel + ' witness',
+      Pos(LowerCase(aFunctionSnippet), LFacadeSource) = 0);
+    AssertTrue('RVV asm source should keep the dedicated compare body for ' + aLabel,
+      Pos(LowerCase(aAsmOpSnippet), LAsmSource) > 0);
+    AssertTrue('RISCVV ' + aLabel + ' should stay assigned in the backend dispatch table',
+      aBackendSlot <> nil);
+    {$IFDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
+    AssertTrue('RISCVV ' + aLabel + ' should keep a backend-owned runtime slot when RVV asm is compiled',
+      PtrUInt(aScalarSlot) <> PtrUInt(aBackendSlot));
+    {$ELSE}
+    AssertEquals('RISCVV ' + aLabel + ' should reuse the base scalar runtime slot when RVV asm is not compiled on this host',
+      PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
+    {$ENDIF}
+  end;
+begin
+  LSourceLines := TStringList.Create;
+  try
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.register.inc');
+    AssertTrue('RISCVV register source should exist for I64x2 compare dead-facade audit: ' + LRegisterSourcePath,
+      FileExists(LRegisterSourcePath));
+    LSourceLines.LoadFromFile(LRegisterSourcePath);
+    LRegisterSource := LowerCase(LSourceLines.Text);
+
+    LFacadeSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.facade.inc');
+    AssertTrue('RISCVV facade source should exist for I64x2 compare dead-facade audit: ' + LFacadeSourcePath,
+      FileExists(LFacadeSourcePath));
+    LSourceLines.LoadFromFile(LFacadeSourcePath);
+    LFacadeSource := LowerCase(LSourceLines.Text);
+
+    LAsmSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.pas');
+    AssertTrue('RISCVV unit source should exist for I64x2 compare dead-facade audit: ' + LAsmSourcePath,
+      FileExists(LAsmSourcePath));
+    LSourceLines.LoadFromFile(LAsmSourcePath);
+    LAsmSource := LowerCase(LSourceLines.Text);
+  finally
+    LSourceLines.Free;
+  end;
+
+  AssertRegisterHasAsmOwnedSlot('CmpEqI64x2', 'table.CmpEqI64x2 := @RISCVVCmpEqI64x2;');
+  AssertRegisterHasAsmOwnedSlot('CmpLtI64x2', 'table.CmpLtI64x2 := @RISCVVCmpLtI64x2;');
+  AssertRegisterHasAsmOwnedSlot('CmpGtI64x2', 'table.CmpGtI64x2 := @RISCVVCmpGtI64x2;');
+  AssertRegisterHasAsmOwnedSlot('CmpLeI64x2', 'table.CmpLeI64x2 := @RISCVVCmpLeI64x2;');
+  AssertRegisterHasAsmOwnedSlot('CmpGeI64x2', 'table.CmpGeI64x2 := @RISCVVCmpGeI64x2;');
+  AssertRegisterHasAsmOwnedSlot('CmpNeI64x2', 'table.CmpNeI64x2 := @RISCVVCmpNeI64x2;');
+
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+  AssertTrue('RISCVV opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
+    Exit;
+  {$ENDIF}
+
+  AssertAsmConditionalI64x2CompareSlot('CmpEqI64x2',
+    'function RISCVVCmpEqI64x2(const a, b: TVecI64x2): TMask2;',
+    'vmseq.vv v0, v0, v1',
+    Pointer(LScalarTable.CmpEqI64x2), Pointer(LRISCVVTable.CmpEqI64x2));
+  AssertAsmConditionalI64x2CompareSlot('CmpLtI64x2',
+    'function RISCVVCmpLtI64x2(const a, b: TVecI64x2): TMask2;',
+    'vmslt.vv v0, v0, v1',
+    Pointer(LScalarTable.CmpLtI64x2), Pointer(LRISCVVTable.CmpLtI64x2));
+  AssertAsmConditionalI64x2CompareSlot('CmpGtI64x2',
+    'function RISCVVCmpGtI64x2(const a, b: TVecI64x2): TMask2;',
+    'vmslt.vv v0, v1, v0',
+    Pointer(LScalarTable.CmpGtI64x2), Pointer(LRISCVVTable.CmpGtI64x2));
+  AssertAsmConditionalI64x2CompareSlot('CmpLeI64x2',
+    'function RISCVVCmpLeI64x2(const a, b: TVecI64x2): TMask2;',
+    'vmsle.vv v0, v0, v1',
+    Pointer(LScalarTable.CmpLeI64x2), Pointer(LRISCVVTable.CmpLeI64x2));
+  AssertAsmConditionalI64x2CompareSlot('CmpGeI64x2',
+    'function RISCVVCmpGeI64x2(const a, b: TVecI64x2): TMask2;',
+    'vmsle.vv v0, v1, v0',
+    Pointer(LScalarTable.CmpGeI64x2), Pointer(LRISCVVTable.CmpGeI64x2));
+  AssertAsmConditionalI64x2CompareSlot('CmpNeI64x2',
+    'function RISCVVCmpNeI64x2(const a, b: TVecI64x2): TMask2;',
+    'vmsne.vv v0, v0, v1',
+    Pointer(LScalarTable.CmpNeI64x2), Pointer(LRISCVVTable.CmpNeI64x2));
 end;
 
 procedure TTestCase_DispatchAPI.Test_RISCVV_ExactF32x4Slots_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;

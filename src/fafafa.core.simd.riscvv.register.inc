@@ -143,12 +143,14 @@ begin
   {$ENDIF}
 
   // I32x4 Comparison
+  {$IFDEF RISCVV_ASSEMBLY}
   table.CmpEqI32x4 := @RISCVVCmpEqI32x4;
   table.CmpLtI32x4 := @RISCVVCmpLtI32x4;
   table.CmpGtI32x4 := @RISCVVCmpGtI32x4;
   table.CmpLeI32x4 := @RISCVVCmpLeI32x4;
   table.CmpGeI32x4 := @RISCVVCmpGeI32x4;
   table.CmpNeI32x4 := @RISCVVCmpNeI32x4;
+  {$ENDIF}
 
   // I32x4 Min/Max
   {$IFDEF RISCVV_ASSEMBLY}
@@ -481,15 +483,13 @@ begin
   // non-scalar semantics, so they continue to reuse the seeded base scalar
   // slots until real RVV-specific implementations exist.
   table.SelectF64x2 := @RISCVVSelectF64x2;
-  {$ENDIF}
-
-  // I64x2 Comparison
   table.CmpEqI64x2 := @RISCVVCmpEqI64x2;
   table.CmpLtI64x2 := @RISCVVCmpLtI64x2;
   table.CmpLeI64x2 := @RISCVVCmpLeI64x2;
   table.CmpGtI64x2 := @RISCVVCmpGtI64x2;
   table.CmpGeI64x2 := @RISCVVCmpGeI64x2;
   table.CmpNeI64x2 := @RISCVVCmpNeI64x2;
+  {$ENDIF}
 
   // I64x4 Operations
   // Only Add/Sub are backend-owned in this family today. Mul/Min/Max are not
