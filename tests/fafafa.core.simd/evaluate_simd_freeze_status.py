@@ -659,6 +659,39 @@ def candidate_paths_not_newer_than_artifact_check(
     )
 
 
+def artifact_not_older_than_reference_check(
+    name: str, artifact_path: Path, reference_path: Path, required: bool = True
+) -> CheckItem:
+    if not artifact_path.is_file():
+        return CheckItem(name=name, required=required, status="FAIL", detail=f"missing {artifact_path}")
+    if not reference_path.is_file():
+        return CheckItem(name=name, required=required, status="FAIL", detail=f"missing {reference_path}")
+
+    artifact_mtime = datetime.fromtimestamp(artifact_path.stat().st_mtime)
+    reference_mtime = datetime.fromtimestamp(reference_path.stat().st_mtime)
+
+    if artifact_mtime >= reference_mtime:
+        return CheckItem(
+            name=name,
+            required=required,
+            status="PASS",
+            detail=(
+                f"artifact mtime={artifact_mtime:%Y-%m-%d %H:%M:%S}, "
+                f"reference={reference_path} ({reference_mtime:%Y-%m-%d %H:%M:%S})"
+            ),
+        )
+
+    return CheckItem(
+        name=name,
+        required=required,
+        status="FAIL",
+        detail=(
+            f"artifact mtime={artifact_mtime:%Y-%m-%d %H:%M:%S}, "
+            f"reference={reference_path} ({reference_mtime:%Y-%m-%d %H:%M:%S})"
+        ),
+    )
+
+
 def sources_not_newer_than_artifact_check(
     name: str, artifact_path: Path, candidate_paths: list[Path], required: bool = True
 ) -> CheckItem:
@@ -1624,6 +1657,19 @@ def main() -> int:
                 )
 
     if closeout_summary.is_file():
+        windows_closeout_summary_current = True
+        checks.append(
+            artifact_not_older_than_reference_check(
+                "windows_closeout_summary_not_older_than_log",
+                closeout_summary,
+                windows_log,
+                required=True,
+            )
+        )
+        windows_closeout_summary_current = checks[-1].status == "PASS"
+        if checks[-1].status != "PASS":
+            next_actions.append("bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence")
+
         summary_text = closeout_summary.read_text(encoding="utf-8", errors="ignore")
         has_result_pass = "- Result: PASS" in summary_text
         has_result_fail = "- Result: FAIL" in summary_text
@@ -1640,6 +1686,19 @@ def main() -> int:
                 )
             )
             next_actions.append("tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify")
+        elif not windows_closeout_summary_current:
+            checks.append(
+                CheckItem(
+                    name="windows_closeout_summary",
+                    required=True,
+                    status="FAIL",
+                    detail=(
+                        "stale summary: closeout summary is older than current windows evidence log; "
+                        f"rerun finalize-win-evidence before trusting {closeout_summary}"
+                    ),
+                )
+            )
+            next_actions.append("bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence")
         elif windows_verify_ok is True:
             if has_result_pass:
                 checks.append(

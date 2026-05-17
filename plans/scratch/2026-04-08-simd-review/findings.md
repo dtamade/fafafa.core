@@ -7264,3 +7264,21 @@
   - 它已经不是“旧历史日志污染 freeze-status”
   - 也不再是“batch runner 还把命令拼错”
   - 而是“本机 Wine bridge 仍不足以替代真实 Windows runner / GH runner”
+
+## 2026-05-17 Closeout Summary Was Still Being Trusted Even After A Fresh Current Windows Log Replaced The Old Evidence
+
+- 在 fresh current `windows_b07_gate.log` 已经刷回来之后，我继续对真实 `freeze-status` 做 completion audit，发现还有最后一个相邻的 truth-split：
+  - 当前 log 已经是 17:27 的 fresh current evidence
+  - 但 `windows_b07_closeout_summary.md` 仍是 12:34 的旧 summary
+  - 之前 `freeze-status` 只看 summary 里有没有 `- Result: FAIL`
+  - 于是即使 summary 已经明显旧于当前 log，仍会把它当成 `summary matches verifier FAIL`
+- 这类误导的坏处也很直接：
+  - 读者会误以为 closeout summary 已经同步到了当前 fresh log
+  - 但实际上当前更准确的下一步应该是先重跑 `finalize-win-evidence`
+  - 否则 current log 和 current summary 会继续不对齐
+- 这批最小正确修法是：
+  - 新增 `windows_closeout_summary_not_older_than_log`
+  - 一旦 summary 旧于当前 log：
+    - 这条 freshness check 直接 FAIL
+    - `windows_closeout_summary` 也明确变成 `stale summary: closeout summary is older than current windows evidence log`
+    - next-actions 补上 `bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence`

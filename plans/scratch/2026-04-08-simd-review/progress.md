@@ -9211,3 +9211,47 @@
     - 外部 GitHub Billing / Windows runner 可用性
     - 或一个真正稳定的 Wine-to-Unix lazbuild bridge
   - 在没有后者稳定通路前，继续深挖 Wine 适配层的收益已经明显低于直接拿真实 Windows runner
+
+## 2026-05-17 Mark Closeout Summary Stale When Fresh Current Windows Log Is Newer
+
+- 在 fresh current Windows log 已经刷回来之后，我继续做 completion audit，发现 `freeze-status` 还有最后一个相邻 truth-split：
+  - `windows_b07_gate.log` 已经是 17:27 的 current log
+  - 但 `windows_b07_closeout_summary.md` 还是 12:34 的旧 summary
+  - 之前 summary 逻辑只看 `- Result: FAIL`，所以它还会被误判成 `summary matches verifier FAIL`
+- 已落地修法：
+  - `tests/fafafa.core.simd/evaluate_simd_freeze_status.py`
+    - 新增 `artifact_not_older_than_reference_check()`
+    - 真实 `freeze-status` 现在多一条 required check：
+      - `windows_closeout_summary_not_older_than_log`
+    - 若 summary 旧于当前 log：
+      - `windows_closeout_summary_not_older_than_log = FAIL`
+      - `windows_closeout_summary = FAIL`，detail 为：
+        - `stale summary: closeout summary is older than current windows evidence log`
+      - next-actions 增加：
+        - `bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence`
+  - `tests/fafafa.core.simd/rehearse_freeze_status.sh`
+    - 新增 `case_closeout_summary_older`
+    - 专门守住“log 已刷新，但 summary 还旧”这条边界
+  - active docs：
+    - `docs/fafafa.core.simd.closeout.md`
+    - `docs/fafafa.core.simd.checklist.md`
+    - 已同步到“fresh current log + stale closeout summary”的新口径
+- 已验证：
+  - `python3 -m py_compile tests/fafafa.core.simd/evaluate_simd_freeze_status.py`
+  - `bash -n tests/fafafa.core.simd/rehearse_freeze_status.sh`
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-rehearsal`
+    - `[FREEZE-REHEARSAL] OK`
+    - `case_closeout_summary_older_rc=1`
+  - 真实复验：
+    - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+    - 现在新增：
+      - `FAIL windows_closeout_summary_not_older_than_log`
+      - `FAIL windows_closeout_summary: stale summary: closeout summary is older than current windows evidence log`
+    - next-actions 也已补上：
+      - `bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence`
+- 当前阶段结论：
+  - fresh current Windows log / stale closeout summary / external billing blocker 这三层现在终于被 `freeze-status` 分开说清楚了
+  - repo 内还能继续修的 Windows evidence truth-splitting 又少了一条
+  - 当前 remaining gap 继续只剩：
+    - GitHub Billing / Windows runner 可用性
+    - 或真正稳定的 Wine-to-Unix lazbuild bridge

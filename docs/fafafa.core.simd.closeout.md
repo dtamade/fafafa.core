@@ -44,6 +44,7 @@
 - 如果 `win-evidence-preflight` 的 live GitHub 查询只是瞬时 `WORKFLOW_QUERY_FAILED`，但本地仍有 fresh 的 `RECENT_BILLING_BLOCK` latest 报告，stdout 现在也会继续按 `RECENT_BILLING_BLOCK EXIT=31` 对外表态；瞬时 query noise 会写到 `logs/win_preflight_latest.diagnostic.{json,md}`，不会再覆写 `win_preflight_latest.{json,md}` 这份 operator truth。
 - 如果 `tests/fafafa.core.simd/buildOrTest.bat` 或 `collect_windows_b07_evidence.bat` 新于 `logs/windows_b07_gate.log`，就把当前 Windows log / closeout summary 视为 stale historical evidence；`freeze-status` 现在会把这种 runner drift 单独标红，而不是继续把旧 verifier fail 当成当前实现真相。
 - 当前 `HEAD` 最新的本机 Wine batch capture 已经重新刷新过 `windows_b07_gate.log`；因此当前直接失败边界不再是 stale historical log，而是 `wine/cmd` 无法直接解析 fallback 的 bare `lazbuild` 命令。这说明 recent batch quoting/call 误导已经收掉，但本机 Wine 仍不足以替代真实 Windows runner。
+- 当 `windows_b07_gate.log` 已刷新，但 `windows_b07_closeout_summary.md` 仍旧于当前 log 时，`freeze-status` 现在会把 summary 单独标成 stale，并把 next-action 补成 `finalize-win-evidence`；不要再把旧 summary 当成当前 closeout truth。
 - 如果 `qemu-cpuinfo-nonx86-evidence` 又回到 `SKIP`，那说明 latest canonical gate 已被 fast-gate 覆盖或这轮并未刷新 Linux CPUInfo cross evidence；这时可以继续做仓库内文档/policy 收口，但不要把 `freeze-status` 写成 green。
 - `qemu-nonx86-evidence` 和 `qemu-cpuinfo-nonx86-evidence` 现在必须分开理解：
   - 前者服务 `closeout-host-local` 的 non-x86 runtime parity / dataplane 实现收口
