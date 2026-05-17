@@ -7037,3 +7037,16 @@
   - Windows 侧 CLI 总览会给出不完整入口面
   - `check_windows_runner_parity()` 当前把这条 stale batch synopsis 当成 expected pattern，自身也不会因为这处 help drift 报红
 - 因而最小正确修法是把 batch synopsis 与 parity required synopsis 一起补齐，而不是扩大到其他实现面。
+
+## 2026-05-17 Synopsis Guard Itself Was Redundant
+
+- 在补上 `riscvv-opcode-lane` 之后，继续回看 `runner-parity` 本身，会发现更深一层的问题：
+  - 当前 synopsis 守卫依赖一整条硬编码 `echo Usage: ...` expected pattern
+  - 这意味着每次 action 面扩展时，都要手工同步一次长字符串
+  - 这正是刚才 batch synopsis 漂移能够存活下来的冗余来源之一
+- 更稳妥的修法不是继续扩那条长字符串，而是：
+  - 直接从 shell/batch runner 的 `Usage:` 行提取 synopsis action 集
+  - 再与各自真实 action 路由集合做双向对账
+- 这样能同时抓住两类问题：
+  - synopsis 漏列真实 action
+  - synopsis 列出已经不存在的 stale action

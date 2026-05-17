@@ -8778,3 +8778,15 @@
   - 在 `tests/fafafa.core.simd/buildOrTest.bat` 的总 synopsis 中补上 `riscvv-opcode-lane`
   - 在 `tests/fafafa.core.simd/BuildOrTest.sh` 的 `check_windows_runner_parity()` required synopsis 中同步补上同一项
 - 这批只碰 help/parity 文本，不碰执行分支；验证仍按 release closeout 习惯走 `git diff --check`、`bash -n`、`runner-parity`。
+
+## 2026-05-17 Structural Synopsis Parity Check
+
+- 在补完 `riscvv-opcode-lane` synopsis 漂移之后，我没有停在“再维护一条更长的 expected string”，而是顺手把这类冗余守卫削掉一层。
+- 已落地的最小修法：
+  - 在 `tests/fafafa.core.simd/BuildOrTest.sh` 增加 shell/batch synopsis action 提取器
+  - `check_windows_runner_parity()` 不再依赖整条硬编码 `Usage:` synopsis 作为唯一事实源
+  - 改成把 shell/batch 各自的 `Usage:` action 集与真实 action 路由集合做双向对账
+- 这次收掉的是守卫冗余，而不是功能冗余：
+  - 以后新增 action 若只改了路由、没改 synopsis，会直接报红
+  - 以后 synopsis 若残留 stale action，也会直接报红
+- 验证仍按 release closeout 习惯走 `git diff --check`、`bash -n`、`runner-parity`。

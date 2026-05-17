@@ -923,6 +923,30 @@ collect_windows_runner_actions() {
   sed -n 's/^if \/I "%ACTION%"=="\([^"]\+\)".*/\1/p' "${aRunner}" | sort -u
 }
 
+collect_shell_runner_usage_synopsis_actions() {
+  local aRunner
+  local LSynopsis
+
+  aRunner="${1:-}"
+  LSynopsis="$(sed -n 's/^[[:space:]]*echo "Usage: \$0 \[\(.*\)\] \[test-args\.\.\.\]"/\1/p' "${aRunner}" | head -n 1)"
+  if [[ -z "${LSynopsis}" ]]; then
+    return 0
+  fi
+  tr '|' '\n' <<<"${LSynopsis}" | sed '/^$/d' | sort -u
+}
+
+collect_windows_runner_usage_synopsis_actions() {
+  local aRunner
+  local LSynopsis
+
+  aRunner="${1:-}"
+  LSynopsis="$(sed -n 's/^echo Usage: %~nx0 \[\(.*\)\] \[test-args\.\.\.\]/\1/p' "${aRunner}" | head -n 1)"
+  if [[ -z "${LSynopsis}" ]]; then
+    return 0
+  fi
+  tr '|' '\n' <<<"${LSynopsis}" | sed 's/\^$//' | sed '/^$/d' | sort -u
+}
+
 check_windows_runner_parity() {
   local LBat
   local LShellRunner
@@ -932,6 +956,8 @@ check_windows_runner_parity() {
   local -a LRequired
   local -a LShellActions
   local -a LBatActions
+  local -a LShellSynopsisActions
+  local -a LBatSynopsisActions
   local -a LAllowedShellOnly
   local -a LAllowedWindowsOnly
 
@@ -1034,7 +1060,6 @@ check_windows_runner_parity() {
     'if /I "%ACTION%"=="native-evidence" goto :native_evidence'
     'if /I "%ACTION%"=="verify-nonx86-native-evidence" goto :verify_nonx86_native_evidence'
     'if /I "%ACTION%"=="restore-nightly-evidence" goto :restore_nightly_evidence'
-    'echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|key-slot-audit^|implementation-matrix-sync^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|dataplane-consumer-scope^|direct-dispatch-scope^|metadata-query-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|runner-parity^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|gate-summary-selfcheck^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|riscvv-opcode-lane^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-linux^|native-evidence^|verify-nonx86-native-evidence^|restore-nightly-evidence^|evidence-win^|win-evidence-preflight^|win-evidence-via-gh^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-dryrun^|win-closeout-snippets^|win-closeout-3cmd^|freeze-status^|freeze-status-linux^|win-closeout-finalize^|freeze-status-rehearsal] [test-args...]'
     'echo   runner-parity  Fast shell/batch runner parity selfcheck ^(delegates to shell runner^)'
     'echo [RUNNER-PARITY] Running: bash %ROOT%BuildOrTest.sh runner-parity %NORMALIZED_TEST_ARGS%'
     'echo   closeout-release  Canonical release closeout entry ^(delegates to shell runner^)'
@@ -1320,11 +1345,26 @@ check_windows_runner_parity() {
 
   mapfile -t LShellActions < <(collect_shell_runner_actions "${LShellRunner}")
   mapfile -t LBatActions < <(collect_windows_runner_actions "${LBat}")
+  mapfile -t LShellSynopsisActions < <(collect_shell_runner_usage_synopsis_actions "${LShellRunner}")
+  mapfile -t LBatSynopsisActions < <(collect_windows_runner_usage_synopsis_actions "${LBat}")
+
+  if [[ "${#LShellSynopsisActions[@]}" == "0" ]]; then
+    echo "[CHECK] Shell runner usage synopsis missing or unparsable: ${LShellRunner}"
+    LMissing=1
+  fi
+  if [[ "${#LBatSynopsisActions[@]}" == "0" ]]; then
+    echo "[CHECK] Windows runner usage synopsis missing or unparsable: ${LBat}"
+    LMissing=1
+  fi
 
   for LAction in "${LShellActions[@]}"; do
     if ! array_contains "${LAction}" "${LBatActions[@]}" && \
        ! array_contains "${LAction}" "${LAllowedShellOnly[@]}"; then
       echo "[CHECK] Windows runner missing action without allowlist: ${LAction}"
+      LMissing=1
+    fi
+    if ! array_contains "${LAction}" "${LShellSynopsisActions[@]}"; then
+      echo "[CHECK] Shell usage synopsis missing action: ${LAction}"
       LMissing=1
     fi
   done
@@ -1333,6 +1373,24 @@ check_windows_runner_parity() {
     if ! array_contains "${LAction}" "${LShellActions[@]}" && \
        ! array_contains "${LAction}" "${LAllowedWindowsOnly[@]}"; then
       echo "[CHECK] Windows runner has unexpected Windows-only action: ${LAction}"
+      LMissing=1
+    fi
+    if ! array_contains "${LAction}" "${LBatSynopsisActions[@]}"; then
+      echo "[CHECK] Windows usage synopsis missing action: ${LAction}"
+      LMissing=1
+    fi
+  done
+
+  for LAction in "${LShellSynopsisActions[@]}"; do
+    if ! array_contains "${LAction}" "${LShellActions[@]}"; then
+      echo "[CHECK] Shell usage synopsis has unknown action: ${LAction}"
+      LMissing=1
+    fi
+  done
+
+  for LAction in "${LBatSynopsisActions[@]}"; do
+    if ! array_contains "${LAction}" "${LBatActions[@]}"; then
+      echo "[CHECK] Windows usage synopsis has unknown action: ${LAction}"
       LMissing=1
     fi
   done
