@@ -64,7 +64,7 @@
 - `tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify`
 - 前提：本机必须能直接执行 native Windows `lazbuild.exe`（或 `.bat/.cmd` wrapper），不要拿 Wine/cmd 冒充实机。
 
-2. Git Bash / WSL 回灌 fail-close cross gate（必需）
+2) Git Bash / WSL 回灌 fail-close cross gate（必需）
 
 - `FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
 

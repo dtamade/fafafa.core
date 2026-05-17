@@ -1046,6 +1046,7 @@ check_windows_runner_parity() {
     'if /I "%ACTION%"=="adapter-sync-pascal" goto :adapter_sync_pascal'
     'if /I "%ACTION%"=="adapter-sync" goto :adapter_sync'
     'if /I "%ACTION%"=="runner-parity" goto :runner_parity'
+    'if /I "%ACTION%"=="closeout-guard" goto :closeout_guard'
     'if /I "%ACTION%"=="parity-suites" goto :parity_suites'
     'if /I "%ACTION%"=="perf-smoke" goto :perf_smoke'
     'if /I "%ACTION%"=="nonx86-optin-list-suites" goto :nonx86_optin_list_suites'
@@ -1106,6 +1107,7 @@ check_windows_runner_parity() {
     'echo   publicabi-smoke  Run the standalone public ABI smoke'
     'echo   adapter-sync-pascal  Build/run the backend adapter Pascal smoke'
     'echo   adapter-sync  Audit backend adapter spec/generated sync'
+    'echo   closeout-guard  Run the Windows closeout/doc/runbook guard bundle ^(delegates to shell runner^)'
     'echo   parity-suites  Run focused DispatchAPI + DirectDispatch parity suites'
     'echo   coverage  Check SIMD intrinsics direct-test coverage'
     'echo   wiring-sync  Audit non-x86 wiring consistency'
@@ -1145,6 +1147,9 @@ check_windows_runner_parity() {
     'echo   freeze-status  Evaluate current release freeze readiness ^(delegates to shell runner^)'
     'echo   freeze-status-linux  Evaluate freeze readiness using Linux-side evidence only ^(delegates to shell runner^)'
     'echo   freeze-status-rehearsal  Rehearse freeze-status failure shaping ^(delegates to shell runner^)'
+    ':closeout_guard'
+    'echo [CLOSEOUT-GUARD] FAILED ^(bash runtime not found; closeout-guard requires bash to preserve shell parity^)'
+    'echo [CLOSEOUT-GUARD] Running: bash %ROOT%BuildOrTest.sh closeout-guard %NORMALIZED_TEST_ARGS%'
     'echo [IMPL-SMOKE-X86] Running: bash %ROOT%BuildOrTest.sh impl-smoke-x86 %NORMALIZED_TEST_ARGS%'
     'echo [HISTORICAL-CLOSEOUT-NOTE-CHECK] FAILED ^(bash runtime not found; historical-closeout-note-check requires bash to preserve shell parity^)'
     'findstr /r /c:"src\fafafa\.core\.simd\..*Warning:" /c:"src\fafafa\.core\.simd\..*Hint:" "%BUILD_LOG%" | findstr /v /c:"src\fafafa.core.simd.intrinsics.avx2.pas" >nul 2>nul'
@@ -1962,8 +1967,8 @@ check_windows_manual_closeout_guard() {
   LRunbookRequired=(
     '3. 回灌 cross gate（Git Bash / WSL，必需）'
     'native Windows `lazbuild.exe`'
-    "`\$env:LAZBUILD = 'C:\\Lazarus\\lazbuild.exe'`"
-    "\`FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate\`"
+    '`' "\$env:LAZBUILD = 'C:\\Lazarus\\lazbuild.exe'" '`'
+    '`' "FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate" '`'
     'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1'
     '- 因此手工 Windows 实机路径在 finalize 前必须显式补跑 fail-close cross gate；否则 `freeze-status` 只会继续消费旧的 `gate_summary.md`。'
     '- 下文若出现 `ready=True` / `cross-ready=True`，都应理解成“目标态 / 通过标准”，不是当前 `HEAD` 的现状。'
@@ -2033,7 +2038,7 @@ check_windows_manual_closeout_guard() {
   )
   LTopChecklistRequired=(
     '真正的 Windows 收口主线应优先使用 `win-evidence-via-gh`。'
-    "若走手工 Windows 实机路径，则必须先跑 \`FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate\`，再执行 \`win-closeout-finalize\`。"
+    '若走手工 Windows 实机路径，则必须先跑 `' "FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate" '`，再执行 `win-closeout-finalize`。'
     'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1'
   )
 
@@ -3639,6 +3644,18 @@ run_runner_parity() {
   check_windows_runner_parity || return $?
   check_cpuinfo_runner_parity || return $?
   echo "[CHECK] OK (runner parity quick path)"
+}
+
+run_closeout_guard() {
+  check_windows_simulated_evidence_guard || return $?
+  check_windows_gate_summary_helper_guard || return $?
+  check_windows_manual_closeout_guard_source_safety || return $?
+  check_windows_manual_closeout_guard || return $?
+  check_windows_closeout_helper_runtime_guard || return $?
+  check_windows_via_gh_cross_gate_guard || return $?
+  check_closeout_release_entrypoint_guard || return $?
+  run_historical_closeout_notes_check --summary-line || return $?
+  echo "[CHECK] OK (closeout guard quick path)"
 }
 
 run_static_build_check_core() {
@@ -7501,6 +7518,9 @@ case "${ACTION}" in
   runner-parity)
     run_runner_parity
     ;;
+  closeout-guard)
+    run_closeout_guard
+    ;;
   parity-suites)
     build_project
     gate_step_cross_backend_parity
@@ -7659,7 +7679,7 @@ case "${ACTION}" in
     run_freeze_status_rehearsal "$@"
     ;;
   *)
-    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|closeout-release|sse2-structure-check|sse2-contracts|impl-smoke-sse2|impl-smoke-x86|impl-smoke-nonx86|impl-audit-nonx86|helper-semantics|key-slot-audit|implementation-matrix-sync|riscvv-abi-shape|source-reachability|closeout-host-local|import-nonx86-native-evidence|closeout-host-local-from-import|interface-completeness|dispatch-read-scope|dataplane-consumer-scope|direct-dispatch-scope|metadata-query-scope|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|runner-parity|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|verify-nonx86-native-evidence|restore-nightly-evidence|historical-closeout-note-check|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
+    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|closeout-release|sse2-structure-check|sse2-contracts|impl-smoke-sse2|impl-smoke-x86|impl-smoke-nonx86|impl-audit-nonx86|helper-semantics|key-slot-audit|implementation-matrix-sync|riscvv-abi-shape|source-reachability|closeout-host-local|import-nonx86-native-evidence|closeout-host-local-from-import|interface-completeness|dispatch-read-scope|dataplane-consumer-scope|direct-dispatch-scope|metadata-query-scope|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|runner-parity|closeout-guard|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|verify-nonx86-native-evidence|restore-nightly-evidence|historical-closeout-note-check|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
     echo "  Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks."
     echo "  gate/gate-strict PASS is not blanket release-grade approval for every experimental path."
     echo "  gate         Fast/base gate for routine SIMD changes"
@@ -7688,6 +7708,7 @@ case "${ACTION}" in
     echo "  adapter-sync-pascal  Build/run the backend adapter Pascal smoke"
     echo "  adapter-sync  Audit backend adapter spec/generated sync"
     echo "  runner-parity  Fast shell/batch runner parity selfcheck"
+    echo "  closeout-guard  Run the Windows closeout/doc/runbook guard bundle"
     echo "  parity-suites  Run focused DispatchAPI + DirectDispatch parity suites"
     echo "  coverage  Check SIMD intrinsics direct-test coverage"
     echo "  wiring-sync  Audit non-x86 wiring consistency"

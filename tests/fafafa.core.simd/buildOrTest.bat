@@ -92,6 +92,7 @@ if /I "%ACTION%"=="publicabi-smoke" goto :publicabi_smoke
 if /I "%ACTION%"=="adapter-sync-pascal" goto :adapter_sync_pascal
 if /I "%ACTION%"=="adapter-sync" goto :adapter_sync
 if /I "%ACTION%"=="runner-parity" goto :runner_parity
+if /I "%ACTION%"=="closeout-guard" goto :closeout_guard
 if /I "%ACTION%"=="parity-suites" goto :parity_suites
 if /I "%ACTION%"=="gate-summary" goto :gate_summary
 if /I "%ACTION%"=="gate-summary-sample" goto :gate_summary_sample
@@ -137,7 +138,7 @@ if /I "%ACTION%"=="freeze-status-linux" goto :freeze_status_linux
 if /I "%ACTION%"=="win-closeout-finalize" goto :win_closeout_finalize
 if /I "%ACTION%"=="freeze-status-rehearsal" goto :freeze_status_rehearsal
 
-echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|key-slot-audit^|implementation-matrix-sync^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|dataplane-consumer-scope^|direct-dispatch-scope^|metadata-query-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|runner-parity^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|gate-summary-selfcheck^|historical-closeout-note-check^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|riscvv-opcode-lane^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-linux^|native-evidence^|verify-nonx86-native-evidence^|restore-nightly-evidence^|evidence-win^|win-evidence-preflight^|win-evidence-via-gh^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-dryrun^|win-closeout-snippets^|win-closeout-3cmd^|freeze-status^|freeze-status-linux^|win-closeout-finalize^|freeze-status-rehearsal] [test-args...]
+echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|key-slot-audit^|implementation-matrix-sync^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|dataplane-consumer-scope^|direct-dispatch-scope^|metadata-query-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|runner-parity^|closeout-guard^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|gate-summary-selfcheck^|historical-closeout-note-check^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|riscvv-opcode-lane^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-linux^|native-evidence^|verify-nonx86-native-evidence^|restore-nightly-evidence^|evidence-win^|win-evidence-preflight^|win-evidence-via-gh^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-dryrun^|win-closeout-snippets^|win-closeout-3cmd^|freeze-status^|freeze-status-linux^|win-closeout-finalize^|freeze-status-rehearsal] [test-args...]
 echo   Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks.
 echo   gate/gate-strict PASS is not blanket release-grade approval for every experimental path.
 echo   gate         Fast/base gate for routine SIMD changes
@@ -166,6 +167,7 @@ echo   publicabi-smoke  Run the standalone public ABI smoke
 echo   adapter-sync-pascal  Build/run the backend adapter Pascal smoke
 echo   adapter-sync  Audit backend adapter spec/generated sync
 echo   runner-parity  Fast shell/batch runner parity selfcheck ^(delegates to shell runner^)
+echo   closeout-guard  Run the Windows closeout/doc/runbook guard bundle ^(delegates to shell runner^)
 echo   parity-suites  Run focused DispatchAPI + DirectDispatch parity suites
 echo   coverage  Check SIMD intrinsics direct-test coverage
 echo   wiring-sync  Audit non-x86 wiring consistency
@@ -249,6 +251,17 @@ if errorlevel 1 (
 
 echo [RUNNER-PARITY] Running: bash %ROOT%BuildOrTest.sh runner-parity %NORMALIZED_TEST_ARGS%
 bash "%ROOT%BuildOrTest.sh" runner-parity %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:closeout_guard
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [CLOSEOUT-GUARD] FAILED ^(bash runtime not found; closeout-guard requires bash to preserve shell parity^)
+  exit /b 2
+)
+
+echo [CLOSEOUT-GUARD] Running: bash %ROOT%BuildOrTest.sh closeout-guard %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" closeout-guard %NORMALIZED_TEST_ARGS%
 exit /b %ERRORLEVEL%
 
 :verify_win_evidence
