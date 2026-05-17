@@ -2319,6 +2319,17 @@ exit /b %ERRORLEVEL%
 set "BATCH_ID="
 for /f "tokens=1" %%A in ("%NORMALIZED_TEST_ARGS%") do set "BATCH_ID=%%A"
 if "%BATCH_ID%"=="" set "BATCH_ID=SIMD-YYYYMMDD-152"
+set "PREFLIGHT_JSON=%ROOT%logs\win_preflight_latest.json"
+if exist "%PREFLIGHT_JSON%" (
+  findstr /c:"\"code\": \"RECENT_BILLING_BLOCK\"" "%PREFLIGHT_JSON%" >nul 2>nul
+  if not errorlevel 1 (
+    echo [CLOSEOUT] WARN latest preflight is RECENT_BILLING_BLOCK
+    echo.
+    echo    Current local win-evidence-preflight is blocked by GitHub Billing/quota.
+    echo    Restore GitHub Billing/quota or switch to a real Windows runner before step 1.
+    echo.
+  )
+)
 echo [CLOSEOUT] Windows evidence closeout: recommended command chain
 echo.
 echo Preferred canonical entry ^(Git Bash / WSL^):

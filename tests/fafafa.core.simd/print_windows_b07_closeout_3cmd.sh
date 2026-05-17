@@ -1,7 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT="$(cd "$(dirname "$0")" && pwd)"
 LBatchId="${1:-SIMD-$(date '+%Y%m%d')-152}"
+LPreflightJson="${ROOT}/logs/win_preflight_latest.json"
+
+if [[ -f "${LPreflightJson}" ]] && grep -F '"code": "RECENT_BILLING_BLOCK"' "${LPreflightJson}" >/dev/null 2>&1; then
+  cat <<'EOM'
+[CLOSEOUT] WARN latest preflight is RECENT_BILLING_BLOCK
+
+- 当前本地最新 `win-evidence-preflight` 已明确被 GitHub Billing/额度阻塞。
+- 先恢复 GitHub Billing/额度，或切到真实 Windows runner，再继续 GH 主入口。
+- 在这个 warning 解除前，不要直接执行下面的 `win-evidence-via-gh` 主入口命令。
+
+EOM
+fi
 
 cat <<'EOM' | sed "s/__BATCH_ID__/${LBatchId}/g"
 [CLOSEOUT] Windows 证据闭环入口（复制即跑）
