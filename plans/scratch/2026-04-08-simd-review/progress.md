@@ -8790,3 +8790,17 @@
   - 以后新增 action 若只改了路由、没改 synopsis，会直接报红
   - 以后 synopsis 若残留 stale action，也会直接报红
 - 验证仍按 release closeout 习惯走 `git diff --check`、`bash -n`、`runner-parity`。
+
+## 2026-05-17 Structural Detailed-Help Parity Check
+
+- 在 synopsis 守卫结构化之后，我继续把同一条链再往下压一层，对账“真实 action 路由集”与“详细帮助 action 集”。
+- fresh 结果说明 batch 侧基本齐，但 shell 侧仍留着真实缺口：很多 action 已有实现与 synopsis，却没有对应的详细帮助行。
+- 已落地的最小修法：
+  - 在 shell usage/help 段补齐缺失的真实 action 说明
+  - 在 `tests/fafafa.core.simd/BuildOrTest.sh` 增加 shell/batch detailed-help action 提取器
+  - `check_windows_runner_parity()` 现在不仅校验 synopsis，还会校验 detailed help 的 action 覆盖与 stale 项
+  - 只把 `clean/build/check/test/test-concurrent-repeat/debug/release` 这组基础入口保留在显式 no-help allowlist 中
+- 这样以后会直接 fail-close 两类问题：
+  - 新 action 落地了，但详细帮助没跟上
+  - 详细帮助里残留了已经不存在的 action
+- 验证仍按 release closeout 习惯走 `git diff --check`、`bash -n`、`runner-parity`。

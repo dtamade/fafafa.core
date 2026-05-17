@@ -947,6 +947,20 @@ collect_windows_runner_usage_synopsis_actions() {
   tr '|' '\n' <<<"${LSynopsis}" | sed 's/\^$//' | sed '/^$/d' | sort -u
 }
 
+collect_shell_runner_help_actions() {
+  local aRunner
+
+  aRunner="${1:-}"
+  sed -n 's/^[[:space:]]*echo "  \([a-z0-9-][a-z0-9-]*\)[[:space:]].*/\1/p' "${aRunner}" | sort -u
+}
+
+collect_windows_runner_help_actions() {
+  local aRunner
+
+  aRunner="${1:-}"
+  sed -n 's/^echo   \([a-z0-9-][a-z0-9-]*\)[[:space:]].*/\1/p' "${aRunner}" | sort -u
+}
+
 check_windows_runner_parity() {
   local LBat
   local LShellRunner
@@ -958,8 +972,11 @@ check_windows_runner_parity() {
   local -a LBatActions
   local -a LShellSynopsisActions
   local -a LBatSynopsisActions
+  local -a LShellHelpActions
+  local -a LBatHelpActions
   local -a LAllowedShellOnly
   local -a LAllowedWindowsOnly
+  local -a LAllowedNoHelpActions
 
   LBat="${ROOT}/buildOrTest.bat"
   LShellRunner="${ROOT}/BuildOrTest.sh"
@@ -983,6 +1000,17 @@ check_windows_runner_parity() {
   LAllowedWindowsOnly=(
     evidence-win
     evidence-win-verify
+  )
+
+  # These basic entry points are intentionally kept out of the long-form help list.
+  LAllowedNoHelpActions=(
+    clean
+    build
+    check
+    test
+    test-concurrent-repeat
+    debug
+    release
   )
 
   LRequired=(
@@ -1347,6 +1375,8 @@ check_windows_runner_parity() {
   mapfile -t LBatActions < <(collect_windows_runner_actions "${LBat}")
   mapfile -t LShellSynopsisActions < <(collect_shell_runner_usage_synopsis_actions "${LShellRunner}")
   mapfile -t LBatSynopsisActions < <(collect_windows_runner_usage_synopsis_actions "${LBat}")
+  mapfile -t LShellHelpActions < <(collect_shell_runner_help_actions "${LShellRunner}")
+  mapfile -t LBatHelpActions < <(collect_windows_runner_help_actions "${LBat}")
 
   if [[ "${#LShellSynopsisActions[@]}" == "0" ]]; then
     echo "[CHECK] Shell runner usage synopsis missing or unparsable: ${LShellRunner}"
@@ -1367,6 +1397,11 @@ check_windows_runner_parity() {
       echo "[CHECK] Shell usage synopsis missing action: ${LAction}"
       LMissing=1
     fi
+    if ! array_contains "${LAction}" "${LAllowedNoHelpActions[@]}" && \
+       ! array_contains "${LAction}" "${LShellHelpActions[@]}"; then
+      echo "[CHECK] Shell detailed help missing action: ${LAction}"
+      LMissing=1
+    fi
   done
 
   for LAction in "${LBatActions[@]}"; do
@@ -1377,6 +1412,11 @@ check_windows_runner_parity() {
     fi
     if ! array_contains "${LAction}" "${LBatSynopsisActions[@]}"; then
       echo "[CHECK] Windows usage synopsis missing action: ${LAction}"
+      LMissing=1
+    fi
+    if ! array_contains "${LAction}" "${LAllowedNoHelpActions[@]}" && \
+       ! array_contains "${LAction}" "${LBatHelpActions[@]}"; then
+      echo "[CHECK] Windows detailed help missing action: ${LAction}"
       LMissing=1
     fi
   done
@@ -1391,6 +1431,22 @@ check_windows_runner_parity() {
   for LAction in "${LBatSynopsisActions[@]}"; do
     if ! array_contains "${LAction}" "${LBatActions[@]}"; then
       echo "[CHECK] Windows usage synopsis has unknown action: ${LAction}"
+      LMissing=1
+    fi
+  done
+
+  for LAction in "${LShellHelpActions[@]}"; do
+    if ! array_contains "${LAction}" "${LShellActions[@]}" && \
+       ! array_contains "${LAction}" "${LAllowedNoHelpActions[@]}"; then
+      echo "[CHECK] Shell detailed help has unknown action: ${LAction}"
+      LMissing=1
+    fi
+  done
+
+  for LAction in "${LBatHelpActions[@]}"; do
+    if ! array_contains "${LAction}" "${LBatActions[@]}" && \
+       ! array_contains "${LAction}" "${LAllowedNoHelpActions[@]}"; then
+      echo "[CHECK] Windows detailed help has unknown action: ${LAction}"
       LMissing=1
     fi
   done
@@ -7395,6 +7451,7 @@ case "${ACTION}" in
     echo "  gate         Fast/base gate for routine SIMD changes"
     echo "  gate-strict  Release/closeout gate with perf, repeats, and evidence checks"
     echo "  closeout-release  Canonical release closeout entry (win preflight -> x86 frontier -> host-local closeout -> GH evidence -> freeze-status)"
+    echo "  cpuinfo-lazy-repeat  Repeat CPUInfo lazy-path verification under release mode"
     echo "  sse2-structure-check  Structural guard for SSE2 register/include layout"
     echo "  sse2-contracts  Focused SSE2 moved-surface contract suite"
     echo "  impl-smoke-sse2  Targeted SSE2 structure + contract/backend/runtime/dataplane smoke"
@@ -7406,6 +7463,16 @@ case "${ACTION}" in
     echo "  implementation-matrix-sync  Fail-close active implementation-matrix drift"
     echo "  riscvv-abi-shape  Run the RISCVV ABI-shape Python audit only"
     echo "  source-reachability  Run the SIMD source reachability Python audit only"
+    echo "  interface-completeness  Check public facade/dispatch/backend implementation completeness"
+    echo "  dispatch-read-scope  Fail-close GetDispatchTable direct-read scope drift"
+    echo "  dataplane-consumer-scope  Fail-close dataplane consumer scope drift"
+    echo "  direct-dispatch-scope  Fail-close GetDirectDispatchTable scope drift"
+    echo "  metadata-query-scope  Fail-close metadata helper scope drift"
+    echo "  contract-signature  Check dispatch contract signature drift"
+    echo "  publicabi-signature  Check public ABI signature drift"
+    echo "  publicabi-smoke  Run the standalone public ABI smoke"
+    echo "  adapter-sync-pascal  Build/run the backend adapter Pascal smoke"
+    echo "  adapter-sync  Audit backend adapter spec/generated sync"
     echo "  runner-parity  Fast shell/batch runner parity selfcheck"
     echo "  parity-suites  Run focused DispatchAPI + DirectDispatch parity suites"
     echo "  coverage  Check SIMD intrinsics direct-test coverage"
@@ -7421,6 +7488,7 @@ case "${ACTION}" in
     echo "  gate-summary-inject  Inject a sample gate summary into canonical logs"
     echo "  gate-summary-rollback  Restore the previous gate summary backup"
     echo "  gate-summary-backups  List available gate-summary backups"
+    echo "  gate-summary-selfcheck  Rehearse gate-summary/freeze-status selfcheck"
     echo "  perf-smoke  Run the lightweight backend benchmark smoke"
     echo "  nonx86-optin-list-suites  List suites with NEON/RISCVV backends compiled in"
     echo "  nonx86-ieee754  Run the non-x86 IEEE754 parity suite"
@@ -7435,6 +7503,21 @@ case "${ACTION}" in
     echo "  riscvv-opcode-lane  Probe RISCVV opcode-lane contract"
     echo "  qemu-experimental-report  Report latest QEMU experimental blockers"
     echo "  qemu-experimental-baseline-check  Check latest QEMU experimental baseline"
+    echo "  evidence-linux  Collect Linux-side release evidence"
+    echo "  native-evidence  Collect non-x86 native evidence"
+    echo "  verify-nonx86-native-evidence  Verify imported non-x86 native evidence"
+    echo "  restore-nightly-evidence  Restore nightly evidence into canonical logs"
+    echo "  win-evidence-preflight  Check whether GitHub-hosted Windows evidence can run now"
+    echo "  win-evidence-via-gh  Dispatch GitHub-hosted Windows evidence collection"
+    echo "  verify-win-evidence  Verify Windows evidence log against the batch verifier"
+    echo "  finalize-win-evidence  Low-level finalize helper for split Windows evidence flows"
+    echo "  win-closeout-dryrun  Print Windows closeout dry-run guidance"
+    echo "  win-closeout-snippets  Print Windows closeout copyable snippets"
+    echo "  win-closeout-3cmd  Print the recommended Windows closeout command chain"
+    echo "  freeze-status  Evaluate current release freeze readiness"
+    echo "  freeze-status-linux  Evaluate freeze readiness using Linux-side evidence only"
+    echo "  win-closeout-finalize  Verify native evidence, backfill cross gate, then finalize"
+    echo "  freeze-status-rehearsal  Rehearse freeze-status failure shaping"
     echo "Suggested flow: check -> targeted suites -> gate; use gate-strict before release/closeout."
     echo "QEMU env: SIMD_QEMU_BUILD_POLICY=always|if-missing|skip (default: if-missing)"
     echo "Native host env: SIMD_NATIVE_EVIDENCE_RUNNER=canonical|direct-fpc, SIMD_NATIVE_EVIDENCE_ENABLE_BACKEND_ASM=1"

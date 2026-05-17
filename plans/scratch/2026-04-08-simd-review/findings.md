@@ -7050,3 +7050,24 @@
 - 这样能同时抓住两类问题：
   - synopsis 漏列真实 action
   - synopsis 列出已经不存在的 stale action
+
+## 2026-05-17 Shell Detailed Help Was Still Missing Real Actions
+
+- 继续沿 `runner/check/gate/help` 链做动作面与 help 面对账时，新的真实缺口不在 batch，而在 shell runner：
+  - batch 的详细帮助行已经基本覆盖当前 action 面
+  - shell 的 `Usage:` synopsis 虽然已经列出很多 action，但详细帮助行仍漏着一串已经实现的真实入口
+- 典型漏项包括：
+  - `cpuinfo-lazy-repeat`
+  - `interface-completeness` / `dispatch-read-scope` / `dataplane-consumer-scope` / `direct-dispatch-scope` / `metadata-query-scope`
+  - `contract-signature` / `publicabi-signature` / `publicabi-smoke`
+  - `adapter-sync-pascal` / `adapter-sync`
+  - `gate-summary-selfcheck`
+  - `evidence-linux` / `native-evidence` / `verify-nonx86-native-evidence` / `restore-nightly-evidence`
+  - `win-evidence-preflight` / `win-evidence-via-gh` / `verify-win-evidence` / `finalize-win-evidence`
+  - `win-closeout-*` / `freeze-status*`
+- 风险不是执行错，而是：
+  - shell 帮助面对当前入口面仍然不完整
+  - 之前的 parity 也没有结构化检查“详细帮助行是否覆盖真实 action”
+- 因而最小正确修法不是再补一条字符串，而是：
+  - 补齐 shell 详细帮助行
+  - 再让 `runner-parity` 直接对账 shell/batch `详细帮助 action 集` 与真实 action 路由集
