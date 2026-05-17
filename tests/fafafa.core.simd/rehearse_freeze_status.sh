@@ -233,6 +233,52 @@ if payload.get("linux_only") is not False:
     sys.exit(1)
 PY
 
+# ---------- Case B2: HISTORICAL DOC MARKERS SHOULD IGNORE NOTES AND ACCEPT CURRENT WORDING ----------
+LCaseHistoricalDocMarkers="${LTmpRoot}/case_historical_doc_markers/tests/fafafa.core.simd"
+mkdir -p "${LCaseHistoricalDocMarkers}/logs" "${LCaseHistoricalDocMarkers}/docs" "${LTmpRoot}/case_historical_doc_markers/docs/plans"
+cp "${FREEZE_SCRIPT}" "${LCaseHistoricalDocMarkers}/evaluate_simd_freeze_status.py"
+cp "${VERIFY_SCRIPT}" "${LCaseHistoricalDocMarkers}/verify_windows_b07_evidence.sh"
+chmod +x "${LCaseHistoricalDocMarkers}/verify_windows_b07_evidence.sh"
+cp "${LCaseReady}/logs/gate_summary.md" "${LCaseHistoricalDocMarkers}/logs/gate_summary.md"
+cp "${LCaseReady}/logs/windows_b07_gate.log" "${LCaseHistoricalDocMarkers}/logs/windows_b07_gate.log"
+cp "${LCaseReady}/logs/windows_b07_closeout_summary.md" "${LCaseHistoricalDocMarkers}/logs/windows_b07_closeout_summary.md"
+
+cat > "${LTmpRoot}/case_historical_doc_markers/docs/plans/2026-02-09-simd-unblock-closeout-roadmap.md" <<'EOM'
+说明：Windows 实机证据已归档这类表述在这里是历史归档事实，不是当前 HEAD ready 信号。
+- [x] **Windows 实机证据已归档**
+EOM
+
+cat > "${LCaseHistoricalDocMarkers}/docs/simd_release_candidate_checklist.md" <<'EOM'
+说明：Windows 实机证据日志已归档这类短语可能先出现在解释行里，脚本不能因此漏掉真正的 checkbox。
+- [x] Windows 实机证据日志曾归档（历史批次）
+EOM
+
+cat > "${LCaseHistoricalDocMarkers}/docs/simd_completeness_matrix.md" <<'EOM'
+- 注意：这里的“已归档”表示历史 Windows 实机证据批次曾闭环，不等于当前 `HEAD` 仍是 `cross-ready`。
+- [x] Windows 实机证据曾归档（历史批次；脚本+校验器+日志）
+EOM
+
+SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=0 \
+python3 "${LCaseHistoricalDocMarkers}/evaluate_simd_freeze_status.py" --root "${LCaseHistoricalDocMarkers}" --json-file "${LCaseHistoricalDocMarkers}/logs/freeze_status_historical_doc_markers.json" > "${LCaseHistoricalDocMarkers}/logs/freeze_stdout_historical_doc_markers.txt" 2>&1
+
+if ! grep -F -- "ready=True" "${LCaseHistoricalDocMarkers}/logs/freeze_stdout_historical_doc_markers.txt" >/dev/null; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_historical_doc_markers missing ready=True"
+  cat "${LCaseHistoricalDocMarkers}/logs/freeze_stdout_historical_doc_markers.txt"
+  exit 1
+fi
+
+for LPattern in \
+  "PASS    roadmap_windows_closed" \
+  "PASS    rc_windows_closed" \
+  "PASS    matrix_windows_closed"
+do
+  if ! grep -F -- "${LPattern}" "${LCaseHistoricalDocMarkers}/logs/freeze_stdout_historical_doc_markers.txt" >/dev/null; then
+    echo "[FREEZE-REHEARSAL] FAILED: case_historical_doc_markers missing ${LPattern}"
+    cat "${LCaseHistoricalDocMarkers}/logs/freeze_stdout_historical_doc_markers.txt"
+    exit 1
+  fi
+done
+
 # ---------- Case C: STALE SUMMARY (must fail) ----------
 cat > "${LCaseReady}/logs/windows_b07_closeout_summary.md" <<'EOM'
 # SIMD Windows B07 Closeout Summary
@@ -1517,6 +1563,7 @@ fi
 
 echo "[FREEZE-REHEARSAL] OK"
 echo "[FREEZE-REHEARSAL] case_not_ready_rc=${LNotReadyRc}"
+echo "[FREEZE-REHEARSAL] case_historical_doc_markers_rc=0"
 echo "[FREEZE-REHEARSAL] case_stale_summary_rc=${LStaleRc}"
 echo "[FREEZE-REHEARSAL] case_verify_fail_rc=${LVerifyFailRc}"
 echo "[FREEZE-REHEARSAL] case_linux_lazy_missing_rc=${LLazyMissingRc}"
