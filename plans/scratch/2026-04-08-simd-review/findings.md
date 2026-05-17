@@ -8297,3 +8297,31 @@
   - “asm path 仍保留 source-side dedicated binding”
   - “no-asm facade 仍保留 local compare loop”
   - “当前非-RVV host runtime 不承诺 backend-owned slot”
+
+## 2026-05-18 RISCVV Local Reduction F64x2 Needed Their Own Always-Owned Witness
+
+- `ReduceMinF64x2`、`ReduceMaxF64x2` 暴露的不是实现 bug，而是如果继续沿用前两批 conditional-slot 的口径，会把它们错误地写成“runtime 也可能复用 scalar slot”：
+  - 这两个槽不是 asm 条件绑定
+  - no-asm facade 也不是 scalar forward
+  - 它们属于另一类 `always backend-owned + local reduction loop` residual
+- fresh 对位源码后，这两个槽的真实边界应拆成三层：
+  - source truth：
+    - `src/fafafa.core.simd.riscvv.register.inc` 仍保留
+      - `table.ReduceMinF64x2 := @RISCVVReduceMinF64x2;`
+      - `table.ReduceMaxF64x2 := @RISCVVReduceMaxF64x2;`
+    - 两者都是无条件 backend assignment，不在 `{$IFDEF RISCVV_ASSEMBLY}` 内
+  - no-asm facade truth：
+    - `src/fafafa.core.simd.riscvv.facade.inc` 中两者都保留本地 reduction seed + loop
+    - 它们不是 `ScalarReduceMinF64x2/ScalarReduceMaxF64x2` 的单行 forward
+  - current host runtime truth：
+    - 在当前 x86 release host 上，这两个 slot 仍应保持 backend-owned
+    - 所以它们和 `Abs/Sqrt/Fma`、`Min/Max` 的 conditional runtime reuse 不是同一类合同
+- 这条 finding 的价值在于把 `RISCVV F64x2` residual 再细分成第四类：
+  - `Abs/Sqrt/Fma` 是 “conditional exact scalar facade” 型
+  - `Min/Max` 是 “conditional local-loop facade” 型
+  - `Clamp` 是 “conditional local-fallback with explicit NaN/-0 surface” 型
+  - `ReduceMin/ReduceMax` 则是 “always-owned local reduction” 型
+- 因而当前对 `ReduceMinF64x2/ReduceMaxF64x2` 最准确的口径应是：
+  - “register source 仍保留无条件 backend binding”
+  - “no-asm facade 仍保留 local reduction loop”
+  - “当前非-RVV host runtime 也不应复用 scalar slot”

@@ -11307,3 +11307,52 @@
 - 当前阶段结论：
   - `MinF64x2/MaxF64x2` 现在已经从“只有 register 条件绑定存在、但没有 dedicated conditional/local-loop witness”补成了直接护栏
   - 当前没有新证据支持把这两个槽收回 `exact scalar facade` 口径；后续如果还要继续压缩 `RISCVV F64x2 extrema`，必须先补独立的 `NaN/signed-zero` 语义证据，而不是套用 `Abs/Sqrt/Fma`
+
+## 2026-05-18 RISCVV Local Reduction F64x2 Witness Sync
+
+- 这轮继续沿 `RISCVV F64x2` residual 往下切，但没有把 `ReduceMinF64x2/ReduceMaxF64x2` 错归到前面的 conditional-slot 分支：
+  - `Abs/Sqrt/Fma` 是 asm 条件绑定 + no-asm exact scalar forward
+  - `Min/Max` 是 asm 条件绑定 + no-asm local compare loop
+  - `ReduceMin/ReduceMax` 则是无条件 backend-owned + no-asm local reduction loop
+- fresh 对位源码后，这两个 reduction slot 的真实合同已经拆清：
+  - `src/fafafa.core.simd.riscvv.register.inc`
+    - `ReduceMinF64x2/ReduceMaxF64x2` 各只有 1 个 source assignment
+    - 两者都不是 `{$IFDEF RISCVV_ASSEMBLY}` 条件绑定，而是始终保留 backend-owned assignment
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - no-asm body 仍保留本地 reduction loop
+    - 关键片段仍是 `Result := a.d[0];`、`for i := 1 to 1 do`、`if a.d[i] < Result then` / `if a.d[i] > Result then`
+    - 它们不是 `ScalarReduceMinF64x2/ScalarReduceMaxF64x2` 单行 forward
+  - `src/fafafa.core.simd.riscvv.pas`
+    - 仍保留 `RISCVVReduceMinF64x2` / `RISCVVReduceMaxF64x2` 的 assembler 入口
+    - opcode witness 仍是 `vfredmin.vs` / `vfredmax.vs`
+  - 当前 x86 release host runtime
+    - 这两个 slot 仍应保持 backend-owned，而不是复用 scalar slot
+- 本批实际改动：
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 新增 `Test_RISCVV_LocalReductionF64x2_Stays_BackendOwned_With_LocalNoAsmWitness`
+    - 对 `ReduceMinF64x2/ReduceMaxF64x2` 同时断言：
+      - register source assignment site 仍保留且只有一处
+      - no-asm facade 仍保留 local reduction seed / loop / compare branch
+      - no-asm facade 不会退化成 `ScalarReduceMin/ScalarReduceMaxF64x2` 单行 forward
+      - asm signature / opcode witness 仍保留
+      - runtime slot 明确要求 `<> scalar slot`
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 新增 `RISCVVReduceMinF64x2/RISCVVReduceMaxF64x2` 的 local reduction loop 片段检查
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 新增 `RISCVV_LOCAL_REDUCTION_F64X2_KEY_SLOTS`
+    - 把上述新测试挂进 `EXPECTATION_PROCEDURES`
+    - 把这两个 slot 加入 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS`
+- fresh 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=674 status=ok`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=128 issues=0 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `TTestCase_DispatchAPI,TTestCase_NonX86BackendParity` `BUILD/TEST/LEAK` 全绿
+  - Release `check` 通过
+- 当前阶段结论：
+  - `ReduceMinF64x2/ReduceMaxF64x2` 现在已经从“被 generic checker 间接覆盖”补成了 dedicated source/runtime witness
+  - 当前没有新证据支持把这两个槽收回 scalar slot reuse 口径；它们和前面的 conditional families 不是一类 residual
