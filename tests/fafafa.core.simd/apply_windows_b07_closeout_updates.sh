@@ -122,6 +122,43 @@ PY
     || true
 }
 
+compute_freeze_command_result() {
+  local LMode
+  local LFreezeReady
+  local LCrossReady
+
+  if [[ ! -f "${FREEZE_JSON_PATH}" ]]; then
+    echo "PENDING"
+    return 0
+  fi
+
+  LMode="$(extract_freeze_field "${FREEZE_JSON_PATH}" "mode" | tr -d '\r' | xargs)"
+  LFreezeReady="$(extract_freeze_field "${FREEZE_JSON_PATH}" "freeze_ready" | tr -d '\r' | tr '[:upper:]' '[:lower:]' | xargs)"
+  LCrossReady="$(extract_freeze_field "${FREEZE_JSON_PATH}" "cross_ready" | tr -d '\r' | tr '[:upper:]' '[:lower:]' | xargs)"
+
+  if [[ "${LMode}" != "cross-platform" ]]; then
+    echo "UNKNOWN"
+    return 0
+  fi
+
+  if [[ "${LFreezeReady}" == "true" ]]; then
+    echo "PASS"
+    return 0
+  fi
+
+  if [[ "${LCrossReady}" == "false" ]]; then
+    echo "FAIL (cross-ready=False)"
+    return 0
+  fi
+
+  if [[ "${LFreezeReady}" == "false" ]]; then
+    echo "FAIL"
+    return 0
+  fi
+
+  echo "UNKNOWN"
+}
+
 require_freeze_ready_for_apply() {
   local LMode
   local LFreezeReady
@@ -268,8 +305,12 @@ LVerificationLine='  - 验证：verify_windows_b07_evidence PASS'
 LStageLine='- 跨平台冻结条件满足。'
 LEvidenceVerifyResult='PASS'
 LFinalizeResult='PASS'
-LFreezeResult='PASS'
-LApplyResult='PASS'
+LFreezeResult="$(compute_freeze_command_result)"
+if [[ "${LFreezeResult}" == "PASS" ]]; then
+  LApplyResult='PASS'
+else
+  LApplyResult='BLOCKED'
+fi
 LFailureRoadmapBlock=""
 LFailureMatrixBlock=""
 LFailureProgressBlock=""
@@ -293,13 +334,13 @@ if [[ "${LVerifierState}" != "pass" ]]; then
   if [[ "${LVerifierState}" == "fail" ]]; then
     LVerificationLine='  - 验证：verify_windows_b07_evidence FAIL'
     LEvidenceVerifyResult='FAIL'
+    LFinalizeResult='FAIL (summary updated)'
   else
     LVerificationLine='  - 验证：verify_windows_b07_evidence UNKNOWN（缺少 verifier 或日志）'
     LEvidenceVerifyResult='UNKNOWN'
+    LFinalizeResult='UNKNOWN'
   fi
   LStageLine='- 跨平台冻结条件未满足（Windows 证据链未通过）。'
-  LFinalizeResult='PENDING'
-  LFreezeResult='PENDING'
   LApplyResult='BLOCKED'
   if [[ -n "${LRootCauseText}" && "${LRootCauseText}" != "n/a" ]]; then
     LFailureRoadmapBlock=$'\n'"- 当前失败边界：${LRootCauseText}"
