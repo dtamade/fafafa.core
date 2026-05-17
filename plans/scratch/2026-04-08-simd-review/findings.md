@@ -7408,3 +7408,23 @@
   - `cross_gate_required_steps` 只负责表达 “cross gate enforcement 缺口还在”
   - `windows_evidence_verify` 单独负责表达当前 Windows verifier 的失败根因
 - 这类 residual 适合做最小 output-shaping 修复，不需要改 ready 判定、也不需要改 fail-close 语义。
+
+## 2026-05-17 windows_preflight_latest Could Still Conflict With ready=True
+
+- `windows_preflight_latest` 一直是 `required=False`，这本身没问题：
+  - 当前它主要服务 GH runner 路径的 operator truth
+  - 真实 ready 判定仍然依赖 required 的 Windows evidence / cross gate checks
+- 但旧逻辑留下了一个潜在矛盾：
+  - 如果未来手工 Windows evidence 已 PASS
+  - 且 fail-close cross gate 也已 PASS
+  - `freeze-status` 仍可能因为 latest cached `RECENT_BILLING_BLOCK`，继续打印一条 `windows_preflight_latest: FAIL`
+- 这会让输出出现不健康组合：
+  - `ready=True`
+  - 同时还有一个看起来像 blocker 的 `FAIL`
+- 更准确的口径应当是：
+  - 在 required Windows checks 已经全绿后，`windows_preflight_latest` 只再代表 GH 路径是否可用
+  - 它不应继续作为 current readiness signal，以免和 `ready=True` 形成语义冲突
+- 这类 residual 同样适合最小 shaping 修复：
+  - 不改 required 集
+  - 不改 ready 算法
+  - 只在 `freeze_ready=True` 时，把 preflight `FAIL` 降格成 non-readiness signal。

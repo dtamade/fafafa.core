@@ -23,6 +23,7 @@ trap cleanup EXIT
 
 LCaseNotReady="${LTmpRoot}/case_not_ready/tests/fafafa.core.simd"
 LCaseReady="${LTmpRoot}/case_ready/tests/fafafa.core.simd"
+LCaseReadyPreflightBlocked="${LTmpRoot}/case_ready_preflight_blocked/tests/fafafa.core.simd"
 LCaseLinuxLazy="${LTmpRoot}/case_linux_lazy/tests/fafafa.core.simd"
 LCaseLinuxPlatforms="${LTmpRoot}/case_linux_platforms/tests/fafafa.core.simd"
 LCaseBatchFallback="${LTmpRoot}/case_batch_fallback/tests/fafafa.core.simd"
@@ -30,6 +31,7 @@ LCaseMainlineFallback="${LTmpRoot}/case_mainline_fallback/tests/fafafa.core.simd
 
 mkdir -p "${LCaseNotReady}/logs" "${LCaseNotReady}/docs" "${LTmpRoot}/case_not_ready/docs/plans"
 mkdir -p "${LCaseReady}/logs" "${LCaseReady}/docs" "${LTmpRoot}/case_ready/docs/plans"
+mkdir -p "${LCaseReadyPreflightBlocked}/logs" "${LCaseReadyPreflightBlocked}/docs" "${LTmpRoot}/case_ready_preflight_blocked/docs/plans"
 mkdir -p "${LCaseLinuxLazy}/logs" "${LCaseLinuxLazy}/docs" "${LTmpRoot}/case_linux_lazy/docs/plans"
 mkdir -p "${LCaseLinuxPlatforms}/logs" "${LCaseLinuxPlatforms}/docs" "${LTmpRoot}/case_linux_platforms/docs/plans"
 mkdir -p "${LCaseBatchFallback}/logs/windows-closeout/SIMD-20260210-152" "${LCaseBatchFallback}/docs" "${LTmpRoot}/case_batch_fallback/docs/plans"
@@ -37,17 +39,19 @@ mkdir -p "${LCaseMainlineFallback}/logs/rehearsal/backups" "${LCaseMainlineFallb
 
 cp "${FREEZE_SCRIPT}" "${LCaseNotReady}/evaluate_simd_freeze_status.py"
 cp "${FREEZE_SCRIPT}" "${LCaseReady}/evaluate_simd_freeze_status.py"
+cp "${FREEZE_SCRIPT}" "${LCaseReadyPreflightBlocked}/evaluate_simd_freeze_status.py"
 cp "${FREEZE_SCRIPT}" "${LCaseLinuxLazy}/evaluate_simd_freeze_status.py"
 cp "${FREEZE_SCRIPT}" "${LCaseLinuxPlatforms}/evaluate_simd_freeze_status.py"
 cp "${FREEZE_SCRIPT}" "${LCaseBatchFallback}/evaluate_simd_freeze_status.py"
 cp "${FREEZE_SCRIPT}" "${LCaseMainlineFallback}/evaluate_simd_freeze_status.py"
 cp "${VERIFY_SCRIPT}" "${LCaseNotReady}/verify_windows_b07_evidence.sh"
 cp "${VERIFY_SCRIPT}" "${LCaseReady}/verify_windows_b07_evidence.sh"
+cp "${VERIFY_SCRIPT}" "${LCaseReadyPreflightBlocked}/verify_windows_b07_evidence.sh"
 cp "${VERIFY_SCRIPT}" "${LCaseLinuxLazy}/verify_windows_b07_evidence.sh"
 cp "${VERIFY_SCRIPT}" "${LCaseLinuxPlatforms}/verify_windows_b07_evidence.sh"
 cp "${VERIFY_SCRIPT}" "${LCaseBatchFallback}/verify_windows_b07_evidence.sh"
 cp "${VERIFY_SCRIPT}" "${LCaseMainlineFallback}/verify_windows_b07_evidence.sh"
-chmod +x "${LCaseNotReady}/verify_windows_b07_evidence.sh" "${LCaseReady}/verify_windows_b07_evidence.sh" "${LCaseLinuxLazy}/verify_windows_b07_evidence.sh" "${LCaseLinuxPlatforms}/verify_windows_b07_evidence.sh" "${LCaseBatchFallback}/verify_windows_b07_evidence.sh" "${LCaseMainlineFallback}/verify_windows_b07_evidence.sh"
+chmod +x "${LCaseNotReady}/verify_windows_b07_evidence.sh" "${LCaseReady}/verify_windows_b07_evidence.sh" "${LCaseReadyPreflightBlocked}/verify_windows_b07_evidence.sh" "${LCaseLinuxLazy}/verify_windows_b07_evidence.sh" "${LCaseLinuxPlatforms}/verify_windows_b07_evidence.sh" "${LCaseBatchFallback}/verify_windows_b07_evidence.sh" "${LCaseMainlineFallback}/verify_windows_b07_evidence.sh"
 
 # ---------- Case A: NOT READY ----------
 cat > "${LCaseNotReady}/logs/gate_summary.md" <<'EOM'
@@ -232,6 +236,45 @@ if payload.get("linux_only") is not False:
     print("[FREEZE-REHEARSAL] FAILED: case_ready json linux_only should be false")
     sys.exit(1)
 PY
+
+# ---------- Case B1: READY SHOULD DEMOTE GH PREFLIGHT FAIL TO NON-READINESS SIGNAL ----------
+cp "${LCaseReady}/logs/gate_summary.md" "${LCaseReadyPreflightBlocked}/logs/gate_summary.md"
+cp "${LCaseReady}/logs/windows_b07_gate.log" "${LCaseReadyPreflightBlocked}/logs/windows_b07_gate.log"
+cp "${LCaseReady}/logs/windows_b07_closeout_summary.md" "${LCaseReadyPreflightBlocked}/logs/windows_b07_closeout_summary.md"
+cp "${LTmpRoot}/case_ready/docs/plans/2026-02-09-simd-unblock-closeout-roadmap.md" "${LTmpRoot}/case_ready_preflight_blocked/docs/plans/2026-02-09-simd-unblock-closeout-roadmap.md"
+cp "${LCaseReady}/docs/simd_release_candidate_checklist.md" "${LCaseReadyPreflightBlocked}/docs/simd_release_candidate_checklist.md"
+cp "${LCaseReady}/docs/simd_completeness_matrix.md" "${LCaseReadyPreflightBlocked}/docs/simd_completeness_matrix.md"
+
+cat > "${LCaseReadyPreflightBlocked}/logs/win_preflight_latest.json" <<'EOM'
+{
+  "status": "FAIL",
+  "code": "RECENT_BILLING_BLOCK",
+  "message": "workflow=simd-windows-b07-evidence.yml; run=123; message=billing blocked",
+  "checked_at_utc": "2026-02-10T00:00:00Z",
+  "billing_window_hours": 999999
+}
+EOM
+
+SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=0 \
+python3 "${LCaseReadyPreflightBlocked}/evaluate_simd_freeze_status.py" --root "${LCaseReadyPreflightBlocked}" --json-file "${LCaseReadyPreflightBlocked}/logs/freeze_status.json" > "${LCaseReadyPreflightBlocked}/logs/freeze_stdout.txt" 2>&1
+
+if ! grep -F -- "ready=True" "${LCaseReadyPreflightBlocked}/logs/freeze_stdout.txt" >/dev/null; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_ready_preflight_blocked missing ready=True"
+  cat "${LCaseReadyPreflightBlocked}/logs/freeze_stdout.txt"
+  exit 1
+fi
+
+if ! grep -F -- "SKIP    windows_preflight_latest" "${LCaseReadyPreflightBlocked}/logs/freeze_stdout.txt" >/dev/null; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_ready_preflight_blocked should demote preflight fail to SKIP"
+  cat "${LCaseReadyPreflightBlocked}/logs/freeze_stdout.txt"
+  exit 1
+fi
+
+if ! grep -F -- "not a current readiness signal" "${LCaseReadyPreflightBlocked}/logs/freeze_stdout.txt" >/dev/null; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_ready_preflight_blocked should explain the demotion"
+  cat "${LCaseReadyPreflightBlocked}/logs/freeze_stdout.txt"
+  exit 1
+fi
 
 # ---------- Case B2: HISTORICAL DOC MARKERS SHOULD IGNORE NOTES AND ACCEPT CURRENT WORDING ----------
 LCaseHistoricalDocMarkers="${LTmpRoot}/case_historical_doc_markers/tests/fafafa.core.simd"

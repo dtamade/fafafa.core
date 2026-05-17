@@ -36,6 +36,11 @@
     - 若显式试 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1`，也只限 `cmd.exe` 真能解析 `bash` 的环境；当前本机 Wine 不属于这种环境，不要把它当成 host-side Unix bridge 逃生口。
     - 再继续 `win-evidence-preflight` / `win-closeout-3cmd`
 
+补一条当前冻结判定纪律：
+
+- 只要 Windows 证据链和 fail-close cross gate 还没绿，`windows_preflight_latest=RECENT_BILLING_BLOCK` 就是当前 blocker。
+- 如果未来手工 Windows 路径已经 fresh PASS 且 `freeze-status` 已转绿，这条 preflight 检查就只再代表 GH runner 路径是否可用，不应继续以 `FAIL` 形式和 `ready=True` 并存。
+
 补一条当前判断规则：
 
 - 如果最新 `freeze-status` 提示 gate artifact 旧于最新 `src/fafafa.core.simd*` 源码，先重跑 release `gate` 再判断，不要把旧 artifact 误读成新回归。

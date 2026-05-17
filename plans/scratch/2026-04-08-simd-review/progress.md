@@ -9799,3 +9799,29 @@
     - `docs/fafafa.core.simd.closeout.md`
     - `docs/fafafa.core.simd.handoff.md`
     - 已同步说明：`cross_gate_required_steps` 现在只表示 gate enforcement 缺口，不再重复承担 root-cause 说明
+
+## 2026-05-17 Ready-Green But GH Preflight-Fail Was Still A Potential Contradiction
+
+- 继续从 `freeze-status` 的真实判定链往下审时，又确认了一个更硬的潜在矛盾：
+  - `windows_preflight_latest` 当前是 `required=False`
+  - 因此未来如果手工 Windows 证据链已经 fresh PASS，且 fail-close cross gate 也已 PASS，`ready=True` 依然可能成立
+  - 但旧逻辑仍会把 latest `RECENT_BILLING_BLOCK` 直接显示成 `windows_preflight_latest: FAIL`
+- 这会留下一个不应该出现的组合：
+  - 总状态已经 `ready=True`
+  - stdout / JSON 里却还残留一个 `FAIL`
+  - 而它其实只是在说 “GH 路径当前不可用”，不再是 current readiness blocker
+- 已落地的最小修法：
+  - `evaluate_simd_freeze_status.py`
+    - 若 cross-platform `freeze_ready=True`
+    - 且 `windows_preflight_latest` 仍为 `FAIL`
+    - 则把该项降格成 `SKIP`，并明确写成：
+      - GH preflight path remains blocked/noisy
+      - but required Windows evidence + fail-close cross gate are already green
+      - so this is not a current readiness signal
+  - `rehearse_freeze_status.sh`
+    - 新增 `case_ready_preflight_blocked`
+    - 证明：即使 latest preflight 是 fresh `RECENT_BILLING_BLOCK`，只要 required Windows checks 已全绿，`freeze-status` 也必须输出 `ready=True` 且把 `windows_preflight_latest` 降格成 `SKIP`
+  - active docs：
+    - `docs/fafafa.core.simd.closeout.md`
+    - `docs/fafafa.core.simd.checklist.md`
+    - 已同步这条新的 readiness discipline
