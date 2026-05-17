@@ -4788,3 +4788,17 @@
 | --- | --- | --- |
 | 1. 确认 active-doc residual 是否真实存在 | completed | 已确认 `docs/fafafa.core.simd.closeout.md` 与 `docs/fafafa.core.simd.handoff.md` 仍缺少 “`SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` 也不适用于当前本机 Wine” 这句 caveat |
 | 2. 对齐 active docs 与 closeout guard | completed | 两份 active docs 已补入相同 caveat；`BuildOrTest.sh` 的 `LCloseoutDocRequired`、`LHandoffRequired` 与 helper runtime guard 也已同步纳入必检 |
+
+## 2026-05-18 RISCVV Wide F32 Clamp Slots Fall Back To Exact Scalar Contract
+
+### Goal
+
+把 `RISCVV Clamp` 从“整簇一起犹豫”收窄成一个可提交的小批次：只收 `ClampF32x8/ClampF32x16` 到 backend-owned exact scalar contract，明确保留 `ClampF64x4/F64x8` 在独立语义审查队列。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `Clamp` 是否必须拆成 `F32` / `F64` 两半处理 | completed | 已确认 `riscvv.facade.inc` 顶部 caveat 仍要求 `signed-zero / NaN-ordering` 单独复核；结合 `AVX2` 合同与 `NEON` precedent，当前只有 `F32` wide clamp 能安全收成 scalar truth |
+| 2. 落地 `F32` clamp 源码收口并同步 key-slot/truthfulness/dispatchapi 护栏 | completed | `src/fafafa.core.simd.riscvv.pas` 已把 `RISCVVClampF32x8/F32x16` 改成 `ScalarClamp...` forwarder；`helper semantics`、`key slot audit`、`register truthfulness` 与 `DispatchAPI` 已同步承认这两格仍是 backend-owned slot |
+| 3. 串行 Release 验证并确认 `F64` hold 边界不被误改 | completed | `git diff --check`、`python3 -m py_compile`、`helper semantics`、`key slot audit`、`register truthfulness --backend riscvv --strict`、Release `TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`、Release `impl-smoke-nonx86`、Release `impl-audit-nonx86`、Release `check` 全部通过；`ClampF64x4/F64x8` 继续保持未改动 |

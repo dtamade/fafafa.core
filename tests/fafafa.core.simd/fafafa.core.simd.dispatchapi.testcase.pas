@@ -9119,6 +9119,8 @@ begin
   AssertRegisterOwnsBackendSlot('TruncF64x4', 'table.TruncF64x4 := @RISCVVTruncF64x4;');
   AssertRegisterOwnsBackendSlot('TruncF32x16', 'table.TruncF32x16 := @RISCVVTruncF32x16;');
   AssertRegisterOwnsBackendSlot('TruncF64x8', 'table.TruncF64x8 := @RISCVVTruncF64x8;');
+  AssertRegisterOwnsBackendSlot('ClampF32x8', 'table.ClampF32x8 := @RISCVVClampF32x8;');
+  AssertRegisterOwnsBackendSlot('ClampF32x16', 'table.ClampF32x16 := @RISCVVClampF32x16;');
 
   AssertTrue('Scalar dispatch table should be registered',
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
@@ -9156,6 +9158,8 @@ begin
   AssertSlotKeepsBackendOwnership('TruncF64x4', Pointer(LScalarTable.TruncF64x4), Pointer(LRISCVVTable.TruncF64x4));
   AssertSlotKeepsBackendOwnership('TruncF32x16', Pointer(LScalarTable.TruncF32x16), Pointer(LRISCVVTable.TruncF32x16));
   AssertSlotKeepsBackendOwnership('TruncF64x8', Pointer(LScalarTable.TruncF64x8), Pointer(LRISCVVTable.TruncF64x8));
+  AssertSlotKeepsBackendOwnership('ClampF32x8', Pointer(LScalarTable.ClampF32x8), Pointer(LRISCVVTable.ClampF32x8));
+  AssertSlotKeepsBackendOwnership('ClampF32x16', Pointer(LScalarTable.ClampF32x16), Pointer(LRISCVVTable.ClampF32x16));
 end;
 
 procedure TTestCase_DispatchAPI.Test_RISCVV_HelperOwnedExactScalarSlots_Stay_BackendOwned;

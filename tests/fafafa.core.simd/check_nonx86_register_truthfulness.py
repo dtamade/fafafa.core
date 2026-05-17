@@ -59,6 +59,10 @@ RISCVV_WIDE_ROUNDING_SCALAR_WRAPPER_SLOTS: set[str] = {
     "TruncF32x8", "TruncF64x4", "TruncF32x16", "TruncF64x8",
 }
 
+RISCVV_WIDE_F32_CLAMP_SCALAR_WRAPPER_SLOTS: set[str] = {
+    "ClampF32x8", "ClampF32x16",
+}
+
 ALLOWED_ALWAYS_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
     "neon": set(),
     "riscvv": {
@@ -67,7 +71,7 @@ ALLOWED_ALWAYS_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
         "CmpEqU64x2", "CmpGtU64x2", "CmpLtU64x2",
         "DotF64x2", "DotF64x4",
         "MaxI64x2", "MaxU64x2", "MinI64x2", "MinU64x2",
-    } | RISCVV_WIDE_ROUNDING_SCALAR_WRAPPER_SLOTS,
+    } | RISCVV_WIDE_ROUNDING_SCALAR_WRAPPER_SLOTS | RISCVV_WIDE_F32_CLAMP_SCALAR_WRAPPER_SLOTS,
 }
 
 ALLOWED_ASM_ONLY_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {

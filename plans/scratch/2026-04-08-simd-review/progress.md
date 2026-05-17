@@ -11096,3 +11096,49 @@
 - 当前阶段结论：
   - `RISCVV` 这 16 个 wide rounding slot 现在已经明确收敛成 “backend-owned exact scalar contract”
   - 当前最值得继续收口的残点已经进一步缩到 `ClampF32x8/F64x4/F32x16/F64x8`，因为它们还牵涉 `NaN/signed-zero`，不能直接套用这一批的 exact-contract 模式
+
+## 2026-05-18 RISCVV Wide F32 Clamp Slots Fall Back To Exact Scalar Contract
+
+- 紧接上一批 wide rounding 收口后，没有把 `Clamp` 一次性全改，而是先把最小可证明的一半单独切出来：
+  - `ClampF32x8`
+  - `ClampF32x16`
+- fresh 复核确认这批边界必须和 `F64` 分开处理：
+  - `src/fafafa.core.simd.riscvv.facade.inc` 顶部仍保留 caveat，明确 `Round/Trunc/Clamp` 需要按 `signed-zero / NaN-ordering` 分开复核
+  - `AVX2` 现有测试已经把 `F32 clamp` 的 published contract 锁到 scalar truth
+  - `NEON` 也已经形成 precedent：`F32` wide clamp 可回到 scalar truth，而 `F64` wide clamp 继续保留 local fallback 审查线
+- 本批实际源码收口：
+  - `src/fafafa.core.simd.riscvv.pas`
+    - `RISCVVClampF32x8` 改成 `Result := ScalarClampF32x8(a, minVal, maxVal);`
+    - `RISCVVClampF32x16` 改成 `Result := ScalarClampF32x16(a, minVal, maxVal);`
+  - `F64x4/F64x8` clamp 故意不动，继续留在单独语义审查队列
+- 本批护栏同步：
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 新增对 `RISCVVClampF32x8/F32x16` source-side scalar-forwarder 的显式断言
+  - `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+    - 把 `ClampF32x8/ClampF32x16` 纳入 `riscvv` always-wrapper allowlist
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 新增 `RISCVV_WIDE_F32_CLAMP_KEY_SLOTS`
+    - 同步纳入 `KEY_SLOTS_BY_BACKEND`、`REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS` 与 `ALLOWED_BACKEND_OWNED_SCALAR_WRAPPER_SLOTS_BY_BACKEND['riscvv']`
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - `Test_RISCVV_KeyOwnedWideSlots_Stay_BackendOwned` 已补齐 `ClampF32x8/ClampF32x16` 的 register-source truth 与 runtime ownership 断言
+- fresh 验证已完成：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py tests/fafafa.core.simd/check_nonx86_key_slot_audit.py tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-smoke-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=670 status=ok`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=119 issues=0 status=ok`
+  - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=riscvv assignments=470 asm_exact=312 asm_suffix_only=117 wrapper_only=41 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `TTestCase_DispatchAPI,TTestCase_NonX86BackendParity` release suite 通过
+  - `NONX86_IMPL_SMOKE_SUMMARY steps=6 targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - `Release check` 通过
+- 当前阶段结论：
+  - `RISCVV` wide `ClampF32x8/F32x16` 现在已经明确收敛成 “backend-owned exact scalar contract”
+  - 下一批如果继续看 `Clamp`，必须单独审 `F64x4/F64x8` 的 `NaN/signed-zero` parity，不能机械照抄本批模式

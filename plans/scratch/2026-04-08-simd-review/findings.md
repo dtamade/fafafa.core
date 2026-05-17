@@ -8187,3 +8187,21 @@
 - 这也把下一条边界钉得更死：
   - `ClampF32x8/F64x4/F32x16/F64x8` 仍不能机械照抄
   - 因为 `vfmax/vfmin` 还涉及 `NaN` 顺序和 `signed zero`，它们是下一批独立语义审查对象
+
+## 2026-05-18 RISCVV Wide Clamp Must Split F32 And F64
+
+- `RISCVV Clamp` 这一簇现在不能再被当成一个整体 residual 处理。
+- fresh 对位源码、facade caveat、既有 family precedent 和测试合同后，结论已经分裂成两半：
+  - `ClampF32x8 / ClampF32x16` 可以收成 exact scalar contract
+  - `ClampF64x4 / ClampF64x8` 仍然是 semantic-sensitive hold
+- 支撑这个分裂判断的证据链已经足够具体：
+  - `src/fafafa.core.simd.riscvv.facade.inc` 顶部仍写着 `Round/Trunc/Clamp retain local bodies until signed-zero and NaN-ordering parity is re-verified separately`
+  - `AVX2` 现有 `ClampF32` 测试已经把 scalar 行为锁成 published contract
+  - `NEON` 已经形成同类 precedent：`F32` wide clamp 可回到 scalar truth，而 `F64` wide clamp 继续保留 local fallback 语义
+- 这意味着当前 `RISCVVClampF32x8/F32x16` 的本地 `vfmax/vfmin` body 已经不是“必要 backend truth”，而更像未被 contract 证明的本地实现分叉。
+- 因而这一批的最小正确修法是：
+  - 保留 `register.inc` 里的 backend-owned slot 绑定
+  - 但把 `F32` wide clamp 的 source body 收成 `Result := ScalarClamp...`
+  - 同时不碰 `F64`，避免把 `signed-zero / NaN-ordering` 风险偷偷吞掉
+- 这条 finding 也顺便把下一批边界钉住了：
+  - 之后若继续处理 `RISCVV Clamp`，首要任务不是继续扩 allowlist，而是先给 `F64x4/F64x8` 补独立 parity/witness 再决定去留

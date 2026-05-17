@@ -3058,15 +3058,12 @@ begin
   Result := ScalarTruncF32x8(a);
 end;
 
-function RISCVVClampF32x8(const a, minVal, maxVal: TVecF32x8): TVecF32x8; assembler; nostackframe;
-asm
-  vsetivli zero, 8, 0xD1
-  vle32.v v0, (a1)
-  vle32.v v2, (a2)
-  vle32.v v4, (a3)
-  vfmax.vv v0, v0, v2
-  vfmin.vv v0, v0, v4
-  vse32.v v0, (a0)
+// F32 wide Clamp follows the published scalar NaN-ordering contract. Keep the
+// F64 wide Clamp slots separate until their local fallback semantics are
+// re-verified end-to-end.
+function RISCVVClampF32x8(const a, minVal, maxVal: TVecF32x8): TVecF32x8;
+begin
+  Result := ScalarClampF32x8(a, minVal, maxVal);
 end;
 
 function RISCVVFloorF64x4(const a: TVecF64x4): TVecF64x4;
@@ -3124,15 +3121,9 @@ begin
   Result := ScalarTruncF32x16(a);
 end;
 
-function RISCVVClampF32x16(const a, minVal, maxVal: TVecF32x16): TVecF32x16; assembler; nostackframe;
-asm
-  vsetivli zero, 16, 0xD2
-  vle32.v v0, (a1)
-  vle32.v v4, (a2)
-  vle32.v v8, (a3)
-  vfmax.vv v0, v0, v4
-  vfmin.vv v0, v0, v8
-  vse32.v v0, (a0)
+function RISCVVClampF32x16(const a, minVal, maxVal: TVecF32x16): TVecF32x16;
+begin
+  Result := ScalarClampF32x16(a, minVal, maxVal);
 end;
 
 function RISCVVFloorF64x8(const a: TVecF64x8): TVecF64x8;
