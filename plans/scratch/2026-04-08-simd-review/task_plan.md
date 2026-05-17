@@ -2,7 +2,7 @@
 
 ## Goal
 
-审查 `fafafa.core.simd` 当前结构、验证基线和成熟度边界，输出一份可直接执行的整改方案。
+持续审查 `fafafa.core.simd` 当前结构、验证基线、成熟度边界与 closeout truth，并对 repo 内发现的缺失、冗余和护栏漂移做最小修复；若只剩外部 evidence blocker，则明确停在该边界而不再空转。
 
 ## Scope
 

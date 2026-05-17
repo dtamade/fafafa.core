@@ -6974,3 +6974,17 @@
 - 因而当前不要把“本机装了 Wine”误读成“已经有真实 Windows runner 兜底”：
   - 这条线在当前环境下仍然只到 smoke，不到 closeout
   - 最新剩余 blocker 继续是 fresh Windows evidence 本身，而不是 repo 内实现/文档再缺一层
+
+## 2026-05-17 Runner-Parity Allowlist Drift
+
+- `tests/fafafa.core.simd/BuildOrTest.sh` 的 `check_windows_runner_parity()` 曾保留 `LAllowedShellOnly=(import-nonx86-native-evidence)`。
+- 但 fresh action diff 已证明当前真实差集是：
+  - shell-only = none
+  - windows-only = `evidence-win`, `evidence-win-verify`
+- 这意味着 `import-nonx86-native-evidence` 已经不再是 shell-only 例外；继续保留 allowlist 会削弱未来回归检测：
+  - 如果后续 batch 入口被删掉，这个历史例外可能把缺口静默吃掉
+  - 旧 allowlist 也没有继续验证“例外是否仍然只存在单边”
+- 最小正确修法不是再补文档，而是收紧 guard 本身：
+  - 移除 stale shell-only allowlist 项
+  - 让 shell-only / windows-only allowlist 都额外校验“是否已经出现在对侧 action 集”
+- 这类问题属于 guard truth drift，不是 SIMD 算法或 Windows external blocker。

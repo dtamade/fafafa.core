@@ -8654,3 +8654,29 @@
   - 本机 Wine 足够支撑“Windows batch success-criteria smoke”
   - 但在当前环境下，还不足以替代真实 Windows evidence runner
   - 因而 latest closeout 主线的剩余 blocker 继续应按 `GH Billing / 实机 Windows runner` 理解，而不是继续在 Wine 适配层空转
+
+## 2026-05-17 Runner-Parity Allowlist Staleness Guard
+
+- 继续按“小闭环”推进，这次不再重新扫 closeout 文档，也不再碰外部 Windows blocker，只审 `runner-parity` 自己有没有 stale 例外。
+- 机器对账先确认了当前真实 action 差集：
+  - shell-only = `[]`
+  - windows-only = `evidence-win`, `evidence-win-verify`
+- 由此抓到一个真实 residual：
+  - `tests/fafafa.core.simd/BuildOrTest.sh` 的 `check_windows_runner_parity()` 里，`LAllowedShellOnly` 还残留 `import-nonx86-native-evidence`
+  - 但这个 action 现在已经有 batch 对应入口，不再是 shell-only
+  - 如果继续保留这个过时 allowlist，将来就可能把同名回归静默放过
+- 已落地的最小修法：
+  - 把 `LAllowedShellOnly` 收紧为空
+  - 新增 allowlist 自检：
+    - shell-only allowlist 项若已出现在 batch action 集，直接 fail-close
+    - windows-only allowlist 项若已出现在 shell action 集，直接 fail-close
+- fresh 轻量验证已完成：
+  - `git diff --check`
+  - `bash -n tests/fafafa.core.simd/BuildOrTest.sh`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity`
+  - Python 对账脚本复核差集仍为：
+    - `shell_only=`
+    - `windows_only=evidence-win,evidence-win-verify`
+- 当前阶段结论：
+  - 这批收掉的不是实现 bug，而是 `runner-parity` 自己的例外白名单漂移
+  - 现在 allowlist 不仅要“存在”，还必须继续符合单边事实，后续更不容易因为历史例外放松护栏

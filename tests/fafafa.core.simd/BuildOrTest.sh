@@ -948,11 +948,10 @@ check_windows_runner_parity() {
     return 1
   fi
 
-  # These actions are intentionally shell-only because they orchestrate bash/Python/GitHub workflows
-  # rather than native batch execution.
-  LAllowedShellOnly=(
-    import-nonx86-native-evidence
-  )
+  # No shell-only actions are currently allowed. Keep the allowlist explicit so
+  # future intentional divergences must be documented here instead of silently
+  # growing by accident.
+  LAllowedShellOnly=()
 
   # These aliases are intentionally Windows-only entry points for native evidence capture.
   LAllowedWindowsOnly=(
@@ -1324,11 +1323,19 @@ check_windows_runner_parity() {
       echo "[CHECK] Stale shell-only allowlist entry: ${LAction}"
       LMissing=1
     fi
+    if array_contains "${LAction}" "${LBatActions[@]}"; then
+      echo "[CHECK] Stale shell-only allowlist entry now present in Windows runner: ${LAction}"
+      LMissing=1
+    fi
   done
 
   for LAction in "${LAllowedWindowsOnly[@]}"; do
     if ! array_contains "${LAction}" "${LBatActions[@]}"; then
       echo "[CHECK] Stale Windows-only allowlist entry: ${LAction}"
+      LMissing=1
+    fi
+    if array_contains "${LAction}" "${LShellActions[@]}"; then
+      echo "[CHECK] Stale Windows-only allowlist entry now present in shell runner: ${LAction}"
       LMissing=1
     fi
   done
