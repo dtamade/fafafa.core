@@ -8735,3 +8735,34 @@
 - 当前阶段结论：
   - 这批收掉的不是 batch `check` 的执行缺口，而是 `runner-parity` 对默认 `check` lane 的覆盖缺口
   - 以后如果 batch 把这几条默认静态 guard 悄悄改回去，parity guard 会更早 fail-close
+
+## 2026-05-17 Runner-Parity Default Check Coverage Completion
+
+- 在上一批补完 `adapter-sync / register-truthfulness / experimental` 后，我没有直接当作完结，而是对 batch `:check` 与 parity required pattern 又做了一次机器对账。
+- fresh 对账说明同类 residual 还剩一簇：
+  - `call :dataplane_consumer_scope`
+  - `call :dispatch_read_scope`
+  - `call :sse2_structure_check`
+  - `call :suite_manifest_check`
+  - `if /I "%SIMD_CHECK_NONX86_OPTIN%"=="0" (`
+  - `call :run_backend_ops_internal`
+  - `call :run_simd_boundary_internal`
+  - `call :run_public_smoke_internal`
+  - `call :run_dispatch_preinit_smoke_internal`
+  - `call "%ROOT%buildOrTest.bat" implementation-matrix-sync`
+- 这些并不是新功能，而是 batch 默认 `check` 里已经存在、但 parity 之前没真正钉住的一簇关键静态 guard / standalone smoke。
+- 已落地的最小修法：
+  - 在 `tests/fafafa.core.simd/BuildOrTest.sh` 的 `check_windows_runner_parity()` required pattern 集里，把这组高价值默认 `check` 位点一并补齐
+  - 刻意没有把整段 `:check` 原样硬编码，只收最值得 fail-close 的 guard / smoke / ledger 位点
+- fresh 验证已完成：
+  - `git diff --check`
+  - `bash -n tests/fafafa.core.simd/BuildOrTest.sh`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `runner-parity` 继续 `[CHECK] OK`
+  - Release `check` 继续通过
+  - 说明这批补的是 parity 覆盖深度，而不是执行逻辑变更
+- 当前阶段结论：
+  - `runner-parity` 对默认 `check` lane 的覆盖现在比上一批更完整
+  - 同类“batch 已经收正、parity 还没跟上”的 easy residual 已经明显收缩

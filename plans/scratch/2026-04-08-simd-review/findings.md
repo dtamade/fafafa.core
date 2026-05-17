@@ -7013,3 +7013,16 @@
     - experimental isolation 分支
 - 这类缺口的风险不是当前执行错，而是将来 batch 默认 `check` 退回旧口径时，`runner-parity` 仍可能继续通过。
 - 因而最小正确修法不是再改执行逻辑，而是补齐 parity required patterns，让这几条默认 lane 也进入 fail-close 保护。
+
+## 2026-05-17 More Default `check` Guards Were Still Invisible To Runner-Parity
+
+- 在补完 `adapter-sync / register-truthfulness / experimental` 之后，机器对账继续显示 `runner-parity` 还漏着同类位点：
+  - dataplane / dispatch / SSE2 / suite-manifest 这组静态 guard
+  - `implementation-matrix-sync`
+  - `backend_ops / simd_boundary / public_smoke / dispatch_preinit_smoke`
+  - `SIMD_CHECK_NONX86_OPTIN` 的 batch 默认分支
+- 这些位点的共同点很清楚：
+  - 都已经属于 batch 默认 `check`
+  - 都是当前 repo 真实依赖的 cheap static guard 或 standalone smoke
+  - 但 parity 之前不会因为它们被删掉而直接报红
+- 因而最小正确修法仍然不是动执行逻辑，而是继续补 parity required patterns，把这组高价值默认 `check` 位点纳入 fail-close 保护。
