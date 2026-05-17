@@ -20,6 +20,7 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 仍是 `ready=False`
   - 当前直接红项包括两类：
     - `cross_gate_required_steps: evidence-verify=SKIP`
+      这条现在只说明 selected gate run 还没补跑 fail-close Windows evidence enforcement；具体失败根因看 `windows_evidence_verify`
     - `windows_evidence_verify`，以及 `win-evidence-preflight=RECENT_BILLING_BLOCK`
   - 其中第二类仍然是当前唯一外部 blocker：
     - `windows_evidence_verify`

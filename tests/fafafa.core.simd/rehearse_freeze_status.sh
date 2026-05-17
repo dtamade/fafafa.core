@@ -925,6 +925,12 @@ if ! grep -F -- "cross_gate_required_steps: non-pass: evidence-verify=SKIP" "${L
   exit 1
 fi
 
+if ! grep -F -- "see windows_evidence_verify for the current failure root cause" "${LCaseMainlineFallback}/logs/freeze_stdout_mainline_fallback.txt" >/dev/null; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_mainline_fallback should point to windows_evidence_verify instead of restating the failure"
+  cat "${LCaseMainlineFallback}/logs/freeze_stdout_mainline_fallback.txt"
+  exit 1
+fi
+
 # ---------- Case I: SOURCE NEWER THAN GATE ARTIFACT ----------
 LCaseSourceFresh="${LTmpRoot}/case_source_newer/tests/fafafa.core.simd"
 mkdir -p "${LCaseSourceFresh}/logs" "${LCaseSourceFresh}/docs" "${LTmpRoot}/case_source_newer/docs/plans" "${LTmpRoot}/case_source_newer/src"

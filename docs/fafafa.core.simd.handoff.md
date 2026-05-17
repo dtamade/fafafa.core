@@ -32,6 +32,7 @@
   - cross-platform `freeze-status` 仍为 `ready=False / cross-ready=False`
   - 当前主要红项是：
     - `cross_gate_required_steps: evidence-verify=SKIP`
+      这条现在只说明 selected gate run 还没补跑 fail-close Windows evidence enforcement；具体失败根因看 `windows_evidence_verify`
     - `windows_evidence_verify`
     - `win-evidence-preflight` 最新结果是 `RECENT_BILLING_BLOCK`
   - `windows_b07_gate.log` 当前 freshness 与 source-newer 检查已转绿；它现在代表的是 fresh 但 invalid 的本机 Wine batch capture，而不是旧 evidence

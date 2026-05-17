@@ -7396,3 +7396,15 @@
   - 后续会话仍可能把 bash-gate opt-in 误读成“可以继续拿本机 Wine 试一试”的旁路
   - closeout-guard 也还不能对这三份文档 fail-close
 - 因而这批同样适合继续用最小 docs + guard 补丁收掉，不值得回到更大的 closeout 设计讨论。
+
+## 2026-05-17 Freeze-Status Still Restated The Same Windows Failure Twice
+
+- 当前 `freeze-status` 的 `cross_gate_required_steps` 不是假红：
+  - 它仍然需要告诉 operator：selected gate run 没有补跑 fail-close Windows evidence enforcement
+- 但它的旧文案存在真实冗余：
+  - 在 `evidence-verify=SKIP` 之后，又继续拼接 `latest standalone windows_evidence_verify=FAIL/PASS`
+  - 结果是同一个 Windows 证据缺口，被 `cross_gate_required_steps` 和 `windows_evidence_verify` 两条同时重复解释
+- 更合适的口径应当是：
+  - `cross_gate_required_steps` 只负责表达 “cross gate enforcement 缺口还在”
+  - `windows_evidence_verify` 单独负责表达当前 Windows verifier 的失败根因
+- 这类 residual 适合做最小 output-shaping 修复，不需要改 ready 判定、也不需要改 fail-close 语义。

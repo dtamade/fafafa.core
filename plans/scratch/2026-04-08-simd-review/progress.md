@@ -9779,3 +9779,23 @@
     - `LCloseoutTemplateRequired`
     - `LFullPlatformPlanRequired`
     - 也已同步把这层 caveat 纳入 `closeout-guard`
+
+## 2026-05-17 Freeze-Status Cross-Gate Redundancy Trim
+
+- 继续往真实 residual 收时，发现当前 `freeze-status` 里有一条更像“冗余噪音”的 shaping 问题：
+  - `cross_gate_required_steps` 需要保留，因为它代表 fail-close cross gate 还没补跑
+  - 但它在 `evidence-verify=SKIP` 之后，又继续复述 `latest standalone windows_evidence_verify=FAIL/PASS`
+  - 这会让同一个 Windows 缺口在 stdout/JSON 里被双层描述
+- 已落地的最小修法：
+  - `evaluate_simd_freeze_status.py`
+    - 保留 `cross_gate_required_steps=FAIL` 语义不变
+    - 但把补充文案改成：
+      - 若 standalone verifier 失败：直接指向 `windows_evidence_verify` 看当前 root cause
+      - 若 standalone verifier 已 PASS：强调仍需 fresh rerun fail-close cross gate
+  - `rehearse_freeze_status.sh`
+    - 新增断言：mainline fallback case 必须指向 `windows_evidence_verify`
+  - active docs：
+    - `docs/fafafa.core.simd.checklist.md`
+    - `docs/fafafa.core.simd.closeout.md`
+    - `docs/fafafa.core.simd.handoff.md`
+    - 已同步说明：`cross_gate_required_steps` 现在只表示 gate enforcement 缺口，不再重复承担 root-cause 说明

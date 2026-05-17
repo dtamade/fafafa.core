@@ -8,7 +8,11 @@
 - 最新 release 证据说明：
   - `python3 tests/fafafa.core.simd/check_interface_implementation_completeness.py --strict` 为绿，`P0/P1/P2=0`
   - `2026-05-17 10:47:10` 的 canonical gate 已把 `linux_gate_required_steps_mainline` 与 `linux_qemu_cpuinfo_nonx86_evidence` 刷成 PASS；`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-linux` 已是 `ready=True` / `mainline-ready=True`
-  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 当前仍红，但直接红项已经收敛成 `cross_gate_required_steps: evidence-verify=SKIP`、`windows_evidence_verify`，以及 `win-evidence-preflight=RECENT_BILLING_BLOCK`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 当前仍红，但直接红项已经收敛成：
+    - `cross_gate_required_steps: evidence-verify=SKIP`
+      这条现在只表示“selected gate run 还没补跑 fail-close Windows enforcement”，具体失败根因看 `windows_evidence_verify`
+    - `windows_evidence_verify`
+    - `win-evidence-preflight=RECENT_BILLING_BLOCK`
   - 本机 Wine batch 现已重新刷新 `windows_b07_gate.log`；因此当前这份 log 不再是 stale historical evidence，而是现行 runner 下的 fresh local capture
   - 当前最新 `windows_evidence_verify` 失败边界已经从旧的 quoting/call 误导，推进成更真实的 `wine/cmd` 无法解析 bare `lazbuild` 命令
   - `windows_b07_closeout_summary.md` 现在已经和当前 verifier FAIL 对齐；当前 `freeze-status` 下这份 summary 本身不再是 stale red，而是 current FAIL summary

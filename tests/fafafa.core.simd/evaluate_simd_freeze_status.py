@@ -1674,13 +1674,13 @@ def main() -> int:
         ):
             if windows_verify_ok is True:
                 cross_gate_check.detail += (
-                    "; latest standalone windows_evidence_verify=PASS "
-                    "(selected gate run skipped enforcement)"
+                    "; selected gate run skipped Windows evidence enforcement; "
+                    "standalone verifier now PASS, but fail-close cross gate still needs a fresh rerun"
                 )
             elif windows_verify_ok is False:
                 cross_gate_check.detail += (
-                    "; latest standalone windows_evidence_verify=FAIL "
-                    "(selected gate run skipped enforcement)"
+                    "; selected gate run skipped Windows evidence enforcement; "
+                    "see windows_evidence_verify for the current failure root cause"
                 )
 
     if closeout_summary.is_file():
