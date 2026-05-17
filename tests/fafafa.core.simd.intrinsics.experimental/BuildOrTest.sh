@@ -23,6 +23,9 @@ TEST_LOG="${LOG_DIR}/test.txt"
 X86_SMOKE_LOG="${LOG_DIR}/x86_sse2_smoke.txt"
 X86_SMOKE_SOURCE="${LOG_DIR}/x86_sse2_smoke.pas"
 X86_SMOKE_BIN="${BIN_DIR}/x86_sse2_smoke"
+UMBRELLA_SMOKE_LOG="${LOG_DIR}/intrinsics_umbrella_smoke.txt"
+UMBRELLA_SMOKE_SOURCE="${LOG_DIR}/intrinsics_umbrella_smoke.pas"
+UMBRELLA_SMOKE_BIN="${BIN_DIR}/intrinsics_umbrella_smoke"
 MMX_SMOKE_LOG="${LOG_DIR}/mmx_smoke.txt"
 MMX_SMOKE_SOURCE="${LOG_DIR}/mmx_smoke.pas"
 MMX_SMOKE_BIN="${BIN_DIR}/mmx_smoke"
@@ -241,6 +244,59 @@ check_x86_backend_smoke() {
     'fafafa\.core\.simd\.intrinsics\.x86\.sse2' \
     fafafa.core.simd.intrinsics.base \
     fafafa.core.simd.intrinsics.x86.sse2
+}
+
+check_intrinsics_umbrella_smoke() {
+  if ! is_x86_cpu; then
+    echo "[CHECK] SKIP intrinsics umbrella smoke (target CPU=${CPU})"
+    return 0
+  fi
+
+  {
+    printf 'program intrinsics_umbrella_smoke;\n'
+    printf '{\$mode objfpc}{\$H+}\n'
+    printf '{\$I %s/src/fafafa.core.settings.inc}\n' "${REPO_ROOT}"
+    printf 'uses\n'
+    printf '  fafafa.core.simd.intrinsics;\n'
+    printf 'var\n'
+    printf '  LA, LB, LC: TM128;\n'
+    printf 'begin\n'
+    printf '  FillChar(LA, SizeOf(LA), 0);\n'
+    printf '  LB := LA;\n'
+    printf '  LC := simd_add_ps(LA, LB);\n'
+    printf '  LC := simd_add_pd(LC, LB);\n'
+    printf '  LC := simd_mul_ps(LC, LB);\n'
+    printf '  LC := simd_mul_pd(LC, LB);\n'
+    printf '  if simd_has_sse2 then\n'
+    printf '    LA := LC;\n'
+    printf 'end.\n'
+  } >"${UMBRELLA_SMOKE_SOURCE}"
+
+  echo "[CHECK] Running intrinsics umbrella smoke: ${UMBRELLA_SMOKE_SOURCE}"
+  : >"${UMBRELLA_SMOKE_LOG}"
+  if "${FPC_BIN}" \
+    "${FU[@]}" \
+    "${FI[@]}" \
+    "${DEFINES[@]}" \
+    -FE"${BIN_DIR}" \
+    -FU"${LIB_DIR}" \
+    -o"${UMBRELLA_SMOKE_BIN}" \
+    "${UMBRELLA_SMOKE_SOURCE}" >"${UMBRELLA_SMOKE_LOG}" 2>&1; then
+    :
+  else
+    local LRC=$?
+    echo "[CHECK] FAILED intrinsics umbrella smoke rc=${LRC} (see ${UMBRELLA_SMOKE_LOG})"
+    tail -n 120 "${UMBRELLA_SMOKE_LOG}" || true
+    return "${LRC}"
+  fi
+
+  if grep -nE '(^|.*/)src/fafafa\.core\.simd\.intrinsics\.pas.*(Warning:|Hint:)' "${UMBRELLA_SMOKE_LOG}" >/dev/null; then
+    echo "[CHECK] FAILED intrinsics umbrella smoke: warnings/hints from umbrella unit"
+    grep -nE '(^|.*/)src/fafafa\.core\.simd\.intrinsics\.pas.*(Warning:|Hint:)' "${UMBRELLA_SMOKE_LOG}" || true
+    return 1
+  fi
+
+  echo "[CHECK] OK intrinsics umbrella smoke"
 }
 
 check_mmx_backend_smoke() {
@@ -513,6 +569,7 @@ run_check_current_mode() {
   build_project
   check_build_log
   check_source_hygiene
+  check_intrinsics_umbrella_smoke
   check_x86_backend_smoke
   check_mmx_backend_smoke
   check_sse_backend_smoke
@@ -564,6 +621,7 @@ case "${ACTION}" in
   debug|release|test|test-all)
     build_project
     check_source_hygiene
+    check_intrinsics_umbrella_smoke
     check_x86_backend_smoke
     check_mmx_backend_smoke
     check_sse_backend_smoke

@@ -10221,3 +10221,34 @@
 - 当前阶段结论：
   - 这批继续修掉的是 active `api/cpuinfo` 线上的源码文本损坏，不是行为缺陷
   - 到这里这 4 个 active 文件的 `U+FFFD` 已全部归零，后续审查 `facade/cpuinfo` 时不再被损坏注释干扰
+
+## 2026-05-17 Intrinsics Umbrella Declaration Recovery
+
+- 继续往剩余 residual 收口时，没有先去开 `mmx` 或 `intrinsics.x86.sse2` 的大坑，而是先锁定 `src/fafafa.core.simd.intrinsics.pas` 这个更小但更危险的 active umbrella 文件。
+- fresh 审查直接抓到一处比普通乱码更实在的边界问题：
+  - `simd_add_ps` 的注释后面把 `simd_add_pd` 和 `simd_mul_ps` 两个 interface 声明吞进了同一行 comment
+  - 结果是 implementation 里有函数体，但 interface 没有正确导出完整 API
+  - 现有 `comment swallow` checker 之所以没报，是因为它此前根本没覆盖 `intrinsics.pas`
+- 本批的正确收口不是“只改注释文本”，而是同时修三件事：
+  - `src/fafafa.core.simd.intrinsics.pas`
+    - 把被吞掉的 `simd_add_pd` / `simd_mul_ps` interface 声明恢复成独立函数声明
+    - 顺手清掉这个文件剩余的 `U+FFFD` 注释残点
+  - `tests/fafafa.core.simd/check_intrinsics_comment_swallow.py`
+    - 把 `src/fafafa.core.simd.intrinsics.pas` 纳入 hygiene checker 覆盖
+  - `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh`
+    - 新增 `intrinsics umbrella smoke`
+    - 用真实 compile smoke 直接引用 `simd_add_ps/simd_add_pd/simd_mul_ps/simd_mul_pd`，证明 interface 现在可见
+- fresh 验证已完成：
+  - `python3` 逐文件计数：`src/fafafa.core.simd.intrinsics.pas = 0`
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_comment_swallow.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - `intrinsics umbrella smoke` 在 default / experimental 双模态都编译通过
+  - `intrinsics.experimental` 双模态 `check` 全绿
+  - 主 `simd` release `check` 全绿
+- 当前阶段结论：
+  - 这批修掉的是 umbrella API 的真实 interface 漂移，不只是注释可读性问题
+  - 之后如果再出现同类“注释吞掉 function declaration”，现有 hygiene checker 和 umbrella smoke 都会直接 fail-close 抓出来

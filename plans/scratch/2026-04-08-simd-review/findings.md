@@ -7647,3 +7647,20 @@
   - 只修这 4 个 active 文件里的损坏注释
   - 再用逐文件计数加 `cpuinfo` / `cpuinfo.x86` / 主 `simd` 的 release `check` 作为 closeout 证据
 - 收口后，这 4 个 active 文件的 `U+FFFD` 已全部归零，并且三条 `check` 都保持绿色。
+
+## 2026-05-17 Intrinsics Umbrella Had A Real Comment-Swallowed API Hole
+
+- `src/fafafa.core.simd.intrinsics.pas` 这次暴露的不只是“简介乱码”：
+  - `function simd_add_ps(...)` 那一行后面的 comment 已经把 `function simd_add_pd(...)` 和 `function simd_mul_ps(...)` 吞进同一行
+  - implementation 里仍有对应函数体
+  - 但 interface 导出的 API 形状已经 drift 了
+- 这类问题比普通注释卫生更危险，因为它会制造“实现存在但声明丢了”的静默接口缺口。
+- 现有护栏此前为什么没报：
+  - `check_intrinsics_comment_swallow.py` 只盯着一批 intrinsics family 单元
+  - `intrinsics.pas` 这个 umbrella 文件当时不在覆盖列表里
+  - 仓库里也没有任何 smoke/consumer 真正去编译并引用这些 umbrella 声明
+- 因而本批的正确收口必须同时覆盖“静态发现”和“实际编译证明”：
+  - 先把被吞掉的 declaration 恢复成独立声明
+  - 再把 `intrinsics.pas` 纳入 `comment swallow` checker
+  - 再补一个只编译不执行的 umbrella smoke，直接引用刚恢复的 `simd_add_pd/simd_mul_ps`
+- 这样后续同类问题就不会再以“文件没人直接用，所以没人发现”的方式悄悄留在 active source 里。

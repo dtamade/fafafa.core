@@ -13,6 +13,7 @@ TARGETS = [
     Path('src/fafafa.core.simd.intrinsics.avx2.pas'),
     Path('src/fafafa.core.simd.intrinsics.avx512.pas'),
     Path('src/fafafa.core.simd.intrinsics.fma3.pas'),
+    Path('src/fafafa.core.simd.intrinsics.pas'),
     Path('src/fafafa.core.simd.intrinsics.sha.pas'),
     Path('src/fafafa.core.simd.intrinsics.sse.pas'),
     Path('src/fafafa.core.simd.intrinsics.sse2.pas'),

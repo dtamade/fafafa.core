@@ -19,12 +19,14 @@ unit fafafa.core.simd.intrinsics;
   - runtime backend selection
   - 把 experimental family 自动提升为默认主线
 
-  支持的指令集�?  - x86/x64: MMX, SSE, SSE2, SSE3, SSE4.1, SSE4.2, AVX, AVX2, AVX-512, AES, SHA, FMA3
+  Supported ISA families:
+  - x86/x64: MMX, SSE, SSE2, SSE3, SSE4.1, SSE4.2, AVX, AVX2, AVX-512, AES, SHA, FMA3
   - ARM: NEON, SVE, SVE2
   - RISC-V: RVV (Vector Extension)
   - LoongArch: LASX
 
-  使用方式�?    uses fafafa.core.simd.intrinsics;
+  Usage:
+    uses fafafa.core.simd.intrinsics;
 
     var
       a, b, result: TM128;
@@ -54,7 +56,7 @@ type
   TM512 = fafafa.core.simd.intrinsics.base.TSimd512;
   PTM512 = ^TM512;
 
-// === 指令集检�?===
+// === ISA capability probes ===
 function simd_has_mmx: Boolean;
 function simd_has_sse: Boolean;
 function simd_has_sse2: Boolean;
@@ -68,7 +70,7 @@ function simd_has_aes: Boolean;
 function simd_has_sha: Boolean;
 function simd_has_fma3: Boolean;
 
-// === 基础 SSE2 函数 (最常用，所�?x64 都支�? ===
+// === Baseline SSE2 helpers (the common x64 floor) ===
 // Load/Store
 function simd_load_si128(const Ptr: Pointer): TM128;
 function simd_loadu_si128(const Ptr: Pointer): TM128;
@@ -108,14 +110,16 @@ function simd_slli_epi32(const a: TM128; imm8: Byte): TM128;
 function simd_srli_epi32(const a: TM128; imm8: Byte): TM128;
 function simd_srai_epi32(const a: TM128; imm8: Byte): TM128;
 
-// === 高级函数 (根据可用指令集自动选择最优实�? ===
+// === Higher-level helpers with ISA-aware behavior ===
 function simd_max_epi8(const a, b: TM128): TM128;   // SSE4.1 优化，SSE2 兼容
 function simd_min_epi8(const a, b: TM128): TM128;   // SSE4.1 优化，SSE2 兼容
 function simd_max_epi32(const a, b: TM128): TM128;  // SSE4.1 优化，SSE2 兼容
 function simd_min_epi32(const a, b: TM128): TM128;  // SSE4.1 优化，SSE2 兼容
 
 // === 浮点运算 ===
-function simd_add_ps(const a, b: TM128): TM128;     // 单精度浮�?function simd_add_pd(const a, b: TM128): TM128;     // 双精度浮�?function simd_mul_ps(const a, b: TM128): TM128;
+function simd_add_ps(const a, b: TM128): TM128;     // single-precision floating-point add
+function simd_add_pd(const a, b: TM128): TM128;     // double-precision floating-point add
+function simd_mul_ps(const a, b: TM128): TM128;     // single-precision floating-point multiply
 function simd_mul_pd(const a, b: TM128): TM128;
 
 implementation
@@ -243,7 +247,7 @@ begin
   {$ENDIF}
 end;
 
-// === 基础函数实现 (Pascal 版本，后续会优化为汇�? ===
+// === Baseline helper implementations (Pascal first, ISA tuning later) ===
 function SIMDLoadTM128(const Ptr: Pointer): TM128; inline;
 begin
   Result := PTM128(Ptr)^;
@@ -502,7 +506,7 @@ var
 begin
   shift_count := imm8;
   if shift_count >= 32 then
-    shift_count := 31; // 算术右移最�?1�?
+    shift_count := 31; // Arithmetic right shift saturates at 31 bits.
   for i := 0 to 3 do
   begin
     value := a.m128i_i32[i];
@@ -593,5 +597,4 @@ begin
 end;
 
 end.
-
 
