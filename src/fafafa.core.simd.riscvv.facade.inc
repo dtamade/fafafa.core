@@ -161,8 +161,8 @@ begin
   Result := ScalarCeilF32x4(a);
 end;
 
-// Round/Trunc/Clamp retain local bodies until signed-zero and NaN-ordering
-// parity is re-verified separately.
+// Round/Trunc retain local bodies until signed-zero and NaN-ordering parity
+// is re-verified separately.
 function RISCVVRoundF32x4(const a: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
@@ -178,17 +178,8 @@ begin
 end;
 
 function RISCVVClampF32x4(const a, minVal, maxVal: TVecF32x4): TVecF32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-  begin
-    if a.f[i] < minVal.f[i] then
-      Result.f[i] := minVal.f[i]
-    else if a.f[i] > maxVal.f[i] then
-      Result.f[i] := maxVal.f[i]
-    else
-      Result.f[i] := a.f[i];
-  end;
+  Result := ScalarClampF32x4(a, minVal, maxVal);
 end;
 
 // =============================================================
@@ -1409,31 +1400,13 @@ begin
 end;
 
 function RISCVVClampF32x16(const a, minVal, maxVal: TVecF32x16): TVecF32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-  begin
-    if a.f[i] < minVal.f[i] then
-      Result.f[i] := minVal.f[i]
-    else if a.f[i] > maxVal.f[i] then
-      Result.f[i] := maxVal.f[i]
-    else
-      Result.f[i] := a.f[i];
-  end;
+  Result := ScalarClampF32x16(a, minVal, maxVal);
 end;
 
 function RISCVVClampF32x8(const a, minVal, maxVal: TVecF32x8): TVecF32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-  begin
-    if a.f[i] < minVal.f[i] then
-      Result.f[i] := minVal.f[i]
-    else if a.f[i] > maxVal.f[i] then
-      Result.f[i] := maxVal.f[i]
-    else
-      Result.f[i] := a.f[i];
-  end;
+  Result := ScalarClampF32x8(a, minVal, maxVal);
 end;
 
 function RISCVVClampF64x2(const a, minVal, maxVal: TVecF64x2): TVecF64x2;

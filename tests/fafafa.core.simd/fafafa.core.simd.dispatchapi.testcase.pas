@@ -9366,6 +9366,7 @@ begin
   AssertRegisterHasAsmOwnedSlot('FmaF32x4', 'table.FmaF32x4 := @RISCVVFmaF32x4;');
   AssertRegisterHasAsmOwnedSlot('RcpF32x4', 'table.RcpF32x4 := @RISCVVRcpF32x4;');
   AssertRegisterHasAsmOwnedSlot('RsqrtF32x4', 'table.RsqrtF32x4 := @RISCVVRsqrtF32x4;');
+  AssertRegisterHasAsmOwnedSlot('ClampF32x4', 'table.ClampF32x4 := @RISCVVClampF32x4;');
 
   AssertTrue('Scalar dispatch table should be registered',
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
@@ -9408,6 +9409,12 @@ begin
     'procedure RISCVVRsqrtF32x4Asm(const a: TVecF32x4; var r: TVecF32x4);',
     'vfrsqrt7.v v0, v0',
     Pointer(LScalarTable.RsqrtF32x4), Pointer(LRISCVVTable.RsqrtF32x4));
+  AssertAsmConditionalExactF32x4Slot('ClampF32x4',
+    'Result := ScalarClampF32x4(a, minVal, maxVal);',
+    'RISCVVClampF32x4Asm(a, minVal, maxVal, Result);',
+    'procedure RISCVVClampF32x4Asm(const a, minVal, maxVal: TVecF32x4; var r: TVecF32x4);',
+    'vfmin.vv v0, v0, v2',
+    Pointer(LScalarTable.ClampF32x4), Pointer(LRISCVVTable.ClampF32x4));
 end;
 
 procedure TTestCase_DispatchAPI.Test_RISCVV_LocalExtremaF64x2_Keep_AsmConditional_RuntimeBinding_And_LocalNoAsmWitness;

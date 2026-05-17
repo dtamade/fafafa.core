@@ -11671,3 +11671,60 @@
 - 当前阶段结论：
   - `RcpF32x4/RsqrtF32x4` 当前收掉的是 `ExactF32x4` 家族里的剩余 contract 盲区，不是新的实现改写
   - 到这里，`RISCVV F32x4 exact conditional` 这一簇已经从 3 个槽扩成 5 个槽，并且全部有了 dedicated source/runtime witness
+
+## 2026-05-18 RISCVV F32 Clamp Scalar Forwarder Closeout
+
+- 当前工作树里唯一未收口的 `ClampF32x4` 直测思路先被 fresh 事实推翻了：
+  - `RISCVVClampF32x4` 只存在于 `src/fafafa.core.simd.riscvv.pas` 的 `implementation` 面
+  - 它没有对外导出，因此原先在 `ieee754` testcase 里尝试“单元前缀直接调用私有 fallback”本身就不是合法测试路径
+- 因而本批先把证据路径收正成两层：
+  - runtime 侧：
+    - 把编不过的 `ClampF32x4` 直调草稿改成 `Test_RISCVV_WideClampF32_SpecialCases_IfAvailable`
+    - 直接对位当前 host 上真实 backend-owned 的 `ClampF32x8/F32x16`
+    - 用 `NaN / signed-zero` case fresh 复核 runtime special-case parity
+  - source 侧：
+    - 继续用 `DispatchAPI` + helper semantics 守 `ClampF32x4` 的 asm-conditional source/runtime split
+- fresh runtime 结果没有打红：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NonX86IEEE754`
+  - `BUILD/TEST/LEAK` 全绿
+  - 说明当前 `RISCVV wide F32 clamp` 在现有 `NaN / signed-zero` 样本上没有 fresh drift 证据
+- 但这批还是抓到了一个更真实的审计问题：
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - 之前把 `RISCVVClampF32x8/F32x16` 的 scalar-forwarder 断言绑到了 `src/fafafa.core.simd.riscvv.pas`
+  - 可当前 non-asm 真正在跑的实现其实来自 `src/fafafa.core.simd.riscvv.facade.inc`
+  - 也就是说，这两格之前处在“helper checker 可能假绿”的 source-truth 错位状态
+- 本批实际收口：
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - 把 `RISCVVClampF32x4/F32x8/F32x16` no-asm body 全部收成 `ScalarClamp*` forward
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 把 `ClampF32x4/F32x8/F32x16` 纳入真正的 `riscvv_facade_source` scalar-forwarder 护栏
+    - 同时移除原先绑错到 `riscvv.pas` 的 wide `F32 clamp` 假目标
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 把 `ClampF32x4` 接进 `RISCVV_CONDITIONAL_EXACT_F32X4_KEY_SLOTS`
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 扩充 `Test_RISCVV_ExactF32x4Slots_Keep_AsmConditional_SourceTruth_And_RuntimeBinding`
+    - 新增 `ClampF32x4` 的 register/facade/asm/runtime 四层断言
+  - `tests/fafafa.core.simd/fafafa.core.simd.ieee754.testcase.pas`
+    - 删除编不过的私有直调草稿
+    - 改为 fresh runtime `wide F32 clamp` special-case parity 证据
+- 本批串行 release 验证已经 fresh 跑通：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend riscvv --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NonX86IEEE754`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=696 status=ok`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=riscvv slots=71 issues=0 status=ok`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=136 issues=0 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `TTestCase_NonX86IEEE754` `BUILD/TEST/LEAK` 全绿
+  - Release `TTestCase_DispatchAPI` `BUILD/TEST/LEAK` 全绿
+  - Release `check` 通过
+- 当前阶段结论：
+  - `RISCVV F32 clamp` 这批收掉的是真源冗余和 helper-audit 假绿风险，不是 fresh runtime bug
+  - `ClampF32x4` 现在正式归入 `ExactF32x4` 条件槽位家族
+  - 下一个更值得继续深审的 residual，不再是 `F32 clamp`，而是 `wide Round/Trunc` 这类当前仍可能存在 source-truth 观察面错位的槽位

@@ -117,6 +117,7 @@ type
   published
     procedure Test_NonX86_RoundTruncFloorCeil_NaNInf_IfAvailable;
     procedure Test_NonX86_NarrowF64x2_RoundTruncFloorCeil_Finite_IfAvailable;
+    procedure Test_RISCVV_WideClampF32_SpecialCases_IfAvailable;
     procedure Test_NonX86_F32_ReduceMinMax_SpecialCases_IfAvailable;
     procedure Test_NonX86_F32_WideMinMax_SpecialCases_IfAvailable;
     procedure Test_NonX86_F64_MinMaxReduce_SpecialCases_IfAvailable;
@@ -3124,6 +3125,229 @@ begin
 
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 backend available on this host (allowed)', True);
+end;
+
+procedure TTestCase_NonX86IEEE754.Test_RISCVV_WideClampF32_SpecialCases_IfAvailable;
+var
+  LScalarTable: TSimdDispatchTable;
+  LRISCVVTable: TSimdDispatchTable;
+  LInputF32x8: TVecF32x8;
+  LMinValF32x8: TVecF32x8;
+  LMaxValF32x8: TVecF32x8;
+  LExpectedF32x8: TVecF32x8;
+  LActualF32x8: TVecF32x8;
+  LInputF32x16: TVecF32x16;
+  LMinValF32x16: TVecF32x16;
+  LMaxValF32x16: TVecF32x16;
+  LExpectedF32x16: TVecF32x16;
+  LActualF32x16: TVecF32x16;
+
+  procedure AssertSingleParity(const aPrefix: string; const aExpected, aActual: Single);
+  begin
+    if IsNaNSingle(aExpected) then
+      AssertTrue(aPrefix + ' expected NaN', IsNaNSingle(aActual))
+    else if IsInfinite(aExpected) then
+      AssertTrue(aPrefix + ' expected Inf sign',
+        IsInfinite(aActual) and ((aActual > 0) = (aExpected > 0)))
+    else
+    begin
+      AssertEquals(aPrefix + ' finite compare', aExpected, aActual, 0.0);
+      if aExpected = 0.0 then
+        AssertTrue(aPrefix + ' zero sign',
+          BitsFromSingle(aExpected) = BitsFromSingle(aActual));
+    end;
+  end;
+
+  procedure AssertVecParityF32x8(const aLabel: string);
+  var
+    LLocalLaneIndex: Integer;
+  begin
+    LExpectedF32x8 := LScalarTable.ClampF32x8(LInputF32x8, LMinValF32x8, LMaxValF32x8);
+    LActualF32x8 := LRISCVVTable.ClampF32x8(LInputF32x8, LMinValF32x8, LMaxValF32x8);
+    for LLocalLaneIndex := 0 to 7 do
+      AssertSingleParity(aLabel + '[' + IntToStr(LLocalLaneIndex) + ']',
+        LExpectedF32x8.f[LLocalLaneIndex], LActualF32x8.f[LLocalLaneIndex]);
+  end;
+
+  procedure AssertVecParityF32x16(const aLabel: string);
+  var
+    LLocalLaneIndex: Integer;
+  begin
+    LExpectedF32x16 := LScalarTable.ClampF32x16(LInputF32x16, LMinValF32x16, LMaxValF32x16);
+    LActualF32x16 := LRISCVVTable.ClampF32x16(LInputF32x16, LMinValF32x16, LMaxValF32x16);
+    for LLocalLaneIndex := 0 to 15 do
+      AssertSingleParity(aLabel + '[' + IntToStr(LLocalLaneIndex) + ']',
+        LExpectedF32x16.f[LLocalLaneIndex], LActualF32x16.f[LLocalLaneIndex]);
+  end;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+  AssertTrue('RISCVV opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
+  begin
+    AssertTrue('RISCVV backend not registered on this host (allowed)', True);
+    Exit;
+  end;
+  {$ENDIF}
+
+  AssertTrue('RISCVV dispatch should provide wide F32 clamp helpers',
+    Assigned(LRISCVVTable.ClampF32x8) and Assigned(LRISCVVTable.ClampF32x16));
+
+  LInputF32x8.f[0] := NaNF32;
+  LInputF32x8.f[1] := 3.0;
+  LInputF32x8.f[2] := 0.0;
+  LInputF32x8.f[3] := NegZeroF32;
+  LInputF32x8.f[4] := -5.0;
+  LInputF32x8.f[5] := 9.0;
+  LInputF32x8.f[6] := 2.5;
+  LInputF32x8.f[7] := 10.0;
+  LMinValF32x8.f[0] := 0.0;
+  LMinValF32x8.f[1] := 1.0;
+  LMinValF32x8.f[2] := NegZeroF32;
+  LMinValF32x8.f[3] := 0.0;
+  LMinValF32x8.f[4] := -4.0;
+  LMinValF32x8.f[5] := 0.0;
+  LMinValF32x8.f[6] := 2.0;
+  LMinValF32x8.f[7] := 8.0;
+  LMaxValF32x8.f[0] := 10.0;
+  LMaxValF32x8.f[1] := 2.0;
+  LMaxValF32x8.f[2] := 0.0;
+  LMaxValF32x8.f[3] := 0.0;
+  LMaxValF32x8.f[4] := 4.0;
+  LMaxValF32x8.f[5] := 8.0;
+  LMaxValF32x8.f[6] := 3.0;
+  LMaxValF32x8.f[7] := 9.0;
+  AssertVecParityF32x8('RISCVV ClampF32x8 NaNLeadingSignedZero');
+
+  LInputF32x8.f[0] := 3.0;
+  LInputF32x8.f[1] := NaNF32;
+  LInputF32x8.f[2] := NegZeroF32;
+  LInputF32x8.f[3] := 0.0;
+  LInputF32x8.f[4] := -6.0;
+  LInputF32x8.f[5] := 11.0;
+  LInputF32x8.f[6] := 2.0;
+  LInputF32x8.f[7] := 1.5;
+  LMinValF32x8.f[0] := 1.0;
+  LMinValF32x8.f[1] := 0.0;
+  LMinValF32x8.f[2] := 0.0;
+  LMinValF32x8.f[3] := NegZeroF32;
+  LMinValF32x8.f[4] := -5.0;
+  LMinValF32x8.f[5] := 1.0;
+  LMinValF32x8.f[6] := 2.0;
+  LMinValF32x8.f[7] := 1.0;
+  LMaxValF32x8.f[0] := 2.0;
+  LMaxValF32x8.f[1] := 10.0;
+  LMaxValF32x8.f[2] := 0.0;
+  LMaxValF32x8.f[3] := 0.0;
+  LMaxValF32x8.f[4] := 4.0;
+  LMaxValF32x8.f[5] := 10.0;
+  LMaxValF32x8.f[6] := 2.0;
+  LMaxValF32x8.f[7] := 1.0;
+  AssertVecParityF32x8('RISCVV ClampF32x8 NaNSecondSignedZero');
+
+  LInputF32x16.f[0] := NaNF32;
+  LInputF32x16.f[1] := 3.0;
+  LInputF32x16.f[2] := 0.0;
+  LInputF32x16.f[3] := NegZeroF32;
+  LInputF32x16.f[4] := -5.0;
+  LInputF32x16.f[5] := 9.0;
+  LInputF32x16.f[6] := 2.5;
+  LInputF32x16.f[7] := 10.0;
+  LInputF32x16.f[8] := -1.0;
+  LInputF32x16.f[9] := 0.25;
+  LInputF32x16.f[10] := 7.5;
+  LInputF32x16.f[11] := 12.0;
+  LInputF32x16.f[12] := 4.0;
+  LInputF32x16.f[13] := 6.0;
+  LInputF32x16.f[14] := 1.0;
+  LInputF32x16.f[15] := 5.0;
+  LMinValF32x16.f[0] := 0.0;
+  LMinValF32x16.f[1] := 1.0;
+  LMinValF32x16.f[2] := NegZeroF32;
+  LMinValF32x16.f[3] := 0.0;
+  LMinValF32x16.f[4] := -4.0;
+  LMinValF32x16.f[5] := 0.0;
+  LMinValF32x16.f[6] := 2.0;
+  LMinValF32x16.f[7] := 8.0;
+  LMinValF32x16.f[8] := -0.5;
+  LMinValF32x16.f[9] := 0.0;
+  LMinValF32x16.f[10] := 6.0;
+  LMinValF32x16.f[11] := 10.0;
+  LMinValF32x16.f[12] := 2.0;
+  LMinValF32x16.f[13] := 5.0;
+  LMinValF32x16.f[14] := 1.0;
+  LMinValF32x16.f[15] := 4.0;
+  LMaxValF32x16.f[0] := 10.0;
+  LMaxValF32x16.f[1] := 2.0;
+  LMaxValF32x16.f[2] := 0.0;
+  LMaxValF32x16.f[3] := 0.0;
+  LMaxValF32x16.f[4] := 4.0;
+  LMaxValF32x16.f[5] := 8.0;
+  LMaxValF32x16.f[6] := 3.0;
+  LMaxValF32x16.f[7] := 9.0;
+  LMaxValF32x16.f[8] := 0.0;
+  LMaxValF32x16.f[9] := 1.0;
+  LMaxValF32x16.f[10] := 7.0;
+  LMaxValF32x16.f[11] := 11.0;
+  LMaxValF32x16.f[12] := 3.0;
+  LMaxValF32x16.f[13] := 5.5;
+  LMaxValF32x16.f[14] := 1.0;
+  LMaxValF32x16.f[15] := 4.5;
+  AssertVecParityF32x16('RISCVV ClampF32x16 NaNLeadingSignedZero');
+
+  LInputF32x16.f[0] := 3.0;
+  LInputF32x16.f[1] := NaNF32;
+  LInputF32x16.f[2] := NegZeroF32;
+  LInputF32x16.f[3] := 0.0;
+  LInputF32x16.f[4] := -6.0;
+  LInputF32x16.f[5] := 11.0;
+  LInputF32x16.f[6] := 2.0;
+  LInputF32x16.f[7] := 1.5;
+  LInputF32x16.f[8] := -2.0;
+  LInputF32x16.f[9] := 2.0;
+  LInputF32x16.f[10] := 8.5;
+  LInputF32x16.f[11] := 9.5;
+  LInputF32x16.f[12] := 4.0;
+  LInputF32x16.f[13] := 5.0;
+  LInputF32x16.f[14] := 1.0;
+  LInputF32x16.f[15] := 3.5;
+  LMinValF32x16.f[0] := 1.0;
+  LMinValF32x16.f[1] := 0.0;
+  LMinValF32x16.f[2] := 0.0;
+  LMinValF32x16.f[3] := NegZeroF32;
+  LMinValF32x16.f[4] := -5.0;
+  LMinValF32x16.f[5] := 1.0;
+  LMinValF32x16.f[6] := 2.0;
+  LMinValF32x16.f[7] := 1.0;
+  LMinValF32x16.f[8] := -1.5;
+  LMinValF32x16.f[9] := 1.0;
+  LMinValF32x16.f[10] := 7.0;
+  LMinValF32x16.f[11] := 9.0;
+  LMinValF32x16.f[12] := 4.0;
+  LMinValF32x16.f[13] := 5.0;
+  LMinValF32x16.f[14] := 1.0;
+  LMinValF32x16.f[15] := 4.0;
+  LMaxValF32x16.f[0] := 2.0;
+  LMaxValF32x16.f[1] := 10.0;
+  LMaxValF32x16.f[2] := 0.0;
+  LMaxValF32x16.f[3] := 0.0;
+  LMaxValF32x16.f[4] := 4.0;
+  LMaxValF32x16.f[5] := 10.0;
+  LMaxValF32x16.f[6] := 2.0;
+  LMaxValF32x16.f[7] := 1.0;
+  LMaxValF32x16.f[8] := -0.5;
+  LMaxValF32x16.f[9] := 1.5;
+  LMaxValF32x16.f[10] := 8.0;
+  LMaxValF32x16.f[11] := 9.0;
+  LMaxValF32x16.f[12] := 4.0;
+  LMaxValF32x16.f[13] := 5.0;
+  LMaxValF32x16.f[14] := 1.0;
+  LMaxValF32x16.f[15] := 4.0;
+  AssertVecParityF32x16('RISCVV ClampF32x16 NaNSecondSignedZero');
 end;
 
 procedure TTestCase_NonX86IEEE754.Test_NonX86_F32_ReduceMinMax_SpecialCases_IfAvailable;

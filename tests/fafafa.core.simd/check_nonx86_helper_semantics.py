@@ -913,6 +913,11 @@ def main() -> int:
             (f"RISCVVFma{suffix}", f"ScalarFma{suffix}(a, b, c)")
         )
 
+    for suffix in ("F32x4", "F32x8", "F32x16"):
+        riscvv_scalar_forwarder_expectations.append(
+            (f"RISCVVClamp{suffix}", f"ScalarClamp{suffix}(a, minVal, maxVal)")
+        )
+
     riscvv_scalar_forwarder_expectations.append(("RISCVVRcpF32x4", "ScalarRcpF32x4(a)"))
     riscvv_scalar_forwarder_expectations.append(("RISCVVRsqrtF32x4", "ScalarRsqrtF32x4(a)"))
 
@@ -1043,19 +1048,9 @@ def main() -> int:
                 (f"RISCVV{op}{suffix}", f"Scalar{op}{suffix}(a)")
             )
 
-    riscvv_source_wide_f32_clamp_forwarder_expectations = [
-        ("RISCVVClampF32x8", "ScalarClampF32x8(a, minVal, maxVal)"),
-        ("RISCVVClampF32x16", "ScalarClampF32x16(a, minVal, maxVal)"),
-    ]
-
     routine_expectations.extend(
         (riscvv_source, routine_name, [f"Result := {scalar_call};"])
         for routine_name, scalar_call in riscvv_source_wide_rounding_forwarder_expectations
-    )
-
-    routine_expectations.extend(
-        (riscvv_source, routine_name, [f"Result := {scalar_call};"])
-        for routine_name, scalar_call in riscvv_source_wide_f32_clamp_forwarder_expectations
     )
 
     routine_expectations.extend(

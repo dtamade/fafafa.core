@@ -8470,3 +8470,40 @@
   - “它们属于 `ExactF32x4` 条件槽位家族，而不是新的特殊值 drift 家族”
   - “helper semantics 只能证明 no-asm facade truth，还不够替代 dedicated source/runtime witness”
   - “把它们接进现有 `Test_RISCVV_ExactF32x4Slots_Keep_AsmConditional_SourceTruth_And_RuntimeBinding`，比另开一套新测试更符合当前真实架构”
+
+## 2026-05-18 RISCVV F32 Clamp Was A Redundancy And Truth-Source Bug, Not A Fresh Runtime Drift
+
+- `RISCVV ClampF32x4` 这次先暴露出来的，不是 `NaN/signed-zero` runtime 红点，而是测试方法本身不成立：
+  - `RISCVVClampF32x4` 没有从 `fafafa.core.simd.riscvv` 的 `interface` 导出
+  - 所以在 testcase 里尝试“直接 call 私有 fallback”并不是合法证据路径
+- 把证据路径收正后，fresh runtime 先给了一个很重要的结论：
+  - `TTestCase_NonX86IEEE754.Test_RISCVV_WideClampF32_SpecialCases_IfAvailable`
+  - 在当前 x86 release host 上对位 `ClampF32x8/F32x16`
+  - `NaN / signed-zero` special-case parity 没有打红
+  - 这说明当前 `RISCVV F32 clamp` 不能被草率归类成和 earlier `ReduceMin/Max` 一样的 fresh drift bug
+- 但 runtime 没红，并不代表这一簇已经干净：
+  - `src/fafafa.core.simd.riscvv.facade.inc` 里 `ClampF32x4/F32x8/F32x16` 当时仍各自保留一份本地 compare-loop
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 却把 `ClampF32x8/F32x16` 的 scalar-forwarder 断言绑在 `src/fafafa.core.simd.riscvv.pas`
+  - 而当前 non-asm 真正生效的实现入口其实是 `riscvv.facade.inc`
+- 这条 finding 的关键价值在于把两件事彻底拆开：
+  - 第一件事：`F32 clamp` 当前没有 fresh runtime drift 证据
+  - 第二件事：helper semantics 对这簇的 source-truth 观察面此前是错位的，因此存在“checker 可能假绿”
+- 因而当前对 `RISCVV F32 clamp` 最准确的处理原则应是：
+  - 不把它当成已经打红的语义 bug 去修
+  - 但也不能继续容忍三份 no-asm compare-loop 和一条看错源文件的 helper 护栏并存
+  - 正确动作是：
+    - 用 fresh runtime parity 先确认“不是红 bug”
+    - 然后把 `F32x4/F32x8/F32x16` no-asm body 全部收回 `ScalarClamp*`
+    - 并把 `ClampF32x4` 接进 `ExactF32x4` 条件 witness，把 `ClampF32x8/F32x16` helper 护栏绑回真实生效的 `facade.inc`
+
+## 2026-05-18 RISCVV Wide RoundTrunc Still Needs The Same Source-Truth Sanity Check
+
+- 在这批 `ClampF32` 收口后，新的高价值 residual 不该再回头盯 `F32 clamp`，而更像是 `wide Round/Trunc` 这一簇的 truth-source 口径。
+- fresh `check` / `key-slot-audit` 输出里，`RISCVVRound/TruncF32x8/F32x16/F64x4/F64x8` 仍被归成 `wrapper_only scalar_forwarder`。
+- 但当前 `src/fafafa.core.simd.riscvv.facade.inc` 的 non-asm 真体里，这些宽向量 `Round/Trunc` 仍是本地 loop，不是 `ScalarRound/Trunc*` 单行 forward。
+- 这和本批刚修掉的 `F32 clamp` helper-truth 错位模式非常像：
+  - 不是已经证明有 runtime bug
+  - 但 source-side truth source 可能还没钉在真正生效的 no-asm 文件上
+- 因而下一批更合理的起点应是：
+  - 先复核 `wide Round/Trunc` 的 checker / audit 到底在看 `riscvv.pas` 还是 `riscvv.facade.inc`
+  - 再决定它们属于“应 collapse 的冗余 loop”还是“必须保留的 local semantics”
