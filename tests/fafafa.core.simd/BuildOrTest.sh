@@ -6080,6 +6080,7 @@ run_gate() {
   local LEvidenceDurationMs
   local LEvidenceEvent
   local LEvidenceRC
+  local LEvidenceCapture
 
   LTestsRoot="$(cd "${ROOT}/.." && pwd)"
   LCpuinfoArtifactsRoot="$(cpuinfo_output_root "${LTestsRoot}")"
@@ -6484,17 +6485,25 @@ run_gate() {
       fi
     else
       LEvidenceStartMs="$(now_ms)"
-      if gate_step_evidence_verify; then
+      LEvidenceCapture="$(mktemp)"
+      if gate_step_evidence_verify >"${LEvidenceCapture}" 2>&1; then
+        cat "${LEvidenceCapture}"
         LEvidenceEndMs="$(now_ms)"
         LEvidenceDurationMs="$(( LEvidenceEndMs - LEvidenceStartMs ))"
         LEvidenceEvent="$(gate_step_event "${LEvidenceDurationMs}")"
         append_gate_summary "evidence-verify" "PASS" "verify passed" "${LEvidenceDurationMs}" "${LEvidenceEvent}" "${LEvidenceLog}"
       else
         LEvidenceRC=$?
+        rm -f "${LEvidenceCapture}"
+        LEvidenceCapture=""
         LEvidenceEndMs="$(now_ms)"
         LEvidenceDurationMs="$(( LEvidenceEndMs - LEvidenceStartMs ))"
-        append_gate_summary "evidence-verify" "SKIP" "optional evidence verify failed rc=${LEvidenceRC}; set SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 to enforce fail-close" "${LEvidenceDurationMs}" "SKIP" "${LEvidenceLog}"
-        echo "[GATE] SKIP optional evidence verify (rc=${LEvidenceRC}; set SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 to enforce)"
+        append_gate_summary "evidence-verify" "SKIP" "optional evidence verify failed rc=${LEvidenceRC}; stale or incomplete windows evidence log (set SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 to enforce fail-close)" "${LEvidenceDurationMs}" "SKIP" "${LEvidenceLog}"
+        echo "[GATE] SKIP optional evidence verify (stale or incomplete windows log: ${LEvidenceLog}; rc=${LEvidenceRC}; set SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 to enforce)"
+      fi
+      if [[ -n "${LEvidenceCapture:-}" ]]; then
+        rm -f "${LEvidenceCapture}"
+        LEvidenceCapture=""
       fi
     fi
   elif [[ "${SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE:-0}" != "0" ]]; then

@@ -7087,3 +7087,15 @@
   - 原先的 Windows synopsis action 提取器没有先去掉 `\r`
   - 结果最后一个 token 会被看成 `release\r`，从而假报 “missing action / unknown action”
 - 因而这个批次还需要把 Windows synopsis 提取统一做 CR stripping，避免 parity 因为行尾格式而误报。
+
+## 2026-05-17 Optional Windows Evidence Verify Was Noisy Instead Of Cleanly Skipping
+
+- 继续把审查切到更高层 `gate` 后，门禁本身虽然最终通过，但它暴露了一个新的真实 UX/guard residual：
+  - 当 `SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0` 且 `windows_b07_gate.log` 存在但内容不完整/过期时
+  - `gate` 会先把 verifier 整段输出直接打到终端
+  - 然后才把这次 evidence verify 记成 optional `SKIP`
+- 结果就是用户会先看到一串 `Missing pattern:` 噪音，再看到 `SKIP optional evidence verify`，阅读体验和信号质量都不好。
+- 这里不该削弱 required 模式的 fail-close 细节，所以最小正确修法是：
+  - 只在 optional 分支里捕获 verifier 输出
+  - 成功时照常回显
+  - 失败时不再刷 verifier 的逐条 missing 明细，而是直接打印一条干净的 stale/incomplete skip 提示

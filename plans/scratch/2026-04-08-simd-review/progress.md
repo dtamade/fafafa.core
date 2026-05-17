@@ -8820,3 +8820,18 @@
   - Windows synopsis action 提取器统一先做 `\r` stripping
   - 这样 `cpuinfo.x86` 这种 CRLF batch 文件不会再把最后一个 action 误判成 `release\r`
 - 这样以后 `cpuinfo.x86` batch 的 action 面或 synopsis 面如果漂移，也会直接进主 `runner-parity` fail-close。
+
+## 2026-05-17 Optional Windows Evidence Verify Skip Cleanup
+
+- 在 `runner-parity`、`check` 都重新收绿后，我继续往上一层跑了 release `gate`，这次不是为了再补字符串，而是看真实门禁还有没有 UX/guard 质量问题。
+- fresh 结果暴露出一个新的 residual：
+  - optional Windows evidence verify 在 stale/incomplete log 上会先打印 verifier 的 `Missing pattern:` 明细
+  - 然后才说这次 evidence verify 是 optional `SKIP`
+- 已落地的最小修法：
+  - required Windows evidence 模式不变，仍保留完整 verifier 输出和 fail-close 行为
+  - optional 模式改为先捕获 verifier 输出
+  - pass 时仍回显 verifier 输出
+  - fail 时改成只打印一条干净的 stale/incomplete skip 提示，并把 skip 原因写进 gate summary
+- 这样门禁信号会更清晰：
+  - required 失败时仍有完整细节
+  - optional skip 时不再用一串 verifier missing 明细淹没真正结论
