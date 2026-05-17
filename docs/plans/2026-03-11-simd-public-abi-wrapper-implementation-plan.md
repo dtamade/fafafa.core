@@ -6,6 +6,16 @@
 > It is no longer part of the active whole-module execution chain.
 > Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
 
+> Current HEAD note (2026-05-17):
+> This plan is historical implementation context for the public ABI wrapper,
+> not proof that the current repository is cross-ready. Latest
+> `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+> remains `ready=False / mainline-ready=True / cross-ready=False`, with
+> `win-evidence-preflight=RECENT_BILLING_BLOCK` and
+> `windows_evidence_verify` failing at
+> `cmd.exe cannot resolve LAZBUILD command "lazbuild"`. For current operator
+> truth, use `docs/fafafa.core.simd.closeout.md` and
+> `tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`.
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
@@ -20,6 +30,7 @@
 ### Task 1: 定义 public ABI POD 类型与 getter 入口
 
 **Files:**
+
 - Modify: `src/fafafa.core.simd.pas`
 - Create: `src/fafafa.core.simd.public_abi.intf.inc`
 - Create: `src/fafafa.core.simd.public_abi.impl.inc`
@@ -95,6 +106,7 @@ function GetSimdPublicApi: PFafafaSimdPublicApi;
 ```
 
 原则：
+
 - 对外只新增，不重命名现有 API
 - 不改 `TSimdDispatchTable`
 - 不引入 managed string 到 public ABI POD struct
@@ -102,10 +114,12 @@ function GetSimdPublicApi: PFafafaSimdPublicApi;
 **Step 3: 文档写死边界**
 
 更新：
+
 - `src/fafafa.core.simd.STABLE`
 - `docs/fafafa.core.simd.api.md`
 
 明确：
+
 - public ABI wrapper 的公开入口在 `fafafa.core.simd`
 - 公开的是新的 POD-only `TFafafaSimdPublicApi`
 - 当前 `TSimdDispatchTable` 仍然只是 in-repo dispatch contract
@@ -113,17 +127,20 @@ function GetSimdPublicApi: PFafafaSimdPublicApi;
 **Step 4: 构建验证**
 
 Run:
+
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh check
 ```
 
 Expected:
+
 - PASS
 - 无新增 stable-path warning/hint
 
 ### Task 2: 实现“绑定后直调”的 public API table
 
 **Files:**
+
 - Modify: `src/fafafa.core.simd.pas`
 - Modify: `src/fafafa.core.simd.public_abi.impl.inc`
 
@@ -147,6 +164,7 @@ function SimdBackendToAbiFlags(aBackend: TSimdBackend): TFafafaSimdAbiFlags;
 ```
 
 要求：
+
 - `supported_on_cpu / registered / dispatchable / active / experimental` 都映射进 `Flags`
 - `CapabilityBits` 只做位图化，不暴露 Pascal `set` layout
 
@@ -162,11 +180,13 @@ procedure RebindSimdPublicApi;
 ```
 
 要求：
+
 - 从当前 façade 语义绑定，而不是每次通过 wrapper 再去 `GetDispatchTable`
 - 绑定结果放到 `g_SimdPublicApi`
 - `GetSimdPublicApi` 只返回 `@g_SimdPublicApi`
 
 禁止实现：
+
 - `GetSimdPublicApi` 内部每次重查 `GetDispatchTable`
 - 每个 public API 函数再转一层 `TSimdDispatchTable`
 
@@ -180,6 +200,7 @@ RemoveDispatchChangedHook(@RebindSimdPublicApi);
 ```
 
 要求：
+
 - 与现有 `RebindSimdFacadeFastPaths` 并存
 - 初始化时显式先 bind 一次
 
@@ -194,6 +215,7 @@ function GetSimdBackendDescriptionPtr(...): PAnsiChar;
 ```
 
 要求：
+
 - POD info 不带 string
 - 名称/描述单独返回静态 `PAnsiChar`
 - 先只支持进程内静态生命周期，不做分配/释放协议
@@ -201,17 +223,20 @@ function GetSimdBackendDescriptionPtr(...): PAnsiChar;
 **Step 5: 构建验证**
 
 Run:
+
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh check
 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI
 ```
 
 Expected:
+
 - PASS
 
 ### Task 3: 添加 public ABI wrapper 测试
 
 **Files:**
+
 - Create: `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas`
 - Modify: `tests/fafafa.core.simd/fafafa.core.simd.test.lpr`
 
@@ -226,6 +251,7 @@ procedure Test_PublicAbi_NameAndDescription_AreNonNil_ForRegisteredBackends;
 ```
 
 重点断言：
+
 - `StructSize = SizeOf(record)`
 - `TryGetSimdBackendPodInfo(sbScalar, ...) = True`
 - `Flags` 与现有四层视图一致
@@ -241,6 +267,7 @@ procedure Test_PublicAbi_Table_DoesNotExposeNilCoreFacadeFns;
 ```
 
 断言：
+
 - `GetSimdPublicApi <> nil`
 - `MemEqual/SumBytes/Utf8Validate` 等函数指针非 nil
 - `SetActiveBackend/ResetToAutomaticBackend` 后 `ActiveBackendId` 刷新
@@ -260,6 +287,7 @@ procedure Test_PublicAbi_AsciiIEqual_Parity;
 ```
 
 测试策略：
+
 - 直接调用 `GetSimdPublicApi^.<Fn>`
 - 与现有 façade 返回值逐项对比
 
@@ -274,18 +302,21 @@ fafafa.core.simd.publicabi.testcase,
 **Step 5: 定向验证**
 
 Run:
+
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh test --list-suites
 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi
 ```
 
 Expected:
+
 - suite 可见
 - PASS
 
 ### Task 4: 把 public ABI wrapper 纳入门禁与文档
 
 **Files:**
+
 - Modify: `tests/fafafa.core.simd/BuildOrTest.sh`
 - Modify: `tests/fafafa.core.simd/buildOrTest.bat`
 - Modify: `docs/fafafa.core.simd.api.md`
@@ -296,6 +327,7 @@ Expected:
 **Step 1: 日常 gate 继续沿用现有 contract guard**
 
 说明：
+
 - 不新增新的 machine signature checker
 - 继续沿用现有 `contract-signature` 守住内部 contract
 - public ABI wrapper 通过测试 suite 守语义
@@ -303,6 +335,7 @@ Expected:
 **Step 2: 文档补充 public ABI wrapper 规则**
 
 明确：
+
 - 入口仍在 `fafafa.core.simd`
 - data-plane 是绑定后直调
 - `GetSimdPublicApi` 返回新的 POD-only public function table
@@ -311,6 +344,7 @@ Expected:
 **Step 3: 更新 progress / handoff**
 
 记录：
+
 - 新增 public ABI POD wrapper
 - 新增 public API table
 - 当前仅覆盖高 ROI façade
@@ -318,11 +352,13 @@ Expected:
 ### Task 5: 全量回归
 
 **Files:**
+
 - Verify only
 
 **Step 1: 日常门禁**
 
 Run:
+
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh check
 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI
@@ -332,11 +368,13 @@ bash tests/fafafa.core.simd/BuildOrTest.sh gate
 ```
 
 Expected:
+
 - 全 PASS
 
 **Step 2: closeout 口径**
 
 Run:
+
 ```bash
 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 \
 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 \
@@ -347,11 +385,13 @@ bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
 ```
 
 Expected:
+
 - PASS
 
 **Step 3: 更新设计文档状态**
 
 在：
+
 - `docs/plans/2026-03-11-simd-public-abi-wrapper-signature-design.md`
 
 补一行实现状态，例如：
@@ -394,4 +434,4 @@ git commit -m "simd: add public abi wrapper surface"
   - `bash tests/fafafa.core.simd/BuildOrTest.sh gate`：PASS
   - `SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`：PASS
   - `SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_EXPERIMENTAL_TESTS=0 SIMD_GATE_PERF_SMOKE=1 SIMD_PERF_VECTOR_ASM=auto bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict`：PASS
-- Pending (optional closeout): Commit/push 后刷新 Windows B07 evidence（用于 `freeze-status` 的 `cross-ready=True`）
+- Pending (historical optional closeout): Commit/push 后刷新 Windows B07 evidence（仅当 real Windows runner + native Windows `LAZBUILD` 可用，且 `win-evidence-preflight` 不再是 `RECENT_BILLING_BLOCK` 时，才可能把 `freeze-status` 推到 `cross-ready=True`）

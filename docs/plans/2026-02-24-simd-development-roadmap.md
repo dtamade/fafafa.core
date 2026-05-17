@@ -6,6 +6,16 @@
 > It is no longer part of the active whole-module execution chain.
 > Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
 
+> Current HEAD note (2026-05-17):
+> This roadmap is historical planning context, not the current repository
+> status. Latest
+> `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+> remains `ready=False / mainline-ready=True / cross-ready=False`, with
+> `win-evidence-preflight=RECENT_BILLING_BLOCK` and
+> `windows_evidence_verify` failing at
+> `cmd.exe cannot resolve LAZBUILD command "lazbuild"`. For current operator
+> truth, use `docs/fafafa.core.simd.closeout.md` and
+> `tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`.
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
@@ -20,6 +30,7 @@
 ### Task 1: 固化现状基线（先确认“现在卡在哪”）
 
 **Files:**
+
 - Read: `tests/fafafa.core.simd/evaluate_simd_freeze_status.py`
 - Read: `tests/fafafa.core.simd/logs/gate_summary.md`
 - Read: `tests/fafafa.core.simd/logs/windows_b07_gate.log`
@@ -36,6 +47,7 @@ Expected: `mainline-ready=True` 且 `cross-ready=False`，失败点聚焦 `windo
 **Step 2: 运行四个结构性检查脚本**
 
 Run:
+
 - `python3 tests/fafafa.core.simd/check_interface_implementation_completeness.py`
 - `python3 tests/fafafa.core.simd/check_backend_adapter_sync.py`
 - `python3 tests/fafafa.core.simd/check_nonx86_wiring_sync.py`
@@ -58,6 +70,7 @@ git commit -m "docs(simd): capture freeze baseline and structural check results"
 ### Task 2: 采集真实 Windows 证据并通过 verifier
 
 **Files:**
+
 - Read: `.github/workflows/simd-windows-b07-evidence.yml`
 - Read: `tests/fafafa.core.simd/run_windows_b07_closeout_via_github_actions.sh`
 - Read/Output: `tests/fafafa.core.simd/logs/windows_b07_gate.log`
@@ -76,11 +89,13 @@ Expected: `[EVIDENCE] OK`。
 **Step 3: 若失败则做最小修复**
 
 Modify:
+
 - `tests/fafafa.core.simd/collect_windows_b07_evidence.bat`
 - `tests/fafafa.core.simd/verify_windows_b07_evidence.bat`
 - `tests/fafafa.core.simd/verify_windows_b07_evidence.sh`
 
 修复策略：
+
 - 仅对日志前导元数据匹配做兼容（CRLF、空格、Windows 版本字符串差异）；
 - 不放宽“必须真实 Windows 证据”的约束（保留 simulated 拒绝规则）。
 
@@ -94,6 +109,7 @@ git commit -m "fix(simd): close windows B07 evidence verification loop"
 ### Task 3: 让 cross gate 变为真正 PASS（不是 SKIP）
 
 **Files:**
+
 - Modify: `tests/fafafa.core.simd/BuildOrTest.sh`
 - Modify: `tests/fafafa.core.simd/buildOrTest.bat`
 - Test: `tests/fafafa.core.simd/logs/gate_summary.md`
@@ -118,6 +134,7 @@ git commit -m "chore(simd): enforce cross gate evidence-verify as pass-required 
 ### Task 4: 文档闭环（避免“代码通过但文档仍显示未完成”）
 
 **Files:**
+
 - Modify: `docs/plans/2026-02-09-simd-unblock-closeout-roadmap.md`
 - Modify: `tests/fafafa.core.simd/docs/simd_release_candidate_checklist.md`
 - Modify: `tests/fafafa.core.simd/docs/simd_completeness_matrix.md`
@@ -146,6 +163,7 @@ git commit -m "docs(simd): mark windows evidence closure and sync latest complet
 ### Task 5: 门禁加固（把现在的人工步骤变成常态）
 
 **Files:**
+
 - Modify: `.github/workflows/ci.yml`
 - Modify: `.github/workflows/simd-windows-b07-evidence.yml`
 - Modify: `tests/fafafa.core.simd/docs/intrinsics_coverage_workflow.md`
@@ -153,6 +171,7 @@ git commit -m "docs(simd): mark windows evidence closure and sync latest complet
 **Step 1: 固化 nightly 严格门禁**
 
 新增/确认 nightly 执行：
+
 - `SIMD_GATE_COVERAGE=1`
 - `SIMD_COVERAGE_STRICT_EXTRA=1`
 - `SIMD_GATE_WIRING_SYNC=1`
@@ -162,6 +181,7 @@ git commit -m "docs(simd): mark windows evidence closure and sync latest complet
 **Step 2: 固化证据产物上传**
 
 上传：
+
 - `tests/fafafa.core.simd/logs/gate_summary.md`
 - `tests/fafafa.core.simd/logs/gate_summary.json`
 - `tests/fafafa.core.simd/logs/windows_b07_gate.log`
@@ -177,6 +197,7 @@ git commit -m "ci(simd): harden nightly gate and archive freeze evidence artifac
 ### Task 6: non-x86 增强专题（不阻塞发布，但应持续推进）
 
 **Files:**
+
 - Modify: `src/fafafa.core.simd.neon.pas`
 - Modify: `src/fafafa.core.simd.riscvv.pas`
 - Modify/Test: `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
@@ -205,6 +226,7 @@ git commit -m "feat(simd): expand non-x86 native coverage for selected high-roi 
 ### Task 7: experimental intrinsics 分层收敛（长期线）
 
 **Files:**
+
 - Modify: `src/fafafa.core.simd.intrinsics.aes.pas`
 - Modify: `src/fafafa.core.simd.intrinsics.sha.pas`
 - Modify: `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
@@ -217,6 +239,7 @@ git commit -m "feat(simd): expand non-x86 native coverage for selected high-roi 
 **Step 2: 在 experimental suite 先 RED 后 GREEN**
 
 Run:
+
 - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test-all`
 - `python3 tests/fafafa.core.simd/check_intrinsics_experimental_status.py`
 
@@ -233,12 +256,12 @@ git commit -m "feat(simd): improve experimental intrinsics semantics under opt-i
 
 ## Milestones
 
-1. **M1（0.5~1 天）**：Task 1~4 完成，`freeze-status` 达到 `cross-ready=True`。  
-2. **M2（1~2 天）**：Task 5 完成，nightly 门禁与证据归档自动化。  
-3. **M3（持续迭代）**：Task 6~7 按批次推进，每批保持 gate 可回归。  
+1. **M1（0.5~1 天）**：Task 1~4 完成，`freeze-status` 达到 `cross-ready=True`。
+2. **M2（1~2 天）**：Task 5 完成，nightly 门禁与证据归档自动化。
+3. **M3（持续迭代）**：Task 6~7 按批次推进，每批保持 gate 可回归。
 
 ## Out Of Scope (for this plan)
 
-- 不做 `TSimdDispatchTable` 破坏性改动。  
-- 不在同一批次内混合“证据收口”和“大规模 backend 重写”。  
-- 不将 experimental intrinsics 直接并入默认入口链（先保持隔离）。  
+- 不做 `TSimdDispatchTable` 破坏性改动。
+- 不在同一批次内混合“证据收口”和“大规模 backend 重写”。
+- 不将 experimental intrinsics 直接并入默认入口链（先保持隔离）。
