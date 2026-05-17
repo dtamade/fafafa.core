@@ -8201,3 +8201,48 @@
 - 当前阶段结论：
   - 这批收掉的不是 SIMD 算法或 backend 语义问题
   - 收掉的是 Windows evidence 外部阻塞下，`freeze-status` 仍给出错误行动建议的 runner 效率缺口
+
+## 2026-05-17 Implementation Matrix Sync Guard
+
+- 继续按“小闭环”推进，这次不再重新扫 SIMD 算法或 closeout 外部 blocker，只收口上一轮半成品的 `implementation-matrix-sync` checker 批次。
+- 接手现场后先确认当前工作树只脏在这 5 个文件：
+  - `docs/fafafa.core.simd.checklist.md`
+  - `docs/fafafa.core.simd.maintenance.md`
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+  - `tests/fafafa.core.simd/check_implementation_matrix_sync.py`
+- 首轮验证：
+  - `python3 -m py_compile tests/fafafa.core.simd/check_implementation_matrix_sync.py`
+  - `python3 tests/fafafa.core.simd/check_implementation_matrix_sync.py --summary-line`
+  - 结果：语法通过，但 summary 直接报 `issues=83 status=fail`
+- 首个硬失败根因已锁定：
+  - checker 误把 `check_nonx86_key_slot_audit.py` 的全量 key-slot 期望当成了 active implementation matrix 必须逐行覆盖的范围
+  - 这会把 working ledger 强行膨胀成总台账，制造大量假红
+- 已完成修法：
+  - `tests/fafafa.core.simd/check_implementation_matrix_sync.py`
+    - 显式锁定当前 22 条 non-x86 active rows
+    - 显式锁定当前 10 条 x86 bounded-frontier row prefixes
+    - non-x86 只检查 active rows 的缺失/多余/contract mismatch
+    - 为 `RISCVV.ShiftLeftU32x8` / `ShiftRightU32x8` 加入本地 manual contract，因为它们的真相源在 facade，不在 `key-slot-audit`
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - 新增 `implementation-matrix-sync` action / log path / usage / `check` 主链接线
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+    - 同步新增 `implementation-matrix-sync` action / usage / `check` 主链接线
+  - `docs/fafafa.core.simd.maintenance.md`
+  - `docs/fafafa.core.simd.checklist.md`
+    - 已同步写明 `check` 现在包含 `implementation-matrix-sync`
+- 修后验证：
+  - `python3 -m py_compile tests/fafafa.core.simd/check_implementation_matrix_sync.py`
+  - `python3 tests/fafafa.core.simd/check_implementation_matrix_sync.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `git diff --check`
+- fresh 结果：
+  - 独立 checker：
+    - `IMPLEMENTATION_MATRIX_SYNC nonx86_slots=22 x86_rows=10 issues=0 status=ok`
+  - Release `check`：
+    - 新增 `[IMPL-MATRIX] Summary: nonx86_slots=22 x86_rows=10 issues=0 status=ok`
+    - 整体最终返回 `0`
+  - `git diff --check` 通过
+- 当前阶段结论：
+  - 这批收掉的是真正的默认门禁缺口，而不是再开一轮 broad SIMD 审查
+  - `docs/fafafa.core.simd.implementation-matrix.md` 现在终于受默认 `check` fail-close 保护，而且规则面与 active ledger 真边界一致

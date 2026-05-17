@@ -150,7 +150,7 @@ python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend r
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86
 ```
 
-默认它会串行跑：helper semantics、wiring-sync strict-extra、RISCVV ABI shape、`neon/riscvv` register truthfulness strict，以及 `DispatchAPI/DirectDispatch/DataPlane` release targeted suite。
+默认它会串行跑：helper semantics、`implementation-matrix-sync`、wiring-sync strict-extra、RISCVV ABI shape、`neon/riscvv` register truthfulness strict，以及 `DispatchAPI/DirectDispatch/DataPlane` release targeted suite。
 其中 `key-slot-audit` 会把少量高价值 wide slot 明确分成两类契约再审一遍：`backend_owned` 必须真的由 backend register 接管，`reuse_base_scalar` 则必须继续继承 `FillBaseDispatchTable`，不能靠“误绑一个 wrapper”混过去。
 当前 non-x86 implementation 主线的 backend/slot/契约/证据/下一步动作，请以 `docs/fafafa.core.simd.implementation-matrix.md` 为准；后续审查优先沿这张矩阵推进，而不是散点翻文件。
 如果你显式提供 `SIMD_NONX86_NATIVE_EVIDENCE_ROOT=...`，它还会把归档 native evidence verifier 一起带上；如果没提供，就只做 source/runtime-side implementation audit，不会伪装成 native runtime closeout。

@@ -26,6 +26,7 @@ TEST_LOG="${LOG_DIR}/test.txt"
 COVERAGE_SCRIPT="${ROOT}/check_intrinsics_coverage.py"
 HELPER_SEMANTICS_SCRIPT="${ROOT}/check_nonx86_helper_semantics.py"
 KEY_SLOT_AUDIT_SCRIPT="${ROOT}/check_nonx86_key_slot_audit.py"
+IMPLEMENTATION_MATRIX_SYNC_SCRIPT="${ROOT}/check_implementation_matrix_sync.py"
 INTERFACE_COMPLETENESS_SCRIPT="${ROOT}/check_interface_implementation_completeness.py"
 DISPATCH_READ_SCOPE_SCRIPT="${ROOT}/check_dispatch_read_scope.py"
 DATAPLANE_CONSUMER_SCOPE_SCRIPT="${ROOT}/check_dataplane_consumer_scope.py"
@@ -77,6 +78,8 @@ REGISTER_TRUTHFULNESS_RISCVV_JSON_LOG="${LOG_DIR}/register_truthfulness_riscvv.j
 HELPER_SEMANTICS_LOG="${LOG_DIR}/helper_semantics.txt"
 KEY_SLOT_AUDIT_LOG="${LOG_DIR}/nonx86_key_slot_audit.txt"
 KEY_SLOT_AUDIT_JSON_LOG="${LOG_DIR}/nonx86_key_slot_audit.json"
+IMPLEMENTATION_MATRIX_SYNC_LOG="${LOG_DIR}/implementation_matrix_sync.txt"
+IMPLEMENTATION_MATRIX_SYNC_JSON_LOG="${LOG_DIR}/implementation_matrix_sync.json"
 SSE2_STRUCTURE_LOG="${LOG_DIR}/sse2_structure.txt"
 SSE2_STRUCTURE_JSON_LOG="${LOG_DIR}/sse2_structure.json"
 SOURCE_REACHABILITY_LOG="${LOG_DIR}/source_reachability.txt"
@@ -969,6 +972,7 @@ check_windows_runner_parity() {
     'if /I "%ACTION%"=="impl-smoke-nonx86" goto :impl_smoke_nonx86'
     'if /I "%ACTION%"=="impl-audit-nonx86" goto :impl_audit_nonx86'
     'if /I "%ACTION%"=="key-slot-audit" goto :key_slot_audit'
+    'if /I "%ACTION%"=="implementation-matrix-sync" goto :implementation_matrix_sync'
     'if /I "%ACTION%"=="closeout-host-local" goto :closeout_host_local'
     'if /I "%ACTION%"=="import-nonx86-native-evidence" goto :import_nonx86_native_evidence'
     'if /I "%ACTION%"=="closeout-host-local-from-import" goto :closeout_host_local_from_import'
@@ -1027,7 +1031,7 @@ check_windows_runner_parity() {
     'if /I "%ACTION%"=="native-evidence" goto :native_evidence'
     'if /I "%ACTION%"=="verify-nonx86-native-evidence" goto :verify_nonx86_native_evidence'
     'if /I "%ACTION%"=="restore-nightly-evidence" goto :restore_nightly_evidence'
-    'echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|key-slot-audit^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|dataplane-consumer-scope^|direct-dispatch-scope^|metadata-query-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|runner-parity^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|gate-summary-selfcheck^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-linux^|native-evidence^|verify-nonx86-native-evidence^|restore-nightly-evidence^|evidence-win^|win-evidence-preflight^|win-evidence-via-gh^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-dryrun^|win-closeout-snippets^|win-closeout-3cmd^|freeze-status^|freeze-status-linux^|win-closeout-finalize^|freeze-status-rehearsal] [test-args...]'
+    'echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|key-slot-audit^|implementation-matrix-sync^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|dataplane-consumer-scope^|direct-dispatch-scope^|metadata-query-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|runner-parity^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|gate-summary-selfcheck^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-linux^|native-evidence^|verify-nonx86-native-evidence^|restore-nightly-evidence^|evidence-win^|win-evidence-preflight^|win-evidence-via-gh^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-dryrun^|win-closeout-snippets^|win-closeout-3cmd^|freeze-status^|freeze-status-linux^|win-closeout-finalize^|freeze-status-rehearsal] [test-args...]'
     'echo   runner-parity  Fast shell/batch runner parity selfcheck ^(delegates to shell runner^)'
     'echo [RUNNER-PARITY] Running: bash %ROOT%BuildOrTest.sh runner-parity %NORMALIZED_TEST_ARGS%'
     'echo   closeout-release  Canonical release closeout entry ^(delegates to shell runner^)'
@@ -3351,6 +3355,7 @@ run_static_build_check_core() {
   check_python_checker_runtime_guard || return $?
   run_nonx86_helper_semantics_check || return $?
   run_nonx86_key_slot_audit_check || return $?
+  run_implementation_matrix_sync_check || return $?
   run_riscvv_abi_shape_check || return $?
   check_publicabi_output_isolation || return $?
   check_publicabi_shell_export_guard || return $?
@@ -5088,6 +5093,38 @@ run_nonx86_key_slot_audit_check() {
   LSummaryLine="$(grep -E '^NONX86_KEY_SLOT_AUDIT_SUMMARY ' "${LLog}" | tail -n 1 || true)"
   if [[ -n "${LSummaryLine}" ]]; then
     echo "[KEY-SLOT-AUDIT] Summary: ${LSummaryLine#NONX86_KEY_SLOT_AUDIT_SUMMARY }"
+  fi
+
+  return "${LMainRC}"
+}
+
+run_implementation_matrix_sync_check() {
+  local LLog
+  local LJsonLog
+  local LMainRC
+  local LSummaryLine
+
+  if [[ ! -f "${IMPLEMENTATION_MATRIX_SYNC_SCRIPT}" ]]; then
+    echo "[IMPL-MATRIX] Missing checker: ${IMPLEMENTATION_MATRIX_SYNC_SCRIPT}"
+    return 2
+  fi
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "[IMPL-MATRIX] FAILED (python3 runtime not found; implementation-matrix-sync requires python3)"
+    return 2
+  fi
+
+  LLog="${SIMD_IMPLEMENTATION_MATRIX_SYNC_LOG_FILE:-${IMPLEMENTATION_MATRIX_SYNC_LOG}}"
+  LJsonLog="${SIMD_IMPLEMENTATION_MATRIX_SYNC_JSON_FILE:-${IMPLEMENTATION_MATRIX_SYNC_JSON_LOG}}"
+
+  echo "[IMPL-MATRIX] Running: python3 ${IMPLEMENTATION_MATRIX_SYNC_SCRIPT} --summary-line --json-file ${LJsonLog}"
+  : > "${LLog}"
+  python3 "${IMPLEMENTATION_MATRIX_SYNC_SCRIPT}" --summary-line --json-file "${LJsonLog}" 2>&1 | tee "${LLog}"
+  LMainRC="${PIPESTATUS[0]}"
+
+  LSummaryLine="$(grep -E '^IMPLEMENTATION_MATRIX_SYNC ' "${LLog}" | tail -n 1 || true)"
+  if [[ -n "${LSummaryLine}" ]]; then
+    echo "[IMPL-MATRIX] Summary: ${LSummaryLine#IMPLEMENTATION_MATRIX_SYNC }"
   fi
 
   return "${LMainRC}"
@@ -7062,6 +7099,9 @@ case "${ACTION}" in
   key-slot-audit)
     run_nonx86_key_slot_audit_check
     ;;
+  implementation-matrix-sync)
+    run_implementation_matrix_sync_check
+    ;;
   riscvv-abi-shape)
     run_riscvv_abi_shape_check
     ;;
@@ -7123,7 +7163,7 @@ case "${ACTION}" in
     run_freeze_status_rehearsal "$@"
     ;;
   *)
-    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|closeout-release|sse2-structure-check|sse2-contracts|impl-smoke-sse2|impl-smoke-x86|impl-smoke-nonx86|impl-audit-nonx86|helper-semantics|key-slot-audit|riscvv-abi-shape|source-reachability|closeout-host-local|import-nonx86-native-evidence|closeout-host-local-from-import|interface-completeness|dispatch-read-scope|dataplane-consumer-scope|direct-dispatch-scope|metadata-query-scope|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|runner-parity|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|verify-nonx86-native-evidence|restore-nightly-evidence|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
+    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|closeout-release|sse2-structure-check|sse2-contracts|impl-smoke-sse2|impl-smoke-x86|impl-smoke-nonx86|impl-audit-nonx86|helper-semantics|key-slot-audit|implementation-matrix-sync|riscvv-abi-shape|source-reachability|closeout-host-local|import-nonx86-native-evidence|closeout-host-local-from-import|interface-completeness|dispatch-read-scope|dataplane-consumer-scope|direct-dispatch-scope|metadata-query-scope|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|runner-parity|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|verify-nonx86-native-evidence|restore-nightly-evidence|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
     echo "  Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks."
     echo "  gate/gate-strict PASS is not blanket release-grade approval for every experimental path."
     echo "  gate         Fast/base gate for routine SIMD changes"
@@ -7137,6 +7177,7 @@ case "${ACTION}" in
     echo "  impl-audit-nonx86  Aggregate implementation-side non-x86 audit"
     echo "  helper-semantics  Run the non-x86 helper semantics Python audit only"
     echo "  key-slot-audit  Audit non-x86 key wide slots for implementation ownership"
+    echo "  implementation-matrix-sync  Fail-close active implementation-matrix drift"
     echo "  riscvv-abi-shape  Run the RISCVV ABI-shape Python audit only"
     echo "  source-reachability  Run the SIMD source reachability Python audit only"
     echo "  runner-parity  Fast shell/batch runner parity selfcheck"

@@ -6656,3 +6656,22 @@
   - 不改变日常 `gate` 的默认成本
   - 不把 closeout 口径重新绑死到“最后一次 gate 恰好是 cross gate”
   - 也不必把 docs 继续写成“canonical gate_summary.md 永远等于 Linux closeout 真相”
+
+## 2026-05-17 Implementation Matrix Sync Guard
+
+- `docs/fafafa.core.simd.implementation-matrix.md` 当前是 active working ledger，不是 `check_nonx86_key_slot_audit.py` 的全量 key-slot 总表。
+- 首版 `check_implementation_matrix_sync.py` 之所以一上来报出 `issues=83`，根因不是文档真的漏了 83 行，而是规则面错了：
+  - 它把 `collect_expected_slot_modes_from_dispatchapi()` 的全量 `NEON/RISCVV` key-slot 期望，错误地当成了“implementation matrix 必须逐行覆盖”的要求。
+  - 但 active matrix 现在只刻意保留 22 条 non-x86 row，用于当前 ownership / bounded frontier 主线，而不是把所有 helper-owned / wrapper-owned / qualification row 都塞进去。
+- 因而这个 checker 的正确职责应是：
+  - fail-close 当前 active row 集合是否缺失或多出；
+  - fail-close 这些 active rows 的 `expected contract` 是否与真相源漂移；
+  - fail-close x86 bounded frontier 的 10 条 row prefix 是否缺失或重复。
+- `RISCVV.ShiftLeftU32x8` / `RISCVV.ShiftRightU32x8` 是 active matrix 的两个真实例外：
+  - 它们的 truth source 在 `riscvv.facade.inc` 的显式 `ScalarShift*U32x8`
+  - 不属于 `key-slot-audit` 当前扫描的 dispatchapi ledger
+  - 因此 `implementation-matrix-sync` 需要为这两行保留本地 manual contract，而不是硬逼 `key-slot-audit` 去吞掉它们
+- 修正后，新 checker 的信号已收干净：
+  - `python3 tests/fafafa.core.simd/check_implementation_matrix_sync.py --summary-line`
+  - 结果：`IMPLEMENTATION_MATRIX_SYNC nonx86_slots=22 x86_rows=10 issues=0 status=ok`
+- 这批的核心价值不是新增 SIMD 算法验证，而是把 active implementation matrix 真正纳入默认 `check`，避免后续 active ledger 和 key-slot / x86 frontier 真相源长期漂移。

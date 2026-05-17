@@ -4592,3 +4592,18 @@
 | 1. 复核这是不是当前真实缺口 | completed | 已重新运行 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`，结果为 `STATUS=FAIL CODE=RECENT_BILLING_BLOCK EXIT=31`；旧版 `freeze-status` 仍会继续推荐 `win-evidence-via-gh` / `evidence-win-verify` / fail-close gate，属于误导性 next-actions |
 | 2. 收紧 `freeze-status` 的 preflight 感知 | completed | `evaluate_simd_freeze_status.py` 现已读取 `logs/win_preflight_latest.json`，新增 `windows_preflight_latest` 检查项；若 fresh preflight 仍是 `RECENT_BILLING_BLOCK`，next-actions 会收敛到 billing / 手工 Windows runner 路径，不再继续推荐注定失败的 GH evidence / stale verify 命令 |
 | 3. 最小验证与真相同步 | completed | `python3 -m py_compile tests/fafafa.core.simd/evaluate_simd_freeze_status.py`、full `freeze-status`、`freeze-status-linux` 已通过预期验证；active docs / scratch 已同步到最新 preflight 真相 |
+
+## 2026-05-17 Implementation Matrix Sync Guard
+
+### Goal
+
+给 active `docs/fafafa.core.simd.implementation-matrix.md` 增加独立 fail-close checker，并把它接进默认 `check`，但规则面只守护当前 active ledger，不把矩阵误判成全量 key-slot 台账。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核半成品 checker 的真实失败面 | completed | 首次 `python3 tests/fafafa.core.simd/check_implementation_matrix_sync.py --summary-line` 直接报 `issues=83`；根因不是文档缺 83 行，而是脚本把 `check_nonx86_key_slot_audit.py` 的全量 key-slot 期望错误套到了只记录 active ledger 的 implementation matrix |
+| 2. 收窄 checker 到 active ledger 真边界 | completed | `check_implementation_matrix_sync.py` 现显式锁定当前 22 条 non-x86 active rows 和 10 条 x86 bounded-frontier rows；non-x86 只校验这些 active rows 的缺失/多余/contract mismatch，不再要求文档覆盖全量 key-slot |
+| 3. 补齐 matrix 自身不在 key-slot audit 内的例外 | completed | `RISCVV.ShiftLeftU32x8` / `ShiftRightU32x8` 仍是 active matrix row，但真相源在 `riscvv.facade.inc`，不在 `key-slot-audit` 的 dispatchapi ledger；checker 已把这两行作为本地 manual contract 收进去 |
+| 4. 接线、Release 验证与收口 | completed | 新 checker 已接入 `BuildOrTest.sh check` / `buildOrTest.bat` / active docs；`python3 -m py_compile`、独立 `--summary-line`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`、`git diff --check` 全部通过 |
