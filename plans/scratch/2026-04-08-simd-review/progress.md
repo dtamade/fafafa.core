@@ -10435,3 +10435,31 @@
 - 当前阶段结论：
   - 这批修掉的是 umbrella API 的真实 interface 漂移，不只是注释可读性问题
   - 之后如果再出现同类“注释吞掉 function declaration”，现有 hygiene checker 和 umbrella smoke 都会直接 fail-close 抓出来
+
+## 2026-05-17 MMX Pack/Unpack Comment Hygiene
+
+- `mmx` 这轮没有继续横向扩散，而是只收当前 worktree 里已经改到一半的 `pack/unpack` 小簇：
+  - `mmx_packsswb`
+  - `mmx_packssdw`
+  - `mmx_packuswb`
+  - `mmx_punpckhbw/hwd/hdq`
+  - `mmx_punpcklbw/lwd/ldq`
+- 本批严格保持 bounded：
+  - 只把损坏中文注释替换成稳定 ASCII 注释
+  - 不改 asm 指令
+  - 不改函数签名
+  - 不扩成新的 checker
+- fresh 验证已完成：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_comment_swallow.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - `intrinsics.experimental check` default / experimental 双模态通过
+  - `MMX backend smoke` 通过
+  - 主 `simd` release `check` 通过
+- 当前阶段结论：
+  - 这批是纯文本卫生修复，没有新增行为变化
+  - `src/fafafa.core.simd.intrinsics.mmx.pas` 现已从 `pack/unpack` 注释簇退出
+  - `mmx` 仍剩最后 7 条 residual 行：`1856/1864/1880/1901/1929/1957/2040`

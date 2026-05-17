@@ -7765,3 +7765,28 @@
   - 再把 `intrinsics.pas` 纳入 `comment swallow` checker
   - 再补一个只编译不执行的 umbrella smoke，直接引用刚恢复的 `simd_add_pd/simd_mul_ps`
 - 这样后续同类问题就不会再以“文件没人直接用，所以没人发现”的方式悄悄留在 active source 里。
+
+## 2026-05-17 MMX Pack/Unpack Residual Was Hygiene-Only, But Worth Closing
+
+- 当前 `mmx` 的 `pack/unpack` 残点并不是新的行为缺陷：
+  - `mmx_packsswb`
+  - `mmx_packssdw`
+  - `mmx_packuswb`
+  - `mmx_punpckh*`
+  - `mmx_punpckl*`
+  这批损坏都落在注释文本，没有再吞掉 `asm` 指令或函数声明。
+- 但它依然值得单独收口，因为：
+  - `mmx` 现在已经进入最后尾巴阶段，继续带着这簇损坏注释会拖慢后续人工审查
+  - `comment swallow` checker 只能证明“没吞代码”，不能证明“源码文本已经干净”
+  - `intrinsics.experimental` 的 `MMX backend smoke` 现在已经足够便宜，适合用来给这类 bounded hygiene 批次做 fail-close 复验
+- 本批收口后，`src/fafafa.core.simd.intrinsics.mmx.pas` 还剩最后 7 条 residual 行：
+  - `1856`
+  - `1864`
+  - `1880`
+  - `1901`
+  - `1929`
+  - `1957`
+  - `2040`
+- 这意味着 `mmx` 已经不再适合“大范围重扫”；更高效的方式是：
+  - 先把最后尾巴按小簇关完
+  - 再切到下一个真实大热点 `intrinsics.x86.sse2`

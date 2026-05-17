@@ -1599,7 +1599,7 @@ end;
 
 // === 10️⃣ Pack / Unpack 实现 ===
 
-// 功能：将8�?6位有符号整数打包�?�?位有符号整数（带饱和�
+// Pack eight signed 16-bit lanes into signed 8-bit lanes with saturation.
 function mmx_packsswb(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1627,7 +1627,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：将4�?2位有符号整数打包�?�?6位有符号整数（带饱和�
+// Pack four signed 32-bit lanes into signed 16-bit lanes with saturation.
 function mmx_packssdw(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1655,7 +1655,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：将8�?6位有符号整数打包�?�?位无符号整数（带饱和�
+// Pack eight signed 16-bit lanes into unsigned 8-bit lanes with saturation.
 function mmx_packuswb(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1683,7 +1683,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：解包高�?位整数（从两个寄存器交织�
+// Unpack and interleave the high 8-bit lanes from two MMX registers.
 function mmx_punpckhbw(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1711,7 +1711,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：解包高�?6位整数（从两个寄存器交织�
+// Unpack and interleave the high 16-bit lanes from two MMX registers.
 function mmx_punpckhwd(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1739,7 +1739,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：解包高�?2位整数（从两个寄存器交织�
+// Unpack and interleave the high 32-bit lanes from two MMX registers.
 function mmx_punpckhdq(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1767,7 +1767,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：解包低�?位整数（从两个寄存器交织�
+// Unpack and interleave the low 8-bit lanes from two MMX registers.
 function mmx_punpcklbw(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1795,7 +1795,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：解包低�?6位整数（从两个寄存器交织�
+// Unpack and interleave the low 16-bit lanes from two MMX registers.
 function mmx_punpcklwd(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1823,7 +1823,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：解包低�?2位整数（从两个寄存器交织�
+// Unpack and interleave the low 32-bit lanes from two MMX registers.
 function mmx_punpckldq(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
