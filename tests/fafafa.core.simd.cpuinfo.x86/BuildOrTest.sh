@@ -23,6 +23,7 @@ BIN="${BIN_DIR}/fafafa.core.simd.cpuinfo.x86.test"
 LOG_DIR="${OUTPUT_ROOT}/logs"
 BUILD_LOG="${LOG_DIR}/build.txt"
 TEST_LOG="${LOG_DIR}/test.txt"
+X86_FEATURE_SYNC_SCRIPT="${ROOT}/check_x86_feature_detector_sync.py"
 LOCK_FILE="${ROOT}/.buildtest.lock"
 LOCK_DIR="${ROOT}/.buildtest.lock.d"
 LOCK_WAIT_SECONDS="${FAFAFA_BUILD_LOCK_WAIT_SECONDS:-300}"
@@ -382,6 +383,11 @@ check_windows_runner_parity() {
   echo "[CHECK] OK (windows runner parity signatures present)"
 }
 
+check_x86_feature_detector_sync() {
+  echo "[CHECK] Running: python3 ${X86_FEATURE_SYNC_SCRIPT} --summary-line"
+  python3 "${X86_FEATURE_SYNC_SCRIPT}" --summary-line
+}
+
 case "${ACTION}" in
   clean)
     echo "[CLEAN] Removing ${BIN_DIR}, ${OUTPUT_ROOT}/lib, ${LOG_DIR}"
@@ -394,6 +400,7 @@ case "${ACTION}" in
     build_project
     check_build_log
     check_windows_runner_parity
+    check_x86_feature_detector_sync
     ;;
   debug)
     MODE="Debug"

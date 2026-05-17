@@ -25,8 +25,11 @@ set "BIN=%BIN_DIR%\fafafa.core.simd.cpuinfo.x86.test.exe"
 set "LOG_DIR=%ROOT%logs"
 set "BUILD_LOG=%LOG_DIR%\build.txt"
 set "TEST_LOG=%LOG_DIR%\test.txt"
+set "X86_FEATURE_SYNC_SCRIPT=%ROOT%check_x86_feature_detector_sync.py"
 set "MODE=%FAFAFA_BUILD_MODE%"
 if "%MODE%"=="" set "MODE=Release"
+set "PYTHON_EXE=%PYTHON%"
+if "%PYTHON_EXE%"=="" set "PYTHON_EXE=python"
 
 if not exist "%BIN_DIR%" mkdir "%BIN_DIR%"
 if not exist "%LIB_DIR%" mkdir "%LIB_DIR%"
@@ -109,6 +112,8 @@ if not errorlevel 1 (
   exit /b 1
 )
 echo [CHECK] OK (no SIMD-unit and cpuinfo.x86-test warnings/hints)
+"%PYTHON_EXE%" "%X86_FEATURE_SYNC_SCRIPT%" --summary-line
+if errorlevel 1 exit /b 1
 exit /b 0
 
 :test

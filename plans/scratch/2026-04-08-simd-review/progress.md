@@ -10155,3 +10155,37 @@
 - 当前阶段结论：
   - 这批继续修掉的是 x86 experimental intrinsics 的源码文本损坏，不是行为缺陷
   - 到这里这 7 个 x86 目标文件的 `U+FFFD` 已全部归零，active 审查面不再被乱码残点打断
+
+## 2026-05-17 CPUInfo i386 Feature-Detector Delegation Sync
+
+- 在继续做小批次审查时，fresh 扫描没有先去碰 `intrinsics.x86.sse2` 那个大坑，而是改挑更值当的 active `cpuinfo` 残点。
+- 在 `src/fafafa.core.simd.cpuinfo.x86.i386.pas` 里抓到一个真实逻辑风险：
+  - 坏注释把 `if not XCR0HasAVX512(xcr0) then` 吞进了 `//` 行内
+  - 后面的 `begin ... end` 因而变成无条件执行
+  - 结果就是 `AVX-512` 的 XCR0 门槛屏蔽在 `i386` 手写实现里发生了 source drift
+- 对照 `src/fafafa.core.simd.cpuinfo.x86.base.pas` 与 `src/fafafa.core.simd.cpuinfo.x86.x86_64.pas` 后确认：
+  - `x86.base` 已经有正确共享的 `X86FeaturesFromCPUID(...)` 门槛逻辑
+  - `x86_64` 也已经委托到这条 helper
+  - 真正的问题不是“少一个 if”，而是 `i386` 还保留一份手写重复版，既冗余又被坏注释带偏
+- 已落地的收口：
+  - `src/fafafa.core.simd.cpuinfo.x86.i386.pas`
+    - `DetectX86Features` 改为和 `x86_64` 同样采集 leaf 数据后统一委托 `X86FeaturesFromCPUID(...)`
+    - 顺手清掉会误导审查的损坏注释
+  - `tests/fafafa.core.simd.cpuinfo.x86/check_x86_feature_detector_sync.py`
+    - 新增静态 checker，锁定 `i386/x86_64` 两个平台实现都必须委托共享 helper
+    - 同时要求 `DetectX86Features` 不再保留手写 `Result.Has...` feature assembly
+  - `tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh`
+  - `tests/fafafa.core.simd.cpuinfo.x86/buildOrTest.bat`
+    - `check` 动作都已接入这个 checker
+- fresh 验证已完成：
+  - `python3 -m py_compile tests/fafafa.core.simd.cpuinfo.x86/check_x86_feature_detector_sync.py`
+  - `python3 tests/fafafa.core.simd.cpuinfo.x86/check_x86_feature_detector_sync.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh test`
+- fresh 结果：
+  - `CPUINFO_X86_SYNC_SUMMARY files=2 delegate_ok=2 manual_assigns=0 issues=0`
+  - `cpuinfo.x86` release `check` 通过
+  - `cpuinfo.x86` release `test` 通过，`[LEAK] OK`
+- 当前阶段结论：
+  - 这批同时修掉了一个真实 source drift / potential behavior bug，以及一处 `i386` vs `x86_64` 的 feature assembly 冗余分叉
+  - 后续即使当前主机只跑 `x86_64`，`cpuinfo.x86` 的 `check` 也会静态守住 `i386` 不再偷偷偏离共享 helper

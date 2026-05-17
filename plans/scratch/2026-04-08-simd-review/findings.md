@@ -7610,3 +7610,23 @@
   - 不动实现体和测试合同
   - 再用 `U+FFFD` 逐文件计数补上 `checker` 没覆盖到的文本卫生证据
 - 收口后，这 7 个 x86 目标文件的 `U+FFFD` 也已经全部归零；`intrinsics.experimental check` 和主 `Release check` 继续保持绿色。
+
+## 2026-05-17 CPUInfo i386 Had Real Feature-Assembly Drift Behind Comment Corruption
+
+- `simd` 这轮继续审查时，active `cpuinfo.x86.i386` 里暴露出的不只是“注释不好看”：
+  - `// AVX-512 ... if not XCR0HasAVX512(xcr0) then` 这一行已经把真正的 `if` 吞进注释
+  - 紧跟着的 `begin ... end` 仍会执行
+  - 因而 `DetectX86Features` 里的 `AVX-512` gate 发生了 source-level drift
+- 这类问题的风险比普通乱码更高：
+  - 当前主机可能主要跑 `x86_64`，所以运行时不一定第一时间暴露
+  - 但源文件本身已经偏离了共享 helper 的真实门槛逻辑
+  - 如果继续保留手写 feature assembly，后续任何注释损坏或局部调整都可能再次只污染单平台实现
+- 对照后确认最优解不是“把吞掉的 if 补回来就算了”，而是消掉重复 truth source：
+  - `src/fafafa.core.simd.cpuinfo.x86.base.pas` 已有共享 `X86FeaturesFromCPUID(...)`
+  - `src/fafafa.core.simd.cpuinfo.x86.x86_64.pas` 已经用它
+  - `i386` 手写 feature assembly 才是冗余分叉点
+- 因而这批的正确收口是：
+  - 让 `i386 DetectX86Features` 只负责采样 leaf/xcr0
+  - 真正的 feature assembly 和 AVX/AVX2/AVX512 门槛判断统一回到 `X86FeaturesFromCPUID(...)`
+  - 再加一个静态 checker，要求 `i386/x86_64` 两端都委托共享 helper，且不再保留手写 `Result.Has...` 组装逻辑
+- 这样后续即使没有 i386 运行环境，`cpuinfo.x86` 的 `check` 也能直接 fail-close 抓出这种平台实现漂移。
