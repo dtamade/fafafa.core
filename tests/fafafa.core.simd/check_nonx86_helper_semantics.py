@@ -864,7 +864,6 @@ def main() -> int:
         )
 
     for suffix, ops in (
-        ("I32x4", ("ShiftLeft", "ShiftRight", "ShiftRightArith")),
         ("I16x8", ("ShiftLeft", "ShiftRight", "ShiftRightArith")),
         ("I64x4", ("ShiftLeft", "ShiftRight")),
         ("U16x8", ("ShiftLeft", "ShiftRight")),
@@ -898,11 +897,13 @@ def main() -> int:
                 (f"RISCVV{op}{suffix}", f"Scalar{op}{suffix}(a, b)")
             )
 
-    for suffix in ("I32x4", "I32x8", "U32x8"):
+    for suffix in ("I32x8", "U32x8"):
         for op in ("Add", "Sub", "Mul", "And", "Or", "Xor"):
             riscvv_scalar_forwarder_expectations.append(
                 (f"RISCVV{op}{suffix}", f"Scalar{op}{suffix}(a, b)")
             )
+
+    for suffix in ("I32x4", "I32x8", "U32x8"):
         for op in ("Eq", "Lt", "Gt", "Le", "Ge", "Ne"):
             riscvv_scalar_forwarder_expectations.append(
                 (f"RISCVVCmp{op}{suffix}", f"ScalarCmp{op}{suffix}(a, b)")
@@ -915,17 +916,12 @@ def main() -> int:
             )
 
     for suffix in ("I64x2",):
-        for op in ("Add", "Sub", "And", "Or", "Xor"):
-            riscvv_scalar_forwarder_expectations.append(
-                (f"RISCVV{op}{suffix}", f"Scalar{op}{suffix}(a, b)")
-            )
         for op in ("Eq", "Lt", "Gt", "Le", "Ge", "Ne"):
             riscvv_scalar_forwarder_expectations.append(
                 (f"RISCVVCmp{op}{suffix}", f"ScalarCmp{op}{suffix}(a, b)")
             )
-        riscvv_scalar_forwarder_expectations.append(("RISCVVNotI64x2", "ScalarNotI64x2(a)"))
 
-    for suffix in ("I32x4", "I32x8", "I32x16", "U32x8"):
+    for suffix in ("I32x8", "I32x16", "U32x8"):
         riscvv_scalar_forwarder_expectations.extend(
             [
                 (f"RISCVVAndNot{suffix}", f"ScalarAndNot{suffix}(a, b)"),
@@ -962,7 +958,7 @@ def main() -> int:
             (f"RISCVVAndNot{suffix}", f"ScalarAndNot{suffix}(a, b)")
         )
 
-    for suffix in ("I32x4", "I32x8", "I32x16"):
+    for suffix in ("I32x8", "I32x16"):
         riscvv_scalar_forwarder_expectations.extend(
             [
                 (f"RISCVVMin{suffix}", f"ScalarMin{suffix}(a, b)"),
@@ -1291,6 +1287,25 @@ def main() -> int:
         (riscvv_facade_source, "RISCVVCrossF32x3"),
         (riscvv_facade_source, "RISCVVNormalizeF32x4"),
         (riscvv_facade_source, "RISCVVNormalizeF32x3"),
+        (riscvv_facade_source, "RISCVVAddI32x4"),
+        (riscvv_facade_source, "RISCVVSubI32x4"),
+        (riscvv_facade_source, "RISCVVMulI32x4"),
+        (riscvv_facade_source, "RISCVVAndI32x4"),
+        (riscvv_facade_source, "RISCVVOrI32x4"),
+        (riscvv_facade_source, "RISCVVXorI32x4"),
+        (riscvv_facade_source, "RISCVVNotI32x4"),
+        (riscvv_facade_source, "RISCVVAndNotI32x4"),
+        (riscvv_facade_source, "RISCVVShiftLeftI32x4"),
+        (riscvv_facade_source, "RISCVVShiftRightI32x4"),
+        (riscvv_facade_source, "RISCVVShiftRightArithI32x4"),
+        (riscvv_facade_source, "RISCVVMinI32x4"),
+        (riscvv_facade_source, "RISCVVMaxI32x4"),
+        (riscvv_facade_source, "RISCVVAddI64x2"),
+        (riscvv_facade_source, "RISCVVSubI64x2"),
+        (riscvv_facade_source, "RISCVVAndI64x2"),
+        (riscvv_facade_source, "RISCVVOrI64x2"),
+        (riscvv_facade_source, "RISCVVXorI64x2"),
+        (riscvv_facade_source, "RISCVVNotI64x2"),
     ]
 
     for source, routine_name in absent_routine_expectations:

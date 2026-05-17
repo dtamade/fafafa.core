@@ -8735,3 +8735,32 @@
 - 所以对 `RISCVV NormalizeF32x4 / NormalizeF32x3`，当前更准确的状态已经变成：
   - asm/runtime path：仍是真实 contract，需要另外看 family-level parity
   - no-asm facade path：已经是 dead source，而且 dead body 本身带 drift，应该移除
+
+## 2026-05-18 RISCVV Narrow Integer Review Must Split Conditional Dead Facades From Live Compare Wrappers
+
+- `RISCVV` 的 128-bit 窄整数这次继续下钻后，最重要的新结论不是“`I32x4/I64x2` 可以整体一起处理”，而是必须再拆一层：
+  - `I32x4` 的 `Add/Sub/Mul/And/Or/Xor/Not/AndNot/ShiftLeft/ShiftRight/ShiftRightArith/Min/Max`
+  - `I64x2` 的 `Add/Sub/And/Or/Xor/Not`
+  - 这 19 个名字已经是 `asm-gated dead facade`
+  - 但 `CmpEq/Lt/Gt/Le/Ge/NeI32x4` 与 `CmpEq/Lt/Gt/Le/Ge/NeI64x2` 仍是 live unconditional scalar-forward slot
+- 关键证据非常直接：
+  - `register.inc`
+    - 前者都只在 `{$IFDEF RISCVV_ASSEMBLY}` 条件块里绑定
+    - compare 则仍是 unconditional 绑定
+  - `riscvv.pas`
+    - 条件整数 core slot 的 asm wrapper / helper / opcode body 仍完整存在
+  - `riscvv.facade.inc`
+    - 之前仍保留这 19 个 `Result := Scalar...` 的 no-asm body
+  - fresh 全仓引用图
+    - 除了 asm source、register source 与新护栏，没有新的 live consumer
+- 这条 finding 的价值，是把一个很容易继续拖慢审查的误区钉死：
+  - “既然 compare 还 live，那同 family 的 arithmetic/bitwise 也先别动”
+  - 这是错误的
+  - 正确判断顺序仍然是：
+    - 先看 register 是否 asm-gated
+    - 再看 facade 是否仍有 live consumer
+    - 只有 live slot 才继续讨论语义边界
+- 也就是说，后续继续深审 `RISCVV` 时，不能再用“都是 `I32x4/I64x2`”这种过粗标签来决定去留。
+- 更准确的口径现在是：
+  - conditional arithmetic/bitwise/shift/minmax：dead facade，应该删
+  - unconditional compare：live scalar-forward wrapper，先留

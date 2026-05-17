@@ -20,45 +20,6 @@
 // =============================================================
 
 // =============================================================
-// I32x4 Operations (128-bit, 4x Int32)
-// =============================================================
-
-function RISCVVAddI32x4(const a, b: TVecI32x4): TVecI32x4;
-begin
-  Result := ScalarAddI32x4(a, b);
-end;
-
-function RISCVVSubI32x4(const a, b: TVecI32x4): TVecI32x4;
-begin
-  Result := ScalarSubI32x4(a, b);
-end;
-
-function RISCVVMulI32x4(const a, b: TVecI32x4): TVecI32x4;
-begin
-  Result := ScalarMulI32x4(a, b);
-end;
-
-function RISCVVAndI32x4(const a, b: TVecI32x4): TVecI32x4;
-begin
-  Result := ScalarAndI32x4(a, b);
-end;
-
-function RISCVVOrI32x4(const a, b: TVecI32x4): TVecI32x4;
-begin
-  Result := ScalarOrI32x4(a, b);
-end;
-
-function RISCVVXorI32x4(const a, b: TVecI32x4): TVecI32x4;
-begin
-  Result := ScalarXorI32x4(a, b);
-end;
-
-function RISCVVNotI32x4(const a: TVecI32x4): TVecI32x4;
-begin
-  Result := ScalarNotI32x4(a);
-end;
-
-// =============================================================
 // Common Implementations (both assembly and scalar paths)
 // =============================================================
 
@@ -132,74 +93,6 @@ end;
 function RISCVVCmpNeI32x4(const a, b: TVecI32x4): TMask4;
 begin
   Result := ScalarCmpNeI32x4(a, b);
-end;
-
-// =============================================================
-// I32x4 Extended Operations
-// =============================================================
-
-function RISCVVAndNotI32x4(const a, b: TVecI32x4): TVecI32x4;
-begin
-  Result := ScalarAndNotI32x4(a, b);
-end;
-
-function RISCVVShiftLeftI32x4(const a: TVecI32x4; count: Integer): TVecI32x4;
-begin
-  Result := ScalarShiftLeftI32x4(a, count);
-end;
-
-function RISCVVShiftRightI32x4(const a: TVecI32x4; count: Integer): TVecI32x4;
-begin
-  Result := ScalarShiftRightI32x4(a, count);
-end;
-
-function RISCVVShiftRightArithI32x4(const a: TVecI32x4; count: Integer): TVecI32x4;
-begin
-  Result := ScalarShiftRightArithI32x4(a, count);
-end;
-
-function RISCVVMinI32x4(const a, b: TVecI32x4): TVecI32x4;
-begin
-  Result := ScalarMinI32x4(a, b);
-end;
-
-function RISCVVMaxI32x4(const a, b: TVecI32x4): TVecI32x4;
-begin
-  Result := ScalarMaxI32x4(a, b);
-end;
-
-// =============================================================
-// I64x2 Operations (128-bit, 2x Int64)
-// =============================================================
-
-function RISCVVAddI64x2(const a, b: TVecI64x2): TVecI64x2;
-begin
-  Result := ScalarAddI64x2(a, b);
-end;
-
-function RISCVVSubI64x2(const a, b: TVecI64x2): TVecI64x2;
-begin
-  Result := ScalarSubI64x2(a, b);
-end;
-
-function RISCVVAndI64x2(const a, b: TVecI64x2): TVecI64x2;
-begin
-  Result := ScalarAndI64x2(a, b);
-end;
-
-function RISCVVOrI64x2(const a, b: TVecI64x2): TVecI64x2;
-begin
-  Result := ScalarOrI64x2(a, b);
-end;
-
-function RISCVVXorI64x2(const a, b: TVecI64x2): TVecI64x2;
-begin
-  Result := ScalarXorI64x2(a, b);
-end;
-
-function RISCVVNotI64x2(const a: TVecI64x2): TVecI64x2;
-begin
-  Result := ScalarNotI64x2(a);
 end;
 
 // =============================================================
