@@ -59,7 +59,24 @@ exit /b 0
 :build
 echo [BUILD] Project: %PROJECT_FILE% (output_root=%OUTPUT_ROOT%)
 > "%BUILD_LOG%" echo.
-call "%LAZBUILD_EXE%" --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%LIB_DIR%" "%PROJECT_FILE%" >> "%BUILD_LOG%" 2>&1
+set "LAZBUILD_EXT=%LAZBUILD_EXE:~-4%"
+if /I "%LAZBUILD_EXT%"==".bat" (
+  if exist "%LAZBUILD_EXE%" (
+    call "%LAZBUILD_EXE%" --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%LIB_DIR%" "%PROJECT_FILE%" >> "%BUILD_LOG%" 2>&1
+  ) else (
+    call %LAZBUILD_EXE% --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%LIB_DIR%" "%PROJECT_FILE%" >> "%BUILD_LOG%" 2>&1
+  )
+) else if /I "%LAZBUILD_EXT%"==".cmd" (
+  if exist "%LAZBUILD_EXE%" (
+    call "%LAZBUILD_EXE%" --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%LIB_DIR%" "%PROJECT_FILE%" >> "%BUILD_LOG%" 2>&1
+  ) else (
+    call %LAZBUILD_EXE% --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%LIB_DIR%" "%PROJECT_FILE%" >> "%BUILD_LOG%" 2>&1
+  )
+) else if exist "%LAZBUILD_EXE%" (
+  "%LAZBUILD_EXE%" --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%LIB_DIR%" "%PROJECT_FILE%" >> "%BUILD_LOG%" 2>&1
+) else (
+  %LAZBUILD_EXE% --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%LIB_DIR%" "%PROJECT_FILE%" >> "%BUILD_LOG%" 2>&1
+)
 if errorlevel 1 (
   echo [BUILD] FAILED ^(see %BUILD_LOG%^)
   exit /b 1

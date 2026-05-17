@@ -9166,3 +9166,48 @@
   - `freeze-status` 现在不再把 pre-runner-fix 的 Windows 失败日志误当成当前实现真相
   - repo 内 Windows evidence truth 解释又收正了一层
   - 当前 remaining gap 继续只剩外部 Windows billing/runner 恢复后刷新 fresh evidence，而不是继续围着这份历史失败日志打转
+
+## 2026-05-17 Refreshed Current Wine Batch Evidence After The LAZBUILD Invocation Fix
+
+- 在上一批把 stale historical evidence 边界收清后，我没有停在“解释更准确了”，而是又直接重跑了一次真实本机 Windows batch evidence：
+  - `wine cmd /c tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify`
+- 这次 fresh evidence 有两个关键结果：
+  - canonical `tests/fafafa.core.simd/logs/windows_b07_gate.log` 已被刷新到新的 mtime
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 里：
+    - `windows_evidence_freshness = PASS`
+    - `windows_evidence_inputs_not_newer_than_log = PASS`
+  - 说明“旧 log 落后于当前 runner”的 stale 问题，在当前 `HEAD` 上已经不再命中
+- 这轮同时还补了一条真实 batch runner 修法：
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+  - `tests/fafafa.core.simd.intrinsics.sse/buildOrTest.bat`
+  - `tests/fafafa.core.simd.intrinsics.mmx/buildOrTest.bat`
+  - `tests/fafafa.core.simd.cpuinfo.x86/buildOrTest.bat`
+  - 现在对 `LAZBUILD_EXE` 分成 3 类：
+    - `.bat/.cmd` wrapper：继续用 `call`
+    - 存在的可执行路径：直接执行
+    - bare command：直接执行
+  - 目的：
+    - 不再把 bare `lazbuild` 拼成 `'"lazbuild"'`
+    - 同时不回退 `LAZBUILD` 指向 batch wrapper 的兼容能力
+- 已验证：
+  - `git diff --check`
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity`
+    - `[CHECK] OK (windows runner parity signatures present)`
+    - `[CHECK] OK (cpuinfo runner parity signatures present)`
+    - `[CHECK] OK (runner parity quick path)`
+  - 真实 Wine batch：
+    - `wine cmd /c tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify`
+    - 新鲜 `windows_b07_gate.log` 里的失败已经从旧的 `'"lazbuild"'` 变成：
+      - `Can't recognize 'lazbuild --build-mode=Release ...'`
+  - 真实 `freeze-status`：
+    - `windows_evidence_inputs_not_newer_than_log = PASS`
+    - `windows_evidence_verify` 继续 FAIL，但当前根因已经更新为 fresh Wine batch 当前失败，而不是 stale historical evidence
+    - `windows_closeout_summary` 重新回到 `summary matches verifier FAIL`
+- 当前阶段结论：
+  - repo-local 的 batch quoting / `call` 误导已经被继续压缩
+  - 当前最新 Windows log 终于重新代表“现行 runner 下的真实失败”
+  - 但这份 fresh failure 也同时证明：本机 Wine 仍不能把 Linux 侧 bare `lazbuild` 直接当成 Windows batch 可执行命令
+  - 因而当前 remaining gap 再次收敛成：
+    - 外部 GitHub Billing / Windows runner 可用性
+    - 或一个真正稳定的 Wine-to-Unix lazbuild bridge
+  - 在没有后者稳定通路前，继续深挖 Wine 适配层的收益已经明显低于直接拿真实 Windows runner

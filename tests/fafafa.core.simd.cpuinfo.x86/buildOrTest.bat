@@ -68,7 +68,24 @@ set "LAZARUS_MODE=%MODE%"
 if /I "%LAZARUS_MODE%"=="Release" set "LAZARUS_MODE=Default"
 echo [BUILD] Project: %PROJ% (mode=%MODE%, lazarus-mode=%LAZARUS_MODE%)
 echo. > "%BUILD_LOG%"
-call "%LAZBUILD_EXE%" --build-mode=%LAZARUS_MODE% --build-all "%PROJ%" > "%BUILD_LOG%" 2>&1
+set "LAZBUILD_EXT=%LAZBUILD_EXE:~-4%"
+if /I "%LAZBUILD_EXT%"==".bat" (
+  if exist "%LAZBUILD_EXE%" (
+    call "%LAZBUILD_EXE%" --build-mode=%LAZARUS_MODE% --build-all "%PROJ%" > "%BUILD_LOG%" 2>&1
+  ) else (
+    call %LAZBUILD_EXE% --build-mode=%LAZARUS_MODE% --build-all "%PROJ%" > "%BUILD_LOG%" 2>&1
+  )
+) else if /I "%LAZBUILD_EXT%"==".cmd" (
+  if exist "%LAZBUILD_EXE%" (
+    call "%LAZBUILD_EXE%" --build-mode=%LAZARUS_MODE% --build-all "%PROJ%" > "%BUILD_LOG%" 2>&1
+  ) else (
+    call %LAZBUILD_EXE% --build-mode=%LAZARUS_MODE% --build-all "%PROJ%" > "%BUILD_LOG%" 2>&1
+  )
+) else if exist "%LAZBUILD_EXE%" (
+  "%LAZBUILD_EXE%" --build-mode=%LAZARUS_MODE% --build-all "%PROJ%" > "%BUILD_LOG%" 2>&1
+) else (
+  %LAZBUILD_EXE% --build-mode=%LAZARUS_MODE% --build-all "%PROJ%" > "%BUILD_LOG%" 2>&1
+)
 set "BUILD_RC=%ERRORLEVEL%"
 if not "%BUILD_RC%"=="0" (
   call :build_log_has_compile_summary

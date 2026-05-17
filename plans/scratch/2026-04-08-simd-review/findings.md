@@ -7247,3 +7247,20 @@
 - 这样收口后，`freeze-status` 对当前仓库的 Windows 链解释会更接近真实因果：
   - 外部 blocker 仍然是 billing / runner
   - 但仓库里那份旧 Windows 失败日志，也不再被误当成“当前 runner 下仍复现的失败”
+
+## 2026-05-17 Current Wine Batch Evidence Refresh Proved The Runner-Quoting Fix But Exposed The Remaining Wine Bridge Limit
+
+- 在把 stale historical evidence 规则补上后，我没有停在“旧 log 不再误导”这个层面，而是又重新跑了一次真实本机 Wine batch：
+  - `wine cmd /c tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify`
+- 这次得到的结论很关键：
+  - canonical `windows_b07_gate.log` 的确被 fresh 刷新到了当前 runner 版本
+  - 所以前一条关于 stale historical evidence 的判断，在当前 `HEAD` 上已经不再命中
+  - 同时，Windows 失败边界也从旧的 `'"lazbuild"'` / `call` 误导，推进成了更真实的：
+    - `Can't recognize 'lazbuild --build-mode=Release ...'`
+- 这说明两件事：
+  - repo-local batch quoting / call 形态里的一个真实 bug 已经被收掉
+  - 但本机 Wine 仍不能把 Linux 侧的 bare `lazbuild` 当成 Windows batch 可执行命令
+- 所以当前剩余问题的性质也更清楚了：
+  - 它已经不是“旧历史日志污染 freeze-status”
+  - 也不再是“batch runner 还把命令拼错”
+  - 而是“本机 Wine bridge 仍不足以替代真实 Windows runner / GH runner”

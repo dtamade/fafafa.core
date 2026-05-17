@@ -9,8 +9,8 @@
   - `python3 tests/fafafa.core.simd/check_interface_implementation_completeness.py --strict` 为绿，`P0/P1/P2=0`
   - `2026-05-17 10:47:10` 的 canonical gate 已把 `linux_gate_required_steps_mainline` 与 `linux_qemu_cpuinfo_nonx86_evidence` 刷成 PASS；`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-linux` 已是 `ready=True` / `mainline-ready=True`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 当前仍红，但直接红项已经收敛成 `cross_gate_required_steps: evidence-verify=SKIP`、`windows_evidence_verify`，以及 `win-evidence-preflight=RECENT_BILLING_BLOCK`
-  - `windows_b07_gate.log` 当前虽然 still pass 了 age / source freshness，但 `freeze-status` 已进一步证明它落后于新的 `tests/fafafa.core.simd/buildOrTest.bat`，所以现在应视为 stale historical evidence，而不是可直接代表当前实现的 fresh failure log
-  - `windows_b07_closeout_summary.md` 也同样跟着这份旧 Windows log 一起变成 stale historical summary，不再应被当成当前 closeout truth
+  - 本机 Wine batch 现已重新刷新 `windows_b07_gate.log`；因此当前这份 log 不再是 stale historical evidence，而是现行 runner 下的 fresh local capture
+  - 当前最新 `windows_evidence_verify` 失败边界已经从旧的 quoting/call 误导，推进成更真实的 `wine/cmd` 无法解析 bare `lazbuild` 命令；`windows_b07_closeout_summary.md` 现在继续是对应这份 current FAIL log 的 honest summary
   - 其中真正的外部 blocker 仍只在 Windows evidence；Linux 这边只需保留 gate summary backup/fallback，防止未来 routine gate 再把 closeout truth 覆盖掉
 - 如果你当前既没有 Windows 实机，也没有可用 GitHub Actions Billing/额度，就把模块状态记成：
   - `code-green / release-evidence-blocked`
@@ -23,6 +23,7 @@
   - `freeze-status` 现在会把这份 preflight 报告直接展示成 `windows_preflight_latest`，并把 next-actions 收敛到 billing / 手工 Windows runner 路径
   - 若 live GitHub 查询只是瞬时 `WORKFLOW_QUERY_FAILED`，但 latest 仍有 fresh `RECENT_BILLING_BLOCK`，那么 stdout 会继续按 `RECENT_BILLING_BLOCK EXIT=31` 对外表态；瞬时 query noise 会单独写到 `logs/win_preflight_latest.diagnostic.{json,md}`
   - 若 `buildOrTest.bat` / `collect_windows_b07_evidence.bat` 新于 `windows_b07_gate.log`，`freeze-status` 现在会把这份 Windows log 与 closeout summary 明确降格成 stale historical evidence，提示先重跑 `evidence-win-verify`
+  - 但在当前 `HEAD` 上，这条 stale rule 已不再命中：latest Wine batch 已把 canonical `windows_b07_gate.log` 刷新到当前 runner 版本；现在真正残余的是 Wine 自身不能直接执行 fallback `lazbuild`
 
 补一条当前判断规则：
 
