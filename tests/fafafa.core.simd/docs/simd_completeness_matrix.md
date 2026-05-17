@@ -136,6 +136,7 @@
 - 已新增 Windows 证据批量收口能力：
   - `buildOrTest.bat verify-win-evidence`（日志校验）
   - `buildOrTest.bat evidence-win-verify`（采集 + 校验证据包；仅限真实 Windows runner / Windows 实机，且需要 native Windows `LAZBUILD`；手工路径仍需后续 fail-close cross gate + finalize）
+  - 若显式试 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1`，也只限 `cmd.exe` 真能解析 `bash` 的环境；当前本机 Wine 不属于这种环境，不要把它当成 host-side Unix bridge 逃生口。
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-YYYYMMDD-152`（推荐的一键 GH 闭环）
   - Runbook：`tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`
 

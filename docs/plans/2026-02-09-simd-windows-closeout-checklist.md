@@ -63,6 +63,7 @@
 
 - `tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify`
 - 前提：本机必须能直接执行 native Windows `lazbuild.exe`（或 `.bat/.cmd` wrapper），不要拿 Wine/cmd 冒充实机。
+- 若显式试 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1`，也只限 `cmd.exe` 真能解析 `bash` 的环境；当前本机 Wine 不属于这种环境，不要把它当成 host-side Unix bridge 逃生口。
 
 2) Git Bash / WSL 回灌 fail-close cross gate（必需）
 

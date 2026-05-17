@@ -333,6 +333,7 @@
 - [x] Windows 证据校验入口已就绪：`tests/fafafa.core.simd/buildOrTest.bat verify-win-evidence`
 - [x] Windows 一键收口入口已就绪：`tests/fafafa.core.simd/buildOrTest.bat evidence-win-verify`
   - 说明：该入口当前只应在真实 Windows runner / Windows 实机上使用，且 `LAZBUILD` 必须解析到 native Windows `.exe/.bat/.cmd`
+  - 若显式试 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1`，也只限 `cmd.exe` 真能解析 `bash` 的环境；当前本机 Wine 不属于这种环境，不要把它当成 host-side Unix bridge 逃生口。
 - [x] Windows wiring-sync 入口已就绪：`tests/fafafa.core.simd/buildOrTest.bat wiring-sync`
 - [x] Windows gate 摘要查看入口已就绪：`tests/fafafa.core.simd/buildOrTest.bat gate-summary`
 - [x] experimental asm 失败归因报告入口已就绪：

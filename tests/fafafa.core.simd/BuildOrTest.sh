@@ -2000,6 +2000,8 @@ check_windows_manual_closeout_guard() {
     '2) Git Bash / WSL 回灌 fail-close cross gate（必需）'
     "FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate"
     'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1'
+    'SIMD_WIN_EVIDENCE_USE_BASH_GATE=1'
+    '当前本机 Wine 不属于这种环境，不要把它当成 host-side Unix bridge 逃生口。'
     '不能从 `evidence-win-verify` 直接跳到 `win-closeout-finalize`'
   )
   LCloseoutRoadmapRequired=(
@@ -2033,6 +2035,8 @@ check_windows_manual_closeout_guard() {
     'native Windows `.exe/.bat/.cmd`'
     "FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate"
     'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1'
+    'SIMD_WIN_EVIDENCE_USE_BASH_GATE=1'
+    '当前本机 Wine 不属于这种环境，不要把它当成 host-side Unix bridge 逃生口。'
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status'
     'Windows 实机证据日志曾归档（历史批次）'
     '历史结果：旧批次曾达到 `cross-ready=True`'
@@ -2040,6 +2044,8 @@ check_windows_manual_closeout_guard() {
   LCompletenessMatrixRequired=(
     '`closeout-release` 已作为完整 release 收口入口固化到 runner 与主文档。'
     '采集 + 校验证据包；仅限真实 Windows runner / Windows 实机，且需要 native Windows `LAZBUILD`；手工路径仍需后续 fail-close cross gate + finalize'
+    'SIMD_WIN_EVIDENCE_USE_BASH_GATE=1'
+    '当前本机 Wine 不属于这种环境，不要把它当成 host-side Unix bridge 逃生口。'
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-YYYYMMDD-152'
     'Windows 实机证据曾归档（历史批次；脚本+校验器+日志）'
     '历史 Windows 归档批次（非当前 HEAD ready 信号）'
@@ -2053,6 +2059,8 @@ check_windows_manual_closeout_guard() {
     '真正的 Windows 收口主线应优先使用 `win-evidence-via-gh`。'
     '若走手工 Windows 实机路径，则必须先跑 `' "FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate" '`，再执行 `win-closeout-finalize`。'
     'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1'
+    'SIMD_WIN_EVIDENCE_USE_BASH_GATE=1'
+    '当前本机 Wine 不属于这种环境，不要把它当成 host-side Unix bridge 逃生口。'
   )
 
   for LPattern in "${L3CmdRequired[@]}"; do

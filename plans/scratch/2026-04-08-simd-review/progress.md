@@ -9738,3 +9738,26 @@
     - `LCloseoutDocRequired` / `LHandoffRequired`
     - 以及 `check_windows_closeout_helper_runtime_guard()` 的 helper runtime pattern
     - 全部已把这句 caveat 纳入必检
+
+## 2026-05-17 Checklist/Matrix Closeout Caveat Sync
+
+- completion audit 再继续收 operator-facing closeout docs 时，确认还有一层 residual：
+  - `tests/fafafa.core.simd/docs/simd_release_candidate_checklist.md`
+  - `tests/fafafa.core.simd/docs/simd_completeness_matrix.md`
+  - `docs/fafafa.core.simd.checklist.md`
+  - `docs/plans/2026-02-09-simd-windows-closeout-checklist.md`
+  仍然在强调“真实 Windows runner / native `LAZBUILD`”，但还没把
+  `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` 的当前适用边界显式写死。
+- 这会留下一个更细的文档 split：
+  - runbook / helper / handoff 已经说清楚本机 Wine 不是 bash-gate escape hatch
+  - checklist / matrix / historical closeout template 却还可能让后续会话把这条 opt-in 误读成可继续尝试的候选路径
+- 已落地的最小修法：
+  - 上述 4 份文档都已补入相同 caveat：
+    - 只有 `cmd.exe` 真能解析 `bash` 的环境，才允许显式试 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1`
+    - 当前本机 Wine 不属于这种环境，不要把它当成 host-side Unix bridge 逃生口
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - `LCloseoutChecklistRequired`
+    - `LReleaseChecklistRequired`
+    - `LCompletenessMatrixRequired`
+    - `LTopChecklistRequired`
+    - 已同步把这句 caveat 纳入 `closeout-guard` 必检

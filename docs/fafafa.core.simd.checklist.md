@@ -29,6 +29,7 @@
   - 当前真实 `next-actions` 已收紧为：
     - 先处理 `RECENT_BILLING_BLOCK`
     - 提供 real Windows runner / native Windows `lazbuild.exe`
+    - 若显式试 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1`，也只限 `cmd.exe` 真能解析 `bash` 的环境；当前本机 Wine 不属于这种环境，不要把它当成 host-side Unix bridge 逃生口。
     - 再继续 `win-evidence-preflight` / `win-closeout-3cmd`
 
 补一条当前判断规则：

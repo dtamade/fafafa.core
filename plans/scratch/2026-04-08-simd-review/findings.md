@@ -7372,3 +7372,17 @@
 - 这类残差的风险不在脚本执行，而在交接语义：
   - closeout operator 看 active docs 时，会比 helper/runbook 少一层边界提醒
   - 下一轮审查就容易重新把“试试 bash gate opt-in”当成合理方向
+
+## 2026-05-17 Checklist/Matrix Docs Still Lagged The Bash-Gate Boundary
+
+- 在 active closeout/handoff 收平后，release candidate checklist、completeness matrix、top checklist 和 historical Windows closeout checklist 仍然只说到了：
+  - 真实 Windows runner
+  - native Windows `LAZBUILD`
+  - 不要拿 Wine/cmd 冒充实机
+- 但它们还没有把更精确的当前边界写死：
+  - `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` 只适用于 `cmd.exe` 真能解析 `bash` 的环境
+  - 当前本机 Wine 不属于这种环境，不要把它当成 host-side Unix bridge 逃生口
+- 这类残差的风险仍然是 operator truth split，而不是代码行为：
+  - runbook / helper / handoff 已经知道 bash-gate opt-in 的真实边界
+  - checklist / matrix 仍可能把它表述成“也许还能继续尝试的旁路”
+- 因而这批 residual 适合做最小的 docs + guard 收口，而不是继续重新打开实现审查。
