@@ -10914,3 +10914,39 @@
 - 当前阶段结论：
   - `SSE2` 这条线在 `storeh/storel` 邻近区继续证明，剩余 residual 里仍可能混着真实行为洞
   - 当前下一簇入口已经推进到 `3940`，后续可以继续沿 conversion/set tail 邻近簇推进
+
+## 2026-05-18 SSE2 Saturated Arithmetic To Scalar Compare Hygiene
+
+- 接着 `3638..3884` 收口后的下一簇，本轮复核了 `3940..4986`，没有直接把它当成“纯文字债务”，而是逐点检查是否还藏着吞指令或吞 label。
+- 本批覆盖的内容主要有：
+  - `adds/subs/mulhi/madd/avg/sad` 这一组整数饱和/规约 helper
+  - `min/max/add/sub/mul/div/sqrt/and/or` 这一组 packed/scalar double helper
+  - `cmpord/cmpunord` packed double compare
+  - scalar double compare helper 与 `comi/ucomi` 整数返回 helper
+- fresh 复核结论：
+  - 这一整簇没有新的 Windows-only 吞指令
+  - 也没有新的 `@label:` 被吞进尾注
+  - 问题全部收敛为 section header 和 Windows x64 单行尾注里的损坏文本
+  - 因而本批可以判定为 hygiene-only
+- 本批实际改动：
+  - 把损坏的中文尾注和分节头替换成稳定 ASCII 注释
+  - 不改任何执行体
+  - 不改寄存器协议、返回约定或比较语义
+- fresh 验证已完成：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_comment_swallow.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `rg -o "�" src/fafafa.core.simd.intrinsics.x86.sse2.pas | wc -l`
+  - `rg -n "�" src/fafafa.core.simd.intrinsics.x86.sse2.pas | sed -n '1,25p'`
+- fresh 结果：
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - `intrinsics.experimental check` default / experimental 双模态通过
+  - `x86 SSE2 backend smoke` 通过
+  - 主 `simd` release `check` 通过
+  - `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 的 replacement-char residual 从 `86` 降到 `41`
+  - `first_residual_lines=[5003, 5025, 5047, 5070, 5149, 5227, 5228, 5337, 5481, 5503, 5525, 5547, 5728, 5750, 5772, 5788, 5804, 5820, 5881, 5959, 5962, 5979, 5997, 6003, 6004]`
+- 当前阶段结论：
+  - `3940..4986` 这一整簇已经可以判定为 hygiene-only，整体退出 residual 清单
+  - 当前下一簇入口已经推进到 `5003`
+  - 其中 `6003/6004` 这种行尾混杂文本仍值得后续先按“可能藏行为问题”来复核，不应提前默认成纯 hygiene

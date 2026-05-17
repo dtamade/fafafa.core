@@ -8098,3 +8098,20 @@
 - 结论：
   - 当前 `SSE2` 剩余 residual 仍不能默认当成纯 hygiene
   - 但已经可以继续按“小簇 + 先判真 bug + checker 护栏 + 双 check 复验”的节奏稳定推进
+
+## 2026-05-18 SSE2 3940..4986 Confirmed Hygiene-Only
+
+- `3940..4986` 这簇在上一批 `storeh/storel` 真 bug 之后，看上去仍然值得警惕，但 fresh 逐点复核后没有再发现新的吞指令或吞 label。
+- 这批 residual 的真实性质是：
+  - Windows x64 单行 asm 尾注损坏
+  - section header 损坏
+  - scalar/packed double compare 说明文字损坏
+  - 不是新的执行路径缺口
+- 因而最优修法不是继续扩 checker，也不是重写 asm 体，而是最小化 ASCII 注释收口：
+  - 只替换损坏文字
+  - 不动任何指令
+  - 不改变比较别名或由 `cmpnle/cmpnlt` 实现 `gt/ge` 的现有语义
+- 这批完成后，`intrinsics.x86.sse2` 的 replacement-char residual 已从 `86` 降到 `41`，第一条 residual 前移到 `5003`。
+- 下一段里最值得优先警惕的不是 `5003/5025/5047` 这类 pack 注释本身，而是更后面的 `6003/6004`：
+  - 这两行当前已经出现“注释和代码黏在一行里”的视觉形态
+  - 后续继续推进时应先按潜在 comment-swallow 风险逐点核，再决定是否只是 hygiene
