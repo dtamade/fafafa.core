@@ -174,6 +174,7 @@ type
     procedure Test_RISCVV_KeyOwnedWideSlots_Stay_BackendOwned;
     procedure Test_RISCVV_ClampF64x2_Keeps_AsmConditional_RuntimeBinding_And_LocalNoAsmWitness;
     procedure Test_RISCVV_ExactF64x2Slots_Keep_AsmConditional_SourceTruth_And_RuntimeBinding;
+    procedure Test_RISCVV_LocalExtremaF64x2_Keep_AsmConditional_RuntimeBinding_And_LocalNoAsmWitness;
     procedure Test_RISCVV_RegisterSource_Deduplicates_WideRoundingAssignments_And_Keeps_F64x2_Exception;
     procedure Test_AllRegisteredBackends_Wide512IntegerSlots_Assigned;
     procedure Test_AVX512_U32x16_U64x8_MappingAndParity;
@@ -9270,6 +9271,132 @@ begin
     'procedure RISCVVFmaF64x2Asm(const a, b, c: TVecF64x2; var r: TVecF64x2);',
     'vfmacc.vv v2, v0, v1',
     Pointer(LScalarTable.FmaF64x2), Pointer(LRISCVVTable.FmaF64x2));
+end;
+
+procedure TTestCase_DispatchAPI.Test_RISCVV_LocalExtremaF64x2_Keep_AsmConditional_RuntimeBinding_And_LocalNoAsmWitness;
+var
+  LScalarTable: TSimdDispatchTable;
+  LRISCVVTable: TSimdDispatchTable;
+  LSourceLines: TStringList;
+  LRegisterSourcePath: string;
+  LFacadeSourcePath: string;
+  LAsmSourcePath: string;
+  LRegisterSource: string;
+  LFacadeSource: string;
+  LAsmSource: string;
+
+  function CountOccurrences(const aHaystack, aNeedle: string): Integer;
+  var
+    LRest: string;
+    LPos: SizeInt;
+  begin
+    Result := 0;
+    LRest := aHaystack;
+    LPos := Pos(aNeedle, LRest);
+    while LPos > 0 do
+    begin
+      Inc(Result);
+      Delete(LRest, 1, LPos + Length(aNeedle) - 1);
+      LPos := Pos(aNeedle, LRest);
+    end;
+  end;
+
+  procedure AssertRegisterHasAsmOwnedSlot(const aLabel, aSnippet: string);
+  var
+    LNeedle: string;
+  begin
+    LNeedle := LowerCase(aSnippet);
+    AssertEquals('RegisterRISCVVBackend should keep exactly one ' + aLabel + ' source assignment site',
+      1, CountOccurrences(LRegisterSource, LNeedle));
+    AssertTrue('RegisterRISCVVBackend should keep a dedicated asm-gated ' + aLabel + ' source assignment',
+      Pos(LNeedle, LRegisterSource) > 0);
+  end;
+
+  procedure AssertAsmConditionalLocalExtremaF64x2Slot(
+    const aLabel, aScalarForwardSnippet, aFunctionSnippet, aLoopSnippet, aCompareSnippet,
+      aAsmWrapperSnippet, aAsmHelperSnippet, aAsmOpSnippet: string;
+    const aScalarSlot, aBackendSlot: Pointer);
+  begin
+    AssertTrue('no-asm RISCVV facade should keep a local body instead of scalar forwarding for ' + aLabel,
+      Pos(LowerCase(aScalarForwardSnippet), LFacadeSource) = 0);
+    AssertTrue('no-asm RISCVV facade should still define ' + aLabel + ' locally',
+      Pos(LowerCase(aFunctionSnippet), LFacadeSource) > 0);
+    AssertTrue('no-asm RISCVV facade should keep an explicit lane loop for ' + aLabel,
+      Pos(LowerCase(aLoopSnippet), LFacadeSource) > 0);
+    AssertTrue('no-asm RISCVV facade should keep the local compare branch for ' + aLabel,
+      Pos(LowerCase(aCompareSnippet), LFacadeSource) > 0);
+    AssertTrue('RVV asm source should keep dedicated wrapper call for ' + aLabel,
+      Pos(LowerCase(aAsmWrapperSnippet), LAsmSource) > 0);
+    AssertTrue('RVV asm source should keep dedicated helper signature for ' + aLabel,
+      Pos(LowerCase(aAsmHelperSnippet), LAsmSource) > 0);
+    AssertTrue('RVV asm source should keep a dedicated vector op body for ' + aLabel,
+      Pos(LowerCase(aAsmOpSnippet), LAsmSource) > 0);
+    AssertTrue('RISCVV ' + aLabel + ' should stay assigned in the backend dispatch table',
+      aBackendSlot <> nil);
+    {$IFDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
+    AssertTrue('RISCVV ' + aLabel + ' should keep a backend-owned runtime slot when RVV asm is compiled',
+      PtrUInt(aScalarSlot) <> PtrUInt(aBackendSlot));
+    {$ELSE}
+    AssertEquals('RISCVV ' + aLabel + ' should reuse the base scalar runtime slot when RVV asm is not compiled on this host',
+      PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
+    {$ENDIF}
+  end;
+begin
+  LSourceLines := TStringList.Create;
+  try
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.register.inc');
+    AssertTrue('RISCVV register source should exist for local extrema F64x2 witness audit: ' + LRegisterSourcePath,
+      FileExists(LRegisterSourcePath));
+    LSourceLines.LoadFromFile(LRegisterSourcePath);
+    LRegisterSource := LowerCase(LSourceLines.Text);
+
+    LFacadeSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.facade.inc');
+    AssertTrue('RISCVV facade source should exist for local extrema F64x2 witness audit: ' + LFacadeSourcePath,
+      FileExists(LFacadeSourcePath));
+    LSourceLines.LoadFromFile(LFacadeSourcePath);
+    LFacadeSource := LowerCase(LSourceLines.Text);
+
+    LAsmSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.pas');
+    AssertTrue('RISCVV unit source should exist for local extrema F64x2 witness audit: ' + LAsmSourcePath,
+      FileExists(LAsmSourcePath));
+    LSourceLines.LoadFromFile(LAsmSourcePath);
+    LAsmSource := LowerCase(LSourceLines.Text);
+  finally
+    LSourceLines.Free;
+  end;
+
+  AssertRegisterHasAsmOwnedSlot('MinF64x2', 'table.MinF64x2 := @RISCVVMinF64x2;');
+  AssertRegisterHasAsmOwnedSlot('MaxF64x2', 'table.MaxF64x2 := @RISCVVMaxF64x2;');
+
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+  AssertTrue('RISCVV opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
+    Exit;
+  {$ENDIF}
+
+  AssertAsmConditionalLocalExtremaF64x2Slot('MinF64x2',
+    'Result := ScalarMinF64x2(a, b);',
+    'function RISCVVMinF64x2(const a, b: TVecF64x2): TVecF64x2;',
+    'for i := 0 to 1 do',
+    'if a.d[i] < b.d[i] then',
+    'RISCVVMinF64x2Asm(a, b, Result);',
+    'procedure RISCVVMinF64x2Asm(const a, b: TVecF64x2; var r: TVecF64x2);',
+    'vfmin.vv v0, v0, v1',
+    Pointer(LScalarTable.MinF64x2), Pointer(LRISCVVTable.MinF64x2));
+  AssertAsmConditionalLocalExtremaF64x2Slot('MaxF64x2',
+    'Result := ScalarMaxF64x2(a, b);',
+    'function RISCVVMaxF64x2(const a, b: TVecF64x2): TVecF64x2;',
+    'for i := 0 to 1 do',
+    'if a.d[i] > b.d[i] then',
+    'RISCVVMaxF64x2Asm(a, b, Result);',
+    'procedure RISCVVMaxF64x2Asm(const a, b: TVecF64x2; var r: TVecF64x2);',
+    'vfmax.vv v0, v0, v1',
+    Pointer(LScalarTable.MaxF64x2), Pointer(LRISCVVTable.MaxF64x2));
 end;
 
 procedure TTestCase_DispatchAPI.Test_RISCVV_KeyOwnedWideSlots_Stay_BackendOwned;

@@ -8270,3 +8270,30 @@
 - 这条 finding 的价值在于把 `RISCVV F64x2` 审查继续细分成两类：
   - `Abs/Sqrt/Fma` 属于 “asm 条件绑定 + no-asm exact scalar facade + runtime 条件复用” 型
   - `Min/Max/Clamp` 则仍可能保留本地语义面，不能套用同一套 collapse 结论
+
+## 2026-05-18 RISCVV Local Extrema F64x2 Needed Their Own Conditional Local-Loop Witness
+
+- `MinF64x2`、`MaxF64x2` 暴露的不是实现 bug，而是如果继续沿用上一批 `Abs/Sqrt/Fma` 的口径，会把它们错误简化：
+  - 这两个槽同样有 asm 条件绑定
+  - 但 no-asm facade 不是 scalar forward，而是 local loop
+  - 因而它们属于另一类 conditional slot
+- fresh 对位源码后，这两个槽的真实边界应拆成三层：
+  - source truth：
+    - `src/fafafa.core.simd.riscvv.register.inc` 仍保留
+      - `table.MinF64x2 := @RISCVVMinF64x2;`
+      - `table.MaxF64x2 := @RISCVVMaxF64x2;`
+    - 两者都在 `{$IFDEF RISCVV_ASSEMBLY}` 内，不是无条件 runtime 合同
+  - no-asm facade truth：
+    - `src/fafafa.core.simd.riscvv.facade.inc` 中两者都保留本地 compare loop
+    - 它们不是 `ScalarMinF64x2/ScalarMaxF64x2` 的单行 forward
+  - current host runtime truth：
+    - 在当前 x86 release host 上，这两个 slot 不应被描述成“当前 runtime 仍 backend-owned”
+    - 只有在 RVV asm 真编进时，它们才应离开 scalar slot
+- 这条 finding 的价值在于把 `RISCVV F64x2 extrema` 和前面两类 residual 再分开：
+  - `Abs/Sqrt/Fma` 是 “exact scalar facade” 型
+  - `Min/Max` 是 “conditional local-loop facade” 型
+  - `Clamp` 则是 “conditional local-fallback with explicit NaN/-0 surface” 型
+- 因而当前对 `MinF64x2/MaxF64x2` 最准确的口径应是：
+  - “asm path 仍保留 source-side dedicated binding”
+  - “no-asm facade 仍保留 local compare loop”
+  - “当前非-RVV host runtime 不承诺 backend-owned slot”

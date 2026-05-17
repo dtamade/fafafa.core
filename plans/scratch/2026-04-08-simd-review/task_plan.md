@@ -4844,3 +4844,17 @@
 | 1. 复核这 3 个槽当前到底缺哪层证据 | completed | 已确认 `src/fafafa.core.simd.riscvv.register.inc` 对 `AbsF64x2/SqrtF64x2/FmaF64x2` 都是 `{$IFDEF RISCVV_ASSEMBLY}` 条件绑定；`src/fafafa.core.simd.riscvv.facade.inc` 的 no-asm body 都是精确 `Scalar...` forward；`src/fafafa.core.simd.riscvv.pas` 仍保留各自 `Asm` helper 与 wrapper；现有 coverage 虽有 generic helper semantics 和 runtime parity，但缺 dedicated source/runtime split witness |
 | 2. 补 `DispatchAPI` witness 与 `key-slot audit` 显式覆盖 | completed | `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_RISCVV_ExactF64x2Slots_Keep_AsmConditional_SourceTruth_And_RuntimeBinding`；`tests/fafafa.core.simd/check_nonx86_key_slot_audit.py` 新增 `RISCVV_CONDITIONAL_EXACT_F64X2_KEY_SLOTS` 并要求该测试提供显式 truth-source |
 | 3. 串行 Release 复验并确认 stop-point | completed | `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`、`python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend riscvv --summary-line`、Release `TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`、Release `impl-audit-nonx86`、Release `check` 全部通过；说明这批补的是合同护栏，不是新的实现改写 |
+
+## 2026-05-18 RISCVV Local Extrema F64x2 Conditional Witness Sync
+
+### Goal
+
+继续沿 `RISCVV F64x2` 条件槽位深审，但不把 `MinF64x2/MaxF64x2` 错归到上一批 `Abs/Sqrt/Fma` 模式；把这两个“asm 条件绑定 + no-asm local loop + runtime slot 依编译条件切换”的真实合同补成 dedicated witness，并把 local-loop source truth 收进 `helper semantics` 与 `key-slot audit`。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `MinF64x2/MaxF64x2` 到底属于哪一类 residual | completed | 已确认 `src/fafafa.core.simd.riscvv.register.inc` 对 `MinF64x2/MaxF64x2` 也是 `{$IFDEF RISCVV_ASSEMBLY}` 条件绑定，但 `src/fafafa.core.simd.riscvv.facade.inc` 的 no-asm body 不是 scalar forward，而是本地 lane loop；`src/fafafa.core.simd.riscvv.pas` 仍保留 `vfmin/vfmax` helper 与 wrapper，因此它们不该套用 `Abs/Sqrt/Fma` 的“exact scalar facade”口径 |
+| 2. 补 `DispatchAPI` witness，并把 local loop 收进 `helper semantics` / `key-slot audit` | completed | `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_RISCVV_LocalExtremaF64x2_Keep_AsmConditional_RuntimeBinding_And_LocalNoAsmWitness`；`tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 新增 `RISCVVMinF64x2/RISCVVMaxF64x2` local loop 片段检查；`tests/fafafa.core.simd/check_nonx86_key_slot_audit.py` 新增 `RISCVV_CONDITIONAL_LOCAL_EXTREMA_F64X2_KEY_SLOTS` 并要求 dedicated truth-source |
+| 3. 串行 Release 复验并确认 stop-point | completed | `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`、`python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`、`python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend riscvv --summary-line`、Release `TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`、Release `impl-audit-nonx86`、Release `check` 全部通过；说明这批收的是 conditional/local-loop 合同护栏，而不是实现改写 |

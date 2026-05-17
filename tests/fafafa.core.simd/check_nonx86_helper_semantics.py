@@ -530,6 +530,18 @@ def main() -> int:
         (riscvv_facade_source, "RISCVVMaxU8x16", [
             "Result := ScalarMaxU8x16(a, b);",
         ]),
+        (riscvv_facade_source, "RISCVVMinF64x2", [
+            "for i := 0 to 1 do",
+            "if a.d[i] < b.d[i] then",
+            "Result.d[i] := a.d[i]",
+            "Result.d[i] := b.d[i];",
+        ]),
+        (riscvv_facade_source, "RISCVVMaxF64x2", [
+            "for i := 0 to 1 do",
+            "if a.d[i] > b.d[i] then",
+            "Result.d[i] := a.d[i]",
+            "Result.d[i] := b.d[i];",
+        ]),
         (direct_source, "TTestCase_DirectDispatch.Test_DirectDispatchTable_MultiBackend_SignedWideCompareMaskMatrix_Parity", [
             "ScalarCmpEqI32x8",
             "ScalarCmpLtI64x4",
