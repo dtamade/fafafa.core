@@ -10043,3 +10043,48 @@
 - 当前阶段结论：
   - 这批把 `sse42/avx/avx512/fma3` 从“只有 compile smoke”补成了有代表性 lane/placeholder 合同测试
   - 后续再动这些 experimental units 时，不会再因为没有行为护栏而静默漂移
+
+## 2026-05-17 AES/SHA Experimental Contract Truth-Sync
+
+- 继续按“小批次只收一个误判点”推进，这次专门核 `aes/sha` 是否缺 `x86-only runtime fail-close`。
+- fresh current-state audit 先确认：
+  - `src/fafafa.core.simd.intrinsics.aes/sha.pas` 当前都只有 experimental opt-in guard，没有 `only qualified on x86/x86_64`
+  - `docs/plans/2026-05-09-simd-family-matrix.md`
+  - `docs/plans/2026-05-09-simd-experimental-hold-future-trigger-plan.md`
+  - `docs/SIMD_INTRINSICS_DISPOSITION.md`
+    都把 `AES/SHA` 写成 hold family，且只锁 `default-reject + placeholder semantics`
+  - 对照组 `sse3/sse41/sse42/avx/avx512/fma3` 才是明确的 `x86-only runtime fail-close`
+- 结论不是“实现漏了 fail-close”，而是：
+  - `AES/SHA` 当前合同本来就和上面那批不同
+  - 它们目前有意保持 `cross-host opt-in` placeholder semantics，不把 non-x86 runtime reject 写成现合同
+  - 真正的问题是 active truth source 的措辞不够显式，容易在后续审查里被误判成缺口
+- 已落地的真相同步：
+  - `src/fafafa.core.simd.intrinsics.aes.pas`
+  - `src/fafafa.core.simd.intrinsics.sha.pas`
+    - 注释明确写出 `placeholder semantics remain opt-in across hosts`
+    - 明确说明当前不追加 `x86-only runtime fail-close`
+  - `tests/fafafa.core.simd/check_intrinsics_experimental_status.py`
+    - 新增 `DEFAULT_OPT_IN_ACROSS_HOSTS_TOKENS`
+    - 把 `AES/SHA` 的 `cross-host opt-in` 合同也纳入静态 checker
+  - `docs/SIMD_INTRINSICS_DISPOSITION.md`
+    - 把 `AES/SHA` role 改成 `x86 ...-themed placeholder leaf`
+    - 明确当前合同不是 `x86-only runtime fail-close`
+  - `docs/plans/2026-05-09-simd-family-matrix.md`
+  - `docs/plans/2026-05-09-simd-experimental-hold-future-trigger-plan.md`
+    - 同步写死 `cross-host opt-in` 基线，避免 future reopen 讨论时又把它误当成漏项
+- fresh 验证已完成：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_intrinsics_experimental_status.py`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_experimental_status.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `missing_cross_host_opt_in=0`
+  - `INTRINSICS_EXPERIMENTAL_SUMMARY ... missing_* = 0`
+  - `SSE2_STRUCTURE_SUMMARY ... failure_count=0 status=ok`
+  - `intrinsics.experimental` 双模态 `check` 全绿
+  - 主 `Release check` 全绿
+- 当前阶段结论：
+  - 这批修掉的是 `AES/SHA` experimental 合同的真相歧义，不是 runtime 行为缺陷
+  - 之后再审 `AES/SHA` 时，checker 和 active docs 都会明确告诉我们：当前合同是 `cross-host opt-in placeholder`，不是“漏了 x86 fail-close”

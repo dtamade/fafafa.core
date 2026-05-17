@@ -7548,3 +7548,20 @@
 - 正确动作不是去动实现，而是先把当前 experimental contract 写进 tests：
   - 这些单元目前仍是 `experimental isolated`
   - 先把“当前就是这么工作的”钉住，后续若要收紧/替换实现，再让测试跟着有意识迁移
+
+## 2026-05-17 AES/SHA Contract Was Easy To Misread As Missing X86 Fail-Close
+
+- `src/fafafa.core.simd.intrinsics.aes/sha.pas` 当前只有 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS` guard，没有 `x86-only runtime fail-close`。
+- 但这不自动等于“实现遗漏”：
+  - `docs/plans/2026-05-09-simd-family-matrix.md`
+  - `docs/plans/2026-05-09-simd-experimental-hold-future-trigger-plan.md`
+  - `docs/SIMD_INTRINSICS_DISPOSITION.md`
+    的 policy 都把 `AES/SHA` 写成只锁 `default-reject + placeholder semantics` 的 hold family。
+- 因而这里的真实问题不是 runtime 行为缺口，而是 truth-source 歧义：
+  - `AES/SHA` 被写成 `x86 AES/SHA leaf`，但没有明确说明“当前合同仍允许 cross-host opt-in placeholder semantics”
+  - 这很容易让下一轮审查把它误报成“和 `sse3/sse42/avx/fma3` 一样漏了 x86 fail-close”
+- 正确修法不是盲目补 `x86-only runtime fail-close`，而是把当前合同显式固定下来：
+  - 源码注释显式写出 `remain opt-in across hosts`
+  - `check_intrinsics_experimental_status.py` 也把这条合同纳入静态检查
+  - active docs 明确声明：`AES/SHA` 当前不是 `x86-only runtime fail-close` contract
+- 这样后续如果有人真想把 `AES/SHA` 改成 host-qualified family，就会变成一次显式 policy 变更，而不是在误判下偷偷改实现。

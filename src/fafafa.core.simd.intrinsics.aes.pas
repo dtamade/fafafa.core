@@ -13,6 +13,8 @@ uses
   - This unit intentionally does NOT provide hardware-accurate AES-NI semantics.
   - By default, public APIs raise ENotSupportedException to avoid silent misuse.
   - Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt-in placeholder behavior.
+  - Even with FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS defined, placeholder semantics remain opt-in across hosts.
+  - This unit intentionally does not add the x86-only runtime fail-close used by other hold x86 families.
 }
 
 // AES round operations

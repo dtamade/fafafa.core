@@ -53,6 +53,10 @@ X86_ONLY_RUNTIME_FAIL_CLOSE_FILES = [
     "src/fafafa.core.simd.intrinsics.fma3.pas",
 ]
 REQUIRED_X86_ONLY_RUNTIME_FAIL_CLOSE_TOKEN = "only qualified on x86/x86_64"
+DEFAULT_OPT_IN_ACROSS_HOSTS_TOKENS = {
+    "src/fafafa.core.simd.intrinsics.aes.pas": "remain opt-in across hosts",
+    "src/fafafa.core.simd.intrinsics.sha.pas": "remain opt-in across hosts",
+}
 HOLD_RUNTIME_FAIL_CLOSE_TOKENS = {
     "src/fafafa.core.simd.intrinsics.sve.pas": "only qualified on aarch64 targets whose cpuinfo reports sve",
     "src/fafafa.core.simd.intrinsics.sve2.pas": "only qualified on aarch64 targets whose cpuinfo reports sve2",
@@ -149,6 +153,7 @@ def _render_summary_line(a_result: dict[str, Any]) -> str:
         f"missing_guard_markers={a_result['missing_guard_markers']} "
         f"default_define_leaks={a_result['default_define_leaks']} "
         f"missing_x86_runtime_fail_close={a_result['missing_x86_runtime_fail_close']} "
+        f"missing_cross_host_opt_in={a_result['missing_cross_host_opt_in']} "
         f"missing_hold_runtime_fail_close={a_result['missing_hold_runtime_fail_close']} "
         f"missing_qualification_runtime_fail_close={a_result['missing_qualification_runtime_fail_close']}"
     )
@@ -163,6 +168,7 @@ def _print_human_result(a_result: dict[str, Any]) -> None:
     print(f"  - missing guard markers:      {a_result['missing_guard_markers']}")
     print(f"  - default-define leaks:       {a_result['default_define_leaks']}")
     print(f"  - missing x86 fail-close:     {a_result['missing_x86_runtime_fail_close']}")
+    print(f"  - missing cross-host opt-in:  {a_result['missing_cross_host_opt_in']}")
     print(f"  - missing hold fail-close:    {a_result['missing_hold_runtime_fail_close']}")
     print(f"  - missing qualification fail-close: {a_result['missing_qualification_runtime_fail_close']}")
 
@@ -187,6 +193,11 @@ def _print_human_result(a_result: dict[str, Any]) -> None:
         for l_file in a_result["missing_x86_runtime_fail_close_files"]:
             print(f"  - {l_file}")
 
+    if a_result["missing_cross_host_opt_in_files"]:
+        print("[EXPERIMENTAL] Missing cross-host opt-in contract marker in:")
+        for l_file in a_result["missing_cross_host_opt_in_files"]:
+            print(f"  - {l_file}")
+
     if a_result["missing_hold_runtime_fail_close_files"]:
         print("[EXPERIMENTAL] Missing hold-family runtime fail-close marker in:")
         for l_file in a_result["missing_hold_runtime_fail_close_files"]:
@@ -202,6 +213,7 @@ def _print_human_result(a_result: dict[str, Any]) -> None:
         and (not a_result["missing_guard_files"])
         and (not a_result["default_define_files"])
         and (not a_result["missing_x86_runtime_fail_close_files"])
+        and (not a_result["missing_cross_host_opt_in_files"])
         and (not a_result["missing_hold_runtime_fail_close_files"])
         and (not a_result["missing_qualification_runtime_fail_close_files"])
     ):
@@ -240,6 +252,10 @@ def main() -> int:
         a_files=X86_ONLY_RUNTIME_FAIL_CLOSE_FILES,
         a_token=REQUIRED_X86_ONLY_RUNTIME_FAIL_CLOSE_TOKEN,
     )
+    l_missing_cross_host_opt_in_files = _scan_required_runtime_fail_close_tokens(
+        a_repo_root=l_repo_root,
+        a_file_tokens=DEFAULT_OPT_IN_ACROSS_HOSTS_TOKENS,
+    )
     l_missing_hold_runtime_fail_close_files = _scan_required_runtime_fail_close_tokens(
         a_repo_root=l_repo_root,
         a_file_tokens=HOLD_RUNTIME_FAIL_CLOSE_TOKENS,
@@ -255,6 +271,7 @@ def main() -> int:
             and (len(l_missing_guard_files) == 0)
             and (len(l_default_define_files) == 0)
             and (len(l_missing_x86_runtime_fail_close_files) == 0)
+            and (len(l_missing_cross_host_opt_in_files) == 0)
             and (len(l_missing_hold_runtime_fail_close_files) == 0)
             and (len(l_missing_qualification_runtime_fail_close_files) == 0)
         ),
@@ -265,6 +282,7 @@ def main() -> int:
         "missing_guard_markers": len(l_missing_guard_files),
         "default_define_leaks": len(l_default_define_files),
         "missing_x86_runtime_fail_close": len(l_missing_x86_runtime_fail_close_files),
+        "missing_cross_host_opt_in": len(l_missing_cross_host_opt_in_files),
         "missing_hold_runtime_fail_close": len(l_missing_hold_runtime_fail_close_files),
         "missing_qualification_runtime_fail_close": len(l_missing_qualification_runtime_fail_close_files),
         "entry_file_list": l_entry_files,
@@ -273,6 +291,7 @@ def main() -> int:
         "missing_guard_files": l_missing_guard_files,
         "default_define_files": l_default_define_files,
         "missing_x86_runtime_fail_close_files": l_missing_x86_runtime_fail_close_files,
+        "missing_cross_host_opt_in_files": l_missing_cross_host_opt_in_files,
         "missing_hold_runtime_fail_close_files": l_missing_hold_runtime_fail_close_files,
         "missing_qualification_runtime_fail_close_files": l_missing_qualification_runtime_fail_close_files,
     }

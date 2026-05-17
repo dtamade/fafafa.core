@@ -18,8 +18,8 @@
 | `fafafa.core.simd.intrinsics.mmx` | `active leaf` | 低层 MMX leaf | 有独立测试 lane |
 | `fafafa.core.simd.intrinsics.sse` | `active leaf` | 低层 SSE leaf | 有独立测试 lane |
 | `fafafa.core.simd.intrinsics.avx2` | `active leaf` | 低层 AVX2 leaf | 当前保留的 active exception；有专门 coverage/test lane |
-| `fafafa.core.simd.intrinsics.aes` | `experimental isolated` | x86 AES leaf | 默认入口隔离，仍需 opt-in；当前 experimental tests 锁住 default-reject + placeholder semantics |
-| `fafafa.core.simd.intrinsics.sha` | `experimental isolated` | x86 SHA leaf | 默认入口隔离，仍需 opt-in；当前 experimental tests 锁住 default-reject + placeholder semantics |
+| `fafafa.core.simd.intrinsics.aes` | `experimental isolated` | x86 AES-themed placeholder leaf | 默认入口隔离，仍需 opt-in；当前 contract 只锁 default-reject + placeholder semantics，并明确保持 cross-host opt-in，不把 non-x86 runtime fail-close 写成现合同 |
+| `fafafa.core.simd.intrinsics.sha` | `experimental isolated` | x86 SHA-themed placeholder leaf | 默认入口隔离，仍需 opt-in；当前 contract 只锁 default-reject + placeholder semantics，并明确保持 cross-host opt-in，不把 non-x86 runtime fail-close 写成现合同 |
 | `fafafa.core.simd.intrinsics.avx` | `experimental isolated` | x86 AVX leaf | 默认入口隔离，仍需 opt-in；无当前 in-repo bridge consumer；non-x86 分支只保留 compile scaffolding，runtime fail-close |
 | `fafafa.core.simd.intrinsics.sse2` | `transitional` | SSE2 compatibility / wrapper layer | experimental opt-in only；non-x86 分支只保留 compile scaffolding，runtime fail-close；迁移完成后进入 retire path |
 | `fafafa.core.simd.intrinsics.x86.sse2` | `experimental isolated` | SSE2 raw x86 leaf target | 未来只接收纯 `TM128` raw primitive；当前仍受 experimental guard 保护 |
@@ -57,7 +57,7 @@
 - `fafafa.core.simd.intrinsics.sse2` 的 non-x86 分支也不是 experimental runtime 合同；它只保留编译脚手架。
 - `fafafa.core.simd.intrinsics.avx` 继续是 hold family；当前也没有任何仓库内 bridge consumer 可以把它误当成活跃依赖。
 - `fafafa.core.simd.intrinsics.sse3/sse41/sse42/avx512/fma3` 也都是 x86-only experimental lane；non-x86 运行期同样不是 contract。
-- `fafafa.core.simd.intrinsics.aes/sha` 和上面这批不同：当前有实验测试明确锁住 default-reject + placeholder semantics，但这仍然不是 stable leaf contract。
+- `fafafa.core.simd.intrinsics.aes/sha` 和上面这批不同：当前有实验测试明确锁住 default-reject + placeholder semantics，而且当前合同明确保持 cross-host opt-in；这仍然不是 stable leaf contract，也不是 x86-only runtime fail-close contract。
 - `fafafa.core.simd.intrinsics.neon/rvv` 也不是“任何主机开了 experimental 宏都能跑”的 contract；当前只允许 `cpuinfo` 已确认对应 ISA 的目标主机进入 runtime placeholder semantics。
 - `fafafa.core.simd.intrinsics.sve.base` 不是新的 executable intrinsics family；它只是 `sve/sve2` 共用的占位类型载体。
 - `fafafa.core.simd.intrinsics.sve/sve2` 当前也不是“任何 `AArch64` experimental host 都能跑”的 contract；`sve` 只在 `cpuinfo` 报告 `SVE` 时放行，`sve2` 只在 `cpuinfo` 报告 `SVE2` 时放行。
