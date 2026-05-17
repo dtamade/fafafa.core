@@ -283,6 +283,15 @@ def gate_run_label(assessment: GateRunAssessment) -> str:
     )
 
 
+def gate_run_fallback_label(assessment: GateRunAssessment) -> str:
+    parts_lower = {part.lower() for part in assessment.candidate.summary_path.parts}
+    if "windows-closeout" in parts_lower:
+        return "selected fallback closeout gate snapshot"
+    if "backups" in parts_lower:
+        return "selected fallback backup gate snapshot"
+    return "selected fallback gate snapshot"
+
+
 def has_cross_omission_only(
     run_rows: List[Dict[str, str]], cross_only_steps: List[str]
 ) -> bool:
@@ -911,7 +920,7 @@ def main() -> int:
         selection_suffix = ""
         if used_gate_fallback:
             selection_suffix = (
-                "; selected fallback gate snapshot "
+                f"; {gate_run_fallback_label(selected_gate_run)} "
                 f"{gate_run_label(selected_gate_run)} because latest snapshot "
                 f"{gate_run_label(latest_gate_run)} only covers mainline-required steps"
             )
