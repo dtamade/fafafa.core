@@ -11853,3 +11853,43 @@
   - `RISCVV DotF64x2 / DotF64x4` 这批收掉的是真实 no-asm facade 冗余，不是 fresh runtime bug
   - direct registered-table parity 已证明当前 contract 不需要保留那两份 no-asm 本地公式
   - 但 `register truth / key-slot ownership` 仍保持 `RISCVV` backend-owned 口径；这批不触碰 slot ownership，只收紧 no-asm 真源
+
+## 2026-05-18 RISCVV DotF64 Backend-Owned Scalar Truth Alignment
+
+- 在 `DotF64` no-asm facade 收口之后，又继续顺着 source-truth / audit truth 往下看，发现还有最后一层口径没有彻底对齐：
+  - `src/fafafa.core.simd.riscvv.pas`
+    - `RISCVVDotF64x2 / RISCVVDotF64x4` 的 asm/common 影子定义之前仍保留本地公式
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 之前只钉住了 `riscvv.facade.inc` 的 scalar-forward truth
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 还没把 `RISCVV_DOT_KEY_SLOTS` 纳入“backend-owned 但 scalar-forward wrapper 合法”的 allowlist
+- 这批不是 fresh runtime 修 bug，而是把同一组 slot 的三个观察面收成同一个真相：
+  - asm/common source
+  - no-asm facade source
+  - key-slot audit ownership 解释
+- 因而这批的源码/护栏收口成立：
+  - `src/fafafa.core.simd.riscvv.pas`
+    - 把 `RISCVVDotF64x2 / RISCVVDotF64x4` 的 asm/common body 收成：
+      - `Result := ScalarDotF64x2(a, b);`
+      - `Result := ScalarDotF64x4(a, b);`
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 新增对 `riscvv.pas` 里这两格的 scalar-forward expectation
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 把原来的 `Test_RISCVV_FacadeDotF64_NoAsmSource_ScalarForwards`
+    - 收紧成 `Test_RISCVV_DotF64_SourceScalarForwards_While_Keeping_BackendOwnership`
+    - 同时检查 `riscvv.pas` 和 `riscvv.facade.inc` 两边都 forward 到 `ScalarDotF64x2 / ScalarDotF64x4`
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 把 `RISCVV_DOT_KEY_SLOTS` 纳入 `ALLOWED_BACKEND_OWNED_SCALAR_WRAPPER_SLOTS_BY_BACKEND["riscvv"]`
+- 本批串行 release 验证已经 fresh 跑通：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=692 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=136 issues=0 status=ok`
+  - Release `check` 通过
+- 当前阶段结论：
+  - `RISCVVDotF64x2 / DotF64x4` 现在在 asm/common、no-asm facade、combined audit 三个视角下都已统一成 `scalar_forwarder`
+  - 这批收掉的是 truth-source / audit 口径残余，不是 fresh runtime bug
+  - `backend-owned slot identity` 仍然保留；收掉的是重复公式，不是 backend ownership

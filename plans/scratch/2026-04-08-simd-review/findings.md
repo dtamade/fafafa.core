@@ -8586,3 +8586,24 @@
 - 当前更准确的 stop-point 是：
   - `DotF64x2 / DotF64x4` 的 no-asm 冗余已经收掉
   - 它们是否仍属于 `RISCVV` key-slot/backend-owned family，这个答案依然是“是”
+
+## 2026-05-18 RISCVV DotF64 Scalar Truth Had One More Residual: Asm/Common Shadow Definitions And Key-Slot Audit Weren't Fully Aligned
+
+- `DotF64x2 / DotF64x4` 在 facade no-asm 收口后，还残留一个容易被忽略的半对齐状态：
+  - `riscvv.facade.inc` 已经是 scalar-forwarder
+  - 但 `riscvv.pas` 的 asm/common 影子定义还保留本地公式
+  - `key-slot audit` 也还没把 `RISCVV_DOT_KEY_SLOTS` 视为“backend-owned 但 scalar-forward wrapper 合法”
+- 这会导致三个观察面之间的口径不够一致：
+  - source 读 `riscvv.pas` 会以为这两格还有独立公式 truth
+  - source 读 `riscvv.facade.inc` 会看到 scalar truth
+  - audit 读 ownership 时又会把 scalar-forward backend-owned dot slot 当成例外外的对象
+- 当前这批 fresh 收口后的更准确口径应是：
+  - `riscvv.pas`：`RISCVVDotF64x2 / RISCVVDotF64x4` 也是 `ScalarDotF64x2 / ScalarDotF64x4` forward
+  - `riscvv.facade.inc`：继续保持同样的 scalar forward
+  - `helper semantics / dispatchapi / key-slot audit`：都明确承认“这两格可以 scalar-forward，同时仍保持 backend-owned slot identity”
+- 这条 finding 的关键价值是把最后一个混淆点也拆开：
+  - “source 是否还保留一份本地公式”
+  - “slot 是否仍归 `RISCVV` backend-owned 管”
+  - 现在这两件事的答案已经分别固定为：
+    - 前者：否，源码双观察面都已收成 scalar truth
+    - 后者：是，register/key-slot 身份仍保持 `RISCVV`

@@ -5186,16 +5186,12 @@ end;
 
 function RISCVVDotF64x2(const a, b: TVecF64x2): Double;
 begin
-  Result := a.d[0] * b.d[0] + a.d[1] * b.d[1];
+  Result := ScalarDotF64x2(a, b);
 end;
 
 function RISCVVDotF64x4(const a, b: TVecF64x4): Double;
-var
-  LIndex: Integer;
 begin
-  Result := 0.0;
-  for LIndex := 0 to 3 do
-    Result := Result + a.d[LIndex] * b.d[LIndex];
+  Result := ScalarDotF64x4(a, b);
 end;
 
 procedure RISCVVCrossF32x3Asm(const a, b: TVecF32x4; var r: TVecF32x4); assembler; nostackframe;

@@ -166,7 +166,7 @@ type
     procedure Test_NEON_NoAsmIntegerFallbackSlots_Reuse_BaseScalar_When_Wrappers_Are_Not_BackendOwned;
     procedure Test_NEON_SelectF32x4_AsmEnabledSource_Does_Not_ScalarForward;
     procedure Test_NEON_AndNotSlots_Keep_AsmOwnedCompositions_And_RuntimeOwnership;
-    procedure Test_RISCVV_FacadeDotF64_NoAsmSource_ScalarForwards;
+    procedure Test_RISCVV_DotF64_SourceScalarForwards_While_Keeping_BackendOwnership;
     procedure Test_RISCVV_FacadeSlots_Reuse_BaseScalar_When_Wrappers_Are_ScalarPassThrough;
     procedure Test_RISCVV_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_RISCVV_ExtractSlots_Keep_NoAsmCompanionWrappers_And_RuntimeOwnership;
@@ -8582,14 +8582,22 @@ begin
   {$ENDIF}
 end;
 
-procedure TTestCase_DispatchAPI.Test_RISCVV_FacadeDotF64_NoAsmSource_ScalarForwards;
+procedure TTestCase_DispatchAPI.Test_RISCVV_DotF64_SourceScalarForwards_While_Keeping_BackendOwnership;
 var
   LSourceLines: TStringList;
+  LUnitSourcePath: string;
   LFacadeSourcePath: string;
+  LUnitSource: string;
   LFacadeSource: string;
 begin
   LSourceLines := TStringList.Create;
   try
+    LUnitSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.pas');
+    AssertTrue('RISCVV unit source should exist for implementation-shape audit: ' + LUnitSourcePath,
+      FileExists(LUnitSourcePath));
+    LSourceLines.LoadFromFile(LUnitSourcePath);
+    LUnitSource := LowerCase(LSourceLines.Text);
+
     LFacadeSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.facade.inc');
     AssertTrue('RISCVV facade source should exist for implementation-shape audit: ' + LFacadeSourcePath,
       FileExists(LFacadeSourcePath));
@@ -8599,6 +8607,10 @@ begin
     LSourceLines.Free;
   end;
 
+  AssertTrue('RISCVV asm/common DotF64x2 source should forward directly to ScalarDotF64x2 after direct parity proof',
+    Pos('result := scalardotf64x2(a, b);', LUnitSource) > 0);
+  AssertTrue('RISCVV asm/common DotF64x4 source should forward directly to ScalarDotF64x4 after direct parity proof',
+    Pos('result := scalardotf64x4(a, b);', LUnitSource) > 0);
   AssertTrue('no-asm RISCVVDotF64x2 should forward directly to ScalarDotF64x2 after direct parity proof',
     Pos('result := scalardotf64x2(a, b);', LFacadeSource) > 0);
   AssertTrue('no-asm RISCVVDotF64x4 should forward directly to ScalarDotF64x4 after direct parity proof',

@@ -488,6 +488,12 @@ def main() -> int:
             "LIndex := 1;",
             "Result := RISCVVExtractI64x2Asm(a, LIndex);",
         ]),
+        (riscvv_source, "RISCVVDotF64x2", [
+            "Result := ScalarDotF64x2(a, b);",
+        ]),
+        (riscvv_source, "RISCVVDotF64x4", [
+            "Result := ScalarDotF64x4(a, b);",
+        ]),
         (riscvv_facade_source, "RISCVVShiftLeftU32x8", [
             "Result := ScalarShiftLeftU32x8(a, count);",
         ]),
