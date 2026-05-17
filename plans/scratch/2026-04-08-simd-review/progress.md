@@ -10869,3 +10869,48 @@
 - 当前阶段结论：
   - `3298..3631` 这一整簇已经可以判定为 hygiene-only，整体退出 residual 清单
   - `SSE2` 当前下一簇入口已经推进到 `3638`，接下来可直接审 `storel/maskmove` 邻近残点
+
+## 2026-05-18 SSE2 StoreH StoreL Recovery And Tail Cleanup
+
+- 接着 `3298..3631` 收口后的下一簇，本轮先复核 `3638..3884`，结果在 `storeh/storel` 邻近区重新抓到了真实被注释吞掉的存储指令。
+- 本批确认并处理的内容分成两类：
+  - hygiene-only：
+    - `simd_storel_epi64` x86 32-bit 尾注
+    - `simd_loadr_pd`
+    - `simd_storer_pd`
+    - `simd_loadh_pd`
+    - `simd_loadl_pd`
+    - `simd_load_sd`
+    - `simd_store_sd`
+    - `Set helpers` 分节注释
+    - 这些点都只是 ABI / lane 说明或尾注损坏
+  - real bug recovery：
+    - `simd_storeh_pd` Windows x64：
+      - `movhpd [rcx], xmm0` 原来被吞进 `movapd` 行尾注
+    - `simd_storeh_pd` Linux/macOS x64：
+      - `movhpd [rdi], xmm0` 原来被吞进 `movapd` 行尾注
+    - `simd_storel_pd` Windows x64：
+      - `movlpd [rcx], xmm0` 原来被吞进 `movapd` 行尾注
+    - `simd_storel_pd` Linux/macOS x64：
+      - `movlpd [rdi], xmm0` 原来被吞进 `movapd` 行尾注
+    - 这四处都已恢复成独立存储指令
+- 本批同时补强了护栏：
+  - `tests/fafafa.core.simd/check_intrinsics_comment_swallow.py`
+  - `ASM_INSTRUCTION_PATTERN` 新增 `movhpd|movlpd`
+  - 这样后续同类“`movapd ... // ... movhpd`”或“`movapd ... // ... movlpd`”会直接被 checker fail-close 抓出
+- fresh 验证已完成：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_comment_swallow.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `python3` 逐文件计数：
+    - `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 从 `residual_char_count=146` 降到 `86`
+    - `first_residual_lines=[3940, 3946, 3968, 3990, 4012, 4034, 4056, 4078, 4100, 4122, 4144, 4161, 4167, 4189, 4211, 4233, 4277, 4299, 4321, 4343, 4365, 4387, 4410, 4432, 4493]`
+- fresh 结果：
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - `intrinsics.experimental check` default / experimental 双模态通过
+  - `x86 SSE2 backend smoke` 通过
+  - 主 `simd` release `check` 通过
+- 当前阶段结论：
+  - `SSE2` 这条线在 `storeh/storel` 邻近区继续证明，剩余 residual 里仍可能混着真实行为洞
+  - 当前下一簇入口已经推进到 `3940`，后续可以继续沿 conversion/set tail 邻近簇推进

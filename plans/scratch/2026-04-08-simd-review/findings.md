@@ -8071,3 +8071,30 @@
   - 前面几批抓到真 bug，不代表后面所有 residual 都是行为洞
   - 但也不能反过来假设后面全是文字问题
   - 继续逐簇判定，收益仍然最高
+
+## 2026-05-18 SSE2 StoreH StoreL Hid Real Swallowed Stores
+
+- `3638..3884` 这一簇继续证明 `SSE2 residual` 里还混着真实行为问题。
+- fresh 复核后确认：
+  - `simd_storeh_pd` 的 Windows x64 / Linux x64 分支
+  - `simd_storel_pd` 的 Windows x64 / Linux x64 分支
+  都把真正的 `movhpd` / `movlpd` 存储指令吞进了 `movapd` 行尾注。
+- 这意味着如果不修，这几条路径会出现非常具体的行为偏差：
+  - 只加载了源寄存器
+  - 但没有把高位/低位双精度真正写回到目标地址
+  - 所以这不是“注释不好看”，而是 live store path 缺指令
+- 这批再次印证了两个关键判断：
+  - Linux 本地常规 `check` / smoke 能帮我们做回归验证，但不会主动告诉我们“某行注释已经把另一条指令吞掉”
+  - 继续用源码逐簇审查 + checker fail-close 才能把这类 Windows/x64 和 System V 分支的 latent bug 真正挖出来
+- 因而这次同样必须同时做两件事：
+  - 修掉 `storeh/storel` 里当前 live 的吞指令问题
+  - 把 checker 扩到能识别 `movhpd/movlpd` 出现在注释尾部的同类模式
+- 收口后的 live 结果说明这是一批高价值修复：
+  - `residual_char_count: 146 -> 86`
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - `intrinsics.experimental` 双模态 `check` 通过
+  - 主 `Release check` 通过
+  - 下一批 residual 已前移到 `3940`
+- 结论：
+  - 当前 `SSE2` 剩余 residual 仍不能默认当成纯 hygiene
+  - 但已经可以继续按“小簇 + 先判真 bug + checker 护栏 + 双 check 复验”的节奏稳定推进

@@ -40,7 +40,7 @@ X86_BACKEND_TARGETS = {
 }
 ASM_INSTRUCTION_PATTERN = re.compile(
     r'\b(?:'
-    r'movdqa|movdqu|movapd|movupd|movaps|movups|movsd|movss|movq|movd|mov|'
+    r'movdqa|movdqu|movapd|movupd|movaps|movups|movsd|movss|movq|movd|movhpd|movlpd|mov|'
     r'push|pop|'
     r'pxor|xorpd|xorps|'
     r'punpcklbw|punpcklwd|punpckldq|punpcklqdq|punpckhwd|punpckhdq|punpckhqdq|'

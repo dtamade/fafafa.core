@@ -3635,8 +3635,8 @@ asm
     // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
-    movq xmm0, [edx] //  加载源数据的�?4�?
-    movq [eax], xmm0      // 存储�?4位到目标
+    movq xmm0, [edx] // Load the low 64 bits from the source value.
+    movq [eax], xmm0      // Store the low 64 bits to the destination.
 {$ELSE}
     {$ERROR Unsupported CPU}
 {$ENDIF}
@@ -3686,14 +3686,14 @@ asm
   {$IFDEF WINDOWS}
     // Windows x64: 第一个参数在 rcx
     movupd xmm0, [rcx]     // 加载两个双精度数
-    shufpd xmm0, xmm0, 1   // 交换高低�?(01b = 1)
+    shufpd xmm0, xmm0, 1   // Swap the low and high double lanes.
   {$ELSE}
     // Linux/macOS x64 System V ABI: 第一个参数在 rdi
     movupd xmm0, [rdi]     // 加载两个双精度数
-    shufpd xmm0, xmm0, 1   // 交换高低�?
+    shufpd xmm0, xmm0, 1   // Swap the low and high double lanes.
     {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: the pointer argument arrives on the stack.
     mov eax, [esp + 4]
     movupd xmm0, [eax]
     shufpd xmm0, xmm0, 1
@@ -3713,18 +3713,18 @@ procedure simd_storer_pd(var Dest; constref Src: TM128); {$IFDEF FPC}assembler; 
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    // Windows x64: Dest �?rcx, Src �?rdx
-    movapd xmm0, [rdx] //  加载源数�?
-    shufpd xmm0, xmm0, 1 //  交换高低�?
-    movupd [rcx], xmm0     // 存储到目�?
+    // Windows x64: Dest in rcx, Src in rdx.
+    movapd xmm0, [rdx] // Load the source vector.
+    shufpd xmm0, xmm0, 1 // Swap the low and high double lanes.
+    movupd [rcx], xmm0     // Store the reordered vector.
     {$ELSE}
-    // Linux/macOS x64 System V ABI: Dest �?rdi, Src �?rsi
-    movapd xmm0, [rsi] //  加载源数�?
-    shufpd xmm0, xmm0, 1 //  交换高低�?
-    movupd [rdi], xmm0     // 存储到目�?
+    // Linux/macOS x64 System V ABI: Dest in rdi, Src in rsi.
+    movapd xmm0, [rsi] // Load the source vector.
+    shufpd xmm0, xmm0, 1 // Swap the low and high double lanes.
+    movupd [rdi], xmm0     // Store the reordered vector.
     {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]     // Dest
     mov edx, [esp + 8]     // Src
     movapd xmm0, [edx]
@@ -3740,16 +3740,16 @@ function simd_loadh_pd(constref A: TM128; const Ptr: Pointer): TM128; {$IFDEF FP
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    // Windows x64: A �?rcx, Ptr �?rdx
-    movapd xmm0, [rcx]     // 加载 A �?xmm0
-    movhpd xmm0, [rdx]     // 加载 Ptr 指向的双精度到高�?
+    // Windows x64: A in rcx, Ptr in rdx.
+    movapd xmm0, [rcx]     // Load A into xmm0.
+    movhpd xmm0, [rdx]     // Replace the high double lane from Ptr.
     {$ELSE}
-    // Linux/macOS x64 System V ABI: A �?rdi, Ptr �?rsi
-    movapd xmm0, [rdi]     // 加载 A �?xmm0
-    movhpd xmm0, [rsi]     // 加载 Ptr 指向的双精度到高�?
+    // Linux/macOS x64 System V ABI: A in rdi, Ptr in rsi.
+    movapd xmm0, [rdi]     // Load A into xmm0.
+    movhpd xmm0, [rsi]     // Replace the high double lane from Ptr.
     {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]     // A
     mov edx, [esp + 8]     // Ptr
     movapd xmm0, [eax]
@@ -3770,16 +3770,16 @@ function simd_loadl_pd(constref A: TM128; const Ptr: Pointer): TM128; {$IFDEF FP
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    // Windows x64: A �?rcx, Ptr �?rdx
-    movapd xmm0, [rcx]     // 加载 A �?xmm0
-    movlpd xmm0, [rdx]     // 加载 Ptr 指向的双精度到低�?
+    // Windows x64: A in rcx, Ptr in rdx.
+    movapd xmm0, [rcx]     // Load A into xmm0.
+    movlpd xmm0, [rdx]     // Replace the low double lane from Ptr.
     {$ELSE}
-    // Linux/macOS x64 System V ABI: A �?rdi, Ptr �?rsi
-    movapd xmm0, [rdi]     // 加载 A �?xmm0
-    movlpd xmm0, [rsi]     // 加载 Ptr 指向的双精度到低�?
+    // Linux/macOS x64 System V ABI: A in rdi, Ptr in rsi.
+    movapd xmm0, [rdi]     // Load A into xmm0.
+    movlpd xmm0, [rsi]     // Replace the low double lane from Ptr.
     {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]     // A
     mov edx, [esp + 8]     // Ptr
     movapd xmm0, [eax]
@@ -3800,14 +3800,16 @@ procedure simd_storeh_pd(var Dest; constref Src: TM128); {$IFDEF FPC}assembler; 
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    // Windows x64: Dest �?rcx, Src �?rdx
-    movapd xmm0, [rdx]     // 加载源数�?    movhpd [rcx], xmm0     // 存储高位双精度到目标
+    // Windows x64: Dest in rcx, Src in rdx.
+    movapd xmm0, [rdx]     // Load the source vector.
+    movhpd [rcx], xmm0     // Store the high double lane to the destination.
   {$ELSE}
-    // Linux/macOS x64 System V ABI: Dest �?rdi, Src �?rsi
-    movapd xmm0, [rsi]     // 加载源数�?    movhpd [rdi], xmm0     // 存储高位双精度到目标
+    // Linux/macOS x64 System V ABI: Dest in rdi, Src in rsi.
+    movapd xmm0, [rsi]     // Load the source vector.
+    movhpd [rdi], xmm0     // Store the high double lane to the destination.
   {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]     // Dest
     mov edx, [esp + 8]     // Src
     movapd xmm0, [edx]
@@ -3822,14 +3824,16 @@ procedure simd_storel_pd(var Dest; constref Src: TM128); {$IFDEF FPC}assembler; 
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    // Windows x64: Dest �?rcx, Src �?rdx
-    movapd xmm0, [rdx]     // 加载源数�?    movlpd [rcx], xmm0     // 存储低位双精度到目标
+    // Windows x64: Dest in rcx, Src in rdx.
+    movapd xmm0, [rdx]     // Load the source vector.
+    movlpd [rcx], xmm0     // Store the low double lane to the destination.
   {$ELSE}
-    // Linux/macOS x64 System V ABI: Dest �?rdi, Src �?rsi
-    movapd xmm0, [rsi]     // 加载源数�?    movlpd [rdi], xmm0     // 存储低位双精度到目标
+    // Linux/macOS x64 System V ABI: Dest in rdi, Src in rsi.
+    movapd xmm0, [rsi]     // Load the source vector.
+    movlpd [rdi], xmm0     // Store the low double lane to the destination.
   {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]     // Dest
     mov edx, [esp + 8]     // Src
     movapd xmm0, [edx]
@@ -3851,7 +3855,7 @@ asm
     movsd xmm0, [rdi]      // 加载标量双精度，高位自动清零
   {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: the pointer argument arrives on the stack.
     mov eax, [esp + 4]
     movsd xmm0, [eax]
 {$ELSE}
@@ -3870,16 +3874,16 @@ procedure simd_store_sd(var Dest; constref Src: TM128); {$IFDEF FPC}assembler; n
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    // Windows x64: Dest �?rcx, Src �?rdx
-    movapd xmm0, [rdx] //  加载源数�?
-    movsd [rcx], xmm0      // 存储标量双精�?
+    // Windows x64: Dest in rcx, Src in rdx.
+    movapd xmm0, [rdx] // Load the source vector.
+    movsd [rcx], xmm0      // Store the scalar double to the destination.
     {$ELSE}
-    // Linux/macOS x64 System V ABI: Dest �?rdi, Src �?rsi
-    movapd xmm0, [rsi] //  加载源数�?
-    movsd [rdi], xmm0      // 存储标量双精�?
+    // Linux/macOS x64 System V ABI: Dest in rdi, Src in rsi.
+    movapd xmm0, [rsi] // Load the source vector.
+    movsd [rdi], xmm0      // Store the scalar double to the destination.
     {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]     // Dest
     mov edx, [esp + 8]     // Src
     movapd xmm0, [edx]
@@ -3889,7 +3893,7 @@ asm
 {$ENDIF}
 end;
 
-// Set 新函�?
+// New set helpers.
 function simd_set_epi8(a15, a14, a13, a12, a11, a10, a9, a8, a7, a6, a5, a4, a3, a2, a1, a0: ShortInt): TM128;
 begin
   Result.m128i_i8[0] := a0; Result.m128i_i8[1] := a1; Result.m128i_i8[2] := a2; Result.m128i_i8[3] := a3;
