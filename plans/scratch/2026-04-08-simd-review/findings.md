@@ -7298,3 +7298,19 @@
 - 结论：
   - repo 内 runner parity 现在已进一步压到真正只剩 Windows 外部能力差异
   - 当前不该再把注意力放回 repo 内继续找新的 parity 漏洞，除非出现新的 live 证据
+
+## 2026-05-17 Post-Commit Windows Evidence Staleness Was Real But Temporary
+
+- `qemu-cpuinfo-retry-rehearsal` parity commit 推上去后，`freeze-status` 第一时间抓到的 `windows_evidence_inputs_not_newer_than_log=FAIL` 不是误报：
+  - 当前 `windows_b07_gate.log` 的确比新的 `tests/fafafa.core.simd/buildOrTest.bat` 更旧
+  - 所以这份 Windows evidence 在当前 `HEAD` 上临时变成 stale
+- 这条红项的性质也很重要：
+  - 它不是新的 Windows 语义 bug
+  - 也不是 `freeze-status` 判定漂移
+  - 而是“runner 输入变了，就必须刷新当前 evidence”这一条 closeout contract 在按设计工作
+- fresh `wine cmd /c ... evidence-win-verify` 之后，这条 stale 红项已经消失：
+  - `windows_evidence_inputs_not_newer_than_log = PASS`
+  - `windows_closeout_summary_not_older_than_log = PASS`
+- 因而当前真正剩余的 cross blocker 又回到了两条外部条件：
+  - GitHub `RECENT_BILLING_BLOCK`
+  - Wine/cmd 下缺少 native Windows `lazbuild.exe` 或等价 Windows wrapper

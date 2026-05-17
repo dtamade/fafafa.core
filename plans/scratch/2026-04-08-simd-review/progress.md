@@ -9604,3 +9604,30 @@
   - 当前 SIMD closeout 还没完成的原因，继续只剩外部 Windows blocker：
     - `windows_preflight_latest = RECENT_BILLING_BLOCK`
     - `windows_evidence_verify = TOOLCHAIN BLOCK: cmd.exe cannot resolve LAZBUILD command "lazbuild"`
+
+## 2026-05-17 Fresh Windows Evidence Refresh After Runner-Parity Commit
+
+- 在 `qemu retry rehearsal` parity batch 推送后，我继续做了 fresh completion audit：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+  - 第一轮直接抓到一个新的真实 residual：
+    - `windows_evidence_inputs_not_newer_than_log = FAIL`
+    - 原因不是旧历史日志，而是刚提交的 `tests/fafafa.core.simd/buildOrTest.bat` 新于当前 `windows_b07_gate.log`
+- 这条 residual 不该留着误导后续 closeout，所以我直接刷新了当前 Windows evidence：
+  - `wine cmd /c tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify`
+  - fresh `windows_b07_gate.log` 现已刷新到 `2026-05-17 20:03:08`
+  - 失败边界继续稳定落在：
+    - `[BUILD] TOOLCHAIN BLOCK: cmd.exe cannot resolve LAZBUILD command "lazbuild"`
+- 随后做了 summary / freeze 复核：
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence`
+    - `[CLOSEOUT] FAILED: verifier rc=1`
+    - 但 `windows_b07_closeout_summary.md` 已刷新到 `2026-05-17 20:03:19`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+    - `windows_evidence_inputs_not_newer_than_log = PASS`
+    - `windows_closeout_summary_not_older_than_log = PASS`
+    - `windows_closeout_summary = PASS summary matches verifier FAIL`
+    - 红项重新收敛为：
+      - `windows_preflight_latest = RECENT_BILLING_BLOCK`
+      - `windows_evidence_verify = TOOLCHAIN BLOCK: cmd.exe cannot resolve LAZBUILD command "lazbuild"`
+- 当前阶段结论：
+  - 这次 runner parity commit 没有再留下 repo 内部的 stale evidence 副作用
+  - 当前 `freeze-status` 已重新回到“mainline 绿、cross 只红在外部 Windows blocker”的诚实状态

@@ -4719,3 +4719,17 @@
 | 1. 复核当前 residual 是否只剩 surface drift | completed | 已确认当前 worktree 只脏在 `tests/fafafa.core.simd/BuildOrTest.sh` 与 `tests/fafafa.core.simd/buildOrTest.bat`；缺口不是 SIMD 实现逻辑，而是 `qemu-cpuinfo-retry-rehearsal` 只在 shell 侧完整暴露 |
 | 2. 补齐 batch route/help/label 与 shell parity 守护 | completed | `buildOrTest.bat` 已新增 `qemu-cpuinfo-retry-rehearsal` route、usage/help 文案与 `:qemu_cpuinfo_retry_rehearsal` label；`BuildOrTest.sh` 的 `check_windows_runner_parity()` 也已把对应 route/help/fail-close/running 字符串纳入必检 |
 | 3. 用最小验证证明 repo 内 residual 已收口 | completed | fresh `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity`、`git diff --check` 与 `wine cmd /c tests\\fafafa.core.simd\\buildOrTest.bat qemu-cpuinfo-retry-rehearsal qemu-cpuinfo-nonx86-evidence` 已完成；当前 repo 内只剩外部 Windows billing/toolchain blocker |
+
+## 2026-05-17 Post-Commit Fresh Windows Evidence Audit
+
+### Goal
+
+在 runner parity batch 提交后，立即做 completion audit，确认当前 `HEAD` 上没有因为新的 Windows runner 输入而留下 stale evidence 假红。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 fresh `freeze-status` 是否出现新的 repo 内红项 | completed | 已重新运行 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`；结果直接抓到 `windows_evidence_inputs_not_newer_than_log = FAIL`，原因是刚提交的 `tests/fafafa.core.simd/buildOrTest.bat` 新于当前 `windows_b07_gate.log` |
+| 2. 刷新 current Windows evidence 与 closeout summary | completed | 已运行 `wine cmd /c tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify` 与 `bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence`；fresh log/summary 已回到当前 `HEAD` 时间线，失败边界保持为 `TOOLCHAIN BLOCK: cmd.exe cannot resolve LAZBUILD command "lazbuild"` |
+| 3. 确认剩余红项重新收敛成纯外部 blocker | completed | 第二轮 `freeze-status` 已显示 `windows_evidence_inputs_not_newer_than_log = PASS`、`windows_closeout_summary_not_older_than_log = PASS`；当前 cross blocker 只剩 `RECENT_BILLING_BLOCK` 与缺少 native Windows `lazbuild`/Windows wrapper |
