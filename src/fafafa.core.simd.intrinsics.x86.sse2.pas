@@ -874,7 +874,7 @@ asm
     punpcklqdq xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]    // a
     mov edx, [esp + 8]    // b
     movd xmm0, eax
@@ -903,7 +903,7 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: a在rcx, b在rdx, c在r8, d在r9
-    // 结果顺序: [a, b, c, d] (高位到低�?
+    // Result order is [a, b, c, d] from high lane to low lane.
     movd xmm0, r9d        // d -> xmm0[31:0]
     movd xmm1, r8d        // c -> xmm1[31:0]
     punpckldq xmm0, xmm1  // xmm0 = [c, d, 0, 0]
@@ -922,7 +922,7 @@ asm
     punpcklqdq xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 16]   // d
     mov edx, [esp + 12]   // c
     movd xmm0, eax
@@ -957,7 +957,7 @@ asm
     unpcklpd xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: arguments arrive on the stack.
     movsd xmm0, [esp + 4]  // a (8字节)
     movsd xmm1, [esp + 12] // b (8字节)
     unpcklpd xmm0, xmm1
@@ -978,18 +978,18 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: a在rcx, b在rdx
-    // 结果: [a, b] (�?4�? �?4�?
-    movq xmm0, rdx //  b -> �?4�?
-    movq xmm1, rcx //  a -> �?4�?
+    // Result is [a, b] with a in the high 64-bit lane and b in the low lane.
+    movq xmm0, rdx // Move b into the low 64-bit lane.
+    movq xmm1, rcx // Move a into the low 64-bit lane of xmm1.
     punpcklqdq xmm0, xmm1 // xmm0 = [a, b]
   {$ELSE}
     // Linux/macOS x64 System V ABI: a在rdi, b在rsi
-    movq xmm0, rsi //  b -> �?4�?
-    movq xmm1, rdi //  a -> �?4�?
+    movq xmm0, rsi // Move b into the low 64-bit lane.
+    movq xmm1, rdi // Move a into the low 64-bit lane of xmm1.
     punpcklqdq xmm0, xmm1 // xmm0 = [a, b]
   {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: arguments arrive on the stack.
     movq xmm0, [esp + 12] // b (8字节)
     movq xmm1, [esp + 4]  // a (8字节)
     punpcklqdq xmm0, xmm1

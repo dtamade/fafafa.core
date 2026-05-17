@@ -10551,3 +10551,32 @@
 - 当前阶段结论：
   - `SSE2` 的 `Set / Broadcast` 邻近簇已经退出 residual 清单
   - 当前剩余 residual 已从 `877` 行开始，下一批可直接切到后续 `Set` / early arithmetic 邻近簇
+
+## 2026-05-18 SSE2 Complex Set Constructors Comment Hygiene
+
+- 延续上一批的 `Set` 家族推进，没有把 `1007` 之后的 placeholder 算术段混进来，而是单独切了 `877..992` 这一簇：
+  - `simd_setr_epi32`
+  - `simd_set_epi32`
+  - `simd_setr_pd`
+  - `simd_set_epi64x`
+- 本批保持纯 hygiene：
+  - 只修参数/结果顺序注释和 lane 说明里的损坏文本
+  - 不改 `asm` 指令
+  - 不改 calling convention
+  - 不改返回寄存器拆包逻辑
+- fresh 验证已完成：
+  - `python3` 逐文件计数：
+    - `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 从 `residual_char_count=332` 降到 `315`
+    - `residuals_up_to_1005=[]`
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_comment_swallow.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - `intrinsics.experimental check` default / experimental 双模态通过
+  - `x86 SSE2 backend smoke` 通过
+  - 主 `simd` release `check` 通过
+- 当前阶段结论：
+  - `SSE2` 在 `1005` 行之前的残点已经全部清空
+  - 当前下一簇 residual 从 `1007` 开始，已经自然收敛到 placeholder 算术说明区，可作为下一批入口

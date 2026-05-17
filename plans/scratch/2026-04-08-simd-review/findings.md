@@ -7845,3 +7845,23 @@
   - `residual_char_count: 395 -> 332`
   - `residuals_up_to_854=[]`
   - 顶部 `setzero` 区域只剩单条清零指令，不再重复执行
+
+## 2026-05-18 SSE2 Complex Set Constructors Stayed Hygiene-Only
+
+- `877..992` 这一簇复核后，没有暴露新的“注释吞代码”或“结果顺序写反”问题：
+  - `simd_setr_epi32`
+  - `simd_set_epi32`
+  - `simd_setr_pd`
+  - `simd_set_epi64x`
+  的损坏都落在注释和 lane 说明，不在执行体本身。
+- 这批值得单独切出来，是因为它刚好构成一个完整的 `Set` 子簇：
+  - 参数来源说明
+  - 结果 lane 排布说明
+  - x86 32-bit stack 说明
+  都集中在这几段里，修完以后 `1005` 行之前可以整体退出 residual 清单。
+- live 计数证明这批确实形成了一个干净边界：
+  - `residual_char_count: 332 -> 315`
+  - `residuals_up_to_1005=[]`
+- 因而下一批最自然的继续方向已经很明确：
+  - 从 `1007` 开始切 placeholder arithmetic 说明区
+  - 继续沿用 `comment_swallow + intrinsics.experimental check + main release check` 这条闭环
