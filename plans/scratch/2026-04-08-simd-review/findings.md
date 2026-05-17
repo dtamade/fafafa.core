@@ -8136,3 +8136,27 @@
   - `intrinsics.x86.sse2` 文件内 `replacement-char` residual 已清零
   - `rg -n "�" src/fafafa.core.simd* tests/fafafa.core.simd*` 也已经为空
   - 所以 `simd` 这条“乱码/吞注释”审查线现在可以正式收口，后续收益更高的方向应回到新的语义热点，而不是继续在同一文件里追已经不存在的 residual
+
+## 2026-05-18 RISCVV Helper-Owned 64-bit Slots Were Exact-Contract Debt
+
+- `RISCVV` 的 `AndNot/Min/Max/Cmp` 这一簇 `I64x2/U64x2` slot 不能再笼统归到“语义敏感先别动”里。
+- fresh 对位源码、register、dispatchapi truth 和 checker 后，结论已经明确：
+  - 这些 slot 在 `register.inc` 中应继续保持 backend-owned
+  - 但它们并不是 backend-specific semantic truth source
+  - 它们的真实定位是 `helper-owned exact-contract helper`
+- 证据链：
+  - `helpers.inc` 已长期要求这 9 个名字都是 `Result := Scalar...`
+  - `dispatchapi` 的 `Test_RISCVV_HelperOwnedExactScalarSlots_Stay_BackendOwned` 明确要求：
+    - helper source 是 exact scalar forwarder
+    - register assignment 仍指向 `@RISCVV...`
+    - backend slot 与 scalar slot 指针不同
+  - 因而对这组 slot 来说，“backend-owned” 和 “exact scalar contract” 并不矛盾
+- 这次真正暴露的不是实现 bug，而是审计模型残留：
+  - 一旦 asm 路径也收成 exact scalar forwarder，`check_nonx86_key_slot_audit.py` 会把 `scalar_forwarder` 当成 `backend_owned` 红项
+  - 这说明旧 audit model 仍默认这些 slot 必须保留 backend-local body，和现有 dispatchapi truth 已经不一致
+- 正确修法因此是两步一起做：
+  - 把 asm 路径与 no-asm 路径统一成 exact scalar contract
+  - 同步 helper semantics / key-slot audit，让护栏认得“backend-owned exact-contract helper”这类 slot 形态
+- 这条 finding 也顺便把下一轮边界钉住了：
+  - `RISCVV Round/Trunc/Clamp` 仍属于语义敏感区，当前不能套用这套 exact-contract 收口逻辑
+  - `RISCVV helper-owned 64-bit slots` 则已经退出“是否还能继续去重”的争论区

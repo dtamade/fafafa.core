@@ -2044,93 +2044,48 @@ asm
 end;
 
 function RISCVVAndNotI64x2(const a, b: TVecI64x2): TVecI64x2;
-var
-  LIndex: Integer;
 begin
-  for LIndex := 0 to 1 do
-    Result.i[LIndex] := (not a.i[LIndex]) and b.i[LIndex];
+  Result := ScalarAndNotI64x2(a, b);
 end;
 
 function RISCVVMinI64x2(const a, b: TVecI64x2): TVecI64x2;
-var
-  LIndex: Integer;
 begin
-  for LIndex := 0 to 1 do
-    if a.i[LIndex] < b.i[LIndex] then
-      Result.i[LIndex] := a.i[LIndex]
-    else
-      Result.i[LIndex] := b.i[LIndex];
+  Result := ScalarMinI64x2(a, b);
 end;
 
 function RISCVVMaxI64x2(const a, b: TVecI64x2): TVecI64x2;
-var
-  LIndex: Integer;
 begin
-  for LIndex := 0 to 1 do
-    if a.i[LIndex] > b.i[LIndex] then
-      Result.i[LIndex] := a.i[LIndex]
-    else
-      Result.i[LIndex] := b.i[LIndex];
+  Result := ScalarMaxI64x2(a, b);
 end;
 
 function RISCVVAndNotU64x2(const a, b: TVecU64x2): TVecU64x2;
-var
-  LIndex: Integer;
 begin
-  for LIndex := 0 to 1 do
-    Result.u[LIndex] := (not a.u[LIndex]) and b.u[LIndex];
+  Result := ScalarAndNotU64x2(a, b);
 end;
 
 function RISCVVCmpEqU64x2(const a, b: TVecU64x2): TMask2;
-var
-  LIndex: Integer;
 begin
-  Result := 0;
-  for LIndex := 0 to 1 do
-    if a.u[LIndex] = b.u[LIndex] then
-      Result := Result or (1 shl LIndex);
+  Result := ScalarCmpEqU64x2(a, b);
 end;
 
 function RISCVVCmpLtU64x2(const a, b: TVecU64x2): TMask2;
-var
-  LIndex: Integer;
 begin
-  Result := 0;
-  for LIndex := 0 to 1 do
-    if a.u[LIndex] < b.u[LIndex] then
-      Result := Result or (1 shl LIndex);
+  Result := ScalarCmpLtU64x2(a, b);
 end;
 
 function RISCVVCmpGtU64x2(const a, b: TVecU64x2): TMask2;
-var
-  LIndex: Integer;
 begin
-  Result := 0;
-  for LIndex := 0 to 1 do
-    if a.u[LIndex] > b.u[LIndex] then
-      Result := Result or (1 shl LIndex);
+  Result := ScalarCmpGtU64x2(a, b);
 end;
 
 function RISCVVMinU64x2(const a, b: TVecU64x2): TVecU64x2;
-var
-  LIndex: Integer;
 begin
-  for LIndex := 0 to 1 do
-    if a.u[LIndex] < b.u[LIndex] then
-      Result.u[LIndex] := a.u[LIndex]
-    else
-      Result.u[LIndex] := b.u[LIndex];
+  Result := ScalarMinU64x2(a, b);
 end;
 
 function RISCVVMaxU64x2(const a, b: TVecU64x2): TVecU64x2;
-var
-  LIndex: Integer;
 begin
-  for LIndex := 0 to 1 do
-    if a.u[LIndex] > b.u[LIndex] then
-      Result.u[LIndex] := a.u[LIndex]
-    else
-      Result.u[LIndex] := b.u[LIndex];
+  Result := ScalarMaxU64x2(a, b);
 end;
 
 // =============================================================

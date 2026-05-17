@@ -230,6 +230,10 @@ ALLOWED_BACKEND_OWNED_NO_ASM_SCALAR_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]
     "riscvv": set(RISCVV_EXTRACT_KEY_SLOTS),
 }
 
+ALLOWED_BACKEND_OWNED_SCALAR_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
+    "riscvv": set(RISCVV_HELPER_OWNED_KEY_SLOTS),
+}
+
 
 @dataclass(frozen=True)
 class SlotExpectation:
@@ -377,6 +381,12 @@ def filter_allowed_backend_owned_reasons(
     wrapper_kind: str | None,
     reasons: list[str],
 ) -> list[str]:
+    if (
+        classification == "wrapper_only"
+        and wrapper_kind == "scalar_forwarder"
+        and slot in ALLOWED_BACKEND_OWNED_SCALAR_WRAPPER_SLOTS_BY_BACKEND.get(backend, set())
+    ):
+        return [reason for reason in reasons if reason not in {"wrapper_only", "scalar-forwarder"}]
     if (
         assignment.context == "no-asm"
         and classification == "wrapper_only"

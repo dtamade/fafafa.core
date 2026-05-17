@@ -11004,3 +11004,45 @@
   - `intrinsics.x86.sse2` 这条 comment-corruption / comment-swallow 审查线已经从 live residual 清单退出
   - `simd` 模块当前不再有 `replacement-char` 型残点
   - 下一步应从“乱码/吞注释线”切回更广的语义审查或新的静态热点，而不是继续在 `x86.sse2` 里机械翻尾注
+
+## 2026-05-18 RISCVV Helper-Owned Exact Scalar Slot Contract Collapse
+
+- 切回 `Wave 5` 后，没有重开已经收口的 `intrinsics.x86.sse2`，而是先复核 `RISCVV` 的语义敏感残点，确认：
+  - `Round/Trunc/Clamp` 仍是 signed-zero / NaN-ordering 敏感区，当前不动
+  - `AndNot/Min/Max/Cmp` 这一簇 `I64x2/U64x2` helper 已被现有测试和 checker 定义成 `backend-owned exact-contract helper`
+- 本批实际源码收口：
+  - `src/fafafa.core.simd.riscvv.pas`
+  - 把 asm 路径里仍手写循环的 9 个 helper 收成与 no-asm 相同的 exact scalar forwarder：
+    - `RISCVVAndNotI64x2`
+    - `RISCVVMinI64x2`
+    - `RISCVVMaxI64x2`
+    - `RISCVVAndNotU64x2`
+    - `RISCVVCmpEqU64x2`
+    - `RISCVVCmpLtU64x2`
+    - `RISCVVCmpGtU64x2`
+    - `RISCVVMinU64x2`
+    - `RISCVVMaxU64x2`
+  - 这一步不改 register ownership，也不把 slot 回退到 base scalar；只去掉 asm/no-asm 双路径下不必要的重复本地语义体
+- 本批护栏同步：
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 新增对 `riscvv.pas` source-side exact scalar forwarder 的显式断言，避免以后 asm 路径再次漂回本地循环体
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 更新 truth model，允许 `RISCVV` helper-owned key slots 以 `backend-owned scalar_forwarder` 形态存在，不再把这类 exact-contract 收口误报成红
+- fresh 验证已完成：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-smoke-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=652 status=ok`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=101 issues=0 status=ok`
+  - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=riscvv assignments=470 asm_exact=330 asm_suffix_only=117 wrapper_only=23 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `NONX86_IMPL_SMOKE_SUMMARY steps=6 targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - `Release check` 通过
+- 当前阶段结论：
+  - 这 9 个 `RISCVV` helper slot 现在已经明确收敛成 “backend-owned exact-contract helper”，不再分别维护 asm/no-asm 两套本地语义体
+  - `Round/Trunc/Clamp` 仍继续留在单独语义审查队列，下一批不应把它们与 exact-contract helper 混在一起处理

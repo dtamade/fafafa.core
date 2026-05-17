@@ -913,6 +913,24 @@ def main() -> int:
         ("RISCVVAndNotU8x16", "ScalarAndNotU8x16(a, b)"),
     ]
 
+    riscvv_source_exact_scalar_forwarders = {
+        "RISCVVAndNotI64x2",
+        "RISCVVMinI64x2",
+        "RISCVVMaxI64x2",
+        "RISCVVAndNotU64x2",
+        "RISCVVCmpEqU64x2",
+        "RISCVVCmpLtU64x2",
+        "RISCVVCmpGtU64x2",
+        "RISCVVMinU64x2",
+        "RISCVVMaxU64x2",
+    }
+
+    routine_expectations.extend(
+        (riscvv_source, routine_name, [f"Result := {scalar_call};"])
+        for routine_name, scalar_call in riscvv_helper_scalar_forwarder_expectations
+        if routine_name in riscvv_source_exact_scalar_forwarders
+    )
+
     routine_expectations.extend(
         (riscvv_helpers_source, routine_name, [f"Result := {scalar_call};"])
         for routine_name, scalar_call in riscvv_helper_scalar_forwarder_expectations
