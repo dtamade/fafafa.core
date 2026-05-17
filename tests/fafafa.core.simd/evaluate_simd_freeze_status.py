@@ -487,6 +487,12 @@ def freshness_check(name: str, path: Path, max_age_hours: float, required: bool 
 
 
 SOURCE_CANDIDATE_SUFFIXES = {".pas", ".pp", ".inc", ".stable"}
+SOURCE_FRESHNESS_EXCLUDED_NAMES = {
+    # Intentional empty include boundary: retired NEON platform facade wrappers
+    # no longer contribute implementation semantics, so comment/doc churn here
+    # should not invalidate gate/evidence freshness.
+    "fafafa.core.simd.neon.facade_platform.inc",
+}
 
 
 def iter_simd_source_candidates(src_root: Path) -> Iterable[Path]:
@@ -494,6 +500,8 @@ def iter_simd_source_candidates(src_root: Path) -> Iterable[Path]:
         if not path.is_file():
             continue
         if path.suffix.lower() not in SOURCE_CANDIDATE_SUFFIXES:
+            continue
+        if path.name.lower() in SOURCE_FRESHNESS_EXCLUDED_NAMES:
             continue
         yield path
 
