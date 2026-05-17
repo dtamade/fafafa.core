@@ -1381,7 +1381,8 @@ asm
     movdqu xmm0, [rcx]    // 加载 a
     movdqu xmm1, [rdx]    // 加载 b
     movdqu xmm2, xmm0     // 复制 a
-    pcmpgtb xmm2, xmm1    // a > b 的掩�?    pand xmm0, xmm2       // 选择 a 中较大的元素
+    pcmpgtb xmm2, xmm1    // Build the mask for lanes where a > b.
+    pand xmm0, xmm2       // Keep the larger lanes from a.
     pandn xmm2, xmm1      // 选择 b 中较大的元素
     por xmm0, xmm2        // 合并结果
   {$ELSE}
@@ -1439,7 +1440,8 @@ asm
     movdqu xmm0, [rcx]    // 加载 a
     movdqu xmm1, [rdx]    // 加载 b
     movdqu xmm2, xmm1     // 复制 b
-    pcmpgtb xmm2, xmm0    // b > a 的掩�?    pand xmm0, xmm2       // 选择 a 中较小的元素
+    pcmpgtb xmm2, xmm0    // Build the mask for lanes where b > a.
+    pand xmm0, xmm2       // Keep the smaller lanes from a.
     pandn xmm2, xmm1      // 选择 b 中较小的元素
     por xmm0, xmm2        // 合并结果
   {$ELSE}
@@ -3640,31 +3642,33 @@ procedure simd_maskmoveu_si128(constref Src: TM128; constref Mask: TM128; var De
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    // Windows x64: Src �?rcx, Mask �?rdx, Dest �?r8
-    movdqa xmm0, [rcx] //  加载源数�?
-    movdqa xmm1, [rdx]    // 加载掩码
-    push rdi              // 保存 rdi 寄存�?    mov rdi, r8           // maskmovdqu 需要目标地址�?rdi
+    // Windows x64: Src in rcx, Mask in rdx, Dest in r8
+    movdqa xmm0, [rcx] // Load source data.
+    movdqa xmm1, [rdx]    // Load the mask.
+    push rdi              // Save rdi before reusing it for maskmovdqu.
+    mov rdi, r8           // The destination pointer must be placed in rdi.
     maskmovdqu xmm0, xmm1
-    pop rdi               // 恢复 rdi 寄存�?
+    pop rdi               // Restore rdi.
     {$ELSE}
-    // Linux/macOS x64 System V ABI: Src �?rdi, Mask �?rsi, Dest �?rdx
-    push rdi              // 保存原始 rdi
-    movdqa xmm0, [rdi] //  加载源数�?
-    movdqa xmm1, [rsi]    // 加载掩码
+    // Linux/macOS x64 System V ABI: Src in rdi, Mask in rsi, Dest in rdx
+    push rdi              // Save the original rdi value.
+    movdqa xmm0, [rdi] // Load source data.
+    movdqa xmm1, [rsi]    // Load the mask.
     mov rdi, rdx
-    // maskmovdqu 需要目标地址�?rdi
+    // The destination pointer must be placed in rdi.
     maskmovdqu xmm0, xmm1
-    pop rdi               // 恢复原始 rdi
+    pop rdi               // Restore the original rdi value.
   {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]    // Src
     mov edx, [esp + 8]    // Mask
-    push edi              // 保存 edi 寄存�?    mov edi, [esp + 16]   // Dest (注意栈偏移变�?
+    push edi              // Save edi before reusing it for the destination pointer.
+    mov edi, [esp + 16]   // Dest after the push-adjusted stack offset.
     movdqa xmm0, [eax]
     movdqa xmm1, [edx]
-    maskmovdqu xmm0, xmm1 // 条件存储�?[edi]
-    pop edi               // 恢复 edi 寄存�?
+    maskmovdqu xmm0, xmm1 // Conditionally store bytes to [edi].
+    pop edi               // Restore edi.
     {$ELSE}
     {$ERROR Unsupported CPU}
 {$ENDIF}

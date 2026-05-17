@@ -7884,3 +7884,36 @@
   - `residual_char_count: 315 -> 264`
   - `residuals_up_to_1205=[]`
 - 这意味着 `SSE2` 的下一个自然切点已经继续前移到 `1293` 行，不需要再回头看 `1007..1205` 这段。
+
+## 2026-05-18 SSE2 Comment Swallow Crossed Into Real Selection/MaskMove Behavior
+
+- `intrinsics.x86.sse2` 在 `1293+` 这一带并不只是残余 `U+FFFD` 或 lane 注释损坏。
+- fresh 逐点复核后，至少有 4 条真实 asm 指令已经被注释吞掉，且都位于 live x86/Windows 路径：
+  - `simd_max_epi8` Windows x64:
+    - `pcmpgtb xmm2, xmm1` 后面的 `pand xmm0, xmm2` 被吞掉
+    - 结果是 `a` 侧较大元素并没有按 mask 保留下来
+  - `simd_min_epi8` Windows x64:
+    - `pcmpgtb xmm2, xmm0` 后面的 `pand xmm0, xmm2` 被吞掉
+    - 结果是 `a` 侧较小元素并没有按 mask 保留下来
+  - `simd_maskmoveu_si128` Windows x64:
+    - `push rdi` 后面的 `mov rdi, r8` 被吞掉
+    - `maskmovdqu` 因而可能拿着错误的目标指针运行
+  - `simd_maskmoveu_si128` x86 32-bit:
+    - `push edi` 后面的 `mov edi, [esp + 16]` 被吞掉
+    - 目标地址寄存器同样没有被正确装载
+- 这条发现很关键，因为它把当前 `SSE2 residual` 的性质从“继续清文本”改成了：
+  - 必须先判断每一簇里是否有被吞掉的有效指令
+  - 只有排除真实行为洞之后，剩余部分才适合按 bounded hygiene 收
+- 现有 checker 之前能守住一部分模式，但覆盖还不够严：
+  - 原先没有覆盖 `push/pop`
+  - 也没有覆盖这批真正用到的 `pand/pandn`、`pcmpgt*`、`pmaxsw/pminsw`、`pmul*`
+- 因而这次不仅修源码，还必须同步强化 `check_intrinsics_comment_swallow.py`：
+  - 扩充 `ASM_INSTRUCTION_PATTERN`
+  - 让这类“注释尾部还藏着第二条真实 asm 指令”的情况直接 fail-close
+- 收口后 live 结果说明这条线已经回到受控状态：
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - `intrinsics.experimental` 双模态 `check` 通过
+  - 主 `Release check` 通过
+  - `residual_char_count: 264 -> 245`
+- 当前下一步不应回头重扫 `1205` 之前，也不该重新铺大盘。
+  最值当的继续方向仍然是沿 `1293, 1315, 1337, 1359, 1418, 1477, 1499, 1521` 这一小簇继续逐点判定：先看有没有真吞指令，再决定是否只做 hygiene。

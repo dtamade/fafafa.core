@@ -10611,3 +10611,38 @@
 - 当前阶段结论：
   - `SSE2` 的 placeholder 说明区和最前面一段整数算术注释已经退出 residual 清单
   - 当前剩余 residual 已从 `1293` 行开始，下一批可以直接切后续 integer arithmetic 邻近簇
+
+## 2026-05-18 SSE2 Swallowed Select and MaskMove Recovery
+
+- 接着 `1007..1205` 收口后的下一簇，本轮没有继续把 `1293+` 这一整段当成纯文字债务处理，而是先逐点核对是否存在“注释吞掉 asm 指令”的真实行为问题。
+- 这次确认并修掉了 3 类真实 source-level bug，全部落在 `src/fafafa.core.simd.intrinsics.x86.sse2.pas`：
+  - `simd_max_epi8`
+    - Windows x64 分支原来把 `pand xmm0, xmm2` 吞进了同一行注释
+    - 修复后恢复成独立指令，确保 `a > b` 的 mask 真正参与 lane 选择
+  - `simd_min_epi8`
+    - Windows x64 分支原来把 `pand xmm0, xmm2` 吞进了同一行注释
+    - 修复后恢复成独立指令，确保 `b > a` 的 mask 真正参与 lane 选择
+  - `simd_maskmoveu_si128`
+    - Windows x64 分支原来把 `mov rdi, r8` 吞进了 `push rdi` 注释尾部
+    - x86 32-bit 分支原来把 `mov edi, [esp + 16]` 吞进了 `push edi` 注释尾部
+    - 修复后两条路径都重新把目标地址寄存器装载出来，`maskmovdqu` 不再依赖错误/未初始化的目标寄存器状态
+- 本批同时补强了护栏：
+  - `tests/fafafa.core.simd/check_intrinsics_comment_swallow.py`
+  - `ASM_INSTRUCTION_PATTERN` 新增 `push/pop`、`pand/pandn`、`paddsb/paddsw`、`psubsb/psubsw`、`pmuludq/pmullw`、`pcmpeq*`、`pcmpgt*`、`pmaxsw/pminsw`
+  - 这样后续如果再出现同类“注释尾部吞掉真实 asm 指令”的模式，checker 会直接 fail-close
+- fresh 验证已完成：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_comment_swallow.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `python3` 逐文件计数：
+    - `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 从 `residual_char_count=264` 降到 `245`
+    - `first_residual_lines=[1293, 1315, 1337, 1359, 1418, 1477, 1499, 1521, 1632, 1742, 1765, 1832, 1854, 1876, 1898, 1920, 2092, 2098, 2120, 2142]`
+- fresh 结果：
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - `intrinsics.experimental check` default / experimental 双模态通过
+  - `x86 SSE2 backend smoke` 通过
+  - 主 `simd` release `check` 通过
+- 当前阶段结论：
+  - 这批不只是 `SSE2` comment hygiene，而是修掉了 Windows/x86 分支里 4 条真实被注释吞掉的 asm 指令
+  - 当前下一簇 residual 仍从 `1293` 行开始，但继续推进时必须保持“先判真 bug，再做 hygiene”的节奏，而不能把后续残点默认当作纯文本债务
