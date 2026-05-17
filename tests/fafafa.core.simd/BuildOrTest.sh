@@ -69,6 +69,8 @@ PUBLIC_ABI_SIGNATURE_JSON_LOG="${LOG_DIR}/public_abi_signature.json"
 PUBLICABI_CONCURRENT_CHAIN_LOG="${LOG_DIR}/publicabi_concurrent_chain.txt"
 ADAPTER_SYNC_LOG="${LOG_DIR}/backend_adapter_sync.txt"
 ADAPTER_SYNC_JSON_LOG="${LOG_DIR}/backend_adapter_sync.json"
+COVERAGE_LOG="${LOG_DIR}/intrinsics_coverage.txt"
+COVERAGE_JSON_LOG="${LOG_DIR}/intrinsics_coverage.json"
 WIRING_SYNC_LOG="${LOG_DIR}/wiring_sync.txt"
 WIRING_SYNC_JSON_LOG="${LOG_DIR}/wiring_sync.json"
 REGISTER_TRUTHFULNESS_NEON_LOG="${LOG_DIR}/register_truthfulness_neon.txt"
@@ -4660,6 +4662,12 @@ run_backend_adapter_sync_pascal() {
 }
 
 run_coverage() {
+  local -a LCoverageArgs
+  local LLog
+  local LJsonLog
+  local LMainRC
+  local LSummaryLine
+
   if [[ ! -f "${COVERAGE_SCRIPT}" ]]; then
     echo "[COVERAGE] Missing checker: ${COVERAGE_SCRIPT}"
     return 2
@@ -4670,7 +4678,6 @@ run_coverage() {
     return 2
   fi
 
-  local -a LCoverageArgs
   LCoverageArgs=()
   if [[ "${SIMD_COVERAGE_STRICT_EXTRA:-0}" != "0" ]]; then
     LCoverageArgs+=("--strict-extra")
@@ -4682,8 +4689,20 @@ run_coverage() {
     LCoverageArgs+=("--require-experimental")
   fi
 
-  echo "[COVERAGE] Running: python3 ${COVERAGE_SCRIPT} ${LCoverageArgs[*]}"
-  python3 "${COVERAGE_SCRIPT}" "${LCoverageArgs[@]}"
+  LLog="${SIMD_COVERAGE_LOG_FILE:-${COVERAGE_LOG}}"
+  LJsonLog="${SIMD_COVERAGE_JSON_FILE:-${COVERAGE_JSON_LOG}}"
+
+  echo "[COVERAGE] Running: python3 ${COVERAGE_SCRIPT} ${LCoverageArgs[*]} --summary-line --json-file ${LJsonLog}"
+  : > "${LLog}"
+  python3 "${COVERAGE_SCRIPT}" "${LCoverageArgs[@]}" --summary-line --json-file "${LJsonLog}" 2>&1 | tee "${LLog}"
+  LMainRC="${PIPESTATUS[0]}"
+
+  LSummaryLine="$(grep -E '^INTRINSICS_COVERAGE_SUMMARY ' "${LLog}" | tail -n 1 || true)"
+  if [[ -n "${LSummaryLine}" ]]; then
+    echo "[COVERAGE] Summary: ${LSummaryLine#INTRINSICS_COVERAGE_SUMMARY }"
+  fi
+
+  return "${LMainRC}"
 }
 
 run_intrinsics_experimental_status() {

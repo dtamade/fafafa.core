@@ -6696,3 +6696,21 @@
 - 验证上有两个真实结论：
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 通过，说明删掉 tracked `fafafa.core.simd.test.res` / `test_backend_ops.res` 不会破坏主 `simd` runner 或 standalone smoke
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.intrinsics.mmx/BuildOrTest.sh test` 通过，且 `intrinsics.mmx.test.res` 会被重新生成；配合新 ignore 后，它不再回流成工作树噪音
+
+## 2026-05-17 Intrinsics Coverage Evidence Normalization
+
+- 当前 `intrinsics coverage` 的检查逻辑本身已经能给出正确信号，但在 runner 层仍有一个真实卫生缺口：
+  - shell `coverage` 过去只把结果打到 stdout
+  - batch `coverage` 也没有稳定的 JSON 证据落盘
+  - 下次如果要对比 coverage 真相，仍然要手工从控制台日志里摘 summary
+- 这不是算法 correctness 问题，而是证据形态不稳定：
+  - 缺少固定的 `txt/json` 产物，导致 closeout、回归对比、后续脚本消费都不够稳
+  - shell / batch 两边也缺少同一口径的 `summary line`，容易重新长出 runner parity 漂移
+- 当前最小正确修法不是再扩 coverage 范围，而是把现有 checker 产物标准化：
+  - `check_intrinsics_coverage.py` 增加 `--summary-line` / `--json-file`
+  - shell `run_coverage()` 默认写 `tests/fafafa.core.simd/logs/intrinsics_coverage.{txt,json}`
+  - batch `coverage` 同步输出 `--summary-line --json-file`
+- fresh `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh coverage` 已证明这条修法是有效的：
+  - `INTRINSICS_COVERAGE_SUMMARY modules=5 missing_required=0 missing_optional=0 extra=0 ... status=ok`
+  - JSON 已稳定落到 `tests/fafafa.core.simd/logs/intrinsics_coverage.json`
+- 因而这批的本质，是把 `intrinsics coverage` 从“人工阅读型日志”收正成“runner 默认可复用证据”。

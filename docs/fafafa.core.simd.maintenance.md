@@ -374,6 +374,8 @@ bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
 
 `interface-completeness` checker 的默认 JSON/Markdown 产物现在都应落到 `tests/fafafa.core.simd/logs/`。只有在你明确要刷新 tracked doc 时，才显式传 `--md-file tests/fafafa.core.simd/docs/interface_implementation_completeness.md`。
 
+`coverage` checker 现在也会把默认证据落到 `tests/fafafa.core.simd/logs/intrinsics_coverage.{txt,json}`；如果只是走 `gate` / `gate-strict`，直接复用这里的产物即可，不需要再从 stdout 手工摘结果。
+
 ### 出现异常时先怀疑什么
 
 - `Text file busy`：通常是并发构建/运行冲突，不一定是代码回归。

@@ -4621,3 +4621,17 @@
 | 1. 核实 `.res` 是否真是生成物 | completed | 已确认 `git ls-files tests/fafafa.core.simd* | rg '\\.res$'` 只命中 3 个文件；`file` 均为 `Microsoft Visual C binary resource file`，且对应 `fafafa.core.simd.test.lpr` / `test_backend_ops.pas` / `fafafa.core.simd.intrinsics.mmx.test.lpr` 都没有 `{$R *.res}` 源码引用 |
 | 2. 收正 ignore 并移出版本库 | completed | `tests/fafafa.core.simd/.gitignore` 已补 `/*.res`；新增 `tests/fafafa.core.simd.intrinsics.mmx/.gitignore`；3 个 tracked `.res` 已从 Git 索引移除，不再作为 repo 资产保留 |
 | 3. Release/runner 回归与状态复核 | completed | `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.intrinsics.mmx/BuildOrTest.sh test`、`git diff --check` 已通过；`fafafa.core.simd.test.res` / `intrinsics.mmx.test.res` 能被正常重建且因 ignore 不再污染状态，`test_backend_ops.res` 删除后主 check 继续通过，证明它不是必需源码资产 |
+
+## 2026-05-17 Intrinsics Coverage Evidence Normalization
+
+### Goal
+
+把 `intrinsics coverage` 从一次性控制台输出收正成 runner 默认可复用的证据形态：shell / batch 两边都稳定输出 summary line，并默认落盘 `txt/json` 产物。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前 coverage 差距是否只是证据形态问题 | completed | 已确认 `check_intrinsics_coverage.py` 的 coverage 逻辑本身可用，但 shell `coverage` 只打 stdout、batch 也没有稳定 JSON 落盘；下次要复核真相仍得手工摘日志 |
+| 2. 统一 checker / shell / batch 的证据输出合同 | completed | `check_intrinsics_coverage.py` 已新增 `--summary-line` / `--json-file`；shell `run_coverage()` 已补 `COVERAGE_LOG` / `COVERAGE_JSON_LOG` 并自动解析 summary；batch `coverage` 也同步追加 `--summary-line --json-file` |
+| 3. active docs 与 release 验证收口 | completed | `docs/fafafa.core.simd.maintenance.md` 已写明默认产物路径；fresh `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh coverage` 与 Release `check` 已通过，说明这次只规范化证据，不改变 coverage 真义 |

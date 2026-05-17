@@ -61,6 +61,8 @@ def _check_module(a_name: str, a_src_file: Path, a_test_file: Path, a_prefix: st
 def main() -> int:
     l_parser = argparse.ArgumentParser(description='Check SIMD intrinsics direct test coverage for SSE/MMX/AVX2 and experimental AES/SHA.')
     l_parser.add_argument('--json', action='store_true', dest='as_json', help='print JSON output')
+    l_parser.add_argument('--json-file', default='', help='write JSON payload to file')
+    l_parser.add_argument('--summary-line', action='store_true', help='print one-line summary for log scraping')
     l_parser.add_argument('--strict-extra', action='store_true', dest='strict_extra',
                           help='treat extra test mappings as failure')
     l_parser.add_argument('--require-avx2', action='store_true', dest='require_avx2',
@@ -134,18 +136,27 @@ def main() -> int:
     l_total_missing_required = sum(l_item['missing_count'] for l_item in l_results if l_item['required'])
     l_total_missing_optional = l_total_missing - l_total_missing_required
     l_total_extra = sum(l_item['extra_count'] for l_item in l_results)
+    l_ok = l_total_missing_required == 0 and (not l_args.strict_extra or l_total_extra == 0)
+    l_payload = {
+        'results': l_results,
+        'total_missing': l_total_missing,
+        'total_missing_required': l_total_missing_required,
+        'total_missing_optional': l_total_missing_optional,
+        'total_extra': l_total_extra,
+        'strict_extra': l_args.strict_extra,
+        'require_avx2': l_args.require_avx2,
+        'require_experimental': l_args.require_experimental,
+        'status': 'ok' if l_ok else 'fail',
+    }
+
+    if l_args.json_file:
+        Path(l_args.json_file).write_text(
+            json.dumps(l_payload, ensure_ascii=False, indent=2),
+            encoding='utf-8',
+        )
 
     if l_args.as_json:
-        print(json.dumps({
-            'results': l_results,
-            'total_missing': l_total_missing,
-            'total_missing_required': l_total_missing_required,
-            'total_missing_optional': l_total_missing_optional,
-            'total_extra': l_total_extra,
-            'strict_extra': l_args.strict_extra,
-            'require_avx2': l_args.require_avx2,
-            'require_experimental': l_args.require_experimental,
-        }, ensure_ascii=False, indent=2))
+        print(json.dumps(l_payload, ensure_ascii=False, indent=2))
     else:
         print('[COVERAGE] SIMD intrinsics direct-test mapping')
         for l_item in l_results:
@@ -160,7 +171,7 @@ def main() -> int:
             for l_name in l_item['extra']:
                 print(f'      extra: {l_name}')
 
-        if l_total_missing_required == 0 and (not l_args.strict_extra or l_total_extra == 0):
+        if l_ok:
             print('[COVERAGE] OK (no missing direct-test mappings)')
             if l_total_missing_optional > 0:
                 print(f'[COVERAGE] WARN (optional module missing mappings: {l_total_missing_optional})')
@@ -168,6 +179,19 @@ def main() -> int:
             print(f'[COVERAGE] FAILED (missing mappings in required modules: {l_total_missing_required})')
         else:
             print(f'[COVERAGE] FAILED (strict-extra enabled, extra mappings: {l_total_extra})')
+
+    if l_args.summary_line:
+        print(
+            'INTRINSICS_COVERAGE_SUMMARY '
+            f"modules={len(l_results)} "
+            f"missing_required={l_total_missing_required} "
+            f"missing_optional={l_total_missing_optional} "
+            f"extra={l_total_extra} "
+            f"strict_extra={int(l_args.strict_extra)} "
+            f"require_avx2={int(l_args.require_avx2)} "
+            f"require_experimental={int(l_args.require_experimental)} "
+            f"status={'ok' if l_ok else 'fail'}"
+        )
 
     if l_total_missing_required > 0:
         return 1

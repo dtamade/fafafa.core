@@ -998,6 +998,7 @@ exit /b 0
 :coverage
 set "COVERAGE_SCRIPT=%ROOT%check_intrinsics_coverage.py"
 set "COVERAGE_ARGS="
+if "%SIMD_COVERAGE_JSON_FILE%"=="" set "SIMD_COVERAGE_JSON_FILE=%LOG_DIR%\intrinsics_coverage.json"
 if /I "%SIMD_COVERAGE_STRICT_EXTRA%"=="1" set "COVERAGE_ARGS=%COVERAGE_ARGS% --strict-extra"
 if /I "%SIMD_COVERAGE_REQUIRE_AVX2%"=="1" set "COVERAGE_ARGS=%COVERAGE_ARGS% --require-avx2"
 if /I "%SIMD_COVERAGE_REQUIRE_EXPERIMENTAL%"=="1" set "COVERAGE_ARGS=%COVERAGE_ARGS% --require-experimental"
@@ -1008,15 +1009,15 @@ if not exist "%COVERAGE_SCRIPT%" (
 
 where py >nul 2>nul
 if not errorlevel 1 (
-  echo [COVERAGE] Running: py -3 %COVERAGE_SCRIPT% %COVERAGE_ARGS%
-  py -3 "%COVERAGE_SCRIPT%" %COVERAGE_ARGS%
+  echo [COVERAGE] Running: py -3 %COVERAGE_SCRIPT% %COVERAGE_ARGS% --summary-line --json-file "%SIMD_COVERAGE_JSON_FILE%"
+  py -3 "%COVERAGE_SCRIPT%" %COVERAGE_ARGS% --summary-line --json-file "%SIMD_COVERAGE_JSON_FILE%"
   exit /b %ERRORLEVEL%
 )
 
 where python >nul 2>nul
 if not errorlevel 1 (
-  echo [COVERAGE] Running: python %COVERAGE_SCRIPT% %COVERAGE_ARGS%
-  python "%COVERAGE_SCRIPT%" %COVERAGE_ARGS%
+  echo [COVERAGE] Running: python %COVERAGE_SCRIPT% %COVERAGE_ARGS% --summary-line --json-file "%SIMD_COVERAGE_JSON_FILE%"
+  python "%COVERAGE_SCRIPT%" %COVERAGE_ARGS% --summary-line --json-file "%SIMD_COVERAGE_JSON_FILE%"
   exit /b %ERRORLEVEL%
 )
 

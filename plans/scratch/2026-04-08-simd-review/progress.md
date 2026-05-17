@@ -8283,3 +8283,40 @@
 - 当前阶段结论：
   - 这批收掉的是 `simd` 子树里仍被版本库持有的资源二进制垃圾
   - 它没有改变 SIMD 语义，但显著降低了后续 review 与构建后的噪音面
+
+## 2026-05-17 Intrinsics Coverage Evidence Normalization
+
+- 继续按“小闭环”推进，这次不再碰算法面，也不去追外部 Windows blocker，只把当前遗留的 `coverage` 半成品批次一次收口。
+- 接手现场后先确认工作树只脏在 4 个文件：
+  - `docs/fafafa.core.simd.maintenance.md`
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+  - `tests/fafafa.core.simd/check_intrinsics_coverage.py`
+- 这批的目标很窄：
+  - 让 `coverage` 默认产出稳定的 `txt/json` 证据
+  - 让 shell / batch runner 都输出可抓取的 summary line
+  - 避免下次再从 stdout 手工摘 coverage 结果
+- 已落地的收口：
+  - `tests/fafafa.core.simd/check_intrinsics_coverage.py`
+    - 新增 `--summary-line`
+    - 新增 `--json-file`
+    - 统一生成可复用 JSON payload
+    - 输出 `INTRINSICS_COVERAGE_SUMMARY ...`
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - 新增 `COVERAGE_LOG` / `COVERAGE_JSON_LOG`
+    - `run_coverage()` 现在会把 checker 输出落到 `tests/fafafa.core.simd/logs/intrinsics_coverage.{txt,json}`
+    - shell 侧会自动回显解析后的 summary
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+    - `coverage` action 同步补齐 `--summary-line --json-file`
+  - `docs/fafafa.core.simd.maintenance.md`
+    - 已写明 `coverage` 默认产物路径
+- fresh 验证已完成：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh coverage`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `coverage` 返回：
+    - `INTRINSICS_COVERAGE_SUMMARY modules=5 missing_required=0 missing_optional=0 extra=0 strict_extra=0 require_avx2=0 require_experimental=0 status=ok`
+  - Release `check` 继续通过，说明这次 runner 证据规范化没有引入新的 shell/batch 漂移
+- 当前阶段结论：
+  - 这批收掉的是“coverage 证据输出不够稳定”的 runner 卫生问题
+  - 它不改变 SIMD 实现语义，但把 `intrinsics coverage` 从一次性控制台输出提升成了可复用、可落盘、可抓取的标准证据
