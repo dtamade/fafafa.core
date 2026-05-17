@@ -377,9 +377,17 @@ def check_line_markdown_x(path: Path, contains_text: str) -> Optional[bool]:
     if not path.is_file():
         return None
 
+    matched_non_checkbox = False
     for line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
         if contains_text in line:
-            return line.strip().startswith("- [x]")
+            stripped = line.strip()
+            if stripped.startswith("- [x]"):
+                return True
+            if stripped.startswith("- [ ]"):
+                return False
+            matched_non_checkbox = True
+    if matched_non_checkbox:
+        return False
     return False
 
 
@@ -1872,7 +1880,11 @@ def main() -> int:
     matrix_text = matrix_doc.read_text(encoding="utf-8", errors="ignore") if matrix_doc.is_file() else ""
     if not matrix_text:
         checks.append(CheckItem("matrix_windows_closed", False, "FAIL", f"missing doc: {matrix_doc}"))
-    elif "Windows 证据：实机日志已归档" in matrix_text or "[x] Windows 实机证据已归档" in matrix_text:
+    elif (
+        "Windows 证据：实机日志已归档" in matrix_text
+        or "[x] Windows 实机证据已归档" in matrix_text
+        or "[x] Windows 实机证据曾归档" in matrix_text
+    ):
         checks.append(
             CheckItem(
                 "matrix_windows_closed",
