@@ -1290,7 +1290,7 @@ function simd_adds_epi8(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nos
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; paddsb xmm0, xmm1  // 有符�?位饱和加�?
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; paddsb xmm0, xmm1  // Signed saturated add on 8-bit lanes.
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; paddsb xmm0, xmm1
   {$ENDIF}
@@ -1312,7 +1312,7 @@ function simd_adds_epi16(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; no
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; paddsw xmm0, xmm1  // 有符�?6位饱和加�?
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; paddsw xmm0, xmm1  // Signed saturated add on 16-bit lanes.
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; paddsw xmm0, xmm1
   {$ENDIF}
@@ -1334,7 +1334,7 @@ function simd_subs_epi8(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nos
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; psubsb xmm0, xmm1  // 有符�?位饱和减�?
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; psubsb xmm0, xmm1  // Signed saturated subtract on 8-bit lanes.
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; psubsb xmm0, xmm1
   {$ENDIF}
@@ -1356,7 +1356,7 @@ function simd_subs_epi16(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; no
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; psubsw xmm0, xmm1  // 有符�?6位饱和减�?
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; psubsw xmm0, xmm1  // Signed saturated subtract on 16-bit lanes.
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; psubsw xmm0, xmm1
   {$ENDIF}
@@ -1415,7 +1415,7 @@ function simd_max_epi16(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nos
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pmaxsw xmm0, xmm1  // 有符�?6位最大�?
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pmaxsw xmm0, xmm1  // Signed max on 16-bit lanes.
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pmaxsw xmm0, xmm1
   {$ENDIF}
@@ -1474,7 +1474,7 @@ function simd_min_epi16(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nos
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pminsw xmm0, xmm1  // 有符�?6位最小�?
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pminsw xmm0, xmm1  // Signed min on 16-bit lanes.
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pminsw xmm0, xmm1
   {$ENDIF}
@@ -1496,7 +1496,7 @@ function simd_mul_epu32(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nos
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pmuludq xmm0, xmm1  // 无符�?2位乘�?-> 64位结�?
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pmuludq xmm0, xmm1  // Unsigned 32-bit multiply producing 64-bit lanes.
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pmuludq xmm0, xmm1
   {$ENDIF}
@@ -1518,7 +1518,7 @@ function simd_mullo_epi16(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; n
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pmullw xmm0, xmm1  // 16位乘法低位结�?
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pmullw xmm0, xmm1  // Keep the low 16-bit product lanes.
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pmullw xmm0, xmm1
   {$ENDIF}

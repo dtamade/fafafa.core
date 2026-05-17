@@ -7917,3 +7917,37 @@
   - `residual_char_count: 264 -> 245`
 - 当前下一步不应回头重扫 `1205` 之前，也不该重新铺大盘。
   最值当的继续方向仍然是沿 `1293, 1315, 1337, 1359, 1418, 1477, 1499, 1521` 这一小簇继续逐点判定：先看有没有真吞指令，再决定是否只做 hygiene。
+
+## 2026-05-18 SSE2 1293..1521 Confirmed Hygiene-Only After Swallowed-Asm Recheck
+
+- 在前一批已经证实 `SSE2` 这条线确实存在真实吞指令 bug 之后，`1293..1521` 这一簇不能再按“多半只是注释”来拍脑袋处理。
+- fresh 复核后确认：
+  - `simd_adds_epi8`
+  - `simd_adds_epi16`
+  - `simd_subs_epi8`
+  - `simd_subs_epi16`
+  - `simd_max_epi16`
+  - `simd_min_epi16`
+  - `simd_mul_epu32`
+  - `simd_mullo_epi16`
+  这 8 处都只是 Windows x64 单行尾注损坏，没有新的第二条有效 asm 被注释吞掉。
+- 这条复核结果同样重要，因为它说明当前策略开始起作用了：
+  - 不是把所有 residual 都当成真 bug
+  - 也不是把所有 residual 都当成纯 hygiene
+  - 而是每一小簇都先过一次“吞指令风险”筛查，再决定修法
+- 因而本批最优动作就是最小化收口：
+  - 只替换损坏尾注
+  - 不拆汇编单行
+  - 不重排执行体
+  - 不额外触碰 `x86` / `x64` 分支的寄存器协议
+- 收口后 live 结果继续证明这个簇已经可以安全出队：
+  - `residual_char_count: 245 -> 229`
+  - `residuals_up_to_1521=[]`
+  - `first residual line = 1632`
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - `intrinsics.experimental` 双模态 `check` 通过
+  - 主 `Release check` 通过
+- 因而当前最高价值的继续方向已经很明确：
+  - 不回头重扫 `1293..1521`
+  - 直接去看 `1632, 1742, 1765, 1832, 1854, 1876, 1898, 1920`
+  - 继续保持“先判真吞指令，再做 bounded hygiene”的节奏

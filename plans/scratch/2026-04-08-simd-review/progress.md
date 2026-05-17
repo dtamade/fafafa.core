@@ -10646,3 +10646,40 @@
 - 当前阶段结论：
   - 这批不只是 `SSE2` comment hygiene，而是修掉了 Windows/x86 分支里 4 条真实被注释吞掉的 asm 指令
   - 当前下一簇 residual 仍从 `1293` 行开始，但继续推进时必须保持“先判真 bug，再做 hygiene”的节奏，而不能把后续残点默认当作纯文本债务
+
+## 2026-05-18 SSE2 Saturated Arithmetic And Small Integer Ops Hygiene
+
+- 在上一批先修掉 `simd_max_epi8/min_epi8/maskmoveu` 的真实吞指令 bug 之后，本轮继续沿 `1293..1521` 的下一小簇往下切，但没有扩大范围。
+- 这次逐点复核的 8 个 Windows x64 残点如下：
+  - `simd_adds_epi8`
+  - `simd_adds_epi16`
+  - `simd_subs_epi8`
+  - `simd_subs_epi16`
+  - `simd_max_epi16`
+  - `simd_min_epi16`
+  - `simd_mul_epu32`
+  - `simd_mullo_epi16`
+- 复核结论：
+  - 这一簇没有再发现新的“注释吞掉第二条 asm 指令”
+  - 问题都收敛为 Windows 分支单行尾注的 `U+FFFD` 损坏
+  - 因而本批只做 bounded hygiene，不改任何执行语义
+- 本批实际改动：
+  - 把上述 8 处损坏尾注全部替换成稳定 ASCII 注释
+  - 保持单行汇编形状不变，不拆 calling convention，不改寄存器装载顺序
+- fresh 验证已完成：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_comment_swallow.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `python3` 逐文件计数：
+    - `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 从 `residual_char_count=245` 降到 `229`
+    - `residuals_up_to_1521=[]`
+    - `first_residual_lines=[1632, 1742, 1765, 1832, 1854, 1876, 1898, 1920, 2092, 2098, 2120, 2142, 2225, 2238, 2294, 2345, 2350, 2400, 2405, 2454]`
+- fresh 结果：
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - `intrinsics.experimental check` default / experimental 双模态通过
+  - `x86 SSE2 backend smoke` 通过
+  - 主 `simd` release `check` 通过
+- 当前阶段结论：
+  - `1293..1521` 这一整簇可以判定为 hygiene-only，已经整体退出 residual 清单
+  - `SSE2` 的下一个自然入口已经前移到 `1632` 行，接下来可以继续切 `sqrt/logical/compare` 邻近簇
