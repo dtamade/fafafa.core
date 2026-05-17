@@ -41,6 +41,7 @@
 - 如果 `freeze-status` 里的 Linux gate artifact 旧于最新 `src/fafafa.core.simd*` 源码，先重跑一次 release `gate`，不要把旧 gate summary 当成新代码回归。
 - 如果 latest `gate_summary.md` 以后又被日常 fast-gate 覆盖，导致 `qemu-cpuinfo-nonx86-evidence=SKIP`，先看 `logs/rehearsal/backups/` 或 `logs/windows-closeout/<batch>/gate_summary.md` 是否仍保留了更早的 closeout gate snapshot；`freeze-status` 现在会自动把这些 snapshot 当 fallback candidate。
 - 如果 `win-evidence-preflight` 返回 `RECENT_BILLING_BLOCK`，当前批次同样按 `code-green / release-evidence-blocked` 收口，不把 Windows evidence 阻塞误判成 SIMD 代码回归；此时优先处理 billing / 实机 Windows runner，而不是继续空转 `win-evidence-via-gh`。
+- 如果 `win-evidence-preflight` 的 live GitHub 查询只是瞬时 `WORKFLOW_QUERY_FAILED`，但本地仍有 fresh 的 `RECENT_BILLING_BLOCK` latest 报告，stdout 现在也会继续按 `RECENT_BILLING_BLOCK EXIT=31` 对外表态；瞬时 query noise 会写到 `logs/win_preflight_latest.diagnostic.{json,md}`，不会再覆写 `win_preflight_latest.{json,md}` 这份 operator truth。
 - 如果 `qemu-cpuinfo-nonx86-evidence` 又回到 `SKIP`，那说明 latest canonical gate 已被 fast-gate 覆盖或这轮并未刷新 Linux CPUInfo cross evidence；这时可以继续做仓库内文档/policy 收口，但不要把 `freeze-status` 写成 green。
 - `qemu-nonx86-evidence` 和 `qemu-cpuinfo-nonx86-evidence` 现在必须分开理解：
   - 前者服务 `closeout-host-local` 的 non-x86 runtime parity / dataplane 实现收口

@@ -9041,3 +9041,47 @@
   - `closeout-release` 与 `freeze-status` 现在共享同一份 Windows blocked truth
   - repo 内还能继续修的 preflight/evidence 信号链残差又收掉了一层
   - 当前剩余 cross 红点重新只剩外部 Windows evidence freshness 与现有坏 `windows_b07_gate.log` 的真实替换，而不是 latest preflight truth 再次漂移
+
+## 2026-05-17 Standalone Win-Preflight Stdout Now Matches Preserved Billing Truth
+
+- 在上一批把 latest report 保住之后，我没有停在“文件落盘正确”这个 proxy signal，而是继续看 direct operator surface：
+  - 如果 standalone `win-evidence-preflight` 自己的 stdout / exit code 还停在 `WORKFLOW_QUERY_FAILED(24)`
+  - 那么实际手跑这个入口的人，依然会和 `closeout-release` / `freeze-status` 看到两套不同真相
+- 这轮因此继续只收这一个 residual：
+  - `tests/fafafa.core.simd/preflight_windows_b07_evidence_gh.sh`
+    - 新增 `PREFLIGHT_CACHE_MAX_AGE_HOURS="${SIMD_WIN_PREFLIGHT_CACHE_MAX_AGE_HOURS:-2}"`
+    - preserve 分支不再沿用 24h billing window，而是与 `closeout-release` 的 fresh-cache 语义对齐
+    - 当 live query 失败但 latest 仍是 fresh `RECENT_BILLING_BLOCK` 时：
+      - stdout 直接输出 `STATUS=FAIL CODE=RECENT_BILLING_BLOCK EXIT=31`
+      - 说明 live query failure 只作为 diagnostic sidecar 保留
+      - 进程 `exit=31`
+  - `tests/fafafa.core.simd/rehearse_win_preflight_preserve_latest_on_query_failure.sh`
+    - 正例：fresh billing-block cache + live query failure => stdout 也必须是 `RECENT_BILLING_BLOCK EXIT=31`
+    - 反例：stale billing-block cache + live query failure => 仍应保持 `WORKFLOW_QUERY_FAILED EXIT=24`
+  - active docs：
+    - `docs/fafafa.core.simd.closeout.md`
+    - `docs/fafafa.core.simd.checklist.md`
+    - 已补上 diagnostic sidecar 与 preserved stdout truth 口径
+- 已验证：
+  - `git diff --check`
+  - `bash -n tests/fafafa.core.simd/preflight_windows_b07_evidence_gh.sh`
+  - `bash -n tests/fafafa.core.simd/rehearse_win_preflight_preserve_latest_on_query_failure.sh`
+  - `bash tests/fafafa.core.simd/rehearse_win_preflight_preserve_latest_on_query_failure.sh`
+    - fresh case:
+      - `STATUS=FAIL CODE=RECENT_BILLING_BLOCK EXIT=31`
+      - diagnostic sidecar 记录 `WORKFLOW_QUERY_FAILED`
+    - stale case:
+      - `STATUS=FAIL CODE=WORKFLOW_QUERY_FAILED EXIT=24`
+  - 真实复验：
+    - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-20260517-152`
+      - 这次 again 命中 live query 抖动
+      - 但 preflight stdout 已直接输出：
+        - `STATUS=FAIL CODE=RECENT_BILLING_BLOCK EXIT=31`
+        - `live query failed (WORKFLOW_QUERY_FAILED) but preserving fresh cached RECENT_BILLING_BLOCK operator truth`
+      - `closeout-release` 随后继续按 `code-green / release-evidence-blocked` 收口
+    - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+      - `windows_preflight_latest` 仍稳定显示 `RECENT_BILLING_BLOCK`
+      - next-actions 继续只剩 billing / 实机 runner / `win-closeout-3cmd`
+- 当前阶段结论：
+  - standalone preflight、closeout-release、freeze-status 三个主要 operator surface 现在已经对齐到同一份 Windows blocked truth
+  - 当前 remaining gap 继续只剩外部 Windows runner/billing 与 fresh green evidence，而不是 repo 内 preflight truth 再次分裂

@@ -7190,3 +7190,22 @@
   - `closeout-release` 仍能按 `24 -> cached 31` fail-fast
   - `freeze-status` 重新稳定看到 `RECENT_BILLING_BLOCK`
   - 瞬时 query noise 仍保留在 sidecar，便于后续诊断，但不会再污染主状态文件
+
+## 2026-05-17 Standalone Win-Preflight Stdout Was Still Diverging From Preserved Billing Truth
+
+- 在把 latest report 保住后，我继续做 completion audit，又发现还有最后一层 operator-truth 分裂：
+  - `win_preflight_latest.{json,md}` 已经不会再被瞬时 `WORKFLOW_QUERY_FAILED` 覆写
+  - 但 standalone `win-evidence-preflight` 自己的 stdout / exit code 仍会直接把这次 live query failure 暴露成 `24`
+  - 也就是说，同一次执行里：
+    - 落盘 truth 是 `RECENT_BILLING_BLOCK`
+    - 终端 truth 却还是 `WORKFLOW_QUERY_FAILED`
+- 这会让直接手跑 preflight 的操作者再次被 transport noise 带偏，即使 `closeout-release` / `freeze-status` 已经回到了正确 blocked reality。
+- 这一层的最小正确修法是：
+  - 只在 fresh cache 窗口内（与 `closeout-release` 一样默认 2h）启用 preserved billing truth
+  - 如果 live query 失败但 latest 仍是 fresh `RECENT_BILLING_BLOCK`
+  - stdout 也直接按 `STATUS=FAIL CODE=RECENT_BILLING_BLOCK EXIT=31` 对外表态
+  - 同时把真实 live query 失败写进 diagnostic sidecar，保留诊断面
+- 这样收口后，3 个主要入口就重新对齐了：
+  - standalone `win-evidence-preflight`
+  - `closeout-release`
+  - `freeze-status`

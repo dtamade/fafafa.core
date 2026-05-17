@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 WORKFLOW_FILE="${SIMD_WIN_EVIDENCE_WORKFLOW_FILE:-simd-windows-b07-evidence.yml}"
 LOOKBACK_LIMIT="${SIMD_WIN_PREFLIGHT_LOOKBACK_LIMIT:-6}"
 BILLING_WINDOW_HOURS="${SIMD_WIN_PREFLIGHT_BILLING_WINDOW_HOURS:-24}"
+PREFLIGHT_CACHE_MAX_AGE_HOURS="${SIMD_WIN_PREFLIGHT_CACHE_MAX_AGE_HOURS:-2}"
 PREFLIGHT_LOG_DIR="${SIMD_WIN_PREFLIGHT_LOG_DIR:-${ROOT}/logs}"
 PREFLIGHT_JSON_FILE="${SIMD_WIN_PREFLIGHT_JSON_FILE:-${PREFLIGHT_LOG_DIR}/win_preflight_latest.json}"
 PREFLIGHT_MD_FILE="${SIMD_WIN_PREFLIGHT_MD_FILE:-${PREFLIGHT_LOG_DIR}/win_preflight_latest.md}"
@@ -94,15 +95,15 @@ ${aMessage}
 EOF
 }
 
-latest_report_is_recent_billing_block() {
-  python3 - "${PREFLIGHT_JSON_FILE}" "${BILLING_WINDOW_HOURS}" <<'PY'
+latest_report_has_fresh_billing_block() {
+  python3 - "${PREFLIGHT_JSON_FILE}" "${PREFLIGHT_CACHE_MAX_AGE_HOURS}" <<'PY'
 import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 path = Path(sys.argv[1])
-window_hours = float(sys.argv[2])
+max_age_hours = float(sys.argv[2])
 if not path.is_file():
     sys.exit(1)
 
@@ -126,7 +127,7 @@ except ValueError:
     sys.exit(1)
 
 age_hours = (datetime.now(timezone.utc) - checked_at).total_seconds() / 3600.0
-if age_hours > window_hours:
+if age_hours > max_age_hours:
     sys.exit(1)
 sys.exit(0)
 PY
@@ -141,16 +142,16 @@ fail_with() {
   aCode="$2"
   aMessage="$3"
 
-  if [[ "${aCode}" == "WORKFLOW_QUERY_FAILED" ]] && latest_report_is_recent_billing_block; then
+  if [[ "${aCode}" == "WORKFLOW_QUERY_FAILED" ]] && latest_report_has_fresh_billing_block; then
     write_report "FAIL" "${aCode}" "${aExitCode}" "${aMessage}" "${PREFLIGHT_DIAGNOSTIC_JSON_FILE}" "${PREFLIGHT_DIAGNOSTIC_MD_FILE}"
-    echo "[PREFLIGHT] STATUS=FAIL CODE=${aCode} EXIT=${aExitCode}"
-    echo "[PREFLIGHT] ${aMessage}"
+    echo "[PREFLIGHT] STATUS=FAIL CODE=RECENT_BILLING_BLOCK EXIT=31"
+    echo "[PREFLIGHT] live query failed (${aCode}) but preserving fresh cached RECENT_BILLING_BLOCK operator truth"
     echo "[PREFLIGHT] preserving latest RECENT_BILLING_BLOCK report; writing transient diagnostic sidecar"
     echo "[PREFLIGHT] preserved-latest-json=${PREFLIGHT_JSON_FILE}"
     echo "[PREFLIGHT] preserved-latest-md=${PREFLIGHT_MD_FILE}"
     echo "[PREFLIGHT] diagnostic-json=${PREFLIGHT_DIAGNOSTIC_JSON_FILE}"
     echo "[PREFLIGHT] diagnostic-md=${PREFLIGHT_DIAGNOSTIC_MD_FILE}"
-    exit "${aExitCode}"
+    exit 31
   fi
 
   write_report "FAIL" "${aCode}" "${aExitCode}" "${aMessage}"

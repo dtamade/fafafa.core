@@ -75,13 +75,18 @@ set -e
 
 printf '%s\n' "${LRunOutput}"
 
-if [[ "${LRunRc}" != "24" ]]; then
-  echo "[PREFLIGHT-PRESERVE-LATEST] FAILED: expected rc=24 but got ${LRunRc}"
+if [[ "${LRunRc}" != "31" ]]; then
+  echo "[PREFLIGHT-PRESERVE-LATEST] FAILED: expected rc=31 but got ${LRunRc}"
   exit 1
 fi
 
 if ! grep -F -- "preserving latest RECENT_BILLING_BLOCK report" <<<"${LRunOutput}" >/dev/null; then
   echo "[PREFLIGHT-PRESERVE-LATEST] FAILED: missing preserve-latest note"
+  exit 1
+fi
+
+if ! grep -F -- "STATUS=FAIL CODE=RECENT_BILLING_BLOCK EXIT=31" <<<"${LRunOutput}" >/dev/null; then
+  echo "[PREFLIGHT-PRESERVE-LATEST] FAILED: stdout should surface preserved billing-block truth"
   exit 1
 fi
 
@@ -94,6 +99,46 @@ fi
 if ! grep -F -- '"code": "WORKFLOW_QUERY_FAILED"' "${LRepoRoot}/tests/fafafa.core.simd/logs/win_preflight_latest.diagnostic.json" >/dev/null; then
   echo "[PREFLIGHT-PRESERVE-LATEST] FAILED: diagnostic report missing WORKFLOW_QUERY_FAILED"
   cat "${LRepoRoot}/tests/fafafa.core.simd/logs/win_preflight_latest.diagnostic.json"
+  exit 1
+fi
+
+cat > "${LRepoRoot}/tests/fafafa.core.simd/logs/win_preflight_latest.json" <<'EOF'
+{
+  "checked_at_utc": "2026-05-17T00:00:00Z",
+  "status": "FAIL",
+  "code": "RECENT_BILLING_BLOCK",
+  "exit_code": 31,
+  "message": "stale billing-block cache"
+}
+EOF
+
+rm -f "${LRepoRoot}/tests/fafafa.core.simd/logs/win_preflight_latest.diagnostic.json" \
+      "${LRepoRoot}/tests/fafafa.core.simd/logs/win_preflight_latest.diagnostic.md"
+
+set +e
+LStaleOutput="$(
+  cd "${LRepoRoot}" && \
+  PATH="${LTmpRoot}/bin:${PATH}" \
+  bash tests/fafafa.core.simd/preflight_windows_b07_evidence_gh.sh 2>&1
+)"
+LStaleRc=$?
+set -e
+
+printf '%s\n' "${LStaleOutput}"
+
+if [[ "${LStaleRc}" != "24" ]]; then
+  echo "[PREFLIGHT-PRESERVE-LATEST] FAILED: stale cache should keep rc=24 but got ${LStaleRc}"
+  exit 1
+fi
+
+if grep -F -- "preserving latest RECENT_BILLING_BLOCK report" <<<"${LStaleOutput}" >/dev/null; then
+  echo "[PREFLIGHT-PRESERVE-LATEST] FAILED: stale cache should not preserve latest billing-block truth"
+  exit 1
+fi
+
+if ! grep -F -- '"code": "WORKFLOW_QUERY_FAILED"' "${LRepoRoot}/tests/fafafa.core.simd/logs/win_preflight_latest.json" >/dev/null; then
+  echo "[PREFLIGHT-PRESERVE-LATEST] FAILED: stale cache should allow latest report to become WORKFLOW_QUERY_FAILED"
+  cat "${LRepoRoot}/tests/fafafa.core.simd/logs/win_preflight_latest.json"
   exit 1
 fi
 
