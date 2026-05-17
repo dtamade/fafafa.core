@@ -378,22 +378,12 @@ fi
 if ! paths_equal "${LSourceLog}" "${BATCH_EVIDENCE_LOG}"; then
   cp "${LSourceLog}" "${BATCH_EVIDENCE_LOG}"
 fi
-if ! paths_equal "${LSourceLog}" "${CANONICAL_EVIDENCE_LOG}"; then
-  cp "${LSourceLog}" "${CANONICAL_EVIDENCE_LOG}"
-fi
-if ! paths_equal "${EVIDENCE_LOG}" "${CANONICAL_EVIDENCE_LOG}" && ! paths_equal "${LSourceLog}" "${EVIDENCE_LOG}"; then
-  cp "${LSourceLog}" "${EVIDENCE_LOG}"
-fi
-echo "[WIN-EVIDENCE-GH] Evidence log updated: ${EVIDENCE_LOG}"
-echo "[WIN-EVIDENCE-GH] Canonical evidence log: ${CANONICAL_EVIDENCE_LOG}"
+echo "[WIN-EVIDENCE-GH] Stage evidence log to batch snapshot before verify"
 echo "[WIN-EVIDENCE-GH] Batch evidence log: ${BATCH_EVIDENCE_LOG}"
 
 if [[ -n "${LSourceGateSummaryMd}" ]]; then
   if ! paths_equal "${LSourceGateSummaryMd}" "${BATCH_GATE_SUMMARY_MD}"; then
     cp "${LSourceGateSummaryMd}" "${BATCH_GATE_SUMMARY_MD}"
-  fi
-  if ! paths_equal "${LSourceGateSummaryMd}" "${LCanonicalGateSummaryMd}"; then
-    cp "${LSourceGateSummaryMd}" "${LCanonicalGateSummaryMd}"
   fi
   echo "[WIN-EVIDENCE-GH] Batch gate summary md: ${BATCH_GATE_SUMMARY_MD}"
   LFreezeGateSummaryFile="${BATCH_GATE_SUMMARY_MD}"
@@ -405,9 +395,6 @@ if [[ -n "${LSourceGateSummaryJson}" ]]; then
   if ! paths_equal "${LSourceGateSummaryJson}" "${BATCH_GATE_SUMMARY_JSON}"; then
     cp "${LSourceGateSummaryJson}" "${BATCH_GATE_SUMMARY_JSON}"
   fi
-  if ! paths_equal "${LSourceGateSummaryJson}" "${LCanonicalGateSummaryJson}"; then
-    cp "${LSourceGateSummaryJson}" "${LCanonicalGateSummaryJson}"
-  fi
   echo "[WIN-EVIDENCE-GH] Batch gate summary json: ${BATCH_GATE_SUMMARY_JSON}"
 else
   echo "[WIN-EVIDENCE-GH] WARN: gate_summary.json missing in downloaded artifact; batch snapshot cleared and verifier will fallback to log-only mode"
@@ -415,6 +402,11 @@ fi
 
 echo "[WIN-EVIDENCE-GH] Verify downloaded evidence"
 bash "${ROOT}/verify_windows_b07_evidence.sh" "${BATCH_EVIDENCE_LOG}" "${BATCH_GATE_SUMMARY_JSON}"
+
+copy_if_distinct "${BATCH_EVIDENCE_LOG}" "${CANONICAL_EVIDENCE_LOG}"
+copy_if_distinct "${BATCH_EVIDENCE_LOG}" "${EVIDENCE_LOG}"
+echo "[WIN-EVIDENCE-GH] Verified evidence log promoted: ${EVIDENCE_LOG}"
+echo "[WIN-EVIDENCE-GH] Canonical evidence log: ${CANONICAL_EVIDENCE_LOG}"
 
 echo "[WIN-EVIDENCE-GH] Backfill cross gate (SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1)"
 FAFAFA_BUILD_MODE="${FAFAFA_BUILD_MODE:-Release}" \

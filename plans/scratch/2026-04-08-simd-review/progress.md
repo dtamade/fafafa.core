@@ -8868,3 +8868,25 @@
   - `windows_preflight_latest` 仍是 `RECENT_BILLING_BLOCK`
   - `windows_evidence_verify` 仍因为现有 `windows_b07_gate.log` 不完整而 FAIL
   - 也就是说，Linux mainline truth 已恢复，剩下红项重新只剩 Windows closeout/evidence 这条链
+
+## 2026-05-17 Prevent Invalid GH Windows Artifact From Poisoning Canonical Evidence
+
+- 在继续深看 Windows closeout/evidence 链时，我把当前 canonical `tests/fafafa.core.simd/logs/windows_b07_gate.log` 打开核对，发现它不是一份“缺几行细节”的接近完成日志，而是一份明确失败的 batch：
+  - `[BUILD] FAILED ... Can't recognize '"lazbuild"' ...`
+  - `[B07] GATE_EXIT_CODE=1`
+- 进一步读 `tests/fafafa.core.simd/run_windows_b07_closeout_via_github_actions.sh` 后，确认了真正原因：
+  - 脚本下载 artifact 后，会先把 `windows_b07_gate.log` / `gate_summary` 回写到 canonical logs
+  - 然后才跑 `verify_windows_b07_evidence.sh`
+  - 所以只要 GH artifact 是坏的，脚本虽然会 verify fail 退出，但 canonical 指针已经被污染
+- 已落地修法：
+  - 先只把 artifact evidence / gate summary 落到 batch snapshot
+  - 先对 batch evidence 跑 verifier
+  - 只有 verifier PASS 后，才把 `windows_b07_gate.log` promote 到 canonical `logs/`
+  - Windows artifact 自带的 `gate_summary.{md,json}` 不再在 verify 前覆写 canonical；canonical gate summary 继续优先信后续 Linux cross backfill gate
+- 已验证：
+  - `bash -n tests/fafafa.core.simd/run_windows_b07_closeout_via_github_actions.sh`
+  - 本地 stub 复现：
+    - 伪造一个 explicit run-id 的 GH artifact 下载场景
+    - artifact 内只有一份明显无效的 `windows_b07_gate.log`
+    - 结果脚本 `RC=1`，batch snapshot 被写入，canonical `windows_b07_gate.log` 保持原 sentinel 内容不变
+  - 也就是说，坏 artifact 现在只会停留在 batch 目录，不会再把顶层 canonical evidence 指针搞脏

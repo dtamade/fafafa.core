@@ -7113,3 +7113,17 @@
 - 这里的最小正确修法分两层：
   - `run_freeze_status()` 只有在调用者显式设置 `SIMD_FREEZE_GATE_SUMMARY_FILE` / `SIMD_GATE_SUMMARY_FILE` 时才传 override
   - Python 选择器在 cross 模式下，如果最新 snapshot 只覆盖了 base gate，而历史里有 `mainline-ready` 但还不 `cross-ready` 的更强 snapshot，也要能回退到它，保住 Linux 主线 truth
+
+## 2026-05-17 GH Windows Evidence Import Was Polluting Canonical Logs Before Verify
+
+- 继续沿 Windows closeout/evidence 链往下看后，又暴露出一条真实的状态污染 bug：
+  - `run_windows_b07_closeout_via_github_actions.sh` 下载 artifact 后，会先把 `windows_b07_gate.log` 直接覆写到 canonical `tests/fafafa.core.simd/logs/windows_b07_gate.log`
+  - 然后才调用 `verify_windows_b07_evidence.sh`
+- 这意味着只要下载回来的 artifact 本身无效：
+  - verifier 虽然会失败退出
+  - 但 canonical `windows_b07_gate.log` 已经先被坏 artifact 污染了
+  - 当前仓库顶层那份 `windows_b07_gate.log` 就是这种状态：它记录的是 Windows 侧 `lazbuild` 调起失败的 batch，而不是一份 verifier 可接受的 closeout evidence
+- 这里的最小正确修法是：
+  - artifact 下载后先只写入 batch snapshot
+  - 只有在 verifier 对 batch snapshot 返回 PASS 之后，才把 evidence log promote 到 canonical 指针
+  - Windows artifact 自带的 `gate_summary.{md,json}` 也不应在 verify 前先覆写 canonical；cross backfill gate 自己会生成更可信的 canonical gate summary
