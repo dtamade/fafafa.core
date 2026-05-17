@@ -15,56 +15,6 @@
 // F32x4 Operations (128-bit, 4x Single)
 // =============================================================
 
-function RISCVVAddF32x4(const a, b: TVecF32x4): TVecF32x4;
-begin
-  Result := ScalarAddF32x4(a, b);
-end;
-
-function RISCVVSubF32x4(const a, b: TVecF32x4): TVecF32x4;
-begin
-  Result := ScalarSubF32x4(a, b);
-end;
-
-function RISCVVMulF32x4(const a, b: TVecF32x4): TVecF32x4;
-begin
-  Result := ScalarMulF32x4(a, b);
-end;
-
-function RISCVVDivF32x4(const a, b: TVecF32x4): TVecF32x4;
-begin
-  Result := ScalarDivF32x4(a, b);
-end;
-
-function RISCVVAbsF32x4(const a: TVecF32x4): TVecF32x4;
-begin
-  Result := ScalarAbsF32x4(a);
-end;
-
-function RISCVVSqrtF32x4(const a: TVecF32x4): TVecF32x4;
-begin
-  Result := ScalarSqrtF32x4(a);
-end;
-
-function RISCVVMinF32x4(const a, b: TVecF32x4): TVecF32x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    if a.f[i] < b.f[i] then
-      Result.f[i] := a.f[i]
-    else
-      Result.f[i] := b.f[i];
-end;
-
-function RISCVVMaxF32x4(const a, b: TVecF32x4): TVecF32x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    if a.f[i] > b.f[i] then
-      Result.f[i] := a.f[i]
-    else
-      Result.f[i] := b.f[i];
-end;
-
 // =============================================================
 // F64x2 Operations (128-bit, 2x Double)
 // =============================================================
@@ -115,26 +65,6 @@ end;
 // =============================================================
 // F32x4 Extended Math Operations
 // =============================================================
-
-function RISCVVFmaF32x4(const a, b, c: TVecF32x4): TVecF32x4;
-begin
-  Result := ScalarFmaF32x4(a, b, c);
-end;
-
-function RISCVVRcpF32x4(const a: TVecF32x4): TVecF32x4;
-begin
-  Result := ScalarRcpF32x4(a);
-end;
-
-function RISCVVRsqrtF32x4(const a: TVecF32x4): TVecF32x4;
-begin
-  Result := ScalarRsqrtF32x4(a);
-end;
-
-function RISCVVClampF32x4(const a, minVal, maxVal: TVecF32x4): TVecF32x4;
-begin
-  Result := ScalarClampF32x4(a, minVal, maxVal);
-end;
 
 // =============================================================
 // F32x4 Comparison Operations

@@ -8671,3 +8671,22 @@
   - register 是否 `asm-gated`
   - facade 是否仍有 live consumer
   - runtime slot 是否真的会在 non-asm host 上走到这份 body
+
+## 2026-05-18 RISCVV F32x4 Conditional Families Also Collapsed Into The Asm-Gated Dead-Facade Pattern
+
+- `RISCVV F32x4` 这一组这次最重要的新结论，不是“又发现一类特殊 case”，而是之前补进去的三种子分类已经过时：
+  - `Add/Sub/Mul/DivF32x4`
+  - `Abs/Sqrt/Fma/Rcp/Rsqrt/ClampF32x4`
+  - `Min/MaxF32x4`
+  - 现在都满足同一个更高优先级判断：
+    - register 绑定是 `asm-gated`
+    - asm wrapper / helper / opcode witness 仍真实存在
+    - no-asm facade body 已无 live consumer
+- 这意味着 earlier “要为 `ExactF32x4` 保留 dedicated facade witness” 和 “要为 `LocalExtremaF32x4` 保留 local loop witness” 都不再成立。
+- 更准确的结构已经收成：
+  - asm/runtime truth：仍然存在，并且仍需要 dedicated source/runtime witness
+  - no-asm facade truth：不存在，因为这些 body 已经失活
+- 这条 finding 的关键价值是把一个很容易反复犯的错明确写死：
+  - “某个 no-asm body 语义特殊” 不足以证明它还该保留
+  - 先问它今天还有没有 live consumer
+  - 如果 register/runtime 根本走不到、source graph 也没人再调它，那它就是 dead facade，不管它是 scalar forward 还是 local compare loop

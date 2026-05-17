@@ -12077,3 +12077,64 @@
   - `RISCVV Add/Sub/Mul/DivF64x2` 当前也不该再被描述成 “保留着也无伤大雅的 scalar facade helper”
   - 更准确的真相是：它们和前两批一样，已不再承担任何 live runtime truth，只是 dead facade source
   - 这批继续收掉的是无 live consumer 的条件 facade 残影，不是行为修复
+
+## 2026-05-18 RISCVV Conditional F32x4 Dead Facade Collapse
+
+- 沿着刚收完的 `F64x2` 模式继续复核 `RISCVV F32x4` 后，fresh 引用图给出同样结论：
+  - `src/fafafa.core.simd.riscvv.register.inc`
+    - `Add/Sub/Mul/DivF32x4`
+    - `Abs/Sqrt/Fma/Rcp/Rsqrt/ClampF32x4`
+    - `Min/MaxF32x4`
+    - 全都只在 `{$IFDEF RISCVV_ASSEMBLY}` 下绑定
+  - `src/fafafa.core.simd.riscvv.pas`
+    - asm wrapper / helper / opcode witness 仍真实存在
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - 之前还保留这 12 个 no-asm body
+  - fresh 全仓 `rg`
+    - 除了 asm source、register source 与测试护栏，没有新的 live consumer
+- 这说明前面为 `ExactF32x4` / `LocalExtremaF32x4` 补的 witness，已经从“补 coverage”变成了“保护 dead facade”：
+  - non-asm host runtime 本来就复用 scalar slot
+  - asm host runtime 走的是 `riscvv.pas` 里的 asm wrapper/helper
+  - `facade.inc` 里这 12 份 body 已经不再承担 active truth
+- 因而这批的源码/护栏收口成立：
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - 删除 dead `RISCVVAdd/Sub/Mul/DivF32x4`
+    - 删除 dead `RISCVVAbs/Sqrt/Fma/Rcp/Rsqrt/ClampF32x4`
+    - 删除 dead `RISCVVMin/MaxF32x4`
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 把 `Add/Sub/Mul/DivF32x4`
+    - `Abs/Sqrt/Fma/Rcp/Rsqrt/ClampF32x4`
+    - `Min/MaxF32x4`
+    - 从 `riscvv_facade_source` 的 active expectation 里移除
+    - 同时全部改成 absent-routine expectation
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 新增 `Test_RISCVV_ArithmeticF32x4Slots_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding`
+    - 把 `Test_RISCVV_ExactF32x4Slots_Keep_AsmConditional_SourceTruth_And_RuntimeBinding`
+      翻正成
+      `Test_RISCVV_ExactF32x4Slots_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding`
+    - 把 `Test_RISCVV_LocalExtremaF32x4_Keep_AsmConditional_RuntimeBinding_And_LocalNoAsmWitness`
+      翻正成
+      `Test_RISCVV_LocalExtremaF32x4_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding`
+    - 三组测试都显式断言：
+      - facade dead witness 必须 absent
+      - asm helper/opcode witness 继续存在
+      - runtime 仍保持 asm-compiled 时 backend-owned、非 asm host 时 scalar reuse
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 同步 `ExactF32x4` / `LocalExtremaF32x4` 的 expectation procedure 名称
+- 本批 fresh 验证链已经收口：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=704 status=ok`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=136 issues=0 status=ok`
+  - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=riscvv assignments=470 asm_exact=312 asm_suffix_only=117 wrapper_only=41 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - Release `TTestCase_DispatchAPI` `BUILD/TEST/LEAK` 全绿
+  - Release `check` 通过
+- 当前阶段结论：
+  - `RISCVV F32x4` 这 12 个条件槽位当前不该再被拆成 “exact 要保留 facade / local extrema 要保留 witness / arithmetic 可以先放着”
+  - 更准确的真相是：它们都已经落到同一个 `asm-gated dead facade` 模式
+  - 这批收掉的是失活源码残影和过时护栏，不是新的 runtime 行为修复

@@ -542,12 +542,6 @@ def main() -> int:
             "Result.f[i] := a.f[i]",
             "Result.f[i] := b.f[i];",
         ]),
-        (riscvv_facade_source, "RISCVVMinF32x4", [
-            "for i := 0 to 3 do",
-            "if a.f[i] < b.f[i] then",
-            "Result.f[i] := a.f[i]",
-            "Result.f[i] := b.f[i];",
-        ]),
         (riscvv_facade_source, "RISCVVMinF32x16", [
             "for i := 0 to 15 do",
             "if a.f[i] < b.f[i] then",
@@ -568,12 +562,6 @@ def main() -> int:
         ]),
         (riscvv_facade_source, "RISCVVMaxF32x8", [
             "for i := 0 to 7 do",
-            "if a.f[i] > b.f[i] then",
-            "Result.f[i] := a.f[i]",
-            "Result.f[i] := b.f[i];",
-        ]),
-        (riscvv_facade_source, "RISCVVMaxF32x4", [
-            "for i := 0 to 3 do",
             "if a.f[i] > b.f[i] then",
             "Result.f[i] := a.f[i]",
             "Result.f[i] := b.f[i];",
@@ -613,9 +601,6 @@ def main() -> int:
         ]),
         (riscvv_facade_source, "RISCVVReduceMaxF64x8", [
             "Result := ScalarReduceMaxF64x8(a);",
-        ]),
-        (riscvv_facade_source, "RISCVVFmaF32x4", [
-            "Result := ScalarFmaF32x4(a, b, c);",
         ]),
         (riscvv_facade_source, "RISCVVReduceMinF32x4", [
             "Result := ScalarReduceMinF32x4(a);",
@@ -830,12 +815,6 @@ def main() -> int:
 
     riscvv_scalar_forwarder_expectations: list[tuple[str, str]] = []
     for suffix in ("F32x4", "F64x2"):
-        for op in ("Add", "Sub", "Mul", "Div"):
-            if suffix == "F64x2":
-                continue
-            riscvv_scalar_forwarder_expectations.append(
-                (f"RISCVV{op}{suffix}", f"Scalar{op}{suffix}(a, b)")
-            )
         for op in ("Eq", "Lt", "Gt", "Le", "Ge", "Ne"):
             riscvv_scalar_forwarder_expectations.append(
                 (f"RISCVVCmp{op}{suffix}", f"ScalarCmp{op}{suffix}(a, b)")
@@ -853,10 +832,8 @@ def main() -> int:
                 (f"RISCVVCmp{op}{suffix}", f"ScalarCmp{op}{suffix}(a, b)")
             )
 
-    for suffix in ("F32x4", "F64x2", "F32x8", "F64x4", "F32x16", "F64x8"):
+    for suffix in ("F32x8", "F64x4", "F32x16", "F64x8"):
         for op in ("Abs", "Sqrt"):
-            if (suffix == "F64x2") and (op in ("Abs", "Sqrt")):
-                continue
             riscvv_scalar_forwarder_expectations.append(
                 (f"RISCVV{op}{suffix}", f"Scalar{op}{suffix}(a)")
             )
@@ -906,20 +883,15 @@ def main() -> int:
                 (f"RISCVV{suffix}{op}", f"Scalar{suffix}{op}(mask)")
             )
 
-    for suffix in ("F32x4", "F64x2", "F32x8", "F64x4", "F32x16", "F64x8"):
-        if suffix == "F64x2":
-            continue
+    for suffix in ("F32x8", "F64x4", "F32x16", "F64x8"):
         riscvv_scalar_forwarder_expectations.append(
             (f"RISCVVFma{suffix}", f"ScalarFma{suffix}(a, b, c)")
         )
 
-    for suffix in ("F32x4", "F32x8", "F32x16"):
+    for suffix in ("F32x8", "F32x16"):
         riscvv_scalar_forwarder_expectations.append(
             (f"RISCVVClamp{suffix}", f"ScalarClamp{suffix}(a, minVal, maxVal)")
         )
-
-    riscvv_scalar_forwarder_expectations.append(("RISCVVRcpF32x4", "ScalarRcpF32x4(a)"))
-    riscvv_scalar_forwarder_expectations.append(("RISCVVRsqrtF32x4", "ScalarRsqrtF32x4(a)"))
 
     for suffix in ("F32x16", "F64x8"):
         for op in ("Add", "Sub", "Mul", "Div"):
@@ -1302,7 +1274,19 @@ def main() -> int:
         (riscvv_facade_source, "RISCVVAbsF64x2"),
         (riscvv_facade_source, "RISCVVSqrtF64x2"),
         (riscvv_facade_source, "RISCVVFmaF64x2"),
+        (riscvv_facade_source, "RISCVVAddF32x4"),
+        (riscvv_facade_source, "RISCVVSubF32x4"),
+        (riscvv_facade_source, "RISCVVMulF32x4"),
+        (riscvv_facade_source, "RISCVVDivF32x4"),
+        (riscvv_facade_source, "RISCVVAbsF32x4"),
+        (riscvv_facade_source, "RISCVVSqrtF32x4"),
+        (riscvv_facade_source, "RISCVVFmaF32x4"),
+        (riscvv_facade_source, "RISCVVRcpF32x4"),
+        (riscvv_facade_source, "RISCVVRsqrtF32x4"),
+        (riscvv_facade_source, "RISCVVClampF32x4"),
         (riscvv_facade_source, "RISCVVClampF64x2"),
+        (riscvv_facade_source, "RISCVVMinF32x4"),
+        (riscvv_facade_source, "RISCVVMaxF32x4"),
         (riscvv_facade_source, "RISCVVMinF64x2"),
         (riscvv_facade_source, "RISCVVMaxF64x2"),
     ]
