@@ -8386,3 +8386,22 @@
   - “no-asm facade 当前仍保留 local compare loop”
   - “runtime special-case parity 在当前 host 上已 fresh 复核为绿”
   - “helper semantics 现在也已把 `Min/MaxF64x4/F64x8` 的 local-loop truth 显式钉住”
+
+## 2026-05-18 RISCVV Wide F32 MinMax Was The Same Kind Of Guard-Coverage Gap
+
+- `RISCVV MinF32x8/MaxF32x8/MinF32x16/MaxF32x16` 和刚收掉的 `wide F64` 属于同一种“看起来危险、但不能凭模式直接改”的 residual：
+  - `register.inc` 继续保留 backend-owned shape
+  - `facade.inc` 继续保留 local compare loop
+  - 但此前缺 `NaN / signed-zero` 的 runtime special-case parity，也缺 dedicated helper semantics truth
+- fresh 证据再次把“审查信号”和“真实 bug”区分开了：
+  - 新增的 `TTestCase_NonX86IEEE754.Test_NonX86_F32_WideMinMax_SpecialCases_IfAvailable`
+  - 在当前 x86 release host 上没有打出 scalar/backend parity 红点
+  - 所以当前没有 fresh 证据支持把这 4 个 `wide F32 min/max` 改成 exact scalar forward
+- 这条 finding 的价值在于把 `wide float min/max` 的处理原则进一步统一：
+  - `F32` 和 `F64` 都不应只因为“local loop + backend-owned”就被自动判成 drift
+  - 必须先拿 runtime special-case parity 说话
+  - 如果 parity 为绿，正确动作是补 source/runtime guard，而不是追求表面统一去改实现
+- 当前对 `RISCVV wide F32 min/max` 最准确的口径应是：
+  - “runtime special-case parity 已 fresh 复核为绿”
+  - “no-asm facade 当前仍保留 local compare loop”
+  - “helper semantics 现在也已把 `Min/MaxF32x8/F32x16` 的 local-loop truth 显式钉住”

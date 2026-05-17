@@ -11476,3 +11476,46 @@
     - runtime special-case parity 已有 fresh 证据
     - source-level local-loop truth 现在也有 helper semantics 护栏
     - 在没有 fresh 红证据前，不应把 `MinF64x4/F64x8` 误收成 exact scalar forward
+
+## 2026-05-18 RISCVV Wide F32 MinMax Witness Coverage Closeout
+
+- 在 `wide F64` 收口后，紧邻 residual 继续落到 `RISCVV wide F32 min/max`：
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - `RISCVVMinF32x8`
+    - `RISCVVMaxF32x8`
+    - `RISCVVMinF32x16`
+    - `RISCVVMaxF32x16`
+  - 这四格当前同样保留 local compare loop，但之前既没有 `NonX86IEEE754` 的宽 `F32 min/max` special-case 回归，也没有 helper semantics 的 source-level truth
+- 这批依旧先跑证据，不预设实现要改：
+  - `tests/fafafa.core.simd/fafafa.core.simd.ieee754.testcase.pas`
+    - 新增 `TTestCase_NonX86IEEE754.Test_NonX86_F32_WideMinMax_SpecialCases_IfAvailable`
+    - 直接对位 `MinF32x8/MaxF32x8/MinF32x16/MaxF32x16` 的 `NaN / signed-zero` 语义
+  - fresh release 结果：
+    - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NonX86IEEE754`
+    - `BUILD/TEST/LEAK` 全绿
+    - 说明当前 host 上没有 fresh 证据支持把这 4 个 wide `F32 min/max` 判成 drift bug
+- 因而本批保持实现不动，只补当前真实缺口：
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 新增 `RISCVVMinF32x8`
+    - 新增 `RISCVVMinF32x16`
+    - 新增 `RISCVVMaxF32x8`
+    - 新增 `RISCVVMaxF32x16`
+    - 全部按当前 local-loop body 记录 source-level truth
+  - `NONX86_HELPER_SEMANTICS_SUMMARY` 因此从 `688` 升到 `692`
+- 这批串行 release 验证已经 fresh 跑通：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NonX86IEEE754`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=692 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `TTestCase_NonX86IEEE754` `BUILD/TEST/LEAK` 全绿
+  - Release `check` 通过
+- 当前阶段结论：
+  - 这批收掉的是 `RISCVV wide F32 min/max` 的 guard-coverage 缺口，不是新的实现 drift bug
+  - 当前 `RISCVV wide float min/max` 的 `F32` 与 `F64` 两半，都已经有了：
+    - runtime special-case parity
+    - source-level helper semantics witness

@@ -118,6 +118,7 @@ type
     procedure Test_NonX86_RoundTruncFloorCeil_NaNInf_IfAvailable;
     procedure Test_NonX86_NarrowF64x2_RoundTruncFloorCeil_Finite_IfAvailable;
     procedure Test_NonX86_F32_ReduceMinMax_SpecialCases_IfAvailable;
+    procedure Test_NonX86_F32_WideMinMax_SpecialCases_IfAvailable;
     procedure Test_NonX86_F64_MinMaxReduce_SpecialCases_IfAvailable;
     procedure Test_NonX86_F64_WideMinMax_SpecialCases_IfAvailable;
     procedure Test_NonX86_Wide_RoundTruncFloorCeil_NaNInf_IfAvailable;
@@ -3548,6 +3549,153 @@ begin
       LInputF64x8.d[6] := 8.0;
       LInputF64x8.d[7] := 9.0;
       AssertReduceParityF64x8('SignedZeroNegPos', LInputF64x8);
+    finally
+      ResetToAutomaticBackend;
+    end;
+  end;
+
+  if LCheckedBackends = 0 then
+    AssertTrue('No non-x86 backend available on this host (allowed)', True);
+end;
+
+procedure TTestCase_NonX86IEEE754.Test_NonX86_F32_WideMinMax_SpecialCases_IfAvailable;
+const
+  NON_X86_BACKENDS: array[0..1] of TSimdBackend = (sbNEON, sbRISCVV);
+var
+  LBackend: TSimdBackend;
+  LCheckedBackends: Integer;
+  LScalarDispatch: PSimdDispatchTable;
+  LBackendDispatch: PSimdDispatchTable;
+
+  LLeftF32x8, LRightF32x8: TVecF32x8;
+  LLeftF32x16, LRightF32x16: TVecF32x16;
+
+  procedure AssertSingleParity(const aPrefix: string; const aExpected, aActual: Single);
+  begin
+    if IsNaNSingle(aExpected) then
+      AssertTrue(aPrefix + ' expected NaN', IsNaNSingle(aActual))
+    else if IsInfinite(aExpected) then
+      AssertTrue(aPrefix + ' expected Inf sign',
+        IsInfinite(aActual) and ((aActual > 0) = (aExpected > 0)))
+    else
+    begin
+      AssertEquals(aPrefix + ' finite compare', aExpected, aActual, 0.0);
+      if aExpected = 0.0 then
+        AssertTrue(aPrefix + ' zero sign',
+          BitsFromSingle(aExpected) = BitsFromSingle(aActual));
+    end;
+  end;
+
+  procedure AssertVecF32x8Parity(
+    const aPrefix: string;
+    const aExpected, aActual: TVecF32x8);
+  var
+    LLaneIndex: Integer;
+  begin
+    for LLaneIndex := 0 to 7 do
+      AssertSingleParity(aPrefix + '[' + IntToStr(LLaneIndex) + ']',
+        aExpected.f[LLaneIndex], aActual.f[LLaneIndex]);
+  end;
+
+  procedure AssertVecF32x16Parity(
+    const aPrefix: string;
+    const aExpected, aActual: TVecF32x16);
+  var
+    LLaneIndex: Integer;
+  begin
+    for LLaneIndex := 0 to 15 do
+      AssertSingleParity(aPrefix + '[' + IntToStr(LLaneIndex) + ']',
+        aExpected.f[LLaneIndex], aActual.f[LLaneIndex]);
+  end;
+
+begin
+  LCheckedBackends := 0;
+  SetVectorAsmEnabled(True);
+
+  for LBackend in NON_X86_BACKENDS do
+  begin
+    if not IsBackendRegistered(LBackend) then
+      Continue;
+    if not TrySetActiveBackend(LBackend) then
+      Continue;
+
+    Inc(LCheckedBackends);
+    try
+      SetActiveBackend(sbScalar);
+      LScalarDispatch := GetDispatchTable;
+      AssertNotNull('Scalar dispatch should be available', LScalarDispatch);
+      AssertTrue('Scalar dispatch should provide wide F32 min/max',
+        Assigned(LScalarDispatch^.MinF32x8) and Assigned(LScalarDispatch^.MaxF32x8) and
+        Assigned(LScalarDispatch^.MinF32x16) and Assigned(LScalarDispatch^.MaxF32x16));
+
+      SetActiveBackend(LBackend);
+      LBackendDispatch := GetDispatchTable;
+      AssertNotNull('Non-x86 dispatch should be available', LBackendDispatch);
+      AssertTrue('Non-x86 dispatch should provide wide F32 min/max',
+        Assigned(LBackendDispatch^.MinF32x8) and Assigned(LBackendDispatch^.MaxF32x8) and
+        Assigned(LBackendDispatch^.MinF32x16) and Assigned(LBackendDispatch^.MaxF32x16));
+
+      LLeftF32x8.f[0] := NaNF32;
+      LLeftF32x8.f[1] := 5.0;
+      LLeftF32x8.f[2] := 0.0;
+      LLeftF32x8.f[3] := NegZeroF32;
+      LLeftF32x8.f[4] := 8.0;
+      LLeftF32x8.f[5] := 9.0;
+      LLeftF32x8.f[6] := NegZeroF32;
+      LLeftF32x8.f[7] := 0.0;
+      LRightF32x8.f[0] := 3.0;
+      LRightF32x8.f[1] := NaNF32;
+      LRightF32x8.f[2] := NegZeroF32;
+      LRightF32x8.f[3] := 0.0;
+      LRightF32x8.f[4] := NaNF32;
+      LRightF32x8.f[5] := 4.0;
+      LRightF32x8.f[6] := 0.0;
+      LRightF32x8.f[7] := NegZeroF32;
+      AssertVecF32x8Parity(IEEE754BackendName(LBackend) + ' Special MinF32x8',
+        LScalarDispatch^.MinF32x8(LLeftF32x8, LRightF32x8),
+        LBackendDispatch^.MinF32x8(LLeftF32x8, LRightF32x8));
+      AssertVecF32x8Parity(IEEE754BackendName(LBackend) + ' Special MaxF32x8',
+        LScalarDispatch^.MaxF32x8(LLeftF32x8, LRightF32x8),
+        LBackendDispatch^.MaxF32x8(LLeftF32x8, LRightF32x8));
+
+      LLeftF32x16.f[0] := NaNF32;
+      LLeftF32x16.f[1] := 5.0;
+      LLeftF32x16.f[2] := 0.0;
+      LLeftF32x16.f[3] := NegZeroF32;
+      LLeftF32x16.f[4] := 8.0;
+      LLeftF32x16.f[5] := 9.0;
+      LLeftF32x16.f[6] := NegZeroF32;
+      LLeftF32x16.f[7] := 0.0;
+      LLeftF32x16.f[8] := 12.0;
+      LLeftF32x16.f[9] := 13.0;
+      LLeftF32x16.f[10] := 14.0;
+      LLeftF32x16.f[11] := 15.0;
+      LLeftF32x16.f[12] := NegZeroF32;
+      LLeftF32x16.f[13] := 0.0;
+      LLeftF32x16.f[14] := 18.0;
+      LLeftF32x16.f[15] := NaNF32;
+      LRightF32x16.f[0] := 3.0;
+      LRightF32x16.f[1] := NaNF32;
+      LRightF32x16.f[2] := NegZeroF32;
+      LRightF32x16.f[3] := 0.0;
+      LRightF32x16.f[4] := NaNF32;
+      LRightF32x16.f[5] := 4.0;
+      LRightF32x16.f[6] := 0.0;
+      LRightF32x16.f[7] := NegZeroF32;
+      LRightF32x16.f[8] := 11.0;
+      LRightF32x16.f[9] := 12.0;
+      LRightF32x16.f[10] := NaNF32;
+      LRightF32x16.f[11] := 16.0;
+      LRightF32x16.f[12] := 0.0;
+      LRightF32x16.f[13] := NegZeroF32;
+      LRightF32x16.f[14] := NaNF32;
+      LRightF32x16.f[15] := 17.0;
+      AssertVecF32x16Parity(IEEE754BackendName(LBackend) + ' Special MinF32x16',
+        LScalarDispatch^.MinF32x16(LLeftF32x16, LRightF32x16),
+        LBackendDispatch^.MinF32x16(LLeftF32x16, LRightF32x16));
+      AssertVecF32x16Parity(IEEE754BackendName(LBackend) + ' Special MaxF32x16',
+        LScalarDispatch^.MaxF32x16(LLeftF32x16, LRightF32x16),
+        LBackendDispatch^.MaxF32x16(LLeftF32x16, LRightF32x16));
     finally
       ResetToAutomaticBackend;
     end;

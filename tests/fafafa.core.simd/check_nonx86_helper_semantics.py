@@ -536,6 +536,18 @@ def main() -> int:
             "Result.d[i] := a.d[i]",
             "Result.d[i] := b.d[i];",
         ]),
+        (riscvv_facade_source, "RISCVVMinF32x8", [
+            "for i := 0 to 7 do",
+            "if a.f[i] < b.f[i] then",
+            "Result.f[i] := a.f[i]",
+            "Result.f[i] := b.f[i];",
+        ]),
+        (riscvv_facade_source, "RISCVVMinF32x16", [
+            "for i := 0 to 15 do",
+            "if a.f[i] < b.f[i] then",
+            "Result.f[i] := a.f[i]",
+            "Result.f[i] := b.f[i];",
+        ]),
         (riscvv_facade_source, "RISCVVMinF64x4", [
             "for i := 0 to 3 do",
             "if a.d[i] < b.d[i] then",
@@ -553,6 +565,18 @@ def main() -> int:
             "if a.d[i] > b.d[i] then",
             "Result.d[i] := a.d[i]",
             "Result.d[i] := b.d[i];",
+        ]),
+        (riscvv_facade_source, "RISCVVMaxF32x8", [
+            "for i := 0 to 7 do",
+            "if a.f[i] > b.f[i] then",
+            "Result.f[i] := a.f[i]",
+            "Result.f[i] := b.f[i];",
+        ]),
+        (riscvv_facade_source, "RISCVVMaxF32x16", [
+            "for i := 0 to 15 do",
+            "if a.f[i] > b.f[i] then",
+            "Result.f[i] := a.f[i]",
+            "Result.f[i] := b.f[i];",
         ]),
         (riscvv_facade_source, "RISCVVMaxF64x4", [
             "for i := 0 to 3 do",
