@@ -6890,3 +6890,13 @@
   - 当前 canonical 事实是 `code-green / release-evidence-blocked`
   - full `freeze-status` 仍红在 Windows evidence freshness / verify + Billing block
   - 没有 fresh red 落回实现层之前，默认不要再重开 SIMD 泛审查
+
+## 2026-05-17 Summary-Refresh Follow-Up Drift
+
+- 在 `windows_b07_closeout_summary.md` 被刷新成当前 honest FAIL 之后，active 文档顶部又暴露了一个新的轻量 drift：
+  - `closeout.md` / `checklist.md` / `handoff.md` 仍把 `windows_b07_closeout_summary.md` 当成当前红项
+  - 但 latest `freeze-status` 里它已经是 `PASS`，只是“summary matches verifier FAIL”
+- 这类 drift 的风险不在实现层，而在 triage 顺序：
+  - 维护者会把时间花在已经 honest 的 summary 上
+  - 而不是直接面对真正剩余的三件事：旧 `windows_b07_gate.log`、`windows_evidence_verify` 和 `RECENT_BILLING_BLOCK`
+- 最小正确修法就是把顶部“当前红项”摘要改成最新事实，而不是再重写整篇 closeout 手册

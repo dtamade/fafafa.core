@@ -32,8 +32,9 @@
   - cross-platform `freeze-status` 仍为 `ready=False / cross-ready=False`
   - 当前主要红项是：
     - `cross_gate_required_steps: evidence-verify=SKIP`
-    - `windows_b07_gate.log` / `windows_b07_closeout_summary.md` 的 freshness / verify
+    - `windows_b07_gate.log` 的 freshness / verify
     - `win-evidence-preflight` 最新结果是 `RECENT_BILLING_BLOCK`
+  - `windows_b07_closeout_summary.md` 现在已经刷新成当前 verifier FAIL 对应的 honest summary，本身不再是 stale red
 - 这不是新的接口/实现质量问题，而是外部条件问题：
   - 当前 canonical Windows evidence 仍停留在 `2026-04-19`
   - 当前源码时间线已经继续向前推进；如果 latest gate artifact 早于最新 `src/fafafa.core.simd*` 源码，先重跑 release `gate`

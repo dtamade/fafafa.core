@@ -8532,3 +8532,19 @@
   - `src/fafafa.core.simd.README.md` 在 `closeout-release` 入口旁补上当前外部 blocker 提示
   - `docs/fafafa.core.simd.maintenance.md` 补上“默认不要再重开实现层泛审查”的最新口径
 - 这批价值在于把“当前该继续做什么”前移到最先被读到的文档，而不是只躲在 checklist/handoff/closeout 这些更深层入口里
+
+## 2026-05-17 Post-Summary-Refresh Red-Item Truth Sync
+
+- 在把 `windows_b07_closeout_summary.md` 刷成当前 honest FAIL 之后，又出现了一处很典型的“修完一个事实，顶部摘要忘了跟着变”的文档漂移：
+  - `docs/fafafa.core.simd.closeout.md`
+  - `docs/fafafa.core.simd.checklist.md`
+  - `docs/fafafa.core.simd.handoff.md`
+  - 顶部都还把 `windows_b07_closeout_summary.md` 写成当前红项的一部分
+- 但 latest `freeze-status` 已经不是这个状态了：
+  - `windows_closeout_summary: PASS`
+  - `windows_closeout_freshness: PASS`
+  - 真正剩下的还是 `windows_b07_gate.log` freshness / verifier，以及 `RECENT_BILLING_BLOCK`
+- 这批最小修法只收当前状态摘要：
+  - 把 `windows_b07_closeout_summary.md` 从“当前红项”里移除
+  - 显式补一句：summary 已经刷新成当前 verifier FAIL 对应的 honest summary
+- 这样下一位维护者读顶部摘要时，就不会再把“summary 还旧”错当成当前 blocker

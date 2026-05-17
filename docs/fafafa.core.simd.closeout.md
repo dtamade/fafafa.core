@@ -20,10 +20,12 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 仍是 `ready=False`
   - 当前直接红项包括两类：
     - `cross_gate_required_steps: evidence-verify=SKIP`
-    - 旧 `windows_b07_gate.log` / `windows_b07_closeout_summary.md` 的 freshness / verify
+    - 旧 `windows_b07_gate.log` 的 freshness / verify，以及 `win-evidence-preflight=RECENT_BILLING_BLOCK`
   - 其中第二类仍然是当前唯一外部 blocker：
     - `windows_b07_gate.log` freshness / `source-newer-than-windows-evidence`
-    - `windows_b07_closeout_summary.md` freshness / verify
+    - `windows_evidence_verify`
+    - `windows_preflight_latest`
+  - `windows_b07_closeout_summary.md` 现在已经刷新成当前 verifier FAIL 对应的 honest summary，本身不再是 stale red
   - 第一类不是新的实现回归，而是这轮 gate 明确关闭了 Windows evidence enforcement；当前 full `freeze-status` 红点已经只剩 Windows evidence verify / freshness，而不是 Linux QEMU CPUInfo 证据缺失
 - 当前外部 blocker 已明确：
   - `win-evidence-preflight` 在 `2026-05-17` 返回 `STATUS=FAIL CODE=RECENT_BILLING_BLOCK EXIT=31`

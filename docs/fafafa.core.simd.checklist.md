@@ -8,7 +8,8 @@
 - 最新 release 证据说明：
   - `python3 tests/fafafa.core.simd/check_interface_implementation_completeness.py --strict` 为绿，`P0/P1/P2=0`
   - `2026-05-17 10:47:10` 的 canonical gate 已把 `linux_gate_required_steps_mainline` 与 `linux_qemu_cpuinfo_nonx86_evidence` 刷成 PASS；`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-linux` 已是 `ready=True` / `mainline-ready=True`
-  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 当前仍红，但直接红项已经收敛成 `cross_gate_required_steps: evidence-verify=SKIP` 和旧 `windows_b07_gate.log` / `windows_b07_closeout_summary.md` 的 freshness / verify
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 当前仍红，但直接红项已经收敛成 `cross_gate_required_steps: evidence-verify=SKIP`、旧 `windows_b07_gate.log` 的 freshness / verify，以及 `win-evidence-preflight=RECENT_BILLING_BLOCK`
+  - `windows_b07_closeout_summary.md` 现在已经是 fresh 的 honest FAIL summary，本身不再是 stale red
   - 其中真正的外部 blocker 仍只在 Windows evidence；Linux 这边只需保留 gate summary backup/fallback，防止未来 routine gate 再把 closeout truth 覆盖掉
 - 如果你当前既没有 Windows 实机，也没有可用 GitHub Actions Billing/额度，就把模块状态记成：
   - `code-green / release-evidence-blocked`
