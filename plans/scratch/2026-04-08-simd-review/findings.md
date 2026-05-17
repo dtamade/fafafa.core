@@ -6875,3 +6875,18 @@
 - 最小正确修法仍然不是改判定，而是改 detail：
   - 保持 optional PASS/PENDING 结构不变
   - 但把 detail 明确写成 `historical Windows archive marker` / `not a current readiness signal`
+
+## 2026-05-17 Entry-Point Docs Missing Current Stop-Point
+
+- 在 active closeout/checklist/handoff 已经收正之后，第一入口文档层还残留一个真实缺口：
+  - `docs/fafafa.core.simd.md`
+  - `src/fafafa.core.simd.README.md`
+  - `docs/fafafa.core.simd.maintenance.md`
+  - 这些文件都能把维护者正确导向模块入口，但还没有在最前面讲清“当前是不是还该继续改实现”
+- 风险不是文案不够新，而是入口路径会误导动作选择：
+  - 读者可能因为 README 里直接写了 `closeout-release` 主入口，就默认觉得当前环境下只差执行
+  - 也可能因为模块总览/维护指南没有写停点，重新回到泛审查或结构辩论
+- 当前最小正确修法不是把这些文档都重写成 closeout 手册，而是补一条共享停点：
+  - 当前 canonical 事实是 `code-green / release-evidence-blocked`
+  - full `freeze-status` 仍红在 Windows evidence freshness / verify + Billing block
+  - 没有 fresh red 落回实现层之前，默认不要再重开 SIMD 泛审查

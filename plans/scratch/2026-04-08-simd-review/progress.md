@@ -8518,3 +8518,17 @@
 - fresh `freeze-status` 复验后，主结论没有变化：
   - 当前仍是 `ready=False / cross-ready=False`
   - 但 optional doc check 的输出现在不再那么容易被误读成“当前已经放行”
+
+## 2026-05-17 Active Entry Docs Stop-Point Sync
+
+- 在 closeout/handoff/checklist 已经写清当前状态之后，`docs/fafafa.core.simd.md`、`src/fafafa.core.simd.README.md` 和 `docs/fafafa.core.simd.maintenance.md` 这三个第一入口文档还缺一个共同问题：
+  - 它们会把人顺滑地带到 `closeout-release`
+  - 但没有在入口处明确写出“当前并不是实现层未收口，而是 `code-green / release-evidence-blocked`”
+- 这会让下一位维护者很容易做两种低效动作：
+  - 重新打开 SIMD 泛审查
+  - 或者直接把 `closeout-release` 当成当前环境下一定能走通的无条件主线
+- 这批最小修法只补入口停点提示，不改任何命令或 gate：
+  - `docs/fafafa.core.simd.md` 新增当前停点摘要
+  - `src/fafafa.core.simd.README.md` 在 `closeout-release` 入口旁补上当前外部 blocker 提示
+  - `docs/fafafa.core.simd.maintenance.md` 补上“默认不要再重开实现层泛审查”的最新口径
+- 这批价值在于把“当前该继续做什么”前移到最先被读到的文档，而不是只躲在 checklist/handoff/closeout 这些更深层入口里

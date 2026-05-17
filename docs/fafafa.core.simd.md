@@ -8,6 +8,16 @@
 
 `fafafa.core.simd` 是一个高性能、跨平台的 SIMD 优化模块，为 FreePascal 应用程序提供内存、文本、位集和搜索操作的硬件加速。
 
+### 当前停点（2026-05-17）
+
+- 当前代码主线应按 `code-green` 理解：
+  - Linux canonical `gate` 已为 PASS
+  - `linux_qemu_cpuinfo_nonx86_evidence` 已 fresh PASS
+- 当前 release closeout 仍未完成：
+  - full `freeze-status` 仍是 `ready=False / cross-ready=False`
+  - 当前剩余 blocker 集中在 Windows evidence freshness / verify，以及 `win-evidence-preflight=RECENT_BILLING_BLOCK`
+- 因此，如果你这次只是从入口文档重新接手模块，不要先重开 SIMD 泛审查；先看 `docs/fafafa.core.simd.checklist.md` 与 `docs/fafafa.core.simd.closeout.md`，并把当前状态理解成 `code-green / release-evidence-blocked`
+
 ### 设计目标
 
 - **性能优化**：在 FPC 缺少稳定 SIMD 内建支持的现实下，以“手写汇编微内核 + 运行时派发 + 标量回退”的方式，为常见热点提供可选加速

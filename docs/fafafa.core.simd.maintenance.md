@@ -8,6 +8,11 @@
 
 如果你想快速了解当前收口已经做到哪里，以及后续最值得做什么，再看 `docs/fafafa.core.simd.handoff.md`。
 
+如果你这次接手的是“当前到底还要不要继续改实现，还是已经只差 release 证据”，先记住一条最新事实：
+
+- 截至 `2026-05-17`，当前应按 `code-green / release-evidence-blocked` 理解
+- 也就是说，默认不要再重开 SIMD 泛审查；除非 fresh red 再次落到实现层，否则优先沿 `docs/fafafa.core.simd.checklist.md` / `docs/fafafa.core.simd.closeout.md` 处理 closeout 与证据链
+
 如果你这次要判断 backend / intrinsics / SSE2 的真实归属，先看三张真相表：
 
 - `docs/SIMD_BACKEND_TRUTH.md`
