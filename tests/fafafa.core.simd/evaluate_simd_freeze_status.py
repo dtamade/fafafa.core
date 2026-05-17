@@ -105,6 +105,10 @@ WINDOWS_EVIDENCE_LOG_INPUT_RELATIVE_PATHS = (
     "buildOrTest.bat",
     "collect_windows_b07_evidence.bat",
 )
+WINDOWS_TOOLCHAIN_ACTION = (
+    "Provide a real Windows runner with native Windows lazbuild.exe, "
+    "or set LAZBUILD to a Windows .exe/.bat/.cmd wrapper; Wine/cmd cannot execute Linux lazbuild"
+)
 
 
 @dataclass
@@ -390,6 +394,11 @@ def run_verify_script(verify_script: Path, log_path: Path) -> subprocess.Complet
 
 def compact_whitespace(value: str) -> str:
     return re.sub(r"\s+", " ", value or "").strip()
+
+
+def is_windows_toolchain_block(detail: Optional[str]) -> bool:
+    normalized = compact_whitespace(detail or "").upper()
+    return "TOOLCHAIN BLOCK" in normalized or "CMD.EXE CANNOT RESOLVE LAZBUILD" in normalized
 
 
 def extract_windows_log_failure_hint(log_path: Path) -> Optional[str]:
@@ -1568,6 +1577,7 @@ def main() -> int:
         checks.append(describe_windows_preflight_report(windows_preflight_json))
 
     windows_verify_ok: Optional[bool] = None
+    windows_toolchain_block = False
     if args.linux_only:
         windows_verify_ok = None
         checks.append(
@@ -1613,12 +1623,14 @@ def main() -> int:
             )
         else:
             windows_verify_ok = False
+            verify_detail = summarize_verify_failure(verify_proc, windows_log)
+            windows_toolchain_block = is_windows_toolchain_block(verify_detail)
             checks.append(
                 CheckItem(
                     name="windows_evidence_verify",
                     required=True,
                     status="FAIL",
-                    detail=summarize_verify_failure(verify_proc, windows_log),
+                    detail=verify_detail,
                 )
             )
             next_actions.append("tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify")
@@ -1910,9 +1922,15 @@ def main() -> int:
                     "Resolve GitHub Billing & plans or switch to a real Windows runner; "
                     "current preflight reports RECENT_BILLING_BLOCK"
                 ),
-                "bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight",
-                f"bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-3cmd {default_batch_id}",
             ]
+            if windows_toolchain_block:
+                preferred_actions.append(WINDOWS_TOOLCHAIN_ACTION)
+            preferred_actions.extend(
+                [
+                    "bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight",
+                    f"bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-3cmd {default_batch_id}",
+                ]
+            )
             blocked_actions = {
                 (
                     "FAFAFA_BUILD_MODE=Release "
@@ -1924,17 +1942,22 @@ def main() -> int:
             }
             next_actions = [action for action in next_actions if action not in blocked_actions]
         else:
-            preferred_actions = [
-                "bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight",
-                (
-                    "FAFAFA_BUILD_MODE=Release "
-                    f"bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh {default_batch_id}"
-                ),
-                "tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify",
-                CROSS_GATE_FAIL_CLOSE_CMD,
-                f"bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize {default_batch_id}",
-                f"bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-3cmd {default_batch_id}",
-            ]
+            preferred_actions = []
+            if windows_toolchain_block:
+                preferred_actions.append(WINDOWS_TOOLCHAIN_ACTION)
+            preferred_actions.extend(
+                [
+                    "bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight",
+                    (
+                        "FAFAFA_BUILD_MODE=Release "
+                        f"bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh {default_batch_id}"
+                    ),
+                    "tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify",
+                    CROSS_GATE_FAIL_CLOSE_CMD,
+                    f"bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize {default_batch_id}",
+                    f"bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-3cmd {default_batch_id}",
+                ]
+            )
         next_actions = preferred_actions + next_actions
         next_actions = [
             action

@@ -9338,3 +9338,40 @@
   - 当前 remaining gap 仍然没有变化，继续只剩外部条件：
     - `RECENT_BILLING_BLOCK`
     - 真实 Windows runner / native Windows `lazbuild.exe`
+
+## 2026-05-17 Freeze Status Next-Action Toolchain Sync
+
+- 继续做 completion audit 后，又看到一个最后的小残差：
+  - `freeze-status` 虽然已经能在 `windows_evidence_verify` 里显示 `TOOLCHAIN BLOCK`
+  - 但 `next-actions` 之前仍主要是泛化的：
+    - `win-evidence-preflight`
+    - `win-closeout-3cmd`
+  - 这意味着读者仍要先通读 detail，才会意识到当前不是“再试一次 batch”，而是“先解决 Windows lazbuild toolchain”
+- 已落地的最小修法：
+  - `tests/fafafa.core.simd/evaluate_simd_freeze_status.py`
+    - 新增 `WINDOWS_TOOLCHAIN_ACTION`
+    - 新增 `is_windows_toolchain_block(...)`
+    - 当 `windows_evidence_verify` detail 命中 `TOOLCHAIN BLOCK` 时：
+      - `next-actions` 会主动插入：
+        - `Provide a real Windows runner with native Windows lazbuild.exe, or set LAZBUILD to a Windows .exe/.bat/.cmd wrapper; Wine/cmd cannot execute Linux lazbuild`
+    - 这条动作会在：
+      - 当前有 `RECENT_BILLING_BLOCK` 的路径里保留
+      - 非 billing-block 的普通 Windows closeout 路径里也保留
+  - `tests/fafafa.core.simd/rehearse_freeze_status.sh`
+    - 新增 `case_windows_toolchain_action`
+    - 专门守住“有 toolchain block 时，next-actions 必须出现 native Windows lazbuild / real runner 指令”
+- 已验证：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/evaluate_simd_freeze_status.py`
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-rehearsal`
+    - `[FREEZE-REHEARSAL] OK`
+    - `case_windows_toolchain_action_rc=1`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+    - 当前真实 `next-actions` 已变成：
+      - `Resolve GitHub Billing & plans or switch to a real Windows runner...`
+      - `Provide a real Windows runner with native Windows lazbuild.exe, or set LAZBUILD to a Windows .exe/.bat/.cmd wrapper; Wine/cmd cannot execute Linux lazbuild`
+      - `bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`
+      - `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-3cmd SIMD-20260517-152`
+- 当前阶段结论：
+  - `freeze-status` 现在不只是“把失败看懂”，而是已经把当前 Windows 链的真实动作顺序说到了 toolchain 层
+  - 当前 repo-local 可继续收的 Windows closeout 误导项已经非常少了

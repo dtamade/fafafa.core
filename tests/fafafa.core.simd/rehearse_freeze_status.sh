@@ -1435,6 +1435,86 @@ if ! grep -F -- "stale summary: closeout summary is older than current windows e
   exit 1
 fi
 
+# ---------- Case N: TOOLCHAIN BLOCK SHOULD ADD NATIVE WINDOWS NEXT-ACTION ----------
+LCaseWindowsToolchainAction="${LTmpRoot}/case_windows_toolchain_action/tests/fafafa.core.simd"
+mkdir -p "${LCaseWindowsToolchainAction}/logs" "${LCaseWindowsToolchainAction}/docs" "${LTmpRoot}/case_windows_toolchain_action/docs/plans"
+cp "${FREEZE_SCRIPT}" "${LCaseWindowsToolchainAction}/evaluate_simd_freeze_status.py"
+cp "${VERIFY_SCRIPT}" "${LCaseWindowsToolchainAction}/verify_windows_b07_evidence.sh"
+chmod +x "${LCaseWindowsToolchainAction}/verify_windows_b07_evidence.sh"
+
+cat > "${LCaseWindowsToolchainAction}/logs/gate_summary.md" <<'EOM'
+| Time | Step | Status | DurationMs | Event | Detail | Artifacts |
+|---|---|---|---|---|---|---|
+| 2026-02-10 00:00:00 | gate | START | - | START | mode=Release | - |
+| 2026-02-10 00:00:01 | build-check | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:02 | interface-completeness | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:03 | cross-backend-parity | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:04 | wiring-sync | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:05 | coverage | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:06 | simd-list-suites | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:07 | simd-avx2-fallback | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:08 | cpuinfo-portable | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:09 | cpuinfo-x86 | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:10 | run-all-chain | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:11 | evidence-verify | SKIP | - | SKIP | require-win-evidence=0 | - |
+| 2026-02-10 00:00:12 | gate | PASS | 1000 | NORMAL | all steps passed | - |
+EOM
+
+cat > "${LCaseWindowsToolchainAction}/logs/windows_b07_gate.log" <<'EOM'
+[B07] Windows evidence capture
+[B07] Source: collect_windows_b07_evidence.bat
+[B07] HostOS: Windows_NT
+[B07] CmdVer: Microsoft Windows 10.0.19043
+[B07] Started: 5/17/2026 17:49 PM
+[B07] Working dir: Z:\simd\tests\fafafa.core.simd\
+[B07] Command: buildOrTest.bat gate
+[BUILD] FAILED (see Z:\simd\tests\fafafa.core.simd\logs\build.txt)
+[BUILD] TOOLCHAIN BLOCK: cmd.exe cannot resolve LAZBUILD command "lazbuild"
+[B07] GateSummaryJson: missing
+[B07] GateSummaryExportRc: skipped-native-batch
+[B07] GATE_EXIT_CODE=1
+EOM
+
+cat > "${LCaseWindowsToolchainAction}/logs/windows_b07_closeout_summary.md" <<'EOM'
+# SIMD Windows B07 Closeout Summary
+
+## Verification
+
+- Verifier: verify_windows_b07_evidence.sh
+- Command: bash verify_windows_b07_evidence.sh "logs/windows_b07_gate.log"
+- Result: FAIL (rc=1)
+EOM
+
+cat > "${LTmpRoot}/case_windows_toolchain_action/docs/plans/2026-02-09-simd-unblock-closeout-roadmap.md" <<'EOM'
+- [x] **Windows 实机证据已归档**
+EOM
+
+cat > "${LCaseWindowsToolchainAction}/docs/simd_release_candidate_checklist.md" <<'EOM'
+- [x] Windows 实机证据日志已归档
+EOM
+
+cat > "${LCaseWindowsToolchainAction}/docs/simd_completeness_matrix.md" <<'EOM'
+- Windows 证据：实机日志已归档（脚本入口 + 校验入口）
+EOM
+
+set +e
+SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=0 \
+python3 "${LCaseWindowsToolchainAction}/evaluate_simd_freeze_status.py" --root "${LCaseWindowsToolchainAction}" --json-file "${LCaseWindowsToolchainAction}/logs/freeze_status_windows_toolchain_action.json" > "${LCaseWindowsToolchainAction}/logs/freeze_stdout_windows_toolchain_action.txt" 2>&1
+LWindowsToolchainActionRc=$?
+set -e
+
+if [[ "${LWindowsToolchainActionRc}" -eq 0 ]]; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_windows_toolchain_action should return non-zero"
+  cat "${LCaseWindowsToolchainAction}/logs/freeze_stdout_windows_toolchain_action.txt"
+  exit 1
+fi
+
+if ! grep -F -- "Provide a real Windows runner with native Windows lazbuild.exe" "${LCaseWindowsToolchainAction}/logs/freeze_stdout_windows_toolchain_action.txt" >/dev/null; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_windows_toolchain_action missing native windows next-action"
+  cat "${LCaseWindowsToolchainAction}/logs/freeze_stdout_windows_toolchain_action.txt"
+  exit 1
+fi
+
 echo "[FREEZE-REHEARSAL] OK"
 echo "[FREEZE-REHEARSAL] case_not_ready_rc=${LNotReadyRc}"
 echo "[FREEZE-REHEARSAL] case_stale_summary_rc=${LStaleRc}"
@@ -1448,3 +1528,4 @@ echo "[FREEZE-REHEARSAL] case_ignored_artifact_rc=0"
 echo "[FREEZE-REHEARSAL] case_windows_hint_rc=${LWindowsHintRc}"
 echo "[FREEZE-REHEARSAL] case_windows_producer_newer_rc=${LWindowsProducerNewerRc}"
 echo "[FREEZE-REHEARSAL] case_closeout_summary_older_rc=${LCloseoutSummaryOlderRc}"
+echo "[FREEZE-REHEARSAL] case_windows_toolchain_action_rc=${LWindowsToolchainActionRc}"
