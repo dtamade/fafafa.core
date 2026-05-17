@@ -8890,3 +8890,26 @@
     - artifact 内只有一份明显无效的 `windows_b07_gate.log`
     - 结果脚本 `RC=1`，batch snapshot 被写入，canonical `windows_b07_gate.log` 保持原 sentinel 内容不变
   - 也就是说，坏 artifact 现在只会停留在 batch 目录，不会再把顶层 canonical evidence 指针搞脏
+
+## 2026-05-17 Windows Batch lazbuild Invocation Hardening
+
+- 在确认 canonical evidence 被污染的同时，我继续追当前顶层 `windows_b07_gate.log` 的失败根因，日志里的关键失败已经很具体：
+  - `Can't recognize '"lazbuild" --build-mode=Release ...' as an internal or external command`
+- 回看 Windows batch runner 后，发现 SIMD 这一支内部还不统一：
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+  - `tests/fafafa.core.simd.intrinsics.sse/buildOrTest.bat`
+  - `tests/fafafa.core.simd.intrinsics.mmx/buildOrTest.bat`
+  - 这 3 个 runner 仍是直接执行 `" %LAZBUILD_EXE% " ...`
+  - 但 `tests/fafafa.core.simd.cpuinfo.x86/buildOrTest.bat` 已经在用更稳的 `call "%LAZBUILD_EXE%" ...`
+- 已落地修法：
+  - 把上面 3 个 SIMD Windows batch runner 的 `lazbuild` 调起方式统一改成 `call "%LAZBUILD_EXE%" ...`
+  - 目的不是“批量风格统一”，而是先收掉当前真实坏日志已经命中的那条 Windows PATH fallback 易碎点
+- 已验证：
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity`
+    - `[CHECK] OK (windows runner parity signatures present)`
+    - `[CHECK] OK (cpuinfo runner parity signatures present)`
+    - `[CHECK] OK (runner parity quick path)`
+  - `git diff --check`
+- 当前限制：
+  - 由于沙箱内 `wine cmd` 运行受限，我没法在这轮里补一条真正的 Windows/CMD 级执行复现
+  - 但这批修法有直接的坏日志证据支撑，并且与当前已稳定的 `cpuinfo.x86` batch 调起方式保持一致

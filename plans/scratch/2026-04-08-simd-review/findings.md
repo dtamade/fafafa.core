@@ -7127,3 +7127,17 @@
   - artifact 下载后先只写入 batch snapshot
   - 只有在 verifier 对 batch snapshot 返回 PASS 之后，才把 evidence log promote 到 canonical 指针
   - Windows artifact 自带的 `gate_summary.{md,json}` 也不应在 verify 前先覆写 canonical；cross backfill gate 自己会生成更可信的 canonical gate summary
+
+## 2026-05-17 Windows Batch Fallback Was Still Invoking Bare lazbuild Through The Fragile Quoted Form
+
+- 当前 canonical `windows_b07_gate.log` 里还有一条更接近根因的 Windows batch 失败形态：
+  - `[BUILD] FAILED ... Can't recognize '"lazbuild" --build-mode=Release ...' as an internal or external command`
+  - `[B07] GATE_EXIT_CODE=1`
+- 对照当前 batch runner 后，发现 `tests/fafafa.core.simd/buildOrTest.bat` 以及 `simd.intrinsics.{sse,mmx}/buildOrTest.bat` 仍在直接执行：
+  - `" %LAZBUILD_EXE% " ...`
+- 当 `%LAZBUILD_EXE%` 回退成裸命令 `lazbuild` 时，这种“直接带引号调用”的形态明显比 `call "%LAZBUILD_EXE%" ...` 更脆弱：
+  - `cpuinfo.x86` 的 batch runner 已经在用 `call "%LAZBUILD_EXE%" ...`
+  - 当前坏日志命中的正是 SIMD main batch 这条未统一的调用形态
+- 因而这一批的最小修法是：
+  - 把 SIMD main / intrinsics.sse / intrinsics.mmx 这 3 个 Windows batch runner 的 `lazbuild` 调起方式统一成 `call "%LAZBUILD_EXE%" ...`
+  - 先消掉这条已被真实 Windows evidence 命中的易碎路径
