@@ -255,12 +255,14 @@
 - `src/fafafa.core.simd.avx2.facade.inc`
 - `src/fafafa.core.simd.avx512.facade.inc`
 - `src/fafafa.core.simd.avx512.fallback.inc`
+  - 当前是故意保留的空 include 边界：旧 AVX512 fallback pass-through wrappers 已退场，`MemDiffRange/BytesIndexOf` 直接复用 cloned AVX2 slots
 - `src/fafafa.core.simd.avx512.mask_sat.inc`
 - `src/fafafa.core.simd.neon.facade_asm.inc`
 - `src/fafafa.core.simd.neon.facade_scalar.inc`
 - `src/fafafa.core.simd.neon.facade_platform.inc`
   - 当前是故意保留的空 include 边界：permanently-scalar NEON platform facade wrappers 已经退场，dispatch table 直接复用 canonical base scalar slots
 - `src/fafafa.core.simd.neon.dot.inc`
+  - 当前是故意保留的空 include 边界：wide dot wrappers 已退场，dispatch table 继续复用 canonical base scalar slots
 - `src/fafafa.core.simd.neon.scalar_fallback.inc`
 
 ### 族级实现（代表性）

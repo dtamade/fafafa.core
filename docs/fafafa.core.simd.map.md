@@ -81,10 +81,14 @@
 
 - `src/fafafa.core.simd.avx2.facade.inc`
 - `src/fafafa.core.simd.avx512.facade.inc`
+- `src/fafafa.core.simd.avx512.fallback.inc`
+  - 当前是空 include 边界；旧 AVX512 fallback pass-through wrappers 已移除，别再把这里当成活跃 fallback 实现层
 - `src/fafafa.core.simd.neon.facade_asm.inc`
 - `src/fafafa.core.simd.neon.facade_scalar.inc`
 - `src/fafafa.core.simd.neon.facade_platform.inc`
   - 当前是空 include 边界；旧 platform facade wrappers 已移除，别再把这里当成活跃 helper 实现层
+- `src/fafafa.core.simd.neon.dot.inc`
+  - 当前是空 include 边界；旧 wide dot wrappers 已移除，别再把这里当成活跃 helper 实现层
 - `src/fafafa.core.simd.riscvv.facade.inc`
 
 ## 第六层：按向量族读实现

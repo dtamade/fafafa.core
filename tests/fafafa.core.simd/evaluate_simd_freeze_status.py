@@ -497,10 +497,16 @@ def freshness_check(name: str, path: Path, max_age_hours: float, required: bool 
 
 SOURCE_CANDIDATE_SUFFIXES = {".pas", ".pp", ".inc", ".stable"}
 SOURCE_FRESHNESS_EXCLUDED_NAMES = {
+    # Intentional empty include boundary: retired AVX512 fallback wrappers no
+    # longer contribute implementation semantics.
+    "fafafa.core.simd.avx512.fallback.inc",
     # Intentional empty include boundary: retired NEON platform facade wrappers
     # no longer contribute implementation semantics, so comment/doc churn here
     # should not invalidate gate/evidence freshness.
     "fafafa.core.simd.neon.facade_platform.inc",
+    # Intentional empty include boundary: retired NEON dot wrappers no longer
+    # contribute implementation semantics.
+    "fafafa.core.simd.neon.dot.inc",
 }
 
 
