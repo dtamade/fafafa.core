@@ -15,7 +15,8 @@
   - `linux_qemu_cpuinfo_nonx86_evidence` 已 fresh PASS
 - 当前 release closeout 仍未完成：
   - full `freeze-status` 仍是 `ready=False / cross-ready=False`
-  - 当前剩余 blocker 集中在 Windows evidence freshness / verify，以及 `win-evidence-preflight=RECENT_BILLING_BLOCK`
+  - 当前剩余 blocker 集中在 `windows_evidence_verify` 与 `win-evidence-preflight=RECENT_BILLING_BLOCK`
+  - `windows_b07_gate.log` 的 freshness 当前已转绿；最新本机 Wine batch capture 只说明日志已 fresh，不说明 Windows evidence verifier 已通过
 - 因此，如果你这次只是从入口文档重新接手模块，不要先重开 SIMD 泛审查；先看 `docs/fafafa.core.simd.checklist.md` 与 `docs/fafafa.core.simd.closeout.md`，并把当前状态理解成 `code-green / release-evidence-blocked`
 
 ### 设计目标

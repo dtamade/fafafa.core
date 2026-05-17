@@ -32,11 +32,12 @@
   - cross-platform `freeze-status` 仍为 `ready=False / cross-ready=False`
   - 当前主要红项是：
     - `cross_gate_required_steps: evidence-verify=SKIP`
-    - `windows_b07_gate.log` 的 freshness / verify
+    - `windows_evidence_verify`
     - `win-evidence-preflight` 最新结果是 `RECENT_BILLING_BLOCK`
+  - `windows_b07_gate.log` 当前 freshness 与 source-newer 检查已转绿；它现在代表的是 fresh 但 invalid 的本机 Wine batch capture，而不是旧 evidence
   - `windows_b07_closeout_summary.md` 现在已经刷新成当前 verifier FAIL 对应的 honest summary，本身不再是 stale red
 - 这不是新的接口/实现质量问题，而是外部条件问题：
-  - 当前 canonical Windows evidence 仍停留在 `2026-04-19`
+  - 当前 canonical Windows evidence 仍没有拿到 verifier PASS；本机最新 batch capture 只是把 freshness 刷新到了 `2026-05-17 12:42:40`
   - 当前源码时间线已经继续向前推进；如果 latest gate artifact 早于最新 `src/fafafa.core.simd*` 源码，先重跑 release `gate`
   - 历史文档里“Windows 已归档/已闭环”的标记只能理解成旧批次归档事实，不等于当前 `HEAD` 仍是 cross-ready
   - 在没有 Windows 主机、也没有可用 GitHub Actions Billing/额度时，这一轮应该按 `code-green / release-evidence-blocked` 交接，而不是继续重开 SIMD 泛审查

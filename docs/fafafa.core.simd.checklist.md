@@ -8,7 +8,8 @@
 - 最新 release 证据说明：
   - `python3 tests/fafafa.core.simd/check_interface_implementation_completeness.py --strict` 为绿，`P0/P1/P2=0`
   - `2026-05-17 10:47:10` 的 canonical gate 已把 `linux_gate_required_steps_mainline` 与 `linux_qemu_cpuinfo_nonx86_evidence` 刷成 PASS；`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-linux` 已是 `ready=True` / `mainline-ready=True`
-  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 当前仍红，但直接红项已经收敛成 `cross_gate_required_steps: evidence-verify=SKIP`、旧 `windows_b07_gate.log` 的 freshness / verify，以及 `win-evidence-preflight=RECENT_BILLING_BLOCK`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 当前仍红，但直接红项已经收敛成 `cross_gate_required_steps: evidence-verify=SKIP`、`windows_evidence_verify`，以及 `win-evidence-preflight=RECENT_BILLING_BLOCK`
+  - `windows_b07_gate.log` 当前 freshness 与 `linux_sources_not_newer_than_windows_evidence` 已转绿；最新 `freeze-status` 证明这份日志现在是 fresh 但 invalid 的 Windows batch capture，而不再是“旧日志”
   - `windows_b07_closeout_summary.md` 现在已经是 fresh 的 honest FAIL summary，本身不再是 stale red
   - 其中真正的外部 blocker 仍只在 Windows evidence；Linux 这边只需保留 gate summary backup/fallback，防止未来 routine gate 再把 closeout truth 覆盖掉
 - 如果你当前既没有 Windows 实机，也没有可用 GitHub Actions Billing/额度，就把模块状态记成：
@@ -248,7 +249,7 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh qemu-cpuinf
 FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate
 ```
 
-- 当前最新真实状态是：`2026-05-17 10:47:10` 的 canonical gate 已把 `qemu-cpuinfo-nonx86-evidence` 刷成 PASS，且 `freeze-status-linux` 已 `ready=True` / `mainline-ready=True`；full `freeze-status` 当前只剩 Windows evidence verify / freshness 相关 blocker。
+- 当前最新真实状态是：`2026-05-17 10:47:10` 的 canonical gate 已把 `qemu-cpuinfo-nonx86-evidence` 刷成 PASS，且 `freeze-status-linux` 已 `ready=True` / `mainline-ready=True`；full `freeze-status` 当前只剩 Windows evidence verify / preflight 相关 blocker，而不是旧 log freshness。
 
 - 如果后面补到真实硬件，`native-evidence` 仍然会串行采集 `DispatchAPI/PublicAbi` 以及 `TTestCase_NonX86BackendParity,TTestCase_DataPlane`；但在当前项目约束里，没有硬件时，不再把 native host 当成 blocker：
 
