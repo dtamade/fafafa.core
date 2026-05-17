@@ -8144,3 +8144,25 @@
 - 预期收益：
   - 日常 `gate` 仍保持原有成本，不必强行把 `qemu-cpuinfo-nonx86-evidence` 抬进所有 routine run
   - 但 `freeze-status` 不会再因为“最后一次 gate 恰好是 fast-gate”而把较早的 closeout truth 完全遗失
+
+## 2026-05-17 Linux CPUInfo Evidence Refresh Closeout
+
+- 这轮不再重开 SIMD 结构/实现泛审查，只把当前唯一高价值的 closeout 证据跑完。
+- 已完成的 canonical gate：
+  - `FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- fresh 结果：
+  - `linux/arm/v7`、`linux/arm64`、`linux/riscv64` 的 QEMU CPUInfo evidence 全部 PASS
+  - qemu summary: `/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260517-103904-1404563/summary.md`
+  - gate summary: `/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/gate_summary.md`
+  - gate 最终 `[GATE] OK`
+- 随后已复核：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-linux`
+  - 结果：`ready=True`、`mainline-ready=True`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+  - 结果：`ready=False`，但红项只剩：
+    - `cross_gate_required_steps: evidence-verify=SKIP`
+    - `windows_b07_gate.log` freshness / source-newer-than-windows-evidence / verify
+    - `windows_b07_closeout_summary.md` freshness / verify
+- 当前阶段结论：
+  - Linux CPUInfo QEMU cross evidence 已重新补绿
+  - 当前 stop-point 已明确收敛到 Windows evidence 外部阻塞，而不是 SIMD 代码或 Linux closeout 回归

@@ -4564,3 +4564,17 @@
 | 1. 复核这是不是当前真实缺口 | completed | fresh `freeze-status` 已直接显示 latest `gate_summary.md` 里的 `qemu-cpuinfo-nonx86-evidence=SKIP` 会把 `linux_gate_required_steps_mainline` / `cross_gate_required_steps` 打红；而 `evaluate_simd_freeze_status.py` 现有 fallback 只扫 `logs/windows-closeout/<batch>/gate_summary.md`，当前仓库并无这类 batch gate summary 可回退 |
 | 2. gate summary 留档 + freeze fallback 收口 | completed | 已让 shell `reset_gate_summary` 在覆盖前自动备份旧 summary 到 `logs/rehearsal/backups/`，并让 `evaluate_simd_freeze_status.py` 把这些 backup 也纳入候选；selection suffix 也从“closeout gate snapshot”收正成更准确的通用“gate snapshot” |
 | 3. active docs / scratch 真相同步 | completed | 已把 `closeout.md` / `checklist.md` 里“canonical gate_summary.md 恒等于 closeout truth”的旧说法收正成“latest fast-gate 可能覆盖 canonical，freeze-status 会优先回退到 backup/batch snapshot”的口径，并记录本批 gap/repair |
+
+## 2026-05-17 Linux CPUInfo Evidence Refresh Closeout
+
+### Goal
+
+停止继续泛审查，直接把当前最有价值的 closeout 证据跑完并写回真相源：确认 Linux CPUInfo QEMU cross evidence 已重新补绿，然后把 stop-point 收敛到 Windows evidence 外部阻塞。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 跑完 canonical gate 的 Linux CPUInfo QEMU evidence lane | completed | 已在提权后完成 `FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 bash tests/fafafa.core.simd/BuildOrTest.sh gate`；`arm/v7`、`arm64`、`riscv64` 全部 PASS，gate 最终 `OK` |
+| 2. 复核 freeze stop-point | completed | `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-linux` 已是 `ready=True` / `mainline-ready=True`；full `freeze-status` 当前只红在 `cross_gate_required_steps: evidence-verify=SKIP` 与旧 Windows evidence freshness / verify |
+| 3. active docs / scratch 回写当前真相 | completed | 已把 `closeout.md`、`checklist.md`、`findings.md`、`progress.md` 更新到 “Linux 绿、Windows blocker 仍在” 的停点，避免下一轮再从 `qemu-cpuinfo-nonx86-evidence=SKIP` 的旧状态重开 |

@@ -14,16 +14,17 @@
 
 - 代码主线可以按“已收口”理解：
   - `python3 tests/fafafa.core.simd/check_interface_implementation_completeness.py --strict` 最新结果仍为 `dispatch_slots_total=558`、`P0/P1/P2=0`
-  - `2026-05-16 20:43:40` 的 cross gate 仍证明过 `linux_gate_required_steps_mainline` 与 `linux_qemu_cpuinfo_nonx86_evidence` 都可为 PASS；但 `2026-05-17` routine `gate` 又把 `logs/gate_summary.md` 刷成了不含 closeout-only step 的 fast-gate 摘要，因此不能再把单一 canonical 文件名直接等同于“当前 Linux closeout 真相”
+  - `2026-05-17 10:47:10` 的 canonical gate 已把 `linux_gate_required_steps_mainline` 与 `linux_qemu_cpuinfo_nonx86_evidence` 刷成 PASS，summary 为 `/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/gate_summary.md`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-linux` 当前已是 `ready=True` / `mainline-ready=True`
 - 发布级 closeout 还不能写成完成：
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 仍是 `ready=False`
   - 当前直接红项包括两类：
-    - latest fast-gate 把 `qemu-cpuinfo-nonx86-evidence` 留成 `SKIP`
+    - `cross_gate_required_steps: evidence-verify=SKIP`
     - 旧 `windows_b07_gate.log` / `windows_b07_closeout_summary.md` 的 freshness / verify
   - 其中第二类仍然是当前唯一外部 blocker：
     - `windows_b07_gate.log` freshness / `source-newer-than-windows-evidence`
     - `windows_b07_closeout_summary.md` freshness / verify
-  - 第一类不是新的实现回归，而是 closeout summary 被 routine gate 覆盖后的 artifact 选择问题；脚本现在会优先回退到 `logs/rehearsal/backups/` 或 `logs/windows-closeout/<batch>/gate_summary.md` 中仍满足 closeout 口径的旧摘要
+  - 第一类不是新的实现回归，而是这轮 gate 明确关闭了 Windows evidence enforcement；当前 full `freeze-status` 红点已经只剩 Windows evidence verify / freshness，而不是 Linux QEMU CPUInfo 证据缺失
 - 当前外部 blocker 已明确：
   - `win-evidence-preflight` 在 `2026-05-16` 返回 `STATUS=PASS CODE=OK EXIT=0`
   - `win-evidence-via-gh SIMD-20260516-152` 已成功 dispatch，GitHub Actions run id 是 `25967172435`
@@ -36,9 +37,9 @@
 ### 2026-05-17 evidence refresh note
 
 - 如果 `freeze-status` 里的 Linux gate artifact 旧于最新 `src/fafafa.core.simd*` 源码，先重跑一次 release `gate`，不要把旧 gate summary 当成新代码回归。
-- 如果 latest `gate_summary.md` 只是日常 fast-gate，导致 `qemu-cpuinfo-nonx86-evidence=SKIP`，先看 `logs/rehearsal/backups/` 或 `logs/windows-closeout/<batch>/gate_summary.md` 是否仍保留了更早的 closeout gate snapshot；`freeze-status` 现在会自动把这些 snapshot 当 fallback candidate。
+- 如果 latest `gate_summary.md` 以后又被日常 fast-gate 覆盖，导致 `qemu-cpuinfo-nonx86-evidence=SKIP`，先看 `logs/rehearsal/backups/` 或 `logs/windows-closeout/<batch>/gate_summary.md` 是否仍保留了更早的 closeout gate snapshot；`freeze-status` 现在会自动把这些 snapshot 当 fallback candidate。
 - 如果 `win-evidence-preflight` 已 PASS，但 GH run 像 `25967172435` 一样在 `Prepare Windows SIMD Source` 阶段被 billing / spending limit 拦下，当前批次同样按 `code-green / release-evidence-blocked` 收口，不把 Windows evidence 阻塞误判成 SIMD 代码回归。
-- 如果 `qemu-cpuinfo-nonx86-evidence` 仍为 `SKIP`，那说明 canonical cross-platform evidence 还没刷新完；这时可以继续做仓库内文档/policy 收口，但不要把 `freeze-status` 写成 green。
+- 如果 `qemu-cpuinfo-nonx86-evidence` 又回到 `SKIP`，那说明 latest canonical gate 已被 fast-gate 覆盖或这轮并未刷新 Linux CPUInfo cross evidence；这时可以继续做仓库内文档/policy 收口，但不要把 `freeze-status` 写成 green。
 - `qemu-nonx86-evidence` 和 `qemu-cpuinfo-nonx86-evidence` 现在必须分开理解：
   - 前者服务 `closeout-host-local` 的 non-x86 runtime parity / dataplane 实现收口
   - 后者服务 canonical `gate` / `freeze-status` 的 CPUInfo cross-platform 证据
@@ -139,7 +140,7 @@
 - `impl-smoke-x86`：当前 x86 bounded frontier 的高频 smoke 入口，固定按 `impl-smoke-sse2 -> DispatchAPI bounded frontier` 的顺序重跑 `SSE2 structure/contracts smoke`、`SSE2 compare/vector-math parity`、`SSE3/SSSE3/SSE4.x incremental clone + semantic parity contract`、`AVX512 shift boundary`、`AVX2 wide select`、`AVX2 wide FMA composition` proof；它只负责快速确认 x86 证明面没有 fresh 漂移，不替代 `closeout-host-local`
 - `DataPlane wide snapshot`：`Test_DataPlane_WideBitwiseShiftSnapshot_Follows_CurrentDispatchSemantics` / `Test_DataPlane_WideArithmeticMinMaxSnapshot_Follows_CurrentDispatchSemantics` 已覆盖 `I64x8 bitwise` 与 wide arithmetic/minmax 的高价值 dataplane 快照，不再只盯抽样老点位
 - `qemu-nonx86-evidence`：`linux/arm64` / `linux/riscv64` fresh 通过；runner 现在固定使用隔离 `SIMD_OUTPUT_ROOT`，单次 build 后复用 binary 继续跑 `TTestCase_NonX86BackendParity,TTestCase_DataPlane` 与 backend bench，已规避旧链路里 `arm64` 重复 full rebuild 触发的 `ppca64` `FIRSTCALLPARAN` ICE。它证明的是 non-x86 runtime parity / dataplane 实现层，不是 `freeze-status` 的 CPUInfo closeout 证据
-- `qemu-cpuinfo-nonx86-evidence`：`linux/arm/v7`、`linux/arm64`、`linux/riscv64` 的 CPUInfo cross-platform 证据；`2026-05-16 20:43:40` fresh gate 已把这一条刷成 PASS，summary 为 [qemu-multiarch-20260516-203752-697247/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260516-203752-697247/summary.md)。这是 canonical `gate` / `freeze-status` 当前真正消费的 Linux-side cross evidence
+- `qemu-cpuinfo-nonx86-evidence`：`linux/arm/v7`、`linux/arm64`、`linux/riscv64` 的 CPUInfo cross-platform 证据；`2026-05-17 10:47:10` fresh gate 已把这一条刷成 PASS，summary 为 [qemu-multiarch-20260517-103904-1404563/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260517-103904-1404563/summary.md)。这是 canonical `gate` / `freeze-status` 当前真正消费的 Linux-side cross evidence
 - `NONX86_IMPL_AUDIT_SUMMARY`：新的聚合实现审计入口已把 helper semantics、key-slot audit、wiring-sync、RISCVV ABI shape、register truthfulness strict 和 targeted release suite 收成单条命令；2026-04-19 fresh rerun 仍为 `steps=6 ... status=ok`
 - `impl-smoke-nonx86`：新增轻量日常入口，定位是高频实现回归；它只负责尽快暴露 non-x86 source/runtime contract 的 fresh 漂移，不替代 `impl-audit-nonx86` 的完整实现审计，也不替代 `closeout-host-local` 的 strict closeout 证明
 - `AVX2 public ABI capability contract`：x86 bounded frontier 这一轮没有挖到新的实现红点，收口点转为接口证据补齐。`DispatchAPI` 现在显式覆盖 `sbAVX2` 的 `scFMA` / `scShuffle` 正向暴露，以及 `SetVectorAsmEnabled(False)` 后 public ABI `CapabilityBits` 清零契约；后续不再需要从 registered-table 的 `BackendInfo.Capabilities` 间接推断 public ABI 是否同步
@@ -184,7 +185,7 @@ FAFAFA_BUILD_MODE=Release SIMD_ENABLE_NEON_BACKEND=1 SIMD_ENABLE_RISCVV_BACKEND=
 这批结果当前证明的是：`x86_64` 主机上的 source/runtime contract、dispatch wiring、scalar parity 没看到 fresh 漂移。
 `impl-audit-nonx86` 和 `closeout-host-local` 现在把 host-local implementation audit / strict closeout 固化成正式入口。
 QEMU non-x86 runtime evidence 现在就是当前 non-x86 收口主线的一部分。
-当前项目口径下，只要 `qemu-nonx86-evidence` 在 `linux/arm64` / `linux/riscv64` fresh 通过，就把它作为当前 host-local non-x86 runtime closeout 的充分证明；这轮最新 fresh 证据就是上面的 `qemu-multiarch-20260419-012508-1690172` / `qemu-multiarch-20260419-013630-1748481`。但如果目标是让 canonical `freeze-status` 变绿，还必须额外刷新 `qemu-cpuinfo-nonx86-evidence`；`2026-05-16` 这条 Linux CPUInfo cross evidence 已经补绿，当前剩余 blocker 只在 Windows evidence。没有硬件时，不再把 native host 当成 blocker。native host evidence 仍可补充，但不再是这轮收口的前置条件。
+当前项目口径下，只要 `qemu-nonx86-evidence` 在 `linux/arm64` / `linux/riscv64` fresh 通过，就把它作为当前 host-local non-x86 runtime closeout 的充分证明；这轮最新 fresh 证据就是上面的 `qemu-multiarch-20260419-012508-1690172` / `qemu-multiarch-20260419-013630-1748481`。但如果目标是让 canonical `freeze-status` 变绿，还必须额外刷新 `qemu-cpuinfo-nonx86-evidence`；`2026-05-17 10:47:10` 这条 Linux CPUInfo cross evidence 已经补绿，当前剩余 blocker 只在 Windows evidence。没有硬件时，不再把 native host 当成 blocker。native host evidence 仍可补充，但不再是这轮收口的前置条件。
 
 当前 arm64 / riscv64 closeout 的充分证明，仍然以上面这组 fresh `QEMU non-x86 runtime evidence` 为准。
 

@@ -189,9 +189,11 @@
 
 ## Release-Readiness Gaps
 
-- `freeze-status` 已确认 Linux 主 gate 新鲜且通过，但 `qemu-cpuinfo-nonx86-evidence` 在最近 gate 里为 `SKIP`，因此 mainline/cross ready 仍为 `False`。
-- Windows evidence 已存在且 verifier 通过，但 `windows_b07_gate.log` 与 `windows_b07_closeout_summary.md` 均已超过 freshness 阈值，且旧于最新 SIMD 源码。
-- 这说明当前 SIMD 的成熟度问题不是“没有测试”或“当前 diff 有 bug”，而是“发布级跨平台证据没有按当前源码时间线刷新”。
+- `2026-05-17 10:47:10` 的 canonical gate 已确认 Linux 主 gate 新鲜且通过，`qemu-cpuinfo-nonx86-evidence` 对 `linux/arm/v7`、`linux/arm64`、`linux/riscv64` 全部 PASS；`freeze-status-linux` 已是 `ready=True` / `mainline-ready=True`。
+- full `freeze-status` 仍为 `ready=False`，但当前红项已经收敛成：
+  - `cross_gate_required_steps: evidence-verify=SKIP`
+  - `windows_b07_gate.log` / `windows_b07_closeout_summary.md` 的 freshness、source-newer-than-evidence 与 verify
+- 这说明当前 SIMD 的成熟度问题不再是 Linux/QEMU 证据缺口，也不是“当前 diff 有 bug”，而是“发布级 Windows evidence 还没有按当前源码时间线刷新”。
 
 ## Evidence Sources
 
