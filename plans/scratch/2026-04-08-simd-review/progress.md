@@ -8343,3 +8343,36 @@
 - 当前阶段结论：
   - 这批收掉的是恢复点与活跃文档的真相漂移，不是 SIMD 实现 bug
   - 它能直接减少下次继续审查时的误导性“旧 pending / 旧 in_progress”噪音
+
+## 2026-05-17 Windows Alias Help Truth Sync
+
+- 继续按“小闭环”推进，这次没有再追 runner dispatch 结构，而是专门核 `evidence-win` / `evidence-win-verify` 这两个剩余 Windows alias 现在到底算不算问题。
+- 先做的是真相判定，而不是改文档：
+  - `sed -n '948,970p' tests/fafafa.core.simd/BuildOrTest.sh`
+  - `rg -n "evidence-win|evidence-win-verify|verify-win-evidence" ...`
+  - `sed -n '150,172p' tests/fafafa.core.simd/buildOrTest.bat`
+- 读下来后确认：
+  - `BuildOrTest.sh` 的 parity guard 已明确把这两个名字定性为 `Windows-only` alias
+  - batch usage 已公开它们，但 help 之前没有单独解释
+  - active closeout 文档也用了 `evidence-win-verify`，却没说明它和 `verify-win-evidence` 的 canonical 关系
+- 已落地的收口：
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+    - help 新增 `evidence-win`
+    - help 新增 `evidence-win-verify`
+  - `docs/fafafa.core.simd.closeout.md`
+    - 补写 `evidence-win-verify` 是 Windows native batch 路径上的刻意 alias
+    - 明确 canonical verifier 名字仍是 `verify-win-evidence`
+  - `docs/fafafa.core.simd.maintenance.md`
+    - 明确 runner parity 当前只允许这两条 Windows-only batch alias
+- fresh 验证已完成：
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity`
+  - `git diff --check`
+  - `rg -n "Windows-only|evidence-win-verify|verify-win-evidence" ...`
+- fresh 结果：
+  - `[CHECK] OK (windows runner parity signatures present)`
+  - `[CHECK] OK (cpuinfo runner parity signatures present)`
+  - `[CHECK] OK (runner parity quick path)`
+  - diff 整洁，help/runbook 新说明都已命中
+- 当前阶段结论：
+  - 这批收掉的不是行为 bug，而是“有意例外没被 help/runbook 讲清楚”的认知噪音
+  - 下次再看到这两个 alias，就不会再把它们误判成待清理 drift action

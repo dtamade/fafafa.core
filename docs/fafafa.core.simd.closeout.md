@@ -430,6 +430,8 @@ tests\fafafa.core.simd\buildOrTest.bat gate-strict
    tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify
    ```
 
+   `evidence-win-verify` 是 Windows native batch 路径上刻意保留的 alias；它对应的 canonical verifier 名字仍是 `verify-win-evidence`。这里继续用 alias，是为了让 `CMD/PowerShell` 侧 closeout 手册保持最短路径，不影响 shell 主线的 `win-evidence-via-gh` / `verify-win-evidence` 命名。
+
    Then run the required fail-close cross gate:
    ```bash
    FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate

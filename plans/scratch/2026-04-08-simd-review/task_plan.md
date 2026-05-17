@@ -4352,6 +4352,20 @@
 | 2. 收正 active docs 与 scratch 真相 | completed | `docs/fafafa.core.simd.checklist.md` 已改成“当前已回填完成”的维护顺序，不再机械要求把 `Task 3` 写回 `pending`；`docs/fafafa.core.simd.closeout.md` 的 `Task 2 / Task 3` fresh 事实已同步到 `2026-04-19` 证据；上一批 docs truth-sync 在 scratch `task_plan` 里的遗留 `in_progress` 也已收成 `completed` |
 | 3. 最小验证并准备提交 | completed | 这批不碰实现代码；最小验证以 `implementation-matrix-sync` fresh 绿、目标 summary 文件实际存在、active doc 关键冲突项消失、以及 `git diff --check` 为准 |
 
+## 2026-05-17 Windows Alias Help Truth Sync
+
+### Goal
+
+继续沿 runner hygiene 收口一个更小的 active-doc/help 缺口：`evidence-win` / `evidence-win-verify` 已被源码与 parity guard 明确保留为 Windows-only alias，但 batch help 与 active closeout 手册没有把这件事说透，仍容易让后续审查误把它们当成待清理 drift action。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 alias 当前是否真是有意保留 | completed | 已确认 `BuildOrTest.sh` 的 `check_windows_runner_parity()` 注释与 `LAllowedWindowsOnly` 都明确写了 `evidence-win` / `evidence-win-verify` 是刻意保留的 Windows-only alias；scratch 旧结论也已把它们从“剩余差集”收正成“有意保留的例外” |
+| 2. 收正 batch help / active docs 口径 | completed | `tests/fafafa.core.simd/buildOrTest.bat` 现在已显式列出两条 alias 的 help 描述；`docs/fafafa.core.simd.closeout.md` 已解释 `evidence-win-verify` 与 canonical `verify-win-evidence` 的关系；`docs/fafafa.core.simd.maintenance.md` 也已把这两条 alias 定位成 runner parity 允许的刻意例外 |
+| 3. 最小验证并准备提交 | completed | `bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity`、`git diff --check`、以及目标 help/runbook 关键文案 `rg` 已通过；这批只同步口径，不改变 alias 行为 |
+
 ## 2026-05-17 SSE2 Transitional Non-x86 Fail-Close
 
 ### Goal

@@ -159,7 +159,9 @@ echo   evidence-linux  Collect Linux-side release evidence ^(delegates to shell 
 echo   native-evidence  Collect non-x86 native evidence ^(delegates to shell runner^)
 echo   verify-nonx86-native-evidence  Verify imported non-x86 native evidence ^(delegates to shell runner^)
 echo   restore-nightly-evidence  Restore nightly evidence into canonical logs ^(delegates to shell runner^)
+echo   evidence-win  Windows-only native evidence capture alias
 echo   win-evidence-via-gh  Dispatch GitHub-hosted Windows evidence collection ^(delegates to shell runner^)
+echo   evidence-win-verify  Windows-only alias for verify-win-evidence
 echo   win-closeout-dryrun  Print Windows closeout dry-run guidance ^(delegates to shell runner^)
 echo   win-closeout-snippets  Print Windows closeout copyable snippets ^(delegates to shell runner^)
 echo   freeze-status  Evaluate current release freeze readiness ^(delegates to shell runner^)

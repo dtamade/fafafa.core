@@ -6714,6 +6714,26 @@
   - scratch `task_plan` 里上一批已经提交的 docs truth-sync 正式收成 `completed`
 - 这批的价值在于避免下次继续从错误的 `pending` / `in_progress` 恢复点重新开工。
 
+## 2026-05-17 Windows Alias Help Truth Sync
+
+- 当前 runner 线已经不再存在“还要不要删 `evidence-win` / `evidence-win-verify`”这个结构问题；真实问题缩到了 help/runbook 口径：
+  - 源码已经明确它们是刻意保留的 Windows-only alias
+  - 但 batch help 之前没有单独解释这两条入口
+  - active closeout 手册也直接用了 `evidence-win-verify`，却没点明它和 canonical `verify-win-evidence` 的关系
+- 这条真相可以直接从源码里读出来：
+  - `tests/fafafa.core.simd/BuildOrTest.sh` 的 `check_windows_runner_parity()` 注释已明确写着 `These aliases are intentionally Windows-only entry points for native evidence capture.`
+  - `LAllowedWindowsOnly` 里只保留：
+    - `evidence-win`
+    - `evidence-win-verify`
+- fresh `bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity` 继续通过，进一步证明：
+  - 当前不需要再动 alias 行为本身
+  - 真正该收口的是“活跃帮助文案是否把这个例外解释清楚”
+- 因而这批最小正确修法不是继续改 dispatch 或删 alias，而是把结论同步到用户看得到的入口：
+  - batch help 增加两条 alias 说明
+  - closeout 文档解释 `evidence-win-verify` 是 Windows native 路径上的 alias，而 canonical verifier 名字仍是 `verify-win-evidence`
+  - maintenance 明确 runner parity 当前只允许这两条 Windows-only batch alias
+- 这批的价值在于把“有意例外”从源码内部注释推进到 active help/runbook，避免后续反复把同一事实当成新 gap。
+
 ## 2026-05-17 Intrinsics Coverage Evidence Normalization
 
 - 当前 `intrinsics coverage` 的检查逻辑本身已经能给出正确信号，但在 runner 层仍有一个真实卫生缺口：
