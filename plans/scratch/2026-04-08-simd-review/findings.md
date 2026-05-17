@@ -7790,3 +7790,22 @@
 - 这意味着 `mmx` 已经不再适合“大范围重扫”；更高效的方式是：
   - 先把最后尾巴按小簇关完
   - 再切到下一个真实大热点 `intrinsics.x86.sse2`
+
+## 2026-05-17 MMX Tail Confirmed No More Hidden Behavior Holes
+
+- `mmx` 最后 7 条 residual 再次复核后，仍然没有暴露新的“注释吞掉 asm / declaration”的行为问题：
+  - `mmx_emms`
+  - `mmx_movd_r32`
+  - `mmx_movd_r32_to_mm`
+  - `mmx_psllw_mm`
+  - `mmx_psrlw_mm`
+  - `mmx_psraw_mm`
+  - `mmx_punpcklwd_mem`
+  这批全部都是注释损坏，不是执行体损坏。
+- 这条结论很重要，因为 `mmx` 前面已经真实修出过一批被吞掉的 `asm` 指令；因此不能因为“现在看起来像注释问题”就跳过复验。
+- 这次 fresh closeout 后，`src/fafafa.core.simd.intrinsics.mmx.pas` 已经完全退出 residual 名单，说明：
+  - `mmx` 这条 active intrinsics 子线当前更像“文本污染已清完”，而不是“还有隐藏行为洞”
+  - 后续审查收益最高的热点已经切换到 `src/fafafa.core.simd.intrinsics.x86.sse2.pas`
+- 以当前 live 扫描结果看，`src/fafafa.core.simd*.pas` 剩余 `U+FFFD` 已收敛成单点热点：
+  - `intrinsics.x86.sse2 = 454`
+  这比继续在 `mmx` 上重复扫更值得投入下一批修复。

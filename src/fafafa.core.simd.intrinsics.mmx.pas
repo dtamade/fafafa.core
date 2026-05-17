@@ -1853,7 +1853,7 @@ end;
 
 // === 11️⃣ Miscellaneous 实现 ===
 
-// 功能：清空MMX状态，恢复FPU寄存器可用�?// 重要：在MMX代码和FPU代码之间必须调用此函�
+// Clear MMX state and restore x87/FPU availability before returning to FPU code.
 procedure mmx_emms; {$IFDEF FPC}assembler;{$ENDIF}
 asm
   emms
@@ -1861,7 +1861,7 @@ end;
 
 // === 🆕 补充的真正MMX指令实现 ===
 
-// 功能：从MMX寄存器到32位通用寄存�
+// Move the low 32 bits of an MMX register into a 32-bit general-purpose result.
 function mmx_movd_r32(mm: TM64): LongWord; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1877,7 +1877,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：从32位通用寄存器到MMX寄存�
+// Move a 32-bit scalar value into the low 32 bits of an MMX register.
 function mmx_movd_r32_to_mm(r32: LongWord): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1898,7 +1898,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能�?6位左�?MMX寄存器计�? - 这实际上就是我们已有的psllw
+// Shift 16-bit lanes left by counts supplied in an MMX register.
 function mmx_psllw_mm(a, count: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1926,7 +1926,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能�?6位右�?MMX寄存器计�? - 这实际上就是我们已有的psrlw
+// Shift 16-bit lanes right logically by counts supplied in an MMX register.
 function mmx_psrlw_mm(a, count: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1954,7 +1954,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能�?6位算术右�?MMX寄存器计�? - 这实际上就是我们已有的psraw
+// Shift 16-bit lanes right arithmetically by counts supplied in an MMX register.
 function mmx_psraw_mm(a, count: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -2037,7 +2037,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：从内存解包低位�
+// Unpack and interleave low 16-bit lanes using a memory operand.
 function mmx_punpcklwd_mem(a: TM64; mem: Pointer): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}

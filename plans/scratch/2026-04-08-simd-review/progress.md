@@ -10463,3 +10463,32 @@
   - 这批是纯文本卫生修复，没有新增行为变化
   - `src/fafafa.core.simd.intrinsics.mmx.pas` 现已从 `pack/unpack` 注释簇退出
   - `mmx` 仍剩最后 7 条 residual 行：`1856/1864/1880/1901/1929/1957/2040`
+
+## 2026-05-17 MMX Final Tail Closeout
+
+- 接着上一批继续只切 `mmx` 最后 7 条 residual，没有重新打开别的 family：
+  - `mmx_emms`
+  - `mmx_movd_r32`
+  - `mmx_movd_r32_to_mm`
+  - `mmx_psllw_mm`
+  - `mmx_psrlw_mm`
+  - `mmx_psraw_mm`
+  - `mmx_punpcklwd_mem`
+- 这批同样保持 bounded：
+  - 只清损坏注释
+  - 不改 asm / calling convention / 导出签名
+  - 继续复用现有 `intrinsics` hygiene + smoke + 主线 release `check`
+- fresh 验证已完成：
+  - `python3` 逐文件计数：`src/fafafa.core.simd.intrinsics.mmx.pas` -> `residual_lines=[]`、`residual_char_count=0`
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_comment_swallow.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - `intrinsics.experimental check` default / experimental 双模态通过
+  - 主 `simd` release `check` 通过
+- 当前阶段结论：
+  - `src/fafafa.core.simd.intrinsics.mmx.pas` 的 `U+FFFD` 已全部归零
+  - 当前 `src/fafafa.core.simd*.pas` 范围里只剩一个明显热点：`src/fafafa.core.simd.intrinsics.x86.sse2.pas = 454`
+  - 后续继续审查时，最优路径是把 `sse2` 按小簇分批切，而不是再回头重扫 `mmx`
