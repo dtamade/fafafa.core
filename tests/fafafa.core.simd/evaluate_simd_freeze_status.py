@@ -1406,6 +1406,26 @@ def main() -> int:
             )
         )
 
+    if not args.linux_only:
+        cross_gate_check = next(
+            (check for check in checks if check.name == "cross_gate_required_steps"),
+            None,
+        )
+        if (
+            cross_gate_check is not None
+            and "evidence-verify=SKIP" in cross_gate_check.detail
+        ):
+            if windows_verify_ok is True:
+                cross_gate_check.detail += (
+                    "; latest standalone windows_evidence_verify=PASS "
+                    "(selected gate run skipped enforcement)"
+                )
+            elif windows_verify_ok is False:
+                cross_gate_check.detail += (
+                    "; latest standalone windows_evidence_verify=FAIL "
+                    "(selected gate run skipped enforcement)"
+                )
+
     if closeout_summary.is_file():
         summary_text = closeout_summary.read_text(encoding="utf-8", errors="ignore")
         has_result_pass = "- Result: PASS" in summary_text
