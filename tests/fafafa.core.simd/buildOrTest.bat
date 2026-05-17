@@ -110,6 +110,7 @@ if /I "%ACTION%"=="qemu-nonx86-evidence" goto :qemu_nonx86_evidence
 if /I "%ACTION%"=="qemu-cpuinfo-nonx86-evidence" goto :qemu_cpuinfo_nonx86_evidence
 if /I "%ACTION%"=="qemu-cpuinfo-nonx86-full-evidence" goto :qemu_cpuinfo_nonx86_full_evidence
 if /I "%ACTION%"=="qemu-cpuinfo-nonx86-full-repeat" goto :qemu_cpuinfo_nonx86_full_repeat
+if /I "%ACTION%"=="qemu-cpuinfo-retry-rehearsal" goto :qemu_cpuinfo_retry_rehearsal
 if /I "%ACTION%"=="qemu-cpuinfo-nonx86-suite-repeat" goto :qemu_cpuinfo_nonx86_suite_repeat
 if /I "%ACTION%"=="qemu-arch-matrix-evidence" goto :qemu_arch_matrix_evidence
 if /I "%ACTION%"=="qemu-nonx86-experimental-asm" goto :qemu_nonx86_experimental_asm
@@ -138,7 +139,7 @@ if /I "%ACTION%"=="freeze-status-linux" goto :freeze_status_linux
 if /I "%ACTION%"=="win-closeout-finalize" goto :win_closeout_finalize
 if /I "%ACTION%"=="freeze-status-rehearsal" goto :freeze_status_rehearsal
 
-echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|key-slot-audit^|implementation-matrix-sync^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|dataplane-consumer-scope^|direct-dispatch-scope^|metadata-query-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|runner-parity^|closeout-guard^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|gate-summary-selfcheck^|historical-closeout-note-check^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|riscvv-opcode-lane^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-linux^|native-evidence^|verify-nonx86-native-evidence^|restore-nightly-evidence^|evidence-win^|win-evidence-preflight^|win-evidence-via-gh^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-dryrun^|win-closeout-snippets^|win-closeout-3cmd^|freeze-status^|freeze-status-linux^|win-closeout-finalize^|freeze-status-rehearsal] [test-args...]
+echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|key-slot-audit^|implementation-matrix-sync^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|dataplane-consumer-scope^|direct-dispatch-scope^|metadata-query-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|runner-parity^|closeout-guard^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|gate-summary-selfcheck^|historical-closeout-note-check^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-retry-rehearsal^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|riscvv-opcode-lane^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-linux^|native-evidence^|verify-nonx86-native-evidence^|restore-nightly-evidence^|evidence-win^|win-evidence-preflight^|win-evidence-via-gh^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-dryrun^|win-closeout-snippets^|win-closeout-3cmd^|freeze-status^|freeze-status-linux^|win-closeout-finalize^|freeze-status-rehearsal] [test-args...]
 echo   Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks.
 echo   gate/gate-strict PASS is not blanket release-grade approval for every experimental path.
 echo   gate         Fast/base gate for routine SIMD changes
@@ -192,6 +193,7 @@ echo   qemu-nonx86-evidence  Collect non-x86 runtime evidence via QEMU ^(delegat
 echo   qemu-cpuinfo-nonx86-evidence  Collect non-x86 CPUInfo cross evidence via QEMU ^(delegates to shell runner^)
 echo   qemu-cpuinfo-nonx86-full-evidence  Run the full non-x86 CPUInfo evidence sweep via QEMU ^(delegates to shell runner^)
 echo   qemu-cpuinfo-nonx86-full-repeat  Repeat the full non-x86 CPUInfo evidence sweep via QEMU ^(delegates to shell runner^)
+echo   qemu-cpuinfo-retry-rehearsal  Rehearse CPUInfo QEMU retry diagnostics via fail-once injection ^(delegates to shell runner^)
 echo   qemu-cpuinfo-nonx86-suite-repeat  Repeat the non-x86 CPUInfo suite matrix via QEMU ^(delegates to shell runner^)
 echo   qemu-arch-matrix-evidence  Collect architecture-matrix evidence via QEMU ^(delegates to shell runner^)
 echo   qemu-nonx86-experimental-asm  Run experimental non-x86 asm sweeps via QEMU ^(delegates to shell runner^)
@@ -262,6 +264,17 @@ if errorlevel 1 (
 
 echo [CLOSEOUT-GUARD] Running: bash %ROOT%BuildOrTest.sh closeout-guard %NORMALIZED_TEST_ARGS%
 bash "%ROOT%BuildOrTest.sh" closeout-guard %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:qemu_cpuinfo_retry_rehearsal
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [RETRY-REHEARSAL] FAILED ^(bash runtime not found; qemu-cpuinfo-retry-rehearsal requires bash to preserve shell parity^)
+  exit /b 2
+)
+
+echo [RETRY-REHEARSAL] Running: bash %ROOT%BuildOrTest.sh qemu-cpuinfo-retry-rehearsal %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" qemu-cpuinfo-retry-rehearsal %NORMALIZED_TEST_ARGS%
 exit /b %ERRORLEVEL%
 
 :verify_win_evidence

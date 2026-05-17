@@ -9568,3 +9568,39 @@
 - 当前阶段结论：
   - 现在不止 `freeze-status` 和 summary，连 closeout snippets 也已经能把当前失败边界直接说清楚
   - 这条 Windows closeout operator surface 在 repo 内已经基本形成了同一套高信号失败表达
+
+## 2026-05-17 QEMU Retry Rehearsal Runner Parity Sync
+
+- 把范围继续压到当前 worktree 唯一剩下的 runner surface residual：
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+- 真实缺口不是 SIMD 实现逻辑，而是：
+  - shell 侧已经公开了 `qemu-cpuinfo-retry-rehearsal`
+  - batch 侧之前还没把 route / usage / help / fail-close label 同步齐
+  - 这会让 `runner-parity` 虽然大体收口，但仍留着一个隐藏的 Windows surface 漏口
+- 已落地的最小修法：
+  - `BuildOrTest.sh`
+    - `check_windows_runner_parity()` 必检字符串新增：
+      - `qemu-cpuinfo-retry-rehearsal` route
+      - help line
+      - fail-close line
+      - running line
+  - `buildOrTest.bat`
+    - 新增 action route
+    - usage synopsis / help 文案补齐
+    - 新增 `:qemu_cpuinfo_retry_rehearsal`
+      - 无 `bash` 时 fail-close
+      - 有 `bash` 时 delegate 到 shell runner
+- 已验证：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity`
+    - `[CHECK] OK (windows runner parity signatures present)`
+    - `[CHECK] OK (cpuinfo runner parity signatures present)`
+    - `[CHECK] OK (runner parity quick path)`
+  - `git diff --check`
+  - `wine cmd /c tests\\fafafa.core.simd\\buildOrTest.bat qemu-cpuinfo-retry-rehearsal qemu-cpuinfo-nonx86-evidence`
+    - `[RETRY-REHEARSAL] FAILED (bash runtime not found; qemu-cpuinfo-retry-rehearsal requires bash to preserve shell parity)`
+- 当前阶段结论：
+  - repo 内最后这个 `qemu retry rehearsal` 的 shell/batch parity surface 已收口
+  - 当前 SIMD closeout 还没完成的原因，继续只剩外部 Windows blocker：
+    - `windows_preflight_latest = RECENT_BILLING_BLOCK`
+    - `windows_evidence_verify = TOOLCHAIN BLOCK: cmd.exe cannot resolve LAZBUILD command "lazbuild"`

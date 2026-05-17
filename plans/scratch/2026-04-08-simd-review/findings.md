@@ -7282,3 +7282,19 @@
     - 这条 freshness check 直接 FAIL
     - `windows_closeout_summary` 也明确变成 `stale summary: closeout summary is older than current windows evidence log`
     - next-actions 补上 `bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence`
+
+## 2026-05-17 QEMU Retry Rehearsal Surface Drift
+
+- 当前 repo 内 closeout/rehearsal 链继续往下压后，最后一个仍值得修的 residual 已经不是实现缺陷，而是 runner surface drift：
+  - shell `BuildOrTest.sh` 已经公开 `qemu-cpuinfo-retry-rehearsal`
+  - batch `buildOrTest.bat` 却还没把同名 action 的 route / usage / help / fail-close label 对齐
+- 这类 drift 的风险不是功能跑错，而是：
+  - Windows 用户从 batch 入口看不到这条 action
+  - `runner-parity` 守护很容易被“shell 已有 / batch 未暴露”的细小漏口绕过去
+  - 后续 closeout/rehearsal 的 operator surface 会再次出现 shell truth 和 batch truth 不一致
+- 修复后 fresh 证明：
+  - `runner-parity` 继续绿
+  - Wine batch 对缺 `bash` 的 fail-close 输出也已与 shell 约定一致
+- 结论：
+  - repo 内 runner parity 现在已进一步压到真正只剩 Windows 外部能力差异
+  - 当前不该再把注意力放回 repo 内继续找新的 parity 漏洞，除非出现新的 live 证据

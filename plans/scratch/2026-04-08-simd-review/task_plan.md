@@ -4705,3 +4705,17 @@
 | 1. 复核当前 coverage 差距是否只是证据形态问题 | completed | 已确认 `check_intrinsics_coverage.py` 的 coverage 逻辑本身可用，但 shell `coverage` 只打 stdout、batch 也没有稳定 JSON 落盘；下次要复核真相仍得手工摘日志 |
 | 2. 统一 checker / shell / batch 的证据输出合同 | completed | `check_intrinsics_coverage.py` 已新增 `--summary-line` / `--json-file`；shell `run_coverage()` 已补 `COVERAGE_LOG` / `COVERAGE_JSON_LOG` 并自动解析 summary；batch `coverage` 也同步追加 `--summary-line --json-file` |
 | 3. active docs 与 release 验证收口 | completed | `docs/fafafa.core.simd.maintenance.md` 已写明默认产物路径；fresh `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh coverage` 与 Release `check` 已通过，说明这次只规范化证据，不改变 coverage 真义 |
+
+## 2026-05-17 QEMU Retry Rehearsal Runner Parity Sync
+
+### Goal
+
+收掉当前 SIMD closeout 链在 repo 内最后一个 runner surface residual：让 `qemu-cpuinfo-retry-rehearsal` 的 shell / batch 入口、help、fail-close 与 parity 自检完全对齐。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前 residual 是否只剩 surface drift | completed | 已确认当前 worktree 只脏在 `tests/fafafa.core.simd/BuildOrTest.sh` 与 `tests/fafafa.core.simd/buildOrTest.bat`；缺口不是 SIMD 实现逻辑，而是 `qemu-cpuinfo-retry-rehearsal` 只在 shell 侧完整暴露 |
+| 2. 补齐 batch route/help/label 与 shell parity 守护 | completed | `buildOrTest.bat` 已新增 `qemu-cpuinfo-retry-rehearsal` route、usage/help 文案与 `:qemu_cpuinfo_retry_rehearsal` label；`BuildOrTest.sh` 的 `check_windows_runner_parity()` 也已把对应 route/help/fail-close/running 字符串纳入必检 |
+| 3. 用最小验证证明 repo 内 residual 已收口 | completed | fresh `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity`、`git diff --check` 与 `wine cmd /c tests\\fafafa.core.simd\\buildOrTest.bat qemu-cpuinfo-retry-rehearsal qemu-cpuinfo-nonx86-evidence` 已完成；当前 repo 内只剩外部 Windows billing/toolchain blocker |
