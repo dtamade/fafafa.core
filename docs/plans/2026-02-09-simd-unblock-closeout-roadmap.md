@@ -136,6 +136,7 @@ Batch82 已补齐并验证以下 5 项：
 - 当前开发主线可继续推进，但当前 `HEAD` 应按 `code-green / release-evidence-blocked` 理解，而不是“Windows closeout 已重新收口”。
 - 若 latest `win-evidence-preflight` 仍是 `RECENT_BILLING_BLOCK`，先恢复 GitHub Billing/额度，或切到真实 Windows runner。
 - 若走手工 Windows 实机路径，`LAZBUILD` 必须解析到 native Windows `.exe/.bat/.cmd`；不要继续用 Wine/cmd 冒充实机。
+- 若显式试 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1`，也只限 `cmd.exe` 真能解析 `bash` 的环境；当前本机 Wine 不属于这种环境，不要把它当成 host-side Unix bridge 逃生口。
 - 后端扩展按专题推进，不与门面接口清单混线，持续保持“小批次 + 固定门禁 + 文档回填”。
 
 <!-- SIMD-WIN-CLOSEOUT-2026-03-10 -->

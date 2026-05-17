@@ -7386,3 +7386,13 @@
   - runbook / helper / handoff 已经知道 bash-gate opt-in 的真实边界
   - checklist / matrix 仍可能把它表述成“也许还能继续尝试的旁路”
 - 因而这批 residual 适合做最小的 docs + guard 收口，而不是继续重新打开实现审查。
+
+## 2026-05-17 Secondary Closeout Plans Still Lagged The Same Boundary
+
+- 在 checklist/matrix 收平后，roadmap、full-platform completeness plan 和 Windows postrun fill template 仍然残留同一类 operator drift：
+  - 只说 real Windows runner / native Windows `LAZBUILD`
+  - 但还没把 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` 的当前环境约束写死
+- 这类残差依然不是实现风险，而是交接和执行路径上的误导风险：
+  - 后续会话仍可能把 bash-gate opt-in 误读成“可以继续拿本机 Wine 试一试”的旁路
+  - closeout-guard 也还不能对这三份文档 fail-close
+- 因而这批同样适合继续用最小 docs + guard 补丁收掉，不值得回到更大的 closeout 设计讨论。

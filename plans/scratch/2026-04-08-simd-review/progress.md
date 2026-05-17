@@ -9761,3 +9761,21 @@
     - `LCompletenessMatrixRequired`
     - `LTopChecklistRequired`
     - 已同步把这句 caveat 纳入 `closeout-guard` 必检
+
+## 2026-05-17 Secondary Closeout Plan Caveat Sync
+
+- 在 checklist/matrix 收平后，再往次级 closeout 文档看一层，仍有一个相同类型 residual：
+  - `docs/plans/2026-02-09-simd-unblock-closeout-roadmap.md`
+  - `docs/plans/2026-03-09-simd-full-platform-completeness.md`
+  - `docs/plans/2026-02-09-simd-windows-postrun-fill-template.md`
+  仍然只强调 real Windows runner / native Windows `LAZBUILD`，但没把
+  `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` 的当前适用边界写死。
+- 已落地的最小修法：
+  - 上述 3 份文档都补入相同 caveat：
+    - 只有 `cmd.exe` 真能解析 `bash` 的环境，才允许显式试 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1`
+    - 当前本机 Wine 不属于这种环境，不要把它当成 host-side Unix bridge 逃生口
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - `LCloseoutRoadmapRequired`
+    - `LCloseoutTemplateRequired`
+    - `LFullPlatformPlanRequired`
+    - 也已同步把这层 caveat 纳入 `closeout-guard`

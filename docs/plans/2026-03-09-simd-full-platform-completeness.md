@@ -198,6 +198,10 @@ Before running the manual Windows path:
 - do not use Wine/cmd as a stand-in for a real Windows host
 - make sure `LAZBUILD` resolves to a native Windows `.exe/.bat/.cmd`, not a
   Wine-visible Linux ELF
+- if you explicitly try `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1`, only do so in an
+  environment where `cmd.exe` can really resolve `bash`; the current local
+  Wine probes do not qualify, so do not treat them as a host-side Unix bridge
+  escape hatch
 
 Run on Windows:
 
