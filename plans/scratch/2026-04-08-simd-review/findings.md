@@ -7478,3 +7478,27 @@
   - 第二个动作先输出 `Waiting for output-root lock`
   - 第一个动作完整释放后，第二个动作再进入 build/test
   - 最终两边都成功，而不是再出现随机 link/build 假红
+
+## 2026-05-17 Freeze-Status Isolation Guard Drift
+
+- `Release check` fresh 运行后又暴露出一条更小但真实的门禁漂移：
+  - `check_freeze_status_output_isolation()` 仍要求 `run_freeze_status()` 默认强制导出
+    `SIMD_FREEZE_GATE_SUMMARY_FILE=<logs/gate_summary.md>`
+  - 于是当前 `check` 会误报：
+    - `Freeze-status runner missing isolation pattern: LGateSummaryFile="${SIMD_FREEZE_GATE_SUMMARY_FILE:-${SIMD_GATE_SUMMARY_FILE:-${GATE_SUMMARY_LOG}}}"`
+- 这条红不是 wrapper regression，而是 guard 本身已经过时：
+  - 前面 `Freeze Status Wrapper Was Short-Circuiting Gate Fallback Discovery` 那批已经把正确合同收成：
+    - 只有显式设置 `SIMD_FREEZE_GATE_SUMMARY_FILE` / `SIMD_GATE_SUMMARY_FILE` 时才传 override
+    - 否则必须让 Python 侧自己做 `gate_summary` / backup / closeout candidate discovery
+  - 因而旧 guard 继续要求 unconditional fallback export，反而会把当前正确实现误判成缺陷
+- 这类问题的正确修法不是改回旧 wrapper，而是把静态 guard 跟当前真实合同对齐：
+  - required 模式应匹配：
+    - `LGateSummaryOverride=...`
+    - `if [[ -n "${LGateSummaryOverride}" ]]; then`
+    - override 分支里才导出 `SIMD_FREEZE_GATE_SUMMARY_FILE`
+    - 普通分支保留直接 `python3 ... --json-file ...` 调用
+  - forbidden 模式应显式拒绝旧的：
+    - `LGateSummaryFile="${SIMD_FREEZE_GATE_SUMMARY_FILE:-${SIMD_GATE_SUMMARY_FILE:-${GATE_SUMMARY_LOG}}}"`
+- 修完后的验收信号很明确：
+  - `Release check` 里必须重新出现 `[CHECK] OK (freeze-status output isolation present)`
+  - 同时 `run_freeze_status()` 仍不能退回 unconditional override，否则会再次短路 fallback discovery

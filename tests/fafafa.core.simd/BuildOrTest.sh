@@ -4887,11 +4887,15 @@ check_freeze_status_output_isolation() {
   LFreezeFunction="$(sed -n '/^run_freeze_status()/,/^}/p' "${LRunner}")"
   LRunnerRequired=(
     'LJsonPath="${SIMD_FREEZE_STATUS_JSON_FILE:-${LOG_DIR}/freeze_status.json}"'
-    'LGateSummaryFile="${SIMD_FREEZE_GATE_SUMMARY_FILE:-${SIMD_GATE_SUMMARY_FILE:-${GATE_SUMMARY_LOG}}}"'
+    'LGateSummaryOverride="${SIMD_FREEZE_GATE_SUMMARY_FILE:-${SIMD_GATE_SUMMARY_FILE:-}}"'
+    'if [[ -n "${LGateSummaryOverride}" ]]; then'
+    'LGateSummaryFile="${LGateSummaryOverride}"'
     'SIMD_FREEZE_GATE_SUMMARY_FILE="${LGateSummaryFile}" \'
+    'python3 "${LFreezeScript}" --root "${ROOT}" --json-file "${LJsonPath}" "$@"'
   )
   LRunnerForbidden=(
     'LJsonPath="${SIMD_FREEZE_STATUS_JSON_FILE:-${ROOT}/logs/freeze_status.json}"'
+    'LGateSummaryFile="${SIMD_FREEZE_GATE_SUMMARY_FILE:-${SIMD_GATE_SUMMARY_FILE:-${GATE_SUMMARY_LOG}}}"'
   )
   LCollectorRequired=(
     'SIMD_FREEZE_GATE_SUMMARY_FILE="${OUTPUT_ROOT}/logs/gate_summary.md"'

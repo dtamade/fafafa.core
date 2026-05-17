@@ -9902,3 +9902,38 @@
 - 当前阶段结论：
   - 之前那类“共享 `OUTPUT_ROOT` 时的假红”现在已从热路径收口为显式串行化
   - 这批修的是 runner 健壮性，不是 SIMD 实现语义本身；non-x86 checker 与 targeted release suites 仍保持绿态
+
+## 2026-05-17 Freeze-Status Isolation Guard Truth Resync
+
+- 接着上一批 runner 健壮性收口，我没有重新发散扫源码，而是直接追了 fresh `Release check` 里新冒出来的一条真红：
+  - `[CHECK] Freeze-status runner missing isolation pattern: LGateSummaryFile="${SIMD_FREEZE_GATE_SUMMARY_FILE:-${SIMD_GATE_SUMMARY_FILE:-${GATE_SUMMARY_LOG}}}"`
+- 复核 `run_freeze_status()` 与 scratch 历史结论后，已确认这不是 wrapper regression，而是 `check_freeze_status_output_isolation()` 自己落后于当前真实合同：
+  - `run_freeze_status()` 现在只在显式提供 `SIMD_FREEZE_GATE_SUMMARY_FILE` / `SIMD_GATE_SUMMARY_FILE` 时才传 override
+  - 这正是 `Freeze Status Wrapper Was Short-Circuiting Gate Fallback Discovery` 那批修复后的预期行为
+  - 旧的静态 guard 却仍然要求“默认强制导出 `SIMD_FREEZE_GATE_SUMMARY_FILE=<gate_summary.md>`”，于是把当前正确实现误报成缺 pattern
+- 已落地的最小修法：
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - `check_freeze_status_output_isolation()` 的 `LRunnerRequired` 已改成匹配当前真实 wrapper 合同：
+      - `LGateSummaryOverride="${SIMD_FREEZE_GATE_SUMMARY_FILE:-${SIMD_GATE_SUMMARY_FILE:-}}"`
+      - `if [[ -n "${LGateSummaryOverride}" ]]; then`
+      - `LGateSummaryFile="${LGateSummaryOverride}"`
+      - 仅在 override 分支里导出 `SIMD_FREEZE_GATE_SUMMARY_FILE="${LGateSummaryFile}"`
+      - 并要求普通分支保留直接 `python3 ... --json-file ...` 调用
+    - `LRunnerForbidden` 新增旧的 unconditional fallback 模式：
+      - `LGateSummaryFile="${SIMD_FREEZE_GATE_SUMMARY_FILE:-${SIMD_GATE_SUMMARY_FILE:-${GATE_SUMMARY_LOG}}}"`
+- fresh 验证已完成：
+  - `bash -n tests/fafafa.core.simd/BuildOrTest.sh`
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - fresh 结果：
+    - 之前的 `Freeze-status runner missing isolation pattern` 已消失
+    - `check` 中现在明确重新出现：
+      - `[CHECK] OK (freeze-status output isolation present)`
+    - 整条 `Release check` 最终重新通过，同时继续保留：
+      - `METADATA_QUERY_SCOPE ... OK`
+      - `DATAPLANE_CONSUMER_SCOPE ... OK`
+      - `DIRECT_DISPATCH_SCOPE ... OK`
+      - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY ... strict=1`
+- 当前阶段结论：
+  - 这批修的是默认门禁 guard 真相漂移，不是 `freeze-status` 生产逻辑本身
+  - `run_freeze_status()` 现在继续保留“无 override 时允许 Python fallback discovery”的正确行为，而 `check` 不会再把这条正确合同误报成缺陷
