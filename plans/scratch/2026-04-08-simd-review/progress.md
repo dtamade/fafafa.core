@@ -11519,3 +11519,51 @@
   - 当前 `RISCVV wide float min/max` 的 `F32` 与 `F64` 两半，都已经有了：
     - runtime special-case parity
     - source-level helper semantics witness
+
+## 2026-05-18 RISCVV F32x4 Local Extrema Conditional Witness Sync
+
+- 继续沿相邻 residual 往下切时，`F32x4 min/max` 的真实合同和刚做完的 wide family 不同：
+  - `src/fafafa.core.simd.riscvv.register.inc`
+    - `table.MinF32x4 := @RISCVVMinF32x4;`
+    - `table.MaxF32x4 := @RISCVVMaxF32x4;`
+    - 这两条都在 `{$IFDEF RISCVV_ASSEMBLY}` 条件块里
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - `RISCVVMinF32x4`
+    - `RISCVVMaxF32x4`
+    - no-asm body 仍是 local compare loop
+- 所以这批不能沿用 `wide F32/F64` 的 runtime special-case parity 模式，因为当前 x86 host runtime 本来就会复用 scalar slot；真正缺的是：
+  - asm-conditional source truth witness
+  - no-asm local-loop source truth witness
+  - runtime slot 在 asm-compiled / non-asm host 两种情况下的 dedicated contract
+- 本批实际收口：
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 新增 `RISCVVMinF32x4`
+    - 新增 `RISCVVMaxF32x4`
+    - 按当前 local-loop body 记录 source-level truth
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 新增 `RISCVV_CONDITIONAL_LOCAL_EXTREMA_F32X4_KEY_SLOTS`
+    - 把对应 `DispatchAPI` dedicated witness 纳入 required truth-source
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 新增 `Test_RISCVV_LocalExtremaF32x4_Keep_AsmConditional_RuntimeBinding_And_LocalNoAsmWitness`
+    - 同时钉住：
+      - register source 仍保留 asm-gated assignment
+      - no-asm facade 不是 `ScalarMin/MaxF32x4` forward，而是 local loop
+      - `riscvv.pas` 仍保留 `RISCVVMin/MaxF32x4Asm` 与 `vfmin/vfmax` opcode witness
+      - runtime slot 在非 asm host 上应复用 scalar，在 asm compiled 时应保持 backend-owned
+- 这批串行 release 验证已经 fresh 跑通：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend riscvv --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=694 status=ok`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=riscvv slots=65 issues=0 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `TTestCase_DispatchAPI` `BUILD/TEST/LEAK` 全绿
+  - Release `check` 通过
+- 当前阶段结论：
+  - `RISCVV F32x4 min/max` 当前收掉的是 conditional-slot contract 盲区，不是新的实现改写
+  - 这组 residual 现在和前面的 `F64x2 local extrema` 一样，已经有了 dedicated source/runtime witness

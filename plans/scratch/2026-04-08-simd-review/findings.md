@@ -8405,3 +8405,22 @@
   - “runtime special-case parity 已 fresh 复核为绿”
   - “no-asm facade 当前仍保留 local compare loop”
   - “helper semantics 现在也已把 `Min/MaxF32x8/F32x16` 的 local-loop truth 显式钉住”
+
+## 2026-05-18 RISCVV F32x4 MinMax Belongs To The Conditional Local-Loop Family
+
+- `RISCVV MinF32x4/MaxF32x4` 和刚收掉的 wide `F32/F64 min/max` 不是同一类 residual：
+  - 它们不是无条件 backend-owned slot
+  - `register.inc` 中的 `table.MinF32x4` / `table.MaxF32x4` 都是 `{$IFDEF RISCVV_ASSEMBLY}` 条件绑定
+  - 因而当前 x86 host runtime 不应被描述成“仍走 RISCVV local-loop slot”
+- 但它们也不是普通 scalar-forward conditional slot：
+  - `facade.inc` 里的 no-asm body 不是 `ScalarMin/MaxF32x4` 单行 forward
+  - 而是显式 `for i := 0 to 3 do ... if a.f[i] <or> > b.f[i] then ...` 的 local compare loop
+- 这条 finding 的价值在于把 `F32x4 min/max` 正确归类到和 `F64x2 local extrema` 一样的 bucket：
+  - “asm-conditional register source”
+  - “no-asm local-loop facade”
+  - “runtime slot 随 asm 编译条件切换”
+- 因而当前对 `RISCVV F32x4 min/max` 最准确的口径应是：
+  - “asm path 仍保留 dedicated source-side binding 与 `vfmin/vfmax` opcode witness”
+  - “no-asm facade 仍保留 local compare loop”
+  - “当前非-RVV host runtime 应复用 scalar slot”
+  - “应使用 dedicated dispatch witness + helper semantics 守住这三层 truth，而不是把它误收成 wide family 的 runtime parity 问题”

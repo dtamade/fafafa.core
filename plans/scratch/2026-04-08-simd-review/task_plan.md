@@ -4928,3 +4928,17 @@
 | 1. 先证伪 wide `F32 min/max` 是否真属于下一批 drift bug | completed | 已在 `tests/fafafa.core.simd/fafafa.core.simd.ieee754.testcase.pas` 新增 `Test_NonX86_F32_WideMinMax_SpecialCases_IfAvailable`；Release `TTestCase_NonX86IEEE754` fresh 通过，当前 host 上没有打出 `MinF32x8/MaxF32x8/MinF32x16/MaxF32x16` 的 `NaN / signed-zero` parity 红点 |
 | 2. 不强改实现，只补当前真实缺口 | completed | `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 已新增 `RISCVVMinF32x8/MaxF32x8/MinF32x16/MaxF32x16` local-loop truth；说明这批真实问题是 helper semantics guard 缺口，而不是已证实的 runtime drift |
 | 3. 串行 Release 复验并确认 stop-point | completed | `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py`、`python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`、Release `TTestCase_NonX86IEEE754`、Release `impl-audit-nonx86`、Release `check` 全部 fresh 通过；其中 `NONX86_HELPER_SEMANTICS_SUMMARY checks=692 status=ok` |
+
+## 2026-05-18 RISCVV F32x4 Local Extrema Conditional Witness Sync
+
+### Goal
+
+把 `RISCVV MinF32x4/MaxF32x4` 从“窄宽 family 之间容易误归类的残点”收口成 dedicated conditional-slot witness：不改实现，只补齐 asm-conditional register truth、no-asm local-loop source truth 和 runtime slot conditional-binding 证据。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 先确认 `F32x4 min/max` 属于哪类 residual | completed | 已确认 `src/fafafa.core.simd.riscvv.register.inc` 对 `MinF32x4/MaxF32x4` 的绑定位于 `{$IFDEF RISCVV_ASSEMBLY}` 条件块；`src/fafafa.core.simd.riscvv.facade.inc` 的 no-asm body 仍是 local compare loop；因此它们应归入 “conditional local-loop extrema” 家族，而不是 wide parity family |
+| 2. 补 helper semantics、key-slot audit 与 dedicated dispatch witness | completed | `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 已新增 `RISCVVMinF32x4/RISCVVMaxF32x4`；`tests/fafafa.core.simd/check_nonx86_key_slot_audit.py` 已新增 `RISCVV_CONDITIONAL_LOCAL_EXTREMA_F32X4_KEY_SLOTS` 并要求 `TTestCase_DispatchAPI.Test_RISCVV_LocalExtremaF32x4_Keep_AsmConditional_RuntimeBinding_And_LocalNoAsmWitness`；`dispatchapi` 已新增该 dedicated witness |
+| 3. 串行 Release 复验并确认 stop-point | completed | `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`、`python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`、`python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend riscvv --summary-line`、Release `TTestCase_DispatchAPI`、Release `impl-audit-nonx86`、Release `check` 全部通过；其中 `NONX86_HELPER_SEMANTICS_SUMMARY checks=694 status=ok` |
