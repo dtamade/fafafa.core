@@ -347,6 +347,7 @@
     - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-YYYYMMDD-152`
     - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
   - 结果：`cross-ready=True`，并生成 `tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`
+  - 注意：这里的 `[x]` 只表示历史 Windows 实机证据批次已经归档；如果后续源码继续前进、evidence freshness 过期，或 verifier 规则继续收紧，当前 `HEAD` 是否仍 cross-ready 仍必须以最新 `freeze-status` 为准
   - 快捷打印（复制即跑）：
     - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-3cmd SIMD-YYYYMMDD-152`
   - 分步兜底：
@@ -358,4 +359,4 @@
 - Linux 侧：功能与门禁已达到发布候选状态。
 - Linux 侧：代码质量基线已收敛到 testcase 0 warning/hint。
 - Linux 侧：arm/arm64/riscv non-x86 QEMU 证据链（Release）已闭环通过。
-- Windows 侧：实机日志已归档，跨平台证据闭环完成。
+- Windows 侧：历史实机日志已归档；当前 `HEAD` 是否完成跨平台证据闭环，仍以最新 `freeze-status` 为准。

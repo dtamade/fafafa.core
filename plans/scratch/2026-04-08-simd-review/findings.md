@@ -6843,3 +6843,21 @@
   - `INTRINSICS_COVERAGE_SUMMARY modules=5 missing_required=0 missing_optional=0 extra=0 ... status=ok`
   - JSON 已稳定落到 `tests/fafafa.core.simd/logs/intrinsics_coverage.json`
 - 因而这批的本质，是把 `intrinsics coverage` 从“人工阅读型日志”收正成“runner 默认可复用证据”。
+
+## 2026-05-17 Windows Closeout Historical-vs-Current Truth Drift
+
+- 当前最真实的新问题不在 SIMD 实现层，而在 closeout 文档叙事：
+  - latest `freeze-status` 明确仍是 `freeze_ready=false / cross_ready=false`
+  - 红点集中在 `evidence-verify=SKIP`、Windows evidence freshness / verify，以及 `RECENT_BILLING_BLOCK`
+  - 但 active closeout 文档后段、RC checklist 当前结论、以及 completeness matrix 的 Windows 行仍然容易让人读成“当前 HEAD 已完成跨平台收口”
+- 这不是简单的“旧文档没更新日期”，而是会误导后续审查路径：
+  - 维护者可能把“历史 Windows 实机证据已归档”误读成“当前 HEAD 仍 cross-ready”
+  - 然后继续围绕实现层空转，而不是老老实实把状态记成 `code-green / release-evidence-blocked`
+- 最小正确修法不是把所有历史 `[x]` 都直接撤销：
+  - `freeze-status` 的 optional doc check 目前就是依赖这些历史归档标记
+  - 直接改成 `[ ]` 会改变现有 evaluator 口径，而不是单纯纠正文案
+- 因此更稳的修法是：
+  - 保留“历史归档”标记
+  - 但在 active closeout / handoff / RC checklist / completeness matrix 上补显式注释：
+    - 历史批次曾闭环 != 当前 HEAD 仍满足 latest `freeze-status`
+    - 当前真实状态仍以 latest `freeze-status` 为准

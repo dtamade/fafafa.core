@@ -14,6 +14,7 @@
   - `gate PASS @ 2026-03-02 09:43:02`
 - Linux 证据包：已生成（`logs/evidence-*`）
 - Windows 证据：实机日志已归档（脚本入口 + 校验入口）
+- 注意：这里的“已归档”表示历史 Windows 实机证据批次曾闭环，不等于当前 `HEAD` 仍是 `cross-ready`；如果最新 `freeze-status` 因 freshness / verifier / source-newer-than-evidence 变红，应以最新 `freeze-status` 为准。
 - `closeout-release` 已作为完整 release 收口入口固化到 runner 与主文档。
 - 机器检查：`check_interface_implementation_completeness.py --strict` 通过（`dispatch=558, P0=0/P1=0/P2=0`）
 - 机器检查产物：
@@ -50,6 +51,7 @@
 - [x] Linux 证据完整（含摘要）
 - [x] Linux non-x86（arm/v7, arm64, riscv64）QEMU Release 证据通过
 - [x] Windows 实机证据已归档（脚本+校验器+日志）
+  - 注：此处记录的是历史归档完成态；当前源码时间线若已晚于该日志，仍需重新看 `freeze-status` 判断当前是否 cross-ready。
 
 ## 5) Linux Non-x86 闭环（2026-03-02）
 

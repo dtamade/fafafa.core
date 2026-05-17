@@ -22,19 +22,22 @@
 
 重点不是改变语义，而是把原来集中在少数超大 Pascal 单元里的内容，按现有注释边界拆成主单元 + include 片段的结构，降低 review 成本和定位成本。
 
-截至 `2026-05-12`，当前最重要的状态判断要单独记住：
+截至 `2026-05-17`，当前最重要的状态判断要单独记住：
 
 - 代码侧已经是 green：
   - 最新 `gate` 为 PASS
   - 最新接口完整度检查为绿，`P0/P1/P2=0`
+  - `linux_qemu_cpuinfo_nonx86_evidence` 已在 canonical gate 中 fresh PASS
 - 发布级 closeout 还不是 green：
-  - `freeze-status` 仍为 `ready=False / mainline-ready=False / cross-ready=False`
+  - cross-platform `freeze-status` 仍为 `ready=False / cross-ready=False`
   - 当前主要红项是：
-    - `qemu-cpuinfo-nonx86-evidence=SKIP`
-    - gate artifact / Windows evidence 旧于最新源码时触发的 freshness 红项
+    - `cross_gate_required_steps: evidence-verify=SKIP`
+    - `windows_b07_gate.log` / `windows_b07_closeout_summary.md` 的 freshness / verify
+    - `win-evidence-preflight` 最新结果是 `RECENT_BILLING_BLOCK`
 - 这不是新的接口/实现质量问题，而是外部条件问题：
   - 当前 canonical Windows evidence 仍停留在 `2026-04-19`
   - 当前源码时间线已经继续向前推进；如果 latest gate artifact 早于最新 `src/fafafa.core.simd*` 源码，先重跑 release `gate`
+  - 历史文档里“Windows 已归档/已闭环”的标记只能理解成旧批次归档事实，不等于当前 `HEAD` 仍是 cross-ready
   - 在没有 Windows 主机、也没有可用 GitHub Actions Billing/额度时，这一轮应该按 `code-green / release-evidence-blocked` 交接，而不是继续重开 SIMD 泛审查
 
 当前已经完成的方向包括：

@@ -8483,3 +8483,22 @@
 - 当前阶段结论：
   - `buildOrTest.bat` 的 help surface 现在和公开 action 表终于对齐完毕
   - 这条 runner/help 审查线可以从“还在补漏”转成“后续只防回退”
+
+## 2026-05-17 Windows Closeout Truth-Sync Follow-up
+
+- 这轮没有再去打开实现层，而是专门做了一次 repo 内 truth-sync 审查：
+  - 先 fresh 读取 `freeze-status`
+  - 再对照 `docs/fafafa.core.simd.closeout.md`
+  - 再对照 `docs/fafafa.core.simd.handoff.md`
+  - 再对照 `tests/fafafa.core.simd/docs/simd_release_candidate_checklist.md`
+  - 再对照 `tests/fafafa.core.simd/docs/simd_completeness_matrix.md`
+- 真正抓到的缺口不是 gate 行为，而是“历史 Windows 已归档”与“当前 HEAD 仍 cross-ready”被混写：
+  - `freeze-status.json` 真实仍是 `freeze_ready=false / cross_ready=false`
+  - 但 active closeout 文档后段还残留了“当前可以按 cross-platform freeze 条件满足理解”
+  - RC checklist / completeness matrix 里的 `[x] Windows 实机证据已归档` 也缺少“这只是历史归档，不等于当前 HEAD 仍是 green”的提示
+- 这批最小修法刻意不去碰 evaluator：
+  - 保留历史归档标记，避免把现有 `freeze-status` optional doc check 结构打坏
+  - 只在 active 文档上补明示注释：历史闭环 != 当前 HEAD 仍 cross-ready
+  - 同时把 handoff 的当前状态从旧的 `qemu-cpuinfo-nonx86-evidence=SKIP` 更新成 `Windows freshness / verify + RECENT_BILLING_BLOCK`
+- 因而这批收掉的不是实现 bug，而是会误导下一轮判断的 closeout 叙事漂移：
+  - 当前最准确的交接口径继续是 `code-green / release-evidence-blocked`

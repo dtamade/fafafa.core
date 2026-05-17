@@ -399,7 +399,8 @@ tests\fafafa.core.simd\buildOrTest.bat gate-strict
 ### 必须等 Windows 实证
 
 - Windows evidence 真正通过 verifier 之前，不要把 release candidate checklist / completeness matrix / closeout roadmap 里的 Windows 项自动勾成完成
-- 截至 `2026-03-10`（batch `SIMD-20260310-152`）Windows evidence 已闭环；当前可以按 **cross-platform freeze 条件满足** 理解（后续若改 contract/public ABI 仍需重收证据）
+- `2026-03-10` / `2026-04-19` 这两批 Windows evidence 只能当“历史批次曾闭环”的归档事实，不能直接当成当前 `HEAD` 仍满足 **cross-platform freeze** 的证明
+- 当前真实状态必须跟最新 `freeze-status` 走；截至 `2026-05-17` 应按 `code-green / release-evidence-blocked` 理解，而不是按历史 Windows 批次继续写成 release closeout 已完成
 
 ## 还有哪些债没收完
 
