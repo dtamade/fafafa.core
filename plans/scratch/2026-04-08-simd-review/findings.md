@@ -6861,3 +6861,17 @@
   - 但在 active closeout / handoff / RC checklist / completeness matrix 上补显式注释：
     - 历史批次曾闭环 != 当前 HEAD 仍满足 latest `freeze-status`
     - 当前真实状态仍以 latest `freeze-status` 为准
+
+## 2026-05-17 Freeze-Status Optional Doc Detail Ambiguity
+
+- 在 closeout 文档 truth-sync 之外，`evaluate_simd_freeze_status.py` 还保留了一个更小的提示语问题：
+  - `roadmap_windows_closed`
+  - `rc_windows_closed`
+  - `matrix_windows_closed`
+  - 这三项都是 optional doc signal，但 detail 文案仍然只写成了 `checkbox is [x]` / `row is [x]` / `marks ... archived`
+- 逻辑上它们没错，问题在输出语义：
+  - 用户或维护者在快速扫 `freeze-status` 时，很容易把这些 PASS detail 误读成“当前 HEAD 的 Windows closeout 也已经绿了”
+  - 尤其当前同一份输出里又同时存在 `windows_evidence_freshness FAIL` / `windows_evidence_verify FAIL`
+- 最小正确修法仍然不是改判定，而是改 detail：
+  - 保持 optional PASS/PENDING 结构不变
+  - 但把 detail 明确写成 `historical Windows archive marker` / `not a current readiness signal`

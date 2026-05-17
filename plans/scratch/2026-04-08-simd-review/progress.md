@@ -8502,3 +8502,19 @@
   - 同时把 handoff 的当前状态从旧的 `qemu-cpuinfo-nonx86-evidence=SKIP` 更新成 `Windows freshness / verify + RECENT_BILLING_BLOCK`
 - 因而这批收掉的不是实现 bug，而是会误导下一轮判断的 closeout 叙事漂移：
   - 当前最准确的交接口径继续是 `code-green / release-evidence-blocked`
+
+## 2026-05-17 Freeze-Status Optional Doc Signal Clarification
+
+- 在补完 active 文档注释后，又顺手看了一眼 `freeze-status` 自己的输出文本。
+- 这里还残留一个较小但真实的误导点：
+  - `roadmap_windows_closed`
+  - `rc_windows_closed`
+  - `matrix_windows_closed`
+  - 这三项虽然本来就是 optional check，但 detail 文案仍然只写成了 `checkbox is [x]` / `row is [x]` / `marks ... archived`
+- 这会把“历史归档标记”说得太像“当前 readiness 信号”，和刚修掉的文档漂移属于同一类认知噪音。
+- 这批最小修法只改 detail 文案，不改任何判定逻辑：
+  - 明确写成 `historical Windows archive marker`
+  - 明确补上 `not a current readiness signal`
+- fresh `freeze-status` 复验后，主结论没有变化：
+  - 当前仍是 `ready=False / cross-ready=False`
+  - 但 optional doc check 的输出现在不再那么容易被误读成“当前已经放行”
