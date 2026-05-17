@@ -4733,3 +4733,17 @@
 | 1. 复核 fresh `freeze-status` 是否出现新的 repo 内红项 | completed | 已重新运行 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`；结果直接抓到 `windows_evidence_inputs_not_newer_than_log = FAIL`，原因是刚提交的 `tests/fafafa.core.simd/buildOrTest.bat` 新于当前 `windows_b07_gate.log` |
 | 2. 刷新 current Windows evidence 与 closeout summary | completed | 已运行 `wine cmd /c tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify` 与 `bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence`；fresh log/summary 已回到当前 `HEAD` 时间线，失败边界保持为 `TOOLCHAIN BLOCK: cmd.exe cannot resolve LAZBUILD command "lazbuild"` |
 | 3. 确认剩余红项重新收敛成纯外部 blocker | completed | 第二轮 `freeze-status` 已显示 `windows_evidence_inputs_not_newer_than_log = PASS`、`windows_closeout_summary_not_older_than_log = PASS`；当前 cross blocker 只剩 `RECENT_BILLING_BLOCK` 与缺少 native Windows `lazbuild`/Windows wrapper |
+
+## 2026-05-17 Wine Host-Side Unix Bridge Probe
+
+### Goal
+
+验证当前本机 Wine 环境里是否还能用 `bash` / `start /unix` 之类的 host-side Unix bridge，把 Linux `lazbuild` 暴露给 `cmd.exe`，从而减少一个 Windows toolchain blocker。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 先确认假设是否有表面支点 | completed | 已确认 Linux 侧 `lazbuild` 可用，且 `buildOrTest.bat` 现有合同确实接受 `.bat/.cmd` `LAZBUILD` wrapper；因此这条假设值得做一次最小 probe |
+| 2. 直接 probe `bash` in `cmd` 与 `start /unix` | completed | `wine cmd /c where bash` 返回 `File not found`；`wine start '/?'` 虽显示 `/wait` `/unix` 选项，但 `wine cmd /c start /wait /unix ...` 与 `wine start /wait /unix ...` 对 `/bin/touch` / `lazbuild --version` 的探针都只返回 `rc=159`，且没有产出预期文件或输出 |
+| 3. 把结论收进 operator-facing truth | completed | 已把 `buildOrTest.bat` 的 toolchain hint、`win-closeout-3cmd` 文案与 Windows closeout runbook 收正为：当前本机 Wine 里不要再把 host-side Unix bridge 当作 native Windows `LAZBUILD` 的替代 |

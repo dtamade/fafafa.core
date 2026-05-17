@@ -9631,3 +9631,24 @@
 - 当前阶段结论：
   - 这次 runner parity commit 没有再留下 repo 内部的 stale evidence 副作用
   - 当前 `freeze-status` 已重新回到“mainline 绿、cross 只红在外部 Windows blocker”的诚实状态
+
+## 2026-05-17 Wine Host-Side Unix Bridge Probe Boundary
+
+- 在把 `freeze-status` 红项重新收敛回纯外部 Windows blocker 之后，我没有立刻停，而是继续审了一层：
+  - 既然 `buildOrTest.bat` 已支持 `LAZBUILD=.bat/.cmd` wrapper
+  - 当前本机 Wine 环境里，是否还能靠 host-side Unix bridge 把 `cmd.exe -> lazbuild` 再推进一步
+- 这轮 probe 的 fresh 事实如下：
+  - Linux 侧 `lazbuild` 本身可用：
+    - `command -v lazbuild` -> `/opt/fpcupdeluxe/lazarus/lazbuild`
+    - `lazbuild --version` -> `4.99`
+  - 但 `wine cmd /c where bash` 返回 `File not found`
+  - `wine start '/?'` 证实 Wine `start` 确实声明支持 `/wait` 与 `/unix`
+  - 但 fresh probe：
+    - `wine cmd /c start /wait /unix /bin/touch ...`
+    - `wine start /wait /unix /bin/touch ...`
+    - `wine start /wait /unix /opt/fpcupdeluxe/lazarus/lazbuild --version`
+    - 全部只返回 `rc=159`，且没有产出预期 side effect / 输出
+  - `/tmp/wine_start_probe2`、`/tmp/wine_start_probe3` 最终都没有生成
+- 当前阶段结论：
+  - 在当前本机 Wine 环境里，`where bash` 与 `start /unix` 都没有形成可用的 `LAZBUILD` bridge
+  - 因而这条“host-side Unix bridge”不该再作为 closeout 下一步尝试，而应明确记成当前外部环境边界

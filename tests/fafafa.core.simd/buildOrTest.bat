@@ -538,6 +538,7 @@ if "%LAZBUILD_HAS_PATH%"=="0" (
   >> "%BUILD_LOG%" echo [BUILD] TOOLCHAIN BLOCK: cmd.exe cannot resolve LAZBUILD command "%LAZBUILD_EXE%"
   >> "%BUILD_LOG%" echo [BUILD] Hint: install native Windows lazbuild.exe or set LAZBUILD to a Windows .exe/.bat/.cmd wrapper visible to cmd.exe
   if exist "Z:\usr\bin\bash" >> "%BUILD_LOG%" echo [BUILD] Hint: this looks like a Wine run; cmd.exe does not inherit the Unix PATH or execute Linux ELF lazbuild directly
+  if exist "Z:\usr\bin\bash" >> "%BUILD_LOG%" echo [BUILD] Hint: current local Wine probes did not yield a working host-side Unix bridge ^(`where bash` / `start /unix`^); provide native Windows lazbuild.exe or a real Windows wrapper
   exit /b 1
 )
 >> "%BUILD_LOG%" echo [BUILD] TOOLCHAIN BLOCK: configured LAZBUILD path does not exist: %LAZBUILD_EXE%
@@ -2436,6 +2437,7 @@ echo Notes:
 echo    Step 3 runs finalize ^> freeze-status ^> apply, and apply is blocked unless freeze_ready=true.
 echo    If step 0 returns RECENT_BILLING_BLOCK, fix GitHub Billing/quota first.
 echo    LAZBUILD for step 1 must resolve to a native Windows .exe/.bat/.cmd, not a Wine-visible Linux ELF under Z:\opt\...
+echo    Current local Wine probes also did not yield a working host-side Unix bridge ^(`where bash` / `start /unix`^); do not treat them as a substitute for native Windows LAZBUILD.
 exit /b 0
 
 :win_closeout_finalize

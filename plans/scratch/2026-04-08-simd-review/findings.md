@@ -7314,3 +7314,17 @@
 - 因而当前真正剩余的 cross blocker 又回到了两条外部条件：
   - GitHub `RECENT_BILLING_BLOCK`
   - Wine/cmd 下缺少 native Windows `lazbuild.exe` 或等价 Windows wrapper
+
+## 2026-05-17 Wine Host-Side Unix Bridge Is Not A Viable Current Escape Hatch
+
+- 在确认当前 `freeze-status` 已只剩外部 Windows blocker 后，我继续验证了一个仍可能误导后续会话的假设：
+  - 既然 batch runner 已接受 `.bat/.cmd` `LAZBUILD` wrapper
+  - 是否可以靠本机 Wine 的 host-side Unix bridge，把 Linux `lazbuild` 重新暴露给 `cmd.exe`
+- 当前 fresh probe 明确否掉了这条假设：
+  - `wine cmd /c where bash` -> `File not found`
+  - `wine start '/?'` 虽然显示 `/wait` 与 `/unix` 选项存在
+  - 但实际 `wine cmd /c start /wait /unix ...` 与 `wine start /wait /unix ...` 对 `/bin/touch`、`lazbuild --version` 的探针都只返回 `rc=159`
+  - 也没有生成 probe 文件或产生可消费输出
+- 这说明：
+  - 当前本机 Wine 环境里，不应再把 `bash` in `cmd` 或 `start /unix` 当成可交付的 `LAZBUILD` bridge
+  - “提供 native Windows `lazbuild.exe` / 真正可被 `cmd.exe` 执行的 Windows wrapper” 仍是当前唯一诚实的 toolchain 动作
