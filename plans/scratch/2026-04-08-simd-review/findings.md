@@ -8452,3 +8452,21 @@
   - “no-asm facade 仍是 exact scalar forward”
   - “当前非-RVV host runtime 应复用 scalar slot”
   - “应使用 dedicated dispatch witness + helper semantics 守住这三层 truth，而不是继续只靠 generic parity 间接覆盖”
+
+## 2026-05-18 RISCVV Rcp Rsqrt F32x4 Belong To The Same Exact Conditional Family
+
+- `RcpF32x4`、`RsqrtF32x4` 和刚收掉的 `Abs/Sqrt/FmaF32x4` 不是另一个新 bucket，而是同一家族里剩下的两个漏网槽：
+  - `src/fafafa.core.simd.riscvv.register.inc` 里它们同样是 `{$IFDEF RISCVV_ASSEMBLY}` 条件绑定
+  - `src/fafafa.core.simd.riscvv.facade.inc` 里它们同样是 exact scalar forward
+  - `src/fafafa.core.simd.riscvv.pas` 里它们同样保留 dedicated asm helper 与明确 opcode witness
+- 这条 finding 的核心价值在于防止后续审查把它们又拆成“近似 math 特例”：
+  - `vfrec7.v` / `vfrsqrt7.v` 看起来比 `abs/sqrt/fma` 更“算法化”
+  - 但在当前仓库合同里，source/runtime split 的治理方式并没有变
+  - 真正要守的是：
+    - source 侧仍保留 asm-gated binding
+    - no-asm facade 仍保持 exact scalar truth
+    - 当前非 RVV host runtime 仍应复用 scalar slot
+- 因而当前对 `RISCVV Rcp/RsqrtF32x4` 最准确的口径应是：
+  - “它们属于 `ExactF32x4` 条件槽位家族，而不是新的特殊值 drift 家族”
+  - “helper semantics 只能证明 no-asm facade truth，还不够替代 dedicated source/runtime witness”
+  - “把它们接进现有 `Test_RISCVV_ExactF32x4Slots_Keep_AsmConditional_SourceTruth_And_RuntimeBinding`，比另开一套新测试更符合当前真实架构”

@@ -11622,3 +11622,52 @@
 - 当前阶段结论：
   - `AbsF32x4/SqrtF32x4/FmaF32x4` 当前收掉的是 conditional exact-slot contract 盲区，不是新的实现改写
   - 这组 residual 现在和前面的 `F64x2 exact conditional slots` 一样，已经有了 dedicated source/runtime witness
+
+## 2026-05-18 RISCVV F32x4 Rcp Rsqrt Exact Witness Extension
+
+- 在 `Abs/Sqrt/FmaF32x4` 提交后，我没有切到新 bucket，而是继续沿同一簇把最后两个同型 exact slot 收进来：
+  - `RcpF32x4`
+  - `RsqrtF32x4`
+- fresh 对位源码后，这 2 个槽与刚收掉的 `Abs/Sqrt/FmaF32x4` 合同完全同型：
+  - `src/fafafa.core.simd.riscvv.register.inc`
+    - `table.RcpF32x4 := @RISCVVRcpF32x4;`
+    - `table.RsqrtF32x4 := @RISCVVRsqrtF32x4;`
+    - 都只在 `{$IFDEF RISCVV_ASSEMBLY}` 条件块里绑定
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - `Result := ScalarRcpF32x4(a);`
+    - `Result := ScalarRsqrtF32x4(a);`
+  - `src/fafafa.core.simd.riscvv.pas`
+    - 仍保留 `RISCVVRcpF32x4Asm`
+    - 仍保留 `RISCVVRsqrtF32x4Asm`
+    - 以及对应 `vfrec7.v` / `vfrsqrt7.v` opcode witness
+  - 当前 x86 release host runtime
+    - 这 2 个 slot 在非 RVV host 上应复用 scalar slot
+    - 只有 `FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED` 时才应保持 backend-owned
+- 本批实际收口：
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 把 `RcpF32x4`
+    - `RsqrtF32x4`
+    - 接进 `RISCVV_CONDITIONAL_EXACT_F32X4_KEY_SLOTS`
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 扩充 `Test_RISCVV_ExactF32x4Slots_Keep_AsmConditional_SourceTruth_And_RuntimeBinding`
+    - 新增对 `RcpF32x4/RsqrtF32x4` 的四层断言：
+      - register source assignment site 仍保留
+      - no-asm facade 仍是 exact scalar forward
+      - asm helper / asm wrapper / opcode witness 仍保留
+      - runtime slot 仅在 `FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED` 时要求 backend-owned，否则明确要求复用 scalar slot
+- 这批串行 release 验证已经 fresh 跑通：
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend riscvv --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=riscvv slots=70 issues=0 status=ok`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=135 issues=0 status=ok`
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=695 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `TTestCase_DispatchAPI` `BUILD/TEST/LEAK` 全绿
+  - Release `check` 通过
+- 当前阶段结论：
+  - `RcpF32x4/RsqrtF32x4` 当前收掉的是 `ExactF32x4` 家族里的剩余 contract 盲区，不是新的实现改写
+  - 到这里，`RISCVV F32x4 exact conditional` 这一簇已经从 3 个槽扩成 5 个槽，并且全部有了 dedicated source/runtime witness

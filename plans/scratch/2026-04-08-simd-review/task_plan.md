@@ -4956,3 +4956,17 @@
 | 1. 复核 `AbsF32x4/SqrtF32x4/FmaF32x4` 到底缺哪层证据 | completed | 已确认 `src/fafafa.core.simd.riscvv.register.inc` 对 `AbsF32x4/SqrtF32x4/FmaF32x4` 都是 `{$IFDEF RISCVV_ASSEMBLY}` 条件绑定；`src/fafafa.core.simd.riscvv.facade.inc` 的 no-asm body 都是 exact `Scalar...` forward；`src/fafafa.core.simd.riscvv.pas` 仍保留各自 `Asm` helper 与 wrapper；现有 coverage 还缺 dedicated source/runtime split witness，且 `FmaF32x4` 之前没有 helper semantics truth |
 | 2. 补 `DispatchAPI` witness，并把 exact-slot truth 接进 `helper semantics` / `key-slot audit` | completed | `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 已新增 `RISCVVFmaF32x4` scalar-forward truth；`tests/fafafa.core.simd/check_nonx86_key_slot_audit.py` 已新增 `RISCVV_CONDITIONAL_EXACT_F32X4_KEY_SLOTS` 并要求 `TTestCase_DispatchAPI.Test_RISCVV_ExactF32x4Slots_Keep_AsmConditional_SourceTruth_And_RuntimeBinding`；`dispatchapi` 已新增该 dedicated witness |
 | 3. 串行 Release 复验并确认 stop-point | completed | `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`、`python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`、Release `TTestCase_DispatchAPI`、Release `impl-audit-nonx86`、Release `check` 全部通过；其中 `NONX86_HELPER_SEMANTICS_SUMMARY checks=695 status=ok`、`NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok` 已重新打绿 |
+
+## 2026-05-18 RISCVV F32x4 Rcp Rsqrt Exact Witness Extension
+
+### Goal
+
+继续沿刚收口的 `RISCVV F32x4 exact conditional` 家族补漏，不重开新 bucket；把 `RcpF32x4/RsqrtF32x4` 这两个“asm 条件绑定 + no-asm exact scalar facade + runtime slot 依编译条件切换”的同型残点纳入现有 dedicated witness 与 `key-slot audit`。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `RcpF32x4/RsqrtF32x4` 是否和 `Abs/Sqrt/FmaF32x4` 属于同一类 residual | completed | 已确认 `src/fafafa.core.simd.riscvv.register.inc` 对 `RcpF32x4/RsqrtF32x4` 也是 `{$IFDEF RISCVV_ASSEMBLY}` 条件绑定；`src/fafafa.core.simd.riscvv.facade.inc` 的 no-asm body 都是 exact `ScalarRcp/RsqrtF32x4` forward；`src/fafafa.core.simd.riscvv.pas` 仍保留 `RISCVVRcp/RsqrtF32x4Asm` 与 `vfrec7.v` / `vfrsqrt7.v` opcode witness，因此它们应并入现有 `ExactF32x4` bucket，而不是另起一类 |
+| 2. 扩充现有 `ExactF32x4` witness 与 `key-slot audit` | completed | `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py` 已把 `RcpF32x4/RsqrtF32x4` 接入 `RISCVV_CONDITIONAL_EXACT_F32X4_KEY_SLOTS`；`tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 的 `Test_RISCVV_ExactF32x4Slots_Keep_AsmConditional_SourceTruth_And_RuntimeBinding` 已扩到同时断言这两个 slot 的 register-source、no-asm scalar facade、asm helper/opcode witness 与 runtime conditional binding |
+| 3. 串行 Release 复验并确认 stop-point | completed | `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`、`python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend riscvv --summary-line`、Release `TTestCase_DispatchAPI`、Release `impl-audit-nonx86`、Release `check` 全部通过；其中 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=riscvv slots=70 issues=0 status=ok`、全量 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=135 issues=0 status=ok`、`NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok` 已重新打绿 |
