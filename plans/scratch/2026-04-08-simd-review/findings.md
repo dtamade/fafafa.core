@@ -8690,3 +8690,24 @@
   - “某个 no-asm body 语义特殊” 不足以证明它还该保留
   - 先问它今天还有没有 live consumer
   - 如果 register/runtime 根本走不到、source graph 也没人再调它，那它就是 dead facade，不管它是 scalar forward 还是 local compare loop
+
+## 2026-05-18 RISCVV CrossF32x3 Also Reduced To A Single Dead-Facade Residual, While Normalize Stayed Semantic-Sensitive
+
+- `RISCVV` vector-math residual 这次 fresh 复核后，没有出现“整簇继续一刀切”的情况，而是明确分裂成两类：
+  - `CrossF32x3`：已经是 `asm-gated dead facade`
+  - `NormalizeF32x4 / NormalizeF32x3`：仍然是 semantic-sensitive residual
+- `CrossF32x3` 的关键信号和前面几批 dead-facade 完全一致：
+  - register 绑定只在 `{$IFDEF RISCVV_ASSEMBLY}` 下存在
+  - asm wrapper / helper / body 仍真实存在
+  - `facade.inc` 的 no-asm body 只是 `ScalarCrossF32x3` 单行 forward
+  - 全仓没有新的 live internal consumer
+- 但 `NormalizeF32x4 / NormalizeF32x3` 这次不能跟着一起删，原因不是“它们也是 vector math，所以顺手保留”，而是更具体的 contract 差异：
+  - `RISCVV` no-asm facade 当前用 `len > 1e-10`
+  - scalar helper 当前用 `len > 0.0`
+  - `DispatchAPI` 已经专门用 tiny/zero 样本在守这条差异
+- 这条 finding 的关键价值，是把后续 `RISCVV` 深审的判断顺序再次收紧成两步：
+  - 先判断 facade 是否已经 dead
+  - 如果没 dead，再判断它是不是 semantic-sensitive
+- 不要再反过来做：
+  - 不能先看到“是 vector math / 是 scalar forward”就机械归类
+  - 也不能因为 `Normalize` 当前要谨慎，就把 `Cross` 这种已经 dead 的 facade 一起拖着不收

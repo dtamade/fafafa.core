@@ -226,11 +226,6 @@ begin
   Result := ScalarDotF64x4(a, b);
 end;
 
-function RISCVVCrossF32x3(const a, b: TVecF32x4): TVecF32x4;
-begin
-  Result := ScalarCrossF32x3(a, b);
-end;
-
 function RISCVVLengthF32x4(const a: TVecF32x4): Single;
 begin
   Result := ScalarLengthF32x4(a);

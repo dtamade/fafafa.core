@@ -842,7 +842,6 @@ def main() -> int:
         [
             ("RISCVVDotF32x4", "ScalarDotF32x4(a, b)"),
             ("RISCVVDotF32x3", "ScalarDotF32x3(a, b)"),
-            ("RISCVVCrossF32x3", "ScalarCrossF32x3(a, b)"),
             ("RISCVVLengthF32x4", "ScalarLengthF32x4(a)"),
             ("RISCVVLengthF32x3", "ScalarLengthF32x3(a)"),
         ]
@@ -1289,6 +1288,7 @@ def main() -> int:
         (riscvv_facade_source, "RISCVVMaxF32x4"),
         (riscvv_facade_source, "RISCVVMinF64x2"),
         (riscvv_facade_source, "RISCVVMaxF64x2"),
+        (riscvv_facade_source, "RISCVVCrossF32x3"),
     ]
 
     for source, routine_name in absent_routine_expectations:

@@ -12138,3 +12138,45 @@
   - `RISCVV F32x4` 这 12 个条件槽位当前不该再被拆成 “exact 要保留 facade / local extrema 要保留 witness / arithmetic 可以先放着”
   - 更准确的真相是：它们都已经落到同一个 `asm-gated dead facade` 模式
   - 这批收掉的是失活源码残影和过时护栏，不是新的 runtime 行为修复
+
+## 2026-05-18 RISCVV CrossF32x3 Dead Facade Collapse
+
+- 沿着 `RISCVV` vector-math residual 继续复核后，这次只命中 1 个还能安全继续收口的 dead-facade：
+  - `CrossF32x3`
+- fresh 对位后，`CrossF32x3` 与刚收掉的 `F32x4/F64x2` 条件槽位同构：
+  - `src/fafafa.core.simd.riscvv.register.inc`
+    - `table.CrossF32x3 := @RISCVVCrossF32x3;`
+    - 只在 `{$IFDEF RISCVV_ASSEMBLY}` 条件块里绑定
+  - `src/fafafa.core.simd.riscvv.pas`
+    - asm wrapper / helper / vector-op body 仍真实存在
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - 之前还保留 `Result := ScalarCrossF32x3(a, b);` 的 no-asm body
+  - fresh 全仓 `rg`
+    - 除了 asm source、register source 与测试护栏，没有新的 live consumer
+- 同时把 `NormalizeF32x4/F32x3` 和它明确拆开了：
+  - `NormalizeF32x4/F32x3` 当前仍有 tiny/zero edge parity 护栏
+  - `RISCVV` facade 使用 `len > 1e-10`
+  - scalar 使用 `len > 0.0`
+  - 所以这批不把 `Normalize` 混进 dead-facade 去重
+- 因而这批的源码/护栏收口成立：
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - 删除 dead `RISCVVCrossF32x3`
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 把 `RISCVVCrossF32x3` 从 `riscvv_facade_source` 的 active scalar-forward expectation 里移除
+    - 改成 absent-routine expectation
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 新增 `Test_RISCVV_CrossF32x3_Drops_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding`
+    - 显式断言：
+      - facade dead witness 必须 absent
+      - asm helper/opcode witness 继续存在
+      - runtime 仍保持 asm-compiled 时 backend-owned、非 asm host 时 scalar reuse
+- 本批 fresh 验证链已经收口：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- 当前阶段结论：
+  - `RISCVVCrossF32x3` 当前也已经落到 `asm-gated dead facade` 模式
+  - `NormalizeF32x4/F32x3` 仍属于语义敏感 residual，不能和 `Cross` 机械并批
