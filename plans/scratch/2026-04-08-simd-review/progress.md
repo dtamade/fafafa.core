@@ -10720,3 +10720,60 @@
 - 当前阶段结论：
   - `1632..1920` 这一整簇可以继续判定为 hygiene-only，已经整体退出 residual 清单
   - `SSE2` 当前下一簇自然前沿已经前移到 `2092`，下一步可以单独切双精度比较和后续浮点比较残点
+
+## 2026-05-18 SSE2 Shuffle Label And Shift Recovery
+
+- 接着 `1632..1920` 收口后的下一段，本轮先把 `2092..2142` 的双精度比较残点顺手清掉，再继续下探到 `shuffle / shift` 区，结果抓到了新的真实行为问题。
+- 本批确认并处理的内容分成两类：
+  - hygiene-only：
+    - `2092` 分节标题
+    - `simd_cmpeq_pd`
+    - `simd_cmplt_pd`
+    - `simd_cmple_pd`
+    - `2225`
+    - `2238`
+    - `2345`
+    - `2454`
+    - 这些点都只是标题或尾注损坏，没有新的吞指令
+  - real bug recovery：
+    - `simd_shuffle_pd` Windows x64：
+      - `@imm0:` 被吞进 `2294` 行尾注
+      - 已恢复成独立 label
+    - `simd_shuffle_ps` Windows x64：
+      - `@imm00:` 被吞进 `2350` 行尾注
+      - 已恢复成独立 label
+    - `simd_shufflelo_epi16` Windows x64：
+      - `@imm00:` 被吞进 `2405` 行尾注
+      - 已恢复成独立 label
+    - `simd_shufflehi_epi16` Windows x64：
+      - `@imm00:` 被吞进 `2459` 行尾注
+      - 已恢复成独立 label
+    - `simd_slli_epi16` Windows x64：
+      - `psllw xmm0, xmm1` 被吞进 `2731` 行注释
+      - 已拆成独立指令，恢复真实移位执行
+    - `simd_srai_epi16` Windows x64：
+      - `@done:` 被吞进 `2960` 行尾注
+      - 已恢复成独立 label
+    - `simd_srai_epi32` Windows x64：
+      - `@done:` 被吞进 `2996` 行尾注
+      - 已恢复成独立 label
+- 本批同时补强了护栏：
+  - `tests/fafafa.core.simd/check_intrinsics_comment_swallow.py`
+  - `ASM_INSTRUCTION_PATTERN` 新增 `psllw/pslld/psrlw/psrld/psraw/psrad`
+  - 新增 `comment-swallowed asm label` 检测，直接抓 `// ... @imm00:` / `// ... @done:` 这类 label 被吞进注释的情形
+- fresh 验证已完成：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_comment_swallow.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `python3` 逐文件计数：
+    - `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 从 `residual_char_count=218` 降到 `196`
+    - `first_residual_lines=[2507, 2529, 2551, 2573, 2595, 2617, 2639, 2661, 2811, 2848, 2885, 2922, 3298, 3324, 3350, 3376, 3401, 3424, 3447, 3467, 3475, 3488, 3514, 3541, 3567]`
+- fresh 结果：
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - `intrinsics.experimental check` default / experimental 双模态通过
+  - `x86 SSE2 backend smoke` 通过
+  - 主 `simd` release `check` 通过
+- 当前阶段结论：
+  - `SSE2` 这条线还在继续暴露 Windows-only 的真实吞 label / 吞指令问题，不能把剩余 residual 当成纯文本债务
+  - 当前下一簇自然前沿已经推进到 `2507`，可以继续切 `unpack` 邻近簇和剩余移位簇

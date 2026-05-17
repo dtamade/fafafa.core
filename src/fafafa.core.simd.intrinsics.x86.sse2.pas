@@ -2089,13 +2089,13 @@ asm
 {$ENDIF}
 end;
 
-// === 双精度比较函数实�?===
+// === Double-precision comparison helpers ===
 function simd_cmpeq_pd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
 {$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; movupd xmm1, [rdx]; cmpeqpd xmm0, xmm1  // 双精度相等比�?
+    movupd xmm0, [rcx]; movupd xmm1, [rdx]; cmpeqpd xmm0, xmm1  // Compare double-precision lanes for equality.
     {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; cmpeqpd xmm0, xmm1
   {$ENDIF}
@@ -2117,7 +2117,7 @@ function simd_cmplt_pd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; movupd xmm1, [rdx]; cmpltpd xmm0, xmm1  // 双精度小于比�?
+    movupd xmm0, [rcx]; movupd xmm1, [rdx]; cmpltpd xmm0, xmm1  // Compare double-precision lanes for less-than.
     {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; cmpltpd xmm0, xmm1
   {$ENDIF}
@@ -2139,7 +2139,7 @@ function simd_cmple_pd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; movupd xmm1, [rdx]; cmplepd xmm0, xmm1  // 双精度小于等于比�?
+    movupd xmm0, [rcx]; movupd xmm1, [rdx]; cmplepd xmm0, xmm1  // Compare double-precision lanes for less-or-equal.
     {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; cmplepd xmm0, xmm1
   {$ENDIF}
@@ -2222,7 +2222,7 @@ asm
 {$ENDIF}
 end;
 
-// Move Mask 实现已移至汇编版�?
+// Move mask support lives in the assembler version above.
 // === 7️⃣ Shuffle / Unpack / Permute 实现 ===
 function simd_shuffle_epi32(constref a: TM128; imm8: Byte): TM128; {$IFDEF FPC}assembler; nostackframe;
 {$ENDIF}
@@ -2234,8 +2234,8 @@ asm
     cmp dl, 1; je @imm1
     cmp dl, 2; je @imm2
     cmp dl, 3; je @imm3
-    // 更多立即数值的处理...
-    pshufd xmm0, xmm0, $E4 //  默认�?
+    // Handle the simple immediates explicitly and fall back to a stable default.
+    pshufd xmm0, xmm0, $E4 // Default pattern for unsupported immediates.
     jmp @done
 @imm0: pshufd xmm0, xmm0, $00; jmp @done
 @imm1: pshufd xmm0, xmm0, $01; jmp @done
@@ -2291,8 +2291,8 @@ asm
     cmp r8b, 1; je @imm1
     cmp r8b, 2; je @imm2
     cmp r8b, 3; je @imm3
-    shufpd xmm0, xmm1, 0; jmp @done //  默认�?@imm0:
-    shufpd xmm0, xmm1, 0; jmp @done
+    shufpd xmm0, xmm1, 0; jmp @done // Default pattern for unsupported immediates.
+@imm0: shufpd xmm0, xmm1, 0; jmp @done
 @imm1: shufpd xmm0, xmm1, 1; jmp @done
 @imm2: shufpd xmm0, xmm1, 2; jmp @done
 @imm3: shufpd xmm0, xmm1, 3; jmp @done
@@ -2342,13 +2342,13 @@ asm
   {$IFDEF WINDOWS}
     movups xmm0, [rcx]    // 加载 a
     movups xmm1, [rdx]    // 加载 b
-    // 使用常见�?shuffle 模式
+    // Handle a few common shuffle masks and fall back to the default branch.
     cmp r8b, $00; je @imm00
     cmp r8b, $00; je @imm44
     cmp r8b, $00; je @imm88
     cmp r8b, $00; je @immE4
-    shufps xmm0, xmm1, $00; jmp @done //  默认�?@imm00:
-    shufps xmm0, xmm1, $00; jmp @done
+    shufps xmm0, xmm1, $00; jmp @done // Default pattern for unsupported immediates.
+@imm00: shufps xmm0, xmm1, $00; jmp @done
 @imm44: shufps xmm0, xmm1, $00; jmp @done
 @imm88: shufps xmm0, xmm1, $00; jmp @done
 @immE4: shufps xmm0, xmm1, $00; jmp @done
@@ -2397,13 +2397,13 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]    // 加载 a
-    // 使用常见�?shuffle 模式
+    // Handle a few common shuffle masks and fall back to the default branch.
     cmp dl, $00; je @imm00
     cmp dl, $00; je @imm44
     cmp dl, $00; je @imm88
     cmp dl, $00; je @immE4
-    pshuflw xmm0, xmm0, $00; jmp @done //  默认�?@imm00:
-    pshuflw xmm0, xmm0, $00; jmp @done
+    pshuflw xmm0, xmm0, $00; jmp @done // Default pattern for unsupported immediates.
+@imm00: pshuflw xmm0, xmm0, $00; jmp @done
 @imm44: pshuflw xmm0, xmm0, $00; jmp @done
 @imm88: pshuflw xmm0, xmm0, $00; jmp @done
 @immE4: pshuflw xmm0, xmm0, $00; jmp @done
@@ -2451,13 +2451,13 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]    // 加载 a
-    // 使用常见�?shuffle 模式
+    // Handle a few common shuffle masks and fall back to the default branch.
     cmp dl, $00; je @imm00
     cmp dl, $00; je @imm44
     cmp dl, $00; je @imm88
     cmp dl, $00; je @immE4
-    pshufhw xmm0, xmm0, $00; jmp @done //  默认�?@imm00:
-    pshufhw xmm0, xmm0, $00; jmp @done
+    pshufhw xmm0, xmm0, $00; jmp @done // Default pattern for unsupported immediates.
+@imm00: pshufhw xmm0, xmm0, $00; jmp @done
 @imm44: pshufhw xmm0, xmm0, $00; jmp @done
 @imm88: pshufhw xmm0, xmm0, $00; jmp @done
 @immE4: pshufhw xmm0, xmm0, $00; jmp @done
@@ -2727,8 +2727,9 @@ asm
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]    // 加载 a
     cmp dl, 16; jae @zero // 如果移位 >= 16，结果为 0
-    cmp dl, 0; je @done //  如果移位 = 0，不�?
-    movd xmm1, edx        // 加载移位�?    psllw xmm0, xmm1      // 16位逻辑左移
+    cmp dl, 0; je @done // If the shift is zero, keep the value unchanged.
+    movd xmm1, edx        // Load the shift amount.
+    psllw xmm0, xmm1      // Shift 16-bit lanes left.
     jmp @done
 @zero:
     pxor xmm0, xmm0       // 清零
@@ -2770,7 +2771,7 @@ asm
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]
     cmp dl, 32; jae @zero // 如果移位 >= 32，结果为 0
-    cmp dl, 0; je @done //  如果移位 = 0，不�?
+    cmp dl, 0; je @done // If the shift is zero, keep the value unchanged.
     movd xmm1, edx; pslld xmm0, xmm1; jmp @done
 @zero: pxor xmm0, xmm0
 @done:
@@ -2954,10 +2955,12 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]
-    cmp dl, 16; jae @max //  如果移位 >= 16，符号扩�?
-    cmp dl, 0; je @done //  如果移位 = 0，不�?
+    cmp dl, 16; jae @max // If the shift is too large, saturate to the sign-filled result.
+    cmp dl, 0; je @done // If the shift is zero, keep the value unchanged.
     movd xmm1, edx; psraw xmm0, xmm1; jmp @done
-@max: psraw xmm0, 15     // 最大移位保持符�?@done:
+@max:
+    psraw xmm0, 15       // Saturate to the sign-filled result.
+@done:
   {$ELSE}
     movdqu xmm0, [rdi]
     cmp sil, 16; jae @max
@@ -2990,10 +2993,12 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]
-    cmp dl, 32; jae @max //  如果移位 >= 32，符号扩�?
-    cmp dl, 0; je @done //  如果移位 = 0，不�?
+    cmp dl, 32; jae @max // If the shift is too large, saturate to the sign-filled result.
+    cmp dl, 0; je @done // If the shift is zero, keep the value unchanged.
     movd xmm1, edx; psrad xmm0, xmm1; jmp @done
-@max: psrad xmm0, 31     // 最大移位保持符�?@done:
+@max:
+    psrad xmm0, 31       // Saturate to the sign-filled result.
+@done:
   {$ELSE}
     movdqu xmm0, [rdi]
     cmp sil, 32; jae @max

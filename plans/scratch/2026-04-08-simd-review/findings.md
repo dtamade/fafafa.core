@@ -7983,3 +7983,35 @@
   - 不回头重扫 `1632..1920`
   - 直接去看 `2092, 2098, 2120, 2142` 这一小簇的双精度比较 residual
   - 继续维持“小簇逐点判定”的节奏，不扩成整段大修
+
+## 2026-05-18 SSE2 Shuffle And Shift Residuals Reopened Real Windows-Only Bugs
+
+- `2092..2142` 这簇本身复核后仍然是 hygiene-only。
+- 但继续往后扫到 `shuffle / shift` 区时，fresh 审查再次抓到了真实行为问题，而且这次不只是“指令被吞”，还包括“label 被吞进注释”：
+  - `simd_shuffle_pd` Windows x64: `@imm0:` 被吞进 `2294` 行尾注
+  - `simd_shuffle_ps` Windows x64: `@imm00:` 被吞进 `2350` 行尾注
+  - `simd_shufflelo_epi16` Windows x64: `@imm00:` 被吞进 `2405` 行尾注
+  - `simd_shufflehi_epi16` Windows x64: `@imm00:` 被吞进 `2459` 行尾注
+  - `simd_slli_epi16` Windows x64: `psllw xmm0, xmm1` 被吞进 `2731` 行注释
+  - `simd_srai_epi16` Windows x64: `@done:` 被吞进 `2960` 行尾注
+  - `simd_srai_epi32` Windows x64: `@done:` 被吞进 `2996` 行尾注
+- 这条发现说明前面的策略判断是对的：
+  - `SSE2 residual` 里确实还混着 Windows-only latent bugs
+  - 这些 bug 之前不会被 Linux-only build/check 自动暴露
+  - 所以不能用“本地能编译”来替代逐点源码审查
+- 这次同时修源码和 checker 的原因也很明确：
+  - 只修代码，下次还会漏掉同类 `// ... @imm00:` / `// ... @done:` 问题
+  - 只扩 checker，又会因为现有 live residual 先红住
+  - 正确收法是“先把当前 live 真实 bug 清掉，再把 checker 扩成 fail-close”
+- checker 本轮新增的覆盖面是有效的：
+  - shift 类 `psllw/pslld/psrlw/psrld/psraw/psrad`
+  - `comment-swallowed asm label` 检测
+  - 收口后 `INTR_HYGIENE_SUMMARY` 重新回到 `PASS`
+- live 收口结果也说明这批是高价值批次，不是零碎点修：
+  - `residual_char_count: 218 -> 196`
+  - 第一批 residual 已经整体前移到 `2507`
+  - `intrinsics.experimental` 双模态 `check` 通过
+  - 主 `Release check` 通过
+- 因而当前继续方向也更清晰了：
+  - 后续仍要优先看 Windows-only `unpack` / `shift` 邻近簇
+  - 继续先判定有没有“吞 label / 吞 asm”，再决定是不是纯 hygiene

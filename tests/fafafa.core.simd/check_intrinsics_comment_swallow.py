@@ -47,7 +47,7 @@ ASM_INSTRUCTION_PATTERN = re.compile(
     r'unpcklpd|unpckhpd|unpcklps|unpckhps|'
     r'pshufd|pshuflw|pshufhw|shufps|shufpd|'
     r'paddb|paddw|paddd|paddq|paddsb|paddsw|paddusb|paddusw|'
-    r'psubb|psubsw|psubsb|psubusb|psubusw|psllq|psrlq|por|pand|pandn|'
+    r'psubb|psubsw|psubsb|psubusb|psubusw|psllw|pslld|psllq|psrlw|psrld|psrlq|psraw|psrad|por|pand|pandn|'
     r'pmuludq|pmullw|pmulhw|pmulhuw|pmaddwd|pavgb|pavgw|psadbw|'
     r'pcmpeqb|pcmpeqw|pcmpeqd|pcmpgtb|pcmpgtw|pcmpgtd|pmaxsw|pminsw|'
     r'minps|maxps|cmp|je|jmp|pinsrw|pextrw|maskmovdqu|psrldq|pslldq|cvtsi2sd|cvttpd2ps'
@@ -55,6 +55,7 @@ ASM_INSTRUCTION_PATTERN = re.compile(
 )
 INLINE_DIRECTIVE_TOKENS = ('{$ELSE}', '{$ENDIF}', '{$ELSEIF}')
 COMMENT_SWALLOWED_ASM_MARKERS = ('在栈', '参数通过栈', '结果为全', '直接从栈')
+COMMENT_SWALLOWED_LABEL_PATTERN = re.compile(r'@[A-Za-z_][A-Za-z0-9_]*:')
 ILLEGAL_IMMEDIATE_BRACE_PATTERN = re.compile(
     r'\b(?:cmp|pshufd|pshuflw|pshufhw|shufps)\b[^\n]*\}'
 )
@@ -84,6 +85,14 @@ def has_comment_swallowed_asm(line: str) -> bool:
     return ASM_INSTRUCTION_PATTERN.search(code) is not None and ASM_INSTRUCTION_PATTERN.search(comment) is not None
 
 
+def has_comment_swallowed_label(line: str) -> bool:
+    stripped = line.strip()
+    if stripped.startswith('//') or '//' not in line:
+        return False
+    code, comment = line.split('//', 1)
+    return ASM_INSTRUCTION_PATTERN.search(code) is not None and COMMENT_SWALLOWED_LABEL_PATTERN.search(comment) is not None
+
+
 def scan_file(path: Path) -> list[str]:
     hits: list[str] = []
     lines = path.read_text(encoding='utf-8', errors='ignore').splitlines()
@@ -98,6 +107,8 @@ def scan_file(path: Path) -> list[str]:
                 hits.append(f'{path.relative_to(REPO_ROOT)}:{lineno}: inline preprocessor directive shares line with code')
             elif is_x86_backend and has_illegal_brace(line):
                 hits.append(f'{path.relative_to(REPO_ROOT)}:{lineno}: illegal immediate brace in asm line')
+            elif is_x86_backend and has_comment_swallowed_label(line):
+                hits.append(f'{path.relative_to(REPO_ROOT)}:{lineno}: suspicious comment-swallowed asm label')
             elif is_x86_backend and has_comment_swallowed_asm(line):
                 hits.append(f'{path.relative_to(REPO_ROOT)}:{lineno}: suspicious comment-swallowed asm sequence')
     return hits
