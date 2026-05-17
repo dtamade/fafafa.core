@@ -770,7 +770,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对4�?6位整数执行乘法，保留�?6位结�
+// Multiply four 16-bit lanes and keep the low 16 bits of each product.
 function mmx_pmullw(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -798,7 +798,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对4�?6位整数执行乘法，保留�?6位结�
+// Multiply four 16-bit lanes and keep the high 16 bits of each product.
 function mmx_pmulhw(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -826,7 +826,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对4�?6位整数执行乘法，成对相加得到2�?2位结�
+// Multiply four signed 16-bit lanes pairwise and add adjacent products into two 32-bit lanes.
 function mmx_pmaddwd(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -884,7 +884,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对64位寄存器执行按位AND NOT操作（~a & b�
+// Bitwise AND NOT across 64 bits (~a & b).
 function mmx_pandn(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -970,7 +970,7 @@ end;
 
 // === 6️⃣ Compare 实现 ===
 
-// 功能：比�?�?位整数，等于则置1�?xFF），否则�?
+// Compare eight 8-bit lanes for equality and return mask lanes.
 function mmx_pcmpeqb(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -998,7 +998,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：比�?�?6位整数，等于则置1�?xFFFF），否则�?
+// Compare four 16-bit lanes for equality and return mask lanes.
 function mmx_pcmpeqw(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1026,7 +1026,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：比�?�?2位整数，等于则置1�?xFFFFFFFF），否则�?
+// Compare two 32-bit lanes for equality and return mask lanes.
 function mmx_pcmpeqd(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1054,7 +1054,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：比�?�?位有符号整数，大于则�?�?xFF），否则�?
+// Compare signed 8-bit lanes for greater-than and return mask lanes.
 function mmx_pcmpgtb(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1082,7 +1082,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：比�?�?6位有符号整数，大于则�?�?xFFFF），否则�?
+// Compare signed 16-bit lanes for greater-than and return mask lanes.
 function mmx_pcmpgtw(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1110,7 +1110,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：比�?�?2位有符号整数，大于则�?�?xFFFFFFFF），否则�?
+// Compare signed 32-bit lanes for greater-than and return mask lanes.
 function mmx_pcmpgtd(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}

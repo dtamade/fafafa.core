@@ -347,6 +347,25 @@
 - 因而当前 `mmx` 的剩余债务已经进一步收敛到：
   - arithmetic 之后的剩余 comment-only 区段
   - 暂时不需要把 `mmx` 重新升级成“可能还有隐藏行为 bug”的优先级
+
+## 2026-05-17 MMX Mul Logical Compare Residuals Were Also Plain Text Debt
+
+- 顺着 `mmx` 再往下看 `761..1139` 行范围，当前 residual 继续保持同样的性质：
+  - `pmullw/pmulhw/pmaddwd`
+  - `pandn`
+  - `pcmpeq* / pcmpgt*`
+  - 这些位置的 `U+FFFD` 都落在说明性注释，不是实现体
+- 这批复核再次说明：
+  - `mmx` 当前已经不再像最开始那样“可能同时混着真实 x86 行为 bug”
+  - 它已经进入稳定的 comment-only 收尾阶段，可以继续按功能簇切小批次推进
+- fresh 计数也继续支持这个判断：
+  - `range_761_1139=0`
+  - `total=65`
+- 因而当前 `mmx` 剩余债务已经进一步缩到：
+  - `shift`
+  - `pack/unpack`
+  - `extra helper tail`
+  这些说明性残点，而不是新的实现风险
   - 先过 `win-evidence-preflight`
   - 若 latest 结果仍是 `RECENT_BILLING_BLOCK`，就在 preflight 处 fail-close
   - 历史 “Windows 已闭环” 只能按 archive fact 理解，不是当前 readiness signal
