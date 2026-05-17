@@ -8607,3 +8607,22 @@
   - 现在这两件事的答案已经分别固定为：
     - 前者：否，源码双观察面都已收成 scalar truth
     - 后者：是，register/key-slot 身份仍保持 `RISCVV`
+
+## 2026-05-18 RISCVV Narrow Rounding Residual Was Dead Source, Not Deferred Local Semantics
+
+- `RISCVV F32x4/F64x2 Floor/Ceil/Round/Trunc` 这 8 个窄槽此前很容易被误读成“也许还要保留一份 local semantics，等以后再验证”。
+- 但 fresh 对位后，更准确的事实并不是“还没资格删”，而是：
+  - register source 当前根本没有把这 8 个 slot 绑定到 `@RISCVV...`
+  - `DispatchAPI` 运行时 contract 已经把它们归到 scalar slot reuse
+  - `riscvv.pas` 与 `riscvv.facade.inc` 里保留的只是无人消费的源码残影
+- 这说明它们和 earlier `wide Round/Trunc`、`DotF64` 的 residual 类型也不一样：
+  - `wide Round/Trunc` 之前仍有 active no-asm local body
+  - `DotF64` 之前仍有 backend-owned slot identity 下的重复公式 truth
+  - 这 8 个 narrow rounding 例程则连 live consumer 都没有，属于更彻底的 dead source
+- 因而当前最准确的结构应写成：
+  - source truth：这些名字不该再存在于 active source
+  - runtime truth：继续复用 scalar slot
+  - helper/audit truth：应显式检查它们 absent，而不是再把它们当成 scalar-forward wrapper 或 deferred semantics
+- 这条 finding 的关键价值是把一个常见误判清掉：
+  - “文件里还留着函数体” 不等于 “当前 contract 仍依赖它”
+  - 对这 8 个槽位，当前 contract 的真实依赖已经完全不在这些局部实现上

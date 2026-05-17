@@ -879,7 +879,7 @@ def main() -> int:
         ]
     )
 
-    for suffix in ("F32x4", "F64x2", "F32x8", "F64x4", "F32x16", "F64x8"):
+    for suffix in ("F32x8", "F64x4", "F32x16", "F64x8"):
         for op in ("Floor", "Ceil"):
             riscvv_scalar_forwarder_expectations.append(
                 (f"RISCVV{op}{suffix}", f"Scalar{op}{suffix}(a)")
@@ -1275,6 +1275,14 @@ def main() -> int:
         (riscvv_source, "RISCVVSelectI64x2"),
         (riscvv_source, "RISCVVSelectI32x8"),
         (riscvv_source, "RISCVVSelectI32x16"),
+        (riscvv_source, "RISCVVFloorF32x4"),
+        (riscvv_source, "RISCVVCeilF32x4"),
+        (riscvv_source, "RISCVVRoundF32x4"),
+        (riscvv_source, "RISCVVTruncF32x4"),
+        (riscvv_source, "RISCVVFloorF64x2"),
+        (riscvv_source, "RISCVVCeilF64x2"),
+        (riscvv_source, "RISCVVRoundF64x2"),
+        (riscvv_source, "RISCVVTruncF64x2"),
         (riscvv_helpers_source, "RISCVVShiftLeftU64x2"),
         (riscvv_helpers_source, "RISCVVShiftRightU64x2"),
         (riscvv_helpers_source, "RISCVVReduceAddI32x4"),
@@ -1285,6 +1293,14 @@ def main() -> int:
         (riscvv_helpers_source, "RISCVVSelectI64x2"),
         (riscvv_helpers_source, "RISCVVSelectI32x8"),
         (riscvv_helpers_source, "RISCVVSelectI32x16"),
+        (riscvv_facade_source, "RISCVVFloorF32x4"),
+        (riscvv_facade_source, "RISCVVCeilF32x4"),
+        (riscvv_facade_source, "RISCVVRoundF32x4"),
+        (riscvv_facade_source, "RISCVVTruncF32x4"),
+        (riscvv_facade_source, "RISCVVFloorF64x2"),
+        (riscvv_facade_source, "RISCVVCeilF64x2"),
+        (riscvv_facade_source, "RISCVVRoundF64x2"),
+        (riscvv_facade_source, "RISCVVTruncF64x2"),
     ]
 
     for source, routine_name in absent_routine_expectations:

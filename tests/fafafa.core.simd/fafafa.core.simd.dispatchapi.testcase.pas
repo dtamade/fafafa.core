@@ -8706,6 +8706,22 @@ begin
     'function RISCVVSelectF64x4(const mask: TVecU64x4; const a, b: TVecF64x4): TVecF64x4;');
   AssertDeadWrapperRemoved('RISCVVSelectI32x4 wide dispatch wrapper',
     'function RISCVVSelectI32x4(const mask: TVecI32x4; const a, b: TVecI32x4): TVecI32x4;');
+  AssertDeadWrapperRemoved('RISCVVFloorF32x4 dead wrapper',
+    'function RISCVVFloorF32x4(const a: TVecF32x4): TVecF32x4;');
+  AssertDeadWrapperRemoved('RISCVVCeilF32x4 dead wrapper',
+    'function RISCVVCeilF32x4(const a: TVecF32x4): TVecF32x4;');
+  AssertDeadWrapperRemoved('RISCVVRoundF32x4 dead wrapper',
+    'function RISCVVRoundF32x4(const a: TVecF32x4): TVecF32x4;');
+  AssertDeadWrapperRemoved('RISCVVTruncF32x4 dead wrapper',
+    'function RISCVVTruncF32x4(const a: TVecF32x4): TVecF32x4;');
+  AssertDeadWrapperRemoved('RISCVVFloorF64x2 dead wrapper',
+    'function RISCVVFloorF64x2(const a: TVecF64x2): TVecF64x2;');
+  AssertDeadWrapperRemoved('RISCVVCeilF64x2 dead wrapper',
+    'function RISCVVCeilF64x2(const a: TVecF64x2): TVecF64x2;');
+  AssertDeadWrapperRemoved('RISCVVRoundF64x2 dead wrapper',
+    'function RISCVVRoundF64x2(const a: TVecF64x2): TVecF64x2;');
+  AssertDeadWrapperRemoved('RISCVVTruncF64x2 dead wrapper',
+    'function RISCVVTruncF64x2(const a: TVecF64x2): TVecF64x2;');
 
   AssertRegisterKeepsBaseScalar('MemEqual', 'table.MemEqual := @MemEqual_RISCVV;');
   AssertRegisterKeepsBaseScalar('MemFindByte', 'table.MemFindByte := @MemFindByte_RISCVV;');

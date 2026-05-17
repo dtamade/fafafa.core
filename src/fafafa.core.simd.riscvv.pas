@@ -1326,48 +1326,6 @@ asm
   vse32.v v0, (a0)
 end;
 
-// =============================================================
-// F32x4 舍入操作
-// =============================================================
-
-function RISCVVFloorF32x4(const a: TVecF32x4): TVecF32x4; assembler; nostackframe;
-asm
-  vsetivli zero, 4, 0xD0
-  vle32.v v0, (a0)
-  // RVV 没有直接的 floor，使用 fcvt 舍入模式
-  // 先转整数（向负无穷舍入），再转回浮点
-  vfcvt.x.f.v v1, v0      // 转为有符号整数（舍入到零）
-  vfcvt.f.x.v v0, v1      // 转回浮点
-  vse32.v v0, (a0)
-end;
-
-function RISCVVCeilF32x4(const a: TVecF32x4): TVecF32x4; assembler; nostackframe;
-asm
-  vsetivli zero, 4, 0xD0
-  vle32.v v0, (a0)
-  vfcvt.x.f.v v1, v0
-  vfcvt.f.x.v v0, v1
-  vse32.v v0, (a0)
-end;
-
-function RISCVVRoundF32x4(const a: TVecF32x4): TVecF32x4; assembler; nostackframe;
-asm
-  vsetivli zero, 4, 0xD0
-  vle32.v v0, (a0)
-  vfcvt.x.f.v v1, v0      // 默认舍入模式（最近偶数）
-  vfcvt.f.x.v v0, v1
-  vse32.v v0, (a0)
-end;
-
-function RISCVVTruncF32x4(const a: TVecF32x4): TVecF32x4; assembler; nostackframe;
-asm
-  vsetivli zero, 4, 0xD0
-  vle32.v v0, (a0)
-  vfcvt.rtz.x.f.v v1, v0  // 向零舍入
-  vfcvt.f.x.v v0, v1
-  vse32.v v0, (a0)
-end;
-
 procedure RISCVVClampF32x4Asm(const a, minVal, maxVal: TVecF32x4; var r: TVecF32x4); assembler; nostackframe;
 asm
   vsetivli zero, 4, 0xD0
@@ -1501,46 +1459,6 @@ end;
 function RISCVVZeroF32x4: TVecF32x4;
 begin
   RISCVVZeroF32x4Asm(Result);
-end;
-
-// =============================================================
-// F64x2 舍入操作
-// =============================================================
-
-function RISCVVFloorF64x2(const a: TVecF64x2): TVecF64x2; assembler; nostackframe;
-asm
-  vsetivli zero, 2, 0xD8
-  vle64.v v0, (a0)
-  vfcvt.x.f.v v1, v0
-  vfcvt.f.x.v v0, v1
-  vse64.v v0, (a0)
-end;
-
-function RISCVVCeilF64x2(const a: TVecF64x2): TVecF64x2; assembler; nostackframe;
-asm
-  vsetivli zero, 2, 0xD8
-  vle64.v v0, (a0)
-  vfcvt.x.f.v v1, v0
-  vfcvt.f.x.v v0, v1
-  vse64.v v0, (a0)
-end;
-
-function RISCVVRoundF64x2(const a: TVecF64x2): TVecF64x2; assembler; nostackframe;
-asm
-  vsetivli zero, 2, 0xD8
-  vle64.v v0, (a0)
-  vfcvt.x.f.v v1, v0
-  vfcvt.f.x.v v0, v1
-  vse64.v v0, (a0)
-end;
-
-function RISCVVTruncF64x2(const a: TVecF64x2): TVecF64x2; assembler; nostackframe;
-asm
-  vsetivli zero, 2, 0xD8
-  vle64.v v0, (a0)
-  vfcvt.rtz.x.f.v v1, v0
-  vfcvt.f.x.v v0, v1
-  vse64.v v0, (a0)
 end;
 
 procedure RISCVVClampF64x2Asm(const a, minVal, maxVal: TVecF64x2; var r: TVecF64x2); assembler; nostackframe;

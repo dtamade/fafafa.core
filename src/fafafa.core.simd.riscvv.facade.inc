@@ -151,32 +151,6 @@ begin
   Result := ScalarRsqrtF32x4(a);
 end;
 
-function RISCVVFloorF32x4(const a: TVecF32x4): TVecF32x4;
-begin
-  Result := ScalarFloorF32x4(a);
-end;
-
-function RISCVVCeilF32x4(const a: TVecF32x4): TVecF32x4;
-begin
-  Result := ScalarCeilF32x4(a);
-end;
-
-// Round/Trunc retain local bodies until signed-zero and NaN-ordering parity
-// is re-verified separately.
-function RISCVVRoundF32x4(const a: TVecF32x4): TVecF32x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result.f[i] := Round(a.f[i]);
-end;
-
-function RISCVVTruncF32x4(const a: TVecF32x4): TVecF32x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result.f[i] := Trunc(a.f[i]);
-end;
-
 function RISCVVClampF32x4(const a, minVal, maxVal: TVecF32x4): TVecF32x4;
 begin
   Result := ScalarClampF32x4(a, minVal, maxVal);
@@ -1384,11 +1358,6 @@ begin
   Result := ScalarCeilF32x8(a);
 end;
 
-function RISCVVCeilF64x2(const a: TVecF64x2): TVecF64x2;
-begin
-  Result := ScalarCeilF64x2(a);
-end;
-
 function RISCVVCeilF64x4(const a: TVecF64x4): TVecF64x4;
 begin
   Result := ScalarCeilF64x4(a);
@@ -1799,11 +1768,6 @@ end;
 function RISCVVFloorF32x8(const a: TVecF32x8): TVecF32x8;
 begin
   Result := ScalarFloorF32x8(a);
-end;
-
-function RISCVVFloorF64x2(const a: TVecF64x2): TVecF64x2;
-begin
-  Result := ScalarFloorF64x2(a);
 end;
 
 function RISCVVFloorF64x4(const a: TVecF64x4): TVecF64x4;
@@ -2429,13 +2393,6 @@ begin
   Result := ScalarRoundF32x8(a);
 end;
 
-function RISCVVRoundF64x2(const a: TVecF64x2): TVecF64x2;
-var i: Integer;
-begin
-  for i := 0 to 1 do
-    Result.d[i] := Round(a.d[i]);
-end;
-
 function RISCVVRoundF64x4(const a: TVecF64x4): TVecF64x4;
 begin
   Result := ScalarRoundF64x4(a);
@@ -2651,13 +2608,6 @@ end;
 function RISCVVTruncF32x8(const a: TVecF32x8): TVecF32x8;
 begin
   Result := ScalarTruncF32x8(a);
-end;
-
-function RISCVVTruncF64x2(const a: TVecF64x2): TVecF64x2;
-var i: Integer;
-begin
-  for i := 0 to 1 do
-    Result.d[i] := Trunc(a.d[i]);
 end;
 
 function RISCVVTruncF64x4(const a: TVecF64x4): TVecF64x4;

@@ -11893,3 +11893,43 @@
   - `RISCVVDotF64x2 / DotF64x4` 现在在 asm/common、no-asm facade、combined audit 三个视角下都已统一成 `scalar_forwarder`
   - 这批收掉的是 truth-source / audit 口径残余，不是 fresh runtime bug
   - `backend-owned slot identity` 仍然保留；收掉的是重复公式，不是 backend ownership
+
+## 2026-05-18 RISCVV Narrow Rounding Dead Wrapper Removal
+
+- 在 `DotF64` 这批收口后，继续顺着 `RISCVV` 剩余 narrow residual 往下看，发现 `F32x4/F64x2` 的 `Floor/Ceil/Round/Trunc` 还有一层纯粹的 dead-wrapper 冗余：
+  - `src/fafafa.core.simd.riscvv.register.inc`
+    - 当前没有把这 8 个 slot 绑定到 `@RISCVV...`
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - runtime/facade 口径已经要求这 8 个窄槽在当前 contract 下复用 scalar slot
+  - `src/fafafa.core.simd.riscvv.pas` 与 `src/fafafa.core.simd.riscvv.facade.inc`
+    - 仍各自保留 8 份无人消费的 local body / thin wrapper
+- 这批没有把它误判成 runtime bug，而是先按 live-consumer / slot-truth 去收证：
+  - fresh `rg` 确认这 8 个例程当前没有 live source consumer
+  - `DispatchAPI` 断言已经把它们归到 scalar slot reuse，而不是 backend-owned local truth
+- 因而这批的源码/护栏收口成立：
+  - `src/fafafa.core.simd.riscvv.pas`
+    - 删除 `RISCVVFloor/Ceil/Round/TruncF32x4`
+    - 删除 `RISCVVFloor/Ceil/Round/TruncF64x2`
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - 删除对应 8 个 facade dead wrapper
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 在 `Test_RISCVV_FacadeSlots_Reuse_BaseScalar_When_Wrappers_Are_ScalarPassThrough` 中新增 8 条 `AssertDeadWrapperRemoved(...)`
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 把这 8 个例程纳入 absent-routine expectation
+    - 同时把 `Floor/Ceil` 的 `riscvv_scalar_forwarder_expectations` 从 `F32x4/F64x2/F32x8/F64x4/F32x16/F64x8` 收紧到只剩真正仍保留 local wrapper 的宽向量组
+- 本批 fresh 验证链已经收口：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `TTestCase_DispatchAPI` `BUILD/TEST/LEAK` 全绿
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=704 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `check` 通过
+- 当前阶段结论：
+  - `RISCVV F32x4/F64x2 Floor/Ceil/Round/Trunc` 这批收掉的是 dead wrapper，不是 fresh runtime bug
+  - register/runtime truth 已长期是 scalar slot reuse，只是源码残留没有及时跟上
+  - helper-semantics 现在也已切回 absent truth，不再把这 8 个无人消费的例程误当成 active source
