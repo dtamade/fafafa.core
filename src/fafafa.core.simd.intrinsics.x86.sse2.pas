@@ -1004,27 +1004,27 @@ asm
 {$ENDIF}
 end;
 
-// === 剩余函数的占位实�?===
-// 为了编译通过，这里提供简单的占位实现
-// 后续将逐步添加实际的内联汇编代�?
-// 关键函数的占位实�?
+// === Remaining placeholder implementations ===
+// Keep simple raw-leaf bodies here so the unit continues to compile.
+// These entry points can be replaced with fuller handwritten assembly later.
+// Current focus is placeholder coverage for the key functions below.
 function simd_add_epi8(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
 {$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    // Windows x64: a �?rcx, b �?rdx
-    movdqu xmm0, [rcx]    // 加载 a
-    movdqu xmm1, [rdx]    // 加载 b
-    paddb xmm0, xmm1      // 16�?位整数并行加�?
+    // Windows x64: a in rcx, b in rdx
+    movdqu xmm0, [rcx]    // Load a.
+    movdqu xmm1, [rdx]    // Load b.
+    paddb xmm0, xmm1      // Add sixteen 8-bit integer lanes in parallel.
     {$ELSE}
-    // Linux/macOS x64 System V ABI: a �?rdi, b �?rsi
-    movdqu xmm0, [rdi]    // 加载 a
-    movdqu xmm1, [rsi]    // 加载 b
-    paddb xmm0, xmm1      // 16�?位整数并行加�?
+    // Linux/macOS x64 System V ABI: a in rdi, b in rsi
+    movdqu xmm0, [rdi]    // Load a.
+    movdqu xmm1, [rsi]    // Load b.
+    paddb xmm0, xmm1      // Add sixteen 8-bit integer lanes in parallel.
     {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]    // a
     mov edx, [esp + 8]    // b
     movdqu xmm0, [eax]
@@ -1046,7 +1046,7 @@ function simd_cmpeq_epi8(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; no
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pcmpeqb xmm0, xmm1  // 8位整数相等比�?
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pcmpeqb xmm0, xmm1  // Compare packed 8-bit lanes for equality.
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pcmpeqb xmm0, xmm1
   {$ENDIF}
@@ -1068,7 +1068,7 @@ function simd_and_si128(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nos
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pand xmm0, xmm1  // 128位逻辑�?
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pand xmm0, xmm1  // Bitwise AND across the full 128-bit vectors.
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pand xmm0, xmm1
   {$ENDIF}
@@ -1085,25 +1085,25 @@ asm
 {$ENDIF}
 end;
 
-// simd_movemask_epi8 实现已移至汇编版�?
+// simd_movemask_epi8 now lives in the dedicated handwritten assembly block.
 // === 3️⃣ Integer Arithmetic 剩余实现 ===
 function simd_add_epi16(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
 {$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    // Windows x64: a �?rcx, b �?rdx
-    movdqu xmm0, [rcx]    // 加载 a
-    movdqu xmm1, [rdx]    // 加载 b
-    paddw xmm0, xmm1      // 8�?6位整数并行加�?
+    // Windows x64: a in rcx, b in rdx
+    movdqu xmm0, [rcx]    // Load a.
+    movdqu xmm1, [rdx]    // Load b.
+    paddw xmm0, xmm1      // Add eight 16-bit integer lanes in parallel.
     {$ELSE}
-    // Linux/macOS x64 System V ABI: a �?rdi, b �?rsi
-    movdqu xmm0, [rdi]    // 加载 a
-    movdqu xmm1, [rsi]    // 加载 b
-    paddw xmm0, xmm1      // 8�?6位整数并行加�?
+    // Linux/macOS x64 System V ABI: a in rdi, b in rsi
+    movdqu xmm0, [rdi]    // Load a.
+    movdqu xmm1, [rsi]    // Load b.
+    paddw xmm0, xmm1      // Add eight 16-bit integer lanes in parallel.
     {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]    // a
     mov edx, [esp + 8]    // b
     movdqu xmm0, [eax]
@@ -1125,18 +1125,18 @@ function simd_add_epi32(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nos
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    // Windows x64: a �?rcx, b �?rdx
-    movdqu xmm0, [rcx]    // 加载 a
-    movdqu xmm1, [rdx]    // 加载 b
-    paddd xmm0, xmm1      // 4�?2位整数并行加�?
+    // Windows x64: a in rcx, b in rdx
+    movdqu xmm0, [rcx]    // Load a.
+    movdqu xmm1, [rdx]    // Load b.
+    paddd xmm0, xmm1      // Add four 32-bit integer lanes in parallel.
     {$ELSE}
-    // Linux/macOS x64 System V ABI: a �?rdi, b �?rsi
-    movdqu xmm0, [rdi]    // 加载 a
-    movdqu xmm1, [rsi]    // 加载 b
-    paddd xmm0, xmm1      // 4�?2位整数并行加�?
+    // Linux/macOS x64 System V ABI: a in rdi, b in rsi
+    movdqu xmm0, [rdi]    // Load a.
+    movdqu xmm1, [rsi]    // Load b.
+    paddd xmm0, xmm1      // Add four 32-bit integer lanes in parallel.
     {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]    // a
     mov edx, [esp + 8]    // b
     movdqu xmm0, [eax]
@@ -1158,18 +1158,18 @@ function simd_add_epi64(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nos
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    // Windows x64: a �?rcx, b �?rdx
-    movdqu xmm0, [rcx]    // 加载 a
-    movdqu xmm1, [rdx]    // 加载 b
-    paddq xmm0, xmm1      // 2�?4位整数并行加�?
+    // Windows x64: a in rcx, b in rdx
+    movdqu xmm0, [rcx]    // Load a.
+    movdqu xmm1, [rdx]    // Load b.
+    paddq xmm0, xmm1      // Add two 64-bit integer lanes in parallel.
     {$ELSE}
-    // Linux/macOS x64 System V ABI: a �?rdi, b �?rsi
-    movdqu xmm0, [rdi]    // 加载 a
-    movdqu xmm1, [rsi]    // 加载 b
-    paddq xmm0, xmm1      // 2�?4位整数并行加�?
+    // Linux/macOS x64 System V ABI: a in rdi, b in rsi
+    movdqu xmm0, [rdi]    // Load a.
+    movdqu xmm1, [rsi]    // Load b.
+    paddq xmm0, xmm1      // Add two 64-bit integer lanes in parallel.
     {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]    // a
     mov edx, [esp + 8]    // b
     movdqu xmm0, [eax]
@@ -1191,18 +1191,18 @@ function simd_sub_epi8(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    // Windows x64: a �?rcx, b �?rdx
-    movdqu xmm0, [rcx]    // 加载 a
-    movdqu xmm1, [rdx]    // 加载 b
-    psubb xmm0, xmm1      // 16�?位整数并行减�?
+    // Windows x64: a in rcx, b in rdx
+    movdqu xmm0, [rcx]    // Load a.
+    movdqu xmm1, [rdx]    // Load b.
+    psubb xmm0, xmm1      // Subtract sixteen 8-bit integer lanes in parallel.
     {$ELSE}
-    // Linux/macOS x64 System V ABI: a �?rdi, b �?rsi
-    movdqu xmm0, [rdi]    // 加载 a
-    movdqu xmm1, [rsi]    // 加载 b
-    psubb xmm0, xmm1      // 16�?位整数并行减�?
+    // Linux/macOS x64 System V ABI: a in rdi, b in rsi
+    movdqu xmm0, [rdi]    // Load a.
+    movdqu xmm1, [rsi]    // Load b.
+    psubb xmm0, xmm1      // Subtract sixteen 8-bit integer lanes in parallel.
     {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]    // a
     mov edx, [esp + 8]    // b
     movdqu xmm0, [eax]

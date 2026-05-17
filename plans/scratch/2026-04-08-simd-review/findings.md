@@ -7865,3 +7865,22 @@
 - 因而下一批最自然的继续方向已经很明确：
   - 从 `1007` 开始切 placeholder arithmetic 说明区
   - 继续沿用 `comment_swallow + intrinsics.experimental check + main release check` 这条闭环
+
+## 2026-05-18 SSE2 Early Placeholder Arithmetic Was Still Text-Only Debt
+
+- `1007..1205` 这一段复核后，仍然没有发现新的执行语义问题：
+  - `simd_add_epi8`
+  - `simd_cmpeq_epi8`
+  - `simd_and_si128`
+  - `simd_add_epi16/32/64`
+  - `simd_sub_epi8`
+  的 `asm` 体没有被吞，也没有参数寄存器写错。
+- 当前真实问题仍然是文本债务：
+  - placeholder 说明区本身的损坏注释
+  - Windows/Linux 参数寄存器说明损坏
+  - `8/16/32/64-bit lane` 说明损坏
+  - `movemask` 汇编版说明损坏
+- live 计数证明这批是有效收口，而不是碎片化点修：
+  - `residual_char_count: 315 -> 264`
+  - `residuals_up_to_1205=[]`
+- 这意味着 `SSE2` 的下一个自然切点已经继续前移到 `1293` 行，不需要再回头看 `1007..1205` 这段。
