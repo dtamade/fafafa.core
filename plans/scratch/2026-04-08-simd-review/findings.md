@@ -8247,3 +8247,26 @@
   - “asm path 仍保留 source-side dedicated binding”
   - “no-asm facade 仍保留 local fallback body”
   - “当前非-RVV host runtime 不承诺 backend-owned slot”
+
+## 2026-05-18 RISCVV Exact F64x2 Conditional Slots Needed Dedicated Source-vs-Runtime Witness
+
+- `AbsF64x2`、`SqrtF64x2`、`FmaF64x2` 暴露的不是实现 bug，而是 coverage 形态不够直接：
+  - helper semantics 只能证明 no-asm facade 还保留 `Scalar...` forward
+  - runtime parity 只能证明当前跑出来的结果与 scalar 一致
+  - 但两者都没有直接把 “register-source 条件绑定 / asm helper 仍在 / 当前 host runtime 可能复用 scalar slot” 这三层合同绑成一条专门 witness
+- fresh 对位源码后，这 3 个槽的真实边界应拆成三层：
+  - source truth：
+    - `src/fafafa.core.simd.riscvv.register.inc` 仍保留
+      - `table.AbsF64x2 := @RISCVVAbsF64x2;`
+      - `table.SqrtF64x2 := @RISCVVSqrtF64x2;`
+      - `table.FmaF64x2 := @RISCVVFmaF64x2;`
+    - 但三者都在 `{$IFDEF RISCVV_ASSEMBLY}` 内，不是无条件 runtime 合同
+  - no-asm facade truth：
+    - `src/fafafa.core.simd.riscvv.facade.inc` 里的对应 body 都是 exact scalar forward
+    - 它们不像 `ClampF64x2` 那样保留 local fallback 语义面
+  - current host runtime truth：
+    - 在当前 x86 release host 上，这 3 个 slot 不应再被口头描述成“仍 backend-owned”
+    - 它们只有在 RVV asm 真编进时才应离开 scalar slot
+- 这条 finding 的价值在于把 `RISCVV F64x2` 审查继续细分成两类：
+  - `Abs/Sqrt/Fma` 属于 “asm 条件绑定 + no-asm exact scalar facade + runtime 条件复用” 型
+  - `Min/Max/Clamp` 则仍可能保留本地语义面，不能套用同一套 collapse 结论

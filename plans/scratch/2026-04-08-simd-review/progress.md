@@ -11214,3 +11214,47 @@
   - `ClampF64x2` 这次收口的是错误护栏，而不是实现
   - 当前没有新证据支持把 `ClampF64x2` 提升成“在所有 host 上都 backend-owned runtime slot”的合同
   - 后续如果还要继续深审 `F64 clamp`，应该继续围绕 `NaN/signed-zero` parity 证据，而不是重开这条已经收正的假红
+
+## 2026-05-18 RISCVV Exact F64x2 Conditional Slot Witness Sync
+
+- 这轮没有再碰 `ClampF64x2`，而是沿着同型 residual 继续往下切：
+  - `AbsF64x2`
+  - `SqrtF64x2`
+  - `FmaF64x2`
+- fresh 对位源码后，这 3 个槽的真实合同已经拆清：
+  - `src/fafafa.core.simd.riscvv.register.inc`
+    - 都只在 `{$IFDEF RISCVV_ASSEMBLY}` 下绑定到 `RISCVV...F64x2`
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - no-asm body 都是精确 `Scalar...` forward
+  - `src/fafafa.core.simd.riscvv.pas`
+    - 仍保留各自 `Asm` helper 与 wrapper 调用
+  - 当前 x86 release host runtime
+    - 这 3 个 slot 都应在非 RVV host 上复用 scalar slot，而不是无条件 backend-owned
+- 本批实际改动：
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 新增 `Test_RISCVV_ExactF64x2Slots_Keep_AsmConditional_SourceTruth_And_RuntimeBinding`
+    - 对 `AbsF64x2/SqrtF64x2/FmaF64x2` 同时断言：
+      - register source assignment site 仍保留
+      - no-asm facade 仍是 exact scalar forward
+      - asm helper / asm wrapper / opcode witness 仍保留
+      - runtime slot 仅在 `FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED` 时要求 backend-owned，否则明确要求复用 scalar slot
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 新增 `RISCVV_CONDITIONAL_EXACT_F64X2_KEY_SLOTS`
+    - 把上述新测试挂进 `EXPECTATION_PROCEDURES`
+    - 把这 3 个 slot 加入 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS`
+- fresh 验证已完成：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend riscvv --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=riscvv slots=59 issues=0 status=ok`
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=670 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `TTestCase_DispatchAPI,TTestCase_NonX86BackendParity` `BUILD/TEST/LEAK` 全绿
+  - Release `check` 通过
+- 当前阶段结论：
+  - `AbsF64x2/SqrtF64x2/FmaF64x2` 现在已经有 dedicated source/runtime split witness，不再只靠 generic helper semantics 或 runtime parity 间接覆盖
+  - 下一刀如果继续深审 `RISCVV F64x2`，更值得切的是 `MinF64x2/MaxF64x2`，因为它们和这批不同，no-asm 仍是 local loop，牵涉 `NaN/signed-zero` 语义边界

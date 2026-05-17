@@ -167,6 +167,11 @@ RISCVV_WIDE_F32_CLAMP_KEY_SLOTS = (
     "ClampF32x8",
     "ClampF32x16",
 )
+RISCVV_CONDITIONAL_EXACT_F64X2_KEY_SLOTS = (
+    "AbsF64x2",
+    "SqrtF64x2",
+    "FmaF64x2",
+)
 RISCVV_WIDE_F64_CLAMP_KEY_SLOTS = (
     "ClampF64x4",
     "ClampF64x8",
@@ -191,6 +196,7 @@ KEY_SLOTS_BY_BACKEND: dict[str, tuple[str, ...]] = {
         RISCVV_HELPER_OWNED_KEY_SLOTS,
         RISCVV_WIDE_ROUNDING_KEY_SLOTS,
         RISCVV_WIDE_F32_CLAMP_KEY_SLOTS,
+        RISCVV_CONDITIONAL_EXACT_F64X2_KEY_SLOTS,
         RISCVV_WIDE_F64_CLAMP_KEY_SLOTS,
     ),
 }
@@ -221,6 +227,7 @@ EXPECTATION_PROCEDURES = {
         "TTestCase_DispatchAPI.Test_RISCVV_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders",
         "TTestCase_DispatchAPI.Test_RISCVV_ExtractSlots_Keep_NoAsmCompanionWrappers_And_RuntimeOwnership",
         "TTestCase_DispatchAPI.Test_RISCVV_HelperOwnedExactScalarSlots_Stay_BackendOwned",
+        "TTestCase_DispatchAPI.Test_RISCVV_ExactF64x2Slots_Keep_AsmConditional_SourceTruth_And_RuntimeBinding",
         "TTestCase_DispatchAPI.Test_RISCVV_KeyOwnedWideSlots_Stay_BackendOwned",
     ),
 }
@@ -253,6 +260,7 @@ REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS: dict[str, set[str]] = {
             RISCVV_HELPER_OWNED_KEY_SLOTS,
             RISCVV_WIDE_ROUNDING_KEY_SLOTS,
             RISCVV_WIDE_F32_CLAMP_KEY_SLOTS,
+            RISCVV_CONDITIONAL_EXACT_F64X2_KEY_SLOTS,
             RISCVV_WIDE_F64_CLAMP_KEY_SLOTS,
         )
     ),

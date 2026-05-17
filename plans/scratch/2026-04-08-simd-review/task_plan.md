@@ -4830,3 +4830,17 @@
 | 1. 复核当前红态是实现回归还是测试假设错误 | completed | 已确认 `src/fafafa.core.simd.riscvv.register.inc` 对 `ClampF64x2` 的绑定是 `{$IFDEF RISCVV_ASSEMBLY}` 条件赋值；`src/fafafa.core.simd.riscvv.facade.inc` 仍保留本地 compare-based no-asm body；当前 x86 release host 上 `LRISCVVTable.ClampF64x2` 运行时实际复用 scalar slot，因此原 witness 把源码 truth 和 runtime truth 混成了一条假断言 |
 | 2. 重写 `DispatchAPI` witness 只钉真实边界 | completed | `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 已把该测试改成同时断言：`ClampF64x2` source assignment site 仍保留、no-asm facade 不会直接 forward 到 `ScalarClampF64x2`、RVV asm helper 仍存在；运行时则按 `FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED` 区分为 “asm 编进时 backend-owned” 与 “no-asm host 上复用 scalar slot” |
 | 3. 串行 Release 复验并确认 stop-point | completed | `git diff --check`、Release `TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`、Release `impl-audit-nonx86`、Release `check` 已串行通过；说明这次只是收正错误护栏，不是新的 `ClampF64x2` 实现回归 |
+
+## 2026-05-18 RISCVV Exact F64x2 Conditional Slot Witness Sync
+
+### Goal
+
+继续沿 `RISCVV F64x2` 条件槽位深审，但不重开 `ClampF64x2`；把 `AbsF64x2`、`SqrtF64x2`、`FmaF64x2` 这组三个“no-asm facade 为 scalar forward、asm path 为 helper-backed exact wrapper、runtime slot 依编译条件切换”的真实合同补成 dedicated witness，并挂进 `key-slot audit`。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核这 3 个槽当前到底缺哪层证据 | completed | 已确认 `src/fafafa.core.simd.riscvv.register.inc` 对 `AbsF64x2/SqrtF64x2/FmaF64x2` 都是 `{$IFDEF RISCVV_ASSEMBLY}` 条件绑定；`src/fafafa.core.simd.riscvv.facade.inc` 的 no-asm body 都是精确 `Scalar...` forward；`src/fafafa.core.simd.riscvv.pas` 仍保留各自 `Asm` helper 与 wrapper；现有 coverage 虽有 generic helper semantics 和 runtime parity，但缺 dedicated source/runtime split witness |
+| 2. 补 `DispatchAPI` witness 与 `key-slot audit` 显式覆盖 | completed | `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_RISCVV_ExactF64x2Slots_Keep_AsmConditional_SourceTruth_And_RuntimeBinding`；`tests/fafafa.core.simd/check_nonx86_key_slot_audit.py` 新增 `RISCVV_CONDITIONAL_EXACT_F64X2_KEY_SLOTS` 并要求该测试提供显式 truth-source |
+| 3. 串行 Release 复验并确认 stop-point | completed | `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`、`python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend riscvv --summary-line`、Release `TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`、Release `impl-audit-nonx86`、Release `check` 全部通过；说明这批补的是合同护栏，不是新的实现改写 |
