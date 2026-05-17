@@ -77,7 +77,7 @@
 - [x] 最新 `gate-strict` 复验通过（Release，含 `misa` 解析增强后全链路回归）
   - 结果：`tests/fafafa.core.simd/logs/gate_summary.md`（`gate PASS @ 2026-03-04 01:38:39`）。
   - 对应 QEMU 证据：`tests/fafafa.core.simd/logs/qemu-multiarch-20260304-011031/summary.md`（cpuinfo-nonx86-evidence：arm-v7/arm64/riscv64 全 PASS）、`tests/fafafa.core.simd/logs/qemu-multiarch-20260304-011538/summary.md`（cpuinfo-nonx86-full-evidence：arm-v7/arm64/riscv64 全 PASS）、`tests/fafafa.core.simd/logs/qemu-multiarch-20260304-011855/summary.md`（cpuinfo-nonx86-full-repeat：arm-v7/arm64/riscv64 全 PASS）、`tests/fafafa.core.simd/logs/qemu-multiarch-20260304-012238/summary.md`（arch-matrix-evidence：386/amd64/arm-v7/arm64/riscv64 全 PASS）。
-- [x] 最新 gate（Release，三架构 CPUInfo full-* 专项）通过
+- [x] 最新 gate（Release，三架构 CPUInfo full-\* 专项）通过
   - 结果：`tests/fafafa.core.simd/logs/gate_summary.md`（`gate PASS @ 2026-03-03 20:21:45`，`qemu-cpuinfo-nonx86-full-evidence/full-repeat` 均 PASS）。
   - 对应 QEMU 证据：`tests/fafafa.core.simd/logs/qemu-multiarch-20260303-201716/summary.md`（cpuinfo-nonx86-full-evidence：arm-v7/arm64/riscv64 全 PASS）、`tests/fafafa.core.simd/logs/qemu-multiarch-20260303-201931/summary.md`（cpuinfo-nonx86-full-repeat：arm-v7/arm64/riscv64 全 PASS）。
 - [x] gate 摘要已细化到步骤级（含 FAIL/SKIP）：`tests/fafafa.core.simd/logs/gate_summary.md`
@@ -120,7 +120,7 @@
   - 输出：`tests/fafafa.core.simd/logs/freeze_status.json`（`ready=True, mainline-ready=True @ 2026-03-03 17:44:10`）
 - [x] 最新 `freeze-status-linux` 强约束复验通过（Release）
   - 输出：`tests/fafafa.core.simd/logs/freeze_status.json`（`ready=True, mainline-ready=True @ 2026-03-03 18:43:09`）
-- [x] 最新 `freeze-status-linux` 强约束复验通过（Release，三架构 CPUInfo full-* 证据）
+- [x] 最新 `freeze-status-linux` 强约束复验通过（Release，三架构 CPUInfo full-\* 证据）
   - 输出：`tests/fafafa.core.simd/logs/freeze_status.json`（`ready=True, mainline-ready=True @ 2026-03-03 20:21:45`，并显示 `linux_qemu_cpuinfo_nonx86_evidence/full_evidence/full_repeat`、`linux_qemu_cpuinfo_nonx86_evidence_platforms/full_evidence_platforms/full_repeat_platforms` 与 `linux_cpuinfo_lazy_repeat` 全 PASS）。
 - [x] 最新 `freeze-status-linux` 强约束复验通过（Release，含 nonx86-evidence 三平台覆盖）
   - 输出：`tests/fafafa.core.simd/logs/freeze_status.json`（`ready=True, mainline-ready=True @ 2026-03-03 21:08:30`，并显示 `linux_qemu_cpuinfo_nonx86_evidence_platforms/full_evidence_platforms/full_repeat_platforms` 与 `linux_cpuinfo_lazy_repeat` 全 PASS）。
@@ -340,15 +340,15 @@
   - `bash tests/fafafa.core.simd/BuildOrTest.sh qemu-experimental-baseline-check`
   - 产物：`tests/fafafa.core.simd/docs/experimental_asm_blockers.md`
   - 基线：`tests/fafafa.core.simd/docs/experimental_asm_expected_failures.json`
-- [x] Windows 实机证据日志已归档
+- [x] Windows 实机证据日志曾归档（历史批次）
   - 目标文件：`tests/fafafa.core.simd/logs/windows_b07_gate.log`
-  - 已完成闭环顺序（按 freeze-status next-actions）：
+  - 历史闭环顺序（按当时的 freeze-status next-actions）：
     - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`
     - `tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify`
     - `FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
     - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-YYYYMMDD-152`
     - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
-  - 结果：`cross-ready=True`，并生成 `tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`
+  - 历史结果：旧批次曾达到 `cross-ready=True`，并生成 `tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`
   - 注意：这里的 `[x]` 只表示历史 Windows 实机证据批次已经归档；如果后续源码继续前进、evidence freshness 过期，或 verifier 规则继续收紧，当前 `HEAD` 是否仍 cross-ready 仍必须以最新 `freeze-status` 为准
   - 快捷打印（复制即跑）：
     - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-3cmd SIMD-YYYYMMDD-152`

@@ -1,11 +1,11 @@
-# Windows B07 证据闭环 Runbook（cross-ready）
+# Windows B07 证据闭环 Runbook（目标：cross-ready）
 
 更新时间：2026-05-17
 
 ## 目标
 
-- 将 `freeze-status` 从 `cross-ready=False` 收口到 `cross-ready=True`。
-- 完成 Windows 实机证据链归档并通过验证。
+- 在 GitHub Billing / Windows runner / native Windows `LAZBUILD` 条件恢复后，将 `freeze-status` 从 `cross-ready=False` 收口到 `cross-ready=True`。
+- 在上述外部条件恢复后，完成 Windows 实机证据链归档并通过验证。
 
 ## 当前停点（2026-05-17）
 
@@ -13,6 +13,7 @@
 - 在 GitHub Billing/额度恢复，或你已经切换到真实 Windows runner 之前，这页应按“流程 runbook”理解，而不是“当前 HEAD 现在就能直接收口”的状态说明。
 - 因此当前模块总状态仍按 `code-green / release-evidence-blocked` 记录；只有 preflight 重新放行后，下面这条 `cross-ready` runbook 才重新成为可执行主线。
 - 本机 Wine 只算 batch smoke / 日志新鲜度探针，不算真实 Windows evidence runner；即使它能刷新 `windows_b07_gate.log`，也不能把 manual Windows 路径视为已具备可 finalize 的 fresh evidence。
+- 下文若出现 `ready=True` / `cross-ready=True`，都应理解成“目标态 / 通过标准”，不是当前 `HEAD` 的现状。
 
 ## 全局约束（Release-only）
 
@@ -38,6 +39,7 @@
    `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
 
 说明：
+
 - `win-evidence-via-gh` 会把批次快照写到 `tests/fafafa.core.simd/logs/windows-closeout/<batch-id>/`，并同步回写 canonical `logs/` 指针，方便 `freeze-status` 默认入口直接消费。
 - 默认 `win-evidence-via-gh` 会消费远端 ref。如果本地还有未提交或未推送的 closeout 修复，请先提交并推到目标 ref；否则脚本会直接拒绝 dispatch，避免浪费一轮 Windows runner。
 - 若你已经有可复用的 GH Actions `run-id`，可执行 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-YYYYMMDD-152 <run-id>`。这条旁路会跳过 dispatch，只做下载、校验与 finalize，因此不会再因为本地 dirty worktree / remote ref mismatch 被误拒。
@@ -70,6 +72,7 @@
    `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
 
 说明：
+
 - `win-evidence-via-gh` 内部会先执行 `win-evidence-preflight`（可通过 `SIMD_WIN_EVIDENCE_PREFLIGHT=0` 关闭）。
 - 该路径依赖 `gh` 已登录，且仓库存在可用 workflow：`.github/workflows/simd-windows-b07-evidence.yml`。
 - 若传入显式 `run-id`，脚本会直接复用现成 workflow run，不再执行 dispatch 前的 dirty worktree / remote ref 一致性拒绝；适合在本地继续修脚本、但要先消费既有 Windows artifact 的场景。

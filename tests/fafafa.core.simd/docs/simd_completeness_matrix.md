@@ -23,18 +23,18 @@
 
 ## 2) 接口族完成度
 
-| 接口族 | 机制实现状态 | 测试状态 | 说明 |
-|---|---|---|---|
-| Load/Store/Movq | ✅ 主要路径机制化（x86/x64） | ✅ | 含非对齐与回退测试 |
-| Set/Move 基础 | ✅（多数） | ✅ | `movehl/movelh/movss/movd` 均有覆盖 |
-| 向量算术 `*_ps` | ✅（add/sub/mul/div） | ✅ | 高优先路径已机制化 |
-| 标量算术 `*_ss` | ✅（add/sub/mul/div） | ✅ | lane0 语义由测试约束 |
-| 数学函数 sqrt/rcp/rsqrt | ✅ | ✅ | 含标量/向量 |
-| Compare 基础 | ✅（多数）+ 语义实现（ord/unord） | ✅ | NaN/Inf 边界已补强 |
-| Shuffle/Unpack | ✅+语义实现（shuffle） | ✅ | imm8 多模式已补测 |
-| Convert | ✅（cvtsi2ss/cvtss2si/cvttss2si） | ✅ | 舍入模式行为有测试护栏 |
-| Cache Control | ✅（prefetch/sfence/stream） | ✅ | 含 stream fallback 诊断测试 |
-| CSR/Misc | ✅ | ✅ | get/setcsr roundtrip 通过 |
+| 接口族                  | 机制实现状态                      | 测试状态 | 说明                                |
+| ----------------------- | --------------------------------- | -------- | ----------------------------------- |
+| Load/Store/Movq         | ✅ 主要路径机制化（x86/x64）      | ✅       | 含非对齐与回退测试                  |
+| Set/Move 基础           | ✅（多数）                        | ✅       | `movehl/movelh/movss/movd` 均有覆盖 |
+| 向量算术 `*_ps`         | ✅（add/sub/mul/div）             | ✅       | 高优先路径已机制化                  |
+| 标量算术 `*_ss`         | ✅（add/sub/mul/div）             | ✅       | lane0 语义由测试约束                |
+| 数学函数 sqrt/rcp/rsqrt | ✅                                | ✅       | 含标量/向量                         |
+| Compare 基础            | ✅（多数）+ 语义实现（ord/unord） | ✅       | NaN/Inf 边界已补强                  |
+| Shuffle/Unpack          | ✅+语义实现（shuffle）            | ✅       | imm8 多模式已补测                   |
+| Convert                 | ✅（cvtsi2ss/cvtss2si/cvttss2si） | ✅       | 舍入模式行为有测试护栏              |
+| Cache Control           | ✅（prefetch/sfence/stream）      | ✅       | 含 stream fallback 诊断测试         |
+| CSR/Misc                | ✅                                | ✅       | get/setcsr roundtrip 通过           |
 
 ## 3) 剩余优化候选（按风险优先）
 
@@ -50,7 +50,7 @@
 - [x] 性能烟测通过
 - [x] Linux 证据完整（含摘要）
 - [x] Linux non-x86（arm/v7, arm64, riscv64）QEMU Release 证据通过
-- [x] Windows 实机证据已归档（脚本+校验器+日志）
+- [x] Windows 实机证据曾归档（历史批次；脚本+校验器+日志）
   - 注：此处记录的是历史归档完成态；当前源码时间线若已晚于该日志，仍需重新看 `freeze-status` 判断当前是否 cross-ready。
 
 ## 5) Linux Non-x86 闭环（2026-03-02）
@@ -68,6 +68,7 @@
 ## 6) 剩余语义实现盘点（Batch31）
 
 ### A. 设计上保留语义/别名实现（非缺陷）
+
 - `sse_set_ps/sse_set_ss/sse_setr_ps`
 - `sse_shuffle_ps`（`imm8` 动态重排，语义实现更清晰）
 - `sse_andn_ps`
@@ -75,10 +76,12 @@
 - `sse_movhl_ps/sse_movlh_ps`
 
 ### B. 混合实现（机制路径 + 安全回退）
+
 - `load/store/movq/stream/prefetch/getcsr/setcsr/sfence`
 - 这类函数已有 x86/x64 机制路径，保留跨平台或对齐安全回退。
 
 ### C. 下一批低风险候选
+
 1. `sse_movaps`：可评估由纯复制实现收敛到机制化复制（保持不引入对齐陷阱）。
 2. 对 `shuffle_ps` 增加更多 imm8 语义测试（继续扩大行为护栏）。
 
@@ -150,31 +153,38 @@
   - 当前 non-x86 在机器检查口径下已达到 dispatch 满覆盖。
   - 语义一致性仍以 suite 回归与跨后端对照测试作为最终依据。
 
+## 9) 历史 Windows 归档批次（非当前 HEAD ready 信号）
+
 <!-- SIMD-WIN-CLOSEOUT-2026-03-10 -->
+
 - Windows 实机证据：已归档（2026-03-10）
   - Log: tests/fafafa.core.simd/logs/windows_b07_gate.log
   - Summary: tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md
   - 验证：verify_windows_b07_evidence PASS
 
 <!-- SIMD-WIN-CLOSEOUT-2026-03-14 -->
+
 - Windows 实机证据：已归档（2026-03-14）
   - Log: tests/fafafa.core.simd/logs/windows_b07_gate.log
   - Summary: tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md
   - 验证：verify_windows_b07_evidence PASS
 
 <!-- SIMD-WIN-CLOSEOUT-2026-03-21 -->
+
 - Windows 实机证据：已归档（2026-03-21）
   - Log: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260320-152/windows_b07_gate.log
   - Summary: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260320-152/windows_b07_closeout_summary.md
   - 验证：verify_windows_b07_evidence PASS
 
 <!-- SIMD-WIN-CLOSEOUT-2026-03-24 -->
+
 - Windows 实机证据：已归档（2026-03-24）
   - Log: tests/fafafa.core.simd/logs/windows_b07_gate.log
   - Summary: tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md
   - 验证：verify_windows_b07_evidence PASS
 
 <!-- SIMD-WIN-CLOSEOUT-2026-04-02 -->
+
 - Windows 实机证据：已归档（2026-04-02）
   - Log: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260402-152/windows_b07_gate.log
   - Summary: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260402-152/windows_b07_closeout_summary.md
