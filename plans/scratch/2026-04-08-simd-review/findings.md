@@ -7346,3 +7346,16 @@
   - runbook caveat
   - `gate-summary-selfcheck` 的专用 rehearsal
 - 因而这条 operator residual 已经收口，不再只是对话里的临时结论
+
+## 2026-05-17 3cmd Helper Still Lagged Behind The New Bash-Gate Boundary
+
+- batch warning 和 runbook 都已经说清楚：
+  - `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` 只应在 `cmd.exe` 真能解析 `bash` 的环境里做诊断性预演
+  - 当前本机 Wine 不属于这种环境
+- 但 shell 侧的 `print_windows_b07_closeout_3cmd.sh` 之前还没有带出这句 caveat。
+- 这会让最常用的 operator surface 之一继续落后一拍：
+  - 文档知道这条边界
+  - 复制即跑的 3cmd helper 却没显式提醒
+- 这种 residual 的风险不是执行失败，而是：
+  - 后续会话更容易重新把 Wine 当作 bash-gate escape hatch
+  - closeout guard 三件套（helper / runbook / collect warning）会再次失去同一口径

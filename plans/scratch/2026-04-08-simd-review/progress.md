@@ -9695,3 +9695,24 @@
 - 当前阶段结论：
   - `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` 这条 fallback 现在已经不会再把本机 Wine 描述成“还差一点点就能接通”的候选路径
   - 这批也没有重新引入 repo 内 stale Windows evidence 假红
+
+## 2026-05-17 3cmd Helper Bash-Gate Caveat Sync
+
+- completion audit 继续往下看后，又抓到一个更细的 operator residual：
+  - runbook 与 collect warning 已经说明：
+    - `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` 只适用于 `cmd.exe` 真能解析 `bash`` 的环境
+    - 当前本机 Wine 不属于这种环境
+  - 但 shell 侧 `print_windows_b07_closeout_3cmd.sh` 还没把这句 caveat 带出来
+- 这会留下一个小但真实的 split：
+  - 看 runbook / batch warning 的人，知道不要再把 Wine 当 bash-gate 逃生口
+  - 直接跑 `win-closeout-3cmd` 的人，却还看不到这层边界
+- 已落地的最小修法：
+  - `tests/fafafa.core.simd/print_windows_b07_closeout_3cmd.sh`
+    - 现已明确补上：
+      - 若显式试 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1`
+      - 也只限 `cmd.exe` 真能解析 `bash` 的环境
+      - 当前本机 Wine 不属于这种环境
+  - `tests/fafafa.core.simd/rehearse_windows_closeout_3cmd.sh`
+    - blocked/pass 两种 case 现在都强制检查这句 caveat
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - `check_windows_manual_closeout_guard()` 的 `L3CmdRequired` / `LRunbookRequired` 也已把新 caveat 纳入必检

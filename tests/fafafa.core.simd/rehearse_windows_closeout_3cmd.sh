@@ -61,6 +61,12 @@ if ! grep -F -- "\$env:LAZBUILD = 'C:\\Lazarus\\lazbuild.exe'" "${LCaseBlocked}/
   exit 1
 fi
 
+if ! grep -F -- "当前本机 Wine 不属于这种环境，不要把它当成 host-side Unix bridge 逃生口。" "${LCaseBlocked}/stdout.txt" >/dev/null; then
+  echo "[WIN-CLOSEOUT-3CMD-REHEARSAL] FAILED: blocked case missing bash-gate/Wine caveat"
+  cat "${LCaseBlocked}/stdout.txt"
+  exit 1
+fi
+
 LCasePass="${LTmpRoot}/case_pass"
 mkdir -p "${LCasePass}/logs"
 cp "${HELPER}" "${LCasePass}/print_windows_b07_closeout_3cmd.sh"
@@ -91,6 +97,12 @@ fi
 
 if ! grep -F -- "native Windows \`lazbuild.exe\`" "${LCasePass}/stdout.txt" >/dev/null; then
   echo "[WIN-CLOSEOUT-3CMD-REHEARSAL] FAILED: pass case missing native lazbuild requirement"
+  cat "${LCasePass}/stdout.txt"
+  exit 1
+fi
+
+if ! grep -F -- "当前本机 Wine 不属于这种环境，不要把它当成 host-side Unix bridge 逃生口。" "${LCasePass}/stdout.txt" >/dev/null; then
+  echo "[WIN-CLOSEOUT-3CMD-REHEARSAL] FAILED: pass case missing bash-gate/Wine caveat"
   cat "${LCasePass}/stdout.txt"
   exit 1
 fi

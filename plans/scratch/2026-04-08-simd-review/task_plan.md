@@ -4762,3 +4762,16 @@
 | 2. 收紧 warning 与 runbook caveat | completed | `collect_windows_b07_evidence.bat` 现已明确写出 `cmd.exe cannot satisfy the current bash-gate prerequisites` 与 `current local Wine probes did not yield a working host-side Unix bridge`；runbook 也把 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` 限定到 `cmd.exe` 真能解析 `bash` 的环境 |
 | 3. 给这条 truth 补最小防回退护栏 | completed | 已新增 `rehearse_win_bash_gate_fallback_warning.sh` 并接入 `gate-summary-selfcheck`，守住 collect warning 与 runbook caveat 两处 truth |
 | 4. 确认不会重新引入 stale Windows evidence 假红 | completed | 已在验证 warning 后重新跑 `evidence-win-verify`、`finalize-win-evidence` 与 fresh `freeze-status`；当前 `windows_evidence_inputs_not_newer_than_log = PASS`、`windows_closeout_summary_not_older_than_log = PASS`，剩余红项继续只剩外部 Windows billing/toolchain blocker |
+
+## 2026-05-17 3cmd Helper Bash-Gate Caveat Sync
+
+### Goal
+
+把 shell 侧 `win-closeout-3cmd` helper 也对齐到最新 bash-gate/Wine 边界，避免 helper / runbook / collect warning 三处口径分叉。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 确认 residual 是否真实存在 | completed | 已确认 `print_windows_b07_closeout_3cmd.sh` 仍缺少 “`SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` 只适用于 `cmd.exe` 真能解析 `bash` 的环境；当前本机 Wine 不属于这种环境” 这句 caveat，而 runbook / collect warning 已有 |
+| 2. 对齐 helper / rehearsal / closeout guard | completed | 已在 `print_windows_b07_closeout_3cmd.sh` 补上 caveat；`rehearse_windows_closeout_3cmd.sh` blocked/pass case 现都强制检查；`BuildOrTest.sh` 的 manual closeout guard 也把 helper/runbook 新 caveat 纳入必检 |
