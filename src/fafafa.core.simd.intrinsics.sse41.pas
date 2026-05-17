@@ -5,17 +5,16 @@ unit fafafa.core.simd.intrinsics.sse41;
 
 {
   === fafafa.core.simd.intrinsics.sse41 ===
-  SSE4.1 (Streaming SIMD Extensions 4.1) 指令集支�?  
-  SSE4.1 �?Intel �?2006 年引入的 SIMD 指令集扩�?  主要增加了更多的整数运算、混合操作和字符串处理指�?  
-  特性：
-  - 扩展的整�?min/max 操作
-  - 点积指令 (DPPS, DPPD)
-  - 混合操作 (BLENDPS, BLENDPD, BLENDVPS, BLENDVPD)
-  - 舍入指令 (ROUNDPS, ROUNDPD, ROUNDSS, ROUNDSD)
-  - 插入/提取指令增强
-  - 零扩展加�?  - 测试指令 (PTEST)
-  
-  兼容性：大部分现�?x86/x64 处理器都支持
+  Placeholder SSE4.1 intrinsics surface for isolated experimental bring-up.
+  SSE4.1 expands integer min/max, dot-product, blend, round, and conversion helpers.
+  Highlights:
+  - extended integer min/max operations
+  - dot-product instructions
+  - blend operations
+  - round instructions
+  - insert/extract enhancements
+  - zero-extension loads and ptest-style helpers
+  Compatibility: most modern x86/x64 processors.
 }
 
 interface
@@ -474,7 +473,7 @@ begin
   Result.m128d_f64[0] := SSE41RoundScalar(b.m128d_f64[0], rounding);
 end;
 
-// === 其他函数的简化实�?===
+// === Simplified implementations for the remaining helpers ===
 function sse41_insert_ps(const a, b: TM128; imm8: Byte): TM128;
 begin
   Result := a;
@@ -526,7 +525,7 @@ begin
   Result.m128i_i64[0] := PInt64(Ptr)^;
 end;
 
-// === 转换指令的简化实�?===
+// === Simplified conversion helpers ===
 function sse41_cvtepi8_epi16(const a: TM128): TM128;
 begin
   Result := SSE41ExtendSignedI8(a, 16);

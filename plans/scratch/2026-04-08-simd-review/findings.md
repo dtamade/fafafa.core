@@ -7587,3 +7587,26 @@
   - 统一改成稳定 ASCII 注释
   - 不碰可执行语义
 - 收口后，这 6 个文件的 `U+FFFD` 已全部归零；`comment swallow` checker、experimental runner、主 `Release check` 也都保持绿色。
+
+## 2026-05-17 X86 Experimental Intrinsics Still Had Residual U+FFFD Comment Corruption
+
+- 在前一批 6 个 active experimental intrinsics 文件清完以后，fresh 扫描继续暴露出 x86 侧也存在同类源码污染：
+  - `intrinsics.avx2`
+  - `intrinsics.avx512`
+  - `intrinsics.fma3`
+  - `intrinsics.sse2`
+  - `intrinsics.sse3`
+  - `intrinsics.sse41`
+  - `intrinsics.sse42`
+- 这些残点虽然不改变运行结果，但会继续伤害：
+  - experimental leaf 角色说明的可读性
+  - 基于 grep / diff 的快速审查效率
+  - 对 placeholder 合同的文本判断准确度
+- 这批里最值得警惕的是 `sse2`：
+  - 其余 6 个文件清完后，`sse2` 仍残留最后 `1` 个 `U+FFFD`
+  - 这说明“comment swallow checker 通过”并不等于“源码文本已经完全干净”；`checker` 只覆盖可疑注释吞代码模式，不覆盖所有编码损坏
+- 正确收口方式仍然是 bounded hygiene，而不是重新解释实现：
+  - 把坏掉的简介/占位说明改成稳定 ASCII 注释
+  - 不动实现体和测试合同
+  - 再用 `U+FFFD` 逐文件计数补上 `checker` 没覆盖到的文本卫生证据
+- 收口后，这 7 个 x86 目标文件的 `U+FFFD` 也已经全部归零；`intrinsics.experimental check` 和主 `Release check` 继续保持绿色。

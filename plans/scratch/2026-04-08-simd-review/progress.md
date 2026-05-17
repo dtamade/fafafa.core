@@ -10124,3 +10124,34 @@
 - 当前阶段结论：
   - 这批修掉的是 active experimental intrinsics 注释文本损坏，不是实现逻辑缺陷
   - 但它确实能直接提升后续审查、grep、diff review 的可读性，避免再被乱码污染判断
+
+## 2026-05-17 X86 Experimental Intrinsics Comment-Encoding Hygiene Follow-up
+
+- 延续上一批 active experimental intrinsics 注释卫生清理后，fresh 扫描继续在 x86 侧发现同类真实残点：
+  - `src/fafafa.core.simd.intrinsics.avx2.pas`
+  - `src/fafafa.core.simd.intrinsics.avx512.pas`
+  - `src/fafafa.core.simd.intrinsics.fma3.pas`
+  - `src/fafafa.core.simd.intrinsics.sse2.pas`
+  - `src/fafafa.core.simd.intrinsics.sse3.pas`
+  - `src/fafafa.core.simd.intrinsics.sse41.pas`
+  - `src/fafafa.core.simd.intrinsics.sse42.pas`
+- 这些位点同样全部落在简介、placeholder 说明、shift/string/CRC/thread-sync 一类注释区，不涉及函数签名、runtime guard 或 placeholder 行为本身。
+- 本批的收口动作保持严格 bounded：
+  - 只把损坏的 `U+FFFD` 注释替换成稳定 ASCII 注释
+  - 不改实现体
+  - 不改测试合同
+  - 不改 experimental isolation / fail-close 语义
+- 过程中先扫出 `7` 个目标文件里只剩 `sse2` 还有最后 `1` 个 `U+FFFD`；随后把 `simd_slli_epi32` 上方的残余注释也清零。
+- fresh 验证已完成：
+  - `python3` 逐文件计数：`avx2/avx512/fma3/sse2/sse3/sse41/sse42 = 0`
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_comment_swallow.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - `intrinsics.experimental` 双模态 `check` 全绿
+  - 主 `Release check` 全绿
+- 当前阶段结论：
+  - 这批继续修掉的是 x86 experimental intrinsics 的源码文本损坏，不是行为缺陷
+  - 到这里这 7 个 x86 目标文件的 `U+FFFD` 已全部归零，active 审查面不再被乱码残点打断

@@ -5,15 +5,13 @@ unit fafafa.core.simd.intrinsics.sse42;
 
 {
   === fafafa.core.simd.intrinsics.sse42 ===
-  SSE4.2 (Streaming SIMD Extensions 4.2) 指令集支�?  
-  SSE4.2 �?Intel �?2008 年引入的 SIMD 指令集扩�?  主要增加了字符串处理�?CRC32 计算指令
-  
-  特性：
-  - 字符串比较指�?(PCMPESTRI, PCMPESTRM, PCMPISTRI, PCMPISTRM)
-  - CRC32 计算指令
-  - 64位比较指�?(PCMPGTQ)
-  
-  兼容性：大部分现�?x86/x64 处理器都支持
+  Placeholder SSE4.2 intrinsics surface for isolated experimental bring-up.
+  SSE4.2 adds string-compare helpers, CRC32 helpers, and 64-bit compare helpers.
+  Highlights:
+  - string compare instructions
+  - CRC32 instructions
+  - 64-bit compare helpers
+  Compatibility: most modern x86/x64 processors.
 }
 
 interface
@@ -28,7 +26,7 @@ uses
   - Non-x86 branches remain compile scaffolding; runtime fail-close is intentional.
 }
 
-// === SSE4.2 字符串比较指�?===
+// === SSE4.2 string-compare primitives ===
 // Explicit Length String Compare
 function sse42_cmpestrm(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): TM128;
 function sse42_cmpestri(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): Integer;
@@ -45,7 +43,7 @@ function sse42_cmpistro(const a, b: TM128; imm8: Byte): Boolean;
 function sse42_cmpistrs(const a, b: TM128; imm8: Byte): Boolean;
 function sse42_cmpistrz(const a, b: TM128; imm8: Byte): Boolean;
 
-// === SSE4.2 64位比�?===
+// === SSE4.2 64-bit compare ===
 function sse42_cmpgt_epi64(const a, b: TM128): TM128;
 
 // === SSE4.2 CRC32 指令 ===
@@ -81,52 +79,52 @@ begin
   {$ENDIF}
 end;
 
-// === 字符串比较指令的简化实�?===
+// === Simplified string-compare implementations ===
 function sse42_cmpestrm(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): TM128;
 begin
-  // 简化实�?- 实际需要复杂的字符串比较逻辑
+  // Simplified placeholder; real logic needs full string-compare semantics.
   FillChar(Result, SizeOf(Result), 0);
 end;
 
 function sse42_cmpestri(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): Integer;
 begin
-  // 简化实�?- 返回第一个匹配的索引
-  Result := 16; // 表示未找�?
+  // Simplified placeholder; returns the first-match index sentinel.
+  Result := 16; // indicates no match
 end;
 
 function sse42_cmpestrc(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): Boolean;
 begin
-  // 简化实�?- 返回是否有匹�?
+  // Simplified placeholder; reports whether any match exists.
   Result := False;
 end;
 
 function sse42_cmpestro(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): Boolean;
 begin
-  // 简化实�?- 返回结果的奇偶�?
+  // Simplified placeholder; reports a parity-style flag.
   Result := False;
 end;
 
 function sse42_cmpestrs(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): Boolean;
 begin
-  // 简化实�?- 返回结果的符�?
+  // Simplified placeholder; reports a sign-style flag.
   Result := False;
 end;
 
 function sse42_cmpestrz(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): Boolean;
 begin
-  // 简化实�?- 返回结果是否为零
+  // Simplified placeholder; reports whether the result is zero.
   Result := True;
 end;
 
 function sse42_cmpistrm(const a, b: TM128; imm8: Byte): TM128;
 begin
-  // 简化实�?- 隐式长度字符串比�?
+  // Simplified placeholder for implicit-length string compare.
   FillChar(Result, SizeOf(Result), 0);
 end;
 
 function sse42_cmpistri(const a, b: TM128; imm8: Byte): Integer;
 begin
-  // 简化实�?
+  // Simplified placeholder.
   Result := 16;
 end;
 
@@ -150,7 +148,7 @@ begin
   Result := True;
 end;
 
-// === 64位比较实�?===
+// === 64-bit compare implementation ===
 function sse42_cmpgt_epi64(const a, b: TM128): TM128;
 var
   i: Integer;
@@ -162,7 +160,7 @@ begin
       Result.m128i_u64[i] := $0000000000000000;
 end;
 
-// === CRC32 指令的简化实�?===
+// === Simplified CRC32 implementations ===
 function sse42_crc32_u8(crc: Cardinal; data: Byte): Cardinal;
 const
   CRC32_POLY = $EDB88320;

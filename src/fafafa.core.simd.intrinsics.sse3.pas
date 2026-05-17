@@ -5,16 +5,14 @@ unit fafafa.core.simd.intrinsics.sse3;
 
 {
   === fafafa.core.simd.intrinsics.sse3 ===
-  SSE3 (Streaming SIMD Extensions 3) 指令集支�?  
-  SSE3 �?Intel �?2004 年引入的 SIMD 指令集扩�?  主要增加了水平运算、复数运算和一些特殊的加载指令
-  
-  特性：
-  - 水平加法/减法 (HADDPS, HSUBPS, HADDPD, HSUBPD)
-  - 复数运算支持 (ADDSUBPS, ADDSUBPD)
-  - 特殊加载指令 (LDDQU, MOVSHDUP, MOVSLDUP, MOVDDUP)
-  - 线程同步指令 (MONITOR, MWAIT)
-  
-  兼容性：大部分现�?x86/x64 处理器都支持
+  Placeholder SSE3 intrinsics surface for isolated experimental bring-up.
+  SSE3 adds horizontal arithmetic, complex-style add/sub forms, and extra load helpers.
+  Highlights:
+  - horizontal add/sub instructions
+  - complex add/sub support
+  - special load instructions
+  - monitor/mwait stubs
+  Compatibility: most modern x86/x64 processors.
 }
 
 interface
@@ -30,11 +28,11 @@ uses
 }
 
 // === SSE3 水平运算 ===
-// Horizontal Add/Sub (单精�?
+// Horizontal Add/Sub (single precision)
 function sse3_hadd_ps(const a, b: TM128): TM128;
 function sse3_hsub_ps(const a, b: TM128): TM128;
 
-// Horizontal Add/Sub (双精�?
+// Horizontal Add/Sub (double precision)
 function sse3_hadd_pd(const a, b: TM128): TM128;
 function sse3_hsub_pd(const a, b: TM128): TM128;
 
@@ -50,11 +48,11 @@ function sse3_lddqu_si128(const Ptr: Pointer): TM128;
 // Move and Duplicate
 function sse3_movehdup_ps(const a: TM128): TM128;  // 复制高位元素
 function sse3_moveldup_ps(const a: TM128): TM128;  // 复制低位元素
-function sse3_movddup_pd(const a: TM128): TM128;   // 复制双精度元�?
+function sse3_movddup_pd(const a: TM128): TM128;   // duplicate a double-precision lane
 // Load and Duplicate
 function sse3_loaddup_pd(const Ptr: Pointer): TM128;
 
-// === SSE3 线程同步 (占位�? ===
+// === SSE3 thread-sync stubs ===
 procedure sse3_monitor(const Ptr: Pointer; extensions, hints: Cardinal);
 procedure sse3_mwait(extensions, hints: Cardinal);
 
@@ -177,17 +175,17 @@ begin
   Result.m128d_f64[1] := value;
 end;
 
-// === 线程同步指令 (占位�? ===
+// === Thread-sync stub implementations ===
 procedure sse3_monitor(const Ptr: Pointer; extensions, hints: Cardinal);
 begin
   // MONITOR 指令的占位符实现
-  // 在实际实现中，这里应该执�?MONITOR 指令
+  // In a real implementation this would execute MONITOR.
 end;
 
 procedure sse3_mwait(extensions, hints: Cardinal);
 begin
   // MWAIT 指令的占位符实现
-  // 在实际实现中，这里应该执�?MWAIT 指令
+  // In a real implementation this would execute MWAIT.
 end;
 
 initialization

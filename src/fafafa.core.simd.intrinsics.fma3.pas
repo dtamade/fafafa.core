@@ -5,15 +5,16 @@ unit fafafa.core.simd.intrinsics.fma3;
 
 {
   === fafafa.core.simd.intrinsics.fma3 ===
-  FMA3 (Fused Multiply-Add 3-operand) 指令集支�?  
-  FMA3 �?Intel �?2012 年引入的融合乘加指令集扩�?  提供高精度的乘加运算，减少舍入误�?  
-  特性：
-  - 融合乘加运算 (a * b + c)
-  - 融合乘减运算 (a * b - c)
-  - 融合负乘加运�?(-(a * b) + c)
-  - 融合负乘减运�?(-(a * b) - c)
-  - 单精度和双精度支�?  
-  兼容性：Intel Haswell (2013) 及更新的处理�?}
+  Placeholder FMA3 intrinsics surface for isolated experimental bring-up.
+  FMA3 adds fused multiply-add and fused multiply-subtract forms.
+  Highlights:
+  - fused multiply-add (a * b + c)
+  - fused multiply-subtract (a * b - c)
+  - fused negative multiply-add
+  - fused negative multiply-subtract
+  - single-precision and double-precision variants
+  Compatibility: Intel Haswell (2013) and newer processors.
+}
 
 interface
 
@@ -27,7 +28,7 @@ uses
   - Non-x86 branches remain compile scaffolding; runtime fail-close is intentional.
 }
 
-// === FMA3 单精度浮点指�?===
+// === FMA3 single-precision primitives ===
 // Fused Multiply-Add: a * b + c
 function fma3_fmadd_ps(const a, b, c: TM128): TM128;
 function fma3_fmadd_ss(const a, b, c: TM128): TM128;
@@ -48,7 +49,7 @@ function fma3_fnmsub_ps(const a, b, c: TM128): TM128;
 function fma3_fnmsub_ss(const a, b, c: TM128): TM128;
 function fma3_fnmsub_ps256(const a, b, c: TM256): TM256;
 
-// === FMA3 双精度浮点指�?===
+// === FMA3 double-precision primitives ===
 // Fused Multiply-Add: a * b + c
 function fma3_fmadd_pd(const a, b, c: TM128): TM128;
 function fma3_fmadd_sd(const a, b, c: TM128): TM128;
@@ -69,7 +70,7 @@ function fma3_fnmsub_pd(const a, b, c: TM128): TM128;
 function fma3_fnmsub_sd(const a, b, c: TM128): TM128;
 function fma3_fnmsub_pd256(const a, b, c: TM256): TM256;
 
-// === FMA3 交替形式 (不同操作数顺�? ===
+// === FMA3 alternating forms (operand-order variants) ===
 // Fused Add-Multiply: c + a * b
 function fma3_fmaddsub_ps(const a, b, c: TM128): TM128;
 function fma3_fmaddsub_pd(const a, b, c: TM128): TM128;
@@ -109,7 +110,7 @@ begin
   {$ENDIF}
 end;
 
-// === 128-bit 单精度浮点实�?===
+// === 128-bit single-precision implementations ===
 function fma3_fmadd_ps(const a, b, c: TM128): TM128;
 var
   i: Integer;
@@ -166,7 +167,7 @@ begin
   Result.m128_f32[0] := -(a.m128_f32[0] * b.m128_f32[0]) - c.m128_f32[0];
 end;
 
-// === 128-bit 双精度浮点实�?===
+// === 128-bit double-precision implementations ===
 function fma3_fmadd_pd(const a, b, c: TM128): TM128;
 var
   i: Integer;
@@ -223,7 +224,7 @@ begin
   Result.m128d_f64[0] := -(a.m128d_f64[0] * b.m128d_f64[0]) - c.m128d_f64[0];
 end;
 
-// === 256-bit 单精度浮点实�?===
+// === 256-bit single-precision implementations ===
 function fma3_fmadd_ps256(const a, b, c: TM256): TM256;
 var
   i: Integer;
@@ -256,7 +257,7 @@ begin
     Result.m256_f32[i] := -(a.m256_f32[i] * b.m256_f32[i]) - c.m256_f32[i];
 end;
 
-// === 256-bit 双精度浮点实�?===
+// === 256-bit double-precision implementations ===
 function fma3_fmadd_pd256(const a, b, c: TM256): TM256;
 var
   i: Integer;

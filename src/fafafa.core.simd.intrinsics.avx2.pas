@@ -5,17 +5,15 @@ unit fafafa.core.simd.intrinsics.avx2;
 
 {
   === fafafa.core.simd.intrinsics.avx2 ===
-  AVX2 (Advanced Vector Extensions 2) 指令集支�?  
-  AVX2 �?Intel �?2013 年引入的 256-bit SIMD 指令集扩�?  将大部分 SSE 整数指令扩展�?256-bit
-  
-  特性：
-  - 256-bit 整数运算
-  - 变量移位指令
-  - 聚集/分散加载存储
-  - 广播指令
-  - 融合乘加指令 (FMA)
-  
-  兼容性：Intel Haswell (2013) 及更新的处理�?}
+  Active AVX2 intrinsics leaf.
+  AVX2 extends 256-bit SIMD coverage with broader integer support than AVX.
+  Highlights:
+  - 256-bit integer operations
+  - variable shift instructions
+  - gather loads
+  - broadcast helpers
+  Compatibility: Intel Haswell (2013) and newer processors.
+}
 
 interface
 
@@ -72,19 +70,19 @@ function avx2_min_epi32(const a, b: TM256): TM256;
 function avx2_min_epi16(const a, b: TM256): TM256;
 function avx2_min_epi8(const a, b: TM256): TM256;
 
-// Variable Shift (AVX2 新特�?
+// Variable Shift (AVX2-specific helpers)
 function avx2_sllv_epi32(const a, count: TM256): TM256;
 function avx2_sllv_epi64(const a, count: TM256): TM256;
 function avx2_srlv_epi32(const a, count: TM256): TM256;
 function avx2_srlv_epi64(const a, count: TM256): TM256;
 function avx2_srav_epi32(const a, count: TM256): TM256;
 
-// Broadcast (AVX2 新特�?
+// Broadcast (AVX2-specific helpers)
 function avx2_broadcastss_ps(const a: TM128): TM256;
 function avx2_broadcastsd_pd(const a: TM128): TM256;
 function avx2_broadcastsi128_si256(const a: TM128): TM256;
 
-// Gather (AVX2 新特�?
+// Gather (AVX2-specific helpers)
 function avx2_gather_epi32(const base_addr: Pointer; const vindex: TM256; scale: Integer): TM256;
 function avx2_gather_epi64(const base_addr: Pointer; const vindex: TM128; scale: Integer): TM256;
 function avx2_gather_ps(const base_addr: Pointer; const vindex: TM256; scale: Integer): TM256;
@@ -415,7 +413,7 @@ begin
       Result.m256i_i8[i] := b.m256i_i8[i];
 end;
 
-// === AVX2 新特性的简化实�?===
+// === Simplified AVX2-specific implementations ===
 function avx2_sllv_epi32(const a, count: TM256): TM256;
 var
   i: Integer;

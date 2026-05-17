@@ -5,17 +5,17 @@ unit fafafa.core.simd.intrinsics.sse2;
 
 {
   === fafafa.core.simd.intrinsics.sse2 ===
-  SSE2 (Streaming SIMD Extensions 2) 指令集支�?
-  SSE2 �?Intel �?2001 年引入的 128-bit SIMD 指令集扩�?  是所�?x86-64 处理器的基础指令集，提供完整的整数和双精度浮点支�?  
-  特性：
-  - 128-bit 向量寄存�?(xmm0-xmm15)
-  - 整数运算 (8/16/32/64-bit)
-  - 双精度浮点运�?(2x64-bit)
-  - 单精度浮点运�?(4x32-bit)
-  - 打包/解包操作
-  - 移位和逻辑操作
-
-  兼容性：所�?x86-64 处理器都支持，是最重要的基础指令�?}
+  Transitional SSE2 compatibility wrapper for experimental bring-up.
+  SSE2 is the 128-bit SIMD baseline for x86-64 processors.
+  Highlights:
+  - 128-bit vector registers (xmm0-xmm15)
+  - integer operations (8/16/32/64-bit)
+  - double-precision floating-point operations (2 x 64-bit)
+  - single-precision floating-point operations (4 x 32-bit)
+  - pack/unpack helpers
+  - shift and logical helpers
+  Compatibility: all x86-64 processors.
+}
 
 {
   Role marker (2026-05-09):
@@ -149,7 +149,7 @@ function simd_movemask_epi8(constref a: TM128): Integer;
 function simd_insert_epi16(constref a: TM128; Value: Integer; imm8: Byte): TM128;
 function simd_extract_epi16(constref a: TM128; imm8: Byte): Integer;
 
-// === SSE2 双精度浮点函�?===
+// === SSE2 double-precision floating-point helpers ===
 // Load/Store
 function simd_load_pd(const Ptr: Pointer): TM128;
 function simd_loadu_pd(const Ptr: Pointer): TM128;
@@ -414,8 +414,8 @@ begin
     Result.m128i_i64[i] := a.m128i_i64[i] - b.m128i_i64[i];
 end;
 
-// 其他函数的实现将在后续添�?..
-// 这里只提供基础框架，完整实现需要更多代�?
+// Additional helpers remain partial compatibility scaffolding only.
+// This file intentionally keeps a limited framework for incremental bring-up.
 function simd_and_si128(constref a, b: TM128): TM128;
 var
   i: Integer;
@@ -529,7 +529,7 @@ begin
   Result := simd_cmpgt_epi8(b, a);
 end;
 
-// 移位操作的简化实�?
+// Simplified shift helpers
 function simd_slli_epi32(const a: TM128; imm8: Byte): TM128;
 var
   i: Integer;
@@ -629,7 +629,7 @@ end;
 // 其他函数的占位符实现...
 // 完整实现需要更多代码，这里只提供基础框架
 
-// 占位符实�?
+// Placeholder implementations
 function simd_adds_epi16(const a, b: TM128): TM128; begin Result := simd_add_epi16(a, b); end;
 function simd_adds_epi8(const a, b: TM128): TM128; begin Result := simd_add_epi8(a, b); end;
 function simd_adds_epu16(const a, b: TM128): TM128; begin Result := simd_add_epi16(a, b); end;
@@ -753,7 +753,7 @@ function simd_movemask_epi8(const a: TM128): Integer; begin Result := 0; end;
 function simd_insert_epi16(const a: TM128; Value: Integer; imm8: Byte): TM128; begin Result := a; end;
 function simd_extract_epi16(const a: TM128; imm8: Byte): Integer; begin Result := 0; end;
 
-// 双精度浮点函数的占位符实�?
+// Placeholder double-precision floating-point helpers
 function simd_load_pd(const Ptr: Pointer): TM128; begin Result := PTM128(Ptr)^; end;
 function simd_loadu_pd(const Ptr: Pointer): TM128; begin Result := PTM128(Ptr)^; end;
 function simd_load_sd(const Ptr: Pointer): TM128; begin FillChar(Result, SizeOf(Result), 0); Result.m128d_f64[0] := PDouble(Ptr)^; end;
