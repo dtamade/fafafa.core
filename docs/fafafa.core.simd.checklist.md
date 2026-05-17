@@ -112,8 +112,8 @@ bash tests/fafafa.core.simd/BuildOrTest.sh publicabi-signature
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152
 ```
 
-内部固定顺序是 `impl-smoke-x86 -> closeout-host-local -> win-evidence-preflight -> win-evidence-via-gh -> freeze-status`。
-它会先把当前 x86 bounded frontier 和 host-local non-x86/QEMU 证明跑到位，再进入 Windows evidence GH 闭环，最后回到 canonical `freeze-status` 做最终确认。
+内部固定顺序是 `win-evidence-preflight -> impl-smoke-x86 -> closeout-host-local -> win-evidence-via-gh -> freeze-status`。
+它会先确认当前 Windows preflight 没被 Billing/额度阻塞；通过后再把 x86 bounded frontier 与 host-local non-x86/QEMU 证明跑到位，最后进入 Windows evidence GH 闭环并回到 canonical `freeze-status` 做最终确认。
 但对当前 `HEAD`，这条链还多一个 fail-close 条件：如果 latest `win-evidence-preflight` 返回 `RECENT_BILLING_BLOCK`，就把这轮状态记成 `code-green / release-evidence-blocked`，不要继续把 `win-evidence-via-gh` 当成可立即执行的下一步。
 
 如果你只想先看完整 release 门禁轮廓，而不是直接一波收口，也可以单独跑：

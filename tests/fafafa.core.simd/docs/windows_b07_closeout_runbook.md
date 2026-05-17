@@ -23,7 +23,7 @@
 
 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152`
 
-它会固定执行 `impl-smoke-x86 -> closeout-host-local -> win-evidence-preflight -> win-evidence-via-gh -> freeze-status`。下面的 runbook 继续保留，是为了你拆分诊断 GH 预检、手工 Windows 实机路径或单独复验某一步时使用。
+它会固定执行 `win-evidence-preflight -> impl-smoke-x86 -> closeout-host-local -> win-evidence-via-gh -> freeze-status`。下面的 runbook 继续保留，是为了你拆分诊断 GH 预检、手工 Windows 实机路径或单独复验某一步时使用。
 
 ## 推荐顺序（主路径）
 

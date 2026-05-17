@@ -2079,9 +2079,10 @@ check_closeout_release_entrypoint_guard() {
 
   LShellRequired=(
     'run_closeout_release() {'
-    'echo "[CLOSEOUT-RELEASE] 1/5 x86 bounded frontier smoke"'
-    'echo "[CLOSEOUT-RELEASE] 2/5 host-local closeout (QEMU arm64/riscv64, Windows evidence optional)"'
-    'echo "[CLOSEOUT-RELEASE] 3/5 Windows evidence preflight"'
+    'echo "[CLOSEOUT-RELEASE] 1/5 Windows evidence preflight"'
+    'echo "[CLOSEOUT-RELEASE] 1/5 Windows evidence preflight (skip: explicit run-id reuse)"'
+    'echo "[CLOSEOUT-RELEASE] 2/5 x86 bounded frontier smoke"'
+    'echo "[CLOSEOUT-RELEASE] 3/5 host-local closeout (QEMU arm64/riscv64, Windows evidence optional)"'
     'print_closeout_release_preflight_block_note() {'
     'echo "[CLOSEOUT-RELEASE] STOP latest preflight is RECENT_BILLING_BLOCK"'
     'print_closeout_release_preflight_block_note "${LBatchId}"'
@@ -2091,7 +2092,7 @@ check_closeout_release_entrypoint_guard() {
     'SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 \'
     'SIMD_WIN_EVIDENCE_PREFLIGHT=0 run_win_evidence_via_gh "${LBatchId}" "${LRunId}"'
     'closeout-release)'
-    'echo "  closeout-release  Canonical release closeout entry (x86 frontier -> host-local closeout -> win preflight -> GH evidence -> freeze-status)"'
+    'echo "  closeout-release  Canonical release closeout entry (win preflight -> x86 frontier -> host-local closeout -> GH evidence -> freeze-status)"'
   )
   LBatRequired=(
     'if /I "%ACTION%"=="closeout-release" goto :closeout_release'
@@ -2105,7 +2106,7 @@ check_closeout_release_entrypoint_guard() {
   LChecklistRequired=(
     '`closeout-release` 是完整 release 收口的唯一官方入口：'
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152'
-    '内部固定顺序是 `impl-smoke-x86 -> closeout-host-local -> win-evidence-preflight -> win-evidence-via-gh -> freeze-status`。'
+    '内部固定顺序是 `win-evidence-preflight -> impl-smoke-x86 -> closeout-host-local -> win-evidence-via-gh -> freeze-status`。'
   )
   LHandoffRequired=(
     '`closeout-release` 已经是当前推荐的单一 release/closeout 入口。'
@@ -6718,28 +6719,32 @@ run_closeout_release() {
     echo "[CLOSEOUT-RELEASE] reuse workflow run id=${LRunId}"
   fi
 
-  echo "[CLOSEOUT-RELEASE] 1/5 x86 bounded frontier smoke"
+  if [[ -n "${LRunId}" ]]; then
+    echo "[CLOSEOUT-RELEASE] 1/5 Windows evidence preflight (skip: explicit run-id reuse)"
+  else
+    echo "[CLOSEOUT-RELEASE] 1/5 Windows evidence preflight"
+    if FAFAFA_BUILD_MODE="${LReleaseMode}" \
+      run_win_evidence_preflight
+    then
+      :
+    else
+      LPreflightRC=$?
+      if [[ "${LPreflightRC}" == "31" ]] && win_preflight_latest_is_recent_billing_block; then
+        print_closeout_release_preflight_block_note "${LBatchId}"
+      fi
+      return "${LPreflightRC}"
+    fi
+  fi
+
+  echo "[CLOSEOUT-RELEASE] 2/5 x86 bounded frontier smoke"
   FAFAFA_BUILD_MODE="${LReleaseMode}" \
   run_x86_impl_smoke || return $?
 
-  echo "[CLOSEOUT-RELEASE] 2/5 host-local closeout (QEMU arm64/riscv64, Windows evidence optional)"
+  echo "[CLOSEOUT-RELEASE] 3/5 host-local closeout (QEMU arm64/riscv64, Windows evidence optional)"
   FAFAFA_BUILD_MODE="${LReleaseMode}" \
   SIMD_QEMU_PLATFORMS="${SIMD_QEMU_PLATFORMS:-linux/arm64 linux/riscv64}" \
   SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 \
   run_closeout_host_local || return $?
-
-  echo "[CLOSEOUT-RELEASE] 3/5 Windows evidence preflight"
-  if FAFAFA_BUILD_MODE="${LReleaseMode}" \
-    run_win_evidence_preflight
-  then
-    :
-  else
-    LPreflightRC=$?
-    if [[ "${LPreflightRC}" == "31" ]] && win_preflight_latest_is_recent_billing_block; then
-      print_closeout_release_preflight_block_note "${LBatchId}"
-    fi
-    return "${LPreflightRC}"
-  fi
 
   echo "[CLOSEOUT-RELEASE] 4/5 Windows evidence via GH"
   FAFAFA_BUILD_MODE="${LReleaseMode}" \
@@ -7303,7 +7308,7 @@ case "${ACTION}" in
     echo "  gate/gate-strict PASS is not blanket release-grade approval for every experimental path."
     echo "  gate         Fast/base gate for routine SIMD changes"
     echo "  gate-strict  Release/closeout gate with perf, repeats, and evidence checks"
-    echo "  closeout-release  Canonical release closeout entry (x86 frontier -> host-local closeout -> win preflight -> GH evidence -> freeze-status)"
+    echo "  closeout-release  Canonical release closeout entry (win preflight -> x86 frontier -> host-local closeout -> GH evidence -> freeze-status)"
     echo "  sse2-structure-check  Structural guard for SSE2 register/include layout"
     echo "  sse2-contracts  Focused SSE2 moved-surface contract suite"
     echo "  impl-smoke-sse2  Targeted SSE2 structure + contract/backend/runtime/dataplane smoke"

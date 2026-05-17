@@ -136,7 +136,7 @@ bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152
 ```
 
-它固定把 `impl-smoke-x86 -> closeout-host-local -> win-evidence-preflight -> win-evidence-via-gh -> freeze-status` 串成一条 canonical 主线；只有在你明确要拆分诊断 Windows 手工路径或单独复验某一步时，才再退回下面这些低层 helper。
+它固定把 `win-evidence-preflight -> impl-smoke-x86 -> closeout-host-local -> win-evidence-via-gh -> freeze-status` 串成一条 canonical 主线；只有在你明确要拆分诊断 Windows 手工路径或单独复验某一步时，才再退回下面这些低层 helper。
 但当前 `HEAD` 还有一个明确前提条件：如果 latest `win-evidence-preflight` 仍是 `RECENT_BILLING_BLOCK`，就在 preflight 这一步停下，按 `code-green / release-evidence-blocked` 交接，不要把后面的 `win-evidence-via-gh` 当成现在一定能继续的无条件下一步。
 
 如果需要 Windows 证据闭环，优先主入口：

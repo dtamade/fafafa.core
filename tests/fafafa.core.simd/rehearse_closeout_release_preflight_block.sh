@@ -35,7 +35,7 @@ if [[ ! -s "${LFunctionFile}" ]]; then
   exit 1
 fi
 
-LOutput="$(
+LBlockedOutput="$(
   ROOT="${LStubRoot}" \
   SIMD_WIN_PREFLIGHT_JSON_FILE="${LStubRoot}/logs/win_preflight_latest.json" \
   CLOSEOUT_RELEASE_FUNCTION_FILE="${LFunctionFile}" \
@@ -93,6 +93,16 @@ if ! grep -F -- "bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-3cmd SI
   exit 1
 fi
 
+if grep -F -- "[TEST-STUB] x86" <<<"${LRunOutput}" >/dev/null; then
+  echo "[CLOSEOUT-RELEASE-PREFLIGHT-REHEARSAL] FAILED: x86 step should not run after preflight block"
+  exit 1
+fi
+
+if grep -F -- "[TEST-STUB] host-local" <<<"${LRunOutput}" >/dev/null; then
+  echo "[CLOSEOUT-RELEASE-PREFLIGHT-REHEARSAL] FAILED: host-local step should not run after preflight block"
+  exit 1
+fi
+
 if grep -F -- "SHOULD-NOT-RUN-GH" <<<"${LRunOutput}" >/dev/null; then
   echo "[CLOSEOUT-RELEASE-PREFLIGHT-REHEARSAL] FAILED: GH step should not run after preflight block"
   exit 1
@@ -105,5 +115,91 @@ fi
 EOF
 )"
 
-printf '%s\n' "${LOutput}"
+printf '%s\n' "${LBlockedOutput}"
+
+LRunIdBypassOutput="$(
+  ROOT="${LStubRoot}" \
+  SIMD_WIN_PREFLIGHT_JSON_FILE="${LStubRoot}/logs/win_preflight_latest.json" \
+  CLOSEOUT_RELEASE_FUNCTION_FILE="${LFunctionFile}" \
+  bash <<'EOF'
+set -euo pipefail
+
+source "${CLOSEOUT_RELEASE_FUNCTION_FILE}"
+
+run_x86_impl_smoke() {
+  echo "[TEST-STUB] x86"
+}
+
+run_closeout_host_local() {
+  echo "[TEST-STUB] host-local"
+}
+
+run_win_evidence_preflight() {
+  echo "SHOULD-NOT-RUN-PREFLIGHT"
+  return 31
+}
+
+run_win_evidence_via_gh() {
+  echo "[TEST-STUB] gh"
+}
+
+run_freeze_status() {
+  echo "[TEST-STUB] freeze"
+}
+
+set +e
+LRunOutput="$(run_closeout_release SIMD-REHEARSE-152 25967172435 2>&1)"
+LRunRC=$?
+set -e
+
+printf '%s\n' "${LRunOutput}"
+
+if [[ "${LRunRC}" != "0" ]]; then
+  echo "[CLOSEOUT-RELEASE-PREFLIGHT-REHEARSAL] FAILED: expected explicit run-id rc=0 but got ${LRunRC}"
+  exit 1
+fi
+
+if ! grep -F -- "[CLOSEOUT-RELEASE] reuse workflow run id=25967172435" <<<"${LRunOutput}" >/dev/null; then
+  echo "[CLOSEOUT-RELEASE-PREFLIGHT-REHEARSAL] FAILED: missing run-id reuse line"
+  exit 1
+fi
+
+if ! grep -F -- "[CLOSEOUT-RELEASE] 1/5 Windows evidence preflight (skip: explicit run-id reuse)" <<<"${LRunOutput}" >/dev/null; then
+  echo "[CLOSEOUT-RELEASE-PREFLIGHT-REHEARSAL] FAILED: missing preflight skip line"
+  exit 1
+fi
+
+if grep -F -- "SHOULD-NOT-RUN-PREFLIGHT" <<<"${LRunOutput}" >/dev/null; then
+  echo "[CLOSEOUT-RELEASE-PREFLIGHT-REHEARSAL] FAILED: explicit run-id should skip preflight helper"
+  exit 1
+fi
+
+if grep -F -- "[CLOSEOUT-RELEASE] STOP latest preflight is RECENT_BILLING_BLOCK" <<<"${LRunOutput}" >/dev/null; then
+  echo "[CLOSEOUT-RELEASE-PREFLIGHT-REHEARSAL] FAILED: explicit run-id should not print billing-block stop note"
+  exit 1
+fi
+
+if ! grep -F -- "[TEST-STUB] x86" <<<"${LRunOutput}" >/dev/null; then
+  echo "[CLOSEOUT-RELEASE-PREFLIGHT-REHEARSAL] FAILED: explicit run-id should continue into x86"
+  exit 1
+fi
+
+if ! grep -F -- "[TEST-STUB] host-local" <<<"${LRunOutput}" >/dev/null; then
+  echo "[CLOSEOUT-RELEASE-PREFLIGHT-REHEARSAL] FAILED: explicit run-id should continue into host-local"
+  exit 1
+fi
+
+if ! grep -F -- "[TEST-STUB] gh" <<<"${LRunOutput}" >/dev/null; then
+  echo "[CLOSEOUT-RELEASE-PREFLIGHT-REHEARSAL] FAILED: explicit run-id should continue into GH evidence"
+  exit 1
+fi
+
+if ! grep -F -- "[TEST-STUB] freeze" <<<"${LRunOutput}" >/dev/null; then
+  echo "[CLOSEOUT-RELEASE-PREFLIGHT-REHEARSAL] FAILED: explicit run-id should continue into freeze-status"
+  exit 1
+fi
+EOF
+)"
+
+printf '%s\n' "${LRunIdBypassOutput}"
 echo "[CLOSEOUT-RELEASE-PREFLIGHT-REHEARSAL] OK"

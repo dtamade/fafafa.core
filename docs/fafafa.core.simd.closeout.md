@@ -277,7 +277,7 @@ bash tests/fafafa.core.simd/BuildOrTest.sh experimental-intrinsics
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152
 ```
 
-它会按 `impl-smoke-x86 -> closeout-host-local -> win-evidence-preflight -> win-evidence-via-gh -> freeze-status` 的固定顺序收口；如果你只是做阶段性实现收口、手工 Windows 诊断，或只想单独复验某一段证据链，再退回下面这些拆分命令。
+它会按 `win-evidence-preflight -> impl-smoke-x86 -> closeout-host-local -> win-evidence-via-gh -> freeze-status` 的固定顺序收口；如果你只是做阶段性实现收口、手工 Windows 诊断，或只想单独复验某一段证据链，再退回下面这些拆分命令。
 
 如果目标是当前 Linux/macOS worktree 的 host-local strict closeout，优先直接跑：
 
