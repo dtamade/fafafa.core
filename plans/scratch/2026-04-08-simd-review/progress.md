@@ -10777,3 +10777,47 @@
 - 当前阶段结论：
   - `SSE2` 这条线还在继续暴露 Windows-only 的真实吞 label / 吞指令问题，不能把剩余 residual 当成纯文本债务
   - 当前下一簇自然前沿已经推进到 `2507`，可以继续切 `unpack` 邻近簇和剩余移位簇
+
+## 2026-05-18 SSE2 Unpack And Shift Zero-Case Hygiene
+
+- 在上一批修掉 `shuffle label / shift asm` 的真实 bug 之后，本轮继续沿 `2507..2922` 这一簇往下切，但先做了逐点复核，没有直接假设它还是行为问题。
+- 本轮复核的残点分成两组：
+  - `unpack`：
+    - `simd_unpacklo_epi8`
+    - `simd_unpackhi_epi8`
+    - `simd_unpacklo_epi16`
+    - `simd_unpackhi_epi16`
+    - `simd_unpacklo_epi32`
+    - `simd_unpackhi_epi32`
+    - `simd_unpacklo_epi64`
+    - `simd_unpackhi_epi64`
+  - `shift zero-case`：
+    - `simd_slli_epi64`
+    - `simd_srli_epi16`
+    - `simd_srli_epi32`
+    - `simd_srli_epi64`
+- 复核结论：
+  - 这 12 处都没有新的 Windows-only 吞指令或吞 label
+  - 问题都收敛为单行尾注损坏或 `zero-shift` 说明注释损坏
+  - 因而本批保持 pure hygiene，不改任何执行语义
+- 本批实际改动：
+  - 把 `unpack` 家族 8 处 Windows 分支尾注换成稳定 ASCII 注释
+  - 把 4 处 `shift zero-case` 条件跳转说明换成稳定 ASCII 注释
+  - 不修改汇编指令顺序，不动 label，不改 calling convention
+- fresh 验证已完成：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_comment_swallow.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `python3` 逐文件计数：
+    - `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 从 `residual_char_count=196` 降到 `174`
+    - `residuals_up_to_2922=[]`
+    - `first_residual_lines=[3298, 3324, 3350, 3376, 3401, 3424, 3447, 3467, 3475, 3488, 3514, 3541, 3567, 3591, 3606, 3626, 3627, 3628, 3630, 3631]`
+- fresh 结果：
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - `intrinsics.experimental check` default / experimental 双模态通过
+  - `x86 SSE2 backend smoke` 通过
+  - 主 `simd` release `check` 通过
+- 当前阶段结论：
+  - `2507..2922` 这一整簇已经可以判定为 hygiene-only，整体退出 residual 清单
+  - `SSE2` 的当前下一簇入口已经推进到 `3298`，后续可以继续审 `shift/store tail` 邻近簇

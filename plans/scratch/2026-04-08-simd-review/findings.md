@@ -8015,3 +8015,32 @@
 - 因而当前继续方向也更清晰了：
   - 后续仍要优先看 Windows-only `unpack` / `shift` 邻近簇
   - 继续先判定有没有“吞 label / 吞 asm”，再决定是不是纯 hygiene
+
+## 2026-05-18 SSE2 2507..2922 Returned To Hygiene-Only
+
+- 在上一批已经确认 `shuffle / shift` 区里混有真实 Windows-only bug 之后，`2507..2922` 这簇同样不能直接当成“只是乱码”处理。
+- fresh 逐点复核后确认：
+  - `unpacklo/hi epi8/16/32/64`
+  - `slli_epi64`
+  - `srli_epi16/32/64`
+  这批 residual 都没有新的被注释吞掉的 asm 指令，也没有新的 label 被吞进尾注。
+- 这条判断很重要，因为它说明当前推进节奏已经稳定：
+  - 先用源码审查排除真正的 Windows-only 行为洞
+  - 再把剩余点按 bounded hygiene 收掉
+  - 不会因为上一批抓到真 bug，就把后面每一簇都误判成行为问题
+- 这批的正确动作因此就是最小化收口：
+  - 只替换损坏说明注释
+  - 不改汇编单行结构
+  - 不改指令顺序
+  - 不再额外扩 checker
+- 收口后的 live 结果继续证明这一簇已经出队：
+  - `residual_char_count: 196 -> 174`
+  - `residuals_up_to_2922=[]`
+  - `first residual line = 3298`
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - `intrinsics.experimental` 双模态 `check` 通过
+  - 主 `Release check` 通过
+- 因而当前最高价值的继续方向也再次收敛了：
+  - 不回头重扫 `2507..2922`
+  - 直接去看 `3298+` 的 `shift/store tail` 邻近簇
+  - 继续维持“先判真 bug，再做 bounded hygiene”的节奏

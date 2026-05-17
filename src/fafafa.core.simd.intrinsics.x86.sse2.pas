@@ -2504,7 +2504,7 @@ function simd_unpacklo_epi8(constref a, b: TM128): TM128; {$IFDEF FPC}assembler;
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; punpcklbw xmm0, xmm1  // �?字节解包
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; punpcklbw xmm0, xmm1  // Interleave the low byte lanes.
   {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; punpcklbw xmm0, xmm1
   {$ENDIF}
@@ -2526,7 +2526,7 @@ function simd_unpackhi_epi8(constref a, b: TM128): TM128; {$IFDEF FPC}assembler;
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; punpckhbw xmm0, xmm1  // �?字节解包
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; punpckhbw xmm0, xmm1  // Interleave the high byte lanes.
   {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; punpckhbw xmm0, xmm1
   {$ENDIF}
@@ -2548,7 +2548,7 @@ function simd_unpacklo_epi16(constref a, b: TM128): TM128; {$IFDEF FPC}assembler
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; punpcklwd xmm0, xmm1  // �?�?6位解�?
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; punpcklwd xmm0, xmm1  // Interleave the low 16-bit lanes.
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; punpcklwd xmm0, xmm1
   {$ENDIF}
@@ -2570,7 +2570,7 @@ function simd_unpackhi_epi16(constref a, b: TM128): TM128; {$IFDEF FPC}assembler
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; punpckhwd xmm0, xmm1  // �?�?6位解�?
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; punpckhwd xmm0, xmm1  // Interleave the high 16-bit lanes.
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; punpckhwd xmm0, xmm1
   {$ENDIF}
@@ -2592,7 +2592,7 @@ function simd_unpacklo_epi32(constref a, b: TM128): TM128; {$IFDEF FPC}assembler
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; punpckldq xmm0, xmm1  // �?�?2位解�?
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; punpckldq xmm0, xmm1  // Interleave the low 32-bit lanes.
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; punpckldq xmm0, xmm1
   {$ENDIF}
@@ -2614,7 +2614,7 @@ function simd_unpackhi_epi32(constref a, b: TM128): TM128; {$IFDEF FPC}assembler
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; punpckhdq xmm0, xmm1  // �?�?2位解�?
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; punpckhdq xmm0, xmm1  // Interleave the high 32-bit lanes.
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; punpckhdq xmm0, xmm1
   {$ENDIF}
@@ -2636,7 +2636,7 @@ function simd_unpacklo_epi64(constref a, b: TM128): TM128; {$IFDEF FPC}assembler
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; punpcklqdq xmm0, xmm1  // �?4位解�?
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; punpcklqdq xmm0, xmm1  // Interleave the low 64-bit lanes.
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; punpcklqdq xmm0, xmm1
   {$ENDIF}
@@ -2658,7 +2658,7 @@ function simd_unpackhi_epi64(constref a, b: TM128): TM128; {$IFDEF FPC}assembler
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; punpckhqdq xmm0, xmm1  // �?4位解�?
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; punpckhqdq xmm0, xmm1  // Interleave the high 64-bit lanes.
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; punpckhqdq xmm0, xmm1
   {$ENDIF}
@@ -2808,7 +2808,7 @@ asm
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]
     cmp dl, 64; jae @zero // 如果移位 >= 64，结果为 0
-    cmp dl, 0; je @done //  如果移位 = 0，不�?
+    cmp dl, 0; je @done // If the shift is zero, keep the value unchanged.
     movd xmm1, edx; psllq xmm0, xmm1; jmp @done
 @zero: pxor xmm0, xmm0
 @done:
@@ -2845,7 +2845,7 @@ asm
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]
     cmp dl, 16; jae @zero // 如果移位 >= 16，结果为 0
-    cmp dl, 0; je @done //  如果移位 = 0，不�?
+    cmp dl, 0; je @done // If the shift is zero, keep the value unchanged.
     movd xmm1, edx; psrlw xmm0, xmm1; jmp @done
 @zero: pxor xmm0, xmm0
 @done:
@@ -2882,7 +2882,7 @@ asm
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]
     cmp dl, 32; jae @zero // 如果移位 >= 32，结果为 0
-    cmp dl, 0; je @done //  如果移位 = 0，不�?
+    cmp dl, 0; je @done // If the shift is zero, keep the value unchanged.
     movd xmm1, edx; psrld xmm0, xmm1; jmp @done
 @zero: pxor xmm0, xmm0
 @done:
@@ -2919,7 +2919,7 @@ asm
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]
     cmp dl, 64; jae @zero // 如果移位 >= 64，结果为 0
-    cmp dl, 0; je @done //  如果移位 = 0，不�?
+    cmp dl, 0; je @done // If the shift is zero, keep the value unchanged.
     movd xmm1, edx; psrlq xmm0, xmm1; jmp @done
 @zero: pxor xmm0, xmm0
 @done:
