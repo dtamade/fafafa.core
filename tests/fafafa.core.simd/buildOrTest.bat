@@ -142,6 +142,7 @@ echo   gate/gate-strict PASS is not blanket release-grade approval for every exp
 echo   gate         Fast/base gate for routine SIMD changes
 echo   gate-strict  Release/closeout gate with perf, repeats, and evidence checks
 echo   closeout-release  Canonical release closeout entry ^(delegates to shell runner^)
+echo   cpuinfo-lazy-repeat  Repeat CPUInfo lazy-path verification under release mode
 echo   sse2-structure-check  Structural guard for SSE2 register/include layout
 echo   sse2-contracts  Focused SSE2 moved-surface contract suite
 echo   impl-smoke-sse2  Targeted SSE2 structure + contract/backend/runtime/dataplane smoke
@@ -150,9 +151,24 @@ echo   impl-smoke-nonx86  Lightweight daily non-x86 implementation smoke
 echo   impl-audit-nonx86  Aggregate implementation-side non-x86 audit
 echo   helper-semantics  Run the non-x86 helper semantics Python audit only
 echo   key-slot-audit  Audit key non-x86 wide slots against backend-owned/base-scalar expectations
+echo   implementation-matrix-sync  Fail-close active implementation-matrix drift
 echo   riscvv-abi-shape  Run the RISCVV ABI-shape Python audit only
 echo   source-reachability  Run the SIMD source reachability Python audit only
+echo   interface-completeness  Check public facade/dispatch/backend implementation completeness
+echo   dispatch-read-scope  Fail-close GetDispatchTable direct-read scope drift
+echo   dataplane-consumer-scope  Fail-close dataplane consumer scope drift
+echo   direct-dispatch-scope  Fail-close GetDirectDispatchTable scope drift
+echo   metadata-query-scope  Fail-close metadata helper scope drift
+echo   contract-signature  Check dispatch contract signature drift
+echo   publicabi-signature  Check public ABI signature drift
+echo   publicabi-smoke  Run the standalone public ABI smoke
+echo   adapter-sync-pascal  Build/run the backend adapter Pascal smoke
+echo   adapter-sync  Audit backend adapter spec/generated sync
 echo   runner-parity  Fast shell/batch runner parity selfcheck ^(delegates to shell runner^)
+echo   coverage  Check SIMD intrinsics direct-test coverage
+echo   wiring-sync  Audit non-x86 wiring consistency
+echo   experimental-intrinsics  Check experimental intrinsics isolation
+echo   experimental-intrinsics-tests  Run the experimental intrinsics test suite
 echo   closeout-host-local  Host-local strict closeout ^(non-x86 native evidence fail-close, windows evidence optional^)
 echo   gate-summary-selfcheck  Rehearse gate-summary/freeze-status selfcheck ^(delegates to shell runner^)
 echo   evidence-linux  Collect Linux-side release evidence ^(delegates to shell runner^)

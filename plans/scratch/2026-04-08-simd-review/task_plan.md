@@ -4380,6 +4380,20 @@
 | 2. 只补 canonical Windows closeout help 入口 | completed | `tests/fafafa.core.simd/buildOrTest.bat` 已新增 `win-evidence-preflight`、`verify-win-evidence`、`finalize-win-evidence`、`win-closeout-3cmd`、`win-closeout-finalize` 5 条 help 描述；这批不扩到其他 action surface |
 | 3. 最小验证并准备提交 | completed | `git diff --check`、help 文案 `rg`、以及针对这 5 条动作的轻量 presence 检查已通过；当前只收 help completeness，不改变行为 |
 
+## 2026-05-17 Daily Audit Help Surface Guard
+
+### Goal
+
+继续沿 batch help surface 收一条更系统的 repo 内 gap：`buildOrTest.bat` 的日常审查/contract/coverage 动作虽然都已公开在 usage/action 表里，但 help block 里还缺一整簇高频入口；而现有 `runner-parity` 也没有守住这组 help 文案，后续仍可能静默回退。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 锁定当前最值当的 help gap cluster | completed | 已用轻量脚本确认 `cpuinfo-lazy-repeat`、`implementation-matrix-sync`、`interface-completeness`、四条 scope/signature/publicabi、`adapter-sync*`、`coverage`、`wiring-sync`、`experimental-intrinsics*` 共 16 条高频动作仍缺 help；相比继续补整张 action 表，这簇最接近日常审查主线 |
+| 2. 补齐 batch help 并把文案接进 parity guard | completed | `tests/fafafa.core.simd/buildOrTest.bat` 已新增这 16 条 help 描述；`tests/fafafa.core.simd/BuildOrTest.sh` 的 `check_windows_runner_parity()` required pattern 也已同步纳入这组文案，避免以后只改 usage/action 表而 help surface 静默回退 |
+| 3. Release 验证并准备提交 | completed | `bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity` 与 Release `check` 都已 fresh 通过；这批只收可见性与 guard，不改变 runner 行为 |
+
 ## 2026-05-17 SSE2 Transitional Non-x86 Fail-Close
 
 ### Goal

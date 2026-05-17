@@ -6758,6 +6758,41 @@
   - 小脚本确认这 5 个 action 名字都已进入 `echo   ...` help surface
 - 这批的价值在于把 batch help 从“知道别名、不知道主线”收正成“alias 和 canonical Windows closeout 入口都说清楚”。
 
+## 2026-05-17 Daily Audit Help Surface Guard
+
+- 在补完 Windows closeout 主线 help 之后，剩下最像“真实日常使用痛点”的缺口，不是又一组 Windows 入口，而是 batch help 对日常审查主线的可见性仍明显不足：
+  - action 表里已经有一整簇高频动作
+  - 但 help block 仍缺：
+    - `cpuinfo-lazy-repeat`
+    - `implementation-matrix-sync`
+    - `interface-completeness`
+    - `dispatch-read-scope`
+    - `dataplane-consumer-scope`
+    - `direct-dispatch-scope`
+    - `metadata-query-scope`
+    - `contract-signature`
+    - `publicabi-signature`
+    - `publicabi-smoke`
+    - `adapter-sync-pascal`
+    - `adapter-sync`
+    - `coverage`
+    - `wiring-sync`
+    - `experimental-intrinsics`
+    - `experimental-intrinsics-tests`
+- 这批之所以值得单独收，不只是“help 少几行”，而是因为它正好落在当前 SIMD 日常审查主链上：
+  - `implementation-matrix-sync`、四条 `scope/signature`、`adapter-sync*`、`coverage`、`wiring-sync` 都是近几轮持续收口后的高频证据入口
+  - 它们已经影响真实恢复点和日常审查节奏，不该继续只躲在 usage/action 表里
+- 单补 help 还不够，真正的 repo 内问题是“help 回退没有 guard”：
+  - 现有 `check_windows_runner_parity()` 会守 action 表、usage、若干 help 文案
+  - 但之前并没有把这 16 条日常审查动作的 help 文案纳入 required pattern
+  - 结果就是以后即便有人把 help 又删掉，`runner-parity` 也未必第一时间报红
+- 因而这批最小正确修法是双收口：
+  - batch help 增加这 16 条动作说明
+  - `BuildOrTest.sh` 里的 parity required pattern 同步守住这组 help surface
+- fresh `runner-parity` + Release `check` 通过之后，这条线的结论就很明确了：
+  - 现在不是只有 action 表“存在”这些动作
+  - 而是 help surface 也被主检查链真实保护起来了
+
 ## 2026-05-17 Intrinsics Coverage Evidence Normalization
 
 - 当前 `intrinsics coverage` 的检查逻辑本身已经能给出正确信号，但在 runner 层仍有一个真实卫生缺口：

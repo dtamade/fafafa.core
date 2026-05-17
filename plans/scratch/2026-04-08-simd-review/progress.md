@@ -8406,3 +8406,42 @@
 - 当前阶段结论：
   - 这批补的是 batch help completeness，而不是 runner 行为或 SIMD 实现
   - 现在 Windows closeout 这条主线在 batch help 里终于不再被 alias 抢走可见性
+
+## 2026-05-17 Daily Audit Help Surface Guard
+
+- 继续按“小闭环”推进，这次把目标从 Windows closeout 帮助文案收回到更高频的日常审查主线。
+- 先用一个很窄的小脚本确认当前 help 缺口到底值不值得单独做一批：
+  - `cpuinfo-lazy-repeat`
+  - `implementation-matrix-sync`
+  - `interface-completeness`
+  - `dispatch-read-scope`
+  - `dataplane-consumer-scope`
+  - `direct-dispatch-scope`
+  - `metadata-query-scope`
+  - `contract-signature`
+  - `publicabi-signature`
+  - `publicabi-smoke`
+  - `adapter-sync-pascal`
+  - `adapter-sync`
+  - `coverage`
+  - `wiring-sync`
+  - `experimental-intrinsics`
+  - `experimental-intrinsics-tests`
+- 结果说明这不是“挑刺式文档修补”：
+  - 这 16 条都已经在 usage/action 表里公开
+  - 但 batch help block 还没把它们讲出来
+  - 更关键的是，现有 `runner-parity` 也没守住这组 help 文案
+- 已落地的收口：
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+    - 新增上述 16 条日常审查/contract/coverage help 描述
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - `check_windows_runner_parity()` required pattern 同步纳入这组 help 文案
+- fresh 验证已完成：
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `runner-parity` 继续 `[CHECK] OK`
+  - Release `check` fresh 通过，关键 `helper/key-slot/implementation-matrix/scope/signature/wiring` 等主链也继续为绿
+- 当前阶段结论：
+  - 这批收掉的不是实现 bug，而是“日常审查主线已经成形，但 batch help 与 parity guard 还没同步跟上”的 repo 内卫生缺口
+  - 现在这 16 条高频动作不只存在于 action 表里，也开始被帮助文案和主检查链一起守住
