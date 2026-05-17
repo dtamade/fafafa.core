@@ -239,6 +239,30 @@
 
 ## 2026-05-17 Active Closeout Docs Preflight Caveat Sync
 
+## 2026-05-17 SSE Experimental Intrinsics Comment-Hygiene Closeout
+
+- 在 `intrinsics umbrella` 收口后，没有立刻跳去 `mmx` 或 `intrinsics.x86.sse2` 的大残点，而是先把当前工作树里唯一未收口的
+  `src/fafafa.core.simd.intrinsics.sse.pas`
+  彻底收口。
+- 这批保持严格 bounded：
+  - 只把文件头、分节说明和逐函数说明里的 `U+FFFD` 损坏注释改成稳定 ASCII 注释
+  - 不改任何函数签名
+  - 不改任何实现逻辑
+- fresh 验证已完成：
+  - `python3` 逐文件计数：`src/fafafa.core.simd.intrinsics.sse.pas = 0`
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_comment_swallow.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - `intrinsics.experimental` default / experimental 双模态 `check` 全绿
+  - 其中 `SSE backend smoke` 明确通过，说明这次改动文件已被真实编译覆盖
+  - 主 `simd` release `check` 全绿
+- 当前阶段结论：
+  - 这批确认只是 `SSE experimental intrinsics` 的源码文本卫生收口，不涉及行为修复
+  - `sse.pas` 的 `U+FFFD` 已清零，且没有引入新的注释吞源码或编译回归
+
 - 在 code batch 提交并推送后，继续按“只查 closeout 入口误导点”的边界做了一轮 active docs 审查。
 - 新抓到的 residual 不是实现层，而是部分 active 文档仍把：
   - `closeout-release`

@@ -278,6 +278,22 @@
   - `simd_completeness_matrix.md` 还保留一句未加限定的“Windows 实机证据也已闭环”
 - 这些句子单看都不算假，但在当前 `HEAD` 的 `freeze-status=ready=False` 背景下，会把“历史入口存在/历史归档已闭环”和“当前就能继续收口”混写。
 - 最小修法不是删入口，而是把前提写死：
+
+## 2026-05-17 SSE Experimental Intrinsics Still Had Plain Text Corruption Beyond Swallow Checker Coverage
+
+- `src/fafafa.core.simd.intrinsics.sse.pas` 在这轮 residual 扫描里仍残留一批 `U+FFFD`，但它们都落在说明性注释里，不是新的语义缺口。
+- 这再次证明了一个边界：
+  - `check_intrinsics_comment_swallow.py` 通过，只能说明“没有可疑的注释吞源码模式”
+  - 不能说明“源码文本已经完全干净”
+- `sse.pas` 这批最正确的收口方式不是扩新 checker，而是：
+  - 直接修掉损坏注释
+  - 再用 `U+FFFD` 计数 + `intrinsics.experimental` 编译链来证明文件既干净又被真实覆盖
+- fresh 结果已经给出两层证明：
+  - `src/fafafa.core.simd.intrinsics.sse.pas = 0`
+  - `intrinsics.experimental` 的 `SSE backend smoke` 通过
+- 因而这批结论非常明确：
+  - 它是 experimental `SSE` 源码卫生债，不是行为 bug
+  - 但它仍值得优先收掉，因为这类损坏会直接拖慢 grep / diff / 快速审查效率，并掩盖更真实的 API 或实现问题
   - 先过 `win-evidence-preflight`
   - 若 latest 结果仍是 `RECENT_BILLING_BLOCK`，就在 preflight 处 fail-close
   - 历史 “Windows 已闭环” 只能按 archive fact 理解，不是当前 readiness signal

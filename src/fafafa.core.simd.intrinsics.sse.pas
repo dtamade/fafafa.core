@@ -5,16 +5,16 @@ unit fafafa.core.simd.intrinsics.sse;
 
 {
   === fafafa.core.simd.intrinsics.sse ===
-  SSE (Streaming SIMD Extensions) 指令集支�?  
-  SSE �?Intel �?1999 年引入的 128-bit SIMD 指令�?  主要用于单精度浮点运算，也包含一些整数操�?  
-  特性：
-  - 128-bit 向量寄存�?(xmm0-xmm7/xmm15)
-  - 单精度浮点运�?(4x32-bit)
+  Placeholder SSE intrinsics surface for isolated experimental bring-up.
+  SSE is Intel's 1999 128-bit SIMD extension, focused on single-precision math.
+  Highlights:
+  - 128-bit vector registers (xmm0-xmm7/xmm15)
+  - single-precision floating-point operations (4 x 32-bit)
   - 预取指令
   - 流式存储
   - 缓存控制
-  
-  兼容性：所有现�?x86/x64 处理器都支持
+
+  Compatibility: supported on modern x86/x64 processors.
 }
 
 interface
@@ -22,7 +22,7 @@ interface
 uses
   fafafa.core.simd.intrinsics.base;
 
-// === SSE 单精度浮点函�?===
+// === SSE single-precision floating-point primitives ===
 // Load/Store
 function sse_load_ps(const Ptr: Pointer): TM128;
 function sse_loadu_ps(const Ptr: Pointer): TM128;
@@ -131,7 +131,7 @@ implementation
 uses
   SysUtils;
 
-// 辅助函数：检查浮点数是否�?NaN
+// Helper: check whether a floating-point value is NaN.
 function IsNaN(Value: Single): Boolean;
 var
   IntValue: LongWord absolute Value;
@@ -171,7 +171,7 @@ begin
 {$ENDIF}
 end;
 
-// 功能：从内存加载4个未对齐的单精度浮点�
+// Load 4 unaligned single-precision values from memory.
 function sse_loadu_ps(const Ptr: Pointer): TM128;
 var
   LPtr: Pointer;
@@ -231,7 +231,7 @@ begin
 {$ENDIF}
 end;
 
-// 功能：加载单个单精度浮点数并复制到所�?个位�
+// Load one single-precision value and broadcast it to all lanes.
 function sse_load1_ps(const Ptr: Pointer): TM128;
 var
   LPtr: Pointer;
@@ -268,7 +268,7 @@ begin
 {$ENDIF}
 end;
 
-// 功能：加�?4位整数到�?4位，�?4位清�
+// Load the low 64 bits and clear the high 64-bit half.
 function sse_movq(const Ptr: Pointer): TM128;
 var
   LPtr: Pointer;
@@ -328,7 +328,7 @@ begin
 {$ENDIF}
 end;
 
-// 功能：存�?个对齐的单精度浮点数到内�
+// Store 4 aligned single-precision values to memory.
 procedure sse_store_ps(var Dest; constref Src: TM128);
 var
   LDest: Pointer;
@@ -357,7 +357,7 @@ begin
 {$ENDIF}
 end;
 
-// 功能：存�?个未对齐的单精度浮点数到内存
+// Store 4 unaligned single-precision values to memory.
 procedure sse_storeu_ps(var Dest; constref Src: TM128);
 var
   LDest: Pointer;
@@ -386,7 +386,7 @@ begin
 {$ENDIF}
 end;
 
-// 功能：存储最低位单精度浮点数到内�
+// Store the lowest single-precision lane to memory.
 procedure sse_store_ss(var Dest; constref Src: TM128);
 var
   LDest: Pointer;
@@ -415,7 +415,7 @@ begin
 {$ENDIF}
 end;
 
-// 功能：存储最低位单精度浮点数到内存的4个位�
+// Broadcast the lowest single-precision lane into four stored lanes.
 procedure sse_store1_ps(var Dest; constref Src: TM128);
 var
   LDestPtr: Pointer;
@@ -462,7 +462,7 @@ asm
   movups [Result], xmm0
 end;
 
-// 功能：将单个值复制到所�?个位�
+// Broadcast one value to all lanes.
 function sse_set1_ps(Value: Single): TM128; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -635,7 +635,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能�?个单精度浮点数并行除�
+// Divide four single-precision lanes in parallel.
 function sse_div_ps(constref a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -679,7 +679,7 @@ end;
 
 // === SSE 数学函数操作 (内联汇编实现) ===
 
-// 功能�?个单精度浮点数并行平方根
+// Square-root four single-precision lanes in parallel.
 function sse_sqrt_ps(constref a: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -697,7 +697,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：最低位单精度浮点数平方根，其他位保持不�
+// Square-root the lowest single-precision lane and keep the rest unchanged.
 function sse_sqrt_ss(constref a: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -715,7 +715,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能�?个单精度浮点数并行平方根倒数近似
+// Reciprocal square-root approximation across four lanes.
 function sse_rsqrt_ps(constref a: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -751,7 +751,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能�?个单精度浮点数并行倒数近似
+// Reciprocal approximation across four lanes.
 function sse_rcp_ps(constref a: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -787,9 +787,9 @@ asm
 {$ENDIF}
 end;
 
-// === SSE 最值操�?(内联汇编实现) ===
+// === SSE min/max operations (inline-assembly path) ===
 
-// 功能�?个单精度浮点数并行最小�
+// Parallel minimum across four single-precision lanes.
 function sse_min_ps(constref a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -810,7 +810,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：最低位单精度浮点数最小值，其他位保持不�
+// Minimum on the lowest single-precision lane and keep the rest unchanged.
 function sse_min_ss(constref a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -831,7 +831,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能�?个单精度浮点数并行最大�
+// Parallel maximum across four single-precision lanes.
 function sse_max_ps(constref a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -852,7 +852,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：最低位单精度浮点数最大值，其他位保持不�
+// Maximum on the lowest single-precision lane and keep the rest unchanged.
 function sse_max_ss(constref a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -875,7 +875,7 @@ end;
 
 // === SSE 逻辑运算操作 (内联汇编实现) ===
 
-// 功能�?28位按位与
+// Bitwise AND across 128 bits.
 function sse_and_ps(constref a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -896,7 +896,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能�?28位按位与�?(NOT a AND b)
+// Bitwise AND NOT across 128 bits (~a & b).
 function sse_andnot_ps(constref a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -917,7 +917,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能�?28位按位或
+// Bitwise OR across 128 bits.
 function sse_or_ps(constref a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -938,7 +938,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能�?28位按位异�
+// Bitwise XOR across 128 bits.
 function sse_xor_ps(constref a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -961,7 +961,7 @@ end;
 
 // === SSE 比较操作 (内联汇编实现) ===
 
-// 功能�?个单精度浮点数并行相等比�
+// Parallel equality compare across four single-precision lanes.
 function sse_cmpeq_ps(constref a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1003,7 +1003,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能�?个单精度浮点数并行小于比�
+// Parallel less-than compare across four single-precision lanes.
 function sse_cmplt_ps(constref a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1045,7 +1045,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能�?个单精度浮点数并行小于等于比�
+// Parallel less-than-or-equal compare across four single-precision lanes.
 function sse_cmple_ps(constref a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1087,7 +1087,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能�?个单精度浮点数并行大于比�
+// Parallel greater-than compare across four single-precision lanes.
 function sse_cmpgt_ps(constref a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1129,7 +1129,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能�?个单精度浮点数并行大于等于比�
+// Parallel greater-than-or-equal compare across four single-precision lanes.
 function sse_cmpge_ps(constref a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1171,7 +1171,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能�?个单精度浮点数并行不等于比较
+// Parallel not-equal compare across four single-precision lanes.
 function sse_cmpneq_ps(constref a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1192,7 +1192,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：最低位单精度浮点数不等于比较，其他位保持不�
+// Not-equal compare on the lowest single-precision lane and keep the rest unchanged.
 function sse_cmpneq_ss(constref a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1215,7 +1215,7 @@ end;
 
 // === SSE Shuffle/Unpack 操作 (内联汇编实现) ===
 
-// 功能：根据立即数重新排列4个单精度浮点�
+// Shuffle four single-precision lanes using the immediate control byte.
 function sse_shuffle_ps(constref a, b: TM128; imm8: Byte): TM128;
 begin
   Result.m128_f32[0] := a.m128_f32[imm8 and $03];
@@ -1224,7 +1224,7 @@ begin
   Result.m128_f32[3] := b.m128_f32[(imm8 shr 6) and $03];
 end;
 
-// 功能：解包高位单精度浮点�
+// Unpack high single-precision lanes.
 function sse_unpackhi_ps(constref a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1245,7 +1245,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：解包低位单精度浮点�
+// Unpack low single-precision lanes.
 function sse_unpacklo_ps(constref a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1268,7 +1268,7 @@ end;
 
 // === SSE 数据移动操作 (内联汇编实现) ===
 
-// 功能：移动最低位单精度浮点数，其他位保持a的�
+// Move the lowest single-precision lane and keep the remaining lanes from a.
 function sse_move_ss(constref a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1563,7 +1563,7 @@ begin
   Result := sse_unpacklo_ps(a, b);
 end;
 
-// 功能：移�?个对齐的单精度浮点数
+// Move four aligned single-precision values.
 function sse_movaps(constref a: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1579,7 +1579,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：移�?个未对齐的单精度浮点�
+// Move four unaligned single-precision values.
 function sse_movups(constref a: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1595,7 +1595,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：移动单个单精度浮点数，其他位清�
+// Move one single-precision value and clear the remaining lanes.
 function sse_movss(constref a: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1626,7 +1626,7 @@ begin
   Result := sse_movelh_ps(a, b);
 end;
 
-// 功能：从32位整数创�?28位向量，其他位清�
+// Create a 128-bit vector from a 32-bit integer and clear the remaining lanes.
 function sse_movd(Value: LongInt): TM128; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1642,7 +1642,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：提�?28位向量的�?2位整�
+// Extract the low 32-bit integer from a 128-bit vector.
 function sse_movd_toint(constref a: TM128): LongInt; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
