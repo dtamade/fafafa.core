@@ -111,6 +111,7 @@ FREEZE_STATUS_SCRIPT="${ROOT}/evaluate_simd_freeze_status.py"
 WIN_CLOSEOUT_FINALIZE_SCRIPT="${ROOT}/run_windows_b07_closeout_finalize.sh"
 FREEZE_REHEARSAL_SCRIPT="${ROOT}/rehearse_freeze_status.sh"
 WIN_EVIDENCE_PREFLIGHT_SCRIPT="${ROOT}/preflight_windows_b07_evidence_gh.sh"
+HISTORICAL_CLOSEOUT_NOTES_CHECK_SCRIPT="${ROOT}/check_historical_closeout_current_head_notes.py"
 PUBLICABI_RUNNER_SCRIPT="${ROOT}/../fafafa.core.simd.publicabi/BuildOrTest.sh"
 WINDOWS_CPUINFO_X86_BATCH_SUCCESS_CRITERIA_SMOKE_SCRIPT="${REPO_ROOT}/tests/test_windows_simd_cpuinfo_x86_batch_build_success_criteria.sh"
 
@@ -6826,8 +6827,30 @@ PY_JSON_CHECK
     return 1
   fi
 
+  if ! run_historical_closeout_notes_check >/dev/null; then
+    echo "[GATE-SUMMARY-SELFCHECK] FAILED: historical-closeout-note-check"
+    rm -f "${LTmpJson}"
+    return 1
+  fi
+
   rm -f "${LTmpJson}"
   echo "[GATE-SUMMARY-SELFCHECK] OK"
+}
+
+run_historical_closeout_notes_check() {
+  local LScript
+
+  LScript="${HISTORICAL_CLOSEOUT_NOTES_CHECK_SCRIPT:-${ROOT}/check_historical_closeout_current_head_notes.py}"
+  if [[ ! -f "${LScript}" ]]; then
+    echo "[HISTORICAL-CLOSEOUT-NOTE-CHECK] Missing script: ${LScript}"
+    return 2
+  fi
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "[HISTORICAL-CLOSEOUT-NOTE-CHECK] Missing python3 runtime"
+    return 2
+  fi
+
+  python3 "${LScript}" "$@"
 }
 
 run_windows_closeout_3cmd_rehearsal() {
