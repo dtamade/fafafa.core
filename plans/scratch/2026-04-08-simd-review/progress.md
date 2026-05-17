@@ -9524,3 +9524,47 @@
 - 当前阶段结论：
   - current Windows closeout summary 现在已经从“低信号 FAIL 摘要”提升成“可直接交接的失败边界摘要”
   - 这条 Windows closeout 证据链在 repo 内的 operator-facing 文档 / helper / guard / summary 四层口径现在已经基本统一
+
+## 2026-05-17 Windows Closeout Snippet Failure-Boundary Sync
+
+- 在把 `windows_b07_closeout_summary.md` 升级成高信号摘要后，我又继续往下看了一层 operator surface：
+  - `win-closeout-snippets` / `apply_windows_b07_closeout_updates.sh`
+  - 之前在 FAIL 状态下仍只会输出“待补齐 / FAIL / BLOCKED”这种泛化片段
+  - 没有把 summary 里已经存在的 `Root Cause Hint / Recommended Action` 继续带出来
+- 这会留下一个明显的不对称：
+  - 直接看 summary 的人能看到 `TOOLCHAIN BLOCK`
+  - 但拿 snippets 去汇报/交接的人，仍然只会得到低信号的“Windows 证据未通过”
+- 已落地的最小修法：
+  - `tests/fafafa.core.simd/apply_windows_b07_closeout_updates.sh`
+    - 现在会从 summary 里提取：
+      - `Root Cause Hint`
+      - `Recommended Action`
+    - 当 verifier 不是 PASS 时：
+      - roadmap snippet 新增：
+        - `当前失败边界`
+        - `建议动作`
+      - matrix snippet 新增：
+        - `当前失败边界`
+        - `建议动作`
+      - progress snippet 新增：
+        - `Failure Boundary`
+        - `Recommended Action`
+  - `tests/fafafa.core.simd/rehearse_windows_closeout_summary.sh`
+    - 在已有 summary rehearsal 的基础上，继续调用 snippet script
+    - 强制要求 snippets 里也必须带出：
+      - `当前失败边界：[BUILD] TOOLCHAIN BLOCK: ...`
+      - `建议动作：Provide a real Windows runner with native Windows lazbuild.exe...`
+- 已验证：
+  - `bash -n tests/fafafa.core.simd/apply_windows_b07_closeout_updates.sh`
+  - `bash -n tests/fafafa.core.simd/rehearse_windows_closeout_summary.sh`
+  - `bash tests/fafafa.core.simd/rehearse_windows_closeout_summary.sh`
+    - `[WIN-CLOSEOUT-SUMMARY-REHEARSAL] OK`
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-snippets`
+    - 当前 real snippet 已直接带出：
+      - `当前失败边界：[BUILD] TOOLCHAIN BLOCK: cmd.exe cannot resolve LAZBUILD command "lazbuild"`
+      - `建议动作：Provide a real Windows runner with native Windows lazbuild.exe...`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate-summary-selfcheck`
+    - `[GATE-SUMMARY-SELFCHECK] OK`
+- 当前阶段结论：
+  - 现在不止 `freeze-status` 和 summary，连 closeout snippets 也已经能把当前失败边界直接说清楚
+  - 这条 Windows closeout operator surface 在 repo 内已经基本形成了同一套高信号失败表达

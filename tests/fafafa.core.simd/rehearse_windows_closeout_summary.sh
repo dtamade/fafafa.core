@@ -3,9 +3,15 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 FINALIZE_SCRIPT="${ROOT}/finalize_windows_b07_closeout.sh"
+SNIPPET_SCRIPT="${ROOT}/apply_windows_b07_closeout_updates.sh"
 
 if [[ ! -f "${FINALIZE_SCRIPT}" ]]; then
   echo "[WIN-CLOSEOUT-SUMMARY-REHEARSAL] Missing finalize script: ${FINALIZE_SCRIPT}"
+  exit 2
+fi
+
+if [[ ! -f "${SNIPPET_SCRIPT}" ]]; then
+  echo "[WIN-CLOSEOUT-SUMMARY-REHEARSAL] Missing snippet script: ${SNIPPET_SCRIPT}"
   exit 2
 fi
 
@@ -18,7 +24,9 @@ trap cleanup EXIT
 LCaseFail="${LTmpRoot}/case_fail"
 mkdir -p "${LCaseFail}"
 cp "${FINALIZE_SCRIPT}" "${LCaseFail}/finalize_windows_b07_closeout.sh"
+cp "${SNIPPET_SCRIPT}" "${LCaseFail}/apply_windows_b07_closeout_updates.sh"
 chmod +x "${LCaseFail}/finalize_windows_b07_closeout.sh"
+chmod +x "${LCaseFail}/apply_windows_b07_closeout_updates.sh"
 
 cat > "${LCaseFail}/verify_windows_b07_evidence.sh" <<'EOM'
 #!/usr/bin/env bash
@@ -75,6 +83,20 @@ fi
 if ! grep -F -- 'First Verifier Issue: [EVIDENCE] Missing pattern: [GATE] OK' "${LCaseFail}/windows_b07_closeout_summary.md" >/dev/null; then
   echo "[WIN-CLOSEOUT-SUMMARY-REHEARSAL] FAILED: missing first verifier issue"
   cat "${LCaseFail}/windows_b07_closeout_summary.md"
+  exit 1
+fi
+
+"${LCaseFail}/apply_windows_b07_closeout_updates.sh" "${LCaseFail}/windows_b07_closeout_summary.md" > "${LCaseFail}/snippets.txt"
+
+if ! grep -F -- '当前失败边界：[BUILD] TOOLCHAIN BLOCK: cmd.exe cannot resolve LAZBUILD command "lazbuild"' "${LCaseFail}/snippets.txt" >/dev/null; then
+  echo "[WIN-CLOSEOUT-SUMMARY-REHEARSAL] FAILED: snippets missing failure boundary"
+  cat "${LCaseFail}/snippets.txt"
+  exit 1
+fi
+
+if ! grep -F -- '建议动作：Provide a real Windows runner with native Windows lazbuild.exe' "${LCaseFail}/snippets.txt" >/dev/null; then
+  echo "[WIN-CLOSEOUT-SUMMARY-REHEARSAL] FAILED: snippets missing recommended action"
+  cat "${LCaseFail}/snippets.txt"
   exit 1
 fi
 

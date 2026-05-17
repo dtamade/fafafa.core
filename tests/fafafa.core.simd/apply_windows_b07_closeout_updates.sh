@@ -238,6 +238,10 @@ LEvidencePath="$(echo "${LEvidenceLine}" | sed -E 's/^- Evidence Log:[[:space:]]
 if [[ -z "${LEvidencePath}" ]]; then
   LEvidencePath="${ROOT}/logs/windows_b07_gate.log"
 fi
+LRootCauseLine="$(extract_value '^- Root Cause Hint:[[:space:]]')"
+LRecommendedActionLine="$(extract_value '^- Recommended Action:[[:space:]]')"
+LRootCauseText="$(echo "${LRootCauseLine}" | sed -E 's/^- Root Cause Hint:[[:space:]]*//')"
+LRecommendedActionText="$(echo "${LRecommendedActionLine}" | sed -E 's/^- Recommended Action:[[:space:]]*//')"
 
 LVerifierState="unknown"
 if verify_windows_evidence_live "${LEvidencePath}"; then
@@ -266,6 +270,9 @@ LEvidenceVerifyResult='PASS'
 LFinalizeResult='PASS'
 LFreezeResult='PASS'
 LApplyResult='PASS'
+LFailureRoadmapBlock=""
+LFailureMatrixBlock=""
+LFailureProgressBlock=""
 
 if [[ "${SUMMARY_PATH}" == *".simulated."* ]]; then
   LStatusLine='- 状态：dry-run 预演完成（非实机）'
@@ -294,6 +301,16 @@ if [[ "${LVerifierState}" != "pass" ]]; then
   LFinalizeResult='PENDING'
   LFreezeResult='PENDING'
   LApplyResult='BLOCKED'
+  if [[ -n "${LRootCauseText}" && "${LRootCauseText}" != "n/a" ]]; then
+    LFailureRoadmapBlock=$'\n'"- 当前失败边界：${LRootCauseText}"
+    LFailureMatrixBlock=$'\n'"  - 当前失败边界：${LRootCauseText}"
+    LFailureProgressBlock=$'\n'"- Failure Boundary: ${LRootCauseText}"
+  fi
+  if [[ -n "${LRecommendedActionText}" && "${LRecommendedActionText}" != "n/a" ]]; then
+    LFailureRoadmapBlock+=$'\n'"- 建议动作：${LRecommendedActionText}"
+    LFailureMatrixBlock+=$'\n'"  - 建议动作：${LRecommendedActionText}"
+    LFailureProgressBlock+=$'\n'"- Recommended Action: ${LRecommendedActionText}"
+  fi
 
   if [[ "${APPLY_MODE}" == "1" ]]; then
     echo "[CLOSEOUT] Refuse apply: windows evidence verification state=${LVerifierState}"
@@ -311,6 +328,7 @@ ${LStatusLine}
 - Evidence Log: ${LRelEvidence}
 - Closeout Summary: ${LRelSummary}
 ${LCloseoutConclusion}
+${LFailureRoadmapBlock}
 EOM
 )
 
@@ -320,6 +338,7 @@ ${LMatrixHeadline}
   - Log: ${LRelEvidence}
   - Summary: ${LRelSummary}
 ${LVerificationLine}
+${LFailureMatrixBlock}
 EOM
 )
 
@@ -344,6 +363,7 @@ PROGRESS_BLOCK=$(cat <<EOM
 ### 关键证据
 - Log: ${LRelEvidence}
 - Summary: ${LRelSummary}
+${LFailureProgressBlock}
 
 ### 阶段状态
 ${LStageLine}
