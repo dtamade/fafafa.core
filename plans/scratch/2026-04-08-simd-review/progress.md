@@ -10950,3 +10950,57 @@
   - `3940..4986` 这一整簇已经可以判定为 hygiene-only，整体退出 residual 清单
   - 当前下一簇入口已经推进到 `5003`
   - 其中 `6003/6004` 这种行尾混杂文本仍值得后续先按“可能藏行为问题”来复核，不应提前默认成纯 hygiene
+
+## 2026-05-18 SSE2 Pack Stream Tail Closeout
+
+- 接着上一批把下一簇入口推进到 `5003` 以后，本轮继续把 `5003..6004` 的剩余 residual 全部逐点复核，没有只凭 `rg "�"` 结果直接做批量替换。
+- fresh 复核结论分成两类：
+  - hygiene-only：
+    - `packsswb/packssdw/packuswb`
+    - `pinsrw/pextrw` 的 immediate 说明注释
+    - `move_sd`
+    - `cast/unpack/cvt*sd*`
+    - `pmaxub/pminub`
+    - `cvtsd2si/cvttsd2si`
+    - `clflush/movntdq/movnti` 一组 stream/cache helper 尾注
+  - real bug recovery：
+    - `simd_stream_si64` x86 32-bit 分支
+    - 原来的 `6004` 把两条真正的存储指令吞进了尾注：
+      - `movnti [eax], edx`
+      - `movnti [eax + 4], ecx`
+    - 这两条现在都已恢复成独立指令
+- 本批同时补强了护栏：
+  - `tests/fafafa.core.simd/check_intrinsics_comment_swallow.py`
+  - `ASM_INSTRUCTION_PATTERN` 新增：
+    - `movntpd`
+    - `movntps`
+    - `movntdq`
+    - `movnti`
+    - `clflush`
+    - `lfence`
+    - `mfence`
+    - `pause`
+  - 这样类似 `mov ... // ... movnti ...` 的 comment-swallow 以后会被 checker fail-close 抓住
+- 本批实际改动：
+  - 把剩余损坏注释和分节头替换成稳定 ASCII 注释
+  - 恢复 `simd_stream_si64` x86 32-bit 的两条 `movnti` 存储指令
+  - 不改其它 helper 的执行语义
+- fresh 验证已完成：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_comment_swallow.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `rg -o "�" src/fafafa.core.simd.intrinsics.x86.sse2.pas | wc -l`
+  - `rg -n "�" src/fafafa.core.simd.intrinsics.x86.sse2.pas`
+  - `rg -n "�" src/fafafa.core.simd* tests/fafafa.core.simd*`
+- fresh 结果：
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - `intrinsics.experimental check` default / experimental 双模态通过
+  - `x86 SSE2 backend smoke` 通过
+  - 主 `simd` release `check` 通过
+  - `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 的 replacement-char residual 从 `41` 降到 `0`
+  - `rg -n "�" src/fafafa.core.simd* tests/fafafa.core.simd*` 为空
+- 当前阶段结论：
+  - `intrinsics.x86.sse2` 这条 comment-corruption / comment-swallow 审查线已经从 live residual 清单退出
+  - `simd` 模块当前不再有 `replacement-char` 型残点
+  - 下一步应从“乱码/吞注释线”切回更广的语义审查或新的静态热点，而不是继续在 `x86.sse2` 里机械翻尾注

@@ -4994,13 +4994,13 @@ asm
 {$ENDIF}
 end;
 
-// === 🔟 Pack / Insert / Extract / Move 实现 ===
+// === Pack / Insert / Extract / Move helpers ===
 function simd_packs_epi16(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
 {$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; packsswb xmm0, xmm1  // 有符�?6位打包到8位（饱和�?
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; packsswb xmm0, xmm1  // Pack signed 16-bit lanes into signed 8-bit lanes
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; packsswb xmm0, xmm1
   {$ENDIF}
@@ -5022,7 +5022,7 @@ function simd_packs_epi32(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; n
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; packssdw xmm0, xmm1  // 有符�?2位打包到16位（饱和�?
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; packssdw xmm0, xmm1  // Pack signed 32-bit lanes into signed 16-bit lanes
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; packssdw xmm0, xmm1
   {$ENDIF}
@@ -5044,7 +5044,7 @@ function simd_packus_epi16(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; 
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; packuswb xmm0, xmm1  // 有符�?6位打包到无符�?位（饱和�?
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; packuswb xmm0, xmm1  // Pack signed 16-bit lanes into unsigned 8-bit lanes
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; packuswb xmm0, xmm1
   {$ENDIF}
@@ -5067,7 +5067,7 @@ end;
 	{$IFDEF CPUX86_64}
 	  {$IFDEF WINDOWS}
 	    movdqu xmm0, [rcx]    // 加载 a
-	    // pinsrw 的位置参数必须是立即�?
+	    // pinsrw requires an immediate lane index
 	    cmp r8b, 0; je @pos0
 	    cmp r8b, 1; je @pos1
 	    cmp r8b, 2; je @pos2
@@ -5146,7 +5146,7 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]    // 加载 a
-    // pextrw 的位置参数必须是立即�?
+    // pextrw requires an immediate lane index
     cmp dl, 0; je @pos0
     cmp dl, 1; je @pos1
     cmp dl, 2; je @pos2
@@ -5224,8 +5224,8 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movupd xmm0, [rcx]    // 加载 a
-    movsd xmm1, [rdx] //  加载 b 的低64�?
-    movsd xmm0, xmm1      // 移动标量双精�?
+    movsd xmm1, [rdx]      // Load low 64 bits of b
+    movsd xmm0, xmm1       // Copy scalar double into the low lane
     {$ELSE}
     movupd xmm0, [rdi]
     movsd xmm1, [rsi]
@@ -5334,7 +5334,7 @@ asm
 {$ENDIF}
 end;
 
-// === Cast 函数实现（无转换，仅重新解释�?===
+// === Cast helpers (reinterpret only) ===
 function simd_castpd_si128(constref a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
 {$ENDIF}
 asm
@@ -5478,7 +5478,7 @@ function simd_unpacklo_ps(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; n
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movups xmm0, [rcx]; movups xmm1, [rdx]; unpcklps xmm0, xmm1  // 解包低位单精�?
+    movups xmm0, [rcx]; movups xmm1, [rdx]; unpcklps xmm0, xmm1  // Unpack low packed singles
     {$ELSE}
     movups xmm0, [rdi]; movups xmm1, [rsi]; unpcklps xmm0, xmm1
   {$ENDIF}
@@ -5500,7 +5500,7 @@ function simd_unpackhi_ps(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; n
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movups xmm0, [rcx]; movups xmm1, [rdx]; unpckhps xmm0, xmm1  // 解包高位单精�?
+    movups xmm0, [rcx]; movups xmm1, [rdx]; unpckhps xmm0, xmm1  // Unpack high packed singles
     {$ELSE}
     movups xmm0, [rdi]; movups xmm1, [rsi]; unpckhps xmm0, xmm1
   {$ENDIF}
@@ -5522,7 +5522,7 @@ function simd_cvtsd_ss(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; movsd xmm1, [rdx]; cvtsd2ss xmm0, xmm1  // 标量双精度转单精�?
+    movupd xmm0, [rcx]; movsd xmm1, [rdx]; cvtsd2ss xmm0, xmm1  // Convert scalar double to scalar single
     {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; cvtsd2ss xmm0, xmm1
   {$ENDIF}
@@ -5544,7 +5544,7 @@ function simd_cvtss_sd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; movss xmm1, [rdx]; cvtss2sd xmm0, xmm1  // 标量单精度转双精�?
+    movupd xmm0, [rcx]; movss xmm1, [rdx]; cvtss2sd xmm0, xmm1  // Convert scalar single to scalar double
     {$ELSE}
     movupd xmm0, [rdi]; movss xmm1, [rsi]; cvtss2sd xmm0, xmm1
   {$ENDIF}
@@ -5725,7 +5725,7 @@ function simd_max_epu8(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pmaxub xmm0, xmm1  // 无符�?位最大�?
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pmaxub xmm0, xmm1  // Unsigned 8-bit maximum
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pmaxub xmm0, xmm1
   {$ENDIF}
@@ -5747,7 +5747,7 @@ function simd_min_epu8(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pminub xmm0, xmm1  // 无符�?位最小�?
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pminub xmm0, xmm1  // Unsigned 8-bit minimum
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pminub xmm0, xmm1
   {$ENDIF}
@@ -5769,7 +5769,7 @@ function simd_cvtsd_si32(constref a: TM128): Integer; {$IFDEF FPC}assembler; nos
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]; cvtsd2si eax, xmm0  // 标量双精度转32位整�?
+    movsd xmm0, [rcx]; cvtsd2si eax, xmm0  // Convert scalar double to 32-bit integer
     {$ELSE}
     movsd xmm0, [rdi]; cvtsd2si eax, xmm0
   {$ENDIF}
@@ -5785,7 +5785,7 @@ function simd_cvtsd_si64(constref a: TM128): Int64; {$IFDEF FPC}assembler; nosta
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]; cvtsd2si rax, xmm0  // 标量双精度转64位整�?
+    movsd xmm0, [rcx]; cvtsd2si rax, xmm0  // Convert scalar double to 64-bit integer
     {$ELSE}
     movsd xmm0, [rdi]; cvtsd2si rax, xmm0
   {$ENDIF}
@@ -5801,7 +5801,7 @@ function simd_cvttsd_si32(constref a: TM128): Integer; {$IFDEF FPC}assembler; no
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]; cvttsd2si eax, xmm0  // 截断标量双精度转32位整�?
+    movsd xmm0, [rcx]; cvttsd2si eax, xmm0  // Truncate scalar double to 32-bit integer
     {$ELSE}
     movsd xmm0, [rdi]; cvttsd2si eax, xmm0
   {$ENDIF}
@@ -5817,7 +5817,7 @@ function simd_cvttsd_si64(constref a: TM128): Int64; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]; cvttsd2si rax, xmm0  // 截断标量双精度转64位整�?
+    movsd xmm0, [rcx]; cvttsd2si rax, xmm0  // Truncate scalar double to 64-bit integer
     {$ELSE}
     movsd xmm0, [rdi]; cvttsd2si rax, xmm0
   {$ENDIF}
@@ -5872,13 +5872,13 @@ asm
 {$ENDIF}
 end;
 
-// === 1️⃣1️⃣ Cache Control / Stream / Fence 实现 ===
+// === Cache control / stream / fence helpers ===
 procedure simd_clflush(const Ptr: Pointer); {$IFDEF FPC}assembler; nostackframe;
 {$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    clflush [rcx]         // 刷新缓存�?
+    clflush [rcx]         // Flush cache line
     {$ELSE}
     clflush [rdi]         // Linux/macOS x64
   {$ENDIF}
@@ -5956,10 +5956,10 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movdqu xmm0, [rdx]    // 加载 Src
-    movntdq [rcx], xmm0   // 非临时存�?28位整�?
+    movntdq [rcx], xmm0   // Non-temporal store of 128-bit integer data
     {$ELSE}
     movdqu xmm0, [rsi]    // 加载 Src
-    movntdq [rdi], xmm0   // 非临时存�?28位整�?
+    movntdq [rdi], xmm0   // Non-temporal store of 128-bit integer data
     {$ENDIF}
 {$ELSEIF CPUX86}
     mov eax, [esp + 4]    // Dest
@@ -5976,7 +5976,7 @@ procedure simd_stream_si32(var Dest; Value: Integer); {$IFDEF FPC}assembler; nos
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movnti [rcx], edx     // 非临时存�?2位整�?
+    movnti [rcx], edx     // Non-temporal store of 32-bit integer data
     {$ELSE}
     movnti [rdi], esi     // Linux/macOS x64
   {$ENDIF}
@@ -5994,14 +5994,16 @@ procedure simd_stream_si64(var Dest; Value: Int64); {$IFDEF FPC}assembler; nosta
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movnti [rcx], rdx     // 非临时存�?4位整�?
+    movnti [rcx], rdx     // Non-temporal store of 64-bit integer data
     {$ELSE}
     movnti [rdi], rsi     // Linux/macOS x64
   {$ENDIF}
 {$ELSEIF CPUX86}
     mov eax, [esp + 4]    // Dest
-    mov edx, [esp + 8] //  �?2�?
-    mov ecx, [esp + 12]   // �?2�?    movnti [eax], edx     // 存储�?2�?    movnti [eax + 4], ecx // 存储�?2�?
+    mov edx, [esp + 8]    // Low 32 bits of Value
+    mov ecx, [esp + 12]   // High 32 bits of Value
+    movnti [eax], edx
+    movnti [eax + 4], ecx
     {$ELSE}
     {$ERROR Unsupported CPU}
 {$ENDIF}

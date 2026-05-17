@@ -8115,3 +8115,24 @@
 - 下一段里最值得优先警惕的不是 `5003/5025/5047` 这类 pack 注释本身，而是更后面的 `6003/6004`：
   - 这两行当前已经出现“注释和代码黏在一行里”的视觉形态
   - 后续继续推进时应先按潜在 comment-swallow 风险逐点核，再决定是否只是 hygiene
+
+## 2026-05-18 SSE2 6004 Was A Real Swallowed Non-Temporal Store
+
+- `5003..6004` 这批 residual 里真正的硬问题不在 `pack` 或 `cast` 注释，而在 `simd_stream_si64` 的 x86 32-bit 分支：
+  - `mov edx, [esp + 8]`
+  - `mov ecx, [esp + 12]`
+  - 后面的两条 `movnti` 原本被吞进了 `6004` 行尾注
+- 这意味着旧实现并不是“注释不好看”，而是：
+  - 读出了 `Value` 的低/高 32-bit
+  - 但没有真正把它们 non-temporal store 到 `Dest`
+  - 所以这是 live 行为缺口，不是文案问题
+- 这批也证明了一个更广的结论：
+  - `comment-swallow` 风险不只落在 `movhpd/movlpd/shuffle/shift` 这类指令
+  - `movnt*` / `clflush` 这一类 stream/cache helper 同样可能被同样的单行尾注形态伤到
+- 因而 checker 必须跟着扩：
+  - 新增 `movntpd/movntps/movntdq/movnti/clflush/lfence/mfence/pause`
+  - 这样后续若再出现 `mov ... // ... movnti ...` 或类似形态，不会再靠人工肉眼才发现
+- 当前 closeout 结果很关键：
+  - `intrinsics.x86.sse2` 文件内 `replacement-char` residual 已清零
+  - `rg -n "�" src/fafafa.core.simd* tests/fafafa.core.simd*` 也已经为空
+  - 所以 `simd` 这条“乱码/吞注释”审查线现在可以正式收口，后续收益更高的方向应回到新的语义热点，而不是继续在同一文件里追已经不存在的 residual

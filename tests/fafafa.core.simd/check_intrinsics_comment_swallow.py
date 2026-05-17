@@ -40,7 +40,7 @@ X86_BACKEND_TARGETS = {
 }
 ASM_INSTRUCTION_PATTERN = re.compile(
     r'\b(?:'
-    r'movdqa|movdqu|movapd|movupd|movaps|movups|movsd|movss|movq|movd|movhpd|movlpd|mov|'
+    r'movdqa|movdqu|movapd|movupd|movaps|movups|movsd|movss|movq|movd|movhpd|movlpd|movntpd|movntps|movntdq|movnti|mov|'
     r'push|pop|'
     r'pxor|xorpd|xorps|'
     r'punpcklbw|punpcklwd|punpckldq|punpcklqdq|punpckhwd|punpckhdq|punpckhqdq|'
@@ -50,7 +50,7 @@ ASM_INSTRUCTION_PATTERN = re.compile(
     r'psubb|psubsw|psubsb|psubusb|psubusw|psllw|pslld|psllq|psrlw|psrld|psrlq|psraw|psrad|por|pand|pandn|'
     r'pmuludq|pmullw|pmulhw|pmulhuw|pmaddwd|pavgb|pavgw|psadbw|'
     r'pcmpeqb|pcmpeqw|pcmpeqd|pcmpgtb|pcmpgtw|pcmpgtd|pmaxsw|pminsw|'
-    r'minps|maxps|cmp|je|jmp|pinsrw|pextrw|maskmovdqu|psrldq|pslldq|cvtsi2sd|cvttpd2ps'
+    r'minps|maxps|cmp|je|jmp|pinsrw|pextrw|maskmovdqu|psrldq|pslldq|cvtsi2sd|cvttpd2ps|clflush|lfence|mfence|pause'
     r')\b\s+[^/]+'
 )
 INLINE_DIRECTIVE_TOKENS = ('{$ELSE}', '{$ENDIF}', '{$ELSEIF}')
