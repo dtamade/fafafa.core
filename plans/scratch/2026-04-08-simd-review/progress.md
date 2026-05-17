@@ -12032,3 +12032,48 @@
   - `RISCVV Abs/Sqrt/FmaF64x2` 当前也不该再被描述成 “必须保留 facade scalar-forward witness 的 exact helper”
   - 更准确的真相是：这 3 个槽仍有 asm/runtime conditional truth，但 no-asm facade source 已经失活
   - 这批继续收掉的是 dead facade，不是新的 runtime 语义修复
+
+## 2026-05-18 RISCVV Conditional F64x2 Arithmetic Facade Was Dead Source Too
+
+- 在 `ExactF64x2` dead-facade 收口后，继续沿同一条 `RISCVV F64x2 asm-gated` 线往下查，发现 `Add/Sub/Mul/DivF64x2` 也符合相同的 dead-source 结构：
+  - `src/fafafa.core.simd.riscvv.register.inc`
+    - `Add/Sub/Mul/DivF64x2` 都只在 `{$IFDEF RISCVV_ASSEMBLY}` 下绑定
+  - `src/fafafa.core.simd.riscvv.pas`
+    - asm wrapper / helper / opcode witness 仍真实存在
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - no-asm body 之前只是 `ScalarAdd/Sub/Mul/DivF64x2` 单行 forward
+  - fresh 全仓 `rg`
+    - 除了 asm source、register source 与 helper/test 护栏，没有新的 live consumer
+- 同时这批也进一步澄清了一件容易混淆的事：
+  - `Cmp*F64x2` 当前仍是 unconditional live scalar-forward slot，不能按同类误删
+  - `Reduce*F64x2` 当前也是 live slot，且一部分仍承担 published runtime contract
+  - 真正该收的是 `asm-gated` 且只剩 dead facade 的 `Add/Sub/Mul/DivF64x2`
+- 因而这批的源码/护栏收口成立：
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - 删除 dead `RISCVVAddF64x2`
+    - 删除 dead `RISCVVSubF64x2`
+    - 删除 dead `RISCVVMulF64x2`
+    - 删除 dead `RISCVVDivF64x2`
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 把 `Add/Sub/Mul/DivF64x2` 从 generic scalar-forwarder expectation 中排除
+    - 同时把它们加入 `riscvv_facade_source` absent-routine expectation
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 新增 `Test_RISCVV_ArithmeticF64x2Slots_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding`
+    - 显式断言：
+      - facade dead witness 必须 absent
+      - asm helper/opcode witness 继续存在
+      - runtime 仍保持 asm-compiled 时 backend-owned、非 asm host 时 scalar reuse
+- 本批 fresh 验证链已经收口：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=705 status=ok`
+  - Release `TTestCase_DispatchAPI` `BUILD/TEST/LEAK` 全绿
+  - Release `check` 通过
+- 当前阶段结论：
+  - `RISCVV Add/Sub/Mul/DivF64x2` 当前也不该再被描述成 “保留着也无伤大雅的 scalar facade helper”
+  - 更准确的真相是：它们和前两批一样，已不再承担任何 live runtime truth，只是 dead facade source
+  - 这批继续收掉的是无 live consumer 的条件 facade 残影，不是行为修复

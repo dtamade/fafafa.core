@@ -69,26 +69,6 @@ end;
 // F64x2 Operations (128-bit, 2x Double)
 // =============================================================
 
-function RISCVVAddF64x2(const a, b: TVecF64x2): TVecF64x2;
-begin
-  Result := ScalarAddF64x2(a, b);
-end;
-
-function RISCVVSubF64x2(const a, b: TVecF64x2): TVecF64x2;
-begin
-  Result := ScalarSubF64x2(a, b);
-end;
-
-function RISCVVMulF64x2(const a, b: TVecF64x2): TVecF64x2;
-begin
-  Result := ScalarMulF64x2(a, b);
-end;
-
-function RISCVVDivF64x2(const a, b: TVecF64x2): TVecF64x2;
-begin
-  Result := ScalarDivF64x2(a, b);
-end;
-
 // =============================================================
 // I32x4 Operations (128-bit, 4x Int32)
 // =============================================================

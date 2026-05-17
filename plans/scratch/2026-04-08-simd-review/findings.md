@@ -8657,3 +8657,17 @@
 - 这条 finding 的关键价值是把另一个常见错觉拆掉：
   - “只是 scalar forward，所以可以留着”
   - 实际上如果它已经不在任何 live path 上，再精确的 scalar forward 也只是 dead facade
+
+## 2026-05-18 RISCVV F64x2 Arithmetic Confirmed The Same Asm-Gated Dead-Facade Pattern
+
+- `Add/Sub/Mul/DivF64x2` 这批进一步说明，`RISCVV` 当前最值钱的 residual 不是“哪些 scalar forward 写得不够优雅”，而是“哪些 asm-gated slot 还留着已经失活的 facade 影子”。
+- 这条 finding 的关键价值在于把 `F64x2` 家族内部也拆层了：
+  - `Add/Sub/Mul/DivF64x2`：asm-gated dead facade，可删
+  - `Abs/Sqrt/FmaF64x2`：asm-gated dead facade，已删
+  - `Clamp/Min/MaxF64x2`：asm-gated dead facade，已删
+  - `Cmp*F64x2`：当前仍是 live unconditional scalar-forward slot，不属于这类清理
+  - `Reduce*F64x2`：当前仍是 live published slot，不属于这类清理
+- 也就是说，后续继续深审时，不能再用“都是 F64x2”这种过粗分类来决定去留，而必须先看：
+  - register 是否 `asm-gated`
+  - facade 是否仍有 live consumer
+  - runtime slot 是否真的会在 non-asm host 上走到这份 body

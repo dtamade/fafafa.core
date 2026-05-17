@@ -831,6 +831,8 @@ def main() -> int:
     riscvv_scalar_forwarder_expectations: list[tuple[str, str]] = []
     for suffix in ("F32x4", "F64x2"):
         for op in ("Add", "Sub", "Mul", "Div"):
+            if suffix == "F64x2":
+                continue
             riscvv_scalar_forwarder_expectations.append(
                 (f"RISCVV{op}{suffix}", f"Scalar{op}{suffix}(a, b)")
             )
@@ -1293,6 +1295,10 @@ def main() -> int:
         (riscvv_facade_source, "RISCVVCeilF64x2"),
         (riscvv_facade_source, "RISCVVRoundF64x2"),
         (riscvv_facade_source, "RISCVVTruncF64x2"),
+        (riscvv_facade_source, "RISCVVAddF64x2"),
+        (riscvv_facade_source, "RISCVVSubF64x2"),
+        (riscvv_facade_source, "RISCVVMulF64x2"),
+        (riscvv_facade_source, "RISCVVDivF64x2"),
         (riscvv_facade_source, "RISCVVAbsF64x2"),
         (riscvv_facade_source, "RISCVVSqrtF64x2"),
         (riscvv_facade_source, "RISCVVFmaF64x2"),
