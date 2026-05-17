@@ -9435,3 +9435,44 @@
 - 当前阶段结论：
   - 这条 `native Windows LAZBUILD` 前提现在不仅写进了文档和输出，还被 repo 内 selfcheck 正式守住
   - 当前 repo-local 的 Windows closeout guidance / guard / next-action 已基本形成单一口径
+
+## 2026-05-17 Active Status Truth Sync And Evidence Refresh
+
+- 在继续做 completion audit 时，我又抓到一个更高优先级的 active truth drift：
+  - `docs/fafafa.core.simd.checklist.md` 顶部仍把 `windows_b07_closeout_summary.md` 写成 stale summary
+  - `docs/fafafa.core.simd.handoff.md` 里也还挂着旧的 `2026-05-17 12:42:40` Windows evidence 时间线
+  - 这两条都已经落后于当前实际 closeout 状态
+- 已落地的最小修法：
+  - `docs/fafafa.core.simd.checklist.md`
+    - 改成当前真实状态：
+      - `windows_b07_closeout_summary.md` 已经是 current FAIL summary
+      - 当前真正剩余的是 `RECENT_BILLING_BLOCK` + `native Windows lazbuild` toolchain block
+  - `docs/fafafa.core.simd.handoff.md`
+    - 将最新 evidence 时间线改成：
+      - `windows_b07_gate.log` fresh 到 `2026-05-17 17:49:15`
+      - 当时对应的 closeout summary mtime 为 `2026-05-17 17:50:02`
+    - 同时把当前 `freeze-status` 的真实 next-actions 也写明
+- 这轮还顺手触发并收口了一个“当前真实状态变化”：
+  - 因为前一批刚改过 `tests/fafafa.core.simd/buildOrTest.bat`
+  - `freeze-status` 一度重新变成：
+    - `windows_evidence_inputs_not_newer_than_log = FAIL`
+    - `windows_evidence_verify = stale evidence log`
+    - `windows_closeout_summary = stale summary`
+  - 这不是新 bug，而是 producer input (`buildOrTest.bat`) 新于 canonical Windows log 后，stale rule 正常生效
+- 已执行的真实刷新：
+  - `wine cmd /c tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify`
+    - fresh canonical `windows_b07_gate.log` 刷到 `2026-05-17 18:10:01`
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence`
+    - current `windows_b07_closeout_summary.md` 刷到 `2026-05-17 18:10:40`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+    - 当前再次回到：
+      - `windows_evidence_inputs_not_newer_than_log = PASS`
+      - `windows_evidence_verify = FAIL`（root-cause 仍是 `TOOLCHAIN BLOCK`）
+      - `windows_closeout_summary = PASS summary matches verifier FAIL`
+- 已验证：
+  - `git diff --check`
+  - `rg -n -F -e "旧时间线" -e "12:42:40" -e "stale summary" docs/fafafa.core.simd.checklist.md docs/fafafa.core.simd.handoff.md`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+- 当前阶段结论：
+  - active 顶层状态文档已经重新和 current freeze truth 对齐
+  - canonical Windows evidence 现在也重新处于 fresh current FAIL，而不是 stale historical FAIL
