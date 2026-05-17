@@ -259,6 +259,7 @@
 - `src/fafafa.core.simd.neon.facade_asm.inc`
 - `src/fafafa.core.simd.neon.facade_scalar.inc`
 - `src/fafafa.core.simd.neon.facade_platform.inc`
+  - 当前是故意保留的空 include 边界：permanently-scalar NEON platform facade wrappers 已经退场，dispatch table 直接复用 canonical base scalar slots
 - `src/fafafa.core.simd.neon.dot.inc`
 - `src/fafafa.core.simd.neon.scalar_fallback.inc`
 
