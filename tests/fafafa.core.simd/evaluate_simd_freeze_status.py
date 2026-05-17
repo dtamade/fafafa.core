@@ -330,32 +330,39 @@ def select_effective_gate_run(
     assessments: List[GateRunAssessment],
     required_gate_steps_selected: List[str],
     linux_only: bool,
-) -> tuple[Optional[GateRunAssessment], Optional[GateRunAssessment], bool]:
+) -> tuple[Optional[GateRunAssessment], Optional[GateRunAssessment], bool, str]:
     if not assessments:
-        return None, None, False
+        return None, None, False, ""
 
     latest = assessments[0]
     latest_selected_ok = latest.required_ok_mainline if linux_only else latest.required_ok_cross
     if latest_selected_ok:
-        return latest, latest, False
+        return latest, latest, False, ""
 
     if not latest.required_ok_base:
-        return latest, latest, False
+        return latest, latest, False, ""
 
     fallback_only_steps = [
         step for step in required_gate_steps_selected if step not in REQUIRED_GATE_STEPS_BASE
     ]
     if not has_cross_omission_only(latest.candidate.run_rows, fallback_only_steps):
-        return latest, latest, False
+        return latest, latest, False, ""
+
+    best_mainline: Optional[GateRunAssessment] = None
 
     for assessment in assessments[1:]:
         assessment_selected_ok = (
             assessment.required_ok_mainline if linux_only else assessment.required_ok_cross
         )
         if assessment_selected_ok:
-            return assessment, latest, True
+            return assessment, latest, True, "cross" if not linux_only else "mainline"
+        if not linux_only and best_mainline is None and assessment.required_ok_mainline:
+            best_mainline = assessment
 
-    return latest, latest, False
+    if not linux_only and best_mainline is not None:
+        return best_mainline, latest, True, "mainline"
+
+    return latest, latest, False, ""
 
 
 def check_line_markdown_x(path: Path, contains_text: str) -> Optional[bool]:
@@ -912,7 +919,7 @@ def main() -> int:
         required_gate_steps_mainline,
         required_gate_steps_cross,
     )
-    selected_gate_run, latest_gate_run, used_gate_fallback = select_effective_gate_run(
+    selected_gate_run, latest_gate_run, used_gate_fallback, gate_fallback_scope = select_effective_gate_run(
         gate_run_assessments,
         required_gate_steps,
         args.linux_only,
@@ -938,10 +945,13 @@ def main() -> int:
         required_detail_cross = selected_gate_run.required_detail_cross
         selection_suffix = ""
         if used_gate_fallback:
+            latest_scope_detail = "only covers mainline-required steps"
+            if gate_fallback_scope == "mainline":
+                latest_scope_detail = "only covers base-required steps"
             selection_suffix = (
                 f"; {gate_run_fallback_label(selected_gate_run)} "
                 f"{gate_run_label(selected_gate_run)} because latest snapshot "
-                f"{gate_run_label(latest_gate_run)} only covers mainline-required steps"
+                f"{gate_run_label(latest_gate_run)} {latest_scope_detail}"
             )
 
         if terminal_row["status"] == "PASS":

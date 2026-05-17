@@ -7213,6 +7213,7 @@ run_freeze_status() {
   local LFreezeScript
   local LJsonPath
   local LGateSummaryFile
+  local LGateSummaryOverride
 
   LFreezeScript="${FREEZE_STATUS_SCRIPT:-${ROOT}/evaluate_simd_freeze_status.py}"
   if [[ ! -f "${LFreezeScript}" ]]; then
@@ -7226,9 +7227,14 @@ run_freeze_status() {
   fi
 
   LJsonPath="${SIMD_FREEZE_STATUS_JSON_FILE:-${LOG_DIR}/freeze_status.json}"
-  LGateSummaryFile="${SIMD_FREEZE_GATE_SUMMARY_FILE:-${SIMD_GATE_SUMMARY_FILE:-${GATE_SUMMARY_LOG}}}"
-  SIMD_FREEZE_GATE_SUMMARY_FILE="${LGateSummaryFile}" \
+  LGateSummaryOverride="${SIMD_FREEZE_GATE_SUMMARY_FILE:-${SIMD_GATE_SUMMARY_FILE:-}}"
+  if [[ -n "${LGateSummaryOverride}" ]]; then
+    LGateSummaryFile="${LGateSummaryOverride}"
+    SIMD_FREEZE_GATE_SUMMARY_FILE="${LGateSummaryFile}" \
+      python3 "${LFreezeScript}" --root "${ROOT}" --json-file "${LJsonPath}" "$@"
+  else
     python3 "${LFreezeScript}" --root "${ROOT}" --json-file "${LJsonPath}" "$@"
+  fi
 }
 
 run_windows_closeout_finalize() {

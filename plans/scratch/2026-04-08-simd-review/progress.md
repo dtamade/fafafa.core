@@ -8835,3 +8835,36 @@
 - 这样门禁信号会更清晰：
   - required 失败时仍有完整细节
   - optional skip 时不再用一串 verifier missing 明细淹没真正结论
+
+## 2026-05-17 Freeze Status Mainline Fallback Recovery
+
+- 在上一批 optional evidence skip 清噪收口后，我继续按 release 路径看 `freeze-status`，fresh 现象是：
+  - cross 模式又退回了 `mainline-ready=False`
+  - 但仓库里实际存在更早的 backup gate snapshot，里面 `qemu-cpuinfo-nonx86-evidence=PASS`
+  - 所以这不是实现回归，而是 `freeze-status` 的 gate 选择链还在误消费“最新 fast gate”
+- 直接把真实 logs 喂给 Python 选择器后，确认了两件事：
+  - Python 选择器本身已经能选中 `/logs/rehearsal/backups/gate_summary.backup.20260517-155349-449.md`
+  - 真正短路 fallback discovery 的是 shell wrapper：`run_freeze_status()` 默认也在强塞 `SIMD_FREEZE_GATE_SUMMARY_FILE=<logs/gate_summary.md>`
+- 已落地修法：
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - `run_freeze_status()` 只有在调用者显式给了 `SIMD_FREEZE_GATE_SUMMARY_FILE` / `SIMD_GATE_SUMMARY_FILE` 时才传 override
+  - `tests/fafafa.core.simd/evaluate_simd_freeze_status.py`
+    - cross 模式下如果最新 snapshot 只覆盖了 base steps，但历史里存在 `mainline-ready` 的更强 snapshot，会回退到那个 backup / closeout snapshot
+  - `tests/fafafa.core.simd/rehearse_freeze_status.sh`
+    - 新增 `case_mainline_fallback`，守住“cross 仍未 ready，但 mainline-ready 不能被 fast gate 冲掉”的边界
+- 已验证：
+  - `bash -n tests/fafafa.core.simd/BuildOrTest.sh`
+  - `bash -n tests/fafafa.core.simd/rehearse_freeze_status.sh`
+  - `python3 -m py_compile tests/fafafa.core.simd/evaluate_simd_freeze_status.py`
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-rehearsal`
+    - `case_mainline_fallback_rc=1`
+    - `[FREEZE-REHEARSAL] OK`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+    - `ready=False, mainline-ready=True, cross-ready=False`
+    - 输出明确指向 `selected fallback backup gate snapshot ... because latest snapshot ... only covers base-required steps`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-linux`
+    - 仍保持 `ready=True, mainline-ready=True`
+- 当前真实剩余项已经更收敛：
+  - `windows_preflight_latest` 仍是 `RECENT_BILLING_BLOCK`
+  - `windows_evidence_verify` 仍因为现有 `windows_b07_gate.log` 不完整而 FAIL
+  - 也就是说，Linux mainline truth 已恢复，剩下红项重新只剩 Windows closeout/evidence 这条链

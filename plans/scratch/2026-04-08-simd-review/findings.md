@@ -7099,3 +7099,17 @@
   - 只在 optional 分支里捕获 verifier 输出
   - 成功时照常回显
   - 失败时不再刷 verifier 的逐条 missing 明细，而是直接打印一条干净的 stale/incomplete skip 提示
+
+## 2026-05-17 Freeze Status Wrapper Was Short-Circuiting Gate Fallback Discovery
+
+- 在继续往 `freeze-status` 收口时，fresh 现象不是 SIMD 实现回归，而是状态选择链本身还有一个真实 bug：
+  - Python 侧 `evaluate_simd_freeze_status.py` 已经具备从 `logs/rehearsal/backups/` 或 `logs/windows-closeout/` 回退到更强 gate snapshot 的能力
+  - 但 shell 侧 `run_freeze_status()` 默认也会强行导出 `SIMD_FREEZE_GATE_SUMMARY_FILE=<logs/gate_summary.md>`
+  - 这样 Python 会把当前 `gate_summary.md` 误当成“显式 override”，从而只看最新一个 summary，不再发现 backup / closeout candidate
+- 结果就是：
+  - 一次日常 fast gate 即使只是为了验证别的小修复
+  - 也会把更早、证据更强的 `qemu-cpuinfo-nonx86-evidence=PASS` gate snapshot 完全遮掉
+  - 让 cross 模式 `freeze-status` 错误退化成 `mainline-ready=False`
+- 这里的最小正确修法分两层：
+  - `run_freeze_status()` 只有在调用者显式设置 `SIMD_FREEZE_GATE_SUMMARY_FILE` / `SIMD_GATE_SUMMARY_FILE` 时才传 override
+  - Python 选择器在 cross 模式下，如果最新 snapshot 只覆盖了 base gate，而历史里有 `mainline-ready` 但还不 `cross-ready` 的更强 snapshot，也要能回退到它，保住 Linux 主线 truth
