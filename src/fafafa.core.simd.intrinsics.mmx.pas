@@ -350,8 +350,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对4�?6位整数执行加法（无饱和）
-// 输入：a, b - 两个TM64寄存器，各包�?�?6位整�?// 输出：TM64 - 包含4个加法结�
+// Add four 16-bit lanes without saturation.
 function mmx_paddw(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -379,8 +378,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对2�?2位整数执行加法（无饱和）
-// 输入：a, b - 两个TM64寄存器，各包�?�?2位整�?// 输出：TM64 - 包含2个加法结�
+// Add two 32-bit lanes without saturation.
 function mmx_paddd(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -408,8 +406,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对1�?4位整数执行加法（无饱和）
-// 输入：a, b - 两个TM64寄存器，各包�?�?4位整�?// 输出：TM64 - 包含1个加法结�
+// Add one 64-bit lane without saturation.
 function mmx_paddq(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -437,9 +434,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对8�?位有符号整数执行饱和加法
-// 输入：a, b - 两个TM64寄存器，各包�?�?位有符号整数
-// 输出：TM64 - 包含8个饱和加法结�
+// Add eight signed 8-bit lanes with saturation.
 function mmx_paddsb(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -467,9 +462,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对4�?6位有符号整数执行饱和加法
-// 输入：a, b - 两个TM64寄存器，各包�?�?6位有符号整数
-// 输出：TM64 - 包含4个饱和加法结�
+// Add four signed 16-bit lanes with saturation.
 function mmx_paddsw(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -497,9 +490,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对8�?位无符号整数执行饱和加法
-// 输入：a, b - 两个TM64寄存器，各包�?�?位无符号整数
-// 输出：TM64 - 包含8个饱和加法结�
+// Add eight unsigned 8-bit lanes with saturation.
 function mmx_paddusb(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -527,9 +518,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对4�?6位无符号整数执行饱和加法
-// 输入：a, b - 两个TM64寄存器，各包�?�?6位无符号整数
-// 输出：TM64 - 包含4个饱和加法结�
+// Add four unsigned 16-bit lanes with saturation.
 function mmx_paddusw(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -557,8 +546,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对8�?位整数执行减法（无饱和）
-// 输入：a, b - 两个TM64寄存器，各包�?�?位整�?// 输出：TM64 - 包含8个减法结�
+// Subtract eight 8-bit lanes without saturation.
 function mmx_psubb(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -586,8 +574,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对4�?6位整数执行减法（无饱和）
-// 输入：a, b - 两个TM64寄存器，各包�?�?6位整�?// 输出：TM64 - 包含4个减法结�
+// Subtract four 16-bit lanes without saturation.
 function mmx_psubw(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -615,8 +602,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对2�?2位整数执行减法（无饱和）
-// 输入：a, b - 两个TM64寄存器，各包�?�?2位整�?// 输出：TM64 - 包含2个减法结�
+// Subtract two 32-bit lanes without saturation.
 function mmx_psubd(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -644,8 +630,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对1�?4位整数执行减法（无饱和）
-// 输入：a, b - 两个TM64寄存器，各包�?�?4位整�?// 输出：TM64 - 包含1个减法结�
+// Subtract one 64-bit lane without saturation.
 function mmx_psubq(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -673,7 +658,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对8�?位有符号整数执行饱和减法
+// Subtract eight signed 8-bit lanes with saturation.
 function mmx_psubsb(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -701,7 +686,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对4�?6位有符号整数执行饱和减法
+// Subtract four signed 16-bit lanes with saturation.
 function mmx_psubsw(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -729,7 +714,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对8�?位无符号整数执行饱和减法
+// Subtract eight unsigned 8-bit lanes with saturation.
 function mmx_psubusb(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -757,7 +742,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对4�?6位无符号整数执行饱和减法
+// Subtract four unsigned 16-bit lanes with saturation.
 function mmx_psubusw(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}

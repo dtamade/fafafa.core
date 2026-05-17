@@ -331,6 +331,22 @@
 - 因而 `mmx` 当前已经可以拆成两类债分别处理：
   - 已修的 source-level behavior bug：x86 指令被注释吞掉
   - 仍可继续切小批次处理的 plain text debt：后半段残余 `U+FFFD`
+
+## 2026-05-17 MMX Mid-Section Residuals Were Pure Arithmetic Comment Debt
+
+- 在 `mmx` 前半段清干净后，继续复核 `341..760` 行范围，结论进一步收紧：
+  - 这段 residual 完全集中在 `padd* / psub*` 族函数前的说明性注释
+  - 没有新的 x86 asm 路径 bug
+  - 没有新的 declaration swallow 或 preprocessor inline drift
+- 这说明 `mmx` 当前的维修策略已经很明确：
+  - 真实行为问题已经收掉
+  - 剩下的可以按功能簇做低风险 text-hygiene 批次
+- fresh 计数也支撑这个判断：
+  - `range_341_760=0`
+  - `total=102`
+- 因而当前 `mmx` 的剩余债务已经进一步收敛到：
+  - arithmetic 之后的剩余 comment-only 区段
+  - 暂时不需要把 `mmx` 重新升级成“可能还有隐藏行为 bug”的优先级
   - 先过 `win-evidence-preflight`
   - 若 latest 结果仍是 `RECENT_BILLING_BLOCK`，就在 preflight 处 fail-close
   - 历史 “Windows 已闭环” 只能按 archive fact 理解，不是当前 readiness signal
