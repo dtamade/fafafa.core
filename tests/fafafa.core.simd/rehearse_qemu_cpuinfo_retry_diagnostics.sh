@@ -8,11 +8,26 @@ LRETRIES="${SIMD_QEMU_RETRY_REHEARSAL_RETRIES:-2}"
 LPLATFORMS="${SIMD_QEMU_RETRY_REHEARSAL_PLATFORMS:-linux/riscv64}"
 LTAIL_LINES="${SIMD_QEMU_RETRY_REHEARSAL_TAIL_LINES:-40}"
 
+require_docker_access() {
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "[RETRY-REHEARSAL] FAILED: missing docker command required by QEMU multiarch rehearsal"
+    return 2
+  fi
+
+  if ! docker version >/dev/null 2>&1; then
+    echo "[RETRY-REHEARSAL] FAILED: docker daemon unavailable or permission denied"
+    echo "[RETRY-REHEARSAL] Hint: ensure current user can access /var/run/docker.sock before running ${LACTION}"
+    return 2
+  fi
+}
+
 if [[ ! "${LACTION}" =~ ^qemu-cpuinfo-nonx86-(evidence|full-evidence|full-repeat)$ ]]; then
   echo "[RETRY-REHEARSAL] Unsupported action: ${LACTION}"
   echo "[RETRY-REHEARSAL] Supported: qemu-cpuinfo-nonx86-evidence | qemu-cpuinfo-nonx86-full-evidence | qemu-cpuinfo-nonx86-full-repeat"
   exit 2
 fi
+
+require_docker_access || exit $?
 
 LSCENARIO="${LACTION#qemu-}"
 LLOG_DIR="${ROOT}/logs"

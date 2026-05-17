@@ -112,6 +112,7 @@ WIN_PREFLIGHT_REPO_FALLBACK_REHEARSAL_SCRIPT="${ROOT}/rehearse_win_preflight_rep
 FREEZE_STATUS_SCRIPT="${ROOT}/evaluate_simd_freeze_status.py"
 WIN_CLOSEOUT_FINALIZE_SCRIPT="${ROOT}/run_windows_b07_closeout_finalize.sh"
 FREEZE_REHEARSAL_SCRIPT="${ROOT}/rehearse_freeze_status.sh"
+QEMU_CPUINFO_RETRY_REHEARSAL_SCRIPT="${ROOT}/rehearse_qemu_cpuinfo_retry_diagnostics.sh"
 WIN_EVIDENCE_PREFLIGHT_SCRIPT="${ROOT}/preflight_windows_b07_evidence_gh.sh"
 HISTORICAL_CLOSEOUT_NOTES_CHECK_SCRIPT="${ROOT}/check_historical_closeout_current_head_notes.py"
 PUBLICABI_RUNNER_SCRIPT="${ROOT}/../fafafa.core.simd.publicabi/BuildOrTest.sh"
@@ -6764,6 +6765,18 @@ run_gate_summary_rollback() {
   bash "${LRollbackScript}" "$@"
 }
 
+run_qemu_cpuinfo_retry_rehearsal() {
+  local LScript
+
+  LScript="${QEMU_CPUINFO_RETRY_REHEARSAL_SCRIPT:-${ROOT}/rehearse_qemu_cpuinfo_retry_diagnostics.sh}"
+  if [[ ! -f "${LScript}" ]]; then
+    echo "[RETRY-REHEARSAL] Missing script: ${LScript}"
+    return 2
+  fi
+
+  bash "${LScript}" "$@"
+}
+
 run_gate_summary_backups() {
   local LBackupsScript
 
@@ -7608,6 +7621,9 @@ case "${ACTION}" in
   qemu-cpuinfo-nonx86-full-repeat)
     run_qemu_multiarch cpuinfo-nonx86-full-repeat "$@"
     ;;
+  qemu-cpuinfo-retry-rehearsal)
+    run_qemu_cpuinfo_retry_rehearsal "$@"
+    ;;
   qemu-cpuinfo-nonx86-suite-repeat)
     run_qemu_multiarch cpuinfo-nonx86-suite-repeat "$@"
     ;;
@@ -7717,7 +7733,7 @@ case "${ACTION}" in
     run_freeze_status_rehearsal "$@"
     ;;
   *)
-    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|closeout-release|sse2-structure-check|sse2-contracts|impl-smoke-sse2|impl-smoke-x86|impl-smoke-nonx86|impl-audit-nonx86|helper-semantics|key-slot-audit|implementation-matrix-sync|riscvv-abi-shape|source-reachability|closeout-host-local|import-nonx86-native-evidence|closeout-host-local-from-import|interface-completeness|dispatch-read-scope|dataplane-consumer-scope|direct-dispatch-scope|metadata-query-scope|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|runner-parity|closeout-guard|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|verify-nonx86-native-evidence|restore-nightly-evidence|historical-closeout-note-check|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
+    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|closeout-release|sse2-structure-check|sse2-contracts|impl-smoke-sse2|impl-smoke-x86|impl-smoke-nonx86|impl-audit-nonx86|helper-semantics|key-slot-audit|implementation-matrix-sync|riscvv-abi-shape|source-reachability|closeout-host-local|import-nonx86-native-evidence|closeout-host-local-from-import|interface-completeness|dispatch-read-scope|dataplane-consumer-scope|direct-dispatch-scope|metadata-query-scope|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|runner-parity|closeout-guard|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-retry-rehearsal|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|verify-nonx86-native-evidence|restore-nightly-evidence|historical-closeout-note-check|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
     echo "  Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks."
     echo "  gate/gate-strict PASS is not blanket release-grade approval for every experimental path."
     echo "  gate         Fast/base gate for routine SIMD changes"
@@ -7770,6 +7786,7 @@ case "${ACTION}" in
     echo "  qemu-cpuinfo-nonx86-evidence  Collect non-x86 CPUInfo cross evidence via QEMU"
     echo "  qemu-cpuinfo-nonx86-full-evidence  Run the full non-x86 CPUInfo evidence sweep via QEMU"
     echo "  qemu-cpuinfo-nonx86-full-repeat  Repeat the full non-x86 CPUInfo evidence sweep via QEMU"
+    echo "  qemu-cpuinfo-retry-rehearsal  Rehearse CPUInfo QEMU retry diagnostics via fail-once injection"
     echo "  qemu-cpuinfo-nonx86-suite-repeat  Repeat the non-x86 CPUInfo suite matrix via QEMU"
     echo "  qemu-arch-matrix-evidence  Collect architecture-matrix evidence via QEMU"
     echo "  qemu-nonx86-experimental-asm  Run experimental non-x86 asm sweeps via QEMU"
