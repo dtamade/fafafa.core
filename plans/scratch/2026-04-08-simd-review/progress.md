@@ -11762,3 +11762,41 @@
   - `RISCVV wide Round/Trunc` 当前已经不再被 audit 假装成 `scalar_forwarder`
   - 当前最准确的口径是：它们仍是 `wrapper_only / pascal_owned` 的 local no-asm loops
   - 这批收掉的是 audit truth bug，不是实现改写；后续若要继续删壳，必须先补 fresh runtime 语义证据
+
+## 2026-05-18 RISCVV Wide RoundTrunc Fallback Collapse
+
+- 在上一批只收正 audit truth 之后，继续补了更硬的 runtime 取证，而不是直接凭“看起来像 scalar forwarder”删壳：
+  - `tests/fafafa.core.simd/fafafa.core.simd.ieee754.testcase.pas`
+  - 新增 `Test_RISCVV_WideRoundTrunc_DirectRegisteredTable_SignedZeroParity_IfRegistered`
+- 这条新测试的证据路径刻意绕开了 active backend 选择，直接：
+  - `TryGetRegisteredBackendDispatchTable(sbScalar, ...)`
+  - `TryGetRegisteredBackendDispatchTable(sbRISCVV, ...)`
+  - 对 `Round/TruncF32x8/F32x16/F64x4/F64x8` 做 direct registered-table 调用
+- fresh runtime 先给出关键结论：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NonX86IEEE754`
+  - `BUILD/TEST/LEAK` 全绿
+  - `NaN / Inf / signed-zero / finite sample lanes` 对位 scalar 没有 fresh drift
+  - 并且 `sbRISCVV` registered table 这 8 个 slot 仍保持 distinct function pointer，不是直接复用 `sbScalar` register entry
+- 因而这批的真正实现收口才成立：
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - 把 `RISCVVRound/TruncF32x8/F32x16/F64x4/F64x8` 的 active no-asm local loop 全部收成：
+      - `Result := ScalarRound*`
+      - `Result := ScalarTrunc*`
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 同步把这 8 个槽的 source-truth expectation 改回 `riscvv_facade_source` scalar-forwarder
+- 本批串行 release 验证已经 fresh 跑通：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NonX86IEEE754`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=688 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `TTestCase_NonX86IEEE754` `BUILD/TEST/LEAK` 全绿
+  - Release `check` 通过
+- 当前阶段结论：
+  - `RISCVV wide Round/Trunc` 这批最终证明确实不是 fresh runtime bug
+  - direct registered-table parity 已证明当前 contract 不依赖那 8 份 local no-asm loop
+  - 所以这批已经从“audit truth 修正”进一步收口成“冗余 fallback collapse”

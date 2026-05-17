@@ -118,6 +118,7 @@ type
     procedure Test_NonX86_RoundTruncFloorCeil_NaNInf_IfAvailable;
     procedure Test_NonX86_NarrowF64x2_RoundTruncFloorCeil_Finite_IfAvailable;
     procedure Test_RISCVV_WideClampF32_SpecialCases_IfAvailable;
+    procedure Test_RISCVV_WideRoundTrunc_DirectRegisteredTable_SignedZeroParity_IfRegistered;
     procedure Test_NonX86_F32_ReduceMinMax_SpecialCases_IfAvailable;
     procedure Test_NonX86_F32_WideMinMax_SpecialCases_IfAvailable;
     procedure Test_NonX86_F64_MinMaxReduce_SpecialCases_IfAvailable;
@@ -3348,6 +3349,173 @@ begin
   LMaxValF32x16.f[14] := 1.0;
   LMaxValF32x16.f[15] := 4.0;
   AssertVecParityF32x16('RISCVV ClampF32x16 NaNSecondSignedZero');
+end;
+
+procedure TTestCase_NonX86IEEE754.Test_RISCVV_WideRoundTrunc_DirectRegisteredTable_SignedZeroParity_IfRegistered;
+var
+  LScalarTable: TSimdDispatchTable;
+  LRISCVVTable: TSimdDispatchTable;
+  LInF32x8: TVecF32x8;
+  LExpectedRoundF32x8, LExpectedTruncF32x8, LActualRoundF32x8, LActualTruncF32x8: TVecF32x8;
+  LInF64x4: TVecF64x4;
+  LExpectedRoundF64x4, LExpectedTruncF64x4, LActualRoundF64x4, LActualTruncF64x4: TVecF64x4;
+  LInF32x16: TVecF32x16;
+  LExpectedRoundF32x16, LExpectedTruncF32x16, LActualRoundF32x16, LActualTruncF32x16: TVecF32x16;
+  LInF64x8: TVecF64x8;
+  LExpectedRoundF64x8, LExpectedTruncF64x8, LActualRoundF64x8, LActualTruncF64x8: TVecF64x8;
+  LIndex: Integer;
+
+  procedure AssertSingleSemantics(const aPrefix: string; const aExpected, aActual: Single);
+  begin
+    if IsNaNSingle(aExpected) then
+      AssertTrue(aPrefix + ' expected NaN', IsNaNSingle(aActual))
+    else if IsInfinite(aExpected) then
+      AssertTrue(aPrefix + ' expected Inf sign',
+        IsInfinite(aActual) and ((aActual > 0) = (aExpected > 0)))
+    else
+    begin
+      AssertEquals(aPrefix + ' finite compare', aExpected, aActual, 0.0);
+      if aExpected = 0.0 then
+        AssertTrue(aPrefix + ' zero sign bit',
+          BitsFromSingle(aExpected) = BitsFromSingle(aActual));
+    end;
+  end;
+
+  procedure AssertDoubleSemantics(const aPrefix: string; const aExpected, aActual: Double);
+  begin
+    if IsNaNDouble(aExpected) then
+      AssertTrue(aPrefix + ' expected NaN', IsNaNDouble(aActual))
+    else if IsInfinite(aExpected) then
+      AssertTrue(aPrefix + ' expected Inf sign',
+        IsInfinite(aActual) and ((aActual > 0) = (aExpected > 0)))
+    else
+    begin
+      AssertEquals(aPrefix + ' finite compare', aExpected, aActual, 0.0);
+      if aExpected = 0.0 then
+        AssertTrue(aPrefix + ' zero sign bit',
+          BitsFromDouble(aExpected) = BitsFromDouble(aActual));
+    end;
+  end;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+  AssertTrue('RISCVV opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
+  begin
+    AssertTrue('RISCVV backend not registered on this host (allowed)', True);
+    Exit;
+  end;
+  {$ENDIF}
+
+  AssertTrue('RISCVV registered table should provide wide Round/Trunc',
+    Assigned(LRISCVVTable.RoundF32x8) and Assigned(LRISCVVTable.TruncF32x8) and
+    Assigned(LRISCVVTable.RoundF64x4) and Assigned(LRISCVVTable.TruncF64x4) and
+    Assigned(LRISCVVTable.RoundF32x16) and Assigned(LRISCVVTable.TruncF32x16) and
+    Assigned(LRISCVVTable.RoundF64x8) and Assigned(LRISCVVTable.TruncF64x8));
+
+  AssertTrue('RISCVV wide Round/Trunc should stay backend-owned in the registered table',
+    (PtrUInt(LScalarTable.RoundF32x8) <> PtrUInt(LRISCVVTable.RoundF32x8)) and
+    (PtrUInt(LScalarTable.TruncF32x8) <> PtrUInt(LRISCVVTable.TruncF32x8)) and
+    (PtrUInt(LScalarTable.RoundF64x4) <> PtrUInt(LRISCVVTable.RoundF64x4)) and
+    (PtrUInt(LScalarTable.TruncF64x4) <> PtrUInt(LRISCVVTable.TruncF64x4)) and
+    (PtrUInt(LScalarTable.RoundF32x16) <> PtrUInt(LRISCVVTable.RoundF32x16)) and
+    (PtrUInt(LScalarTable.TruncF32x16) <> PtrUInt(LRISCVVTable.TruncF32x16)) and
+    (PtrUInt(LScalarTable.RoundF64x8) <> PtrUInt(LRISCVVTable.RoundF64x8)) and
+    (PtrUInt(LScalarTable.TruncF64x8) <> PtrUInt(LRISCVVTable.TruncF64x8)));
+
+  LInF32x8.f[0] := 0.0;
+  LInF32x8.f[1] := NegZeroF32;
+  LInF32x8.f[2] := NaNF32;
+  LInF32x8.f[3] := PosInfF32;
+  LInF32x8.f[4] := NegInfF32;
+  LInF32x8.f[5] := 0.5;
+  LInF32x8.f[6] := -0.5;
+  LInF32x8.f[7] := -1.5;
+
+  LInF64x4.d[0] := 0.0;
+  LInF64x4.d[1] := NegZeroF64;
+  LInF64x4.d[2] := NaNF64;
+  LInF64x4.d[3] := NegInfF64;
+
+  for LIndex := 0 to 15 do
+    if (LIndex and 1) = 0 then
+      LInF32x16.f[LIndex] := 0.0
+    else
+      LInF32x16.f[LIndex] := NegZeroF32;
+  LInF32x16.f[2] := NaNF32;
+  LInF32x16.f[3] := PosInfF32;
+  LInF32x16.f[4] := NegInfF32;
+  LInF32x16.f[5] := 0.5;
+  LInF32x16.f[6] := -0.5;
+  LInF32x16.f[7] := -1.5;
+
+  for LIndex := 0 to 7 do
+    if (LIndex and 1) = 0 then
+      LInF64x8.d[LIndex] := 0.0
+    else
+      LInF64x8.d[LIndex] := NegZeroF64;
+  LInF64x8.d[2] := NaNF64;
+  LInF64x8.d[3] := PosInfF64;
+  LInF64x8.d[4] := NegInfF64;
+  LInF64x8.d[5] := 0.5;
+  LInF64x8.d[6] := -0.5;
+  LInF64x8.d[7] := -1.5;
+
+  LExpectedRoundF32x8 := LScalarTable.RoundF32x8(LInF32x8);
+  LExpectedTruncF32x8 := LScalarTable.TruncF32x8(LInF32x8);
+  LActualRoundF32x8 := LRISCVVTable.RoundF32x8(LInF32x8);
+  LActualTruncF32x8 := LRISCVVTable.TruncF32x8(LInF32x8);
+
+  LExpectedRoundF64x4 := LScalarTable.RoundF64x4(LInF64x4);
+  LExpectedTruncF64x4 := LScalarTable.TruncF64x4(LInF64x4);
+  LActualRoundF64x4 := LRISCVVTable.RoundF64x4(LInF64x4);
+  LActualTruncF64x4 := LRISCVVTable.TruncF64x4(LInF64x4);
+
+  LExpectedRoundF32x16 := LScalarTable.RoundF32x16(LInF32x16);
+  LExpectedTruncF32x16 := LScalarTable.TruncF32x16(LInF32x16);
+  LActualRoundF32x16 := LRISCVVTable.RoundF32x16(LInF32x16);
+  LActualTruncF32x16 := LRISCVVTable.TruncF32x16(LInF32x16);
+
+  LExpectedRoundF64x8 := LScalarTable.RoundF64x8(LInF64x8);
+  LExpectedTruncF64x8 := LScalarTable.TruncF64x8(LInF64x8);
+  LActualRoundF64x8 := LRISCVVTable.RoundF64x8(LInF64x8);
+  LActualTruncF64x8 := LRISCVVTable.TruncF64x8(LInF64x8);
+
+  for LIndex := 0 to 7 do
+  begin
+    AssertSingleSemantics('RISCVV direct RoundF32x8[' + IntToStr(LIndex) + ']',
+      LExpectedRoundF32x8.f[LIndex], LActualRoundF32x8.f[LIndex]);
+    AssertSingleSemantics('RISCVV direct TruncF32x8[' + IntToStr(LIndex) + ']',
+      LExpectedTruncF32x8.f[LIndex], LActualTruncF32x8.f[LIndex]);
+  end;
+
+  for LIndex := 0 to 3 do
+  begin
+    AssertDoubleSemantics('RISCVV direct RoundF64x4[' + IntToStr(LIndex) + ']',
+      LExpectedRoundF64x4.d[LIndex], LActualRoundF64x4.d[LIndex]);
+    AssertDoubleSemantics('RISCVV direct TruncF64x4[' + IntToStr(LIndex) + ']',
+      LExpectedTruncF64x4.d[LIndex], LActualTruncF64x4.d[LIndex]);
+  end;
+
+  for LIndex := 0 to 15 do
+  begin
+    AssertSingleSemantics('RISCVV direct RoundF32x16[' + IntToStr(LIndex) + ']',
+      LExpectedRoundF32x16.f[LIndex], LActualRoundF32x16.f[LIndex]);
+    AssertSingleSemantics('RISCVV direct TruncF32x16[' + IntToStr(LIndex) + ']',
+      LExpectedTruncF32x16.f[LIndex], LActualTruncF32x16.f[LIndex]);
+  end;
+
+  for LIndex := 0 to 7 do
+  begin
+    AssertDoubleSemantics('RISCVV direct RoundF64x8[' + IntToStr(LIndex) + ']',
+      LExpectedRoundF64x8.d[LIndex], LActualRoundF64x8.d[LIndex]);
+    AssertDoubleSemantics('RISCVV direct TruncF64x8[' + IntToStr(LIndex) + ']',
+      LExpectedTruncF64x8.d[LIndex], LActualTruncF64x8.d[LIndex]);
+  end;
 end;
 
 procedure TTestCase_NonX86IEEE754.Test_NonX86_F32_ReduceMinMax_SpecialCases_IfAvailable;

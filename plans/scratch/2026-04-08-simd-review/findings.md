@@ -8541,3 +8541,24 @@
   - “source-truth 已经收正”
   - “audit 不再假称 scalar-forwarder”
   - “是否继续删除 local loop，要等下一批 runtime 语义证据再决定”
+
+## 2026-05-18 RISCVV Wide RoundTrunc Became A Safe Redundancy Collapse After Direct Registered-Table Proof
+
+- 上一条 finding 的不确定点，现在已经被 fresh runtime 证据补齐了：
+  - `TTestCase_NonX86IEEE754.Test_RISCVV_WideRoundTrunc_DirectRegisteredTable_SignedZeroParity_IfRegistered`
+  - 不是走 `TrySetActiveBackend(...)`
+  - 而是直接拿 `sbScalar` / `sbRISCVV` 的 registered dispatch table，对 `Round/TruncF32x8/F32x16/F64x4/F64x8` 逐槽位比对
+- 这条证据给出的判断非常关键：
+  - `sbRISCVV` registered table 仍对这 8 个 slot 持有独立函数指针，说明“backend-owned register identity”还在
+  - 但这些独立 entry 在 `NaN / Inf / signed-zero / finite sample` 上与 scalar 结果完全一致，说明当前 contract 不依赖 no-asm 本地 loop 维持特殊语义
+- 因而这 8 个 `Round/Trunc` 槽的真实结构现在可以更准确地写成：
+  - register/runtime 身份层：仍是 `RISCVV` 自己的 backend-owned slot
+  - active no-asm body 层：可以安全 collapse 到 `ScalarRound* / ScalarTrunc*`
+  - helper/audit 层：必须继续盯住 `riscvv.facade.inc` 的 scalar-forward truth，而不是退回去看 `riscvv.pas` 的影子定义
+- 这条 finding 的关键价值是把两个容易混淆的概念拆开：
+  - “registered table 里是不是 RISCVV 自己的 entry”
+  - “no-asm body 是否还需要保留本地 loop”
+- fresh 结论已经足够明确：
+  - 第一个答案是“是”
+  - 第二个答案在当前 contract 下是“否”
+- 所以 `RISCVV wide Round/Trunc` 现在不应再被描述成“需要保留 local no-asm semantics 的特殊槽位”，而应被视为一组已经拿到 direct runtime 证据、可以正式去冗余的 fallback loops。

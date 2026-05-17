@@ -1041,39 +1041,15 @@ def main() -> int:
         "RISCVVMaxU64x2",
     }
 
-    riscvv_wide_roundtrunc_local_loop_expectations = [
-        (riscvv_facade_source, "RISCVVRoundF32x8", [
-            "for i := 0 to 7 do",
-            "Result.f[i] := Round(a.f[i]);",
-        ]),
-        (riscvv_facade_source, "RISCVVRoundF64x4", [
-            "for i := 0 to 3 do",
-            "Result.d[i] := Round(a.d[i]);",
-        ]),
-        (riscvv_facade_source, "RISCVVRoundF32x16", [
-            "for i := 0 to 15 do",
-            "Result.f[i] := Round(a.f[i]);",
-        ]),
-        (riscvv_facade_source, "RISCVVRoundF64x8", [
-            "for i := 0 to 7 do",
-            "Result.d[i] := Round(a.d[i]);",
-        ]),
-        (riscvv_facade_source, "RISCVVTruncF32x8", [
-            "for i := 0 to 7 do",
-            "Result.f[i] := Trunc(a.f[i]);",
-        ]),
-        (riscvv_facade_source, "RISCVVTruncF64x4", [
-            "for i := 0 to 3 do",
-            "Result.d[i] := Trunc(a.d[i]);",
-        ]),
-        (riscvv_facade_source, "RISCVVTruncF32x16", [
-            "for i := 0 to 15 do",
-            "Result.f[i] := Trunc(a.f[i]);",
-        ]),
-        (riscvv_facade_source, "RISCVVTruncF64x8", [
-            "for i := 0 to 7 do",
-            "Result.d[i] := Trunc(a.d[i]);",
-        ]),
+    riscvv_wide_roundtrunc_forwarder_expectations = [
+        ("RISCVVRoundF32x8", "ScalarRoundF32x8(a)"),
+        ("RISCVVRoundF64x4", "ScalarRoundF64x4(a)"),
+        ("RISCVVRoundF32x16", "ScalarRoundF32x16(a)"),
+        ("RISCVVRoundF64x8", "ScalarRoundF64x8(a)"),
+        ("RISCVVTruncF32x8", "ScalarTruncF32x8(a)"),
+        ("RISCVVTruncF64x4", "ScalarTruncF64x4(a)"),
+        ("RISCVVTruncF32x16", "ScalarTruncF32x16(a)"),
+        ("RISCVVTruncF64x8", "ScalarTruncF64x8(a)"),
     ]
 
     routine_expectations.extend(
@@ -1087,7 +1063,10 @@ def main() -> int:
         for routine_name, scalar_call in riscvv_helper_scalar_forwarder_expectations
     )
 
-    routine_expectations.extend(riscvv_wide_roundtrunc_local_loop_expectations)
+    routine_expectations.extend(
+        (riscvv_facade_source, routine_name, [f"Result := {scalar_call};"])
+        for routine_name, scalar_call in riscvv_wide_roundtrunc_forwarder_expectations
+    )
 
     routine_expectations.append(
         (

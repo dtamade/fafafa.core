@@ -2420,17 +2420,13 @@ begin
 end;
 
 function RISCVVRoundF32x16(const a: TVecF32x16): TVecF32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.f[i] := Round(a.f[i]);
+  Result := ScalarRoundF32x16(a);
 end;
 
 function RISCVVRoundF32x8(const a: TVecF32x8): TVecF32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.f[i] := Round(a.f[i]);
+  Result := ScalarRoundF32x8(a);
 end;
 
 function RISCVVRoundF64x2(const a: TVecF64x2): TVecF64x2;
@@ -2441,17 +2437,13 @@ begin
 end;
 
 function RISCVVRoundF64x4(const a: TVecF64x4): TVecF64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.d[i] := Round(a.d[i]);
+  Result := ScalarRoundF64x4(a);
 end;
 
 function RISCVVRoundF64x8(const a: TVecF64x8): TVecF64x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.d[i] := Round(a.d[i]);
+  Result := ScalarRoundF64x8(a);
 end;
 
 function RISCVVSelectF64x2(const mask: TMask2; const a, b: TVecF64x2): TVecF64x2;
@@ -2652,17 +2644,13 @@ begin
 end;
 
 function RISCVVTruncF32x16(const a: TVecF32x16): TVecF32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.f[i] := Trunc(a.f[i]);
+  Result := ScalarTruncF32x16(a);
 end;
 
 function RISCVVTruncF32x8(const a: TVecF32x8): TVecF32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.f[i] := Trunc(a.f[i]);
+  Result := ScalarTruncF32x8(a);
 end;
 
 function RISCVVTruncF64x2(const a: TVecF64x2): TVecF64x2;
@@ -2673,17 +2661,13 @@ begin
 end;
 
 function RISCVVTruncF64x4(const a: TVecF64x4): TVecF64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.d[i] := Trunc(a.d[i]);
+  Result := ScalarTruncF64x4(a);
 end;
 
 function RISCVVTruncF64x8(const a: TVecF64x8): TVecF64x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.d[i] := Trunc(a.d[i]);
+  Result := ScalarTruncF64x8(a);
 end;
 
 function RISCVVXorI16x8(const a, b: TVecI16x8): TVecI16x8;
