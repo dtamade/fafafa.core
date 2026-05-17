@@ -10522,3 +10522,32 @@
 - 当前阶段结论：
   - `SSE2` 的 `Load / Store` 段已经从 residual 清单中退出
   - 当前剩余 residual 已从 `637` 行开始，说明下一批可以直接从 `Set / Broadcast` 邻近簇接着做，不必再回头看访存段
+
+## 2026-05-17 SSE2 Set/Broadcast Hygiene And Redundancy Trim
+
+- 在 `Load / Store` 之后，继续按功能区推进，直接切 `Set / Zero / Broadcast` 邻近簇：
+  - `simd_setzero_si128`
+  - `simd_setzero_pd`
+  - `simd_setzero_ps`
+  - `simd_set1_epi8/16/32/64x`
+  - `simd_set1_ps/pd`
+  - `Set` 实现块前的重复版本说明注释
+- 这批不只是文本卫生，还顺手修掉了一个真实冗余点：
+  - `simd_setzero_si128/pd/ps` 各自都删掉了 1 条重复清零指令
+  - 保留单条 `pxor/xorpd/xorps` 即可维持同样语义
+- fresh 验证已完成：
+  - `python3` 逐文件计数：
+    - `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 从 `residual_char_count=395` 降到 `332`
+    - `residuals_up_to_854=[]`
+  - `rg -n "pxor xmm0, xmm0|xorpd xmm0, xmm0|xorps xmm0, xmm0"` 确认顶部 `setzero` 重复指令已去掉
+  - `git diff --check`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - `intrinsics.experimental check` default / experimental 双模态通过
+  - `x86 SSE2 backend smoke` 通过
+  - 主 `simd` release `check` 通过
+- 当前阶段结论：
+  - `SSE2` 的 `Set / Broadcast` 邻近簇已经退出 residual 清单
+  - 当前剩余 residual 已从 `877` 行开始，下一批可直接切到后续 `Set` / early arithmetic 邻近簇

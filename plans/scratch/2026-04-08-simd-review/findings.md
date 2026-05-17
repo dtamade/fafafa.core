@@ -7825,3 +7825,23 @@
 - 因而当前最合适的继续方式不是回去重扫 `Load / Store`，而是：
   - 从 `637` 行之后的下一簇 residual 继续小批次推进
   - 保持 `comment_swallow + intrinsics.experimental check + main release check` 这条验证链不变
+
+## 2026-05-17 SSE2 SetZero Had Real Redundant Instructions
+
+- `intrinsics.x86.sse2` 的 `Set / Broadcast` 区这次不只是“注释不好看”：
+  - `simd_setzero_si128`
+  - `simd_setzero_pd`
+  - `simd_setzero_ps`
+  三个函数在开头都重复执行了一次同样的清零指令。
+- 这些重复指令不会改错结果，但属于真实冗余：
+  - `pxor xmm0, xmm0` 连续两次
+  - `xorpd xmm0, xmm0` 连续两次
+  - `xorps xmm0, xmm0` 连续两次
+- 对这类小冗余，最合适的做法不是另开大重构，而是跟当前注释簇一起 bounded 收口：
+  - 去掉重复清零指令
+  - 同时把 `set1_*` 和浮点 broadcast 调用约定说明改成稳定注释
+  - 再复用现有 experimental + mainline `check` 证明没有回归
+- live 计数和指令搜索证明这批收口有效：
+  - `residual_char_count: 395 -> 332`
+  - `residuals_up_to_854=[]`
+  - 顶部 `setzero` 区域只剩单条清零指令，不再重复执行

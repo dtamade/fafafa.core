@@ -633,8 +633,7 @@ function simd_setzero_si128: TM128; {$IFDEF FPC}assembler; nostackframe;
 {$ENDIF}
 asm
   // Intel 语法:
-  pxor xmm0, xmm0
-  // �?xmm0 与自己异或，结果为全�?
+  // Zero all bits by XORing xmm0 with itself.
   pxor xmm0, xmm0
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -648,8 +647,7 @@ function simd_setzero_pd: TM128; {$IFDEF FPC}assembler; nostackframe;
 {$ENDIF}
 asm
   // Intel 语法:
-  xorpd xmm0, xmm0
-  // 双精度浮点数清零
+  // Zero both packed double lanes.
   xorpd xmm0, xmm0
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -663,8 +661,7 @@ function simd_setzero_ps: TM128; {$IFDEF FPC}assembler; nostackframe;
 {$ENDIF}
 asm
   // Intel 语法:
-  xorps xmm0, xmm0
-  // 单精度浮点数清零
+  // Zero all packed single-precision lanes.
   xorps xmm0, xmm0
 {$IFDEF CPUX86_64}
   movq rax, xmm0
@@ -679,20 +676,20 @@ function simd_set1_epi8(Value: ShortInt): TM128; {$IFDEF FPC}assembler; nostackf
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    // Windows x64: Value �?rcx (�?�?
-    movd xmm0, ecx //  �?Value 移到 xmm0 的低32�?
+    // Windows x64: Value in rcx (8-bit scalar)
+    movd xmm0, ecx // Move Value into the low 32 bits of xmm0.
     punpcklbw xmm0, xmm0  // 复制字节: 01010101 -> 0011001100110011
-    punpcklwd xmm0, xmm0  // 复制�? 0011 -> 00001111
-    pshufd xmm0, xmm0, 0  // 复制双字到所有位�?
+    punpcklwd xmm0, xmm0  // Replicate byte pairs across each word lane.
+    pshufd xmm0, xmm0, 0  // Broadcast the replicated dword to all lanes.
     {$ELSE}
-    // Linux/macOS x64 System V ABI: Value �?rdi (�?�?
+    // Linux/macOS x64 System V ABI: Value in rdi (8-bit scalar)
     movd xmm0, edi
     punpcklbw xmm0, xmm0
     punpcklwd xmm0, xmm0
     pshufd xmm0, xmm0, 0
   {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: Value 在栈�?
+    // x86 32-bit: Value arrives on the stack.
     mov eax, [esp + 4]
     movd xmm0, eax
     punpcklbw xmm0, xmm0
@@ -714,18 +711,18 @@ function simd_set1_epi16(Value: SmallInt): TM128; {$IFDEF FPC}assembler; nostack
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    // Windows x64: Value �?rcx (�?6�?
-    movd xmm0, ecx //  �?Value 移到 xmm0 的低32�?
-    punpcklwd xmm0, xmm0  // 复制�? 01 -> 0011
-    pshufd xmm0, xmm0, 0  // 复制双字到所有位�?
+    // Windows x64: Value in rcx (16-bit scalar)
+    movd xmm0, ecx // Move Value into the low 32 bits of xmm0.
+    punpcklwd xmm0, xmm0  // Replicate the 16-bit value within the low dword.
+    pshufd xmm0, xmm0, 0  // Broadcast the replicated dword to all lanes.
     {$ELSE}
-    // Linux/macOS x64 System V ABI: Value �?rdi (�?6�?
+    // Linux/macOS x64 System V ABI: Value in rdi (16-bit scalar)
     movd xmm0, edi
     punpcklwd xmm0, xmm0
     pshufd xmm0, xmm0, 0
   {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: Value 在栈�?
+    // x86 32-bit: Value arrives on the stack.
     mov eax, [esp + 4]
     movd xmm0, eax
     punpcklwd xmm0, xmm0
@@ -746,16 +743,16 @@ function simd_set1_epi32(Value: LongInt): TM128; {$IFDEF FPC}assembler; nostackf
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    // Windows x64: Value �?rcx (�?2�?
-    movd xmm0, ecx //  �?Value 移到 xmm0 的低32�?
-    pshufd xmm0, xmm0, 0  // 复制到所�?�?2位位�?(00000000b = 0)
+    // Windows x64: Value in rcx (32-bit scalar)
+    movd xmm0, ecx // Move Value into the low 32 bits of xmm0.
+    pshufd xmm0, xmm0, 0  // Broadcast the 32-bit lane to the full register.
   {$ELSE}
-    // Linux/macOS x64 System V ABI: Value �?rdi (�?2�?
+    // Linux/macOS x64 System V ABI: Value in rdi (32-bit scalar)
     movd xmm0, edi
     pshufd xmm0, xmm0, 0
   {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: Value 在栈�?
+    // x86 32-bit: Value arrives on the stack.
     mov eax, [esp + 4]
     movd xmm0, eax
     pshufd xmm0, xmm0, 0
@@ -775,17 +772,17 @@ function simd_set1_epi64x(Value: Int64): TM128; {$IFDEF FPC}assembler; nostackfr
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    // Windows x64: Value �?rcx (64�?
-    movq xmm0, rcx //  �?Value 移到 xmm0 的低64�?
-    punpcklqdq xmm0, xmm0 // 复制�?4位到�?4�?
+    // Windows x64: Value in rcx (64-bit scalar)
+    movq xmm0, rcx // Move Value into the low 64 bits of xmm0.
+    punpcklqdq xmm0, xmm0 // Replicate the low 64-bit lane into the high lane.
     {$ELSE}
-    // Linux/macOS x64 System V ABI: Value �?rdi (64�?
+    // Linux/macOS x64 System V ABI: Value in rdi (64-bit scalar)
     movq xmm0, rdi
     punpcklqdq xmm0, xmm0
   {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: Value 在栈�?(8字节)
-    movq xmm0, [esp + 4] //  直接从栈加载64�?
+    // x86 32-bit: Value arrives on the stack (8 bytes).
+    movq xmm0, [esp + 4] // Load the 64-bit scalar directly from the stack.
     punpcklqdq xmm0, xmm0
 {$ELSE}
     {$ERROR Unsupported CPU}
@@ -803,16 +800,16 @@ function simd_set1_ps(Value: Single): TM128; {$IFDEF FPC}assembler; nostackframe
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    // Windows x64: Value �?xmm0 (单精度浮点参�?
-    shufps xmm0, xmm0, 0  // 复制 xmm0[0] 到所有位�?(00000000b = 0)
+    // Windows x64: Value already arrives in xmm0 (single-precision scalar)
+    shufps xmm0, xmm0, 0  // Broadcast xmm0[0] to every single-precision lane.
   {$ELSE}
-    // Linux/macOS x64 System V ABI: Value �?xmm0
+    // Linux/macOS x64 System V ABI: Value already arrives in xmm0
     shufps xmm0, xmm0, 0
   {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: Value 在栈�?
+    // x86 32-bit: Value arrives on the stack.
     movss xmm0, [esp + 4] // 加载单精度浮点数
-    shufps xmm0, xmm0, 0  // 复制到所有位�?
+    shufps xmm0, xmm0, 0  // Broadcast the loaded scalar to every lane.
     {$ELSE}
     {$ERROR Unsupported CPU}
 {$ENDIF}
@@ -829,16 +826,16 @@ function simd_set1_pd(Value: Double): TM128; {$IFDEF FPC}assembler; nostackframe
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    // Windows x64: Value �?xmm0 (双精度浮点参�?
-    unpcklpd xmm0, xmm0   // 复制�?4位到�?4�?
+    // Windows x64: Value already arrives in xmm0 (double-precision scalar)
+    unpcklpd xmm0, xmm0   // Replicate the low 64-bit lane into the high lane.
     {$ELSE}
-    // Linux/macOS x64 System V ABI: Value �?xmm0
+    // Linux/macOS x64 System V ABI: Value already arrives in xmm0
     unpcklpd xmm0, xmm0
   {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: Value 在栈�?(8字节)
+    // x86 32-bit: Value arrives on the stack (8 bytes).
     movsd xmm0, [esp + 4] // 加载双精度浮点数
-    unpcklpd xmm0, xmm0   // 复制到高�?
+    unpcklpd xmm0, xmm0   // Replicate the low lane into the high lane.
     {$ELSE}
     {$ERROR Unsupported CPU}
 {$ENDIF}
@@ -851,7 +848,7 @@ asm
 end;
 
 // === 复杂 Set 函数实现 ===
-// 重复�?Set 函数实现已删除，保留第二个版�?
+// Earlier duplicate Set bodies were removed; keep the later canonical block.
 // === Set 函数实现 ===
 function simd_setr_epi32(a, b, c, d: LongInt): TM128; {$IFDEF FPC}assembler; nostackframe;
 {$ENDIF}
