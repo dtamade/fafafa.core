@@ -8680,3 +8680,30 @@
 - 当前阶段结论：
   - 这批收掉的不是实现 bug，而是 `runner-parity` 自己的例外白名单漂移
   - 现在 allowlist 不仅要“存在”，还必须继续符合单边事实，后续更不容易因为历史例外放松护栏
+
+## 2026-05-17 Check Default Register-Truthfulness Strict Upgrade
+
+- `runner-parity` 收口后，继续按“默认门禁是否还留宽松口子”的边界往下查。
+- 新抓到的 residual 不是 checker 算法缺陷，而是默认门禁口径还没完全跟上当前 truth：
+  - shell `check` 里仍是 `run_register_truthfulness_check "0"`
+  - batch `check` 里也仍是 `call :register_truthfulness_check 0`
+  - 但同一仓库里的手工 checklist、`impl-audit-nonx86` 与近期 closeout 记录，已经普遍把 `register-truthfulness --strict` 当成真实口径
+- 先做了 fresh 可行性复核，而不是直接改：
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+  - 结果两边都为 `miswired=0 unused_allowlist=0 strict=1`
+- 已落地的最小修法：
+  - `tests/fafafa.core.simd/BuildOrTest.sh`：`check` 默认改为 strict
+  - `tests/fafafa.core.simd/buildOrTest.bat`：同步改为 strict
+  - `docs/fafafa.core.simd.maintenance.md`：明确 `check` 当前包含 `register-truthfulness --strict`
+- fresh 验证已完成：
+  - `git diff --check`
+  - `bash -n tests/fafafa.core.simd/BuildOrTest.sh`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - fresh `check` 日志里两条 summary 已变成：
+    - `backend=neon ... strict=1`
+    - `backend=riscvv ... strict=1`
+- 当前阶段结论：
+  - 这批收掉的是默认 `check` 对 `register-truthfulness` 的宽松模式残留
+  - 现在日常 `check` 与当前 closeout truth 更一致，新增 always-context wrapper drift 更早会被 fail-close

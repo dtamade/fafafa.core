@@ -551,7 +551,7 @@ if /I not "%SIMD_CHECK_WIRING_SYNC%"=="0" (
   echo [CHECK] SKIP wiring-sync ^(set SIMD_CHECK_WIRING_SYNC=0 to disable^)
 )
 
-call :register_truthfulness_check 0
+call :register_truthfulness_check 1
 if errorlevel 1 exit /b 1
 
 if /I "%SIMD_CHECK_EXPERIMENTAL%"=="0" (

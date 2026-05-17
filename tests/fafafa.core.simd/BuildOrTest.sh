@@ -7061,7 +7061,7 @@ case "${ACTION}" in
     else
       echo "[CHECK] SKIP wiring-sync (set SIMD_CHECK_WIRING_SYNC=0 to disable)"
     fi
-    run_register_truthfulness_check "0"
+    run_register_truthfulness_check "1"
     if [[ "${SIMD_CHECK_EXPERIMENTAL:-1}" != "0" ]]; then
       echo "[CHECK] Experimental intrinsics isolation"
       run_intrinsics_experimental_status

@@ -6988,3 +6988,17 @@
   - 移除 stale shell-only allowlist 项
   - 让 shell-only / windows-only allowlist 都额外校验“是否已经出现在对侧 action 集”
 - 这类问题属于 guard truth drift，不是 SIMD 算法或 Windows external blocker。
+
+## 2026-05-17 Default `check` Still Used Non-Strict Register Truthfulness
+
+- 当前 fresh `check` 路径之前仍把 `register-truthfulness` 跑在 non-strict 模式：
+  - shell: `run_register_truthfulness_check "0"`
+  - batch: `call :register_truthfulness_check 0`
+- 这和当前仓库的实际 closeout/triage 口径已经有轻度漂移：
+  - 手工 checklist 已明确使用 `--strict`
+  - `impl-audit-nonx86` / release closeout 近几轮也都是 strict truth source
+  - 但日常 `check` 仍可能放过新的 always-context `wrapper_only` backend-owned drift
+- 先做 fresh strict proof 后确认这不是“会把当前树打红”的冒险改动：
+  - `backend=neon ... miswired=0 unused_allowlist=0 strict=1`
+  - `backend=riscvv ... miswired=0 unused_allowlist=0 strict=1`
+- 因而最小正确修法是把默认 `check` 直接升级到 strict，并同步 batch parity 与维护文档，而不是继续保留两套口径。
