@@ -119,6 +119,7 @@ type
     procedure Test_NonX86_NarrowF64x2_RoundTruncFloorCeil_Finite_IfAvailable;
     procedure Test_NonX86_F32_ReduceMinMax_SpecialCases_IfAvailable;
     procedure Test_NonX86_F64_MinMaxReduce_SpecialCases_IfAvailable;
+    procedure Test_NonX86_F64_WideMinMax_SpecialCases_IfAvailable;
     procedure Test_NonX86_Wide_RoundTruncFloorCeil_NaNInf_IfAvailable;
     procedure Test_NonX86_FloorCeil_PropertyLike_FixedSeed_IfAvailable;
     procedure Test_NonX86_RoundTrunc_PropertyLike_FixedSeed_IfAvailable;
@@ -3547,6 +3548,129 @@ begin
       LInputF64x8.d[6] := 8.0;
       LInputF64x8.d[7] := 9.0;
       AssertReduceParityF64x8('SignedZeroNegPos', LInputF64x8);
+    finally
+      ResetToAutomaticBackend;
+    end;
+  end;
+
+  if LCheckedBackends = 0 then
+    AssertTrue('No non-x86 backend available on this host (allowed)', True);
+end;
+
+procedure TTestCase_NonX86IEEE754.Test_NonX86_F64_WideMinMax_SpecialCases_IfAvailable;
+const
+  NON_X86_BACKENDS: array[0..1] of TSimdBackend = (sbNEON, sbRISCVV);
+var
+  LBackend: TSimdBackend;
+  LCheckedBackends: Integer;
+  LScalarDispatch: PSimdDispatchTable;
+  LBackendDispatch: PSimdDispatchTable;
+
+  LLeftF64x4, LRightF64x4: TVecF64x4;
+  LLeftF64x8, LRightF64x8: TVecF64x8;
+
+  procedure AssertDoubleParity(const aPrefix: string; const aExpected, aActual: Double);
+  begin
+    if IsNaNDouble(aExpected) then
+      AssertTrue(aPrefix + ' expected NaN', IsNaNDouble(aActual))
+    else if IsInfinite(aExpected) then
+      AssertTrue(aPrefix + ' expected Inf sign',
+        IsInfinite(aActual) and ((aActual > 0) = (aExpected > 0)))
+    else
+    begin
+      AssertEquals(aPrefix + ' finite compare', aExpected, aActual, 0.0);
+      if aExpected = 0.0 then
+        AssertTrue(aPrefix + ' zero sign',
+          BitsFromDouble(aExpected) = BitsFromDouble(aActual));
+    end;
+  end;
+
+  procedure AssertVecF64x4Parity(
+    const aPrefix: string;
+    const aExpected, aActual: TVecF64x4);
+  var
+    LLaneIndex: Integer;
+  begin
+    for LLaneIndex := 0 to 3 do
+      AssertDoubleParity(aPrefix + '[' + IntToStr(LLaneIndex) + ']',
+        aExpected.d[LLaneIndex], aActual.d[LLaneIndex]);
+  end;
+
+  procedure AssertVecF64x8Parity(
+    const aPrefix: string;
+    const aExpected, aActual: TVecF64x8);
+  var
+    LLaneIndex: Integer;
+  begin
+    for LLaneIndex := 0 to 7 do
+      AssertDoubleParity(aPrefix + '[' + IntToStr(LLaneIndex) + ']',
+        aExpected.d[LLaneIndex], aActual.d[LLaneIndex]);
+  end;
+
+begin
+  LCheckedBackends := 0;
+  SetVectorAsmEnabled(True);
+
+  for LBackend in NON_X86_BACKENDS do
+  begin
+    if not IsBackendRegistered(LBackend) then
+      Continue;
+    if not TrySetActiveBackend(LBackend) then
+      Continue;
+
+    Inc(LCheckedBackends);
+    try
+      SetActiveBackend(sbScalar);
+      LScalarDispatch := GetDispatchTable;
+      AssertNotNull('Scalar dispatch should be available', LScalarDispatch);
+      AssertTrue('Scalar dispatch should provide wide F64 min/max',
+        Assigned(LScalarDispatch^.MinF64x4) and Assigned(LScalarDispatch^.MaxF64x4) and
+        Assigned(LScalarDispatch^.MinF64x8) and Assigned(LScalarDispatch^.MaxF64x8));
+
+      SetActiveBackend(LBackend);
+      LBackendDispatch := GetDispatchTable;
+      AssertNotNull('Non-x86 dispatch should be available', LBackendDispatch);
+      AssertTrue('Non-x86 dispatch should provide wide F64 min/max',
+        Assigned(LBackendDispatch^.MinF64x4) and Assigned(LBackendDispatch^.MaxF64x4) and
+        Assigned(LBackendDispatch^.MinF64x8) and Assigned(LBackendDispatch^.MaxF64x8));
+
+      LLeftF64x4.d[0] := NaNF64;
+      LLeftF64x4.d[1] := 5.0;
+      LLeftF64x4.d[2] := 0.0;
+      LLeftF64x4.d[3] := NegZeroF64;
+      LRightF64x4.d[0] := 3.0;
+      LRightF64x4.d[1] := NaNF64;
+      LRightF64x4.d[2] := NegZeroF64;
+      LRightF64x4.d[3] := 0.0;
+      AssertVecF64x4Parity(IEEE754BackendName(LBackend) + ' Special MinF64x4',
+        LScalarDispatch^.MinF64x4(LLeftF64x4, LRightF64x4),
+        LBackendDispatch^.MinF64x4(LLeftF64x4, LRightF64x4));
+      AssertVecF64x4Parity(IEEE754BackendName(LBackend) + ' Special MaxF64x4',
+        LScalarDispatch^.MaxF64x4(LLeftF64x4, LRightF64x4),
+        LBackendDispatch^.MaxF64x4(LLeftF64x4, LRightF64x4));
+
+      LLeftF64x8.d[0] := NaNF64;
+      LLeftF64x8.d[1] := 5.0;
+      LLeftF64x8.d[2] := 0.0;
+      LLeftF64x8.d[3] := NegZeroF64;
+      LLeftF64x8.d[4] := 8.0;
+      LLeftF64x8.d[5] := 9.0;
+      LLeftF64x8.d[6] := NegZeroF64;
+      LLeftF64x8.d[7] := 0.0;
+      LRightF64x8.d[0] := 3.0;
+      LRightF64x8.d[1] := NaNF64;
+      LRightF64x8.d[2] := NegZeroF64;
+      LRightF64x8.d[3] := 0.0;
+      LRightF64x8.d[4] := NaNF64;
+      LRightF64x8.d[5] := 4.0;
+      LRightF64x8.d[6] := 0.0;
+      LRightF64x8.d[7] := NegZeroF64;
+      AssertVecF64x8Parity(IEEE754BackendName(LBackend) + ' Special MinF64x8',
+        LScalarDispatch^.MinF64x8(LLeftF64x8, LRightF64x8),
+        LBackendDispatch^.MinF64x8(LLeftF64x8, LRightF64x8));
+      AssertVecF64x8Parity(IEEE754BackendName(LBackend) + ' Special MaxF64x8',
+        LScalarDispatch^.MaxF64x8(LLeftF64x8, LRightF64x8),
+        LBackendDispatch^.MaxF64x8(LLeftF64x8, LRightF64x8));
     finally
       ResetToAutomaticBackend;
     end;

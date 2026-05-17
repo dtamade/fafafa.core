@@ -4900,3 +4900,17 @@
 | 1. 复核 `F32 reduction` 是否和刚修掉的 `F64` 属于同一类 drift | completed | 已确认 `src/fafafa.core.simd.scalar.pas` 的 `ScalarReduceMin/MaxF32x4/F32x8/F32x16` 同样走 `Math.Min/Max` 链，而 `src/fafafa.core.simd.riscvv.facade.inc` 的 `RISCVVReduceMin/MaxF32x4/F32x8/F32x16` 仍是 compare-loop accumulator；仓库也没有对应的 `F32 reduction` special-case non-x86 parity test，因此它们和刚修掉的 `F64` 属于同一类真实 drift |
 | 2. 把 `F32 reduce` no-asm facades 收成 exact scalar forward，并补语义回归测试 | completed | `src/fafafa.core.simd.riscvv.facade.inc` 已把 `ReduceMin/MaxF32x4/F32x8/F32x16` 收成 `ScalarReduce...` forward；`tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 已把这 6 个函数纳入 scalar-forward truth；`tests/fafafa.core.simd/fafafa.core.simd.ieee754.testcase.pas` 新增 `Test_NonX86_F32_ReduceMinMax_SpecialCases_IfAvailable` |
 | 3. 串行 Release 复验并确认当前 stop-point | completed | `git diff --check`、Release `TTestCase_NonX86IEEE754`、Release `impl-audit-nonx86`、Release `check` 全部 fresh 通过；其中 `NONX86_HELPER_SEMANTICS_SUMMARY checks=684 status=ok`、`NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok` 均已重新打绿 |
+
+## 2026-05-18 RISCVV Wide F64 MinMax Witness Coverage Closeout
+
+### Goal
+
+把 `RISCVV MinF64x4/MaxF64x4/MinF64x8/MaxF64x8` 这组 residual 从“疑似 drift”收口成可提交结论：先用 runtime special-case parity 证明当前 host 上是否真有 `NaN / signed-zero` 漂移；如果没有，就保持实现不动，只补齐 source/runtime 双护栏。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 先证伪 wide `F64 min/max` 是否真属于下一批 drift bug | completed | 已在 `tests/fafafa.core.simd/fafafa.core.simd.ieee754.testcase.pas` 新增 `Test_NonX86_F64_WideMinMax_SpecialCases_IfAvailable`；Release `TTestCase_NonX86IEEE754` fresh 通过，当前 host 上没有打出 `MinF64x4/MaxF64x4/MinF64x8/MaxF64x8` 的 `NaN / signed-zero` parity 红点 |
+| 2. 不强改实现，只补当前真实缺口 | completed | `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 已新增 `RISCVVMinF64x4/MaxF64x4/MinF64x8/MaxF64x8` local-loop truth；说明这批真实问题是 helper semantics guard 缺口，而不是已证实的 runtime drift |
+| 3. 串行 Release 复验并确认 stop-point | completed | `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py`、`python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`、Release `TTestCase_NonX86IEEE754`、Release `impl-audit-nonx86`、Release `check`、Release `gate` 全部 fresh 通过；其中 `NONX86_HELPER_SEMANTICS_SUMMARY checks=688 status=ok`，Release `gate` 也已恢复 PASS |

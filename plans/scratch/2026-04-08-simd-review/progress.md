@@ -11435,3 +11435,44 @@
 - 当前阶段结论：
   - `RISCVV ReduceMin/MaxF32x4/F32x8/F32x16` 的 no-asm compare-loop drift 也已经被真实修掉
   - 当前 `RISCVV float reduction` 的 x86 host no-asm 漂移面，`F32` 与 `F64` 两半都已经收成 exact scalar truth
+
+## 2026-05-18 RISCVV Wide F64 MinMax Witness Coverage Closeout
+
+- 这轮继续往 `RISCVV wide F64` 深审时，没有直接按“看起来像前面的 reduction drift”去改实现，而是先补了一条更强的 runtime special-case 回归：
+  - `tests/fafafa.core.simd/fafafa.core.simd.ieee754.testcase.pas`
+    - 新增 `TTestCase_NonX86IEEE754.Test_NonX86_F64_WideMinMax_SpecialCases_IfAvailable`
+    - 直接对位 `MinF64x4/MaxF64x4/MinF64x8/MaxF64x8` 的 `NaN / signed-zero` 语义
+- fresh release 结果先把方向收正了：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NonX86IEEE754`
+  - 结果：`[BUILD] OK`、`[TEST] OK`、`[LEAK] OK`
+  - 结论：当前没有 fresh 证据支持把 `RISCVV Min/MaxF64x4/F64x8` 判成和之前 `ReduceMin/Max` 一样的 no-asm drift bug
+- 因而本批没有硬改 `src/fafafa.core.simd.riscvv.facade.inc`，而是把真正暴露出来的缺口收掉：
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 新增 `RISCVVMinF64x4`
+    - 新增 `RISCVVMinF64x8`
+    - 新增 `RISCVVMaxF64x4`
+    - 新增 `RISCVVMaxF64x8`
+    - 全部按当前真实 local-loop body 记录 source-level truth
+  - `NONX86_HELPER_SEMANTICS_SUMMARY` 因此从 `684` 升到 `688`
+- 这批串行 release 验证已经 fresh 跑通：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NonX86IEEE754`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- fresh 结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=688 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `TTestCase_NonX86IEEE754` `BUILD/TEST/LEAK` 全绿
+  - Release `check` 通过
+  - Release `gate` 通过；尾部仍只诚实保留：
+    - `non-x86 native evidence verify` optional `SKIP`
+    - `windows_b07_gate.log` optional evidence verify `SKIP`
+- 当前阶段结论：
+  - 这批收掉的是 `RISCVV wide F64 min/max` 的 guard-coverage 缺口，而不是新的实现 drift bug
+  - 当前最准确的 stop-point 是：
+    - runtime special-case parity 已有 fresh 证据
+    - source-level local-loop truth 现在也有 helper semantics 护栏
+    - 在没有 fresh 红证据前，不应把 `MinF64x4/F64x8` 误收成 exact scalar forward

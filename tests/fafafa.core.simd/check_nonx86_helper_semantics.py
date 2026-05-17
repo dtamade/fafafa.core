@@ -536,8 +536,32 @@ def main() -> int:
             "Result.d[i] := a.d[i]",
             "Result.d[i] := b.d[i];",
         ]),
+        (riscvv_facade_source, "RISCVVMinF64x4", [
+            "for i := 0 to 3 do",
+            "if a.d[i] < b.d[i] then",
+            "Result.d[i] := a.d[i]",
+            "Result.d[i] := b.d[i];",
+        ]),
+        (riscvv_facade_source, "RISCVVMinF64x8", [
+            "for i := 0 to 7 do",
+            "if a.d[i] < b.d[i] then",
+            "Result.d[i] := a.d[i]",
+            "Result.d[i] := b.d[i];",
+        ]),
         (riscvv_facade_source, "RISCVVMaxF64x2", [
             "for i := 0 to 1 do",
+            "if a.d[i] > b.d[i] then",
+            "Result.d[i] := a.d[i]",
+            "Result.d[i] := b.d[i];",
+        ]),
+        (riscvv_facade_source, "RISCVVMaxF64x4", [
+            "for i := 0 to 3 do",
+            "if a.d[i] > b.d[i] then",
+            "Result.d[i] := a.d[i]",
+            "Result.d[i] := b.d[i];",
+        ]),
+        (riscvv_facade_source, "RISCVVMaxF64x8", [
+            "for i := 0 to 7 do",
             "if a.d[i] > b.d[i] then",
             "Result.d[i] := a.d[i]",
             "Result.d[i] := b.d[i];",

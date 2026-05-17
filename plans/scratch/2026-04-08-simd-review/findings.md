@@ -8364,3 +8364,25 @@
   - `F32` 和 `F64` 都不要再保留 compare-loop no-asm facades
   - 对外仍可保留 backend-owned asm 发布形状
   - 但对当前 host 的 no-asm truth，统一 exact scalar forward 才是最少漂移、最少冗余的实现方式
+
+## 2026-05-18 RISCVV Wide F64 MinMax Was A Guard-Coverage Gap, Not A Proven Drift Bug
+
+- `RISCVV MinF64x4/MaxF64x4/MinF64x8/MaxF64x8` 这四格之所以值得继续深审，不是因为已经证明它们有 bug，而是因为它们同时具备两种高风险信号：
+  - `src/fafafa.core.simd.riscvv.register.inc` 里它们是无条件 backend assignment
+  - `src/fafafa.core.simd.riscvv.facade.inc` 里它们仍是语义敏感的 local compare loop
+- 但 fresh 证据把“高风险信号”和“真实 bug”区分开了：
+  - 新增的 `TTestCase_NonX86IEEE754.Test_NonX86_F64_WideMinMax_SpecialCases_IfAvailable`
+  - 在当前 x86 release host 上直接对位 `NaN / signed-zero`
+  - 结果没有打出 scalar/backend parity 红点
+- 这说明当前最准确的结论不是“应该立刻照 reduction 那样改成 scalar forward”，而是：
+  - wide `F64 min/max` 目前没有 fresh runtime 证据证明 local loop 已经漂移
+  - 但此前确实缺少 dedicated source-level truth guard，导致这四格处在“实现看着敏感、checker 却没显式覆盖”的盲区
+- 因而这条 finding 的价值在于把处理原则再收紧一步：
+  - 对 `NaN / signed-zero` 敏感路径，不能只因为模式像前一个 bug 就顺手 collapse
+  - 必须先让 runtime special-case parity 和 source-level semantics 都给证据
+  - 如果 parity 没红，正确动作是补护栏，而不是为了“统一风格”去改实现
+- 当前对 `RISCVV wide F64 min/max` 最准确的口径应是：
+  - “backend-owned register shape 继续保留”
+  - “no-asm facade 当前仍保留 local compare loop”
+  - “runtime special-case parity 在当前 host 上已 fresh 复核为绿”
+  - “helper semantics 现在也已把 `Min/MaxF64x4/F64x8` 的 local-loop truth 显式钉住”
