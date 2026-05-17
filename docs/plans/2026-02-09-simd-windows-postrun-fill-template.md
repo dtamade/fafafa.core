@@ -5,7 +5,14 @@
 > This document is kept for drift comparison, template reuse, or local design history.
 > It is not part of the active whole-module execution chain.
 > Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
-
+>
+> Current HEAD note (2026-05-17):
+> Use this page only as a fill template after a fresh real Windows pass. If
+> latest `win-evidence-preflight` is `RECENT_BILLING_BLOCK`, or if manual
+> Windows verification still fails at `cmd.exe cannot resolve LAZBUILD command
+"lazbuild"`, do not treat this template as ready-to-apply closeout proof.
+> Restore GitHub Billing/runner capacity, or switch to a real Windows host with
+> native Windows `LAZBUILD`, first.
 
 更新时间：2026-03-20
 
@@ -13,6 +20,8 @@
 
 1. 在 Windows 实机执行：
    - `tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify`
+   - 前提：`LAZBUILD` 必须解析到 native Windows `.exe/.bat/.cmd`
+   - 不要把 `LAZBUILD` 指到 `Z:\opt\...` 这类 Wine 可见但 `cmd.exe` 不能执行的 Linux ELF
 2. 在 Linux/macOS（或 WSL）先回灌 fail-close cross gate：
    - `FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
 3. 再执行一键收口：
@@ -24,16 +33,22 @@
 6. 按下方模板替换占位符后，回填到对应文档。
 
 可选（先打印三命令闭环）:
+
 - `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-3cmd <BATCH_ID>`
 
 `closeout-release` 是完整 release 收口的首选入口：
+
 - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release <BATCH_ID>`
+- 若这之前 `win-evidence-preflight` 已报 `RECENT_BILLING_BLOCK`，就在 preflight 处停下，并把当前状态记为 `code-green / release-evidence-blocked`。
 
 说明：
+
 - native batch evidence 不会生成 fresh `gate_summary.md/json`，所以不能从 `evidence-win-verify` 直接跳到 `finalize-win-evidence` 或 `win-closeout-finalize`。
 - 真正决定 `cross-ready=True` 的是 Linux/WSL 侧这条 fail-close cross gate。
+- 如果当前最新失败边界还是 `cmd.exe cannot resolve LAZBUILD command "lazbuild"`，优先提供 real Windows runner / native Windows `lazbuild.exe`，而不是继续重试 Wine。
 
 占位符说明：
+
 - `<WINDOWS_DATE>`：Windows 实机执行日期（例如 `2026-02-10`）
 - `<EVIDENCE_LOG_PATH>`：证据日志路径（通常 `tests/fafafa.core.simd/logs/windows_b07_gate.log`）
 - `<CLOSEOUT_SUMMARY_PATH>`：摘要路径（通常 `tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`）
@@ -74,24 +89,29 @@
 
 ```markdown
 ### 批次
+
 - `<BATCH_ID>`
 
 ### 执行动作
+
 - 在 Windows 实机完成 `buildOrTest.bat evidence-win-verify`。
 - 生成并归档收口摘要：`finalize-win-evidence`。
 - 回填 roadmap / matrix / progress，关闭跨平台证据缺口。
 
 ### 命令与结果
-| Command | Result |
-|---|---|
-| `tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify` | PASS |
-| `bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence` | PASS |
+
+| Command                                                            | Result |
+| ------------------------------------------------------------------ | ------ |
+| `tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify`       | PASS   |
+| `bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence` | PASS   |
 
 ### 关键证据
+
 - Log: `<EVIDENCE_LOG_PATH>`
 - Summary: `<CLOSEOUT_SUMMARY_PATH>`
 
 ### 阶段状态
+
 - 以 freeze-status 为准：仅 `ready=True` 视为跨平台冻结条件满足。
 ```
 
@@ -103,11 +123,13 @@
 
 ```markdown
 ### Batch <BATCH_DONE_ID>（阶段完成）
+
 - [x] 形成 Windows 实机后回填模板并固化到计划文档
 - [x] 明确 roadmap/matrix/progress 的标准回填块
 - [x] 将下一批聚焦为“实机执行 + 冻结收口”
 
 ### Batch <BATCH_NEXT_ID>（下一步）
+
 - [ ] Windows 实机执行 `buildOrTest.bat evidence-win-verify` 并归档日志
 - [ ] 执行 `finalize-win-evidence` 生成收口摘要
 - [ ] 回填 roadmap/matrix/progress 并更新最终跨平台冻结结论
@@ -123,14 +145,17 @@
 ## Batch <BATCH_ID> Findings
 
 ### 变更
+
 - 完成 Windows 实机证据链执行与归档。
 - 生成 `windows_b07_closeout_summary.md`，形成可审计证据摘要。
 
 ### 验证
+
 - `buildOrTest.bat evidence-win-verify` ✅
 - `finalize-win-evidence` ✅
 
 ### 结论
+
 - 仅当 `bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 返回 `ready=True` 时，才可判定“跨平台冻结条件满足、阻塞清零”。
 ```
 
@@ -144,6 +169,7 @@
   - `bash tests/fafafa.core.simd/apply_windows_b07_closeout_updates.sh --apply`
 
 注意：
+
 - 指定批次号后自动回填（推荐）：
   - `bash tests/fafafa.core.simd/apply_windows_b07_closeout_updates.sh --apply --batch-id <BATCH_ID>`
 - `--apply` 默认拒绝 simulated summary，避免误把预演结果写入正式文档。

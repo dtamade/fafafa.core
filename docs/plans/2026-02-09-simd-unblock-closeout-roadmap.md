@@ -6,6 +6,14 @@
 > It is no longer part of the active whole-module execution chain.
 > Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
 
+> Current HEAD note (2026-05-17):
+> The "Windows closed" markers below are archived batch facts, not current readiness.
+> Latest `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+> is still `ready=False / mainline-ready=True / cross-ready=False`, with
+> `win-evidence-preflight=RECENT_BILLING_BLOCK` and `windows_evidence_verify`
+> failing at `cmd.exe cannot resolve LAZBUILD command "lazbuild"`.
+> For current operator truth, use `docs/fafafa.core.simd.closeout.md` and
+> `tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`.
 
 更新时间：2026-03-11
 
@@ -29,16 +37,18 @@ Batch82 已补齐并验证以下 5 项：
 5. `IsPointerAligned`
 
 新增测试：
+
 - `TTestCase_VectorOps.Test_BackendInfoAndAlignedMemoryUtilities`
 - 覆盖点：后端信息一致性、backend list 可用性、`nil` 对齐行为、默认/显式对齐分配、未对齐偏移断言、内存可写性。
 
 ## 3. 剩余阻塞与风险清单（按优先级）
 
-### P0（已关闭）
+### P0（历史归档事实，非当前 HEAD 状态）
 
 - [x] **Windows 实机证据已归档**
   - 目标文件：`tests/fafafa.core.simd/logs/windows_b07_gate.log`
-  - 关闭依据：`win-closeout-finalize` 已完成，`freeze-status` 已达 `cross-ready=True`。
+  - 关闭依据：旧批次 `win-closeout-finalize` 已完成，且当时 `freeze-status` 达到过 `cross-ready=True`。
+  - 当前解释：这条 `[x]` 只表示历史归档批次曾闭环，不表示当前 `HEAD` 仍是 `cross-ready=True`。
   - 来源：`tests/fafafa.core.simd/docs/simd_release_candidate_checklist.md`
 
 ### P1（不阻塞开发，但建议尽快纳入流程）
@@ -60,7 +70,7 @@ Batch82 已补齐并验证以下 5 项：
 
 ## 4. 下一阶段“逐一攻克”目标清单（可直接开干）
 
-### Stage A（已完成，收口发布证据）
+### Stage A（历史已完成批次，非当前 HEAD 放行状态）
 
 - [x] 当前推荐的一键 release 收口入口：
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152`
@@ -73,7 +83,7 @@ Batch82 已补齐并验证以下 5 项：
 - [x] 归档 `windows_b07_gate.log` 到 `tests/fafafa.core.simd/logs/`
 - [x] 更新 RC 清单 P0 项为 `[x]`
 
-**DoD:** 跨平台证据链闭环（Linux + Windows）。
+**DoD:** 历史批次中的跨平台证据链闭环（Linux + Windows）。
 
 ### Stage B（1 天，流程防回退）
 
@@ -94,6 +104,7 @@ Batch82 已补齐并验证以下 5 项：
 - [x] 为新增实现补对应最小高价值测试（先 correctness，再 perf）
 
 **2026-03-11 进展补充：**
+
 - 已连续补齐并回归以下 non-x86 高 ROI 槽位：
   - `AndNotI8x16 / AndNotU16x8 / AndNotU8x16`
   - `DotF32x8 / DotF64x2 / DotF64x4`（RVV）
@@ -112,6 +123,7 @@ Batch82 已补齐并验证以下 5 项：
   - 结论：dispatch 覆盖已经收口；`VecU32x16Mul` 的 façade 开销已基本压平，下一步应继续只盯低 ROI 算子裁剪与 stable boundary 收口，而不是继续补 wrapper
 
 **2026-03-11 收口后的下一步优先级：**
+
 1. 保留并复用已有正收益样板：`VecI16x32Add`、`VecU8x64Max`
 2. `VecU32x16Mul` 仅做低成本观察，不再作为性能事故处理
 3. `VecU64x8Add`、`VecF32x4Add` 降级为观察项，不进入主线优化 backlog
@@ -121,11 +133,13 @@ Batch82 已补齐并验证以下 5 项：
 
 ## 5. 推荐执行策略
 
-- 当前开发主线可继续推进（接口层阻塞已解除，Windows closeout 已收口）。
-- Windows 实机证据已闭环，后续保持“一条命令采集、一条命令 finalize”的固定入口即可。
+- 当前开发主线可继续推进，但当前 `HEAD` 应按 `code-green / release-evidence-blocked` 理解，而不是“Windows closeout 已重新收口”。
+- 若 latest `win-evidence-preflight` 仍是 `RECENT_BILLING_BLOCK`，先恢复 GitHub Billing/额度，或切到真实 Windows runner。
+- 若走手工 Windows 实机路径，`LAZBUILD` 必须解析到 native Windows `.exe/.bat/.cmd`；不要继续用 Wine/cmd 冒充实机。
 - 后端扩展按专题推进，不与门面接口清单混线，持续保持“小批次 + 固定门禁 + 文档回填”。
 
 <!-- SIMD-WIN-CLOSEOUT-2026-03-10 -->
+
 ### Windows 实机证据（2026-03-10）
 
 - 状态：已完成
@@ -134,6 +148,7 @@ Batch82 已补齐并验证以下 5 项：
 - 结论：P0 “Windows 实机证据未归档” 已关闭。
 
 <!-- SIMD-WIN-CLOSEOUT-2026-03-14 -->
+
 ### Windows 实机证据（2026-03-14）
 
 - 状态：已完成
@@ -142,6 +157,7 @@ Batch82 已补齐并验证以下 5 项：
 - 结论：P0 “Windows 实机证据未归档” 已关闭。
 
 <!-- SIMD-WIN-CLOSEOUT-2026-03-21 -->
+
 ### Windows 实机证据（2026-03-21）
 
 - 状态：已完成
@@ -150,6 +166,7 @@ Batch82 已补齐并验证以下 5 项：
 - 结论：P0 “Windows 实机证据未归档” 已关闭。
 
 <!-- SIMD-WIN-CLOSEOUT-2026-03-24 -->
+
 ### Windows 实机证据（2026-03-24）
 
 - 状态：已完成
@@ -158,6 +175,7 @@ Batch82 已补齐并验证以下 5 项：
 - 结论：P0 “Windows 实机证据未归档” 已关闭。
 
 <!-- SIMD-WIN-CLOSEOUT-2026-04-02 -->
+
 ### Windows 实机证据（2026-04-02）
 
 - 状态：已完成
