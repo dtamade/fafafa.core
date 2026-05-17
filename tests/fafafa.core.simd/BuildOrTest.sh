@@ -1146,6 +1146,7 @@ check_windows_runner_parity() {
     'echo   freeze-status-linux  Evaluate freeze readiness using Linux-side evidence only ^(delegates to shell runner^)'
     'echo   freeze-status-rehearsal  Rehearse freeze-status failure shaping ^(delegates to shell runner^)'
     'echo [IMPL-SMOKE-X86] Running: bash %ROOT%BuildOrTest.sh impl-smoke-x86 %NORMALIZED_TEST_ARGS%'
+    'echo [HISTORICAL-CLOSEOUT-NOTE-CHECK] FAILED ^(bash runtime not found; historical-closeout-note-check requires bash to preserve shell parity^)'
     'findstr /r /c:"src\fafafa\.core\.simd\..*Warning:" /c:"src\fafafa\.core\.simd\..*Hint:" "%BUILD_LOG%" | findstr /v /c:"src\fafafa.core.simd.intrinsics.avx2.pas" >nul 2>nul'
     'call :nonx86_helper_semantics_check'
     ':nonx86_helper_semantics_check'
