@@ -33,6 +33,10 @@ type
     procedure Test_SSE41_ConvertExtends_SignedAndUnsigned;
     procedure Test_SSE41_MinMax_SignedAndUnsigned;
     procedure Test_SSE41_Blend_ImmediateAndVariableMasks;
+    procedure Test_SSE42_StringCompareCmpGtAndCrcPlaceholderSemantics;
+    procedure Test_AVX_PlaceholderCopyAndMovemaskSemantics;
+    procedure Test_AVX512_AddAndMaskPlaceholderSemantics;
+    procedure Test_FMA3_FusedAndAlternatingPlaceholderSemantics;
   end;
 {$ENDIF}
 {$ENDIF}
@@ -44,7 +48,11 @@ implementation
 uses
   fafafa.core.simd.intrinsics.x86.sse2,
   fafafa.core.simd.intrinsics.sse3,
-  fafafa.core.simd.intrinsics.sse41;
+  fafafa.core.simd.intrinsics.sse41,
+  fafafa.core.simd.intrinsics.sse42,
+  fafafa.core.simd.intrinsics.avx,
+  fafafa.core.simd.intrinsics.avx512,
+  fafafa.core.simd.intrinsics.fma3;
 {$ENDIF}
 {$ENDIF}
 
@@ -592,6 +600,226 @@ begin
   AssertEquals('sse41_blendv_epi8 lane0', 100, LResult.m128i_u8[0]);
   AssertEquals('sse41_blendv_epi8 lane1', 2, LResult.m128i_u8[1]);
   AssertEquals('sse41_blendv_epi8 lane15', 115, LResult.m128i_u8[15]);
+end;
+
+procedure TTestCase_SimdIntrinsicsExperimentalX86.Test_SSE42_StringCompareCmpGtAndCrcPlaceholderSemantics;
+var
+  LA: TM128;
+  LB: TM128;
+  LResult: TM128;
+  LIndex: Integer;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  InitM128ForXorTest(LA, 1);
+  InitM128ForXorTest(LB, 21);
+
+  LResult := sse42_cmpestrm(LA, 5, LB, 7, $12);
+  for LIndex := 0 to 15 do
+    AssertEquals('sse42_cmpestrm zero lane ' + IntToStr(LIndex), 0, LResult.m128i_u8[LIndex]);
+  AssertEquals('sse42_cmpestri not-found sentinel', 16, sse42_cmpestri(LA, 5, LB, 7, $12));
+  AssertFalse('sse42_cmpestrc placeholder false', sse42_cmpestrc(LA, 5, LB, 7, $12));
+  AssertFalse('sse42_cmpestro placeholder false', sse42_cmpestro(LA, 5, LB, 7, $12));
+  AssertFalse('sse42_cmpestrs placeholder false', sse42_cmpestrs(LA, 5, LB, 7, $12));
+  AssertTrue('sse42_cmpestrz placeholder true', sse42_cmpestrz(LA, 5, LB, 7, $12));
+
+  LResult := sse42_cmpistrm(LA, LB, $34);
+  for LIndex := 0 to 15 do
+    AssertEquals('sse42_cmpistrm zero lane ' + IntToStr(LIndex), 0, LResult.m128i_u8[LIndex]);
+  AssertEquals('sse42_cmpistri not-found sentinel', 16, sse42_cmpistri(LA, LB, $34));
+  AssertFalse('sse42_cmpistrc placeholder false', sse42_cmpistrc(LA, LB, $34));
+  AssertFalse('sse42_cmpistro placeholder false', sse42_cmpistro(LA, LB, $34));
+  AssertFalse('sse42_cmpistrs placeholder false', sse42_cmpistrs(LA, LB, $34));
+  AssertTrue('sse42_cmpistrz placeholder true', sse42_cmpistrz(LA, LB, $34));
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_i64[0] := 10;
+  LA.m128i_i64[1] := -8;
+  LB.m128i_i64[0] := 7;
+  LB.m128i_i64[1] := -8;
+  LResult := sse42_cmpgt_epi64(LA, LB);
+  AssertEquals('sse42_cmpgt_epi64 lane0', QWord($FFFFFFFFFFFFFFFF), LResult.m128i_u64[0]);
+  AssertEquals('sse42_cmpgt_epi64 lane1', QWord(0), LResult.m128i_u64[1]);
+
+  AssertEquals('sse42_crc32_u8 placeholder polynomial', DWord($41047A60), sse42_crc32_u8(0, $AB));
+  AssertEquals('sse42_crc32_u16 placeholder polynomial', DWord($489382BF), sse42_crc32_u16(0, $1234));
+  AssertEquals('sse42_crc32_u32 placeholder polynomial', DWord($CEFC0ADB), sse42_crc32_u32(0, $89ABCDEF));
+  AssertEquals('sse42_crc32_u64 placeholder polynomial', QWord($21193D2E), sse42_crc32_u64(0, QWord($0123456789ABCDEF)));
+end;
+
+procedure TTestCase_SimdIntrinsicsExperimentalX86.Test_AVX_PlaceholderCopyAndMovemaskSemantics;
+var
+  LA: TM256;
+  LB: TM256;
+  LExpected: TM256;
+  LActual: TM256;
+  LInsert: TM128;
+  LExtract: TM128;
+  LIndex: Integer;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 7 do
+  begin
+    LA.m256_f32[LIndex] := 10.0 + LIndex;
+    LB.m256_f32[LIndex] := 100.0 + LIndex;
+  end;
+
+  LActual := avx_cmp_ps256(LA, LB, $1F);
+  for LIndex := 0 to 7 do
+    AssertEquals('avx_cmp_ps256 placeholder keeps a lane ' + IntToStr(LIndex), LA.m256_f32[LIndex], LActual.m256_f32[LIndex], 0.0);
+
+  LActual := avx_blend_ps256(LA, LB, $AA);
+  for LIndex := 0 to 7 do
+    AssertEquals('avx_blend_ps256 placeholder keeps a lane ' + IntToStr(LIndex), LA.m256_f32[LIndex], LActual.m256_f32[LIndex], 0.0);
+
+  LActual := avx_permute_ps256(LA, $4E);
+  for LIndex := 0 to 7 do
+    AssertEquals('avx_permute_ps256 placeholder keeps a lane ' + IntToStr(LIndex), LA.m256_f32[LIndex], LActual.m256_f32[LIndex], 0.0);
+
+  LActual := avx_unpackhi_ps256(LA, LB);
+  for LIndex := 0 to 7 do
+    AssertEquals('avx_unpackhi_ps256 placeholder keeps a lane ' + IntToStr(LIndex), LA.m256_f32[LIndex], LActual.m256_f32[LIndex], 0.0);
+
+  LExtract := avx_extractf128_ps256(LA, 0);
+  for LIndex := 0 to 3 do
+    AssertEquals('avx_extractf128_ps256 low lane ' + IntToStr(LIndex), LA.m256_f32[LIndex], LExtract.m128_f32[LIndex], 0.0);
+
+  LExtract := avx_extractf128_ps256(LA, 1);
+  for LIndex := 0 to 3 do
+    AssertEquals('avx_extractf128_ps256 high lane ' + IntToStr(LIndex), LA.m256_f32[LIndex + 4], LExtract.m128_f32[LIndex], 0.0);
+
+  FillChar(LInsert, SizeOf(LInsert), 0);
+  LInsert.m128_f32[0] := 1000.0;
+  LInsert.m128_f32[1] := 1001.0;
+  LInsert.m128_f32[2] := 1002.0;
+  LInsert.m128_f32[3] := 1003.0;
+
+  LActual := avx_insertf128_ps256(LA, LInsert, 1);
+  for LIndex := 0 to 3 do
+    AssertEquals('avx_insertf128_ps256 keeps low lane ' + IntToStr(LIndex), LA.m256_f32[LIndex], LActual.m256_f32[LIndex], 0.0);
+  for LIndex := 0 to 3 do
+    AssertEquals('avx_insertf128_ps256 writes high lane ' + IntToStr(LIndex), LInsert.m128_f32[LIndex], LActual.m256_f32[LIndex + 4], 0.0);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m256i_u32[0] := $80000000;
+  LExpected.m256i_u32[1] := $7FFFFFFF;
+  LExpected.m256i_u32[2] := $80000001;
+  LExpected.m256i_u32[7] := $FFFFFFFF;
+  AssertEquals('avx_movemask_ps256 sign bits', 133, avx_movemask_ps256(LExpected));
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m256i_u64[0] := QWord($8000000000000000);
+  LExpected.m256i_u64[1] := QWord($7FFFFFFFFFFFFFFF);
+  LExpected.m256i_u64[2] := QWord($FFFFFFFFFFFFFFFF);
+  AssertEquals('avx_movemask_pd256 sign bits', 5, avx_movemask_pd256(LExpected));
+
+  AssertTrue('avx_testz_ps256 placeholder true', avx_testz_ps256(LA, LB));
+  AssertTrue('avx_testc_pd256 placeholder true', avx_testc_pd256(LA, LB));
+  AssertFalse('avx_testnzc_ps256 placeholder false', avx_testnzc_ps256(LA, LB));
+  AssertFalse('avx_testnzc_pd256 placeholder false', avx_testnzc_pd256(LA, LB));
+end;
+
+procedure TTestCase_SimdIntrinsicsExperimentalX86.Test_AVX512_AddAndMaskPlaceholderSemantics;
+var
+  LSrc: TM512;
+  LA: TM512;
+  LB: TM512;
+  LActual: TM512;
+  LIndex: Integer;
+begin
+  FillChar(LSrc, SizeOf(LSrc), 0);
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 15 do
+  begin
+    LSrc.m512_f32[LIndex] := 1.0 + LIndex;
+    LA.m512_f32[LIndex] := 10.0 + LIndex;
+    LB.m512_f32[LIndex] := 100.0 + LIndex;
+  end;
+
+  LActual := avx512_add_ps512(LA, LB);
+  for LIndex := 0 to 15 do
+    AssertEquals('avx512_add_ps512 lane ' + IntToStr(LIndex), LA.m512_f32[LIndex] + LB.m512_f32[LIndex], LActual.m512_f32[LIndex], 0.0);
+
+  LActual := avx512_mask_add_ps512(LSrc, LA, LB, (1 shl 0) or (1 shl 3) or (1 shl 15));
+  for LIndex := 0 to 15 do
+    if (LIndex = 0) or (LIndex = 3) or (LIndex = 15) then
+      AssertEquals('avx512_mask_add_ps512 masked lane ' + IntToStr(LIndex), LA.m512_f32[LIndex] + LB.m512_f32[LIndex], LActual.m512_f32[LIndex], 0.0)
+    else
+      AssertEquals('avx512_mask_add_ps512 src lane ' + IntToStr(LIndex), LSrc.m512_f32[LIndex], LActual.m512_f32[LIndex], 0.0);
+
+  LActual := avx512_maskz_add_ps512(LA, LB, (1 shl 1) or (1 shl 2) or (1 shl 14));
+  for LIndex := 0 to 15 do
+    if (LIndex = 1) or (LIndex = 2) or (LIndex = 14) then
+      AssertEquals('avx512_maskz_add_ps512 masked lane ' + IntToStr(LIndex), LA.m512_f32[LIndex] + LB.m512_f32[LIndex], LActual.m512_f32[LIndex], 0.0)
+    else
+      AssertEquals('avx512_maskz_add_ps512 zero lane ' + IntToStr(LIndex), 0.0, LActual.m512_f32[LIndex], 0.0);
+end;
+
+procedure TTestCase_SimdIntrinsicsExperimentalX86.Test_FMA3_FusedAndAlternatingPlaceholderSemantics;
+var
+  LA128: TM128;
+  LB128: TM128;
+  LC128: TM128;
+  LActual128: TM128;
+  LA256: TM256;
+  LB256: TM256;
+  LC256: TM256;
+  LActual256: TM256;
+  LIndex: Integer;
+begin
+  FillChar(LA128, SizeOf(LA128), 0);
+  FillChar(LB128, SizeOf(LB128), 0);
+  FillChar(LC128, SizeOf(LC128), 0);
+  for LIndex := 0 to 3 do
+  begin
+    LA128.m128_f32[LIndex] := 1.0 + LIndex;
+    LB128.m128_f32[LIndex] := 10.0 + LIndex;
+    LC128.m128_f32[LIndex] := 100.0 + LIndex;
+  end;
+
+  LActual128 := fma3_fmadd_ps(LA128, LB128, LC128);
+  for LIndex := 0 to 3 do
+    AssertEquals('fma3_fmadd_ps lane ' + IntToStr(LIndex), LA128.m128_f32[LIndex] * LB128.m128_f32[LIndex] + LC128.m128_f32[LIndex], LActual128.m128_f32[LIndex], 0.0);
+
+  LActual128 := fma3_fmadd_ss(LA128, LB128, LC128);
+  AssertEquals('fma3_fmadd_ss lane0', LA128.m128_f32[0] * LB128.m128_f32[0] + LC128.m128_f32[0], LActual128.m128_f32[0], 0.0);
+  AssertEquals('fma3_fmadd_ss keep lane1', LA128.m128_f32[1], LActual128.m128_f32[1], 0.0);
+  AssertEquals('fma3_fmadd_ss keep lane2', LA128.m128_f32[2], LActual128.m128_f32[2], 0.0);
+  AssertEquals('fma3_fmadd_ss keep lane3', LA128.m128_f32[3], LActual128.m128_f32[3], 0.0);
+
+  FillChar(LA256, SizeOf(LA256), 0);
+  FillChar(LB256, SizeOf(LB256), 0);
+  FillChar(LC256, SizeOf(LC256), 0);
+  for LIndex := 0 to 7 do
+  begin
+    LA256.m256_f32[LIndex] := 2.0 + LIndex;
+    LB256.m256_f32[LIndex] := 20.0 + LIndex;
+    LC256.m256_f32[LIndex] := 200.0 + LIndex;
+  end;
+
+  LActual256 := fma3_fmaddsub_ps256(LA256, LB256, LC256);
+  for LIndex := 0 to 7 do
+    if (LIndex and 1) = 0 then
+      AssertEquals('fma3_fmaddsub_ps256 even lane ' + IntToStr(LIndex), LA256.m256_f32[LIndex] * LB256.m256_f32[LIndex] - LC256.m256_f32[LIndex], LActual256.m256_f32[LIndex], 0.0)
+    else
+      AssertEquals('fma3_fmaddsub_ps256 odd lane ' + IntToStr(LIndex), LA256.m256_f32[LIndex] * LB256.m256_f32[LIndex] + LC256.m256_f32[LIndex], LActual256.m256_f32[LIndex], 0.0);
+
+  for LIndex := 0 to 3 do
+  begin
+    LA256.m256_f64[LIndex] := 3.0 + LIndex;
+    LB256.m256_f64[LIndex] := 30.0 + LIndex;
+    LC256.m256_f64[LIndex] := 300.0 + LIndex;
+  end;
+
+  LActual256 := fma3_fmsubadd_pd256(LA256, LB256, LC256);
+  for LIndex := 0 to 3 do
+    if (LIndex and 1) = 0 then
+      AssertEquals('fma3_fmsubadd_pd256 even lane ' + IntToStr(LIndex), LA256.m256_f64[LIndex] * LB256.m256_f64[LIndex] + LC256.m256_f64[LIndex], LActual256.m256_f64[LIndex], 0.0)
+    else
+      AssertEquals('fma3_fmsubadd_pd256 odd lane ' + IntToStr(LIndex), LA256.m256_f64[LIndex] * LB256.m256_f64[LIndex] - LC256.m256_f64[LIndex], LActual256.m256_f64[LIndex], 0.0);
 end;
 
 {$ENDIF}

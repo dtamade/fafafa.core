@@ -7533,3 +7533,18 @@
   - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check` 现在默认双模态运行，`experimental=1` 的 `NEON/RVV/SVE/SVE2/LASX` runtime reject smoke 全绿
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 回到绿态
   - `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line` 回到 `failure_count=0 status=ok`
+
+## 2026-05-17 Experimental X86 Intrinsics Behavior Coverage Gap
+
+- 在 `SVE2` 边界修完后继续回看 `intrinsics experimental` 的 x86 lane，fresh audit 发现：
+  - `aes/sha` 已有 default-reject + placeholder semantics 测试
+  - `sse3/sse41` 已有部分行为测试
+  - 但 `sse42/avx/avx512/fma3` 仍基本只有 compile smoke / runner check，没有把当前 placeholder/算子合同钉成行为测试
+- 这类缺口不是“测试想多了”，而是真会让当前 experimental contract 漂移时没人第一时间发现：
+  - `sse42` 的字符串比较 sentinel / 布尔占位语义、`cmpgt_epi64`、CRC32 placeholder 多项式都没被 suite 守住
+  - `avx` 的 `copy-a` placeholder 族、`extract/insertf128`、`movemask`、`testz/testc/testnzc` 没有行为断言
+  - `avx512` 的 `mask_add/maskz_add` 现在有明确 lane 语义，但此前没有 suite 锁住
+  - `fma3` 的 fused / alternating placeholder 语义此前也只有 compile smoke，没有 lane 级断言
+- 正确动作不是去动实现，而是先把当前 experimental contract 写进 tests：
+  - 这些单元目前仍是 `experimental isolated`
+  - 先把“当前就是这么工作的”钉住，后续若要收紧/替换实现，再让测试跟着有意识迁移

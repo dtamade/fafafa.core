@@ -9986,3 +9986,60 @@
 - 当前阶段结论：
   - 这批不仅补强了 experimental lane 的验证覆盖，还修掉了一个真实单元边界错误
   - `SVE2` 现在会为自己的 qualification contract fail-close，不再被 `sve` initialization 抢先吞边界
+
+## 2026-05-17 Experimental X86 Intrinsics Representative Behavior Tests
+
+- 继续按“小批次只补一个 residual”推进，这次不改实现层，而是补 `intrinsics experimental` x86 行为覆盖缺口。
+- fresh 审查先确认当前测试面：
+  - `aes/sha`：已有 default reject + placeholder semantics
+  - `sse3/sse41`：已有部分行为断言
+  - `sse42/avx/avx512/fma3`：基本只有 compile smoke，没有把当前 placeholder/算子合同守成 suite
+- 已落地的测试补强集中在：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - `Test_SSE42_StringCompareCmpGtAndCrcPlaceholderSemantics`
+    - `Test_AVX_PlaceholderCopyAndMovemaskSemantics`
+    - `Test_AVX512_AddAndMaskPlaceholderSemantics`
+    - `Test_FMA3_FusedAndAlternatingPlaceholderSemantics`
+  - 同步把对应 units 接进 experimental x86 test `uses`：
+    - `sse42`
+    - `avx`
+    - `avx512`
+    - `fma3`
+- 这批测试锁住的当前合同包括：
+  - `sse42`
+    - `cmpestrm/cmpistrm` 返回全零 mask
+    - `cmpestri/cmpistri` 返回 `16`
+    - `cmpestrc/o/s`、`cmpistrc/o/s` 返回 `False`
+    - `cmpestrz/cmpistrz` 返回 `True`
+    - `cmpgt_epi64` lane compare
+    - CRC32 placeholder 多项式的固定结果
+  - `avx`
+    - `cmp/blend/permute/unpack` 当前 placeholder 继续 `copy-a`
+    - `extractf128/insertf128` lane 读写
+    - `movemask_ps/pd`
+    - `testz/testc/testnzc` 当前固定布尔结果
+  - `avx512`
+    - `add_ps512`
+    - `mask_add_ps512`
+    - `maskz_add_ps512`
+  - `fma3`
+    - `fmadd_ps`
+    - `fmadd_ss` 保留高 lanes
+    - `fmaddsub_ps256` 奇偶 lane 交替
+    - `fmsubadd_pd256` 奇偶 lane 交替
+- fresh 验证已完成：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_experimental_status.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test-all`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh experimental-intrinsics-tests`
+- fresh 结果：
+  - default mode `experimental=0`：
+    - build + backend smoke + default suite 全绿
+  - experimental mode `experimental=1`：
+    - x86 backend smoke 全绿
+    - `NEON/RVV/SVE/SVE2/LASX` runtime reject smoke 全绿
+    - experimental test suite 全绿，`[LEAK] OK`
+  - 主 runner 的 `experimental-intrinsics-tests` 集成入口也返回 `0`
+- 当前阶段结论：
+  - 这批把 `sse42/avx/avx512/fma3` 从“只有 compile smoke”补成了有代表性 lane/placeholder 合同测试
+  - 后续再动这些 experimental units 时，不会再因为没有行为护栏而静默漂移
