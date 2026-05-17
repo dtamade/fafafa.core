@@ -9862,3 +9862,43 @@
 - 过程中还确认了一个验证纪律问题：
   - 不要并行跑两个会编译同一个 `fafafa.core.simd.test.lpi` 的 release 命令
   - 并行时会争抢同一套 build 输出目录，造成假失败；这次单独 `DispatchAPI` 的首次 link fail 就是这种竞争，不是源码回归
+
+## 2026-05-17 BuildOrTest Output-Root Lock For Concurrent False-Fail
+
+- 接着上一批 residual，没有再扩散到新的 family，而是直接收 `tests/fafafa.core.simd/BuildOrTest.sh` 的并发假失败。
+- fresh 复现先确认了问题真实存在：
+  - 并发运行
+    - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+    - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - 结果：
+    - `test --suite=TTestCase_DispatchAPI` 首次直接 `[BUILD] FAILED rc=2`
+    - 同时 `impl-audit-nonx86` 仍能继续完成
+  - 结合 `nonx86_impl_audit_output_root()` 固定返回 `tests/fafafa.core.simd`，可确认这不是源码回归，而是两个 release 动作共享同一套 `bin2/lib2/logs` 产物导致的竞争。
+- 已落地的最小修法：
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - 新增 `current_output_root_lock_file()` / `output_root_lock_is_held_here()` / `with_output_root_lock()`
+    - 锁文件固定为 `${OUTPUT_ROOT}/logs/.simd-output-root.lock`
+    - 新增 `action_requires_output_root_lock()`，把会构建/运行同一 `OUTPUT_ROOT` 热路径的 action 纳入顶层串行化
+    - 把最外层 `case "${ACTION}" in ...` 收进 `dispatch_action()`，由顶层统一决定是否先拿锁
+    - 通过 `SIMD_OUTPUT_ROOT_LOCK_HELD_FILE` / `SIMD_OUTPUT_ROOT_LOCK_HELD_ROOT` 传播“当前已持有哪一个 output-root 锁”，避免 `impl-audit-nonx86 -> BuildOrTest.sh test` 这类递归调用发生二次加锁死锁
+    - 若环境缺少 `flock`，脚本会显式输出 `WARN` 后维持旧行为，不会把 Windows/MSYS 直接打死
+- fresh 验证已完成：
+  - `bash -n tests/fafafa.core.simd/BuildOrTest.sh`
+  - `git diff --check`
+  - 再次并发运行同一组命令：
+    - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+    - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - fresh 结果：
+    - 第一条命令先输出：
+      - `[LOCK] Waiting for output-root lock ...`
+      - `[LOCK] Acquired output-root lock ...`
+      - `[BUILD] OK / [TEST] OK / [LEAK] OK`
+      - `[LOCK] Released output-root lock ...`
+    - 第二条命令起初只输出：
+      - `[LOCK] Waiting for output-root lock ...`
+      - 随后在前者释放后才继续执行并最终
+      - `NONX86_IMPL_AUDIT_SUMMARY ... status=ok`
+      - `[LOCK] Released output-root lock ...`
+- 当前阶段结论：
+  - 之前那类“共享 `OUTPUT_ROOT` 时的假红”现在已从热路径收口为显式串行化
+  - 这批修的是 runner 健壮性，不是 SIMD 实现语义本身；non-x86 checker 与 targeted release suites 仍保持绿态

@@ -130,6 +130,87 @@ fi
 
 MODE="${FAFAFA_BUILD_MODE:-Release}"
 
+current_output_root_lock_file() {
+  echo "${OUTPUT_ROOT}/logs/.simd-output-root.lock"
+}
+
+output_root_lock_is_held_here() {
+  local LCurrentLockFile
+
+  LCurrentLockFile="$(current_output_root_lock_file)"
+  [[ "${SIMD_OUTPUT_ROOT_LOCK_HELD_FILE:-}" == "${LCurrentLockFile}" ]] &&
+    [[ "${SIMD_OUTPUT_ROOT_LOCK_HELD_ROOT:-}" == "${OUTPUT_ROOT}" ]]
+}
+
+with_output_root_lock() {
+  local LLockFile
+  local LPreviousHeldFile
+  local LPreviousHeldRoot
+  local LLockFd
+  local LRC
+
+  if output_root_lock_is_held_here; then
+    "$@"
+    return $?
+  fi
+
+  if ! command -v flock >/dev/null 2>&1; then
+    echo "[LOCK] WARN: flock not found; proceeding without output-root lock (${OUTPUT_ROOT})"
+    "$@"
+    return $?
+  fi
+
+  mkdir -p "${LOG_DIR}"
+  LLockFile="$(current_output_root_lock_file)"
+  LPreviousHeldFile="${SIMD_OUTPUT_ROOT_LOCK_HELD_FILE:-}"
+  LPreviousHeldRoot="${SIMD_OUTPUT_ROOT_LOCK_HELD_ROOT:-}"
+
+  echo "[LOCK] Waiting for output-root lock: ${LLockFile}"
+  exec {LLockFd}> "${LLockFile}"
+  flock "${LLockFd}"
+  echo "[LOCK] Acquired output-root lock: ${LLockFile}"
+
+  export SIMD_OUTPUT_ROOT_LOCK_HELD_FILE="${LLockFile}"
+  export SIMD_OUTPUT_ROOT_LOCK_HELD_ROOT="${OUTPUT_ROOT}"
+
+  if "$@"; then
+    LRC=0
+  else
+    LRC=$?
+  fi
+
+  if [[ -n "${LPreviousHeldFile}" ]]; then
+    export SIMD_OUTPUT_ROOT_LOCK_HELD_FILE="${LPreviousHeldFile}"
+  else
+    unset SIMD_OUTPUT_ROOT_LOCK_HELD_FILE
+  fi
+  if [[ -n "${LPreviousHeldRoot}" ]]; then
+    export SIMD_OUTPUT_ROOT_LOCK_HELD_ROOT="${LPreviousHeldRoot}"
+  else
+    unset SIMD_OUTPUT_ROOT_LOCK_HELD_ROOT
+  fi
+
+  flock -u "${LLockFd}" || true
+  exec {LLockFd}>&-
+  echo "[LOCK] Released output-root lock: ${LLockFile}"
+
+  return "${LRC}"
+}
+
+action_requires_output_root_lock() {
+  local aAction
+
+  aAction="${1:-}"
+  case "${aAction}" in
+    clean|build|check|debug|release|test|test-concurrent-repeat|sse2-contracts|impl-smoke-sse2|impl-smoke-x86|impl-smoke-nonx86|impl-audit-nonx86|closeout-host-local|closeout-release|closeout-host-local-from-import|adapter-sync-pascal|parity-suites|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|gate|gate-strict)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 is_msys_shell() {
   case "$(uname -s 2>/dev/null || echo unknown)" in
     MINGW*|MSYS*|CYGWIN*)
@@ -7491,6 +7572,7 @@ run_win_evidence_via_gh() {
   bash "${LViaGHScript}" "$@"
 }
 
+dispatch_action() {
 case "${ACTION}" in
   clean)
     run_clean
@@ -7863,3 +7945,10 @@ case "${ACTION}" in
     exit 2
     ;;
 esac
+}
+
+if action_requires_output_root_lock "${ACTION}"; then
+  with_output_root_lock dispatch_action "$@"
+else
+  dispatch_action "$@"
+fi

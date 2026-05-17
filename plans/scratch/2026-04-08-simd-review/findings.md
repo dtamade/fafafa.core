@@ -7457,3 +7457,24 @@
   - `always wrapper = 14`
   - `no-asm wrapper = 9 (全部是 Extract*)`
   - 已没有剩余的 `asm-only wrapper` 豁免槽位
+
+## 2026-05-17 BuildOrTest Shared OUTPUT_ROOT Concurrency Gap
+
+- 当前 SIMD runner 还有一个已经被 fresh 复现过的真实健壮性缺口：
+  - `tests/fafafa.core.simd/BuildOrTest.sh` 在多个 release 动作共享同一 `OUTPUT_ROOT` 时，会互相踩 `bin2/lib2/logs`
+  - 典型复现就是并发跑：
+    - `test --suite=TTestCase_DispatchAPI`
+    - `impl-audit-nonx86`
+  - 其中前者会出现假的 `[BUILD] FAILED rc=2`，而串行重跑立刻恢复全绿
+- 根因不是某个 Pascal 单元回归，而是 runner 自己没有“同一 output-root 的 compile/run action 只能串行执行”的约束：
+  - `nonx86_impl_audit_output_root()` 明确固定到 `tests/fafafa.core.simd`
+  - 因此 `impl-audit-nonx86` 的 targeted suite 与默认 `test` 实际上共享同一套输出产物
+  - 如果只给 `build_project()` 单独上锁，`build -> run_tests` 之间仍可能被别的进程覆盖二进制或日志，所以锁必须挂在顶层 action，而不是只挂在单步 build
+- 正确的收口方式是：
+  - 以 `${OUTPUT_ROOT}/logs/.simd-output-root.lock` 为单一互斥点
+  - 顶层 action 按 output-root 加独占锁，覆盖 `build + test + leak-check` 整个热路径
+  - 递归调用同一脚本时要显式传播“当前已经持有哪个 output-root 锁”，否则 `impl-audit-nonx86 -> BuildOrTest.sh test` 会产生自锁
+- 修复后的期望信号不是“并发更快”，而是：
+  - 第二个动作先输出 `Waiting for output-root lock`
+  - 第一个动作完整释放后，第二个动作再进入 build/test
+  - 最终两边都成功，而不是再出现随机 link/build 假红
