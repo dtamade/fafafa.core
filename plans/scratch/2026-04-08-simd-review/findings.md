@@ -6900,3 +6900,21 @@
   - 维护者会把时间花在已经 honest 的 summary 上
   - 而不是直接面对真正剩余的三件事：旧 `windows_b07_gate.log`、`windows_evidence_verify` 和 `RECENT_BILLING_BLOCK`
 - 最小正确修法就是把顶部“当前红项”摘要改成最新事实，而不是再重写整篇 closeout 手册
+
+## 2026-05-17 Local Wine Is Not Yet a Real Windows Evidence Runner
+
+- 这一轮 completion audit 专门检查了一个容易被想当然的替代路径：本机 `wine` 是否已经足够承担 Windows evidence 收口。
+- 结果不是“完全不可用”，而是一个更窄也更重要的边界：
+  - `wine` runtime 本身可用
+  - Windows batch success-criteria smoke 也能通过
+  - 但真实 `evidence-win-verify` 进入 batch gate 后，会在 build 第 1 步就死在 `lazbuild` 调用上
+- 这意味着当前 Wine 只证明了：
+  - batch runner 语义/返回码 contract 可以被 smoke
+  - 不能证明当前环境真的具备 fresh Windows evidence 采集能力
+- 我还额外验证了几条常见桥接假设：
+  - `cmd` 不能直接执行 `Z:\usr\bin\lazbuild`
+  - `start /unix` 在最小 `true` 探针上能返回，但没有形成可复用的 `lazbuild` bridge
+  - 临时 wrapper 也没变成稳定可用方案
+- 因而当前不要把“本机装了 Wine”误读成“已经有真实 Windows runner 兜底”：
+  - 这条线在当前环境下仍然只到 smoke，不到 closeout
+  - 最新剩余 blocker 继续是 fresh Windows evidence 本身，而不是 repo 内实现/文档再缺一层

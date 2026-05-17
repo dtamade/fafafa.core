@@ -8548,3 +8548,24 @@
   - 把 `windows_b07_closeout_summary.md` 从“当前红项”里移除
   - 显式补一句：summary 已经刷新成当前 verifier FAIL 对应的 honest summary
 - 这样下一位维护者读顶部摘要时，就不会再把“summary 还旧”错当成当前 blocker
+
+## 2026-05-17 Local Wine Runner Audit
+
+- 这轮没有直接接受“只剩纯外部 blocker”这个说法，而是专门审了一次本机能不能替代 GH/实机 Windows runner：
+  - `command -v wine` 命中 `/usr/bin/wine`
+  - `wine cmd /c exit 0` 可用
+  - `bash tests/test_windows_simd_cpuinfo_x86_batch_build_success_criteria.sh` 为 PASS
+- 但把这条路推进到真实 Windows evidence 时，失败点也很明确：
+  - `FAFAFA_BUILD_MODE=Release wine cmd /c "tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify"` 进入了 batch capture
+  - `windows_b07_gate.log` 能写出 `HostOS: Windows_NT`、`CmdVer: Microsoft Windows 10.0.19043`
+  - 真正失败在 gate 第 1 步 build：Wine 里的 `cmd` 不能直接执行 fallback 的 `lazbuild`
+  - `tests/fafafa.core.simd/logs/build.txt` 真实错误是：
+    - `Can't recognize '"lazbuild" --build-mode=Release ...' as an internal or external command`
+- 我又继续做了两轮更小的桥接实验，目的都是验证能不能把 Linux `lazbuild` 借给 Wine batch 用：
+  - `wine cmd /c "\"Z:\\usr\\bin\\lazbuild\" --help"` 不可行
+  - `wine cmd /c start /unix /usr/bin/true` 返回 0，但 `start /wait /unix /usr/bin/lazbuild --help` 没有形成可用的可复验通路
+  - 临时 `wine_lazbuild.bat` wrapper 也没有变成稳定可用的 bridge
+- 当前最保守、最不误导的结论是：
+  - 本机 Wine 足够支撑“Windows batch success-criteria smoke”
+  - 但在当前环境下，还不足以替代真实 Windows evidence runner
+  - 因而 latest closeout 主线的剩余 blocker 继续应按 `GH Billing / 实机 Windows runner` 理解，而不是继续在 Wine 适配层空转
