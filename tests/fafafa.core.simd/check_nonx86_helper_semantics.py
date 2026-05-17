@@ -925,6 +925,18 @@ def main() -> int:
         "RISCVVMaxU64x2",
     }
 
+    riscvv_source_wide_rounding_forwarder_expectations: list[tuple[str, str]] = []
+    for suffix in ("F32x8", "F64x4", "F32x16", "F64x8"):
+        for op in ("Floor", "Ceil", "Round", "Trunc"):
+            riscvv_source_wide_rounding_forwarder_expectations.append(
+                (f"RISCVV{op}{suffix}", f"Scalar{op}{suffix}(a)")
+            )
+
+    routine_expectations.extend(
+        (riscvv_source, routine_name, [f"Result := {scalar_call};"])
+        for routine_name, scalar_call in riscvv_source_wide_rounding_forwarder_expectations
+    )
+
     routine_expectations.extend(
         (riscvv_source, routine_name, [f"Result := {scalar_call};"])
         for routine_name, scalar_call in riscvv_helper_scalar_forwarder_expectations

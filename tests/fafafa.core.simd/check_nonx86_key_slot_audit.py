@@ -145,6 +145,24 @@ RISCVV_HELPER_OWNED_KEY_SLOTS = (
     "AndNotU16x8",
     "AndNotU8x16",
 )
+RISCVV_WIDE_ROUNDING_KEY_SLOTS = (
+    "CeilF32x8",
+    "CeilF64x4",
+    "CeilF32x16",
+    "CeilF64x8",
+    "FloorF32x8",
+    "FloorF64x4",
+    "FloorF32x16",
+    "FloorF64x8",
+    "RoundF32x8",
+    "RoundF64x4",
+    "RoundF32x16",
+    "RoundF64x8",
+    "TruncF32x8",
+    "TruncF64x4",
+    "TruncF32x16",
+    "TruncF64x8",
+)
 
 KEY_SLOTS_BY_BACKEND: dict[str, tuple[str, ...]] = {
     "neon": combine_slot_groups(
@@ -163,6 +181,7 @@ KEY_SLOTS_BY_BACKEND: dict[str, tuple[str, ...]] = {
         RISCVV_DOT_KEY_SLOTS,
         RISCVV_EXTRACT_KEY_SLOTS,
         RISCVV_HELPER_OWNED_KEY_SLOTS,
+        RISCVV_WIDE_ROUNDING_KEY_SLOTS,
     ),
 }
 
@@ -222,6 +241,7 @@ REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS: dict[str, set[str]] = {
             RISCVV_DOT_KEY_SLOTS,
             RISCVV_EXTRACT_KEY_SLOTS,
             RISCVV_HELPER_OWNED_KEY_SLOTS,
+            RISCVV_WIDE_ROUNDING_KEY_SLOTS,
         )
     ),
 }
@@ -231,7 +251,7 @@ ALLOWED_BACKEND_OWNED_NO_ASM_SCALAR_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]
 }
 
 ALLOWED_BACKEND_OWNED_SCALAR_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
-    "riscvv": set(RISCVV_HELPER_OWNED_KEY_SLOTS),
+    "riscvv": set(RISCVV_HELPER_OWNED_KEY_SLOTS) | set(RISCVV_WIDE_ROUNDING_KEY_SLOTS),
 }
 
 

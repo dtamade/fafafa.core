@@ -8160,3 +8160,30 @@
 - 这条 finding 也顺便把下一轮边界钉住了：
   - `RISCVV Round/Trunc/Clamp` 仍属于语义敏感区，当前不能套用这套 exact-contract 收口逻辑
   - `RISCVV helper-owned 64-bit slots` 则已经退出“是否还能继续去重”的争论区
+
+## 2026-05-18 RISCVV Wide Floor/Ceil/Round/Trunc Were Backend-Owned But Not Proven RVV Semantics
+
+- `src/fafafa.core.simd.riscvv.pas` 的 wide rounding 真实风险已经从“可能还能去重”升级成“native body 本身就可疑”：
+  - `RISCVVFloorF32x8 / RISCVVCeilF32x8 / RISCVVRoundF32x8`
+  - `RISCVVFloorF64x4 / RISCVVCeilF64x4 / RISCVVRoundF64x4`
+  - `RISCVVFloorF32x16 / RISCVVCeilF32x16 / RISCVVRoundF32x16`
+  - `RISCVVFloorF64x8 / RISCVVCeilF64x8 / RISCVVRoundF64x8`
+  - 这 12 个函数原本都是同一套 `vfcvt.x.f.v -> vfcvt.f.x.v`
+  - `Trunc*` 只是把第一步改成 `vfcvt.rtz.x.f.v`
+- 这说明当前 register ownership 和语义 truth source 是两回事：
+  - `src/fafafa.core.simd.riscvv.register.inc` 仍然合理地要求这些 slot 保持 `@RISCVV...`
+  - 但 `riscvv.pas` 里的 native body 并没有证明自己已经区分好了 `floor/ceil/round/trunc`
+- 因而这一簇的最小正确修法不是“回退到 base scalar slot”，也不是“继续猜 RVV asm 该怎么写”，而是：
+  - 保留 backend-owned slot 形状
+  - 但把函数体内部收成 `Result := Scalar...`
+  - 先把错误 native 语义风险拿掉
+- 这批同时说明旧护栏还差一层：
+  - `check_nonx86_register_truthfulness.py` 之前只认识旧的 helper-owned scalar-forwarder allowlist
+  - `check_nonx86_key_slot_audit.py` 之前也没有把这 16 个 wide rounding slot 纳入 `RISCVV` key-slot model
+  - 所以如果只改 `riscvv.pas`，旧 checker 会把这批正确收口误报成红
+- 这条线目前已经完成第一阶段收口：
+  - wide `Floor/Ceil/Round/Trunc` 已转成 backend-owned exact scalar contract
+  - `DispatchAPI / helper semantics / register truth / key-slot audit / riscvv ABI shape` 已全链路重新验证
+- 这也把下一条边界钉得更死：
+  - `ClampF32x8/F64x4/F32x16/F64x8` 仍不能机械照抄
+  - 因为 `vfmax/vfmin` 还涉及 `NaN` 顺序和 `signed zero`，它们是下一批独立语义审查对象

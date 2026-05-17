@@ -3036,40 +3036,26 @@ end;
 // 256-bit 舍入/Clamp 操作
 // =============================================================
 
-function RISCVVFloorF32x8(const a: TVecF32x8): TVecF32x8; assembler; nostackframe;
-asm
-  vsetivli zero, 8, 0xD1
-  vle32.v v0, (a1)
-  vfcvt.x.f.v v2, v0
-  vfcvt.f.x.v v0, v2
-  vse32.v v0, (a0)
+// Keep the wide rounding slots backend-owned in register.inc, but reuse the
+// exact scalar contract here until RVV-specific parity is re-verified.
+function RISCVVFloorF32x8(const a: TVecF32x8): TVecF32x8;
+begin
+  Result := ScalarFloorF32x8(a);
 end;
 
-function RISCVVCeilF32x8(const a: TVecF32x8): TVecF32x8; assembler; nostackframe;
-asm
-  vsetivli zero, 8, 0xD1
-  vle32.v v0, (a1)
-  vfcvt.x.f.v v2, v0
-  vfcvt.f.x.v v0, v2
-  vse32.v v0, (a0)
+function RISCVVCeilF32x8(const a: TVecF32x8): TVecF32x8;
+begin
+  Result := ScalarCeilF32x8(a);
 end;
 
-function RISCVVRoundF32x8(const a: TVecF32x8): TVecF32x8; assembler; nostackframe;
-asm
-  vsetivli zero, 8, 0xD1
-  vle32.v v0, (a1)
-  vfcvt.x.f.v v2, v0
-  vfcvt.f.x.v v0, v2
-  vse32.v v0, (a0)
+function RISCVVRoundF32x8(const a: TVecF32x8): TVecF32x8;
+begin
+  Result := ScalarRoundF32x8(a);
 end;
 
-function RISCVVTruncF32x8(const a: TVecF32x8): TVecF32x8; assembler; nostackframe;
-asm
-  vsetivli zero, 8, 0xD1
-  vle32.v v0, (a1)
-  vfcvt.rtz.x.f.v v2, v0
-  vfcvt.f.x.v v0, v2
-  vse32.v v0, (a0)
+function RISCVVTruncF32x8(const a: TVecF32x8): TVecF32x8;
+begin
+  Result := ScalarTruncF32x8(a);
 end;
 
 function RISCVVClampF32x8(const a, minVal, maxVal: TVecF32x8): TVecF32x8; assembler; nostackframe;
@@ -3083,40 +3069,24 @@ asm
   vse32.v v0, (a0)
 end;
 
-function RISCVVFloorF64x4(const a: TVecF64x4): TVecF64x4; assembler; nostackframe;
-asm
-  vsetivli zero, 4, 0xD9
-  vle64.v v0, (a1)
-  vfcvt.x.f.v v2, v0
-  vfcvt.f.x.v v0, v2
-  vse64.v v0, (a0)
+function RISCVVFloorF64x4(const a: TVecF64x4): TVecF64x4;
+begin
+  Result := ScalarFloorF64x4(a);
 end;
 
-function RISCVVCeilF64x4(const a: TVecF64x4): TVecF64x4; assembler; nostackframe;
-asm
-  vsetivli zero, 4, 0xD9
-  vle64.v v0, (a1)
-  vfcvt.x.f.v v2, v0
-  vfcvt.f.x.v v0, v2
-  vse64.v v0, (a0)
+function RISCVVCeilF64x4(const a: TVecF64x4): TVecF64x4;
+begin
+  Result := ScalarCeilF64x4(a);
 end;
 
-function RISCVVRoundF64x4(const a: TVecF64x4): TVecF64x4; assembler; nostackframe;
-asm
-  vsetivli zero, 4, 0xD9
-  vle64.v v0, (a1)
-  vfcvt.x.f.v v2, v0
-  vfcvt.f.x.v v0, v2
-  vse64.v v0, (a0)
+function RISCVVRoundF64x4(const a: TVecF64x4): TVecF64x4;
+begin
+  Result := ScalarRoundF64x4(a);
 end;
 
-function RISCVVTruncF64x4(const a: TVecF64x4): TVecF64x4; assembler; nostackframe;
-asm
-  vsetivli zero, 4, 0xD9
-  vle64.v v0, (a1)
-  vfcvt.rtz.x.f.v v2, v0
-  vfcvt.f.x.v v0, v2
-  vse64.v v0, (a0)
+function RISCVVTruncF64x4(const a: TVecF64x4): TVecF64x4;
+begin
+  Result := ScalarTruncF64x4(a);
 end;
 
 function RISCVVClampF64x4(const a, minVal, maxVal: TVecF64x4): TVecF64x4; assembler; nostackframe;
@@ -3134,40 +3104,24 @@ end;
 // 512-bit 舍入/Clamp 操作
 // =============================================================
 
-function RISCVVFloorF32x16(const a: TVecF32x16): TVecF32x16; assembler; nostackframe;
-asm
-  vsetivli zero, 16, 0xD2
-  vle32.v v0, (a1)
-  vfcvt.x.f.v v4, v0
-  vfcvt.f.x.v v0, v4
-  vse32.v v0, (a0)
+function RISCVVFloorF32x16(const a: TVecF32x16): TVecF32x16;
+begin
+  Result := ScalarFloorF32x16(a);
 end;
 
-function RISCVVCeilF32x16(const a: TVecF32x16): TVecF32x16; assembler; nostackframe;
-asm
-  vsetivli zero, 16, 0xD2
-  vle32.v v0, (a1)
-  vfcvt.x.f.v v4, v0
-  vfcvt.f.x.v v0, v4
-  vse32.v v0, (a0)
+function RISCVVCeilF32x16(const a: TVecF32x16): TVecF32x16;
+begin
+  Result := ScalarCeilF32x16(a);
 end;
 
-function RISCVVRoundF32x16(const a: TVecF32x16): TVecF32x16; assembler; nostackframe;
-asm
-  vsetivli zero, 16, 0xD2
-  vle32.v v0, (a1)
-  vfcvt.x.f.v v4, v0
-  vfcvt.f.x.v v0, v4
-  vse32.v v0, (a0)
+function RISCVVRoundF32x16(const a: TVecF32x16): TVecF32x16;
+begin
+  Result := ScalarRoundF32x16(a);
 end;
 
-function RISCVVTruncF32x16(const a: TVecF32x16): TVecF32x16; assembler; nostackframe;
-asm
-  vsetivli zero, 16, 0xD2
-  vle32.v v0, (a1)
-  vfcvt.rtz.x.f.v v4, v0
-  vfcvt.f.x.v v0, v4
-  vse32.v v0, (a0)
+function RISCVVTruncF32x16(const a: TVecF32x16): TVecF32x16;
+begin
+  Result := ScalarTruncF32x16(a);
 end;
 
 function RISCVVClampF32x16(const a, minVal, maxVal: TVecF32x16): TVecF32x16; assembler; nostackframe;
@@ -3181,40 +3135,24 @@ asm
   vse32.v v0, (a0)
 end;
 
-function RISCVVFloorF64x8(const a: TVecF64x8): TVecF64x8; assembler; nostackframe;
-asm
-  vsetivli zero, 8, 0xDA
-  vle64.v v0, (a1)
-  vfcvt.x.f.v v4, v0
-  vfcvt.f.x.v v0, v4
-  vse64.v v0, (a0)
+function RISCVVFloorF64x8(const a: TVecF64x8): TVecF64x8;
+begin
+  Result := ScalarFloorF64x8(a);
 end;
 
-function RISCVVCeilF64x8(const a: TVecF64x8): TVecF64x8; assembler; nostackframe;
-asm
-  vsetivli zero, 8, 0xDA
-  vle64.v v0, (a1)
-  vfcvt.x.f.v v4, v0
-  vfcvt.f.x.v v0, v4
-  vse64.v v0, (a0)
+function RISCVVCeilF64x8(const a: TVecF64x8): TVecF64x8;
+begin
+  Result := ScalarCeilF64x8(a);
 end;
 
-function RISCVVRoundF64x8(const a: TVecF64x8): TVecF64x8; assembler; nostackframe;
-asm
-  vsetivli zero, 8, 0xDA
-  vle64.v v0, (a1)
-  vfcvt.x.f.v v4, v0
-  vfcvt.f.x.v v0, v4
-  vse64.v v0, (a0)
+function RISCVVRoundF64x8(const a: TVecF64x8): TVecF64x8;
+begin
+  Result := ScalarRoundF64x8(a);
 end;
 
-function RISCVVTruncF64x8(const a: TVecF64x8): TVecF64x8; assembler; nostackframe;
-asm
-  vsetivli zero, 8, 0xDA
-  vle64.v v0, (a1)
-  vfcvt.rtz.x.f.v v4, v0
-  vfcvt.f.x.v v0, v4
-  vse64.v v0, (a0)
+function RISCVVTruncF64x8(const a: TVecF64x8): TVecF64x8;
+begin
+  Result := ScalarTruncF64x8(a);
 end;
 
 function RISCVVClampF64x8(const a, minVal, maxVal: TVecF64x8): TVecF64x8; assembler; nostackframe;

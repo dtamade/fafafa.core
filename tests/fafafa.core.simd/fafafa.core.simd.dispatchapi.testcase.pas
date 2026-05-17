@@ -9103,6 +9103,22 @@ begin
   AssertRegisterOwnsBackendSlot('AddI64x4', 'table.AddI64x4 := @RISCVVAddI64x4;');
   AssertRegisterOwnsBackendSlot('MulI32x16', 'table.MulI32x16 := @RISCVVMulI32x16;');
   AssertRegisterOwnsBackendSlot('SubI64x8', 'table.SubI64x8 := @RISCVVSubI64x8;');
+  AssertRegisterOwnsBackendSlot('CeilF32x8', 'table.CeilF32x8 := @RISCVVCeilF32x8;');
+  AssertRegisterOwnsBackendSlot('CeilF64x4', 'table.CeilF64x4 := @RISCVVCeilF64x4;');
+  AssertRegisterOwnsBackendSlot('CeilF32x16', 'table.CeilF32x16 := @RISCVVCeilF32x16;');
+  AssertRegisterOwnsBackendSlot('CeilF64x8', 'table.CeilF64x8 := @RISCVVCeilF64x8;');
+  AssertRegisterOwnsBackendSlot('FloorF32x8', 'table.FloorF32x8 := @RISCVVFloorF32x8;');
+  AssertRegisterOwnsBackendSlot('FloorF64x4', 'table.FloorF64x4 := @RISCVVFloorF64x4;');
+  AssertRegisterOwnsBackendSlot('FloorF32x16', 'table.FloorF32x16 := @RISCVVFloorF32x16;');
+  AssertRegisterOwnsBackendSlot('FloorF64x8', 'table.FloorF64x8 := @RISCVVFloorF64x8;');
+  AssertRegisterOwnsBackendSlot('RoundF32x8', 'table.RoundF32x8 := @RISCVVRoundF32x8;');
+  AssertRegisterOwnsBackendSlot('RoundF64x4', 'table.RoundF64x4 := @RISCVVRoundF64x4;');
+  AssertRegisterOwnsBackendSlot('RoundF32x16', 'table.RoundF32x16 := @RISCVVRoundF32x16;');
+  AssertRegisterOwnsBackendSlot('RoundF64x8', 'table.RoundF64x8 := @RISCVVRoundF64x8;');
+  AssertRegisterOwnsBackendSlot('TruncF32x8', 'table.TruncF32x8 := @RISCVVTruncF32x8;');
+  AssertRegisterOwnsBackendSlot('TruncF64x4', 'table.TruncF64x4 := @RISCVVTruncF64x4;');
+  AssertRegisterOwnsBackendSlot('TruncF32x16', 'table.TruncF32x16 := @RISCVVTruncF32x16;');
+  AssertRegisterOwnsBackendSlot('TruncF64x8', 'table.TruncF64x8 := @RISCVVTruncF64x8;');
 
   AssertTrue('Scalar dispatch table should be registered',
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
@@ -9124,6 +9140,22 @@ begin
   AssertSlotKeepsBackendOwnership('AddI64x4', Pointer(LScalarTable.AddI64x4), Pointer(LRISCVVTable.AddI64x4));
   AssertSlotKeepsBackendOwnership('MulI32x16', Pointer(LScalarTable.MulI32x16), Pointer(LRISCVVTable.MulI32x16));
   AssertSlotKeepsBackendOwnership('SubI64x8', Pointer(LScalarTable.SubI64x8), Pointer(LRISCVVTable.SubI64x8));
+  AssertSlotKeepsBackendOwnership('CeilF32x8', Pointer(LScalarTable.CeilF32x8), Pointer(LRISCVVTable.CeilF32x8));
+  AssertSlotKeepsBackendOwnership('CeilF64x4', Pointer(LScalarTable.CeilF64x4), Pointer(LRISCVVTable.CeilF64x4));
+  AssertSlotKeepsBackendOwnership('CeilF32x16', Pointer(LScalarTable.CeilF32x16), Pointer(LRISCVVTable.CeilF32x16));
+  AssertSlotKeepsBackendOwnership('CeilF64x8', Pointer(LScalarTable.CeilF64x8), Pointer(LRISCVVTable.CeilF64x8));
+  AssertSlotKeepsBackendOwnership('FloorF32x8', Pointer(LScalarTable.FloorF32x8), Pointer(LRISCVVTable.FloorF32x8));
+  AssertSlotKeepsBackendOwnership('FloorF64x4', Pointer(LScalarTable.FloorF64x4), Pointer(LRISCVVTable.FloorF64x4));
+  AssertSlotKeepsBackendOwnership('FloorF32x16', Pointer(LScalarTable.FloorF32x16), Pointer(LRISCVVTable.FloorF32x16));
+  AssertSlotKeepsBackendOwnership('FloorF64x8', Pointer(LScalarTable.FloorF64x8), Pointer(LRISCVVTable.FloorF64x8));
+  AssertSlotKeepsBackendOwnership('RoundF32x8', Pointer(LScalarTable.RoundF32x8), Pointer(LRISCVVTable.RoundF32x8));
+  AssertSlotKeepsBackendOwnership('RoundF64x4', Pointer(LScalarTable.RoundF64x4), Pointer(LRISCVVTable.RoundF64x4));
+  AssertSlotKeepsBackendOwnership('RoundF32x16', Pointer(LScalarTable.RoundF32x16), Pointer(LRISCVVTable.RoundF32x16));
+  AssertSlotKeepsBackendOwnership('RoundF64x8', Pointer(LScalarTable.RoundF64x8), Pointer(LRISCVVTable.RoundF64x8));
+  AssertSlotKeepsBackendOwnership('TruncF32x8', Pointer(LScalarTable.TruncF32x8), Pointer(LRISCVVTable.TruncF32x8));
+  AssertSlotKeepsBackendOwnership('TruncF64x4', Pointer(LScalarTable.TruncF64x4), Pointer(LRISCVVTable.TruncF64x4));
+  AssertSlotKeepsBackendOwnership('TruncF32x16', Pointer(LScalarTable.TruncF32x16), Pointer(LRISCVVTable.TruncF32x16));
+  AssertSlotKeepsBackendOwnership('TruncF64x8', Pointer(LScalarTable.TruncF64x8), Pointer(LRISCVVTable.TruncF64x8));
 end;
 
 procedure TTestCase_DispatchAPI.Test_RISCVV_HelperOwnedExactScalarSlots_Stay_BackendOwned;
