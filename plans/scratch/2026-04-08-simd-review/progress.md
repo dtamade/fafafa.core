@@ -8246,3 +8246,40 @@
 - 当前阶段结论：
   - 这批收掉的是真正的默认门禁缺口，而不是再开一轮 broad SIMD 审查
   - `docs/fafafa.core.simd.implementation-matrix.md` 现在终于受默认 `check` fail-close 保护，而且规则面与 active ledger 真边界一致
+
+## 2026-05-17 SIMD Tracked Res Artifact Hygiene
+
+- 继续按“小闭环”推进，这次没有再扫算法或外部 evidence，而是直接清理 `simd` 子树里还被 Git 跟踪的 `.res` 生成物。
+- 已复核：
+  - `git ls-files tests/fafafa.core.simd tests/fafafa.core.simd.* | rg '\.res$'`
+  - `file tests/fafafa.core.simd/fafafa.core.simd.test.res tests/fafafa.core.simd/test_backend_ops.res tests/fafafa.core.simd.intrinsics.mmx/fafafa.core.simd.intrinsics.mmx.test.res`
+  - `tests/fafafa.core.simd/fafafa.core.simd.test.lpr`
+  - `tests/fafafa.core.simd/test_backend_ops.pas`
+  - `tests/fafafa.core.simd.intrinsics.mmx/fafafa.core.simd.intrinsics.mmx.test.lpr`
+  - `tests/fafafa.core.simd/.gitignore`
+  - `tests/fafafa.core.simd.intrinsics.mmx/BuildOrTest.sh`
+- 当前结论：
+  - `simd` 相关被跟踪的 `.res` 只剩 3 个
+  - 三者都显示为 `Microsoft Visual C binary resource file`
+  - 对应源码入口都没有 `{$R *.res}` 引用，因此它们不应继续作为 repo 资产存在
+- 已完成收口：
+  - `tests/fafafa.core.simd/.gitignore`
+    - 新增 `/*.res`
+  - `tests/fafafa.core.simd.intrinsics.mmx/.gitignore`
+    - 新增局部 ignore：`/bin/`、`/lib/`、`/logs/`、`/*.res`
+  - 从 Git 索引移除：
+    - `tests/fafafa.core.simd/fafafa.core.simd.test.res`
+    - `tests/fafafa.core.simd/test_backend_ops.res`
+    - `tests/fafafa.core.simd.intrinsics.mmx/fafafa.core.simd.intrinsics.mmx.test.res`
+- Release/runner 验证：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.intrinsics.mmx/BuildOrTest.sh test`
+  - `git diff --check`
+- fresh 结果：
+  - 主 `simd check` 继续通过，说明删掉 tracked `fafafa.core.simd.test.res` / `test_backend_ops.res` 不会破坏主 runner
+  - MMX runner 继续 `[BUILD] OK`、`[TEST] OK`、`[LEAK] OK`
+  - `fafafa.core.simd.test.res` 与 `fafafa.core.simd.intrinsics.mmx.test.res` 可被正常重建，但因为 ignore 已补齐，不再回流成未跟踪噪音
+  - `test_backend_ops.res` 删除后没有重新生成，且主 `check` 仍通过，进一步证明它不是必需源码资产
+- 当前阶段结论：
+  - 这批收掉的是 `simd` 子树里仍被版本库持有的资源二进制垃圾
+  - 它没有改变 SIMD 语义，但显著降低了后续 review 与构建后的噪音面

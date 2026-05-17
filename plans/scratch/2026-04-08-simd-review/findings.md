@@ -6675,3 +6675,24 @@
   - `python3 tests/fafafa.core.simd/check_implementation_matrix_sync.py --summary-line`
   - 结果：`IMPLEMENTATION_MATRIX_SYNC nonx86_slots=22 x86_rows=10 issues=0 status=ok`
 - 这批的核心价值不是新增 SIMD 算法验证，而是把 active implementation matrix 真正纳入默认 `check`，避免后续 active ledger 和 key-slot / x86 frontier 真相源长期漂移。
+
+## 2026-05-17 SIMD Tracked Res Artifact Hygiene
+
+- `git ls-files tests/fafafa.core.simd tests/fafafa.core.simd.* | rg '\.res$'` 当前只命中 3 个路径：
+  - `tests/fafafa.core.simd/fafafa.core.simd.test.res`
+  - `tests/fafafa.core.simd/test_backend_ops.res`
+  - `tests/fafafa.core.simd.intrinsics.mmx/fafafa.core.simd.intrinsics.mmx.test.res`
+- 它们的文件级证据都指向“生成物而不是源码资源”：
+  - `file ...` 三个文件都显示为 `Microsoft Visual C binary resource file`
+  - 对应入口源码 `fafafa.core.simd.test.lpr`、`test_backend_ops.pas`、`fafafa.core.simd.intrinsics.mmx.test.lpr` 都没有 `{$R *.res}` / `{$R xxx.res}` 引用
+  - `test_backend_ops.pas` 甚至是直接 `fpc` 构建的 standalone smoke，并不需要仓库里预置一个 `.res`
+- 这意味着当前问题不是“构建会生成 `.res`”本身，而是“这些生成物仍被 Git 跟踪”：
+  - 继续保留会把 Lazarus/FPC 输出伪装成源码资产
+  - 后续任何 build 都可能再次让 review 偏离到无意义的资源二进制 diff
+- 当前最小正确修法是：
+  - 在 `tests/fafafa.core.simd/.gitignore` 增加 `/*.res`
+  - 给 `tests/fafafa.core.simd.intrinsics.mmx/` 补一个局部 `.gitignore`
+  - 把这 3 个 `.res` 从 Git 索引移除
+- 验证上有两个真实结论：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 通过，说明删掉 tracked `fafafa.core.simd.test.res` / `test_backend_ops.res` 不会破坏主 `simd` runner 或 standalone smoke
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.intrinsics.mmx/BuildOrTest.sh test` 通过，且 `intrinsics.mmx.test.res` 会被重新生成；配合新 ignore 后，它不再回流成工作树噪音

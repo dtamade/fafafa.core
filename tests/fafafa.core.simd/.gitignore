@@ -4,4 +4,5 @@
 /lib2/
 /logs/
 /simd_test
+/*.res
 /*.core

@@ -4607,3 +4607,17 @@
 | 2. 收窄 checker 到 active ledger 真边界 | completed | `check_implementation_matrix_sync.py` 现显式锁定当前 22 条 non-x86 active rows 和 10 条 x86 bounded-frontier rows；non-x86 只校验这些 active rows 的缺失/多余/contract mismatch，不再要求文档覆盖全量 key-slot |
 | 3. 补齐 matrix 自身不在 key-slot audit 内的例外 | completed | `RISCVV.ShiftLeftU32x8` / `ShiftRightU32x8` 仍是 active matrix row，但真相源在 `riscvv.facade.inc`，不在 `key-slot-audit` 的 dispatchapi ledger；checker 已把这两行作为本地 manual contract 收进去 |
 | 4. 接线、Release 验证与收口 | completed | 新 checker 已接入 `BuildOrTest.sh check` / `buildOrTest.bat` / active docs；`python3 -m py_compile`、独立 `--summary-line`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`、`git diff --check` 全部通过 |
+
+## 2026-05-17 SIMD Tracked Res Artifact Hygiene
+
+### Goal
+
+继续沿“小闭环”清理 `simd` 子树里仍被 Git 跟踪的 `.res` 生成物，避免后续构建把 Lazarus/FPC 资源二进制继续伪装成源码资产。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 核实 `.res` 是否真是生成物 | completed | 已确认 `git ls-files tests/fafafa.core.simd* | rg '\\.res$'` 只命中 3 个文件；`file` 均为 `Microsoft Visual C binary resource file`，且对应 `fafafa.core.simd.test.lpr` / `test_backend_ops.pas` / `fafafa.core.simd.intrinsics.mmx.test.lpr` 都没有 `{$R *.res}` 源码引用 |
+| 2. 收正 ignore 并移出版本库 | completed | `tests/fafafa.core.simd/.gitignore` 已补 `/*.res`；新增 `tests/fafafa.core.simd.intrinsics.mmx/.gitignore`；3 个 tracked `.res` 已从 Git 索引移除，不再作为 repo 资产保留 |
+| 3. Release/runner 回归与状态复核 | completed | `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.intrinsics.mmx/BuildOrTest.sh test`、`git diff --check` 已通过；`fafafa.core.simd.test.res` / `intrinsics.mmx.test.res` 能被正常重建且因 ignore 不再污染状态，`test_backend_ops.res` 删除后主 check 继续通过，证明它不是必需源码资产 |
