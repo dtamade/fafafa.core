@@ -389,6 +389,39 @@
   - `mmx` 文件总残量已从 `102` 继续压到 `65`
   - 当前剩余主要落在 `shift / pack / unpack / extra helper tail` 段
 
+## 2026-05-17 MMX Shift Comment-Hygiene Reduction
+
+- 在 `mmx` `mul/logical/compare` 批次提交后，继续沿同一文件下切，这次只处理 `shift` 段。
+- 本批只处理 `src/fafafa.core.simd.intrinsics.mmx.pas` 的 `1143..1571` 行：
+  - `psllw/pslld/psllq`
+  - `psllw_imm/pslld_imm/psllq_imm`
+  - `psrlw/psrld/psrlq`
+  - `psrlw_imm/psrld_imm/psrlq_imm`
+  - `psraw/psrad`
+  - `psraw_imm/psrad_imm`
+  - 对应说明性注释
+- 本批保持严格 bounded：
+  - 不改任何函数签名
+  - 不改任何汇编实现
+  - 只把这段里的损坏注释换成稳定 ASCII 注释
+- fresh 验证已完成：
+  - `python3` 计数：
+    - `range_1143_1571=0`
+    - `total=38`
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_comment_swallow.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - `intrinsics.experimental` default / experimental 双模态 `check` 全绿
+  - `MMX backend smoke` 继续通过
+  - 主 `simd` release `check` 全绿
+- 当前阶段结论：
+  - 这批继续属于 `mmx` 的 bounded text-hygiene 收口，不涉及行为修复
+  - `mmx` 文件总残量已从 `65` 继续压到 `38`
+  - 当前剩余已经主要缩到 `pack/unpack + extra helper tail`
+
 - 在 code batch 提交并推送后，继续按“只查 closeout 入口误导点”的边界做了一轮 active docs 审查。
 - 新抓到的 residual 不是实现层，而是部分 active 文档仍把：
   - `closeout-release`

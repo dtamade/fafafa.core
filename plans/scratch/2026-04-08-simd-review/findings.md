@@ -366,6 +366,19 @@
   - `pack/unpack`
   - `extra helper tail`
   这些说明性残点，而不是新的实现风险
+
+## 2026-05-17 MMX Shift Residuals Stayed In Comment-Only Territory
+
+- 继续复核 `1143..1571` 行范围后，`mmx` 当前的信号没有变差：
+  - `psll* / psrl* / psra*` 这组 residual 仍然全部落在说明性注释
+  - 没有新的 x86 asm 吞指令
+  - 没有新的 declaration 或 preprocessor 边界问题
+- fresh 计数给出的结果也很干净：
+  - `range_1143_1571=0`
+  - `total=38`
+- 因而到这里可以更明确地下判断：
+  - `mmx` 已经完全退出“可能还有隐藏行为 bug”的阶段
+  - 剩余工作就是继续把 `pack/unpack` 和 `extra helper tail` 的 comment-only 残点分段清完
   - 先过 `win-evidence-preflight`
   - 若 latest 结果仍是 `RECENT_BILLING_BLOCK`，就在 preflight 处 fail-close
   - 历史 “Windows 已闭环” 只能按 archive fact 理解，不是当前 readiness signal

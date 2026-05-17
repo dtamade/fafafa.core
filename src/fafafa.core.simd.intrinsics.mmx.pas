@@ -1140,7 +1140,7 @@ end;
 
 // === 7️⃣ Shift 实现 ===
 
-// 功能：对4�?6位整数执行左移（逻辑移位�
+// Shift four 16-bit lanes left logically with an MMX count operand.
 function mmx_psllw(a: TM64; count: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1168,7 +1168,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对2�?2位整数执行左移（逻辑移位�
+// Shift two 32-bit lanes left logically with an MMX count operand.
 function mmx_pslld(a: TM64; count: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1196,7 +1196,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对1�?4位整数执行左移（逻辑移位�
+// Shift one 64-bit lane left logically with an MMX count operand.
 function mmx_psllq(a: TM64; count: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1224,7 +1224,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对4�?6位整数执行左移（逻辑移位，使用立即数�
+// Shift four 16-bit lanes left logically with an immediate count.
 function mmx_psllw_imm(a: TM64; imm8: Byte): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1253,7 +1253,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对2�?2位整数执行左移（逻辑移位，使用立即数�
+// Shift two 32-bit lanes left logically with an immediate count.
 function mmx_pslld_imm(a: TM64; imm8: Byte): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1282,7 +1282,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对1�?4位整数执行左移（逻辑移位，使用立即数�
+// Shift one 64-bit lane left logically with an immediate count.
 function mmx_psllq_imm(a: TM64; imm8: Byte): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1312,7 +1312,7 @@ asm
 end;
 
 // 逻辑右移
-// 功能：对4�?6位整数执行逻辑右移
+// Shift four 16-bit lanes right logically with an MMX count operand.
 function mmx_psrlw(a: TM64; count: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1340,7 +1340,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对2�?2位整数执行逻辑右移
+// Shift two 32-bit lanes right logically with an MMX count operand.
 function mmx_psrld(a: TM64; count: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1368,7 +1368,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对1�?4位整数执行逻辑右移
+// Shift one 64-bit lane right logically with an MMX count operand.
 function mmx_psrlq(a: TM64; count: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1396,7 +1396,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对4�?6位整数执行逻辑右移（使用立即数�
+// Shift four 16-bit lanes right logically with an immediate count.
 function mmx_psrlw_imm(a: TM64; imm8: Byte): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1425,7 +1425,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对2�?2位整数执行逻辑右移（使用立即数�
+// Shift two 32-bit lanes right logically with an immediate count.
 function mmx_psrld_imm(a: TM64; imm8: Byte): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1454,7 +1454,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对1�?4位整数执行逻辑右移（使用立即数�
+// Shift one 64-bit lane right logically with an immediate count.
 function mmx_psrlq_imm(a: TM64; imm8: Byte): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1483,7 +1483,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对4�?6位有符号整数执行算术右移
+// Shift four signed 16-bit lanes right arithmetically with an MMX count operand.
 function mmx_psraw(a: TM64; count: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1511,7 +1511,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对2�?2位有符号整数执行算术右移
+// Shift two signed 32-bit lanes right arithmetically with an MMX count operand.
 function mmx_psrad(a: TM64; count: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1539,7 +1539,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对4�?6位有符号整数执行算术右移（使用立即数�
+// Shift four signed 16-bit lanes right arithmetically with an immediate count.
 function mmx_psraw_imm(a: TM64; imm8: Byte): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1568,7 +1568,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对2�?2位有符号整数执行算术右移（使用立即数�
+// Shift two signed 32-bit lanes right arithmetically with an immediate count.
 function mmx_psrad_imm(a: TM64; imm8: Byte): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
