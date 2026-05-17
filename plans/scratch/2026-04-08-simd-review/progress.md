@@ -219,6 +219,24 @@
 
 ## 2026-05-15 NEON No-Asm Wide Round/Trunc Slot-Ownership Cleanup
 
+## 2026-05-17 Windows Closeout Billing Warning Rehearsal
+
+- 当前 worktree 未提交收口批次只剩两处：
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+  - `tests/fafafa.core.simd/rehearse_windows_closeout_3cmd.sh`
+- 这批改动不碰 SIMD 实现层，只补 `win-closeout-3cmd` 的 fail-close 自检：
+  - 新增 `rehearse_windows_closeout_3cmd.sh`
+  - `BuildOrTest.sh` 新增 `win-closeout-3cmd-rehearsal` 入口
+  - `gate-summary-selfcheck` 现在会强制跑这条 rehearsal
+  - `runner-parity` 现在也静态钉住 batch 侧 `RECENT_BILLING_BLOCK` warning 签名
+- fresh 验证已完成：
+  - `bash tests/fafafa.core.simd/rehearse_windows_closeout_3cmd.sh` -> `OK`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate-summary-selfcheck` -> `OK`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity` -> `OK`
+- 当前结论没有变化：
+  - repo 内 closeout 入口提示已收紧并具备自检
+  - 真正剩余 blocker 仍是 `freeze-status` 里的 Windows external evidence：`RECENT_BILLING_BLOCK` + `windows_evidence_verify=FAIL`
+
 - 接着上一批 `F64x4` arithmetic residual 继续往下切，本轮先锁定 wide `Round/Trunc`：
   - `RoundF32x8`
   - `RoundF32x16`

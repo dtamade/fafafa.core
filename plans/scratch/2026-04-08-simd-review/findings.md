@@ -258,6 +258,18 @@
 - `RISCVV` allowlist 当前是干净的：`26` 个允许项和 `26` 个真实 `wrapper_only` slot 完全一致，没有 stale allowlist。
 - 这类 stale allowlist 的风险不是“数字难看”，而是 checker 会继续把已经修掉的 `NEON` fake backend-owned slot 视为合法例外；后续若有人把这些名字重新绑回 wrapper，truthfulness checker 可能第一时间抓不出来。
 - 因此 checker 自己也需要 fail-close：
+
+## 2026-05-17 Closeout Entry Rehearsal Gap Closed
+
+- 当前高价值 residual 已不在 SIMD 实现层，而在 closeout 入口是否会把已知外部 blocker 诚实前置。
+- `print_windows_b07_closeout_3cmd.sh` 和 `buildOrTest.bat` 虽然已经会提示 `RECENT_BILLING_BLOCK`，但此前缺少一条 Linux 侧 machine-check，无法保证这类 warning 以后不会静默漂移。
+- 本轮新增的 `rehearse_windows_closeout_3cmd.sh` 让这个提示具备了两面证明：
+  - blocked case 必须出现 warning banner + do-not-run 提示
+  - pass case 必须不出现 billing warning
+- 这条 rehearsal 现已并入 `gate-summary-selfcheck`，同时 `runner-parity` 也会静态断言 batch 侧仍保留同一 warning 签名。
+- 因而当前 closeout 叙事层的最小结论是：
+  - repo 内入口已 fail-close 到位
+  - 剩余 blocker 继续诚实收敛到 Windows external evidence，而不是重新打开 SIMD 泛审查
   - 允许项必须是“当前真实仍然 unavoidable 的 wrapper-only slot”
   - `allowed_wrapper_slots - current_wrapper_only_slots` 只要非空，就说明 allowlist 落后于源码真相，应该直接报错而不是悄悄放过
 - 这批修完后，`unused_allowlist_count` 应回到 `0`；以后这项也应该作为 summary 和 human report 的固定输出，避免 allowlist 又悄悄膨胀。

@@ -104,6 +104,7 @@ GATE_SUMMARY_INJECT_SCRIPT="${ROOT}/inject_gate_summary_sample.sh"
 GATE_SUMMARY_ROLLBACK_SCRIPT="${ROOT}/rollback_gate_summary_sample.sh"
 GATE_SUMMARY_BACKUPS_SCRIPT="${ROOT}/list_gate_summary_backups.sh"
 WIN_CLOSEOUT_3CMD_SCRIPT="${ROOT}/print_windows_b07_closeout_3cmd.sh"
+WIN_CLOSEOUT_3CMD_REHEARSAL_SCRIPT="${ROOT}/rehearse_windows_closeout_3cmd.sh"
 FREEZE_STATUS_SCRIPT="${ROOT}/evaluate_simd_freeze_status.py"
 WIN_CLOSEOUT_FINALIZE_SCRIPT="${ROOT}/run_windows_b07_closeout_finalize.sh"
 FREEZE_REHEARSAL_SCRIPT="${ROOT}/rehearse_freeze_status.sh"
@@ -1286,6 +1287,9 @@ check_windows_runner_parity() {
     'echo [GATE-SUMMARY-INJECT] backup=!BACKUP_FILE!'
     'echo [GATE-SUMMARY-ROLLBACK] restored=%SUMMARY_FILE% from=%RESTORE_FILE%'
     'echo [GATE-SUMMARY-BACKUPS] none'
+    'set "PREFLIGHT_JSON=%ROOT%logs\win_preflight_latest.json"'
+    'findstr /c:"\"code\": \"RECENT_BILLING_BLOCK\"" "%PREFLIGHT_JSON%"'
+    'echo [CLOSEOUT] WARN latest preflight is RECENT_BILLING_BLOCK'
   )
 
   for LPattern in "${LRequired[@]}"; do
@@ -6537,8 +6541,26 @@ PY_JSON_CHECK
     return 1
   fi
 
+  if ! run_windows_closeout_3cmd_rehearsal >/dev/null; then
+    echo "[GATE-SUMMARY-SELFCHECK] FAILED: win-closeout-3cmd-rehearsal"
+    rm -f "${LTmpJson}"
+    return 1
+  fi
+
   rm -f "${LTmpJson}"
   echo "[GATE-SUMMARY-SELFCHECK] OK"
+}
+
+run_windows_closeout_3cmd_rehearsal() {
+  local LScript
+
+  LScript="${WIN_CLOSEOUT_3CMD_REHEARSAL_SCRIPT:-${ROOT}/rehearse_windows_closeout_3cmd.sh}"
+  if [[ ! -f "${LScript}" ]]; then
+    echo "[WIN-CLOSEOUT-3CMD-REHEARSAL] Missing script: ${LScript}"
+    return 2
+  fi
+
+  bash "${LScript}"
 }
 
 run_windows_cpuinfo_x86_batch_build_success_criteria_smoke() {
