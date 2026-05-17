@@ -117,6 +117,7 @@ type
   published
     procedure Test_NonX86_RoundTruncFloorCeil_NaNInf_IfAvailable;
     procedure Test_NonX86_NarrowF64x2_RoundTruncFloorCeil_Finite_IfAvailable;
+    procedure Test_NonX86_F32_ReduceMinMax_SpecialCases_IfAvailable;
     procedure Test_NonX86_F64_MinMaxReduce_SpecialCases_IfAvailable;
     procedure Test_NonX86_Wide_RoundTruncFloorCeil_NaNInf_IfAvailable;
     procedure Test_NonX86_FloorCeil_PropertyLike_FixedSeed_IfAvailable;
@@ -3121,6 +3122,232 @@ begin
 
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 backend available on this host (allowed)', True);
+end;
+
+procedure TTestCase_NonX86IEEE754.Test_NonX86_F32_ReduceMinMax_SpecialCases_IfAvailable;
+const
+  NON_X86_BACKENDS: array[0..1] of TSimdBackend = (sbNEON, sbRISCVV);
+var
+  LBackend: TSimdBackend;
+  LCheckedBackends: Integer;
+  LScalarDispatch: PSimdDispatchTable;
+  LBackendDispatch: PSimdDispatchTable;
+
+  LInputF32x4: TVecF32x4;
+  LInputF32x8: TVecF32x8;
+  LInputF32x16: TVecF32x16;
+
+  procedure AssertSingleParity(const aPrefix: string; const aExpected, aActual: Single);
+  begin
+    if IsNaNSingle(aExpected) then
+      AssertTrue(aPrefix + ' expected NaN', IsNaNSingle(aActual))
+    else if IsInfinite(aExpected) then
+      AssertTrue(aPrefix + ' expected Inf sign',
+        IsInfinite(aActual) and ((aActual > 0) = (aExpected > 0)))
+    else
+    begin
+      AssertEquals(aPrefix + ' finite compare', aExpected, aActual, 0.0);
+      if aExpected = 0.0 then
+        AssertTrue(aPrefix + ' zero sign',
+          BitsFromSingle(aExpected) = BitsFromSingle(aActual));
+    end;
+  end;
+
+  procedure AssertReduceParityF32x4(const aLabel: string; const aInput: TVecF32x4);
+  begin
+    AssertSingleParity(IEEE754BackendName(LBackend) + ' ' + aLabel + ' ReduceMinF32x4',
+      LScalarDispatch^.ReduceMinF32x4(aInput), LBackendDispatch^.ReduceMinF32x4(aInput));
+    AssertSingleParity(IEEE754BackendName(LBackend) + ' ' + aLabel + ' ReduceMaxF32x4',
+      LScalarDispatch^.ReduceMaxF32x4(aInput), LBackendDispatch^.ReduceMaxF32x4(aInput));
+  end;
+
+  procedure AssertReduceParityF32x8(const aLabel: string; const aInput: TVecF32x8);
+  begin
+    AssertSingleParity(IEEE754BackendName(LBackend) + ' ' + aLabel + ' ReduceMinF32x8',
+      LScalarDispatch^.ReduceMinF32x8(aInput), LBackendDispatch^.ReduceMinF32x8(aInput));
+    AssertSingleParity(IEEE754BackendName(LBackend) + ' ' + aLabel + ' ReduceMaxF32x8',
+      LScalarDispatch^.ReduceMaxF32x8(aInput), LBackendDispatch^.ReduceMaxF32x8(aInput));
+  end;
+
+  procedure AssertReduceParityF32x16(const aLabel: string; const aInput: TVecF32x16);
+  begin
+    AssertSingleParity(IEEE754BackendName(LBackend) + ' ' + aLabel + ' ReduceMinF32x16',
+      LScalarDispatch^.ReduceMinF32x16(aInput), LBackendDispatch^.ReduceMinF32x16(aInput));
+    AssertSingleParity(IEEE754BackendName(LBackend) + ' ' + aLabel + ' ReduceMaxF32x16',
+      LScalarDispatch^.ReduceMaxF32x16(aInput), LBackendDispatch^.ReduceMaxF32x16(aInput));
+  end;
+
+begin
+  LCheckedBackends := 0;
+  SetVectorAsmEnabled(True);
+
+  for LBackend in NON_X86_BACKENDS do
+  begin
+    if not IsBackendRegistered(LBackend) then
+      Continue;
+    if not TrySetActiveBackend(LBackend) then
+      Continue;
+
+    Inc(LCheckedBackends);
+    try
+      SetActiveBackend(sbScalar);
+      LScalarDispatch := GetDispatchTable;
+      AssertNotNull('Scalar dispatch should be available', LScalarDispatch);
+      AssertTrue('Scalar dispatch should provide F32 reductions',
+        Assigned(LScalarDispatch^.ReduceMinF32x4) and Assigned(LScalarDispatch^.ReduceMaxF32x4) and
+        Assigned(LScalarDispatch^.ReduceMinF32x8) and Assigned(LScalarDispatch^.ReduceMaxF32x8) and
+        Assigned(LScalarDispatch^.ReduceMinF32x16) and Assigned(LScalarDispatch^.ReduceMaxF32x16));
+
+      SetActiveBackend(LBackend);
+      LBackendDispatch := GetDispatchTable;
+      AssertNotNull('Non-x86 dispatch should be available', LBackendDispatch);
+      AssertTrue('Non-x86 dispatch should provide F32 reductions',
+        Assigned(LBackendDispatch^.ReduceMinF32x4) and Assigned(LBackendDispatch^.ReduceMaxF32x4) and
+        Assigned(LBackendDispatch^.ReduceMinF32x8) and Assigned(LBackendDispatch^.ReduceMaxF32x8) and
+        Assigned(LBackendDispatch^.ReduceMinF32x16) and Assigned(LBackendDispatch^.ReduceMaxF32x16));
+
+      LInputF32x4.f[0] := NaNF32;
+      LInputF32x4.f[1] := 3.0;
+      LInputF32x4.f[2] := 8.0;
+      LInputF32x4.f[3] := 9.0;
+      AssertReduceParityF32x4('NaNLeading', LInputF32x4);
+
+      LInputF32x4.f[0] := 3.0;
+      LInputF32x4.f[1] := NaNF32;
+      LInputF32x4.f[2] := 8.0;
+      LInputF32x4.f[3] := 9.0;
+      AssertReduceParityF32x4('NaNSecond', LInputF32x4);
+
+      LInputF32x4.f[0] := 0.0;
+      LInputF32x4.f[1] := -0.0;
+      LInputF32x4.f[2] := 4.0;
+      LInputF32x4.f[3] := 5.0;
+      AssertReduceParityF32x4('SignedZeroPosNeg', LInputF32x4);
+
+      LInputF32x4.f[0] := -0.0;
+      LInputF32x4.f[1] := 0.0;
+      LInputF32x4.f[2] := 4.0;
+      LInputF32x4.f[3] := 5.0;
+      AssertReduceParityF32x4('SignedZeroNegPos', LInputF32x4);
+
+      LInputF32x8.f[0] := NaNF32;
+      LInputF32x8.f[1] := 3.0;
+      LInputF32x8.f[2] := 8.0;
+      LInputF32x8.f[3] := 9.0;
+      LInputF32x8.f[4] := 12.0;
+      LInputF32x8.f[5] := 14.0;
+      LInputF32x8.f[6] := 15.0;
+      LInputF32x8.f[7] := 18.0;
+      AssertReduceParityF32x8('NaNLeading', LInputF32x8);
+
+      LInputF32x8.f[0] := 3.0;
+      LInputF32x8.f[1] := NaNF32;
+      LInputF32x8.f[2] := 8.0;
+      LInputF32x8.f[3] := 9.0;
+      LInputF32x8.f[4] := 12.0;
+      LInputF32x8.f[5] := 14.0;
+      LInputF32x8.f[6] := 15.0;
+      LInputF32x8.f[7] := 18.0;
+      AssertReduceParityF32x8('NaNSecond', LInputF32x8);
+
+      LInputF32x8.f[0] := 0.0;
+      LInputF32x8.f[1] := -0.0;
+      LInputF32x8.f[2] := 4.0;
+      LInputF32x8.f[3] := 5.0;
+      LInputF32x8.f[4] := 6.0;
+      LInputF32x8.f[5] := 7.0;
+      LInputF32x8.f[6] := 8.0;
+      LInputF32x8.f[7] := 9.0;
+      AssertReduceParityF32x8('SignedZeroPosNeg', LInputF32x8);
+
+      LInputF32x8.f[0] := -0.0;
+      LInputF32x8.f[1] := 0.0;
+      LInputF32x8.f[2] := 4.0;
+      LInputF32x8.f[3] := 5.0;
+      LInputF32x8.f[4] := 6.0;
+      LInputF32x8.f[5] := 7.0;
+      LInputF32x8.f[6] := 8.0;
+      LInputF32x8.f[7] := 9.0;
+      AssertReduceParityF32x8('SignedZeroNegPos', LInputF32x8);
+
+      LInputF32x16.f[0] := NaNF32;
+      LInputF32x16.f[1] := 3.0;
+      LInputF32x16.f[2] := 8.0;
+      LInputF32x16.f[3] := 9.0;
+      LInputF32x16.f[4] := 12.0;
+      LInputF32x16.f[5] := 14.0;
+      LInputF32x16.f[6] := 15.0;
+      LInputF32x16.f[7] := 18.0;
+      LInputF32x16.f[8] := 19.0;
+      LInputF32x16.f[9] := 21.0;
+      LInputF32x16.f[10] := 22.0;
+      LInputF32x16.f[11] := 24.0;
+      LInputF32x16.f[12] := 25.0;
+      LInputF32x16.f[13] := 27.0;
+      LInputF32x16.f[14] := 28.0;
+      LInputF32x16.f[15] := 30.0;
+      AssertReduceParityF32x16('NaNLeading', LInputF32x16);
+
+      LInputF32x16.f[0] := 3.0;
+      LInputF32x16.f[1] := NaNF32;
+      LInputF32x16.f[2] := 8.0;
+      LInputF32x16.f[3] := 9.0;
+      LInputF32x16.f[4] := 12.0;
+      LInputF32x16.f[5] := 14.0;
+      LInputF32x16.f[6] := 15.0;
+      LInputF32x16.f[7] := 18.0;
+      LInputF32x16.f[8] := 19.0;
+      LInputF32x16.f[9] := 21.0;
+      LInputF32x16.f[10] := 22.0;
+      LInputF32x16.f[11] := 24.0;
+      LInputF32x16.f[12] := 25.0;
+      LInputF32x16.f[13] := 27.0;
+      LInputF32x16.f[14] := 28.0;
+      LInputF32x16.f[15] := 30.0;
+      AssertReduceParityF32x16('NaNSecond', LInputF32x16);
+
+      LInputF32x16.f[0] := 0.0;
+      LInputF32x16.f[1] := -0.0;
+      LInputF32x16.f[2] := 4.0;
+      LInputF32x16.f[3] := 5.0;
+      LInputF32x16.f[4] := 6.0;
+      LInputF32x16.f[5] := 7.0;
+      LInputF32x16.f[6] := 8.0;
+      LInputF32x16.f[7] := 9.0;
+      LInputF32x16.f[8] := 10.0;
+      LInputF32x16.f[9] := 11.0;
+      LInputF32x16.f[10] := 12.0;
+      LInputF32x16.f[11] := 13.0;
+      LInputF32x16.f[12] := 14.0;
+      LInputF32x16.f[13] := 15.0;
+      LInputF32x16.f[14] := 16.0;
+      LInputF32x16.f[15] := 17.0;
+      AssertReduceParityF32x16('SignedZeroPosNeg', LInputF32x16);
+
+      LInputF32x16.f[0] := -0.0;
+      LInputF32x16.f[1] := 0.0;
+      LInputF32x16.f[2] := 4.0;
+      LInputF32x16.f[3] := 5.0;
+      LInputF32x16.f[4] := 6.0;
+      LInputF32x16.f[5] := 7.0;
+      LInputF32x16.f[6] := 8.0;
+      LInputF32x16.f[7] := 9.0;
+      LInputF32x16.f[8] := 10.0;
+      LInputF32x16.f[9] := 11.0;
+      LInputF32x16.f[10] := 12.0;
+      LInputF32x16.f[11] := 13.0;
+      LInputF32x16.f[12] := 14.0;
+      LInputF32x16.f[13] := 15.0;
+      LInputF32x16.f[14] := 16.0;
+      LInputF32x16.f[15] := 17.0;
+      AssertReduceParityF32x16('SignedZeroNegPos', LInputF32x16);
+    finally
+      ResetToAutomaticBackend;
+    end;
+  end;
+
+  if LCheckedBackends = 0 then
+    AssertTrue('No non-x86 backend available on this host (allowed)', True);
 end;
 
 procedure TTestCase_NonX86IEEE754.Test_NonX86_F64_MinMaxReduce_SpecialCases_IfAvailable;

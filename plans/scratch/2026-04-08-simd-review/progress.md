@@ -11404,3 +11404,34 @@
 - 当前阶段结论：
   - `RISCVV ReduceMin/MaxF64x2/F64x4/F64x8` 的 no-asm 语义漂移已经被真实修掉，不再只是“有 witness 但合同错”
   - 当前仍未证明 RVV 原生 asm opcode 在真实 `riscvv` host 上对 `NaN / signed-zero` 与 scalar 完全一致；那属于下一层 native-evidence 课题，不属于这次 x86 host no-asm drift 修复
+
+## 2026-05-18 RISCVV F32 Reduction Exact-Scalar Drift Fix
+
+- `F64 reduction` 收口后继续顺着同一模式往下切，fresh 对位源码后确认 `F32 reduction` 也有同类 drift：
+  - `src/fafafa.core.simd.scalar.pas`
+    - `ScalarReduceMin/MaxF32x4/F32x8/F32x16` 都走 `Math.Min/Max` 链
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - 原先 `RISCVVReduceMin/MaxF32x4/F32x8/F32x16` 仍是 compare-loop accumulator
+  - 这和刚修掉的 `F64` 是同一模式，只是之前缺少 `F32 reduction` special-case 语义护栏，所以问题没有被直接打亮
+- 本批实际修复：
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - 把 `ReduceMin/MaxF32x4/F32x8/F32x16` no-asm bodies 全部收成 `ScalarReduce...` exact forward
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 新增 `RISCVVReduceMin/MaxF32x4/F32x8/F32x16` 的 scalar-forward truth
+    - `NONX86_HELPER_SEMANTICS_SUMMARY` 因此从 `678` 升到 `684`
+  - `tests/fafafa.core.simd/fafafa.core.simd.ieee754.testcase.pas`
+    - 新增 `TTestCase_NonX86IEEE754.Test_NonX86_F32_ReduceMinMax_SpecialCases_IfAvailable`
+    - 直接对位 `ReduceMin/MaxF32x4/F32x8/F32x16` 在 `NaNLeading`、`NaNSecond`、`SignedZeroPosNeg`、`SignedZeroNegPos` 四类样本上的 scalar/backend 语义
+- fresh 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NonX86IEEE754`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=684 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `TTestCase_NonX86IEEE754` `BUILD/TEST/LEAK` 全绿
+  - Release `check` 通过
+- 当前阶段结论：
+  - `RISCVV ReduceMin/MaxF32x4/F32x8/F32x16` 的 no-asm compare-loop drift 也已经被真实修掉
+  - 当前 `RISCVV float reduction` 的 x86 host no-asm 漂移面，`F32` 与 `F64` 两半都已经收成 exact scalar truth

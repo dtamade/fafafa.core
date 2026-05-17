@@ -8349,3 +8349,18 @@
   - “backend-owned asm slot 可以保留”
   - “no-asm facade 优先 exact scalar forward”
   - “语义敏感的浮点 reduction 不能再用看起来等价的 compare-loop 充当 scalar truth”
+
+## 2026-05-18 RISCVV F32 Reduction Shared The Same Compare-Loop Drift Pattern
+
+- `F32 reduction` 不是和 `F64` 无关的另一个小问题，而是同一错误模式的另一半：
+  - scalar truth 仍是 `Math.Min/Max` 链
+  - `RISCVV` no-asm facades 仍是 compare-loop accumulator
+  - 所以只要 special-case 样本触到 `NaN` 或 `signed-zero`，它们就会出现同类漂移
+- 这条 finding 的关键价值在于把“模式级审查”真正用起来了：
+  - 一旦 `F64 reduction` 证明 compare-loop 不等于 scalar truth
+  - 同一家族的 `F32 reduction` 就不该继续被当成“可能没事”
+  - 应该立即按同一合同核对并成批收口
+- 因而当前对 `RISCVV float reduction` 的更稳妥原则可以再明确一步：
+  - `F32` 和 `F64` 都不要再保留 compare-loop no-asm facades
+  - 对外仍可保留 backend-owned asm 发布形状
+  - 但对当前 host 的 no-asm truth，统一 exact scalar forward 才是最少漂移、最少冗余的实现方式

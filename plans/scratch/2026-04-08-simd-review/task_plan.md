@@ -4886,3 +4886,17 @@
 | 1. 复核 drift 是测试缺口还是实现真 bug | completed | 已确认 `src/fafafa.core.simd.scalar.pas` 的 `ScalarReduceMin/MaxF64x{2,4,8}` 走的是 `Math.Min/Max` 链，而 `src/fafafa.core.simd.riscvv.facade.inc` 的对应 no-asm bodies 用的是 `Result := a.d[0]; if a.d[i] <or> Result then ...` compare loop；两者在 `NaN` 与 `+0/-0` 次序上并不等价，因此这是实现真 bug，不只是缺 witness |
 | 2. 把 `F64 reduce` no-asm facades 收成 exact scalar forward，并同步 witness/checker/test | completed | `src/fafafa.core.simd.riscvv.facade.inc` 已把 `ReduceMin/MaxF64x2/F64x4/F64x8` 收成 `ScalarReduce...` forward；`tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 已把 `x2/x4/x8` 全部改成 scalar-forward truth；`tests/fafafa.core.simd/check_nonx86_key_slot_audit.py` 与 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 已把 `F64x2` witness 改成 `ExactScalarNoAsmWitness`；`tests/fafafa.core.simd/fafafa.core.simd.ieee754.testcase.pas` 新增 `Test_NonX86_F64_MinMaxReduce_SpecialCases_IfAvailable` |
 | 3. 串行 Release 复验并确认当前 stop-point | completed | `git diff --check`、Release `TTestCase_DispatchAPI,TTestCase_NonX86IEEE754`、Release `impl-audit-nonx86`、Release `check` 全部 fresh 通过；其中 `NONX86_HELPER_SEMANTICS_SUMMARY checks=678 status=ok`、`NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=128 issues=0 status=ok`、`NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok` 均已重新打绿 |
+
+## 2026-05-18 RISCVV F32 Reduction Exact-Scalar Drift Fix
+
+### Goal
+
+沿同一模式继续收口 `RISCVV ReduceMin/ReduceMax F32`：确认 `F32x4/F32x8/F32x16` 的 no-asm compare-loop 也会对 `ScalarReduceMin/MaxF32` 产生 `NaN / signed-zero` 漂移，然后把这些 facades 全部收成 exact scalar forward，并补 `NonX86IEEE754` 的 `F32 reduction` 特殊值回归测试。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `F32 reduction` 是否和刚修掉的 `F64` 属于同一类 drift | completed | 已确认 `src/fafafa.core.simd.scalar.pas` 的 `ScalarReduceMin/MaxF32x4/F32x8/F32x16` 同样走 `Math.Min/Max` 链，而 `src/fafafa.core.simd.riscvv.facade.inc` 的 `RISCVVReduceMin/MaxF32x4/F32x8/F32x16` 仍是 compare-loop accumulator；仓库也没有对应的 `F32 reduction` special-case non-x86 parity test，因此它们和刚修掉的 `F64` 属于同一类真实 drift |
+| 2. 把 `F32 reduce` no-asm facades 收成 exact scalar forward，并补语义回归测试 | completed | `src/fafafa.core.simd.riscvv.facade.inc` 已把 `ReduceMin/MaxF32x4/F32x8/F32x16` 收成 `ScalarReduce...` forward；`tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 已把这 6 个函数纳入 scalar-forward truth；`tests/fafafa.core.simd/fafafa.core.simd.ieee754.testcase.pas` 新增 `Test_NonX86_F32_ReduceMinMax_SpecialCases_IfAvailable` |
+| 3. 串行 Release 复验并确认当前 stop-point | completed | `git diff --check`、Release `TTestCase_NonX86IEEE754`、Release `impl-audit-nonx86`、Release `check` 全部 fresh 通过；其中 `NONX86_HELPER_SEMANTICS_SUMMARY checks=684 status=ok`、`NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok` 均已重新打绿 |

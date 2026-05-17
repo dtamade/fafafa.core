@@ -542,6 +542,15 @@ def main() -> int:
             "Result.d[i] := a.d[i]",
             "Result.d[i] := b.d[i];",
         ]),
+        (riscvv_facade_source, "RISCVVReduceMaxF32x4", [
+            "Result := ScalarReduceMaxF32x4(a);",
+        ]),
+        (riscvv_facade_source, "RISCVVReduceMaxF32x8", [
+            "Result := ScalarReduceMaxF32x8(a);",
+        ]),
+        (riscvv_facade_source, "RISCVVReduceMaxF32x16", [
+            "Result := ScalarReduceMaxF32x16(a);",
+        ]),
         (riscvv_facade_source, "RISCVVReduceMaxF64x2", [
             "Result := ScalarReduceMaxF64x2(a);",
         ]),
@@ -550,6 +559,15 @@ def main() -> int:
         ]),
         (riscvv_facade_source, "RISCVVReduceMaxF64x8", [
             "Result := ScalarReduceMaxF64x8(a);",
+        ]),
+        (riscvv_facade_source, "RISCVVReduceMinF32x4", [
+            "Result := ScalarReduceMinF32x4(a);",
+        ]),
+        (riscvv_facade_source, "RISCVVReduceMinF32x8", [
+            "Result := ScalarReduceMinF32x8(a);",
+        ]),
+        (riscvv_facade_source, "RISCVVReduceMinF32x16", [
+            "Result := ScalarReduceMinF32x16(a);",
         ]),
         (riscvv_facade_source, "RISCVVReduceMinF64x2", [
             "Result := ScalarReduceMinF64x2(a);",
