@@ -294,6 +294,28 @@
 - 因而这批结论非常明确：
   - 它是 experimental `SSE` 源码卫生债，不是行为 bug
   - 但它仍值得优先收掉，因为这类损坏会直接拖慢 grep / diff / 快速审查效率，并掩盖更真实的 API 或实现问题
+
+## 2026-05-17 MMX Had Real X86 Asm Instructions Swallowed Into Comments
+
+- `src/fafafa.core.simd.intrinsics.mmx.pas` 这轮 fresh 审查里暴露出一类比普通 `U+FFFD` 更危险的问题：
+  - x86 asm 路径里有 5 处注释行后半段其实是活指令
+  - 因为 `//` 已经在行首，这些指令事实上完全不执行
+- 受影响的最小函数集已经收敛为：
+  - `mmx_movd_mm`
+  - `mmx_movd_mm_store`
+  - `mmx_movq_mm`
+  - `mmx_movq_mm_store`
+  - `mmx_paddb`
+- 具体风险不是抽象的“注释不好看”，而是：
+  - `mov eax, Ptr` 被吞掉后，后续 `movd/movq ... [eax]` 读取未初始化地址寄存器
+  - `movq mm0, qword ptr [Src]` / `movq mm0, qword ptr [a]` 被吞掉后，后续 store / arithmetic 直接消费未初始化 `mm0`
+  - 当前主机大多跑 `x86_64`，所以这类 bug 很容易长期躲在 x86-only 分支里
+- 现有 intrinsics hygiene checker 之前没有抓出来，不是因为它没意义，而是它的 asm marker 还不够全：
+  - 已有逻辑能抓 comment-swallowed asm
+  - 但 marker 列表没有覆盖 `参数通过栈` 这类实际残损文本
+- 因而这批的正确收口不是另起炉灶写新 checker，而是：
+  - 恢复被吞的 5 条真实指令
+  - 扩充现有 marker，让同类问题以后继续走统一 intrinsics hygiene 护栏
   - 先过 `win-evidence-preflight`
   - 若 latest 结果仍是 `RECENT_BILLING_BLOCK`，就在 preflight 处 fail-close
   - 历史 “Windows 已闭环” 只能按 archive fact 理解，不是当前 readiness signal

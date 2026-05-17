@@ -51,7 +51,7 @@ ASM_INSTRUCTION_PATTERN = re.compile(
     r')\b\s+[^/]+'
 )
 INLINE_DIRECTIVE_TOKENS = ('{$ELSE}', '{$ENDIF}', '{$ELSEIF}')
-COMMENT_SWALLOWED_ASM_MARKERS = ('在栈', '结果为全', '直接从栈')
+COMMENT_SWALLOWED_ASM_MARKERS = ('在栈', '参数通过栈', '结果为全', '直接从栈')
 ILLEGAL_IMMEDIATE_BRACE_PATTERN = re.compile(
     r'\b(?:cmp|pshufd|pshuflw|pshufhw|shufps)\b[^\n]*\}'
 )

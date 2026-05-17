@@ -263,6 +263,39 @@
   - 这批确认只是 `SSE experimental intrinsics` 的源码文本卫生收口，不涉及行为修复
   - `sse.pas` 的 `U+FFFD` 已清零，且没有引入新的注释吞源码或编译回归
 
+## 2026-05-17 MMX X86 Comment-Swallowed Instruction Recovery
+
+- `sse.pas` 收口并提交后，fresh residual 扫描没有直接跳进 `intrinsics.x86.sse2` 大坑，而是先复核更小的 `src/fafafa.core.simd.intrinsics.mmx.pas`。
+- 这次抓到的不是普通注释脏点，而是 5 处真实 x86 asm 指令被注释吞进同一行：
+  - `mmx_movd_mm` 的 `mov eax, Ptr`
+  - `mmx_movd_mm_store` 的 `movq mm0, qword ptr [Src]`
+  - `mmx_movq_mm` 的 `mov eax, Ptr`
+  - `mmx_movq_mm_store` 的 `movq mm0, qword ptr [Src]`
+  - `mmx_paddb` 的 `movq mm0, qword ptr [a]`
+- 这意味着在 x86 非 64 位路径上，原文件不是“只剩乱码”，而是已经可能出现：
+  - 使用未初始化的 `eax`
+  - 使用未初始化的 `mm0`
+  - x86-only 路径静默偏离 x86_64 对应实现
+- 本批正确收口方式保持 bounded：
+  - `src/fafafa.core.simd.intrinsics.mmx.pas`
+    - 恢复这 5 条被注释吞掉的 x86 指令
+    - 把对应注释改成稳定单独行，避免再次吞指令
+  - `tests/fafafa.core.simd/check_intrinsics_comment_swallow.py`
+    - 补齐 `参数通过栈` 这一类 marker，让现有 intrinsics hygiene checker 能直接抓这类 x86 asm comment-swallow
+- fresh 验证已完成：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_comment_swallow.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - `intrinsics.experimental` default / experimental 双模态 `check` 全绿
+  - `MMX backend smoke` 明确通过
+  - 主 `simd` release `check` 全绿
+- 当前阶段结论：
+  - 这批修掉的是 `MMX` x86 专属路径的真实 source-level behavior bug，不只是注释卫生
+  - 后续如果再出现同类“x86 参数说明注释把汇编指令吞掉”，现有 intrinsics hygiene checker 会直接 fail-close
+
 - 在 code batch 提交并推送后，继续按“只查 closeout 入口误导点”的边界做了一轮 active docs 审查。
 - 新抓到的 residual 不是实现层，而是部分 active 文档仍把：
   - `closeout-release`

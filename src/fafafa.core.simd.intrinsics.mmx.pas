@@ -168,7 +168,8 @@ asm
   movq rax, mm0
   movq qword ptr [Result], mm0
 {$ELSE}
-  // x86: 参数通过栈传�?  mov eax, Ptr
+  // x86: parameter is passed on the stack.
+  mov eax, Ptr
   movd mm0, dword ptr [eax]
   movd eax, mm0
   xor edx, edx
@@ -191,7 +192,8 @@ asm
     movd dword ptr [rdi], mm0
   {$ENDIF}
 {$ELSE}
-  // x86: 参数通过栈传�?  movq mm0, qword ptr [Src]
+  // x86: parameter is passed on the stack.
+  movq mm0, qword ptr [Src]
   mov eax, Dest
   movd dword ptr [eax], mm0
 {$ENDIF}
@@ -212,7 +214,8 @@ asm
   movq rax, mm0
   movq qword ptr [Result], mm0
 {$ELSE}
-  // x86: 参数通过栈传�?  mov eax, Ptr
+  // x86: parameter is passed on the stack.
+  mov eax, Ptr
   movq mm0, qword ptr [eax]
   movd eax, mm0
   psrlq mm0, 32
@@ -237,7 +240,8 @@ asm
     movq qword ptr [rdi], mm0
   {$ENDIF}
 {$ELSE}
-  // x86: 参数通过栈传�?  movq mm0, qword ptr [Src]
+  // x86: parameter is passed on the stack.
+  movq mm0, qword ptr [Src]
   mov eax, Dest
   movq qword ptr [eax], mm0
 {$ENDIF}
@@ -344,7 +348,8 @@ asm
   movq rax, mm0
   movq qword ptr [Result], mm0
 {$ELSE}
-  // x86: 参数通过栈传�?  movq mm0, qword ptr [a]
+  // x86: parameter is passed on the stack.
+  movq mm0, qword ptr [a]
   movq mm1, qword ptr [b]
   paddb mm0, mm1
   movd eax, mm0
