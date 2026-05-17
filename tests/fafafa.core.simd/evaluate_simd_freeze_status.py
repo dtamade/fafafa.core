@@ -412,11 +412,18 @@ def extract_windows_log_failure_hint(log_path: Path) -> Optional[str]:
                 continue
             if follow.startswith("[B07]"):
                 break
+            if follow.startswith("[BUILD] TOOLCHAIN BLOCK:"):
+                hint_parts.append(follow)
+                break
             if follow.startswith("[") and "FAILED" not in follow and "recognize" not in follow.lower():
                 break
             hint_parts.append(follow)
             break
         return compact_whitespace("; ".join(hint_parts))
+
+    for line in normalized:
+        if "toolchain block" in line.lower():
+            return compact_whitespace(line)
 
     for line in normalized:
         if "can't recognize" in line.lower():

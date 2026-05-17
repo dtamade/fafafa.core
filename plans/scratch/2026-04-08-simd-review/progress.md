@@ -9255,3 +9255,47 @@
   - 当前 remaining gap 继续只剩：
     - GitHub Billing / Windows runner 可用性
     - 或真正稳定的 Wine-to-Unix lazbuild bridge
+
+## 2026-05-17 Wine Local Lazbuild Preflight Fail-Close
+
+- 继续按“只收一个 residual”的边界审了当前 fresh Windows evidence 失败链，没有再回到 SIMD 算法层。
+- 这轮先把 Wine 环境事实钉死了：
+  - `wine cmd /c where lazbuild` -> `File not found`
+  - `wine cmd /c where bash` -> `File not found`
+  - `wine cmd /c echo %PATH%` 只含 `C:\windows...`
+  - `cmd` 虽然能 `dir Z:\opt\fpcupdeluxe\lazarus\lazbuild`，但不能直接执行 Linux ELF
+- 结论因此更明确：
+  - 当前 fresh `Can't recognize 'lazbuild ...'` 的上一层真实原因，不是 SIMD 代码，不是 batch quoting 再次回退，而是 Wine `cmd.exe` 根本拿不到可执行的 native Windows `lazbuild.exe`
+- 已落地的最小修法：
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+    - 在 `:build` 前新增 `:ensure_lazbuild_available`
+    - 若 `cmd.exe` 解析不到 `LAZBUILD`：
+      - 提前写入 `[BUILD] TOOLCHAIN BLOCK: ...`
+      - 给出“安装 native Windows `lazbuild.exe` 或设置 Windows wrapper”的明确 hint
+      - Wine 场景下再额外提示：`cmd.exe` 不继承 Unix PATH，也不能直接执行 Linux ELF lazbuild
+    - 不再等到真正 build 命令展开后，才留下一句模糊的 `Can't recognize ...`
+  - `tests/fafafa.core.simd/evaluate_simd_freeze_status.py`
+    - `extract_windows_log_failure_hint()` 现在会优先抓 `TOOLCHAIN BLOCK`
+    - 让 `freeze-status` 能把这类环境级 blocker 直接收进 `root-cause hint`
+- 当前预期收益：
+  - 后续再跑本机 Wine evidence 时，会更早 fail-close
+  - `freeze-status` 不再只回显“命令没识别”的尾部症状，而能更直接指出“cmd.exe 下没有可用的 Windows lazbuild toolchain”
+- 已验证：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/evaluate_simd_freeze_status.py`
+  - `wine cmd /c tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify`
+    - 新鲜 `windows_b07_gate.log` 现在直接落出：
+      - `[BUILD] TOOLCHAIN BLOCK: cmd.exe cannot resolve LAZBUILD command "lazbuild"`
+      - `Hint: install native Windows lazbuild.exe or set LAZBUILD to a Windows .exe/.bat/.cmd wrapper visible to cmd.exe`
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence`
+    - 结果仍为 verifier `FAIL`，但 `windows_b07_closeout_summary.md` 已同步到 current log
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+    - `windows_evidence_verify` 现在变成：
+      - `root-cause hint: [BUILD] TOOLCHAIN BLOCK: cmd.exe cannot resolve LAZBUILD command "lazbuild"`
+    - `windows_closeout_summary_not_older_than_log = PASS`
+    - `windows_closeout_summary = PASS summary matches verifier FAIL`
+- 当前阶段结论：
+  - repo-local 现在已经把“Wine 本机为什么跑不通 Windows evidence”说到了 toolchain 级别，而不是停在 `Can't recognize ...` 的尾部症状
+  - 当前 remaining gap 继续只剩外部条件：
+    - `RECENT_BILLING_BLOCK`
+    - 真实 Windows runner / native Windows `lazbuild.exe`

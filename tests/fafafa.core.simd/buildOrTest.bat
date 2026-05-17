@@ -433,6 +433,12 @@ echo. > "%BUILD_LOG%"
 if not exist "%BIN_DIR%" mkdir "%BIN_DIR%"
 if not exist "%UNIT_DIR%" mkdir "%UNIT_DIR%"
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
+call :ensure_lazbuild_available
+if errorlevel 1 (
+  echo [BUILD] FAILED ^(see %BUILD_LOG%^ )
+  type "%BUILD_LOG%"
+  exit /b 1
+)
 set "LAZBUILD_EXTRA_OPTS="
 if /I "%SIMD_SUPPRESS_BUILD_WARNINGS%"=="1" set "LAZBUILD_EXTRA_OPTS=--opt=-vw- --opt=-vh- --opt=-vn-"
 if /I "%SIMD_ENABLE_NEON_BACKEND%"=="1" set "LAZBUILD_EXTRA_OPTS=%LAZBUILD_EXTRA_OPTS% --opt=-dSIMD_BACKEND_NEON --opt=-dFAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND"
@@ -480,6 +486,24 @@ if not exist "%BIN%" (
 )
 echo [BUILD] OK
 exit /b 0
+
+:ensure_lazbuild_available
+if exist "%LAZBUILD_EXE%" exit /b 0
+set "LAZBUILD_HAS_PATH=0"
+if not "%LAZBUILD_EXE:\=%"=="%LAZBUILD_EXE%" set "LAZBUILD_HAS_PATH=1"
+if not "%LAZBUILD_EXE:/=%"=="%LAZBUILD_EXE%" set "LAZBUILD_HAS_PATH=1"
+if not "%LAZBUILD_EXE::=%"=="%LAZBUILD_EXE%" set "LAZBUILD_HAS_PATH=1"
+if "%LAZBUILD_HAS_PATH%"=="0" (
+  where %LAZBUILD_EXE% >nul 2>nul
+  if not errorlevel 1 exit /b 0
+  >> "%BUILD_LOG%" echo [BUILD] TOOLCHAIN BLOCK: cmd.exe cannot resolve LAZBUILD command "%LAZBUILD_EXE%"
+  >> "%BUILD_LOG%" echo [BUILD] Hint: install native Windows lazbuild.exe or set LAZBUILD to a Windows .exe/.bat/.cmd wrapper visible to cmd.exe
+  if exist "Z:\usr\bin\bash" >> "%BUILD_LOG%" echo [BUILD] Hint: this looks like a Wine run; cmd.exe does not inherit the Unix PATH or execute Linux ELF lazbuild directly
+  exit /b 1
+)
+>> "%BUILD_LOG%" echo [BUILD] TOOLCHAIN BLOCK: configured LAZBUILD path does not exist: %LAZBUILD_EXE%
+>> "%BUILD_LOG%" echo [BUILD] Hint: install native Windows lazbuild.exe or set LAZBUILD to a valid Windows .exe/.bat/.cmd wrapper
+exit /b 1
 
 :check
 call :build
