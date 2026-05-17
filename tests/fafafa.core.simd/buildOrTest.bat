@@ -2380,6 +2380,8 @@ echo 0^) Preflight GH blockage ^(Git Bash / WSL, recommended^)
 echo    bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight
 echo.
 echo 1^) Collect and verify evidence ^(PowerShell/CMD^)
+echo    Requirement: native Windows lazbuild.exe / Windows wrapper only ^(do not use Wine/cmd as a fake Windows runner^)
+echo    Example override: set LAZBUILD=C:\Lazarus\lazbuild.exe
 echo    tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify
 echo.
 echo 2^) Backfill cross gate with fail-close ^(Git Bash / WSL^)
@@ -2394,6 +2396,7 @@ echo.
 echo Notes:
 echo    Step 3 runs finalize ^> freeze-status ^> apply, and apply is blocked unless freeze_ready=true.
 echo    If step 0 returns RECENT_BILLING_BLOCK, fix GitHub Billing/quota first.
+echo    LAZBUILD for step 1 must resolve to a native Windows .exe/.bat/.cmd, not a Wine-visible Linux ELF under Z:\opt\...
 exit /b 0
 
 :win_closeout_finalize

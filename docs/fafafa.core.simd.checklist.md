@@ -26,6 +26,7 @@
   - 若 `buildOrTest.bat` / `collect_windows_b07_evidence.bat` 新于 `windows_b07_gate.log`，`freeze-status` 现在会把这份 Windows log 与 closeout summary 明确降格成 stale historical evidence，提示先重跑 `evidence-win-verify`
   - 但在当前 `HEAD` 上，这条 stale rule 已不再命中：latest Wine batch 已把 canonical `windows_b07_gate.log` 刷新到当前 runner 版本；现在真正残余的是 Wine 自身不能直接执行 fallback `lazbuild`
   - 在这条 fresh current log 之上，closeout summary freshness 现在也被单独检查；若 `windows_b07_closeout_summary.md` 旧于当前 log，`freeze-status` 会明确要求先跑 `bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence`
+  - 当前 `freeze-status` next-actions 也已经进一步收紧：除了 billing block，它还会直接提示“需要 real Windows runner / native Windows lazbuild.exe”，不再只丢一个泛化的 `evidence-win-verify`
 
 补一条当前判断规则：
 

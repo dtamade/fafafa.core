@@ -298,6 +298,7 @@ if [[ "${LVerifierState}" != "pass" ]]; then
   if [[ "${APPLY_MODE}" == "1" ]]; then
     echo "[CLOSEOUT] Refuse apply: windows evidence verification state=${LVerifierState}"
     echo "[CLOSEOUT] Run first: tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify"
+    echo "[CLOSEOUT] Requirement: use a real Windows runner / Windows host with native Windows LAZBUILD"
     exit 1
   fi
 fi
@@ -328,7 +329,7 @@ PROGRESS_BLOCK=$(cat <<EOM
 - ${BATCH_ID}
 
 ### 执行动作
-- 在 Windows 实机完成 buildOrTest.bat evidence-win-verify。
+- 在 Windows 实机完成 buildOrTest.bat evidence-win-verify（要求 native Windows LAZBUILD，不要用 Wine/cmd 冒充实机）。
 - 生成并归档收口摘要：finalize-win-evidence。
 - 回填 roadmap / matrix / progress，关闭跨平台证据缺口。
 

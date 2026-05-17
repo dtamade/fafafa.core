@@ -9375,3 +9375,40 @@
 - 当前阶段结论：
   - `freeze-status` 现在不只是“把失败看懂”，而是已经把当前 Windows 链的真实动作顺序说到了 toolchain 层
   - 当前 repo-local 可继续收的 Windows closeout 误导项已经非常少了
+
+## 2026-05-17 Active Closeout Docs Native-Lazbuild Sync
+
+- 在把 helper / `freeze-status` 的 toolchain 诊断都收紧之后，我又做了一轮 active docs/entry audit，确认还有一批“会被直接拿来照着跑”的入口仍然写得太乐观：
+  - `docs/fafafa.core.simd.handoff.md`
+  - `docs/fafafa.core.simd.closeout.md`
+  - `docs/fafafa.core.simd.checklist.md`
+  - `tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`
+  - `tests/fafafa.core.simd/docs/simd_release_candidate_checklist.md`
+  - `tests/fafafa.core.simd/docs/simd_completeness_matrix.md`
+  - `tests/fafafa.core.simd/buildOrTest.bat` 里的 `win_closeout_3cmd`
+  - `tests/fafafa.core.simd/apply_windows_b07_closeout_updates.sh`
+- 这些入口之前虽然大多已经承认 “Wine 不算真实 Windows evidence runner”，但还没把“`evidence-win-verify` 只能跑在 real Windows + native Windows `LAZBUILD`”写成硬前提。
+- 已落地的最小修法：
+  - 所有 active closeout 入口统一补上：
+    - 手工 Windows 路径只应运行在真实 Windows runner / Windows 实机
+    - `LAZBUILD` 必须解析到 native Windows `.exe/.bat/.cmd`
+    - 不要把 `LAZBUILD` 指到 `Z:\opt\...` 这种 Wine 可见但 `cmd.exe` 不能执行的 Linux ELF
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+    - `win_closeout_3cmd` 现在也直接打印：
+      - `Requirement: native Windows lazbuild.exe / Windows wrapper only`
+      - `Example override: set LAZBUILD=C:\Lazarus\lazbuild.exe`
+  - `apply_windows_b07_closeout_updates.sh`
+    - 在拒绝 apply 时，也会同步提示：要用 real Windows runner / Windows host with native Windows `LAZBUILD`
+- 已验证：
+  - `git diff --check`
+  - `bash -n tests/fafafa.core.simd/apply_windows_b07_closeout_updates.sh`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-3cmd SIMD-20260517-152`
+    - shell helper 输出已带 `native Windows \`lazbuild.exe\`` 与 `$env:LAZBUILD` override
+  - `wine cmd /c tests\\fafafa.core.simd\\buildOrTest.bat win-closeout-3cmd SIMD-20260517-152`
+    - batch 自带输出也已带：
+      - `Requirement: native Windows lazbuild.exe / Windows wrapper only`
+      - `Example override: set LAZBUILD=C:\Lazarus\lazbuild.exe`
+  - `rg -n -F ...` 对 active docs / helper / updater 的同步扫描已命中上述关键字
+- 当前阶段结论：
+  - active closeout 入口现在已经统一说清楚“manual Windows path 的真实前提条件”
+  - 这意味着当前再有人沿 repo 内指导继续踩到 Wine/bare `lazbuild`，更大概率就是外部环境没满足，而不是仓库内 guidance 还在误导

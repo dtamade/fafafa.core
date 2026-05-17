@@ -132,7 +132,7 @@
 - Linux 冻结判定：non-x86（NEON/RISCVV）已完成 wiring + runtime parity 双层闭环；后面的 “Windows 实机证据已闭环” 只应理解成历史归档事实，不是当前 `HEAD` 仍 cross-ready 的信号，当前 Windows readiness 以 latest `freeze-status` / `win-evidence-preflight` 为准。
 - 已新增 Windows 证据批量收口能力：
   - `buildOrTest.bat verify-win-evidence`（日志校验）
-  - `buildOrTest.bat evidence-win-verify`（采集 + 校验证据包；手工路径仍需后续 fail-close cross gate + finalize）
+  - `buildOrTest.bat evidence-win-verify`（采集 + 校验证据包；仅限真实 Windows runner / Windows 实机，且需要 native Windows `LAZBUILD`；手工路径仍需后续 fail-close cross gate + finalize）
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-YYYYMMDD-152`（推荐的一键 GH 闭环）
   - Runbook：`tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`
 

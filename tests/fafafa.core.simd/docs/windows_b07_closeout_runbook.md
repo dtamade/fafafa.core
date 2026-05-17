@@ -50,6 +50,9 @@
 1. GH/额度预检（Git Bash / WSL）
    `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`
 2. 采集 + 校验（Windows PowerShell）
+   前提：本机必须能直接执行 native Windows `lazbuild.exe`；不要拿 Wine/cmd 冒充实机。
+   若 Lazarus 不在默认路径，先显式指定：
+   `$env:LAZBUILD = 'C:\Lazarus\lazbuild.exe'`
    `$env:FAFAFA_BUILD_MODE = 'Release'`
    `tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify`
 3. 回灌 cross gate（Git Bash / WSL，必需）
@@ -72,6 +75,7 @@
 - 若传入显式 `run-id`，脚本会直接复用现成 workflow run，不再执行 dispatch 前的 dirty worktree / remote ref 一致性拒绝；适合在本地继续修脚本、但要先消费既有 Windows artifact 的场景。
 - 如果你只是想单独重生 closeout summary 而不执行 freeze/apply，可使用低层 helper：`BuildOrTest.sh finalize-win-evidence`。
 - `collect_windows_b07_evidence.bat` / `buildOrTest.bat evidence-win-verify` 现在默认优先走 native batch gate，避免静默绕开 Windows 自己的 `publicabi-smoke` 路径。只有在显式设置 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` 时，才会切到 bash gate 口径做诊断性预演。
+- 这里的 `LAZBUILD` 必须解析到 native Windows `.exe/.bat/.cmd`；不要把它指到 `Z:\opt\...` 这种 Wine 可见但 `cmd.exe` 不能执行的 Linux ELF。
 - native batch 采集路径不会额外导出 `gate_summary.json`；这是有意为之，因为该路径本身不生成一份新的 `gate_summary.md`，强行导出只会冒着复用旧摘要的风险。若你需要归档 `gate_summary.md/json`，请走 `win-evidence-via-gh` 或显式 opt-in `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1`。
 - 因此手工 Windows 实机路径在 finalize 前必须显式补跑 fail-close cross gate；否则 `freeze-status` 只会继续消费旧的 `gate_summary.md`。
 

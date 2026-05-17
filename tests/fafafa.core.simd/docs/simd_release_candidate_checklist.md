@@ -332,6 +332,7 @@
 - [x] Windows 证据入口已就绪：`tests/fafafa.core.simd/buildOrTest.bat evidence-win`
 - [x] Windows 证据校验入口已就绪：`tests/fafafa.core.simd/buildOrTest.bat verify-win-evidence`
 - [x] Windows 一键收口入口已就绪：`tests/fafafa.core.simd/buildOrTest.bat evidence-win-verify`
+  - 说明：该入口当前只应在真实 Windows runner / Windows 实机上使用，且 `LAZBUILD` 必须解析到 native Windows `.exe/.bat/.cmd`
 - [x] Windows wiring-sync 入口已就绪：`tests/fafafa.core.simd/buildOrTest.bat wiring-sync`
 - [x] Windows gate 摘要查看入口已就绪：`tests/fafafa.core.simd/buildOrTest.bat gate-summary`
 - [x] experimental asm 失败归因报告入口已就绪：
@@ -353,6 +354,7 @@
     - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-3cmd SIMD-YYYYMMDD-152`
   - 分步兜底：
     - `tests\fafafa.core.simd\buildOrTest.bat evidence-win`
+  - 当前 `HEAD` 若仍看到 `TOOLCHAIN BLOCK`，优先动作不是重试 Wine，而是提供真实 Windows runner / native Windows `lazbuild.exe`
     - `tests\fafafa.core.simd\buildOrTest.bat verify-win-evidence`
 
 ## F. 当前结论

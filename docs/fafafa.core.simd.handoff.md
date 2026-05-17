@@ -148,6 +148,12 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-stat
 
 如果走手工 Windows 实机路径，则顺序应为：`evidence-win-verify -> SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 + SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 gate -> win-closeout-finalize -> freeze-status`。
 
+这里还有一个当前必须显式记住的前提：
+
+- `evidence-win-verify` 只能在真实 Windows runner / Windows 实机上执行，且 `LAZBUILD` 必须解析到 native Windows `.exe/.bat/.cmd`
+- 不要把 `LAZBUILD` 指到 `Z:\opt\...` 这类 Wine 可见但 `cmd.exe` 不能执行的 Linux ELF
+- 本机 Wine 现在只算 batch smoke / 日志新鲜度探针，不算可 finalize 的 Windows evidence runner
+
 ## 常见假失败
 
 有些失败看起来像回归，其实只是运行方式问题。
