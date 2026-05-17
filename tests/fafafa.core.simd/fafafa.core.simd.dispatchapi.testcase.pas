@@ -175,7 +175,7 @@ type
     procedure Test_RISCVV_ClampF64x2_Keeps_AsmConditional_RuntimeBinding_And_LocalNoAsmWitness;
     procedure Test_RISCVV_ExactF64x2Slots_Keep_AsmConditional_SourceTruth_And_RuntimeBinding;
     procedure Test_RISCVV_LocalExtremaF64x2_Keep_AsmConditional_RuntimeBinding_And_LocalNoAsmWitness;
-    procedure Test_RISCVV_LocalReductionF64x2_Stays_BackendOwned_With_LocalNoAsmWitness;
+    procedure Test_RISCVV_ReduceF64x2_Stays_BackendOwned_With_ExactScalarNoAsmWitness;
     procedure Test_RISCVV_RegisterSource_Deduplicates_WideRoundingAssignments_And_Keeps_F64x2_Exception;
     procedure Test_AllRegisteredBackends_Wide512IntegerSlots_Assigned;
     procedure Test_AVX512_U32x16_U64x8_MappingAndParity;
@@ -9400,7 +9400,7 @@ begin
     Pointer(LScalarTable.MaxF64x2), Pointer(LRISCVVTable.MaxF64x2));
 end;
 
-procedure TTestCase_DispatchAPI.Test_RISCVV_LocalReductionF64x2_Stays_BackendOwned_With_LocalNoAsmWitness;
+procedure TTestCase_DispatchAPI.Test_RISCVV_ReduceF64x2_Stays_BackendOwned_With_ExactScalarNoAsmWitness;
 var
   LScalarTable: TSimdDispatchTable;
   LRISCVVTable: TSimdDispatchTable;
@@ -9439,21 +9439,33 @@ var
       Pos(LNeedle, LRegisterSource) > 0);
   end;
 
-  procedure AssertLocalReductionF64x2Slot(
+  procedure AssertExactReductionF64x2Slot(
     const aLabel, aScalarForwardSnippet, aFunctionSnippet, aSeedSnippet, aLoopSnippet, aCompareSnippet,
       aAsmSignatureSnippet, aAsmOpSnippet: string;
     const aScalarSlot, aBackendSlot: Pointer);
+  var
+    LFunctionNeedle: string;
+    LFunctionStart: SizeInt;
+    LRelativeEnd: SizeInt;
+    LFunctionBlock: string;
   begin
-    AssertTrue('no-asm RISCVV facade should keep a local body instead of scalar forwarding for ' + aLabel,
-      Pos(LowerCase(aScalarForwardSnippet), LFacadeSource) = 0);
+    LFunctionNeedle := LowerCase(aFunctionSnippet);
+    LFunctionStart := Pos(LFunctionNeedle, LFacadeSource);
     AssertTrue('no-asm RISCVV facade should still define ' + aLabel + ' locally',
-      Pos(LowerCase(aFunctionSnippet), LFacadeSource) > 0);
-    AssertTrue('no-asm RISCVV facade should keep the local reduction seed for ' + aLabel,
-      Pos(LowerCase(aSeedSnippet), LFacadeSource) > 0);
-    AssertTrue('no-asm RISCVV facade should keep the explicit local reduction loop for ' + aLabel,
-      Pos(LowerCase(aLoopSnippet), LFacadeSource) > 0);
-    AssertTrue('no-asm RISCVV facade should keep the local compare branch for ' + aLabel,
-      Pos(LowerCase(aCompareSnippet), LFacadeSource) > 0);
+      LFunctionStart > 0);
+    LRelativeEnd := Pos(LineEnding + 'end;', Copy(LFacadeSource, LFunctionStart, MaxInt));
+    AssertTrue('no-asm RISCVV facade should keep a closed function block for ' + aLabel,
+      LRelativeEnd > 0);
+    LFunctionBlock := Copy(LFacadeSource, LFunctionStart, LRelativeEnd + Length(LineEnding + 'end;') - 1);
+
+    AssertTrue('no-asm RISCVV facade should keep exact scalar forwarding for ' + aLabel,
+      Pos(LowerCase(aScalarForwardSnippet), LFunctionBlock) > 0);
+    AssertTrue('no-asm RISCVV facade should not keep the old local reduction seed for ' + aLabel,
+      Pos(LowerCase(aSeedSnippet), LFunctionBlock) = 0);
+    AssertTrue('no-asm RISCVV facade should not keep the old explicit local reduction loop for ' + aLabel,
+      Pos(LowerCase(aLoopSnippet), LFunctionBlock) = 0);
+    AssertTrue('no-asm RISCVV facade should not keep the old local compare branch for ' + aLabel,
+      Pos(LowerCase(aCompareSnippet), LFunctionBlock) = 0);
     AssertTrue('RVV asm source should keep dedicated assembler entry for ' + aLabel,
       Pos(LowerCase(aAsmSignatureSnippet), LAsmSource) > 0);
     AssertTrue('RVV asm source should keep a dedicated reduction opcode for ' + aLabel,
@@ -9467,19 +9479,19 @@ begin
   LSourceLines := TStringList.Create;
   try
     LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.register.inc');
-    AssertTrue('RISCVV register source should exist for local reduction F64x2 witness audit: ' + LRegisterSourcePath,
+    AssertTrue('RISCVV register source should exist for exact reduction F64x2 witness audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
     LRegisterSource := LowerCase(LSourceLines.Text);
 
     LFacadeSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.facade.inc');
-    AssertTrue('RISCVV facade source should exist for local reduction F64x2 witness audit: ' + LFacadeSourcePath,
+    AssertTrue('RISCVV facade source should exist for exact reduction F64x2 witness audit: ' + LFacadeSourcePath,
       FileExists(LFacadeSourcePath));
     LSourceLines.LoadFromFile(LFacadeSourcePath);
     LFacadeSource := LowerCase(LSourceLines.Text);
 
     LAsmSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.pas');
-    AssertTrue('RISCVV unit source should exist for local reduction F64x2 witness audit: ' + LAsmSourcePath,
+    AssertTrue('RISCVV unit source should exist for exact reduction F64x2 witness audit: ' + LAsmSourcePath,
       FileExists(LAsmSourcePath));
     LSourceLines.LoadFromFile(LAsmSourcePath);
     LAsmSource := LowerCase(LSourceLines.Text);
@@ -9501,7 +9513,7 @@ begin
     Exit;
   {$ENDIF}
 
-  AssertLocalReductionF64x2Slot('ReduceMaxF64x2',
+  AssertExactReductionF64x2Slot('ReduceMaxF64x2',
     'Result := ScalarReduceMaxF64x2(a);',
     'function RISCVVReduceMaxF64x2(const a: TVecF64x2): Double;',
     'Result := a.d[0];',
@@ -9510,7 +9522,7 @@ begin
     'function RISCVVReduceMaxF64x2(const a: TVecF64x2): Double; assembler; nostackframe;',
     'vfredmax.vs v1, v0, v0',
     Pointer(LScalarTable.ReduceMaxF64x2), Pointer(LRISCVVTable.ReduceMaxF64x2));
-  AssertLocalReductionF64x2Slot('ReduceMinF64x2',
+  AssertExactReductionF64x2Slot('ReduceMinF64x2',
     'Result := ScalarReduceMinF64x2(a);',
     'function RISCVVReduceMinF64x2(const a: TVecF64x2): Double;',
     'Result := a.d[0];',

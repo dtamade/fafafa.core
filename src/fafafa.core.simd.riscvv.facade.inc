@@ -2383,30 +2383,18 @@ begin
 end;
 
 function RISCVVReduceMaxF64x2(const a: TVecF64x2): Double;
-var i: Integer;
 begin
-  Result := a.d[0];
-  for i := 1 to 1 do
-    if a.d[i] > Result then
-      Result := a.d[i];
+  Result := ScalarReduceMaxF64x2(a);
 end;
 
 function RISCVVReduceMaxF64x4(const a: TVecF64x4): Double;
-var i: Integer;
 begin
-  Result := a.d[0];
-  for i := 1 to 3 do
-    if a.d[i] > Result then
-      Result := a.d[i];
+  Result := ScalarReduceMaxF64x4(a);
 end;
 
 function RISCVVReduceMaxF64x8(const a: TVecF64x8): Double;
-var i: Integer;
 begin
-  Result := a.d[0];
-  for i := 1 to 7 do
-    if a.d[i] > Result then
-      Result := a.d[i];
+  Result := ScalarReduceMaxF64x8(a);
 end;
 
 function RISCVVReduceMinF32x16(const a: TVecF32x16): Single;
@@ -2428,30 +2416,18 @@ begin
 end;
 
 function RISCVVReduceMinF64x2(const a: TVecF64x2): Double;
-var i: Integer;
 begin
-  Result := a.d[0];
-  for i := 1 to 1 do
-    if a.d[i] < Result then
-      Result := a.d[i];
+  Result := ScalarReduceMinF64x2(a);
 end;
 
 function RISCVVReduceMinF64x4(const a: TVecF64x4): Double;
-var i: Integer;
 begin
-  Result := a.d[0];
-  for i := 1 to 3 do
-    if a.d[i] < Result then
-      Result := a.d[i];
+  Result := ScalarReduceMinF64x4(a);
 end;
 
 function RISCVVReduceMinF64x8(const a: TVecF64x8): Double;
-var i: Integer;
 begin
-  Result := a.d[0];
-  for i := 1 to 7 do
-    if a.d[i] < Result then
-      Result := a.d[i];
+  Result := ScalarReduceMinF64x8(a);
 end;
 
 function RISCVVReduceMulF32x16(const a: TVecF32x16): Single;

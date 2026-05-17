@@ -117,6 +117,7 @@ type
   published
     procedure Test_NonX86_RoundTruncFloorCeil_NaNInf_IfAvailable;
     procedure Test_NonX86_NarrowF64x2_RoundTruncFloorCeil_Finite_IfAvailable;
+    procedure Test_NonX86_F64_MinMaxReduce_SpecialCases_IfAvailable;
     procedure Test_NonX86_Wide_RoundTruncFloorCeil_NaNInf_IfAvailable;
     procedure Test_NonX86_FloorCeil_PropertyLike_FixedSeed_IfAvailable;
     procedure Test_NonX86_RoundTrunc_PropertyLike_FixedSeed_IfAvailable;
@@ -3120,6 +3121,212 @@ begin
 
     if LCheckedBackends = 0 then
       AssertTrue('No non-x86 backend available on this host (allowed)', True);
+end;
+
+procedure TTestCase_NonX86IEEE754.Test_NonX86_F64_MinMaxReduce_SpecialCases_IfAvailable;
+const
+  NON_X86_BACKENDS: array[0..1] of TSimdBackend = (sbNEON, sbRISCVV);
+var
+  LBackend: TSimdBackend;
+  LCheckedBackends: Integer;
+  LScalarDispatch: PSimdDispatchTable;
+  LBackendDispatch: PSimdDispatchTable;
+
+  LLeftF64x2, LRightF64x2: TVecF64x2;
+  LInputF64x2: TVecF64x2;
+  LInputF64x4: TVecF64x4;
+  LInputF64x8: TVecF64x8;
+
+  procedure AssertDoubleParity(const aPrefix: string; const aExpected, aActual: Double);
+  begin
+    if IsNaNDouble(aExpected) then
+      AssertTrue(aPrefix + ' expected NaN', IsNaNDouble(aActual))
+    else if IsInfinite(aExpected) then
+      AssertTrue(aPrefix + ' expected Inf sign',
+        IsInfinite(aActual) and ((aActual > 0) = (aExpected > 0)))
+    else
+    begin
+      AssertEquals(aPrefix + ' finite compare', aExpected, aActual, 0.0);
+      if aExpected = 0.0 then
+        AssertTrue(aPrefix + ' zero sign',
+          BitsFromDouble(aExpected) = BitsFromDouble(aActual));
+    end;
+  end;
+
+  procedure AssertVecF64x2Parity(
+    const aPrefix: string;
+    const aExpected, aActual: TVecF64x2);
+  var
+    LLaneIndex: Integer;
+  begin
+    for LLaneIndex := 0 to 1 do
+      AssertDoubleParity(aPrefix + '[' + IntToStr(LLaneIndex) + ']',
+        aExpected.d[LLaneIndex], aActual.d[LLaneIndex]);
+  end;
+
+  procedure AssertReduceParityF64x2(const aLabel: string; const aInput: TVecF64x2);
+  begin
+    AssertDoubleParity(IEEE754BackendName(LBackend) + ' ' + aLabel + ' ReduceMinF64x2',
+      LScalarDispatch^.ReduceMinF64x2(aInput), LBackendDispatch^.ReduceMinF64x2(aInput));
+    AssertDoubleParity(IEEE754BackendName(LBackend) + ' ' + aLabel + ' ReduceMaxF64x2',
+      LScalarDispatch^.ReduceMaxF64x2(aInput), LBackendDispatch^.ReduceMaxF64x2(aInput));
+  end;
+
+  procedure AssertReduceParityF64x4(const aLabel: string; const aInput: TVecF64x4);
+  begin
+    AssertDoubleParity(IEEE754BackendName(LBackend) + ' ' + aLabel + ' ReduceMinF64x4',
+      LScalarDispatch^.ReduceMinF64x4(aInput), LBackendDispatch^.ReduceMinF64x4(aInput));
+    AssertDoubleParity(IEEE754BackendName(LBackend) + ' ' + aLabel + ' ReduceMaxF64x4',
+      LScalarDispatch^.ReduceMaxF64x4(aInput), LBackendDispatch^.ReduceMaxF64x4(aInput));
+  end;
+
+  procedure AssertReduceParityF64x8(const aLabel: string; const aInput: TVecF64x8);
+  begin
+    AssertDoubleParity(IEEE754BackendName(LBackend) + ' ' + aLabel + ' ReduceMinF64x8',
+      LScalarDispatch^.ReduceMinF64x8(aInput), LBackendDispatch^.ReduceMinF64x8(aInput));
+    AssertDoubleParity(IEEE754BackendName(LBackend) + ' ' + aLabel + ' ReduceMaxF64x8',
+      LScalarDispatch^.ReduceMaxF64x8(aInput), LBackendDispatch^.ReduceMaxF64x8(aInput));
+  end;
+
+begin
+  LCheckedBackends := 0;
+  SetVectorAsmEnabled(True);
+
+  for LBackend in NON_X86_BACKENDS do
+  begin
+    if not IsBackendRegistered(LBackend) then
+      Continue;
+    if not TrySetActiveBackend(LBackend) then
+      Continue;
+
+    Inc(LCheckedBackends);
+    try
+      SetActiveBackend(sbScalar);
+      LScalarDispatch := GetDispatchTable;
+      AssertNotNull('Scalar dispatch should be available', LScalarDispatch);
+      AssertTrue('Scalar dispatch should provide F64x2/F64x4/F64x8 min/max reductions',
+        Assigned(LScalarDispatch^.MinF64x2) and Assigned(LScalarDispatch^.MaxF64x2) and
+        Assigned(LScalarDispatch^.ReduceMinF64x2) and Assigned(LScalarDispatch^.ReduceMaxF64x2) and
+        Assigned(LScalarDispatch^.ReduceMinF64x4) and Assigned(LScalarDispatch^.ReduceMaxF64x4) and
+        Assigned(LScalarDispatch^.ReduceMinF64x8) and Assigned(LScalarDispatch^.ReduceMaxF64x8));
+
+      SetActiveBackend(LBackend);
+      LBackendDispatch := GetDispatchTable;
+      AssertNotNull('Non-x86 dispatch should be available', LBackendDispatch);
+      AssertTrue('Non-x86 dispatch should provide F64x2/F64x4/F64x8 min/max reductions',
+        Assigned(LBackendDispatch^.MinF64x2) and Assigned(LBackendDispatch^.MaxF64x2) and
+        Assigned(LBackendDispatch^.ReduceMinF64x2) and Assigned(LBackendDispatch^.ReduceMaxF64x2) and
+        Assigned(LBackendDispatch^.ReduceMinF64x4) and Assigned(LBackendDispatch^.ReduceMaxF64x4) and
+        Assigned(LBackendDispatch^.ReduceMinF64x8) and Assigned(LBackendDispatch^.ReduceMaxF64x8));
+
+      LLeftF64x2.d[0] := NaNF64;
+      LLeftF64x2.d[1] := 5.0;
+      LRightF64x2.d[0] := 3.0;
+      LRightF64x2.d[1] := NaNF64;
+      AssertVecF64x2Parity(IEEE754BackendName(LBackend) + ' NaN MinF64x2',
+        LScalarDispatch^.MinF64x2(LLeftF64x2, LRightF64x2),
+        LBackendDispatch^.MinF64x2(LLeftF64x2, LRightF64x2));
+      AssertVecF64x2Parity(IEEE754BackendName(LBackend) + ' NaN MaxF64x2',
+        LScalarDispatch^.MaxF64x2(LLeftF64x2, LRightF64x2),
+        LBackendDispatch^.MaxF64x2(LLeftF64x2, LRightF64x2));
+
+      LLeftF64x2.d[0] := 0.0;
+      LLeftF64x2.d[1] := NegZeroF64;
+      LRightF64x2.d[0] := NegZeroF64;
+      LRightF64x2.d[1] := 0.0;
+      AssertVecF64x2Parity(IEEE754BackendName(LBackend) + ' SignedZero MinF64x2',
+        LScalarDispatch^.MinF64x2(LLeftF64x2, LRightF64x2),
+        LBackendDispatch^.MinF64x2(LLeftF64x2, LRightF64x2));
+      AssertVecF64x2Parity(IEEE754BackendName(LBackend) + ' SignedZero MaxF64x2',
+        LScalarDispatch^.MaxF64x2(LLeftF64x2, LRightF64x2),
+        LBackendDispatch^.MaxF64x2(LLeftF64x2, LRightF64x2));
+
+      LInputF64x2.d[0] := NaNF64;
+      LInputF64x2.d[1] := 3.0;
+      AssertReduceParityF64x2('NaNLeading', LInputF64x2);
+
+      LInputF64x2.d[0] := 3.0;
+      LInputF64x2.d[1] := NaNF64;
+      AssertReduceParityF64x2('NaNTrailing', LInputF64x2);
+
+      LInputF64x2.d[0] := 0.0;
+      LInputF64x2.d[1] := NegZeroF64;
+      AssertReduceParityF64x2('SignedZeroPosNeg', LInputF64x2);
+
+      LInputF64x2.d[0] := NegZeroF64;
+      LInputF64x2.d[1] := 0.0;
+      AssertReduceParityF64x2('SignedZeroNegPos', LInputF64x2);
+
+      LInputF64x4.d[0] := NaNF64;
+      LInputF64x4.d[1] := 3.0;
+      LInputF64x4.d[2] := 8.0;
+      LInputF64x4.d[3] := 9.0;
+      AssertReduceParityF64x4('NaNLeading', LInputF64x4);
+
+      LInputF64x4.d[0] := 3.0;
+      LInputF64x4.d[1] := NaNF64;
+      LInputF64x4.d[2] := 8.0;
+      LInputF64x4.d[3] := 9.0;
+      AssertReduceParityF64x4('NaNSecond', LInputF64x4);
+
+      LInputF64x4.d[0] := 0.0;
+      LInputF64x4.d[1] := NegZeroF64;
+      LInputF64x4.d[2] := 4.0;
+      LInputF64x4.d[3] := 5.0;
+      AssertReduceParityF64x4('SignedZeroPosNeg', LInputF64x4);
+
+      LInputF64x4.d[0] := NegZeroF64;
+      LInputF64x4.d[1] := 0.0;
+      LInputF64x4.d[2] := 4.0;
+      LInputF64x4.d[3] := 5.0;
+      AssertReduceParityF64x4('SignedZeroNegPos', LInputF64x4);
+
+      LInputF64x8.d[0] := NaNF64;
+      LInputF64x8.d[1] := 3.0;
+      LInputF64x8.d[2] := 8.0;
+      LInputF64x8.d[3] := 9.0;
+      LInputF64x8.d[4] := 12.0;
+      LInputF64x8.d[5] := 14.0;
+      LInputF64x8.d[6] := 15.0;
+      LInputF64x8.d[7] := 18.0;
+      AssertReduceParityF64x8('NaNLeading', LInputF64x8);
+
+      LInputF64x8.d[0] := 3.0;
+      LInputF64x8.d[1] := NaNF64;
+      LInputF64x8.d[2] := 8.0;
+      LInputF64x8.d[3] := 9.0;
+      LInputF64x8.d[4] := 12.0;
+      LInputF64x8.d[5] := 14.0;
+      LInputF64x8.d[6] := 15.0;
+      LInputF64x8.d[7] := 18.0;
+      AssertReduceParityF64x8('NaNSecond', LInputF64x8);
+
+      LInputF64x8.d[0] := 0.0;
+      LInputF64x8.d[1] := NegZeroF64;
+      LInputF64x8.d[2] := 4.0;
+      LInputF64x8.d[3] := 5.0;
+      LInputF64x8.d[4] := 6.0;
+      LInputF64x8.d[5] := 7.0;
+      LInputF64x8.d[6] := 8.0;
+      LInputF64x8.d[7] := 9.0;
+      AssertReduceParityF64x8('SignedZeroPosNeg', LInputF64x8);
+
+      LInputF64x8.d[0] := NegZeroF64;
+      LInputF64x8.d[1] := 0.0;
+      LInputF64x8.d[2] := 4.0;
+      LInputF64x8.d[3] := 5.0;
+      LInputF64x8.d[4] := 6.0;
+      LInputF64x8.d[5] := 7.0;
+      LInputF64x8.d[6] := 8.0;
+      LInputF64x8.d[7] := 9.0;
+      AssertReduceParityF64x8('SignedZeroNegPos', LInputF64x8);
+    finally
+      ResetToAutomaticBackend;
+    end;
+  end;
+
+  if LCheckedBackends = 0 then
+    AssertTrue('No non-x86 backend available on this host (allowed)', True);
 end;
 
 procedure TTestCase_NonX86IEEE754.Test_NonX86_Wide_RoundTruncFloorCeil_NaNInf_IfAvailable;

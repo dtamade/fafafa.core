@@ -543,16 +543,22 @@ def main() -> int:
             "Result.d[i] := b.d[i];",
         ]),
         (riscvv_facade_source, "RISCVVReduceMaxF64x2", [
-            "Result := a.d[0];",
-            "for i := 1 to 1 do",
-            "if a.d[i] > Result then",
-            "Result := a.d[i];",
+            "Result := ScalarReduceMaxF64x2(a);",
+        ]),
+        (riscvv_facade_source, "RISCVVReduceMaxF64x4", [
+            "Result := ScalarReduceMaxF64x4(a);",
+        ]),
+        (riscvv_facade_source, "RISCVVReduceMaxF64x8", [
+            "Result := ScalarReduceMaxF64x8(a);",
         ]),
         (riscvv_facade_source, "RISCVVReduceMinF64x2", [
-            "Result := a.d[0];",
-            "for i := 1 to 1 do",
-            "if a.d[i] < Result then",
-            "Result := a.d[i];",
+            "Result := ScalarReduceMinF64x2(a);",
+        ]),
+        (riscvv_facade_source, "RISCVVReduceMinF64x4", [
+            "Result := ScalarReduceMinF64x4(a);",
+        ]),
+        (riscvv_facade_source, "RISCVVReduceMinF64x8", [
+            "Result := ScalarReduceMinF64x8(a);",
         ]),
         (direct_source, "TTestCase_DirectDispatch.Test_DirectDispatchTable_MultiBackend_SignedWideCompareMaskMatrix_Parity", [
             "ScalarCmpEqI32x8",

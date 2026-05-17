@@ -11356,3 +11356,51 @@
 - 当前阶段结论：
   - `ReduceMinF64x2/ReduceMaxF64x2` 现在已经从“被 generic checker 间接覆盖”补成了 dedicated source/runtime witness
   - 当前没有新证据支持把这两个槽收回 scalar slot reuse 口径；它们和前面的 conditional families 不是一类 residual
+
+## 2026-05-18 RISCVV F64 Reduction Exact-Scalar Drift Fix
+
+- 这轮不是继续“补 witness”就收工，而是在 fresh 审查里捞到了一个真实实现 bug：
+  - `src/fafafa.core.simd.scalar.pas`
+    - `ScalarReduceMin/MaxF64x2/F64x4/F64x8` 走的是 `Math.Min/Max` 链
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - 原先 `RISCVVReduceMin/MaxF64x2/F64x4/F64x8` 的 no-asm body 用的是 compare-loop accumulator
+  - 这两种写法在普通数值上等价，但在 `NaN` 与 `signed-zero` 次序上并不等价
+- fresh 对位源码与现有 scalar 特殊值真相后，bug 形态已经钉死：
+  - `NaN` 场景：
+    - `Math.Min/Max` 链会把“前一个结果”和“当前 lane”继续按库函数规则推进
+    - compare-loop 则会在 `a.d[i] <or> Result` 为 `False` 时保留 accumulator
+    - 因而 `NaNLeading`、`NaNSecond` 之类样本会漂移
+  - `signed-zero` 场景：
+    - scalar truth 会保留 `Math.Min/Max` 当前对第二操作数的 tie-handling
+    - compare-loop 会保留 accumulator
+    - `(+0, -0)` / `(-0, +0)` 会因此产生符号位漂移
+- 本批实际修复：
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - 把 `ReduceMin/MaxF64x2/F64x4/F64x8` no-asm bodies 改成 `ScalarReduce...` exact forward
+    - backend-owned asm slot / opcode witness 保持不变
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 把 `RISCVVReduceMin/MaxF64x2` 的 local-loop truth 改成 scalar-forward truth
+    - 并把 `F64x4/F64x8` 同步纳入 helper semantics 护栏
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 把 `RISCVV_LOCAL_REDUCTION_F64X2_KEY_SLOTS` 收正为 `RISCVV_EXACT_REDUCTION_F64X2_KEY_SLOTS`
+    - expectation procedure 改成 `Test_RISCVV_ReduceF64x2_Stays_BackendOwned_With_ExactScalarNoAsmWitness`
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 原 `LocalReduction` witness 已改成 exact-scalar no-asm witness
+    - 并把 facade 片段检查收紧到函数块级，避免整文件字符串误伤
+  - `tests/fafafa.core.simd/fafafa.core.simd.ieee754.testcase.pas`
+    - 新增 `TTestCase_NonX86IEEE754.Test_NonX86_F64_MinMaxReduce_SpecialCases_IfAvailable`
+    - 直接对位 `Min/MaxF64x2` 与 `ReduceMin/MaxF64x2/F64x4/F64x8` 的 `NaN / signed-zero` 语义
+- fresh 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_NonX86IEEE754`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=678 status=ok`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=128 issues=0 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `TTestCase_DispatchAPI,TTestCase_NonX86IEEE754` `BUILD/TEST/LEAK` 全绿
+  - Release `check` 通过
+- 当前阶段结论：
+  - `RISCVV ReduceMin/MaxF64x2/F64x4/F64x8` 的 no-asm 语义漂移已经被真实修掉，不再只是“有 witness 但合同错”
+  - 当前仍未证明 RVV 原生 asm opcode 在真实 `riscvv` host 上对 `NaN / signed-zero` 与 scalar 完全一致；那属于下一层 native-evidence 课题，不属于这次 x86 host no-asm drift 修复

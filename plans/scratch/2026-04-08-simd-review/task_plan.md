@@ -4872,3 +4872,17 @@
 | 1. 复核 `ReduceMinF64x2/ReduceMaxF64x2` 是否属于 conditional runtime reuse | completed | 已确认 `src/fafafa.core.simd.riscvv.register.inc` 对 `ReduceMinF64x2/ReduceMaxF64x2` 是无条件 backend assignment，不是 `{$IFDEF RISCVV_ASSEMBLY}` 条件绑定；`src/fafafa.core.simd.riscvv.facade.inc` 的 no-asm body 仍保留 `Result := a.d[0]; for i := 1 to 1 do ...` 的本地 reduction loop；`src/fafafa.core.simd.riscvv.pas` 仍保留 `vfredmin.vs` / `vfredmax.vs` asm opcode witness，因此它们不该套用前两批的 conditional runtime slot 口径 |
 | 2. 补 `DispatchAPI` witness，并把 local reduction loop 收进 `helper semantics` / `key-slot audit` | completed | `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_RISCVV_LocalReductionF64x2_Stays_BackendOwned_With_LocalNoAsmWitness`；`tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 新增 `RISCVVReduceMinF64x2/RISCVVReduceMaxF64x2` local reduction loop 片段检查；`tests/fafafa.core.simd/check_nonx86_key_slot_audit.py` 新增 `RISCVV_LOCAL_REDUCTION_F64X2_KEY_SLOTS` 并要求 dedicated truth-source |
 | 3. 串行 Release 复验并确认 stop-point | completed | `git diff --check`、Release `TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`、Release `impl-audit-nonx86`、Release `check` 已串行通过；其中 `NONX86_HELPER_SEMANTICS_SUMMARY checks=674 status=ok`、`NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=128 issues=0 status=ok`、`NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok` 均已 fresh 复验，说明这批补的是 source/runtime witness，不是实现改写 |
+
+## 2026-05-18 RISCVV F64 Reduction Exact-Scalar Drift Fix
+
+### Goal
+
+收掉 fresh 审查里暴露的真实语义 bug：`RISCVV ReduceMin/ReduceMax F64` no-asm facades 用 compare-loop 手写 reduction，和 `ScalarReduceMin/MaxF64` 的 `Math.Min/Max` 链在 `NaN / signed-zero` 上发生漂移；把 `F64x2/F64x4/F64x8` no-asm facades 收成 exact scalar forward，同时保留 backend-owned asm slot，并补专门的 `NonX86IEEE754` 特殊值回归测试。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 drift 是测试缺口还是实现真 bug | completed | 已确认 `src/fafafa.core.simd.scalar.pas` 的 `ScalarReduceMin/MaxF64x{2,4,8}` 走的是 `Math.Min/Max` 链，而 `src/fafafa.core.simd.riscvv.facade.inc` 的对应 no-asm bodies 用的是 `Result := a.d[0]; if a.d[i] <or> Result then ...` compare loop；两者在 `NaN` 与 `+0/-0` 次序上并不等价，因此这是实现真 bug，不只是缺 witness |
+| 2. 把 `F64 reduce` no-asm facades 收成 exact scalar forward，并同步 witness/checker/test | completed | `src/fafafa.core.simd.riscvv.facade.inc` 已把 `ReduceMin/MaxF64x2/F64x4/F64x8` 收成 `ScalarReduce...` forward；`tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 已把 `x2/x4/x8` 全部改成 scalar-forward truth；`tests/fafafa.core.simd/check_nonx86_key_slot_audit.py` 与 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 已把 `F64x2` witness 改成 `ExactScalarNoAsmWitness`；`tests/fafafa.core.simd/fafafa.core.simd.ieee754.testcase.pas` 新增 `Test_NonX86_F64_MinMaxReduce_SpecialCases_IfAvailable` |
+| 3. 串行 Release 复验并确认当前 stop-point | completed | `git diff --check`、Release `TTestCase_DispatchAPI,TTestCase_NonX86IEEE754`、Release `impl-audit-nonx86`、Release `check` 全部 fresh 通过；其中 `NONX86_HELPER_SEMANTICS_SUMMARY checks=678 status=ok`、`NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=128 issues=0 status=ok`、`NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok` 均已重新打绿 |

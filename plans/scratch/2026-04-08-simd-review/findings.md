@@ -8325,3 +8325,27 @@
   - “register source 仍保留无条件 backend binding”
   - “no-asm facade 仍保留 local reduction loop”
   - “当前非-RVV host runtime 也不应复用 scalar slot”
+
+## 2026-05-18 RISCVV F64 Reduction Compare-Loop Was A Real NaN And Signed-Zero Drift Bug
+
+- `RISCVV ReduceMin/ReduceMax F64` 这条线后面暴露的并不只是 coverage 不够，而是一个真实的 no-asm 语义 bug：
+  - `ScalarReduceMin/MaxF64x{2,4,8}` 使用的是 `Math.Min/Max` 链
+  - `RISCVVReduceMin/MaxF64x{2,4,8}` 原 no-asm facades 使用的是 compare-loop accumulator
+  - 这两者在普通数值上接近，但在 `NaN` 与 `signed-zero` 的次序/tie-handling 上不等价
+- fresh 对位后，这个 bug 的关键边界已经拆清：
+  - `NaN`：
+    - `Math.Min/Max` 会继续按“当前结果 vs 当前 lane”的库函数规则推进
+    - compare-loop 会在比较返回 `False` 时保留旧 accumulator
+    - 所以 `NaNLeading`、`NaNSecond` 一类样本会发生漂移
+  - `signed-zero`：
+    - scalar truth 继承 `Math.Min/Max` 当前的 tie 选择
+    - compare-loop 则继承 accumulator 的保留顺序
+    - `(+0, -0)` / `(-0, +0)` 的符号位会因此分叉
+- 这条 finding 的价值在于把一个很容易被误判成“只是 redundancy / 只是 witness 口径问题”的点，重新收正成实现原则：
+  - 对浮点 `ReduceMin/ReduceMax` 这种带 `NaN / signed-zero` 面的 no-asm facade
+  - 只要目标口径是“当前 scalar truth”
+  - 就不应该再手写 compare-loop，除非已经证明 tie/NaN 规则与 scalar 完全等价
+- 因而当前最稳妥的实现准则应是：
+  - “backend-owned asm slot 可以保留”
+  - “no-asm facade 优先 exact scalar forward”
+  - “语义敏感的浮点 reduction 不能再用看起来等价的 compare-loop 充当 scalar truth”
