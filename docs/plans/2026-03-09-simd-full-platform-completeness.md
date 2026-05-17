@@ -6,6 +6,16 @@
 > It is no longer part of the active whole-module execution chain.
 > Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
 
+> Current HEAD note (2026-05-17):
+> This plan is still useful as a historical completeness checklist, but it does
+> not describe the current repository as cross-ready. Latest
+> `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+> remains `ready=False / mainline-ready=True / cross-ready=False`, with
+> `win-evidence-preflight=RECENT_BILLING_BLOCK` and
+> `windows_evidence_verify` failing at
+> `cmd.exe cannot resolve LAZBUILD command "lazbuild"`. For current operator
+> truth, use `docs/fafafa.core.simd.closeout.md` and
+> `tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`.
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
@@ -35,6 +45,7 @@ If item 3 is missing, the module is **not** fully complete across platforms.
 ### Task 1: Freeze the current completeness contract
 
 **Files:**
+
 - Review: `docs/fafafa.core.simd.closeout.md`
 - Review: `docs/fafafa.core.simd.maintenance.md`
 - Review: `src/fafafa.core.simd.STABLE`
@@ -44,23 +55,27 @@ If item 3 is missing, the module is **not** fully complete across platforms.
 **Step 1: Confirm Linux/mainline is already the baseline**
 
 Run:
+
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
 bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-linux
 ```
 
 Expected:
+
 - `gate-strict` ends with `[GATE] OK`
 - `freeze-status-linux` reports `ready=True`
 
 **Step 2: Confirm the only blocker is Windows real evidence**
 
 Run:
+
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status
 ```
 
 Expected:
+
 - `ready=False`
 - failure/pending items are limited to Windows evidence verification and the Windows closeout docs/checklists
 
@@ -73,6 +88,7 @@ Write into the working log that cross-platform completeness is blocked by real W
 ### Task 2: Keep the Linux-side no-regression path locked
 
 **Files:**
+
 - Verify: `tests/fafafa.core.simd/BuildOrTest.sh`
 - Verify: `tests/fafafa.core.simd/buildOrTest.bat`
 - Verify: `tests/fafafa.core.simd/run_backend_benchmarks.sh`
@@ -84,33 +100,39 @@ Write into the working log that cross-platform completeness is blocked by real W
 **Step 1: Re-run helper-level Linux evidence**
 
 Run:
+
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh evidence-linux
 ```
 
 Expected:
+
 - command exits `0`
 - a new `tests/fafafa.core.simd/logs/evidence-*/summary.md` is created
 
 **Step 2: Re-run isolated main gate once**
 
 Run:
+
 ```bash
 SIMD_OUTPUT_ROOT=/tmp/simd-cross-platform-audit bash tests/fafafa.core.simd/BuildOrTest.sh gate
 ```
 
 Expected:
+
 - command exits `0`
 - `cpuinfo` and `cpuinfo.x86` artifacts are created under the isolated root instead of polluting default `bin2/lib2/logs`
 
 **Step 3: Re-run backend bench in isolation**
 
 Run:
+
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh backend-bench
 ```
 
 Expected:
+
 - command exits `0`
 - no `DBG_/DEBUGSTART` linker failures recur
 
@@ -119,6 +141,7 @@ Expected:
 ### Task 3: Validate the Windows evidence collection contract before touching docs
 
 **Files:**
+
 - Verify: `tests/fafafa.core.simd/collect_windows_b07_evidence.bat`
 - Verify: `tests/fafafa.core.simd/verify_windows_b07_evidence.bat`
 - Verify: `tests/fafafa.core.simd/verify_windows_b07_evidence.sh`
@@ -128,6 +151,7 @@ Expected:
 **Step 1: Check the required evidence fields**
 
 Required lines in the real Windows log:
+
 - `Source: collect_windows_b07_evidence.bat`
 - `HostOS: Windows_NT`
 - `CmdVer: Microsoft Windows ...`
@@ -136,17 +160,22 @@ Required lines in the real Windows log:
 **Step 2: Dry-run the exact operator command text**
 
 Run on Windows:
+
 ```bat
 tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify
 ```
 
 Expected:
+
 - the batch script performs collection and verification in one flow
 - resulting log satisfies the shell verifier without manual editing
+- this step only counts on a real Windows host, with `LAZBUILD` resolving to a
+  native Windows `.exe/.bat/.cmd`
 
 **Step 3: Refuse any shortcut that weakens the verifier**
 
 Do **not**:
+
 - relax `verify_windows_b07_evidence.sh`
 - replace missing real fields with simulated lines
 - mark docs complete before the real verifier passes
@@ -156,17 +185,28 @@ Do **not**:
 ### Task 4: Capture real Windows evidence
 
 **Files:**
+
 - Produce: `tests/fafafa.core.simd/logs/windows_b07_gate.log`
 - Verify: `tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`
 
 **Step 1: Run the real Windows collector/verifier**
 
+Before running the manual Windows path:
+
+- if `win-evidence-preflight` still reports `RECENT_BILLING_BLOCK`, stop there
+  and treat the batch as `code-green / release-evidence-blocked`
+- do not use Wine/cmd as a stand-in for a real Windows host
+- make sure `LAZBUILD` resolves to a native Windows `.exe/.bat/.cmd`, not a
+  Wine-visible Linux ELF
+
 Run on Windows:
+
 ```bat
 tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify
 ```
 
 Expected:
+
 - exit code `0`
 - `tests/fafafa.core.simd/logs/windows_b07_gate.log` is refreshed from a real Windows host
 
@@ -177,6 +217,7 @@ Inspect the log and verify that it is sourced from `collect_windows_b07_evidence
 **Step 3: Preserve the batch id used for final apply**
 
 Choose a real batch id, for example:
+
 ```text
 SIMD-20260309-152
 ```
@@ -188,6 +229,7 @@ Do not invent one in the doc without matching the summary/apply step.
 ### Task 5: Finalize Windows closeout and update the docs/checklists
 
 **Files:**
+
 - Modify: `docs/plans/2026-02-09-simd-unblock-closeout-roadmap.md`
 - Modify: `tests/fafafa.core.simd/docs/simd_release_candidate_checklist.md`
 - Modify: `tests/fafafa.core.simd/docs/simd_completeness_matrix.md`
@@ -197,28 +239,33 @@ Do not invent one in the doc without matching the summary/apply step.
 **Step 1: Generate the real closeout summary**
 
 Run:
+
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence
 ```
 
 Expected:
+
 - produces `tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`
 - summary is not simulated
 
 **Step 2: Apply the Windows closeout doc updates**
 
 Run:
+
 ```bash
 bash tests/fafafa.core.simd/apply_windows_b07_closeout_updates.sh --apply --batch-id SIMD-YYYYMMDD-152
 ```
 
 Expected:
+
 - roadmap, RC checklist, and completeness matrix are marked complete for Windows evidence
 - apply step refuses to run if the summary is simulated
 
 **Step 3: Verify the three docs changed as intended**
 
 Look for:
+
 - Windows evidence marked `[x]`
 - batch id recorded
 - summary filename recorded
@@ -228,17 +275,20 @@ Look for:
 ### Task 6: Re-evaluate full-platform freeze readiness
 
 **Files:**
+
 - Verify: `tests/fafafa.core.simd/evaluate_simd_freeze_status.py`
 - Verify: `tests/fafafa.core.simd/logs/freeze_status.json`
 
 **Step 1: Re-run cross-platform freeze status**
 
 Run:
+
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status
 ```
 
 Expected:
+
 - `ready=True`
 - no pending Windows checklist items remain
 
@@ -255,6 +305,7 @@ The phrase “SIMD is complete across platforms” is only valid after this step
 ### Task 7: Final acceptance report
 
 **Files:**
+
 - Update: `docs/fafafa.core.simd.handoff.md`
 - Update: `findings.md`
 - Update: `progress.md`
@@ -262,6 +313,7 @@ The phrase “SIMD is complete across platforms” is only valid after this step
 **Step 1: Write the acceptance summary**
 
 Capture:
+
 - interface status
 - architecture status
 - implementation status
@@ -271,6 +323,7 @@ Capture:
 **Step 2: Record evidence paths**
 
 At minimum record:
+
 - latest Linux evidence summary path
 - latest backend bench summary path
 - `windows_b07_gate.log`
@@ -280,6 +333,7 @@ At minimum record:
 **Step 3: State the final platform claim precisely**
 
 Use one of these exact outcomes:
+
 - `Linux ready, cross-platform pending`
 - `Cross-platform ready`
 
