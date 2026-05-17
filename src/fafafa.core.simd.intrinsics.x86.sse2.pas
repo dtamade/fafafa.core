@@ -1629,7 +1629,7 @@ function simd_sqrt_ps(constref a: TM128): TM128; {$IFDEF FPC}assembler; nostackf
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movups xmm0, [rcx]; sqrtps xmm0, xmm0  // 4个单精度浮点并行开�?
+    movups xmm0, [rcx]; sqrtps xmm0, xmm0  // Parallel square root on 4 single-precision lanes.
     {$ELSE}
     movups xmm0, [rdi]; sqrtps xmm0, xmm0
   {$ENDIF}
@@ -1739,7 +1739,7 @@ function simd_sqrt_pd(constref a: TM128): TM128; {$IFDEF FPC}assembler; nostackf
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; sqrtpd xmm0, xmm0  // 2个双精度浮点并行开�?
+    movupd xmm0, [rcx]; sqrtpd xmm0, xmm0  // Parallel square root on 2 double-precision lanes.
     {$ELSE}
     movupd xmm0, [rdi]; sqrtpd xmm0, xmm0
   {$ENDIF}
@@ -1762,7 +1762,7 @@ function simd_or_si128(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; por xmm0, xmm1  // 128位逻辑�?
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; por xmm0, xmm1  // Bitwise OR across the 128-bit vector.
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; por xmm0, xmm1
   {$ENDIF}
@@ -1829,7 +1829,7 @@ function simd_cmpeq_epi16(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; n
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pcmpeqw xmm0, xmm1  // 16位整数相等比�?
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pcmpeqw xmm0, xmm1  // Compare 16-bit integer lanes for equality.
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pcmpeqw xmm0, xmm1
   {$ENDIF}
@@ -1851,7 +1851,7 @@ function simd_cmpeq_epi32(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; n
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pcmpeqd xmm0, xmm1  // 32位整数相等比�?
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pcmpeqd xmm0, xmm1  // Compare 32-bit integer lanes for equality.
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pcmpeqd xmm0, xmm1
   {$ENDIF}
@@ -1873,7 +1873,7 @@ function simd_cmpgt_epi8(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; no
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pcmpgtb xmm0, xmm1  // 有符�?位整数大于比�?
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pcmpgtb xmm0, xmm1  // Signed greater-than compare on 8-bit lanes.
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pcmpgtb xmm0, xmm1
   {$ENDIF}
@@ -1895,7 +1895,7 @@ function simd_cmpgt_epi16(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; n
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pcmpgtw xmm0, xmm1  // 有符�?6位整数大于比�?
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pcmpgtw xmm0, xmm1  // Signed greater-than compare on 16-bit lanes.
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pcmpgtw xmm0, xmm1
   {$ENDIF}
@@ -1917,7 +1917,7 @@ function simd_cmpgt_epi32(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; n
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pcmpgtd xmm0, xmm1  // 有符�?2位整数大于比�?
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pcmpgtd xmm0, xmm1  // Signed greater-than compare on 32-bit lanes.
     {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pcmpgtd xmm0, xmm1
   {$ENDIF}

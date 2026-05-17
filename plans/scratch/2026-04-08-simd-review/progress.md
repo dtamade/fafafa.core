@@ -10683,3 +10683,40 @@
 - 当前阶段结论：
   - `1293..1521` 这一整簇可以判定为 hygiene-only，已经整体退出 residual 清单
   - `SSE2` 的下一个自然入口已经前移到 `1632` 行，接下来可以继续切 `sqrt/logical/compare` 邻近簇
+
+## 2026-05-18 SSE2 Sqrt Logical Compare Hygiene
+
+- 继续沿 `SSE2` residual 前沿推进，这一批只切 `1632..1920` 的一个 bounded 簇，没有把 `2092+` 的双精度比较混进来。
+- 本轮逐点复核的 8 个 Windows x64 残点如下：
+  - `simd_sqrt_ps`
+  - `simd_sqrt_pd`
+  - `simd_or_si128`
+  - `simd_cmpeq_epi16`
+  - `simd_cmpeq_epi32`
+  - `simd_cmpgt_epi8`
+  - `simd_cmpgt_epi16`
+  - `simd_cmpgt_epi32`
+- 复核结论：
+  - 这 8 处都只是单行尾注文本损坏
+  - `sqrtps/sqrtpd/por/pcmpeq*/pcmpgt*` 的执行体没有被注释吞掉
+  - 因而本批继续保持 hygiene-only，不做语义修改
+- 本批实际改动：
+  - 把上述 8 处损坏尾注替换成稳定 ASCII 注释
+  - 不改寄存器协议，不拆汇编结构，不动 `x86` / `x64` 分支逻辑
+- fresh 验证已完成：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_comment_swallow.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `python3` 逐文件计数：
+    - `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 从 `residual_char_count=229` 降到 `218`
+    - `residuals_up_to_1920=[]`
+    - `first_residual_lines=[2092, 2098, 2120, 2142, 2225, 2238, 2294, 2345, 2350, 2400, 2405, 2454, 2459, 2507, 2529, 2551, 2573, 2595, 2617, 2639]`
+- fresh 结果：
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - `intrinsics.experimental check` default / experimental 双模态通过
+  - `x86 SSE2 backend smoke` 通过
+  - 主 `simd` release `check` 通过
+- 当前阶段结论：
+  - `1632..1920` 这一整簇可以继续判定为 hygiene-only，已经整体退出 residual 清单
+  - `SSE2` 当前下一簇自然前沿已经前移到 `2092`，下一步可以单独切双精度比较和后续浮点比较残点

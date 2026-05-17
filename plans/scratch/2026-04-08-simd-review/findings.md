@@ -7951,3 +7951,35 @@
   - 不回头重扫 `1293..1521`
   - 直接去看 `1632, 1742, 1765, 1832, 1854, 1876, 1898, 1920`
   - 继续保持“先判真吞指令，再做 bounded hygiene”的节奏
+
+## 2026-05-18 SSE2 1632..1920 Also Stayed Hygiene-Only
+
+- `1632..1920` 这一簇涵盖了 `sqrt`、`logical`、`integer compare` 三个邻近功能段。
+- 在上一批已经确认过“这条线里确实可能存在真吞指令”的前提下，本轮继续按同一规则逐点复核：
+  - `simd_sqrt_ps`
+  - `simd_sqrt_pd`
+  - `simd_or_si128`
+  - `simd_cmpeq_epi16`
+  - `simd_cmpeq_epi32`
+  - `simd_cmpgt_epi8`
+  - `simd_cmpgt_epi16`
+  - `simd_cmpgt_epi32`
+- fresh 结论是：
+  - 这 8 处都没有新的被注释吞掉的第二条有效 asm 指令
+  - 问题仍然只是 Windows 单行尾注的 `U+FFFD` 残点
+  - 所以这批最优动作仍然是 bounded hygiene，而不是再去重排汇编或改执行语义
+- 这一点很值当，因为它证明当前筛查节奏是稳定的：
+  - `1293..1521` 已经被实证成 hygiene-only
+  - `1632..1920` 现在也被实证成 hygiene-only
+  - 但这两个结论都建立在“先排除吞指令风险”的前提上，而不是靠猜
+- 收口后 live 结果继续收敛：
+  - `residual_char_count: 229 -> 218`
+  - `residuals_up_to_1920=[]`
+  - `first residual line = 2092`
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - `intrinsics.experimental` 双模态 `check` 通过
+  - 主 `Release check` 通过
+- 因而当前最值当的继续方向也进一步明确了：
+  - 不回头重扫 `1632..1920`
+  - 直接去看 `2092, 2098, 2120, 2142` 这一小簇的双精度比较 residual
+  - 继续维持“小簇逐点判定”的节奏，不扩成整段大修
