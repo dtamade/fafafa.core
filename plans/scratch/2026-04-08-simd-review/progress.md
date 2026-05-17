@@ -11142,3 +11142,38 @@
 - 当前阶段结论：
   - `RISCVV` wide `ClampF32x8/F32x16` 现在已经明确收敛成 “backend-owned exact scalar contract”
   - 下一批如果继续看 `Clamp`，必须单独审 `F64x4/F64x8` 的 `NaN/signed-zero` parity，不能机械照抄本批模式
+
+## 2026-05-18 RISCVV Wide F64 Clamp Witness And Key-Slot Audit Sync
+
+- 在 `ClampF32` 批次提交后，没有直接改 `RISCVVClampF64x4/F64x8` 实现，而是先补最小高信号护栏，确认这两格当前到底应不应该继续保留 local fallback。
+- fresh 复核得到的关键事实：
+  - `src/fafafa.core.simd.riscvv.pas` 里的 `ClampF64x4/F64x8` 仍是本地 `vfmax/vfmin` asm body
+  - `src/fafafa.core.simd.riscvv.facade.inc` 的 `ClampF64x2/F64x4/F64x8` no-asm local body 仍是 compare-based fallback，会保留 `NaN` 与 `-0`
+  - 现有 `NonX86BackendParity` 只覆盖普通数值样本，不足以证明 `F64 clamp` 的 `NaN/signed-zero` 边界
+- 本批实际收口：
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 新增 `RISCVV_WIDE_F64_CLAMP_KEY_SLOTS = ('ClampF64x4', 'ClampF64x8')`
+    - 纳入 `KEY_SLOTS_BY_BACKEND['riscvv']`
+    - 纳入 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS['riscvv']`
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - `Test_RISCVV_KeyOwnedWideSlots_Stay_BackendOwned` 已补齐：
+      - `ClampF64x4/F64x8` 的 register-source truth
+      - runtime backend-owned slot 断言
+      - `NaN/signed-zero` 最小 witness，明确要求当前 `RISCVV` 保留 local fallback 语义
+    - 顺手清掉了这次重编译触发的 8 个旧 `Int32`/`UInt32` 十六进制字面量 warning
+    - 另补了过程内 `LocalDoubleBits` helper，避免依赖别的 testcase 私有局部函数
+- fresh 验证已完成：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=121 issues=0 status=ok`
+  - `TTestCase_DispatchAPI,TTestCase_NonX86BackendParity` release suite `BUILD/TEST/LEAK` 全绿
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - `Release check` 通过
+- 当前阶段结论：
+  - 当前没有 fresh 证据支持把 `RISCVV ClampF64x4/F64x8` 收成 scalar truth
+  - 相反，仓库内现有证据已经把它们更明确地钉成 “backend-owned local-fallback hold”，后续若要继续动，只能先补独立 parity/witness 再决定是否改实现

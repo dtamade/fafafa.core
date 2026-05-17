@@ -8205,3 +8205,18 @@
   - 同时不碰 `F64`，避免把 `signed-zero / NaN-ordering` 风险偷偷吞掉
 - 这条 finding 也顺便把下一批边界钉住了：
   - 之后若继续处理 `RISCVV Clamp`，首要任务不是继续扩 allowlist，而是先给 `F64x4/F64x8` 补独立 parity/witness 再决定去留
+
+## 2026-05-18 RISCVV F64 Clamp Currently Belongs To Local-Fallback Hold, Not Scalar Collapse
+
+- `RISCVV ClampF64x4/F64x8` 这两格目前最真实的问题，不是“还没改成 scalar”，而是之前缺少和 `NEON F64 clamp` 同等级的显式 witness。
+- 新增 key-slot audit + `DispatchAPI` witness 后，当前可确认的边界是：
+  - slot 继续 backend-owned
+  - source 继续保留本地 `vfmax/vfmin` body
+  - 仓库语义口径继续把它们视为 local fallback hold，而不是 exact scalar contract
+- 这条结论的重要性在于，它阻止了两种常见误判：
+  - 误把 `ClampF64x4/F64x8` 当成和 `ClampF32x8/F32x16` 一样的 exact-contract 去重对象
+  - 误把“当前没看到 fresh 红”理解成“已经证明可以安全回到 scalar”
+- 当前真正站得住脚的 stop-point 是：
+  - `F32` clamp 已经完成 scalar collapse
+  - `F64` clamp 目前只完成了审计显式化和 witness 钉桩
+  - 若未来还想继续压缩 `F64`，必须先拿到独立的 `NaN/signed-zero` parity 证据，而不是沿用 `F32` 的决策

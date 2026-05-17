@@ -167,6 +167,10 @@ RISCVV_WIDE_F32_CLAMP_KEY_SLOTS = (
     "ClampF32x8",
     "ClampF32x16",
 )
+RISCVV_WIDE_F64_CLAMP_KEY_SLOTS = (
+    "ClampF64x4",
+    "ClampF64x8",
+)
 
 KEY_SLOTS_BY_BACKEND: dict[str, tuple[str, ...]] = {
     "neon": combine_slot_groups(
@@ -187,6 +191,7 @@ KEY_SLOTS_BY_BACKEND: dict[str, tuple[str, ...]] = {
         RISCVV_HELPER_OWNED_KEY_SLOTS,
         RISCVV_WIDE_ROUNDING_KEY_SLOTS,
         RISCVV_WIDE_F32_CLAMP_KEY_SLOTS,
+        RISCVV_WIDE_F64_CLAMP_KEY_SLOTS,
     ),
 }
 
@@ -248,6 +253,7 @@ REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS: dict[str, set[str]] = {
             RISCVV_HELPER_OWNED_KEY_SLOTS,
             RISCVV_WIDE_ROUNDING_KEY_SLOTS,
             RISCVV_WIDE_F32_CLAMP_KEY_SLOTS,
+            RISCVV_WIDE_F64_CLAMP_KEY_SLOTS,
         )
     ),
 }

@@ -3487,7 +3487,7 @@ begin
   AssertTrue('Dispatch.MinU64x2 should be assigned', Assigned(LDispatch^.MinU64x2));
   AssertTrue('Dispatch.MaxU64x2 should be assigned', Assigned(LDispatch^.MaxU64x2));
 
-  LA.u[0] := $F0F0F0F0F0F0F0F0;
+  LA.u[0] := QWord($F0F0F0F0F0F0F0F0);
   LA.u[1] := 20;
   LB.u[0] := $00FF00FF00FF00FF;
   LB.u[1] := 30;
@@ -9068,6 +9068,12 @@ var
   LSourceLines: TStringList;
   LRegisterSourcePath: string;
   LRegisterSource: string;
+  LSavedMask: TFPUExceptionMask;
+  LF64x4A, LF64x4Min, LF64x4Max: TVecF64x4;
+  LF64x4ByScalar, LF64x4ByRISCVV: TVecF64x4;
+  LF64x8A, LF64x8Min, LF64x8Max: TVecF64x8;
+  LF64x8ByScalar, LF64x8ByRISCVV: TVecF64x8;
+  LIndex: Integer;
 
   procedure AssertRegisterOwnsBackendSlot(const aLabel, aSnippet: string);
   begin
@@ -9081,6 +9087,11 @@ var
       aBackendSlot <> nil);
     AssertTrue('RISCVV ' + aLabel + ' should stay backend-owned instead of reusing the scalar slot',
       PtrUInt(aScalarSlot) <> PtrUInt(aBackendSlot));
+  end;
+
+  function LocalDoubleBits(const aValue: Double): QWord; inline;
+  begin
+    Move(aValue, Result, SizeOf(Result));
   end;
 begin
   LSourceLines := TStringList.Create;
@@ -9121,6 +9132,8 @@ begin
   AssertRegisterOwnsBackendSlot('TruncF64x8', 'table.TruncF64x8 := @RISCVVTruncF64x8;');
   AssertRegisterOwnsBackendSlot('ClampF32x8', 'table.ClampF32x8 := @RISCVVClampF32x8;');
   AssertRegisterOwnsBackendSlot('ClampF32x16', 'table.ClampF32x16 := @RISCVVClampF32x16;');
+  AssertRegisterOwnsBackendSlot('ClampF64x4', 'table.ClampF64x4 := @RISCVVClampF64x4;');
+  AssertRegisterOwnsBackendSlot('ClampF64x8', 'table.ClampF64x8 := @RISCVVClampF64x8;');
 
   AssertTrue('Scalar dispatch table should be registered',
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
@@ -9160,6 +9173,65 @@ begin
   AssertSlotKeepsBackendOwnership('TruncF64x8', Pointer(LScalarTable.TruncF64x8), Pointer(LRISCVVTable.TruncF64x8));
   AssertSlotKeepsBackendOwnership('ClampF32x8', Pointer(LScalarTable.ClampF32x8), Pointer(LRISCVVTable.ClampF32x8));
   AssertSlotKeepsBackendOwnership('ClampF32x16', Pointer(LScalarTable.ClampF32x16), Pointer(LRISCVVTable.ClampF32x16));
+  AssertSlotKeepsBackendOwnership('ClampF64x4', Pointer(LScalarTable.ClampF64x4), Pointer(LRISCVVTable.ClampF64x4));
+  AssertSlotKeepsBackendOwnership('ClampF64x8', Pointer(LScalarTable.ClampF64x8), Pointer(LRISCVVTable.ClampF64x8));
+
+  // RISCVV F64 clamp intentionally keeps the local NaN/signed-zero fallback
+  // contract for now; do not silently collapse it to scalar semantics.
+  for LIndex := 0 to 3 do
+  begin
+    LF64x4A.d[LIndex] := LIndex + 1.0;
+    LF64x4Min.d[LIndex] := -10.0 + LIndex;
+    LF64x4Max.d[LIndex] := 10.0 + LIndex;
+  end;
+  LF64x4A.d[0] := NaN;
+  LF64x4A.d[1] := -0.0;
+  LF64x4Min.d[0] := 0.0;
+  LF64x4Min.d[1] := 0.0;
+  LF64x4Max.d[0] := 10.0;
+  LF64x4Max.d[1] := 0.0;
+
+  for LIndex := 0 to 7 do
+  begin
+    LF64x8A.d[LIndex] := (LIndex - 2) * 1.5;
+    LF64x8Min.d[LIndex] := -20.0 + LIndex;
+    LF64x8Max.d[LIndex] := 20.0 + LIndex;
+  end;
+  LF64x8A.d[0] := NaN;
+  LF64x8A.d[1] := -0.0;
+  LF64x8Min.d[0] := 0.0;
+  LF64x8Min.d[1] := 0.0;
+  LF64x8Max.d[0] := 10.0;
+  LF64x8Max.d[1] := 0.0;
+
+  LSavedMask := GetExceptionMask;
+  SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision]);
+  try
+    LF64x4ByScalar := LScalarTable.ClampF64x4(LF64x4A, LF64x4Min, LF64x4Max);
+    LF64x4ByRISCVV := LRISCVVTable.ClampF64x4(LF64x4A, LF64x4Min, LF64x4Max);
+    LF64x8ByScalar := LScalarTable.ClampF64x8(LF64x8A, LF64x8Min, LF64x8Max);
+    LF64x8ByRISCVV := LRISCVVTable.ClampF64x8(LF64x8A, LF64x8Min, LF64x8Max);
+  finally
+    SetExceptionMask(LSavedMask);
+  end;
+
+  AssertTrue('Scalar ClampF64x4 NaN witness should collapse to the max bound',
+    LocalDoubleBits(LF64x4ByScalar.d[0]) = LocalDoubleBits(10.0));
+  AssertTrue('RISCVV ClampF64x4 NaN witness should keep the local NaN fallback',
+    IsNaN(LF64x4ByRISCVV.d[0]));
+  AssertTrue('Scalar ClampF64x4 signed-zero witness should normalize to +0',
+    LocalDoubleBits(LF64x4ByScalar.d[1]) = QWord($0000000000000000));
+  AssertTrue('RISCVV ClampF64x4 signed-zero witness should keep -0 local fallback',
+    LocalDoubleBits(LF64x4ByRISCVV.d[1]) = QWord($8000000000000000));
+
+  AssertTrue('Scalar ClampF64x8 NaN witness should collapse to the max bound',
+    LocalDoubleBits(LF64x8ByScalar.d[0]) = LocalDoubleBits(10.0));
+  AssertTrue('RISCVV ClampF64x8 NaN witness should keep the local NaN fallback',
+    IsNaN(LF64x8ByRISCVV.d[0]));
+  AssertTrue('Scalar ClampF64x8 signed-zero witness should normalize to +0',
+    LocalDoubleBits(LF64x8ByScalar.d[1]) = QWord($0000000000000000));
+  AssertTrue('RISCVV ClampF64x8 signed-zero witness should keep -0 local fallback',
+    LocalDoubleBits(LF64x8ByRISCVV.d[1]) = QWord($8000000000000000));
 end;
 
 procedure TTestCase_DispatchAPI.Test_RISCVV_HelperOwnedExactScalarSlots_Stay_BackendOwned;
@@ -17996,8 +18068,8 @@ begin
   LA.i[2] := -1;
   LA.i[3] := -16;
   LB.i[0] := $0F0F0F0F;
-  LB.i[1] := $F0F0F0F0;
-  LB.i[2] := $AAAAAAAA;
+  LB.i[1] := Int32(DWord($F0F0F0F0));
+  LB.i[2] := Int32(DWord($AAAAAAAA));
   LB.i[3] := $55555555;
 
   LShiftCounts[0] := -1;
@@ -18284,12 +18356,12 @@ begin
   LI32x8A.i[2] := -1;
   LI32x8A.i[3] := 0;
   LI32x8A.i[4] := $55555555;
-  LI32x8A.i[5] := $AAAAAAAA;
+  LI32x8A.i[5] := Int32(DWord($AAAAAAAA));
   LI32x8A.i[6] := Int32($40000001);
   LI32x8A.i[7] := -16;
   LI32x8B.i[0] := 0;
   LI32x8B.i[1] := -1;
-  LI32x8B.i[2] := $AAAAAAAA;
+  LI32x8B.i[2] := Int32(DWord($AAAAAAAA));
   LI32x8B.i[3] := $55555555;
   LI32x8B.i[4] := High(Int32);
   LI32x8B.i[5] := Low(Int32);
@@ -18306,7 +18378,7 @@ begin
   LI32x16A.i[2] := $55555555;
   LI32x16A.i[15] := High(Int32);
   LI32x16B.i[0] := High(Int32);
-  LI32x16B.i[1] := $AAAAAAAA;
+  LI32x16B.i[1] := Int32(DWord($AAAAAAAA));
   LI32x16B.i[2] := -1;
   LI32x16B.i[15] := Low(Int32);
 
@@ -18692,7 +18764,7 @@ begin
   LI32x8A.i[2] := -1;
   LI32x8A.i[3] := 0;
   LI32x8A.i[4] := $55555555;
-  LI32x8A.i[5] := $AAAAAAAA;
+  LI32x8A.i[5] := Int32(DWord($AAAAAAAA));
   LI32x8A.i[6] := Int32($40000001);
   LI32x8A.i[7] := -16;
   LI32x8B.i[0] := 1;
@@ -18709,7 +18781,7 @@ begin
   LU32x8A.u[2] := High(UInt32);
   LU32x8A.u[3] := $80000000;
   LU32x8A.u[4] := $7FFFFFFF;
-  LU32x8A.u[5] := $AAAAAAAA;
+  LU32x8A.u[5] := DWord($AAAAAAAA);
   LU32x8A.u[6] := $55555555;
   LU32x8A.u[7] := 37;
   LU32x8B.u[0] := High(UInt32);
@@ -18718,7 +18790,7 @@ begin
   LU32x8B.u[3] := $80000000;
   LU32x8B.u[4] := 1;
   LU32x8B.u[5] := $11111111;
-  LU32x8B.u[6] := $AAAAAAAA;
+  LU32x8B.u[6] := DWord($AAAAAAAA);
   LU32x8B.u[7] := High(UInt32) - 15;
 
   LI64x4A.i[0] := High(Int64);
@@ -18752,7 +18824,7 @@ begin
   LI32x16A.i[15] := High(Int32);
   LI32x16B.i[0] := 1;
   LI32x16B.i[1] := High(Int32);
-  LI32x16B.i[2] := $AAAAAAAA;
+  LI32x16B.i[2] := Int32(DWord($AAAAAAAA));
   LI32x16B.i[15] := Low(Int32);
   LU32x16A.u[0] := 0;
   LU32x16A.u[1] := High(UInt32);

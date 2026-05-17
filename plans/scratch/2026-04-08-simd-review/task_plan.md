@@ -4802,3 +4802,17 @@
 | 1. 复核 `Clamp` 是否必须拆成 `F32` / `F64` 两半处理 | completed | 已确认 `riscvv.facade.inc` 顶部 caveat 仍要求 `signed-zero / NaN-ordering` 单独复核；结合 `AVX2` 合同与 `NEON` precedent，当前只有 `F32` wide clamp 能安全收成 scalar truth |
 | 2. 落地 `F32` clamp 源码收口并同步 key-slot/truthfulness/dispatchapi 护栏 | completed | `src/fafafa.core.simd.riscvv.pas` 已把 `RISCVVClampF32x8/F32x16` 改成 `ScalarClamp...` forwarder；`helper semantics`、`key slot audit`、`register truthfulness` 与 `DispatchAPI` 已同步承认这两格仍是 backend-owned slot |
 | 3. 串行 Release 验证并确认 `F64` hold 边界不被误改 | completed | `git diff --check`、`python3 -m py_compile`、`helper semantics`、`key slot audit`、`register truthfulness --backend riscvv --strict`、Release `TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`、Release `impl-smoke-nonx86`、Release `impl-audit-nonx86`、Release `check` 全部通过；`ClampF64x4/F64x8` 继续保持未改动 |
+
+## 2026-05-18 RISCVV Wide F64 Clamp Witness And Key-Slot Audit Sync
+
+### Goal
+
+不给 `RISCVV ClampF64x4/F64x8` 盲改实现，先把它们显式收进 key-slot audit 与 `DispatchAPI` witness，确认当前正确 stop-point 是 “backend-owned local-fallback hold” 还是 “还可以继续 collapse”。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前缺口到底是实现错还是缺 witness | completed | 已确认 `riscvv.pas` 里的 `ClampF64x4/F64x8` 仍是本地 `vfmax/vfmin` body，`facade.inc` 的 no-asm fallback 仍保留 compare-based `NaN/-0` 语义，而现有 `NonX86BackendParity` 只覆盖普通数值样本，缺少高信号 witness |
+| 2. 补 key-slot audit + DispatchAPI witness，并顺手清掉重编译暴露的旧 warning | completed | `check_nonx86_key_slot_audit.py` 已把 `ClampF64x4/F64x8` 纳入 `RISCVV` key-slot model；`Test_RISCVV_KeyOwnedWideSlots_Stay_BackendOwned` 已补 register/runtime ownership 与 `NaN/signed-zero` witness；同时清掉了这次重编译触发的 8 个旧十六进制字面量 warning |
+| 3. 串行 Release 验证并确认当前 stop-point | completed | `git diff --check`、`py_compile`、`key-slot-audit --summary-line`、Release `TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`、Release `impl-audit-nonx86`、Release `check` 全部通过；当前没有 fresh 证据支持把 `ClampF64x4/F64x8` 继续收成 scalar truth |
