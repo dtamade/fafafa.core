@@ -5,20 +5,19 @@ unit fafafa.core.simd.intrinsics.mmx;
 
 {
   === fafafa.core.simd.intrinsics.mmx ===
-  MMX (MultiMedia eXtensions) 指令集支�?
-  MMX �?Intel �?1997 年引入的第一�?SIMD 指令集扩�?  提供 64-bit 向量操作，主要用于多媒体处理
+  Placeholder MMX intrinsics surface for isolated legacy x86 bring-up.
+  MMX is Intel's original 64-bit SIMD extension from 1997.
 
-  特性：
-  - 64-bit 向量寄存�?(mm0-mm7)
-  - 整数运算 (8/16/32-bit)
+  Highlights:
+  - 64-bit vector registers (mm0-mm7)
+  - integer arithmetic (8/16/32-bit lanes)
+  - saturation helpers and legacy multimedia primitives
 
-  编译选项�?  - 默认使用 Pascal 模拟实现，兼容性好
-  - 定义 USE_INLINE_ASM 可启用内联汇编实现（需�?x86/x64 平台�?  - 饱和运算支持
-  - �?x87 FPU 寄存器共�?
-  注意：现代代码建议使�?SSE2 替代 MMX
-
-  历史意义�?  - 第一�?x86 SIMD 指令�?  - 为后�?SSE/AVX 奠定基础
-  - 多媒体处理的里程�?}
+  Notes:
+  - the default path keeps a Pascal fallback for portability
+  - inline asm is only relevant on x86/x64 hosts
+  - modern code should prefer SSE2 or newer SIMD families
+}
 
 interface
 
@@ -38,14 +37,14 @@ type
   PM64 = ^TM64;
 
 // === Load / Store ===
-// 加载和存储指令，用于在内存和 MMX 寄存器之间传输数�?
+// Transfer data between memory and MMX registers.
 function mmx_movd_mm(const Ptr: Pointer): TM64;
 procedure mmx_movd_mm_store(var Dest: LongInt; const Src: TM64);
 function mmx_movq_mm(const Ptr: Pointer): TM64;
 procedure mmx_movq_mm_store(var Dest; const Src: TM64);
 
 // === Set / Zero ===
-// 设置和清零指令，用于初始�?MMX 寄存�?
+// Initialize or zero MMX registers.
 function mmx_setzero_si64: TM64;
 function mmx_set1_pi8(Value: ShortInt): TM64;
 function mmx_set1_pi16(Value: SmallInt): TM64;
@@ -86,7 +85,7 @@ function mmx_por(a, b: TM64): TM64;
 function mmx_pxor(a, b: TM64): TM64;
 
 // === 6️⃣ Compare ===
-// 比较指令，生成掩码用于条件处�?
+// Compare lanes and produce mask results.
 function mmx_pcmpeqb(a, b: TM64): TM64;
 function mmx_pcmpeqw(a, b: TM64): TM64;
 function mmx_pcmpeqd(a, b: TM64): TM64;
@@ -95,7 +94,7 @@ function mmx_pcmpgtw(a, b: TM64): TM64;
 function mmx_pcmpgtd(a, b: TM64): TM64;
 
 // === 7️⃣ Shift ===
-// 移位指令，支持逻辑和算术移�?
+// Shift lanes with logical or arithmetic semantics.
 function mmx_psllw(a: TM64; count: TM64): TM64;
 function mmx_pslld(a: TM64; count: TM64): TM64;
 function mmx_psllq(a: TM64; count: TM64): TM64;
@@ -127,34 +126,32 @@ function mmx_punpcklwd(a, b: TM64): TM64;
 function mmx_punpckldq(a, b: TM64): TM64;
 
 // === 11️⃣ Miscellaneous ===
-// 杂项指令，用于状态管�?
+// Miscellaneous MMX state-management helpers.
 procedure mmx_emms;
 
 // === 🆕 补充的真正MMX指令 ===
 
-// 额外的数据传输指�
-function mmx_movd_r32(mm: TM64): LongWord;        // 从MMX�?2位寄存器
-function mmx_movd_r32_to_mm(r32: LongWord): TM64; // �?2位寄存器到MMX
+// Extra data-transfer helpers.
+function mmx_movd_r32(mm: TM64): LongWord;        // Extract the low 32-bit integer from MMX.
+function mmx_movd_r32_to_mm(r32: LongWord): TM64; // Move a 32-bit integer into MMX.
 
-// 额外的移位指令变�
-function mmx_psllw_mm(a, count: TM64): TM64;      // 16位左�?MMX寄存器计�?
-function mmx_psrlw_mm(a, count: TM64): TM64;      // 16位右�?MMX寄存器计�?
-function mmx_psraw_mm(a, count: TM64): TM64;      // 16位算术右�?MMX寄存器计�?
+// Extra variable-count shift helpers.
+function mmx_psllw_mm(a, count: TM64): TM64;      // Shift 16-bit lanes left with an MMX count register.
+function mmx_psrlw_mm(a, count: TM64): TM64;      // Shift 16-bit lanes right logically with an MMX count register.
+function mmx_psraw_mm(a, count: TM64): TM64;      // Shift 16-bit lanes right arithmetically with an MMX count register.
 
-// 额外的打包指�
+// Extra packing helper.
 function mmx_packusdw(a, b: TM64): TM64;          // 32位到16位无符号打包
 
-// 额外的解包指令变�
-function mmx_punpcklbw_mem(a: TM64; mem: Pointer): TM64; // 从内存解包低位字�
+// Extra unpack helpers with memory operands.
+function mmx_punpcklbw_mem(a: TM64; mem: Pointer): TM64; // Unpack low bytes from memory.
 function mmx_punpcklwd_mem(a: TM64; mem: Pointer): TM64; // 从内存解包低位字
-function mmx_punpckldq_mem(a: TM64; mem: Pointer): TM64; // 从内存解包低位双�?
+function mmx_punpckldq_mem(a: TM64; mem: Pointer): TM64; // Unpack low doublewords from memory.
 implementation
 
 // === 1️⃣ Load / Store 实现 ===
 
-// 功能：从内存加载32位整数到MMX寄存器低位，高位清零
-// 输入：Ptr - 指向32位整数的内存地址
-// 输出：TM64 - �?2位为加载的整数，�?2位为0
+// Load a 32-bit integer into the low MMX half and clear the high half.
 function mmx_movd_mm(const Ptr: Pointer): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -177,8 +174,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：将MMX寄存器的�?2位整数存储到内存
-// 输入：Dest - 目标内存地址；Src - MMX寄存�
+// Store the low 32-bit integer from an MMX register to memory.
 procedure mmx_movd_mm_store(var Dest: LongInt; const Src: TM64); {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -199,8 +195,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：从内存加载64位数据到MMX寄存�?// 输入：Ptr - 指向64位数据的内存地址
-// 输出：TM64 - 包含加载�?4位数�
+// Load a full 64-bit value from memory into an MMX register.
 function mmx_movq_mm(const Ptr: Pointer): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -226,7 +221,7 @@ asm
 end;
 
 // 功能：将MMX寄存器的64位数据存储到内存
-// 输入：Dest - 目标内存地址；Src - MMX寄存�
+// Store a full 64-bit MMX register value to memory.
 procedure mmx_movq_mm_store(var Dest; const Src: TM64); {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -249,7 +244,7 @@ end;
 
 // === 2️⃣ Set / Zero 实现 ===
 
-// 功能：将MMX寄存器清�?// 输出：TM64 - 全零�?4位寄存器
+// Return an all-zero MMX value.
 function mmx_setzero_si64: TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -264,8 +259,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：将所�?�?位整数设置为指定值（广播�?// 输入：Value - 8位有符号整数
-// 输出：TM64 - 包含8个相同Value�?位整�
+// Broadcast one signed 8-bit value to all eight lanes.
 function mmx_set1_pi8(Value: ShortInt): TM64;
 begin
   Result.mm_i8[0] := Value;
@@ -278,8 +272,7 @@ begin
   Result.mm_i8[7] := Value;
 end;
 
-// 功能：将所�?�?6位整数设置为指定值（广播�?// 输入：Value - 16位有符号整数
-// 输出：TM64 - 包含4个相同Value�?6位整�
+// Broadcast one signed 16-bit value to all four lanes.
 function mmx_set1_pi16(Value: SmallInt): TM64;
 begin
   Result.mm_i16[0] := Value;
@@ -288,16 +281,14 @@ begin
   Result.mm_i16[3] := Value;
 end;
 
-// 功能：将所�?�?2位整数设置为指定值（广播�?// 输入：Value - 32位有符号整数
-// 输出：TM64 - 包含2个相同Value�?2位整�
+// Broadcast one signed 32-bit value to both lanes.
 function mmx_set1_pi32(Value: LongInt): TM64;
 begin
   Result.mm_i32[0] := Value;
   Result.mm_i32[1] := Value;
 end;
 
-// 功能：设�?�?位整数到MMX寄存器（从高到低�?// 输入：a7-a0 - 8�?位有符号整数
-// 输出：TM64 - 包含指定�?�?位整�
+// Construct an MMX value from eight signed 8-bit lanes, high to low.
 function mmx_set_pi8(a7, a6, a5, a4, a3, a2, a1, a0: ShortInt): TM64;
 begin
   Result.mm_i8[0] := a0;
@@ -310,8 +301,7 @@ begin
   Result.mm_i8[7] := a7;
 end;
 
-// 功能：设�?�?6位整数到MMX寄存器（从高到低�?// 输入：a3-a0 - 4�?6位有符号整数
-// 输出：TM64 - 包含指定�?�?6位整�
+// Construct an MMX value from four signed 16-bit lanes, high to low.
 function mmx_set_pi16(a3, a2, a1, a0: SmallInt): TM64;
 begin
   Result.mm_i16[0] := a0;
@@ -320,8 +310,7 @@ begin
   Result.mm_i16[3] := a3;
 end;
 
-// 功能：设�?�?2位整数到MMX寄存器（从高到低�?// 输入：a1, a0 - 2�?2位有符号整数
-// 输出：TM64 - 包含指定�?�?2位整�
+// Construct an MMX value from two signed 32-bit lanes, high to low.
 function mmx_set_pi32(a1, a0: LongInt): TM64;
 begin
   Result.mm_i32[0] := a0;
@@ -330,8 +319,7 @@ end;
 
 // === 3️⃣ Integer Arithmetic 实现 ===
 
-// 功能：对8�?位整数执行加法（无饱和）
-// 输入：a, b - 两个TM64寄存器，各包�?�?位整�?// 输出：TM64 - 包含8个加法结�
+// Add eight 8-bit lanes without saturation.
 function mmx_paddb(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}

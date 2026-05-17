@@ -316,6 +316,21 @@
 - 因而这批的正确收口不是另起炉灶写新 checker，而是：
   - 恢复被吞的 5 条真实指令
   - 扩充现有 marker，让同类问题以后继续走统一 intrinsics hygiene 护栏
+
+## 2026-05-17 MMX Residuals After The X86 Fix Were Mostly Plain Text Debt In The Front Half
+
+- `mmx` 的真实 x86 路径 bug 收掉以后，再看同一文件的前半段 residual，结论已经明显变了：
+  - `1..340` 行范围里的剩余 `U+FFFD` 基本都落在说明性注释
+  - 没有再发现新的 comment-swallowed asm 或 declaration 漏洞
+- 这说明 `mmx` 当前最优推进方式不是继续猜“是不是还有第二个行为坑”，而是：
+  - 先把前半段 comment-only residual 清零
+  - 每批都继续让 `MMX backend smoke + intrinsics hygiene + main release check` 兜底
+- fresh 结果也支持这个判断：
+  - 前半段 `prefix_1_340=0`
+  - 全文件 `total=157`
+- 因而 `mmx` 当前已经可以拆成两类债分别处理：
+  - 已修的 source-level behavior bug：x86 指令被注释吞掉
+  - 仍可继续切小批次处理的 plain text debt：后半段残余 `U+FFFD`
   - 先过 `win-evidence-preflight`
   - 若 latest 结果仍是 `RECENT_BILLING_BLOCK`，就在 preflight 处 fail-close
   - 历史 “Windows 已闭环” 只能按 archive fact 理解，不是当前 readiness signal
