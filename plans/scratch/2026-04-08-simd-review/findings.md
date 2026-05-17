@@ -7170,3 +7170,23 @@
 - 所以这批不是“把失败文案改好看”：
   - 而是把顶层入口的 fail-fast 语义重新接到真实 blocked evidence 上
   - 让 `closeout-release` 在 GitHub 查询抖动下仍能保持正确的 operator truth
+
+## 2026-05-17 Win-Preflight Latest Report Was Still Being Polluted By Query Noise
+
+- 在 `closeout-release` 顶层 fail-fast 已经收正后，我又顺手回看了真实 `freeze-status` 输出，发现还有一条更细的状态污染残差：
+  - 真实 `win-evidence-preflight` 能返回 `RECENT_BILLING_BLOCK`
+  - 但之后只要 `closeout-release` 里的 live preflight 再次撞到 `WORKFLOW_QUERY_FAILED`
+  - `tests/fafafa.core.simd/logs/win_preflight_latest.json` 就会被新的 `24` 直接覆写
+  - 结果 `freeze-status` 又会重新对外显示 `windows_preflight_latest = WORKFLOW_QUERY_FAILED`
+- 这类污染的坏处很具体：
+  - 顶层 `closeout-release` 本身已经知道要按 cached billing-block 停机
+  - 但 `freeze-status` 这种真正给人看的聚合状态，却会因为瞬时 GitHub 查询抖动而退回到 transport noise
+  - 于是 operator truth 在主入口和聚合入口之间重新分裂
+- 这里的最小正确修法不是继续在 `freeze-status` 里猜，而是收紧 preflight report 的语义：
+  - `win_preflight_latest.{json,md}` 继续代表当前 operator truth
+  - 若当前已有 fresh `RECENT_BILLING_BLOCK`，而新的 live 查询只是 `WORKFLOW_QUERY_FAILED`
+  - 就把这次瞬时查询失败写到 diagnostic sidecar，而不是覆写 latest truth
+- 这样收口后：
+  - `closeout-release` 仍能按 `24 -> cached 31` fail-fast
+  - `freeze-status` 重新稳定看到 `RECENT_BILLING_BLOCK`
+  - 瞬时 query noise 仍保留在 sidecar，便于后续诊断，但不会再污染主状态文件

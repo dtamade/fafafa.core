@@ -8,6 +8,8 @@ BILLING_WINDOW_HOURS="${SIMD_WIN_PREFLIGHT_BILLING_WINDOW_HOURS:-24}"
 PREFLIGHT_LOG_DIR="${SIMD_WIN_PREFLIGHT_LOG_DIR:-${ROOT}/logs}"
 PREFLIGHT_JSON_FILE="${SIMD_WIN_PREFLIGHT_JSON_FILE:-${PREFLIGHT_LOG_DIR}/win_preflight_latest.json}"
 PREFLIGHT_MD_FILE="${SIMD_WIN_PREFLIGHT_MD_FILE:-${PREFLIGHT_LOG_DIR}/win_preflight_latest.md}"
+PREFLIGHT_DIAGNOSTIC_JSON_FILE="${SIMD_WIN_PREFLIGHT_DIAGNOSTIC_JSON_FILE:-${PREFLIGHT_LOG_DIR}/win_preflight_latest.diagnostic.json}"
+PREFLIGHT_DIAGNOSTIC_MD_FILE="${SIMD_WIN_PREFLIGHT_DIAGNOSTIC_MD_FILE:-${PREFLIGHT_LOG_DIR}/win_preflight_latest.diagnostic.md}"
 
 LRepo=""
 LRepoSource=""
@@ -42,6 +44,8 @@ write_report() {
   local aCode
   local aExitCode
   local aMessage
+  local aJsonFile
+  local aMdFile
   local LTs
   local LRepoSafe
   local LMessageEscaped
@@ -50,13 +54,15 @@ write_report() {
   aCode="$2"
   aExitCode="$3"
   aMessage="$4"
+  aJsonFile="${5:-${PREFLIGHT_JSON_FILE}}"
+  aMdFile="${6:-${PREFLIGHT_MD_FILE}}"
 
   mkdir -p "${PREFLIGHT_LOG_DIR}"
   LTs="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
   LRepoSafe="${LRepo:-}"
   LMessageEscaped="$(json_escape "${aMessage}")"
 
-  cat > "${PREFLIGHT_JSON_FILE}" <<EOF
+  cat > "${aJsonFile}" <<EOF
 {
   "checked_at_utc": "${LTs}",
   "status": "${aStatus}",
@@ -70,7 +76,7 @@ write_report() {
 }
 EOF
 
-  cat > "${PREFLIGHT_MD_FILE}" <<EOF
+  cat > "${aMdFile}" <<EOF
 # SIMD Windows Evidence Preflight (latest)
 
 - Checked (UTC): ${LTs}
@@ -88,6 +94,44 @@ ${aMessage}
 EOF
 }
 
+latest_report_is_recent_billing_block() {
+  python3 - "${PREFLIGHT_JSON_FILE}" "${BILLING_WINDOW_HOURS}" <<'PY'
+import json
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+path = Path(sys.argv[1])
+window_hours = float(sys.argv[2])
+if not path.is_file():
+    sys.exit(1)
+
+try:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+except Exception:
+    sys.exit(1)
+
+if str(payload.get("status", "")).strip().upper() != "FAIL":
+    sys.exit(1)
+if str(payload.get("code", "")).strip() != "RECENT_BILLING_BLOCK":
+    sys.exit(1)
+
+checked_raw = str(payload.get("checked_at_utc", "")).strip()
+if not checked_raw:
+    sys.exit(1)
+
+try:
+    checked_at = datetime.strptime(checked_raw, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+except ValueError:
+    sys.exit(1)
+
+age_hours = (datetime.now(timezone.utc) - checked_at).total_seconds() / 3600.0
+if age_hours > window_hours:
+    sys.exit(1)
+sys.exit(0)
+PY
+}
+
 fail_with() {
   local aExitCode
   local aCode
@@ -96,6 +140,18 @@ fail_with() {
   aExitCode="$1"
   aCode="$2"
   aMessage="$3"
+
+  if [[ "${aCode}" == "WORKFLOW_QUERY_FAILED" ]] && latest_report_is_recent_billing_block; then
+    write_report "FAIL" "${aCode}" "${aExitCode}" "${aMessage}" "${PREFLIGHT_DIAGNOSTIC_JSON_FILE}" "${PREFLIGHT_DIAGNOSTIC_MD_FILE}"
+    echo "[PREFLIGHT] STATUS=FAIL CODE=${aCode} EXIT=${aExitCode}"
+    echo "[PREFLIGHT] ${aMessage}"
+    echo "[PREFLIGHT] preserving latest RECENT_BILLING_BLOCK report; writing transient diagnostic sidecar"
+    echo "[PREFLIGHT] preserved-latest-json=${PREFLIGHT_JSON_FILE}"
+    echo "[PREFLIGHT] preserved-latest-md=${PREFLIGHT_MD_FILE}"
+    echo "[PREFLIGHT] diagnostic-json=${PREFLIGHT_DIAGNOSTIC_JSON_FILE}"
+    echo "[PREFLIGHT] diagnostic-md=${PREFLIGHT_DIAGNOSTIC_MD_FILE}"
+    exit "${aExitCode}"
+  fi
 
   write_report "FAIL" "${aCode}" "${aExitCode}" "${aMessage}"
   echo "[PREFLIGHT] STATUS=FAIL CODE=${aCode} EXIT=${aExitCode}"

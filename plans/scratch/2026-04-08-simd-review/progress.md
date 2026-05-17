@@ -8992,3 +8992,52 @@
   - `closeout-release` 顶层 operator truth 已收正，不再把 query noise 误报成主状态
   - Linux/mainline 仍是绿的
   - cross 仍未闭环，但剩余 blocker 已重新收敛成外部 Windows evidence/billing，可继续按真实 Windows runner 或 billing 恢复后再刷 fresh evidence
+
+## 2026-05-17 Preserve Win-Preflight Latest Truth When Live Query Fails
+
+- 在上一批把 `closeout-release` 顶层入口收成 `24 -> cached 31` 之后，我又做了一次真实 completion audit，结果发现还有一条更细的 truth-split：
+  - standalone `win-evidence-preflight` 可以 fresh 打出 `RECENT_BILLING_BLOCK`
+  - 但 `closeout-release` 里的 live preflight 若再次撞到 `WORKFLOW_QUERY_FAILED`
+  - 它虽然已经会在 stdout 上按 cached billing-block 停机
+  - 却仍会把 `tests/fafafa.core.simd/logs/win_preflight_latest.json` 覆写成 `WORKFLOW_QUERY_FAILED`
+  - 于是 `freeze-status` 下一次又会把 `windows_preflight_latest` 对外报成 query error
+- 这轮只收这个 residual，没有再扩 scope。
+- 已落地修法：
+  - `tests/fafafa.core.simd/preflight_windows_b07_evidence_gh.sh`
+    - 新增 `PREFLIGHT_DIAGNOSTIC_{JSON,MD}_FILE`
+    - `write_report()` 现在支持显式输出目标文件
+    - 新增 `latest_report_is_recent_billing_block()`
+    - 当新结果是 `WORKFLOW_QUERY_FAILED`、且当前 latest 仍是 fresh `RECENT_BILLING_BLOCK` 时：
+      - 保留 `win_preflight_latest.{json,md}` 不变
+      - 把这次瞬时 query failure 写入 `win_preflight_latest.diagnostic.{json,md}`
+      - stdout 明确打印 `preserving latest RECENT_BILLING_BLOCK report`
+  - `tests/fafafa.core.simd/rehearse_win_preflight_preserve_latest_on_query_failure.sh`
+    - 新增 focused rehearsal，专门守“latest truth 不被 query noise 覆写”这条边界
+- 已验证：
+  - `git diff --check`
+  - `bash -n tests/fafafa.core.simd/preflight_windows_b07_evidence_gh.sh`
+  - `bash -n tests/fafafa.core.simd/rehearse_win_preflight_preserve_latest_on_query_failure.sh`
+  - `bash tests/fafafa.core.simd/rehearse_win_preflight_preserve_latest_on_query_failure.sh`
+    - `[PREFLIGHT-PRESERVE-LATEST] OK`
+  - 真实链路复验：
+    - `bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`
+      - fresh 返回 `RECENT_BILLING_BLOCK EXIT=31`
+    - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-20260517-152`
+      - live preflight 再次返回 `WORKFLOW_QUERY_FAILED EXIT=24`
+      - 但现在会明确打印：
+        - `preserving latest RECENT_BILLING_BLOCK report; writing transient diagnostic sidecar`
+      - 顶层仍正确 `exit=31`
+    - `cat tests/fafafa.core.simd/logs/win_preflight_latest.json`
+      - latest 仍保持 `code=RECENT_BILLING_BLOCK`
+    - `cat tests/fafafa.core.simd/logs/win_preflight_latest.diagnostic.json`
+      - diagnostic sidecar 记录 `code=WORKFLOW_QUERY_FAILED`
+    - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+      - `windows_preflight_latest` 重新稳定显示 `RECENT_BILLING_BLOCK`
+      - next-actions 重新收敛成：
+        - 处理 GitHub Billing / 切真实 Windows runner
+        - `win-evidence-preflight`
+        - `win-closeout-3cmd`
+- 当前阶段结论：
+  - `closeout-release` 与 `freeze-status` 现在共享同一份 Windows blocked truth
+  - repo 内还能继续修的 preflight/evidence 信号链残差又收掉了一层
+  - 当前剩余 cross 红点重新只剩外部 Windows evidence freshness 与现有坏 `windows_b07_gate.log` 的真实替换，而不是 latest preflight truth 再次漂移
