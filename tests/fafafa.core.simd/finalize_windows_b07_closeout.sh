@@ -83,10 +83,20 @@ extract_metric_value() {
   echo "${aLine}" | sed -E 's/.*:[[:space:]]*([0-9]+).*/\1/'
 }
 
+extract_first_nonempty_line_from_text() {
+  local aText
+
+  aText="$1"
+  printf '%s\n' "${aText}" | tr -d '\r' | sed -E '/^[[:space:]]*$/d' | head -n 1
+}
+
 LVerifierRc=0
 LVerifierOutput=""
 LVerifierResult="PASS"
 LVerifierDetail=""
+LVerifierFirstIssue=""
+LFailureHint=""
+LFailureAction=""
 LVerifierCommand="bash tests/fafafa.core.simd/verify_windows_b07_evidence.sh \"${LOG_PATH}\""
 
 set +e
@@ -106,6 +116,10 @@ fi
 LVerifierDetail="$(printf '%s' "${LVerifierOutput}" | tr '\n' ' ' | sed -E 's/[[:space:]]+/ /g' | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')"
 if [[ -z "${LVerifierDetail}" ]]; then
   LVerifierDetail="n/a"
+fi
+LVerifierFirstIssue="$(extract_first_nonempty_line_from_text "${LVerifierOutput}")"
+if [[ -z "${LVerifierFirstIssue}" ]]; then
+  LVerifierFirstIssue="n/a"
 fi
 
 LStarted="$(extract_last_line '^\[B07\][[:space:]]+Started:' "${CHECK_LOG_PATH}")"
@@ -129,6 +143,21 @@ LTotal="$(extract_metric_value "${LTotalLine}")"
 LPassed="$(extract_metric_value "${LPassedLine}")"
 LFailed="$(extract_metric_value "${LFailedLine}")"
 
+LFailureHint="$(extract_last_line '^\[BUILD\][[:space:]]+TOOLCHAIN BLOCK:.*$' "${CHECK_LOG_PATH}")"
+if [[ -z "${LFailureHint}" ]]; then
+  LFailureHint="$(extract_last_line '^Can'\''t recognize .*$' "${CHECK_LOG_PATH}")"
+fi
+if [[ -z "${LFailureHint}" && -n "${LVerifierFirstIssue}" && "${LVerifierFirstIssue}" != "n/a" ]]; then
+  LFailureHint="${LVerifierFirstIssue}"
+fi
+if [[ -n "${LFailureHint}" ]]; then
+  if [[ "${LFailureHint}" == *"TOOLCHAIN BLOCK"* ]] || [[ "${LFailureHint}" == *"lazbuild"* ]] || [[ "${LFailureHint}" == *"Can't recognize"* ]]; then
+    LFailureAction="Provide a real Windows runner with native Windows lazbuild.exe, or set LAZBUILD to a Windows .exe/.bat/.cmd wrapper; Wine/cmd cannot execute Linux lazbuild."
+  else
+    LFailureAction="Run tests\\\\fafafa.core.simd\\\\buildOrTest.bat evidence-win-verify on a real Windows runner, then rerun finalize-win-evidence."
+  fi
+fi
+
 mkdir -p "$(dirname "${OUT_PATH}")"
 
 cat > "${OUT_PATH}" <<EOM
@@ -150,7 +179,21 @@ cat > "${OUT_PATH}" <<EOM
 - Verifier: ${VERIFIER}
 - Command: ${LVerifierCommand}
 - Result: ${LVerifierResult}
+- First Verifier Issue: ${LVerifierFirstIssue}
 - Detail: ${LVerifierDetail}
+EOM
+
+if [[ "${LVerifierRc}" -ne 0 ]]; then
+cat >> "${OUT_PATH}" <<EOM
+
+## Failure Boundary
+
+- Root Cause Hint: ${LFailureHint:-n/a}
+- Recommended Action: ${LFailureAction:-Run tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify again and inspect the refreshed Windows log.}
+EOM
+fi
+
+cat >> "${OUT_PATH}" <<EOM
 
 ## Next Doc Updates
 

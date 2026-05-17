@@ -9476,3 +9476,51 @@
 - 当前阶段结论：
   - active 顶层状态文档已经重新和 current freeze truth 对齐
   - canonical Windows evidence 现在也重新处于 fresh current FAIL，而不是 stale historical FAIL
+
+## 2026-05-17 Windows Closeout Summary Root-Cause Sync
+
+- 继续做 completion audit 时，我发现 `windows_b07_closeout_summary.md` 虽然已经是 current summary，但它本身的信息密度还不够：
+  - 主要只是在堆 verifier 缺失项
+  - 没有把真正的 `TOOLCHAIN BLOCK` 提炼成单独的失败边界
+  - 也没有把“需要 native Windows `LAZBUILD` / real Windows runner”写成显式动作
+- 这会导致一个问题：
+  - `freeze-status` 已经能说清 root cause
+  - 但如果维护者直接打开 `windows_b07_closeout_summary.md`
+  - 仍然要自己从大段 `[EVIDENCE] Missing pattern` 里倒推真正边界
+- 已落地的最小修法：
+  - `tests/fafafa.core.simd/finalize_windows_b07_closeout.sh`
+    - 现在额外提取：
+      - `First Verifier Issue`
+      - `Root Cause Hint`
+      - `Recommended Action`
+    - 若当前 log 命中 `TOOLCHAIN BLOCK` / `Can't recognize lazbuild`
+      - summary 会新增 `## Failure Boundary`
+      - 并明确给出：
+        - `Provide a real Windows runner with native Windows lazbuild.exe...`
+  - `tests/fafafa.core.simd/rehearse_windows_closeout_summary.sh`
+    - 新增 fail-case rehearsal
+    - 专门守住 `TOOLCHAIN BLOCK -> Failure Boundary -> Recommended Action` 这条 summary 生成链
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - `gate-summary-selfcheck` 现在也会执行这条新的 summary rehearsal
+- 已验证：
+  - `bash -n tests/fafafa.core.simd/finalize_windows_b07_closeout.sh`
+  - `bash -n tests/fafafa.core.simd/rehearse_windows_closeout_summary.sh`
+  - `bash -n tests/fafafa.core.simd/BuildOrTest.sh`
+  - `bash tests/fafafa.core.simd/rehearse_windows_closeout_summary.sh`
+    - `[WIN-CLOSEOUT-SUMMARY-REHEARSAL] OK`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate-summary-selfcheck`
+    - `[GATE-SUMMARY-SELFCHECK] OK`
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence`
+    - 当前 canonical `windows_b07_closeout_summary.md` 已刷新到 `2026-05-17 18:17:54`
+    - 其中现在已包含：
+      - `First Verifier Issue: [EVIDENCE] Missing pattern: [GATE] OK`
+      - `## Failure Boundary`
+      - `Root Cause Hint: [BUILD] TOOLCHAIN BLOCK: cmd.exe cannot resolve LAZBUILD command "lazbuild"`
+      - `Recommended Action: Provide a real Windows runner with native Windows lazbuild.exe...`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+    - 当前仍是 `ready=False`
+    - 但 `windows_closeout_summary_not_older_than_log = PASS`
+    - `windows_closeout_summary = PASS summary matches verifier FAIL`
+- 当前阶段结论：
+  - current Windows closeout summary 现在已经从“低信号 FAIL 摘要”提升成“可直接交接的失败边界摘要”
+  - 这条 Windows closeout 证据链在 repo 内的 operator-facing 文档 / helper / guard / summary 四层口径现在已经基本统一
