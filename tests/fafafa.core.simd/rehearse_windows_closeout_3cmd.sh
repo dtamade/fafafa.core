@@ -49,6 +49,18 @@ if ! grep -F -- "closeout-release SIMD-REHEARSAL-152" "${LCaseBlocked}/stdout.tx
   exit 1
 fi
 
+if ! grep -F -- "native Windows \`lazbuild.exe\`" "${LCaseBlocked}/stdout.txt" >/dev/null; then
+  echo "[WIN-CLOSEOUT-3CMD-REHEARSAL] FAILED: blocked case missing native lazbuild requirement"
+  cat "${LCaseBlocked}/stdout.txt"
+  exit 1
+fi
+
+if ! grep -F -- "\$env:LAZBUILD = 'C:\\Lazarus\\lazbuild.exe'" "${LCaseBlocked}/stdout.txt" >/dev/null; then
+  echo "[WIN-CLOSEOUT-3CMD-REHEARSAL] FAILED: blocked case missing LAZBUILD override snippet"
+  cat "${LCaseBlocked}/stdout.txt"
+  exit 1
+fi
+
 LCasePass="${LTmpRoot}/case_pass"
 mkdir -p "${LCasePass}/logs"
 cp "${HELPER}" "${LCasePass}/print_windows_b07_closeout_3cmd.sh"
@@ -77,5 +89,10 @@ if ! grep -F -- "closeout-release SIMD-REHEARSAL-OK" "${LCasePass}/stdout.txt" >
   exit 1
 fi
 
-echo "[WIN-CLOSEOUT-3CMD-REHEARSAL] OK"
+if ! grep -F -- "native Windows \`lazbuild.exe\`" "${LCasePass}/stdout.txt" >/dev/null; then
+  echo "[WIN-CLOSEOUT-3CMD-REHEARSAL] FAILED: pass case missing native lazbuild requirement"
+  cat "${LCasePass}/stdout.txt"
+  exit 1
+fi
 
+echo "[WIN-CLOSEOUT-3CMD-REHEARSAL] OK"

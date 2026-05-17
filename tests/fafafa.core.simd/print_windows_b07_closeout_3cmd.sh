@@ -29,7 +29,9 @@ cat <<'EOM' | sed "s/__BATCH_ID__/${LBatchId}/g"
    FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh __BATCH_ID__
 
 2) 若你走手工 Windows 实机路径：
-   2.1 Windows PowerShell 采集+校验证据
+   2.1 Windows PowerShell 采集+校验证据（前提：本机能直接执行 native Windows `lazbuild.exe`，不要拿 Wine/cmd 冒充实机）
+       # 若 Lazarus 不在默认路径，先显式指定 Windows lazbuild / wrapper：
+       # $env:LAZBUILD = 'C:\Lazarus\lazbuild.exe'
        $env:FAFAFA_BUILD_MODE = 'Release'
        tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify
    2.2 Git Bash / WSL 回灌 cross gate（必需，native batch evidence 不会生成 fresh gate_summary）
@@ -45,6 +47,7 @@ cat <<'EOM' | sed "s/__BATCH_ID__/${LBatchId}/g"
 - 默认 `win-evidence-via-gh` 会消费远端 ref；若本地还有未提交/未推送的 closeout 修复，它会直接拒绝 dispatch，避免跑一轮注定失败的 Windows runner。
 - 若你手里已有现成 GH Actions `run-id`，可直接执行 `... win-evidence-via-gh __BATCH_ID__ <run-id>` 复用旧 run；这条旁路不会因为本地 dirty worktree / remote ref mismatch 被拒绝。
 - 本机 Wine 只适合作为 Windows batch smoke / 日志新鲜度探针；它不能替代真实 Windows evidence runner，也不能把 fresh 但 invalid 的 `windows_b07_gate.log` 直接带进 finalize。
+- 手工 Windows 实机路径里的 `LAZBUILD` 必须解析到 native Windows `.exe/.bat/.cmd`；不要把它指到 `Z:\opt\...` 这类 Wine 可见但 `cmd.exe` 不能执行的 Linux ELF。
 - `win-evidence-via-gh` 在下载并校验证据后，会自动补一轮 `SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1` + `SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1` 的 Linux cross gate，再进入 closeout finalize。
 - 手工 Windows 实机路径必须先显式补一轮 `SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1` + `SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1` 的 Linux cross gate；`win-closeout-finalize` 自己不会回灌 gate。
 - `win-closeout-finalize` 内部顺序：finalize -> freeze-status -> apply（freeze PASS 才会回填文档）。

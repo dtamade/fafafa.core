@@ -9299,3 +9299,42 @@
   - 当前 remaining gap 继续只剩外部条件：
     - `RECENT_BILLING_BLOCK`
     - 真实 Windows runner / native Windows `lazbuild.exe`
+
+## 2026-05-17 Closeout 3cmd Native-Lazbuild Requirement Sync
+
+- 在上一批把 `TOOLCHAIN BLOCK` 落进 current Windows log 之后，我继续审查 active closeout 入口，确认还有一个相邻误导点：
+  - `win-closeout-3cmd` 已经说了 “Wine 不算真实 Windows evidence runner”
+  - 但手工 Windows 路径的 `2.1 tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify`
+  - 还没有把“必须具备 native Windows `lazbuild.exe` / Windows wrapper”说成硬前提
+- 这会留下一个很现实的误导空间：
+  - 读者虽然知道 Wine 不算最终 evidence runner
+  - 但仍可能把 `2.1` 误解成“任何能开 `cmd.exe` 的环境都能先跑”
+  - 结果又回到刚收掉的 `TOOLCHAIN BLOCK`
+- 已落地的最小修法：
+  - `tests/fafafa.core.simd/print_windows_b07_closeout_3cmd.sh`
+    - `2.1` 现在明确写成：
+      - 前提：本机能直接执行 native Windows `lazbuild.exe`
+      - 不要拿 Wine/cmd 冒充实机
+    - 同时给出显式 override 片段：
+      - `$env:LAZBUILD = 'C:\Lazarus\lazbuild.exe'`
+    - 说明区再补一条硬约束：
+      - `LAZBUILD` 必须解析到 native Windows `.exe/.bat/.cmd`
+      - 不要指向 `Z:\opt\...` 这种 Wine 可见但 `cmd.exe` 不能执行的 Linux ELF
+  - `tests/fafafa.core.simd/rehearse_windows_closeout_3cmd.sh`
+    - blocked/pass 两个 case 都新增断言
+    - 强制要求 helper 输出里必须保留：
+      - `native Windows \`lazbuild.exe\``
+      - `LAZBUILD` override snippet
+- 已验证：
+  - `git diff --check`
+  - `bash tests/fafafa.core.simd/rehearse_windows_closeout_3cmd.sh`
+    - `[WIN-CLOSEOUT-3CMD-REHEARSAL] OK`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-3cmd SIMD-20260517-152`
+    - helper 输出已带上 native Windows lazbuild requirement 与 `LAZBUILD` override
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate-summary-selfcheck`
+    - `[GATE-SUMMARY-SELFCHECK] OK`
+- 当前阶段结论：
+  - active closeout helper 现在已经把“手工 Windows 实机路径的 toolchain 前提”说清楚了
+  - 当前 remaining gap 仍然没有变化，继续只剩外部条件：
+    - `RECENT_BILLING_BLOCK`
+    - 真实 Windows runner / native Windows `lazbuild.exe`
