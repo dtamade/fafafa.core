@@ -6,6 +6,15 @@
 > It is no longer part of the active whole-module execution chain.
 > Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
 
+> Current HEAD note (2026-05-17):
+> This Linux finalization plan is historical context, not the current
+> repository status. Linux/mainline is currently green, but latest
+> `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+> still remains `ready=False / mainline-ready=True / cross-ready=False` because
+> the Windows evidence side is blocked by `RECENT_BILLING_BLOCK` and
+> `cmd.exe cannot resolve LAZBUILD command "lazbuild"`. For current operator
+> truth, use `docs/fafafa.core.simd.closeout.md` and
+> `tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`.
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
@@ -20,12 +29,14 @@
 ### Task 0: 复扫缺口快照（仅记录，不修全仓）
 
 **Files:**
+
 - Update: `findings.md`
 - Update: `progress.md`
 
 **Step 1: 统计规模**
 
 Run:
+
 ```bash
 rg --files src tests examples benchmarks docs | wc -l
 ```
@@ -33,6 +44,7 @@ rg --files src tests examples benchmarks docs | wc -l
 **Step 2: src 未完成项计数**
 
 Run:
+
 ```bash
 rg -n --glob 'src/**/*.pas' 'TODO|FIXME|XXX|HACK|未实现|待实现|暂未|placeholder' src | wc -l
 ```
@@ -40,6 +52,7 @@ rg -n --glob 'src/**/*.pas' 'TODO|FIXME|XXX|HACK|未实现|待实现|暂未|plac
 **Step 3: tests 未完成项计数**
 
 Run:
+
 ```bash
 rg -n --glob 'tests/**/*.pas' 'TODO|FIXME|XXX|HACK|未实现|待实现|暂未|placeholder' tests | wc -l
 ```
@@ -49,16 +62,19 @@ rg -n --glob 'tests/**/*.pas' 'TODO|FIXME|XXX|HACK|未实现|待实现|暂未|pl
 ### Task 1: SIMD Gate（Linux 主线验证）
 
 **Files:**
+
 - (none)
 
 **Step 1: 执行 gate**
 
 Run:
+
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh gate
 ```
 
 Expected:
+
 - `[GATE] OK`
 - `tests/_run_all_logs_sh` 中有 `=fafafa.core.simd` / `=fafafa.core.simd.cpuinfo` / `=fafafa.core.simd.cpuinfo.x86` 的过滤执行证据。
 
@@ -67,16 +83,19 @@ Expected:
 ### Task 2: Evidence（Linux 留证据）
 
 **Files:**
+
 - (none)
 
 **Step 1: 产出 evidence 目录**
 
 Run:
+
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh evidence-linux
 ```
 
 Expected:
+
 - 输出新目录：`tests/fafafa.core.simd/logs/evidence-YYYYMMDD-HHMMSS/`
 - `summary.md` 包含 sse/mmx/coverage/wiring-sync/perf-smoke/gate 关键摘要。
 
@@ -85,16 +104,19 @@ Expected:
 ### Task 3: Freeze Status（Linux 就绪度）
 
 **Files:**
+
 - (none)
 
 **Step 1: 仅 Linux 冻结检查**
 
 Run:
+
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-linux
 ```
 
 Expected:
+
 - `ready=True`（Linux-only）。
 
 ---
@@ -102,12 +124,15 @@ Expected:
 ### Task 4: 修正 `AGENTS.md` 中 SIMD CPUInfo 运行指引（与仓库实际一致）
 
 **Files:**
+
 - Modify: `AGENTS.md`
 
 **Step 1: RED（发现文档与仓库不一致）**
+
 - 事实：仓库根不存在 `test/` 目录，但 `AGENTS.md` 当前引用 `test\\run_cpuinfo_tests.lpr` 等路径。
 
 **Step 2: GREEN（最小修正，保持结构不大改）**
+
 - 将 “SIMD CPU 信息子系统” 的独立 `test/` 路径改为当前仓库真实入口：
   - `bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --list-suites`
   - `bash tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh test --list-suites`
@@ -116,9 +141,11 @@ Expected:
 **Step 3: Verify**
 
 Run:
+
 ```bash
 rg -n 'test\\\\run_cpuinfo_tests|test\\\\test_cpuinfo' AGENTS.md || true
 ```
 
 Expected:
+
 - 无匹配（旧路径引用被清理）。

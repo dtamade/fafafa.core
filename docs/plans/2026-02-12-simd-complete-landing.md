@@ -6,6 +6,16 @@
 > It is no longer part of the active whole-module execution chain.
 > Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
 
+> Current HEAD note (2026-05-17):
+> This landing plan is historical context, not the current repository status.
+> Latest
+> `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+> remains `ready=False / mainline-ready=True / cross-ready=False`, with
+> `win-evidence-preflight=RECENT_BILLING_BLOCK` and
+> `windows_evidence_verify` failing at
+> `cmd.exe cannot resolve LAZBUILD command "lazbuild"`. For current operator
+> truth, use `docs/fafafa.core.simd.closeout.md` and
+> `tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`.
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
@@ -18,6 +28,7 @@
 ---
 
 ## Agent Team（角色分工）
+
 - **Implementer（代码）**：只做最小改动让门禁恢复绿；所有行为变化必须先写失败测试再修复（严格 TDD）。
 - **Reviewer（审查）**：检查是否触碰 `src/fafafa.core.simd.STABLE` 的稳定性约束、是否引入 warning/hint、是否破坏 dispatch table 布局与跨平台语义。
 - **Coordinator（推进/计划）**：维护 `task_plan.md/findings.md/progress.md`，确保每一步命令与输出可追溯；遇到 Windows-only 阻塞时立即停下并给“复制即跑”闭环命令。
@@ -25,28 +36,33 @@
 ### Task 1: Linux SIMD Gate（全链路，strict）
 
 **Files:**
+
 - Verify: `tests/fafafa.core.simd/BuildOrTest.sh`
 - Logs (ignored): `tests/fafafa.core.simd/logs/`
 
 **Step 1: Baseline check（必须先跑）**
 
 Run:
+
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh check
 ```
 
 Expected:
+
 - `[BUILD] OK`
 - `[CHECK] OK (no SIMD-unit warnings/hints)`
 
 **Step 2: Gate（开启 wiring-sync + strict coverage + perf-smoke）**
 
 Run:
+
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
 ```
 
 Expected:
+
 - `[GATE] OK`
 - wiring-sync summary `missing=0 extra=0 markers_missing=0`
 - coverage summary `missing=0 extra=0`
@@ -55,21 +71,25 @@ Expected:
 **Step 3: Freeze status（Linux-only）**
 
 Run:
+
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-linux
 ```
 
 Expected:
+
 - `ready=True`
 
 **Step 4: Evidence（Linux）**
 
 Run:
+
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh evidence-linux
 ```
 
 Expected:
+
 - 输出 `EVIDENCE DONE: .../logs/evidence-*/`
 - 输出 `EVIDENCE SUMMARY: .../summary.md`
 
@@ -78,6 +98,7 @@ Expected:
 ### Task 2: Windows Evidence Closeout（跨平台冻结，需 Windows 实机）
 
 **Files:**
+
 - Read: `docs/plans/2026-02-09-simd-windows-closeout-checklist.md`
 - Evidence log (generated): `tests/fafafa.core.simd/logs/windows_b07_gate.log`
 - Summary (generated): `tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`
@@ -87,29 +108,35 @@ Expected:
 **Step 1: 输出“复制即跑”三命令**
 
 Run (Linux):
+
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-3cmd SIMD-<YYYYMMDD>-<NNN>
 ```
 
 Expected:
+
 - 打印 PowerShell + Git Bash/WSL 3 条命令。
 
 **Step 2: Windows 实机执行（需要用户提供日志产物）**
 
 Run (Windows PowerShell):
+
 ```bat
 tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify
 ```
 
 Then (Git Bash / WSL):
+
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence
 bash tests/fafafa.core.simd/apply_windows_b07_closeout_updates.sh --apply --batch-id SIMD-<YYYYMMDD>-<NNN>
 ```
 
 Expected:
+
 - `tests/fafafa.core.simd/logs/windows_b07_gate.log` 存在且包含 `GATE OK`
 - `freeze-status`（cross-platform）输出 `ready=True`
 
 **Stop Condition (blocker):**
+
 - 如果没有 Windows 环境或无法产出 `windows_b07_gate.log`，此任务只能保持 PENDING，禁止用 simulated log 关闭 P0。
