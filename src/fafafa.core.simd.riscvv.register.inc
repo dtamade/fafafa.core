@@ -476,10 +476,11 @@ begin
 
   // Wide Float Select
   {$IFDEF RISCVV_ASSEMBLY}
+  // Keep the 128-bit representative shuffle leaf on RISCVV. The wider
+  // SelectF32x8/F64x4/I32x4 variants do not currently provide distinct
+  // non-scalar semantics, so they continue to reuse the seeded base scalar
+  // slots until real RVV-specific implementations exist.
   table.SelectF64x2 := @RISCVVSelectF64x2;
-  table.SelectF32x8 := @RISCVVSelectF32x8;
-  table.SelectF64x4 := @RISCVVSelectF64x4;
-  table.SelectI32x4 := @RISCVVSelectI32x4;
   {$ENDIF}
 
   // I64x2 Comparison

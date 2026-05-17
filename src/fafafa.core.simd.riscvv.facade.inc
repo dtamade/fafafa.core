@@ -2529,24 +2529,9 @@ begin
     Result.d[i] := Round(a.d[i]);
 end;
 
-function RISCVVSelectF32x8(const mask: TVecU32x8; const a, b: TVecF32x8): TVecF32x8;
-begin
-  Result := ScalarSelectF32x8(mask, a, b);
-end;
-
 function RISCVVSelectF64x2(const mask: TMask2; const a, b: TVecF64x2): TVecF64x2;
 begin
   Result := ScalarSelectF64x2(mask, a, b);
-end;
-
-function RISCVVSelectF64x4(const mask: TVecU64x4; const a, b: TVecF64x4): TVecF64x4;
-begin
-  Result := ScalarSelectF64x4(mask, a, b);
-end;
-
-function RISCVVSelectI32x4(const mask: TVecI32x4; const a, b: TVecI32x4): TVecI32x4;
-begin
-  Result := ScalarSelectI32x4(mask, a, b);
 end;
 
 function RISCVVShiftLeftI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;

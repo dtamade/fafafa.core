@@ -8682,6 +8682,12 @@ begin
   AssertDeadWrapperRemoved('ToUpperAscii_RISCVV', 'procedure ToUpperAscii_RISCVV(');
   AssertDeadWrapperRemoved('BytesIndexOf_RISCVV', 'function BytesIndexOf_RISCVV(');
   AssertDeadWrapperRemoved('BitsetPopCount_RISCVV', 'function BitsetPopCount_RISCVV(');
+  AssertDeadWrapperRemoved('RISCVVSelectF32x8 wide dispatch wrapper',
+    'function RISCVVSelectF32x8(const mask: TVecU32x8; const a, b: TVecF32x8): TVecF32x8;');
+  AssertDeadWrapperRemoved('RISCVVSelectF64x4 wide dispatch wrapper',
+    'function RISCVVSelectF64x4(const mask: TVecU64x4; const a, b: TVecF64x4): TVecF64x4;');
+  AssertDeadWrapperRemoved('RISCVVSelectI32x4 wide dispatch wrapper',
+    'function RISCVVSelectI32x4(const mask: TVecI32x4; const a, b: TVecI32x4): TVecI32x4;');
 
   AssertRegisterKeepsBaseScalar('MemEqual', 'table.MemEqual := @MemEqual_RISCVV;');
   AssertRegisterKeepsBaseScalar('MemFindByte', 'table.MemFindByte := @MemFindByte_RISCVV;');
@@ -8714,6 +8720,9 @@ begin
   AssertRegisterKeepsBaseScalar('CeilF64x2 backend override', 'table.CeilF64x2 := @RISCVVCeilF64x2;');
   AssertRegisterKeepsBaseScalar('RoundF64x2 backend override', 'table.RoundF64x2 := @RISCVVRoundF64x2;');
   AssertRegisterKeepsBaseScalar('TruncF64x2 backend override', 'table.TruncF64x2 := @RISCVVTruncF64x2;');
+  AssertRegisterKeepsBaseScalar('SelectF32x8', 'table.SelectF32x8 := @RISCVVSelectF32x8;');
+  AssertRegisterKeepsBaseScalar('SelectF64x4', 'table.SelectF64x4 := @RISCVVSelectF64x4;');
+  AssertRegisterKeepsBaseScalar('SelectI32x4', 'table.SelectI32x4 := @RISCVVSelectI32x4;');
   AssertRegisterOwnsBackendSlot('AddF32x4', 'table.AddF32x4 := @RISCVVAddF32x4;');
   AssertRegisterOwnsBackendSlot('DotF64x2', 'table.DotF64x2 := @RISCVVDotF64x2;');
   AssertRegisterOwnsBackendSlot('DotF64x4', 'table.DotF64x4 := @RISCVVDotF64x4;');
@@ -8752,6 +8761,9 @@ begin
   AssertSlotReusesScalar('CeilF64x2', Pointer(LScalarTable.CeilF64x2), Pointer(LRISCVVTable.CeilF64x2));
   AssertSlotReusesScalar('RoundF64x2', Pointer(LScalarTable.RoundF64x2), Pointer(LRISCVVTable.RoundF64x2));
   AssertSlotReusesScalar('TruncF64x2', Pointer(LScalarTable.TruncF64x2), Pointer(LRISCVVTable.TruncF64x2));
+  AssertSlotReusesScalar('SelectF32x8', Pointer(LScalarTable.SelectF32x8), Pointer(LRISCVVTable.SelectF32x8));
+  AssertSlotReusesScalar('SelectF64x4', Pointer(LScalarTable.SelectF64x4), Pointer(LRISCVVTable.SelectF64x4));
+  AssertSlotReusesScalar('SelectI32x4', Pointer(LScalarTable.SelectI32x4), Pointer(LRISCVVTable.SelectI32x4));
   {$IFDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
   AssertSlotKeepsBackendOwnership('AddF32x4', Pointer(LScalarTable.AddF32x4), Pointer(LRISCVVTable.AddF32x4));
   {$ELSE}
@@ -8962,9 +8974,6 @@ begin
   AssertRegisterKeepsBaseScalar('CmpLeU64x8', 'table.CmpLeU64x8 := @RISCVVCmpLeU64x8;');
   AssertRegisterKeepsBaseScalar('CmpGeU64x8', 'table.CmpGeU64x8 := @RISCVVCmpGeU64x8;');
   AssertRegisterKeepsBaseScalar('CmpNeU64x8', 'table.CmpNeU64x8 := @RISCVVCmpNeU64x8;');
-  AssertRegisterOwnsBackendSlot('SelectF32x8', 'table.SelectF32x8 := @RISCVVSelectF32x8;');
-  AssertRegisterOwnsBackendSlot('SelectF64x4', 'table.SelectF64x4 := @RISCVVSelectF64x4;');
-  AssertRegisterOwnsBackendSlot('SelectI32x4', 'table.SelectI32x4 := @RISCVVSelectI32x4;');
   AssertRegisterOwnsBackendSlot('AndNotU8x16', 'table.AndNotU8x16 := @RISCVVAndNotU8x16;');
 
   AssertTrue('Scalar dispatch table should be registered',
@@ -9049,15 +9058,6 @@ begin
   AssertSlotReusesScalar('CmpLeU64x8', Pointer(LScalarTable.CmpLeU64x8), Pointer(LRISCVVTable.CmpLeU64x8));
   AssertSlotReusesScalar('CmpGeU64x8', Pointer(LScalarTable.CmpGeU64x8), Pointer(LRISCVVTable.CmpGeU64x8));
   AssertSlotReusesScalar('CmpNeU64x8', Pointer(LScalarTable.CmpNeU64x8), Pointer(LRISCVVTable.CmpNeU64x8));
-  {$IFDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
-  AssertSlotKeepsBackendOwnership('SelectF32x8', Pointer(LScalarTable.SelectF32x8), Pointer(LRISCVVTable.SelectF32x8));
-  AssertSlotKeepsBackendOwnership('SelectF64x4', Pointer(LScalarTable.SelectF64x4), Pointer(LRISCVVTable.SelectF64x4));
-  AssertSlotKeepsBackendOwnership('SelectI32x4', Pointer(LScalarTable.SelectI32x4), Pointer(LRISCVVTable.SelectI32x4));
-  {$ELSE}
-  AssertSlotReusesScalar('SelectF32x8', Pointer(LScalarTable.SelectF32x8), Pointer(LRISCVVTable.SelectF32x8));
-  AssertSlotReusesScalar('SelectF64x4', Pointer(LScalarTable.SelectF64x4), Pointer(LRISCVVTable.SelectF64x4));
-  AssertSlotReusesScalar('SelectI32x4', Pointer(LScalarTable.SelectI32x4), Pointer(LRISCVVTable.SelectI32x4));
-  {$ENDIF}
   AssertSlotKeepsBackendOwnership('AndNotU8x16', Pointer(LScalarTable.AndNotU8x16), Pointer(LRISCVVTable.AndNotU8x16));
 end;
 
@@ -12964,14 +12964,13 @@ var
   );
   begin
     AssertTrue(aSlotName + ' missing: ' + aBackendName, aBackendSlot <> nil);
-    case aBackend of
-      sbNEON:
-        AssertEquals(aSlotName + ' should intentionally reuse the published scalar slot on ' + aBackendName,
-          PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
+    if (aBackend = sbNEON) or
+       ((aBackend = sbRISCVV) and (aSlotName = 'SelectI32x4')) then
+      AssertEquals(aSlotName + ' should intentionally reuse the published scalar slot on ' + aBackendName,
+        PtrUInt(aScalarSlot), PtrUInt(aBackendSlot))
     else
       AssertTrue(aSlotName + ' unexpectedly falls back to scalar slot: ' + aBackendName,
         aBackendSlot <> aScalarSlot);
-    end;
   end;
 
   procedure AssertNeonReusesScalarOtherwiseNative(const aSlotName: string; const aScalarSlot, aBackendSlot: Pointer);

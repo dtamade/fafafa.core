@@ -2225,17 +2225,6 @@ begin
   RISCVVSelectF64x2Asm(mask, a, b, Result);
 end;
 
-function RISCVVSelectI32x4(const mask: TVecI32x4; const a, b: TVecI32x4): TVecI32x4;
-var
-  LIndex: Integer;
-begin
-  for LIndex := 0 to 3 do
-    if mask.i[LIndex] <> 0 then
-      Result.i[LIndex] := a.i[LIndex]
-    else
-      Result.i[LIndex] := b.i[LIndex];
-end;
-
 // =============================================================
 // 256-bit FMA 操作
 // =============================================================
@@ -3869,28 +3858,6 @@ end;
 // =============================================================
 // Select 256-bit/512-bit 操作
 // =============================================================
-
-function RISCVVSelectF32x8(const mask: TVecU32x8; const a, b: TVecF32x8): TVecF32x8;
-var
-  LIndex: Integer;
-begin
-  for LIndex := 0 to 7 do
-    if mask.u[LIndex] <> 0 then
-      Result.f[LIndex] := a.f[LIndex]
-    else
-      Result.f[LIndex] := b.f[LIndex];
-end;
-
-function RISCVVSelectF64x4(const mask: TVecU64x4; const a, b: TVecF64x4): TVecF64x4;
-var
-  LIndex: Integer;
-begin
-  for LIndex := 0 to 3 do
-    if mask.u[LIndex] <> 0 then
-      Result.d[LIndex] := a.d[LIndex]
-    else
-      Result.d[LIndex] := b.d[LIndex];
-end;
 
 function RISCVVSelectF32x16(const mask: TMask16; const a, b: TVecF32x16): TVecF32x16; assembler; nostackframe;
 asm

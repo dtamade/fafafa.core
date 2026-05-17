@@ -9825,3 +9825,40 @@
     - `docs/fafafa.core.simd.closeout.md`
     - `docs/fafafa.core.simd.checklist.md`
     - 已同步这条新的 readiness discipline
+
+## 2026-05-17 RISCVV Wide Select Asm-Only Wrapper Cleanup
+
+- 继续按“小批次只收一个 residual”的方式切回 non-x86 源码层，先审 `RISCVV` 的 3 个 `asm-only wrapper`：
+  - `SelectF32x8`
+  - `SelectF64x4`
+  - `SelectI32x4`
+- fresh 证据先钉住了它们当前的真实形状：
+  - `src/fafafa.core.simd.riscvv.register.inc` 只在 `{$IFDEF RISCVV_ASSEMBLY}` 下给这 3 个 slot 绑 `@RISCVVSelect*`
+  - no-asm 路径原本已经复用 `FillBaseDispatchTable` 的 base scalar slot
+  - asm build 下对应函数体不是 RVV asm leaf，也不是 helper-owned contract，只是和 scalar 完全同语义的本地 loop
+  - 这 3 个 slot 也不承担 `scShuffle` 的最小代表性 contract；`RISCVV` 的 shuffle capability 仍由 `SelectF32x4 / InsertF32x4 / ExtractF32x4` 这组 128-bit representative shuffle leaf 支撑
+- 因而这批被判定为“真可减冗余”而不是“有意保留 backend-owned ownership”：
+  - 删掉了 `src/fafafa.core.simd.riscvv.pas` 里的 `RISCVVSelectF32x8/F64x4/I32x4` dead wrapper
+  - 删掉了 `src/fafafa.core.simd.riscvv.facade.inc` 里的同名 no-asm companion wrapper
+  - `src/fafafa.core.simd.riscvv.register.inc` 不再在 asm 分支里显式绑定这 3 个 slot，改为继续复用 base scalar
+  - `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py` 去掉了这 3 个 `asm-only wrapper` allowlist 豁免
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 的真相断言已改成：
+    - 这 3 个 wrapper 应该被视为 dead wrapper removed
+    - register source 应继续复用 base scalar
+    - runtime dispatch slot 也应复用 base scalar
+- fresh 验证结果：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+    - `backend=riscvv assignments=470 asm_exact=330 asm_suffix_only=117 wrapper_only=23 ...`
+    - `asm-only wrapper ok: 0`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+    - `NONX86_HELPER_SEMANTICS_SUMMARY checks=643 status=ok`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend riscvv`
+    - `SelectF32x8/SelectF64x4/SelectI32x4` 已切到 `reuse_base_scalar`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+    - `NONX86_IMPL_AUDIT_SUMMARY ... status=ok`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+    - 串行重跑后 `[BUILD] OK / [TEST] OK / [LEAK] OK`
+- 过程中还确认了一个验证纪律问题：
+  - 不要并行跑两个会编译同一个 `fafafa.core.simd.test.lpi` 的 release 命令
+  - 并行时会争抢同一套 build 输出目录，造成假失败；这次单独 `DispatchAPI` 的首次 link fail 就是这种竞争，不是源码回归

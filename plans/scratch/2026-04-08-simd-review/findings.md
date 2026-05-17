@@ -7428,3 +7428,32 @@
   - 不改 required 集
   - 不改 ready 算法
   - 只在 `freeze_ready=True` 时，把 preflight `FAIL` 降格成 non-readiness signal。
+
+## 2026-05-17 RISCVV SelectF32x8/F64x4/I32x4 Were Real Redundant Asm-Only Ownership
+
+- `RISCVV` 当前最值当继续收的源码 residual 不是 `Extract*` 或 helper-owned exact-scalar slots，而是 3 个 `asm-only wrapper`：
+  - `SelectF32x8`
+  - `SelectF64x4`
+  - `SelectI32x4`
+- 这 3 个 slot 的关键真相是：
+  - no-asm 路径本来就已经复用 base scalar
+  - asm path 虽然显式绑了 `@RISCVVSelect*`，但对应函数并不是 RVV asm leaf，也不承载 helper-owned / backend-owned semantic contract
+  - 其函数体只是和 scalar 完全等价的本地 loop，因此只是“asm build 下的假 backend-owned ownership”
+- 与不能动的 `RISCVV Extract*` 不同：
+  - `Extract*` 同时有 asm source companion + no-asm scalar companion，并且 runtime ownership 受现有测试明确约束
+  - 这 3 个 `Select*` 没有这种必须保留的 companion/runtime contract
+- 与不能轻动的 `DotF64x2/DotF64x4`、`AndNot*`、`Min/MaxU64x2` 之类 helper-owned exact-scalar slots 也不同：
+  - 那些 slot 虽然 wrapper-only，但现有测试已明确要求 backend-owned
+  - 这 3 个 `Select*` 没有独立 helper ownership，只是旧 register/source 没继续清理
+- 因此这批正确动作是：
+  - 收回 register ownership 到 `FillBaseDispatchTable`
+  - 删除 dead wrapper
+  - 让 truthfulness checker 和 key-slot audit 一起把这条新 truth 守住
+- fresh 收口后，`RISCVV` 的 register truthfulness 从：
+  - `wrapper_only=26`, `asm-only wrapper ok=3`
+  收到：
+  - `wrapper_only=23`, `asm-only wrapper ok=0`
+- 这说明当前 `RISCVV` 残余 wrapper-only 已进一步缩到：
+  - `always wrapper = 14`
+  - `no-asm wrapper = 9 (全部是 Extract*)`
+  - 已没有剩余的 `asm-only wrapper` 豁免槽位
