@@ -1846,6 +1846,8 @@ def main() -> int:
         checks.append(CheckItem("roadmap_windows_closed", False, "FAIL", f"missing doc: {roadmap_doc}"))
 
     rc_closed = check_line_markdown_x(rc_doc, "Windows 实机证据日志已归档")
+    if rc_closed is False:
+        rc_closed = check_line_markdown_x(rc_doc, "Windows 实机证据日志曾归档")
     if rc_closed is True:
         checks.append(
             CheckItem(
