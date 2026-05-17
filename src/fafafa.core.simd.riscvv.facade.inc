@@ -1378,20 +1378,6 @@ begin
   Result := ScalarClampF32x8(a, minVal, maxVal);
 end;
 
-function RISCVVClampF64x2(const a, minVal, maxVal: TVecF64x2): TVecF64x2;
-var i: Integer;
-begin
-  for i := 0 to 1 do
-  begin
-    if a.d[i] < minVal.d[i] then
-      Result.d[i] := minVal.d[i]
-    else if a.d[i] > maxVal.d[i] then
-      Result.d[i] := maxVal.d[i]
-    else
-      Result.d[i] := a.d[i];
-  end;
-end;
-
 function RISCVVClampF64x4(const a, minVal, maxVal: TVecF64x4): TVecF64x4;
 var i: Integer;
 begin
@@ -2028,16 +2014,6 @@ begin
       Result.f[i] := b.f[i];
 end;
 
-function RISCVVMaxF64x2(const a, b: TVecF64x2): TVecF64x2;
-var i: Integer;
-begin
-  for i := 0 to 1 do
-    if a.d[i] > b.d[i] then
-      Result.d[i] := a.d[i]
-    else
-      Result.d[i] := b.d[i];
-end;
-
 function RISCVVMaxF64x4(const a, b: TVecF64x4): TVecF64x4;
 var i: Integer;
 begin
@@ -2101,16 +2077,6 @@ begin
       Result.f[i] := a.f[i]
     else
       Result.f[i] := b.f[i];
-end;
-
-function RISCVVMinF64x2(const a, b: TVecF64x2): TVecF64x2;
-var i: Integer;
-begin
-  for i := 0 to 1 do
-    if a.d[i] < b.d[i] then
-      Result.d[i] := a.d[i]
-    else
-      Result.d[i] := b.d[i];
 end;
 
 function RISCVVMinF64x4(const a, b: TVecF64x4): TVecF64x4;

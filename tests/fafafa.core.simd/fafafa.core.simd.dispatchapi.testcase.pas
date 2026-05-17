@@ -172,10 +172,10 @@ type
     procedure Test_RISCVV_ExtractSlots_Keep_NoAsmCompanionWrappers_And_RuntimeOwnership;
     procedure Test_RISCVV_HelperOwnedExactScalarSlots_Stay_BackendOwned;
     procedure Test_RISCVV_KeyOwnedWideSlots_Stay_BackendOwned;
-    procedure Test_RISCVV_ClampF64x2_Keeps_AsmConditional_RuntimeBinding_And_LocalNoAsmWitness;
+    procedure Test_RISCVV_ClampF64x2_Drops_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
     procedure Test_RISCVV_ExactF64x2Slots_Keep_AsmConditional_SourceTruth_And_RuntimeBinding;
     procedure Test_RISCVV_ExactF32x4Slots_Keep_AsmConditional_SourceTruth_And_RuntimeBinding;
-    procedure Test_RISCVV_LocalExtremaF64x2_Keep_AsmConditional_RuntimeBinding_And_LocalNoAsmWitness;
+    procedure Test_RISCVV_LocalExtremaF64x2_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
     procedure Test_RISCVV_LocalExtremaF32x4_Keep_AsmConditional_RuntimeBinding_And_LocalNoAsmWitness;
     procedure Test_RISCVV_ReduceF64x2_Stays_BackendOwned_With_ExactScalarNoAsmWitness;
     procedure Test_RISCVV_RegisterSource_Deduplicates_WideRoundingAssignments_And_Keeps_F64x2_Exception;
@@ -9095,7 +9095,7 @@ begin
   AssertSlotKeepsBackendOwnership('AndNotU8x16', Pointer(LScalarTable.AndNotU8x16), Pointer(LRISCVVTable.AndNotU8x16));
 end;
 
-procedure TTestCase_DispatchAPI.Test_RISCVV_ClampF64x2_Keeps_AsmConditional_RuntimeBinding_And_LocalNoAsmWitness;
+procedure TTestCase_DispatchAPI.Test_RISCVV_ClampF64x2_Drops_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
 var
   LScalarTable: TSimdDispatchTable;
   LRISCVVTable: TSimdDispatchTable;
@@ -9126,19 +9126,19 @@ begin
   LSourceLines := TStringList.Create;
   try
     LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.register.inc');
-    AssertTrue('RISCVV register source should exist for ClampF64x2 hold witness audit: ' + LRegisterSourcePath,
+    AssertTrue('RISCVV register source should exist for ClampF64x2 dead-facade audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
     LRegisterSource := LowerCase(LSourceLines.Text);
 
     LFacadeSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.facade.inc');
-    AssertTrue('RISCVV facade source should exist for ClampF64x2 hold witness audit: ' + LFacadeSourcePath,
+    AssertTrue('RISCVV facade source should exist for ClampF64x2 dead-facade audit: ' + LFacadeSourcePath,
       FileExists(LFacadeSourcePath));
     LSourceLines.LoadFromFile(LFacadeSourcePath);
     LFacadeSource := LowerCase(LSourceLines.Text);
 
     LAsmSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.pas');
-    AssertTrue('RISCVV unit source should exist for ClampF64x2 hold witness audit: ' + LAsmSourcePath,
+    AssertTrue('RISCVV unit source should exist for ClampF64x2 dead-facade audit: ' + LAsmSourcePath,
       FileExists(LAsmSourcePath));
     LSourceLines.LoadFromFile(LAsmSourcePath);
     LAsmSource := LowerCase(LSourceLines.Text);
@@ -9150,12 +9150,8 @@ begin
     1, CountOccurrences(LRegisterSource, 'table.clampf64x2 := @riscvvclampf64x2;'));
   AssertTrue('RegisterRISCVVBackend should keep a dedicated asm-gated ClampF64x2 source assignment',
     Pos('table.clampf64x2 := @riscvvclampf64x2;', LRegisterSource) > 0);
-  AssertTrue('no-asm RISCVV ClampF64x2 should keep a local facade body instead of scalar forwarding',
-    Pos('result := scalarclampf64x2(a, minval, maxval);', LFacadeSource) = 0);
-  AssertTrue('no-asm RISCVV facade should still define ClampF64x2 locally',
-    Pos('function riscvvclampf64x2(const a, minval, maxval: tvecf64x2): tvecf64x2;', LFacadeSource) > 0);
-  AssertTrue('no-asm RISCVV ClampF64x2 should still compare lower bounds lane-by-lane',
-    Pos('if a.d[i] < minval.d[i] then', LFacadeSource) > 0);
+  AssertTrue('no-asm RISCVV facade should no longer define the dead ClampF64x2 witness',
+    Pos('function riscvvclampf64x2(const a, minval, maxval: tvecf64x2): tvecf64x2;', LFacadeSource) = 0);
   AssertTrue('RVV asm source should still expose RISCVVClampF64x2Asm',
     Pos('procedure riscvvclampf64x2asm(const a, minval, maxval: tvecf64x2; var r: tvecf64x2);', LAsmSource) > 0);
   AssertTrue('RVV asm source should still clamp ClampF64x2 via vfmax/vfmin',
@@ -9445,7 +9441,7 @@ begin
     Pointer(LScalarTable.ClampF32x4), Pointer(LRISCVVTable.ClampF32x4));
 end;
 
-procedure TTestCase_DispatchAPI.Test_RISCVV_LocalExtremaF64x2_Keep_AsmConditional_RuntimeBinding_And_LocalNoAsmWitness;
+procedure TTestCase_DispatchAPI.Test_RISCVV_LocalExtremaF64x2_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
 var
   LScalarTable: TSimdDispatchTable;
   LRISCVVTable: TSimdDispatchTable;
@@ -9484,19 +9480,12 @@ var
       Pos(LNeedle, LRegisterSource) > 0);
   end;
 
-  procedure AssertAsmConditionalLocalExtremaF64x2Slot(
-    const aLabel, aScalarForwardSnippet, aFunctionSnippet, aLoopSnippet, aCompareSnippet,
-      aAsmWrapperSnippet, aAsmHelperSnippet, aAsmOpSnippet: string;
+  procedure AssertAsmConditionalExtremaF64x2Slot(
+    const aLabel, aFunctionSnippet, aAsmWrapperSnippet, aAsmHelperSnippet, aAsmOpSnippet: string;
     const aScalarSlot, aBackendSlot: Pointer);
   begin
-    AssertTrue('no-asm RISCVV facade should keep a local body instead of scalar forwarding for ' + aLabel,
-      Pos(LowerCase(aScalarForwardSnippet), LFacadeSource) = 0);
-    AssertTrue('no-asm RISCVV facade should still define ' + aLabel + ' locally',
-      Pos(LowerCase(aFunctionSnippet), LFacadeSource) > 0);
-    AssertTrue('no-asm RISCVV facade should keep an explicit lane loop for ' + aLabel,
-      Pos(LowerCase(aLoopSnippet), LFacadeSource) > 0);
-    AssertTrue('no-asm RISCVV facade should keep the local compare branch for ' + aLabel,
-      Pos(LowerCase(aCompareSnippet), LFacadeSource) > 0);
+    AssertTrue('no-asm RISCVV facade should no longer define the dead ' + aLabel + ' witness',
+      Pos(LowerCase(aFunctionSnippet), LFacadeSource) = 0);
     AssertTrue('RVV asm source should keep dedicated wrapper call for ' + aLabel,
       Pos(LowerCase(aAsmWrapperSnippet), LAsmSource) > 0);
     AssertTrue('RVV asm source should keep dedicated helper signature for ' + aLabel,
@@ -9517,19 +9506,19 @@ begin
   LSourceLines := TStringList.Create;
   try
     LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.register.inc');
-    AssertTrue('RISCVV register source should exist for local extrema F64x2 witness audit: ' + LRegisterSourcePath,
+    AssertTrue('RISCVV register source should exist for local extrema F64x2 dead-facade audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
     LRegisterSource := LowerCase(LSourceLines.Text);
 
     LFacadeSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.facade.inc');
-    AssertTrue('RISCVV facade source should exist for local extrema F64x2 witness audit: ' + LFacadeSourcePath,
+    AssertTrue('RISCVV facade source should exist for local extrema F64x2 dead-facade audit: ' + LFacadeSourcePath,
       FileExists(LFacadeSourcePath));
     LSourceLines.LoadFromFile(LFacadeSourcePath);
     LFacadeSource := LowerCase(LSourceLines.Text);
 
     LAsmSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.pas');
-    AssertTrue('RISCVV unit source should exist for local extrema F64x2 witness audit: ' + LAsmSourcePath,
+    AssertTrue('RISCVV unit source should exist for local extrema F64x2 dead-facade audit: ' + LAsmSourcePath,
       FileExists(LAsmSourcePath));
     LSourceLines.LoadFromFile(LAsmSourcePath);
     LAsmSource := LowerCase(LSourceLines.Text);
@@ -9551,20 +9540,14 @@ begin
     Exit;
   {$ENDIF}
 
-  AssertAsmConditionalLocalExtremaF64x2Slot('MinF64x2',
-    'Result := ScalarMinF64x2(a, b);',
+  AssertAsmConditionalExtremaF64x2Slot('MinF64x2',
     'function RISCVVMinF64x2(const a, b: TVecF64x2): TVecF64x2;',
-    'for i := 0 to 1 do',
-    'if a.d[i] < b.d[i] then',
     'RISCVVMinF64x2Asm(a, b, Result);',
     'procedure RISCVVMinF64x2Asm(const a, b: TVecF64x2; var r: TVecF64x2);',
     'vfmin.vv v0, v0, v1',
     Pointer(LScalarTable.MinF64x2), Pointer(LRISCVVTable.MinF64x2));
-  AssertAsmConditionalLocalExtremaF64x2Slot('MaxF64x2',
-    'Result := ScalarMaxF64x2(a, b);',
+  AssertAsmConditionalExtremaF64x2Slot('MaxF64x2',
     'function RISCVVMaxF64x2(const a, b: TVecF64x2): TVecF64x2;',
-    'for i := 0 to 1 do',
-    'if a.d[i] > b.d[i] then',
     'RISCVVMaxF64x2Asm(a, b, Result);',
     'procedure RISCVVMaxF64x2Asm(const a, b: TVecF64x2; var r: TVecF64x2);',
     'vfmax.vv v0, v0, v1',

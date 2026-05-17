@@ -8626,3 +8626,20 @@
 - 这条 finding 的关键价值是把一个常见误判清掉：
   - “文件里还留着函数体” 不等于 “当前 contract 仍依赖它”
   - 对这 8 个槽位，当前 contract 的真实依赖已经完全不在这些局部实现上
+
+## 2026-05-18 RISCVV Conditional F64x2 Local Witnesses Had Turned Into Test-Protected Dead Facade
+
+- `RISCVV ClampF64x2 / MinF64x2 / MaxF64x2` 这批最容易误导人的地方，不是语义本身，而是“旧审查结论已经把 dead facade 当成了必须保留的 witness”。
+- fresh 重新核对 source role 后，更准确的事实是：
+  - register 绑定只在 `{$IFDEF RISCVV_ASSEMBLY}` 下存在
+  - 这些名字不在 unit `interface`，不是 public API
+  - 全仓没有新的 live internal caller；留下它们的主要力量已经变成测试本身
+- 这就把 earlier 结论反转了：
+  - 它们不是“runtime contract 仍依赖的 local no-asm semantics”
+  - 而是“asm/runtime boundary 还在，但 facade no-asm witness 已经失活”
+- 这条 finding 的关键价值在于拆开两个之前被绑死的概念：
+  - `asm-gated backend slot` 是否仍然真实存在
+  - `no-asm facade body` 是否还需要继续留在源码里
+- 对这 3 个槽位，当前 fresh 答案已经足够明确：
+  - 前者：是，asm source / runtime conditional binding 仍然真实存在
+  - 后者：否，facade no-asm witness 已经是 dead source，不该再被测试护栏强行留住

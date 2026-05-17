@@ -253,7 +253,7 @@ EXPECTATION_PROCEDURES = {
         "TTestCase_DispatchAPI.Test_RISCVV_HelperOwnedExactScalarSlots_Stay_BackendOwned",
         "TTestCase_DispatchAPI.Test_RISCVV_ExactF64x2Slots_Keep_AsmConditional_SourceTruth_And_RuntimeBinding",
         "TTestCase_DispatchAPI.Test_RISCVV_ExactF32x4Slots_Keep_AsmConditional_SourceTruth_And_RuntimeBinding",
-        "TTestCase_DispatchAPI.Test_RISCVV_LocalExtremaF64x2_Keep_AsmConditional_RuntimeBinding_And_LocalNoAsmWitness",
+        "TTestCase_DispatchAPI.Test_RISCVV_LocalExtremaF64x2_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding",
         "TTestCase_DispatchAPI.Test_RISCVV_LocalExtremaF32x4_Keep_AsmConditional_RuntimeBinding_And_LocalNoAsmWitness",
         "TTestCase_DispatchAPI.Test_RISCVV_ReduceF64x2_Stays_BackendOwned_With_ExactScalarNoAsmWitness",
         "TTestCase_DispatchAPI.Test_RISCVV_KeyOwnedWideSlots_Stay_BackendOwned",
