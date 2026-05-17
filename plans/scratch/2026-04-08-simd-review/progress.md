@@ -8804,3 +8804,19 @@
   - 新 action 落地了，但详细帮助没跟上
   - 详细帮助里残留了已经不存在的 action
 - 验证仍按 release closeout 习惯走 `git diff --check`、`bash -n`、`runner-parity`。
+
+## 2026-05-17 CPUInfo X86 Batch Parity Coverage
+
+- 主 runner 这条线稳定后，我没有把 `cpuinfo runner parity` 想当然地当成也够用了，而是直接回看它到底覆盖了哪些文件。
+- fresh 结果很明确：
+  - 之前它只扫两个 shell runner
+  - 没有把 `tests/fafafa.core.simd.cpuinfo.x86/buildOrTest.bat` 这条真实 Windows runner 纳入 parity
+- 已落地的最小修法：
+  - 在 `check_cpuinfo_runner_parity()` 里加入 `cpuinfo.x86` batch runner
+  - 保留原有 shell 关键模式检查
+  - 新增对 x86 batch 的 `--list-suites` 归一化、Invalid option / leak fail-close 模式检查
+  - 新增 `cpuinfo.x86` shell/batch action 集与 synopsis 集的结构化对账
+- 在 fresh 验证时又顺手收掉一个实现细节：
+  - Windows synopsis action 提取器统一先做 `\r` stripping
+  - 这样 `cpuinfo.x86` 这种 CRLF batch 文件不会再把最后一个 action 误判成 `release\r`
+- 这样以后 `cpuinfo.x86` batch 的 action 面或 synopsis 面如果漂移，也会直接进主 `runner-parity` fail-close。

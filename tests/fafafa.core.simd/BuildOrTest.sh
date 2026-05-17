@@ -944,7 +944,7 @@ collect_windows_runner_usage_synopsis_actions() {
   if [[ -z "${LSynopsis}" ]]; then
     return 0
   fi
-  tr '|' '\n' <<<"${LSynopsis}" | sed 's/\^$//' | sed '/^$/d' | sort -u
+  tr -d '\r' <<<"${LSynopsis}" | tr '|' '\n' | sed 's/\^$//' | sed '/^$/d' | sort -u
 }
 
 collect_shell_runner_help_actions() {
@@ -3475,15 +3475,30 @@ check_cpuinfo_runner_parity() {
   local LScript
   local LMissing
   local LPattern
-  local -a LRequired
-  local -a LTargets
+  local LAction
+  local LPortableShell
+  local LX86Shell
+  local LX86Bat
+  local -a LShellRequired
+  local -a LBatRequired
+  local -a LShellTargets
+  local -a LShellActions
+  local -a LX86ShellActions
+  local -a LX86BatActions
+  local -a LPortableSynopsisActions
+  local -a LX86ShellSynopsisActions
+  local -a LX86BatSynopsisActions
 
-  LTargets=(
-    "${ROOT}/../fafafa.core.simd.cpuinfo/BuildOrTest.sh"
-    "${ROOT}/../fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh"
+  LPortableShell="${ROOT}/../fafafa.core.simd.cpuinfo/BuildOrTest.sh"
+  LX86Shell="${ROOT}/../fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh"
+  LX86Bat="${ROOT}/../fafafa.core.simd.cpuinfo.x86/buildOrTest.bat"
+
+  LShellTargets=(
+    "${LPortableShell}"
+    "${LX86Shell}"
   )
 
-  LRequired=(
+  LShellRequired=(
     'if [[ "${LArg}" == "--list-suites" ]]; then'
     'LArgs+=("--list")'
     'check_build_log'
@@ -3491,14 +3506,21 @@ check_cpuinfo_runner_parity() {
     "if grep -nE '^[1-9][0-9]* unfreed memory blocks' \"\${TEST_LOG}\" >/dev/null; then"
   )
 
-  for LScript in "${LTargets[@]}"; do
+  LBatRequired=(
+    'if /I "%~1"=="--list-suites" ('
+    'set "NORMALIZED_TEST_ARGS=!NORMALIZED_TEST_ARGS! --list"'
+    'findstr /b /c:"Invalid option" "%TEST_LOG%" >nul 2>nul'
+    'findstr /r /c:"^[1-9][0-9]* unfreed memory blocks" "%TEST_LOG%" >nul 2>nul'
+  )
+
+  for LScript in "${LShellTargets[@]}"; do
     if [[ ! -f "${LScript}" ]]; then
       echo "[CHECK] Missing cpuinfo runner: ${LScript}"
       return 1
     fi
 
     LMissing=0
-    for LPattern in "${LRequired[@]}"; do
+    for LPattern in "${LShellRequired[@]}"; do
       if ! grep -F -- "${LPattern}" "${LScript}" >/dev/null; then
         echo "[CHECK] cpuinfo runner missing pattern (${LScript}): ${LPattern}"
         LMissing=1
@@ -3509,6 +3531,85 @@ check_cpuinfo_runner_parity() {
       return 1
     fi
   done
+
+  if [[ ! -f "${LX86Bat}" ]]; then
+    echo "[CHECK] Missing cpuinfo.x86 Windows runner: ${LX86Bat}"
+    return 1
+  fi
+
+  LMissing=0
+  for LPattern in "${LBatRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LX86Bat}" >/dev/null; then
+      echo "[CHECK] cpuinfo.x86 Windows runner missing pattern (${LX86Bat}): ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  mapfile -t LX86ShellActions < <(collect_shell_runner_actions "${LX86Shell}")
+  mapfile -t LX86BatActions < <(collect_windows_runner_actions "${LX86Bat}")
+  mapfile -t LPortableSynopsisActions < <(collect_shell_runner_usage_synopsis_actions "${LPortableShell}")
+  mapfile -t LX86ShellSynopsisActions < <(collect_shell_runner_usage_synopsis_actions "${LX86Shell}")
+  mapfile -t LX86BatSynopsisActions < <(collect_windows_runner_usage_synopsis_actions "${LX86Bat}")
+
+  if [[ "${#LPortableSynopsisActions[@]}" == "0" ]]; then
+    echo "[CHECK] cpuinfo portable runner usage synopsis missing or unparsable: ${LPortableShell}"
+    LMissing=1
+  fi
+  if [[ "${#LX86ShellSynopsisActions[@]}" == "0" ]]; then
+    echo "[CHECK] cpuinfo.x86 shell runner usage synopsis missing or unparsable: ${LX86Shell}"
+    LMissing=1
+  fi
+  if [[ "${#LX86BatSynopsisActions[@]}" == "0" ]]; then
+    echo "[CHECK] cpuinfo.x86 Windows runner usage synopsis missing or unparsable: ${LX86Bat}"
+    LMissing=1
+  fi
+
+  for LAction in "${LX86ShellActions[@]}"; do
+    if ! array_contains "${LAction}" "${LX86BatActions[@]}"; then
+      echo "[CHECK] cpuinfo.x86 Windows runner missing action: ${LAction}"
+      LMissing=1
+    fi
+    if ! array_contains "${LAction}" "${LX86ShellSynopsisActions[@]}"; then
+      echo "[CHECK] cpuinfo.x86 shell usage synopsis missing action: ${LAction}"
+      LMissing=1
+    fi
+  done
+
+  for LAction in "${LX86BatActions[@]}"; do
+    if ! array_contains "${LAction}" "${LX86ShellActions[@]}"; then
+      echo "[CHECK] cpuinfo.x86 Windows runner has unexpected action: ${LAction}"
+      LMissing=1
+    fi
+    if ! array_contains "${LAction}" "${LX86BatSynopsisActions[@]}"; then
+      echo "[CHECK] cpuinfo.x86 Windows usage synopsis missing action: ${LAction}"
+      LMissing=1
+    fi
+  done
+
+  for LAction in "${LPortableSynopsisActions[@]}"; do
+    if ! array_contains "${LAction}" clean build check test debug release; then
+      echo "[CHECK] cpuinfo portable runner usage synopsis has unknown action: ${LAction}"
+      LMissing=1
+    fi
+  done
+
+  for LAction in "${LX86ShellSynopsisActions[@]}"; do
+    if ! array_contains "${LAction}" "${LX86ShellActions[@]}"; then
+      echo "[CHECK] cpuinfo.x86 shell usage synopsis has unknown action: ${LAction}"
+      LMissing=1
+    fi
+  done
+
+  for LAction in "${LX86BatSynopsisActions[@]}"; do
+    if ! array_contains "${LAction}" "${LX86BatActions[@]}"; then
+      echo "[CHECK] cpuinfo.x86 Windows usage synopsis has unknown action: ${LAction}"
+      LMissing=1
+    fi
+  done
+
+  if [[ "${LMissing}" != "0" ]]; then
+    return 1
+  fi
 
   echo "[CHECK] OK (cpuinfo runner parity signatures present)"
 }

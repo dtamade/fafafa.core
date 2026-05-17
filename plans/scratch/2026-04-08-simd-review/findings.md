@@ -7071,3 +7071,19 @@
 - 因而最小正确修法不是再补一条字符串，而是：
   - 补齐 shell 详细帮助行
   - 再让 `runner-parity` 直接对账 shell/batch `详细帮助 action 集` 与真实 action 路由集
+
+## 2026-05-17 CPUInfo Parity Still Ignored The Real Windows Runner
+
+- 在主 `simd` runner 的 synopsis/help parity 结构化之后，我回头检查 `check_cpuinfo_runner_parity()`，发现它还有一个更直接的覆盖遗漏：
+  - 名字叫 `cpuinfo runner parity`
+  - 但实际只检查了 `fafafa.core.simd.cpuinfo/BuildOrTest.sh` 与 `fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh`
+  - 并没有把真实存在、真实在 Windows 上承担入口面的 `tests/fafafa.core.simd.cpuinfo.x86/buildOrTest.bat` 纳进来
+- 这意味着以前即使 `cpuinfo.x86` batch 的 action/synopsis 漂移了，主 `runner-parity` 也不一定会报红。
+- 因而最小正确修法不是重写 `cpuinfo` runner，而是：
+  - 把 `cpuinfo.x86` batch 纳入 `check_cpuinfo_runner_parity()`
+  - 至少对它的 `--list-suites` 归一化、Invalid option / leak fail-close、以及 action/synopsis 集合做结构化对账
+- fresh 落地时还顺手暴露出一个真实解析细节：
+  - `cpuinfo.x86` batch 是 CRLF 文件
+  - 原先的 Windows synopsis action 提取器没有先去掉 `\r`
+  - 结果最后一个 token 会被看成 `release\r`，从而假报 “missing action / unknown action”
+- 因而这个批次还需要把 Windows synopsis 提取统一做 CR stripping，避免 parity 因为行尾格式而误报。
