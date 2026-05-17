@@ -508,6 +508,17 @@ SOURCE_FRESHNESS_EXCLUDED_NAMES = {
     # contribute implementation semantics.
     "fafafa.core.simd.neon.dot.inc",
 }
+PASCAL_BRACE_COMMENT_RE = re.compile(r"\{(?!\$).*?\}", re.S)
+PASCAL_PAREN_COMMENT_RE = re.compile(r"\(\*(?!\$).*?\*\)", re.S)
+LINE_COMMENT_RE = re.compile(r"//.*?$", re.M)
+
+
+def is_comment_only_source_candidate(path: Path) -> bool:
+    text = path.read_text(encoding="utf-8", errors="ignore")
+    text = PASCAL_BRACE_COMMENT_RE.sub("", text)
+    text = PASCAL_PAREN_COMMENT_RE.sub("", text)
+    text = LINE_COMMENT_RE.sub("", text)
+    return text.strip() == ""
 
 
 def iter_simd_source_candidates(src_root: Path) -> Iterable[Path]:
@@ -517,6 +528,8 @@ def iter_simd_source_candidates(src_root: Path) -> Iterable[Path]:
         if path.suffix.lower() not in SOURCE_CANDIDATE_SUFFIXES:
             continue
         if path.name.lower() in SOURCE_FRESHNESS_EXCLUDED_NAMES:
+            continue
+        if is_comment_only_source_candidate(path):
             continue
         yield path
 
