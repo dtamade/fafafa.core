@@ -236,37 +236,6 @@ begin
   Result := ScalarLengthF32x3(a);
 end;
 
-function RISCVVNormalizeF32x4(const a: TVecF32x4): TVecF32x4;
-var len, invLen: Single;
-    i: Integer;
-begin
-  len := RISCVVLengthF32x4(a);
-  if len > 1e-10 then
-  begin
-    invLen := 1.0 / len;
-    for i := 0 to 3 do
-      Result.f[i] := a.f[i] * invLen;
-  end
-  else
-    Result := a;
-end;
-
-function RISCVVNormalizeF32x3(const a: TVecF32x4): TVecF32x4;
-var len, invLen: Single;
-begin
-  len := RISCVVLengthF32x3(a);
-  if len > 1e-10 then
-  begin
-    invLen := 1.0 / len;
-    Result.f[0] := a.f[0] * invLen;
-    Result.f[1] := a.f[1] * invLen;
-    Result.f[2] := a.f[2] * invLen;
-    Result.f[3] := 0.0;
-  end
-  else
-    Result := a;
-end;
-
 // =============================================================
 // F32x4 Reduction Operations
 // =============================================================

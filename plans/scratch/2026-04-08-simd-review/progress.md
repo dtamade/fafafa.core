@@ -12180,3 +12180,46 @@
 - 当前阶段结论：
   - `RISCVVCrossF32x3` 当前也已经落到 `asm-gated dead facade` 模式
   - `NormalizeF32x4/F32x3` 仍属于语义敏感 residual，不能和 `Cross` 机械并批
+
+## 2026-05-18 RISCVV Normalize F32 Slots Were Dead Facade Too
+
+- 在 `CrossF32x3` 收掉后，继续对位 `NormalizeF32x4/F32x3` 的 source role，fresh 事实把 earlier “先保留语义敏感 residual” 进一步翻正了：
+  - `src/fafafa.core.simd.riscvv.register.inc`
+    - `table.NormalizeF32x4 := @RISCVVNormalizeF32x4;`
+    - `table.NormalizeF32x3 := @RISCVVNormalizeF32x3;`
+    - 两者都只在 `{$IFDEF RISCVV_ASSEMBLY}` 条件块里绑定
+  - `src/fafafa.core.simd.riscvv.pas`
+    - asm wrapper / helper / zero-branch / normalize body 仍真实存在
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - 之前还保留两份 no-asm body
+  - fresh 全仓 `rg`
+    - 除了 asm source、register source 与测试护栏，没有新的 live consumer
+- 更重要的是，旧 facade body 自己就已经不是可靠 contract：
+  - 使用 `len > 1e-10`
+  - `NormalizeF32x3` 的 else 分支还会把原始 `w` lane 带回
+  - 这与 scalar `NormalizeF32x3` 的 `w=0` 合同不一致
+- 这说明之前把它们当成“语义敏感所以先留着”的判断，其实混淆了两件事：
+  - live runtime contract
+  - dead no-asm body 自己的历史漂移
+- 因而这批正确收口是：
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - 删除 dead `RISCVVNormalizeF32x4`
+    - 删除 dead `RISCVVNormalizeF32x3`
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 新增两者的 absent-routine expectation
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 新增 `Test_RISCVV_NormalizeF32Slots_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding`
+    - 显式断言：
+      - facade dead witness 必须 absent
+      - asm helper/zero-branch/normalize body 继续存在
+      - runtime 仍保持 asm-compiled 时 backend-owned、非 asm host 时 scalar reuse
+- 本批 fresh 验证链已经收口：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- 当前阶段结论：
+  - `RISCVV NormalizeF32x4/F32x3` 的 no-asm body 现在也已经确认是 dead facade，不该继续留在源码里
+  - 真正仍需要后续继续审的，不是这两份 dead body，而是 asm/runtime contract 本身是否需要更强的 family-level parity 证据

@@ -180,6 +180,7 @@ type
     procedure Test_RISCVV_LocalExtremaF64x2_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
     procedure Test_RISCVV_LocalExtremaF32x4_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
     procedure Test_RISCVV_CrossF32x3_Drops_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
+    procedure Test_RISCVV_NormalizeF32Slots_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
     procedure Test_RISCVV_ReduceF64x2_Stays_BackendOwned_With_ExactScalarNoAsmWitness;
     procedure Test_RISCVV_RegisterSource_Deduplicates_WideRoundingAssignments_And_Keeps_F64x2_Exception;
     procedure Test_AllRegisteredBackends_Wide512IntegerSlots_Assigned;
@@ -10031,6 +10032,123 @@ begin
     'fsub.s f6, f6, f7',
     'sw zero, 12(a2)',
     Pointer(LScalarTable.CrossF32x3), Pointer(LRISCVVTable.CrossF32x3));
+end;
+
+procedure TTestCase_DispatchAPI.Test_RISCVV_NormalizeF32Slots_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
+var
+  LScalarTable: TSimdDispatchTable;
+  LRISCVVTable: TSimdDispatchTable;
+  LSourceLines: TStringList;
+  LRegisterSourcePath: string;
+  LFacadeSourcePath: string;
+  LAsmSourcePath: string;
+  LRegisterSource: string;
+  LFacadeSource: string;
+  LAsmSource: string;
+
+  function CountOccurrences(const aHaystack, aNeedle: string): Integer;
+  var
+    LRest: string;
+    LPos: SizeInt;
+  begin
+    Result := 0;
+    LRest := aHaystack;
+    LPos := Pos(aNeedle, LRest);
+    while LPos > 0 do
+    begin
+      Inc(Result);
+      Delete(LRest, 1, LPos + Length(aNeedle) - 1);
+      LPos := Pos(aNeedle, LRest);
+    end;
+  end;
+
+  procedure AssertRegisterHasAsmOwnedSlot(const aLabel, aSnippet: string);
+  var
+    LNeedle: string;
+  begin
+    LNeedle := LowerCase(aSnippet);
+    AssertEquals('RegisterRISCVVBackend should keep exactly one ' + aLabel + ' source assignment site',
+      1, CountOccurrences(LRegisterSource, LNeedle));
+    AssertTrue('RegisterRISCVVBackend should keep a dedicated asm-gated ' + aLabel + ' source assignment',
+      Pos(LNeedle, LRegisterSource) > 0);
+  end;
+
+  procedure AssertAsmConditionalNormalizeF32Slot(
+    const aLabel, aFunctionSnippet, aAsmWrapperSnippet, aAsmHelperSnippet, aAsmBranchSnippet, aAsmBodySnippet: string;
+    const aScalarSlot, aBackendSlot: Pointer);
+  begin
+    AssertTrue('no-asm RISCVV facade should no longer define the dead ' + aLabel + ' witness',
+      Pos(LowerCase(aFunctionSnippet), LFacadeSource) = 0);
+    AssertTrue('RVV asm source should keep dedicated wrapper call for ' + aLabel,
+      Pos(LowerCase(aAsmWrapperSnippet), LAsmSource) > 0);
+    AssertTrue('RVV asm source should keep dedicated helper signature for ' + aLabel,
+      Pos(LowerCase(aAsmHelperSnippet), LAsmSource) > 0);
+    AssertTrue('RVV asm source should keep the zero-branch guard for ' + aLabel,
+      Pos(LowerCase(aAsmBranchSnippet), LAsmSource) > 0);
+    AssertTrue('RVV asm source should keep the vector normalize body for ' + aLabel,
+      Pos(LowerCase(aAsmBodySnippet), LAsmSource) > 0);
+    AssertTrue('RISCVV ' + aLabel + ' should stay assigned in the backend dispatch table',
+      aBackendSlot <> nil);
+    {$IFDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
+    AssertTrue('RISCVV ' + aLabel + ' should keep a backend-owned runtime slot when RVV asm is compiled',
+      PtrUInt(aScalarSlot) <> PtrUInt(aBackendSlot));
+    {$ELSE}
+    AssertEquals('RISCVV ' + aLabel + ' should reuse the base scalar runtime slot when RVV asm is not compiled on this host',
+      PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
+    {$ENDIF}
+  end;
+begin
+  LSourceLines := TStringList.Create;
+  try
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.register.inc');
+    AssertTrue('RISCVV register source should exist for normalize dead-facade audit: ' + LRegisterSourcePath,
+      FileExists(LRegisterSourcePath));
+    LSourceLines.LoadFromFile(LRegisterSourcePath);
+    LRegisterSource := LowerCase(LSourceLines.Text);
+
+    LFacadeSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.facade.inc');
+    AssertTrue('RISCVV facade source should exist for normalize dead-facade audit: ' + LFacadeSourcePath,
+      FileExists(LFacadeSourcePath));
+    LSourceLines.LoadFromFile(LFacadeSourcePath);
+    LFacadeSource := LowerCase(LSourceLines.Text);
+
+    LAsmSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.pas');
+    AssertTrue('RISCVV unit source should exist for normalize dead-facade audit: ' + LAsmSourcePath,
+      FileExists(LAsmSourcePath));
+    LSourceLines.LoadFromFile(LAsmSourcePath);
+    LAsmSource := LowerCase(LSourceLines.Text);
+  finally
+    LSourceLines.Free;
+  end;
+
+  AssertRegisterHasAsmOwnedSlot('NormalizeF32x4', 'table.NormalizeF32x4 := @RISCVVNormalizeF32x4;');
+  AssertRegisterHasAsmOwnedSlot('NormalizeF32x3', 'table.NormalizeF32x3 := @RISCVVNormalizeF32x3;');
+
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+  AssertTrue('RISCVV opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
+    Exit;
+  {$ENDIF}
+
+  AssertAsmConditionalNormalizeF32Slot('NormalizeF32x4',
+    'function RISCVVNormalizeF32x4(const a: TVecF32x4): TVecF32x4;',
+    'RISCVVNormalizeF32x4Asm(a, Result);',
+    'procedure RISCVVNormalizeF32x4Asm(const a: TVecF32x4; var r: TVecF32x4);',
+    'bnez t1, .lzero_norm4',
+    'vfdiv.vv v0, v0, v1',
+    Pointer(LScalarTable.NormalizeF32x4), Pointer(LRISCVVTable.NormalizeF32x4));
+  AssertAsmConditionalNormalizeF32Slot('NormalizeF32x3',
+    'function RISCVVNormalizeF32x3(const a: TVecF32x4): TVecF32x4;',
+    'RISCVVNormalizeF32x3Asm(a, Result);',
+    'procedure RISCVVNormalizeF32x3Asm(const a: TVecF32x4; var r: TVecF32x4);',
+    'bnez t1, .lzero_norm3',
+    'vslideup.vi v0, v1, 3',
+    Pointer(LScalarTable.NormalizeF32x3), Pointer(LRISCVVTable.NormalizeF32x3));
 end;
 
 procedure TTestCase_DispatchAPI.Test_RISCVV_ReduceF64x2_Stays_BackendOwned_With_ExactScalarNoAsmWitness;

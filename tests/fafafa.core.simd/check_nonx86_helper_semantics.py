@@ -1289,6 +1289,8 @@ def main() -> int:
         (riscvv_facade_source, "RISCVVMinF64x2"),
         (riscvv_facade_source, "RISCVVMaxF64x2"),
         (riscvv_facade_source, "RISCVVCrossF32x3"),
+        (riscvv_facade_source, "RISCVVNormalizeF32x4"),
+        (riscvv_facade_source, "RISCVVNormalizeF32x3"),
     ]
 
     for source, routine_name in absent_routine_expectations:

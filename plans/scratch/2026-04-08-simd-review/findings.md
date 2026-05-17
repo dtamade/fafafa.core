@@ -8711,3 +8711,27 @@
 - 不要再反过来做：
   - 不能先看到“是 vector math / 是 scalar forward”就机械归类
   - 也不能因为 `Normalize` 当前要谨慎，就把 `Cross` 这种已经 dead 的 facade 一起拖着不收
+
+## 2026-05-18 RISCVV Normalize F32x4 F32x3 Were Not Live Semantic Residuals, But Dead Bodies With Drift
+
+- `NormalizeF32x4 / NormalizeF32x3` 这次继续 fresh 下钻后，新的关键结论不是“它们也能和 scalar exact merge”，而是更准确的一层：
+  - 它们之前之所以看起来像 semantic-sensitive residual，
+  - 其实是因为 dead no-asm body 自己已经漂移，
+  - 不是因为 live runtime contract 还在依赖这两份 facade body。
+- 最直接的证据有两层：
+  - source-role：
+    - register 绑定只在 `{$IFDEF RISCVV_ASSEMBLY}` 下存在
+    - 全仓没有新的 live internal caller
+    - 所以 `facade.inc` 里的两个 `Normalize` body 本身已经不在 live path 上
+  - body semantics：
+    - no-asm facade 用 `len > 1e-10`
+    - scalar helper 用 `len > 0.0`
+    - `NormalizeF32x3` 的 else 分支还会把原始 `w` lane 带回，而 scalar contract 要求 `w=0`
+- 这条 finding 的价值很高，因为它纠正了一个很容易让审查停滞的错觉：
+  - “只要看到 contract 差异，就先别删”
+  - 更准确的顺序应该是：
+    - 先判断这份 body 今天还活不活
+    - 如果它已经 dead，那 contract 差异首先说明的是“它更不该继续留着”，而不是“必须保留这份历史实现”
+- 所以对 `RISCVV NormalizeF32x4 / NormalizeF32x3`，当前更准确的状态已经变成：
+  - asm/runtime path：仍是真实 contract，需要另外看 family-level parity
+  - no-asm facade path：已经是 dead source，而且 dead body 本身带 drift，应该移除
