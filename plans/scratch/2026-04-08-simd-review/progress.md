@@ -8445,3 +8445,41 @@
 - 当前阶段结论：
   - 这批收掉的不是实现 bug，而是“日常审查主线已经成形，但 batch help 与 parity guard 还没同步跟上”的 repo 内卫生缺口
   - 现在这 16 条高频动作不只存在于 action 表里，也开始被帮助文案和主检查链一起守住
+
+## 2026-05-17 Evidence Help Surface Completion
+
+- 继续沿同一条 help completeness 线推进，但这次不再拆簇，而是把最后剩下的一整簇 evidence/perf/QEMU/gate-summary 入口一次性收完。
+- 先做的仍然是只读确认，而不是直接改：
+  - 重新跑 action-vs-help 轻量脚本
+  - fresh 结果为 `MISSING_HELP_COUNT 23`
+  - 剩余项全部落在 evidence / summary / QEMU / perf 这同一簇
+- 这让我可以把动作一次性收平，而不用再继续切成很多小碎批：
+  - `import-nonx86-native-evidence`
+  - `closeout-host-local-from-import`
+  - `parity-suites`
+  - `gate-summary*`
+  - `perf-smoke`
+  - `nonx86-optin-list-suites`
+  - `nonx86-ieee754`
+  - `backend-bench`
+  - `qemu*`
+  - `riscvv-opcode-lane`
+  - `qemu-experimental-*`
+- 已落地的收口：
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+    - 补齐这一整簇 help 文案
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - shell help 同步补齐
+    - `check_windows_runner_parity()` required pattern 同步纳入对应 batch help 行
+- 这次我刻意没有再重跑整条 Release `check`，因为改动只在 help/parity 文案层：
+  - 改成了 3 条更高性价比的验证
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity`
+  - `bash -n tests/fafafa.core.simd/BuildOrTest.sh`
+  - help 缺口计数脚本
+- fresh 结果：
+  - `runner-parity` 继续 `[CHECK] OK`
+  - `bash -n` 通过
+  - `MISSING_HELP_COUNT 0`
+- 当前阶段结论：
+  - `buildOrTest.bat` 的 help surface 现在和公开 action 表终于对齐完毕
+  - 这条 runner/help 审查线可以从“还在补漏”转成“后续只防回退”

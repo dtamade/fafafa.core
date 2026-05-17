@@ -4394,6 +4394,20 @@
 | 2. 补齐 batch help 并把文案接进 parity guard | completed | `tests/fafafa.core.simd/buildOrTest.bat` 已新增这 16 条 help 描述；`tests/fafafa.core.simd/BuildOrTest.sh` 的 `check_windows_runner_parity()` required pattern 也已同步纳入这组文案，避免以后只改 usage/action 表而 help surface 静默回退 |
 | 3. Release 验证并准备提交 | completed | `bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity` 与 Release `check` 都已 fresh 通过；这批只收可见性与 guard，不改变 runner 行为 |
 
+## 2026-05-17 Evidence Help Surface Completion
+
+### Goal
+
+把 `buildOrTest.bat` help surface 最后剩下的一整簇 evidence/QEMU/perf/gate-summary 动作也补齐，并让 `runner-parity` 一起守住它们，这样 batch action 表与 help 文案之间不再残留系统性缺口。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核剩余 help 缺口是否已收敛成单一簇 | completed | 轻量脚本确认剩余 `MISSING_HELP_COUNT=23`，全部集中在 `import/closeout-from-import`、`parity-suites`、`gate-summary*`、`perf-smoke`、`nonx86-optin/ieee754`、`backend-bench`、`qemu*`、`riscvv-opcode-lane`、`qemu experimental*` 这组 evidence/perf/summary 入口 |
+| 2. 同步 shell/batch help 与 parity guard | completed | `tests/fafafa.core.simd/buildOrTest.bat` 与 `tests/fafafa.core.simd/BuildOrTest.sh` 都已补齐这组 help 文案；`check_windows_runner_parity()` required pattern 也已纳入对应 batch help 行，避免这组入口以后再静默漏回去 |
+| 3. 轻量验证并准备提交 | completed | 因为这批只改 help/parity 文案，没有改行为，所以用 `runner-parity`、`bash -n BuildOrTest.sh`、以及 help 缺口计数脚本验证；fresh 结果已收成 `MISSING_HELP_COUNT 0` |
+
 ## 2026-05-17 SSE2 Transitional Non-x86 Fail-Close
 
 ### Goal

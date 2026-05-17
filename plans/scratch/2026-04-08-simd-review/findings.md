@@ -6793,6 +6793,39 @@
   - 现在不是只有 action 表“存在”这些动作
   - 而是 help surface 也被主检查链真实保护起来了
 
+## 2026-05-17 Evidence Help Surface Completion
+
+- 在补完日常审查主线那 16 条 help 后，batch help 剩下的缺口已经很干净地收敛成最后一簇：
+  - `import-nonx86-native-evidence`
+  - `closeout-host-local-from-import`
+  - `parity-suites`
+  - `gate-summary*`
+  - `perf-smoke`
+  - `nonx86-optin-list-suites`
+  - `nonx86-ieee754`
+  - `backend-bench`
+  - `qemu*`
+  - `riscvv-opcode-lane`
+  - `qemu-experimental-*`
+- 这簇比上一批更适合一次性收完，因为它们本身就是同一种“证据/报告/基准/多架构执行入口”：
+  - 不再像前几轮那样横跨 public ABI、scope guard、contract、coverage 几类不同话题
+  - 而是天然共享同一条使用场景：evidence / summary / QEMU / perf closeout
+- 这批也适合把验证成本刻意降下来：
+  - 改动只落在 shell/batch help 文案和 parity required pattern
+  - 没有碰任何执行分支、环境变量判断或 runner 行为
+  - 因此没必要再重跑整条 Release `check`
+- 当前最小正确验证组合是：
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity`
+  - `bash -n tests/fafafa.core.simd/BuildOrTest.sh`
+  - help 缺口计数脚本重新统计
+- fresh 结果把这条线真正收平了：
+  - `runner-parity` 继续为绿
+  - shell 脚本语法通过
+  - `MISSING_HELP_COUNT 0`
+- 因而这批的价值，不只是“又补了几行说明”，而是：
+  - `buildOrTest.bat` 的 action 表和 help surface 终于没有系统性遗漏
+  - 这条 help completeness 线可以真正从“持续补漏”转成“后续只在新增 action 时跟进”
+
 ## 2026-05-17 Intrinsics Coverage Evidence Normalization
 
 - 当前 `intrinsics coverage` 的检查逻辑本身已经能给出正确信号，但在 runner 层仍有一个真实卫生缺口：

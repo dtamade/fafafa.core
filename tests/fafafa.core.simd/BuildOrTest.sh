@@ -1049,11 +1049,34 @@ check_windows_runner_parity() {
     'echo   publicabi-smoke  Run the standalone public ABI smoke'
     'echo   adapter-sync-pascal  Build/run the backend adapter Pascal smoke'
     'echo   adapter-sync  Audit backend adapter spec/generated sync'
+    'echo   parity-suites  Run focused DispatchAPI + DirectDispatch parity suites'
     'echo   coverage  Check SIMD intrinsics direct-test coverage'
     'echo   wiring-sync  Audit non-x86 wiring consistency'
     'echo   experimental-intrinsics  Check experimental intrinsics isolation'
     'echo   experimental-intrinsics-tests  Run the experimental intrinsics test suite'
+    'echo   import-nonx86-native-evidence  Import external arm64/riscv64 native evidence into fixtures/ and verify it'
+    'echo   closeout-host-local-from-import  Import external arm64/riscv64 native evidence, verify it, then run host-local strict closeout'
+    'echo   gate-summary  Print the canonical gate summary table'
+    'echo   gate-summary-sample  Generate a sample gate summary fixture'
+    'echo   gate-summary-rehearsal  Rehearse gate-summary threshold shaping'
+    'echo   gate-summary-inject  Inject a sample gate summary into canonical logs'
+    'echo   gate-summary-rollback  Restore the previous gate summary backup'
+    'echo   gate-summary-backups  List available gate-summary backups'
     'echo   gate-summary-selfcheck  Rehearse gate-summary/freeze-status selfcheck ^(delegates to shell runner^)'
+    'echo   perf-smoke  Run the lightweight backend benchmark smoke'
+    'echo   nonx86-optin-list-suites  List suites with NEON/RISCVV backends compiled in'
+    'echo   nonx86-ieee754  Run the non-x86 IEEE754 parity suite'
+    'echo   backend-bench  Run the backend benchmark harness ^(delegates to shell runner^)'
+    'echo   qemu-nonx86-evidence  Collect non-x86 runtime evidence via QEMU ^(delegates to shell runner^)'
+    'echo   qemu-cpuinfo-nonx86-evidence  Collect non-x86 CPUInfo cross evidence via QEMU ^(delegates to shell runner^)'
+    'echo   qemu-cpuinfo-nonx86-full-evidence  Run the full non-x86 CPUInfo evidence sweep via QEMU ^(delegates to shell runner^)'
+    'echo   qemu-cpuinfo-nonx86-full-repeat  Repeat the full non-x86 CPUInfo evidence sweep via QEMU ^(delegates to shell runner^)'
+    'echo   qemu-cpuinfo-nonx86-suite-repeat  Repeat the non-x86 CPUInfo suite matrix via QEMU ^(delegates to shell runner^)'
+    'echo   qemu-arch-matrix-evidence  Collect architecture-matrix evidence via QEMU ^(delegates to shell runner^)'
+    'echo   qemu-nonx86-experimental-asm  Run experimental non-x86 asm sweeps via QEMU ^(delegates to shell runner^)'
+    'echo   riscvv-opcode-lane  Probe RISCVV opcode-lane contract ^(delegates to shell runner^)'
+    'echo   qemu-experimental-report  Report latest QEMU experimental blockers ^(delegates to shell runner^)'
+    'echo   qemu-experimental-baseline-check  Check latest QEMU experimental baseline ^(delegates to shell runner^)'
     'echo   evidence-linux  Collect Linux-side release evidence ^(delegates to shell runner^)'
     'echo   native-evidence  Collect non-x86 native evidence ^(delegates to shell runner^)'
     'echo   verify-nonx86-native-evidence  Verify imported non-x86 native evidence ^(delegates to shell runner^)'
@@ -7216,9 +7239,34 @@ case "${ACTION}" in
     echo "  riscvv-abi-shape  Run the RISCVV ABI-shape Python audit only"
     echo "  source-reachability  Run the SIMD source reachability Python audit only"
     echo "  runner-parity  Fast shell/batch runner parity selfcheck"
+    echo "  parity-suites  Run focused DispatchAPI + DirectDispatch parity suites"
+    echo "  coverage  Check SIMD intrinsics direct-test coverage"
+    echo "  wiring-sync  Audit non-x86 wiring consistency"
+    echo "  experimental-intrinsics  Check experimental intrinsics isolation"
+    echo "  experimental-intrinsics-tests  Run the experimental intrinsics test suite"
     echo "  closeout-host-local  Host-local strict closeout (non-x86 native evidence fail-close, windows evidence optional)"
     echo "  import-nonx86-native-evidence  Import external arm64/riscv64 native evidence into fixtures/ and verify it"
     echo "  closeout-host-local-from-import  Import external arm64/riscv64 native evidence, verify it, then run host-local strict closeout"
+    echo "  gate-summary  Print the canonical gate summary table"
+    echo "  gate-summary-sample  Generate a sample gate summary fixture"
+    echo "  gate-summary-rehearsal  Rehearse gate-summary threshold shaping"
+    echo "  gate-summary-inject  Inject a sample gate summary into canonical logs"
+    echo "  gate-summary-rollback  Restore the previous gate summary backup"
+    echo "  gate-summary-backups  List available gate-summary backups"
+    echo "  perf-smoke  Run the lightweight backend benchmark smoke"
+    echo "  nonx86-optin-list-suites  List suites with NEON/RISCVV backends compiled in"
+    echo "  nonx86-ieee754  Run the non-x86 IEEE754 parity suite"
+    echo "  backend-bench  Run the backend benchmark harness"
+    echo "  qemu-nonx86-evidence  Collect non-x86 runtime evidence via QEMU"
+    echo "  qemu-cpuinfo-nonx86-evidence  Collect non-x86 CPUInfo cross evidence via QEMU"
+    echo "  qemu-cpuinfo-nonx86-full-evidence  Run the full non-x86 CPUInfo evidence sweep via QEMU"
+    echo "  qemu-cpuinfo-nonx86-full-repeat  Repeat the full non-x86 CPUInfo evidence sweep via QEMU"
+    echo "  qemu-cpuinfo-nonx86-suite-repeat  Repeat the non-x86 CPUInfo suite matrix via QEMU"
+    echo "  qemu-arch-matrix-evidence  Collect architecture-matrix evidence via QEMU"
+    echo "  qemu-nonx86-experimental-asm  Run experimental non-x86 asm sweeps via QEMU"
+    echo "  riscvv-opcode-lane  Probe RISCVV opcode-lane contract"
+    echo "  qemu-experimental-report  Report latest QEMU experimental blockers"
+    echo "  qemu-experimental-baseline-check  Check latest QEMU experimental baseline"
     echo "Suggested flow: check -> targeted suites -> gate; use gate-strict before release/closeout."
     echo "QEMU env: SIMD_QEMU_BUILD_POLICY=always|if-missing|skip (default: if-missing)"
     echo "Native host env: SIMD_NATIVE_EVIDENCE_RUNNER=canonical|direct-fpc, SIMD_NATIVE_EVIDENCE_ENABLE_BACKEND_ASM=1"
