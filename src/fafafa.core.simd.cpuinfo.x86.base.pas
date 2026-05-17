@@ -9,12 +9,12 @@ uses
   SysUtils,
   fafafa.core.simd.cpuinfo.base;
 
-{ x86 共用辅助�?
-  - 预留放置 CPUID 位常量、特性归一化与 OS 门槛判定的纯 Pascal 逻辑
-  - 架构相关�?CPUID/XGETBV �?x86.i386/.x86.x86_64 提供
+{ Shared x86 helpers.
+  - Holds pure Pascal CPUID bit normalization and OS gating logic.
+  - Architecture-specific CPUID/XGETBV entrypoints come from x86.i386/x86.x86_64.
 }
 
-// 预留：根�?XCR0 判断 AVX/AVX-512 OS 支持
+// Helper gates for AVX / AVX-512 OS enablement via XCR0.
 function XCR0HasAVX(xcr0: UInt64): Boolean; inline;
 function XCR0HasAVX512(xcr0: UInt64): Boolean; inline;
 

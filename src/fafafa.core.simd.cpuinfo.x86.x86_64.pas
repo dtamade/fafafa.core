@@ -10,7 +10,7 @@ uses
   fafafa.core.simd.cpuinfo.base,
   fafafa.core.simd.cpuinfo.x86.base;
 
-// 架构实现（x86_64）：导出�?x86 门面一致的 API
+// x86_64 platform implementation that exports the shared x86 facade API.
 
 function HasCPUID: Boolean;
 procedure CPUID(EAX: DWord; var EAX_Out, EBX_Out, ECX_Out, EDX_Out: DWord);
@@ -369,7 +369,6 @@ begin
 end;
 
 end.
-
 
 
 

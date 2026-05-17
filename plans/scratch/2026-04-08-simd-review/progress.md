@@ -10189,3 +10189,35 @@
 - 当前阶段结论：
   - 这批同时修掉了一个真实 source drift / potential behavior bug，以及一处 `i386` vs `x86_64` 的 feature assembly 冗余分叉
   - 后续即使当前主机只跑 `x86_64`，`cpuinfo.x86` 的 `check` 也会静态守住 `i386` 不再偷偷偏离共享 helper
+
+## 2026-05-17 Active API/CPUInfo Comment-Encoding Hygiene
+
+- 在 `cpuinfo.i386` source drift 那批收口后，继续按“小批次只切 active 文件”往前推，没有去开 `intrinsics.x86.sse2` 的大坑。
+- fresh 扫描锁定当前最值当的 active 文本卫生残点：
+  - `src/fafafa.core.simd.api.pas`
+  - `src/fafafa.core.simd.cpuinfo.lazy.pas`
+  - `src/fafafa.core.simd.cpuinfo.x86.base.pas`
+  - `src/fafafa.core.simd.cpuinfo.x86.x86_64.pas`
+- 这些文件里剩余的 `U+FFFD` 都落在注释区：
+  - facade/API 简介
+  - lazy cpuinfo 的 singleton / arch detect / SSE/AVX/AVX512 注释
+  - x86 shared helper 说明
+  - x86_64 facade API 注释
+- 本批保持严格 bounded：
+  - 只把损坏注释换成稳定 ASCII 注释
+  - 不改函数签名
+  - 不改 runtime 逻辑
+  - 不额外扩成新的编码检查工具链
+- fresh 验证已完成：
+  - `python3` 逐文件计数：4 个目标文件 `U+FFFD=0`
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `cpuinfo` release `check` 通过
+  - `cpuinfo.x86` release `check` 通过
+  - 主 `simd` release `check` 通过
+- 当前阶段结论：
+  - 这批继续修掉的是 active `api/cpuinfo` 线上的源码文本损坏，不是行为缺陷
+  - 到这里这 4 个 active 文件的 `U+FFFD` 已全部归零，后续审查 `facade/cpuinfo` 时不再被损坏注释干扰

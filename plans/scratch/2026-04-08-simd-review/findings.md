@@ -7630,3 +7630,20 @@
   - 真正的 feature assembly 和 AVX/AVX2/AVX512 门槛判断统一回到 `X86FeaturesFromCPUID(...)`
   - 再加一个静态 checker，要求 `i386/x86_64` 两端都委托共享 helper，且不再保留手写 `Result.Has...` 组装逻辑
 - 这样后续即使没有 i386 运行环境，`cpuinfo.x86` 的 `check` 也能直接 fail-close 抓出这种平台实现漂移。
+
+## 2026-05-17 Active API/CPUInfo Files Still Had Residual U+FFFD Comment Corruption
+
+- 在 `intrinsics` 和 `cpuinfo.i386` 两条线先后收口后，active `api/cpuinfo` 面仍残留少量真实 `U+FFFD`：
+  - `simd.api = 1`
+  - `cpuinfo.lazy = 23`
+  - `cpuinfo.x86.base = 4`
+  - `cpuinfo.x86.x86_64 = 1`
+- 这批虽然不改变运行结果，但仍然会直接伤害：
+  - `facade` 和 `cpuinfo` 入口文件的第一眼可读性
+  - 基于 grep / diff 的 active 审查效率
+  - 对 singleton / lazy-load / AVX gate 这些说明性注释的判断可信度
+- 这类残点没有现成通用 checker 可复用；当前仓库只有 `comment swallow` 这类“防注释吞代码”检查，不会替我们数出普通 `U+FFFD`。
+- 因而本批最合适的动作不是再扩工具链，而是：
+  - 只修这 4 个 active 文件里的损坏注释
+  - 再用逐文件计数加 `cpuinfo` / `cpuinfo.x86` / 主 `simd` 的 release `check` 作为 closeout 证据
+- 收口后，这 4 个 active 文件的 `U+FFFD` 已全部归零，并且三条 `check` 都保持绿色。

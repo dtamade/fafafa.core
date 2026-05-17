@@ -8,10 +8,10 @@ uses
   fafafa.core.simd.cpuinfo.base;
 
 type
-  // 懒加载的 CPU 信息管理�?
+  // Lazily loaded CPU information manager.
   TLazyCPUInfo = class
   private
-    // 各部分的初始化状�?
+    // Initialization state for each cached section.
     FBasicInitialized: Boolean;
     {$IFDEF SIMD_X86_AVAILABLE}
     FX86BasicInitialized: Boolean;
@@ -21,7 +21,7 @@ type
     FAVXInitialized: Boolean;
     FAVX512Initialized: Boolean;
     
-    // 分层存储�?CPU 信息
+    // Layered CPU information caches.
     FBasicInfo: record
       Arch: TCPUArch;
       Vendor: string;
@@ -33,7 +33,7 @@ type
     FCacheInfo: TCacheInfo;
     
     {$IFDEF SIMD_X86_AVAILABLE}
-    FX86Basic: record  // 常用特�?
+    FX86Basic: record  // Common x86 feature subset
       HasSSE2: Boolean;
       HasSSE3: Boolean;
       HasSSSE3: Boolean;
@@ -60,10 +60,10 @@ type
     FX86Extended: TX86Features;  // 完整特性集
     {$ENDIF}
     
-    // 同步�?
+    // Synchronization guard
     FLock: Integer;
     
-    // 初始化方�?
+    // Initialization helpers
     procedure InitBasicInfo;
     procedure InitCacheInfo;
     {$IFDEF SIMD_X86_AVAILABLE}
@@ -90,17 +90,17 @@ type
   public
     constructor Create;
     
-    // 基本信息（总是快速的�?
+    // Basic information (always cheap to load)
     property Arch: TCPUArch read GetArch;
     property Vendor: string read GetVendor;
     property Model: string read GetModel;
     property LogicalCores: Integer read GetLogicalCores;
     
-    // 缓存信息（按需加载�?
+    // Cache information (loaded on demand)
     property CacheInfo: TCacheInfo read GetCacheInfo;
     
     {$IFDEF SIMD_X86_AVAILABLE}
-    // 常用 x86 特性（分层加载�?
+    // Common x86 features (loaded in layers)
     property HasSSE2: Boolean read GetHasSSE2;
     property HasAVX2: Boolean read GetHasAVX2;
     property HasAVX512F: Boolean read GetHasAVX512F;
@@ -112,7 +112,7 @@ type
     // 预加载指定级别的信息
     procedure PreloadBasic;
     procedure PreloadCommon;  // 包含 SSE/AVX
-    procedure PreloadAll;      // 加载所有信�?
+    procedure PreloadAll;      // Load every cached section
     
     // 重置缓存
     procedure Reset;
@@ -124,7 +124,7 @@ type
 // 全局单例实例
 function LazyCPUInfo: TLazyCPUInfo;
 
-// 兼容性接�?
+// Compatibility entrypoints
 function GetCPUInfoLazy: TCPUInfo;
 function HasFeatureLazy(f: TGenericFeature): Boolean;
 
@@ -304,7 +304,7 @@ begin
     Exit;
   end;
   
-  // 双重检查锁定创建单�?
+  // Create the singleton via double-checked locking.
   repeat
     OldValue := InterlockedCompareExchange(g_SingletonLock, 1, 0);
     if OldValue = 0 then
@@ -376,7 +376,7 @@ begin
         if not FBasicInitialized then
         begin
           try
-            // 基本架构检�?
+            // Basic architecture detection.
             {$IFDEF CPUX86_64}
             FBasicInfo.Arch := caX86;
             {$ELSE}
@@ -466,7 +466,7 @@ begin
             if FBasicInfo.Model = '' then
               FBasicInfo.Model := 'Unknown Processor';
 
-            // 核心�?
+            // Core-count detection.
             {$IFDEF UNIX}
             LPhysCores := 0;
             LLogCores := 0;
@@ -594,7 +594,7 @@ begin
         if not FX86BasicInitialized then
         begin
           try
-            // 检测基�?SSE 支持
+            // Detect baseline SSE support.
             eax := 0;
             ebx := 0;
             ecx := 0;
@@ -635,7 +635,7 @@ var
 begin
   if FAVXInitialized then Exit;
   
-  // 确保基本信息已加�?
+  // Ensure baseline x86 feature information is loaded first.
   InitX86Basic;
   
   repeat
@@ -648,7 +648,7 @@ begin
           try
             FillChar(FX86AVX, SizeOf(FX86AVX), 0);
 
-            // 检�?AVX 支持
+            // Detect AVX support.
             eax := 0;
             ebx := 0;
             ecx := 0;
@@ -658,11 +658,11 @@ begin
             FX86AVX.OSXSAVE := (ecx and (1 shl 27)) <> 0;
             FX86AVX.HasFMA := (ecx and (1 shl 12)) <> 0;
             
-            // 检�?AVX2
+            // Detect AVX2.
             if FX86AVX.HasAVX and FX86AVX.OSXSAVE then
             begin
               FX86AVX.XCR0 := ReadXCR0;
-              if (FX86AVX.XCR0 and 6) = 6 then  // YMM 状态支�?
+              if (FX86AVX.XCR0 and 6) = 6 then  // YMM state enabled
               begin
                 eax := 0;
                 ebx := 0;
@@ -701,7 +701,7 @@ var
 begin
   if FAVX512Initialized then Exit;
   
-  // 确保 AVX 信息已加�?
+  // Ensure AVX information is loaded first.
   InitX86AVX;
   
   repeat
@@ -714,7 +714,7 @@ begin
           try
             FillChar(FX86AVX512, SizeOf(FX86AVX512), 0);
 
-            // 只有�?OS 支持的情况下才检�?AVX-512
+            // Detect AVX-512 only when the OS has enabled the required state.
             if FX86AVX.OSXSAVE and ((FX86AVX.XCR0 and $E6) = $E6) then
             begin
               eax := 0;
@@ -924,7 +924,7 @@ begin
   end;
 end;
 
-// 兼容性接口实�?
+// Compatibility entrypoint implementations
 
 {$IFDEF SIMD_X86_AVAILABLE}
 function X86XCR0EnablesAVXLazy(const aXCR0: UInt64): Boolean; inline;

@@ -9,7 +9,7 @@ uses
   SysUtils;
 
 // === SIMD 门面函数 API ===
-// 这些是高级用户接口，提供运行时派发到最�?SIMD 实现
+// High-level facade entrypoints that dispatch to the best runtime SIMD implementation.
 
 // === 内存操作函数 ===
 
