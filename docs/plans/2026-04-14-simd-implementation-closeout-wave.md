@@ -6,6 +6,15 @@
 > It is no longer part of the active whole-module execution chain.
 > Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
 
+> Current HEAD note (2026-05-17):
+> This plan is historical context, not the current repository status. Latest
+> `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+> remains `ready=False / mainline-ready=True / cross-ready=False`, with
+> `win-evidence-preflight=RECENT_BILLING_BLOCK` and
+> `windows_evidence_verify` failing at
+> `cmd.exe cannot resolve LAZBUILD command "lazbuild"`. For current operator
+> truth, use `docs/fafafa.core.simd.closeout.md` and
+> `tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`.
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
@@ -20,6 +29,7 @@
 ### Task 1: 固化 NEON hygiene source truth
 
 **Files:**
+
 - Modify: `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
 - Read: `src/fafafa.core.simd.neon.pas`
 
@@ -69,6 +79,7 @@ Expected:
 ### Task 2: 回填 implementation closeout 文档事实
 
 **Files:**
+
 - Modify: `docs/fafafa.core.simd.closeout.md`
 - Modify: `docs/fafafa.core.simd.implementation-matrix.md`
 
@@ -115,6 +126,7 @@ Expected:
 ### Task 3: 保存这轮 handoff 计划
 
 **Files:**
+
 - Create: `docs/plans/2026-04-14-simd-implementation-closeout-wave.md`
 
 **Step 1: 把当前轮次的执行顺序写成可重放计划**

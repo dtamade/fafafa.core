@@ -6,6 +6,15 @@
 > It is no longer part of the active whole-module execution chain.
 > Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
 
+> Current HEAD note (2026-05-17):
+> This plan is historical context, not the current repository status. Latest
+> `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+> remains `ready=False / mainline-ready=True / cross-ready=False`, with
+> `win-evidence-preflight=RECENT_BILLING_BLOCK` and
+> `windows_evidence_verify` failing at
+> `cmd.exe cannot resolve LAZBUILD command "lazbuild"`. For current operator
+> truth, use `docs/fafafa.core.simd.closeout.md` and
+> `tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`.
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
@@ -49,6 +58,7 @@
 ### Task 1: 完成 NEON register truthfulness 全量收口
 
 **Files:**
+
 - Modify: `src/fafafa.core.simd.neon.register.inc`
 - Modify: `src/fafafa.core.simd.neon.scalar.autowrap.inc`
 - Modify: `src/fafafa.core.simd.neon.scalar.wide_memory.inc`
@@ -160,6 +170,7 @@ git commit -m "simd: close neon register truthfulness gaps"
 ### Task 2: 新增 non-x86 register truthfulness 自动 checker
 
 **Files:**
+
 - Create: `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
 - Modify: `tests/fafafa.core.simd/BuildOrTest.sh`
 - Modify: `tests/fafafa.core.simd/buildOrTest.bat`
@@ -253,6 +264,7 @@ git commit -m "simd: add nonx86 register truthfulness checker"
 ### Task 3: 把同一套 truthfulness 模板应用到 RISCVV
 
 **Files:**
+
 - Modify: `src/fafafa.core.simd.riscvv.register.inc`
 - Modify: `src/fafafa.core.simd.riscvv.facade.inc`
 - Modify: `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
@@ -347,6 +359,7 @@ git commit -m "simd: close riscvv register truthfulness gaps"
 ### Task 4: 审真实 asm helper correctness，不再讨论 ownership
 
 **Files:**
+
 - Modify: `src/fafafa.core.simd.neon.scalar.wide_memory.inc`
 - Modify: `src/fafafa.core.simd.riscvv.helpers.inc`
 - Modify: `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
@@ -420,6 +433,7 @@ git commit -m "simd: verify nonx86 helper asm correctness"
 ### Task 5: 审真实 asm integer semantics correctness
 
 **Files:**
+
 - Modify: `src/fafafa.core.simd.neon.pas`
 - Modify: `src/fafafa.core.simd.neon.compare.inc`
 - Modify: `src/fafafa.core.simd.riscvv.pas`
@@ -516,6 +530,7 @@ git commit -m "simd: validate nonx86 integer asm semantics"
 ### Task 6: 收尾 grouped helper / checker，降低后续维护成本
 
 **Files:**
+
 - Modify: `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
 - Modify: `tests/fafafa.core.simd/check_nonx86_wiring_sync.py`
 - Modify: `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`

@@ -6,6 +6,15 @@
 > It is no longer part of the active whole-module execution chain.
 > Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
 
+> Current HEAD note (2026-05-17):
+> This plan is historical context, not the current repository status. Latest
+> `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+> remains `ready=False / mainline-ready=True / cross-ready=False`, with
+> `win-evidence-preflight=RECENT_BILLING_BLOCK` and
+> `windows_evidence_verify` failing at
+> `cmd.exe cannot resolve LAZBUILD command "lazbuild"`. For current operator
+> truth, use `docs/fafafa.core.simd.closeout.md` and
+> `tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`.
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
@@ -20,6 +29,7 @@
 ### Task 1: 落 native evidence verifier 计划与 fixture
 
 **Files:**
+
 - Create: `tests/fafafa.core.simd/verify_nonx86_native_evidence.py`
 - Create: `tests/fafafa.core.simd/fixtures/native-evidence/native-evidence-neon-20260411-000000/summary.md`
 - Create: `tests/fafafa.core.simd/fixtures/native-evidence/native-evidence-neon-20260411-000000/environment.txt`
@@ -29,16 +39,19 @@
 **Step 1: Red**
 
 Run:
+
 ```bash
 python3 tests/fafafa.core.simd/verify_nonx86_native_evidence.py --root tests/fafafa.core.simd/fixtures/native-evidence --backend neon
 ```
 
 Expected:
+
 - 失败，原因是 verifier 还不存在
 
 **Step 2: Green**
 
 实现 verifier：
+
 - 支持 `--root` / `--backend`
 - 自动发现最新 `native-evidence-neon-*` / `native-evidence-riscvv-*`
 - 校验 `summary.md` / `environment.txt`
@@ -49,32 +62,38 @@ Expected:
 **Step 3: Verify**
 
 Run:
+
 ```bash
 python3 tests/fafafa.core.simd/verify_nonx86_native_evidence.py --root tests/fafafa.core.simd/fixtures/native-evidence --backend neon --summary-line
 python3 tests/fafafa.core.simd/verify_nonx86_native_evidence.py --root tests/fafafa.core.simd/fixtures/native-evidence --backend riscvv --summary-line
 ```
 
 Expected:
+
 - 两条都 `status=ok`
 
 ### Task 2: 接入 BuildOrTest gate
 
 **Files:**
+
 - Modify: `tests/fafafa.core.simd/BuildOrTest.sh`
 
 **Step 1: Red**
 
 Run:
+
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh verify-nonx86-native-evidence
 ```
 
 Expected:
+
 - 失败，action 尚不存在
 
 **Step 2: Green**
 
 实现：
+
 - 新增 `verify-nonx86-native-evidence` action
 - 新增 `SIMD_NONX86_NATIVE_EVIDENCE_ROOT`
 - 新增 gate step：`nonx86-native-evidence-verify`
@@ -84,32 +103,38 @@ Expected:
 **Step 3: Verify**
 
 Run:
+
 ```bash
 SIMD_NONX86_NATIVE_EVIDENCE_ROOT=tests/fafafa.core.simd/fixtures/native-evidence bash tests/fafafa.core.simd/BuildOrTest.sh verify-nonx86-native-evidence
 ```
 
 Expected:
+
 - action 通过
 
 ### Task 3: 增加 RISCVV ABI shape checker
 
 **Files:**
+
 - Create: `tests/fafafa.core.simd/check_riscvv_abi_shape.py`
 - Modify: `tests/fafafa.core.simd/BuildOrTest.sh`
 
 **Step 1: Red**
 
 Run:
+
 ```bash
 python3 tests/fafafa.core.simd/check_riscvv_abi_shape.py --summary-line
 ```
 
 Expected:
+
 - 失败，checker 尚不存在
 
 **Step 2: Green**
 
 实现 checker：
+
 - 扫描 `src/fafafa.core.simd.riscvv.pas`
 - 针对 direct vector-return assembler function 检查 hidden-result-pointer 形状
 - 至少保证：
@@ -120,16 +145,19 @@ Expected:
 **Step 3: Verify**
 
 Run:
+
 ```bash
 python3 tests/fafafa.core.simd/check_riscvv_abi_shape.py --summary-line
 ```
 
 Expected:
+
 - `status=ok`
 
 ### Task 4: 文档与 closeout 同步
 
 **Files:**
+
 - Modify: `docs/fafafa.core.simd.checklist.md`
 - Modify: `docs/fafafa.core.simd.closeout.md`
 - Modify: `docs/plans/2026-04-11-simd-implementation-phase2-plan.md`
@@ -137,6 +165,7 @@ Expected:
 **Step 1: Update**
 
 要求：
+
 - 把 `verify-nonx86-native-evidence` 命令写入 checklist
 - 明确 `gate-strict` 默认对 native evidence fail-close
 - 继续明确 `x86_64` 只能完成 host-local closeout，不能宣称 native runtime closeout
@@ -144,6 +173,7 @@ Expected:
 **Step 2: Verify**
 
 Run:
+
 ```bash
 python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line
 python3 tests/fafafa.core.simd/check_nonx86_wiring_sync.py --summary-line
@@ -156,11 +186,13 @@ SIMD_NONX86_NATIVE_EVIDENCE_ROOT=tests/fafafa.core.simd/fixtures/native-evidence
 ### Task 5: Final verification
 
 **Files:**
+
 - Verify only
 
 **Step 1: Fresh commands**
 
 Run:
+
 ```bash
 FAFAFA_BUILD_MODE=Release SIMD_ENABLE_NEON_BACKEND=1 SIMD_ENABLE_RISCVV_BACKEND=1 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_DirectDispatch,TTestCase_DataPlane
 
@@ -172,11 +204,13 @@ git diff --check
 **Step 2: External host handoff**
 
 必须保留最后一步：
+
 ```bash
 SIMD_ENABLE_NEON_BACKEND=1 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence neon
 SIMD_ENABLE_RISCVV_BACKEND=1 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence riscvv
 ```
 
 Expected:
+
 - 这两条只能在原生 `arm64` / `riscv64` 主机上执行
 - 本机只负责把 verifier / gate / docs 准备好

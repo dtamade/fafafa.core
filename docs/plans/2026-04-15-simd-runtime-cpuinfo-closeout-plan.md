@@ -6,6 +6,15 @@
 > It is no longer part of the active whole-module execution chain.
 > Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
 
+> Current HEAD note (2026-05-17):
+> This plan is historical context, not the current repository status. Latest
+> `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+> remains `ready=False / mainline-ready=True / cross-ready=False`, with
+> `win-evidence-preflight=RECENT_BILLING_BLOCK` and
+> `windows_evidence_verify` failing at
+> `cmd.exe cannot resolve LAZBUILD command "lazbuild"`. For current operator
+> truth, use `docs/fafafa.core.simd.closeout.md` and
+> `tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`.
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
@@ -20,6 +29,7 @@
 ### Task 1: 固化当前 bounded frontier 与 stop condition
 
 **Files:**
+
 - Create: `docs/plans/2026-04-15-simd-runtime-cpuinfo-closeout-plan.md`
 - Verify only: `docs/fafafa.core.simd.interface.md`
 - Verify only: `docs/fafafa.core.simd.api.md`
@@ -40,6 +50,7 @@
 ### Task 2: 收口共享类型与 façade canonical wrapper
 
 **Files:**
+
 - Modify: `src/fafafa.core.simd.base.pas`
 - Modify: `src/fafafa.core.simd.cpuinfo.pas`
 - Modify: `src/fafafa.core.simd.framework.intf.inc`
@@ -61,6 +72,7 @@
 ### Task 3: 收口 dataplane published snapshot 语义
 
 **Files:**
+
 - Modify: `src/fafafa.core.simd.dataplane.pas`
 - Verify only: `tests/fafafa.core.simd/fafafa.core.simd.dataplane.testcase.pas`
 - Verify only: `src/fafafa.core.simd.direct.pas`
@@ -79,6 +91,7 @@
 ### Task 4: 收口 docs/example 里的 runtime vs cpuinfo 语义
 
 **Files:**
+
 - Modify: `docs/fafafa.core.simd.interface.md`
 - Modify: `docs/fafafa.core.simd.api.md`
 - Modify: `docs/fafafa.core.simd.cpuinfo.md`
@@ -100,6 +113,7 @@
 ### Task 5: Fresh verification 与 bounded commit
 
 **Files:**
+
 - Verify: `tests/fafafa.core.simd/fafafa.core.simd.runtime.testcase.pas`
 - Verify: `tests/fafafa.core.simd/fafafa.core.simd.dataplane.testcase.pas`
 - Verify: `tests/fafafa.core.simd/BuildOrTest.sh`
@@ -107,6 +121,7 @@
 **Step 1: 跑 targeted runtime/data-plane suite**
 
 Run:
+
 ```bash
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_RuntimeAPI
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DataPlane
@@ -115,6 +130,7 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suit
 **Step 2: 跑基础门禁**
 
 Run:
+
 ```bash
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate
@@ -123,6 +139,7 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate
 **Step 3: 如时间允许，跑 host-local strict closeout**
 
 Run:
+
 ```bash
 SIMD_QEMU_PLATFORMS='linux/arm64 linux/riscv64' SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local
 ```
@@ -130,6 +147,7 @@ SIMD_QEMU_PLATFORMS='linux/arm64 linux/riscv64' SIMD_GATE_REQUIRE_WINDOWS_EVIDEN
 **Step 4: 只提交本 bundle**
 
 Run:
+
 ```bash
 git add docs/plans/2026-04-15-simd-runtime-cpuinfo-closeout-plan.md \
   docs/fafafa.core.simd.interface.md docs/fafafa.core.simd.api.md docs/fafafa.core.simd.cpuinfo.md docs/fafafa.core.simd.md \

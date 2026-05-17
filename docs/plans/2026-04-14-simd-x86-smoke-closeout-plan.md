@@ -6,6 +6,15 @@
 > It is no longer part of the active whole-module execution chain.
 > Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
 
+> Current HEAD note (2026-05-17):
+> This plan is historical context, not the current repository status. Latest
+> `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+> remains `ready=False / mainline-ready=True / cross-ready=False`, with
+> `win-evidence-preflight=RECENT_BILLING_BLOCK` and
+> `windows_evidence_verify` failing at
+> `cmd.exe cannot resolve LAZBUILD command "lazbuild"`. For current operator
+> truth, use `docs/fafafa.core.simd.closeout.md` and
+> `tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`.
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
@@ -20,6 +29,7 @@
 ### Task 1: 落盘 x86 smoke / closeout 计划
 
 **Files:**
+
 - Create: `docs/plans/2026-04-14-simd-x86-smoke-closeout-plan.md`
 
 **Step 1: 写清当前波次边界**
@@ -40,6 +50,7 @@
 ### Task 2: 在 runner 增加 `impl-smoke-x86`
 
 **Files:**
+
 - Modify: `tests/fafafa.core.simd/BuildOrTest.sh`
 - Modify: `tests/fafafa.core.simd/buildOrTest.bat`
 
@@ -64,6 +75,7 @@
 ### Task 3: 同步 checklist / closeout / patch bundle
 
 **Files:**
+
 - Modify: `docs/fafafa.core.simd.checklist.md`
 - Modify: `docs/fafafa.core.simd.closeout.md`
 - Modify: `docs/plans/2026-04-14-simd-only-patch-bundle.md`
@@ -100,11 +112,13 @@
 ### Task 4: 跑 fresh release 验证并收口
 
 **Files:**
+
 - Verify only
 
 **Step 1: 先跑 x86 高频 smoke**
 
 Run:
+
 ```bash
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-smoke-x86
 ```
@@ -116,6 +130,7 @@ Expected:
 **Step 2: 跑基础 release 验证**
 
 Run:
+
 ```bash
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check
@@ -130,6 +145,7 @@ Expected:
 **Step 3: 跑 host-local strict closeout**
 
 Run:
+
 ```bash
 SIMD_QEMU_PLATFORMS='linux/arm64 linux/riscv64' \
 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 \
@@ -144,6 +160,7 @@ Expected:
 **Step 4: 跑 diff 健康检查**
 
 Run:
+
 ```bash
 git diff --check -- \
   tests/fafafa.core.simd/BuildOrTest.sh \
@@ -166,6 +183,7 @@ Expected:
 ### Task 5: 安全提交 Bundle A
 
 **Files:**
+
 - Stage only current Bundle A files
 
 **Step 1: stage**

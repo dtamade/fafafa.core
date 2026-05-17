@@ -6,6 +6,15 @@
 > It is no longer part of the active whole-module execution chain.
 > Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
 
+> Current HEAD note (2026-05-17):
+> This plan is historical context, not the current repository status. Latest
+> `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+> remains `ready=False / mainline-ready=True / cross-ready=False`, with
+> `win-evidence-preflight=RECENT_BILLING_BLOCK` and
+> `windows_evidence_verify` failing at
+> `cmd.exe cannot resolve LAZBUILD command "lazbuild"`. For current operator
+> truth, use `docs/fafafa.core.simd.closeout.md` and
+> `tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`.
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
@@ -20,6 +29,7 @@
 ### Task 1: 新增 non-x86 实现聚合审计入口
 
 **Files:**
+
 - Modify: `tests/fafafa.core.simd/BuildOrTest.sh`
 - Modify: `tests/fafafa.core.simd/buildOrTest.bat`
 
@@ -63,6 +73,7 @@ Expected:
 ### Task 2: 把 native-evidence collector 接入聚合审计入口
 
 **Files:**
+
 - Modify: `tests/fafafa.core.simd/collect_nonx86_native_evidence.sh`
 
 **Step 1: 替换 collector 内部的实现侧审计调用**
@@ -91,6 +102,7 @@ Expected:
 ### Task 3: 新增 host-local closeout 聚合入口
 
 **Files:**
+
 - Modify: `tests/fafafa.core.simd/BuildOrTest.sh`
 - Modify: `tests/fafafa.core.simd/buildOrTest.bat`
 - Modify: `docs/fafafa.core.simd.checklist.md`
@@ -128,6 +140,7 @@ Expected:
 ### Task 4: 全量验证
 
 **Files:**
+
 - Verify only
 
 **Step 1: 运行实现聚合审计**

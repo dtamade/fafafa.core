@@ -6,6 +6,15 @@
 > It is no longer part of the active whole-module execution chain.
 > Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
 
+> Current HEAD note (2026-05-17):
+> This plan is historical context, not the current repository status. Latest
+> `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+> remains `ready=False / mainline-ready=True / cross-ready=False`, with
+> `win-evidence-preflight=RECENT_BILLING_BLOCK` and
+> `windows_evidence_verify` failing at
+> `cmd.exe cannot resolve LAZBUILD command "lazbuild"`. For current operator
+> truth, use `docs/fafafa.core.simd.closeout.md` and
+> `tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`.
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
@@ -20,6 +29,7 @@
 ### Task 1: 冻结当前 non-x86 implementation closeout 基线
 
 **Files:**
+
 - Verify only: `tests/fafafa.core.simd/BuildOrTest.sh`
 - Verify only: `tests/fafafa.core.simd/buildOrTest.bat`
 - Verify only: `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
@@ -29,46 +39,55 @@
 **Step 1: 运行高频 smoke**
 
 Run:
+
 ```bash
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-smoke-nonx86
 ```
 
 Expected:
+
 - `NONX86_IMPL_SMOKE_SUMMARY ... status=ok`
 
 **Step 2: 运行实现聚合审计**
 
 Run:
+
 ```bash
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86
 ```
 
 Expected:
+
 - `NONX86_IMPL_AUDIT_SUMMARY ... status=ok`
 
 **Step 3: 运行基础 source/runtime checker**
 
 Run:
+
 ```bash
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check
 ```
 
 Expected:
+
 - exit `0`
 
 **Step 4: 检查 patch 形状**
 
 Run:
+
 ```bash
 git diff --check -- tests/fafafa.core.simd/check_nonx86_helper_semantics.py tests/fafafa.core.simd/BuildOrTest.sh tests/fafafa.core.simd/buildOrTest.bat docs/fafafa.core.simd.closeout.md docs/fafafa.core.simd.implementation-matrix.md
 ```
 
 Expected:
+
 - no output
 
 **Step 5: 提交 non-x86 收口基线**
 
 Run:
+
 ```bash
 git add tests/fafafa.core.simd/check_nonx86_helper_semantics.py tests/fafafa.core.simd/BuildOrTest.sh tests/fafafa.core.simd/buildOrTest.bat docs/fafafa.core.simd.closeout.md docs/fafafa.core.simd.implementation-matrix.md docs/plans/2026-04-14-simd-x86-bounded-frontier-plan.md
 git commit -m "simd: close out non-x86 implementation audit wave"
@@ -79,6 +98,7 @@ git commit -m "simd: close out non-x86 implementation audit wave"
 ### Task 2: 先做 AVX512 U32x16/U64x8 bounded triage
 
 **Files:**
+
 - Verify/Test: `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
 - Candidate implementation: `src/fafafa.core.simd.avx512.register.inc`
 - Candidate implementation: `src/fafafa.core.simd.avx512.u32x16_family.inc`
@@ -87,17 +107,20 @@ git commit -m "simd: close out non-x86 implementation audit wave"
 **Step 1: 先跑现有 AVX512 映射与 parity 基线**
 
 Run:
+
 ```bash
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI
 ```
 
 Expected:
+
 - 如果现有 `Test_AVX512_U32x16_U64x8_MappingAndParity` 已经暴露红点，则直接进入 Task 3
 - 如果全绿，不做“大审查”，继续 Step 2
 
 **Step 2: 在 `DispatchAPI` 里先补一个最小 failing test**
 
 要求：
+
 - 只针对 `AVX512 U32x16/U64x8`
 - 优先补 `shift boundary` / `mapping ownership` / `scalar contract` 三类之一
 - 不顺手修改 `DirectDispatch` / `DataPlane`
@@ -105,16 +128,19 @@ Expected:
 **Step 3: 跑红**
 
 Run:
+
 ```bash
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI
 ```
 
 Expected:
+
 - FAIL 明确落在 `AVX512 U32x16/U64x8`
 
 **Step 4: 若 30-45 分钟内没有拿到高信号红点，立即停止本 task**
 
 Stop condition:
+
 - 不继续翻 `AVX512` 全家桶
 - 直接切到 Task 5 的 `AVX2 capability/facade` 分支
 
@@ -123,6 +149,7 @@ Stop condition:
 ### Task 3: 最小修复 AVX512 U32x16/U64x8 单点问题
 
 **Files:**
+
 - Modify: `src/fafafa.core.simd.avx512.register.inc`
 - Modify: `src/fafafa.core.simd.avx512.u32x16_family.inc`
 - Modify: `src/fafafa.core.simd.avx512.u64x8_family.inc`
@@ -131,6 +158,7 @@ Stop condition:
 **Step 1: 只修红掉的那个 family / contract**
 
 要求：
+
 - 只改一个 family
 - 不动 public API / ABI
 - 不顺手改 `AVX2` / `SSE*`
@@ -138,32 +166,38 @@ Stop condition:
 **Step 2: 跑绿当前 red test**
 
 Run:
+
 ```bash
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI
 ```
 
 Expected:
+
 - PASS
 
 **Step 3: 扩到最小安全面**
 
 Run:
+
 ```bash
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_DirectDispatch,TTestCase_DataPlane
 ```
 
 Expected:
+
 - PASS
 
 **Step 4: 只在需要时补 source truth**
 
 要求：
+
 - 如果修复属于 register ownership / facade contract / wrapper-vs-base-scalar 这一类，才新增对应 checker
 - 如果只是纯算术实现修正，不新增“花哨 checker”，只保留 runtime proof
 
 **Step 5: 提交**
 
 Run:
+
 ```bash
 git add tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas src/fafafa.core.simd.avx512.register.inc src/fafafa.core.simd.avx512.u32x16_family.inc src/fafafa.core.simd.avx512.u64x8_family.inc
 git commit -m "simd: fix bounded avx512 wide integer contract"
@@ -174,6 +208,7 @@ git commit -m "simd: fix bounded avx512 wide integer contract"
 ### Task 4: 把 AVX512 单点问题升级为长期可维护证据
 
 **Files:**
+
 - Maybe modify: `docs/fafafa.core.simd.closeout.md`
 - Maybe modify: `docs/fafafa.core.simd.implementation-matrix.md`
 - Maybe modify: `tests/fafafa.core.simd/BuildOrTest.sh`
@@ -181,23 +216,27 @@ git commit -m "simd: fix bounded avx512 wide integer contract"
 **Step 1: 只有在修复确实产出新 contract 时才更新 matrix**
 
 要求：
+
 - 写清 backend / slot / contract / source truth / runtime evidence / next action
 - 不写空泛结论
 
 **Step 2: 只有在该类问题会重复出现时，才考虑新的 smoke 入口**
 
 要求：
+
 - 不新增又一个“大而全”入口
 - 只在能显著复利时才加
 
 **Step 3: 验证 docs patch**
 
 Run:
+
 ```bash
 git diff --check -- docs/fafafa.core.simd.closeout.md docs/fafafa.core.simd.implementation-matrix.md tests/fafafa.core.simd/BuildOrTest.sh
 ```
 
 Expected:
+
 - no output
 
 ---
@@ -205,6 +244,7 @@ Expected:
 ### Task 5: 如果 AVX512 不出红点，立即切换到 AVX2 capability/facade 分支
 
 **Files:**
+
 - Test: `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
 - Candidate implementation: `src/fafafa.core.simd.avx2.register.inc`
 - Candidate implementation: `src/fafafa.core.simd.avx2.facade.inc`
@@ -212,6 +252,7 @@ Expected:
 **Step 1: 只用现成 tests 做 triage**
 
 关注现有用例：
+
 - `Test_AVX2_BackendCapabilities_Expose_FMA_When_FusedPathUsable`
 - `Test_AVX2_BackendCapabilities_Clear_FMA_When_VectorAsmDisabled`
 - `Test_AVX2_BackendCapabilities_Expose_Shuffle_When_NativeShuffleSlotsUsable`
@@ -220,6 +261,7 @@ Expected:
 - `Test_AVX2_FmaSlots_StayScalar_When_HardwareFmaUnavailable`
 
 Run:
+
 ```bash
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI
 ```
@@ -227,12 +269,14 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suit
 **Step 2: 拿到明确红点后，再写最小 failing test / 最小修复**
 
 要求：
+
 - 只改 capability bits 或 facade/base-fill contract
 - 不把范围扩到 `AVX2` 全实现
 
 **Step 3: 跑绿**
 
 Run:
+
 ```bash
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check
@@ -253,6 +297,7 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check
 ### Task 6: 明确不做的事
 
 **Do not:**
+
 - 不再回头重做 non-x86 泛审查
 - 不开启新的“大矩阵全家桶”重构
 - 不在没有红点前先重构 `DispatchAPI/DirectDispatch/DataPlane`

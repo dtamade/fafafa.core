@@ -6,6 +6,15 @@
 > It is no longer part of the active whole-module execution chain.
 > Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
 
+> Current HEAD note (2026-05-17):
+> This plan is historical context, not the current repository status. Latest
+> `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+> remains `ready=False / mainline-ready=True / cross-ready=False`, with
+> `win-evidence-preflight=RECENT_BILLING_BLOCK` and
+> `windows_evidence_verify` failing at
+> `cmd.exe cannot resolve LAZBUILD command "lazbuild"`. For current operator
+> truth, use `docs/fafafa.core.simd.closeout.md` and
+> `tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`.
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
@@ -111,6 +120,7 @@
 ### Task 0: 补齐 native non-x86 运行时证据
 
 **Files:**
+
 - Modify: `tests/fafafa.core.simd/BuildOrTest.sh`
 - Modify: `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
 - Modify: `docs/fafafa.core.simd.checklist.md`
@@ -166,6 +176,7 @@ git commit -m "simd: wire native nonx86 helper evidence"
 ### Task 1: Compare / Mask 语义主审
 
 **Files:**
+
 - Modify: `src/fafafa.core.simd.neon.pas`
 - Modify: `src/fafafa.core.simd.neon.compare.inc`
 - Modify: `src/fafafa.core.simd.riscvv.pas`
@@ -257,6 +268,7 @@ git commit -m "simd: validate nonx86 compare mask semantics"
 ### Task 2: Shift / Bitwise 语义主审
 
 **Files:**
+
 - Modify: `src/fafafa.core.simd.neon.pas`
 - Modify: `src/fafafa.core.simd.riscvv.pas`
 - Modify: `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
@@ -340,6 +352,7 @@ git commit -m "simd: validate nonx86 shift bitwise semantics"
 ### Task 3: Min / Max / Arithmetic / Mul 语义主审
 
 **Files:**
+
 - Modify: `src/fafafa.core.simd.neon.pas`
 - Modify: `src/fafafa.core.simd.riscvv.pas`
 - Modify: `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
@@ -409,6 +422,7 @@ git commit -m "simd: validate nonx86 integer arithmetic semantics"
 ### Task 4: Checker / grouped helper / checklist 收尾
 
 **Files:**
+
 - Modify: `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
 - Modify: `tests/fafafa.core.simd/check_nonx86_wiring_sync.py`
 - Modify: `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
@@ -466,6 +480,7 @@ git commit -m "simd: consolidate nonx86 implementation audits"
 ### Task 5: 最终 closeout / freeze-ready evidence
 
 **Files:**
+
 - Modify: `docs/fafafa.core.simd.closeout.md`
 - Modify: `docs/fafafa.core.simd.checklist.md`
 - Log/Evidence: `tests/fafafa.core.simd/logs/`

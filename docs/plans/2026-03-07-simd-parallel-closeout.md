@@ -6,6 +6,15 @@
 > It is no longer part of the active whole-module execution chain.
 > Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
 
+> Current HEAD note (2026-05-17):
+> This plan is historical context, not the current repository status. Latest
+> `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+> remains `ready=False / mainline-ready=True / cross-ready=False`, with
+> `win-evidence-preflight=RECENT_BILLING_BLOCK` and
+> `windows_evidence_verify` failing at
+> `cmd.exe cannot resolve LAZBUILD command "lazbuild"`. For current operator
+> truth, use `docs/fafafa.core.simd.closeout.md` and
+> `tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`.
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
@@ -20,6 +29,7 @@
 ### Task 1: 文档 landing 与过时文档收口
 
 **Files:**
+
 - Modify: `src/fafafa.core.simd.README.md`
 - Modify: `src/fafafa.core.simd.architecture.md`
 - Modify: `src/fafafa.core.simd.next-steps.md`
@@ -31,6 +41,7 @@
 ### Task 2: cpuinfo 测试伪 skip 修复
 
 **Files:**
+
 - Modify: `tests/fafafa.core.simd.cpuinfo/fafafa.core.simd.cpuinfo.testcase.pas`
 - Modify: `tests/fafafa.core.simd.cpuinfo/fafafa.core.simd.cpuinfo.lazy.testcase.pas`
 - Verify: `tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh`
@@ -40,6 +51,7 @@
 ### Task 3: gate / gate-strict 分层命名与说明
 
 **Files:**
+
 - Modify: `tests/fafafa.core.simd/BuildOrTest.sh`
 - Modify: `docs/fafafa.core.simd.checklist.md`
 - Modify: `docs/fafafa.core.simd.maintenance.md`
@@ -50,10 +62,12 @@
 ### Task 4: 定向验证
 
 **Files:**
+
 - Verify only: `tests/fafafa.core.simd/BuildOrTest.sh`
 - Verify only: `tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh`
 
 **Commands:**
+
 - `bash tests/fafafa.core.simd/BuildOrTest.sh check`
 - `bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
 - `bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DirectDispatch`
