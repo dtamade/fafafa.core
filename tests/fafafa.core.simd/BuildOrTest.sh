@@ -1946,18 +1946,23 @@ check_windows_manual_closeout_guard() {
   LMissing=0
   L3CmdRequired=(
     '2.2 Git Bash / WSL 回灌 cross gate（必需，native batch evidence 不会生成 fresh gate_summary）'
+    'native Windows `lazbuild.exe`'
+    "\$env:LAZBUILD = 'C:\\Lazarus\\lazbuild.exe'"
     "FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate"
     'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1'
     '- 手工 Windows 实机路径必须先显式补一轮 `SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1` + `SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1` 的 Linux cross gate；`win-closeout-finalize` 自己不会回灌 gate。'
   )
   LRunbookRequired=(
     '3. 回灌 cross gate（Git Bash / WSL，必需）'
+    'native Windows `lazbuild.exe`'
+    "`\$env:LAZBUILD = 'C:\\Lazarus\\lazbuild.exe'`"
     "\`FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate\`"
     'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1'
     '- 因此手工 Windows 实机路径在 finalize 前必须显式补跑 fail-close cross gate；否则 `freeze-status` 只会继续消费旧的 `gate_summary.md`。'
   )
   LCloseoutDocRequired=(
     'Then run the required fail-close cross gate:'
+    'native Windows `.exe/.bat/.cmd`'
     "FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate"
     'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1'
     'native batch evidence 不会生成 fresh `gate_summary.md/json`'
@@ -1992,19 +1997,21 @@ check_windows_manual_closeout_guard() {
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-YYYYMMDD-152'
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status'
     'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1'
+    'native Windows `.exe/.bat/.cmd`'
     'evidence-win-verify -> SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 + SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 gate -> win-closeout-finalize -> freeze-status'
   )
   LReleaseChecklistRequired=(
     '`closeout-release` 是 Linux/Git Bash/WSL 侧完整收口的唯一官方入口。'
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152'
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight'
+    'native Windows `.exe/.bat/.cmd`'
     "FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate"
     'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1'
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status'
   )
   LCompletenessMatrixRequired=(
     '`closeout-release` 已作为完整 release 收口入口固化到 runner 与主文档。'
-    '采集 + 校验证据包；手工路径仍需后续 fail-close cross gate + finalize'
+    '采集 + 校验证据包；仅限真实 Windows runner / Windows 实机，且需要 native Windows `LAZBUILD`；手工路径仍需后续 fail-close cross gate + finalize'
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-YYYYMMDD-152'
   )
   LFullPlatformPlanRequired=(
@@ -2127,6 +2134,8 @@ check_windows_closeout_helper_runtime_guard() {
 
   LRequired=(
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-CHECK-3CMD'
+    'native Windows `lazbuild.exe`'
+    '$env:LAZBUILD = '\''C:\Lazarus\lazbuild.exe'\'''
     "FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate"
     '- `win-evidence-via-gh` 现在会把中间态快照落到 `tests/fafafa.core.simd/logs/windows-closeout/SIMD-CHECK-3CMD/`，同时回写 canonical `logs/` 指针。'
     '- 手工 Windows 实机路径必须先显式补一轮 `SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1` + `SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1` 的 Linux cross gate；`win-closeout-finalize` 自己不会回灌 gate。'

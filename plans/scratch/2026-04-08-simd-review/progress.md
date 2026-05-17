@@ -9412,3 +9412,26 @@
 - 当前阶段结论：
   - active closeout 入口现在已经统一说清楚“manual Windows path 的真实前提条件”
   - 这意味着当前再有人沿 repo 内指导继续踩到 Wine/bare `lazbuild`，更大概率就是外部环境没满足，而不是仓库内 guidance 还在误导
+
+## 2026-05-17 Windows Closeout Guard Selfcheck Sync
+
+- 在把 active docs / batch helper 都同步到 `native Windows LAZBUILD` 前提后，我又补做了一轮 control-plane audit，发现 `tests/fafafa.core.simd/BuildOrTest.sh` 自带的 Windows manual closeout guard 还没把这条新前提纳入 machine-check。
+- 这意味着如果未来有人又把相关提示改松了，repo 的 selfcheck 之前并不会报红，仍有回退风险。
+- 已落地的最小修法：
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - `L3CmdRequired` / `LRunbookRequired` / `LCloseoutDocRequired` / `LHandoffRequired` / `LReleaseChecklistRequired` / `LCompletenessMatrixRequired`
+    - 以及 helper runtime `LRequired`
+    - 现在都额外要求命中：
+      - `native Windows \`lazbuild.exe\``
+      - `C:\Lazarus\lazbuild.exe` override
+      - 或对应的 native Windows `.exe/.bat/.cmd` requirement
+- 已验证：
+  - `bash -n tests/fafafa.core.simd/BuildOrTest.sh`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity`
+    - `[CHECK] OK (runner parity quick path)`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate-summary-selfcheck`
+    - `[GATE-SUMMARY-SELFCHECK] OK`
+  - `git diff --check`
+- 当前阶段结论：
+  - 这条 `native Windows LAZBUILD` 前提现在不仅写进了文档和输出，还被 repo 内 selfcheck 正式守住
+  - 当前 repo-local 的 Windows closeout guidance / guard / next-action 已基本形成单一口径
