@@ -941,11 +941,14 @@ EOM
 cat > "${LTmpRoot}/case_ignored_artifact/src/fafafa.core.simd.pas" <<'EOM'
 unit fafafa.core.simd;
 EOM
+cat > "${LTmpRoot}/case_ignored_artifact/src/fafafa.core.simd.neon.facade_platform.inc" <<'EOM'
+// Intentional empty include boundary used by freeze-status rehearsal.
+EOM
 cat > "${LTmpRoot}/case_ignored_artifact/src/fafafa.core.simd.riscvv.ppu" <<'EOM'
 compiled artifact placeholder
 EOM
 
-python3 - "${LCaseIgnoredArtifact}/logs/gate_summary.md" "${LTmpRoot}/case_ignored_artifact/src/fafafa.core.simd.pas" "${LTmpRoot}/case_ignored_artifact/src/fafafa.core.simd.riscvv.ppu" <<'PY'
+python3 - "${LCaseIgnoredArtifact}/logs/gate_summary.md" "${LTmpRoot}/case_ignored_artifact/src/fafafa.core.simd.pas" "${LTmpRoot}/case_ignored_artifact/src/fafafa.core.simd.riscvv.ppu" "${LTmpRoot}/case_ignored_artifact/src/fafafa.core.simd.neon.facade_platform.inc" <<'PY'
 from pathlib import Path
 import os
 import sys
@@ -953,9 +956,11 @@ import sys
 artifact = Path(sys.argv[1])
 real_source = Path(sys.argv[2])
 compiled_artifact = Path(sys.argv[3])
+empty_boundary = Path(sys.argv[4])
 base = artifact.stat().st_mtime
 os.utime(real_source, (base - 30, base - 30))
 os.utime(compiled_artifact, (base + 30, base + 30))
+os.utime(empty_boundary, (base + 45, base + 45))
 PY
 
 SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=0 python3 "${LCaseIgnoredArtifact}/evaluate_simd_freeze_status.py" --root "${LCaseIgnoredArtifact}" --json-file "${LCaseIgnoredArtifact}/logs/freeze_status_ignored_artifact.json" > "${LCaseIgnoredArtifact}/logs/freeze_stdout_ignored_artifact.txt" 2>&1
@@ -968,6 +973,12 @@ fi
 
 if grep -F -- "latest_source=" "${LCaseIgnoredArtifact}/logs/freeze_stdout_ignored_artifact.txt" | grep -F ".ppu" >/dev/null; then
   echo "[FREEZE-REHEARSAL] FAILED: case_ignored_artifact should not treat .ppu as latest source"
+  cat "${LCaseIgnoredArtifact}/logs/freeze_stdout_ignored_artifact.txt"
+  exit 1
+fi
+
+if grep -F -- "latest_source=" "${LCaseIgnoredArtifact}/logs/freeze_stdout_ignored_artifact.txt" | grep -F "neon.facade_platform.inc" >/dev/null; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_ignored_artifact should not treat intentional empty include boundaries as latest source"
   cat "${LCaseIgnoredArtifact}/logs/freeze_stdout_ignored_artifact.txt"
   exit 1
 fi
