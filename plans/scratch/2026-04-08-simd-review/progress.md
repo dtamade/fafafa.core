@@ -10821,3 +10821,51 @@
 - 当前阶段结论：
   - `2507..2922` 这一整簇已经可以判定为 hygiene-only，整体退出 residual 清单
   - `SSE2` 的当前下一簇入口已经推进到 `3298`，后续可以继续审 `shift/store tail` 邻近簇
+
+## 2026-05-18 SSE2 Conversion And LoadStore Tail Hygiene
+
+- 接着 `2507..2922` 收口后，本轮继续沿 `3298..3631` 这一簇推进，没有跨到 `maskmove` 之后的更后面区域。
+- 本轮复核的残点主要分成三组：
+  - conversion / cast：
+    - `simd_cvtepi32_pd`
+    - `simd_cvtpd_epi32`
+    - `simd_cvtepi32_ps`
+    - `simd_cvtps_epi32`
+    - `simd_cvtsi32_si128`
+    - `simd_cvtsi64_si128`
+    - `simd_cvtsi128_si32`
+    - `simd_cvtsi128_si64`
+    - `simd_cvtpd_ps`
+    - `simd_cvtps_pd`
+    - `simd_cvttps_epi32`
+    - `simd_cvttpd_epi32`
+  - header / section text：
+    - `Load/store helper additions`
+  - load/store tail：
+    - `simd_loadl_epi64`
+    - `simd_storel_epi64`
+- 复核结论：
+  - 这一整簇没有新的 Windows-only 吞指令，也没有新的吞 label
+  - 问题全部收敛为 conversion 尾注、section 注释、ABI 说明里的损坏文本
+  - 因而本批继续保持 hygiene-only，不改任何执行语义
+- 本批实际改动：
+  - 把 conversion/cast 家族的 Windows 分支尾注替换成稳定 ASCII 注释
+  - 把 `simd_loadl_epi64` / `simd_storel_epi64` 的 ABI 说明和 load/store 尾注替换成稳定 ASCII 注释
+  - 不改寄存器协议，不改返回/调用约定，不动 `maskmove` 行为
+- fresh 验证已完成：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_comment_swallow.py --summary-line`
+  - `python3` 逐文件计数：
+    - `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 从 `residual_char_count=174` 降到 `146`
+    - `residuals_up_to_3631=[]`
+    - `first_residual_lines=[3638, 3639, 3689, 3693, 3696, 3716, 3717, 3718, 3719, 3721, 3722, 3723, 3724, 3727, 3743, 3744, 3745, 3747, 3748, 3749]`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - `intrinsics.experimental check` default / experimental 双模态通过
+  - `x86 SSE2 backend smoke` 通过
+  - 主 `simd` release `check` 通过
+- 当前阶段结论：
+  - `3298..3631` 这一整簇已经可以判定为 hygiene-only，整体退出 residual 清单
+  - `SSE2` 当前下一簇入口已经推进到 `3638`，接下来可直接审 `storel/maskmove` 邻近残点

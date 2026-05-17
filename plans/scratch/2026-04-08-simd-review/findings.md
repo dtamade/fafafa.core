@@ -8044,3 +8044,30 @@
   - 不回头重扫 `2507..2922`
   - 直接去看 `3298+` 的 `shift/store tail` 邻近簇
   - 继续维持“先判真 bug，再做 bounded hygiene”的节奏
+
+## 2026-05-18 SSE2 3298..3631 Stayed Hygiene-Only Too
+
+- `3298..3631` 这一簇主要覆盖 conversion/cast 以及 `loadl/storel` 邻近区。
+- 在前一批已经确认 `SSE2` 里确实还混着 Windows-only 行为 bug 的前提下，这一簇同样做了逐点复核。
+- fresh 结论是：
+  - `cvtdq2pd/cvtpd2dq/cvtdq2ps/cvtps2dq`
+  - `cvtsi* / cvt*si*`
+  - `cvtpd2ps/cvtps2pd/cvttps2dq/cvttpd2dq`
+  - `simd_loadl_epi64/simd_storel_epi64`
+  这些点都没有新的吞指令或吞 label，问题仍只是尾注和 ABI 说明损坏。
+- 因而这批最优动作仍然是最小收口：
+  - 只替换说明文字
+  - 不重排汇编单行
+  - 不动寄存器约定
+  - 不碰紧邻的 `maskmove` 行为
+- 收口后的 live 结果继续往前推：
+  - `residual_char_count: 174 -> 146`
+  - `residuals_up_to_3631=[]`
+  - `first residual line = 3638`
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - `intrinsics.experimental` 双模态 `check` 通过
+  - 主 `Release check` 通过
+- 这也进一步说明当前工作法已经稳定：
+  - 前面几批抓到真 bug，不代表后面所有 residual 都是行为洞
+  - 但也不能反过来假设后面全是文字问题
+  - 继续逐簇判定，收益仍然最高

@@ -3295,7 +3295,7 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]    // 加载 a
-    cvtdq2pd xmm0, xmm0   // 32位整数转双精度浮�?
+    cvtdq2pd xmm0, xmm0   // Convert 32-bit integers to double-precision lanes.
     {$ELSE}
     movdqu xmm0, [rdi]
     cvtdq2pd xmm0, xmm0
@@ -3321,7 +3321,7 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movupd xmm0, [rcx]    // 加载 a
-    cvtpd2dq xmm0, xmm0   // 双精度浮点转32位整数（舍入�?
+    cvtpd2dq xmm0, xmm0   // Convert doubles to 32-bit integers using the current rounding mode.
     {$ELSE}
     movupd xmm0, [rdi]
     cvtpd2dq xmm0, xmm0
@@ -3347,7 +3347,7 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]    // 加载 a
-    cvtdq2ps xmm0, xmm0   // 32位整数转单精度浮�?
+    cvtdq2ps xmm0, xmm0   // Convert 32-bit integers to single-precision lanes.
     {$ELSE}
     movdqu xmm0, [rdi]
     cvtdq2ps xmm0, xmm0
@@ -3373,7 +3373,7 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movups xmm0, [rcx]    // 加载 a
-    cvtps2dq xmm0, xmm0   // 单精度浮点转32位整数（舍入�?
+    cvtps2dq xmm0, xmm0   // Convert singles to 32-bit integers using the current rounding mode.
     {$ELSE}
     movups xmm0, [rdi]
     cvtps2dq xmm0, xmm0
@@ -3398,7 +3398,7 @@ function simd_cvtsi32_si128(a: Integer): TM128; {$IFDEF FPC}assembler; nostackfr
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movd xmm0, ecx        // 32位整数转128位（�?2位）
+    movd xmm0, ecx        // Insert the 32-bit integer into the low lane of the 128-bit value.
   {$ELSE}
     movd xmm0, edi        // Linux/macOS x64
   {$ENDIF}
@@ -3421,7 +3421,7 @@ function simd_cvtsi64_si128(a: Int64): TM128; {$IFDEF FPC}assembler; nostackfram
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movq xmm0, rcx        // 64位整数转128位（�?4位）
+    movq xmm0, rcx        // Insert the 64-bit integer into the low lane of the 128-bit value.
   {$ELSE}
     movq xmm0, rdi        // Linux/macOS x64
   {$ENDIF}
@@ -3444,7 +3444,7 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]    // 加载 a
-    movd eax, xmm0        // 提取�?2�?
+    movd eax, xmm0        // Extract the low 32-bit lane.
     {$ELSE}
     movdqu xmm0, [rdi]
     movd eax, xmm0
@@ -3464,7 +3464,7 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]    // 加载 a
-    movq rax, xmm0        // 提取�?4�?
+    movq rax, xmm0        // Extract the low 64-bit lane.
     {$ELSE}
     movdqu xmm0, [rdi]
     movq rax, xmm0
@@ -3472,7 +3472,7 @@ asm
 {$ELSEIF CPUX86}
     mov edx, [esp + 4]    // a
     movdqu xmm0, [edx]
-    movq [esp + 8], xmm0  // 返回64位值到�?
+    movq [esp + 8], xmm0  // Write the 64-bit return value back to the caller frame.
     {$ELSE}
     {$ERROR Unsupported CPU}
 {$ENDIF}
@@ -3485,7 +3485,7 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movupd xmm0, [rcx]    // 加载 a
-    cvtpd2ps xmm0, xmm0   // 双精度转单精�?
+    cvtpd2ps xmm0, xmm0   // Convert doubles to single-precision lanes.
     {$ELSE}
     movupd xmm0, [rdi]
     cvtpd2ps xmm0, xmm0
@@ -3511,7 +3511,7 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movups xmm0, [rcx]    // 加载 a
-    cvtps2pd xmm0, xmm0   // 单精度转双精�?
+    cvtps2pd xmm0, xmm0   // Convert singles to double-precision lanes.
     {$ELSE}
     movups xmm0, [rdi]
     cvtps2pd xmm0, xmm0
@@ -3538,7 +3538,7 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movups xmm0, [rcx]    // 加载 a
-    cvttps2dq xmm0, xmm0  // 单精度转32位整数（截断�?
+    cvttps2dq xmm0, xmm0  // Convert singles to 32-bit integers using truncation.
     {$ELSE}
     movups xmm0, [rdi]
     cvttps2dq xmm0, xmm0
@@ -3564,7 +3564,7 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movupd xmm0, [rcx]    // 加载 a
-    cvttpd2dq xmm0, xmm0  // 双精度转32位整数（截断�?
+    cvttpd2dq xmm0, xmm0  // Convert doubles to 32-bit integers using truncation.
     {$ELSE}
     movupd xmm0, [rdi]
     cvttpd2dq xmm0, xmm0
@@ -3588,7 +3588,7 @@ end;
 
 // === 新添加函数的占位实现 ===
 
-// Load/Store 新函�?
+// Load/store helper additions.
 function simd_loadl_epi64(const Ptr: Pointer): TM128; {$IFDEF FPC}assembler; nostackframe;
 {$ENDIF}
 asm
@@ -3603,7 +3603,7 @@ asm
     movq xmm0, [rdi]
   {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: the pointer argument arrives on the stack.
     mov eax, [esp + 4]
     pxor xmm0, xmm0
     movq xmm0, [eax]
@@ -3623,16 +3623,16 @@ procedure simd_storel_epi64(var Dest; constref Src: TM128); {$IFDEF FPC}assemble
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    // Windows x64: Dest �?rcx, Src �?rdx
-    movq xmm0, [rdx] //  加载源数据的�?4�?
-    movq [rcx], xmm0      // 存储�?4位到目标
+    // Windows x64: Dest in rcx, Src in rdx.
+    movq xmm0, [rdx] // Load the low 64 bits from the source value.
+    movq [rcx], xmm0      // Store the low 64 bits to the destination.
   {$ELSE}
-    // Linux/macOS x64 System V ABI: Dest �?rdi, Src �?rsi
-    movq xmm0, [rsi] //  加载源数据的�?4�?
-    movq [rdi], xmm0      // 存储�?4位到目标
+    // Linux/macOS x64 System V ABI: Dest in rdi, Src in rsi.
+    movq xmm0, [rsi] // Load the low 64 bits from the source value.
+    movq [rdi], xmm0      // Store the low 64 bits to the destination.
   {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
     movq xmm0, [edx] //  加载源数据的�?4�?
