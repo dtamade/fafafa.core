@@ -18,27 +18,10 @@ unit fafafa.core.simd.intrinsics.sve;
 interface
 
 uses
-  fafafa.core.simd.intrinsics.base;
+  fafafa.core.simd.intrinsics.base,
+  fafafa.core.simd.intrinsics.sve.base;
 
 {$IFDEF CPUAARCH64}
-
-// === SVE 占位符类�?===
-type
-  // SVE 向量类型 (长度可变，这里用固定长度模拟)
-  TSVEVector = record
-    case Integer of
-      0: (sve_u32: array[0..15] of UInt32);  // 最�?6�?2位元�?      1: (sve_i32: array[0..15] of LongInt);
-      2: (sve_f32: array[0..15] of Single);
-      3: (sve_u64: array[0..7] of UInt64);   // 最�?�?4位元�?      4: (sve_i64: array[0..7] of Int64);
-      5: (sve_f64: array[0..7] of Double);
-  end;
-  PSVEVector = ^TSVEVector;
-
-  // SVE 谓词类型
-  TSVEPredicate = record
-    pred_mask: array[0..15] of Boolean;  // 简化的谓词表示
-  end;
-  PSVEPredicate = ^TSVEPredicate;
 
 // === SVE 基础函数 (占位�? ===
 function sve_ptrue_b32: TSVEPredicate;

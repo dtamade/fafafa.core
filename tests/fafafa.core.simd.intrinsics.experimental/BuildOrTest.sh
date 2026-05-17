@@ -431,7 +431,7 @@ check_sve2_runtime_fail_close() {
     "${SVE2_FAIL_CLOSE_SOURCE}" \
     "${SVE2_FAIL_CLOSE_LOG}" \
     "${SVE2_FAIL_CLOSE_BIN}" \
-    "only qualified on aarch64 targets whose cpuinfo reports sve2|only qualified on aarch64 targets whose cpuinfo reports sve"
+    "only qualified on aarch64 targets whose cpuinfo reports sve2"
 }
 
 check_lasx_runtime_fail_close() {
@@ -509,6 +509,38 @@ check_heap_leaks() {
   echo "[LEAK] OK"
 }
 
+run_check_current_mode() {
+  build_project
+  check_build_log
+  check_source_hygiene
+  check_x86_backend_smoke
+  check_mmx_backend_smoke
+  check_sse_backend_smoke
+  check_sse3_backend_smoke
+  check_avx_backend_smoke
+  check_avx2_backend_smoke
+  check_avx512_backend_smoke
+  check_fma3_backend_smoke
+  check_neon_runtime_fail_close
+  check_rvv_runtime_fail_close
+  check_sve_runtime_fail_close
+  check_sve2_runtime_fail_close
+  check_lasx_runtime_fail_close
+}
+
+run_check_all_modes() {
+  if [[ "${EXPERIMENTAL_FLAG}" != "0" ]]; then
+    echo "[CHECK-ALL] Running current mode only (experimental=${EXPERIMENTAL_FLAG})"
+    run_check_current_mode
+    return
+  fi
+
+  echo "[CHECK-ALL] Running default mode (experimental=0)"
+  FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=0 SIMD_OUTPUT_ROOT="${OUTPUT_ROOT}" bash "$0" check-current-mode
+  echo "[CHECK-ALL] Running experimental mode (experimental=1)"
+  FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 SIMD_OUTPUT_ROOT="${OUTPUT_ROOT}" bash "$0" check-current-mode
+}
+
 case "${ACTION}" in
   clean)
     echo "[CLEAN] Removing ${BIN_DIR}, ${OUTPUT_ROOT}/lib, ${LOG_DIR}"
@@ -518,22 +550,10 @@ case "${ACTION}" in
     build_project
     ;;
   check)
-    build_project
-    check_build_log
-    check_source_hygiene
-    check_x86_backend_smoke
-    check_mmx_backend_smoke
-    check_sse_backend_smoke
-    check_sse3_backend_smoke
-    check_avx_backend_smoke
-    check_avx2_backend_smoke
-    check_avx512_backend_smoke
-    check_fma3_backend_smoke
-    check_neon_runtime_fail_close
-    check_rvv_runtime_fail_close
-    check_sve_runtime_fail_close
-    check_sve2_runtime_fail_close
-    check_lasx_runtime_fail_close
+    run_check_all_modes
+    ;;
+  check-current-mode)
+    run_check_current_mode
     ;;
   test-all)
     echo "[TEST-ALL] Running default mode (experimental=0)"

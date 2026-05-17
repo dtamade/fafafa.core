@@ -16,7 +16,7 @@ interface
 
 uses
   fafafa.core.simd.intrinsics.base,
-  fafafa.core.simd.intrinsics.sve;
+  fafafa.core.simd.intrinsics.sve.base;
 
 {$IFDEF CPUAARCH64}
 

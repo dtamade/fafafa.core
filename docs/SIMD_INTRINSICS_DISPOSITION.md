@@ -30,8 +30,9 @@
 | `fafafa.core.simd.intrinsics.fma3` | `experimental isolated` | x86 FMA3 leaf | 默认入口隔离，仍需 opt-in；non-x86 分支只保留 compile scaffolding，runtime fail-close |
 | `fafafa.core.simd.intrinsics.neon` | `experimental isolated` | ARM NEON leaf | 默认入口隔离，仍需 opt-in；只有 `cpuinfo` 报告 `NEON` 的 ARM-class 目标才允许运行 placeholder semantics，其余主机 runtime fail-close |
 | `fafafa.core.simd.intrinsics.rvv` | `experimental isolated` | RISC-V V leaf | 默认入口隔离，仍需 opt-in；只有 `cpuinfo` 报告 `RVV` 的 RISC-V 目标才允许运行 placeholder semantics，其余主机 runtime fail-close |
+| `fafafa.core.simd.intrinsics.sve.base` | `active leaf` | SVE/SVE2 shared placeholder types | 只承载 `TSVEVector/TSVEPredicate` 等共享类型；不带 runtime guard，不承担 executable semantics |
 | `fafafa.core.simd.intrinsics.sve` | `experimental isolated` | ARM SVE leaf | 默认入口隔离，仍需 opt-in；只有 `cpuinfo` 报告 `SVE` 的 `AArch64` 目标才允许运行 placeholder semantics，其余主机 runtime fail-close |
-| `fafafa.core.simd.intrinsics.sve2` | `experimental isolated` | ARM SVE2 leaf | 默认入口隔离，仍需 opt-in；当前已按 `cpuinfo` 的 `SVE2` 资格收紧 runtime，其余主机 fail-close；这还不是 stable `SVE2` qualification contract |
+| `fafafa.core.simd.intrinsics.sve2` | `experimental isolated` | ARM SVE2 leaf | 默认入口隔离，仍需 opt-in；当前已按 `cpuinfo` 的 `SVE2` 资格收紧 runtime，其余主机 fail-close；共享类型已下沉到 `sve.base`，避免 `sve` initialization 抢先吞掉 `SVE2` reject 边界 |
 | `fafafa.core.simd.intrinsics.lasx` | `experimental isolated` | LoongArch LASX leaf | 默认入口隔离，仍需 opt-in；只有 `cpuinfo` 报告 `LASX` 的 `LoongArch64` 目标才允许运行 placeholder semantics，其余主机 runtime fail-close |
 
 ## 解释规则
@@ -58,6 +59,7 @@
 - `fafafa.core.simd.intrinsics.sse3/sse41/sse42/avx512/fma3` 也都是 x86-only experimental lane；non-x86 运行期同样不是 contract。
 - `fafafa.core.simd.intrinsics.aes/sha` 和上面这批不同：当前有实验测试明确锁住 default-reject + placeholder semantics，但这仍然不是 stable leaf contract。
 - `fafafa.core.simd.intrinsics.neon/rvv` 也不是“任何主机开了 experimental 宏都能跑”的 contract；当前只允许 `cpuinfo` 已确认对应 ISA 的目标主机进入 runtime placeholder semantics。
+- `fafafa.core.simd.intrinsics.sve.base` 不是新的 executable intrinsics family；它只是 `sve/sve2` 共用的占位类型载体。
 - `fafafa.core.simd.intrinsics.sve/sve2` 当前也不是“任何 `AArch64` experimental host 都能跑”的 contract；`sve` 只在 `cpuinfo` 报告 `SVE` 时放行，`sve2` 只在 `cpuinfo` 报告 `SVE2` 时放行。
 - `fafafa.core.simd.intrinsics.lasx` 现在也不是“任何 `LoongArch64` experimental host 都能跑”的 contract；只有 `cpuinfo` 报告 `LASX` 时才放行。
 - `fafafa.core.simd.intrinsics.x86.sse2` 也不是当前 SSE2 发布真相源。

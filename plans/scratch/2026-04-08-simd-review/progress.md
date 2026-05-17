@@ -9937,3 +9937,52 @@
 - 当前阶段结论：
   - 这批修的是默认门禁 guard 真相漂移，不是 `freeze-status` 生产逻辑本身
   - `run_freeze_status()` 现在继续保留“无 override 时允许 Python fallback discovery”的正确行为，而 `check` 不会再把这条正确合同误报成缺陷
+
+## 2026-05-17 Experimental Intrinsics Dual-Mode Check And SVE2 Reject-Boundary Repair
+
+- 继续按“一个 bounded residual 一次收口”的方式，把注意力放到 `intrinsics experimental` fail-close lane。
+- fresh current-state audit 先确认：
+  - `sse2/avx/sse3/sse41/sse42/avx512/fma3` 已有 experimental 宏 guard + non-x86 x86-only runtime fail-close 文案
+  - `neon/rvv/sve/sve2/lasx` 已有 qualification runtime fail-close 文案
+  - `check_intrinsics_experimental_status.py` 也已静态覆盖这些 token
+- 但 runner 层还有两个 residual：
+  - `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check` 默认只跑 `experimental=0`，不会自动带上 `experimental=1` 的 runtime reject smoke
+  - `check_sve2_runtime_fail_close()` 还接受旧的宽松 token：`sve2|sve`
+- 先把 runner 收紧后，fresh 立刻抓到真实问题：
+  - `SVE2` runtime reject smoke 失败
+  - 实际异常来自 `fafafa.core.simd.intrinsics.sve`
+  - 说明 `sve2` 的 reject 边界被 `sve` initialization 抢先吞掉
+- 已落地的代码/文档收口：
+  - `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh`
+    - 新增 `run_check_current_mode()` / `run_check_all_modes()`
+    - `check` 现在默认先跑 `experimental=0` 再跑 `experimental=1`
+    - 显式 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash ... check` 仍只跑当前模式
+    - `SVE2` runtime reject token 已收紧为只接受 `sve2`
+  - `src/fafafa.core.simd.intrinsics.sve.base.pas`
+    - 新增 shared type unit，只承载 `TSVEVector/TSVEPredicate`
+  - `src/fafafa.core.simd.intrinsics.sve.pas`
+    - 改为复用 `sve.base`
+  - `src/fafafa.core.simd.intrinsics.sve2.pas`
+    - 不再 `uses sve`，只复用 `sve.base`
+  - `docs/SIMD_INTRINSICS_DISPOSITION.md`
+    - 新增 `fafafa.core.simd.intrinsics.sve.base` 行
+    - 同步 `sve2` 的共享类型说明
+  - `tests/fafafa.core.simd/check_sse2_structure.py`
+    - `EXPECTED_INTRINSICS_DISPOSITION` 已补齐 `fafafa.core.simd.intrinsics.sve.base`
+- fresh 验证已完成：
+  - `bash -n tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh`
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_experimental_status.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`
+  - `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `intrinsics.experimental` 默认 `check` 现在会自动跑到 `experimental=1` runtime reject smoke
+  - `SVE2` runtime reject smoke 已回到 `[CHECK] OK`
+  - `INTRINSICS_EXPERIMENTAL_SUMMARY ... missing_* = 0`
+  - `SSE2_STRUCTURE_SUMMARY ... intrinsics_disposition_rows=21 ... repo_intrinsics_units_count=21 ... failure_count=0 status=ok`
+  - 主 `Release check` 返回 `0`
+- 当前阶段结论：
+  - 这批不仅补强了 experimental lane 的验证覆盖，还修掉了一个真实单元边界错误
+  - `SVE2` 现在会为自己的 qualification contract fail-close，不再被 `sve` initialization 抢先吞边界

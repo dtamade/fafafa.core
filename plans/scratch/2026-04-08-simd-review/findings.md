@@ -7502,3 +7502,34 @@
 - 修完后的验收信号很明确：
   - `Release check` 里必须重新出现 `[CHECK] OK (freeze-status output isolation present)`
   - 同时 `run_freeze_status()` 仍不能退回 unconditional override，否则会再次短路 fallback discovery
+
+## 2026-05-17 Experimental Intrinsics SVE2 Fail-Close Boundary Was Swallowed By `sve`
+
+- 这轮继续审 `intrinsics experimental` fail-close 边界时，先把
+  `tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh`
+  的 `SVE2` runtime reject token 从“兼容 `sve|sve2`”收紧到只接受 `sve2`。
+- fresh 运行立刻暴露出一个之前被宽松 regex 掩盖的真实问题：
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`
+  - 在 `SVE2` runtime reject smoke 上失败
+  - 实际异常文本来自：
+    - `fafafa.core.simd.intrinsics.sve placeholder semantics are only qualified on AArch64 targets whose cpuinfo reports SVE.`
+- 根因不是 `sve2` 自己没 fail-close，而是它在 interface `uses fafafa.core.simd.intrinsics.sve` 只为了复用 `TSVEVector/TSVEPredicate`：
+  - 程序 `uses fafafa.core.simd.intrinsics.sve2` 时
+  - `sve` 单元先初始化并先抛异常
+  - 导致 `sve2` 的 reject 边界被 `sve` initialization 抢先吞掉
+- 这说明旧的宽松 runner token 不是“兼容性”，而是在掩盖单元边界错误。
+- 正确修法不是把 regex 放宽回去，而是把共享类型从可执行 fail-close 单元里拆走：
+  - 新增 `src/fafafa.core.simd.intrinsics.sve.base.pas`
+  - 只承载 `TSVEVector/TSVEPredicate`
+  - 不带任何 runtime guard / executable semantics
+  - `sve.pas` 和 `sve2.pas` 都改为复用这个 shared type unit
+  - `sve2` 不再直接 `uses sve`
+- 连带真相源同步：
+  - `docs/SIMD_INTRINSICS_DISPOSITION.md` 新增 `fafafa.core.simd.intrinsics.sve.base`
+  - `tests/fafafa.core.simd/check_sse2_structure.py` 的 `EXPECTED_INTRINSICS_DISPOSITION` 也已补齐
+  - 否则主 `Release check` 会诚实报：
+    - `SIMD_INTRINSICS_DISPOSITION.md unit rows drifted from repo units: missing=['fafafa.core.simd.intrinsics.sve.base']`
+- 修复后的 fresh 验证信号：
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check` 现在默认双模态运行，`experimental=1` 的 `NEON/RVV/SVE/SVE2/LASX` runtime reject smoke 全绿
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 回到绿态
+  - `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line` 回到 `failure_count=0 status=ok`
