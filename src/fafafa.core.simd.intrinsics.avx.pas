@@ -5,15 +5,15 @@ unit fafafa.core.simd.intrinsics.avx;
 
 {
   === fafafa.core.simd.intrinsics.avx ===
-  AVX (Advanced Vector Extensions) 指令集支�?  
-  AVX �?Intel �?2011 年引入的 256-bit SIMD 指令集扩�?  提供更宽的向量寄存器和三操作数指令格�?  
-  特性：
-  - 256-bit 向量寄存�?(ymm0-ymm15)
-  - 三操作数指令格式 (非破坏�?
-  - 扩展的浮点运�?  - 新的加载/存储指令
-  - 向量置换指令
-  
-  兼容性：Intel Sandy Bridge (2011) 及更新的处理�?}
+  Placeholder AVX intrinsics surface for isolated experimental bring-up.
+  AVX was introduced by Intel in 2011 and expands SIMD vectors to 256 bits.
+  Highlights:
+  - 256-bit vector registers (ymm0-ymm15)
+  - three-operand instruction forms
+  - wider floating-point operations and load/store helpers
+  - vector permutation helpers
+  Compatibility: Intel Sandy Bridge (2011) and newer processors.
+}
 
 interface
 

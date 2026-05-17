@@ -5,13 +5,15 @@ unit fafafa.core.simd.intrinsics.lasx;
 
 {
   === fafafa.core.simd.intrinsics.lasx ===
-  LoongArch LASX (LoongArch Advanced SIMD eXtension) 指令集支�?  
-  LASX 是龙芯架构的 256-bit SIMD 指令集扩�?  提供高性能的向量运算能�?  
-  特性：
-  - 256-bit 向量寄存�?(xr0-xr31)
-  - 整数和浮点运�?  - 向量加载/存储
-  - 向量置换和重�?  
-  兼容性：LoongArch 3A5000 及更新的处理�?}
+  Placeholder LoongArch LASX intrinsics surface for isolated experimental bring-up.
+  LASX is the 256-bit SIMD extension for LoongArch targets.
+  Highlights:
+  - 256-bit vector registers (xr0-xr31)
+  - integer and floating-point operations
+  - vector load/store helpers
+  - permutation and rearrangement helpers
+  Compatibility: LoongArch 3A5000 and newer processors.
+}
 
 interface
 
@@ -20,21 +22,25 @@ uses
 
 {$IFDEF CPULOONGARCH64}
 
-// === LASX 占位符类�?===
+// === LASX placeholder types ===
 type
   // LASX 256-bit 向量类型
   TLASXVector = record
     case Integer of
-      0: (lasx_u32: array[0..7] of UInt32);   // 8�?2位元�?      1: (lasx_i32: array[0..7] of LongInt);
+      0: (lasx_u32: array[0..7] of UInt32);   // 8 x 32-bit lanes
+      1: (lasx_i32: array[0..7] of LongInt);
       2: (lasx_f32: array[0..7] of Single);
-      3: (lasx_u64: array[0..3] of UInt64);   // 4�?4位元�?      4: (lasx_i64: array[0..3] of Int64);
+      3: (lasx_u64: array[0..3] of UInt64);   // 4 x 64-bit lanes
+      4: (lasx_i64: array[0..3] of Int64);
       5: (lasx_f64: array[0..3] of Double);
-      6: (lasx_u16: array[0..15] of UInt16);  // 16�?6位元�?      7: (lasx_i16: array[0..15] of SmallInt);
-      8: (lasx_u8: array[0..31] of UInt8);    // 32�?位元�?      9: (lasx_i8: array[0..31] of ShortInt);
+      6: (lasx_u16: array[0..15] of UInt16);  // 16 x 16-bit lanes
+      7: (lasx_i16: array[0..15] of SmallInt);
+      8: (lasx_u8: array[0..31] of UInt8);    // 32 x 8-bit lanes
+      9: (lasx_i8: array[0..31] of ShortInt);
   end;
   PLASXVector = ^TLASXVector;
 
-// === LASX 基础函数 (占位�? ===
+// === LASX placeholder primitives ===
 // Load/Store
 function lasx_xvld(const Ptr: Pointer; offset: Integer): TLASXVector;
 procedure lasx_xvst(var Dest; const Src: TLASXVector; offset: Integer);
@@ -100,7 +106,7 @@ end;
 
 {$IFDEF CPULOONGARCH64}
 
-// === LASX 函数的简化实�?===
+// === Simplified LASX placeholder implementations ===
 function lasx_xvld(const Ptr: Pointer; offset: Integer): TLASXVector;
 var
   src: PByte;
@@ -304,7 +310,7 @@ begin
 end;
 
 {$ELSE}
-// �?LoongArch 平台的空实现
+// Non-LoongArch platforms keep stub implementations only.
 {$ENDIF} // CPULOONGARCH64
 
 initialization

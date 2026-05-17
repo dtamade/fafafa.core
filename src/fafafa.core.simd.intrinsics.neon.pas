@@ -5,16 +5,15 @@ unit fafafa.core.simd.intrinsics.neon;
 
 {
   === fafafa.core.simd.intrinsics.neon ===
-  ARM NEON 指令集支�?  
-  NEON �?ARM �?SIMD 指令集扩�?  提供 128-bit 向量运算能力
-  
-  特性：
-  - 128-bit 向量寄存�?(q0-q15)
-  - 64-bit 向量寄存�?(d0-d31)
-  - 整数和浮点运�?  - 饱和运算
-  - 向量加载/存储
-  
-  兼容性：ARMv7-A 及更新的 ARM 处理�?}
+  Placeholder ARM NEON intrinsics surface for isolated experimental bring-up.
+  NEON is ARM's 128-bit SIMD extension.
+  Highlights:
+  - 128-bit vector registers (q0-q15)
+  - 64-bit vector registers (d0-d31)
+  - integer and floating-point operations with saturating helpers
+  - vector load/store helpers
+  Compatibility: ARMv7-A and newer ARM processors.
+}
 
 interface
 
@@ -40,7 +39,7 @@ type
   end;
   PNeon64 = ^TNeon64;
 
-  // 128-bit 向量类型 (使用现有�?TM128)
+  // 128-bit vector type (reuses TM128)
   TNeon128 = TM128;
   PNeon128 = ^TNeon128;
 
@@ -350,7 +349,7 @@ begin
 end;
 
 {$ELSE}
-// �?ARM 平台的空实现
+// Non-ARM platforms keep stub implementations only.
 {$ENDIF} // CPUARM
 
 initialization

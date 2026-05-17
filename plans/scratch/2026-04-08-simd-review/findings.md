@@ -7565,3 +7565,25 @@
   - `check_intrinsics_experimental_status.py` 也把这条合同纳入静态检查
   - active docs 明确声明：`AES/SHA` 当前不是 `x86-only runtime fail-close` contract
 - 这样后续如果有人真想把 `AES/SHA` 改成 host-qualified family，就会变成一次显式 policy 变更，而不是在误判下偷偷改实现。
+
+## 2026-05-17 Active Experimental Intrinsics Had Real U+FFFD Comment Corruption
+
+- `simd` 当前并不只有合同/ownership 类问题；fresh 扫描还发现多份 active experimental intrinsics 源文件本身带着真实 `U+FFFD` replacement character。
+- 这不是终端渲染噪音：
+  - 直接读字节和 UTF-8 文本都能看到 replacement character
+  - 当前最值当先收的 6 个文件是：
+    - `intrinsics.avx`
+    - `intrinsics.neon`
+    - `intrinsics.rvv`
+    - `intrinsics.sve`
+    - `intrinsics.sve2`
+    - `intrinsics.lasx`
+- 这类问题虽然不改 runtime 结果，但会实打实伤害：
+  - 文件头和占位说明的可读性
+  - 基于 grep / diff 的审查效率
+  - 后续判断某个 experimental family 的真实定位时的文本可信度
+- 这批的正确修法不是“大面积全文翻译”，而是 bounded hygiene：
+  - 只改包含 `U+FFFD` 的注释行
+  - 统一改成稳定 ASCII 注释
+  - 不碰可执行语义
+- 收口后，这 6 个文件的 `U+FFFD` 已全部归零；`comment swallow` checker、experimental runner、主 `Release check` 也都保持绿色。

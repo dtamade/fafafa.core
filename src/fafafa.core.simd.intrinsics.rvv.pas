@@ -5,15 +5,15 @@ unit fafafa.core.simd.intrinsics.rvv;
 
 {
   === fafafa.core.simd.intrinsics.rvv ===
-  RISC-V Vector Extension (RVV) 指令集支�?  
-  RVV �?RISC-V 的向量指令集扩展
-  提供可扩展的向量运算能力
-  
-  特性：
-  - 可配置向量长�?  - 向量掩码操作
-  - 丰富的向量运算指�?  - 向量长度无关编程
-  
-  兼容性：支持 RVV 扩展�?RISC-V 处理�?}
+  Placeholder RISC-V Vector Extension (RVV) intrinsics surface.
+  RVV provides scalable vector-length programming for RISC-V targets.
+  Highlights:
+  - configurable vector lengths
+  - vector mask operations
+  - broad vector arithmetic support
+  - vector-length-agnostic programming model
+  Compatibility: RISC-V processors with the RVV extension.
+}
 
 interface
 
@@ -22,14 +22,16 @@ uses
 
 {$IFDEF CPURISCV64}
 
-// === RVV 占位符类�?===
+// === RVV placeholder types ===
 type
   // RVV 向量类型 (长度可变，这里用固定长度模拟)
   TRVVVector = record
     case Integer of
-      0: (rvv_u32: array[0..15] of UInt32);  // 最�?6�?2位元�?      1: (rvv_i32: array[0..15] of LongInt);
+      0: (rvv_u32: array[0..15] of UInt32);  // up to 16 x 32-bit lanes
+      1: (rvv_i32: array[0..15] of LongInt);
       2: (rvv_f32: array[0..15] of Single);
-      3: (rvv_u64: array[0..7] of UInt64);   // 最�?�?4位元�?      4: (rvv_i64: array[0..7] of Int64);
+      3: (rvv_u64: array[0..7] of UInt64);   // up to 8 x 64-bit lanes
+      4: (rvv_i64: array[0..7] of Int64);
       5: (rvv_f64: array[0..7] of Double);
   end;
   PRVVVector = ^TRVVVector;
@@ -40,7 +42,7 @@ type
   end;
   PRVVMask = ^TRVVMask;
 
-// === RVV 基础函数 (占位�? ===
+// === RVV placeholder primitives ===
 function rvv_vmv_v_x_u32m1(Value: UInt32; vl: Integer): TRVVVector;
 function rvv_vle32_v_u32m1(const Ptr: Pointer; vl: Integer): TRVVVector;
 procedure rvv_vse32_v_u32m1(var Dest; const Src: TRVVVector; vl: Integer);
@@ -73,7 +75,7 @@ end;
 
 {$IFDEF CPURISCV64}
 
-// === RVV 函数的简化实�?===
+// === Simplified RVV placeholder implementations ===
 function rvv_vmv_v_x_u32m1(Value: UInt32; vl: Integer): TRVVVector;
 var
   i: Integer;
@@ -133,7 +135,7 @@ begin
 end;
 
 {$ELSE}
-// �?RISC-V 平台的空实现
+// Non-RISC-V platforms keep stub implementations only.
 {$ENDIF} // CPURISCV64
 
 initialization

@@ -5,12 +5,15 @@ unit fafafa.core.simd.intrinsics.sve2;
 
 {
   === fafafa.core.simd.intrinsics.sve2 ===
-  ARM SVE2 (Scalable Vector Extension 2) 指令集支�?  
-  SVE2 �?ARM SVE 的扩展版�?  增加了更多的向量操作和数字信号处理指�?  
-  特性：
-  - 扩展的整数运�?  - 数字信号处理指令
-  - 加密和哈希指�?  - 位操作指�?  
-  兼容性：ARMv9-A 及更新的 ARM 处理�?}
+  Placeholder ARM SVE2 intrinsics surface for isolated experimental bring-up.
+  SVE2 extends SVE with richer integer, DSP, crypto, and bit-manipulation lanes.
+  Highlights:
+  - expanded integer operations
+  - DSP-oriented instructions
+  - crypto and hash helpers
+  - additional bit operations
+  Compatibility: ARMv9-A and newer ARM processors.
+}
 
 interface
 
@@ -20,7 +23,7 @@ uses
 
 {$IFDEF CPUAARCH64}
 
-// === SVE2 扩展函数 (占位�? ===
+// === SVE2 placeholder primitives ===
 function sve2_addp_u32_z(const pred: TSVEPredicate; const a, b: TSVEVector): TSVEVector;
 function sve2_maxp_u32_z(const pred: TSVEPredicate; const a, b: TSVEVector): TSVEVector;
 function sve2_minp_u32_z(const pred: TSVEPredicate; const a, b: TSVEVector): TSVEVector;
@@ -51,7 +54,7 @@ end;
 
 {$IFDEF CPUAARCH64}
 
-// === SVE2 函数的简化实�?===
+// === Simplified SVE2 placeholder implementations ===
 function sve2_addp_u32_z(const pred: TSVEPredicate; const a, b: TSVEVector): TSVEVector;
 var
   i: Integer;
@@ -68,7 +71,7 @@ function sve2_maxp_u32_z(const pred: TSVEPredicate; const a, b: TSVEVector): TSV
 var
   i: Integer;
 begin
-  // 简化的成对最大值实�?
+  // Simplified pairwise max implementation.
   for i := 0 to 7 do
     if pred.pred_mask[i] then
     begin
@@ -85,7 +88,7 @@ function sve2_minp_u32_z(const pred: TSVEPredicate; const a, b: TSVEVector): TSV
 var
   i: Integer;
 begin
-  // 简化的成对最小值实�?
+  // Simplified pairwise min implementation.
   for i := 0 to 7 do
     if pred.pred_mask[i] then
     begin
@@ -114,7 +117,7 @@ begin
 end;
 
 {$ELSE}
-// �?AArch64 平台的空实现
+// Non-AArch64 platforms keep stub implementations only.
 {$ENDIF} // CPUAARCH64
 
 initialization

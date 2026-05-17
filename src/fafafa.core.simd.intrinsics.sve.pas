@@ -5,15 +5,15 @@ unit fafafa.core.simd.intrinsics.sve;
 
 {
   === fafafa.core.simd.intrinsics.sve ===
-  ARM SVE (Scalable Vector Extension) 指令集支�?  
-  SVE �?ARM 的可扩展向量指令集扩�?  提供可变长度的向量运算能�?  
-  特性：
-  - 可扩展向量长�?(128-2048 bits)
-  - 谓词寄存�?(predicate registers)
-  - 向量长度无关编程
-  - 高级向量操作
-  
-  兼容性：ARMv8.2-A 及更新的 ARM 处理�?}
+  Placeholder ARM SVE intrinsics surface for isolated experimental bring-up.
+  SVE adds scalable vector-length programming to AArch64 targets.
+  Highlights:
+  - scalable vector lengths (128-2048 bits)
+  - predicate registers
+  - vector-length-agnostic programming
+  - richer wide-vector operations
+  Compatibility: ARMv8.2-A and newer ARM processors.
+}
 
 interface
 
@@ -23,7 +23,7 @@ uses
 
 {$IFDEF CPUAARCH64}
 
-// === SVE 基础函数 (占位�? ===
+// === SVE placeholder primitives ===
 function sve_ptrue_b32: TSVEPredicate;
 function sve_pfalse_b: TSVEPredicate;
 function sve_ld1_u32(const pred: TSVEPredicate; const Ptr: Pointer): TSVEVector;
@@ -56,7 +56,7 @@ end;
 
 {$IFDEF CPUAARCH64}
 
-// === SVE 函数的简化实�?===
+// === Simplified SVE placeholder implementations ===
 function sve_ptrue_b32: TSVEPredicate;
 var
   i: Integer;
@@ -120,7 +120,7 @@ begin
 end;
 
 {$ELSE}
-// �?AArch64 平台的空实现
+// Non-AArch64 platforms keep stub implementations only.
 {$ENDIF} // CPUAARCH64
 
 initialization

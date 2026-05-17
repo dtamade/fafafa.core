@@ -10088,3 +10088,39 @@
 - 当前阶段结论：
   - 这批修掉的是 `AES/SHA` experimental 合同的真相歧义，不是 runtime 行为缺陷
   - 之后再审 `AES/SHA` 时，checker 和 active docs 都会明确告诉我们：当前合同是 `cross-host opt-in placeholder`，不是“漏了 x86 fail-close”
+
+## 2026-05-17 Active Experimental Intrinsics Comment-Encoding Hygiene
+
+- 在继续找下一刀真实 residual 时，fresh 扫描发现当前 active experimental intrinsics 里还有一类很实际的卫生问题：
+  - 多个文件的注释区直接包含 `U+FFFD`
+  - 不是终端显示问题，而是源码文本里真的存在 replacement character
+- 为了避免又扩成“大面积全文清洗”，这批只切 6 个当前 active audit lane 会直接读到的 experimental leaf：
+  - `src/fafafa.core.simd.intrinsics.avx.pas`
+  - `src/fafafa.core.simd.intrinsics.neon.pas`
+  - `src/fafafa.core.simd.intrinsics.rvv.pas`
+  - `src/fafafa.core.simd.intrinsics.sve.pas`
+  - `src/fafafa.core.simd.intrinsics.sve2.pas`
+  - `src/fafafa.core.simd.intrinsics.lasx.pas`
+- 这些文件的 `U+FFFD` 位点都落在注释区，不涉及可执行语义；因此正确修法是：
+  - 把损坏的简介/占位说明/平台 stub 注释收成稳定 ASCII 注释
+  - 不改函数签名
+  - 不改 runtime guard
+  - 不改 placeholder 语义
+- 已落地的收口：
+  - 6 个文件里的 `U+FFFD` 注释都已清零
+  - `AVX/NEON/RVV/SVE/SVE2/LASX` 的文件头现在都统一成可读的 experimental placeholder 简介
+  - `RVV/LASX` 的 lane-count inline comments、`SVE/SVE2` 的 placeholder implementation 注释、`NEON`/平台 stub 注释也已一并修正
+- fresh 验证已完成：
+  - `python3` 逐文件计数：6 个目标文件 `U+FFFD=0`
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_comment_swallow.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `fafafa.core.simd.intrinsics.avx/neon/rvv/sve/sve2/lasx.pas = 0`
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - `intrinsics.experimental` 双模态 `check` 全绿
+  - 主 `Release check` 全绿
+- 当前阶段结论：
+  - 这批修掉的是 active experimental intrinsics 注释文本损坏，不是实现逻辑缺陷
+  - 但它确实能直接提升后续审查、grep、diff review 的可读性，避免再被乱码污染判断
