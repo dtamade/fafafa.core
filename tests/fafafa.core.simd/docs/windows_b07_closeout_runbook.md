@@ -1,11 +1,17 @@
 # Windows B07 证据闭环 Runbook（cross-ready）
 
-更新时间：2026-04-16
+更新时间：2026-05-17
 
 ## 目标
 
 - 将 `freeze-status` 从 `cross-ready=False` 收口到 `cross-ready=True`。
 - 完成 Windows 实机证据链归档并通过验证。
+
+## 当前停点（2026-05-17）
+
+- latest `win-evidence-preflight` 当前是 `RECENT_BILLING_BLOCK`。
+- 在 GitHub Billing/额度恢复，或你已经切换到真实 Windows runner 之前，这页应按“流程 runbook”理解，而不是“当前 HEAD 现在就能直接收口”的状态说明。
+- 因此当前模块总状态仍按 `code-green / release-evidence-blocked` 记录；只有 preflight 重新放行后，下面这条 `cross-ready` runbook 才重新成为可执行主线。
 
 ## 全局约束（Release-only）
 

@@ -260,6 +260,20 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity`
   - 结果：全部通过
 
+## 2026-05-17 Windows Runbook Header Stop-Note Sync
+
+- 在 active docs 已补 caveat 后，又继续做了一轮“只查 Windows 专属 runbook 页头”的扫尾。
+- `tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md` 原先仍像通用 `cross-ready` 指南：
+  - 更新时间停在 `2026-04-16`
+  - 顶部没有把 latest `RECENT_BILLING_BLOCK` 前置成当前 stop note
+- 已收口：
+  - 更新时间改到 `2026-05-17`
+  - 页头新增 `当前停点（2026-05-17）`
+  - 明确写死：在 Billing/额度恢复或切到真实 Windows runner 前，这页只按流程 runbook 理解，当前状态仍是 `code-green / release-evidence-blocked`
+- fresh 轻量验证已完成：
+  - `git diff --check`
+  - `sed -n '1,18p' tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`
+
 - 接着上一批 `F64x4` arithmetic residual 继续往下切，本轮先锁定 wide `Round/Trunc`：
   - `RoundF32x8`
   - `RoundF32x16`

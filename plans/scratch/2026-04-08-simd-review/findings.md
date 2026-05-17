@@ -284,6 +284,19 @@
 - 这类修法的价值在于继续把 repo 内剩余工作收窄成：
   - 真正 blocker 只在 Windows external evidence
   - repo 内还可做的，只剩真相源同步和误导点消除
+
+## 2026-05-17 Windows Runbook Needed A Header-Level Stop Note
+
+- `windows_b07_closeout_runbook.md` 的流程本身没有错，但它的页头仍停在旧时间线，也没有把 latest `RECENT_BILLING_BLOCK` 升到顶层。
+- 这会导致一个很具体的误读：
+  - 读者进入专门的 Windows closeout runbook 时，会先看到 “cross-ready 目标”
+  - 却不一定先意识到当前 `HEAD` 还处在 preflight blocked 状态
+- 最小修法依旧不是改流程，而是把 stop note 前移到标题区下面：
+  - 当前只按流程 runbook 理解
+  - Billing/额度恢复或真实 Windows runner 就绪前，不把它当当前可执行主线
+- 这让 repo 内 active 文档链的最前几屏都统一回到了同一个事实：
+  - 当前代码主线绿
+  - 当前发布主线红在 Windows external evidence
   - 允许项必须是“当前真实仍然 unavoidable 的 wrapper-only slot”
   - `allowed_wrapper_slots - current_wrapper_only_slots` 只要非空，就说明 allowlist 落后于源码真相，应该直接报错而不是悄悄放过
 - 这批修完后，`unused_allowlist_count` 应回到 `0`；以后这项也应该作为 summary 和 human report 的固定输出，避免 allowlist 又悄悄膨胀。
