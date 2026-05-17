@@ -160,13 +160,18 @@ echo   native-evidence  Collect non-x86 native evidence ^(delegates to shell run
 echo   verify-nonx86-native-evidence  Verify imported non-x86 native evidence ^(delegates to shell runner^)
 echo   restore-nightly-evidence  Restore nightly evidence into canonical logs ^(delegates to shell runner^)
 echo   evidence-win  Windows-only native evidence capture alias
+echo   win-evidence-preflight  Check whether GitHub-hosted Windows evidence can run now ^(delegates to shell runner^)
 echo   win-evidence-via-gh  Dispatch GitHub-hosted Windows evidence collection ^(delegates to shell runner^)
+echo   verify-win-evidence  Verify Windows evidence log against the batch verifier
 echo   evidence-win-verify  Windows-only alias for verify-win-evidence
+echo   finalize-win-evidence  Low-level finalize helper for split Windows evidence flows
 echo   win-closeout-dryrun  Print Windows closeout dry-run guidance ^(delegates to shell runner^)
 echo   win-closeout-snippets  Print Windows closeout copyable snippets ^(delegates to shell runner^)
+echo   win-closeout-3cmd  Print the recommended Windows closeout command chain
 echo   freeze-status  Evaluate current release freeze readiness ^(delegates to shell runner^)
 echo   freeze-status-linux  Evaluate freeze readiness using Linux-side evidence only ^(delegates to shell runner^)
 echo   freeze-status-rehearsal  Rehearse freeze-status failure shaping ^(delegates to shell runner^)
+echo   win-closeout-finalize  Verify native evidence, backfill cross gate, then finalize
 echo Suggested flow: check -^> targeted suites -^> gate; use gate-strict before release/closeout.
 echo QEMU env: SIMD_QEMU_BUILD_POLICY=always^|if-missing^|skip ^(default: if-missing^)
 echo Isolation env: SIMD_OUTPUT_ROOT=C:\temp\simd-run-123 ^(override bin2/lib2/logs root^)

@@ -6734,6 +6734,30 @@
   - maintenance 明确 runner parity 当前只允许这两条 Windows-only batch alias
 - 这批的价值在于把“有意例外”从源码内部注释推进到 active help/runbook，避免后续反复把同一事实当成新 gap。
 
+## 2026-05-17 Windows Closeout Help Surface Fill
+
+- 在把 alias 真相讲清楚之后，batch help 里还剩一个更具体、也更适合小闭环处理的缺口：
+  - usage/action 表已经公开了 canonical Windows closeout 动作
+  - 但 help block 仍没列出：
+    - `win-evidence-preflight`
+    - `verify-win-evidence`
+    - `finalize-win-evidence`
+    - `win-closeout-3cmd`
+    - `win-closeout-finalize`
+- 这会带来一个实际体验问题：
+  - 用户在 `buildOrTest.bat` help 里能看到 alias
+  - 却看不到 canonical Windows closeout 主线的 5 条动作说明
+  - 于是 help surface 会错误地放大 alias、弱化正式收口入口
+- 因而这批最小正确修法不是“补完整个 help 世界”，而是只补这 5 条同簇动作：
+  - 它们都属于 Windows closeout 主线
+  - 都已存在于 usage/action 表
+  - 现在只差 help 文案没有对齐
+- 轻量验证也足够直接：
+  - `git diff --check`
+  - `rg` 命中 5 条新 help
+  - 小脚本确认这 5 个 action 名字都已进入 `echo   ...` help surface
+- 这批的价值在于把 batch help 从“知道别名、不知道主线”收正成“alias 和 canonical Windows closeout 入口都说清楚”。
+
 ## 2026-05-17 Intrinsics Coverage Evidence Normalization
 
 - 当前 `intrinsics coverage` 的检查逻辑本身已经能给出正确信号，但在 runner 层仍有一个真实卫生缺口：

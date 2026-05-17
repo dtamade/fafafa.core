@@ -4366,6 +4366,20 @@
 | 2. 收正 batch help / active docs 口径 | completed | `tests/fafafa.core.simd/buildOrTest.bat` 现在已显式列出两条 alias 的 help 描述；`docs/fafafa.core.simd.closeout.md` 已解释 `evidence-win-verify` 与 canonical `verify-win-evidence` 的关系；`docs/fafafa.core.simd.maintenance.md` 也已把这两条 alias 定位成 runner parity 允许的刻意例外 |
 | 3. 最小验证并准备提交 | completed | `bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity`、`git diff --check`、以及目标 help/runbook 关键文案 `rg` 已通过；这批只同步口径，不改变 alias 行为 |
 
+## 2026-05-17 Windows Closeout Help Surface Fill
+
+### Goal
+
+继续沿 help surface 收一个更窄的尾巴：batch usage 已公开 canonical Windows closeout 动作，但 help 里还没列出 `win-evidence-preflight`、`verify-win-evidence`、`finalize-win-evidence`、`win-closeout-3cmd`、`win-closeout-finalize`，会让 Windows closeout 入口看起来像“只有 alias 有说明”。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核这是不是值得单独补的一簇 | completed | 已确认 help 缺口很多，但当前最高价值是同一簇 canonical Windows closeout 动作；它们都已出现在 usage/action 表里，却没在 help block 中被单独解释 |
+| 2. 只补 canonical Windows closeout help 入口 | completed | `tests/fafafa.core.simd/buildOrTest.bat` 已新增 `win-evidence-preflight`、`verify-win-evidence`、`finalize-win-evidence`、`win-closeout-3cmd`、`win-closeout-finalize` 5 条 help 描述；这批不扩到其他 action surface |
+| 3. 最小验证并准备提交 | completed | `git diff --check`、help 文案 `rg`、以及针对这 5 条动作的轻量 presence 检查已通过；当前只收 help completeness，不改变行为 |
+
 ## 2026-05-17 SSE2 Transitional Non-x86 Fail-Close
 
 ### Goal

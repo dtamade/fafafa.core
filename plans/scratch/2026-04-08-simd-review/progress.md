@@ -8376,3 +8376,33 @@
 - 当前阶段结论：
   - 这批收掉的不是行为 bug，而是“有意例外没被 help/runbook 讲清楚”的认知噪音
   - 下次再看到这两个 alias，就不会再把它们误判成待清理 drift action
+
+## 2026-05-17 Windows Closeout Help Surface Fill
+
+- 继续沿同一条 help surface 线往下切，这次不碰 alias 真相，而是只补 canonical Windows closeout 动作自己的 help 缺口。
+- 先做了一个很窄的只读核对：
+  - `sed -n '146,190p' tests/fafafa.core.simd/buildOrTest.bat`
+  - 小脚本把 action 表和 `echo   ...` help surface 做了一个轻量比对
+- 核对结果说明：
+  - 全量 help 缺口当然还有不少
+  - 但当前最值得先收的一簇，是 5 条 canonical Windows closeout 动作：
+    - `win-evidence-preflight`
+    - `verify-win-evidence`
+    - `finalize-win-evidence`
+    - `win-closeout-3cmd`
+    - `win-closeout-finalize`
+  - 它们都已经公开在 usage/action 表里，却没被 help block 单独解释
+- 已落地的收口：
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+    - help 新增 `win-evidence-preflight`
+    - help 新增 `verify-win-evidence`
+    - help 新增 `finalize-win-evidence`
+    - help 新增 `win-closeout-3cmd`
+    - help 新增 `win-closeout-finalize`
+- fresh 验证已完成：
+  - `git diff --check`
+  - `rg -n "win-evidence-preflight  |verify-win-evidence  |finalize-win-evidence  |win-closeout-3cmd  |win-closeout-finalize  " tests/fafafa.core.simd/buildOrTest.bat`
+  - 小脚本确认这 5 条 action 都已进入 help surface
+- 当前阶段结论：
+  - 这批补的是 batch help completeness，而不是 runner 行为或 SIMD 实现
+  - 现在 Windows closeout 这条主线在 batch help 里终于不再被 alias 抢走可见性
