@@ -1217,6 +1217,127 @@ if ! grep -F -- "Can't recognize '\"lazbuild\"" "${LCaseWindowsHint}/logs/freeze
   exit 1
 fi
 
+# ---------- Case L: WINDOWS LOG SHOULD BE STALE WHEN PRODUCER INPUTS ARE NEWER ----------
+LCaseWindowsProducerNewer="${LTmpRoot}/case_windows_producer_newer/tests/fafafa.core.simd"
+mkdir -p "${LCaseWindowsProducerNewer}/logs" "${LCaseWindowsProducerNewer}/docs" "${LTmpRoot}/case_windows_producer_newer/docs/plans"
+cp "${FREEZE_SCRIPT}" "${LCaseWindowsProducerNewer}/evaluate_simd_freeze_status.py"
+cp "${VERIFY_SCRIPT}" "${LCaseWindowsProducerNewer}/verify_windows_b07_evidence.sh"
+chmod +x "${LCaseWindowsProducerNewer}/verify_windows_b07_evidence.sh"
+
+cat > "${LCaseWindowsProducerNewer}/logs/gate_summary.md" <<'EOM'
+| Time | Step | Status | DurationMs | Event | Detail | Artifacts |
+|---|---|---|---|---|---|---|
+| 2026-02-10 00:00:00 | gate | START | - | START | mode=Release | - |
+| 2026-02-10 00:00:01 | build-check | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:02 | interface-completeness | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:03 | cross-backend-parity | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:04 | wiring-sync | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:05 | coverage | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:06 | simd-list-suites | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:07 | simd-avx2-fallback | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:08 | cpuinfo-portable | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:09 | cpuinfo-x86 | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:10 | run-all-chain | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:11 | evidence-verify | SKIP | - | SKIP | require-win-evidence=0 | - |
+| 2026-02-10 00:00:12 | gate | PASS | 1000 | NORMAL | all steps passed | - |
+EOM
+
+cat > "${LCaseWindowsProducerNewer}/logs/windows_b07_gate.log" <<'EOM'
+[B07] Windows evidence capture
+[B07] Source: collect_windows_b07_evidence.bat
+[B07] HostOS: Windows_NT
+[B07] CmdVer: Microsoft Windows 10.0.19043
+[B07] Started: 5/17/2026 12:42 PM
+[B07] Working dir: Z:\simd\tests\fafafa.core.simd\
+[B07] Command: buildOrTest.bat gate
+[BUILD] FAILED (see Z:\simd\tests\fafafa.core.simd\logs\build.txt)
+Can't recognize '"lazbuild" --build-mode=Release "demo.lpi"' as an internal or external command, or batch script.
+[B07] GateSummaryJson: missing
+[B07] GateSummaryExportRc: skipped-native-batch
+[B07] GATE_EXIT_CODE=1
+EOM
+
+cat > "${LCaseWindowsProducerNewer}/logs/windows_b07_closeout_summary.md" <<'EOM'
+# SIMD Windows B07 Closeout Summary
+
+## Verification
+
+- Verifier: verify_windows_b07_evidence.sh
+- Command: bash verify_windows_b07_evidence.sh "logs/windows_b07_gate.log"
+- Result: FAIL (rc=1)
+EOM
+
+cat > "${LCaseWindowsProducerNewer}/buildOrTest.bat" <<'EOM'
+@echo off
+rem rehearse newer batch runner input
+EOM
+
+cat > "${LCaseWindowsProducerNewer}/collect_windows_b07_evidence.bat" <<'EOM'
+@echo off
+rem rehearse evidence collector
+EOM
+
+cat > "${LTmpRoot}/case_windows_producer_newer/docs/plans/2026-02-09-simd-unblock-closeout-roadmap.md" <<'EOM'
+- [x] **Windows 实机证据已归档**
+EOM
+
+cat > "${LCaseWindowsProducerNewer}/docs/simd_release_candidate_checklist.md" <<'EOM'
+- [x] Windows 实机证据日志已归档
+EOM
+
+cat > "${LCaseWindowsProducerNewer}/docs/simd_completeness_matrix.md" <<'EOM'
+- Windows 证据：实机日志已归档（脚本入口 + 校验入口）
+EOM
+
+python3 - "${LCaseWindowsProducerNewer}/logs/windows_b07_gate.log" "${LCaseWindowsProducerNewer}/buildOrTest.bat" "${LCaseWindowsProducerNewer}/collect_windows_b07_evidence.bat" <<'PY'
+from pathlib import Path
+import os
+import sys
+
+artifact = Path(sys.argv[1])
+build_bat = Path(sys.argv[2])
+collector_bat = Path(sys.argv[3])
+base = artifact.stat().st_mtime
+os.utime(build_bat, (base + 120, base + 120))
+os.utime(collector_bat, (base + 60, base + 60))
+PY
+
+set +e
+SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=0 \
+python3 "${LCaseWindowsProducerNewer}/evaluate_simd_freeze_status.py" --root "${LCaseWindowsProducerNewer}" --json-file "${LCaseWindowsProducerNewer}/logs/freeze_status_windows_producer_newer.json" > "${LCaseWindowsProducerNewer}/logs/freeze_stdout_windows_producer_newer.txt" 2>&1
+LWindowsProducerNewerRc=$?
+set -e
+
+if [[ "${LWindowsProducerNewerRc}" -eq 0 ]]; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_windows_producer_newer should return non-zero"
+  cat "${LCaseWindowsProducerNewer}/logs/freeze_stdout_windows_producer_newer.txt"
+  exit 1
+fi
+
+if ! grep -F -- "windows_evidence_inputs_not_newer_than_log" "${LCaseWindowsProducerNewer}/logs/freeze_stdout_windows_producer_newer.txt" >/dev/null; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_windows_producer_newer missing producer freshness failure"
+  cat "${LCaseWindowsProducerNewer}/logs/freeze_stdout_windows_producer_newer.txt"
+  exit 1
+fi
+
+if ! grep -F -- "stale evidence log:" "${LCaseWindowsProducerNewer}/logs/freeze_stdout_windows_producer_newer.txt" >/dev/null; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_windows_producer_newer missing stale evidence note"
+  cat "${LCaseWindowsProducerNewer}/logs/freeze_stdout_windows_producer_newer.txt"
+  exit 1
+fi
+
+if ! grep -F -- "windows_closeout_summary" "${LCaseWindowsProducerNewer}/logs/freeze_stdout_windows_producer_newer.txt" >/dev/null; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_windows_producer_newer missing closeout summary check"
+  cat "${LCaseWindowsProducerNewer}/logs/freeze_stdout_windows_producer_newer.txt"
+  exit 1
+fi
+
+if ! grep -F -- "stale summary:" "${LCaseWindowsProducerNewer}/logs/freeze_stdout_windows_producer_newer.txt" >/dev/null; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_windows_producer_newer missing stale summary note"
+  cat "${LCaseWindowsProducerNewer}/logs/freeze_stdout_windows_producer_newer.txt"
+  exit 1
+fi
+
 echo "[FREEZE-REHEARSAL] OK"
 echo "[FREEZE-REHEARSAL] case_not_ready_rc=${LNotReadyRc}"
 echo "[FREEZE-REHEARSAL] case_stale_summary_rc=${LStaleRc}"
@@ -1228,3 +1349,4 @@ echo "[FREEZE-REHEARSAL] case_mainline_fallback_rc=${LMainlineFallbackRc}"
 echo "[FREEZE-REHEARSAL] case_source_newer_rc=${LSourceNewerRc}"
 echo "[FREEZE-REHEARSAL] case_ignored_artifact_rc=0"
 echo "[FREEZE-REHEARSAL] case_windows_hint_rc=${LWindowsHintRc}"
+echo "[FREEZE-REHEARSAL] case_windows_producer_newer_rc=${LWindowsProducerNewerRc}"

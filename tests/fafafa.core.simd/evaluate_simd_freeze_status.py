@@ -101,6 +101,10 @@ QEMU_CPUINFO_NONX86_SCENARIO = "cpuinfo-nonx86-evidence"
 QEMU_CPUINFO_NONX86_FULL_SCENARIO = "cpuinfo-nonx86-full-evidence"
 QEMU_CPUINFO_NONX86_FULL_REPEAT_SCENARIO = "cpuinfo-nonx86-full-repeat"
 QEMU_MULTIARCH_DIR_RE = re.compile(r"^qemu-multiarch-(\d{8})-(\d{6})(?:-.+)?$")
+WINDOWS_EVIDENCE_LOG_INPUT_RELATIVE_PATHS = (
+    "buildOrTest.bat",
+    "collect_windows_b07_evidence.bat",
+)
 
 
 @dataclass
@@ -607,6 +611,54 @@ def iter_simd_source_candidates(src_root: Path) -> Iterable[Path]:
         yield path
 
 
+def iter_windows_evidence_log_input_candidates(root: Path) -> Iterable[Path]:
+    for relative_path in WINDOWS_EVIDENCE_LOG_INPUT_RELATIVE_PATHS:
+        path = root / relative_path
+        if path.is_file():
+            yield path
+
+
+def candidate_paths_not_newer_than_artifact_check(
+    name: str, artifact_path: Path, candidate_paths: list[Path], required: bool = True
+) -> CheckItem:
+    if not artifact_path.is_file():
+        return CheckItem(name=name, required=required, status="FAIL", detail=f"missing {artifact_path}")
+
+    file_candidates = [path for path in candidate_paths if path.is_file()]
+    if not file_candidates:
+        return CheckItem(
+            name=name,
+            required=required,
+            status="PASS",
+            detail=f"no candidate producer files found for {artifact_path}",
+        )
+
+    latest_candidate = max(file_candidates, key=lambda path: path.stat().st_mtime)
+    latest_candidate_mtime = datetime.fromtimestamp(latest_candidate.stat().st_mtime)
+    artifact_mtime = datetime.fromtimestamp(artifact_path.stat().st_mtime)
+
+    if latest_candidate_mtime <= artifact_mtime:
+        return CheckItem(
+            name=name,
+            required=required,
+            status="PASS",
+            detail=(
+                f"artifact mtime={artifact_mtime:%Y-%m-%d %H:%M:%S}, "
+                f"latest_candidate={latest_candidate} ({latest_candidate_mtime:%Y-%m-%d %H:%M:%S})"
+            ),
+        )
+
+    return CheckItem(
+        name=name,
+        required=required,
+        status="FAIL",
+        detail=(
+            f"artifact mtime={artifact_mtime:%Y-%m-%d %H:%M:%S}, "
+            f"latest_candidate={latest_candidate} ({latest_candidate_mtime:%Y-%m-%d %H:%M:%S})"
+        ),
+    )
+
+
 def sources_not_newer_than_artifact_check(
     name: str, artifact_path: Path, candidate_paths: list[Path], required: bool = True
 ) -> CheckItem:
@@ -937,6 +989,9 @@ def main() -> int:
     )
 
     verify_script = root / "verify_windows_b07_evidence.sh"
+    windows_evidence_log_input_candidates = list(
+        iter_windows_evidence_log_input_candidates(root)
+    )
 
     roadmap_doc = repo_root / "docs/plans/2026-02-09-simd-unblock-closeout-roadmap.md"
     matrix_doc = root / "docs/simd_completeness_matrix.md"
@@ -1447,6 +1502,18 @@ def main() -> int:
     checks.append(freshness_check("windows_evidence_freshness", windows_log, args.fresh_hours, required=True))
     if checks[-1].status != "PASS":
         next_actions.append("tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify")
+    windows_evidence_inputs_current = True
+    checks.append(
+        candidate_paths_not_newer_than_artifact_check(
+            "windows_evidence_inputs_not_newer_than_log",
+            windows_log,
+            windows_evidence_log_input_candidates,
+            required=True,
+        )
+    )
+    windows_evidence_inputs_current = checks[-1].status == "PASS"
+    if checks[-1].status != "PASS":
+        next_actions.append("tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify")
     if not args.linux_only:
         checks.append(
             sources_not_newer_than_artifact_check(
@@ -1473,7 +1540,28 @@ def main() -> int:
         )
     elif windows_log.is_file() and verify_script.is_file():
         verify_proc = run_verify_script(verify_script, windows_log)
-        if verify_proc.returncode == 0:
+        if not windows_evidence_inputs_current:
+            windows_verify_ok = False
+            if verify_proc.returncode == 0:
+                verify_detail = (
+                    "stale evidence log: newer Windows evidence producer input exists; "
+                    "verifier passes on historical log, rerun evidence-win-verify before trusting it"
+                )
+            else:
+                verify_detail = (
+                    "stale evidence log: newer Windows evidence producer input exists; "
+                    f"historical verifier detail: {summarize_verify_failure(verify_proc, windows_log)}"
+                )
+            checks.append(
+                CheckItem(
+                    name="windows_evidence_verify",
+                    required=True,
+                    status="FAIL",
+                    detail=verify_detail,
+                )
+            )
+            next_actions.append("tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify")
+        elif verify_proc.returncode == 0:
             windows_verify_ok = True
             checks.append(
                 CheckItem(
@@ -1539,7 +1627,20 @@ def main() -> int:
         summary_text = closeout_summary.read_text(encoding="utf-8", errors="ignore")
         has_result_pass = "- Result: PASS" in summary_text
         has_result_fail = "- Result: FAIL" in summary_text
-        if windows_verify_ok is True:
+        if not windows_evidence_inputs_current:
+            checks.append(
+                CheckItem(
+                    name="windows_closeout_summary",
+                    required=True,
+                    status="FAIL",
+                    detail=(
+                        "stale summary: newer Windows evidence producer input exists; "
+                        f"rerun evidence-win-verify / closeout before trusting {closeout_summary}"
+                    ),
+                )
+            )
+            next_actions.append("tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify")
+        elif windows_verify_ok is True:
             if has_result_pass:
                 checks.append(
                     CheckItem(

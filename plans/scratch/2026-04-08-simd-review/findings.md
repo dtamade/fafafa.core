@@ -7225,3 +7225,25 @@
 - 这样收口后：
   - diagnostic sidecar 只在“当前 latest 是被 preserve 的 cached truth”这一瞬间存在
   - 后续 direct preflight 一旦回到正常主路径，就不会继续带着陈旧 query noise
+
+## 2026-05-17 Freeze Status Was Still Treating A Pre-Runner-Fix Windows Failure Log As Current Truth
+
+- 在把 preflight artifact hygiene 收完之后，我继续对当前 `freeze-status` 做 completion audit，又发现一条更接近“真相判定边界”的残差：
+  - 当前 `windows_b07_gate.log` 的 mtime 的确还在 freshness 窗口内
+  - `src/fafafa.core.simd*` 也没有比它更新
+  - 但真正负责生成这份 Windows log 的 `tests/fafafa.core.simd/buildOrTest.bat` 却比它新很多
+  - 也就是说，这份失败日志实际上是“旧 runner 语义下产出的历史失败”，而不是当前 runner truth
+- 这类误导的坏处很直接：
+  - `freeze-status` 会继续把旧 log 的 verifier fail 直接展示成当前 `windows_evidence_verify` 失败
+  - `windows_b07_closeout_summary.md` 也会继续被当成“honest current summary”
+  - 但当前更准确的说法应该是：这两者都已经 stale，需要重新跑 Windows evidence，而不是继续对旧失败日志做语义判断
+- 这批最小正确修法是：
+  - 在 `freeze-status` 里新增一条 machine-check：
+    - `windows_evidence_inputs_not_newer_than_log`
+  - 它不看 `src/`，而是看真正的 Windows evidence producer inputs（当前先收紧到 `buildOrTest.bat` / `collect_windows_b07_evidence.bat`）
+  - 一旦 producer 新于 `windows_b07_gate.log`
+    - `windows_evidence_verify` 就明确变成 `stale evidence log: ... historical verifier detail: ...`
+    - `windows_closeout_summary` 也一起降格为 stale historical summary
+- 这样收口后，`freeze-status` 对当前仓库的 Windows 链解释会更接近真实因果：
+  - 外部 blocker 仍然是 billing / runner
+  - 但仓库里那份旧 Windows 失败日志，也不再被误当成“当前 runner 下仍复现的失败”

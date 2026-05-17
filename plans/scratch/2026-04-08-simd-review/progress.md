@@ -9123,3 +9123,46 @@
   - preflight latest truth / stdout truth / transient diagnostic sidecar 这三层现在都已经各归其位
   - repo 内还能继续收的 Windows preflight artifact hygiene 又少了一条
   - 当前 remaining gap 继续只剩外部 Windows billing/runner 与 fresh green evidence，而不是本地 preflight artifact 再残留旧噪音
+
+## 2026-05-17 Mark Windows Failure Log And Closeout Summary Stale When Producer Inputs Are Newer
+
+- 在把 preflight sidecar 清干净之后，我继续对真实 `freeze-status` 做 completion audit，发现还有一条更靠近 evidence truth 的残差：
+  - 当前 `windows_b07_gate.log` 虽然还满足 age freshness
+  - `linux_sources_not_newer_than_windows_evidence` 也还是 PASS
+  - 但真正负责生成它的 `tests/fafafa.core.simd/buildOrTest.bat` 已经比它更新
+  - 所以这份 Windows 失败 log 其实是 pre-runner-fix 的 historical failure，而不是当前 runner truth
+- 已落地修法：
+  - `tests/fafafa.core.simd/evaluate_simd_freeze_status.py`
+    - 新增 `WINDOWS_EVIDENCE_LOG_INPUT_RELATIVE_PATHS`
+    - 新增 `iter_windows_evidence_log_input_candidates()`
+    - 新增 `candidate_paths_not_newer_than_artifact_check()`
+    - 真实 `freeze-status` 现在会多一条 required check：
+      - `windows_evidence_inputs_not_newer_than_log`
+    - 若 producer inputs 比 `windows_b07_gate.log` 新：
+      - `windows_evidence_verify` 改为 `stale evidence log: ... historical verifier detail: ...`
+      - `windows_closeout_summary` 也改为 `stale summary: ...`
+  - `tests/fafafa.core.simd/rehearse_freeze_status.sh`
+    - 新增 `case_windows_producer_newer`
+    - 专门守住“producer files 新于 Windows log 时，log/summary 都必须降格为 stale historical evidence”的边界
+  - active docs：
+    - `docs/fafafa.core.simd.closeout.md`
+    - `docs/fafafa.core.simd.checklist.md`
+    - 已同步写明 stale producer drift 的判断规则
+- 已验证：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/evaluate_simd_freeze_status.py`
+  - `bash -n tests/fafafa.core.simd/rehearse_freeze_status.sh`
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-rehearsal`
+    - `[FREEZE-REHEARSAL] OK`
+    - `case_windows_producer_newer_rc=1`
+  - 真实复验：
+    - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+    - 现在新增：
+      - `FAIL windows_evidence_inputs_not_newer_than_log`
+    - 并且旧的 Windows evidence/summary 都已被正确降格：
+      - `FAIL windows_evidence_verify: stale evidence log: newer Windows evidence producer input exists; historical verifier detail: ...`
+      - `FAIL windows_closeout_summary: stale summary: newer Windows evidence producer input exists; rerun evidence-win-verify / closeout before trusting ...`
+- 当前阶段结论：
+  - `freeze-status` 现在不再把 pre-runner-fix 的 Windows 失败日志误当成当前实现真相
+  - repo 内 Windows evidence truth 解释又收正了一层
+  - 当前 remaining gap 继续只剩外部 Windows billing/runner 恢复后刷新 fresh evidence，而不是继续围着这份历史失败日志打转
