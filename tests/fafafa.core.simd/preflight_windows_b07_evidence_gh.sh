@@ -95,6 +95,10 @@ ${aMessage}
 EOF
 }
 
+clear_diagnostic_sidecar() {
+  rm -f "${PREFLIGHT_DIAGNOSTIC_JSON_FILE}" "${PREFLIGHT_DIAGNOSTIC_MD_FILE}"
+}
+
 latest_report_has_fresh_billing_block() {
   python3 - "${PREFLIGHT_JSON_FILE}" "${PREFLIGHT_CACHE_MAX_AGE_HOURS}" <<'PY'
 import json
@@ -154,6 +158,7 @@ fail_with() {
     exit 31
   fi
 
+  clear_diagnostic_sidecar
   write_report "FAIL" "${aCode}" "${aExitCode}" "${aMessage}"
   echo "[PREFLIGHT] STATUS=FAIL CODE=${aCode} EXIT=${aExitCode}"
   echo "[PREFLIGHT] ${aMessage}"
@@ -169,6 +174,7 @@ pass_with() {
   aCode="$1"
   aMessage="$2"
 
+  clear_diagnostic_sidecar
   write_report "PASS" "${aCode}" 0 "${aMessage}"
   echo "[PREFLIGHT] STATUS=PASS CODE=${aCode} EXIT=0"
   echo "[PREFLIGHT] ${aMessage}"

@@ -44,6 +44,8 @@ cat > "${LTmpRoot}/bin/gh" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCENARIO="${GH_SCENARIO:-query_fail}"
+
 if [[ "$1" == "auth" && "$2" == "status" ]]; then
   exit 0
 fi
@@ -56,6 +58,42 @@ JSON
 fi
 
 if [[ "$1" == "workflow" && "$2" == "list" ]]; then
+  if [[ "${SCENARIO}" == "query_fail" ]]; then
+    exit 0
+  fi
+  cat <<'JSON'
+[
+  {
+    "id": 1,
+    "name": "simd-windows-b07-evidence",
+    "path": ".github/workflows/simd-windows-b07-evidence.yml",
+    "state": "active"
+  }
+]
+JSON
+  exit 0
+fi
+
+if [[ "$1" == "run" && "$2" == "list" ]]; then
+  cat <<'JSON'
+[
+  {
+    "databaseId": 123,
+    "status": "completed",
+    "conclusion": "failure",
+    "createdAt": "2026-05-17T08:00:00Z",
+    "url": "https://github.com/example/simd-fallback/actions/runs/123",
+    "event": "workflow_dispatch"
+  }
+]
+JSON
+  exit 0
+fi
+
+if [[ "$1" == "run" && "$2" == "view" ]]; then
+  cat <<'TEXT'
+X The job was not started because recent account payments have failed or your spending limit needs to be increased. Please check the 'Billing & plans' section in your settings
+TEXT
   exit 0
 fi
 
@@ -67,6 +105,7 @@ chmod +x "${LTmpRoot}/bin/gh"
 set +e
 LRunOutput="$(
   cd "${LRepoRoot}" && \
+  GH_SCENARIO=query_fail \
   PATH="${LTmpRoot}/bin:${PATH}" \
   bash tests/fafafa.core.simd/preflight_windows_b07_evidence_gh.sh 2>&1
 )"
@@ -102,6 +141,33 @@ if ! grep -F -- '"code": "WORKFLOW_QUERY_FAILED"' "${LRepoRoot}/tests/fafafa.cor
   exit 1
 fi
 
+set +e
+LDirectOutput="$(
+  cd "${LRepoRoot}" && \
+  GH_SCENARIO=direct_billing_block \
+  PATH="${LTmpRoot}/bin:${PATH}" \
+  bash tests/fafafa.core.simd/preflight_windows_b07_evidence_gh.sh 2>&1
+)"
+LDirectRc=$?
+set -e
+
+printf '%s\n' "${LDirectOutput}"
+
+if [[ "${LDirectRc}" != "31" ]]; then
+  echo "[PREFLIGHT-PRESERVE-LATEST] FAILED: direct billing-block case should return rc=31 but got ${LDirectRc}"
+  exit 1
+fi
+
+if [[ -f "${LRepoRoot}/tests/fafafa.core.simd/logs/win_preflight_latest.diagnostic.json" ]]; then
+  echo "[PREFLIGHT-PRESERVE-LATEST] FAILED: direct billing-block case should clear stale diagnostic json"
+  exit 1
+fi
+
+if [[ -f "${LRepoRoot}/tests/fafafa.core.simd/logs/win_preflight_latest.diagnostic.md" ]]; then
+  echo "[PREFLIGHT-PRESERVE-LATEST] FAILED: direct billing-block case should clear stale diagnostic md"
+  exit 1
+fi
+
 cat > "${LRepoRoot}/tests/fafafa.core.simd/logs/win_preflight_latest.json" <<'EOF'
 {
   "checked_at_utc": "2026-05-17T00:00:00Z",
@@ -118,6 +184,7 @@ rm -f "${LRepoRoot}/tests/fafafa.core.simd/logs/win_preflight_latest.diagnostic.
 set +e
 LStaleOutput="$(
   cd "${LRepoRoot}" && \
+  GH_SCENARIO=query_fail \
   PATH="${LTmpRoot}/bin:${PATH}" \
   bash tests/fafafa.core.simd/preflight_windows_b07_evidence_gh.sh 2>&1
 )"

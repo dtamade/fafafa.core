@@ -7209,3 +7209,19 @@
   - standalone `win-evidence-preflight`
   - `closeout-release`
   - `freeze-status`
+
+## 2026-05-17 Preflight Diagnostic Sidecar Could Linger After A Later Direct Billing-Block Result
+
+- 在把 standalone preflight 的 stdout 也收正后，我继续检查真实落盘产物，又发现一个更小但仍然会误导后续审查的残差：
+  - preserved branch 现在会把瞬时 query noise 写入 `win_preflight_latest.diagnostic.{json,md}`
+  - 但后面如果再跑一次 direct preflight，而且这次直接返回真实 `RECENT_BILLING_BLOCK`
+  - `win_preflight_latest.{json,md}` 会更新
+  - 旧 diagnostic sidecar 却还会残留在旁边
+- 这类残留不会影响 `closeout-release` / `freeze-status` 判断，但会让人工读日志的人误以为“当前 latest 旁边还挂着新的 query failure”，属于典型的 tracked artifact 噪音。
+- 这里的最小正确修法是：
+  - preserved branch 继续保留 diagnostic sidecar
+  - 但一旦后续进入 normal main-report write path（PASS、直接 billing-block、或其他 normal fail）
+  - 就先清掉旧 diagnostic sidecar，再写新的 latest report
+- 这样收口后：
+  - diagnostic sidecar 只在“当前 latest 是被 preserve 的 cached truth”这一瞬间存在
+  - 后续 direct preflight 一旦回到正常主路径，就不会继续带着陈旧 query noise

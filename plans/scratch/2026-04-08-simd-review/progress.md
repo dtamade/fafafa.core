@@ -9085,3 +9085,41 @@
 - 当前阶段结论：
   - standalone preflight、closeout-release、freeze-status 三个主要 operator surface 现在已经对齐到同一份 Windows blocked truth
   - 当前 remaining gap 继续只剩外部 Windows runner/billing 与 fresh green evidence，而不是 repo 内 preflight truth 再次分裂
+
+## 2026-05-17 Clear Stale Preflight Diagnostic Sidecars On Normal Main-Report Writes
+
+- 在上一批把 standalone preflight 的 stdout truth 收正后，我继续按 artifact 级 completion audit 看真实 logs，发现还有一个小但真实的 hygiene residual：
+  - preserved branch 写出的
+    - `tests/fafafa.core.simd/logs/win_preflight_latest.diagnostic.json`
+    - `tests/fafafa.core.simd/logs/win_preflight_latest.diagnostic.md`
+  - 在后续 direct preflight 已经直接返回 `RECENT_BILLING_BLOCK` 后，还会继续残留
+  - 这不会影响主状态判断，但会给后续人工诊断留下“旁边还挂着一份过期 query failure”的噪音
+- 已落地修法：
+  - `tests/fafafa.core.simd/preflight_windows_b07_evidence_gh.sh`
+    - 新增 `clear_diagnostic_sidecar()`
+    - normal `pass_with()` 先清掉 stale diagnostic sidecar
+    - normal `fail_with()` main-report path 在写 latest report 前也先清掉 stale diagnostic sidecar
+    - preserve 分支仍保留 sidecar，不改
+  - `tests/fafafa.core.simd/rehearse_win_preflight_preserve_latest_on_query_failure.sh`
+    - 新增 direct billing-block case
+    - 明确要求：前一轮 preserved case 生成的 diagnostic sidecar，必须在 direct billing-block case 被清掉
+    - 继续保留 stale-cache negative case，保证不是所有 `24` 都会被 billing-block truth 吞掉
+- 已验证：
+  - `git diff --check`
+  - `bash -n tests/fafafa.core.simd/preflight_windows_b07_evidence_gh.sh`
+  - `bash -n tests/fafafa.core.simd/rehearse_win_preflight_preserve_latest_on_query_failure.sh`
+  - `bash tests/fafafa.core.simd/rehearse_win_preflight_preserve_latest_on_query_failure.sh`
+    - preserved case: 生成 diagnostic sidecar
+    - direct billing-block case: 清掉 stale diagnostic sidecar
+    - stale-cache case: 仍返回 `WORKFLOW_QUERY_FAILED EXIT=24`
+  - 真实复验：
+    - 先看到旧 sidecar 仍存在
+    - 再跑 `bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`
+      - direct 返回 `RECENT_BILLING_BLOCK EXIT=31`
+    - 随后确认：
+      - `tests/fafafa.core.simd/logs/win_preflight_latest.diagnostic.json` 不存在
+      - `tests/fafafa.core.simd/logs/win_preflight_latest.diagnostic.md` 不存在
+- 当前阶段结论：
+  - preflight latest truth / stdout truth / transient diagnostic sidecar 这三层现在都已经各归其位
+  - repo 内还能继续收的 Windows preflight artifact hygiene 又少了一条
+  - 当前 remaining gap 继续只剩外部 Windows billing/runner 与 fresh green evidence，而不是本地 preflight artifact 再残留旧噪音
