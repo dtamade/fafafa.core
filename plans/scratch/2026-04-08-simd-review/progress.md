@@ -11567,3 +11567,58 @@
 - 当前阶段结论：
   - `RISCVV F32x4 min/max` 当前收掉的是 conditional-slot contract 盲区，不是新的实现改写
   - 这组 residual 现在和前面的 `F64x2 local extrema` 一样，已经有了 dedicated source/runtime witness
+
+## 2026-05-18 RISCVV F32x4 Exact Conditional Witness Sync
+
+- 在 `F32x4 min/max` 收口后，紧邻 residual 继续落到同宽但不同 bucket 的三格：
+  - `AbsF32x4`
+  - `SqrtF32x4`
+  - `FmaF32x4`
+- fresh 对位源码后，这 3 个槽的真实合同已经拆清：
+  - `src/fafafa.core.simd.riscvv.register.inc`
+    - `table.AbsF32x4 := @RISCVVAbsF32x4;`
+    - `table.SqrtF32x4 := @RISCVVSqrtF32x4;`
+    - `table.FmaF32x4 := @RISCVVFmaF32x4;`
+    - 三者都只在 `{$IFDEF RISCVV_ASSEMBLY}` 条件块里绑定
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - no-asm body 都是 exact scalar forward
+    - 其中 `FmaF32x4` 之前还没有接进 helper semantics truth
+  - `src/fafafa.core.simd.riscvv.pas`
+    - 仍保留 `RISCVVAbsF32x4Asm`
+    - 仍保留 `RISCVVSqrtF32x4Asm`
+    - 仍保留 `RISCVVFmaF32x4Asm`
+    - 以及对应 `vfsgnjx.vv` / `vfsqrt.v` / `vfmacc.vv` opcode witness
+  - 当前 x86 release host runtime
+    - 这 3 个 slot 在非 RVV host 上应复用 scalar slot
+    - 只有 `FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED` 时才应保持 backend-owned
+- 本批实际收口：
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 新增 `RISCVVFmaF32x4`
+    - 按当前 no-asm body 记录 `Result := ScalarFmaF32x4(a, b, c);`
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 新增 `RISCVV_CONDITIONAL_EXACT_F32X4_KEY_SLOTS`
+    - 把对应 `DispatchAPI` dedicated witness 纳入 `EXPECTATION_PROCEDURES`
+    - 并把这 3 个 slot 接进 `REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS`
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 新增 `Test_RISCVV_ExactF32x4Slots_Keep_AsmConditional_SourceTruth_And_RuntimeBinding`
+    - 同时断言：
+      - register source assignment site 仍保留
+      - no-asm facade 仍是 exact scalar forward
+      - asm helper / asm wrapper / opcode witness 仍保留
+      - runtime slot 仅在 `FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED` 时要求 backend-owned，否则明确要求复用 scalar slot
+- 这批串行 release 验证已经 fresh 跑通：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=695 status=ok`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=133 issues=0 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `TTestCase_DispatchAPI` `BUILD/TEST/LEAK` 全绿
+  - Release `check` 通过
+- 当前阶段结论：
+  - `AbsF32x4/SqrtF32x4/FmaF32x4` 当前收掉的是 conditional exact-slot contract 盲区，不是新的实现改写
+  - 这组 residual 现在和前面的 `F64x2 exact conditional slots` 一样，已经有了 dedicated source/runtime witness

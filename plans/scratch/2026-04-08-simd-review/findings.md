@@ -8424,3 +8424,31 @@
   - “no-asm facade 仍保留 local compare loop”
   - “当前非-RVV host runtime 应复用 scalar slot”
   - “应使用 dedicated dispatch witness + helper semantics 守住这三层 truth，而不是把它误收成 wide family 的 runtime parity 问题”
+
+## 2026-05-18 RISCVV Exact F32x4 Conditional Slots Needed Dedicated Source-vs-Runtime Witness
+
+- `AbsF32x4`、`SqrtF32x4`、`FmaF32x4` 暴露的也不是实现 bug，而是 coverage 形态还不够直接：
+  - helper semantics 之前只显式钉住了 `AbsF32x4` / `SqrtF32x4` 这一类 exact scalar facade 的大部分形状，但 `FmaF32x4` 还没接入 dedicated truth
+  - runtime parity 只能证明当前跑出来的结果与 scalar 一致
+  - 但两者都没有直接把 “register-source 条件绑定 / asm helper 仍在 / 当前 host runtime 可能复用 scalar slot” 这三层合同绑成一条专门 witness
+- fresh 对位源码后，这 3 个槽的真实边界同样应拆成三层：
+  - source truth：
+    - `src/fafafa.core.simd.riscvv.register.inc` 仍保留
+      - `table.AbsF32x4 := @RISCVVAbsF32x4;`
+      - `table.SqrtF32x4 := @RISCVVSqrtF32x4;`
+      - `table.FmaF32x4 := @RISCVVFmaF32x4;`
+    - 但三者都在 `{$IFDEF RISCVV_ASSEMBLY}` 内，不是无条件 runtime 合同
+  - no-asm facade truth：
+    - `src/fafafa.core.simd.riscvv.facade.inc` 里的对应 body 都是 exact scalar forward
+    - 它们不像 `MinF32x4/MaxF32x4` 那样保留 local compare loop
+  - current host runtime truth：
+    - 在当前 x86 release host 上，这 3 个 slot 不应被描述成“仍 backend-owned”
+    - 它们只有在 RVV asm 真编进时才应离开 scalar slot
+- 这条 finding 的价值在于把 `RISCVV F32x4` 审查也继续细分成两类：
+  - `Abs/Sqrt/Fma` 属于 “asm 条件绑定 + no-asm exact scalar facade + runtime 条件复用” 型
+  - `Min/Max` 则属于 “asm 条件绑定 + no-asm local-loop facade + runtime 条件复用” 型
+- 因而当前对 `RISCVV Abs/Sqrt/FmaF32x4` 最准确的口径应是：
+  - “asm path 仍保留 dedicated source-side binding 与 opcode witness”
+  - “no-asm facade 仍是 exact scalar forward”
+  - “当前非-RVV host runtime 应复用 scalar slot”
+  - “应使用 dedicated dispatch witness + helper semantics 守住这三层 truth，而不是继续只靠 generic parity 间接覆盖”

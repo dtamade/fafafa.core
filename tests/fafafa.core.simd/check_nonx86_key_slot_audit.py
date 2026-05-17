@@ -172,6 +172,11 @@ RISCVV_CONDITIONAL_EXACT_F64X2_KEY_SLOTS = (
     "SqrtF64x2",
     "FmaF64x2",
 )
+RISCVV_CONDITIONAL_EXACT_F32X4_KEY_SLOTS = (
+    "AbsF32x4",
+    "SqrtF32x4",
+    "FmaF32x4",
+)
 RISCVV_CONDITIONAL_LOCAL_EXTREMA_F64X2_KEY_SLOTS = (
     "MinF64x2",
     "MaxF64x2",
@@ -209,6 +214,7 @@ KEY_SLOTS_BY_BACKEND: dict[str, tuple[str, ...]] = {
         RISCVV_WIDE_ROUNDING_KEY_SLOTS,
         RISCVV_WIDE_F32_CLAMP_KEY_SLOTS,
         RISCVV_CONDITIONAL_EXACT_F64X2_KEY_SLOTS,
+        RISCVV_CONDITIONAL_EXACT_F32X4_KEY_SLOTS,
         RISCVV_CONDITIONAL_LOCAL_EXTREMA_F64X2_KEY_SLOTS,
         RISCVV_CONDITIONAL_LOCAL_EXTREMA_F32X4_KEY_SLOTS,
         RISCVV_EXACT_REDUCTION_F64X2_KEY_SLOTS,
@@ -243,6 +249,7 @@ EXPECTATION_PROCEDURES = {
         "TTestCase_DispatchAPI.Test_RISCVV_ExtractSlots_Keep_NoAsmCompanionWrappers_And_RuntimeOwnership",
         "TTestCase_DispatchAPI.Test_RISCVV_HelperOwnedExactScalarSlots_Stay_BackendOwned",
         "TTestCase_DispatchAPI.Test_RISCVV_ExactF64x2Slots_Keep_AsmConditional_SourceTruth_And_RuntimeBinding",
+        "TTestCase_DispatchAPI.Test_RISCVV_ExactF32x4Slots_Keep_AsmConditional_SourceTruth_And_RuntimeBinding",
         "TTestCase_DispatchAPI.Test_RISCVV_LocalExtremaF64x2_Keep_AsmConditional_RuntimeBinding_And_LocalNoAsmWitness",
         "TTestCase_DispatchAPI.Test_RISCVV_LocalExtremaF32x4_Keep_AsmConditional_RuntimeBinding_And_LocalNoAsmWitness",
         "TTestCase_DispatchAPI.Test_RISCVV_ReduceF64x2_Stays_BackendOwned_With_ExactScalarNoAsmWitness",
@@ -279,6 +286,7 @@ REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS: dict[str, set[str]] = {
             RISCVV_WIDE_ROUNDING_KEY_SLOTS,
             RISCVV_WIDE_F32_CLAMP_KEY_SLOTS,
             RISCVV_CONDITIONAL_EXACT_F64X2_KEY_SLOTS,
+            RISCVV_CONDITIONAL_EXACT_F32X4_KEY_SLOTS,
             RISCVV_CONDITIONAL_LOCAL_EXTREMA_F64X2_KEY_SLOTS,
             RISCVV_CONDITIONAL_LOCAL_EXTREMA_F32X4_KEY_SLOTS,
             RISCVV_EXACT_REDUCTION_F64X2_KEY_SLOTS,

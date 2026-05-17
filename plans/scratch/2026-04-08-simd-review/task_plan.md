@@ -4942,3 +4942,17 @@
 | 1. 先确认 `F32x4 min/max` 属于哪类 residual | completed | 已确认 `src/fafafa.core.simd.riscvv.register.inc` 对 `MinF32x4/MaxF32x4` 的绑定位于 `{$IFDEF RISCVV_ASSEMBLY}` 条件块；`src/fafafa.core.simd.riscvv.facade.inc` 的 no-asm body 仍是 local compare loop；因此它们应归入 “conditional local-loop extrema” 家族，而不是 wide parity family |
 | 2. 补 helper semantics、key-slot audit 与 dedicated dispatch witness | completed | `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 已新增 `RISCVVMinF32x4/RISCVVMaxF32x4`；`tests/fafafa.core.simd/check_nonx86_key_slot_audit.py` 已新增 `RISCVV_CONDITIONAL_LOCAL_EXTREMA_F32X4_KEY_SLOTS` 并要求 `TTestCase_DispatchAPI.Test_RISCVV_LocalExtremaF32x4_Keep_AsmConditional_RuntimeBinding_And_LocalNoAsmWitness`；`dispatchapi` 已新增该 dedicated witness |
 | 3. 串行 Release 复验并确认 stop-point | completed | `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`、`python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`、`python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend riscvv --summary-line`、Release `TTestCase_DispatchAPI`、Release `impl-audit-nonx86`、Release `check` 全部通过；其中 `NONX86_HELPER_SEMANTICS_SUMMARY checks=694 status=ok` |
+
+## 2026-05-18 RISCVV F32x4 Exact Conditional Witness Sync
+
+### Goal
+
+继续沿 `RISCVV F32x4` 条件槽位深审，但不把 `Abs/Sqrt/Fma` 误归到 `Min/Max` 的 local-loop bucket；把这三个“asm 条件绑定 + no-asm exact scalar facade + runtime slot 依编译条件切换”的真实合同补成 dedicated witness，并挂进 `helper semantics` 与 `key-slot audit`。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `AbsF32x4/SqrtF32x4/FmaF32x4` 到底缺哪层证据 | completed | 已确认 `src/fafafa.core.simd.riscvv.register.inc` 对 `AbsF32x4/SqrtF32x4/FmaF32x4` 都是 `{$IFDEF RISCVV_ASSEMBLY}` 条件绑定；`src/fafafa.core.simd.riscvv.facade.inc` 的 no-asm body 都是 exact `Scalar...` forward；`src/fafafa.core.simd.riscvv.pas` 仍保留各自 `Asm` helper 与 wrapper；现有 coverage 还缺 dedicated source/runtime split witness，且 `FmaF32x4` 之前没有 helper semantics truth |
+| 2. 补 `DispatchAPI` witness，并把 exact-slot truth 接进 `helper semantics` / `key-slot audit` | completed | `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 已新增 `RISCVVFmaF32x4` scalar-forward truth；`tests/fafafa.core.simd/check_nonx86_key_slot_audit.py` 已新增 `RISCVV_CONDITIONAL_EXACT_F32X4_KEY_SLOTS` 并要求 `TTestCase_DispatchAPI.Test_RISCVV_ExactF32x4Slots_Keep_AsmConditional_SourceTruth_And_RuntimeBinding`；`dispatchapi` 已新增该 dedicated witness |
+| 3. 串行 Release 复验并确认 stop-point | completed | `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`、`python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`、Release `TTestCase_DispatchAPI`、Release `impl-audit-nonx86`、Release `check` 全部通过；其中 `NONX86_HELPER_SEMANTICS_SUMMARY checks=695 status=ok`、`NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok` 已重新打绿 |
