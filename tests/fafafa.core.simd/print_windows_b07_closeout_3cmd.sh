@@ -44,6 +44,7 @@ cat <<'EOM' | sed "s/__BATCH_ID__/${LBatchId}/g"
 - `win-evidence-via-gh` 现在会把中间态快照落到 `tests/fafafa.core.simd/logs/windows-closeout/__BATCH_ID__/`，同时回写 canonical `logs/` 指针。
 - 默认 `win-evidence-via-gh` 会消费远端 ref；若本地还有未提交/未推送的 closeout 修复，它会直接拒绝 dispatch，避免跑一轮注定失败的 Windows runner。
 - 若你手里已有现成 GH Actions `run-id`，可直接执行 `... win-evidence-via-gh __BATCH_ID__ <run-id>` 复用旧 run；这条旁路不会因为本地 dirty worktree / remote ref mismatch 被拒绝。
+- 本机 Wine 只适合作为 Windows batch smoke / 日志新鲜度探针；它不能替代真实 Windows evidence runner，也不能把 fresh 但 invalid 的 `windows_b07_gate.log` 直接带进 finalize。
 - `win-evidence-via-gh` 在下载并校验证据后，会自动补一轮 `SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1` + `SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1` 的 Linux cross gate，再进入 closeout finalize。
 - 手工 Windows 实机路径必须先显式补一轮 `SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1` + `SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1` 的 Linux cross gate；`win-closeout-finalize` 自己不会回灌 gate。
 - `win-closeout-finalize` 内部顺序：finalize -> freeze-status -> apply（freeze PASS 才会回填文档）。

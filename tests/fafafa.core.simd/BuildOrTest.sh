@@ -2119,6 +2119,7 @@ check_closeout_release_entrypoint_guard() {
   LRunbookRequired=(
     '如果你要从 Linux/Git Bash/WSL 侧把整条 release closeout 主线一波收口，直接运行：'
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152'
+    '本机 Wine 只算 batch smoke / 日志新鲜度探针，不算真实 Windows evidence runner；'
   )
   LCloseoutDocRequired=(
     '`closeout-release` 现在是完整发布收口的官方主入口：'
@@ -2127,6 +2128,7 @@ check_closeout_release_entrypoint_guard() {
   LHelperRequired=(
     '如果你要从 Linux/Git Bash/WSL 侧把整条 release closeout 主线一波收口，优先直接跑：'
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release __BATCH_ID__'
+    '本机 Wine 只适合作为 Windows batch smoke / 日志新鲜度探针；'
   )
 
   for LPattern in "${LShellRequired[@]}"; do

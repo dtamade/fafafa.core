@@ -12,6 +12,7 @@
 - latest `win-evidence-preflight` 当前是 `RECENT_BILLING_BLOCK`。
 - 在 GitHub Billing/额度恢复，或你已经切换到真实 Windows runner 之前，这页应按“流程 runbook”理解，而不是“当前 HEAD 现在就能直接收口”的状态说明。
 - 因此当前模块总状态仍按 `code-green / release-evidence-blocked` 记录；只有 preflight 重新放行后，下面这条 `cross-ready` runbook 才重新成为可执行主线。
+- 本机 Wine 只算 batch smoke / 日志新鲜度探针，不算真实 Windows evidence runner；即使它能刷新 `windows_b07_gate.log`，也不能把 manual Windows 路径视为已具备可 finalize 的 fresh evidence。
 
 ## 全局约束（Release-only）
 
