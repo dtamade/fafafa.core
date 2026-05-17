@@ -270,6 +270,20 @@
 - 因而当前 closeout 叙事层的最小结论是：
   - repo 内入口已 fail-close 到位
   - 剩余 blocker 继续诚实收敛到 Windows external evidence，而不是重新打开 SIMD 泛审查
+
+## 2026-05-17 Active Docs Still Needed A Preflight Caveat
+
+- 在入口脚本已经把 `RECENT_BILLING_BLOCK` 前置成 warning 之后，active 文档层还残留一类更隐蔽的误导：
+  - `closeout-release` / `win-evidence-via-gh` 仍在多个入口文档里以“当前推荐主线”的口吻出现
+  - `simd_completeness_matrix.md` 还保留一句未加限定的“Windows 实机证据也已闭环”
+- 这些句子单看都不算假，但在当前 `HEAD` 的 `freeze-status=ready=False` 背景下，会把“历史入口存在/历史归档已闭环”和“当前就能继续收口”混写。
+- 最小修法不是删入口，而是把前提写死：
+  - 先过 `win-evidence-preflight`
+  - 若 latest 结果仍是 `RECENT_BILLING_BLOCK`，就在 preflight 处 fail-close
+  - 历史 “Windows 已闭环” 只能按 archive fact 理解，不是当前 readiness signal
+- 这类修法的价值在于继续把 repo 内剩余工作收窄成：
+  - 真正 blocker 只在 Windows external evidence
+  - repo 内还可做的，只剩真相源同步和误导点消除
   - 允许项必须是“当前真实仍然 unavoidable 的 wrapper-only slot”
   - `allowed_wrapper_slots - current_wrapper_only_slots` 只要非空，就说明 allowlist 落后于源码真相，应该直接报错而不是悄悄放过
 - 这批修完后，`unused_allowlist_count` 应回到 `0`；以后这项也应该作为 summary 和 human report 的固定输出，避免 allowlist 又悄悄膨胀。

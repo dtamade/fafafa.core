@@ -129,7 +129,7 @@
   - `VecU8x64Max`：`3.96x`；raw：`4.31x`
   - `VecF32x4Add`：`0.76x`；raw：`0.89x`
 - 说明：宽整型若仅靠 wrapper/标量复用，当前可保证 correctness，但不必然带来性能正收益。
-- Linux 冻结判定：non-x86（NEON/RISCVV）已完成 wiring + runtime parity 双层闭环；Windows 实机证据也已闭环。
+- Linux 冻结判定：non-x86（NEON/RISCVV）已完成 wiring + runtime parity 双层闭环；后面的 “Windows 实机证据已闭环” 只应理解成历史归档事实，不是当前 `HEAD` 仍 cross-ready 的信号，当前 Windows readiness 以 latest `freeze-status` / `win-evidence-preflight` 为准。
 - 已新增 Windows 证据批量收口能力：
   - `buildOrTest.bat verify-win-evidence`（日志校验）
   - `buildOrTest.bat evidence-win-verify`（采集 + 校验证据包；手工路径仍需后续 fail-close cross gate + finalize）

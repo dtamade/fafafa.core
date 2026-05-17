@@ -114,6 +114,7 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-re
 
 内部固定顺序是 `impl-smoke-x86 -> closeout-host-local -> win-evidence-preflight -> win-evidence-via-gh -> freeze-status`。
 它会先把当前 x86 bounded frontier 和 host-local non-x86/QEMU 证明跑到位，再进入 Windows evidence GH 闭环，最后回到 canonical `freeze-status` 做最终确认。
+但对当前 `HEAD`，这条链还多一个 fail-close 条件：如果 latest `win-evidence-preflight` 返回 `RECENT_BILLING_BLOCK`，就把这轮状态记成 `code-green / release-evidence-blocked`，不要继续把 `win-evidence-via-gh` 当成可立即执行的下一步。
 
 如果你只想先看完整 release 门禁轮廓，而不是直接一波收口，也可以单独跑：
 
@@ -284,6 +285,7 @@ SIMD_OUTPUT_ROOT=/tmp/simd-run-123 bash tests/fafafa.core.simd/BuildOrTest.sh ev
 当前 shell gate 链路里的 `cpuinfo` / `cpuinfo.x86` / `publicabi` / `nonx86.optin` 子 runner 也会自动落到隔离根下的对应子目录；`run_all_tests` 过滤链里尊重 `SIMD_OUTPUT_ROOT` 的 simd 模块则会进一步落到 `run_all/<module>/`。
 如果需要回收这批隔离产物，直接执行同根 `SIMD_OUTPUT_ROOT=/tmp/simd-run-123 bash tests/fafafa.core.simd/BuildOrTest.sh clean`；主 runner 现在会把顶层 `bin/lib`、这些子目录以及 `run_all/` 一并清掉。
 真正的 Windows 收口主线应优先使用 `win-evidence-via-gh`。
+这里同样要带当前前提理解：只有在 `win-evidence-preflight` 不再是 `RECENT_BILLING_BLOCK`，或你已经切换到真实 Windows runner 后，这句“优先主线”才重新成立。
 若走手工 Windows 实机路径，则必须先跑 `FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`，再执行 `win-closeout-finalize`。
 
 ## Task 2 / Task 3 维护顺序（当前已回填完成）

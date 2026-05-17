@@ -237,6 +237,29 @@
   - repo 内 closeout 入口提示已收紧并具备自检
   - 真正剩余 blocker 仍是 `freeze-status` 里的 Windows external evidence：`RECENT_BILLING_BLOCK` + `windows_evidence_verify=FAIL`
 
+## 2026-05-17 Active Closeout Docs Preflight Caveat Sync
+
+- 在 code batch 提交并推送后，继续按“只查 closeout 入口误导点”的边界做了一轮 active docs 审查。
+- 新抓到的 residual 不是实现层，而是部分 active 文档仍把：
+  - `closeout-release`
+  - `win-evidence-via-gh`
+  - 旧的 “Windows 实机证据已闭环”
+  写得太像当前 `HEAD` 的无条件 readiness 结论。
+- 已补的真相源同步：
+  - `docs/fafafa.core.simd.handoff.md`
+  - `docs/fafafa.core.simd.checklist.md`
+  - `tests/fafafa.core.simd/docs/simd_release_candidate_checklist.md`
+  - `tests/fafafa.core.simd/docs/simd_completeness_matrix.md`
+- 统一口径：
+  - `closeout-release` 仍是官方入口，但当前必须先过 `win-evidence-preflight`
+  - 若 latest preflight 仍为 `RECENT_BILLING_BLOCK`，则在 preflight 处 fail-close，状态记为 `code-green / release-evidence-blocked`
+  - matrix 里的 “Windows 实机证据已闭环” 仅是历史归档事实，不是当前 `HEAD` 的 readiness signal
+- fresh 轻量验证已完成：
+  - `git diff --check`
+  - `rg -n "RECENT_BILLING_BLOCK|code-green / release-evidence-blocked|历史归档事实|当前 HEAD 额外前提|fail-close 条件" ...`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity`
+  - 结果：全部通过
+
 - 接着上一批 `F64x4` arithmetic residual 继续往下切，本轮先锁定 wide `Round/Trunc`：
   - `RoundF32x8`
   - `RoundF32x16`
