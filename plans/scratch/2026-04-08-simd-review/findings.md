@@ -7026,3 +7026,14 @@
   - 都是当前 repo 真实依赖的 cheap static guard 或 standalone smoke
   - 但 parity 之前不会因为它们被删掉而直接报红
 - 因而最小正确修法仍然不是动执行逻辑，而是继续补 parity required patterns，把这组高价值默认 `check` 位点纳入 fail-close 保护。
+
+## 2026-05-17 Batch Usage Synopsis Missed `riscvv-opcode-lane`
+
+- 沿着 `runner/check/gate/help` 一致性继续收 residual 时，又发现一个更小但真实的 help drift：
+  - `riscvv-opcode-lane` 已经有 shell action、batch action 与独立帮助行
+  - shell `Usage: ...` synopsis 也已经列出它
+  - 但 batch 总 synopsis 仍漏掉它
+- 风险不在执行分支，而在于：
+  - Windows 侧 CLI 总览会给出不完整入口面
+  - `check_windows_runner_parity()` 当前把这条 stale batch synopsis 当成 expected pattern，自身也不会因为这处 help drift 报红
+- 因而最小正确修法是把 batch synopsis 与 parity required synopsis 一起补齐，而不是扩大到其他实现面。

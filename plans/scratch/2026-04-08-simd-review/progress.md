@@ -8766,3 +8766,15 @@
 - 当前阶段结论：
   - `runner-parity` 对默认 `check` lane 的覆盖现在比上一批更完整
   - 同类“batch 已经收正、parity 还没跟上”的 easy residual 已经明显收缩
+
+## 2026-05-17 Batch Usage Synopsis Parity Refresh
+
+- 在默认 `check` 覆盖补齐之后，我继续只看 `runner/check/gate/help` 一致性，没有回到实现层。
+- fresh 复核发现一个更窄的 help residual：
+  - shell usage synopsis 已列出 `riscvv-opcode-lane`
+  - batch usage synopsis 仍漏掉它
+  - `check_windows_runner_parity()` 的 expected synopsis 也沿用了这条 stale 文本
+- 已落地的最小修法：
+  - 在 `tests/fafafa.core.simd/buildOrTest.bat` 的总 synopsis 中补上 `riscvv-opcode-lane`
+  - 在 `tests/fafafa.core.simd/BuildOrTest.sh` 的 `check_windows_runner_parity()` required synopsis 中同步补上同一项
+- 这批只碰 help/parity 文本，不碰执行分支；验证仍按 release closeout 习惯走 `git diff --check`、`bash -n`、`runner-parity`。
