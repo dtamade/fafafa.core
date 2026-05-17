@@ -117,6 +117,69 @@ EOF
 
 printf '%s\n' "${LBlockedOutput}"
 
+LCachedFallbackOutput="$(
+  ROOT="${LStubRoot}" \
+  SIMD_WIN_PREFLIGHT_JSON_FILE="${LStubRoot}/logs/win_preflight_latest.json" \
+  SIMD_WIN_PREFLIGHT_CACHE_MAX_AGE_HOURS=2 \
+  CLOSEOUT_RELEASE_FUNCTION_FILE="${LFunctionFile}" \
+  bash <<'EOF'
+set -euo pipefail
+
+source "${CLOSEOUT_RELEASE_FUNCTION_FILE}"
+
+run_x86_impl_smoke() {
+  echo "[TEST-STUB] x86"
+}
+
+run_closeout_host_local() {
+  echo "[TEST-STUB] host-local"
+}
+
+run_win_evidence_preflight() {
+  return 24
+}
+
+run_win_evidence_via_gh() {
+  echo "SHOULD-NOT-RUN-GH"
+  return 97
+}
+
+run_freeze_status() {
+  echo "SHOULD-NOT-RUN-FREEZE"
+  return 98
+}
+
+set +e
+LRunOutput="$(run_closeout_release SIMD-REHEARSE-CACHED-152 2>&1)"
+LRunRC=$?
+set -e
+
+printf '%s\n' "${LRunOutput}"
+
+if [[ "${LRunRC}" != "31" ]]; then
+  echo "[CLOSEOUT-RELEASE-PREFLIGHT-REHEARSAL] FAILED: cached billing fallback expected rc=31 but got ${LRunRC}"
+  exit 1
+fi
+
+if ! grep -F -- "WARN live preflight query failed rc=24; reusing fresh cached RECENT_BILLING_BLOCK result" <<<"${LRunOutput}" >/dev/null; then
+  echo "[CLOSEOUT-RELEASE-PREFLIGHT-REHEARSAL] FAILED: cached billing fallback missing warning line"
+  exit 1
+fi
+
+if ! grep -F -- "[CLOSEOUT-RELEASE] STOP latest preflight is RECENT_BILLING_BLOCK" <<<"${LRunOutput}" >/dev/null; then
+  echo "[CLOSEOUT-RELEASE-PREFLIGHT-REHEARSAL] FAILED: cached billing fallback missing stop note"
+  exit 1
+fi
+
+if grep -F -- "[TEST-STUB] x86" <<<"${LRunOutput}" >/dev/null; then
+  echo "[CLOSEOUT-RELEASE-PREFLIGHT-REHEARSAL] FAILED: cached billing fallback should not run x86"
+  exit 1
+fi
+EOF
+)"
+
+printf '%s\n' "${LCachedFallbackOutput}"
+
 LRunIdBypassOutput="$(
   ROOT="${LStubRoot}" \
   SIMD_WIN_PREFLIGHT_JSON_FILE="${LStubRoot}/logs/win_preflight_latest.json" \

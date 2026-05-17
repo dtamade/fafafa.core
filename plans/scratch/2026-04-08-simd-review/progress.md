@@ -8946,3 +8946,49 @@
     - `windows_preflight_latest = RECENT_BILLING_BLOCK`
     - `windows_evidence_verify = FAIL`
   - 但至少下一轮继续收 Windows 链时，不会再先被 verifier 噪音带偏
+
+## 2026-05-17 Closeout-Release Cached Billing-Block Fallback Verified
+
+- 继续沿当前最高价值 residual 往下收时，我没有再扩回 SIMD 泛审查，而是只盯一个问题：
+  - `win-evidence-preflight` 明明还能 fresh 打出 `RECENT_BILLING_BLOCK`
+  - 但 `closeout-release` 顶层入口在 live workflow query 抖动时，仍会直接以 `WORKFLOW_QUERY_FAILED(24)` 退出
+- 这轮先确认真实现象：
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`
+    - `STATUS=FAIL CODE=RECENT_BILLING_BLOCK EXIT=31`
+    - workflow run `25967172435`
+  - 一次真实 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-20260517-152`
+    - 仍先暴露出 `WORKFLOW_QUERY_FAILED EXIT=24`
+    - 说明问题不在 SIMD 实现，而在顶层 preflight / cached truth 的衔接
+- 已落地修法：
+  - `tests/fafafa.core.simd/preflight_windows_b07_evidence_gh.sh`
+    - 新增 `resolve_repo_from_remote()` / `resolve_repo_name()`
+    - `gh repo view` 失败时，回退到 `git remote origin` 解析 `owner/repo`
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - 新增 `win_preflight_latest_has_fresh_billing_block_cache()`
+    - `run_closeout_release()` 在 live preflight 前先记住 fresh cache 状态
+    - 若 live preflight 返回 `24` 且旧 cache 是 fresh `RECENT_BILLING_BLOCK`，则直接打印 warning，复用 cached truth，并按 `31` fail-fast 停止
+  - `tests/fafafa.core.simd/rehearse_win_preflight_repo_fallback.sh`
+    - 新增 focused rehearsal，专门守 repo resolve fallback
+  - `tests/fafafa.core.simd/rehearse_closeout_release_preflight_block.sh`
+    - 新增 cached billing-block fallback case
+- 已验证：
+  - `git diff --check`
+  - `bash -n tests/fafafa.core.simd/preflight_windows_b07_evidence_gh.sh`
+  - `bash -n tests/fafafa.core.simd/BuildOrTest.sh`
+  - `bash -n tests/fafafa.core.simd/rehearse_win_preflight_repo_fallback.sh`
+  - `bash -n tests/fafafa.core.simd/rehearse_closeout_release_preflight_block.sh`
+  - `bash tests/fafafa.core.simd/rehearse_win_preflight_repo_fallback.sh`
+    - `[PREFLIGHT-REPO-FALLBACK] OK`
+  - `bash tests/fafafa.core.simd/rehearse_closeout_release_preflight_block.sh`
+    - `[CLOSEOUT-RELEASE-PREFLIGHT-REHEARSAL] OK`
+  - 真实复验：
+    - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-20260517-152`
+    - 现在会先看到 live `WORKFLOW_QUERY_FAILED EXIT=24`
+    - 随后正确输出：
+      - `WARN live preflight query failed rc=24; reusing fresh cached RECENT_BILLING_BLOCK result`
+      - `STOP latest preflight is RECENT_BILLING_BLOCK`
+    - 进程最终 `exit=31`
+- 当前真实位置：
+  - `closeout-release` 顶层 operator truth 已收正，不再把 query noise 误报成主状态
+  - Linux/mainline 仍是绿的
+  - cross 仍未闭环，但剩余 blocker 已重新收敛成外部 Windows evidence/billing，可继续按真实 Windows runner 或 billing 恢复后再刷 fresh evidence

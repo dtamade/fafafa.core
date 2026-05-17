@@ -7153,3 +7153,20 @@
   - `evaluate_simd_freeze_status.py` 在 `windows_evidence_verify` fail 时，先从真实 Windows log 抽取 root-cause hint
   - 若能定位到 `BUILD FAILED` / `Can't recognize` / `GATE_EXIT_CODE!=0` 这类早期失败信号，就把它放到 detail 最前面
   - verifier 输出仍保留，但只保留 `first verifier issue`，不再把整串 missing 明细原样塞进 `freeze-status`
+
+## 2026-05-17 Closeout-Release Still Needed Cached Billing-Block Failover At The Top-Level Entry
+
+- 在把 `freeze-status` 信号收清后，`closeout-release` 顶层入口又暴露出一个更窄但更真实的残差：
+  - fresh `win-evidence-preflight` 可以稳定返回 `RECENT_BILLING_BLOCK`
+  - 但直接执行 `closeout-release` 时，live preflight 里的 workflow 查询偶发会先炸成 `WORKFLOW_QUERY_FAILED`
+  - 如果主入口只把这个 `24` 原样抛出，操作者看到的就会是“查询失败”，而不是当前真正应该停下来的 blocked reality
+- 这类缺口的坏处很直接：
+  - repo 明明已经有一份 fresh 的 billing-block 证据
+  - 但顶层主入口还是会把人引回“是不是 workflow / repo / gh 又坏了”的噪音路径
+  - 于是真正的 stop condition 没有被主入口保住
+- 这批最小正确修法分两层：
+  - `preflight_windows_b07_evidence_gh.sh` 不再只依赖 `gh repo view`，而是允许从 `git remote origin` 解析 `owner/repo`，避免在 closeout 主链里被 `REPO_RESOLVE_FAILED` 过早打断
+  - `BuildOrTest.sh::run_closeout_release()` 在 live preflight 前先记住“是否已有 fresh 的 `RECENT_BILLING_BLOCK` cache”；若 live 查询返回 `24`，就复用这份 fresh cache，把顶层结果稳定收敛成 `31 + STOP latest preflight is RECENT_BILLING_BLOCK`
+- 所以这批不是“把失败文案改好看”：
+  - 而是把顶层入口的 fail-fast 语义重新接到真实 blocked evidence 上
+  - 让 `closeout-release` 在 GitHub 查询抖动下仍能保持正确的 operator truth

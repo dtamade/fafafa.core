@@ -6931,6 +6931,29 @@ win_preflight_latest_is_recent_billing_block() {
   [[ -f "${LJson}" ]] && grep -F '"code": "RECENT_BILLING_BLOCK"' "${LJson}" >/dev/null 2>&1
 }
 
+win_preflight_latest_has_fresh_billing_block_cache() {
+  local LJson
+  local LMaxAgeHours
+  local LNow
+  local LMtime
+  local LAgeHours
+
+  if ! win_preflight_latest_is_recent_billing_block; then
+    return 1
+  fi
+
+  LJson="$(win_preflight_latest_json_path)"
+  [[ -f "${LJson}" ]] || return 1
+
+  LMaxAgeHours="${SIMD_WIN_PREFLIGHT_CACHE_MAX_AGE_HOURS:-2}"
+  LNow="$(date +%s)"
+  LMtime="$(stat -c %Y "${LJson}" 2>/dev/null || true)"
+  [[ -n "${LMtime}" ]] || return 1
+
+  LAgeHours="$(( (LNow - LMtime) / 3600 ))"
+  [[ "${LAgeHours}" -le "${LMaxAgeHours}" ]]
+}
+
 print_closeout_release_preflight_block_note() {
   local LBatchId
 
@@ -6961,10 +6984,12 @@ run_closeout_release() {
   local LPreflightRC
   local LRunId
   local LReleaseMode
+  local LHadCachedBillingBlock
 
   LBatchId="${1:-SIMD-$(date '+%Y%m%d')-152}"
   LRunId="${2:-}"
   LReleaseMode="${FAFAFA_BUILD_MODE:-Release}"
+  LHadCachedBillingBlock=0
 
   echo "[CLOSEOUT-RELEASE] batch=${LBatchId} mode=${LReleaseMode}"
   if [[ -n "${LRunId}" ]]; then
@@ -6975,6 +7000,9 @@ run_closeout_release() {
     echo "[CLOSEOUT-RELEASE] 1/5 Windows evidence preflight (skip: explicit run-id reuse)"
   else
     echo "[CLOSEOUT-RELEASE] 1/5 Windows evidence preflight"
+    if win_preflight_latest_has_fresh_billing_block_cache; then
+      LHadCachedBillingBlock=1
+    fi
     if FAFAFA_BUILD_MODE="${LReleaseMode}" \
       run_win_evidence_preflight
     then
@@ -6983,6 +7011,12 @@ run_closeout_release() {
       LPreflightRC=$?
       if [[ "${LPreflightRC}" == "31" ]] && win_preflight_latest_is_recent_billing_block; then
         print_closeout_release_preflight_block_note "${LBatchId}"
+        return 31
+      fi
+      if [[ "${LPreflightRC}" == "24" && "${LHadCachedBillingBlock}" == "1" ]]; then
+        echo "[CLOSEOUT-RELEASE] WARN live preflight query failed rc=${LPreflightRC}; reusing fresh cached RECENT_BILLING_BLOCK result"
+        print_closeout_release_preflight_block_note "${LBatchId}"
+        return 31
       fi
       return "${LPreflightRC}"
     fi

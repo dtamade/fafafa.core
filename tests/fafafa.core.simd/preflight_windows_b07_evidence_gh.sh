@@ -10,6 +10,7 @@ PREFLIGHT_JSON_FILE="${SIMD_WIN_PREFLIGHT_JSON_FILE:-${PREFLIGHT_LOG_DIR}/win_pr
 PREFLIGHT_MD_FILE="${SIMD_WIN_PREFLIGHT_MD_FILE:-${PREFLIGHT_LOG_DIR}/win_preflight_latest.md}"
 
 LRepo=""
+LRepoSource=""
 
 print_usage() {
   cat <<EOF
@@ -144,6 +145,57 @@ sys.exit(1)
 PY
 }
 
+resolve_repo_from_remote() {
+  local LRemoteUrl
+
+  LRemoteUrl="$(git remote get-url origin 2>/dev/null || git config --get remote.origin.url 2>/dev/null || true)"
+  if [[ -z "${LRemoteUrl}" ]]; then
+    return 1
+  fi
+
+  python3 - "${LRemoteUrl}" <<'PY'
+import re
+import sys
+
+raw = sys.argv[1].strip()
+patterns = [
+    r"github\.com[:/](?P<owner>[^/]+)/(?P<repo>[^/]+?)(?:\.git)?$",
+    r"ssh://git@github\.com/(?P<owner>[^/]+)/(?P<repo>[^/]+?)(?:\.git)?$",
+]
+
+for pattern in patterns:
+    match = re.search(pattern, raw)
+    if match:
+        owner = match.group("owner").strip()
+        repo = match.group("repo").strip()
+        if owner and repo:
+            print(f"{owner}/{repo}")
+            sys.exit(0)
+
+sys.exit(1)
+PY
+}
+
+resolve_repo_name() {
+  local LResolved
+
+  LResolved="$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || true)"
+  if [[ -n "${LResolved}" ]]; then
+    LRepoSource="gh-repo-view"
+    printf '%s\n' "${LResolved}"
+    return 0
+  fi
+
+  LResolved="$(resolve_repo_from_remote 2>/dev/null || true)"
+  if [[ -n "${LResolved}" ]]; then
+    LRepoSource="git-remote-origin"
+    printf '%s\n' "${LResolved}"
+    return 0
+  fi
+
+  return 1
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -h|--help)
@@ -195,9 +247,9 @@ if ! gh auth status >/dev/null 2>&1; then
   fail_with 21 "AUTH_REQUIRED" "gh auth required"
 fi
 
-LRepo="$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || true)"
+LRepo="$(resolve_repo_name || true)"
 if [[ -z "${LRepo}" ]]; then
-  fail_with 24 "REPO_RESOLVE_FAILED" "failed to resolve repository via gh repo view"
+  fail_with 24 "REPO_RESOLVE_FAILED" "failed to resolve repository via gh repo view or git remote origin"
 fi
 
 LWorkflowJson="$(gh workflow list --all --limit 200 --json id,name,path,state 2>/dev/null || true)"
