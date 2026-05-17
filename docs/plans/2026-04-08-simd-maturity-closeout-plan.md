@@ -6,6 +6,16 @@
 > It is no longer part of the active whole-module execution chain.
 > Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
 
+> Current HEAD note (2026-05-17):
+> This plan is historical closeout guidance, not proof that the current
+> repository is release-ready. Latest
+> `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+> remains `ready=False / mainline-ready=True / cross-ready=False`, with
+> `win-evidence-preflight=RECENT_BILLING_BLOCK` and
+> `windows_evidence_verify` failing at
+> `cmd.exe cannot resolve LAZBUILD command "lazbuild"`. For current operator
+> truth, use `docs/fafafa.core.simd.closeout.md` and
+> `tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`.
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
@@ -32,6 +42,7 @@
 ## Task 1: Freeze 当前审查基线
 
 **Files:**
+
 - Read: `src/fafafa.core.simd.pas`
 - Read: `src/fafafa.core.simd.dispatch.pas`
 - Read: `src/fafafa.core.simd.direct.pas`
@@ -72,6 +83,7 @@ Expected:
 ## Task 2: 刷新 Linux release gate 证据
 
 **Files:**
+
 - Use: `tests/fafafa.core.simd/BuildOrTest.sh`
 - Output: `tests/fafafa.core.simd/logs/gate_summary.md`
 - Output: `tests/fafafa.core.simd/logs/gate_summary.json`
@@ -114,10 +126,19 @@ Expected:
 ## Task 3: 刷新 Windows evidence
 
 **Files:**
+
 - Use: `tests/fafafa.core.simd/BuildOrTest.sh`
 - Use: `tests/fafafa.core.simd/run_windows_b07_closeout_via_github_actions.sh`
 - Output: `tests/fafafa.core.simd/logs/windows_b07_gate.log`
 - Output: `tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`
+
+Before using the manual Windows path:
+
+- if `win-evidence-preflight` still reports `RECENT_BILLING_BLOCK`, stop there
+  and treat the batch as `code-green / release-evidence-blocked`
+- do not use Wine/cmd as a stand-in for a real Windows host
+- make sure `LAZBUILD` resolves to a native Windows `.exe/.bat/.cmd`, not a
+  Wine-visible Linux ELF
 
 **Step 1: 做 preflight，避免先开 GitHub job 再发现本地前置条件不满足**
 
@@ -160,6 +181,7 @@ Expected:
 ## Task 4: 完成 closeout finalize
 
 **Files:**
+
 - Use: `tests/fafafa.core.simd/BuildOrTest.sh`
 - Output: `tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`
 
@@ -193,6 +215,7 @@ Expected:
 ## Task 5: 把 closeout 流程固化成单一入口
 
 **Files:**
+
 - Modify: `tests/fafafa.core.simd/BuildOrTest.sh`
 - Modify: `tests/fafafa.core.simd/buildOrTest.bat`
 - Modify: `docs/fafafa.core.simd.checklist.md`
@@ -237,6 +260,7 @@ Expected:
 ## Task 6: 建立 evidence freshness 纪律
 
 **Files:**
+
 - Modify: `backlog.md`
 - Modify: `tests/fafafa.core.simd/docs/simd_release_candidate_checklist.md`
 - Optional: `docs/fafafa.core.simd.closeout.md`

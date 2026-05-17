@@ -6,6 +6,15 @@
 > It is no longer part of the active whole-module execution chain.
 > Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.
 
+> Current HEAD note (2026-05-17):
+> This is a historical final-closeout plan, not the current repository status.
+> Latest `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+> remains `ready=False / mainline-ready=True / cross-ready=False`, with
+> `win-evidence-preflight=RECENT_BILLING_BLOCK` and
+> `windows_evidence_verify` failing at
+> `cmd.exe cannot resolve LAZBUILD command "lazbuild"`. For current operator
+> truth, use `docs/fafafa.core.simd.closeout.md` and
+> `tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`.
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
@@ -20,6 +29,7 @@
 ### Task 1: 锁定 closeout 基线与 stop condition
 
 **Files:**
+
 - Read: `src/fafafa.core.simd.README.md`
 - Read: `docs/fafafa.core.simd.closeout.md`
 - Read: `docs/fafafa.core.simd.checklist.md`
@@ -29,6 +39,7 @@
 **Step 1: 读取 closeout 主入口说明**
 
 Run:
+
 ```bash
 sed -n '1,120p' src/fafafa.core.simd.README.md
 sed -n '1,260p' docs/fafafa.core.simd.closeout.md
@@ -44,6 +55,7 @@ Expected:
 **Step 2: 读取实现层 ledger**
 
 Run:
+
 ```bash
 sed -n '1,180p' docs/fafafa.core.simd.implementation-matrix.md
 sed -n '1,180p' docs/fafafa.core.simd.handoff.md
@@ -76,12 +88,14 @@ git commit -m "docs: add simd final closeout plan"
 ### Task 2: 准备可执行 Windows evidence 的干净 ref
 
 **Files:**
+
 - Read: `tests/fafafa.core.simd/run_windows_b07_closeout_via_github_actions.sh`
 - Read: `tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`
 
 **Step 1: 确认当前仓库是否允许直接 dispatch**
 
 Run:
+
 ```bash
 git status --short
 git branch --show-current
@@ -97,6 +111,7 @@ Expected:
 **Step 2: 读取 GH Windows evidence 拒绝条件**
 
 Run:
+
 ```bash
 sed -n '260,330p' tests/fafafa.core.simd/run_windows_b07_closeout_via_github_actions.sh
 sed -n '1,120p' tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md
@@ -121,6 +136,7 @@ Expected:
 **Step 4: 验证 preflight**
 
 Run:
+
 ```bash
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight
 ```
@@ -129,6 +145,10 @@ Expected:
 
 - `STATUS=PASS`
 - 若失败，必须先解决 GH/billing/runner block，再继续
+- 如果后续改走手工 Windows 实机路径，也必须满足：
+  - 真实 Windows runner / Windows 实机
+  - `LAZBUILD` 解析到 native Windows `.exe/.bat/.cmd`
+  - 不要使用 Wine/cmd 冒充实机
 
 **Step 5: Commit**
 
@@ -139,11 +159,13 @@ Expected:
 ### Task 3: 刷新 host-local/Linux closeout 证据
 
 **Files:**
+
 - Verify only
 
 **Step 1: 跑 x86 bounded frontier smoke**
 
 Run:
+
 ```bash
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-smoke-x86
 ```
@@ -155,6 +177,7 @@ Expected:
 **Step 2: 跑 non-x86 高频 smoke**
 
 Run:
+
 ```bash
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-smoke-nonx86
 ```
@@ -166,6 +189,7 @@ Expected:
 **Step 3: 跑完整 non-x86 实现审计**
 
 Run:
+
 ```bash
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86
 ```
@@ -177,6 +201,7 @@ Expected:
 **Step 4: 跑 host-local strict closeout**
 
 Run:
+
 ```bash
 SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' \
 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 \
@@ -211,11 +236,13 @@ git commit -m "simd: refresh host-local closeout evidence"
 ### Task 4: 刷新 Windows evidence 并 finalize
 
 **Files:**
+
 - Verify only unless docs/log pointers need refresh
 
 **Step 1: 从干净 ref 触发 GH Windows evidence**
 
 Run:
+
 ```bash
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-20260426-152
 ```
@@ -230,6 +257,7 @@ Expected:
 **Step 2: 如果已有现成 GH run-id，走旁路复用**
 
 Run:
+
 ```bash
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-20260426-152 <run-id>
 ```
@@ -242,6 +270,7 @@ Expected:
 **Step 3: 独立验证 Windows evidence**
 
 Run:
+
 ```bash
 tests/fafafa.core.simd/buildOrTest.bat evidence-win-verify
 ```
@@ -253,6 +282,7 @@ Expected:
 **Step 4: 确认 closeout finalize 结果**
 
 Run:
+
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-20260426-152
 ```
@@ -275,6 +305,7 @@ git commit -m "simd: refresh windows closeout evidence"
 ### Task 5: 最终 freeze 判定与文档回填
 
 **Files:**
+
 - Modify: `docs/fafafa.core.simd.closeout.md`
 - Modify: `docs/fafafa.core.simd.implementation-matrix.md`
 - Modify: `docs/fafafa.core.simd.checklist.md`
@@ -283,6 +314,7 @@ git commit -m "simd: refresh windows closeout evidence"
 **Step 1: 跑最终 freeze 判定**
 
 Run:
+
 ```bash
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status
 ```
@@ -310,6 +342,7 @@ Expected:
 **Step 3: 复查 freeze 文档一致性**
 
 Run:
+
 ```bash
 rg -n "ready=True|mainline-ready=True|cross-ready=True|2026-04-26|SIMD-20260426-152" \
   docs/fafafa.core.simd.closeout.md \
