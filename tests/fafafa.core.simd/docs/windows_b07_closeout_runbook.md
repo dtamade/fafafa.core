@@ -80,7 +80,7 @@
 - `collect_windows_b07_evidence.bat` / `buildOrTest.bat evidence-win-verify` 现在默认优先走 native batch gate，避免静默绕开 Windows 自己的 `publicabi-smoke` 路径。只有在显式设置 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` 时，才会切到 bash gate 口径做诊断性预演。
 - 这里的 `LAZBUILD` 必须解析到 native Windows `.exe/.bat/.cmd`；不要把它指到 `Z:\opt\...` 这种 Wine 可见但 `cmd.exe` 不能执行的 Linux ELF。
 - 当前本机 Wine 探针里，`where bash` 在 `cmd.exe` 下不可用，`wine start /unix ...` 也没有形成可用的 `lazbuild` bridge；不要把 host-side Unix bridge 当成 native Windows `LAZBUILD` 的替代。
-- native batch 采集路径不会额外导出 `gate_summary.json`；这是有意为之，因为该路径本身不生成一份新的 `gate_summary.md`，强行导出只会冒着复用旧摘要的风险。若你需要归档 `gate_summary.md/json`，请走 `win-evidence-via-gh` 或显式 opt-in `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1`。
+- native batch 采集路径不会额外导出 `gate_summary.json`；这是有意为之，因为该路径本身不生成一份新的 `gate_summary.md`，强行导出只会冒着复用旧摘要的风险。若你需要归档 `gate_summary.md/json`，请走 `win-evidence-via-gh`，或仅在 `cmd.exe` 真的能解析 `bash` 的环境里显式 opt-in `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` 做诊断性预演；当前本机 Wine 不属于这种环境。
 - 因此手工 Windows 实机路径在 finalize 前必须显式补跑 fail-close cross gate；否则 `freeze-status` 只会继续消费旧的 `gate_summary.md`。
 
 ## 快捷入口

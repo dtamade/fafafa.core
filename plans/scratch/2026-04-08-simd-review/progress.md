@@ -9652,3 +9652,46 @@
 - 当前阶段结论：
   - 在当前本机 Wine 环境里，`where bash` 与 `start /unix` 都没有形成可用的 `LAZBUILD` bridge
   - 因而这条“host-side Unix bridge”不该再作为 closeout 下一步尝试，而应明确记成当前外部环境边界
+
+## 2026-05-17 Bash-Gate Opt-In Fallback Warning Sync
+
+- 在确认 host-side Unix bridge 不成立后，我继续扫 Windows closeout operator surface，发现 `collect_windows_b07_evidence.bat` 还有一条低信号残差：
+  - 当显式请求 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1`
+  - 但 `cmd.exe` 实际又不满足 bash gate 前提时
+  - 当前日志只会写 `prerequisites are incomplete`
+- 这句太弱，容易让后续排查继续误判成“再补一补就能让 Wine 接通 bash gate”。
+- 已落地的最小修法：
+  - `collect_windows_b07_evidence.bat`
+    - fallback warning 改成直接说明：
+      - `cmd.exe cannot satisfy the current bash-gate prerequisites`
+      - `current local Wine probes did not yield a working host-side Unix bridge`
+  - `tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`
+    - 把 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` 收紧成：
+      - 仅限 `cmd.exe` 真能解析 `bash` 的环境
+      - 当前本机 Wine 不属于这种环境
+  - 新增 `rehearse_win_bash_gate_fallback_warning.sh`
+    - 并挂进 `gate-summary-selfcheck`
+    - 守住 collect script warning + runbook caveat 两处 truth
+- 已验证：
+  - `git diff --check`
+  - `bash tests/fafafa.core.simd/rehearse_win_bash_gate_fallback_warning.sh`
+    - `[WIN-BASH-GATE-FALLBACK-REHEARSAL] OK`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate-summary-selfcheck`
+    - `[GATE-SUMMARY-SELFCHECK] OK`
+  - `wine cmd /c 'set SIMD_WIN_EVIDENCE_USE_BASH_GATE=1&& tests\fafafa.core.simd\buildOrTest.bat evidence-win'`
+    - 当前 real B07 log 已带出：
+      - `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1 requested, but cmd.exe cannot satisfy the current bash-gate prerequisites`
+      - `current local Wine probes did not yield a working host-side Unix bridge`
+  - 随后已重新跑 canonical evidence / summary：
+    - `wine cmd /c tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify`
+    - `bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence`
+    - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+  - fresh `freeze-status` 再次显示：
+    - `windows_evidence_inputs_not_newer_than_log = PASS`
+    - `windows_closeout_summary_not_older_than_log = PASS`
+    - 剩余红项继续只剩：
+      - `windows_preflight_latest = RECENT_BILLING_BLOCK`
+      - `windows_evidence_verify = TOOLCHAIN BLOCK: cmd.exe cannot resolve LAZBUILD command "lazbuild"`
+- 当前阶段结论：
+  - `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` 这条 fallback 现在已经不会再把本机 Wine 描述成“还差一点点就能接通”的候选路径
+  - 这批也没有重新引入 repo 内 stale Windows evidence 假红

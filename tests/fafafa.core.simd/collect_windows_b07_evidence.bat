@@ -57,7 +57,8 @@ if /I "%USE_BASH_GATE%"=="1" (
 ) else (
   echo [B07] GateRunnerMode: batch-default >> "%TMP_LOG%"
   if /I "%USE_BASH_GATE_REQUEST%"=="1" (
-    echo [B07] WARN: SIMD_WIN_EVIDENCE_USE_BASH_GATE=1 but prerequisites are incomplete; fallback to native batch gate >> "%TMP_LOG%"
+    echo [B07] WARN: SIMD_WIN_EVIDENCE_USE_BASH_GATE=1 requested, but cmd.exe cannot satisfy the current bash-gate prerequisites; fallback to native batch gate >> "%TMP_LOG%"
+    echo [B07] WARN: current local Wine probes did not yield a working host-side Unix bridge ^(`where bash` / `start /unix`^); keep using native Windows LAZBUILD or a real Windows runner >> "%TMP_LOG%"
   )
 )
 echo. >> "%TMP_LOG%"

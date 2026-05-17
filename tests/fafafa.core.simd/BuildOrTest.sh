@@ -106,6 +106,7 @@ GATE_SUMMARY_BACKUPS_SCRIPT="${ROOT}/list_gate_summary_backups.sh"
 WIN_CLOSEOUT_3CMD_SCRIPT="${ROOT}/print_windows_b07_closeout_3cmd.sh"
 WIN_CLOSEOUT_3CMD_REHEARSAL_SCRIPT="${ROOT}/rehearse_windows_closeout_3cmd.sh"
 WIN_CLOSEOUT_SUMMARY_REHEARSAL_SCRIPT="${ROOT}/rehearse_windows_closeout_summary.sh"
+WIN_BASH_GATE_FALLBACK_REHEARSAL_SCRIPT="${ROOT}/rehearse_win_bash_gate_fallback_warning.sh"
 CLOSEOUT_RELEASE_PREFLIGHT_REHEARSAL_SCRIPT="${ROOT}/rehearse_closeout_release_preflight_block.sh"
 WIN_PREFLIGHT_PRESERVE_LATEST_REHEARSAL_SCRIPT="${ROOT}/rehearse_win_preflight_preserve_latest_on_query_failure.sh"
 WIN_PREFLIGHT_REPO_FALLBACK_REHEARSAL_SCRIPT="${ROOT}/rehearse_win_preflight_repo_fallback.sh"
@@ -6868,6 +6869,12 @@ PY_JSON_CHECK
     return 1
   fi
 
+  if ! run_win_bash_gate_fallback_rehearsal >/dev/null; then
+    echo "[GATE-SUMMARY-SELFCHECK] FAILED: win-bash-gate-fallback-rehearsal"
+    rm -f "${LTmpJson}"
+    return 1
+  fi
+
   if ! run_closeout_release_preflight_rehearsal >/dev/null; then
     echo "[GATE-SUMMARY-SELFCHECK] FAILED: closeout-release-preflight-rehearsal"
     rm -f "${LTmpJson}"
@@ -6930,6 +6937,18 @@ run_windows_closeout_summary_rehearsal() {
   LScript="${WIN_CLOSEOUT_SUMMARY_REHEARSAL_SCRIPT:-${ROOT}/rehearse_windows_closeout_summary.sh}"
   if [[ ! -f "${LScript}" ]]; then
     echo "[WIN-CLOSEOUT-SUMMARY-REHEARSAL] Missing script: ${LScript}"
+    return 2
+  fi
+
+  bash "${LScript}"
+}
+
+run_win_bash_gate_fallback_rehearsal() {
+  local LScript
+
+  LScript="${WIN_BASH_GATE_FALLBACK_REHEARSAL_SCRIPT:-${ROOT}/rehearse_win_bash_gate_fallback_warning.sh}"
+  if [[ ! -f "${LScript}" ]]; then
+    echo "[WIN-BASH-GATE-FALLBACK-REHEARSAL] Missing script: ${LScript}"
     return 2
   fi
 

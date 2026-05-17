@@ -4747,3 +4747,18 @@
 | 1. 先确认假设是否有表面支点 | completed | 已确认 Linux 侧 `lazbuild` 可用，且 `buildOrTest.bat` 现有合同确实接受 `.bat/.cmd` `LAZBUILD` wrapper；因此这条假设值得做一次最小 probe |
 | 2. 直接 probe `bash` in `cmd` 与 `start /unix` | completed | `wine cmd /c where bash` 返回 `File not found`；`wine start '/?'` 虽显示 `/wait` `/unix` 选项，但 `wine cmd /c start /wait /unix ...` 与 `wine start /wait /unix ...` 对 `/bin/touch` / `lazbuild --version` 的探针都只返回 `rc=159`，且没有产出预期文件或输出 |
 | 3. 把结论收进 operator-facing truth | completed | 已把 `buildOrTest.bat` 的 toolchain hint、`win-closeout-3cmd` 文案与 Windows closeout runbook 收正为：当前本机 Wine 里不要再把 host-side Unix bridge 当作 native Windows `LAZBUILD` 的替代 |
+
+## 2026-05-17 Bash-Gate Opt-In Fallback Warning Sync
+
+### Goal
+
+把 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` 请求失败时的 operator-facing warning 从“含糊 prerequisite 提示”收成“当前本机 Wine 不具备 host-side Unix bridge”这一条已验证边界，并用 selfcheck 守住。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核残差是否真实存在 | completed | 已确认 `collect_windows_b07_evidence.bat` 在 bash-gate opt-in 请求失败回落时只写 `prerequisites are incomplete`；runbook 虽已写 host-side Unix bridge 不成立，但日志面仍然过弱 |
+| 2. 收紧 warning 与 runbook caveat | completed | `collect_windows_b07_evidence.bat` 现已明确写出 `cmd.exe cannot satisfy the current bash-gate prerequisites` 与 `current local Wine probes did not yield a working host-side Unix bridge`；runbook 也把 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` 限定到 `cmd.exe` 真能解析 `bash` 的环境 |
+| 3. 给这条 truth 补最小防回退护栏 | completed | 已新增 `rehearse_win_bash_gate_fallback_warning.sh` 并接入 `gate-summary-selfcheck`，守住 collect warning 与 runbook caveat 两处 truth |
+| 4. 确认不会重新引入 stale Windows evidence 假红 | completed | 已在验证 warning 后重新跑 `evidence-win-verify`、`finalize-win-evidence` 与 fresh `freeze-status`；当前 `windows_evidence_inputs_not_newer_than_log = PASS`、`windows_closeout_summary_not_older_than_log = PASS`，剩余红项继续只剩外部 Windows billing/toolchain blocker |

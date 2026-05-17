@@ -7328,3 +7328,21 @@
 - 这说明：
   - 当前本机 Wine 环境里，不应再把 `bash` in `cmd` 或 `start /unix` 当成可交付的 `LAZBUILD` bridge
   - “提供 native Windows `lazbuild.exe` / 真正可被 `cmd.exe` 执行的 Windows wrapper” 仍是当前唯一诚实的 toolchain 动作
+
+## 2026-05-17 SIMD_WIN_EVIDENCE_USE_BASH_GATE Fallback Warning Was Too Weak
+
+- host-side Unix bridge 被 fresh probe 否掉后，`collect_windows_b07_evidence.bat` 仍留着一个 operator-facing 弱提示：
+  - 当 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` 请求失败回落时
+  - 日志只写 `prerequisites are incomplete`
+- 这类提示的问题不在真假，而在信号强度：
+  - 它没有把当前已经验证过的环境边界说出来
+  - 很容易让后续会话继续把本机 Wine 当作“只差一点点”的 bash-gate 候选
+- 更诚实的说法应该是：
+  - `cmd.exe` 当前不满足 bash gate 前提
+  - 现有本机 Wine probe 也没有得到可用的 host-side Unix bridge
+  - 因此应直接回到 native Windows `LAZBUILD` / real Windows runner
+- fresh 验证后，这条 warning 现在已经同时出现在：
+  - real `collect_windows_b07_evidence.bat` 日志输出
+  - runbook caveat
+  - `gate-summary-selfcheck` 的专用 rehearsal
+- 因而这条 operator residual 已经收口，不再只是对话里的临时结论
