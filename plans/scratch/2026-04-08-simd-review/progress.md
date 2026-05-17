@@ -9716,3 +9716,25 @@
     - blocked/pass 两种 case 现在都强制检查这句 caveat
   - `tests/fafafa.core.simd/BuildOrTest.sh`
     - `check_windows_manual_closeout_guard()` 的 `L3CmdRequired` / `LRunbookRequired` 也已把新 caveat 纳入必检
+
+## 2026-05-17 Active Closeout Docs Bash-Gate Caveat Sync
+
+- completion audit 再往 active docs 收一层时，发现：
+  - `docs/fafafa.core.simd.closeout.md`
+  - `docs/fafafa.core.simd.handoff.md`
+  还没有显式带上 “`SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` 也不适用于当前本机 Wine” 这句 caveat。
+- 这会留下一个典型的 active-doc split：
+  - shell helper / runbook / batch warning 已经同步到了最新边界
+  - 但 active closeout / handoff 文档读起来还像只是在讲 “Wine 不能 finalize”
+  - 没把 “不要再把 Wine 当 bash-gate 逃生口” 这层也说死
+- 已落地的最小修法：
+  - `docs/fafafa.core.simd.closeout.md`
+    - 在 `evidence-win-verify` 手工路径前提条件里补入：
+      - `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` 仅限 `cmd.exe` 真能解析 `bash` 的环境
+      - 当前本机 Wine 不属于这种环境
+  - `docs/fafafa.core.simd.handoff.md`
+    - 同步补入相同 caveat
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - `LCloseoutDocRequired` / `LHandoffRequired`
+    - 以及 `check_windows_closeout_helper_runtime_guard()` 的 helper runtime pattern
+    - 全部已把这句 caveat 纳入必检

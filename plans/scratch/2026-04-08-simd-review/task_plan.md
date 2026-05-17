@@ -4775,3 +4775,16 @@
 | --- | --- | --- |
 | 1. 确认 residual 是否真实存在 | completed | 已确认 `print_windows_b07_closeout_3cmd.sh` 仍缺少 “`SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` 只适用于 `cmd.exe` 真能解析 `bash` 的环境；当前本机 Wine 不属于这种环境” 这句 caveat，而 runbook / collect warning 已有 |
 | 2. 对齐 helper / rehearsal / closeout guard | completed | 已在 `print_windows_b07_closeout_3cmd.sh` 补上 caveat；`rehearse_windows_closeout_3cmd.sh` blocked/pass case 现都强制检查；`BuildOrTest.sh` 的 manual closeout guard 也把 helper/runbook 新 caveat 纳入必检 |
+
+## 2026-05-17 Active Closeout Docs Bash-Gate Caveat Sync
+
+### Goal
+
+把 active closeout / handoff 文档也追平到最新 bash-gate/Wine 边界，避免 active docs 落后于 helper/runbook/batch warning。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 确认 active-doc residual 是否真实存在 | completed | 已确认 `docs/fafafa.core.simd.closeout.md` 与 `docs/fafafa.core.simd.handoff.md` 仍缺少 “`SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` 也不适用于当前本机 Wine” 这句 caveat |
+| 2. 对齐 active docs 与 closeout guard | completed | 两份 active docs 已补入相同 caveat；`BuildOrTest.sh` 的 `LCloseoutDocRequired`、`LHandoffRequired` 与 helper runtime guard 也已同步纳入必检 |

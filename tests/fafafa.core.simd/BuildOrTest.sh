@@ -1990,6 +1990,7 @@ check_windows_manual_closeout_guard() {
     "FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate"
     'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1'
     'native batch evidence 不会生成 fresh `gate_summary.md/json`'
+    '当前本机 Wine 不属于这种环境，不要把它当成 host-side Unix bridge 逃生口'
   )
   LCloseoutChecklistRequired=(
     '`closeout-release` 是当前推荐的单一 release 收口入口。'
@@ -2023,6 +2024,7 @@ check_windows_manual_closeout_guard() {
     'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1'
     'native Windows `.exe/.bat/.cmd`'
     'evidence-win-verify -> SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 + SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 gate -> win-closeout-finalize -> freeze-status'
+    '当前本机 Wine 不属于这种环境，不要把它当成 host-side Unix bridge 逃生口'
   )
   LReleaseChecklistRequired=(
     '`closeout-release` 是 Linux/Git Bash/WSL 侧完整收口的唯一官方入口。'
@@ -2166,6 +2168,7 @@ check_windows_closeout_helper_runtime_guard() {
     '$env:LAZBUILD = '\''C:\Lazarus\lazbuild.exe'\'''
     "FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate"
     '- `win-evidence-via-gh` 现在会把中间态快照落到 `tests/fafafa.core.simd/logs/windows-closeout/SIMD-CHECK-3CMD/`，同时回写 canonical `logs/` 指针。'
+    '- 若你想显式试 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1`，也只限 `cmd.exe` 真能解析 `bash` 的环境；当前本机 Wine 不属于这种环境，不要把它当成 host-side Unix bridge 逃生口。'
     '- 手工 Windows 实机路径必须先显式补一轮 `SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1` + `SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1` 的 Linux cross gate；`win-closeout-finalize` 自己不会回灌 gate。'
   )
 

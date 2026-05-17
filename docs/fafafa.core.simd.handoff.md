@@ -157,6 +157,7 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-stat
 - `evidence-win-verify` 只能在真实 Windows runner / Windows 实机上执行，且 `LAZBUILD` 必须解析到 native Windows `.exe/.bat/.cmd`
 - 不要把 `LAZBUILD` 指到 `Z:\opt\...` 这类 Wine 可见但 `cmd.exe` 不能执行的 Linux ELF
 - 本机 Wine 现在只算 batch smoke / 日志新鲜度探针，不算可 finalize 的 Windows evidence runner
+- 若显式试 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1`，也只限 `cmd.exe` 真能解析 `bash` 的环境；当前本机 Wine 不属于这种环境，不要把它当成 host-side Unix bridge 逃生口
 
 ## 常见假失败
 

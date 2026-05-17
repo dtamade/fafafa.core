@@ -7359,3 +7359,16 @@
 - 这种 residual 的风险不是执行失败，而是：
   - 后续会话更容易重新把 Wine 当作 bash-gate escape hatch
   - closeout guard 三件套（helper / runbook / collect warning）会再次失去同一口径
+
+## 2026-05-17 Active Closeout And Handoff Docs Were Still One Step Behind
+
+- shell helper、runbook、batch warning 已经说明：
+  - `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` 也不适用于当前本机 Wine
+  - 不要把 Wine 当 host-side Unix bridge 逃生口
+- 但 active docs 里的：
+  - `docs/fafafa.core.simd.closeout.md`
+  - `docs/fafafa.core.simd.handoff.md`
+  之前还没显式带上这层 caveat。
+- 这类残差的风险不在脚本执行，而在交接语义：
+  - closeout operator 看 active docs 时，会比 helper/runbook 少一层边界提醒
+  - 下一轮审查就容易重新把“试试 bash gate opt-in”当成合理方向
