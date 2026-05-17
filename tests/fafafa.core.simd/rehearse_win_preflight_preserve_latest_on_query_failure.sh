@@ -16,6 +16,16 @@ cleanup() {
 trap cleanup EXIT
 
 LRepoRoot="${LTmpRoot}/repo"
+LFreshCheckedAtUtc="$(python3 - <<'PY'
+from datetime import datetime, timezone
+print(datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
+PY
+)"
+LStaleCheckedAtUtc="$(python3 - <<'PY'
+from datetime import datetime, timedelta, timezone
+print((datetime.now(timezone.utc) - timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M:%SZ"))
+PY
+)"
 mkdir -p "${LRepoRoot}/tests/fafafa.core.simd" "${LTmpRoot}/bin"
 cp "${PREFLIGHT_SCRIPT}" "${LRepoRoot}/tests/fafafa.core.simd/"
 
@@ -23,9 +33,9 @@ git -C "${LRepoRoot}" init -q
 git -C "${LRepoRoot}" remote add origin "https://github.com/example/simd-fallback.git"
 
 mkdir -p "${LRepoRoot}/tests/fafafa.core.simd/logs"
-cat > "${LRepoRoot}/tests/fafafa.core.simd/logs/win_preflight_latest.json" <<'EOF'
+cat > "${LRepoRoot}/tests/fafafa.core.simd/logs/win_preflight_latest.json" <<EOF
 {
-  "checked_at_utc": "2026-05-17T08:00:00Z",
+  "checked_at_utc": "${LFreshCheckedAtUtc}",
   "status": "FAIL",
   "code": "RECENT_BILLING_BLOCK",
   "exit_code": 31,
@@ -168,9 +178,9 @@ if [[ -f "${LRepoRoot}/tests/fafafa.core.simd/logs/win_preflight_latest.diagnost
   exit 1
 fi
 
-cat > "${LRepoRoot}/tests/fafafa.core.simd/logs/win_preflight_latest.json" <<'EOF'
+cat > "${LRepoRoot}/tests/fafafa.core.simd/logs/win_preflight_latest.json" <<EOF
 {
-  "checked_at_utc": "2026-05-17T00:00:00Z",
+  "checked_at_utc": "${LStaleCheckedAtUtc}",
   "status": "FAIL",
   "code": "RECENT_BILLING_BLOCK",
   "exit_code": 31,

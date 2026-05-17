@@ -107,6 +107,7 @@ WIN_CLOSEOUT_3CMD_SCRIPT="${ROOT}/print_windows_b07_closeout_3cmd.sh"
 WIN_CLOSEOUT_3CMD_REHEARSAL_SCRIPT="${ROOT}/rehearse_windows_closeout_3cmd.sh"
 WIN_CLOSEOUT_SUMMARY_REHEARSAL_SCRIPT="${ROOT}/rehearse_windows_closeout_summary.sh"
 CLOSEOUT_RELEASE_PREFLIGHT_REHEARSAL_SCRIPT="${ROOT}/rehearse_closeout_release_preflight_block.sh"
+WIN_PREFLIGHT_PRESERVE_LATEST_REHEARSAL_SCRIPT="${ROOT}/rehearse_win_preflight_preserve_latest_on_query_failure.sh"
 FREEZE_STATUS_SCRIPT="${ROOT}/evaluate_simd_freeze_status.py"
 WIN_CLOSEOUT_FINALIZE_SCRIPT="${ROOT}/run_windows_b07_closeout_finalize.sh"
 FREEZE_REHEARSAL_SCRIPT="${ROOT}/rehearse_freeze_status.sh"
@@ -6854,6 +6855,12 @@ PY_JSON_CHECK
     return 1
   fi
 
+  if ! run_win_preflight_preserve_latest_rehearsal >/dev/null; then
+    echo "[GATE-SUMMARY-SELFCHECK] FAILED: win-preflight-preserve-latest-rehearsal"
+    rm -f "${LTmpJson}"
+    return 1
+  fi
+
   if ! run_historical_closeout_notes_check >/dev/null; then
     echo "[GATE-SUMMARY-SELFCHECK] FAILED: historical-closeout-note-check"
     rm -f "${LTmpJson}"
@@ -6910,6 +6917,18 @@ run_closeout_release_preflight_rehearsal() {
   LScript="${CLOSEOUT_RELEASE_PREFLIGHT_REHEARSAL_SCRIPT:-${ROOT}/rehearse_closeout_release_preflight_block.sh}"
   if [[ ! -f "${LScript}" ]]; then
     echo "[CLOSEOUT-RELEASE-PREFLIGHT-REHEARSAL] Missing script: ${LScript}"
+    return 2
+  fi
+
+  bash "${LScript}"
+}
+
+run_win_preflight_preserve_latest_rehearsal() {
+  local LScript
+
+  LScript="${WIN_PREFLIGHT_PRESERVE_LATEST_REHEARSAL_SCRIPT:-${ROOT}/rehearse_win_preflight_preserve_latest_on_query_failure.sh}"
+  if [[ ! -f "${LScript}" ]]; then
+    echo "[PREFLIGHT-PRESERVE-LATEST] Missing script: ${LScript}"
     return 2
   fi
 
