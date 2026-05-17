@@ -8507,3 +8507,37 @@
 - 因而下一批更合理的起点应是：
   - 先复核 `wide Round/Trunc` 的 checker / audit 到底在看 `riscvv.pas` 还是 `riscvv.facade.inc`
   - 再决定它们属于“应 collapse 的冗余 loop”还是“必须保留的 local semantics”
+
+## 2026-05-18 RISCVV Wide RoundTrunc False Green Came From Always-Context Classification Only Seeing ASM Facts
+
+- `wide Round/Trunc` 这次真正的根因，不是 helper checker 单点配置写错这么简单，而是更深一层的分类模型问题：
+  - 对 `context=always` 的 RISCVV slot
+  - `check_nonx86_register_truthfulness.py` 之前只拿 `asm-enabled` symbol facts 做分类
+  - `check_nonx86_key_slot_audit.py` 也沿用了同一逻辑
+- 对 `Round/TruncF32x8/F32x16/F64x4/F64x8` 来说，这会天然导致错判：
+  - `riscvv.pas` 里的 asm/common 影子定义是 scalar-forwarder
+  - 但当前 non-asm 真正 active 的 `riscvv.facade.inc` 体仍是本地 loop
+  - 如果分类只看 asm facts，就会把这 8 个 slot 误写成 `wrapper_only / scalar_forwarder`
+- 这条 finding 的关键价值在于把“always slot”的 truth-source 规则讲清楚：
+  - `always` 不等于“只看 asm 分支”
+  - 对 non-x86 这种同名 wrapper 在 asm/no-asm 下都可能存在不同 body 的 family
+  - `always` slot 的分类必须基于 combined facts，而不是只基于一侧影子定义
+- 当前 fresh 收正后的最准确口径应是：
+  - `Floor/CeilF32x8/F32x16/F64x4/F64x8`
+    - 仍是 scalar-forwarder
+  - `Round/TruncF32x8/F32x16/F64x4/F64x8`
+    - 当前应归类为 `wrapper_only / pascal_owned`
+    - 因为 non-asm active body 仍是本地 loop
+  - 它们现在不该再被任何 audit 输出描述成“已经是 scalar-forwarder”
+
+## 2026-05-18 Wide RoundTrunc Is Now An Audit-Truth Problem Solved, But Not Yet A Redundancy Decision Solved
+
+- 把 `wide Round/Trunc` 从假绿里拉回来之后，新的边界也更清楚了：
+  - 这批已经解决了“审计在说错话”
+  - 但还没有解决“这些 local loop 最终要不要 collapse 到 scalar”
+- 当前没有 fresh runtime 红点直接要求立刻改实现
+- 但也没有新的 end-to-end 语义证据足以证明它们现在就可以无脑删壳
+- 因而当前对这簇最准确的 stop-point 应是：
+  - “source-truth 已经收正”
+  - “audit 不再假称 scalar-forwarder”
+  - “是否继续删除 local loop，要等下一批 runtime 语义证据再决定”

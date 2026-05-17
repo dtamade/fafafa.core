@@ -542,6 +542,9 @@ def audit_backend(backend: str) -> dict[str, object]:
     facts_no_asm = register_truthfulness.collect_symbol_facts(
         config.source_files, config.asm_symbol, False
     )
+    facts_combined = register_truthfulness.merge_symbol_facts(
+        facts_asm, facts_no_asm
+    )
     assignments = register_truthfulness.parse_assignments(
         config.register_file, config.asm_symbol
     )
@@ -550,6 +553,13 @@ def audit_backend(backend: str) -> dict[str, object]:
     issues: list[dict[str, object]] = []
     expected_modes = collect_expected_slot_modes_from_dispatchapi()[backend]
     key_slots = KEY_SLOTS_BY_BACKEND[backend]
+
+    def facts_for_assignment(assignment: register_truthfulness.Assignment):
+        if assignment.context == "no-asm":
+            return facts_no_asm
+        if assignment.context == "always":
+            return facts_combined
+        return facts_asm
 
     for slot in key_slots:
         expectation = expected_modes[slot]
@@ -568,7 +578,7 @@ def audit_backend(backend: str) -> dict[str, object]:
                 continue
 
             for assignment in slot_assignments:
-                facts = facts_asm if assignment.context != "no-asm" else facts_no_asm
+                facts = facts_for_assignment(assignment)
                 classification, wrapper_kind, helper = register_truthfulness.classify_target(
                     assignment.target, facts
                 )
@@ -600,7 +610,7 @@ def audit_backend(backend: str) -> dict[str, object]:
             continue
 
         for assignment in slot_assignments:
-            facts = facts_asm if assignment.context != "no-asm" else facts_no_asm
+            facts = facts_for_assignment(assignment)
             classification, wrapper_kind, helper = register_truthfulness.classify_target(
                 assignment.target, facts
             )

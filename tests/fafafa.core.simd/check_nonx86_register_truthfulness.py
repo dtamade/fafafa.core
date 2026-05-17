@@ -285,6 +285,17 @@ def collect_symbol_facts(a_files: list[Path], a_asm_symbol: str, a_asm_enabled: 
     return l_facts
 
 
+def merge_symbol_facts(*a_fact_maps: dict[str, SymbolFacts]) -> dict[str, SymbolFacts]:
+    l_merged: dict[str, SymbolFacts] = {}
+    for l_fact_map in a_fact_maps:
+        for l_name, l_info in l_fact_map.items():
+            l_target = l_merged.setdefault(l_name, SymbolFacts())
+            l_target.has_definition = l_target.has_definition or l_info.has_definition
+            l_target.has_assembler = l_target.has_assembler or l_info.has_assembler
+            l_target.bodies.extend(l_info.bodies)
+    return l_merged
+
+
 def parse_assignments(a_register_file: Path, a_asm_symbol: str) -> list[Assignment]:
     l_assignments: list[Assignment] = []
     l_context: str | None = None
@@ -509,6 +520,7 @@ def print_human_result(a_result: dict[str, Any]) -> None:
 def build_report(a_config: CheckerConfig, a_strict: bool) -> dict[str, Any]:
     l_facts_asm = collect_symbol_facts(a_config.source_files, a_config.asm_symbol, True)
     l_facts_no_asm = collect_symbol_facts(a_config.source_files, a_config.asm_symbol, False)
+    l_facts_combined = merge_symbol_facts(l_facts_asm, l_facts_no_asm)
     l_assignments = parse_assignments(a_config.register_file, a_config.asm_symbol)
 
     l_counts = {
@@ -523,7 +535,12 @@ def build_report(a_config: CheckerConfig, a_strict: bool) -> dict[str, Any]:
     l_assignment_records: list[dict[str, Any]] = []
 
     for l_assignment in l_assignments:
-        l_facts = l_facts_asm if l_assignment.context != "no-asm" else l_facts_no_asm
+        if l_assignment.context == "no-asm":
+            l_facts = l_facts_no_asm
+        elif l_assignment.context == "always":
+            l_facts = l_facts_combined
+        else:
+            l_facts = l_facts_asm
         l_classification, l_wrapper_kind, l_helper = classify_target(l_assignment.target, l_facts)
         l_key = f"{l_classification}_count"
         if l_key in l_counts:

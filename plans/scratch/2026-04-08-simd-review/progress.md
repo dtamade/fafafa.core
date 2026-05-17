@@ -11728,3 +11728,37 @@
   - `RISCVV F32 clamp` 这批收掉的是真源冗余和 helper-audit 假绿风险，不是 fresh runtime bug
   - `ClampF32x4` 现在正式归入 `ExactF32x4` 条件槽位家族
   - 下一个更值得继续深审的 residual，不再是 `F32 clamp`，而是 `wide Round/Trunc` 这类当前仍可能存在 source-truth 观察面错位的槽位
+
+## 2026-05-18 RISCVV Wide RoundTrunc Truth-Source Audit Correction
+
+- 沿着上一批记下的 residual 往下挖，fresh 复核后确认：
+  - `src/fafafa.core.simd.riscvv.pas`
+    - `Round/TruncF32x8/F32x16/F64x4/F64x8` 仍有一层 scalar-forward 影子定义
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - 当前 non-asm 真正在跑的 `Round/TruncF32x8/F32x16/F64x4/F64x8` 仍是本地 loop
+- 这意味着上一批判断是对的：之前的假绿不是一个 checker 的偶然，而是“always-context slot 只看 asm-enabled facts”的系统性 source-truth 错位。
+- 本批实际收口：
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 不再把 `wide Round/Trunc` 当成 `riscvv.pas` scalar-forwarder
+    - 改成直接钉 `riscvv.facade.inc` 的本地 loop 片段
+  - `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+    - 对 `context=always` 的 slot 改为合并 `asm/no-asm` 两套 symbol facts 再分类
+    - 避免只看 asm-enabled 影子定义、漏掉 no-asm 真体
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 同步改为对 `context=always` 走 combined facts
+    - 让 key-slot audit 的 `wrapper_kind` 与真实 active source 对齐
+- fresh 验证结果：
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_register_truthfulness.py tests/fafafa.core.simd/check_nonx86_key_slot_audit.py tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend riscvv --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - 全部通过
+- fresh 结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=688 status=ok`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=riscvv slots=71 issues=0 status=ok`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=136 issues=0 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+- 当前阶段结论：
+  - `RISCVV wide Round/Trunc` 当前已经不再被 audit 假装成 `scalar_forwarder`
+  - 当前最准确的口径是：它们仍是 `wrapper_only / pascal_owned` 的 local no-asm loops
+  - 这批收掉的是 audit truth bug，不是实现改写；后续若要继续删壳，必须先补 fresh runtime 语义证据
