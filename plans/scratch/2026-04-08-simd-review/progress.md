@@ -11982,3 +11982,53 @@
   - `RISCVV ClampF64x2/MinF64x2/MaxF64x2` 当前不该再被描述成“必须保留 local no-asm witness 的语义敏感槽位”
   - 更准确的真相是：asm/runtime boundary 还在，但 no-asm facade witness 已经是 dead source
   - 这批修掉的是“旧测试在守死影子”的结构问题，不是新的 runtime bug
+
+## 2026-05-18 RISCVV Exact F64x2 Conditional Facade Witnesses Were Dead Source Too
+
+- 在 `Clamp/Min/MaxF64x2` 这批 dead-facade 收口后，继续沿同类 `ExactF64x2` 条件槽位复核时，又命中了另一组同结构残留：
+  - `AbsF64x2`
+  - `SqrtF64x2`
+  - `FmaF64x2`
+- fresh 对位后，这 3 个槽与 `Add/Sub/Mul/DivF64x2` 不同，关键差异很明确：
+  - `src/fafafa.core.simd.riscvv.register.inc`
+    - `Abs/Sqrt/FmaF64x2` 都只在 `{$IFDEF RISCVV_ASSEMBLY}` 下绑定
+  - `src/fafafa.core.simd.riscvv.pas`
+    - asm wrapper / helper / opcode witness 仍真实存在
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - no-asm body 之前只是 `ScalarAbs/Sqrt/FmaF64x2` 单行 forward
+  - fresh 全仓 `rg`
+    - 除了 asm source、register source 与测试护栏，没有新的 live consumer
+- 这说明前一版 “ExactF64x2 facade scalar-forwarder 必须保留” 的护栏也已经过时：
+  - runtime 非 asm host 上，本来就复用 scalar slot
+  - runtime asm host 上，走的是 `riscvv.pas` 里的 asm wrapper/helper
+  - `facade.inc` 里的 3 份 scalar forwarder 不是 active truth，只是 dead facade source
+- 因而这批的源码/护栏收口成立：
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - 删除 dead `RISCVVAbsF64x2`
+    - 删除 dead `RISCVVSqrtF64x2`
+    - 删除 dead `RISCVVFmaF64x2`
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 把 `Abs/Sqrt/FmaF64x2` 从 generic scalar-forwarder expectation 中排除
+    - 同时把它们加入 `riscvv_facade_source` absent-routine expectation
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 把 `ExactF64x2` 护栏翻正成：
+      - facade dead witness 必须 absent
+      - asm helper/opcode witness 继续存在
+      - runtime 仍保持 asm-compiled 时 backend-owned、非 asm host 时 scalar reuse
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 同步 expectation procedure 名称，保持 key-slot 仍有 explicit DispatchAPI 证据
+- 本批 fresh 验证链已经收口：
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=705 status=ok`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=136 issues=0 status=ok`
+  - Release `TTestCase_DispatchAPI` `BUILD/TEST/LEAK` 全绿
+  - Release `check` 通过
+- 当前阶段结论：
+  - `RISCVV Abs/Sqrt/FmaF64x2` 当前也不该再被描述成 “必须保留 facade scalar-forward witness 的 exact helper”
+  - 更准确的真相是：这 3 个槽仍有 asm/runtime conditional truth，但 no-asm facade source 已经失活
+  - 这批继续收掉的是 dead facade，不是新的 runtime 语义修复

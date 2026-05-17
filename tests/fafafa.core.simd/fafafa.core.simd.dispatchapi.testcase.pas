@@ -173,7 +173,7 @@ type
     procedure Test_RISCVV_HelperOwnedExactScalarSlots_Stay_BackendOwned;
     procedure Test_RISCVV_KeyOwnedWideSlots_Stay_BackendOwned;
     procedure Test_RISCVV_ClampF64x2_Drops_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
-    procedure Test_RISCVV_ExactF64x2Slots_Keep_AsmConditional_SourceTruth_And_RuntimeBinding;
+    procedure Test_RISCVV_ExactF64x2Slots_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
     procedure Test_RISCVV_ExactF32x4Slots_Keep_AsmConditional_SourceTruth_And_RuntimeBinding;
     procedure Test_RISCVV_LocalExtremaF64x2_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
     procedure Test_RISCVV_LocalExtremaF32x4_Keep_AsmConditional_RuntimeBinding_And_LocalNoAsmWitness;
@@ -9180,7 +9180,7 @@ begin
   {$ENDIF}
 end;
 
-procedure TTestCase_DispatchAPI.Test_RISCVV_ExactF64x2Slots_Keep_AsmConditional_SourceTruth_And_RuntimeBinding;
+procedure TTestCase_DispatchAPI.Test_RISCVV_ExactF64x2Slots_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
 var
   LScalarTable: TSimdDispatchTable;
   LRISCVVTable: TSimdDispatchTable;
@@ -9220,11 +9220,11 @@ var
   end;
 
   procedure AssertAsmConditionalExactF64x2Slot(
-    const aLabel, aFacadeSnippet, aAsmWrapperSnippet, aAsmHelperSnippet, aAsmOpSnippet: string;
+    const aLabel, aFunctionSnippet, aAsmWrapperSnippet, aAsmHelperSnippet, aAsmOpSnippet: string;
     const aScalarSlot, aBackendSlot: Pointer);
   begin
-    AssertTrue('no-asm RISCVV facade should keep exact scalar forwarder for ' + aLabel,
-      Pos(LowerCase(aFacadeSnippet), LFacadeSource) > 0);
+    AssertTrue('no-asm RISCVV facade should no longer define the dead ' + aLabel + ' witness',
+      Pos(LowerCase(aFunctionSnippet), LFacadeSource) = 0);
     AssertTrue('RVV asm source should keep dedicated wrapper call for ' + aLabel,
       Pos(LowerCase(aAsmWrapperSnippet), LAsmSource) > 0);
     AssertTrue('RVV asm source should keep dedicated helper signature for ' + aLabel,
@@ -9245,19 +9245,19 @@ begin
   LSourceLines := TStringList.Create;
   try
     LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.register.inc');
-    AssertTrue('RISCVV register source should exist for exact F64x2 witness audit: ' + LRegisterSourcePath,
+    AssertTrue('RISCVV register source should exist for exact F64x2 dead-facade audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
     LRegisterSource := LowerCase(LSourceLines.Text);
 
     LFacadeSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.facade.inc');
-    AssertTrue('RISCVV facade source should exist for exact F64x2 witness audit: ' + LFacadeSourcePath,
+    AssertTrue('RISCVV facade source should exist for exact F64x2 dead-facade audit: ' + LFacadeSourcePath,
       FileExists(LFacadeSourcePath));
     LSourceLines.LoadFromFile(LFacadeSourcePath);
     LFacadeSource := LowerCase(LSourceLines.Text);
 
     LAsmSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.pas');
-    AssertTrue('RISCVV unit source should exist for exact F64x2 witness audit: ' + LAsmSourcePath,
+    AssertTrue('RISCVV unit source should exist for exact F64x2 dead-facade audit: ' + LAsmSourcePath,
       FileExists(LAsmSourcePath));
     LSourceLines.LoadFromFile(LAsmSourcePath);
     LAsmSource := LowerCase(LSourceLines.Text);
@@ -9281,19 +9281,19 @@ begin
   {$ENDIF}
 
   AssertAsmConditionalExactF64x2Slot('AbsF64x2',
-    'Result := ScalarAbsF64x2(a);',
+    'function RISCVVAbsF64x2(const a: TVecF64x2): TVecF64x2;',
     'RISCVVAbsF64x2Asm(a, Result);',
     'procedure RISCVVAbsF64x2Asm(const a: TVecF64x2; var r: TVecF64x2);',
     'vfsgnjx.vv v0, v0, v0',
     Pointer(LScalarTable.AbsF64x2), Pointer(LRISCVVTable.AbsF64x2));
   AssertAsmConditionalExactF64x2Slot('SqrtF64x2',
-    'Result := ScalarSqrtF64x2(a);',
+    'function RISCVVSqrtF64x2(const a: TVecF64x2): TVecF64x2;',
     'RISCVVSqrtF64x2Asm(a, Result);',
     'procedure RISCVVSqrtF64x2Asm(const a: TVecF64x2; var r: TVecF64x2);',
     'vfsqrt.v v0, v0',
     Pointer(LScalarTable.SqrtF64x2), Pointer(LRISCVVTable.SqrtF64x2));
   AssertAsmConditionalExactF64x2Slot('FmaF64x2',
-    'Result := ScalarFmaF64x2(a, b, c);',
+    'function RISCVVFmaF64x2(const a, b, c: TVecF64x2): TVecF64x2;',
     'RISCVVFmaF64x2Asm(a, b, c, Result);',
     'procedure RISCVVFmaF64x2Asm(const a, b, c: TVecF64x2; var r: TVecF64x2);',
     'vfmacc.vv v2, v0, v1',

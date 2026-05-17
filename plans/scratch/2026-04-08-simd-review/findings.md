@@ -8643,3 +8643,17 @@
 - 对这 3 个槽位，当前 fresh 答案已经足够明确：
   - 前者：是，asm source / runtime conditional binding 仍然真实存在
   - 后者：否，facade no-asm witness 已经是 dead source，不该再被测试护栏强行留住
+
+## 2026-05-18 RISCVV Exact F64x2 Scalar Forwarders Were Another Dead Facade Pattern
+
+- `RISCVV AbsF64x2 / SqrtF64x2 / FmaF64x2` 这批说明，dead-facade 模式并不只发生在 local loop witness 上，也会发生在“看起来很无害的 scalar-forward helper”上。
+- 误导点在于：
+  - 它们的 no-asm body 本来就是 `Scalar...` 单行 forward
+  - 所以很容易被看成“保留也无伤大雅”
+- 但 fresh source-role 复核后，更准确的事实是：
+  - register/runtime 根本不会在非 asm host 上走到这些 `facade` 定义
+  - 它们既不承担 published slot ownership，也不承担 live runtime truth
+  - 继续保留，只会让 helper/test 把 dead source 当成 active contract
+- 这条 finding 的关键价值是把另一个常见错觉拆掉：
+  - “只是 scalar forward，所以可以留着”
+  - 实际上如果它已经不在任何 live path 上，再精确的 scalar forward 也只是 dead facade

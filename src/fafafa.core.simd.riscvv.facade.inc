@@ -1127,11 +1127,6 @@ begin
   Result := ScalarAbsF32x8(a);
 end;
 
-function RISCVVAbsF64x2(const a: TVecF64x2): TVecF64x2;
-begin
-  Result := ScalarAbsF64x2(a);
-end;
-
 function RISCVVAbsF64x4(const a: TVecF64x4): TVecF64x4;
 begin
   Result := ScalarAbsF64x4(a);
@@ -1774,11 +1769,6 @@ end;
 function RISCVVFmaF32x8(const a, b, c: TVecF32x8): TVecF32x8;
 begin
   Result := ScalarFmaF32x8(a, b, c);
-end;
-
-function RISCVVFmaF64x2(const a, b, c: TVecF64x2): TVecF64x2;
-begin
-  Result := ScalarFmaF64x2(a, b, c);
 end;
 
 function RISCVVFmaF64x4(const a, b, c: TVecF64x4): TVecF64x4;
@@ -2467,11 +2457,6 @@ end;
 function RISCVVSqrtF32x8(const a: TVecF32x8): TVecF32x8;
 begin
   Result := ScalarSqrtF32x8(a);
-end;
-
-function RISCVVSqrtF64x2(const a: TVecF64x2): TVecF64x2;
-begin
-  Result := ScalarSqrtF64x2(a);
 end;
 
 function RISCVVSqrtF64x4(const a: TVecF64x4): TVecF64x4;

@@ -853,6 +853,8 @@ def main() -> int:
 
     for suffix in ("F32x4", "F64x2", "F32x8", "F64x4", "F32x16", "F64x8"):
         for op in ("Abs", "Sqrt"):
+            if (suffix == "F64x2") and (op in ("Abs", "Sqrt")):
+                continue
             riscvv_scalar_forwarder_expectations.append(
                 (f"RISCVV{op}{suffix}", f"Scalar{op}{suffix}(a)")
             )
@@ -903,6 +905,8 @@ def main() -> int:
             )
 
     for suffix in ("F32x4", "F64x2", "F32x8", "F64x4", "F32x16", "F64x8"):
+        if suffix == "F64x2":
+            continue
         riscvv_scalar_forwarder_expectations.append(
             (f"RISCVVFma{suffix}", f"ScalarFma{suffix}(a, b, c)")
         )
@@ -1289,6 +1293,9 @@ def main() -> int:
         (riscvv_facade_source, "RISCVVCeilF64x2"),
         (riscvv_facade_source, "RISCVVRoundF64x2"),
         (riscvv_facade_source, "RISCVVTruncF64x2"),
+        (riscvv_facade_source, "RISCVVAbsF64x2"),
+        (riscvv_facade_source, "RISCVVSqrtF64x2"),
+        (riscvv_facade_source, "RISCVVFmaF64x2"),
         (riscvv_facade_source, "RISCVVClampF64x2"),
         (riscvv_facade_source, "RISCVVMinF64x2"),
         (riscvv_facade_source, "RISCVVMaxF64x2"),
