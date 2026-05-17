@@ -8220,3 +8220,30 @@
   - `F32` clamp 已经完成 scalar collapse
   - `F64` clamp 目前只完成了审计显式化和 witness 钉桩
   - 若未来还想继续压缩 `F64`，必须先拿到独立的 `NaN/signed-zero` parity 证据，而不是沿用 `F32` 的决策
+
+## 2026-05-18 RISCVV ClampF64x2 False Red Came From Mixing Source Truth With Runtime Truth
+
+- `ClampF64x2` 这次暴露的不是新的实现回归，而是新补 witness 的模型错误：
+  - 它把 `register.inc` 中仍然存在的条件 source assignment
+  - `facade.inc` 中仍然存在的 no-asm 本地 fallback body
+  - 当前 x86 host 上实际构建出来的 runtime dispatch slot
+  - 错当成了一个“无条件 backend-owned runtime slot”结论
+- fresh 对位源码后，真实边界应拆成三层：
+  - source truth：
+    - `src/fafafa.core.simd.riscvv.register.inc` 仍保留 `table.ClampF64x2 := @RISCVVClampF64x2;`
+    - 但这条绑定是 `{$IFDEF RISCVV_ASSEMBLY}` 条件存在，不是无条件 runtime 合同
+  - no-asm facade truth：
+    - `src/fafafa.core.simd.riscvv.facade.inc` 里的 `RISCVVClampF64x2` 仍是 compare-based 本地 body
+    - 它不是 `ScalarClampF64x2` 的单行 forwarder，因此保留了独立的 local-fallback 语义面
+  - current host runtime truth：
+    - 在当前 x86 release host 上，`LRISCVVTable.ClampF64x2` 实际复用 scalar slot
+    - 所以不能再把它写成“当前 runtime 仍 backend-owned”
+- 这条 finding 的价值在于把今后的审查方法也收正了：
+  - `register-source truth` 只能证明源码仍保留某条绑定意图
+  - `facade truth` 只能证明 no-asm body 还在或已去重
+  - `runtime truth` 必须按当前 host / 当前 compile define 单独验证
+  - 三者不能再被同一条 witness 粗暴折叠
+- 因而当前对 `ClampF64x2` 最准确的口径应是：
+  - “asm path 仍保留 source-side dedicated binding”
+  - “no-asm facade 仍保留 local fallback body”
+  - “当前非-RVV host runtime 不承诺 backend-owned slot”

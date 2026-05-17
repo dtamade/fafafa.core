@@ -4816,3 +4816,17 @@
 | 1. 复核当前缺口到底是实现错还是缺 witness | completed | 已确认 `riscvv.pas` 里的 `ClampF64x4/F64x8` 仍是本地 `vfmax/vfmin` body，`facade.inc` 的 no-asm fallback 仍保留 compare-based `NaN/-0` 语义，而现有 `NonX86BackendParity` 只覆盖普通数值样本，缺少高信号 witness |
 | 2. 补 key-slot audit + DispatchAPI witness，并顺手清掉重编译暴露的旧 warning | completed | `check_nonx86_key_slot_audit.py` 已把 `ClampF64x4/F64x8` 纳入 `RISCVV` key-slot model；`Test_RISCVV_KeyOwnedWideSlots_Stay_BackendOwned` 已补 register/runtime ownership 与 `NaN/signed-zero` witness；同时清掉了这次重编译触发的 8 个旧十六进制字面量 warning |
 | 3. 串行 Release 验证并确认当前 stop-point | completed | `git diff --check`、`py_compile`、`key-slot-audit --summary-line`、Release `TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`、Release `impl-audit-nonx86`、Release `check` 全部通过；当前没有 fresh 证据支持把 `ClampF64x4/F64x8` 继续收成 scalar truth |
+
+## 2026-05-18 RISCVV ClampF64x2 Witness Truth Sync
+
+### Goal
+
+收掉当前工作树里唯一一个未提交的假红：把 `ClampF64x2` witness 从“无条件 backend-owned runtime slot”收正为区分 `register-source truth`、`no-asm facade truth` 和当前 host runtime truth 的真实合同。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前红态是实现回归还是测试假设错误 | completed | 已确认 `src/fafafa.core.simd.riscvv.register.inc` 对 `ClampF64x2` 的绑定是 `{$IFDEF RISCVV_ASSEMBLY}` 条件赋值；`src/fafafa.core.simd.riscvv.facade.inc` 仍保留本地 compare-based no-asm body；当前 x86 release host 上 `LRISCVVTable.ClampF64x2` 运行时实际复用 scalar slot，因此原 witness 把源码 truth 和 runtime truth 混成了一条假断言 |
+| 2. 重写 `DispatchAPI` witness 只钉真实边界 | completed | `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 已把该测试改成同时断言：`ClampF64x2` source assignment site 仍保留、no-asm facade 不会直接 forward 到 `ScalarClampF64x2`、RVV asm helper 仍存在；运行时则按 `FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED` 区分为 “asm 编进时 backend-owned” 与 “no-asm host 上复用 scalar slot” |
+| 3. 串行 Release 复验并确认 stop-point | completed | `git diff --check`、Release `TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`、Release `impl-audit-nonx86`、Release `check` 已串行通过；说明这次只是收正错误护栏，不是新的 `ClampF64x2` 实现回归 |

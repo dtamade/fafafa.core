@@ -11177,3 +11177,40 @@
 - 当前阶段结论：
   - 当前没有 fresh 证据支持把 `RISCVV ClampF64x4/F64x8` 收成 scalar truth
   - 相反，仓库内现有证据已经把它们更明确地钉成 “backend-owned local-fallback hold”，后续若要继续动，只能先补独立 parity/witness 再决定是否改实现
+
+## 2026-05-18 RISCVV ClampF64x2 Witness Truth Sync
+
+- 这轮没有继续改 `RISCVV ClampF64x2` 实现，而是先收掉当前工作树里唯一一个未提交假红：
+  - 原新增 witness 把 `register.inc` 里的条件 source assignment
+  - `facade.inc` 里的 no-asm 本地 fallback body
+  - 当前 x86 host 上的 runtime dispatch slot
+  - 误当成了同一件事
+- fresh 复核后的真实边界已经拆清：
+  - `src/fafafa.core.simd.riscvv.register.inc`
+    - `ClampF64x2` 绑定仍存在，但它是 `{$IFDEF RISCVV_ASSEMBLY}` 条件赋值
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - `RISCVVClampF64x2` 的 no-asm body 仍是本地 compare-based fallback，不是 `ScalarClampF64x2` 单行 forwarder
+  - 当前 x86 release host runtime
+    - `LRISCVVTable.ClampF64x2` 实际复用 `LScalarTable.ClampF64x2`
+- 本批实际改动：
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 把错误的 `Test_RISCVV_ClampF64x2_Stays_BackendOwned_With_LocalFallbackWitness`
+    - 收正为 `Test_RISCVV_ClampF64x2_Keeps_AsmConditional_RuntimeBinding_And_LocalNoAsmWitness`
+    - 新测试现在显式区分：
+      - source assignment site 仍保留
+      - no-asm facade 本地 body 仍保留
+      - asm helper 仍保留
+      - runtime slot 只有在 `FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED` 时才要求 backend-owned，否则明确要求复用 scalar slot
+- fresh 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `TTestCase_DispatchAPI,TTestCase_NonX86BackendParity` release suite `BUILD/TEST/LEAK` 全绿
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - `Release check` 通过
+- 当前阶段结论：
+  - `ClampF64x2` 这次收口的是错误护栏，而不是实现
+  - 当前没有新证据支持把 `ClampF64x2` 提升成“在所有 host 上都 backend-owned runtime slot”的合同
+  - 后续如果还要继续深审 `F64 clamp`，应该继续围绕 `NaN/signed-zero` parity 证据，而不是重开这条已经收正的假红
