@@ -7,7 +7,7 @@ import os
 import re
 import subprocess
 from dataclasses import dataclass, asdict
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
 
@@ -583,6 +583,83 @@ def parse_qemu_summary(summary_path: Path) -> Optional[Dict[str, object]]:
     return {"scenario": scenario, "platform_status": platform_status}
 
 
+def load_json_object(path: Path) -> Optional[Dict[str, object]]:
+    if not path.is_file():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8", errors="ignore"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    return payload
+
+
+def parse_utc_timestamp(raw: str) -> Optional[datetime]:
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def describe_windows_preflight_report(path: Path) -> CheckItem:
+    payload = load_json_object(path)
+    if payload is None:
+        return CheckItem(
+            name="windows_preflight_latest",
+            required=False,
+            status="SKIP",
+            detail=f"missing or invalid preflight report: {path}",
+        )
+
+    status = str(payload.get("status", "")).strip().upper() or "UNKNOWN"
+    code = str(payload.get("code", "")).strip() or "UNKNOWN"
+    message = str(payload.get("message", "")).strip() or "no message"
+    checked_raw = str(payload.get("checked_at_utc", "")).strip()
+    checked_at = parse_utc_timestamp(checked_raw)
+    age_detail = ""
+    if checked_at is not None:
+        age_hours = (datetime.now(timezone.utc) - checked_at).total_seconds() / 3600.0
+        age_detail = f", age_hours={age_hours:.2f}"
+
+    item_status = "PASS" if status == "PASS" else "FAIL"
+    return CheckItem(
+        name="windows_preflight_latest",
+        required=False,
+        status=item_status,
+        detail=(
+            f"status={status}, code={code}{age_detail}, report={path}, message={message}"
+        ),
+    )
+
+
+def has_recent_windows_billing_block(path: Path) -> bool:
+    payload = load_json_object(path)
+    if payload is None:
+        return False
+
+    if str(payload.get("status", "")).strip().upper() != "FAIL":
+        return False
+    if str(payload.get("code", "")).strip() != "RECENT_BILLING_BLOCK":
+        return False
+
+    checked_at = parse_utc_timestamp(str(payload.get("checked_at_utc", "")).strip())
+    if checked_at is None:
+        return False
+
+    try:
+        billing_window_hours = float(payload.get("billing_window_hours", 24))
+    except (TypeError, ValueError):
+        billing_window_hours = 24.0
+    if billing_window_hours <= 0:
+        billing_window_hours = 24.0
+
+    age_hours = (datetime.now(timezone.utc) - checked_at).total_seconds() / 3600.0
+    return age_hours <= billing_window_hours
+
+
 def parse_qemu_multiarch_batch_time(summary_path: Path) -> Optional[datetime]:
     match = QEMU_MULTIARCH_DIR_RE.match(summary_path.parent.name)
     if match is None:
@@ -741,6 +818,14 @@ def main() -> int:
         else logs_dir / "windows_b07_closeout_summary.md"
     )
     closeout_summary_sim = logs_dir / "windows_b07_closeout_summary.simulated.md"
+    windows_preflight_override = os.environ.get(
+        "SIMD_FREEZE_WINDOWS_PREFLIGHT_JSON_FILE", ""
+    ).strip()
+    windows_preflight_json = (
+        Path(windows_preflight_override).expanduser()
+        if windows_preflight_override
+        else logs_dir / "win_preflight_latest.json"
+    )
 
     verify_script = root / "verify_windows_b07_evidence.sh"
 
@@ -1261,6 +1346,7 @@ def main() -> int:
         )
         if checks[-1].status != "PASS":
             next_actions.append("tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify")
+        checks.append(describe_windows_preflight_report(windows_preflight_json))
 
     windows_verify_ok: Optional[bool] = None
     if args.linux_only:
@@ -1479,17 +1565,38 @@ def main() -> int:
         freeze_ready = cross_ready
 
     if not freeze_ready and not args.linux_only:
-        preferred_actions = [
-            "bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight",
-            (
-                "FAFAFA_BUILD_MODE=Release "
-                f"bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh {default_batch_id}"
-            ),
-            "tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify",
-            CROSS_GATE_FAIL_CLOSE_CMD,
-            f"bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize {default_batch_id}",
-            f"bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-3cmd {default_batch_id}",
-        ]
+        recent_billing_block = has_recent_windows_billing_block(windows_preflight_json)
+        if recent_billing_block:
+            preferred_actions = [
+                (
+                    "Resolve GitHub Billing & plans or switch to a real Windows runner; "
+                    "current preflight reports RECENT_BILLING_BLOCK"
+                ),
+                "bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight",
+                f"bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-3cmd {default_batch_id}",
+            ]
+            blocked_actions = {
+                (
+                    "FAFAFA_BUILD_MODE=Release "
+                    f"bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh {default_batch_id}"
+                ),
+                "tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify",
+                CROSS_GATE_FAIL_CLOSE_CMD,
+                f"bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize {default_batch_id}",
+            }
+            next_actions = [action for action in next_actions if action not in blocked_actions]
+        else:
+            preferred_actions = [
+                "bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight",
+                (
+                    "FAFAFA_BUILD_MODE=Release "
+                    f"bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh {default_batch_id}"
+                ),
+                "tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify",
+                CROSS_GATE_FAIL_CLOSE_CMD,
+                f"bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize {default_batch_id}",
+                f"bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-3cmd {default_batch_id}",
+            ]
         next_actions = preferred_actions + next_actions
         next_actions = [
             action

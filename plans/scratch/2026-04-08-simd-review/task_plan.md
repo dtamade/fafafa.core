@@ -4578,3 +4578,17 @@
 | 1. 跑完 canonical gate 的 Linux CPUInfo QEMU evidence lane | completed | 已在提权后完成 `FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 bash tests/fafafa.core.simd/BuildOrTest.sh gate`；`arm/v7`、`arm64`、`riscv64` 全部 PASS，gate 最终 `OK` |
 | 2. 复核 freeze stop-point | completed | `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-linux` 已是 `ready=True` / `mainline-ready=True`；full `freeze-status` 当前只红在 `cross_gate_required_steps: evidence-verify=SKIP` 与旧 Windows evidence freshness / verify |
 | 3. active docs / scratch 回写当前真相 | completed | 已把 `closeout.md`、`checklist.md`、`findings.md`、`progress.md` 更新到 “Linux 绿、Windows blocker 仍在” 的停点，避免下一轮再从 `qemu-cpuinfo-nonx86-evidence=SKIP` 的旧状态重开 |
+
+## 2026-05-17 Freeze Next-Action Billing Fail-Close
+
+### Goal
+
+继续收口一个 runner 级效率问题：当 `win-evidence-preflight` 已经明确返回 `RECENT_BILLING_BLOCK` 时，`freeze-status` 不该再继续推荐 `win-evidence-via-gh`、fail-close gate 和 stale Windows verify 这些注定无效的动作。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核这是不是当前真实缺口 | completed | 已重新运行 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`，结果为 `STATUS=FAIL CODE=RECENT_BILLING_BLOCK EXIT=31`；旧版 `freeze-status` 仍会继续推荐 `win-evidence-via-gh` / `evidence-win-verify` / fail-close gate，属于误导性 next-actions |
+| 2. 收紧 `freeze-status` 的 preflight 感知 | completed | `evaluate_simd_freeze_status.py` 现已读取 `logs/win_preflight_latest.json`，新增 `windows_preflight_latest` 检查项；若 fresh preflight 仍是 `RECENT_BILLING_BLOCK`，next-actions 会收敛到 billing / 手工 Windows runner 路径，不再继续推荐注定失败的 GH evidence / stale verify 命令 |
+| 3. 最小验证与真相同步 | completed | `python3 -m py_compile tests/fafafa.core.simd/evaluate_simd_freeze_status.py`、full `freeze-status`、`freeze-status-linux` 已通过预期验证；active docs / scratch 已同步到最新 preflight 真相 |

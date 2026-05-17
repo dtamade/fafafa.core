@@ -15,9 +15,10 @@
   - 到这里先停，不要继续重开 SIMD 接口设计审查或实现泛审查
 - 只有在 fresh Linux/QEMU + Windows evidence 条件恢复后，才继续 `closeout-release` / `win-evidence-via-gh -> freeze-status` 这条发布收口链
 - 当前 Windows 外部 blocker 的真实证据是：
-  - `win-evidence-preflight` 在 `2026-05-16` 返回 `STATUS=PASS CODE=OK EXIT=0`
-  - `win-evidence-via-gh SIMD-20260516-152` 已成功 dispatch 到 GitHub Actions run `25967172435`
+  - `win-evidence-preflight` 在 `2026-05-17` 返回 `STATUS=FAIL CODE=RECENT_BILLING_BLOCK EXIT=31`
+  - 对应 recent workflow run 仍是 GitHub Actions `25967172435`
   - 该 run 在 `Prepare Windows SIMD Source` 阶段即失败，原因是 `recent account payments have failed or your spending limit needs to be increased`
+  - `freeze-status` 现在会把这份 preflight 报告直接展示成 `windows_preflight_latest`，并把 next-actions 收敛到 billing / 手工 Windows runner 路径
 
 补一条当前判断规则：
 

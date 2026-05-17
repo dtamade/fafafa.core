@@ -8166,3 +8166,38 @@
 - 当前阶段结论：
   - Linux CPUInfo QEMU cross evidence 已重新补绿
   - 当前 stop-point 已明确收敛到 Windows evidence 外部阻塞，而不是 SIMD 代码或 Linux closeout 回归
+
+## 2026-05-17 Freeze Next-Action Billing Fail-Close
+
+- 继续按“小闭环”推进，这次不再去重跑 GH dispatch，而是先确认 `freeze-status` 的 next-actions 有没有继续误导。
+- 已复核：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`
+  - 结果：`STATUS=FAIL CODE=RECENT_BILLING_BLOCK EXIT=31`
+  - `tests/fafafa.core.simd/logs/win_preflight_latest.json`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+- 当前结论：
+  - fresh preflight 已明确给出 recent GitHub billing/spending-limit blocker
+  - 旧版 `freeze-status` 仍会推荐 `win-evidence-via-gh`、`tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify`、fail-close cross gate 和 `win-closeout-finalize`，这些在当前 blocker 下都不是高价值动作
+- 已完成收口：
+  - `tests/fafafa.core.simd/evaluate_simd_freeze_status.py`
+    - 新增 `windows_preflight_latest` 检查项，直接展示 `logs/win_preflight_latest.json` 的最新状态
+    - 若 preflight fresh 命中 `RECENT_BILLING_BLOCK`，next-actions 改为：
+      - 先处理 GitHub Billing / 或切到真实 Windows runner
+      - 重新 `win-evidence-preflight`
+      - `win-closeout-3cmd` 手工收口路径
+    - 不再继续推荐 `win-evidence-via-gh`、stale Windows verify、fail-close gate、`win-closeout-finalize`
+- 最小验证：
+  - `python3 -m py_compile tests/fafafa.core.simd/evaluate_simd_freeze_status.py`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-linux`
+- fresh 结果：
+  - full `freeze-status` 现在会显示：
+    - `windows_preflight_latest: status=FAIL, code=RECENT_BILLING_BLOCK`
+  - full `freeze-status` 的 next-actions 现在只剩：
+    - `Resolve GitHub Billing & plans or switch to a real Windows runner; current preflight reports RECENT_BILLING_BLOCK`
+    - `bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`
+    - `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-3cmd SIMD-20260517-152`
+  - `freeze-status-linux` 继续保持 `ready=True`
+- 当前阶段结论：
+  - 这批收掉的不是 SIMD 算法或 backend 语义问题
+  - 收掉的是 Windows evidence 外部阻塞下，`freeze-status` 仍给出错误行动建议的 runner 效率缺口

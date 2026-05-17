@@ -193,6 +193,7 @@
 - full `freeze-status` 仍为 `ready=False`，但当前红项已经收敛成：
   - `cross_gate_required_steps: evidence-verify=SKIP`
   - `windows_b07_gate.log` / `windows_b07_closeout_summary.md` 的 freshness、source-newer-than-evidence 与 verify
+- `2026-05-17` fresh `win-evidence-preflight` 再次返回 `RECENT_BILLING_BLOCK`；因此 `freeze-status` 现在也会显式展示 `windows_preflight_latest`，并把 next-actions 收敛到 “先处理 billing / 或切到手工 Windows runner 路径”，不再机械推荐 `win-evidence-via-gh` / fail-close gate / stale verify。
 - 这说明当前 SIMD 的成熟度问题不再是 Linux/QEMU 证据缺口，也不是“当前 diff 有 bug”，而是“发布级 Windows evidence 还没有按当前源码时间线刷新”。
 
 ## Evidence Sources

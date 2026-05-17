@@ -26,10 +26,10 @@
     - `windows_b07_closeout_summary.md` freshness / verify
   - 第一类不是新的实现回归，而是这轮 gate 明确关闭了 Windows evidence enforcement；当前 full `freeze-status` 红点已经只剩 Windows evidence verify / freshness，而不是 Linux QEMU CPUInfo 证据缺失
 - 当前外部 blocker 已明确：
-  - `win-evidence-preflight` 在 `2026-05-16` 返回 `STATUS=PASS CODE=OK EXIT=0`
-  - `win-evidence-via-gh SIMD-20260516-152` 已成功 dispatch，GitHub Actions run id 是 `25967172435`
+  - `win-evidence-preflight` 在 `2026-05-17` 返回 `STATUS=FAIL CODE=RECENT_BILLING_BLOCK EXIT=31`
+  - 对应 recent workflow run 仍是 `25967172435`
   - 该 run 在 `Prepare Windows SIMD Source` 阶段即失败，注解为：`The job was not started because recent account payments have failed or your spending limit needs to be increased`
-  - 也就是说，当前不是 workflow 入口坏掉，而是 GitHub Actions billing / spending limit 外部阻塞
+  - `freeze-status` 现在会把这份 preflight 报告直接显示成 `windows_preflight_latest`，并把 next-actions 收敛到 “先处理 billing / 或切到手工 Windows runner 路径”，不再继续推荐一串注定失败的 GH evidence 命令
 - 因此，在“没有 Windows 主机、也没有可用 GH Windows runner”的约束下，当前最准确的结论是：
   - `code-green / release-evidence-blocked`
   - 不要再把后续时间花在重新打开 SIMD 接口审查或实现泛审查上
@@ -38,7 +38,7 @@
 
 - 如果 `freeze-status` 里的 Linux gate artifact 旧于最新 `src/fafafa.core.simd*` 源码，先重跑一次 release `gate`，不要把旧 gate summary 当成新代码回归。
 - 如果 latest `gate_summary.md` 以后又被日常 fast-gate 覆盖，导致 `qemu-cpuinfo-nonx86-evidence=SKIP`，先看 `logs/rehearsal/backups/` 或 `logs/windows-closeout/<batch>/gate_summary.md` 是否仍保留了更早的 closeout gate snapshot；`freeze-status` 现在会自动把这些 snapshot 当 fallback candidate。
-- 如果 `win-evidence-preflight` 已 PASS，但 GH run 像 `25967172435` 一样在 `Prepare Windows SIMD Source` 阶段被 billing / spending limit 拦下，当前批次同样按 `code-green / release-evidence-blocked` 收口，不把 Windows evidence 阻塞误判成 SIMD 代码回归。
+- 如果 `win-evidence-preflight` 返回 `RECENT_BILLING_BLOCK`，当前批次同样按 `code-green / release-evidence-blocked` 收口，不把 Windows evidence 阻塞误判成 SIMD 代码回归；此时优先处理 billing / 实机 Windows runner，而不是继续空转 `win-evidence-via-gh`。
 - 如果 `qemu-cpuinfo-nonx86-evidence` 又回到 `SKIP`，那说明 latest canonical gate 已被 fast-gate 覆盖或这轮并未刷新 Linux CPUInfo cross evidence；这时可以继续做仓库内文档/policy 收口，但不要把 `freeze-status` 写成 green。
 - `qemu-nonx86-evidence` 和 `qemu-cpuinfo-nonx86-evidence` 现在必须分开理解：
   - 前者服务 `closeout-host-local` 的 non-x86 runtime parity / dataplane 实现收口
