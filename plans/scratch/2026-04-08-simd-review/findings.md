@@ -7809,3 +7809,19 @@
 - 以当前 live 扫描结果看，`src/fafafa.core.simd*.pas` 剩余 `U+FFFD` 已收敛成单点热点：
   - `intrinsics.x86.sse2 = 454`
   这比继续在 `mmx` 上重复扫更值得投入下一批修复。
+
+## 2026-05-17 SSE2 Load/Store Residuals Were Also Hygiene-Only
+
+- `intrinsics.x86.sse2` 的第一个可独立功能区 `Load / Store` 复核后，没有发现新的“注释吞掉代码”：
+  - 受影响的是文件头说明、x86 stack calling comments、aligned/unaligned store path comments
+  - `movdqa/movdqu/movapd/movupd/movaps/movups` 指令体没有被吞
+- 这批之所以值得优先切，不是因为它最危险，而是因为：
+  - 它是一个完整的单一功能区，容易形成 bounded 批次
+  - `x86 SSE2 backend smoke` 已经能直接覆盖这条 experimental leaf 的基本编译闭环
+  - 清掉访存段后，后续再看 `Set/Broadcast`、算术、比较时不会被入口噪音干扰
+- live 计数表明这批确实形成了有效收口：
+  - `residual_char_count: 454 -> 395`
+  - `residuals_up_to_621=[]`
+- 因而当前最合适的继续方式不是回去重扫 `Load / Store`，而是：
+  - 从 `637` 行之后的下一簇 residual 继续小批次推进
+  - 保持 `comment_swallow + intrinsics.experimental check + main release check` 这条验证链不变

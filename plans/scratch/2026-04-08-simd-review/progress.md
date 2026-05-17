@@ -10492,3 +10492,33 @@
   - `src/fafafa.core.simd.intrinsics.mmx.pas` 的 `U+FFFD` 已全部归零
   - 当前 `src/fafafa.core.simd*.pas` 范围里只剩一个明显热点：`src/fafafa.core.simd.intrinsics.x86.sse2.pas = 454`
   - 后续继续审查时，最优路径是把 `sse2` 按小簇分批切，而不是再回头重扫 `mmx`
+
+## 2026-05-17 SSE2 Load/Store Comment Hygiene
+
+- `mmx` 收口后，没有回到大而散的全文件扫，而是直接切 `intrinsics.x86.sse2` 的第一个独立功能区：`Load / Store`。
+- 本批覆盖范围保持单一区块：
+  - 文件头简介残点
+  - `simd_load/loadu/store/storeu_si128`
+  - `simd_load/loadu/store/storeu_pd`
+  - `simd_load/loadu/store/storeu_ps`
+- 本批仍然严格 bounded：
+  - 只清损坏注释
+  - 不改 `asm` 指令
+  - 不改导出签名
+  - 不改 experimental isolation / runner 合同
+- fresh 验证已完成：
+  - `python3` 逐文件计数：
+    - `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 从 `residual_char_count=454` 降到 `395`
+    - `residuals_up_to_621=[]`
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_comment_swallow.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - `intrinsics.experimental check` default / experimental 双模态通过
+  - `x86 SSE2 backend smoke` 通过
+  - 主 `simd` release `check` 通过
+- 当前阶段结论：
+  - `SSE2` 的 `Load / Store` 段已经从 residual 清单中退出
+  - 当前剩余 residual 已从 `637` 行开始，说明下一批可以直接从 `Set / Broadcast` 邻近簇接着做，不必再回头看访存段

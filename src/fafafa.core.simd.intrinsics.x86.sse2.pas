@@ -14,8 +14,8 @@ interface
 }
 
 // === SSE2 Intrinsics 完整接口 ===
-// SSE2 �?x86-64 的基础指令集，所�?x86-64 CPU 都支�?
-// 提供 128-bit 向量操作，是最重要的基础指令�?
+// SSE2 is the baseline x86-64 SIMD ISA and is available on every x86-64 CPU.
+// It provides 128-bit vector operations and forms the foundation for later x86 SIMD families.
 // 类型 TM128 对应 __m128i / __m128 / __m128d，前缀统一 simd_
 
 uses
@@ -324,7 +324,7 @@ begin
 end;
 
 // === SSE2 Intrinsics 实现 ===
-// 目前提供占位实现，后续将添加实际的内联汇编代�?
+// Placeholder raw-leaf bodies are kept here while the unit stays experimental-isolated.
 // === 1️⃣ Load / Store 实现 ===
 function simd_load_si128(const Ptr: Pointer): TM128; {$IFDEF FPC}assembler; nostackframe;
 {$ENDIF}
@@ -338,7 +338,7 @@ asm
     movdqa xmm0, [rdi]
   {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: argument arrives on the stack.
     mov eax, [esp + 4]
     movdqa xmm0, [eax]
 {$ELSE}
@@ -364,7 +364,7 @@ asm
     movdqu xmm0, [rdi]
   {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: argument arrives on the stack.
     mov eax, [esp + 4]
     movdqu xmm0, [eax]
 {$ELSE}
@@ -383,20 +383,20 @@ procedure simd_store_si128(var Dest; constref Src: TM128); {$IFDEF FPC}assembler
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    // Windows x64: Dest �?rcx, Src �?rdx
-    movdqa xmm0, [rdx] //  对齐加载源数�?
-    movdqa [rcx], xmm0    // 对齐存储到目�?
+    // Windows x64: Dest in rcx, Src in rdx
+    movdqa xmm0, [rdx] // Load aligned source data.
+    movdqa [rcx], xmm0    // Store aligned data to the destination.
     {$ELSE}
-    // Linux/macOS x64 System V ABI: Dest �?rdi, Src �?rsi
-    movdqa xmm0, [rsi] //  对齐加载源数�?
-    movdqa [rdi], xmm0    // 对齐存储到目�?
+    // Linux/macOS x64 System V ABI: Dest in rdi, Src in rsi
+    movdqa xmm0, [rsi] // Load aligned source data.
+    movdqa [rdi], xmm0    // Store aligned data to the destination.
     {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
-    movdqa xmm0, [edx] //  对齐加载源数�?
-    movdqa [eax], xmm0    // 对齐存储到目�?
+    movdqa xmm0, [edx] // Load aligned source data.
+    movdqa [eax], xmm0    // Store aligned data to the destination.
     {$ELSE}
     {$ERROR Unsupported CPU}
 {$ENDIF}
@@ -407,16 +407,16 @@ procedure simd_storeu_si128(var Dest; constref Src: TM128); {$IFDEF FPC}assemble
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    // Windows x64: Dest �?rcx, Src �?rdx
+    // Windows x64: Dest in rcx, Src in rdx
     movdqu xmm0, [rdx]    // 非对齐加载源数据
     movdqu [rcx], xmm0    // 非对齐存储到目标
   {$ELSE}
-    // Linux/macOS x64 System V ABI: Dest �?rdi, Src �?rsi
+    // Linux/macOS x64 System V ABI: Dest in rdi, Src in rsi
     movdqu xmm0, [rsi]    // 非对齐加载源数据
     movdqu [rdi], xmm0    // 非对齐存储到目标
   {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
     movdqu xmm0, [edx]    // 非对齐加载源数据
@@ -439,7 +439,7 @@ asm
     movapd xmm0, [rdi]
   {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: argument arrives on the stack.
     mov eax, [esp + 4]
     movapd xmm0, [eax]
 {$ELSE}
@@ -465,7 +465,7 @@ asm
     movupd xmm0, [rdi]
   {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: argument arrives on the stack.
     mov eax, [esp + 4]
     movupd xmm0, [eax]
 {$ELSE}
@@ -484,20 +484,20 @@ procedure simd_store_pd(var Dest; constref Src: TM128); {$IFDEF FPC}assembler; n
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    // Windows x64: Dest �?rcx, Src �?rdx
-    movapd xmm0, [rdx] //  对齐加载源数�?
-    movapd [rcx], xmm0    // 对齐存储到目�?
+    // Windows x64: Dest in rcx, Src in rdx
+    movapd xmm0, [rdx] // Load aligned source data.
+    movapd [rcx], xmm0    // Store aligned data to the destination.
     {$ELSE}
-    // Linux/macOS x64 System V ABI: Dest �?rdi, Src �?rsi
-    movapd xmm0, [rsi] //  对齐加载源数�?
-    movapd [rdi], xmm0    // 对齐存储到目�?
+    // Linux/macOS x64 System V ABI: Dest in rdi, Src in rsi
+    movapd xmm0, [rsi] // Load aligned source data.
+    movapd [rdi], xmm0    // Store aligned data to the destination.
     {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
-    movapd xmm0, [edx] //  对齐加载源数�?
-    movapd [eax], xmm0    // 对齐存储到目�?
+    movapd xmm0, [edx] // Load aligned source data.
+    movapd [eax], xmm0    // Store aligned data to the destination.
     {$ELSE}
     {$ERROR Unsupported CPU}
 {$ENDIF}
@@ -508,16 +508,16 @@ procedure simd_storeu_pd(var Dest; constref Src: TM128); {$IFDEF FPC}assembler; 
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    // Windows x64: Dest �?rcx, Src �?rdx
+    // Windows x64: Dest in rcx, Src in rdx
     movupd xmm0, [rdx]    // 非对齐加载源数据
     movupd [rcx], xmm0    // 非对齐存储到目标
   {$ELSE}
-    // Linux/macOS x64 System V ABI: Dest �?rdi, Src �?rsi
+    // Linux/macOS x64 System V ABI: Dest in rdi, Src in rsi
     movupd xmm0, [rsi]    // 非对齐加载源数据
     movupd [rdi], xmm0    // 非对齐存储到目标
   {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
     movupd xmm0, [edx]    // 非对齐加载源数据
@@ -540,7 +540,7 @@ asm
     movaps xmm0, [rdi]
   {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: argument arrives on the stack.
     mov eax, [esp + 4]
     movaps xmm0, [eax]
 {$ELSE}
@@ -566,7 +566,7 @@ asm
     movups xmm0, [rdi]
   {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: argument arrives on the stack.
     mov eax, [esp + 4]
     movups xmm0, [eax]
 {$ELSE}
@@ -585,20 +585,20 @@ procedure simd_store_ps(var Dest; constref Src: TM128); {$IFDEF FPC}assembler; n
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    // Windows x64: Dest �?rcx, Src �?rdx
-    movaps xmm0, [rdx] //  对齐加载源数�?
-    movaps [rcx], xmm0    // 对齐存储到目�?
+    // Windows x64: Dest in rcx, Src in rdx
+    movaps xmm0, [rdx] // Load aligned source data.
+    movaps [rcx], xmm0    // Store aligned data to the destination.
     {$ELSE}
-    // Linux/macOS x64 System V ABI: Dest �?rdi, Src �?rsi
-    movaps xmm0, [rsi] //  对齐加载源数�?
-    movaps [rdi], xmm0    // 对齐存储到目�?
+    // Linux/macOS x64 System V ABI: Dest in rdi, Src in rsi
+    movaps xmm0, [rsi] // Load aligned source data.
+    movaps [rdi], xmm0    // Store aligned data to the destination.
     {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
-    movaps xmm0, [edx] //  对齐加载源数�?
-    movaps [eax], xmm0    // 对齐存储到目�?
+    movaps xmm0, [edx] // Load aligned source data.
+    movaps [eax], xmm0    // Store aligned data to the destination.
     {$ELSE}
     {$ERROR Unsupported CPU}
 {$ENDIF}
@@ -609,16 +609,16 @@ procedure simd_storeu_ps(var Dest; constref Src: TM128); {$IFDEF FPC}assembler; 
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    // Windows x64: Dest �?rcx, Src �?rdx
+    // Windows x64: Dest in rcx, Src in rdx
     movups xmm0, [rdx]    // 非对齐加载源数据
     movups [rcx], xmm0    // 非对齐存储到目标
   {$ELSE}
-    // Linux/macOS x64 System V ABI: Dest �?rdi, Src �?rsi
+    // Linux/macOS x64 System V ABI: Dest in rdi, Src in rsi
     movups xmm0, [rsi]    // 非对齐加载源数据
     movups [rdi], xmm0    // 非对齐存储到目标
   {$ENDIF}
 {$ELSEIF CPUX86}
-    // x86 32-bit: 参数在栈�?
+    // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
     movups xmm0, [edx]    // 非对齐加载源数据
