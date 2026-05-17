@@ -105,6 +105,7 @@ GATE_SUMMARY_ROLLBACK_SCRIPT="${ROOT}/rollback_gate_summary_sample.sh"
 GATE_SUMMARY_BACKUPS_SCRIPT="${ROOT}/list_gate_summary_backups.sh"
 WIN_CLOSEOUT_3CMD_SCRIPT="${ROOT}/print_windows_b07_closeout_3cmd.sh"
 WIN_CLOSEOUT_3CMD_REHEARSAL_SCRIPT="${ROOT}/rehearse_windows_closeout_3cmd.sh"
+CLOSEOUT_RELEASE_PREFLIGHT_REHEARSAL_SCRIPT="${ROOT}/rehearse_closeout_release_preflight_block.sh"
 FREEZE_STATUS_SCRIPT="${ROOT}/evaluate_simd_freeze_status.py"
 WIN_CLOSEOUT_FINALIZE_SCRIPT="${ROOT}/run_windows_b07_closeout_finalize.sh"
 FREEZE_REHEARSAL_SCRIPT="${ROOT}/rehearse_freeze_status.sh"
@@ -2081,6 +2082,9 @@ check_closeout_release_entrypoint_guard() {
     'echo "[CLOSEOUT-RELEASE] 1/5 x86 bounded frontier smoke"'
     'echo "[CLOSEOUT-RELEASE] 2/5 host-local closeout (QEMU arm64/riscv64, Windows evidence optional)"'
     'echo "[CLOSEOUT-RELEASE] 3/5 Windows evidence preflight"'
+    'print_closeout_release_preflight_block_note() {'
+    'echo "[CLOSEOUT-RELEASE] STOP latest preflight is RECENT_BILLING_BLOCK"'
+    'print_closeout_release_preflight_block_note "${LBatchId}"'
     'echo "[CLOSEOUT-RELEASE] 4/5 Windows evidence via GH"'
     'echo "[CLOSEOUT-RELEASE] 5/5 freeze-status"'
     'SIMD_QEMU_PLATFORMS="${SIMD_QEMU_PLATFORMS:-linux/arm64 linux/riscv64}" \'
@@ -6547,6 +6551,12 @@ PY_JSON_CHECK
     return 1
   fi
 
+  if ! run_closeout_release_preflight_rehearsal >/dev/null; then
+    echo "[GATE-SUMMARY-SELFCHECK] FAILED: closeout-release-preflight-rehearsal"
+    rm -f "${LTmpJson}"
+    return 1
+  fi
+
   rm -f "${LTmpJson}"
   echo "[GATE-SUMMARY-SELFCHECK] OK"
 }
@@ -6557,6 +6567,18 @@ run_windows_closeout_3cmd_rehearsal() {
   LScript="${WIN_CLOSEOUT_3CMD_REHEARSAL_SCRIPT:-${ROOT}/rehearse_windows_closeout_3cmd.sh}"
   if [[ ! -f "${LScript}" ]]; then
     echo "[WIN-CLOSEOUT-3CMD-REHEARSAL] Missing script: ${LScript}"
+    return 2
+  fi
+
+  bash "${LScript}"
+}
+
+run_closeout_release_preflight_rehearsal() {
+  local LScript
+
+  LScript="${CLOSEOUT_RELEASE_PREFLIGHT_REHEARSAL_SCRIPT:-${ROOT}/rehearse_closeout_release_preflight_block.sh}"
+  if [[ ! -f "${LScript}" ]]; then
+    echo "[CLOSEOUT-RELEASE-PREFLIGHT-REHEARSAL] Missing script: ${LScript}"
     return 2
   fi
 
@@ -6645,6 +6667,29 @@ nonx86_native_evidence_root_has_entries() {
   return 1
 }
 
+win_preflight_latest_json_path() {
+  echo "${SIMD_WIN_PREFLIGHT_JSON_FILE:-${ROOT}/logs/win_preflight_latest.json}"
+}
+
+win_preflight_latest_is_recent_billing_block() {
+  local LJson
+
+  LJson="$(win_preflight_latest_json_path)"
+  [[ -f "${LJson}" ]] && grep -F '"code": "RECENT_BILLING_BLOCK"' "${LJson}" >/dev/null 2>&1
+}
+
+print_closeout_release_preflight_block_note() {
+  local LBatchId
+
+  LBatchId="${1:-SIMD-$(date '+%Y%m%d')-152}"
+
+  echo "[CLOSEOUT-RELEASE] STOP latest preflight is RECENT_BILLING_BLOCK"
+  echo "[CLOSEOUT-RELEASE] state=code-green / release-evidence-blocked"
+  echo "[CLOSEOUT-RELEASE] fix GitHub Billing/quota or switch to a real Windows runner before retrying."
+  echo "[CLOSEOUT-RELEASE] next: bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight"
+  echo "[CLOSEOUT-RELEASE] next: bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-3cmd ${LBatchId}"
+}
+
 run_closeout_host_local() {
   echo "[CLOSEOUT-HOST-LOCAL] 1/2 impl-audit-nonx86"
   run_nonx86_impl_audit || return $?
@@ -6660,6 +6705,7 @@ run_closeout_host_local() {
 
 run_closeout_release() {
   local LBatchId
+  local LPreflightRC
   local LRunId
   local LReleaseMode
 
@@ -6683,8 +6729,17 @@ run_closeout_release() {
   run_closeout_host_local || return $?
 
   echo "[CLOSEOUT-RELEASE] 3/5 Windows evidence preflight"
-  FAFAFA_BUILD_MODE="${LReleaseMode}" \
-  run_win_evidence_preflight || return $?
+  if FAFAFA_BUILD_MODE="${LReleaseMode}" \
+    run_win_evidence_preflight
+  then
+    :
+  else
+    LPreflightRC=$?
+    if [[ "${LPreflightRC}" == "31" ]] && win_preflight_latest_is_recent_billing_block; then
+      print_closeout_release_preflight_block_note "${LBatchId}"
+    fi
+    return "${LPreflightRC}"
+  fi
 
   echo "[CLOSEOUT-RELEASE] 4/5 Windows evidence via GH"
   FAFAFA_BUILD_MODE="${LReleaseMode}" \

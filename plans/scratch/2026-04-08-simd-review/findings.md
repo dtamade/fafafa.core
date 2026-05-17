@@ -297,6 +297,23 @@
 - 这让 repo 内 active 文档链的最前几屏都统一回到了同一个事实：
   - 当前代码主线绿
   - 当前发布主线红在 Windows external evidence
+
+## 2026-05-17 Closeout-Release Needed Runtime Fail-Close, Not Just Docs
+
+- 在 docs / helper 都已经写清楚 blocked reality 后，`closeout-release` 主入口本身仍有一个真实缺口：
+  - 第 3 步 `win-evidence-preflight` 一旦因为 `RECENT_BILLING_BLOCK` 失败
+  - 主入口只会把 rc 往外抛，不会顺手把 “现在应停止” / “当前状态” / “下一步命令” 打给操作者
+- 这类缺口的坏处很具体：
+  - 文档读者也许已经知道 stop condition
+  - 但真正直接执行 `closeout-release` 的人，仍要自己去猜当前失败是不是“继续 GH evidence”还是“先处理 billing”
+- 本轮因此把 fail-close 逻辑下沉到主入口本身，而不是继续依赖外围文档。
+- focused rehearsal 还顺手抓到一个真实 shell 细节 bug：
+  - `if ! cmd; then rc=$?` 在这里拿到的是反转后的 `0`
+  - 如果不修，新的 stop note 分支实际永远不会命中
+- 所以这批不是单纯的 wording polish，而是：
+  - 审出主入口 fail-close 缺口
+  - 实现修复
+  - 用轻量 rehearsal 把 shell 退出码语义也钉住了
   - 允许项必须是“当前真实仍然 unavoidable 的 wrapper-only slot”
   - `allowed_wrapper_slots - current_wrapper_only_slots` 只要非空，就说明 allowlist 落后于源码真相，应该直接报错而不是悄悄放过
 - 这批修完后，`unused_allowlist_count` 应回到 `0`；以后这项也应该作为 summary 和 human report 的固定输出，避免 allowlist 又悄悄膨胀。

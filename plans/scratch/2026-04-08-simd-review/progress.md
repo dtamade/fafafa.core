@@ -274,6 +274,36 @@
   - `git diff --check`
   - `sed -n '1,18p' tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`
 
+## 2026-05-17 Closeout-Release Preflight Fail-Close Hardening
+
+- 继续往下收后，锁定了一个真正落在主入口上的 residual：
+  - `closeout-release` 虽然会先跑 `win-evidence-preflight`
+  - 但在 `RECENT_BILLING_BLOCK` 时，只会直接失败退出，不会把“当前应停止 / 当前状态 / 下一步该跑什么”作为主入口语义明确打印出来
+- 本批实现收口：
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - 新增 `win_preflight_latest_json_path`
+    - 新增 `win_preflight_latest_is_recent_billing_block`
+    - 新增 `print_closeout_release_preflight_block_note`
+    - `run_closeout_release()` 现在在 preflight 返回 `31` 且 latest JSON 为 `RECENT_BILLING_BLOCK` 时，直接打印 stop note 与 next actions
+  - 新增 `tests/fafafa.core.simd/rehearse_closeout_release_preflight_block.sh`
+    - 用 stubbed shell 环境抽取 `run_closeout_release` 相关函数
+    - 断言 preflight blocked 时：
+      - 返回码仍是 `31`
+      - 会打印 `STOP latest preflight is RECENT_BILLING_BLOCK`
+      - 会打印 `code-green / release-evidence-blocked`
+      - 不会继续跑 GH step / freeze step
+  - `gate-summary-selfcheck` 现已纳入这条 rehearsal
+- 这批过程中还顺手抓到并修掉一个真 bug：
+  - 第一版实现里用了 `if ! run_win_evidence_preflight; then LPreflightRC=$?`
+  - focused rehearsal 证明这样拿到的是 `!` 反转后的 `0`，stop note 根本不会触发
+  - 已改成 `if run_win_evidence_preflight; then : else LPreflightRC=$?; ... fi`
+- fresh 验证已完成：
+  - `git diff --check`
+  - `bash tests/fafafa.core.simd/rehearse_closeout_release_preflight_block.sh`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate-summary-selfcheck`
+  - 抽取式静态 guard：
+    - `check_closeout_release_entrypoint_guard` -> `OK`
+
 - 接着上一批 `F64x4` arithmetic residual 继续往下切，本轮先锁定 wide `Round/Trunc`：
   - `RoundF32x8`
   - `RoundF32x16`
