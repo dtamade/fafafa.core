@@ -1131,6 +1131,92 @@ if grep -F -- "latest_source=" "${LCaseIgnoredArtifact}/logs/freeze_stdout_ignor
   exit 1
 fi
 
+# ---------- Case K: WINDOWS VERIFY FAIL SHOULD SURFACE ROOT-CAUSE HINT ----------
+LCaseWindowsHint="${LTmpRoot}/case_windows_hint/tests/fafafa.core.simd"
+mkdir -p "${LCaseWindowsHint}/logs" "${LCaseWindowsHint}/docs" "${LTmpRoot}/case_windows_hint/docs/plans"
+cp "${FREEZE_SCRIPT}" "${LCaseWindowsHint}/evaluate_simd_freeze_status.py"
+cp "${VERIFY_SCRIPT}" "${LCaseWindowsHint}/verify_windows_b07_evidence.sh"
+chmod +x "${LCaseWindowsHint}/verify_windows_b07_evidence.sh"
+
+cat > "${LCaseWindowsHint}/logs/gate_summary.md" <<'EOM'
+| Time | Step | Status | DurationMs | Event | Detail | Artifacts |
+|---|---|---|---|---|---|---|
+| 2026-02-10 00:00:00 | gate | START | - | START | mode=Release | - |
+| 2026-02-10 00:00:01 | build-check | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:02 | interface-completeness | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:03 | cross-backend-parity | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:04 | wiring-sync | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:05 | coverage | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:06 | simd-list-suites | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:07 | simd-avx2-fallback | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:08 | cpuinfo-portable | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:09 | cpuinfo-x86 | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:10 | run-all-chain | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:11 | evidence-verify | SKIP | - | SKIP | require-win-evidence=0 | - |
+| 2026-02-10 00:00:12 | gate | PASS | 1000 | NORMAL | all steps passed | - |
+EOM
+
+cat > "${LCaseWindowsHint}/logs/windows_b07_gate.log" <<'EOM'
+[B07] Windows evidence capture
+[B07] Source: collect_windows_b07_evidence.bat
+[B07] HostOS: Windows_NT
+[B07] CmdVer: Microsoft Windows 10.0.19043
+[B07] Started: 5/17/2026 12:42 PM
+[B07] Working dir: Z:\simd\tests\fafafa.core.simd\
+[B07] Command: buildOrTest.bat gate
+[BUILD] FAILED (see Z:\simd\tests\fafafa.core.simd\logs\build.txt)
+Can't recognize '"lazbuild" --build-mode=Release "demo.lpi"' as an internal or external command, or batch script.
+[B07] GateSummaryJson: missing
+[B07] GateSummaryExportRc: skipped-native-batch
+[B07] GATE_EXIT_CODE=1
+EOM
+
+cat > "${LCaseWindowsHint}/logs/windows_b07_closeout_summary.md" <<'EOM'
+# SIMD Windows B07 Closeout Summary
+
+## Verification
+
+- Verifier: verify_windows_b07_evidence.sh
+- Command: bash verify_windows_b07_evidence.sh "logs/windows_b07_gate.log"
+- Result: FAIL (rc=1)
+EOM
+
+cat > "${LTmpRoot}/case_windows_hint/docs/plans/2026-02-09-simd-unblock-closeout-roadmap.md" <<'EOM'
+- [x] **Windows 实机证据已归档**
+EOM
+
+cat > "${LCaseWindowsHint}/docs/simd_release_candidate_checklist.md" <<'EOM'
+- [x] Windows 实机证据日志已归档
+EOM
+
+cat > "${LCaseWindowsHint}/docs/simd_completeness_matrix.md" <<'EOM'
+- Windows 证据：实机日志已归档（脚本入口 + 校验入口）
+EOM
+
+set +e
+SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=0 \
+python3 "${LCaseWindowsHint}/evaluate_simd_freeze_status.py" --root "${LCaseWindowsHint}" --json-file "${LCaseWindowsHint}/logs/freeze_status_windows_hint.json" > "${LCaseWindowsHint}/logs/freeze_stdout_windows_hint.txt" 2>&1
+LWindowsHintRc=$?
+set -e
+
+if [[ "${LWindowsHintRc}" -eq 0 ]]; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_windows_hint should return non-zero"
+  cat "${LCaseWindowsHint}/logs/freeze_stdout_windows_hint.txt"
+  exit 1
+fi
+
+if ! grep -F -- "root-cause hint:" "${LCaseWindowsHint}/logs/freeze_stdout_windows_hint.txt" >/dev/null; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_windows_hint missing root-cause hint"
+  cat "${LCaseWindowsHint}/logs/freeze_stdout_windows_hint.txt"
+  exit 1
+fi
+
+if ! grep -F -- "Can't recognize '\"lazbuild\"" "${LCaseWindowsHint}/logs/freeze_stdout_windows_hint.txt" >/dev/null; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_windows_hint missing lazbuild failure detail"
+  cat "${LCaseWindowsHint}/logs/freeze_stdout_windows_hint.txt"
+  exit 1
+fi
+
 echo "[FREEZE-REHEARSAL] OK"
 echo "[FREEZE-REHEARSAL] case_not_ready_rc=${LNotReadyRc}"
 echo "[FREEZE-REHEARSAL] case_stale_summary_rc=${LStaleRc}"
@@ -1141,3 +1227,4 @@ echo "[FREEZE-REHEARSAL] case_batch_fallback_rc=0"
 echo "[FREEZE-REHEARSAL] case_mainline_fallback_rc=${LMainlineFallbackRc}"
 echo "[FREEZE-REHEARSAL] case_source_newer_rc=${LSourceNewerRc}"
 echo "[FREEZE-REHEARSAL] case_ignored_artifact_rc=0"
+echo "[FREEZE-REHEARSAL] case_windows_hint_rc=${LWindowsHintRc}"

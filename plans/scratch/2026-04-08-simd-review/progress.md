@@ -8913,3 +8913,36 @@
 - 当前限制：
   - 由于沙箱内 `wine cmd` 运行受限，我没法在这轮里补一条真正的 Windows/CMD 级执行复现
   - 但这批修法有直接的坏日志证据支撑，并且与当前已稳定的 `cpuinfo.x86` batch 调起方式保持一致
+
+## 2026-05-17 Freeze Status Windows Failure Hint Prioritization
+
+- 在 Windows closeout/evidence 链继续收口时，我没有再去追一堆 `Missing pattern:`，而是先回到 `freeze-status` 当前真正暴露给人的信号质量问题：
+  - 之前 `windows_evidence_verify` fail 时，detail 基本就是 verifier 第一坨 missing-pattern 输出
+  - 但当前 canonical `windows_b07_gate.log` 明明已经把 root cause 写得更直接：Windows batch 在主 build 阶段就因为 `"lazbuild"` 调起失败而 `GATE_EXIT_CODE=1`
+- 已落地修法：
+  - `tests/fafafa.core.simd/evaluate_simd_freeze_status.py`
+    - 新增 Windows log root-cause hint 提取
+    - 优先识别 `BUILD FAILED`、`Can't recognize`、`GATE_EXIT_CODE!=0`
+    - `windows_evidence_verify` fail detail 现在改为：
+      - `root-cause hint: ...`
+      - `verifier failed rc=...`
+      - `first verifier issue: ...`
+  - `tests/fafafa.core.simd/rehearse_freeze_status.sh`
+    - 新增 `case_windows_hint`
+    - 专门守住“失败提示先给根因 hint，再给 verifier 首条 issue”的边界
+- 已验证：
+  - `python3 -m py_compile tests/fafafa.core.simd/evaluate_simd_freeze_status.py`
+  - `bash -n tests/fafafa.core.simd/rehearse_freeze_status.sh`
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-rehearsal`
+    - `[FREEZE-REHEARSAL] OK`
+    - `case_windows_hint_rc=1`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+    - `windows_evidence_verify` 现在会先输出：
+      - `root-cause hint: Can't recognize '"lazbuild"' ...`
+      - 然后才补 `first verifier issue: [EVIDENCE] Missing pattern: [GATE] OK`
+- 当前阶段结论：
+  - `freeze-status` 现在已经把 Windows evidence 的真实 hot path 抬出来了
+  - 剩余 cross 红项依然没变：
+    - `windows_preflight_latest = RECENT_BILLING_BLOCK`
+    - `windows_evidence_verify = FAIL`
+  - 但至少下一轮继续收 Windows 链时，不会再先被 verifier 噪音带偏

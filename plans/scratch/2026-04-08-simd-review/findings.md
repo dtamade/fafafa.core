@@ -7141,3 +7141,15 @@
 - 因而这一批的最小修法是：
   - 把 SIMD main / intrinsics.sse / intrinsics.mmx 这 3 个 Windows batch runner 的 `lazbuild` 调起方式统一成 `call "%LAZBUILD_EXE%" ...`
   - 先消掉这条已被真实 Windows evidence 命中的易碎路径
+
+## 2026-05-17 Freeze Status Was Still Surfacing Windows Verifier Noise Before The Real Root Cause
+
+- 在 `freeze-status` 已经只剩 Windows closeout/evidence 链红项后，输出层面还存在一个真实的可读性问题：
+  - `windows_evidence_verify` 失败时，默认会直接把 verifier 的第一串 `Missing pattern:` 噪音塞进 detail
+  - 但当前 canonical `windows_b07_gate.log` 里的真实根因其实更直接：Windows batch 在主 build 阶段就已经 `GATE_EXIT_CODE=1`
+  - 当前最有价值的提示不是“缺了哪些 gate marker”，而是日志里已经明确出现的 root cause，例如 `Can't recognize '"lazbuild"' ...`
+- 这类情况如果继续只刷 verifier missing 明细，会把真正 hot path 藏起来，让下一轮审查又回到“看症状不看边界”。
+- 因而最小正确修法是：
+  - `evaluate_simd_freeze_status.py` 在 `windows_evidence_verify` fail 时，先从真实 Windows log 抽取 root-cause hint
+  - 若能定位到 `BUILD FAILED` / `Can't recognize` / `GATE_EXIT_CODE!=0` 这类早期失败信号，就把它放到 detail 最前面
+  - verifier 输出仍保留，但只保留 `first verifier issue`，不再把整串 missing 明细原样塞进 `freeze-status`

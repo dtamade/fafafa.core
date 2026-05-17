@@ -384,6 +384,72 @@ def run_verify_script(verify_script: Path, log_path: Path) -> subprocess.Complet
     )
 
 
+def compact_whitespace(value: str) -> str:
+    return re.sub(r"\s+", " ", value or "").strip()
+
+
+def extract_windows_log_failure_hint(log_path: Path) -> Optional[str]:
+    if not log_path.is_file():
+        return None
+
+    try:
+        lines = log_path.read_text(encoding="utf-8", errors="ignore").splitlines()
+    except Exception:
+        return None
+
+    normalized = [line.rstrip("\r").strip() for line in lines]
+
+    for idx, line in enumerate(normalized):
+        if "BUILD FAILED" not in line:
+            continue
+        hint_parts = [line]
+        for follow in normalized[idx + 1 : idx + 4]:
+            if not follow:
+                continue
+            if follow.startswith("[B07]"):
+                break
+            if follow.startswith("[") and "FAILED" not in follow and "recognize" not in follow.lower():
+                break
+            hint_parts.append(follow)
+            break
+        return compact_whitespace("; ".join(hint_parts))
+
+    for line in normalized:
+        if "can't recognize" in line.lower():
+            return compact_whitespace(line)
+
+    for line in normalized:
+        if line.startswith("[B07] GATE_EXIT_CODE=") and not line.endswith("=0"):
+            return compact_whitespace(f"gate exited non-zero before evidence completed: {line}")
+
+    return None
+
+
+def summarize_verify_failure(
+    verify_proc: subprocess.CompletedProcess[str], log_path: Path
+) -> str:
+    raw_detail = (verify_proc.stderr or "").strip()
+    if not raw_detail:
+        raw_detail = (verify_proc.stdout or "").strip()
+    detail_msg = compact_whitespace(raw_detail)
+
+    first_issue = ""
+    for raw_line in raw_detail.splitlines():
+        line = compact_whitespace(raw_line)
+        if line:
+            first_issue = line
+            break
+
+    hint = extract_windows_log_failure_hint(log_path)
+    parts: List[str] = []
+    if hint:
+        parts.append(f"root-cause hint: {hint}")
+    parts.append(f"verifier failed rc={verify_proc.returncode}")
+    if first_issue:
+        parts.append(f"first verifier issue: {first_issue}")
+    return "; ".join(parts)
+
+
 def parse_bool_env(name: str, default: bool = False) -> bool:
     raw = os.environ.get(name)
     if raw is None:
@@ -1419,15 +1485,12 @@ def main() -> int:
             )
         else:
             windows_verify_ok = False
-            stderr_msg = (verify_proc.stderr or "").strip()
-            stdout_msg = (verify_proc.stdout or "").strip()
-            detail_msg = stderr_msg if stderr_msg else stdout_msg
             checks.append(
                 CheckItem(
                     name="windows_evidence_verify",
                     required=True,
                     status="FAIL",
-                    detail=f"verifier failed rc={verify_proc.returncode}: {detail_msg}",
+                    detail=summarize_verify_failure(verify_proc, windows_log),
                 )
             )
             next_actions.append("tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify")
