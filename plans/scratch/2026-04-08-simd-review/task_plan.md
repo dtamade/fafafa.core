@@ -4336,7 +4336,21 @@
 | --- | --- | --- |
 | 1. 复核脚本真行为与 active docs 漂移 | completed | 已确认 `closeout-host-local` / `gate-strict` 仍主要消费 `qemu-nonx86-evidence`，而 canonical `gate` / `freeze-status` / `win-closeout-finalize` 另外要求 `qemu-cpuinfo-nonx86-evidence`；`docs/fafafa.core.simd.closeout.md` / `docs/fafafa.core.simd.checklist.md` 仍把两者混写 |
 | 2. 修正文档真相源 | completed | 已同步 `docs/fafafa.core.simd.closeout.md`、`docs/fafafa.core.simd.checklist.md`、`docs/fafafa.core.simd.implementation-matrix.md`：明确 host-local runtime evidence 与 CPUInfo cross evidence 的双轨语义，并把 Windows blocker 更新为 GH run `25967172435` 的 billing/spending-limit 失败 |
-| 3. 最小验证并准备提交 | in_progress | `git diff --check` 已通过；active 文档关键事实已用 `rg` 复核到位。下一步给出简短 review 结论后提交这一批 docs truth-sync |
+| 3. 最小验证并准备提交 | completed | `git diff --check` 与 active 文档关键事实复核后，简短 review + 提交已完成；对应收口提交为 `fb1fd743 simd: sync freeze closeout truth` |
+
+## 2026-05-17 Task2/Task3 Doc Truth Resync
+
+### Goal
+
+继续沿“小闭环”收口一条纯文档/记录层的真实漂移：`checklist` 仍把 `Task 3` 写成 `pending`，`closeout.md` 的 `Task 2 / Task 3` 还停在 `2026-04-14 fresh`，而 scratch `task_plan` 里还残留上一批已经提交后的 `in_progress` 状态。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核这是不是当前真实漂移 | completed | 已用 `check_implementation_matrix_sync.py --summary-line`、`BuildOrTest.sh implementation-matrix-sync`、active docs `rg`、以及 2026-04-19 QEMU summary 实际存在性复核，确认 `implementation-matrix` 当前为绿，但 `checklist` / `closeout` / scratch `task_plan` 仍残留旧恢复点 |
+| 2. 收正 active docs 与 scratch 真相 | completed | `docs/fafafa.core.simd.checklist.md` 已改成“当前已回填完成”的维护顺序，不再机械要求把 `Task 3` 写回 `pending`；`docs/fafafa.core.simd.closeout.md` 的 `Task 2 / Task 3` fresh 事实已同步到 `2026-04-19` 证据；上一批 docs truth-sync 在 scratch `task_plan` 里的遗留 `in_progress` 也已收成 `completed` |
+| 3. 最小验证并准备提交 | completed | 这批不碰实现代码；最小验证以 `implementation-matrix-sync` fresh 绿、目标 summary 文件实际存在、active doc 关键冲突项消失、以及 `git diff --check` 为准 |
 
 ## 2026-05-17 SSE2 Transitional Non-x86 Fail-Close
 

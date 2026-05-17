@@ -189,22 +189,20 @@ QEMU non-x86 runtime evidence 现在就是当前 non-x86 收口主线的一部�
 
 当前 arm64 / riscv64 closeout 的充分证明，仍然以上面这组 fresh `QEMU non-x86 runtime evidence` 为准。
 
-## Task 2 / Task 3 closeout facts (2026-04-14 fresh)
+## Task 2 / Task 3 closeout facts (2026-04-19 fresh)
 
 - `Task 2 / shift-bitwise`：
   - helper semantics：`NONX86_HELPER_SEMANTICS_SUMMARY checks=45 status=ok`
   - implementation audit：`NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
-  - qemu runtime summary: [qemu-multiarch-20260414-083827-1057268/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260414-083827-1057268/summary.md)
-  - closeout runtime summary: [qemu-multiarch-20260414-085109-1103235/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260414-085109-1103235/summary.md)
-  - closeout cpuinfo summary: [qemu-multiarch-20260414-085836-1128552/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260414-085836-1128552/summary.md)
+  - qemu runtime summary: [qemu-multiarch-20260419-012508-1690172/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260419-012508-1690172/summary.md)
+  - qemu cpuinfo summary: [qemu-multiarch-20260419-013630-1748481/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260419-013630-1748481/summary.md)
   - 当前结论：boundary semantics、invalid-count fallback 和 data-plane snapshot 已具备 fresh closeout 证据；下一轮只需要 `hold green`
 - `Task 3 / arithmetic-minmax-mul`：
   - targeted release suites：`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_DirectDispatch,TTestCase_DataPlane` -> `[TEST] OK`
   - helper semantics：`NONX86_HELPER_SEMANTICS_SUMMARY checks=45 status=ok`
   - implementation audit：`NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
-  - qemu runtime summary: [qemu-multiarch-20260414-083827-1057268/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260414-083827-1057268/summary.md)
-  - closeout runtime summary: [qemu-multiarch-20260414-085109-1103235/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260414-085109-1103235/summary.md)
-  - closeout cpuinfo summary: [qemu-multiarch-20260414-085836-1128552/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260414-085836-1128552/summary.md)
+  - qemu runtime summary: [qemu-multiarch-20260419-012508-1690172/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260419-012508-1690172/summary.md)
+  - qemu cpuinfo summary: [qemu-multiarch-20260419-013630-1748481/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260419-013630-1748481/summary.md)
   - 这轮直接证据：
     - `DispatchAPI`：`MulI32x8` / `MulU32x8` low-32 truncation probe，`AddU32x8` / `AddU64x4` / `SubU64x4` lane-tag probe
     - `DirectDispatch` / `DataPlane`：wide arithmetic/minmax 与 dataplane snapshot 已覆盖当前高 ROI family

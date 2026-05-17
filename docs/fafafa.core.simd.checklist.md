@@ -284,9 +284,9 @@ SIMD_OUTPUT_ROOT=/tmp/simd-run-123 bash tests/fafafa.core.simd/BuildOrTest.sh ev
 真正的 Windows 收口主线应优先使用 `win-evidence-via-gh`。
 若走手工 Windows 实机路径，则必须先跑 `FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`，再执行 `win-closeout-finalize`。
 
-## Task 2 / Task 3 文档填充顺序
+## Task 2 / Task 3 维护顺序（当前已回填完成）
 
-如果这轮目标是“Task 2 已收口、Task 3 待补位”，文档回填按下面顺序最省事：
+当前 `docs/fafafa.core.simd.implementation-matrix.md` 已经把 `Task 2 / Task 3` 用 `2026-04-19` fresh evidence 回填完成。下面这组顺序保留给以后再次刷新同类 lane 时复用，不要在没有 fresh regression 的情况下把 `Task 3` 机械写回 `pending`。
 
 1. 先记 `Task 2` 的 fresh 证据键值：
    - `NONX86_HELPER_SEMANTICS_SUMMARY`
@@ -297,15 +297,15 @@ SIMD_OUTPUT_ROOT=/tmp/simd-run-123 bash tests/fafafa.core.simd/BuildOrTest.sh ev
    - 只写已经落盘的结果
    - 把 QEMU 路径写成可点击路径，后续不用二次查 logs
 3. 然后更新 `docs/fafafa.core.simd.implementation-matrix.md`：
-   - 把 `Task 2` 相关 family 的 `runtime evidence` / `current status` 补到 fresh
-   - `Task 3` 相关 family 暂时保留 `pending fresh Task 3 run`
+   - 把相关 family 的 `runtime evidence` / `current status` 补到最新
+   - 只有 fresh red 真落在某个 task family 上，才把对应 `next action` 收回到 `ready-to-refresh`，而不是默认改成 `pending`
 4. 最后再更新 phase2 plan：
-   - `Task 2` 写成已收口
-   - `Task 3` 保持 `pending`，只补执行入口和待填 evidence 位
+   - 只记录已经落盘的事实
+   - 如果旧批次其实已经 commit/push，记得把遗留的 `in_progress` 状态真正收成 `completed`
 
 最重要的一条：
 
-- 没有 fresh runtime evidence，就不要把 `Task 3` 写成 complete；最多写成 `ready-to-fill` 或 `pending`.
+- 没有 fresh runtime evidence，就不要把 task 写成 complete；同样，没有 fresh regression，也不要把已经 green 的 task 回退成 `pending`.
 
 ## 现在不要做什么
 

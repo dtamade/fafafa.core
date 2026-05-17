@@ -6697,6 +6697,23 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 通过，说明删掉 tracked `fafafa.core.simd.test.res` / `test_backend_ops.res` 不会破坏主 `simd` runner 或 standalone smoke
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.intrinsics.mmx/BuildOrTest.sh test` 通过，且 `intrinsics.mmx.test.res` 会被重新生成；配合新 ignore 后，它不再回流成工作树噪音
 
+## 2026-05-17 Task2/Task3 Doc Truth Resync
+
+- 当前浮出的不是新的 SIMD 实现缺陷，而是一条真实的 active-doc / scratch drift：
+  - `docs/fafafa.core.simd.checklist.md` 仍保留“`Task 2` 已收口、`Task 3` 暂时 `pending fresh Task 3 run`”的旧维护指令
+  - `docs/fafafa.core.simd.closeout.md` 的 `Task 2 / Task 3 closeout facts` 标题和 evidence 仍停在 `2026-04-14 fresh`
+  - `plans/scratch/.../task_plan.md` 还残留上一批 docs truth-sync 已经 commit 之后的 `in_progress`
+- 这些旧状态已经被当前实证推翻：
+  - `python3 tests/fafafa.core.simd/check_implementation_matrix_sync.py --summary-line` 返回 `issues=0 status=ok`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh implementation-matrix-sync` fresh 通过
+  - `docs/fafafa.core.simd.implementation-matrix.md` 已明确写明 `Task 2 / Task 3` 都有 `2026-04-19 fresh evidence`
+  - `tests/fafafa.core.simd/logs/qemu-multiarch-20260419-012508-1690172/summary.md` 与 `...013630-1748481/summary.md` 真实存在
+- 因而这批最小正确修法不是再重跑大链，也不是回退 `Task 3` 状态，而是把恢复点同步到当前真相：
+  - checklist 改成“当前已回填完成”的维护顺序
+  - closeout 的 `Task 2 / Task 3` fresh 事实改用 `2026-04-19` 证据
+  - scratch `task_plan` 里上一批已经提交的 docs truth-sync 正式收成 `completed`
+- 这批的价值在于避免下次继续从错误的 `pending` / `in_progress` 恢复点重新开工。
+
 ## 2026-05-17 Intrinsics Coverage Evidence Normalization
 
 - 当前 `intrinsics coverage` 的检查逻辑本身已经能给出正确信号，但在 runner 层仍有一个真实卫生缺口：

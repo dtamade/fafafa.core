@@ -8320,3 +8320,26 @@
 - 当前阶段结论：
   - 这批收掉的是“coverage 证据输出不够稳定”的 runner 卫生问题
   - 它不改变 SIMD 实现语义，但把 `intrinsics coverage` 从一次性控制台输出提升成了可复用、可落盘、可抓取的标准证据
+
+## 2026-05-17 Task2/Task3 Doc Truth Resync
+
+- 继续按“小闭环”推进，这次没有再碰实现代码，而是直接收口一条已经被当前实证推翻的文档恢复点漂移。
+- 先做的不是改文档，而是补证据确认这确实是“文档假待办”：
+  - `python3 tests/fafafa.core.simd/check_implementation_matrix_sync.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh implementation-matrix-sync`
+  - `ls tests/fafafa.core.simd/logs/qemu-multiarch-20260419-012508-1690172/summary.md tests/fafafa.core.simd/logs/qemu-multiarch-20260419-013630-1748481/summary.md`
+- fresh 结果：
+  - `IMPLEMENTATION_MATRIX_SYNC nonx86_slots=22 x86_rows=10 issues=0 status=ok`
+  - active `implementation-matrix` 已明确写明 `Task 2 / Task 3` 都有 `2026-04-19 fresh evidence`
+  - 两个 2026-04-19 QEMU summary 文件都真实存在
+- 随后确认到 3 处旧状态彼此冲突：
+  - `docs/fafafa.core.simd.checklist.md` 还指导“`Task 3` 暂时保留 `pending fresh Task 3 run`”
+  - `docs/fafafa.core.simd.closeout.md` 的 `Task 2 / Task 3 closeout facts` 还停在 `2026-04-14 fresh`
+  - `plans/scratch/.../task_plan.md` 还残留上一批 docs truth-sync 已 commit 之后的 `in_progress`
+- 已落地的收口：
+  - checklist 改成“当前已回填完成”的维护顺序，不再默认把 `Task 3` 写回 `pending`
+  - closeout 的 `Task 2 / Task 3` fresh 事实改用 `2026-04-19` summary
+  - scratch `task_plan` 里上一批已经提交的 docs truth-sync 已正式收成 `completed`
+- 当前阶段结论：
+  - 这批收掉的是恢复点与活跃文档的真相漂移，不是 SIMD 实现 bug
+  - 它能直接减少下次继续审查时的误导性“旧 pending / 旧 in_progress”噪音
