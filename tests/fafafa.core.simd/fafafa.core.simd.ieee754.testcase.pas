@@ -118,6 +118,7 @@ type
     procedure Test_NonX86_RoundTruncFloorCeil_NaNInf_IfAvailable;
     procedure Test_NonX86_NarrowF64x2_RoundTruncFloorCeil_Finite_IfAvailable;
     procedure Test_RISCVV_WideClampF32_SpecialCases_IfAvailable;
+    procedure Test_RISCVV_DotF64_DirectRegisteredTable_SpecialCases_IfRegistered;
     procedure Test_RISCVV_WideRoundTrunc_DirectRegisteredTable_SignedZeroParity_IfRegistered;
     procedure Test_NonX86_F32_ReduceMinMax_SpecialCases_IfAvailable;
     procedure Test_NonX86_F32_WideMinMax_SpecialCases_IfAvailable;
@@ -3349,6 +3350,119 @@ begin
   LMaxValF32x16.f[14] := 1.0;
   LMaxValF32x16.f[15] := 4.0;
   AssertVecParityF32x16('RISCVV ClampF32x16 NaNSecondSignedZero');
+end;
+
+procedure TTestCase_NonX86IEEE754.Test_RISCVV_DotF64_DirectRegisteredTable_SpecialCases_IfRegistered;
+var
+  LScalarTable: TSimdDispatchTable;
+  LRISCVVTable: TSimdDispatchTable;
+  LA2, LB2: TVecF64x2;
+  LA4, LB4: TVecF64x4;
+
+  procedure AssertDoubleSemantics(const aPrefix: string; const aExpected, aActual: Double);
+  begin
+    if IsNaNDouble(aExpected) then
+      AssertTrue(aPrefix + ' expected NaN', IsNaNDouble(aActual))
+    else if IsInfinite(aExpected) then
+      AssertTrue(aPrefix + ' expected Inf sign',
+        IsInfinite(aActual) and ((aActual > 0) = (aExpected > 0)))
+    else
+    begin
+      AssertEquals(aPrefix + ' finite compare', aExpected, aActual, 0.0);
+      if aExpected = 0.0 then
+        AssertTrue(aPrefix + ' zero sign bit',
+          BitsFromDouble(aExpected) = BitsFromDouble(aActual));
+    end;
+  end;
+
+  procedure AssertDotF64x2Case(const aLabel: string; const aA, aB: TVecF64x2);
+  var
+    LExpected: Double;
+    LActual: Double;
+  begin
+    LExpected := LScalarTable.DotF64x2(aA, aB);
+    LActual := LRISCVVTable.DotF64x2(aA, aB);
+    AssertDoubleSemantics('RISCVV direct DotF64x2 ' + aLabel, LExpected, LActual);
+  end;
+
+  procedure AssertDotF64x4Case(const aLabel: string; const aA, aB: TVecF64x4);
+  var
+    LExpected: Double;
+    LActual: Double;
+  begin
+    LExpected := LScalarTable.DotF64x4(aA, aB);
+    LActual := LRISCVVTable.DotF64x4(aA, aB);
+    AssertDoubleSemantics('RISCVV direct DotF64x4 ' + aLabel, LExpected, LActual);
+  end;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+  AssertTrue('RISCVV opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
+  begin
+    AssertTrue('RISCVV backend not registered on this host (allowed)', True);
+    Exit;
+  end;
+  {$ENDIF}
+
+  AssertTrue('RISCVV registered table should provide DotF64 slots',
+    Assigned(LRISCVVTable.DotF64x2) and Assigned(LRISCVVTable.DotF64x4));
+
+  AssertTrue('RISCVV DotF64 registered slots should stay backend-owned in the registered table',
+    (PtrUInt(LScalarTable.DotF64x2) <> PtrUInt(LRISCVVTable.DotF64x2)) and
+    (PtrUInt(LScalarTable.DotF64x4) <> PtrUInt(LRISCVVTable.DotF64x4)));
+
+  LA2.d[0] := NegZeroF64;
+  LA2.d[1] := 2.0;
+  LB2.d[0] := 1.0;
+  LB2.d[1] := 0.0;
+  AssertDotF64x2Case('signed-zero lane', LA2, LB2);
+
+  LA2.d[0] := PosInfF64;
+  LA2.d[1] := 1.0;
+  LB2.d[0] := 1.0;
+  LB2.d[1] := 0.0;
+  AssertDotF64x2Case('positive-inf lane', LA2, LB2);
+
+  LA2.d[0] := NaNF64;
+  LA2.d[1] := 3.0;
+  LB2.d[0] := 1.0;
+  LB2.d[1] := 2.0;
+  AssertDotF64x2Case('nan lane', LA2, LB2);
+
+  LA4.d[0] := NegZeroF64;
+  LA4.d[1] := 0.0;
+  LA4.d[2] := 4.0;
+  LA4.d[3] := -4.0;
+  LB4.d[0] := 1.0;
+  LB4.d[1] := 0.0;
+  LB4.d[2] := 0.0;
+  LB4.d[3] := 0.0;
+  AssertDotF64x4Case('signed-zero lane', LA4, LB4);
+
+  LA4.d[0] := PosInfF64;
+  LA4.d[1] := 1.0;
+  LA4.d[2] := 2.0;
+  LA4.d[3] := 3.0;
+  LB4.d[0] := 1.0;
+  LB4.d[1] := 0.0;
+  LB4.d[2] := 0.0;
+  LB4.d[3] := 0.0;
+  AssertDotF64x4Case('positive-inf lane', LA4, LB4);
+
+  LA4.d[0] := NaNF64;
+  LA4.d[1] := 1.0;
+  LA4.d[2] := 2.0;
+  LA4.d[3] := 3.0;
+  LB4.d[0] := 1.0;
+  LB4.d[1] := 0.0;
+  LB4.d[2] := 0.0;
+  LB4.d[3] := 0.0;
+  AssertDotF64x4Case('nan lane', LA4, LB4);
 end;
 
 procedure TTestCase_NonX86IEEE754.Test_RISCVV_WideRoundTrunc_DirectRegisteredTable_SignedZeroParity_IfRegistered;

@@ -11800,3 +11800,56 @@
   - `RISCVV wide Round/Trunc` 这批最终证明确实不是 fresh runtime bug
   - direct registered-table parity 已证明当前 contract 不依赖那 8 份 local no-asm loop
   - 所以这批已经从“audit truth 修正”进一步收口成“冗余 fallback collapse”
+
+## 2026-05-18 RISCVV DotF64 No-Asm Fallback Collapse
+
+- 继续顺着 `RISCVV` 剩余 truth-source / redundancy 面往下看后，发现 `DotF64x2 / DotF64x4` 是另一组高价值 residual：
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - no-asm body 之前仍保留本地公式
+  - `src/fafafa.core.simd.scalar.pas`
+    - `ScalarDotF64x2 / ScalarDotF64x4` 与这两份本地公式在当前仓库里是同构实现
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 之前甚至还有一条过时的 source-shape 断言，硬性要求它们“不能 scalar forward”
+- 这批没有直接拍脑袋删壳，而是先补了 fresh runtime 取证：
+  - `tests/fafafa.core.simd/fafafa.core.simd.ieee754.testcase.pas`
+  - 新增 `Test_RISCVV_DotF64_DirectRegisteredTable_SpecialCases_IfRegistered`
+  - 直接走：
+    - `TryGetRegisteredBackendDispatchTable(sbScalar, ...)`
+    - `TryGetRegisteredBackendDispatchTable(sbRISCVV, ...)`
+  - 对 `DotF64x2 / DotF64x4` 做 direct registered-table 特殊值对位
+  - 覆盖了：
+    - `signed-zero`
+    - `+Inf`
+    - `NaN`
+- fresh runtime 结果先给出关键结论：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NonX86IEEE754`
+  - `BUILD/TEST/LEAK` 全绿
+  - `DotF64x2 / DotF64x4` 的 direct registered-table special-case parity 没有 fresh drift
+  - 同时 `sbRISCVV` registered table 这两格仍保持 distinct function pointer，不是直接复用 `sbScalar` register entry
+- 因而这批的源码/护栏收口成立：
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - 把 `RISCVVDotF64x2 / RISCVVDotF64x4` 的 no-asm body 收成：
+      - `Result := ScalarDotF64x2(a, b);`
+      - `Result := ScalarDotF64x4(a, b);`
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 补进这两格的 `riscvv_facade_source` scalar-forward truth
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 把过时的 `...Does_Not_ScalarForward` 断言翻正成新的 `...ScalarForwards`
+- 本批串行 release 验证已经 fresh 跑通：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_NonX86IEEE754`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=690 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `TTestCase_NonX86IEEE754` `BUILD/TEST/LEAK` 全绿
+  - Release `TTestCase_DispatchAPI` `BUILD/TEST/LEAK` 全绿
+  - Release `check` 通过
+- 当前阶段结论：
+  - `RISCVV DotF64x2 / DotF64x4` 这批收掉的是真实 no-asm facade 冗余，不是 fresh runtime bug
+  - direct registered-table parity 已证明当前 contract 不需要保留那两份 no-asm 本地公式
+  - 但 `register truth / key-slot ownership` 仍保持 `RISCVV` backend-owned 口径；这批不触碰 slot ownership，只收紧 no-asm 真源

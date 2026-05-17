@@ -999,6 +999,13 @@ def main() -> int:
             ]
         )
 
+    riscvv_scalar_forwarder_expectations.extend(
+        [
+            ("RISCVVDotF64x2", "ScalarDotF64x2(a, b)"),
+            ("RISCVVDotF64x4", "ScalarDotF64x4(a, b)"),
+        ]
+    )
+
     routine_expectations.extend(
         (riscvv_facade_source, routine_name, [f"Result := {scalar_call};"])
         for routine_name, scalar_call in riscvv_scalar_forwarder_expectations

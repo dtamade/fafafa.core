@@ -8562,3 +8562,27 @@
   - 第一个答案是“是”
   - 第二个答案在当前 contract 下是“否”
 - 所以 `RISCVV wide Round/Trunc` 现在不应再被描述成“需要保留 local no-asm semantics 的特殊槽位”，而应被视为一组已经拿到 direct runtime 证据、可以正式去冗余的 fallback loops。
+
+## 2026-05-18 RISCVV DotF64 No-Asm Formulas Were Redundant Even Though Slot Ownership Stays Backend-Owned
+
+- `RISCVVDotF64x2 / RISCVVDotF64x4` 这批最容易混淆的点在于：
+  - `no-asm facade body` 是否必须保留本地公式
+  - 和 `registered table / key-slot` 是否仍应保持 `RISCVV` backend-owned 身份
+  - 这是两件事，不该再绑死成同一个结论
+- fresh direct runtime 证据已经把第一件事讲清楚了：
+  - `TTestCase_NonX86IEEE754.Test_RISCVV_DotF64_DirectRegisteredTable_SpecialCases_IfRegistered`
+  - 直接对位 `sbScalar` / `sbRISCVV` registered table
+  - `signed-zero / +Inf / NaN` 上都与 scalar 保持一致
+- 这说明当前 contract 的关键不是“no-asm body 必须自己手写一份公式”，而是：
+  - registered table 里仍有 distinct `RISCVV` entry
+  - direct runtime 语义与 scalar 一致
+  - source-side helper guard 要明确钉住当前真正生效的 no-asm body
+- 因而这两格现在最准确的结构应写成：
+  - no-asm source truth：`riscvv.facade.inc` 直接 `ScalarDotF64x2 / ScalarDotF64x4` forward
+  - register/key-slot truth：仍保持 `RISCVV` backend-owned slot
+  - audit/truth guard：helper semantics 必须显式检查 facade scalar-forward，而不能再依赖那条“不得 scalar forward”的旧断言
+- 这条 finding 的关键价值是把一个过时假设清掉：
+  - “backend-owned slot” 不等于 “no-asm body 也必须手写本地公式”
+- 当前更准确的 stop-point 是：
+  - `DotF64x2 / DotF64x4` 的 no-asm 冗余已经收掉
+  - 它们是否仍属于 `RISCVV` key-slot/backend-owned family，这个答案依然是“是”

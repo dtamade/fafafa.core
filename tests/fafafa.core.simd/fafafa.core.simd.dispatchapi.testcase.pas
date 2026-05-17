@@ -166,7 +166,7 @@ type
     procedure Test_NEON_NoAsmIntegerFallbackSlots_Reuse_BaseScalar_When_Wrappers_Are_Not_BackendOwned;
     procedure Test_NEON_SelectF32x4_AsmEnabledSource_Does_Not_ScalarForward;
     procedure Test_NEON_AndNotSlots_Keep_AsmOwnedCompositions_And_RuntimeOwnership;
-    procedure Test_RISCVV_FacadeDotF64_NoAsmSource_Does_Not_ScalarForward;
+    procedure Test_RISCVV_FacadeDotF64_NoAsmSource_ScalarForwards;
     procedure Test_RISCVV_FacadeSlots_Reuse_BaseScalar_When_Wrappers_Are_ScalarPassThrough;
     procedure Test_RISCVV_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_RISCVV_ExtractSlots_Keep_NoAsmCompanionWrappers_And_RuntimeOwnership;
@@ -8582,7 +8582,7 @@ begin
   {$ENDIF}
 end;
 
-procedure TTestCase_DispatchAPI.Test_RISCVV_FacadeDotF64_NoAsmSource_Does_Not_ScalarForward;
+procedure TTestCase_DispatchAPI.Test_RISCVV_FacadeDotF64_NoAsmSource_ScalarForwards;
 var
   LSourceLines: TStringList;
   LFacadeSourcePath: string;
@@ -8599,10 +8599,10 @@ begin
     LSourceLines.Free;
   end;
 
-  AssertTrue('no-asm RISCVVDotF64x2 should not forward directly to ScalarDotF64x2',
-    Pos('result := scalardotf64x2(a, b);', LFacadeSource) = 0);
-  AssertTrue('no-asm RISCVVDotF64x4 should not forward directly to ScalarDotF64x4',
-    Pos('result := scalardotf64x4(a, b);', LFacadeSource) = 0);
+  AssertTrue('no-asm RISCVVDotF64x2 should forward directly to ScalarDotF64x2 after direct parity proof',
+    Pos('result := scalardotf64x2(a, b);', LFacadeSource) > 0);
+  AssertTrue('no-asm RISCVVDotF64x4 should forward directly to ScalarDotF64x4 after direct parity proof',
+    Pos('result := scalardotf64x4(a, b);', LFacadeSource) > 0);
 end;
 
 procedure TTestCase_DispatchAPI.Test_RISCVV_FacadeSlots_Reuse_BaseScalar_When_Wrappers_Are_ScalarPassThrough;

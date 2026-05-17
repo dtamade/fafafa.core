@@ -334,12 +334,12 @@ end;
 
 function RISCVVDotF64x2(const a, b: TVecF64x2): Double;
 begin
-  Result := (a.d[0] * b.d[0]) + (a.d[1] * b.d[1]);
+  Result := ScalarDotF64x2(a, b);
 end;
 
 function RISCVVDotF64x4(const a, b: TVecF64x4): Double;
 begin
-  Result := (a.d[0] * b.d[0]) + (a.d[1] * b.d[1]) + (a.d[2] * b.d[2]) + (a.d[3] * b.d[3]);
+  Result := ScalarDotF64x4(a, b);
 end;
 
 function RISCVVCrossF32x3(const a, b: TVecF32x4): TVecF32x4;
