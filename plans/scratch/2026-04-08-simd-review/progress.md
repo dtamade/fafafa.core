@@ -8707,3 +8707,31 @@
 - 当前阶段结论：
   - 这批收掉的是默认 `check` 对 `register-truthfulness` 的宽松模式残留
   - 现在日常 `check` 与当前 closeout truth 更一致，新增 always-context wrapper drift 更早会被 fail-close
+
+## 2026-05-17 Runner-Parity Check-Lane Coverage Fill
+
+- 在把默认 `check` 的 `register-truthfulness` 升到 strict 之后，我继续追了一步：`runner-parity` 自己有没有真的守住这条默认 lane。
+- 复核后确认当前还有一个更窄但真实的 guard gap：
+  - `check_windows_runner_parity()` 已经守 action/help/alias，也守了 `nonx86-optin` 与 `wiring-sync` 的 batch 分支
+  - 但它还没有钉住默认 `check` 里最近几次刚收正过的几条关键信号：
+    - batch `Backend adapter sync (python-only)`
+    - `call :register_truthfulness_check 1`
+    - experimental isolation 分支
+  - 这意味着将来即使 batch `check` 把这些线悄悄改回旧口径，`runner-parity` 也可能继续报绿
+- 已落地的最小修法：
+  - 在 `tests/fafafa.core.simd/BuildOrTest.sh` 的 `check_windows_runner_parity()` required pattern 集里，新增：
+    - adapter-sync python-only 这组 batch `check` 行
+    - `call :register_truthfulness_check 1`
+    - experimental isolation 分支与调用
+- fresh 验证已完成：
+  - `git diff --check`
+  - `bash -n tests/fafafa.core.simd/BuildOrTest.sh`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `runner-parity` 继续 `[CHECK] OK`
+  - Release `check` 继续通过
+  - 说明这次补的是 parity 守卫覆盖，而不是又引入新行为
+- 当前阶段结论：
+  - 这批收掉的不是 batch `check` 的执行缺口，而是 `runner-parity` 对默认 `check` lane 的覆盖缺口
+  - 以后如果 batch 把这几条默认静态 guard 悄悄改回去，parity guard 会更早 fail-close

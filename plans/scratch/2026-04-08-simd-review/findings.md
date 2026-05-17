@@ -7002,3 +7002,14 @@
   - `backend=neon ... miswired=0 unused_allowlist=0 strict=1`
   - `backend=riscvv ... miswired=0 unused_allowlist=0 strict=1`
 - 因而最小正确修法是把默认 `check` 直接升级到 strict，并同步 batch parity 与维护文档，而不是继续保留两套口径。
+
+## 2026-05-17 Runner-Parity Did Not Yet Guard The Default `check` Lane
+
+- 在把默认 `check` 收正为 `register-truthfulness --strict` 之后，`runner-parity` 仍有一层更细的覆盖缺口：
+  - 它已经守 action/help/alias，也守了一部分 batch `check` 默认分支
+  - 但还没有要求 batch `check` 明确保留：
+    - `Backend adapter sync (python-only)` 那组 python-only 收口
+    - `call :register_truthfulness_check 1`
+    - experimental isolation 分支
+- 这类缺口的风险不是当前执行错，而是将来 batch 默认 `check` 退回旧口径时，`runner-parity` 仍可能继续通过。
+- 因而最小正确修法不是再改执行逻辑，而是补齐 parity required patterns，让这几条默认 lane 也进入 fail-close 保护。
