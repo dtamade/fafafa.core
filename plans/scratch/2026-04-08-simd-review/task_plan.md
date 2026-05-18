@@ -5085,3 +5085,17 @@
 | 1. 新增 `insert/extract_epi16` representative proof | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `Test_InsertExtractEpi16_UseLow3BitsOfImmediate`，直接覆盖 `imm=9/15/200` 这类不在 `0..7` 的 lane 选择 |
 | 2. 根据 fresh 红点翻出并修正 source truth | completed | 新 proof 首次失败在 `simd_insert_epi16 keep lane 0 expected 100 but was 43981`，证明 `imm=9` 错落 lane0；对位 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 后确认 `simd_insert_epi16` / `simd_extract_epi16` 之前都只显式处理 `0..7`，超范围直接默认 lane0。现已改成 `imm8 and $7` 的明确 Pascal 语义实现 |
 | 3. 重跑 experimental lane 并补主线 release smoke/check | completed | `git diff --check`、experimental=`0/1` 两套 `BuildOrTest.sh test`、Release `impl-smoke-x86`、Release `check` 全部 fresh 通过；关键结果包括 experimental 双绿、`SSE2_IMPL_SMOKE_SUMMARY steps=5 ... status=ok`、`X86_IMPL_SMOKE_SUMMARY steps=2 ... status=ok`，以及 Release `check` 退出码 `0` |
+
+## 2026-05-18 SSE2 Integer Shift Immediate Qualification Coverage Expansion
+
+### Goal
+
+继续沿 `SSE2 raw-leaf qualification` 小批次推进，但这次不先猜实现，而是先补齐当前明显缺失的 `integer shift immediate` representative proof：把 `slli/srli/srai` 的 `epi16/epi32/epi64` 边界计数语义钉住，避免 `retire baseline` 在这条 family 上仍缺代表性证据。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前 `integer shift immediate` coverage 缺口 | completed | 已确认 `tests/fafafa.core.simd.intrinsics.experimental/` 目前只系统覆盖了 `slli_epi16` 与 `slli/srli/srai_si128`，还缺 `slli_epi32/slli_epi64/srli_epi16/srli_epi32/srli_epi64/srai_epi16/srai_epi32` 这组 raw leaf 的边界计数 proof |
+| 2. 只补 representative proof，不扩实现范围 | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `ArithmeticShiftRightI16/I32` helper、`ExpectSlli/Srli/SraiEpi*` helper，以及 `Test_IntegerLogicalShiftFamilies_RespectImmediateBounds`、`Test_IntegerArithmeticShiftFamilies_RespectImmediateBounds`；直接覆盖 `0/1/7/15/16/17/31/32/33/63/64/65/200` 这类边界计数 |
+| 3. 跑完 experimental lane 双配置与主线 release check | completed | `git diff --check`、`bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`、`FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 .../BuildOrTest.sh test`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 全部 fresh 通过；本批没有再炸出 source bug，但把一组此前缺失的 SSE2 raw semantic 护栏正式补齐 |

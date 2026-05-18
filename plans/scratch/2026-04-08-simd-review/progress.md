@@ -12895,3 +12895,54 @@
   - `SSE2` immediate leaf 的真实缺陷已经从 `shuffle*` 扩展到 `insert/extract`，并在这一批里一并修正
   - 当前 `SSE2 raw-leaf qualification` 对“带 immediate 的 lane-select primitive”已经形成了更像样的一组 proof
   - 下一步如果继续收这条线，优先应该回到 `retire baseline` 看还有哪些 raw family 仍无代表性 proof，而不是继续凭感觉扫实现
+
+## 2026-05-18 SSE2 Integer Shift Immediate Qualification Coverage Expansion
+
+- 这批没有重开 source 迁移讨论，也没有先碰 `simd.sse2` adapter；先把当前最明显的 proof 缺口补齐。
+- 复核 `tests/fafafa.core.simd.intrinsics.experimental/` 后确认，`SSE2 integer shift immediate` 这条线此前只有：
+  - `simd_slli_epi16`
+  - `simd_slli_si128 / simd_srli_si128 / simd_srai_si128`
+  - 被系统钉住
+- 也就是说，下面这组 raw leaf 一直缺代表性边界计数 proof：
+  - `simd_slli_epi32`
+  - `simd_slli_epi64`
+  - `simd_srli_epi16`
+  - `simd_srli_epi32`
+  - `simd_srli_epi64`
+  - `simd_srai_epi16`
+  - `simd_srai_epi32`
+- 本批落地内容只在一个文件里，保持 bounded：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 `ArithmeticShiftRightI16`
+    - 新增 `ArithmeticShiftRightI32`
+    - 新增 `ExpectSlliEpi32`
+    - 新增 `ExpectSlliEpi64`
+    - 新增 `ExpectSrliEpi16`
+    - 新增 `ExpectSrliEpi32`
+    - 新增 `ExpectSrliEpi64`
+    - 新增 `ExpectSraiEpi16`
+    - 新增 `ExpectSraiEpi32`
+    - 新增 `Test_IntegerLogicalShiftFamilies_RespectImmediateBounds`
+    - 新增 `Test_IntegerArithmeticShiftFamilies_RespectImmediateBounds`
+- 新 proof 直接锁住一组典型边界计数：
+  - `0/1/7/15/16/17`
+  - `15/16/31/32/33`
+  - `31/32/63/64/65`
+  - `200`
+- 也就是说，这批不是只验证“正常值能跑”，而是明确验证：
+  - logical shift 在 `count >= lane width` 时归零
+  - arithmetic shift 在 `count >= lane width` 时饱和到 sign-fill
+  - 中间边界位数在 `16/32/64` 前后不会发生 host-dependent 漂移
+- 这次 fresh 验证没有再打出新的 source bug：
+  - `git diff --check`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- 关键结果：
+  - experimental=`0`：`[TEST] OK`
+  - experimental=`1`：`[TEST] OK`
+  - Release `check`：退出码 `0`
+- 当前阶段结论：
+  - 这批修掉的不是 source 逻辑，而是 `SSE2 raw-leaf qualification` 的一个真实缺口：之前没有足够 proof 约束 integer shift immediate 家族
+  - 现在 `SSE2` 对 `immediate/count-sensitive leaf` 的证据已经从 `shuffle*`、`insert/extract_epi16` 继续扩到了整数 shift 家族
+  - 下一步如果继续按建议推进，应回到 `retire baseline`，找下一组“仍缺 representative proof 或仍可能有 immediate/count 语义漂移”的 raw family，而不是重新撒网

@@ -872,6 +872,169 @@ begin
   Result := Byte(aValue);
 end;
 
+function ArithmeticShiftRightI16(const aValue: SmallInt; const aShift: Integer): SmallInt;
+var
+  LBits: Word;
+  LStep: Integer;
+begin
+  if aShift <= 0 then
+    Exit(aValue);
+  if aShift >= 16 then
+  begin
+    if aValue < 0 then
+      Exit(-1);
+    Exit(0);
+  end;
+
+  LBits := Word(aValue);
+  for LStep := 1 to aShift do
+    if (LBits and $8000) <> 0 then
+      LBits := (LBits shr 1) or $8000
+    else
+      LBits := LBits shr 1;
+  Result := SmallInt(LBits);
+end;
+
+function ArithmeticShiftRightI32(const aValue: LongInt; const aShift: Integer): LongInt;
+var
+  LBits: DWord;
+  LStep: Integer;
+begin
+  if aShift <= 0 then
+    Exit(aValue);
+  if aShift >= 32 then
+  begin
+    if aValue < 0 then
+      Exit(-1);
+    Exit(0);
+  end;
+
+  LBits := DWord(aValue);
+  for LStep := 1 to aShift do
+    if (LBits and $80000000) <> 0 then
+      LBits := (LBits shr 1) or $80000000
+    else
+      LBits := LBits shr 1;
+  Result := LongInt(LBits);
+end;
+
+procedure ExpectSlliEpi32(aTest: TTestCase; const aValue: TM128; aShift: Byte);
+var
+  LExpected: TM128;
+  LActual: TM128;
+  LShift: Integer;
+  LLane: Integer;
+begin
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LShift := aShift;
+  if LShift < 32 then
+    for LLane := 0 to 3 do
+      LExpected.m128i_u32[LLane] := DWord(aValue.m128i_u32[LLane]) shl LShift;
+
+  LActual := simd_slli_epi32(aValue, aShift);
+  AssertM128BytesEqual(aTest, 'simd_slli_epi32 shift=' + IntToStr(aShift), LExpected, LActual);
+end;
+
+procedure ExpectSlliEpi64(aTest: TTestCase; const aValue: TM128; aShift: Byte);
+var
+  LExpected: TM128;
+  LActual: TM128;
+  LShift: Integer;
+  LLane: Integer;
+begin
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LShift := aShift;
+  if LShift < 64 then
+    for LLane := 0 to 1 do
+      LExpected.m128i_u64[LLane] := QWord(aValue.m128i_u64[LLane]) shl LShift;
+
+  LActual := simd_slli_epi64(aValue, aShift);
+  AssertM128BytesEqual(aTest, 'simd_slli_epi64 shift=' + IntToStr(aShift), LExpected, LActual);
+end;
+
+procedure ExpectSrliEpi16(aTest: TTestCase; const aValue: TM128; aShift: Byte);
+var
+  LExpected: TM128;
+  LActual: TM128;
+  LShift: Integer;
+  LLane: Integer;
+begin
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LShift := aShift;
+  if LShift < 16 then
+    for LLane := 0 to 7 do
+      LExpected.m128i_u16[LLane] := aValue.m128i_u16[LLane] shr LShift;
+
+  LActual := simd_srli_epi16(aValue, aShift);
+  AssertM128BytesEqual(aTest, 'simd_srli_epi16 shift=' + IntToStr(aShift), LExpected, LActual);
+end;
+
+procedure ExpectSrliEpi32(aTest: TTestCase; const aValue: TM128; aShift: Byte);
+var
+  LExpected: TM128;
+  LActual: TM128;
+  LShift: Integer;
+  LLane: Integer;
+begin
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LShift := aShift;
+  if LShift < 32 then
+    for LLane := 0 to 3 do
+      LExpected.m128i_u32[LLane] := aValue.m128i_u32[LLane] shr LShift;
+
+  LActual := simd_srli_epi32(aValue, aShift);
+  AssertM128BytesEqual(aTest, 'simd_srli_epi32 shift=' + IntToStr(aShift), LExpected, LActual);
+end;
+
+procedure ExpectSrliEpi64(aTest: TTestCase; const aValue: TM128; aShift: Byte);
+var
+  LExpected: TM128;
+  LActual: TM128;
+  LShift: Integer;
+  LLane: Integer;
+begin
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LShift := aShift;
+  if LShift < 64 then
+    for LLane := 0 to 1 do
+      LExpected.m128i_u64[LLane] := aValue.m128i_u64[LLane] shr LShift;
+
+  LActual := simd_srli_epi64(aValue, aShift);
+  AssertM128BytesEqual(aTest, 'simd_srli_epi64 shift=' + IntToStr(aShift), LExpected, LActual);
+end;
+
+procedure ExpectSraiEpi16(aTest: TTestCase; const aValue: TM128; aShift: Byte);
+var
+  LExpected: TM128;
+  LActual: TM128;
+  LShift: Integer;
+  LLane: Integer;
+begin
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LShift := aShift;
+  for LLane := 0 to 7 do
+    LExpected.m128i_i16[LLane] := ArithmeticShiftRightI16(aValue.m128i_i16[LLane], LShift);
+
+  LActual := simd_srai_epi16(aValue, aShift);
+  AssertM128BytesEqual(aTest, 'simd_srai_epi16 shift=' + IntToStr(aShift), LExpected, LActual);
+end;
+
+procedure ExpectSraiEpi32(aTest: TTestCase; const aValue: TM128; aShift: Byte);
+var
+  LExpected: TM128;
+  LActual: TM128;
+  LShift: Integer;
+  LLane: Integer;
+begin
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LShift := aShift;
+  for LLane := 0 to 3 do
+    LExpected.m128i_i32[LLane] := ArithmeticShiftRightI32(aValue.m128i_i32[LLane], LShift);
+
+  LActual := simd_srai_epi32(aValue, aShift);
+  AssertM128BytesEqual(aTest, 'simd_srai_epi32 shift=' + IntToStr(aShift), LExpected, LActual);
+end;
+
 procedure ExpectSlliSi128(aTest: TTestCase; const aValue: TM128; aShift: Byte);
 var
   LExpected: TM128;
@@ -956,6 +1119,8 @@ type
     procedure Test_FloatArithmeticLaneSemantics;
     procedure Test_LoadStore_Roundtrip;
     procedure Test_SlliEpi16_ShiftCounts;
+    procedure Test_IntegerLogicalShiftFamilies_RespectImmediateBounds;
+    procedure Test_IntegerArithmeticShiftFamilies_RespectImmediateBounds;
   end;
 
   TTestCase_X86Sse2PackShuffleBasics = class(TTestCase)
@@ -1240,6 +1405,81 @@ begin
     LActual := simd_slli_epi16(LValue, SHIFTS[LShiftIndex]);
     AssertM128BytesEqual(Self, 'simd_slli_epi16 shift=' + IntToStr(SHIFTS[LShiftIndex]), LExpected, LActual);
   end;
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_IntegerLogicalShiftFamilies_RespectImmediateBounds;
+const
+  SHIFTS16: array[0..6] of Byte = (0, 1, 7, 15, 16, 17, 200);
+  SHIFTS32: array[0..7] of Byte = (0, 1, 15, 16, 31, 32, 33, 200);
+  SHIFTS64: array[0..7] of Byte = (0, 1, 31, 32, 63, 64, 65, 200);
+var
+  LValue16: TM128;
+  LValue32: TM128;
+  LValue64: TM128;
+  LIndex: Integer;
+begin
+  FillChar(LValue16, SizeOf(LValue16), 0);
+  for LIndex := 0 to 7 do
+    LValue16.m128i_u16[LIndex] := Word((LIndex * 257) xor $A55A);
+
+  FillChar(LValue32, SizeOf(LValue32), 0);
+  LValue32.m128i_u32[0] := DWord($89ABCDEF);
+  LValue32.m128i_u32[1] := DWord($01234567);
+  LValue32.m128i_u32[2] := DWord($F0F0CC33);
+  LValue32.m128i_u32[3] := DWord($13579BDF);
+
+  FillChar(LValue64, SizeOf(LValue64), 0);
+  LValue64.m128i_u64[0] := QWord($0123456789ABCDEF);
+  LValue64.m128i_u64[1] := QWord($F0E1D2C3B4A59687);
+
+  for LIndex := Low(SHIFTS16) to High(SHIFTS16) do
+  begin
+    ExpectSrliEpi16(Self, LValue16, SHIFTS16[LIndex]);
+  end;
+
+  for LIndex := Low(SHIFTS32) to High(SHIFTS32) do
+  begin
+    ExpectSlliEpi32(Self, LValue32, SHIFTS32[LIndex]);
+    ExpectSrliEpi32(Self, LValue32, SHIFTS32[LIndex]);
+  end;
+
+  for LIndex := Low(SHIFTS64) to High(SHIFTS64) do
+  begin
+    ExpectSlliEpi64(Self, LValue64, SHIFTS64[LIndex]);
+    ExpectSrliEpi64(Self, LValue64, SHIFTS64[LIndex]);
+  end;
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_IntegerArithmeticShiftFamilies_RespectImmediateBounds;
+const
+  SHIFTS16: array[0..6] of Byte = (0, 1, 7, 15, 16, 17, 200);
+  SHIFTS32: array[0..7] of Byte = (0, 1, 15, 16, 31, 32, 33, 200);
+var
+  LValue16: TM128;
+  LValue32: TM128;
+  LIndex: Integer;
+begin
+  FillChar(LValue16, SizeOf(LValue16), 0);
+  LValue16.m128i_i16[0] := -32768;
+  LValue16.m128i_i16[1] := -12345;
+  LValue16.m128i_i16[2] := -1;
+  LValue16.m128i_i16[3] := 0;
+  LValue16.m128i_i16[4] := 1;
+  LValue16.m128i_i16[5] := 12345;
+  LValue16.m128i_i16[6] := 16384;
+  LValue16.m128i_i16[7] := 32767;
+
+  FillChar(LValue32, SizeOf(LValue32), 0);
+  LValue32.m128i_i32[0] := LongInt($80000000);
+  LValue32.m128i_i32[1] := -123456789;
+  LValue32.m128i_i32[2] := 123456789;
+  LValue32.m128i_i32[3] := LongInt($7FFFFFFF);
+
+  for LIndex := Low(SHIFTS16) to High(SHIFTS16) do
+    ExpectSraiEpi16(Self, LValue16, SHIFTS16[LIndex]);
+
+  for LIndex := Low(SHIFTS32) to High(SHIFTS32) do
+    ExpectSraiEpi32(Self, LValue32, SHIFTS32[LIndex]);
 end;
 
 procedure TTestCase_X86Sse2PackShuffleBasics.Test_UnpackLaneInterleaving;
