@@ -13437,3 +13437,63 @@
   - 如果继续沿这条路推进，下一步更自然的是：
     - 单独切 `min_pd/max_pd/min_sd/max_sd`，必要时先补 host truth 再下 proof
     - 或回到更便宜的 `shuffle/pack` 邻近 residual，不重开 whole-module 话题
+
+## 2026-05-18 SSE2 Double MinMax NaN And Signed-Zero Semantic Repair
+
+- 这批没有凭感觉直接写测试，而是先用本机 `cc -msse2` 跑了一个最小 C probe，把 `double min/max` 的真实合同钉死，避免把 `NaN` 和 `signed-zero` 语义猜错。
+- host truth probe 先确认了 3 类关键事实：
+  - finite packed/scalar case：正常按数值选最小/最大
+  - `NaN` case：`min_pd/max_pd/min_sd/max_sd` 的 low lane 都返回 source operand(`b`) 对应位模式
+  - `+0.0/-0.0` 同为零的 case：结果同样返回 source operand(`b`) 的符号位
+  - scalar 版本除 low lane 外，high lane 必须完整保留 `a`
+- 本批先只补 proof：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 `Test_DoubleMinMaxFamilies_HostTruthSemantics`
+  - 这条测试直接覆盖：
+    - `simd_min_pd`
+    - `simd_max_pd`
+    - `simd_min_sd`
+    - `simd_max_sd`
+- fresh 红点不是断言失败，而是更真实的 source defect：
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 首次失败：
+    - `TTestCase_X86Sse2AbiBasics.Test_DoubleMinMaxFamilies_HostTruthSemantics`
+    - `Exception: EInvalidOp`
+  - 也就是当前 `double min/max` family 在 `NaN` 路径上会把 SSE `min/max` 的异常直接暴露给调用侧，而不是稳定返回 intrinsic-style 结果
+- source 对位后确认问题集中在 4 个 leaf：
+  - `src/fafafa.core.simd.intrinsics.x86.sse2.pas`
+    - `simd_min_pd`
+    - `simd_max_pd`
+    - `simd_min_sd`
+    - `simd_max_sd`
+  - 旧实现都还是 raw `minpd/maxpd/minsd/maxsd` 直译
+- 本批修复方式保持 family-bounded：
+  - 引入 `TSimdDoubleMinMaxKind`
+  - 引入 `IsZeroFloat64Bits`
+  - 引入 `SelectDoubleMinMaxBits`
+  - 再用 `BuildPackedDoubleMinMax` / `BuildScalarDoubleMinMax` 统一生成 packed/scalar 结果
+  - 新 helper 直接按 host truth 处理：
+    - `NaN` 返回 source operand(`b`) 对应位模式
+    - `signed-zero` 两零 case 返回 source operand(`b`) 的符号位
+    - scalar helper 保持 `a` 的 high lane
+  - 这次没有扩到 `min_ps/max_ps`，也没有碰 façade/dispatch/runtime
+- 本批 fresh 验证：
+  - `git diff --check`
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- 关键结果：
+  - 首轮 `experimental=1`：真实红点 `EInvalidOp`
+  - 修复后 experimental=`1`：`[TEST] OK`
+  - 修复后 experimental=`0`：`[TEST] OK`
+  - 修复后 Release `check`：退出码 `0`
+- 当前阶段结论：
+  - 这批已经不只是补 `SSE2 double min/max` 证明面，而是借 host-truth-driven proof 抓出并修掉了一簇真实的 `NaN / signed-zero / scalar preserve` 语义缺陷
+  - 到这一刻为止，`SSE2` 的 double 浮点语义 proof 已经进一步覆盖到：
+    - `add/mul/sqrt`
+    - `double compare` NaN/complement masks
+    - ordered packed/scalar compare residual
+    - `double min/max` NaN/signed-zero/scalar preserve
+  - 如果继续沿这条路推进，下一步更自然的是：
+    - 再看 `min_ps/max_ps` 或其他 `double` 邻近 leaf 是否也需要同类 host-truth proof
+    - 或回到更便宜的 `pack/shuffle` 邻近 residual，不重开 whole-module 讨论

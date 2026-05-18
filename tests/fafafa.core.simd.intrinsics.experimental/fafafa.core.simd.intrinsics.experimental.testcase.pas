@@ -1128,6 +1128,7 @@ type
     procedure Test_SettersAndCastsPreserveLaneOrder;
     procedure Test_FloatArithmeticLaneSemantics;
     procedure Test_SqrtFamilies_RespectLaneAndPreserveContracts;
+    procedure Test_DoubleMinMaxFamilies_HostTruthSemantics;
     procedure Test_LoadStore_Roundtrip;
     procedure Test_PartialLaneLoadStoreMoveSemantics;
     procedure Test_ConversionFamilies_PreserveExpectedLanes;
@@ -1410,6 +1411,103 @@ begin
   LActual := simd_sqrt_sd(LA, LB);
   AssertEquals('simd_sqrt_sd low lane', 6.0, LActual.m128d_f64[0], 0.0);
   AssertEquals('simd_sqrt_sd keep high lane', 88.0, LActual.m128d_f64[1], 0.0);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_DoubleMinMaxFamilies_HostTruthSemantics;
+var
+  LA: TM128;
+  LB: TM128;
+  LActual: TM128;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := 3.0;
+  LA.m128d_f64[1] := 7.0;
+  LB.m128d_f64[0] := 4.0;
+  LB.m128d_f64[1] := 2.0;
+
+  LActual := simd_min_pd(LA, LB);
+  AssertEquals('simd_min_pd finite lane0 bits', Int64(LA.m128i_u64[0]), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_min_pd finite lane1 bits', Int64(LB.m128i_u64[1]), Int64(LActual.m128i_u64[1]));
+
+  LActual := simd_max_pd(LA, LB);
+  AssertEquals('simd_max_pd finite lane0 bits', Int64(LB.m128i_u64[0]), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_max_pd finite lane1 bits', Int64(LA.m128i_u64[1]), Int64(LActual.m128i_u64[1]));
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u64[0] := QWord($0000000000000000);
+  LA.m128i_u64[1] := QWord($8000000000000000);
+  LB.m128i_u64[0] := QWord($8000000000000000);
+  LB.m128i_u64[1] := QWord($0000000000000000);
+
+  LActual := simd_min_pd(LA, LB);
+  AssertEquals('simd_min_pd zero lane0 keeps source sign', Int64(LB.m128i_u64[0]), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_min_pd zero lane1 keeps source sign', Int64(LB.m128i_u64[1]), Int64(LActual.m128i_u64[1]));
+
+  LActual := simd_max_pd(LA, LB);
+  AssertEquals('simd_max_pd zero lane0 keeps source sign', Int64(LB.m128i_u64[0]), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_max_pd zero lane1 keeps source sign', Int64(LB.m128i_u64[1]), Int64(LActual.m128i_u64[1]));
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u64[0] := QWord($7FF8000000000001);
+  LA.m128i_u64[1] := QWord($4014000000000000);
+  LB.m128i_u64[0] := QWord($4000000000000000);
+  LB.m128i_u64[1] := QWord($7FF8000000000002);
+
+  LActual := simd_min_pd(LA, LB);
+  AssertEquals('simd_min_pd nan lane0 returns source operand', Int64(LB.m128i_u64[0]), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_min_pd nan lane1 returns source operand', Int64(LB.m128i_u64[1]), Int64(LActual.m128i_u64[1]));
+
+  LActual := simd_max_pd(LA, LB);
+  AssertEquals('simd_max_pd nan lane0 returns source operand', Int64(LB.m128i_u64[0]), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_max_pd nan lane1 returns source operand', Int64(LB.m128i_u64[1]), Int64(LActual.m128i_u64[1]));
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := 3.0;
+  LA.m128d_f64[1] := 88.0;
+  LB.m128d_f64[0] := 4.0;
+  LB.m128d_f64[1] := 777.0;
+
+  LActual := simd_min_sd(LA, LB);
+  AssertEquals('simd_min_sd finite low lane bits', Int64(LA.m128i_u64[0]), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_min_sd finite keep high lane', Int64(LA.m128i_u64[1]), Int64(LActual.m128i_u64[1]));
+
+  LActual := simd_max_sd(LA, LB);
+  AssertEquals('simd_max_sd finite low lane bits', Int64(LB.m128i_u64[0]), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_max_sd finite keep high lane', Int64(LA.m128i_u64[1]), Int64(LActual.m128i_u64[1]));
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u64[0] := QWord($0000000000000000);
+  LA.m128d_f64[1] := 88.0;
+  LB.m128i_u64[0] := QWord($8000000000000000);
+  LB.m128d_f64[1] := 777.0;
+
+  LActual := simd_min_sd(LA, LB);
+  AssertEquals('simd_min_sd zero low lane keeps source sign', Int64(LB.m128i_u64[0]), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_min_sd zero keep high lane', Int64(LA.m128i_u64[1]), Int64(LActual.m128i_u64[1]));
+
+  LActual := simd_max_sd(LA, LB);
+  AssertEquals('simd_max_sd zero low lane keeps source sign', Int64(LB.m128i_u64[0]), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_max_sd zero keep high lane', Int64(LA.m128i_u64[1]), Int64(LActual.m128i_u64[1]));
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u64[0] := QWord($7FF8000000000001);
+  LA.m128d_f64[1] := 88.0;
+  LB.m128i_u64[0] := QWord($4000000000000000);
+  LB.m128d_f64[1] := 777.0;
+
+  LActual := simd_min_sd(LA, LB);
+  AssertEquals('simd_min_sd nan low lane returns source operand', Int64(LB.m128i_u64[0]), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_min_sd nan keep high lane', Int64(LA.m128i_u64[1]), Int64(LActual.m128i_u64[1]));
+
+  LActual := simd_max_sd(LA, LB);
+  AssertEquals('simd_max_sd nan low lane returns source operand', Int64(LB.m128i_u64[0]), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_max_sd nan keep high lane', Int64(LA.m128i_u64[1]), Int64(LActual.m128i_u64[1]));
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_LoadStore_Roundtrip;

@@ -5239,3 +5239,17 @@
 | 1. 复核 `sqrt` coverage 缺口 | completed | 已确认 `tests/fafafa.core.simd.intrinsics.experimental/` 目前有 `add/mul` 的 lane proof，但还没有任何 `simd_sqrt_ps`、`simd_sqrt_pd`、`simd_sqrt_sd` 的 representative raw semantic proof |
 | 2. 只补 representative proof，不扩实现范围 | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `Test_SqrtFamilies_RespectLaneAndPreserveContracts`；直接覆盖 `sqrt_ps` 的 4-lane 结果、`sqrt_pd` 的 2-lane 结果，以及 `sqrt_sd` 的 low-lane sqrt 与 high-lane preserve |
 | 3. 复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0/1` 两套 `BuildOrTest.sh test` 已 fresh 通过；本批没有打出新的 source bug。由于当前 diff 仅限 experimental testcase 与后续 scratch 记录，本批不重复跑主 `simd` release `check`，继续沿用上一批 fresh 绿的 release 基线 |
+
+## 2026-05-18 SSE2 Double MinMax NaN And Signed-Zero Semantic Repair
+
+### Goal
+
+继续沿 `SSE2 raw-leaf qualification` 小批次推进，但这次专门切 `min_pd/max_pd/min_sd/max_sd` 这 4 个 double min/max leaf：先用本机 `cc -msse2` probe 钉住 `finite / NaN / signed-zero / scalar preserve` 的 host truth，再用 representative proof 打红 current raw leaf，如果真出现 `NaN` 异常，就把修复收敛在这 4 个 leaf 上，不扩到 `min_ps/max_ps` 或更宽的浮点家族。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 先取 host truth 并复核 `double min/max` coverage 缺口 | completed | 已确认 `tests/fafafa.core.simd.intrinsics.experimental/` 没有任何 `simd_min_pd/max_pd/min_sd/max_sd` representative proof；先用本机 `cc -msse2` 最小 probe 取真值，确认 finite case 的正常选择，`NaN` case 都返回 source operand(`b`) 对应 lane，`+0/-0` 两零 case 也返回 source operand 的符号位，而 `min_sd/max_sd` 仍必须保留 `a` 的 high lane |
+| 2. 新增 representative proof 并根据 fresh 红点修正 source | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `Test_DoubleMinMaxFamilies_HostTruthSemantics`；首次 fresh `experimental=1` 运行直接在这批 `double min/max` 上打出 `EInvalidOp`。对位 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 后确认问题收敛在 `simd_min_pd`、`simd_max_pd`、`simd_min_sd`、`simd_max_sd` 仍直接依赖 raw SSE `min/max` 指令本体。现已引入 `TSimdDoubleMinMaxKind + SelectDoubleMinMaxBits + BuildPacked/ScalarDoubleMinMax`，按 host truth 收成 exception-free Pascal 语义实现 |
+| 3. 重跑 bounded closeout 与主线 release check | completed | `git diff --check`、串行 experimental=`1`、串行 experimental=`0`、以及 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 全部 fresh 通过；这批已经不只是补 proof，而是借 host-truth-driven proof 抓出并修掉了一簇真实的 `double min/max` NaN/signed-zero/scalar-preserve 语义缺陷 |
