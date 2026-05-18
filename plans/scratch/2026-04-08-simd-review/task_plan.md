@@ -5127,3 +5127,17 @@
 | 1. 复核当前 `conversion` coverage 缺口 | completed | 已确认 `tests/fafafa.core.simd.intrinsics.experimental/` 当前几乎没有任何 `simd_cvt* / simd_cvtsi*` proof；相较已经补过的 shuffle/shift/load-store，conversion 仍是明显空白区 |
 | 2. 只补 preserve/zero representative proof，不先碰实现 | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `Test_ConversionFamilies_PreserveExpectedLanes`；覆盖 `simd_cvtepi32_pd`、`simd_cvtepi32_ps`、`simd_cvtps_pd`、`simd_cvtpd_ps`、`simd_cvtsd_ss`、`simd_cvtss_sd`、`simd_cvtsi32_sd`、`simd_cvtsi64_sd`、`simd_cvtsi32_si128`、`simd_cvtsi64_si128`、`simd_cvtsi128_si32`、`simd_cvtsi128_si64` 的 low-lane value 与 preserve/zero 语义 |
 | 3. 跑完 experimental lane 双配置与主线 release check | completed | `git diff --check`、experimental=`0/1` 两套 `BuildOrTest.sh test`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 全部 fresh 通过；这批没有打出新的 source bug，但把 conversion 家族从“近乎无证据”推进到了“至少有一层 preserve/zeroing raw contract” |
+
+## 2026-05-18 SSE2 Compare And Movemask Qualification Coverage Expansion
+
+### Goal
+
+继续沿 `SSE2 raw-leaf qualification` 小批次推进，但先不把 `comi/ucomi` 的 flag 细节一口气扛进来；先收最稳、最能体现 compare 合同的代表性 proof：`movemask_ps/pd`、`cmpeq/cmpgt/cmpneq_pd`，以及 `cmpord/cmpunord_sd` 的 low-lane mask 与 high-lane preserve 语义。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前 compare coverage 缺口 | completed | 已确认 `tests/fafafa.core.simd.intrinsics.experimental/` 目前没有任何 `movemask_ps/pd`、`double compare`、`ordered/unordered scalar compare` 的 representative proof；当前 `SSE2` compare 相关 coverage 仍几乎停留在整数 `cmpeq_epi8/movemask_epi8` |
+| 2. 只补 representative compare proof，不先碰 `comi/ucomi` 细节 | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `Test_CompareAndMovemaskSemantics`；覆盖 `simd_movemask_ps`、`simd_movemask_pd`、`simd_cmpeq_pd`、`simd_cmpgt_pd`、`simd_cmpneq_pd`、`simd_cmpord_sd`、`simd_cmpunord_sd`，并用 `NaN` 明确锁住 ordered/unordered 的低 lane 结果与 scalar high-lane preserve 语义 |
+| 3. 跑完 experimental lane 双配置与主线 release check | completed | `git diff --check`、experimental=`0/1` 两套 `BuildOrTest.sh test`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 全部 fresh 通过；这批没有打出新的 source bug，但把 compare/movemask 从“几乎无证据”推进到了“至少有一层 packed/scalar representative contract” |

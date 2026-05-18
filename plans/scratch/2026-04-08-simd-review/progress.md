@@ -13047,3 +13047,47 @@
     - partial-lane load/store/move
     - conversion preserve/zero
   - 下一步如果继续同一路线，优先可以看 `scalar compare / ordered-unordered` 或 `saturated/avg/sad` 这些仍明显缺 representative proof 的 raw family
+
+## 2026-05-18 SSE2 Compare And Movemask Qualification Coverage Expansion
+
+- 这批正好沿上一个 stop-point 往下接：在 conversion 之后，下一块明显空白就是 `SSE2 compare/movemask`。
+- 但这次没有一口气把 `comi/ucomi` 的 flag 细节全扛进来，而是先收最稳的一层 representative contract：
+  - `simd_movemask_ps`
+  - `simd_movemask_pd`
+  - `simd_cmpeq_pd`
+  - `simd_cmpgt_pd`
+  - `simd_cmpneq_pd`
+  - `simd_cmpord_sd`
+  - `simd_cmpunord_sd`
+- 本批仍然只改一个文件：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 在 `uses` 里补了 `Math`
+    - 新增 `Test_CompareAndMovemaskSemantics`
+- 新 proof 直接锁住的合同包括：
+  - `movemask_ps` 是否按 4 个 `f32` 的 sign bit 组掩码
+  - `movemask_pd` 是否按 2 个 `f64` 的 sign bit 组掩码
+  - `cmpeq_pd / cmpgt_pd / cmpneq_pd` 是否正确返回 packed all-ones / zero mask
+  - `cmpord_sd / cmpunord_sd` 是否对 low lane 给出 ordered/unordered 结果
+  - 更重要的是，`cmpord_sd / cmpunord_sd` 是否保留 `a` 的 high lane，不把 scalar compare 写坏成 whole-register compare
+  - 同时用 `NaN` 明确锁住 ordered/unordered 分支，而不是只测普通值
+- 这次 fresh 验证同样没有打出新的 source bug：
+  - `git diff --check`
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- 关键结果：
+  - experimental=`1`：`[TEST] OK`
+  - experimental=`0`：`[TEST] OK`
+  - Release `check`：退出码 `0`
+- 当前阶段结论：
+  - 这批同样不是 source 修复，而是把 compare/movemask 从“基本无证据”推进到了“至少有一层 representative contract”
+  - 到这一刻为止，`SSE2 raw-leaf qualification` 的代表性 proof 已经覆盖到：
+    - bitwise / lane-order / float arithmetic
+    - shuffle / insert-extract immediate
+    - integer shift immediate
+    - partial-lane load/store/move
+    - conversion preserve/zero
+    - compare / movemask / ordered-unordered scalar preserve
+  - 如果继续沿这条路推进，下一步最自然的是：
+    - `comi/ucomi` flag-result family
+    - 或 `saturated/avg/sad` 这类 still-uncovered integer helper family

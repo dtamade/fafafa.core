@@ -47,6 +47,7 @@ implementation
 {$IFDEF CPUX86_64}
 uses
   fafafa.core.simd.intrinsics.x86.sse2,
+  Math,
   fafafa.core.simd.intrinsics.sse3,
   fafafa.core.simd.intrinsics.sse41,
   fafafa.core.simd.intrinsics.sse42,
@@ -1120,6 +1121,7 @@ type
     procedure Test_LoadStore_Roundtrip;
     procedure Test_PartialLaneLoadStoreMoveSemantics;
     procedure Test_ConversionFamilies_PreserveExpectedLanes;
+    procedure Test_CompareAndMovemaskSemantics;
     procedure Test_SlliEpi16_ShiftCounts;
     procedure Test_IntegerLogicalShiftFamilies_RespectImmediateBounds;
     procedure Test_IntegerArithmeticShiftFamilies_RespectImmediateBounds;
@@ -1539,6 +1541,71 @@ begin
   LInts.m128i_i64[0] := Int64(-9876543210);
   AssertEquals('simd_cvtsi128_si32 low dword', LInts.m128i_i32[0], simd_cvtsi128_si32(LInts));
   AssertEquals('simd_cvtsi128_si64 low qword', Int64(-9876543210), simd_cvtsi128_si64(LInts));
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_CompareAndMovemaskSemantics;
+var
+  LA: TM128;
+  LB: TM128;
+  LActual: TM128;
+  LNaN: Double;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128_f32[0] := -1.0;
+  LA.m128_f32[1] := 2.0;
+  LA.m128_f32[2] := -3.0;
+  LA.m128_f32[3] := 4.0;
+  AssertEquals('simd_movemask_ps sign bits', 5, simd_movemask_ps(LA));
+
+  FillChar(LA, SizeOf(LA), 0);
+  LA.m128d_f64[0] := -1.0;
+  LA.m128d_f64[1] := 2.0;
+  AssertEquals('simd_movemask_pd sign bits', 1, simd_movemask_pd(LA));
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := 1.0;
+  LA.m128d_f64[1] := 5.0;
+  LB.m128d_f64[0] := 1.0;
+  LB.m128d_f64[1] := 3.0;
+
+  LActual := simd_cmpeq_pd(LA, LB);
+  AssertEquals('simd_cmpeq_pd lane0 mask', Int64(-1), LActual.m128i_i64[0]);
+  AssertEquals('simd_cmpeq_pd lane1 mask', Int64(0), LActual.m128i_i64[1]);
+
+  LActual := simd_cmpgt_pd(LA, LB);
+  AssertEquals('simd_cmpgt_pd lane0 mask', Int64(0), LActual.m128i_i64[0]);
+  AssertEquals('simd_cmpgt_pd lane1 mask', Int64(-1), LActual.m128i_i64[1]);
+
+  LActual := simd_cmpneq_pd(LA, LB);
+  AssertEquals('simd_cmpneq_pd lane0 mask', Int64(0), LActual.m128i_i64[0]);
+  AssertEquals('simd_cmpneq_pd lane1 mask', Int64(-1), LActual.m128i_i64[1]);
+
+  LNaN := NaN;
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := 10.0;
+  LA.m128d_f64[1] := 22.0;
+  LB.m128d_f64[0] := 1.0;
+  LB.m128d_f64[1] := LNaN;
+
+  LActual := simd_cmpord_sd(LA, LB);
+  AssertEquals('simd_cmpord_sd low lane ordered', Int64(-1), LActual.m128i_i64[0]);
+  AssertEquals('simd_cmpord_sd keep high lane', Int64(LA.m128i_i64[1]), Int64(LActual.m128i_i64[1]));
+
+  LActual := simd_cmpunord_sd(LA, LB);
+  AssertEquals('simd_cmpunord_sd low lane ordered false', Int64(0), LActual.m128i_i64[0]);
+  AssertEquals('simd_cmpunord_sd keep high lane', Int64(LA.m128i_i64[1]), Int64(LActual.m128i_i64[1]));
+
+  LB.m128d_f64[0] := LNaN;
+  LActual := simd_cmpord_sd(LA, LB);
+  AssertEquals('simd_cmpord_sd low lane unordered false', Int64(0), LActual.m128i_i64[0]);
+  AssertEquals('simd_cmpord_sd keep high lane after nan', Int64(LA.m128i_i64[1]), Int64(LActual.m128i_i64[1]));
+
+  LActual := simd_cmpunord_sd(LA, LB);
+  AssertEquals('simd_cmpunord_sd low lane unordered true', Int64(-1), LActual.m128i_i64[0]);
+  AssertEquals('simd_cmpunord_sd keep high lane after nan', Int64(LA.m128i_i64[1]), Int64(LActual.m128i_i64[1]));
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_SlliEpi16_ShiftCounts;
