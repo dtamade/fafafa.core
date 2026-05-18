@@ -952,14 +952,37 @@ def main() -> int:
         ("RISCVVShiftRightI64x2", "ScalarShiftRightI64x2(a, shift)"),
         ("RISCVVShiftRightArithI64x2", "ScalarShiftRightArithI64x2(a, shift)"),
         ("RISCVVShiftRightArithI64x4", "ScalarShiftRightArithI64x4(a, shift)"),
-        ("RISCVVAndNotI8x16", "ScalarAndNotI8x16(a, b)"),
-        ("RISCVVAndNotU16x8", "ScalarAndNotU16x8(a, b)"),
-        ("RISCVVAndNotU8x16", "ScalarAndNotU8x16(a, b)"),
     ]
 
     routine_expectations.extend(
         (riscvv_helpers_source, routine_name, [f"Result := {scalar_call};"])
         for routine_name, scalar_call in riscvv_helper_scalar_forwarder_expectations
+    )
+
+    routine_expectations.extend(
+        [
+            (
+                riscvv_source,
+                "RISCVVAndNotI8x16",
+                [
+                    "Result := RISCVVAndI8x16(RISCVVNotI8x16(a), b);",
+                ],
+            ),
+            (
+                riscvv_source,
+                "RISCVVAndNotU16x8",
+                [
+                    "Result := RISCVVAndU16x8(RISCVVNotU16x8(a), b);",
+                ],
+            ),
+            (
+                riscvv_source,
+                "RISCVVAndNotU8x16",
+                [
+                    "Result := RISCVVAndU8x16(RISCVVNotU8x16(a), b);",
+                ],
+            ),
+        ]
     )
 
     routine_expectations.append(
@@ -1212,6 +1235,9 @@ def main() -> int:
         (riscvv_helpers_source, "RISCVVCmpGtU64x2"),
         (riscvv_helpers_source, "RISCVVMinU64x2"),
         (riscvv_helpers_source, "RISCVVMaxU64x2"),
+        (riscvv_helpers_source, "RISCVVAndNotI8x16"),
+        (riscvv_helpers_source, "RISCVVAndNotU16x8"),
+        (riscvv_helpers_source, "RISCVVAndNotU8x16"),
         (riscvv_facade_source, "RISCVVFloorF32x4"),
         (riscvv_facade_source, "RISCVVCeilF32x4"),
         (riscvv_facade_source, "RISCVVRoundF32x4"),

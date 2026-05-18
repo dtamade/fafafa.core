@@ -60,22 +60,3 @@ function RISCVVShiftRightArithI64x4(const a: TVecI64x4; shift: Integer): TVecI64
 begin
   Result := ScalarShiftRightArithI64x4(a, shift);
 end;
-
-{$IFNDEF RISCVV_ASSEMBLY}
-
-function RISCVVAndNotI8x16(const a, b: TVecI8x16): TVecI8x16;
-begin
-  Result := ScalarAndNotI8x16(a, b);
-end;
-
-function RISCVVAndNotU16x8(const a, b: TVecU16x8): TVecU16x8;
-begin
-  Result := ScalarAndNotU16x8(a, b);
-end;
-
-function RISCVVAndNotU8x16(const a, b: TVecU8x16): TVecU8x16;
-begin
-  Result := ScalarAndNotU8x16(a, b);
-end;
-
-{$ENDIF}

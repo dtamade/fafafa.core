@@ -12700,3 +12700,65 @@
   - 这 9 个 `I64/U64/Cmp/Min/Max` slot 现在已经从 over-retained exact scalar owner 收成 `reuse_base_scalar`
   - 当前 `riscvv` strict truth 已进一步收成 `assignments=432`、`wrapper_only=3`
   - 剩余 live residual 只剩 `AndNotI8x16` / `AndNotU16x8` / `AndNotU8x16` 这 3 个组合槽位
+
+## 2026-05-18 RISCVV AndNot Slots Flip To Asm-Only Composition Contract
+
+- 在上一批把 `wrapper_only=12` 收到只剩 3 个后，继续只盯：
+  - `AndNotI8x16`
+  - `AndNotU16x8`
+  - `AndNotU8x16`
+- 这次翻案的关键证据不是 runtime 先红，而是 source truth 先对不上：
+  - `src/fafafa.core.simd.riscvv.pas`
+    - 这 3 个 wrapper 仍然保留 `RISCVVNot* + RISCVVAnd*` 的 local composition
+    - 因此它们不是刚删掉那类 exact `Scalar*` dead owner
+  - `src/fafafa.core.simd.riscvv.helpers.inc`
+    - no-asm 对应 helper 只是 `ScalarAndNot*` forward
+    - 说明 no-asm owner 才是伪合同，应删掉
+  - `src/fafafa.core.simd.riscvv.register.inc`
+    - 这 3 个 slot 的 register truth 应该和 `Extract*`、`Abs/Sqrt/Fma` 一样，是 `asm-only binding`
+- 已落地的源码/护栏收口：
+  - `src/fafafa.core.simd.riscvv.pas`
+    - `RISCVVAndNotI8x16/U16x8/U8x16` wrapper 现在只在 `{$IFDEF RISCVV_ASSEMBLY}` 下保留
+  - `src/fafafa.core.simd.riscvv.helpers.inc`
+    - 删除 3 个 no-asm `ScalarAndNot*` helper owner
+  - `src/fafafa.core.simd.riscvv.register.inc`
+    - 3 个 binding 改成 asm-only
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 改成校验 `riscvv.pas` 里仍保留 local composition
+    - 同时要求 `riscvv.helpers.inc` 里这 3 个 routine 必须 absent
+  - `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+    - 这 3 个 slot 从“always wrapper”翻正为合法 `asm-only wrapper`
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - dedicated expectation 改到 `Test_RISCVV_AndNotSlots_Keep_AsmOwnedCompositions_And_Reuse_BaseScalar_When_NoAsm`
+    - 不再把这 3 个当成 always-backend-owned scalar wrapper
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 旧 `Test_RISCVV_HelperOwnedExactScalarSlots_Stay_BackendOwned` 已不再承载这 3 个 slot
+    - 新 dedicated witness 同时断言：
+      - asm-side 组合 source 仍存在
+      - `register.inc` 只在 asm 打开时发布 backend slot
+      - no-asm runtime 必须与 base scalar slot 相等
+  - `tests/fafafa.core.simd/check_interface_implementation_completeness.py`
+    - 顺手修掉这轮 gate 暴露的 false positive
+    - `DotF64x2/F64x4` 与 wide `Ceil/Floor/Round/Trunc` 的 intentional base-scalar reuse 不再被误报成 non-x86 assignment 缺口
+- 本批 fresh 验证链已经收口：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py tests/fafafa.core.simd/check_nonx86_key_slot_audit.py tests/fafafa.core.simd/check_nonx86_register_truthfulness.py tests/fafafa.core.simd/check_interface_implementation_completeness.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend riscvv --summary-line`
+  - `python3 tests/fafafa.core.simd/check_interface_implementation_completeness.py --strict --strict-level p2`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- 关键结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=743 status=ok`
+  - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=riscvv assignments=432 asm_exact=312 asm_suffix_only=117 wrapper_only=3 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `always wrapper ok=0`
+  - `asm-only wrapper ok=3`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=riscvv slots=71 issues=0 status=ok`
+  - strict completeness 已回到 `P0/P1/P2 = 0`
+- 当前阶段结论：
+  - 这 3 个 `AndNot*` 已不再是“最后 residual”，而是正式固定为 `asm-only local composition + no-asm reuse base scalar`
+  - 当前 `riscvv` strict truth 的 `wrapper_only=3` 已经全部有 dedicated 合同，不再是待删尾巴
+  - 这一簇 `RISCVV` facade/register hygiene 的 residual batch 到这里已经收口

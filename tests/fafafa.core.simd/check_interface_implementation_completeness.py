@@ -170,10 +170,34 @@ RISCVV_128BIT_ROUNDING_BASE_SCALAR_SLOTS = frozenset((
     "TruncF32x4",
     "TruncF64x2",
 ))
+RISCVV_WIDE_ROUNDING_BASE_SCALAR_SLOTS = frozenset((
+    "CeilF32x8",
+    "CeilF64x4",
+    "CeilF32x16",
+    "CeilF64x8",
+    "FloorF32x8",
+    "FloorF64x4",
+    "FloorF32x16",
+    "FloorF64x8",
+    "RoundF32x8",
+    "RoundF64x4",
+    "RoundF32x16",
+    "RoundF64x8",
+    "TruncF32x8",
+    "TruncF64x4",
+    "TruncF32x16",
+    "TruncF64x8",
+))
+RISCVV_DOT_BASE_SCALAR_SLOTS = frozenset((
+    "DotF32x8",
+    "DotF64x2",
+    "DotF64x4",
+))
 RISCVV_INTENTIONAL_BASE_SCALAR_SLOTS = frozenset(
-    ("DotF32x8",)
+    tuple(sorted(RISCVV_DOT_BASE_SCALAR_SLOTS))
     + tuple(sorted(NONX86_WIDE_FALLBACK_ONLY_SLOTS))
     + tuple(sorted(RISCVV_128BIT_ROUNDING_BASE_SCALAR_SLOTS))
+    + tuple(sorted(RISCVV_WIDE_ROUNDING_BASE_SCALAR_SLOTS))
 )
 NEON_INTENTIONAL_BASE_SCALAR_SLOTS = frozenset(
     tuple(sorted(NONX86_WIDE_FALLBACK_ONLY_SLOTS))

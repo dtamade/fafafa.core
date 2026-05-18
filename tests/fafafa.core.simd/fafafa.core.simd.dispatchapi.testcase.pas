@@ -171,7 +171,7 @@ type
     procedure Test_RISCVV_FacadeSlots_Reuse_BaseScalar_When_Wrappers_Are_ScalarPassThrough;
     procedure Test_RISCVV_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_RISCVV_ExtractSlots_Reuse_BaseScalar_When_NoAsmWrappers_Are_Dead;
-    procedure Test_RISCVV_HelperOwnedExactScalarSlots_Stay_BackendOwned;
+    procedure Test_RISCVV_AndNotSlots_Keep_AsmOwnedCompositions_And_Reuse_BaseScalar_When_NoAsm;
     procedure Test_RISCVV_KeyOwnedWideSlots_Stay_BackendOwned;
     procedure Test_RISCVV_ClampF64x2_Drops_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
     procedure Test_RISCVV_ExactF64x2Slots_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
@@ -8976,23 +8976,10 @@ var
       Pos(LowerCase(aSnippet), LRegisterSource) = 0);
   end;
 
-  procedure AssertRegisterOwnsBackendSlot(const aLabel, aSnippet: string);
-  begin
-    AssertTrue('RegisterRISCVVBackend should keep a backend-owned assignment for ' + aLabel +
-      ' when the helper is intentionally backend-local',
-      Pos(LowerCase(aSnippet), LRegisterSource) > 0);
-  end;
-
   procedure AssertSlotReusesScalar(const aLabel: string; const aScalarSlot, aBackendSlot: Pointer);
   begin
     AssertEquals('RISCVV ' + aLabel + ' should reuse the base scalar slot when the RISCVV wrapper is only a scalar forwarder',
       PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
-  end;
-
-  procedure AssertSlotKeepsBackendOwnership(const aLabel: string; const aScalarSlot, aBackendSlot: Pointer);
-  begin
-    AssertTrue('RISCVV ' + aLabel + ' should keep a backend-owned slot when the implementation is intentionally backend-local',
-      PtrUInt(aScalarSlot) <> PtrUInt(aBackendSlot));
   end;
 begin
   LSourceLines := TStringList.Create;
@@ -9155,8 +9142,6 @@ begin
   AssertRegisterKeepsBaseScalar('CmpLeU64x8', 'table.CmpLeU64x8 := @RISCVVCmpLeU64x8;');
   AssertRegisterKeepsBaseScalar('CmpGeU64x8', 'table.CmpGeU64x8 := @RISCVVCmpGeU64x8;');
   AssertRegisterKeepsBaseScalar('CmpNeU64x8', 'table.CmpNeU64x8 := @RISCVVCmpNeU64x8;');
-  AssertRegisterOwnsBackendSlot('AndNotU8x16', 'table.AndNotU8x16 := @RISCVVAndNotU8x16;');
-
   AssertTrue('Scalar dispatch table should be registered',
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
 
@@ -9239,7 +9224,6 @@ begin
   AssertSlotReusesScalar('CmpLeU64x8', Pointer(LScalarTable.CmpLeU64x8), Pointer(LRISCVVTable.CmpLeU64x8));
   AssertSlotReusesScalar('CmpGeU64x8', Pointer(LScalarTable.CmpGeU64x8), Pointer(LRISCVVTable.CmpGeU64x8));
   AssertSlotReusesScalar('CmpNeU64x8', Pointer(LScalarTable.CmpNeU64x8), Pointer(LRISCVVTable.CmpNeU64x8));
-  AssertSlotKeepsBackendOwnership('AndNotU8x16', Pointer(LScalarTable.AndNotU8x16), Pointer(LRISCVVTable.AndNotU8x16));
 end;
 
 procedure TTestCase_DispatchAPI.Test_RISCVV_ClampF64x2_Drops_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
@@ -11596,32 +11580,59 @@ begin
     LocalDoubleBits(LF64x8ByRISCVV.d[1]) = QWord($8000000000000000));
 end;
 
-procedure TTestCase_DispatchAPI.Test_RISCVV_HelperOwnedExactScalarSlots_Stay_BackendOwned;
+procedure TTestCase_DispatchAPI.Test_RISCVV_AndNotSlots_Keep_AsmOwnedCompositions_And_Reuse_BaseScalar_When_NoAsm;
 var
   LScalarTable: TSimdDispatchTable;
   LRISCVVTable: TSimdDispatchTable;
   LSourceLines: TStringList;
+  LUnitSourcePath: string;
   LHelpersSourcePath: string;
   LRegisterSourcePath: string;
+  LUnitSource: string;
   LHelpersSource: string;
   LRegisterSource: string;
 
-  procedure AssertHelperOwnedExactScalarSlot(
-    const aLabel, aHelperSnippet, aRegisterSnippet: string;
+  procedure AssertWrapperStillPresent(const aLabel, aSnippet: string);
+  begin
+    AssertTrue('RISCVV unit source should keep the asm-local AndNot composition for ' + aLabel,
+      Pos(LowerCase(aSnippet), LUnitSource) > 0);
+  end;
+
+  procedure AssertNoAsmHelperRemoved(const aLabel, aSnippet: string);
+  begin
+    AssertTrue('RISCVV no-asm helpers should stop owning the exact scalar AndNot fallback for ' + aLabel,
+      Pos(LowerCase(aSnippet), LHelpersSource) = 0);
+  end;
+
+  procedure AssertRegisterHasAsmOwnedSlot(const aLabel, aRegisterSnippet: string);
+  begin
+    AssertTrue('RegisterRISCVVBackend should keep the asm-gated binding source for ' + aLabel,
+      Pos(LowerCase(aRegisterSnippet), LRegisterSource) > 0);
+  end;
+
+  procedure AssertRuntimeOwnership(
+    const aLabel: string;
     const aScalarSlot, aBackendSlot: Pointer);
   begin
-    AssertTrue('RISCVV helper source should keep exact scalar forwarder for ' + aLabel,
-      Pos(LowerCase(aHelperSnippet), LHelpersSource) > 0);
-    AssertTrue('RegisterRISCVVBackend should keep a backend-owned assignment for ' + aLabel,
-      Pos(LowerCase(aRegisterSnippet), LRegisterSource) > 0);
     AssertTrue('RISCVV ' + aLabel + ' should stay assigned in the backend dispatch table',
       aBackendSlot <> nil);
-    AssertTrue('RISCVV ' + aLabel + ' should stay backend-owned instead of reusing the scalar slot',
+    {$IFDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
+    AssertTrue('RISCVV ' + aLabel + ' should keep backend ownership when RVV asm is compiled',
       PtrUInt(aScalarSlot) <> PtrUInt(aBackendSlot));
+    {$ELSE}
+    AssertEquals('RISCVV ' + aLabel + ' should reuse the base scalar slot when RVV asm is not compiled on this host',
+      PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
+    {$ENDIF}
   end;
 begin
   LSourceLines := TStringList.Create;
   try
+    LUnitSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.pas');
+    AssertTrue('RISCVV unit source should exist for implementation-shape audit: ' + LUnitSourcePath,
+      FileExists(LUnitSourcePath));
+    LSourceLines.LoadFromFile(LUnitSourcePath);
+    LUnitSource := LowerCase(LSourceLines.Text);
+
     LHelpersSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.helpers.inc');
     AssertTrue('RISCVV helper source should exist for implementation-shape audit: ' + LHelpersSourcePath,
       FileExists(LHelpersSourcePath));
@@ -11648,17 +11659,32 @@ begin
     Exit;
   {$ENDIF}
 
-  AssertHelperOwnedExactScalarSlot('AndNotI8x16',
-    'Result := ScalarAndNotI8x16(a, b);',
-    'table.AndNotI8x16 := @RISCVVAndNotI8x16;',
+  AssertWrapperStillPresent('AndNotI8x16',
+    'Result := RISCVVAndI8x16(RISCVVNotI8x16(a), b);');
+  AssertWrapperStillPresent('AndNotU16x8',
+    'Result := RISCVVAndU16x8(RISCVVNotU16x8(a), b);');
+  AssertWrapperStillPresent('AndNotU8x16',
+    'Result := RISCVVAndU8x16(RISCVVNotU8x16(a), b);');
+
+  AssertNoAsmHelperRemoved('AndNotI8x16',
+    'Result := ScalarAndNotI8x16(a, b);');
+  AssertNoAsmHelperRemoved('AndNotU16x8',
+    'Result := ScalarAndNotU16x8(a, b);');
+  AssertNoAsmHelperRemoved('AndNotU8x16',
+    'Result := ScalarAndNotU8x16(a, b);');
+
+  AssertRegisterHasAsmOwnedSlot('AndNotI8x16',
+    'table.AndNotI8x16 := @RISCVVAndNotI8x16;');
+  AssertRegisterHasAsmOwnedSlot('AndNotU16x8',
+    'table.AndNotU16x8 := @RISCVVAndNotU16x8;');
+  AssertRegisterHasAsmOwnedSlot('AndNotU8x16',
+    'table.AndNotU8x16 := @RISCVVAndNotU8x16;');
+
+  AssertRuntimeOwnership('AndNotI8x16',
     Pointer(LScalarTable.AndNotI8x16), Pointer(LRISCVVTable.AndNotI8x16));
-  AssertHelperOwnedExactScalarSlot('AndNotU16x8',
-    'Result := ScalarAndNotU16x8(a, b);',
-    'table.AndNotU16x8 := @RISCVVAndNotU16x8;',
+  AssertRuntimeOwnership('AndNotU16x8',
     Pointer(LScalarTable.AndNotU16x8), Pointer(LRISCVVTable.AndNotU16x8));
-  AssertHelperOwnedExactScalarSlot('AndNotU8x16',
-    'Result := ScalarAndNotU8x16(a, b);',
-    'table.AndNotU8x16 := @RISCVVAndNotU8x16;',
+  AssertRuntimeOwnership('AndNotU8x16',
     Pointer(LScalarTable.AndNotU8x16), Pointer(LRISCVVTable.AndNotU8x16));
 end;
 

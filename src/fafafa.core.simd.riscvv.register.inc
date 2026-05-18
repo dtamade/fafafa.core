@@ -548,7 +548,9 @@ begin
   table.OrI8x16 := @RISCVVOrI8x16;
   table.XorI8x16 := @RISCVVXorI8x16;
   table.NotI8x16 := @RISCVVNotI8x16;
+  {$IFDEF RISCVV_ASSEMBLY}
   table.AndNotI8x16 := @RISCVVAndNotI8x16;
+  {$ENDIF}
   table.CmpEqI8x16 := @RISCVVCmpEqI8x16;
   table.CmpLtI8x16 := @RISCVVCmpLtI8x16;
   table.CmpLeI8x16 := @RISCVVCmpLeI8x16;
@@ -637,7 +639,9 @@ begin
   table.OrU16x8 := @RISCVVOrU16x8;
   table.XorU16x8 := @RISCVVXorU16x8;
   table.NotU16x8 := @RISCVVNotU16x8;
+  {$IFDEF RISCVV_ASSEMBLY}
   table.AndNotU16x8 := @RISCVVAndNotU16x8;
+  {$ENDIF}
   table.ShiftLeftU16x8 := @RISCVVShiftLeftU16x8;
   table.ShiftRightU16x8 := @RISCVVShiftRightU16x8;
   table.CmpEqU16x8 := @RISCVVCmpEqU16x8;
@@ -656,7 +660,9 @@ begin
   table.OrU8x16 := @RISCVVOrU8x16;
   table.XorU8x16 := @RISCVVXorU8x16;
   table.NotU8x16 := @RISCVVNotU8x16;
+  {$IFDEF RISCVV_ASSEMBLY}
   table.AndNotU8x16 := @RISCVVAndNotU8x16;
+  {$ENDIF}
   table.CmpEqU8x16 := @RISCVVCmpEqU8x16;
   table.CmpLtU8x16 := @RISCVVCmpLtU8x16;
   table.CmpLeU8x16 := @RISCVVCmpLeU8x16;

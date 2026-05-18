@@ -142,7 +142,7 @@ RISCVV_EXACT_SCALAR_REUSE_KEY_SLOTS = (
     "MinU64x2",
     "MaxU64x2",
 )
-RISCVV_HELPER_OWNED_KEY_SLOTS = (
+RISCVV_ANDNOT_KEY_SLOTS = (
     "AndNotI8x16",
     "AndNotU16x8",
     "AndNotU8x16",
@@ -216,7 +216,7 @@ KEY_SLOTS_BY_BACKEND: dict[str, tuple[str, ...]] = {
         RISCVV_DOT_KEY_SLOTS,
         RISCVV_EXACT_SCALAR_REUSE_KEY_SLOTS,
         RISCVV_EXTRACT_KEY_SLOTS,
-        RISCVV_HELPER_OWNED_KEY_SLOTS,
+        RISCVV_ANDNOT_KEY_SLOTS,
         RISCVV_WIDE_ROUNDING_KEY_SLOTS,
         RISCVV_WIDE_F32_CLAMP_KEY_SLOTS,
         RISCVV_CONDITIONAL_EXACT_F64X2_KEY_SLOTS,
@@ -256,7 +256,7 @@ EXPECTATION_PROCEDURES = {
         "TTestCase_DispatchAPI.Test_RISCVV_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders",
         "TTestCase_DispatchAPI.Test_RISCVV_WideRoundingAndF32ClampSlots_Reuse_BaseScalar_When_ScalarForwarders_Are_Dead",
         "TTestCase_DispatchAPI.Test_RISCVV_ExtractSlots_Reuse_BaseScalar_When_NoAsmWrappers_Are_Dead",
-        "TTestCase_DispatchAPI.Test_RISCVV_HelperOwnedExactScalarSlots_Stay_BackendOwned",
+        "TTestCase_DispatchAPI.Test_RISCVV_AndNotSlots_Keep_AsmOwnedCompositions_And_Reuse_BaseScalar_When_NoAsm",
         "TTestCase_DispatchAPI.Test_RISCVV_ExactF64x2Slots_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding",
         "TTestCase_DispatchAPI.Test_RISCVV_ExactF32x4Slots_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding",
         "TTestCase_DispatchAPI.Test_RISCVV_LocalExtremaF64x2_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding",
@@ -291,7 +291,7 @@ REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS: dict[str, set[str]] = {
             RISCVV_DOT_KEY_SLOTS,
             RISCVV_EXACT_SCALAR_REUSE_KEY_SLOTS,
             RISCVV_EXTRACT_KEY_SLOTS,
-            RISCVV_HELPER_OWNED_KEY_SLOTS,
+            RISCVV_ANDNOT_KEY_SLOTS,
             RISCVV_WIDE_ROUNDING_KEY_SLOTS,
             RISCVV_WIDE_F32_CLAMP_KEY_SLOTS,
             RISCVV_CONDITIONAL_EXACT_F64X2_KEY_SLOTS,
@@ -306,11 +306,7 @@ REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS: dict[str, set[str]] = {
 
 ALLOWED_BACKEND_OWNED_NO_ASM_SCALAR_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {}
 
-ALLOWED_BACKEND_OWNED_SCALAR_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
-    "riscvv": (
-        set(RISCVV_HELPER_OWNED_KEY_SLOTS)
-    ),
-}
+ALLOWED_BACKEND_OWNED_SCALAR_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {}
 
 
 @dataclass(frozen=True)

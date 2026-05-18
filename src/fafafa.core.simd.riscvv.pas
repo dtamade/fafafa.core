@@ -3984,6 +3984,7 @@ asm
   vse8.v v0, (a1)
 end;
 
+{$IFDEF RISCVV_ASSEMBLY}
 function RISCVVAndNotI8x16(const a, b: TVecI8x16): TVecI8x16;
 begin
   Result := RISCVVAndI8x16(RISCVVNotI8x16(a), b);
@@ -3998,6 +3999,7 @@ function RISCVVAndNotU8x16(const a, b: TVecU8x16): TVecU8x16;
 begin
   Result := RISCVVAndU8x16(RISCVVNotU8x16(a), b);
 end;
+{$ENDIF}
 
 function RISCVVNotI32x16(const a: TVecI32x16): TVecI32x16; assembler; nostackframe;
 asm
