@@ -15264,3 +15264,32 @@
 - 这能保持语义分层：
   - `build` 仍保留原始工具链返回语义给其他动作使用
   - `check` 则切回“按自身 contract 做稳定面审查”，不被 Windows lazbuild 的粗粒度返回码误伤
+
+### Follow-up: nonx86 opt-in suite listing inherited the same coarse warning-return trap
+
+- 基于 `a5938bd6` 重新触发的 fresh Windows run：
+  - `26053359333`
+- 这轮新的关键进展：
+  - `windows_b07_gate.log` 已出现：
+    - `[CHECK] OK (no SIMD-unit warnings/hints on stable path)`
+    - `helper-semantics / key-slot-audit / adapter-sync` 等后续子检查也已真实开始执行
+  - 说明此前修的 `:check` warning-return 边界已经生效
+- 新的最小失败面继续后移到：
+  - `[CHECK] Optional non-x86 opt-in suite listing enabled`
+  - `[NONX86-OPTIN] neon: test --list-suites`
+  - 随后的 opt-in isolated output root：`nonx86.optin\neon`
+- 根因与上一层同构：
+  - `run_nonx86_optin_list_suites_for` 内部直接递归调用
+    - `buildOrTest.bat test --list-suites`
+  - 该子调用在 Windows 上仍会被 tests-only warning/hint 的粗粒度 build 返回码打断
+  - 因而虽然主 `check` 已转绿，opt-in child path 还在复现同一种 `warning rc` 误伤
+- 当前修法：
+  - 在 `run_nonx86_optin_list_suites_for` 里，也对递归子调用临时启用 `SIMD_SUPPRESS_BUILD_WARNINGS=1`
+  - 保持 opt-in suite listing 的真实目的：
+    - 编出带 `NEON` / `RISCVV` define 的测试二进制
+    - 成功执行 `--list-suites`
+    - 而不是因为 tests-only warning/hint 提前返回 1
+- 下一步：
+  - 再次 push 当前修复
+  - 继续 fresh Windows evidence
+  - 看 `NONX86-OPTIN` 是否转绿，并确认 step `1/6 Build + check SIMD module` 是否终于整体通过
