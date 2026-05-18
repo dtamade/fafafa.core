@@ -1118,6 +1118,7 @@ type
     procedure Test_SettersAndCastsPreserveLaneOrder;
     procedure Test_FloatArithmeticLaneSemantics;
     procedure Test_LoadStore_Roundtrip;
+    procedure Test_PartialLaneLoadStoreMoveSemantics;
     procedure Test_SlliEpi16_ShiftCounts;
     procedure Test_IntegerLogicalShiftFamilies_RespectImmediateBounds;
     procedure Test_IntegerArithmeticShiftFamilies_RespectImmediateBounds;
@@ -1372,6 +1373,75 @@ begin
 
   LLoaded := simd_loadu_si128(@LBytesOut[0]);
   AssertM128BytesEqual(Self, 'simd_loadu roundtrip', LValue, LLoaded);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_PartialLaneLoadStoreMoveSemantics;
+var
+  LPair: array[0..1] of Double;
+  LReversed: array[0..1] of Double;
+  LScalar: Double;
+  LA: TM128;
+  LB: TM128;
+  LActual: TM128;
+begin
+  LPair[0] := 1.25;
+  LPair[1] := -9.5;
+  LActual := simd_loadr_pd(@LPair[0]);
+  AssertEquals('simd_loadr_pd lane0', -9.5, LActual.m128d_f64[0], 0.0);
+  AssertEquals('simd_loadr_pd lane1', 1.25, LActual.m128d_f64[1], 0.0);
+
+  FillChar(LA, SizeOf(LA), 0);
+  LA.m128d_f64[0] := 11.0;
+  LA.m128d_f64[1] := 22.0;
+
+  LScalar := -33.5;
+  LActual := simd_loadh_pd(LA, @LScalar);
+  AssertEquals('simd_loadh_pd keep low lane', 11.0, LActual.m128d_f64[0], 0.0);
+  AssertEquals('simd_loadh_pd replace high lane', -33.5, LActual.m128d_f64[1], 0.0);
+
+  LScalar := 44.75;
+  LActual := simd_loadl_pd(LA, @LScalar);
+  AssertEquals('simd_loadl_pd replace low lane', 44.75, LActual.m128d_f64[0], 0.0);
+  AssertEquals('simd_loadl_pd keep high lane', 22.0, LActual.m128d_f64[1], 0.0);
+
+  LScalar := 123.0;
+  simd_storeh_pd(LScalar, LA);
+  AssertEquals('simd_storeh_pd writes high lane', 22.0, LScalar, 0.0);
+
+  LScalar := 456.0;
+  simd_storel_pd(LScalar, LA);
+  AssertEquals('simd_storel_pd writes low lane', 11.0, LScalar, 0.0);
+
+  LScalar := -7.0;
+  LActual := simd_load_sd(@LScalar);
+  AssertEquals('simd_load_sd low lane', -7.0, LActual.m128d_f64[0], 0.0);
+  AssertEquals('simd_load_sd zero high lane', 0.0, LActual.m128d_f64[1], 0.0);
+
+  LScalar := 999.0;
+  simd_store_sd(LScalar, LA);
+  AssertEquals('simd_store_sd writes low lane', 11.0, LScalar, 0.0);
+
+  FillChar(LB, SizeOf(LB), 0);
+  LB.m128d_f64[0] := 100.5;
+  LB.m128d_f64[1] := 200.5;
+  LActual := simd_move_sd(LA, LB);
+  AssertEquals('simd_move_sd low from b', 100.5, LActual.m128d_f64[0], 0.0);
+  AssertEquals('simd_move_sd keep high from a', 22.0, LActual.m128d_f64[1], 0.0);
+
+  FillChar(LA, SizeOf(LA), 0);
+  LA.m128i_u64[0] := QWord($0123456789ABCDEF);
+  LA.m128i_u64[1] := QWord($FEDCBA9876543210);
+  LActual := simd_move_epi64(LA);
+  AssertEquals('simd_move_epi64 low lane', Int64(LA.m128i_u64[0]), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_move_epi64 zero high lane', Int64(0), Int64(LActual.m128i_u64[1]));
+
+  LPair[0] := 5.0;
+  LPair[1] := 6.0;
+  LReversed[0] := 0.0;
+  LReversed[1] := 0.0;
+  simd_storer_pd(LReversed, simd_loadu_pd(@LPair[0]));
+  AssertEquals('simd_storer_pd lane0', 6.0, LReversed[0], 0.0);
+  AssertEquals('simd_storer_pd lane1', 5.0, LReversed[1], 0.0);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_SlliEpi16_ShiftCounts;

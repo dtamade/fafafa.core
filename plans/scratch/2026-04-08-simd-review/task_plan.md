@@ -5099,3 +5099,17 @@
 | 1. 复核当前 `integer shift immediate` coverage 缺口 | completed | 已确认 `tests/fafafa.core.simd.intrinsics.experimental/` 目前只系统覆盖了 `slli_epi16` 与 `slli/srli/srai_si128`，还缺 `slli_epi32/slli_epi64/srli_epi16/srli_epi32/srli_epi64/srai_epi16/srai_epi32` 这组 raw leaf 的边界计数 proof |
 | 2. 只补 representative proof，不扩实现范围 | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `ArithmeticShiftRightI16/I32` helper、`ExpectSlli/Srli/SraiEpi*` helper，以及 `Test_IntegerLogicalShiftFamilies_RespectImmediateBounds`、`Test_IntegerArithmeticShiftFamilies_RespectImmediateBounds`；直接覆盖 `0/1/7/15/16/17/31/32/33/63/64/65/200` 这类边界计数 |
 | 3. 跑完 experimental lane 双配置与主线 release check | completed | `git diff --check`、`bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`、`FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 .../BuildOrTest.sh test`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 全部 fresh 通过；本批没有再炸出 source bug，但把一组此前缺失的 SSE2 raw semantic 护栏正式补齐 |
+
+## 2026-05-18 SSE2 Partial-Lane LoadStoreMove Qualification Coverage Expansion
+
+### Goal
+
+继续沿 `SSE2 raw-leaf qualification` 小批次推进，把另一组明显缺 proof 的 `partial-lane load/store/move` leaf 补齐：`loadh/loadl/storeh/storel/load_sd/store_sd/move_sd/move_epi64/loadr/storer` 这类函数的关键合同不是“算出来对”，而是“哪一半 lane 必须保留、哪一半必须替换或清零”。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前 `partial-lane` coverage 缺口 | completed | 已确认现有 `SSE2` experimental proof 覆盖了 `loadu/storeu` roundtrip，但还没有代表性测试锁住 `simd_loadr_pd`、`simd_storer_pd`、`simd_loadh_pd`、`simd_loadl_pd`、`simd_storeh_pd`、`simd_storel_pd`、`simd_load_sd`、`simd_store_sd`、`simd_move_sd`、`simd_move_epi64` 这组“保留/替换/清零 lane”合同 |
+| 2. 只补 representative proof，不扩实现范围 | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `Test_PartialLaneLoadStoreMoveSemantics`；直接覆盖 reverse load/store、high/low lane replace、scalar load/store 的 high-lane zeroing，以及 `move_sd/move_epi64` 的 lane-preserve/zero contract |
+| 3. 跑完 experimental lane 双配置与主线 release check | completed | `git diff --check`、experimental=`0/1` 两套 `BuildOrTest.sh test`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 全部 fresh 通过；本批同样没有再炸出 source bug，但把 `SSE2 raw load/store` 里最容易漂移的 `partial-lane` 语义正式钉住 |

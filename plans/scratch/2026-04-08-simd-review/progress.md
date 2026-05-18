@@ -12946,3 +12946,52 @@
   - 这批修掉的不是 source 逻辑，而是 `SSE2 raw-leaf qualification` 的一个真实缺口：之前没有足够 proof 约束 integer shift immediate 家族
   - 现在 `SSE2` 对 `immediate/count-sensitive leaf` 的证据已经从 `shuffle*`、`insert/extract_epi16` 继续扩到了整数 shift 家族
   - 下一步如果继续按建议推进，应回到 `retire baseline`，找下一组“仍缺 representative proof 或仍可能有 immediate/count 语义漂移”的 raw family，而不是重新撒网
+
+## 2026-05-18 SSE2 Partial-Lane LoadStoreMove Qualification Coverage Expansion
+
+- 这批继续保持 `SSE2 raw-leaf qualification` 的窄路径，没有碰 `simd.sse2` adapter，也没有重开 family-level 迁移判断。
+- 先从 source/test 对位出一个新的明显缺口：
+  - 现有 proof 虽然有 `simd_loadu_si128 / simd_storeu_si128`
+  - 但还没有系统约束下面这组 `partial-lane` raw leaf：
+    - `simd_loadr_pd`
+    - `simd_storer_pd`
+    - `simd_loadh_pd`
+    - `simd_loadl_pd`
+    - `simd_storeh_pd`
+    - `simd_storel_pd`
+    - `simd_load_sd`
+    - `simd_store_sd`
+    - `simd_move_sd`
+    - `simd_move_epi64`
+- 这组的关键合同不是“普通数值对不对”，而是：
+  - reverse load/store 是否真的交换 lane
+  - `loadh/loadl` 是否只替换一半 lane，另一半完整保留
+  - `load_sd` 是否把 high lane 清零
+  - `move_sd` 是否保留 `a` 的 high lane、只从 `b` 取 low lane
+  - `move_epi64` 是否保留 low 64-bit 并清零 high 64-bit
+- 本批仍然只改一个文件：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 `Test_PartialLaneLoadStoreMoveSemantics`
+- 新 proof 直接锁住：
+  - `simd_loadr_pd` 的 lane reverse
+  - `simd_storer_pd` 的 reverse store
+  - `simd_loadh_pd` 的 “保低换高”
+  - `simd_loadl_pd` 的 “换低保高”
+  - `simd_storeh_pd` / `simd_storel_pd` 的高低 lane write-back
+  - `simd_load_sd` 的 high-lane zeroing
+  - `simd_store_sd` 的 low-lane store
+  - `simd_move_sd` 的 “low from b, high from a”
+  - `simd_move_epi64` 的 “keep low qword, zero high qword”
+- 这次 fresh 验证同样没有打出新的 source bug：
+  - `git diff --check`
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- 关键结果：
+  - experimental=`1`：`[TEST] OK`
+  - experimental=`0`：`[TEST] OK`
+  - Release `check`：退出码 `0`
+- 当前阶段结论：
+  - 这批补掉的是 `SSE2 raw load/store` 线上另一块重要 proof 缺口，不是 source 逻辑回归
+  - 现在 `SSE2` 的 representative proof 已经不只覆盖 arithmetic / shuffle / insert-extract / shift，也开始覆盖最容易被忽略的 `partial-lane` contract
+  - 下一步如果继续按同一路线推进，应该优先去看还有没有同类“代表性 proof 明显缺席”的 raw leaf family，而不是回到广撒网扫描
