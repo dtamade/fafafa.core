@@ -5071,3 +5071,17 @@
 | 1. 扩 experimental proof 到 `pack/unpack/shuffle/cast` | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `TTestCase_X86Sse2PackShuffleBasics`，覆盖 `unpacklo/hi_epi8`、`unpacklo/hi_epi32`、`packs_epi32`、`packs_epi16`、`packus_epi16`、`shuffle_epi32`、`shuffle_pd`、`shuffle_ps`、`shufflelo/hi_epi16` 与 cross-type cast roundtrip |
 | 2. 根据 fresh 红点翻出 source truth 并修正实现 | completed | 新测试首先打出 `simd_shuffle_epi32 lane0` 失败；对位 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 后确认一簇即时数 shuffle 仍是残缺 asm 分支。现已把 `simd_shuffle_epi32`、`simd_shuffle_ps`、`simd_shuffle_pd`、`simd_shufflelo_epi16`、`simd_shufflehi_epi16` 改成 full-imm Pascal 语义实现，不再依赖失真的固定模式 |
 | 3. 重跑 experimental lane 并补主线 release smoke/check | completed | `git diff --check`、`bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`、`FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 .../BuildOrTest.sh test`、Release `impl-smoke-x86`、Release `check` 全部 fresh 通过；关键结果包括 `INTR_HYGIENE_SUMMARY status=PASS hits=0`、`SSE2_IMPL_SMOKE_SUMMARY steps=5 ... status=ok`、`X86_IMPL_SMOKE_SUMMARY steps=2 ... status=ok`，以及 Release `check` 退出码 `0` |
+
+## 2026-05-18 SSE2 Insert/Extract Imm Lane-Mask Repair
+
+### Goal
+
+继续沿 `SSE2 immediate leaf semantics` 这条小批次推进，把还没被 proof 直接碰到的 `insert/extract_epi16` immediate lane 语义也钉死；如果 fresh 红点证明当前实现把 out-of-range immediate 错当成 lane0，就在同一批里修正为 x86 的低 3 bit lane 选择合同。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 新增 `insert/extract_epi16` representative proof | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `Test_InsertExtractEpi16_UseLow3BitsOfImmediate`，直接覆盖 `imm=9/15/200` 这类不在 `0..7` 的 lane 选择 |
+| 2. 根据 fresh 红点翻出并修正 source truth | completed | 新 proof 首次失败在 `simd_insert_epi16 keep lane 0 expected 100 but was 43981`，证明 `imm=9` 错落 lane0；对位 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 后确认 `simd_insert_epi16` / `simd_extract_epi16` 之前都只显式处理 `0..7`，超范围直接默认 lane0。现已改成 `imm8 and $7` 的明确 Pascal 语义实现 |
+| 3. 重跑 experimental lane 并补主线 release smoke/check | completed | `git diff --check`、experimental=`0/1` 两套 `BuildOrTest.sh test`、Release `impl-smoke-x86`、Release `check` 全部 fresh 通过；关键结果包括 experimental 双绿、`SSE2_IMPL_SMOKE_SUMMARY steps=5 ... status=ok`、`X86_IMPL_SMOKE_SUMMARY steps=2 ... status=ok`，以及 Release `check` 退出码 `0` |

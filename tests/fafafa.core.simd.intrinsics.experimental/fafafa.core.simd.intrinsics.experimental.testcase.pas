@@ -963,6 +963,7 @@ type
     procedure Test_UnpackLaneInterleaving;
     procedure Test_PackSaturationSemantics;
     procedure Test_ShuffleAndCrossTypeCastSemantics;
+    procedure Test_InsertExtractEpi16_UseLow3BitsOfImmediate;
   end;
 
 procedure TTestCase_X86Sse2ByteShifts.Test_SlliSrliSi128_AllCounts;
@@ -1433,6 +1434,40 @@ begin
   LBits := simd_castpd_ps(LValue);
   AssertM128BytesEqual(Self, 'simd_castpd_ps/simd_castps_pd roundtrip',
     LValue, simd_castps_pd(LBits));
+end;
+
+procedure TTestCase_X86Sse2PackShuffleBasics.Test_InsertExtractEpi16_UseLow3BitsOfImmediate;
+var
+  LValue: TM128;
+  LInserted: TM128;
+  LLane: Integer;
+begin
+  FillChar(LValue, SizeOf(LValue), 0);
+  for LLane := 0 to 7 do
+    LValue.m128i_u16[LLane] := Word((LLane + 1) * 100);
+
+  LInserted := simd_insert_epi16(LValue, $ABCD, 9);
+  for LLane := 0 to 7 do
+    if LLane = 1 then
+      AssertEquals('simd_insert_epi16 wrap lane1', $ABCD, LInserted.m128i_u16[LLane])
+    else
+      AssertEquals('simd_insert_epi16 keep lane ' + IntToStr(LLane),
+        LValue.m128i_u16[LLane], LInserted.m128i_u16[LLane]);
+
+  LInserted := simd_insert_epi16(LValue, $1234, 15);
+  for LLane := 0 to 7 do
+    if LLane = 7 then
+      AssertEquals('simd_insert_epi16 wrap lane7', $1234, LInserted.m128i_u16[LLane])
+    else
+      AssertEquals('simd_insert_epi16 keep lane after wrap ' + IntToStr(LLane),
+        LValue.m128i_u16[LLane], LInserted.m128i_u16[LLane]);
+
+  AssertEquals('simd_extract_epi16 imm9->lane1', LValue.m128i_u16[1],
+    simd_extract_epi16(LValue, 9));
+  AssertEquals('simd_extract_epi16 imm15->lane7', LValue.m128i_u16[7],
+    simd_extract_epi16(LValue, 15));
+  AssertEquals('simd_extract_epi16 imm200->lane0', LValue.m128i_u16[0],
+    simd_extract_epi16(LValue, 200));
 end;
 
 {$ENDIF}

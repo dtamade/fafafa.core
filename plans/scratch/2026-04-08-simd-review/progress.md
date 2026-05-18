@@ -12851,3 +12851,47 @@
   - 这批已经不只是“补 `SSE2` 证明面”，而是借 proof 抓出并修掉了一簇真实的 x86 shuffle immediate 语义缺陷
   - `SSE2 raw-leaf qualification` 现在对 `pack/unpack/shuffle/cast` 这组叶子的证据明显更完整
   - 下一步如果继续 `SSE2`，应优先回到 `retire baseline` 重看还有没有未被 representative proof 覆盖的 raw family；不要又退回零散 residual 扫描
+
+## 2026-05-18 SSE2 Insert/Extract Imm Lane-Mask Repair
+
+- 沿上一批同一条 `immediate leaf semantics` 路线继续往下收，没有重开其他 family。
+- 这次先补的是 `insert/extract_epi16` proof，而不是先猜源码：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 `Test_InsertExtractEpi16_UseLow3BitsOfImmediate`
+  - proof 直接探测：
+    - `simd_insert_epi16(..., 9)` 应落到 lane1
+    - `simd_insert_epi16(..., 15)` 应落到 lane7
+    - `simd_extract_epi16(..., 9/15/200)` 应按 `imm8 and 7` 选 lane
+- fresh 红点确认这不是“测试假设”：
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 首次失败：
+    - `simd_insert_epi16 keep lane 0 expected 100 but was 43981`
+  - 也就是当前实现把 `imm=9` 错误落到了 lane0，而不是 lane1
+- source 对位后确认真因：
+  - `src/fafafa.core.simd.intrinsics.x86.sse2.pas`
+    - `simd_insert_epi16`
+    - `simd_extract_epi16`
+  - 之前都只显式分支 `0..7`，超出范围直接默认到 lane0
+  - 这和 x86 `pinsrw/pextrw` 的“只消费低 3 bit immediate”语义不一致
+- 本批修复：
+  - `simd_insert_epi16`
+    - 改成 `Result.m128i_u16[imm8 and $7] := Word(Value and $FFFF)`
+  - `simd_extract_epi16`
+    - 改成 `Result := a.m128i_u16[imm8 and $7]`
+  - 也就是说，这一对 leaf 现在和上一批 `shuffle*` 一样，改成了明确、可读、跨 host 一致的语义实现
+- 本批 fresh 验证：
+  - `git diff --check`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-smoke-x86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- 关键结果：
+  - experimental=`0`：`[TEST] OK`
+  - experimental=`1`：`[TEST] OK`
+  - `SSE2_IMPL_SMOKE_SUMMARY steps=5 ... status=ok`
+  - `X86_IMPL_SMOKE_SUMMARY steps=2 ... status=ok`
+  - Release `check` 退出码为 `0`
+- 当前阶段结论：
+  - `SSE2` immediate leaf 的真实缺陷已经从 `shuffle*` 扩展到 `insert/extract`，并在这一批里一并修正
+  - 当前 `SSE2 raw-leaf qualification` 对“带 immediate 的 lane-select primitive”已经形成了更像样的一组 proof
+  - 下一步如果继续收这条线，优先应该回到 `retire baseline` 看还有哪些 raw family 仍无代表性 proof，而不是继续凭感觉扫实现
