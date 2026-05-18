@@ -12995,3 +12995,55 @@
   - 这批补掉的是 `SSE2 raw load/store` 线上另一块重要 proof 缺口，不是 source 逻辑回归
   - 现在 `SSE2` 的 representative proof 已经不只覆盖 arithmetic / shuffle / insert-extract / shift，也开始覆盖最容易被忽略的 `partial-lane` contract
   - 下一步如果继续按同一路线推进，应该优先去看还有没有同类“代表性 proof 明显缺席”的 raw leaf family，而不是回到广撒网扫描
+
+## 2026-05-18 SSE2 Conversion Preserve-Lane Qualification Coverage Expansion
+
+- 这批继续沿 `SSE2 raw-leaf qualification` 的窄路径推进，没有先碰 source，也没有先碰 rounding-mode 更重的 compare/ordered 话题。
+- 先做 coverage 盘点后确认一个新的大空白：
+  - 现有 experimental proof 对 `SSE2 conversion` 基本还是空的
+  - 相比已经补过的 `shuffle / insert-extract / shift / partial-lane load-store`
+  - `simd_cvt* / simd_cvtsi*` 这簇几乎没有 representative contract
+- 本批刻意先收最清晰也最容易漂移的 preserve/zero 子集，而不是一口气把所有 rounding/truncation 语义都扛进来：
+  - `simd_cvtepi32_pd`
+  - `simd_cvtepi32_ps`
+  - `simd_cvtps_pd`
+  - `simd_cvtpd_ps`
+  - `simd_cvtsd_ss`
+  - `simd_cvtss_sd`
+  - `simd_cvtsi32_sd`
+  - `simd_cvtsi64_sd`
+  - `simd_cvtsi32_si128`
+  - `simd_cvtsi64_si128`
+  - `simd_cvtsi128_si32`
+  - `simd_cvtsi128_si64`
+- 本批仍然只改一个文件：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 `Test_ConversionFamilies_PreserveExpectedLanes`
+- 新 proof 直接锁住的关键合同包括：
+  - `cvtepi32_pd` 只消费低 2 个 `i32` 并给出 2 个 `f64`
+  - `cvtepi32_ps` 保持 4-lane 整数到浮点转换
+  - `cvtps_pd` 只消费低 2 个 `f32`
+  - `cvtpd_ps` 至少保证低 2 个 `f32` 结果正确
+  - `cvtsd_ss` 保留 `a` 的高 3 个 `f32` lane，只替换低 lane
+  - `cvtss_sd` 保留 `a` 的高 `f64` lane，只替换低 lane
+  - `cvtsi32_sd / cvtsi64_sd` 保留 high `f64` lane
+  - `cvtsi32_si128 / cvtsi64_si128` 把整数写到 low lane，并清零其余 lane
+  - `cvtsi128_si32 / cvtsi128_si64` 正确提取 low lane
+- 这次 fresh 验证同样没有打出新的 source bug：
+  - `git diff --check`
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- 关键结果：
+  - experimental=`1`：`[TEST] OK`
+  - experimental=`0`：`[TEST] OK`
+  - Release `check`：退出码 `0`
+- 当前阶段结论：
+  - 这批同样不是 source 修复，而是把 `SSE2 conversion` 从“近乎无 proof”的状态推进到了“至少有一层 preserve/zero raw contract”
+  - 到这一刻为止，`SSE2 raw-leaf qualification` 的 representative proof 已经覆盖：
+    - bitwise / lane-order / float arithmetic
+    - shuffle / insert-extract immediate
+    - integer shift immediate
+    - partial-lane load/store/move
+    - conversion preserve/zero
+  - 下一步如果继续同一路线，优先可以看 `scalar compare / ordered-unordered` 或 `saturated/avg/sad` 这些仍明显缺 representative proof 的 raw family

@@ -5113,3 +5113,17 @@
 | 1. 复核当前 `partial-lane` coverage 缺口 | completed | 已确认现有 `SSE2` experimental proof 覆盖了 `loadu/storeu` roundtrip，但还没有代表性测试锁住 `simd_loadr_pd`、`simd_storer_pd`、`simd_loadh_pd`、`simd_loadl_pd`、`simd_storeh_pd`、`simd_storel_pd`、`simd_load_sd`、`simd_store_sd`、`simd_move_sd`、`simd_move_epi64` 这组“保留/替换/清零 lane”合同 |
 | 2. 只补 representative proof，不扩实现范围 | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `Test_PartialLaneLoadStoreMoveSemantics`；直接覆盖 reverse load/store、high/low lane replace、scalar load/store 的 high-lane zeroing，以及 `move_sd/move_epi64` 的 lane-preserve/zero contract |
 | 3. 跑完 experimental lane 双配置与主线 release check | completed | `git diff --check`、experimental=`0/1` 两套 `BuildOrTest.sh test`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 全部 fresh 通过；本批同样没有再炸出 source bug，但把 `SSE2 raw load/store` 里最容易漂移的 `partial-lane` 语义正式钉住 |
+
+## 2026-05-18 SSE2 Conversion Preserve-Lane Qualification Coverage Expansion
+
+### Goal
+
+继续沿 `SSE2 raw-leaf qualification` 小批次推进，把 `conversion` 这簇从“几乎无 proof”推进到至少有第一层 representative contract：优先锁住 `cvtepi32_*`、`cvtps/pd`、`cvtsd_ss/cvtss_sd`、`cvtsi*` 插入/提取、以及 `cvtsi*_sd` 这类最容易出现 preserve/high-lane drift 的 leaf。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前 `conversion` coverage 缺口 | completed | 已确认 `tests/fafafa.core.simd.intrinsics.experimental/` 当前几乎没有任何 `simd_cvt* / simd_cvtsi*` proof；相较已经补过的 shuffle/shift/load-store，conversion 仍是明显空白区 |
+| 2. 只补 preserve/zero representative proof，不先碰实现 | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `Test_ConversionFamilies_PreserveExpectedLanes`；覆盖 `simd_cvtepi32_pd`、`simd_cvtepi32_ps`、`simd_cvtps_pd`、`simd_cvtpd_ps`、`simd_cvtsd_ss`、`simd_cvtss_sd`、`simd_cvtsi32_sd`、`simd_cvtsi64_sd`、`simd_cvtsi32_si128`、`simd_cvtsi64_si128`、`simd_cvtsi128_si32`、`simd_cvtsi128_si64` 的 low-lane value 与 preserve/zero 语义 |
+| 3. 跑完 experimental lane 双配置与主线 release check | completed | `git diff --check`、experimental=`0/1` 两套 `BuildOrTest.sh test`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 全部 fresh 通过；这批没有打出新的 source bug，但把 conversion 家族从“近乎无证据”推进到了“至少有一层 preserve/zeroing raw contract” |

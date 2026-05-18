@@ -1119,6 +1119,7 @@ type
     procedure Test_FloatArithmeticLaneSemantics;
     procedure Test_LoadStore_Roundtrip;
     procedure Test_PartialLaneLoadStoreMoveSemantics;
+    procedure Test_ConversionFamilies_PreserveExpectedLanes;
     procedure Test_SlliEpi16_ShiftCounts;
     procedure Test_IntegerLogicalShiftFamilies_RespectImmediateBounds;
     procedure Test_IntegerArithmeticShiftFamilies_RespectImmediateBounds;
@@ -1442,6 +1443,102 @@ begin
   simd_storer_pd(LReversed, simd_loadu_pd(@LPair[0]));
   AssertEquals('simd_storer_pd lane0', 6.0, LReversed[0], 0.0);
   AssertEquals('simd_storer_pd lane1', 5.0, LReversed[1], 0.0);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_ConversionFamilies_PreserveExpectedLanes;
+var
+  LInts: TM128;
+  LFloats: TM128;
+  LDoubles: TM128;
+  LA: TM128;
+  LB: TM128;
+  LActual: TM128;
+begin
+  FillChar(LInts, SizeOf(LInts), 0);
+  LInts.m128i_i32[0] := -12;
+  LInts.m128i_i32[1] := 345678;
+  LInts.m128i_i32[2] := -9;
+  LInts.m128i_i32[3] := 77;
+
+  LActual := simd_cvtepi32_pd(LInts);
+  AssertEquals('simd_cvtepi32_pd lane0', -12.0, LActual.m128d_f64[0], 0.0);
+  AssertEquals('simd_cvtepi32_pd lane1', 345678.0, LActual.m128d_f64[1], 0.0);
+
+  LActual := simd_cvtepi32_ps(LInts);
+  AssertEquals('simd_cvtepi32_ps lane0', -12.0, LActual.m128_f32[0], 0.0);
+  AssertEquals('simd_cvtepi32_ps lane1', 345678.0, LActual.m128_f32[1], 0.0);
+  AssertEquals('simd_cvtepi32_ps lane2', -9.0, LActual.m128_f32[2], 0.0);
+  AssertEquals('simd_cvtepi32_ps lane3', 77.0, LActual.m128_f32[3], 0.0);
+
+  FillChar(LFloats, SizeOf(LFloats), 0);
+  LFloats.m128_f32[0] := 1.25;
+  LFloats.m128_f32[1] := -2.5;
+  LFloats.m128_f32[2] := 123.0;
+  LFloats.m128_f32[3] := 456.0;
+
+  LActual := simd_cvtps_pd(LFloats);
+  AssertEquals('simd_cvtps_pd lane0', 1.25, LActual.m128d_f64[0], 0.0);
+  AssertEquals('simd_cvtps_pd lane1', -2.5, LActual.m128d_f64[1], 0.0);
+
+  FillChar(LDoubles, SizeOf(LDoubles), 0);
+  LDoubles.m128d_f64[0] := 7.5;
+  LDoubles.m128d_f64[1] := -8.25;
+
+  LActual := simd_cvtpd_ps(LDoubles);
+  AssertEquals('simd_cvtpd_ps lane0', 7.5, LActual.m128_f32[0], 0.0);
+  AssertEquals('simd_cvtpd_ps lane1', -8.25, LActual.m128_f32[1], 0.0);
+
+  FillChar(LA, SizeOf(LA), 0);
+  LA.m128_f32[0] := 10.0;
+  LA.m128_f32[1] := 20.0;
+  LA.m128_f32[2] := 30.0;
+  LA.m128_f32[3] := 40.0;
+  FillChar(LB, SizeOf(LB), 0);
+  LB.m128d_f64[0] := 3.75;
+  LB.m128d_f64[1] := 999.0;
+  LActual := simd_cvtsd_ss(LA, LB);
+  AssertEquals('simd_cvtsd_ss lane0', 3.75, LActual.m128_f32[0], 0.0);
+  AssertEquals('simd_cvtsd_ss keep lane1', 20.0, LActual.m128_f32[1], 0.0);
+  AssertEquals('simd_cvtsd_ss keep lane2', 30.0, LActual.m128_f32[2], 0.0);
+  AssertEquals('simd_cvtsd_ss keep lane3', 40.0, LActual.m128_f32[3], 0.0);
+
+  FillChar(LA, SizeOf(LA), 0);
+  LA.m128d_f64[0] := 10.0;
+  LA.m128d_f64[1] := 22.5;
+  FillChar(LB, SizeOf(LB), 0);
+  LB.m128_f32[0] := -6.25;
+  LB.m128_f32[1] := 777.0;
+  LActual := simd_cvtss_sd(LA, LB);
+  AssertEquals('simd_cvtss_sd lane0', -6.25, LActual.m128d_f64[0], 0.0);
+  AssertEquals('simd_cvtss_sd keep high lane', 22.5, LActual.m128d_f64[1], 0.0);
+
+  FillChar(LA, SizeOf(LA), 0);
+  LA.m128d_f64[0] := 1.5;
+  LA.m128d_f64[1] := 88.0;
+  LActual := simd_cvtsi32_sd(LA, -77);
+  AssertEquals('simd_cvtsi32_sd lane0', -77.0, LActual.m128d_f64[0], 0.0);
+  AssertEquals('simd_cvtsi32_sd keep high lane', 88.0, LActual.m128d_f64[1], 0.0);
+
+  LActual := simd_cvtsi64_sd(LA, 1234567890123);
+  AssertEquals('simd_cvtsi64_sd lane0', 1234567890123.0, LActual.m128d_f64[0], 0.0);
+  AssertEquals('simd_cvtsi64_sd keep high lane', 88.0, LActual.m128d_f64[1], 0.0);
+
+  LActual := simd_cvtsi32_si128(-123456);
+  AssertEquals('simd_cvtsi32_si128 low lane', -123456, LActual.m128i_i32[0]);
+  AssertEquals('simd_cvtsi32_si128 zero lane1', 0, LActual.m128i_i32[1]);
+  AssertEquals('simd_cvtsi32_si128 zero lane2', 0, LActual.m128i_i32[2]);
+  AssertEquals('simd_cvtsi32_si128 zero lane3', 0, LActual.m128i_i32[3]);
+
+  LActual := simd_cvtsi64_si128(Int64(-1234567890123));
+  AssertEquals('simd_cvtsi64_si128 low qword', Int64(-1234567890123), LActual.m128i_i64[0]);
+  AssertEquals('simd_cvtsi64_si128 zero high qword', Int64(0), LActual.m128i_i64[1]);
+
+  FillChar(LInts, SizeOf(LInts), 0);
+  LInts.m128i_i32[0] := -99;
+  LInts.m128i_i32[1] := 777;
+  LInts.m128i_i64[0] := Int64(-9876543210);
+  AssertEquals('simd_cvtsi128_si32 low dword', LInts.m128i_i32[0], simd_cvtsi128_si32(LInts));
+  AssertEquals('simd_cvtsi128_si64 low qword', Int64(-9876543210), simd_cvtsi128_si64(LInts));
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_SlliEpi16_ShiftCounts;
