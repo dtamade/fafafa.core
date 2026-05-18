@@ -14169,3 +14169,36 @@
 - 当前阶段结论：
   - 又收掉了一组此前 0-hit 的 `SSE2` direct setter surface
   - 继续保持 tests-only 收口，没有引出新的 source bug
+
+## 2026-05-18 SSE2 Wide Integer Add/Sub Wraparound Coverage Expansion
+
+- 当前继续沿 0-hit direct leaf 清单推进，这次切宽整数普通加减的 exact-bit wraparound proof。
+- 先复核现状：
+  - 仍然 0-hit 的包括：
+    - `simd_add_epi16/32/64`
+    - `simd_sub_epi8/16/32/64`
+  - 源码实现都直接落在：
+    - `paddw/paddd/paddq`
+    - `psubb/psubw/psubd/psubq`
+- 本批继续保持 tests-only：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 `Test_IntegerWideAddSubWraparoundSemantics`
+- 新 proof 直接锁住：
+  - `simd_add_epi16`
+  - `simd_sub_epi16`
+  - `simd_add_epi32`
+  - `simd_sub_epi32`
+  - `simd_add_epi64`
+  - `simd_sub_epi64`
+  - `simd_sub_epi8`
+  - 全部按 `u8/u16/u32/u64` exact-bit 回绕语义比对
+- fresh closeout 已完成：
+  - `git diff --check`
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- fresh 结果：
+  - default / experimental 双模态测试均 `TEST OK`
+  - 宽整数普通加减的 wraparound 合同都符合预期，无新增 drift
+- 当前阶段结论：
+  - 又收掉了一组此前 0-hit 的 `SSE2` 直接算术 leaf
+  - 继续保持 tests-only 收口，没有引出新的 source bug

@@ -1128,6 +1128,7 @@ type
     procedure Test_FloatingBitwisePdSemantics;
     procedure Test_SettersAndCastsPreserveLaneOrder;
     procedure Test_FloatArithmeticLaneSemantics;
+    procedure Test_IntegerWideAddSubWraparoundSemantics;
     procedure Test_FloatSubDivAndScalarArithmeticPreserveContracts;
     procedure Test_SqrtFamilies_RespectLaneAndPreserveContracts;
     procedure Test_SingleMinMaxFamilies_HostTruthSemantics;
@@ -1492,6 +1493,97 @@ begin
   LActual := simd_mul_pd(LA, LB);
   AssertEquals('simd_mul_pd lane0', 6.0, LActual.m128d_f64[0], 0.0);
   AssertEquals('simd_mul_pd lane1', 1.0, LActual.m128d_f64[1], 0.0);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_IntegerWideAddSubWraparoundSemantics;
+var
+  LA: TM128;
+  LB: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+  LIndex: Integer;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+
+  LA.m128i_u16[0] := Word($7FFF);
+  LA.m128i_u16[1] := Word($8000);
+  LA.m128i_u16[2] := Word($FFFF);
+  LA.m128i_u16[3] := Word($1234);
+  LA.m128i_u16[4] := Word($ABCD);
+  LA.m128i_u16[5] := Word($0001);
+  LA.m128i_u16[6] := Word($FF00);
+  LA.m128i_u16[7] := Word($00FF);
+  LB.m128i_u16[0] := Word($0001);
+  LB.m128i_u16[1] := Word($FFFF);
+  LB.m128i_u16[2] := Word($0001);
+  LB.m128i_u16[3] := Word($EDCC);
+  LB.m128i_u16[4] := Word($5433);
+  LB.m128i_u16[5] := Word($FFFF);
+  LB.m128i_u16[6] := Word($0100);
+  LB.m128i_u16[7] := Word($FF01);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 7 do
+    LExpected.m128i_u16[LIndex] := Word((DWord(LA.m128i_u16[LIndex]) + DWord(LB.m128i_u16[LIndex])) and DWord($FFFF));
+  LActual := simd_add_epi16(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_add_epi16 wraparound', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 7 do
+    LExpected.m128i_u16[LIndex] := Word((DWord(LA.m128i_u16[LIndex]) - DWord(LB.m128i_u16[LIndex])) and DWord($FFFF));
+  LActual := simd_sub_epi16(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_sub_epi16 wraparound', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u32[0] := DWord($7FFFFFFF);
+  LA.m128i_u32[1] := DWord($80000000);
+  LA.m128i_u32[2] := DWord($FFFFFFFF);
+  LA.m128i_u32[3] := DWord($12345678);
+  LB.m128i_u32[0] := DWord($00000001);
+  LB.m128i_u32[1] := DWord($FFFFFFFF);
+  LB.m128i_u32[2] := DWord($00000001);
+  LB.m128i_u32[3] := DWord($EDCBA988);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 3 do
+    LExpected.m128i_u32[LIndex] := DWord(QWord(LA.m128i_u32[LIndex]) + QWord(LB.m128i_u32[LIndex]));
+  LActual := simd_add_epi32(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_add_epi32 wraparound', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 3 do
+    LExpected.m128i_u32[LIndex] := DWord(QWord(LA.m128i_u32[LIndex]) - QWord(LB.m128i_u32[LIndex]));
+  LActual := simd_sub_epi32(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_sub_epi32 wraparound', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u64[0] := QWord($7FFFFFFFFFFFFFFF);
+  LA.m128i_u64[1] := QWord($FFFFFFFFFFFFFFFF);
+  LB.m128i_u64[0] := QWord($0000000000000001);
+  LB.m128i_u64[1] := QWord($0000000000000002);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 1 do
+    LExpected.m128i_u64[LIndex] := QWord(LA.m128i_u64[LIndex] + LB.m128i_u64[LIndex]);
+  LActual := simd_add_epi64(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_add_epi64 wraparound', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 1 do
+    LExpected.m128i_u64[LIndex] := QWord(LA.m128i_u64[LIndex] - LB.m128i_u64[LIndex]);
+  LActual := simd_sub_epi64(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_sub_epi64 wraparound', LExpected, LActual);
+
+  InitM128IncrementingBytes(LA, 0);
+  InitM128IncrementingBytes(LB, 1);
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    LExpected.m128i_u8[LIndex] := Byte((Word(LA.m128i_u8[LIndex]) - Word(LB.m128i_u8[LIndex])) and $FF);
+  LActual := simd_sub_epi8(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_sub_epi8 wraparound', LExpected, LActual);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_FloatSubDivAndScalarArithmeticPreserveContracts;

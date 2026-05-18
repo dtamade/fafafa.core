@@ -5533,3 +5533,17 @@
 | 1. 复核剩余整数 setter 的 direct coverage 缺口 | completed | 已确认上述 10 个 integer setter 在 experimental testcase 中仍然 0-hit；源码里 `set_epi8/setr_epi8` 与 `set_epi16/setr_epi16` 是“不同参数顺序、同一落点合同”，`set_epi64` 与 `set_epi64x` 都是 high/low lane 映射 surface |
 | 2. 只补 representative lane-order / broadcast proof，不扩实现范围 | completed | 已在 `Test_SettersAndCastsPreserveLaneOrder` 下补齐 `set1_epi8/16/64x` broadcast，以及 `epi8/epi16/epi64` family 的 representative lane-order 断言 |
 | 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已全部 fresh 通过；本批继续保持 tests-only，无需重开 source 修复 |
+
+## 2026-05-18 SSE2 Wide Integer Add/Sub Wraparound Coverage Expansion
+
+### Goal
+
+继续沿 0-hit direct leaf 清单推进，但这次切宽整数普通加减：`simd_add_epi16/32/64`、`simd_sub_epi8/16/32/64`。这批不碰 saturating family，而是专门锁普通 `mod 2^N` 回绕合同，避免后续把普通加减和饱和加减混淆。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 wide integer add/sub 的 direct coverage 缺口 | completed | 已确认 `add_epi16/32/64` 与 `sub_epi8/16/32/64` 在 experimental testcase 中仍然 0-hit；源码实现分别直接落到 `paddw/paddd/paddq/psubb/psubw/psubd/psubq` |
+| 2. 只补 representative exact-bit wraparound proof，不扩实现范围 | completed | 已新增 `Test_IntegerWideAddSubWraparoundSemantics`，按 `u8/u16/u32/u64` exact-bit 预期校验普通加减的回绕结果 |
+| 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已全部 fresh 通过；本批继续保持 tests-only，无需重开 source 修复 |
