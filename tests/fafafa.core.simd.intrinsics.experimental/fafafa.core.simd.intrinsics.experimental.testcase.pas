@@ -1133,6 +1133,7 @@ type
     procedure Test_CompareAndMovemaskSemantics;
     procedure Test_ComiAndUcomiScalarFlagSemantics;
     procedure Test_NegatedPackedAndScalarCompareSemantics;
+    procedure Test_OrderedPackedAndScalarCompareCoverageSemantics;
     procedure Test_SignedAndUnsignedSaturatingArithmeticSemantics;
     procedure Test_UnsignedMinMaxAvgSadSemantics;
     procedure Test_SlliEpi16_ShiftCounts;
@@ -1792,6 +1793,97 @@ begin
   LActual := simd_cmpnge_sd(LA, LB);
   AssertEquals('simd_cmpnge_sd nan low true', Int64(-1), LActual.m128i_i64[0]);
   AssertEquals('simd_cmpnge_sd nan keep high lane', Int64(LA.m128i_i64[1]), Int64(LActual.m128i_i64[1]));
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_OrderedPackedAndScalarCompareCoverageSemantics;
+var
+  LA: TM128;
+  LB: TM128;
+  LActual: TM128;
+  LNaN: Double;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := 1.0;
+  LA.m128d_f64[1] := 5.0;
+  LB.m128d_f64[0] := 2.0;
+  LB.m128d_f64[1] := 5.0;
+
+  LActual := simd_cmplt_pd(LA, LB);
+  AssertEquals('simd_cmplt_pd low true', Int64(-1), LActual.m128i_i64[0]);
+  AssertEquals('simd_cmplt_pd high false', Int64(0), LActual.m128i_i64[1]);
+
+  LActual := simd_cmple_pd(LA, LB);
+  AssertEquals('simd_cmple_pd low true', Int64(-1), LActual.m128i_i64[0]);
+  AssertEquals('simd_cmple_pd high true', Int64(-1), LActual.m128i_i64[1]);
+
+  LNaN := NaN;
+  LA.m128d_f64[0] := LNaN;
+  LA.m128d_f64[1] := 5.0;
+  LB.m128d_f64[0] := 2.0;
+  LB.m128d_f64[1] := LNaN;
+
+  LActual := simd_cmplt_pd(LA, LB);
+  AssertEquals('simd_cmplt_pd nan low false', Int64(0), LActual.m128i_i64[0]);
+  AssertEquals('simd_cmplt_pd nan high false', Int64(0), LActual.m128i_i64[1]);
+
+  LActual := simd_cmple_pd(LA, LB);
+  AssertEquals('simd_cmple_pd nan low false', Int64(0), LActual.m128i_i64[0]);
+  AssertEquals('simd_cmple_pd nan high false', Int64(0), LActual.m128i_i64[1]);
+
+  LActual := simd_cmpord_pd(LA, LB);
+  AssertEquals('simd_cmpord_pd nan low false', Int64(0), LActual.m128i_i64[0]);
+  AssertEquals('simd_cmpord_pd nan high false', Int64(0), LActual.m128i_i64[1]);
+
+  LActual := simd_cmpunord_pd(LA, LB);
+  AssertEquals('simd_cmpunord_pd nan low true', Int64(-1), LActual.m128i_i64[0]);
+  AssertEquals('simd_cmpunord_pd nan high true', Int64(-1), LActual.m128i_i64[1]);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := 5.0;
+  LA.m128d_f64[1] := 42.5;
+  LB.m128d_f64[0] := 5.0;
+  LB.m128d_f64[1] := 77.0;
+
+  LActual := simd_cmpeq_sd(LA, LB);
+  AssertEquals('simd_cmpeq_sd finite low true', Int64(-1), LActual.m128i_i64[0]);
+  AssertEquals('simd_cmpeq_sd keep high lane', Int64(LA.m128i_i64[1]), Int64(LActual.m128i_i64[1]));
+
+  LActual := simd_cmple_sd(LA, LB);
+  AssertEquals('simd_cmple_sd finite low true', Int64(-1), LActual.m128i_i64[0]);
+  AssertEquals('simd_cmple_sd keep high lane', Int64(LA.m128i_i64[1]), Int64(LActual.m128i_i64[1]));
+
+  LA.m128d_f64[0] := 1.0;
+  LActual := simd_cmplt_sd(LA, LB);
+  AssertEquals('simd_cmplt_sd finite low true', Int64(-1), LActual.m128i_i64[0]);
+  AssertEquals('simd_cmplt_sd keep high lane', Int64(LA.m128i_i64[1]), Int64(LActual.m128i_i64[1]));
+
+  LA.m128d_f64[0] := 7.0;
+  LActual := simd_cmpneq_sd(LA, LB);
+  AssertEquals('simd_cmpneq_sd finite low true', Int64(-1), LActual.m128i_i64[0]);
+  AssertEquals('simd_cmpneq_sd keep high lane', Int64(LA.m128i_i64[1]), Int64(LActual.m128i_i64[1]));
+
+  LA.m128d_f64[0] := LNaN;
+  LA.m128d_f64[1] := 88.0;
+  LB.m128d_f64[0] := 5.0;
+  LB.m128d_f64[1] := 11.0;
+
+  LActual := simd_cmpeq_sd(LA, LB);
+  AssertEquals('simd_cmpeq_sd nan low false', Int64(0), LActual.m128i_i64[0]);
+  AssertEquals('simd_cmpeq_sd nan keep high lane', Int64(LA.m128i_i64[1]), Int64(LActual.m128i_i64[1]));
+
+  LActual := simd_cmplt_sd(LA, LB);
+  AssertEquals('simd_cmplt_sd nan low false', Int64(0), LActual.m128i_i64[0]);
+  AssertEquals('simd_cmplt_sd nan keep high lane', Int64(LA.m128i_i64[1]), Int64(LActual.m128i_i64[1]));
+
+  LActual := simd_cmple_sd(LA, LB);
+  AssertEquals('simd_cmple_sd nan low false', Int64(0), LActual.m128i_i64[0]);
+  AssertEquals('simd_cmple_sd nan keep high lane', Int64(LA.m128i_i64[1]), Int64(LActual.m128i_i64[1]));
+
+  LActual := simd_cmpneq_sd(LA, LB);
+  AssertEquals('simd_cmpneq_sd nan low true', Int64(-1), LActual.m128i_i64[0]);
+  AssertEquals('simd_cmpneq_sd nan keep high lane', Int64(LA.m128i_i64[1]), Int64(LActual.m128i_i64[1]));
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_SignedAndUnsignedSaturatingArithmeticSemantics;

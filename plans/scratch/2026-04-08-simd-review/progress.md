@@ -13263,3 +13263,45 @@
   - 如果继续沿这条路推进，下一步更自然的是：
     - 回到 `retire baseline` 复核 compare 邻近还剩哪些 raw leaf 仍缺 representative proof
     - 或继续补 `unpack` / `pack` 邻近 residual，而不是重新扩成 whole-module 扫描
+
+## 2026-05-18 SSE2 Ordered Packed And Scalar Compare Coverage Expansion
+
+- 这批继续保持 bounded，没有再把 compare 家族扩回 source 改造，而是专门给刚被 helper 收过、但还没被直接 proof 钉住的 ordered compare 残余补证据。
+- 本批仍然只改一个代码文件：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 `Test_OrderedPackedAndScalarCompareCoverageSemantics`
+- 新 proof 直接覆盖的 raw leaf：
+  - `simd_cmplt_pd`
+  - `simd_cmple_pd`
+  - `simd_cmpord_pd`
+  - `simd_cmpunord_pd`
+  - `simd_cmpeq_sd`
+  - `simd_cmplt_sd`
+  - `simd_cmple_sd`
+  - `simd_cmpneq_sd`
+- 这批锁住的关键合同包括：
+  - finite packed compare 时，`cmplt/cmple_pd` 的逐 lane mask 结果
+  - `NaN` packed compare 时，`cmplt/cmple_pd` 必须给 `0`，`cmpord_pd` 必须给 `0`，`cmpunord_pd` 必须给 all-ones
+  - scalar `cmpeq/cmplt/cmple/cmpneq_sd` 在 finite 与 `NaN` case 下的 low-lane mask 结果
+  - scalar compare 仍必须完整保留 `a` 的 high lane，而不是把高 lane 清零或错误改写
+- 这次 fresh 复验没有再炸出新的 source bug：
+  - `git diff --check`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 当前这份测试改动此前也已经包含在同工作树的 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 绿结果里
+- 这批额外确认了一条 closeout 操作约束：
+  - `experimental=0/1` 两套不能并行跑
+  - 原因不是语义失败，而是它们会共享 `tests/fafafa.core.simd.intrinsics.experimental/logs/*_smoke.pas` 生成路径，可能把 smoke 文件互相踩坏
+  - 所以后续这条 lane 的 closeout 证据必须保持串行
+- 当前阶段结论：
+  - 这批是 tests-only closeout，没有再引出新的 source 修复
+  - 但它把 `SSE2 double compare` helper 化之后还剩的 ordered packed/scalar 残余正式补成了 representative contract
+  - 到这一刻为止，`SSE2 raw-leaf qualification` 的 compare 侧代表性 proof 已经覆盖到：
+    - `compare / movemask`
+    - ordered/unordered scalar preserve
+    - `comi/ucomi` scalar flag results
+    - `double compare` NaN/complement masks
+    - ordered packed/scalar compare residual
+  - 如果继续沿这条路推进，下一步更自然的是：
+    - 回到 `retire baseline` 复核 integer compare 邻近 residual
+    - 或继续补 `unpack` / `pack` 邻近 representative proof，而不是重新扩成 whole-module 扫描

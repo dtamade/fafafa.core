@@ -5183,3 +5183,17 @@
 | 1. 先取 host truth 并复核 `double compare` coverage 缺口 | completed | 已确认 `tests/fafafa.core.simd.intrinsics.experimental/` 还没有覆盖 `simd_cmpnlt/nle/ngt/nge_(pd|sd)` 以及相邻 `cmpgt/cmpge` 的 `NaN` 语义；先用本机 `cc -msse2` 最小程序取真值，确认 `cmpnlt/nle/ngt/nge` 在 `NaN` lane 上都应给出 all-ones mask，而 `cmpgt/cmpge` 在 `NaN` lane 上应为 0，且 scalar compare 仍需保留 high lane |
 | 2. 新增 representative proof 并根据 fresh 红点修正 source | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `Test_NegatedPackedAndScalarCompareSemantics`；首次 fresh 运行在这批 `double compare` 上再次打出 `EInvalidOp`。对位 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 后确认问题不只是一条 leaf，而是 `pd/sd` compare family 的 raw SSE compare 在 `NaN` 路径上会把异常与 ordered predicate 行为直接暴露出来。现已把 `cmpeq/cmplt/cmple/cmpgt/cmpge/cmpneq/cmpnlt/cmpnle/cmpngt/cmpnge/cmpord/cmpunord` 的 `pd/sd` surface 收成 `EvaluateDoubleMaskCompare + BuildPacked/ScalarDoubleCompareMask` 这套 exception-free Pascal 语义实现 |
 | 3. 重跑 experimental lane 双配置与主线 release check | completed | `git diff --check`、experimental=`0/1` 两套 `BuildOrTest.sh test`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 全部 fresh 通过；这批已经不只是补 proof，而是借 proof 抓出并修掉了一簇真实的 `double compare` NaN/complement 语义缺陷 |
+
+## 2026-05-18 SSE2 Ordered Packed And Scalar Compare Coverage Expansion
+
+### Goal
+
+继续沿 `SSE2 raw-leaf qualification` 小批次推进，但这次先不再扩修 compare source，而是把刚刚已经 helper 化的 `ordered packed/scalar compare` 残余补上 representative proof：补齐 `cmplt/cmple/cmpord/cmpunord` 的 `pd` 语义，以及 `cmpeq/cmplt/cmple/cmpneq_sd` 的 finite/`NaN` low-lane mask 与 high-lane preserve 合同。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `ordered compare` coverage 残余 | completed | 已确认在补完 `compare/movemask`、`comi/ucomi` 与 `double compare` NaN/complement 后，`tests/fafafa.core.simd.intrinsics.experimental/` 还没有直接钉住 `simd_cmplt_pd`、`simd_cmple_pd`、`simd_cmpord_pd`、`simd_cmpunord_pd`，以及 `simd_cmpeq/cmplt/cmple/cmpneq_sd` 的 representative raw contract |
+| 2. 只补 representative proof，不扩实现范围 | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `Test_OrderedPackedAndScalarCompareCoverageSemantics`；直接覆盖 finite 与 `NaN` 两条路径上的 packed ordered/unordered mask 结果，以及 scalar low-lane mask 与 high-lane preserve 合同 |
+| 3. 复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0/1` 两套 `BuildOrTest.sh test` 已 fresh 通过；同一份测试改动此前已随当前工作树通过 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`。补充说明：`experimental=0/1` 不能并行跑，因为它们会共享 `tests/fafafa.core.simd.intrinsics.experimental/logs/*_smoke.pas` 生成路径，closeout 证据应保持串行 |
