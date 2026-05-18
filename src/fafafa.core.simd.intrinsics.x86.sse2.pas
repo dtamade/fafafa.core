@@ -2997,6 +2997,43 @@ begin
   Result.m128i_i32[1] := ConvertDoubleToInt32Trunc(a.m128d_f64[1]);
 end;
 
+function ConvertDoubleToSingleBits(const aBits: QWord; const aValue: Double): DWord; inline;
+const
+  MAX_SINGLE_AS_DOUBLE = 3.4028234663852886e38;
+var
+  LSingle: Single;
+begin
+  if IsNan(aValue) then
+  begin
+    if (aBits and QWord($8000000000000000)) <> 0 then
+      Exit(DWord($FFC00000));
+    Exit(DWord($7FC00000));
+  end;
+
+  if IsInfinite(aValue) or (aValue > MAX_SINGLE_AS_DOUBLE) or (aValue < -MAX_SINGLE_AS_DOUBLE) then
+  begin
+    if (aBits and QWord($8000000000000000)) <> 0 then
+      Exit(DWord($FF800000));
+    Exit(DWord($7F800000));
+  end;
+
+  LSingle := Single(aValue);
+  Move(LSingle, Result, SizeOf(Result));
+end;
+
+function BuildPackedDoubleToSingle(constref a: TM128): TM128; inline;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  Result.m128i_u32[0] := ConvertDoubleToSingleBits(a.m128i_u64[0], a.m128d_f64[0]);
+  Result.m128i_u32[1] := ConvertDoubleToSingleBits(a.m128i_u64[1], a.m128d_f64[1]);
+end;
+
+function BuildScalarDoubleToSingle(constref a, b: TM128): TM128; inline;
+begin
+  Result := a;
+  Result.m128i_u32[0] := ConvertDoubleToSingleBits(b.m128i_u64[0], b.m128d_f64[0]);
+end;
+
 // === 9️⃣ Conversion / Cast 实现 ===
 function simd_cvtepi32_pd(constref a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
 {$ENDIF}
@@ -3146,30 +3183,9 @@ asm
 end;
 
 // === 浮点精度转换函数 ===
-function simd_cvtpd_ps(constref a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]    // 加载 a
-    cvtpd2ps xmm0, xmm0   // Convert doubles to single-precision lanes.
-    {$ELSE}
-    movupd xmm0, [rdi]
-    cvtpd2ps xmm0, xmm0
-  {$ENDIF}
-{$ELSEIF CPUX86}
-    mov eax, [esp + 4]    // a
-    movupd xmm0, [eax]
-    cvtpd2ps xmm0, xmm0
-{$ELSE}
-    {$ERROR Unsupported CPU}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_cvtpd_ps(constref a: TM128): TM128;
+begin
+  Result := BuildPackedDoubleToSingle(a);
 end;
 
 function simd_cvtps_pd(constref a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
@@ -4730,26 +4746,9 @@ asm
 {$ENDIF}
 end;
 
-function simd_cvtsd_ss(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; movsd xmm1, [rdx]; cvtsd2ss xmm0, xmm1  // Convert scalar double to scalar single
-    {$ELSE}
-    movupd xmm0, [rdi]; movsd xmm1, [rsi]; cvtsd2ss xmm0, xmm1
-  {$ENDIF}
-{$ELSEIF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; cvtsd2ss xmm0, xmm1
-{$ELSE}
-    {$ERROR Unsupported CPU}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_cvtsd_ss(constref a, b: TM128): TM128;
+begin
+  Result := BuildScalarDoubleToSingle(a, b);
 end;
 
 function simd_cvtss_sd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
@@ -4776,9 +4775,7 @@ end;
 
 function simd_cvttpd_ps(constref a: TM128): TM128;
 begin
-  Result := Default(TM128);
-  Result.m128_f32[0] := Single(a.m128d_f64[0]);
-  Result.m128_f32[1] := Single(a.m128d_f64[1]);
+  Result := BuildPackedDoubleToSingle(a);
 end;
 
 	function simd_srai_si128(constref a: TM128; imm8: Byte): TM128; {$IFDEF FPC}assembler; nostackframe;

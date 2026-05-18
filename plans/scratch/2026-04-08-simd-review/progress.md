@@ -13758,3 +13758,52 @@
     - finite、in-range 的 round vs trunc 差异
     - `NaN/overflow -> indefinite` 的异常边界语义
   - 如果继续沿这条路推进，下一步更自然的是继续扫 `conversion` 邻近 residual，或转回另一个仍缺高信号异常边界 proof 的 leaf family
+
+## 2026-05-18 SSE2 Narrowing Float Conversion Host-Truth Qualification
+
+- 当前继续沿 conversion 线推进，但只切 `double -> single` narrowing 这一小簇，不回头扩别的 family。
+- 先用本机 `cc -msse2` 最小 probe 对位了 host truth：
+  - `cvtpd_ps`：
+    - `NaN` -> canonical quiet NaN `0x7FC00000`
+    - `+Inf` -> `0x7F800000`
+    - 超范围有限值 -> `+/-Inf`
+    - 高两个 `f32` lane 仍为 `0`
+  - `cvtsd_ss`：
+    - low lane `NaN` -> canonical quiet NaN `0x7FC00000`
+    - low lane 超范围有限值 -> `+Inf`
+    - `a` 的 lane1..3 完整保留
+- 本批继续保持 proof-first：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 `Test_NarrowingFloatConversionHostTruthSemantics`
+- 新 proof 计划直接锁住：
+  - `simd_cvtpd_ps` 的 `NaN/Inf/overflow` 结果与高 lane shape
+  - `simd_cvtsd_ss` 的 `NaN/overflow` low lane 结果与 high-lane preserve
+- 本批预期 closeout 方式继续保持：
+  - `git diff --check`
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- 首轮 fresh 红点是真问题，不是断言误差：
+  - experimental=`0`：`[TEST] OK`
+  - experimental=`1`：`TTestCase_X86Sse2AbiBasics.Test_NarrowingFloatConversionHostTruthSemantics -> EInvalidOp`
+  - 结论：当前 raw `cvtpd_ps/cvtsd_ss` narrowing leaf 在 `NaN/overflow` 路径上，确实还会把 SSE conversion fault 直接暴露给调用侧
+- 对位 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 后，修复继续严格收敛在 narrowing 小簇：
+  - `simd_cvtpd_ps`
+  - `simd_cvtsd_ss`
+  - 以及同型自定义 companion `simd_cvttpd_ps`
+- 本批 source 修复方式继续沿用前面 conversion indefinite 那一套 bounded 模式：
+  - 引入 exception-free double-to-single helper
+  - `NaN` canonicalize 成 quiet NaN，并保留 sign bit
+  - `Inf` 与超范围有限值都返回带符号的 `+/-Inf`
+  - `cvtpd_ps/cvttpd_ps` 继续保持只写低两个 `f32`，高两个 `f32` 置零
+  - `cvtsd_ss` 继续保持 low lane 更新、lane1..3 完整 preserve
+- 修复后 fresh 复验：
+  - `git diff --check`：通过
+  - experimental=`0`：`[TEST] OK`、`[LEAK] OK`
+  - experimental=`1`：`[TEST] OK`、`[LEAK] OK`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`：通过
+- 当前阶段结论：
+  - 这批已经不只是补 narrowing coverage，而是借 host-truth proof 抓出并修掉了 `cvtpd_ps/cvtsd_ss` 异常路径的真实 `EInvalidOp` 暴露问题
+  - 到这一刻为止，`SSE2 conversion` 的高信号异常边界 proof 已经覆盖：
+    - `*_epi32` / `*_si32/si64` 的 `NaN/overflow -> indefinite`
+    - `double -> single` narrowing 的 `NaN/Inf/overflow` 与 preserve/shape 合同
+  - 如果继续沿这条路推进，下一步更自然的是把 conversion 邻近 residual 再收一小簇，或者回到另一个仍缺 host-truth 异常边界 proof 的 leaf family

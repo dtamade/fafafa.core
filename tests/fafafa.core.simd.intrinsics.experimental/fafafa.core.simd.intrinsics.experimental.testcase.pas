@@ -1137,6 +1137,7 @@ type
     procedure Test_ConversionFamilies_PreserveExpectedLanes;
     procedure Test_RoundAndTruncConversionSemantics;
     procedure Test_ConversionIndefiniteSemantics;
+    procedure Test_NarrowingFloatConversionHostTruthSemantics;
     procedure Test_IntegerCompareFamilies_SignedAndEqualitySemantics;
     procedure Test_CompareAndMovemaskSemantics;
     procedure Test_ComiAndUcomiScalarFlagSemantics;
@@ -2012,6 +2013,49 @@ begin
     Int64(QWord($8000000000000000)), simd_cvtsd_si64(LDoubles));
   AssertEquals('simd_cvttsd_si64 overflow -> indefinite',
     Int64(QWord($8000000000000000)), simd_cvttsd_si64(LDoubles));
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_NarrowingFloatConversionHostTruthSemantics;
+var
+  LA: TM128;
+  LB: TM128;
+  LActual: TM128;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  LA.m128i_u64[0] := QWord($7FF8000000000001);
+  LA.m128d_f64[1] := Infinity;
+  LActual := simd_cvtpd_ps(LA);
+  AssertEquals('simd_cvtpd_ps nan lane canonicalizes', LongInt($7FC00000), LActual.m128i_i32[0]);
+  AssertEquals('simd_cvtpd_ps inf lane preserves infinity', LongInt($7F800000), LActual.m128i_i32[1]);
+  AssertEquals('simd_cvtpd_ps zero lane2', 0, LActual.m128i_i32[2]);
+  AssertEquals('simd_cvtpd_ps zero lane3', 0, LActual.m128i_i32[3]);
+
+  FillChar(LA, SizeOf(LA), 0);
+  LA.m128d_f64[0] := -1.0e40;
+  LA.m128d_f64[1] := 1.0e40;
+  LActual := simd_cvtpd_ps(LA);
+  AssertEquals('simd_cvtpd_ps negative overflow -> -inf', LongInt($FF800000), LActual.m128i_i32[0]);
+  AssertEquals('simd_cvtpd_ps positive overflow -> +inf', LongInt($7F800000), LActual.m128i_i32[1]);
+
+  FillChar(LA, SizeOf(LA), 0);
+  LA.m128_f32[0] := 8.0;
+  LA.m128_f32[1] := 4.0;
+  LA.m128_f32[2] := 2.0;
+  LA.m128_f32[3] := 1.0;
+  FillChar(LB, SizeOf(LB), 0);
+  LB.m128i_u64[0] := QWord($7FF8000000000001);
+  LActual := simd_cvtsd_ss(LA, LB);
+  AssertEquals('simd_cvtsd_ss nan lane canonicalizes', LongInt($7FC00000), LActual.m128i_i32[0]);
+  AssertEquals('simd_cvtsd_ss keep lane1', 4.0, LActual.m128_f32[1], 0.0);
+  AssertEquals('simd_cvtsd_ss keep lane2', 2.0, LActual.m128_f32[2], 0.0);
+  AssertEquals('simd_cvtsd_ss keep lane3', 1.0, LActual.m128_f32[3], 0.0);
+
+  LB.m128d_f64[0] := 1.0e40;
+  LActual := simd_cvtsd_ss(LA, LB);
+  AssertEquals('simd_cvtsd_ss overflow -> +inf', LongInt($7F800000), LActual.m128i_i32[0]);
+  AssertEquals('simd_cvtsd_ss overflow keeps lane1', 4.0, LActual.m128_f32[1], 0.0);
+  AssertEquals('simd_cvtsd_ss overflow keeps lane2', 2.0, LActual.m128_f32[2], 0.0);
+  AssertEquals('simd_cvtsd_ss overflow keeps lane3', 1.0, LActual.m128_f32[3], 0.0);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_IntegerCompareFamilies_SignedAndEqualitySemantics;

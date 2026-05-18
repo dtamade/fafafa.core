@@ -5351,3 +5351,17 @@
 | 1. 先取 host truth 并复核 indefinite coverage 缺口 | completed | 已用本机 `cc -msse2` 最小 probe 确认 packed/scalar conversion 在 `NaN/overflow` 下的 indefinite 返回值与 lane shape |
 | 2. 新增 representative proof，观察 fresh 红点 | completed | `TTestCase_X86Sse2AbiBasics` 已新增 `Test_ConversionIndefiniteSemantics`；首次 fresh `experimental=1` 运行直接打出 `EInvalidOp`，确认异常路径会泄露 raw SSE conversion fault |
 | 3. 串行复验并按结果决定是否修 source | completed | 已把修复限制在 `simd_cvtps/cvtpd/cvttps/cvttpd *_epi32` 与 `simd_cvtsd/cvttsd -> si32/si64` 这 8 个 leaf；修复后 `git diff --check`、串行 experimental=`0`、串行 experimental=`1`、以及 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 全部 fresh 通过 |
+
+## 2026-05-18 SSE2 Narrowing Float Conversion Host-Truth Qualification
+
+### Goal
+
+继续沿 conversion 邻近 residual 推进，但只切 `simd_cvtpd_ps` 与 `simd_cvtsd_ss` 这两个 narrowing leaf。先用本机 probe 取 host truth，再补 representative proof，判断当前 raw narrowing leaf 会不会在 `NaN/overflow` 路径上继续泄露异常；若 fresh 运行打红，再把修复限制在这两个 leaf 周围。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 先取 host truth 并复核 narrowing coverage 缺口 | completed | 已用本机 `cc -msse2` 最小 probe 确认 `cvtpd_ps/cvtsd_ss` 在 `NaN/Inf/overflow` 下的结果与 lane preserve 形状 |
+| 2. 新增 representative proof，观察 fresh 红点 | completed | `TTestCase_X86Sse2AbiBasics` 已新增 `Test_NarrowingFloatConversionHostTruthSemantics`；首次 fresh `experimental=1` 运行直接打出 `EInvalidOp`，确认 narrowing 异常路径仍会泄露 raw SSE conversion fault |
+| 3. 串行复验并按结果决定是否修 source | completed | 已把修复限制在 `simd_cvtpd_ps`、`simd_cvtsd_ss` 与同型 companion `simd_cvttpd_ps`；修复后 `git diff --check`、串行 experimental=`0`、串行 experimental=`1`、以及 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 全部 fresh 通过 |
