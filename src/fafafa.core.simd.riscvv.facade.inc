@@ -123,20 +123,6 @@ end;
 // F32x4 Memory Operations
 // =============================================================
 
-function RISCVVLoadF32x4(p: PSingle): TVecF32x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result.f[i] := p[i];
-end;
-
-function RISCVVLoadF32x4Aligned(p: PSingle): TVecF32x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result.f[i] := p[i];
-end;
-
 procedure RISCVVStoreF32x4(p: PSingle; const a: TVecF32x4);
 var i: Integer;
 begin
@@ -155,29 +141,9 @@ end;
 // F32x4 Utility Operations
 // =============================================================
 
-function RISCVVSplatF32x4(value: Single): TVecF32x4;
-begin
-  Result := ScalarSplatF32x4(value);
-end;
-
-function RISCVVZeroF32x4: TVecF32x4;
-begin
-  Result := ScalarZeroF32x4();
-end;
-
-function RISCVVSelectF32x4(const mask: TMask4; const a, b: TVecF32x4): TVecF32x4;
-begin
-  Result := ScalarSelectF32x4(mask, a, b);
-end;
-
 function RISCVVExtractF32x4(const a: TVecF32x4; index: Integer): Single;
 begin
   Result := ScalarExtractF32x4(a, index);
-end;
-
-function RISCVVInsertF32x4(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4;
-begin
-  Result := ScalarInsertF32x4(a, value, index);
 end;
 
 // =============================================================
@@ -1600,11 +1566,6 @@ begin
   Result := ScalarInsertF32x8(a, value, index);
 end;
 
-function RISCVVInsertF64x2(const a: TVecF64x2; value: Double; index: Integer): TVecF64x2;
-begin
-  Result := ScalarInsertF64x2(a, value, index);
-end;
-
 function RISCVVInsertF64x4(const a: TVecF64x4; value: Double; index: Integer): TVecF64x4;
 begin
   Result := ScalarInsertF64x4(a, value, index);
@@ -1647,13 +1608,6 @@ var i: Integer;
 begin
   for i := 0 to 7 do
     Result.f[i] := p[i];
-end;
-
-function RISCVVLoadF64x2(p: PDouble): TVecF64x2;
-var i: Integer;
-begin
-  for i := 0 to 1 do
-    Result.d[i] := p[i];
 end;
 
 function RISCVVLoadF64x4(p: PDouble): TVecF64x4;
@@ -2027,11 +1981,6 @@ begin
   Result := ScalarRoundF64x8(a);
 end;
 
-function RISCVVSelectF64x2(const mask: TMask2; const a, b: TVecF64x2): TVecF64x2;
-begin
-  Result := ScalarSelectF64x2(mask, a, b);
-end;
-
 function RISCVVShiftLeftI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
 begin
   Result := ScalarShiftLeftI16x8(a, count);
@@ -2085,11 +2034,6 @@ end;
 function RISCVVSplatF32x8(value: Single): TVecF32x8;
 begin
   Result := ScalarSplatF32x8(value);
-end;
-
-function RISCVVSplatF64x2(value: Double): TVecF64x2;
-begin
-  Result := ScalarSplatF64x2(value);
 end;
 
 function RISCVVSplatF64x4(value: Double): TVecF64x4;
@@ -2267,11 +2211,6 @@ end;
 function RISCVVZeroF32x8: TVecF32x8;
 begin
   Result := ScalarZeroF32x8();
-end;
-
-function RISCVVZeroF64x2: TVecF64x2;
-begin
-  Result := ScalarZeroF64x2();
 end;
 
 function RISCVVZeroF64x4: TVecF64x4;

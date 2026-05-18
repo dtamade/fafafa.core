@@ -12366,3 +12366,62 @@
 - 当前阶段结论：
   - `RISCVV U32x4` 这 11 个 no-asm body 现在也已经确认是 dead facade，不该继续留在源码里
   - `RISCVV` 128-bit residual 继续往下收时，真正还要审的是仍在 unconditional/live path 上的少数 companion/helper slot，而不是这些已失活 wrapper
+
+## 2026-05-18 RISCVV F32x4 F64x2 Utility Dead Facade Collapse
+
+- 继续沿 `RISCVV` 128-bit residual 下钻后，`F32x4/F64x2 utility` 这 11 个 slot fresh 对位后也已经落成统一结构：
+  - `LoadF32x4`
+  - `LoadF32x4Aligned`
+  - `SplatF32x4`
+  - `ZeroF32x4`
+  - `SelectF32x4`
+  - `InsertF32x4`
+  - `LoadF64x2`
+  - `SplatF64x2`
+  - `ZeroF64x2`
+  - `SelectF64x2`
+  - `InsertF64x2`
+  - 它们现在都属于 `asm-gated dead facade`
+  - `ExtractF32x4/ExtractF64x2` 仍保持 companion 双分支结构，这批明确不动
+- fresh 证据链：
+  - `src/fafafa.core.simd.riscvv.register.inc`
+    - 上述 11 个 utility slot 全都只在 `{$IFDEF RISCVV_ASSEMBLY}` 下绑定
+    - `ExtractF32x4` / `ExtractF64x2` 继续保持 asm/no-asm companion 结构
+  - `src/fafafa.core.simd.riscvv.pas`
+    - 这 11 个 slot 的 asm wrapper / helper / opcode body 全都仍真实存在
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - 之前仍保留这 11 个 no-asm body
+    - 现在全部删除
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 这 11 个名字已补进 `riscvv_facade_source` absent-routine expectation
+    - 另外把 `SplatF32x4/ZeroF32x4/SplatF64x2/ZeroF64x2` 从旧的 active scalar-forward expectation 里移除，避免 checker 继续追逐已删 dead facade
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 新增 `Test_RISCVV_F32x4UtilitySlots_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding`
+    - 新增 `Test_RISCVV_F64x2UtilitySlots_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding`
+    - 显式断言：
+      - facade dead witness 必须 absent
+      - register assignment site 继续存在且唯一
+      - asm wrapper / helper / opcode witness 继续存在
+      - runtime 仍保持 asm-compiled 时 backend-owned、非 asm host 时 scalar reuse
+- 这批判断进一步把 `RISCVV utility` 的收口规则钉死：
+  - 不能因为 `Load/Splat/Zero/Select/Insert` 看起来“很基础”，就默认它们应该永远留一层 family-local no-asm wrapper
+  - 先看 register 是否 asm-gated
+  - 再看 facade 今天是否还有 live consumer
+  - 如果 no-asm host 已经直接复用 base scalar slot，那 facade 名字本身不是 contract
+- 本批 fresh 验证链已经收口：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- 关键结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=713 status=ok`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=136 issues=0 status=ok`
+  - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=riscvv assignments=470 asm_exact=312 asm_suffix_only=117 wrapper_only=41 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 退出码 `0`
+- 当前阶段结论：
+  - `RISCVV F32x4/F64x2 utility` 这 11 个 no-asm body 现在也已经确认是 dead facade，不该继续留在源码里
+  - `Extract*` 这类仍在 live companion path 上的 slot 继续保持单独审视，不和 dead-facade 批次混删

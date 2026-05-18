@@ -8807,3 +8807,30 @@
 - 因而当前对 `RISCVV U32x4` 的更准口径已经变成：
   - 这 11 个 asm-gated scalar-forward body：dead source，应删除
   - `AndNot/compare/helper special-case`：仍是后续继续深审时该保留观察的 live lane
+
+## 2026-05-18 RISCVV F32x4 F64x2 Utility Slots Also Collapsed Into The Asm-Gated Dead-Facade Pattern
+
+- `RISCVV` 继续往 `F32x4/F64x2 utility` 下钻后，新的关键信号非常一致：
+  - `LoadF32x4 / LoadF32x4Aligned / SplatF32x4 / ZeroF32x4 / SelectF32x4 / InsertF32x4`
+  - `LoadF64x2 / SplatF64x2 / ZeroF64x2 / SelectF64x2 / InsertF64x2`
+  - 这 11 个 slot 现在都已经是 `asm-gated dead facade`
+- 这条 finding 的价值，不只是再删一批函数，而是把一个很容易继续拖慢审查的误区彻底钉死：
+  - 不能因为它们属于 `utility`，就默认“总得保留一层 no-asm family wrapper 才安全”
+  - 如果 register 发布本来就是 asm-gated，且 no-asm runtime 已直接 reuse base scalar slot，那么 facade 名字本身不是 contract
+- 关键 source-role 证据非常直接：
+  - `riscvv.register.inc`
+    - 这 11 个 utility slot 全都只在 `{$IFDEF RISCVV_ASSEMBLY}` 下绑定
+  - `riscvv.pas`
+    - asm wrapper / helper / opcode body 仍全部存在
+  - `riscvv.facade.inc`
+    - 之前那 11 个 body 在当前 no-asm host 下已没有 live consumer
+  - `ExtractF32x4 / ExtractF64x2`
+    - 仍是 companion 双分支结构，不属于这批 dead-facade
+- 这批还顺手暴露了一个 checker residual：
+  - `check_nonx86_helper_semantics.py` 里 `SplatF32x4/ZeroF32x4/SplatF64x2/ZeroF64x2` 原先还挂在通用 `riscvv_scalar_forwarder_expectations`
+  - 真正删掉 dead facade 之后，checker 第一时间报出旧 expectation 漂移
+  - 这说明当前 helper checker 不是装饰性的；它确实能把“源码已删，但旧 truth 仍挂着”的残余抓出来
+- 因而当前对这组 residual 的更准口径已经变成：
+  - asm/runtime path：仍是真正要守的 family contract
+  - no-asm utility facade：dead source，应删除
+  - helper checker 也必须同步改成 absent guard，而不是继续把它们当 active scalar-forward wrapper

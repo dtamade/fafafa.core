@@ -847,12 +847,12 @@ def main() -> int:
                 (f"RISCVV{op}{suffix}", f"Scalar{op}{suffix}(a)")
             )
 
-    for suffix in ("F32x4", "F32x8", "F32x16", "F64x2", "F64x4", "F64x8", "I64x4"):
+    for suffix in ("F32x8", "F32x16", "F64x4", "F64x8", "I64x4"):
         riscvv_scalar_forwarder_expectations.append(
             (f"RISCVVSplat{suffix}", f"ScalarSplat{suffix}(value)")
         )
 
-    for suffix in ("F32x4", "F32x8", "F32x16", "F64x2", "F64x4", "F64x8", "I64x4"):
+    for suffix in ("F32x8", "F32x16", "F64x4", "F64x8", "I64x4"):
         riscvv_scalar_forwarder_expectations.append(
             (f"RISCVVZero{suffix}", f"ScalarZero{suffix}()")
         )
@@ -1316,6 +1316,17 @@ def main() -> int:
         (riscvv_facade_source, "RISCVVShiftRightU32x4"),
         (riscvv_facade_source, "RISCVVMinU32x4"),
         (riscvv_facade_source, "RISCVVMaxU32x4"),
+        (riscvv_facade_source, "RISCVVLoadF32x4"),
+        (riscvv_facade_source, "RISCVVLoadF32x4Aligned"),
+        (riscvv_facade_source, "RISCVVSplatF32x4"),
+        (riscvv_facade_source, "RISCVVZeroF32x4"),
+        (riscvv_facade_source, "RISCVVSelectF32x4"),
+        (riscvv_facade_source, "RISCVVInsertF32x4"),
+        (riscvv_facade_source, "RISCVVLoadF64x2"),
+        (riscvv_facade_source, "RISCVVSplatF64x2"),
+        (riscvv_facade_source, "RISCVVZeroF64x2"),
+        (riscvv_facade_source, "RISCVVSelectF64x2"),
+        (riscvv_facade_source, "RISCVVInsertF64x2"),
     ]
 
     for source, routine_name in absent_routine_expectations:
