@@ -8,7 +8,7 @@ from pathlib import Path
 
 REGISTER_PATTERN = re.compile(r"\bRegisterTest\(\s*(TTestCase_[A-Za-z0-9_]+)\s*\)\s*;")
 HANDLE_PATTERN = re.compile(
-    r"HandleSuite\(\s*'(?P<label>TTestCase_[A-Za-z0-9_]+)'\s*,\s*(?P<symbol>TTestCase_[A-Za-z0-9_]+)\.Suite\b"
+    r"HandleSuite\(\s*'(?P<label>TTestCase_[A-Za-z0-9_]+)'\s*,\s*(?P<symbol>TTestCase_[A-Za-z0-9_]+)(?:\.Suite\b)?"
 )
 UNIT_PATTERN = re.compile(r"^\s*unit\s+([A-Za-z0-9_.]+)\s*;", re.IGNORECASE | re.MULTILINE)
 USES_TESTCASE_UNIT_PATTERN = re.compile(r"\bfafafa\.core\.simd(?:\.[A-Za-z0-9_]+)*\.testcase\b", re.IGNORECASE)

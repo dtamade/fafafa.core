@@ -15293,3 +15293,40 @@
   - 再次 push 当前修复
   - 继续 fresh Windows evidence
   - 看 `NONX86-OPTIN` 是否转绿，并确认 step `1/6 Build + check SIMD module` 是否终于整体通过
+
+### Follow-up: Windows opt-in NEON list-suites now fails inside runner-side suite materialization
+
+- 基于 `172dcf01` 重新触发的 fresh Windows run：
+  - `26053877395`
+- 这轮新的关键事实：
+  - `Prepare Windows SIMD Source` 已成功
+  - `Collect Windows B07 Evidence` 失败
+  - `windows_b07_gate.log` 已出现：
+    - `[CHECK] OK (no SIMD-unit warnings/hints on stable path)`
+    - `[NONX86-OPTIN] neon: test --list-suites`
+  - `nonx86.optin\neon` 下测试二进制已成功编译
+  - 随后运行 `fafafa.core.simd.test.exe --list-suites` 时发生：
+    - `EAccessViolation: Access violation`
+- 当前收敛：
+  - 这已经不再是前一轮的 Windows `warning rc` 粗粒度返回码问题
+  - 当前失败面进入了 runner 自身的 `--list-suites` 路径
+  - 由于 `--list-suites` 的真实 contract 只是列出 suite manifest，而不是执行 suite 构造/运行，现有实现仍逐个调用 `TTestCase_*.Suite` 属于冗余且更脆弱的路径
+- 当前修法：
+  - `tests/fafafa.core.simd/fafafa.core.simd.test.lpr`
+    - 将 `ProcessAllSuites(True, ...)` 的 list-only 分支收口为“只输出 suite 名称”
+    - 保留非 list-only 路径继续真实构造 `TTestCase_*.Suite`
+  - `tests/fafafa.core.simd/check_suite_manifest_sync.py`
+    - 同步接受 `HandleSuite('Name', TTestCase_Name, ...)` 这一新的 runner 事实形式
+    - 保持 manifest 静态校验继续 fail-close
+- 本地串行 release 验证已完成：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_suite_manifest_sync.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh nonx86-optin-list-suites`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_BackendSmoke`
+  - 结果：全部通过
+- 备注：
+  - 该 Windows run 里 `check_sse2_structure.py` 仍有 `cp1252` 控制台 `UnicodeEncodeError` 次级问题
+  - 但本轮 step 失败的真实 blocker 仍是后续 `NONX86-OPTIN neon --list-suites` 的 AV，不是该 Python 输出编码问题
+- 下一步：
+  - 提交并 push 这一批 runner/manifest 收口
+  - 再发 fresh Windows evidence，确认 `26053877395` 暴露的 `NONX86-OPTIN neon` AV 是否已被清除
