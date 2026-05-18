@@ -249,6 +249,7 @@ EXPECTATION_PROCEDURES = {
     "riscvv": (
         "TTestCase_DispatchAPI.Test_RISCVV_FacadeSlots_Reuse_BaseScalar_When_Wrappers_Are_ScalarPassThrough",
         "TTestCase_DispatchAPI.Test_RISCVV_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders",
+        "TTestCase_DispatchAPI.Test_RISCVV_WideRoundingAndF32ClampSlots_Reuse_BaseScalar_When_ScalarForwarders_Are_Dead",
         "TTestCase_DispatchAPI.Test_RISCVV_ExtractSlots_Reuse_BaseScalar_When_NoAsmWrappers_Are_Dead",
         "TTestCase_DispatchAPI.Test_RISCVV_HelperOwnedExactScalarSlots_Stay_BackendOwned",
         "TTestCase_DispatchAPI.Test_RISCVV_ExactF64x2Slots_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding",
@@ -303,8 +304,6 @@ ALLOWED_BACKEND_OWNED_SCALAR_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
     "riscvv": (
         set(RISCVV_HELPER_OWNED_KEY_SLOTS)
         | set(RISCVV_DOT_KEY_SLOTS)
-        | set(RISCVV_WIDE_ROUNDING_KEY_SLOTS)
-        | set(RISCVV_WIDE_F32_CLAMP_KEY_SLOTS)
     ),
 }
 

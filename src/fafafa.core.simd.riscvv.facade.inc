@@ -1032,36 +1032,6 @@ begin
   Result := ScalarAndU8x16(a, b);
 end;
 
-function RISCVVCeilF32x16(const a: TVecF32x16): TVecF32x16;
-begin
-  Result := ScalarCeilF32x16(a);
-end;
-
-function RISCVVCeilF32x8(const a: TVecF32x8): TVecF32x8;
-begin
-  Result := ScalarCeilF32x8(a);
-end;
-
-function RISCVVCeilF64x4(const a: TVecF64x4): TVecF64x4;
-begin
-  Result := ScalarCeilF64x4(a);
-end;
-
-function RISCVVCeilF64x8(const a: TVecF64x8): TVecF64x8;
-begin
-  Result := ScalarCeilF64x8(a);
-end;
-
-function RISCVVClampF32x16(const a, minVal, maxVal: TVecF32x16): TVecF32x16;
-begin
-  Result := ScalarClampF32x16(a, minVal, maxVal);
-end;
-
-function RISCVVClampF32x8(const a, minVal, maxVal: TVecF32x8): TVecF32x8;
-begin
-  Result := ScalarClampF32x8(a, minVal, maxVal);
-end;
-
 function RISCVVClampF64x4(const a, minVal, maxVal: TVecF64x4): TVecF64x4;
 var i: Integer;
 begin
@@ -1353,26 +1323,6 @@ end;
 function RISCVVCmpNeU8x16(const a, b: TVecU8x16): TMask16;
 begin
   Result := ScalarCmpNeU8x16(a, b);
-end;
-
-function RISCVVFloorF32x16(const a: TVecF32x16): TVecF32x16;
-begin
-  Result := ScalarFloorF32x16(a);
-end;
-
-function RISCVVFloorF32x8(const a: TVecF32x8): TVecF32x8;
-begin
-  Result := ScalarFloorF32x8(a);
-end;
-
-function RISCVVFloorF64x4(const a: TVecF64x4): TVecF64x4;
-begin
-  Result := ScalarFloorF64x4(a);
-end;
-
-function RISCVVFloorF64x8(const a: TVecF64x8): TVecF64x8;
-begin
-  Result := ScalarFloorF64x8(a);
 end;
 
 function RISCVVFmaF32x16(const a, b, c: TVecF32x16): TVecF32x16;
@@ -1916,26 +1866,6 @@ begin
     Result := Result * a.d[i];
 end;
 
-function RISCVVRoundF32x16(const a: TVecF32x16): TVecF32x16;
-begin
-  Result := ScalarRoundF32x16(a);
-end;
-
-function RISCVVRoundF32x8(const a: TVecF32x8): TVecF32x8;
-begin
-  Result := ScalarRoundF32x8(a);
-end;
-
-function RISCVVRoundF64x4(const a: TVecF64x4): TVecF64x4;
-begin
-  Result := ScalarRoundF64x4(a);
-end;
-
-function RISCVVRoundF64x8(const a: TVecF64x8): TVecF64x8;
-begin
-  Result := ScalarRoundF64x8(a);
-end;
-
 function RISCVVShiftLeftI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
 begin
   Result := ScalarShiftLeftI16x8(a, count);
@@ -2101,26 +2031,6 @@ end;
 function RISCVVSubU8x16(const a, b: TVecU8x16): TVecU8x16;
 begin
   Result := ScalarSubU8x16(a, b);
-end;
-
-function RISCVVTruncF32x16(const a: TVecF32x16): TVecF32x16;
-begin
-  Result := ScalarTruncF32x16(a);
-end;
-
-function RISCVVTruncF32x8(const a: TVecF32x8): TVecF32x8;
-begin
-  Result := ScalarTruncF32x8(a);
-end;
-
-function RISCVVTruncF64x4(const a: TVecF64x4): TVecF64x4;
-begin
-  Result := ScalarTruncF64x4(a);
-end;
-
-function RISCVVTruncF64x8(const a: TVecF64x8): TVecF64x8;
-begin
-  Result := ScalarTruncF64x8(a);
 end;
 
 function RISCVVXorI16x8(const a, b: TVecI16x8): TVecI16x8;

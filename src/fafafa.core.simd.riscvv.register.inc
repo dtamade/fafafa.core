@@ -357,33 +357,18 @@ begin
   {$ENDIF}
   table.MaxF64x4 := @RISCVVMaxF64x4;
   table.MaxF64x8 := @RISCVVMaxF64x8;
-  table.ClampF32x16 := @RISCVVClampF32x16;
-  table.ClampF32x8 := @RISCVVClampF32x8;
+  // Keep wide F32 Clamp on the canonical base scalar slots until RVV-specific
+  // semantics are validated end-to-end.
   {$IFDEF RISCVV_ASSEMBLY}
   table.ClampF64x2 := @RISCVVClampF64x2;
   {$ENDIF}
   table.ClampF64x4 := @RISCVVClampF64x4;
   table.ClampF64x8 := @RISCVVClampF64x8;
 
-  // Wide Float Extended Math (Ceil, Floor, Round, Trunc, Fma)
-  table.CeilF32x16 := @RISCVVCeilF32x16;
-  table.CeilF32x8 := @RISCVVCeilF32x8;
-  table.CeilF64x4 := @RISCVVCeilF64x4;
-  table.CeilF64x8 := @RISCVVCeilF64x8;
-  table.FloorF32x16 := @RISCVVFloorF32x16;
-  table.FloorF32x8 := @RISCVVFloorF32x8;
-  table.FloorF64x4 := @RISCVVFloorF64x4;
-  table.FloorF64x8 := @RISCVVFloorF64x8;
-  table.RoundF32x16 := @RISCVVRoundF32x16;
-  table.RoundF32x8 := @RISCVVRoundF32x8;
-  table.RoundF64x4 := @RISCVVRoundF64x4;
-  table.RoundF64x8 := @RISCVVRoundF64x8;
-  table.TruncF32x16 := @RISCVVTruncF32x16;
-  table.TruncF32x8 := @RISCVVTruncF32x8;
-  table.TruncF64x4 := @RISCVVTruncF64x4;
-  table.TruncF64x8 := @RISCVVTruncF64x8;
-  // Keep 128-bit F64x2 rounding on the canonical base scalar slots until the
-  // RISCVV-specific semantics are validated end-to-end.
+  // Keep wide Floor/Ceil/Round/Trunc on the canonical base scalar slots until
+  // RISCVV-specific semantics are implemented and validated end-to-end. F64
+  // Clamp remains backend-owned because its local NaN/signed-zero fallback is
+  // still intentional.
   table.FmaF32x16 := @RISCVVFmaF32x16;
   table.FmaF32x8 := @RISCVVFmaF32x8;
   {$IFDEF RISCVV_ASSEMBLY}

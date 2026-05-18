@@ -189,7 +189,7 @@ type
     procedure Test_RISCVV_CrossF32x3_Drops_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
     procedure Test_RISCVV_NormalizeF32Slots_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
     procedure Test_RISCVV_ReduceF64x2_Stays_BackendOwned_With_ExactScalarNoAsmWitness;
-    procedure Test_RISCVV_RegisterSource_Deduplicates_WideRoundingAssignments_And_Keeps_F64x2_Exception;
+    procedure Test_RISCVV_WideRoundingAndF32ClampSlots_Reuse_BaseScalar_When_ScalarForwarders_Are_Dead;
     procedure Test_AllRegisteredBackends_Wide512IntegerSlots_Assigned;
     procedure Test_AVX512_U32x16_U64x8_MappingAndParity;
     procedure Test_AVX512_U32x16_U64x8_ShiftBoundary_Contracts;
@@ -11376,24 +11376,6 @@ begin
   AssertRegisterOwnsBackendSlot('AddI64x4', 'table.AddI64x4 := @RISCVVAddI64x4;');
   AssertRegisterOwnsBackendSlot('MulI32x16', 'table.MulI32x16 := @RISCVVMulI32x16;');
   AssertRegisterOwnsBackendSlot('SubI64x8', 'table.SubI64x8 := @RISCVVSubI64x8;');
-  AssertRegisterOwnsBackendSlot('CeilF32x8', 'table.CeilF32x8 := @RISCVVCeilF32x8;');
-  AssertRegisterOwnsBackendSlot('CeilF64x4', 'table.CeilF64x4 := @RISCVVCeilF64x4;');
-  AssertRegisterOwnsBackendSlot('CeilF32x16', 'table.CeilF32x16 := @RISCVVCeilF32x16;');
-  AssertRegisterOwnsBackendSlot('CeilF64x8', 'table.CeilF64x8 := @RISCVVCeilF64x8;');
-  AssertRegisterOwnsBackendSlot('FloorF32x8', 'table.FloorF32x8 := @RISCVVFloorF32x8;');
-  AssertRegisterOwnsBackendSlot('FloorF64x4', 'table.FloorF64x4 := @RISCVVFloorF64x4;');
-  AssertRegisterOwnsBackendSlot('FloorF32x16', 'table.FloorF32x16 := @RISCVVFloorF32x16;');
-  AssertRegisterOwnsBackendSlot('FloorF64x8', 'table.FloorF64x8 := @RISCVVFloorF64x8;');
-  AssertRegisterOwnsBackendSlot('RoundF32x8', 'table.RoundF32x8 := @RISCVVRoundF32x8;');
-  AssertRegisterOwnsBackendSlot('RoundF64x4', 'table.RoundF64x4 := @RISCVVRoundF64x4;');
-  AssertRegisterOwnsBackendSlot('RoundF32x16', 'table.RoundF32x16 := @RISCVVRoundF32x16;');
-  AssertRegisterOwnsBackendSlot('RoundF64x8', 'table.RoundF64x8 := @RISCVVRoundF64x8;');
-  AssertRegisterOwnsBackendSlot('TruncF32x8', 'table.TruncF32x8 := @RISCVVTruncF32x8;');
-  AssertRegisterOwnsBackendSlot('TruncF64x4', 'table.TruncF64x4 := @RISCVVTruncF64x4;');
-  AssertRegisterOwnsBackendSlot('TruncF32x16', 'table.TruncF32x16 := @RISCVVTruncF32x16;');
-  AssertRegisterOwnsBackendSlot('TruncF64x8', 'table.TruncF64x8 := @RISCVVTruncF64x8;');
-  AssertRegisterOwnsBackendSlot('ClampF32x8', 'table.ClampF32x8 := @RISCVVClampF32x8;');
-  AssertRegisterOwnsBackendSlot('ClampF32x16', 'table.ClampF32x16 := @RISCVVClampF32x16;');
   AssertRegisterOwnsBackendSlot('ClampF64x4', 'table.ClampF64x4 := @RISCVVClampF64x4;');
   AssertRegisterOwnsBackendSlot('ClampF64x8', 'table.ClampF64x8 := @RISCVVClampF64x8;');
 
@@ -11417,24 +11399,6 @@ begin
   AssertSlotKeepsBackendOwnership('AddI64x4', Pointer(LScalarTable.AddI64x4), Pointer(LRISCVVTable.AddI64x4));
   AssertSlotKeepsBackendOwnership('MulI32x16', Pointer(LScalarTable.MulI32x16), Pointer(LRISCVVTable.MulI32x16));
   AssertSlotKeepsBackendOwnership('SubI64x8', Pointer(LScalarTable.SubI64x8), Pointer(LRISCVVTable.SubI64x8));
-  AssertSlotKeepsBackendOwnership('CeilF32x8', Pointer(LScalarTable.CeilF32x8), Pointer(LRISCVVTable.CeilF32x8));
-  AssertSlotKeepsBackendOwnership('CeilF64x4', Pointer(LScalarTable.CeilF64x4), Pointer(LRISCVVTable.CeilF64x4));
-  AssertSlotKeepsBackendOwnership('CeilF32x16', Pointer(LScalarTable.CeilF32x16), Pointer(LRISCVVTable.CeilF32x16));
-  AssertSlotKeepsBackendOwnership('CeilF64x8', Pointer(LScalarTable.CeilF64x8), Pointer(LRISCVVTable.CeilF64x8));
-  AssertSlotKeepsBackendOwnership('FloorF32x8', Pointer(LScalarTable.FloorF32x8), Pointer(LRISCVVTable.FloorF32x8));
-  AssertSlotKeepsBackendOwnership('FloorF64x4', Pointer(LScalarTable.FloorF64x4), Pointer(LRISCVVTable.FloorF64x4));
-  AssertSlotKeepsBackendOwnership('FloorF32x16', Pointer(LScalarTable.FloorF32x16), Pointer(LRISCVVTable.FloorF32x16));
-  AssertSlotKeepsBackendOwnership('FloorF64x8', Pointer(LScalarTable.FloorF64x8), Pointer(LRISCVVTable.FloorF64x8));
-  AssertSlotKeepsBackendOwnership('RoundF32x8', Pointer(LScalarTable.RoundF32x8), Pointer(LRISCVVTable.RoundF32x8));
-  AssertSlotKeepsBackendOwnership('RoundF64x4', Pointer(LScalarTable.RoundF64x4), Pointer(LRISCVVTable.RoundF64x4));
-  AssertSlotKeepsBackendOwnership('RoundF32x16', Pointer(LScalarTable.RoundF32x16), Pointer(LRISCVVTable.RoundF32x16));
-  AssertSlotKeepsBackendOwnership('RoundF64x8', Pointer(LScalarTable.RoundF64x8), Pointer(LRISCVVTable.RoundF64x8));
-  AssertSlotKeepsBackendOwnership('TruncF32x8', Pointer(LScalarTable.TruncF32x8), Pointer(LRISCVVTable.TruncF32x8));
-  AssertSlotKeepsBackendOwnership('TruncF64x4', Pointer(LScalarTable.TruncF64x4), Pointer(LRISCVVTable.TruncF64x4));
-  AssertSlotKeepsBackendOwnership('TruncF32x16', Pointer(LScalarTable.TruncF32x16), Pointer(LRISCVVTable.TruncF32x16));
-  AssertSlotKeepsBackendOwnership('TruncF64x8', Pointer(LScalarTable.TruncF64x8), Pointer(LRISCVVTable.TruncF64x8));
-  AssertSlotKeepsBackendOwnership('ClampF32x8', Pointer(LScalarTable.ClampF32x8), Pointer(LRISCVVTable.ClampF32x8));
-  AssertSlotKeepsBackendOwnership('ClampF32x16', Pointer(LScalarTable.ClampF32x16), Pointer(LRISCVVTable.ClampF32x16));
   AssertSlotKeepsBackendOwnership('ClampF64x4', Pointer(LScalarTable.ClampF64x4), Pointer(LRISCVVTable.ClampF64x4));
   AssertSlotKeepsBackendOwnership('ClampF64x8', Pointer(LScalarTable.ClampF64x8), Pointer(LRISCVVTable.ClampF64x8));
 
@@ -11759,134 +11723,131 @@ begin
     Pointer(LScalarTable.ExtractI64x4), Pointer(LRISCVVTable.ExtractI64x4));
 end;
 
-procedure TTestCase_DispatchAPI.Test_RISCVV_RegisterSource_Deduplicates_WideRoundingAssignments_And_Keeps_F64x2_Exception;
+procedure TTestCase_DispatchAPI.Test_RISCVV_WideRoundingAndF32ClampSlots_Reuse_BaseScalar_When_ScalarForwarders_Are_Dead;
 var
   LScalarTable: TSimdDispatchTable;
   LRISCVVTable: TSimdDispatchTable;
   LSourceLines: TStringList;
+  LUnitSourcePath: string;
   LRegisterSourcePath: string;
+  LFacadeSourcePath: string;
+  LUnitSource: string;
   LRegisterSource: string;
+  LFacadeSource: string;
 
-  function CountOccurrences(const aNeedle: string): Integer;
-  var
-    LNeedle: string;
-    LRest: string;
-    LPos: SizeInt;
+  procedure AssertDeadWrapperRemoved(const aLabel, aSnippet: string);
   begin
-    Result := 0;
-    LNeedle := LowerCase(aNeedle);
-    LRest := LRegisterSource;
-    LPos := Pos(LNeedle, LRest);
-    while LPos > 0 do
-    begin
-      Inc(Result);
-      Delete(LRest, 1, LPos + Length(LNeedle) - 1);
-      LPos := Pos(LNeedle, LRest);
-    end;
+    AssertTrue('RISCVV unit source should no longer publish a dead scalar-forward wrapper for ' + aLabel,
+      Pos(LowerCase(aSnippet), LUnitSource) = 0);
+    AssertTrue('RISCVV facade include should no longer publish a dead scalar-forward wrapper for ' + aLabel,
+      Pos(LowerCase(aSnippet), LFacadeSource) = 0);
+  end;
+
+  procedure AssertRegisterKeepsBaseScalar(const aLabel, aSnippet: string);
+  begin
+    AssertTrue('RegisterRISCVVBackend should keep the base scalar slot for ' + aLabel +
+      ' when the RISCVV-specific wrapper is fully dead',
+      Pos(LowerCase(aSnippet), LRegisterSource) = 0);
+  end;
+
+  procedure AssertSlotReusesScalar(const aLabel: string; const aScalarSlot, aBackendSlot: Pointer);
+  begin
+    AssertTrue('RISCVV ' + aLabel + ' should stay assigned in the backend dispatch table',
+      aBackendSlot <> nil);
+    AssertEquals('RISCVV ' + aLabel + ' should reuse the canonical base scalar slot when the RISCVV-specific wrapper is fully dead',
+      PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
   end;
 begin
   LSourceLines := TStringList.Create;
   try
+    LUnitSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.pas');
+    AssertTrue('RISCVV unit source should exist for implementation-shape audit: ' + LUnitSourcePath,
+      FileExists(LUnitSourcePath));
+    LSourceLines.LoadFromFile(LUnitSourcePath);
+    LUnitSource := LowerCase(LSourceLines.Text);
+
     LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.register.inc');
     AssertTrue('RISCVV register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
       FileExists(LRegisterSourcePath));
     LSourceLines.LoadFromFile(LRegisterSourcePath);
     LRegisterSource := LowerCase(LSourceLines.Text);
+
+    LFacadeSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.facade.inc');
+    AssertTrue('RISCVV facade source should exist for implementation-shape audit: ' + LFacadeSourcePath,
+      FileExists(LFacadeSourcePath));
+    LSourceLines.LoadFromFile(LFacadeSourcePath);
+    LFacadeSource := LowerCase(LSourceLines.Text);
   finally
     LSourceLines.Free;
   end;
 
-  AssertEquals('RISCVV CeilF32x16 common wide assignment should appear exactly once in register source',
-    1, CountOccurrences('table.CeilF32x16 := @RISCVVCeilF32x16;'));
-  AssertEquals('RISCVV FloorF32x16 common wide assignment should appear exactly once in register source',
-    1, CountOccurrences('table.FloorF32x16 := @RISCVVFloorF32x16;'));
-  AssertEquals('RISCVV RoundF32x16 common wide assignment should appear exactly once in register source',
-    1, CountOccurrences('table.RoundF32x16 := @RISCVVRoundF32x16;'));
-  AssertEquals('RISCVV TruncF32x16 common wide assignment should appear exactly once in register source',
-    1, CountOccurrences('table.TruncF32x16 := @RISCVVTruncF32x16;'));
-  AssertEquals('RISCVV CeilF64x4 common wide assignment should appear exactly once in register source',
-    1, CountOccurrences('table.CeilF64x4 := @RISCVVCeilF64x4;'));
-  AssertEquals('RISCVV FloorF64x4 common wide assignment should appear exactly once in register source',
-    1, CountOccurrences('table.FloorF64x4 := @RISCVVFloorF64x4;'));
-  AssertEquals('RISCVV RoundF64x4 common wide assignment should appear exactly once in register source',
-    1, CountOccurrences('table.RoundF64x4 := @RISCVVRoundF64x4;'));
-  AssertEquals('RISCVV TruncF64x4 common wide assignment should appear exactly once in register source',
-    1, CountOccurrences('table.TruncF64x4 := @RISCVVTruncF64x4;'));
+  AssertDeadWrapperRemoved('CeilF32x8', 'function RISCVVCeilF32x8(');
+  AssertDeadWrapperRemoved('CeilF64x4', 'function RISCVVCeilF64x4(');
+  AssertDeadWrapperRemoved('CeilF32x16', 'function RISCVVCeilF32x16(');
+  AssertDeadWrapperRemoved('CeilF64x8', 'function RISCVVCeilF64x8(');
+  AssertDeadWrapperRemoved('FloorF32x8', 'function RISCVVFloorF32x8(');
+  AssertDeadWrapperRemoved('FloorF64x4', 'function RISCVVFloorF64x4(');
+  AssertDeadWrapperRemoved('FloorF32x16', 'function RISCVVFloorF32x16(');
+  AssertDeadWrapperRemoved('FloorF64x8', 'function RISCVVFloorF64x8(');
+  AssertDeadWrapperRemoved('RoundF32x8', 'function RISCVVRoundF32x8(');
+  AssertDeadWrapperRemoved('RoundF64x4', 'function RISCVVRoundF64x4(');
+  AssertDeadWrapperRemoved('RoundF32x16', 'function RISCVVRoundF32x16(');
+  AssertDeadWrapperRemoved('RoundF64x8', 'function RISCVVRoundF64x8(');
+  AssertDeadWrapperRemoved('TruncF32x8', 'function RISCVVTruncF32x8(');
+  AssertDeadWrapperRemoved('TruncF64x4', 'function RISCVVTruncF64x4(');
+  AssertDeadWrapperRemoved('TruncF32x16', 'function RISCVVTruncF32x16(');
+  AssertDeadWrapperRemoved('TruncF64x8', 'function RISCVVTruncF64x8(');
+  AssertDeadWrapperRemoved('ClampF32x8', 'function RISCVVClampF32x8(');
+  AssertDeadWrapperRemoved('ClampF32x16', 'function RISCVVClampF32x16(');
 
-  AssertEquals('RISCVV F32x4 Floor should now reuse the published base scalar slot without an explicit register override',
-    0, CountOccurrences('table.FloorF32x4 := @ScalarFloorF32x4;'));
-  AssertEquals('RISCVV F32x4 Ceil should now reuse the published base scalar slot without an explicit register override',
-    0, CountOccurrences('table.CeilF32x4 := @ScalarCeilF32x4;'));
-  AssertEquals('RISCVV F32x4 Round should now reuse the published base scalar slot without an explicit register override',
-    0, CountOccurrences('table.RoundF32x4 := @ScalarRoundF32x4;'));
-  AssertEquals('RISCVV F32x4 Trunc should now reuse the published base scalar slot without an explicit register override',
-    0, CountOccurrences('table.TruncF32x4 := @ScalarTruncF32x4;'));
-  AssertEquals('RISCVV F32x4 Floor should not restate a backend-local no-asm override',
-    0, CountOccurrences('table.FloorF32x4 := @RISCVVFloorF32x4;'));
-  AssertEquals('RISCVV F32x4 Ceil should not restate a backend-local no-asm override',
-    0, CountOccurrences('table.CeilF32x4 := @RISCVVCeilF32x4;'));
-  AssertEquals('RISCVV F32x4 Round should not restate a backend-local no-asm override',
-    0, CountOccurrences('table.RoundF32x4 := @RISCVVRoundF32x4;'));
-  AssertEquals('RISCVV F32x4 Trunc should not restate a backend-local no-asm override',
-    0, CountOccurrences('table.TruncF32x4 := @RISCVVTruncF32x4;'));
-  AssertEquals('RISCVV F64x2 Ceil should now reuse the published base scalar slot without an explicit register override',
-    0, CountOccurrences('table.CeilF64x2 := @ScalarCeilF64x2;'));
-  AssertEquals('RISCVV F64x2 Floor should now reuse the published base scalar slot without an explicit register override',
-    0, CountOccurrences('table.FloorF64x2 := @ScalarFloorF64x2;'));
-  AssertEquals('RISCVV F64x2 Round should now reuse the published base scalar slot without an explicit register override',
-    0, CountOccurrences('table.RoundF64x2 := @ScalarRoundF64x2;'));
-  AssertEquals('RISCVV F64x2 Trunc should now reuse the published base scalar slot without an explicit register override',
-    0, CountOccurrences('table.TruncF64x2 := @ScalarTruncF64x2;'));
-  AssertEquals('RISCVV F64x2 Ceil should not restate a backend-local no-asm override',
-    0, CountOccurrences('table.CeilF64x2 := @RISCVVCeilF64x2;'));
-  AssertEquals('RISCVV F64x2 Floor should not restate a backend-local no-asm override',
-    0, CountOccurrences('table.FloorF64x2 := @RISCVVFloorF64x2;'));
-  AssertEquals('RISCVV F64x2 Round should not restate a backend-local no-asm override',
-    0, CountOccurrences('table.RoundF64x2 := @RISCVVRoundF64x2;'));
-  AssertEquals('RISCVV F64x2 Trunc should not restate a backend-local no-asm override',
-    0, CountOccurrences('table.TruncF64x2 := @RISCVVTruncF64x2;'));
+  AssertRegisterKeepsBaseScalar('CeilF32x8', 'table.CeilF32x8 := @RISCVVCeilF32x8;');
+  AssertRegisterKeepsBaseScalar('CeilF64x4', 'table.CeilF64x4 := @RISCVVCeilF64x4;');
+  AssertRegisterKeepsBaseScalar('CeilF32x16', 'table.CeilF32x16 := @RISCVVCeilF32x16;');
+  AssertRegisterKeepsBaseScalar('CeilF64x8', 'table.CeilF64x8 := @RISCVVCeilF64x8;');
+  AssertRegisterKeepsBaseScalar('FloorF32x8', 'table.FloorF32x8 := @RISCVVFloorF32x8;');
+  AssertRegisterKeepsBaseScalar('FloorF64x4', 'table.FloorF64x4 := @RISCVVFloorF64x4;');
+  AssertRegisterKeepsBaseScalar('FloorF32x16', 'table.FloorF32x16 := @RISCVVFloorF32x16;');
+  AssertRegisterKeepsBaseScalar('FloorF64x8', 'table.FloorF64x8 := @RISCVVFloorF64x8;');
+  AssertRegisterKeepsBaseScalar('RoundF32x8', 'table.RoundF32x8 := @RISCVVRoundF32x8;');
+  AssertRegisterKeepsBaseScalar('RoundF64x4', 'table.RoundF64x4 := @RISCVVRoundF64x4;');
+  AssertRegisterKeepsBaseScalar('RoundF32x16', 'table.RoundF32x16 := @RISCVVRoundF32x16;');
+  AssertRegisterKeepsBaseScalar('RoundF64x8', 'table.RoundF64x8 := @RISCVVRoundF64x8;');
+  AssertRegisterKeepsBaseScalar('TruncF32x8', 'table.TruncF32x8 := @RISCVVTruncF32x8;');
+  AssertRegisterKeepsBaseScalar('TruncF64x4', 'table.TruncF64x4 := @RISCVVTruncF64x4;');
+  AssertRegisterKeepsBaseScalar('TruncF32x16', 'table.TruncF32x16 := @RISCVVTruncF32x16;');
+  AssertRegisterKeepsBaseScalar('TruncF64x8', 'table.TruncF64x8 := @RISCVVTruncF64x8;');
+  AssertRegisterKeepsBaseScalar('ClampF32x8', 'table.ClampF32x8 := @RISCVVClampF32x8;');
+  AssertRegisterKeepsBaseScalar('ClampF32x16', 'table.ClampF32x16 := @RISCVVClampF32x16;');
 
   AssertTrue('Scalar dispatch table should be registered',
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
 
-  GetDispatchTable;
-  SetVectorAsmEnabled(True);
-  if not IsVectorAsmEnabled then
-    Exit;
-
   {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
-  AssertTrue('RISCVV opt-in test registration should be present for rounding register-source audit',
+  AssertTrue('RISCVV opt-in test registration should be present for wide rounding/clamp source audit',
     TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
   {$ELSE}
   if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
     Exit;
   {$ENDIF}
 
-  AssertEquals('RISCVV F32x4 Floor should now reuse the canonical base scalar slot',
-    PtrUInt(LScalarTable.FloorF32x4), PtrUInt(LRISCVVTable.FloorF32x4));
-  AssertEquals('RISCVV F32x4 Ceil should now reuse the canonical base scalar slot',
-    PtrUInt(LScalarTable.CeilF32x4), PtrUInt(LRISCVVTable.CeilF32x4));
-  AssertEquals('RISCVV F32x4 Round should now reuse the canonical base scalar slot',
-    PtrUInt(LScalarTable.RoundF32x4), PtrUInt(LRISCVVTable.RoundF32x4));
-  AssertEquals('RISCVV F32x4 Trunc should now reuse the canonical base scalar slot',
-    PtrUInt(LScalarTable.TruncF32x4), PtrUInt(LRISCVVTable.TruncF32x4));
-  AssertEquals('RISCVV F64x2 Floor should now reuse the canonical base scalar slot',
-    PtrUInt(LScalarTable.FloorF64x2), PtrUInt(LRISCVVTable.FloorF64x2));
-  AssertEquals('RISCVV F64x2 Ceil should now reuse the canonical base scalar slot',
-    PtrUInt(LScalarTable.CeilF64x2), PtrUInt(LRISCVVTable.CeilF64x2));
-  AssertEquals('RISCVV F64x2 Round should now reuse the canonical base scalar slot',
-    PtrUInt(LScalarTable.RoundF64x2), PtrUInt(LRISCVVTable.RoundF64x2));
-  AssertEquals('RISCVV F64x2 Trunc should now reuse the canonical base scalar slot',
-    PtrUInt(LScalarTable.TruncF64x2), PtrUInt(LRISCVVTable.TruncF64x2));
-
-  AssertTrue('RISCVV FloorF32x16 should keep a non-scalar wide slot after register-source dedup',
-    Pointer(LRISCVVTable.FloorF32x16) <> Pointer(LScalarTable.FloorF32x16));
-  AssertTrue('RISCVV CeilF32x16 should keep a non-scalar wide slot after register-source dedup',
-    Pointer(LRISCVVTable.CeilF32x16) <> Pointer(LScalarTable.CeilF32x16));
-  AssertTrue('RISCVV RoundF64x4 should keep a non-scalar wide slot after register-source dedup',
-    Pointer(LRISCVVTable.RoundF64x4) <> Pointer(LScalarTable.RoundF64x4));
-  AssertTrue('RISCVV TruncF64x4 should keep a non-scalar wide slot after register-source dedup',
-    Pointer(LRISCVVTable.TruncF64x4) <> Pointer(LScalarTable.TruncF64x4));
+  AssertSlotReusesScalar('CeilF32x8', Pointer(LScalarTable.CeilF32x8), Pointer(LRISCVVTable.CeilF32x8));
+  AssertSlotReusesScalar('CeilF64x4', Pointer(LScalarTable.CeilF64x4), Pointer(LRISCVVTable.CeilF64x4));
+  AssertSlotReusesScalar('CeilF32x16', Pointer(LScalarTable.CeilF32x16), Pointer(LRISCVVTable.CeilF32x16));
+  AssertSlotReusesScalar('CeilF64x8', Pointer(LScalarTable.CeilF64x8), Pointer(LRISCVVTable.CeilF64x8));
+  AssertSlotReusesScalar('FloorF32x8', Pointer(LScalarTable.FloorF32x8), Pointer(LRISCVVTable.FloorF32x8));
+  AssertSlotReusesScalar('FloorF64x4', Pointer(LScalarTable.FloorF64x4), Pointer(LRISCVVTable.FloorF64x4));
+  AssertSlotReusesScalar('FloorF32x16', Pointer(LScalarTable.FloorF32x16), Pointer(LRISCVVTable.FloorF32x16));
+  AssertSlotReusesScalar('FloorF64x8', Pointer(LScalarTable.FloorF64x8), Pointer(LRISCVVTable.FloorF64x8));
+  AssertSlotReusesScalar('RoundF32x8', Pointer(LScalarTable.RoundF32x8), Pointer(LRISCVVTable.RoundF32x8));
+  AssertSlotReusesScalar('RoundF64x4', Pointer(LScalarTable.RoundF64x4), Pointer(LRISCVVTable.RoundF64x4));
+  AssertSlotReusesScalar('RoundF32x16', Pointer(LScalarTable.RoundF32x16), Pointer(LRISCVVTable.RoundF32x16));
+  AssertSlotReusesScalar('RoundF64x8', Pointer(LScalarTable.RoundF64x8), Pointer(LRISCVVTable.RoundF64x8));
+  AssertSlotReusesScalar('TruncF32x8', Pointer(LScalarTable.TruncF32x8), Pointer(LRISCVVTable.TruncF32x8));
+  AssertSlotReusesScalar('TruncF64x4', Pointer(LScalarTable.TruncF64x4), Pointer(LRISCVVTable.TruncF64x4));
+  AssertSlotReusesScalar('TruncF32x16', Pointer(LScalarTable.TruncF32x16), Pointer(LRISCVVTable.TruncF32x16));
+  AssertSlotReusesScalar('TruncF64x8', Pointer(LScalarTable.TruncF64x8), Pointer(LRISCVVTable.TruncF64x8));
+  AssertSlotReusesScalar('ClampF32x8', Pointer(LScalarTable.ClampF32x8), Pointer(LRISCVVTable.ClampF32x8));
+  AssertSlotReusesScalar('ClampF32x16', Pointer(LScalarTable.ClampF32x16), Pointer(LRISCVVTable.ClampF32x16));
 end;
 
 procedure TTestCase_DispatchAPI.Test_BacklogParityAndSmoke_Batch3;
@@ -15377,11 +15338,38 @@ var
         aBackendSlot <> aScalarSlot);
   end;
 
+  function ShouldReuseScalarWideSlot(const aSlotName: string): Boolean;
+  begin
+    if LBackend = sbNEON then
+      Exit(True);
+    if LBackend <> sbRISCVV then
+      Exit(False);
+    Result :=
+      (aSlotName = 'FloorF32x8') or
+      (aSlotName = 'CeilF32x8') or
+      (aSlotName = 'RoundF32x8') or
+      (aSlotName = 'TruncF32x8') or
+      (aSlotName = 'FloorF64x4') or
+      (aSlotName = 'CeilF64x4') or
+      (aSlotName = 'RoundF64x4') or
+      (aSlotName = 'TruncF64x4') or
+      (aSlotName = 'FloorF32x16') or
+      (aSlotName = 'CeilF32x16') or
+      (aSlotName = 'RoundF32x16') or
+      (aSlotName = 'TruncF32x16') or
+      (aSlotName = 'FloorF64x8') or
+      (aSlotName = 'CeilF64x8') or
+      (aSlotName = 'RoundF64x8') or
+      (aSlotName = 'TruncF64x8') or
+      (aSlotName = 'ClampF32x8') or
+      (aSlotName = 'ClampF32x16');
+  end;
+
   procedure AssertNeonReusesScalarOtherwiseNative(const aSlotName: string; const aScalarSlot, aBackendSlot: Pointer);
   begin
     AssertTrue(aSlotName + ' missing: ' + DispatchApiBackendName(LBackend), aBackendSlot <> nil);
-    if LBackend = sbNEON then
-      AssertEquals(aSlotName + ' should reuse the scalar slot on NEON when only no-asm scalar forwarders are published',
+    if ShouldReuseScalarWideSlot(aSlotName) then
+      AssertEquals(aSlotName + ' should reuse the scalar slot when the current non-x86 backend truth is canonical base-scalar inheritance',
         PtrUInt(aScalarSlot), PtrUInt(aBackendSlot))
     else
       AssertTrue(aSlotName + ' unexpectedly falls back to scalar slot: ' + DispatchApiBackendName(LBackend),
@@ -15422,7 +15410,9 @@ begin
 
     Inc(LCheckedBackends);
 
-  // Native-slot contract (only for explicitly marked non-x86 wide Floor/Ceil targets).
+  // Current ownership contract for non-x86 wide round/floor/ceil/trunc and the
+  // F32 Clamp pair: reuse the base scalar slot where the backend-specific
+  // wrapper is intentionally absent, otherwise keep a dedicated native slot.
   AssertNeonReusesScalarOtherwiseNative('FloorF32x8',
     Pointer(LScalarTable.FloorF32x8), Pointer(LBackendTable.FloorF32x8));
   AssertNeonReusesScalarOtherwiseNative('CeilF32x8',
@@ -15565,11 +15555,38 @@ var
       aBackendSlot <> aScalarSlot);
   end;
 
+  function ShouldReuseScalarWideSlot(const aSlotName: string): Boolean;
+  begin
+    if LBackend = sbNEON then
+      Exit(True);
+    if LBackend <> sbRISCVV then
+      Exit(False);
+    Result :=
+      (aSlotName = 'FloorF32x8') or
+      (aSlotName = 'CeilF32x8') or
+      (aSlotName = 'RoundF32x8') or
+      (aSlotName = 'TruncF32x8') or
+      (aSlotName = 'FloorF64x4') or
+      (aSlotName = 'CeilF64x4') or
+      (aSlotName = 'RoundF64x4') or
+      (aSlotName = 'TruncF64x4') or
+      (aSlotName = 'FloorF32x16') or
+      (aSlotName = 'CeilF32x16') or
+      (aSlotName = 'RoundF32x16') or
+      (aSlotName = 'TruncF32x16') or
+      (aSlotName = 'FloorF64x8') or
+      (aSlotName = 'CeilF64x8') or
+      (aSlotName = 'RoundF64x8') or
+      (aSlotName = 'TruncF64x8') or
+      (aSlotName = 'ClampF32x8') or
+      (aSlotName = 'ClampF32x16');
+  end;
+
   procedure AssertNeonReusesScalarOtherwiseNative(const aSlotName: string; const aScalarSlot, aBackendSlot: Pointer);
   begin
     AssertTrue(aSlotName + ' missing: ' + NonX86BackendName(LBackend), aBackendSlot <> nil);
-    if LBackend = sbNEON then
-      AssertEquals(aSlotName + ' should reuse the scalar slot on NEON when only no-asm scalar forwarders are published',
+    if ShouldReuseScalarWideSlot(aSlotName) then
+      AssertEquals(aSlotName + ' should reuse the scalar slot when the current non-x86 backend truth is canonical base-scalar inheritance',
         PtrUInt(aScalarSlot), PtrUInt(aBackendSlot))
     else
       AssertTrue(aSlotName + ' unexpectedly falls back to scalar slot: ' + NonX86BackendName(LBackend),

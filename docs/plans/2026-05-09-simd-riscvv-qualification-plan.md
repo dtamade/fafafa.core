@@ -43,6 +43,7 @@
 
 - 部分 scalar-pass-through helper 必须继续显式留在 base scalar slot
 - `Extract*` 必须保留 asm-gated register 结构，但 no-asm host 应直接 reuse base scalar slot，不该再回流到 RISCVV no-asm wrapper
+- `Ceil/Floor/Round/TruncF32x8/F64x4/F32x16/F64x8` 与 `ClampF32x8/F32x16` 现在也已经翻正为 `reuse base scalar`，不该再恢复成 RISCVV family-local scalar-forward wrapper；这组里仍保留 backend-owned 的只剩 `ClampF64x4/F64x8`
 
 ## 当前 verification lane
 
@@ -76,8 +77,9 @@ bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local
 
 - `Test_RISCVV_KeyOwnedWideSlots_Stay_BackendOwned`
 - `Test_RISCVV_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders`
+- `Test_RISCVV_WideRoundingAndF32ClampSlots_Reuse_BaseScalar_When_ScalarForwarders_Are_Dead`
 - `riscvv.facade.inc` 中 scalar-pass-through helper 的显式回退
-- `riscvv.register.inc` 中 `Extract*` 的 asm-only binding + no-asm scalar reuse 形状
+- `riscvv.register.inc` 中 `Extract*` 的 asm-only binding + no-asm scalar reuse 形状，以及 wide `round/clamp` 这 18 个 slot 已回到 base scalar 的 register truth
 
 ### runtime-side
 
@@ -106,6 +108,7 @@ bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local
 - backend-owned key wide slots
 - scalar-pass-through helper 不得误接回 backend wrapper
 - `Extract*` asm-gated register 结构不得被“重构优化”掉，也不要重新引回 no-asm RISCVV wrapper
+- wide `round/clamp` 这 18 个 slot 不得再恢复成 no-asm RISCVV scalar-forward wrapper；如果未来真要改回 backend-owned，必须连 source/checker/doc/runtime 合同一起重写
 
 ## Task 3：固定 ABI / opcode qualification
 
