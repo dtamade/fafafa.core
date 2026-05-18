@@ -5773,3 +5773,26 @@
 | 1. 给浮点 unpack 家族补 exact-bit witness | completed | 已新增 `Test_UnpackFloatFamilies_PreserveBitPatterns`，分别对 `pd/ps` 族喂入 `QWord/DWord` 特殊位模式，并对 `unpacklo/hi` 结果做逐 lane exact-bit 断言 |
 | 2. 串行双模态复验 | completed | `git diff --check`、串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`、串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test` 已全部 fresh 通过 |
 | 3. 复核低命中列表变化 | completed | 重新统计后，`ONE_HIT` 已从 `19` 降到 `15`；`unpacklo/hi_{pd,ps}` 这一簇已从当前最薄命中列表移除 |
+
+## 2026-05-18 SSE2 Integer Pack/Unpack Unaligned Constref Witness
+
+### Goal
+
+继续沿 `constref` source-alignment 这条高价值线补 runtime proof，但只覆盖剩下的整数
+`pack/unpack` one-hit surface：
+`simd_unpacklo/hi_epi8`、
+`simd_unpacklo/hi_epi16`、
+`simd_unpacklo/hi_epi32`、
+`simd_unpacklo/hi_epi64`、
+`simd_packs_epi16`、
+`simd_packs_epi32`、
+`simd_packus_epi16`。
+这批不改实现，只证明这些入口在故意非对齐 `constref TM128` 源上仍保持原有 lane/saturation 合同。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 给整数 pack/unpack 家族补非对齐 source witness | completed | 已新增 `Test_UnpackAndPackFamilies_AcceptUnalignedSourceVectors`，使用 `AlignPointer(...)+1/+3` 构造双源非对齐 `TM128`，并分别验证 `epi8/16/32/64 unpack` 与 `packs/packus` 的 lane/saturation 结果 |
+| 2. 串行双模态复验 | completed | `git diff --check`、串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`、串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test` 已全部 fresh 通过 |
+| 3. 复核低命中列表变化 | completed | 重新统计后，`ONE_HIT` 已从 `15` 降到 `4`；当前只剩 `simd_clflush`、`simd_lfence`、`simd_mfence`、`simd_pause` 这 4 个 fence/cache-control side-effect surface |

@@ -365,6 +365,55 @@
     - `clflush/lfence/mfence/pause`
     - `packs_*`
     - 整数 `unpacklo/hi_*`
+
+## 2026-05-18 SSE2 Integer Pack/Unpack Unaligned Constref Witness
+
+- 没有再切回实现层，而是继续顺着前面已经证明有价值的 `constref` 对齐风险线推进：
+  - 既然 `check_sse2_structure.py` 已经禁止 `constref TM128` 重新走 aligned-source load
+  - 那最自然的下一步就是给剩下仍 one-hit 的整数 `pack/unpack` 家族补真实 runtime witness
+- 本批锁定的 11 个入口：
+  - `simd_unpacklo_epi8`
+  - `simd_unpackhi_epi8`
+  - `simd_unpacklo_epi16`
+  - `simd_unpackhi_epi16`
+  - `simd_unpacklo_epi32`
+  - `simd_unpackhi_epi32`
+  - `simd_unpacklo_epi64`
+  - `simd_unpackhi_epi64`
+  - `simd_packs_epi16`
+  - `simd_packs_epi32`
+  - `simd_packus_epi16`
+- 本批只改：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+- 已新增：
+  - `TTestCase_X86Sse2PackShuffleBasics.Test_UnpackAndPackFamilies_AcceptUnalignedSourceVectors`
+- 新测试设计：
+  - 用 `AlignPointer(..., 16) + 1` / `+ 3` 构造两份故意非对齐的 `TM128` 源
+  - 先把局部 `TM128` 值 `Move` 进非对齐原始存储，再以 `PTM128(LUnaligned)^` 形式传给被测函数
+  - 对 `unpack`：
+    - 继续验证 `epi8/16/32/64` 的低半/高半交错 lane 次序
+  - 对 `pack`：
+    - 继续验证 `packs_epi32` 的 `i32 -> i16` 饱和
+    - `packs_epi16` 的 `i16 -> i8` 饱和
+    - `packus_epi16` 的 `i16 -> u8` 饱和
+- fresh 验证：
+  - `git diff --check`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- fresh 结果：
+  - experimental=`0`：`[TEST] OK`、`[LEAK] OK`
+  - experimental=`1`：`[TEST] OK`、`[LEAK] OK`
+- 命中面复核：
+  - 重新统计 `intrinsics.x86.sse2` interface 在 experimental testcase 的 direct-hit
+  - `ONE_HIT` 已从 `15` 进一步降到 `4`
+  - 当前剩余 one-hit 只剩：
+    - `simd_clflush`
+    - `simd_lfence`
+    - `simd_mfence`
+    - `simd_pause`
+- 当前阶段结论：
+  - 这批把剩余整数 `pack/unpack` 的薄证明几乎一次性清空
+  - 从 direct-hit 角度看，`intrinsics.x86.sse2` 当前已经基本只剩 fence/cache-control 这类天然更难做强语义断言的 surface
   - 主 `simd` release `check` 全绿
 - 当前阶段结论：
   - 这批确认只是 `SSE experimental intrinsics` 的源码文本卫生收口，不涉及行为修复

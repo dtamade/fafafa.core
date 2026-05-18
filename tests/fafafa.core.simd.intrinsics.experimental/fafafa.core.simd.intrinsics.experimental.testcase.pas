@@ -1178,6 +1178,7 @@ type
     procedure Test_UnpackLaneInterleaving;
     procedure Test_UnpackWideLaneInterleaving;
     procedure Test_UnpackFloatFamilies_PreserveBitPatterns;
+    procedure Test_UnpackAndPackFamilies_AcceptUnalignedSourceVectors;
     procedure Test_PackSaturationSemantics;
     procedure Test_ShuffleAndCrossTypeCastSemantics;
     procedure Test_ShuffleImmediateRoutingSemantics;
@@ -4278,6 +4279,169 @@ begin
     LongInt(DWord($FFC00077)), LHi.m128i_i32[2]);
   AssertEquals('unpackhi_ps bit lane3',
     LongInt($7F800000), LHi.m128i_i32[3]);
+end;
+
+procedure TTestCase_X86Sse2PackShuffleBasics.Test_UnpackAndPackFamilies_AcceptUnalignedSourceVectors;
+var
+  LRawA: array[0..63] of Byte;
+  LRawB: array[0..63] of Byte;
+  LAlignedA: Pointer;
+  LAlignedB: Pointer;
+  LUnalignedA: Pointer;
+  LUnalignedB: Pointer;
+  LA: TM128;
+  LB: TM128;
+  LLo: TM128;
+  LHi: TM128;
+  LResult: TM128;
+  LExpectedI16: array[0..7] of SmallInt;
+  LExpectedI8: array[0..15] of ShortInt;
+  LExpectedU8: array[0..15] of Byte;
+  LIndex: Integer;
+begin
+  FillChar(LRawA, SizeOf(LRawA), 0);
+  FillChar(LRawB, SizeOf(LRawB), 0);
+  LAlignedA := AlignPointer(@LRawA[0], 16);
+  LAlignedB := AlignPointer(@LRawB[0], 16);
+  LUnalignedA := Pointer(PtrUInt(LAlignedA) + 1);
+  LUnalignedB := Pointer(PtrUInt(LAlignedB) + 3);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 15 do
+  begin
+    LA.m128i_i8[LIndex] := LIndex;
+    LB.m128i_i8[LIndex] := 60 + LIndex;
+  end;
+  Move(LA, PByte(LUnalignedA)^, SizeOf(LA));
+  Move(LB, PByte(LUnalignedB)^, SizeOf(LB));
+
+  LLo := simd_unpacklo_epi8(PTM128(LUnalignedA)^, PTM128(LUnalignedB)^);
+  LHi := simd_unpackhi_epi8(PTM128(LUnalignedA)^, PTM128(LUnalignedB)^);
+  for LIndex := 0 to 7 do
+  begin
+    AssertEquals('unaligned unpacklo_epi8.a[' + IntToStr(LIndex) + ']',
+      LA.m128i_i8[LIndex], LLo.m128i_i8[LIndex * 2]);
+    AssertEquals('unaligned unpacklo_epi8.b[' + IntToStr(LIndex) + ']',
+      LB.m128i_i8[LIndex], LLo.m128i_i8[(LIndex * 2) + 1]);
+    AssertEquals('unaligned unpackhi_epi8.a[' + IntToStr(LIndex) + ']',
+      LA.m128i_i8[8 + LIndex], LHi.m128i_i8[LIndex * 2]);
+    AssertEquals('unaligned unpackhi_epi8.b[' + IntToStr(LIndex) + ']',
+      LB.m128i_i8[8 + LIndex], LHi.m128i_i8[(LIndex * 2) + 1]);
+  end;
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 7 do
+  begin
+    LA.m128i_i16[LIndex] := 10 + LIndex;
+    LB.m128i_i16[LIndex] := 100 + LIndex;
+  end;
+  Move(LA, PByte(LUnalignedA)^, SizeOf(LA));
+  Move(LB, PByte(LUnalignedB)^, SizeOf(LB));
+
+  LLo := simd_unpacklo_epi16(PTM128(LUnalignedA)^, PTM128(LUnalignedB)^);
+  LHi := simd_unpackhi_epi16(PTM128(LUnalignedA)^, PTM128(LUnalignedB)^);
+  for LIndex := 0 to 3 do
+  begin
+    AssertEquals('unaligned unpacklo_epi16.a[' + IntToStr(LIndex) + ']',
+      LA.m128i_i16[LIndex], LLo.m128i_i16[LIndex * 2]);
+    AssertEquals('unaligned unpacklo_epi16.b[' + IntToStr(LIndex) + ']',
+      LB.m128i_i16[LIndex], LLo.m128i_i16[(LIndex * 2) + 1]);
+    AssertEquals('unaligned unpackhi_epi16.a[' + IntToStr(LIndex) + ']',
+      LA.m128i_i16[4 + LIndex], LHi.m128i_i16[LIndex * 2]);
+    AssertEquals('unaligned unpackhi_epi16.b[' + IntToStr(LIndex) + ']',
+      LB.m128i_i16[4 + LIndex], LHi.m128i_i16[(LIndex * 2) + 1]);
+  end;
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 3 do
+  begin
+    LA.m128i_i32[LIndex] := LIndex;
+    LB.m128i_i32[LIndex] := 100 + LIndex;
+  end;
+  Move(LA, PByte(LUnalignedA)^, SizeOf(LA));
+  Move(LB, PByte(LUnalignedB)^, SizeOf(LB));
+
+  LLo := simd_unpacklo_epi32(PTM128(LUnalignedA)^, PTM128(LUnalignedB)^);
+  LHi := simd_unpackhi_epi32(PTM128(LUnalignedA)^, PTM128(LUnalignedB)^);
+  AssertEquals('unaligned unpacklo_epi32[0]', 0, LLo.m128i_i32[0]);
+  AssertEquals('unaligned unpacklo_epi32[1]', 100, LLo.m128i_i32[1]);
+  AssertEquals('unaligned unpacklo_epi32[2]', 1, LLo.m128i_i32[2]);
+  AssertEquals('unaligned unpacklo_epi32[3]', 101, LLo.m128i_i32[3]);
+  AssertEquals('unaligned unpackhi_epi32[0]', 2, LHi.m128i_i32[0]);
+  AssertEquals('unaligned unpackhi_epi32[1]', 102, LHi.m128i_i32[1]);
+  AssertEquals('unaligned unpackhi_epi32[2]', 3, LHi.m128i_i32[2]);
+  AssertEquals('unaligned unpackhi_epi32[3]', 103, LHi.m128i_i32[3]);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_i64[0] := 111;
+  LA.m128i_i64[1] := 222;
+  LB.m128i_i64[0] := 333;
+  LB.m128i_i64[1] := 444;
+  Move(LA, PByte(LUnalignedA)^, SizeOf(LA));
+  Move(LB, PByte(LUnalignedB)^, SizeOf(LB));
+
+  LLo := simd_unpacklo_epi64(PTM128(LUnalignedA)^, PTM128(LUnalignedB)^);
+  LHi := simd_unpackhi_epi64(PTM128(LUnalignedA)^, PTM128(LUnalignedB)^);
+  AssertEquals('unaligned unpacklo_epi64 lane0', Int64(111), LLo.m128i_i64[0]);
+  AssertEquals('unaligned unpacklo_epi64 lane1', Int64(333), LLo.m128i_i64[1]);
+  AssertEquals('unaligned unpackhi_epi64 lane0', Int64(222), LHi.m128i_i64[0]);
+  AssertEquals('unaligned unpackhi_epi64 lane1', Int64(444), LHi.m128i_i64[1]);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_i32[0] := -40000;
+  LA.m128i_i32[1] := -32768;
+  LA.m128i_i32[2] := -1;
+  LA.m128i_i32[3] := 0;
+  LB.m128i_i32[0] := 1;
+  LB.m128i_i32[1] := 32767;
+  LB.m128i_i32[2] := 32768;
+  LB.m128i_i32[3] := 60000;
+  Move(LA, PByte(LUnalignedA)^, SizeOf(LA));
+  Move(LB, PByte(LUnalignedB)^, SizeOf(LB));
+
+  for LIndex := 0 to 3 do
+    LExpectedI16[LIndex] := SaturateI32ToI16(LA.m128i_i32[LIndex]);
+  for LIndex := 0 to 3 do
+    LExpectedI16[4 + LIndex] := SaturateI32ToI16(LB.m128i_i32[LIndex]);
+
+  LResult := simd_packs_epi32(PTM128(LUnalignedA)^, PTM128(LUnalignedB)^);
+  for LIndex := 0 to 7 do
+    AssertEquals('unaligned packs_epi32[' + IntToStr(LIndex) + ']',
+      LExpectedI16[LIndex], LResult.m128i_i16[LIndex]);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 7 do
+  begin
+    LA.m128i_i16[LIndex] := (LIndex * 40) - 180;
+    LB.m128i_i16[LIndex] := 300 - (LIndex * 35);
+  end;
+  Move(LA, PByte(LUnalignedA)^, SizeOf(LA));
+  Move(LB, PByte(LUnalignedB)^, SizeOf(LB));
+
+  for LIndex := 0 to 7 do
+    LExpectedI8[LIndex] := SaturateI16ToI8(LA.m128i_i16[LIndex]);
+  for LIndex := 0 to 7 do
+    LExpectedI8[8 + LIndex] := SaturateI16ToI8(LB.m128i_i16[LIndex]);
+  for LIndex := 0 to 7 do
+    LExpectedU8[LIndex] := SaturateI16ToU8(LA.m128i_i16[LIndex]);
+  for LIndex := 0 to 7 do
+    LExpectedU8[8 + LIndex] := SaturateI16ToU8(LB.m128i_i16[LIndex]);
+
+  LResult := simd_packs_epi16(PTM128(LUnalignedA)^, PTM128(LUnalignedB)^);
+  for LIndex := 0 to 15 do
+    AssertEquals('unaligned packs_epi16[' + IntToStr(LIndex) + ']',
+      LExpectedI8[LIndex], LResult.m128i_i8[LIndex]);
+
+  LResult := simd_packus_epi16(PTM128(LUnalignedA)^, PTM128(LUnalignedB)^);
+  for LIndex := 0 to 15 do
+    AssertEquals('unaligned packus_epi16[' + IntToStr(LIndex) + ']',
+      LExpectedU8[LIndex], LResult.m128i_u8[LIndex]);
 end;
 
 procedure TTestCase_X86Sse2PackShuffleBasics.Test_PackSaturationSemantics;
