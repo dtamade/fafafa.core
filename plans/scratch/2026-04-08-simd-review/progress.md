@@ -15330,3 +15330,40 @@
 - 下一步：
   - 提交并 push 这一批 runner/manifest 收口
   - 再发 fresh Windows evidence，确认 `26053877395` 暴露的 `NONX86-OPTIN neon` AV 是否已被清除
+
+### Follow-up: Windows evidence proved the AV happens before list-only output, so opt-in backend registration must be delayed
+
+- 基于 `8920edd4` 重新触发的 fresh Windows run：
+  - `26055949884`
+- 这轮新的关键事实：
+  - `Collect Windows B07 Evidence` 真实进入了 `Collect and Verify Windows Evidence`
+  - 日志再次出现：
+    - `[CHECK] OK (no SIMD-unit warnings/hints on stable path)`
+    - `[CHECK] Optional non-x86 opt-in suite listing enabled`
+    - `[NONX86-OPTIN] neon: test --list-suites`
+  - 但 `fafafa.core.simd.test.exe --list-suites` 仍然直接：
+    - `EAccessViolation: Access violation`
+  - 且异常前没有任何来自测试二进制自身的 suite 输出
+- 结论更新：
+  - 上一轮仅把 `--list-suites` 收口为“只列清单、不构造 suite”还不够
+  - 这次 Windows 证据证明 AV 发生得更早，位于 opt-in backend 的启动注册期，而不是 list-only 的 suite materialization 本身
+- 当前修法：
+  - `src/fafafa.core.simd.neon.register.inc`
+  - `src/fafafa.core.simd.riscvv.register.inc`
+    - `FAFAFA_SIMD_TEST_REGISTER_*` 构建下不再在 unit initialization 自动注册
+    - 改为由 test runner 在真正进入 runtime suite 路径时显式注册
+  - `tests/fafafa.core.simd/fafafa.core.simd.test.lpr`
+    - 保留 `--list-suites` 早退路径
+    - 新增 runner 本地 `RegisterTestOptInBackends`
+    - 仅在非 list-only 运行里，且在 `SetVectorAsmEnabled(...)` 之后，延迟注册 NEON / RISCVV opt-in backend
+- 本地串行 release 验证已完成：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_suite_manifest_sync.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh nonx86-optin-list-suites`
+  - `FAFAFA_BUILD_MODE=Release SIMD_ENABLE_NEON_BACKEND=1 SIMD_ENABLE_RISCVV_BACKEND=1 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+  - 结果：全部通过
+- 当前阶段结论：
+  - 本地已经证明：
+    - list-only 模式不再需要触发 opt-in backend 注册
+    - 真正依赖 opt-in backend 已注册状态的 `TTestCase_PublicAbi` 仍能通过
+  - 下一步应提交并 push 这一批“延迟注册”修复，再发 fresh Windows evidence，确认 `26055949884` 的 AV 是否终于被清除

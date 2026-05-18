@@ -584,8 +584,8 @@ initialization
   // Test-only opt-in path: allow non-native hosts to register NEON scalar-fallback
   // implementations so DispatchAPI/PublicAbi suites can verify metadata contracts.
   {$IFDEF FAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND}
-    RegisterNEONBackend;
-    RegisterBackendRebuilder(sbNEON, @RegisterNEONBackend);
+    // Delayed to the test runner so list-only startup paths do not need to
+    // execute non-native backend registration during unit initialization.
   {$ELSE}
   // Only register NEON backend when ASM is available.
   // FPC 3.2.2 does NOT support AArch64 NEON inline assembly (causes ICE).

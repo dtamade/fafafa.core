@@ -38,6 +38,12 @@ uses
   fafafa.core.simd.dispatch,
   fafafa.core.simd.api,
   fafafa.core.simd.scalar
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND}
+  , fafafa.core.simd.neon
+  {$ENDIF}
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+  , fafafa.core.simd.riscvv
+  {$ENDIF}
   {$IFDEF CPUX86_64}
   , fafafa.core.simd.sse2
   , fafafa.core.simd.avx2
@@ -61,6 +67,20 @@ var
   exitEarlyError: string;
 
 procedure ProcessAllSuites(const aListOnly: Boolean; aTargetSuite: TTestSuite); forward;
+
+{$IF DEFINED(FAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND) OR DEFINED(FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND)}
+procedure RegisterTestOptInBackends;
+begin
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND}
+  fafafa.core.simd.neon.RegisterNEONBackend;
+  RegisterBackendRebuilder(sbNEON, @fafafa.core.simd.neon.RegisterNEONBackend);
+  {$ENDIF}
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+  fafafa.core.simd.riscvv.RegisterRISCVVBackend;
+  RegisterBackendRebuilder(sbRISCVV, @fafafa.core.simd.riscvv.RegisterRISCVVBackend);
+  {$ENDIF}
+end;
+{$ENDIF}
 
 procedure RunBenchmarks;
 var
@@ -340,6 +360,9 @@ begin
     // Display backend info
     // Apply experimental toggles (must happen before backend selection is queried)
     SetVectorAsmEnabled(vectorAsmEnabled);
+    {$IF DEFINED(FAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND) OR DEFINED(FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND)}
+    RegisterTestOptInBackends;
+    {$ENDIF}
 
     WriteLn('CPU Features:');
     WriteLn('  SSE2: ', HasSSE2);

@@ -699,8 +699,8 @@ initialization
   {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
   // Test-only opt-in path: allow non-native hosts to register RVV scalar/common
   // implementations so DispatchAPI/PublicAbi suites can verify metadata contracts.
-  RegisterRISCVVBackend;
-  RegisterBackendRebuilder(sbRISCVV, @RegisterRISCVVBackend);
+  // Delayed to the test runner so list-only startup paths do not need to
+  // execute non-native backend registration during unit initialization.
   {$ELSE}
   {$IFDEF CPURISCV64}
   // On RISC-V 64-bit, attempt to register
