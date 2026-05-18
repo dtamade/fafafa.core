@@ -5491,3 +5491,17 @@
 | 1. 先取 host truth 并复核 extreme-boundary coverage 缺口 | completed | 已用本机 `cc -msse2` probe 确认 `cvtepi32_pd / cvtsi32_sd` 对 `int32 max/min` 都给出 exact double bits；`cvtsi64_sd` 对 `int64 max` round 到 `2^63`，对 `int64 min` 保持 exact `-2^63`，且 high lane 继续 preserve |
 | 2. 只补 representative proof，不扩实现范围 | completed | 已新增 `Test_IntegerToDoubleExtremeBoundarySemantics`，直接覆盖 `simd_cvtepi32_pd` 的 `int32 max/min`，以及 `simd_cvtsi32_sd / simd_cvtsi64_sd` 的 extreme-boundary bits 与 high-lane preserve |
 | 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已全部 fresh 通过；本批继续保持 tests-only，无需重开 source 修复 |
+
+## 2026-05-18 SSE2 Packed-Double Bitwise Logic Coverage Expansion
+
+### Goal
+
+从 conversion 热路径稍微侧移一步，但仍留在高价值、低成本的 `SSE2` raw leaf 上：给 `simd_and_pd`、`simd_or_pd`、`simd_xor_pd`、`simd_andnot_pd` 补 direct proof。当前 `and/or/xor/andnot_si128` 已有 bytes-level proof，但 `pd` 版本仍是 0-hit；这批只验证 exact-bit 逻辑，不打开额外数学语义。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前 `pd` bitwise coverage 缺口 | completed | 已确认 `Test_BitwiseAndAndnotSemantics` 只覆盖 `si128` 版本；`simd_and_pd / or_pd / xor_pd / andnot_pd` 目前在 experimental testcase 里没有 direct proof |
+| 2. 只补 representative exact-bit proof，不扩实现范围 | completed | 已新增 `Test_FloatingBitwisePdSemantics`，使用带 `NaN`/sign bit 的 `u64` 位模式逐 lane 校验 `and/or/xor/andnot` 结果 |
+| 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已全部 fresh 通过；本批继续保持 tests-only，无需重开 source 修复 |

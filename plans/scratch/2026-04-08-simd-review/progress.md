@@ -14078,3 +14078,34 @@
 - 当前阶段结论：
   - 到这一刻为止，`SSE2 widening` 方向的整数边界 proof 已从中等值/precision window 扩到 extreme-boundary
   - 这批没有打出新的 source bug，继续保持 tests-only 收口
+
+## 2026-05-18 SSE2 Packed-Double Bitwise Logic Coverage Expansion
+
+- 当前从 conversion/widening 热路径稍微侧移一步，但仍留在高价值、低成本的 `SSE2` raw leaf 上：补 `pd` bitwise exact-bit proof。
+- 先复核现状：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+  - 已有 `simd_and_si128 / or_si128 / xor_si128 / andnot_si128`
+  - `simd_and_pd / or_pd / xor_pd / andnot_pd` 仍没有 direct proof
+- 本批继续保持 tests-only：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 `Test_FloatingBitwisePdSemantics`
+- 新 proof 直接锁住：
+  - `simd_and_pd`
+  - `simd_or_pd`
+  - `simd_xor_pd`
+  - `simd_andnot_pd`
+  - 全部按 `u64` exact-bit 语义逐 lane 比对
+- 代表输入特意包含：
+  - `NaN` 位模式
+  - sign bit only (`8000...`)
+  - 普通非对齐位图案 (`0123456789ABCDEF`)
+- fresh closeout 已完成：
+  - `git diff --check`
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- fresh 结果：
+  - default / experimental 双模态测试均 `TEST OK`
+  - `pd` bitwise 结果与 exact-bit 预期一致，无新增 drift
+- 当前阶段结论：
+  - 这批把一个此前 0-hit 的 `SSE2` 直接 leaf 簇补成了有 direct proof 的状态
+  - 继续保持 tests-only 收口，没有引出新的 source bug

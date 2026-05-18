@@ -1125,6 +1125,7 @@ type
   published
     procedure Test_AddAndCmpeqMovemask;
     procedure Test_BitwiseAndAndnotSemantics;
+    procedure Test_FloatingBitwisePdSemantics;
     procedure Test_SettersAndCastsPreserveLaneOrder;
     procedure Test_FloatArithmeticLaneSemantics;
     procedure Test_FloatSubDivAndScalarArithmeticPreserveContracts;
@@ -1303,6 +1304,45 @@ begin
     LExpected.m128i_u8[LIndex] := (not LA.m128i_u8[LIndex]) and LB.m128i_u8[LIndex];
   LActual := simd_andnot_si128(LA, LB);
   AssertM128BytesEqual(Self, 'simd_andnot_si128', LExpected, LActual);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_FloatingBitwisePdSemantics;
+var
+  LA: TM128;
+  LB: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u64[0] := QWord($7FF8000000000001);
+  LA.m128i_u64[1] := QWord($8000000000000000);
+  LB.m128i_u64[0] := QWord($FFF0000000000000);
+  LB.m128i_u64[1] := QWord($0123456789ABCDEF);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := LA.m128i_u64[0] and LB.m128i_u64[0];
+  LExpected.m128i_u64[1] := LA.m128i_u64[1] and LB.m128i_u64[1];
+  LActual := simd_and_pd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_and_pd', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := LA.m128i_u64[0] or LB.m128i_u64[0];
+  LExpected.m128i_u64[1] := LA.m128i_u64[1] or LB.m128i_u64[1];
+  LActual := simd_or_pd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_or_pd', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := LA.m128i_u64[0] xor LB.m128i_u64[0];
+  LExpected.m128i_u64[1] := LA.m128i_u64[1] xor LB.m128i_u64[1];
+  LActual := simd_xor_pd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_xor_pd', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := (not LA.m128i_u64[0]) and LB.m128i_u64[0];
+  LExpected.m128i_u64[1] := (not LA.m128i_u64[1]) and LB.m128i_u64[1];
+  LActual := simd_andnot_pd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_andnot_pd', LExpected, LActual);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_SettersAndCastsPreserveLaneOrder;
