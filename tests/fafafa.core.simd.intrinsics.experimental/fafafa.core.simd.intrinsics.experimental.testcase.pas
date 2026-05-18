@@ -3797,6 +3797,7 @@ var
   LAlignedBytes: Pointer;
   LAlignedDoubles: Pointer;
   LAlignedSingles: Pointer;
+  LUnalignedDoubles: Pointer;
   LUnalignedSingles: Pointer;
   LExpected: TM128;
   LActual: TM128;
@@ -3807,12 +3808,13 @@ begin
   LRawSingles := nil;
   try
     GetMem(LRawBytes, 16 + 15);
-    GetMem(LRawDoubles, 16 + 15);
+    GetMem(LRawDoubles, 32 + 15);
     GetMem(LRawSingles, 32 + 15);
 
     LAlignedBytes := AlignPointer(LRawBytes, 16);
     LAlignedDoubles := AlignPointer(LRawDoubles, 16);
     LAlignedSingles := AlignPointer(LRawSingles, 16);
+    LUnalignedDoubles := Pointer(PtrUInt(LAlignedDoubles) + 8);
     LUnalignedSingles := Pointer(PtrUInt(LAlignedSingles) + 4);
 
     for LIndex := 0 to 15 do
@@ -3828,6 +3830,14 @@ begin
     LActual := simd_load_pd(LAlignedDoubles);
     AssertEquals('simd_load_pd lane0', 1.25, LActual.m128d_f64[0], 0.0);
     AssertEquals('simd_load_pd lane1', -9.5, LActual.m128d_f64[1], 0.0);
+
+    PQWord(LUnalignedDoubles)[0] := QWord($0123456789ABCDEF);
+    PQWord(LUnalignedDoubles)[1] := QWord($FFEEDDCCBBAA9988);
+    LActual := simd_loadu_pd(LUnalignedDoubles);
+    AssertEquals('simd_loadu_pd lane0 bits',
+      Int64(QWord($0123456789ABCDEF)), Int64(LActual.m128i_u64[0]));
+    AssertEquals('simd_loadu_pd lane1 bits',
+      Int64(QWord($FFEEDDCCBBAA9988)), Int64(LActual.m128i_u64[1]));
 
     PCardinal(LAlignedSingles)[0] := DWord($7FC12345);
     PCardinal(LAlignedSingles)[1] := DWord($80000000);

@@ -5739,3 +5739,18 @@
 | 1. 给 stream/fence 0-hit surface 补 witness | completed | 已在 `TTestCase_X86Sse2AbiBasics` 新增 `Test_StreamAndFenceSurfaceSemantics`，覆盖 aligned destination、unaligned `constref TM128` source、exact-bit 写回、scalar stream 与 cache-control/fence no-crash smoke |
 | 2. 串行双模态复验 | completed | `git diff --check`、串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`、串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test` 已全部 fresh 通过 |
 | 3. 收口当前 residual | completed | 当前工作树剩余未提交改动只落在这个 tests-only 批次；这 9 个原先 `0-hit` 的 SSE2 surface 已补上直接 proof，可作为下一步继续缩小 `intrinsics.x86.sse2` 盲区的起点 |
+
+## 2026-05-18 SSE2 LoaduPd Unaligned Witness
+
+### Goal
+
+继续沿 `intrinsics.x86.sse2` 的低命中 surface 收口，但不重新铺开整个 `pack/unpack` 族。
+这批只补 `simd_loadu_pd` 的真正非对齐 source witness，确认它不是只在普通栈数组上“碰巧工作”。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 给 `simd_loadu_pd` 补故意非对齐地址 witness | completed | 已在 `Test_AlignedAndUnalignedLoadSurfaceSemantics` 增加 `LUnalignedDoubles := AlignPointer(...)+8`，并用 exact-bit `QWord` 模式验证 `simd_loadu_pd` 两个 lane 的写入结果 |
+| 2. 串行双模态复验 | completed | `git diff --check`、串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`、串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test` 已全部 fresh 通过 |
+| 3. 复核低命中列表变化 | completed | 重新统计 `intrinsics.x86.sse2` 在 experimental testcase 的直接命中后，`ONE_HIT` 已从 `20` 降到 `19`；`simd_loadu_pd` 不再是当前最薄的单点命中之一 |

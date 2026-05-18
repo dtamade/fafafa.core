@@ -295,6 +295,36 @@
 - 当前阶段结论：
   - 这批没有新增实现逻辑，但把 `intrinsics.x86.sse2` 里最后一簇最近确认过的 `0-hit` surface 补成了直接 proof
   - 当前工作树现在是一个已验证通过的 tests-only 收口批次，适合直接 commit，然后继续沿“先补 0-hit/薄弱 proof，再决定是否需要新护栏或真修复”的方法推进
+
+## 2026-05-18 SSE2 LoaduPd Unaligned Witness
+
+- 延续上一批的 direct-hit 统计，没有回到大扫描，而是专挑 one-hit 列表里最像“witness 偏弱”的一项：
+  - `simd_loadu_pd`
+- 选择它的原因很具体：
+  - 当前唯一命中是 `simd_storer_pd(LReversed, simd_loadu_pd(@LPair[0]))`
+  - 这个调用点使用的是普通栈数组，并不证明 `loadu` 真的经受过“故意非对齐地址”输入
+  - 相比之下，`pack/unpack` 当前已有更完整的 lane/saturation 断言，不是当前最薄的证明面
+- 本批只改：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+- 已在 `Test_AlignedAndUnalignedLoadSurfaceSemantics` 中补充：
+  - `LUnalignedDoubles := AlignPointer(..., 16) + 8`
+  - 用 `QWord($0123456789ABCDEF)` / `QWord($FFEEDDCCBBAA9988)` 填入非对齐地址
+  - 直接调用 `simd_loadu_pd(LUnalignedDoubles)`
+  - 用 `m128i_u64` exact-bit 断言两条 lane，避免浮点比较把 payload/sign 细节抹平
+- fresh 验证：
+  - `git diff --check`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- fresh 结果：
+  - experimental=`0`：`[TEST] OK`、`[LEAK] OK`
+  - experimental=`1`：`[TEST] OK`、`[LEAK] OK`
+- 命中面复核：
+  - 重新统计 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` interface 声明在 experimental testcase 里的 symbol direct-hit
+  - `ONE_HIT` 已从 `20` 降到 `19`
+  - `simd_loadu_pd` 已从当前最薄单点命中列表中移除
+- 当前阶段结论：
+  - 这批依然没有碰实现逻辑，但把 `loadu_pd` 从“名字上叫 unaligned，证据上却没故意喂过 unaligned 指针”收口成了真 witness
+  - 下一簇如果继续沿同一策略推进，最自然的候选就是 `packs/unpacks` 这一组仍然 one-hit 的组合 surface
   - 主 `simd` release `check` 全绿
 - 当前阶段结论：
   - 这批确认只是 `SSE experimental intrinsics` 的源码文本卫生收口，不涉及行为修复
