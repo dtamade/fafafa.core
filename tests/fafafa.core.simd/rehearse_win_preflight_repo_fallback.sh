@@ -49,13 +49,18 @@ JSON
 fi
 
 if [[ "$1" == "run" && "$2" == "list" ]]; then
-  cat <<'JSON'
+  LRecentRunCreatedAtUtc="$(python3 - <<'PY'
+from datetime import datetime, timedelta, timezone
+print((datetime.now(timezone.utc) - timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%SZ"))
+PY
+)"
+  cat <<JSON
 [
   {
     "databaseId": 123,
     "status": "completed",
     "conclusion": "failure",
-    "createdAt": "2026-05-17T08:00:00Z",
+    "createdAt": "${LRecentRunCreatedAtUtc}",
     "url": "https://github.com/example/simd-fallback/actions/runs/123",
     "event": "workflow_dispatch"
   }

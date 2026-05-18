@@ -14980,3 +14980,34 @@
     当前仍红在 `win-preflight-preserve-latest-rehearsal`
   - 单独跑 `bash tests/fafafa.core.simd/rehearse_win_preflight_preserve_latest_on_query_failure.sh` 也会红
   - 这条失败面与本批 `freeze-status` latest-mainline 修复无关，留作下一条 bounded residual
+
+## 2026-05-18 Windows Preflight Rehearsal Time-Window Stabilization
+
+- 在上一批把 live `freeze-status` 收回到
+  - `mainline-ready=True`
+  - `cross-ready=False`
+ 之后，没有扩到新的实现面，而是把同轮验证里暴露出的两个 selfcheck residual 收干净：
+  - `win-preflight-preserve-latest-rehearsal`
+  - `win-preflight-repo-fallback-rehearsal`
+- 这两条的根因都不是主逻辑退化，而是 rehearsal mock 自己把 failed run `createdAt` 写死成旧时间：
+  - `2026-05-17T08:00:00Z`
+  - 到当前 `2026-05-18` 审计时已经落出默认 `24h` billing window
+  - 所以 preflight 主脚本自然返回：
+    - `STATUS=PASS CODE=OK EXIT=0`
+    - `note=no failed run in 24h window`
+  - 导致 rehearsal 错把“时间样本过期”当成“主逻辑坏了”
+- 本批最小修法继续只落在 rehearsal mock：
+  - `tests/fafafa.core.simd/rehearse_win_preflight_preserve_latest_on_query_failure.sh`
+  - `tests/fafafa.core.simd/rehearse_win_preflight_repo_fallback.sh`
+  - 都改成在 mock `gh run list` 时动态生成 `datetime.now(timezone.utc) - 30 minutes`
+  - 不碰 `preflight_windows_b07_evidence_gh.sh` 主脚本合同
+- fresh 验证：
+  - `bash tests/fafafa.core.simd/rehearse_win_preflight_preserve_latest_on_query_failure.sh`
+    - `[PREFLIGHT-PRESERVE-LATEST] OK`
+  - `bash tests/fafafa.core.simd/rehearse_win_preflight_repo_fallback.sh`
+    - `[PREFLIGHT-REPO-FALLBACK] OK`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate-summary-selfcheck`
+    - `[GATE-SUMMARY-SELFCHECK] OK`
+- 当前阶段结论：
+  - 这批修的是 closeout preflight rehearsal 的时间漂移，不是 SIMD/runtime 行为
+  - `gate-summary-selfcheck` 已重新回绿，说明这一轮 `freeze-status` / preflight / gate-summary 的 bounded tooling residual 已被收掉
