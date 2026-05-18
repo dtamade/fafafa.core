@@ -13,6 +13,15 @@ REGISTER_HEADER_RE = re.compile(r'^\s*procedure\s+RegisterSSE2Backend\s*;', re.I
 SYMBOL_HEADER_TEMPLATE = r'^\s*(?:function|procedure)\s+{name}\b'
 MARKDOWN_TABLE_RE = re.compile(r'^\|(.+)\|\s*$', re.MULTILINE)
 MARKDOWN_SEPARATOR_RE = re.compile(r'^:?-{3,}:?$')
+ASM_ROUTINE_RE = re.compile(
+    r'^\s*(function|procedure)\s+(simd_[A-Za-z0-9_]+)\s*\((.*?)\)\s*(?::[^\n;]+)?\s*;'
+    r'.*?^\s*asm\s*(.*?)^\s*end\s*;',
+    re.IGNORECASE | re.MULTILINE | re.DOTALL,
+)
+ALIGNED_CONSTREF_LOAD_RE = re.compile(
+    r'\b(movdqa|movapd|movaps)\s+xmm\d+\s*,\s*\[(rcx|rdx|rdi|rsi|eax|edx)\]',
+    re.IGNORECASE,
+)
 
 ALLOWED_INTRINSICS_STATUS = {
     'active leaf',
@@ -198,6 +207,24 @@ def collect_forbidden_pattern_hits(a_text: str, a_patterns: dict[str, str]) -> l
         if re.search(l_pattern, l_stripped, flags=re.IGNORECASE):
             l_hits.append(l_label)
     return l_hits
+
+
+def collect_constref_aligned_load_violations(a_text: str) -> list[str]:
+    l_violations: list[str] = []
+    for l_routine_match in ASM_ROUTINE_RE.finditer(a_text):
+        l_routine_name = l_routine_match.group(2)
+        l_signature = l_routine_match.group(3)
+        l_body = l_routine_match.group(4)
+        if 'constref' not in l_signature.lower():
+            continue
+        for l_load_match in ALIGNED_CONSTREF_LOAD_RE.finditer(l_body):
+            l_line_no = a_text.count('\n', 0, l_routine_match.start(4) + l_load_match.start()) + 1
+            l_opcode = l_load_match.group(1).lower()
+            l_reg = l_load_match.group(2).lower()
+            l_violations.append(
+                f'{l_routine_name}: line {l_line_no} uses {l_opcode} source load from constref parameter register [{l_reg}]'
+            )
+    return l_violations
 
 
 def main() -> int:
@@ -412,6 +439,12 @@ def main() -> int:
     for hit in raw_leaf_forbidden_hits:
         failures.append(f'{intrinsics_raw_leaf_path.name} leaked forbidden higher-level dependency: {hit}')
 
+    constref_aligned_load_violations = collect_constref_aligned_load_violations(intrinsics_raw_leaf_text)
+    for violation in constref_aligned_load_violations:
+        failures.append(
+            f'{intrinsics_raw_leaf_path.name} must not use aligned source loads for constref TM128 parameters: {violation}'
+        )
+
     backend_truth_doc_exists = backend_truth_doc_path.exists()
     backend_truth_text = backend_truth_doc_path.read_text(encoding='utf-8', errors='replace') if backend_truth_doc_exists else ''
     intrinsics_disposition_doc_exists = intrinsics_disposition_doc_path.exists()
@@ -524,6 +557,7 @@ def main() -> int:
         'wide_section_counts': wide_section_counts,
         'root_uses_hits': root_uses_hits,
         'raw_leaf_forbidden_hits': raw_leaf_forbidden_hits,
+        'constref_aligned_load_violations': constref_aligned_load_violations,
         'backend_truth_doc_exists': backend_truth_doc_exists,
         'backend_truth_rows_count': len(backend_truth_rows),
         'intrinsics_disposition_doc_exists': intrinsics_disposition_doc_exists,
@@ -553,6 +587,7 @@ def main() -> int:
     print(f'  - duplicate_leaf_names:           {len(duplicate_leaf_names)}')
     print(f'  - root_uses_hits:                 {len(root_uses_hits)}')
     print(f'  - raw_leaf_forbidden_hits:        {len(raw_leaf_forbidden_hits)}')
+    print(f'  - constref_aligned_load_violations:{len(constref_aligned_load_violations)}')
     print(f'  - backend_truth_rows_count:       {len(backend_truth_rows)}')
     print(f'  - intrinsics_disposition_rows:    {len(intrinsics_disposition_rows)}')
     print(f'  - repo_intrinsics_units_count:    {len(repo_intrinsics_units)}')
@@ -596,6 +631,7 @@ def main() -> int:
             f'duplicate_leaf_names={len(duplicate_leaf_names)} '
             f'root_uses_hits={len(root_uses_hits)} '
             f'raw_leaf_forbidden_hits={len(raw_leaf_forbidden_hits)} '
+            f'constref_aligned_load_violations={len(constref_aligned_load_violations)} '
             f'backend_truth_rows={len(backend_truth_rows)} '
             f'intrinsics_disposition_rows={len(intrinsics_disposition_rows)} '
             f'migration_missing_sections={len(migration_missing_sections)} '

@@ -5682,3 +5682,21 @@
 | --- | --- | --- |
 | 1. 合并重复的 zero-bit helper | completed | 已把 `SelectSingle/DoubleMinMaxBits` 统一切回前面已存在的 `SingleBitsIsZero/DoubleBitsIsZero`，并删除后面的 `IsZeroFloat32Bits/IsZeroFloat64Bits` 重复定义 |
 | 2. 串行复验并确认只是冗余收口 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1`、以及 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已全部 fresh 通过 |
+
+## 2026-05-18 SSE2 Constref-Aligned-Load Guardrail
+
+### Goal
+
+把这几批已经反复 fresh 抓到过的 bug 类型写进机器护栏，而不是继续靠人工扫：
+`src/fafafa.core.simd.intrinsics.x86.sse2.pas` 中凡是 `constref TM128` 参数，都不应再用
+`movdqa/movapd/movaps`
+做 aligned source load。
+这批只扩展现有 `check_sse2_structure.py`，不新开 checker，不改 Pascal 实现。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 把 constref aligned-source-load 规则接进现有 SSE2 结构检查 | completed | 已在 `tests/fafafa.core.simd/check_sse2_structure.py` 新增 raw-leaf asm routine 解析与 `movdqa/movapd/movaps` source-load 扫描；只针对带 `constref` 的 routine 命中 |
+| 2. 修正首轮假红并钉住真正命中面 | completed | 首轮误把 `simd_load_si128(const Ptr: Pointer)` 误判成 `constref`；现已把 routine header 解析收紧到 `(...)(: return-type)?;`，单跑 checker 已稳定回到 `constref_aligned_load_violations=0` |
+| 3. release 主链复验 | completed | `git diff --check`、`python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line`、以及 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已全部 fresh 通过 |

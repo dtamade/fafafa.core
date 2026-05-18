@@ -14621,3 +14621,35 @@
 - 当前阶段结论：
   - 这批没有新增实现能力，但收掉了当前 `intrinsics.x86.sse2` 文件里一处真实的 helper 冗余
   - 现在 `zero-bit` 这类浮点特殊值判断在本文件里已经回到单一 helper 口径，后续继续修剩余浮点 leaf 时不容易再把同义工具越切越多
+
+## 2026-05-18 SSE2 Constref-Aligned-Load Guardrail
+
+- 在同一条 `constref` 对齐假设线上，当前实现面已经基本收干净；继续只靠人工扫边角值不高，所以这一批没有再修单个 leaf，而是把 bug 类型本身写进现有护栏。
+- 当前 guardrail 目标非常具体：
+  - `src/fafafa.core.simd.intrinsics.x86.sse2.pas`
+  - 任何带 `constref` 的 raw asm routine
+  - 都不应再出现 `movdqa/movapd/movaps` 这种 aligned source load
+  - aligned pointer API `load_si128/load_pd/load_ps` 不在这个禁令里，因为它们的合同本来就是 caller 提供 aligned pointer，而不是 `constref TM128`
+- 本批收口继续保持最小 diff：
+  - 不新开 checker
+  - 直接扩展 `tests/fafafa.core.simd/check_sse2_structure.py`
+  - 新增：
+    - asm raw routine 解析
+    - `constref` 签名过滤
+    - `movdqa/movapd/movaps` source-load 检查
+    - `constref_aligned_load_violations` summary 字段
+- 首轮验证有一个很有价值的假红：
+  - 新规则第一次把 `simd_load_si128(const Ptr: Pointer)` 也打成了 `constref` 违规
+  - 这说明规则灵敏度是够的，只是 routine header 解析过宽
+  - 随后已把正则收紧到 `(...)(: return-type)?;` 这一层，重新单跑后回到：
+    - `constref_aligned_load_violations=0`
+- fresh 验证：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `SSE2_STRUCTURE_SUMMARY ... constref_aligned_load_violations=0 ... status=ok`
+  - Release `check` 通过
+- 当前阶段结论：
+  - 这批没有再新增功能，但把最近几批修过的同类 `aligned-read` bug 正式固化成了机器护栏
+  - 后面如果有人在 `intrinsics.x86.sse2` 里重新把 `constref TM128` 当成天然对齐源，这条检查会在默认 `simd check` 里直接打红，不会再靠人工回忆
