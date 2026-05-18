@@ -4970,3 +4970,17 @@
 | 1. 复核 `RcpF32x4/RsqrtF32x4` 是否和 `Abs/Sqrt/FmaF32x4` 属于同一类 residual | completed | 已确认 `src/fafafa.core.simd.riscvv.register.inc` 对 `RcpF32x4/RsqrtF32x4` 也是 `{$IFDEF RISCVV_ASSEMBLY}` 条件绑定；`src/fafafa.core.simd.riscvv.facade.inc` 的 no-asm body 都是 exact `ScalarRcp/RsqrtF32x4` forward；`src/fafafa.core.simd.riscvv.pas` 仍保留 `RISCVVRcp/RsqrtF32x4Asm` 与 `vfrec7.v` / `vfrsqrt7.v` opcode witness，因此它们应并入现有 `ExactF32x4` bucket，而不是另起一类 |
 | 2. 扩充现有 `ExactF32x4` witness 与 `key-slot audit` | completed | `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py` 已把 `RcpF32x4/RsqrtF32x4` 接入 `RISCVV_CONDITIONAL_EXACT_F32X4_KEY_SLOTS`；`tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 的 `Test_RISCVV_ExactF32x4Slots_Keep_AsmConditional_SourceTruth_And_RuntimeBinding` 已扩到同时断言这两个 slot 的 register-source、no-asm scalar facade、asm helper/opcode witness 与 runtime conditional binding |
 | 3. 串行 Release 复验并确认 stop-point | completed | `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`、`python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend riscvv --summary-line`、Release `TTestCase_DispatchAPI`、Release `impl-audit-nonx86`、Release `check` 全部通过；其中 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=riscvv slots=70 issues=0 status=ok`、全量 `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=135 issues=0 status=ok`、`NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok` 已重新打绿 |
+
+## 2026-05-18 RISCVV Extract Slots Were Over-Retained
+
+### Goal
+
+复核此前被当成“合法 mixed-context companion wrapper”的 9 个 `RISCVV Extract*` slot，确认它们在当前 runtime 发布模型下是否真的还需要 no-asm family-local wrapper；如果不需要，就把它们收成 `asm-gated binding + no-asm scalar reuse` 的更简洁真相。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 重新对位 source/register/runtime/precedent | completed | 已确认 `src/fafafa.core.simd.riscvv.facade.inc` 中 9 个 `Extract*` no-asm body 全都只是 exact `ScalarExtract*` forward；`src/fafafa.core.simd.riscvv.register.inc` 的 no-asm 分支只是重复绑定同名 `RISCVVExtract*`，且旁边注释已经明确写了 no-asm 应保持 base scalar wiring；`src/fafafa.core.simd.riscvv.pas` 的 asm side 仍保留 index clamp + `Extract*Asm` helper；再结合 `ExtractF32x4` 与 `NEON Extract*` 先例，结论翻正为“no-asm family wrapper 已经过度保留” |
+| 2. 收源码与 checker 护栏 | completed | 已删除 `src/fafafa.core.simd.riscvv.facade.inc` 中 9 个 dead `RISCVVExtract*` no-asm body；`src/fafafa.core.simd.riscvv.register.inc` 已改成真正 asm-gated binding；`tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 中 dedicated witness 已改成 `Test_RISCVV_ExtractSlots_Reuse_BaseScalar_When_NoAsmWrappers_Are_Dead`；`check_nonx86_register_truthfulness.py` 已删除旧的 riscvv no-asm wrapper allowlist；`check_nonx86_key_slot_audit.py` 与 `check_nonx86_helper_semantics.py` 已同步翻正 truth |
+| 3. 串行 Release 复验并确认 stop-point | completed | `git diff --check`、`python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py tests/fafafa.core.simd/check_nonx86_key_slot_audit.py tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`、`python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`、`python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`、`python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend riscvv --summary-line`、Release `TTestCase_DispatchAPI`、Release `impl-audit-nonx86`、Release `check` 全部通过；关键结果包括 `checks=722`、`backend=riscvv assignments=461 wrapper_only=32 no-asm wrapper ok=0`、`NONX86_IMPL_AUDIT_SUMMARY ... status=ok` |

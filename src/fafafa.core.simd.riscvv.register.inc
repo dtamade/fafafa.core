@@ -449,24 +449,13 @@ begin
   {$ENDIF}
 
   // Wide Float Extract/Insert
+  // Keep Extract* genuinely asm-gated. On no-asm hosts these slots should
+  // continue to reuse the FillBaseDispatchTable scalar truth instead of
+  // publishing dead RISCVV-specific scalar forwarders.
   {$IFDEF RISCVV_ASSEMBLY}
   table.ExtractF32x16 := @RISCVVExtractF32x16;
-  {$ELSE}
-  table.ExtractF32x16 := @RISCVVExtractF32x16;
-  {$ENDIF}
-  {$IFDEF RISCVV_ASSEMBLY}
   table.ExtractF32x8 := @RISCVVExtractF32x8;
-  {$ELSE}
-  table.ExtractF32x8 := @RISCVVExtractF32x8;
-  {$ENDIF}
-  {$IFDEF RISCVV_ASSEMBLY}
   table.ExtractF64x2 := @RISCVVExtractF64x2;
-  {$ELSE}
-  table.ExtractF64x2 := @RISCVVExtractF64x2;
-  {$ENDIF}
-  {$IFDEF RISCVV_ASSEMBLY}
-  table.ExtractF64x4 := @RISCVVExtractF64x4;
-  {$ELSE}
   table.ExtractF64x4 := @RISCVVExtractF64x4;
   {$ENDIF}
   {$IFDEF RISCVV_ASSEMBLY}
@@ -518,13 +507,9 @@ begin
   table.SplatI64x4 := @RISCVVSplatI64x4;
   table.ZeroI64x4 := @RISCVVZeroI64x4;
   {$ENDIF}
-  // Keep these Extract* bindings in an explicit asm-gated shape even when both
-  // branches currently bind the same wrapper: register-truthfulness treats
-  // asm-helper wrappers as backend-owned only when the register wiring stays
-  // structurally tied to the asm branch.
+  // Keep ExtractI64x4 genuinely asm-gated. Non-asm hosts should reuse the
+  // seeded base scalar slot rather than keeping a dead RISCVV scalar forwarder.
   {$IFDEF RISCVV_ASSEMBLY}
-  table.ExtractI64x4 := @RISCVVExtractI64x4;
-  {$ELSE}
   table.ExtractI64x4 := @RISCVVExtractI64x4;
   {$ENDIF}
   {$IFDEF RISCVV_ASSEMBLY}
@@ -547,40 +532,18 @@ begin
   table.CmpGeI64x8 := @RISCVVCmpGeI64x8;
   table.CmpNeI64x8 := @RISCVVCmpNeI64x8;
 
-  // Keep base scalar wiring for non-asm wide fallback-only helpers that
-  // otherwise degrade into dead RISCVV-specific scalar forwarders.
+  // Keep base scalar wiring for non-asm Extract* helpers that would otherwise
+  // degrade into dead RISCVV-specific scalar forwarders.
 
   // I32x4/I32x8/I32x16 Extract/Insert
   {$IFDEF RISCVV_ASSEMBLY}
   table.ExtractI32x4 := @RISCVVExtractI32x4;
-  {$ELSE}
-  table.ExtractI32x4 := @RISCVVExtractI32x4;
-  {$ENDIF}
-  {$IFDEF RISCVV_ASSEMBLY}
   table.InsertI32x4 := @RISCVVInsertI32x4;
-  {$ENDIF}
-  {$IFDEF RISCVV_ASSEMBLY}
   table.ExtractI32x8 := @RISCVVExtractI32x8;
-  {$ELSE}
-  table.ExtractI32x8 := @RISCVVExtractI32x8;
-  {$ENDIF}
-  {$IFDEF RISCVV_ASSEMBLY}
   table.InsertI32x8 := @RISCVVInsertI32x8;
-  {$ENDIF}
-  {$IFDEF RISCVV_ASSEMBLY}
   table.ExtractI32x16 := @RISCVVExtractI32x16;
-  {$ELSE}
-  table.ExtractI32x16 := @RISCVVExtractI32x16;
-  {$ENDIF}
-  {$IFDEF RISCVV_ASSEMBLY}
   table.InsertI32x16 := @RISCVVInsertI32x16;
-  {$ENDIF}
-  {$IFDEF RISCVV_ASSEMBLY}
   table.ExtractI64x2 := @RISCVVExtractI64x2;
-  {$ELSE}
-  table.ExtractI64x2 := @RISCVVExtractI64x2;
-  {$ENDIF}
-  {$IFDEF RISCVV_ASSEMBLY}
   table.InsertI64x2 := @RISCVVInsertI64x2;
   {$ENDIF}
 

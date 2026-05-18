@@ -42,7 +42,7 @@
 当前文档链已经明确：
 
 - 部分 scalar-pass-through helper 必须继续显式留在 base scalar slot
-- 一批 `Extract*` 分支必须保留 asm-gated 结构，不能图省事折成 unconditional binding
+- `Extract*` 必须保留 asm-gated register 结构，但 no-asm host 应直接 reuse base scalar slot，不该再回流到 RISCVV no-asm wrapper
 
 ## 当前 verification lane
 
@@ -77,7 +77,7 @@ bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local
 - `Test_RISCVV_KeyOwnedWideSlots_Stay_BackendOwned`
 - `Test_RISCVV_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders`
 - `riscvv.facade.inc` 中 scalar-pass-through helper 的显式回退
-- `riscvv.register.inc` 中 `Extract*` 的 asm-gated 结构
+- `riscvv.register.inc` 中 `Extract*` 的 asm-only binding + no-asm scalar reuse 形状
 
 ### runtime-side
 
@@ -105,7 +105,7 @@ bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local
 
 - backend-owned key wide slots
 - scalar-pass-through helper 不得误接回 backend wrapper
-- `Extract*` asm-gated 结构不得被“重构优化”掉
+- `Extract*` asm-gated register 结构不得被“重构优化”掉，也不要重新引回 no-asm RISCVV wrapper
 
 ## Task 3：固定 ABI / opcode qualification
 

@@ -1355,51 +1355,6 @@ begin
   Result := ScalarCmpNeU8x16(a, b);
 end;
 
-function RISCVVExtractF32x16(const a: TVecF32x16; index: Integer): Single;
-begin
-  Result := ScalarExtractF32x16(a, index);
-end;
-
-function RISCVVExtractF32x8(const a: TVecF32x8; index: Integer): Single;
-begin
-  Result := ScalarExtractF32x8(a, index);
-end;
-
-function RISCVVExtractF64x2(const a: TVecF64x2; index: Integer): Double;
-begin
-  Result := ScalarExtractF64x2(a, index);
-end;
-
-function RISCVVExtractF64x4(const a: TVecF64x4; index: Integer): Double;
-begin
-  Result := ScalarExtractF64x4(a, index);
-end;
-
-function RISCVVExtractI32x16(const a: TVecI32x16; index: Integer): Int32;
-begin
-  Result := ScalarExtractI32x16(a, index);
-end;
-
-function RISCVVExtractI32x4(const a: TVecI32x4; index: Integer): Int32;
-begin
-  Result := ScalarExtractI32x4(a, index);
-end;
-
-function RISCVVExtractI32x8(const a: TVecI32x8; index: Integer): Int32;
-begin
-  Result := ScalarExtractI32x8(a, index);
-end;
-
-function RISCVVExtractI64x2(const a: TVecI64x2; index: Integer): Int64;
-begin
-  Result := ScalarExtractI64x2(a, index);
-end;
-
-function RISCVVExtractI64x4(const a: TVecI64x4; index: Integer): Int64;
-begin
-  Result := ScalarExtractI64x4(a, index);
-end;
-
 function RISCVVFloorF32x16(const a: TVecF32x16): TVecF32x16;
 begin
   Result := ScalarFloorF32x16(a);

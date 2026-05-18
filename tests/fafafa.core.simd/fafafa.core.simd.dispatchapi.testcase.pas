@@ -169,7 +169,7 @@ type
     procedure Test_RISCVV_DotF64_SourceScalarForwards_While_Keeping_BackendOwnership;
     procedure Test_RISCVV_FacadeSlots_Reuse_BaseScalar_When_Wrappers_Are_ScalarPassThrough;
     procedure Test_RISCVV_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
-    procedure Test_RISCVV_ExtractSlots_Keep_NoAsmCompanionWrappers_And_RuntimeOwnership;
+    procedure Test_RISCVV_ExtractSlots_Reuse_BaseScalar_When_NoAsmWrappers_Are_Dead;
     procedure Test_RISCVV_HelperOwnedExactScalarSlots_Stay_BackendOwned;
     procedure Test_RISCVV_KeyOwnedWideSlots_Stay_BackendOwned;
     procedure Test_RISCVV_ClampF64x2_Drops_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding;
@@ -11598,7 +11598,7 @@ begin
     Pointer(LScalarTable.AndNotU8x16), Pointer(LRISCVVTable.AndNotU8x16));
 end;
 
-procedure TTestCase_DispatchAPI.Test_RISCVV_ExtractSlots_Keep_NoAsmCompanionWrappers_And_RuntimeOwnership;
+procedure TTestCase_DispatchAPI.Test_RISCVV_ExtractSlots_Reuse_BaseScalar_When_NoAsmWrappers_Are_Dead;
 var
   LScalarTable: TSimdDispatchTable;
   LRISCVVTable: TSimdDispatchTable;
@@ -11628,20 +11628,37 @@ var
     end;
   end;
 
-  procedure AssertExtractCompanionSlot(
-    const aLabel, aFacadeSnippet, aAsmSnippet, aRegisterSnippet: string;
-    const aScalarSlot, aBackendSlot: Pointer);
+  procedure AssertDeadWrapperRemoved(const aLabel, aSnippet: string);
   begin
-    AssertTrue('RISCVV no-asm facade should keep exact scalar companion wrapper for ' + aLabel,
-      Pos(LowerCase(aFacadeSnippet), LFacadeSource) > 0);
+    AssertTrue('RISCVV no-asm facade dead wrapper should be removed for ' + aLabel,
+      Pos(LowerCase(aSnippet), LFacadeSource) = 0);
+  end;
+
+  procedure AssertAsmWrapperRetained(const aLabel, aAsmSnippet: string);
+  begin
     AssertTrue('RISCVV asm source should keep dedicated helper-backed wrapper for ' + aLabel,
       Pos(LowerCase(aAsmSnippet), LAsmSource) > 0);
-    AssertEquals('RegisterRISCVVBackend should keep explicit asm/no-asm wrapper wiring for ' + aLabel,
-      2, CountRegisterAssignments(aRegisterSnippet));
+  end;
+
+  procedure AssertRegisterHasAsmOwnedSlot(const aLabel, aRegisterSnippet: string);
+  begin
+    AssertEquals('RegisterRISCVVBackend should keep exactly one asm-gated assignment site for ' + aLabel,
+      1, CountRegisterAssignments(aRegisterSnippet));
+    AssertTrue('RegisterRISCVVBackend should keep a dedicated asm-gated source assignment for ' + aLabel,
+      Pos(LowerCase(aRegisterSnippet), LRegisterSource) > 0);
+  end;
+
+  procedure AssertSlotMatchesRuntimeAvailability(const aLabel: string; const aScalarSlot, aBackendSlot: Pointer);
+  begin
     AssertTrue('RISCVV ' + aLabel + ' should stay assigned in the backend dispatch table',
       aBackendSlot <> nil);
-    AssertTrue('RISCVV ' + aLabel + ' should keep wrapper-owned runtime slot instead of reusing scalar directly',
+    {$IFDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
+    AssertTrue('RISCVV ' + aLabel + ' should keep a backend-owned runtime slot when RVV asm is compiled',
       PtrUInt(aScalarSlot) <> PtrUInt(aBackendSlot));
+    {$ELSE}
+    AssertEquals('RISCVV ' + aLabel + ' should reuse the base scalar slot when RVV asm is unavailable',
+      PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
+    {$ENDIF}
   end;
 begin
   LSourceLines := TStringList.Create;
@@ -11678,50 +11695,67 @@ begin
     Exit;
   {$ENDIF}
 
-  AssertExtractCompanionSlot('ExtractF32x8',
-    'Result := ScalarExtractF32x8(a, index);',
-    'Result := RISCVVExtractF32x8Asm(a, LIndex);',
-    'table.ExtractF32x8 := @RISCVVExtractF32x8;',
+  AssertDeadWrapperRemoved('ExtractF32x8', 'function RISCVVExtractF32x8(');
+  AssertAsmWrapperRetained('ExtractF32x8',
+    'Result := RISCVVExtractF32x8Asm(a, LIndex);');
+  AssertRegisterHasAsmOwnedSlot('ExtractF32x8', 'table.ExtractF32x8 := @RISCVVExtractF32x8;');
+  AssertSlotMatchesRuntimeAvailability('ExtractF32x8',
     Pointer(LScalarTable.ExtractF32x8), Pointer(LRISCVVTable.ExtractF32x8));
-  AssertExtractCompanionSlot('ExtractF32x16',
-    'Result := ScalarExtractF32x16(a, index);',
-    'Result := RISCVVExtractF32x16Asm(a, LIndex);',
-    'table.ExtractF32x16 := @RISCVVExtractF32x16;',
+
+  AssertDeadWrapperRemoved('ExtractF32x16', 'function RISCVVExtractF32x16(');
+  AssertAsmWrapperRetained('ExtractF32x16',
+    'Result := RISCVVExtractF32x16Asm(a, LIndex);');
+  AssertRegisterHasAsmOwnedSlot('ExtractF32x16', 'table.ExtractF32x16 := @RISCVVExtractF32x16;');
+  AssertSlotMatchesRuntimeAvailability('ExtractF32x16',
     Pointer(LScalarTable.ExtractF32x16), Pointer(LRISCVVTable.ExtractF32x16));
-  AssertExtractCompanionSlot('ExtractF64x2',
-    'Result := ScalarExtractF64x2(a, index);',
-    'Result := RISCVVExtractF64x2Asm(a, LIndex);',
-    'table.ExtractF64x2 := @RISCVVExtractF64x2;',
+
+  AssertDeadWrapperRemoved('ExtractF64x2', 'function RISCVVExtractF64x2(');
+  AssertAsmWrapperRetained('ExtractF64x2',
+    'Result := RISCVVExtractF64x2Asm(a, LIndex);');
+  AssertRegisterHasAsmOwnedSlot('ExtractF64x2', 'table.ExtractF64x2 := @RISCVVExtractF64x2;');
+  AssertSlotMatchesRuntimeAvailability('ExtractF64x2',
     Pointer(LScalarTable.ExtractF64x2), Pointer(LRISCVVTable.ExtractF64x2));
-  AssertExtractCompanionSlot('ExtractF64x4',
-    'Result := ScalarExtractF64x4(a, index);',
-    'Result := RISCVVExtractF64x4Asm(a, LIndex);',
-    'table.ExtractF64x4 := @RISCVVExtractF64x4;',
+
+  AssertDeadWrapperRemoved('ExtractF64x4', 'function RISCVVExtractF64x4(');
+  AssertAsmWrapperRetained('ExtractF64x4',
+    'Result := RISCVVExtractF64x4Asm(a, LIndex);');
+  AssertRegisterHasAsmOwnedSlot('ExtractF64x4', 'table.ExtractF64x4 := @RISCVVExtractF64x4;');
+  AssertSlotMatchesRuntimeAvailability('ExtractF64x4',
     Pointer(LScalarTable.ExtractF64x4), Pointer(LRISCVVTable.ExtractF64x4));
-  AssertExtractCompanionSlot('ExtractI32x4',
-    'Result := ScalarExtractI32x4(a, index);',
-    'Result := RISCVVExtractI32x4Asm(a, LIndex);',
-    'table.ExtractI32x4 := @RISCVVExtractI32x4;',
+
+  AssertDeadWrapperRemoved('ExtractI32x4', 'function RISCVVExtractI32x4(');
+  AssertAsmWrapperRetained('ExtractI32x4',
+    'Result := RISCVVExtractI32x4Asm(a, LIndex);');
+  AssertRegisterHasAsmOwnedSlot('ExtractI32x4', 'table.ExtractI32x4 := @RISCVVExtractI32x4;');
+  AssertSlotMatchesRuntimeAvailability('ExtractI32x4',
     Pointer(LScalarTable.ExtractI32x4), Pointer(LRISCVVTable.ExtractI32x4));
-  AssertExtractCompanionSlot('ExtractI32x8',
-    'Result := ScalarExtractI32x8(a, index);',
-    'Result := RISCVVExtractI32x8Asm(a, LIndex);',
-    'table.ExtractI32x8 := @RISCVVExtractI32x8;',
+
+  AssertDeadWrapperRemoved('ExtractI32x8', 'function RISCVVExtractI32x8(');
+  AssertAsmWrapperRetained('ExtractI32x8',
+    'Result := RISCVVExtractI32x8Asm(a, LIndex);');
+  AssertRegisterHasAsmOwnedSlot('ExtractI32x8', 'table.ExtractI32x8 := @RISCVVExtractI32x8;');
+  AssertSlotMatchesRuntimeAvailability('ExtractI32x8',
     Pointer(LScalarTable.ExtractI32x8), Pointer(LRISCVVTable.ExtractI32x8));
-  AssertExtractCompanionSlot('ExtractI32x16',
-    'Result := ScalarExtractI32x16(a, index);',
-    'Result := RISCVVExtractI32x16Asm(a, LIndex);',
-    'table.ExtractI32x16 := @RISCVVExtractI32x16;',
+
+  AssertDeadWrapperRemoved('ExtractI32x16', 'function RISCVVExtractI32x16(');
+  AssertAsmWrapperRetained('ExtractI32x16',
+    'Result := RISCVVExtractI32x16Asm(a, LIndex);');
+  AssertRegisterHasAsmOwnedSlot('ExtractI32x16', 'table.ExtractI32x16 := @RISCVVExtractI32x16;');
+  AssertSlotMatchesRuntimeAvailability('ExtractI32x16',
     Pointer(LScalarTable.ExtractI32x16), Pointer(LRISCVVTable.ExtractI32x16));
-  AssertExtractCompanionSlot('ExtractI64x2',
-    'Result := ScalarExtractI64x2(a, index);',
-    'Result := RISCVVExtractI64x2Asm(a, LIndex);',
-    'table.ExtractI64x2 := @RISCVVExtractI64x2;',
+
+  AssertDeadWrapperRemoved('ExtractI64x2', 'function RISCVVExtractI64x2(');
+  AssertAsmWrapperRetained('ExtractI64x2',
+    'Result := RISCVVExtractI64x2Asm(a, LIndex);');
+  AssertRegisterHasAsmOwnedSlot('ExtractI64x2', 'table.ExtractI64x2 := @RISCVVExtractI64x2;');
+  AssertSlotMatchesRuntimeAvailability('ExtractI64x2',
     Pointer(LScalarTable.ExtractI64x2), Pointer(LRISCVVTable.ExtractI64x2));
-  AssertExtractCompanionSlot('ExtractI64x4',
-    'Result := ScalarExtractI64x4(a, index);',
-    'Result := RISCVVExtractI64x4Asm(a, LIndex);',
-    'table.ExtractI64x4 := @RISCVVExtractI64x4;',
+
+  AssertDeadWrapperRemoved('ExtractI64x4', 'function RISCVVExtractI64x4(');
+  AssertAsmWrapperRetained('ExtractI64x4',
+    'Result := RISCVVExtractI64x4Asm(a, LIndex);');
+  AssertRegisterHasAsmOwnedSlot('ExtractI64x4', 'table.ExtractI64x4 := @RISCVVExtractI64x4;');
+  AssertSlotMatchesRuntimeAvailability('ExtractI64x4',
     Pointer(LScalarTable.ExtractI64x4), Pointer(LRISCVVTable.ExtractI64x4));
 end;
 

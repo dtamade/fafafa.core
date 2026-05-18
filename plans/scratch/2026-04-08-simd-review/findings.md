@@ -8834,3 +8834,37 @@
   - asm/runtime path：仍是真正要守的 family contract
   - no-asm utility facade：dead source，应删除
   - helper checker 也必须同步改成 absent guard，而不是继续把它们当 active scalar-forward wrapper
+
+## 2026-05-18 RISCVV Extract No-Asm Companions Were Not Live Contract, Only Historical Wrapper Residue
+
+- `RISCVV Extract*` 这 9 个 slot 这次最关键的新发现，不是“继续保留 companion 双分支会更安全”，而是我们之前把 historical wrapper residue 误认成了 live contract：
+  - `ExtractF32x8`
+  - `ExtractF32x16`
+  - `ExtractF64x2`
+  - `ExtractF64x4`
+  - `ExtractI32x4`
+  - `ExtractI32x8`
+  - `ExtractI32x16`
+  - `ExtractI64x2`
+  - `ExtractI64x4`
+- 让结论翻正的关键证据，不是“它们看起来像 scalar forwarder”，而是 source / register / precedent 三件事同时对齐：
+  - `riscvv.register.inc`
+    - 这些 slot 的 no-asm 分支原本只是重复绑回同名 `RISCVVExtract*`
+    - 紧邻注释已经明确写了 no-asm 应保持 base scalar wiring
+  - `riscvv.facade.inc`
+    - 这 9 个 no-asm body 全都是 exact `ScalarExtract*` forward
+    - 删除后不会破坏 no-asm runtime，因为 no-asm host 本来就可以直接继承 `FillBaseDispatchTable`
+  - `riscvv.pas`
+    - asm side 的 `RISCVVExtract*` 仍保留 index clamp + `Extract*Asm`
+    - 真正该守的是这层 helper-backed asm wrapper
+  - precedent
+    - `ExtractF32x4` 已经是 asm-only binding
+    - `NEON Extract*` 也已经是 no-asm scalar reuse，而不是 backend-owned wrapper slot
+- 这条 finding 的价值，是把一个很容易再次拖慢审查的误区彻底钉死：
+  - 不能因为某个 slot 同时存在 asm wrapper 和 no-asm scalar wrapper，就默认“这一定是刻意的双相合同”
+  - 先看 no-asm runtime 是否真的发布了 family-local slot
+  - 如果 no-asm host 直接复用 base scalar 也完全成立，那么 no-asm family wrapper 名字本身不是 contract
+- 因而当前对 `RISCVV Extract*` 的更准口径已经变成：
+  - asm side `RISCVVExtract*`：live truth，应保留
+  - no-asm `RISCVVExtract*` facade：dead source，应删除
+  - register truth：应收成真正的 asm-gated binding，而不是“看起来像双分支，其实两边绑同一 wrapper”的历史残影

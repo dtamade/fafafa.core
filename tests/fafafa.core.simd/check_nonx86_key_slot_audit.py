@@ -232,7 +232,7 @@ ROUTINE_BLOCK_PATTERN = (
 )
 ASSERT_CALL_RE = re.compile(
     r"(?m)^\s*"
-    r"(AssertRegisterKeepsBaseScalar|AssertRegisterHasAsmOwnedSlot|AssertRegisterOwnsBackendSlot|AssertHelperOwnedExactScalarSlot|AssertExtractCompanionSlot|AssertAsmBindingStillPresent)"
+    r"(AssertRegisterKeepsBaseScalar|AssertRegisterHasAsmOwnedSlot|AssertRegisterOwnsBackendSlot|AssertHelperOwnedExactScalarSlot|AssertAsmBindingStillPresent)"
     r"\(\s*'([^']+)'\s*,"
 )
 EXPECTATION_PROCEDURES = {
@@ -249,7 +249,7 @@ EXPECTATION_PROCEDURES = {
     "riscvv": (
         "TTestCase_DispatchAPI.Test_RISCVV_FacadeSlots_Reuse_BaseScalar_When_Wrappers_Are_ScalarPassThrough",
         "TTestCase_DispatchAPI.Test_RISCVV_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders",
-        "TTestCase_DispatchAPI.Test_RISCVV_ExtractSlots_Keep_NoAsmCompanionWrappers_And_RuntimeOwnership",
+        "TTestCase_DispatchAPI.Test_RISCVV_ExtractSlots_Reuse_BaseScalar_When_NoAsmWrappers_Are_Dead",
         "TTestCase_DispatchAPI.Test_RISCVV_HelperOwnedExactScalarSlots_Stay_BackendOwned",
         "TTestCase_DispatchAPI.Test_RISCVV_ExactF64x2Slots_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding",
         "TTestCase_DispatchAPI.Test_RISCVV_ExactF32x4Slots_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding",
@@ -264,7 +264,6 @@ ASSERT_MODE_TO_EXPECTATION = {
     "AssertRegisterHasAsmOwnedSlot": "backend_owned",
     "AssertRegisterOwnsBackendSlot": "backend_owned",
     "AssertHelperOwnedExactScalarSlot": "backend_owned",
-    "AssertExtractCompanionSlot": "backend_owned",
     "AssertAsmBindingStillPresent": "backend_owned",
 }
 DEFAULT_UNASSERTED_KEY_SLOT_MODE = "backend_owned"
@@ -298,9 +297,7 @@ REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS: dict[str, set[str]] = {
     ),
 }
 
-ALLOWED_BACKEND_OWNED_NO_ASM_SCALAR_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
-    "riscvv": set(RISCVV_EXTRACT_KEY_SLOTS),
-}
+ALLOWED_BACKEND_OWNED_NO_ASM_SCALAR_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {}
 
 ALLOWED_BACKEND_OWNED_SCALAR_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
     "riscvv": (

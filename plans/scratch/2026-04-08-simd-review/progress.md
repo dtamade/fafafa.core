@@ -12425,3 +12425,69 @@
 - 当前阶段结论：
   - `RISCVV F32x4/F64x2 utility` 这 11 个 no-asm body 现在也已经确认是 dead facade，不该继续留在源码里
   - `Extract*` 这类仍在 live companion path 上的 slot 继续保持单独审视，不和 dead-facade 批次混删
+
+## 2026-05-18 RISCVV Extract No-Asm Companions Were Dead Too
+
+- 在上一批 `utility dead facade` 收口后，继续只盯 `RISCVV Extract*` 这 9 个 slot fresh 复核，原先“合法 mixed-context companion wrapper”的结论被新的 source-role 对位翻正了：
+  - `ExtractF32x8`
+  - `ExtractF32x16`
+  - `ExtractF64x2`
+  - `ExtractF64x4`
+  - `ExtractI32x4`
+  - `ExtractI32x8`
+  - `ExtractI32x16`
+  - `ExtractI64x2`
+  - `ExtractI64x4`
+- 让结论翻正的关键证据：
+  - `src/fafafa.core.simd.riscvv.register.inc`
+    - 这 9 个 slot 原先都写成 `{$IFDEF RISCVV_ASSEMBLY}` / `{$ELSE}` 双分支，但 no-asm 分支只是重复绑定同名 `RISCVVExtract*`
+    - 同文件注释已经明确写了 “Keep base scalar wiring for non-asm Extract* helpers...”，说明真实意图本来就是 no-asm 复用 base scalar
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - 这 9 个 no-asm body 全都只是 exact `ScalarExtract*` forward
+    - 在当前 runtime 发布模型下，它们已没有独立 live consumer
+  - `src/fafafa.core.simd.riscvv.pas`
+    - asm side 的 `RISCVVExtract*` 仍继续做 index clamp + `RISCVVExtract*Asm`
+    - 真正需要保留的是这层 asm helper-backed wrapper
+  - precedent
+    - `ExtractF32x4` 早已是 asm-only binding
+    - `NEON Extract*` 也早已收成 no-asm 复用 scalar
+- 已落地的源码/护栏收口：
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - 删除这 9 个 dead no-asm `RISCVVExtract*` body
+  - `src/fafafa.core.simd.riscvv.register.inc`
+    - 这 9 个 `Extract*` 现在全部改成真正的 asm-gated binding
+    - no-asm host 直接继承 `FillBaseDispatchTable` 的 scalar slot
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 原 `Test_RISCVV_ExtractSlots_Keep_NoAsmCompanionWrappers_And_RuntimeOwnership` 已改成 `Test_RISCVV_ExtractSlots_Reuse_BaseScalar_When_NoAsmWrappers_Are_Dead`
+    - 现在显式断言：
+      - facade dead witness absent
+      - asm wrapper/helper witness present
+      - register assignment site 唯一且 asm-gated
+      - runtime 在 asm 编译时 backend-owned，在非 asm host 时 reuse base scalar
+  - `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+    - 删除 `riscvv` 旧的 `no-asm wrapper` allowlist
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 去掉旧的 `AssertExtractCompanionSlot` 例外模型
+    - 继续以 asm-owned truth 追踪这 9 个 slot，但不再把 no-asm wrapper 当成合法前提
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 把这 9 个 `RISCVVExtract*` 补进 `riscvv_facade_source` absent-routine expectation
+- 本批 fresh 验证链已经收口：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py tests/fafafa.core.simd/check_nonx86_key_slot_audit.py tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend riscvv --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- 关键结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=722 status=ok`
+  - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=riscvv assignments=461 asm_exact=312 asm_suffix_only=117 wrapper_only=32 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=riscvv slots=71 issues=0 status=ok`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=136 issues=0 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `DispatchAPI` / `check` 通过
+- 当前阶段结论：
+  - `RISCVV Extract*` 这 9 个 no-asm companion wrapper 也已经确认是 dead source，不该继续留在源码里
+  - 当前 `riscvv` strict truth 已从 `no-asm wrapper ok=9` 收到 `0`
+  - 下一步不该再回头争论这 9 个 slot；真正值得继续审的是剩余 `wrapper_only=32` 的 always-backend-owned residual 是否还有过度保留
