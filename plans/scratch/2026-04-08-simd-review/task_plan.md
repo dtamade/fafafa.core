@@ -5225,3 +5225,17 @@
 | 1. 复核 `integer compare` coverage 缺口 | completed | 已确认 `tests/fafafa.core.simd.intrinsics.experimental/` 目前虽然已有 `cmpeq_epi8` 零散覆盖，但 `simd_cmpeq_epi16`、`simd_cmpeq_epi32`、`simd_cmpgt_epi8/epi16/epi32`、`simd_cmplt_epi8/epi16/epi32` 仍没有直接锁住 signed/equality mask 的 representative proof |
 | 2. 只补 representative proof，不扩实现范围 | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `Test_IntegerCompareFamilies_SignedAndEqualitySemantics`；用带负数、相等、相邻值的 `i8/i16/i32` lane 数据直接锁住 equality、signed greater-than 与 signed less-than 的逐 lane mask 结果 |
 | 3. 复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0/1` 两套 `BuildOrTest.sh test` 已 fresh 通过；本批没有打出新的 source bug。由于当前 diff 仅限 experimental testcase 与后续 scratch 记录，本批没有重复跑主 `simd` release `check`，继续沿用上一批 fresh 绿的 release 基线 |
+
+## 2026-05-18 SSE2 Sqrt Qualification Coverage Expansion
+
+### Goal
+
+继续沿 `SSE2 raw-leaf qualification` 小批次推进，但只切 `sqrt` 这一小簇，不把 `min/max` 混进来：补齐 `sqrt_ps`、`sqrt_pd`、`sqrt_sd` 的 representative proof，直接锁住 packed lane 结果和 scalar high-lane preserve 合同。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `sqrt` coverage 缺口 | completed | 已确认 `tests/fafafa.core.simd.intrinsics.experimental/` 目前有 `add/mul` 的 lane proof，但还没有任何 `simd_sqrt_ps`、`simd_sqrt_pd`、`simd_sqrt_sd` 的 representative raw semantic proof |
+| 2. 只补 representative proof，不扩实现范围 | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `Test_SqrtFamilies_RespectLaneAndPreserveContracts`；直接覆盖 `sqrt_ps` 的 4-lane 结果、`sqrt_pd` 的 2-lane 结果，以及 `sqrt_sd` 的 low-lane sqrt 与 high-lane preserve |
+| 3. 复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0/1` 两套 `BuildOrTest.sh test` 已 fresh 通过；本批没有打出新的 source bug。由于当前 diff 仅限 experimental testcase 与后续 scratch 记录，本批不重复跑主 `simd` release `check`，继续沿用上一批 fresh 绿的 release 基线 |

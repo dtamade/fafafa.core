@@ -1127,6 +1127,7 @@ type
     procedure Test_BitwiseAndAndnotSemantics;
     procedure Test_SettersAndCastsPreserveLaneOrder;
     procedure Test_FloatArithmeticLaneSemantics;
+    procedure Test_SqrtFamilies_RespectLaneAndPreserveContracts;
     procedure Test_LoadStore_Roundtrip;
     procedure Test_PartialLaneLoadStoreMoveSemantics;
     procedure Test_ConversionFamilies_PreserveExpectedLanes;
@@ -1371,6 +1372,44 @@ begin
   LActual := simd_mul_pd(LA, LB);
   AssertEquals('simd_mul_pd lane0', 6.0, LActual.m128d_f64[0], 0.0);
   AssertEquals('simd_mul_pd lane1', 1.0, LActual.m128d_f64[1], 0.0);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_SqrtFamilies_RespectLaneAndPreserveContracts;
+var
+  LA: TM128;
+  LB: TM128;
+  LActual: TM128;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  LA.m128_f32[0] := 0.0;
+  LA.m128_f32[1] := 1.0;
+  LA.m128_f32[2] := 4.0;
+  LA.m128_f32[3] := 9.0;
+
+  LActual := simd_sqrt_ps(LA);
+  AssertEquals('simd_sqrt_ps lane0', 0.0, LActual.m128_f32[0], 0.0);
+  AssertEquals('simd_sqrt_ps lane1', 1.0, LActual.m128_f32[1], 0.0);
+  AssertEquals('simd_sqrt_ps lane2', 2.0, LActual.m128_f32[2], 0.0);
+  AssertEquals('simd_sqrt_ps lane3', 3.0, LActual.m128_f32[3], 0.0);
+
+  FillChar(LA, SizeOf(LA), 0);
+  LA.m128d_f64[0] := 16.0;
+  LA.m128d_f64[1] := 25.0;
+
+  LActual := simd_sqrt_pd(LA);
+  AssertEquals('simd_sqrt_pd lane0', 4.0, LActual.m128d_f64[0], 0.0);
+  AssertEquals('simd_sqrt_pd lane1', 5.0, LActual.m128d_f64[1], 0.0);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := 1.0;
+  LA.m128d_f64[1] := 88.0;
+  LB.m128d_f64[0] := 36.0;
+  LB.m128d_f64[1] := 777.0;
+
+  LActual := simd_sqrt_sd(LA, LB);
+  AssertEquals('simd_sqrt_sd low lane', 6.0, LActual.m128d_f64[0], 0.0);
+  AssertEquals('simd_sqrt_sd keep high lane', 88.0, LActual.m128d_f64[1], 0.0);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_LoadStore_Roundtrip;
