@@ -165,14 +165,11 @@ begin
   table.XorI64x2 := @RISCVVXorI64x2;
   table.NotI64x2 := @RISCVVNotI64x2;
   {$ENDIF}
-  table.AndNotI64x2 := @RISCVVAndNotI64x2;
   {$IFDEF RISCVV_ASSEMBLY}
   table.ShiftLeftI64x2 := @RISCVVShiftLeftI64x2;
   table.ShiftRightI64x2 := @RISCVVShiftRightI64x2;
   table.ShiftRightArithI64x2 := @RISCVVShiftRightArithI64x2;
   {$ENDIF}
-  table.MinI64x2 := @RISCVVMinI64x2;
-  table.MaxI64x2 := @RISCVVMaxI64x2;
 
   // === U64x2 Operations ===
   {$IFDEF RISCVV_ASSEMBLY}
@@ -183,13 +180,6 @@ begin
   table.XorU64x2 := @RISCVVXorU64x2;
   table.NotU64x2 := @RISCVVNotU64x2;
   {$ENDIF}
-  table.AndNotU64x2 := @RISCVVAndNotU64x2;
-  table.CmpEqU64x2 := @RISCVVCmpEqU64x2;
-  table.CmpLtU64x2 := @RISCVVCmpLtU64x2;
-  table.CmpGtU64x2 := @RISCVVCmpGtU64x2;
-  table.MinU64x2 := @RISCVVMinU64x2;
-  table.MaxU64x2 := @RISCVVMaxU64x2;
-
   // === F32x8 Operations ===
   table.AddF32x8 := @RISCVVAddF32x8;
   table.SubF32x8 := @RISCVVSubF32x8;

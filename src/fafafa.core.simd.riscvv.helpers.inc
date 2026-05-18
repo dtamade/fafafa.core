@@ -32,51 +32,6 @@ begin
   Result := ScalarNotU64x2(a);
 end;
 
-function RISCVVAndNotI64x2(const a, b: TVecI64x2): TVecI64x2;
-begin
-  Result := ScalarAndNotI64x2(a, b);
-end;
-
-function RISCVVMinI64x2(const a, b: TVecI64x2): TVecI64x2;
-begin
-  Result := ScalarMinI64x2(a, b);
-end;
-
-function RISCVVMaxI64x2(const a, b: TVecI64x2): TVecI64x2;
-begin
-  Result := ScalarMaxI64x2(a, b);
-end;
-
-function RISCVVAndNotU64x2(const a, b: TVecU64x2): TVecU64x2;
-begin
-  Result := ScalarAndNotU64x2(a, b);
-end;
-
-function RISCVVCmpEqU64x2(const a, b: TVecU64x2): TMask2;
-begin
-  Result := ScalarCmpEqU64x2(a, b);
-end;
-
-function RISCVVCmpLtU64x2(const a, b: TVecU64x2): TMask2;
-begin
-  Result := ScalarCmpLtU64x2(a, b);
-end;
-
-function RISCVVCmpGtU64x2(const a, b: TVecU64x2): TMask2;
-begin
-  Result := ScalarCmpGtU64x2(a, b);
-end;
-
-function RISCVVMinU64x2(const a, b: TVecU64x2): TVecU64x2;
-begin
-  Result := ScalarMinU64x2(a, b);
-end;
-
-function RISCVVMaxU64x2(const a, b: TVecU64x2): TVecU64x2;
-begin
-  Result := ScalarMaxU64x2(a, b);
-end;
-
 function RISCVVCmpNeU32x4(const a, b: TVecU32x4): TMask4;
 var i: Integer;
 begin

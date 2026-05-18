@@ -131,7 +131,7 @@ RISCVV_EXTRACT_KEY_SLOTS = (
     "ExtractI64x2",
     "ExtractI64x4",
 )
-RISCVV_HELPER_OWNED_KEY_SLOTS = (
+RISCVV_EXACT_SCALAR_REUSE_KEY_SLOTS = (
     "AndNotI64x2",
     "MinI64x2",
     "MaxI64x2",
@@ -141,6 +141,8 @@ RISCVV_HELPER_OWNED_KEY_SLOTS = (
     "CmpGtU64x2",
     "MinU64x2",
     "MaxU64x2",
+)
+RISCVV_HELPER_OWNED_KEY_SLOTS = (
     "AndNotI8x16",
     "AndNotU16x8",
     "AndNotU8x16",
@@ -212,6 +214,7 @@ KEY_SLOTS_BY_BACKEND: dict[str, tuple[str, ...]] = {
         RISCVV_BASE_SCALAR_REUSE_KEY_SLOTS,
         RISCVV_SELECT_KEY_SLOTS,
         RISCVV_DOT_KEY_SLOTS,
+        RISCVV_EXACT_SCALAR_REUSE_KEY_SLOTS,
         RISCVV_EXTRACT_KEY_SLOTS,
         RISCVV_HELPER_OWNED_KEY_SLOTS,
         RISCVV_WIDE_ROUNDING_KEY_SLOTS,
@@ -249,6 +252,7 @@ EXPECTATION_PROCEDURES = {
     "riscvv": (
         "TTestCase_DispatchAPI.Test_RISCVV_FacadeSlots_Reuse_BaseScalar_When_Wrappers_Are_ScalarPassThrough",
         "TTestCase_DispatchAPI.Test_RISCVV_DotF64Slots_Reuse_BaseScalar_When_ScalarForwarders_Are_Dead",
+        "TTestCase_DispatchAPI.Test_RISCVV_ExactScalarHelperSlots_Reuse_BaseScalar_When_Owners_Are_Dead",
         "TTestCase_DispatchAPI.Test_RISCVV_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders",
         "TTestCase_DispatchAPI.Test_RISCVV_WideRoundingAndF32ClampSlots_Reuse_BaseScalar_When_ScalarForwarders_Are_Dead",
         "TTestCase_DispatchAPI.Test_RISCVV_ExtractSlots_Reuse_BaseScalar_When_NoAsmWrappers_Are_Dead",
@@ -285,6 +289,7 @@ REQUIRE_EXPLICIT_DISPATCHAPI_ASSERTS: dict[str, set[str]] = {
             RISCVV_EXPLICIT_BASE_KEY_SLOTS,
             RISCVV_SELECT_KEY_SLOTS,
             RISCVV_DOT_KEY_SLOTS,
+            RISCVV_EXACT_SCALAR_REUSE_KEY_SLOTS,
             RISCVV_EXTRACT_KEY_SLOTS,
             RISCVV_HELPER_OWNED_KEY_SLOTS,
             RISCVV_WIDE_ROUNDING_KEY_SLOTS,

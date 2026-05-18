@@ -12631,3 +12631,72 @@
   - 当前 `riscvv` strict truth 已进一步收成 `assignments=441`、`wrapper_only=12`
   - 旧 scratch 里关于 `DotF64x2/F64x4 必须 backend-owned` 的说法现在应视为历史结论，后续不要再把它当成 live truth source
   - 下一步不该再回头争论这两个 slot；真正还值得继续深审的是剩余 `wrapper_only=12` 的 `AndNot/Cmp*/Min*/Max*` 64-bit residual
+
+## 2026-05-18 RISCVV Exact Scalar Helper Owners Were Over-Retained
+
+- 在上一批 `DotF64x2/F64x4` 收口后，继续只盯 `wrapper_only=12` 里最像 dead owner 的一簇：
+  - `AndNotI64x2`
+  - `MinI64x2`
+  - `MaxI64x2`
+  - `AndNotU64x2`
+  - `CmpEqU64x2`
+  - `CmpLtU64x2`
+  - `CmpGtU64x2`
+  - `MinU64x2`
+  - `MaxU64x2`
+- 让结论翻正的关键证据：
+  - `src/fafafa.core.simd.riscvv.pas`
+    - asm/common 侧这 9 个函数都只是 exact `Scalar*` forward
+    - 没有 dedicated asm helper，也没有独立 vector opcode body
+  - `src/fafafa.core.simd.riscvv.helpers.inc`
+    - no-asm 侧这 9 个 helper 同样都只是 exact `Scalar*` forward
+    - 说明它们不是“helper-owned backend slot”，而是 asm/common 与 no-asm 两边都过度保留的 dead owner
+  - `src/fafafa.core.simd.riscvv.register.inc`
+    - 这 9 个 slot 之前仍然直接绑定到 `RISCVV*`
+    - 但绑定背后没有任何非 scalar 语义可守
+  - precedent
+    - `NEON` 上同类 `U64x2 compare/minmax` 早已按 `reuse_base_scalar` 处理
+    - 这轮 `DispatchAPI/NonX86Parity` 与 `impl-audit-nonx86` 也没有打出 fresh runtime drift
+- 已落地的源码/护栏收口：
+  - `src/fafafa.core.simd.riscvv.pas`
+    - 删除这 9 个 asm/common dead owner
+  - `src/fafafa.core.simd.riscvv.helpers.inc`
+    - 删除这 9 个 no-asm dead owner
+  - `src/fafafa.core.simd.riscvv.register.inc`
+    - 删除这 9 个 register binding
+    - runtime 直接继承 `FillBaseDispatchTable` 的 scalar slot
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 删除对这 9 个名字的 scalar-forward expectation
+    - 改成 `riscvv_source` / `riscvv_helpers_source` absent-routine expectation
+  - `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+    - 从 `ALLOWED_ALWAYS_WRAPPER_SLOTS_BY_BACKEND['riscvv']` 去掉这 9 个 slot
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 新增 `RISCVV_EXACT_SCALAR_REUSE_KEY_SLOTS`
+    - 新增 `TTestCase_DispatchAPI.Test_RISCVV_ExactScalarHelperSlots_Reuse_BaseScalar_When_Owners_Are_Dead`
+    - 把这 9 个 slot 从 backend-owned scalar-wrapper 账本切回 `reuse_base_scalar`
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 新增 dedicated witness，显式断言：
+      - `riscvv.pas` / `riscvv.helpers.inc` 不得再保留这 9 个 dead owner
+      - `register.inc` 不得重新绑定这 9 个 slot
+      - runtime slot 必须与 base scalar slot 相等
+    - 同时把旧的 `Test_RISCVV_HelperOwnedExactScalarSlots_Stay_BackendOwned` 收窄回真正仍然 backend-owned 的 `AndNotI8x16/U16x8/U8x16`
+- 本批 fresh 验证链已经收口：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py tests/fafafa.core.simd/check_nonx86_key_slot_audit.py tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend riscvv --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- 关键结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=740 status=ok`
+  - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=riscvv assignments=432 asm_exact=312 asm_suffix_only=117 wrapper_only=3 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=riscvv slots=71 issues=0 status=ok`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=136 issues=0 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `TTestCase_DispatchAPI,TTestCase_NonX86BackendParity` / `impl-audit-nonx86` / `check` 通过
+- 当前阶段结论：
+  - 这 9 个 `I64/U64/Cmp/Min/Max` slot 现在已经从 over-retained exact scalar owner 收成 `reuse_base_scalar`
+  - 当前 `riscvv` strict truth 已进一步收成 `assignments=432`、`wrapper_only=3`
+  - 剩余 live residual 只剩 `AndNotI8x16` / `AndNotU16x8` / `AndNotU8x16` 这 3 个组合槽位

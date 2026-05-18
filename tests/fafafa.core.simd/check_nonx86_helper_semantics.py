@@ -948,15 +948,6 @@ def main() -> int:
         ("RISCVVOrU64x2", "ScalarOrU64x2(a, b)"),
         ("RISCVVXorU64x2", "ScalarXorU64x2(a, b)"),
         ("RISCVVNotU64x2", "ScalarNotU64x2(a)"),
-        ("RISCVVAndNotI64x2", "ScalarAndNotI64x2(a, b)"),
-        ("RISCVVAndNotU64x2", "ScalarAndNotU64x2(a, b)"),
-        ("RISCVVCmpEqU64x2", "ScalarCmpEqU64x2(a, b)"),
-        ("RISCVVCmpLtU64x2", "ScalarCmpLtU64x2(a, b)"),
-        ("RISCVVCmpGtU64x2", "ScalarCmpGtU64x2(a, b)"),
-        ("RISCVVMinI64x2", "ScalarMinI64x2(a, b)"),
-        ("RISCVVMaxI64x2", "ScalarMaxI64x2(a, b)"),
-        ("RISCVVMinU64x2", "ScalarMinU64x2(a, b)"),
-        ("RISCVVMaxU64x2", "ScalarMaxU64x2(a, b)"),
         ("RISCVVShiftLeftI64x2", "ScalarShiftLeftI64x2(a, shift)"),
         ("RISCVVShiftRightI64x2", "ScalarShiftRightI64x2(a, shift)"),
         ("RISCVVShiftRightArithI64x2", "ScalarShiftRightArithI64x2(a, shift)"),
@@ -965,24 +956,6 @@ def main() -> int:
         ("RISCVVAndNotU16x8", "ScalarAndNotU16x8(a, b)"),
         ("RISCVVAndNotU8x16", "ScalarAndNotU8x16(a, b)"),
     ]
-
-    riscvv_source_exact_scalar_forwarders = {
-        "RISCVVAndNotI64x2",
-        "RISCVVMinI64x2",
-        "RISCVVMaxI64x2",
-        "RISCVVAndNotU64x2",
-        "RISCVVCmpEqU64x2",
-        "RISCVVCmpLtU64x2",
-        "RISCVVCmpGtU64x2",
-        "RISCVVMinU64x2",
-        "RISCVVMaxU64x2",
-    }
-
-    routine_expectations.extend(
-        (riscvv_source, routine_name, [f"Result := {scalar_call};"])
-        for routine_name, scalar_call in riscvv_helper_scalar_forwarder_expectations
-        if routine_name in riscvv_source_exact_scalar_forwarders
-    )
 
     routine_expectations.extend(
         (riscvv_helpers_source, routine_name, [f"Result := {scalar_call};"])
@@ -1211,6 +1184,15 @@ def main() -> int:
         (riscvv_source, "RISCVVClampF32x16"),
         (riscvv_source, "RISCVVDotF64x2"),
         (riscvv_source, "RISCVVDotF64x4"),
+        (riscvv_source, "RISCVVAndNotI64x2"),
+        (riscvv_source, "RISCVVMinI64x2"),
+        (riscvv_source, "RISCVVMaxI64x2"),
+        (riscvv_source, "RISCVVAndNotU64x2"),
+        (riscvv_source, "RISCVVCmpEqU64x2"),
+        (riscvv_source, "RISCVVCmpLtU64x2"),
+        (riscvv_source, "RISCVVCmpGtU64x2"),
+        (riscvv_source, "RISCVVMinU64x2"),
+        (riscvv_source, "RISCVVMaxU64x2"),
         (riscvv_helpers_source, "RISCVVShiftLeftU64x2"),
         (riscvv_helpers_source, "RISCVVShiftRightU64x2"),
         (riscvv_helpers_source, "RISCVVReduceAddI32x4"),
@@ -1221,6 +1203,15 @@ def main() -> int:
         (riscvv_helpers_source, "RISCVVSelectI64x2"),
         (riscvv_helpers_source, "RISCVVSelectI32x8"),
         (riscvv_helpers_source, "RISCVVSelectI32x16"),
+        (riscvv_helpers_source, "RISCVVAndNotI64x2"),
+        (riscvv_helpers_source, "RISCVVMinI64x2"),
+        (riscvv_helpers_source, "RISCVVMaxI64x2"),
+        (riscvv_helpers_source, "RISCVVAndNotU64x2"),
+        (riscvv_helpers_source, "RISCVVCmpEqU64x2"),
+        (riscvv_helpers_source, "RISCVVCmpLtU64x2"),
+        (riscvv_helpers_source, "RISCVVCmpGtU64x2"),
+        (riscvv_helpers_source, "RISCVVMinU64x2"),
+        (riscvv_helpers_source, "RISCVVMaxU64x2"),
         (riscvv_facade_source, "RISCVVFloorF32x4"),
         (riscvv_facade_source, "RISCVVCeilF32x4"),
         (riscvv_facade_source, "RISCVVRoundF32x4"),

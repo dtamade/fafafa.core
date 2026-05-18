@@ -48,10 +48,8 @@ NEON_NO_ASM_ONLY_WRAPPER_SLOTS: set[str] = {
 ALLOWED_ALWAYS_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
     "neon": set(),
     "riscvv": {
-        "AndNotI64x2", "AndNotI8x16", "AndNotU16x8", "AndNotU64x2",
+        "AndNotI8x16", "AndNotU16x8",
         "AndNotU8x16",
-        "CmpEqU64x2", "CmpGtU64x2", "CmpLtU64x2",
-        "MaxI64x2", "MaxU64x2", "MinI64x2", "MinU64x2",
     },
 }
 
