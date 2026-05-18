@@ -15211,3 +15211,33 @@
   - `VecI16x32ShiftRightArith` 的 16-bit 期望值构造已改成与 `I32/I64` 同构的位模式推导
   - 本地 release 校验链已经跨过并收掉 `tests/fafafa.core.simd.testcase.pas(11533,42)` 这条 Windows/FPC 编译错误
   - 下一步应基于当前 HEAD 重新发 fresh Windows evidence，确认 GitHub Windows runner 也跨过该点
+
+### Follow-up: Windows evidence crossed the compile error and exposed stable-warning closeout drift
+
+- 基于 `a63b723f` 重新触发的 fresh Windows run：
+  - `26050786791`
+- 这轮新的关键事实：
+  - `win-evidence-preflight` 仍是 `PASS`
+  - Windows workflow 已不再死在 `tests/fafafa.core.simd.testcase.pas(11533,42)`
+  - `fafafa.core.simd.test.exe` 已在 Windows runner 上真实编译并链接成功
+- 新的最小失败面：
+  - `collect_windows_b07_evidence.bat` 的 step `1/6 Build + check SIMD module`
+  - `NativeBatchCheckRc: 1`
+  - 根因不是编译失败，而是 Windows batch `check` 抓到了 stable SIMD 源里的 warning/hint
+- 具体收敛出的 stable-warning 源头：
+  - `src/fafafa.core.simd.dispatch.pas`
+  - `src/fafafa.core.simd.public_abi.impl.inc`
+  - `DefaultBackendName/DefaultBackendDescription` 这组函数最初为消除“managed result 未初始化”而补的 `else` 分支，又在 FPC 下引出 `unreachable code`
+- 当前已完成的修复：
+  - 两处 `DefaultBackendName/DefaultBackendDescription` 都改成“先初始化 `Result := ''`，再由 `case` 覆盖”
+  - 这样同时收掉：
+    - Windows/FPC 的 `function result variable of a managed type does not seem to be initialized`
+    - Linux/FPC 可见的 `unreachable code`
+- 本地串行 release 验证已重新通过：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - 关键回归点：`[CHECK] OK (no SIMD-unit warnings/hints on stable path)`
+- 下一步：
+  - 提交这批 `stable-warning closeout` 修复
+  - push 到 `origin/main`
+  - 再发一轮 fresh Windows evidence，确认 `NativeBatchCheckRc` 已转绿并继续推进到后续 gate 子步骤
