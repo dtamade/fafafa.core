@@ -5211,3 +5211,17 @@
 | 1. 复核 `wide unpack` coverage 缺口 | completed | 已确认 `tests/fafafa.core.simd.intrinsics.experimental/` 的 `TTestCase_X86Sse2PackShuffleBasics` 目前只覆盖 `unpacklo/hi_epi8` 与 `unpacklo/hi_epi32`，而 `simd_unpacklo/hi_epi16`、`simd_unpacklo/hi_epi64`、`simd_unpacklo/hi_pd`、`simd_unpacklo/hi_ps` 仍没有任何 representative raw semantic proof |
 | 2. 只补 representative proof，不扩实现范围 | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `Test_UnpackWideLaneInterleaving`；直接覆盖 `epi16` 低/高半区交织、`epi64` qword 对位、`pd` 双精度 low/high unpack，以及 `ps` 四 lane packed single 的 low/high 交织顺序 |
 | 3. 复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0/1` 两套 `BuildOrTest.sh test`、以及 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 全部 fresh 通过；这批没有再炸出 source bug，说明当前 `wide unpack` raw leaf 至少通过了第一层 representative contract |
+
+## 2026-05-18 SSE2 Integer Compare Qualification Coverage Expansion
+
+### Goal
+
+继续沿 `SSE2 raw-leaf qualification` 小批次推进，把 `integer compare` 邻近残余补成 representative proof：先锁住 `cmpeq_epi16`、`cmpeq_epi32`，以及 `cmpgt/cmplt_epi8/epi16/epi32` 的 signed/equality mask 语义，不把话题扩回 wider compare family。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `integer compare` coverage 缺口 | completed | 已确认 `tests/fafafa.core.simd.intrinsics.experimental/` 目前虽然已有 `cmpeq_epi8` 零散覆盖，但 `simd_cmpeq_epi16`、`simd_cmpeq_epi32`、`simd_cmpgt_epi8/epi16/epi32`、`simd_cmplt_epi8/epi16/epi32` 仍没有直接锁住 signed/equality mask 的 representative proof |
+| 2. 只补 representative proof，不扩实现范围 | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `Test_IntegerCompareFamilies_SignedAndEqualitySemantics`；用带负数、相等、相邻值的 `i8/i16/i32` lane 数据直接锁住 equality、signed greater-than 与 signed less-than 的逐 lane mask 结果 |
+| 3. 复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0/1` 两套 `BuildOrTest.sh test` 已 fresh 通过；本批没有打出新的 source bug。由于当前 diff 仅限 experimental testcase 与后续 scratch 记录，本批没有重复跑主 `simd` release `check`，继续沿用上一批 fresh 绿的 release 基线 |

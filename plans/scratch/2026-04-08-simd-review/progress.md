@@ -13355,3 +13355,47 @@
   - 如果继续沿这条路推进，下一步更自然的是：
     - 回到 `integer compare` 邻近 residual 做 representative proof
     - 或继续补 `pack/unpack` 边上的更细碎剩余，但不必重新打开 whole-module 讨论
+
+## 2026-05-18 SSE2 Integer Compare Qualification Coverage Expansion
+
+- 这批继续保持 bounded，没有把 compare 重新扩回 `double compare`、`comi/ucomi` 或 wider source helper，而是只补 `integer compare` 那一簇缺失的 raw semantic proof。
+- 开工前先对位当前 coverage 真相：
+  - 已有：
+    - `cmpeq_epi8` 在更早的基础测试里有零散覆盖
+  - 仍缺：
+    - `simd_cmpeq_epi16`
+    - `simd_cmpeq_epi32`
+    - `simd_cmpgt_epi8`
+    - `simd_cmpgt_epi16`
+    - `simd_cmpgt_epi32`
+    - `simd_cmplt_epi8`
+    - `simd_cmplt_epi16`
+    - `simd_cmplt_epi32`
+- 本批仍然只改一个代码文件：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 在 `TTestCase_X86Sse2AbiBasics` 下新增 `Test_IntegerCompareFamilies_SignedAndEqualitySemantics`
+- 新 proof 直接锁住的关键合同包括：
+  - `cmpeq_epi16/cmpeq_epi32` 必须按对应 lane 宽度给出 all-ones / zero equality mask
+  - `cmpgt_epi8/16/32` 必须按 signed 比较给出 all-ones / zero mask
+  - `cmplt_epi8/16/32` 必须按 signed 比较给出 all-ones / zero mask，而不是 unsigned 结果或 lane 顺序漂移
+  - 测试数据同时覆盖负数、相等、相邻值与正数，避免只测单边范围
+- 这次 fresh 复验没有再打出新的 source bug：
+  - `git diff --check`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- 关键结果：
+  - experimental=`0`：`[TEST] OK`
+  - experimental=`1`：`[TEST] OK`
+- 当前阶段结论：
+  - 这批同样是纯 proof closeout，没有引出新的 source 修复
+  - 但它把 `integer compare` 这组长期只有 hygiene、没有 representative raw semantic proof 的 leaf 正式补齐了第一层证据
+  - 当前 `SSE2 compare` 侧已经至少覆盖到：
+    - `movemask`
+    - integer equality / signed greater-than / signed less-than
+    - ordered/unordered scalar preserve
+    - `comi/ucomi` scalar flag results
+    - `double compare` NaN/complement masks
+    - ordered packed/scalar compare residual
+  - 如果继续沿这条路推进，下一步更自然的是：
+    - 回到 `retire baseline` 看还剩哪些 `pack/unpack/compare` 邻近 raw leaf 没 representative proof
+    - 或继续切更小的 `integer` / `shuffle` 残余，但仍不需要重开 whole-module 讨论

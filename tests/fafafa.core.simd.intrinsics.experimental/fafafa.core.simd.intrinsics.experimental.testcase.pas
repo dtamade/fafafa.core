@@ -1130,6 +1130,7 @@ type
     procedure Test_LoadStore_Roundtrip;
     procedure Test_PartialLaneLoadStoreMoveSemantics;
     procedure Test_ConversionFamilies_PreserveExpectedLanes;
+    procedure Test_IntegerCompareFamilies_SignedAndEqualitySemantics;
     procedure Test_CompareAndMovemaskSemantics;
     procedure Test_ComiAndUcomiScalarFlagSemantics;
     procedure Test_NegatedPackedAndScalarCompareSemantics;
@@ -1556,6 +1557,102 @@ begin
   LInts.m128i_i64[0] := Int64(-9876543210);
   AssertEquals('simd_cvtsi128_si32 low dword', LInts.m128i_i32[0], simd_cvtsi128_si32(LInts));
   AssertEquals('simd_cvtsi128_si64 low qword', Int64(-9876543210), simd_cvtsi128_si64(LInts));
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_IntegerCompareFamilies_SignedAndEqualitySemantics;
+const
+  AI8: array[0..15] of ShortInt = (-128, -5, -1, 0, 1, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100);
+  BI8: array[0..15] of ShortInt = (-127, -5, 0, -1, 1, 4, 11, 19, 31, 39, 50, 61, 69, 81, 89, 100);
+  AI16: array[0..7] of SmallInt = (-3, -2, -1, 0, 1, 2, 3, 4);
+  BI16: array[0..7] of SmallInt = (-3, -1, -1, 1, 0, 2, 4, 3);
+  AI32: array[0..3] of LongInt = (-5, -1, 10, 20);
+  BI32: array[0..3] of LongInt = (-6, -1, 15, 5);
+var
+  LA: TM128;
+  LB: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+  LIndex: Integer;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 15 do
+  begin
+    LA.m128i_i8[LIndex] := AI8[LIndex];
+    LB.m128i_i8[LIndex] := BI8[LIndex];
+  end;
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    if AI8[LIndex] > BI8[LIndex] then
+      LExpected.m128i_i8[LIndex] := -1;
+  LActual := simd_cmpgt_epi8(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_cmpgt_epi8 signed masks', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    if AI8[LIndex] < BI8[LIndex] then
+      LExpected.m128i_i8[LIndex] := -1;
+  LActual := simd_cmplt_epi8(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_cmplt_epi8 signed masks', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 7 do
+  begin
+    LA.m128i_i16[LIndex] := AI16[LIndex];
+    LB.m128i_i16[LIndex] := BI16[LIndex];
+  end;
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 7 do
+    if AI16[LIndex] = BI16[LIndex] then
+      LExpected.m128i_i16[LIndex] := -1;
+  LActual := simd_cmpeq_epi16(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_cmpeq_epi16 equality masks', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 7 do
+    if AI16[LIndex] > BI16[LIndex] then
+      LExpected.m128i_i16[LIndex] := -1;
+  LActual := simd_cmpgt_epi16(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_cmpgt_epi16 signed masks', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 7 do
+    if AI16[LIndex] < BI16[LIndex] then
+      LExpected.m128i_i16[LIndex] := -1;
+  LActual := simd_cmplt_epi16(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_cmplt_epi16 signed masks', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 3 do
+  begin
+    LA.m128i_i32[LIndex] := AI32[LIndex];
+    LB.m128i_i32[LIndex] := BI32[LIndex];
+  end;
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 3 do
+    if AI32[LIndex] = BI32[LIndex] then
+      LExpected.m128i_i32[LIndex] := -1;
+  LActual := simd_cmpeq_epi32(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_cmpeq_epi32 equality masks', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 3 do
+    if AI32[LIndex] > BI32[LIndex] then
+      LExpected.m128i_i32[LIndex] := -1;
+  LActual := simd_cmpgt_epi32(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_cmpgt_epi32 signed masks', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 3 do
+    if AI32[LIndex] < BI32[LIndex] then
+      LExpected.m128i_i32[LIndex] := -1;
+  LActual := simd_cmplt_epi32(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_cmplt_epi32 signed masks', LExpected, LActual);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_CompareAndMovemaskSemantics;
