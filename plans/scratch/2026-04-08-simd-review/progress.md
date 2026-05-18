@@ -14924,3 +14924,59 @@
 - 当前阶段结论：
   - 这批没有继续“再修一个点”，但把最近 4 个真实浮点修复簇背后的回归面正式锁进了主链检查
   - 现在 `intrinsics.x86.sse2` 里，`constref` 对齐误用和 raw float opcode 回退这两条最近最值钱的 bug 线都已经有默认 guardrail
+
+## 2026-05-18 Freeze-Status Latest-Mainline Selection Repair
+
+- 完成一轮 bounded completion audit 后，没有再回头大扫 SIMD 实现，而是只复核当前 closeout 真相链：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_coverage.py --require-avx2 --require-experimental`
+  - `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+- 这轮 fresh 审计抓到的不是 SIMD 算法红点，而是 `freeze-status` 的 selection drift：
+  - 在 cross 模式下，即使最新 `gate_summary.md` 已经覆盖 `mainline-required` 且 fresh
+  - 只要 `evidence-verify=SKIP`，旧逻辑仍会退回到较老的 backup gate snapshot
+  - 随后把：
+    - `linux_sources_not_newer_than_gate`
+    - `mainline-ready`
+    - `linux_qemu_cpuinfo_nonx86_evidence`
+    错误地锚到旧快照，而不是最新 gate
+- 为了确认这不是表象，我先补跑了两条 fresh gate：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - `FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- fresh 事实确认：
+  - 最新 `logs/gate_summary.md` 确实已有：
+    - `qemu-cpuinfo-nonx86-evidence = PASS`
+    - `gate = PASS`
+  - 但旧 `freeze-status` 仍然回退到 `logs/rehearsal/backups/gate_summary.backup.*.md`
+  - 因而这是 repo 内 closeout truth bug，不是外部 Windows blocker
+- 本批最小修复：
+  - `tests/fafafa.core.simd/evaluate_simd_freeze_status.py`
+    - cross 模式下若 latest gate 已满足 `mainline-required`，不再回退到 older mainline backup
+    - `linux_sources_not_newer_than_windows_evidence` 重命名为 `windows_sources_not_newer_than_evidence`
+    - 让 `mainline-ready` 不再错误吞入 Windows evidence freshness
+  - `tests/fafafa.core.simd/rehearse_freeze_status.sh`
+    - 新增 `case_latest_mainline`
+    - 直接锁住：
+      - latest gate 已有 `qemu-cpuinfo-nonx86-evidence=PASS`
+      - cross 仍因 `evidence-verify=SKIP` 未完成
+      - `freeze-status` 必须保持 `mainline-ready=True`
+      - 且不得回退到 older backup
+- fresh 验证：
+  - `bash tests/fafafa.core.simd/rehearse_freeze_status.sh`
+    - `[FREEZE-REHEARSAL] OK`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+    - fresh 输出已变成：
+      - `mainline-ready=True`
+      - `cross-ready=False`
+      - `linux_gate_summary` 直接指向最新 `logs/gate_summary.md`
+      - `linux_qemu_cpuinfo_nonx86_evidence = PASS`
+      - 剩余红项收敛为 Windows cross blocker：
+        - `cross_gate_required_steps = evidence-verify=SKIP`
+        - `windows_sources_not_newer_than_evidence`
+        - `windows_preflight_latest = RECENT_BILLING_BLOCK`
+        - `windows_evidence_verify = TOOLCHAIN BLOCK`
+- 额外观察：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate-summary-selfcheck`
+    当前仍红在 `win-preflight-preserve-latest-rehearsal`
+  - 单独跑 `bash tests/fafafa.core.simd/rehearse_win_preflight_preserve_latest_on_query_failure.sh` 也会红
+  - 这条失败面与本批 `freeze-status` latest-mainline 修复无关，留作下一条 bounded residual

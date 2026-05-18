@@ -350,6 +350,12 @@ def select_effective_gate_run(
     if not latest.required_ok_base:
         return latest, latest, False, ""
 
+    # In cross mode, a fresh latest gate that already satisfies all mainline-required
+    # steps must remain the active source of truth for mainline readiness/freshness.
+    # Only fall back when the latest run is still missing mainline coverage.
+    if not linux_only and latest.required_ok_mainline:
+        return latest, latest, False, ""
+
     fallback_only_steps = [
         step for step in required_gate_steps_selected if step not in REQUIRED_GATE_STEPS_BASE
     ]
@@ -1574,7 +1580,7 @@ def main() -> int:
     if not args.linux_only:
         checks.append(
             sources_not_newer_than_artifact_check(
-                "linux_sources_not_newer_than_windows_evidence",
+                "windows_sources_not_newer_than_evidence",
                 windows_log,
                 simd_source_candidates,
                 required=True,

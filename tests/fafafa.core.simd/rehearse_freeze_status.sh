@@ -28,6 +28,7 @@ LCaseLinuxLazy="${LTmpRoot}/case_linux_lazy/tests/fafafa.core.simd"
 LCaseLinuxPlatforms="${LTmpRoot}/case_linux_platforms/tests/fafafa.core.simd"
 LCaseBatchFallback="${LTmpRoot}/case_batch_fallback/tests/fafafa.core.simd"
 LCaseMainlineFallback="${LTmpRoot}/case_mainline_fallback/tests/fafafa.core.simd"
+LCaseLatestMainline="${LTmpRoot}/case_latest_mainline/tests/fafafa.core.simd"
 
 mkdir -p "${LCaseNotReady}/logs" "${LCaseNotReady}/docs" "${LTmpRoot}/case_not_ready/docs/plans"
 mkdir -p "${LCaseReady}/logs" "${LCaseReady}/docs" "${LTmpRoot}/case_ready/docs/plans"
@@ -36,6 +37,7 @@ mkdir -p "${LCaseLinuxLazy}/logs" "${LCaseLinuxLazy}/docs" "${LTmpRoot}/case_lin
 mkdir -p "${LCaseLinuxPlatforms}/logs" "${LCaseLinuxPlatforms}/docs" "${LTmpRoot}/case_linux_platforms/docs/plans"
 mkdir -p "${LCaseBatchFallback}/logs/windows-closeout/SIMD-20260210-152" "${LCaseBatchFallback}/docs" "${LTmpRoot}/case_batch_fallback/docs/plans"
 mkdir -p "${LCaseMainlineFallback}/logs/rehearsal/backups" "${LCaseMainlineFallback}/docs" "${LTmpRoot}/case_mainline_fallback/docs/plans"
+mkdir -p "${LCaseLatestMainline}/logs/rehearsal/backups" "${LCaseLatestMainline}/docs" "${LTmpRoot}/case_latest_mainline/docs/plans" "${LTmpRoot}/case_latest_mainline/src"
 
 cp "${FREEZE_SCRIPT}" "${LCaseNotReady}/evaluate_simd_freeze_status.py"
 cp "${FREEZE_SCRIPT}" "${LCaseReady}/evaluate_simd_freeze_status.py"
@@ -44,6 +46,7 @@ cp "${FREEZE_SCRIPT}" "${LCaseLinuxLazy}/evaluate_simd_freeze_status.py"
 cp "${FREEZE_SCRIPT}" "${LCaseLinuxPlatforms}/evaluate_simd_freeze_status.py"
 cp "${FREEZE_SCRIPT}" "${LCaseBatchFallback}/evaluate_simd_freeze_status.py"
 cp "${FREEZE_SCRIPT}" "${LCaseMainlineFallback}/evaluate_simd_freeze_status.py"
+cp "${FREEZE_SCRIPT}" "${LCaseLatestMainline}/evaluate_simd_freeze_status.py"
 cp "${VERIFY_SCRIPT}" "${LCaseNotReady}/verify_windows_b07_evidence.sh"
 cp "${VERIFY_SCRIPT}" "${LCaseReady}/verify_windows_b07_evidence.sh"
 cp "${VERIFY_SCRIPT}" "${LCaseReadyPreflightBlocked}/verify_windows_b07_evidence.sh"
@@ -51,7 +54,8 @@ cp "${VERIFY_SCRIPT}" "${LCaseLinuxLazy}/verify_windows_b07_evidence.sh"
 cp "${VERIFY_SCRIPT}" "${LCaseLinuxPlatforms}/verify_windows_b07_evidence.sh"
 cp "${VERIFY_SCRIPT}" "${LCaseBatchFallback}/verify_windows_b07_evidence.sh"
 cp "${VERIFY_SCRIPT}" "${LCaseMainlineFallback}/verify_windows_b07_evidence.sh"
-chmod +x "${LCaseNotReady}/verify_windows_b07_evidence.sh" "${LCaseReady}/verify_windows_b07_evidence.sh" "${LCaseReadyPreflightBlocked}/verify_windows_b07_evidence.sh" "${LCaseLinuxLazy}/verify_windows_b07_evidence.sh" "${LCaseLinuxPlatforms}/verify_windows_b07_evidence.sh" "${LCaseBatchFallback}/verify_windows_b07_evidence.sh" "${LCaseMainlineFallback}/verify_windows_b07_evidence.sh"
+cp "${VERIFY_SCRIPT}" "${LCaseLatestMainline}/verify_windows_b07_evidence.sh"
+chmod +x "${LCaseNotReady}/verify_windows_b07_evidence.sh" "${LCaseReady}/verify_windows_b07_evidence.sh" "${LCaseReadyPreflightBlocked}/verify_windows_b07_evidence.sh" "${LCaseLinuxLazy}/verify_windows_b07_evidence.sh" "${LCaseLinuxPlatforms}/verify_windows_b07_evidence.sh" "${LCaseBatchFallback}/verify_windows_b07_evidence.sh" "${LCaseMainlineFallback}/verify_windows_b07_evidence.sh" "${LCaseLatestMainline}/verify_windows_b07_evidence.sh"
 
 # ---------- Case A: NOT READY ----------
 cat > "${LCaseNotReady}/logs/gate_summary.md" <<'EOM'
@@ -971,6 +975,144 @@ fi
 if ! grep -F -- "see windows_evidence_verify for the current failure root cause" "${LCaseMainlineFallback}/logs/freeze_stdout_mainline_fallback.txt" >/dev/null; then
   echo "[FREEZE-REHEARSAL] FAILED: case_mainline_fallback should point to windows_evidence_verify instead of restating the failure"
   cat "${LCaseMainlineFallback}/logs/freeze_stdout_mainline_fallback.txt"
+  exit 1
+fi
+
+# ---------- Case H2: LATEST MAINLINE-COMPLETE GATE MUST BE PREFERRED OVER OLDER BACKUP ----------
+cat > "${LCaseLatestMainline}/logs/gate_summary.md" <<'EOM'
+| Time | Step | Status | DurationMs | Event | Detail | Artifacts |
+|---|---|---|---|---|---|---|
+| 2026-02-10 00:10:00 | gate | START | - | START | mode=Release | - |
+| 2026-02-10 00:10:01 | build-check | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:10:02 | interface-completeness | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:10:03 | cross-backend-parity | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:10:04 | wiring-sync | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:10:05 | coverage | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:10:06 | simd-list-suites | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:10:07 | simd-avx2-fallback | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:10:08 | cpuinfo-portable | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:10:09 | cpuinfo-x86 | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:10:10 | run-all-chain | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:10:11 | qemu-cpuinfo-nonx86-evidence | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:10:12 | evidence-verify | SKIP | 100 | SKIP | optional evidence verify failed rc=1; set SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 to enforce fail-close | - |
+| 2026-02-10 00:10:13 | gate | PASS | 1000 | NORMAL | all steps passed | - |
+EOM
+
+cat > "${LCaseLatestMainline}/logs/rehearsal/backups/gate_summary.backup.20260210-000700-000.md" <<'EOM'
+| Time | Step | Status | DurationMs | Event | Detail | Artifacts |
+|---|---|---|---|---|---|---|
+| 2026-02-10 00:07:00 | gate | START | - | START | mode=Release | - |
+| 2026-02-10 00:07:01 | build-check | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:07:02 | interface-completeness | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:07:03 | cross-backend-parity | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:07:04 | wiring-sync | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:07:05 | coverage | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:07:06 | simd-list-suites | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:07:07 | simd-avx2-fallback | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:07:08 | cpuinfo-portable | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:07:09 | cpuinfo-x86 | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:07:10 | run-all-chain | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:07:11 | qemu-cpuinfo-nonx86-evidence | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:07:12 | evidence-verify | SKIP | 100 | SKIP | optional evidence verify failed rc=1; set SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 to enforce fail-close | - |
+| 2026-02-10 00:07:13 | gate | PASS | 1000 | NORMAL | all steps passed | - |
+EOM
+
+cat > "${LCaseLatestMainline}/logs/windows_b07_gate.log" <<'EOM'
+[B07] Windows evidence capture
+[B07] Started: 2026/02/10 00:09:00.00
+[B07] Command: buildOrTest.bat gate
+[B07] GATE_EXIT_CODE=0
+[B07] Total: 3
+[B07] Passed: 3
+[B07] Failed: 0
+EOM
+
+cat > "${LCaseLatestMainline}/logs/windows_b07_closeout_summary.md" <<'EOM'
+# SIMD Windows B07 Closeout Summary
+
+## Verification
+
+- Verifier: verify_windows_b07_evidence.sh
+- Command: bash verify_windows_b07_evidence.sh "logs/windows_b07_gate.log"
+- Result: FAIL (rc=1)
+EOM
+
+cat > "${LTmpRoot}/case_latest_mainline/docs/plans/2026-02-09-simd-unblock-closeout-roadmap.md" <<'EOM'
+- [x] **Windows 实机证据已归档**
+EOM
+
+cat > "${LCaseLatestMainline}/docs/simd_release_candidate_checklist.md" <<'EOM'
+- [x] Windows 实机证据日志已归档
+EOM
+
+cat > "${LCaseLatestMainline}/docs/simd_completeness_matrix.md" <<'EOM'
+- Windows 证据：实机日志已归档（脚本入口 + 校验入口）
+EOM
+
+cat > "${LTmpRoot}/case_latest_mainline/src/fafafa.core.simd.intrinsics.x86.sse2.pas" <<'EOM'
+unit fafafa.core.simd.intrinsics.x86.sse2;
+EOM
+
+mkdir -p "${LCaseLatestMainline}/logs/qemu-multiarch-20260210-001011"
+cat > "${LCaseLatestMainline}/logs/qemu-multiarch-20260210-001011/summary.md" <<'EOM'
+# SIMD QEMU Multiarch Report
+
+- time: 2026-02-10T00:10:11+08:00
+- scenario: cpuinfo-nonx86-evidence
+- platforms: linux/arm/v7 linux/arm64 linux/riscv64
+
+| Platform | Status | Log |
+|---|---|---|
+| linux/arm/v7 | PASS | `armv7.log` |
+| linux/arm64 | PASS | `arm64.log` |
+| linux/riscv64 | PASS | `riscv64.log` |
+EOM
+
+touch -d '10 minutes ago' "${LCaseLatestMainline}/logs/gate_summary.md"
+touch -d '30 minutes ago' "${LCaseLatestMainline}/logs/rehearsal/backups/gate_summary.backup.20260210-000700-000.md"
+touch -d '20 minutes ago' "${LTmpRoot}/case_latest_mainline/src/fafafa.core.simd.intrinsics.x86.sse2.pas"
+touch -d '25 minutes ago' "${LCaseLatestMainline}/logs/windows_b07_gate.log"
+touch -d '24 minutes ago' "${LCaseLatestMainline}/logs/windows_b07_closeout_summary.md"
+
+set +e
+SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=1 \
+python3 "${LCaseLatestMainline}/evaluate_simd_freeze_status.py" --root "${LCaseLatestMainline}" --json-file "${LCaseLatestMainline}/logs/freeze_status_latest_mainline.json" > "${LCaseLatestMainline}/logs/freeze_stdout_latest_mainline.txt" 2>&1
+LLatestMainlineRc=$?
+set -e
+
+if [[ "${LLatestMainlineRc}" -eq 0 ]]; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_latest_mainline should stay non-zero because cross closeout is still incomplete"
+  cat "${LCaseLatestMainline}/logs/freeze_stdout_latest_mainline.txt"
+  exit 1
+fi
+
+if ! grep -F -- "mainline-ready=True" "${LCaseLatestMainline}/logs/freeze_stdout_latest_mainline.txt" >/dev/null; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_latest_mainline should keep mainline-ready=True via latest gate"
+  cat "${LCaseLatestMainline}/logs/freeze_stdout_latest_mainline.txt"
+  exit 1
+fi
+
+if ! grep -F -- "cross-ready=False" "${LCaseLatestMainline}/logs/freeze_stdout_latest_mainline.txt" >/dev/null; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_latest_mainline should keep cross-ready=False"
+  cat "${LCaseLatestMainline}/logs/freeze_stdout_latest_mainline.txt"
+  exit 1
+fi
+
+if grep -F -- "selected fallback backup gate snapshot" "${LCaseLatestMainline}/logs/freeze_stdout_latest_mainline.txt" >/dev/null; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_latest_mainline should not fall back to the older backup when latest gate already covers mainline-required steps"
+  cat "${LCaseLatestMainline}/logs/freeze_stdout_latest_mainline.txt"
+  exit 1
+fi
+
+if grep -F -- "linux_sources_not_newer_than_gate: artifact older than latest source" "${LCaseLatestMainline}/logs/freeze_stdout_latest_mainline.txt" >/dev/null; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_latest_mainline should not report stale gate freshness against the older backup"
+  cat "${LCaseLatestMainline}/logs/freeze_stdout_latest_mainline.txt"
+  exit 1
+fi
+
+if ! grep -F -- "cross_gate_required_steps: non-pass: evidence-verify=SKIP" "${LCaseLatestMainline}/logs/freeze_stdout_latest_mainline.txt" >/dev/null; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_latest_mainline should still report cross gate omission"
+  cat "${LCaseLatestMainline}/logs/freeze_stdout_latest_mainline.txt"
   exit 1
 fi
 
