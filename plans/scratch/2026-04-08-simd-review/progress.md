@@ -14591,3 +14591,33 @@
 - 当前阶段结论：
   - 这已经是同一条特殊值 witness 路线下第三个 fresh 抓出的真缺陷簇
   - 当前 `sqrt/div/add/sub/mul` 这几组 raw 浮点 leaf 都已经从“happy path only”推进到“特殊值也不应直接把 invalid exception 泄漏给调用者”
+
+## 2026-05-18 SSE2 Zero-Bit Helper Redundancy Cleanup
+
+- 在 `sqrt/div/add/sub/mul` 这一条真缺陷线连续收了 3 批之后，没有立刻重新扩到新的 family，而是先顺手把当前文件里已经暴露出来的一处本地冗余收掉：
+  - `SingleBitsIsZero`
+  - `DoubleBitsIsZero`
+  - `IsZeroFloat32Bits`
+  - `IsZeroFloat64Bits`
+- 这里的问题不是“会不会错”，而是：
+  - 同一文件内维护两套完全等价的 zero-bit helper，会把后续浮点特殊值修复继续切散
+  - 前面 `div/add/sub/mul` 刚新增的 helper 已经在用 `SingleBitsIsZero/DoubleBitsIsZero`
+  - 后面 `min/max` 还在用另一套同义命名，属于很典型的局部冗余
+- 本批收口严格保持在 `src/fafafa.core.simd.intrinsics.x86.sse2.pas`：
+  - `SelectSingleMinMaxBits` 改为复用 `SingleBitsIsZero`
+  - `SelectDoubleMinMaxBits` 改为复用 `DoubleBitsIsZero`
+  - 删除 `IsZeroFloat32Bits`
+  - 删除 `IsZeroFloat64Bits`
+- 这批没有打开新的语义面，也没有改 `min/max` 的 NaN / signed-zero / source-operand 选择合同；目标只是把同一文件里的 zero-bit truth 收回单一实现
+- fresh 验证：
+  - `git diff --check`
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - experimental=`0`：`[TEST] OK`
+  - experimental=`1`：`[TEST] OK`
+  - Release `check`：退出码 `0`
+- 当前阶段结论：
+  - 这批没有新增实现能力，但收掉了当前 `intrinsics.x86.sse2` 文件里一处真实的 helper 冗余
+  - 现在 `zero-bit` 这类浮点特殊值判断在本文件里已经回到单一 helper 口径，后续继续修剩余浮点 leaf 时不容易再把同义工具越切越多

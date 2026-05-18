@@ -5664,3 +5664,21 @@
 | 1. 给 `add/sub/mul` 小簇补特殊值 witness | completed | 已新增 `Test_AddFamilies_SpecialValuesStayExceptionFree`、`Test_SubFamilies_SpecialValuesStayExceptionFree`、`Test_MulFamilies_SpecialValuesStayExceptionFree`；先确认 default experimental=`0` 继续绿，再让 experimental=`1` fresh 说话 |
 | 2. 根据 fresh 红点把修复收敛在 `add/sub/mul` 小簇 | completed | experimental=`1` 首轮在这 3 个新 witness 上都直接抛 `EInvalidOp`；现已把 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 中 `simd_add/sub/mul_{ps,pd,sd}` 收成 `TSimdBinaryArithmeticKind + SelectSingle/DoubleSpecialArithmeticBits + BuildPacked/Scalar*SpecialArithmetic` 这套 exception-free Pascal helper |
 | 3. 串行复验并保持 stable path 不回归 | completed | 串行 experimental=`0`、串行 experimental=`1`、以及 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已全部 fresh 通过 |
+
+## 2026-05-18 SSE2 Zero-Bit Helper Redundancy Cleanup
+
+### Goal
+
+不再赌新的红点，而是顺手收一个已经在当前文件里看得见的真冗余：`src/fafafa.core.simd.intrinsics.x86.sse2.pas` 同时维护了
+`SingleBitsIsZero/DoubleBitsIsZero`
+和
+`IsZeroFloat32Bits/IsZeroFloat64Bits`
+两套等价 helper。
+这批只做 helper 合并，不改 `min/max` 语义，不扩到其它 unit。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 合并重复的 zero-bit helper | completed | 已把 `SelectSingle/DoubleMinMaxBits` 统一切回前面已存在的 `SingleBitsIsZero/DoubleBitsIsZero`，并删除后面的 `IsZeroFloat32Bits/IsZeroFloat64Bits` 重复定义 |
+| 2. 串行复验并确认只是冗余收口 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1`、以及 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已全部 fresh 通过 |

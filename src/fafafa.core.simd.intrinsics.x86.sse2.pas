@@ -4293,16 +4293,6 @@ begin
   );
 end;
 
-function IsZeroFloat64Bits(const aBits: QWord): Boolean; inline;
-begin
-  Result := (aBits and QWord($7FFFFFFFFFFFFFFF)) = 0;
-end;
-
-function IsZeroFloat32Bits(const aBits: DWord): Boolean; inline;
-begin
-  Result := (aBits and DWord($7FFFFFFF)) = 0;
-end;
-
 function SelectSingleMinMaxBits(
   const aLeftBits, aRightBits: DWord;
   const aLeftValue, aRightValue: Single;
@@ -4312,7 +4302,7 @@ begin
   if IsNan(aLeftValue) or IsNan(aRightValue) then
     Exit(aRightBits);
 
-  if IsZeroFloat32Bits(aLeftBits) and IsZeroFloat32Bits(aRightBits) then
+  if SingleBitsIsZero(aLeftBits) and SingleBitsIsZero(aRightBits) then
     Exit(aRightBits);
 
   case aKind of
@@ -4336,7 +4326,7 @@ begin
   if IsNan(aLeftValue) or IsNan(aRightValue) then
     Exit(aRightBits);
 
-  if IsZeroFloat64Bits(aLeftBits) and IsZeroFloat64Bits(aRightBits) then
+  if DoubleBitsIsZero(aLeftBits) and DoubleBitsIsZero(aRightBits) then
     Exit(aRightBits);
 
   case aKind of
