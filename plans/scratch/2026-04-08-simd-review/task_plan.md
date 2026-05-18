@@ -5309,3 +5309,17 @@
 | 1. 复核 shuffle immediate coverage 残余 | completed | 已确认 `shuffle` 家族虽然已有 representative proof，但大多只验证一个排列花样；`broadcast` 路由与 `shuffle_pd` 高位忽略合同仍未被单独钉住 |
 | 2. 只补 representative proof，不扩实现范围 | completed | `TTestCase_X86Sse2PackShuffleBasics` 已新增 `Test_ShuffleImmediateRoutingSemantics`，直接覆盖 `epi32/lo16/hi16/pd/ps` 的 immediate bitfield 路由 |
 | 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已 fresh 通过；这批没有打出新的 source bug，作为 tests-only 缺失 proof 修复收口，不重复跑主 `simd` release `check`，继续沿用上一批 fresh 绿的 release 基线 |
+
+## 2026-05-18 SSE2 Integer Multiply Family Coverage Expansion
+
+### Goal
+
+继续沿 `SSE2 raw-leaf qualification` 的低成本 lane 推进，但只切整数乘法/乘加这 5 个 leaf：`simd_mul_epu32`、`simd_mullo_epi16`、`simd_mulhi_epi16`、`simd_mulhi_epu16`、`simd_madd_epi16`。这批只补 representative proof，重点锁住 lane 选择、signed/unsigned high-half 语义，以及 pairwise multiply-add 合同；若 fresh 运行打红，再把修复限制在这 5 个 leaf 周围。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 integer multiply family coverage 缺口 | completed | 已确认 `mul_epu32/mullo_epi16/mulhi_epi16/mulhi_epu16/madd_epi16` 在 `tests/fafafa.core.simd.intrinsics.experimental/` 中仍没有 representative proof |
+| 2. 只补 representative proof，不扩实现范围 | completed | `TTestCase_X86Sse2AbiBasics` 已新增 `Test_IntegerMultiplyFamilies_Semantics`，直接覆盖 dword lane 选择、16-bit 低/高半部与 pairwise multiply-add 语义 |
+| 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已 fresh 通过；这批没有打出新的 source bug，作为 tests-only 缺失 proof 修复收口，不重复跑主 `simd` release `check`，继续沿用上一批 fresh 绿的 release 基线 |

@@ -1142,6 +1142,7 @@ type
     procedure Test_OrderedPackedAndScalarCompareCoverageSemantics;
     procedure Test_SignedAndUnsignedSaturatingArithmeticSemantics;
     procedure Test_UnsignedMinMaxAvgSadSemantics;
+    procedure Test_IntegerMultiplyFamilies_Semantics;
     procedure Test_SlliEpi16_ShiftCounts;
     procedure Test_IntegerLogicalShiftFamilies_RespectImmediateBounds;
     procedure Test_IntegerArithmeticShiftFamilies_RespectImmediateBounds;
@@ -2508,6 +2509,111 @@ begin
   LActual := simd_sad_epu8(LA, LB);
   AssertEquals('simd_sad_epu8 low qword', Int64(LExpectedSadLo), Int64(LActual.m128i_u64[0]));
   AssertEquals('simd_sad_epu8 high qword', Int64(LExpectedSadHi), Int64(LActual.m128i_u64[1]));
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_IntegerMultiplyFamilies_Semantics;
+var
+  LA: TM128;
+  LB: TM128;
+  LActual: TM128;
+  LIndex: Integer;
+  LExpectedU64: QWord;
+  LExpectedU16: Word;
+  LExpectedI16: SmallInt;
+  LExpectedI32: LongInt;
+
+  function LowWordOfSignedProduct(aLeft, aRight: SmallInt): Word;
+  var
+    LProduct: LongInt;
+  begin
+    LProduct := LongInt(aLeft) * LongInt(aRight);
+    Result := Word(LongWord(LProduct) and $FFFF);
+  end;
+
+  function HighWordOfSignedProduct(aLeft, aRight: SmallInt): SmallInt;
+  var
+    LProduct: LongInt;
+  begin
+    LProduct := LongInt(aLeft) * LongInt(aRight);
+    Result := SmallInt(Word(LongWord(LProduct) shr 16));
+  end;
+
+  function HighWordOfUnsignedProduct(aLeft, aRight: Word): Word;
+  var
+    LProduct: QWord;
+  begin
+    LProduct := QWord(aLeft) * QWord(aRight);
+    Result := Word((LProduct shr 16) and $FFFF);
+  end;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u32[0] := 3;
+  LA.m128i_u32[1] := 123456789;
+  LA.m128i_u32[2] := 70000;
+  LA.m128i_u32[3] := 987654321;
+  LB.m128i_u32[0] := 5;
+  LB.m128i_u32[1] := 4000000000;
+  LB.m128i_u32[2] := 90000;
+  LB.m128i_u32[3] := 17;
+
+  LActual := simd_mul_epu32(LA, LB);
+  LExpectedU64 := QWord(LA.m128i_u32[0]) * QWord(LB.m128i_u32[0]);
+  AssertEquals('simd_mul_epu32 lane0', Int64(LExpectedU64), Int64(LActual.m128i_u64[0]));
+  LExpectedU64 := QWord(LA.m128i_u32[2]) * QWord(LB.m128i_u32[2]);
+  AssertEquals('simd_mul_epu32 lane1', Int64(LExpectedU64), Int64(LActual.m128i_u64[1]));
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_i16[0] := 30000;   LB.m128i_i16[0] := 2;
+  LA.m128i_i16[1] := -30000;  LB.m128i_i16[1] := -3;
+  LA.m128i_i16[2] := -32768;  LB.m128i_i16[2] := 4;
+  LA.m128i_i16[3] := 12345;   LB.m128i_i16[3] := -2345;
+  LA.m128i_i16[4] := -23456;  LB.m128i_i16[4] := -2;
+  LA.m128i_i16[5] := 1111;    LB.m128i_i16[5] := -2222;
+  LA.m128i_i16[6] := 2222;    LB.m128i_i16[6] := 3333;
+  LA.m128i_i16[7] := -3333;   LB.m128i_i16[7] := 4444;
+
+  LActual := simd_mullo_epi16(LA, LB);
+  for LIndex := 0 to 7 do
+  begin
+    LExpectedU16 := LowWordOfSignedProduct(LA.m128i_i16[LIndex], LB.m128i_i16[LIndex]);
+    AssertEquals('simd_mullo_epi16 lane ' + IntToStr(LIndex), LExpectedU16, LActual.m128i_u16[LIndex]);
+  end;
+
+  LActual := simd_mulhi_epi16(LA, LB);
+  for LIndex := 0 to 7 do
+  begin
+    LExpectedI16 := HighWordOfSignedProduct(LA.m128i_i16[LIndex], LB.m128i_i16[LIndex]);
+    AssertEquals('simd_mulhi_epi16 lane ' + IntToStr(LIndex), LExpectedI16, LActual.m128i_i16[LIndex]);
+  end;
+
+  LActual := simd_madd_epi16(LA, LB);
+  for LIndex := 0 to 3 do
+  begin
+    LExpectedI32 :=
+      (LongInt(LA.m128i_i16[LIndex * 2]) * LongInt(LB.m128i_i16[LIndex * 2])) +
+      (LongInt(LA.m128i_i16[LIndex * 2 + 1]) * LongInt(LB.m128i_i16[LIndex * 2 + 1]));
+    AssertEquals('simd_madd_epi16 lane ' + IntToStr(LIndex), LExpectedI32, LActual.m128i_i32[LIndex]);
+  end;
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u16[0] := 65000;  LB.m128i_u16[0] := 3;
+  LA.m128i_u16[1] := 40000;  LB.m128i_u16[1] := 2;
+  LA.m128i_u16[2] := 12345;  LB.m128i_u16[2] := 60000;
+  LA.m128i_u16[3] := 65535;  LB.m128i_u16[3] := 65535;
+  LA.m128i_u16[4] := 32768;  LB.m128i_u16[4] := 2;
+  LA.m128i_u16[5] := 50000;  LB.m128i_u16[5] := 40000;
+  LA.m128i_u16[6] := 1;      LB.m128i_u16[6] := 65535;
+  LA.m128i_u16[7] := 60000;  LB.m128i_u16[7] := 5;
+
+  LActual := simd_mulhi_epu16(LA, LB);
+  for LIndex := 0 to 7 do
+  begin
+    LExpectedU16 := HighWordOfUnsignedProduct(LA.m128i_u16[LIndex], LB.m128i_u16[LIndex]);
+    AssertEquals('simd_mulhi_epu16 lane ' + IntToStr(LIndex), LExpectedU16, LActual.m128i_u16[LIndex]);
+  end;
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_SlliEpi16_ShiftCounts;

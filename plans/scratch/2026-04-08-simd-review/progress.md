@@ -13648,3 +13648,35 @@
   - 这批没有打出新的 source bug，说明当前 `shuffle_*` 这组 leaf 至少通过了 immediate routing 这一层 representative contract
   - `pack/shuffle` proof 现在已经不只是“有一个排列例子”，而是补到了 broadcast、半区保持、`a/a/b/b` field 路由，以及 `shuffle_pd` 高位忽略这几类更清晰的合同
   - 这批可以继续按 tests-only 缺失 proof 修复收口提交；如果继续往下推进，下一步更自然的是再找一个同样便宜的 residual，而不是重开大范围 source 审查
+
+## 2026-05-18 SSE2 Integer Multiply Family Coverage Expansion
+
+- 当前继续沿 `SSE2` proof-first 小批次推进，这次收窄到整数乘法/乘加 residual，不碰 source。
+- 对位现状后确认：
+  - `simd_mul_epu32`
+  - `simd_mullo_epi16`
+  - `simd_mulhi_epi16`
+  - `simd_mulhi_epu16`
+  - `simd_madd_epi16`
+  - 这 5 个 leaf 在 `tests/fafafa.core.simd.intrinsics.experimental/` 中仍没有 representative proof
+- 本批继续保持 tests-only：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 `Test_IntegerMultiplyFamilies_Semantics`
+- 新 proof 计划直接锁住：
+  - `mul_epu32`：只消费 dword lane `0/2`，结果落到两个 qword lane
+  - `mullo_epi16`：16-bit 乘积低半部按位保留
+  - `mulhi_epi16`：signed 高半部
+  - `mulhi_epu16`：unsigned 高半部
+  - `madd_epi16`：相邻 `i16*i16` 两项乘积后再加总成 `i32`
+- 本批预期 closeout 方式保持不变：
+  - `git diff --check`
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- fresh 结果：
+  - `git diff --check`：通过
+  - experimental=`0`：`[TEST] OK`、`[LEAK] OK`
+  - experimental=`1`：`[TEST] OK`、`[LEAK] OK`
+- 当前阶段结论：
+  - 这批没有打出新的 source bug，说明 `mul_epu32/mullo_epi16/mulhi_epi16/mulhi_epu16/madd_epi16` 当前至少通过了第一层 representative contract
+  - 当前 `SSE2` 整数 arithmetic proof 已从“饱和加减、unsigned min/max/avg/sad、compare、shift”扩到整数乘法/乘加簇
+  - 这批可以继续按 tests-only 缺失 proof 修复收口提交；如果继续推进，下一步更自然的是找下一个同等便宜的未覆盖 leaf family
