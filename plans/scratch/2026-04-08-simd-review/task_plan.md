@@ -5421,3 +5421,17 @@
 | 1. 先取 host truth 并复核 negative-sign coverage 缺口 | completed | 已用本机 `cc -msse2` probe 确认 `cvtpd_ps/cvtsd_ss` 在 `negative NaN` 与 `negative overflow` 下分别返回 `ffc00000` / `ff800000`，且 lane shape 继续保持 zero/preserve 合同 |
 | 2. 只补 representative proof，不扩实现范围 | completed | 已在 `Test_NarrowingFloatConversionHostTruthSemantics` 下补齐 `simd_cvtpd_ps` 的 negative NaN，以及 `simd_cvtsd_ss` 的 negative NaN / negative overflow case |
 | 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已全部 fresh 通过；本批继续保持 tests-only，无需重开 source 修复 |
+
+## 2026-05-18 SSE2 `cvttpd_ps` Companion-Alignment Coverage Expansion
+
+### Goal
+
+继续沿 narrowing 热路径做 residual 收口，但这次只补 `simd_cvttpd_ps` 的 companion-alignment proof。因为它不是直接硬件 leaf，而是与 `simd_cvtpd_ps` 共用 `BuildPackedDoubleToSingle`，所以这批不重讲 host-truth，只验证在 representative anomaly cases 下它与 `simd_cvtpd_ps` 保持完全一致；若 fresh 运行打红，再把修复限制在 shared narrowing helper 周围。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `cvttpd_ps` 的真实语义来源 | completed | 已确认 `simd_cvttpd_ps` 直接委托 `BuildPackedDoubleToSingle`，当前仓库约定是与 `simd_cvtpd_ps` 共用同一 anomaly handling 和 zero-lane shape |
+| 2. 只补 representative proof，不扩实现范围 | completed | 已在 `Test_NarrowingFloatConversionHostTruthSemantics` 下补齐 `simd_cvttpd_ps` 对 positive NaN / positive Inf / negative NaN / negative overflow 的 companion-alignment 断言 |
+| 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已全部 fresh 通过；本批继续保持 tests-only，无需重开 source 修复 |

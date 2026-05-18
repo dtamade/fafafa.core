@@ -13933,3 +13933,29 @@
     - positive / negative overflow
     - lane zero/preserve shape
   - 这批没有打出新的 source bug，继续保持 tests-only 收口
+
+## 2026-05-18 SSE2 `cvttpd_ps` Companion-Alignment Coverage Expansion
+
+- 当前继续沿 narrowing 热路径做 residual 收口，这次只补 `simd_cvttpd_ps` 的 anomaly-path companion-alignment proof。
+- 已先复核真实语义来源：
+  - `src/fafafa.core.simd.intrinsics.x86.sse2.pas`
+  - `simd_cvttpd_ps` 直接返回 `BuildPackedDoubleToSingle(a)`
+  - 因而这批最该锁的是“它是否和 `simd_cvtpd_ps` 继续同源一致”，而不是再发明一套独立契约
+- 本批继续保持 tests-only：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 在 `Test_NarrowingFloatConversionHostTruthSemantics` 下补齐 `simd_cvttpd_ps`
+    - 代表 case：
+      - positive NaN / positive Inf
+      - negative NaN / negative overflow
+    - 断言方式：
+      - 逐 lane 对齐 `simd_cvtpd_ps` 的结果 bits
+- fresh closeout 已完成：
+  - `git diff --check`
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- fresh 结果：
+  - default / experimental 双模态测试均 `TEST OK`
+  - `simd_cvttpd_ps` 在 representative anomaly cases 下与 `simd_cvtpd_ps` 保持完全一致，无新增 drift
+- 当前阶段结论：
+  - `cvttpd_ps` 这条 companion leaf 的 anomaly-path proof 现在也被锁住了
+  - 这批没有打出新的 source bug，继续保持 tests-only 收口

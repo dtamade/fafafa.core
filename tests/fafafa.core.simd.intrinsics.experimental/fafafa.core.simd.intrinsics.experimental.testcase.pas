@@ -2022,6 +2022,7 @@ var
   LA: TM128;
   LB: TM128;
   LActual: TM128;
+  LExpected: TM128;
 begin
   FillChar(LA, SizeOf(LA), 0);
   LA.m128i_u64[0] := QWord($7FF8000000000001);
@@ -2046,6 +2047,26 @@ begin
   AssertEquals('simd_cvtpd_ps negative nan zero lane1', 0, LActual.m128i_i32[1]);
   AssertEquals('simd_cvtpd_ps negative nan zero lane2', 0, LActual.m128i_i32[2]);
   AssertEquals('simd_cvtpd_ps negative nan zero lane3', 0, LActual.m128i_i32[3]);
+
+  FillChar(LA, SizeOf(LA), 0);
+  LA.m128i_u64[0] := QWord($7FF8000000000001);
+  LA.m128d_f64[1] := Infinity;
+  LExpected := simd_cvtpd_ps(LA);
+  LActual := simd_cvttpd_ps(LA);
+  AssertEquals('simd_cvttpd_ps positive nan matches cvtpd_ps lane0', LExpected.m128i_i32[0], LActual.m128i_i32[0]);
+  AssertEquals('simd_cvttpd_ps positive inf matches cvtpd_ps lane1', LExpected.m128i_i32[1], LActual.m128i_i32[1]);
+  AssertEquals('simd_cvttpd_ps positive nan zero lane2', LExpected.m128i_i32[2], LActual.m128i_i32[2]);
+  AssertEquals('simd_cvttpd_ps positive nan zero lane3', LExpected.m128i_i32[3], LActual.m128i_i32[3]);
+
+  FillChar(LA, SizeOf(LA), 0);
+  LA.m128i_u64[0] := QWord($FFF8000000000001);
+  LA.m128d_f64[1] := -1.0e40;
+  LExpected := simd_cvtpd_ps(LA);
+  LActual := simd_cvttpd_ps(LA);
+  AssertEquals('simd_cvttpd_ps negative nan matches cvtpd_ps lane0', LExpected.m128i_i32[0], LActual.m128i_i32[0]);
+  AssertEquals('simd_cvttpd_ps negative overflow matches cvtpd_ps lane1', LExpected.m128i_i32[1], LActual.m128i_i32[1]);
+  AssertEquals('simd_cvttpd_ps negative nan zero lane2', LExpected.m128i_i32[2], LActual.m128i_i32[2]);
+  AssertEquals('simd_cvttpd_ps negative nan zero lane3', LExpected.m128i_i32[3], LActual.m128i_i32[3]);
 
   FillChar(LA, SizeOf(LA), 0);
   LA.m128_f32[0] := 8.0;
