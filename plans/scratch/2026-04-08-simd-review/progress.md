@@ -14109,3 +14109,30 @@
 - 当前阶段结论：
   - 这批把一个此前 0-hit 的 `SSE2` 直接 leaf 簇补成了有 direct proof 的状态
   - 继续保持 tests-only 收口，没有引出新的 source bug
+
+## 2026-05-18 SSE2 Packed-Double Setter/Zero-Surface Coverage Expansion
+
+- 当前继续沿 0-hit direct leaf 清单推进，这次切最便宜的一组 setter/zero surface。
+- 先复核现状：
+  - `Test_SettersAndCastsPreserveLaneOrder`
+  - 只覆盖了 `setr_epi32 / set_epi32 / set1_epi32 / set1_ps / set1_pd`
+  - `simd_set_pd / setr_pd / setzero_pd / setzero_ps / setzero_si128` 仍没有 direct proof
+- 本批继续保持 tests-only：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 扩充 `Test_SettersAndCastsPreserveLaneOrder`
+- 新 proof 直接锁住：
+  - `simd_setr_pd` 的 lane0/lane1 顺序
+  - `simd_set_pd` 的 high/low 参数映射
+  - `simd_setzero_pd`
+  - `simd_setzero_ps`
+  - `simd_setzero_si128`
+- fresh closeout 已完成：
+  - `git diff --check`
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- fresh 结果：
+  - default / experimental 双模态测试均 `TEST OK`
+  - setter/zero surface 的 lane order 与 zero 合同都符合预期，无新增 drift
+- 当前阶段结论：
+  - 又收掉了一组此前 0-hit 的 `SSE2` direct surface
+  - 继续保持 tests-only 收口，没有引出新的 source bug

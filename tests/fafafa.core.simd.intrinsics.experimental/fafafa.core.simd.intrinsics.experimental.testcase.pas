@@ -1380,6 +1380,28 @@ begin
   LValue := simd_set1_pd(2.5);
   AssertEquals('simd_set1_pd lane0', 2.5, LValue.m128d_f64[0], 0.0);
   AssertEquals('simd_set1_pd lane1', 2.5, LValue.m128d_f64[1], 0.0);
+
+  LValue := simd_setr_pd(1.25, -2.5);
+  AssertEquals('simd_setr_pd lane0', 1.25, LValue.m128d_f64[0], 0.0);
+  AssertEquals('simd_setr_pd lane1', -2.5, LValue.m128d_f64[1], 0.0);
+
+  LValue := simd_set_pd(1.25, -2.5);
+  AssertEquals('simd_set_pd lane0', -2.5, LValue.m128d_f64[0], 0.0);
+  AssertEquals('simd_set_pd lane1', 1.25, LValue.m128d_f64[1], 0.0);
+
+  LValue := simd_setzero_pd;
+  AssertEquals('simd_setzero_pd lane0', 0.0, LValue.m128d_f64[0], 0.0);
+  AssertEquals('simd_setzero_pd lane1', 0.0, LValue.m128d_f64[1], 0.0);
+
+  LValue := simd_setzero_ps;
+  AssertEquals('simd_setzero_ps lane0', 0.0, LValue.m128_f32[0], 0.0);
+  AssertEquals('simd_setzero_ps lane1', 0.0, LValue.m128_f32[1], 0.0);
+  AssertEquals('simd_setzero_ps lane2', 0.0, LValue.m128_f32[2], 0.0);
+  AssertEquals('simd_setzero_ps lane3', 0.0, LValue.m128_f32[3], 0.0);
+
+  LValue := simd_setzero_si128;
+  AssertEquals('simd_setzero_si128 lane0', Int64(0), Int64(LValue.m128i_i64[0]));
+  AssertEquals('simd_setzero_si128 lane1', Int64(0), Int64(LValue.m128i_i64[1]));
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_FloatArithmeticLaneSemantics;

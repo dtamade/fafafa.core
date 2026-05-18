@@ -5505,3 +5505,17 @@
 | 1. 复核当前 `pd` bitwise coverage 缺口 | completed | 已确认 `Test_BitwiseAndAndnotSemantics` 只覆盖 `si128` 版本；`simd_and_pd / or_pd / xor_pd / andnot_pd` 目前在 experimental testcase 里没有 direct proof |
 | 2. 只补 representative exact-bit proof，不扩实现范围 | completed | 已新增 `Test_FloatingBitwisePdSemantics`，使用带 `NaN`/sign bit 的 `u64` 位模式逐 lane 校验 `and/or/xor/andnot` 结果 |
 | 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已全部 fresh 通过；本批继续保持 tests-only，无需重开 source 修复 |
+
+## 2026-05-18 SSE2 Packed-Double Setter/Zero-Surface Coverage Expansion
+
+### Goal
+
+继续沿 0-hit direct leaf 清单收口一组最便宜的 surface：`simd_set_pd`、`simd_setr_pd`、`simd_setzero_pd`、`simd_setzero_ps`、`simd_setzero_si128`。当前 `Test_SettersAndCastsPreserveLaneOrder` 只覆盖了 `epi32`/`set1_*`，这批把 `pd` lane order 与 zero surface 补成 direct proof，不牵扯更复杂的算术语义。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前 setter/zero direct coverage 缺口 | completed | 已确认 `simd_set_pd / setr_pd / setzero_pd / setzero_ps / setzero_si128` 在 experimental testcase 中仍是 0-hit，而现有 setter 测试只覆盖 `setr_epi32 / set_epi32 / set1_epi32 / set1_ps / set1_pd` |
+| 2. 只补 representative lane-order / zero proof，不扩实现范围 | completed | 已在 `Test_SettersAndCastsPreserveLaneOrder` 下补齐 `setr_pd`、`set_pd` 的 lane order，以及 `setzero_pd / ps / si128` 的全零断言 |
+| 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已全部 fresh 通过；本批继续保持 tests-only，无需重开 source 修复 |
