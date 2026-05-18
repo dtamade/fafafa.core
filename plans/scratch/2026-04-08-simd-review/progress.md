@@ -13986,3 +13986,41 @@
     - lane zero/preserve shape
     - `cvttpd_ps` companion alignment
   - 这批没有打出新的 source bug，继续保持 tests-only 收口
+
+## 2026-05-18 SSE2 Widening Precision-Window Coverage Expansion
+
+- 当前继续沿 `SSE2 conversion` 热路径推进，这次专门核对 widening 方向的精度窗口，避免 `happy-path` 用例把大整数到浮点的 nearest-even 舍入问题掩盖掉。
+- 先用本机 `cc -msse2` probe 取到 host truth：
+  - `cvtepi32_ps`
+    - `16777216 -> 4b800000`
+    - `16777217 -> 4b800000`
+    - `-16777217 -> cb800000`
+    - `16777219 -> 4b800002`
+    - `16777218 -> 4b800001`
+    - `16777220 -> 4b800002`
+    - `-16777218 -> cb800001`
+    - `-16777219 -> cb800002`
+  - `cvtsi64_sd`
+    - `2^53+1 -> 4340000000000000`
+    - `2^53+2 -> 4340000000000001`
+    - `2^53+3 -> 4340000000000002`
+    - `-(2^53+1) -> c340000000000000`
+    - `-(2^53+3) -> c340000000000002`
+    - high lane 继续保持 `88.0 -> 4056000000000000`
+- 本批继续保持 tests-only：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 `Test_WideningConversionPrecisionSemantics`
+- 新 proof 直接锁住：
+  - `simd_cvtepi32_ps` 的 `2^24` precision window
+  - `simd_cvtsi64_sd` 的 `2^53` precision window
+  - `simd_cvtsi64_sd` 的 high-lane preserve
+- fresh closeout 已完成：
+  - `git diff --check`
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- fresh 结果：
+  - default / experimental 双模态测试均 `TEST OK`
+  - widening precision window 与 host truth 一致，无新增 rounding drift
+- 当前阶段结论：
+  - 到这一刻为止，`SSE2 conversion` 不只锁住了 narrowing / trunc / threshold，也开始把 widening 方向最值钱的精度窗口补实
+  - 这批没有打出新的 source bug，继续保持 tests-only 收口

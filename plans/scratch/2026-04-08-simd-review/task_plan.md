@@ -5449,3 +5449,17 @@
 | 1. 先取 host truth 并复核 zero-sign coverage 缺口 | completed | 已用本机 `cc -msse2` probe 确认 `cvtpd_ps(-0.0,+0.0)` 返回 `80000000/00000000`，`cvtsd_ss(-0.0)` 返回低 lane `80000000` 且高 lanes preserve |
 | 2. 只补 representative proof，不扩实现范围 | completed | 已在 `Test_NarrowingFloatConversionHostTruthSemantics` 下补齐 `simd_cvtpd_ps` negative zero、`simd_cvtsd_ss` negative zero，以及 `simd_cvttpd_ps` negative-zero companion-alignment 断言 |
 | 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已全部 fresh 通过；本批继续保持 tests-only，无需重开 source 修复 |
+
+## 2026-05-18 SSE2 Widening Precision-Window Coverage Expansion
+
+### Goal
+
+继续沿 `SSE2 conversion` 热路径做高信息量 residual 收口，但这次切 widening 方向的精度窗口：`simd_cvtepi32_ps` 的 `2^24` 邻近舍入，以及 `simd_cvtsi64_sd` 的 `2^53` 邻近舍入。先用本机 probe 取 host truth，再补 representative proof，确认当前 widening leaf 没有被原来的 happy-path 测试掩盖；若 fresh 运行打红，再把修复限制在对应 widening leaf 周围。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 先取 host truth 并复核 widening precision coverage 缺口 | completed | 已用本机 `cc -msse2` probe 确认 `cvtepi32_ps` 在 `2^24+1/+3` 与负值邻点上按 ties-to-even 舍入；`cvtsi64_sd` 在 `2^53+1/+3` 与负值邻点上按 double ULP 的 nearest-even 结果写入，并保持 high lane |
+| 2. 只补 representative proof，不扩实现范围 | completed | 已新增 `Test_WideningConversionPrecisionSemantics`，直接覆盖 `simd_cvtepi32_ps` 的 `2^24` 精度窗口，以及 `simd_cvtsi64_sd` 的 `2^53` 精度窗口与 high-lane preserve |
+| 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已全部 fresh 通过；本批继续保持 tests-only，无需重开 source 修复 |

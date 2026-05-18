@@ -1135,6 +1135,7 @@ type
     procedure Test_PartialLaneLoadStoreMoveSemantics;
     procedure Test_IntegerPartialLoadStoreMaskMoveSemantics;
     procedure Test_ConversionFamilies_PreserveExpectedLanes;
+    procedure Test_WideningConversionPrecisionSemantics;
     procedure Test_RoundAndTruncConversionSemantics;
     procedure Test_ConversionIndefiniteSemantics;
     procedure Test_NarrowingFloatConversionHostTruthSemantics;
@@ -1892,6 +1893,67 @@ begin
   LInts.m128i_i64[0] := Int64(-9876543210);
   AssertEquals('simd_cvtsi128_si32 low dword', LInts.m128i_i32[0], simd_cvtsi128_si32(LInts));
   AssertEquals('simd_cvtsi128_si64 low qword', Int64(-9876543210), simd_cvtsi128_si64(LInts));
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_WideningConversionPrecisionSemantics;
+var
+  LInts: TM128;
+  LA: TM128;
+  LActual: TM128;
+begin
+  FillChar(LInts, SizeOf(LInts), 0);
+  LInts.m128i_i32[0] := 16777216;
+  LInts.m128i_i32[1] := 16777217;
+  LInts.m128i_i32[2] := -16777217;
+  LInts.m128i_i32[3] := 16777219;
+  LActual := simd_cvtepi32_ps(LInts);
+  AssertEquals('simd_cvtepi32_ps 2^24 exact lane0 bits', LongInt($4B800000), LActual.m128i_i32[0]);
+  AssertEquals('simd_cvtepi32_ps 2^24+1 rounds to even lane1 bits', LongInt($4B800000), LActual.m128i_i32[1]);
+  AssertEquals('simd_cvtepi32_ps -(2^24+1) rounds to even lane2 bits', LongInt(DWord($CB800000)), LActual.m128i_i32[2]);
+  AssertEquals('simd_cvtepi32_ps 2^24+3 rounds to even lane3 bits', LongInt($4B800002), LActual.m128i_i32[3]);
+
+  FillChar(LInts, SizeOf(LInts), 0);
+  LInts.m128i_i32[0] := 16777218;
+  LInts.m128i_i32[1] := 16777220;
+  LInts.m128i_i32[2] := -16777218;
+  LInts.m128i_i32[3] := -16777219;
+  LActual := simd_cvtepi32_ps(LInts);
+  AssertEquals('simd_cvtepi32_ps 2^24+2 exact lane0 bits', LongInt($4B800001), LActual.m128i_i32[0]);
+  AssertEquals('simd_cvtepi32_ps 2^24+4 exact lane1 bits', LongInt($4B800002), LActual.m128i_i32[1]);
+  AssertEquals('simd_cvtepi32_ps -(2^24+2) exact lane2 bits', LongInt(DWord($CB800001)), LActual.m128i_i32[2]);
+  AssertEquals('simd_cvtepi32_ps -(2^24+3) rounds to even lane3 bits', LongInt(DWord($CB800002)), LActual.m128i_i32[3]);
+
+  FillChar(LA, SizeOf(LA), 0);
+  LA.m128d_f64[1] := 88.0;
+  LActual := simd_cvtsi64_sd(LA, 9007199254740993);
+  AssertEquals('simd_cvtsi64_sd 2^53+1 rounds down to even bits',
+    Int64(QWord($4340000000000000)), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_cvtsi64_sd 2^53+1 keeps high lane bits',
+    Int64(QWord($4056000000000000)), Int64(LActual.m128i_u64[1]));
+
+  LActual := simd_cvtsi64_sd(LA, 9007199254740994);
+  AssertEquals('simd_cvtsi64_sd 2^53+2 exact bits',
+    Int64(QWord($4340000000000001)), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_cvtsi64_sd 2^53+2 keeps high lane bits',
+    Int64(QWord($4056000000000000)), Int64(LActual.m128i_u64[1]));
+
+  LActual := simd_cvtsi64_sd(LA, 9007199254740995);
+  AssertEquals('simd_cvtsi64_sd 2^53+3 rounds up to even bits',
+    Int64(QWord($4340000000000002)), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_cvtsi64_sd 2^53+3 keeps high lane bits',
+    Int64(QWord($4056000000000000)), Int64(LActual.m128i_u64[1]));
+
+  LActual := simd_cvtsi64_sd(LA, -9007199254740993);
+  AssertEquals('simd_cvtsi64_sd -(2^53+1) rounds toward even bits',
+    Int64(QWord($C340000000000000)), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_cvtsi64_sd -(2^53+1) keeps high lane bits',
+    Int64(QWord($4056000000000000)), Int64(LActual.m128i_u64[1]));
+
+  LActual := simd_cvtsi64_sd(LA, -9007199254740995);
+  AssertEquals('simd_cvtsi64_sd -(2^53+3) rounds toward even bits',
+    Int64(QWord($C340000000000002)), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_cvtsi64_sd -(2^53+3) keeps high lane bits',
+    Int64(QWord($4056000000000000)), Int64(LActual.m128i_u64[1]));
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_RoundAndTruncConversionSemantics;
