@@ -8941,3 +8941,36 @@
   - 不要再回去改 `dispatch` / `scalar` / `neon` / `riscvv`
   - 也不需要再扩大战线到 gate-summary / freeze-status 总体逻辑
   - 只需要让 shell/batch runner 在 `--list-suites` 模式下，把“已成功打印 suite manifest 且没有 crash/failure marker”的情况当成成功即可
+
+## 2026-05-19 Windows B07 Native Batch `check` Was Also Fragile Against Python Console Encoding
+
+- fresh Windows artifact `26063364788` 继续把 B07 红点收窄了两层：
+  - `NONX86-OPTIN neon: test --list-suites` 已真实打印 `Available suites:`
+  - `NativeBatchCheckRc: 1` 的真正触发点，不再是 `--list-suites` 本身，而是 `check_sse2_structure.py` 在 Windows `cmd.exe` 默认控制台编码下抛了 `UnicodeEncodeError`
+- 决定性证据直接来自 `windows_b07_gate.log` 回灌的 Python traceback：
+  - `check_sse2_structure.py`
+  - `print(f'    - {marker}: {count}')`
+  - `UnicodeEncodeError: 'charmap' codec can't encode characters`
+- 这说明之前把 `NativeBatchCheckRc: 1` 全部解释成 “list-only rc contract 还没收干净” 已经不够精确了；更真实的口径是：
+  - `--list-suites` 的启动崩溃已经没了
+  - list-only rc 合同问题已经被部分收掉
+  - 但 native batch `check` 仍可能被 Python 审计脚本的 Windows codepage 脆弱性假红拖死
+- 这条 finding 的价值在于把后续动作继续收紧：
+  - 不要再回头怀疑 `dispatch` / `RegisterBackend` / `NEON` / `RISCVV`
+  - 当前需要补的是 Windows-hosted audit tooling 健壮性
+  - 最小正确修复应是让 Python 审计脚本在 Windows `cmd` 重定向日志时也能稳定输出 UTF-8，而不是依赖 runner 当前 codepage
+
+## 2026-05-19 Windows B07 Bash-Opt-In Path Still Needed Explicit Runner Evidence, Not Implicit PATH Hope
+
+- `26063364788` 同时证明另一条 lingering gap：
+  - workflow 明确设置了 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1`
+  - 但 collector 仍然记录 `GateRunnerMode: batch-default`
+  - 旧日志只会给一句笼统 warning，看不出是 `bash` 根本没解析到，还是某个脚本前置文件缺失
+- 这说明当下的 `collect_windows_b07_evidence.bat` 对 bash-optin 的判断过于黑箱：
+  - 它既没有优先消费 workflow 已经探测到的 `bash.exe` 绝对路径
+  - 也没有把 `run_all_tests.sh` / `BuildOrTest.sh` / `publicabi_smoke.h` / `bash resolve` 这几项 prereq 分别打出来
+- 这条 finding 的价值，是把下一轮若继续 fallback 时的排查成本大幅降低：
+  - 正确方向不是继续猜 `PATH` 是否在 GitHub step 之间传播
+  - 而是让 workflow 显式导出 `SIMD_WIN_EVIDENCE_BASH_CMD`
+  - 让 collector 记录 `BashCommandSource` 与各项 prereq 命中情况
+  - 这样即使仍回落到 native batch，也能第一眼看出缺的是“bash 解析”还是“bash gate 前置文件”

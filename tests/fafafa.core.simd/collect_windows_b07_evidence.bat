@@ -23,18 +23,21 @@ set "USE_BASH_GATE_REQUEST=%SIMD_WIN_EVIDENCE_USE_BASH_GATE%"
 if "%USE_BASH_GATE_REQUEST%"=="" set "USE_BASH_GATE_REQUEST=0"
 set "USE_BASH_GATE=0"
 set "BASH_CMD="
+set "BASH_CMD_SOURCE=unresolved"
+set "BASH_PREREQ_RESOLVED=0"
+set "BASH_PREREQ_RUN_ALL_SH=0"
+set "BASH_PREREQ_BUILD_OR_TEST_SH=0"
+set "BASH_PREREQ_PUBLICABI_SMOKE_H=0"
 
 if /I "%USE_BASH_GATE_REQUEST%"=="1" (
   call :resolve_bash_command
-  if not "%BASH_CMD%"=="" (
-    if exist "%TESTS_ROOT%\run_all_tests.sh" (
-      if exist "%ROOT%BuildOrTest.sh" (
-        if exist "%TESTS_ROOT%\fafafa.core.simd.publicabi\publicabi_smoke.h" (
-          set "GATE_COMMAND_MARKER=BuildOrTest.sh gate"
-          set "USE_BASH_GATE=1"
-        )
-      )
-    )
+  if not "%BASH_CMD%"=="" set "BASH_PREREQ_RESOLVED=1"
+  if exist "%TESTS_ROOT%\run_all_tests.sh" set "BASH_PREREQ_RUN_ALL_SH=1"
+  if exist "%ROOT%BuildOrTest.sh" set "BASH_PREREQ_BUILD_OR_TEST_SH=1"
+  if exist "%TESTS_ROOT%\fafafa.core.simd.publicabi\publicabi_smoke.h" set "BASH_PREREQ_PUBLICABI_SMOKE_H=1"
+  if "%BASH_PREREQ_RESOLVED%"=="1" if "%BASH_PREREQ_RUN_ALL_SH%"=="1" if "%BASH_PREREQ_BUILD_OR_TEST_SH%"=="1" if "%BASH_PREREQ_PUBLICABI_SMOKE_H%"=="1" (
+    set "GATE_COMMAND_MARKER=BuildOrTest.sh gate"
+    set "USE_BASH_GATE=1"
   )
 )
 
@@ -54,9 +57,17 @@ echo [B07] CmdVer: %CMD_VER% >> "%TMP_LOG%"
 echo [B07] Started: %DATE% %TIME% >> "%TMP_LOG%"
 echo [B07] Working dir: %ROOT% >> "%TMP_LOG%"
 echo [B07] Command: %GATE_COMMAND_MARKER% >> "%TMP_LOG%"
+if /I "%USE_BASH_GATE_REQUEST%"=="1" (
+  echo [B07] BashGateRequest: %USE_BASH_GATE_REQUEST% >> "%TMP_LOG%"
+  echo [B07] BashPrereq.Resolve: %BASH_PREREQ_RESOLVED% >> "%TMP_LOG%"
+  echo [B07] BashPrereq.RunAllSh: %BASH_PREREQ_RUN_ALL_SH% >> "%TMP_LOG%"
+  echo [B07] BashPrereq.BuildOrTestSh: %BASH_PREREQ_BUILD_OR_TEST_SH% >> "%TMP_LOG%"
+  echo [B07] BashPrereq.PublicAbiSmokeHeader: %BASH_PREREQ_PUBLICABI_SMOKE_H% >> "%TMP_LOG%"
+  echo [B07] BashCommandSource: %BASH_CMD_SOURCE% >> "%TMP_LOG%"
+  if not "%BASH_CMD%"=="" echo [B07] BashCommand: %BASH_CMD% >> "%TMP_LOG%"
+)
 if /I "%USE_BASH_GATE%"=="1" (
   echo [B07] GateRunnerMode: bash-optin >> "%TMP_LOG%"
-  echo [B07] BashCommand: %BASH_CMD% >> "%TMP_LOG%"
 ) else (
   echo [B07] GateRunnerMode: batch-default >> "%TMP_LOG%"
   if /I "%USE_BASH_GATE_REQUEST%"=="1" (
@@ -268,14 +279,29 @@ exit /b %GATE_RC%
 
 :resolve_bash_command
 set "BASH_CMD="
+set "BASH_CMD_SOURCE=unresolved"
+if not "%SIMD_WIN_EVIDENCE_BASH_CMD%"=="" (
+  if /I "%SIMD_WIN_EVIDENCE_BASH_CMD%"=="bash" (
+    set "BASH_CMD=bash"
+    set "BASH_CMD_SOURCE=env-token"
+    exit /b 0
+  )
+  if exist "%SIMD_WIN_EVIDENCE_BASH_CMD%" (
+    set "BASH_CMD=%SIMD_WIN_EVIDENCE_BASH_CMD%"
+    set "BASH_CMD_SOURCE=env-explicit"
+    exit /b 0
+  )
+)
 where bash >nul 2>nul
 if not errorlevel 1 (
   set "BASH_CMD=bash"
+  set "BASH_CMD_SOURCE=path"
   exit /b 0
 )
 for %%I in ("C:\Program Files\Git\bin\bash.exe" "C:\Program Files\Git\usr\bin\bash.exe" "C:\msys64\usr\bin\bash.exe") do (
   if exist "%%~fI" (
     set "BASH_CMD=%%~fI"
+    set "BASH_CMD_SOURCE=fallback-probe"
     exit /b 0
   )
 )

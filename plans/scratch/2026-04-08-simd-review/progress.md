@@ -15511,3 +15511,40 @@
 - 当前阶段结论：
   - Windows 当前已从“simd 实现启动崩溃”收敛到“runner 对 list-only 成功返回码兼容不足”
   - 下一步应提交并 push 这一批 runner 合同修复，再发 fresh Windows evidence，确认 `26059847881` 这类 B07 假红被清掉
+
+## 2026-05-19 Windows B07 Follow-up: Batch `check` Was Still Red Because Of Python Console Encoding And Fragile Bash Resolution
+
+- 继续追 `Collect Windows B07 Evidence` 的 fresh artifact `26063364788`，新的事实比上一轮更具体：
+  - `NONX86-OPTIN neon: test --list-suites` 已经真实打印 `Available suites:`
+  - `NativeBatchCheckRc: 1` 仍然存在，但这次 `windows_b07_gate.log` 已把 native batch `check` 的 build/check 输出完整回灌出来
+  - 决定性红点不是 SIMD backend，而是 `check_sse2_structure.py` 在 Windows `cmd.exe` 默认控制台编码下抛了：
+    - `UnicodeEncodeError: 'charmap' codec can't encode characters ...`
+  - 同时 collector 仍然记录：
+    - `GateRunnerMode: batch-default`
+    - `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1 requested ... fallback to native batch gate`
+- 这说明当前 B07 剩余问题已经进一步缩成两个控制面缺口：
+  - native batch `check` 里有 Python 审计脚本对 Windows 旧 codepage 不够健壮
+  - `collect_windows_b07_evidence.bat` 对 bash gate 的解析/诊断过脆，即使 workflow 已准备 bash，也没有把“为什么没切到 bash-optin”记录清楚
+- 已落地修复：
+  - `tests/fafafa.core.simd/check_sse2_structure.py`
+    - 新增 `configure_console_streams()`
+    - 在 `main()` 入口把 `stdout/stderr` 统一重配置为 `utf-8` + `backslashreplace`
+    - 目标是让 Windows `cmd` 重定向日志时也能安全输出包含中文/`×` 的 section marker，不再因为 `cp1252` 直接炸掉
+  - `tests/fafafa.core.simd/collect_windows_b07_evidence.bat`
+    - 新增 `SIMD_WIN_EVIDENCE_BASH_CMD` 显式入口
+    - bash gate 请求时记录 `Resolve / RunAllSh / BuildOrTestSh / PublicAbiSmokeHeader` 四个 prereq 命中情况
+    - 记录 `BashCommandSource` 与实际 `BashCommand`，避免下次再靠猜
+  - `.github/workflows/simd-windows-b07-evidence.yml`
+    - 在 Windows runner 解析到 `bash.exe` 后，显式导出 `SIMD_WIN_EVIDENCE_BASH_CMD`
+    - `Collect and Verify Windows Evidence` 步骤额外设置 `PYTHONUTF8=1`
+- 本地串行验证 fresh 通过：
+  - `PYTHONIOENCODING=cp1252 python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `cp1252` 模拟下 `check_sse2_structure.py` 不再抛 `UnicodeEncodeError`
+  - release `check` 继续通过
+  - `check` 内置 `NONX86-OPTIN neon/riscvv --list-suites` 仍双绿
+- 当前阶段结论：
+  - Windows B07 剩余红点已经不再是 SIMD 实现层
+  - 这一批已把 native batch `check` 的 Python 编码假红收掉，并把 bash-optin 入口诊断补齐
+  - 下一步应提交并 push，然后重发 fresh Windows evidence，确认 `GateRunnerMode` 能否切到 `bash-optin`；若仍 fallback，也能直接从新日志看清具体 prereq 缺哪一项

@@ -8,6 +8,19 @@ import sys
 from pathlib import Path
 
 
+def configure_console_streams() -> None:
+    # Windows cmd redirection may expose a legacy code page (for example cp1252)
+    # that cannot encode the section markers emitted by this audit report.
+    for stream_name in ('stdout', 'stderr'):
+        stream = getattr(sys, stream_name, None)
+        if stream is None or not hasattr(stream, 'reconfigure'):
+            continue
+        try:
+            stream.reconfigure(encoding='utf-8', errors='backslashreplace')
+        except (AttributeError, OSError, ValueError):
+            continue
+
+
 INCLUDE_RE = re.compile(r'^\s*\{\$I\s+([^}]+)\}\s*$', re.IGNORECASE | re.MULTILINE)
 REGISTER_HEADER_RE = re.compile(r'^\s*procedure\s+RegisterSSE2Backend\s*;', re.IGNORECASE | re.MULTILINE)
 SYMBOL_HEADER_TEMPLATE = r'^\s*(?:function|procedure)\s+{name}\b'
@@ -324,6 +337,7 @@ def collect_missing_required_side_effect_opcodes(a_text: str) -> list[str]:
 
 
 def main() -> int:
+    configure_console_streams()
     args = parse_args()
 
     root = Path(__file__).resolve().parents[2]
