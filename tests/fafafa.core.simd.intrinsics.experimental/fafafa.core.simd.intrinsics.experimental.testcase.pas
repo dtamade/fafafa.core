@@ -1177,6 +1177,7 @@ type
   published
     procedure Test_UnpackLaneInterleaving;
     procedure Test_UnpackWideLaneInterleaving;
+    procedure Test_UnpackFloatFamilies_PreserveBitPatterns;
     procedure Test_PackSaturationSemantics;
     procedure Test_ShuffleAndCrossTypeCastSemantics;
     procedure Test_ShuffleImmediateRoutingSemantics;
@@ -4219,6 +4220,64 @@ begin
   AssertEquals('unpackhi_ps lane1', 13.0, LHi.m128_f32[1], 0.0);
   AssertEquals('unpackhi_ps lane2', 4.0, LHi.m128_f32[2], 0.0);
   AssertEquals('unpackhi_ps lane3', 14.0, LHi.m128_f32[3], 0.0);
+end;
+
+procedure TTestCase_X86Sse2PackShuffleBasics.Test_UnpackFloatFamilies_PreserveBitPatterns;
+var
+  LA: TM128;
+  LB: TM128;
+  LLo: TM128;
+  LHi: TM128;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u64[0] := QWord($7FF80000000000A1);
+  LA.m128i_u64[1] := QWord($8000000000000000);
+  LB.m128i_u64[0] := QWord($3FF0000000000000);
+  LB.m128i_u64[1] := QWord($FFF0000000000000);
+
+  LLo := simd_unpacklo_pd(LA, LB);
+  LHi := simd_unpackhi_pd(LA, LB);
+
+  AssertEquals('unpacklo_pd bit lane0',
+    Int64(QWord($7FF80000000000A1)), Int64(LLo.m128i_u64[0]));
+  AssertEquals('unpacklo_pd bit lane1',
+    Int64(QWord($3FF0000000000000)), Int64(LLo.m128i_u64[1]));
+  AssertEquals('unpackhi_pd bit lane0',
+    Int64(QWord($8000000000000000)), Int64(LHi.m128i_u64[0]));
+  AssertEquals('unpackhi_pd bit lane1',
+    Int64(QWord($FFF0000000000000)), Int64(LHi.m128i_u64[1]));
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u32[0] := DWord($7FC12345);
+  LA.m128i_u32[1] := DWord($80000000);
+  LA.m128i_u32[2] := DWord($3F800000);
+  LA.m128i_u32[3] := DWord($FFC00077);
+  LB.m128i_u32[0] := DWord($00800001);
+  LB.m128i_u32[1] := DWord($FF800000);
+  LB.m128i_u32[2] := DWord($00000001);
+  LB.m128i_u32[3] := DWord($7F800000);
+
+  LLo := simd_unpacklo_ps(LA, LB);
+  LHi := simd_unpackhi_ps(LA, LB);
+
+  AssertEquals('unpacklo_ps bit lane0',
+    LongInt($7FC12345), LLo.m128i_i32[0]);
+  AssertEquals('unpacklo_ps bit lane1',
+    LongInt($00800001), LLo.m128i_i32[1]);
+  AssertEquals('unpacklo_ps bit lane2',
+    LongInt($80000000), LLo.m128i_i32[2]);
+  AssertEquals('unpacklo_ps bit lane3',
+    LongInt(DWord($FF800000)), LLo.m128i_i32[3]);
+  AssertEquals('unpackhi_ps bit lane0',
+    LongInt($3F800000), LHi.m128i_i32[0]);
+  AssertEquals('unpackhi_ps bit lane1',
+    LongInt($00000001), LHi.m128i_i32[1]);
+  AssertEquals('unpackhi_ps bit lane2',
+    LongInt(DWord($FFC00077)), LHi.m128i_i32[2]);
+  AssertEquals('unpackhi_ps bit lane3',
+    LongInt($7F800000), LHi.m128i_i32[3]);
 end;
 
 procedure TTestCase_X86Sse2PackShuffleBasics.Test_PackSaturationSemantics;

@@ -5754,3 +5754,22 @@
 | 1. 给 `simd_loadu_pd` 补故意非对齐地址 witness | completed | 已在 `Test_AlignedAndUnalignedLoadSurfaceSemantics` 增加 `LUnalignedDoubles := AlignPointer(...)+8`，并用 exact-bit `QWord` 模式验证 `simd_loadu_pd` 两个 lane 的写入结果 |
 | 2. 串行双模态复验 | completed | `git diff --check`、串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`、串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test` 已全部 fresh 通过 |
 | 3. 复核低命中列表变化 | completed | 重新统计 `intrinsics.x86.sse2` 在 experimental testcase 的直接命中后，`ONE_HIT` 已从 `20` 降到 `19`；`simd_loadu_pd` 不再是当前最薄的单点命中之一 |
+
+## 2026-05-18 SSE2 Float Unpack Bit-Preservation Witness
+
+### Goal
+
+继续削薄 `intrinsics.x86.sse2` 的 one-hit surface，但优先挑当前语义证明仍偏“数值化”的一簇：
+`simd_unpacklo_pd`、
+`simd_unpackhi_pd`、
+`simd_unpacklo_ps`、
+`simd_unpackhi_ps`。
+这批不改实现，只补 exact-bit witness，确认 `NaN payload`、`-0.0`、`Inf/subnormal` 这些位模式在解包时原样搬运。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 给浮点 unpack 家族补 exact-bit witness | completed | 已新增 `Test_UnpackFloatFamilies_PreserveBitPatterns`，分别对 `pd/ps` 族喂入 `QWord/DWord` 特殊位模式，并对 `unpacklo/hi` 结果做逐 lane exact-bit 断言 |
+| 2. 串行双模态复验 | completed | `git diff --check`、串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`、串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test` 已全部 fresh 通过 |
+| 3. 复核低命中列表变化 | completed | 重新统计后，`ONE_HIT` 已从 `19` 降到 `15`；`unpacklo/hi_{pd,ps}` 这一簇已从当前最薄命中列表移除 |

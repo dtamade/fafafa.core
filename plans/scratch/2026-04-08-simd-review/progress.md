@@ -325,6 +325,46 @@
 - 当前阶段结论：
   - 这批依然没有碰实现逻辑，但把 `loadu_pd` 从“名字上叫 unaligned，证据上却没故意喂过 unaligned 指针”收口成了真 witness
   - 下一簇如果继续沿同一策略推进，最自然的候选就是 `packs/unpacks` 这一组仍然 one-hit 的组合 surface
+
+## 2026-05-18 SSE2 Float Unpack Bit-Preservation Witness
+
+- 承接上一批 one-hit 收口，没有回去重扫所有 `pack/unpack`，而是先挑当前最有“证明偏数值化”风险的一小簇：
+  - `simd_unpacklo_pd`
+  - `simd_unpackhi_pd`
+  - `simd_unpacklo_ps`
+  - `simd_unpackhi_ps`
+- 选择它们的原因：
+  - 现有 `Test_UnpackWideLaneInterleaving` 用的是普通 `1.25/2.5/11.0/14.0` 数值
+  - 这能证明 lane 位置，但不能证明 `NaN payload`、`-0.0`、`Inf/subnormal` 这些 bit pattern 被原样搬运
+  - 对 `unpack` 这类纯 lane-rewire 语义来说，exact-bit proof 比普通浮点比较更贴近真实合同
+- 本批只改：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+- 已新增：
+  - `TTestCase_X86Sse2PackShuffleBasics.Test_UnpackFloatFamilies_PreserveBitPatterns`
+- 新测试覆盖方式：
+  - `pd`：
+    - `LA`/`LB` 分别喂入 `QWord($7FF80000000000A1)`、`QWord($8000000000000000)`、`QWord($3FF0000000000000)`、`QWord($FFF0000000000000)`
+    - 对 `unpacklo_pd` / `unpackhi_pd` 结果用 `m128i_u64` 做 exact-bit 断言
+  - `ps`：
+    - `LA`/`LB` 喂入 `DWord($7FC12345)`、`DWord($80000000)`、`DWord($00800001)`、`DWord($FF800000)`、`DWord($FFC00077)`、`DWord($7F800000)` 等特殊位型
+    - 对 `unpacklo_ps` / `unpackhi_ps` 结果用 `m128i_i32` 做逐 lane exact-bit 断言
+- fresh 验证：
+  - `git diff --check`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- fresh 结果：
+  - experimental=`0`：`[TEST] OK`、`[LEAK] OK`
+  - experimental=`1`：`[TEST] OK`、`[LEAK] OK`
+- 命中面复核：
+  - 重新统计 `intrinsics.x86.sse2` interface 在 experimental testcase 的 direct-hit
+  - `ONE_HIT` 已从 `19` 降到 `15`
+  - `unpacklo/hi_{pd,ps}` 这一簇已从最薄命中名单中移除
+- 当前阶段结论：
+  - 这批没有改实现，但把浮点 unpack 从“只证明数值位置正确”推进到“位模式也原样保留”
+  - 剩余 one-hit 现在主要收敛到：
+    - `clflush/lfence/mfence/pause`
+    - `packs_*`
+    - 整数 `unpacklo/hi_*`
   - 主 `simd` release `check` 全绿
 - 当前阶段结论：
   - 这批确认只是 `SSE experimental intrinsics` 的源码文本卫生收口，不涉及行为修复
