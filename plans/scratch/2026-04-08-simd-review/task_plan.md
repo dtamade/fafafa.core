@@ -5632,3 +5632,17 @@
 | 1. 给 `sqrt` 小簇补负数 / qNaN witness | completed | 已新增 `Test_SqrtFamilies_NegativeAndNaNStayExceptionFree`；先确认 default experimental=`0` 继续绿，再让 experimental=`1` fresh 说话 |
 | 2. 根据 fresh 红点把修复收敛在 `sqrt` 小簇 | completed | experimental=`1` 首轮在新 `sqrt` witness 上直接抛 `EInvalidOp`；现已把 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 中 `simd_sqrt_ps/sqrt_pd/sqrt_sd` 收成 `SelectSingle/DoubleSqrtBits + BuildPacked/Scalar*Sqrt` 这套 exception-free Pascal helper |
 | 3. 串行复验并保持 stable path 不回归 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1`、以及 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已全部 fresh 通过 |
+
+## 2026-05-18 SSE2 Div Special-Value Exception-Free Repair
+
+### Goal
+
+顺着刚在 `sqrt` 上证实过的特殊值 exception 泄漏模式，继续只切 `div` 小簇：给 `simd_div_ps`、`simd_div_pd`、`simd_div_sd` 补 `1/0`、`-1/0`、`0/0`、`qNaN/1` witness。若 fresh proof 真打红，就只把修复收敛在这 3 个 leaf，并保持 packed lane / scalar high-lane preserve 合同。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 给 `div` 小簇补特殊值 witness | completed | 已新增 `Test_DivFamilies_SpecialValuesStayExceptionFree`；先确认 default experimental=`0` 继续绿，再让 experimental=`1` fresh 说话 |
+| 2. 根据 fresh 红点把修复收敛在 `div` 小簇 | completed | experimental=`1` 首轮在新 `div` witness 上直接抛 `EInvalidOp`；现已把 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 中 `simd_div_ps/div_pd/div_sd` 收成 `SelectSingle/DoubleDivBits + BuildPacked/Scalar*Div` 这套 exception-free Pascal helper |
+| 3. 串行复验并保持 stable path 不回归 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1`、以及 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已全部 fresh 通过 |

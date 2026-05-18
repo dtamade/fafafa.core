@@ -1635,26 +1635,126 @@ asm
 {$ENDIF}
 end;
 
-function simd_div_ps(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]; movups xmm1, [rdx]; divps xmm0, xmm1  // 4个单精度浮点并行除法
-  {$ELSE}
-    movups xmm0, [rdi]; movups xmm1, [rsi]; divps xmm0, xmm1
-  {$ENDIF}
-{$ELSEIF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movups xmm0, [eax]; movups xmm1, [edx]; divps xmm0, xmm1
-{$ELSE}
-    {$ERROR Unsupported CPU}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function SingleBitsIsZero(const aBits: DWord): Boolean; inline;
+begin
+  Result := (aBits and DWord($7FFFFFFF)) = 0;
+end;
+
+function DoubleBitsIsZero(const aBits: QWord): Boolean; inline;
+begin
+  Result := (aBits and QWord($7FFFFFFFFFFFFFFF)) = 0;
+end;
+
+function BuildSingleInfinityBits(const aNegative: Boolean): DWord; inline;
+begin
+  if aNegative then
+    Exit(DWord($FF800000));
+  Result := DWord($7F800000);
+end;
+
+function BuildDoubleInfinityBits(const aNegative: Boolean): QWord; inline;
+begin
+  if aNegative then
+    Exit(QWord($FFF0000000000000));
+  Result := QWord($7FF0000000000000);
+end;
+
+function SelectSingleDivBits(
+  const aLeftBits, aRightBits: DWord;
+  const aLeftValue, aRightValue: Single
+): DWord; inline;
+const
+  CANONICAL_SINGLE_QNAN = DWord($7FC00000);
+var
+  LNegative: Boolean;
+  LResult: Single;
+begin
+  if IsNan(aLeftValue) then
+    Exit(aLeftBits);
+  if IsNan(aRightValue) then
+    Exit(aRightBits);
+  if SingleBitsIsZero(aRightBits) then
+  begin
+    if SingleBitsIsZero(aLeftBits) then
+      Exit(CANONICAL_SINGLE_QNAN);
+    LNegative := ((aLeftBits xor aRightBits) and DWord($80000000)) <> 0;
+    Exit(BuildSingleInfinityBits(LNegative));
+  end;
+  if IsInfinite(aLeftValue) and IsInfinite(aRightValue) then
+    Exit(CANONICAL_SINGLE_QNAN);
+  LResult := aLeftValue / aRightValue;
+  Move(LResult, Result, SizeOf(Result));
+end;
+
+function SelectDoubleDivBits(
+  const aLeftBits, aRightBits: QWord;
+  const aLeftValue, aRightValue: Double
+): QWord; inline;
+const
+  CANONICAL_DOUBLE_QNAN = QWord($7FF8000000000000);
+var
+  LNegative: Boolean;
+  LResult: Double;
+begin
+  if IsNan(aLeftValue) then
+    Exit(aLeftBits);
+  if IsNan(aRightValue) then
+    Exit(aRightBits);
+  if DoubleBitsIsZero(aRightBits) then
+  begin
+    if DoubleBitsIsZero(aLeftBits) then
+      Exit(CANONICAL_DOUBLE_QNAN);
+    LNegative := ((aLeftBits xor aRightBits) and QWord($8000000000000000)) <> 0;
+    Exit(BuildDoubleInfinityBits(LNegative));
+  end;
+  if IsInfinite(aLeftValue) and IsInfinite(aRightValue) then
+    Exit(CANONICAL_DOUBLE_QNAN);
+  LResult := aLeftValue / aRightValue;
+  Move(LResult, Result, SizeOf(Result));
+end;
+
+function BuildPackedSingleDiv(constref a, b: TM128): TM128; inline;
+var
+  LLane: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  for LLane := 0 to 3 do
+    Result.m128i_u32[LLane] := SelectSingleDivBits(
+      a.m128i_u32[LLane],
+      b.m128i_u32[LLane],
+      a.m128_f32[LLane],
+      b.m128_f32[LLane]
+    );
+end;
+
+function BuildPackedDoubleDiv(constref a, b: TM128): TM128; inline;
+var
+  LLane: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  for LLane := 0 to 1 do
+    Result.m128i_u64[LLane] := SelectDoubleDivBits(
+      a.m128i_u64[LLane],
+      b.m128i_u64[LLane],
+      a.m128d_f64[LLane],
+      b.m128d_f64[LLane]
+    );
+end;
+
+function BuildScalarDoubleDiv(constref a, b: TM128): TM128; inline;
+begin
+  Result := a;
+  Result.m128i_u64[0] := SelectDoubleDivBits(
+    a.m128i_u64[0],
+    b.m128i_u64[0],
+    a.m128d_f64[0],
+    b.m128d_f64[0]
+  );
+end;
+
+function simd_div_ps(constref a, b: TM128): TM128;
+begin
+  Result := BuildPackedSingleDiv(a, b);
 end;
 
 function simd_sqrt_ps(constref a: TM128): TM128;
@@ -1728,26 +1828,9 @@ asm
 {$ENDIF}
 end;
 
-function simd_div_pd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; movupd xmm1, [rdx]; divpd xmm0, xmm1  // 2个双精度浮点并行除法
-  {$ELSE}
-    movupd xmm0, [rdi]; movupd xmm1, [rsi]; divpd xmm0, xmm1
-  {$ENDIF}
-{$ELSEIF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; divpd xmm0, xmm1
-{$ELSE}
-    {$ERROR Unsupported CPU}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_div_pd(constref a, b: TM128): TM128;
+begin
+  Result := BuildPackedDoubleDiv(a, b);
 end;
 
 function SelectSingleSqrtBits(const aBits: DWord; const aValue: Single): DWord; inline;
@@ -3918,26 +4001,9 @@ asm
 {$ENDIF}
 end;
 
-function simd_div_sd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; movsd xmm1, [rdx]; divsd xmm0, xmm1  // Scalar double divide, keep upper lane
-    {$ELSE}
-    movupd xmm0, [rdi]; movsd xmm1, [rsi]; divsd xmm0, xmm1
-  {$ENDIF}
-{$ELSEIF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; divsd xmm0, xmm1
-{$ELSE}
-    {$ERROR Unsupported CPU}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_div_sd(constref a, b: TM128): TM128;
+begin
+  Result := BuildScalarDoubleDiv(a, b);
 end;
 
 function simd_sqrt_sd(constref a, b: TM128): TM128;

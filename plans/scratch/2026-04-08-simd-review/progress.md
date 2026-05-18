@@ -14454,3 +14454,63 @@
 - 当前阶段结论：
   - 这批再次验证了“low-hit + 特殊浮点值 witness”比继续盲补普通 lane 样例更值钱
   - 当前 `sqrt` 小簇已经从“只验证 happy path”推进到“负数 / qNaN 也不应把 invalid exception 直接漏出来”
+
+## 2026-05-18 SSE2 Div Special-Value Exception-Free Repair
+
+- 在 `sqrt` 那批 fresh 抓到并修掉 `EInvalidOp` 之后，没有转回 `pack/unpack` 这类普通 lane 样例，而是顺着同一条“特殊值异常泄漏”热线继续往前，只切：
+  - `simd_div_ps`
+  - `simd_div_pd`
+  - `simd_div_sd`
+- 当前选择这簇的原因也很直接：
+  - 它们和刚修过的 `sqrt` 一样，之前只有有限值 happy-path
+  - source 仍是 raw `divps/divpd/divsd`
+  - stable edgecase 已明确把 `1/0 -> Inf`、`0/0 -> NaN` 当成正常边界语义
+- 本批继续坚持 proof-first：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 `Test_DivFamilies_SpecialValuesStayExceptionFree`
+- 新 witness 直接锁住：
+  - `div_ps`：
+    - `1/0 -> +Inf`
+    - `-1/0 -> -Inf`
+    - `0/0 -> NaN`
+    - `qNaN/1 -> NaN`
+  - `div_pd`：
+    - `1/0 -> +Inf`
+    - `0/0 -> NaN`
+  - `div_sd`：
+    - `1/0 -> +Inf`
+    - `0/0 -> NaN`
+    - 同时 `a.high` 必须完整保留
+- 这次 fresh 红点同样非常干净：
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`：`[TEST] OK`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`：`Test_DivFamilies_SpecialValuesStayExceptionFree` 首轮 `EInvalidOp`
+  - 说明 `experimental=1` 下 raw `div` 确实会把特殊值 invalid exception 直接漏出来
+- source 修复继续严格收敛在 `src/fafafa.core.simd.intrinsics.x86.sse2.pas`：
+  - 新增：
+    - `SingleBitsIsZero`
+    - `DoubleBitsIsZero`
+    - `BuildSingleInfinityBits`
+    - `BuildDoubleInfinityBits`
+    - `SelectSingleDivBits`
+    - `SelectDoubleDivBits`
+    - `BuildPackedSingleDiv`
+    - `BuildPackedDoubleDiv`
+    - `BuildScalarDoubleDiv`
+  - `simd_div_ps/div_pd/div_sd` 不再直接走 raw `div*` 指令，而是：
+    - NaN 输入：直接保留 NaN bits
+    - `0/0` 与 `Inf/Inf`：返回 canonical quiet NaN
+    - `x/0`：按符号返回 `+Inf/-Inf`
+    - 其它情况：再落到普通 `/`
+    - `div_sd` 继续保持 `a.high` 不变
+- 本批 fresh 验证：
+  - `git diff --check`
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - 修复后 experimental=`0`：`[TEST] OK`
+  - 修复后 experimental=`1`：`[TEST] OK`
+  - 修复后 Release `check`：退出码 `0`
+- 当前阶段结论：
+  - 这已经是同一条特殊值 witness 路线下第二个 fresh 抓出的真缺陷簇
+  - 当前 `sqrt/div` 这两组 raw 浮点 leaf 都已经从“happy path only”推进到“特殊值也不应直接把 exception 泄漏给调用者”
