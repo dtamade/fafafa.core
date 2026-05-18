@@ -14318,3 +14318,53 @@
 - 当前阶段结论：
   - 这批已经不只是补 `SSE2 store` 证明面，而是借 direct proof 抓出并修掉了 aligned store family 对 `constref Src` 的错误对齐假设
   - 下一步如果继续沿这条 lane 推进，仍应优先挑同样薄、同样可 direct proof 的 pure semantic leaf，而不是重开 whole-module 扫描
+
+## 2026-05-18 SSE2 Partial-Lane Double Companion Alignment Repair
+
+- 当前继续沿刚确认过的 `constref TM128` 对齐假设线推进，但不扩成全文件大清洗，只切还残留同型 `movapd` source-read 的小簇：
+  - `simd_storer_pd`
+  - `simd_loadh_pd`
+  - `simd_loadl_pd`
+  - `simd_storeh_pd`
+  - `simd_storel_pd`
+  - `simd_store_sd`
+- 开工前先做了 very cheap pattern audit：
+  - `stream_pd/ps/si128` 已经是 `movupd/movups/movdqu` 读源，不是同一类问题
+  - 真正还残留 aligned source-read 的，就是上面这 6 个 `partial-lane double companion` leaf
+- 本批继续坚持 tests-first：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 `Test_PartialLaneDoubleHelpers_AcceptUnalignedSourceVectors`
+- 新 proof 直接锁住：
+  - 用 `AlignPointer(...)+8` 人工构造 unaligned `TM128` source vector
+  - `simd_loadh_pd/loadl_pd` 必须仍正确保留/替换对应 lane
+  - `simd_storeh_pd/storel_pd/store_sd` 必须仍正确写出目标 lane
+  - `simd_storer_pd` 必须仍正确反转双 lane 顺序
+- 这次 fresh 红点再次不是测试噪音，而是同型 source defect：
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`：`TEST OK`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`：`Test_PartialLaneDoubleHelpers_AcceptUnalignedSourceVectors` 首轮 `EAccessViolation`
+  - 说明这 6 个 leaf 仍把“source vector 参数已对齐”当成了前提
+- source 对位后已确认根因：
+  - `src/fafafa.core.simd.intrinsics.x86.sse2.pas`
+  - 这 6 个 leaf 都还在对 `constref` 参数做 `movapd` aligned read
+  - 但 `A/Src: TM128` 虽然是 128-bit 向量类型，并不保证调用点一定把引用放在 16-byte aligned 地址上
+- 本批修复保持 leaf-bounded：
+  - 把这 6 个 leaf 的 source read 全部改成 `movupd`
+  - 保留各自后续的：
+    - `shufpd`
+    - `movhpd`
+    - `movlpd`
+    - `movsd`
+    - 目标写回语义
+  - 没有扩到 `move_sd`、`move_epi64`、`stream_*` 或其它 arithmetic/compare family
+- 本批 fresh 验证：
+  - `git diff --check`
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - 修复后 experimental=`0`：`[TEST] OK`
+  - 修复后 experimental=`1`：`[TEST] OK`
+  - 修复后 Release `check`：退出码 `0`
+- 当前阶段结论：
+  - 这批再次证明 `SSE2` 这里的真实问题不是“proof 不够漂亮”，而是 direct proof 能稳定抓出 `constref` source alignment 假设
+  - 到这一刻为止，`full store` 与 `partial-lane double companion` 这两条同型对齐风险线都已经 fresh 收口

@@ -1141,6 +1141,7 @@ type
     procedure Test_LoadStore_Roundtrip;
     procedure Test_AlignedAndUnalignedStoreSurfaceSemantics;
     procedure Test_PartialLaneLoadStoreMoveSemantics;
+    procedure Test_PartialLaneDoubleHelpers_AcceptUnalignedSourceVectors;
     procedure Test_IntegerPartialLoadStoreMaskMoveSemantics;
     procedure Test_ConversionFamilies_PreserveExpectedLanes;
     procedure Test_WideningConversionPrecisionSemantics;
@@ -2072,6 +2073,50 @@ begin
   simd_storer_pd(LReversed, simd_loadu_pd(@LPair[0]));
   AssertEquals('simd_storer_pd lane0', 6.0, LReversed[0], 0.0);
   AssertEquals('simd_storer_pd lane1', 5.0, LReversed[1], 0.0);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_PartialLaneDoubleHelpers_AcceptUnalignedSourceVectors;
+var
+  LStorage: array[0..47] of Byte;
+  LAligned: Pointer;
+  LUnaligned: Pointer;
+  LScalar: Double;
+  LPair: array[0..1] of Double;
+  LActual: TM128;
+begin
+  FillChar(LStorage, SizeOf(LStorage), 0);
+  LAligned := AlignPointer(@LStorage[0], 16);
+  LUnaligned := Pointer(PtrUInt(LAligned) + 8);
+  PDouble(LUnaligned)[0] := 11.0;
+  PDouble(LUnaligned)[1] := 22.0;
+
+  LScalar := -33.5;
+  LActual := simd_loadh_pd(PTM128(LUnaligned)^, @LScalar);
+  AssertEquals('unaligned simd_loadh_pd keep low lane', 11.0, LActual.m128d_f64[0], 0.0);
+  AssertEquals('unaligned simd_loadh_pd replace high lane', -33.5, LActual.m128d_f64[1], 0.0);
+
+  LScalar := 44.75;
+  LActual := simd_loadl_pd(PTM128(LUnaligned)^, @LScalar);
+  AssertEquals('unaligned simd_loadl_pd replace low lane', 44.75, LActual.m128d_f64[0], 0.0);
+  AssertEquals('unaligned simd_loadl_pd keep high lane', 22.0, LActual.m128d_f64[1], 0.0);
+
+  LScalar := 123.0;
+  simd_storeh_pd(LScalar, PTM128(LUnaligned)^);
+  AssertEquals('unaligned simd_storeh_pd writes high lane', 22.0, LScalar, 0.0);
+
+  LScalar := 456.0;
+  simd_storel_pd(LScalar, PTM128(LUnaligned)^);
+  AssertEquals('unaligned simd_storel_pd writes low lane', 11.0, LScalar, 0.0);
+
+  LScalar := 999.0;
+  simd_store_sd(LScalar, PTM128(LUnaligned)^);
+  AssertEquals('unaligned simd_store_sd writes low lane', 11.0, LScalar, 0.0);
+
+  LPair[0] := 0.0;
+  LPair[1] := 0.0;
+  simd_storer_pd(LPair, PTM128(LUnaligned)^);
+  AssertEquals('unaligned simd_storer_pd lane0', 22.0, LPair[0], 0.0);
+  AssertEquals('unaligned simd_storer_pd lane1', 11.0, LPair[1], 0.0);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_IntegerPartialLoadStoreMaskMoveSemantics;

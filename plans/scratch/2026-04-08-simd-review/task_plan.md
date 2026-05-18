@@ -5590,3 +5590,17 @@
 | 1. 复核 full store surface 的真实薄点 | completed | 已确认 `storeu_si128` 之前只有 `loadu/storeu` roundtrip 混测，而 `store_si128/store_pd/storeu_pd/store_ps/storeu_ps` 仍缺独立 direct proof；因此当前最薄 residual 已从 `load` 转到 full store surface |
 | 2. 先补 direct proof 并让 fresh 红点自己说话 | completed | 已新增 `Test_AlignedAndUnalignedStoreSurfaceSemantics`，直接覆盖 aligned/unaligned `si128/pd/ps` full store 的 exact-bit/lane 写回与 sentinel 边界；首轮 experimental=`1` fresh 跑出 `EAccessViolation`，不是断言失败而是真实实现问题 |
 | 3. 修正 aligned store 的 `constref Src` 对齐假设并完成 closeout | completed | 已把 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 中 `simd_store_si128/store_pd/store_ps` 的 source read 分别从 `movdqa/movapd/movaps` 改成 `movdqu/movupd/movups`，保留 destination 的 aligned store 指令；`git diff --check`、串行 experimental=`0/1`、以及 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已全部 fresh 通过 |
+
+## 2026-05-18 SSE2 Partial-Lane Double Companion Alignment Repair
+
+### Goal
+
+继续沿刚确认过的 `constref TM128` 对齐假设线推进，但仍保持小簇，只收 `storer/loadh/loadl/storeh/storel/store_sd` 这组 `partial-lane double companion` leaf。先补 unaligned-source direct proof；若 proof 真打红，就只修这些 leaf 的 source read，不扩到其它 family。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 先排除不是同型问题的邻近 surface | completed | 已确认 `stream_pd/ps/si128` 自身已经用 `movupd/movups/movdqu` 读源，不属于同一类 bug；真正仍残留 aligned source-read 的是 `simd_storer_pd/loadh_pd/loadl_pd/storeh_pd/storel_pd/store_sd` 这 6 个 leaf |
+| 2. 用 unaligned-source witness 把 fresh 红点钉在这 6 个 leaf 上 | completed | 已新增 `Test_PartialLaneDoubleHelpers_AcceptUnalignedSourceVectors`，通过 `AlignPointer(...)+8` 构造 unaligned `TM128` source；首轮 experimental=`1` fresh 跑出 `EAccessViolation`，说明这批 leaf 的确还在错误假设 `constref` 源参数已对齐 |
+| 3. 把这 6 个 leaf 的 source read 改成 unaligned load 并完成 closeout | completed | 已把 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 中 `simd_storer_pd/loadh_pd/loadl_pd/storeh_pd/storel_pd/store_sd` 的 source read 统一从 `movapd` 改成 `movupd`；`git diff --check`、串行 experimental=`0/1`、以及 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已全部 fresh 通过 |

@@ -3355,12 +3355,12 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Dest in rcx, Src in rdx.
-    movapd xmm0, [rdx] // Load the source vector.
+    movupd xmm0, [rdx] // Src is a constref parameter and need not be aligned.
     shufpd xmm0, xmm0, 1 // Swap the low and high double lanes.
     movupd [rcx], xmm0     // Store the reordered vector.
     {$ELSE}
     // Linux/macOS x64 System V ABI: Dest in rdi, Src in rsi.
-    movapd xmm0, [rsi] // Load the source vector.
+    movupd xmm0, [rsi] // Src is a constref parameter and need not be aligned.
     shufpd xmm0, xmm0, 1 // Swap the low and high double lanes.
     movupd [rdi], xmm0     // Store the reordered vector.
     {$ENDIF}
@@ -3368,7 +3368,7 @@ asm
     // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]     // Dest
     mov edx, [esp + 8]     // Src
-    movapd xmm0, [edx]
+    movupd xmm0, [edx]
     shufpd xmm0, xmm0, 1
     movupd [eax], xmm0
 {$ELSE}
@@ -3382,18 +3382,18 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: A in rcx, Ptr in rdx.
-    movapd xmm0, [rcx]     // Load A into xmm0.
+    movupd xmm0, [rcx]     // A is a constref parameter and need not be aligned.
     movhpd xmm0, [rdx]     // Replace the high double lane from Ptr.
     {$ELSE}
     // Linux/macOS x64 System V ABI: A in rdi, Ptr in rsi.
-    movapd xmm0, [rdi]     // Load A into xmm0.
+    movupd xmm0, [rdi]     // A is a constref parameter and need not be aligned.
     movhpd xmm0, [rsi]     // Replace the high double lane from Ptr.
     {$ENDIF}
 {$ELSEIF CPUX86}
     // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]     // A
     mov edx, [esp + 8]     // Ptr
-    movapd xmm0, [eax]
+    movupd xmm0, [eax]
     movhpd xmm0, [edx]
 {$ELSE}
     {$ERROR Unsupported CPU}
@@ -3412,18 +3412,18 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: A in rcx, Ptr in rdx.
-    movapd xmm0, [rcx]     // Load A into xmm0.
+    movupd xmm0, [rcx]     // A is a constref parameter and need not be aligned.
     movlpd xmm0, [rdx]     // Replace the low double lane from Ptr.
     {$ELSE}
     // Linux/macOS x64 System V ABI: A in rdi, Ptr in rsi.
-    movapd xmm0, [rdi]     // Load A into xmm0.
+    movupd xmm0, [rdi]     // A is a constref parameter and need not be aligned.
     movlpd xmm0, [rsi]     // Replace the low double lane from Ptr.
     {$ENDIF}
 {$ELSEIF CPUX86}
     // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]     // A
     mov edx, [esp + 8]     // Ptr
-    movapd xmm0, [eax]
+    movupd xmm0, [eax]
     movlpd xmm0, [edx]
 {$ELSE}
     {$ERROR Unsupported CPU}
@@ -3442,18 +3442,18 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Dest in rcx, Src in rdx.
-    movapd xmm0, [rdx]     // Load the source vector.
+    movupd xmm0, [rdx]     // Src is a constref parameter and need not be aligned.
     movhpd [rcx], xmm0     // Store the high double lane to the destination.
   {$ELSE}
     // Linux/macOS x64 System V ABI: Dest in rdi, Src in rsi.
-    movapd xmm0, [rsi]     // Load the source vector.
+    movupd xmm0, [rsi]     // Src is a constref parameter and need not be aligned.
     movhpd [rdi], xmm0     // Store the high double lane to the destination.
   {$ENDIF}
 {$ELSEIF CPUX86}
     // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]     // Dest
     mov edx, [esp + 8]     // Src
-    movapd xmm0, [edx]
+    movupd xmm0, [edx]
     movhpd [eax], xmm0
 {$ELSE}
     {$ERROR Unsupported CPU}
@@ -3466,18 +3466,18 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Dest in rcx, Src in rdx.
-    movapd xmm0, [rdx]     // Load the source vector.
+    movupd xmm0, [rdx]     // Src is a constref parameter and need not be aligned.
     movlpd [rcx], xmm0     // Store the low double lane to the destination.
   {$ELSE}
     // Linux/macOS x64 System V ABI: Dest in rdi, Src in rsi.
-    movapd xmm0, [rsi]     // Load the source vector.
+    movupd xmm0, [rsi]     // Src is a constref parameter and need not be aligned.
     movlpd [rdi], xmm0     // Store the low double lane to the destination.
   {$ENDIF}
 {$ELSEIF CPUX86}
     // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]     // Dest
     mov edx, [esp + 8]     // Src
-    movapd xmm0, [edx]
+    movupd xmm0, [edx]
     movlpd [eax], xmm0
 {$ELSE}
     {$ERROR Unsupported CPU}
@@ -3516,18 +3516,18 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Dest in rcx, Src in rdx.
-    movapd xmm0, [rdx] // Load the source vector.
+    movupd xmm0, [rdx] // Src is a constref parameter and need not be aligned.
     movsd [rcx], xmm0      // Store the scalar double to the destination.
     {$ELSE}
     // Linux/macOS x64 System V ABI: Dest in rdi, Src in rsi.
-    movapd xmm0, [rsi] // Load the source vector.
+    movupd xmm0, [rsi] // Src is a constref parameter and need not be aligned.
     movsd [rdi], xmm0      // Store the scalar double to the destination.
     {$ENDIF}
 {$ELSEIF CPUX86}
     // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]     // Dest
     mov edx, [esp + 8]     // Src
-    movapd xmm0, [edx]
+    movupd xmm0, [edx]
     movsd [eax], xmm0
 {$ELSE}
     {$ERROR Unsupported CPU}
