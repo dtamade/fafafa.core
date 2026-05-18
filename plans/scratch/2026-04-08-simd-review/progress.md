@@ -469,6 +469,42 @@
 - 当前阶段结论：
   - 这批把 `pd/sd compare + comi/ucomi` 这一整组 helper 语义也正式锁进了主链护栏
   - 现在 `sse2_structure` 对这条 experimental raw-leaf 文件的高风险浮点回退面，已经不只覆盖算术和 extrema，也覆盖了 compare/flag 语义
+
+## 2026-05-18 SSE2 Fence/Cache-Control Opcode Guardrail
+
+- 在把 `ONE_HIT` 压到只剩
+  - `simd_clflush`
+  - `simd_lfence`
+  - `simd_mfence`
+  - `simd_pause`
+ 之后，没有继续为了 direct-hit 数字去堆第二个 smoke，而是把这 4 个 surface 的“真实合同”收回成结构要求：
+  - 这些 routine 本来就偏 side-effect / no-crash
+  - 比起再做一层有限的 runtime 断言，更值钱的是保证它们在 raw-leaf 文件里仍然真的发出目标 opcode
+- 本批只改：
+  - `tests/fafafa.core.simd/check_sse2_structure.py`
+- 已新增：
+  - `REQUIRED_SIDE_EFFECT_OPCODES_BY_ROUTINE`
+  - `collect_missing_required_side_effect_opcodes(...)`
+  - summary 字段：
+    - `missing_required_side_effect_opcodes`
+- 规则要求：
+  - `simd_clflush` 必须命中 `clflush`
+  - `simd_lfence` 必须命中 `lfence`
+  - `simd_mfence` 必须命中 `mfence`
+  - `simd_pause` 必须命中 `pause`
+- fresh 验证：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `SSE2_STRUCTURE_SUMMARY ... missing_required_side_effect_opcodes=0 ... status=ok`
+  - Release `check` 通过
+- 当前阶段结论：
+  - 这批把最后 4 个难以做更强 runtime 语义断言的 side-effect surface 也锁进了主链护栏
+  - 现在 `intrinsics.x86.sse2` 当前这一轮最值钱的风险面，已经同时有：
+    - direct witness
+    - 结构护栏
+    - release `check` 验证
   - 主 `simd` release `check` 全绿
 - 当前阶段结论：
   - 这批确认只是 `SSE experimental intrinsics` 的源码文本卫生收口，不涉及行为修复

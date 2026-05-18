@@ -5830,3 +5830,22 @@
 | 1. 扩展 raw-opcode forbid list 到 compare/comi 家族 | completed | 已为 `simd_cmp*pd` 禁 `cmppd`，`simd_cmp*sd` 禁 `cmpsd`，`simd_comi*` 禁 `comisd`，`simd_ucomi*` 禁 `ucomisd` |
 | 2. 单跑结构检查确认无假红 | completed | `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line` 已 fresh 回到 `forbidden_raw_float_opcode_hits=0` |
 | 3. release 主链复验 | completed | `git diff --check` 与 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已全部 fresh 通过 |
+
+## 2026-05-18 SSE2 Fence/Cache-Control Opcode Guardrail
+
+### Goal
+
+把当前只剩 smoke/no-crash 证明的 4 个 SSE2 side-effect surface 也收进结构护栏：
+`simd_clflush`、
+`simd_lfence`、
+`simd_mfence`、
+`simd_pause`。
+这批不追求更重的 runtime 语义，而是要求这些 routine 在 raw-leaf 文件里必须仍然发出目标 opcode。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 给 side-effect surface 增加 required-opcode 规则 | completed | 已新增 `REQUIRED_SIDE_EFFECT_OPCODES_BY_ROUTINE`，要求 `simd_clflush/lfence/mfence/pause` 的 asm body 必须命中对应 opcode |
+| 2. 单跑结构检查确认新字段与无假红 | completed | `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line` 已 fresh 输出 `missing_required_side_effect_opcodes=0` |
+| 3. release 主链复验 | completed | `git diff --check` 与 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已全部 fresh 通过 |

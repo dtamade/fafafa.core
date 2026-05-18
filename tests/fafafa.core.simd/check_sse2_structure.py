@@ -83,6 +83,13 @@ FORBIDDEN_RAW_FLOAT_OPCODES_BY_ROUTINE = {
     'simd_ucomineq_sd': ('ucomisd',),
 }
 
+REQUIRED_SIDE_EFFECT_OPCODES_BY_ROUTINE = {
+    'simd_clflush': ('clflush',),
+    'simd_lfence': ('lfence',),
+    'simd_mfence': ('mfence',),
+    'simd_pause': ('pause',),
+}
+
 ALLOWED_INTRINSICS_STATUS = {
     'active leaf',
     'experimental isolated',
@@ -300,6 +307,20 @@ def collect_forbidden_raw_float_opcode_hits(a_text: str) -> list[str]:
                 l_line_no = a_text.count('\n', 0, l_routine_match.start(4) + l_opcode_match.start()) + 1
                 l_hits.append(f'{l_routine_name}: line {l_line_no} still emits raw {l_opcode}')
     return l_hits
+
+
+def collect_missing_required_side_effect_opcodes(a_text: str) -> list[str]:
+    l_missing: list[str] = []
+    for l_routine_match in ASM_ROUTINE_RE.finditer(a_text):
+        l_routine_name = l_routine_match.group(2).lower()
+        l_body = l_routine_match.group(4)
+        l_required_opcodes = REQUIRED_SIDE_EFFECT_OPCODES_BY_ROUTINE.get(l_routine_name)
+        if l_required_opcodes is None:
+            continue
+        for l_opcode in l_required_opcodes:
+            if re.search(r'\b' + re.escape(l_opcode) + r'\b', l_body, flags=re.IGNORECASE) is None:
+                l_missing.append(f'{l_routine_name}: missing required side-effect opcode {l_opcode}')
+    return l_missing
 
 
 def main() -> int:
@@ -526,6 +547,12 @@ def main() -> int:
             f'{intrinsics_raw_leaf_path.name} must keep special-value helper wrappers instead of raw float opcodes: {hit}'
         )
 
+    missing_required_side_effect_opcodes = collect_missing_required_side_effect_opcodes(intrinsics_raw_leaf_text)
+    for hit in missing_required_side_effect_opcodes:
+        failures.append(
+            f'{intrinsics_raw_leaf_path.name} must preserve required side-effect opcodes for cache-control/fence helpers: {hit}'
+        )
+
     backend_truth_doc_exists = backend_truth_doc_path.exists()
     backend_truth_text = backend_truth_doc_path.read_text(encoding='utf-8', errors='replace') if backend_truth_doc_exists else ''
     intrinsics_disposition_doc_exists = intrinsics_disposition_doc_path.exists()
@@ -640,6 +667,7 @@ def main() -> int:
         'raw_leaf_forbidden_hits': raw_leaf_forbidden_hits,
         'constref_aligned_load_violations': constref_aligned_load_violations,
         'forbidden_raw_float_opcode_hits': forbidden_raw_float_opcode_hits,
+        'missing_required_side_effect_opcodes': missing_required_side_effect_opcodes,
         'backend_truth_doc_exists': backend_truth_doc_exists,
         'backend_truth_rows_count': len(backend_truth_rows),
         'intrinsics_disposition_doc_exists': intrinsics_disposition_doc_exists,
@@ -671,6 +699,7 @@ def main() -> int:
     print(f'  - raw_leaf_forbidden_hits:        {len(raw_leaf_forbidden_hits)}')
     print(f'  - constref_aligned_load_violations:{len(constref_aligned_load_violations)}')
     print(f'  - forbidden_raw_float_opcode_hits:{len(forbidden_raw_float_opcode_hits)}')
+    print(f'  - missing_required_side_effect_opcodes:{len(missing_required_side_effect_opcodes)}')
     print(f'  - backend_truth_rows_count:       {len(backend_truth_rows)}')
     print(f'  - intrinsics_disposition_rows:    {len(intrinsics_disposition_rows)}')
     print(f'  - repo_intrinsics_units_count:    {len(repo_intrinsics_units)}')
@@ -716,6 +745,7 @@ def main() -> int:
             f'raw_leaf_forbidden_hits={len(raw_leaf_forbidden_hits)} '
             f'constref_aligned_load_violations={len(constref_aligned_load_violations)} '
             f'forbidden_raw_float_opcode_hits={len(forbidden_raw_float_opcode_hits)} '
+            f'missing_required_side_effect_opcodes={len(missing_required_side_effect_opcodes)} '
             f'backend_truth_rows={len(backend_truth_rows)} '
             f'intrinsics_disposition_rows={len(intrinsics_disposition_rows)} '
             f'migration_missing_sections={len(migration_missing_sections)} '
