@@ -5561,3 +5561,17 @@
 | 1. 复核 signed min/max 的 direct coverage 缺口 | completed | 已确认 `simd_max_epi8/max_epi16/min_epi8/min_epi16` 在 experimental testcase 中仍然 0-hit，而 `max_epu8/min_epu8` 已由 `Test_UnsignedMinMaxAvgSadSemantics` 覆盖 |
 | 2. 只补 representative signed-selection proof，不扩实现范围 | completed | 已新增 `Test_SignedIntegerMinMaxSemantics`，使用正负交错的 `i8/i16` 样本逐 lane 校验 signed `min/max` 选择结果 |
 | 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已全部 fresh 通过；本批继续保持 tests-only，无需重开 source 修复 |
+
+## 2026-05-18 SSE2 Aligned/Unaligned Load Surface Coverage Expansion
+
+### Goal
+
+继续沿剩余 `0-hit` direct leaf 清单推进，但这次一次性收掉最后 4 个 `load` surface：`simd_load_si128`、`simd_load_pd`、`simd_load_ps`、`simd_loadu_ps`。这批只做 direct proof，重点锁 aligned load 的 lane/bit 语义，以及 `loadu_ps` 的非 16-byte 对齐读合同，不扩到 store surface。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核最后 4 个 load surface 的 direct coverage 缺口 | completed | 已确认当前只剩 `load_si128/load_pd/load_ps/loadu_ps` 仍然 0-hit；现有 `loadu_si128`、`loadu_pd`、partial load/store 都已有 direct proof |
+| 2. 只补 representative aligned/unaligned proof，不扩实现范围 | completed | 已新增 `AlignPointer(...)` helper 与 `Test_AlignedAndUnalignedLoadSurfaceSemantics`，直接覆盖 `load_si128` 的 aligned bytes、`load_pd` 的 aligned doubles、`load_ps` 的 exact-bit singles，以及 `loadu_ps` 的非 16-byte aligned exact-bit load |
+| 3. 清理输出目录噪音后完成串行复验 | completed | 首轮 `experimental=1` 遇到 `ld.bfd: no input files` 链接器噪音；清理 `tests/fafafa.core.simd.intrinsics.experimental/bin` 与 `lib/x86_64-linux/exp1` 生成产物后，串行 experimental=`1` 与随后补跑的 experimental=`0` 已全部 fresh 通过 |

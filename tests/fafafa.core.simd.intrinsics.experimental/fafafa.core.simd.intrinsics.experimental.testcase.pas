@@ -846,6 +846,11 @@ begin
     aTest.AssertEquals(aLabel + ' lane ' + IntToStr(LIndex), aExpected.m128i_u8[LIndex], aActual.m128i_u8[LIndex]);
 end;
 
+function AlignPointer(const aRaw: Pointer; const aAlignment: PtrUInt): Pointer; inline;
+begin
+  Result := Pointer((PtrUInt(aRaw) + (aAlignment - 1)) and not (aAlignment - 1));
+end;
+
 function SaturateI32ToI16(const aValue: LongInt): SmallInt; inline;
 begin
   if aValue > High(SmallInt) then
@@ -1153,6 +1158,7 @@ type
     procedure Test_SignedAndUnsignedSaturatingArithmeticSemantics;
     procedure Test_SignedIntegerMinMaxSemantics;
     procedure Test_UnsignedMinMaxAvgSadSemantics;
+    procedure Test_AlignedAndUnalignedLoadSurfaceSemantics;
     procedure Test_IntegerMultiplyFamilies_Semantics;
     procedure Test_SlliEpi16_ShiftCounts;
     procedure Test_IntegerLogicalShiftFamilies_RespectImmediateBounds;
@@ -3269,6 +3275,75 @@ begin
   LActual := simd_sad_epu8(LA, LB);
   AssertEquals('simd_sad_epu8 low qword', Int64(LExpectedSadLo), Int64(LActual.m128i_u64[0]));
   AssertEquals('simd_sad_epu8 high qword', Int64(LExpectedSadHi), Int64(LActual.m128i_u64[1]));
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_AlignedAndUnalignedLoadSurfaceSemantics;
+var
+  LRawBytes: Pointer;
+  LRawDoubles: Pointer;
+  LRawSingles: Pointer;
+  LAlignedBytes: Pointer;
+  LAlignedDoubles: Pointer;
+  LAlignedSingles: Pointer;
+  LUnalignedSingles: Pointer;
+  LExpected: TM128;
+  LActual: TM128;
+  LIndex: Integer;
+begin
+  LRawBytes := nil;
+  LRawDoubles := nil;
+  LRawSingles := nil;
+  try
+    GetMem(LRawBytes, 16 + 15);
+    GetMem(LRawDoubles, 16 + 15);
+    GetMem(LRawSingles, 32 + 15);
+
+    LAlignedBytes := AlignPointer(LRawBytes, 16);
+    LAlignedDoubles := AlignPointer(LRawDoubles, 16);
+    LAlignedSingles := AlignPointer(LRawSingles, 16);
+    LUnalignedSingles := Pointer(PtrUInt(LAlignedSingles) + 4);
+
+    for LIndex := 0 to 15 do
+      PByte(LAlignedBytes)[LIndex] := Byte($90 + LIndex);
+    FillChar(LExpected, SizeOf(LExpected), 0);
+    for LIndex := 0 to 15 do
+      LExpected.m128i_u8[LIndex] := Byte($90 + LIndex);
+    LActual := simd_load_si128(LAlignedBytes);
+    AssertM128BytesEqual(Self, 'simd_load_si128 aligned bytes', LExpected, LActual);
+
+    PDouble(LAlignedDoubles)[0] := 1.25;
+    PDouble(LAlignedDoubles)[1] := -9.5;
+    LActual := simd_load_pd(LAlignedDoubles);
+    AssertEquals('simd_load_pd lane0', 1.25, LActual.m128d_f64[0], 0.0);
+    AssertEquals('simd_load_pd lane1', -9.5, LActual.m128d_f64[1], 0.0);
+
+    PCardinal(LAlignedSingles)[0] := DWord($7FC12345);
+    PCardinal(LAlignedSingles)[1] := DWord($80000000);
+    PCardinal(LAlignedSingles)[2] := DWord($3F800000);
+    PCardinal(LAlignedSingles)[3] := DWord($C0200000);
+    LActual := simd_load_ps(LAlignedSingles);
+    AssertEquals('simd_load_ps lane0 bits', LongInt($7FC12345), LActual.m128i_i32[0]);
+    AssertEquals('simd_load_ps lane1 bits', LongInt($80000000), LActual.m128i_i32[1]);
+    AssertEquals('simd_load_ps lane2 bits', LongInt($3F800000), LActual.m128i_i32[2]);
+    AssertEquals('simd_load_ps lane3 bits', LongInt($C0200000), LActual.m128i_i32[3]);
+
+    PCardinal(LUnalignedSingles)[0] := DWord($01234567);
+    PCardinal(LUnalignedSingles)[1] := DWord($89ABCDEF);
+    PCardinal(LUnalignedSingles)[2] := DWord($0F1E2D3C);
+    PCardinal(LUnalignedSingles)[3] := DWord($FFEEDDCC);
+    LActual := simd_loadu_ps(LUnalignedSingles);
+    AssertEquals('simd_loadu_ps lane0 bits', LongInt($01234567), LActual.m128i_i32[0]);
+    AssertEquals('simd_loadu_ps lane1 bits', LongInt(DWord($89ABCDEF)), LActual.m128i_i32[1]);
+    AssertEquals('simd_loadu_ps lane2 bits', LongInt($0F1E2D3C), LActual.m128i_i32[2]);
+    AssertEquals('simd_loadu_ps lane3 bits', LongInt(DWord($FFEEDDCC)), LActual.m128i_i32[3]);
+  finally
+    if LRawSingles <> nil then
+      FreeMem(LRawSingles);
+    if LRawDoubles <> nil then
+      FreeMem(LRawDoubles);
+    if LRawBytes <> nil then
+      FreeMem(LRawBytes);
+  end;
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_IntegerMultiplyFamilies_Semantics;

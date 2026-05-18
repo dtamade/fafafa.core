@@ -14229,3 +14229,39 @@
 - 当前阶段结论：
   - 又收掉了一组此前 0-hit 的 `SSE2` 直接 leaf
   - 继续保持 tests-only 收口，没有引出新的 source bug
+
+## 2026-05-18 SSE2 Aligned/Unaligned Load Surface Coverage Expansion
+
+- 当前继续沿剩余 `0-hit` direct leaf 清单推进，这次一次性收掉最后 4 个 `load` surface：
+  - `simd_load_si128`
+  - `simd_load_pd`
+  - `simd_load_ps`
+  - `simd_loadu_ps`
+- 先复核现状：
+  - `loadu_si128`、`loadu_pd`、partial `load*_pd/load_sd` 已有 proof
+  - 上面 4 个 surface 仍然是 0-hit
+- 本批继续保持 tests-only：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 `AlignPointer(...)`
+    - 新增 `Test_AlignedAndUnalignedLoadSurfaceSemantics`
+- 新 proof 直接锁住：
+  - `simd_load_si128` 的 aligned byte payload
+  - `simd_load_pd` 的 aligned double lane 值
+  - `simd_load_ps` 的 exact-bit single payload
+  - `simd_loadu_ps` 的非 16-byte aligned exact-bit payload
+- 中途碰到的不是语义红，而是输出目录/链接噪音：
+  - `experimental=1` 首轮出现 `ld.bfd: no input files`
+  - 处理方式：
+    - 清理 `tests/fafafa.core.simd.intrinsics.experimental/bin`
+    - 清理 `tests/fafafa.core.simd.intrinsics.experimental/lib/x86_64-linux/exp1`
+  - 清理后重跑恢复正常
+- fresh closeout 已完成：
+  - `git diff --check`
+  - 清理产物后串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 随后补跑串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- fresh 结果：
+  - default / experimental 双模态测试均 `TEST OK`
+  - 这 4 个 load surface 的 direct proof 全部收绿
+- 当前阶段结论：
+  - 到这一刻为止，最初那份 `SSE2` direct leaf 里长期 0-hit 的 surface 已经基本被扫光
+  - 这批没有打出新的 source bug，继续保持 tests-only 收口
