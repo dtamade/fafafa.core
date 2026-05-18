@@ -5477,3 +5477,17 @@
 | 1. 先取 host truth 并复核 exact bit-widening coverage 缺口 | completed | 已用本机 `cc -msse2` probe 确认 `cvtps_pd` 会把 `negative NaN` widening 成 `fff82468a0000000`、`negative zero` widening 成 `8000000000000000`；`cvtss_sd` 对低 lane 也给出相同 widening 结果，并继续 preserve high lane |
 | 2. 只补 representative proof，不扩实现范围 | completed | 已新增 `Test_SingleToDoubleWideningBitPreserveSemantics`，直接覆盖 `simd_cvtps_pd` 的 positive/negative NaN 与 signed zero，以及 `simd_cvtss_sd` 的 negative NaN / negative zero 与 high-lane preserve |
 | 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已全部 fresh 通过；本批继续保持 tests-only，无需重开 source 修复 |
+
+## 2026-05-18 SSE2 Integer-To-Double Extreme Boundary Coverage Expansion
+
+### Goal
+
+继续沿 widening 热路径收口整数到 double 的极值边界，但只切 `simd_cvtepi32_pd`、`simd_cvtsi32_sd`、`simd_cvtsi64_sd`。先用本机 probe 取 host truth，再补 representative proof，确认 `int32 min/max` 的 exact widening 和 `int64 max/min` 的 top-end rounding 没有被普通中等数值用例掩盖；若 fresh 运行打红，再把修复限制在对应 widening leaf 周围。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 先取 host truth 并复核 extreme-boundary coverage 缺口 | completed | 已用本机 `cc -msse2` probe 确认 `cvtepi32_pd / cvtsi32_sd` 对 `int32 max/min` 都给出 exact double bits；`cvtsi64_sd` 对 `int64 max` round 到 `2^63`，对 `int64 min` 保持 exact `-2^63`，且 high lane 继续 preserve |
+| 2. 只补 representative proof，不扩实现范围 | completed | 已新增 `Test_IntegerToDoubleExtremeBoundarySemantics`，直接覆盖 `simd_cvtepi32_pd` 的 `int32 max/min`，以及 `simd_cvtsi32_sd / simd_cvtsi64_sd` 的 extreme-boundary bits 与 high-lane preserve |
+| 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已全部 fresh 通过；本批继续保持 tests-only，无需重开 source 修复 |

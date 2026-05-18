@@ -1137,6 +1137,7 @@ type
     procedure Test_ConversionFamilies_PreserveExpectedLanes;
     procedure Test_WideningConversionPrecisionSemantics;
     procedure Test_SingleToDoubleWideningBitPreserveSemantics;
+    procedure Test_IntegerToDoubleExtremeBoundarySemantics;
     procedure Test_RoundAndTruncConversionSemantics;
     procedure Test_ConversionIndefiniteSemantics;
     procedure Test_NarrowingFloatConversionHostTruthSemantics;
@@ -1998,6 +1999,48 @@ begin
     Int64(QWord($8000000000000000)), Int64(LActual.m128i_u64[0]));
   AssertEquals('simd_cvtss_sd negative zero preserves high lane',
     Int64(QWord($C056000000000000)), Int64(LActual.m128i_u64[1]));
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_IntegerToDoubleExtremeBoundarySemantics;
+var
+  LInts: TM128;
+  LA: TM128;
+  LActual: TM128;
+begin
+  FillChar(LInts, SizeOf(LInts), 0);
+  LInts.m128i_i32[0] := High(LongInt);
+  LInts.m128i_i32[1] := Low(LongInt);
+  LActual := simd_cvtepi32_pd(LInts);
+  AssertEquals('simd_cvtepi32_pd int32 max exact bits',
+    Int64(QWord($41DFFFFFFFC00000)), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_cvtepi32_pd int32 min exact bits',
+    Int64(QWord($C1E0000000000000)), Int64(LActual.m128i_u64[1]));
+
+  FillChar(LA, SizeOf(LA), 0);
+  LA.m128d_f64[1] := 88.0;
+  LActual := simd_cvtsi32_sd(LA, High(LongInt));
+  AssertEquals('simd_cvtsi32_sd int32 max exact bits',
+    Int64(QWord($41DFFFFFFFC00000)), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_cvtsi32_sd int32 max keeps high lane bits',
+    Int64(QWord($4056000000000000)), Int64(LActual.m128i_u64[1]));
+
+  LActual := simd_cvtsi32_sd(LA, Low(LongInt));
+  AssertEquals('simd_cvtsi32_sd int32 min exact bits',
+    Int64(QWord($C1E0000000000000)), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_cvtsi32_sd int32 min keeps high lane bits',
+    Int64(QWord($4056000000000000)), Int64(LActual.m128i_u64[1]));
+
+  LActual := simd_cvtsi64_sd(LA, High(Int64));
+  AssertEquals('simd_cvtsi64_sd int64 max rounds to 2^63 bits',
+    Int64(QWord($43E0000000000000)), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_cvtsi64_sd int64 max keeps high lane bits',
+    Int64(QWord($4056000000000000)), Int64(LActual.m128i_u64[1]));
+
+  LActual := simd_cvtsi64_sd(LA, Low(Int64));
+  AssertEquals('simd_cvtsi64_sd int64 min exact bits',
+    Int64(QWord($C3E0000000000000)), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_cvtsi64_sd int64 min keeps high lane bits',
+    Int64(QWord($4056000000000000)), Int64(LActual.m128i_u64[1]));
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_RoundAndTruncConversionSemantics;

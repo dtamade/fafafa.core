@@ -14051,3 +14051,30 @@
 - 当前阶段结论：
   - 到这一刻为止，`SSE2 widening` 方向的高信息量 residual 已扩到 exact bit widening，而不只是普通 finite/happy-path
   - 这批没有打出新的 source bug，继续保持 tests-only 收口
+
+## 2026-05-18 SSE2 Integer-To-Double Extreme Boundary Coverage Expansion
+
+- 当前继续沿 widening 热路径推进，这次专门核对整数到 double 的极值边界。
+- 先用本机 `cc -msse2` probe 取到 host truth：
+  - `cvtepi32_pd_int32_extremes -> 41dfffffffc00000 c1e0000000000000`
+  - `cvtsi32_sd_int32_max -> 41dfffffffc00000 4056000000000000`
+  - `cvtsi32_sd_int32_min -> c1e0000000000000 4056000000000000`
+  - `cvtsi64_sd_int64_max -> 43e0000000000000 4056000000000000`
+  - `cvtsi64_sd_int64_min -> c3e0000000000000 4056000000000000`
+- 本批继续保持 tests-only：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 `Test_IntegerToDoubleExtremeBoundarySemantics`
+- 新 proof 直接锁住：
+  - `simd_cvtepi32_pd` 的 `int32 max/min` exact bits
+  - `simd_cvtsi32_sd` 的 `int32 max/min` exact bits 与 high-lane preserve
+  - `simd_cvtsi64_sd` 的 `int64 max/min` extreme-boundary bits 与 high-lane preserve
+- fresh closeout 已完成：
+  - `git diff --check`
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- fresh 结果：
+  - default / experimental 双模态测试均 `TEST OK`
+  - integer-to-double extreme boundary 与 host truth 一致，无新增 widening drift
+- 当前阶段结论：
+  - 到这一刻为止，`SSE2 widening` 方向的整数边界 proof 已从中等值/precision window 扩到 extreme-boundary
+  - 这批没有打出新的 source bug，继续保持 tests-only 收口
