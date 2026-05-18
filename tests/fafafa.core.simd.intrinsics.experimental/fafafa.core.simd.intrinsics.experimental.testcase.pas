@@ -1137,6 +1137,9 @@ type
     procedure Test_FloatSubDivAndScalarArithmeticPreserveContracts;
     procedure Test_SqrtFamilies_RespectLaneAndPreserveContracts;
     procedure Test_SqrtFamilies_NegativeAndNaNStayExceptionFree;
+    procedure Test_AddFamilies_SpecialValuesStayExceptionFree;
+    procedure Test_SubFamilies_SpecialValuesStayExceptionFree;
+    procedure Test_MulFamilies_SpecialValuesStayExceptionFree;
     procedure Test_DivFamilies_SpecialValuesStayExceptionFree;
     procedure Test_SingleMinMaxFamilies_HostTruthSemantics;
     procedure Test_DoubleMinMaxFamilies_HostTruthSemantics;
@@ -1745,6 +1748,144 @@ begin
   LActual := simd_sqrt_sd(LA, LB);
   AssertTrue('simd_sqrt_sd qnan low lane -> NaN', IsNan(LActual.m128d_f64[0]));
   AssertEquals('simd_sqrt_sd keep high lane on qnan input', 88.0, LActual.m128d_f64[1], 0.0);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_AddFamilies_SpecialValuesStayExceptionFree;
+var
+  LA: TM128;
+  LB: TM128;
+  LActual: TM128;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128_f32[0] := Infinity;
+  LA.m128_f32[1] := -Infinity;
+  LA.m128_f32[2] := Infinity;
+  LA.m128i_u32[3] := DWord($7FC12345);
+  LB.m128_f32[0] := 1.0;
+  LB.m128_f32[1] := 1.0;
+  LB.m128_f32[2] := -Infinity;
+  LB.m128_f32[3] := 1.0;
+
+  LActual := simd_add_ps(LA, LB);
+  AssertTrue('simd_add_ps +Inf + 1 -> +Inf', IsInfinite(LActual.m128_f32[0]) and (LActual.m128_f32[0] > 0));
+  AssertTrue('simd_add_ps -Inf + 1 -> -Inf', IsInfinite(LActual.m128_f32[1]) and (LActual.m128_f32[1] < 0));
+  AssertTrue('simd_add_ps Inf + -Inf -> NaN', IsNan(LActual.m128_f32[2]));
+  AssertTrue('simd_add_ps qnan + 1 -> NaN', IsNan(LActual.m128_f32[3]));
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := Infinity;
+  LA.m128d_f64[1] := Infinity;
+  LB.m128d_f64[0] := 1.0;
+  LB.m128d_f64[1] := -Infinity;
+
+  LActual := simd_add_pd(LA, LB);
+  AssertTrue('simd_add_pd +Inf + 1 -> +Inf', IsInfinite(LActual.m128d_f64[0]) and (LActual.m128d_f64[0] > 0));
+  AssertTrue('simd_add_pd Inf + -Inf -> NaN', IsNan(LActual.m128d_f64[1]));
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := Infinity;
+  LA.m128d_f64[1] := 88.0;
+  LB.m128d_f64[0] := -Infinity;
+  LB.m128d_f64[1] := 999.0;
+
+  LActual := simd_add_sd(LA, LB);
+  AssertTrue('simd_add_sd Inf + -Inf -> NaN', IsNan(LActual.m128d_f64[0]));
+  AssertEquals('simd_add_sd keep high lane', 88.0, LActual.m128d_f64[1], 0.0);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_SubFamilies_SpecialValuesStayExceptionFree;
+var
+  LA: TM128;
+  LB: TM128;
+  LActual: TM128;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128_f32[0] := Infinity;
+  LA.m128_f32[1] := -Infinity;
+  LA.m128_f32[2] := Infinity;
+  LA.m128i_u32[3] := DWord($7FC12345);
+  LB.m128_f32[0] := 1.0;
+  LB.m128_f32[1] := 1.0;
+  LB.m128_f32[2] := Infinity;
+  LB.m128_f32[3] := 1.0;
+
+  LActual := simd_sub_ps(LA, LB);
+  AssertTrue('simd_sub_ps +Inf - 1 -> +Inf', IsInfinite(LActual.m128_f32[0]) and (LActual.m128_f32[0] > 0));
+  AssertTrue('simd_sub_ps -Inf - 1 -> -Inf', IsInfinite(LActual.m128_f32[1]) and (LActual.m128_f32[1] < 0));
+  AssertTrue('simd_sub_ps Inf - Inf -> NaN', IsNan(LActual.m128_f32[2]));
+  AssertTrue('simd_sub_ps qnan - 1 -> NaN', IsNan(LActual.m128_f32[3]));
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := Infinity;
+  LA.m128d_f64[1] := Infinity;
+  LB.m128d_f64[0] := 1.0;
+  LB.m128d_f64[1] := Infinity;
+
+  LActual := simd_sub_pd(LA, LB);
+  AssertTrue('simd_sub_pd +Inf - 1 -> +Inf', IsInfinite(LActual.m128d_f64[0]) and (LActual.m128d_f64[0] > 0));
+  AssertTrue('simd_sub_pd Inf - Inf -> NaN', IsNan(LActual.m128d_f64[1]));
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := Infinity;
+  LA.m128d_f64[1] := 88.0;
+  LB.m128d_f64[0] := Infinity;
+  LB.m128d_f64[1] := 999.0;
+
+  LActual := simd_sub_sd(LA, LB);
+  AssertTrue('simd_sub_sd Inf - Inf -> NaN', IsNan(LActual.m128d_f64[0]));
+  AssertEquals('simd_sub_sd keep high lane', 88.0, LActual.m128d_f64[1], 0.0);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_MulFamilies_SpecialValuesStayExceptionFree;
+var
+  LA: TM128;
+  LB: TM128;
+  LActual: TM128;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128_f32[0] := Infinity;
+  LA.m128_f32[1] := -Infinity;
+  LA.m128_f32[2] := 0.0;
+  LA.m128i_u32[3] := DWord($7FC12345);
+  LB.m128_f32[0] := 2.0;
+  LB.m128_f32[1] := 2.0;
+  LB.m128_f32[2] := Infinity;
+  LB.m128_f32[3] := 1.0;
+
+  LActual := simd_mul_ps(LA, LB);
+  AssertTrue('simd_mul_ps +Inf * 2 -> +Inf', IsInfinite(LActual.m128_f32[0]) and (LActual.m128_f32[0] > 0));
+  AssertTrue('simd_mul_ps -Inf * 2 -> -Inf', IsInfinite(LActual.m128_f32[1]) and (LActual.m128_f32[1] < 0));
+  AssertTrue('simd_mul_ps 0 * Inf -> NaN', IsNan(LActual.m128_f32[2]));
+  AssertTrue('simd_mul_ps qnan * 1 -> NaN', IsNan(LActual.m128_f32[3]));
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := Infinity;
+  LA.m128d_f64[1] := 0.0;
+  LB.m128d_f64[0] := 2.0;
+  LB.m128d_f64[1] := Infinity;
+
+  LActual := simd_mul_pd(LA, LB);
+  AssertTrue('simd_mul_pd +Inf * 2 -> +Inf', IsInfinite(LActual.m128d_f64[0]) and (LActual.m128d_f64[0] > 0));
+  AssertTrue('simd_mul_pd 0 * Inf -> NaN', IsNan(LActual.m128d_f64[1]));
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := 0.0;
+  LA.m128d_f64[1] := 88.0;
+  LB.m128d_f64[0] := Infinity;
+  LB.m128d_f64[1] := 999.0;
+
+  LActual := simd_mul_sd(LA, LB);
+  AssertTrue('simd_mul_sd 0 * Inf -> NaN', IsNan(LActual.m128d_f64[0]));
+  AssertEquals('simd_mul_sd keep high lane', 88.0, LActual.m128d_f64[1], 0.0);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_DivFamilies_SpecialValuesStayExceptionFree;

@@ -345,11 +345,39 @@ type
     dmmkMax
   );
 
+  TSimdBinaryArithmeticKind = (
+    bakAdd,
+    bakSub,
+    bakMul
+  );
+
 function BuildPackedDoubleCompareMask(constref a, b: TM128; const aKind: TSimdDoubleMaskCompareKind): TM128; forward;
 function BuildScalarDoubleCompareMask(constref a, b: TM128; const aKind: TSimdDoubleMaskCompareKind): TM128; forward;
 function BuildPackedSingleMinMax(constref a, b: TM128; const aKind: TSimdDoubleMinMaxKind): TM128; forward;
 function BuildPackedDoubleMinMax(constref a, b: TM128; const aKind: TSimdDoubleMinMaxKind): TM128; forward;
 function BuildScalarDoubleMinMax(constref a, b: TM128; const aKind: TSimdDoubleMinMaxKind): TM128; forward;
+function SelectSingleSpecialArithmeticBits(
+  const aLeftBits, aRightBits: DWord;
+  const aLeftValue, aRightValue: Single;
+  const aKind: TSimdBinaryArithmeticKind
+): DWord; forward;
+function SelectDoubleSpecialArithmeticBits(
+  const aLeftBits, aRightBits: QWord;
+  const aLeftValue, aRightValue: Double;
+  const aKind: TSimdBinaryArithmeticKind
+): QWord; forward;
+function BuildPackedSingleSpecialArithmetic(
+  constref a, b: TM128;
+  const aKind: TSimdBinaryArithmeticKind
+): TM128; forward;
+function BuildPackedDoubleSpecialArithmetic(
+  constref a, b: TM128;
+  const aKind: TSimdBinaryArithmeticKind
+): TM128; forward;
+function BuildScalarDoubleSpecialArithmetic(
+  constref a, b: TM128;
+  const aKind: TSimdBinaryArithmeticKind
+): TM128; forward;
 function SelectSingleSqrtBits(const aBits: DWord; const aValue: Single): DWord; forward;
 function SelectDoubleSqrtBits(const aBits: QWord; const aValue: Double): QWord; forward;
 function BuildPackedSingleSqrt(constref a: TM128): TM128; forward;
@@ -1569,70 +1597,19 @@ asm
 end;
 
 // === 4️⃣ Floating-Point Arithmetic 实现 ===
-function simd_add_ps(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]; movups xmm1, [rdx]; addps xmm0, xmm1  // 4个单精度浮点并行加法
-  {$ELSE}
-    movups xmm0, [rdi]; movups xmm1, [rsi]; addps xmm0, xmm1
-  {$ENDIF}
-{$ELSEIF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movups xmm0, [eax]; movups xmm1, [edx]; addps xmm0, xmm1
-{$ELSE}
-    {$ERROR Unsupported CPU}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_add_ps(constref a, b: TM128): TM128;
+begin
+  Result := BuildPackedSingleSpecialArithmetic(a, b, bakAdd);
 end;
 
-function simd_sub_ps(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]; movups xmm1, [rdx]; subps xmm0, xmm1  // 4个单精度浮点并行减法
-  {$ELSE}
-    movups xmm0, [rdi]; movups xmm1, [rsi]; subps xmm0, xmm1
-  {$ENDIF}
-{$ELSEIF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movups xmm0, [eax]; movups xmm1, [edx]; subps xmm0, xmm1
-{$ELSE}
-    {$ERROR Unsupported CPU}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_sub_ps(constref a, b: TM128): TM128;
+begin
+  Result := BuildPackedSingleSpecialArithmetic(a, b, bakSub);
 end;
 
-function simd_mul_ps(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]; movups xmm1, [rdx]; mulps xmm0, xmm1  // 4个单精度浮点并行乘法
-  {$ELSE}
-    movups xmm0, [rdi]; movups xmm1, [rsi]; mulps xmm0, xmm1
-  {$ENDIF}
-{$ELSEIF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movups xmm0, [eax]; movups xmm1, [edx]; mulps xmm0, xmm1
-{$ELSE}
-    {$ERROR Unsupported CPU}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_mul_ps(constref a, b: TM128): TM128;
+begin
+  Result := BuildPackedSingleSpecialArithmetic(a, b, bakMul);
 end;
 
 function SingleBitsIsZero(const aBits: DWord): Boolean; inline;
@@ -1657,6 +1634,135 @@ begin
   if aNegative then
     Exit(QWord($FFF0000000000000));
   Result := QWord($7FF0000000000000);
+end;
+
+function SelectSingleSpecialArithmeticBits(
+  const aLeftBits, aRightBits: DWord;
+  const aLeftValue, aRightValue: Single;
+  const aKind: TSimdBinaryArithmeticKind
+): DWord; inline;
+const
+  CANONICAL_SINGLE_QNAN = DWord($7FC00000);
+var
+  LResult: Single;
+begin
+  if IsNan(aLeftValue) then
+    Exit(aLeftBits);
+  if IsNan(aRightValue) then
+    Exit(aRightBits);
+
+  case aKind of
+    bakAdd:
+      if IsInfinite(aLeftValue) and IsInfinite(aRightValue) and
+        (((aLeftBits xor aRightBits) and DWord($80000000)) <> 0) then
+        Exit(CANONICAL_SINGLE_QNAN);
+    bakSub:
+      if IsInfinite(aLeftValue) and IsInfinite(aRightValue) and
+        (((aLeftBits xor aRightBits) and DWord($80000000)) = 0) then
+        Exit(CANONICAL_SINGLE_QNAN);
+    bakMul:
+      if (SingleBitsIsZero(aLeftBits) and IsInfinite(aRightValue)) or
+        (SingleBitsIsZero(aRightBits) and IsInfinite(aLeftValue)) then
+        Exit(CANONICAL_SINGLE_QNAN);
+  end;
+
+  case aKind of
+    bakAdd: LResult := aLeftValue + aRightValue;
+    bakSub: LResult := aLeftValue - aRightValue;
+  else
+    LResult := aLeftValue * aRightValue;
+  end;
+  Move(LResult, Result, SizeOf(Result));
+end;
+
+function SelectDoubleSpecialArithmeticBits(
+  const aLeftBits, aRightBits: QWord;
+  const aLeftValue, aRightValue: Double;
+  const aKind: TSimdBinaryArithmeticKind
+): QWord; inline;
+const
+  CANONICAL_DOUBLE_QNAN = QWord($7FF8000000000000);
+var
+  LResult: Double;
+begin
+  if IsNan(aLeftValue) then
+    Exit(aLeftBits);
+  if IsNan(aRightValue) then
+    Exit(aRightBits);
+
+  case aKind of
+    bakAdd:
+      if IsInfinite(aLeftValue) and IsInfinite(aRightValue) and
+        (((aLeftBits xor aRightBits) and QWord($8000000000000000)) <> 0) then
+        Exit(CANONICAL_DOUBLE_QNAN);
+    bakSub:
+      if IsInfinite(aLeftValue) and IsInfinite(aRightValue) and
+        (((aLeftBits xor aRightBits) and QWord($8000000000000000)) = 0) then
+        Exit(CANONICAL_DOUBLE_QNAN);
+    bakMul:
+      if (DoubleBitsIsZero(aLeftBits) and IsInfinite(aRightValue)) or
+        (DoubleBitsIsZero(aRightBits) and IsInfinite(aLeftValue)) then
+        Exit(CANONICAL_DOUBLE_QNAN);
+  end;
+
+  case aKind of
+    bakAdd: LResult := aLeftValue + aRightValue;
+    bakSub: LResult := aLeftValue - aRightValue;
+  else
+    LResult := aLeftValue * aRightValue;
+  end;
+  Move(LResult, Result, SizeOf(Result));
+end;
+
+function BuildPackedSingleSpecialArithmetic(
+  constref a, b: TM128;
+  const aKind: TSimdBinaryArithmeticKind
+): TM128; inline;
+var
+  LLane: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  for LLane := 0 to 3 do
+    Result.m128i_u32[LLane] := SelectSingleSpecialArithmeticBits(
+      a.m128i_u32[LLane],
+      b.m128i_u32[LLane],
+      a.m128_f32[LLane],
+      b.m128_f32[LLane],
+      aKind
+    );
+end;
+
+function BuildPackedDoubleSpecialArithmetic(
+  constref a, b: TM128;
+  const aKind: TSimdBinaryArithmeticKind
+): TM128; inline;
+var
+  LLane: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  for LLane := 0 to 1 do
+    Result.m128i_u64[LLane] := SelectDoubleSpecialArithmeticBits(
+      a.m128i_u64[LLane],
+      b.m128i_u64[LLane],
+      a.m128d_f64[LLane],
+      b.m128d_f64[LLane],
+      aKind
+    );
+end;
+
+function BuildScalarDoubleSpecialArithmetic(
+  constref a, b: TM128;
+  const aKind: TSimdBinaryArithmeticKind
+): TM128; inline;
+begin
+  Result := a;
+  Result.m128i_u64[0] := SelectDoubleSpecialArithmeticBits(
+    a.m128i_u64[0],
+    b.m128i_u64[0],
+    a.m128d_f64[0],
+    b.m128d_f64[0],
+    aKind
+  );
 end;
 
 function SelectSingleDivBits(
@@ -1762,70 +1868,19 @@ begin
   Result := BuildPackedSingleSqrt(a);
 end;
 
-function simd_add_pd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; movupd xmm1, [rdx]; addpd xmm0, xmm1  // 2个双精度浮点并行加法
-  {$ELSE}
-    movupd xmm0, [rdi]; movupd xmm1, [rsi]; addpd xmm0, xmm1
-  {$ENDIF}
-{$ELSEIF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; addpd xmm0, xmm1
-{$ELSE}
-    {$ERROR Unsupported CPU}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_add_pd(constref a, b: TM128): TM128;
+begin
+  Result := BuildPackedDoubleSpecialArithmetic(a, b, bakAdd);
 end;
 
-function simd_sub_pd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; movupd xmm1, [rdx]; subpd xmm0, xmm1  // 2个双精度浮点并行减法
-  {$ELSE}
-    movupd xmm0, [rdi]; movupd xmm1, [rsi]; subpd xmm0, xmm1
-  {$ENDIF}
-{$ELSEIF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; subpd xmm0, xmm1
-{$ELSE}
-    {$ERROR Unsupported CPU}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_sub_pd(constref a, b: TM128): TM128;
+begin
+  Result := BuildPackedDoubleSpecialArithmetic(a, b, bakSub);
 end;
 
-function simd_mul_pd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; movupd xmm1, [rdx]; mulpd xmm0, xmm1  // 2个双精度浮点并行乘法
-  {$ELSE}
-    movupd xmm0, [rdi]; movupd xmm1, [rsi]; mulpd xmm0, xmm1
-  {$ENDIF}
-{$ELSEIF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movupd xmm1, [edx]; mulpd xmm0, xmm1
-{$ELSE}
-    {$ERROR Unsupported CPU}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_mul_pd(constref a, b: TM128): TM128;
+begin
+  Result := BuildPackedDoubleSpecialArithmetic(a, b, bakMul);
 end;
 
 function simd_div_pd(constref a, b: TM128): TM128;
@@ -3935,70 +3990,19 @@ begin
   Result := BuildPackedDoubleMinMax(a, b, dmmkMax);
 end;
 
-function simd_add_sd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; movsd xmm1, [rdx]; addsd xmm0, xmm1  // 标量双精度加法，高位保持
-  {$ELSE}
-    movupd xmm0, [rdi]; movsd xmm1, [rsi]; addsd xmm0, xmm1
-  {$ENDIF}
-{$ELSEIF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; addsd xmm0, xmm1
-{$ELSE}
-    {$ERROR Unsupported CPU}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_add_sd(constref a, b: TM128): TM128;
+begin
+  Result := BuildScalarDoubleSpecialArithmetic(a, b, bakAdd);
 end;
 
-function simd_sub_sd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; movsd xmm1, [rdx]; subsd xmm0, xmm1  // Scalar double subtract, keep upper lane
-    {$ELSE}
-    movupd xmm0, [rdi]; movsd xmm1, [rsi]; subsd xmm0, xmm1
-  {$ENDIF}
-{$ELSEIF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; subsd xmm0, xmm1
-{$ELSE}
-    {$ERROR Unsupported CPU}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_sub_sd(constref a, b: TM128): TM128;
+begin
+  Result := BuildScalarDoubleSpecialArithmetic(a, b, bakSub);
 end;
 
-function simd_mul_sd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; movsd xmm1, [rdx]; mulsd xmm0, xmm1  // Scalar double multiply, keep upper lane
-    {$ELSE}
-    movupd xmm0, [rdi]; movsd xmm1, [rsi]; mulsd xmm0, xmm1
-  {$ENDIF}
-{$ELSEIF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; mulsd xmm0, xmm1
-{$ELSE}
-    {$ERROR Unsupported CPU}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_mul_sd(constref a, b: TM128): TM128;
+begin
+  Result := BuildScalarDoubleSpecialArithmetic(a, b, bakMul);
 end;
 
 function simd_div_sd(constref a, b: TM128): TM128;

@@ -14514,3 +14514,80 @@
 - 当前阶段结论：
   - 这已经是同一条特殊值 witness 路线下第二个 fresh 抓出的真缺陷簇
   - 当前 `sqrt/div` 这两组 raw 浮点 leaf 都已经从“happy path only”推进到“特殊值也不应直接把 exception 泄漏给调用者”
+
+## 2026-05-18 SSE2 Add/Sub/Mul Special-Value Exception-Free Repair
+
+- 没有在 `div` 收口后重新打开更大的浮点面，而是继续沿同一条“特殊值 invalid-op 泄漏”热线，只切：
+  - `simd_add_ps`
+  - `simd_sub_ps`
+  - `simd_mul_ps`
+  - `simd_add_pd`
+  - `simd_sub_pd`
+  - `simd_mul_pd`
+  - `simd_add_sd`
+  - `simd_sub_sd`
+  - `simd_mul_sd`
+- 当前选择这簇的原因也很明确：
+  - 它们和刚修过的 `sqrt/div` 一样，之前只有有限值 happy-path proof
+  - source 仍直接落到 raw `add*/sub*/mul*` 指令
+  - stable edgecase 已经把 `Inf + -Inf -> NaN`、`Inf - Inf -> NaN`、`0 * Inf -> NaN` 当成正常边界语义
+- 本批继续坚持 proof-first：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 `Test_AddFamilies_SpecialValuesStayExceptionFree`
+    - 新增 `Test_SubFamilies_SpecialValuesStayExceptionFree`
+    - 新增 `Test_MulFamilies_SpecialValuesStayExceptionFree`
+- 新 witness 直接锁住：
+  - `add`：
+    - `+Inf + 1 -> +Inf`
+    - `-Inf + 1 -> -Inf`
+    - `Inf + -Inf -> NaN`
+    - `qNaN + 1 -> NaN`
+  - `sub`：
+    - `+Inf - 1 -> +Inf`
+    - `-Inf - 1 -> -Inf`
+    - `Inf - Inf -> NaN`
+    - `qNaN - 1 -> NaN`
+  - `mul`：
+    - `+Inf * 2 -> +Inf`
+    - `-Inf * 2 -> -Inf`
+    - `0 * Inf -> NaN`
+    - `qNaN * 1 -> NaN`
+  - `*_sd`：
+    - low lane 继续按上面的特殊值合同执行
+    - `a.high` 必须完整保留
+- 这次 fresh 红点同样非常干净：
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`：`[TEST] OK`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`：
+    - `Test_AddFamilies_SpecialValuesStayExceptionFree` 首轮 `EInvalidOp`
+    - `Test_SubFamilies_SpecialValuesStayExceptionFree` 首轮 `EInvalidOp`
+    - `Test_MulFamilies_SpecialValuesStayExceptionFree` 首轮 `EInvalidOp`
+  - 说明 `experimental=1` 下 raw `add/sub/mul` 的特殊值 invalid exception 确实会直接漏出来
+- source 修复继续严格收敛在 `src/fafafa.core.simd.intrinsics.x86.sse2.pas`：
+  - 新增：
+    - `TSimdBinaryArithmeticKind`
+    - `SelectSingleSpecialArithmeticBits`
+    - `SelectDoubleSpecialArithmeticBits`
+    - `BuildPackedSingleSpecialArithmetic`
+    - `BuildPackedDoubleSpecialArithmetic`
+    - `BuildScalarDoubleSpecialArithmetic`
+  - `simd_add/sub/mul_{ps,pd,sd}` 不再直接走 raw `add*/sub*/mul*` 指令，而是：
+    - NaN 输入：直接保留已有 NaN bits
+    - `add`：
+      - `Inf + -Inf` 返回 canonical quiet NaN，避免 `EInvalidOp`
+    - `sub`：
+      - `Inf - Inf` 返回 canonical quiet NaN，避免 `EInvalidOp`
+    - `mul`：
+      - `0 * Inf` 返回 canonical quiet NaN，避免 `EInvalidOp`
+    - 其余情况：再落到普通 `+/-/*`
+    - `*_sd` 继续保持 `a.high` 不变
+- 本批 fresh 验证：
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - 修复后 experimental=`0`：`[TEST] OK`
+  - 修复后 experimental=`1`：`[TEST] OK`
+  - 修复后 Release `check`：退出码 `0`
+- 当前阶段结论：
+  - 这已经是同一条特殊值 witness 路线下第三个 fresh 抓出的真缺陷簇
+  - 当前 `sqrt/div/add/sub/mul` 这几组 raw 浮点 leaf 都已经从“happy path only”推进到“特殊值也不应直接把 invalid exception 泄漏给调用者”
