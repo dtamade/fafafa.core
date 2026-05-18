@@ -13208,3 +13208,58 @@
   - 如果继续沿这条路推进，下一步更自然的是：
     - 回到 `retire baseline` 看 compare 邻近还剩哪些未覆盖 raw leaf
     - 或继续补少量 `pack/compare` 邻近 residual proof，而不是重新扩成 whole-module 扫描
+
+## 2026-05-18 SSE2 Double Compare NaN Semantic Repair
+
+- 这批继续沿 compare 窄路径往下收，没有重开 wider `simd.sse2`、runtime 或 non-x86 话题。
+- 开始前先用本机 `cc -msse2` 写了一个更小的 truth probe，把 `pd/sd` 补集比较在 `NaN` 上的真实结果钉死，避免再把 ordered/not-greater 合同混淆：
+  - `cmpgt/cmpge`：`NaN` lane 应为 `0`
+  - `cmpnlt/cmpnle/cmpngt/cmpnge`：`NaN` lane 应为 all-ones
+  - `cmpord/cmpunord`：分别对应 `not unordered` / `unordered`
+  - `scalar` 版本除 low lane mask 外，high lane 必须完整保留 `a`
+- 本批先只补 proof：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 `Test_NegatedPackedAndScalarCompareSemantics`
+- fresh 红点再次不是普通断言失败，而是更真实的 source defect：
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 首次失败：
+    - `TTestCase_X86Sse2AbiBasics.Test_NegatedPackedAndScalarCompareSemantics`
+    - `Exception: EInvalidOp`
+  - 也就是当前 `double compare` family 在 `NaN` 路径上会直接把 SSE compare 的异常暴露出来，而不是稳定返回 intrinsic-style mask
+- source 对位后确认，这次问题不是单个 leaf，而是一整簇 `pd/sd` compare raw surface：
+  - `src/fafafa.core.simd.intrinsics.x86.sse2.pas`
+    - `simd_cmpeq/cmplt/cmple/cmpgt/cmpge/cmpneq/cmpnlt/cmpnle/cmpngt/cmpnge/cmpord/cmpunord_pd`
+    - `simd_cmpeq/cmplt/cmple/cmpgt/cmpge/cmpneq/cmpnlt/cmpnle/cmpngt/cmpnge/cmpord/cmpunord_sd`
+  - 旧实现依赖 raw SSE compare 指令本体：
+    - 在当前 host/FPC 运行条件下，`NaN` case 会把 `EInvalidOp` 暴露给调用侧
+    - `not-greater / not-greater-equal` 这类补集比较也不适合继续靠 scattered asm 语义去读
+- 本批修复方式仍保持 family-bounded：
+  - 在同一文件引入 `EvaluateDoubleMaskCompare`
+  - 再用 `BuildPackedDoubleCompareMask` / `BuildScalarDoubleCompareMask` 统一生成 `pd/sd` compare mask
+  - scalar helper 继续保证 high lane 保留 `a`
+  - 这次没有扩到 integer compare、没有碰 façade/dispatch/runtime
+- 本批 fresh 验证：
+  - `git diff --check`
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- 关键结果：
+  - 首轮 `experimental=1`：真实红点 `EInvalidOp`
+  - 修复后 experimental=`1`：`[TEST] OK`
+  - 修复后 experimental=`0`：`[TEST] OK`
+  - 修复后 Release `check`：退出码 `0`
+- 当前阶段结论：
+  - 这批已经不只是补 compare 覆盖面，而是借 proof 抓出并修掉了一整簇真实的 `SSE2 double compare` NaN/complement 语义缺陷
+  - 到这一刻为止，`SSE2 raw-leaf qualification` 的代表性 proof 已经进一步覆盖到：
+    - bitwise / lane-order / float arithmetic
+    - shuffle / insert-extract immediate
+    - integer shift immediate
+    - partial-lane load/store/move
+    - conversion preserve/zero
+    - compare / movemask / ordered-unordered scalar preserve
+    - saturation / unsigned minmax / avg / sad
+    - `comi/ucomi` scalar flag results
+    - `double compare` NaN/complement masks
+  - 如果继续沿这条路推进，下一步更自然的是：
+    - 回到 `retire baseline` 复核 compare 邻近还剩哪些 raw leaf 仍缺 representative proof
+    - 或继续补 `unpack` / `pack` 邻近 residual，而不是重新扩成 whole-module 扫描

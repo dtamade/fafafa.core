@@ -5169,3 +5169,17 @@
 | 1. 复核 `comi/ucomi` coverage 缺口并先取 host truth | completed | 已确认 `tests/fafafa.core.simd.intrinsics.experimental/` 还没有任何 `simd_comi*_sd / simd_ucomi*_sd` representative proof；先用本机 `cc -msse2` 最小程序取真值，确认 `eq/lt/gt` 正常分支与 `NaN` 分支都应是“仅 not-equal 返回 1，其余返回 0” |
 | 2. 新增 representative proof 并根据 fresh 红点修正 source | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `Test_ComiAndUcomiScalarFlagSemantics`；首次 fresh 运行直接在 `NaN` case 打出 `EInvalidOp`。对位 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 后确认原实现只是 `comisd/ucomisd + setcc` 直译，既没处理 unordered 分支，也把 `comisd` NaN 路径暴露成异常。现已引入 `EvaluateScalarCompareSd`，把 12 个 `comi/ucomi` leaf 收成同一套 exception-free Pascal 布尔语义实现 |
 | 3. 重跑 experimental lane 双配置与主线 release check | completed | `git diff --check`、experimental=`0/1` 两套 `BuildOrTest.sh test`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 全部 fresh 通过；这批不只是补 proof，而是借 proof 抓出并修掉了一簇真实的 scalar compare flag 语义缺陷 |
+
+## 2026-05-18 SSE2 Double Compare NaN Semantic Repair
+
+### Goal
+
+继续沿 `SSE2 raw-leaf qualification` 小批次推进，但把 compare family 再往前收一小簇：补上 `pd/sd` 补集比较在 `NaN` 上的 representative proof；如果 fresh 红点证明当前 raw leaf 会把 SSE compare 的异常或“ordered vs not-greater”语义直接暴露出来，就把修复收敛在 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 的 double compare family 上，不扩到别的 ISA family。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 先取 host truth 并复核 `double compare` coverage 缺口 | completed | 已确认 `tests/fafafa.core.simd.intrinsics.experimental/` 还没有覆盖 `simd_cmpnlt/nle/ngt/nge_(pd|sd)` 以及相邻 `cmpgt/cmpge` 的 `NaN` 语义；先用本机 `cc -msse2` 最小程序取真值，确认 `cmpnlt/nle/ngt/nge` 在 `NaN` lane 上都应给出 all-ones mask，而 `cmpgt/cmpge` 在 `NaN` lane 上应为 0，且 scalar compare 仍需保留 high lane |
+| 2. 新增 representative proof 并根据 fresh 红点修正 source | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `Test_NegatedPackedAndScalarCompareSemantics`；首次 fresh 运行在这批 `double compare` 上再次打出 `EInvalidOp`。对位 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 后确认问题不只是一条 leaf，而是 `pd/sd` compare family 的 raw SSE compare 在 `NaN` 路径上会把异常与 ordered predicate 行为直接暴露出来。现已把 `cmpeq/cmplt/cmple/cmpgt/cmpge/cmpneq/cmpnlt/cmpnle/cmpngt/cmpnge/cmpord/cmpunord` 的 `pd/sd` surface 收成 `EvaluateDoubleMaskCompare + BuildPacked/ScalarDoubleCompareMask` 这套 exception-free Pascal 语义实现 |
+| 3. 重跑 experimental lane 双配置与主线 release check | completed | `git diff --check`、experimental=`0/1` 两套 `BuildOrTest.sh test`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 全部 fresh 通过；这批已经不只是补 proof，而是借 proof 抓出并修掉了一簇真实的 `double compare` NaN/complement 语义缺陷 |
