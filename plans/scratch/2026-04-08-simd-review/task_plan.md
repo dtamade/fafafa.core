@@ -5604,3 +5604,17 @@
 | 1. 先排除不是同型问题的邻近 surface | completed | 已确认 `stream_pd/ps/si128` 自身已经用 `movupd/movups/movdqu` 读源，不属于同一类 bug；真正仍残留 aligned source-read 的是 `simd_storer_pd/loadh_pd/loadl_pd/storeh_pd/storel_pd/store_sd` 这 6 个 leaf |
 | 2. 用 unaligned-source witness 把 fresh 红点钉在这 6 个 leaf 上 | completed | 已新增 `Test_PartialLaneDoubleHelpers_AcceptUnalignedSourceVectors`，通过 `AlignPointer(...)+8` 构造 unaligned `TM128` source；首轮 experimental=`1` fresh 跑出 `EAccessViolation`，说明这批 leaf 的确还在错误假设 `constref` 源参数已对齐 |
 | 3. 把这 6 个 leaf 的 source read 改成 unaligned load 并完成 closeout | completed | 已把 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 中 `simd_storer_pd/loadh_pd/loadl_pd/storeh_pd/storel_pd/store_sd` 的 source read 统一从 `movapd` 改成 `movupd`；`git diff --check`、串行 experimental=`0/1`、以及 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已全部 fresh 通过 |
+
+## 2026-05-18 SSE2 MaskMove Source-Mask Alignment Repair
+
+### Goal
+
+顺着同一条 `constref aligned-read` 证据线再收一个最后的邻近 residual：只碰 `simd_maskmoveu_si128`。先把现有 `maskmoveu` proof 扩成 unaligned `Src/Mask` witness；若 fresh proof 真打红，就只修这个 leaf 的 source/mask read，不扩到其它 integer family。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前 `constref aligned-read` 模式还剩哪里 | completed | 已确认当前 `SSE2` raw leaf 里这条模式只剩 `simd_maskmoveu_si128`；其它同型点要么是 aligned pointer API（`load_si128/load_pd/load_ps`），要么已经在上一批 closeout |
+| 2. 用 unaligned `Src/Mask` witness 让 fresh 红点自己说话 | completed | 已在 `Test_IntegerPartialLoadStoreMaskMoveSemantics` 下补 `AlignPointer(...)+1` 的 unaligned source/mask proof；首轮 experimental=`1` fresh 跑出 `EAccessViolation`，说明 `maskmoveu` 也在错误假设 `constref Src/Mask` 已对齐 |
+| 3. 把 `maskmoveu` 的 source/mask read 改成 unaligned load 并完成 closeout | completed | 已把 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 中 `simd_maskmoveu_si128` 的 `movdqa` source/mask read 统一改成 `movdqu`；`git diff --check`、串行 experimental=`0/1`、以及 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已全部 fresh 通过 |

@@ -3289,8 +3289,8 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Src in rcx, Mask in rdx, Dest in r8
-    movdqa xmm0, [rcx] // Load source data.
-    movdqa xmm1, [rdx]    // Load the mask.
+    movdqu xmm0, [rcx] // Src is a constref parameter and need not be aligned.
+    movdqu xmm1, [rdx]    // Mask is a constref parameter and need not be aligned.
     push rdi              // Save rdi before reusing it for maskmovdqu.
     mov rdi, r8           // The destination pointer must be placed in rdi.
     maskmovdqu xmm0, xmm1
@@ -3298,8 +3298,8 @@ asm
     {$ELSE}
     // Linux/macOS x64 System V ABI: Src in rdi, Mask in rsi, Dest in rdx
     push rdi              // Save the original rdi value.
-    movdqa xmm0, [rdi] // Load source data.
-    movdqa xmm1, [rsi]    // Load the mask.
+    movdqu xmm0, [rdi] // Src is a constref parameter and need not be aligned.
+    movdqu xmm1, [rsi]    // Mask is a constref parameter and need not be aligned.
     mov rdi, rdx
     // The destination pointer must be placed in rdi.
     maskmovdqu xmm0, xmm1
@@ -3311,8 +3311,8 @@ asm
     mov edx, [esp + 8]    // Mask
     push edi              // Save edi before reusing it for the destination pointer.
     mov edi, [esp + 16]   // Dest after the push-adjusted stack offset.
-    movdqa xmm0, [eax]
-    movdqa xmm1, [edx]
+    movdqu xmm0, [eax]
+    movdqu xmm1, [edx]
     maskmovdqu xmm0, xmm1 // Conditionally store bytes to [edi].
     pop edi               // Restore edi.
     {$ELSE}

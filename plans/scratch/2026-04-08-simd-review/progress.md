@@ -14368,3 +14368,40 @@
 - 当前阶段结论：
   - 这批再次证明 `SSE2` 这里的真实问题不是“proof 不够漂亮”，而是 direct proof 能稳定抓出 `constref` source alignment 假设
   - 到这一刻为止，`full store` 与 `partial-lane double companion` 这两条同型对齐风险线都已经 fresh 收口
+
+## 2026-05-18 SSE2 MaskMove Source-Mask Alignment Repair
+
+- 当前没有再扩到新的 family，而是先做了一次 very cheap pattern audit，确认 `constref aligned-read` 模式在 `SSE2` raw leaf 里只剩：
+  - `simd_maskmoveu_si128`
+  - 其它留着的 `movdqa/movapd/movaps` 要么是 aligned pointer API（`load_si128/load_pd/load_ps`），要么已经在前两批修掉
+- 本批继续坚持 tests-first、single-leaf：
+  - 没有新开 testcase 类，只是在 `Test_IntegerPartialLoadStoreMaskMoveSemantics` 里补了一段 unaligned source/mask witness
+- 新 proof 直接锁住：
+  - 用 `AlignPointer(...)+1` 人工构造 unaligned `Src` 和 unaligned `Mask`
+  - `simd_maskmoveu_si128` 必须仍只在 mask byte 最高位为 1 的位置写回 source byte
+  - 未命中的目标 byte 必须保持 sentinel 原值
+- 这次 fresh 红点依旧不是测试噪音，而是同型 source defect：
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`：`TEST OK`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`：`Test_IntegerPartialLoadStoreMaskMoveSemantics` 首轮 `EAccessViolation`
+  - 说明 `maskmoveu` 虽然目标是 unaligned store，但它内部仍错误假设了 `constref Src/Mask` 本身已 16-byte 对齐
+- source 对位后已确认根因：
+  - `src/fafafa.core.simd.intrinsics.x86.sse2.pas`
+  - `simd_maskmoveu_si128` 在三套 ABI 分支里都还用：
+    - `movdqa xmm0, [Src]`
+    - `movdqa xmm1, [Mask]`
+- 本批修复保持 leaf-bounded：
+  - `simd_maskmoveu_si128` 的 source/mask read 统一改成 `movdqu`
+  - 保留 `maskmovdqu` 条件写回语义与目标指针布线
+  - 没有碰其它 integer/shift/load-store surface
+- 本批 fresh 验证：
+  - `git diff --check`
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - 修复后 experimental=`0`：`[TEST] OK`
+  - 修复后 experimental=`1`：`[TEST] OK`
+  - 修复后 Release `check`：退出码 `0`
+- 当前阶段结论：
+  - 这批把 `constref aligned-read` 在当前 `SSE2` direct-proof lane 里最后一个高信号 residual 也收掉了
+  - 当前这一条 proof-first 热线已经从“补 0-hit/low-hit”进一步推进到了“顺着 fresh 红点把同型 ABI 假设清干净”

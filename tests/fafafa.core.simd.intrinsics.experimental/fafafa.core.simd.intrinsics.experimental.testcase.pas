@@ -2122,6 +2122,12 @@ end;
 procedure TTestCase_X86Sse2AbiBasics.Test_IntegerPartialLoadStoreMaskMoveSemantics;
 var
   LScalar64: QWord;
+  LRawSrc: array[0..47] of Byte;
+  LRawMask: array[0..47] of Byte;
+  LAlignedSrc: Pointer;
+  LAlignedMask: Pointer;
+  LUnalignedSrc: Pointer;
+  LUnalignedMask: Pointer;
   LDestBytes: array[0..15] of Byte;
   LA: TM128;
   LB: TM128;
@@ -2160,6 +2166,32 @@ begin
     else
       AssertEquals('simd_maskmoveu_si128 keep lane ' + IntToStr(LIndex),
         Byte($A0 + LIndex), LDestBytes[LIndex]);
+
+  FillChar(LRawSrc, SizeOf(LRawSrc), 0);
+  FillChar(LRawMask, SizeOf(LRawMask), 0);
+  LAlignedSrc := AlignPointer(@LRawSrc[0], 16);
+  LAlignedMask := AlignPointer(@LRawMask[0], 16);
+  LUnalignedSrc := Pointer(PtrUInt(LAlignedSrc) + 1);
+  LUnalignedMask := Pointer(PtrUInt(LAlignedMask) + 1);
+
+  for LIndex := 0 to 15 do
+  begin
+    PByte(LUnalignedSrc)[LIndex] := Byte($30 + LIndex);
+    if (LIndex and 3) in [1, 2] then
+      PByte(LUnalignedMask)[LIndex] := $80
+    else
+      PByte(LUnalignedMask)[LIndex] := $00;
+    LDestBytes[LIndex] := Byte($C0 + LIndex);
+  end;
+
+  simd_maskmoveu_si128(PTM128(LUnalignedSrc)^, PTM128(LUnalignedMask)^, LDestBytes[0]);
+  for LIndex := 0 to 15 do
+    if (LIndex and 3) in [1, 2] then
+      AssertEquals('unaligned simd_maskmoveu_si128 store lane ' + IntToStr(LIndex),
+        PByte(LUnalignedSrc)[LIndex], LDestBytes[LIndex])
+    else
+      AssertEquals('unaligned simd_maskmoveu_si128 keep lane ' + IntToStr(LIndex),
+        Byte($C0 + LIndex), LDestBytes[LIndex]);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_ConversionFamilies_PreserveExpectedLanes;
