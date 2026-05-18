@@ -14024,3 +14024,30 @@
 - 当前阶段结论：
   - 到这一刻为止，`SSE2 conversion` 不只锁住了 narrowing / trunc / threshold，也开始把 widening 方向最值钱的精度窗口补实
   - 这批没有打出新的 source bug，继续保持 tests-only 收口
+
+## 2026-05-18 SSE2 Single-To-Double Bit-Preserve Coverage Expansion
+
+- 当前继续沿 widening 热路径做 residual 收口，这次只补 `single -> double` 的 exact bit widening proof。
+- 先用本机 `cc -msse2` probe 取到 host truth：
+  - `cvtps_pd_neg_nan_neg_zero -> fff82468a0000000 8000000000000000`
+  - `cvtps_pd_pos_nan_pos_zero -> 7ff82468a0000000 0000000000000000`
+  - `cvtss_sd_neg_nan_preserve_high -> fff82468a0000000 c056000000000000`
+  - `cvtss_sd_neg_zero_preserve_high -> 8000000000000000 c056000000000000`
+- 本批继续保持 tests-only：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 `Test_SingleToDoubleWideningBitPreserveSemantics`
+- 新 proof 直接锁住：
+  - `simd_cvtps_pd` 的 positive/negative NaN payload+sign widening
+  - `simd_cvtps_pd` 的 signed zero widening
+  - `simd_cvtss_sd` 的 negative NaN / negative zero widening
+  - `simd_cvtss_sd` 的 high-lane preserve
+- fresh closeout 已完成：
+  - `git diff --check`
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- fresh 结果：
+  - default / experimental 双模态测试均 `TEST OK`
+  - `single -> double` exact bit widening 与 host truth 一致，无新增 sign/payload drift
+- 当前阶段结论：
+  - 到这一刻为止，`SSE2 widening` 方向的高信息量 residual 已扩到 exact bit widening，而不只是普通 finite/happy-path
+  - 这批没有打出新的 source bug，继续保持 tests-only 收口

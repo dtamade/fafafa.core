@@ -1136,6 +1136,7 @@ type
     procedure Test_IntegerPartialLoadStoreMaskMoveSemantics;
     procedure Test_ConversionFamilies_PreserveExpectedLanes;
     procedure Test_WideningConversionPrecisionSemantics;
+    procedure Test_SingleToDoubleWideningBitPreserveSemantics;
     procedure Test_RoundAndTruncConversionSemantics;
     procedure Test_ConversionIndefiniteSemantics;
     procedure Test_NarrowingFloatConversionHostTruthSemantics;
@@ -1954,6 +1955,49 @@ begin
     Int64(QWord($C340000000000002)), Int64(LActual.m128i_u64[0]));
   AssertEquals('simd_cvtsi64_sd -(2^53+3) keeps high lane bits',
     Int64(QWord($4056000000000000)), Int64(LActual.m128i_u64[1]));
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_SingleToDoubleWideningBitPreserveSemantics;
+var
+  LFloats: TM128;
+  LA: TM128;
+  LActual: TM128;
+begin
+  FillChar(LFloats, SizeOf(LFloats), 0);
+  LFloats.m128i_u32[0] := DWord($FFC12345);
+  LFloats.m128i_u32[1] := DWord($80000000);
+  LActual := simd_cvtps_pd(LFloats);
+  AssertEquals('simd_cvtps_pd negative nan widens payload/sign',
+    Int64(QWord($FFF82468A0000000)), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_cvtps_pd negative zero preserves sign',
+    Int64(QWord($8000000000000000)), Int64(LActual.m128i_u64[1]));
+
+  FillChar(LFloats, SizeOf(LFloats), 0);
+  LFloats.m128i_u32[0] := DWord($7FC12345);
+  LFloats.m128i_u32[1] := DWord($00000000);
+  LActual := simd_cvtps_pd(LFloats);
+  AssertEquals('simd_cvtps_pd positive nan widens payload/sign',
+    Int64(QWord($7FF82468A0000000)), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_cvtps_pd positive zero stays positive',
+    Int64(0), Int64(LActual.m128i_u64[1]));
+
+  FillChar(LA, SizeOf(LA), 0);
+  LA.m128d_f64[0] := 10.0;
+  LA.m128d_f64[1] := -88.0;
+  FillChar(LFloats, SizeOf(LFloats), 0);
+  LFloats.m128i_u32[0] := DWord($FFC12345);
+  LActual := simd_cvtss_sd(LA, LFloats);
+  AssertEquals('simd_cvtss_sd negative nan widens payload/sign',
+    Int64(QWord($FFF82468A0000000)), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_cvtss_sd negative nan preserves high lane',
+    Int64(QWord($C056000000000000)), Int64(LActual.m128i_u64[1]));
+
+  LFloats.m128i_u32[0] := DWord($80000000);
+  LActual := simd_cvtss_sd(LA, LFloats);
+  AssertEquals('simd_cvtss_sd negative zero preserves sign',
+    Int64(QWord($8000000000000000)), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_cvtss_sd negative zero preserves high lane',
+    Int64(QWord($C056000000000000)), Int64(LActual.m128i_u64[1]));
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_RoundAndTruncConversionSemantics;
