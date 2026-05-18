@@ -13680,3 +13680,31 @@
   - 这批没有打出新的 source bug，说明 `mul_epu32/mullo_epi16/mulhi_epi16/mulhi_epu16/madd_epi16` 当前至少通过了第一层 representative contract
   - 当前 `SSE2` 整数 arithmetic proof 已从“饱和加减、unsigned min/max/avg/sad、compare、shift”扩到整数乘法/乘加簇
   - 这批可以继续按 tests-only 缺失 proof 修复收口提交；如果继续推进，下一步更自然的是找下一个同等便宜的未覆盖 leaf family
+
+## 2026-05-18 SSE2 Round vs Trunc Conversion Coverage Expansion
+
+- 当前继续保持 `SSE2` 单簇推进，但这次优先挑更高信号的 conversion residual，而不是继续补普通 pack/shuffle。
+- 对位现状后确认：
+  - `simd_cvtepi32_pd/ps`、`simd_cvtps_pd`、`simd_cvtpd_ps`、`simd_cvtsd_ss`、`simd_cvtss_sd`、`simd_cvtsi*` 基础 lane-preserve proof 已有
+  - 但 `simd_cvtps_epi32`、`simd_cvtpd_epi32`、`simd_cvttps_epi32`、`simd_cvttpd_epi32`、`simd_cvttpd_ps`、`simd_cvtsd_si32/si64`、`simd_cvttsd_si32/si64` 这组 `round vs trunc` residual 仍缺 representative proof
+- 本批继续保持 tests-only：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 `Test_RoundAndTruncConversionSemantics`
+- 新 proof 计划直接锁住：
+  - `cvtps_epi32/cvtpd_epi32`：finite in-range 下按当前默认 rounding mode 的“round to nearest”结果
+  - `cvttps_epi32/cvttpd_epi32`：finite in-range 下 toward-zero truncation
+  - `cvtpd_epi32/cvttpd_epi32`：只产生低两个 `i32`，高两个 `i32` 清零
+  - `cvttpd_ps`：只写低两个 `f32`，高两个 `f32` 清零
+  - `cvtsd_si*` vs `cvttsd_si*`：标量 double 到 `si32/si64` 的 round vs trunc 区别
+- 本批预期 closeout 方式保持不变：
+  - `git diff --check`
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- fresh 结果：
+  - `git diff --check`：通过
+  - experimental=`0`：`[TEST] OK`、`[LEAK] OK`
+  - experimental=`1`：`[TEST] OK`、`[LEAK] OK`
+- 当前阶段结论：
+  - 这批没有打出新的 source bug，说明 `cvtps/cvtpd/cvtsd` 这一组 finite、in-range 下的 `round vs trunc` 基础合同当前是成立的
+  - `conversion` proof 现在已经从基础 lane-preserve 扩到 packed/scalar round-trunc 差异与结果 lane shape
+  - 如果继续推进，这一簇下一层更有信号的 residual 就会是 `NaN/overflow/indefinite` 路径；但那会明显比当前 tests-only 批次更容易引发 source 修复或 host-truth 对位

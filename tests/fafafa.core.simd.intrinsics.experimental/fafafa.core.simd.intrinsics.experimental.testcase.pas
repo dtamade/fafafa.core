@@ -1135,6 +1135,7 @@ type
     procedure Test_PartialLaneLoadStoreMoveSemantics;
     procedure Test_IntegerPartialLoadStoreMaskMoveSemantics;
     procedure Test_ConversionFamilies_PreserveExpectedLanes;
+    procedure Test_RoundAndTruncConversionSemantics;
     procedure Test_IntegerCompareFamilies_SignedAndEqualitySemantics;
     procedure Test_CompareAndMovemaskSemantics;
     procedure Test_ComiAndUcomiScalarFlagSemantics;
@@ -1887,6 +1888,68 @@ begin
   LInts.m128i_i64[0] := Int64(-9876543210);
   AssertEquals('simd_cvtsi128_si32 low dword', LInts.m128i_i32[0], simd_cvtsi128_si32(LInts));
   AssertEquals('simd_cvtsi128_si64 low qword', Int64(-9876543210), simd_cvtsi128_si64(LInts));
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_RoundAndTruncConversionSemantics;
+var
+  LFloats: TM128;
+  LDoubles: TM128;
+  LActual: TM128;
+begin
+  FillChar(LFloats, SizeOf(LFloats), 0);
+  LFloats.m128_f32[0] := 1.9;
+  LFloats.m128_f32[1] := -1.9;
+  LFloats.m128_f32[2] := 2.6;
+  LFloats.m128_f32[3] := -2.6;
+
+  LActual := simd_cvtps_epi32(LFloats);
+  AssertEquals('simd_cvtps_epi32 lane0 rounds', 2, LActual.m128i_i32[0]);
+  AssertEquals('simd_cvtps_epi32 lane1 rounds', -2, LActual.m128i_i32[1]);
+  AssertEquals('simd_cvtps_epi32 lane2 rounds', 3, LActual.m128i_i32[2]);
+  AssertEquals('simd_cvtps_epi32 lane3 rounds', -3, LActual.m128i_i32[3]);
+
+  LActual := simd_cvttps_epi32(LFloats);
+  AssertEquals('simd_cvttps_epi32 lane0 truncates', 1, LActual.m128i_i32[0]);
+  AssertEquals('simd_cvttps_epi32 lane1 truncates', -1, LActual.m128i_i32[1]);
+  AssertEquals('simd_cvttps_epi32 lane2 truncates', 2, LActual.m128i_i32[2]);
+  AssertEquals('simd_cvttps_epi32 lane3 truncates', -2, LActual.m128i_i32[3]);
+
+  FillChar(LDoubles, SizeOf(LDoubles), 0);
+  LDoubles.m128d_f64[0] := 1.9;
+  LDoubles.m128d_f64[1] := -1.9;
+
+  LActual := simd_cvtpd_epi32(LDoubles);
+  AssertEquals('simd_cvtpd_epi32 lane0 rounds', 2, LActual.m128i_i32[0]);
+  AssertEquals('simd_cvtpd_epi32 lane1 rounds', -2, LActual.m128i_i32[1]);
+  AssertEquals('simd_cvtpd_epi32 zero lane2', 0, LActual.m128i_i32[2]);
+  AssertEquals('simd_cvtpd_epi32 zero lane3', 0, LActual.m128i_i32[3]);
+
+  LActual := simd_cvttpd_epi32(LDoubles);
+  AssertEquals('simd_cvttpd_epi32 lane0 truncates', 1, LActual.m128i_i32[0]);
+  AssertEquals('simd_cvttpd_epi32 lane1 truncates', -1, LActual.m128i_i32[1]);
+  AssertEquals('simd_cvttpd_epi32 zero lane2', 0, LActual.m128i_i32[2]);
+  AssertEquals('simd_cvttpd_epi32 zero lane3', 0, LActual.m128i_i32[3]);
+
+  LDoubles.m128d_f64[0] := 15.5;
+  LDoubles.m128d_f64[1] := -3.25;
+  LActual := simd_cvttpd_ps(LDoubles);
+  AssertEquals('simd_cvttpd_ps lane0', 15.5, LActual.m128_f32[0], 0.0);
+  AssertEquals('simd_cvttpd_ps lane1', -3.25, LActual.m128_f32[1], 0.0);
+  AssertEquals('simd_cvttpd_ps zero lane2', 0.0, LActual.m128_f32[2], 0.0);
+  AssertEquals('simd_cvttpd_ps zero lane3', 0.0, LActual.m128_f32[3], 0.0);
+
+  FillChar(LDoubles, SizeOf(LDoubles), 0);
+  LDoubles.m128d_f64[0] := 12345.9;
+  AssertEquals('simd_cvtsd_si32 rounds', 12346, simd_cvtsd_si32(LDoubles));
+  AssertEquals('simd_cvttsd_si32 truncates', 12345, simd_cvttsd_si32(LDoubles));
+  AssertEquals('simd_cvtsd_si64 rounds', Int64(12346), simd_cvtsd_si64(LDoubles));
+  AssertEquals('simd_cvttsd_si64 truncates', Int64(12345), simd_cvttsd_si64(LDoubles));
+
+  LDoubles.m128d_f64[0] := -12345.9;
+  AssertEquals('simd_cvtsd_si32 rounds negative', -12346, simd_cvtsd_si32(LDoubles));
+  AssertEquals('simd_cvttsd_si32 truncates negative', -12345, simd_cvttsd_si32(LDoubles));
+  AssertEquals('simd_cvtsd_si64 rounds negative', Int64(-12346), simd_cvtsd_si64(LDoubles));
+  AssertEquals('simd_cvttsd_si64 truncates negative', Int64(-12345), simd_cvttsd_si64(LDoubles));
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_IntegerCompareFamilies_SignedAndEqualitySemantics;

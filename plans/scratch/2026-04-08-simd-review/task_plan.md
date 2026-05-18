@@ -5323,3 +5323,17 @@
 | 1. 复核 integer multiply family coverage 缺口 | completed | 已确认 `mul_epu32/mullo_epi16/mulhi_epi16/mulhi_epu16/madd_epi16` 在 `tests/fafafa.core.simd.intrinsics.experimental/` 中仍没有 representative proof |
 | 2. 只补 representative proof，不扩实现范围 | completed | `TTestCase_X86Sse2AbiBasics` 已新增 `Test_IntegerMultiplyFamilies_Semantics`，直接覆盖 dword lane 选择、16-bit 低/高半部与 pairwise multiply-add 语义 |
 | 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已 fresh 通过；这批没有打出新的 source bug，作为 tests-only 缺失 proof 修复收口，不重复跑主 `simd` release `check`，继续沿用上一批 fresh 绿的 release 基线 |
+
+## 2026-05-18 SSE2 Round vs Trunc Conversion Coverage Expansion
+
+### Goal
+
+继续沿 `SSE2 raw-leaf qualification` 推进，但这次只切 conversion 里最有信号的一簇：`simd_cvtps_epi32`、`simd_cvtpd_epi32`、`simd_cvttps_epi32`、`simd_cvttpd_epi32`、`simd_cvttpd_ps`、`simd_cvtsd_si32/si64`、`simd_cvttsd_si32/si64`。这批只补 representative proof，先锁住 finite、in-range 下的 round vs trunc 差异与 lane shape，不先扩到 `NaN/overflow`；若 fresh 运行打红，再把修复限制在这组 leaf 周围。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 conversion residual coverage 缺口 | completed | 已确认基础 lane-preserve conversion proof 已有，但 `round vs trunc` 这一簇仍没有 representative proof |
+| 2. 只补 representative proof，不扩实现范围 | completed | `TTestCase_X86Sse2AbiBasics` 已新增 `Test_RoundAndTruncConversionSemantics`，直接覆盖 packed/scalar round-trunc 差异与 result lane shape |
+| 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已 fresh 通过；这批没有打出新的 source bug，作为 tests-only 缺失 proof 修复收口，不重复跑主 `simd` release `check`，继续沿用上一批 fresh 绿的 release 基线 |
