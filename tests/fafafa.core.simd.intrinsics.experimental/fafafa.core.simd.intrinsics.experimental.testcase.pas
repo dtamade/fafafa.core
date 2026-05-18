@@ -1148,6 +1148,7 @@ type
     procedure Test_PartialLaneLoadStoreMoveSemantics;
     procedure Test_PartialLaneDoubleHelpers_AcceptUnalignedSourceVectors;
     procedure Test_IntegerPartialLoadStoreMaskMoveSemantics;
+    procedure Test_StreamAndFenceSurfaceSemantics;
     procedure Test_ConversionFamilies_PreserveExpectedLanes;
     procedure Test_WideningConversionPrecisionSemantics;
     procedure Test_SingleToDoubleWideningBitPreserveSemantics;
@@ -2429,6 +2430,92 @@ begin
     else
       AssertEquals('unaligned simd_maskmoveu_si128 keep lane ' + IntToStr(LIndex),
         Byte($C0 + LIndex), LDestBytes[LIndex]);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_StreamAndFenceSurfaceSemantics;
+var
+  LByteDestStorage: array[0..63] of Byte;
+  LDoubleDestStorage: array[0..79] of Byte;
+  LSingleDestStorage: array[0..79] of Byte;
+  LRawSrcStorage: array[0..63] of Byte;
+  LAlignedByteDest: Pointer;
+  LAlignedDoubleDest: Pointer;
+  LAlignedSingleDest: Pointer;
+  LAlignedSrc: Pointer;
+  LUnalignedSrc: Pointer;
+  LValue: TM128;
+  LScalar32: Integer;
+  LScalar64: Int64;
+  LIndex: Integer;
+begin
+  LAlignedByteDest := AlignPointer(@LByteDestStorage[0], 16);
+  LAlignedDoubleDest := AlignPointer(@LDoubleDestStorage[0], 16);
+  LAlignedSingleDest := AlignPointer(@LSingleDestStorage[0], 16);
+  LAlignedSrc := AlignPointer(@LRawSrcStorage[0], 16);
+  LUnalignedSrc := Pointer(PtrUInt(LAlignedSrc) + 1);
+
+  FillChar(LByteDestStorage, SizeOf(LByteDestStorage), $A5);
+  FillChar(LValue, SizeOf(LValue), 0);
+  for LIndex := 0 to 15 do
+    LValue.m128i_u8[LIndex] := Byte($40 + LIndex);
+  Move(LValue, PByte(LUnalignedSrc)^, SizeOf(LValue));
+
+  simd_stream_si128(PByte(LAlignedByteDest)[0], PTM128(LUnalignedSrc)^);
+  for LIndex := 0 to 15 do
+    AssertEquals('simd_stream_si128 byte ' + IntToStr(LIndex),
+      Byte($40 + LIndex), PByte(LAlignedByteDest)[LIndex]);
+  AssertEquals('simd_stream_si128 trailing sentinel', Byte($A5),
+    PByte(Pointer(PtrUInt(LAlignedByteDest) + 16))^);
+
+  FillChar(LDoubleDestStorage, SizeOf(LDoubleDestStorage), $5A);
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128i_u64[0] := QWord($0123456789ABCDEF);
+  LValue.m128i_u64[1] := QWord($FFEEDDCCBBAA9988);
+  Move(LValue, PByte(LUnalignedSrc)^, SizeOf(LValue));
+
+  simd_stream_pd(PQWord(LAlignedDoubleDest)[0], PTM128(LUnalignedSrc)^);
+  AssertEquals('simd_stream_pd lane0 bits',
+    Int64(QWord($0123456789ABCDEF)), Int64(PQWord(LAlignedDoubleDest)[0]));
+  AssertEquals('simd_stream_pd lane1 bits',
+    Int64(QWord($FFEEDDCCBBAA9988)), Int64(PQWord(LAlignedDoubleDest)[1]));
+  AssertEquals('simd_stream_pd trailing sentinel', Byte($5A),
+    PByte(Pointer(PtrUInt(LAlignedDoubleDest) + 16))^);
+
+  FillChar(LSingleDestStorage, SizeOf(LSingleDestStorage), $3C);
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128i_u32[0] := DWord($7FC12345);
+  LValue.m128i_u32[1] := DWord($80000000);
+  LValue.m128i_u32[2] := DWord($3F800000);
+  LValue.m128i_u32[3] := DWord($C0200000);
+  Move(LValue, PByte(LUnalignedSrc)^, SizeOf(LValue));
+
+  simd_stream_ps(PCardinal(LAlignedSingleDest)[0], PTM128(LUnalignedSrc)^);
+  AssertEquals('simd_stream_ps lane0 bits',
+    LongInt($7FC12345), LongInt(PCardinal(LAlignedSingleDest)[0]));
+  AssertEquals('simd_stream_ps lane1 bits',
+    LongInt($80000000), LongInt(PCardinal(LAlignedSingleDest)[1]));
+  AssertEquals('simd_stream_ps lane2 bits',
+    LongInt($3F800000), LongInt(PCardinal(LAlignedSingleDest)[2]));
+  AssertEquals('simd_stream_ps lane3 bits',
+    LongInt($C0200000), LongInt(PCardinal(LAlignedSingleDest)[3]));
+  AssertEquals('simd_stream_ps trailing sentinel', Byte($3C),
+    PByte(Pointer(PtrUInt(LAlignedSingleDest) + 16))^);
+
+  LScalar32 := 0;
+  simd_stream_si32(LScalar32, Integer($12345678));
+  AssertEquals('simd_stream_si32 writes value', Integer($12345678), LScalar32);
+
+  LScalar64 := 0;
+  simd_stream_si64(LScalar64, Int64(QWord($0123456789ABCDEF)));
+  AssertEquals('simd_stream_si64 writes value',
+    Int64(QWord($0123456789ABCDEF)), LScalar64);
+
+  PByte(LAlignedByteDest)[0] := $5E;
+  simd_clflush(LAlignedByteDest);
+  simd_lfence;
+  simd_mfence;
+  simd_pause;
+  AssertEquals('cache-control helpers keep data intact', Byte($5E), PByte(LAlignedByteDest)[0]);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_ConversionFamilies_PreserveExpectedLanes;

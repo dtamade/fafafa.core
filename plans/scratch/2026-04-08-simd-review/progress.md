@@ -258,6 +258,43 @@
   - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
   - `intrinsics.experimental` default / experimental 双模态 `check` 全绿
   - 其中 `SSE backend smoke` 明确通过，说明这次改动文件已被真实编译覆盖
+
+## 2026-05-18 SSE2 Stream/Fence Surface Proof
+
+- 没有再开 whole-module 扫描，而是直接承接当前 `intrinsics.x86.sse2` interface surface 的最后一簇 `0-hit` 项：
+  - `simd_clflush`
+  - `simd_lfence`
+  - `simd_mfence`
+  - `simd_pause`
+  - `simd_stream_pd`
+  - `simd_stream_ps`
+  - `simd_stream_si128`
+  - `simd_stream_si32`
+  - `simd_stream_si64`
+- 本批只改：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+- 已在 `TTestCase_X86Sse2AbiBasics` 新增：
+  - `Test_StreamAndFenceSurfaceSemantics`
+- 这条新测试的直接覆盖点：
+  - `stream_{pd,ps,si128}`：
+    - `Dest` 通过 `AlignPointer(..., 16)` 构造 aligned destination
+    - `Src` 刻意通过 `AlignPointer(...)+1` 构造 unaligned `constref TM128` source
+    - 用 exact-bit / trailing sentinel 断言验证写回正确且不会越界踩写
+  - `stream_si32/si64`：
+    - 直接验证标量写入结果
+  - `clflush/lfence/mfence/pause`：
+    - 作为 no-crash smoke
+    - 断言目标字节未被意外改写
+- fresh 验证：
+  - `git diff --check`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- fresh 结果：
+  - experimental=`0`：`[TEST] OK`、`[LEAK] OK`
+  - experimental=`1`：`[TEST] OK`、`[LEAK] OK`
+- 当前阶段结论：
+  - 这批没有新增实现逻辑，但把 `intrinsics.x86.sse2` 里最后一簇最近确认过的 `0-hit` surface 补成了直接 proof
+  - 当前工作树现在是一个已验证通过的 tests-only 收口批次，适合直接 commit，然后继续沿“先补 0-hit/薄弱 proof，再决定是否需要新护栏或真修复”的方法推进
   - 主 `simd` release `check` 全绿
 - 当前阶段结论：
   - 这批确认只是 `SSE experimental intrinsics` 的源码文本卫生收口，不涉及行为修复

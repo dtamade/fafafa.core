@@ -5718,3 +5718,24 @@
 | 1. 把 raw float opcode 回归规则接进现有 SSE2 结构检查 | completed | 已为 `simd_add/sub/mul/div/sqrt_{ps,pd,sd}` 这 15 个 routine 增加 opcode-level forbid list，检查其 asm body 中是否重新出现对应 raw opcode |
 | 2. 单跑 checker 确认新命中面 | completed | `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line` 已 fresh 回到 `forbidden_raw_float_opcode_hits=0` |
 | 3. release 主链复验 | completed | `git diff --check` 与 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已 fresh 通过，主链输出已包含 `forbidden_raw_float_opcode_hits=0` |
+
+## 2026-05-18 SSE2 Stream/Fence Surface Proof
+
+### Goal
+
+把 `intrinsics.x86.sse2` 当前 interface surface 里最后一簇 `0-hit` 条目补成直接 proof，
+不再回头做大范围人工扫描。
+这批只补 tests，不改 Pascal 实现，目标锁定：
+`simd_stream_{si128,pd,ps,si32,si64}`、
+`simd_clflush`、
+`simd_lfence`、
+`simd_mfence`、
+`simd_pause`。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 给 stream/fence 0-hit surface 补 witness | completed | 已在 `TTestCase_X86Sse2AbiBasics` 新增 `Test_StreamAndFenceSurfaceSemantics`，覆盖 aligned destination、unaligned `constref TM128` source、exact-bit 写回、scalar stream 与 cache-control/fence no-crash smoke |
+| 2. 串行双模态复验 | completed | `git diff --check`、串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`、串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test` 已全部 fresh 通过 |
+| 3. 收口当前 residual | completed | 当前工作树剩余未提交改动只落在这个 tests-only 批次；这 9 个原先 `0-hit` 的 SSE2 surface 已补上直接 proof，可作为下一步继续缩小 `intrinsics.x86.sse2` 盲区的起点 |
