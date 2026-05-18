@@ -924,6 +924,9 @@ type
   TTestCase_X86Sse2AbiBasics = class(TTestCase)
   published
     procedure Test_AddAndCmpeqMovemask;
+    procedure Test_BitwiseAndAndnotSemantics;
+    procedure Test_SettersAndCastsPreserveLaneOrder;
+    procedure Test_FloatArithmeticLaneSemantics;
     procedure Test_LoadStore_Roundtrip;
     procedure Test_SlliEpi16_ShiftCounts;
   end;
@@ -1029,6 +1032,125 @@ begin
 
   LActualMask := simd_movemask_epi8(LA);
   AssertEquals('simd_movemask_epi8 mask', LExpectedMask, LActualMask);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_BitwiseAndAndnotSemantics;
+var
+  LA: TM128;
+  LB: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+  LIndex: Integer;
+begin
+  InitM128IncrementingBytes(LA, $10);
+  InitM128IncrementingBytes(LB, $A0);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    LExpected.m128i_u8[LIndex] := LA.m128i_u8[LIndex] and LB.m128i_u8[LIndex];
+  LActual := simd_and_si128(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_and_si128', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    LExpected.m128i_u8[LIndex] := LA.m128i_u8[LIndex] or LB.m128i_u8[LIndex];
+  LActual := simd_or_si128(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_or_si128', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    LExpected.m128i_u8[LIndex] := LA.m128i_u8[LIndex] xor LB.m128i_u8[LIndex];
+  LActual := simd_xor_si128(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_xor_si128', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    LExpected.m128i_u8[LIndex] := (not LA.m128i_u8[LIndex]) and LB.m128i_u8[LIndex];
+  LActual := simd_andnot_si128(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_andnot_si128', LExpected, LActual);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_SettersAndCastsPreserveLaneOrder;
+var
+  LValue: TM128;
+  LBits: TM128;
+begin
+  LValue := simd_setr_epi32(11, 22, 33, 44);
+  AssertEquals('simd_setr_epi32 lane0', 11, LValue.m128i_i32[0]);
+  AssertEquals('simd_setr_epi32 lane1', 22, LValue.m128i_i32[1]);
+  AssertEquals('simd_setr_epi32 lane2', 33, LValue.m128i_i32[2]);
+  AssertEquals('simd_setr_epi32 lane3', 44, LValue.m128i_i32[3]);
+
+  LValue := simd_set_epi32(11, 22, 33, 44);
+  AssertEquals('simd_set_epi32 lane0', 44, LValue.m128i_i32[0]);
+  AssertEquals('simd_set_epi32 lane1', 33, LValue.m128i_i32[1]);
+  AssertEquals('simd_set_epi32 lane2', 22, LValue.m128i_i32[2]);
+  AssertEquals('simd_set_epi32 lane3', 11, LValue.m128i_i32[3]);
+
+  LValue := simd_set1_epi32(-7);
+  AssertEquals('simd_set1_epi32 lane0', -7, LValue.m128i_i32[0]);
+  AssertEquals('simd_set1_epi32 lane1', -7, LValue.m128i_i32[1]);
+  AssertEquals('simd_set1_epi32 lane2', -7, LValue.m128i_i32[2]);
+  AssertEquals('simd_set1_epi32 lane3', -7, LValue.m128i_i32[3]);
+
+  LValue := simd_set1_ps(1.5);
+  AssertEquals('simd_set1_ps lane0', 1.5, LValue.m128_f32[0], 0.0);
+  AssertEquals('simd_set1_ps lane1', 1.5, LValue.m128_f32[1], 0.0);
+  AssertEquals('simd_set1_ps lane2', 1.5, LValue.m128_f32[2], 0.0);
+  AssertEquals('simd_set1_ps lane3', 1.5, LValue.m128_f32[3], 0.0);
+  LBits := simd_castps_si128(LValue);
+  AssertM128BytesEqual(Self, 'simd_castps_si128/simd_castsi128_ps roundtrip',
+    LValue, simd_castsi128_ps(LBits));
+
+  LValue := simd_set1_pd(2.5);
+  AssertEquals('simd_set1_pd lane0', 2.5, LValue.m128d_f64[0], 0.0);
+  AssertEquals('simd_set1_pd lane1', 2.5, LValue.m128d_f64[1], 0.0);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_FloatArithmeticLaneSemantics;
+var
+  LA: TM128;
+  LB: TM128;
+  LActual: TM128;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+
+  LA.m128_f32[0] := 1.0;
+  LA.m128_f32[1] := -2.0;
+  LA.m128_f32[2] := 3.5;
+  LA.m128_f32[3] := -4.5;
+  LB.m128_f32[0] := 0.5;
+  LB.m128_f32[1] := 4.0;
+  LB.m128_f32[2] := -1.5;
+  LB.m128_f32[3] := 8.0;
+
+  LActual := simd_add_ps(LA, LB);
+  AssertEquals('simd_add_ps lane0', 1.5, LActual.m128_f32[0], 0.0);
+  AssertEquals('simd_add_ps lane1', 2.0, LActual.m128_f32[1], 0.0);
+  AssertEquals('simd_add_ps lane2', 2.0, LActual.m128_f32[2], 0.0);
+  AssertEquals('simd_add_ps lane3', 3.5, LActual.m128_f32[3], 0.0);
+
+  LActual := simd_mul_ps(LA, LB);
+  AssertEquals('simd_mul_ps lane0', 0.5, LActual.m128_f32[0], 0.0);
+  AssertEquals('simd_mul_ps lane1', -8.0, LActual.m128_f32[1], 0.0);
+  AssertEquals('simd_mul_ps lane2', -5.25, LActual.m128_f32[2], 0.0);
+  AssertEquals('simd_mul_ps lane3', -36.0, LActual.m128_f32[3], 0.0);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := 1.5;
+  LA.m128d_f64[1] := -2.0;
+  LB.m128d_f64[0] := 4.0;
+  LB.m128d_f64[1] := -0.5;
+
+  LActual := simd_add_pd(LA, LB);
+  AssertEquals('simd_add_pd lane0', 5.5, LActual.m128d_f64[0], 0.0);
+  AssertEquals('simd_add_pd lane1', -2.5, LActual.m128d_f64[1], 0.0);
+
+  LActual := simd_mul_pd(LA, LB);
+  AssertEquals('simd_mul_pd lane0', 6.0, LActual.m128d_f64[0], 0.0);
+  AssertEquals('simd_mul_pd lane1', 1.0, LActual.m128d_f64[1], 0.0);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_LoadStore_Roundtrip;

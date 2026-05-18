@@ -12762,3 +12762,36 @@
   - 这 3 个 `AndNot*` 已不再是“最后 residual”，而是正式固定为 `asm-only local composition + no-asm reuse base scalar`
   - 当前 `riscvv` strict truth 的 `wrapper_only=3` 已经全部有 dedicated 合同，不再是待删尾巴
   - 这一簇 `RISCVV` facade/register hygiene 的 residual batch 到这里已经收口
+
+## 2026-05-18 SSE2 Raw-Leaf Qualification Coverage Expansion
+
+- `RISCVV` 这簇 residual 收口后，没有再回头重开 non-x86 大扫除，而是按 active queue 切到 `Wave 5 / retire + redundancy cleanup` 下的 `SSE2 raw-leaf qualification` 小批次。
+- 重新核对 `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 后，确认现有 experimental lane 虽然已有：
+  - `TTestCase_X86Sse2ByteShifts`
+  - `TTestCase_X86Sse2AbiBasics`
+- 但 raw semantic coverage 主要还只覆盖：
+  - `slli/srli/srai_si128`
+  - `add_epi8/cmpeq_epi8/movemask_epi8`
+  - `loadu/storeu`
+  - `slli_epi16`
+- 因此本批只补 3 组代表性 raw semantic proof，不开 `SSE2` 结构迁移讨论：
+  - `Test_BitwiseAndAndnotSemantics`
+    - 覆盖 `simd_and_si128 / simd_or_si128 / simd_xor_si128 / simd_andnot_si128`
+  - `Test_SettersAndCastsPreserveLaneOrder`
+    - 覆盖 `simd_setr_epi32 / simd_set_epi32 / simd_set1_epi32 / simd_set1_ps / simd_set1_pd`
+    - 同时锁住 `simd_castps_si128 / simd_castsi128_ps` roundtrip
+  - `Test_FloatArithmeticLaneSemantics`
+    - 覆盖 `simd_add_ps / simd_mul_ps / simd_add_pd / simd_mul_pd`
+- 本批 fresh 验证：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_comment_swallow.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- 关键结果：
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - experimental=`0`：`[TEST] OK`
+  - experimental=`1`：`[TEST] OK`
+- 当前阶段结论：
+  - `SSE2` 当前不再只是“结构 smoke 绿”，而是补上了一批更接近 raw-leaf 契约的 lane-order / bitwise / float arithmetic proof
+  - 这仍然只是 qualification 增强，不等于已经进入 `promote / split / retire` 判断
+  - 下一步如果继续做 `SSE2`，应保持在 `raw-leaf qualification -> retire baseline recheck` 这条窄路径里，不要重新扩成 family-level 大迁移
