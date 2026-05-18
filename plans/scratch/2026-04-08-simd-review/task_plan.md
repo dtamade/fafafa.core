@@ -5253,3 +5253,17 @@
 | 1. 先取 host truth 并复核 `double min/max` coverage 缺口 | completed | 已确认 `tests/fafafa.core.simd.intrinsics.experimental/` 没有任何 `simd_min_pd/max_pd/min_sd/max_sd` representative proof；先用本机 `cc -msse2` 最小 probe 取真值，确认 finite case 的正常选择，`NaN` case 都返回 source operand(`b`) 对应 lane，`+0/-0` 两零 case 也返回 source operand 的符号位，而 `min_sd/max_sd` 仍必须保留 `a` 的 high lane |
 | 2. 新增 representative proof 并根据 fresh 红点修正 source | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `Test_DoubleMinMaxFamilies_HostTruthSemantics`；首次 fresh `experimental=1` 运行直接在这批 `double min/max` 上打出 `EInvalidOp`。对位 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 后确认问题收敛在 `simd_min_pd`、`simd_max_pd`、`simd_min_sd`、`simd_max_sd` 仍直接依赖 raw SSE `min/max` 指令本体。现已引入 `TSimdDoubleMinMaxKind + SelectDoubleMinMaxBits + BuildPacked/ScalarDoubleMinMax`，按 host truth 收成 exception-free Pascal 语义实现 |
 | 3. 重跑 bounded closeout 与主线 release check | completed | `git diff --check`、串行 experimental=`1`、串行 experimental=`0`、以及 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 全部 fresh 通过；这批已经不只是补 proof，而是借 host-truth-driven proof 抓出并修掉了一簇真实的 `double min/max` NaN/signed-zero/scalar-preserve 语义缺陷 |
+
+## 2026-05-18 SSE2 Single MinMax NaN And Signed-Zero Semantic Repair
+
+### Goal
+
+沿刚刚验证过的 `min/max` 风险模式继续只切下一小簇：`min_ps/max_ps`。同样先用本机 `cc -msse` probe 钉住 `finite / NaN / signed-zero` 的 host truth，再用 representative proof 打红 current raw leaf；如果 `NaN` 路径同样把异常暴露出来，就把修复收敛在这 2 个 packed single leaf 上，不扩到 `min_ss/max_ss`。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 先取 host truth 并复核 `single min/max` coverage 缺口 | completed | 已确认 `tests/fafafa.core.simd.intrinsics.experimental/` 没有任何 `simd_min_ps/max_ps` representative proof；先用本机 `cc -msse` 最小 probe 取真值，确认 finite case 的正常选择，`NaN` case 各 lane 返回 source operand(`b`) 对应位模式，`+0/-0` 两零 case 也返回 source operand 的符号位 |
+| 2. 新增 representative proof 并根据 fresh 红点修正 source | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `Test_SingleMinMaxFamilies_HostTruthSemantics`；首次 fresh `experimental=1` 运行直接在这批 `single min/max` 上打出 `EInvalidOp`。对位 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 后确认问题收敛在 `simd_min_ps`、`simd_max_ps` 仍直接依赖 raw SSE `min/max` 指令本体。现已引入 `SelectSingleMinMaxBits + BuildPackedSingleMinMax`，按 host truth 收成 exception-free Pascal 语义实现 |
+| 3. 重跑 bounded closeout 与主线 release check | completed | `git diff --check`、串行 experimental=`1`、串行 experimental=`0`、以及 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 全部 fresh 通过；这批进一步证明 `packed single min/max` 也存在同型 `NaN/signed-zero` 语义异常，并已被 bounded 修复 |

@@ -347,6 +347,7 @@ type
 
 function BuildPackedDoubleCompareMask(constref a, b: TM128; const aKind: TSimdDoubleMaskCompareKind): TM128; forward;
 function BuildScalarDoubleCompareMask(constref a, b: TM128; const aKind: TSimdDoubleMaskCompareKind): TM128; forward;
+function BuildPackedSingleMinMax(constref a, b: TM128; const aKind: TSimdDoubleMinMaxKind): TM128; forward;
 function BuildPackedDoubleMinMax(constref a, b: TM128; const aKind: TSimdDoubleMinMaxKind): TM128; forward;
 function BuildScalarDoubleMinMax(constref a, b: TM128; const aKind: TSimdDoubleMinMaxKind): TM128; forward;
 
@@ -3781,48 +3782,14 @@ asm
 end;
 
 // Floating-point helpers
-function simd_min_ps(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]; movups xmm1, [rdx]; minps xmm0, xmm1  // Packed single minimum
-    {$ELSE}
-    movups xmm0, [rdi]; movups xmm1, [rsi]; minps xmm0, xmm1
-  {$ENDIF}
-{$ELSEIF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movups xmm0, [eax]; movups xmm1, [edx]; minps xmm0, xmm1
-{$ELSE}
-    {$ERROR Unsupported CPU}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_min_ps(constref a, b: TM128): TM128;
+begin
+  Result := BuildPackedSingleMinMax(a, b, dmmkMin);
 end;
 
-function simd_max_ps(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]; movups xmm1, [rdx]; maxps xmm0, xmm1  // Packed single maximum
-    {$ELSE}
-    movups xmm0, [rdi]; movups xmm1, [rsi]; maxps xmm0, xmm1
-  {$ENDIF}
-{$ELSEIF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movups xmm0, [eax]; movups xmm1, [edx]; maxps xmm0, xmm1
-{$ELSE}
-    {$ERROR Unsupported CPU}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_max_ps(constref a, b: TM128): TM128;
+begin
+  Result := BuildPackedSingleMinMax(a, b, dmmkMax);
 end;
 
 function simd_min_pd(constref a, b: TM128): TM128;
@@ -4228,6 +4195,35 @@ begin
   Result := (aBits and QWord($7FFFFFFFFFFFFFFF)) = 0;
 end;
 
+function IsZeroFloat32Bits(const aBits: DWord): Boolean; inline;
+begin
+  Result := (aBits and DWord($7FFFFFFF)) = 0;
+end;
+
+function SelectSingleMinMaxBits(
+  const aLeftBits, aRightBits: DWord;
+  const aLeftValue, aRightValue: Single;
+  const aKind: TSimdDoubleMinMaxKind
+): DWord; inline;
+begin
+  if IsNan(aLeftValue) or IsNan(aRightValue) then
+    Exit(aRightBits);
+
+  if IsZeroFloat32Bits(aLeftBits) and IsZeroFloat32Bits(aRightBits) then
+    Exit(aRightBits);
+
+  case aKind of
+    dmmkMin:
+      if aLeftValue < aRightValue then
+        Exit(aLeftBits);
+    dmmkMax:
+      if aLeftValue > aRightValue then
+        Exit(aLeftBits);
+  end;
+
+  Result := aRightBits;
+end;
+
 function SelectDoubleMinMaxBits(
   const aLeftBits, aRightBits: QWord;
   const aLeftValue, aRightValue: Double;
@@ -4250,6 +4246,21 @@ begin
   end;
 
   Result := aRightBits;
+end;
+
+function BuildPackedSingleMinMax(constref a, b: TM128; const aKind: TSimdDoubleMinMaxKind): TM128; inline;
+var
+  LLane: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  for LLane := 0 to 3 do
+    Result.m128i_u32[LLane] := SelectSingleMinMaxBits(
+      a.m128i_u32[LLane],
+      b.m128i_u32[LLane],
+      a.m128_f32[LLane],
+      b.m128_f32[LLane],
+      aKind
+    );
 end;
 
 function BuildPackedDoubleMinMax(constref a, b: TM128; const aKind: TSimdDoubleMinMaxKind): TM128; inline;

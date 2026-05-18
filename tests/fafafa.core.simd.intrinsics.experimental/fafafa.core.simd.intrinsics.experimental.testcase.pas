@@ -1128,6 +1128,7 @@ type
     procedure Test_SettersAndCastsPreserveLaneOrder;
     procedure Test_FloatArithmeticLaneSemantics;
     procedure Test_SqrtFamilies_RespectLaneAndPreserveContracts;
+    procedure Test_SingleMinMaxFamilies_HostTruthSemantics;
     procedure Test_DoubleMinMaxFamilies_HostTruthSemantics;
     procedure Test_LoadStore_Roundtrip;
     procedure Test_PartialLaneLoadStoreMoveSemantics;
@@ -1411,6 +1412,82 @@ begin
   LActual := simd_sqrt_sd(LA, LB);
   AssertEquals('simd_sqrt_sd low lane', 6.0, LActual.m128d_f64[0], 0.0);
   AssertEquals('simd_sqrt_sd keep high lane', 88.0, LActual.m128d_f64[1], 0.0);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_SingleMinMaxFamilies_HostTruthSemantics;
+var
+  LA: TM128;
+  LB: TM128;
+  LActual: TM128;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128_f32[0] := 3.0;
+  LA.m128_f32[1] := 7.0;
+  LA.m128_f32[2] := 9.0;
+  LA.m128_f32[3] := 1.0;
+  LB.m128_f32[0] := 4.0;
+  LB.m128_f32[1] := 2.0;
+  LB.m128_f32[2] := 5.0;
+  LB.m128_f32[3] := 10.0;
+
+  LActual := simd_min_ps(LA, LB);
+  AssertEquals('simd_min_ps finite lane0 bits', LA.m128i_i32[0], LActual.m128i_i32[0]);
+  AssertEquals('simd_min_ps finite lane1 bits', LB.m128i_i32[1], LActual.m128i_i32[1]);
+  AssertEquals('simd_min_ps finite lane2 bits', LB.m128i_i32[2], LActual.m128i_i32[2]);
+  AssertEquals('simd_min_ps finite lane3 bits', LA.m128i_i32[3], LActual.m128i_i32[3]);
+
+  LActual := simd_max_ps(LA, LB);
+  AssertEquals('simd_max_ps finite lane0 bits', LB.m128i_i32[0], LActual.m128i_i32[0]);
+  AssertEquals('simd_max_ps finite lane1 bits', LA.m128i_i32[1], LActual.m128i_i32[1]);
+  AssertEquals('simd_max_ps finite lane2 bits', LA.m128i_i32[2], LActual.m128i_i32[2]);
+  AssertEquals('simd_max_ps finite lane3 bits', LB.m128i_i32[3], LActual.m128i_i32[3]);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u32[0] := DWord($00000000);
+  LA.m128i_u32[1] := DWord($80000000);
+  LA.m128i_u32[2] := DWord($00000000);
+  LA.m128i_u32[3] := DWord($80000000);
+  LB.m128i_u32[0] := DWord($80000000);
+  LB.m128i_u32[1] := DWord($00000000);
+  LB.m128i_u32[2] := DWord($80000000);
+  LB.m128i_u32[3] := DWord($00000000);
+
+  LActual := simd_min_ps(LA, LB);
+  AssertEquals('simd_min_ps zero lane0 keeps source sign', LongInt(LB.m128i_u32[0]), LActual.m128i_i32[0]);
+  AssertEquals('simd_min_ps zero lane1 keeps source sign', LongInt(LB.m128i_u32[1]), LActual.m128i_i32[1]);
+  AssertEquals('simd_min_ps zero lane2 keeps source sign', LongInt(LB.m128i_u32[2]), LActual.m128i_i32[2]);
+  AssertEquals('simd_min_ps zero lane3 keeps source sign', LongInt(LB.m128i_u32[3]), LActual.m128i_i32[3]);
+
+  LActual := simd_max_ps(LA, LB);
+  AssertEquals('simd_max_ps zero lane0 keeps source sign', LongInt(LB.m128i_u32[0]), LActual.m128i_i32[0]);
+  AssertEquals('simd_max_ps zero lane1 keeps source sign', LongInt(LB.m128i_u32[1]), LActual.m128i_i32[1]);
+  AssertEquals('simd_max_ps zero lane2 keeps source sign', LongInt(LB.m128i_u32[2]), LActual.m128i_i32[2]);
+  AssertEquals('simd_max_ps zero lane3 keeps source sign', LongInt(LB.m128i_u32[3]), LActual.m128i_i32[3]);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u32[0] := DWord($7FC00001);
+  LA.m128i_u32[1] := DWord($40A00000);
+  LA.m128i_u32[2] := DWord($7FC00003);
+  LA.m128i_u32[3] := DWord($41200000);
+  LB.m128i_u32[0] := DWord($40000000);
+  LB.m128i_u32[1] := DWord($7FC00002);
+  LB.m128i_u32[2] := DWord($40E00000);
+  LB.m128i_u32[3] := DWord($7FC00004);
+
+  LActual := simd_min_ps(LA, LB);
+  AssertEquals('simd_min_ps nan lane0 returns source operand', LongInt(LB.m128i_u32[0]), LActual.m128i_i32[0]);
+  AssertEquals('simd_min_ps nan lane1 returns source operand', LongInt(LB.m128i_u32[1]), LActual.m128i_i32[1]);
+  AssertEquals('simd_min_ps nan lane2 returns source operand', LongInt(LB.m128i_u32[2]), LActual.m128i_i32[2]);
+  AssertEquals('simd_min_ps nan lane3 returns source operand', LongInt(LB.m128i_u32[3]), LActual.m128i_i32[3]);
+
+  LActual := simd_max_ps(LA, LB);
+  AssertEquals('simd_max_ps nan lane0 returns source operand', LongInt(LB.m128i_u32[0]), LActual.m128i_i32[0]);
+  AssertEquals('simd_max_ps nan lane1 returns source operand', LongInt(LB.m128i_u32[1]), LActual.m128i_i32[1]);
+  AssertEquals('simd_max_ps nan lane2 returns source operand', LongInt(LB.m128i_u32[2]), LActual.m128i_i32[2]);
+  AssertEquals('simd_max_ps nan lane3 returns source operand', LongInt(LB.m128i_u32[3]), LActual.m128i_i32[3]);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_DoubleMinMaxFamilies_HostTruthSemantics;
