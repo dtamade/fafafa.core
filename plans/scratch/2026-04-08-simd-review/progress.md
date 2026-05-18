@@ -13551,3 +13551,47 @@
   - 如果继续沿这条路推进，下一步更自然的是：
     - 再看 `min_ss/max_ss` 或其他相邻 scalar single leaf 是否也要做同类 host-truth proof
     - 或回到更便宜的 `pack/shuffle` 邻近 residual，不重开 whole-module 讨论
+
+## 2026-05-18 SSE2 Packed SubDiv And Scalar Double Arithmetic Preserve Coverage Expansion
+
+- 这批有意从“高风险 `NaN` family”退回到一条更便宜的 tests-only lane，不再强行追 source 修复，而是补当前明显缺失的 arithmetic representative proof。
+- 开工前先对位 coverage 真相：
+  - 已有：
+    - `add_ps/mul_ps`
+    - `add_pd/mul_pd`
+  - 仍缺：
+    - `simd_sub_ps`
+    - `simd_div_ps`
+    - `simd_sub_pd`
+    - `simd_div_pd`
+    - `simd_add_sd`
+    - `simd_sub_sd`
+    - `simd_mul_sd`
+    - `simd_div_sd`
+- 本批仍然只改一个代码文件：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 在 `TTestCase_X86Sse2AbiBasics` 下新增 `Test_FloatSubDivAndScalarArithmeticPreserveContracts`
+- 新 proof 直接锁住的关键合同包括：
+  - `sub_ps/div_ps` 的逐 lane finite arithmetic 结果
+  - `sub_pd/div_pd` 的逐 lane finite arithmetic 结果
+  - `add_sd/sub_sd/mul_sd/div_sd` 的 low-lane 结果
+  - scalar double arithmetic 仍必须完整保留 `a` 的 high lane
+- 这批 fresh 复验没有再打出新的 source bug：
+  - `git diff --check`
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- 关键结果：
+  - experimental=`0`：`[TEST] OK`
+  - experimental=`1`：`[TEST] OK`
+- 当前阶段结论：
+  - 这批是纯 proof closeout，没有引出新的 source 修复
+  - 但它把 packed `sub/div` 和 scalar double arithmetic preserve 这一组此前空白的 raw contract 正式补齐了第一层证据
+  - 到这一刻为止，`AbiBasics` 的浮点 arithmetic representative proof 已经覆盖到：
+    - `add/sub/mul/div_ps`
+    - `add/sub/mul/div_pd`
+    - `add/sub/mul/div_sd`
+    - `sqrt_ps/sqrt_pd/sqrt_sd`
+    - `single/double min/max` 的 host-truth 语义
+  - 如果继续沿这条路推进，下一步更自然的是：
+    - 回到更便宜的 `pack/shuffle` 邻近 residual
+    - 或再找一个高信号 host-truth family，但不必立刻扩 scope

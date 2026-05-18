@@ -5267,3 +5267,17 @@
 | 1. 先取 host truth 并复核 `single min/max` coverage 缺口 | completed | 已确认 `tests/fafafa.core.simd.intrinsics.experimental/` 没有任何 `simd_min_ps/max_ps` representative proof；先用本机 `cc -msse` 最小 probe 取真值，确认 finite case 的正常选择，`NaN` case 各 lane 返回 source operand(`b`) 对应位模式，`+0/-0` 两零 case 也返回 source operand 的符号位 |
 | 2. 新增 representative proof 并根据 fresh 红点修正 source | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `Test_SingleMinMaxFamilies_HostTruthSemantics`；首次 fresh `experimental=1` 运行直接在这批 `single min/max` 上打出 `EInvalidOp`。对位 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 后确认问题收敛在 `simd_min_ps`、`simd_max_ps` 仍直接依赖 raw SSE `min/max` 指令本体。现已引入 `SelectSingleMinMaxBits + BuildPackedSingleMinMax`，按 host truth 收成 exception-free Pascal 语义实现 |
 | 3. 重跑 bounded closeout 与主线 release check | completed | `git diff --check`、串行 experimental=`1`、串行 experimental=`0`、以及 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 全部 fresh 通过；这批进一步证明 `packed single min/max` 也存在同型 `NaN/signed-zero` 语义异常，并已被 bounded 修复 |
+
+## 2026-05-18 SSE2 Packed SubDiv And Scalar Double Arithmetic Preserve Coverage Expansion
+
+### Goal
+
+在刚收完 `min/max` 之后，回到更便宜的一条 tests-only lane：把 `sub_ps/div_ps/sub_pd/div_pd` 以及 `add_sd/sub_sd/mul_sd/div_sd` 的 representative proof 补齐，重点锁住 packed lane 结果和 scalar high-lane preserve 合同，不先扩到新的 host-truth family 或 source 修复。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `sub/div + scalar preserve` coverage 缺口 | completed | 已确认 `tests/fafafa.core.simd.intrinsics.experimental/` 目前只有 `add_ps/mul_ps/add_pd/mul_pd` 的 lane proof，`simd_sub_ps`、`simd_div_ps`、`simd_sub_pd`、`simd_div_pd` 以及 `simd_add/sub/mul/div_sd` 仍没有任何 representative raw semantic proof |
+| 2. 只补 representative proof，不扩实现范围 | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `Test_FloatSubDivAndScalarArithmeticPreserveContracts`；直接覆盖 packed `sub/div` 的逐 lane 有限值结果，以及 scalar double arithmetic 的 low-lane 结果与 high-lane preserve 合同 |
+| 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已 fresh 通过；这批没有打出新的 source bug。由于当前 diff 仅限 experimental testcase 与后续 scratch 记录，本批不重复跑主 `simd` release `check`，继续沿用上一批 fresh 绿的 release 基线 |

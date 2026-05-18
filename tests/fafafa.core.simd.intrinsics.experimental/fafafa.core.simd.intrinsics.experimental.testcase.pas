@@ -1127,6 +1127,7 @@ type
     procedure Test_BitwiseAndAndnotSemantics;
     procedure Test_SettersAndCastsPreserveLaneOrder;
     procedure Test_FloatArithmeticLaneSemantics;
+    procedure Test_FloatSubDivAndScalarArithmeticPreserveContracts;
     procedure Test_SqrtFamilies_RespectLaneAndPreserveContracts;
     procedure Test_SingleMinMaxFamilies_HostTruthSemantics;
     procedure Test_DoubleMinMaxFamilies_HostTruthSemantics;
@@ -1374,6 +1375,75 @@ begin
   LActual := simd_mul_pd(LA, LB);
   AssertEquals('simd_mul_pd lane0', 6.0, LActual.m128d_f64[0], 0.0);
   AssertEquals('simd_mul_pd lane1', 1.0, LActual.m128d_f64[1], 0.0);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_FloatSubDivAndScalarArithmeticPreserveContracts;
+var
+  LA: TM128;
+  LB: TM128;
+  LActual: TM128;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+
+  LA.m128_f32[0] := 9.0;
+  LA.m128_f32[1] := 12.0;
+  LA.m128_f32[2] := -8.0;
+  LA.m128_f32[3] := 18.0;
+  LB.m128_f32[0] := 4.0;
+  LB.m128_f32[1] := 3.0;
+  LB.m128_f32[2] := -2.0;
+  LB.m128_f32[3] := 6.0;
+
+  LActual := simd_sub_ps(LA, LB);
+  AssertEquals('simd_sub_ps lane0', 5.0, LActual.m128_f32[0], 0.0);
+  AssertEquals('simd_sub_ps lane1', 9.0, LActual.m128_f32[1], 0.0);
+  AssertEquals('simd_sub_ps lane2', -6.0, LActual.m128_f32[2], 0.0);
+  AssertEquals('simd_sub_ps lane3', 12.0, LActual.m128_f32[3], 0.0);
+
+  LActual := simd_div_ps(LA, LB);
+  AssertEquals('simd_div_ps lane0', 2.25, LActual.m128_f32[0], 0.0);
+  AssertEquals('simd_div_ps lane1', 4.0, LActual.m128_f32[1], 0.0);
+  AssertEquals('simd_div_ps lane2', 4.0, LActual.m128_f32[2], 0.0);
+  AssertEquals('simd_div_ps lane3', 3.0, LActual.m128_f32[3], 0.0);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := 10.0;
+  LA.m128d_f64[1] := -8.0;
+  LB.m128d_f64[0] := 4.0;
+  LB.m128d_f64[1] := -2.0;
+
+  LActual := simd_sub_pd(LA, LB);
+  AssertEquals('simd_sub_pd lane0', 6.0, LActual.m128d_f64[0], 0.0);
+  AssertEquals('simd_sub_pd lane1', -6.0, LActual.m128d_f64[1], 0.0);
+
+  LActual := simd_div_pd(LA, LB);
+  AssertEquals('simd_div_pd lane0', 2.5, LActual.m128d_f64[0], 0.0);
+  AssertEquals('simd_div_pd lane1', 4.0, LActual.m128d_f64[1], 0.0);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := 100.0;
+  LA.m128d_f64[1] := 77.5;
+  LB.m128d_f64[0] := 25.0;
+  LB.m128d_f64[1] := 999.0;
+
+  LActual := simd_add_sd(LA, LB);
+  AssertEquals('simd_add_sd low lane', 125.0, LActual.m128d_f64[0], 0.0);
+  AssertEquals('simd_add_sd keep high lane', 77.5, LActual.m128d_f64[1], 0.0);
+
+  LActual := simd_sub_sd(LA, LB);
+  AssertEquals('simd_sub_sd low lane', 75.0, LActual.m128d_f64[0], 0.0);
+  AssertEquals('simd_sub_sd keep high lane', 77.5, LActual.m128d_f64[1], 0.0);
+
+  LActual := simd_mul_sd(LA, LB);
+  AssertEquals('simd_mul_sd low lane', 2500.0, LActual.m128d_f64[0], 0.0);
+  AssertEquals('simd_mul_sd keep high lane', 77.5, LActual.m128d_f64[1], 0.0);
+
+  LActual := simd_div_sd(LA, LB);
+  AssertEquals('simd_div_sd low lane', 4.0, LActual.m128d_f64[0], 0.0);
+  AssertEquals('simd_div_sd keep high lane', 77.5, LActual.m128d_f64[1], 0.0);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_SqrtFamilies_RespectLaneAndPreserveContracts;
