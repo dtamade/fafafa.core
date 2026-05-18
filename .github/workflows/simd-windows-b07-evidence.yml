@@ -108,6 +108,11 @@ jobs:
             'C:\lazarus\lazbuild.exe',
             'C:\tools\lazarus\lazbuild.exe'
           )
+          $bashCandidates = @(
+            'C:\Program Files\Git\bin',
+            'C:\Program Files\Git\usr\bin',
+            'C:\msys64\usr\bin'
+          )
           foreach ($candidate in $candidates) {
             if (Test-Path $candidate) {
               "LAZBUILD=$candidate" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
@@ -116,6 +121,12 @@ jobs:
               if (Test-Path $fpcDir) {
                 $fpcDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
                 Write-Host "[FPC] Added $fpcDir to PATH"
+              }
+              foreach ($bashDir in $bashCandidates) {
+                if (Test-Path (Join-Path $bashDir 'bash.exe')) {
+                  $bashDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+                  Write-Host "[BASH] Added $bashDir to PATH"
+                }
               }
               Write-Host "[LAZBUILD] Using $candidate"
               exit 0
@@ -126,6 +137,18 @@ jobs:
             Select-Object -First 20 -ExpandProperty FullName
           throw 'lazbuild.exe not found'
 
+      - name: Prepare python3 shim
+        shell: pwsh
+        run: |
+          $shimDir = Join-Path $env:RUNNER_TEMP 'simd-win-shims'
+          New-Item -ItemType Directory -Force -Path $shimDir | Out-Null
+          @'
+          @echo off
+          python %*
+          '@ | Out-File -FilePath (Join-Path $shimDir 'python3.cmd') -Encoding ascii
+          $shimDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          Write-Host "[SHIM] Added $shimDir to PATH"
+
       - name: Collect and Verify Windows Evidence
         shell: cmd
         run: |
@@ -133,6 +156,7 @@ jobs:
           dir tests
           dir tests\fafafa.core.simd
           set "SIMD_SCRIPT_ROOT=%GITHUB_WORKSPACE%\tests\fafafa.core.simd\"
+          set "SIMD_WIN_EVIDENCE_USE_BASH_GATE=1"
           call "%GITHUB_WORKSPACE%\tests\fafafa.core.simd\collect_windows_b07_evidence.bat"
           if errorlevel 1 exit /b 1
           call "%GITHUB_WORKSPACE%\tests\fafafa.core.simd\verify_windows_b07_evidence.bat" "%GITHUB_WORKSPACE%\tests\fafafa.core.simd\logs\windows_b07_gate.log"

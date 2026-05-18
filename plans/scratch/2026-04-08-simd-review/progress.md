@@ -15011,3 +15011,53 @@
 - 当前阶段结论：
   - 这批修的是 closeout preflight rehearsal 的时间漂移，不是 SIMD/runtime 行为
   - `gate-summary-selfcheck` 已重新回绿，说明这一轮 `freeze-status` / preflight / gate-summary 的 bounded tooling residual 已被收掉
+
+## 2026-05-18 GitHub Windows Bash-Opt-In Evidence Path Repair
+
+- 当前 live 外部 closeout 又向前推进了一步：
+  - 用户已把 `dtamade/fafafa.core` 改回 public
+  - fresh `win-evidence-preflight` 已恢复 `STATUS=PASS CODE=OK EXIT=0`
+  - `gh api repos/dtamade/fafafa.core` 也确认：
+    - `private=false`
+    - `visibility=public`
+- 第一轮 fresh dispatch 没再卡 billing，而是被 closeout 脚本主动拦下：
+  - `win-evidence-via-gh SIMD-20260518-233734`
+  - 报告 `remote ref does not match local HEAD`
+  - 进一步核实发现不是远端比本地新，而是本地 `main` 比 `origin/main` 超前 `121` 个提交
+- 因而这轮先做了最小远端对齐：
+  - `git push origin main`
+  - 让远端 `main` 快进到当前 closeout HEAD：`f2b7f806`
+- 随后重新发 fresh batch：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-20260518-234408`
+  - 这次 preflight/dispatch 都通过，Windows runner 真实跑起来了
+- fresh GitHub 失败面已从 billing/ref mismatch 收敛为一个新的 workflow 内部红点：
+  - run `26044188719`
+  - `Install FreePascal + Lazarus` 通过
+  - `Resolve lazbuild path` 通过，live log 明确显示 `LAZBUILD=C:\lazarus\lazbuild.exe`
+  - 真正失败在 `Collect and Verify Windows Evidence`
+  - artifact / failed log 表现为：
+    - `GateRunnerMode: batch-default`
+    - `buildOrTest.bat check` 在 `Build + check` 入口几乎立刻返回 `1`
+    - `build.txt` 只有空白，占位大小 `3` bytes
+  - 结论：当前红点已经不是 GitHub billing，也不是 lazbuild 缺失，而是 GitHub Windows runner 仍走 native batch gate，并在 batch `check` 入口静默短路
+- 本批最小修复保持在 Windows external evidence lane，不回头碰 SIMD 实现层：
+  - `tests/fafafa.core.simd/collect_windows_b07_evidence.bat`
+    - 新增 `:resolve_bash_command`
+    - 在显式 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` 时，不再只依赖 `where bash`
+    - 现在会直接探测标准 Git Bash 路径：
+      - `C:\Program Files\Git\bin\bash.exe`
+      - `C:\Program Files\Git\usr\bin\bash.exe`
+      - `C:\msys64\usr\bin\bash.exe`
+    - bash-optin 成功时把真实 `BashCommand` 记入 evidence log
+  - `.github/workflows/simd-windows-b07-evidence.yml`
+    - `Resolve lazbuild path` 现在同步把标准 Git Bash 目录注入 `GITHUB_PATH`
+    - 新增 `Prepare python3 shim`，提供 `python3.cmd -> python`
+    - `Collect and Verify Windows Evidence` 步骤显式设置 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1`
+- 本地最小验证已完成：
+  - `git diff --check`
+  - `bash tests/fafafa.core.simd/rehearse_win_bash_gate_fallback_warning.sh`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`
+  - 结果全部通过
+- 当前阶段结论：
+  - 这批修的是 GitHub-hosted Windows evidence 的 runner path/tooling contract，不是 SIMD 算法或 ABI 逻辑
+  - 下一步应提交并 push 本批修复，然后重新 dispatch Windows evidence，验证 `GateRunnerMode` 是否切换到 `bash-optin`

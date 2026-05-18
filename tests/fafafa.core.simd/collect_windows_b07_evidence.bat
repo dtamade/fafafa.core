@@ -21,10 +21,11 @@ set "GATE_COMMAND_MARKER=buildOrTest.bat gate"
 set "USE_BASH_GATE_REQUEST=%SIMD_WIN_EVIDENCE_USE_BASH_GATE%"
 if "%USE_BASH_GATE_REQUEST%"=="" set "USE_BASH_GATE_REQUEST=0"
 set "USE_BASH_GATE=0"
+set "BASH_CMD="
 
 if /I "%USE_BASH_GATE_REQUEST%"=="1" (
-  where bash >nul 2>nul
-  if not errorlevel 1 (
+  call :resolve_bash_command
+  if not "%BASH_CMD%"=="" (
     if exist "%TESTS_ROOT%\run_all_tests.sh" (
       if exist "%ROOT%BuildOrTest.sh" (
         if exist "%TESTS_ROOT%\fafafa.core.simd.publicabi\publicabi_smoke.h" (
@@ -54,6 +55,7 @@ echo [B07] Working dir: %ROOT% >> "%TMP_LOG%"
 echo [B07] Command: %GATE_COMMAND_MARKER% >> "%TMP_LOG%"
 if /I "%USE_BASH_GATE%"=="1" (
   echo [B07] GateRunnerMode: bash-optin >> "%TMP_LOG%"
+  echo [B07] BashCommand: %BASH_CMD% >> "%TMP_LOG%"
 ) else (
   echo [B07] GateRunnerMode: batch-default >> "%TMP_LOG%"
   if /I "%USE_BASH_GATE_REQUEST%"=="1" (
@@ -254,13 +256,32 @@ type "%OUT_LOG%"
 
 exit /b %GATE_RC%
 
+:resolve_bash_command
+set "BASH_CMD="
+where bash >nul 2>nul
+if not errorlevel 1 (
+  set "BASH_CMD=bash"
+  exit /b 0
+)
+for %%I in ("C:\Program Files\Git\bin\bash.exe" "C:\Program Files\Git\usr\bin\bash.exe" "C:\msys64\usr\bin\bash.exe") do (
+  if exist "%%~fI" (
+    set "BASH_CMD=%%~fI"
+    exit /b 0
+  )
+)
+exit /b 1
+
 :bash_gate
 echo [B07] Using canonical bash gate runner for gate_summary.md >> "%TMP_LOG%"
 set "SIMD_GATE_PUBLICABI_SMOKE=0"
 set "SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0"
 
 pushd "%TESTS_ROOT%"
-bash "fafafa.core.simd/BuildOrTest.sh" gate >> "%TMP_LOG%" 2>&1
+if /I "%BASH_CMD%"=="bash" (
+  bash "fafafa.core.simd/BuildOrTest.sh" gate >> "%TMP_LOG%" 2>&1
+) else (
+  "%BASH_CMD%" "fafafa.core.simd/BuildOrTest.sh" gate >> "%TMP_LOG%" 2>&1
+)
 set "GATE_RC=%ERRORLEVEL%"
 popd
 
