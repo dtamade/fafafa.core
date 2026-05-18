@@ -15101,3 +15101,46 @@
   - 下一步应提交这批 follow-up patch，再发第三轮 fresh evidence，看是：
     - 成功切到 `bash-optin`
     - 或至少让 artifact 带回可执行的 native batch 真因
+
+### Follow-up: native batch short-circuits before lazbuild branch
+
+- 第三轮 fresh dispatch：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-20260519-001734`
+  - 新 run：`26047870162`
+- 这轮拿回来的关键新证据：
+  - 仍未切到 `bash-optin`
+  - live log 继续显示：
+    - `GateRunnerMode: batch-default`
+    - `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1 requested, but cmd.exe cannot satisfy the current bash-gate prerequisites`
+  - 但 native batch diagnostics 已经开始生效：
+    - `NativeBatchCheckRc: 1`
+    - `NativeBatchBuildLog: ...\logs\build.txt`
+    - `build.txt` 不再是空白，而是至少包含：
+      - `[BUILD] ROOT=...`
+      - `[BUILD] LAZBUILD=C:\lazarus\lazbuild.exe`
+      - `[BUILD] BIN=...`
+      - `[BUILD] UNIT_DIR=...`
+  - 同时仍然缺失：
+    - `[BUILD] LAZBUILD_EXT=...`
+    - `[BUILD] Invoking lazbuild...`
+    - 任何 `[BUILD] FAILED` / toolchain-block 行
+- 这说明批处理真正的短路点已经进一步锁死：
+  - 失败发生在 `ROOT/LAZBUILD/BIN/UNIT_DIR` 之后
+  - 但发生在 `LAZBUILD_EXT` 之前
+  - 也就是旧的 `call :ensure_lazbuild_available` 邻域
+  - 最可信的解释不再是 lazbuild 不可用，而是 batch `call :label` 返回/退出行为在 GitHub Windows runner 上异常短路
+- 因此又做了一个更小、更针对性的 follow-up：
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+    - 删除 `:build` 对 `call :ensure_lazbuild_available` 的依赖
+    - 把 LAZBUILD 可达性检查直接内联进 `:build`
+    - 让 toolchain block 与失败输出都留在同一个控制流作用域里
+- 本地快速校验：
+  - `git diff --check`
+  - `bash tests/fafafa.core.simd/rehearse_win_bash_gate_fallback_warning.sh`
+  - 当前都通过
+- 当前阶段结论：
+  - 外部 closeout 的红点现在已经不是“没有信息”，而是“GitHub runner 上 bash 不可达 + native batch old subroutine flow 可疑”
+  - 下一步应提交这条 inline fix，再发第四轮 fresh evidence，验证是否终于能走到：
+    - `LAZBUILD_EXT`
+    - `Invoking lazbuild...`
+    - 或真正的 lazbuild/build failure message
