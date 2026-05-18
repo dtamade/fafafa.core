@@ -13885,3 +13885,25 @@
     - ties-to-even
     - 正边界 `prev-in-range` / `exact overflow` / `tie-overflow`
   - 下一步若继续沿这条线推进，应优先看仍缺高信息量 proof 的 residual，而不是重新散到低价值 family
+
+## 2026-05-18 SSE2 Scalar Int64 Tie-Even Coverage Expansion
+
+- 当前继续沿 `SSE2 conversion` 热路径做最小 residual 收口，这次只补 `simd_cvtsd_si64` 的 banker rounding proof。
+- 先用本机 `cc -msse2` inline-asm probe 取到 host truth：
+  - `2.5 -> 2`
+  - `3.5 -> 4`
+  - `-2.5 -> -2`
+  - `-3.5 -> -4`
+- 本批继续保持 tests-only：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 在 `Test_RoundToNearestEvenConversionSemantics` 下补齐 `simd_cvtsd_si64` 的 4 个 tie-even case
+- fresh closeout 已完成：
+  - `git diff --check`
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- fresh 结果：
+  - default / experimental 双模态测试均 `TEST OK`
+  - `simd_cvtsd_si64` tie-even 结果与 host truth 一致，无新增 rounding 偏移
+- 当前阶段结论：
+  - 到这一刻为止，`SSE2 conversion` 的 ties-to-even proof 已从 `cvtps/cvtpd/cvtsd_si32` 扩到 `cvtsd_si64`
+  - 这批没有打出新的 source bug，继续保持 tests-only 收口

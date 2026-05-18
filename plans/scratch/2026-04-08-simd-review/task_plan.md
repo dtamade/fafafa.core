@@ -5393,3 +5393,17 @@
 | 1. 先取 host truth 并复核 threshold coverage 缺口 | completed | 已用本机 `cc -msse2` probe 确认 `f32` 最大可表示 in-range 正值、`f64` 的 `prev-in-range` / `exact overflow` / `tie-overflow` 在 packed/scalar conversion 上的真实返回值 |
 | 2. 只补 representative proof，不扩实现范围 | completed | `TTestCase_X86Sse2AbiBasics` 已新增 `Test_ConversionThresholdBoundarySemantics`，直接覆盖 `prev-in-range` 与 `exact overflow/tie-overflow` 的 packed/scalar 正边界 case |
 | 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已全部 fresh 通过；本批继续保持 tests-only，无需重开 source 修复 |
+
+## 2026-05-18 SSE2 Scalar Int64 Tie-Even Coverage Expansion
+
+### Goal
+
+继续沿 conversion 热路径做最后一小簇 tie-even 收口，但只补 `simd_cvtsd_si64` 的标量 banker rounding proof。前面 tie-even 批次已经锁住了 `cvtps/cvtpd/cvtsd_si32`，这次补上 `si64`，确认 `ConvertDoubleToInt64Nearest` 在 `2.5/3.5/-2.5/-3.5` 上和 SSE2 host truth 一致；若 fresh 运行打红，再把修复限制在 `simd_cvtsd_si64` 周围。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 先取 host truth 并复核 `si64` tie coverage 缺口 | completed | 已用本机 `cc -msse2` inline-asm probe 确认 `simd_cvtsd_si64` 在 `2.5/3.5/-2.5/-3.5` 上分别返回 `2/4/-2/-4` |
+| 2. 只补 representative proof，不扩实现范围 | completed | 已在 `Test_RoundToNearestEvenConversionSemantics` 下补齐 `simd_cvtsd_si64` 的 4 个 tie-even case |
+| 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已全部 fresh 通过；本批继续保持 tests-only，无需重开 source 修复 |

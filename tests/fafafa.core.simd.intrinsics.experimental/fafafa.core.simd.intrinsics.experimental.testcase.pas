@@ -2093,12 +2093,16 @@ begin
 
   LDoubles.m128d_f64[0] := 2.5;
   AssertEquals('simd_cvtsd_si32 tie to even', 2, simd_cvtsd_si32(LDoubles));
+  AssertEquals('simd_cvtsd_si64 tie to even', Int64(2), simd_cvtsd_si64(LDoubles));
   LDoubles.m128d_f64[0] := 3.5;
   AssertEquals('simd_cvtsd_si32 tie to even next odd', 4, simd_cvtsd_si32(LDoubles));
+  AssertEquals('simd_cvtsd_si64 tie to even next odd', Int64(4), simd_cvtsd_si64(LDoubles));
   LDoubles.m128d_f64[0] := -2.5;
   AssertEquals('simd_cvtsd_si32 negative tie to even', -2, simd_cvtsd_si32(LDoubles));
+  AssertEquals('simd_cvtsd_si64 negative tie to even', Int64(-2), simd_cvtsd_si64(LDoubles));
   LDoubles.m128d_f64[0] := -3.5;
   AssertEquals('simd_cvtsd_si32 negative tie to even next odd', -4, simd_cvtsd_si32(LDoubles));
+  AssertEquals('simd_cvtsd_si64 negative tie to even next odd', Int64(-4), simd_cvtsd_si64(LDoubles));
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_ConversionThresholdBoundarySemantics;
