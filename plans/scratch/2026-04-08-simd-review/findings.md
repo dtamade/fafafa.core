@@ -8787,3 +8787,23 @@
 - 因而当前对这组 residual 的更准口径已经变成：
   - `RISCVV` compare asm/runtime contract：仍是真正要守的 family 证据
   - `RISCVV` compare no-asm facade body：已经是 dead source，应删除
+
+## 2026-05-18 RISCVV U32x4 Needed Slot-Level Splitting, Not Family-Level Blanket Retention
+
+- `U32x4` 继续 fresh 复核后，新的关键结论不是“unsigned 128-bit 先整体保留”，而是也必须拆到 slot 级别：
+  - `Add/Sub/Mul/And/Or/Xor/Not/ShiftLeft/ShiftRight/Min/Max`
+  - 已经是 `asm-gated dead facade`
+  - `AndNotU32x4`、`CmpEq/Lt/Gt/Le/GeU32x4`
+  - 仍在 live publish path
+  - `CmpNeU32x4`
+  - 仍是 helper special-case
+- 这条 finding 的价值，是把另一个容易误导审查节奏的错觉钉死：
+  - 不能因为同属 `U32x4`，就把 dead facade 和 live companion 一起拖着不收
+  - 更不能因为 `CmpNeU32x4` 有 helper 特例，就顺手保留整个 unsigned narrow family 的 no-asm wrapper
+- 正确判断顺序现在更明确：
+  - 先看 register wiring 是否 asm-gated
+  - 再看 facade 是否还有 live consumer
+  - 然后才讨论 remaining helper / compare / semantic-special path 需不需要单独保留
+- 因而当前对 `RISCVV U32x4` 的更准口径已经变成：
+  - 这 11 个 asm-gated scalar-forward body：dead source，应删除
+  - `AndNot/compare/helper special-case`：仍是后续继续深审时该保留观察的 live lane

@@ -895,11 +895,6 @@ begin
   Result := ScalarAddU16x8(a, b);
 end;
 
-function RISCVVAddU32x4(const a, b: TVecU32x4): TVecU32x4;
-begin
-  Result := ScalarAddU32x4(a, b);
-end;
-
 function RISCVVAddU64x4(const a, b: TVecU64x4): TVecU64x4;
 begin
   Result := ScalarAddU64x4(a, b);
@@ -1059,11 +1054,6 @@ end;
 function RISCVVAndU16x8(const a, b: TVecU16x8): TVecU16x8;
 begin
   Result := ScalarAndU16x8(a, b);
-end;
-
-function RISCVVAndU32x4(const a, b: TVecU32x4): TVecU32x4;
-begin
-  Result := ScalarAndU32x4(a, b);
 end;
 
 function RISCVVAndU64x4(const a, b: TVecU64x4): TVecU64x4;
@@ -1742,11 +1732,6 @@ begin
   Result := ScalarMaxU16x8(a, b);
 end;
 
-function RISCVVMaxU32x4(const a, b: TVecU32x4): TVecU32x4;
-begin
-  Result := ScalarMaxU32x4(a, b);
-end;
-
 function RISCVVMaxU8x16(const a, b: TVecU8x16): TVecU8x16;
 begin
   Result := ScalarMaxU8x16(a, b);
@@ -1807,11 +1792,6 @@ begin
   Result := ScalarMinU16x8(a, b);
 end;
 
-function RISCVVMinU32x4(const a, b: TVecU32x4): TVecU32x4;
-begin
-  Result := ScalarMinU32x4(a, b);
-end;
-
 function RISCVVMinU8x16(const a, b: TVecU8x16): TVecU8x16;
 begin
   Result := ScalarMinU8x16(a, b);
@@ -1825,11 +1805,6 @@ end;
 function RISCVVMulU16x8(const a, b: TVecU16x8): TVecU16x8;
 begin
   Result := ScalarMulU16x8(a, b);
-end;
-
-function RISCVVMulU32x4(const a, b: TVecU32x4): TVecU32x4;
-begin
-  Result := ScalarMulU32x4(a, b);
 end;
 
 function RISCVVNotI16x8(const a: TVecI16x8): TVecI16x8;
@@ -1855,11 +1830,6 @@ end;
 function RISCVVNotU16x8(const a: TVecU16x8): TVecU16x8;
 begin
   Result := ScalarNotU16x8(a);
-end;
-
-function RISCVVNotU32x4(const a: TVecU32x4): TVecU32x4;
-begin
-  Result := ScalarNotU32x4(a);
 end;
 
 function RISCVVNotU64x4(const a: TVecU64x4): TVecU64x4;
@@ -1895,11 +1865,6 @@ end;
 function RISCVVOrU16x8(const a, b: TVecU16x8): TVecU16x8;
 begin
   Result := ScalarOrU16x8(a, b);
-end;
-
-function RISCVVOrU32x4(const a, b: TVecU32x4): TVecU32x4;
-begin
-  Result := ScalarOrU32x4(a, b);
 end;
 
 function RISCVVOrU64x4(const a, b: TVecU64x4): TVecU64x4;
@@ -2082,11 +2047,6 @@ begin
   Result := ScalarShiftLeftU16x8(a, count);
 end;
 
-function RISCVVShiftLeftU32x4(const a: TVecU32x4; count: Integer): TVecU32x4;
-begin
-  Result := ScalarShiftLeftU32x4(a, count);
-end;
-
 function RISCVVShiftLeftU64x4(const a: TVecU64x4; count: Integer): TVecU64x4;
 begin
   Result := ScalarShiftLeftU64x4(a, count);
@@ -2110,11 +2070,6 @@ end;
 function RISCVVShiftRightU16x8(const a: TVecU16x8; count: Integer): TVecU16x8;
 begin
   Result := ScalarShiftRightU16x8(a, count);
-end;
-
-function RISCVVShiftRightU32x4(const a: TVecU32x4; count: Integer): TVecU32x4;
-begin
-  Result := ScalarShiftRightU32x4(a, count);
 end;
 
 function RISCVVShiftRightU64x4(const a: TVecU64x4; count: Integer): TVecU64x4;
@@ -2239,11 +2194,6 @@ begin
   Result := ScalarSubU16x8(a, b);
 end;
 
-function RISCVVSubU32x4(const a, b: TVecU32x4): TVecU32x4;
-begin
-  Result := ScalarSubU32x4(a, b);
-end;
-
 function RISCVVSubU64x4(const a, b: TVecU64x4): TVecU64x4;
 begin
   Result := ScalarSubU64x4(a, b);
@@ -2297,11 +2247,6 @@ end;
 function RISCVVXorU16x8(const a, b: TVecU16x8): TVecU16x8;
 begin
   Result := ScalarXorU16x8(a, b);
-end;
-
-function RISCVVXorU32x4(const a, b: TVecU32x4): TVecU32x4;
-begin
-  Result := ScalarXorU32x4(a, b);
 end;
 
 function RISCVVXorU64x4(const a, b: TVecU64x4): TVecU64x4;

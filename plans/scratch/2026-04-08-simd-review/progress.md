@@ -12318,3 +12318,51 @@
   - `RISCVV I32x4/I64x2 compare` 现在也已经从 unconditional scalar-forward wrapper 收成 `asm-only binding + no-asm scalar reuse`
   - `RISCVV` 这一簇 128-bit 窄整数的 arithmetic/bitwise/shift/minmax/compare dead facade 已完成一整波收口
   - 后续继续深审时，重心应回到剩余 semantic-sensitive residual，而不是再回头保留这些已经失活的 facade 名字
+
+## 2026-05-18 RISCVV U32x4 Conditional Integer Slots Were Dead Facade Too
+
+- 继续沿 `RISCVV` 128-bit residual 往下收时，`U32x4` 这簇 fresh 对位后也落成了与上一批相同的结构分裂：
+  - `Add/Sub/Mul/And/Or/Xor/Not/ShiftLeft/ShiftRight/Min/Max`
+  - 这 11 个 slot 都是 `asm-gated dead facade`
+  - `AndNotU32x4` 与 `CmpEq/Lt/Gt/Le/GeU32x4`
+  - 仍属于 live runtime path，这批不动
+  - `CmpNeU32x4`
+  - 仍是 helper special-case，这批也不动
+- fresh 证据链：
+  - `src/fafafa.core.simd.riscvv.register.inc`
+    - 上述 11 个 `U32x4` slot 都只在 `{$IFDEF RISCVV_ASSEMBLY}` 下绑定
+    - `AndNotU32x4` 与 compare 仍保持 unconditional 发布
+  - `src/fafafa.core.simd.riscvv.pas`
+    - 这 11 个 slot 的 asm wrapper / helper / opcode body 全都仍真实存在
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - 之前仍保留这 11 个 no-asm scalar-forward body
+    - 现在全部删除
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 把这 11 个名字从 active scalar-forward expectation 中移除
+    - 改成 `riscvv_facade_source` absent-routine expectation
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 新增 `Test_RISCVV_U32x4ConditionalIntegerSlots_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding`
+    - 显式断言：
+      - facade dead witness 必须 absent
+      - asm wrapper / helper / opcode witness 继续存在
+      - runtime 仍保持 asm-compiled 时 backend-owned、非 asm host 时 scalar reuse
+- 这批判断的关键收紧点，是不再把整个 `U32x4` family 当成一团一起处理：
+  - 先看 register 是否 asm-gated
+  - 再看 facade 今天是不是 live consumer
+  - 只有还在 live path 上的 `AndNot/compare/helper special-case` 才继续保留
+- 本批 fresh 验证链已经收口：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- 关键结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=706 status=ok`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=136 issues=0 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 退出码 `0`
+- 当前阶段结论：
+  - `RISCVV U32x4` 这 11 个 no-asm body 现在也已经确认是 dead facade，不该继续留在源码里
+  - `RISCVV` 128-bit residual 继续往下收时，真正还要审的是仍在 unconditional/live path 上的少数 companion/helper slot，而不是这些已失活 wrapper

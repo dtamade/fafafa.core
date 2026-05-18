@@ -524,12 +524,6 @@ def main() -> int:
         (riscvv_facade_source, "RISCVVMaxU16x8", [
             "Result := ScalarMaxU16x8(a, b);",
         ]),
-        (riscvv_facade_source, "RISCVVMinU32x4", [
-            "Result := ScalarMinU32x4(a, b);",
-        ]),
-        (riscvv_facade_source, "RISCVVMaxU32x4", [
-            "Result := ScalarMaxU32x4(a, b);",
-        ]),
         (riscvv_facade_source, "RISCVVMinU8x16", [
             "Result := ScalarMinU8x16(a, b);",
         ]),
@@ -867,7 +861,6 @@ def main() -> int:
         ("I16x8", ("ShiftLeft", "ShiftRight", "ShiftRightArith")),
         ("I64x4", ("ShiftLeft", "ShiftRight")),
         ("U16x8", ("ShiftLeft", "ShiftRight")),
-        ("U32x4", ("ShiftLeft", "ShiftRight")),
         ("U64x4", ("ShiftLeft", "ShiftRight")),
     ):
         for op in ops:
@@ -923,7 +916,7 @@ def main() -> int:
             ]
         )
 
-    for suffix in ("I16x8", "I64x4", "I64x8", "I8x16", "U16x8", "U32x4", "U64x4", "U8x16"):
+    for suffix in ("I16x8", "I64x4", "I64x8", "I8x16", "U16x8", "U64x4", "U8x16"):
         for op in ("Add", "Sub", "And", "Or", "Xor"):
             riscvv_scalar_forwarder_expectations.append(
                 (f"RISCVV{op}{suffix}", f"Scalar{op}{suffix}(a, b)")
@@ -942,7 +935,7 @@ def main() -> int:
                 (f"RISCVVCmp{op}{suffix}", f"ScalarCmp{op}{suffix}(a, b)")
             )
 
-    for suffix in ("I16x8", "U16x8", "U32x4"):
+    for suffix in ("I16x8", "U16x8"):
         riscvv_scalar_forwarder_expectations.append(
             (f"RISCVVMul{suffix}", f"ScalarMul{suffix}(a, b)")
         )
@@ -1312,6 +1305,17 @@ def main() -> int:
         (riscvv_facade_source, "RISCVVCmpLeI64x2"),
         (riscvv_facade_source, "RISCVVCmpGeI64x2"),
         (riscvv_facade_source, "RISCVVCmpNeI64x2"),
+        (riscvv_facade_source, "RISCVVAddU32x4"),
+        (riscvv_facade_source, "RISCVVSubU32x4"),
+        (riscvv_facade_source, "RISCVVMulU32x4"),
+        (riscvv_facade_source, "RISCVVAndU32x4"),
+        (riscvv_facade_source, "RISCVVOrU32x4"),
+        (riscvv_facade_source, "RISCVVXorU32x4"),
+        (riscvv_facade_source, "RISCVVNotU32x4"),
+        (riscvv_facade_source, "RISCVVShiftLeftU32x4"),
+        (riscvv_facade_source, "RISCVVShiftRightU32x4"),
+        (riscvv_facade_source, "RISCVVMinU32x4"),
+        (riscvv_facade_source, "RISCVVMaxU32x4"),
     ]
 
     for source, routine_name in absent_routine_expectations:
