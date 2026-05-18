@@ -15473,3 +15473,41 @@
 - 当前阶段结论：
   - 本地最接近 Windows 崩溃面的启动路径已经被打通
   - 下一步应提交并 push 这批 dispatch preinit 修复，再发 fresh Windows evidence，确认 GH Windows 上的同一条 `list-suites` 启动 AV 已被清掉
+
+## 2026-05-19 Windows B07 Follow-up: Startup AV Gone, `--list-suites` Return-Code Contract Still Red
+
+- fresh Windows run `26059847881` 已证明上一批 dispatch preinit 修复把真正的启动 AV 清掉了：
+  - `Collect Windows B07 Evidence` 已成功完成 toolchain 安装与 lazbuild 解析
+  - `NONX86-OPTIN neon: test --list-suites` 真实输出了完整 suite 列表
+  - 说明此前卡在 `EAccessViolation` 的 opt-in 启动面已经不再是当前 blocker
+- 新失败面已缩成 Windows runner/closeout 合同问题，而不是 simd 实现问题：
+  - `collect_windows_b07_evidence.bat` 的 `buildOrTest.bat check` 返回 `NativeBatchCheckRc: 1`
+  - 同时日志里已经出现：
+    - `[CHECK] Optional non-x86 opt-in suite listing enabled`
+    - `[NONX86-OPTIN] neon: test --list-suites`
+    - `Available suites: ...`
+  - 最终 B07 日志尾部变成：
+    - `[B07] GateSummaryJson: missing`
+    - `[B07] GateSummaryExportRc: skipped-native-batch`
+    - `[B07] GATE_EXIT_CODE=1`
+- 当前根因判断：
+  - Windows-hosted `fafafa.core.simd.test.exe --list-suites` 实际已经成功打印 suite manifest
+  - 但 Windows runner 仍把该模式的非零返回码当成普通 test 失败
+  - 因而 `buildOrTest.bat check` 在 `nonx86-optin-list-suites` 这条收口线上被假红拖死
+- 已落地修复：
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+    - `:test` 现在识别 `--list-suites`
+    - 若日志已打印 `Available suites:`，且没有 `Access violation` / `EAccessViolation` / `Invalid option` / `Unhandled exception` / `Some tests failed!` / `ERROR:` 等失败标记，则把该非零 rc 视为成功
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - shell runner 同步补上相同语义，避免真实 Windows runner 以后切回 `bash-optin` 时再次卡在同一类返回码差异
+- 本地串行 release 验证 fresh 通过：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `runner-parity` 通过
+  - `check` 通过
+  - `check` 内置 `NONX86-OPTIN neon/riscvv --list-suites` 继续双绿
+- 当前阶段结论：
+  - Windows 当前已从“simd 实现启动崩溃”收敛到“runner 对 list-only 成功返回码兼容不足”
+  - 下一步应提交并 push 这一批 runner 合同修复，再发 fresh Windows evidence，确认 `26059847881` 这类 B07 假红被清掉

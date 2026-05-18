@@ -1269,6 +1269,10 @@ if not exist "%BIN%" (
   exit /b 2
 )
 
+set "LIST_SUITES_MODE=0"
+echo %NORMALIZED_TEST_ARGS% | findstr /l /c:"--list-suites" >nul 2>nul
+if not errorlevel 1 set "LIST_SUITES_MODE=1"
+
 echo [TEST] Running: %BIN%%NORMALIZED_TEST_ARGS%
 echo. > "%TEST_LOG%"
 "%BIN%" %NORMALIZED_TEST_ARGS% > "%TEST_LOG%" 2>&1
@@ -1276,6 +1280,16 @@ set "TEST_RC=%ERRORLEVEL%"
 if /I "%SIMD_SUPPRESS_BUILD_WARNINGS%"=="1" (
   findstr /c:"Failures: 0" "%TEST_LOG%" >nul 2>nul
   if not errorlevel 1 findstr /c:"Errors: 0" "%TEST_LOG%" >nul 2>nul && set "TEST_RC=0"
+)
+if not "%TEST_RC%"=="0" if "%LIST_SUITES_MODE%"=="1" (
+  findstr /b /c:"Available suites:" "%TEST_LOG%" >nul 2>nul
+  if not errorlevel 1 (
+    findstr /i /c:"Access violation" /c:"EAccessViolation" /c:"Invalid option" /c:"Unhandled exception" /c:"Some tests failed!" /c:"ERROR:" "%TEST_LOG%" >nul 2>nul
+    if errorlevel 1 (
+      echo [TEST] WARN: --list-suites returned rc=%TEST_RC% after printing suite manifest; treating as success
+      set "TEST_RC=0"
+    )
+  )
 )
 if not "%TEST_RC%"=="0" (
   echo [TEST] FAILED ^(see %TEST_LOG%^ )

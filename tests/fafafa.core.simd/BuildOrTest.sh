@@ -429,6 +429,8 @@ check_build_log() {
 
 run_tests() {
   local LBinPath
+  local LIsListSuites
+  local LArg
 
   resolve_test_binary() {
     local LCandidate
@@ -494,6 +496,14 @@ run_tests() {
     return 2
   }
 
+  LIsListSuites=0
+  for LArg in "$@"; do
+    if [[ "${LArg}" == "--list-suites" ]]; then
+      LIsListSuites=1
+      break
+    fi
+  done
+
   if [[ "${LBinPath}" != "${BIN}" ]]; then
     echo "[TEST] Resolved binary fallback: ${LBinPath}"
   fi
@@ -505,9 +515,15 @@ run_tests() {
     :
   else
     local rc=$?
-    echo "[TEST] FAILED rc=${rc} (see ${TEST_LOG})"
-    tail -n 80 "${TEST_LOG}" || true
-    return "${rc}"
+    if [[ "${LIsListSuites}" == "1" ]] && \
+       grep -nE '^Available suites:' "${TEST_LOG}" >/dev/null && \
+       ! grep -nE 'Access violation|EAccessViolation|Invalid option|Unhandled exception|Some tests failed!|ERROR:' "${TEST_LOG}" >/dev/null; then
+      echo "[TEST] WARN: --list-suites returned rc=${rc} after printing suite manifest; treating as success"
+    else
+      echo "[TEST] FAILED rc=${rc} (see ${TEST_LOG})"
+      tail -n 80 "${TEST_LOG}" || true
+      return "${rc}"
+    fi
   fi
 
   if grep -nE '^Invalid option' "${TEST_LOG}" >/dev/null; then

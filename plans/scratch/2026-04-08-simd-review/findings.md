@@ -8919,3 +8919,25 @@
 - 这条 finding 的价值是阻止后续继续跑偏：
   - 不要再把时间花在 backend wrapper、NEON 语义、opt-in define 宽度上重开旧假设
   - 下一步只需要验证这次 dispatch preinit 修复能否在 Windows fresh `NONX86-OPTIN neon --list-suites` 上真正清掉同一条 AV
+
+## 2026-05-19 Windows `NONX86-OPTIN --list-suites` no longer crashed; remaining failure was a runner return-code contract bug
+
+- fresh Windows run `26059847881` 给了一个很关键的翻正证据：
+  - `NONX86-OPTIN neon: test --list-suites` 不再 `EAccessViolation`
+  - 日志已经真实打印出完整的 `Available suites:` 列表
+- 这说明上一批 dispatch preinit 修复确实打掉了真正的 simd 实现问题；当前剩下的红态不再属于 backend/register/dispatch 初始化链。
+- 新问题非常具体：
+  - `collect_windows_b07_evidence.bat` 里先跑 `buildOrTest.bat check`
+  - `check` 在 `nonx86-optin-list-suites` 这条子路径上拿到 `NativeBatchCheckRc: 1`
+  - 于是 B07 closeout 最终落成：
+    - `GateSummaryJson: missing`
+    - `GateSummaryExportRc: skipped-native-batch`
+    - `GATE_EXIT_CODE=1`
+- 真实症状和更准确的解释是：
+  - Windows-hosted `fafafa.core.simd.test.exe --list-suites` 已经把 suite manifest 打印出来
+  - 但 runner 仍把该模式下的非零返回码按“普通 test 失败”处理
+  - 所以这条红态是 runner/closeout contract bug，不是 simd list-suites 语义或 backend wiring bug
+- 这条 finding 的价值很高，因为它把下一步彻底收窄成 runner 合同修复：
+  - 不要再回去改 `dispatch` / `scalar` / `neon` / `riscvv`
+  - 也不需要再扩大战线到 gate-summary / freeze-status 总体逻辑
+  - 只需要让 shell/batch runner 在 `--list-suites` 模式下，把“已成功打印 suite manifest 且没有 crash/failure marker”的情况当成成功即可
