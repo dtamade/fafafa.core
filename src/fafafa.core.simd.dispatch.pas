@@ -935,6 +935,7 @@ var
   // Readers that see g_DispatchState=0 during a control-plane batch rebuild
   // must not initialize against the half-rebuilt backend set.
   g_DispatchBatchRebuildState: LongInt = 0;
+  g_DispatchControlPlaneInitialized: Boolean = False;
 
 // === Initialization ===
 
@@ -981,6 +982,19 @@ begin
     g_DefaultBackendNames[LBackend] := AnsiString(DefaultBackendName(LBackend));
     g_DefaultBackendDescriptions[LBackend] := AnsiString(DefaultBackendDescription(LBackend));
   end;
+end;
+
+procedure EnsureDispatchControlPlaneInitialized;
+begin
+  if g_DispatchControlPlaneInitialized then
+    Exit;
+
+  InitializeDefaultBackendTexts;
+  g_VectorAsmToggleLock := Default(TRTLCriticalSection);
+  g_DispatchHooksLock := Default(TRTLCriticalSection);
+  InitCriticalSection(g_VectorAsmToggleLock);
+  InitCriticalSection(g_DispatchHooksLock);
+  g_DispatchControlPlaneInitialized := True;
 end;
 
 procedure EnsureUniqueBackendInfoText(var aInfo: TSimdBackendInfo); inline;
@@ -1318,6 +1332,7 @@ var
   LBackend: TSimdBackend;
   LCount: Integer;
 begin
+  EnsureDispatchControlPlaneInitialized;
   EnterCriticalSection(g_VectorAsmToggleLock);
   try
     Result := nil;
@@ -1341,6 +1356,7 @@ function GetBestDispatchableBackend: TSimdBackend;
 var
   LBackend: TSimdBackend;
 begin
+  EnsureDispatchControlPlaneInitialized;
   EnterCriticalSection(g_VectorAsmToggleLock);
   try
     for LBackend in SIMD_BACKEND_PRIORITY_ORDER do
@@ -1360,6 +1376,7 @@ var
   LPreviousForcedBackend: TSimdBackend;
 begin
   aAttemptedSelection := False;
+  EnsureDispatchControlPlaneInitialized;
   EnterCriticalSection(g_VectorAsmToggleLock);
   try
     // Fast fail on backends that are not registered or not wired available.
@@ -1501,6 +1518,7 @@ end;
 
 procedure ResetToAutomaticBackend;
 begin
+  EnsureDispatchControlPlaneInitialized;
   EnterCriticalSection(g_VectorAsmToggleLock);
   try
     g_BackendForced := False;
@@ -1568,6 +1586,7 @@ begin
   if InterlockedCompareExchange(g_VectorAsmEnabledState, LExpectedState, LExpectedState) = LExpectedState then
     Exit;
 
+  EnsureDispatchControlPlaneInitialized;
   EnterCriticalSection(g_VectorAsmToggleLock);
   try
     // Re-check after acquiring lock (another writer may have already updated).
@@ -1650,6 +1669,7 @@ var
   LPreviousBackendForced: Boolean;
   LPreviousForcedBackend: TSimdBackend;
 begin
+  EnsureDispatchControlPlaneInitialized;
   EnterCriticalSection(g_VectorAsmToggleLock);
   try
     // RegisterBackend mutates managed-string metadata, published dispatch-state
@@ -2603,16 +2623,16 @@ end;
 // === Initialization ===
 
 initialization
-  InitializeDefaultBackendTexts;
-  g_VectorAsmToggleLock := Default(TRTLCriticalSection);
-  g_DispatchHooksLock := Default(TRTLCriticalSection);
-  InitCriticalSection(g_VectorAsmToggleLock);
-  InitCriticalSection(g_DispatchHooksLock);
+  EnsureDispatchControlPlaneInitialized;
 
 finalization
   FinalizeDispatchPublishedStates;
   SetLength(g_DispatchChangedHooks, 0);
-  DoneCriticalSection(g_DispatchHooksLock);
-  DoneCriticalSection(g_VectorAsmToggleLock);
+  if g_DispatchControlPlaneInitialized then
+  begin
+    DoneCriticalSection(g_DispatchHooksLock);
+    DoneCriticalSection(g_VectorAsmToggleLock);
+    g_DispatchControlPlaneInitialized := False;
+  end;
 
 end.

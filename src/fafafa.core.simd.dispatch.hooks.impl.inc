@@ -16,6 +16,7 @@ var
   LHooks: array of TSimdDispatchChangedHook;
   LHook: TSimdDispatchChangedHook;
 begin
+  EnsureDispatchControlPlaneInitialized;
   EnterCriticalSection(g_DispatchHooksLock);
   try
     LHooks := Copy(g_DispatchChangedHooks);
@@ -38,6 +39,7 @@ begin
   if not Assigned(hook) then
     Exit;
 
+  EnsureDispatchControlPlaneInitialized;
   EnterCriticalSection(g_DispatchHooksLock);
   try
     if HasDispatchChangedHook(hook) then
@@ -60,6 +62,7 @@ begin
   if not Assigned(hook) then
     Exit;
 
+  EnsureDispatchControlPlaneInitialized;
   EnterCriticalSection(g_DispatchHooksLock);
   try
     for LIndex := 0 to High(g_DispatchChangedHooks) do

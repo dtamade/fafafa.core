@@ -15440,3 +15440,36 @@
   - commit + push 这一批 line-info probe
   - 再发 Windows evidence
   - 用新的 Windows `EAccessViolation` backtrace 直接读出 Pascal 文件/行号，再做下一刀真正修复
+
+## 2026-05-19 Dispatch Control-Plane Preinit Fix For Windows Opt-In Startup AV
+
+- fresh Windows run `26058595166` 已把 opt-in 启动崩溃从“现象”缩成了明确的 Pascal 调用链：
+  - `RegisterBackend` -> `src/fafafa.core.simd.dispatch.pas:1653`
+  - `RegisterScalarBackend` -> `src/fafafa.core.simd.scalar.pas:4436`
+  - scalar 单元初始化 -> `src/fafafa.core.simd.scalar.pas:6372`
+- 当前根因已收敛为 dispatch 控制面初始化时序，而不是 NEON/RISCVV 本身：
+  - `fafafa.core.simd.scalar` 的单元初始化可能早于 `fafafa.core.simd.dispatch` 的 `initialization`
+  - 此时 `RegisterBackend(...)` 会先触发 `EnterCriticalSection(g_VectorAsmToggleLock)`
+  - 但 `g_VectorAsmToggleLock` / `g_DispatchHooksLock` / 默认 backend 文本尚未初始化，Windows 上因此在 opt-in `--list-suites` 启动期直接 AV
+- 已落地修复：
+  - `src/fafafa.core.simd.dispatch.pas`
+    - 新增 `EnsureDispatchControlPlaneInitialized`
+    - 统一懒初始化：
+      - `InitializeDefaultBackendTexts`
+      - `g_VectorAsmToggleLock`
+      - `g_DispatchHooksLock`
+    - 在 `RegisterBackend`、`GetAvailableBackends`、`GetBestDispatchableBackend`、`TrySetForcedBackend`、`ResetToAutomaticBackend`、`SetVectorAsmEnabled` 等进入控制面的入口前先确保初始化
+    - 单元 `initialization` 改为调用同一个 `Ensure...`
+    - `finalization` 只在确实初始化过时才 `DoneCriticalSection`
+  - `src/fafafa.core.simd.dispatch.hooks.impl.inc`
+    - hook register/unregister/notify 也统一先走 `EnsureDispatchControlPlaneInitialized`
+- 本地串行 release 验证 fresh 通过：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release SIMD_ENABLE_NEON_BACKEND=1 SIMD_ENABLE_RISCVV_BACKEND=1 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+- fresh 结果：
+  - `check` 通过，并且内置 `dispatch_preinit_smoke` 通过
+  - `check` 内置的 `NONX86-OPTIN neon/riscvv --list-suites` 双绿
+  - `TTestCase_PublicAbi` 继续 `TEST OK + LEAK OK`
+- 当前阶段结论：
+  - 本地最接近 Windows 崩溃面的启动路径已经被打通
+  - 下一步应提交并 push 这批 dispatch preinit 修复，再发 fresh Windows evidence，确认 GH Windows 上的同一条 `list-suites` 启动 AV 已被清掉

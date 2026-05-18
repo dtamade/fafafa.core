@@ -8895,3 +8895,27 @@
     - `FAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND`
     - `FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND`
   - 不应再让 build script 顺手打开放大的 arch availability 宏
+
+## 2026-05-19 Windows opt-in startup AV was actually dispatch control-plane preinit order, not backend semantics
+
+- 决定性证据来自 fresh Windows run `26058595166` 的 Pascal 行号 backtrace：
+  - `REGISTERBACKEND` -> `src/fafafa.core.simd.dispatch.pas:1653`
+  - `REGISTERSCALARBACKEND` -> `src/fafafa.core.simd.scalar.pas:4436`
+  - scalar unit initialization -> `src/fafafa.core.simd.scalar.pas:6372`
+- 这把根因从“NEON opt-in binary 一启动就崩”继续缩成了更精确的时序错误：
+  - `fafafa.core.simd.scalar` 单元初始化期间会调用 `RegisterBackend(sbScalar, ...)`
+  - 但 `fafafa.core.simd.dispatch` 的 `initialization` 还没来得及初始化：
+    - `g_VectorAsmToggleLock`
+    - `g_DispatchHooksLock`
+    - 默认 backend 文本文案缓存
+  - 因而 `RegisterBackend(...)` 里第一次 `EnterCriticalSection(g_VectorAsmToggleLock)` 就可能直接打到未初始化锁
+- 关键判断因此翻正：
+  - 之前的 “延迟 opt-in backend 注册” 和 “收窄 opt-in build define” 都是合理收口，但它们都只是把现象缩到更小的启动面
+  - 真正根因与 NEON register body、RISCVV body、suite manifest 或 line-info 本身都无关
+  - opt-in 路径只是更早暴露了一个 dispatch 控制面初始化顺序缺陷
+- 当前最小正确修复语义已经明确：
+  - dispatch 自己必须能在任何控制面入口被安全地“懒初始化”
+  - 而不是假设所有 `RegisterBackend` / hook API 都只会发生在 unit `initialization` 之后
+- 这条 finding 的价值是阻止后续继续跑偏：
+  - 不要再把时间花在 backend wrapper、NEON 语义、opt-in define 宽度上重开旧假设
+  - 下一步只需要验证这次 dispatch preinit 修复能否在 Windows fresh `NONX86-OPTIN neon --list-suites` 上真正清掉同一条 AV
