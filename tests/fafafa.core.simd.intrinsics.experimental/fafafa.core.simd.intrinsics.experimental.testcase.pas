@@ -2040,6 +2040,14 @@ begin
   AssertEquals('simd_cvtpd_ps positive overflow -> +inf', LongInt($7F800000), LActual.m128i_i32[1]);
 
   FillChar(LA, SizeOf(LA), 0);
+  LA.m128i_u64[0] := QWord($FFF8000000000001);
+  LActual := simd_cvtpd_ps(LA);
+  AssertEquals('simd_cvtpd_ps negative nan lane canonicalizes with sign', LongInt($FFC00000), LActual.m128i_i32[0]);
+  AssertEquals('simd_cvtpd_ps negative nan zero lane1', 0, LActual.m128i_i32[1]);
+  AssertEquals('simd_cvtpd_ps negative nan zero lane2', 0, LActual.m128i_i32[2]);
+  AssertEquals('simd_cvtpd_ps negative nan zero lane3', 0, LActual.m128i_i32[3]);
+
+  FillChar(LA, SizeOf(LA), 0);
   LA.m128_f32[0] := 8.0;
   LA.m128_f32[1] := 4.0;
   LA.m128_f32[2] := 2.0;
@@ -2052,12 +2060,26 @@ begin
   AssertEquals('simd_cvtsd_ss keep lane2', 2.0, LActual.m128_f32[2], 0.0);
   AssertEquals('simd_cvtsd_ss keep lane3', 1.0, LActual.m128_f32[3], 0.0);
 
+  LB.m128i_u64[0] := QWord($FFF8000000000001);
+  LActual := simd_cvtsd_ss(LA, LB);
+  AssertEquals('simd_cvtsd_ss negative nan lane canonicalizes with sign', LongInt($FFC00000), LActual.m128i_i32[0]);
+  AssertEquals('simd_cvtsd_ss negative nan keeps lane1', 4.0, LActual.m128_f32[1], 0.0);
+  AssertEquals('simd_cvtsd_ss negative nan keeps lane2', 2.0, LActual.m128_f32[2], 0.0);
+  AssertEquals('simd_cvtsd_ss negative nan keeps lane3', 1.0, LActual.m128_f32[3], 0.0);
+
   LB.m128d_f64[0] := 1.0e40;
   LActual := simd_cvtsd_ss(LA, LB);
   AssertEquals('simd_cvtsd_ss overflow -> +inf', LongInt($7F800000), LActual.m128i_i32[0]);
   AssertEquals('simd_cvtsd_ss overflow keeps lane1', 4.0, LActual.m128_f32[1], 0.0);
   AssertEquals('simd_cvtsd_ss overflow keeps lane2', 2.0, LActual.m128_f32[2], 0.0);
   AssertEquals('simd_cvtsd_ss overflow keeps lane3', 1.0, LActual.m128_f32[3], 0.0);
+
+  LB.m128d_f64[0] := -1.0e40;
+  LActual := simd_cvtsd_ss(LA, LB);
+  AssertEquals('simd_cvtsd_ss negative overflow -> -inf', LongInt($FF800000), LActual.m128i_i32[0]);
+  AssertEquals('simd_cvtsd_ss negative overflow keeps lane1', 4.0, LActual.m128_f32[1], 0.0);
+  AssertEquals('simd_cvtsd_ss negative overflow keeps lane2', 2.0, LActual.m128_f32[2], 0.0);
+  AssertEquals('simd_cvtsd_ss negative overflow keeps lane3', 1.0, LActual.m128_f32[3], 0.0);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_RoundToNearestEvenConversionSemantics;

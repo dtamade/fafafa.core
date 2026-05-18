@@ -5407,3 +5407,17 @@
 | 1. 先取 host truth 并复核 `si64` tie coverage 缺口 | completed | 已用本机 `cc -msse2` inline-asm probe 确认 `simd_cvtsd_si64` 在 `2.5/3.5/-2.5/-3.5` 上分别返回 `2/4/-2/-4` |
 | 2. 只补 representative proof，不扩实现范围 | completed | 已在 `Test_RoundToNearestEvenConversionSemantics` 下补齐 `simd_cvtsd_si64` 的 4 个 tie-even case |
 | 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已全部 fresh 通过；本批继续保持 tests-only，无需重开 source 修复 |
+
+## 2026-05-18 SSE2 Narrowing Sign-Preserve Coverage Expansion
+
+### Goal
+
+继续沿 narrowing 热路径做剩余 host-truth 收口，但只补 `negative NaN` 与 `negative overflow` 这组 sign-preserve case：`simd_cvtpd_ps`、`simd_cvtsd_ss`。前面 narrowing 批次已经锁住了正 NaN、`+Inf`、`+overflow` 与 lane preserve，这次补上负号路径，确认修复后的 `ConvertDoubleToSingleBits` 没有把 sign bit 丢掉；若 fresh 运行打红，再把修复限制在 narrowing helper 周围。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 先取 host truth 并复核 negative-sign coverage 缺口 | completed | 已用本机 `cc -msse2` probe 确认 `cvtpd_ps/cvtsd_ss` 在 `negative NaN` 与 `negative overflow` 下分别返回 `ffc00000` / `ff800000`，且 lane shape 继续保持 zero/preserve 合同 |
+| 2. 只补 representative proof，不扩实现范围 | completed | 已在 `Test_NarrowingFloatConversionHostTruthSemantics` 下补齐 `simd_cvtpd_ps` 的 negative NaN，以及 `simd_cvtsd_ss` 的 negative NaN / negative overflow case |
+| 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已全部 fresh 通过；本批继续保持 tests-only，无需重开 source 修复 |
