@@ -873,6 +873,15 @@ begin
   Result := Byte(aValue);
 end;
 
+function SaturateI32ToU16(const aValue: LongInt): Word; inline;
+begin
+  if aValue < 0 then
+    Exit(0);
+  if aValue > High(Word) then
+    Exit(High(Word));
+  Result := Word(aValue);
+end;
+
 function ArithmeticShiftRightI16(const aValue: SmallInt; const aShift: Integer): SmallInt;
 var
   LBits: Word;
@@ -1122,6 +1131,8 @@ type
     procedure Test_PartialLaneLoadStoreMoveSemantics;
     procedure Test_ConversionFamilies_PreserveExpectedLanes;
     procedure Test_CompareAndMovemaskSemantics;
+    procedure Test_SignedAndUnsignedSaturatingArithmeticSemantics;
+    procedure Test_UnsignedMinMaxAvgSadSemantics;
     procedure Test_SlliEpi16_ShiftCounts;
     procedure Test_IntegerLogicalShiftFamilies_RespectImmediateBounds;
     procedure Test_IntegerArithmeticShiftFamilies_RespectImmediateBounds;
@@ -1606,6 +1617,203 @@ begin
   LActual := simd_cmpunord_sd(LA, LB);
   AssertEquals('simd_cmpunord_sd low lane unordered true', Int64(-1), LActual.m128i_i64[0]);
   AssertEquals('simd_cmpunord_sd keep high lane after nan', Int64(LA.m128i_i64[1]), Int64(LActual.m128i_i64[1]));
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_SignedAndUnsignedSaturatingArithmeticSemantics;
+var
+  LA: TM128;
+  LB: TM128;
+  LActual: TM128;
+  LIndex: Integer;
+  LExpectedI8: ShortInt;
+  LExpectedI16: SmallInt;
+  LExpectedU8: Byte;
+  LExpectedU16: Word;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_i8[0] := 120;   LB.m128i_i8[0] := 20;
+  LA.m128i_i8[1] := -120;  LB.m128i_i8[1] := -20;
+  LA.m128i_i8[2] := 50;    LB.m128i_i8[2] := -80;
+  LA.m128i_i8[3] := -50;   LB.m128i_i8[3] := 80;
+  for LIndex := 4 to 15 do
+  begin
+    LA.m128i_i8[LIndex] := ShortInt(LIndex * 3 - 20);
+    LB.m128i_i8[LIndex] := ShortInt(10 - LIndex * 2);
+  end;
+
+  LActual := simd_adds_epi8(LA, LB);
+  for LIndex := 0 to 15 do
+  begin
+    LExpectedI8 := SaturateI16ToI8(LA.m128i_i8[LIndex] + LB.m128i_i8[LIndex]);
+    AssertEquals('simd_adds_epi8 lane ' + IntToStr(LIndex), LExpectedI8, LActual.m128i_i8[LIndex]);
+  end;
+
+  LActual := simd_subs_epi8(LA, LB);
+  for LIndex := 0 to 15 do
+  begin
+    LExpectedI8 := SaturateI16ToI8(LA.m128i_i8[LIndex] - LB.m128i_i8[LIndex]);
+    AssertEquals('simd_subs_epi8 lane ' + IntToStr(LIndex), LExpectedI8, LActual.m128i_i8[LIndex]);
+  end;
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_i16[0] := 32000;   LB.m128i_i16[0] := 1000;
+  LA.m128i_i16[1] := -32000;  LB.m128i_i16[1] := -1000;
+  LA.m128i_i16[2] := 12000;   LB.m128i_i16[2] := -20000;
+  LA.m128i_i16[3] := -12000;  LB.m128i_i16[3] := 20000;
+  for LIndex := 4 to 7 do
+  begin
+    LA.m128i_i16[LIndex] := SmallInt(LIndex * 4000 - 15000);
+    LB.m128i_i16[LIndex] := SmallInt(7000 - LIndex * 2500);
+  end;
+
+  LActual := simd_adds_epi16(LA, LB);
+  for LIndex := 0 to 7 do
+  begin
+    LExpectedI16 := SaturateI32ToI16(LA.m128i_i16[LIndex] + LB.m128i_i16[LIndex]);
+    AssertEquals('simd_adds_epi16 lane ' + IntToStr(LIndex), LExpectedI16, LActual.m128i_i16[LIndex]);
+  end;
+
+  LActual := simd_subs_epi16(LA, LB);
+  for LIndex := 0 to 7 do
+  begin
+    LExpectedI16 := SaturateI32ToI16(LA.m128i_i16[LIndex] - LB.m128i_i16[LIndex]);
+    AssertEquals('simd_subs_epi16 lane ' + IntToStr(LIndex), LExpectedI16, LActual.m128i_i16[LIndex]);
+  end;
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u8[0] := 250; LB.m128i_u8[0] := 20;
+  LA.m128i_u8[1] := 5;   LB.m128i_u8[1] := 10;
+  LA.m128i_u8[2] := 0;   LB.m128i_u8[2] := 1;
+  LA.m128i_u8[3] := 200; LB.m128i_u8[3] := 200;
+  for LIndex := 4 to 15 do
+  begin
+    LA.m128i_u8[LIndex] := Byte(LIndex * 11);
+    LB.m128i_u8[LIndex] := Byte(200 - LIndex * 7);
+  end;
+
+  LActual := simd_adds_epu8(LA, LB);
+  for LIndex := 0 to 15 do
+  begin
+    LExpectedU8 := SaturateI16ToU8(LA.m128i_u8[LIndex] + LB.m128i_u8[LIndex]);
+    AssertEquals('simd_adds_epu8 lane ' + IntToStr(LIndex), LExpectedU8, LActual.m128i_u8[LIndex]);
+  end;
+
+  LActual := simd_subs_epu8(LA, LB);
+  for LIndex := 0 to 15 do
+  begin
+    LExpectedU8 := SaturateI16ToU8(LA.m128i_u8[LIndex] - LB.m128i_u8[LIndex]);
+    AssertEquals('simd_subs_epu8 lane ' + IntToStr(LIndex), LExpectedU8, LActual.m128i_u8[LIndex]);
+  end;
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u16[0] := 65000; LB.m128i_u16[0] := 1000;
+  LA.m128i_u16[1] := 10;    LB.m128i_u16[1] := 20;
+  LA.m128i_u16[2] := 0;     LB.m128i_u16[2] := 1;
+  LA.m128i_u16[3] := 40000; LB.m128i_u16[3] := 40000;
+  for LIndex := 4 to 7 do
+  begin
+    LA.m128i_u16[LIndex] := Word(5000 + LIndex * 4000);
+    LB.m128i_u16[LIndex] := Word(45000 - LIndex * 3000);
+  end;
+
+  LActual := simd_adds_epu16(LA, LB);
+  for LIndex := 0 to 7 do
+  begin
+    LExpectedU16 := SaturateI32ToU16(LA.m128i_u16[LIndex] + LB.m128i_u16[LIndex]);
+    AssertEquals('simd_adds_epu16 lane ' + IntToStr(LIndex), LExpectedU16, LActual.m128i_u16[LIndex]);
+  end;
+
+  LActual := simd_subs_epu16(LA, LB);
+  for LIndex := 0 to 7 do
+  begin
+    LExpectedU16 := SaturateI32ToU16(LA.m128i_u16[LIndex] - LB.m128i_u16[LIndex]);
+    AssertEquals('simd_subs_epu16 lane ' + IntToStr(LIndex), LExpectedU16, LActual.m128i_u16[LIndex]);
+  end;
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_UnsignedMinMaxAvgSadSemantics;
+var
+  LA: TM128;
+  LB: TM128;
+  LActual: TM128;
+  LIndex: Integer;
+  LExpectedU8: Byte;
+  LExpectedU16: Word;
+  LExpectedSadLo: QWord;
+  LExpectedSadHi: QWord;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 15 do
+  begin
+    LA.m128i_u8[LIndex] := Byte((LIndex * 17) and $FF);
+    LB.m128i_u8[LIndex] := Byte((255 - LIndex * 13) and $FF);
+  end;
+
+  LActual := simd_max_epu8(LA, LB);
+  for LIndex := 0 to 15 do
+  begin
+    if LA.m128i_u8[LIndex] > LB.m128i_u8[LIndex] then
+      LExpectedU8 := LA.m128i_u8[LIndex]
+    else
+      LExpectedU8 := LB.m128i_u8[LIndex];
+    AssertEquals('simd_max_epu8 lane ' + IntToStr(LIndex), LExpectedU8, LActual.m128i_u8[LIndex]);
+  end;
+
+  LActual := simd_min_epu8(LA, LB);
+  for LIndex := 0 to 15 do
+  begin
+    if LA.m128i_u8[LIndex] < LB.m128i_u8[LIndex] then
+      LExpectedU8 := LA.m128i_u8[LIndex]
+    else
+      LExpectedU8 := LB.m128i_u8[LIndex];
+    AssertEquals('simd_min_epu8 lane ' + IntToStr(LIndex), LExpectedU8, LActual.m128i_u8[LIndex]);
+  end;
+
+  LActual := simd_avg_epu8(LA, LB);
+  for LIndex := 0 to 15 do
+  begin
+    LExpectedU8 := Byte((Word(LA.m128i_u8[LIndex]) + Word(LB.m128i_u8[LIndex]) + 1) shr 1);
+    AssertEquals('simd_avg_epu8 lane ' + IntToStr(LIndex), LExpectedU8, LActual.m128i_u8[LIndex]);
+  end;
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 7 do
+  begin
+    LA.m128i_u16[LIndex] := Word(1000 + LIndex * 7000);
+    LB.m128i_u16[LIndex] := Word(60000 - LIndex * 5000);
+  end;
+
+  LActual := simd_avg_epu16(LA, LB);
+  for LIndex := 0 to 7 do
+  begin
+    LExpectedU16 := Word((LongWord(LA.m128i_u16[LIndex]) + LongWord(LB.m128i_u16[LIndex]) + 1) shr 1);
+    AssertEquals('simd_avg_epu16 lane ' + IntToStr(LIndex), LExpectedU16, LActual.m128i_u16[LIndex]);
+  end;
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 15 do
+  begin
+    LA.m128i_u8[LIndex] := Byte(LIndex * 9);
+    LB.m128i_u8[LIndex] := Byte(200 - LIndex * 5);
+  end;
+
+  LExpectedSadLo := 0;
+  LExpectedSadHi := 0;
+  for LIndex := 0 to 7 do
+    Inc(LExpectedSadLo, QWord(Abs(LA.m128i_u8[LIndex] - LB.m128i_u8[LIndex])));
+  for LIndex := 8 to 15 do
+    Inc(LExpectedSadHi, QWord(Abs(LA.m128i_u8[LIndex] - LB.m128i_u8[LIndex])));
+
+  LActual := simd_sad_epu8(LA, LB);
+  AssertEquals('simd_sad_epu8 low qword', Int64(LExpectedSadLo), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_sad_epu8 high qword', Int64(LExpectedSadHi), Int64(LActual.m128i_u64[1]));
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_SlliEpi16_ShiftCounts;

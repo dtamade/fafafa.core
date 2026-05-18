@@ -5141,3 +5141,17 @@
 | 1. 复核当前 compare coverage 缺口 | completed | 已确认 `tests/fafafa.core.simd.intrinsics.experimental/` 目前没有任何 `movemask_ps/pd`、`double compare`、`ordered/unordered scalar compare` 的 representative proof；当前 `SSE2` compare 相关 coverage 仍几乎停留在整数 `cmpeq_epi8/movemask_epi8` |
 | 2. 只补 representative compare proof，不先碰 `comi/ucomi` 细节 | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `Test_CompareAndMovemaskSemantics`；覆盖 `simd_movemask_ps`、`simd_movemask_pd`、`simd_cmpeq_pd`、`simd_cmpgt_pd`、`simd_cmpneq_pd`、`simd_cmpord_sd`、`simd_cmpunord_sd`，并用 `NaN` 明确锁住 ordered/unordered 的低 lane 结果与 scalar high-lane preserve 语义 |
 | 3. 跑完 experimental lane 双配置与主线 release check | completed | `git diff --check`、experimental=`0/1` 两套 `BuildOrTest.sh test`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 全部 fresh 通过；这批没有打出新的 source bug，但把 compare/movemask 从“几乎无证据”推进到了“至少有一层 packed/scalar representative contract” |
+
+## 2026-05-18 SSE2 Saturation And Unsigned Reduction Qualification Coverage Expansion
+
+### Goal
+
+继续沿 `SSE2 raw-leaf qualification` 小批次推进，把 compare 之后仍明显空白的一簇整数 helper 补上 representative proof：先收 `adds/subs` 的 signed/unsigned saturating arithmetic，以及 `min/max/avg/sad` 这组 unsigned reduction/selection 语义；如果 fresh proof 打红，再只修对应的 `x86.sse2` raw leaf。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前 `saturation/minmax/avg/sad` coverage 缺口 | completed | 已确认 `tests/fafafa.core.simd.intrinsics.experimental/` 在补完 compare/movemask 后，`adds/subs_epi8/epi16`、`adds/subs_epu8/epu16`、`max/min_epu8`、`avg_epu8/epu16`、`sad_epu8` 仍没有任何 representative raw semantic proof |
+| 2. 只补 representative proof，不先碰 source | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `SaturateI32ToU16`、`Test_SignedAndUnsignedSaturatingArithmeticSemantics`、`Test_UnsignedMinMaxAvgSadSemantics`；直接覆盖 signed/unsigned 饱和边界、unsigned min/max 选择、round-up average 与 `sad_epu8` 的双 qword 累积合同 |
+| 3. 跑完 experimental lane 双配置与主线 release check | completed | `git diff --check`、experimental=`0/1` 两套 `BuildOrTest.sh test`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 全部 fresh 通过；这批没有打出新的 source bug，但把 `SSE2` 整数饱和/规约家族从“几乎无证据”推进到了“至少有一层 representative contract” |

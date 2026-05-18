@@ -13091,3 +13091,57 @@
   - 如果继续沿这条路推进，下一步最自然的是：
     - `comi/ucomi` flag-result family
     - 或 `saturated/avg/sad` 这类 still-uncovered integer helper family
+
+## 2026-05-18 SSE2 Saturation And Unsigned Reduction Qualification Coverage Expansion
+
+- 没有在 compare 之后又把范围放大回 whole-module，而是继续沿 `SSE2 raw-leaf qualification` 的窄路径往下接。
+- 这批先补的是上一节结尾已经点出来的整数 helper 空白区，但仍坚持“proof 先行、红了才修 source”的方法：
+  - `simd_adds_epi8`
+  - `simd_subs_epi8`
+  - `simd_adds_epi16`
+  - `simd_subs_epi16`
+  - `simd_adds_epu8`
+  - `simd_subs_epu8`
+  - `simd_adds_epu16`
+  - `simd_subs_epu16`
+  - `simd_max_epu8`
+  - `simd_min_epu8`
+  - `simd_avg_epu8`
+  - `simd_avg_epu16`
+  - `simd_sad_epu8`
+- 本批仍然只改一个文件：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 helper：`SaturateI32ToU16`
+    - 新增 `Test_SignedAndUnsignedSaturatingArithmeticSemantics`
+    - 新增 `Test_UnsignedMinMaxAvgSadSemantics`
+- 新 proof 直接锁住的关键合同包括：
+  - `adds/subs_epi8` 是否在 `[-128, 127]` 上饱和，而不是 wrap-around
+  - `adds/subs_epi16` 是否在 `[-32768, 32767]` 上饱和
+  - `adds/subs_epu8` 是否在 `[0, 255]` 上饱和
+  - `adds/subs_epu16` 是否在 `[0, 65535]` 上饱和
+  - `max_epu8 / min_epu8` 是否按 unsigned byte 选择
+  - `avg_epu8 / avg_epu16` 是否按 `(a + b + 1) shr 1` 向上取整
+  - `sad_epu8` 是否把低 8-byte 与高 8-byte 的绝对差和分别累积到两个 qword
+- 这次 fresh 验证同样没有打出新的 source bug：
+  - `git diff --check`
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- 关键结果：
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - experimental=`1`：`[TEST] OK`
+  - experimental=`0`：`[TEST] OK`
+  - Release `check`：退出码 `0`
+- 当前阶段结论：
+  - 这批同样不是 source 修复，而是把 `SSE2` 整数饱和/规约 family 从“几乎无证据”推进到了“至少有一层 representative contract”
+  - 到这一刻为止，`SSE2 raw-leaf qualification` 的代表性 proof 已经覆盖到：
+    - bitwise / lane-order / float arithmetic
+    - shuffle / insert-extract immediate
+    - integer shift immediate
+    - partial-lane load/store/move
+    - conversion preserve/zero
+    - compare / movemask / ordered-unordered scalar preserve
+    - saturation / unsigned minmax / avg / sad
+  - 如果继续沿这条路推进，下一步最自然的是：
+    - `comi/ucomi` flag-result family
+    - 或少量剩余的 `pack/compare` 邻近 raw leaf 做 `retire baseline` 复核
