@@ -14265,3 +14265,56 @@
 - 当前阶段结论：
   - 到这一刻为止，最初那份 `SSE2` direct leaf 里长期 0-hit 的 surface 已经基本被扫光
   - 这批没有打出新的 source bug，继续保持 tests-only 收口
+
+## 2026-05-18 SSE2 Full Store Surface Proof And Source Alignment Repair
+
+- 当前没有重开 `stream/fence` 这类 side-effect 面，而是只挑最薄、又能稳定直证的 full `store/storeu` surface：
+  - `simd_store_si128`
+  - `simd_storeu_si128`
+  - `simd_store_pd`
+  - `simd_storeu_pd`
+  - `simd_store_ps`
+  - `simd_storeu_ps`
+- 开工前先对位现状：
+  - `simd_storeu_si128` 之前只有 `loadu/storeu` roundtrip 混测
+  - `simd_store_si128/store_pd/storeu_pd/store_ps/storeu_ps` 仍没有独立 direct proof
+  - 因此当前真实薄点不是 `load`，而是 full store surface 仍缺“目标写回 bit/lane 合同 + aligned/unaligned 边界”这一层证据
+- 本批先按 tests-first 落地：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 `Test_AlignedAndUnalignedStoreSurfaceSemantics`
+- 新 proof 直接锁住：
+  - `simd_store_si128` aligned byte payload
+  - `simd_storeu_si128` unaligned byte payload 与前后 sentinel 不被误写
+  - `simd_store_pd/storeu_pd` 的 exact-bit `u64` 写回
+  - `simd_store_ps/storeu_ps` 的 exact-bit `u32` 写回
+- 这次 fresh 红点不是测试构造假红，而是更值钱的 source defect：
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`：`TEST OK`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`：`Test_AlignedAndUnalignedStoreSurfaceSemantics` 首轮 `EAccessViolation`
+  - 结论：`experimental=1` 把 aligned store family 里的源对齐假设炸出来了
+- source 对位后已确认根因集中在 3 个 leaf：
+  - `src/fafafa.core.simd.intrinsics.x86.sse2.pas`
+    - `simd_store_si128`
+    - `simd_store_pd`
+    - `simd_store_ps`
+  - 旧实现为了写回 aligned destination，先对 `constref Src` 做：
+    - `movdqa [src]`
+    - `movapd [src]`
+    - `movaps [src]`
+  - 但 `constref Src: TM128` 并没有 16-byte 对齐保证；也就是“destination 必须 aligned”被错误扩成了“source parameter 也必须 aligned”
+- 本批修复保持 leaf-bounded：
+  - `simd_store_si128` 改成 `movdqu` 从 `Src` 读，再 `movdqa` 写到 aligned destination
+  - `simd_store_pd` 改成 `movupd` 从 `Src` 读，再 `movapd` 写到 aligned destination
+  - `simd_store_ps` 改成 `movups` 从 `Src` 读，再 `movaps` 写到 aligned destination
+  - 没有扩到 `storeu_*`、`stream_*`、`runtime/facade`
+- 本批 fresh 验证：
+  - `git diff --check`
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - 修复后 experimental=`0`：`[TEST] OK`
+  - 修复后 experimental=`1`：`[TEST] OK`
+  - 修复后 Release `check`：退出码 `0`
+- 当前阶段结论：
+  - 这批已经不只是补 `SSE2 store` 证明面，而是借 direct proof 抓出并修掉了 aligned store family 对 `constref Src` 的错误对齐假设
+  - 下一步如果继续沿这条 lane 推进，仍应优先挑同样薄、同样可 direct proof 的 pure semantic leaf，而不是重开 whole-module 扫描

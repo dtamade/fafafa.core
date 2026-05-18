@@ -5575,3 +5575,18 @@
 | 1. 复核最后 4 个 load surface 的 direct coverage 缺口 | completed | 已确认当前只剩 `load_si128/load_pd/load_ps/loadu_ps` 仍然 0-hit；现有 `loadu_si128`、`loadu_pd`、partial load/store 都已有 direct proof |
 | 2. 只补 representative aligned/unaligned proof，不扩实现范围 | completed | 已新增 `AlignPointer(...)` helper 与 `Test_AlignedAndUnalignedLoadSurfaceSemantics`，直接覆盖 `load_si128` 的 aligned bytes、`load_pd` 的 aligned doubles、`load_ps` 的 exact-bit singles，以及 `loadu_ps` 的非 16-byte aligned exact-bit load |
 | 3. 清理输出目录噪音后完成串行复验 | completed | 首轮 `experimental=1` 遇到 `ld.bfd: no input files` 链接器噪音；清理 `tests/fafafa.core.simd.intrinsics.experimental/bin` 与 `lib/x86_64-linux/exp1` 生成产物后，串行 experimental=`1` 与随后补跑的 experimental=`0` 已全部 fresh 通过 |
+
+## 2026-05-18 SSE2 Full Store Surface Proof And Source Alignment Repair
+
+### Goal
+
+继续沿 `SSE2` low-hit/thin-proof lane 推进，但这次不碰 `stream/fence` 等 side-effect surface，只收 full `store/storeu`：
+`simd_store_si128`、`simd_storeu_si128`、`simd_store_pd`、`simd_storeu_pd`、`simd_store_ps`、`simd_storeu_ps`。先补 direct proof；若 proof 真打红，就把修复限制在对应 leaf 的 source-read/store-write 合同，不扩到其它 family。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 full store surface 的真实薄点 | completed | 已确认 `storeu_si128` 之前只有 `loadu/storeu` roundtrip 混测，而 `store_si128/store_pd/storeu_pd/store_ps/storeu_ps` 仍缺独立 direct proof；因此当前最薄 residual 已从 `load` 转到 full store surface |
+| 2. 先补 direct proof 并让 fresh 红点自己说话 | completed | 已新增 `Test_AlignedAndUnalignedStoreSurfaceSemantics`，直接覆盖 aligned/unaligned `si128/pd/ps` full store 的 exact-bit/lane 写回与 sentinel 边界；首轮 experimental=`1` fresh 跑出 `EAccessViolation`，不是断言失败而是真实实现问题 |
+| 3. 修正 aligned store 的 `constref Src` 对齐假设并完成 closeout | completed | 已把 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 中 `simd_store_si128/store_pd/store_ps` 的 source read 分别从 `movdqa/movapd/movaps` 改成 `movdqu/movupd/movups`，保留 destination 的 aligned store 指令；`git diff --check`、串行 experimental=`0/1`、以及 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已全部 fresh 通过 |

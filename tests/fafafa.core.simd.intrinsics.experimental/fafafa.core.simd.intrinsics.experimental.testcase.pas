@@ -1139,6 +1139,7 @@ type
     procedure Test_SingleMinMaxFamilies_HostTruthSemantics;
     procedure Test_DoubleMinMaxFamilies_HostTruthSemantics;
     procedure Test_LoadStore_Roundtrip;
+    procedure Test_AlignedAndUnalignedStoreSurfaceSemantics;
     procedure Test_PartialLaneLoadStoreMoveSemantics;
     procedure Test_IntegerPartialLoadStoreMaskMoveSemantics;
     procedure Test_ConversionFamilies_PreserveExpectedLanes;
@@ -1892,6 +1893,116 @@ begin
 
   LLoaded := simd_loadu_si128(@LBytesOut[0]);
   AssertM128BytesEqual(Self, 'simd_loadu roundtrip', LValue, LLoaded);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_AlignedAndUnalignedStoreSurfaceSemantics;
+var
+  LByteStorage: array[0..63] of Byte;
+  LDoubleStorage: array[0..79] of Byte;
+  LSingleStorage: array[0..79] of Byte;
+  LAlignedBytes: Pointer;
+  LUnalignedBytes: Pointer;
+  LAlignedDoubles: Pointer;
+  LUnalignedDoubles: Pointer;
+  LAlignedSingles: Pointer;
+  LUnalignedSingles: Pointer;
+  LValue: TM128;
+  LIndex: Integer;
+begin
+  LAlignedBytes := AlignPointer(@LByteStorage[0], 16);
+  LUnalignedBytes := Pointer(PtrUInt(LAlignedBytes) + 1);
+  LAlignedDoubles := AlignPointer(@LDoubleStorage[0], 16);
+  LUnalignedDoubles := Pointer(PtrUInt(LAlignedDoubles) + 8);
+  LAlignedSingles := AlignPointer(@LSingleStorage[0], 16);
+  LUnalignedSingles := Pointer(PtrUInt(LAlignedSingles) + 4);
+
+  FillChar(LByteStorage, SizeOf(LByteStorage), $CC);
+  FillChar(LValue, SizeOf(LValue), 0);
+  for LIndex := 0 to 15 do
+    LValue.m128i_u8[LIndex] := Byte($30 + LIndex);
+  simd_store_si128(PByte(LAlignedBytes)[0], LValue);
+  for LIndex := 0 to 15 do
+    AssertEquals('simd_store_si128 byte ' + IntToStr(LIndex),
+      Byte($30 + LIndex), PByte(LAlignedBytes)[LIndex]);
+  AssertEquals('simd_store_si128 trailing sentinel', Byte($CC),
+    PByte(Pointer(PtrUInt(LAlignedBytes) + 16))^);
+
+  FillChar(LByteStorage, SizeOf(LByteStorage), $CC);
+  FillChar(LValue, SizeOf(LValue), 0);
+  for LIndex := 0 to 15 do
+    LValue.m128i_u8[LIndex] := Byte($80 + LIndex);
+  simd_storeu_si128(PByte(LUnalignedBytes)[0], LValue);
+  AssertEquals('simd_storeu_si128 leading sentinel', Byte($CC),
+    PByte(Pointer(PtrUInt(LUnalignedBytes) - 1))^);
+  for LIndex := 0 to 15 do
+    AssertEquals('simd_storeu_si128 byte ' + IntToStr(LIndex),
+      Byte($80 + LIndex), PByte(LUnalignedBytes)[LIndex]);
+  AssertEquals('simd_storeu_si128 trailing sentinel', Byte($CC),
+    PByte(Pointer(PtrUInt(LUnalignedBytes) + 16))^);
+
+  FillChar(LDoubleStorage, SizeOf(LDoubleStorage), $A5);
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128i_u64[0] := QWord($0123456789ABCDEF);
+  LValue.m128i_u64[1] := QWord($FFEEDDCCBBAA9988);
+  simd_store_pd(PQWord(LAlignedDoubles)[0], LValue);
+  AssertEquals('simd_store_pd lane0 bits',
+    Int64(QWord($0123456789ABCDEF)), Int64(PQWord(LAlignedDoubles)[0]));
+  AssertEquals('simd_store_pd lane1 bits',
+    Int64(QWord($FFEEDDCCBBAA9988)), Int64(PQWord(LAlignedDoubles)[1]));
+  AssertEquals('simd_store_pd trailing sentinel', Byte($A5),
+    PByte(Pointer(PtrUInt(LAlignedDoubles) + 16))^);
+
+  FillChar(LDoubleStorage, SizeOf(LDoubleStorage), $A5);
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128i_u64[0] := QWord($8000000000000000);
+  LValue.m128i_u64[1] := QWord($7FF8123412341234);
+  simd_storeu_pd(PQWord(LUnalignedDoubles)[0], LValue);
+  AssertEquals('simd_storeu_pd leading sentinel', Byte($A5),
+    PByte(Pointer(PtrUInt(LUnalignedDoubles) - 1))^);
+  AssertEquals('simd_storeu_pd lane0 bits',
+    Int64(QWord($8000000000000000)), Int64(PQWord(LUnalignedDoubles)[0]));
+  AssertEquals('simd_storeu_pd lane1 bits',
+    Int64(QWord($7FF8123412341234)), Int64(PQWord(LUnalignedDoubles)[1]));
+  AssertEquals('simd_storeu_pd trailing sentinel', Byte($A5),
+    PByte(Pointer(PtrUInt(LUnalignedDoubles) + 16))^);
+
+  FillChar(LSingleStorage, SizeOf(LSingleStorage), $5A);
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128i_u32[0] := DWord($7FC12345);
+  LValue.m128i_u32[1] := DWord($80000000);
+  LValue.m128i_u32[2] := DWord($3F800000);
+  LValue.m128i_u32[3] := DWord($C0200000);
+  simd_store_ps(PCardinal(LAlignedSingles)[0], LValue);
+  AssertEquals('simd_store_ps lane0 bits',
+    LongInt($7FC12345), LongInt(PCardinal(LAlignedSingles)[0]));
+  AssertEquals('simd_store_ps lane1 bits',
+    LongInt($80000000), LongInt(PCardinal(LAlignedSingles)[1]));
+  AssertEquals('simd_store_ps lane2 bits',
+    LongInt($3F800000), LongInt(PCardinal(LAlignedSingles)[2]));
+  AssertEquals('simd_store_ps lane3 bits',
+    LongInt($C0200000), LongInt(PCardinal(LAlignedSingles)[3]));
+  AssertEquals('simd_store_ps trailing sentinel', Byte($5A),
+    PByte(Pointer(PtrUInt(LAlignedSingles) + 16))^);
+
+  FillChar(LSingleStorage, SizeOf(LSingleStorage), $5A);
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128i_u32[0] := DWord($01234567);
+  LValue.m128i_u32[1] := DWord($89ABCDEF);
+  LValue.m128i_u32[2] := DWord($0F1E2D3C);
+  LValue.m128i_u32[3] := DWord($FFEEDDCC);
+  simd_storeu_ps(PCardinal(LUnalignedSingles)[0], LValue);
+  AssertEquals('simd_storeu_ps leading sentinel', Byte($5A),
+    PByte(Pointer(PtrUInt(LUnalignedSingles) - 1))^);
+  AssertEquals('simd_storeu_ps lane0 bits',
+    LongInt($01234567), LongInt(PCardinal(LUnalignedSingles)[0]));
+  AssertEquals('simd_storeu_ps lane1 bits',
+    LongInt(DWord($89ABCDEF)), LongInt(PCardinal(LUnalignedSingles)[1]));
+  AssertEquals('simd_storeu_ps lane2 bits',
+    LongInt($0F1E2D3C), LongInt(PCardinal(LUnalignedSingles)[2]));
+  AssertEquals('simd_storeu_ps lane3 bits',
+    LongInt(DWord($FFEEDDCC)), LongInt(PCardinal(LUnalignedSingles)[3]));
+  AssertEquals('simd_storeu_ps trailing sentinel', Byte($5A),
+    PByte(Pointer(PtrUInt(LUnalignedSingles) + 16))^);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_PartialLaneLoadStoreMoveSemantics;

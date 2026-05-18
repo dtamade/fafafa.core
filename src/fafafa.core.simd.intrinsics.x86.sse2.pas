@@ -412,18 +412,18 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Dest in rcx, Src in rdx
-    movdqa xmm0, [rdx] // Load aligned source data.
+    movdqu xmm0, [rdx] // Src is a constref parameter and need not be aligned.
     movdqa [rcx], xmm0    // Store aligned data to the destination.
     {$ELSE}
     // Linux/macOS x64 System V ABI: Dest in rdi, Src in rsi
-    movdqa xmm0, [rsi] // Load aligned source data.
+    movdqu xmm0, [rsi] // Src is a constref parameter and need not be aligned.
     movdqa [rdi], xmm0    // Store aligned data to the destination.
     {$ENDIF}
 {$ELSEIF CPUX86}
     // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
-    movdqa xmm0, [edx] // Load aligned source data.
+    movdqu xmm0, [edx] // Src is a constref parameter and need not be aligned.
     movdqa [eax], xmm0    // Store aligned data to the destination.
     {$ELSE}
     {$ERROR Unsupported CPU}
@@ -513,18 +513,18 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Dest in rcx, Src in rdx
-    movapd xmm0, [rdx] // Load aligned source data.
+    movupd xmm0, [rdx] // Src is a constref parameter and need not be aligned.
     movapd [rcx], xmm0    // Store aligned data to the destination.
     {$ELSE}
     // Linux/macOS x64 System V ABI: Dest in rdi, Src in rsi
-    movapd xmm0, [rsi] // Load aligned source data.
+    movupd xmm0, [rsi] // Src is a constref parameter and need not be aligned.
     movapd [rdi], xmm0    // Store aligned data to the destination.
     {$ENDIF}
 {$ELSEIF CPUX86}
     // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
-    movapd xmm0, [edx] // Load aligned source data.
+    movupd xmm0, [edx] // Src is a constref parameter and need not be aligned.
     movapd [eax], xmm0    // Store aligned data to the destination.
     {$ELSE}
     {$ERROR Unsupported CPU}
@@ -614,18 +614,18 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Dest in rcx, Src in rdx
-    movaps xmm0, [rdx] // Load aligned source data.
+    movups xmm0, [rdx] // Src is a constref parameter and need not be aligned.
     movaps [rcx], xmm0    // Store aligned data to the destination.
     {$ELSE}
     // Linux/macOS x64 System V ABI: Dest in rdi, Src in rsi
-    movaps xmm0, [rsi] // Load aligned source data.
+    movups xmm0, [rsi] // Src is a constref parameter and need not be aligned.
     movaps [rdi], xmm0    // Store aligned data to the destination.
     {$ENDIF}
 {$ELSEIF CPUX86}
     // x86 32-bit: arguments arrive on the stack.
     mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
-    movaps xmm0, [edx] // Load aligned source data.
+    movups xmm0, [edx] // Src is a constref parameter and need not be aligned.
     movaps [eax], xmm0    // Store aligned data to the destination.
     {$ELSE}
     {$ERROR Unsupported CPU}
