@@ -31,11 +31,11 @@ set "BASH_PREREQ_PUBLICABI_SMOKE_H=0"
 
 if /I "%USE_BASH_GATE_REQUEST%"=="1" (
   call :resolve_bash_command
-  if not "%BASH_CMD%"=="" set "BASH_PREREQ_RESOLVED=1"
+  if not "!BASH_CMD!"=="" set "BASH_PREREQ_RESOLVED=1"
   if exist "%TESTS_ROOT%\run_all_tests.sh" set "BASH_PREREQ_RUN_ALL_SH=1"
   if exist "%ROOT%BuildOrTest.sh" set "BASH_PREREQ_BUILD_OR_TEST_SH=1"
   if exist "%TESTS_ROOT%\fafafa.core.simd.publicabi\publicabi_smoke.h" set "BASH_PREREQ_PUBLICABI_SMOKE_H=1"
-  if "%BASH_PREREQ_RESOLVED%"=="1" if "%BASH_PREREQ_RUN_ALL_SH%"=="1" if "%BASH_PREREQ_BUILD_OR_TEST_SH%"=="1" if "%BASH_PREREQ_PUBLICABI_SMOKE_H%"=="1" (
+  if "!BASH_PREREQ_RESOLVED!"=="1" if "!BASH_PREREQ_RUN_ALL_SH!"=="1" if "!BASH_PREREQ_BUILD_OR_TEST_SH!"=="1" if "!BASH_PREREQ_PUBLICABI_SMOKE_H!"=="1" (
     set "GATE_COMMAND_MARKER=BuildOrTest.sh gate"
     set "USE_BASH_GATE=1"
   )
@@ -59,12 +59,12 @@ echo [B07] Working dir: %ROOT% >> "%TMP_LOG%"
 echo [B07] Command: %GATE_COMMAND_MARKER% >> "%TMP_LOG%"
 if /I "%USE_BASH_GATE_REQUEST%"=="1" (
   echo [B07] BashGateRequest: %USE_BASH_GATE_REQUEST% >> "%TMP_LOG%"
-  echo [B07] BashPrereq.Resolve: %BASH_PREREQ_RESOLVED% >> "%TMP_LOG%"
-  echo [B07] BashPrereq.RunAllSh: %BASH_PREREQ_RUN_ALL_SH% >> "%TMP_LOG%"
-  echo [B07] BashPrereq.BuildOrTestSh: %BASH_PREREQ_BUILD_OR_TEST_SH% >> "%TMP_LOG%"
-  echo [B07] BashPrereq.PublicAbiSmokeHeader: %BASH_PREREQ_PUBLICABI_SMOKE_H% >> "%TMP_LOG%"
-  echo [B07] BashCommandSource: %BASH_CMD_SOURCE% >> "%TMP_LOG%"
-  if not "%BASH_CMD%"=="" echo [B07] BashCommand: %BASH_CMD% >> "%TMP_LOG%"
+  echo [B07] BashPrereq.Resolve: !BASH_PREREQ_RESOLVED! >> "%TMP_LOG%"
+  echo [B07] BashPrereq.RunAllSh: !BASH_PREREQ_RUN_ALL_SH! >> "%TMP_LOG%"
+  echo [B07] BashPrereq.BuildOrTestSh: !BASH_PREREQ_BUILD_OR_TEST_SH! >> "%TMP_LOG%"
+  echo [B07] BashPrereq.PublicAbiSmokeHeader: !BASH_PREREQ_PUBLICABI_SMOKE_H! >> "%TMP_LOG%"
+  echo [B07] BashCommandSource: !BASH_CMD_SOURCE! >> "%TMP_LOG%"
+  if not "!BASH_CMD!"=="" echo [B07] BashCommand: !BASH_CMD! >> "%TMP_LOG%"
 )
 if /I "%USE_BASH_GATE%"=="1" (
   echo [B07] GateRunnerMode: bash-optin >> "%TMP_LOG%"
