@@ -15410,3 +15410,33 @@
   - 先按这批真实根因给出简短 review 结论
   - commit + push 到 `main`
   - 再发 fresh Windows evidence，确认 `26057648150` 这条 `NONX86-OPTIN neon --list-suites` AV 是否被清掉
+
+## 2026-05-19 Opt-in List-Suites Line-Info Probe
+
+- fresh Windows rerun `26058145770` 已证明上一批 define 收窄不是根因：
+  - 新提交 `ef30e919`
+  - 真实 Windows 日志仍然停在：
+    - `[NONX86-OPTIN] neon: test --list-suites`
+    - `[TEST] FAILED`
+    - `EAccessViolation: Access violation`
+- 当前策略已经切换：
+  - 不再继续猜“是不是某个 backend register define”
+  - 直接把 opt-in 崩溃链变成能吐 Pascal 行号的链
+- 已落地的诊断性收口：
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+  - 新增窄作用域 env：
+    - `SIMD_ENABLE_LINEINFO=1`
+  - 只在 `nonx86-optin-list-suites` 递归调用 `test --list-suites` 时启用 `-gl`
+  - 不影响 stable gate / 普通 test / 其他 release 入口的默认编译参数
+- 本地串行 release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh nonx86-optin-list-suites`
+- fresh 结果：
+  - `runner-parity` 通过
+  - `nonx86-optin-list-suites` 继续 `neon/riscvv` 双绿
+- 下一步：
+  - commit + push 这一批 line-info probe
+  - 再发 Windows evidence
+  - 用新的 Windows `EAccessViolation` backtrace 直接读出 Pascal 文件/行号，再做下一刀真正修复

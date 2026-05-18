@@ -320,6 +320,9 @@ build_project() {
     if [[ "${SIMD_ENABLE_AVX512_BACKEND:-0}" == "1" ]]; then
       LLazbuildArgs+=("--opt=-dSIMD_BACKEND_AVX512")
     fi
+    if [[ "${SIMD_ENABLE_LINEINFO:-0}" == "1" ]]; then
+      LLazbuildArgs+=("--opt=-gl")
+    fi
   elif [[ "${OUTPUT_ROOT}" != "${ROOT}" ]]; then
     echo "[BUILD] WARN: lazbuild without --opt support; fallback to project-local bin2/lib2 layout" | tee -a "${BUILD_LOG}"
   fi
@@ -6053,7 +6056,7 @@ run_nonx86_optin_list_suites_one() {
 
   LOutputRoot="$(nonx86_optin_output_root "${aBackend}")"
   echo "[NONX86-OPTIN] ${aBackend}: test --list-suites"
-  env "${aEnvVar}=1" SIMD_OUTPUT_ROOT="${LOutputRoot}" bash "${ROOT}/BuildOrTest.sh" test --list-suites || return $?
+  env "${aEnvVar}=1" SIMD_ENABLE_LINEINFO=1 SIMD_OUTPUT_ROOT="${LOutputRoot}" bash "${ROOT}/BuildOrTest.sh" test --list-suites || return $?
 }
 
 run_nonx86_optin_list_suites() {
