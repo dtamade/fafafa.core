@@ -15241,3 +15241,26 @@
   - 提交这批 `stable-warning closeout` 修复
   - push 到 `origin/main`
   - 再发一轮 fresh Windows evidence，确认 `NativeBatchCheckRc` 已转绿并继续推进到后续 gate 子步骤
+
+### Follow-up: Windows batch check was still failing at the coarse build-return boundary
+
+- 基于 `e1818ad9` 重新触发的 fresh Windows run：
+  - `26051867518`
+- 这轮比上一轮继续前进后的真实结论：
+  - `src/fafafa.core.simd.dispatch.pas` / `public_abi.impl.inc` 的 stable warning 已经不再出现
+  - 但 `NativeBatchCheckRc: 1` 仍然存在，说明 step `1/6 Build + check SIMD module` 还没有真正进入 `check` 自己的稳定面筛选
+- 根因收敛：
+  - Windows `lazbuild` 在测试工程含大量 tests-only warning/hint 时仍可能返回非零
+  - `tests/fafafa.core.simd/buildOrTest.bat :check` 先直接 `call :build`，于是被这个“粗粒度 build 返回码”提前挡住
+  - 结果是：
+    - 即便 stable SIMD source warning 已经收干净
+    - `check` 也来不及运行后面的 `src\fafafa.core.simd.*` 定向扫描
+- 代码层面的更优雅修法：
+  - 仅在 `:check` 路径里临时启用 `SIMD_SUPPRESS_BUILD_WARNINGS=1`
+  - 让 `:build` 在“已成功产出 binary / compile summary”的情况下不要因为 tests-only warning/hint 提前失败
+  - 随后仍由 `:check` 自己现有的稳定面扫描去 fail-close：
+    - stable `src\fafafa.core.simd.*` warning/hint
+    - 仅继续豁免既有 experimental intrinsics 例外
+- 这能保持语义分层：
+  - `build` 仍保留原始工具链返回语义给其他动作使用
+  - `check` 则切回“按自身 contract 做稳定面审查”，不被 Windows lazbuild 的粗粒度返回码误伤

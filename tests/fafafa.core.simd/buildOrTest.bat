@@ -544,8 +544,17 @@ echo [BUILD] OK
 exit /b 0
 
 :check
+set "PREV_SIMD_SUPPRESS_BUILD_WARNINGS=%SIMD_SUPPRESS_BUILD_WARNINGS%"
+set "SIMD_SUPPRESS_BUILD_WARNINGS=1"
 call :build
-if errorlevel 1 exit /b 1
+set "CHECK_BUILD_RC=%ERRORLEVEL%"
+if defined PREV_SIMD_SUPPRESS_BUILD_WARNINGS (
+  set "SIMD_SUPPRESS_BUILD_WARNINGS=%PREV_SIMD_SUPPRESS_BUILD_WARNINGS%"
+) else (
+  set "SIMD_SUPPRESS_BUILD_WARNINGS="
+)
+set "PREV_SIMD_SUPPRESS_BUILD_WARNINGS="
+if not "%CHECK_BUILD_RC%"=="0" exit /b 1
 findstr /r /c:"src\fafafa\.core\.simd\..*Warning:" /c:"src\fafafa\.core\.simd\..*Hint:" "%BUILD_LOG%" | findstr /v /c:"src\fafafa.core.simd.intrinsics.avx2.pas" >nul 2>nul
 if not errorlevel 1 (
   echo [CHECK] Found warnings/hints from stable SIMD units in build log
