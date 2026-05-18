@@ -440,6 +440,35 @@
 - 当前阶段结论：
   - 这批没有再修实现 bug，但把已经 helper 化的 `min/max` 特殊值语义正式锁进主链护栏
   - 到目前为止，`add/sub/mul/div/sqrt/min/max` 这整组最容易因 raw SSE opcode 回退而重新出问题的浮点 leaf，都已经被 `check_sse2_structure.py` 盯住
+
+## 2026-05-18 SSE2 Compare Helper Guardrail
+
+- 沿着刚补完的 `min/max` 护栏继续推进，没有回去造新测试，而是继续把“helper 已经存在、语义测试已经存在”的 SSE2 比较族锁进结构检查：
+  - `simd_cmp*pd`
+  - `simd_cmp*sd`
+  - `simd_comi*`
+  - `simd_ucomi*`
+- 选择它们的原因很明确：
+  - 这些 routine 当前都已经走 `BuildPackedDoubleCompareMask`、`BuildScalarDoubleCompareMask`、`EvaluateScalarCompareSd`
+  - testcase 里已经有 `NaN`、`ordered/unordered`、`keep high lane`、`flag semantics` 的直接断言
+  - 但如果以后有人图省事把它们回退成 raw `cmppd/cmpsd/comisd/ucomisd`，前面的语义测试虽然能抓一部分，但结构护栏能更早在 `check` 阶段 fail-close
+- 本批只改：
+  - `tests/fafafa.core.simd/check_sse2_structure.py`
+- 已新增 forbid 规则：
+  - `simd_cmp*pd -> cmppd`
+  - `simd_cmp*sd -> cmpsd`
+  - `simd_comi* -> comisd`
+  - `simd_ucomi* -> ucomisd`
+- fresh 验证：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `SSE2_STRUCTURE_SUMMARY ... forbidden_raw_float_opcode_hits=0 ... status=ok`
+  - Release `check` 通过
+- 当前阶段结论：
+  - 这批把 `pd/sd compare + comi/ucomi` 这一整组 helper 语义也正式锁进了主链护栏
+  - 现在 `sse2_structure` 对这条 experimental raw-leaf 文件的高风险浮点回退面，已经不只覆盖算术和 extrema，也覆盖了 compare/flag 语义
   - 主 `simd` release `check` 全绿
 - 当前阶段结论：
   - 这批确认只是 `SSE experimental intrinsics` 的源码文本卫生收口，不涉及行为修复

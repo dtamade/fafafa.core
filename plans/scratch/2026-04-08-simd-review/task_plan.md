@@ -5812,3 +5812,21 @@
 | 1. 扩展 SSE2 raw-float opcode forbid list 到 `min/max` 家族 | completed | 已在 `FORBIDDEN_RAW_FLOAT_OPCODES_BY_ROUTINE` 为 `simd_min/max_{ps,pd,sd}` 增加 `minps/maxps/minpd/maxpd/minsd/maxsd` forbid 规则 |
 | 2. 单跑结构检查确认无假红 | completed | `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line` 已 fresh 回到 `forbidden_raw_float_opcode_hits=0` |
 | 3. release 主链复验 | completed | `git diff --check` 与 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已全部 fresh 通过 |
+
+## 2026-05-18 SSE2 Compare Helper Guardrail
+
+### Goal
+
+把已经 helper 化、且已有 NaN/ordered/unordered 语义测试的 SSE2 浮点比较族正式锁进结构护栏：
+`cmp*pd`、
+`cmp*sd`、
+`comi/ucomi`。
+这批只改 `check_sse2_structure.py`，不改 Pascal 实现。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 扩展 raw-opcode forbid list 到 compare/comi 家族 | completed | 已为 `simd_cmp*pd` 禁 `cmppd`，`simd_cmp*sd` 禁 `cmpsd`，`simd_comi*` 禁 `comisd`，`simd_ucomi*` 禁 `ucomisd` |
+| 2. 单跑结构检查确认无假红 | completed | `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line` 已 fresh 回到 `forbidden_raw_float_opcode_hits=0` |
+| 3. release 主链复验 | completed | `git diff --check` 与 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已全部 fresh 通过 |
