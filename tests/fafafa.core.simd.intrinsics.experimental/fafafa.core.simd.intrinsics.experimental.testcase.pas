@@ -1144,6 +1144,7 @@ type
   TTestCase_X86Sse2PackShuffleBasics = class(TTestCase)
   published
     procedure Test_UnpackLaneInterleaving;
+    procedure Test_UnpackWideLaneInterleaving;
     procedure Test_PackSaturationSemantics;
     procedure Test_ShuffleAndCrossTypeCastSemantics;
     procedure Test_InsertExtractEpi16_UseLow3BitsOfImmediate;
@@ -2243,6 +2244,92 @@ begin
   AssertEquals('unpackhi_epi32[1]', 102, LHi.m128i_i32[1]);
   AssertEquals('unpackhi_epi32[2]', 3, LHi.m128i_i32[2]);
   AssertEquals('unpackhi_epi32[3]', 103, LHi.m128i_i32[3]);
+end;
+
+procedure TTestCase_X86Sse2PackShuffleBasics.Test_UnpackWideLaneInterleaving;
+var
+  LA: TM128;
+  LB: TM128;
+  LLo: TM128;
+  LHi: TM128;
+  LIndex: Integer;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 7 do
+  begin
+    LA.m128i_i16[LIndex] := 10 + LIndex;
+    LB.m128i_i16[LIndex] := 100 + LIndex;
+  end;
+
+  LLo := simd_unpacklo_epi16(LA, LB);
+  LHi := simd_unpackhi_epi16(LA, LB);
+
+  for LIndex := 0 to 3 do
+  begin
+    AssertEquals('unpacklo_epi16.a[' + IntToStr(LIndex) + ']',
+      LA.m128i_i16[LIndex], LLo.m128i_i16[LIndex * 2]);
+    AssertEquals('unpacklo_epi16.b[' + IntToStr(LIndex) + ']',
+      LB.m128i_i16[LIndex], LLo.m128i_i16[(LIndex * 2) + 1]);
+    AssertEquals('unpackhi_epi16.a[' + IntToStr(LIndex) + ']',
+      LA.m128i_i16[4 + LIndex], LHi.m128i_i16[LIndex * 2]);
+    AssertEquals('unpackhi_epi16.b[' + IntToStr(LIndex) + ']',
+      LB.m128i_i16[4 + LIndex], LHi.m128i_i16[(LIndex * 2) + 1]);
+  end;
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_i64[0] := 111;
+  LA.m128i_i64[1] := 222;
+  LB.m128i_i64[0] := 333;
+  LB.m128i_i64[1] := 444;
+
+  LLo := simd_unpacklo_epi64(LA, LB);
+  LHi := simd_unpackhi_epi64(LA, LB);
+
+  AssertEquals('unpacklo_epi64 lane0', Int64(111), LLo.m128i_i64[0]);
+  AssertEquals('unpacklo_epi64 lane1', Int64(333), LLo.m128i_i64[1]);
+  AssertEquals('unpackhi_epi64 lane0', Int64(222), LHi.m128i_i64[0]);
+  AssertEquals('unpackhi_epi64 lane1', Int64(444), LHi.m128i_i64[1]);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := 1.25;
+  LA.m128d_f64[1] := 2.5;
+  LB.m128d_f64[0] := 10.75;
+  LB.m128d_f64[1] := 20.125;
+
+  LLo := simd_unpacklo_pd(LA, LB);
+  LHi := simd_unpackhi_pd(LA, LB);
+
+  AssertEquals('unpacklo_pd lane0', 1.25, LLo.m128d_f64[0], 0.0);
+  AssertEquals('unpacklo_pd lane1', 10.75, LLo.m128d_f64[1], 0.0);
+  AssertEquals('unpackhi_pd lane0', 2.5, LHi.m128d_f64[0], 0.0);
+  AssertEquals('unpackhi_pd lane1', 20.125, LHi.m128d_f64[1], 0.0);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128_f32[0] := 1.0;
+  LA.m128_f32[1] := 2.0;
+  LA.m128_f32[2] := 3.0;
+  LA.m128_f32[3] := 4.0;
+  LB.m128_f32[0] := 11.0;
+  LB.m128_f32[1] := 12.0;
+  LB.m128_f32[2] := 13.0;
+  LB.m128_f32[3] := 14.0;
+
+  LLo := simd_unpacklo_ps(LA, LB);
+  LHi := simd_unpackhi_ps(LA, LB);
+
+  AssertEquals('unpacklo_ps lane0', 1.0, LLo.m128_f32[0], 0.0);
+  AssertEquals('unpacklo_ps lane1', 11.0, LLo.m128_f32[1], 0.0);
+  AssertEquals('unpacklo_ps lane2', 2.0, LLo.m128_f32[2], 0.0);
+  AssertEquals('unpacklo_ps lane3', 12.0, LLo.m128_f32[3], 0.0);
+
+  AssertEquals('unpackhi_ps lane0', 3.0, LHi.m128_f32[0], 0.0);
+  AssertEquals('unpackhi_ps lane1', 13.0, LHi.m128_f32[1], 0.0);
+  AssertEquals('unpackhi_ps lane2', 4.0, LHi.m128_f32[2], 0.0);
+  AssertEquals('unpackhi_ps lane3', 14.0, LHi.m128_f32[3], 0.0);
 end;
 
 procedure TTestCase_X86Sse2PackShuffleBasics.Test_PackSaturationSemantics;

@@ -5197,3 +5197,17 @@
 | 1. 复核 `ordered compare` coverage 残余 | completed | 已确认在补完 `compare/movemask`、`comi/ucomi` 与 `double compare` NaN/complement 后，`tests/fafafa.core.simd.intrinsics.experimental/` 还没有直接钉住 `simd_cmplt_pd`、`simd_cmple_pd`、`simd_cmpord_pd`、`simd_cmpunord_pd`，以及 `simd_cmpeq/cmplt/cmple/cmpneq_sd` 的 representative raw contract |
 | 2. 只补 representative proof，不扩实现范围 | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `Test_OrderedPackedAndScalarCompareCoverageSemantics`；直接覆盖 finite 与 `NaN` 两条路径上的 packed ordered/unordered mask 结果，以及 scalar low-lane mask 与 high-lane preserve 合同 |
 | 3. 复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0/1` 两套 `BuildOrTest.sh test` 已 fresh 通过；同一份测试改动此前已随当前工作树通过 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`。补充说明：`experimental=0/1` 不能并行跑，因为它们会共享 `tests/fafafa.core.simd.intrinsics.experimental/logs/*_smoke.pas` 生成路径，closeout 证据应保持串行 |
+
+## 2026-05-18 SSE2 Wide Unpack Qualification Coverage Expansion
+
+### Goal
+
+继续沿 `SSE2 raw-leaf qualification` 小批次推进，把 `PackShuffleBasics` 里还空着的 `wide unpack` 残余补成 representative proof：在已有 `unpacklo/hi_epi8`、`unpacklo/hi_epi32` 基础上，再补齐 `unpacklo/hi_epi16`、`unpacklo/hi_epi64`、`unpacklo/hi_pd`、`unpacklo/hi_ps` 的逐 lane 交织合同。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `wide unpack` coverage 缺口 | completed | 已确认 `tests/fafafa.core.simd.intrinsics.experimental/` 的 `TTestCase_X86Sse2PackShuffleBasics` 目前只覆盖 `unpacklo/hi_epi8` 与 `unpacklo/hi_epi32`，而 `simd_unpacklo/hi_epi16`、`simd_unpacklo/hi_epi64`、`simd_unpacklo/hi_pd`、`simd_unpacklo/hi_ps` 仍没有任何 representative raw semantic proof |
+| 2. 只补 representative proof，不扩实现范围 | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `Test_UnpackWideLaneInterleaving`；直接覆盖 `epi16` 低/高半区交织、`epi64` qword 对位、`pd` 双精度 low/high unpack，以及 `ps` 四 lane packed single 的 low/high 交织顺序 |
+| 3. 复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0/1` 两套 `BuildOrTest.sh test`、以及 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 全部 fresh 通过；这批没有再炸出 source bug，说明当前 `wide unpack` raw leaf 至少通过了第一层 representative contract |

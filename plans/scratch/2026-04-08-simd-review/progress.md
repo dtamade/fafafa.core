@@ -13305,3 +13305,53 @@
   - 如果继续沿这条路推进，下一步更自然的是：
     - 回到 `retire baseline` 复核 integer compare 邻近 residual
     - 或继续补 `unpack` / `pack` 邻近 representative proof，而不是重新扩成 whole-module 扫描
+
+## 2026-05-18 SSE2 Wide Unpack Qualification Coverage Expansion
+
+- 这批继续保持 bounded，没有从 `unpack` 又跳回 compare 或 shift，而是沿着现有 `TTestCase_X86Sse2PackShuffleBasics` 的缺口继续补 representative proof。
+- 开工前先对位现有 coverage：
+  - 已有：
+    - `unpacklo/hi_epi8`
+    - `unpacklo/hi_epi32`
+  - 仍缺：
+    - `simd_unpacklo_epi16`
+    - `simd_unpackhi_epi16`
+    - `simd_unpacklo_epi64`
+    - `simd_unpackhi_epi64`
+    - `simd_unpacklo_pd`
+    - `simd_unpackhi_pd`
+    - `simd_unpacklo_ps`
+    - `simd_unpackhi_ps`
+- 本批仍然只改一个代码文件：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 在 `TTestCase_X86Sse2PackShuffleBasics` 下新增 `Test_UnpackWideLaneInterleaving`
+- 新 proof 直接锁住的关键合同包括：
+  - `unpacklo/hi_epi16` 必须按 4 组 16-bit lane 做低半区 / 高半区交织
+  - `unpacklo/hi_epi64` 必须按 qword 对位，不允许 lane 顺序反转
+  - `unpacklo/hi_pd` 必须分别给出 `[a0, b0]` / `[a1, b1]`
+  - `unpacklo/hi_ps` 必须分别给出 `[a0, b0, a1, b1]` / `[a2, b2, a3, b3]`
+- 这次 fresh 复验没有再打出新的 source bug：
+  - `git diff --check`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- 关键结果：
+  - experimental=`0`：`[TEST] OK`
+  - experimental=`1`：`[TEST] OK`
+  - Release `check`：退出码 `0`
+- 当前阶段结论：
+  - 这批是纯 proof closeout，没有引出新的 source 修复
+  - 但它把 `wide unpack` 从“只做过 hygiene、没有语义证据”推进到了“至少有一层 representative contract”
+  - 到这一刻为止，`TTestCase_X86Sse2PackShuffleBasics` 的 representative proof 已经覆盖到：
+    - `unpacklo/hi_epi8`
+    - `unpacklo/hi_epi16`
+    - `unpacklo/hi_epi32`
+    - `unpacklo/hi_epi64`
+    - `unpacklo/hi_pd`
+    - `unpacklo/hi_ps`
+    - `pack*`
+    - `shuffle*`
+    - `insert/extract_epi16`
+  - 如果继续沿这条路推进，下一步更自然的是：
+    - 回到 `integer compare` 邻近 residual 做 representative proof
+    - 或继续补 `pack/unpack` 边上的更细碎剩余，但不必重新打开 whole-module 讨论
