@@ -2049,6 +2049,15 @@ begin
   AssertEquals('simd_cvtpd_ps negative nan zero lane3', 0, LActual.m128i_i32[3]);
 
   FillChar(LA, SizeOf(LA), 0);
+  LA.m128d_f64[0] := -0.0;
+  LA.m128d_f64[1] := 0.0;
+  LActual := simd_cvtpd_ps(LA);
+  AssertEquals('simd_cvtpd_ps negative zero preserves sign', LongInt($80000000), LActual.m128i_i32[0]);
+  AssertEquals('simd_cvtpd_ps positive zero stays positive', 0, LActual.m128i_i32[1]);
+  AssertEquals('simd_cvtpd_ps negative zero zero lane2', 0, LActual.m128i_i32[2]);
+  AssertEquals('simd_cvtpd_ps negative zero zero lane3', 0, LActual.m128i_i32[3]);
+
+  FillChar(LA, SizeOf(LA), 0);
   LA.m128i_u64[0] := QWord($7FF8000000000001);
   LA.m128d_f64[1] := Infinity;
   LExpected := simd_cvtpd_ps(LA);
@@ -2067,6 +2076,16 @@ begin
   AssertEquals('simd_cvttpd_ps negative overflow matches cvtpd_ps lane1', LExpected.m128i_i32[1], LActual.m128i_i32[1]);
   AssertEquals('simd_cvttpd_ps negative nan zero lane2', LExpected.m128i_i32[2], LActual.m128i_i32[2]);
   AssertEquals('simd_cvttpd_ps negative nan zero lane3', LExpected.m128i_i32[3], LActual.m128i_i32[3]);
+
+  FillChar(LA, SizeOf(LA), 0);
+  LA.m128d_f64[0] := -0.0;
+  LA.m128d_f64[1] := 0.0;
+  LExpected := simd_cvtpd_ps(LA);
+  LActual := simd_cvttpd_ps(LA);
+  AssertEquals('simd_cvttpd_ps negative zero matches cvtpd_ps lane0', LExpected.m128i_i32[0], LActual.m128i_i32[0]);
+  AssertEquals('simd_cvttpd_ps positive zero matches cvtpd_ps lane1', LExpected.m128i_i32[1], LActual.m128i_i32[1]);
+  AssertEquals('simd_cvttpd_ps negative zero zero lane2', LExpected.m128i_i32[2], LActual.m128i_i32[2]);
+  AssertEquals('simd_cvttpd_ps negative zero zero lane3', LExpected.m128i_i32[3], LActual.m128i_i32[3]);
 
   FillChar(LA, SizeOf(LA), 0);
   LA.m128_f32[0] := 8.0;
@@ -2101,6 +2120,13 @@ begin
   AssertEquals('simd_cvtsd_ss negative overflow keeps lane1', 4.0, LActual.m128_f32[1], 0.0);
   AssertEquals('simd_cvtsd_ss negative overflow keeps lane2', 2.0, LActual.m128_f32[2], 0.0);
   AssertEquals('simd_cvtsd_ss negative overflow keeps lane3', 1.0, LActual.m128_f32[3], 0.0);
+
+  LB.m128d_f64[0] := -0.0;
+  LActual := simd_cvtsd_ss(LA, LB);
+  AssertEquals('simd_cvtsd_ss negative zero preserves sign', LongInt($80000000), LActual.m128i_i32[0]);
+  AssertEquals('simd_cvtsd_ss negative zero keeps lane1', 4.0, LActual.m128_f32[1], 0.0);
+  AssertEquals('simd_cvtsd_ss negative zero keeps lane2', 2.0, LActual.m128_f32[2], 0.0);
+  AssertEquals('simd_cvtsd_ss negative zero keeps lane3', 1.0, LActual.m128_f32[3], 0.0);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_RoundToNearestEvenConversionSemantics;

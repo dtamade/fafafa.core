@@ -5435,3 +5435,17 @@
 | 1. 复核 `cvttpd_ps` 的真实语义来源 | completed | 已确认 `simd_cvttpd_ps` 直接委托 `BuildPackedDoubleToSingle`，当前仓库约定是与 `simd_cvtpd_ps` 共用同一 anomaly handling 和 zero-lane shape |
 | 2. 只补 representative proof，不扩实现范围 | completed | 已在 `Test_NarrowingFloatConversionHostTruthSemantics` 下补齐 `simd_cvttpd_ps` 对 positive NaN / positive Inf / negative NaN / negative overflow 的 companion-alignment 断言 |
 | 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已全部 fresh 通过；本批继续保持 tests-only，无需重开 source 修复 |
+
+## 2026-05-18 SSE2 Narrowing Negative-Zero Sign Coverage Expansion
+
+### Goal
+
+继续沿 narrowing 热路径做 finite-path residual 收口，但这次只补 `negative zero` 的 sign-preserve proof：`simd_cvtpd_ps`、`simd_cvtsd_ss`，以及 companion `simd_cvttpd_ps`。前面已经锁住 NaN/overflow 的符号位，这次确认 finite `-0.0` 也不会在 helper 里被吞成 `+0.0`；若 fresh 运行打红，再把修复限制在 `ConvertDoubleToSingleBits` 周围。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 先取 host truth 并复核 zero-sign coverage 缺口 | completed | 已用本机 `cc -msse2` probe 确认 `cvtpd_ps(-0.0,+0.0)` 返回 `80000000/00000000`，`cvtsd_ss(-0.0)` 返回低 lane `80000000` 且高 lanes preserve |
+| 2. 只补 representative proof，不扩实现范围 | completed | 已在 `Test_NarrowingFloatConversionHostTruthSemantics` 下补齐 `simd_cvtpd_ps` negative zero、`simd_cvtsd_ss` negative zero，以及 `simd_cvttpd_ps` negative-zero companion-alignment 断言 |
+| 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已全部 fresh 通过；本批继续保持 tests-only，无需重开 source 修复 |

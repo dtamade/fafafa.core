@@ -13959,3 +13959,30 @@
 - 当前阶段结论：
   - `cvttpd_ps` 这条 companion leaf 的 anomaly-path proof 现在也被锁住了
   - 这批没有打出新的 source bug，继续保持 tests-only 收口
+
+## 2026-05-18 SSE2 Narrowing Negative-Zero Sign Coverage Expansion
+
+- 当前继续沿 narrowing 热路径做 finite-path residual 收口，这次只补 `negative zero` 的 sign-preserve proof。
+- 先用本机 `cc -msse2` probe 取到 host truth：
+  - `cvtpd_ps_negzero_poszero -> 80000000 00000000 00000000 00000000`
+  - `cvtsd_ss_negzero -> 80000000 40800000 40000000 3f800000`
+- 本批继续保持 tests-only：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 在 `Test_NarrowingFloatConversionHostTruthSemantics` 下补齐 `simd_cvtpd_ps` negative zero
+    - 补齐 `simd_cvtsd_ss` negative zero
+    - 补齐 `simd_cvttpd_ps` negative-zero companion-alignment
+- fresh closeout 已完成：
+  - `git diff --check`
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- fresh 结果：
+  - default / experimental 双模态测试均 `TEST OK`
+  - finite `-0.0` 的 sign-preserve 结果与 host truth 一致，无新增 narrowing 偏移
+- 当前阶段结论：
+  - 到这一刻为止，`SSE2 narrowing` 这条 helper 热路径已经覆盖：
+    - positive / negative NaN
+    - positive / negative overflow
+    - negative zero
+    - lane zero/preserve shape
+    - `cvttpd_ps` companion alignment
+  - 这批没有打出新的 source bug，继续保持 tests-only 收口
