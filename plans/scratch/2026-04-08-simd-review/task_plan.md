@@ -5365,3 +5365,17 @@
 | 1. 先取 host truth 并复核 narrowing coverage 缺口 | completed | 已用本机 `cc -msse2` 最小 probe 确认 `cvtpd_ps/cvtsd_ss` 在 `NaN/Inf/overflow` 下的结果与 lane preserve 形状 |
 | 2. 新增 representative proof，观察 fresh 红点 | completed | `TTestCase_X86Sse2AbiBasics` 已新增 `Test_NarrowingFloatConversionHostTruthSemantics`；首次 fresh `experimental=1` 运行直接打出 `EInvalidOp`，确认 narrowing 异常路径仍会泄露 raw SSE conversion fault |
 | 3. 串行复验并按结果决定是否修 source | completed | 已把修复限制在 `simd_cvtpd_ps`、`simd_cvtsd_ss` 与同型 companion `simd_cvttpd_ps`；修复后 `git diff --check`、串行 experimental=`0`、串行 experimental=`1`、以及 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 全部 fresh 通过 |
+
+## 2026-05-18 SSE2 Round-To-Nearest-Even Tie Coverage Expansion
+
+### Goal
+
+继续沿 conversion 热路径做 bounded 审查，但只切默认 MXCSR 下的 ties-to-even 语义：`simd_cvtps_epi32`、`simd_cvtpd_epi32`、`simd_cvtsd_si32`。先用本机 probe 取 host truth，再补 representative proof，确认前两批 conversion helper 修复没有在半整数边界上偏离 SSE 默认舍入；若 fresh 运行打红，再把修复限制在这组 leaf 周围。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 先取 host truth 并复核 tie coverage 缺口 | completed | 已用本机 `cc -msse2` 最小 probe 确认 `2.5/3.5/-2.5/-3.5` 在 packed/scalar conversion 上都是 ties-to-even |
+| 2. 只补 representative proof，不扩实现范围 | completed | `TTestCase_X86Sse2AbiBasics` 已新增 `Test_RoundToNearestEvenConversionSemantics`，直接覆盖 packed/scalar tie cases |
+| 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已全部 fresh 通过；本批保持 tests-only，无需重开 source 修复 |

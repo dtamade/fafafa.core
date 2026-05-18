@@ -1138,6 +1138,7 @@ type
     procedure Test_RoundAndTruncConversionSemantics;
     procedure Test_ConversionIndefiniteSemantics;
     procedure Test_NarrowingFloatConversionHostTruthSemantics;
+    procedure Test_RoundToNearestEvenConversionSemantics;
     procedure Test_IntegerCompareFamilies_SignedAndEqualitySemantics;
     procedure Test_CompareAndMovemaskSemantics;
     procedure Test_ComiAndUcomiScalarFlagSemantics;
@@ -2056,6 +2057,47 @@ begin
   AssertEquals('simd_cvtsd_ss overflow keeps lane1', 4.0, LActual.m128_f32[1], 0.0);
   AssertEquals('simd_cvtsd_ss overflow keeps lane2', 2.0, LActual.m128_f32[2], 0.0);
   AssertEquals('simd_cvtsd_ss overflow keeps lane3', 1.0, LActual.m128_f32[3], 0.0);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_RoundToNearestEvenConversionSemantics;
+var
+  LFloats: TM128;
+  LDoubles: TM128;
+  LActual: TM128;
+begin
+  FillChar(LFloats, SizeOf(LFloats), 0);
+  LFloats.m128_f32[0] := 2.5;
+  LFloats.m128_f32[1] := 3.5;
+  LFloats.m128_f32[2] := -2.5;
+  LFloats.m128_f32[3] := -3.5;
+
+  LActual := simd_cvtps_epi32(LFloats);
+  AssertEquals('simd_cvtps_epi32 tie lane0 to even', 2, LActual.m128i_i32[0]);
+  AssertEquals('simd_cvtps_epi32 tie lane1 to even', 4, LActual.m128i_i32[1]);
+  AssertEquals('simd_cvtps_epi32 tie lane2 to even', -2, LActual.m128i_i32[2]);
+  AssertEquals('simd_cvtps_epi32 tie lane3 to even', -4, LActual.m128i_i32[3]);
+
+  FillChar(LDoubles, SizeOf(LDoubles), 0);
+  LDoubles.m128d_f64[0] := 2.5;
+  LDoubles.m128d_f64[1] := 3.5;
+  LActual := simd_cvtpd_epi32(LDoubles);
+  AssertEquals('simd_cvtpd_epi32 positive tie lane0 to even', 2, LActual.m128i_i32[0]);
+  AssertEquals('simd_cvtpd_epi32 positive tie lane1 to even', 4, LActual.m128i_i32[1]);
+
+  LDoubles.m128d_f64[0] := -2.5;
+  LDoubles.m128d_f64[1] := -3.5;
+  LActual := simd_cvtpd_epi32(LDoubles);
+  AssertEquals('simd_cvtpd_epi32 negative tie lane0 to even', -2, LActual.m128i_i32[0]);
+  AssertEquals('simd_cvtpd_epi32 negative tie lane1 to even', -4, LActual.m128i_i32[1]);
+
+  LDoubles.m128d_f64[0] := 2.5;
+  AssertEquals('simd_cvtsd_si32 tie to even', 2, simd_cvtsd_si32(LDoubles));
+  LDoubles.m128d_f64[0] := 3.5;
+  AssertEquals('simd_cvtsd_si32 tie to even next odd', 4, simd_cvtsd_si32(LDoubles));
+  LDoubles.m128d_f64[0] := -2.5;
+  AssertEquals('simd_cvtsd_si32 negative tie to even', -2, simd_cvtsd_si32(LDoubles));
+  LDoubles.m128d_f64[0] := -3.5;
+  AssertEquals('simd_cvtsd_si32 negative tie to even next odd', -4, simd_cvtsd_si32(LDoubles));
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_IntegerCompareFamilies_SignedAndEqualitySemantics;

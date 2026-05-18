@@ -13807,3 +13807,39 @@
     - `*_epi32` / `*_si32/si64` 的 `NaN/overflow -> indefinite`
     - `double -> single` narrowing 的 `NaN/Inf/overflow` 与 preserve/shape 合同
   - 如果继续沿这条路推进，下一步更自然的是把 conversion 邻近 residual 再收一小簇，或者回到另一个仍缺 host-truth 异常边界 proof 的 leaf family
+
+## 2026-05-18 SSE2 Round-To-Nearest-Even Tie Coverage Expansion
+
+- 当前继续沿刚修完的 conversion 热路径做审查加固，这次专门核对“默认 MXCSR 下 ties-to-even”这层语义，避免刚换上的 Pascal helper 在半整数边界上和 SSE 默认舍入跑偏。
+- 先用本机 `cc -msse2` 最小 probe 取到 host truth：
+  - `cvtps_epi32` / `cvtpd_epi32` / `cvtsd_si32`
+  - `2.5 -> 2`
+  - `3.5 -> 4`
+  - `-2.5 -> -2`
+  - `-3.5 -> -4`
+- 本批继续保持 tests-only：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 `Test_RoundToNearestEvenConversionSemantics`
+- 新 proof 计划直接锁住：
+  - packed single tie cases
+  - packed double tie cases
+  - scalar double-to-int tie cases
+- 本批预期 closeout 方式保持不变：
+  - `git diff --check`
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- 这批的真正目标不是扩大 scope，而是确认前两批 conversion source 修复没有悄悄把默认 round-to-nearest-even 合同改坏。
+- fresh closeout 已完成：
+  - `git diff --check`
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- fresh 结果：
+  - default / experimental 双模态测试均 `TEST OK`
+  - tie cases 与 host truth 一致，无新增 `EInvalidOp` 或 rounding 偏移
+- 当前阶段结论：
+  - 这批已经完成 `SSE2 conversion` 默认 ties-to-even 的 representative proof 补齐
+  - 当前 `SSE2 conversion` 已同时覆盖：
+    - `NaN/overflow -> indefinite`
+    - `double -> single` narrowing preserve/shape
+    - 默认 round-to-nearest-even tie cases
+  - 下一步应继续沿 conversion 邻近 residual 做小簇 proof-first，而不是重新扩成 whole-module 大扫荡
