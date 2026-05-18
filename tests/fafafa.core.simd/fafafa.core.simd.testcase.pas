@@ -11463,7 +11463,7 @@ var
   LAndResult, LOrResult, LXorResult, LNotResult: TVecI16x32;
   LMinResult, LMaxResult: TVecI16x32;
   LShiftLeftResult, LShiftRightResult, LShiftRightArithResult: TVecI16x32;
-  LExpectedSarRaw: Word;
+  LExpectedSar: SmallInt;
   LIndex: Integer;
 begin
   for LIndex := 0 to High(LVecA.i) do
@@ -11528,11 +11528,12 @@ begin
     AssertEquals('VecI16x32ShiftRight lane ' + IntToStr(LIndex),
       Word(LVecA.i[LIndex]) shr C_SHIFT_RIGHT, Word(LShiftRightResult.i[LIndex]));
 
-    LExpectedSarRaw := Word(LVecA.i[LIndex]) shr C_SHIFT_RIGHT_ARITH;
     if LVecA.i[LIndex] < 0 then
-      LExpectedSarRaw := LExpectedSarRaw or (Word($FFFF) shl (16 - C_SHIFT_RIGHT_ARITH));
+      LExpectedSar := SmallInt(not Word(Word(not LVecA.i[LIndex]) shr C_SHIFT_RIGHT_ARITH))
+    else
+      LExpectedSar := SmallInt(Word(LVecA.i[LIndex]) shr C_SHIFT_RIGHT_ARITH);
     AssertEquals('VecI16x32ShiftRightArith lane ' + IntToStr(LIndex),
-      Word(SmallInt(LExpectedSarRaw)), Word(LShiftRightArithResult.i[LIndex]));
+      LExpectedSar, LShiftRightArithResult.i[LIndex]);
   end;
 end;
 

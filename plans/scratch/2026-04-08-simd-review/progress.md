@@ -15178,3 +15178,36 @@
 - 当前阶段结论：
   - 现在已经拿到高置信度 root cause：`LAZBUILD` 的 absolute-path export 与 cmd/batch evidence path 不兼容
   - 下一步应提交这个 workflow fix，再发第五轮 fresh evidence，看 native batch 是否真正开始调用 `lazbuild.exe`
+
+### Follow-up: PATH-aware lazbuild contract finally reaches real FPC compile failure
+
+- 随后的 Windows evidence 收口提交已连续推进到：
+  - `706ea5d8` `simd: enable github windows bash evidence path`
+  - `ce88bdac` `simd: surface windows evidence runner diagnostics`
+  - `3b1947ac` `simd: inline windows lazbuild readiness check`
+  - `052ffb12` `simd: export windows lazbuild via path`
+  - `7ddbfeb9` `simd: treat windows lazbuild as path-aware command`
+- 关键状态变化：
+  - `win-evidence-preflight` 持续 `PASS`
+  - Windows GitHub runner 已不再停在 repo visibility / billing / batch subroutine / absolute-path lazbuild 这些外层 blocker
+  - 最新 fresh run `26049848308` 已真正进入 `lazbuild` 编译阶段
+- 当前最小真实失败面已缩到源码/测试本身，而不是 workflow/toolchain：
+  - `tests/fafafa.core.simd/fafafa.core.simd.testcase.pas(11533,42)`
+  - `Error: (8011) Asm: word value exceeds bounds 134215680`
+  - 后续 `ppcx64.exe returned an error exitcode`
+- 根因判断：
+  - `VecI16x32ShiftRightArith` 的测试期望值仍用 `Word($FFFF) shl ...` 人工补符号位
+  - 该写法在 Windows/FPC 的 16-bit 常量边界上溢出
+  - 因而这已经不是 SIMD 实现错误，而是测试自身的 16-bit 算术右移期望值构造不够稳健
+- 下一步收口动作：
+  - 改成与同文件 `I32/I64` 一致的“`not` + logical shift”位模式推导
+  - 先本地串行跑 release `check`
+  - 再重新发 fresh Windows evidence，验证是否跨过当前编译错误
+- 本地修复验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - 结果：PASS
+- 当前阶段结论：
+  - `VecI16x32ShiftRightArith` 的 16-bit 期望值构造已改成与 `I32/I64` 同构的位模式推导
+  - 本地 release 校验链已经跨过并收掉 `tests/fafafa.core.simd.testcase.pas(11533,42)` 这条 Windows/FPC 编译错误
+  - 下一步应基于当前 HEAD 重新发 fresh Windows evidence，确认 GitHub Windows runner 也跨过该点
