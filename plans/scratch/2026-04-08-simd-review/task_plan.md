@@ -5618,3 +5618,17 @@
 | 1. 复核当前 `constref aligned-read` 模式还剩哪里 | completed | 已确认当前 `SSE2` raw leaf 里这条模式只剩 `simd_maskmoveu_si128`；其它同型点要么是 aligned pointer API（`load_si128/load_pd/load_ps`），要么已经在上一批 closeout |
 | 2. 用 unaligned `Src/Mask` witness 让 fresh 红点自己说话 | completed | 已在 `Test_IntegerPartialLoadStoreMaskMoveSemantics` 下补 `AlignPointer(...)+1` 的 unaligned source/mask proof；首轮 experimental=`1` fresh 跑出 `EAccessViolation`，说明 `maskmoveu` 也在错误假设 `constref Src/Mask` 已对齐 |
 | 3. 把 `maskmoveu` 的 source/mask read 改成 unaligned load 并完成 closeout | completed | 已把 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 中 `simd_maskmoveu_si128` 的 `movdqa` source/mask read 统一改成 `movdqu`；`git diff --check`、串行 experimental=`0/1`、以及 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已全部 fresh 通过 |
+
+## 2026-05-18 SSE2 Sqrt Negative-Input Exception-Free Repair
+
+### Goal
+
+不重开更大的浮点语义面，只回到之前只做过 happy-path proof 的 `sqrt` 小簇：给 `simd_sqrt_ps`、`simd_sqrt_pd`、`simd_sqrt_sd` 补负数 / qNaN witness。若 fresh proof 真打出 `EInvalidOp`，就把修复严格收敛在这 3 个 leaf，改成 exception-free 语义 helper，并保持 packed lane / scalar high-lane preserve 合同。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 给 `sqrt` 小簇补负数 / qNaN witness | completed | 已新增 `Test_SqrtFamilies_NegativeAndNaNStayExceptionFree`；先确认 default experimental=`0` 继续绿，再让 experimental=`1` fresh 说话 |
+| 2. 根据 fresh 红点把修复收敛在 `sqrt` 小簇 | completed | experimental=`1` 首轮在新 `sqrt` witness 上直接抛 `EInvalidOp`；现已把 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 中 `simd_sqrt_ps/sqrt_pd/sqrt_sd` 收成 `SelectSingle/DoubleSqrtBits + BuildPacked/Scalar*Sqrt` 这套 exception-free Pascal helper |
+| 3. 串行复验并保持 stable path 不回归 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1`、以及 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已全部 fresh 通过 |

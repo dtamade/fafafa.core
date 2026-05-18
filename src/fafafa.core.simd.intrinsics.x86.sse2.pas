@@ -350,6 +350,11 @@ function BuildScalarDoubleCompareMask(constref a, b: TM128; const aKind: TSimdDo
 function BuildPackedSingleMinMax(constref a, b: TM128; const aKind: TSimdDoubleMinMaxKind): TM128; forward;
 function BuildPackedDoubleMinMax(constref a, b: TM128; const aKind: TSimdDoubleMinMaxKind): TM128; forward;
 function BuildScalarDoubleMinMax(constref a, b: TM128; const aKind: TSimdDoubleMinMaxKind): TM128; forward;
+function SelectSingleSqrtBits(const aBits: DWord; const aValue: Single): DWord; forward;
+function SelectDoubleSqrtBits(const aBits: QWord; const aValue: Double): QWord; forward;
+function BuildPackedSingleSqrt(constref a: TM128): TM128; forward;
+function BuildPackedDoubleSqrt(constref a: TM128): TM128; forward;
+function BuildScalarDoubleSqrt(constref a, b: TM128): TM128; forward;
 
 // === SSE2 Intrinsics 实现 ===
 // Placeholder raw-leaf bodies are kept here while the unit stays experimental-isolated.
@@ -1652,26 +1657,9 @@ asm
 {$ENDIF}
 end;
 
-function simd_sqrt_ps(constref a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]; sqrtps xmm0, xmm0  // Parallel square root on 4 single-precision lanes.
-    {$ELSE}
-    movups xmm0, [rdi]; sqrtps xmm0, xmm0
-  {$ENDIF}
-{$ELSEIF CPUX86}
-    mov eax, [esp + 4]; movups xmm0, [eax]; sqrtps xmm0, xmm0
-{$ELSE}
-    {$ERROR Unsupported CPU}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_sqrt_ps(constref a: TM128): TM128;
+begin
+  Result := BuildPackedSingleSqrt(a);
 end;
 
 function simd_add_pd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
@@ -1762,26 +1750,70 @@ asm
 {$ENDIF}
 end;
 
-function simd_sqrt_pd(constref a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; sqrtpd xmm0, xmm0  // Parallel square root on 2 double-precision lanes.
-    {$ELSE}
-    movupd xmm0, [rdi]; sqrtpd xmm0, xmm0
-  {$ENDIF}
-{$ELSEIF CPUX86}
-    mov eax, [esp + 4]; movupd xmm0, [eax]; sqrtpd xmm0, xmm0
-{$ELSE}
-    {$ERROR Unsupported CPU}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function SelectSingleSqrtBits(const aBits: DWord; const aValue: Single): DWord; inline;
+const
+  CANONICAL_SINGLE_QNAN = DWord($7FC00000);
+var
+  LResult: Single;
+begin
+  if IsNan(aValue) then
+    Exit(aBits);
+  if aValue < 0 then
+    Exit(CANONICAL_SINGLE_QNAN);
+  LResult := Sqrt(aValue);
+  Move(LResult, Result, SizeOf(Result));
+end;
+
+function SelectDoubleSqrtBits(const aBits: QWord; const aValue: Double): QWord; inline;
+const
+  CANONICAL_DOUBLE_QNAN = QWord($7FF8000000000000);
+var
+  LResult: Double;
+begin
+  if IsNan(aValue) then
+    Exit(aBits);
+  if aValue < 0 then
+    Exit(CANONICAL_DOUBLE_QNAN);
+  LResult := Sqrt(aValue);
+  Move(LResult, Result, SizeOf(Result));
+end;
+
+function BuildPackedSingleSqrt(constref a: TM128): TM128; inline;
+var
+  LLane: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  for LLane := 0 to 3 do
+    Result.m128i_u32[LLane] := SelectSingleSqrtBits(
+      a.m128i_u32[LLane],
+      a.m128_f32[LLane]
+    );
+end;
+
+function BuildPackedDoubleSqrt(constref a: TM128): TM128; inline;
+var
+  LLane: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  for LLane := 0 to 1 do
+    Result.m128i_u64[LLane] := SelectDoubleSqrtBits(
+      a.m128i_u64[LLane],
+      a.m128d_f64[LLane]
+    );
+end;
+
+function BuildScalarDoubleSqrt(constref a, b: TM128): TM128; inline;
+begin
+  Result := a;
+  Result.m128i_u64[0] := SelectDoubleSqrtBits(
+    b.m128i_u64[0],
+    b.m128d_f64[0]
+  );
+end;
+
+function simd_sqrt_pd(constref a: TM128): TM128;
+begin
+  Result := BuildPackedDoubleSqrt(a);
 end;
 
 // === 5️⃣ Logical Operations 剩余实现 ===
@@ -3908,26 +3940,9 @@ asm
 {$ENDIF}
 end;
 
-function simd_sqrt_sd(constref a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; movsd xmm1, [rdx]; sqrtsd xmm0, xmm1  // Scalar double sqrt, keep upper lane from a
-    {$ELSE}
-    movupd xmm0, [rdi]; movsd xmm1, [rsi]; sqrtsd xmm0, xmm1
-  {$ENDIF}
-{$ELSEIF CPUX86}
-    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movsd xmm1, [edx]; sqrtsd xmm0, xmm1
-{$ELSE}
-    {$ERROR Unsupported CPU}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_sqrt_sd(constref a, b: TM128): TM128;
+begin
+  Result := BuildScalarDoubleSqrt(a, b);
 end;
 
 function simd_min_sd(constref a, b: TM128): TM128;

@@ -14405,3 +14405,52 @@
 - 当前阶段结论：
   - 这批把 `constref aligned-read` 在当前 `SSE2` direct-proof lane 里最后一个高信号 residual 也收掉了
   - 当前这一条 proof-first 热线已经从“补 0-hit/low-hit”进一步推进到了“顺着 fresh 红点把同型 ABI 假设清干净”
+
+## 2026-05-18 SSE2 Sqrt Negative-Input Exception-Free Repair
+
+- 当前没有回到 whole-module，也没有去碰 `unpack/pack` 那种虽然 low-hit 但很像“继续补样例”的簇，而是改用更高收益的筛法：
+  - 先看哪些 `SSE2` leaf 之前只做过 happy-path proof
+  - 再挑更可能在特殊浮点值上露出真 bug 的小簇
+- 这次锁定的是：
+  - `simd_sqrt_ps`
+  - `simd_sqrt_pd`
+  - `simd_sqrt_sd`
+- 原因很直接：
+  - 这组函数之前只有 `Test_SqrtFamilies_RespectLaneAndPreserveContracts` 的正数 happy-path
+  - source 仍直接走 raw `sqrtps/sqrtpd/sqrtsd`
+  - 按前面 compare / minmax 的经验，这种路径在负数或 NaN 上很可能把 `EInvalidOp` 直接漏出来
+- 本批继续坚持 proof-first：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 `Test_SqrtFamilies_NegativeAndNaNStayExceptionFree`
+- 新 witness 直接锁住：
+  - `sqrt_ps`：负 single lane / qNaN lane / 有限值 lane / `-0.0` lane
+  - `sqrt_pd`：负 double lane / qNaN lane
+  - `sqrt_sd`：`b.low` 为负数或 qNaN 时，low lane 仍应回到 NaN，且 `a.high` 必须完整保留
+- 这次 fresh 红点非常干净：
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`：`[TEST] OK`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`：`Test_SqrtFamilies_NegativeAndNaNStayExceptionFree` 首轮 `EInvalidOp`
+  - 说明问题不是 stable path，也不是测试构造，而是 `experimental=1` 下 raw `sqrt` 真的把 invalid floating-point exception 暴露出来了
+- source 对位后，修复继续严格收敛在 `src/fafafa.core.simd.intrinsics.x86.sse2.pas`：
+  - 新增：
+    - `SelectSingleSqrtBits`
+    - `SelectDoubleSqrtBits`
+    - `BuildPackedSingleSqrt`
+    - `BuildPackedDoubleSqrt`
+    - `BuildScalarDoubleSqrt`
+  - `simd_sqrt_ps/sqrt_pd/sqrt_sd` 不再直接走 raw `sqrt*` 指令，而是：
+    - NaN 输入：直接保留 NaN bits
+    - 负有限值输入：返回 canonical quiet NaN，避免 `EInvalidOp`
+    - 非负有限值输入：再调用 `Sqrt(...)`
+    - `sqrt_sd` 继续保持 `a.high` 不变
+- 本批 fresh 验证：
+  - `git diff --check`
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - 修复后 experimental=`0`：`[TEST] OK`
+  - 修复后 experimental=`1`：`[TEST] OK`
+  - 修复后 Release `check`：退出码 `0`
+- 当前阶段结论：
+  - 这批再次验证了“low-hit + 特殊浮点值 witness”比继续盲补普通 lane 样例更值钱
+  - 当前 `sqrt` 小簇已经从“只验证 happy path”推进到“负数 / qNaN 也不应把 invalid exception 直接漏出来”

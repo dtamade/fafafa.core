@@ -1136,6 +1136,7 @@ type
     procedure Test_IntegerWideAddSubWraparoundSemantics;
     procedure Test_FloatSubDivAndScalarArithmeticPreserveContracts;
     procedure Test_SqrtFamilies_RespectLaneAndPreserveContracts;
+    procedure Test_SqrtFamilies_NegativeAndNaNStayExceptionFree;
     procedure Test_SingleMinMaxFamilies_HostTruthSemantics;
     procedure Test_DoubleMinMaxFamilies_HostTruthSemantics;
     procedure Test_LoadStore_Roundtrip;
@@ -1700,6 +1701,49 @@ begin
   LActual := simd_sqrt_sd(LA, LB);
   AssertEquals('simd_sqrt_sd low lane', 6.0, LActual.m128d_f64[0], 0.0);
   AssertEquals('simd_sqrt_sd keep high lane', 88.0, LActual.m128d_f64[1], 0.0);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_SqrtFamilies_NegativeAndNaNStayExceptionFree;
+var
+  LA: TM128;
+  LB: TM128;
+  LActual: TM128;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  LA.m128_f32[0] := -1.0;
+  LA.m128i_u32[1] := DWord($7FC12345);
+  LA.m128_f32[2] := 4.0;
+  LA.m128_f32[3] := -0.0;
+
+  LActual := simd_sqrt_ps(LA);
+  AssertTrue('simd_sqrt_ps negative lane0 -> NaN', IsNan(LActual.m128_f32[0]));
+  AssertTrue('simd_sqrt_ps qnan lane1 -> NaN', IsNan(LActual.m128_f32[1]));
+  AssertEquals('simd_sqrt_ps finite lane2', 2.0, LActual.m128_f32[2], 0.0);
+  AssertEquals('simd_sqrt_ps negative zero lane3', 0.0, LActual.m128_f32[3], 0.0);
+
+  FillChar(LA, SizeOf(LA), 0);
+  LA.m128d_f64[0] := -9.0;
+  LA.m128i_u64[1] := QWord($7FF8123412341234);
+
+  LActual := simd_sqrt_pd(LA);
+  AssertTrue('simd_sqrt_pd negative lane0 -> NaN', IsNan(LActual.m128d_f64[0]));
+  AssertTrue('simd_sqrt_pd qnan lane1 -> NaN', IsNan(LActual.m128d_f64[1]));
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := 1.0;
+  LA.m128d_f64[1] := 88.0;
+  LB.m128d_f64[0] := -16.0;
+  LB.m128i_u64[1] := QWord($7FF8000000000001);
+
+  LActual := simd_sqrt_sd(LA, LB);
+  AssertTrue('simd_sqrt_sd negative low lane -> NaN', IsNan(LActual.m128d_f64[0]));
+  AssertEquals('simd_sqrt_sd keep high lane on negative input', 88.0, LActual.m128d_f64[1], 0.0);
+
+  LB.m128i_u64[0] := QWord($7FF8123412341234);
+  LActual := simd_sqrt_sd(LA, LB);
+  AssertTrue('simd_sqrt_sd qnan low lane -> NaN', IsNan(LActual.m128d_f64[0]));
+  AssertEquals('simd_sqrt_sd keep high lane on qnan input', 88.0, LActual.m128d_f64[1], 0.0);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_SingleMinMaxFamilies_HostTruthSemantics;
