@@ -1139,6 +1139,7 @@ type
     procedure Test_ConversionIndefiniteSemantics;
     procedure Test_NarrowingFloatConversionHostTruthSemantics;
     procedure Test_RoundToNearestEvenConversionSemantics;
+    procedure Test_ConversionThresholdBoundarySemantics;
     procedure Test_IntegerCompareFamilies_SignedAndEqualitySemantics;
     procedure Test_CompareAndMovemaskSemantics;
     procedure Test_ComiAndUcomiScalarFlagSemantics;
@@ -2098,6 +2099,67 @@ begin
   AssertEquals('simd_cvtsd_si32 negative tie to even', -2, simd_cvtsd_si32(LDoubles));
   LDoubles.m128d_f64[0] := -3.5;
   AssertEquals('simd_cvtsd_si32 negative tie to even next odd', -4, simd_cvtsd_si32(LDoubles));
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_ConversionThresholdBoundarySemantics;
+var
+  LFloats: TM128;
+  LDoubles: TM128;
+  LActual: TM128;
+  LPrevPositiveNearest32: Double;
+  LPrevPositiveTrunc32: Double;
+  LPrevPositive64: Double;
+begin
+  FillChar(LFloats, SizeOf(LFloats), 0);
+  LFloats.m128_f32[0] := 2147483392.0;
+  LFloats.m128_f32[1] := 2147483648.0;
+  LActual := simd_cvtps_epi32(LFloats);
+  AssertEquals('simd_cvtps_epi32 largest finite positive f32 stays representable', LongInt($7FFFFF00), LActual.m128i_i32[0]);
+  AssertEquals('simd_cvtps_epi32 positive f32 overflow -> indefinite', LongInt($80000000), LActual.m128i_i32[1]);
+
+  LActual := simd_cvttps_epi32(LFloats);
+  AssertEquals('simd_cvttps_epi32 largest finite positive f32 stays representable', LongInt($7FFFFF00), LActual.m128i_i32[0]);
+  AssertEquals('simd_cvttps_epi32 positive f32 overflow -> indefinite', LongInt($80000000), LActual.m128i_i32[1]);
+
+  LPrevPositiveNearest32 := 2147483647.4999997615814208984375;
+  FillChar(LDoubles, SizeOf(LDoubles), 0);
+  LDoubles.m128d_f64[0] := LPrevPositiveNearest32;
+  LDoubles.m128d_f64[1] := 2147483647.5;
+  LActual := simd_cvtpd_epi32(LDoubles);
+  AssertEquals('simd_cvtpd_epi32 previous positive boundary rounds in-range', 2147483647, LActual.m128i_i32[0]);
+  AssertEquals('simd_cvtpd_epi32 positive tie-overflow -> indefinite', LongInt($80000000), LActual.m128i_i32[1]);
+
+  LPrevPositiveTrunc32 := 2147483647.9999997615814208984375;
+  LDoubles.m128d_f64[0] := LPrevPositiveTrunc32;
+  LDoubles.m128d_f64[1] := 2147483648.0;
+  LActual := simd_cvttpd_epi32(LDoubles);
+  AssertEquals('simd_cvttpd_epi32 previous positive boundary truncates in-range', 2147483647, LActual.m128i_i32[0]);
+  AssertEquals('simd_cvttpd_epi32 positive overflow -> indefinite', LongInt($80000000), LActual.m128i_i32[1]);
+
+  LDoubles.m128d_f64[0] := LPrevPositiveNearest32;
+  AssertEquals('simd_cvtsd_si32 previous positive boundary rounds in-range', 2147483647, simd_cvtsd_si32(LDoubles));
+  LDoubles.m128d_f64[0] := 2147483647.5;
+  AssertEquals('simd_cvtsd_si32 positive tie-overflow -> indefinite', LongInt($80000000), simd_cvtsd_si32(LDoubles));
+
+  LDoubles.m128d_f64[0] := LPrevPositiveTrunc32;
+  AssertEquals('simd_cvttsd_si32 previous positive boundary truncates in-range', 2147483647, simd_cvttsd_si32(LDoubles));
+  LDoubles.m128d_f64[0] := 2147483648.0;
+  AssertEquals('simd_cvttsd_si32 positive overflow -> indefinite', LongInt($80000000), simd_cvttsd_si32(LDoubles));
+
+  LPrevPositive64 := 9223372036854774784.0;
+  LDoubles.m128d_f64[0] := LPrevPositive64;
+  AssertEquals('simd_cvtsd_si64 previous positive boundary rounds in-range',
+    Int64(9223372036854774784), simd_cvtsd_si64(LDoubles));
+  LDoubles.m128d_f64[0] := ldexp(1.0, 63);
+  AssertEquals('simd_cvtsd_si64 positive overflow -> indefinite',
+    Int64(QWord($8000000000000000)), simd_cvtsd_si64(LDoubles));
+
+  LDoubles.m128d_f64[0] := LPrevPositive64;
+  AssertEquals('simd_cvttsd_si64 previous positive boundary truncates in-range',
+    Int64(9223372036854774784), simd_cvttsd_si64(LDoubles));
+  LDoubles.m128d_f64[0] := ldexp(1.0, 63);
+  AssertEquals('simd_cvttsd_si64 positive overflow -> indefinite',
+    Int64(QWord($8000000000000000)), simd_cvttsd_si64(LDoubles));
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_IntegerCompareFamilies_SignedAndEqualitySemantics;

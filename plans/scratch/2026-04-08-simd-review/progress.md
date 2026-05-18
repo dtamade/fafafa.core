@@ -13843,3 +13843,45 @@
     - `double -> single` narrowing preserve/shape
     - 默认 round-to-nearest-even tie cases
   - 下一步应继续沿 conversion 邻近 residual 做小簇 proof-first，而不是重新扩成 whole-module 大扫荡
+
+## 2026-05-18 SSE2 Conversion Positive-Threshold Boundary Coverage Expansion
+
+- 当前继续沿 `SSE2 conversion` 热路径推进，这次专门核对“可区分的正边界阈值”语义，避免 helper 在 `prev-in-range` / `exact overflow` / `tie-overflow` 上出现 `<` / `<=` / `>=` 之类的细小漂移。
+- 先用本机 probe 取到 host truth：
+  - `cvtps_epi32/cvttps_epi32`
+    - 最大可表示 in-range `f32` 正值 `2147483392.0 -> 2147483392`
+    - `2147483648.0 -> 0x80000000`
+  - `cvtpd_epi32/cvtsd_si32`
+    - `2147483647.4999997615814208984375 -> 2147483647`
+    - `2147483647.5 -> 0x80000000`
+  - `cvttpd_epi32/cvttsd_si32`
+    - `2147483647.9999997615814208984375 -> 2147483647`
+    - `2147483648.0 -> 0x80000000`
+  - `cvtsd_si64/cvttsd_si64`
+    - `9223372036854774784.0 -> 9223372036854774784`
+    - `ldexp(1.0, 63) -> 0x8000000000000000`
+- 本批继续保持 tests-only：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 `Test_ConversionThresholdBoundarySemantics`
+- 新 proof 直接锁住：
+  - packed `f32` 正边界 in-range / overflow
+  - packed `f64` nearest 与 trunc 的正边界前驱 / overflow
+  - scalar `si32/si64` nearest 与 trunc 的正边界前驱 / overflow
+- 中途唯一红点不是语义失败，而是 `NextAfter` 在当前 FPC 环境里不可用：
+  - `experimental=1` 首轮 build 报 `Identifier not found "NextAfter"`
+  - 已改成 probe 确认过的精确前驱常量，不扩 source scope
+- fresh closeout 已完成：
+  - `git diff --check`
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- fresh 结果：
+  - default / experimental 双模态测试均 `TEST OK`
+  - 新增 threshold cases 与 host truth 一致，无新增 `EInvalidOp` 或 boundary 偏移
+- 当前阶段结论：
+  - 这批已经把 `SSE2 conversion` 正边界阈值的 representative proof 补齐
+  - 到这一刻为止，`SSE2 conversion` 已同时覆盖：
+    - `NaN/overflow -> indefinite`
+    - `double -> single` narrowing preserve/shape
+    - ties-to-even
+    - 正边界 `prev-in-range` / `exact overflow` / `tie-overflow`
+  - 下一步若继续沿这条线推进，应优先看仍缺高信息量 proof 的 residual，而不是重新散到低价值 family

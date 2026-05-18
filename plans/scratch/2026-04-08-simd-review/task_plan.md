@@ -5379,3 +5379,17 @@
 | 1. 先取 host truth 并复核 tie coverage 缺口 | completed | 已用本机 `cc -msse2` 最小 probe 确认 `2.5/3.5/-2.5/-3.5` 在 packed/scalar conversion 上都是 ties-to-even |
 | 2. 只补 representative proof，不扩实现范围 | completed | `TTestCase_X86Sse2AbiBasics` 已新增 `Test_RoundToNearestEvenConversionSemantics`，直接覆盖 packed/scalar tie cases |
 | 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已全部 fresh 通过；本批保持 tests-only，无需重开 source 修复 |
+
+## 2026-05-18 SSE2 Conversion Positive-Threshold Boundary Coverage Expansion
+
+### Goal
+
+继续沿 conversion 热路径做 bounded 审查，但这次只切“可区分的正边界阈值”语义：`simd_cvtps/cvttps_epi32`、`simd_cvtpd/cvttpd_epi32`、`simd_cvtsd/cvttsd_si32`、`simd_cvtsd/cvttsd_si64`。先用本机 probe 取 host truth，再补 representative proof，确认现有 Pascal helper 在 `prev-in-range` 与 `exact overflow/tie-overflow` 这些最容易出现比较符号漂移的点上没有跑偏；若 fresh 运行打红，再把修复限制在 conversion threshold helpers 周围。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 先取 host truth 并复核 threshold coverage 缺口 | completed | 已用本机 `cc -msse2` probe 确认 `f32` 最大可表示 in-range 正值、`f64` 的 `prev-in-range` / `exact overflow` / `tie-overflow` 在 packed/scalar conversion 上的真实返回值 |
+| 2. 只补 representative proof，不扩实现范围 | completed | `TTestCase_X86Sse2AbiBasics` 已新增 `Test_ConversionThresholdBoundarySemantics`，直接覆盖 `prev-in-range` 与 `exact overflow/tie-overflow` 的 packed/scalar 正边界 case |
+| 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已全部 fresh 通过；本批继续保持 tests-only，无需重开 source 修复 |
