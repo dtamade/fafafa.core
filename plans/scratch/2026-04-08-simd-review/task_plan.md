@@ -5796,3 +5796,19 @@
 | 1. 给整数 pack/unpack 家族补非对齐 source witness | completed | 已新增 `Test_UnpackAndPackFamilies_AcceptUnalignedSourceVectors`，使用 `AlignPointer(...)+1/+3` 构造双源非对齐 `TM128`，并分别验证 `epi8/16/32/64 unpack` 与 `packs/packus` 的 lane/saturation 结果 |
 | 2. 串行双模态复验 | completed | `git diff --check`、串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`、串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test` 已全部 fresh 通过 |
 | 3. 复核低命中列表变化 | completed | 重新统计后，`ONE_HIT` 已从 `15` 降到 `4`；当前只剩 `simd_clflush`、`simd_lfence`、`simd_mfence`、`simd_pause` 这 4 个 fence/cache-control side-effect surface |
+
+## 2026-05-18 SSE2 MinMax Raw Opcode Guardrail
+
+### Goal
+
+把 `simd_min/max_{ps,pd,sd}` 当前已经转成 helper 的特殊值语义正式锁进结构护栏，
+避免后续有人把它们回退成 raw `minps/maxpd/minsd` 这类 opcode。
+这批只改 `check_sse2_structure.py`，不改 Pascal 实现。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 扩展 SSE2 raw-float opcode forbid list 到 `min/max` 家族 | completed | 已在 `FORBIDDEN_RAW_FLOAT_OPCODES_BY_ROUTINE` 为 `simd_min/max_{ps,pd,sd}` 增加 `minps/maxps/minpd/maxpd/minsd/maxsd` forbid 规则 |
+| 2. 单跑结构检查确认无假红 | completed | `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line` 已 fresh 回到 `forbidden_raw_float_opcode_hits=0` |
+| 3. release 主链复验 | completed | `git diff --check` 与 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已全部 fresh 通过 |

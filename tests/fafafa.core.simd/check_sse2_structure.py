@@ -29,16 +29,22 @@ FORBIDDEN_RAW_FLOAT_OPCODES_BY_ROUTINE = {
     'simd_mul_ps': ('mulps',),
     'simd_div_ps': ('divps',),
     'simd_sqrt_ps': ('sqrtps',),
+    'simd_min_ps': ('minps',),
+    'simd_max_ps': ('maxps',),
     'simd_add_pd': ('addpd',),
     'simd_sub_pd': ('subpd',),
     'simd_mul_pd': ('mulpd',),
     'simd_div_pd': ('divpd',),
     'simd_sqrt_pd': ('sqrtpd',),
+    'simd_min_pd': ('minpd',),
+    'simd_max_pd': ('maxpd',),
     'simd_add_sd': ('addsd',),
     'simd_sub_sd': ('subsd',),
     'simd_mul_sd': ('mulsd',),
     'simd_div_sd': ('divsd',),
     'simd_sqrt_sd': ('sqrtsd',),
+    'simd_min_sd': ('minsd',),
+    'simd_max_sd': ('maxsd',),
 }
 
 ALLOWED_INTRINSICS_STATUS = {

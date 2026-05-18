@@ -414,6 +414,32 @@
 - 当前阶段结论：
   - 这批把剩余整数 `pack/unpack` 的薄证明几乎一次性清空
   - 从 direct-hit 角度看，`intrinsics.x86.sse2` 当前已经基本只剩 fence/cache-control 这类天然更难做强语义断言的 surface
+
+## 2026-05-18 SSE2 MinMax Raw Opcode Guardrail
+
+- 在把 `direct-hit` 薄弱面压到只剩 `clflush/lfence/mfence/pause` 之后，没有继续为了数字好看去补第二个 smoke，而是转回更高价值的防回退工作：
+  - `simd_min/max_{ps,pd,sd}` 现在已经走 helper 语义
+  - 且现有 `Test_SingleMinMaxFamilies_HostTruthSemantics` / `Test_DoubleMinMaxFamilies_HostTruthSemantics` 已覆盖 finite、signed-zero、NaN/source-operand 合同
+  - 但 `check_sse2_structure.py` 之前只禁止了 `add/sub/mul/div/sqrt` 家族回退到 raw float opcode，还没有把 `min/max` 一起锁住
+- 本批只改：
+  - `tests/fafafa.core.simd/check_sse2_structure.py`
+- 已新增 forbid 规则：
+  - `simd_min_ps -> minps`
+  - `simd_max_ps -> maxps`
+  - `simd_min_pd -> minpd`
+  - `simd_max_pd -> maxpd`
+  - `simd_min_sd -> minsd`
+  - `simd_max_sd -> maxsd`
+- fresh 验证：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `SSE2_STRUCTURE_SUMMARY ... forbidden_raw_float_opcode_hits=0 ... status=ok`
+  - Release `check` 通过
+- 当前阶段结论：
+  - 这批没有再修实现 bug，但把已经 helper 化的 `min/max` 特殊值语义正式锁进主链护栏
+  - 到目前为止，`add/sub/mul/div/sqrt/min/max` 这整组最容易因 raw SSE opcode 回退而重新出问题的浮点 leaf，都已经被 `check_sse2_structure.py` 盯住
   - 主 `simd` release `check` 全绿
 - 当前阶段结论：
   - 这批确认只是 `SSE experimental intrinsics` 的源码文本卫生收口，不涉及行为修复
