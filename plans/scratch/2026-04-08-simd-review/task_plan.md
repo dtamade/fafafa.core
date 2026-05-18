@@ -5547,3 +5547,17 @@
 | 1. 复核 wide integer add/sub 的 direct coverage 缺口 | completed | 已确认 `add_epi16/32/64` 与 `sub_epi8/16/32/64` 在 experimental testcase 中仍然 0-hit；源码实现分别直接落到 `paddw/paddd/paddq/psubb/psubw/psubd/psubq` |
 | 2. 只补 representative exact-bit wraparound proof，不扩实现范围 | completed | 已新增 `Test_IntegerWideAddSubWraparoundSemantics`，按 `u8/u16/u32/u64` exact-bit 预期校验普通加减的回绕结果 |
 | 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已全部 fresh 通过；本批继续保持 tests-only，无需重开 source 修复 |
+
+## 2026-05-18 SSE2 Signed Integer Min/Max Coverage Expansion
+
+### Goal
+
+继续沿 0-hit direct leaf 清单推进，但这次切 signed `min/max`：`simd_max_epi8`、`simd_max_epi16`、`simd_min_epi8`、`simd_min_epi16`。当前 unsigned `max_epu8/min_epu8` 已有 proof，但 signed family 仍完全无覆盖；这批专门锁 signed 选择合同，不和 saturating / unsigned 语义混在一起。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 signed min/max 的 direct coverage 缺口 | completed | 已确认 `simd_max_epi8/max_epi16/min_epi8/min_epi16` 在 experimental testcase 中仍然 0-hit，而 `max_epu8/min_epu8` 已由 `Test_UnsignedMinMaxAvgSadSemantics` 覆盖 |
+| 2. 只补 representative signed-selection proof，不扩实现范围 | completed | 已新增 `Test_SignedIntegerMinMaxSemantics`，使用正负交错的 `i8/i16` 样本逐 lane 校验 signed `min/max` 选择结果 |
+| 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已全部 fresh 通过；本批继续保持 tests-only，无需重开 source 修复 |

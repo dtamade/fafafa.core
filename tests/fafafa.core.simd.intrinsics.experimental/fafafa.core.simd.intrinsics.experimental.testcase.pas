@@ -1151,6 +1151,7 @@ type
     procedure Test_NegatedPackedAndScalarCompareSemantics;
     procedure Test_OrderedPackedAndScalarCompareCoverageSemantics;
     procedure Test_SignedAndUnsignedSaturatingArithmeticSemantics;
+    procedure Test_SignedIntegerMinMaxSemantics;
     procedure Test_UnsignedMinMaxAvgSadSemantics;
     procedure Test_IntegerMultiplyFamilies_Semantics;
     procedure Test_SlliEpi16_ShiftCounts;
@@ -3121,6 +3122,72 @@ begin
     LExpectedU16 := SaturateI32ToU16(LA.m128i_u16[LIndex] - LB.m128i_u16[LIndex]);
     AssertEquals('simd_subs_epu16 lane ' + IntToStr(LIndex), LExpectedU16, LActual.m128i_u16[LIndex]);
   end;
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_SignedIntegerMinMaxSemantics;
+const
+  AI8: array[0..15] of ShortInt = (-128, -7, -1, 0, 1, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100);
+  BI8: array[0..15] of ShortInt = (-127, -8, 0, -1, 1, 4, 11, 19, 31, 39, 49, 61, 69, 81, 91, 99);
+  AI16: array[0..7] of SmallInt = (-32768, -1234, -1, 0, 1, 1234, 20000, 32767);
+  BI16: array[0..7] of SmallInt = (-32767, -2000, 0, -1, 1, 1200, 25000, 32000);
+var
+  LA: TM128;
+  LB: TM128;
+  LExpected: TM128;
+  LActual: TM128;
+  LIndex: Integer;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 15 do
+  begin
+    LA.m128i_i8[LIndex] := AI8[LIndex];
+    LB.m128i_i8[LIndex] := BI8[LIndex];
+  end;
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    if AI8[LIndex] >= BI8[LIndex] then
+      LExpected.m128i_i8[LIndex] := AI8[LIndex]
+    else
+      LExpected.m128i_i8[LIndex] := BI8[LIndex];
+  LActual := simd_max_epi8(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_max_epi8 signed', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    if AI8[LIndex] <= BI8[LIndex] then
+      LExpected.m128i_i8[LIndex] := AI8[LIndex]
+    else
+      LExpected.m128i_i8[LIndex] := BI8[LIndex];
+  LActual := simd_min_epi8(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_min_epi8 signed', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 7 do
+  begin
+    LA.m128i_i16[LIndex] := AI16[LIndex];
+    LB.m128i_i16[LIndex] := BI16[LIndex];
+  end;
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 7 do
+    if AI16[LIndex] >= BI16[LIndex] then
+      LExpected.m128i_i16[LIndex] := AI16[LIndex]
+    else
+      LExpected.m128i_i16[LIndex] := BI16[LIndex];
+  LActual := simd_max_epi16(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_max_epi16 signed', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 7 do
+    if AI16[LIndex] <= BI16[LIndex] then
+      LExpected.m128i_i16[LIndex] := AI16[LIndex]
+    else
+      LExpected.m128i_i16[LIndex] := BI16[LIndex];
+  LActual := simd_min_epi16(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_min_epi16 signed', LExpected, LActual);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_UnsignedMinMaxAvgSadSemantics;

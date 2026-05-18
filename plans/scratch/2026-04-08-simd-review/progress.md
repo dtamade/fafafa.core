@@ -14202,3 +14202,30 @@
 - 当前阶段结论：
   - 又收掉了一组此前 0-hit 的 `SSE2` 直接算术 leaf
   - 继续保持 tests-only 收口，没有引出新的 source bug
+
+## 2026-05-18 SSE2 Signed Integer Min/Max Coverage Expansion
+
+- 当前继续沿 0-hit direct leaf 清单推进，这次切 signed `min/max`。
+- 先复核现状：
+  - `simd_max_epi8/max_epi16/min_epi8/min_epi16` 仍然 0-hit
+  - `simd_max_epu8/min_epu8` 已经由 `Test_UnsignedMinMaxAvgSadSemantics` 覆盖
+  - 所以当前真实缺口是“signed 选择合同还没有被直接锁住”
+- 本批继续保持 tests-only：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 `Test_SignedIntegerMinMaxSemantics`
+- 新 proof 直接锁住：
+  - `simd_max_epi8`
+  - `simd_min_epi8`
+  - `simd_max_epi16`
+  - `simd_min_epi16`
+  - 全部按 signed 比较结果逐 lane 比对
+- fresh closeout 已完成：
+  - `git diff --check`
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- fresh 结果：
+  - default / experimental 双模态测试均 `TEST OK`
+  - signed `min/max` 选择合同都符合预期，无新增 drift
+- 当前阶段结论：
+  - 又收掉了一组此前 0-hit 的 `SSE2` 直接 leaf
+  - 继续保持 tests-only 收口，没有引出新的 source bug
