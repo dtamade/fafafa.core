@@ -122,10 +122,24 @@ jobs:
                 $fpcDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
                 Write-Host "[FPC] Added $fpcDir to PATH"
               }
+              $bashFound = $false
               foreach ($bashDir in $bashCandidates) {
                 if (Test-Path (Join-Path $bashDir 'bash.exe')) {
                   $bashDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
                   Write-Host "[BASH] Added $bashDir to PATH"
+                  $bashFound = $true
+                }
+              }
+              if (-not $bashFound) {
+                $bashPath = Get-ChildItem -Path C:\ -Filter bash.exe -Recurse -ErrorAction SilentlyContinue |
+                  Where-Object { $_.FullName -notlike 'C:\Windows\System32\*' } |
+                  Select-Object -First 1 -ExpandProperty FullName
+                if ($bashPath) {
+                  $bashDir = Split-Path $bashPath -Parent
+                  $bashDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+                  Write-Host "[BASH] Added discovered path $bashDir"
+                } else {
+                  Write-Host '[BASH] bash.exe not found on runner'
                 }
               }
               Write-Host "[LAZBUILD] Using $candidate"

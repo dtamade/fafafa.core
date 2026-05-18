@@ -11,6 +11,7 @@ set "SUMMARY_JSON=%LOG_DIR%\gate_summary.json"
 set "SUMMARY_EXPORT_LOG=%LOG_DIR%\windows_b07_gate_summary_export.log"
 set "SUMMARY_FILE=%TESTS_ROOT%\run_all_tests_summary.txt"
 set "SUMMARY_SH_FILE=%TESTS_ROOT%\run_all_tests_summary_sh.txt"
+set "NATIVE_BUILD_LOG=%LOG_DIR%\build.txt"
 set "RUNALL_TOTAL=0"
 set "RUNALL_PASSED=0"
 set "RUNALL_FAILED=0"
@@ -74,7 +75,16 @@ if "%USE_BASH_GATE%"=="1" goto :bash_gate
 
 echo [GATE] 1/6 Build + check SIMD module >> "%TMP_LOG%"
 call "%ROOT%buildOrTest.bat" check >> "%TMP_LOG%" 2>&1
-if errorlevel 1 (
+set "CHECK_RC=%ERRORLEVEL%"
+if not "%CHECK_RC%"=="0" (
+  echo [B07] NativeBatchCheckRc: %CHECK_RC% >> "%TMP_LOG%"
+  echo [B07] NativeBatchBuildLog: %NATIVE_BUILD_LOG% >> "%TMP_LOG%"
+  if exist "%NATIVE_BUILD_LOG%" (
+    echo [B07] Native batch build log snapshot >> "%TMP_LOG%"
+    type "%NATIVE_BUILD_LOG%" >> "%TMP_LOG%"
+  ) else (
+    echo [B07] WARN: native batch build log missing: %NATIVE_BUILD_LOG% >> "%TMP_LOG%"
+  )
   set "GATE_RC=1"
   goto :after_gate
 )

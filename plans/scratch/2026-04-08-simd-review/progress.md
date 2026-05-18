@@ -15061,3 +15061,43 @@
 - 当前阶段结论：
   - 这批修的是 GitHub-hosted Windows evidence 的 runner path/tooling contract，不是 SIMD 算法或 ABI 逻辑
   - 下一步应提交并 push 本批修复，然后重新 dispatch Windows evidence，验证 `GateRunnerMode` 是否切换到 `bash-optin`
+
+### Follow-up: runner still falls back to native batch
+
+- 本批提交并 push 后：
+  - commit: `706ea5d8`
+  - `git push origin main` 已完成
+- 第二轮 fresh dispatch：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-20260519-000241`
+  - 新 run：`26045325744`
+- 这轮 live 结果确认：
+  - workflow 确实吃到了新修复：
+    - `Prepare python3 shim` 已执行
+    - `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` 已注入 collect step
+  - 但 `collect_windows_b07_evidence.bat` 仍报告：
+    - `GateRunnerMode: batch-default`
+    - `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1 requested, but cmd.exe cannot satisfy the current bash-gate prerequisites`
+  - 说明当前 GitHub Windows runner 既没在 PATH 上暴露 `bash`，也没落在本批标准候选路径里
+- 由于本轮仍回退到了 native batch，失败面依旧停在：
+  - `buildOrTest.bat check` 在 `Build + check` 入口即时返回 `1`
+  - 但现在可以确定：
+    - 这不是旧 workflow 没生效
+    - 而是 runner 实际 bash 位置/可用性与预期不一致
+- 因此继续收敛到下一条最小修复：
+  - `.github/workflows/simd-windows-b07-evidence.yml`
+    - 当标准候选路径找不到 `bash.exe` 时，改为递归探测实际 `bash.exe` 位置并注入 PATH
+  - `tests/fafafa.core.simd/collect_windows_b07_evidence.bat`
+    - native batch `check` 失败时，把 `NativeBatchCheckRc` 与 `build.txt` 快照回灌到 `windows_b07_gate.log`
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+    - 在 `build.txt` 前部显式写入 `LAZBUILD/BIN/UNIT_DIR/LAZBUILD_EXT` 诊断头
+    - `lazbuild` 调用改为追加写 log，避免把前置诊断头覆盖掉
+- 第二轮本地最小验证：
+  - `git diff --check`
+  - `bash tests/fafafa.core.simd/rehearse_win_bash_gate_fallback_warning.sh`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`
+  - 结果继续全部通过
+- 当前阶段结论：
+  - 红点已经进一步缩成“GitHub Windows runner 的真实 bash 可达性 + native batch build 前诊断缺口”
+  - 下一步应提交这批 follow-up patch，再发第三轮 fresh evidence，看是：
+    - 成功切到 `bash-optin`
+    - 或至少让 artifact 带回可执行的 native batch 真因

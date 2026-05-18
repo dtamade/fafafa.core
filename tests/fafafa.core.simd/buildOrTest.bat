@@ -469,6 +469,10 @@ exit /b 0
 :build
 echo [BUILD] Project: %PROJ% (mode=%MODE%, output_root=%OUTPUT_ROOT%)
 echo. > "%BUILD_LOG%"
+>> "%BUILD_LOG%" echo [BUILD] ROOT=%ROOT%
+>> "%BUILD_LOG%" echo [BUILD] LAZBUILD=%LAZBUILD_EXE%
+>> "%BUILD_LOG%" echo [BUILD] BIN=%BIN%
+>> "%BUILD_LOG%" echo [BUILD] UNIT_DIR=%UNIT_DIR%
 if not exist "%BIN_DIR%" mkdir "%BIN_DIR%"
 if not exist "%UNIT_DIR%" mkdir "%UNIT_DIR%"
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
@@ -484,22 +488,24 @@ if /I "%SIMD_ENABLE_NEON_BACKEND%"=="1" set "LAZBUILD_EXTRA_OPTS=%LAZBUILD_EXTRA
 if /I "%SIMD_ENABLE_RISCVV_BACKEND%"=="1" set "LAZBUILD_EXTRA_OPTS=%LAZBUILD_EXTRA_OPTS% --opt=-dSIMD_RISCV_AVAILABLE --opt=-dSIMD_EXPERIMENTAL_RISCVV --opt=-dSIMD_BACKEND_RISCVV --opt=-dFAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND"
 if /I "%SIMD_ENABLE_AVX512_BACKEND%"=="1" set "LAZBUILD_EXTRA_OPTS=%LAZBUILD_EXTRA_OPTS% --opt=-dSIMD_BACKEND_AVX512"
 set "LAZBUILD_EXT=%LAZBUILD_EXE:~-4%"
+>> "%BUILD_LOG%" echo [BUILD] LAZBUILD_EXT=%LAZBUILD_EXT%
+>> "%BUILD_LOG%" echo [BUILD] Invoking lazbuild...
 if /I "%LAZBUILD_EXT%"==".bat" (
   if exist "%LAZBUILD_EXE%" (
-    call "%LAZBUILD_EXE%" --build-mode=%MODE% --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%UNIT_DIR%" %LAZBUILD_EXTRA_OPTS% "%PROJ%" > "%BUILD_LOG%" 2>&1
+    call "%LAZBUILD_EXE%" --build-mode=%MODE% --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%UNIT_DIR%" %LAZBUILD_EXTRA_OPTS% "%PROJ%" >> "%BUILD_LOG%" 2>&1
   ) else (
-    call %LAZBUILD_EXE% --build-mode=%MODE% --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%UNIT_DIR%" %LAZBUILD_EXTRA_OPTS% "%PROJ%" > "%BUILD_LOG%" 2>&1
+    call %LAZBUILD_EXE% --build-mode=%MODE% --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%UNIT_DIR%" %LAZBUILD_EXTRA_OPTS% "%PROJ%" >> "%BUILD_LOG%" 2>&1
   )
 ) else if /I "%LAZBUILD_EXT%"==".cmd" (
   if exist "%LAZBUILD_EXE%" (
-    call "%LAZBUILD_EXE%" --build-mode=%MODE% --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%UNIT_DIR%" %LAZBUILD_EXTRA_OPTS% "%PROJ%" > "%BUILD_LOG%" 2>&1
+    call "%LAZBUILD_EXE%" --build-mode=%MODE% --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%UNIT_DIR%" %LAZBUILD_EXTRA_OPTS% "%PROJ%" >> "%BUILD_LOG%" 2>&1
   ) else (
-    call %LAZBUILD_EXE% --build-mode=%MODE% --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%UNIT_DIR%" %LAZBUILD_EXTRA_OPTS% "%PROJ%" > "%BUILD_LOG%" 2>&1
+    call %LAZBUILD_EXE% --build-mode=%MODE% --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%UNIT_DIR%" %LAZBUILD_EXTRA_OPTS% "%PROJ%" >> "%BUILD_LOG%" 2>&1
   )
 ) else if exist "%LAZBUILD_EXE%" (
-  "%LAZBUILD_EXE%" --build-mode=%MODE% --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%UNIT_DIR%" %LAZBUILD_EXTRA_OPTS% "%PROJ%" > "%BUILD_LOG%" 2>&1
+  "%LAZBUILD_EXE%" --build-mode=%MODE% --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%UNIT_DIR%" %LAZBUILD_EXTRA_OPTS% "%PROJ%" >> "%BUILD_LOG%" 2>&1
 ) else (
-  %LAZBUILD_EXE% --build-mode=%MODE% --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%UNIT_DIR%" %LAZBUILD_EXTRA_OPTS% "%PROJ%" > "%BUILD_LOG%" 2>&1
+  %LAZBUILD_EXE% --build-mode=%MODE% --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%UNIT_DIR%" %LAZBUILD_EXTRA_OPTS% "%PROJ%" >> "%BUILD_LOG%" 2>&1
 )
 set "BUILD_RC=%ERRORLEVEL%"
 if /I "%SIMD_SUPPRESS_BUILD_WARNINGS%"=="1" (
