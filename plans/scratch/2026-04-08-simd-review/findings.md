@@ -8868,3 +8868,30 @@
   - asm side `RISCVVExtract*`：live truth，应保留
   - no-asm `RISCVVExtract*` facade：dead source，应删除
   - register truth：应收成真正的 asm-gated binding，而不是“看起来像双分支，其实两边绑同一 wrapper”的历史残影
+
+## 2026-05-19 Windows opt-in list-suites crash was widened by build-script defines, not by stable-path registration
+
+- fresh Windows run `26057648150` 重新证明当前 blocker 没变：
+  - stable warning gate 绿
+  - suite manifest 绿
+  - 但 `NONX86-OPTIN neon: test --list-suites` 仍在启动期直接 `EAccessViolation`
+- 这次比之前更具体的新根因，不再只是“NEON opt-in binary 一启动就崩”，而是：
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+  - 在 `SIMD_ENABLE_NEON_BACKEND=1` 时不仅加了 `FAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND`
+  - 还额外加了 `SIMD_BACKEND_NEON`
+- 而 `src/fafafa.core.settings.inc` 会把 `SIMD_BACKEND_NEON` 进一步放大成 `SIMD_ARM_AVAILABLE`：
+  - 这会把 `cpuinfo.arm`、`simd.pas` 里的 `neon` umbrella wiring 以及一整片 ARM 条件编译面一并打开
+  - 这已经超出了“仅为 opt-in verification 把 backend 编进测试 runner”这个目标
+- 对应的 `RISCVV` 路径也有同类问题：
+  - `SIMD_RISCV_AVAILABLE`
+  - `SIMD_EXPERIMENTAL_RISCVV`
+  - `SIMD_BACKEND_RISCVV`
+  - 一起把更大的 RISC-V 条件编译面带进了非 native host 的 opt-in test binary
+- 关键判断更新：
+  - 既然 test runner 现在已经显式 `uses fafafa.core.simd.neon/riscvv`
+  - 且 runtime 注册也已延后到 `RegisterTestOptInBackends`
+  - 那么 opt-in build 真正需要的 define 只剩：
+    - `FAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND`
+    - `FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND`
+  - 不应再让 build script 顺手打开放大的 arch availability 宏

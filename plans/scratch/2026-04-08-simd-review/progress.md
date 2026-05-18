@@ -15367,3 +15367,46 @@
     - list-only 模式不再需要触发 opt-in backend 注册
     - 真正依赖 opt-in backend 已注册状态的 `TTestCase_PublicAbi` 仍能通过
   - 下一步应提交并 push 这一批“延迟注册”修复，再发 fresh Windows evidence，确认 `26055949884` 的 AV 是否终于被清除
+
+## 2026-05-19 Opt-in Build-Define Narrowing For Windows B07
+
+- 当前真实基线重新确认：
+  - `main` 与 `origin/main` 同步在 `fd9e9a21`
+  - fresh Windows evidence workflow `26057648150` 已经不再被 billing 阻塞，真正进入了 Windows job
+  - 失败点仍然不变：
+    - `[CHECK] OK (no SIMD-unit warnings/hints on stable path)`
+    - `[SUITE-MANIFEST] OK`
+    - `[CHECK] Optional non-x86 opt-in suite listing enabled`
+    - `[NONX86-OPTIN] neon: test --list-suites`
+    - `EAccessViolation: Access violation`
+- 这轮新增的关键根因定位：
+  - Windows/Unix runner 的 opt-in build env 之前除了 `FAFAFA_SIMD_TEST_REGISTER_*`，还会附带：
+    - `SIMD_BACKEND_NEON`
+    - `SIMD_RISCV_AVAILABLE`
+    - `SIMD_EXPERIMENTAL_RISCVV`
+    - `SIMD_BACKEND_RISCVV`
+  - `src/fafafa.core.settings.inc` 会把这些宏进一步放大成 `SIMD_ARM_AVAILABLE` / `SIMD_RISCV_AVAILABLE` compile surface
+  - 这和“仅把 opt-in backend 编进 test runner”不是同一个动作，且正好解释了为什么 stable path 绿、opt-in `--list-suites` 启动期仍炸
+- 已落地修复：
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+  - opt-in build 现在只传：
+    - `-dFAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND`
+    - `-dFAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND`
+  - 不再顺手把 `SIMD_BACKEND_NEON` / `SIMD_RISCV_AVAILABLE` / `SIMD_EXPERIMENTAL_RISCVV` / `SIMD_BACKEND_RISCVV` 打开
+  - `runner-parity` 的静态签名也同步收正，避免脚本自检继续期待旧 define 串
+- 本地串行 release 验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh runner-parity`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh nonx86-optin-list-suites`
+  - `FAFAFA_BUILD_MODE=Release SIMD_ENABLE_NEON_BACKEND=1 SIMD_ENABLE_RISCVV_BACKEND=1 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+- fresh 结果：
+  - `runner-parity` 通过
+  - `nonx86-optin-list-suites` 在本地 `neon/riscvv` 两条都变成 `BUILD OK + TEST OK + LEAK OK`
+  - `TTestCase_PublicAbi` 继续通过，说明 opt-in backend 真正注册后的测试面没丢
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+- 下一步：
+  - 先按这批真实根因给出简短 review 结论
+  - commit + push 到 `main`
+  - 再发 fresh Windows evidence，确认 `26057648150` 这条 `NONX86-OPTIN neon --list-suites` AV 是否被清掉

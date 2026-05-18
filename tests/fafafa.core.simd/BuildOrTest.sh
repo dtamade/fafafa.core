@@ -312,16 +312,10 @@ build_project() {
       LLazbuildArgs+=("--opt=-FE${BIN_DIR}" "--opt=-FU${UNIT_DIR}")
     fi
     if [[ "${SIMD_ENABLE_NEON_BACKEND:-0}" == "1" ]]; then
-      LLazbuildArgs+=("--opt=-dSIMD_BACKEND_NEON")
       LLazbuildArgs+=("--opt=-dFAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND")
     fi
     if [[ "${SIMD_ENABLE_RISCVV_BACKEND:-0}" == "1" ]]; then
-      LLazbuildArgs+=(
-        "--opt=-dSIMD_RISCV_AVAILABLE"
-        "--opt=-dSIMD_EXPERIMENTAL_RISCVV"
-        "--opt=-dSIMD_BACKEND_RISCVV"
-        "--opt=-dFAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND"
-      )
+      LLazbuildArgs+=("--opt=-dFAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND")
     fi
     if [[ "${SIMD_ENABLE_AVX512_BACKEND:-0}" == "1" ]]; then
       LLazbuildArgs+=("--opt=-dSIMD_BACKEND_AVX512")
@@ -1657,12 +1651,8 @@ check_nonx86_optin_runner_guard() {
 
   LShellRequired=(
     'if [[ "${SIMD_ENABLE_NEON_BACKEND:-0}" == "1" ]]; then'
-    'LLazbuildArgs+=("--opt=-dSIMD_BACKEND_NEON")'
     'LLazbuildArgs+=("--opt=-dFAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND")'
     'if [[ "${SIMD_ENABLE_RISCVV_BACKEND:-0}" == "1" ]]; then'
-    '"--opt=-dSIMD_RISCV_AVAILABLE"'
-    '"--opt=-dSIMD_EXPERIMENTAL_RISCVV"'
-    '"--opt=-dSIMD_BACKEND_RISCVV"'
     '"--opt=-dFAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND"'
     'echo "Build env: SIMD_ENABLE_NEON_BACKEND=1 (compile NEON backend into the test binary for opt-in verification/fallback coverage)"'
     'echo "Build env: SIMD_ENABLE_RISCVV_BACKEND=1 (compile RISCV-V backend into the test binary for opt-in verification/fallback coverage)"'
@@ -1670,8 +1660,8 @@ check_nonx86_optin_runner_guard() {
     'run_nonx86_optin_list_suites || return $?'
   )
   LBatRequired=(
-    'if /I "%SIMD_ENABLE_NEON_BACKEND%"=="1" set "LAZBUILD_EXTRA_OPTS=%LAZBUILD_EXTRA_OPTS% --opt=-dSIMD_BACKEND_NEON --opt=-dFAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND"'
-    'if /I "%SIMD_ENABLE_RISCVV_BACKEND%"=="1" set "LAZBUILD_EXTRA_OPTS=%LAZBUILD_EXTRA_OPTS% --opt=-dSIMD_RISCV_AVAILABLE --opt=-dSIMD_EXPERIMENTAL_RISCVV --opt=-dSIMD_BACKEND_RISCVV --opt=-dFAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND"'
+    'if /I "%SIMD_ENABLE_NEON_BACKEND%"=="1" set "LAZBUILD_EXTRA_OPTS=%LAZBUILD_EXTRA_OPTS% --opt=-dFAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND"'
+    'if /I "%SIMD_ENABLE_RISCVV_BACKEND%"=="1" set "LAZBUILD_EXTRA_OPTS=%LAZBUILD_EXTRA_OPTS% --opt=-dFAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND"'
     'echo Build env: SIMD_ENABLE_NEON_BACKEND=1 ^(compile NEON backend into the test binary for opt-in verification/fallback coverage^)'
     'echo Build env: SIMD_ENABLE_RISCVV_BACKEND=1 ^(compile RISCV-V backend into the test binary for opt-in verification/fallback coverage^)'
     'if /I "%ACTION%"=="nonx86-optin-list-suites" goto :nonx86_optin_list_suites'
