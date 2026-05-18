@@ -5011,16 +5011,6 @@ asm
   vfmv.f.s f10, v2
 end;
 
-function RISCVVDotF64x2(const a, b: TVecF64x2): Double;
-begin
-  Result := ScalarDotF64x2(a, b);
-end;
-
-function RISCVVDotF64x4(const a, b: TVecF64x4): Double;
-begin
-  Result := ScalarDotF64x4(a, b);
-end;
-
 procedure RISCVVCrossF32x3Asm(const a, b: TVecF32x4; var r: TVecF32x4); assembler; nostackframe;
 asm
   // cross(a,b) = (ay*bz - az*by, az*bx - ax*bz, ax*by - ay*bx, 0)

@@ -70,8 +70,6 @@ begin
   // F32x4 Vector Math
   table.DotF32x4 := @RISCVVDotF32x4;
   table.DotF32x3 := @RISCVVDotF32x3;
-  table.DotF64x2 := @RISCVVDotF64x2;
-  table.DotF64x4 := @RISCVVDotF64x4;
   {$IFDEF RISCVV_ASSEMBLY}
   table.CrossF32x3 := @RISCVVCrossF32x3;
   {$ENDIF}

@@ -166,7 +166,7 @@ type
     procedure Test_NEON_NoAsmIntegerFallbackSlots_Reuse_BaseScalar_When_Wrappers_Are_Not_BackendOwned;
     procedure Test_NEON_SelectF32x4_AsmEnabledSource_Does_Not_ScalarForward;
     procedure Test_NEON_AndNotSlots_Keep_AsmOwnedCompositions_And_RuntimeOwnership;
-    procedure Test_RISCVV_DotF64_SourceScalarForwards_While_Keeping_BackendOwnership;
+    procedure Test_RISCVV_DotF64Slots_Reuse_BaseScalar_When_ScalarForwarders_Are_Dead;
     procedure Test_RISCVV_FacadeSlots_Reuse_BaseScalar_When_Wrappers_Are_ScalarPassThrough;
     procedure Test_RISCVV_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_RISCVV_ExtractSlots_Reuse_BaseScalar_When_NoAsmWrappers_Are_Dead;
@@ -8593,16 +8593,47 @@ begin
   {$ENDIF}
 end;
 
-procedure TTestCase_DispatchAPI.Test_RISCVV_DotF64_SourceScalarForwards_While_Keeping_BackendOwnership;
+procedure TTestCase_DispatchAPI.Test_RISCVV_DotF64Slots_Reuse_BaseScalar_When_ScalarForwarders_Are_Dead;
 var
+  LScalarTable: TSimdDispatchTable;
+  LRISCVVTable: TSimdDispatchTable;
   LSourceLines: TStringList;
+  LRegisterSourcePath: string;
   LUnitSourcePath: string;
   LFacadeSourcePath: string;
+  LRegisterSource: string;
   LUnitSource: string;
   LFacadeSource: string;
+
+  procedure AssertDeadWrapperRemoved(const aLabel, aSnippet: string);
+  begin
+    AssertTrue(aLabel + ' dead wrapper should be removed from the RISCVV unit source',
+      Pos(LowerCase(aSnippet), LUnitSource) = 0);
+    AssertTrue(aLabel + ' dead wrapper should be removed from the RISCVV facade include',
+      Pos(LowerCase(aSnippet), LFacadeSource) = 0);
+  end;
+
+  procedure AssertRegisterKeepsBaseScalar(const aLabel, aSnippet: string);
+  begin
+    AssertTrue('RegisterRISCVVBackend should keep base scalar ' + aLabel +
+      ' when the RISCVV dot implementation is only a dead scalar-forwarder',
+      Pos(LowerCase(aSnippet), LRegisterSource) = 0);
+  end;
+
+  procedure AssertSlotReusesScalar(const aLabel: string; const aScalarSlot, aBackendSlot: Pointer);
+  begin
+    AssertEquals('RISCVV ' + aLabel + ' should reuse the base scalar slot when both asm/common and no-asm wrappers are dead scalar-forwarders',
+      PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
+  end;
 begin
   LSourceLines := TStringList.Create;
   try
+    LRegisterSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.register.inc');
+    AssertTrue('RISCVV register source should exist for implementation-shape audit: ' + LRegisterSourcePath,
+      FileExists(LRegisterSourcePath));
+    LSourceLines.LoadFromFile(LRegisterSourcePath);
+    LRegisterSource := LowerCase(LSourceLines.Text);
+
     LUnitSourcePath := ExpandSimdRepoPath('src/fafafa.core.simd.riscvv.pas');
     AssertTrue('RISCVV unit source should exist for implementation-shape audit: ' + LUnitSourcePath,
       FileExists(LUnitSourcePath));
@@ -8618,14 +8649,25 @@ begin
     LSourceLines.Free;
   end;
 
-  AssertTrue('RISCVV asm/common DotF64x2 source should forward directly to ScalarDotF64x2 after direct parity proof',
-    Pos('result := scalardotf64x2(a, b);', LUnitSource) > 0);
-  AssertTrue('RISCVV asm/common DotF64x4 source should forward directly to ScalarDotF64x4 after direct parity proof',
-    Pos('result := scalardotf64x4(a, b);', LUnitSource) > 0);
-  AssertTrue('no-asm RISCVVDotF64x2 should forward directly to ScalarDotF64x2 after direct parity proof',
-    Pos('result := scalardotf64x2(a, b);', LFacadeSource) > 0);
-  AssertTrue('no-asm RISCVVDotF64x4 should forward directly to ScalarDotF64x4 after direct parity proof',
-    Pos('result := scalardotf64x4(a, b);', LFacadeSource) > 0);
+  AssertDeadWrapperRemoved('RISCVVDotF64x2', 'function RISCVVDotF64x2(');
+  AssertDeadWrapperRemoved('RISCVVDotF64x4', 'function RISCVVDotF64x4(');
+
+  AssertRegisterKeepsBaseScalar('DotF64x2', 'table.DotF64x2 := @RISCVVDotF64x2;');
+  AssertRegisterKeepsBaseScalar('DotF64x4', 'table.DotF64x4 := @RISCVVDotF64x4;');
+
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+  AssertTrue('RISCVV opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
+    Exit;
+  {$ENDIF}
+
+  AssertSlotReusesScalar('DotF64x2', Pointer(LScalarTable.DotF64x2), Pointer(LRISCVVTable.DotF64x2));
+  AssertSlotReusesScalar('DotF64x4', Pointer(LScalarTable.DotF64x4), Pointer(LRISCVVTable.DotF64x4));
 end;
 
 procedure TTestCase_DispatchAPI.Test_RISCVV_FacadeSlots_Reuse_BaseScalar_When_Wrappers_Are_ScalarPassThrough;
@@ -8769,9 +8811,6 @@ begin
   AssertRegisterKeepsBaseScalar('SelectF64x4', 'table.SelectF64x4 := @RISCVVSelectF64x4;');
   AssertRegisterKeepsBaseScalar('SelectI32x4', 'table.SelectI32x4 := @RISCVVSelectI32x4;');
   AssertRegisterOwnsBackendSlot('AddF32x4', 'table.AddF32x4 := @RISCVVAddF32x4;');
-  AssertRegisterOwnsBackendSlot('DotF64x2', 'table.DotF64x2 := @RISCVVDotF64x2;');
-  AssertRegisterOwnsBackendSlot('DotF64x4', 'table.DotF64x4 := @RISCVVDotF64x4;');
-
   AssertTrue('Scalar dispatch table should be registered',
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
 
@@ -8814,8 +8853,6 @@ begin
   {$ELSE}
   AssertSlotReusesScalar('AddF32x4', Pointer(LScalarTable.AddF32x4), Pointer(LRISCVVTable.AddF32x4));
   {$ENDIF}
-  AssertSlotKeepsBackendOwnership('DotF64x2', Pointer(LScalarTable.DotF64x2), Pointer(LRISCVVTable.DotF64x2));
-  AssertSlotKeepsBackendOwnership('DotF64x4', Pointer(LScalarTable.DotF64x4), Pointer(LRISCVVTable.DotF64x4));
 end;
 
 procedure TTestCase_DispatchAPI.Test_RISCVV_WideFallbackOnlySlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
@@ -16925,20 +16962,14 @@ var
   LIndex: Integer;
   LCheckedBackends: Integer;
 
-  procedure AssertBackendOwnedSlotIfExpected(
-    const aBackend: TSimdBackend;
+  procedure AssertSlotReusesScalar(
     const aBackendName, aSlotName: string;
     const aScalarSlot, aBackendSlot: Pointer
   );
   begin
     AssertTrue(aSlotName + ' missing: ' + aBackendName, aBackendSlot <> nil);
-    case aBackend of
-      sbRISCVV:
-        AssertTrue(aSlotName + ' unexpectedly falls back to scalar slot: ' + aBackendName,
-          aBackendSlot <> aScalarSlot);
-      sbNEON:
-        AssertTrue(aSlotName + ' may intentionally reuse the published scalar slot on ' + aBackendName, True);
-    end;
+    AssertEquals(aSlotName + ' should reuse the published scalar slot on ' + aBackendName,
+      PtrUInt(aScalarSlot), PtrUInt(aBackendSlot));
   end;
 begin
   AssertTrue('Scalar dispatch table should be available',
@@ -16989,9 +17020,9 @@ begin
 
     Inc(LCheckedBackends);
 
-    AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'DotF64x2',
+    AssertSlotReusesScalar(NonX86BackendName(LBackend), 'DotF64x2',
       Pointer(LScalarTable.DotF64x2), Pointer(LBackendTable.DotF64x2));
-    AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'DotF64x4',
+    AssertSlotReusesScalar(NonX86BackendName(LBackend), 'DotF64x4',
       Pointer(LScalarTable.DotF64x4), Pointer(LBackendTable.DotF64x4));
 
     LDotF64x2ByBackend := LBackendTable.DotF64x2(LF64x2A, LF64x2B);

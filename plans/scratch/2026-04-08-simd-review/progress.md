@@ -12566,3 +12566,68 @@
   - `RISCVV` 这 18 个 wide rounding + `ClampF32` slot 现在已经从 over-retained family-local scalar-forward owner 收成 `reuse_base_scalar`
   - 当前 `riscvv` strict truth 已进一步收成 `assignments=443`、`wrapper_only=14`
   - 下一步不该再回头争论这 18 个 slot；真正还值得继续深审的是剩余 `wrapper_only=14` 的 always-backend-owned residual 是否仍有过度保留
+
+## 2026-05-18 RISCVV DotF64 Scalar-Forwarders Were Dead, Not Backend-Owned
+
+- 在上一批 `wide rounding + ClampF32` 收口后，继续只盯 `RISCVV` 剩余 residual 里最接近“假 backend-owned”的一对：
+  - `DotF64x2`
+  - `DotF64x4`
+- 这次翻正的关键证据：
+  - `src/fafafa.core.simd.riscvv.register.inc`
+    - 之前仍然显式发布 `table.DotF64x2 := @RISCVVDotF64x2;`
+    - 之前仍然显式发布 `table.DotF64x4 := @RISCVVDotF64x4;`
+  - `src/fafafa.core.simd.riscvv.pas`
+    - `RISCVVDotF64x2`
+    - `RISCVVDotF64x4`
+    - 这两个 asm/common body 都只是 exact `ScalarDotF64x2/ScalarDotF64x4` forward
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - no-asm `RISCVVDotF64x2`
+    - no-asm `RISCVVDotF64x4`
+    - 同样都只是 exact `ScalarDotF64x2/ScalarDotF64x4` forward
+  - fresh runtime parity
+    - 这轮重新核对 direct registered-table special-case parity，没有打出 `DotF64x2/F64x4` 的 fresh drift
+    - 因此旧 scratch 里“必须 backend-owned”的说法，已经被这轮 fresh source/runtime 合并证据翻正
+- 已落地的源码/护栏收口：
+  - `src/fafafa.core.simd.riscvv.register.inc`
+    - 删除 `DotF64x2/F64x4` register binding
+    - no-asm host 与 asm-disabled 运行时都直接继承 `FillBaseDispatchTable` 的 scalar slot
+  - `src/fafafa.core.simd.riscvv.pas`
+    - 删除 dead asm/common `RISCVVDotF64x2/F64x4` scalar-forward wrapper
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - 删除 dead no-asm `RISCVVDotF64x2/F64x4` scalar-forward wrapper
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 删除对 `RISCVVDotF64x2/F64x4` 的 scalar-forward routine expectation
+    - 同时把它们补进 source/facade absent-routine expectation
+  - `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+    - 从 `ALLOWED_ALWAYS_WRAPPER_SLOTS_BY_BACKEND['riscvv']` 去掉 `DotF64x2/F64x4`
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 新增 `TTestCase_DispatchAPI.Test_RISCVV_DotF64Slots_Reuse_BaseScalar_When_ScalarForwarders_Are_Dead`
+    - 把这两个 slot 从 `backend_owned scalar wrapper` 账本切回 `reuse_base_scalar`
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 把旧的 `Test_RISCVV_DotF64_SourceScalarForwards_While_Keeping_BackendOwnership`
+    - 翻正成 `Test_RISCVV_DotF64Slots_Reuse_BaseScalar_When_ScalarForwarders_Are_Dead`
+    - 现在显式断言：
+      - `riscvv.pas` / `riscvv.facade.inc` 不得再保留 dead `RISCVVDotF64x2/F64x4`
+      - `riscvv.register.inc` 不得重新绑定这两个 slot
+      - runtime slot 必须与 base scalar slot 相等
+- 本批 fresh 验证链已经收口：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py tests/fafafa.core.simd/check_nonx86_key_slot_audit.py tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --backend riscvv --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- 关键结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=740 status=ok`
+  - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=riscvv assignments=441 asm_exact=312 asm_suffix_only=117 wrapper_only=12 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=riscvv slots=71 issues=0 status=ok`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=136 issues=0 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `TTestCase_DispatchAPI,TTestCase_NonX86BackendParity` / `check` 通过
+- 当前阶段结论：
+  - `RISCVV DotF64x2/F64x4` 现在已经从 over-retained scalar-forward owner 收成 `reuse_base_scalar`
+  - 当前 `riscvv` strict truth 已进一步收成 `assignments=441`、`wrapper_only=12`
+  - 旧 scratch 里关于 `DotF64x2/F64x4 必须 backend-owned` 的说法现在应视为历史结论，后续不要再把它当成 live truth source
+  - 下一步不该再回头争论这两个 slot；真正还值得继续深审的是剩余 `wrapper_only=12` 的 `AndNot/Cmp*/Min*/Max*` 64-bit residual

@@ -51,7 +51,6 @@ ALLOWED_ALWAYS_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
         "AndNotI64x2", "AndNotI8x16", "AndNotU16x8", "AndNotU64x2",
         "AndNotU8x16",
         "CmpEqU64x2", "CmpGtU64x2", "CmpLtU64x2",
-        "DotF64x2", "DotF64x4",
         "MaxI64x2", "MaxU64x2", "MinI64x2", "MinU64x2",
     },
 }

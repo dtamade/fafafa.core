@@ -75,16 +75,6 @@ begin
   Result := ScalarDotF32x3(a, b);
 end;
 
-function RISCVVDotF64x2(const a, b: TVecF64x2): Double;
-begin
-  Result := ScalarDotF64x2(a, b);
-end;
-
-function RISCVVDotF64x4(const a, b: TVecF64x4): Double;
-begin
-  Result := ScalarDotF64x4(a, b);
-end;
-
 function RISCVVLengthF32x4(const a: TVecF32x4): Single;
 begin
   Result := ScalarLengthF32x4(a);

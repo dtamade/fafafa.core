@@ -488,12 +488,6 @@ def main() -> int:
             "LIndex := 1;",
             "Result := RISCVVExtractI64x2Asm(a, LIndex);",
         ]),
-        (riscvv_source, "RISCVVDotF64x2", [
-            "Result := ScalarDotF64x2(a, b);",
-        ]),
-        (riscvv_source, "RISCVVDotF64x4", [
-            "Result := ScalarDotF64x4(a, b);",
-        ]),
         (riscvv_facade_source, "RISCVVShiftLeftU32x8", [
             "Result := ScalarShiftLeftU32x8(a, count);",
         ]),
@@ -942,13 +936,6 @@ def main() -> int:
             ]
         )
 
-    riscvv_scalar_forwarder_expectations.extend(
-        [
-            ("RISCVVDotF64x2", "ScalarDotF64x2(a, b)"),
-            ("RISCVVDotF64x4", "ScalarDotF64x4(a, b)"),
-        ]
-    )
-
     routine_expectations.extend(
         (riscvv_facade_source, routine_name, [f"Result := {scalar_call};"])
         for routine_name, scalar_call in riscvv_scalar_forwarder_expectations
@@ -1222,6 +1209,8 @@ def main() -> int:
         (riscvv_source, "RISCVVTruncF64x8"),
         (riscvv_source, "RISCVVClampF32x8"),
         (riscvv_source, "RISCVVClampF32x16"),
+        (riscvv_source, "RISCVVDotF64x2"),
+        (riscvv_source, "RISCVVDotF64x4"),
         (riscvv_helpers_source, "RISCVVShiftLeftU64x2"),
         (riscvv_helpers_source, "RISCVVShiftRightU64x2"),
         (riscvv_helpers_source, "RISCVVReduceAddI32x4"),
@@ -1276,6 +1265,8 @@ def main() -> int:
         (riscvv_facade_source, "RISCVVTruncF64x8"),
         (riscvv_facade_source, "RISCVVClampF32x8"),
         (riscvv_facade_source, "RISCVVClampF32x16"),
+        (riscvv_facade_source, "RISCVVDotF64x2"),
+        (riscvv_facade_source, "RISCVVDotF64x4"),
         (riscvv_facade_source, "RISCVVMinF32x4"),
         (riscvv_facade_source, "RISCVVMaxF32x4"),
         (riscvv_facade_source, "RISCVVMinF64x2"),
