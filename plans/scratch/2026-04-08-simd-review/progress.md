@@ -15144,3 +15144,37 @@
     - `LAZBUILD_EXT`
     - `Invoking lazbuild...`
     - 或真正的 lazbuild/build failure message
+
+### Follow-up: absolute LAZBUILD path is the real toolchain mismatch
+
+- 第四轮 fresh dispatch：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-20260519-010415`
+  - 新 run：`26048334156`
+- 这轮最重要的新事实：
+  - native batch 已不再卡在 `call :ensure_lazbuild_available` 的黑洞里
+  - fresh log 现在明确给出：
+    - `[BUILD] FAILED (see ... build.txt)`
+    - `[BUILD] TOOLCHAIN BLOCK: configured LAZBUILD path does not exist: C:\lazarus\lazbuild.exe`
+  - 同时 `Resolve lazbuild path` step 仍在 workflow 里报告：
+    - `Using C:\lazarus\lazbuild.exe`
+  - 因而当前真正失配不是 lazbuild 缺席，而是：
+    - PowerShell step 里探测到的绝对路径
+    - 传给后续 `cmd.exe` / batch gate 后，被 `if exist "%LAZBUILD_EXE%"` 判成不存在
+- 这说明 red point 继续收敛了：
+  - 不是 SIMD 代码
+  - 不是 GitHub billing
+  - 不是 lazbuild 未安装
+  - 也不是旧的 batch subroutine 黑洞
+  - 而是 Windows GH workflow 里 `LAZBUILD` 的“绝对路径导出形态”与后续 batch gate 的路径判定不兼容
+- 因此本轮 follow-up 改成最小 workflow 级修法：
+  - `.github/workflows/simd-windows-b07-evidence.yml`
+    - 不再导出 `LAZBUILD=C:\lazarus\lazbuild.exe`
+    - 改成：
+      - 把 resolved lazbuild 目录注入 `PATH`
+      - 导出 `LAZBUILD=lazbuild.exe`
+      - 额外导出 `LAZBUILD_RESOLVED=<absolute path>` 仅作诊断记录
+  - 这样 batch / shell runner 统一只消费 PATH 上的 `lazbuild.exe`
+  - 避免继续被绝对路径判定差异卡死
+- 当前阶段结论：
+  - 现在已经拿到高置信度 root cause：`LAZBUILD` 的 absolute-path export 与 cmd/batch evidence path 不兼容
+  - 下一步应提交这个 workflow fix，再发第五轮 fresh evidence，看 native batch 是否真正开始调用 `lazbuild.exe`
