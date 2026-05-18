@@ -5700,3 +5700,21 @@
 | 1. 把 constref aligned-source-load 规则接进现有 SSE2 结构检查 | completed | 已在 `tests/fafafa.core.simd/check_sse2_structure.py` 新增 raw-leaf asm routine 解析与 `movdqa/movapd/movaps` source-load 扫描；只针对带 `constref` 的 routine 命中 |
 | 2. 修正首轮假红并钉住真正命中面 | completed | 首轮误把 `simd_load_si128(const Ptr: Pointer)` 误判成 `constref`；现已把 routine header 解析收紧到 `(...)(: return-type)?;`，单跑 checker 已稳定回到 `constref_aligned_load_violations=0` |
 | 3. release 主链复验 | completed | `git diff --check`、`python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line`、以及 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已全部 fresh 通过 |
+
+## 2026-05-18 SSE2 Raw Float Opcode Guardrail
+
+### Goal
+
+沿着刚加好的 SSE2 护栏思路继续收一层更贴近最近真实修复的防回归规则：
+既然 `simd_add/sub/mul/div/sqrt_{ps,pd,sd}` 都已经改成 special-value helper，不应再回到 raw
+`addps/subpd/divsd/sqrtps`
+这类直接浮点 opcode。
+这批只扩展 `check_sse2_structure.py`，不改 Pascal 实现。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 把 raw float opcode 回归规则接进现有 SSE2 结构检查 | completed | 已为 `simd_add/sub/mul/div/sqrt_{ps,pd,sd}` 这 15 个 routine 增加 opcode-level forbid list，检查其 asm body 中是否重新出现对应 raw opcode |
+| 2. 单跑 checker 确认新命中面 | completed | `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line` 已 fresh 回到 `forbidden_raw_float_opcode_hits=0` |
+| 3. release 主链复验 | completed | `git diff --check` 与 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已 fresh 通过，主链输出已包含 `forbidden_raw_float_opcode_hits=0` |

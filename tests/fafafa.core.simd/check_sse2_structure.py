@@ -23,6 +23,24 @@ ALIGNED_CONSTREF_LOAD_RE = re.compile(
     re.IGNORECASE,
 )
 
+FORBIDDEN_RAW_FLOAT_OPCODES_BY_ROUTINE = {
+    'simd_add_ps': ('addps',),
+    'simd_sub_ps': ('subps',),
+    'simd_mul_ps': ('mulps',),
+    'simd_div_ps': ('divps',),
+    'simd_sqrt_ps': ('sqrtps',),
+    'simd_add_pd': ('addpd',),
+    'simd_sub_pd': ('subpd',),
+    'simd_mul_pd': ('mulpd',),
+    'simd_div_pd': ('divpd',),
+    'simd_sqrt_pd': ('sqrtpd',),
+    'simd_add_sd': ('addsd',),
+    'simd_sub_sd': ('subsd',),
+    'simd_mul_sd': ('mulsd',),
+    'simd_div_sd': ('divsd',),
+    'simd_sqrt_sd': ('sqrtsd',),
+}
+
 ALLOWED_INTRINSICS_STATUS = {
     'active leaf',
     'experimental isolated',
@@ -225,6 +243,21 @@ def collect_constref_aligned_load_violations(a_text: str) -> list[str]:
                 f'{l_routine_name}: line {l_line_no} uses {l_opcode} source load from constref parameter register [{l_reg}]'
             )
     return l_violations
+
+
+def collect_forbidden_raw_float_opcode_hits(a_text: str) -> list[str]:
+    l_hits: list[str] = []
+    for l_routine_match in ASM_ROUTINE_RE.finditer(a_text):
+        l_routine_name = l_routine_match.group(2).lower()
+        l_body = l_routine_match.group(4)
+        l_forbidden_opcodes = FORBIDDEN_RAW_FLOAT_OPCODES_BY_ROUTINE.get(l_routine_name)
+        if l_forbidden_opcodes is None:
+            continue
+        for l_opcode in l_forbidden_opcodes:
+            for l_opcode_match in re.finditer(r'\b' + re.escape(l_opcode) + r'\b', l_body, flags=re.IGNORECASE):
+                l_line_no = a_text.count('\n', 0, l_routine_match.start(4) + l_opcode_match.start()) + 1
+                l_hits.append(f'{l_routine_name}: line {l_line_no} still emits raw {l_opcode}')
+    return l_hits
 
 
 def main() -> int:
@@ -445,6 +478,12 @@ def main() -> int:
             f'{intrinsics_raw_leaf_path.name} must not use aligned source loads for constref TM128 parameters: {violation}'
         )
 
+    forbidden_raw_float_opcode_hits = collect_forbidden_raw_float_opcode_hits(intrinsics_raw_leaf_text)
+    for hit in forbidden_raw_float_opcode_hits:
+        failures.append(
+            f'{intrinsics_raw_leaf_path.name} must keep special-value helper wrappers instead of raw float opcodes: {hit}'
+        )
+
     backend_truth_doc_exists = backend_truth_doc_path.exists()
     backend_truth_text = backend_truth_doc_path.read_text(encoding='utf-8', errors='replace') if backend_truth_doc_exists else ''
     intrinsics_disposition_doc_exists = intrinsics_disposition_doc_path.exists()
@@ -558,6 +597,7 @@ def main() -> int:
         'root_uses_hits': root_uses_hits,
         'raw_leaf_forbidden_hits': raw_leaf_forbidden_hits,
         'constref_aligned_load_violations': constref_aligned_load_violations,
+        'forbidden_raw_float_opcode_hits': forbidden_raw_float_opcode_hits,
         'backend_truth_doc_exists': backend_truth_doc_exists,
         'backend_truth_rows_count': len(backend_truth_rows),
         'intrinsics_disposition_doc_exists': intrinsics_disposition_doc_exists,
@@ -588,6 +628,7 @@ def main() -> int:
     print(f'  - root_uses_hits:                 {len(root_uses_hits)}')
     print(f'  - raw_leaf_forbidden_hits:        {len(raw_leaf_forbidden_hits)}')
     print(f'  - constref_aligned_load_violations:{len(constref_aligned_load_violations)}')
+    print(f'  - forbidden_raw_float_opcode_hits:{len(forbidden_raw_float_opcode_hits)}')
     print(f'  - backend_truth_rows_count:       {len(backend_truth_rows)}')
     print(f'  - intrinsics_disposition_rows:    {len(intrinsics_disposition_rows)}')
     print(f'  - repo_intrinsics_units_count:    {len(repo_intrinsics_units)}')
@@ -632,6 +673,7 @@ def main() -> int:
             f'root_uses_hits={len(root_uses_hits)} '
             f'raw_leaf_forbidden_hits={len(raw_leaf_forbidden_hits)} '
             f'constref_aligned_load_violations={len(constref_aligned_load_violations)} '
+            f'forbidden_raw_float_opcode_hits={len(forbidden_raw_float_opcode_hits)} '
             f'backend_truth_rows={len(backend_truth_rows)} '
             f'intrinsics_disposition_rows={len(intrinsics_disposition_rows)} '
             f'migration_missing_sections={len(migration_missing_sections)} '

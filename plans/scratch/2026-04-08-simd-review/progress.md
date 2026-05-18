@@ -14653,3 +14653,27 @@
 - 当前阶段结论：
   - 这批没有再新增功能，但把最近几批修过的同类 `aligned-read` bug 正式固化成了机器护栏
   - 后面如果有人在 `intrinsics.x86.sse2` 里重新把 `constref TM128` 当成天然对齐源，这条检查会在默认 `simd check` 里直接打红，不会再靠人工回忆
+
+## 2026-05-18 SSE2 Raw Float Opcode Guardrail
+
+- 在 `constref aligned-load` 这类结构性 bug 被机器护住之后，继续顺着最近最密集的真修复线再收一层护栏：
+  - `simd_add/sub/mul/div/sqrt_{ps,pd,sd}`
+  - 这些 routine 现在都已经改成 special-value helper
+  - 因此它们不应再回到 raw `addps/subpd/divsd/sqrtps` 之类的直接浮点 opcode
+- 这批仍然不改 Pascal 实现，只扩 `tests/fafafa.core.simd/check_sse2_structure.py`：
+  - 为上述 15 个 routine 增加 opcode-level forbid list
+  - 单独统计：
+    - `forbidden_raw_float_opcode_hits`
+- 这个护栏的意义不是“代码更漂亮”，而是：
+  - 前面 `sqrt/div/add/sub/mul` 这几批已经证明 raw float opcode 在这个 experimental leaf 文件里会直接把特殊值 invalid exception 泄漏出来
+  - 如果以后有人图省事把 helper wrapper 又改回 raw opcode，这条检查会在默认 `simd check` 里立刻打红
+- fresh 验证：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `SSE2_STRUCTURE_SUMMARY ... forbidden_raw_float_opcode_hits=0 ... status=ok`
+  - Release `check` 通过，主链日志已能看到新字段
+- 当前阶段结论：
+  - 这批没有继续“再修一个点”，但把最近 4 个真实浮点修复簇背后的回归面正式锁进了主链检查
+  - 现在 `intrinsics.x86.sse2` 里，`constref` 对齐误用和 raw float opcode 回退这两条最近最值钱的 bug 线都已经有默认 guardrail
