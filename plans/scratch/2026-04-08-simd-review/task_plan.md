@@ -5057,3 +5057,17 @@
 | 1. 复核现有 `SSE2` experimental coverage 缺口 | completed | 已确认 `TTestCase_X86Sse2ByteShifts` 与 `TTestCase_X86Sse2AbiBasics` 现有 coverage 主要集中在 `slli/srli/srai_si128`、`add_epi8/cmpeq_epi8/movemask_epi8`、`loadu/storeu` 与 `slli_epi16`，还缺 raw bitwise、setter/cast lane order、以及 float arithmetic 这三类代表性 leaf 契约 |
 | 2. 只补代表性 raw semantic proof，不扩结构范围 | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `Test_BitwiseAndAndnotSemantics`、`Test_SettersAndCastsPreserveLaneOrder`、`Test_FloatArithmeticLaneSemantics`；分别覆盖 `simd_and/or/xor/andnot_si128`、`simd_setr/set/set1/cast` 与 `simd_add/mul_ps/pd` 的 lane 语义 |
 | 3. 跑完 experimental lane 双配置验证并确认 stop-point | completed | `git diff --check`、`python3 tests/fafafa.core.simd/check_intrinsics_comment_swallow.py --summary-line`、`bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`、`FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test` 全部通过；关键结果是 `INTR_HYGIENE_SUMMARY status=PASS hits=0`，以及 experimental=`0/1` 两套 `[TEST] OK` |
+
+## 2026-05-18 SSE2 Full-Imm Shuffle Semantic Repair
+
+### Goal
+
+继续沿 `SSE2 raw-leaf qualification` 小批次推进，把 `pack/unpack/shuffle/cast` 这组补到真正能抓 bug 的程度；如果新 proof 打出实现缺陷，就在同一批里直接修正 `x86.sse2` raw leaf 的即时数 shuffle 语义，而不是只把失败记成“已知问题”。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 扩 experimental proof 到 `pack/unpack/shuffle/cast` | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `TTestCase_X86Sse2PackShuffleBasics`，覆盖 `unpacklo/hi_epi8`、`unpacklo/hi_epi32`、`packs_epi32`、`packs_epi16`、`packus_epi16`、`shuffle_epi32`、`shuffle_pd`、`shuffle_ps`、`shufflelo/hi_epi16` 与 cross-type cast roundtrip |
+| 2. 根据 fresh 红点翻出 source truth 并修正实现 | completed | 新测试首先打出 `simd_shuffle_epi32 lane0` 失败；对位 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 后确认一簇即时数 shuffle 仍是残缺 asm 分支。现已把 `simd_shuffle_epi32`、`simd_shuffle_ps`、`simd_shuffle_pd`、`simd_shufflelo_epi16`、`simd_shufflehi_epi16` 改成 full-imm Pascal 语义实现，不再依赖失真的固定模式 |
+| 3. 重跑 experimental lane 并补主线 release smoke/check | completed | `git diff --check`、`bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`、`FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 .../BuildOrTest.sh test`、Release `impl-smoke-x86`、Release `check` 全部 fresh 通过；关键结果包括 `INTR_HYGIENE_SUMMARY status=PASS hits=0`、`SSE2_IMPL_SMOKE_SUMMARY steps=5 ... status=ok`、`X86_IMPL_SMOKE_SUMMARY steps=2 ... status=ok`，以及 Release `check` 退出码 `0` |

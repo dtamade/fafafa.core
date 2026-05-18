@@ -12795,3 +12795,59 @@
   - `SSE2` 当前不再只是“结构 smoke 绿”，而是补上了一批更接近 raw-leaf 契约的 lane-order / bitwise / float arithmetic proof
   - 这仍然只是 qualification 增强，不等于已经进入 `promote / split / retire` 判断
   - 下一步如果继续做 `SSE2`，应保持在 `raw-leaf qualification -> retire baseline recheck` 这条窄路径里，不要重新扩成 family-level 大迁移
+
+## 2026-05-18 SSE2 Full-Imm Shuffle Semantic Repair
+
+- 继续沿同一条 `SSE2 raw-leaf qualification` 小批次往前走，没有切回 wider `RISCVV` 或 whole-module 话题。
+- 这次不是“只补测试”，而是先被新加的 experimental lane 测试打出了一个真实实现缺陷：
+  - `tests/fafafa.core.simd.intrinsics.experimental/...testcase.pas` 新增 `pack/unpack/shuffle/cast` proof 后，
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 首次失败在 `simd_shuffle_epi32 lane0`
+  - source 对位后确认 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 里的即时数 shuffle 实现不是完整语义，而是被残缺 asm 分支/比较模式限制住了：
+    - `simd_shuffle_epi32` 在 Linux x86_64 下 `imm1/imm2/imm3` 实际都会退成 `$00`
+    - `simd_shuffle_ps` 里的比较常量全部重复成 `$00`
+    - `simd_shufflelo_epi16` / `simd_shufflehi_epi16` 也只保留了失真的固定模式
+- 因此本批把这一簇 raw leaf 从“部分残缺 asm”翻成“明确的 full-imm Pascal 语义实现”：
+  - `src/fafafa.core.simd.intrinsics.x86.sse2.pas`
+    - `simd_shuffle_epi32`
+    - `simd_shuffle_ps`
+    - `simd_shuffle_pd`
+    - `simd_shufflelo_epi16`
+    - `simd_shufflehi_epi16`
+  - 都改成按 `imm8` 的真实 lane selector 计算结果，不再依赖不完整的手写 asm 分支
+- 同时把 experimental proof 扩到真正覆盖这组修复：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - `Test_UnpackLaneInterleaving`
+    - `Test_PackSaturationSemantics`
+    - `Test_ShuffleAndCrossTypeCastSemantics`
+  - 其中现在直接锁住：
+    - `simd_shuffle_epi32`
+    - `simd_shuffle_ps`
+    - `simd_shuffle_pd`
+    - `simd_shufflelo_epi16`
+    - `simd_shufflehi_epi16`
+    - `simd_unpacklo/hi_epi8`
+    - `simd_unpacklo/hi_epi32`
+    - `simd_packs_epi32`
+    - `simd_packs_epi16`
+    - `simd_packus_epi16`
+    - `simd_castpd_si128 / simd_castsi128_pd`
+    - `simd_castpd_ps / simd_castps_pd`
+- 本批 fresh 验证：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_comment_swallow.py --summary-line`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-smoke-x86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- 关键结果：
+  - `INTR_HYGIENE_SUMMARY status=PASS hits=0`
+  - experimental=`0`：`[TEST] OK`
+  - experimental=`1`：`[TEST] OK`
+  - `SSE2_IMPL_SMOKE_SUMMARY steps=5 ... status=ok`
+  - `X86_IMPL_SMOKE_SUMMARY steps=2 ... status=ok`
+  - Release `check` 退出码为 `0`
+- 当前阶段结论：
+  - 这批已经不只是“补 `SSE2` 证明面”，而是借 proof 抓出并修掉了一簇真实的 x86 shuffle immediate 语义缺陷
+  - `SSE2 raw-leaf qualification` 现在对 `pack/unpack/shuffle/cast` 这组叶子的证据明显更完整
+  - 下一步如果继续 `SSE2`，应优先回到 `retire baseline` 重看还有没有未被 representative proof 覆盖的 raw family；不要又退回零散 residual 扫描

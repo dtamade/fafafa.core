@@ -845,6 +845,33 @@ begin
     aTest.AssertEquals(aLabel + ' lane ' + IntToStr(LIndex), aExpected.m128i_u8[LIndex], aActual.m128i_u8[LIndex]);
 end;
 
+function SaturateI32ToI16(const aValue: LongInt): SmallInt; inline;
+begin
+  if aValue > High(SmallInt) then
+    Exit(High(SmallInt));
+  if aValue < Low(SmallInt) then
+    Exit(Low(SmallInt));
+  Result := SmallInt(aValue);
+end;
+
+function SaturateI16ToI8(const aValue: SmallInt): ShortInt; inline;
+begin
+  if aValue > High(ShortInt) then
+    Exit(High(ShortInt));
+  if aValue < Low(ShortInt) then
+    Exit(Low(ShortInt));
+  Result := ShortInt(aValue);
+end;
+
+function SaturateI16ToU8(const aValue: SmallInt): Byte; inline;
+begin
+  if aValue < 0 then
+    Exit(0);
+  if aValue > High(Byte) then
+    Exit(High(Byte));
+  Result := Byte(aValue);
+end;
+
 procedure ExpectSlliSi128(aTest: TTestCase; const aValue: TM128; aShift: Byte);
 var
   LExpected: TM128;
@@ -929,6 +956,13 @@ type
     procedure Test_FloatArithmeticLaneSemantics;
     procedure Test_LoadStore_Roundtrip;
     procedure Test_SlliEpi16_ShiftCounts;
+  end;
+
+  TTestCase_X86Sse2PackShuffleBasics = class(TTestCase)
+  published
+    procedure Test_UnpackLaneInterleaving;
+    procedure Test_PackSaturationSemantics;
+    procedure Test_ShuffleAndCrossTypeCastSemantics;
   end;
 
 procedure TTestCase_X86Sse2ByteShifts.Test_SlliSrliSi128_AllCounts;
@@ -1207,6 +1241,200 @@ begin
   end;
 end;
 
+procedure TTestCase_X86Sse2PackShuffleBasics.Test_UnpackLaneInterleaving;
+var
+  LA: TM128;
+  LB: TM128;
+  LLo: TM128;
+  LHi: TM128;
+  LIndex: Integer;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+
+  for LIndex := 0 to 15 do
+  begin
+    LA.m128i_i8[LIndex] := LIndex;
+    LB.m128i_i8[LIndex] := 60 + LIndex;
+  end;
+
+  LLo := simd_unpacklo_epi8(LA, LB);
+  LHi := simd_unpackhi_epi8(LA, LB);
+
+  for LIndex := 0 to 7 do
+  begin
+    AssertEquals('unpacklo_epi8.a[' + IntToStr(LIndex) + ']',
+      LA.m128i_i8[LIndex], LLo.m128i_i8[LIndex * 2]);
+    AssertEquals('unpacklo_epi8.b[' + IntToStr(LIndex) + ']',
+      LB.m128i_i8[LIndex], LLo.m128i_i8[(LIndex * 2) + 1]);
+    AssertEquals('unpackhi_epi8.a[' + IntToStr(LIndex) + ']',
+      LA.m128i_i8[8 + LIndex], LHi.m128i_i8[LIndex * 2]);
+    AssertEquals('unpackhi_epi8.b[' + IntToStr(LIndex) + ']',
+      LB.m128i_i8[8 + LIndex], LHi.m128i_i8[(LIndex * 2) + 1]);
+  end;
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 3 do
+  begin
+    LA.m128i_i32[LIndex] := LIndex;
+    LB.m128i_i32[LIndex] := 100 + LIndex;
+  end;
+
+  LLo := simd_unpacklo_epi32(LA, LB);
+  LHi := simd_unpackhi_epi32(LA, LB);
+
+  AssertEquals('unpacklo_epi32[0]', 0, LLo.m128i_i32[0]);
+  AssertEquals('unpacklo_epi32[1]', 100, LLo.m128i_i32[1]);
+  AssertEquals('unpacklo_epi32[2]', 1, LLo.m128i_i32[2]);
+  AssertEquals('unpacklo_epi32[3]', 101, LLo.m128i_i32[3]);
+
+  AssertEquals('unpackhi_epi32[0]', 2, LHi.m128i_i32[0]);
+  AssertEquals('unpackhi_epi32[1]', 102, LHi.m128i_i32[1]);
+  AssertEquals('unpackhi_epi32[2]', 3, LHi.m128i_i32[2]);
+  AssertEquals('unpackhi_epi32[3]', 103, LHi.m128i_i32[3]);
+end;
+
+procedure TTestCase_X86Sse2PackShuffleBasics.Test_PackSaturationSemantics;
+var
+  LA: TM128;
+  LB: TM128;
+  LResult: TM128;
+  LExpectedI16: array[0..7] of SmallInt;
+  LExpectedI8: array[0..15] of ShortInt;
+  LExpectedU8: array[0..15] of Byte;
+  LIndex: Integer;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+
+  LA.m128i_i32[0] := -40000;
+  LA.m128i_i32[1] := -32768;
+  LA.m128i_i32[2] := -1;
+  LA.m128i_i32[3] := 0;
+  LB.m128i_i32[0] := 1;
+  LB.m128i_i32[1] := 32767;
+  LB.m128i_i32[2] := 32768;
+  LB.m128i_i32[3] := 60000;
+
+  for LIndex := 0 to 3 do
+    LExpectedI16[LIndex] := SaturateI32ToI16(LA.m128i_i32[LIndex]);
+  for LIndex := 0 to 3 do
+    LExpectedI16[4 + LIndex] := SaturateI32ToI16(LB.m128i_i32[LIndex]);
+
+  LResult := simd_packs_epi32(LA, LB);
+  for LIndex := 0 to 7 do
+    AssertEquals('packs_epi32[' + IntToStr(LIndex) + ']',
+      LExpectedI16[LIndex], LResult.m128i_i16[LIndex]);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 7 do
+  begin
+    LA.m128i_i16[LIndex] := (LIndex * 40) - 180;
+    LB.m128i_i16[LIndex] := 300 - (LIndex * 35);
+  end;
+
+  for LIndex := 0 to 7 do
+    LExpectedI8[LIndex] := SaturateI16ToI8(LA.m128i_i16[LIndex]);
+  for LIndex := 0 to 7 do
+    LExpectedI8[8 + LIndex] := SaturateI16ToI8(LB.m128i_i16[LIndex]);
+
+  for LIndex := 0 to 7 do
+    LExpectedU8[LIndex] := SaturateI16ToU8(LA.m128i_i16[LIndex]);
+  for LIndex := 0 to 7 do
+    LExpectedU8[8 + LIndex] := SaturateI16ToU8(LB.m128i_i16[LIndex]);
+
+  LResult := simd_packs_epi16(LA, LB);
+  for LIndex := 0 to 15 do
+    AssertEquals('packs_epi16[' + IntToStr(LIndex) + ']',
+      LExpectedI8[LIndex], LResult.m128i_i8[LIndex]);
+
+  LResult := simd_packus_epi16(LA, LB);
+  for LIndex := 0 to 15 do
+    AssertEquals('packus_epi16[' + IntToStr(LIndex) + ']',
+      LExpectedU8[LIndex], LResult.m128i_u8[LIndex]);
+end;
+
+procedure TTestCase_X86Sse2PackShuffleBasics.Test_ShuffleAndCrossTypeCastSemantics;
+var
+  LA: TM128;
+  LB: TM128;
+  LValue: TM128;
+  LBits: TM128;
+  LShuffled: TM128;
+  LIndex: Integer;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  LA.m128i_i32[0] := 10;
+  LA.m128i_i32[1] := 20;
+  LA.m128i_i32[2] := 30;
+  LA.m128i_i32[3] := 40;
+
+  LShuffled := simd_shuffle_epi32(LA, $1B);
+  AssertEquals('simd_shuffle_epi32 lane0', 40, LShuffled.m128i_i32[0]);
+  AssertEquals('simd_shuffle_epi32 lane1', 30, LShuffled.m128i_i32[1]);
+  AssertEquals('simd_shuffle_epi32 lane2', 20, LShuffled.m128i_i32[2]);
+  AssertEquals('simd_shuffle_epi32 lane3', 10, LShuffled.m128i_i32[3]);
+
+  FillChar(LA, SizeOf(LA), 0);
+  for LIndex := 0 to 7 do
+    LA.m128i_u16[LIndex] := 1 + LIndex;
+
+  LShuffled := simd_shufflelo_epi16(LA, $1B);
+  AssertEquals('simd_shufflelo_epi16 lane0', 4, LShuffled.m128i_u16[0]);
+  AssertEquals('simd_shufflelo_epi16 lane1', 3, LShuffled.m128i_u16[1]);
+  AssertEquals('simd_shufflelo_epi16 lane2', 2, LShuffled.m128i_u16[2]);
+  AssertEquals('simd_shufflelo_epi16 lane3', 1, LShuffled.m128i_u16[3]);
+  AssertEquals('simd_shufflelo_epi16 high keep lane4', 5, LShuffled.m128i_u16[4]);
+  AssertEquals('simd_shufflelo_epi16 high keep lane7', 8, LShuffled.m128i_u16[7]);
+
+  LShuffled := simd_shufflehi_epi16(LA, $1B);
+  AssertEquals('simd_shufflehi_epi16 low keep lane0', 1, LShuffled.m128i_u16[0]);
+  AssertEquals('simd_shufflehi_epi16 low keep lane3', 4, LShuffled.m128i_u16[3]);
+  AssertEquals('simd_shufflehi_epi16 lane4', 8, LShuffled.m128i_u16[4]);
+  AssertEquals('simd_shufflehi_epi16 lane5', 7, LShuffled.m128i_u16[5]);
+  AssertEquals('simd_shufflehi_epi16 lane6', 6, LShuffled.m128i_u16[6]);
+  AssertEquals('simd_shufflehi_epi16 lane7', 5, LShuffled.m128i_u16[7]);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := 1.5;
+  LA.m128d_f64[1] := 2.5;
+  LB.m128d_f64[0] := 10.5;
+  LB.m128d_f64[1] := 20.5;
+
+  LShuffled := simd_shuffle_pd(LA, LB, 2);
+  AssertEquals('simd_shuffle_pd lane0', 1.5, LShuffled.m128d_f64[0], 0.0);
+  AssertEquals('simd_shuffle_pd lane1', 20.5, LShuffled.m128d_f64[1], 0.0);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128_f32[0] := 1.0;
+  LA.m128_f32[1] := 2.0;
+  LA.m128_f32[2] := 3.0;
+  LA.m128_f32[3] := 4.0;
+  LB.m128_f32[0] := 5.0;
+  LB.m128_f32[1] := 6.0;
+  LB.m128_f32[2] := 7.0;
+  LB.m128_f32[3] := 8.0;
+
+  LShuffled := simd_shuffle_ps(LA, LB, $E4);
+  AssertEquals('simd_shuffle_ps lane0', 1.0, LShuffled.m128_f32[0], 0.0);
+  AssertEquals('simd_shuffle_ps lane1', 2.0, LShuffled.m128_f32[1], 0.0);
+  AssertEquals('simd_shuffle_ps lane2', 7.0, LShuffled.m128_f32[2], 0.0);
+  AssertEquals('simd_shuffle_ps lane3', 8.0, LShuffled.m128_f32[3], 0.0);
+
+  InitM128IncrementingBytes(LValue, $30);
+  LBits := simd_castpd_si128(LValue);
+  AssertM128BytesEqual(Self, 'simd_castpd_si128/simd_castsi128_pd roundtrip',
+    LValue, simd_castsi128_pd(LBits));
+
+  LBits := simd_castpd_ps(LValue);
+  AssertM128BytesEqual(Self, 'simd_castpd_ps/simd_castps_pd roundtrip',
+    LValue, simd_castps_pd(LBits));
+end;
+
 {$ENDIF}
 {$ENDIF}
 
@@ -1217,6 +1445,7 @@ initialization
   RegisterTest(TTestCase_SimdIntrinsicsExperimentalX86);
   RegisterTest(TTestCase_X86Sse2ByteShifts);
   RegisterTest(TTestCase_X86Sse2AbiBasics);
+  RegisterTest(TTestCase_X86Sse2PackShuffleBasics);
   {$ENDIF}
   {$ENDIF}
 
