@@ -1133,6 +1133,7 @@ type
     procedure Test_DoubleMinMaxFamilies_HostTruthSemantics;
     procedure Test_LoadStore_Roundtrip;
     procedure Test_PartialLaneLoadStoreMoveSemantics;
+    procedure Test_IntegerPartialLoadStoreMaskMoveSemantics;
     procedure Test_ConversionFamilies_PreserveExpectedLanes;
     procedure Test_IntegerCompareFamilies_SignedAndEqualitySemantics;
     procedure Test_CompareAndMovemaskSemantics;
@@ -1745,6 +1746,49 @@ begin
   simd_storer_pd(LReversed, simd_loadu_pd(@LPair[0]));
   AssertEquals('simd_storer_pd lane0', 6.0, LReversed[0], 0.0);
   AssertEquals('simd_storer_pd lane1', 5.0, LReversed[1], 0.0);
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_IntegerPartialLoadStoreMaskMoveSemantics;
+var
+  LScalar64: QWord;
+  LDestBytes: array[0..15] of Byte;
+  LA: TM128;
+  LB: TM128;
+  LActual: TM128;
+  LIndex: Integer;
+begin
+  LScalar64 := QWord($1122334455667788);
+  LActual := simd_loadl_epi64(@LScalar64);
+  AssertEquals('simd_loadl_epi64 low lane', Int64(LScalar64), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_loadl_epi64 zero high lane', Int64(0), Int64(LActual.m128i_u64[1]));
+
+  FillChar(LA, SizeOf(LA), 0);
+  LA.m128i_u64[0] := QWord($0123456789ABCDEF);
+  LA.m128i_u64[1] := QWord($FEDCBA9876543210);
+  LScalar64 := 0;
+  simd_storel_epi64(LScalar64, LA);
+  AssertEquals('simd_storel_epi64 writes low lane', Int64(LA.m128i_u64[0]), Int64(LScalar64));
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 15 do
+  begin
+    LA.m128i_u8[LIndex] := Byte($10 + LIndex);
+    if Odd(LIndex) then
+      LB.m128i_u8[LIndex] := $80
+    else
+      LB.m128i_u8[LIndex] := $00;
+    LDestBytes[LIndex] := Byte($A0 + LIndex);
+  end;
+
+  simd_maskmoveu_si128(LA, LB, LDestBytes[0]);
+  for LIndex := 0 to 15 do
+    if Odd(LIndex) then
+      AssertEquals('simd_maskmoveu_si128 store lane ' + IntToStr(LIndex),
+        LA.m128i_u8[LIndex], LDestBytes[LIndex])
+    else
+      AssertEquals('simd_maskmoveu_si128 keep lane ' + IntToStr(LIndex),
+        Byte($A0 + LIndex), LDestBytes[LIndex]);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_ConversionFamilies_PreserveExpectedLanes;

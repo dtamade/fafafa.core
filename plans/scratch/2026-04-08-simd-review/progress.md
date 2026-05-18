@@ -13595,3 +13595,29 @@
   - 如果继续沿这条路推进，下一步更自然的是：
     - 回到更便宜的 `pack/shuffle` 邻近 residual
     - 或再找一个高信号 host-truth family，但不必立刻扩 scope
+
+## 2026-05-18 SSE2 Integer Partial LoadStore And MaskMove Coverage Expansion
+
+- 当前继续按“小簇、proof-first、只补缺口”的方式推进，没有重开 whole-module，也没有扩到非 `SSE2`。
+- 这次先对位 `SSE2` 数据搬运残余的真实 coverage：
+  - `simd_move_sd` / `simd_move_epi64` 已有 proof
+  - 但 `simd_loadl_epi64`、`simd_storel_epi64`、`simd_maskmoveu_si128` 仍完全没有 experimental representative proof
+- 本批改动继续保持 tests-only：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 `Test_IntegerPartialLoadStoreMaskMoveSemantics`
+- 新 proof 直接锁住的关键合同包括：
+  - `simd_loadl_epi64`：低 64 位从内存装入，高 64 位清零
+  - `simd_storel_epi64`：只写出 source 的低 64 位
+  - `simd_maskmoveu_si128`：仅在 mask byte 的最高位为 1 时覆盖目标 byte，否则保留原值
+- 本批预期 closeout 方式保持与上一批一致：
+  - `git diff --check`
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- fresh 结果：
+  - `git diff --check`：通过
+  - experimental=`0`：`[TEST] OK`、`[LEAK] OK`
+  - experimental=`1`：`[TEST] OK`、`[LEAK] OK`
+- 当前阶段结论：
+  - 这批没有打出新的 source bug，说明 `simd_loadl_epi64`、`simd_storel_epi64`、`simd_maskmoveu_si128` 当前至少通过了第一层 representative contract
+  - 当前 `SSE2` 数据搬运 proof 已从“只覆盖 double scalar move / partial double load-store”扩到整数 partial load/store 与 masked byte writeback
+  - 这批可以按 tests-only 缺失 proof 修复直接收口提交；下一步继续看更便宜的 `pack/shuffle` 邻近 residual 仍然合理

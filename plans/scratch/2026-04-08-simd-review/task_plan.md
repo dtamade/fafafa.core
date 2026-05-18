@@ -5281,3 +5281,17 @@
 | 1. 复核 `sub/div + scalar preserve` coverage 缺口 | completed | 已确认 `tests/fafafa.core.simd.intrinsics.experimental/` 目前只有 `add_ps/mul_ps/add_pd/mul_pd` 的 lane proof，`simd_sub_ps`、`simd_div_ps`、`simd_sub_pd`、`simd_div_pd` 以及 `simd_add/sub/mul/div_sd` 仍没有任何 representative raw semantic proof |
 | 2. 只补 representative proof，不扩实现范围 | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `Test_FloatSubDivAndScalarArithmeticPreserveContracts`；直接覆盖 packed `sub/div` 的逐 lane 有限值结果，以及 scalar double arithmetic 的 low-lane 结果与 high-lane preserve 合同 |
 | 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已 fresh 通过；这批没有打出新的 source bug。由于当前 diff 仅限 experimental testcase 与后续 scratch 记录，本批不重复跑主 `simd` release `check`，继续沿用上一批 fresh 绿的 release 基线 |
+
+## 2026-05-18 SSE2 Integer Partial LoadStore And MaskMove Coverage Expansion
+
+### Goal
+
+继续沿 `SSE2 raw-leaf qualification` 的低成本 lane 推进，但只切数据搬运里当前最明显的 3 个 residual：`simd_loadl_epi64`、`simd_storel_epi64`、`simd_maskmoveu_si128`。这批只补 representative proof，重点锁住低 64 位搬运、高半零化、以及按 mask 最高位条件写回的合同；若 fresh 运行打红，再把修复限制在这 3 个 leaf 周围。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 partial integer load/store/maskmove coverage 缺口 | completed | 已确认 `simd_move_sd` / `simd_move_epi64` 已有 proof，但 `simd_loadl_epi64`、`simd_storel_epi64`、`simd_maskmoveu_si128` 在 `tests/fafafa.core.simd.intrinsics.experimental/` 中仍完全无覆盖 |
+| 2. 只补 representative proof，不扩实现范围 | completed | `TTestCase_X86Sse2AbiBasics` 已新增 `Test_IntegerPartialLoadStoreMaskMoveSemantics`，直接锁住低 64 位装载/存储与 mask 条件写回语义 |
+| 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已 fresh 通过；这批没有打出新的 source bug，作为 tests-only 缺失 proof 修复收口，不重复跑主 `simd` release `check`，继续沿用上一批 fresh 绿的 release 基线 |
