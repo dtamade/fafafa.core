@@ -14136,3 +14136,36 @@
 - 当前阶段结论：
   - 又收掉了一组此前 0-hit 的 `SSE2` direct surface
   - 继续保持 tests-only 收口，没有引出新的 source bug
+
+## 2026-05-18 SSE2 Remaining Integer Setter Coverage Expansion
+
+- 当前继续沿 0-hit direct leaf 清单推进，这次专门收剩余整数 setter。
+- 先复核现状：
+  - 仍然 0-hit 的包括：
+    - `set1_epi8`
+    - `set1_epi16`
+    - `set1_epi64x`
+    - `set_epi8 / setr_epi8`
+    - `set_epi16 / setr_epi16`
+    - `set_epi64 / setr_epi64 / set_epi64x`
+  - 源码里：
+    - `set_epi8/setr_epi8` 与 `set_epi16/setr_epi16` 是“不同参数顺序、同一最终 lane 落点”
+    - `set_epi64` 与 `set_epi64x` 都是 high/low lane 映射 surface
+- 本批继续保持 tests-only：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 扩充 `Test_SettersAndCastsPreserveLaneOrder`
+- 新 proof 直接锁住：
+  - `simd_set1_epi8 / set1_epi16 / set1_epi64x` 的 broadcast
+  - `simd_set_epi8 / setr_epi8`
+  - `simd_set_epi16 / setr_epi16`
+  - `simd_set_epi64 / setr_epi64 / set_epi64x`
+- fresh closeout 已完成：
+  - `git diff --check`
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- fresh 结果：
+  - default / experimental 双模态测试均 `TEST OK`
+  - 剩余整数 setter 的 lane order 与 broadcast 合同都符合预期，无新增 drift
+- 当前阶段结论：
+  - 又收掉了一组此前 0-hit 的 `SSE2` direct setter surface
+  - 继续保持 tests-only 收口，没有引出新的 source bug

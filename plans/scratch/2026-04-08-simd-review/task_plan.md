@@ -5519,3 +5519,17 @@
 | 1. 复核当前 setter/zero direct coverage 缺口 | completed | 已确认 `simd_set_pd / setr_pd / setzero_pd / setzero_ps / setzero_si128` 在 experimental testcase 中仍是 0-hit，而现有 setter 测试只覆盖 `setr_epi32 / set_epi32 / set1_epi32 / set1_ps / set1_pd` |
 | 2. 只补 representative lane-order / zero proof，不扩实现范围 | completed | 已在 `Test_SettersAndCastsPreserveLaneOrder` 下补齐 `setr_pd`、`set_pd` 的 lane order，以及 `setzero_pd / ps / si128` 的全零断言 |
 | 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已全部 fresh 通过；本批继续保持 tests-only，无需重开 source 修复 |
+
+## 2026-05-18 SSE2 Remaining Integer Setter Coverage Expansion
+
+### Goal
+
+继续沿 0-hit direct leaf 清单推进，但这次只收剩余整数 setter：`simd_set1_epi8`、`simd_set1_epi16`、`simd_set1_epi64x`、`simd_set_epi8`、`simd_setr_epi8`、`simd_set_epi16`、`simd_setr_epi16`、`simd_set_epi64`、`simd_setr_epi64`、`simd_set_epi64x`。这批只锁 lane order / broadcast 合同，不打开算术或 memory surface。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核剩余整数 setter 的 direct coverage 缺口 | completed | 已确认上述 10 个 integer setter 在 experimental testcase 中仍然 0-hit；源码里 `set_epi8/setr_epi8` 与 `set_epi16/setr_epi16` 是“不同参数顺序、同一落点合同”，`set_epi64` 与 `set_epi64x` 都是 high/low lane 映射 surface |
+| 2. 只补 representative lane-order / broadcast proof，不扩实现范围 | completed | 已在 `Test_SettersAndCastsPreserveLaneOrder` 下补齐 `set1_epi8/16/64x` broadcast，以及 `epi8/epi16/epi64` family 的 representative lane-order 断言 |
+| 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已全部 fresh 通过；本批继续保持 tests-only，无需重开 source 修复 |

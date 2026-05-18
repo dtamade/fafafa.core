@@ -1381,6 +1381,50 @@ begin
   AssertEquals('simd_set1_pd lane0', 2.5, LValue.m128d_f64[0], 0.0);
   AssertEquals('simd_set1_pd lane1', 2.5, LValue.m128d_f64[1], 0.0);
 
+  LValue := simd_set1_epi8(-5);
+  AssertEquals('simd_set1_epi8 lane0', -5, LValue.m128i_i8[0]);
+  AssertEquals('simd_set1_epi8 lane15', -5, LValue.m128i_i8[15]);
+
+  LValue := simd_set1_epi16(-1234);
+  AssertEquals('simd_set1_epi16 lane0', -1234, LValue.m128i_i16[0]);
+  AssertEquals('simd_set1_epi16 lane7', -1234, LValue.m128i_i16[7]);
+
+  LValue := simd_set1_epi64x(Int64(-9876543210123));
+  AssertEquals('simd_set1_epi64x lane0', Int64(-9876543210123), LValue.m128i_i64[0]);
+  AssertEquals('simd_set1_epi64x lane1', Int64(-9876543210123), LValue.m128i_i64[1]);
+
+  LValue := simd_setr_epi8(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+  AssertEquals('simd_setr_epi8 lane0', 0, LValue.m128i_i8[0]);
+  AssertEquals('simd_setr_epi8 lane7', 7, LValue.m128i_i8[7]);
+  AssertEquals('simd_setr_epi8 lane15', 15, LValue.m128i_i8[15]);
+
+  LValue := simd_set_epi8(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+  AssertEquals('simd_set_epi8 lane0', 0, LValue.m128i_i8[0]);
+  AssertEquals('simd_set_epi8 lane7', 7, LValue.m128i_i8[7]);
+  AssertEquals('simd_set_epi8 lane15', 15, LValue.m128i_i8[15]);
+
+  LValue := simd_setr_epi16(10, 20, 30, 40, 50, 60, 70, 80);
+  AssertEquals('simd_setr_epi16 lane0', 10, LValue.m128i_i16[0]);
+  AssertEquals('simd_setr_epi16 lane3', 40, LValue.m128i_i16[3]);
+  AssertEquals('simd_setr_epi16 lane7', 80, LValue.m128i_i16[7]);
+
+  LValue := simd_set_epi16(80, 70, 60, 50, 40, 30, 20, 10);
+  AssertEquals('simd_set_epi16 lane0', 10, LValue.m128i_i16[0]);
+  AssertEquals('simd_set_epi16 lane3', 40, LValue.m128i_i16[3]);
+  AssertEquals('simd_set_epi16 lane7', 80, LValue.m128i_i16[7]);
+
+  LValue := simd_setr_epi64(Int64(111), Int64(222));
+  AssertEquals('simd_setr_epi64 lane0', Int64(111), LValue.m128i_i64[0]);
+  AssertEquals('simd_setr_epi64 lane1', Int64(222), LValue.m128i_i64[1]);
+
+  LValue := simd_set_epi64(Int64(111), Int64(222));
+  AssertEquals('simd_set_epi64 lane0', Int64(222), LValue.m128i_i64[0]);
+  AssertEquals('simd_set_epi64 lane1', Int64(111), LValue.m128i_i64[1]);
+
+  LValue := simd_set_epi64x(Int64(111), Int64(222));
+  AssertEquals('simd_set_epi64x lane0', Int64(222), LValue.m128i_i64[0]);
+  AssertEquals('simd_set_epi64x lane1', Int64(111), LValue.m128i_i64[1]);
+
   LValue := simd_setr_pd(1.25, -2.5);
   AssertEquals('simd_setr_pd lane0', 1.25, LValue.m128d_f64[0], 0.0);
   AssertEquals('simd_setr_pd lane1', -2.5, LValue.m128d_f64[1], 0.0);
