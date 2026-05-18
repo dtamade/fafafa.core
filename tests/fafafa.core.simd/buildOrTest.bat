@@ -51,7 +51,11 @@ if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 
 set "LAZBUILD_EXE=%LAZBUILD%"
 if "%LAZBUILD_EXE%"=="" set "LAZBUILD_EXE=%ProgramFiles%\Lazarus\lazbuild.exe"
-if not exist "%LAZBUILD_EXE%" set "LAZBUILD_EXE=lazbuild"
+set "LAZBUILD_CONFIG_IS_PATH=0"
+if not "%LAZBUILD_EXE:\=%"=="%LAZBUILD_EXE%" set "LAZBUILD_CONFIG_IS_PATH=1"
+if not "%LAZBUILD_EXE:/=%"=="%LAZBUILD_EXE%" set "LAZBUILD_CONFIG_IS_PATH=1"
+if not "%LAZBUILD_EXE::=%"=="%LAZBUILD_EXE%" set "LAZBUILD_CONFIG_IS_PATH=1"
+if "%LAZBUILD_CONFIG_IS_PATH%"=="1" if not exist "%LAZBUILD_EXE%" set "LAZBUILD_EXE=lazbuild"
 
 set "MODE=%FAFAFA_BUILD_MODE%"
 if "%MODE%"=="" set "MODE=Release"
@@ -476,23 +480,12 @@ echo. > "%BUILD_LOG%"
 if not exist "%BIN_DIR%" mkdir "%BIN_DIR%"
 if not exist "%UNIT_DIR%" mkdir "%UNIT_DIR%"
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
-set "LAZBUILD_HAS_PATH=0"
-if not exist "%LAZBUILD_EXE%" (
-  if not "%LAZBUILD_EXE:\=%"=="%LAZBUILD_EXE%" set "LAZBUILD_HAS_PATH=1"
-  if not "%LAZBUILD_EXE:/=%"=="%LAZBUILD_EXE%" set "LAZBUILD_HAS_PATH=1"
-  if not "%LAZBUILD_EXE::=%"=="%LAZBUILD_EXE%" set "LAZBUILD_HAS_PATH=1"
-  if "%LAZBUILD_HAS_PATH%"=="0" (
-    where %LAZBUILD_EXE% >nul 2>nul
-    if errorlevel 1 (
-      >> "%BUILD_LOG%" echo [BUILD] TOOLCHAIN BLOCK: cmd.exe cannot resolve LAZBUILD command "%LAZBUILD_EXE%"
-      >> "%BUILD_LOG%" echo [BUILD] Hint: install native Windows lazbuild.exe or set LAZBUILD to a Windows .exe/.bat/.cmd wrapper visible to cmd.exe
-      if exist "Z:\usr\bin\bash" >> "%BUILD_LOG%" echo [BUILD] Hint: this looks like a Wine run; cmd.exe does not inherit the Unix PATH or execute Linux ELF lazbuild directly
-      if exist "Z:\usr\bin\bash" >> "%BUILD_LOG%" echo [BUILD] Hint: current local Wine probes did not yield a working host-side Unix bridge ^(`where bash` / `start /unix`^); provide native Windows lazbuild.exe or a real Windows wrapper
-      echo [BUILD] FAILED ^(see %BUILD_LOG%^ )
-      type "%BUILD_LOG%"
-      exit /b 1
-    )
-  ) else (
+set "LAZBUILD_IS_PATH=0"
+if not "%LAZBUILD_EXE:\=%"=="%LAZBUILD_EXE%" set "LAZBUILD_IS_PATH=1"
+if not "%LAZBUILD_EXE:/=%"=="%LAZBUILD_EXE%" set "LAZBUILD_IS_PATH=1"
+if not "%LAZBUILD_EXE::=%"=="%LAZBUILD_EXE%" set "LAZBUILD_IS_PATH=1"
+if "%LAZBUILD_IS_PATH%"=="1" (
+  if not exist "%LAZBUILD_EXE%" (
     >> "%BUILD_LOG%" echo [BUILD] TOOLCHAIN BLOCK: configured LAZBUILD path does not exist: %LAZBUILD_EXE%
     >> "%BUILD_LOG%" echo [BUILD] Hint: install native Windows lazbuild.exe or set LAZBUILD to a valid Windows .exe/.bat/.cmd wrapper
     echo [BUILD] FAILED ^(see %BUILD_LOG%^ )
