@@ -1153,6 +1153,7 @@ type
     procedure Test_UnpackWideLaneInterleaving;
     procedure Test_PackSaturationSemantics;
     procedure Test_ShuffleAndCrossTypeCastSemantics;
+    procedure Test_ShuffleImmediateRoutingSemantics;
     procedure Test_InsertExtractEpi16_UseLow3BitsOfImmediate;
   end;
 
@@ -2895,6 +2896,71 @@ begin
   LBits := simd_castpd_ps(LValue);
   AssertM128BytesEqual(Self, 'simd_castpd_ps/simd_castps_pd roundtrip',
     LValue, simd_castps_pd(LBits));
+end;
+
+procedure TTestCase_X86Sse2PackShuffleBasics.Test_ShuffleImmediateRoutingSemantics;
+var
+  LA: TM128;
+  LB: TM128;
+  LShuffled: TM128;
+  LIndex: Integer;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  LA.m128i_i32[0] := 10;
+  LA.m128i_i32[1] := 20;
+  LA.m128i_i32[2] := 30;
+  LA.m128i_i32[3] := 40;
+
+  LShuffled := simd_shuffle_epi32(LA, $55);
+  for LIndex := 0 to 3 do
+    AssertEquals('simd_shuffle_epi32 broadcast lane' + IntToStr(LIndex),
+      20, LShuffled.m128i_i32[LIndex]);
+
+  FillChar(LA, SizeOf(LA), 0);
+  for LIndex := 0 to 7 do
+    LA.m128i_u16[LIndex] := 1 + LIndex;
+
+  LShuffled := simd_shufflelo_epi16(LA, $FF);
+  for LIndex := 0 to 3 do
+    AssertEquals('simd_shufflelo_epi16 broadcast lane' + IntToStr(LIndex),
+      4, LShuffled.m128i_u16[LIndex]);
+  AssertEquals('simd_shufflelo_epi16 keep high lane4', 5, LShuffled.m128i_u16[4]);
+  AssertEquals('simd_shufflelo_epi16 keep high lane7', 8, LShuffled.m128i_u16[7]);
+
+  LShuffled := simd_shufflehi_epi16(LA, $00);
+  AssertEquals('simd_shufflehi_epi16 keep low lane0', 1, LShuffled.m128i_u16[0]);
+  AssertEquals('simd_shufflehi_epi16 keep low lane3', 4, LShuffled.m128i_u16[3]);
+  for LIndex := 4 to 7 do
+    AssertEquals('simd_shufflehi_epi16 broadcast lane' + IntToStr(LIndex),
+      5, LShuffled.m128i_u16[LIndex]);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := 1.5;
+  LA.m128d_f64[1] := 2.5;
+  LB.m128d_f64[0] := 10.5;
+  LB.m128d_f64[1] := 20.5;
+
+  LShuffled := simd_shuffle_pd(LA, LB, $FE);
+  AssertEquals('simd_shuffle_pd ignores high bits lane0', 1.5, LShuffled.m128d_f64[0], 0.0);
+  AssertEquals('simd_shuffle_pd ignores high bits lane1', 20.5, LShuffled.m128d_f64[1], 0.0);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128_f32[0] := 1.0;
+  LA.m128_f32[1] := 2.0;
+  LA.m128_f32[2] := 3.0;
+  LA.m128_f32[3] := 4.0;
+  LB.m128_f32[0] := 5.0;
+  LB.m128_f32[1] := 6.0;
+  LB.m128_f32[2] := 7.0;
+  LB.m128_f32[3] := 8.0;
+
+  LShuffled := simd_shuffle_ps(LA, LB, $1B);
+  AssertEquals('simd_shuffle_ps lane0', 4.0, LShuffled.m128_f32[0], 0.0);
+  AssertEquals('simd_shuffle_ps lane1', 3.0, LShuffled.m128_f32[1], 0.0);
+  AssertEquals('simd_shuffle_ps lane2', 6.0, LShuffled.m128_f32[2], 0.0);
+  AssertEquals('simd_shuffle_ps lane3', 5.0, LShuffled.m128_f32[3], 0.0);
 end;
 
 procedure TTestCase_X86Sse2PackShuffleBasics.Test_InsertExtractEpi16_UseLow3BitsOfImmediate;

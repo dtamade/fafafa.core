@@ -5295,3 +5295,17 @@
 | 1. 复核 partial integer load/store/maskmove coverage 缺口 | completed | 已确认 `simd_move_sd` / `simd_move_epi64` 已有 proof，但 `simd_loadl_epi64`、`simd_storel_epi64`、`simd_maskmoveu_si128` 在 `tests/fafafa.core.simd.intrinsics.experimental/` 中仍完全无覆盖 |
 | 2. 只补 representative proof，不扩实现范围 | completed | `TTestCase_X86Sse2AbiBasics` 已新增 `Test_IntegerPartialLoadStoreMaskMoveSemantics`，直接锁住低 64 位装载/存储与 mask 条件写回语义 |
 | 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已 fresh 通过；这批没有打出新的 source bug，作为 tests-only 缺失 proof 修复收口，不重复跑主 `simd` release `check`，继续沿用上一批 fresh 绿的 release 基线 |
+
+## 2026-05-18 SSE2 Shuffle Immediate Routing Coverage Expansion
+
+### Goal
+
+继续沿 `pack/shuffle` 的便宜 residual 推进，但只切 `shuffle immediate` 这一个小簇：补齐 `simd_shuffle_epi32`、`simd_shufflelo_epi16`、`simd_shufflehi_epi16`、`simd_shuffle_pd`、`simd_shuffle_ps` 的 immediate field routing proof，重点锁住 broadcast、半区保持、以及 `shuffle_pd` 只看低 2 位的合同；若 fresh 运行打红，再把修复限制在对应 `shuffle_*` leaf 周围。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 shuffle immediate coverage 残余 | completed | 已确认 `shuffle` 家族虽然已有 representative proof，但大多只验证一个排列花样；`broadcast` 路由与 `shuffle_pd` 高位忽略合同仍未被单独钉住 |
+| 2. 只补 representative proof，不扩实现范围 | completed | `TTestCase_X86Sse2PackShuffleBasics` 已新增 `Test_ShuffleImmediateRoutingSemantics`，直接覆盖 `epi32/lo16/hi16/pd/ps` 的 immediate bitfield 路由 |
+| 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已 fresh 通过；这批没有打出新的 source bug，作为 tests-only 缺失 proof 修复收口，不重复跑主 `simd` release `check`，继续沿用上一批 fresh 绿的 release 基线 |

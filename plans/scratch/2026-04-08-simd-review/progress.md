@@ -13621,3 +13621,30 @@
   - 这批没有打出新的 source bug，说明 `simd_loadl_epi64`、`simd_storel_epi64`、`simd_maskmoveu_si128` 当前至少通过了第一层 representative contract
   - 当前 `SSE2` 数据搬运 proof 已从“只覆盖 double scalar move / partial double load-store”扩到整数 partial load/store 与 masked byte writeback
   - 这批可以按 tests-only 缺失 proof 修复直接收口提交；下一步继续看更便宜的 `pack/shuffle` 邻近 residual 仍然合理
+
+## 2026-05-18 SSE2 Shuffle Immediate Routing Coverage Expansion
+
+- 当前继续保持 `SSE2` 单簇推进，目标从“有没有 shuffle proof”进一步收紧到“immediate bitfield routing 合同是否被清楚钉住”。
+- 对位现状后确认：
+  - `shuffle/pack/unpack` 家族已经有一层 representative proof
+  - 但 `simd_shuffle_epi32`、`simd_shufflelo_epi16`、`simd_shufflehi_epi16`、`simd_shuffle_pd`、`simd_shuffle_ps` 现在大多只测了一个花样，`broadcast` 路由和 `shuffle_pd` 的“只看低 2 位”合同仍不够直观
+- 本批继续保持 tests-only：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 `Test_ShuffleImmediateRoutingSemantics`
+- 新 proof 计划直接锁住：
+  - `simd_shuffle_epi32`：同一 source lane broadcast 到 4 个目标 lane
+  - `simd_shufflelo_epi16` / `simd_shufflehi_epi16`：只改各自半区，另一半保持不变
+  - `simd_shuffle_pd`：高位噪声被忽略，只看低 2 位
+  - `simd_shuffle_ps`：`a/a/b/b` 四个 2-bit field 的独立路由
+- 本批预期 closeout 方式继续保持：
+  - `git diff --check`
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- fresh 结果：
+  - `git diff --check`：通过
+  - experimental=`0`：`[TEST] OK`、`[LEAK] OK`
+  - experimental=`1`：`[TEST] OK`、`[LEAK] OK`
+- 当前阶段结论：
+  - 这批没有打出新的 source bug，说明当前 `shuffle_*` 这组 leaf 至少通过了 immediate routing 这一层 representative contract
+  - `pack/shuffle` proof 现在已经不只是“有一个排列例子”，而是补到了 broadcast、半区保持、`a/a/b/b` field 路由，以及 `shuffle_pd` 高位忽略这几类更清晰的合同
+  - 这批可以继续按 tests-only 缺失 proof 修复收口提交；如果继续往下推进，下一步更自然的是再找一个同样便宜的 residual，而不是重开大范围 source 审查
