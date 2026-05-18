@@ -1131,6 +1131,7 @@ type
     procedure Test_PartialLaneLoadStoreMoveSemantics;
     procedure Test_ConversionFamilies_PreserveExpectedLanes;
     procedure Test_CompareAndMovemaskSemantics;
+    procedure Test_ComiAndUcomiScalarFlagSemantics;
     procedure Test_SignedAndUnsignedSaturatingArithmeticSemantics;
     procedure Test_UnsignedMinMaxAvgSadSemantics;
     procedure Test_SlliEpi16_ShiftCounts;
@@ -1617,6 +1618,92 @@ begin
   LActual := simd_cmpunord_sd(LA, LB);
   AssertEquals('simd_cmpunord_sd low lane unordered true', Int64(-1), LActual.m128i_i64[0]);
   AssertEquals('simd_cmpunord_sd keep high lane after nan', Int64(LA.m128i_i64[1]), Int64(LActual.m128i_i64[1]));
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_ComiAndUcomiScalarFlagSemantics;
+var
+  LA: TM128;
+  LB: TM128;
+  LNaN: Double;
+begin
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+
+  LA.m128d_f64[0] := 5.0;
+  LB.m128d_f64[0] := 5.0;
+  AssertEquals('simd_comieq_sd eq', 1, simd_comieq_sd(LA, LB));
+  AssertEquals('simd_comilt_sd eq', 0, simd_comilt_sd(LA, LB));
+  AssertEquals('simd_comile_sd eq', 1, simd_comile_sd(LA, LB));
+  AssertEquals('simd_comigt_sd eq', 0, simd_comigt_sd(LA, LB));
+  AssertEquals('simd_comige_sd eq', 1, simd_comige_sd(LA, LB));
+  AssertEquals('simd_comineq_sd eq', 0, simd_comineq_sd(LA, LB));
+  AssertEquals('simd_ucomieq_sd eq', 1, simd_ucomieq_sd(LA, LB));
+  AssertEquals('simd_ucomilt_sd eq', 0, simd_ucomilt_sd(LA, LB));
+  AssertEquals('simd_ucomile_sd eq', 1, simd_ucomile_sd(LA, LB));
+  AssertEquals('simd_ucomigt_sd eq', 0, simd_ucomigt_sd(LA, LB));
+  AssertEquals('simd_ucomige_sd eq', 1, simd_ucomige_sd(LA, LB));
+  AssertEquals('simd_ucomineq_sd eq', 0, simd_ucomineq_sd(LA, LB));
+
+  LA.m128d_f64[0] := 4.0;
+  LB.m128d_f64[0] := 5.0;
+  AssertEquals('simd_comieq_sd lt', 0, simd_comieq_sd(LA, LB));
+  AssertEquals('simd_comilt_sd lt', 1, simd_comilt_sd(LA, LB));
+  AssertEquals('simd_comile_sd lt', 1, simd_comile_sd(LA, LB));
+  AssertEquals('simd_comigt_sd lt', 0, simd_comigt_sd(LA, LB));
+  AssertEquals('simd_comige_sd lt', 0, simd_comige_sd(LA, LB));
+  AssertEquals('simd_comineq_sd lt', 1, simd_comineq_sd(LA, LB));
+  AssertEquals('simd_ucomieq_sd lt', 0, simd_ucomieq_sd(LA, LB));
+  AssertEquals('simd_ucomilt_sd lt', 1, simd_ucomilt_sd(LA, LB));
+  AssertEquals('simd_ucomile_sd lt', 1, simd_ucomile_sd(LA, LB));
+  AssertEquals('simd_ucomigt_sd lt', 0, simd_ucomigt_sd(LA, LB));
+  AssertEquals('simd_ucomige_sd lt', 0, simd_ucomige_sd(LA, LB));
+  AssertEquals('simd_ucomineq_sd lt', 1, simd_ucomineq_sd(LA, LB));
+
+  LA.m128d_f64[0] := 6.0;
+  LB.m128d_f64[0] := 5.0;
+  AssertEquals('simd_comieq_sd gt', 0, simd_comieq_sd(LA, LB));
+  AssertEquals('simd_comilt_sd gt', 0, simd_comilt_sd(LA, LB));
+  AssertEquals('simd_comile_sd gt', 0, simd_comile_sd(LA, LB));
+  AssertEquals('simd_comigt_sd gt', 1, simd_comigt_sd(LA, LB));
+  AssertEquals('simd_comige_sd gt', 1, simd_comige_sd(LA, LB));
+  AssertEquals('simd_comineq_sd gt', 1, simd_comineq_sd(LA, LB));
+  AssertEquals('simd_ucomieq_sd gt', 0, simd_ucomieq_sd(LA, LB));
+  AssertEquals('simd_ucomilt_sd gt', 0, simd_ucomilt_sd(LA, LB));
+  AssertEquals('simd_ucomile_sd gt', 0, simd_ucomile_sd(LA, LB));
+  AssertEquals('simd_ucomigt_sd gt', 1, simd_ucomigt_sd(LA, LB));
+  AssertEquals('simd_ucomige_sd gt', 1, simd_ucomige_sd(LA, LB));
+  AssertEquals('simd_ucomineq_sd gt', 1, simd_ucomineq_sd(LA, LB));
+
+  LNaN := NaN;
+  LA.m128d_f64[0] := LNaN;
+  LB.m128d_f64[0] := 5.0;
+  AssertEquals('simd_comieq_sd nan', 0, simd_comieq_sd(LA, LB));
+  AssertEquals('simd_comilt_sd nan', 0, simd_comilt_sd(LA, LB));
+  AssertEquals('simd_comile_sd nan', 0, simd_comile_sd(LA, LB));
+  AssertEquals('simd_comigt_sd nan', 0, simd_comigt_sd(LA, LB));
+  AssertEquals('simd_comige_sd nan', 0, simd_comige_sd(LA, LB));
+  AssertEquals('simd_comineq_sd nan', 1, simd_comineq_sd(LA, LB));
+  AssertEquals('simd_ucomieq_sd nan', 0, simd_ucomieq_sd(LA, LB));
+  AssertEquals('simd_ucomilt_sd nan', 0, simd_ucomilt_sd(LA, LB));
+  AssertEquals('simd_ucomile_sd nan', 0, simd_ucomile_sd(LA, LB));
+  AssertEquals('simd_ucomigt_sd nan', 0, simd_ucomigt_sd(LA, LB));
+  AssertEquals('simd_ucomige_sd nan', 0, simd_ucomige_sd(LA, LB));
+  AssertEquals('simd_ucomineq_sd nan', 1, simd_ucomineq_sd(LA, LB));
+
+  LA.m128d_f64[0] := 5.0;
+  LB.m128d_f64[0] := LNaN;
+  AssertEquals('simd_comieq_sd nan rhs', 0, simd_comieq_sd(LA, LB));
+  AssertEquals('simd_comilt_sd nan rhs', 0, simd_comilt_sd(LA, LB));
+  AssertEquals('simd_comile_sd nan rhs', 0, simd_comile_sd(LA, LB));
+  AssertEquals('simd_comigt_sd nan rhs', 0, simd_comigt_sd(LA, LB));
+  AssertEquals('simd_comige_sd nan rhs', 0, simd_comige_sd(LA, LB));
+  AssertEquals('simd_comineq_sd nan rhs', 1, simd_comineq_sd(LA, LB));
+  AssertEquals('simd_ucomieq_sd nan rhs', 0, simd_ucomieq_sd(LA, LB));
+  AssertEquals('simd_ucomilt_sd nan rhs', 0, simd_ucomilt_sd(LA, LB));
+  AssertEquals('simd_ucomile_sd nan rhs', 0, simd_ucomile_sd(LA, LB));
+  AssertEquals('simd_ucomigt_sd nan rhs', 0, simd_ucomigt_sd(LA, LB));
+  AssertEquals('simd_ucomige_sd nan rhs', 0, simd_ucomige_sd(LA, LB));
+  AssertEquals('simd_ucomineq_sd nan rhs', 1, simd_ucomineq_sd(LA, LB));
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_SignedAndUnsignedSaturatingArithmeticSemantics;

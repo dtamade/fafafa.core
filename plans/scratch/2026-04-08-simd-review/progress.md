@@ -13145,3 +13145,66 @@
   - 如果继续沿这条路推进，下一步最自然的是：
     - `comi/ucomi` flag-result family
     - 或少量剩余的 `pack/compare` 邻近 raw leaf 做 `retire baseline` 复核
+
+## 2026-05-18 SSE2 Comi Ucomi Scalar Flag Semantic Repair
+
+- 这批继续保持 bounded，没有把 compare 话题重新扩成 wider `simd.sse2` 或 runtime surface，而是只盯住 `comi/ucomi` 这 12 个 raw leaf。
+- 在写 proof 之前，先用本机 `cc -msse2` 跑了一个最小 C 程序取 host truth，避免对 `NaN` 语义拍脑袋：
+  - `eq` case：`eq/le/ge = 1`
+  - `lt` case：`lt/le/ne = 1`
+  - `gt` case：`gt/ge/ne = 1`
+  - `NaN` case：ordered/unordered 两套结果都应是“只有 `ne = 1`，其余全 0”
+- 本批先只改测试文件补 proof：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 `Test_ComiAndUcomiScalarFlagSemantics`
+- fresh 红点不是普通断言失败，而是更真实的 source defect：
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 首次失败：
+    - `TTestCase_X86Sse2AbiBasics.Test_ComiAndUcomiScalarFlagSemantics`
+    - `Exception: EInvalidOp`
+  - 也就是当前 `simd_comi*_sd` 在 `NaN` case 直接把异常抛出来了，根本没有给出 C-style intrinsic 结果
+- source 对位后确认真因集中在一处：
+  - `src/fafafa.core.simd.intrinsics.x86.sse2.pas`
+    - `simd_comieq_sd`
+    - `simd_comilt_sd`
+    - `simd_comile_sd`
+    - `simd_comigt_sd`
+    - `simd_comige_sd`
+    - `simd_comineq_sd`
+    - `simd_ucomieq_sd`
+    - `simd_ucomilt_sd`
+    - `simd_ucomile_sd`
+    - `simd_ucomigt_sd`
+    - `simd_ucomige_sd`
+    - `simd_ucomineq_sd`
+  - 旧实现只是 `comisd/ucomisd + setcc` 的直译：
+    - 没有处理 compiler 会额外补的 unordered branch
+    - `comisd` 的 `NaN` 路径会在这里暴露成 `EInvalidOp`
+- 本批修复方式也保持最小：
+  - 在同一文件引入 `EvaluateScalarCompareSd`
+  - 把上述 12 个 leaf 全部收成这一个 exception-free Pascal helper
+  - 现在 `comi*` 和 `ucomi*` 在这个 experimental raw surface 上共享同一套布尔结果合同，不再暴露 NaN 异常
+- 本批 fresh 验证：
+  - `git diff --check`
+  - `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- 关键结果：
+  - 首轮 `experimental=1`：真实红点 `EInvalidOp`
+  - 修复后 experimental=`1`：`[TEST] OK`
+  - 修复后 experimental=`0`：`[TEST] OK`
+  - 修复后 Release `check`：退出码 `0`
+- 当前阶段结论：
+  - 这批已经不只是补 `SSE2 compare` 证明面，而是借 proof 抓出并修掉了一簇真实的 `comi/ucomi` scalar flag semantic defect
+  - 到这一刻为止，`SSE2 raw-leaf qualification` 的代表性 proof 已经进一步覆盖到：
+    - bitwise / lane-order / float arithmetic
+    - shuffle / insert-extract immediate
+    - integer shift immediate
+    - partial-lane load/store/move
+    - conversion preserve/zero
+    - compare / movemask / ordered-unordered scalar preserve
+    - saturation / unsigned minmax / avg / sad
+    - `comi/ucomi` scalar flag results
+  - 如果继续沿这条路推进，下一步更自然的是：
+    - 回到 `retire baseline` 看 compare 邻近还剩哪些未覆盖 raw leaf
+    - 或继续补少量 `pack/compare` 邻近 residual proof，而不是重新扩成 whole-module 扫描

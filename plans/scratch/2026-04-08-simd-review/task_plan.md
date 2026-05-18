@@ -5155,3 +5155,17 @@
 | 1. 复核当前 `saturation/minmax/avg/sad` coverage 缺口 | completed | 已确认 `tests/fafafa.core.simd.intrinsics.experimental/` 在补完 compare/movemask 后，`adds/subs_epi8/epi16`、`adds/subs_epu8/epu16`、`max/min_epu8`、`avg_epu8/epu16`、`sad_epu8` 仍没有任何 representative raw semantic proof |
 | 2. 只补 representative proof，不先碰 source | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `SaturateI32ToU16`、`Test_SignedAndUnsignedSaturatingArithmeticSemantics`、`Test_UnsignedMinMaxAvgSadSemantics`；直接覆盖 signed/unsigned 饱和边界、unsigned min/max 选择、round-up average 与 `sad_epu8` 的双 qword 累积合同 |
 | 3. 跑完 experimental lane 双配置与主线 release check | completed | `git diff --check`、experimental=`0/1` 两套 `BuildOrTest.sh test`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 全部 fresh 通过；这批没有打出新的 source bug，但把 `SSE2` 整数饱和/规约家族从“几乎无证据”推进到了“至少有一层 representative contract” |
+
+## 2026-05-18 SSE2 Comi Ucomi Scalar Flag Semantic Repair
+
+### Goal
+
+继续沿 `SSE2 raw-leaf qualification` 小批次推进，补上 compare family 里剩下的 `comi/ucomi` scalar flag-result proof；如果 NaN case 暴露出异常或无序分支缺失，就把修复收敛在 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 这 12 个 raw leaf 上，不扩到别的 compare surface。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `comi/ucomi` coverage 缺口并先取 host truth | completed | 已确认 `tests/fafafa.core.simd.intrinsics.experimental/` 还没有任何 `simd_comi*_sd / simd_ucomi*_sd` representative proof；先用本机 `cc -msse2` 最小程序取真值，确认 `eq/lt/gt` 正常分支与 `NaN` 分支都应是“仅 not-equal 返回 1，其余返回 0” |
+| 2. 新增 representative proof 并根据 fresh 红点修正 source | completed | `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas` 已新增 `Test_ComiAndUcomiScalarFlagSemantics`；首次 fresh 运行直接在 `NaN` case 打出 `EInvalidOp`。对位 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 后确认原实现只是 `comisd/ucomisd + setcc` 直译，既没处理 unordered 分支，也把 `comisd` NaN 路径暴露成异常。现已引入 `EvaluateScalarCompareSd`，把 12 个 `comi/ucomi` leaf 收成同一套 exception-free Pascal 布尔语义实现 |
+| 3. 重跑 experimental lane 双配置与主线 release check | completed | `git diff --check`、experimental=`0/1` 两套 `BuildOrTest.sh test`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 全部 fresh 通过；这批不只是补 proof，而是借 proof 抓出并修掉了一簇真实的 scalar compare flag 语义缺陷 |
