@@ -5337,3 +5337,17 @@
 | 1. 复核 conversion residual coverage 缺口 | completed | 已确认基础 lane-preserve conversion proof 已有，但 `round vs trunc` 这一簇仍没有 representative proof |
 | 2. 只补 representative proof，不扩实现范围 | completed | `TTestCase_X86Sse2AbiBasics` 已新增 `Test_RoundAndTruncConversionSemantics`，直接覆盖 packed/scalar round-trunc 差异与 result lane shape |
 | 3. 串行复验 bounded closeout，不重开 source 修复 | completed | `git diff --check`、串行 experimental=`0`、串行 experimental=`1` 已 fresh 通过；这批没有打出新的 source bug，作为 tests-only 缺失 proof 修复收口，不重复跑主 `simd` release `check`，继续沿用上一批 fresh 绿的 release 基线 |
+
+## 2026-05-18 SSE2 Conversion Indefinite Boundary Qualification
+
+### Goal
+
+继续沿 conversion 这一簇推进，但这次直接切 `NaN/overflow -> indefinite` 边界：`simd_cvtps_epi32`、`simd_cvtpd_epi32`、`simd_cvttps_epi32`、`simd_cvttpd_epi32`、`simd_cvtsd_si32/si64`、`simd_cvttsd_si32/si64`。先用本机 probe 取 host truth，再补 representative proof，判断当前 raw leaf 会不会把 `EInvalidOp` 直接暴露出来；若 fresh 运行打红，再把修复限制在这组 leaf 周围。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 先取 host truth 并复核 indefinite coverage 缺口 | completed | 已用本机 `cc -msse2` 最小 probe 确认 packed/scalar conversion 在 `NaN/overflow` 下的 indefinite 返回值与 lane shape |
+| 2. 新增 representative proof，观察 fresh 红点 | completed | `TTestCase_X86Sse2AbiBasics` 已新增 `Test_ConversionIndefiniteSemantics`；首次 fresh `experimental=1` 运行直接打出 `EInvalidOp`，确认异常路径会泄露 raw SSE conversion fault |
+| 3. 串行复验并按结果决定是否修 source | completed | 已把修复限制在 `simd_cvtps/cvtpd/cvttps/cvttpd *_epi32` 与 `simd_cvtsd/cvttsd -> si32/si64` 这 8 个 leaf；修复后 `git diff --check`、串行 experimental=`0`、串行 experimental=`1`、以及 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 全部 fresh 通过 |

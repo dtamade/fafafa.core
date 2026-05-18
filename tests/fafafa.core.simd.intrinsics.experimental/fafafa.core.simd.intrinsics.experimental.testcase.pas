@@ -1136,6 +1136,7 @@ type
     procedure Test_IntegerPartialLoadStoreMaskMoveSemantics;
     procedure Test_ConversionFamilies_PreserveExpectedLanes;
     procedure Test_RoundAndTruncConversionSemantics;
+    procedure Test_ConversionIndefiniteSemantics;
     procedure Test_IntegerCompareFamilies_SignedAndEqualitySemantics;
     procedure Test_CompareAndMovemaskSemantics;
     procedure Test_ComiAndUcomiScalarFlagSemantics;
@@ -1950,6 +1951,67 @@ begin
   AssertEquals('simd_cvttsd_si32 truncates negative', -12345, simd_cvttsd_si32(LDoubles));
   AssertEquals('simd_cvtsd_si64 rounds negative', Int64(-12346), simd_cvtsd_si64(LDoubles));
   AssertEquals('simd_cvttsd_si64 truncates negative', Int64(-12345), simd_cvttsd_si64(LDoubles));
+end;
+
+procedure TTestCase_X86Sse2AbiBasics.Test_ConversionIndefiniteSemantics;
+var
+  LFloats: TM128;
+  LDoubles: TM128;
+  LActual: TM128;
+  LOverflow64: Double;
+begin
+  FillChar(LFloats, SizeOf(LFloats), 0);
+  LFloats.m128i_u32[0] := DWord($7FC00000);
+  LFloats.m128_f32[1] := Infinity;
+  LFloats.m128_f32[2] := 1.9;
+  LFloats.m128_f32[3] := -1.9;
+
+  LActual := simd_cvtps_epi32(LFloats);
+  AssertEquals('simd_cvtps_epi32 nan -> indefinite', LongInt($80000000), LActual.m128i_i32[0]);
+  AssertEquals('simd_cvtps_epi32 overflow -> indefinite', LongInt($80000000), LActual.m128i_i32[1]);
+  AssertEquals('simd_cvtps_epi32 finite lane2 rounds', 2, LActual.m128i_i32[2]);
+  AssertEquals('simd_cvtps_epi32 finite lane3 rounds', -2, LActual.m128i_i32[3]);
+
+  LActual := simd_cvttps_epi32(LFloats);
+  AssertEquals('simd_cvttps_epi32 nan -> indefinite', LongInt($80000000), LActual.m128i_i32[0]);
+  AssertEquals('simd_cvttps_epi32 overflow -> indefinite', LongInt($80000000), LActual.m128i_i32[1]);
+  AssertEquals('simd_cvttps_epi32 finite lane2 truncates', 1, LActual.m128i_i32[2]);
+  AssertEquals('simd_cvttps_epi32 finite lane3 truncates', -1, LActual.m128i_i32[3]);
+
+  FillChar(LDoubles, SizeOf(LDoubles), 0);
+  LDoubles.m128d_f64[0] := NaN;
+  LDoubles.m128d_f64[1] := Infinity;
+
+  LActual := simd_cvtpd_epi32(LDoubles);
+  AssertEquals('simd_cvtpd_epi32 nan -> indefinite', LongInt($80000000), LActual.m128i_i32[0]);
+  AssertEquals('simd_cvtpd_epi32 overflow -> indefinite', LongInt($80000000), LActual.m128i_i32[1]);
+  AssertEquals('simd_cvtpd_epi32 zero lane2', 0, LActual.m128i_i32[2]);
+  AssertEquals('simd_cvtpd_epi32 zero lane3', 0, LActual.m128i_i32[3]);
+
+  LActual := simd_cvttpd_epi32(LDoubles);
+  AssertEquals('simd_cvttpd_epi32 nan -> indefinite', LongInt($80000000), LActual.m128i_i32[0]);
+  AssertEquals('simd_cvttpd_epi32 overflow -> indefinite', LongInt($80000000), LActual.m128i_i32[1]);
+  AssertEquals('simd_cvttpd_epi32 zero lane2', 0, LActual.m128i_i32[2]);
+  AssertEquals('simd_cvttpd_epi32 zero lane3', 0, LActual.m128i_i32[3]);
+
+  LOverflow64 := ldexp(1.0, 63);
+
+  FillChar(LDoubles, SizeOf(LDoubles), 0);
+  LDoubles.m128d_f64[0] := NaN;
+  AssertEquals('simd_cvtsd_si32 nan -> indefinite', LongInt($80000000), simd_cvtsd_si32(LDoubles));
+  AssertEquals('simd_cvttsd_si32 nan -> indefinite', LongInt($80000000), simd_cvttsd_si32(LDoubles));
+  AssertEquals('simd_cvtsd_si64 nan -> indefinite',
+    Int64(QWord($8000000000000000)), simd_cvtsd_si64(LDoubles));
+  AssertEquals('simd_cvttsd_si64 nan -> indefinite',
+    Int64(QWord($8000000000000000)), simd_cvttsd_si64(LDoubles));
+
+  LDoubles.m128d_f64[0] := LOverflow64;
+  AssertEquals('simd_cvtsd_si32 overflow -> indefinite', LongInt($80000000), simd_cvtsd_si32(LDoubles));
+  AssertEquals('simd_cvttsd_si32 overflow -> indefinite', LongInt($80000000), simd_cvttsd_si32(LDoubles));
+  AssertEquals('simd_cvtsd_si64 overflow -> indefinite',
+    Int64(QWord($8000000000000000)), simd_cvtsd_si64(LDoubles));
+  AssertEquals('simd_cvttsd_si64 overflow -> indefinite',
+    Int64(QWord($8000000000000000)), simd_cvttsd_si64(LDoubles));
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_IntegerCompareFamilies_SignedAndEqualitySemantics;

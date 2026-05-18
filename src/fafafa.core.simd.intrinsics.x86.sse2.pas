@@ -2911,6 +2911,92 @@ end;
 	{$ENDIF}
 	end;
 
+function ConvertSingleToInt32Nearest(const aValue: Single): LongInt; inline;
+begin
+  if IsNan(aValue) or IsInfinite(aValue) or
+     (aValue < -2147483648.5) or (aValue >= 2147483647.5) then
+    Exit(LongInt($80000000));
+
+  Result := LongInt(Round(aValue));
+end;
+
+function ConvertSingleToInt32Trunc(const aValue: Single): LongInt; inline;
+begin
+  if IsNan(aValue) or IsInfinite(aValue) or
+     (aValue <= -2147483649.0) or (aValue >= 2147483648.0) then
+    Exit(LongInt($80000000));
+
+  Result := LongInt(Trunc(aValue));
+end;
+
+function ConvertDoubleToInt32Nearest(const aValue: Double): LongInt; inline;
+begin
+  if IsNan(aValue) or IsInfinite(aValue) or
+     (aValue < -2147483648.5) or (aValue >= 2147483647.5) then
+    Exit(LongInt($80000000));
+
+  Result := LongInt(Round(aValue));
+end;
+
+function ConvertDoubleToInt32Trunc(const aValue: Double): LongInt; inline;
+begin
+  if IsNan(aValue) or IsInfinite(aValue) or
+     (aValue <= -2147483649.0) or (aValue >= 2147483648.0) then
+    Exit(LongInt($80000000));
+
+  Result := LongInt(Trunc(aValue));
+end;
+
+function ConvertDoubleToInt64Nearest(const aValue: Double): Int64; inline;
+begin
+  if IsNan(aValue) or IsInfinite(aValue) or
+     (aValue < -9223372036854775808.0) or (aValue >= 9223372036854775808.0) then
+    Exit(Int64(QWord($8000000000000000)));
+
+  Result := Round(aValue);
+end;
+
+function ConvertDoubleToInt64Trunc(const aValue: Double): Int64; inline;
+begin
+  if IsNan(aValue) or IsInfinite(aValue) or
+     (aValue < -9223372036854775808.0) or (aValue >= 9223372036854775808.0) then
+    Exit(Int64(QWord($8000000000000000)));
+
+  Result := Trunc(aValue);
+end;
+
+function BuildPackedSingleToInt32Nearest(constref a: TM128): TM128; inline;
+var
+  LLane: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  for LLane := 0 to 3 do
+    Result.m128i_i32[LLane] := ConvertSingleToInt32Nearest(a.m128_f32[LLane]);
+end;
+
+function BuildPackedSingleToInt32Trunc(constref a: TM128): TM128; inline;
+var
+  LLane: Integer;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  for LLane := 0 to 3 do
+    Result.m128i_i32[LLane] := ConvertSingleToInt32Trunc(a.m128_f32[LLane]);
+end;
+
+function BuildPackedDoubleToInt32Nearest(constref a: TM128): TM128; inline;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  Result.m128i_i32[0] := ConvertDoubleToInt32Nearest(a.m128d_f64[0]);
+  Result.m128i_i32[1] := ConvertDoubleToInt32Nearest(a.m128d_f64[1]);
+end;
+
+function BuildPackedDoubleToInt32Trunc(constref a: TM128): TM128; inline;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  Result.m128i_i32[0] := ConvertDoubleToInt32Trunc(a.m128d_f64[0]);
+  Result.m128i_i32[1] := ConvertDoubleToInt32Trunc(a.m128d_f64[1]);
+end;
+
 // === 9️⃣ Conversion / Cast 实现 ===
 function simd_cvtepi32_pd(constref a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
 {$ENDIF}
@@ -2938,30 +3024,9 @@ asm
 {$ENDIF}
 end;
 
-function simd_cvtpd_epi32(constref a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]    // 加载 a
-    cvtpd2dq xmm0, xmm0   // Convert doubles to 32-bit integers using the current rounding mode.
-    {$ELSE}
-    movupd xmm0, [rdi]
-    cvtpd2dq xmm0, xmm0
-  {$ENDIF}
-{$ELSEIF CPUX86}
-    mov eax, [esp + 4]    // a
-    movupd xmm0, [eax]
-    cvtpd2dq xmm0, xmm0
-{$ELSE}
-    {$ERROR Unsupported CPU}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_cvtpd_epi32(constref a: TM128): TM128;
+begin
+  Result := BuildPackedDoubleToInt32Nearest(a);
 end;
 
 function simd_cvtepi32_ps(constref a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
@@ -2990,30 +3055,9 @@ asm
 {$ENDIF}
 end;
 
-function simd_cvtps_epi32(constref a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]    // 加载 a
-    cvtps2dq xmm0, xmm0   // Convert singles to 32-bit integers using the current rounding mode.
-    {$ELSE}
-    movups xmm0, [rdi]
-    cvtps2dq xmm0, xmm0
-  {$ENDIF}
-{$ELSEIF CPUX86}
-    mov eax, [esp + 4]    // a
-    movups xmm0, [eax]
-    cvtps2dq xmm0, xmm0
-{$ELSE}
-    {$ERROR Unsupported CPU}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_cvtps_epi32(constref a: TM128): TM128;
+begin
+  Result := BuildPackedSingleToInt32Nearest(a);
 end;
 
 function simd_cvtsi32_si128(a: Integer): TM128; {$IFDEF FPC}assembler; nostackframe;
@@ -3155,56 +3199,14 @@ asm
 end;
 
 // === 截断转换函数 ===
-function simd_cvttps_epi32(constref a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]    // 加载 a
-    cvttps2dq xmm0, xmm0  // Convert singles to 32-bit integers using truncation.
-    {$ELSE}
-    movups xmm0, [rdi]
-    cvttps2dq xmm0, xmm0
-  {$ENDIF}
-{$ELSEIF CPUX86}
-    mov eax, [esp + 4]    // a
-    movups xmm0, [eax]
-    cvttps2dq xmm0, xmm0
-{$ELSE}
-    {$ERROR Unsupported CPU}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_cvttps_epi32(constref a: TM128): TM128;
+begin
+  Result := BuildPackedSingleToInt32Trunc(a);
 end;
 
-function simd_cvttpd_epi32(constref a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]    // 加载 a
-    cvttpd2dq xmm0, xmm0  // Convert doubles to 32-bit integers using truncation.
-    {$ELSE}
-    movupd xmm0, [rdi]
-    cvttpd2dq xmm0, xmm0
-  {$ENDIF}
-{$ELSEIF CPUX86}
-    mov eax, [esp + 4]    // a
-    movupd xmm0, [eax]
-    cvttpd2dq xmm0, xmm0
-{$ELSE}
-    {$ERROR Unsupported CPU}
-{$ENDIF}
-{$IFDEF CPUX86_64}
-  movq rax, xmm0
-  movdqa xmm1, xmm0
-  psrldq xmm1, 8
-  movq rdx, xmm1
-{$ENDIF}
+function simd_cvttpd_epi32(constref a: TM128): TM128;
+begin
+  Result := BuildPackedDoubleToInt32Trunc(a);
 end;
 
 // 重复的转换和 Cast 函数实现已删除，保留汇编版本
@@ -4975,68 +4977,24 @@ asm
 {$ENDIF}
 end;
 
-function simd_cvtsd_si32(constref a: TM128): Integer; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]; cvtsd2si eax, xmm0  // Convert scalar double to 32-bit integer
-    {$ELSE}
-    movsd xmm0, [rdi]; cvtsd2si eax, xmm0
-  {$ENDIF}
-{$ELSEIF CPUX86}
-    mov edx, [esp + 4]; movsd xmm0, [edx]; cvtsd2si eax, xmm0
-{$ELSE}
-    {$ERROR Unsupported CPU}
-{$ENDIF}
+function simd_cvtsd_si32(constref a: TM128): Integer;
+begin
+  Result := ConvertDoubleToInt32Nearest(a.m128d_f64[0]);
 end;
 
-function simd_cvtsd_si64(constref a: TM128): Int64; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]; cvtsd2si rax, xmm0  // Convert scalar double to 64-bit integer
-    {$ELSE}
-    movsd xmm0, [rdi]; cvtsd2si rax, xmm0
-  {$ENDIF}
-{$ELSEIF CPUX86}
-    mov edx, [esp + 4]; movsd xmm0, [edx]; cvtsd2si eax, xmm0; mov [esp + 8], eax; xor eax, eax; mov [esp + 12], eax
-{$ELSE}
-    {$ERROR Unsupported CPU}
-{$ENDIF}
+function simd_cvtsd_si64(constref a: TM128): Int64;
+begin
+  Result := ConvertDoubleToInt64Nearest(a.m128d_f64[0]);
 end;
 
-function simd_cvttsd_si32(constref a: TM128): Integer; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]; cvttsd2si eax, xmm0  // Truncate scalar double to 32-bit integer
-    {$ELSE}
-    movsd xmm0, [rdi]; cvttsd2si eax, xmm0
-  {$ENDIF}
-{$ELSEIF CPUX86}
-    mov edx, [esp + 4]; movsd xmm0, [edx]; cvttsd2si eax, xmm0
-{$ELSE}
-    {$ERROR Unsupported CPU}
-{$ENDIF}
+function simd_cvttsd_si32(constref a: TM128): Integer;
+begin
+  Result := ConvertDoubleToInt32Trunc(a.m128d_f64[0]);
 end;
 
-function simd_cvttsd_si64(constref a: TM128): Int64; {$IFDEF FPC}assembler; nostackframe;
-{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]; cvttsd2si rax, xmm0  // Truncate scalar double to 64-bit integer
-    {$ELSE}
-    movsd xmm0, [rdi]; cvttsd2si rax, xmm0
-  {$ENDIF}
-{$ELSEIF CPUX86}
-    mov edx, [esp + 4]; movsd xmm0, [edx]; cvttsd2si eax, xmm0; mov [esp + 8], eax; xor eax, eax; mov [esp + 12], eax
-{$ELSE}
-    {$ERROR Unsupported CPU}
-{$ENDIF}
+function simd_cvttsd_si64(constref a: TM128): Int64;
+begin
+  Result := ConvertDoubleToInt64Trunc(a.m128d_f64[0]);
 end;
 
 function simd_cvtsi32_sd(constref a: TM128; b: Integer): TM128; {$IFDEF FPC}assembler; nostackframe;

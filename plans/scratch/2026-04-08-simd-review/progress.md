@@ -13708,3 +13708,53 @@
   - 这批没有打出新的 source bug，说明 `cvtps/cvtpd/cvtsd` 这一组 finite、in-range 下的 `round vs trunc` 基础合同当前是成立的
   - `conversion` proof 现在已经从基础 lane-preserve 扩到 packed/scalar round-trunc 差异与结果 lane shape
   - 如果继续推进，这一簇下一层更有信号的 residual 就会是 `NaN/overflow/indefinite` 路径；但那会明显比当前 tests-only 批次更容易引发 source 修复或 host-truth 对位
+
+## 2026-05-18 SSE2 Conversion Indefinite Boundary Qualification
+
+- 当前继续沿 conversion 线往前切，但这次不再只是 finite、in-range 绿批次，而是直接对位 `NaN/overflow -> indefinite` 这一层高信号边界。
+- 先用本机 `cc -msse2` 最小 probe 取到了 host truth：
+  - `cvtps_epi32/cvttps_epi32` 的 `NaN/overflow` lane 都返回 `0x80000000`
+  - `cvtpd_epi32/cvttpd_epi32` 的低两个 `i32` lane 在 `NaN/overflow` 下也都返回 `0x80000000`，高两个 `i32` lane 保持 `0`
+  - `cvtsd/cvttsd -> si32` 的 `NaN/overflow` 返回 `0x80000000`
+  - `cvtsd/cvttsd -> si64` 的 `NaN/overflow` 返回 `0x8000000000000000`
+- 本批继续保持 proof-first：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 新增 `Test_ConversionIndefiniteSemantics`
+- 新 proof 直接锁住：
+  - packed single / packed double 转 `epi32` 的 indefinite lane 值
+  - packed double 转 `epi32` 的高 lane shape
+  - scalar double 转 `si32/si64` 的 indefinite 值
+- 当前预期 closeout 方式仍保持：
+  - `git diff --check`
+  - 串行 `bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+  - 串行 `FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash tests/fafafa.core.simd.intrinsics.experimental/BuildOrTest.sh test`
+- 首轮 fresh 红点是真问题，不是断言误差：
+  - experimental=`0`：`[TEST] OK`
+  - experimental=`1`：`TTestCase_X86Sse2AbiBasics.Test_ConversionIndefiniteSemantics -> EInvalidOp`
+  - 结论：当前 raw conversion leaf 在 `NaN/overflow` 路径上，确实会把 `EInvalidOp` 直接暴露给调用侧
+- 对位 `src/fafafa.core.simd.intrinsics.x86.sse2.pas` 后，修复收敛在 conversion 这 8 个 leaf：
+  - `simd_cvtps_epi32`
+  - `simd_cvtpd_epi32`
+  - `simd_cvttps_epi32`
+  - `simd_cvttpd_epi32`
+  - `simd_cvtsd_si32`
+  - `simd_cvtsd_si64`
+  - `simd_cvttsd_si32`
+  - `simd_cvttsd_si64`
+- 本批 source 修复方式继续沿用前面已验证过的 bounded 模式：
+  - 引入 exception-free Pascal conversion helpers
+  - 对 `round` / `trunc` 路径分别做 finite-range 判定
+  - `NaN/overflow` 直接返回 host-truth indefinite 值，而不是继续执行 raw SSE 转换指令
+  - packed `double -> epi32` 继续保持只写低两个 `i32`，高两个 `i32` 清零
+- 修复后 fresh 复验：
+  - `git diff --check`：通过
+  - experimental=`0`：`[TEST] OK`、`[LEAK] OK`
+  - experimental=`1`：`[TEST] OK`、`[LEAK] OK`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`：通过
+- 当前阶段结论：
+  - 这批已经不只是补 conversion coverage，而是借 `NaN/overflow` proof 抓出并修掉了一簇真实的 `EInvalidOp` 暴露问题
+  - 到这一刻为止，`SSE2 conversion` 的 proof 已经覆盖：
+    - 基础 lane-preserve
+    - finite、in-range 的 round vs trunc 差异
+    - `NaN/overflow -> indefinite` 的异常边界语义
+  - 如果继续沿这条路推进，下一步更自然的是继续扫 `conversion` 邻近 residual，或转回另一个仍缺高信号异常边界 proof 的 leaf family
