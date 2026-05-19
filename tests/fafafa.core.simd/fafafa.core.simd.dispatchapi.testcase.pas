@@ -18349,7 +18349,8 @@ var
   LA, LB: TVecF32x4;
   LVecByBackend, LVecByScalar: TVecF32x4;
   LMaskByBackend, LMaskByScalar: TMask4;
-  LReduceByBackend, LReduceByScalar: Single;
+  LReduceAddByBackend, LReduceAddByScalar: Single;
+  LReduceMulByBackend, LReduceMulByScalar: Single;
   LIndex: Integer;
   LChecked: Integer;
 begin
@@ -18375,6 +18376,7 @@ begin
     AssertTrue('AddF32x4 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.AddF32x4));
     AssertTrue('CmpLtF32x4 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.CmpLtF32x4));
     AssertTrue('ReduceAddF32x4 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ReduceAddF32x4));
+    AssertTrue('ReduceMulF32x4 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ReduceMulF32x4));
 
     LVecByBackend := LBackendTable.AddF32x4(LA, LB);
     LVecByScalar := LScalarTable.AddF32x4(LA, LB);
@@ -18387,10 +18389,15 @@ begin
     AssertEquals('CmpLtF32x4 parity: ' + NonX86BackendName(LBackend),
       Integer(LMaskByScalar), Integer(LMaskByBackend));
 
-    LReduceByBackend := LBackendTable.ReduceAddF32x4(LA);
-    LReduceByScalar := LScalarTable.ReduceAddF32x4(LA);
+    LReduceAddByBackend := LBackendTable.ReduceAddF32x4(LA);
+    LReduceAddByScalar := LScalarTable.ReduceAddF32x4(LA);
     AssertEquals('ReduceAddF32x4 parity: ' + NonX86BackendName(LBackend),
-      LReduceByScalar, LReduceByBackend, 1e-6);
+      LReduceAddByScalar, LReduceAddByBackend, 1e-6);
+
+    LReduceMulByBackend := LBackendTable.ReduceMulF32x4(LA);
+    LReduceMulByScalar := LScalarTable.ReduceMulF32x4(LA);
+    AssertEquals('ReduceMulF32x4 parity: ' + NonX86BackendName(LBackend),
+      LReduceMulByScalar, LReduceMulByBackend, 1e-6);
 
     Inc(LChecked);
   end;

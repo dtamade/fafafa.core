@@ -6077,3 +6077,23 @@ closeout finalize，直到 `freeze-status` 重新转绿。
 | 2. 同步 active closeout reading path 到 `cross-ready` | completed | 已更新 `backlog.md`、`docs/fafafa.core.simd{,.checklist,.closeout,.handoff,.maintenance}.md` 以及 `tests/fafafa.core.simd/docs/{windows_b07_closeout_runbook,simd_release_candidate_checklist}.md`，统一改写为当前 green truth，并把 Windows B07 文档降回 future rerun playbook |
 | 3. 修回 guard 依赖的精确安全文案 | completed | `closeout-guard` 首轮抓到 runbook 少了固定提示 `- 下文若出现 \`ready=True\` / \`cross-ready=True\`...`；现已恢复 guard 所需原文，并用附加说明把语义限定到后文通用步骤，不覆盖顶部 current-head 状态 |
 | 4. 轻量复验并准备提交收口 | completed | 已完成 `git diff --check`、Release `closeout-guard`、`historical-closeout-note-check`，并用 `rg` 复查 `SIMD-B23` / `evidence-refresh-required` / freshness blocker 文案没有继续以“当前 blocker”残留在 active reading path |
+
+## 2026-05-20 RISCVV F32 Reduction Helper Exact-Contract Consolidation
+
+### Goal
+
+继续按 `Wave 5 / retire + redundancy cleanup` 的 bounded residual 收口，
+把 `RISCVV` facade 中仍保留本地 duplicate loop 的
+`ReduceAddF32x4` /
+`ReduceMulF32x4`
+收回到现有 scalar truth source；这批不碰 `F64` extrema/reduction、`NaN`/
+`signed-zero`
+敏感 lane，也不改 backend slot ownership。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 锁定可安全合并的 residual | completed | 已按 `docs/plans/2026-05-10-simd-execution-index.md` 复核当前仍在 `Wave 5`，并选择 `ReduceAddF32x4` / `ReduceMulF32x4` 这一对“已有 `ScalarReduce*` 精确合同、又不触碰 register ownership”的最小批次 |
+| 2. 收回 facade duplicate 实现 | completed | `src/fafafa.core.simd.riscvv.facade.inc` 中两处 helper 已直接委托 `ScalarReduceAddF32x4(a)` / `ScalarReduceMulF32x4(a)`，不再维护第二份本地 lane loop |
+| 3. 对齐 helper semantics 与 release 验证 | completed | `check_nonx86_helper_semantics.py` 已新增 exact-source 断言，`DispatchAPI` 的 `NonX86BackendParity` 已补 `ReduceMulF32x4` assignment + scalar parity，fresh `DispatchAPI`、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿 |

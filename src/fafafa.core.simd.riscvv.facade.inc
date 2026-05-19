@@ -91,7 +91,7 @@ end;
 
 function RISCVVReduceAddF32x4(const a: TVecF32x4): Single;
 begin
-  Result := a.f[0] + a.f[1] + a.f[2] + a.f[3];
+  Result := ScalarReduceAddF32x4(a);
 end;
 
 function RISCVVReduceMinF32x4(const a: TVecF32x4): Single;
@@ -106,7 +106,7 @@ end;
 
 function RISCVVReduceMulF32x4(const a: TVecF32x4): Single;
 begin
-  Result := a.f[0] * a.f[1] * a.f[2] * a.f[3];
+  Result := ScalarReduceMulF32x4(a);
 end;
 
 // =============================================================

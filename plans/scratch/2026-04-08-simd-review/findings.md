@@ -9380,3 +9380,30 @@
 - 结论更新：
   - 当前 SIMD closeout 的 repo 内真实工作已经从“补证据”前推到“同步 active truth source”
   - 这类 green 后真相同步虽然不改实现，但如果不做，会让后续会话继续围着一个已经解除的 blocker 空转
+
+## 2026-05-20 RISCVV F32 Reduction Helpers Were Still Carrying A Second Scalar Truth Source
+
+- 在 closeout lane 已转绿之后，按 `Wave 5 / retire + redundancy cleanup` 继续往实现面压缩残余时，`RISCVV` 最干净的一处重复不是 register ownership，也不是 `F64` 敏感语义，而是：
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+  - `RISCVVReduceAddF32x4`
+  - `RISCVVReduceMulF32x4`
+- 这两个 helper 当时都还保留本地 Pascal lane loop，但其合同已经完全被现有 scalar truth source 覆盖：
+  - `ScalarReduceAddF32x4`
+  - `ScalarReduceMulF32x4`
+- 因而它们的问题不是“实现错误”，而是：
+  - 在 `RISCVV` facade 继续维护第二份同构 loop
+  - 让同一 `F32x4 reduction` 合同在 scalar 与 non-x86 facade 两处同时存在
+  - 后续若只修一边，helper semantics / parity 很容易再次分叉
+- 这批之所以适合作为当前最小收口点，是因为它同时满足三条约束：
+  - 不改变 backend slot ownership
+  - 不进入 `F64` extrema/reduction 的 `NaN` / `signed-zero` 敏感地带
+  - 仓库里已经有现成的精确 truth source，可直接消灭 duplicate implementation，而不是再造共享 helper
+- 这轮也补了一处测试真相缺口：
+  - `DispatchAPI` 的最小 non-x86 parity 路径此前显式检查了 `ReduceAddF32x4`，但没有对 `ReduceMulF32x4` 做同等级的 assignment + scalar parity 断言
+  - `backend.consistency` 虽已有 `ReduceMulF32x4` backend-vs-scalar parity，但 `DispatchAPI` 这一层缺口会让 facade/dispatch 接线面的退化更晚暴露
+- fresh 证据说明这批收口是纯 duplicate cleanup，而不是语义冒险：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=745 status=ok`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 通过
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86` 通过
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 通过
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 通过

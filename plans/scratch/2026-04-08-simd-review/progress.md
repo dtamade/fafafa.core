@@ -16121,3 +16121,39 @@
 - 当前阶段结论：
   - SIMD closeout 既已经真实回绿，也已经把 active docs / backlog 同步到当前 green truth
   - 下一步不该再围绕 closeout lane 空转，而应回到 bounded 的实现 residual 或 family qualification 批次
+
+## 2026-05-20 RISCVV F32 Reduction Helper Exact-Contract Consolidation
+
+- 先对齐当前 bounded 任务真相：
+  - `git status --short --branch`
+  - 结果：worktree 只剩 `src/fafafa.core.simd.riscvv.facade.inc`、`tests/fafafa.core.simd/check_nonx86_helper_semantics.py`、`tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+  - 说明这批不是 closeout、不是大范围 family 迁移，而是一个很小的 `RISCVV` helper cleanup
+- 已落地的源码 / 测试收口：
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - `RISCVVReduceAddF32x4` 改成直接返回 `ScalarReduceAddF32x4(a)`
+    - `RISCVVReduceMulF32x4` 改成直接返回 `ScalarReduceMulF32x4(a)`
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 新增这两个 helper 的 exact-source 断言
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - `TTestCase_NonX86BackendParity.Test_MinimalDispatchParity_IfAvailable`
+    - 补 `ReduceMulF32x4` assigned 断言
+    - 补 `ReduceMulF32x4` scalar parity 断言
+- release 策略下的 fresh 验证链已串行完成：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- fresh 结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=745 status=ok`
+  - `DispatchAPI` 通过
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `check` 通过
+  - Release `gate` 通过，尾部仍只诚实保留：
+    - optional non-x86 native evidence verify skip
+    - existing Windows evidence verify check
+- 当前阶段结论：
+  - `RISCVV` 这两个 `F32x4 reduction` helper 已不再维护第二份本地 scalar loop
+  - 当前 batch 是真实的 duplicate cleanup，不涉及 backend slot ownership 变化，也没有重新打开 `F64` 敏感语义面
