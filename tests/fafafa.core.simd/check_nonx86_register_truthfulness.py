@@ -41,9 +41,7 @@ NEON_FACADE_ASM_ONLY_WRAPPER_SLOTS: set[str] = {
     "AndNotI8x16", "AndNotU16x8", "AndNotU8x16",
 }
 
-NEON_NO_ASM_ONLY_WRAPPER_SLOTS: set[str] = {
-    "ClampF64x2", "ClampF64x4", "ClampF64x8",
-}
+NEON_NO_ASM_ONLY_WRAPPER_SLOTS: set[str] = set()
 
 ALLOWED_ALWAYS_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
     "neon": set(),

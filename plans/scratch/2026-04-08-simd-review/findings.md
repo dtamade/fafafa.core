@@ -9149,3 +9149,29 @@
 - 结论更新：
   - 当前 SIMD closeout 已真正越过 Windows evidence freshness/source-newer-than-evidence 阻塞
   - 后续若再看到同类红灯，优先检查 fresh artifact 是否真变旧，而不是重新怀疑 verifier 是否还钉着这次已修掉的旧 marker
+
+## 2026-05-19 NEON No-Asm F64 Clamp Was Still A Real Wrapper-Only Ownership Leak
+
+- closeout 全绿之后，fresh strict truthfulness 很快把真正下一 residual 定位出来：
+  - `backend=neon`
+  - `wrapper_only=55`
+  - `no-asm wrapper ok=3`
+  - 这 3 个名字全部就是：
+    - `ClampF64x2`
+    - `ClampF64x4`
+    - `ClampF64x8`
+- 这条 finding 的关键价值在于把“保留 source companion”和“继续占 runtime backend-owned slot”拆开：
+  - `src/fafafa.core.simd.neon.pas` 确实仍有这 3 个真实 asm leaf
+  - `src/fafafa.core.simd.neon.scalar.autowrap.inc` 也确实保留了 no-asm wrapper
+  - 但 no-asm wrapper 只是本地 loop / 宽度拼接，不再值得在 runtime dispatch table 上冒充 `NEON` backend-owned truth
+- 因而最小正确修复不是删 wrapper，也不是动 asm leaf，而是：
+  - 只把 `neon.register.inc` 的 `ClampF64x2/F64x4/F64x8` 绑定收进 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}`
+  - no-asm 继续保留 source companion，runtime ownership 回退给 `FillBaseDispatchTable`
+  - 同步收正 `dispatchapi`、`NonX86BackendParity`、`key-slot-audit` 和 truthfulness checker 的真相来源
+- fresh 结果证明这条判断是对的：
+  - `NEON wrapper_only=55 -> 52`
+  - `no-asm wrapper ok=3 -> 0`
+  - `impl-audit-nonx86` / release `check` / `DispatchAPI+NonX86BackendParity` 全绿
+- 结论更新：
+  - 当前 `NEON` 剩余的 `wrapper_only` 已经只剩 asm-only residual，不再混着 no-asm runtime ownership 假所有权
+  - 下一批如果继续削 `NEON`，应优先审 `asm-only wrapper_only=52` 里最窄、最少 source consumers 的一簇，而不是重新回去碰已经收掉的 F64 clamp no-asm 路径

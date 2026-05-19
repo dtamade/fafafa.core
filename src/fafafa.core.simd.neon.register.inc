@@ -416,9 +416,13 @@ begin
   table.ClampF32x16 := @NEONClampF32x16;
   table.ClampF32x8 := @NEONClampF32x8;
   {$ENDIF}
+  // F64 clamp keeps backend ownership only when a real NEON asm leaf exists.
+  // The no-asm wrappers stay as source companions but should inherit base scalar slots.
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.ClampF64x2 := @NEONClampF64x2;
   table.ClampF64x4 := @NEONClampF64x4;
   table.ClampF64x8 := @NEONClampF64x8;
+  {$ENDIF}
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   table.CmpEqF64x2 := @NEONCmpEqF64x2;
   table.CmpGeF64x2 := @NEONCmpGeF64x2;

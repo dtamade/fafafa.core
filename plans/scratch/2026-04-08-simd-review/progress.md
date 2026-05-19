@@ -286,6 +286,46 @@
   - `cross-ready=True`
   - Windows evidence 不再是外部 blocker
 
+## 2026-05-19 NEON No-Asm F64 Clamp Slot-Ownership Cleanup
+
+- fresh residual 复核先确认当前最值当的下一簇不在 SSE2 / intrinsics，而在 `NEON`：
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --summary-line --strict`
+  - 初始结果：`wrapper_only=55`，其中 `no-asm wrapper ok=3`
+  - 这 3 个 slot 全部是：
+    - `ClampF64x2`
+    - `ClampF64x4`
+    - `ClampF64x8`
+- 代码与合同收口：
+  - `src/fafafa.core.simd.neon.register.inc`
+    - 这 3 个 slot 现改成 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}` 条件绑定
+    - 含义是：保留 `neon.scalar.autowrap.inc` 里的 source companion，但 no-asm runtime ownership 回收给 base scalar
+  - `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+    - `NEON_NO_ASM_ONLY_WRAPPER_SLOTS` 已清空
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 旧 `Test_NEON_NoAsmWideClampSlots_Reuse_BaseScalar_Only_For_F32Forwarders_And_Keep_F64LocalFallback`
+      已收正为
+      `Test_NEON_NoAsmWideClampSlots_Reuse_BaseScalar_For_F32_And_F64_When_NoAsm`
+    - `ClampF64x2/F64x4/F64x8` 的 runtime ownership 断言改成：
+      - asm compiled: backend-owned
+      - no-asm: reuse scalar
+    - 两处 wide parity helper 的 `ClampF64x4/F64x8` 也已改成 `AssertNeonReusesScalarOtherwiseNative(...)`
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 同步了上面那条 dispatchapi truth-source 过程名，避免脚本仍钉旧名字
+- fresh 验证结果：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --summary-line --strict`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=neon ... wrapper_only=52 ... no-asm wrapper ok=0`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip ... status=ok`
+  - `DispatchAPI + NonX86BackendParity`：`[TEST] OK` / `[LEAK] OK`
+  - release `check`：通过
+- 当前 residual 更新：
+  - `NEON wrapper_only` 已从 `55` 降到 `52`
+  - 剩余 `NEON` wrapper-only 现全部落在 `asm-only` 路径，不再有 `no-asm` backend-owned 假所有权
+
 ## 2026-05-19 Windows B07 Staged `run_all` Hygiene Chain Closure
 
 - 先按最新 fresh run `26071761664` 继续收口，不再重开更大范围 `simd` 审查。

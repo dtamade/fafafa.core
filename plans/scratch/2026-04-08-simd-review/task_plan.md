@@ -5950,3 +5950,20 @@
 | 2. 对齐 intrinsics shell runner 的 MSYS lazbuild 输出路径合同 | completed | `tests/fafafa.core.simd.intrinsics.mmx/BuildOrTest.sh` 与 `tests/fafafa.core.simd.intrinsics.sse/BuildOrTest.sh` 已补 `is_msys_shell()/to_windows_path()`，并在 `--opt=-FE/-FU` 上复用与主 `tests/fafafa.core.simd/BuildOrTest.sh` 一致的 native Windows 路径转换 |
 | 3. staged 子集本地 smoke 复验 | completed | 在 `/tmp/simd-windows-b07-stage-smoke-2` 复刻 workflow subset 后，真实精确过滤链再次跑到 `Total=5 Passed=5 Failed=0`，确认这批 runner 修复没有打坏现有 Linux fast path |
 | 4. 提交、push，并重发 Windows evidence | pending | push 后重发 `simd-windows-b07-evidence.yml`，确认 Windows bash gate 是否越过 `intrinsics.mmx` |
+
+## 2026-05-19 NEON No-Asm F64 Clamp Slot-Ownership Cleanup
+
+### Goal
+
+继续沿着 non-x86 truthfulness residual 收口，先把 `NEON` 当前最干净的 3 个 `no-asm wrapper_only` 残点收掉：
+`ClampF64x2`、
+`ClampF64x4`、
+`ClampF64x8`。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 锁定 residual 与现有真相来源 | completed | fresh strict truthfulness 显示 `NEON wrapper_only=55`，其中 `no-asm wrapper ok=3` 全部收敛到 `ClampF64x2/F64x4/F64x8` |
+| 2. 收回 no-asm runtime slot ownership | completed | `src/fafafa.core.simd.neon.register.inc` 已把这 3 个 clamp slot 改成 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}` 条件绑定；无 asm 时复用 `FillBaseDispatchTable` 的 scalar slot |
+| 3. 对齐 checker / truth-source tests / release 验证 | completed | `check_nonx86_register_truthfulness.py` 已去掉旧 allowlist；`dispatchapi`/`NonX86BackendParity`/`key-slot-audit` 已同步新过程名与新合同；`impl-audit-nonx86`、`DispatchAPI+NonX86BackendParity`、release `check` 全部 fresh 通过 |
