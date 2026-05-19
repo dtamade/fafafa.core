@@ -5984,3 +5984,17 @@
 | 1. 锁定最小 residual 并确认能力边界 | completed | fresh strict truthfulness 显示 `SelectF32x4` 是最窄的 `asm-only wrapper_only` 单槽；`scShuffle` 仍可由 `Extract/Insert` 这两个真实 asm leaf 支撑 |
 | 2. 收回 `SelectF32x4` runtime slot ownership | completed | `src/fafafa.core.simd.neon.register.inc` 已去掉 `table.SelectF32x4 := @NEONSelectF32x4;`；asm 分支 local loop 与 no-asm scalar companion 继续保留，但注册表回退到 `FillBaseDispatchTable` |
 | 3. 对齐 checker / truth-source tests / release 验证 | completed | `check_nonx86_register_truthfulness.py` 已移除 `SelectF32x4` allowlist；`dispatchapi` 与 `key-slot-audit` 已改成 `reuse_base_scalar` 合同；fresh `truthfulness`、`key-slot-audit`、`DispatchAPI+NonX86BackendParity`、`impl-audit-nonx86`、release `check` 全部通过 |
+
+## 2026-05-19 Non-X86 Truthfulness Backend-Composed Classification Repair
+
+### Goal
+
+把 `check_nonx86_register_truthfulness.py` 从“backend-local composition 一律算 `wrapper_only`”的粗分类修正成真实 ownership 视角，并让 `key-slot-audit` 跟着输出正确真相，而不是继续误导下一批 residual 判断。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核误报根因与最小影响面 | completed | 已确认当前 `NEON` 剩余 `51` 个 `asm-only` residual 和 `RISCVV` 的 `AndNot*` 三槽都属于 backend-local composition；同时发现 `collect_symbol_facts()` 把 `forward;` 声明误算成 body，会把 `Cmp*I32x8` 再次拖回 `wrapper_only` |
+| 2. 修正 truthfulness 分类与 fixture 护栏 | completed | `check_nonx86_register_truthfulness.py` 已新增 `backend_composed` 分类、按 backend 前缀识别组合 helper、忽略 `forward;` 伪 body，并补了 `fixtures/nonx86_register_truthfulness/composed/` 回归样本；`check_nonx86_key_slot_audit.py` 已接入新的 `classify_target(..., symbol_prefix)` 签名 |
+| 3. release 口径串行复验与 scratch 同步 | completed | `git diff --check`、`py_compile`、`fixture composed`、strict `truthfulness`、`key-slot-audit`、`DispatchAPI+NonX86BackendParity`、`impl-audit-nonx86`、release `check` fresh 全绿；当前 fresh truth 已变成 `neon backend_composed=51 wrapper_only=0` / `riscvv backend_composed=3 wrapper_only=0` |

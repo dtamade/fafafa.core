@@ -21,7 +21,7 @@ IFNDEF_RE = re.compile(r"^\s*\{\$IFNDEF\s+([A-Za-z_][A-Za-z0-9_]*)\s*\}\s*$", re
 ELSE_RE = re.compile(r"^\s*\{\$ELSE\s*\}\s*$", re.IGNORECASE)
 ENDIF_RE = re.compile(r"^\s*\{\$ENDIF\s*\}\s*$", re.IGNORECASE)
 
-NEON_WIDE_COMPARE_ASM_ONLY_WRAPPER_SLOTS: set[str] = {
+NEON_WIDE_COMPARE_ASM_ONLY_BACKEND_COMPOSED_SLOTS: set[str] = {
     "CmpEqI32x16", "CmpEqI32x8", "CmpEqI64x4", "CmpEqI64x8", "CmpEqU32x8", "CmpEqU64x4",
     "CmpGeI32x16", "CmpGeI32x8", "CmpGeI64x4", "CmpGeI64x8", "CmpGeU32x8", "CmpGeU64x4",
     "CmpGtI32x16", "CmpGtI32x8", "CmpGtI64x4", "CmpGtI64x8", "CmpGtU32x8", "CmpGtU64x4",
@@ -30,7 +30,7 @@ NEON_WIDE_COMPARE_ASM_ONLY_WRAPPER_SLOTS: set[str] = {
     "CmpNeI32x16", "CmpNeI32x8", "CmpNeI64x4", "CmpNeI64x8", "CmpNeU32x8", "CmpNeU64x4",
 }
 
-NEON_FACADE_ASM_ONLY_WRAPPER_SLOTS: set[str] = {
+NEON_FACADE_ASM_ONLY_BACKEND_COMPOSED_SLOTS: set[str] = {
     "AddF32x16", "AddF64x8",
     "DivF32x16", "DivF64x8",
     "MaxF32x16", "MaxF64x8",
@@ -40,22 +40,40 @@ NEON_FACADE_ASM_ONLY_WRAPPER_SLOTS: set[str] = {
     "AndNotI8x16", "AndNotU16x8", "AndNotU8x16",
 }
 
-NEON_NO_ASM_ONLY_WRAPPER_SLOTS: set[str] = set()
+NEON_NO_ASM_ONLY_BACKEND_COMPOSED_SLOTS: set[str] = set()
 
 ALLOWED_ALWAYS_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
     "neon": set(),
     "riscvv": set(),
 }
 
+ALLOWED_ALWAYS_BACKEND_COMPOSED_SLOTS_BY_BACKEND: dict[str, set[str]] = {
+    "neon": set(),
+    "riscvv": set(),
+}
+
 ALLOWED_ASM_ONLY_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
-    "neon": NEON_WIDE_COMPARE_ASM_ONLY_WRAPPER_SLOTS | NEON_FACADE_ASM_ONLY_WRAPPER_SLOTS,
-    "riscvv": {
-        "AndNotI8x16", "AndNotU16x8", "AndNotU8x16",
-    },
+    "neon": set(),
+    "riscvv": set(),
 }
 
 ALLOWED_NO_ASM_ONLY_WRAPPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
-    "neon": NEON_NO_ASM_ONLY_WRAPPER_SLOTS,
+    "neon": set(),
+}
+
+ALLOWED_ASM_ONLY_BACKEND_COMPOSED_SLOTS_BY_BACKEND: dict[str, set[str]] = {
+    "neon": (
+        NEON_WIDE_COMPARE_ASM_ONLY_BACKEND_COMPOSED_SLOTS
+        | NEON_FACADE_ASM_ONLY_BACKEND_COMPOSED_SLOTS
+    ),
+    "riscvv": {
+        "AndNotI8x16", "AndNotU16x8", "AndNotU8x16",
+    },
+    "fixture-composed": {"Compose"},
+}
+
+ALLOWED_NO_ASM_ONLY_BACKEND_COMPOSED_SLOTS_BY_BACKEND: dict[str, set[str]] = {
+    "neon": NEON_NO_ASM_ONLY_BACKEND_COMPOSED_SLOTS,
 }
 
 ALLOWED_ALWAYS_ASM_HELPER_SLOTS_BY_BACKEND: dict[str, set[str]] = {
@@ -86,6 +104,7 @@ class Assignment:
 class CheckerConfig:
     backend: str
     asm_symbol: str
+    symbol_prefix: str
     register_file: Path
     source_files: list[Path]
 
@@ -93,7 +112,7 @@ class CheckerConfig:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Check non-x86 register truthfulness")
     parser.add_argument("--backend", choices=("neon", "riscvv"), help="Backend to inspect")
-    parser.add_argument("--fixture", choices=("good", "bad", "shadowed", "mixed"), help="Run against a local fixture instead of real sources")
+    parser.add_argument("--fixture", choices=("good", "bad", "shadowed", "mixed", "composed"), help="Run against a local fixture instead of real sources")
     parser.add_argument("--json", action="store_true", help="Print machine-readable JSON")
     parser.add_argument("--summary-line", action="store_true", help="Print one-line summary for log scraping")
     parser.add_argument("--strict", action="store_true", help="Treat wrapper / helper-forwarder bindings as failures")
@@ -116,6 +135,7 @@ def build_config(a_root: Path, a_args: argparse.Namespace) -> CheckerConfig:
         return CheckerConfig(
             backend=f"fixture-{a_args.fixture}",
             asm_symbol="MOCK_ASM",
+            symbol_prefix="MOCK",
             register_file=l_fixture_root / "mock.backend.register.inc",
             source_files=[l_fixture_root / "mock.backend.pas"],
         )
@@ -127,6 +147,7 @@ def build_config(a_root: Path, a_args: argparse.Namespace) -> CheckerConfig:
         return CheckerConfig(
             backend="neon",
             asm_symbol="FAFAFA_SIMD_NEON_ASM_ENABLED",
+            symbol_prefix="NEON",
             register_file=l_src / "fafafa.core.simd.neon.register.inc",
             source_files=[l_file for l_file in l_sources if l_file.is_file()],
         )
@@ -137,6 +158,7 @@ def build_config(a_root: Path, a_args: argparse.Namespace) -> CheckerConfig:
         return CheckerConfig(
             backend="riscvv",
             asm_symbol="RISCVV_ASSEMBLY",
+            symbol_prefix="RISCVV",
             register_file=l_src / "fafafa.core.simd.riscvv.register.inc",
             source_files=[l_file for l_file in l_sources if l_file.is_file()],
         )
@@ -230,6 +252,14 @@ def collect_symbol_facts(a_files: list[Path], a_asm_symbol: str, a_asm_enabled: 
             nonlocal l_current_body
 
             if l_current_name is None:
+                return
+            if (
+                len(l_current_body) == 1
+                and re.search(r"\bforward\s*;\s*$", l_current_body[0], re.IGNORECASE)
+            ):
+                l_current_name = None
+                l_current_is_assembler = False
+                l_current_body = []
                 return
             l_info = l_facts.setdefault(l_current_name, SymbolFacts())
             l_info.has_definition = True
@@ -339,7 +369,27 @@ def parse_assignments(a_register_file: Path, a_asm_symbol: str) -> list[Assignme
     return l_assignments
 
 
-def classify_wrapper_body(a_target: str, a_body_text: str, a_facts: dict[str, SymbolFacts]) -> tuple[str, str | None]:
+def detect_backend_composed_helper(
+    a_target: str,
+    a_body_text: str,
+    a_backend_prefix: str,
+) -> str | None:
+    for l_callee in re.findall(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*\(", a_body_text):
+        if l_callee == a_target:
+            continue
+        if l_callee in {f"{a_target}_ASM", f"{a_target}Asm"}:
+            continue
+        if l_callee.startswith(a_backend_prefix):
+            return l_callee
+    return None
+
+
+def classify_wrapper_body(
+    a_target: str,
+    a_body_text: str,
+    a_facts: dict[str, SymbolFacts],
+    a_backend_prefix: str,
+) -> tuple[str, str | None]:
     for l_helper in (f"{a_target}_ASM", f"{a_target}Asm"):
         l_helper_info = a_facts.get(l_helper)
         if l_helper_info is not None and l_helper_info.has_assembler:
@@ -347,21 +397,36 @@ def classify_wrapper_body(a_target: str, a_body_text: str, a_facts: dict[str, Sy
                 return "asm_helper_forwarder", l_helper
     if re.search(r"\bScalar[A-Za-z0-9_]+\s*\(", a_body_text):
         return "scalar_forwarder", None
+    l_backend_helper = detect_backend_composed_helper(a_target, a_body_text, a_backend_prefix)
+    if l_backend_helper is not None:
+        return "backend_local_composition", l_backend_helper
     return "pascal_owned", None
 
 
-def detect_wrapper_kind(a_target: str, a_info: SymbolFacts, a_facts: dict[str, SymbolFacts]) -> tuple[str, str | None]:
+def detect_wrapper_kind(
+    a_target: str,
+    a_info: SymbolFacts,
+    a_facts: dict[str, SymbolFacts],
+    a_backend_prefix: str,
+) -> tuple[str, str | None]:
     l_seen_kinds: set[str] = set()
     l_helper: str | None = None
 
     for l_body_text in a_info.bodies:
-        l_kind, l_body_helper = classify_wrapper_body(a_target, l_body_text, a_facts)
+        l_kind, l_body_helper = classify_wrapper_body(
+            a_target,
+            l_body_text,
+            a_facts,
+            a_backend_prefix,
+        )
         l_seen_kinds.add(l_kind)
         if l_kind == "pascal_owned":
             return "pascal_owned", None
         if (l_helper is None) and (l_body_helper is not None):
             l_helper = l_body_helper
 
+    if "backend_local_composition" in l_seen_kinds:
+        return "backend_local_composition", l_helper
     if "asm_helper_forwarder" in l_seen_kinds:
         return "asm_helper_forwarder", l_helper
     if "scalar_forwarder" in l_seen_kinds:
@@ -369,7 +434,11 @@ def detect_wrapper_kind(a_target: str, a_info: SymbolFacts, a_facts: dict[str, S
     return "pascal_owned", None
 
 
-def classify_target(a_target: str, a_facts: dict[str, SymbolFacts]) -> tuple[str, str | None, str | None]:
+def classify_target(
+    a_target: str,
+    a_facts: dict[str, SymbolFacts],
+    a_backend_prefix: str,
+) -> tuple[str, str | None, str | None]:
     if a_target.startswith("Scalar"):
         return "scalar_passthrough", "external_scalar", None
 
@@ -378,7 +447,14 @@ def classify_target(a_target: str, a_facts: dict[str, SymbolFacts]) -> tuple[str
         return "asm_exact", "exact_assembler", None
 
     if l_info is not None and l_info.has_definition:
-        l_wrapper_kind, l_helper = detect_wrapper_kind(a_target, l_info, a_facts)
+        l_wrapper_kind, l_helper = detect_wrapper_kind(
+            a_target,
+            l_info,
+            a_facts,
+            a_backend_prefix,
+        )
+        if l_wrapper_kind == "backend_local_composition":
+            return "backend_composed", l_wrapper_kind, l_helper
         if l_wrapper_kind == "asm_helper_forwarder":
             return "asm_suffix_only", l_wrapper_kind, l_helper
         return "wrapper_only", l_wrapper_kind, l_helper
@@ -402,6 +478,9 @@ def build_reason_list(
     l_allowed_always_wrapper_slots = ALLOWED_ALWAYS_WRAPPER_SLOTS_BY_BACKEND.get(a_backend, set())
     l_allowed_asm_only_wrapper_slots = ALLOWED_ASM_ONLY_WRAPPER_SLOTS_BY_BACKEND.get(a_backend, set())
     l_allowed_no_asm_only_wrapper_slots = ALLOWED_NO_ASM_ONLY_WRAPPER_SLOTS_BY_BACKEND.get(a_backend, set())
+    l_allowed_always_backend_composed_slots = ALLOWED_ALWAYS_BACKEND_COMPOSED_SLOTS_BY_BACKEND.get(a_backend, set())
+    l_allowed_asm_only_backend_composed_slots = ALLOWED_ASM_ONLY_BACKEND_COMPOSED_SLOTS_BY_BACKEND.get(a_backend, set())
+    l_allowed_no_asm_only_backend_composed_slots = ALLOWED_NO_ASM_ONLY_BACKEND_COMPOSED_SLOTS_BY_BACKEND.get(a_backend, set())
     l_allowed_always_asm_helper_slots = ALLOWED_ALWAYS_ASM_HELPER_SLOTS_BY_BACKEND.get(a_backend, set())
 
     if a_classification == "scalar_passthrough":
@@ -416,6 +495,16 @@ def build_reason_list(
             l_reasons.append("asm-helper-wrapper-bound-inside-no-asm-block")
         elif (a_assignment.context != "asm-only") and (a_assignment.slot not in l_allowed_always_asm_helper_slots):
             l_reasons.append("asm-helper-wrapper-not-gated-to-asm-only-branch")
+    elif a_classification == "backend_composed":
+        if a_assignment.context == "asm-only":
+            if a_assignment.slot not in l_allowed_asm_only_backend_composed_slots:
+                l_reasons.append("backend-composed-bound-inside-asm-block")
+        elif a_assignment.context == "no-asm":
+            if a_assignment.slot not in l_allowed_no_asm_only_backend_composed_slots:
+                l_reasons.append("backend-composed-bound-inside-no-asm-block")
+        elif a_assignment.slot not in l_allowed_always_backend_composed_slots:
+            if a_strict:
+                l_reasons.append("backend-composed-backend-owned-slot")
     elif a_classification == "wrapper_only":
         if a_assignment.context == "asm-only":
             if a_assignment.slot not in l_allowed_asm_only_wrapper_slots:
@@ -443,6 +532,7 @@ def render_summary_line(a_result: dict[str, Any]) -> str:
         f"assignments={a_result['assignment_count']} "
         f"asm_exact={a_result['asm_exact_count']} "
         f"asm_suffix_only={a_result['asm_suffix_only_count']} "
+        f"backend_composed={a_result['backend_composed_count']} "
         f"wrapper_only={a_result['wrapper_only_count']} "
         f"scalar_passthrough={a_result['scalar_passthrough_count']} "
         f"no_def={a_result['no_def_count']} "
@@ -459,10 +549,14 @@ def print_human_result(a_result: dict[str, Any]) -> None:
     print(f"  - assignments:         {a_result['assignment_count']}")
     print(f"  - asm exact:           {a_result['asm_exact_count']}")
     print(f"  - asm suffix only:     {a_result['asm_suffix_only_count']}")
+    print(f"  - backend composed:    {a_result['backend_composed_count']}")
     print(f"  - wrapper only:        {a_result['wrapper_only_count']}")
     print(f"  - scalar passthrough:  {a_result['scalar_passthrough_count']}")
     print(f"  - no definition:       {a_result['no_def_count']}")
     print(f"  - miswired:            {a_result['miswired_count']}")
+    print(f"  - always composed ok:  {a_result['allowed_always_backend_composed_slot_count']}")
+    print(f"  - asm-only composed ok:{a_result['allowed_asm_only_backend_composed_slot_count']}")
+    print(f"  - no-asm composed ok:  {a_result['allowed_no_asm_only_backend_composed_slot_count']}")
     print(f"  - always wrapper ok:   {a_result['allowed_always_wrapper_slot_count']}")
     print(f"  - asm-only wrapper ok: {a_result['allowed_asm_only_wrapper_slot_count']}")
     print(f"  - no-asm wrapper ok:   {a_result['allowed_no_asm_only_wrapper_slot_count']}")
@@ -500,6 +594,7 @@ def build_report(a_config: CheckerConfig, a_strict: bool) -> dict[str, Any]:
     l_counts = {
         "asm_exact_count": 0,
         "asm_suffix_only_count": 0,
+        "backend_composed_count": 0,
         "wrapper_only_count": 0,
         "scalar_passthrough_count": 0,
         "no_def_count": 0,
@@ -515,7 +610,11 @@ def build_report(a_config: CheckerConfig, a_strict: bool) -> dict[str, Any]:
             l_facts = l_facts_combined
         else:
             l_facts = l_facts_asm
-        l_classification, l_wrapper_kind, l_helper = classify_target(l_assignment.target, l_facts)
+        l_classification, l_wrapper_kind, l_helper = classify_target(
+            l_assignment.target,
+            l_facts,
+            a_config.symbol_prefix,
+        )
         l_key = f"{l_classification}_count"
         if l_key in l_counts:
             l_counts[l_key] += 1
@@ -571,6 +670,37 @@ def build_report(a_config: CheckerConfig, a_strict: bool) -> dict[str, Any]:
     l_allowed_always_wrapper_slots = ALLOWED_ALWAYS_WRAPPER_SLOTS_BY_BACKEND.get(a_config.backend, set())
     l_allowed_asm_only_wrapper_slots = ALLOWED_ASM_ONLY_WRAPPER_SLOTS_BY_BACKEND.get(a_config.backend, set())
     l_allowed_no_asm_only_wrapper_slots = ALLOWED_NO_ASM_ONLY_WRAPPER_SLOTS_BY_BACKEND.get(a_config.backend, set())
+    l_allowed_always_backend_composed_slots = ALLOWED_ALWAYS_BACKEND_COMPOSED_SLOTS_BY_BACKEND.get(a_config.backend, set())
+    l_allowed_asm_only_backend_composed_slots = ALLOWED_ASM_ONLY_BACKEND_COMPOSED_SLOTS_BY_BACKEND.get(a_config.backend, set())
+    l_allowed_no_asm_only_backend_composed_slots = ALLOWED_NO_ASM_ONLY_BACKEND_COMPOSED_SLOTS_BY_BACKEND.get(a_config.backend, set())
+    l_current_backend_composed_slots = sorted(
+        {
+            l_record["slot"]
+            for l_record in l_assignment_records
+            if l_record["classification"] == "backend_composed"
+        }
+    )
+    l_current_always_backend_composed_slots = sorted(
+        {
+            l_record["slot"]
+            for l_record in l_assignment_records
+            if (l_record["classification"] == "backend_composed") and (l_record["context"] == "always")
+        }
+    )
+    l_current_asm_only_backend_composed_slots = sorted(
+        {
+            l_record["slot"]
+            for l_record in l_assignment_records
+            if (l_record["classification"] == "backend_composed") and (l_record["context"] == "asm-only")
+        }
+    )
+    l_current_no_asm_backend_composed_slots = sorted(
+        {
+            l_record["slot"]
+            for l_record in l_assignment_records
+            if (l_record["classification"] == "backend_composed") and (l_record["context"] == "no-asm")
+        }
+    )
     l_current_wrapper_only_slots = sorted(
         {
             l_record["slot"]
@@ -603,6 +733,9 @@ def build_report(a_config: CheckerConfig, a_strict: bool) -> dict[str, Any]:
         l_allowed_always_wrapper_slots.difference(l_current_always_wrapper_slots).union(
             l_allowed_asm_only_wrapper_slots.difference(l_current_asm_only_wrapper_slots),
             l_allowed_no_asm_only_wrapper_slots.difference(l_current_no_asm_wrapper_slots),
+            l_allowed_always_backend_composed_slots.difference(l_current_always_backend_composed_slots),
+            l_allowed_asm_only_backend_composed_slots.difference(l_current_asm_only_backend_composed_slots),
+            l_allowed_no_asm_only_backend_composed_slots.difference(l_current_no_asm_backend_composed_slots),
         )
     )
 
@@ -615,15 +748,27 @@ def build_report(a_config: CheckerConfig, a_strict: bool) -> dict[str, Any]:
         "assignment_count": len(l_assignments),
         "asm_exact_count": l_counts["asm_exact_count"],
         "asm_suffix_only_count": l_counts["asm_suffix_only_count"],
+        "backend_composed_count": l_counts["backend_composed_count"],
         "wrapper_only_count": l_counts["wrapper_only_count"],
         "scalar_passthrough_count": l_counts["scalar_passthrough_count"],
         "no_def_count": l_counts["no_def_count"],
         "scalar_forwarder_count": l_counts["scalar_forwarder_count"],
         "pascal_owned_count": l_counts["pascal_owned_count"],
         "miswired_count": len(l_miswired),
+        "allowed_always_backend_composed_slot_count": len(l_allowed_always_backend_composed_slots),
+        "allowed_asm_only_backend_composed_slot_count": len(l_allowed_asm_only_backend_composed_slots),
+        "allowed_no_asm_only_backend_composed_slot_count": len(l_allowed_no_asm_only_backend_composed_slots),
         "allowed_always_wrapper_slot_count": len(l_allowed_always_wrapper_slots),
         "allowed_asm_only_wrapper_slot_count": len(l_allowed_asm_only_wrapper_slots),
         "allowed_no_asm_only_wrapper_slot_count": len(l_allowed_no_asm_only_wrapper_slots),
+        "current_backend_composed_slot_count": len(l_current_backend_composed_slots),
+        "current_backend_composed_slots": l_current_backend_composed_slots,
+        "current_always_backend_composed_slot_count": len(l_current_always_backend_composed_slots),
+        "current_always_backend_composed_slots": l_current_always_backend_composed_slots,
+        "current_asm_only_backend_composed_slot_count": len(l_current_asm_only_backend_composed_slots),
+        "current_asm_only_backend_composed_slots": l_current_asm_only_backend_composed_slots,
+        "current_no_asm_backend_composed_slot_count": len(l_current_no_asm_backend_composed_slots),
+        "current_no_asm_backend_composed_slots": l_current_no_asm_backend_composed_slots,
         "current_wrapper_only_slot_count": len(l_current_wrapper_only_slots),
         "current_wrapper_only_slots": l_current_wrapper_only_slots,
         "current_always_wrapper_slot_count": len(l_current_always_wrapper_slots),

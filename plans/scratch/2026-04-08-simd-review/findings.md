@@ -9207,3 +9207,32 @@
 - 结论更新：
   - `SelectF32x4` 已不再冒充 `NEON` backend-owned runtime shuffle truth
   - 当前 `NEON` 剩余 `wrapper_only=51`，下一批应继续优先盯 `AndNot*` 三槽或其它最小 asm-only residual，而不是回头碰已经收口的 `SelectF32x4`
+
+## 2026-05-19 Truthfulness Checker Was Still Lumping Backend Compositions Into `wrapper_only`
+
+- 当前真正更值当修的已经不是 `NEON` register 绑定，而是审计器自己的分类真相：
+  - `check_nonx86_register_truthfulness.py` 的 `classify_wrapper_body()` 之前只识别两类 wrapper：
+    - `Scalar...` 转发
+    - 同名 `*_ASM/Asm` helper forwarder
+  - 除此之外一律落到 `pascal_owned -> wrapper_only`
+- 这会把大量“backend 内部组合真实 helper”的实现误报成纯本地 wrapper，例如：
+  - `NEONAddF32x16` -> `NEONAddF32x4`
+  - `NEONMaxF64x8` -> `NEONMaxF64x4`
+  - `NEONCmpEqI32x16` / `NEONCmpEqI32x8` -> `NEONCombineMask* + NEONCmpEq*`
+  - `NEONAndNotI8x16` -> `NEONAndI8x16 + NEONNotI8x16`
+  - `RISCVVAndNotI8x16` -> `RISCVVAndI8x16 + RISCVVNotI8x16`
+- 这轮还顺手钉住了另一个解析精度坑：
+  - `collect_symbol_facts()` 之前把 `forward;` 声明也当成有 body 的定义
+  - 于是像 `NEONCmpEqI32x8` 这类先 `forward`、再真实实现的符号，会被一个空壳 `forward` body 拖回 `pascal_owned`
+- 最小正确修复已经收敛为：
+  - 新增 `backend_composed` 分类，专门表示 backend-local composition
+  - allowlist 从旧的 `wrapper_only` 迁到 `backend_composed`
+  - `forward;` 伪 body 不再参与 symbol body 分类
+  - `key-slot-audit` 继续复用同一 `classify_target`，因此 human report 也同步变成 `class=backend_composed`
+- fresh 结果证明这次修的是 checker 真相而不是数字游戏：
+  - `backend=neon assignments=341 asm_exact=280 asm_suffix_only=10 backend_composed=51 wrapper_only=0 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `backend=riscvv assignments=432 asm_exact=312 asm_suffix_only=117 backend_composed=3 wrapper_only=0 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=136 issues=0 status=ok`
+- 结论更新：
+  - 当前 non-x86 residual 已不再被 `wrapper_only` 噪音污染
+  - 后续如果再继续削 register ownership，应只盯真正的 `wrapper_only` 或 `asm_suffix_only` 异味，而不是误把 backend composition 当成要继续回收的假问题

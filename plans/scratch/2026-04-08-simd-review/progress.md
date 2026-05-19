@@ -259,6 +259,43 @@
   - `intrinsics.experimental` default / experimental 双模态 `check` 全绿
   - 其中 `SSE backend smoke` 明确通过，说明这次改动文件已被真实编译覆盖
 
+## 2026-05-19 Non-X86 Truthfulness Backend-Composed Classification Repair
+
+- 这批没有继续改 `simd` 实现层，直接对着审计器误报面下刀：
+  - `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+  - `tests/fafafa.core.simd/fixtures/nonx86_register_truthfulness/composed/*`
+- 已落地的脚本修复：
+  - `CheckerConfig` 新增 `symbol_prefix`
+  - `classify_wrapper_body()` 新增 backend-local composition 识别
+  - `classify_target()` 新增 `backend_composed` 分类
+  - `collect_symbol_facts()` 不再把单行 `forward;` 声明记成 body
+  - `key-slot-audit` 已接上新的 `classify_target(..., symbol_prefix)` 调用
+  - 新增 `fixture composed`，用于钉住“调用其它同 backend helper 但不是同名 `_ASM/Asm` forwarder”的最小样本
+- 本批轻量验证已完成：
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_register_truthfulness.py tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --fixture composed --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --summary-line`
+- fresh 结果：
+  - `backend=fixture-composed assignments=1 asm_exact=0 asm_suffix_only=0 backend_composed=1 wrapper_only=0 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `backend=neon assignments=341 asm_exact=280 asm_suffix_only=10 backend_composed=51 wrapper_only=0 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `backend=riscvv assignments=432 asm_exact=312 asm_suffix_only=117 backend_composed=3 wrapper_only=0 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=136 issues=0 status=ok`
+- 本批 release 串行验证已完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `DispatchAPI + NonX86BackendParity`：`[TEST] OK`、`[LEAK] OK`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - release `check`：通过
+- 当前阶段结论：
+  - `NEON` / `RISCVV` 当前 strict truthfulness 已从“剩余 wrapper_only 噪音”切换成“backend_composed truth 已明确”
+  - 后续 residual 选择可以直接看真实 `wrapper_only=0` 与 `backend_composed` 列表，不需要再拿 `wrapper_only=51` 这种旧噪音数字误导下一批
+
 ## 2026-05-19 Windows Evidence Final Closeout
 
 - 继续沿用成功 Windows workflow run `26074189888` 做 canonical closeout，批次号为 `SIMD-20260519-152`。

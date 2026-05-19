@@ -578,7 +578,7 @@ def audit_backend(backend: str) -> dict[str, object]:
             for assignment in slot_assignments:
                 facts = facts_for_assignment(assignment)
                 classification, wrapper_kind, helper = register_truthfulness.classify_target(
-                    assignment.target, facts
+                    assignment.target, facts, config.symbol_prefix
                 )
                 reasons = ["unexpected-assignment-for-base-scalar-slot"]
                 reasons.extend(
@@ -610,7 +610,7 @@ def audit_backend(backend: str) -> dict[str, object]:
         for assignment in slot_assignments:
             facts = facts_for_assignment(assignment)
             classification, wrapper_kind, helper = register_truthfulness.classify_target(
-                assignment.target, facts
+                assignment.target, facts, config.symbol_prefix
             )
             reasons = make_reason_list(
                 backend, assignment, classification, wrapper_kind
