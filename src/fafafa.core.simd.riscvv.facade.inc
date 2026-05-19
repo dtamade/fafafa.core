@@ -1416,10 +1416,8 @@ begin
 end;
 
 function RISCVVLoadI64x4(p: PInt64): TVecI64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.i[i] := p[i];
+  Result := ScalarLoadI64x4(p);
 end;
 
 function RISCVVMaxF32x16(const a, b: TVecF32x16): TVecF32x16;
@@ -1593,11 +1591,8 @@ begin
 end;
 
 function RISCVVReduceAddF64x2(const a: TVecF64x2): Double;
-var i: Integer;
 begin
-  Result := a.d[0];
-  for i := 1 to 1 do
-    Result := Result + a.d[i];
+  Result := ScalarReduceAddF64x2(a);
 end;
 
 function RISCVVReduceAddF64x4(const a: TVecF64x4): Double;
@@ -1677,11 +1672,8 @@ begin
 end;
 
 function RISCVVReduceMulF64x2(const a: TVecF64x2): Double;
-var i: Integer;
 begin
-  Result := a.d[0];
-  for i := 1 to 1 do
-    Result := Result * a.d[i];
+  Result := ScalarReduceMulF64x2(a);
 end;
 
 function RISCVVReduceMulF64x4(const a: TVecF64x4): Double;
@@ -1826,10 +1818,8 @@ begin
 end;
 
 procedure RISCVVStoreI64x4(p: PInt64; const a: TVecI64x4);
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    p[i] := a.i[i];
+  ScalarStoreI64x4(p, a);
 end;
 
 function RISCVVSubI16x8(const a, b: TVecI16x8): TVecI16x8;

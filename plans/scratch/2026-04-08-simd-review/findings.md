@@ -9571,3 +9571,34 @@
 - 当前结论更新：
   - `RISCVV` 这 8 个 wide float `Min/Max` helper 已不再维护第二份本地 loop 真相
   - 但它们当前仍是 runtime backend-owned slot 的合法门面；因此这批是“body consolidation”，不是“dead-wrapper retirement”
+
+## 2026-05-20 RISCVV F64x2 Reduction And I64x4 Memory Helpers Were Still Carrying Exact-Contract Duplicate Bodies
+
+- 这轮继续往下切时，先没有直接把所有“看起来像 loop 的东西”一锅端，而是重新核对了合同差异。
+- fresh 复核后可安全收的 helper 只剩 4 个：
+  - `RISCVVReduceAddF64x2`
+  - `RISCVVReduceMulF64x2`
+  - `RISCVVLoadI64x4`
+  - `RISCVVStoreI64x4`
+- 这 4 个之所以和前面几批一样属于 exact-contract cleanup，而不是语义替换冒险，有两条关键证据：
+  - `ScalarReduceAddF64x2` / `ScalarReduceMulF64x2` 本身就是 2-lane 精确表达式，不存在 `F64x4/F64x8` 那种 first-lane seed drift
+  - `ScalarLoadI64x4` / `ScalarStoreI64x4` 没有 float `Load/Store` 那类 `Assert(p <> nil, ...)` 前置条件差
+- 这轮也因此明确继续回避两类 residual：
+  - `RISCVV ReduceAdd/ReduceMulF64x4/F64x8`
+    - 仍可能因为 scalar 初值合同不同而引入行为替换
+  - float `Load/Store`
+    - scalar helper 仍带 nil-assert 合同
+- 源码对位后可以确认，本批 4 个 helper 的旧实现都只是本地重复写了一遍同一份 scalar 行为：
+  - `ReduceAddF64x2` / `ReduceMulF64x2` 只是把 2-lane reduction 手写了一遍
+  - `LoadI64x4` / `StoreI64x4` 只是把 4-lane memory copy 手写了一遍
+- 这轮还顺手补了两个护栏缺口：
+  - `check_nonx86_helper_semantics.py` 之前没有把这 4 个 helper 纳入 exact-source 审计
+  - `TTestCase_NonX86BackendParity` 之前只覆盖了 `ReduceAddF64x2`，没有显式覆盖 `ReduceMulF64x2` assignment/parity
+- fresh 证据说明这批仍然是 bounded body consolidation：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=761 status=ok`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_DirectDispatch,TTestCase_NonX86BackendParity` 通过
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 通过
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 通过
+- 当前结论更新：
+  - `RISCVV` 这 4 个 helper 已不再维护第二份 no-asm duplicate body
+  - 当前 `Wave 5` 仍应继续优先处理这种“scalar contract 已精确存在、且不带 floating/nil contract drift”的 residual

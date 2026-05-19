@@ -404,6 +404,12 @@ def main() -> int:
             "vle64.v v0, (a0)",
             "vse64.v v0, (a1)",
         ]),
+        (riscvv_facade_source, "RISCVVLoadI64x4", [
+            "Result := ScalarLoadI64x4(p);",
+        ]),
+        (riscvv_facade_source, "RISCVVStoreI64x4", [
+            "ScalarStoreI64x4(p, a);",
+        ]),
         (riscvv_source, "RISCVVSplatI64x4Asm", [
             "vsetivli zero, 4, 0xD9",
             "vmv.v.x v0, a0",
@@ -569,8 +575,14 @@ def main() -> int:
         (riscvv_facade_source, "RISCVVReduceAddF32x16", [
             "Result := ScalarReduceAddF32x16(a);",
         ]),
+        (riscvv_facade_source, "RISCVVReduceAddF64x2", [
+            "Result := ScalarReduceAddF64x2(a);",
+        ]),
         (riscvv_facade_source, "RISCVVReduceMulF32x16", [
             "Result := ScalarReduceMulF32x16(a);",
+        ]),
+        (riscvv_facade_source, "RISCVVReduceMulF64x2", [
+            "Result := ScalarReduceMulF64x2(a);",
         ]),
         (riscvv_facade_source, "RISCVVReduceMaxF32x16", [
             "Result := ScalarReduceMaxF32x16(a);",

@@ -6170,3 +6170,24 @@ closeout finalize，直到 `freeze-status` 重新转绿。
 | 1. 复核 wide float extrema 是否真是 exact-contract duplicate | completed | 已对位 `src/fafafa.core.simd.scalar.pas` 与 `src/fafafa.core.simd.riscvv.facade.inc`，并额外用本机 FPC probe 验证 `Math.Min/Max` 与 `if < / > then ... else ...` 在 `NaN`、`-0/+0` 上的位级结果一致：`NaN,3 -> 3`、`5,NaN -> NaN`、`-0,+0 -> +0`、`+0,-0 -> -0` |
 | 2. 收回 no-asm duplicate loop | completed | `src/fafafa.core.simd.riscvv.facade.inc` 中 `RISCVVMin/MaxF32x8/F32x16/F64x4/F64x8` 已统一改为委托对应 `ScalarMin/Max*`；保留 `riscvv.register.inc` 现有 backend-owned slot 绑定不变，避免 runtime ownership 漂移 |
 | 3. 对齐 helper semantics 并做 release 复验 | completed | `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 已把这 8 个 helper 从“要求本地 loop”改成“要求 scalar 委托”；fresh `git diff --check`、`py_compile`、helper semantics summary、Release `DispatchAPI + NonX86BackendParity`、Release `check`、Release `gate` 全绿 |
+
+## 2026-05-20 RISCVV F64x2 Reduction And I64x4 Memory Exact-Contract Consolidation
+
+### Goal
+
+继续沿 `Wave 5 / retire + redundancy cleanup` 做 bounded 收口，
+把 `RISCVV` facade 中仍保留本地 duplicate body 的
+`ReduceAddF64x2` /
+`ReduceMulF64x2` /
+`LoadI64x4` /
+`StoreI64x4`
+收回到现有 scalar truth source；
+这批只做 helper body consolidation，不碰 `F64x4/F64x8` reduction、float `Load/Store`，也不改 register slot ownership。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 锁定这批 exact-contract residual | completed | 已先排除仍有合同差的 residual：`F64x4/F64x8 ReduceAdd/ReduceMul` 仍有 first-lane seed drift 风险，float `Load/Store` 仍有 `Assert(p <> nil, ...)` 差异；本批只保留 `F64x2` reduction 与 `I64x4` memory 这 4 个 helper |
+| 2. 收回 facade duplicate 实现 | completed | `src/fafafa.core.simd.riscvv.facade.inc` 中 `RISCVVReduceAddF64x2` / `RISCVVReduceMulF64x2` 已改为委托 `ScalarReduceAdd/ReduceMulF64x2`；`RISCVVLoadI64x4` / `RISCVVStoreI64x4` 已改为委托 `ScalarLoad/StoreI64x4` |
+| 3. 对齐 helper semantics / parity / release 验证 | completed | `check_nonx86_helper_semantics.py` 已新增这 4 个 helper 的 exact-source 断言；`TTestCase_NonX86BackendParity` 已补 `ReduceMulF64x2` assignment + scalar parity；fresh targeted suites、Release `check`、Release `gate` 全绿 |

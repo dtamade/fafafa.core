@@ -18429,7 +18429,8 @@ var
   LF64x8ByBackend, LF64x8ByScalar: TVecF64x8;
   LMask2ByBackend, LMask2ByScalar: TMask2;
   LMask8ByBackend, LMask8ByScalar: TMask8;
-  LReduceF64ByBackend, LReduceF64ByScalar: Double;
+  LReduceAddF64ByBackend, LReduceAddF64ByScalar: Double;
+  LReduceMulF64ByBackend, LReduceMulF64ByScalar: Double;
   LReduceAddF32x8ByBackend, LReduceAddF32x8ByScalar: Single;
   LReduceMulF32x8ByBackend, LReduceMulF32x8ByScalar: Single;
   LReduceAddF32x16ByBackend, LReduceAddF32x16ByScalar: Single;
@@ -18502,6 +18503,7 @@ begin
       AssertTrue('AddF64x2 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.AddF64x2));
       AssertTrue('CmpLtF64x2 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.CmpLtF64x2));
       AssertTrue('ReduceAddF64x2 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ReduceAddF64x2));
+      AssertTrue('ReduceMulF64x2 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ReduceMulF64x2));
       AssertTrue('AddF32x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.AddF32x8));
       AssertTrue('CmpLtF32x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.CmpLtF32x8));
       AssertTrue('ReduceAddF32x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ReduceAddF32x8));
@@ -18530,10 +18532,15 @@ begin
       AssertEquals('CmpLtF64x2 parity: ' + NonX86BackendName(LBackend),
         Integer(LMask2ByScalar), Integer(LMask2ByBackend));
 
-      LReduceF64ByBackend := LBackendTable.ReduceAddF64x2(LF64A);
-      LReduceF64ByScalar := LScalarTable.ReduceAddF64x2(LF64A);
+      LReduceAddF64ByBackend := LBackendTable.ReduceAddF64x2(LF64A);
+      LReduceAddF64ByScalar := LScalarTable.ReduceAddF64x2(LF64A);
       AssertEquals('ReduceAddF64x2 parity: ' + NonX86BackendName(LBackend),
-        LReduceF64ByScalar, LReduceF64ByBackend, 1e-12);
+        LReduceAddF64ByScalar, LReduceAddF64ByBackend, 1e-12);
+
+      LReduceMulF64ByBackend := LBackendTable.ReduceMulF64x2(LF64A);
+      LReduceMulF64ByScalar := LScalarTable.ReduceMulF64x2(LF64A);
+      AssertEquals('ReduceMulF64x2 parity: ' + NonX86BackendName(LBackend),
+        LReduceMulF64ByScalar, LReduceMulF64ByBackend, 1e-12);
 
       LF32ByBackend := LBackendTable.AddF32x8(LF32A, LF32B);
       LF32ByScalar := LScalarTable.AddF32x8(LF32A, LF32B);

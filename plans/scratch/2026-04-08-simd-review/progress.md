@@ -16321,3 +16321,47 @@
 - 当前阶段结论：
   - `RISCVV` wide float `Min/Max` 的 no-asm 本地 loop 已收回到单一 scalar truth source
   - 这批没有改变 backend slot ownership，也没有重新打开 `Clamp/Rcp/F64 reduction` 的敏感合同面
+
+## 2026-05-20 RISCVV F64x2 Reduction And I64x4 Memory Exact-Contract Consolidation
+
+- 接手当前 worktree 时，先对齐真实未提交范围：
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+- 这轮先做边界复核，没有把“还能看到 loop”误判成“都能合并”：
+  - `RISCVV ReduceAdd/ReduceMulF64x4/F64x8` 继续保持不碰
+    - 原因：scalar 侧与当前 local loop 仍有 first-lane seed 合同差
+  - float `Load/Store` 继续保持不碰
+    - 原因：scalar helper 仍带 `Assert(p <> nil, ...)` 前置条件差
+  - 相比之下，`F64x2` reduction 与 `I64x4` memory 这 4 个 helper 属于 exact-contract residual
+- 已落地的源码 / 审计收口：
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - `RISCVVReduceAddF64x2` -> `ScalarReduceAddF64x2`
+    - `RISCVVReduceMulF64x2` -> `ScalarReduceMulF64x2`
+    - `RISCVVLoadI64x4` -> `ScalarLoadI64x4`
+    - `RISCVVStoreI64x4` -> `ScalarStoreI64x4`
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 新增上述 4 个 helper 的 exact-source 断言
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - `TTestCase_NonX86BackendParity.Test_ExtendedFloatParity_IfAvailable`
+    - 新增 `ReduceMulF64x2` assignment 断言
+    - 新增 `ReduceMulF64x2` backend/scalar parity 覆盖
+- release 策略下的 fresh 验证链已串行完成：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_DirectDispatch,TTestCase_NonX86BackendParity`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- fresh 结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=761 status=ok`
+  - `DispatchAPI + DirectDispatch + NonX86BackendParity` 通过
+  - Release `check` 通过
+  - Release `gate` 通过
+  - `filtered run_all check chain` 仍为 `5/5`
+  - gate 尾部仍是：
+    - `EVIDENCE OK: windows_b07_gate.log`
+    - `[GATE] OK`
+- 当前阶段结论：
+  - `RISCVV` 的 `F64x2 reduction` 与 `I64x4 memory` helper 已不再维护第二份 no-asm duplicate body
+  - 这批继续严格停在 body consolidation，没有触碰 register ownership，也没有重新打开 `F64x4/F64x8 reduction` 或 float `Load/Store` 的合同风险面
