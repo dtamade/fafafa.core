@@ -160,6 +160,12 @@ with_output_root_lock() {
     return $?
   fi
 
+  if is_msys_shell; then
+    echo "[LOCK] WARN: MSYS/Cygwin shell does not provide reliable fd-based flock semantics here; proceeding without output-root lock (${OUTPUT_ROOT})"
+    "$@"
+    return $?
+  fi
+
   mkdir -p "${LOG_DIR}"
   LLockFile="$(current_output_root_lock_file)"
   LPreviousHeldFile="${SIMD_OUTPUT_ROOT_LOCK_HELD_FILE:-}"

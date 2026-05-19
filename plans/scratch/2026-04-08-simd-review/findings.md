@@ -8974,3 +8974,25 @@
   - 而是让 workflow 显式导出 `SIMD_WIN_EVIDENCE_BASH_CMD`
   - 让 collector 记录 `BashCommandSource` 与各项 prereq 命中情况
   - 这样即使仍回落到 native batch，也能第一眼看出缺的是“bash 解析”还是“bash gate 前置文件”
+
+## 2026-05-19 Windows B07 Finally Entered `bash-optin`; The Next Failure Was Git Bash Fd-Lock Compatibility
+
+- fresh Windows run `26067046243` 已经把一个很关键的疑点翻正：
+  - `BashPrereq.Resolve=1`
+  - `BashPrereq.RunAllSh=1`
+  - `BashPrereq.BuildOrTestSh=1`
+  - `BashPrereq.PublicAbiSmokeHeader=1`
+  - `GateRunnerMode: bash-optin`
+- 这说明上一轮看到的 “`BashCommand` 明明有值、但 `Resolve=0`” 确实只是 batch 变量提前展开 bug，而不是 GitHub Windows runner 根本不具备 bash gate 条件。
+- 新失败点也非常单纯：
+  - canonical bash gate 一进来就卡在 `with_output_root_lock()`
+  - Git Bash / MSYS 环境里执行 fd-based `flock "${LLockFd}"` 直接报：
+    - `flock: 10: Bad file descriptor`
+- 这条 finding 的价值在于继续防止跑偏：
+  - 当前已经不需要再追 `collect_windows_b07_evidence.bat` 的 prereq 判定
+  - 也不需要回头怀疑 `check_sse2_structure.py`、`nonx86-optin-list-suites` 或任何 SIMD backend
+  - 剩余问题已收敛成 `BuildOrTest.sh` 的 Linux-style fd lock 在 MSYS/Git Bash 上不可靠
+- 最小正确修复语义因此也很明确：
+  - 保留 Linux/常规 bash 的 output-root fd lock
+  - 在 `MSYS/MINGW/CYGWIN` shell 下 fail-open/降级为无锁继续
+  - 因为当前 GitHub Windows evidence job 本来就是单 runner、单 workspace 的串行执行，不值得为了锁实现兼容性继续拖住整个 gate

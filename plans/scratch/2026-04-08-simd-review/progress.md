@@ -15548,3 +15548,42 @@
   - Windows B07 剩余红点已经不再是 SIMD 实现层
   - 这一批已把 native batch `check` 的 Python 编码假红收掉，并把 bash-optin 入口诊断补齐
   - 下一步应提交并 push，然后重发 fresh Windows evidence，确认 `GateRunnerMode` 能否切到 `bash-optin`；若仍 fallback，也能直接从新日志看清具体 prereq 缺哪一项
+
+## 2026-05-19 Windows B07 Follow-up: Bash-Opt-In Switched On, Then Git Bash `flock` Became The Next Real Blocker
+
+- fresh Windows run `26067046243` 已经把上一批 batch prereq 诊断修复验证成真：
+  - `BashPrereq.Resolve: 1`
+  - `BashPrereq.RunAllSh: 1`
+  - `BashPrereq.BuildOrTestSh: 1`
+  - `BashPrereq.PublicAbiSmokeHeader: 1`
+  - `GateRunnerMode: bash-optin`
+- 这说明：
+  - `collect_windows_b07_evidence.bat` 的 delayed-expansion 修复方向正确
+  - 当前 B07 已不再被错误卡在 `batch-default`
+- 新失败面继续缩小，而且也不是 SIMD：
+  - `BuildOrTest.sh gate` 刚进入 canonical bash gate 后，第一步就打在输出根锁上：
+    - `[LOCK] Waiting for output-root lock: /d/.../.simd-output-root.lock`
+    - `flock: 10: Bad file descriptor`
+  - B07 尾部因此变成：
+    - `GateSummaryJson: missing`
+    - `GateSummaryExportRc: 2`
+    - `GATE_EXIT_CODE=65`
+- 关键判断更新：
+  - 上一轮修的不是“看起来切到 bash 了”，而是已经真的切到了
+  - 当前新 blocker 是 Git Bash / MSYS 环境里 fd-based `flock` 语义不可靠
+  - 这仍是 runner/control-plane 问题，不是 simd gate 里的 backend/runtime/test 语义问题
+- 已落地修复：
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - `with_output_root_lock()` 现在在 `MSYS/MINGW/CYGWIN` shell 下直接降级为无锁继续
+    - 同时保留 Linux / 常规 bash 路径上的 fd lock，不影响本地主线串行 gate
+- 本地串行验证 fresh 通过：
+  - `bash -n tests/fafafa.core.simd/BuildOrTest.sh`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - shell 语法通过
+  - Linux release `check` 继续通过
+  - Linux 路径仍正常显示 `Waiting/Acquired/Released output-root lock`
+- 当前阶段结论：
+  - Windows B07 已经真正推进到 canonical bash gate
+  - 新的最小 blocker 已收敛为 Git Bash 下的 `flock` 兼容性
+  - 这一刀已经把它按平台降级处理，下一步应提交并 push，然后重发 fresh Windows evidence，看 gate 是否终于能继续跑完后续步骤
