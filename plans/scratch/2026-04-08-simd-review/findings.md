@@ -9442,3 +9442,40 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86` 通过
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 通过
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 通过
+
+## 2026-05-20 RISCVV Wide Select Legacy-Mask Companions Were Truly Dead, Unlike The Other Residuals
+
+- 在 wide `F32 reduction` cleanup 之后，下一处最值得做的 residual 不是继续追 `F64 reduction`，也不是把 `Load/Store` 收成 scalar helper。
+- 原因非常具体：
+  - `F64 ReduceAdd/ReduceMul` 当前本地 loop 与 `ScalarReduce*` 起始值合同不同
+    - scalar 版本从 `0.0/1.0` 起算
+    - 当前 `RISCVV` 本地 loop 从第一 lane 起算
+  - 这会碰到 `NaN` 和 `signed-zero` 的语义差异，不能当作“重复体”直接合并。
+  - `RISCVV Load/Store` 当前本地实现也与 scalar helper 仍有合同差：
+    - scalar helper 带 `Assert(p <> nil, ...)`
+    - 现有 `RISCVV` 本地 loop 没有这层断言
+  - 所以这两条线都不是纯 retire cleanup，而是会引入行为替换风险。
+- 相比之下，真正干净的一刀是：
+  - `RISCVVSelectF32x8(const mask: TMask8; const a, b: TVecF32x8): TVecF32x8;`
+  - `RISCVVSelectF64x4(const mask: TMask4; const a, b: TVecF64x4): TVecF64x4;`
+- 这两处的问题不是“实现可优化”，而是“已经失去 live ownership”：
+  - `src/fafafa.core.simd.riscvv.register.inc` 已明确让 `SelectF32x8` / `SelectF64x4` 继续复用 base scalar slots
+  - repo 内搜索结果只剩它们各自的定义，没有 live source consumer
+  - 说明这两处 legacy mask companion 继续留在 facade 里，只会制造“看起来还有第二套实现”的假象
+- 因而这批最真实的修复策略不是“共享 helper”，而是直接删掉 dead definition，并把源码形状审计补齐到同一事实面。
+- 这轮也暴露了 `DispatchAPI` 的一个小真相缺口：
+  - 之前只断言 wide dispatch wrapper
+    - `TVecU32x8`
+    - `TVecU64x4`
+  - 但没有显式断言 legacy mask wrapper
+    - `TMask8`
+    - `TMask4`
+  - 这样会让这两处 dead definition 即便重新长回来，也比其他同类 wrapper 更晚暴露。
+- fresh 证据说明这批是纯 dead-code retire，而不是语义替换：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 通过
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 通过
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 通过
+- 当前结论更新：
+  - 这两处 `RISCVV wide select` legacy mask companion 已确认属于 dead residual
+  - 当前 `Wave 5` 的高价值路径仍然应该优先处理这种“live ownership 已经不存在”的 retire cleanup
+  - 对 `F64 reduction` 和 `Load/Store` 这类仍有合同差异的 residual，继续保持“暂不合并”的纪律更稳妥

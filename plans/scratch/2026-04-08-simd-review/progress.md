@@ -16193,3 +16193,47 @@
 - 当前阶段结论：
   - `RISCVV` 的 wide `F32 reduction` helper 现在不再维护第二份本地 loop 真相
   - 这批依然只收 helper body 和 parity coverage，没有动 register ownership，也没有重新打开 `F64` reduction 敏感面
+
+## 2026-05-20 RISCVV Dead Wide Select Companion Retirement
+
+- 继续接手当前 worktree 时，先对齐真实未提交范围：
+  - `git status --short --branch`
+  - 结果：只剩
+    - `src/fafafa.core.simd.riscvv.facade.inc`
+    - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+  - 说明这批已经比前两轮更窄，不再涉及 helper semantics checker，只围绕 `RISCVV` dead companion retire 收口
+- 先做了边界复核，明确这次不去碰两类“看起来像重复，但其实仍有合同差”的 residual：
+  - `F64 ReduceAdd/ReduceMul`
+    - 当前本地 loop 从第一 lane 起算
+    - `ScalarReduce*` 从 `0.0/1.0` 起算
+  - `RISCVV Load/Store`
+    - scalar helper 带 `Assert(p <> nil, ...)`
+    - 本地 loop 没有
+  - 结论：这两类都不是纯 dead-code retire，本批继续回避
+- 已落地的源码 / 测试收口：
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - 删除 `RISCVVSelectF32x8(const mask: TMask8; const a, b: TVecF32x8): TVecF32x8;`
+    - 删除 `RISCVVSelectF64x4(const mask: TMask4; const a, b: TVecF64x4): TVecF64x4;`
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 在 `RISCVV fallback-only scalar-reuse` 审计段补：
+      - `RISCVVSelectF32x8 legacy mask wrapper` absence 断言
+      - `RISCVVSelectF64x4 legacy mask wrapper` absence 断言
+- 这批选择之所以成立，是因为 runtime ownership 已经不在这两处本地定义上：
+  - `src/fafafa.core.simd.riscvv.register.inc` 已让 `SelectF32x8` / `SelectF64x4` 继续复用 base scalar slots
+  - repo 内搜索也已确认这两个 legacy mask companion 没有其他 live source consumer
+- release 策略下的 fresh 验证链已串行完成：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- fresh 结果：
+  - `DispatchAPI` 通过
+  - Release `check` 通过
+  - Release `gate` 通过
+  - `filtered run_all check chain` 为 `5/5`
+  - 最终 gate 尾部为：
+    - `EVIDENCE OK: windows_b07_gate.log`
+    - `[GATE] OK`
+- 当前阶段结论：
+  - 这两处 `RISCVV wide select` legacy mask companion 已被正式退休，不再制造“还有第二套 live select truth”的假象
+  - 当前 batch 仍严格停在 bounded retire cleanup，没有把语义替换风险带进 `F64 reduction` 或 `Load/Store`

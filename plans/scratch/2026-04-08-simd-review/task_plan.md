@@ -6116,3 +6116,23 @@ closeout finalize，直到 `freeze-status` 重新转绿。
 | 1. 锁定下一个同类 residual | completed | 已确认 `riscvv.facade.inc` 里 `ReduceAdd/ReduceMulF32x8/F32x16` 仍是纯本地 loop，而 `ScalarReduce*` 精确合同已存在；相比 `F64` reduction，这组更安全，且与上一批 `F32x4` 形成同类收口 |
 | 2. 收回 facade duplicate 实现 | completed | `src/fafafa.core.simd.riscvv.facade.inc` 中这 4 个 helper 已改成直接委托 `ScalarReduceAdd/ReduceMulF32x8/F32x16`，不再维护第二份 wide scalar loop |
 | 3. 对齐 helper semantics / DispatchAPI / release 验证 | completed | `check_nonx86_helper_semantics.py` 已新增这 4 个 helper 的 exact-source 断言；`TTestCase_NonX86BackendParity` 已补 `ReduceMulF32x8`、`ReduceAddF32x16`、`ReduceMulF32x16` 的 assignment/parity coverage；fresh `DispatchAPI`、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿 |
+
+## 2026-05-20 RISCVV Dead Wide Select Companion Retirement
+
+### Goal
+
+继续沿 `Wave 5 / retire + redundancy cleanup` 做真正安全的下一刀：
+不去碰 `F64 reduction` 或 `Store/Load` 这类仍带语义/断言差异的 helper，
+只删除已经不再承担 runtime slot ownership 的
+`RISCVVSelectF32x8(TMask8, ...)`
+和
+`RISCVVSelectF64x4(TMask4, ...)`
+两处 dead companion。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 锁定这批真正可删的 residual | completed | 已复核 `docs/plans/2026-05-10-simd-execution-index.md` 仍处于 `Wave 5`；并确认 `riscvv.register.inc` 已让 `SelectF32x8` / `SelectF64x4` 继续复用 base scalar slots，因此本地 `TMask8/TMask4` 版本不再是 runtime owner |
+| 2. 删除 dead companion 定义 | completed | `src/fafafa.core.simd.riscvv.facade.inc` 中这两处 legacy mask wrapper 已删除；这批不改 `F64 reduction`、不改 `Load/Store`，避免把“死代码删除”和“语义替换”混在一起 |
+| 3. 补齐 dead-wrapper 审计并做 release 复验 | completed | `DispatchAPI` 已新增这两种 legacy mask 签名的 absence 断言；fresh Release `DispatchAPI`、Release `check`、Release `gate` 全绿，说明这是纯 retire cleanup，不涉及 slot ownership 漂移 |

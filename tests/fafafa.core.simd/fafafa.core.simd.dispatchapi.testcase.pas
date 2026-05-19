@@ -8807,8 +8807,12 @@ begin
   AssertDeadWrapperRemoved('BitsetPopCount_RISCVV', 'function BitsetPopCount_RISCVV(');
   AssertDeadWrapperRemoved('RISCVVSelectF32x8 wide dispatch wrapper',
     'function RISCVVSelectF32x8(const mask: TVecU32x8; const a, b: TVecF32x8): TVecF32x8;');
+  AssertDeadWrapperRemoved('RISCVVSelectF32x8 legacy mask wrapper',
+    'function RISCVVSelectF32x8(const mask: TMask8; const a, b: TVecF32x8): TVecF32x8;');
   AssertDeadWrapperRemoved('RISCVVSelectF64x4 wide dispatch wrapper',
     'function RISCVVSelectF64x4(const mask: TVecU64x4; const a, b: TVecF64x4): TVecF64x4;');
+  AssertDeadWrapperRemoved('RISCVVSelectF64x4 legacy mask wrapper',
+    'function RISCVVSelectF64x4(const mask: TMask4; const a, b: TVecF64x4): TVecF64x4;');
   AssertDeadWrapperRemoved('RISCVVSelectI32x4 wide dispatch wrapper',
     'function RISCVVSelectI32x4(const mask: TVecI32x4; const a, b: TVecI32x4): TVecI32x4;');
   AssertDeadWrapperRemoved('RISCVVFloorF32x4 dead wrapper',

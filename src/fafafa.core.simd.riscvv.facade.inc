@@ -730,34 +730,6 @@ begin
 end;
 
 // =============================================================
-// F32x8 Select Operation
-// =============================================================
-
-function RISCVVSelectF32x8(const mask: TMask8; const a, b: TVecF32x8): TVecF32x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    if (mask and (1 shl i)) <> 0 then
-      Result.f[i] := a.f[i]
-    else
-      Result.f[i] := b.f[i];
-end;
-
-// =============================================================
-// F64x4 Select Operation
-// =============================================================
-
-function RISCVVSelectF64x4(const mask: TMask4; const a, b: TVecF64x4): TVecF64x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    if (mask and (1 shl i)) <> 0 then
-      Result.d[i] := a.d[i]
-    else
-      Result.d[i] := b.d[i];
-end;
-
-// =============================================================
 // F32x16 Select Operation
 // =============================================================
 
