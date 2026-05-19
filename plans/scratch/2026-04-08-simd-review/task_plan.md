@@ -5849,3 +5849,19 @@
 | 1. 给 side-effect surface 增加 required-opcode 规则 | completed | 已新增 `REQUIRED_SIDE_EFFECT_OPCODES_BY_ROUTINE`，要求 `simd_clflush/lfence/mfence/pause` 的 asm body 必须命中对应 opcode |
 | 2. 单跑结构检查确认新字段与无假红 | completed | `python3 tests/fafafa.core.simd/check_sse2_structure.py --summary-line` 已 fresh 输出 `missing_required_side_effect_opcodes=0` |
 | 3. release 主链复验 | completed | `git diff --check` 与 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 已全部 fresh 通过 |
+
+## 2026-05-19 Windows B07 Staged Source Completeness
+
+### Goal
+
+在 Windows B07 已经切到 `bash-optin` 且越过 Git Bash `flock` 兼容性之后，继续收口最新真实 blocker：
+修复 `.github/workflows/simd-windows-b07-evidence.yml` 的 staged source subset 漏拷根级 smoke 脚本，避免 canonical bash gate 因输入不完整而假红。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `26068255672` 的最小失败面 | completed | 失败已收敛为 staged workspace 缺少 `tests/test_windows_simd_cpuinfo_x86_batch_build_success_criteria.sh`，不是 SIMD/backend、不是 bash-optin、也不是 `flock` |
+| 2. 补 workflow staged source 依赖 | completed | `Stage SIMD source subset` 已补拷贝 `tests/test_windows_simd_cpuinfo_x86_batch_build_success_criteria.sh` |
+| 3. 更新 scratch 记录并做 release 复验 | completed | `progress.md` / `findings.md` 已补最新 failure surface；`git diff --check` 与 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` fresh 通过 |
+| 4. 提交、push，并重发 Windows evidence | pending | push 后重发 `simd-windows-b07-evidence.yml`，确认 gate 是否越过缺脚本检查 |

@@ -15587,3 +15587,29 @@
   - Windows B07 已经真正推进到 canonical bash gate
   - 新的最小 blocker 已收敛为 Git Bash 下的 `flock` 兼容性
   - 这一刀已经把它按平台降级处理，下一步应提交并 push，然后重发 fresh Windows evidence，看 gate 是否终于能继续跑完后续步骤
+
+## 2026-05-19 Windows B07 Follow-up: Bash Gate Continued Past MSYS Lock, Then Failed On Incomplete Staged Source
+
+- fresh Windows run `26068255672` 继续把控制面收口往前推进了一步：
+  - `GateRunnerMode: bash-optin`
+  - `[LOCK] WARN: MSYS/Cygwin shell does not provide reliable fd-based flock semantics here; proceeding without output-root lock`
+  - `tests/fafafa.core.simd/logs/gate_summary.md` 与 `gate_summary.json` 都已经产出
+- 这说明上一批 `flock` 平台降级修复已经真实生效，B07 不再死在输出根锁上。
+- 新的第一失败点也很单纯，而且仍然不是 SIMD：
+  - `BuildOrTest.sh gate` 继续往后跑到 Windows cpuinfo.x86 batch smoke 校验时，直接报：
+    - `[CHECK] Missing Windows cpuinfo.x86 batch success-criteria smoke: /d/a/fafafa.core/fafafa.core/tests/test_windows_simd_cpuinfo_x86_batch_build_success_criteria.sh`
+  - 同一轮尾部记录：
+    - `GateSummaryExportRc: 0`
+    - `GATE_EXIT_CODE=1`
+- 根因判断已经收敛：
+  - 不是 SIMD backend/runtime 失败
+  - 不是 `bash-optin` 入口问题
+  - 也不是 Git Bash `flock` 问题
+  - 而是 `.github/workflows/simd-windows-b07-evidence.yml` 的 staged source subset 没有把根级 smoke 脚本 `tests/test_windows_simd_cpuinfo_x86_batch_build_success_criteria.sh` 一起拷进去
+  - 与此同时，`tests/fafafa.core.simd/BuildOrTest.sh` 仍把这份脚本作为 Windows gate 的硬依赖
+- 已落地修复：
+  - `.github/workflows/simd-windows-b07-evidence.yml`
+    - `Stage SIMD source subset` 现已补拷贝 `tests/test_windows_simd_cpuinfo_x86_batch_build_success_criteria.sh`
+- 当前阶段结论：
+  - Windows B07 的最小真实 blocker 已继续收口成 “workflow staged source 不完整”
+  - 下一步应做 `git diff --check` / release 口径复验、提交 push，并重发 fresh Windows evidence，确认 gate 是否越过这条缺脚本检查

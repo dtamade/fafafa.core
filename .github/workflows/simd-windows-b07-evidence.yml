@@ -51,6 +51,7 @@ jobs:
           if [[ -f "${ROOT}/tests/run_all_tests.sh" ]]; then
             cp "${ROOT}/tests/run_all_tests.sh" "${STAGE}/tests/"
           fi
+          cp "${ROOT}/tests/test_windows_simd_cpuinfo_x86_batch_build_success_criteria.sh" "${STAGE}/tests/"
 
       - name: Upload staged SIMD source
         uses: actions/upload-artifact@v4

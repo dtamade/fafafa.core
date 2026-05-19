@@ -8996,3 +8996,23 @@
   - 保留 Linux/常规 bash 的 output-root fd lock
   - 在 `MSYS/MINGW/CYGWIN` shell 下 fail-open/降级为无锁继续
   - 因为当前 GitHub Windows evidence job 本来就是单 runner、单 workspace 的串行执行，不值得为了锁实现兼容性继续拖住整个 gate
+
+## 2026-05-19 Windows B07 After The `flock` Fix: The Real Failure Became Missing Root-Level Smoke Script In The Staged Source
+
+- fresh Windows run `26068255672` 证明上一批 `flock` 降级已经生效：
+  - `GateRunnerMode: bash-optin`
+  - 日志明确打印 `MSYS/Cygwin ... proceeding without output-root lock`
+  - `gate_summary.md/json` 也都已经成功导出
+- 因此这轮不应该再回头怀疑：
+  - SIMD backend/runtime
+  - `collect_windows_b07_evidence.bat` 的 bash-optin 入口
+  - Git Bash 的 fd-lock 兼容性
+- 新失败点已经收敛成一个 staged-source completeness 问题：
+  - `BuildOrTest.sh` 在 Windows cpuinfo.x86 batch success-criteria smoke 这一步检查：
+    - `tests/test_windows_simd_cpuinfo_x86_batch_build_success_criteria.sh`
+  - 但 `.github/workflows/simd-windows-b07-evidence.yml` 的 `Stage SIMD source subset` 只复制了 SIMD 子目录和 `run_all_tests.*`
+  - 没有复制上述根级 smoke 脚本，于是 canonical bash gate 在 staged workspace 里必然报 “Missing ... success-criteria smoke”
+- 这条 finding 的价值是继续防止跑偏：
+  - 当前失败已经不是“Windows gate 又炸了一个新语义问题”
+  - 而是 workflow source subset 没把明确依赖的根级测试脚本带过去
+  - 最小正确修复就是在 staged source 步骤补拷贝该脚本，而不是去放宽 `BuildOrTest.sh` 的检查或重新怀疑 SIMD 模块实现
