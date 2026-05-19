@@ -6152,3 +6152,21 @@ closeout finalize，直到 `freeze-status` 重新转绿。
 | 1. 锁定可安全合并的 exact-contract residual | completed | 已确认 `RISCVVSatAdd/SubI8x16`、`RISCVVSatAdd/SubI16x8`、`RISCVVSatAdd/SubU8x16`、`RISCVVSatAdd/SubU16x8` 都只是重复 scalar 饱和算术合同；相比 `F64 reduction` 或 `Load/Store`，这批没有 `NaN` / `signed-zero` / nil 断言歧义 |
 | 2. 收回 facade duplicate 实现 | completed | `src/fafafa.core.simd.riscvv.facade.inc` 中这 8 个 no-asm helper 已统一改成委托 `ScalarI8x16SatAdd/Sub`、`ScalarI16x8SatAdd/Sub`、`ScalarU8x16SatAdd/Sub`、`ScalarU16x8SatAdd/Sub` |
 | 3. 补齐 source/disptach 审计并做 release 复验 | completed | `check_nonx86_helper_semantics.py` 已新增 8 个 exact-source 断言；`DispatchAPI` 新增 `TTestCase_NonX86BackendParity.Test_SaturatingArithmeticParity_IfAvailable`；fresh helper semantics、Release `DispatchAPI + SaturatingArithmetic`、Release `check`、Release `gate` 全绿 |
+
+## 2026-05-20 RISCVV Wide Float MinMax Exact-Contract Consolidation
+
+### Goal
+
+继续沿 `Wave 5 / retire + redundancy cleanup` 做一批真正有证据支撑的 helper 收口：
+把 `RISCVV` no-asm fallback 中 8 个 wide float `Min/Max` 本地 loop
+`Min/MaxF32x8` / `Min/MaxF32x16` / `Min/MaxF64x4` / `Min/MaxF64x8`
+收回现有 scalar truth source；
+这批只收 helper body 与 source audit，不改 register slot ownership，也不碰 `Clamp` / `Rcp` / `F64 reduction` 这类仍有合同差的 residual。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 wide float extrema 是否真是 exact-contract duplicate | completed | 已对位 `src/fafafa.core.simd.scalar.pas` 与 `src/fafafa.core.simd.riscvv.facade.inc`，并额外用本机 FPC probe 验证 `Math.Min/Max` 与 `if < / > then ... else ...` 在 `NaN`、`-0/+0` 上的位级结果一致：`NaN,3 -> 3`、`5,NaN -> NaN`、`-0,+0 -> +0`、`+0,-0 -> -0` |
+| 2. 收回 no-asm duplicate loop | completed | `src/fafafa.core.simd.riscvv.facade.inc` 中 `RISCVVMin/MaxF32x8/F32x16/F64x4/F64x8` 已统一改为委托对应 `ScalarMin/Max*`；保留 `riscvv.register.inc` 现有 backend-owned slot 绑定不变，避免 runtime ownership 漂移 |
+| 3. 对齐 helper semantics 并做 release 复验 | completed | `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 已把这 8 个 helper 从“要求本地 loop”改成“要求 scalar 委托”；fresh `git diff --check`、`py_compile`、helper semantics summary、Release `DispatchAPI + NonX86BackendParity`、Release `check`、Release `gate` 全绿 |

@@ -9517,3 +9517,57 @@
 - 当前结论更新：
   - `RISCVV` 这 8 个 saturating helper 已不再维护第二份 no-asm scalar loop 真相
   - 当前 `Wave 5` 可以继续优先处理这种“scalar contract 已明确定义、且不带浮点/指针歧义”的 residual
+
+## 2026-05-20 RISCVV Wide Float MinMax Loops Were Redundant But Their Runtime Ownership Was Not
+
+- 这轮 fresh 复核后，最容易误判的点不是“能不能删这 8 个 helper”，而是“删到什么层级才安全”。
+- 候选 helper 很具体：
+  - `RISCVVMinF32x8`
+  - `RISCVVMaxF32x8`
+  - `RISCVVMinF32x16`
+  - `RISCVVMaxF32x16`
+  - `RISCVVMinF64x4`
+  - `RISCVVMaxF64x4`
+  - `RISCVVMinF64x8`
+  - `RISCVVMaxF64x8`
+- 先做了源码对位：
+  - `src/fafafa.core.simd.scalar.pas` 对应 `ScalarMin/Max*` 使用 `Math.Min/Max`
+  - `src/fafafa.core.simd.riscvv.facade.inc` 旧实现使用本地 `if < / > then ... else ...` loop
+- 肉眼对位还不够，因为这组 helper 可能卡在浮点特殊值合同上。为避免把 `Clamp/Rcp/F64 reduction` 的经验误套过来，我额外跑了本机 FPC probe，结论是这两种写法在当前 FPC/host 条件下对关键信号完全一致：
+  - `A=NaN, B=3`：
+    - `Min(Math)` / `Min(If)` 都返回 `3`
+    - `Max(Math)` / `Max(If)` 都返回 `3`
+  - `A=5, B=NaN`：
+    - `Min(Math)` / `Min(If)` 都返回 `NaN`
+    - `Max(Math)` / `Max(If)` 都返回 `NaN`
+  - `A=-0, B=+0`：
+    - `Min/Max` 两种写法都给 `+0`
+  - `A=+0, B=-0`：
+    - `Min/Max` 两种写法都给 `-0`
+- 因而这 8 个 helper 的“本地 loop”确实只是第二份 scalar truth source，不再携带独立浮点语义。
+- 但 runtime ownership 不能一起删：
+  - `src/fafafa.core.simd.riscvv.register.inc` 仍明确绑定
+    - `table.MinF32x8 := @RISCVVMinF32x8;`
+    - `table.MaxF32x8 := @RISCVVMaxF32x8;`
+    - `table.MinF32x16 := @RISCVVMinF32x16;`
+    - `table.MaxF32x16 := @RISCVVMaxF32x16;`
+    - `table.MinF64x4 := @RISCVVMinF64x4;`
+    - `table.MaxF64x4 := @RISCVVMaxF64x4;`
+    - `table.MinF64x8 := @RISCVVMinF64x8;`
+    - `table.MaxF64x8 := @RISCVVMaxF64x8;`
+  - `DispatchAPI` 当前也把这组 wide float min/max 视为 `RISCVV` backend-owned slot，而不是 `base scalar inherited`
+- 所以这批真正安全的动作不是“像 dead companion 那样直接删定义”，而是：
+  - 保留 helper 名称和 register 绑定
+  - 只把 helper body 收成 `ScalarMin/Max*`
+  - 再让 `check_nonx86_helper_semantics.py` 明确守住“这里现在应该是 scalar delegation”
+- 这轮也因此顺带澄清了一个工作纪律：
+  - `ClampF64x4/F64x8`、`RcpF64x4`、`F64 ReduceAdd/ReduceMul` 之所以继续不碰，不是因为“wide float 都危险”
+  - 而是因为那几组已经确认还有本地合同差；`Min/Max` 这 8 个 helper 经 fresh probe 后不属于那一类
+- fresh 验证结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=757 status=ok`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_NonX86BackendParity` 通过
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 通过
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 通过
+- 当前结论更新：
+  - `RISCVV` 这 8 个 wide float `Min/Max` helper 已不再维护第二份本地 loop 真相
+  - 但它们当前仍是 runtime backend-owned slot 的合法门面；因此这批是“body consolidation”，不是“dead-wrapper retirement”

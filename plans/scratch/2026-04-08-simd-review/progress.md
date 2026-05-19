@@ -16275,3 +16275,49 @@
 - 当前阶段结论：
   - `RISCVV` 这 8 个 saturating helper 已不再携带第二份 no-asm scalar loop 真相
   - 这批继续保持 `Wave 5` 的 bounded 风格：只收 exact-contract duplicate，不重新打开浮点/指针敏感 residual
+
+## 2026-05-20 RISCVV Wide Float MinMax Exact-Contract Consolidation
+
+- 继续沿 `Wave 5 / retire + redundancy cleanup` 收口，但这次先没有直接动代码，而是先补了一轮证据：
+  - 对位 `src/fafafa.core.simd.riscvv.facade.inc` 与 `src/fafafa.core.simd.scalar.pas`
+  - 确认候选只剩 8 个 wide float helper
+    - `RISCVVMin/MaxF32x8`
+    - `RISCVVMin/MaxF32x16`
+    - `RISCVVMin/MaxF64x4`
+    - `RISCVVMin/MaxF64x8`
+  - `check_nonx86_helper_semantics.py` 当时仍要求它们保留本地 `if` loop
+- 为了避免凭肉眼误判 `Math.Min/Max` 合同，我补跑了两段本机 FPC probe：
+  - 首轮用 `0.0/0.0` 现场造 `NaN`，直接触发 `EInvalidOp`
+  - 之后改成位模式构造 `NaN`，并用 `SetExceptionMask(...)` 屏蔽 invalid-op，再测 `Math.Min/Max` 与 `if < / > then ... else ...` 的位级结果
+  - `Double` probe 结果：
+    - `A=NaN, B=3` -> 两种写法都返回 `3`
+    - `A=5, B=NaN` -> 两种写法都返回 `NaN`
+    - `A=-0, B=+0` -> 两种写法都返回 `+0`
+    - `A=+0, B=-0` -> 两种写法都返回 `-0`
+  - `Single` probe 结果与 `Double` 同样一致
+- 这轮同时复核了 ownership 边界，没有把“body consolidation”和“slot retirement”混在一起：
+  - `src/fafafa.core.simd.riscvv.register.inc` 仍把这 8 个 slot 绑定到 `@RISCVVMin/Max*`
+  - `DispatchAPI` 当前对 `sbRISCVV` 也仍把这组当成 backend-owned slot，而不是 `base scalar inherited`
+  - 所以这批只改 facade body，不改 register binding
+- 已落地修改：
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - `RISCVVMin/MaxF32x8/F32x16/F64x4/F64x8` 全部改成直接委托 `ScalarMin/Max*`
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 这 8 个 helper 的 exact-source 断言从“要求本地 loop”改成“要求 scalar delegation”
+- release 策略下的串行验证链：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- fresh 结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=757 status=ok`
+  - `DispatchAPI + NonX86BackendParity` 通过
+  - Release `check` 通过
+  - Release `gate` 通过
+  - `filtered run_all check chain` 仍为 `5/5`
+  - gate 尾部仍是 `[GATE] OK`
+- 当前阶段结论：
+  - `RISCVV` wide float `Min/Max` 的 no-asm 本地 loop 已收回到单一 scalar truth source
+  - 这批没有改变 backend slot ownership，也没有重新打开 `Clamp/Rcp/F64 reduction` 的敏感合同面

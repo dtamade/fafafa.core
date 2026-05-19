@@ -1423,43 +1423,23 @@ begin
 end;
 
 function RISCVVMaxF32x16(const a, b: TVecF32x16): TVecF32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    if a.f[i] > b.f[i] then
-      Result.f[i] := a.f[i]
-    else
-      Result.f[i] := b.f[i];
+  Result := ScalarMaxF32x16(a, b);
 end;
 
 function RISCVVMaxF32x8(const a, b: TVecF32x8): TVecF32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    if a.f[i] > b.f[i] then
-      Result.f[i] := a.f[i]
-    else
-      Result.f[i] := b.f[i];
+  Result := ScalarMaxF32x8(a, b);
 end;
 
 function RISCVVMaxF64x4(const a, b: TVecF64x4): TVecF64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    if a.d[i] > b.d[i] then
-      Result.d[i] := a.d[i]
-    else
-      Result.d[i] := b.d[i];
+  Result := ScalarMaxF64x4(a, b);
 end;
 
 function RISCVVMaxF64x8(const a, b: TVecF64x8): TVecF64x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    if a.d[i] > b.d[i] then
-      Result.d[i] := a.d[i]
-    else
-      Result.d[i] := b.d[i];
+  Result := ScalarMaxF64x8(a, b);
 end;
 
 function RISCVVMaxI16x8(const a, b: TVecI16x8): TVecI16x8;
@@ -1483,43 +1463,23 @@ begin
 end;
 
 function RISCVVMinF32x16(const a, b: TVecF32x16): TVecF32x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    if a.f[i] < b.f[i] then
-      Result.f[i] := a.f[i]
-    else
-      Result.f[i] := b.f[i];
+  Result := ScalarMinF32x16(a, b);
 end;
 
 function RISCVVMinF32x8(const a, b: TVecF32x8): TVecF32x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    if a.f[i] < b.f[i] then
-      Result.f[i] := a.f[i]
-    else
-      Result.f[i] := b.f[i];
+  Result := ScalarMinF32x8(a, b);
 end;
 
 function RISCVVMinF64x4(const a, b: TVecF64x4): TVecF64x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    if a.d[i] < b.d[i] then
-      Result.d[i] := a.d[i]
-    else
-      Result.d[i] := b.d[i];
+  Result := ScalarMinF64x4(a, b);
 end;
 
 function RISCVVMinF64x8(const a, b: TVecF64x8): TVecF64x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    if a.d[i] < b.d[i] then
-      Result.d[i] := a.d[i]
-    else
-      Result.d[i] := b.d[i];
+  Result := ScalarMinF64x8(a, b);
 end;
 
 function RISCVVMinI16x8(const a, b: TVecI16x8): TVecI16x8;
