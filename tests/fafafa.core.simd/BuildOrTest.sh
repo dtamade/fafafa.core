@@ -1846,13 +1846,15 @@ check_windows_evidence_collector_guard() {
 
   LVerifyBatRequired=(
     'call :check_fixed "[GATE] 1/6 Build + check SIMD module"'
-    'call :check_fixed "[GATE] Optional public ABI smoke"'
+    'call :check_publicabi_fallback'
+    'Missing public ABI witness'
     'call :check_fixed "[GATE] 6/6 Filtered run_all check chain"'
   )
 
   LVerifyShRequired=(
     'check_fixed "[GATE] 1/6 Build + check SIMD module" || LFail=1'
-    'check_fixed "[GATE] Optional public ABI smoke" || LFail=1'
+    'Missing public ABI witness'
+    '--suite=TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework'
     'check_fixed "[GATE] 6/6 Filtered run_all check chain" || LFail=1'
   )
 

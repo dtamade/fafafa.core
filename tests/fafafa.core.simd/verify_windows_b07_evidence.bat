@@ -102,7 +102,7 @@ call :verify_summary_json_if_present
 set "SUMMARY_JSON_RC=%ERRORLEVEL%"
 if "%SUMMARY_JSON_RC%"=="10" (
   call :check_fixed "[GATE] 1/6 Build + check SIMD module"
-  call :check_fixed "[GATE] Optional public ABI smoke"
+  call :check_publicabi_fallback
   call :check_fixed "[GATE] 2/6 SIMD list suites"
   call :check_fixed "[GATE] 3/6 SIMD AVX2 stable vector suites"
   call :check_fixed "[GATE] 4/6 CPUInfo portable suites"
@@ -197,6 +197,15 @@ exit /b 0
 findstr /l /c:"[B07] Working dir: " "%LOG_PATH%" >nul 2>nul
 if not errorlevel 1 exit /b 0
 echo [EVIDENCE] Missing B07 value: Working dir
+set "FAIL=1"
+exit /b 0
+
+:check_publicabi_fallback
+findstr /l /c:"[GATE] Optional public ABI smoke" "%LOG_PATH%" >nul 2>nul
+if not errorlevel 1 exit /b 0
+findstr /l /c:"--suite=TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework" "%LOG_PATH%" >nul 2>nul
+if not errorlevel 1 exit /b 0
+echo [EVIDENCE] Missing public ABI witness ^(expected old gate marker or current public ABI concurrent suite line^)
 set "FAIL=1"
 exit /b 0
 

@@ -210,7 +210,11 @@ case "${LSummaryJsonRc}" in
     ;;
   10)
     check_fixed "[GATE] 1/6 Build + check SIMD module" || LFail=1
-    check_fixed "[GATE] Optional public ABI smoke" || LFail=1
+    if ! grep -F -- "[GATE] Optional public ABI smoke" "${CHECK_LOG_PATH}" >/dev/null && \
+       ! grep -F -- "--suite=TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework" "${CHECK_LOG_PATH}" >/dev/null; then
+      echo "[EVIDENCE] Missing public ABI witness (expected old gate marker or current public ABI concurrent suite line)"
+      LFail=1
+    fi
     check_fixed "[GATE] 2/6 SIMD list suites" || LFail=1
     check_fixed "[GATE] 3/6 SIMD AVX2 stable vector suites" || LFail=1
     check_fixed "[GATE] 4/6 CPUInfo portable suites" || LFail=1

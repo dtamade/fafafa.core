@@ -259,6 +259,33 @@
   - `intrinsics.experimental` default / experimental 双模态 `check` 全绿
   - 其中 `SSE backend smoke` 明确通过，说明这次改动文件已被真实编译覆盖
 
+## 2026-05-19 Windows Evidence Final Closeout
+
+- 继续沿用成功 Windows workflow run `26074189888` 做 canonical closeout，批次号为 `SIMD-20260519-152`。
+- 为了让 log-only fallback 也能吃下当前真实 Windows gate 日志，已同步收紧 3 处 verifier/guard：
+  - `tests/fafafa.core.simd/verify_windows_b07_evidence.sh`
+  - `tests/fafafa.core.simd/verify_windows_b07_evidence.bat`
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+- 这批修复不再硬钉旧 marker `[GATE] Optional public ABI smoke`，而是接受：
+  - 旧 marker
+  - 或当前真实 public ABI concurrent suite witness
+  - `--suite=TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`
+- `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-20260519-152 26074189888`
+  已完整跑通：
+  - Windows evidence promote 到 canonical `tests/fafafa.core.simd/logs/windows_b07_gate.log`
+  - 本地 backfill gate 成功
+  - `qemu cpuinfo non-x86 evidence` 对 `linux/arm/v7`、`linux/arm64`、`linux/riscv64` 全部 PASS
+  - `verify_windows_b07_evidence` PASS
+  - `run_windows_b07_closeout_finalize` PASS
+  - 自动回填 `docs/plans/...roadmap`、`tests/fafafa.core.simd/docs/simd_completeness_matrix.md`、根级 `progress.md`
+- fresh 单独复核也已通过：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+- 当前 closeout 状态：
+  - `ready=True`
+  - `mainline-ready=True`
+  - `cross-ready=True`
+  - Windows evidence 不再是外部 blocker
+
 ## 2026-05-19 Windows B07 Staged `run_all` Hygiene Chain Closure
 
 - 先按最新 fresh run `26071761664` 继续收口，不再重开更大范围 `simd` 审查。

@@ -22,7 +22,7 @@
 | 5. SIMD plan hygiene 与主链去干扰   | completed | `docs/plans/*simd*` 已明确分成 `active / historical / superseded`，并落下 `plan-status-index` 作为主入口                                                          |
 | 6. Wave 2 active 实施计划补全       | completed | 已新增当前第一波 `seam hardening` active plan，把 `dispatch / dataplane / public ABI / direct / façade fast-path` 的边界、红线、baseline 和完成标准写成独立作战单 |
 | 7. 继续深度审查缺失与冗余           | completed | 已用 live checker / non-x86 impl audit / freeze-status 复核当前真实残余，确认主缺口转为 evidence freshness、alias policy 与 hold-family trigger granularity      |
-| 8. 落地仓库内收口方案               | completed | 已完成 alias visibility policy、history placeholder demotion、hold-family trigger table 和 evidence blocker 文档同步；release `check/gate` 继续为绿；当前仅剩 Windows evidence freshness 外部阻塞 |
+| 8. 落地仓库内收口方案               | completed | 已完成 alias visibility policy、history placeholder demotion、hold-family trigger table 和 evidence blocker 文档同步；`SIMD-20260519-152` fresh Windows evidence closeout 已完成，`freeze-status` 现为 `ready=True/mainline-ready=True/cross-ready=True` |
 
 ## Constraints
 

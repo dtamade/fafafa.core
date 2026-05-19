@@ -9128,3 +9128,24 @@
 - 这说明：
   - 最新 blocker 仍然不在 SIMD 语义实现
   - 它是 Windows bash gate 剩余的一条 lazbuild 输出路径合同缺口
+
+## 2026-05-19 Windows Evidence Verifier Drift Was The Last Real Closeout Gap
+
+- 在 Windows B07 run `26074189888` 已经成功后，最后卡住 closeout 的不再是 SIMD 实现，也不是 GH Windows runner，而是本地 verifier 对旧 gate 文案的静态假设。
+- 具体漂移点很窄：
+  - `verify_windows_b07_evidence.sh` / `.bat` 的 log-only fallback 仍硬钉旧 marker：
+    - `[GATE] Optional public ABI smoke`
+  - 但当前真实 Windows gate 在没有 `gate_summary.json` 时，也可能只留下当前 public ABI concurrent suite witness：
+    - `--suite=TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`
+  - `BuildOrTest.sh` 里的 `check_windows_evidence_collector_guard()` 也还在钉旧 verifier 文本，导致 helper 自检和实际 verifier 语义不一致。
+- 这条 finding 的关键价值是防止再次跑偏去怀疑 SIMD 本体：
+  - Windows run 本身已经是绿的
+  - 真正的第一失败点是 verifier contract drift
+  - 最小正确修复就是让 shell verifier、batch verifier、BuildOrTest guard 共享同一条 public ABI witness fallback 真相
+- 修复后，`SIMD-20260519-152` closeout 已完整通过：
+  - `win-evidence-via-gh ... 26074189888`
+  - `verify_windows_b07_evidence` PASS
+  - `freeze-status` => `ready=True/mainline-ready=True/cross-ready=True`
+- 结论更新：
+  - 当前 SIMD closeout 已真正越过 Windows evidence freshness/source-newer-than-evidence 阻塞
+  - 后续若再看到同类红灯，优先检查 fresh artifact 是否真变旧，而不是重新怀疑 verifier 是否还钉着这次已修掉的旧 marker
