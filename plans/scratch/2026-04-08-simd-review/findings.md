@@ -9175,3 +9175,35 @@
 - 结论更新：
   - 当前 `NEON` 剩余的 `wrapper_only` 已经只剩 asm-only residual，不再混着 no-asm runtime ownership 假所有权
   - 下一批如果继续削 `NEON`，应优先审 `asm-only wrapper_only=52` 里最窄、最少 source consumers 的一簇，而不是重新回去碰已经收掉的 F64 clamp no-asm 路径
+
+## 2026-05-19 NEON SelectF32x4 Was Still Claiming A Runtime Shuffle Slot Without A Real Asm Leaf
+
+- 在 `ClampF64x2/4/8` 收口后，fresh strict truthfulness 继续把 `NEON wrapper_only` 压到：
+  - `wrapper_only=52`
+  - 且全部都已经是 `asm-only wrapper ok`
+- 其中最窄、最值当先切的一簇就是单槽：
+  - `SelectF32x4`
+- 这条 finding 的关键价值在于把“asm 分支里有一段本地实现代码”和“这个 slot 值得继续占 runtime backend-owned truth”彻底拆开：
+  - `src/fafafa.core.simd.neon.pas` 里的 `NEONSelectF32x4` 只是本地 Pascal lane loop，不是 assembler leaf，也不是 asm-helper forwarder
+  - `src/fafafa.core.simd.neon.scalar.utility.inc` 仍保留 no-asm 的 `ScalarSelectF32x4` companion
+  - `src/fafafa.core.simd.neon.register.inc` 之前却在 `FAFAFA_SIMD_NEON_ASM_ENABLED` 下继续把 `table.SelectF32x4` 绑到这段 Pascal loop，导致 runtime slot ownership 仍然虚高
+- 与此同时，`scShuffle` 的能力声明并不要求这一个 slot 继续占位：
+  - `InsertF32x4` / `ExtractF32x4` 仍是真实 asm leaf
+  - capability / public ABI 的 representative shuffle witness 只要还有非 scalar representative slot 就能成立
+- 因而最小正确修复不是删源码 companion，也不是改 capability bit，而是：
+  - 去掉 `table.SelectF32x4 := @NEONSelectF32x4;`
+  - 保留 asm 分支 local source companion 与 no-asm scalar companion
+  - 把 runtime ownership 明确回退给 `FillBaseDispatchTable`
+  - 同步把 `dispatchapi` truth-source、`key-slot-audit`、`register_truthfulness` allowlist 一起收正
+- 本轮还有一个过程型教训值得记录：
+  - 首次改 `NonX86BackendParity` 时误用了当前过程作用域里不存在的 helper，导致 fresh build 失败，而测试 runner 继续执行了旧二进制
+  - 真正的修复是先看 `build.txt`，确认错误是 `Identifier not found "AssertNeonReusesScalarOtherwiseNative"`，再改回本过程已有的 `AssertBackendOwnedSlotIfExpected(...)`
+  - 这次再次证明：一旦 build failed，不能解读旧二进制 test output，必须先把编译断点钉死
+- fresh 结果证明这条判断是对的：
+  - `NEON assignments=342 -> 341`
+  - `NEON wrapper_only=52 -> 51`
+  - `SelectF32x4` 在 `key-slot-audit` 中已从 `backend_owned` 变成 `reuse_base_scalar`
+  - `DispatchAPI+NonX86BackendParity`、`impl-audit-nonx86`、release `check` 全绿
+- 结论更新：
+  - `SelectF32x4` 已不再冒充 `NEON` backend-owned runtime shuffle truth
+  - 当前 `NEON` 剩余 `wrapper_only=51`，下一批应继续优先盯 `AndNot*` 三槽或其它最小 asm-only residual，而不是回头碰已经收口的 `SelectF32x4`

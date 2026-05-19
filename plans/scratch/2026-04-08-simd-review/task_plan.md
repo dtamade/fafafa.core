@@ -5967,3 +5967,20 @@
 | 1. 锁定 residual 与现有真相来源 | completed | fresh strict truthfulness 显示 `NEON wrapper_only=55`，其中 `no-asm wrapper ok=3` 全部收敛到 `ClampF64x2/F64x4/F64x8` |
 | 2. 收回 no-asm runtime slot ownership | completed | `src/fafafa.core.simd.neon.register.inc` 已把这 3 个 clamp slot 改成 `{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}` 条件绑定；无 asm 时复用 `FillBaseDispatchTable` 的 scalar slot |
 | 3. 对齐 checker / truth-source tests / release 验证 | completed | `check_nonx86_register_truthfulness.py` 已去掉旧 allowlist；`dispatchapi`/`NonX86BackendParity`/`key-slot-audit` 已同步新过程名与新合同；`impl-audit-nonx86`、`DispatchAPI+NonX86BackendParity`、release `check` 全部 fresh 通过 |
+
+## 2026-05-19 NEON SelectF32x4 Runtime Slot Reclaim
+
+### Goal
+
+继续沿着 `NEON asm-only wrapper_only` 的最小残点收口，先把单槽
+`SelectF32x4`
+从“asm 分支本地 Pascal loop 仍占 backend-owned runtime slot”
+收回成“保留 local source companion，但 runtime 复用 base scalar”。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 锁定最小 residual 并确认能力边界 | completed | fresh strict truthfulness 显示 `SelectF32x4` 是最窄的 `asm-only wrapper_only` 单槽；`scShuffle` 仍可由 `Extract/Insert` 这两个真实 asm leaf 支撑 |
+| 2. 收回 `SelectF32x4` runtime slot ownership | completed | `src/fafafa.core.simd.neon.register.inc` 已去掉 `table.SelectF32x4 := @NEONSelectF32x4;`；asm 分支 local loop 与 no-asm scalar companion 继续保留，但注册表回退到 `FillBaseDispatchTable` |
+| 3. 对齐 checker / truth-source tests / release 验证 | completed | `check_nonx86_register_truthfulness.py` 已移除 `SelectF32x4` allowlist；`dispatchapi` 与 `key-slot-audit` 已改成 `reuse_base_scalar` 合同；fresh `truthfulness`、`key-slot-audit`、`DispatchAPI+NonX86BackendParity`、`impl-audit-nonx86`、release `check` 全部通过 |

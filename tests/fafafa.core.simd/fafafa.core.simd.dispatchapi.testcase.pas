@@ -164,7 +164,7 @@ type
     procedure Test_NEON_MaskHelperSlots_Reuse_BaseScalar_When_Wrappers_Are_Only_ScalarForwarders;
     procedure Test_NEON_NoAsmWideIntegerCompareSlots_Keep_SourceCompanions_But_Reuse_BaseScalar;
     procedure Test_NEON_NoAsmIntegerFallbackSlots_Reuse_BaseScalar_When_Wrappers_Are_Not_BackendOwned;
-    procedure Test_NEON_SelectF32x4_AsmEnabledSource_Does_Not_ScalarForward;
+    procedure Test_NEON_SelectF32x4_Keep_LocalSourceCompanion_But_Reuse_BaseScalar_RuntimeSlot;
     procedure Test_NEON_AndNotSlots_Keep_AsmOwnedCompositions_And_RuntimeOwnership;
     procedure Test_RISCVV_DotF64Slots_Reuse_BaseScalar_When_ScalarForwarders_Are_Dead;
     procedure Test_RISCVV_ExactScalarHelperSlots_Reuse_BaseScalar_When_Owners_Are_Dead;
@@ -8392,7 +8392,7 @@ begin
   {$ENDIF}
 end;
 
-procedure TTestCase_DispatchAPI.Test_NEON_SelectF32x4_AsmEnabledSource_Does_Not_ScalarForward;
+procedure TTestCase_DispatchAPI.Test_NEON_SelectF32x4_Keep_LocalSourceCompanion_But_Reuse_BaseScalar_RuntimeSlot;
 var
   LSourceLines: TStringList;
   LNEONSourcePath: string;
@@ -8410,17 +8410,11 @@ var
       Pos(LowerCase(aSnippet), LScalarUtilitySource) > 0);
   end;
 
-  procedure AssertRegisterHasAsmOwnedSlot(const aLabel, aSnippet: string);
+  procedure AssertRegisterKeepsBaseScalar(const aLabel, aSnippet: string);
   begin
-    AssertTrue('RegisterNEONBackend should keep the asm-enabled binding source for ' + aLabel,
-      Pos(LowerCase(aSnippet), LRegisterSource) > 0);
-  end;
-
-  procedure AssertSlotKeepsBackendOwnership(const aLabel: string; const aScalarSlot, aBackendSlot: Pointer);
-  begin
-    AssertTrue('NEON ' + aLabel + ' should stay assigned in the registered backend table', aBackendSlot <> nil);
-    AssertTrue('NEON ' + aLabel + ' should keep backend ownership when asm-backed vector shuffle is compiled',
-      aBackendSlot <> aScalarSlot);
+    AssertTrue('RegisterNEONBackend should keep base scalar ' + aLabel +
+      ' because the asm branch only keeps a local Pascal companion and not a runtime-owned shuffle leaf',
+      Pos(LowerCase(aSnippet), LRegisterSource) = 0);
   end;
 
   procedure AssertSlotReusesScalar(const aLabel: string; const aScalarSlot, aBackendSlot: Pointer);
@@ -8455,7 +8449,7 @@ begin
   AssertTrue('asm-enabled NEONSelectF32x4 should not forward directly to ScalarSelectF32x4',
     Pos('result := scalarselectf32x4(mask, a, b);', LNEONSource) = 0);
   AssertScalarCompanionStillPresent('NEONSelectF32x4', 'result := scalarselectf32x4(mask, a, b);');
-  AssertRegisterHasAsmOwnedSlot('SelectF32x4', 'table.SelectF32x4 := @NEONSelectF32x4;');
+  AssertRegisterKeepsBaseScalar('SelectF32x4', 'table.SelectF32x4 := @NEONSelectF32x4;');
 
   AssertTrue('Scalar dispatch table should be registered',
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
@@ -8468,11 +8462,7 @@ begin
     Exit;
   {$ENDIF}
 
-  {$IFDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
-  AssertSlotKeepsBackendOwnership('SelectF32x4', Pointer(LScalarTable.SelectF32x4), Pointer(LNEONTable.SelectF32x4));
-  {$ELSE}
   AssertSlotReusesScalar('SelectF32x4', Pointer(LScalarTable.SelectF32x4), Pointer(LNEONTable.SelectF32x4));
-  {$ENDIF}
 end;
 
 procedure TTestCase_DispatchAPI.Test_NEON_AndNotSlots_Keep_AsmOwnedCompositions_And_RuntimeOwnership;
@@ -16125,7 +16115,7 @@ begin
       Pointer(LScalarTable.LoadF32x4), Pointer(LBackendTable.LoadF32x4));
     AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'SplatF32x4',
       Pointer(LScalarTable.SplatF32x4), Pointer(LBackendTable.SplatF32x4));
-    AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'SelectF32x4',
+    AssertBackendOwnedSlotIfExpected(LBackend, NonX86BackendName(LBackend), 'SelectF32x4',
       Pointer(LScalarTable.SelectF32x4), Pointer(LBackendTable.SelectF32x4));
     AssertNativeSlotNotScalar(NonX86BackendName(LBackend), 'ExtractF32x4',
       Pointer(LScalarTable.ExtractF32x4), Pointer(LBackendTable.ExtractF32x4));

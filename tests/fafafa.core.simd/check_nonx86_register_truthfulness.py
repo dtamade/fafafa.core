@@ -31,7 +31,6 @@ NEON_WIDE_COMPARE_ASM_ONLY_WRAPPER_SLOTS: set[str] = {
 }
 
 NEON_FACADE_ASM_ONLY_WRAPPER_SLOTS: set[str] = {
-    "SelectF32x4",
     "AddF32x16", "AddF64x8",
     "DivF32x16", "DivF64x8",
     "MaxF32x16", "MaxF64x8",

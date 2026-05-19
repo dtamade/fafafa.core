@@ -112,11 +112,10 @@ begin
   // Utility operations
   table.SplatF32x4 := @NEONSplatF32x4;
   table.ZeroF32x4 := @NEONZeroF32x4;
-  // Keep shuffle-family slots on the base scalar table unless NEON asm is
-  // actually compiled. The no-asm wrappers do not justify backend-owned
-  // shuffle capability claims.
+  // Keep SelectF32x4 on the base scalar table even in asm-enabled builds.
+  // The local asm-branch source remains a Pascal lane loop, so only the real
+  // Extract/Insert asm leaves justify backend-owned shuffle slots.
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  table.SelectF32x4 := @NEONSelectF32x4;
   table.ExtractF32x4 := @NEONExtractF32x4;
   table.InsertF32x4 := @NEONInsertF32x4;
   {$ENDIF}

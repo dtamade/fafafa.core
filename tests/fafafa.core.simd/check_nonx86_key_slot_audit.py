@@ -245,7 +245,7 @@ EXPECTATION_PROCEDURES = {
         "TTestCase_DispatchAPI.Test_NEON_NoAsmWideClampSlots_Reuse_BaseScalar_For_F32_And_F64_When_NoAsm",
         "TTestCase_DispatchAPI.Test_NEON_NoAsmWideMinMaxSlots_Keep_Necessary_Wrappers_But_Reuse_BaseScalar",
         "TTestCase_DispatchAPI.Test_NEON_NoAsmWideLeafFloatArithmeticSlots_Keep_SourceCompanions_But_Reuse_BaseScalar",
-        "TTestCase_DispatchAPI.Test_NEON_SelectF32x4_AsmEnabledSource_Does_Not_ScalarForward",
+        "TTestCase_DispatchAPI.Test_NEON_SelectF32x4_Keep_LocalSourceCompanion_But_Reuse_BaseScalar_RuntimeSlot",
         "TTestCase_DispatchAPI.Test_NEON_AndNotSlots_Keep_AsmOwnedCompositions_And_RuntimeOwnership",
         "TTestCase_DispatchAPI.Test_NEON_NoAsmWideIntegerCompareSlots_Keep_SourceCompanions_But_Reuse_BaseScalar",
     ),

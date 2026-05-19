@@ -326,6 +326,51 @@
   - `NEON wrapper_only` 已从 `55` 降到 `52`
   - 剩余 `NEON` wrapper-only 现全部落在 `asm-only` 路径，不再有 `no-asm` backend-owned 假所有权
 
+## 2026-05-19 NEON SelectF32x4 Runtime Slot Reclaim
+
+- 在 `ClampF64x2/4/8` 收口并提交后，继续用 fresh strict truthfulness 锁下一簇最小 residual：
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --summary-line --strict`
+  - 结果显示 `NEON wrapper_only=52`，最窄单槽为 `SelectF32x4`
+- 代码与合同收口：
+  - `src/fafafa.core.simd.neon.register.inc`
+    - 去掉 `table.SelectF32x4 := @NEONSelectF32x4;`
+    - 注释已明确：`SelectF32x4` 的 asm 分支只是 local Pascal lane loop，不再占 runtime shuffle slot；`Extract/Insert` 继续作为真实 asm leaf
+  - `tests/fafafa.core.simd/check_nonx86_register_truthfulness.py`
+    - `NEON_FACADE_ASM_ONLY_WRAPPER_SLOTS` 已删掉 `SelectF32x4`
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 旧过程名 `Test_NEON_SelectF32x4_AsmEnabledSource_Does_Not_ScalarForward`
+      已收正为
+      `Test_NEON_SelectF32x4_Keep_LocalSourceCompanion_But_Reuse_BaseScalar_RuntimeSlot`
+    - 新合同是：
+      - asm 分支 local source companion 仍在
+      - no-asm scalar companion 仍在
+      - register 不再绑定 `SelectF32x4`
+      - runtime slot 始终复用 base scalar
+    - `NonX86BackendParity` 中 `SelectF32x4` 已改成使用 `AssertBackendOwnedSlotIfExpected(...)`
+  - `tests/fafafa.core.simd/check_nonx86_key_slot_audit.py`
+    - 已同步新的 dispatchapi truth-source 过程名
+- 过程中的真实错误与修正：
+  - 首轮 `DispatchAPI+NonX86BackendParity` 复验失败
+  - 根因不是语义错误，而是 fresh build 报：
+    - `Identifier not found "AssertNeonReusesScalarOtherwiseNative"`
+  - 当次 test output 继续跑了旧二进制，因此立即改为先读 `tests/fafafa.core.simd/logs/build.txt`，再把断言 helper 改回当前过程已有的 `AssertBackendOwnedSlotIfExpected(...)`
+- fresh 串行验证结果：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon --summary-line --strict`
+  - `python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_NonX86BackendParity`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=neon assignments=341 ... wrapper_only=51 ... no-asm wrapper ok=0`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=136 issues=0 status=ok`
+  - `DispatchAPI + NonX86BackendParity`：`[TEST] OK` / `[LEAK] OK`
+  - `NONX86_IMPL_AUDIT_SUMMARY ... status=ok`
+  - release `check`：通过
+- 当前 residual 更新：
+  - `NEON wrapper_only` 已从 `52` 进一步降到 `51`
+  - `SelectF32x4` 已从 backend-owned residual 收回成 `reuse_base_scalar`
+
 ## 2026-05-19 Windows B07 Staged `run_all` Hygiene Chain Closure
 
 - 先按最新 fresh run `26071761664` 继续收口，不再重开更大范围 `simd` 审查。
