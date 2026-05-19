@@ -626,6 +626,30 @@ def main() -> int:
         (riscvv_facade_source, "RISCVVReduceMinF64x8", [
             "Result := ScalarReduceMinF64x8(a);",
         ]),
+        (riscvv_facade_source, "RISCVVSatAddI8x16", [
+            "Result := ScalarI8x16SatAdd(a, b);",
+        ]),
+        (riscvv_facade_source, "RISCVVSatSubI8x16", [
+            "Result := ScalarI8x16SatSub(a, b);",
+        ]),
+        (riscvv_facade_source, "RISCVVSatAddI16x8", [
+            "Result := ScalarI16x8SatAdd(a, b);",
+        ]),
+        (riscvv_facade_source, "RISCVVSatSubI16x8", [
+            "Result := ScalarI16x8SatSub(a, b);",
+        ]),
+        (riscvv_facade_source, "RISCVVSatAddU8x16", [
+            "Result := ScalarU8x16SatAdd(a, b);",
+        ]),
+        (riscvv_facade_source, "RISCVVSatSubU8x16", [
+            "Result := ScalarU8x16SatSub(a, b);",
+        ]),
+        (riscvv_facade_source, "RISCVVSatAddU16x8", [
+            "Result := ScalarU16x8SatAdd(a, b);",
+        ]),
+        (riscvv_facade_source, "RISCVVSatSubU16x8", [
+            "Result := ScalarU16x8SatSub(a, b);",
+        ]),
         (direct_source, "TTestCase_DirectDispatch.Test_DirectDispatchTable_MultiBackend_SignedWideCompareMaskMatrix_Parity", [
             "ScalarCmpEqI32x8",
             "ScalarCmpLtI64x4",

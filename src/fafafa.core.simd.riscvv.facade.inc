@@ -1308,119 +1308,43 @@ begin
 end;
 
 function RISCVVSatAddI8x16(const a, b: TVecI8x16): TVecI8x16;
-var i: Integer;
-    sum: Int16;
 begin
-  for i := 0 to 15 do
-  begin
-    sum := Int16(a.i[i]) + Int16(b.i[i]);
-    if sum > 127 then
-      Result.i[i] := 127
-    else if sum < -128 then
-      Result.i[i] := -128
-    else
-      Result.i[i] := Int8(sum);
-  end;
+  Result := ScalarI8x16SatAdd(a, b);
 end;
 
 function RISCVVSatSubI8x16(const a, b: TVecI8x16): TVecI8x16;
-var i: Integer;
-    diff: Int16;
 begin
-  for i := 0 to 15 do
-  begin
-    diff := Int16(a.i[i]) - Int16(b.i[i]);
-    if diff > 127 then
-      Result.i[i] := 127
-    else if diff < -128 then
-      Result.i[i] := -128
-    else
-      Result.i[i] := Int8(diff);
-  end;
+  Result := ScalarI8x16SatSub(a, b);
 end;
 
 function RISCVVSatAddI16x8(const a, b: TVecI16x8): TVecI16x8;
-var i: Integer;
-    sum: Int32;
 begin
-  for i := 0 to 7 do
-  begin
-    sum := Int32(a.i[i]) + Int32(b.i[i]);
-    if sum > 32767 then
-      Result.i[i] := 32767
-    else if sum < -32768 then
-      Result.i[i] := -32768
-    else
-      Result.i[i] := Int16(sum);
-  end;
+  Result := ScalarI16x8SatAdd(a, b);
 end;
 
 function RISCVVSatSubI16x8(const a, b: TVecI16x8): TVecI16x8;
-var i: Integer;
-    diff: Int32;
 begin
-  for i := 0 to 7 do
-  begin
-    diff := Int32(a.i[i]) - Int32(b.i[i]);
-    if diff > 32767 then
-      Result.i[i] := 32767
-    else if diff < -32768 then
-      Result.i[i] := -32768
-    else
-      Result.i[i] := Int16(diff);
-  end;
+  Result := ScalarI16x8SatSub(a, b);
 end;
 
 function RISCVVSatAddU8x16(const a, b: TVecU8x16): TVecU8x16;
-var i: Integer;
-    sum: Word;
 begin
-  for i := 0 to 15 do
-  begin
-    sum := Word(a.u[i]) + Word(b.u[i]);
-    if sum > 255 then
-      Result.u[i] := 255
-    else
-      Result.u[i] := Byte(sum);
-  end;
+  Result := ScalarU8x16SatAdd(a, b);
 end;
 
 function RISCVVSatSubU8x16(const a, b: TVecU8x16): TVecU8x16;
-var i: Integer;
 begin
-  for i := 0 to 15 do
-  begin
-    if a.u[i] > b.u[i] then
-      Result.u[i] := a.u[i] - b.u[i]
-    else
-      Result.u[i] := 0;
-  end;
+  Result := ScalarU8x16SatSub(a, b);
 end;
 
 function RISCVVSatAddU16x8(const a, b: TVecU16x8): TVecU16x8;
-var i: Integer;
-    sum: UInt32;
 begin
-  for i := 0 to 7 do
-  begin
-    sum := UInt32(a.u[i]) + UInt32(b.u[i]);
-    if sum > 65535 then
-      Result.u[i] := 65535
-    else
-      Result.u[i] := Word(sum);
-  end;
+  Result := ScalarU16x8SatAdd(a, b);
 end;
 
 function RISCVVSatSubU16x8(const a, b: TVecU16x8): TVecU16x8;
-var i: Integer;
 begin
-  for i := 0 to 7 do
-  begin
-    if a.u[i] > b.u[i] then
-      Result.u[i] := a.u[i] - b.u[i]
-    else
-      Result.u[i] := 0;
-  end;
+  Result := ScalarU16x8SatSub(a, b);
 end;
 
 function RISCVVInsertF32x16(const a: TVecF32x16; value: Single; index: Integer): TVecF32x16;

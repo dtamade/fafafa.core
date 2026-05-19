@@ -9479,3 +9479,41 @@
   - 这两处 `RISCVV wide select` legacy mask companion 已确认属于 dead residual
   - 当前 `Wave 5` 的高价值路径仍然应该优先处理这种“live ownership 已经不存在”的 retire cleanup
   - 对 `F64 reduction` 和 `Load/Store` 这类仍有合同差异的 residual，继续保持“暂不合并”的纪律更稳妥
+
+## 2026-05-20 RISCVV Saturating Arithmetic Helpers Were Carrying An Unnecessary Second Scalar Truth Source
+
+- 在 wide select dead companion 清掉之后，下一处真正适合继续推进的 residual，不是再去碰 `F64 reduction`，而是 `RISCVV` no-asm 路径里 8 个饱和加减 helper：
+  - `RISCVVSatAddI8x16`
+  - `RISCVVSatSubI8x16`
+  - `RISCVVSatAddI16x8`
+  - `RISCVVSatSubI16x8`
+  - `RISCVVSatAddU8x16`
+  - `RISCVVSatSubU8x16`
+  - `RISCVVSatAddU16x8`
+  - `RISCVVSatSubU16x8`
+- 这批之所以比 `F64 reduction` 和 `Load/Store` 更安全，是因为它们没有那两类典型歧义：
+  - 没有 `NaN` / `signed-zero` / first-lane seed 这种浮点合同差
+  - 没有 `Assert(p <> nil, ...)` 这类指针前置条件差
+- scalar 侧已经存在完整 truth source：
+  - `ScalarI8x16SatAdd/Sub`
+  - `ScalarI16x8SatAdd/Sub`
+  - `ScalarU8x16SatAdd/Sub`
+  - `ScalarU16x8SatAdd/Sub`
+- 对照源码后可以确认，`RISCVV` 这 8 个 helper 只是把同一份饱和合同又本地写了一遍：
+  - signed 路径做 widening add/sub，再钳到目标位宽范围
+  - unsigned 路径做上溢钳到 max、下溢钳到 `0`
+- 它们的问题不是“当前行为错误”，而是：
+  - no-asm `RISCVV` facade 继续维护第二份 scalar 饱和算术源码
+  - 以后若只修 scalar 或只修 facade，就会重新制造静默分叉
+- 这轮还暴露了两处审计缺口：
+  - `check_nonx86_helper_semantics.py` 之前没有把这 8 个 `RISCVV` 饱和 helper 纳入 exact-source 审计
+  - `TTestCase_NonX86BackendParity` 之前也没有专门覆盖 non-x86 backend 的饱和加减 assignment/parity
+- 所以这批除了 helper body 去重，还顺手把 source truth 和 runtime parity 两个护栏补齐了。
+- fresh 证据说明这批仍是 exact-contract cleanup，而不是语义替换冒险：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=757 status=ok`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_SaturatingArithmetic` 通过
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 通过
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 通过
+- 当前结论更新：
+  - `RISCVV` 这 8 个 saturating helper 已不再维护第二份 no-asm scalar loop 真相
+  - 当前 `Wave 5` 可以继续优先处理这种“scalar contract 已明确定义、且不带浮点/指针歧义”的 residual

@@ -16237,3 +16237,41 @@
 - 当前阶段结论：
   - 这两处 `RISCVV wide select` legacy mask companion 已被正式退休，不再制造“还有第二套 live select truth”的假象
   - 当前 batch 仍严格停在 bounded retire cleanup，没有把语义替换风险带进 `F64 reduction` 或 `Load/Store`
+
+## 2026-05-20 RISCVV Saturating Arithmetic Exact-Contract Consolidation
+
+- 在 `simd: drop dead riscvv wide select companions` 推上远端后，没有重新发散 review，而是继续沿 `RISCVV` bounded residual 往下切。
+- 这轮先做了候选真相复核：
+  - `F64 reduction` 仍保留 first-lane seed 与 `ScalarReduce*` 的合同差
+  - `Load/Store` 仍保留 nil-assert 差
+  - 相比之下，`SatAdd/Sub` 家族只有纯整数饱和合同，没有 `NaN` / `signed-zero` / nil 分歧
+- 已落地的源码 / 审计收口：
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - `RISCVVSatAdd/SubI8x16` 改成委托 `ScalarI8x16SatAdd/Sub`
+    - `RISCVVSatAdd/SubI16x8` 改成委托 `ScalarI16x8SatAdd/Sub`
+    - `RISCVVSatAdd/SubU8x16` 改成委托 `ScalarU8x16SatAdd/Sub`
+    - `RISCVVSatAdd/SubU16x8` 改成委托 `ScalarU16x8SatAdd/Sub`
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 新增上述 8 个 helper 的 exact-source 断言
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - `TTestCase_NonX86BackendParity` 新增 `Test_SaturatingArithmeticParity_IfAvailable`
+    - 覆盖 `NEON/RISCVV` 下 `I8x16/I16x8/U8x16/U16x8` 的 `SatAdd/SatSub` assignment + scalar parity
+- release 策略下的 fresh 验证链已串行完成：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_SaturatingArithmetic`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- fresh 结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=757 status=ok`
+  - `DispatchAPI + SaturatingArithmetic` 通过
+  - Release `check` 通过
+  - Release `gate` 通过
+  - `filtered run_all check chain` 仍为 `5/5`
+  - 最终 gate 尾部为：
+    - `EVIDENCE OK: windows_b07_gate.log`
+    - `[GATE] OK`
+- 当前阶段结论：
+  - `RISCVV` 这 8 个 saturating helper 已不再携带第二份 no-asm scalar loop 真相
+  - 这批继续保持 `Wave 5` 的 bounded 风格：只收 exact-contract duplicate，不重新打开浮点/指针敏感 residual

@@ -290,6 +290,7 @@ type
     procedure Test_I32x4_BitwiseShiftParity_IfAvailable;
     procedure Test_WideSignedBitwiseShiftParity_IfAvailable;
     procedure Test_WideIntegerArithmeticMinMaxParity_IfAvailable;
+    procedure Test_SaturatingArithmeticParity_IfAvailable;
   end;
 
 implementation
@@ -21592,6 +21593,165 @@ begin
       LU64x8ByBackend := VecU64x8Add(LU64x8A, LU64x8B);
       LU64x8ByScalar := LScalarTable.AddU64x8(LU64x8A, LU64x8B);
       AssertVecU64x8Equal('Facade AddU64x8 parity: ' + NonX86BackendName(LBackend), LU64x8ByScalar, LU64x8ByBackend);
+
+    Inc(LChecked);
+  end;
+
+  if LChecked = 0 then
+    AssertTrue('No non-x86 backend registered/active on this host (allowed)', True);
+end;
+
+procedure TTestCase_NonX86BackendParity.Test_SaturatingArithmeticParity_IfAvailable;
+var
+  LBackends: array[0..1] of TSimdBackend;
+  LBackend: TSimdBackend;
+  LBackendTable: TSimdDispatchTable;
+  LScalarTable: TSimdDispatchTable;
+  LI8x16A, LI8x16B: TVecI8x16;
+  LI16x8A, LI16x8B: TVecI16x8;
+  LU8x16A, LU8x16B: TVecU8x16;
+  LU16x8A, LU16x8B: TVecU16x8;
+  LI8x16ByBackend, LI8x16ByScalar: TVecI8x16;
+  LI16x8ByBackend, LI16x8ByScalar: TVecI16x8;
+  LU8x16ByBackend, LU8x16ByScalar: TVecU8x16;
+  LU16x8ByBackend, LU16x8ByScalar: TVecU16x8;
+  LLane: Integer;
+  LChecked: Integer;
+
+  procedure AssertVecI8x16Equal(const aLabel: string; const aExpected, aActual: TVecI8x16);
+  var
+    LLaneIndex: Integer;
+  begin
+    for LLaneIndex := 0 to 15 do
+      AssertEquals(aLabel + ' lane ' + IntToStr(LLaneIndex), aExpected.i[LLaneIndex], aActual.i[LLaneIndex]);
+  end;
+
+  procedure AssertVecI16x8Equal(const aLabel: string; const aExpected, aActual: TVecI16x8);
+  var
+    LLaneIndex: Integer;
+  begin
+    for LLaneIndex := 0 to 7 do
+      AssertEquals(aLabel + ' lane ' + IntToStr(LLaneIndex), aExpected.i[LLaneIndex], aActual.i[LLaneIndex]);
+  end;
+
+  procedure AssertVecU8x16Equal(const aLabel: string; const aExpected, aActual: TVecU8x16);
+  var
+    LLaneIndex: Integer;
+  begin
+    for LLaneIndex := 0 to 15 do
+      AssertEquals(aLabel + ' lane ' + IntToStr(LLaneIndex), Integer(aExpected.u[LLaneIndex]), Integer(aActual.u[LLaneIndex]));
+  end;
+
+  procedure AssertVecU16x8Equal(const aLabel: string; const aExpected, aActual: TVecU16x8);
+  var
+    LLaneIndex: Integer;
+  begin
+    for LLaneIndex := 0 to 7 do
+      AssertEquals(aLabel + ' lane ' + IntToStr(LLaneIndex), Integer(aExpected.u[LLaneIndex]), Integer(aActual.u[LLaneIndex]));
+  end;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  LBackends[0] := sbNEON;
+  LBackends[1] := sbRISCVV;
+  LChecked := 0;
+
+  for LLane := 0 to 15 do
+  begin
+    LI8x16A.i[LLane] := Int8(112 - LLane * 15);
+    LI8x16B.i[LLane] := Int8(32 + LLane * 11);
+    LU8x16A.u[LLane] := UInt8((LLane * 17) and $FF);
+    LU8x16B.u[LLane] := UInt8(240 - LLane * 13);
+  end;
+  LI8x16A.i[0] := 127;
+  LI8x16B.i[0] := 1;
+  LI8x16A.i[1] := -128;
+  LI8x16B.i[1] := -1;
+  LI8x16A.i[2] := -120;
+  LI8x16B.i[2] := 30;
+  LI8x16A.i[3] := 120;
+  LI8x16B.i[3] := -30;
+  LU8x16A.u[0] := 255;
+  LU8x16B.u[0] := 1;
+  LU8x16A.u[1] := 0;
+  LU8x16B.u[1] := 1;
+  LU8x16A.u[2] := 4;
+  LU8x16B.u[2] := 250;
+  LU8x16A.u[3] := 200;
+  LU8x16B.u[3] := 100;
+
+  for LLane := 0 to 7 do
+  begin
+    LI16x8A.i[LLane] := Int16(30000 - LLane * 7000);
+    LI16x8B.i[LLane] := Int16(9000 - LLane * 2500);
+    LU16x8A.u[LLane] := UInt16(LLane * 4096);
+    LU16x8B.u[LLane] := UInt16(60000 - LLane * 5000);
+  end;
+  LI16x8A.i[0] := 32767;
+  LI16x8B.i[0] := 1;
+  LI16x8A.i[1] := -32768;
+  LI16x8B.i[1] := -1;
+  LI16x8A.i[2] := -30000;
+  LI16x8B.i[2] := 5000;
+  LI16x8A.i[3] := 30000;
+  LI16x8B.i[3] := -5000;
+  LU16x8A.u[0] := 65535;
+  LU16x8B.u[0] := 1;
+  LU16x8A.u[1] := 0;
+  LU16x8B.u[1] := 1;
+  LU16x8A.u[2] := 9;
+  LU16x8B.u[2] := 60000;
+  LU16x8A.u[3] := 50000;
+  LU16x8B.u[3] := 30000;
+
+  for LBackend in LBackends do
+  begin
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+      Continue;
+    if not TrySetActiveBackend(LBackend) then
+      Continue;
+
+    AssertTrue('I8x16SatAdd missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.I8x16SatAdd));
+    AssertTrue('I8x16SatSub missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.I8x16SatSub));
+    AssertTrue('I16x8SatAdd missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.I16x8SatAdd));
+    AssertTrue('I16x8SatSub missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.I16x8SatSub));
+    AssertTrue('U8x16SatAdd missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.U8x16SatAdd));
+    AssertTrue('U8x16SatSub missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.U8x16SatSub));
+    AssertTrue('U16x8SatAdd missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.U16x8SatAdd));
+    AssertTrue('U16x8SatSub missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.U16x8SatSub));
+
+    LI8x16ByBackend := LBackendTable.I8x16SatAdd(LI8x16A, LI8x16B);
+    LI8x16ByScalar := LScalarTable.I8x16SatAdd(LI8x16A, LI8x16B);
+    AssertVecI8x16Equal('I8x16SatAdd parity: ' + NonX86BackendName(LBackend), LI8x16ByScalar, LI8x16ByBackend);
+
+    LI8x16ByBackend := LBackendTable.I8x16SatSub(LI8x16A, LI8x16B);
+    LI8x16ByScalar := LScalarTable.I8x16SatSub(LI8x16A, LI8x16B);
+    AssertVecI8x16Equal('I8x16SatSub parity: ' + NonX86BackendName(LBackend), LI8x16ByScalar, LI8x16ByBackend);
+
+    LI16x8ByBackend := LBackendTable.I16x8SatAdd(LI16x8A, LI16x8B);
+    LI16x8ByScalar := LScalarTable.I16x8SatAdd(LI16x8A, LI16x8B);
+    AssertVecI16x8Equal('I16x8SatAdd parity: ' + NonX86BackendName(LBackend), LI16x8ByScalar, LI16x8ByBackend);
+
+    LI16x8ByBackend := LBackendTable.I16x8SatSub(LI16x8A, LI16x8B);
+    LI16x8ByScalar := LScalarTable.I16x8SatSub(LI16x8A, LI16x8B);
+    AssertVecI16x8Equal('I16x8SatSub parity: ' + NonX86BackendName(LBackend), LI16x8ByScalar, LI16x8ByBackend);
+
+    LU8x16ByBackend := LBackendTable.U8x16SatAdd(LU8x16A, LU8x16B);
+    LU8x16ByScalar := LScalarTable.U8x16SatAdd(LU8x16A, LU8x16B);
+    AssertVecU8x16Equal('U8x16SatAdd parity: ' + NonX86BackendName(LBackend), LU8x16ByScalar, LU8x16ByBackend);
+
+    LU8x16ByBackend := LBackendTable.U8x16SatSub(LU8x16A, LU8x16B);
+    LU8x16ByScalar := LScalarTable.U8x16SatSub(LU8x16A, LU8x16B);
+    AssertVecU8x16Equal('U8x16SatSub parity: ' + NonX86BackendName(LBackend), LU8x16ByScalar, LU8x16ByBackend);
+
+    LU16x8ByBackend := LBackendTable.U16x8SatAdd(LU16x8A, LU16x8B);
+    LU16x8ByScalar := LScalarTable.U16x8SatAdd(LU16x8A, LU16x8B);
+    AssertVecU16x8Equal('U16x8SatAdd parity: ' + NonX86BackendName(LBackend), LU16x8ByScalar, LU16x8ByBackend);
+
+    LU16x8ByBackend := LBackendTable.U16x8SatSub(LU16x8A, LU16x8B);
+    LU16x8ByScalar := LScalarTable.U16x8SatSub(LU16x8A, LU16x8B);
+    AssertVecU16x8Equal('U16x8SatSub parity: ' + NonX86BackendName(LBackend), LU16x8ByScalar, LU16x8ByBackend);
 
     Inc(LChecked);
   end;

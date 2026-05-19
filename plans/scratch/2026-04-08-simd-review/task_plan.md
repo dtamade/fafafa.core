@@ -6136,3 +6136,19 @@ closeout finalize，直到 `freeze-status` 重新转绿。
 | 1. 锁定这批真正可删的 residual | completed | 已复核 `docs/plans/2026-05-10-simd-execution-index.md` 仍处于 `Wave 5`；并确认 `riscvv.register.inc` 已让 `SelectF32x8` / `SelectF64x4` 继续复用 base scalar slots，因此本地 `TMask8/TMask4` 版本不再是 runtime owner |
 | 2. 删除 dead companion 定义 | completed | `src/fafafa.core.simd.riscvv.facade.inc` 中这两处 legacy mask wrapper 已删除；这批不改 `F64 reduction`、不改 `Load/Store`，避免把“死代码删除”和“语义替换”混在一起 |
 | 3. 补齐 dead-wrapper 审计并做 release 复验 | completed | `DispatchAPI` 已新增这两种 legacy mask 签名的 absence 断言；fresh Release `DispatchAPI`、Release `check`、Release `gate` 全绿，说明这是纯 retire cleanup，不涉及 slot ownership 漂移 |
+
+## 2026-05-20 RISCVV Saturating Arithmetic Exact-Contract Consolidation
+
+### Goal
+
+继续按 `Wave 5 / retire + redundancy cleanup` 收口一批真正低风险的 helper duplicate：
+把 `RISCVV` no-asm 路径里 8 个饱和加减 helper 收回现有 scalar truth source，
+不改 register ownership，也不碰 `NaN` / `signed-zero` / nil-assert 这类敏感合同。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 锁定可安全合并的 exact-contract residual | completed | 已确认 `RISCVVSatAdd/SubI8x16`、`RISCVVSatAdd/SubI16x8`、`RISCVVSatAdd/SubU8x16`、`RISCVVSatAdd/SubU16x8` 都只是重复 scalar 饱和算术合同；相比 `F64 reduction` 或 `Load/Store`，这批没有 `NaN` / `signed-zero` / nil 断言歧义 |
+| 2. 收回 facade duplicate 实现 | completed | `src/fafafa.core.simd.riscvv.facade.inc` 中这 8 个 no-asm helper 已统一改成委托 `ScalarI8x16SatAdd/Sub`、`ScalarI16x8SatAdd/Sub`、`ScalarU8x16SatAdd/Sub`、`ScalarU16x8SatAdd/Sub` |
+| 3. 补齐 source/disptach 审计并做 release 复验 | completed | `check_nonx86_helper_semantics.py` 已新增 8 个 exact-source 断言；`DispatchAPI` 新增 `TTestCase_NonX86BackendParity.Test_SaturatingArithmeticParity_IfAvailable`；fresh helper semantics、Release `DispatchAPI + SaturatingArithmetic`、Release `check`、Release `gate` 全绿 |
