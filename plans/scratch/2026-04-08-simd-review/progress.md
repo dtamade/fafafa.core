@@ -15613,3 +15613,36 @@
 - 当前阶段结论：
   - Windows B07 的最小真实 blocker 已继续收口成 “workflow staged source 不完整”
   - 下一步应做 `git diff --check` / release 口径复验、提交 push，并重发 fresh Windows evidence，确认 gate 是否越过这条缺脚本检查
+
+## 2026-05-19 Windows B07 Follow-up: After The Staged-Source Fix, Standalone `fpc` Calls Still Needed Native Windows Paths
+
+- fresh Windows run `26070430852` 已把上一批 staged-source 修复验证成真：
+  - `tests\` 目录清单里已经出现 `test_windows_simd_cpuinfo_x86_batch_build_success_criteria.sh`
+  - gate 也不再报 “Missing Windows cpuinfo.x86 batch success-criteria smoke”
+  - 相反，日志现在明确进入：
+    - `[SKIP] wine not found; skip Windows cpuinfo.x86 batch success-criteria smoke`
+- 这说明：
+  - workflow subset 漏拷根级 smoke 脚本这个 blocker 已经被清掉
+  - Windows B07 确实继续往后推进到了 daily standalone smoke 阶段
+- 新的第一失败点继续收口，而且同样不是 SIMD 语义：
+  - `run_backend_ops_smoke()` 调 native Windows `ppcx64.exe` 构建 `test_backend_ops.pas` 时失败：
+    - `Error: Path "\d\a\fafafa.core\fafafa.core\tests\fafafa.core.simd\backend.ops\bin\" does not exist`
+  - B07 尾部保持：
+    - `GateSummaryJson: ...\gate_summary.json`
+    - `GateSummaryExportRc: 0`
+    - `GATE_EXIT_CODE=1`
+- 根因判断已经明确：
+  - `build_project()` 主 `lazbuild` 路径早就有 `to_windows_path()` 的 MSYS -> Windows 盘符转换
+  - 但 `run_dispatch_preinit_smoke()` / `run_public_smoke()` / `run_backend_ops_smoke()` / `run_simd_boundary_smoke()` 这 4 处 standalone `fpc` 调用仍直接把 `/d/...` 风格路径喂给 native Windows FPC
+  - 于是输出目录参数在 Git Bash / MSYS 下被解释成 `\d\a\...` 这种缺盘符冒号的伪 Windows 路径
+- 已落地修复：
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - 新增 `fpc_native_path()`，在 MSYS shell 下复用 `to_windows_path()`
+    - 4 个 standalone `fpc` 调用现统一对 `-Fi/-Fu/-FE/-FU` 以及源文件路径做 native Windows 路径转换
+- 本地串行验证 fresh 通过：
+  - `git diff --check`
+  - `bash -n tests/fafafa.core.simd/BuildOrTest.sh`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- 当前阶段结论：
+  - Windows B07 的最小真实 blocker 已继续收口成 “standalone FPC 调用缺少 MSYS native path 归一化”
+  - 这一刀已经收掉该路径层问题，下一步应提交 push 并重发 fresh Windows evidence，确认 gate 是否越过 `backend_ops` 这条线

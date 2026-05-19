@@ -255,6 +255,18 @@ to_windows_path() {
   echo "${aPath}"
 }
 
+fpc_native_path() {
+  local aPath
+
+  aPath="${1:-}"
+  if is_msys_shell; then
+    to_windows_path "${aPath}"
+    return 0
+  fi
+
+  echo "${aPath}"
+}
+
 detect_lazarusdir() {
   local LLazbuildPath
   local LMaybeRoot
@@ -692,6 +704,11 @@ run_dispatch_preinit_smoke() {
   local LSmokeBuildLog
   local LSmokeTestLog
   local LSmokeBin
+  local LRepoSrcArg
+  local LRootArg
+  local LBinDirArg
+  local LLibDirArg
+  local LSourceArg
 
   if [[ ! -f "${DISPATCH_PREINIT_SMOKE_SRC}" ]]; then
     echo "[DISPATCH-PREINIT] Missing smoke source: ${DISPATCH_PREINIT_SMOKE_SRC}"
@@ -705,17 +722,22 @@ run_dispatch_preinit_smoke() {
   LSmokeBuildLog="${LSmokeLogDir}/build.txt"
   LSmokeTestLog="${LSmokeLogDir}/test.txt"
   LSmokeBin="${LSmokeBinDir}/fafafa.core.simd.dispatch_preinit_smoke"
+  LRepoSrcArg="$(fpc_native_path "${REPO_ROOT}/src")"
+  LRootArg="$(fpc_native_path "${ROOT}")"
+  LBinDirArg="$(fpc_native_path "${LSmokeBinDir}")"
+  LLibDirArg="$(fpc_native_path "${LSmokeLibDir}")"
+  LSourceArg="$(fpc_native_path "${DISPATCH_PREINIT_SMOKE_SRC}")"
 
   mkdir -p "${LSmokeBinDir}" "${LSmokeLibDir}" "${LSmokeLogDir}"
 
   echo "[DISPATCH-PREINIT] Building standalone smoke: ${DISPATCH_PREINIT_SMOKE_SRC}"
   if ! "${FPC_BIN}" -B -Mobjfpc -Scghi -O3 \
-      -Fi"${REPO_ROOT}/src" \
-      -Fu"${REPO_ROOT}/src" \
-      -Fu"${ROOT}" \
-      -FE"${LSmokeBinDir}" \
-      -FU"${LSmokeLibDir}" \
-      "${DISPATCH_PREINIT_SMOKE_SRC}" > "${LSmokeBuildLog}" 2>&1; then
+      -Fi"${LRepoSrcArg}" \
+      -Fu"${LRepoSrcArg}" \
+      -Fu"${LRootArg}" \
+      -FE"${LBinDirArg}" \
+      -FU"${LLibDirArg}" \
+      "${LSourceArg}" > "${LSmokeBuildLog}" 2>&1; then
     echo "[DISPATCH-PREINIT] BUILD FAILED (see ${LSmokeBuildLog})"
     tail -n 80 "${LSmokeBuildLog}" || true
     return 1
@@ -749,6 +771,11 @@ run_public_smoke() {
   local LSmokeBuildLog
   local LSmokeTestLog
   local LSmokeBin
+  local LRepoSrcArg
+  local LRootArg
+  local LBinDirArg
+  local LLibDirArg
+  local LSourceArg
 
   if [[ ! -f "${PUBLIC_SMOKE_SRC}" ]]; then
     echo "[PUBLIC-SMOKE] Missing smoke source: ${PUBLIC_SMOKE_SRC}"
@@ -762,17 +789,22 @@ run_public_smoke() {
   LSmokeBuildLog="${LSmokeLogDir}/build.txt"
   LSmokeTestLog="${LSmokeLogDir}/test.txt"
   LSmokeBin="${LSmokeBinDir}/fafafa.core.simd.public_smoke"
+  LRepoSrcArg="$(fpc_native_path "${REPO_ROOT}/src")"
+  LRootArg="$(fpc_native_path "${ROOT}")"
+  LBinDirArg="$(fpc_native_path "${LSmokeBinDir}")"
+  LLibDirArg="$(fpc_native_path "${LSmokeLibDir}")"
+  LSourceArg="$(fpc_native_path "${PUBLIC_SMOKE_SRC}")"
 
   mkdir -p "${LSmokeBinDir}" "${LSmokeLibDir}" "${LSmokeLogDir}"
 
   echo "[PUBLIC-SMOKE] Building standalone smoke: ${PUBLIC_SMOKE_SRC}"
   if ! "${FPC_BIN}" -B -Mobjfpc -Scghi -O3 \
-      -Fi"${REPO_ROOT}/src" \
-      -Fu"${REPO_ROOT}/src" \
-      -Fu"${ROOT}" \
-      -FE"${LSmokeBinDir}" \
-      -FU"${LSmokeLibDir}" \
-      "${PUBLIC_SMOKE_SRC}" > "${LSmokeBuildLog}" 2>&1; then
+      -Fi"${LRepoSrcArg}" \
+      -Fu"${LRepoSrcArg}" \
+      -Fu"${LRootArg}" \
+      -FE"${LBinDirArg}" \
+      -FU"${LLibDirArg}" \
+      "${LSourceArg}" > "${LSmokeBuildLog}" 2>&1; then
     echo "[PUBLIC-SMOKE] BUILD FAILED (see ${LSmokeBuildLog})"
     tail -n 80 "${LSmokeBuildLog}" || true
     return 1
@@ -806,6 +838,11 @@ run_backend_ops_smoke() {
   local LSmokeBuildLog
   local LSmokeTestLog
   local LSmokeBin
+  local LRepoSrcArg
+  local LRootArg
+  local LBinDirArg
+  local LLibDirArg
+  local LSourceArg
 
   if [[ ! -f "${BACKEND_OPS_SRC}" ]]; then
     echo "[BACKEND-OPS] Missing source: ${BACKEND_OPS_SRC}"
@@ -819,17 +856,22 @@ run_backend_ops_smoke() {
   LSmokeBuildLog="${LSmokeLogDir}/build.txt"
   LSmokeTestLog="${LSmokeLogDir}/test.txt"
   LSmokeBin="${LSmokeBinDir}/test_backend_ops"
+  LRepoSrcArg="$(fpc_native_path "${REPO_ROOT}/src")"
+  LRootArg="$(fpc_native_path "${ROOT}")"
+  LBinDirArg="$(fpc_native_path "${LSmokeBinDir}")"
+  LLibDirArg="$(fpc_native_path "${LSmokeLibDir}")"
+  LSourceArg="$(fpc_native_path "${BACKEND_OPS_SRC}")"
 
   mkdir -p "${LSmokeBinDir}" "${LSmokeLibDir}" "${LSmokeLogDir}"
 
   echo "[BACKEND-OPS] Building standalone program: ${BACKEND_OPS_SRC}"
   if ! "${FPC_BIN}" -B -Mobjfpc -Scghi -O3 \
-      -Fi"${REPO_ROOT}/src" \
-      -Fu"${REPO_ROOT}/src" \
-      -Fu"${ROOT}" \
-      -FE"${LSmokeBinDir}" \
-      -FU"${LSmokeLibDir}" \
-      "${BACKEND_OPS_SRC}" > "${LSmokeBuildLog}" 2>&1; then
+      -Fi"${LRepoSrcArg}" \
+      -Fu"${LRepoSrcArg}" \
+      -Fu"${LRootArg}" \
+      -FE"${LBinDirArg}" \
+      -FU"${LLibDirArg}" \
+      "${LSourceArg}" > "${LSmokeBuildLog}" 2>&1; then
     echo "[BACKEND-OPS] BUILD FAILED (see ${LSmokeBuildLog})"
     tail -n 80 "${LSmokeBuildLog}" || true
     return 1
@@ -863,6 +905,11 @@ run_simd_boundary_smoke() {
   local LSmokeBuildLog
   local LSmokeTestLog
   local LSmokeBin
+  local LRepoSrcArg
+  local LRootArg
+  local LBinDirArg
+  local LLibDirArg
+  local LSourceArg
 
   if [[ ! -f "${SIMD_BOUNDARY_SRC}" ]]; then
     echo "[SIMD-BOUNDARY] Missing source: ${SIMD_BOUNDARY_SRC}"
@@ -876,17 +923,22 @@ run_simd_boundary_smoke() {
   LSmokeBuildLog="${LSmokeLogDir}/build.txt"
   LSmokeTestLog="${LSmokeLogDir}/test.txt"
   LSmokeBin="${LSmokeBinDir}/test_simd_boundary"
+  LRepoSrcArg="$(fpc_native_path "${REPO_ROOT}/src")"
+  LRootArg="$(fpc_native_path "${ROOT}")"
+  LBinDirArg="$(fpc_native_path "${LSmokeBinDir}")"
+  LLibDirArg="$(fpc_native_path "${LSmokeLibDir}")"
+  LSourceArg="$(fpc_native_path "${SIMD_BOUNDARY_SRC}")"
 
   mkdir -p "${LSmokeBinDir}" "${LSmokeLibDir}" "${LSmokeLogDir}"
 
   echo "[SIMD-BOUNDARY] Building standalone program: ${SIMD_BOUNDARY_SRC}"
   if ! "${FPC_BIN}" -B -Mobjfpc -Scghi -O3 \
-      -Fi"${REPO_ROOT}/src" \
-      -Fu"${REPO_ROOT}/src" \
-      -Fu"${ROOT}" \
-      -FE"${LSmokeBinDir}" \
-      -FU"${LSmokeLibDir}" \
-      "${SIMD_BOUNDARY_SRC}" > "${LSmokeBuildLog}" 2>&1; then
+      -Fi"${LRepoSrcArg}" \
+      -Fu"${LRepoSrcArg}" \
+      -Fu"${LRootArg}" \
+      -FE"${LBinDirArg}" \
+      -FU"${LLibDirArg}" \
+      "${LSourceArg}" > "${LSmokeBuildLog}" 2>&1; then
     echo "[SIMD-BOUNDARY] BUILD FAILED (see ${LSmokeBuildLog})"
     tail -n 80 "${LSmokeBuildLog}" || true
     return 1

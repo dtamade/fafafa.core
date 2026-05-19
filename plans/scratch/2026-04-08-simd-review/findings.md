@@ -9016,3 +9016,21 @@
   - 当前失败已经不是“Windows gate 又炸了一个新语义问题”
   - 而是 workflow source subset 没把明确依赖的根级测试脚本带过去
   - 最小正确修复就是在 staged source 步骤补拷贝该脚本，而不是去放宽 `BuildOrTest.sh` 的检查或重新怀疑 SIMD 模块实现
+
+## 2026-05-19 Windows B07 After The Staged-Source Repair: Standalone `fpc` Still Passed MSYS Paths To Native Windows FPC
+
+- fresh Windows run `26070430852` 已经证明上一批 workflow staging 修复生效：
+  - `tests\` 根目录里真的有 `test_windows_simd_cpuinfo_x86_batch_build_success_criteria.sh`
+  - 旧的 “Missing Windows cpuinfo.x86 batch success-criteria smoke” 已消失
+  - 日志改为正常 `SKIP` 该 smoke，因为 runner 上没有可用 wine runtime
+- 新失败点已经继续缩成一个很纯的 path-normalization 问题：
+  - `run_backend_ops_smoke()` 调用 native Windows `ppcx64.exe` 时，`-FE` 输出目录被传成了 `\d\a\...` 风格路径
+  - FPC 直接报：`Error: Path "\d\a\...\backend.ops\bin\" does not exist`
+- 这条 finding 的价值在于继续精准收口：
+  - 当前不是 `backend_ops` 测试逻辑错
+  - 不是 daily standalone smoke 新增了 SIMD 语义回归
+  - 而是 `BuildOrTest.sh` 只有主 `lazbuild` 路径做了 `to_windows_path()`，4 个 standalone `fpc` 调用还在把 `/d/...` 的 MSYS 路径直接喂给 native Windows FPC
+- 最小正确修复语义因此也很明确：
+  - 保持 Linux/常规 bash 路径不变
+  - 在 `MSYS/MINGW/CYGWIN` shell 下，对 standalone `fpc` 的 `-Fi/-Fu/-FE/-FU` 和源文件参数统一走 native Windows 路径转换
+  - 这样修的是 Windows bash gate 的编译输入语义，不是 SIMD 模块本身

@@ -5865,3 +5865,19 @@
 | 2. 补 workflow staged source 依赖 | completed | `Stage SIMD source subset` 已补拷贝 `tests/test_windows_simd_cpuinfo_x86_batch_build_success_criteria.sh` |
 | 3. 更新 scratch 记录并做 release 复验 | completed | `progress.md` / `findings.md` 已补最新 failure surface；`git diff --check` 与 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` fresh 通过 |
 | 4. 提交、push，并重发 Windows evidence | pending | push 后重发 `simd-windows-b07-evidence.yml`，确认 gate 是否越过缺脚本检查 |
+
+## 2026-05-19 Windows B07 Standalone FPC Path Normalization
+
+### Goal
+
+在 staged-source 缺脚本问题收掉后，继续修复 Windows B07 fresh run `26070430852` 暴露出的下一条真实 blocker：
+让 daily standalone smoke 的 native Windows `fpc` 调用在 Git Bash / MSYS 下也使用正确的 `D:\...` 形式路径，而不是 `\d\...` 伪路径。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `26070430852` 的新最小失败面 | completed | 旧的缺脚本问题已消失；新的第一失败点是 `test_backend_ops.pas` 构建时 `-FE` 输出目录变成 `\d\a\...` |
+| 2. 给 standalone `fpc` 调用补 MSYS native path 归一化 | completed | 新增 `fpc_native_path()`，并覆盖 `dispatch_preinit` / `public_smoke` / `backend_ops` / `simd_boundary` 4 个 standalone 编译入口 |
+| 3. release 主链复验并同步 scratch | completed | `git diff --check`、`bash -n tests/fafafa.core.simd/BuildOrTest.sh`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` fresh 通过；`progress.md` / `findings.md` 已补新 failure surface |
+| 4. 提交、push，并重发 Windows evidence | pending | push 后重发 `simd-windows-b07-evidence.yml`，确认 gate 是否越过 `backend_ops` 构建阶段 |
