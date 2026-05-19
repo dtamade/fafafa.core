@@ -9407,3 +9407,38 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86` 通过
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 通过
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 通过
+
+## 2026-05-20 RISCVV Wide F32 Reduction Helpers Had The Same Duplicate-Truth Smell
+
+- 在 `F32x4` reduction cleanup 落地后，`RISCVV` 下一个同类 residual 非常明确：
+  - `RISCVVReduceAddF32x8`
+  - `RISCVVReduceMulF32x8`
+  - `RISCVVReduceAddF32x16`
+  - `RISCVVReduceMulF32x16`
+- 这 4 个 helper 仍然保留本地 `for` loop，但它们的合同同样已经被现有 scalar truth source 覆盖：
+  - `ScalarReduceAddF32x8`
+  - `ScalarReduceMulF32x8`
+  - `ScalarReduceAddF32x16`
+  - `ScalarReduceMulF32x16`
+- 它们和上一批 `F32x4` 的问题本质一致：
+  - `RISCVV` facade 继续维护第二份 wide scalar reduction loop
+  - 同一 `F32` reduction 合同被拆成 scalar 与 facade 两份源码真相
+  - 未来若只修一边，helper semantics 和 dispatch parity 会再次产生静默分叉
+- 这批仍然适合当前 `Wave 5` 的 bounded 路线，因为：
+  - 不改变 `riscvv.register.inc` 的 slot ownership
+  - 不触碰 `F64` reduction 的 `NaN` / `signed-zero` 敏感面
+  - 仓库已有 `ScalarReduce*` 真相源，可以直接消灭 duplicate helper，而不是引入新抽象
+- 这轮还暴露了 `DispatchAPI` 覆盖面的三个实际缺口：
+  - 只检查了 `ReduceAddF32x8`
+  - 没有检查 `ReduceMulF32x8`
+  - 没有检查 `ReduceAdd/ReduceMulF32x16`
+- 因而这批除了改 helper body，也顺手把最小 non-x86 parity 覆盖补齐到了同层真实边界：
+  - `ReduceMulF32x8` assigned + scalar parity
+  - `ReduceAddF32x16` assigned + scalar parity
+  - `ReduceMulF32x16` assigned + scalar parity
+- fresh 证据说明这批依然是纯 duplicate cleanup：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=749 status=ok`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` 通过
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86` 通过
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 通过
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 通过

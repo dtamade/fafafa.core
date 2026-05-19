@@ -16157,3 +16157,39 @@
 - 当前阶段结论：
   - `RISCVV` 这两个 `F32x4 reduction` helper 已不再维护第二份本地 scalar loop
   - 当前 batch 是真实的 duplicate cleanup，不涉及 backend slot ownership 变化，也没有重新打开 `F64` 敏感语义面
+
+## 2026-05-20 RISCVV Wide F32 Reduction Helper Exact-Contract Consolidation
+
+- 先对齐当前下一刀 residual：
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+  - `RISCVVReduceAddF32x8`
+  - `RISCVVReduceMulF32x8`
+  - `RISCVVReduceAddF32x16`
+  - `RISCVVReduceMulF32x16`
+  - 它们都还保留本地 loop，而 `src/fafafa.core.simd.scalar.pas` 已有对应 `ScalarReduce*` 真相源
+- 已落地的源码 / 测试收口：
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - 这 4 个 helper 已统一改成直接委托 `ScalarReduceAdd/ReduceMulF32x8/F32x16`
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 新增这 4 个 helper 的 exact-source 断言
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - `TTestCase_NonX86BackendParity.Test_MinimalDispatchParity_IfAvailable`
+    - 补 `ReduceMulF32x8` missing/parity
+    - 补 `ReduceAddF32x16` / `ReduceMulF32x16` missing/parity
+- release 策略下的 fresh 验证链已串行完成：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- fresh 结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=749 status=ok`
+  - `DispatchAPI` 通过
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `check` 通过
+  - Release `gate` 通过
+- 当前阶段结论：
+  - `RISCVV` 的 wide `F32 reduction` helper 现在不再维护第二份本地 loop 真相
+  - 这批依然只收 helper body 和 parity coverage，没有动 register ownership，也没有重新打开 `F64` reduction 敏感面

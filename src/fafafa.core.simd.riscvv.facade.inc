@@ -1727,19 +1727,13 @@ begin
 end;
 
 function RISCVVReduceAddF32x16(const a: TVecF32x16): Single;
-var i: Integer;
 begin
-  Result := a.f[0];
-  for i := 1 to 15 do
-    Result := Result + a.f[i];
+  Result := ScalarReduceAddF32x16(a);
 end;
 
 function RISCVVReduceAddF32x8(const a: TVecF32x8): Single;
-var i: Integer;
 begin
-  Result := a.f[0];
-  for i := 1 to 7 do
-    Result := Result + a.f[i];
+  Result := ScalarReduceAddF32x8(a);
 end;
 
 function RISCVVReduceAddF64x2(const a: TVecF64x2): Double;
@@ -1817,19 +1811,13 @@ begin
 end;
 
 function RISCVVReduceMulF32x16(const a: TVecF32x16): Single;
-var i: Integer;
 begin
-  Result := a.f[0];
-  for i := 1 to 15 do
-    Result := Result * a.f[i];
+  Result := ScalarReduceMulF32x16(a);
 end;
 
 function RISCVVReduceMulF32x8(const a: TVecF32x8): Single;
-var i: Integer;
 begin
-  Result := a.f[0];
-  for i := 1 to 7 do
-    Result := Result * a.f[i];
+  Result := ScalarReduceMulF32x8(a);
 end;
 
 function RISCVVReduceMulF64x2(const a: TVecF64x2): Double;

@@ -18425,7 +18425,10 @@ var
   LMask2ByBackend, LMask2ByScalar: TMask2;
   LMask8ByBackend, LMask8ByScalar: TMask8;
   LReduceF64ByBackend, LReduceF64ByScalar: Double;
-  LReduceF32ByBackend, LReduceF32ByScalar: Single;
+  LReduceAddF32x8ByBackend, LReduceAddF32x8ByScalar: Single;
+  LReduceMulF32x8ByBackend, LReduceMulF32x8ByScalar: Single;
+  LReduceAddF32x16ByBackend, LReduceAddF32x16ByScalar: Single;
+  LReduceMulF32x16ByBackend, LReduceMulF32x16ByScalar: Single;
   LIndex: Integer;
   LChecked: Integer;
 
@@ -18497,12 +18500,14 @@ begin
       AssertTrue('AddF32x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.AddF32x8));
       AssertTrue('CmpLtF32x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.CmpLtF32x8));
       AssertTrue('ReduceAddF32x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ReduceAddF32x8));
+      AssertTrue('ReduceMulF32x8 missing: ' + NonX86BackendName(LBackend), Assigned(LBackendTable.ReduceMulF32x8));
       AssertTrue('Wide float math slots missing: ' + NonX86BackendName(LBackend),
         Assigned(LBackendTable.AddF32x16) and Assigned(LBackendTable.SubF32x16) and
         Assigned(LBackendTable.MulF32x16) and Assigned(LBackendTable.DivF32x16) and
         Assigned(LBackendTable.MinF32x16) and Assigned(LBackendTable.MaxF32x16) and
         Assigned(LBackendTable.AbsF32x16) and Assigned(LBackendTable.SqrtF32x16) and
         Assigned(LBackendTable.FmaF32x16) and Assigned(LBackendTable.ClampF32x16) and
+        Assigned(LBackendTable.ReduceAddF32x16) and Assigned(LBackendTable.ReduceMulF32x16) and
         Assigned(LBackendTable.AddF64x8) and Assigned(LBackendTable.SubF64x8) and
         Assigned(LBackendTable.MulF64x8) and Assigned(LBackendTable.DivF64x8) and
         Assigned(LBackendTable.MinF64x8) and Assigned(LBackendTable.MaxF64x8) and
@@ -18536,10 +18541,15 @@ begin
       AssertEquals('CmpLtF32x8 parity: ' + NonX86BackendName(LBackend),
         Integer(LMask8ByScalar), Integer(LMask8ByBackend));
 
-      LReduceF32ByBackend := LBackendTable.ReduceAddF32x8(LF32A);
-      LReduceF32ByScalar := LScalarTable.ReduceAddF32x8(LF32A);
+      LReduceAddF32x8ByBackend := LBackendTable.ReduceAddF32x8(LF32A);
+      LReduceAddF32x8ByScalar := LScalarTable.ReduceAddF32x8(LF32A);
       AssertEquals('ReduceAddF32x8 parity: ' + NonX86BackendName(LBackend),
-        LReduceF32ByScalar, LReduceF32ByBackend, 1e-6);
+        LReduceAddF32x8ByScalar, LReduceAddF32x8ByBackend, 1e-6);
+
+      LReduceMulF32x8ByBackend := LBackendTable.ReduceMulF32x8(LF32A);
+      LReduceMulF32x8ByScalar := LScalarTable.ReduceMulF32x8(LF32A);
+      AssertEquals('ReduceMulF32x8 parity: ' + NonX86BackendName(LBackend),
+        LReduceMulF32x8ByScalar, LReduceMulF32x8ByBackend, 1e-4);
 
       LF32x16ByBackend := LBackendTable.AddF32x16(LF32x16A, LF32x16B);
       LF32x16ByScalar := LScalarTable.AddF32x16(LF32x16A, LF32x16B);
@@ -18580,6 +18590,16 @@ begin
       LF32x16ByBackend := LBackendTable.ClampF32x16(LF32x16A, LF32x16Min, LF32x16Max);
       LF32x16ByScalar := LScalarTable.ClampF32x16(LF32x16A, LF32x16Min, LF32x16Max);
       AssertVecF32x16Equal('ClampF32x16', NonX86BackendName(LBackend), LF32x16ByScalar, LF32x16ByBackend, 0.0);
+
+      LReduceAddF32x16ByBackend := LBackendTable.ReduceAddF32x16(LF32x16A);
+      LReduceAddF32x16ByScalar := LScalarTable.ReduceAddF32x16(LF32x16A);
+      AssertEquals('ReduceAddF32x16 parity: ' + NonX86BackendName(LBackend),
+        LReduceAddF32x16ByScalar, LReduceAddF32x16ByBackend, 1e-5);
+
+      LReduceMulF32x16ByBackend := LBackendTable.ReduceMulF32x16(LF32x16A);
+      LReduceMulF32x16ByScalar := LScalarTable.ReduceMulF32x16(LF32x16A);
+      AssertEquals('ReduceMulF32x16 parity: ' + NonX86BackendName(LBackend),
+        LReduceMulF32x16ByScalar, LReduceMulF32x16ByBackend, 1e-4);
 
       LF64x8ByBackend := LBackendTable.AddF64x8(LF64x8A, LF64x8B);
       LF64x8ByScalar := LScalarTable.AddF64x8(LF64x8A, LF64x8B);

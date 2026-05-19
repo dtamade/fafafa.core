@@ -581,8 +581,20 @@ def main() -> int:
         (riscvv_facade_source, "RISCVVReduceMulF32x4", [
             "Result := ScalarReduceMulF32x4(a);",
         ]),
+        (riscvv_facade_source, "RISCVVReduceAddF32x8", [
+            "Result := ScalarReduceAddF32x8(a);",
+        ]),
+        (riscvv_facade_source, "RISCVVReduceMulF32x8", [
+            "Result := ScalarReduceMulF32x8(a);",
+        ]),
         (riscvv_facade_source, "RISCVVReduceMaxF32x8", [
             "Result := ScalarReduceMaxF32x8(a);",
+        ]),
+        (riscvv_facade_source, "RISCVVReduceAddF32x16", [
+            "Result := ScalarReduceAddF32x16(a);",
+        ]),
+        (riscvv_facade_source, "RISCVVReduceMulF32x16", [
+            "Result := ScalarReduceMulF32x16(a);",
         ]),
         (riscvv_facade_source, "RISCVVReduceMaxF32x16", [
             "Result := ScalarReduceMaxF32x16(a);",

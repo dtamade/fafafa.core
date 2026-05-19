@@ -6097,3 +6097,22 @@ closeout finalize，直到 `freeze-status` 重新转绿。
 | 1. 锁定可安全合并的 residual | completed | 已按 `docs/plans/2026-05-10-simd-execution-index.md` 复核当前仍在 `Wave 5`，并选择 `ReduceAddF32x4` / `ReduceMulF32x4` 这一对“已有 `ScalarReduce*` 精确合同、又不触碰 register ownership”的最小批次 |
 | 2. 收回 facade duplicate 实现 | completed | `src/fafafa.core.simd.riscvv.facade.inc` 中两处 helper 已直接委托 `ScalarReduceAddF32x4(a)` / `ScalarReduceMulF32x4(a)`，不再维护第二份本地 lane loop |
 | 3. 对齐 helper semantics 与 release 验证 | completed | `check_nonx86_helper_semantics.py` 已新增 exact-source 断言，`DispatchAPI` 的 `NonX86BackendParity` 已补 `ReduceMulF32x4` assignment + scalar parity，fresh `DispatchAPI`、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿 |
+
+## 2026-05-20 RISCVV Wide F32 Reduction Helper Exact-Contract Consolidation
+
+### Goal
+
+继续沿 `Wave 5 / retire + redundancy cleanup` 的同一条 bounded 路线，
+把 `RISCVV` facade 中仍保留本地 duplicate loop 的
+`ReduceAdd/ReduceMulF32x8`
+和
+`ReduceAdd/ReduceMulF32x16`
+收回到现有 scalar truth source；这批继续不碰 `F64` reduction lane，也不改 register slot ownership。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 锁定下一个同类 residual | completed | 已确认 `riscvv.facade.inc` 里 `ReduceAdd/ReduceMulF32x8/F32x16` 仍是纯本地 loop，而 `ScalarReduce*` 精确合同已存在；相比 `F64` reduction，这组更安全，且与上一批 `F32x4` 形成同类收口 |
+| 2. 收回 facade duplicate 实现 | completed | `src/fafafa.core.simd.riscvv.facade.inc` 中这 4 个 helper 已改成直接委托 `ScalarReduceAdd/ReduceMulF32x8/F32x16`，不再维护第二份 wide scalar loop |
+| 3. 对齐 helper semantics / DispatchAPI / release 验证 | completed | `check_nonx86_helper_semantics.py` 已新增这 4 个 helper 的 exact-source 断言；`TTestCase_NonX86BackendParity` 已补 `ReduceMulF32x8`、`ReduceAddF32x16`、`ReduceMulF32x16` 的 assignment/parity coverage；fresh `DispatchAPI`、`impl-audit-nonx86`、Release `check`、Release `gate` 全绿 |
