@@ -5998,3 +5998,17 @@
 | 1. 复核误报根因与最小影响面 | completed | 已确认当前 `NEON` 剩余 `51` 个 `asm-only` residual 和 `RISCVV` 的 `AndNot*` 三槽都属于 backend-local composition；同时发现 `collect_symbol_facts()` 把 `forward;` 声明误算成 body，会把 `Cmp*I32x8` 再次拖回 `wrapper_only` |
 | 2. 修正 truthfulness 分类与 fixture 护栏 | completed | `check_nonx86_register_truthfulness.py` 已新增 `backend_composed` 分类、按 backend 前缀识别组合 helper、忽略 `forward;` 伪 body，并补了 `fixtures/nonx86_register_truthfulness/composed/` 回归样本；`check_nonx86_key_slot_audit.py` 已接入新的 `classify_target(..., symbol_prefix)` 签名 |
 | 3. release 口径串行复验与 scratch 同步 | completed | `git diff --check`、`py_compile`、`fixture composed`、strict `truthfulness`、`key-slot-audit`、`DispatchAPI+NonX86BackendParity`、`impl-audit-nonx86`、release `check` fresh 全绿；当前 fresh truth 已变成 `neon backend_composed=51 wrapper_only=0` / `riscvv backend_composed=3 wrapper_only=0` |
+
+## 2026-05-19 Active SIMD Docs Truth Sync After Backend-Composed Reclassification
+
+### Goal
+
+把 active SIMD 文档里的 stale `wrapper_only` evidence 跟上 checker 新真相，避免后续会话又被旧 residual 数字带偏。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前真实 residual 与 docs 漂移面 | completed | 已确认 `NEON` 那 10 个 `asm_suffix_only` shift wrapper 仍承担 invalid-count scalar 合同，不该直接绑 `_Asm`；真正需要修的是 `docs/fafafa.core.simd.closeout.md` / `docs/fafafa.core.simd.implementation-matrix.md` 还停留在 `wrapper_only=3/32` 旧口径 |
+| 2. 同步 active docs 到 `backend_composed` 口径 | completed | 已把两处 closeout stale evidence 和一处 implementation-matrix runtime evidence 更新为 `backend_composed=3 wrapper_only=0` 的 fresh truth，并把 `asm-only wrapper ok=3` 改成 `asm-only composed ok=3` |
+| 3. 轻量复验与 scratch 同步 | completed | `git diff --check`、`python3 tests/fafafa.core.simd/check_implementation_matrix_sync.py --summary-line` fresh 通过；active docs 不再残留旧 `wrapper_only=3/32` 误导口径 |

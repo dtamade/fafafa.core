@@ -296,6 +296,34 @@
   - `NEON` / `RISCVV` 当前 strict truthfulness 已从“剩余 wrapper_only 噪音”切换成“backend_composed truth 已明确”
   - 后续 residual 选择可以直接看真实 `wrapper_only=0` 与 `backend_composed` 列表，不需要再拿 `wrapper_only=51` 这种旧噪音数字误导下一批
 
+## 2026-05-19 Active SIMD Docs Truth Sync After Backend-Composed Reclassification
+
+- 这批没有再碰实现层，先验证了一个容易跑偏的方向：
+  - `NEON` 当前 `asm_suffix_only=10` 的 shift wrapper 并不是该直接砍掉的冗余
+  - `src/fafafa.core.simd.neon.pas` 已明确把 public wrapper 和 raw `*Asm` helper 分成两层合同
+  - `check_nonx86_helper_semantics.py` 也会 fail-close 守住 invalid-count -> scalar fallback
+- 因而本批真正修的是 active docs stale truth：
+  - `docs/fafafa.core.simd.closeout.md`
+  - `docs/fafafa.core.simd.implementation-matrix.md`
+- 已落地修改：
+  - 把两处 `closeout.md` 里的旧 evidence：
+    - `wrapper_only=3`
+    - `wrapper_only=32`
+    - `asm-only wrapper ok=3`
+    改成当前 fresh truth：
+    - `backend_composed=3`
+    - `wrapper_only=0`
+    - `asm-only composed ok=3`
+  - 把 `implementation-matrix.md` 的 active runtime evidence 同步到同一口径
+- 本批轻量验证已完成：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_implementation_matrix_sync.py --summary-line`
+- fresh 结果：
+  - `IMPLEMENTATION_MATRIX_SYNC nonx86_slots=22 x86_rows=10 issues=0 status=ok`
+- 当前阶段结论：
+  - active docs spine 现在已经跟 `backend_composed` 新分类同步
+  - 下一批如果继续，应回到“真实实现 residual / source contract 漂移”，而不是再被 active docs 里的旧 `wrapper_only` 数字带偏
+
 ## 2026-05-19 Windows Evidence Final Closeout
 
 - 继续沿用成功 Windows workflow run `26074189888` 做 canonical closeout，批次号为 `SIMD-20260519-152`。

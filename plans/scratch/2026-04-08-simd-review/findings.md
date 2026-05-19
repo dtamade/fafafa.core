@@ -9236,3 +9236,26 @@
 - 结论更新：
   - 当前 non-x86 residual 已不再被 `wrapper_only` 噪音污染
   - 后续如果再继续削 register ownership，应只盯真正的 `wrapper_only` 或 `asm_suffix_only` 异味，而不是误把 backend composition 当成要继续回收的假问题
+
+## 2026-05-19 The Next Real Drift Was In Active Docs, Not In NEON Shift Wrappers
+
+- fresh truth 分类收正以后，最容易误判的下一步其实是：
+  - 看到 `NEON asm_suffix_only=10`，就继续去砍 shift wrapper
+- 但源码证据说明这批不是该硬砍的冗余：
+  - `src/fafafa.core.simd.neon.pas` 明确写了 contract split：
+    - `*Asm helper` 只负责 raw NEON lane shift
+    - public wrapper 负责 negative / out-of-range `count` 时回退 scalar 合同
+  - 例如：
+    - `NEONShiftLeftI32x16` 先判 `count < 0 or count >= 32`，再 `Exit(ScalarShiftLeftI32x16(...))`
+    - `NEONShiftRightArithI64x4` 先判 `count < 0 or count >= 64`，再 `Exit(ScalarShiftRightArithI64x4(...))`
+  - `check_nonx86_helper_semantics.py` 现在也专门 fail-close 锁这层 contract
+- 这意味着：
+  - 这 10 个 `NEON asm_suffix_only` shift slot 当前是“合理 companion”，不是“下一刀该删的假 ownership”
+  - 如果直接把 register 绑到 `...Asm` helper，会打坏已发布的 invalid-count scalar 语义
+- 与之相反，真正已经漂移的是 active docs：
+  - `docs/fafafa.core.simd.closeout.md`
+  - `docs/fafafa.core.simd.implementation-matrix.md`
+  - 它们还在写旧的 `wrapper_only=3` / `wrapper_only=32` 证据，而 checker 现在的 fresh truth 已经是 `backend_composed=3 wrapper_only=0`
+- 结论更新：
+  - 当前下一处真实问题是 active truth-source 文档 stale，不是 `NEON` shift helper 该被强行去壳
+  - 后续只要 docs 还承担 live reading path，就必须跟 checker 口径一起同步，不能让 active spine 继续挂旧 residual 数字
