@@ -9054,3 +9054,21 @@
 - 这条 finding 的价值是把“真正实现 bug”和“测试合同漏 guard”彻底分开：
   - 若 AVX2 backend 在当前 lane 不可运行，正确行为是跳过 runtime fused witness
   - 等 ABI validation 真正放开 Windows AVX2 vector-asm path 后，这个用例仍会在可运行条件下继续约束 fused FMA 语义
+
+## 2026-05-19 Windows B07 After The AVX2 FMA Witness Guard Repair: The Next Failure Was `cpuinfo.x86` Repeating The Same MSYS `flock` Pattern
+
+- fresh Windows run `26071148166` 已经证明上一批 AVX2 FMA witness guard 修复有效：
+  - `TTestCase_DispatchAPI` 不再失败
+  - gate 已继续推进 through public-ABI / adapter-sync / direct-dispatch / cpuinfo portable suites
+- 新失败点收敛成一个新的但熟悉的控制面问题：
+  - `tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh`
+  - 在 Git Bash / MSYS 下拿 `.buildtest.lock` 时出现：
+    - `flock: 9: Bad file descriptor`
+    - 然后超时在 `.buildtest.lock`
+- 这条 finding 的价值在于确认我们没有重新回到 SIMD 实现层：
+  - 不是 `cpuinfo.x86` suite 本身断言失败
+  - 不是 `DispatchAPI` / `AVX2 FMA` 又回红
+  - 而是 `cpuinfo.x86` 子 runner 还没继承主 `BuildOrTest.sh` 之前已经做过的 MSYS lock fail-open 语义
+- 最小正确修复因此非常直接：
+  - 不碰 cpuinfo.x86 测试内容
+  - 只在 `tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh` 的 `acquire_project_lock()` 中，对 `MSYS/MINGW/CYGWIN` 下的 fd-based `flock` 做与主 gate 相同的降级

@@ -15681,3 +15681,32 @@
   - Windows B07 现在的真实问题已进入 AVX2/FMA contract 测试层
   - 这次修的是测试合同前置条件缺口，不是掩盖实现 bug
   - 下一步应提交 push 并重发 fresh Windows evidence，确认 Windows lane 是否越过这条 AVX2 FMA witness 红线
+
+## 2026-05-19 Windows B07 Follow-up: After The AVX2 FMA Guard Fix, The New First Blocker Moved To `cpuinfo.x86` Project Locking Under MSYS
+
+- fresh Windows run `26071148166` 已把上一批 AVX2 FMA witness 前置条件修复验证成真：
+  - `TTestCase_DispatchAPI` 已在 Windows B07 lane 重新回到 `OK`
+  - `TTestCase_DataPlane` / `TTestCase_DirectDispatch` / `TTestCase_DirectDispatchConcurrent` 也都通过
+- 这说明：
+  - 上一轮真正的 SIMD contract 红点已经清掉
+  - B07 继续推进到了 `5/6 CPUInfo x86 suites`
+- 新的第一失败点再次收口成 runner/control-plane 问题，不是 SIMD 语义：
+  - `tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh` 在 Git Bash / MSYS 下尝试拿 `.buildtest.lock`
+  - 日志直接出现：
+    - `flock: 9: Bad file descriptor`
+    - `[LOCK] Timeout waiting for lock: /d/a/fafafa.core/fafafa.core/tests/fafafa.core.simd.cpuinfo.x86/.buildtest.lock (300s)`
+- 根因判断已经明确：
+  - 主 `tests/fafafa.core.simd/BuildOrTest.sh` 之前已经对 MSYS `flock` 做过 fail-open
+  - 但 `tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh` 还保留着自己的 fd-based `flock` 实现
+  - 所以现在 B07 不再卡主 gate 的锁，而是卡在 cpuinfo.x86 子 runner 自己的锁
+- 已落地修复：
+  - `tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh`
+    - 新增 `is_msys_shell()`
+    - `acquire_project_lock()` 现在在 `MSYS/MINGW/CYGWIN` 下直接打印 `WARN` 并无锁继续
+- 本地串行验证 fresh 通过：
+  - `git diff --check`
+  - `bash -n tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh test --list-suites`
+- 当前阶段结论：
+  - Windows B07 的最小真实 blocker 已继续收口到 `cpuinfo.x86` 子 runner 的 MSYS lock 兼容性
+  - 这一刀已经把它对齐主 gate 的处理模型，下一步应提交 push 并重发 fresh Windows evidence

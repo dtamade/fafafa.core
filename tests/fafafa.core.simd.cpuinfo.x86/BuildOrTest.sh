@@ -32,6 +32,17 @@ LOCK_ACQUIRED=0
 
 mkdir -p "${BIN_DIR}" "${LIB_DIR}" "${LOG_DIR}"
 
+is_msys_shell() {
+  case "$(uname -s 2>/dev/null || echo unknown)" in
+    MINGW*|MSYS*|CYGWIN*)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 release_project_lock() {
   if [[ "${LOCK_FD}" -ne 0 ]]; then
     flock -u "${LOCK_FD}" 2>/dev/null || true
@@ -50,6 +61,11 @@ acquire_project_lock() {
   if ! [[ "${LOCK_WAIT_SECONDS}" =~ ^[1-9][0-9]*$ ]]; then
     echo "[LOCK] Invalid FAFAFA_BUILD_LOCK_WAIT_SECONDS=${LOCK_WAIT_SECONDS} (expect positive integer)"
     exit 2
+  fi
+
+  if is_msys_shell; then
+    echo "[LOCK] WARN: MSYS/Cygwin shell does not provide reliable fd-based flock semantics here; proceeding without build lock (${OUTPUT_ROOT})"
+    return 0
   fi
 
   if command -v flock >/dev/null 2>&1; then

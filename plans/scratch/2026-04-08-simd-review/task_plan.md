@@ -5898,3 +5898,19 @@
 | 2. 对齐 AVX2 runtime witness 前置条件 | completed | 该测试现补 `LTable.BackendInfo.Available and TrySetActiveBackend(sbAVX2)`，与同文件其它 AVX2 runtime-checkable 用例保持一致 |
 | 3. 定点 release 复验并同步 scratch | completed | `git diff --check` 与 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` fresh 通过；`progress.md` / `findings.md` 已补新 failure surface |
 | 4. 提交、push，并重发 Windows evidence | pending | push 后重发 `simd-windows-b07-evidence.yml`，确认 Windows lane 是否越过这条 AVX2 FMA witness 红线 |
+
+## 2026-05-19 Windows B07 CPUInfo.x86 MSYS Lock Compatibility
+
+### Goal
+
+在 Windows B07 已经越过 AVX2 FMA witness 红线后，继续修复 fresh run `26071148166` 暴露出的下一条真实 blocker：
+让 `tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh` 在 Git Bash / MSYS 下不再因为 fd-based `flock` 语义不可靠而超时。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `26071148166` 的最新失败面 | completed | 旧的 AVX2 FMA contract 红点已消失；新的第一失败点是 `cpuinfo.x86` 子 runner 的 `.buildtest.lock` 在 MSYS 下 `flock: 9: Bad file descriptor` |
+| 2. 给 `cpuinfo.x86` 子 runner 补 MSYS lock 降级 | completed | `tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh` 已新增 `is_msys_shell()`，并在 `MSYS/MINGW/CYGWIN` 下无锁继续 |
+| 3. 定点 release 复验并同步 scratch | completed | `git diff --check`、`bash -n tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh test --list-suites` fresh 通过 |
+| 4. 提交、push，并重发 Windows evidence | pending | push 后重发 `simd-windows-b07-evidence.yml`，确认 gate 是否越过 `cpuinfo.x86` 锁阶段 |
