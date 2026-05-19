@@ -9310,3 +9310,39 @@
 - 结论更新：
   - 当前下一处真实问题已经从“Windows evidence verifier drift”进一步前推成“active release docs truth drift”
   - 这批修复完成后，repo 内关于 release closeout 的 active reading path 才重新和当前 `freeze-status`、runner guard、Windows manual path 约束保持同一事实面
+
+## 2026-05-19 The Actual Closeout Blocker Was Pure Evidence Freshness, And It Was Fully Clearable
+
+- 在 active docs truth sync 完成后，真实剩余 blocker 再次被最小化确认：
+  - fresh Release `gate` 之后，`freeze-status` 已经只剩
+    - `windows_sources_not_newer_than_evidence`
+  - 这说明 active 文档里改写的 `code-green / evidence-refresh-required` 不是理论判断，而是和 live closeout 状态完全一致
+- 第一次直接跑
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-20260519-152`
+  的失败面也很关键：
+  - 它返回的是 `WORKFLOW_QUERY_FAILED`
+  - 但沙箱外复跑后，preflight 立刻恢复成 `PASS / OK`
+  - 说明这条失败不是 GH billing、也不是 repo 内 closeout 逻辑回退，而是受限环境里的 workflow 查询噪音
+- 真正的 GH run 状态进一步证明了这一点：
+  - run `26095664914`
+  - `Prepare Windows SIMD Source` = `success`
+  - `Collect Windows B07 Evidence` = `success`
+  - 这意味着本轮 closeout 的真实世界状态已经从“只能等外部恢复”推进到“Windows evidence 真正可刷新、可验证、可 finalize”
+- 脚本层还有一个操作性边界值得记录：
+  - 首轮 `win-evidence-via-gh` 只是 watch 超时，并不代表 workflow 失败
+  - repo 已经把这类情况设计成可恢复：
+    - 先用 `gh run view` 取到真实 completed run-id
+    - 再复用 `win-evidence-via-gh <batch> <run-id>` 直接做 artifact download + verify + finalize
+  - 这次复用 `26095664914` 的回灌结果已经证明这条恢复路径是有效的
+- 最终实证结果：
+  - 下载 artifact 后，`windows_b07_gate.log` verifier PASS
+  - 自动 backfill cross gate 成功，并 fresh 刷出 `qemu-cpuinfo-nonx86-evidence`
+  - `win-closeout-finalize` 成功
+  - 最终 `freeze-status` 重新回到：
+    - `ready=True`
+    - `mainline-ready=True`
+    - `cross-ready=True`
+- 结论更新：
+  - 当前这轮 SIMD release closeout 已不再停在 blocker 态
+  - `billing blocked` 已不是当前真相，`evidence freshness` 也已经被真实清空
+  - repo 当前在 active closeout 线上重新回到了完整 green 状态

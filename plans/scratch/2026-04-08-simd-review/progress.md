@@ -16032,3 +16032,56 @@
 - 当前阶段结论：
   - 这批 active release docs 已重新跟上当前真实 blocker
   - repo 内下一步不该再围绕 billing 文案空转，而应继续 fresh Linux `gate` + fresh Windows evidence + `freeze-status`
+
+## 2026-05-19 Fresh Evidence Refresh Returned SIMD Closeout To Green
+
+- 在 `simd: sync active release blocker truth docs` 推上远端以后，先按 release 策略 fresh 刷了一次 canonical Linux gate：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：PASS
+  - 随后 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+  - 结果：`mainline-ready=True`，且 `linux_sources_not_newer_than_gate=PASS`
+  - 当时只剩一个红项：
+    - `windows_sources_not_newer_than_evidence`
+- 第一次直接刷 Windows evidence：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-20260519-152`
+  - 沙箱内返回：`WORKFLOW_QUERY_FAILED`
+  - 随后在沙箱外复跑同一命令，真实 preflight 已恢复成：
+    - `STATUS=PASS CODE=OK`
+  - workflow dispatch 成功，run id：
+    - `26095664914`
+- 由于脚本 watch 超时，没有立刻完成 artifact 回灌，所以继续用 live GH 状态确认真相：
+  - `gh run view 26095664914 --json status,conclusion,url,createdAt,updatedAt,jobs`
+  - 先看到：
+    - `Prepare Windows SIMD Source = success`
+    - `Collect Windows B07 Evidence = in_progress`
+  - 再次查询后确认：
+    - 整个 run `conclusion=success`
+    - `Collect Windows B07 Evidence` 全步骤成功，包括 `Collect and Verify Windows Evidence`
+- 接着复用已完成 run-id 做本地回灌：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-20260519-152 26095664914`
+  - 关键收口结果：
+    - artifact 下载成功
+    - batch snapshot 写入：
+      - `tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260519-152/windows_b07_gate.log`
+      - `.../gate_summary.md`
+      - `.../gate_summary.json`
+    - verifier 成功：
+      - `[GATE-SUMMARY-VERIFY] OK`
+      - `[EVIDENCE] OK`
+    - canonical `windows_b07_gate.log` 已被提升到 fresh evidence
+- 这条复用路径还自动完成了剩余 closeout 必需步骤：
+  - backfill cross gate（含 `SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1`）
+  - fresh `qemu-cpuinfo-nonx86-evidence`
+  - `win-closeout-finalize`
+  - 以及最后的 `freeze-status`
+- 最终 `freeze-status` fresh 结果：
+  - `ready=True`
+  - `mainline-ready=True`
+  - `cross-ready=True`
+  - `windows_sources_not_newer_than_evidence=PASS`
+  - `windows_evidence_verify=PASS`
+  - `windows_preflight_latest=PASS`
+  - `windows_closeout_summary=PASS`
+- 当前阶段结论：
+  - 这轮 closeout 已经不是“解释 blocker”，而是已经真实解除 blocker
+  - active docs 的 truth sync 与 live evidence refresh 现在重新收敛到同一结论：SIMD cross-platform freeze 已回绿

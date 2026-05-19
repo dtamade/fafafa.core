@@ -6042,4 +6042,21 @@ manual-path guard 文案继续和 runner 的 fail-close 约束完全一致。
 | 1. 复核当前 release 真相与 active docs 漂移面 | completed | 已确认最新 `freeze-status` 真实红项收敛成 `linux_sources_not_newer_than_gate` / `windows_sources_not_newer_than_evidence`；`cross_gate_required_steps`、`windows_preflight_latest(status=PASS code=OK)` 与 `windows_evidence_verify` 都已转绿，因此 active docs 再继续写 `RECENT_BILLING_BLOCK` 已经失真 |
 | 2. 同步 active closeout reading path | completed | 已更新 `docs/fafafa.core.simd.checklist.md`、`handoff.md`、`closeout.md`、`maintenance.md`、`fafafa.core.simd.md` 以及 `tests/fafafa.core.simd/docs/{windows_b07_closeout_runbook,simd_release_candidate_checklist}.md`，统一把状态收口成 `code-green / evidence-refresh-required`，并把 next-actions 改成 fresh `gate` + fresh Windows evidence + `freeze-status` |
 | 3. 修回 runner guard 要求的精确约束文案 | completed | `closeout-guard` 首轮抓到 top checklist 与 Windows runbook 各少一条精确安全提示；现已补回 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` / `host-side Unix bridge` 逃生口约束的原样文案，避免文档与 runner 自检分叉 |
-| 4. 轻量验证并继续下一真实 blocker | pending | 已完成 `git diff --check`、Release `closeout-guard`、`historical-closeout-note-check`；下一步继续 fresh Linux `gate`、fresh Windows evidence，再回看 `freeze-status` 是否转绿 |
+| 4. 轻量验证并继续下一真实 blocker | completed | 已完成 `git diff --check`、Release `closeout-guard`、`historical-closeout-note-check`，随后 fresh Release `gate`、`win-evidence-via-gh SIMD-20260519-152 26095664914`、自动 backfill cross gate、`win-closeout-finalize` 与最终 `freeze-status`；当前已 `ready=True / mainline-ready=True / cross-ready=True` |
+
+## 2026-05-19 Fresh Evidence Refresh To Cross-Ready
+
+### Goal
+
+在 active docs 真相同步完成后，真正把剩余的 freshness blocker 收掉：
+先刷新 Linux gate，再复用成功的 GH Windows run 回灌本地 evidence、cross gate 和
+closeout finalize，直到 `freeze-status` 重新转绿。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 刷新 canonical Linux gate | completed | `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 全绿；随后 `freeze-status` 已把 `linux_sources_not_newer_than_gate` 收成 PASS，只剩 `windows_sources_not_newer_than_evidence` |
+| 2. 真实触发并确认 GH Windows evidence | completed | `win-evidence-via-gh SIMD-20260519-152` 首轮只是 workflow watch 超时，但 `gh run view 26095664914` 已明确两段 job 都是 `success`；其中 `Collect Windows B07 Evidence` 全步骤通过 |
+| 3. 复用成功 run-id 回灌本地证据链 | completed | `win-evidence-via-gh SIMD-20260519-152 26095664914` 已下载 artifact、通过 verifier、提升 canonical `windows_b07_gate.log`，并自动补跑 `SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1` 的 cross gate 与 `win-closeout-finalize` |
+| 4. 最终 freeze 收口 | completed | 最终 `freeze-status` 为 `ready=True / mainline-ready=True / cross-ready=True`；`windows_sources_not_newer_than_evidence`、`windows_evidence_verify`、`windows_preflight_latest`、`windows_closeout_summary` 全部 PASS |
