@@ -291,6 +291,55 @@
   - 这次修的是 workflow subset / shell runner 合同，不是 SIMD 实现语义
   - 下一步进入 review -> commit -> push -> 重发 Windows B07 evidence
 
+## 2026-05-19 Windows B07 Intrinsics MMX/SSE MSYS Lazbuild Output-Path Repair
+
+- 已将上一批 `hygiene chain` 修复提交为：
+  - `f443de3a simd: harden windows bash gate hygiene staging`
+- 已 push 到远端 `main`，并重发 fresh Windows evidence：
+  - run id: `26072565256`
+  - head sha: `f443de3a6607141114264bada09b9a3c334b31cb`
+- fresh 远端进展确认：
+  - `Prepare Windows SIMD Source` 成功
+  - `Collect Windows B07 Evidence` 已成功越过：
+    - `DispatchAPI`
+    - `DataPlane`
+    - `DirectDispatch`
+    - `DirectDispatchConcurrent`
+    - `cpuinfo portable suites`
+    - `cpuinfo.x86 suites`
+    - `run_all` 前置的 hygiene checker 也已真实通过
+- 新的第一失败点收敛到：
+  - `6/6 Filtered run_all check chain`
+  - `fafafa.core.simd.intrinsics.mmx (rc=2)`
+- 根因判断已经继续缩窄，而且和前面的 MSYS/native Windows 路径问题同构：
+  - `tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh` 能过，是因为它没有把 `/d/...` 的 `--opt=-FE/-FU` 输出路径喂给 native `lazbuild.exe`
+  - `tests/fafafa.core.simd.intrinsics.mmx/BuildOrTest.sh` 与 `tests/fafafa.core.simd.intrinsics.sse/BuildOrTest.sh` 正在这么做
+  - 主 `tests/fafafa.core.simd/BuildOrTest.sh` 早已为同类场景补了 `to_windows_path()`，而这两个 leaf runner 还没对齐
+- 已落地修复：
+  - `tests/fafafa.core.simd.intrinsics.mmx/BuildOrTest.sh`
+  - `tests/fafafa.core.simd.intrinsics.sse/BuildOrTest.sh`
+  - 两者都已补：
+    - `is_msys_shell()`
+    - `to_windows_path()`
+    - MSYS 下对 `--opt=-FE/-FU` 的 native Windows 路径转换
+- 本地最小复验已完成：
+  - `git diff --check`
+  - `bash -n tests/fafafa.core.simd.intrinsics.mmx/BuildOrTest.sh`
+  - `bash -n tests/fafafa.core.simd.intrinsics.sse/BuildOrTest.sh`
+  - 在 `/tmp/simd-windows-b07-stage-smoke-2` 复刻 workflow subset 后执行真实精确过滤链：
+    - `STOP_ON_FAIL=1 RUN_ACTION=check SIMD_OUTPUT_ROOT=/tmp/simd-windows-b07-stage-smoke-2/out-exact bash ./run_all_tests.sh '=fafafa.core.simd' '=fafafa.core.simd.cpuinfo' '=fafafa.core.simd.cpuinfo.x86' '=fafafa.core.simd.intrinsics.sse' '=fafafa.core.simd.intrinsics.mmx'`
+  - fresh 结果：
+    - `[PASS] fafafa.core.simd`
+    - `[PASS] fafafa.core.simd.cpuinfo`
+    - `[PASS] fafafa.core.simd.cpuinfo.x86`
+    - `[PASS] fafafa.core.simd.intrinsics.mmx`
+    - `[PASS] fafafa.core.simd.intrinsics.sse`
+    - `Total: 5 Passed: 5 Failed: 0`
+- 当前阶段结论：
+  - 最新第一失败点已从 `hygiene checker` 继续推进到 `intrinsics.mmx`，并已做定点修复
+  - 这批仍然修的是 Windows bash gate 的 runner 路径合同，不是 SIMD 语义
+  - 下一步继续按固定节奏：review -> commit -> push -> 重发 fresh Windows B07 evidence
+
 ## 2026-05-18 SSE2 Stream/Fence Surface Proof
 
 - 没有再开 whole-module 扫描，而是直接承接当前 `intrinsics.x86.sse2` interface surface 的最后一簇 `0-hit` 项：

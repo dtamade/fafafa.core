@@ -33,6 +33,44 @@ if [[ "${FAFAFA_BUILD_QUIET:-1}" != "0" ]]; then
   LZ_Q+=("--quiet")
 fi
 
+is_msys_shell() {
+  case "$(uname -s 2>/dev/null || echo unknown)" in
+    MINGW*|MSYS*|CYGWIN*)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+to_windows_path() {
+  local aPath
+  local LDrive
+  local LRest
+
+  aPath="${1:-}"
+  if [[ -z "${aPath}" ]]; then
+    echo ""
+    return 0
+  fi
+
+  if [[ "${aPath}" =~ ^/([a-zA-Z])/(.*)$ ]]; then
+    LDrive="${BASH_REMATCH[1]}"
+    LRest="${BASH_REMATCH[2]//\//\\}"
+    LDrive="$(printf '%s' "${LDrive}" | tr '[:lower:]' '[:upper:]')"
+    echo "${LDrive}:\\${LRest}"
+    return 0
+  fi
+
+  if [[ "${aPath}" =~ ^[a-zA-Z]:[\\/].* ]]; then
+    echo "${aPath//\//\\}"
+    return 0
+  fi
+
+  echo "${aPath}"
+}
+
 detect_lazarusdir() {
   local LLazbuildPath
   local LMaybeRoot
@@ -138,7 +176,14 @@ build_project() {
     LLazbuildArgs=("--lazarusdir=${LLazarusDir}" "${LLazbuildArgs[@]}")
   fi
   if "${LAZBUILD_BIN}" --help 2>&1 | grep -q -- '--opt'; then
-    LLazbuildArgs+=("--opt=-FE${BIN_DIR}" "--opt=-FU${UNIT_DIR}")
+    if is_msys_shell; then
+      LLazbuildArgs+=(
+        "--opt=-FE$(to_windows_path "${BIN_DIR}")"
+        "--opt=-FU$(to_windows_path "${UNIT_DIR}")"
+      )
+    else
+      LLazbuildArgs+=("--opt=-FE${BIN_DIR}" "--opt=-FU${UNIT_DIR}")
+    fi
   elif [[ "${OUTPUT_ROOT}" != "${ROOT}" ]]; then
     echo "[BUILD] WARN: lazbuild without --opt support; output isolation may fall back to project-local bin/lib" >>"${BUILD_LOG}"
   fi

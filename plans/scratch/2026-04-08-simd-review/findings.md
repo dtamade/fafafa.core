@@ -9096,3 +9096,35 @@
 - 这说明：
   - 当前最新 blocker 仍然不在 SIMD 实现层
   - 修复已经把 Windows bash gate 的 `run_all` hygiene chain 收回到和本地 Linux smoke 一致的合同上
+
+## 2026-05-19 Windows B07 After The Staged `run_all` Hygiene Repair: The Next Failure Was `intrinsics.mmx` Passing MSYS Output Paths To Native `lazbuild.exe`
+
+- fresh Windows run `26072565256` 已经证明上一批 staged-source / hygiene checker 修复有效：
+  - `Prepare Windows SIMD Source` 成功
+  - `Collect and Verify Windows Evidence` 已越过：
+    - `DispatchAPI`
+    - `DataPlane`
+    - `DirectDispatch`
+    - `DirectDispatchConcurrent`
+    - `cpuinfo portable`
+    - `cpuinfo.x86`
+    - `run_all` 的 hygiene checker
+- 新的第一失败点收敛到：
+  - `6/6 Filtered run_all check chain`
+  - `fafafa.core.simd.intrinsics.mmx (rc=2)`
+- 这条 finding 的关键价值在于继续把失败面压缩到 runner 合同，而不是又回到 SIMD 实现层：
+  - `intrinsics.mmx` / `intrinsics.sse` 的 shell runner 仍在 `lazbuild --opt=-FE/-FU` 上传 `/d/...` 风格输出路径
+  - 这和之前 `standalone fpc` 在 MSYS 下把 `/d/...` 直接喂给 native Windows 编译器的失败模式同构
+  - 对照已通过的路径可以看到：
+    - 主 `tests/fafafa.core.simd/BuildOrTest.sh` 已有 `to_windows_path()`
+    - `cpuinfo.x86` shell runner 不使用这组 `--opt=-FE/-FU` 输出路径
+    - 失败的 `mmx` / 尚未轮到的 `sse` 则正好都缺这层转换
+- 因而最小正确修复也很明确：
+  - 不改 `intrinsics.mmx` / `intrinsics.sse` 测试内容
+  - 只把这两个 shell runner 的 `--opt=-FE/-FU` 输出路径对齐主 `simd` gate 的 MSYS -> native Windows 路径转换
+- 本地 staged 同构 smoke 已支持这个判断：
+  - 修复后在 `/tmp/simd-windows-b07-stage-smoke-2` 上按真实精确过滤链执行，`mmx/sse` 都回到 PASS
+  - 结果 `Total=5 Passed=5 Failed=0`
+- 这说明：
+  - 最新 blocker 仍然不在 SIMD 语义实现
+  - 它是 Windows bash gate 剩余的一条 lazbuild 输出路径合同缺口

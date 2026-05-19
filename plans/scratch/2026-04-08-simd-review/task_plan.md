@@ -5932,3 +5932,21 @@
 | 2. 收紧 staged source 与 shell 调用合同 | completed | `.github/workflows/simd-windows-b07-evidence.yml` 已补拷贝 `tests/check_repo_hygiene.sh`；`tests/run_all_tests.sh` 已改为 `-f` 检查并显式 `bash "${HYGIENE_CHECKER}"`，避免 artifact 下载后执行位丢失继续伪装成“缺脚本” |
 | 3. staged 子集本地 smoke 复验 | completed | 在 `/tmp/simd-windows-b07-stage-smoke` 复刻 workflow subset 后，按真实精确过滤参数运行 `RUN_ACTION=check bash ./run_all_tests.sh '=fafafa.core.simd' '=fafafa.core.simd.cpuinfo' '=fafafa.core.simd.cpuinfo.x86' '=fafafa.core.simd.intrinsics.sse' '=fafafa.core.simd.intrinsics.mmx'`，结果 `Total=5 Passed=5 Failed=0` |
 | 4. 提交、push，并重发 Windows evidence | pending | push 后重发 `simd-windows-b07-evidence.yml`，确认 Windows bash gate 是否越过 `run_all` hygiene chain |
+
+## 2026-05-19 Windows B07 Intrinsics MMX/SSE MSYS Lazbuild Output-Path Repair
+
+### Goal
+
+在 Windows B07 已经越过 staged `run_all` hygiene chain 后，
+继续修复 fresh run `26072565256` 暴露出的下一条真实 blocker：
+让 `intrinsics.mmx` / `intrinsics.sse` shell runner 在 Git Bash / MSYS 下给 native Windows `lazbuild.exe`
+传递 `--opt=-FE/-FU` 时使用 native Windows 路径，而不是 `/d/...` 风格的 MSYS 路径。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `26072565256` 的最新失败面 | completed | `Prepare Windows SIMD Source` 已成功，`Collect and Verify Windows Evidence` 已越过 `DispatchAPI/DataPlane/DirectDispatch/cpuinfo portable/cpuinfo.x86`，新的第一失败点收敛到 `run_all` 内 `fafafa.core.simd.intrinsics.mmx (rc=2)` |
+| 2. 对齐 intrinsics shell runner 的 MSYS lazbuild 输出路径合同 | completed | `tests/fafafa.core.simd.intrinsics.mmx/BuildOrTest.sh` 与 `tests/fafafa.core.simd.intrinsics.sse/BuildOrTest.sh` 已补 `is_msys_shell()/to_windows_path()`，并在 `--opt=-FE/-FU` 上复用与主 `tests/fafafa.core.simd/BuildOrTest.sh` 一致的 native Windows 路径转换 |
+| 3. staged 子集本地 smoke 复验 | completed | 在 `/tmp/simd-windows-b07-stage-smoke-2` 复刻 workflow subset 后，真实精确过滤链再次跑到 `Total=5 Passed=5 Failed=0`，确认这批 runner 修复没有打坏现有 Linux fast path |
+| 4. 提交、push，并重发 Windows evidence | pending | push 后重发 `simd-windows-b07-evidence.yml`，确认 Windows bash gate 是否越过 `intrinsics.mmx` |
