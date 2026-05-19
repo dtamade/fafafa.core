@@ -9034,3 +9034,23 @@
   - 保持 Linux/常规 bash 路径不变
   - 在 `MSYS/MINGW/CYGWIN` shell 下，对 standalone `fpc` 的 `-Fi/-Fu/-FE/-FU` 和源文件参数统一走 native Windows 路径转换
   - 这样修的是 Windows bash gate 的编译输入语义，不是 SIMD 模块本身
+
+## 2026-05-19 Windows B07 After The Standalone Path Repair: The New Failure Was A Real AVX2 FMA Contract Test Missing The Same Runtime-Availability Guard Used Elsewhere
+
+- fresh Windows run `26070863270` 已经证明上一批 MSYS `fpc` 路径修复有效：
+  - `backend_ops`
+  - `simd_boundary`
+  - `public_smoke`
+  - `dispatch_preinit_smoke`
+  都已经通过，旧的 `\d\a\...` 输出目录错误不再出现
+- 新失败点收敛到一条真实的 SIMD contract 用例：
+  - `TTestCase_DispatchAPI.Test_AVX2_BackendCapabilities_Expose_FMA_When_FusedPathUsable`
+  - witness 期望 fused residual `1.4210854715202E-14`，实际得到 `0`
+- 但这里的关键判断不是“AVX2 FMA 实现错了”，而是测试没有套用项目里已经存在的 Windows/availability 事实：
+  - `src/fafafa.core.simd.avx2.register.inc` 在 Windows 下仍显式 `LEnableVectorAsm := False`
+  - 因而 `BackendInfo.Available` 在 Win64 lane 上就是 `False`
+  - 同文件其它 AVX2 runtime-checkable 测试会先做 `LTable.BackendInfo.Available and TrySetActiveBackend(sbAVX2)` 再进入 witness 断言
+  - 这个 FMA witness 用例却缺了这层前置条件，所以在 Windows lane 上实际拿着 scalar fallback 去断言 fused 结果
+- 这条 finding 的价值是把“真正实现 bug”和“测试合同漏 guard”彻底分开：
+  - 若 AVX2 backend 在当前 lane 不可运行，正确行为是跳过 runtime fused witness
+  - 等 ABI validation 真正放开 Windows AVX2 vector-asm path 后，这个用例仍会在可运行条件下继续约束 fused FMA 语义

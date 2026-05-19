@@ -13305,6 +13305,7 @@ var
   LA, LB, LC: TVecF32x4;
   LResult: TVecF32x4;
   LLane: Integer;
+  LCanRunAVX2: Boolean;
 
   function SingleFromBitsLocal(const aBits: DWord): Single; inline;
   begin
@@ -13319,6 +13320,10 @@ begin
   if not IsVectorAsmEnabled then
     Exit;
   if not TryGetRegisteredBackendDispatchTable(sbAVX2, LTable) then
+    Exit;
+
+  LCanRunAVX2 := LTable.BackendInfo.Available and TrySetActiveBackend(sbAVX2);
+  if not LCanRunAVX2 then
     Exit;
 
   AssertTrue('AVX2 FmaF32x4 should be assigned', Assigned(LTable.FmaF32x4));

@@ -5881,3 +5881,20 @@
 | 2. 给 standalone `fpc` 调用补 MSYS native path 归一化 | completed | 新增 `fpc_native_path()`，并覆盖 `dispatch_preinit` / `public_smoke` / `backend_ops` / `simd_boundary` 4 个 standalone 编译入口 |
 | 3. release 主链复验并同步 scratch | completed | `git diff --check`、`bash -n tests/fafafa.core.simd/BuildOrTest.sh`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` fresh 通过；`progress.md` / `findings.md` 已补新 failure surface |
 | 4. 提交、push，并重发 Windows evidence | pending | push 后重发 `simd-windows-b07-evidence.yml`，确认 gate 是否越过 `backend_ops` 构建阶段 |
+
+## 2026-05-19 Windows B07 AVX2 FMA Witness Availability Guard
+
+### Goal
+
+在 Windows B07 已经越过 workflow subset、Git Bash `flock`、standalone `fpc` 路径问题之后，
+继续修复 fresh run `26070863270` 暴露出的第一条真实 SIMD contract 红点：
+让 `AVX2 FMA witness` 用例在 Windows lane 上遵守当前 `BackendInfo.Available=False` 的既有运行时事实。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `26070863270` 的真实失败面 | completed | 旧的 `backend_ops` 路径问题已消失；新的第一失败是 `Test_AVX2_BackendCapabilities_Expose_FMA_When_FusedPathUsable` 断言 fused residual，但 Windows lane 实际返回 scalar fallback 的 `0` |
+| 2. 对齐 AVX2 runtime witness 前置条件 | completed | 该测试现补 `LTable.BackendInfo.Available and TrySetActiveBackend(sbAVX2)`，与同文件其它 AVX2 runtime-checkable 用例保持一致 |
+| 3. 定点 release 复验并同步 scratch | completed | `git diff --check` 与 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` fresh 通过；`progress.md` / `findings.md` 已补新 failure surface |
+| 4. 提交、push，并重发 Windows evidence | pending | push 后重发 `simd-windows-b07-evidence.yml`，确认 Windows lane 是否越过这条 AVX2 FMA witness 红线 |

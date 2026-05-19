@@ -15646,3 +15646,38 @@
 - 当前阶段结论：
   - Windows B07 的最小真实 blocker 已继续收口成 “standalone FPC 调用缺少 MSYS native path 归一化”
   - 这一刀已经收掉该路径层问题，下一步应提交 push 并重发 fresh Windows evidence，确认 gate 是否越过 `backend_ops` 这条线
+
+## 2026-05-19 Windows B07 Follow-up: After The MSYS `fpc` Path Fix, The First Real SIMD Red Was An AVX2 FMA Witness Precondition Gap
+
+- fresh Windows run `26070863270` 已把上一批 standalone `fpc` path 修复验证成真：
+  - `test_backend_ops.pas` 已成功 build + run
+  - `test_simd_boundary.pas` 已成功 build + run
+  - `fafafa.core.simd.public_smoke` 与 `dispatch_preinit_smoke` 也都通过
+  - 旧的 `\d\a\...` 伪 Windows 路径失败已消失
+- 这说明：
+  - MSYS -> native Windows path 归一化这条 blocker 已经被清掉
+  - Windows B07 已首次推进到真正的 `DispatchAPI` 语义回归线上
+- 新的第一失败点是一个真实测试红点：
+  - `TTestCase_DispatchAPI.Test_AVX2_BackendCapabilities_Expose_FMA_When_FusedPathUsable`
+  - 失败断言：
+    - `AVX2 fused FMA witness lane 0 expected: <1.4210854715202E-14> but was: <0>`
+- 根因判断已经收敛，而且是测试前置条件问题，不是 AVX2 FMA 实现本体算错：
+  - `src/fafafa.core.simd.avx2.register.inc` 仍明确写着 Windows guard：
+    - `LEnableVectorAsm := False`
+    - `dispatchTable.BackendInfo.Available := LEnableVectorAsm`
+  - 也就是 Win64 lane 当前策略仍是“保留 AVX2 注册，但先禁用 vector-asm path，直到 ABI 验证完成”
+  - 但该测试只检查了 `HasFeature(gfFMA)`、`SetVectorAsmEnabled(True)` 和 `TryGetRegisteredBackendDispatchTable(sbAVX2, ...)`
+  - 没有像同文件其它 AVX2 runtime witness 一样先看 `BackendInfo.Available` / `TrySetActiveBackend(sbAVX2)`
+  - 于是 Windows lane 实际拿到了 scalar fallback，却去断言 fused FMA witness，自然得到 `0` 而不是 fused residual
+- 已落地修复：
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - `Test_AVX2_BackendCapabilities_Expose_FMA_When_FusedPathUsable`
+    - 新增 `LCanRunAVX2 := LTable.BackendInfo.Available and TrySetActiveBackend(sbAVX2)`
+    - 若 backend 当前不可运行，则直接 `Exit`，与同文件其它 AVX2 runtime-checkable 测试保持一致
+- 本地串行验证 fresh 通过：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+- 当前阶段结论：
+  - Windows B07 现在的真实问题已进入 AVX2/FMA contract 测试层
+  - 这次修的是测试合同前置条件缺口，不是掩盖实现 bug
+  - 下一步应提交 push 并重发 fresh Windows evidence，确认 Windows lane 是否越过这条 AVX2 FMA witness 红线
