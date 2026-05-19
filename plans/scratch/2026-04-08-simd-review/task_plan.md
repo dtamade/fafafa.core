@@ -5914,3 +5914,21 @@
 | 2. 给 `cpuinfo.x86` 子 runner 补 MSYS lock 降级 | completed | `tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh` 已新增 `is_msys_shell()`，并在 `MSYS/MINGW/CYGWIN` 下无锁继续 |
 | 3. 定点 release 复验并同步 scratch | completed | `git diff --check`、`bash -n tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh test --list-suites` fresh 通过 |
 | 4. 提交、push，并重发 Windows evidence | pending | push 后重发 `simd-windows-b07-evidence.yml`，确认 gate 是否越过 `cpuinfo.x86` 锁阶段 |
+
+## 2026-05-19 Windows B07 Staged `run_all` Hygiene Chain Closure
+
+### Goal
+
+在 Windows B07 已经越过 `cpuinfo.x86` 的 MSYS `flock` 问题后，
+继续修复 fresh run `26071761664` 暴露出的下一条真实 blocker：
+让 bash gate 的 staged source subset 同时具备 `run_all_tests.sh` 依赖的 hygiene checker，
+并消除 artifact 下载后 shell 脚本执行位丢失带来的伪缺失。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 `26071761664` 的最新失败面 | completed | 日志第一失败是 `[CHECK] Missing hygiene checker: /d/a/fafafa.core/fafafa.core/tests/check_repo_hygiene.sh`，说明 staged source subset 还没把根级 hygiene checker 带过去 |
+| 2. 收紧 staged source 与 shell 调用合同 | completed | `.github/workflows/simd-windows-b07-evidence.yml` 已补拷贝 `tests/check_repo_hygiene.sh`；`tests/run_all_tests.sh` 已改为 `-f` 检查并显式 `bash "${HYGIENE_CHECKER}"`，避免 artifact 下载后执行位丢失继续伪装成“缺脚本” |
+| 3. staged 子集本地 smoke 复验 | completed | 在 `/tmp/simd-windows-b07-stage-smoke` 复刻 workflow subset 后，按真实精确过滤参数运行 `RUN_ACTION=check bash ./run_all_tests.sh '=fafafa.core.simd' '=fafafa.core.simd.cpuinfo' '=fafafa.core.simd.cpuinfo.x86' '=fafafa.core.simd.intrinsics.sse' '=fafafa.core.simd.intrinsics.mmx'`，结果 `Total=5 Passed=5 Failed=0` |
+| 4. 提交、push，并重发 Windows evidence | pending | push 后重发 `simd-windows-b07-evidence.yml`，确认 Windows bash gate 是否越过 `run_all` hygiene chain |

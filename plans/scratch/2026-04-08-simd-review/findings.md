@@ -9072,3 +9072,27 @@
 - 最小正确修复因此非常直接：
   - 不碰 cpuinfo.x86 测试内容
   - 只在 `tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh` 的 `acquire_project_lock()` 中，对 `MSYS/MINGW/CYGWIN` 下的 fd-based `flock` 做与主 gate 相同的降级
+
+## 2026-05-19 Windows B07 After The `cpuinfo.x86` Lock Repair: The Next Failure Was The Bash-Gate Staged Subset Missing The Root Hygiene Checker
+
+- fresh Windows run `26071761664` 已经证明上一批 `cpuinfo.x86` MSYS lock 修复有效：
+  - `DispatchAPI` 通过
+  - `cpuinfo.x86` suites 通过
+  - 旧的 `flock: 9: Bad file descriptor` 不再出现
+- 新的第一失败点再次收敛成 workflow/control-plane 问题，而不是 SIMD 语义：
+  - `filtered run_all check chain`
+  - 首条报错：
+    - `[CHECK] Missing hygiene checker: /d/a/fafafa.core/fafafa.core/tests/check_repo_hygiene.sh`
+- 这条 finding 的关键价值在于把“当前缺文件”和“下一层脚本权限伪缺失”一起识别出来：
+  - workflow `Stage SIMD source subset` 当时只带了 `run_all_tests.{bat,sh}`，没有带 `tests/check_repo_hygiene.sh`
+  - `tests/run_all_tests.sh` 还使用 `[[ ! -x "${HYGIENE_CHECKER}" ]]` 并直接执行脚本
+  - GitHub artifact 下载不会稳定保留 Unix shell 脚本执行位；如果只补文件不收紧调用方式，Windows bash gate 仍可能继续把“权限丢失”误报成“缺脚本”
+- 因而最小正确修复不是去放宽 `simd` gate 语义，而是同时收两处合同：
+  - workflow staged subset 必须补拷贝 `tests/check_repo_hygiene.sh`
+  - `run_all_tests.sh` 必须改成存在性检查 `-f`，并显式 `bash "${HYGIENE_CHECKER}" "${REPO_ROOT}"`
+- 本地 staged 同构 smoke 已验证这个判断：
+  - 在 `/tmp/simd-windows-b07-stage-smoke` 复刻 workflow subset 后，真实精确过滤链 `=fafafa.core.simd =fafafa.core.simd.cpuinfo =fafafa.core.simd.cpuinfo.x86 =fafafa.core.simd.intrinsics.sse =fafafa.core.simd.intrinsics.mmx`
+  - 结果 `Total=5 Passed=5 Failed=0`
+- 这说明：
+  - 当前最新 blocker 仍然不在 SIMD 实现层
+  - 修复已经把 Windows bash gate 的 `run_all` hygiene chain 收回到和本地 Linux smoke 一致的合同上

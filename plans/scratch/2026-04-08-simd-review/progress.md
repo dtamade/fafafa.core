@@ -259,6 +259,38 @@
   - `intrinsics.experimental` default / experimental 双模态 `check` 全绿
   - 其中 `SSE backend smoke` 明确通过，说明这次改动文件已被真实编译覆盖
 
+## 2026-05-19 Windows B07 Staged `run_all` Hygiene Chain Closure
+
+- 先按最新 fresh run `26071761664` 继续收口，不再重开更大范围 `simd` 审查。
+- 日志第一失败已收敛成：
+  - `[CHECK] Missing hygiene checker: /d/a/fafafa.core/fafafa.core/tests/check_repo_hygiene.sh`
+- 直接核对后确认：
+  - `.github/workflows/simd-windows-b07-evidence.yml` 的 `Stage SIMD source subset` 只拷了 `run_all_tests.{bat,sh}`，没有带上 `tests/check_repo_hygiene.sh`
+  - `tests/run_all_tests.sh` 还要求 `-x "${HYGIENE_CHECKER}"` 并直接执行该脚本
+  - 而 GitHub artifact 下载会把脚本权限收敛成普通文件；即便把文件带过去，继续依赖执行位也会留下下一层伪缺失风险
+- 已落地修复：
+  - workflow staged subset 已补拷贝 `tests/check_repo_hygiene.sh`
+  - `tests/run_all_tests.sh` 已改成：
+    - 用 `-f` 检查 hygiene checker 是否存在
+    - 用 `bash "${HYGIENE_CHECKER}" "${REPO_ROOT}"` 显式执行
+- 本地最小 staged smoke 已完成两轮：
+  - 第一轮用前缀过滤做探针，先确认 hygiene checker 关卡已越过；额外暴露 `publicabi` 不支持 `RUN_ACTION=check`
+  - 复核 `tests/fafafa.core.simd/BuildOrTest.sh` 后确认真实 gate 使用的是精确过滤 `=fafafa.core.simd ...`，因此 `publicabi` 不是真实 blocker
+  - 第二轮按真实精确过滤在 `/tmp/simd-windows-b07-stage-smoke` 复刻 workflow subset 并执行：
+    - `STOP_ON_FAIL=1 RUN_ACTION=check SIMD_OUTPUT_ROOT=/tmp/simd-windows-b07-stage-smoke/out-exact bash ./run_all_tests.sh '=fafafa.core.simd' '=fafafa.core.simd.cpuinfo' '=fafafa.core.simd.cpuinfo.x86' '=fafafa.core.simd.intrinsics.sse' '=fafafa.core.simd.intrinsics.mmx'`
+  - fresh 结果：
+    - `[CHECK] OK (src tree hygiene: no .o/.ppu/.bak artifacts)`
+    - `[PASS] fafafa.core.simd`
+    - `[PASS] fafafa.core.simd.cpuinfo`
+    - `[PASS] fafafa.core.simd.cpuinfo.x86`
+    - `[PASS] fafafa.core.simd.intrinsics.mmx`
+    - `[PASS] fafafa.core.simd.intrinsics.sse`
+    - `Total: 5 Passed: 5 Failed: 0`
+- 当前阶段结论：
+  - 最新第一失败点已经在本地 staged 同构 smoke 上被清掉
+  - 这次修的是 workflow subset / shell runner 合同，不是 SIMD 实现语义
+  - 下一步进入 review -> commit -> push -> 重发 Windows B07 evidence
+
 ## 2026-05-18 SSE2 Stream/Fence Surface Proof
 
 - 没有再开 whole-module 扫描，而是直接承接当前 `intrinsics.x86.sse2` interface surface 的最后一簇 `0-hit` 项：
