@@ -6026,3 +6026,20 @@
 | 1. 复核 active `NEON` 文档漂移面 | completed | 已确认 `docs/fafafa.core.simd.closeout.md` / `docs/fafafa.core.simd.implementation-matrix.md` / `docs/plans/2026-05-09-simd-neon-qualification-plan.md` 还停在旧 `2026-04-19` 或“已经 green”的模糊表述，没有写出 `backend=neon assignments=341 asm_exact=280 asm_suffix_only=10 backend_composed=51 wrapper_only=0` 的 fresh truth |
 | 2. 同步 `NEON hygiene` active docs 到当前 truth | completed | 已补上 `NEON register/runtime truth`、`NEON hygiene` runtime evidence/current status，以及 `51` 个 `backend_composed` 是 asm-only local composition、`10` 个 `asm_suffix_only` 是 invalid-count fallback companion 的解释 |
 | 3. 轻量复验与 scratch 同步 | completed | 计划使用 `git diff --check`、`python3 tests/fafafa.core.simd/check_implementation_matrix_sync.py --summary-line`、`python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`、`python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon/riscvv --summary-line --strict`、`python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --summary-line` 复核当前 docs 所引 fresh truth |
+
+## 2026-05-19 Active Release Blocker Truth Sync
+
+### Goal
+
+把 active closeout/checklist/handoff/runbook 入口从过时的 `billing blocked`
+叙事收回到当前真实的 `evidence freshness` blocker，并保持 Windows
+manual-path guard 文案继续和 runner 的 fail-close 约束完全一致。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前 release 真相与 active docs 漂移面 | completed | 已确认最新 `freeze-status` 真实红项收敛成 `linux_sources_not_newer_than_gate` / `windows_sources_not_newer_than_evidence`；`cross_gate_required_steps`、`windows_preflight_latest(status=PASS code=OK)` 与 `windows_evidence_verify` 都已转绿，因此 active docs 再继续写 `RECENT_BILLING_BLOCK` 已经失真 |
+| 2. 同步 active closeout reading path | completed | 已更新 `docs/fafafa.core.simd.checklist.md`、`handoff.md`、`closeout.md`、`maintenance.md`、`fafafa.core.simd.md` 以及 `tests/fafafa.core.simd/docs/{windows_b07_closeout_runbook,simd_release_candidate_checklist}.md`，统一把状态收口成 `code-green / evidence-refresh-required`，并把 next-actions 改成 fresh `gate` + fresh Windows evidence + `freeze-status` |
+| 3. 修回 runner guard 要求的精确约束文案 | completed | `closeout-guard` 首轮抓到 top checklist 与 Windows runbook 各少一条精确安全提示；现已补回 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` / `host-side Unix bridge` 逃生口约束的原样文案，避免文档与 runner 自检分叉 |
+| 4. 轻量验证并继续下一真实 blocker | pending | 已完成 `git diff --check`、Release `closeout-guard`、`historical-closeout-note-check`；下一步继续 fresh Linux `gate`、fresh Windows evidence，再回看 `freeze-status` 是否转绿 |

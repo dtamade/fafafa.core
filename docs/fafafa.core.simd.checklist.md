@@ -2,44 +2,32 @@
 
 这页只回答两件事：现在应该做什么，以及现在不要做什么。
 
-## 当前停点（2026-05-17）
+## 当前停点（2026-05-19）
 
 - 当前 `simd` 不应再按“接口/实现仍未收口”处理。
 - 最新 release 证据说明：
-  - `python3 tests/fafafa.core.simd/check_interface_implementation_completeness.py --strict` 为绿，`P0/P1/P2=0`
-  - `2026-05-17 10:47:10` 的 canonical gate 已把 `linux_gate_required_steps_mainline` 与 `linux_qemu_cpuinfo_nonx86_evidence` 刷成 PASS；`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-linux` 已是 `ready=True` / `mainline-ready=True`
-  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 当前仍红，但直接红项已经收敛成：
-    - `cross_gate_required_steps: evidence-verify=SKIP`
-      这条现在只表示“selected gate run 还没补跑 fail-close Windows enforcement”，具体失败根因看 `windows_evidence_verify`
-    - `windows_evidence_verify`
-    - `win-evidence-preflight=RECENT_BILLING_BLOCK`
-  - 本机 Wine batch 现已重新刷新 `windows_b07_gate.log`；因此当前这份 log 不再是 stale historical evidence，而是现行 runner 下的 fresh local capture
-  - 当前最新 `windows_evidence_verify` 失败边界已经从旧的 quoting/call 误导，推进成更真实的 `wine/cmd` 无法解析 bare `lazbuild` 命令
-  - `windows_b07_closeout_summary.md` 现在已经和当前 verifier FAIL 对齐；当前 `freeze-status` 下这份 summary 本身不再是 stale red，而是 current FAIL summary
-  - 其中真正的外部 blocker 仍只在 Windows evidence；Linux 这边只需保留 gate summary backup/fallback，防止未来 routine gate 再把 closeout truth 覆盖掉
-- 如果你当前既没有 Windows 实机，也没有可用 GitHub Actions Billing/额度，就把模块状态记成：
-  - `code-green / release-evidence-blocked`
-  - 到这里先停，不要继续重开 SIMD 接口设计审查或实现泛审查
-- 只有在 fresh Linux/QEMU + Windows evidence 条件恢复后，才继续 `closeout-release` / `win-evidence-via-gh -> freeze-status` 这条发布收口链
-- 当前 Windows 外部 blocker 的真实证据是：
-  - `win-evidence-preflight` 在 `2026-05-17` 返回 `STATUS=FAIL CODE=RECENT_BILLING_BLOCK EXIT=31`
-  - 对应 recent workflow run 仍是 GitHub Actions `25967172435`
-  - 该 run 在 `Prepare Windows SIMD Source` 阶段即失败，原因是 `recent account payments have failed or your spending limit needs to be increased`
-  - `freeze-status` 现在会把这份 preflight 报告直接展示成 `windows_preflight_latest`，并把 next-actions 收敛到 billing / 手工 Windows runner 路径
-  - 若 live GitHub 查询只是瞬时 `WORKFLOW_QUERY_FAILED`，但 latest 仍有 fresh `RECENT_BILLING_BLOCK`，那么 stdout 会继续按 `RECENT_BILLING_BLOCK EXIT=31` 对外表态；瞬时 query noise 会单独写到 `logs/win_preflight_latest.diagnostic.{json,md}`
-  - 若 `buildOrTest.bat` / `collect_windows_b07_evidence.bat` 新于 `windows_b07_gate.log`，`freeze-status` 现在会把这份 Windows log 与 closeout summary 明确降格成 stale historical evidence，提示先重跑 `evidence-win-verify`
-  - 但在当前 `HEAD` 上，这条 stale rule 已不再命中：latest Wine batch 已把 canonical `windows_b07_gate.log` 刷新到当前 runner 版本；现在真正残余的是 Wine 自身不能直接执行 fallback `lazbuild`
-  - 在这条 fresh current log 之上，closeout summary freshness 仍然会被单独检查；如果以后 `windows_b07_closeout_summary.md` 再次旧于当前 log，`freeze-status` 会明确要求先跑 `bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence`
-  - 当前真实 `next-actions` 已收紧为：
-    - 先处理 `RECENT_BILLING_BLOCK`
-    - 提供 real Windows runner / native Windows `lazbuild.exe`
-    - 若显式试 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1`，也只限 `cmd.exe` 真能解析 `bash` 的环境；当前本机 Wine 不属于这种环境，不要把它当成 host-side Unix bridge 逃生口。
-    - 再继续 `win-evidence-preflight` / `win-closeout-3cmd`
+  - `python3 tests/fafafa.core.simd/check_interface_implementation_completeness.py --strict` 仍为绿，`P0/P1/P2=0`
+  - 最新 `freeze-status` 里：
+    - `cross_gate_required_steps` 已 PASS
+    - `windows_preflight_latest` 已 PASS：`status=PASS code=OK`
+    - `windows_evidence_verify` 已 PASS
+  - full `freeze-status` 当前仍红，但已经不再是 billing / verifier blocker；当前直接红项收敛成：
+    - `linux_sources_not_newer_than_gate`
+    - `windows_sources_not_newer_than_evidence`
+  - 也就是说，现在的真实问题是：latest Linux gate summary 与 latest Windows evidence 都早于最新 `src/fafafa.core.simd*` 源码，当前需要的是 fresh evidence refresh，而不是继续把状态写成 `RECENT_BILLING_BLOCK`
+- 因此，当前 `HEAD` 更准确的状态应记为：
+  - `code-green / evidence-refresh-required`
+  - 到这里不要再重开 SIMD 接口设计审查或实现泛审查；优先补 fresh `gate` 和 fresh Windows evidence
+- 当前最该记住的操作判断：
+  - 如果 latest `freeze-status` 红在 `linux_sources_not_newer_than_gate` / `windows_sources_not_newer_than_evidence`，先重跑 release `gate` 与 Windows evidence，别再默认归因到 billing
+  - 只有当 `win-evidence-preflight` 再次明确返回 `RECENT_BILLING_BLOCK` 时，才把状态降回 `code-green / release-evidence-blocked`
 
 补一条当前冻结判定纪律：
 
-- 只要 Windows 证据链和 fail-close cross gate 还没绿，`windows_preflight_latest=RECENT_BILLING_BLOCK` 就是当前 blocker。
-- 如果未来手工 Windows 路径已经 fresh PASS 且 `freeze-status` 已转绿，这条 preflight 检查就只再代表 GH runner 路径是否可用，不应继续以 `FAIL` 形式和 `ready=True` 并存。
+- 只要 `freeze-status` 还红，就先看红项是不是 freshness blocker：
+  - `linux_sources_not_newer_than_gate`
+  - `windows_sources_not_newer_than_evidence`
+- 只有在 latest preflight 真正回到 `RECENT_BILLING_BLOCK` 时，才把 `windows_preflight_latest` 重新视为当前 blocker。
 
 补一条当前判断规则：
 
@@ -133,7 +121,7 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-re
 
 内部固定顺序是 `win-evidence-preflight -> impl-smoke-x86 -> closeout-host-local -> win-evidence-via-gh -> freeze-status`。
 它会先确认当前 Windows preflight 没被 Billing/额度阻塞；通过后再把 x86 bounded frontier 与 host-local non-x86/QEMU 证明跑到位，最后进入 Windows evidence GH 闭环并回到 canonical `freeze-status` 做最终确认。
-但对当前 `HEAD`，这条链还多一个 fail-close 条件：如果 latest `win-evidence-preflight` 返回 `RECENT_BILLING_BLOCK`，就把这轮状态记成 `code-green / release-evidence-blocked`，不要继续把 `win-evidence-via-gh` 当成可立即执行的下一步。
+但对当前 `HEAD`，更先要记住的是 freshness 纪律：如果 latest `freeze-status` 红在 `linux_sources_not_newer_than_gate` 或 `windows_sources_not_newer_than_evidence`，先补 fresh `gate` / fresh Windows evidence；只有当 latest `win-evidence-preflight` 再次返回 `RECENT_BILLING_BLOCK` 时，才把这轮状态记成 `code-green / release-evidence-blocked`。
 
 如果你只想先看完整 release 门禁轮廓，而不是直接一波收口，也可以单独跑：
 
@@ -304,7 +292,8 @@ SIMD_OUTPUT_ROOT=/tmp/simd-run-123 bash tests/fafafa.core.simd/BuildOrTest.sh ev
 当前 shell gate 链路里的 `cpuinfo` / `cpuinfo.x86` / `publicabi` / `nonx86.optin` 子 runner 也会自动落到隔离根下的对应子目录；`run_all_tests` 过滤链里尊重 `SIMD_OUTPUT_ROOT` 的 simd 模块则会进一步落到 `run_all/<module>/`。
 如果需要回收这批隔离产物，直接执行同根 `SIMD_OUTPUT_ROOT=/tmp/simd-run-123 bash tests/fafafa.core.simd/BuildOrTest.sh clean`；主 runner 现在会把顶层 `bin/lib`、这些子目录以及 `run_all/` 一并清掉。
 真正的 Windows 收口主线应优先使用 `win-evidence-via-gh`。
-这里同样要带当前前提理解：只有在 `win-evidence-preflight` 不再是 `RECENT_BILLING_BLOCK`，或你已经切换到真实 Windows runner 后，这句“优先主线”才重新成立。
+这里同样要带当前前提理解：当前 `win-evidence-preflight` 已经重新放行；现在这句“优先主线”真正卡住的是 evidence freshness。若 future preflight 再次回到 `RECENT_BILLING_BLOCK`，才重新降回 billing blocker 语义。
+若显式试 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1`，也只限 `cmd.exe` 真能解析 `bash` 的环境；当前本机 Wine 不属于这种环境，不要把它当成 host-side Unix bridge 逃生口。
 2) Git Bash / WSL 回灌 fail-close cross gate（必需）
 若走手工 Windows 实机路径，则必须先跑 `FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`，再执行 `win-closeout-finalize`。
 

@@ -9273,3 +9273,40 @@
   - `10` 个 `asm_suffix_only` 也不是下一刀该删的 wrapper，而是保留 invalid-count => scalar fallback 的 shift companion
 - 结论更新：
   - 这批更高 ROI 的修复是把 `NEON hygiene` 的 active docs 同步到当前 truth，而不是继续对实现层做误伤式“去壳”
+
+## 2026-05-19 Active Release Closeout Docs Were Still Repeating A Dead Billing Narrative
+
+- 在 `NEON` / `RISCVV` truth sync 之后，active reading path 里的下一个更高优先级 drift
+  已经不是实现层，而是 release closeout 入口文档本身：
+  - `docs/fafafa.core.simd.checklist.md`
+  - `docs/fafafa.core.simd.handoff.md`
+  - `docs/fafafa.core.simd.closeout.md`
+  - `docs/fafafa.core.simd.maintenance.md`
+  - `docs/fafafa.core.simd.md`
+  - `tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`
+  - `tests/fafafa.core.simd/docs/simd_release_candidate_checklist.md`
+- 当前 fresh `freeze-status` 真相已经很具体：
+  - `cross_gate_required_steps = PASS`
+  - `windows_preflight_latest = PASS (status=PASS code=OK)`
+  - `windows_evidence_verify = PASS`
+  - 当前直接红项只剩：
+    - `linux_sources_not_newer_than_gate`
+    - `windows_sources_not_newer_than_evidence`
+- 这意味着：
+  - 当前更准确的状态语义已经不再是 `code-green / release-evidence-blocked`
+  - 更不该继续写成 `RECENT_BILLING_BLOCK` 是当前 blocker
+  - 真正该写进 active docs 的是：
+    - `code-green / evidence-refresh-required`
+    - next-actions = fresh Linux `gate` -> fresh Windows evidence -> `freeze-status`
+- 这条 finding 的价值不是“文案更顺眼”，而是避免后续会话继续被错误状态机带偏：
+  - 如果 active docs 仍强调 billing block，后续很容易误以为当前不能继续执行 GH/Windows evidence refresh
+  - 也很容易重新打开实现层泛审查，而不是直接去补 fresh artifact
+- 这轮还顺手暴露出一个文档与 runner guard 的一致性要求：
+  - `closeout-guard` 首轮并没有否认 freshness 主结论
+  - 它抓到的是 active top checklist / runbook 少了两条精确安全提示：
+    - `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1`
+    - `当前本机 Wine 不属于这种环境，不要把它当成 host-side Unix bridge 逃生口。`
+  - 说明 closeout 文档除了状态真相，还必须保留 manual Windows path 的 fail-close 逃生口约束；不能因为主 blocker 变化就把这些安全边界删掉
+- 结论更新：
+  - 当前下一处真实问题已经从“Windows evidence verifier drift”进一步前推成“active release docs truth drift”
+  - 这批修复完成后，repo 内关于 release closeout 的 active reading path 才重新和当前 `freeze-status`、runner guard、Windows manual path 约束保持同一事实面

@@ -10,7 +10,7 @@
 - adapter wiring 现在有更强的自动校验，但还没有走到“自动生成 Pascal 代码”的程度
 - façade 层现在区分了 `supported-on-cpu` 与 `dispatchable-in-this-binary` 两种后端视图
 
-## 2026-05-17 当前收口判断
+## 2026-05-19 当前收口判断
 
 - 代码主线可以按“已收口”理解：
   - `python3 tests/fafafa.core.simd/check_interface_implementation_completeness.py --strict` 最新结果仍为 `dispatch_slots_total=558`、`P0/P1/P2=0`
@@ -19,33 +19,26 @@
 - 发布级 closeout 还不能写成完成：
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 仍是 `ready=False`
   - 当前直接红项包括两类：
-    - `cross_gate_required_steps: evidence-verify=SKIP`
-      这条现在只说明 selected gate run 还没补跑 fail-close Windows evidence enforcement；具体失败根因看 `windows_evidence_verify`
-    - `windows_evidence_verify`，以及 `win-evidence-preflight=RECENT_BILLING_BLOCK`
-  - 其中第二类仍然是当前唯一外部 blocker：
-    - `windows_evidence_verify`
-    - `windows_preflight_latest`
-  - `windows_b07_gate.log` 当前 freshness 与 `linux_sources_not_newer_than_windows_evidence` 已转绿；最新 log 是 fresh 的本机 Wine batch capture，但 verifier 仍因 build 第 1 步就死在 `lazbuild` 调用上而失败
-  - `windows_b07_closeout_summary.md` 现在已经刷新成当前 verifier FAIL 对应的 honest summary，本身不再是 stale red
-  - 第一类不是新的实现回归，而是这轮 gate 明确关闭了 Windows evidence enforcement；当前 full `freeze-status` 红点已经只剩 Windows evidence verify / preflight，而不是 Linux QEMU CPUInfo 证据缺失
-- 当前外部 blocker 已明确：
-  - `win-evidence-preflight` 在 `2026-05-17` 返回 `STATUS=FAIL CODE=RECENT_BILLING_BLOCK EXIT=31`
-  - 对应 recent workflow run 仍是 `25967172435`
-  - 该 run 在 `Prepare Windows SIMD Source` 阶段即失败，注解为：`The job was not started because recent account payments have failed or your spending limit needs to be increased`
-  - `freeze-status` 现在会把这份 preflight 报告直接显示成 `windows_preflight_latest`，并把 next-actions 收敛到 “先处理 billing / 或切到手工 Windows runner 路径”，不再继续推荐一串注定失败的 GH evidence 命令
-- 因此，在“没有 Windows 主机、也没有可用 GH Windows runner”的约束下，当前最准确的结论是：
-  - `code-green / release-evidence-blocked`
-  - 不要再把后续时间花在重新打开 SIMD 接口审查或实现泛审查上
+    - `linux_sources_not_newer_than_gate`
+    - `windows_sources_not_newer_than_evidence`
+  - `cross_gate_required_steps` 已 PASS
+  - `windows_preflight_latest` 已 PASS：`status=PASS code=OK`
+  - `windows_evidence_verify` 已 PASS
+  - 因而当前 full `freeze-status` 红点已经不再是 billing / verifier / cross-gate enforcement，而是单纯的 evidence freshness：latest gate summary 与 latest Windows evidence 都早于最新 `src/fafafa.core.simd*` 源码
+- 因此，当前最准确的结论是：
+  - `code-green / evidence-refresh-required`
+  - 不要再把后续时间花在重新打开 SIMD 接口审查或实现泛审查上；优先补 fresh `gate` 和 fresh Windows evidence
 
-### 2026-05-17 evidence refresh note
+### 2026-05-19 evidence refresh note
 
 - 如果 `freeze-status` 里的 Linux gate artifact 旧于最新 `src/fafafa.core.simd*` 源码，先重跑一次 release `gate`，不要把旧 gate summary 当成新代码回归。
+- 如果 `freeze-status` 里的 Windows evidence log 旧于最新 `src/fafafa.core.simd*` 源码，先重跑一次 GH/Windows evidence，再判断 `cross-ready`；不要继续沿用旧的 `RECENT_BILLING_BLOCK` 叙事。
 - 如果 latest `gate_summary.md` 以后又被日常 fast-gate 覆盖，导致 `qemu-cpuinfo-nonx86-evidence=SKIP`，先看 `logs/rehearsal/backups/` 或 `logs/windows-closeout/<batch>/gate_summary.md` 是否仍保留了更早的 closeout gate snapshot；`freeze-status` 现在会自动把这些 snapshot 当 fallback candidate。
-- 如果 `win-evidence-preflight` 返回 `RECENT_BILLING_BLOCK`，当前批次同样按 `code-green / release-evidence-blocked` 收口，不把 Windows evidence 阻塞误判成 SIMD 代码回归；此时优先处理 billing / 实机 Windows runner，而不是继续空转 `win-evidence-via-gh`。
+- 如果 `win-evidence-preflight` 未来再次返回 `RECENT_BILLING_BLOCK`，当前批次才按 `code-green / release-evidence-blocked` 收口，不把 Windows evidence 阻塞误判成 SIMD 代码回归；此时优先处理 billing / 实机 Windows runner，而不是继续空转 `win-evidence-via-gh`。
 - 如果未来手工 Windows 证据链与 fail-close cross gate 已经 fresh PASS，那么 `windows_preflight_latest` 只再代表 GH 路径是否可用，不再是当前 readiness blocker；`freeze-status` 应把它降格成 non-readiness signal，而不是留下一个与 `ready=True` 并存的 `FAIL`。
-- 如果 `win-evidence-preflight` 的 live GitHub 查询只是瞬时 `WORKFLOW_QUERY_FAILED`，但本地仍有 fresh 的 `RECENT_BILLING_BLOCK` latest 报告，stdout 现在也会继续按 `RECENT_BILLING_BLOCK EXIT=31` 对外表态；瞬时 query noise 会写到 `logs/win_preflight_latest.diagnostic.{json,md}`，不会再覆写 `win_preflight_latest.{json,md}` 这份 operator truth。
+- 如果 `win-evidence-preflight` 的 live GitHub 查询只是瞬时 `WORKFLOW_QUERY_FAILED`，但本地仍有 fresh 的 latest operator truth，stdout 继续以 latest report 为准；瞬时 query noise 会写到 `logs/win_preflight_latest.diagnostic.{json,md}`，不会覆写 `win_preflight_latest.{json,md}`。
 - 如果 `tests/fafafa.core.simd/buildOrTest.bat` 或 `collect_windows_b07_evidence.bat` 新于 `logs/windows_b07_gate.log`，就把当前 Windows log / closeout summary 视为 stale historical evidence；`freeze-status` 现在会把这种 runner drift 单独标红，而不是继续把旧 verifier fail 当成当前实现真相。
-- 当前 `HEAD` 最新的本机 Wine batch capture 已经重新刷新过 `windows_b07_gate.log`；因此当前直接失败边界不再是 stale historical log，而是 `wine/cmd` 无法直接解析 fallback 的 bare `lazbuild` 命令。这说明 recent batch quoting/call 误导已经收掉，但本机 Wine 仍不足以替代真实 Windows runner。
+- 当前 `HEAD` 的最新 closeout summary 已经对应 verifier PASS；因此这条线当前不再是 verifier root-cause 调查，而是 fresh evidence refresh。
 - 当 `windows_b07_gate.log` 已刷新，但 `windows_b07_closeout_summary.md` 仍旧于当前 log 时，`freeze-status` 现在会把 summary 单独标成 stale，并把 next-action 补成 `finalize-win-evidence`；不要再把旧 summary 当成当前 closeout truth。
 - 如果 `qemu-cpuinfo-nonx86-evidence` 又回到 `SKIP`，那说明 latest canonical gate 已被 fast-gate 覆盖或这轮并未刷新 Linux CPUInfo cross evidence；这时可以继续做仓库内文档/policy 收口，但不要把 `freeze-status` 写成 green。
 - `qemu-nonx86-evidence` 和 `qemu-cpuinfo-nonx86-evidence` 现在必须分开理解：
@@ -411,7 +404,7 @@ tests\fafafa.core.simd\buildOrTest.bat gate-strict
 
 - Windows evidence 真正通过 verifier 之前，不要把 release candidate checklist / completeness matrix / closeout roadmap 里的 Windows 项自动勾成完成
 - `2026-03-10` / `2026-04-19` 这两批 Windows evidence 只能当“历史批次曾闭环”的归档事实，不能直接当成当前 `HEAD` 仍满足 **cross-platform freeze** 的证明
-- 当前真实状态必须跟最新 `freeze-status` 走；截至 `2026-05-17` 应按 `code-green / release-evidence-blocked` 理解，而不是按历史 Windows 批次继续写成 release closeout 已完成
+- 当前真实状态必须跟最新 `freeze-status` 走；截至 `2026-05-19` 应按 `code-green / evidence-refresh-required` 理解，而不是按历史 Windows 批次继续写成 billing blocked，或继续写成 release closeout 已完成
 
 ## 还有哪些债没收完
 

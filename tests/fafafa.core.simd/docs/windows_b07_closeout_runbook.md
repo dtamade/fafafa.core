@@ -1,17 +1,19 @@
 # Windows B07 证据闭环 Runbook（目标：cross-ready）
 
-更新时间：2026-05-17
+更新时间：2026-05-19
 
 ## 目标
 
 - 在 GitHub Billing / Windows runner / native Windows `LAZBUILD` 条件恢复后，将 `freeze-status` 从 `cross-ready=False` 收口到 `cross-ready=True`。
 - 在上述外部条件恢复后，完成 Windows 实机证据链归档并通过验证。
 
-## 当前停点（2026-05-17）
+## 当前停点（2026-05-19）
 
-- latest `win-evidence-preflight` 当前是 `RECENT_BILLING_BLOCK`。
-- 在 GitHub Billing/额度恢复，或你已经切换到真实 Windows runner 之前，这页应按“流程 runbook”理解，而不是“当前 HEAD 现在就能直接收口”的状态说明。
-- 因此当前模块总状态仍按 `code-green / release-evidence-blocked` 记录；只有 preflight 重新放行后，下面这条 `cross-ready` runbook 才重新成为可执行主线。
+- latest `win-evidence-preflight` 当前已是 `PASS / OK`。
+- `windows_evidence_verify` 当前也已 PASS。
+- 因此这页当前不再是“等待 billing 恢复后再继续”的 runbook，而是“需要补 fresh evidence refresh”的执行说明：
+  - `freeze-status` 现在真正剩余的红项是 `linux_sources_not_newer_than_gate` 与 `windows_sources_not_newer_than_evidence`
+  - 也就是说，当前模块总状态更准确地应按 `code-green / evidence-refresh-required` 记录
 - 本机 Wine 只算 batch smoke / 日志新鲜度探针，不算真实 Windows evidence runner；即使它能刷新 `windows_b07_gate.log`，也不能把 manual Windows 路径视为已具备可 finalize 的 fresh evidence。
 - 下文若出现 `ready=True` / `cross-ready=True`，都应理解成“目标态 / 通过标准”，不是当前 `HEAD` 的现状。
 
@@ -113,7 +115,7 @@
 
 ## 常见阻塞
 
-- `RECENT_BILLING_BLOCK`：先恢复 GitHub Billing/额度，再从预检重试。
+- `RECENT_BILLING_BLOCK`：这是 future fallback blocker；只有当 latest preflight 再次回到这个状态时，才先恢复 GitHub Billing/额度，再从预检重试。
 - `windows_b07_gate.log` 过期：重新执行 `evidence-win-verify`。
 - B07 关键头缺失（`Source/HostOS/CmdVer/Working dir`）：必须重新采集真实 Windows 日志，旧日志不可补写。
 - closeout summary 与 verifier 不一致：执行 `win-closeout-finalize` 重新生成并应用。

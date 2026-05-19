@@ -22,7 +22,7 @@
 
 重点不是改变语义，而是把原来集中在少数超大 Pascal 单元里的内容，按现有注释边界拆成主单元 + include 片段的结构，降低 review 成本和定位成本。
 
-截至 `2026-05-17`，当前最重要的状态判断要单独记住：
+截至 `2026-05-19`，当前最重要的状态判断要单独记住：
 
 - 代码侧已经是 green：
   - 最新 `gate` 为 PASS
@@ -31,21 +31,20 @@
 - 发布级 closeout 还不是 green：
   - cross-platform `freeze-status` 仍为 `ready=False / cross-ready=False`
   - 当前主要红项是：
-    - `cross_gate_required_steps: evidence-verify=SKIP`
-      这条现在只说明 selected gate run 还没补跑 fail-close Windows evidence enforcement；具体失败根因看 `windows_evidence_verify`
-    - `windows_evidence_verify`
-    - `win-evidence-preflight` 最新结果是 `RECENT_BILLING_BLOCK`
-  - `windows_b07_gate.log` 当前 freshness 与 source-newer 检查已转绿；它现在代表的是 fresh 但 invalid 的本机 Wine batch capture，而不是旧 evidence
-  - `windows_b07_closeout_summary.md` 现在已经刷新成当前 verifier FAIL 对应的 honest summary，本身不再是 stale red
-- 这不是新的接口/实现质量问题，而是外部条件问题：
-  - 当前 canonical Windows evidence 仍没有拿到 verifier PASS；本机最新 batch capture 只是把 freshness 刷新到了 `2026-05-17 17:49:15`，对应 closeout summary 当前 mtime 为 `2026-05-17 17:50:02`
+    - `linux_sources_not_newer_than_gate`
+    - `windows_sources_not_newer_than_evidence`
+  - `cross_gate_required_steps` 已 PASS
+  - `windows_preflight_latest` 已 PASS：`status=PASS code=OK`
+  - `windows_evidence_verify` 已 PASS
+- 这不是新的接口/实现质量问题，也已经不再是 billing blocker：
+  - 当前 canonical Windows evidence 已经拿到 verifier PASS
   - 当前源码时间线已经继续向前推进；如果 latest gate artifact 早于最新 `src/fafafa.core.simd*` 源码，先重跑 release `gate`
   - 历史文档里“Windows 已归档/已闭环”的标记只能理解成旧批次归档事实，不等于当前 `HEAD` 仍是 cross-ready
-  - 在没有 Windows 主机、也没有可用 GitHub Actions Billing/额度时，这一轮应该按 `code-green / release-evidence-blocked` 交接，而不是继续重开 SIMD 泛审查
+  - 这轮更准确的交接语义应是 `code-green / evidence-refresh-required`，而不是 `code-green / release-evidence-blocked`
   - 当前 `freeze-status` 的真实 next-actions 也已经明确写成：
-    - `Resolve GitHub Billing & plans or switch to a real Windows runner`
-    - `Provide a real Windows runner with native Windows lazbuild.exe...`
-    - 再继续 `win-evidence-preflight` / `win-closeout-3cmd`
+    - 补 fresh release `gate`
+    - 补 fresh Windows evidence
+    - 再回到 `freeze-status`
 
 当前已经完成的方向包括：
 
@@ -142,7 +141,7 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-re
 ```
 
 它固定把 `win-evidence-preflight -> impl-smoke-x86 -> closeout-host-local -> win-evidence-via-gh -> freeze-status` 串成一条 canonical 主线；只有在你明确要拆分诊断 Windows 手工路径或单独复验某一步时，才再退回下面这些低层 helper。
-但当前 `HEAD` 还有一个明确前提条件：如果 latest `win-evidence-preflight` 仍是 `RECENT_BILLING_BLOCK`，就在 preflight 这一步停下，按 `code-green / release-evidence-blocked` 交接，不要把后面的 `win-evidence-via-gh` 当成现在一定能继续的无条件下一步。
+但当前 `HEAD` 还有一个明确前提条件：如果 latest `freeze-status` 红在 `linux_sources_not_newer_than_gate` / `windows_sources_not_newer_than_evidence`，先补 fresh evidence；只有当 latest `win-evidence-preflight` 再次回到 `RECENT_BILLING_BLOCK` 时，才在 preflight 这一步停下，并按 `code-green / release-evidence-blocked` 交接。
 
 如果需要 Windows 证据闭环，优先主入口：
 

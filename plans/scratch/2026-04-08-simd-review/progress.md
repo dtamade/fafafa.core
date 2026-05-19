@@ -15987,3 +15987,48 @@
 - 当前阶段结论：
   - Windows B07 的最小真实 blocker 已继续收口到 `cpuinfo.x86` 子 runner 的 MSYS lock 兼容性
   - 这一刀已经把它对齐主 gate 的处理模型，下一步应提交 push 并重发 fresh Windows evidence
+
+## 2026-05-19 Active Release Blocker Truth Docs Sync
+
+- 接手当前 worktree 后，先复核了 active closeout 文档与最新 `freeze-status` 的真实差异：
+  - `git status --short --branch`
+  - `git log --oneline -5`
+  - `git diff -- docs/fafafa.core.simd.checklist.md docs/fafafa.core.simd.handoff.md docs/fafafa.core.simd.closeout.md docs/fafafa.core.simd.md docs/fafafa.core.simd.maintenance.md tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md tests/fafafa.core.simd/docs/simd_release_candidate_checklist.md`
+- 这次确认的核心真相是：
+  - 最新 `freeze-status` 直接红项已经不是 billing / verifier
+  - active docs 必须统一改成：
+    - `code-green / evidence-refresh-required`
+    - `linux_sources_not_newer_than_gate`
+    - `windows_sources_not_newer_than_evidence`
+  - 同时保留 conditional fallback：
+    - 只有 future `win-evidence-preflight` 再次返回 `RECENT_BILLING_BLOCK` 时，才退回 `code-green / release-evidence-blocked`
+- 已完成的 active docs 同步面：
+  - `docs/fafafa.core.simd.checklist.md`
+  - `docs/fafafa.core.simd.handoff.md`
+  - `docs/fafafa.core.simd.closeout.md`
+  - `docs/fafafa.core.simd.maintenance.md`
+  - `docs/fafafa.core.simd.md`
+  - `tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`
+  - `tests/fafafa.core.simd/docs/simd_release_candidate_checklist.md`
+- 首轮轻量验证结果：
+  - `git diff --check` -> PASS
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh historical-closeout-note-check` -> PASS
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-guard` -> 首轮 FAIL
+  - 失败不是状态结论错，而是两条精确 guard 文案被删掉：
+    - top checklist 缺 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1`
+    - top checklist 缺 `当前本机 Wine 不属于这种环境，不要把它当成 host-side Unix bridge 逃生口。`
+    - runbook 缺 `本机 Wine 只算 batch smoke / 日志新鲜度探针，不算真实 Windows evidence runner；`
+- 已做的二次修正：
+  - 在 `docs/fafafa.core.simd.checklist.md` 补回 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` 与 `host-side Unix bridge` 逃生口约束原文
+  - 在 `tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md` 把 `本机 Wine 仍只算...` 收正成 guard 期望的 `本机 Wine 只算...`
+- 二轮验证已 fresh 通过：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-guard`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh historical-closeout-note-check`
+  - 结果：
+    - `[CHECK] OK (closeout-release entrypoint guard present)`
+    - `[CHECK] OK historical closeout notes: 20 target docs`
+    - `[CHECK] OK (closeout guard quick path)`
+- 当前阶段结论：
+  - 这批 active release docs 已重新跟上当前真实 blocker
+  - repo 内下一步不该再围绕 billing 文案空转，而应继续 fresh Linux `gate` + fresh Windows evidence + `freeze-status`

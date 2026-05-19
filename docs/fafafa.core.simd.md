@@ -8,16 +8,18 @@
 
 `fafafa.core.simd` 是一个高性能、跨平台的 SIMD 优化模块，为 FreePascal 应用程序提供内存、文本、位集和搜索操作的硬件加速。
 
-### 当前停点（2026-05-17）
+### 当前停点（2026-05-19）
 
 - 当前代码主线应按 `code-green` 理解：
   - Linux canonical `gate` 已为 PASS
   - `linux_qemu_cpuinfo_nonx86_evidence` 已 fresh PASS
 - 当前 release closeout 仍未完成：
   - full `freeze-status` 仍是 `ready=False / cross-ready=False`
-  - 当前剩余 blocker 集中在 `windows_evidence_verify` 与 `win-evidence-preflight=RECENT_BILLING_BLOCK`
-  - `windows_b07_gate.log` 的 freshness 当前已转绿；最新本机 Wine batch capture 只说明日志已 fresh，不说明 Windows evidence verifier 已通过
-- 因此，如果你这次只是从入口文档重新接手模块，不要先重开 SIMD 泛审查；先看 `docs/fafafa.core.simd.checklist.md` 与 `docs/fafafa.core.simd.closeout.md`，并把当前状态理解成 `code-green / release-evidence-blocked`
+  - 当前剩余 blocker 不再是 billing / verifier，而是 evidence freshness：
+    - `linux_sources_not_newer_than_gate`
+    - `windows_sources_not_newer_than_evidence`
+  - 最新 `windows_preflight_latest` 已 PASS，`windows_evidence_verify` 也已 PASS
+- 因此，如果你这次只是从入口文档重新接手模块，不要先重开 SIMD 泛审查；先看 `docs/fafafa.core.simd.checklist.md` 与 `docs/fafafa.core.simd.closeout.md`，并把当前状态理解成 `code-green / evidence-refresh-required`
 
 ### 设计目标
 
