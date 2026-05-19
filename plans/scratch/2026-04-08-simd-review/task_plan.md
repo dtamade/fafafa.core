@@ -6012,3 +6012,17 @@
 | 1. 复核当前真实 residual 与 docs 漂移面 | completed | 已确认 `NEON` 那 10 个 `asm_suffix_only` shift wrapper 仍承担 invalid-count scalar 合同，不该直接绑 `_Asm`；真正需要修的是 `docs/fafafa.core.simd.closeout.md` / `docs/fafafa.core.simd.implementation-matrix.md` 还停留在 `wrapper_only=3/32` 旧口径 |
 | 2. 同步 active docs 到 `backend_composed` 口径 | completed | 已把两处 closeout stale evidence 和一处 implementation-matrix runtime evidence 更新为 `backend_composed=3 wrapper_only=0` 的 fresh truth，并把 `asm-only wrapper ok=3` 改成 `asm-only composed ok=3` |
 | 3. 轻量复验与 scratch 同步 | completed | `git diff --check`、`python3 tests/fafafa.core.simd/check_implementation_matrix_sync.py --summary-line` fresh 通过；active docs 不再残留旧 `wrapper_only=3/32` 误导口径 |
+
+## 2026-05-19 Active NEON Hygiene Truth Sync
+
+### Goal
+
+把 `NEON hygiene` 在 active closeout / matrix / family plan 里的旧“green 但不写真相”口径补成当前 fresh `backend_composed` truth，避免后续会话再次把 `asm_suffix_only=10` 误读成待删冗余。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 active `NEON` 文档漂移面 | completed | 已确认 `docs/fafafa.core.simd.closeout.md` / `docs/fafafa.core.simd.implementation-matrix.md` / `docs/plans/2026-05-09-simd-neon-qualification-plan.md` 还停在旧 `2026-04-19` 或“已经 green”的模糊表述，没有写出 `backend=neon assignments=341 asm_exact=280 asm_suffix_only=10 backend_composed=51 wrapper_only=0` 的 fresh truth |
+| 2. 同步 `NEON hygiene` active docs 到当前 truth | completed | 已补上 `NEON register/runtime truth`、`NEON hygiene` runtime evidence/current status，以及 `51` 个 `backend_composed` 是 asm-only local composition、`10` 个 `asm_suffix_only` 是 invalid-count fallback companion 的解释 |
+| 3. 轻量复验与 scratch 同步 | completed | 计划使用 `git diff --check`、`python3 tests/fafafa.core.simd/check_implementation_matrix_sync.py --summary-line`、`python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`、`python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend neon/riscvv --summary-line --strict`、`python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --summary-line` 复核当前 docs 所引 fresh truth |

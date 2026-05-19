@@ -79,6 +79,8 @@ bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local
 - `helper semantics`
 - `key-slot-audit`
 - `register truthfulness strict`
+- fresh `register truthfulness strict` 当前真相是：`backend=neon assignments=341 asm_exact=280 asm_suffix_only=10 backend_composed=51 wrapper_only=0 scalar_passthrough=0 no_def=0 miswired=0 strict=1`
+- 解释口径也要一起固定：`51` 个 `backend_composed` 都是 asm-only backend-local composition，而 `10` 个 `asm_suffix_only` 仍是保留 invalid-count => scalar fallback 的 shift companion，不是下一刀该删的 wrapper debt
 - `impl-audit-nonx86`
 - `qemu-nonx86-evidence`
 - `closeout-host-local`

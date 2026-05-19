@@ -9259,3 +9259,17 @@
 - 结论更新：
   - 当前下一处真实问题是 active truth-source 文档 stale，不是 `NEON` shift helper 该被强行去壳
   - 后续只要 docs 还承担 live reading path，就必须跟 checker 口径一起同步，不能让 active spine 继续挂旧 residual 数字
+
+## 2026-05-19 Active NEON Hygiene Docs Were Still Stuck On Old 2026-04-19 Evidence
+
+- 继续往 active 文档里扫时，新的真实漂移点不是代码，而是 `NEON` 的 live docs 口径：
+  - `docs/fafafa.core.simd.implementation-matrix.md` 的 `NEON hygiene` 还停在 `2026-04-19 fresh green on helper semantics checks=56`
+  - `docs/fafafa.core.simd.closeout.md` 的 `NEON hygiene` 也还只有“已经是 green”的笼统表述，没有把当前 strict truth 写实
+  - `docs/plans/2026-05-09-simd-neon-qualification-plan.md` 仍未把当前 `backend_composed` 真相写进 active family plan
+- 但当前 fresh checker 真相已经更具体：
+  - `backend=neon assignments=341 asm_exact=280 asm_suffix_only=10 backend_composed=51 wrapper_only=0 scalar_passthrough=0 no_def=0 miswired=0 strict=1`
+- 这意味着 active docs 必须把两层解释一起写清楚：
+  - `51` 个 `backend_composed` 不是 residual debt，而是 asm-only backend-local composition
+  - `10` 个 `asm_suffix_only` 也不是下一刀该删的 wrapper，而是保留 invalid-count => scalar fallback 的 shift companion
+- 结论更新：
+  - 这批更高 ROI 的修复是把 `NEON hygiene` 的 active docs 同步到当前 truth，而不是继续对实现层做误伤式“去壳”

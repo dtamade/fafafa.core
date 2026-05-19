@@ -324,6 +324,25 @@
   - active docs spine 现在已经跟 `backend_composed` 新分类同步
   - 下一批如果继续，应回到“真实实现 residual / source contract 漂移”，而不是再被 active docs 里的旧 `wrapper_only` 数字带偏
 
+## 2026-05-19 Active NEON Hygiene Docs Synced To Current Backend-Composed Truth
+
+- 在 RISCVV active docs 同步完成后，我继续只扫 live 路径，结果发现 `NEON` 这条线也有文档漂移：
+  - `docs/fafafa.core.simd.implementation-matrix.md` 的 `NEON hygiene` 还停在 `2026-04-19 fresh green on helper semantics checks=56`
+  - `docs/fafafa.core.simd.closeout.md` 只写“已经是 green”，没有把当前 strict truth 和正确解释口径写出来
+  - `docs/plans/2026-05-09-simd-neon-qualification-plan.md` 也还没把当前 `backend_composed` 真相写进 active family plan
+- 本批修正内容：
+  - 给 `closeout.md` 补上 fresh `NEON register/runtime truth`
+  - 给 `implementation-matrix.md` 的 `NEON hygiene` 补上当前 runtime evidence、状态日期与“10 个 shift companion 不是待删冗余”的解释
+  - 给 `2026-05-09-simd-neon-qualification-plan.md` 补上当前 `backend_composed=51 / wrapper_only=0` 口径
+- 当前 fresh 结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=743 status=ok`
+  - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=neon assignments=341 asm_exact=280 asm_suffix_only=10 backend_composed=51 wrapper_only=0 scalar_passthrough=0 no_def=0 miswired=0 strict=1`
+  - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=riscvv assignments=432 asm_exact=312 asm_suffix_only=117 backend_composed=3 wrapper_only=0 scalar_passthrough=0 no_def=0 miswired=0 strict=1`
+  - `NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=136 issues=0 status=ok`
+- 当前阶段结论：
+  - active non-x86 docs 现在不只修正了 `RISCVV`，也把 `NEON` 的当前真相同步回 live reading path
+  - 下一批若继续，应优先找“仍会误导 active 决策/实现”的剩余 drift，而不是再去翻 historical scratch 本身
+
 ## 2026-05-19 Windows Evidence Final Closeout
 
 - 继续沿用成功 Windows workflow run `26074189888` 做 canonical closeout，批次号为 `SIMD-20260519-152`。

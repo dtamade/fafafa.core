@@ -137,6 +137,7 @@
 
 - `NONX86_HELPER_SEMANTICS_SUMMARY`：source checker 已覆盖 helper/native-evidence，以及 compare/mask / shift/bitwise / arithmetic/minmax 的 source-side 语义矩阵
 - `NEON hygiene source truth`：`check_nonx86_helper_semantics.py` 现在还会 fail-close 锁定 `src/fafafa.core.simd.neon.pas` 里的 `ShiftLeftI32x16` / `ShiftRightArithI64x4` invalid-count fallback、`NEONShiftLeftI64x4Asm` 的 `uxtw  x1, w1`、`NEONShiftLeftI64x2` / `NEONShiftLeftU64x2` / `NEONShiftLeftU64x4` 的 64-bit lane count widening，以及 `NEONSelectF32x4` 的逐 lane mask 选择逻辑
+- `NEON register/runtime truth`：fresh `check_nonx86_register_truthfulness.py --backend neon --summary-line --strict` 现在是 `backend=neon assignments=341 asm_exact=280 asm_suffix_only=10 backend_composed=51 wrapper_only=0 scalar_passthrough=0 no_def=0 miswired=0 strict=1`；其中 `51` 个 `backend_composed` 都属于 asm-only backend-local composition，而剩余 `10` 个 `asm_suffix_only` 仍是保留 invalid-count => scalar fallback 的 shift companion，不是待删 wrapper debt
 - `NONX86_KEY_SLOT_AUDIT_SUMMARY`：key wide slot 已按 `backend_owned` / `reuse_base_scalar` 两类契约审计，避免把“故意继承 base scalar”的实现误报成缺口，也避免 backend-owned 槽位悄悄退回 wrapper/scalar
 - `WIRING_SYNC_SUMMARY`：non-x86 wiring slot 名单已收敛到 `AssertNonX86DispatchTableWiringGroupsAssigned`，legacy/grouped 两个测试入口不再各自维护一份 60-slot 名单
 - `NONX86_REGISTER_TRUTHFULNESS_SUMMARY`：`neon` / `riscvv` strict 模式通过
@@ -217,7 +218,9 @@ QEMU non-x86 runtime evidence 现在就是当前 non-x86 收口主线的一部�
   - 当前结论：`arithmetic/minmax/mul` 已具备 fresh closeout 证据；下一轮只需要 `hold green`
 - `NEON hygiene`：
   - `src/fafafa.core.simd.neon.pas` 当前除了 Task 2 主线，还顺带收了 `shift/select/facade hygiene`，并补齐了 64-bit lane 左移对 `Integer` count 的显式 zero-extension
-  - 这部分现在已经是 green，但如果后续想把提交历史切得更干净，建议单列成 `NEON shift/select hygiene` 一组，而不是再和 `RISCVV ABI` 收口混写
+  - 当前 fresh 结果：`NONX86_HELPER_SEMANTICS_SUMMARY checks=743 status=ok`、`NONX86_REGISTER_TRUTHFULNESS_SUMMARY backend=neon assignments=341 asm_exact=280 asm_suffix_only=10 backend_composed=51 wrapper_only=0 scalar_passthrough=0 no_def=0 miswired=0 strict=1`、`NONX86_KEY_SLOT_AUDIT_SUMMARY backends=neon,riscvv slots=136 issues=0 status=ok`
+  - 这意味着当前残余不再是 `wrapper_only` 债务：`51` 个 `backend_composed` 都是 asm-only local composition，而那 `10` 个 `asm_suffix_only` shift companion 继续承担 invalid-count => scalar fallback 合同，不能直接绑成 raw `_Asm`
+  - 如果后续想把提交历史切得更干净，建议单列成 `NEON shift/select hygiene` 一组，而不是再和 `RISCVV ABI` 收口混写
 - `RISCVV facade/register hygiene`：
   - `src/fafafa.core.simd.riscvv.facade.inc` / `src/fafafa.core.simd.riscvv.register.inc` 这一轮只做了结构收口，不改 public API / ABI，也不改 key-slot ownership 结论
   - `RISCVVShiftLeftU32x8` / `RISCVVShiftRightU32x8` 现在显式回到 `ScalarShiftLeftU32x8` / `ScalarShiftRightU32x8`；这不是“暂时能跑”的宽松写法，而是当前 `RISCVV facade hygiene` 明确锁定的 source truth
