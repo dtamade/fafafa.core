@@ -8,18 +8,15 @@
 
 `fafafa.core.simd` 是一个高性能、跨平台的 SIMD 优化模块，为 FreePascal 应用程序提供内存、文本、位集和搜索操作的硬件加速。
 
-### 当前停点（2026-05-19）
+### 当前状态（2026-05-19）
 
 - 当前代码主线应按 `code-green` 理解：
   - Linux canonical `gate` 已为 PASS
   - `linux_qemu_cpuinfo_nonx86_evidence` 已 fresh PASS
-- 当前 release closeout 仍未完成：
-  - full `freeze-status` 仍是 `ready=False / cross-ready=False`
-  - 当前剩余 blocker 不再是 billing / verifier，而是 evidence freshness：
-    - `linux_sources_not_newer_than_gate`
-    - `windows_sources_not_newer_than_evidence`
-  - 最新 `windows_preflight_latest` 已 PASS，`windows_evidence_verify` 也已 PASS
-- 因此，如果你这次只是从入口文档重新接手模块，不要先重开 SIMD 泛审查；先看 `docs/fafafa.core.simd.checklist.md` 与 `docs/fafafa.core.simd.closeout.md`，并把当前状态理解成 `code-green / evidence-refresh-required`
+- 当前 release closeout 也已完成：
+  - full `freeze-status` 当前为 `ready=True / mainline-ready=True / cross-ready=True`
+  - 最新 `windows_preflight_latest`、`windows_evidence_verify`、`windows_sources_not_newer_than_evidence` 都已 PASS
+- 因此，如果你这次只是从入口文档重新接手模块，不要先重开 SIMD 泛审查；先看 `docs/fafafa.core.simd.checklist.md` 与 `docs/fafafa.core.simd.closeout.md`，并把当前状态理解成 `code-green / cross-ready`
 
 ### 设计目标
 

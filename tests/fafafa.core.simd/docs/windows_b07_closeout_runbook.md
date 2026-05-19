@@ -1,21 +1,26 @@
-# Windows B07 证据闭环 Runbook（目标：cross-ready）
+# Windows B07 证据闭环 Runbook（用于 future rerun / 保持 cross-ready）
 
 更新时间：2026-05-19
 
 ## 目标
 
-- 在 GitHub Billing / Windows runner / native Windows `LAZBUILD` 条件恢复后，将 `freeze-status` 从 `cross-ready=False` 收口到 `cross-ready=True`。
-- 在上述外部条件恢复后，完成 Windows 实机证据链归档并通过验证。
+- 在 future source drift、future Windows evidence drift，或需要重刷 closeout 证据时，把 `freeze-status` 重新收回 `cross-ready=True`。
+- 在需要重刷时，完成 Windows 实机证据链归档、校验与 finalize。
 
-## 当前停点（2026-05-19）
+## 当前状态（2026-05-19）
 
 - latest `win-evidence-preflight` 当前已是 `PASS / OK`。
 - `windows_evidence_verify` 当前也已 PASS。
-- 因此这页当前不再是“等待 billing 恢复后再继续”的 runbook，而是“需要补 fresh evidence refresh”的执行说明：
-  - `freeze-status` 现在真正剩余的红项是 `linux_sources_not_newer_than_gate` 与 `windows_sources_not_newer_than_evidence`
-  - 也就是说，当前模块总状态更准确地应按 `code-green / evidence-refresh-required` 记录
+- 当前 canonical batch `SIMD-20260519-152` 已把 `freeze-status` 收回：
+  - `ready=True`
+  - `mainline-ready=True`
+  - `cross-ready=True`
+- 因此这页当前应按“维护 / future rerun playbook”理解，而不是当前 blocker 说明：
+  - 当前模块总状态更准确地应按 `code-green / cross-ready` 记录
 - 本机 Wine 只算 batch smoke / 日志新鲜度探针，不算真实 Windows evidence runner；即使它能刷新 `windows_b07_gate.log`，也不能把 manual Windows 路径视为已具备可 finalize 的 fresh evidence。
+- 为避免把后文的通用步骤误读成当前状态声明，仍保留一条固定护栏提示：
 - 下文若出现 `ready=True` / `cross-ready=True`，都应理解成“目标态 / 通过标准”，不是当前 `HEAD` 的现状。
+- 当前 `HEAD` 的真实现状以上面的“当前状态（2026-05-19）”小节为准。
 
 ## 全局约束（Release-only）
 

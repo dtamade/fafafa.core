@@ -6060,3 +6060,20 @@ closeout finalize，直到 `freeze-status` 重新转绿。
 | 2. 真实触发并确认 GH Windows evidence | completed | `win-evidence-via-gh SIMD-20260519-152` 首轮只是 workflow watch 超时，但 `gh run view 26095664914` 已明确两段 job 都是 `success`；其中 `Collect Windows B07 Evidence` 全步骤通过 |
 | 3. 复用成功 run-id 回灌本地证据链 | completed | `win-evidence-via-gh SIMD-20260519-152 26095664914` 已下载 artifact、通过 verifier、提升 canonical `windows_b07_gate.log`，并自动补跑 `SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1` 的 cross gate 与 `win-closeout-finalize` |
 | 4. 最终 freeze 收口 | completed | 最终 `freeze-status` 为 `ready=True / mainline-ready=True / cross-ready=True`；`windows_sources_not_newer_than_evidence`、`windows_evidence_verify`、`windows_preflight_latest`、`windows_closeout_summary` 全部 PASS |
+
+## 2026-05-19 Active Cross-Ready Truth Sync After Green Closeout
+
+### Goal
+
+在 closeout 真正回绿后，把 active docs / backlog / handoff reading path 从过时的
+`code-green / evidence-refresh-required` 收回到当前真实的 `code-green / cross-ready`，
+并确保 Windows manual-path guard 文案继续满足 runner 的 fail-close 自检。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前 green truth 与未提交改动面 | completed | 已确认 worktree 只剩 8 个 SIMD 文档文件；真实状态是 `freeze-status = ready=True / mainline-ready=True / cross-ready=True`，但 active docs/backlog 仍停在 `evidence-refresh-required` |
+| 2. 同步 active closeout reading path 到 `cross-ready` | completed | 已更新 `backlog.md`、`docs/fafafa.core.simd{,.checklist,.closeout,.handoff,.maintenance}.md` 以及 `tests/fafafa.core.simd/docs/{windows_b07_closeout_runbook,simd_release_candidate_checklist}.md`，统一改写为当前 green truth，并把 Windows B07 文档降回 future rerun playbook |
+| 3. 修回 guard 依赖的精确安全文案 | completed | `closeout-guard` 首轮抓到 runbook 少了固定提示 `- 下文若出现 \`ready=True\` / \`cross-ready=True\`...`；现已恢复 guard 所需原文，并用附加说明把语义限定到后文通用步骤，不覆盖顶部 current-head 状态 |
+| 4. 轻量复验并准备提交收口 | completed | 已完成 `git diff --check`、Release `closeout-guard`、`historical-closeout-note-check`，并用 `rg` 复查 `SIMD-B23` / `evidence-refresh-required` / freshness blocker 文案没有继续以“当前 blocker”残留在 active reading path |

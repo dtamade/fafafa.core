@@ -16085,3 +16085,39 @@
 - 当前阶段结论：
   - 这轮 closeout 已经不是“解释 blocker”，而是已经真实解除 blocker
   - active docs 的 truth sync 与 live evidence refresh 现在重新收敛到同一结论：SIMD cross-platform freeze 已回绿
+
+## 2026-05-19 Active Cross-Ready Truth Sync After Green Closeout
+
+- 继续接手当前 worktree 时，先对齐了真实未提交范围：
+  - `git status --short`
+  - 结果：只剩 8 个 SIMD 文档文件未收口，都是 active truth sync，不涉及实现层源码
+- 然后复核了当前 green closeout 后的 stale truth 面：
+  - `git diff --stat`
+  - `git diff -- backlog.md docs/fafafa.core.simd.checklist.md docs/fafafa.core.simd.closeout.md docs/fafafa.core.simd.handoff.md docs/fafafa.core.simd.maintenance.md docs/fafafa.core.simd.md tests/fafafa.core.simd/docs/simd_release_candidate_checklist.md tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`
+  - 结论：这些入口仍停在 `code-green / evidence-refresh-required`，而 live truth 已经是 `freeze-status = ready=True / mainline-ready=True / cross-ready=True`
+- 本轮同步的 active truth 包括：
+  - `backlog.md`：把 `SIMD-B23(candidate)` 从未完成队列改成已完成 closeout
+  - `docs/fafafa.core.simd{,.checklist,.closeout,.handoff,.maintenance}.md`：统一改写成 `code-green / cross-ready`
+  - `tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`：从“当前 blocker 说明”改成 future rerun / maintenance playbook
+  - `tests/fafafa.core.simd/docs/simd_release_candidate_checklist.md`：把 closeout lane 现状改成“已在 `SIMD-20260519-152` 收口”
+- 首轮 guard 验证抓到了一个重要的 fail-close 约束：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-guard`
+  - 结果：FAIL
+  - 原因：runbook 少了 guard 精确匹配的提示
+    - `- 下文若出现 \`ready=True\` / \`cross-ready=True\`，都应理解成“目标态 / 通过标准”，不是当前 \`HEAD\` 的现状。`
+- 已做的最小修正：
+  - 恢复上述 guard 所需原文
+  - 同时额外补一句范围说明，把它限定为“后文通用步骤的目标态提示”，不覆盖顶部 `当前状态（2026-05-19）` 小节
+- 二轮轻量验证全部 fresh 通过：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-guard`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh historical-closeout-note-check`
+  - `rg -n "evidence-refresh-required|SIMD-B23|linux_sources_not_newer_than_gate|windows_sources_not_newer_than_evidence|RECENT_BILLING_BLOCK" backlog.md docs/fafafa.core.simd*.md tests/fafafa.core.simd/docs/*.md`
+- 复核结果：
+  - `closeout-guard` = PASS
+  - `historical-closeout-note-check` = PASS
+  - `SIMD-B23(candidate)` 已只剩 completed truth
+  - `evidence-refresh-required` / freshness / billing 文案只保留在 future fallback 语境，不再作为 current-head blocker 存活
+- 当前阶段结论：
+  - SIMD closeout 既已经真实回绿，也已经把 active docs / backlog 同步到当前 green truth
+  - 下一步不该再围绕 closeout lane 空转，而应回到 bounded 的实现 residual 或 family qualification 批次

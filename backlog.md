@@ -55,10 +55,7 @@
 - [x] **SIMD-B20(candidate)**：Windows 证据闭环自动化已完成；当前 `verify -> finalize` 主链 fresh 可跑通，`freeze-status` 剩余红项仅是 2026-03-27 源码晚于 2026-03-24 归档证据，不再是自动化缺口
 - [x] **SIMD-B21(candidate)**：reduction façade / current-dispatch contract sweep（`VecF32x4/F64x2/F32x8/F64x4/F64x8/F32x16 Reduce*` 已全部处于“已修复或已守卫”状态；2026-03-27 fresh release `gate` 通过）
 - [x] **SIMD-B22(candidate)**：`VecF64x2 Abs/Sqrt/Min/Max` façade / current-dispatch contract sweep（真实 drift 已修复；`DispatchAPI` 中预声明的 `VecF32` vector-math / wide-float-dot guards 也已补齐；2026-03-27 fresh release `gate` 通过）
-
-### Queue
-- [ ] **SIMD-B23(candidate)**：fresh Linux/Windows evidence refresh，把 `freeze-status` 从 freshness/source-newer-than-evidence 红态拉回绿态。
-- 完成条件：fresh release `gate` 产物时间不早于当前 `src/fafafa.core.simd*` 改动，fresh Windows evidence 通过 verifier，并且 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 返回 `ready=True`。
+- [x] **SIMD-B23(candidate)**：fresh Linux/Windows evidence refresh 已完成；fresh release `gate`、GH Windows evidence run `26095664914`、本地 verifier/finalize 与最终 `freeze-status` 全部通过，当前已回到 `ready=True / cross-ready=True`。
 
 ### SIMD Program Board Update (2026-02-07 06:10)
 - [x] **SIMD-B04**：pack/unpack 极值组合与 lane 隔离测试补齐（已完成）。

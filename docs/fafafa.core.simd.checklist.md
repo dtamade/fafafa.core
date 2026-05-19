@@ -2,32 +2,36 @@
 
 这页只回答两件事：现在应该做什么，以及现在不要做什么。
 
-## 当前停点（2026-05-19）
+## 当前状态（2026-05-19）
 
 - 当前 `simd` 不应再按“接口/实现仍未收口”处理。
 - 最新 release 证据说明：
   - `python3 tests/fafafa.core.simd/check_interface_implementation_completeness.py --strict` 仍为绿，`P0/P1/P2=0`
-  - 最新 `freeze-status` 里：
-    - `cross_gate_required_steps` 已 PASS
-    - `windows_preflight_latest` 已 PASS：`status=PASS code=OK`
-    - `windows_evidence_verify` 已 PASS
-  - full `freeze-status` 当前仍红，但已经不再是 billing / verifier blocker；当前直接红项收敛成：
-    - `linux_sources_not_newer_than_gate`
+  - 最新 `freeze-status` 已是：
+    - `ready=True`
+    - `mainline-ready=True`
+    - `cross-ready=True`
+  - 其中关键 closeout 项都已经 PASS：
+    - `cross_gate_required_steps`
+    - `linux_qemu_cpuinfo_nonx86_evidence`
+    - `windows_preflight_latest`
+    - `windows_evidence_verify`
     - `windows_sources_not_newer_than_evidence`
-  - 也就是说，现在的真实问题是：latest Linux gate summary 与 latest Windows evidence 都早于最新 `src/fafafa.core.simd*` 源码，当前需要的是 fresh evidence refresh，而不是继续把状态写成 `RECENT_BILLING_BLOCK`
+    - `windows_closeout_summary`
 - 因此，当前 `HEAD` 更准确的状态应记为：
-  - `code-green / evidence-refresh-required`
-  - 到这里不要再重开 SIMD 接口设计审查或实现泛审查；优先补 fresh `gate` 和 fresh Windows evidence
+  - `code-green / cross-ready`
+  - 到这里不要再把状态写成 `evidence-refresh-required` 或 `RECENT_BILLING_BLOCK`
 - 当前最该记住的操作判断：
-  - 如果 latest `freeze-status` 红在 `linux_sources_not_newer_than_gate` / `windows_sources_not_newer_than_evidence`，先重跑 release `gate` 与 Windows evidence，别再默认归因到 billing
-  - 只有当 `win-evidence-preflight` 再次明确返回 `RECENT_BILLING_BLOCK` 时，才把状态降回 `code-green / release-evidence-blocked`
+  - 默认不要再重开 closeout blocker 讨论；下一步应回到真实实现 residual、family qualification 或 raw-leaf qualification
+  - 只有当 future `freeze-status` 再次变红时，才回到 evidence refresh 处理链
 
 补一条当前冻结判定纪律：
 
-- 只要 `freeze-status` 还红，就先看红项是不是 freshness blocker：
+- 只要 `freeze-status` 仍是 `ready=True / cross-ready=True`，就不要把 billing / freshness 重新视为当前 blocker。
+- 如果 future `freeze-status` 再次变红，再先看是不是 freshness blocker：
   - `linux_sources_not_newer_than_gate`
   - `windows_sources_not_newer_than_evidence`
-- 只有在 latest preflight 真正回到 `RECENT_BILLING_BLOCK` 时，才把 `windows_preflight_latest` 重新视为当前 blocker。
+- 只有在 future preflight 真正回到 `RECENT_BILLING_BLOCK` 时，才把 `windows_preflight_latest` 重新视为 blocker。
 
 补一条当前判断规则：
 
@@ -121,7 +125,7 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-re
 
 内部固定顺序是 `win-evidence-preflight -> impl-smoke-x86 -> closeout-host-local -> win-evidence-via-gh -> freeze-status`。
 它会先确认当前 Windows preflight 没被 Billing/额度阻塞；通过后再把 x86 bounded frontier 与 host-local non-x86/QEMU 证明跑到位，最后进入 Windows evidence GH 闭环并回到 canonical `freeze-status` 做最终确认。
-但对当前 `HEAD`，更先要记住的是 freshness 纪律：如果 latest `freeze-status` 红在 `linux_sources_not_newer_than_gate` 或 `windows_sources_not_newer_than_evidence`，先补 fresh `gate` / fresh Windows evidence；只有当 latest `win-evidence-preflight` 再次返回 `RECENT_BILLING_BLOCK` 时，才把这轮状态记成 `code-green / release-evidence-blocked`。
+但对当前 `HEAD`，更先要记住的是：这条主线已经 fresh 收口到 `cross-ready=True`。只有当 future `freeze-status` 再次红在 `linux_sources_not_newer_than_gate` 或 `windows_sources_not_newer_than_evidence` 时，才先补 fresh `gate` / fresh Windows evidence；只有当 future `win-evidence-preflight` 再次返回 `RECENT_BILLING_BLOCK` 时，才把那一轮状态记成 `code-green / release-evidence-blocked`。
 
 如果你只想先看完整 release 门禁轮廓，而不是直接一波收口，也可以单独跑：
 
@@ -257,7 +261,7 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh qemu-cpuinf
 FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate
 ```
 
-- 当前最新真实状态是：`2026-05-17 10:47:10` 的 canonical gate 已把 `qemu-cpuinfo-nonx86-evidence` 刷成 PASS，且 `freeze-status-linux` 已 `ready=True` / `mainline-ready=True`；full `freeze-status` 当前只剩 Windows evidence verify / preflight 相关 blocker，而不是旧 log freshness。
+- 当前最新真实状态是：`2026-05-19 20:31:35` 的 canonical gate 已把 `qemu-cpuinfo-nonx86-evidence` 刷成 PASS，且 full `freeze-status` 已 `ready=True / mainline-ready=True / cross-ready=True`；也就是说，这条 CPUInfo cross evidence 已重新进入 canonical green closeout，而不是只停在 Linux-only 阶段。
 
 - 如果后面补到真实硬件，`native-evidence` 仍然会串行采集 `DispatchAPI/PublicAbi` 以及 `TTestCase_NonX86BackendParity,TTestCase_DataPlane`；但在当前项目约束里，没有硬件时，不再把 native host 当成 blocker：
 

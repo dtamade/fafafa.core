@@ -10,8 +10,8 @@
 
 如果你这次接手的是“当前到底还要不要继续改实现，还是已经只差 release 证据”，先记住一条最新事实：
 
-- 截至 `2026-05-19`，当前应按 `code-green / evidence-refresh-required` 理解
-- 也就是说，默认不要再重开 SIMD 泛审查；除非 fresh red 再次落到实现层，否则优先沿 `docs/fafafa.core.simd.checklist.md` / `docs/fafafa.core.simd.closeout.md` 处理 closeout 与证据链
+- 截至 `2026-05-19`，当前应按 `code-green / cross-ready` 理解
+- 也就是说，默认不要再重开 closeout blocker 讨论；除非 future `freeze-status` 再次拉红，否则优先沿 `docs/fafafa.core.simd.checklist.md` / `docs/fafafa.core.simd.closeout.md` 参考 future rerun 纪律，并把主要精力放回实现 residual / qualification
 
 如果你这次要判断 backend / intrinsics / SSE2 的真实归属，先看三张真相表：
 

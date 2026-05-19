@@ -28,23 +28,17 @@
   - 最新 `gate` 为 PASS
   - 最新接口完整度检查为绿，`P0/P1/P2=0`
   - `linux_qemu_cpuinfo_nonx86_evidence` 已在 canonical gate 中 fresh PASS
-- 发布级 closeout 还不是 green：
-  - cross-platform `freeze-status` 仍为 `ready=False / cross-ready=False`
-  - 当前主要红项是：
-    - `linux_sources_not_newer_than_gate`
-    - `windows_sources_not_newer_than_evidence`
+- 发布级 closeout 现在也已经是 green：
+  - cross-platform `freeze-status` 当前为 `ready=True / mainline-ready=True / cross-ready=True`
   - `cross_gate_required_steps` 已 PASS
   - `windows_preflight_latest` 已 PASS：`status=PASS code=OK`
   - `windows_evidence_verify` 已 PASS
-- 这不是新的接口/实现质量问题，也已经不再是 billing blocker：
-  - 当前 canonical Windows evidence 已经拿到 verifier PASS
-  - 当前源码时间线已经继续向前推进；如果 latest gate artifact 早于最新 `src/fafafa.core.simd*` 源码，先重跑 release `gate`
-  - 历史文档里“Windows 已归档/已闭环”的标记只能理解成旧批次归档事实，不等于当前 `HEAD` 仍是 cross-ready
-  - 这轮更准确的交接语义应是 `code-green / evidence-refresh-required`，而不是 `code-green / release-evidence-blocked`
-  - 当前 `freeze-status` 的真实 next-actions 也已经明确写成：
-    - 补 fresh release `gate`
-    - 补 fresh Windows evidence
-    - 再回到 `freeze-status`
+  - `windows_sources_not_newer_than_evidence` 已 PASS
+  - 当前 canonical fresh Windows evidence 批次为 `SIMD-20260519-152`
+- 这不是新的接口/实现质量问题，也不再是 billing / freshness blocker：
+  - 当前 `HEAD` 的更准确交接口径应是 `code-green / cross-ready`
+  - 历史文档里“Windows 已归档/已闭环”的标记仍只能理解成旧批次归档事实；但这一次 current `HEAD` 也已经重新拿回 cross-ready
+  - 默认不要再重开 closeout 讨论；下一步应回到 real implementation residual、family qualification 或 raw parity 线
 
 当前已经完成的方向包括：
 
@@ -141,7 +135,7 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-re
 ```
 
 它固定把 `win-evidence-preflight -> impl-smoke-x86 -> closeout-host-local -> win-evidence-via-gh -> freeze-status` 串成一条 canonical 主线；只有在你明确要拆分诊断 Windows 手工路径或单独复验某一步时，才再退回下面这些低层 helper。
-但当前 `HEAD` 还有一个明确前提条件：如果 latest `freeze-status` 红在 `linux_sources_not_newer_than_gate` / `windows_sources_not_newer_than_evidence`，先补 fresh evidence；只有当 latest `win-evidence-preflight` 再次回到 `RECENT_BILLING_BLOCK` 时，才在 preflight 这一步停下，并按 `code-green / release-evidence-blocked` 交接。
+但当前 `HEAD` 还有一个明确前提条件：当前这条主线已经 fresh 收口到 `cross-ready=True`。只有当 future `freeze-status` 再次红在 `linux_sources_not_newer_than_gate` / `windows_sources_not_newer_than_evidence` 时，才先补 fresh evidence；只有当 future `win-evidence-preflight` 再次回到 `RECENT_BILLING_BLOCK` 时，才在 preflight 这一步停下，并按 `code-green / release-evidence-blocked` 交接。
 
 如果需要 Windows 证据闭环，优先主入口：
 

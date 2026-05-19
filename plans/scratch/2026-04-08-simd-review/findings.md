@@ -9346,3 +9346,37 @@
   - 当前这轮 SIMD release closeout 已不再停在 blocker 态
   - `billing blocked` 已不是当前真相，`evidence freshness` 也已经被真实清空
   - repo 当前在 active closeout 线上重新回到了完整 green 状态
+
+## 2026-05-19 After Green Closeout, The Next Real Drift Was Stale Active Docs And Backlog Truth
+
+- closeout 真正回绿后，repo 内最真实的下一处 drift 已不再是实现层，也不是 evidence blocker，而是 active 文档入口自己还停在旧状态：
+  - `backlog.md`
+  - `docs/fafafa.core.simd.md`
+  - `docs/fafafa.core.simd.checklist.md`
+  - `docs/fafafa.core.simd.closeout.md`
+  - `docs/fafafa.core.simd.handoff.md`
+  - `docs/fafafa.core.simd.maintenance.md`
+  - `tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`
+  - `tests/fafafa.core.simd/docs/simd_release_candidate_checklist.md`
+- 这些入口还在重复两类已经过时的 current-head 叙事：
+  - `code-green / evidence-refresh-required`
+  - `SIMD-B23(candidate)` 仍像未完成队列项，而不是已经完成的 closeout 批次
+- 但 live truth 已经明确变成：
+  - `freeze-status = ready=True / mainline-ready=True / cross-ready=True`
+  - `cross_gate_required_steps = PASS`
+  - `windows_preflight_latest = PASS`
+  - `windows_evidence_verify = PASS`
+  - `windows_sources_not_newer_than_evidence = PASS`
+  - `windows_closeout_summary = PASS`
+  - fresh Windows closeout batch = `SIMD-20260519-152`
+  - GH run = `26095664914`
+- 这意味着：
+  - active reading path 现在必须统一写成 `code-green / cross-ready`
+  - `SIMD-B23(candidate)` 也必须跟着收成已完成，不然 backlog 会继续误导下一会话重复回到 closeout lane
+- 这轮又验证了一条重要约束：Windows manual-path 文档不是普通 prose，可以被任意润色。
+  - `closeout-guard` 对 `tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md` 有精确字符串约束
+  - 首轮把“下文若出现 `ready=True` / `cross-ready=True`...”改成更自然的新句式后，guard 立即 FAIL
+  - 说明这些文案同时承担 runner 自检 contract；后续只能在保留精确提示原文的前提下补充说明，不能替换掉 guard 依赖的固定句
+- 结论更新：
+  - 当前 SIMD closeout 的 repo 内真实工作已经从“补证据”前推到“同步 active truth source”
+  - 这类 green 后真相同步虽然不改实现，但如果不做，会让后续会话继续围着一个已经解除的 blocker 空转

@@ -14,25 +14,24 @@
 
 - 代码主线可以按“已收口”理解：
   - `python3 tests/fafafa.core.simd/check_interface_implementation_completeness.py --strict` 最新结果仍为 `dispatch_slots_total=558`、`P0/P1/P2=0`
-  - `2026-05-17 10:47:10` 的 canonical gate 已把 `linux_gate_required_steps_mainline` 与 `linux_qemu_cpuinfo_nonx86_evidence` 刷成 PASS，summary 为 `/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/gate_summary.md`
-  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-linux` 当前已是 `ready=True` / `mainline-ready=True`
-- 发布级 closeout 还不能写成完成：
-  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 仍是 `ready=False`
-  - 当前直接红项包括两类：
-    - `linux_sources_not_newer_than_gate`
-    - `windows_sources_not_newer_than_evidence`
+  - canonical release `gate` 已 PASS，且 `linux_gate_required_steps_mainline` 与 `linux_qemu_cpuinfo_nonx86_evidence` 都在最新 gate 中为 PASS
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-linux` 当前仍是 `ready=True / mainline-ready=True`
+- 发布级 closeout 现在也已经回绿：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 当前是 `ready=True / mainline-ready=True / cross-ready=True`
   - `cross_gate_required_steps` 已 PASS
   - `windows_preflight_latest` 已 PASS：`status=PASS code=OK`
   - `windows_evidence_verify` 已 PASS
-  - 因而当前 full `freeze-status` 红点已经不再是 billing / verifier / cross-gate enforcement，而是单纯的 evidence freshness：latest gate summary 与 latest Windows evidence 都早于最新 `src/fafafa.core.simd*` 源码
+  - `windows_sources_not_newer_than_evidence` 已 PASS
+  - `windows_closeout_summary` 已 PASS
+  - 本轮 fresh Windows evidence 归档批次为 `SIMD-20260519-152`，对应 GH run `26095664914`
 - 因此，当前最准确的结论是：
-  - `code-green / evidence-refresh-required`
-  - 不要再把后续时间花在重新打开 SIMD 接口审查或实现泛审查上；优先补 fresh `gate` 和 fresh Windows evidence
+  - `code-green / cross-ready`
+  - 不要再把当前 `HEAD` 写成 `evidence-refresh-required`；closeout blocker 已经真实解除
 
-### 2026-05-19 evidence refresh note
+### 2026-05-19 future refresh note
 
-- 如果 `freeze-status` 里的 Linux gate artifact 旧于最新 `src/fafafa.core.simd*` 源码，先重跑一次 release `gate`，不要把旧 gate summary 当成新代码回归。
-- 如果 `freeze-status` 里的 Windows evidence log 旧于最新 `src/fafafa.core.simd*` 源码，先重跑一次 GH/Windows evidence，再判断 `cross-ready`；不要继续沿用旧的 `RECENT_BILLING_BLOCK` 叙事。
+- 如果 future `freeze-status` 里的 Linux gate artifact 旧于最新 `src/fafafa.core.simd*` 源码，先重跑一次 release `gate`，不要把旧 gate summary 当成新代码回归。
+- 如果 future `freeze-status` 里的 Windows evidence log 旧于最新 `src/fafafa.core.simd*` 源码，先重跑一次 GH/Windows evidence，再判断 `cross-ready`；不要继续沿用旧的 `RECENT_BILLING_BLOCK` 叙事。
 - 如果 latest `gate_summary.md` 以后又被日常 fast-gate 覆盖，导致 `qemu-cpuinfo-nonx86-evidence=SKIP`，先看 `logs/rehearsal/backups/` 或 `logs/windows-closeout/<batch>/gate_summary.md` 是否仍保留了更早的 closeout gate snapshot；`freeze-status` 现在会自动把这些 snapshot 当 fallback candidate。
 - 如果 `win-evidence-preflight` 未来再次返回 `RECENT_BILLING_BLOCK`，当前批次才按 `code-green / release-evidence-blocked` 收口，不把 Windows evidence 阻塞误判成 SIMD 代码回归；此时优先处理 billing / 实机 Windows runner，而不是继续空转 `win-evidence-via-gh`。
 - 如果未来手工 Windows 证据链与 fail-close cross gate 已经 fresh PASS，那么 `windows_preflight_latest` 只再代表 GH 路径是否可用，不再是当前 readiness blocker；`freeze-status` 应把它降格成 non-readiness signal，而不是留下一个与 `ready=True` 并存的 `FAIL`。
@@ -404,7 +403,7 @@ tests\fafafa.core.simd\buildOrTest.bat gate-strict
 
 - Windows evidence 真正通过 verifier 之前，不要把 release candidate checklist / completeness matrix / closeout roadmap 里的 Windows 项自动勾成完成
 - `2026-03-10` / `2026-04-19` 这两批 Windows evidence 只能当“历史批次曾闭环”的归档事实，不能直接当成当前 `HEAD` 仍满足 **cross-platform freeze** 的证明
-- 当前真实状态必须跟最新 `freeze-status` 走；截至 `2026-05-19` 应按 `code-green / evidence-refresh-required` 理解，而不是按历史 Windows 批次继续写成 billing blocked，或继续写成 release closeout 已完成
+- 当前真实状态必须跟最新 `freeze-status` 走；截至 `2026-05-19` 当前 `HEAD` 应按 `code-green / cross-ready` 理解。只有 future source drift 或 future Windows evidence drift 再把 `freeze-status` 拉红时，才重新回到 freshness / billing 诊断。
 
 ## 还有哪些债没收完
 

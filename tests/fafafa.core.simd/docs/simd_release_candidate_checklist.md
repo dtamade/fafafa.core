@@ -31,7 +31,7 @@
 - [x] `closeout-release` 是 Linux/Git Bash/WSL 侧完整收口的唯一官方入口。
   - 命令：`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152`
   - 固定顺序：`win-evidence-preflight -> impl-smoke-x86 -> closeout-host-local -> win-evidence-via-gh -> freeze-status`
-  - 当前 `HEAD` 额外前提：latest `win-evidence-preflight` 已重新放行；当前真正剩余的是 evidence freshness。若 latest `freeze-status` 红在 `linux_sources_not_newer_than_gate` / `windows_sources_not_newer_than_evidence`，先补 fresh `gate` 与 fresh Windows evidence；只有 future preflight 再次回到 `RECENT_BILLING_BLOCK` 时，才在 preflight 处 fail-close，状态按 `code-green / release-evidence-blocked` 记录。
+  - 当前 `HEAD` 额外前提：这条 closeout lane 已在 `SIMD-20260519-152` fresh 收口到 `freeze-status = ready=True / cross-ready=True`。如果 future `freeze-status` 再次红在 `linux_sources_not_newer_than_gate` / `windows_sources_not_newer_than_evidence`，先补 fresh `gate` 与 fresh Windows evidence；只有 future preflight 再次回到 `RECENT_BILLING_BLOCK` 时，才在 preflight 处 fail-close，状态按 `code-green / release-evidence-blocked` 记录。
 - [x] `perf-smoke` 通过（non-scalar backend healthy）
 - [x] `gate` 通过（simd + cpuinfo + cpuinfo.x86）
 - [x] `gate` 在 Release + nonx86/qemu 选项下通过
