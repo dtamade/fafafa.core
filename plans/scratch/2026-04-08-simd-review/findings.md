@@ -9720,3 +9720,38 @@
 - 当前结论更新：
   - 这轮真正修掉的是 closeout apply 的错误续航目标，不是 SIMD 实现缺口
   - fresh evidence 已恢复当前 `HEAD` 的 cross-ready 真相，且后续 Windows closeout apply 不会再把 continuation 写回错误入口
+
+## 2026-05-20 Manual Windows Closeout Docs Were Still Pointing At Archived Root Logs
+
+- 在脚本目标路径修正并提交之后，又沿同一家族继续查了一遍 active manual closeout surface。
+- fresh 结果说明这两份文档不能当作“纯历史垃圾”忽略：
+  - `docs/plans/2026-05-10-simd-plan-status-index.md` 仍把
+    - `docs/plans/2026-02-09-simd-windows-closeout-checklist.md`
+    - `docs/plans/2026-02-09-simd-windows-postrun-fill-template.md`
+    列在状态索引里
+  - `tests/fafafa.core.simd/BuildOrTest.sh closeout-guard` 也把它们当作 required targets 做 source-safe 守卫
+- 现场对位后，这两份文档仍有同类漂移：
+  - checklist 还写着回填根 `progress.md`
+  - postrun fill template 还把 `progress.md`、`task_plan.md`、`findings.md` 当作 SIMD continuation 目标
+  - progress 模板里的动作描述也还停在 `roadmap / matrix / progress`
+- 这类残留的风险是：
+  - 脚本已经写 scratch，文档却还在指导人手工写根文件
+  - operator 手工 follow checklist 时会把 continuation 再次分叉成 root/scratch 两套
+  - `closeout-guard` 虽然守这些文档存在与关键命令，但不会自动替我们修正执行目标
+- 已落地修复：
+  - `docs/plans/2026-02-09-simd-windows-postrun-fill-template.md`
+    - `progress` 模板改为 `scratch progress`
+    - `task_plan` / `findings` 目标改为 `plans/scratch/2026-04-08-simd-review/`
+    - 回填文案同步成 `roadmap / matrix / RC checklist / scratch progress`
+    - 自动 apply 目标列表补上 `simd_release_candidate_checklist.md`
+  - `docs/plans/2026-02-09-simd-windows-closeout-checklist.md`
+    - 回填位置改成 scratch progress
+    - snippets 描述改成 `roadmap/matrix/scratch progress`
+    - `--batch-id` 说明改成 scratch progress batch id
+    - 明确自动 apply 还会结构化更新 RC checklist
+- fresh 收口验证：
+  - `git diff --check` 通过
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-guard` 通过
+- 当前结论更新：
+  - Windows closeout 的脚本链和 manual docs 现在已回到同一 scratch continuation 入口
+  - 这轮没有引入新的 freeze/gate 风险，而是收掉了 manual closeout surface 的最后一段显性路径漂移

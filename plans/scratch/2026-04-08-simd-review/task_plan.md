@@ -6240,3 +6240,21 @@ closeout finalize，直到 `freeze-status` 重新转绿。
 | 1. 复核当前未提交 closeout 回填与真实红因 | completed | 已确认自动 finalize 只留下 roadmap/matrix/root-progress 三处回填；fresh 红因不是实现退化，而是 `qemu-cpuinfo-nonx86-evidence` snapshot 旧于最新源码，以及 Windows evidence/summary 旧于新 `buildOrTest.bat` runner |
 | 2. 修正 closeout apply 的 continuation 目标路径 | completed | `apply_windows_b07_closeout_updates.sh` 已把 progress 目标改到 scratch progress；`finalize_windows_b07_closeout.sh` 的 next-doc-update 文案、`rehearse_windows_closeout_summary.sh` 的 apply case 也已同步；根 `progress.md` 已恢复成 archived pointer，只保留 scratch 入口 |
 | 3. 同步 scratch 真相并做收口验证 | completed | 已写回 `SIMD-20260520-152` / GH run `26138113217` / fresh cross-ready 真相；`bash tests/fafafa.core.simd/rehearse_windows_closeout_summary.sh`、`git diff --check`、Release `check`、Release `freeze-status` 全部通过 |
+
+## 2026-05-20 Manual Windows Closeout Docs Scratch-Path Sync
+
+### Goal
+
+继续把同一家族的 manual closeout 文档口径收齐：
+`docs/plans/2026-02-09-simd-windows-closeout-checklist.md` 与
+`docs/plans/2026-02-09-simd-windows-postrun-fill-template.md`
+仍在指导维护者更新根 `progress.md` / `task_plan.md` / `findings.md`；
+需要改回 SIMD 当前真实 continuation 入口，并确认 `closeout-guard` 接受新口径。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核这两份文档是否仍属 active manual closeout surface | completed | `docs/plans/2026-05-10-simd-plan-status-index.md` 仍把这两份文档列入状态索引，`BuildOrTest.sh closeout-guard` 也把它们当成 required targets，因此这不是纯历史噪音 |
+| 2. 收正 manual docs 的 scratch continuation 路径 | completed | postrun fill template 已把 progress/task_plan/findings 目标改到 `plans/scratch/2026-04-08-simd-review/`，并把文案同步成 `roadmap / matrix / RC checklist / scratch progress`；closeout checklist 已改成 scratch progress + RC checklist 结构化更新说明 |
+| 3. 做 closeout guard 复验 | completed | `git diff --check` 与 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-guard` fresh 通过 |

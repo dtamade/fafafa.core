@@ -116,7 +116,7 @@
   - 将 P0 的“Windows 实机证据未归档”更新为完成。
 - `tests/fafafa.core.simd/docs/simd_completeness_matrix.md`
   - 将 Windows 证据状态由待补改为已完成。
-- `progress.md`
+- `plans/scratch/2026-04-08-simd-review/progress.md`
   - 追加 Windows 收口执行记录与日志路径。
 
 ## 收口摘要（推荐追加）
@@ -150,7 +150,7 @@
 
 ## 自动回填片段（无侵入）
 
-可从收口摘要自动生成三段可粘贴片段（roadmap/matrix/progress）：
+可从收口摘要自动生成三段可粘贴片段（roadmap/matrix/scratch progress）：
 
 - `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-snippets`
 
@@ -160,7 +160,11 @@
 - 或在 cross gate PASS 后执行一键收口：
   - `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize <BATCH_ID>`
 
+自动 apply 还会同步结构化更新：
+
+- `tests/fafafa.core.simd/docs/simd_release_candidate_checklist.md`
+
 可选参数：
 
-- `--batch-id <id>`：指定 progress 回填批次标识（例如 `SIMD-20260210-149`）
+- `--batch-id <id>`：指定 scratch progress 回填批次标识（例如 `SIMD-20260210-149`）
 - `--allow-simulated`：仅用于 dry-run 测试；即使允许 simulated apply，也会跳过结构化状态置 `[x]`，防止误关单

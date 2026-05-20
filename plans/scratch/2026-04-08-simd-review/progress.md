@@ -16490,3 +16490,32 @@
   - closeout apply 之后只会更新 active roadmap / matrix / RC checklist / scratch progress
   - root `progress.md` 不再重新承载 SIMD active 续航
   - fresh `freeze-status` 继续保持 `ready=True / mainline-ready=True / cross-ready=True`
+
+## 2026-05-20 Manual Windows Closeout Docs Scratch-Path Sync
+
+- 在 `simd: retarget windows closeout apply progress` 提交并推送后，没有停在脚本层，而是继续复核同一家族的 manual closeout 文档。
+- 先用状态索引和 guard 入口确认这两份文档仍然是 active surface：
+  - `docs/plans/2026-05-10-simd-plan-status-index.md`
+  - `tests/fafafa.core.simd/BuildOrTest.sh closeout-guard`
+- 然后抓到的真实残留是：
+  - `docs/plans/2026-02-09-simd-windows-closeout-checklist.md`
+    - 仍要求回填根 `progress.md`
+  - `docs/plans/2026-02-09-simd-windows-postrun-fill-template.md`
+    - 仍把 `progress.md` / `task_plan.md` / `findings.md` 当成 SIMD continuation 目标
+    - 仍写 `roadmap / matrix / progress`
+- 这轮已同步修正：
+  - postrun fill template
+    - `progress` -> `scratch progress`
+    - `task_plan` / `findings` -> `plans/scratch/2026-04-08-simd-review/`
+    - 自动 apply 目标列表补上 RC checklist
+  - closeout checklist
+    - 回填位置改为 scratch progress
+    - snippets 文案改成 `roadmap/matrix/scratch progress`
+    - `--batch-id` 说明改成 scratch progress batch id
+    - 明确自动 apply 也会结构化更新 RC checklist
+- fresh 验证链：
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-guard`
+- fresh 结果：
+  - `closeout-guard` 通过
+  - Windows closeout manual docs 与脚本链现在统一指向 scratch continuation

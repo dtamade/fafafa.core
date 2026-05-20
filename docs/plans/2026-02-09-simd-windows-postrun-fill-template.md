@@ -84,9 +84,9 @@
 
 ---
 
-## 3) progress 回填模板
+## 3) scratch progress 回填模板
 
-目标文件：`progress.md`
+目标文件：`plans/scratch/2026-04-08-simd-review/progress.md`
 
 ```markdown
 ### 批次
@@ -97,7 +97,7 @@
 
 - 在 Windows 实机完成 `buildOrTest.bat evidence-win-verify`。
 - 生成并归档收口摘要：`finalize-win-evidence`。
-- 回填 roadmap / matrix / progress，关闭跨平台证据缺口。
+- 回填 roadmap / matrix / RC checklist / scratch progress，关闭跨平台证据缺口。
 
 ### 命令与结果
 
@@ -120,27 +120,27 @@
 
 ## 4) task_plan 回填模板
 
-目标文件：`task_plan.md`
+目标文件：`plans/scratch/2026-04-08-simd-review/task_plan.md`
 
 ```markdown
 ### Batch <BATCH_DONE_ID>（阶段完成）
 
 - [x] 形成 Windows 实机后回填模板并固化到计划文档
-- [x] 明确 roadmap/matrix/progress 的标准回填块
+- [x] 明确 roadmap/matrix/RC checklist/scratch progress 的标准回填块
 - [x] 将下一批聚焦为“实机执行 + 冻结收口”
 
 ### Batch <BATCH_NEXT_ID>（下一步）
 
 - [ ] Windows 实机执行 `buildOrTest.bat evidence-win-verify` 并归档日志
 - [ ] 执行 `finalize-win-evidence` 生成收口摘要
-- [ ] 回填 roadmap/matrix/progress 并更新最终跨平台冻结结论
+- [ ] 回填 roadmap/matrix/RC checklist/scratch progress 并更新最终跨平台冻结结论
 ```
 
 ---
 
 ## 5) findings 回填模板
 
-目标文件：`findings.md`
+目标文件：`plans/scratch/2026-04-08-simd-review/findings.md`
 
 ```markdown
 ## Batch <BATCH_ID> Findings
@@ -173,5 +173,10 @@
 
 - 指定批次号后自动回填（推荐）：
   - `bash tests/fafafa.core.simd/apply_windows_b07_closeout_updates.sh --apply --batch-id <BATCH_ID>`
+- 自动 apply 会更新：
+  - `docs/plans/2026-02-09-simd-unblock-closeout-roadmap.md`
+  - `tests/fafafa.core.simd/docs/simd_completeness_matrix.md`
+  - `tests/fafafa.core.simd/docs/simd_release_candidate_checklist.md`
+  - `plans/scratch/2026-04-08-simd-review/progress.md`
 - `--apply` 默认拒绝 simulated summary，避免误把预演结果写入正式文档。
 - 仅测试脚本时可显式加 `--allow-simulated`（且会跳过结构化状态置 `[x]`）。
