@@ -142,8 +142,8 @@
 - `DataPlane wide snapshot`：`Test_DataPlane_WideBitwiseShiftSnapshot_Follows_CurrentDispatchSemantics` / `Test_DataPlane_WideArithmeticMinMaxSnapshot_Follows_CurrentDispatchSemantics` 已覆盖 `I64x8 bitwise` 与 wide arithmetic/minmax 的高价值 dataplane 快照，不再只盯抽样老点位
 - `qemu-nonx86-evidence`：`linux/arm64` / `linux/riscv64` fresh 通过；runner 现在固定使用隔离 `SIMD_OUTPUT_ROOT`，单次 build 后复用 binary 继续跑 `TTestCase_NonX86BackendParity,TTestCase_DataPlane` 与 backend bench，已规避旧链路里 `arm64` 重复 full rebuild 触发的 `ppca64` `FIRSTCALLPARAN` ICE。它证明的是 non-x86 runtime parity / dataplane 实现层，不是 `freeze-status` 的 CPUInfo closeout 证据
 - `qemu-cpuinfo-nonx86-evidence`：`linux/arm/v7`、`linux/arm64`、`linux/riscv64` 的 CPUInfo cross-platform 证据；`2026-05-17 10:47:10` fresh gate 已把这一条刷成 PASS，summary 为 [qemu-multiarch-20260517-103904-1404563/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260517-103904-1404563/summary.md)。这是 canonical `gate` / `freeze-status` 当前真正消费的 Linux-side cross evidence
-- `NONX86_IMPL_AUDIT_SUMMARY`：新的聚合实现审计入口已把 helper semantics、key-slot audit、wiring-sync、RISCVV ABI shape、register truthfulness strict 和 targeted release suite 收成单条命令；2026-04-19 fresh rerun 仍为 `steps=6 ... status=ok`
-- `impl-smoke-nonx86`：新增轻量日常入口，定位是高频实现回归；它只负责尽快暴露 non-x86 source/runtime contract 的 fresh 漂移，不替代 `impl-audit-nonx86` 的完整实现审计，也不替代 `closeout-host-local` 的 strict closeout 证明
+- `NONX86_IMPL_AUDIT_SUMMARY`：新的聚合实现审计入口已把 helper semantics、key-slot audit、wiring-sync、RISCVV ABI shape、`riscvv-sensitive-hold-set`、register truthfulness strict 和 targeted release suite 收成单条命令；当前 head 的 canonical non-x86 implementation audit 结果应以 `steps=7 ... status=ok` 为准
+- `impl-smoke-nonx86`：新增轻量日常入口，定位是高频实现回归；它当前固定覆盖 helper semantics、key-slot audit、wiring-sync、`riscvv-sensitive-hold-set`、register truthfulness strict 与 targeted parity，负责尽快暴露 non-x86 source/runtime contract 的 fresh 漂移，不替代 `impl-audit-nonx86` 的完整实现审计，也不替代 `closeout-host-local` 的 strict closeout 证明
 - `AVX2 public ABI capability contract`：x86 bounded frontier 这一轮没有挖到新的实现红点，收口点转为接口证据补齐。`DispatchAPI` 现在显式覆盖 `sbAVX2` 的 `scFMA` / `scShuffle` 正向暴露，以及 `SetVectorAsmEnabled(False)` 后 public ABI `CapabilityBits` 清零契约；后续不再需要从 registered-table 的 `BackendInfo.Capabilities` 间接推断 public ABI 是否同步
 - `x86 implementation frontier`：这一轮 bounded implementation 专审没有 fresh 复现新的 AVX512 / AVX2 实现 bug，但把最薄弱的实现证明面补强了：
   - `SSE2 structure/contracts smoke`：`BuildOrTest.sh` 现在提供 `impl-smoke-sse2`，把 `sse2-structure-check`、`TTestCase_SSE2Contracts`、`TTestCase_BackendSmoke`、`TTestCase_RuntimeAPI`、`TTestCase_DataPlane` 收成一条 release smoke；`impl-smoke-x86` 也已把它纳入固定前置步骤。当前 fresh 结果是 `SSE2_STRUCTURE_SUMMARY ... status=ok` 和 `SSE2_IMPL_SMOKE_SUMMARY steps=5 ... status=ok`，意味着 `SSE2` 当前这波 root/register/select/wide include 重排不再只是本地改动，而是带结构 contract 和 runtime contract 的正式证据
@@ -194,14 +194,14 @@ QEMU non-x86 runtime evidence 现在就是当前 non-x86 收口主线的一部�
 
 - `Task 2 / shift-bitwise`：
   - helper semantics：`NONX86_HELPER_SEMANTICS_SUMMARY checks=45 status=ok`
-  - implementation audit：`NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - implementation audit：`2026-04-19` 的历史聚合结果是 `NONX86_IMPL_AUDIT_SUMMARY steps=6 ... status=ok`；当前 head 已把 `riscvv-sensitive-hold-set` 升格进 canonical audit 链，因此 live truth 以 `steps=7` 为准
   - qemu runtime summary: [qemu-multiarch-20260419-012508-1690172/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260419-012508-1690172/summary.md)
   - qemu cpuinfo summary: [qemu-multiarch-20260419-013630-1748481/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260419-013630-1748481/summary.md)
   - 当前结论：boundary semantics、invalid-count fallback 和 data-plane snapshot 已具备 fresh closeout 证据；下一轮只需要 `hold green`
 - `Task 3 / arithmetic-minmax-mul`：
   - targeted release suites：`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_DirectDispatch,TTestCase_DataPlane` -> `[TEST] OK`
   - helper semantics：`NONX86_HELPER_SEMANTICS_SUMMARY checks=45 status=ok`
-  - implementation audit：`NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - implementation audit：`2026-04-19` 的历史聚合结果是 `NONX86_IMPL_AUDIT_SUMMARY steps=6 ... status=ok`；当前 head 已把 `riscvv-sensitive-hold-set` 升格进 canonical audit 链，因此 live truth 以 `steps=7` 为准
   - qemu runtime summary: [qemu-multiarch-20260419-012508-1690172/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260419-012508-1690172/summary.md)
   - qemu cpuinfo summary: [qemu-multiarch-20260419-013630-1748481/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260419-013630-1748481/summary.md)
   - 这轮直接证据：

@@ -6330,3 +6330,25 @@ closeout finalize，直到 `freeze-status` 重新转绿。
 | 1. 复核当前 residual 与 active-doc drift 边界 | completed | 已确认当前 no-asm `riscvv.facade.inc` 真正需要 hold 的只剩 `RISCVVRcpF64x4 / RISCVVClampF64x4 / RISCVVClampF64x8 / RISCVVReduceAddF64x4 / RISCVVReduceAddF64x8 / RISCVVReduceMulF64x4 / RISCVVReduceMulF64x8`；与此同时 `docs/fafafa.core.simd.closeout.md` 与 `docs/fafafa.core.simd.implementation-matrix.md` 仍把 live helper semantics 写成固定 `checks=761`。 |
 | 2. 落地 hold-set checker 与 docs/checker 同步 | completed | 已新增 `tests/fafafa.core.simd/check_riscvv_sensitive_hold_set.py`，并把它接入 `BuildOrTest.sh check` 与 `buildOrTest.bat check`；active docs 已改成 “live \`check_nonx86_helper_semantics.py --summary-line\` source truth” 口径，并补进 `check_riscvv_sensitive_hold_set.py` 的 hold-set 说明；`check_active_closeout_current_head_truth.py` / `check_implementation_matrix_sync.py` 也已同步 fail-close 这类文档回漂。 |
 | 3. 串行 Release 复验并确认 canonical gate 收口 | completed | fresh `git diff --check`、`py_compile`、`check_riscvv_sensitive_hold_set.py --summary-line`、`check_active_closeout_current_head_truth.py --summary-line`、`check_implementation_matrix_sync.py --summary-line`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 全部通过；其中 `RISCVV_SENSITIVE_HOLD_SET_SUMMARY routines=7 issues=0 status=ok`、`NONX86_HELPER_SEMANTICS_SUMMARY checks=772 status=ok`、Release `gate` 均已 fresh 打绿。 |
+
+## 2026-05-20 RISCVV Hold-Set Promoted Into Canonical NonX86 Impl Chain
+
+### Goal
+
+把 `riscvv-sensitive-hold-set` 从“只挂在 `check` 上的 source guard”
+提升进 canonical non-x86 implementation 审计主链，
+也就是正式纳入：
+- `impl-smoke-nonx86`
+- `impl-audit-nonx86`
+
+这样 `closeout-host-local -> impl-audit-nonx86` 才会天然消费这条
+最新的 `RISCVV` 敏感残余 truth source，
+不再存在“护栏已经有了，但 canonical impl chain 还没接入”的缺口。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 canonical chain 缺口与 active docs 漂移面 | completed | 已确认 `run_nonx86_impl_smoke()` / `run_nonx86_impl_audit()` 都还停在 `steps=6`，`riscvv-sensitive-hold-set` 只存在于 `check` 链；同时 `closeout` / `implementation-matrix` 仍在 active 叙事里延续旧的 `steps=6` 口径。 |
+| 2. 把 hold-set 接进 runner 与 active docs | completed | `tests/fafafa.core.simd/BuildOrTest.sh` 已把 `riscvv-sensitive-hold-set` 纳入 `impl-smoke-nonx86` / `impl-audit-nonx86`，两条 summary 都升为 `steps=7`；`docs/fafafa.core.simd.closeout.md`、`docs/fafafa.core.simd.implementation-matrix.md`、`docs/plans/2026-05-09-simd-riscvv-qualification-plan.md` 也已同步改成当前 head 真相。 |
+| 3. 串行 release 复验并收口 | completed | fresh `git diff --check`、`python3 tests/fafafa.core.simd/check_riscvv_sensitive_hold_set.py --summary-line`、`python3 tests/fafafa.core.simd/check_active_closeout_current_head_truth.py --summary-line`、`python3 tests/fafafa.core.simd/check_implementation_matrix_sync.py --summary-line`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-smoke-nonx86`、`impl-audit-nonx86`、`check`、`gate` 全部通过；关键结果已更新为 `NONX86_IMPL_SMOKE_SUMMARY steps=7 ... status=ok` 与 `NONX86_IMPL_AUDIT_SUMMARY steps=7 ... status=ok`。 |

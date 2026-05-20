@@ -4,7 +4,7 @@
 
 **Architecture:** `RISCVV` 当前继续保留为 `opt-in only` backend。stable truth source 仍是 `src/fafafa.core.simd.riscvv.pas`；`src/fafafa.core.simd.intrinsics.rvv.pas` 继续保持 `experimental isolated`。本计划只做 qualification，不做默认 stable 路径扩张。
 
-**Tech Stack:** `src/fafafa.core.simd.riscvv.pas`、`src/fafafa.core.simd.intrinsics.rvv.pas`、`riscvv.facade.inc`、`riscvv.register.inc`、`BuildOrTest.sh` 的 `riscvv-opcode-lane / impl-audit-nonx86 / closeout-host-local`、truthfulness / ABI shape checker。
+**Tech Stack:** `src/fafafa.core.simd.riscvv.pas`、`src/fafafa.core.simd.intrinsics.rvv.pas`、`riscvv.facade.inc`、`riscvv.register.inc`、`BuildOrTest.sh` 的 `riscvv-opcode-lane / impl-smoke-nonx86 / impl-audit-nonx86 / closeout-host-local`、truthfulness / ABI shape checker。
 
 ---
 
@@ -59,6 +59,8 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh nonx86-opti
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-smoke-nonx86
 ```
 
+其中 `impl-smoke-nonx86` 当前已经把 `riscvv-sensitive-hold-set` 纳入 canonical daily smoke；也就是说，这条 no-asm sensitive residual hold line 不再只存在于单独的 Python checker 里，而是属于 non-x86 implementation 主链的一部分。
+
 ### implementation / contract audit
 
 ```bash
@@ -69,6 +71,8 @@ python3 tests/fafafa.core.simd/check_riscvv_abi_shape.py --summary-line
 python3 tests/fafafa.core.simd/check_nonx86_register_truthfulness.py --backend riscvv --summary-line --strict
 python3 tests/fafafa.core.simd/check_nonx86_key_slot_audit.py --summary-line
 ```
+
+其中 `impl-audit-nonx86` 当前也已固定串上 `riscvv-sensitive-hold-set`；保留单独的 `python3 ...check_riscvv_sensitive_hold_set.py --summary-line` 主要是为了做 source-side 直检和日志定位，而不是替代 canonical audit lane。
 
 ### host-local / closeout lane
 

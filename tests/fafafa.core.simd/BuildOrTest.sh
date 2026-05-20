@@ -5897,7 +5897,7 @@ run_nonx86_impl_smoke() {
 
   LSmokeLog="${SIMD_NONX86_IMPL_SMOKE_LOG_FILE:-${NONX86_IMPL_SMOKE_LOG}}"
   LTargetedOutputRoot="${SIMD_NONX86_IMPL_SMOKE_OUTPUT_ROOT:-$(nonx86_impl_audit_output_root)}"
-  LStepCount=6
+  LStepCount=7
 
   mkdir -p "$(dirname "${LSmokeLog}")" "${LTargetedOutputRoot}"
   : > "${LSmokeLog}"
@@ -5908,6 +5908,7 @@ run_nonx86_impl_smoke() {
   run_nonx86_impl_smoke_step "${LSmokeLog}" "helper-semantics" run_nonx86_helper_semantics_check || return $?
   run_nonx86_impl_smoke_step "${LSmokeLog}" "key-slot-audit" run_nonx86_key_slot_audit_check || return $?
   run_nonx86_impl_smoke_step "${LSmokeLog}" "wiring-sync" run_nonx86_wiring_sync_smoke_check || return $?
+  run_nonx86_impl_smoke_step "${LSmokeLog}" "riscvv-sensitive-hold-set" run_riscvv_sensitive_hold_set_check || return $?
   run_nonx86_impl_smoke_step "${LSmokeLog}" "register-truthfulness-neon" run_register_truthfulness_backend neon 1 || return $?
   run_nonx86_impl_smoke_step "${LSmokeLog}" "register-truthfulness-riscvv" run_register_truthfulness_backend riscvv 1 || return $?
   run_nonx86_impl_smoke_step "${LSmokeLog}" "nonx86-backend-parity" \
@@ -5929,7 +5930,7 @@ run_nonx86_impl_audit() {
   LTargetedOutputRoot="${SIMD_NONX86_IMPL_AUDIT_OUTPUT_ROOT:-$(nonx86_impl_audit_output_root)}"
   LNativeEvidenceMode="${SIMD_IMPL_AUDIT_VERIFY_NONX86_NATIVE_EVIDENCE:-auto}"
   LNativeEvidenceStatus="skip"
-  LStepCount=6
+  LStepCount=7
 
   mkdir -p "$(dirname "${LAuditLog}")" "${LTargetedOutputRoot}"
   : > "${LAuditLog}"
@@ -5940,6 +5941,7 @@ run_nonx86_impl_audit() {
   run_nonx86_impl_audit_step "${LAuditLog}" "helper-semantics" run_nonx86_helper_semantics_check || return $?
   run_nonx86_impl_audit_step "${LAuditLog}" "wiring-sync" env SIMD_OUTPUT_ROOT="${OUTPUT_ROOT}" SIMD_WIRING_SYNC_STRICT_EXTRA="${SIMD_WIRING_SYNC_STRICT_EXTRA:-1}" bash "${ROOT}/BuildOrTest.sh" wiring-sync || return $?
   run_nonx86_impl_audit_step "${LAuditLog}" "riscvv-abi-shape" run_riscvv_abi_shape_check || return $?
+  run_nonx86_impl_audit_step "${LAuditLog}" "riscvv-sensitive-hold-set" run_riscvv_sensitive_hold_set_check || return $?
   run_nonx86_impl_audit_step "${LAuditLog}" "register-truthfulness-neon" run_register_truthfulness_backend neon 1 || return $?
   run_nonx86_impl_audit_step "${LAuditLog}" "register-truthfulness-riscvv" run_register_truthfulness_backend riscvv 1 || return $?
   run_nonx86_impl_audit_step "${LAuditLog}" "key-slot-audit" run_nonx86_key_slot_audit_check || return $?

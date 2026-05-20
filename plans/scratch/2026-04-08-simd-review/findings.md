@@ -9858,3 +9858,49 @@
   - `[CHECK] OK active closeout truth: 6 target docs`
   - Release `check` 通过
   - Release `gate` 通过
+
+## 2026-05-20 RISCVV Hold-Set Was Missing From Canonical NonX86 Impl Chain
+
+- 这轮继续往下审时，真正的新缺口已经不在 `riscvv.facade.inc` 实现本身，而在 runner 编排层：
+  - `tests/fafafa.core.simd/check_riscvv_sensitive_hold_set.py` 已存在，也已挂进 `BuildOrTest.sh check`
+  - 但 `run_nonx86_impl_smoke()` 仍是 `steps=6`
+  - `run_nonx86_impl_audit()` 也仍是 `steps=6`
+  - 于是 `closeout-host-local -> impl-audit-nonx86` 这条 canonical impl closeout 链，实际上还没有正式消费这条新 truth source
+- 这不是“重复跑一下 checker”那么简单，因为当前项目里真正定义 non-x86 implementation side 口径的是：
+  - `impl-smoke-nonx86`
+  - `impl-audit-nonx86`
+  - `closeout-host-local`
+  如果新护栏只停留在 `check`，那它仍属于旁路 guard，而不是 implementation mainline proof。
+- 已落地修复：
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - `impl-smoke-nonx86` 已新增 `riscvv-sensitive-hold-set`
+    - `impl-audit-nonx86` 已新增 `riscvv-sensitive-hold-set`
+    - 两条 summary 计数都已从 `steps=6` 升为 `steps=7`
+  - `docs/fafafa.core.simd.closeout.md`
+    - active closeout 叙事已改成 canonical audit 当前包含 `riscvv-sensitive-hold-set`
+    - historical `2026-04-19 steps=6` 事实保留为历史，并额外标明 current head live truth 现在是 `steps=7`
+  - `docs/fafafa.core.simd.implementation-matrix.md`
+    - `RISCVV facade/register hygiene` runtime evidence 已补入 `RISCVV_SENSITIVE_HOLD_SET_SUMMARY`
+    - `NONX86_IMPL_AUDIT_SUMMARY` 已同步为 `steps=7`
+    - execution baseline 也已明确 `impl-smoke-nonx86` 现在固定覆盖 `riscvv-sensitive-hold-set`
+  - `docs/plans/2026-05-09-simd-riscvv-qualification-plan.md`
+    - qualification lane 已明确 `impl-smoke-nonx86` / `impl-audit-nonx86` 当前都把 hold-set 作为 canonical lane 的一部分
+- fresh 串行验证已完成：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_riscvv_sensitive_hold_set.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_active_closeout_current_head_truth.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_implementation_matrix_sync.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-smoke-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- fresh 结果：
+  - `RISCVV_SENSITIVE_HOLD_SET_SUMMARY routines=7 issues=0 status=ok`
+  - `NONX86_IMPL_SMOKE_SUMMARY steps=7 targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=7 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - Release `check` 通过
+  - Release `gate` 通过
+- 当前结论更新：
+  - `riscvv-sensitive-hold-set` 现在不再只是 `check` 侧护栏，而是正式进入 non-x86 implementation 审计主链
+  - 当前最重要的 canonical non-x86 implementation truth 已从 `steps=6` 升级为 `steps=7`
+  - 这批修掉的是“主链漏接 guard”的结构缺口，不是又一次无边界翻实现细节

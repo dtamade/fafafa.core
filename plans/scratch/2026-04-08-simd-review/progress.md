@@ -16641,3 +16641,48 @@
 - 当前结论更新：
   - `riscvv` 最后允许保留的敏感 no-asm residual 现在已有 fail-close 机器护栏
   - active docs 不再需要追着 helper `checks=` 计数人工改写，后续只要 live checker 继续绿即可
+
+## 2026-05-20 RISCVV Hold-Set Promoted Into Canonical NonX86 Impl Chain
+
+- 这一批没有再回去碰 `riscvv.facade.inc` 里的敏感实现，而是继续收 runner/closeout 编排层的缺口。
+- fresh 复核后确认：
+  - `tests/fafafa.core.simd/check_riscvv_sensitive_hold_set.py` 已经存在，且 `BuildOrTest.sh check` 会跑它
+  - 但 `run_nonx86_impl_smoke()` 仍是 `steps=6`
+  - `run_nonx86_impl_audit()` 也仍是 `steps=6`
+  - 所以 `closeout-host-local -> impl-audit-nonx86` 还没把这条 hold-set 当作 canonical impl audit 的正式一步
+- 已落地修改：
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - `run_nonx86_impl_smoke()` 新增 `riscvv-sensitive-hold-set`
+    - `run_nonx86_impl_audit()` 新增 `riscvv-sensitive-hold-set`
+    - `LStepCount` 都从 `6` 升到 `7`
+  - `docs/fafafa.core.simd.closeout.md`
+    - active closeout 文案已同步成 “canonical audit 当前包含 `riscvv-sensitive-hold-set`”
+    - 历史 `2026-04-19 steps=6` 事实保留，但已明确 current head live truth 现在是 `steps=7`
+  - `docs/fafafa.core.simd.implementation-matrix.md`
+    - `RISCVV facade/register hygiene` runtime evidence 已补入 `RISCVV_SENSITIVE_HOLD_SET_SUMMARY`
+    - `NONX86_IMPL_AUDIT_SUMMARY` 已同步为 `steps=7`
+    - execution baseline 已明确 `impl-smoke-nonx86` 固定覆盖 `riscvv-sensitive-hold-set`
+  - `docs/plans/2026-05-09-simd-riscvv-qualification-plan.md`
+    - qualification lane 已写明 `impl-smoke-nonx86` / `impl-audit-nonx86` 当前都内建 hold-set
+    - 单独的 `python3 ...check_riscvv_sensitive_hold_set.py --summary-line` 现在被定义为 source-side 直检/定位入口，而不是替代 canonical audit lane
+- fresh 串行验证已完成：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_riscvv_sensitive_hold_set.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_active_closeout_current_head_truth.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_implementation_matrix_sync.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-smoke-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- fresh 结果：
+  - `RISCVV_SENSITIVE_HOLD_SET_SUMMARY routines=7 issues=0 status=ok`
+  - `NONX86_IMPL_SMOKE_SUMMARY steps=7 targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=7 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - `[CHECK] OK active closeout truth: 6 target docs`
+  - `IMPLEMENTATION_MATRIX_SYNC nonx86_slots=22 x86_rows=10 issues=0 status=ok`
+  - Release `check` 通过
+  - Release `gate` 通过
+- 当前结论更新：
+  - `riscvv-sensitive-hold-set` 现在已经从旁路 `check` 护栏升级为 canonical non-x86 implementation truth 的正式一步
+  - `closeout-host-local` 通过 `impl-audit-nonx86` 已能天然消费这条 hold-set，不再存在主链漏接
+  - 当前 next-highest-value 方向应继续找类似“护栏已存在但 canonical chain / docs / closeout 还没接上”的结构缺口，而不是重新把这 7 个敏感 residual 当成待删冗余
