@@ -17,6 +17,20 @@
 | 5. 刷新 Linux cross gate | completed | 提权后 QEMU `arm/v7` / `arm64` / `riscv64` CPUInfo evidence 全部 PASS |
 | 6. 刷新 Windows closeout freshness | in_progress | preflight 已 PASS；待 clean HEAD commit/push 后重新跑 `win-evidence-via-gh` |
 
+## 2026-05-20 Public API Coverage Strict-Thin Ratchet
+
+### Goal
+
+把已经做到的 `covered=537/537 + thin=0` 从“当前树状态碰巧为绿”升级成 canonical gate 默认硬约束，并同步 active closeout 文档口径。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 runner / docs 当前 truth | completed | 已确认 shell/batch runner 默认仍允许 `strict_thin=0`，active docs 也还没把这条写成 canonical fail-close |
+| 2. 收紧 runner 默认值并同步 active docs/checker | completed | `BuildOrTest.sh` / `buildOrTest.bat` 默认切到 strict-thin；README/overview/checklist/closeout/maintenance/handoff 与 active truth checker 已同步 |
+| 3. release 复验与 cross-ready 边界确认 | in_progress | `git diff --check`、strict-thin coverage、active closeout truth、release `gate` 已 PASS；`freeze-status` 因 `buildOrTest.bat` 更新而把 Windows evidence 判 stale，下一步需 clean HEAD commit/push 后重跑 `win-evidence-via-gh` |
+
 ## Goal
 
 持续审查 `fafafa.core.simd` 当前结构、验证基线、成熟度边界与 closeout truth，并对 repo 内发现的缺失、冗余和护栏漂移做最小修复；若只剩外部 evidence blocker，则明确停在该边界而不再空转。

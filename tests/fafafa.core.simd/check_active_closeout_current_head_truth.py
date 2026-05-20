@@ -12,6 +12,7 @@ TARGET_SPECS: dict[str, dict[str, tuple[str, ...]]] = {
             "模块状态应按 `code-green / cross-ready` 理解",
             "docs/fafafa.core.simd.checklist.md",
             "docs/fafafa.core.simd.closeout.md",
+            "canonical `public-api-coverage` 现在默认按 `strict-thin` 运行",
         ),
         "forbidden": (
             "截至 `2026-05-17`，模块状态应按 `code-green / release-evidence-blocked` 理解",
@@ -21,6 +22,7 @@ TARGET_SPECS: dict[str, dict[str, tuple[str, ...]]] = {
         "required": (
             "full `freeze-status` 当前为 `ready=True / mainline-ready=True / cross-ready=True`",
             "当前状态理解成 `code-green / cross-ready`",
+            "canonical `public-api-coverage` 现在默认按 `strict-thin` 运行",
         ),
     },
     "docs/fafafa.core.simd.checklist.md": {
@@ -28,6 +30,7 @@ TARGET_SPECS: dict[str, dict[str, tuple[str, ...]]] = {
             "`cross-ready=True`",
             "`code-green / cross-ready`",
             "只有当 future `freeze-status` 再次变红时",
+            "canonical `public-api-coverage` 现在默认按 `strict-thin` 运行",
         ),
     },
     "docs/fafafa.core.simd.closeout.md": {
@@ -37,6 +40,7 @@ TARGET_SPECS: dict[str, dict[str, tuple[str, ...]]] = {
             "如果 future `freeze-status` 里的 Windows evidence log 旧于最新",
             "live `check_nonx86_helper_semantics.py --summary-line` source truth",
             "`check_riscvv_sensitive_hold_set.py`",
+            "canonical `public-api-coverage` 现在默认按 `strict-thin` 运行",
         ),
         "forbidden_line_pairs": (
             ("当前 fresh 结果应理解为：", "`checks="),
@@ -47,12 +51,14 @@ TARGET_SPECS: dict[str, dict[str, tuple[str, ...]]] = {
         "required": (
             "当前应按 `code-green / cross-ready` 理解",
             "默认不要再重开 closeout blocker 讨论",
+            "canonical `public-api-coverage` 现在默认按 `strict-thin` 运行",
         ),
     },
     "docs/fafafa.core.simd.handoff.md": {
         "required": (
             "cross-platform `freeze-status` 当前为 `ready=True / mainline-ready=True / cross-ready=True`",
             "当前 `HEAD` 的更准确交接口径应是 `code-green / cross-ready`",
+            "canonical `public-api-coverage` 现在默认按 `strict-thin` 运行",
         ),
     },
 }

@@ -35,6 +35,47 @@
   - 还不能宣称整个 SIMD closeout fully complete
   - 下一步必须在 clean HEAD 上刷新 GH Windows evidence，再跑 `freeze-status`
 
+## 2026-05-20 Public API Coverage Strict-Thin Ratchet
+
+- 这轮明确不碰 SIMD 实现/架构，只把已经清零的 `thin` 覆盖成果收成 canonical gate 默认硬约束。
+- 已完成修改：
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - `public-api-coverage` 默认改为 `SIMD_PUBLIC_API_TEST_COVERAGE_STRICT_THIN=1`
+    - `gate` 输出与 help 文案改成 default strict-thin 口径
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+    - 同步把 `public-api-coverage` 默认切到 strict-thin
+    - gate/help 文案同步成 default strict-thin
+  - `src/fafafa.core.simd.README.md`
+  - `docs/fafafa.core.simd.md`
+  - `docs/fafafa.core.simd.checklist.md`
+  - `docs/fafafa.core.simd.closeout.md`
+  - `docs/fafafa.core.simd.maintenance.md`
+  - `docs/fafafa.core.simd.handoff.md`
+  - `tests/fafafa.core.simd/check_active_closeout_current_head_truth.py`
+    - active docs/checker 已同步要求 `canonical public-api-coverage 默认按 strict-thin 运行`
+- fresh 验证现状：
+  - `git diff --check`
+    - PASS
+  - `python3 tests/fafafa.core.simd/check_public_api_test_coverage.py --summary-line --strict-thin`
+    - `PUBLIC_API_TEST_COVERAGE_SUMMARY test_files=76 symbols=537 covered=537 missing=0 thin=0 min_refs=2 strict_thin=1 status=ok`
+  - `python3 tests/fafafa.core.simd/check_active_closeout_current_head_truth.py --summary-line`
+    - `[CHECK] OK active closeout truth: 6 target docs`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+    - PASS；其中 `public-api-coverage` step 已显示 `--strict-thin`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+    - FAIL，但失败原因已收敛为本轮修改 `buildOrTest.bat` 后导致 Windows evidence stale：
+      - `windows_evidence_inputs_not_newer_than_log`
+      - `windows_evidence_verify`
+      - `windows_closeout_summary`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`
+    - PASS
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-20260520-152`
+    - 当前拒绝 dispatch：`local worktree has uncommitted changes`
+- 结论：
+  - repo-local strict-thin ratchet 已完成并通过 mainline gate
+  - cross-ready 现在是被这批 runner/doc 改动触发的 Windows evidence freshness 重新拉红，不是 SIMD 逻辑回归
+  - 下一步必须先 commit（若要真正恢复 cross-ready，还需 push 后重跑 `win-evidence-via-gh`）
+
 ## 2026-04-08
 
 - 读取 `using-superpowers`、`writing-plans`、`planning-with-files`、`code-reviewer` 技能，确定本轮工作方式。

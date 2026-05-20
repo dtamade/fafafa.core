@@ -4065,7 +4065,7 @@ run_public_api_test_coverage() {
     "--summary-line"
     "--min-refs" "${SIMD_PUBLIC_API_TEST_COVERAGE_MIN_REFS:-2}"
   )
-  if [[ "${SIMD_PUBLIC_API_TEST_COVERAGE_STRICT_THIN:-0}" != "0" ]]; then
+  if [[ "${SIMD_PUBLIC_API_TEST_COVERAGE_STRICT_THIN:-1}" != "0" ]]; then
     LArgs+=("--strict-thin")
   fi
 
@@ -6373,6 +6373,7 @@ run_gate() {
   local LRunAllSummary
   local LGateInterfaceCompleteness
   local LGatePublicApiCoverage
+  local LGatePublicApiCoverageStrictThin
   local LGateContractSignature
   local LGatePublicAbiSignature
   local LGatePublicAbiSmoke
@@ -6405,6 +6406,7 @@ run_gate() {
   LGateStartMs="$(now_ms)"
   LGateInterfaceCompleteness="${SIMD_GATE_INTERFACE_COMPLETENESS:-1}"
   LGatePublicApiCoverage="${SIMD_GATE_PUBLIC_API_COVERAGE:-1}"
+  LGatePublicApiCoverageStrictThin="${SIMD_PUBLIC_API_TEST_COVERAGE_STRICT_THIN:-1}"
   LGateContractSignature="${SIMD_GATE_CONTRACT_SIGNATURE:-1}"
   LGatePublicAbiSignature="${SIMD_GATE_PUBLICABI_SIGNATURE:-1}"
   LGatePublicAbiSmoke="${SIMD_GATE_PUBLICABI_SMOKE:-1}"
@@ -6453,7 +6455,7 @@ run_gate() {
   fi
 
   if [[ "${LGatePublicApiCoverage}" != "0" ]]; then
-    echo "[GATE] Optional public API test coverage"
+    echo "[GATE] Public API test coverage (default strict-thin)"
     if ! run_gate_step "public-api-coverage" "public api test coverage passed" "public api test coverage failed" "${SIMD_PUBLIC_API_TEST_COVERAGE_JSON_FILE:-${PUBLIC_API_TEST_COVERAGE_JSON_LOG}}; ${SIMD_PUBLIC_API_TEST_COVERAGE_MD_FILE:-${PUBLIC_API_TEST_COVERAGE_MD_LOG}}" run_public_api_test_coverage; then
       LGateEndMs="$(now_ms)"
       LGateDurationMs="$(( LGateEndMs - LGateStartMs ))"
@@ -8091,7 +8093,7 @@ case "${ACTION}" in
     echo "  riscvv-abi-shape  Run the RISCVV ABI-shape Python audit only"
     echo "  source-reachability  Run the SIMD source reachability Python audit only"
     echo "  interface-completeness  Check public facade/dispatch/backend implementation completeness"
-    echo "  public-api-coverage  Check public facade/api test-source coverage"
+    echo "  public-api-coverage  Check public facade/api test-source coverage (default strict-thin)"
     echo "  dispatch-read-scope  Fail-close GetDispatchTable direct-read scope drift"
     echo "  dataplane-consumer-scope  Fail-close dataplane consumer scope drift"
     echo "  direct-dispatch-scope  Fail-close GetDirectDispatchTable scope drift"

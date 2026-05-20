@@ -166,7 +166,7 @@ echo   implementation-matrix-sync  Fail-close active implementation-matrix drift
 echo   riscvv-abi-shape  Run the RISCVV ABI-shape Python audit only
 echo   source-reachability  Run the SIMD source reachability Python audit only
 echo   interface-completeness  Check public facade/dispatch/backend implementation completeness
-echo   public-api-coverage  Check public facade/api test-source coverage
+echo   public-api-coverage  Check public facade/api test-source coverage ^(default strict-thin^)
 echo   dispatch-read-scope  Fail-close GetDispatchTable direct-read scope drift
 echo   dataplane-consumer-scope  Fail-close dataplane consumer scope drift
 echo   direct-dispatch-scope  Fail-close GetDirectDispatchTable scope drift
@@ -947,6 +947,7 @@ exit /b 2
 
 :public_api_coverage
 set "PUBLIC_API_COVERAGE_SCRIPT=%ROOT%check_public_api_test_coverage.py"
+if "%SIMD_PUBLIC_API_TEST_COVERAGE_STRICT_THIN%"=="" set "SIMD_PUBLIC_API_TEST_COVERAGE_STRICT_THIN=1"
 set "PUBLIC_API_COVERAGE_ARGS=--summary-line --min-refs 2"
 if not "%SIMD_PUBLIC_API_TEST_COVERAGE_MIN_REFS%"=="" set "PUBLIC_API_COVERAGE_ARGS=--summary-line --min-refs %SIMD_PUBLIC_API_TEST_COVERAGE_MIN_REFS%"
 if /I "%SIMD_PUBLIC_API_TEST_COVERAGE_STRICT_THIN%"=="1" set "PUBLIC_API_COVERAGE_ARGS=%PUBLIC_API_COVERAGE_ARGS% --strict-thin"
@@ -2213,7 +2214,7 @@ if /I "%SIMD_GATE_INTERFACE_COMPLETENESS%"=="1" (
 )
 
 if /I "%SIMD_GATE_PUBLIC_API_COVERAGE%"=="1" (
-  echo [GATE] Optional public API test coverage
+  echo [GATE] Public API test coverage ^(default strict-thin^)
   call "%SELF%" public-api-coverage
   if errorlevel 1 exit /b 1
 ) else (

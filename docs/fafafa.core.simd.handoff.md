@@ -35,6 +35,9 @@
   - `windows_evidence_verify` 已 PASS
   - `windows_sources_not_newer_than_evidence` 已 PASS
   - 当前 canonical fresh Windows evidence 批次为 `SIMD-20260519-152`
+- 当前 public API 覆盖也已经被 canonical gate 固化：
+  - canonical `public-api-coverage` 现在默认按 `strict-thin` 运行
+  - future `thin > 0` 会直接让 `gate` / `gate-strict` 变红
 - 这不是新的接口/实现质量问题，也不再是 billing / freshness blocker：
   - 当前 `HEAD` 的更准确交接口径应是 `code-green / cross-ready`
   - 历史文档里“Windows 已归档/已闭环”的标记仍只能理解成旧批次归档事实；但这一次 current `HEAD` 也已经重新拿回 cross-ready
@@ -52,6 +55,7 @@
 - backend 状态语义已拉直：现在明确区分 `supported_on_cpu / registered / dispatchable / active` 四层视图。
 - 性能收口已完成主判断：`VecI16x32Add`、`VecU8x64Max` 保留复用；`VecU32x16Mul` 仅观察；`VecU64x8Add`、`VecF32x4Add` 降级观察。
 - dispatch contract 已补 machine-readable signature guard：`gate` 默认会校验 `TSimdBackendInfo` / `TSimdDispatchTable` 的声明签名没有漂移。
+- public API 覆盖也已补 machine-readable thickness guard：`gate` / `gate-strict` 默认会把 `thin > 0` 当成 fail-close，而不再只是统计 `missing=0`
 
 ## 现在哪些地方比较稳
 

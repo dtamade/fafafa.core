@@ -26,6 +26,25 @@
   - 但也不能再把注意力放回“是不是接口/实现还缺一大块”
   - 当前 unfinished boundary 是 Windows closeout freshness，而不是 SIMD core correctness gap
 
+## 2026-05-20 Public API Coverage Strict-Thin Ratchet
+
+- 经过前一批薄覆盖清零后，当前真正剩下的 repo-local 缺口已经不是 `missing_symbols` 或 `thin_symbols` 本身，而是 canonical runner 还没有把这份成果默认守住：
+  - shell `BuildOrTest.sh` 的 `public-api-coverage` 默认值此前等于 `strict_thin=0`
+  - Windows `buildOrTest.bat` 同样只有在显式环境变量打开时才会追加 `--strict-thin`
+  - 所以即使树上已经是 `covered=537/537` 且 `thin=0`，future 回归仍可能在默认 gate 下悄悄退回 `thin>0`
+- 这说明当前最有价值的下一步不是继续补“更厚”的测试，而是把现有 `thin=0` 结果 ratchet 成 canonical fail-close：
+  - `public-api-coverage` 默认必须按 `strict-thin` 运行
+  - `gate` / `gate-strict` 的常规 green 不能再接受 `missing=0` 但 `thin>0`
+- 本轮实现后，fresh 证明链已经显示：
+  - `python3 tests/fafafa.core.simd/check_public_api_test_coverage.py --summary-line --strict-thin`
+    - `covered=537 missing=0 thin=0 strict_thin=1 status=ok`
+  - release `gate` 中的 `public-api-coverage` step 已明确带 `--strict-thin`
+  - active closeout docs 也已写死这条口径，不再把 `thin=0` 当成“当前状态碰巧如此”的软结论
+- 当前新的 unfinished boundary 也更精确了：
+  - 不是 Linux mainline/cross 证明链问题
+  - 也不是 SIMD 实现或 public API 测试覆盖再度缺口
+  - 而是因为本轮改动了 `buildOrTest.bat`，Windows evidence producer input 变新，所以 `freeze-status` 按规则把旧 Windows evidence 判为 stale；这需要 clean HEAD commit/push 后刷新 GH Windows evidence
+
 ## Structural Observations
 
 - `fafafa.core.simd` 已有较完整的文档体系，包含 `map`、`maintenance`、`checklist`、`handoff`、`publicabi` 和 `cpuinfo` 专项文档。

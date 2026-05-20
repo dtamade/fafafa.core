@@ -21,6 +21,7 @@
 - **想做完整 release closeout**：直接运行 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-release SIMD-YYYYMMDD-152`
   - 固定顺序：`win-evidence-preflight -> impl-smoke-x86 -> closeout-host-local -> win-evidence-via-gh -> freeze-status`
   - 先补一条当前事实：截至 `2026-05-19`，模块状态应按 `code-green / cross-ready` 理解；只有当 future `freeze-status` 再次红在 freshness / Windows evidence drift，或 future `win-evidence-preflight` 再次回到 `RECENT_BILLING_BLOCK` 时，才回到 `code-green / release-evidence-blocked` 的 closeout 叙事；接手前先看 `docs/fafafa.core.simd.checklist.md` / `docs/fafafa.core.simd.closeout.md`，不要把旧 blocker 文案当成当前 `HEAD` 事实
+  - 另一个当前已经固定下来的 gate 事实：canonical `public-api-coverage` 现在默认按 `strict-thin` 运行；future `thin > 0` 会直接让 `gate` / `gate-strict` 变红。只有为了诊断历史薄点时，才临时设 `SIMD_PUBLIC_API_TEST_COVERAGE_STRICT_THIN=0`
 - **想知道当前稳定边界**：看 `docs/fafafa.core.simd.handoff.md` 与 `src/fafafa.core.simd.STABLE`
 - **想快速看这轮收尾结果和回归矩阵**：看 `docs/fafafa.core.simd.closeout.md`
 

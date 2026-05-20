@@ -16,6 +16,9 @@
 - 当前 release closeout 也已完成：
   - full `freeze-status` 当前为 `ready=True / mainline-ready=True / cross-ready=True`
   - 最新 `windows_preflight_latest`、`windows_evidence_verify`、`windows_sources_not_newer_than_evidence` 都已 PASS
+- 当前 public API proof 也已 fail-close：
+  - canonical `public-api-coverage` 现在默认按 `strict-thin` 运行
+  - future `thin > 0` 会直接让 `gate` / `gate-strict` 变红
 - 因此，如果你这次只是从入口文档重新接手模块，不要先重开 SIMD 泛审查；先看 `docs/fafafa.core.simd.checklist.md` 与 `docs/fafafa.core.simd.closeout.md`，并把当前状态理解成 `code-green / cross-ready`
 
 ### 设计目标

@@ -24,6 +24,10 @@
 - 当前最该记住的操作判断：
   - 默认不要再重开 closeout blocker 讨论；下一步应回到真实实现 residual、family qualification 或 raw-leaf qualification
   - 只有当 future `freeze-status` 再次变红时，才回到 evidence refresh 处理链
+- 当前 public API 覆盖的 gate 判断也已固定：
+  - canonical `public-api-coverage` 现在默认按 `strict-thin` 运行
+  - future `thin > 0` 会直接让 `gate` / `gate-strict` 变红
+  - 只有为了诊断历史薄点，才临时设 `SIMD_PUBLIC_API_TEST_COVERAGE_STRICT_THIN=0`；不要把非 strict 结果当 canonical green
 
 补一条当前冻结判定纪律：
 
@@ -84,6 +88,7 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate
 - `check`：编译卫生 + 基础 runner parity；现在还会 fresh 编译 `NEON/RISCVV` 的 opt-in `--list-suites` 路径，并带上 `check_riscvv_abi_shape.py`，专门防止 non-x86 opt-in compile drift / RISCVV hidden-result-pointer ABI 漂移再次躲过默认门禁
 - 两个 `--suite`：最关键的 dispatch / direct 回归
 - `gate`：日常改动使用的快门禁 / 基础门禁
+- `public-api-coverage`：当前已不是“只看有没有测到”的宽松统计；默认就是 `covered=537/537` 且 `thin=0` 的 hard guard
 - `gate`：现在默认还会重跑历史爆炸组合 `TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`，用来盯住 runtime 发布 / public ABI / 并发框架交叉回归
 - 如果你改的是 `runtime / cpuinfo / dataplane / façade` 这一层接口边界，优先再补两条：
 
