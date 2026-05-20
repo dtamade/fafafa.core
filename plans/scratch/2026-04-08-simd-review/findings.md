@@ -9676,3 +9676,47 @@
 - fresh 结论：
   - 当前不是“又发现 SIMD 实现 bug”
   - 而是“active doc truth 终于被纳入主门禁，不会再让当前 `HEAD` 绿态被旧 blocker 叙事覆盖”
+
+## 2026-05-20 Fresh Closeout Recovery Also Exposed A Wrong Continuation Target
+
+- 这轮先没有重开实现面，而是直接复核 fresh `freeze-status` 为什么会从前一批绿态重新转红。
+- 现场对位后，红因已经能精确收敛到两条 freshness 边界：
+  - Linux/cross gate 选中的 `qemu-cpuinfo-nonx86-evidence` snapshot 旧于最新源码
+  - Windows canonical evidence / closeout summary 旧于更新过的 `tests/fafafa.core.simd/buildOrTest.bat`
+- 这说明问题不是 “SIMD 算法又坏了”，而是 closeout 证据链被新源码时间戳追过了。
+- fresh 证据刷新链已经重新跑通：
+  - GH Windows evidence 批次：`SIMD-20260520-152`
+  - GH run: `26138113217`
+  - fresh QEMU CPUInfo cross evidence summary：
+    - `tests/fafafa.core.simd/logs/qemu-multiarch-20260520-105526-654140/summary.md`
+  - 随后 `freeze-status` 已重新回到
+    - `ready=True`
+    - `mainline-ready=True`
+    - `cross-ready=True`
+- 但在检查自动回填结果时，又抓到一个真实续航入口错误：
+  - `tests/fafafa.core.simd/apply_windows_b07_closeout_updates.sh` 还在把 closeout apply 追加到仓库根 `progress.md`
+  - 而这个根文件开头已经明确声明
+    - `This root file no longer carries active execution logs on main.`
+    - SIMD 续航应走 `plans/scratch/2026-04-08-simd-review/progress.md`
+- 这个错误的风险不是“文案不好看”，而是：
+  - closeout 脚本会继续把 active 续航写回已归档入口
+  - 维护者会在 root progress 和 scratch progress 之间看到两套互相竞争的 continuation 面
+  - 用户之前明确要求 SIMD continuation 只留在 scratch 三件套，这个脚本会持续违背该约束
+- 已落地修复：
+  - `apply_windows_b07_closeout_updates.sh`
+    - `PROGRESS_FILE` 已改到 `plans/scratch/2026-04-08-simd-review/progress.md`
+    - apply snippet 文案改成 `roadmap / matrix / RC checklist / scratch progress`
+  - `finalize_windows_b07_closeout.sh`
+    - `Next Doc Updates` 已改成真实更新面：roadmap / matrix / RC checklist / scratch progress
+  - `rehearse_windows_closeout_summary.sh`
+    - apply case 改为创建并校验 scratch progress，而不是 root progress
+  - `progress.md`
+    - 已清掉误写入的 SIMD active closeout 片段，恢复成 archived pointer，并补了 scratch continuity 入口
+- fresh 收口验证：
+  - `bash tests/fafafa.core.simd/rehearse_windows_closeout_summary.sh` 通过，apply case 现已只校验 scratch progress marker
+  - `git diff --check` 通过
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 通过
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 通过，结果仍是 `ready=True / mainline-ready=True / cross-ready=True`
+- 当前结论更新：
+  - 这轮真正修掉的是 closeout apply 的错误续航目标，不是 SIMD 实现缺口
+  - fresh evidence 已恢复当前 `HEAD` 的 cross-ready 真相，且后续 Windows closeout apply 不会再把 continuation 写回错误入口

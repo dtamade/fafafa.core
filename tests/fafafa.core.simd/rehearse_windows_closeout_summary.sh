@@ -152,8 +152,9 @@ cat > "${LCaseApply}/tests/fafafa.core.simd/docs/simd_release_candidate_checklis
 - Windows 侧：待补实机日志后完成跨平台证据闭环。
 EOM
 
-cat > "${LCaseApply}/progress.md" <<'EOM'
-# progress
+mkdir -p "${LCaseApply}/plans/scratch/2026-04-08-simd-review"
+cat > "${LCaseApply}/plans/scratch/2026-04-08-simd-review/progress.md" <<'EOM'
+# SIMD Review Progress
 EOM
 
 "${LCaseApply}/tests/fafafa.core.simd/apply_windows_b07_closeout_updates.sh" \
@@ -181,9 +182,9 @@ if ! grep -F -- '当前 `HEAD` 是否完成跨平台证据闭环，仍以最新 
   exit 1
 fi
 
-if ! grep -F -- 'SIMD-WIN-CLOSEOUT-2026-05-17' "${LCaseApply}/progress.md" >/dev/null; then
-  echo "[WIN-CLOSEOUT-SUMMARY-REHEARSAL] FAILED: apply case should append progress marker"
-  cat "${LCaseApply}/progress.md"
+if ! grep -F -- 'SIMD-WIN-CLOSEOUT-2026-05-17' "${LCaseApply}/plans/scratch/2026-04-08-simd-review/progress.md" >/dev/null; then
+  echo "[WIN-CLOSEOUT-SUMMARY-REHEARSAL] FAILED: apply case should append scratch progress marker"
+  cat "${LCaseApply}/plans/scratch/2026-04-08-simd-review/progress.md"
   exit 1
 fi
 

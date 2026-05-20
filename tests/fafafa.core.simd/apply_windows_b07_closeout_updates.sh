@@ -391,7 +391,7 @@ PROGRESS_BLOCK=$(cat <<EOM
 ### 执行动作
 - 在 Windows 实机完成 buildOrTest.bat evidence-win-verify（要求 native Windows LAZBUILD，不要用 Wine/cmd 冒充实机）。
 - 生成并归档收口摘要：finalize-win-evidence。
-- 回填 roadmap / matrix / progress，关闭跨平台证据缺口。
+- 回填 roadmap / matrix / RC checklist / scratch progress，关闭跨平台证据缺口。
 
 ### 命令与结果
 | Command | Result |
@@ -423,7 +423,7 @@ emit_snippets() {
   echo "### Matrix snippet"
   echo "${MATRIX_BLOCK}"
   echo
-  echo "### Progress snippet"
+  echo "### Scratch progress snippet"
   echo "${PROGRESS_BLOCK}"
 }
 
@@ -500,7 +500,7 @@ require_freeze_ready_for_apply
 ROADMAP_FILE="${REPO_ROOT}/docs/plans/2026-02-09-simd-unblock-closeout-roadmap.md"
 MATRIX_FILE="${REPO_ROOT}/tests/fafafa.core.simd/docs/simd_completeness_matrix.md"
 RC_FILE="${REPO_ROOT}/tests/fafafa.core.simd/docs/simd_release_candidate_checklist.md"
-PROGRESS_FILE="${REPO_ROOT}/progress.md"
+PROGRESS_FILE="${REPO_ROOT}/plans/scratch/2026-04-08-simd-review/progress.md"
 
 for LFile in "${ROADMAP_FILE}" "${MATRIX_FILE}" "${RC_FILE}" "${PROGRESS_FILE}"; do
   if [[ ! -f "${LFile}" ]]; then

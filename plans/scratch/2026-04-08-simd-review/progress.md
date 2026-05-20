@@ -16451,3 +16451,42 @@
 - 当前阶段结论：
   - 这批收的是 active-doc truthfulness + runner parity，不是新的 SIMD 算法修复
   - 当前 `HEAD` 的 closeout 绿态已经有 machine guard 守着，后续再漂回旧 blocker 文案会直接在 `check/gate` 被拦下
+
+## 2026-05-20 Windows Closeout Apply Target Retarget And Fresh Freeze Recovery
+
+- 继续按“不要再空转泛审查”的方式收口，这轮先直接看 fresh `freeze-status` 与自动 finalize 留下的未提交回填，而不是重开实现层 diff。
+- 现场确认 worktree 初始只剩 3 个 auto-apply 文件：
+  - `docs/plans/2026-02-09-simd-unblock-closeout-roadmap.md`
+  - `tests/fafafa.core.simd/docs/simd_completeness_matrix.md`
+  - `progress.md`
+- fresh 红因也先被压实成 artifact freshness，而不是实现退化：
+  - `qemu-cpuinfo-nonx86-evidence` snapshot 旧于最新源码
+  - Windows evidence / closeout summary 旧于新 `buildOrTest.bat`
+- 为了恢复 canonical closeout truth，先接受 fresh 证据刷新链：
+  - GH Windows evidence 批次：`SIMD-20260520-152`
+  - GH run：`26138113217`
+  - fresh QEMU CPUInfo cross evidence summary：
+    - `tests/fafafa.core.simd/logs/qemu-multiarch-20260520-105526-654140/summary.md`
+- 随后回到自动回填结果时，又抓到了一个真实问题：
+  - `apply_windows_b07_closeout_updates.sh` 仍把 continuation 追加到仓库根 `progress.md`
+  - 但根文件自己已经声明“不再承载 active execution logs”，这和 SIMD 当前 continuation 规则直接冲突
+- 这轮因此顺手把 closeout apply 的 continuation 入口收正了：
+  - `apply_windows_b07_closeout_updates.sh`
+    - `PROGRESS_FILE` 改到 `plans/scratch/2026-04-08-simd-review/progress.md`
+    - apply 文案改成 `roadmap / matrix / RC checklist / scratch progress`
+  - `finalize_windows_b07_closeout.sh`
+    - `Next Doc Updates` 同步成真实 4 个目标
+  - `rehearse_windows_closeout_summary.sh`
+    - apply case 改为创建/验证 scratch progress marker
+  - `progress.md`
+    - 清掉误写入的 SIMD active closeout 片段
+    - 只保留 archived pointer，并增加 scratch continuity 入口
+- 这轮已完成的收口验证链：
+  - `bash tests/fafafa.core.simd/rehearse_windows_closeout_summary.sh`
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+- fresh 结果：
+  - closeout apply 之后只会更新 active roadmap / matrix / RC checklist / scratch progress
+  - root `progress.md` 不再重新承载 SIMD active 续航
+  - fresh `freeze-status` 继续保持 `ready=True / mainline-ready=True / cross-ready=True`

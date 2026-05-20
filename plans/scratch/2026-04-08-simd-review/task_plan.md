@@ -6223,3 +6223,20 @@ closeout finalize，直到 `freeze-status` 重新转绿。
 | 1. 复核 active docs 漂移与护栏缺口 | completed | 已确认 active docs 里真正漂移的 current-head 口径只剩 `src/fafafa.core.simd.README.md`；现有 `historical-closeout-note-check` 只守历史计划 redirect，不守 active docs 当前真相 |
 | 2. 修 active docs 并补 machine guard | completed | `src/fafafa.core.simd.README.md` 已改回 `code-green / cross-ready`；新增 `tests/fafafa.core.simd/check_active_closeout_current_head_truth.py`，并把它接入 `BuildOrTest.sh` 的 `check/gate` 静态链、`closeout-guard`、`gate-summary-selfcheck` 与手动 action |
 | 3. 同步 Windows runner parity 并做 release 复验 | completed | checked-in `tests/fafafa.core.simd/buildOrTest.bat` 已同步 `active-closeout-truth-check`；fresh `py_compile`、active checker、`git diff --check`、Release `check`、Release `gate` 全绿，新的 guard 已真实进入主门禁 |
+
+## 2026-05-20 Windows Closeout Apply Target Retarget And Fresh Freeze Recovery
+
+### Goal
+
+收口这轮 fresh closeout 回填，并修正一个真实续航入口错误：
+`apply_windows_b07_closeout_updates.sh` 仍把 Windows closeout apply 写进已归档的根 `progress.md`；
+需要把 continuation 记录重新对齐到 `plans/scratch/2026-04-08-simd-review/progress.md`，
+同时把 fresh `freeze-status` 红因、GH evidence 刷新批次与恢复绿态写回 scratch。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前未提交 closeout 回填与真实红因 | completed | 已确认自动 finalize 只留下 roadmap/matrix/root-progress 三处回填；fresh 红因不是实现退化，而是 `qemu-cpuinfo-nonx86-evidence` snapshot 旧于最新源码，以及 Windows evidence/summary 旧于新 `buildOrTest.bat` runner |
+| 2. 修正 closeout apply 的 continuation 目标路径 | completed | `apply_windows_b07_closeout_updates.sh` 已把 progress 目标改到 scratch progress；`finalize_windows_b07_closeout.sh` 的 next-doc-update 文案、`rehearse_windows_closeout_summary.sh` 的 apply case 也已同步；根 `progress.md` 已恢复成 archived pointer，只保留 scratch 入口 |
+| 3. 同步 scratch 真相并做收口验证 | completed | 已写回 `SIMD-20260520-152` / GH run `26138113217` / fresh cross-ready 真相；`bash tests/fafafa.core.simd/rehearse_windows_closeout_summary.sh`、`git diff --check`、Release `check`、Release `freeze-status` 全部通过 |

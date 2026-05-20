@@ -199,7 +199,8 @@ cat >> "${OUT_PATH}" <<EOM
 
 - Update: docs/plans/2026-02-09-simd-unblock-closeout-roadmap.md
 - Update: tests/fafafa.core.simd/docs/simd_completeness_matrix.md
-- Update: progress.md
+- Update: tests/fafafa.core.simd/docs/simd_release_candidate_checklist.md
+- Update: plans/scratch/2026-04-08-simd-review/progress.md
 EOM
 
 if [[ "${LVerifierRc}" -eq 0 ]]; then
