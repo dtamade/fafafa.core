@@ -6369,3 +6369,22 @@ closeout finalize，直到 `freeze-status` 重新转绿。
 | 1. 复核 canonical chain 缺口与 active docs 漂移面 | completed | 已确认 `run_nonx86_impl_smoke()` / `run_nonx86_impl_audit()` 都还停在 `steps=6`，`riscvv-sensitive-hold-set` 只存在于 `check` 链；同时 `closeout` / `implementation-matrix` 仍在 active 叙事里延续旧的 `steps=6` 口径。 |
 | 2. 把 hold-set 接进 runner 与 active docs | completed | `tests/fafafa.core.simd/BuildOrTest.sh` 已把 `riscvv-sensitive-hold-set` 纳入 `impl-smoke-nonx86` / `impl-audit-nonx86`，两条 summary 都升为 `steps=7`；`docs/fafafa.core.simd.closeout.md`、`docs/fafafa.core.simd.implementation-matrix.md`、`docs/plans/2026-05-09-simd-riscvv-qualification-plan.md` 也已同步改成当前 head 真相。 |
 | 3. 串行 release 复验并收口 | completed | fresh `git diff --check`、`python3 tests/fafafa.core.simd/check_riscvv_sensitive_hold_set.py --summary-line`、`python3 tests/fafafa.core.simd/check_active_closeout_current_head_truth.py --summary-line`、`python3 tests/fafafa.core.simd/check_implementation_matrix_sync.py --summary-line`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-smoke-nonx86`、`impl-audit-nonx86`、`check`、`gate` 全部通过；关键结果已更新为 `NONX86_IMPL_SMOKE_SUMMARY steps=7 ... status=ok` 与 `NONX86_IMPL_AUDIT_SUMMARY steps=7 ... status=ok`。 |
+
+## 2026-05-20 Public API Thin Coverage Reduction Batch 1
+
+### Goal
+
+在不碰 `simd` 实现和架构的前提下，专门收缩 `public-api-coverage`
+里最容易安全增厚的一批 `thin_symbols(<2)`：
+- `TypeConversion` / `ShuffleSWizzle` 的 7 个 façade API
+- `dispatchapi` 大块 smoke 里的 3 个 façade API
+- `VecF32x8` testcase 里的 9 个 float façade API
+- `VecF64x4` testcase 里的 6 个 compare façade API
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 thin 清单并锁定安全批次 | completed | fresh `check_public_api_test_coverage.py --summary-line` 确认起点为 `covered=537 missing=0 thin=55`；这批只补第二场景，不打开实现/文档/runner 架构面 |
+| 2. 直接在现有 testcase 内补第二场景 | completed | 已只修改 4 个测试文件；每个薄点新增不同输入/掩码/边界值，避免新增 suite 结构或碰实现文件 |
+| 3. 串行 release 复验并确认 gate 仍绿 | completed | `git diff --check`、`python3 tests/fafafa.core.simd/check_public_api_test_coverage.py --summary-line`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 全部通过 |

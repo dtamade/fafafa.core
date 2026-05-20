@@ -420,6 +420,13 @@ begin
   AssertTrue('3.0 == 4.0 should be false', (mask and 2) = 0);
   AssertTrue('7.0 == 7.0 should be true', (mask and 4) <> 0);
   AssertTrue('2.0 == 3.0 should be false', (mask and 8) = 0);
+
+  a.d[0] := -1.0; a.d[1] := 0.0; a.d[2] := 3.5; a.d[3] := -0.0;
+  b.d[0] := -1.0; b.d[1] := 1.0; b.d[2] := 3.0; b.d[3] := 0.0;
+
+  mask := VecF64x4CmpEq(a, b);
+
+  AssertEquals('CmpEq alt mask', 9, Integer(mask));
 end;
 
 procedure TTestCase_VecF64x4.Test_VecF64x4_CmpLt;
@@ -437,6 +444,13 @@ begin
   AssertTrue('5.0 < 5.0 should be false', (mask and 2) = 0);
   AssertTrue('7.0 < 3.0 should be false', (mask and 4) = 0);
   AssertTrue('2.0 < 9.0 should be true', (mask and 8) <> 0);
+
+  a.d[0] := -2.0; a.d[1] := 4.0; a.d[2] := 0.5; a.d[3] := 9.0;
+  b.d[0] := -1.0; b.d[1] := 4.0; b.d[2] := 1.5; b.d[3] := 8.0;
+
+  mask := VecF64x4CmpLt(a, b);
+
+  AssertEquals('CmpLt alt mask', 5, Integer(mask));
 end;
 
 procedure TTestCase_VecF64x4.Test_VecF64x4_CmpLe;
@@ -454,6 +468,13 @@ begin
   AssertTrue('5.0 <= 5.0 should be true', (mask and 2) <> 0);
   AssertTrue('7.0 <= 3.0 should be false', (mask and 4) = 0);
   AssertTrue('2.0 <= 9.0 should be true', (mask and 8) <> 0);
+
+  a.d[0] := -2.0; a.d[1] := 4.0; a.d[2] := 0.5; a.d[3] := 9.0;
+  b.d[0] := -2.0; b.d[1] := 3.0; b.d[2] := 1.5; b.d[3] := 9.0;
+
+  mask := VecF64x4CmpLe(a, b);
+
+  AssertEquals('CmpLe alt mask', 13, Integer(mask));
 end;
 
 procedure TTestCase_VecF64x4.Test_VecF64x4_CmpGt;
@@ -471,6 +492,13 @@ begin
   AssertTrue('5.0 > 5.0 should be false', (mask and 2) = 0);
   AssertTrue('3.0 > 7.0 should be false', (mask and 4) = 0);
   AssertTrue('9.0 > 2.0 should be true', (mask and 8) <> 0);
+
+  a.d[0] := -1.0; a.d[1] := 5.0; a.d[2] := 2.0; a.d[3] := 8.0;
+  b.d[0] := -2.0; b.d[1] := 5.0; b.d[2] := 1.0; b.d[3] := 9.0;
+
+  mask := VecF64x4CmpGt(a, b);
+
+  AssertEquals('CmpGt alt mask', 5, Integer(mask));
 end;
 
 procedure TTestCase_VecF64x4.Test_VecF64x4_CmpGe;
@@ -488,6 +516,13 @@ begin
   AssertTrue('5.0 >= 5.0 should be true', (mask and 2) <> 0);
   AssertTrue('3.0 >= 7.0 should be false', (mask and 4) = 0);
   AssertTrue('9.0 >= 2.0 should be true', (mask and 8) <> 0);
+
+  a.d[0] := -1.0; a.d[1] := 5.0; a.d[2] := 2.0; a.d[3] := 9.0;
+  b.d[0] := -1.0; b.d[1] := 4.0; b.d[2] := 1.0; b.d[3] := 10.0;
+
+  mask := VecF64x4CmpGe(a, b);
+
+  AssertEquals('CmpGe alt mask', 7, Integer(mask));
 end;
 
 procedure TTestCase_VecF64x4.Test_VecF64x4_CmpNe;
@@ -505,6 +540,13 @@ begin
   AssertTrue('3.0 != 4.0 should be true', (mask and 2) <> 0);
   AssertTrue('7.0 != 7.0 should be false', (mask and 4) = 0);
   AssertTrue('2.0 != 3.0 should be true', (mask and 8) <> 0);
+
+  a.d[0] := -1.0; a.d[1] := 0.0; a.d[2] := 2.0; a.d[3] := 8.0;
+  b.d[0] := -1.0; b.d[1] := 1.0; b.d[2] := 3.0; b.d[3] := 8.0;
+
+  mask := VecF64x4CmpNe(a, b);
+
+  AssertEquals('CmpNe alt mask', 6, Integer(mask));
 end;
 
 // === 规约操作测试 ===

@@ -12451,9 +12451,19 @@ begin
   for LIndex := 0 to 3 do
     AssertEquals('VecU64x4Splat lane ' + IntToStr(LIndex), QWord($ABCDEF0123456789), LU64x4Facade.u[LIndex]);
 
+  LU64x4Facade := fafafa.core.simd.VecU64x4Splat(QWord(42));
+  for LIndex := 0 to 3 do
+    AssertEquals('VecU64x4Splat alt lane ' + IntToStr(LIndex), QWord(42), LU64x4Facade.u[LIndex]);
+
   LU64x4Facade := fafafa.core.simd.VecU64x4Zero;
   for LIndex := 0 to 3 do
     AssertEquals('VecU64x4Zero lane ' + IntToStr(LIndex), QWord(0), LU64x4Facade.u[LIndex]);
+
+  for LIndex := 0 to 3 do
+    LU64x4A.u[LIndex] := High(QWord) - QWord(LIndex);
+  LU64x4Facade := fafafa.core.simd.VecU64x4Zero;
+  for LIndex := 0 to 3 do
+    AssertEquals('VecU64x4Zero alt lane ' + IntToStr(LIndex), QWord(0), LU64x4Facade.u[LIndex]);
 
   for LIndex := 0 to 7 do
   begin
@@ -12463,6 +12473,15 @@ begin
   LU16x8Facade := fafafa.core.simd.VecU16x8Mul(LU16x8A, LU16x8B);
   LU16x8Scalar := ScalarMulU16x8(LU16x8A, LU16x8B);
   AssertVecU16x8Equal('VecU16x8Mul', LU16x8Scalar, LU16x8Facade);
+
+  for LIndex := 0 to 7 do
+  begin
+    LU16x8A.u[LIndex] := Word($FFF0 - LIndex);
+    LU16x8B.u[LIndex] := Word(LIndex + 2);
+  end;
+  LU16x8Facade := fafafa.core.simd.VecU16x8Mul(LU16x8A, LU16x8B);
+  LU16x8Scalar := ScalarMulU16x8(LU16x8A, LU16x8B);
+  AssertVecU16x8Equal('VecU16x8Mul alt', LU16x8Scalar, LU16x8Facade);
 
   for LIndex := 0 to 7 do
   begin

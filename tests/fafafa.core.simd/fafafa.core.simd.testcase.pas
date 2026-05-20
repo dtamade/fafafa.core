@@ -13396,6 +13396,18 @@ begin
   AssertEquals('-2.9 truncates to -2', -2, i.i[1]);
   AssertEquals('0.0 truncates to 0', 0, i.i[2]);
   AssertEquals('100.5 truncates to 100', 100, i.i[3]);
+
+  f.f[0] := -1.1;
+  f.f[1] := 2.999;
+  f.f[2] := -0.99;
+  f.f[3] := 42.01;
+
+  i := VecF32x4CastToI32x4(f);
+
+  AssertEquals('-1.1 truncates to -1', -1, i.i[0]);
+  AssertEquals('2.999 truncates to 2', 2, i.i[1]);
+  AssertEquals('-0.99 truncates to 0', 0, i.i[2]);
+  AssertEquals('42.01 truncates to 42', 42, i.i[3]);
 end;
 
 procedure TTestCase_TypeConversion.Test_VecI32x4_CastToF32x4;
@@ -13414,6 +13426,18 @@ begin
   AssertEquals('-2 converts to -2.0', -2.0, f.f[1], 0.0001);
   AssertEquals('0 converts to 0.0', 0.0, f.f[2], 0.0001);
   AssertEquals('100 converts to 100.0', 100.0, f.f[3], 0.0001);
+
+  i.i[0] := -123;
+  i.i[1] := 456;
+  i.i[2] := -789;
+  i.i[3] := 2048;
+
+  f := VecI32x4CastToF32x4(i);
+
+  AssertEquals('-123 converts to -123.0', -123.0, f.f[0], 0.0001);
+  AssertEquals('456 converts to 456.0', 456.0, f.f[1], 0.0001);
+  AssertEquals('-789 converts to -789.0', -789.0, f.f[2], 0.0001);
+  AssertEquals('2048 converts to 2048.0', 2048.0, f.f[3], 0.0001);
 end;
 
 procedure TTestCase_TypeConversion.Test_VecF64x2_CastToI64x2;
@@ -14058,6 +14082,13 @@ begin
   AssertEquals('Swap[1]', 40, r.i[1]);
   AssertEquals('Swap[2]', 10, r.i[2]);
   AssertEquals('Swap[3]', 20, r.i[3]);
+
+  r := VecI32x4Shuffle(a, $FF);
+
+  AssertEquals('Broadcast hi[0]', 40, r.i[0]);
+  AssertEquals('Broadcast hi[1]', 40, r.i[1]);
+  AssertEquals('Broadcast hi[2]', 40, r.i[2]);
+  AssertEquals('Broadcast hi[3]', 40, r.i[3]);
 end;
 
 procedure TTestCase_ShuffleSWizzle.Test_VecF32x4_Shuffle2;
@@ -14074,6 +14105,13 @@ begin
   AssertEquals('Shuffle2[1] from a', 2.0, r.f[1], 0.0001);
   AssertEquals('Shuffle2[2] from b', 10.0, r.f[2], 0.0001);
   AssertEquals('Shuffle2[3] from b', 20.0, r.f[3], 0.0001);
+
+  r := VecF32x4Shuffle2(a, b, $EE);
+
+  AssertEquals('Shuffle2 hi[0] from a', 3.0, r.f[0], 0.0001);
+  AssertEquals('Shuffle2 hi[1] from a', 4.0, r.f[1], 0.0001);
+  AssertEquals('Shuffle2 hi[2] from b', 30.0, r.f[2], 0.0001);
+  AssertEquals('Shuffle2 hi[3] from b', 40.0, r.f[3], 0.0001);
 end;
 
 procedure TTestCase_ShuffleSWizzle.Test_VecF32x4_Blend;
@@ -14090,6 +14128,13 @@ begin
   AssertEquals('Blend[1] from a', 2.0, r.f[1], 0.0001);
   AssertEquals('Blend[2] from b', 30.0, r.f[2], 0.0001);
   AssertEquals('Blend[3] from a', 4.0, r.f[3], 0.0001);
+
+  r := VecF32x4Blend(a, b, 10);
+
+  AssertEquals('Blend alt[0] from a', 1.0, r.f[0], 0.0001);
+  AssertEquals('Blend alt[1] from b', 20.0, r.f[1], 0.0001);
+  AssertEquals('Blend alt[2] from a', 3.0, r.f[2], 0.0001);
+  AssertEquals('Blend alt[3] from b', 40.0, r.f[3], 0.0001);
 end;
 
 procedure TTestCase_ShuffleSWizzle.Test_VecF64x2_Blend;
@@ -14104,6 +14149,11 @@ begin
   
   AssertEquals('Blend[0] from b', 10.0, r.d[0], 0.0001);
   AssertEquals('Blend[1] from a', 2.0, r.d[1], 0.0001);
+
+  r := VecF64x2Blend(a, b, 2);
+
+  AssertEquals('Blend alt[0] from a', 1.0, r.d[0], 0.0001);
+  AssertEquals('Blend alt[1] from b', 20.0, r.d[1], 0.0001);
 end;
 
 procedure TTestCase_ShuffleSWizzle.Test_VecI32x4_Blend;
@@ -14120,6 +14170,13 @@ begin
   AssertEquals('Blend[1] from b', 20, r.i[1]);
   AssertEquals('Blend[2] from a', 3, r.i[2]);
   AssertEquals('Blend[3] from b', 40, r.i[3]);
+
+  r := VecI32x4Blend(a, b, 15);
+
+  AssertEquals('Blend all[0] from b', 10, r.i[0]);
+  AssertEquals('Blend all[1] from b', 20, r.i[1]);
+  AssertEquals('Blend all[2] from b', 30, r.i[2]);
+  AssertEquals('Blend all[3] from b', 40, r.i[3]);
 end;
 
 procedure TTestCase_ShuffleSWizzle.Test_VecF32x4_UnpackLo;

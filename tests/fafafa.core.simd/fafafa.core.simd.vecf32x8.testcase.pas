@@ -185,6 +185,20 @@ begin
 
   for i := 0 to 7 do
     AssertEquals('F32x8 Abs [' + IntToStr(i) + ']', Abs(a.f[i]), c.f[i], F32x8_TOLERANCE);
+
+  a.f[0] := -42.5;
+  a.f[1] := 42.5;
+  a.f[2] := -9999.0;
+  a.f[3] := 9999.0;
+  a.f[4] := -1.0 / 8.0;
+  a.f[5] := 1.0 / 8.0;
+  a.f[6] := -2048.75;
+  a.f[7] := 2048.75;
+
+  c := VecF32x8Abs(a);
+
+  for i := 0 to 7 do
+    AssertEquals('F32x8 Abs alt [' + IntToStr(i) + ']', Abs(a.f[i]), c.f[i], F32x8_TOLERANCE);
 end;
 
 procedure TTestCase_VecF32x8.Test_VecF32x8_Sqrt;
@@ -211,6 +225,20 @@ begin
   AssertEquals('F32x8 Sqrt(25)', 5.0, c.f[5], F32x8_TOLERANCE);
   AssertEquals('F32x8 Sqrt(100)', 10.0, c.f[6], F32x8_TOLERANCE);
   AssertEquals('F32x8 Sqrt(2.25)', 1.5, c.f[7], F32x8_TOLERANCE);
+
+  a.f[0] := 0.25;
+  a.f[1] := 0.5;
+  a.f[2] := 6.25;
+  a.f[3] := 12.25;
+  a.f[4] := 49.0;
+  a.f[5] := 81.0;
+  a.f[6] := 256.0;
+  a.f[7] := 10000.0;
+
+  c := VecF32x8Sqrt(a);
+
+  for i := 0 to 7 do
+    AssertEquals('F32x8 Sqrt alt [' + IntToStr(i) + ']', Sqrt(a.f[i]), c.f[i], F32x8_TOLERANCE);
 end;
 
 procedure TTestCase_VecF32x8.Test_VecF32x8_Min;
@@ -237,6 +265,26 @@ begin
   AssertEquals('F32x8 Min [5]', 50.0, c.f[5], F32x8_TOLERANCE);
   AssertEquals('F32x8 Min [6]', -100.0, c.f[6], F32x8_TOLERANCE);
   AssertEquals('F32x8 Min [7]', 0.5, c.f[7], F32x8_TOLERANCE);
+
+  a.f[0] := -10.0; b.f[0] := -10.0;
+  a.f[1] := 8.0; b.f[1] := 9.0;
+  a.f[2] := 7.5; b.f[2] := 7.25;
+  a.f[3] := -0.25; b.f[3] := 0.25;
+  a.f[4] := 1024.0; b.f[4] := -1024.0;
+  a.f[5] := 3.1415; b.f[5] := 3.1416;
+  a.f[6] := -8.5; b.f[6] := -8.25;
+  a.f[7] := 0.0; b.f[7] := -0.0;
+
+  c := VecF32x8Min(a, b);
+
+  AssertEquals('F32x8 Min alt [0]', -10.0, c.f[0], F32x8_TOLERANCE);
+  AssertEquals('F32x8 Min alt [1]', 8.0, c.f[1], F32x8_TOLERANCE);
+  AssertEquals('F32x8 Min alt [2]', 7.25, c.f[2], F32x8_TOLERANCE);
+  AssertEquals('F32x8 Min alt [3]', -0.25, c.f[3], F32x8_TOLERANCE);
+  AssertEquals('F32x8 Min alt [4]', -1024.0, c.f[4], F32x8_TOLERANCE);
+  AssertEquals('F32x8 Min alt [5]', 3.1415, c.f[5], F32x8_TOLERANCE);
+  AssertEquals('F32x8 Min alt [6]', -8.5, c.f[6], F32x8_TOLERANCE);
+  AssertEquals('F32x8 Min alt [7]', 0.0, c.f[7], F32x8_TOLERANCE);
 end;
 
 procedure TTestCase_VecF32x8.Test_VecF32x8_Max;
@@ -262,6 +310,26 @@ begin
   AssertEquals('F32x8 Max [5]', 100.0, c.f[5], F32x8_TOLERANCE);
   AssertEquals('F32x8 Max [6]', -50.0, c.f[6], F32x8_TOLERANCE);
   AssertEquals('F32x8 Max [7]', 0.5, c.f[7], F32x8_TOLERANCE);
+
+  a.f[0] := -10.0; b.f[0] := -10.0;
+  a.f[1] := 8.0; b.f[1] := 9.0;
+  a.f[2] := 7.5; b.f[2] := 7.25;
+  a.f[3] := -0.25; b.f[3] := 0.25;
+  a.f[4] := 1024.0; b.f[4] := -1024.0;
+  a.f[5] := 3.1415; b.f[5] := 3.1416;
+  a.f[6] := -8.5; b.f[6] := -8.25;
+  a.f[7] := 0.0; b.f[7] := -0.0;
+
+  c := VecF32x8Max(a, b);
+
+  AssertEquals('F32x8 Max alt [0]', -10.0, c.f[0], F32x8_TOLERANCE);
+  AssertEquals('F32x8 Max alt [1]', 9.0, c.f[1], F32x8_TOLERANCE);
+  AssertEquals('F32x8 Max alt [2]', 7.5, c.f[2], F32x8_TOLERANCE);
+  AssertEquals('F32x8 Max alt [3]', 0.25, c.f[3], F32x8_TOLERANCE);
+  AssertEquals('F32x8 Max alt [4]', 1024.0, c.f[4], F32x8_TOLERANCE);
+  AssertEquals('F32x8 Max alt [5]', 3.1416, c.f[5], F32x8_TOLERANCE);
+  AssertEquals('F32x8 Max alt [6]', -8.25, c.f[6], F32x8_TOLERANCE);
+  AssertEquals('F32x8 Max alt [7]', 0.0, c.f[7], F32x8_TOLERANCE);
 end;
 
 procedure TTestCase_VecF32x8.Test_VecF32x8_Clamp;
@@ -493,6 +561,19 @@ begin
   AssertTrue('F32x8 CmpLt [5]: 0 < 0.001', (mask and (1 shl 5)) <> 0);
   AssertTrue('F32x8 CmpLt [6]: -0.001 < 0', (mask and (1 shl 6)) <> 0);
   AssertFalse('F32x8 CmpLt [7]: 0 >= 0', (mask and (1 shl 7)) <> 0);
+
+  a.f[0] := -10.0; b.f[0] := -9.0;
+  a.f[1] := 10.0; b.f[1] := 9.0;
+  a.f[2] := 1.0; b.f[2] := 2.0;
+  a.f[3] := -1.0; b.f[3] := -1.0;
+  a.f[4] := 0.25; b.f[4] := 0.5;
+  a.f[5] := -0.25; b.f[5] := -0.5;
+  a.f[6] := 100.0; b.f[6] := 100.0;
+  a.f[7] := -100.0; b.f[7] := -101.0;
+
+  mask := VecF32x8CmpLt(a, b);
+
+  AssertEquals('F32x8 CmpLt alt mask', 21, Integer(mask));
 end;
 
 procedure TTestCase_VecF32x8.Test_VecF32x8_CmpLe;
@@ -519,6 +600,19 @@ begin
   AssertTrue('F32x8 CmpLe [5]: 0 <= 0', (mask and (1 shl 5)) <> 0);
   AssertTrue('F32x8 CmpLe [6]: -1 <= -1', (mask and (1 shl 6)) <> 0);
   AssertFalse('F32x8 CmpLe [7]: 100 > 99', (mask and (1 shl 7)) <> 0);
+
+  a.f[0] := -10.0; b.f[0] := -10.0;
+  a.f[1] := 10.0; b.f[1] := 9.0;
+  a.f[2] := 1.0; b.f[2] := 2.0;
+  a.f[3] := -1.0; b.f[3] := -1.0;
+  a.f[4] := 0.25; b.f[4] := 0.25;
+  a.f[5] := -0.25; b.f[5] := -0.5;
+  a.f[6] := 100.0; b.f[6] := 100.0;
+  a.f[7] := -100.0; b.f[7] := -101.0;
+
+  mask := VecF32x8CmpLe(a, b);
+
+  AssertEquals('F32x8 CmpLe alt mask', 93, Integer(mask));
 end;
 
 procedure TTestCase_VecF32x8.Test_VecF32x8_CmpGt;
@@ -545,6 +639,19 @@ begin
   AssertTrue('F32x8 CmpGt [5]: 0.001 > 0', (mask and (1 shl 5)) <> 0);
   AssertTrue('F32x8 CmpGt [6]: 0 > -0.001', (mask and (1 shl 6)) <> 0);
   AssertFalse('F32x8 CmpGt [7]: 0 <= 0', (mask and (1 shl 7)) <> 0);
+
+  a.f[0] := -9.0; b.f[0] := -10.0;
+  a.f[1] := 10.0; b.f[1] := 10.0;
+  a.f[2] := 3.0; b.f[2] := 2.0;
+  a.f[3] := -1.0; b.f[3] := 0.0;
+  a.f[4] := 0.75; b.f[4] := 0.5;
+  a.f[5] := -0.25; b.f[5] := -0.5;
+  a.f[6] := 101.0; b.f[6] := 100.0;
+  a.f[7] := -100.0; b.f[7] := -100.0;
+
+  mask := VecF32x8CmpGt(a, b);
+
+  AssertEquals('F32x8 CmpGt alt mask', 117, Integer(mask));
 end;
 
 procedure TTestCase_VecF32x8.Test_VecF32x8_CmpGe;
@@ -571,6 +678,19 @@ begin
   AssertTrue('F32x8 CmpGe [5]: 0 >= 0', (mask and (1 shl 5)) <> 0);
   AssertTrue('F32x8 CmpGe [6]: 1 >= 1', (mask and (1 shl 6)) <> 0);
   AssertFalse('F32x8 CmpGe [7]: 99 < 100', (mask and (1 shl 7)) <> 0);
+
+  a.f[0] := -10.0; b.f[0] := -10.0;
+  a.f[1] := 10.0; b.f[1] := 9.0;
+  a.f[2] := 3.0; b.f[2] := 2.0;
+  a.f[3] := -1.0; b.f[3] := 0.0;
+  a.f[4] := 0.5; b.f[4] := 0.5;
+  a.f[5] := -0.5; b.f[5] := -0.25;
+  a.f[6] := 100.0; b.f[6] := 100.0;
+  a.f[7] := -99.0; b.f[7] := -100.0;
+
+  mask := VecF32x8CmpGe(a, b);
+
+  AssertEquals('F32x8 CmpGe alt mask', 215, Integer(mask));
 end;
 
 procedure TTestCase_VecF32x8.Test_VecF32x8_CmpNe;
@@ -597,6 +717,19 @@ begin
   AssertTrue('F32x8 CmpNe [5]: 100 != 100.001', (mask and (1 shl 5)) <> 0);
   AssertFalse('F32x8 CmpNe [6]: -50 == -50', (mask and (1 shl 6)) <> 0);
   AssertTrue('F32x8 CmpNe [7]: 1 != -1', (mask and (1 shl 7)) <> 0);
+
+  a.f[0] := -10.0; b.f[0] := -10.0;
+  a.f[1] := 10.0; b.f[1] := 9.0;
+  a.f[2] := 3.0; b.f[2] := 2.0;
+  a.f[3] := -1.0; b.f[3] := -1.0;
+  a.f[4] := 0.0; b.f[4] := -0.0;
+  a.f[5] := -0.5; b.f[5] := -0.5;
+  a.f[6] := 100.0; b.f[6] := 101.0;
+  a.f[7] := -99.0; b.f[7] := -99.0;
+
+  mask := VecF32x8CmpNe(a, b);
+
+  AssertEquals('F32x8 CmpNe alt mask', 70, Integer(mask));
 end;
 
 // === 规约操作 ===

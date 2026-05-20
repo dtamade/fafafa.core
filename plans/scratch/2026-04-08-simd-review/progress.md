@@ -16746,3 +16746,29 @@
 
 ### 阶段状态
 - 跨平台冻结条件满足。
+
+## 2026-05-20 Public API Thin Coverage Reduction Batch 1
+
+- 这轮明确不碰 SIMD 实现/文档架构，只做 `public-api-coverage` 的薄覆盖收缩。
+- 修改文件：
+  - `tests/fafafa.core.simd/fafafa.core.simd.testcase.pas`
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+  - `tests/fafafa.core.simd/fafafa.core.simd.vecf32x8.testcase.pas`
+  - `tests/fafafa.core.simd/fafafa.core.simd.vecf64x4.testcase.pas`
+- 主要补法：
+  - `TypeConversion` 的 `CastTo*` 补第二组截断/转换值
+  - `ShuffleSWizzle` 的 `Shuffle2/Blend/Shuffle` 补第二个 mask 模式
+  - `dispatchapi` 大块 façade smoke 为 `VecU64x4Splat/Zero`、`VecU16x8Mul` 补第二个调用场景
+  - `VecF32x8` / `VecF64x4` 的比较、`Abs/Sqrt/Min/Max` 补第二组边界值
+- fresh 验证链：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_public_api_test_coverage.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- fresh 结果：
+  - `git diff --check` 通过
+  - `PUBLIC_API_TEST_COVERAGE_SUMMARY test_files=76 symbols=537 covered=537 missing=0 thin=30 min_refs=2 strict_thin=0 status=ok`
+  - Release `gate` 通过
+- 本批次净效果：
+  - `thin: 55 -> 30`
+  - `missing: 0 -> 0`
+  - 没有引入新的 gate 回归

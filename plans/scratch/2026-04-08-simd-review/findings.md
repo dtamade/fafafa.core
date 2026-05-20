@@ -9930,3 +9930,23 @@
   - `riscvv-sensitive-hold-set` 现在不再只是 `check` 侧护栏，而是正式进入 non-x86 implementation 审计主链
   - 当前最重要的 canonical non-x86 implementation truth 已从 `steps=6` 升级为 `steps=7`
   - 这批修掉的是“主链漏接 guard”的结构缺口，不是又一次无边界翻实现细节
+
+## 2026-05-20 Public API Thin Coverage Reduction Batch 1
+
+- 当前 `public-api-coverage` 的真实剩余问题已经不是 `missing_symbols`，而是“很多 API 只在测试源码里被触达 1 次”：
+  - 起点：`covered=537 missing=0 thin=55`
+  - 这类问题适合分批做“测试增厚”，不需要重新打开 SIMD 架构整改
+- 本批验证了一个重要事实：
+  - 在现有 testcase 里直接加第二组输入/掩码，是收缩 `thin` 的最低风险路径
+  - 不需要新增 suite，也不需要改 façade/dispatch/backend 的任何实现
+- 这轮集中补完后，fresh 结果变为：
+  - `covered=537`
+  - `missing=0`
+  - `thin=30`
+- 也就是说，这 1 批净减少了 `25` 个 thin API，且完整 `Release gate` 仍然通过。
+- 当前剩余的 `thin` 家族已经明显收缩到更集中的整数/窄宽度簇：
+  - `VecI16x8*`
+  - `VecI8x16*`
+  - `VecU16x8*`
+  - `VecU32x4*`
+  - 这说明下一批最合理的继续方向应该是“按整数 family 成簇收缩”，而不是再回去碰这轮已经增厚完的 float/shuffle/cast 面。
