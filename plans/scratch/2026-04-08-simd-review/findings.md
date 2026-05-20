@@ -248,7 +248,26 @@
 - 同时继续维持之前的边界判断不变：
   - `F64x4/F64x8 ReduceAdd/ReduceMul` 仍有 first-lane seed 合同差，暂不碰
   - float `Load/Store` 仍有 `Assert(p <> nil, ...)` 前置条件差，暂不碰
-  - `Clamp/RcpF64x4` 仍属于敏感浮点合同面，暂不碰
+- `Clamp/RcpF64x4` 仍属于敏感浮点合同面，暂不碰
+
+## 2026-05-20 Active Docs Drift After Helper Dedup
+
+- 这轮继续往下看时，又抓到一个不是实现层、但确实会误导续航的 active-doc drift：
+  - `docs/fafafa.core.simd.closeout.md`
+  - `docs/fafafa.core.simd.implementation-matrix.md`
+  - `docs/plans/2026-05-09-simd-riscvv-qualification-plan.md`
+  仍停留在上一次的 helper semantics 口径。
+- 漂移点非常具体：
+  - 文档里仍写 `NONX86_HELPER_SEMANTICS_SUMMARY checks=743 status=ok`
+  - 文档还没把 non-public `RISCVVCmpNeU32x4` 的 helper duplicate truth 去重写进去
+- 这种漂移不是“统计数字旧了一点”那么简单，而是会把 active docs 留在上一轮的 source truth 上：
+  - 维护者会误以为当前 helper checker 还只覆盖到 `743` 个 shape
+  - `RISCVVCmpNeU32x4` 这条 exact-contract dedup 容易再次被当成“没记录过的小修补”
+  - 后续如果再扩 helper guard，active docs 会继续给出错误的 baseline
+- 更合理的 current-head 口径应该是：
+  - helper semantics 仍然是 green，但当前覆盖面已经扩到 `checks=761`
+  - `RISCVVCmpNeU32x4` 已经必须委托 `ScalarCmpNeU32x4`
+  - 文档描述应尽量减少对易漂移旧数字的依赖，同时保留当前 fresh baseline
 
 ### Historical but keep for provenance
 

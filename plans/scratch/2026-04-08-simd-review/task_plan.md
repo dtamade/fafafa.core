@@ -6277,3 +6277,21 @@ closeout finalize，直到 `freeze-status` 重新转绿。
 | 1. 复核 residual 是否真的是 safe batch | completed | 已确认当前最小重复真源不是 `F64x4/F64x8 Reduce*`、float `Load/Store`、`Clamp/RcpF64x4` 这些敏感合同面，而是 `ScalarCmpNeU32x4` 缺位导致的 `RISCVVCmpNeU32x4` helper-local compare loop |
 | 2. 补 scalar 真源并收回 helper duplicate | completed | `src/fafafa.core.simd.scalar.pas` 已新增 `ScalarCmpNeU32x4`；`src/fafafa.core.simd.riscvv.helpers.inc` 中 `RISCVVCmpNeU32x4` 已改成 `Result := ScalarCmpNeU32x4(a, b);` |
 | 3. 同步护栏并做 release 复验 | completed | `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 已改成检查 scalar forwarder；fresh `git diff --check`、`py_compile`、`check_nonx86_helper_semantics.py --summary-line`、Release `check` 全绿 |
+
+## 2026-05-20 Active SIMD Docs Truth Sync After RISCVV Helper Dedup
+
+### Goal
+
+把 active SIMD 文档面同步到当前 `HEAD` 的真实 helper/source truth：
+此前 `closeout` / `implementation-matrix` 仍保留旧的
+`NONX86_HELPER_SEMANTICS_SUMMARY checks=743` 口径，
+也没有记录 `RISCVVCmpNeU32x4 -> ScalarCmpNeU32x4`
+这条刚收掉的 helper duplicate truth。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 active docs 漂移点 | completed | 已确认漂移集中在 `docs/fafafa.core.simd.closeout.md`、`docs/fafafa.core.simd.implementation-matrix.md` 与 `docs/plans/2026-05-09-simd-riscvv-qualification-plan.md`：旧 helper semantics count 仍写成 `743`，且 `RISCVVCmpNeU32x4` 去重未入账 |
+| 2. 同步 current-head 文档真相 | completed | 已把 active docs 的 helper semantics 口径更新为当前 `checks=761`，并明确 `RISCVVCmpNeU32x4` 现在必须委托 `ScalarCmpNeU32x4`，不再保留 helper-local compare loop |
+| 3. 跑 doc/closeout guard 复验 | pending | 待 fresh `git diff --check`、`check_active_closeout_current_head_truth.py --summary-line`、`BuildOrTest.sh implementation-matrix-sync`、`BuildOrTest.sh closeout-guard` 串行通过后再提交 |

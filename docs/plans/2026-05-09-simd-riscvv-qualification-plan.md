@@ -47,6 +47,7 @@
 - `DotF64x2/F64x4` 也已经翻正为 `reuse base scalar`：source/facade dead scalar-forward owner 与 register binding 都已删除，不该再冒充 RISCVV backend-owned slot
 - `AndNotI64x2/MinI64x2/MaxI64x2/AndNotU64x2/CmpEqU64x2/CmpLtU64x2/CmpGtU64x2/MinU64x2/MaxU64x2` 也已经翻正为 `reuse base scalar`：asm/common owner、no-asm helper owner 与 register binding 都已删除
 - `AndNotI8x16/U16x8/U8x16` 这 3 个也已固定为真实合同，而不是“待删 residual”：asm side 保留 local composition 与 backend slot ownership；no-asm host 直接 reuse base scalar slot，不再保留 fake helper-owned backend wrapper
+- non-public `RISCVVCmpNeU32x4` 也已从 helper-local compare loop 收回到 `ScalarCmpNeU32x4`；后续不应再把这种 exact-contract helper duplicate truth 重新塞回 `riscvv.helpers.inc`
 
 ## 当前 verification lane
 
@@ -86,6 +87,7 @@ bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local
 - `Test_RISCVV_AndNotSlots_Keep_AsmOwnedCompositions_And_Reuse_BaseScalar_When_NoAsm`
 - `riscvv.facade.inc` 中 scalar-pass-through helper 的显式回退
 - `riscvv.register.inc` 中 `Extract*` 与 `AndNotI8x16/U16x8/U8x16` 的 asm-only binding + no-asm scalar reuse 形状，以及 wide `round/clamp` 这 18 个 slot、`DotF64x2/F64x4`、9 个 `I64/U64/Cmp/Min/Max` exact-scalar slot 已回到 base scalar 的 register truth
+- `riscvv.helpers.inc` 中 non-public `RISCVVCmpNeU32x4` -> `ScalarCmpNeU32x4` 的 helper truth 去重，以及 `check_nonx86_helper_semantics.py` 对这条 forwarder 的 fail-close source guard
 
 ### runtime-side
 

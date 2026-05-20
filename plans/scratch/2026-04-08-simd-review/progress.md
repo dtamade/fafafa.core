@@ -16546,3 +16546,29 @@
 - 当前结论更新：
   - `RISCVVCmpNeU32x4` 不再维护 helper-local duplicate truth
   - 这批没有触碰敏感浮点 hold 面，属于安全的小步收口
+
+## 2026-05-20 Active SIMD Docs Truth Sync After RISCVV Helper Dedup
+
+- 在 `RISCVVCmpNeU32x4` helper 去重收口后，没有立刻跳去下一个实现面，而是先复核 active docs 是否跟上了 current head。
+- fresh 对位后确认，当前 active 文档面确实有一处显性漂移：
+  - `docs/fafafa.core.simd.closeout.md`
+  - `docs/fafafa.core.simd.implementation-matrix.md`
+  - `docs/plans/2026-05-09-simd-riscvv-qualification-plan.md`
+  仍在写旧的 helper semantics 基线。
+- 具体问题：
+  - 还在引用 `NONX86_HELPER_SEMANTICS_SUMMARY checks=743 status=ok`
+  - 还没记入 non-public `RISCVVCmpNeU32x4 -> ScalarCmpNeU32x4` 这条 helper duplicate truth 去重
+- 已落地同步：
+  - `docs/fafafa.core.simd.closeout.md`
+    - helper semantics 口径改为当前 fresh `checks=761`
+    - 补记 `RISCVVCmpNeU32x4` 已不再保留 helper-local compare loop
+  - `docs/fafafa.core.simd.implementation-matrix.md`
+    - `NEON hygiene` runtime evidence 改成当前 `checks=761`
+    - `RISCVV facade/register hygiene` source truth 补记 `RISCVVCmpNeU32x4` helper dedup
+  - `docs/plans/2026-05-09-simd-riscvv-qualification-plan.md`
+    - qualification baseline 与 source-side guard 列表都补进 `RISCVVCmpNeU32x4` -> `ScalarCmpNeU32x4`
+- 待做的 fresh 验证链：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_active_closeout_current_head_truth.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_implementation_matrix_sync.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-guard`
