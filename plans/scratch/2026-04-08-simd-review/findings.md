@@ -1,5 +1,31 @@
 # SIMD Review Findings
 
+## 2026-05-20 Public API Coverage / Freeze Refresh
+
+- 新增的 `public-api-coverage` 证明链最初并没有揭示真实“接口没测”，而是在 Pascal 源码清洗阶段存在 false negative：
+  - 正则式 string stripping 会跨过真实代码吞掉 `VecF32x4CmpLe/Ge/Ne`
+  - 正则式 line comment stripping 会误伤 `VecI64x4Load/Store/Splat/Zero`、`VecU64x4Splat/Zero`、`VecU16x8Mul`
+  - exact-case token compare 也不适合作为 Pascal 的最终判断
+- 结论：
+  - 此前 `missing=13` 不是接口或测试空洞的证据
+  - 修正后当前 public façade/API 触达证明为：
+    - `public_symbols_total=537`
+    - `covered_symbols=537`
+    - `missing_symbols=0`
+    - `thin_symbols(<2)=55`
+- 这说明当前可以把“每个 public façade/API 至少被测试源码真实触达一次”纳入 canonical gate，但还不能把 `thin=55` 夸大成“每个接口都拥有非常厚的多点冗余覆盖”。
+- 当前 `freeze-status` 的真实剩余问题也已经收口：
+  - `mainline-ready=True`
+  - Linux/QEMU `qemu-cpuinfo-nonx86-evidence` 已补绿
+  - 唯一剩余红项是 Windows evidence stale：
+    - `windows_evidence_inputs_not_newer_than_log`
+    - `windows_evidence_verify`
+    - `windows_closeout_summary`
+- 因此截至这批：
+  - 不能说 SIMD “全部完成”
+  - 但也不能再把注意力放回“是不是接口/实现还缺一大块”
+  - 当前 unfinished boundary 是 Windows closeout freshness，而不是 SIMD core correctness gap
+
 ## Structural Observations
 
 - `fafafa.core.simd` 已有较完整的文档体系，包含 `map`、`maintenance`、`checklist`、`handoff`、`publicabi` 和 `cpuinfo` 专项文档。

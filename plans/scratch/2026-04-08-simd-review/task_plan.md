@@ -1,5 +1,22 @@
 # SIMD Review Task Plan
 
+## 2026-05-20 Public API Coverage Proof Batch
+
+### Goal
+
+把 `public-api-coverage` 从临时分析脚本收成可信的 canonical proof，并刷新 Linux/cross freeze truth，确认当前 SIMD 剩余 unfinished boundary 到底是不是只剩 Windows evidence。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复现 `public-api-coverage` 误报 | completed | 已确认 `missing=13` 与真实测试引用矛盾，问题出在 checker 自身 |
+| 2. 修复 Pascal non-code stripping / case 语义 | completed | `check_public_api_test_coverage.py` 已改为状态机 masking + case-insensitive token scan |
+| 3. 接入 shell/batch gate 与 freeze required steps | completed | `BuildOrTest.sh` / `buildOrTest.bat` / `evaluate_simd_freeze_status.py` 已同步 |
+| 4. 刷新 Linux mainline gate | completed | `public-api-coverage` PASS，regular gate PASS |
+| 5. 刷新 Linux cross gate | completed | 提权后 QEMU `arm/v7` / `arm64` / `riscv64` CPUInfo evidence 全部 PASS |
+| 6. 刷新 Windows closeout freshness | in_progress | preflight 已 PASS；待 clean HEAD commit/push 后重新跑 `win-evidence-via-gh` |
+
 ## Goal
 
 持续审查 `fafafa.core.simd` 当前结构、验证基线、成熟度边界与 closeout truth，并对 repo 内发现的缺失、冗余和护栏漂移做最小修复；若只剩外部 evidence blocker，则明确停在该边界而不再空转。

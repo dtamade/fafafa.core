@@ -15,6 +15,7 @@ from typing import Dict, Iterable, List, Optional
 REQUIRED_GATE_STEPS_BASE = [
     "build-check",
     "interface-completeness",
+    "public-api-coverage",
     "cross-backend-parity",
     "wiring-sync",
     "coverage",

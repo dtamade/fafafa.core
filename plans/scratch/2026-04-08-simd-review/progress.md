@@ -1,5 +1,40 @@
 # SIMD Review Progress
 
+## 2026-05-20 Public API Coverage Proof Refresh
+
+- 这轮不是继续扫新的 SIMD 语义缺口，而是修正新增证明链 `check_public_api_test_coverage.py` 的 false negative。
+- 已定位误报根因：
+  - 旧实现用正则粗暴剥离 Pascal string/comment，误吞 `direct.testcase` 与 `dispatchapi.testcase` 的真实 façade 调用。
+  - 同时符号匹配按大小写精确比较，不符合 Pascal case-insensitive 语义。
+- 已完成修复：
+  - `tests/fafafa.core.simd/check_public_api_test_coverage.py`
+    - 改为 Pascal 状态机式 non-code masking
+    - public symbol / token 匹配统一收成 case-insensitive
+    - `implementation` 分界提取也建立在新的 masking 层之上
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - 新增 `public-api-coverage` action
+    - 接入 `gate` / `gate-strict`
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+    - 同步新增 `public-api-coverage` action 与 gate 接线
+  - `tests/fafafa.core.simd/evaluate_simd_freeze_status.py`
+    - `REQUIRED_GATE_STEPS_BASE` 现要求 `public-api-coverage`
+- fresh 验证现状：
+  - `python3 tests/fafafa.core.simd/check_public_api_test_coverage.py --summary-line`
+    - `covered=537 missing=0 thin=55 status=ok`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh public-api-coverage`
+    - PASS
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+    - PASS
+  - `FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+    - PASS（提权后，QEMU `linux/arm/v7` / `linux/arm64` / `linux/riscv64` 全部通过）
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+    - `mainline-ready=True`
+    - 当前唯一剩余红项：Windows evidence stale（因为这轮改动了 `buildOrTest.bat`，旧 Windows closeout 日志不再可信）
+- 当前边界非常明确：
+  - Linux mainline/cross 证明链已补齐
+  - 还不能宣称整个 SIMD closeout fully complete
+  - 下一步必须在 clean HEAD 上刷新 GH Windows evidence，再跑 `freeze-status`
+
 ## 2026-04-08
 
 - 读取 `using-superpowers`、`writing-plans`、`planning-with-files`、`code-reviewer` 技能，确定本轮工作方式。

@@ -29,6 +29,7 @@ RISCVV_SENSITIVE_HOLD_SET_SCRIPT="${ROOT}/check_riscvv_sensitive_hold_set.py"
 KEY_SLOT_AUDIT_SCRIPT="${ROOT}/check_nonx86_key_slot_audit.py"
 IMPLEMENTATION_MATRIX_SYNC_SCRIPT="${ROOT}/check_implementation_matrix_sync.py"
 INTERFACE_COMPLETENESS_SCRIPT="${ROOT}/check_interface_implementation_completeness.py"
+PUBLIC_API_TEST_COVERAGE_SCRIPT="${ROOT}/check_public_api_test_coverage.py"
 DISPATCH_READ_SCOPE_SCRIPT="${ROOT}/check_dispatch_read_scope.py"
 DATAPLANE_CONSUMER_SCOPE_SCRIPT="${ROOT}/check_dataplane_consumer_scope.py"
 DIRECT_DISPATCH_SCOPE_SCRIPT="${ROOT}/check_direct_dispatch_scope.py"
@@ -55,6 +56,9 @@ QEMU_EXPERIMENTAL_REPORT_SCRIPT="${ROOT}/report_qemu_experimental_blockers.py"
 QEMU_EXPERIMENTAL_BASELINE_SCRIPT="${ROOT}/check_experimental_failure_baseline.py"
 INTERFACE_COMPLETENESS_JSON_LOG="${LOG_DIR}/interface_completeness.json"
 INTERFACE_COMPLETENESS_MD_LOG="${LOG_DIR}/interface_completeness.md"
+PUBLIC_API_TEST_COVERAGE_LOG="${LOG_DIR}/public_api_test_coverage.txt"
+PUBLIC_API_TEST_COVERAGE_JSON_LOG="${LOG_DIR}/public_api_test_coverage.json"
+PUBLIC_API_TEST_COVERAGE_MD_LOG="${LOG_DIR}/public_api_test_coverage.md"
 DISPATCH_READ_SCOPE_LOG="${LOG_DIR}/dispatch_read_scope.txt"
 DISPATCH_READ_SCOPE_JSON_LOG="${LOG_DIR}/dispatch_read_scope.json"
 DATAPLANE_CONSUMER_SCOPE_LOG="${LOG_DIR}/dataplane_consumer_scope.txt"
@@ -4039,6 +4043,49 @@ run_interface_completeness() {
   python3 "${INTERFACE_COMPLETENESS_SCRIPT}" "${LArgs[@]}"
 }
 
+run_public_api_test_coverage() {
+  local -a LArgs
+  local LLog
+  local LJsonPath
+  local LMdPath
+  local LMainRC
+  local LSummaryLine
+
+  if [[ ! -f "${PUBLIC_API_TEST_COVERAGE_SCRIPT}" ]]; then
+    echo "[PUBLIC-API-COVERAGE] Missing checker: ${PUBLIC_API_TEST_COVERAGE_SCRIPT}"
+    return 2
+  fi
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "[PUBLIC-API-COVERAGE] FAILED (python3 runtime not found; public-api-coverage requires python3)"
+    return 2
+  fi
+
+  LArgs=(
+    "--summary-line"
+    "--min-refs" "${SIMD_PUBLIC_API_TEST_COVERAGE_MIN_REFS:-2}"
+  )
+  if [[ "${SIMD_PUBLIC_API_TEST_COVERAGE_STRICT_THIN:-0}" != "0" ]]; then
+    LArgs+=("--strict-thin")
+  fi
+
+  LLog="${SIMD_PUBLIC_API_TEST_COVERAGE_LOG_FILE:-${PUBLIC_API_TEST_COVERAGE_LOG}}"
+  LJsonPath="${SIMD_PUBLIC_API_TEST_COVERAGE_JSON_FILE:-${PUBLIC_API_TEST_COVERAGE_JSON_LOG}}"
+  LMdPath="${SIMD_PUBLIC_API_TEST_COVERAGE_MD_FILE:-${PUBLIC_API_TEST_COVERAGE_MD_LOG}}"
+
+  echo "[PUBLIC-API-COVERAGE] Running: python3 ${PUBLIC_API_TEST_COVERAGE_SCRIPT} ${LArgs[*]} --json-file ${LJsonPath} --md-file ${LMdPath}"
+  : > "${LLog}"
+  python3 "${PUBLIC_API_TEST_COVERAGE_SCRIPT}" "${LArgs[@]}" --json-file "${LJsonPath}" --md-file "${LMdPath}" 2>&1 | tee "${LLog}"
+  LMainRC="${PIPESTATUS[0]}"
+
+  LSummaryLine="$(grep -E '^PUBLIC_API_TEST_COVERAGE_SUMMARY ' "${LLog}" | tail -n 1 || true)"
+  if [[ -n "${LSummaryLine}" ]]; then
+    echo "[PUBLIC-API-COVERAGE] Summary: ${LSummaryLine#PUBLIC_API_TEST_COVERAGE_SUMMARY }"
+  fi
+
+  return "${LMainRC}"
+}
+
 run_dispatch_read_scope() {
   if [[ ! -f "${DISPATCH_READ_SCOPE_SCRIPT}" ]]; then
     echo "[DISPATCH-READ-SCOPE] Missing checker: ${DISPATCH_READ_SCOPE_SCRIPT}"
@@ -6325,6 +6372,7 @@ run_gate() {
   local LRunAllLogDir
   local LRunAllSummary
   local LGateInterfaceCompleteness
+  local LGatePublicApiCoverage
   local LGateContractSignature
   local LGatePublicAbiSignature
   local LGatePublicAbiSmoke
@@ -6356,6 +6404,7 @@ run_gate() {
   LRunAllSummary="${LTestsRoot}/run_all_tests_summary_sh.txt"
   LGateStartMs="$(now_ms)"
   LGateInterfaceCompleteness="${SIMD_GATE_INTERFACE_COMPLETENESS:-1}"
+  LGatePublicApiCoverage="${SIMD_GATE_PUBLIC_API_COVERAGE:-1}"
   LGateContractSignature="${SIMD_GATE_CONTRACT_SIGNATURE:-1}"
   LGatePublicAbiSignature="${SIMD_GATE_PUBLICABI_SIGNATURE:-1}"
   LGatePublicAbiSmoke="${SIMD_GATE_PUBLICABI_SMOKE:-1}"
@@ -6373,7 +6422,7 @@ run_gate() {
     reset_gate_summary
   fi
 
-  append_gate_summary "gate" "START" "profile=${LGateProfile}; mode=${MODE}; interface-completeness=${LGateInterfaceCompleteness}; contract-signature=${LGateContractSignature}; publicabi-signature=${LGatePublicAbiSignature}; publicabi-smoke=${LGatePublicAbiSmoke}; publicabi-concurrent-chain=${LGatePublicAbiConcurrentChain}; adapter-sync-pascal=${LGateAdapterSyncPascal}; adapter-sync=${LGateAdapterSync}; parity-suites=${LGateParitySuites}; wiring=${LGateWiringSync}; coverage=${LGateCoverage}; perf=${SIMD_GATE_PERF_SMOKE:-0}; experimental=${SIMD_GATE_EXPERIMENTAL:-1}; experimental-tests=${SIMD_GATE_EXPERIMENTAL_TESTS:-0}; nonx86-ieee754=${SIMD_GATE_NONX86_IEEE754:-0}; cpuinfo-lazy-repeat=${SIMD_GATE_CPUINFO_LAZY_REPEAT:-0}; qemu-nonx86-evidence=${SIMD_GATE_QEMU_NONX86_EVIDENCE:-0}; qemu-cpuinfo-nonx86-evidence=${SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE:-0}; qemu-cpuinfo-nonx86-full-evidence=${SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE:-0}; qemu-cpuinfo-nonx86-full-repeat=${SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT:-0}; qemu-arch-matrix=${SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE:-0}; require-nonx86-native-evidence=${LGateRequireNonX86NativeEvidence}; require-win-evidence=${SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE:-0}; concurrent-repeat=${SIMD_GATE_CONCURRENT_REPEAT:-0}" "-" "START" "${BUILD_LOG}; ${TEST_LOG}; ${PUBLICABI_CONCURRENT_CHAIN_LOG}; ${SIMD_WIRING_SYNC_LOG_FILE:-${WIRING_SYNC_LOG}}; ${SIMD_RISCVV_ABI_SHAPE_LOG_FILE:-${RISCVV_ABI_SHAPE_LOG}}; ${SIMD_NONX86_NATIVE_EVIDENCE_LOG_FILE:-${NONX86_NATIVE_EVIDENCE_LOG}}"
+  append_gate_summary "gate" "START" "profile=${LGateProfile}; mode=${MODE}; interface-completeness=${LGateInterfaceCompleteness}; public-api-coverage=${LGatePublicApiCoverage}; contract-signature=${LGateContractSignature}; publicabi-signature=${LGatePublicAbiSignature}; publicabi-smoke=${LGatePublicAbiSmoke}; publicabi-concurrent-chain=${LGatePublicAbiConcurrentChain}; adapter-sync-pascal=${LGateAdapterSyncPascal}; adapter-sync=${LGateAdapterSync}; parity-suites=${LGateParitySuites}; wiring=${LGateWiringSync}; coverage=${LGateCoverage}; perf=${SIMD_GATE_PERF_SMOKE:-0}; experimental=${SIMD_GATE_EXPERIMENTAL:-1}; experimental-tests=${SIMD_GATE_EXPERIMENTAL_TESTS:-0}; nonx86-ieee754=${SIMD_GATE_NONX86_IEEE754:-0}; cpuinfo-lazy-repeat=${SIMD_GATE_CPUINFO_LAZY_REPEAT:-0}; qemu-nonx86-evidence=${SIMD_GATE_QEMU_NONX86_EVIDENCE:-0}; qemu-cpuinfo-nonx86-evidence=${SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE:-0}; qemu-cpuinfo-nonx86-full-evidence=${SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE:-0}; qemu-cpuinfo-nonx86-full-repeat=${SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT:-0}; qemu-arch-matrix=${SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE:-0}; require-nonx86-native-evidence=${LGateRequireNonX86NativeEvidence}; require-win-evidence=${SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE:-0}; concurrent-repeat=${SIMD_GATE_CONCURRENT_REPEAT:-0}" "-" "START" "${BUILD_LOG}; ${TEST_LOG}; ${SIMD_PUBLIC_API_TEST_COVERAGE_LOG_FILE:-${PUBLIC_API_TEST_COVERAGE_LOG}}; ${PUBLICABI_CONCURRENT_CHAIN_LOG}; ${SIMD_WIRING_SYNC_LOG_FILE:-${WIRING_SYNC_LOG}}; ${SIMD_RISCVV_ABI_SHAPE_LOG_FILE:-${RISCVV_ABI_SHAPE_LOG}}; ${SIMD_NONX86_NATIVE_EVIDENCE_LOG_FILE:-${NONX86_NATIVE_EVIDENCE_LOG}}"
 
   if [[ "${LGateProfile}" == "release-gate" ]]; then
     echo "[GATE] Profile: release-gate (发布/closeout 完整门禁)"
@@ -6401,6 +6450,18 @@ run_gate() {
     fi
   else
     append_gate_summary "interface-completeness" "SKIP" "SIMD_GATE_INTERFACE_COMPLETENESS=0" "-" "SKIP" "${SIMD_INTERFACE_COMPLETENESS_JSON_FILE:-${INTERFACE_COMPLETENESS_JSON_LOG}}; ${SIMD_INTERFACE_COMPLETENESS_MD_FILE:-${INTERFACE_COMPLETENESS_MD_LOG}}"
+  fi
+
+  if [[ "${LGatePublicApiCoverage}" != "0" ]]; then
+    echo "[GATE] Optional public API test coverage"
+    if ! run_gate_step "public-api-coverage" "public api test coverage passed" "public api test coverage failed" "${SIMD_PUBLIC_API_TEST_COVERAGE_JSON_FILE:-${PUBLIC_API_TEST_COVERAGE_JSON_LOG}}; ${SIMD_PUBLIC_API_TEST_COVERAGE_MD_FILE:-${PUBLIC_API_TEST_COVERAGE_MD_LOG}}" run_public_api_test_coverage; then
+      LGateEndMs="$(now_ms)"
+      LGateDurationMs="$(( LGateEndMs - LGateStartMs ))"
+      append_gate_summary "gate" "FAIL" "failed-step=public-api-coverage" "${LGateDurationMs}" "FAILED"
+      return 1
+    fi
+  else
+    append_gate_summary "public-api-coverage" "SKIP" "SIMD_GATE_PUBLIC_API_COVERAGE=0" "-" "SKIP" "${SIMD_PUBLIC_API_TEST_COVERAGE_JSON_FILE:-${PUBLIC_API_TEST_COVERAGE_JSON_LOG}}; ${SIMD_PUBLIC_API_TEST_COVERAGE_MD_FILE:-${PUBLIC_API_TEST_COVERAGE_MD_LOG}}"
   fi
 
   if [[ "${LGateContractSignature}" != "0" ]]; then
@@ -6794,6 +6855,7 @@ run_gate_strict() {
   echo "[GATE] Note: release-gate adds stronger evidence; QEMU non-x86 runtime evidence is the default closeout proof when no native hardware is available"
   require_release_gate_prereqs || return $?
   SIMD_GATE_INTERFACE_COMPLETENESS=1 \
+  SIMD_GATE_PUBLIC_API_COVERAGE=1 \
   SIMD_GATE_CONTRACT_SIGNATURE=1 \
   SIMD_GATE_PUBLICABI_SIGNATURE=1 \
   SIMD_GATE_PUBLICABI_SMOKE=1 \
@@ -7814,6 +7876,9 @@ case "${ACTION}" in
   interface-completeness)
     run_interface_completeness
     ;;
+  public-api-coverage)
+    run_public_api_test_coverage
+    ;;
   dispatch-read-scope)
     run_dispatch_read_scope
     ;;
@@ -8006,7 +8071,7 @@ case "${ACTION}" in
     run_freeze_status_rehearsal "$@"
     ;;
   *)
-    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|closeout-release|sse2-structure-check|sse2-contracts|impl-smoke-sse2|impl-smoke-x86|impl-smoke-nonx86|impl-audit-nonx86|helper-semantics|riscvv-sensitive-hold-set|key-slot-audit|implementation-matrix-sync|riscvv-abi-shape|source-reachability|closeout-host-local|import-nonx86-native-evidence|closeout-host-local-from-import|interface-completeness|dispatch-read-scope|dataplane-consumer-scope|direct-dispatch-scope|metadata-query-scope|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|runner-parity|closeout-guard|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-retry-rehearsal|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|verify-nonx86-native-evidence|restore-nightly-evidence|historical-closeout-note-check|active-closeout-truth-check|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
+    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|closeout-release|sse2-structure-check|sse2-contracts|impl-smoke-sse2|impl-smoke-x86|impl-smoke-nonx86|impl-audit-nonx86|helper-semantics|riscvv-sensitive-hold-set|key-slot-audit|implementation-matrix-sync|riscvv-abi-shape|source-reachability|closeout-host-local|import-nonx86-native-evidence|closeout-host-local-from-import|interface-completeness|public-api-coverage|dispatch-read-scope|dataplane-consumer-scope|direct-dispatch-scope|metadata-query-scope|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|runner-parity|closeout-guard|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-retry-rehearsal|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|verify-nonx86-native-evidence|restore-nightly-evidence|historical-closeout-note-check|active-closeout-truth-check|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
     echo "  Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks."
     echo "  gate/gate-strict PASS is not blanket release-grade approval for every experimental path."
     echo "  gate         Fast/base gate for routine SIMD changes"
@@ -8026,6 +8091,7 @@ case "${ACTION}" in
     echo "  riscvv-abi-shape  Run the RISCVV ABI-shape Python audit only"
     echo "  source-reachability  Run the SIMD source reachability Python audit only"
     echo "  interface-completeness  Check public facade/dispatch/backend implementation completeness"
+    echo "  public-api-coverage  Check public facade/api test-source coverage"
     echo "  dispatch-read-scope  Fail-close GetDispatchTable direct-read scope drift"
     echo "  dataplane-consumer-scope  Fail-close dataplane consumer scope drift"
     echo "  direct-dispatch-scope  Fail-close GetDirectDispatchTable scope drift"

@@ -87,6 +87,7 @@ if /I "%ACTION%"=="closeout-host-local" goto :closeout_host_local
 if /I "%ACTION%"=="import-nonx86-native-evidence" goto :import_nonx86_native_evidence
 if /I "%ACTION%"=="closeout-host-local-from-import" goto :closeout_host_local_from_import
 if /I "%ACTION%"=="interface-completeness" goto :interface_completeness
+if /I "%ACTION%"=="public-api-coverage" goto :public_api_coverage
 if /I "%ACTION%"=="dispatch-read-scope" goto :dispatch_read_scope
 if /I "%ACTION%"=="dataplane-consumer-scope" goto :dataplane_consumer_scope
 if /I "%ACTION%"=="direct-dispatch-scope" goto :direct_dispatch_scope
@@ -145,7 +146,7 @@ if /I "%ACTION%"=="freeze-status-linux" goto :freeze_status_linux
 if /I "%ACTION%"=="win-closeout-finalize" goto :win_closeout_finalize
 if /I "%ACTION%"=="freeze-status-rehearsal" goto :freeze_status_rehearsal
 
-echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|riscvv-sensitive-hold-set^|key-slot-audit^|implementation-matrix-sync^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|dataplane-consumer-scope^|direct-dispatch-scope^|metadata-query-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|runner-parity^|closeout-guard^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|gate-summary-selfcheck^|historical-closeout-note-check^|active-closeout-truth-check^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-retry-rehearsal^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|riscvv-opcode-lane^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-linux^|native-evidence^|verify-nonx86-native-evidence^|restore-nightly-evidence^|evidence-win^|win-evidence-preflight^|win-evidence-via-gh^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-dryrun^|win-closeout-snippets^|win-closeout-3cmd^|freeze-status^|freeze-status-linux^|win-closeout-finalize^|freeze-status-rehearsal] [test-args...]
+echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|riscvv-sensitive-hold-set^|key-slot-audit^|implementation-matrix-sync^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|public-api-coverage^|dispatch-read-scope^|dataplane-consumer-scope^|direct-dispatch-scope^|metadata-query-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|runner-parity^|closeout-guard^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|gate-summary-selfcheck^|historical-closeout-note-check^|active-closeout-truth-check^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-retry-rehearsal^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|riscvv-opcode-lane^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-linux^|native-evidence^|verify-nonx86-native-evidence^|restore-nightly-evidence^|evidence-win^|win-evidence-preflight^|win-evidence-via-gh^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-dryrun^|win-closeout-snippets^|win-closeout-3cmd^|freeze-status^|freeze-status-linux^|win-closeout-finalize^|freeze-status-rehearsal] [test-args...]
 echo   Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks.
 echo   gate/gate-strict PASS is not blanket release-grade approval for every experimental path.
 echo   gate         Fast/base gate for routine SIMD changes
@@ -165,6 +166,7 @@ echo   implementation-matrix-sync  Fail-close active implementation-matrix drift
 echo   riscvv-abi-shape  Run the RISCVV ABI-shape Python audit only
 echo   source-reachability  Run the SIMD source reachability Python audit only
 echo   interface-completeness  Check public facade/dispatch/backend implementation completeness
+echo   public-api-coverage  Check public facade/api test-source coverage
 echo   dispatch-read-scope  Fail-close GetDispatchTable direct-read scope drift
 echo   dataplane-consumer-scope  Fail-close dataplane consumer scope drift
 echo   direct-dispatch-scope  Fail-close GetDirectDispatchTable scope drift
@@ -941,6 +943,35 @@ if not errorlevel 1 (
 )
 
 echo [INTERFACE-CHECK] FAILED (python runtime not found; tried py and python)
+exit /b 2
+
+:public_api_coverage
+set "PUBLIC_API_COVERAGE_SCRIPT=%ROOT%check_public_api_test_coverage.py"
+set "PUBLIC_API_COVERAGE_ARGS=--summary-line --min-refs 2"
+if not "%SIMD_PUBLIC_API_TEST_COVERAGE_MIN_REFS%"=="" set "PUBLIC_API_COVERAGE_ARGS=--summary-line --min-refs %SIMD_PUBLIC_API_TEST_COVERAGE_MIN_REFS%"
+if /I "%SIMD_PUBLIC_API_TEST_COVERAGE_STRICT_THIN%"=="1" set "PUBLIC_API_COVERAGE_ARGS=%PUBLIC_API_COVERAGE_ARGS% --strict-thin"
+if "%SIMD_PUBLIC_API_TEST_COVERAGE_JSON_FILE%"=="" set "SIMD_PUBLIC_API_TEST_COVERAGE_JSON_FILE=%LOG_DIR%\public_api_test_coverage.json"
+if "%SIMD_PUBLIC_API_TEST_COVERAGE_MD_FILE%"=="" set "SIMD_PUBLIC_API_TEST_COVERAGE_MD_FILE=%LOG_DIR%\public_api_test_coverage.md"
+if not exist "%PUBLIC_API_COVERAGE_SCRIPT%" (
+  echo [PUBLIC-API-COVERAGE] Missing checker: %PUBLIC_API_COVERAGE_SCRIPT%
+  exit /b 2
+)
+
+where py >nul 2>nul
+if not errorlevel 1 (
+  echo [PUBLIC-API-COVERAGE] Running: py -3 %PUBLIC_API_COVERAGE_SCRIPT% %PUBLIC_API_COVERAGE_ARGS% --json-file "%SIMD_PUBLIC_API_TEST_COVERAGE_JSON_FILE%" --md-file "%SIMD_PUBLIC_API_TEST_COVERAGE_MD_FILE%"
+  py -3 "%PUBLIC_API_COVERAGE_SCRIPT%" %PUBLIC_API_COVERAGE_ARGS% --json-file "%SIMD_PUBLIC_API_TEST_COVERAGE_JSON_FILE%" --md-file "%SIMD_PUBLIC_API_TEST_COVERAGE_MD_FILE%"
+  exit /b %ERRORLEVEL%
+)
+
+where python >nul 2>nul
+if not errorlevel 1 (
+  echo [PUBLIC-API-COVERAGE] Running: python %PUBLIC_API_COVERAGE_SCRIPT% %PUBLIC_API_COVERAGE_ARGS% --json-file "%SIMD_PUBLIC_API_TEST_COVERAGE_JSON_FILE%" --md-file "%SIMD_PUBLIC_API_TEST_COVERAGE_MD_FILE%"
+  python "%PUBLIC_API_COVERAGE_SCRIPT%" %PUBLIC_API_COVERAGE_ARGS% --json-file "%SIMD_PUBLIC_API_TEST_COVERAGE_JSON_FILE%" --md-file "%SIMD_PUBLIC_API_TEST_COVERAGE_MD_FILE%"
+  exit /b %ERRORLEVEL%
+)
+
+echo [PUBLIC-API-COVERAGE] FAILED (python runtime not found; tried py and python)
 exit /b 2
 
 :dispatch_read_scope
@@ -2108,6 +2139,7 @@ echo [GATE] Note: release-gate adds stronger evidence, but experimental paths st
 call :require_release_gate_prereqs
 if errorlevel 1 exit /b %ERRORLEVEL%
 set "SIMD_GATE_INTERFACE_COMPLETENESS=1"
+set "SIMD_GATE_PUBLIC_API_COVERAGE=1"
 set "SIMD_GATE_CONTRACT_SIGNATURE=1"
 set "SIMD_GATE_PUBLICABI_SIGNATURE=1"
 set "SIMD_GATE_PUBLICABI_SMOKE=1"
@@ -2150,6 +2182,7 @@ exit /b %ERRORLEVEL%
 set "SELF=%ROOT%buildOrTest.bat"
 set "TESTS_ROOT=%ROOT%.."
 if "%SIMD_GATE_INTERFACE_COMPLETENESS%"=="" set "SIMD_GATE_INTERFACE_COMPLETENESS=1"
+if "%SIMD_GATE_PUBLIC_API_COVERAGE%"=="" set "SIMD_GATE_PUBLIC_API_COVERAGE=1"
 if "%SIMD_GATE_CONTRACT_SIGNATURE%"=="" set "SIMD_GATE_CONTRACT_SIGNATURE=1"
 if "%SIMD_GATE_PUBLICABI_SIGNATURE%"=="" set "SIMD_GATE_PUBLICABI_SIGNATURE=1"
 if "%SIMD_GATE_PUBLICABI_SMOKE%"=="" set "SIMD_GATE_PUBLICABI_SMOKE=1"
@@ -2177,6 +2210,14 @@ if /I "%SIMD_GATE_INTERFACE_COMPLETENESS%"=="1" (
   if errorlevel 1 exit /b 1
 ) else (
   echo [GATE] SKIP optional interface completeness ^(set SIMD_GATE_INTERFACE_COMPLETENESS=1 to enable^)
+)
+
+if /I "%SIMD_GATE_PUBLIC_API_COVERAGE%"=="1" (
+  echo [GATE] Optional public API test coverage
+  call "%SELF%" public-api-coverage
+  if errorlevel 1 exit /b 1
+) else (
+  echo [GATE] SKIP optional public API test coverage ^(set SIMD_GATE_PUBLIC_API_COVERAGE=1 to enable^)
 )
 
 if /I "%SIMD_GATE_CONTRACT_SIGNATURE%"=="1" (
