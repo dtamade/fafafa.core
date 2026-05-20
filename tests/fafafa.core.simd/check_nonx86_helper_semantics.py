@@ -407,6 +407,27 @@ def main() -> int:
         (riscvv_facade_source, "RISCVVLoadI64x4", [
             "Result := ScalarLoadI64x4(p);",
         ]),
+        (riscvv_facade_source, "RISCVVStoreF32x4", [
+            "ScalarStoreF32x4(p, a);",
+        ]),
+        (riscvv_facade_source, "RISCVVStoreF32x4Aligned", [
+            "ScalarStoreF32x4Aligned(p, a);",
+        ]),
+        (riscvv_facade_source, "RISCVVStoreF32x8", [
+            "ScalarStoreF32x8(p, a);",
+        ]),
+        (riscvv_facade_source, "RISCVVStoreF32x16", [
+            "ScalarStoreF32x16(p, a);",
+        ]),
+        (riscvv_facade_source, "RISCVVStoreF64x2", [
+            "ScalarStoreF64x2(p, a);",
+        ]),
+        (riscvv_facade_source, "RISCVVStoreF64x4", [
+            "ScalarStoreF64x4(p, a);",
+        ]),
+        (riscvv_facade_source, "RISCVVStoreF64x8", [
+            "ScalarStoreF64x8(p, a);",
+        ]),
         (riscvv_facade_source, "RISCVVStoreI64x4", [
             "ScalarStoreI64x4(p, a);",
         ]),
@@ -1363,11 +1384,15 @@ def main() -> int:
         (riscvv_facade_source, "RISCVVMaxU32x4"),
         (riscvv_facade_source, "RISCVVLoadF32x4"),
         (riscvv_facade_source, "RISCVVLoadF32x4Aligned"),
+        (riscvv_facade_source, "RISCVVLoadF32x8"),
+        (riscvv_facade_source, "RISCVVLoadF32x16"),
         (riscvv_facade_source, "RISCVVSplatF32x4"),
         (riscvv_facade_source, "RISCVVZeroF32x4"),
         (riscvv_facade_source, "RISCVVSelectF32x4"),
         (riscvv_facade_source, "RISCVVInsertF32x4"),
         (riscvv_facade_source, "RISCVVLoadF64x2"),
+        (riscvv_facade_source, "RISCVVLoadF64x4"),
+        (riscvv_facade_source, "RISCVVLoadF64x8"),
         (riscvv_facade_source, "RISCVVSplatF64x2"),
         (riscvv_facade_source, "RISCVVZeroF64x2"),
         (riscvv_facade_source, "RISCVVSelectF64x2"),

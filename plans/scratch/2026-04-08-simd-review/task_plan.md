@@ -6294,4 +6294,22 @@ closeout finalize，直到 `freeze-status` 重新转绿。
 | --- | --- | --- |
 | 1. 复核 active docs 漂移点 | completed | 已确认漂移集中在 `docs/fafafa.core.simd.closeout.md`、`docs/fafafa.core.simd.implementation-matrix.md` 与 `docs/plans/2026-05-09-simd-riscvv-qualification-plan.md`：旧 helper semantics count 仍写成 `743`，且 `RISCVVCmpNeU32x4` 去重未入账 |
 | 2. 同步 current-head 文档真相 | completed | 已把 active docs 的 helper semantics 口径更新为当前 `checks=761`，并明确 `RISCVVCmpNeU32x4` 现在必须委托 `ScalarCmpNeU32x4`，不再保留 helper-local compare loop |
-| 3. 跑 doc/closeout guard 复验 | pending | 待 fresh `git diff --check`、`check_active_closeout_current_head_truth.py --summary-line`、`BuildOrTest.sh implementation-matrix-sync`、`BuildOrTest.sh closeout-guard` 串行通过后再提交 |
+| 3. 跑 doc/closeout guard 复验 | completed | `git diff --check`、`check_active_closeout_current_head_truth.py --summary-line`、`check_implementation_matrix_sync.py --summary-line` 与 `BuildOrTest.sh closeout-guard` 已 fresh 通过，文档真相同步已提交收口 |
+
+## 2026-05-20 RISCVV Float Memory Boundary Cleanup
+
+### Goal
+
+继续沿 `riscvv` residual 收口，但不碰已经由测试明确保留的
+`Clamp/Rcp/Reduce*F64` 敏感合同面；这批只处理 float memory 家族里
+真正安全的两类残余：
+- no-asm 下根本不会被 dispatch 使用的 wide `Load*` dead facade wrappers
+- 必须继续 backend-owned 的 `Store*` slots 在 no-asm 下对 scalar precondition/body 的重复实现
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 float memory residual 的真实边界 | completed | 已确认 `riscvv.facade.inc` 只在 `{$IFNDEF RISCVV_ASSEMBLY}` 下编译，而 `riscvv.register.inc` 仅在 `{$IFDEF RISCVV_ASSEMBLY}` 下绑定 `LoadF32x8/F32x16/F64x4/F64x8`；因此这些 no-asm `Load*` wrapper 是 dead facade，不是 live backend contract。与此同时 `StoreF32x4/F32x4Aligned/F32x8/F32x16/F64x2/F64x4/F64x8` 仍由 register 无条件 backend-owned 发布，但其 no-asm body 只是本地 loop，可安全收回 scalar precondition/body。 |
+| 2. 删除 dead load facade 并收回 no-asm store duplicate truth | completed | `src/fafafa.core.simd.riscvv.facade.inc` 已删除 no-asm `LoadF32x8/F32x16/F64x4/F64x8` wrapper；`StoreF32x4/F32x4Aligned/F32x8/F32x16/F64x2/F64x4/F64x8` 已全部改成 `ScalarStore*` 转发，统一 nil-pointer/assert 合同，同时保留 register 的 backend-owned slot 语义不变。 |
+| 3. 补 machine guard 并做 release 复验 | completed | `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 已新增 store scalar-forwarder guard，并把 4 个 dead `Load*` facade 加入 absent guard；`DispatchAPI` 已新增两个 RISCVV float memory source-shape/runtime-slot 测试；fresh `git diff --check`、`py_compile`、helper-semantics、Release `DispatchAPI`、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过。 |

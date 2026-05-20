@@ -114,17 +114,13 @@ end;
 // =============================================================
 
 procedure RISCVVStoreF32x4(p: PSingle; const a: TVecF32x4);
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    p[i] := a.f[i];
+  ScalarStoreF32x4(p, a);
 end;
 
 procedure RISCVVStoreF32x4Aligned(p: PSingle; const a: TVecF32x4);
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    p[i] := a.f[i];
+  ScalarStoreF32x4Aligned(p, a);
 end;
 
 // =============================================================
@@ -1387,34 +1383,6 @@ begin
   Result := ScalarInsertI64x4(a, value, index);
 end;
 
-function RISCVVLoadF32x16(p: PSingle): TVecF32x16;
-var i: Integer;
-begin
-  for i := 0 to 15 do
-    Result.f[i] := p[i];
-end;
-
-function RISCVVLoadF32x8(p: PSingle): TVecF32x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    Result.f[i] := p[i];
-end;
-
-function RISCVVLoadF64x4(p: PDouble): TVecF64x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result.d[i] := p[i];
-end;
-
-function RISCVVLoadF64x8(p: PDouble): TVecF64x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    Result.d[i] := p[i];
-end;
-
 function RISCVVLoadI64x4(p: PInt64): TVecI64x4;
 begin
   Result := ScalarLoadI64x4(p);
@@ -1783,38 +1751,28 @@ begin
 end;
 
 procedure RISCVVStoreF32x16(p: PSingle; const a: TVecF32x16);
-var i: Integer;
 begin
-  for i := 0 to 15 do
-    p[i] := a.f[i];
+  ScalarStoreF32x16(p, a);
 end;
 
 procedure RISCVVStoreF32x8(p: PSingle; const a: TVecF32x8);
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    p[i] := a.f[i];
+  ScalarStoreF32x8(p, a);
 end;
 
 procedure RISCVVStoreF64x2(p: PDouble; const a: TVecF64x2);
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    p[i] := a.d[i];
+  ScalarStoreF64x2(p, a);
 end;
 
 procedure RISCVVStoreF64x4(p: PDouble; const a: TVecF64x4);
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    p[i] := a.d[i];
+  ScalarStoreF64x4(p, a);
 end;
 
 procedure RISCVVStoreF64x8(p: PDouble; const a: TVecF64x8);
-var i: Integer;
 begin
-  for i := 0 to 7 do
-    p[i] := a.d[i];
+  ScalarStoreF64x8(p, a);
 end;
 
 procedure RISCVVStoreI64x4(p: PInt64; const a: TVecI64x4);

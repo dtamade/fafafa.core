@@ -16572,3 +16572,36 @@
   - `python3 tests/fafafa.core.simd/check_active_closeout_current_head_truth.py --summary-line`
   - `python3 tests/fafafa.core.simd/check_implementation_matrix_sync.py --summary-line`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-guard`
+
+## 2026-05-20 RISCVV Float Memory Boundary Cleanup
+
+- 这轮没有重开 `Clamp/Rcp/Reduce*F64` 敏感合同面，而是先把 `riscvv` float memory residual 拆成两个可验证的小边界：
+  - dead no-asm wide `Load*` facade wrappers
+  - 仍需 backend-owned、但 no-asm body 可回收 scalar precondition 的 `Store*` slots
+- 已落地源码改动：
+  - `src/fafafa.core.simd.riscvv.facade.inc`
+    - 删除 no-asm `RISCVVLoadF32x8/F32x16/F64x4/F64x8`
+    - `RISCVVStoreF32x4/F32x4Aligned/F32x8/F32x16/F64x2/F64x4/F64x8` 全部改成 `ScalarStore*` 转发
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 新增上述 `Store*` scalar-forwarder guard
+    - 把 4 个 dead `Load*` facade 加入 absent guard
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - 新增 `Test_RISCVV_WideFloatLoadSlots_Drop_DeadNoAsmFacade_While_Keeping_AsmConditional_RuntimeBinding`
+    - 新增 `Test_RISCVV_FloatStoreSlots_Keep_BackendOwnership_And_Reuse_ScalarPreconditions_When_NoAsm`
+- fresh 串行验证已完成：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-nonx86`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- fresh 结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=772 status=ok`
+  - `NONX86_IMPL_AUDIT_SUMMARY steps=6 native_evidence=skip targeted_output_root=/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd status=ok`
+  - `backend=riscvv assignments=432 asm_exact=312 asm_suffix_only=117 backend_composed=3 wrapper_only=0 scalar_passthrough=0 no_def=0 miswired=0 unused_allowlist=0 strict=1`
+  - Release `check` 通过
+  - Release `gate` 通过
+- 当前结论：
+  - `riscvv` float memory 这条线上，dead no-asm `Load*` facade 已经彻底清掉
+  - 必须继续 backend-owned 的 `Store*` slots 现在复用 scalar precondition/body，不再维护重复本地 loop

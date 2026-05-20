@@ -9794,3 +9794,32 @@
 - 当前结论更新：
   - Windows closeout 的脚本链和 manual docs 现在已回到同一 scratch continuation 入口
   - 这轮没有引入新的 freeze/gate 风险，而是收掉了 manual closeout surface 的最后一段显性路径漂移
+
+## 2026-05-20 RISCVV Float Memory Residuals Split Into Dead Loads And Backend-Owned Stores
+
+- 这轮继续往 `riscvv` residual 看时，最关键的事实不是“wide float memory 还有本地 loop”，而是这些 loop 分成了两种完全不同的边界：
+  - `LoadF32x8/F32x16/F64x4/F64x8`
+    - no-asm 版本只定义在 `src/fafafa.core.simd.riscvv.facade.inc`
+    - 但 `src/fafafa.core.simd.riscvv.register.inc` 只在 `{$IFDEF RISCVV_ASSEMBLY}` 下绑定这些 load slots
+    - 因而 no-asm facade 里的这 4 个 `Load*` wrapper 实际是 dead source，不会进入 published dispatch truth
+  - `StoreF32x4/F32x4Aligned/F32x8/F32x16/F64x2/F64x4/F64x8`
+    - register 侧仍是无条件 backend-owned 绑定
+    - 但 no-asm body 只是本地 loop，和 scalar helper 完全重复
+- 这意味着之前把 float memory residual 笼统当成“敏感不能碰”并不精确：
+  - `Load*` dead wrappers 应该直接删掉
+  - `Store*` 不该删 slot ownership，而应该把 no-asm body 收回 `ScalarStore*`，这样 nil-pointer/assert 前置条件也自动对齐
+- 这轮落地后，`check_nonx86_register_truthfulness.py --backend riscvv --strict` 给出了一个很重要的结构信号：
+  - `assignments=432`
+  - `wrapper_only=0`
+  - `scalar_passthrough=0`
+  - `backend_composed=3`
+  - 说明当前 `riscvv` published register truth 已经不再靠 float memory 这类 wrapper-only/duplicate truth 硬撑
+- 同时新增的 `DispatchAPI` source-shape/runtime-slot 护栏，把这批边界钉得更具体了：
+  - wide float `Load*`
+    - no-asm facade 必须 absent
+    - asm source 必须继续保留 dedicated helper/opcode body
+    - runtime slot 在 asm compiled 时 backend-owned，否则回到 scalar
+  - float `Store*`
+    - register 仍必须 backend-owned
+    - no-asm facade 必须显式转发 `ScalarStore*`
+    - asm source 继续保留 dedicated vector store body
