@@ -230,6 +230,26 @@
 - `docs/SIMD_SSE2_MIGRATION_MAP.md`
 - `docs/fafafa.core.simd.map.md`
 
+## 2026-05-20 RISCVV Helper Duplicate Truth Refresh
+
+- 当前 `riscvv` 家族最值得继续收口的 residual，不再是 `facade.inc` 里那些敏感浮点 loop，而是更小、更稳的 helper duplicate truth。
+- 现场复核后确认：
+  - `src/fafafa.core.simd.riscvv.helpers.inc` 里 `RISCVVCmpNeU32x4` 之前仍维护一份本地 compare loop
+  - `src/fafafa.core.simd.scalar.pas` 里同时缺少 `ScalarCmpNeU32x4`
+  - 这意味着 `U32x4` compare 家族在 scalar 层并不闭合，`riscvv helper` 被迫额外扛了一份真值实现
+- 这类问题的风险不是“少一个函数名”那么简单，而是：
+  - helper-local 语义未来更容易和 scalar/其他 backend 漂移
+  - `check_nonx86_helper_semantics.py` 会被迫长期接受这种重复真源
+  - 后续继续做 non-x86 审查时，很难区分“必要 backend 组合逻辑”和“只是 scalar 缺口造成的重复”
+- 本轮已经把这个缺口收回：
+  - 新增 `ScalarCmpNeU32x4`
+  - `RISCVVCmpNeU32x4` 改为直接委托 scalar 真源
+  - `check_nonx86_helper_semantics.py` 同步改成检查 scalar forwarder，而不再要求手写 loop
+- 同时继续维持之前的边界判断不变：
+  - `F64x4/F64x8 ReduceAdd/ReduceMul` 仍有 first-lane seed 合同差，暂不碰
+  - float `Load/Store` 仍有 `Assert(p <> nil, ...)` 前置条件差，暂不碰
+  - `Clamp/RcpF64x4` 仍属于敏感浮点合同面，暂不碰
+
 ### Historical but keep for provenance
 
 - `docs/plans/2026-02-*simd*.md` 到 `docs/plans/2026-04-*simd*.md` 这批旧执行计划已经被 `plan status index` 降级为 historical / superseded。

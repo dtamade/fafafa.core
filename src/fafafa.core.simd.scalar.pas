@@ -647,6 +647,7 @@ function ScalarCmpLtU32x4(const a, b: TVecU32x4): TMask4;
 function ScalarCmpGtU32x4(const a, b: TVecU32x4): TMask4;
 function ScalarCmpLeU32x4(const a, b: TVecU32x4): TMask4;
 function ScalarCmpGeU32x4(const a, b: TVecU32x4): TMask4;
+function ScalarCmpNeU32x4(const a, b: TVecU32x4): TMask4;
 function ScalarMinU32x4(const a, b: TVecU32x4): TVecU32x4;
 function ScalarMaxU32x4(const a, b: TVecU32x4): TVecU32x4;
 
@@ -5840,6 +5841,16 @@ begin
   for i := 0 to 3 do
     if a.u[i] >= b.u[i] then
       Result := Result or (1 shl i);
+end;
+
+function ScalarCmpNeU32x4(const a, b: TVecU32x4): TMask4;
+var
+  LIndex: Integer;
+begin
+  Result := 0;
+  for LIndex := 0 to 3 do
+    if a.u[LIndex] <> b.u[LIndex] then
+      Result := Result or (1 shl LIndex);
 end;
 
 function ScalarMinU32x4(const a, b: TVecU32x4): TVecU32x4;

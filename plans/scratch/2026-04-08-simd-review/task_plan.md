@@ -6258,3 +6258,22 @@ closeout finalize，直到 `freeze-status` 重新转绿。
 | 1. 复核这两份文档是否仍属 active manual closeout surface | completed | `docs/plans/2026-05-10-simd-plan-status-index.md` 仍把这两份文档列入状态索引，`BuildOrTest.sh closeout-guard` 也把它们当成 required targets，因此这不是纯历史噪音 |
 | 2. 收正 manual docs 的 scratch continuation 路径 | completed | postrun fill template 已把 progress/task_plan/findings 目标改到 `plans/scratch/2026-04-08-simd-review/`，并把文案同步成 `roadmap / matrix / RC checklist / scratch progress`；closeout checklist 已改成 scratch progress + RC checklist 结构化更新说明 |
 | 3. 做 closeout guard 复验 | completed | `git diff --check` 与 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-guard` fresh 通过 |
+
+## 2026-05-20 RISCVV U32x4 Compare Truth Dedup
+
+### Goal
+
+补上 `U32x4` 比较家族缺失的 scalar 真源，
+把 `src/fafafa.core.simd.riscvv.helpers.inc` 中
+`RISCVVCmpNeU32x4` 的 helper-local loop
+收回为 `ScalarCmpNeU32x4` 转发；
+这批只做 exact-contract 去重，不碰 `riscvv.facade.inc`
+里那些已确认敏感的浮点 residual。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 residual 是否真的是 safe batch | completed | 已确认当前最小重复真源不是 `F64x4/F64x8 Reduce*`、float `Load/Store`、`Clamp/RcpF64x4` 这些敏感合同面，而是 `ScalarCmpNeU32x4` 缺位导致的 `RISCVVCmpNeU32x4` helper-local compare loop |
+| 2. 补 scalar 真源并收回 helper duplicate | completed | `src/fafafa.core.simd.scalar.pas` 已新增 `ScalarCmpNeU32x4`；`src/fafafa.core.simd.riscvv.helpers.inc` 中 `RISCVVCmpNeU32x4` 已改成 `Result := ScalarCmpNeU32x4(a, b);` |
+| 3. 同步护栏并做 release 复验 | completed | `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 已改成检查 scalar forwarder；fresh `git diff --check`、`py_compile`、`check_nonx86_helper_semantics.py --summary-line`、Release `check` 全绿 |

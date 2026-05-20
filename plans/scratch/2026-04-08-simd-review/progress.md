@@ -16519,3 +16519,30 @@
 - fresh 结果：
   - `closeout-guard` 通过
   - Windows closeout manual docs 与脚本链现在统一指向 scratch continuation
+
+## 2026-05-20 RISCVV U32x4 Compare Truth Dedup
+
+- 这轮没有重开 `riscvv.facade.inc` 里那些已确认敏感的浮点 residual，而是先找一个 exact-contract、可快速闭环的小缺口继续收口。
+- 现场复核结果：
+  - `src/fafafa.core.simd.riscvv.helpers.inc` 中 `RISCVVCmpNeU32x4` 仍是 helper-local compare loop
+  - `src/fafafa.core.simd.scalar.pas` 中不存在 `ScalarCmpNeU32x4`
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 也还在显式要求这段 loop 形状存在
+- 已落地修复：
+  - `src/fafafa.core.simd.scalar.pas`
+    - 新增 `ScalarCmpNeU32x4`
+  - `src/fafafa.core.simd.riscvv.helpers.inc`
+    - `RISCVVCmpNeU32x4` 改为 `Result := ScalarCmpNeU32x4(a, b);`
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - guard 改成检查 scalar forwarder，不再要求手写 loop
+- fresh 串行验证已完成：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- fresh 结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=761 status=ok`
+  - Release `check` 通过
+  - 说明这批去重已经被 source-shape / non-x86 wiring / register truthfulness / public smoke 一整条静态+构建链实际覆盖
+- 当前结论更新：
+  - `RISCVVCmpNeU32x4` 不再维护 helper-local duplicate truth
+  - 这批没有触碰敏感浮点 hold 面，属于安全的小步收口

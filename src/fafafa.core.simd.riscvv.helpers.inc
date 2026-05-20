@@ -33,12 +33,8 @@ begin
 end;
 
 function RISCVVCmpNeU32x4(const a, b: TVecU32x4): TMask4;
-var i: Integer;
 begin
-  Result := 0;
-  for i := 0 to 3 do
-    if a.u[i] <> b.u[i] then
-      Result := Result or (1 shl i);
+  Result := ScalarCmpNeU32x4(a, b);
 end;
 
 function RISCVVShiftLeftI64x2(const a: TVecI64x2; shift: Integer): TVecI64x2;

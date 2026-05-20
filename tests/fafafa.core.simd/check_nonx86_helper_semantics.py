@@ -1021,9 +1021,7 @@ def main() -> int:
             "RISCVVCmpNeU32x4",
             [
                 "function RISCVVCmpNeU32x4(const a, b: TVecU32x4): TMask4;",
-                "Result := 0;",
-                "if a.u[i] <> b.u[i] then",
-                "Result := Result or (1 shl i);",
+                "Result := ScalarCmpNeU32x4(a, b);",
             ],
         )
     )
