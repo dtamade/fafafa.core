@@ -12,8 +12,12 @@ from pathlib import Path
 from typing import Any
 
 
-DECL_RE = re.compile(r"\b(?P<kind>function|procedure)\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)\b", re.IGNORECASE)
+DECL_RE = re.compile(
+    r"^\s*(?P<kind>function|procedure)\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)\b",
+    re.IGNORECASE | re.MULTILINE,
+)
 IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+INCLUDE_RE = re.compile(r"\{\$I\s+([^}]+)\}", re.IGNORECASE)
 
 
 @dataclass
@@ -35,12 +39,33 @@ class ImplementationCoverage:
 
 def extract_interface_text(a_file: Path) -> str:
     l_text = a_file.read_text(encoding="utf-8", errors="ignore")
-    l_parts = re.split(r"\bimplementation\b", l_text, maxsplit=1, flags=re.IGNORECASE)
+    l_parts = re.split(r"^\s*implementation\b.*$", l_text, maxsplit=1, flags=re.IGNORECASE | re.MULTILINE)
     return l_parts[0]
 
 
 def normalize_symbol(a_symbol: str) -> str:
     return re.sub(r"_+", "", a_symbol).lower()
+
+
+def read_text_with_local_includes(a_file: Path, a_seen: set[Path] | None = None) -> str:
+    if a_seen is None:
+        a_seen = set()
+
+    l_file = a_file.resolve()
+    if l_file in a_seen:
+        return ""
+    a_seen.add(l_file)
+
+    l_text = l_file.read_text(encoding="utf-8", errors="ignore")
+
+    def repl(a_match: re.Match[str]) -> str:
+        l_include_name = a_match.group(1).strip().strip("'\"")
+        l_include_path = (l_file.parent / l_include_name).resolve()
+        if not l_include_path.exists():
+            return a_match.group(0)
+        return read_text_with_local_includes(l_include_path, a_seen)
+
+    return INCLUDE_RE.sub(repl, l_text)
 
 
 def build_test_counters(a_tests_text: str) -> tuple[collections.Counter[str], collections.Counter[str]]:
@@ -81,13 +106,18 @@ def extract_symbols(
 
 def load_tests_text(a_repo_root: Path) -> str:
     l_parts: list[str] = []
-    for l_file in sorted((a_repo_root / "tests" / "fafafa.core.simd").rglob("*.pas")):
-        l_parts.append(l_file.read_text(encoding="utf-8", errors="ignore"))
+    l_tests_root = a_repo_root / "tests"
+    l_test_dirs = sorted(
+        l_path for l_path in l_tests_root.glob("fafafa.core.simd*") if l_path.is_dir()
+    )
+    for l_dir in l_test_dirs:
+        for l_file in sorted(l_dir.rglob("*.pas")):
+            l_parts.append(l_file.read_text(encoding="utf-8", errors="ignore"))
     return "\n".join(l_parts)
 
 
 def extract_dispatch_slots(a_dispatch_file: Path) -> set[str]:
-    l_text = a_dispatch_file.read_text(encoding="utf-8", errors="ignore").splitlines()
+    l_text = read_text_with_local_includes(a_dispatch_file).splitlines()
     l_slots: set[str] = set()
     l_in_record = False
     for l_line in l_text:
@@ -104,7 +134,7 @@ def extract_dispatch_slots(a_dispatch_file: Path) -> set[str]:
 
 
 def extract_assigned_slots(a_file: Path, a_slot_set: set[str]) -> set[str]:
-    l_text = a_file.read_text(encoding="utf-8", errors="ignore")
+    l_text = read_text_with_local_includes(a_file)
     l_assigned = set(re.findall(r"\b(?:dispatchTable|table)\.([A-Za-z_][A-Za-z0-9_]*)\s*:=", l_text))
     return l_assigned & a_slot_set
 
@@ -159,6 +189,12 @@ def render_markdown(
 
     l_lines: list[str] = []
     l_lines.append("# SIMD Interface Target Checklist v2 (2026-02-17)")
+    l_lines.append("")
+    l_lines.append("> Status: historical baseline.")
+    l_lines.append(">")
+    l_lines.append("> This document is kept for drift comparison, template reuse, or local design history.")
+    l_lines.append("> It is not part of the active whole-module execution chain.")
+    l_lines.append("> Before starting from any SIMD plan, check `docs/plans/2026-05-10-simd-plan-status-index.md`.")
     l_lines.append("")
     l_lines.append("## Baseline")
     l_lines.append(f"- Previous baseline (2026-02-09): `{a_old_baseline}`")
