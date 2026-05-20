@@ -16686,3 +16686,28 @@
   - `riscvv-sensitive-hold-set` 现在已经从旁路 `check` 护栏升级为 canonical non-x86 implementation truth 的正式一步
   - `closeout-host-local` 通过 `impl-audit-nonx86` 已能天然消费这条 hold-set，不再存在主链漏接
   - 当前 next-highest-value 方向应继续找类似“护栏已存在但 canonical chain / docs / closeout 还没接上”的结构缺口，而不是重新把这 7 个敏感 residual 当成待删冗余
+
+<!-- SIMD-WIN-CLOSEOUT-2026-05-20 -->
+### 批次
+- SIMD-20260520-153
+
+### 执行动作
+- 在 Windows 实机完成 buildOrTest.bat evidence-win-verify（要求 native Windows LAZBUILD，不要用 Wine/cmd 冒充实机）。
+- 生成并归档收口摘要：finalize-win-evidence。
+- 回填 roadmap / matrix / RC checklist / scratch progress，关闭跨平台证据缺口。
+
+### 命令与结果
+| Command | Result |
+|---|---|
+| tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify | PASS |
+| bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence | PASS |
+| bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status | PASS |
+| bash tests/fafafa.core.simd/apply_windows_b07_closeout_updates.sh --apply --freeze-json tests/fafafa.core.simd/logs/freeze_status.json | PASS |
+
+### 关键证据
+- Log: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260520-153/windows_b07_gate.log
+- Summary: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260520-153/windows_b07_closeout_summary.md
+
+
+### 阶段状态
+- 跨平台冻结条件满足。
