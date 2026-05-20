@@ -16365,3 +16365,42 @@
 - 当前阶段结论：
   - `RISCVV` 的 `F64x2 reduction` 与 `I64x4 memory` helper 已不再维护第二份 no-asm duplicate body
   - 这批继续严格停在 body consolidation，没有触碰 register ownership，也没有重新打开 `F64x4/F64x8 reduction` 或 float `Load/Store` 的合同风险面
+
+## 2026-05-20 Gate Non-X86 Native Evidence Skip Reason Truthfulness Fix
+
+- 在上一批 `RISCVV` safe residual 收口后，没有继续硬碰 float `Load/Store` 或 `F64x4/F64x8 reduction`；
+  先复核 gate 控制流时，发现了一个更像真问题的 closeout 文案缺口。
+- 真实现象：
+  - gate 尾部显示
+    - `[GATE] SKIP non-x86 native evidence verify (root not present: /home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs)`
+  - 但这个 `logs` 路径实际存在
+- 代码对位结果：
+  - `nonx86_native_evidence_root()` 确实返回 `${ROOT}/logs`
+  - gate 进入 SKIP 的真正判定来自 `nonx86_native_evidence_root_has_entries()`
+  - 该函数并不检查 “root 是否存在”，而是检查 root 下是否存在
+    - `native-evidence-neon-*`
+    - `native-evidence-riscvv-*`
+- 已落地修复：
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - 把 stdout skip 文案改成
+      - `no native-evidence-neon-*/native-evidence-riscvv-* entries under: ...`
+    - 把 gate summary detail 改成
+      - `non-x86 native evidence entries missing under root (optional in gate): ...`
+  - `tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+    - 把上述两条新文案加入 `BuildOrTest.sh` source-shape 护栏
+- release 策略下的 fresh 验证链已串行完成：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_nonx86_helper_semantics.py`
+  - `python3 tests/fafafa.core.simd/check_nonx86_helper_semantics.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- fresh 结果：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=761 status=ok`
+  - Release `check` 通过
+  - Release `gate` 通过
+  - gate 尾部 fresh 输出已变成真实描述：
+    - `[GATE] SKIP non-x86 native evidence verify (no native-evidence-neon-*/native-evidence-riscvv-* entries under: /home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs)`
+    - `[GATE] OK`
+- 当前阶段结论：
+  - 这批修掉的是 gate closeout 的误导性 skip 原因，不涉及 SIMD 实现语义变化
+  - 后续看 non-x86 native evidence gap 时，日志和 gate summary 现在会把真正缺的是 imported evidence entries 说清楚

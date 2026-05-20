@@ -9602,3 +9602,42 @@
 - 当前结论更新：
   - `RISCVV` 这 4 个 helper 已不再维护第二份 no-asm duplicate body
   - 当前 `Wave 5` 仍应继续优先处理这种“scalar contract 已精确存在、且不带 floating/nil contract drift”的 residual
+
+## 2026-05-20 Gate Non-X86 Native Evidence Skip Message Was Lying About The Failure Boundary
+
+- 这轮没有继续硬切 `RISCVV` 的 float `Load/Store` 或 `F64x4/F64x8 reduction`，因为 fresh 复核后它们仍属于合同敏感面。
+- 相比之下，`BuildOrTest.sh gate` 暴露了一个更像真问题的控制面缺口：
+  - gate 输出的是
+    - `SKIP non-x86 native evidence verify (root not present: ...)`
+  - 但实际判定函数 `nonx86_native_evidence_root_has_entries()` 做的并不是 “root 是否存在”
+  - 它只是在 `root` 下找
+    - `native-evidence-neon-*`
+    - `native-evidence-riscvv-*`
+- 也就是说，只要 `logs` 目录存在但里面没有 imported native evidence 目录，gate 就会 SKIP；
+  旧文案却把这个边界说成 “root not present”，会把后续 closeout 判断带偏。
+- 这类问题的风险不在于 SIMD 算法错了，而在于：
+  - 维护者会误以为路径/输出根没建好
+  - 实际上真正缺的是 imported native evidence entries
+  - `gate_summary.md` 也会把同一个误导 detail 写进 closeout 证据链
+- fresh 代码对位后，最小修复边界很清楚：
+  - 不改 `nonx86_native_evidence_root_has_entries()` 的逻辑
+  - 只把 gate stdout 和 gate summary detail 改成真实条件
+  - 再把新文案钉进现有 source-shape checker，避免以后回退成错误描述
+- 这轮因此补了两个点：
+  - `BuildOrTest.sh`
+    - gate skip 文案改成
+      - `no native-evidence-neon-*/native-evidence-riscvv-* entries under: ...`
+    - gate summary detail 改成
+      - `non-x86 native evidence entries missing under root (optional in gate): ...`
+  - `check_nonx86_helper_semantics.py`
+    - 新增这两条字符串护栏
+- fresh 证据说明这批是控制面 truthfulness fix，不是实现层行为变更：
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=761 status=ok`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` 通过
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 通过
+  - fresh gate 尾部现在明确显示：
+    - `SKIP non-x86 native evidence verify (no native-evidence-neon-*/native-evidence-riscvv-* entries under: /home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs)`
+    - `[GATE] OK`
+- 当前结论更新：
+  - 这批修掉的是 gate closeout 文案的假边界，不是 SIMD 算法层 bug
+  - 之后再看 non-x86 native evidence 缺口时，不会再被 “root not present” 这种错误原因误导

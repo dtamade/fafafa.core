@@ -6191,3 +6191,20 @@ closeout finalize，直到 `freeze-status` 重新转绿。
 | 1. 锁定这批 exact-contract residual | completed | 已先排除仍有合同差的 residual：`F64x4/F64x8 ReduceAdd/ReduceMul` 仍有 first-lane seed drift 风险，float `Load/Store` 仍有 `Assert(p <> nil, ...)` 差异；本批只保留 `F64x2` reduction 与 `I64x4` memory 这 4 个 helper |
 | 2. 收回 facade duplicate 实现 | completed | `src/fafafa.core.simd.riscvv.facade.inc` 中 `RISCVVReduceAddF64x2` / `RISCVVReduceMulF64x2` 已改为委托 `ScalarReduceAdd/ReduceMulF64x2`；`RISCVVLoadI64x4` / `RISCVVStoreI64x4` 已改为委托 `ScalarLoad/StoreI64x4` |
 | 3. 对齐 helper semantics / parity / release 验证 | completed | `check_nonx86_helper_semantics.py` 已新增这 4 个 helper 的 exact-source 断言；`TTestCase_NonX86BackendParity` 已补 `ReduceMulF64x2` assignment + scalar parity；fresh targeted suites、Release `check`、Release `gate` 全绿 |
+
+## 2026-05-20 Gate Non-X86 Native Evidence Skip Reason Truthfulness Fix
+
+### Goal
+
+修正 `BuildOrTest.sh gate` 中 non-x86 native evidence 可选 skip 的误导性文案：
+当前真正的 skip 条件是“root 下没有 `native-evidence-neon-*` / `native-evidence-riscvv-*` 条目”，
+不是 “root 不存在”；
+这批只修 gate/status 文案与对应 source-shape 护栏，不改 SIMD 实现逻辑。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核真实 skip 条件与误导来源 | completed | 已确认 `nonx86_native_evidence_root_has_entries()` 只检查 evidence 目录项存在性；`logs` 目录本身存在时仍会因为“没有 native-evidence-* 条目”走 SKIP，但旧文案错误写成了 `root not present` |
+| 2. 修正文案并加回 source guard | completed | `tests/fafafa.core.simd/BuildOrTest.sh` 已把 gate skip 文案与 gate summary detail 改成“entries missing under root”；`check_nonx86_helper_semantics.py` 已新增对应字符串护栏，避免以后退回误导性描述 |
+| 3. 走 release closeout 复验 | completed | fresh `git diff --check`、`py_compile`、helper semantics summary、Release `check`、Release `gate` 全绿；新的 gate 输出已显示真实 skip 原因 |

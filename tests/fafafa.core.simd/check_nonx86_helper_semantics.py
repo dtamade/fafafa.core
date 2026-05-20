@@ -1422,6 +1422,8 @@ def main() -> int:
             "BuildOrTest.sh",
             [
                 "non-x86 native evidence helper missing runtime parity pattern",
+                "[GATE] SKIP non-x86 native evidence verify (no native-evidence-neon-*/native-evidence-riscvv-* entries under: ${LNonX86NativeEvidenceRoot})",
+                "non-x86 native evidence entries missing under root (optional in gate): ${LNonX86NativeEvidenceRoot}",
                 "run_nonx86_impl_smoke() {",
                 "NONX86_IMPL_SMOKE_SUMMARY",
                 "impl-smoke-nonx86)",

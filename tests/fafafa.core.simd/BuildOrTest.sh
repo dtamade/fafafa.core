@@ -6690,8 +6690,8 @@ run_gate() {
       return 1
     fi
   else
-    echo "[GATE] SKIP non-x86 native evidence verify (root not present: ${LNonX86NativeEvidenceRoot})"
-    append_gate_summary "nonx86-native-evidence-verify" "SKIP" "non-x86 native evidence root missing (optional in gate): ${LNonX86NativeEvidenceRoot}" "-" "SKIP" "${SIMD_NONX86_NATIVE_EVIDENCE_LOG_FILE:-${NONX86_NATIVE_EVIDENCE_LOG}}"
+    echo "[GATE] SKIP non-x86 native evidence verify (no native-evidence-neon-*/native-evidence-riscvv-* entries under: ${LNonX86NativeEvidenceRoot})"
+    append_gate_summary "nonx86-native-evidence-verify" "SKIP" "non-x86 native evidence entries missing under root (optional in gate): ${LNonX86NativeEvidenceRoot}" "-" "SKIP" "${SIMD_NONX86_NATIVE_EVIDENCE_LOG_FILE:-${NONX86_NATIVE_EVIDENCE_LOG}}"
   fi
 
   echo "[GATE] Evidence verify (windows log optional unless SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1)"
