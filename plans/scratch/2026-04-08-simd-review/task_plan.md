@@ -6208,3 +6208,18 @@ closeout finalize，直到 `freeze-status` 重新转绿。
 | 1. 复核真实 skip 条件与误导来源 | completed | 已确认 `nonx86_native_evidence_root_has_entries()` 只检查 evidence 目录项存在性；`logs` 目录本身存在时仍会因为“没有 native-evidence-* 条目”走 SKIP，但旧文案错误写成了 `root not present` |
 | 2. 修正文案并加回 source guard | completed | `tests/fafafa.core.simd/BuildOrTest.sh` 已把 gate skip 文案与 gate summary detail 改成“entries missing under root”；`check_nonx86_helper_semantics.py` 已新增对应字符串护栏，避免以后退回误导性描述 |
 | 3. 走 release closeout 复验 | completed | fresh `git diff --check`、`py_compile`、helper semantics summary、Release `check`、Release `gate` 全绿；新的 gate 输出已显示真实 skip 原因 |
+
+## 2026-05-20 Active Closeout Truth Guard And Runner Parity Sync
+
+### Goal
+
+收掉当前最明确的 active-doc 漂移点，并把“当前 `HEAD` 已 cross-ready”的真相接成 fail-close 护栏；
+同时同步 shell / Windows batch runner parity，避免 `check/gate` 只在一侧看到新 action。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 active docs 漂移与护栏缺口 | completed | 已确认 active docs 里真正漂移的 current-head 口径只剩 `src/fafafa.core.simd.README.md`；现有 `historical-closeout-note-check` 只守历史计划 redirect，不守 active docs 当前真相 |
+| 2. 修 active docs 并补 machine guard | completed | `src/fafafa.core.simd.README.md` 已改回 `code-green / cross-ready`；新增 `tests/fafafa.core.simd/check_active_closeout_current_head_truth.py`，并把它接入 `BuildOrTest.sh` 的 `check/gate` 静态链、`closeout-guard`、`gate-summary-selfcheck` 与手动 action |
+| 3. 同步 Windows runner parity 并做 release 复验 | completed | checked-in `tests/fafafa.core.simd/buildOrTest.bat` 已同步 `active-closeout-truth-check`；fresh `py_compile`、active checker、`git diff --check`、Release `check`、Release `gate` 全绿，新的 guard 已真实进入主门禁 |

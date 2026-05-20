@@ -106,6 +106,7 @@ if /I "%ACTION%"=="gate-summary-rollback" goto :gate_summary_rollback
 if /I "%ACTION%"=="gate-summary-backups" goto :gate_summary_backups
 if /I "%ACTION%"=="gate-summary-selfcheck" goto :gate_summary_selfcheck
 if /I "%ACTION%"=="historical-closeout-note-check" goto :historical_closeout_note_check
+if /I "%ACTION%"=="active-closeout-truth-check" goto :active_closeout_truth_check
 if /I "%ACTION%"=="perf-smoke" goto :perf_smoke
 if /I "%ACTION%"=="nonx86-optin-list-suites" goto :nonx86_optin_list_suites
 if /I "%ACTION%"=="nonx86-ieee754" goto :nonx86_ieee754
@@ -143,7 +144,7 @@ if /I "%ACTION%"=="freeze-status-linux" goto :freeze_status_linux
 if /I "%ACTION%"=="win-closeout-finalize" goto :win_closeout_finalize
 if /I "%ACTION%"=="freeze-status-rehearsal" goto :freeze_status_rehearsal
 
-echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|key-slot-audit^|implementation-matrix-sync^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|dataplane-consumer-scope^|direct-dispatch-scope^|metadata-query-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|runner-parity^|closeout-guard^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|gate-summary-selfcheck^|historical-closeout-note-check^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-retry-rehearsal^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|riscvv-opcode-lane^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-linux^|native-evidence^|verify-nonx86-native-evidence^|restore-nightly-evidence^|evidence-win^|win-evidence-preflight^|win-evidence-via-gh^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-dryrun^|win-closeout-snippets^|win-closeout-3cmd^|freeze-status^|freeze-status-linux^|win-closeout-finalize^|freeze-status-rehearsal] [test-args...]
+echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|key-slot-audit^|implementation-matrix-sync^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|dataplane-consumer-scope^|direct-dispatch-scope^|metadata-query-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|runner-parity^|closeout-guard^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|gate-summary-selfcheck^|historical-closeout-note-check^|active-closeout-truth-check^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-retry-rehearsal^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|riscvv-opcode-lane^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-linux^|native-evidence^|verify-nonx86-native-evidence^|restore-nightly-evidence^|evidence-win^|win-evidence-preflight^|win-evidence-via-gh^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-dryrun^|win-closeout-snippets^|win-closeout-3cmd^|freeze-status^|freeze-status-linux^|win-closeout-finalize^|freeze-status-rehearsal] [test-args...]
 echo   Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks.
 echo   gate/gate-strict PASS is not blanket release-grade approval for every experimental path.
 echo   gate         Fast/base gate for routine SIMD changes
@@ -189,6 +190,7 @@ echo   gate-summary-rollback  Restore the previous gate summary backup
 echo   gate-summary-backups  List available gate-summary backups
 echo   gate-summary-selfcheck  Rehearse gate-summary/freeze-status selfcheck ^(delegates to shell runner^)
 echo   historical-closeout-note-check  Fail-close when historical closeout/freeze plans lose Current HEAD guidance ^(delegates to shell runner^)
+echo   active-closeout-truth-check  Fail-close when active closeout docs drift from current HEAD truth ^(delegates to shell runner^)
 echo   perf-smoke  Run the lightweight backend benchmark smoke
 echo   nonx86-optin-list-suites  List suites with NEON/RISCVV backends compiled in
 echo   nonx86-ieee754  Run the non-x86 IEEE754 parity suite
@@ -336,6 +338,17 @@ if errorlevel 1 (
 
 echo [HISTORICAL-CLOSEOUT-NOTE-CHECK] Running: bash %ROOT%BuildOrTest.sh historical-closeout-note-check %NORMALIZED_TEST_ARGS%
 bash "%ROOT%BuildOrTest.sh" historical-closeout-note-check %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:active_closeout_truth_check
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [ACTIVE-CLOSEOUT-TRUTH-CHECK] FAILED ^(bash runtime not found; active-closeout-truth-check requires bash to preserve shell parity^)
+  exit /b 2
+)
+
+echo [ACTIVE-CLOSEOUT-TRUTH-CHECK] Running: bash %ROOT%BuildOrTest.sh active-closeout-truth-check %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" active-closeout-truth-check %NORMALIZED_TEST_ARGS%
 exit /b %ERRORLEVEL%
 
 :evidence_linux

@@ -116,6 +116,7 @@ FREEZE_REHEARSAL_SCRIPT="${ROOT}/rehearse_freeze_status.sh"
 QEMU_CPUINFO_RETRY_REHEARSAL_SCRIPT="${ROOT}/rehearse_qemu_cpuinfo_retry_diagnostics.sh"
 WIN_EVIDENCE_PREFLIGHT_SCRIPT="${ROOT}/preflight_windows_b07_evidence_gh.sh"
 HISTORICAL_CLOSEOUT_NOTES_CHECK_SCRIPT="${ROOT}/check_historical_closeout_current_head_notes.py"
+ACTIVE_CLOSEOUT_TRUTH_CHECK_SCRIPT="${ROOT}/check_active_closeout_current_head_truth.py"
 PUBLICABI_RUNNER_SCRIPT="${ROOT}/../fafafa.core.simd.publicabi/BuildOrTest.sh"
 WINDOWS_CPUINFO_X86_BATCH_SUCCESS_CRITERIA_SMOKE_SCRIPT="${REPO_ROOT}/tests/test_windows_simd_cpuinfo_x86_batch_build_success_criteria.sh"
 
@@ -1245,6 +1246,7 @@ check_windows_runner_parity() {
     'if /I "%ACTION%"=="gate-summary-backups" goto :gate_summary_backups'
     'if /I "%ACTION%"=="gate-summary-selfcheck" goto :gate_summary_selfcheck'
     'if /I "%ACTION%"=="historical-closeout-note-check" goto :historical_closeout_note_check'
+    'if /I "%ACTION%"=="active-closeout-truth-check" goto :active_closeout_truth_check'
     'if /I "%ACTION%"=="evidence-linux" goto :evidence_linux'
     'if /I "%ACTION%"=="native-evidence" goto :native_evidence'
     'if /I "%ACTION%"=="verify-nonx86-native-evidence" goto :verify_nonx86_native_evidence'
@@ -1280,6 +1282,7 @@ check_windows_runner_parity() {
     'echo   gate-summary-backups  List available gate-summary backups'
     'echo   gate-summary-selfcheck  Rehearse gate-summary/freeze-status selfcheck ^(delegates to shell runner^)'
     'echo   historical-closeout-note-check  Fail-close when historical closeout/freeze plans lose Current HEAD guidance ^(delegates to shell runner^)'
+    'echo   active-closeout-truth-check  Fail-close when active closeout docs drift from current HEAD truth ^(delegates to shell runner^)'
     'echo   perf-smoke  Run the lightweight backend benchmark smoke'
     'echo   nonx86-optin-list-suites  List suites with NEON/RISCVV backends compiled in'
     'echo   nonx86-ieee754  Run the non-x86 IEEE754 parity suite'
@@ -1313,6 +1316,7 @@ check_windows_runner_parity() {
     'echo [RETRY-REHEARSAL] Running: bash %ROOT%BuildOrTest.sh qemu-cpuinfo-retry-rehearsal %NORMALIZED_TEST_ARGS%'
     'echo [IMPL-SMOKE-X86] Running: bash %ROOT%BuildOrTest.sh impl-smoke-x86 %NORMALIZED_TEST_ARGS%'
     'echo [HISTORICAL-CLOSEOUT-NOTE-CHECK] FAILED ^(bash runtime not found; historical-closeout-note-check requires bash to preserve shell parity^)'
+    'echo [ACTIVE-CLOSEOUT-TRUTH-CHECK] FAILED ^(bash runtime not found; active-closeout-truth-check requires bash to preserve shell parity^)'
     'findstr /r /c:"src\fafafa\.core\.simd\..*Warning:" /c:"src\fafafa\.core\.simd\..*Hint:" "%BUILD_LOG%" | findstr /v /c:"src\fafafa.core.simd.intrinsics.avx2.pas" >nul 2>nul'
     'call :nonx86_helper_semantics_check'
     ':nonx86_helper_semantics_check'
@@ -1351,6 +1355,8 @@ check_windows_runner_parity() {
     'echo [GATE-SUMMARY-SELFCHECK] Running: bash %ROOT%BuildOrTest.sh gate-summary-selfcheck %NORMALIZED_TEST_ARGS%'
     ':historical_closeout_note_check'
     'echo [HISTORICAL-CLOSEOUT-NOTE-CHECK] Running: bash %ROOT%BuildOrTest.sh historical-closeout-note-check %NORMALIZED_TEST_ARGS%'
+    ':active_closeout_truth_check'
+    'echo [ACTIVE-CLOSEOUT-TRUTH-CHECK] Running: bash %ROOT%BuildOrTest.sh active-closeout-truth-check %NORMALIZED_TEST_ARGS%'
     ':evidence_linux'
     'echo [EVIDENCE-LINUX] Running: bash %ROOT%BuildOrTest.sh evidence-linux %NORMALIZED_TEST_ARGS%'
     ':native_evidence'
@@ -3833,6 +3839,7 @@ run_closeout_guard() {
   check_windows_via_gh_cross_gate_guard || return $?
   check_closeout_release_entrypoint_guard || return $?
   run_historical_closeout_notes_check --summary-line || return $?
+  run_active_closeout_truth_check --summary-line || return $?
   echo "[CHECK] OK (closeout guard quick path)"
 }
 
@@ -3862,6 +3869,7 @@ run_static_build_check_core() {
   check_restore_nightly_evidence_runner_guard || return $?
   check_qemu_experimental_python_helper_guard || return $?
   check_python_checker_runtime_guard || return $?
+  run_active_closeout_truth_check --summary-line || return $?
   run_nonx86_helper_semantics_check || return $?
   run_nonx86_key_slot_audit_check || return $?
   run_implementation_matrix_sync_check || return $?
@@ -7072,6 +7080,12 @@ PY_JSON_CHECK
     return 1
   fi
 
+  if ! run_active_closeout_truth_check >/dev/null; then
+    echo "[GATE-SUMMARY-SELFCHECK] FAILED: active-closeout-truth-check"
+    rm -f "${LTmpJson}"
+    return 1
+  fi
+
   rm -f "${LTmpJson}"
   echo "[GATE-SUMMARY-SELFCHECK] OK"
 }
@@ -7086,6 +7100,22 @@ run_historical_closeout_notes_check() {
   fi
   if ! command -v python3 >/dev/null 2>&1; then
     echo "[HISTORICAL-CLOSEOUT-NOTE-CHECK] Missing python3 runtime"
+    return 2
+  fi
+
+  python3 "${LScript}" "$@"
+}
+
+run_active_closeout_truth_check() {
+  local LScript
+
+  LScript="${ACTIVE_CLOSEOUT_TRUTH_CHECK_SCRIPT:-${ROOT}/check_active_closeout_current_head_truth.py}"
+  if [[ ! -f "${LScript}" ]]; then
+    echo "[ACTIVE-CLOSEOUT-TRUTH-CHECK] Missing script: ${LScript}"
+    return 2
+  fi
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "[ACTIVE-CLOSEOUT-TRUTH-CHECK] Missing python3 runtime"
     return 2
   fi
 
@@ -7897,6 +7927,9 @@ case "${ACTION}" in
   historical-closeout-note-check)
     run_historical_closeout_notes_check "$@"
     ;;
+  active-closeout-truth-check)
+    run_active_closeout_truth_check "$@"
+    ;;
   win-evidence-preflight)
     run_win_evidence_preflight "$@"
     ;;
@@ -7931,7 +7964,7 @@ case "${ACTION}" in
     run_freeze_status_rehearsal "$@"
     ;;
   *)
-    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|closeout-release|sse2-structure-check|sse2-contracts|impl-smoke-sse2|impl-smoke-x86|impl-smoke-nonx86|impl-audit-nonx86|helper-semantics|key-slot-audit|implementation-matrix-sync|riscvv-abi-shape|source-reachability|closeout-host-local|import-nonx86-native-evidence|closeout-host-local-from-import|interface-completeness|dispatch-read-scope|dataplane-consumer-scope|direct-dispatch-scope|metadata-query-scope|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|runner-parity|closeout-guard|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-retry-rehearsal|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|verify-nonx86-native-evidence|restore-nightly-evidence|historical-closeout-note-check|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
+    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|closeout-release|sse2-structure-check|sse2-contracts|impl-smoke-sse2|impl-smoke-x86|impl-smoke-nonx86|impl-audit-nonx86|helper-semantics|key-slot-audit|implementation-matrix-sync|riscvv-abi-shape|source-reachability|closeout-host-local|import-nonx86-native-evidence|closeout-host-local-from-import|interface-completeness|dispatch-read-scope|dataplane-consumer-scope|direct-dispatch-scope|metadata-query-scope|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|runner-parity|closeout-guard|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-retry-rehearsal|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|verify-nonx86-native-evidence|restore-nightly-evidence|historical-closeout-note-check|active-closeout-truth-check|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
     echo "  Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks."
     echo "  gate/gate-strict PASS is not blanket release-grade approval for every experimental path."
     echo "  gate         Fast/base gate for routine SIMD changes"
@@ -7996,6 +8029,7 @@ case "${ACTION}" in
     echo "  verify-nonx86-native-evidence  Verify imported non-x86 native evidence"
     echo "  restore-nightly-evidence  Restore nightly evidence into canonical logs"
     echo "  historical-closeout-note-check  Fail-close when historical closeout/freeze plans lose Current HEAD guidance"
+    echo "  active-closeout-truth-check  Fail-close when active closeout docs drift from current HEAD truth"
     echo "  win-evidence-preflight  Check whether GitHub-hosted Windows evidence can run now"
     echo "  win-evidence-via-gh  Dispatch GitHub-hosted Windows evidence collection"
     echo "  verify-win-evidence  Verify Windows evidence log against the batch verifier"

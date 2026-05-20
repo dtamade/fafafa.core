@@ -9641,3 +9641,38 @@
 - 当前结论更新：
   - 这批修掉的是 gate closeout 文案的假边界，不是 SIMD 算法层 bug
   - 之后再看 non-x86 native evidence 缺口时，不会再被 “root not present” 这种错误原因误导
+
+## 2026-05-20 Active Closeout Docs Still Had One Live Current-Head Drift, And There Was No Active-Truth Guard
+
+- 这轮真正剩下的 active-doc 漂移点，不在实现、不在 interface completeness，也不在 freeze-status 算法。
+- fresh 对位后，当前明确 stale 的只有一处：
+  - `src/fafafa.core.simd.README.md`
+  - 它仍把当前 `HEAD` 写成
+    - `截至 2026-05-17`
+    - `code-green / release-evidence-blocked`
+  - 这和 active truth source 已经统一到的
+    - `ready=True / mainline-ready=True / cross-ready=True`
+    - `code-green / cross-ready`
+    直接冲突
+- 更关键的是，现有 guard 只守住了“历史 closeout / freeze plan 必须带 Current HEAD redirect”：
+  - `tests/fafafa.core.simd/check_historical_closeout_current_head_notes.py`
+  - 它不会阻止 active 入口文档把当前 `HEAD` 写回旧 blocker 叙事
+- 这意味着当实现已经绿、evidence 也绿时，仓库仍可能出现一种误导状态：
+  - `check/gate` 都是绿
+  - 但维护入口 README 还在对外说当前是 `release-evidence-blocked`
+- 这轮因此不是再开 family 重构，而是补 active truth fail-close：
+  - `src/fafafa.core.simd.README.md` 的 current-head 口径改回 `code-green / cross-ready`
+  - 新增 `tests/fafafa.core.simd/check_active_closeout_current_head_truth.py`
+    - 守 6 个 active docs/entry docs 的 current-head 必备文本
+    - 并显式钉死 README 里那条 `2026-05-17 / release-evidence-blocked` stale 句子不能回流
+  - 新 guard 已接进：
+    - `tests/fafafa.core.simd/BuildOrTest.sh check`
+    - `... gate`
+    - `... closeout-guard`
+    - `... gate-summary-selfcheck`
+- 这轮还补出一个伴随问题：
+  - shell runner 已有新 action，但 checked-in Windows `buildOrTest.bat` 未同步
+  - `check` 第一轮因此直接暴露出 Windows runner parity 缺口，而不是 silently 忽略
+- fresh 结论：
+  - 当前不是“又发现 SIMD 实现 bug”
+  - 而是“active doc truth 终于被纳入主门禁，不会再让当前 `HEAD` 绿态被旧 blocker 叙事覆盖”

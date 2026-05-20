@@ -16404,3 +16404,50 @@
 - 当前阶段结论：
   - 这批修掉的是 gate closeout 的误导性 skip 原因，不涉及 SIMD 实现语义变化
   - 后续看 non-x86 native evidence gap 时，日志和 gate summary 现在会把真正缺的是 imported evidence entries 说清楚
+
+## 2026-05-20 Active Closeout Truth Guard And Runner Parity Sync
+
+- 继续沿“不要再空转大审查”的方向收口时，先用 active docs 对位当前 truth：
+  - `docs/fafafa.core.simd.md`
+  - `docs/fafafa.core.simd.checklist.md`
+  - `docs/fafafa.core.simd.closeout.md`
+  - `docs/fafafa.core.simd.maintenance.md`
+  - `docs/fafafa.core.simd.handoff.md`
+  - `src/fafafa.core.simd.README.md`
+- 现场确认 active docs 的 current-head 漂移只剩一处：
+  - `src/fafafa.core.simd.README.md` 仍写着 `截至 2026-05-17` / `code-green / release-evidence-blocked`
+  - 其余 active truth source 已统一到 `code-green / cross-ready`
+- 已落地的代码 / 护栏收口：
+  - `src/fafafa.core.simd.README.md`
+    - current-head 口径改回 `截至 2026-05-19` / `code-green / cross-ready`
+    - 并明确只有 future `freeze-status` / `win-evidence-preflight` 再次拉红时，才回到 `release-evidence-blocked` 叙事
+  - `tests/fafafa.core.simd/check_active_closeout_current_head_truth.py`
+    - 新增 active-doc fail-close checker
+    - 当前守 6 个 active docs / entry docs
+  - `tests/fafafa.core.simd/BuildOrTest.sh`
+    - 新增 `active-closeout-truth-check` action
+    - 接入 `run_static_build_check_core`
+    - 接入 `closeout-guard`
+    - 接入 `gate-summary-selfcheck`
+  - `tests/fafafa.core.simd/buildOrTest.bat`
+    - 同步 shell runner 的 action / usage / help / bash delegation，补齐 Windows runner parity
+- 这轮 first pass 验证还额外帮我们抓到一个真实接线遗漏：
+  - shell 侧已接上新 action，但 checked-in Windows batch runner 尚未同步
+  - Release `check` 第一轮直接报出
+    - `Windows runner missing pattern: if /I "%ACTION%"=="active-closeout-truth-check" ...`
+    - `Windows runner missing action without allowlist: active-closeout-truth-check`
+  - 随后已按同一 action/help/label 语义补齐 `buildOrTest.bat`
+- fresh 验证链已串行跑通：
+  - `python3 -m py_compile tests/fafafa.core.simd/check_active_closeout_current_head_truth.py tests/fafafa.core.simd/check_historical_closeout_current_head_notes.py`
+  - `python3 tests/fafafa.core.simd/check_active_closeout_current_head_truth.py --summary-line`
+  - `git diff --check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- fresh 结果：
+  - `[CHECK] OK active closeout truth: 6 target docs`
+  - Release `check` 通过，且 `windows runner parity signatures present`
+  - Release `gate` 通过，run-all filtered chain 仍为 `5/5`
+  - 新 guard 已真实进入主门禁，不再只是 repo 里多了一个孤立脚本
+- 当前阶段结论：
+  - 这批收的是 active-doc truthfulness + runner parity，不是新的 SIMD 算法修复
+  - 当前 `HEAD` 的 closeout 绿态已经有 machine guard 守着，后续再漂回旧 blocker 文案会直接在 `check/gate` 被拦下
