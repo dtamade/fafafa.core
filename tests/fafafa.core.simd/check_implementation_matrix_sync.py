@@ -71,6 +71,11 @@ REQUIRED_SECTION_HEADERS = (
     "## X86 Bounded Frontier Ledger",
     "## Execution Baseline",
 )
+REQUIRED_DOC_FRAGMENTS = (
+    "live `check_nonx86_helper_semantics.py --summary-line` source truth",
+    "`check_riscvv_sensitive_hold_set.py`",
+    "`RISCVVRcpF64x4 / RISCVVClampF64x4 / RISCVVClampF64x8 / RISCVVReduceAddF64x4 / RISCVVReduceAddF64x8 / RISCVVReduceMulF64x4 / RISCVVReduceMulF64x8`",
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -165,6 +170,14 @@ def build_report() -> dict[str, object]:
     for header in REQUIRED_SECTION_HEADERS:
         if header not in text:
             issues.append(make_issue("missing-header", header))
+    for fragment in REQUIRED_DOC_FRAGMENTS:
+        if fragment not in text:
+            issues.append(make_issue("missing-doc-fragment", fragment))
+    for line_no, line in enumerate(lines, start=1):
+        if "`runtime evidence`" in line and "`checks=" in line:
+            issues.append(
+                make_issue("stale-helper-count", f"line={line_no}: {line.strip()}")
+            )
 
     expected_modes = key_slot_audit.collect_expected_slot_modes_from_dispatchapi()
     nonx86_rows = collect_nonx86_rows(lines)

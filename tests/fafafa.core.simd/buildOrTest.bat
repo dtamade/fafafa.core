@@ -78,6 +78,7 @@ if /I "%ACTION%"=="impl-smoke-x86" goto :impl_smoke_x86
 if /I "%ACTION%"=="impl-smoke-nonx86" goto :impl_smoke_nonx86
 if /I "%ACTION%"=="impl-audit-nonx86" goto :impl_audit_nonx86
 if /I "%ACTION%"=="helper-semantics" goto :helper_semantics
+if /I "%ACTION%"=="riscvv-sensitive-hold-set" goto :riscvv_sensitive_hold_set
 if /I "%ACTION%"=="key-slot-audit" goto :key_slot_audit
 if /I "%ACTION%"=="implementation-matrix-sync" goto :implementation_matrix_sync
 if /I "%ACTION%"=="riscvv-abi-shape" goto :riscvv_abi_shape
@@ -144,7 +145,7 @@ if /I "%ACTION%"=="freeze-status-linux" goto :freeze_status_linux
 if /I "%ACTION%"=="win-closeout-finalize" goto :win_closeout_finalize
 if /I "%ACTION%"=="freeze-status-rehearsal" goto :freeze_status_rehearsal
 
-echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|key-slot-audit^|implementation-matrix-sync^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|dataplane-consumer-scope^|direct-dispatch-scope^|metadata-query-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|runner-parity^|closeout-guard^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|gate-summary-selfcheck^|historical-closeout-note-check^|active-closeout-truth-check^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-retry-rehearsal^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|riscvv-opcode-lane^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-linux^|native-evidence^|verify-nonx86-native-evidence^|restore-nightly-evidence^|evidence-win^|win-evidence-preflight^|win-evidence-via-gh^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-dryrun^|win-closeout-snippets^|win-closeout-3cmd^|freeze-status^|freeze-status-linux^|win-closeout-finalize^|freeze-status-rehearsal] [test-args...]
+echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|riscvv-sensitive-hold-set^|key-slot-audit^|implementation-matrix-sync^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|dispatch-read-scope^|dataplane-consumer-scope^|direct-dispatch-scope^|metadata-query-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|runner-parity^|closeout-guard^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|gate-summary-selfcheck^|historical-closeout-note-check^|active-closeout-truth-check^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-retry-rehearsal^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|riscvv-opcode-lane^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-linux^|native-evidence^|verify-nonx86-native-evidence^|restore-nightly-evidence^|evidence-win^|win-evidence-preflight^|win-evidence-via-gh^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-dryrun^|win-closeout-snippets^|win-closeout-3cmd^|freeze-status^|freeze-status-linux^|win-closeout-finalize^|freeze-status-rehearsal] [test-args...]
 echo   Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks.
 echo   gate/gate-strict PASS is not blanket release-grade approval for every experimental path.
 echo   gate         Fast/base gate for routine SIMD changes
@@ -158,6 +159,7 @@ echo   impl-smoke-x86  Lightweight bounded x86 implementation smoke via Dispatch
 echo   impl-smoke-nonx86  Lightweight daily non-x86 implementation smoke
 echo   impl-audit-nonx86  Aggregate implementation-side non-x86 audit
 echo   helper-semantics  Run the non-x86 helper semantics Python audit only
+echo   riscvv-sensitive-hold-set  Fail-close the remaining RISCVV no-asm sensitive hold set
 echo   key-slot-audit  Audit key non-x86 wide slots against backend-owned/base-scalar expectations
 echo   implementation-matrix-sync  Fail-close active implementation-matrix drift
 echo   riscvv-abi-shape  Run the RISCVV ABI-shape Python audit only
@@ -234,6 +236,31 @@ exit /b 2
 :helper_semantics
 call :nonx86_helper_semantics_check
 exit /b %ERRORLEVEL%
+
+:riscvv_sensitive_hold_set
+set "RISCVV_SENSITIVE_HOLD_SET_SCRIPT=%ROOT%check_riscvv_sensitive_hold_set.py"
+if not exist "%RISCVV_SENSITIVE_HOLD_SET_SCRIPT%" (
+  echo [RISCVV-HOLD] Missing checker: %RISCVV_SENSITIVE_HOLD_SET_SCRIPT%
+  exit /b 2
+)
+if "%SIMD_RISCVV_SENSITIVE_HOLD_SET_JSON_FILE%"=="" set "SIMD_RISCVV_SENSITIVE_HOLD_SET_JSON_FILE=%LOG_DIR%\riscvv_sensitive_hold_set.json"
+
+where py >nul 2>nul
+if not errorlevel 1 (
+  echo [RISCVV-HOLD] Running: py -3 %RISCVV_SENSITIVE_HOLD_SET_SCRIPT% --summary-line --json-file "%SIMD_RISCVV_SENSITIVE_HOLD_SET_JSON_FILE%"
+  py -3 "%RISCVV_SENSITIVE_HOLD_SET_SCRIPT%" --summary-line --json-file "%SIMD_RISCVV_SENSITIVE_HOLD_SET_JSON_FILE%"
+  exit /b %ERRORLEVEL%
+)
+
+where python >nul 2>nul
+if not errorlevel 1 (
+  echo [RISCVV-HOLD] Running: python %RISCVV_SENSITIVE_HOLD_SET_SCRIPT% --summary-line --json-file "%SIMD_RISCVV_SENSITIVE_HOLD_SET_JSON_FILE%"
+  python "%RISCVV_SENSITIVE_HOLD_SET_SCRIPT%" --summary-line --json-file "%SIMD_RISCVV_SENSITIVE_HOLD_SET_JSON_FILE%"
+  exit /b %ERRORLEVEL%
+)
+
+echo [RISCVV-HOLD] FAILED (python runtime not found; tried py and python)
+exit /b 2
 
 :debug_action
 set "MODE=Debug"
@@ -643,6 +670,10 @@ if errorlevel 1 exit /b 1
 
 echo [CHECK] implementation-matrix-sync
 call "%ROOT%buildOrTest.bat" implementation-matrix-sync
+if errorlevel 1 exit /b 1
+
+echo [CHECK] riscvv-sensitive-hold-set
+call "%ROOT%buildOrTest.bat" riscvv-sensitive-hold-set
 if errorlevel 1 exit /b 1
 
 if /I not "%SIMD_CHECK_WIRING_SYNC%"=="0" (

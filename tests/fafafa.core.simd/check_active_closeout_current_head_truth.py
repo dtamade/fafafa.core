@@ -35,6 +35,12 @@ TARGET_SPECS: dict[str, dict[str, tuple[str, ...]]] = {
             "`ready=True / mainline-ready=True / cross-ready=True`",
             "`code-green / cross-ready`",
             "如果 future `freeze-status` 里的 Windows evidence log 旧于最新",
+            "live `check_nonx86_helper_semantics.py --summary-line` source truth",
+            "`check_riscvv_sensitive_hold_set.py`",
+        ),
+        "forbidden_line_pairs": (
+            ("当前 fresh 结果应理解为：", "`checks="),
+            ("当前 fresh 结果：", "`checks="),
         ),
     },
     "docs/fafafa.core.simd.maintenance.md": {
@@ -95,6 +101,13 @@ def main() -> int:
         for forbidden in spec.get("forbidden", ()):
             if forbidden in text:
                 issues.append(f"forbidden stale text present: {forbidden}")
+        for line_pair in spec.get("forbidden_line_pairs", ()):
+            for line in text.splitlines():
+                if all(fragment in line for fragment in line_pair):
+                    issues.append(
+                        "forbidden line pair present: " + " + ".join(line_pair)
+                    )
+                    break
 
         if issues:
             failures.append((rel_path, issues))

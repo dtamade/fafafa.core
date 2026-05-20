@@ -9823,3 +9823,38 @@
     - register 仍必须 backend-owned
     - no-asm facade 必须显式转发 `ScalarStore*`
     - asm source 继续保留 dedicated vector store body
+
+## 2026-05-20 RISCVV Sensitive Hold-Set Guard + Active Doc Hardening
+
+- 当前 `riscvv` 最后那组不能再随手删的 no-asm residual，已经从“口头名单”正式收成 machine guard：
+  - `RISCVVRcpF64x4`
+  - `RISCVVClampF64x4`
+  - `RISCVVClampF64x8`
+  - `RISCVVReduceAddF64x4`
+  - `RISCVVReduceAddF64x8`
+  - `RISCVVReduceMulF64x4`
+  - `RISCVVReduceMulF64x8`
+- 这批的关键点不是再做一轮实现删改，而是防止后续 review 重新回潮出“第 8 个 local truth”。
+- 初版 `check_riscvv_sensitive_hold_set.py` 第一轮确实抓到了一个作用域误判：
+  - 它把 `RISCVVMask4/8/16{And,Or,Xor,Not}` 一并算成 sensitive residual
+  - 但这组是 local mask utility，不是这轮要守的浮点/归约合同面
+  - checker 随后已收紧为只审 vector-contract hold set，而不是把所有无 `Scalar*` 调用的局部工具都误报成 regression
+- 当前 active docs 的真实漂移也已明确收口：
+  - `docs/fafafa.core.simd.closeout.md`
+  - `docs/fafafa.core.simd.implementation-matrix.md`
+  之前还把 live helper semantics 写死成固定 `checks=761`
+- 这类写法的风险不是“数字过期”这么简单，而是：
+  - checker coverage 每次扩面都要手工追着改 active docs
+  - operator 容易把 doc 里的旧计数误读成 current head 真相
+  - 现有 `active-closeout-truth` / `implementation-matrix-sync` 之前也不会 fail-close 这种 drift
+- 本轮已落地的收口做法：
+  - active docs 改成 “live `check_nonx86_helper_semantics.py --summary-line` source truth” 口径，不再把 current helper/source truth 绑死在某个 `checks=` 数字上
+  - `check_active_closeout_current_head_truth.py` 新增 line-pair fail-close：如果 `当前 fresh 结果` 一类 active 语句重新塞回 `checks=...`，直接报 drift
+  - `check_implementation_matrix_sync.py` 新增 active matrix 片段要求：必须提到 live helper truth 与 `check_riscvv_sensitive_hold_set.py`；若 `runtime evidence` 行再次出现硬编码 `checks=`，直接 fail
+- fresh 结果：
+  - `RISCVV_SENSITIVE_HOLD_SET_SUMMARY routines=7 issues=0 status=ok`
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=772 status=ok`
+  - `IMPLEMENTATION_MATRIX_SYNC nonx86_slots=22 x86_rows=10 issues=0 status=ok`
+  - `[CHECK] OK active closeout truth: 6 target docs`
+  - Release `check` 通过
+  - Release `gate` 通过

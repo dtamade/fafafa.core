@@ -16605,3 +16605,39 @@
 - 当前结论：
   - `riscvv` float memory 这条线上，dead no-asm `Load*` facade 已经彻底清掉
   - 必须继续 backend-owned 的 `Store*` slots 现在复用 scalar precondition/body，不再维护重复本地 loop
+
+## 2026-05-20 RISCVV Sensitive Hold-Set Guard And Live-Truth Docs
+
+- 这一批没有再去扩实现面，而是把当前 `riscvv` 最后剩下的敏感 residual 收成了 dedicated source guard：
+  - 新增 `tests/fafafa.core.simd/check_riscvv_sensitive_hold_set.py`
+  - 目标只锁 no-asm `riscvv.facade.inc` 里允许保留的 7 个敏感 local-contract residual
+  - 初版曾把 `RISCVVMask4/8/16{And,Or,Xor,Not}` 一并算进 residual；现场确认这是 mask utility，不属于本轮浮点/归约 hold 面后，checker 已收紧作用域
+- 同时把 active docs 从“硬编码 helper count”改回 live truth：
+  - `docs/fafafa.core.simd.closeout.md`
+  - `docs/fafafa.core.simd.implementation-matrix.md`
+  - `docs/plans/2026-05-09-simd-riscvv-qualification-plan.md`
+  现在都明确引用 live `check_nonx86_helper_semantics.py --summary-line` source truth，并补进 `check_riscvv_sensitive_hold_set.py` 的 hold-set 说明
+- 对应 doc guards 也一起补强：
+  - `check_active_closeout_current_head_truth.py`
+    - 新增 active-line fail-close，防止 `当前 fresh 结果... checks=...` 再次回流
+  - `check_implementation_matrix_sync.py`
+    - 现在要求 matrix 明确记录 live helper truth + RISCVV hold-set checker
+    - 若 active `runtime evidence` 行再出现硬编码 `checks=...`，直接报 drift
+- fresh 串行验证已完成：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_riscvv_sensitive_hold_set.py tests/fafafa.core.simd/check_active_closeout_current_head_truth.py tests/fafafa.core.simd/check_implementation_matrix_sync.py`
+  - `python3 tests/fafafa.core.simd/check_riscvv_sensitive_hold_set.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_active_closeout_current_head_truth.py --summary-line`
+  - `python3 tests/fafafa.core.simd/check_implementation_matrix_sync.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- fresh 结果：
+  - `RISCVV_SENSITIVE_HOLD_SET_SUMMARY routines=7 issues=0 status=ok`
+  - `NONX86_HELPER_SEMANTICS_SUMMARY checks=772 status=ok`
+  - `IMPLEMENTATION_MATRIX_SYNC nonx86_slots=22 x86_rows=10 issues=0 status=ok`
+  - `[CHECK] OK active closeout truth: 6 target docs`
+  - Release `check` 通过
+  - Release `gate` 通过
+- 当前结论更新：
+  - `riscvv` 最后允许保留的敏感 no-asm residual 现在已有 fail-close 机器护栏
+  - active docs 不再需要追着 helper `checks=` 计数人工改写，后续只要 live checker 继续绿即可

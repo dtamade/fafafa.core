@@ -6313,3 +6313,20 @@ closeout finalize，直到 `freeze-status` 重新转绿。
 | 1. 复核 float memory residual 的真实边界 | completed | 已确认 `riscvv.facade.inc` 只在 `{$IFNDEF RISCVV_ASSEMBLY}` 下编译，而 `riscvv.register.inc` 仅在 `{$IFDEF RISCVV_ASSEMBLY}` 下绑定 `LoadF32x8/F32x16/F64x4/F64x8`；因此这些 no-asm `Load*` wrapper 是 dead facade，不是 live backend contract。与此同时 `StoreF32x4/F32x4Aligned/F32x8/F32x16/F64x2/F64x4/F64x8` 仍由 register 无条件 backend-owned 发布，但其 no-asm body 只是本地 loop，可安全收回 scalar precondition/body。 |
 | 2. 删除 dead load facade 并收回 no-asm store duplicate truth | completed | `src/fafafa.core.simd.riscvv.facade.inc` 已删除 no-asm `LoadF32x8/F32x16/F64x4/F64x8` wrapper；`StoreF32x4/F32x4Aligned/F32x8/F32x16/F64x2/F64x4/F64x8` 已全部改成 `ScalarStore*` 转发，统一 nil-pointer/assert 合同，同时保留 register 的 backend-owned slot 语义不变。 |
 | 3. 补 machine guard 并做 release 复验 | completed | `tests/fafafa.core.simd/check_nonx86_helper_semantics.py` 已新增 store scalar-forwarder guard，并把 4 个 dead `Load*` facade 加入 absent guard；`DispatchAPI` 已新增两个 RISCVV float memory source-shape/runtime-slot 测试；fresh `git diff --check`、`py_compile`、helper-semantics、Release `DispatchAPI`、`impl-audit-nonx86`、Release `check`、Release `gate` 全部通过。 |
+
+## 2026-05-20 RISCVV Sensitive Hold-Set Guard And Live-Truth Doc Hardening
+
+### Goal
+
+把 `riscvv.facade.inc` no-asm 面最后允许保留的 7 个敏感浮点 residual
+从“文档说明”升级成 machine guard，
+同时把 active docs 从硬编码 helper semantics `checks=` 计数
+收回成 live source truth 口径，避免后续继续文档漂移。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前 residual 与 active-doc drift 边界 | completed | 已确认当前 no-asm `riscvv.facade.inc` 真正需要 hold 的只剩 `RISCVVRcpF64x4 / RISCVVClampF64x4 / RISCVVClampF64x8 / RISCVVReduceAddF64x4 / RISCVVReduceAddF64x8 / RISCVVReduceMulF64x4 / RISCVVReduceMulF64x8`；与此同时 `docs/fafafa.core.simd.closeout.md` 与 `docs/fafafa.core.simd.implementation-matrix.md` 仍把 live helper semantics 写成固定 `checks=761`。 |
+| 2. 落地 hold-set checker 与 docs/checker 同步 | completed | 已新增 `tests/fafafa.core.simd/check_riscvv_sensitive_hold_set.py`，并把它接入 `BuildOrTest.sh check` 与 `buildOrTest.bat check`；active docs 已改成 “live \`check_nonx86_helper_semantics.py --summary-line\` source truth” 口径，并补进 `check_riscvv_sensitive_hold_set.py` 的 hold-set 说明；`check_active_closeout_current_head_truth.py` / `check_implementation_matrix_sync.py` 也已同步 fail-close 这类文档回漂。 |
+| 3. 串行 Release 复验并确认 canonical gate 收口 | completed | fresh `git diff --check`、`py_compile`、`check_riscvv_sensitive_hold_set.py --summary-line`、`check_active_closeout_current_head_truth.py --summary-line`、`check_implementation_matrix_sync.py --summary-line`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 全部通过；其中 `RISCVV_SENSITIVE_HOLD_SET_SUMMARY routines=7 issues=0 status=ok`、`NONX86_HELPER_SEMANTICS_SUMMARY checks=772 status=ok`、Release `gate` 均已 fresh 打绿。 |
