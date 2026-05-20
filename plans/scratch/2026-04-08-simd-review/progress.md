@@ -16772,3 +16772,25 @@
   - `thin: 55 -> 30`
   - `missing: 0 -> 0`
   - 没有引入新的 gate 回归
+
+## 2026-05-20 Public API Thin Coverage Reduction Batch 2
+
+- 这轮继续只做测试增厚，不碰 SIMD 实现。
+- 修改文件：
+  - `tests/fafafa.core.simd/fafafa.core.simd.narrowintegerops.testcase.pas`
+- 处理方式：
+  - 为 batch 1 后剩余的 30 个整数 API 各自补了第二次 façade 调用
+  - 新场景统一使用不同输入、位模式、边界值或 mask 结果
+  - 保持在原有 test method 内完成，不新增 suite
+- fresh 验证链：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_public_api_test_coverage.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- fresh 结果：
+  - `git diff --check` 通过
+  - `PUBLIC_API_TEST_COVERAGE_SUMMARY test_files=76 symbols=537 covered=537 missing=0 thin=0 min_refs=2 strict_thin=0 status=ok`
+  - Release `gate` 通过
+- 本批次净效果：
+  - `thin: 30 -> 0`
+  - `missing: 0 -> 0`
+  - `public-api-coverage` 这条线已经完整收口

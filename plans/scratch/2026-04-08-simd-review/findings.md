@@ -9950,3 +9950,26 @@
   - `VecU16x8*`
   - `VecU32x4*`
   - 这说明下一批最合理的继续方向应该是“按整数 family 成簇收缩”，而不是再回去碰这轮已经增厚完的 float/shuffle/cast 面。
+
+## 2026-05-20 Public API Thin Coverage Reduction Batch 2
+
+- batch 1 之后剩下的 `thin=30` 并没有继续分散在多个文件里，而是全部集中在一个位置：
+  - `tests/fafafa.core.simd/fafafa.core.simd.narrowintegerops.testcase.pas`
+- 这让 batch 2 的边界非常干净：
+  - 只改一个 testcase 文件
+  - 只补第二次 façade 调用
+  - 不需要改任何 SIMD 实现/dispatch/backend/runner/doc 主链
+- 本轮覆盖的剩余薄点分组为：
+  - `VecI16x8And/AndNot/Not/Or/ShiftRight/ShiftRightArith/Xor`
+  - `VecI8x16Max/Min/Or/Xor`
+  - `VecU16x8CmpEq/CmpGt/Max/Min/Or/ShiftLeft/Xor`
+  - `VecU32x4And/CmpEq/CmpGt/Not/Or/ShiftLeft/Xor`
+  - `VecU8x16CmpEq/Max/Min/Or/Xor`
+- fresh 结果说明这条 lane 已经彻底收口：
+  - `covered=537`
+  - `missing=0`
+  - `thin=0`
+- 结论更新：
+  - 当前 `public-api-coverage` 已不再只是“全覆盖但有薄点”
+  - 它现在已经达到 `537/537 covered` 且 `thin=0` 的状态
+  - 后续如果再沿“测试完整性”方向推进，就不该继续做薄覆盖补点，而应该转向更高价值的语义/证据/平台维度

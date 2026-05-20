@@ -6388,3 +6388,21 @@ closeout finalize，直到 `freeze-status` 重新转绿。
 | 1. 复核 thin 清单并锁定安全批次 | completed | fresh `check_public_api_test_coverage.py --summary-line` 确认起点为 `covered=537 missing=0 thin=55`；这批只补第二场景，不打开实现/文档/runner 架构面 |
 | 2. 直接在现有 testcase 内补第二场景 | completed | 已只修改 4 个测试文件；每个薄点新增不同输入/掩码/边界值，避免新增 suite 结构或碰实现文件 |
 | 3. 串行 release 复验并确认 gate 仍绿 | completed | `git diff --check`、`python3 tests/fafafa.core.simd/check_public_api_test_coverage.py --summary-line`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 全部通过 |
+
+## 2026-05-20 Public API Thin Coverage Reduction Batch 2
+
+### Goal
+
+把 batch 1 之后剩余的 `30` 个 `thin_symbols(<2)` 一次性收完。
+这批继续坚持测试层收口，不碰任何 SIMD 实现/架构文件；
+因为 fresh 清单已经确认这 30 个薄点全部集中在
+`tests/fafafa.core.simd/fafafa.core.simd.narrowintegerops.testcase.pas`
+一个文件里，所以这轮直接在该 testcase 内补第二场景。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 锁定剩余 thin 的集中位置 | completed | fresh `check_public_api_test_coverage.py --summary-line` 确认为 `thin=30`，且剩余 30 个 API 全都落在 `narrowintegerops.testcase.pas` |
+| 2. 为 30 个整数 API 补第二次调用 | completed | 已在 `VecI16x8* / VecI8x16* / VecU16x8* / VecU32x4* / VecU8x16*` 的现有方法内补第二组输入/掩码/边界值，不新增 suite、不碰实现 |
+| 3. 串行 release 复验并确认 thin 清零 | completed | `git diff --check`、`python3 tests/fafafa.core.simd/check_public_api_test_coverage.py --summary-line`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 全部通过；fresh 结果为 `thin=0` |

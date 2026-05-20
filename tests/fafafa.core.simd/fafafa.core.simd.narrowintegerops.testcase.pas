@@ -322,6 +322,13 @@ begin
 
   r := VecI16x8And(a, b);
   AssertEquals('I16x8 And [0]', $000F, r.i[0]);
+
+  a.i[0] := Int16($AAAA); b.i[0] := $0FF0;
+  a.i[1] := $1234; b.i[1] := $00FF;
+
+  r := VecI16x8And(a, b);
+  AssertEquals('I16x8 And alt [0]', Int16($0AA0), r.i[0]);
+  AssertEquals('I16x8 And alt [1]', Int16($0034), r.i[1]);
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecI16x8_Or_Basic;
@@ -340,6 +347,13 @@ begin
 
   r := VecI16x8Or(a, b);
   AssertEquals('I16x8 Or [0]', $0FFF, r.i[0]);
+
+  a.i[0] := $00F0; b.i[0] := $0F00;
+  a.i[1] := $1200; b.i[1] := $0034;
+
+  r := VecI16x8Or(a, b);
+  AssertEquals('I16x8 Or alt [0]', Int16($0FF0), r.i[0]);
+  AssertEquals('I16x8 Or alt [1]', Int16($1234), r.i[1]);
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecI16x8_Xor_Basic;
@@ -358,6 +372,13 @@ begin
 
   r := VecI16x8Xor(a, b);
   AssertEquals('I16x8 Xor [0]', Int16($F0F0), r.i[0]);
+
+  a.i[0] := Int16($AAAA); b.i[0] := $0FF0;
+  a.i[1] := $1234; b.i[1] := $00FF;
+
+  r := VecI16x8Xor(a, b);
+  AssertEquals('I16x8 Xor alt [0]', Int16($A55A), r.i[0]);
+  AssertEquals('I16x8 Xor alt [1]', Int16($12CB), r.i[1]);
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecI16x8_Not_Basic;
@@ -375,6 +396,13 @@ begin
 
   r := VecI16x8Not(a);
   AssertEquals('I16x8 Not [0]', Int16($F0F0), r.i[0]);
+
+  a.i[0] := Int16($AAAA);
+  a.i[1] := 0;
+
+  r := VecI16x8Not(a);
+  AssertEquals('I16x8 Not alt [0]', Int16($5555), r.i[0]);
+  AssertEquals('I16x8 Not alt [1]', Int16($FFFF), r.i[1]);
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecI16x8_AndNot_Basic;
@@ -396,6 +424,13 @@ begin
   // NOT(0x0F0F) = 0xF0F0
   // 0xF0F0 AND 0xFFFF = 0xF0F0
   AssertEquals('I16x8 AndNot [0]', Int16($F0F0), r.i[0]);
+
+  a.i[0] := $00FF; b.i[0] := $0FF0;
+  a.i[1] := $0F0F; b.i[1] := $3333;
+
+  r := VecI16x8AndNot(a, b);
+  AssertEquals('I16x8 AndNot alt [0]', Int16($0F00), r.i[0]);
+  AssertEquals('I16x8 AndNot alt [1]', Int16($3030), r.i[1]);
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecI16x8_ShiftLeft_Basic;
@@ -468,6 +503,13 @@ begin
   r := VecI16x8ShiftRight(a, 4);
   AssertEquals('I16x8 ShiftRight [0]', 16, r.i[0]);
   AssertEquals('I16x8 ShiftRight [1]', 32, r.i[1]);
+
+  a.i[0] := Int16($8000);
+  a.i[1] := Int16($F000);
+
+  r := VecI16x8ShiftRight(a, 4);
+  AssertEquals('I16x8 ShiftRight alt [0]', Int16($0800), r.i[0]);
+  AssertEquals('I16x8 ShiftRight alt [1]', Int16($0F00), r.i[1]);
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecI16x8_ShiftRightArith_Negative;
@@ -486,6 +528,13 @@ begin
   r := VecI16x8ShiftRightArith(a, 4);
   // 算术右移保留符号位
   AssertEquals('I16x8 ShiftRightArith negative', -16, r.i[0]);
+
+  a.i[0] := -1024;
+  a.i[1] := 256;
+
+  r := VecI16x8ShiftRightArith(a, 5);
+  AssertEquals('I16x8 ShiftRightArith alt [0]', -32, r.i[0]);
+  AssertEquals('I16x8 ShiftRightArith alt [1]', 8, r.i[1]);
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecI16x8_CmpEq_AllSame;
@@ -845,6 +894,13 @@ begin
 
   r := VecI8x16Or(a, b);
   AssertEquals('I8x16 Or [0]', $3F, r.i[0]);
+
+  a.i[0] := $55; b.i[0] := Int8($AA);
+  a.i[1] := $0F; b.i[1] := Int8($F0);
+
+  r := VecI8x16Or(a, b);
+  AssertEquals('I8x16 Or alt [0]', Int8($FF), r.i[0]);
+  AssertEquals('I8x16 Or alt [1]', Int8($FF), r.i[1]);
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecI8x16_Xor_Basic;
@@ -862,6 +918,13 @@ begin
 
   r := VecI8x16Xor(a, b);
   AssertEquals('I8x16 Xor [0]', Int8($F0), r.i[0]);
+
+  a.i[0] := $55; b.i[0] := Int8($AA);
+  a.i[1] := $0F; b.i[1] := Int8($F0);
+
+  r := VecI8x16Xor(a, b);
+  AssertEquals('I8x16 Xor alt [0]', Int8($FF), r.i[0]);
+  AssertEquals('I8x16 Xor alt [1]', Int8($FF), r.i[1]);
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecI8x16_Not_Basic;
@@ -1061,6 +1124,13 @@ begin
   r := VecI8x16Min(a, b);
   AssertEquals('I8x16 Min [0]', 10, r.i[0]);
   AssertEquals('I8x16 Min [1]', 25, r.i[1]);
+
+  a.i[0] := -10; b.i[0] := -20;
+  a.i[1] := 127; b.i[1] := -1;
+
+  r := VecI8x16Min(a, b);
+  AssertEquals('I8x16 Min alt [0]', -20, r.i[0]);
+  AssertEquals('I8x16 Min alt [1]', -1, r.i[1]);
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecI8x16_Max_Basic;
@@ -1079,6 +1149,13 @@ begin
   r := VecI8x16Max(a, b);
   AssertEquals('I8x16 Max [0]', 20, r.i[0]);
   AssertEquals('I8x16 Max [1]', 30, r.i[1]);
+
+  a.i[0] := -10; b.i[0] := -20;
+  a.i[1] := 127; b.i[1] := -1;
+
+  r := VecI8x16Max(a, b);
+  AssertEquals('I8x16 Max alt [0]', -10, r.i[0]);
+  AssertEquals('I8x16 Max alt [1]', 127, r.i[1]);
 end;
 
 // === U32x4 (4×UInt32) 测试实现 ===
@@ -1188,6 +1265,15 @@ begin
 
   r := VecU32x4And(a, b);
   AssertEquals('U32x4 And [0]', UInt32($000F000F), r.u[0]);
+
+  a.u[0] := UInt32($FFFF0000);
+  b.u[0] := UInt32($0F0F0F0F);
+  a.u[1] := UInt32($12345678);
+  b.u[1] := UInt32($00FF00FF);
+
+  r := VecU32x4And(a, b);
+  AssertEquals('U32x4 And alt [0]', UInt32($0F0F0000), r.u[0]);
+  AssertEquals('U32x4 And alt [1]', UInt32($00340078), r.u[1]);
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecU32x4_Or_Basic;
@@ -1202,6 +1288,15 @@ begin
 
   r := VecU32x4Or(a, b);
   AssertEquals('U32x4 Or [0]', UInt32($00FF00FF), r.u[0]);
+
+  a.u[0] := UInt32($F0F00000);
+  b.u[0] := UInt32($0F0F00FF);
+  a.u[1] := UInt32($12000000);
+  b.u[1] := UInt32($00000034);
+
+  r := VecU32x4Or(a, b);
+  AssertEquals('U32x4 Or alt [0]', UInt32($FFFF00FF), r.u[0]);
+  AssertEquals('U32x4 Or alt [1]', UInt32($12000034), r.u[1]);
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecU32x4_Xor_Basic;
@@ -1216,6 +1311,15 @@ begin
 
   r := VecU32x4Xor(a, b);
   AssertEquals('U32x4 Xor [0]', UInt32($F0F0F0F0), r.u[0]);
+
+  a.u[0] := UInt32($AAAAAAAA);
+  b.u[0] := UInt32($0FF00FF0);
+  a.u[1] := UInt32($12345678);
+  b.u[1] := UInt32($00FF00FF);
+
+  r := VecU32x4Xor(a, b);
+  AssertEquals('U32x4 Xor alt [0]', UInt32($A55AA55A), r.u[0]);
+  AssertEquals('U32x4 Xor alt [1]', UInt32($12CB5687), r.u[1]);
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecU32x4_Not_Basic;
@@ -1229,6 +1333,13 @@ begin
 
   r := VecU32x4Not(a);
   AssertEquals('U32x4 Not [0]', UInt32($F0F0F0F0), r.u[0]);
+
+  a.u[0] := 0;
+  a.u[1] := UInt32($AAAAAAAA);
+
+  r := VecU32x4Not(a);
+  AssertEquals('U32x4 Not alt [0]', UInt32($FFFFFFFF), r.u[0]);
+  AssertEquals('U32x4 Not alt [1]', UInt32($55555555), r.u[1]);
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecU32x4_AndNot_Basic;
@@ -1257,6 +1368,13 @@ begin
   r := VecU32x4ShiftLeft(a, 8);
   AssertEquals('U32x4 ShiftLeft [0]', UInt32(256), r.u[0]);
   AssertEquals('U32x4 ShiftLeft [1]', UInt32(512), r.u[1]);
+
+  a.u[0] := UInt32($80000000);
+  a.u[1] := 3;
+
+  r := VecU32x4ShiftLeft(a, 4);
+  AssertEquals('U32x4 ShiftLeft alt [0]', UInt32(0), r.u[0]);
+  AssertEquals('U32x4 ShiftLeft alt [1]', UInt32(48), r.u[1]);
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecU32x4_ShiftRight_Basic;
@@ -1300,6 +1418,14 @@ begin
   m := VecU32x4CmpEq(a, b);
   AssertTrue('U32x4 CmpEq [0] should be true', (m and (1 shl 0)) <> 0);
   AssertFalse('U32x4 CmpEq [1] should be false', (m and (1 shl 1)) <> 0);
+
+  a.u[0] := 1; b.u[0] := 2;
+  a.u[1] := UInt32($FFFFFFFF); b.u[1] := UInt32($FFFFFFFF);
+  a.u[2] := 42; b.u[2] := 42;
+  a.u[3] := 7; b.u[3] := 8;
+
+  m := VecU32x4CmpEq(a, b);
+  AssertEquals('U32x4 CmpEq alt mask', 6, Integer(m));
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecU32x4_CmpLt_Unsigned;
@@ -1346,6 +1472,14 @@ begin
   m := VecU32x4CmpGt(a, b);
   AssertTrue('U32x4 CmpGt [0]: 300 > 200', (m and (1 shl 0)) <> 0);
   AssertFalse('U32x4 CmpGt [1]: 100 <= 200', (m and (1 shl 1)) <> 0);
+
+  a.u[0] := UInt32($FFFFFFFF); b.u[0] := 1;
+  a.u[1] := 0; b.u[1] := UInt32($FFFFFFFF);
+  a.u[2] := 500; b.u[2] := 400;
+  a.u[3] := 7; b.u[3] := 7;
+
+  m := VecU32x4CmpGt(a, b);
+  AssertEquals('U32x4 CmpGt alt mask', 5, Integer(m));
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecU32x4_CmpLe_Unsigned;
@@ -1550,6 +1684,13 @@ begin
 
   r := VecU16x8Or(a, b);
   AssertEquals('U16x8 Or [0]', UInt16($0FFF), r.u[0]);
+
+  a.u[0] := $00F0; b.u[0] := $0F00;
+  a.u[1] := $1234; b.u[1] := $00FF;
+
+  r := VecU16x8Or(a, b);
+  AssertEquals('U16x8 Or alt [0]', UInt16($0FF0), r.u[0]);
+  AssertEquals('U16x8 Or alt [1]', UInt16($12FF), r.u[1]);
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecU16x8_Xor_Basic;
@@ -1568,6 +1709,13 @@ begin
 
   r := VecU16x8Xor(a, b);
   AssertEquals('U16x8 Xor [0]', UInt16($F0F0), r.u[0]);
+
+  a.u[0] := $AAAA; b.u[0] := $0FF0;
+  a.u[1] := $1234; b.u[1] := $00FF;
+
+  r := VecU16x8Xor(a, b);
+  AssertEquals('U16x8 Xor alt [0]', UInt16($A55A), r.u[0]);
+  AssertEquals('U16x8 Xor alt [1]', UInt16($12CB), r.u[1]);
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecU16x8_Not_Basic;
@@ -1621,6 +1769,13 @@ begin
   r := VecU16x8ShiftLeft(a, 4);
   AssertEquals('U16x8 ShiftLeft [0]', UInt16(16), r.u[0]);
   AssertEquals('U16x8 ShiftLeft [1]', UInt16(32), r.u[1]);
+
+  a.u[0] := $00FF;
+  a.u[1] := $8000;
+
+  r := VecU16x8ShiftLeft(a, 4);
+  AssertEquals('U16x8 ShiftLeft alt [0]', UInt16($0FF0), r.u[0]);
+  AssertEquals('U16x8 ShiftLeft alt [1]', UInt16(0), r.u[1]);
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecU16x8_ShiftRight_Basic;
@@ -1676,6 +1831,14 @@ begin
   m := VecU16x8CmpEq(a, b);
   AssertTrue('U16x8 CmpEq [0] should be true', (m and (1 shl 0)) <> 0);
   AssertFalse('U16x8 CmpEq [1] should be false', (m and (1 shl 1)) <> 0);
+
+  a.u[0] := 1; b.u[0] := 2;
+  a.u[1] := 65535; b.u[1] := 65535;
+  a.u[2] := 42; b.u[2] := 42;
+  a.u[3] := 7; b.u[3] := 8;
+
+  m := VecU16x8CmpEq(a, b);
+  AssertEquals('U16x8 CmpEq alt mask', 6, Integer(m));
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecU16x8_CmpLt_Unsigned;
@@ -1734,6 +1897,14 @@ begin
   m := VecU16x8CmpGt(a, b);
   AssertTrue('U16x8 CmpGt [0]: 300 > 200', (m and (1 shl 0)) <> 0);
   AssertFalse('U16x8 CmpGt [1]: 100 <= 200', (m and (1 shl 1)) <> 0);
+
+  a.u[0] := 65535; b.u[0] := 1;
+  a.u[1] := 0; b.u[1] := 0;
+  a.u[2] := 123; b.u[2] := 456;
+  a.u[3] := 500; b.u[3] := 400;
+
+  m := VecU16x8CmpGt(a, b);
+  AssertEquals('U16x8 CmpGt alt mask', 9, Integer(m));
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_DispatchU16x8_CmpLe_Unsigned;
@@ -1824,6 +1995,13 @@ begin
   r := VecU16x8Min(a, b);
   AssertEquals('U16x8 Min [0]', UInt16(100), r.u[0]);
   AssertEquals('U16x8 Min [1]', UInt16(250), r.u[1]);
+
+  a.u[0] := 0; b.u[0] := 65535;
+  a.u[1] := 1024; b.u[1] := 512;
+
+  r := VecU16x8Min(a, b);
+  AssertEquals('U16x8 Min alt [0]', UInt16(0), r.u[0]);
+  AssertEquals('U16x8 Min alt [1]', UInt16(512), r.u[1]);
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecU16x8_Max_Basic;
@@ -1842,6 +2020,13 @@ begin
   r := VecU16x8Max(a, b);
   AssertEquals('U16x8 Max [0]', UInt16(200), r.u[0]);
   AssertEquals('U16x8 Max [1]', UInt16(300), r.u[1]);
+
+  a.u[0] := 0; b.u[0] := 65535;
+  a.u[1] := 1024; b.u[1] := 512;
+
+  r := VecU16x8Max(a, b);
+  AssertEquals('U16x8 Max alt [0]', UInt16(65535), r.u[0]);
+  AssertEquals('U16x8 Max alt [1]', UInt16(1024), r.u[1]);
 end;
 
 // === U8x16 (16×UInt8) 测试实现 ===
@@ -1954,6 +2139,13 @@ begin
 
   r := VecU8x16Or(a, b);
   AssertEquals('U8x16 Or [0]', Byte($3F), r.u[0]);
+
+  a.u[0] := $55; b.u[0] := $AA;
+  a.u[1] := $0F; b.u[1] := $F0;
+
+  r := VecU8x16Or(a, b);
+  AssertEquals('U8x16 Or alt [0]', Byte($FF), r.u[0]);
+  AssertEquals('U8x16 Or alt [1]', Byte($FF), r.u[1]);
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecU8x16_Xor_Basic;
@@ -1971,6 +2163,13 @@ begin
 
   r := VecU8x16Xor(a, b);
   AssertEquals('U8x16 Xor [0]', Byte($F0), r.u[0]);
+
+  a.u[0] := $55; b.u[0] := $AA;
+  a.u[1] := $0F; b.u[1] := $F0;
+
+  r := VecU8x16Xor(a, b);
+  AssertEquals('U8x16 Xor alt [0]', Byte($FF), r.u[0]);
+  AssertEquals('U8x16 Xor alt [1]', Byte($FF), r.u[1]);
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecU8x16_Not_Basic;
@@ -2020,6 +2219,14 @@ begin
   m := VecU8x16CmpEq(a, b);
   AssertTrue('U8x16 CmpEq [0] should be true', (m and (1 shl 0)) <> 0);
   AssertFalse('U8x16 CmpEq [1] should be false', (m and (1 shl 1)) <> 0);
+
+  a.u[0] := 1; b.u[0] := 2;
+  a.u[1] := 255; b.u[1] := 255;
+  a.u[2] := 42; b.u[2] := 42;
+  a.u[3] := 7; b.u[3] := 8;
+
+  m := VecU8x16CmpEq(a, b);
+  AssertEquals('U8x16 CmpEq alt mask', 6, Integer(m));
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecU8x16_CmpLt_Unsigned;
@@ -2170,6 +2377,13 @@ begin
   r := VecU8x16Min(a, b);
   AssertEquals('U8x16 Min [0]', Byte(10), r.u[0]);
   AssertEquals('U8x16 Min [1]', Byte(25), r.u[1]);
+
+  a.u[0] := 0; b.u[0] := 255;
+  a.u[1] := 200; b.u[1] := 199;
+
+  r := VecU8x16Min(a, b);
+  AssertEquals('U8x16 Min alt [0]', Byte(0), r.u[0]);
+  AssertEquals('U8x16 Min alt [1]', Byte(199), r.u[1]);
 end;
 
 procedure TTestCase_NarrowIntegerOps.Test_VecU8x16_Max_Basic;
@@ -2188,6 +2402,13 @@ begin
   r := VecU8x16Max(a, b);
   AssertEquals('U8x16 Max [0]', Byte(20), r.u[0]);
   AssertEquals('U8x16 Max [1]', Byte(30), r.u[1]);
+
+  a.u[0] := 0; b.u[0] := 255;
+  a.u[1] := 200; b.u[1] := 199;
+
+  r := VecU8x16Max(a, b);
+  AssertEquals('U8x16 Max alt [0]', Byte(255), r.u[0]);
+  AssertEquals('U8x16 Max alt [1]', Byte(200), r.u[1]);
 end;
 
 
