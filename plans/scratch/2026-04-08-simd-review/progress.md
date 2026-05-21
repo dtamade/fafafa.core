@@ -16788,6 +16788,41 @@
 ### 阶段状态
 - 跨平台冻结条件满足。
 
+## 2026-05-21 Windows Closeout Refresh Batch 153 And Active Truth Sync
+
+- 这轮没有重开实现层 diff，也没有重新调查旧的 billing / Docker / 分支问题，而是只把当前真实 closeout 状态收口到最新证据：
+  - 先对齐本轮 fresh Windows evidence 批次：`SIMD-20260521-153`
+  - 对应 GH Windows evidence run：`26230362365`
+  - 本地/远端 `simd` 命名分支已确认清空；当前 `git status --short --branch` 也是干净工作树
+- 已完成 closeout/freeze 复核：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-20260521-153`
+    - PASS
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+    - `ready=True / mainline-ready=True / cross-ready=True`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-linux`
+    - `ready=True / mainline-ready=True`
+  - 当前 canonical gate 时间点已前进到 `2026-05-21 22:55:37`
+  - `qemu-cpuinfo-nonx86-evidence` / `qemu-cpuinfo-nonx86-full-evidence` / `qemu-cpuinfo-nonx86-full-repeat` 都在本轮最新 gate 中为 PASS
+- active truth 文档已同步到当前批次：
+  - `docs/fafafa.core.simd.handoff.md`
+  - `docs/fafafa.core.simd.checklist.md`
+  - `docs/fafafa.core.simd.maintenance.md`
+  - `docs/fafafa.core.simd.closeout.md`
+  - 都已从旧的 `2026-05-19` / `SIMD-20260519-152` 口径切到当前 `2026-05-21` / `SIMD-20260521-153` / GH run `26230362365`
+- fresh 文档/guard 验证已完成：
+  - `git diff --check`
+    - PASS
+  - `python3 tests/fafafa.core.simd/check_active_closeout_current_head_truth.py --summary-line`
+    - `[CHECK] OK active closeout truth: 6 target docs`
+  - `python3 tests/fafafa.core.simd/check_implementation_matrix_sync.py --summary-line`
+    - `IMPLEMENTATION_MATRIX_SYNC nonx86_slots=22 x86_rows=10 issues=0 status=ok`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-guard`
+    - PASS
+- 当前结论更新：
+  - 这一轮之后，当前 `HEAD` 的更准确状态仍然是 `code-green / cross-ready`
+  - `simd` 当前不再存在“证据链已经绿，但 active 文档还停在旧批次”的交接漂移
+  - 下一步如果继续推进，应回到新的 bounded residual / qualification 批次，而不是再围绕 closeout truth 或旧 `simd` 分支空转
+
 ## 2026-05-20 Public API Thin Coverage Reduction Batch 1
 
 - 这轮明确不碰 SIMD 实现/文档架构，只做 `public-api-coverage` 的薄覆盖收缩。

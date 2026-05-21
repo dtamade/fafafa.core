@@ -22,7 +22,7 @@
 
 重点不是改变语义，而是把原来集中在少数超大 Pascal 单元里的内容，按现有注释边界拆成主单元 + include 片段的结构，降低 review 成本和定位成本。
 
-截至 `2026-05-19`，当前最重要的状态判断要单独记住：
+截至 `2026-05-21`，当前最重要的状态判断要单独记住：
 
 - 代码侧已经是 green：
   - 最新 `gate` 为 PASS
@@ -34,7 +34,7 @@
   - `windows_preflight_latest` 已 PASS：`status=PASS code=OK`
   - `windows_evidence_verify` 已 PASS
   - `windows_sources_not_newer_than_evidence` 已 PASS
-  - 当前 canonical fresh Windows evidence 批次为 `SIMD-20260519-152`
+  - 当前 canonical fresh Windows evidence 批次为 `SIMD-20260521-153`，对应 GH run `26230362365`
 - 当前 public API 覆盖也已经被 canonical gate 固化：
   - canonical `public-api-coverage` 现在默认按 `strict-thin` 运行
   - future `thin > 0` 会直接让 `gate` / `gate-strict` 变红

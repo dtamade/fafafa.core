@@ -2,7 +2,7 @@
 
 这页只回答两件事：现在应该做什么，以及现在不要做什么。
 
-## 当前状态（2026-05-19）
+## 当前状态（2026-05-21）
 
 - 当前 `simd` 不应再按“接口/实现仍未收口”处理。
 - 最新 release 证据说明：
@@ -18,6 +18,7 @@
     - `windows_evidence_verify`
     - `windows_sources_not_newer_than_evidence`
     - `windows_closeout_summary`
+  - 当前 fresh Windows evidence 批次为 `SIMD-20260521-153`，对应 GH run `26230362365`
 - 因此，当前 `HEAD` 更准确的状态应记为：
   - `code-green / cross-ready`
   - 到这里不要再把状态写成 `evidence-refresh-required` 或 `RECENT_BILLING_BLOCK`
@@ -266,7 +267,7 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh qemu-cpuinf
 FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_CPUINFO_LAZY_REPEAT=3 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate
 ```
 
-- 当前最新真实状态是：`2026-05-19 20:31:35` 的 canonical gate 已把 `qemu-cpuinfo-nonx86-evidence` 刷成 PASS，且 full `freeze-status` 已 `ready=True / mainline-ready=True / cross-ready=True`；也就是说，这条 CPUInfo cross evidence 已重新进入 canonical green closeout，而不是只停在 Linux-only 阶段。
+- 当前最新真实状态是：`2026-05-21 22:55:37` 的 canonical gate 已把 `qemu-cpuinfo-nonx86-evidence`、`qemu-cpuinfo-nonx86-full-evidence`、`qemu-cpuinfo-nonx86-full-repeat` 全部刷成 PASS，且 full `freeze-status` 已 `ready=True / mainline-ready=True / cross-ready=True`；当前 fresh Windows closeout 已归档到 `SIMD-20260521-153`，对应 GH run `26230362365`。也就是说，这条 CPUInfo cross evidence 已重新进入 canonical green closeout，而不是只停在 Linux-only 阶段。
 
 - 如果后面补到真实硬件，`native-evidence` 仍然会串行采集 `DispatchAPI/PublicAbi` 以及 `TTestCase_NonX86BackendParity,TTestCase_DataPlane`；但在当前项目约束里，没有硬件时，不再把 native host 当成 blocker：
 

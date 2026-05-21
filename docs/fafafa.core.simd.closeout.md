@@ -10,7 +10,7 @@
 - adapter wiring 现在有更强的自动校验，但还没有走到“自动生成 Pascal 代码”的程度
 - façade 层现在区分了 `supported-on-cpu` 与 `dispatchable-in-this-binary` 两种后端视图
 
-## 2026-05-19 当前收口判断
+## 2026-05-21 当前收口判断
 
 - 代码主线可以按“已收口”理解：
   - `python3 tests/fafafa.core.simd/check_interface_implementation_completeness.py --strict` 最新结果仍为 `dispatch_slots_total=558`、`P0/P1/P2=0`
@@ -23,7 +23,7 @@
   - `windows_evidence_verify` 已 PASS
   - `windows_sources_not_newer_than_evidence` 已 PASS
   - `windows_closeout_summary` 已 PASS
-  - 本轮 fresh Windows evidence 归档批次为 `SIMD-20260519-152`，对应 GH run `26095664914`
+  - 本轮 fresh Windows evidence 归档批次为 `SIMD-20260521-153`，对应 GH run `26230362365`
 - 因此，当前最准确的结论是：
   - `code-green / cross-ready`
   - 不要再把当前 `HEAD` 写成 `evidence-refresh-required`；closeout blocker 已经真实解除
@@ -32,7 +32,7 @@
   - 当前不只是 full-covered，而且 `thin=0` 已经被默认 `gate` / `gate-strict` 守住
   - future `thin > 0` 会直接让 `gate` / `gate-strict` 变红；只有为了诊断历史薄点，才临时设 `SIMD_PUBLIC_API_TEST_COVERAGE_STRICT_THIN=0`
 
-### 2026-05-19 future refresh note
+### 2026-05-21 future refresh note
 
 - 如果 future `freeze-status` 里的 Linux gate artifact 旧于最新 `src/fafafa.core.simd*` 源码，先重跑一次 release `gate`，不要把旧 gate summary 当成新代码回归。
 - 如果 future `freeze-status` 里的 Windows evidence log 旧于最新 `src/fafafa.core.simd*` 源码，先重跑一次 GH/Windows evidence，再判断 `cross-ready`；不要继续沿用旧的 `RECENT_BILLING_BLOCK` 叙事。
@@ -422,7 +422,7 @@ tests\fafafa.core.simd\buildOrTest.bat gate-strict
 
 - Windows evidence 真正通过 verifier 之前，不要把 release candidate checklist / completeness matrix / closeout roadmap 里的 Windows 项自动勾成完成
 - `2026-03-10` / `2026-04-19` 这两批 Windows evidence 只能当“历史批次曾闭环”的归档事实，不能直接当成当前 `HEAD` 仍满足 **cross-platform freeze** 的证明
-- 当前真实状态必须跟最新 `freeze-status` 走；截至 `2026-05-19` 当前 `HEAD` 应按 `code-green / cross-ready` 理解。只有 future source drift 或 future Windows evidence drift 再把 `freeze-status` 拉红时，才重新回到 freshness / billing 诊断。
+- 当前真实状态必须跟最新 `freeze-status` 走；截至 `2026-05-21` 当前 `HEAD` 应按 `code-green / cross-ready` 理解。只有 future source drift 或 future Windows evidence drift 再把 `freeze-status` 拉红时，才重新回到 freshness / billing 诊断。
 
 ## 还有哪些债没收完
 
