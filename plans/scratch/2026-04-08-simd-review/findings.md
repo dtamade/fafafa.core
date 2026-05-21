@@ -1,5 +1,25 @@
 # SIMD Review Findings
 
+## 2026-05-21 SSE2 Side-Effect Helper Witness Zero-Allowlist
+
+- 上一批 `SSE2 coverage guardrail` 落地后，真正剩下的最小残余不是新的 `missing`，而是 4 个 side-effect helper 的 policy 例外：
+  - `simd_clflush`
+  - `simd_lfence`
+  - `simd_mfence`
+  - `simd_pause`
+- 这类名字不适合只靠断言字符串当第二证据，因此最小正确修法不是再放宽 checker，而是给它们补第二组真实代码调用。
+- 这一批补完后，`SSE2` coverage 的 canonical truth 收成了：
+  - `declared=221`
+  - `tested=221`
+  - `missing=0`
+  - `extra=0`
+  - `thin=0`
+  - `sse2_min_refs=2`
+  - `allowlist=empty`
+- 因而这条 proof boundary 现在比上一批更干净：
+  - 没有再依赖“先承认 4 个 side-effect helper 天生特殊”
+  - 而是让 checker 和实际 runtime witness 真正对齐
+
 ## 2026-05-21 SSE2 Intrinsics Coverage Guardrail
 
 - 当前 `intrinsics coverage` 在这批之前有一个真实空洞：

@@ -2518,6 +2518,13 @@ begin
   simd_mfence;
   simd_pause;
   AssertEquals('cache-control helpers keep data intact', Byte($5E), PByte(LAlignedByteDest)[0]);
+
+  PByte(LAlignedByteDest)[1] := $A7;
+  simd_pause;
+  simd_mfence;
+  simd_lfence;
+  simd_clflush(Pointer(PtrUInt(LAlignedByteDest) + 1));
+  AssertEquals('cache-control helpers tolerate repeated calls', Byte($A7), PByte(LAlignedByteDest)[1]);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_ConversionFamilies_PreserveExpectedLanes;

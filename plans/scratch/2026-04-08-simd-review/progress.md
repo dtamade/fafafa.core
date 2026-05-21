@@ -1,5 +1,42 @@
 # SIMD Review Progress
 
+## 2026-05-21 SSE2 Side-Effect Helper Witness Zero-Allowlist
+
+- 这批是紧接上一批 `SSE2 coverage guardrail` 的 very small follow-up，不改实现层，只继续把剩下 4 个 side-effect helper 的临时 allowlist 收掉。
+- 接手前的真实状态：
+  - `check_intrinsics_coverage.py` 已经能守住 `sse2-x86-raw`
+  - 但 `simd_clflush/simd_lfence/simd_mfence/simd_pause` 仍靠 `min_ref_overrides=1` 例外维持通过
+  - 原因很具体：它们在 `TTestCase_X86Sse2AbiBasics.Test_StreamAndFenceSurfaceSemantics` 里只有一组代码级调用
+- 已落地修改：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 在 `Test_StreamAndFenceSurfaceSemantics` 里新增第二组真实重复调用：
+      - `simd_pause`
+      - `simd_mfence`
+      - `simd_lfence`
+      - `simd_clflush(Pointer(PtrUInt(LAlignedByteDest) + 1))`
+    - 并增加 `cache-control helpers tolerate repeated calls` 断言，证明 repeated call 不会破坏字节数据
+  - `tests/fafafa.core.simd/check_intrinsics_coverage.py`
+    - 删除 `SSE2_ALLOWED_REF_OVERRIDES`
+    - `sse2-x86-raw` 继续只保留统一的 `sse2_min_refs=2`
+  - `docs/fafafa.core.simd.maintenance.md`
+    - 已把口径从“4 个 side-effect helper 允许例外”同步成“fresh 状态下零 allowlist”
+- fresh 验证已完成：
+  - `git diff --check`
+  - `python3 -m py_compile tests/fafafa.core.simd/check_intrinsics_coverage.py`
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh experimental-intrinsics-tests`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh coverage`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- fresh 结果：
+  - experimental intrinsics `test-all` 默认/experimental 双模式均 PASS
+  - release `coverage`：
+    - `INTRINSICS_COVERAGE_SUMMARY modules=6 missing_required=0 missing_optional=0 thin_required=0 thin_optional=0 extra=0 strict_extra=0 require_avx2=0 require_experimental=0 sse2_min_refs=2 status=ok`
+    - `sse2-x86-raw: declared=221 tested=221 missing=0 extra=0 thin=0 min_refs=2`
+  - release `gate`：
+    - PASS
+- 当前阶段结论：
+  - `intrinsics.x86.sse2` raw-leaf coverage 现在已经从“有 4 个 side-effect helper 例外”推进到“零 allowlist”
+  - 这批仍然没有改 SIMD 运行语义，但把上一批的 proof boundary 再收紧了一层
+
 ## 2026-05-21 SSE2 Intrinsics Coverage Guardrail
 
 - 这轮不再碰 `SSE2` Pascal 实现/架构，而是把已经人工确认过的 `intrinsics.x86.sse2` coverage 事实收成 canonical runner checker。

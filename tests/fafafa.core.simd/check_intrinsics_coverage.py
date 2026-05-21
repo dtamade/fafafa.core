@@ -19,13 +19,6 @@ DECL_RE = re.compile(
 IMPLEMENTATION_RE = re.compile(r"^\s*implementation\b", re.IGNORECASE | re.MULTILINE)
 TOKEN_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
-SSE2_ALLOWED_REF_OVERRIDES = {
-    "simd_clflush": 1,
-    "simd_lfence": 1,
-    "simd_mfence": 1,
-    "simd_pause": 1,
-}
-
 
 @dataclass(frozen=True)
 class ModuleConfig:
@@ -341,7 +334,6 @@ def build_module_configs(a_repo_root: Path, a_args: argparse.Namespace) -> list[
             src=a_repo_root / "src" / "fafafa.core.simd.intrinsics.x86.sse2.pas",
             test=a_repo_root / "tests" / "fafafa.core.simd.intrinsics.experimental" / "fafafa.core.simd.intrinsics.experimental.testcase.pas",
             min_refs=a_args.sse2_min_refs,
-            min_ref_overrides=SSE2_ALLOWED_REF_OVERRIDES,
         ),
     ]
 

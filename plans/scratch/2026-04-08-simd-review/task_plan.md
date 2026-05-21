@@ -1,5 +1,19 @@
 # SIMD Review Task Plan
 
+## 2026-05-21 SSE2 Side-Effect Helper Witness Zero-Allowlist
+
+### Goal
+
+在上一批 `SSE2` coverage guardrail 已经落地后，继续把 `simd_clflush/simd_lfence/simd_mfence/simd_pause` 这 4 个 side-effect helper 从临时 allowlist 里摘掉，让 `intrinsics.x86.sse2` raw-leaf coverage 变成真正的零例外。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 确认 4 个 helper 的唯一薄点 | completed | 已确认它们当前只有同一个测试段里的单组代码调用，因此上一批只能先留单点 witness 例外 |
+| 2. 补第二组 runtime witness 并移除 allowlist | completed | `Test_StreamAndFenceSurfaceSemantics` 已新增第二组真实调用；`check_intrinsics_coverage.py` 里的 `SSE2_ALLOWED_REF_OVERRIDES` 已删除 |
+| 3. 定向/主线验证与文档收口 | completed | `experimental-intrinsics-tests`、release `coverage`、release `gate`、`git diff --check` 均已通过；maintenance/scratch 已同步到零例外口径 |
+
 ## 2026-05-21 SSE2 Intrinsics Coverage Guardrail
 
 ### Goal
