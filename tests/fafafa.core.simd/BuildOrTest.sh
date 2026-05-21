@@ -5971,6 +5971,7 @@ run_nonx86_impl_smoke() {
 run_nonx86_impl_audit() {
   local LAuditLog
   local LTargetedOutputRoot
+  local LAutoNativeEvidenceRoot
   local LNativeEvidenceMode
   local LNativeEvidenceStatus
   local LStepCount
@@ -5997,12 +5998,13 @@ run_nonx86_impl_audit() {
 
   case "${LNativeEvidenceMode}" in
     auto)
-      if [[ -n "${SIMD_NONX86_NATIVE_EVIDENCE_ROOT:-}" ]]; then
+      LAutoNativeEvidenceRoot="$(default_nonx86_native_evidence_verify_root)"
+      if [[ -n "${SIMD_NONX86_NATIVE_EVIDENCE_ROOT:-}" ]] || nonx86_native_evidence_root_has_entries "${LAutoNativeEvidenceRoot}"; then
         run_nonx86_impl_audit_step "${LAuditLog}" "nonx86-native-evidence-verify" run_nonx86_native_evidence_verify || return $?
         LNativeEvidenceStatus="verified"
         LStepCount=$(( LStepCount + 1 ))
       else
-        echo "[NONX86-IMPL-AUDIT] SKIP nonx86-native-evidence-verify (set SIMD_NONX86_NATIVE_EVIDENCE_ROOT=... to enable)" | tee -a "${LAuditLog}"
+        echo "[NONX86-IMPL-AUDIT] SKIP nonx86-native-evidence-verify (no native-evidence-neon-*/native-evidence-riscvv-* entries under auto root: ${LAutoNativeEvidenceRoot})" | tee -a "${LAuditLog}"
       fi
       ;;
     1|true|yes|required)
