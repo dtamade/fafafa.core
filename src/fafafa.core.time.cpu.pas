@@ -137,7 +137,7 @@ begin
   SwitchToThread();
   {$ELSE}
     {$IFDEF UNIX}
-  fpSleep(0);  // FPC 的 Unix 让出时间片函数
+  NanoSleep(1);
     {$ELSE}
   // 最后的后备方案：什么都不做
     {$ENDIF}
@@ -151,7 +151,7 @@ begin
   SwitchToThread;
 {$ELSE}
   // 某些平台头文件并不导出 fpsched_yield；使用更通用的让出方案
-  fpSleep(0);
+  NanoSleep(1);
 {$ENDIF}
 end;
 

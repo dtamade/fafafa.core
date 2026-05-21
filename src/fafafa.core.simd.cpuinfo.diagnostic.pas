@@ -52,15 +52,10 @@ function GetArchName(arch: TCPUArch): string;
 
 implementation
 
+{$IFDEF WINDOWS}
 uses
-  {$IFDEF WINDOWS}
-  Windows
-  {$ENDIF}
-  {$IFDEF UNIX}
-  {$IFDEF LINUX}
-  BaseUnix
-  {$ENDIF}
-  {$ENDIF};
+  Windows;
+{$ENDIF}
 
 // Local helpers for OS enablement on x86
 {$IFDEF SIMD_X86_AVAILABLE}
