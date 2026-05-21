@@ -885,6 +885,9 @@ type
     Table: TSimdDispatchTable;
   end;
 
+const
+  SIMD_MAX_CONTROL_PLANE_RESTORE_ATTEMPTS = 8;
+
 var
   // Current active dispatch table
   g_CurrentDispatch: PSimdDispatchTable;
@@ -1301,6 +1304,49 @@ begin
   DoInitializeDispatch;
 end;
 
+function MatchesControlPlaneIntentLocked(const aExpectForced: Boolean;
+  const aExpectedBackend: TSimdBackend): Boolean; inline;
+begin
+  Result := (g_BackendForced = aExpectForced) and
+    ((not aExpectForced) or (g_ForcedBackend = aExpectedBackend));
+end;
+
+procedure ApplyControlPlaneIntentLocked(const aExpectForced: Boolean;
+  const aExpectedBackend: TSimdBackend); inline;
+begin
+  g_BackendForced := aExpectForced;
+  if aExpectForced then
+    g_ForcedBackend := aExpectedBackend
+  else
+    g_ForcedBackend := sbScalar;
+  WriteBarrier;
+end;
+
+procedure ReinitializeDispatchLocked; inline;
+begin
+  g_DispatchInitialized := False;
+  InterlockedExchange(g_DispatchState, 0);
+  atomic_thread_fence(mo_seq_cst);
+  InitializeDispatch;
+end;
+
+function RestoreControlPlaneIntentUntilStableLocked(const aExpectForced: Boolean;
+  const aExpectedBackend: TSimdBackend): Boolean;
+var
+  LAttempt: Integer;
+begin
+  for LAttempt := 1 to SIMD_MAX_CONTROL_PLANE_RESTORE_ATTEMPTS do
+  begin
+    ApplyControlPlaneIntentLocked(aExpectForced, aExpectedBackend);
+    ReinitializeDispatchLocked;
+    ReadBarrier;
+    if MatchesControlPlaneIntentLocked(aExpectForced, aExpectedBackend) then
+      Exit(True);
+  end;
+
+  Result := False;
+end;
+
 // === Public Interface ===
 
 function GetActiveBackend: TSimdBackend;
@@ -1372,8 +1418,10 @@ end;
 function TrySetActiveBackendInternal(backend: TSimdBackend; out aAttemptedSelection: Boolean): Boolean;
 var
   LDispatch: PSimdDispatchTable;
+  LAutomaticIntentStable: Boolean;
   LPreviousBackendForced: Boolean;
   LPreviousForcedBackend: TSimdBackend;
+  LForcedIntentStable: Boolean;
 begin
   aAttemptedSelection := False;
   EnsureDispatchControlPlaneInitialized;
@@ -1392,13 +1440,8 @@ begin
     LPreviousForcedBackend := g_ForcedBackend;
 
     // Backend is valid, force it
-    g_ForcedBackend := backend;
-    g_BackendForced := True;
-    WriteBarrier;
-    g_DispatchInitialized := False;
-    InterlockedExchange(g_DispatchState, 0);
-    atomic_thread_fence(mo_seq_cst);
-    InitializeDispatch;
+    ApplyControlPlaneIntentLocked(True, backend);
+    ReinitializeDispatchLocked;
     ReadBarrier;
     LDispatch := GetCurrentPublishedDispatchTable;
     Result := (LDispatch <> nil) and (LDispatch^.Backend = backend);
@@ -1409,41 +1452,7 @@ begin
       // backend that this call already reported as not successfully selected.
       // It also must not leave the active dispatch stuck on the transient
       // scalar fallback chosen during the failed forced-selection attempt.
-      g_BackendForced := False;
-      g_ForcedBackend := sbScalar;
-      WriteBarrier;
-      g_DispatchInitialized := False;
-      InterlockedExchange(g_DispatchState, 0);
-      atomic_thread_fence(mo_seq_cst);
-      InitializeDispatch;
-      if (not LPreviousBackendForced) and g_BackendForced then
-      begin
-        // Automatic rollback is also a control-plane transition. If a
-        // dispatch-changed hook re-enters and forces another backend during
-        // the rollback notification, restore automatic intent before the API
-        // reports its final state.
-        g_BackendForced := False;
-        g_ForcedBackend := sbScalar;
-        WriteBarrier;
-        g_DispatchInitialized := False;
-        InterlockedExchange(g_DispatchState, 0);
-        atomic_thread_fence(mo_seq_cst);
-        InitializeDispatch;
-        ReadBarrier;
-        if g_BackendForced then
-        begin
-          // The restore reinitialize is itself another automatic-state
-          // publication. If a hook re-forces scalar again during that restore
-          // callback, clear forced mode once more before returning.
-          g_BackendForced := False;
-          g_ForcedBackend := sbScalar;
-          WriteBarrier;
-          g_DispatchInitialized := False;
-          InterlockedExchange(g_DispatchState, 0);
-          atomic_thread_fence(mo_seq_cst);
-          InitializeDispatch;
-        end;
-      end;
+      LAutomaticIntentStable := RestoreControlPlaneIntentUntilStableLocked(False, sbScalar);
       ReadBarrier;
       LDispatch := GetCurrentPublishedDispatchTable;
       Result := (LDispatch <> nil) and (LDispatch^.Backend = backend);
@@ -1453,37 +1462,57 @@ begin
         // requested backend before this API returns. Preserve the success
         // contract by restoring forced intent as well, so later backend
         // re-register/rebuild events cannot drift to a higher-priority backend.
-        g_ForcedBackend := backend;
-        g_BackendForced := True;
-        WriteBarrier;
+        LForcedIntentStable := False;
+        if RestoreControlPlaneIntentUntilStableLocked(True, backend) then
+        begin
+          ReadBarrier;
+          LDispatch := GetCurrentPublishedDispatchTable;
+          LForcedIntentStable := (LDispatch <> nil) and (LDispatch^.Backend = backend) and
+            MatchesControlPlaneIntentLocked(True, backend);
+        end;
+
+        Result := LForcedIntentStable;
+        if not Result then
+        begin
+          // Once forced-intent stabilization itself exhausts the bounded
+          // restore budget, report failure and return to the caller's pre-call
+          // stable intent instead of leaking the transient late-force state.
+          if LPreviousBackendForced then
+          begin
+            if not RestoreControlPlaneIntentUntilStableLocked(True, LPreviousForcedBackend) then
+            begin
+              ApplyControlPlaneIntentLocked(True, LPreviousForcedBackend);
+              ReinitializeDispatchLocked;
+            end;
+          end
+          else if not RestoreControlPlaneIntentUntilStableLocked(False, sbScalar) then
+          begin
+            ApplyControlPlaneIntentLocked(False, sbScalar);
+            ReinitializeDispatchLocked;
+          end;
+        end;
       end
       else if LPreviousBackendForced then
       begin
         // A failed switch must not destroy the caller's previously established
         // forced-selection intent. Restore both the control-plane intent and
         // the published dispatch snapshot to the pre-call forced backend.
-        g_ForcedBackend := LPreviousForcedBackend;
-        g_BackendForced := True;
-        WriteBarrier;
-        g_DispatchInitialized := False;
-        InterlockedExchange(g_DispatchState, 0);
-        atomic_thread_fence(mo_seq_cst);
-        InitializeDispatch;
-        ReadBarrier;
-        if (not g_BackendForced) or (g_ForcedBackend <> LPreviousForcedBackend) then
+        if not RestoreControlPlaneIntentUntilStableLocked(True, LPreviousForcedBackend) then
         begin
-          // The rollback restore path is also a control-plane transition.
-          // If a dispatch-changed hook mutates forced mode again during the
-          // restore notification, re-apply the caller's previous forced intent
-          // before returning.
-          g_ForcedBackend := LPreviousForcedBackend;
-          g_BackendForced := True;
-          WriteBarrier;
-          g_DispatchInitialized := False;
-          InterlockedExchange(g_DispatchState, 0);
-          atomic_thread_fence(mo_seq_cst);
-          InitializeDispatch;
+          // If repeated late-force mutations spend the bounded rollback budget,
+          // issue one last explicit restore to the caller's pre-call forced
+          // backend after the mutation storm has exhausted itself.
+          ApplyControlPlaneIntentLocked(True, LPreviousForcedBackend);
+          ReinitializeDispatchLocked;
         end;
+      end
+      else if not LAutomaticIntentStable then
+      begin
+        // Mirror the previous-forced post-cap closeout for automatic callers:
+        // once repeated late-force mutations have spent the bounded restore
+        // budget, perform one last explicit automatic restore before returning.
+        ApplyControlPlaneIntentLocked(False, sbScalar);
+        ReinitializeDispatchLocked;
       end;
     end;
   finally
@@ -1521,40 +1550,12 @@ begin
   EnsureDispatchControlPlaneInitialized;
   EnterCriticalSection(g_VectorAsmToggleLock);
   try
-    g_BackendForced := False;
-    g_ForcedBackend := sbScalar;
-    WriteBarrier;  // Ensure write is visible before clearing initialized flag
-    g_DispatchInitialized := False; // Force re-initialization
-    InterlockedExchange(g_DispatchState, 0);  // Reset atomic state
-    atomic_thread_fence(mo_seq_cst); // Full barrier before re-initialization
-    InitializeDispatch;
-
-    ReadBarrier;
-    if g_BackendForced then
+    if not RestoreControlPlaneIntentUntilStableLocked(False, sbScalar) then
     begin
-      // Reset-to-automatic must not return with a hook-driven forced selection
-      // resurrected during dispatch-changed notification.
-      g_BackendForced := False;
-      g_ForcedBackend := sbScalar;
-      WriteBarrier;
-      g_DispatchInitialized := False;
-      InterlockedExchange(g_DispatchState, 0);
-      atomic_thread_fence(mo_seq_cst);
-      InitializeDispatch;
-      ReadBarrier;
-      if g_BackendForced then
-      begin
-        // The restore reinitialize is also a control-plane transition. If a
-        // dispatch-changed hook resurrects forced mode again during that
-        // restore notification, clear it once more before returning.
-        g_BackendForced := False;
-        g_ForcedBackend := sbScalar;
-        WriteBarrier;
-        g_DispatchInitialized := False;
-        InterlockedExchange(g_DispatchState, 0);
-        atomic_thread_fence(mo_seq_cst);
-        InitializeDispatch;
-      end;
+      // If repeated late-force mutations exhaust the bounded restore helper,
+      // issue one final explicit automatic closeout before returning.
+      ApplyControlPlaneIntentLocked(False, sbScalar);
+      ReinitializeDispatchLocked;
     end;
   finally
     LeaveCriticalSection(g_VectorAsmToggleLock);
@@ -1615,34 +1616,10 @@ begin
         // forced-vs-automatic selection intent. Late dispatch hooks may
         // temporarily reset or replace it during notification, so reapply the
         // original control-plane mode before returning.
-        g_BackendForced := LPreviousBackendForced;
-        if LPreviousBackendForced then
-          g_ForcedBackend := LPreviousForcedBackend
-        else
-          g_ForcedBackend := sbScalar;
-        WriteBarrier;
-        g_DispatchInitialized := False;
-        InterlockedExchange(g_DispatchState, 0);
-        atomic_thread_fence(mo_seq_cst);
-        InitializeDispatch;
-        ReadBarrier;
-        if (g_BackendForced <> LPreviousBackendForced) or
-           (LPreviousBackendForced and (g_ForcedBackend <> LPreviousForcedBackend)) then
+        if not RestoreControlPlaneIntentUntilStableLocked(LPreviousBackendForced, LPreviousForcedBackend) then
         begin
-          // The restore reinitialize is also a control-plane transition. If a
-          // dispatch-changed hook mutates forced-vs-automatic mode again
-          // during that restore notification, re-apply the pre-toggle intent
-          // before returning.
-          g_BackendForced := LPreviousBackendForced;
-          if LPreviousBackendForced then
-            g_ForcedBackend := LPreviousForcedBackend
-          else
-            g_ForcedBackend := sbScalar;
-          WriteBarrier;
-          g_DispatchInitialized := False;
-          InterlockedExchange(g_DispatchState, 0);
-          atomic_thread_fence(mo_seq_cst);
-          InitializeDispatch;
+          ApplyControlPlaneIntentLocked(LPreviousBackendForced, LPreviousForcedBackend);
+          ReinitializeDispatchLocked;
         end;
       end;
     end;
@@ -1713,34 +1690,10 @@ begin
         // user-visible control-plane selection API. If a dispatch-changed hook
         // mutates forced-vs-automatic mode during notification, restore the
         // caller's pre-call intent before returning.
-        g_BackendForced := LPreviousBackendForced;
-        if LPreviousBackendForced then
-          g_ForcedBackend := LPreviousForcedBackend
-        else
-          g_ForcedBackend := sbScalar;
-        WriteBarrier;
-        g_DispatchInitialized := False;
-        InterlockedExchange(g_DispatchState, 0);
-        atomic_thread_fence(mo_seq_cst);
-        InitializeDispatch;
-        ReadBarrier;
-        if (g_BackendForced <> LPreviousBackendForced) or
-           (LPreviousBackendForced and (g_ForcedBackend <> LPreviousForcedBackend)) then
+        if not RestoreControlPlaneIntentUntilStableLocked(LPreviousBackendForced, LPreviousForcedBackend) then
         begin
-          // The restore reinitialize is itself another control-plane
-          // transition. If a hook mutates forced-vs-automatic mode again during
-          // that restore notification, re-apply the caller's original intent
-          // before returning.
-          g_BackendForced := LPreviousBackendForced;
-          if LPreviousBackendForced then
-            g_ForcedBackend := LPreviousForcedBackend
-          else
-            g_ForcedBackend := sbScalar;
-          WriteBarrier;
-          g_DispatchInitialized := False;
-          InterlockedExchange(g_DispatchState, 0);
-          atomic_thread_fence(mo_seq_cst);
-          InitializeDispatch;
+          ApplyControlPlaneIntentLocked(LPreviousBackendForced, LPreviousForcedBackend);
+          ReinitializeDispatchLocked;
         end;
       end;
     end;
