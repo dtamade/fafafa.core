@@ -384,7 +384,7 @@ bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
 
 `interface-completeness` checker 的默认 JSON/Markdown 产物现在都应落到 `tests/fafafa.core.simd/logs/`。只有在你明确要刷新 tracked doc 时，才显式传 `--md-file tests/fafafa.core.simd/docs/interface_implementation_completeness.md`。
 
-`coverage` checker 现在也会把默认证据落到 `tests/fafafa.core.simd/logs/intrinsics_coverage.{txt,json}`；如果只是走 `gate` / `gate-strict`，直接复用这里的产物即可，不需要再从 stdout 手工摘结果。
+`coverage` checker 现在也会把默认证据落到 `tests/fafafa.core.simd/logs/intrinsics_coverage.{txt,json}`；如果只是走 `gate` / `gate-strict`，直接复用这里的产物即可，不需要再从 stdout 手工摘结果。当前这条证据除了 `SSE/MMX/AVX2/AES/SHA` 直测映射外，也会固定检查 `intrinsics.x86.sse2` raw-leaf surface：要求代码级 `missing=0`，并把当前 `simd_*` witness floor 收成 `sse2_min_refs=2`（`simd_clflush/simd_lfence/simd_mfence/simd_pause` 允许单点 witness）。
 
 ### 出现异常时先怀疑什么
 

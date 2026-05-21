@@ -1,5 +1,19 @@
 # SIMD Review Task Plan
 
+## 2026-05-21 SSE2 Intrinsics Coverage Guardrail
+
+### Goal
+
+把这轮人工完成的 `intrinsics.x86.sse2` raw-leaf coverage 对位收成 canonical `coverage` checker：既要求当前 surface `missing=0`，也把现有测试文件里的 witness floor 固化成 `sse2_min_refs=2`，同时只给 `simd_clflush/simd_lfence/simd_mfence/simd_pause` 保留单点 witness 例外。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前 coverage checker 与 SSE2 缺口 | completed | 已确认 `check_intrinsics_coverage.py` 只覆盖 `SSE/MMX/AVX2/AES/SHA`，`SSE2 raw leaf` 仍靠人工 `surface diff + hit count` 复核 |
+| 2. 扩充 checker 并收正 token/witness 口径 | completed | `missing/extra` 现按 Pascal case-insensitive 的代码级 symbol ref 判断；`thin witness` 对 `SSE2` 改为“注释剥离后允许把断言字符串当第二证据”，避免把测试文案误算成 extra，同时把旧人工 `2 hit` 规则收成机器规则 |
+| 3. release 验证与文档收口 | completed | `py_compile`、release `coverage`、`git diff --check`、active closeout truth、release `gate` 全部 PASS；maintenance/scratch 已同步 |
+
 ## 2026-05-20 Public API Coverage Proof Batch
 
 ### Goal

@@ -1,5 +1,52 @@
 # SIMD Review Progress
 
+## 2026-05-21 SSE2 Intrinsics Coverage Guardrail
+
+- 这轮不再碰 `SSE2` Pascal 实现/架构，而是把已经人工确认过的 `intrinsics.x86.sse2` coverage 事实收成 canonical runner checker。
+- 接手前的真实状态：
+  - release baseline 已 fresh 通过：
+    - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-smoke-x86`
+  - `intrinsics.x86.sse2` surface 与 experimental testcase 的名字差集为空
+  - 只剩 `simd_clflush/simd_lfence/simd_mfence/simd_pause` 是人工审出来的单点 witness 例外，但这条规则还没被正式 checker 固化
+- 已落地修改：
+  - `tests/fafafa.core.simd/check_intrinsics_coverage.py`
+    - 覆盖范围从原来的 `SSE/MMX/AVX2/AES/SHA` 扩到新增 `sse2-x86-raw`
+    - 声明提取与引用匹配统一改成 Pascal case-insensitive
+    - `missing/extra` 现在只看代码级 symbol ref，不再把测试说明字符串当成有效覆盖或 false extra
+    - `thin witness` 对 `SSE2` 则显式使用“剥注释但保留断言字符串”的计数口径，把旧人工 `2 hit` 规则收成 `sse2_min_refs=2`
+    - `simd_clflush/simd_lfence/simd_mfence/simd_pause` 进入单点 witness allowlist
+    - summary line 新增：
+      - `thin_required`
+      - `thin_optional`
+      - `sse2_min_refs`
+  - `docs/fafafa.core.simd.maintenance.md`
+    - 已补充 `coverage` 现在也固定检查 `intrinsics.x86.sse2` raw-leaf surface 与 witness floor
+- 中途抓到的关键细节：
+  - 如果按“纯代码 token”计数，很多 `simd_*` 只有 1 个直接调用
+  - 之前人工说的 `2 hit`，实际包含了断言字符串里的第二个 witness
+  - 因此最终口径被收成：
+    - `missing/extra` 必须是代码级
+    - `thin witness` 可以把测试断言字符串作为第二证据
+  - 这样既不会放过真漏测，也不会把测试文案误算成 `extra`
+- fresh 验证已完成：
+  - `python3 -m py_compile tests/fafafa.core.simd/check_intrinsics_coverage.py`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh coverage`
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_active_closeout_current_head_truth.py --summary-line`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- fresh 结果：
+  - `coverage` 返回：
+    - `INTRINSICS_COVERAGE_SUMMARY modules=6 missing_required=0 missing_optional=0 thin_required=0 thin_optional=0 extra=0 strict_extra=0 require_avx2=0 require_experimental=0 sse2_min_refs=2 status=ok`
+    - 其中 `sse2-x86-raw: declared=221 tested=221 missing=0 extra=0 thin=0 min_refs=2`
+  - active closeout truth：
+    - `[CHECK] OK active closeout truth: 6 target docs`
+  - release `gate`：
+    - PASS
+- 当前阶段结论：
+  - 这批收掉的是真实“proof 没 canonical 化”的残余，而不是新的 SIMD 语义 bug
+  - 以后如果 `intrinsics.x86.sse2` 新增/删改 `simd_*` surface，却没同步补测试引用或跌破当前 witness floor，`coverage` 会直接报红，不需要再人工跑 `surface diff + hit count`
+
 ## 2026-05-20 Public API Coverage Proof Refresh
 
 - 这轮不是继续扫新的 SIMD 语义缺口，而是修正新增证明链 `check_public_api_test_coverage.py` 的 false negative。

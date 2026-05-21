@@ -1,5 +1,31 @@
 # SIMD Review Findings
 
+## 2026-05-21 SSE2 Intrinsics Coverage Guardrail
+
+- 当前 `intrinsics coverage` 在这批之前有一个真实空洞：
+  - 它已经能审 `SSE/MMX/AVX2/AES/SHA`
+  - 但 `intrinsics.x86.sse2` raw-leaf 仍然没有 canonical checker
+  - 所以每次想确认 `SSE2` 有没有漏测/弱 witness，都还得人工跑一次 surface diff 和 hit count
+- 继续深挖后，发现这里最容易混淆的不是“有没有引用”，而是“什么算第二个 witness”：
+  - 若按纯代码 token 统计，很多 `simd_*` 只有 1 个直接调用
+  - 之前人工审里说的 `2 hit`，实际上包含测试断言字符串里的函数名
+  - 因而正确的机器规则不是“所有计数都按代码 token”，而是分两层：
+    - `missing/extra`：只认代码级 symbol ref，避免把测试文案误算成覆盖
+    - `thin witness`：允许在剥掉注释后，把断言字符串视为第二个显式证据
+- 这条规则收正后，当前 `SSE2` 的 canonical coverage truth 变成：
+  - `declared=221`
+  - `tested=221`
+  - `missing=0`
+  - `extra=0`
+  - `thin=0`
+  - `sse2_min_refs=2`
+  - 单点 witness allowlist 只剩：
+    - `simd_clflush`
+    - `simd_lfence`
+    - `simd_mfence`
+    - `simd_pause`
+- 因此这批不是“多写了一条统计脚本”，而是把原本靠人工记忆维持的 `SSE2` proof boundary 正式收成了 runner 默认可复用的 fail-close 护栏。
+
 ## 2026-05-20 Public API Coverage / Freeze Refresh
 
 - 新增的 `public-api-coverage` 证明链最初并没有揭示真实“接口没测”，而是在 Pascal 源码清洗阶段存在 false negative：
