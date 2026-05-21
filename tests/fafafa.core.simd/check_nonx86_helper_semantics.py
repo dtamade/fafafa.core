@@ -8,13 +8,14 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-NEON_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.wide_memory.inc"
+NEON_FILE = ROOT / "src" / "fafafa.core.simd.neon.shared_wide_memory_asm.inc"
 NEON_IMPL_FILE = ROOT / "src" / "fafafa.core.simd.neon.pas"
 NEON_SCALAR_FALLBACK_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar_fallback.inc"
 NEON_SCALAR_VECTOR_MATH_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.vector_math.inc"
 NEON_SCALAR_REDUCTION_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.reduction.inc"
 NEON_SCALAR_MEMORY_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.memory.inc"
 NEON_SCALAR_UTILITY_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.utility.inc"
+NEON_SHARED_UTILITY_FILE = ROOT / "src" / "fafafa.core.simd.neon.shared_utility.inc"
 NEON_SCALAR_MATH_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.math.inc"
 NEON_SCALAR_EXT_MATH_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.ext_math.inc"
 NEON_SCALAR_AUTOWRAP_FILE = ROOT / "src" / "fafafa.core.simd.neon.scalar.autowrap.inc"
@@ -90,6 +91,7 @@ def main() -> int:
     neon_scalar_reduction_source = read_text(NEON_SCALAR_REDUCTION_FILE)
     neon_scalar_memory_source = read_text(NEON_SCALAR_MEMORY_FILE)
     neon_scalar_utility_source = read_text(NEON_SCALAR_UTILITY_FILE)
+    neon_shared_utility_source = read_text(NEON_SHARED_UTILITY_FILE)
     neon_scalar_math_source = read_text(NEON_SCALAR_MATH_FILE)
     neon_scalar_ext_math_source = read_text(NEON_SCALAR_EXT_MATH_FILE)
     neon_scalar_autowrap_source = read_text(NEON_SCALAR_AUTOWRAP_FILE)
@@ -166,25 +168,25 @@ def main() -> int:
         ]),
         (neon_impl_source, "NEONShiftLeftI64x4Asm", [
             "ldp   q0, q1, [x0]",
-            "uxtw  x1, w1",
+            "mov   w1, w1",
             "dup   v2.2d, x1",
             "ushl   v0.2d, v0.2d, v2.2d",
             "ushl   v1.2d, v1.2d, v2.2d",
             "stp   q0, q1, [x8]",
         ]),
         (neon_impl_source, "NEONShiftLeftI64x2", [
-            "uxtw  x2, w2",
+            "mov   w2, w2",
             "dup   v1.2d, x2",
             "ushl   v0.2d, v0.2d, v1.2d",
         ]),
         (neon_impl_source, "NEONShiftLeftU64x2", [
-            "uxtw  x2, w2",
+            "mov   w2, w2",
             "dup   v1.2d, x2",
             "ushl   v0.2d, v0.2d, v1.2d",
         ]),
         (neon_impl_source, "NEONShiftLeftU64x4", [
             "ldp   q0, q1, [x0]",
-            "uxtw  x1, w1",
+            "mov   w1, w1",
             "dup   v2.2d, x1",
             "ushl   v0.2d, v0.2d, v2.2d",
             "ushl   v1.2d, v1.2d, v2.2d",
@@ -324,6 +326,24 @@ def main() -> int:
         ]),
         (neon_scalar_utility_source, "NEONCmpGtU64x2", [
             "Result := ScalarCmpGtU64x2(a, b);",
+        ]),
+        (neon_shared_utility_source, "NEONCmpEqU64x2", [
+            "if a.u[0] = b.u[0] then",
+            "Result := Result or 1;",
+            "if a.u[1] = b.u[1] then",
+            "Result := Result or 2;",
+        ]),
+        (neon_shared_utility_source, "NEONCmpLtU64x2", [
+            "SIGN_MASK: QWord = QWord($8000000000000000);",
+            "LAdjustedA.i[0] := Int64(a.u[0] xor SIGN_MASK);",
+            "LAdjustedB.i[1] := Int64(b.u[1] xor SIGN_MASK);",
+            "Result := NEONCmpLtI64x2(LAdjustedA, LAdjustedB);",
+        ]),
+        (neon_shared_utility_source, "NEONCmpGtU64x2", [
+            "SIGN_MASK: QWord = QWord($8000000000000000);",
+            "LAdjustedA.i[0] := Int64(a.u[0] xor SIGN_MASK);",
+            "LAdjustedB.i[1] := Int64(b.u[1] xor SIGN_MASK);",
+            "Result := NEONCmpGtI64x2(LAdjustedA, LAdjustedB);",
         ]),
         (neon_scalar_utility_source, "NEONMinU64x2", [
             "Result := ScalarMinU64x2(a, b);",
@@ -1050,6 +1070,23 @@ def main() -> int:
     for source, routine_name, fragments in routine_expectations:
         require_fragments(extract_routine_block(source, routine_name), fragments, routine_name)
         checks += 1
+
+    require_fragments(
+        neon_impl_source,
+        [
+            "{$I fafafa.core.simd.neon.shared_utility.inc}",
+            "{$I fafafa.core.simd.neon.scalar.autowrap.inc}",
+            "{$I fafafa.core.simd.neon.shared_wide_memory_asm.inc}",
+        ],
+        "src/fafafa.core.simd.neon.pas include layout",
+    )
+    checks += 1
+
+    if "{$I fafafa.core.simd.neon.scalar.autowrap.inc}" in neon_scalar_fallback_source:
+        raise AssertionError(
+            "src/fafafa.core.simd.neon.scalar_fallback.inc should not include scalar.autowrap directly"
+        )
+    checks += 1
 
     absent_routine_expectations = [
         (neon_compare_source, "NEONCmpNeU32x4"),

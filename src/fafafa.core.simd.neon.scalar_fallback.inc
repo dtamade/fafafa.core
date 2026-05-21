@@ -79,5 +79,3 @@ end;
 {$I fafafa.core.simd.neon.scalar.utility.inc}
 
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-
-{$I fafafa.core.simd.neon.scalar.autowrap.inc}
