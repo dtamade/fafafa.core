@@ -107,6 +107,7 @@ if /I "%ACTION%"=="gate-summary-inject" goto :gate_summary_inject
 if /I "%ACTION%"=="gate-summary-rollback" goto :gate_summary_rollback
 if /I "%ACTION%"=="gate-summary-backups" goto :gate_summary_backups
 if /I "%ACTION%"=="gate-summary-selfcheck" goto :gate_summary_selfcheck
+if /I "%ACTION%"=="release-evidence" goto :release_evidence
 if /I "%ACTION%"=="historical-closeout-note-check" goto :historical_closeout_note_check
 if /I "%ACTION%"=="active-closeout-truth-check" goto :active_closeout_truth_check
 if /I "%ACTION%"=="perf-smoke" goto :perf_smoke
@@ -130,7 +131,12 @@ if /I "%ACTION%"=="experimental-intrinsics" goto :experimental_intrinsics
 if /I "%ACTION%"=="experimental-intrinsics-tests" goto :experimental_intrinsics_tests
 if /I "%ACTION%"=="evidence-linux" goto :evidence_linux
 if /I "%ACTION%"=="native-evidence" goto :native_evidence
+if /I "%ACTION%"=="native-evidence-via-gh" goto :native_evidence_via_gh
+if /I "%ACTION%"=="native-evidence-via-gh-clean" goto :native_evidence_via_gh_clean
 if /I "%ACTION%"=="verify-nonx86-native-evidence" goto :verify_nonx86_native_evidence
+if /I "%ACTION%"=="riscvv-runner-registration" goto :riscvv_runner_registration
+if /I "%ACTION%"=="riscvv-runner-host-preflight" goto :riscvv_runner_host_preflight
+if /I "%ACTION%"=="riscvv-runner-3cmd" goto :riscvv_runner_3cmd
 if /I "%ACTION%"=="restore-nightly-evidence" goto :restore_nightly_evidence
 if /I "%ACTION%"=="evidence-win" goto :evidence_win
 if /I "%ACTION%"=="win-evidence-preflight" goto :win_evidence_preflight
@@ -146,7 +152,7 @@ if /I "%ACTION%"=="freeze-status-linux" goto :freeze_status_linux
 if /I "%ACTION%"=="win-closeout-finalize" goto :win_closeout_finalize
 if /I "%ACTION%"=="freeze-status-rehearsal" goto :freeze_status_rehearsal
 
-echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|riscvv-sensitive-hold-set^|key-slot-audit^|implementation-matrix-sync^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|public-api-coverage^|dispatch-read-scope^|dataplane-consumer-scope^|direct-dispatch-scope^|metadata-query-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|runner-parity^|closeout-guard^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|gate-summary-selfcheck^|historical-closeout-note-check^|active-closeout-truth-check^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-retry-rehearsal^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|riscvv-opcode-lane^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-linux^|native-evidence^|verify-nonx86-native-evidence^|restore-nightly-evidence^|evidence-win^|win-evidence-preflight^|win-evidence-via-gh^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-dryrun^|win-closeout-snippets^|win-closeout-3cmd^|freeze-status^|freeze-status-linux^|win-closeout-finalize^|freeze-status-rehearsal] [test-args...]
+echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|closeout-release^|sse2-structure-check^|sse2-contracts^|impl-smoke-sse2^|impl-smoke-x86^|impl-smoke-nonx86^|impl-audit-nonx86^|helper-semantics^|riscvv-sensitive-hold-set^|key-slot-audit^|implementation-matrix-sync^|riscvv-abi-shape^|source-reachability^|closeout-host-local^|import-nonx86-native-evidence^|closeout-host-local-from-import^|interface-completeness^|public-api-coverage^|dispatch-read-scope^|dataplane-consumer-scope^|direct-dispatch-scope^|metadata-query-scope^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|runner-parity^|closeout-guard^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|gate-summary-selfcheck^|release-evidence^|historical-closeout-note-check^|active-closeout-truth-check^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-retry-rehearsal^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|riscvv-opcode-lane^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-linux^|native-evidence^|native-evidence-via-gh^|native-evidence-via-gh-clean^|verify-nonx86-native-evidence^|riscvv-runner-registration^|riscvv-runner-host-preflight^|riscvv-runner-3cmd^|restore-nightly-evidence^|evidence-win^|win-evidence-preflight^|win-evidence-via-gh^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-dryrun^|win-closeout-snippets^|win-closeout-3cmd^|freeze-status^|freeze-status-linux^|win-closeout-finalize^|freeze-status-rehearsal] [test-args...]
 echo   Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks.
 echo   gate/gate-strict PASS is not blanket release-grade approval for every experimental path.
 echo   gate         Fast/base gate for routine SIMD changes
@@ -193,6 +199,7 @@ echo   gate-summary-inject  Inject a sample gate summary into canonical logs
 echo   gate-summary-rollback  Restore the previous gate summary backup
 echo   gate-summary-backups  List available gate-summary backups
 echo   gate-summary-selfcheck  Rehearse gate-summary/freeze-status selfcheck ^(delegates to shell runner^)
+echo   release-evidence  Aggregate existing gate/freeze/native evidence into release_evidence.json ^(delegates to shell runner^)
 echo   historical-closeout-note-check  Fail-close when historical closeout/freeze plans lose Current HEAD guidance ^(delegates to shell runner^)
 echo   active-closeout-truth-check  Fail-close when active closeout docs drift from current HEAD truth ^(delegates to shell runner^)
 echo   perf-smoke  Run the lightweight backend benchmark smoke
@@ -212,7 +219,12 @@ echo   qemu-experimental-report  Report latest QEMU experimental blockers ^(dele
 echo   qemu-experimental-baseline-check  Check latest QEMU experimental baseline ^(delegates to shell runner^)
 echo   evidence-linux  Collect Linux-side release evidence ^(delegates to shell runner^)
 echo   native-evidence  Collect non-x86 native evidence ^(delegates to shell runner^)
+echo   native-evidence-via-gh  Dispatch/download non-x86 native evidence via GitHub Actions ^(delegates to shell runner^)
+echo   native-evidence-via-gh-clean  Reuse a temporary clean worktree for GitHub native-evidence dispatch ^(delegates to shell runner^)
 echo   verify-nonx86-native-evidence  Verify imported non-x86 native evidence ^(delegates to shell runner^)
+echo   riscvv-runner-registration  Prepare repo-side RISCVV runner registration guidance ^(delegates to shell runner^)
+echo   riscvv-runner-host-preflight  Fail-close preflight for a real riscv64 runner host ^(delegates to shell runner^)
+echo   riscvv-runner-3cmd  Print the recommended RISCVV native-evidence bootstrap flow ^(delegates to shell runner^)
 echo   restore-nightly-evidence  Restore nightly evidence into canonical logs ^(delegates to shell runner^)
 echo   evidence-win  Windows-only native evidence capture alias
 echo   win-evidence-preflight  Check whether GitHub-hosted Windows evidence can run now ^(delegates to shell runner^)
@@ -358,6 +370,17 @@ echo [GATE-SUMMARY-SELFCHECK] Running: bash %ROOT%BuildOrTest.sh gate-summary-se
 bash "%ROOT%BuildOrTest.sh" gate-summary-selfcheck %NORMALIZED_TEST_ARGS%
 exit /b %ERRORLEVEL%
 
+:release_evidence
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [RELEASE-EVIDENCE] FAILED ^(bash runtime not found; release-evidence requires bash to preserve shell parity^)
+  exit /b 2
+)
+
+echo [RELEASE-EVIDENCE] Running: bash %ROOT%BuildOrTest.sh release-evidence %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" release-evidence %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
 :historical_closeout_note_check
 where bash >nul 2>nul
 if errorlevel 1 (
@@ -402,6 +425,28 @@ echo [NATIVE-EVIDENCE] Running: bash %ROOT%BuildOrTest.sh native-evidence %NORMA
 bash "%ROOT%BuildOrTest.sh" native-evidence %NORMALIZED_TEST_ARGS%
 exit /b %ERRORLEVEL%
 
+:native_evidence_via_gh
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [NATIVE-EVIDENCE-GH] FAILED ^(bash runtime not found; native-evidence-via-gh requires Git Bash / WSL as the canonical entrypoint^)
+  exit /b 2
+)
+
+echo [NATIVE-EVIDENCE-GH] Running: bash %ROOT%BuildOrTest.sh native-evidence-via-gh %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" native-evidence-via-gh %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:native_evidence_via_gh_clean
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [NATIVE-EVIDENCE-GH-CLEAN] FAILED ^(bash runtime not found; native-evidence-via-gh-clean requires Git Bash / WSL as the canonical entrypoint^)
+  exit /b 2
+)
+
+echo [NATIVE-EVIDENCE-GH-CLEAN] Running: bash %ROOT%BuildOrTest.sh native-evidence-via-gh-clean %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" native-evidence-via-gh-clean %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
 :verify_nonx86_native_evidence
 where bash >nul 2>nul
 if errorlevel 1 (
@@ -411,6 +456,39 @@ if errorlevel 1 (
 
 echo [VERIFY-NONX86-NATIVE-EVIDENCE] Running: bash %ROOT%BuildOrTest.sh verify-nonx86-native-evidence %NORMALIZED_TEST_ARGS%
 bash "%ROOT%BuildOrTest.sh" verify-nonx86-native-evidence %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:riscvv_runner_registration
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [RISCVV-RUNNER] FAILED ^(bash runtime not found; riscvv-runner-registration requires Git Bash / WSL as the canonical entrypoint^)
+  exit /b 2
+)
+
+echo [RISCVV-RUNNER] Running: bash %ROOT%BuildOrTest.sh riscvv-runner-registration %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" riscvv-runner-registration %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:riscvv_runner_host_preflight
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [RISCVV-RUNNER] FAILED ^(bash runtime not found; riscvv-runner-host-preflight requires Git Bash / WSL as the canonical entrypoint^)
+  exit /b 2
+)
+
+echo [RISCVV-RUNNER] Running: bash %ROOT%BuildOrTest.sh riscvv-runner-host-preflight %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" riscvv-runner-host-preflight %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:riscvv_runner_3cmd
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [RISCVV-RUNNER] FAILED ^(bash runtime not found; riscvv-runner-3cmd requires Git Bash / WSL as the canonical entrypoint^)
+  exit /b 2
+)
+
+echo [RISCVV-RUNNER] Running: bash %ROOT%BuildOrTest.sh riscvv-runner-3cmd %NORMALIZED_TEST_ARGS%
+bash "%ROOT%BuildOrTest.sh" riscvv-runner-3cmd %NORMALIZED_TEST_ARGS%
 exit /b %ERRORLEVEL%
 
 :restore_nightly_evidence

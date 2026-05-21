@@ -105,12 +105,17 @@ GATE_SUMMARY_LOG="${LOG_DIR}/gate_summary.md"
 GATE_SUMMARY_JSON_LOG="${LOG_DIR}/gate_summary.json"
 GATE_SUMMARY_BACKUP_DIR="${LOG_DIR}/rehearsal/backups"
 GATE_SUMMARY_EXPORT_SCRIPT="${ROOT}/export_gate_summary_json.py"
+RELEASE_EVIDENCE_JSON_LOG="${LOG_DIR}/release_evidence.json"
+RELEASE_EVIDENCE_EXPORT_SCRIPT="${ROOT}/export_release_evidence_bundle.py"
 GATE_SUMMARY_SAMPLE_SCRIPT="${ROOT}/generate_gate_summary_sample.py"
 GATE_SUMMARY_REHEARSAL_SCRIPT="${ROOT}/rehearse_gate_summary_thresholds.sh"
 GATE_SUMMARY_INJECT_SCRIPT="${ROOT}/inject_gate_summary_sample.sh"
 GATE_SUMMARY_ROLLBACK_SCRIPT="${ROOT}/rollback_gate_summary_sample.sh"
 GATE_SUMMARY_BACKUPS_SCRIPT="${ROOT}/list_gate_summary_backups.sh"
 WIN_CLOSEOUT_3CMD_SCRIPT="${ROOT}/print_windows_b07_closeout_3cmd.sh"
+RISCVV_RUNNER_REGISTRATION_SCRIPT="${ROOT}/prepare_riscvv_custom_runner_registration.sh"
+RISCVV_RUNNER_HOST_PREFLIGHT_SCRIPT="${ROOT}/verify_riscvv_custom_runner_host.sh"
+RISCVV_RUNNER_3CMD_SCRIPT="${ROOT}/print_riscvv_custom_runner_3cmd.sh"
 WIN_CLOSEOUT_3CMD_REHEARSAL_SCRIPT="${ROOT}/rehearse_windows_closeout_3cmd.sh"
 WIN_CLOSEOUT_SUMMARY_REHEARSAL_SCRIPT="${ROOT}/rehearse_windows_closeout_summary.sh"
 WIN_BASH_GATE_FALLBACK_REHEARSAL_SCRIPT="${ROOT}/rehearse_win_bash_gate_fallback_warning.sh"
@@ -3134,7 +3139,17 @@ check_nonx86_native_evidence_runner_guard() {
     'run_nonx86_native_evidence_verify "$@"'
     'native-evidence)'
     'run_nonx86_native_evidence "$@"'
-    'native-evidence|verify-nonx86-native-evidence|import-nonx86-native-evidence|closeout-host-local-from-import|'
+    'run_nonx86_native_evidence_via_gh() {'
+    'LGhHelperScript="${NONX86_NATIVE_EVIDENCE_GH_HELPER:-${ROOT}/run_nonx86_native_evidence_via_github_actions.sh}"'
+    'native-evidence-via-gh)'
+    'run_nonx86_native_evidence_via_gh "$@"'
+    'run_nonx86_native_evidence_via_gh_clean() {'
+    'LCleanHelperScript="${NONX86_NATIVE_EVIDENCE_GH_CLEAN_HELPER:-${ROOT}/run_nonx86_native_evidence_via_clean_worktree.sh}"'
+    'native-evidence-via-gh-clean)'
+    'run_nonx86_native_evidence_via_gh_clean "$@"'
+    'native-evidence|native-evidence-via-gh|native-evidence-via-gh-clean|verify-nonx86-native-evidence|import-nonx86-native-evidence|closeout-host-local-from-import|'
+    'echo "GitHub native evidence helper: native-evidence-via-gh <neon|riscvv> [run-id]"'
+    'echo "GitHub native evidence helper (dirty worktree): native-evidence-via-gh-clean <neon|riscvv> [run-id]"'
     'echo "Native host env: SIMD_NATIVE_EVIDENCE_RUNNER=canonical|direct-fpc, SIMD_NATIVE_EVIDENCE_ENABLE_BACKEND_ASM=1"'
   )
 
@@ -7021,6 +7036,75 @@ run_gate_summary() {
   fi
 }
 
+write_release_evidence_json() {
+  local LProfile
+  local LJsonFile
+  local LRequireFreeze
+  local LSummaryFile
+  local LSummaryJsonFile
+  local LDispatchJsonFile
+  local LPublicAbiJsonFile
+  local LFreezeJsonFile
+  local -a LArgs
+
+  LProfile="${1}"
+  LJsonFile="${2}"
+  LRequireFreeze="${3}"
+  LSummaryFile="${SIMD_GATE_SUMMARY_FILE:-${GATE_SUMMARY_LOG}}"
+  LSummaryJsonFile="${SIMD_GATE_SUMMARY_JSON_FILE:-${GATE_SUMMARY_JSON_LOG}}"
+  LDispatchJsonFile="${SIMD_DISPATCH_CONTRACT_JSON_FILE:-${DISPATCH_CONTRACT_SIGNATURE_JSON_LOG}}"
+  LPublicAbiJsonFile="${SIMD_PUBLIC_ABI_JSON_FILE:-${PUBLIC_ABI_SIGNATURE_JSON_LOG}}"
+  LFreezeJsonFile="${SIMD_FREEZE_STATUS_JSON_FILE:-${LOG_DIR}/freeze_status.json}"
+
+  if [[ ! -f "${LSummaryFile}" ]]; then
+    echo "[RELEASE-EVIDENCE] Missing gate summary file: ${LSummaryFile}"
+    return 2
+  fi
+  if [[ ! -f "${RELEASE_EVIDENCE_EXPORT_SCRIPT}" ]]; then
+    echo "[RELEASE-EVIDENCE] Missing exporter: ${RELEASE_EVIDENCE_EXPORT_SCRIPT}"
+    return 2
+  fi
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "[RELEASE-EVIDENCE] FAILED (python3 runtime not found; release-evidence requires python3)"
+    return 2
+  fi
+
+  if [[ ! -f "${LSummaryJsonFile}" ]]; then
+    write_gate_summary_json "${LSummaryFile}" "${LSummaryJsonFile}" "ALL" || return $?
+  fi
+
+  LArgs=(
+    --output "${LJsonFile}"
+    --profile "${LProfile}"
+    --output-root "${OUTPUT_ROOT}"
+    --gate-summary-json "${LSummaryJsonFile}"
+    --dispatch-contract-json "${LDispatchJsonFile}"
+    --public-abi-json "${LPublicAbiJsonFile}"
+  )
+
+  if [[ -f "${LFreezeJsonFile}" || "${LRequireFreeze}" != "0" ]]; then
+    LArgs+=(--freeze-status-json "${LFreezeJsonFile}")
+  fi
+  if [[ "${LRequireFreeze}" != "0" ]]; then
+    LArgs+=(--require-freeze)
+  fi
+
+  python3 "${RELEASE_EVIDENCE_EXPORT_SCRIPT}" "${LArgs[@]}"
+}
+
+run_release_evidence() {
+  local LProfile
+  local LJsonFile
+  local LRequireFreeze
+
+  LProfile="${1:-${SIMD_RELEASE_EVIDENCE_PROFILE:-release-gate}}"
+  LJsonFile="${SIMD_RELEASE_EVIDENCE_JSON_FILE:-${RELEASE_EVIDENCE_JSON_LOG}}"
+  LRequireFreeze="${SIMD_RELEASE_EVIDENCE_REQUIRE_FREEZE:-0}"
+
+  write_release_evidence_json "${LProfile}" "${LJsonFile}" "${LRequireFreeze}" || return $?
+  echo "[RELEASE-EVIDENCE] json=${LJsonFile}"
+}
+
 run_gate_summary_sample() {
   local LScenario
   local LOutput
@@ -7365,6 +7449,32 @@ run_nonx86_native_evidence() {
   bash "${LNativeEvidenceScript}" "$@"
 }
 
+run_nonx86_native_evidence_via_gh() {
+  local LGhHelperScript
+
+  LGhHelperScript="${NONX86_NATIVE_EVIDENCE_GH_HELPER:-${ROOT}/run_nonx86_native_evidence_via_github_actions.sh}"
+
+  if [[ ! -f "${LGhHelperScript}" ]]; then
+    echo "[NATIVE-EVIDENCE-GH] Missing helper: ${LGhHelperScript}"
+    return 2
+  fi
+
+  bash "${LGhHelperScript}" "$@"
+}
+
+run_nonx86_native_evidence_via_gh_clean() {
+  local LCleanHelperScript
+
+  LCleanHelperScript="${NONX86_NATIVE_EVIDENCE_GH_CLEAN_HELPER:-${ROOT}/run_nonx86_native_evidence_via_clean_worktree.sh}"
+
+  if [[ ! -f "${LCleanHelperScript}" ]]; then
+    echo "[NATIVE-EVIDENCE-GH-CLEAN] Missing helper: ${LCleanHelperScript}"
+    return 2
+  fi
+
+  bash "${LCleanHelperScript}" "$@"
+}
+
 run_import_nonx86_native_evidence() {
   local LImportScript
 
@@ -7670,6 +7780,42 @@ run_restore_nightly_evidence() {
   fi
 
   bash "${LRestoreScript}" "$@"
+}
+
+run_riscvv_runner_registration() {
+  local LScript
+
+  LScript="${RISCVV_RUNNER_REGISTRATION_SCRIPT:-${ROOT}/prepare_riscvv_custom_runner_registration.sh}"
+  if [[ ! -f "${LScript}" ]]; then
+    echo "[RISCVV-RUNNER] Missing registration helper: ${LScript}"
+    return 2
+  fi
+
+  bash "${LScript}" "$@"
+}
+
+run_riscvv_runner_host_preflight() {
+  local LScript
+
+  LScript="${RISCVV_RUNNER_HOST_PREFLIGHT_SCRIPT:-${ROOT}/verify_riscvv_custom_runner_host.sh}"
+  if [[ ! -f "${LScript}" ]]; then
+    echo "[RISCVV-RUNNER] Missing host preflight helper: ${LScript}"
+    return 2
+  fi
+
+  bash "${LScript}" "$@"
+}
+
+print_riscvv_runner_3cmd() {
+  local LScript
+
+  LScript="${RISCVV_RUNNER_3CMD_SCRIPT:-${ROOT}/print_riscvv_custom_runner_3cmd.sh}"
+  if [[ ! -f "${LScript}" ]]; then
+    echo "[RISCVV-RUNNER] Missing 3cmd helper: ${LScript}"
+    return 2
+  fi
+
+  bash "${LScript}" "$@"
 }
 
 verify_windows_evidence() {
@@ -7991,6 +8137,9 @@ case "${ACTION}" in
   gate-summary-selfcheck)
     run_gate_summary_selfcheck
     ;;
+  release-evidence)
+    run_release_evidence "$@"
+    ;;
   perf-smoke)
     run_perf_smoke
     ;;
@@ -8081,6 +8230,12 @@ case "${ACTION}" in
   native-evidence)
     run_nonx86_native_evidence "$@"
     ;;
+  native-evidence-via-gh)
+    run_nonx86_native_evidence_via_gh "$@"
+    ;;
+  native-evidence-via-gh-clean)
+    run_nonx86_native_evidence_via_gh_clean "$@"
+    ;;
   import-nonx86-native-evidence)
     run_import_nonx86_native_evidence "$@"
     ;;
@@ -8089,6 +8244,15 @@ case "${ACTION}" in
     ;;
   verify-nonx86-native-evidence)
     run_nonx86_native_evidence_verify "$@"
+    ;;
+  riscvv-runner-registration)
+    run_riscvv_runner_registration "$@"
+    ;;
+  riscvv-runner-host-preflight)
+    run_riscvv_runner_host_preflight "$@"
+    ;;
+  riscvv-runner-3cmd)
+    print_riscvv_runner_3cmd "$@"
     ;;
   restore-nightly-evidence)
     run_restore_nightly_evidence "$@"
@@ -8133,7 +8297,7 @@ case "${ACTION}" in
     run_freeze_status_rehearsal "$@"
     ;;
   *)
-    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|closeout-release|sse2-structure-check|sse2-contracts|impl-smoke-sse2|impl-smoke-x86|impl-smoke-nonx86|impl-audit-nonx86|helper-semantics|riscvv-sensitive-hold-set|key-slot-audit|implementation-matrix-sync|riscvv-abi-shape|source-reachability|closeout-host-local|import-nonx86-native-evidence|closeout-host-local-from-import|interface-completeness|public-api-coverage|dispatch-read-scope|dataplane-consumer-scope|direct-dispatch-scope|metadata-query-scope|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|runner-parity|closeout-guard|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-retry-rehearsal|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|verify-nonx86-native-evidence|restore-nightly-evidence|historical-closeout-note-check|active-closeout-truth-check|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
+    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|closeout-release|sse2-structure-check|sse2-contracts|impl-smoke-sse2|impl-smoke-x86|impl-smoke-nonx86|impl-audit-nonx86|helper-semantics|riscvv-sensitive-hold-set|key-slot-audit|implementation-matrix-sync|riscvv-abi-shape|source-reachability|closeout-host-local|import-nonx86-native-evidence|closeout-host-local-from-import|interface-completeness|public-api-coverage|dispatch-read-scope|dataplane-consumer-scope|direct-dispatch-scope|metadata-query-scope|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|runner-parity|closeout-guard|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|release-evidence|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-retry-rehearsal|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|native-evidence-via-gh|native-evidence-via-gh-clean|verify-nonx86-native-evidence|riscvv-runner-registration|riscvv-runner-host-preflight|riscvv-runner-3cmd|restore-nightly-evidence|historical-closeout-note-check|active-closeout-truth-check|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
     echo "  Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks."
     echo "  gate/gate-strict PASS is not blanket release-grade approval for every experimental path."
     echo "  gate         Fast/base gate for routine SIMD changes"
@@ -8180,6 +8344,7 @@ case "${ACTION}" in
     echo "  gate-summary-rollback  Restore the previous gate summary backup"
     echo "  gate-summary-backups  List available gate-summary backups"
     echo "  gate-summary-selfcheck  Rehearse gate-summary/freeze-status selfcheck"
+    echo "  release-evidence  Aggregate existing gate/freeze/native evidence into release_evidence.json"
     echo "  perf-smoke  Run the lightweight backend benchmark smoke"
     echo "  nonx86-optin-list-suites  List suites with NEON/RISCVV backends compiled in"
     echo "  nonx86-ieee754  Run the non-x86 IEEE754 parity suite"
@@ -8197,7 +8362,12 @@ case "${ACTION}" in
     echo "  qemu-experimental-baseline-check  Check latest QEMU experimental baseline"
     echo "  evidence-linux  Collect Linux-side release evidence"
     echo "  native-evidence  Collect non-x86 native evidence"
+    echo "  native-evidence-via-gh  Dispatch/download non-x86 native evidence via GitHub Actions"
+    echo "  native-evidence-via-gh-clean  Reuse a temporary clean worktree for GitHub native-evidence dispatch"
     echo "  verify-nonx86-native-evidence  Verify imported non-x86 native evidence"
+    echo "  riscvv-runner-registration  Prepare repo-side RISCVV runner registration guidance"
+    echo "  riscvv-runner-host-preflight  Fail-close preflight for a real riscv64 runner host"
+    echo "  riscvv-runner-3cmd  Print the recommended RISCVV native-evidence bootstrap flow"
     echo "  restore-nightly-evidence  Restore nightly evidence into canonical logs"
     echo "  historical-closeout-note-check  Fail-close when historical closeout/freeze plans lose Current HEAD guidance"
     echo "  active-closeout-truth-check  Fail-close when active closeout docs drift from current HEAD truth"
@@ -8213,6 +8383,8 @@ case "${ACTION}" in
     echo "  win-closeout-finalize  Verify native evidence, backfill cross gate, then finalize"
     echo "  freeze-status-rehearsal  Rehearse freeze-status failure shaping"
     echo "Suggested flow: check -> targeted suites -> gate; use gate-strict before release/closeout."
+    echo "GitHub native evidence helper: native-evidence-via-gh <neon|riscvv> [run-id]"
+    echo "GitHub native evidence helper (dirty worktree): native-evidence-via-gh-clean <neon|riscvv> [run-id]"
     echo "QEMU env: SIMD_QEMU_BUILD_POLICY=always|if-missing|skip (default: if-missing)"
     echo "Native host env: SIMD_NATIVE_EVIDENCE_RUNNER=canonical|direct-fpc, SIMD_NATIVE_EVIDENCE_ENABLE_BACKEND_ASM=1"
     echo "Native evidence env: SIMD_NONX86_NATIVE_EVIDENCE_ROOT=tests/fafafa.core.simd/fixtures/native-evidence (override verify root)"

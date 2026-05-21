@@ -302,6 +302,21 @@ bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
 `gate-strict` 是发布门禁，不是日常快门禁。它会补上更重的 repeat 与结构一致性路径。
 默认它会强制 coverage / wiring / repeat / non-x86 / Windows evidence 等 closeout 检查；其中 non-x86 运行证明当前默认走 `SIMD_GATE_QEMU_NONX86_EVIDENCE=1`，而 `SIMD_GATE_REQUIRE_NONX86_NATIVE_EVIDENCE=0` 只保留为可选附加证据。`perf-smoke` 仍是显式可选项，除非你设置 `SIMD_GATE_PERF_SMOKE=1`，或者走 `evidence-linux` 这条固定会把 perf 带进去的证据链。
 
+如果你只是想基于现有 `gate_summary.json` / `freeze_status.json` / native-evidence 目录重导 machine-readable closeout bundle，而不是重跑整条重链路，直接用：
+
+```bash
+FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh release-evidence
+```
+
+如果后续要补 fresh RISCVV enhanced evidence，不要在 dirty worktree 上反复手工 dispatch。当前 repo 已提供：
+
+```bash
+FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh riscvv-runner-3cmd
+FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence-via-gh-clean riscvv
+```
+
+第一条用于打印 repo-side bootstrap/operator 最短路径；第二条会基于当前已推送 ref 临时创建 clean worktree 做 GH dispatch/download，并把 artifact 仍然写回当前 worktree 的 `tests/fafafa.core.simd/logs/`。完整说明见 [riscvv_native_closeout_runbook.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/docs/riscvv_native_closeout_runbook.md)。
+
 如果 fresh `arm64/riscv64` native evidence 已经从外部机器拷回当前 worktree，不要再手工 `cp`/猜目录；直接用：
 
 ```bash

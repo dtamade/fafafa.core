@@ -151,7 +151,7 @@ def build_external_blockers(native_evidence: dict[str, dict[str, Any]]) -> list[
             "scope": "repo-ops",
             "status": "open",
             "affects": "fresh-riscvv-native-evidence",
-            "detail": "fresh RISCVV native evidence requires a repo-visible self-hosted Linux/riscv64 runner; GitHub's official self-hosted runner app does not list riscv64, so repo-ops must provide a custom/nonstandard runner solution on a real riscv64 host",
+            "detail": "fresh RISCVV native evidence requires a repo-visible self-hosted Linux/riscv64 runner; repo-ops must provide a working runner solution on a real riscv64 host, using a standard or custom/nonstandard integration that can actually execute the workflow",
         }
     ]
 
