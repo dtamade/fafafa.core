@@ -114,6 +114,7 @@
 - `FAF_SIMD_PUBLIC_API_V2_FLAG_DIRECT_DATA_PLANE` 仅在实现真的把函数指针直接绑定到 data-plane 时才应置位；调用方不要假设当前所有平台都一定带这个标志
 
 对新调用方，推荐优先缓存 `GetSimdPublicApiV2` 的结果，而不是继续新接入 v1。
+Pascal 侧最小可运行示例见 `examples/example_simd_public_api_v2.pas`。
 
 其中带原地写入语义的入口，例如 `MemCopy`、`MemSet`、`ToLowerAscii`、`ToUpperAscii`、`MemReverse`，要求调用方提供**可写 buffer**；不要把只读或共享字符串存储直接当作原地修改目标。
 

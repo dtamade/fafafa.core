@@ -21,6 +21,8 @@
 
 如果你要先把 canonical API 与兼容别名区分清楚，先看 `docs/fafafa.core.simd.interface.md`。
 
+如果你要看 Pascal 侧最小可运行的 v2 snapshot façade，用 `examples/example_simd_public_api_v2.pas`。
+
 ### 支持的后端
 
 | 后端 | 平台 | 向量宽度 |

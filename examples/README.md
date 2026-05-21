@@ -46,6 +46,10 @@
 - 所有时间戳统一为 UTC Z（RFC3339）
 
 ## 其他示例索引
+- fafafa.core.simd
+  - `simd_ops_demo.lpr` —— 公开 façade / 向量族 API 的常规示例
+  - `example_simd_public_api_v2.pas` —— Pascal 侧 public ABI v2 snapshot façade 最小示例
+  - `example_simd_dispatch.pas` —— backend 派发思路的概念演示
 - fafafa.core.process
   - example_process.lpr / example_group.pas / example_path_search.pas
   - example_pipeline_failfast.pas（FailFast + MergeStdErr + CaptureOutput）

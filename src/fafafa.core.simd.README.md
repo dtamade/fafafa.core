@@ -14,6 +14,7 @@
   - Windows smoke：`tests\fafafa.core.simd.publicabi\BuildOrTest.bat test`
   - 新调用方优先看 v2：`GetSimdPublicApiV2` / `fafafa_simd_get_public_api_v2`
   - Pascal 侧绑定 snapshot façade：`src/fafafa.core.simd.api.v2.pas`
+  - Pascal 侧最小示例：`examples/example_simd_public_api_v2.pas`
   - 稳定承诺：`docs/fafafa.core.simd.publicabi.stability.md`
 - **想理解模块全貌**：看 `docs/fafafa.core.simd.md`
 - **想维护或修改实现**：看 `docs/fafafa.core.simd.map.md`、`docs/fafafa.core.simd.maintenance.md`、`docs/fafafa.core.simd.checklist.md`
@@ -35,6 +36,7 @@
 ## 示例入口
 
 - `examples/simd_ops_demo.lpr`：更接近真实公开 API 的使用方式，适合作为入门示例
+- `examples/example_simd_public_api_v2.pas`：Pascal 侧 v2 snapshot façade 的最小可复制示例
 - `examples/example_simd_dispatch.pas`：概念演示（conceptual demo），用来解释“按 CPU 特性挑选实现”的思路，不代表真实后端注册或派发接线方式
 
 ## Stable / Experimental 边界
