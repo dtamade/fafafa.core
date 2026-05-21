@@ -37,6 +37,8 @@ tests/*/logs/
 tests/*/*/logs/
 tests/_run_all_logs_sh/
 tests/bin/
+tests/**/.buildtest.lock
+tests/**/.buildtest.lock.d/
 tests/*/*.exe
 tests/*/*.o
 tests/*/*.ppu
