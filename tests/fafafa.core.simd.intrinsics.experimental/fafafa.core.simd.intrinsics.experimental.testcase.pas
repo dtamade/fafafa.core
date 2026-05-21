@@ -2148,6 +2148,7 @@ var
   LAlignedSingles: Pointer;
   LUnalignedSingles: Pointer;
   LValue: TM128;
+  LLoaded: TM128;
   LIndex: Integer;
 begin
   LAlignedBytes := AlignPointer(@LByteStorage[0], 16);
@@ -2167,6 +2168,8 @@ begin
       Byte($30 + LIndex), PByte(LAlignedBytes)[LIndex]);
   AssertEquals('simd_store_si128 trailing sentinel', Byte($CC),
     PByte(Pointer(PtrUInt(LAlignedBytes) + 16))^);
+  LLoaded := simd_load_si128(LAlignedBytes);
+  AssertM128BytesEqual(Self, 'simd_load_si128 after aligned store', LValue, LLoaded);
 
   FillChar(LByteStorage, SizeOf(LByteStorage), $CC);
   FillChar(LValue, SizeOf(LValue), 0);
@@ -2180,6 +2183,8 @@ begin
       Byte($80 + LIndex), PByte(LUnalignedBytes)[LIndex]);
   AssertEquals('simd_storeu_si128 trailing sentinel', Byte($CC),
     PByte(Pointer(PtrUInt(LUnalignedBytes) + 16))^);
+  LLoaded := simd_loadu_si128(LUnalignedBytes);
+  AssertM128BytesEqual(Self, 'simd_loadu_si128 after unaligned store', LValue, LLoaded);
 
   FillChar(LDoubleStorage, SizeOf(LDoubleStorage), $A5);
   FillChar(LValue, SizeOf(LValue), 0);
@@ -2362,6 +2367,7 @@ end;
 procedure TTestCase_X86Sse2AbiBasics.Test_IntegerPartialLoadStoreMaskMoveSemantics;
 var
   LScalar64: QWord;
+  LScalar64Storage: array[0..2] of QWord;
   LRawSrc: array[0..47] of Byte;
   LRawMask: array[0..47] of Byte;
   LAlignedSrc: Pointer;
@@ -2385,6 +2391,25 @@ begin
   LScalar64 := 0;
   simd_storel_epi64(LScalar64, LA);
   AssertEquals('simd_storel_epi64 writes low lane', Int64(LA.m128i_u64[0]), Int64(LScalar64));
+
+  LScalar64Storage[0] := QWord($CAFEBABECAFED00D);
+  LScalar64Storage[1] := 0;
+  LScalar64Storage[2] := QWord($0DD0F00D12345678);
+  FillChar(LB, SizeOf(LB), 0);
+  LB.m128i_u64[0] := QWord($8877665544332211);
+  LB.m128i_u64[1] := QWord($FFEEDDCCBBAA0099);
+  simd_storel_epi64(LScalar64Storage[1], LB);
+  AssertEquals('simd_storel_epi64 repeated leading sentinel',
+    Int64(QWord($CAFEBABECAFED00D)), Int64(LScalar64Storage[0]));
+  AssertEquals('simd_storel_epi64 repeated writes low lane',
+    Int64(LB.m128i_u64[0]), Int64(LScalar64Storage[1]));
+  AssertEquals('simd_storel_epi64 repeated trailing sentinel',
+    Int64(QWord($0DD0F00D12345678)), Int64(LScalar64Storage[2]));
+  LActual := simd_loadl_epi64(@LScalar64Storage[1]);
+  AssertEquals('simd_loadl_epi64 repeated low lane',
+    Int64(LB.m128i_u64[0]), Int64(LActual.m128i_u64[0]));
+  AssertEquals('simd_loadl_epi64 repeated zero high lane',
+    Int64(0), Int64(LActual.m128i_u64[1]));
 
   FillChar(LA, SizeOf(LA), 0);
   FillChar(LB, SizeOf(LB), 0);

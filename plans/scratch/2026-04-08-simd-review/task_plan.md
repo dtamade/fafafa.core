@@ -1,5 +1,19 @@
 # SIMD Review Task Plan
 
+## 2026-05-22 SSE2 Load/Store Coherence Witness Thickening
+
+### Goal
+
+在 `SSE2` stream helper 第二组 runtime witness 已收口后，继续沿 `proof-first` 小批次推进，但这次不再碰 `stream/fence` 段，而是挑当前最自然的 `load/store` 小簇：`simd_load_si128`、`simd_loadu_si128`、`simd_storel_epi64`。目标仍然不是改 checker，而是在现有 load/store 语义测试里补第三组真实 witness，把这 3 个名字从临时 `sse2_min_refs=3` 视角下的 `refs=2` 收上去。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 用 `sse2_min_refs=3` 复核当前最自然的小簇 | completed | 已确认 fresh `thin=87`，其中 `simd_load_si128`、`simd_loadu_si128`、`simd_storel_epi64` 都还是 `refs=2`，而且都落在现有 load/store 语义测试附近 |
+| 2. 在现有 SSE2 load/store 测试里补 repeated runtime witness | completed | 已在 `Test_AlignedAndUnalignedStoreSurfaceSemantics` 增加 store-then-load coherence 断言，并在 `Test_IntegerPartialLoadStoreMaskMoveSemantics` 增加 sentinel-protected repeated `simd_storel_epi64`/`simd_loadl_epi64` witness |
+| 3. 定向/主线验证与 scratch 收口 | completed | `git diff --check`、`sse2_min_refs=3` 定向统计、release `experimental-intrinsics-tests`、release `gate` 全部通过；本批仍只同步 scratch，不改 active maintenance 口径 |
+
 ## 2026-05-22 SSE2 Stream Helper Runtime Witness Thickening
 
 ### Goal

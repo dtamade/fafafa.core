@@ -1,5 +1,24 @@
 # SIMD Review Findings
 
+## 2026-05-22 SSE2 Load/Store Coherence Witness Thickening
+
+- 在 `stream` helper 收厚之后，当前最自然的下一簇不再是再去碰 `stream/fence`，而是已有 store 语义测试里还能顺手补 load-back coherence 的 `load/store` 小簇：
+  - `simd_load_si128`
+  - `simd_loadu_si128`
+  - `simd_storel_epi64`
+- 这 3 个 helper 的问题仍然不是 default coverage 缺失，而是临时把 floor 抬到 `sse2_min_refs=3` 时，它们都还停在 `refs=2`。
+- 这批之所以很适合继续 proof-first 收口，是因为：
+  - `simd_store_si128` / `simd_storeu_si128` 原本就已经有 sentinel-safe 写回 proof
+  - 在同一段里直接补 `load-back` coherence，属于真实 runtime witness，不是靠字符串凑计数
+  - `simd_storel_epi64` 也很适合补一组带前后 sentinel 的 repeated writeback，证明它仍然只写中间 64 位
+- 这批补完后的直接效果是：
+  - 临时 `sse2_min_refs=3` 视角下 `thin_required: 87 -> 84`
+  - `simd_load_si128`、`simd_loadu_si128`、`simd_storel_epi64` 都已经不再落在 `refs=2` 残余里
+  - `simd_loadl_epi64` 也顺带多了一组更像“真实 companion roundtrip”的 witness
+- 因而这批的重要性在于：
+  - 继续证明 `sse2_min_refs=3` 可以作为下一阶段 scouting metric
+  - 剩余 residual 现在更明确地集中在 arithmetic / compare / bitwise / shift 家族，而不是 memory coherence 这一小簇
+
 ## 2026-05-22 SSE2 Stream Helper Runtime Witness Thickening
 
 - 在 `SSE2` side-effect helper 零例外之后，当前最像“下一刀还能继续收厚 proof、但不需要改 checker”的簇就是 `stream` 家族：

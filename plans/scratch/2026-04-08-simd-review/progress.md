@@ -1,5 +1,47 @@
 # SIMD Review Progress
 
+## 2026-05-22 SSE2 Load/Store Coherence Witness Thickening
+
+- 这批继续沿 `SSE2 proof-first` 小批次推进，不动实现层，也不改 checker 规则，只在现有 load/store 语义测试里补更厚的 runtime witness。
+- 接手前的真实状态：
+  - 默认 `sse2_min_refs=2` 仍然全绿
+  - 但把 `check_intrinsics_coverage.py` 临时抬到 `--sse2-min-refs 3` 后，fresh 结果是 `thin=87`
+  - 其中最自然、最低风险的一簇是：
+    - `simd_load_si128 = refs=2`
+    - `simd_loadu_si128 = refs=2`
+    - `simd_storel_epi64 = refs=2`
+  - 这 3 个名字都已经落在现有 `load/store` 语义测试周围，不需要新 suite，也不需要改 checker
+- 已落地修改：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 在 `Test_AlignedAndUnalignedStoreSurfaceSemantics` 里，为 `simd_store_si128` / `simd_storeu_si128` 之后分别补 `simd_load_si128` / `simd_loadu_si128` load-back coherence 断言
+    - 在 `Test_IntegerPartialLoadStoreMaskMoveSemantics` 里，为 `simd_storel_epi64` 增加带前后 sentinel 的 repeated writeback witness
+    - 同时补一组 `simd_loadl_epi64` companion roundtrip 断言，确认 repeated low-64 写回后仍保持 high-half zero 合同
+- 定向复核结果：
+  - fresh `python3 tests/fafafa.core.simd/check_intrinsics_coverage.py --summary-line --sse2-min-refs 3` 已变成：
+    - `thin_required=84`
+  - 也就是这批把临时 `min_refs=3` 视角下的薄点从 `87 -> 84`
+  - 本批直接收上的名字是：
+    - `simd_load_si128`
+    - `simd_loadu_si128`
+    - `simd_storel_epi64`
+- fresh 验证已完成：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_coverage.py --summary-line --sse2-min-refs 3`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh experimental-intrinsics-tests`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- fresh 结果：
+  - `git diff --check` 通过
+  - 临时 `sse2_min_refs=3` 统计为：
+    - `INTRINSICS_COVERAGE_SUMMARY modules=6 missing_required=0 missing_optional=0 thin_required=84 thin_optional=0 extra=0 strict_extra=0 require_avx2=0 require_experimental=0 sse2_min_refs=3 status=fail`
+  - release `experimental-intrinsics-tests` 默认/experimental 双模式 PASS
+  - release `gate` PASS
+  - gate 默认口径下的 intrinsics coverage 继续保持：
+    - `INTRINSICS_COVERAGE_SUMMARY modules=6 missing_required=0 missing_optional=0 thin_required=0 thin_optional=0 extra=0 strict_extra=0 require_avx2=0 require_experimental=0 sse2_min_refs=2 status=ok`
+- 当前阶段结论：
+  - 这批没有扩大 checker 责任，也没有碰 SIMD 生产实现
+  - 但把当前最自然的一簇 `load/store` helper 继续收厚了真实 runtime witness
+  - 后续如果继续按同一方法推进，可以继续拿 `sse2_min_refs=3` 当 scouting metric，再从剩余 `refs=2` 名字里挑成簇的小簇
+
 ## 2026-05-22 SSE2 Stream Helper Runtime Witness Thickening
 
 - 这批继续沿上一轮 `SSE2` proof-first 小批次推进，不动实现层，也不改 checker 规则，只补同一个测试段里的真实 runtime witness。
