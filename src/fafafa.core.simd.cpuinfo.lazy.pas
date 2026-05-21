@@ -132,8 +132,12 @@ implementation
 
 uses
   Classes, SysUtils
-  {$IFDEF UNIX}
+  {$IFDEF DARWIN}
+  , fafafa.core.simd.cpuinfo.darwin
+  {$ELSE}
+    {$IFDEF UNIX}
   , fafafa.core.simd.cpuinfo.unix
+    {$ENDIF}
   {$ENDIF}
   {$IFDEF SIMD_X86_AVAILABLE}
   , fafafa.core.simd.cpuinfo.x86

@@ -45,6 +45,12 @@ uses
   fafafa.core.time.tick.base;
 
 type
+  TStdTick = class(TTick)
+  protected
+    procedure Initialize(out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType); override;
+  public
+    function Tick: UInt64; override;
+  end;
 
   THDTick = class(TTick)
   protected
@@ -65,7 +71,7 @@ function MakeHDTick: ITick; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
 implementation
 
 uses
-  fafafa.core.time.tick.unix;
+  Unix;
 
 type
   mach_timebase_info_data_t = record
@@ -83,17 +89,20 @@ function mach_timebase_info(info: pmach_timebase_info_data_t): Integer; cdecl; e
 
 function GetResolution: UInt64;
 begin
-  Result := fafafa.core.time.tick.unix.GetResolution;
+  Result := MICROSECONDS_PER_SECOND;
 end;
 
 function GetTick: UInt64;
+var
+  LTV: TTimeVal;
 begin
-  Result := fafafa.core.time.tick.unix.GetTick;
+  fpgettimeofday(@LTV, nil);
+  Result := UInt64(LTV.tv_sec) * GetResolution + UInt64(LTV.tv_usec);
 end;
 
 function MakeTick: ITick;
 begin
-  Result := fafafa.core.time.tick.unix.MakeTick;
+  Result := TStdTick.Create;
 end;
 
 function GetHDResolution: UInt64;
@@ -129,6 +138,20 @@ end;
 function THDTick.Tick: UInt64;
 begin
   Result := GetHDTick();
+end;
+
+{ TStdTick }
+
+procedure TStdTick.Initialize(out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType);
+begin
+  aResolution  := MICROSECONDS_PER_SECOND;
+  aIsMonotonic := False;
+  aTickType    := ttStandard;
+end;
+
+function TStdTick.Tick: UInt64;
+begin
+  Result := GetTick();
 end;
 
 

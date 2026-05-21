@@ -153,6 +153,10 @@ begin
 
   AssertEquals('Lazy/eager architecture should match',
     Ord(LEagerCPUInfo.Arch), Ord(LLazyCPUInfo.Arch));
+  AssertEquals('Lazy/eager logical core count should match',
+    LEagerCPUInfo.LogicalCores, LLazyCPUInfo.LogicalCores);
+  AssertEquals('Lazy/eager physical core count should match',
+    LEagerCPUInfo.PhysicalCores, LLazyCPUInfo.PhysicalCores);
 
   for LFeature := Low(TGenericFeature) to High(TGenericFeature) do
   begin
