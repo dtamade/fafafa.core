@@ -148,7 +148,7 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidenc
 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status
 ```
 
-如果走手工 Windows 实机路径，则顺序应为：`evidence-win-verify -> SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 + SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 gate -> win-closeout-finalize -> freeze-status`。
+如果走手工 Windows 实机路径，则顺序应为：`evidence-win-verify -> SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 + SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 + SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 + SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 + SIMD_GATE_CPUINFO_LAZY_REPEAT=3 gate -> win-closeout-finalize -> freeze-status`。
 
 这里还有一个当前必须显式记住的前提：
 

@@ -145,6 +145,7 @@ cat > "${LCaseReady}/logs/gate_summary.md" <<'EOM'
 | 2026-02-10 00:00:00 | gate | START | - | START | mode=Debug | - |
 | 2026-02-10 00:00:01 | build-check | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:02 | interface-completeness | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:02 | public-api-coverage | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:03 | cross-backend-parity | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:04 | wiring-sync | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:05 | coverage | PASS | 100 | NORMAL | ok | - |
@@ -401,6 +402,7 @@ cat > "${LCaseLinuxLazy}/logs/gate_summary.md" <<'EOM'
 | 2026-02-10 00:00:00 | gate | START | - | START | mode=Release | - |
 | 2026-02-10 00:00:01 | build-check | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:02 | interface-completeness | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:02 | public-api-coverage | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:03 | cross-backend-parity | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:04 | wiring-sync | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:05 | coverage | PASS | 100 | NORMAL | ok | - |
@@ -448,6 +450,7 @@ cat > "${LCaseLinuxLazy}/logs/gate_summary.md" <<'EOM'
 | 2026-02-10 00:00:00 | gate | START | - | START | mode=Release | - |
 | 2026-02-10 00:00:01 | build-check | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:02 | interface-completeness | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:02 | public-api-coverage | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:03 | cross-backend-parity | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:04 | wiring-sync | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:05 | coverage | PASS | 100 | NORMAL | ok | - |
@@ -499,6 +502,7 @@ cat > "${LCaseLinuxPlatforms}/logs/gate_summary.md" <<'EOM'
 | 2026-02-10 00:00:00 | gate | START | - | START | mode=Release | - |
 | 2026-02-10 00:00:01 | build-check | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:02 | interface-completeness | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:02 | public-api-coverage | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:03 | cross-backend-parity | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:04 | wiring-sync | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:05 | coverage | PASS | 100 | NORMAL | ok | - |
@@ -725,6 +729,7 @@ cat > "${LCaseBatchFallback}/logs/gate_summary.md" <<'EOM'
 | 2026-02-10 00:10:00 | gate | START | - | START | mode=Release | - |
 | 2026-02-10 00:10:01 | build-check | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:10:02 | interface-completeness | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:10:02 | public-api-coverage | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:10:03 | cross-backend-parity | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:10:04 | wiring-sync | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:10:05 | coverage | PASS | 100 | NORMAL | ok | - |
@@ -743,6 +748,7 @@ cat > "${LCaseBatchFallback}/logs/windows-closeout/SIMD-20260210-152/gate_summar
 | 2026-02-10 00:05:00 | gate | START | - | START | mode=Release | - |
 | 2026-02-10 00:05:01 | build-check | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:05:02 | interface-completeness | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:05:02 | public-api-coverage | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:05:03 | cross-backend-parity | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:05:04 | wiring-sync | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:05:05 | coverage | PASS | 100 | NORMAL | ok | - |
@@ -851,6 +857,7 @@ cat > "${LCaseMainlineFallback}/logs/gate_summary.md" <<'EOM'
 | 2026-02-10 00:10:00 | gate | START | - | START | mode=Release | - |
 | 2026-02-10 00:10:01 | build-check | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:10:02 | interface-completeness | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:10:02 | public-api-coverage | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:10:03 | cross-backend-parity | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:10:04 | wiring-sync | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:10:05 | coverage | PASS | 100 | NORMAL | ok | - |
@@ -870,6 +877,7 @@ cat > "${LCaseMainlineFallback}/logs/rehearsal/backups/gate_summary.backup.20260
 | 2026-02-10 00:07:00 | gate | START | - | START | mode=Release | - |
 | 2026-02-10 00:07:01 | build-check | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:07:02 | interface-completeness | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:07:02 | public-api-coverage | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:07:03 | cross-backend-parity | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:07:04 | wiring-sync | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:07:05 | coverage | PASS | 100 | NORMAL | ok | - |
@@ -985,6 +993,7 @@ cat > "${LCaseLatestMainline}/logs/gate_summary.md" <<'EOM'
 | 2026-02-10 00:10:00 | gate | START | - | START | mode=Release | - |
 | 2026-02-10 00:10:01 | build-check | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:10:02 | interface-completeness | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:10:02 | public-api-coverage | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:10:03 | cross-backend-parity | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:10:04 | wiring-sync | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:10:05 | coverage | PASS | 100 | NORMAL | ok | - |
@@ -1004,6 +1013,7 @@ cat > "${LCaseLatestMainline}/logs/rehearsal/backups/gate_summary.backup.2026021
 | 2026-02-10 00:07:00 | gate | START | - | START | mode=Release | - |
 | 2026-02-10 00:07:01 | build-check | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:07:02 | interface-completeness | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:07:02 | public-api-coverage | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:07:03 | cross-backend-parity | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:07:04 | wiring-sync | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:07:05 | coverage | PASS | 100 | NORMAL | ok | - |
@@ -1129,6 +1139,7 @@ cat > "${LCaseSourceFresh}/logs/gate_summary.md" <<'EOM'
 | 2026-02-10 00:00:00 | gate | START | - | START | mode=Release | - |
 | 2026-02-10 00:00:01 | build-check | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:02 | interface-completeness | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:02 | public-api-coverage | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:03 | cross-backend-parity | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:04 | wiring-sync | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:05 | coverage | PASS | 100 | NORMAL | ok | - |
@@ -1237,6 +1248,7 @@ cat > "${LCaseIgnoredArtifact}/logs/gate_summary.md" <<'EOM'
 | 2026-02-10 00:00:00 | gate | START | - | START | mode=Debug | - |
 | 2026-02-10 00:00:01 | build-check | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:02 | interface-completeness | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:02 | public-api-coverage | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:03 | cross-backend-parity | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:04 | wiring-sync | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:05 | coverage | PASS | 100 | NORMAL | ok | - |
@@ -1381,6 +1393,7 @@ cat > "${LCaseWindowsHint}/logs/gate_summary.md" <<'EOM'
 | 2026-02-10 00:00:00 | gate | START | - | START | mode=Release | - |
 | 2026-02-10 00:00:01 | build-check | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:02 | interface-completeness | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:02 | public-api-coverage | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:03 | cross-backend-parity | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:04 | wiring-sync | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:05 | coverage | PASS | 100 | NORMAL | ok | - |
@@ -1467,6 +1480,7 @@ cat > "${LCaseWindowsProducerNewer}/logs/gate_summary.md" <<'EOM'
 | 2026-02-10 00:00:00 | gate | START | - | START | mode=Release | - |
 | 2026-02-10 00:00:01 | build-check | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:02 | interface-completeness | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:02 | public-api-coverage | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:03 | cross-backend-parity | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:04 | wiring-sync | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:05 | coverage | PASS | 100 | NORMAL | ok | - |
@@ -1588,6 +1602,7 @@ cat > "${LCaseCloseoutSummaryOlder}/logs/gate_summary.md" <<'EOM'
 | 2026-02-10 00:00:00 | gate | START | - | START | mode=Release | - |
 | 2026-02-10 00:00:01 | build-check | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:02 | interface-completeness | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:02 | public-api-coverage | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:03 | cross-backend-parity | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:04 | wiring-sync | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:05 | coverage | PASS | 100 | NORMAL | ok | - |
@@ -1685,6 +1700,7 @@ cat > "${LCaseWindowsToolchainAction}/logs/gate_summary.md" <<'EOM'
 | 2026-02-10 00:00:00 | gate | START | - | START | mode=Release | - |
 | 2026-02-10 00:00:01 | build-check | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:02 | interface-completeness | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:02 | public-api-coverage | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:03 | cross-backend-parity | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:04 | wiring-sync | PASS | 100 | NORMAL | ok | - |
 | 2026-02-10 00:00:05 | coverage | PASS | 100 | NORMAL | ok | - |

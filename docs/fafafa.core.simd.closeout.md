@@ -99,7 +99,7 @@
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check` -> `[CHECK] OK`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` -> `[GATE] OK`
 - fresh host-local strict closeout：
-  - `SIMD_QEMU_PLATFORMS='linux/arm64 linux/riscv64' SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local` -> `[CLOSEOUT-HOST-LOCAL] OK`
+  - `SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local` -> `[CLOSEOUT-HOST-LOCAL] OK`
   - qemu runtime summary: [qemu-multiarch-20260415-010346-869191/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260415-010346-869191/summary.md)
   - qemu cpuinfo summary: [qemu-multiarch-20260415-011042-887472/summary.md](/home/dtamade/projects/fafafa.core/tests/fafafa.core.simd/logs/qemu-multiarch-20260415-011042-887472/summary.md)
 - 当前结论：
@@ -168,7 +168,7 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh impl-audit-
 - host-local strict closeout：
 
 ```bash
-SIMD_QEMU_PLATFORMS='linux/arm64 linux/riscv64' SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local
+SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local
 ```
 
 2026-04-19 fresh rerun：`[CLOSEOUT-HOST-LOCAL] OK`
@@ -288,10 +288,10 @@ FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-re
 
 Run:
 ```bash
-SIMD_QEMU_PLATFORMS='linux/arm64 linux/riscv64' SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local
+SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local
 ```
 
-`closeout-host-local` 的固定顺序是 `impl-audit-nonx86 -> gate-strict`。当前默认它会把 `SIMD_GATE_QEMU_NONX86_EVIDENCE=1` 打开，并把 `SIMD_GATE_REQUIRE_NONX86_NATIVE_EVIDENCE=0` 降为可选，同时继续把 Windows evidence requirement 降到可选，因此适合当前 `x86_64` 主机上的实现层阶段收口。
+`closeout-host-local` 的固定顺序是 `impl-audit-nonx86 -> gate-strict`。当前默认它会把 `SIMD_GATE_QEMU_NONX86_EVIDENCE=1`、`SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1`、`SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1`、`SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1` 与 `SIMD_GATE_CPUINFO_LAZY_REPEAT=3` 一起带上，并把 `SIMD_GATE_REQUIRE_NONX86_NATIVE_EVIDENCE=0` 降为可选，同时继续把 Windows evidence requirement 降到可选，因此适合当前 `x86_64` 主机上的实现层阶段收口。
 如果目标是完整发布门禁 / Windows closeout 主线，再跑：
 
 Run:
@@ -311,7 +311,7 @@ bash tests/fafafa.core.simd/BuildOrTest.sh import-nonx86-native-evidence /path/t
 它会把最新的 `native-evidence-neon-*` / `native-evidence-riscvv-*` 导入到 `tests/fafafa.core.simd/fixtures/native-evidence`，并立刻跑 `verify-nonx86-native-evidence`。导入绿了之后，再执行：
 
 ```bash
-SIMD_QEMU_PLATFORMS='linux/arm64 linux/riscv64' SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local
+SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh closeout-host-local
 ```
 
 如果你只是想把当前 `fixtures/native-evidence` 再过一遍 importer/verifier，不必手工 `cp` 到别处；现在直接把该目录当 source root 传给 `import-nonx86-native-evidence` 也是安全的，脚本会识别为 verify-only no-op，而不会自删 source。verifier 若失败，也会直接带出具体 `backend`、`summary.md` 和 `environment.txt` 路径。
@@ -450,7 +450,7 @@ tests\fafafa.core.simd\buildOrTest.bat gate-strict
 
    Then run the required fail-close cross gate:
    ```bash
-   FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate
+   FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_CPUINFO_LAZY_REPEAT=3 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate
    ```
 
    Then:
