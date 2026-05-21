@@ -1,5 +1,19 @@
 # SIMD Review Task Plan
 
+## 2026-05-22 SSE2 Stream Helper Runtime Witness Thickening
+
+### Goal
+
+在 `SSE2` coverage guardrail 和 side-effect helper 零例外都已经收口后，继续挑同一测试段里最自然的一簇低代码命中 helper：`stream` 家族。目标不是改 checker 规则，而是给 `simd_stream_si128/simd_stream_pd/simd_stream_ps/simd_stream_si32/simd_stream_si64` 补第二组真实 runtime witness。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前最薄的代码级 witness 簇 | completed | 已确认 `stream` 家族在 experimental testcase 里都只有 1 次代码级调用，且仍集中在同一 `Test_StreamAndFenceSurfaceSemantics` 段 |
+| 2. 在同一 SSE2 测试里补第二组 runtime witness | completed | 已新增 repeated stream store/write 断言，5 个 `stream` helper 现在都达到 `2` 次代码级调用 |
+| 3. 定向/主线验证与 scratch 收口 | completed | `experimental-intrinsics-tests`、release `gate`、`git diff --check` 均已通过；本批只同步 scratch，不改 active maintenance 口径 |
+
 ## 2026-05-21 SSE2 Side-Effect Helper Witness Zero-Allowlist
 
 ### Goal

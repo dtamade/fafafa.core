@@ -2469,6 +2469,16 @@ begin
   AssertEquals('simd_stream_si128 trailing sentinel', Byte($A5),
     PByte(Pointer(PtrUInt(LAlignedByteDest) + 16))^);
 
+  FillChar(LByteDestStorage, SizeOf(LByteDestStorage), $6B);
+  for LIndex := 0 to 15 do
+    LValue.m128i_u8[LIndex] := Byte($80 + LIndex);
+  simd_stream_si128(PByte(LAlignedByteDest)[0], LValue);
+  for LIndex := 0 to 15 do
+    AssertEquals('simd_stream_si128 repeated byte ' + IntToStr(LIndex),
+      Byte($80 + LIndex), PByte(LAlignedByteDest)[LIndex]);
+  AssertEquals('simd_stream_si128 repeated trailing sentinel', Byte($6B),
+    PByte(Pointer(PtrUInt(LAlignedByteDest) + 16))^);
+
   FillChar(LDoubleDestStorage, SizeOf(LDoubleDestStorage), $5A);
   FillChar(LValue, SizeOf(LValue), 0);
   LValue.m128i_u64[0] := QWord($0123456789ABCDEF);
@@ -2481,6 +2491,17 @@ begin
   AssertEquals('simd_stream_pd lane1 bits',
     Int64(QWord($FFEEDDCCBBAA9988)), Int64(PQWord(LAlignedDoubleDest)[1]));
   AssertEquals('simd_stream_pd trailing sentinel', Byte($5A),
+    PByte(Pointer(PtrUInt(LAlignedDoubleDest) + 16))^);
+
+  FillChar(LDoubleDestStorage, SizeOf(LDoubleDestStorage), $96);
+  LValue.m128i_u64[0] := QWord($1111222233334444);
+  LValue.m128i_u64[1] := QWord($AAAABBBBCCCCDDDD);
+  simd_stream_pd(PQWord(LAlignedDoubleDest)[0], LValue);
+  AssertEquals('simd_stream_pd repeated lane0 bits',
+    Int64(QWord($1111222233334444)), Int64(PQWord(LAlignedDoubleDest)[0]));
+  AssertEquals('simd_stream_pd repeated lane1 bits',
+    Int64(QWord($AAAABBBBCCCCDDDD)), Int64(PQWord(LAlignedDoubleDest)[1]));
+  AssertEquals('simd_stream_pd repeated trailing sentinel', Byte($96),
     PByte(Pointer(PtrUInt(LAlignedDoubleDest) + 16))^);
 
   FillChar(LSingleDestStorage, SizeOf(LSingleDestStorage), $3C);
@@ -2503,14 +2524,40 @@ begin
   AssertEquals('simd_stream_ps trailing sentinel', Byte($3C),
     PByte(Pointer(PtrUInt(LAlignedSingleDest) + 16))^);
 
+  FillChar(LSingleDestStorage, SizeOf(LSingleDestStorage), $D4);
+  LValue.m128i_u32[0] := DWord($01020304);
+  LValue.m128i_u32[1] := DWord($11223344);
+  LValue.m128i_u32[2] := DWord($55667788);
+  LValue.m128i_u32[3] := DWord($99AABBCC);
+  simd_stream_ps(PCardinal(LAlignedSingleDest)[0], LValue);
+  AssertEquals('simd_stream_ps repeated lane0 bits',
+    LongInt($01020304), LongInt(PCardinal(LAlignedSingleDest)[0]));
+  AssertEquals('simd_stream_ps repeated lane1 bits',
+    LongInt($11223344), LongInt(PCardinal(LAlignedSingleDest)[1]));
+  AssertEquals('simd_stream_ps repeated lane2 bits',
+    LongInt($55667788), LongInt(PCardinal(LAlignedSingleDest)[2]));
+  AssertEquals('simd_stream_ps repeated lane3 bits',
+    LongInt($99AABBCC), LongInt(PCardinal(LAlignedSingleDest)[3]));
+  AssertEquals('simd_stream_ps repeated trailing sentinel', Byte($D4),
+    PByte(Pointer(PtrUInt(LAlignedSingleDest) + 16))^);
+
   LScalar32 := 0;
   simd_stream_si32(LScalar32, Integer($12345678));
   AssertEquals('simd_stream_si32 writes value', Integer($12345678), LScalar32);
+
+  LScalar32 := Integer($7FFFFFFF);
+  simd_stream_si32(LScalar32, Integer($87654321));
+  AssertEquals('simd_stream_si32 repeated writes value', Integer($87654321), LScalar32);
 
   LScalar64 := 0;
   simd_stream_si64(LScalar64, Int64(QWord($0123456789ABCDEF)));
   AssertEquals('simd_stream_si64 writes value',
     Int64(QWord($0123456789ABCDEF)), LScalar64);
+
+  LScalar64 := Int64(-1);
+  simd_stream_si64(LScalar64, Int64(QWord($FEDCBA9876543210)));
+  AssertEquals('simd_stream_si64 repeated writes value',
+    Int64(QWord($FEDCBA9876543210)), LScalar64);
 
   PByte(LAlignedByteDest)[0] := $5E;
   simd_clflush(LAlignedByteDest);

@@ -1,5 +1,45 @@
 # SIMD Review Progress
 
+## 2026-05-22 SSE2 Stream Helper Runtime Witness Thickening
+
+- 这批继续沿上一轮 `SSE2` proof-first 小批次推进，不动实现层，也不改 checker 规则，只补同一个测试段里的真实 runtime witness。
+- 接手前的真实状态：
+  - `stream` 家族当前已经被 `coverage` 计入，但在 experimental testcase 中仍基本只有 1 次代码级调用
+  - fresh code-level 统计明确显示：
+    - `simd_stream_si128 = 1`
+    - `simd_stream_pd = 1`
+    - `simd_stream_ps = 1`
+    - `simd_stream_si32 = 1`
+    - `simd_stream_si64 = 1`
+  - 这 5 个名字又正好都集中在 `TTestCase_X86Sse2AbiBasics.Test_StreamAndFenceSurfaceSemantics`，所以是当前最自然的下一簇
+- 已落地修改：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 为 `simd_stream_si128` 新增第二组 `TM128 -> aligned byte dest` repeated witness
+    - 为 `simd_stream_pd` 新增第二组 `TM128 -> aligned double dest` repeated witness
+    - 为 `simd_stream_ps` 新增第二组 `TM128 -> aligned single dest` repeated witness
+    - 为 `simd_stream_si32` 新增第二次 scalar overwrite witness
+    - 为 `simd_stream_si64` 新增第二次 scalar overwrite witness
+    - 每组 repeated witness 都带了 trailing sentinel / 写回值断言
+- 定向复核结果：
+  - fresh code-level 统计已变成：
+    - `simd_stream_si128 = 2`
+    - `simd_stream_pd = 2`
+    - `simd_stream_ps = 2`
+    - `simd_stream_si32 = 2`
+    - `simd_stream_si64 = 2`
+- fresh 验证已完成：
+  - `git diff --check`
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh experimental-intrinsics-tests`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- fresh 结果：
+  - experimental intrinsics `test-all` 默认/experimental 双模式 PASS
+  - release `gate` PASS
+  - gate 尾部 `coverage` 继续保持：
+    - `INTRINSICS_COVERAGE_SUMMARY modules=6 missing_required=0 missing_optional=0 thin_required=0 thin_optional=0 extra=0 strict_extra=0 require_avx2=0 require_experimental=0 sse2_min_refs=2 status=ok`
+- 当前阶段结论：
+  - 这批没有改 `SSE2` coverage 规则，但把同一测试段里的 `stream` helper 从“只有 1 次代码级 runtime witness”推进到“2 次代码级 runtime witness”
+  - 因而当前 `SSE2` raw-leaf proof boundary 又厚了一层，而且仍然保持非常小的改动面
+
 ## 2026-05-21 SSE2 Side-Effect Helper Witness Zero-Allowlist
 
 - 这批是紧接上一批 `SSE2 coverage guardrail` 的 very small follow-up，不改实现层，只继续把剩下 4 个 side-effect helper 的临时 allowlist 收掉。

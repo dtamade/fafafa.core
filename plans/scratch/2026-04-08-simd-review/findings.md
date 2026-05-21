@@ -1,5 +1,28 @@
 # SIMD Review Findings
 
+## 2026-05-22 SSE2 Stream Helper Runtime Witness Thickening
+
+- 在 `SSE2` side-effect helper 零例外之后，当前最像“下一刀还能继续收厚 proof、但不需要改 checker”的簇就是 `stream` 家族：
+  - `simd_stream_si128`
+  - `simd_stream_pd`
+  - `simd_stream_ps`
+  - `simd_stream_si32`
+  - `simd_stream_si64`
+- 这 5 个 helper 的问题不是 coverage 缺失，而是代码级 witness 太薄：
+  - 它们都集中在同一条 `Test_StreamAndFenceSurfaceSemantics`
+  - 改动面天然小
+  - repeated stream 写回也很适合做第二组 runtime witness
+- 这批补完后，当前最关键的变化不是 summary line 变了，而是代码级命中数真地从 `1 -> 2`：
+  - `simd_stream_si128 = 2`
+  - `simd_stream_pd = 2`
+  - `simd_stream_ps = 2`
+  - `simd_stream_si32 = 2`
+  - `simd_stream_si64 = 2`
+- 因而这批的意义是：
+  - 不引入新的 policy
+  - 不扩大 checker 责任
+  - 但继续把 `SSE2 raw-leaf` 最薄的 runtime witness 从实际测试面上收厚
+
 ## 2026-05-21 SSE2 Side-Effect Helper Witness Zero-Allowlist
 
 - 上一批 `SSE2 coverage guardrail` 落地后，真正剩下的最小残余不是新的 `missing`，而是 4 个 side-effect helper 的 policy 例外：
