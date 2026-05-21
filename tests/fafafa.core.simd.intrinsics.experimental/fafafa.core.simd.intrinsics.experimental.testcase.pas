@@ -1286,6 +1286,21 @@ begin
 
   LActualMask := simd_movemask_epi8(LA);
   AssertEquals('simd_movemask_epi8 mask', LExpectedMask, LActualMask);
+
+  FillChar(LA, SizeOf(LA), 0);
+  for LIndex := 0 to 15 do
+    if (LIndex mod 3) = 1 then
+      LA.m128i_u8[LIndex] := Byte($11 + LIndex)
+    else
+      LA.m128i_u8[LIndex] := Byte($80 or LIndex);
+
+  LExpectedMask := 0;
+  for LIndex := 0 to 15 do
+    if (LA.m128i_u8[LIndex] and $80) <> 0 then
+      LExpectedMask := LExpectedMask or (1 shl LIndex);
+
+  LActualMask := simd_movemask_epi8(LA);
+  AssertEquals('simd_movemask_epi8 repeated mask', LExpectedMask, LActualMask);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_BitwiseAndAndnotSemantics;
@@ -3294,9 +3309,21 @@ begin
   AssertEquals('simd_movemask_ps sign bits', 5, simd_movemask_ps(LA));
 
   FillChar(LA, SizeOf(LA), 0);
+  LA.m128i_u32[0] := DWord($00000000);
+  LA.m128i_u32[1] := DWord($80000000);
+  LA.m128i_u32[2] := DWord($3F800000);
+  LA.m128i_u32[3] := DWord($FF800000);
+  AssertEquals('simd_movemask_ps repeated sign bits', 10, simd_movemask_ps(LA));
+
+  FillChar(LA, SizeOf(LA), 0);
   LA.m128d_f64[0] := -1.0;
   LA.m128d_f64[1] := 2.0;
   AssertEquals('simd_movemask_pd sign bits', 1, simd_movemask_pd(LA));
+
+  FillChar(LA, SizeOf(LA), 0);
+  LA.m128i_u64[0] := QWord($0000000000000000);
+  LA.m128i_u64[1] := QWord($8000000000000000);
+  AssertEquals('simd_movemask_pd repeated sign bits', 2, simd_movemask_pd(LA));
 
   FillChar(LA, SizeOf(LA), 0);
   FillChar(LB, SizeOf(LB), 0);

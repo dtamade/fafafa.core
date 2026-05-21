@@ -1,5 +1,22 @@
 # SIMD Review Findings
 
+## 2026-05-22 SSE2 Movemask Witness Thickening
+
+- 在 `load/store` coherence witness 收口后，fresh `sse2_min_refs=3` residual 里最小、最干净的一簇已经收缩成 `movemask`：
+  - `simd_movemask_epi8`
+  - `simd_movemask_ps`
+  - `simd_movemask_pd`
+- 这 3 个 helper 的优势是：
+  - 都已经有现成的行为测试承载点
+  - 第二组 witness 可以直接走 bit-pattern / sign-bit 断言
+  - 不需要引入新的 helper、fixture 或 checker policy
+- 这批补完后的直接效果是：
+  - 临时 `sse2_min_refs=3` 视角下 `thin_required: 84 -> 81`
+  - `movemask` 这一整簇已经不再贡献 `refs=2` residual
+- 因而当前 residual 的结构又更清楚了一层：
+  - `memory` 小簇和 `movemask` 小簇都已经被继续收厚
+  - 下一步如果继续保持同样节奏，最自然的 very small follow-up 会是 `cvtsi128_si32/si64` 这 2 个名字
+
 ## 2026-05-22 SSE2 Load/Store Coherence Witness Thickening
 
 - 在 `stream` helper 收厚之后，当前最自然的下一簇不再是再去碰 `stream/fence`，而是已有 store 语义测试里还能顺手补 load-back coherence 的 `load/store` 小簇：
