@@ -29,6 +29,7 @@ type
   published
     procedure Test_SSE2_WideFloatSlots_Stay_BackendOwned_And_Keep_ScalarParity;
     procedure Test_SSE2_WideIntegerSlots_Stay_BackendOwned_And_Keep_ScalarParity;
+    procedure Test_SSE2_NarrowI64U64ScalarReuseSlots_Stay_On_BaseScalar;
     procedure Test_SSE2_FacadeSlots_Stay_BackendOwned_And_Keep_ScalarParity;
     procedure Test_SSE2_VectorAsmRoundTrip_Rebuild_Preserves_Representative_Bindings;
   end;
@@ -287,6 +288,41 @@ begin
   LI64x8Expected := ScalarAddI64x8(LI64x8A, LI64x8B);
   AssertVecI64x8Equals('SSE2 AddI64x8 scalar parity', LI64x8Expected, LI64x8Actual);
   AssertEquals('SSE2 CmpNeI64x8 scalar parity', Integer(ScalarCmpNeI64x8(LI64x8A, LI64x8B)), Integer(LSSE2Table.CmpNeI64x8(LI64x8A, LI64x8B)));
+end;
+
+procedure TTestCase_SSE2Contracts.Test_SSE2_NarrowI64U64ScalarReuseSlots_Stay_On_BaseScalar;
+var
+  LSSE2Table: TSimdDispatchTable;
+  LScalarTable: TSimdDispatchTable;
+
+  procedure AssertSlotReusesScalar(const aLabel: string; const aScalarSlot, aSSE2Slot: Pointer);
+  begin
+    AssertTrue('SSE2 ' + aLabel + ' should stay assigned', aSSE2Slot <> nil);
+    AssertEquals('SSE2 ' + aLabel + ' should intentionally reuse the base scalar slot',
+      PtrUInt(aScalarSlot), PtrUInt(aSSE2Slot));
+  end;
+begin
+  if not TryLoadSSE2AndScalarTables(LSSE2Table, LScalarTable) then
+    Exit;
+
+  AssertSlotReusesScalar('ShiftLeftI64x2', Pointer(LScalarTable.ShiftLeftI64x2), Pointer(LSSE2Table.ShiftLeftI64x2));
+  AssertSlotReusesScalar('ShiftRightI64x2', Pointer(LScalarTable.ShiftRightI64x2), Pointer(LSSE2Table.ShiftRightI64x2));
+  AssertSlotReusesScalar('ShiftRightArithI64x2', Pointer(LScalarTable.ShiftRightArithI64x2), Pointer(LSSE2Table.ShiftRightArithI64x2));
+  AssertSlotReusesScalar('MinI64x2', Pointer(LScalarTable.MinI64x2), Pointer(LSSE2Table.MinI64x2));
+  AssertSlotReusesScalar('MaxI64x2', Pointer(LScalarTable.MaxI64x2), Pointer(LSSE2Table.MaxI64x2));
+
+  AssertSlotReusesScalar('AddU64x2', Pointer(LScalarTable.AddU64x2), Pointer(LSSE2Table.AddU64x2));
+  AssertSlotReusesScalar('SubU64x2', Pointer(LScalarTable.SubU64x2), Pointer(LSSE2Table.SubU64x2));
+  AssertSlotReusesScalar('AndU64x2', Pointer(LScalarTable.AndU64x2), Pointer(LSSE2Table.AndU64x2));
+  AssertSlotReusesScalar('OrU64x2', Pointer(LScalarTable.OrU64x2), Pointer(LSSE2Table.OrU64x2));
+  AssertSlotReusesScalar('XorU64x2', Pointer(LScalarTable.XorU64x2), Pointer(LSSE2Table.XorU64x2));
+  AssertSlotReusesScalar('NotU64x2', Pointer(LScalarTable.NotU64x2), Pointer(LSSE2Table.NotU64x2));
+  AssertSlotReusesScalar('AndNotU64x2', Pointer(LScalarTable.AndNotU64x2), Pointer(LSSE2Table.AndNotU64x2));
+  AssertSlotReusesScalar('CmpEqU64x2', Pointer(LScalarTable.CmpEqU64x2), Pointer(LSSE2Table.CmpEqU64x2));
+  AssertSlotReusesScalar('CmpLtU64x2', Pointer(LScalarTable.CmpLtU64x2), Pointer(LSSE2Table.CmpLtU64x2));
+  AssertSlotReusesScalar('CmpGtU64x2', Pointer(LScalarTable.CmpGtU64x2), Pointer(LSSE2Table.CmpGtU64x2));
+  AssertSlotReusesScalar('MinU64x2', Pointer(LScalarTable.MinU64x2), Pointer(LSSE2Table.MinU64x2));
+  AssertSlotReusesScalar('MaxU64x2', Pointer(LScalarTable.MaxU64x2), Pointer(LSSE2Table.MaxU64x2));
 end;
 
 procedure TTestCase_SSE2Contracts.Test_SSE2_FacadeSlots_Stay_BackendOwned_And_Keep_ScalarParity;
