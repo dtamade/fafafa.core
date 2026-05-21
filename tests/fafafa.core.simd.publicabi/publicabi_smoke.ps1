@@ -58,6 +58,35 @@ public struct FafafaSimdPublicApi {
   public IntPtr MinMaxBytes;
 }
 
+[StructLayout(LayoutKind.Sequential, Pack=1)]
+public struct FafafaSimdPublicApiV2 {
+  public UInt32 StructSize;
+  public UInt16 AbiVersionMajor;
+  public UInt16 AbiVersionMinor;
+  public UInt64 AbiSignatureHi;
+  public UInt64 AbiSignatureLo;
+  public UInt32 ActiveBackendId;
+  public UInt32 ActiveFlags;
+  public UInt64 SnapshotGeneration;
+  public UInt32 SnapshotFlags;
+  public UInt32 Reserved0;
+  public IntPtr MemEqual;
+  public IntPtr MemFindByte;
+  public IntPtr MemDiffRange;
+  public IntPtr SumBytes;
+  public IntPtr CountByte;
+  public IntPtr BitsetPopCount;
+  public IntPtr Utf8Validate;
+  public IntPtr AsciiIEqual;
+  public IntPtr BytesIndexOf;
+  public IntPtr MemCopy;
+  public IntPtr MemSet;
+  public IntPtr ToLowerAscii;
+  public IntPtr ToUpperAscii;
+  public IntPtr MemReverse;
+  public IntPtr MinMaxBytes;
+}
+
 public static class FafafaSimdNative {
   [DllImport(@"$LibraryLiteral", CallingConvention = CallingConvention.Cdecl, EntryPoint = "fafafa_simd_abi_version_major")]
   public static extern UInt16 AbiVersionMajor();
@@ -80,6 +109,9 @@ public static class FafafaSimdNative {
 
   [DllImport(@"$LibraryLiteral", CallingConvention = CallingConvention.Cdecl, EntryPoint = "fafafa_simd_get_public_api")]
   public static extern IntPtr GetPublicApi();
+
+  [DllImport(@"$LibraryLiteral", CallingConvention = CallingConvention.Cdecl, EntryPoint = "fafafa_simd_get_public_api_v2")]
+  public static extern IntPtr GetPublicApiV2();
 }
 
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
@@ -135,6 +167,9 @@ Add-Type -TypeDefinition $TypeSource
 [UInt32]$FAF_SIMD_ABI_FLAG_DISPATCHABLE = 4
 [UInt32]$FAF_SIMD_ABI_FLAG_ACTIVE = 8
 [UInt32]$FAF_SIMD_ABI_FLAG_EXPERIMENTAL = 16
+[UInt32]$FAF_SIMD_PUBLIC_API_V2_FLAG_SNAPSHOT_BOUND = 1
+[UInt32]$FAF_SIMD_PUBLIC_API_V2_FLAG_DIRECT_DATA_PLANE = 2
+[UInt32]$FAF_SIMD_PUBLIC_API_V2_FLAG_COMPAT_V1 = 4
 
 $abiMajor = [FafafaSimdNative]::AbiVersionMajor()
 $abiMinor = [FafafaSimdNative]::AbiVersionMinor()
@@ -237,6 +272,40 @@ if ($api.ActiveBackendId -ne 0 -and (($backendInfo.Flags -band $FAF_SIMD_ABI_FLA
   throw "[PUBLICABI] scalar backend should not be active when active backend differs"
 }
 
+$apiV2Ptr = [FafafaSimdNative]::GetPublicApiV2()
+if ($apiV2Ptr -eq [IntPtr]::Zero) {
+  throw "[PUBLICABI] public api v2 pointer is null"
+}
+
+$apiV2 = [System.Runtime.InteropServices.Marshal]::PtrToStructure($apiV2Ptr, [type][FafafaSimdPublicApiV2])
+if ($apiV2.StructSize -ne [System.Runtime.InteropServices.Marshal]::SizeOf([type][FafafaSimdPublicApiV2])) {
+  throw "[PUBLICABI] public api v2 struct size mismatch"
+}
+if ($apiV2.AbiVersionMajor -ne 2 -or $apiV2.AbiVersionMinor -ne 0) {
+  throw "[PUBLICABI] public api v2 version mismatch"
+}
+if ($apiV2.AbiSignatureHi -eq 0 -or $apiV2.AbiSignatureLo -eq 0) {
+  throw "[PUBLICABI] public api v2 signature should not be zero"
+}
+if ($apiV2.ActiveBackendId -ne $api.ActiveBackendId) {
+  throw "[PUBLICABI] public api v2 active backend should match v1 snapshot"
+}
+if ($apiV2.ActiveFlags -ne $api.ActiveFlags) {
+  throw "[PUBLICABI] public api v2 active flags should match v1 snapshot"
+}
+if ($apiV2.SnapshotGeneration -le 0) {
+  throw "[PUBLICABI] public api v2 snapshot generation should be positive"
+}
+if (($apiV2.SnapshotFlags -band $FAF_SIMD_PUBLIC_API_V2_FLAG_SNAPSHOT_BOUND) -eq 0) {
+  throw "[PUBLICABI] public api v2 snapshot-bound flag missing"
+}
+if (($apiV2.SnapshotFlags -band $FAF_SIMD_PUBLIC_API_V2_FLAG_COMPAT_V1) -eq 0) {
+  throw "[PUBLICABI] public api v2 compat-v1 flag missing"
+}
+if (($apiV2.SnapshotFlags -band $FAF_SIMD_PUBLIC_API_V2_FLAG_DIRECT_DATA_PLANE) -ne 0) {
+  throw "[PUBLICABI] public api v2 direct-data-plane flag should stay unset for wrapper semantics"
+}
+
 if ($ValidateOnly) {
   Write-Host "[PUBLICABI] EXPORT OK"
   exit 0
@@ -257,6 +326,9 @@ $toLowerAscii = [System.Runtime.InteropServices.Marshal]::GetDelegateForFunction
 $toUpperAscii = [System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer($api.ToUpperAscii, [type][FafafaSimdToUpperAsciiFn])
 $memReverse = [System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer($api.MemReverse, [type][FafafaSimdMemReverseFn])
 $minMaxBytes = [System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer($api.MinMaxBytes, [type][FafafaSimdMinMaxBytesFn])
+$memEqualV2 = [System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer($apiV2.MemEqual, [type][FafafaSimdMemEqualFn])
+$memFindByteV2 = [System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer($apiV2.MemFindByte, [type][FafafaSimdMemFindByteFn])
+$sumBytesV2 = [System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer($apiV2.SumBytes, [type][FafafaSimdSumBytesFn])
 
 $a = New-Object byte[] 32
 $b = New-Object byte[] 32
@@ -294,8 +366,14 @@ try {
   if ($memEqual.Invoke($ga.AddrOfPinnedObject(), $ga.AddrOfPinnedObject(), [UIntPtr]$a.Length) -eq 0) {
     throw "[PUBLICABI] mem_equal parity failed"
   }
+  if ($memEqualV2.Invoke($ga.AddrOfPinnedObject(), $ga.AddrOfPinnedObject(), [UIntPtr]$a.Length) -eq 0) {
+    throw "[PUBLICABI] mem_equal v2 parity failed"
+  }
   if ([Int64]$memFindByte.Invoke($gb.AddrOfPinnedObject(), [UIntPtr]$b.Length, [byte]0xAA) -ne 17) {
     throw "[PUBLICABI] mem_find_byte parity failed"
+  }
+  if ([Int64]$memFindByteV2.Invoke($gb.AddrOfPinnedObject(), [UIntPtr]$b.Length, [byte]0xAA) -ne 17) {
+    throw "[PUBLICABI] mem_find_byte v2 parity failed"
   }
   [UIntPtr]$firstDiff = [UIntPtr]::Zero
   [UIntPtr]$lastDiff = [UIntPtr]::Zero
@@ -307,6 +385,9 @@ try {
   }
   if ($sumBytes.Invoke($ga.AddrOfPinnedObject(), [UIntPtr]$a.Length) -eq 0) {
     throw "[PUBLICABI] sum_bytes returned zero unexpectedly"
+  }
+  if ($sumBytesV2.Invoke($ga.AddrOfPinnedObject(), [UIntPtr]$a.Length) -eq 0) {
+    throw "[PUBLICABI] sum_bytes v2 returned zero unexpectedly"
   }
   if ([UInt64]$countByte.Invoke($gb.AddrOfPinnedObject(), [UIntPtr]$b.Length, [byte]0xAA).ToUInt64() -ne 1) {
     throw "[PUBLICABI] count_byte parity failed"

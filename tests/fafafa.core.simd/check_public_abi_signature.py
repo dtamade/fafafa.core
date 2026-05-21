@@ -25,17 +25,23 @@ EXPECTED_SECTION_SIGNATURES: dict[str, str] = {
     "backend_pod_record": "c2591834ea165678913c891126089fb55a95d2a2002f5e22f2cfa86d0b920ac1",
     "public_func_types": "3d1ebd89a9488c01f49e140f98230740b867cf11320296386ed649058b90e5af",
     "public_api_record": "95bb6e6554525d5be364351966910a958af38a9c4e22434cadec3558aefd0dd9",
-    "pascal_api_decls": "0277e9625d60d80c0b7c3074548f4abcec926a60366f7b81d237a5826f080dad",
-    "c_export_alias_decls": "94984a1cc883b5b97a9f3bb2cb8ff73c4ad413203c512794af62b4870fedcb34",
-    "abi_const_decls": "6b1e34b33877141cf25735858f355f7e4a9383a93bb47a8f68a3d7b881fe6687",
+    "public_api_v2_flag_type_alias": "b1a21c60e32e293fb118b2ba87fdb08933a0337c757d0fd4a5c13863ed2c1b41",
+    "public_api_v2_flag_consts": "ae05120eb66065d407de9654de87348ea164299e23e843f1c15b5ab06235f2ad",
+    "public_api_v2_record": "a73bf14e29b15517cc69ec3cdd9405111a312a45ed69c45becfe06f163552615",
+    "pascal_api_decls": "d5c62de7df8ba47d55dd34efc080e3769bb4467a4ab5e9c4766cf9cb9ca786b1",
+    "c_export_alias_decls": "fb23891b6a21f948e04c04b9db86e4449836af08ac76427cf6d0b43148d14d85",
+    "abi_const_decls": "c4d81b3ce00a3b503f20fa3d552a93cb64f394421b126f9b0705f82a31c57731",
     "smoke_header_flag_alias": "5cb7d615b7070c70a4ae6e17fd2640b518fe624e7242f3c4d5397b8fb77218f9",
     "smoke_header_flag_consts": "a09957d8c74c6c52c31b2e0ec7eb95dec7ef7fd99aab044a76ebf292a53c6425",
+    "smoke_header_public_api_v2_flag_alias": "c452933fd46aeb2b47d1efe910ed4c5e2ac308b6ee9246b115625cd6ee81a85f",
+    "smoke_header_public_api_v2_flag_consts": "303e5be84e2efc97582cbf3abdea9a6bdfdfb7c5fa8df7a9167479591418f567",
     "smoke_header_func_types": "abf8dfea210f7c7bd9dbd7b1b031046c60f452ff6cb64351779d09dd54c65a5f",
     "smoke_header_backend_pod_struct": "0af9215d775360793a85e6f7a590ca85e16b035a3f8815175fbe34d3e73a0e8d",
     "smoke_header_public_api_struct": "8c8c9f4c24d0ae6ab0a67da1a715a332d00ccb191aa38c75f16499b575903d31",
+    "smoke_header_public_api_v2_struct": "7cf4ffa2bbf810d0670730bc6465b750120f8f0c919891218b2c942291e1e6fa",
     "smoke_header_pack_directives": "8fee125e481b3ab5e61a7ab6f2b01572ebb04af8c66ebf0773c066d5d8314e26",
 }
-EXPECTED_OVERALL_SIGNATURE = "33ad41860373cbc2a0fc0867f5be298692535a1956ffb20cc9525b82a4eda781"
+EXPECTED_OVERALL_SIGNATURE = "de9da52c4405512e8f0665e246c863b851a6fe1eb3985732c848632297efa47a"
 
 PASCAL_ABI_FLAG_NAMES = [
     "FAF_SIMD_ABI_FLAG_SUPPORTED_ON_CPU",
@@ -43,6 +49,12 @@ PASCAL_ABI_FLAG_NAMES = [
     "FAF_SIMD_ABI_FLAG_DISPATCHABLE",
     "FAF_SIMD_ABI_FLAG_ACTIVE",
     "FAF_SIMD_ABI_FLAG_EXPERIMENTAL",
+]
+
+PASCAL_PUBLIC_API_V2_FLAG_NAMES = [
+    "FAF_SIMD_PUBLIC_API_V2_FLAG_SNAPSHOT_BOUND",
+    "FAF_SIMD_PUBLIC_API_V2_FLAG_DIRECT_DATA_PLANE",
+    "FAF_SIMD_PUBLIC_API_V2_FLAG_COMPAT_V1",
 ]
 
 PASCAL_FUNC_TYPE_NAMES = [
@@ -71,6 +83,7 @@ PASCAL_API_NAMES = [
     "GetSimdBackendNamePtr",
     "GetSimdBackendDescriptionPtr",
     "GetSimdPublicApi",
+    "GetSimdPublicApiV2",
 ]
 
 PASCAL_EXPORT_ALIAS_NAMES = [
@@ -81,6 +94,7 @@ PASCAL_EXPORT_ALIAS_NAMES = [
     "fafafa_simd_backend_name",
     "fafafa_simd_backend_description",
     "fafafa_simd_get_public_api",
+    "fafafa_simd_get_public_api_v2",
 ]
 
 PASCAL_ABI_CONST_NAMES = [
@@ -88,6 +102,10 @@ PASCAL_ABI_CONST_NAMES = [
     "FAFAFA_SIMD_PUBLIC_ABI_VERSION_MINOR",
     "FAFAFA_SIMD_PUBLIC_ABI_SIGNATURE_HI",
     "FAFAFA_SIMD_PUBLIC_ABI_SIGNATURE_LO",
+    "FAFAFA_SIMD_PUBLIC_ABI_V2_VERSION_MAJOR",
+    "FAFAFA_SIMD_PUBLIC_ABI_V2_VERSION_MINOR",
+    "FAFAFA_SIMD_PUBLIC_ABI_V2_SIGNATURE_HI",
+    "FAFAFA_SIMD_PUBLIC_ABI_V2_SIGNATURE_LO",
 ]
 
 C_HEADER_FLAG_CONST_NAMES = [
@@ -96,6 +114,12 @@ C_HEADER_FLAG_CONST_NAMES = [
     "FAF_SIMD_ABI_FLAG_DISPATCHABLE",
     "FAF_SIMD_ABI_FLAG_ACTIVE",
     "FAF_SIMD_ABI_FLAG_EXPERIMENTAL",
+]
+
+C_HEADER_PUBLIC_API_V2_FLAG_CONST_NAMES = [
+    "FAF_SIMD_PUBLIC_API_V2_FLAG_SNAPSHOT_BOUND",
+    "FAF_SIMD_PUBLIC_API_V2_FLAG_DIRECT_DATA_PLANE",
+    "FAF_SIMD_PUBLIC_API_V2_FLAG_COMPAT_V1",
 ]
 
 C_HEADER_FUNC_TYPE_NAMES = [
@@ -343,18 +367,31 @@ def build_sections(base_text: str, intf_text: str, impl_text: str, header_text: 
     sections["simd_backend_enum"] = extract_pascal_enum_items(base_text, "TSimdBackend")
     sections["simd_capability_enum"] = extract_pascal_enum_items(base_text, "TSimdCapability")
     sections["abi_type_alias"] = extract_pascal_type_decl_lines(intf_text, ["TFafafaSimdAbiFlags"])
+    sections["public_api_v2_flag_type_alias"] = extract_pascal_type_decl_lines(
+        intf_text, ["TFafafaSimdPublicApiV2Flags"]
+    )
     sections["abi_flag_consts"] = extract_pascal_const_lines(intf_text, PASCAL_ABI_FLAG_NAMES)
+    sections["public_api_v2_flag_consts"] = extract_pascal_const_lines(
+        intf_text, PASCAL_PUBLIC_API_V2_FLAG_NAMES
+    )
     sections["backend_pod_record"] = extract_pascal_record_signature_lines(intf_text, "TFafafaSimdBackendPodInfo")
     sections["public_func_types"] = extract_pascal_type_decl_lines(intf_text, PASCAL_FUNC_TYPE_NAMES)
     sections["public_api_record"] = extract_pascal_record_signature_lines(intf_text, "TFafafaSimdPublicApi")
+    sections["public_api_v2_record"] = extract_pascal_record_signature_lines(intf_text, "TFafafaSimdPublicApiV2")
     sections["pascal_api_decls"] = extract_pascal_named_lines(intf_text, PASCAL_API_NAMES, r"(?:function|procedure)")
     sections["c_export_alias_decls"] = extract_pascal_named_lines(intf_text, PASCAL_EXPORT_ALIAS_NAMES, r"(?:function|procedure)")
     sections["abi_const_decls"] = extract_pascal_const_lines(impl_text, PASCAL_ABI_CONST_NAMES)
     sections["smoke_header_flag_alias"] = extract_c_named_lines(
         header_text, ["fafafa_simd_abi_flags_t"], r"typedef\s+[A-Za-z0-9_]+\s+"
     )
+    sections["smoke_header_public_api_v2_flag_alias"] = extract_c_named_lines(
+        header_text, ["fafafa_simd_public_api_v2_flags_t"], r"typedef\s+[A-Za-z0-9_]+\s+"
+    )
     sections["smoke_header_flag_consts"] = extract_c_named_lines(
         header_text, C_HEADER_FLAG_CONST_NAMES, r""
+    )
+    sections["smoke_header_public_api_v2_flag_consts"] = extract_c_named_lines(
+        header_text, C_HEADER_PUBLIC_API_V2_FLAG_CONST_NAMES, r""
     )
     sections["smoke_header_func_types"] = extract_c_named_lines(
         header_text, C_HEADER_FUNC_TYPE_NAMES, r"typedef\s+.*\(\*"
@@ -364,6 +401,9 @@ def build_sections(base_text: str, intf_text: str, impl_text: str, header_text: 
     )
     sections["smoke_header_public_api_struct"] = extract_c_struct_signature_lines(
         header_text, "fafafa_simd_public_api_t"
+    )
+    sections["smoke_header_public_api_v2_struct"] = extract_c_struct_signature_lines(
+        header_text, "fafafa_simd_public_api_v2_t"
     )
     sections["smoke_header_pack_directives"] = extract_c_exact_lines(
         header_text,

@@ -24,6 +24,7 @@ uses
   fafafa.core.simd.runtime.testcase,
   fafafa.core.simd.dispatchslots.testcase,
   fafafa.core.simd.publicabi.testcase,
+  fafafa.core.simd.api.v2.testcase,
   fafafa.core.simd.edgecases.testcase,
   fafafa.core.simd.vec512types.testcase,
   fafafa.core.simd.imageproc.testcase,
@@ -234,6 +235,7 @@ begin
   HandleSuite('TTestCase_RISCVFallbackDispatchContract', TTestCase_RISCVFallbackDispatchContract, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_DispatchAllSlots', TTestCase_DispatchAllSlots, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_PublicAbi', TTestCase_PublicAbi, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_PublicApiV2Facade', TTestCase_PublicApiV2Facade, aListOnly, aTargetSuite);
   {$IFDEF SIMD_X86_AVAILABLE}
   HandleSuite('TTestCase_DirectDispatch', TTestCase_DirectDispatch, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_DirectDispatchConcurrent', TTestCase_DirectDispatchConcurrent, aListOnly, aTargetSuite);

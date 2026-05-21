@@ -29,7 +29,7 @@
   - 不要再把当前 `HEAD` 写成 `evidence-refresh-required`；closeout blocker 已经真实解除
 - public API 覆盖这条线也已经从“现状碰巧是绿”收成 canonical guard：
   - canonical `public-api-coverage` 现在默认按 `strict-thin` 运行
-  - 当前不只是 `covered=537/537`，而且 `thin=0` 已经被默认 `gate` / `gate-strict` 守住
+  - 当前不只是 full-covered，而且 `thin=0` 已经被默认 `gate` / `gate-strict` 守住
   - future `thin > 0` 会直接让 `gate` / `gate-strict` 变红；只有为了诊断历史薄点，才临时设 `SIMD_PUBLIC_API_TEST_COVERAGE_STRICT_THIN=0`
 
 ### 2026-05-19 future refresh note

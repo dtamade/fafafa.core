@@ -33,8 +33,8 @@ class SymbolCoverage:
 def parse_args() -> argparse.Namespace:
     l_parser = argparse.ArgumentParser(
         description=(
-            "Check that public SIMD facade/API declarations are covered by test "
-            "source references across tests/fafafa.core.simd*."
+            "Check that public SIMD facade/API/api.v2 declarations are covered "
+            "by test source references across tests/fafafa.core.simd*."
         )
     )
     l_parser.add_argument("--json", action="store_true", help="print JSON payload")
@@ -224,6 +224,7 @@ def main() -> int:
     l_interface_files = [
         l_repo_root / "src" / "fafafa.core.simd.pas",
         l_repo_root / "src" / "fafafa.core.simd.api.pas",
+        l_repo_root / "src" / "fafafa.core.simd.api.v2.pas",
     ]
     l_test_files = collect_test_files(l_repo_root)
 

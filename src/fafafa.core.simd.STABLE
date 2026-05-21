@@ -18,6 +18,7 @@ BOUNDARY NOTES
 --------------
 - Stable first means the public façade (`fafafa.core.simd` / `fafafa.core.simd.api`) and the documented dispatch contract surface such as `TSimdDispatchTable`.
 - If an external/public binary ABI is needed in the future, introduce a POD-only wrapper/signature layer first; do not treat the current managed-field record layout as that ABI.
+- The public ABI wrapper keeps a dual track: `TFafafaSimdPublicApi` / `GetSimdPublicApi` stay as the v1 compatibility surface, while `TFafafaSimdPublicApiV2` / `GetSimdPublicApiV2` are the preferred stable table for new consumers because they carry snapshot metadata.
 - Backend maturity differs. `Scalar`, `SSE2`, `AVX2`, and `NEON` are closer to the default maintenance path; `sbRISCVV` remains experimental / limited-maturity.
 - Experimental intrinsics are kept out of the default entry chain and are not part of the default stable surface.
 - Structural truth for backend/intrinsics/SSE2 ownership is documented in:
@@ -78,6 +79,7 @@ Before modifying any file under src/fafafa.core.simd.*:
    python3 tests/fafafa.core.simd/check_public_abi_signature.py --dump-current
    - update the expected signatures in the checker
    - update `tests/fafafa.core.simd.publicabi/publicabi_smoke.h` and related consumer mirrors if needed
+   - update the v1/v2 public ABI docs if the preferred consumption path changed
    - rerun `bash tests/fafafa.core.simd.publicabi/BuildOrTest.sh test`
    - rerun `gate` and `gate-strict`
 
@@ -85,6 +87,7 @@ COVERED PUBLIC ENTRY POINTS
 ---------------------------
 - src/fafafa.core.simd.pas
 - src/fafafa.core.simd.api.pas
+- src/fafafa.core.simd.api.v2.pas
 - src/fafafa.core.simd.base.pas
 - src/fafafa.core.simd.dispatch.pas
 - src/fafafa.core.simd.cpuinfo.pas

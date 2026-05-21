@@ -56,8 +56,10 @@ type
     procedure TearDown; override;
   published
     procedure Test_PublicApi_Table_IsBound_And_Metadata_IsPresent;
+    procedure Test_PublicApi_V2_Table_IsBound_And_Metadata_IsPresent;
     procedure Test_PublicApi_CachedTable_RemainsCallable_Across_Rebind;
     procedure Test_PublicApi_CachedTable_Preserves_PreviousSnapshot_Metadata_Across_Rebind;
+    procedure Test_PublicApi_V2_SnapshotGeneration_Refreshes_AfterBackendSwitch;
     procedure Test_PublicApi_Table_Refreshes_AfterBackendSwitch;
     procedure Test_PublicApi_Table_Uses_Stable_Cdecl_EntryPoints_AfterBackendSwitch;
     procedure Test_PublicApi_CachedTable_Cdecl_EntryPoints_Follow_CurrentDataPlane_After_ReRegister;
@@ -108,6 +110,7 @@ type
     procedure Test_PublicApi_RegisterBackend_HookLateForce_DuringRestore_Preserves_PreviousForcedBackend;
     procedure Test_PublicApi_Refreshes_WhenVectorAsmDisabled_ReSelects_Away_From_ScalarBacked_CurrentBackend;
     procedure Test_PublicApi_DataPlane_Parity;
+    procedure Test_PublicApi_V1_And_V2_DataPlane_Parity;
   end;
 
 implementation
@@ -793,6 +796,52 @@ begin
   AssertTrue('MinMaxBytes function pointer should be bound', Assigned(LApi^.MinMaxBytes));
 end;
 
+procedure TTestCase_PublicAbi.Test_PublicApi_V2_Table_IsBound_And_Metadata_IsPresent;
+var
+  LApiV1: PFafafaSimdPublicApi;
+  LApiV2: PFafafaSimdPublicApiV2;
+begin
+  LApiV1 := GetSimdPublicApi;
+  LApiV2 := GetSimdPublicApiV2;
+  AssertNotNull('Public API v1 table should not be nil', LApiV1);
+  AssertNotNull('Public API v2 table should not be nil', LApiV2);
+  AssertEquals('V2 StructSize should match record size',
+    SizeOf(TFafafaSimdPublicApiV2), LApiV2^.StructSize);
+  AssertEquals('V2 ABI major should be 2', 2, Integer(LApiV2^.AbiVersionMajor));
+  AssertEquals('V2 ABI minor should be 0', 0, Integer(LApiV2^.AbiVersionMinor));
+  AssertTrue('V2 ABI signature hi should be non-zero', LApiV2^.AbiSignatureHi <> 0);
+  AssertTrue('V2 ABI signature lo should be non-zero', LApiV2^.AbiSignatureLo <> 0);
+  AssertEquals('V2 active backend id should match current backend',
+    Ord(GetCurrentBackend), Integer(LApiV2^.ActiveBackendId));
+  AssertEquals('V2 active backend id should match v1 snapshot',
+    Integer(LApiV1^.ActiveBackendId), Integer(LApiV2^.ActiveBackendId));
+  AssertEquals('V2 active flags should match v1 snapshot',
+    LApiV1^.ActiveFlags, LApiV2^.ActiveFlags);
+  AssertTrue('V2 snapshot generation should start at a positive value',
+    LApiV2^.SnapshotGeneration > 0);
+  AssertTrue('V2 should advertise snapshot-bound semantics',
+    (LApiV2^.SnapshotFlags and FAF_SIMD_PUBLIC_API_V2_FLAG_SNAPSHOT_BOUND) <> 0);
+  AssertTrue('V2 should advertise v1 compatibility semantics',
+    (LApiV2^.SnapshotFlags and FAF_SIMD_PUBLIC_API_V2_FLAG_COMPAT_V1) <> 0);
+  AssertEquals('Current v2 wrapper should not advertise direct data-plane binding',
+    0, Integer(LApiV2^.SnapshotFlags and FAF_SIMD_PUBLIC_API_V2_FLAG_DIRECT_DATA_PLANE));
+  AssertTrue('V2 MemEqual function pointer should be bound', Assigned(LApiV2^.MemEqual));
+  AssertTrue('V2 MemFindByte function pointer should be bound', Assigned(LApiV2^.MemFindByte));
+  AssertTrue('V2 MemDiffRange function pointer should be bound', Assigned(LApiV2^.MemDiffRange));
+  AssertTrue('V2 SumBytes function pointer should be bound', Assigned(LApiV2^.SumBytes));
+  AssertTrue('V2 CountByte function pointer should be bound', Assigned(LApiV2^.CountByte));
+  AssertTrue('V2 BitsetPopCount function pointer should be bound', Assigned(LApiV2^.BitsetPopCount));
+  AssertTrue('V2 Utf8Validate function pointer should be bound', Assigned(LApiV2^.Utf8Validate));
+  AssertTrue('V2 AsciiIEqual function pointer should be bound', Assigned(LApiV2^.AsciiIEqual));
+  AssertTrue('V2 BytesIndexOf function pointer should be bound', Assigned(LApiV2^.BytesIndexOf));
+  AssertTrue('V2 MemCopy function pointer should be bound', Assigned(LApiV2^.MemCopy));
+  AssertTrue('V2 MemSet function pointer should be bound', Assigned(LApiV2^.MemSet));
+  AssertTrue('V2 ToLowerAscii function pointer should be bound', Assigned(LApiV2^.ToLowerAscii));
+  AssertTrue('V2 ToUpperAscii function pointer should be bound', Assigned(LApiV2^.ToUpperAscii));
+  AssertTrue('V2 MemReverse function pointer should be bound', Assigned(LApiV2^.MemReverse));
+  AssertTrue('V2 MinMaxBytes function pointer should be bound', Assigned(LApiV2^.MinMaxBytes));
+end;
+
 procedure TTestCase_PublicAbi.Test_PublicApi_CachedTable_RemainsCallable_Across_Rebind;
 var
   LApiBefore: PFafafaSimdPublicApi;
@@ -871,6 +920,62 @@ begin
   AssertTrue('Rebind should produce fresh metadata instead of mutating the cached snapshot in place',
     (LApiAfter^.ActiveBackendId <> LApiBefore^.ActiveBackendId) or
     (LApiAfter^.ActiveFlags <> LApiBefore^.ActiveFlags));
+end;
+
+procedure TTestCase_PublicAbi.Test_PublicApi_V2_SnapshotGeneration_Refreshes_AfterBackendSwitch;
+var
+  LApiBefore: PFafafaSimdPublicApiV2;
+  LApiAfter: PFafafaSimdPublicApiV2;
+  LOriginalBackend: TSimdBackend;
+  LDispatchable: TSimdBackendArray;
+  LTargetBackend: TSimdBackend;
+  LFoundDifferent: Boolean;
+  LIndex: Integer;
+begin
+  LApiBefore := GetSimdPublicApiV2;
+  AssertNotNull('Public API v2 table should not be nil before rebind', LApiBefore);
+  LOriginalBackend := GetCurrentBackend;
+  LTargetBackend := LOriginalBackend;
+  LFoundDifferent := False;
+
+  if LOriginalBackend <> sbScalar then
+  begin
+    LTargetBackend := sbScalar;
+    LFoundDifferent := True;
+  end
+  else
+  begin
+    LDispatchable := GetDispatchableBackendList;
+    for LIndex := 0 to High(LDispatchable) do
+      if LDispatchable[LIndex] <> LOriginalBackend then
+      begin
+        LTargetBackend := LDispatchable[LIndex];
+        LFoundDifferent := True;
+        Break;
+      end;
+  end;
+
+  if not LFoundDifferent then
+    Exit;
+
+  try
+    AssertTrue('TrySetActiveBackend(target) should succeed in v2 generation test',
+      TrySetActiveBackend(LTargetBackend));
+    LApiAfter := GetSimdPublicApiV2;
+    AssertNotNull('Public API v2 table should not be nil after rebind', LApiAfter);
+    AssertTrue('V2 rebind should publish a different table pointer',
+      PtrUInt(LApiBefore) <> PtrUInt(LApiAfter));
+    AssertTrue('V2 snapshot generation should strictly increase after rebind',
+      LApiAfter^.SnapshotGeneration > LApiBefore^.SnapshotGeneration);
+    AssertEquals('V2 active backend should refresh after rebind',
+      Ord(LTargetBackend), Integer(LApiAfter^.ActiveBackendId));
+    AssertEquals('Cached v2 snapshot should preserve original active backend metadata',
+      Ord(LOriginalBackend), Integer(LApiBefore^.ActiveBackendId));
+  finally
+    if GetCurrentBackend <> LOriginalBackend then
+      AssertTrue('Restoring original active backend should succeed after v2 generation test',
+        TrySetActiveBackend(LOriginalBackend));
+  end;
 end;
 
 procedure TTestCase_PublicAbi.Test_PublicApi_Table_Refreshes_AfterBackendSwitch;
@@ -3682,6 +3787,79 @@ begin
     on E: Exception do
       Fail(Format('Public ABI data-plane stage %s raised %s: %s', [LStage, E.ClassName, E.Message]));
   end;
+end;
+
+procedure TTestCase_PublicAbi.Test_PublicApi_V1_And_V2_DataPlane_Parity;
+var
+  LApiV1: PFafafaSimdPublicApi;
+  LApiV2: PFafafaSimdPublicApiV2;
+  LA, LB: array[0..31] of Byte;
+  LNeedle: array[0..2] of Byte;
+  LFirstV1: SizeUInt;
+  LLastV1: SizeUInt;
+  LFirstV2: SizeUInt;
+  LLastV2: SizeUInt;
+  LMinV1: Byte;
+  LMaxV1: Byte;
+  LMinV2: Byte;
+  LMaxV2: Byte;
+  LIdx: Integer;
+begin
+  LApiV1 := GetSimdPublicApi;
+  LApiV2 := GetSimdPublicApiV2;
+  AssertNotNull('Public API v1 table should not be nil', LApiV1);
+  AssertNotNull('Public API v2 table should not be nil', LApiV2);
+
+  for LIdx := 0 to High(LA) do
+  begin
+    LA[LIdx] := Byte((LIdx * 9) and $FF);
+    LB[LIdx] := LA[LIdx];
+  end;
+  LB[11] := $AA;
+  LNeedle[0] := LA[4];
+  LNeedle[1] := LA[5];
+  LNeedle[2] := LA[6];
+
+  AssertEquals('MemEqual parity between v1/v2',
+    LApiV1^.MemEqual(@LA[0], @LA[0], Length(LA)),
+    LApiV2^.MemEqual(@LA[0], @LA[0], Length(LA)));
+  AssertEquals('MemFindByte parity between v1/v2',
+    LApiV1^.MemFindByte(@LB[0], Length(LB), $AA),
+    LApiV2^.MemFindByte(@LB[0], Length(LB), $AA));
+  AssertEquals('SumBytes parity between v1/v2',
+    LApiV1^.SumBytes(@LA[0], Length(LA)),
+    LApiV2^.SumBytes(@LA[0], Length(LA)));
+  AssertEquals('CountByte parity between v1/v2',
+    LApiV1^.CountByte(@LB[0], Length(LB), $AA),
+    LApiV2^.CountByte(@LB[0], Length(LB), $AA));
+  AssertEquals('BitsetPopCount parity between v1/v2',
+    LApiV1^.BitsetPopCount(@LA[0], Length(LA)),
+    LApiV2^.BitsetPopCount(@LA[0], Length(LA)));
+  AssertEquals('AsciiIEqual parity between v1/v2',
+    LApiV1^.AsciiIEqual(PChar('AbCd'), PChar('aBcD'), 4),
+    LApiV2^.AsciiIEqual(PChar('AbCd'), PChar('aBcD'), 4));
+  AssertEquals('BytesIndexOf parity between v1/v2',
+    LApiV1^.BytesIndexOf(@LA[0], Length(LA), @LNeedle[0], Length(LNeedle)),
+    LApiV2^.BytesIndexOf(@LA[0], Length(LA), @LNeedle[0], Length(LNeedle)));
+
+  LFirstV1 := 0;
+  LLastV1 := 0;
+  LFirstV2 := 0;
+  LLastV2 := 0;
+  AssertEquals('MemDiffRange parity(hasDiff) between v1/v2',
+    LApiV1^.MemDiffRange(@LA[0], @LB[0], Length(LA), LFirstV1, LLastV1),
+    LApiV2^.MemDiffRange(@LA[0], @LB[0], Length(LA), LFirstV2, LLastV2));
+  AssertEquals('MemDiffRange firstDiff parity between v1/v2', LFirstV1, LFirstV2);
+  AssertEquals('MemDiffRange lastDiff parity between v1/v2', LLastV1, LLastV2);
+
+  LMinV1 := 0;
+  LMaxV1 := 0;
+  LMinV2 := 0;
+  LMaxV2 := 0;
+  LApiV1^.MinMaxBytes(@LB[0], Length(LB), LMinV1, LMaxV1);
+  LApiV2^.MinMaxBytes(@LB[0], Length(LB), LMinV2, LMaxV2);
+  AssertEquals('MinMaxBytes min parity between v1/v2', LMinV1, LMinV2);
+  AssertEquals('MinMaxBytes max parity between v1/v2', LMaxV1, LMaxV2);
 end;
 
 initialization

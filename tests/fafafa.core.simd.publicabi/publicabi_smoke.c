@@ -10,6 +10,7 @@ typedef void (*fn_sig)(uint64_t*, uint64_t*);
 typedef int32_t (*fn_get_backend_info)(uint32_t, fafafa_simd_backend_pod_info_t*);
 typedef const char* (*fn_backend_text)(uint32_t);
 typedef const fafafa_simd_public_api_t* (*fn_get_api)(void);
+typedef const fafafa_simd_public_api_v2_t* (*fn_get_api_v2)(void);
 
 static void fail(const char* msg) {
   fprintf(stderr, "[PUBLICABI] FAIL: %s\n", msg);
@@ -25,11 +26,13 @@ int main(int argc, char** argv) {
   fn_backend_text backend_name;
   fn_backend_text backend_description;
   fn_get_api get_api;
+  fn_get_api_v2 get_api_v2;
   uint64_t sig_hi = 0;
   uint64_t sig_lo = 0;
   fafafa_simd_backend_pod_info_t scalar_info;
   fafafa_simd_backend_pod_info_t active_info;
   const fafafa_simd_public_api_t* api;
+  const fafafa_simd_public_api_v2_t* api_v2;
   const char* active_name;
   const char* active_description;
   unsigned char a[32];
@@ -64,8 +67,9 @@ int main(int argc, char** argv) {
   backend_name = (fn_backend_text)dlsym(lib, "fafafa_simd_backend_name");
   backend_description = (fn_backend_text)dlsym(lib, "fafafa_simd_backend_description");
   get_api = (fn_get_api)dlsym(lib, "fafafa_simd_get_public_api");
+  get_api_v2 = (fn_get_api_v2)dlsym(lib, "fafafa_simd_get_public_api_v2");
 
-  if (!abi_major || !abi_minor || !abi_sig || !get_backend_info || !backend_name || !backend_description || !get_api)
+  if (!abi_major || !abi_minor || !abi_sig || !get_backend_info || !backend_name || !backend_description || !get_api || !get_api_v2)
     fail("required exported symbol missing");
 
   if (abi_major() == 0)
@@ -134,6 +138,33 @@ int main(int argc, char** argv) {
       !api->mem_set || !api->to_lower_ascii || !api->to_upper_ascii || !api->mem_reverse || !api->min_max_bytes)
     fail("public api function pointer missing");
 
+  api_v2 = get_api_v2();
+  if (!api_v2)
+    fail("public api v2 pointer is null");
+  if (api_v2->struct_size != sizeof(*api_v2))
+    fail("public api v2 struct size mismatch");
+  if (api_v2->abi_version_major != 2u || api_v2->abi_version_minor != 0u)
+    fail("public api v2 version mismatch");
+  if (api_v2->abi_signature_hi == 0 || api_v2->abi_signature_lo == 0)
+    fail("public api v2 signature should not be zero");
+  if (api_v2->active_backend_id != api->active_backend_id)
+    fail("public api v2 active backend should match v1 snapshot");
+  if (api_v2->active_flags != api->active_flags)
+    fail("public api v2 active flags should match v1 snapshot");
+  if (api_v2->snapshot_generation == 0u)
+    fail("public api v2 snapshot generation should be positive");
+  if (!(api_v2->snapshot_flags & FAF_SIMD_PUBLIC_API_V2_FLAG_SNAPSHOT_BOUND))
+    fail("public api v2 snapshot-bound flag missing");
+  if (!(api_v2->snapshot_flags & FAF_SIMD_PUBLIC_API_V2_FLAG_COMPAT_V1))
+    fail("public api v2 compat-v1 flag missing");
+  if (api_v2->snapshot_flags & FAF_SIMD_PUBLIC_API_V2_FLAG_DIRECT_DATA_PLANE)
+    fail("public api v2 direct-data-plane flag should stay unset for wrapper semantics");
+  if (!api_v2->mem_equal || !api_v2->mem_find_byte || !api_v2->mem_diff_range || !api_v2->sum_bytes ||
+      !api_v2->count_byte || !api_v2->bitset_popcount || !api_v2->utf8_validate || !api_v2->ascii_iequal ||
+      !api_v2->bytes_index_of || !api_v2->mem_copy || !api_v2->mem_set || !api_v2->to_lower_ascii ||
+      !api_v2->to_upper_ascii || !api_v2->mem_reverse || !api_v2->min_max_bytes)
+    fail("public api v2 function pointer missing");
+
   for (size_t i = 0; i < sizeof(a); ++i) {
     a[i] = (unsigned char)((i * 7u) & 0xFFu);
     b[i] = a[i];
@@ -142,60 +173,111 @@ int main(int argc, char** argv) {
 
   if (!api->mem_equal(a, a, sizeof(a)))
     fail("mem_equal parity failed");
+  if (!api_v2->mem_equal(a, a, sizeof(a)))
+    fail("mem_equal v2 parity failed");
   if (api->mem_find_byte(b, sizeof(b), 0xAAu) != 17)
     fail("mem_find_byte parity failed");
+  if (api_v2->mem_find_byte(b, sizeof(b), 0xAAu) != 17)
+    fail("mem_find_byte v2 parity failed");
   if (!api->mem_diff_range(a, b, sizeof(a), &first_diff, &last_diff))
     fail("mem_diff_range should detect mismatch");
   if (first_diff != 17u || last_diff != 17u)
     fail("mem_diff_range parity failed");
+  first_diff = 0u;
+  last_diff = 0u;
+  if (!api_v2->mem_diff_range(a, b, sizeof(a), &first_diff, &last_diff))
+    fail("mem_diff_range v2 should detect mismatch");
+  if (first_diff != 17u || last_diff != 17u)
+    fail("mem_diff_range v2 parity failed");
   if (api->count_byte(b, sizeof(b), 0xAAu) != 1u)
     fail("count_byte parity failed");
+  if (api_v2->count_byte(b, sizeof(b), 0xAAu) != 1u)
+    fail("count_byte v2 parity failed");
   if (api->sum_bytes(a, sizeof(a)) == 0)
     fail("sum_bytes returned zero unexpectedly");
+  if (api_v2->sum_bytes(a, sizeof(a)) == 0)
+    fail("sum_bytes v2 returned zero unexpectedly");
   if (api->bitset_popcount(a, sizeof(a)) == 0)
     fail("bitset_popcount returned zero unexpectedly");
+  if (api_v2->bitset_popcount(a, sizeof(a)) == 0)
+    fail("bitset_popcount v2 returned zero unexpectedly");
   if (!api->utf8_validate(utf8_text, strlen(utf8_text)))
     fail("utf8_validate parity failed");
+  if (!api_v2->utf8_validate(utf8_text, strlen(utf8_text)))
+    fail("utf8_validate v2 parity failed");
   if (!api->ascii_iequal("AbCd", "aBcD", 4u))
     fail("ascii_iequal parity failed");
+  if (!api_v2->ascii_iequal("AbCd", "aBcD", 4u))
+    fail("ascii_iequal v2 parity failed");
   needle[0] = a[7];
   needle[1] = a[8];
   needle[2] = a[9];
   if (api->bytes_index_of(a, sizeof(a), needle, sizeof(needle)) != 7)
     fail("bytes_index_of hit parity failed");
+  if (api_v2->bytes_index_of(a, sizeof(a), needle, sizeof(needle)) != 7)
+    fail("bytes_index_of v2 hit parity failed");
   needle[0] = 0xFEu;
   needle[1] = 0xEDu;
   needle[2] = 0xDCu;
   if (api->bytes_index_of(a, sizeof(a), needle, sizeof(needle)) != -1)
     fail("bytes_index_of miss parity failed");
+  if (api_v2->bytes_index_of(a, sizeof(a), needle, sizeof(needle)) != -1)
+    fail("bytes_index_of v2 miss parity failed");
 
   memset(c, 0, sizeof(c));
   api->mem_copy(a, c, sizeof(a));
   if (memcmp(a, c, sizeof(a)) != 0)
     fail("mem_copy parity failed");
+  memset(c, 0, sizeof(c));
+  api_v2->mem_copy(a, c, sizeof(a));
+  if (memcmp(a, c, sizeof(a)) != 0)
+    fail("mem_copy v2 parity failed");
 
   api->mem_set(c, sizeof(c), 0x5Au);
   for (size_t i = 0; i < sizeof(c); ++i) {
     if (c[i] != 0x5Au)
       fail("mem_set parity failed");
   }
+  api_v2->mem_set(c, sizeof(c), 0xA5u);
+  for (size_t i = 0; i < sizeof(c); ++i) {
+    if (c[i] != 0xA5u)
+      fail("mem_set v2 parity failed");
+  }
 
   api->to_lower_ascii(lower_buf, sizeof(lower_buf));
   if (memcmp(lower_buf, "abcdef012", sizeof(lower_buf)) != 0)
     fail("to_lower_ascii parity failed");
+  memcpy(lower_buf, "AbCdEf012", sizeof(lower_buf));
+  api_v2->to_lower_ascii(lower_buf, sizeof(lower_buf));
+  if (memcmp(lower_buf, "abcdef012", sizeof(lower_buf)) != 0)
+    fail("to_lower_ascii v2 parity failed");
 
   api->to_upper_ascii(upper_buf, sizeof(upper_buf));
   if (memcmp(upper_buf, "ABCDEF012", sizeof(upper_buf)) != 0)
     fail("to_upper_ascii parity failed");
+  memcpy(upper_buf, "AbCdEf012", sizeof(upper_buf));
+  api_v2->to_upper_ascii(upper_buf, sizeof(upper_buf));
+  if (memcmp(upper_buf, "ABCDEF012", sizeof(upper_buf)) != 0)
+    fail("to_upper_ascii v2 parity failed");
 
   api->mem_reverse(rev_buf, sizeof(rev_buf));
   if (rev_buf[0] != 8u || rev_buf[1] != 7u || rev_buf[2] != 6u || rev_buf[3] != 5u || rev_buf[4] != 4u ||
       rev_buf[5] != 3u || rev_buf[6] != 2u || rev_buf[7] != 1u)
     fail("mem_reverse parity failed");
+  memcpy(rev_buf, (uint8_t[]){1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u}, sizeof(rev_buf));
+  api_v2->mem_reverse(rev_buf, sizeof(rev_buf));
+  if (rev_buf[0] != 8u || rev_buf[1] != 7u || rev_buf[2] != 6u || rev_buf[3] != 5u || rev_buf[4] != 4u ||
+      rev_buf[5] != 3u || rev_buf[6] != 2u || rev_buf[7] != 1u)
+    fail("mem_reverse v2 parity failed");
 
   api->min_max_bytes(mm_buf, sizeof(mm_buf), &mm_min, &mm_max);
   if (mm_min != 2u || mm_max != 9u)
     fail("min_max_bytes parity failed");
+  mm_min = 0;
+  mm_max = 0;
+  api_v2->min_max_bytes(mm_buf, sizeof(mm_buf), &mm_min, &mm_max);
+  if (mm_min != 2u || mm_max != 9u)
+    fail("min_max_bytes v2 parity failed");
 
   dlclose(lib);
   puts("[PUBLICABI] OK");

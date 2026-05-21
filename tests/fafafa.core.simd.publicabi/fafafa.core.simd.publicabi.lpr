@@ -13,7 +13,8 @@ exports
   fafafa_simd_get_backend_pod_info name 'fafafa_simd_get_backend_pod_info',
   fafafa_simd_backend_name name 'fafafa_simd_backend_name',
   fafafa_simd_backend_description name 'fafafa_simd_backend_description',
-  fafafa_simd_get_public_api name 'fafafa_simd_get_public_api';
+  fafafa_simd_get_public_api name 'fafafa_simd_get_public_api',
+  fafafa_simd_get_public_api_v2 name 'fafafa_simd_get_public_api_v2';
 
 begin
 end.

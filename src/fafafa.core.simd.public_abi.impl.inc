@@ -3,6 +3,10 @@ const
   FAFAFA_SIMD_PUBLIC_ABI_VERSION_MINOR: UInt16 = 3;
   FAFAFA_SIMD_PUBLIC_ABI_SIGNATURE_HI: UInt64 = QWord($73696D645055424C);
   FAFAFA_SIMD_PUBLIC_ABI_SIGNATURE_LO: UInt64 = QWord($4142495441424C45);
+  FAFAFA_SIMD_PUBLIC_ABI_V2_VERSION_MAJOR: UInt16 = 2;
+  FAFAFA_SIMD_PUBLIC_ABI_V2_VERSION_MINOR: UInt16 = 0;
+  FAFAFA_SIMD_PUBLIC_ABI_V2_SIGNATURE_HI: UInt64 = QWord($73696D6450554232);
+  FAFAFA_SIMD_PUBLIC_ABI_V2_SIGNATURE_LO: UInt64 = QWord($4150495632544142);
 
 type
   TSimdPublicMemEqualFunc = function(aA, aB: Pointer; aLen: SizeUInt): LongBool;
@@ -30,6 +34,9 @@ type
     // latest published binding state.
     DataPlane: PSimdDataPlane;
     Api: TFafafaSimdPublicApi;
+    ApiV2: TFafafaSimdPublicApiV2;
+    SnapshotGeneration: UInt64;
+    SnapshotFlags: TFafafaSimdPublicApiV2Flags;
     Dispatch: PSimdDispatchTable;
     MemEqualBound: TSimdPublicMemEqualFunc;
     MemFindByteBound: TSimdPublicMemFindByteFunc;
@@ -54,6 +61,7 @@ var
   // mutations, so published states stay process-owned until finalization.
   g_SimdPublicApiOwnedHead: PSimdPublicApiBindingState = nil;
   g_SimdPublicApiRebindLock: TRTLCriticalSection;
+  g_SimdPublicApiSnapshotGeneration: UInt64 = 0;
 
 function DefaultBackendName(const aBackend: TSimdBackend): AnsiString; inline;
 begin
@@ -504,6 +512,14 @@ begin
     if LState = nil then
       LState := CreateSimdPublicApiBindingState;
 
+    if LState^.DataPlane <> LDataPlane then
+    begin
+      Inc(g_SimdPublicApiSnapshotGeneration);
+      LState^.SnapshotGeneration := g_SimdPublicApiSnapshotGeneration;
+      LState^.SnapshotFlags := FAF_SIMD_PUBLIC_API_V2_FLAG_SNAPSHOT_BOUND or
+        FAF_SIMD_PUBLIC_API_V2_FLAG_COMPAT_V1;
+    end;
+
     LState^.DataPlane := LDataPlane;
     LState^.Api.StructSize := SizeOf(LState^.Api);
     LState^.Dispatch := LDispatch;
@@ -544,6 +560,31 @@ begin
     LState^.Api.ToUpperAscii := @PublicAbiToUpperAscii;
     LState^.Api.MemReverse := @PublicAbiMemReverse;
     LState^.Api.MinMaxBytes := @PublicAbiMinMaxBytes;
+    LState^.ApiV2.StructSize := SizeOf(LState^.ApiV2);
+    LState^.ApiV2.AbiVersionMajor := FAFAFA_SIMD_PUBLIC_ABI_V2_VERSION_MAJOR;
+    LState^.ApiV2.AbiVersionMinor := FAFAFA_SIMD_PUBLIC_ABI_V2_VERSION_MINOR;
+    LState^.ApiV2.AbiSignatureHi := FAFAFA_SIMD_PUBLIC_ABI_V2_SIGNATURE_HI;
+    LState^.ApiV2.AbiSignatureLo := FAFAFA_SIMD_PUBLIC_ABI_V2_SIGNATURE_LO;
+    LState^.ApiV2.ActiveBackendId := LState^.Api.ActiveBackendId;
+    LState^.ApiV2.ActiveFlags := LState^.Api.ActiveFlags;
+    LState^.ApiV2.SnapshotGeneration := LState^.SnapshotGeneration;
+    LState^.ApiV2.SnapshotFlags := LState^.SnapshotFlags;
+    LState^.ApiV2.Reserved0 := 0;
+    LState^.ApiV2.MemEqual := @PublicAbiMemEqual;
+    LState^.ApiV2.MemFindByte := @PublicAbiMemFindByte;
+    LState^.ApiV2.MemDiffRange := @PublicAbiMemDiffRange;
+    LState^.ApiV2.SumBytes := @PublicAbiSumBytes;
+    LState^.ApiV2.CountByte := @PublicAbiCountByte;
+    LState^.ApiV2.BitsetPopCount := @PublicAbiBitsetPopCount;
+    LState^.ApiV2.Utf8Validate := @PublicAbiUtf8Validate;
+    LState^.ApiV2.AsciiIEqual := @PublicAbiAsciiIEqual;
+    LState^.ApiV2.BytesIndexOf := @PublicAbiBytesIndexOf;
+    LState^.ApiV2.MemCopy := @PublicAbiMemCopy;
+    LState^.ApiV2.MemSet := @PublicAbiMemSet;
+    LState^.ApiV2.ToLowerAscii := @PublicAbiToLowerAscii;
+    LState^.ApiV2.ToUpperAscii := @PublicAbiToUpperAscii;
+    LState^.ApiV2.MemReverse := @PublicAbiMemReverse;
+    LState^.ApiV2.MinMaxBytes := @PublicAbiMinMaxBytes;
 
     atomic_store(g_SimdPublicApiStatePtr, Pointer(LState), mo_release);
   finally
@@ -635,6 +676,18 @@ begin
   Result := @LState^.Api;
 end;
 
+function GetSimdPublicApiV2: PFafafaSimdPublicApiV2; cdecl;
+var
+  LState: PSimdPublicApiBindingState;
+begin
+  LState := GetLiveSimdPublicApiBindingState;
+
+  if LState = nil then
+    Exit(nil);
+
+  Result := @LState^.ApiV2;
+end;
+
 function fafafa_simd_abi_version_major: UInt16; cdecl;
 begin
   Result := GetSimdAbiVersionMajor;
@@ -683,4 +736,9 @@ end;
 function fafafa_simd_get_public_api: PFafafaSimdPublicApi; cdecl;
 begin
   Result := GetSimdPublicApi;
+end;
+
+function fafafa_simd_get_public_api_v2: PFafafaSimdPublicApiV2; cdecl;
+begin
+  Result := GetSimdPublicApiV2;
 end;

@@ -12,6 +12,8 @@
 - **想看 external/public ABI wrapper**：看 `docs/fafafa.core.simd.publicabi.md`
   - Linux smoke：`bash tests/fafafa.core.simd.publicabi/BuildOrTest.sh test`
   - Windows smoke：`tests\fafafa.core.simd.publicabi\BuildOrTest.bat test`
+  - 新调用方优先看 v2：`GetSimdPublicApiV2` / `fafafa_simd_get_public_api_v2`
+  - Pascal 侧绑定 snapshot façade：`src/fafafa.core.simd.api.v2.pas`
   - 稳定承诺：`docs/fafafa.core.simd.publicabi.stability.md`
 - **想理解模块全貌**：看 `docs/fafafa.core.simd.md`
 - **想维护或修改实现**：看 `docs/fafafa.core.simd.map.md`、`docs/fafafa.core.simd.maintenance.md`、`docs/fafafa.core.simd.checklist.md`

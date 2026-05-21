@@ -17,7 +17,7 @@
 
 - 公开入口仍然在 `fafafa.core.simd`
 - metadata 走 POD struct + 独立字符串查询
-- data-plane 走 **绑定后直调**
+- data-plane 走 **已发布 snapshot + 稳定 `cdecl` 入口**
 
 ## 现在提供了什么
 
@@ -30,13 +30,16 @@
 - `GetSimdBackendNamePtr`
 - `GetSimdBackendDescriptionPtr`
 - `GetSimdPublicApi`
+- `GetSimdPublicApiV2`
 
 对应 POD 类型：
 
 - `TFafafaSimdBackendPodInfo`
 - `TFafafaSimdPublicApi`
+- `TFafafaSimdPublicApiV2`
 
 当前 ABI 版本：`1.3`（Major=`1`，Minor=`3`）。
+当前 v2 table 版本：`2.0`。
 
 ## 后端元数据
 
@@ -74,7 +77,7 @@
 
 - 它返回的是 public-ABI 视图，不是内部 dispatch table 本体
 - 后端切换后，内部会发布一张新的已绑定 snapshot
-- 调用方可以缓存这个指针做 data-plane 直调；如果需要最新 metadata，应在 backend 切换后重新取表
+- 调用方可以缓存这张表并复用稳定 ABI 入口；如果需要最新 metadata，应在 backend 切换后重新取表
 - 单次 `GetSimdPublicApi` 返回的 table 自身应当是自洽的 published snapshot
 
 当前已绑定这些高 ROI façade：
@@ -96,6 +99,21 @@
 - `MinMaxBytes`
 
 这些函数指针使用 `cdecl`，适合外部 C ABI 调用。
+
+## Public API Table V2
+
+`GetSimdPublicApiV2` 在 v1 的 data-plane 函数集合上额外补充了两类 snapshot metadata：
+
+- `SnapshotGeneration`
+- `SnapshotFlags`
+
+当前稳定语义是：
+
+- `FAF_SIMD_PUBLIC_API_V2_FLAG_SNAPSHOT_BOUND` 表示这张表来自一次已发布的 snapshot
+- `FAF_SIMD_PUBLIC_API_V2_FLAG_COMPAT_V1` 表示它与当前 v1 兼容视图对齐
+- `FAF_SIMD_PUBLIC_API_V2_FLAG_DIRECT_DATA_PLANE` 仅在实现真的把函数指针直接绑定到 data-plane 时才应置位；调用方不要假设当前所有平台都一定带这个标志
+
+对新调用方，推荐优先缓存 `GetSimdPublicApiV2` 的结果，而不是继续新接入 v1。
 
 其中带原地写入语义的入口，例如 `MemCopy`、`MemSet`、`ToLowerAscii`、`ToUpperAscii`、`MemReverse`，要求调用方提供**可写 buffer**；不要把只读或共享字符串存储直接当作原地修改目标。
 
