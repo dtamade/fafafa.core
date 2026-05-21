@@ -16835,3 +16835,28 @@
   - `thin: 30 -> 0`
   - `missing: 0 -> 0`
   - `public-api-coverage` 这条线已经完整收口
+
+<!-- SIMD-WIN-CLOSEOUT-2026-05-21 -->
+### 批次
+- SIMD-20260521-152
+
+### 执行动作
+- 在 Windows 实机完成 buildOrTest.bat evidence-win-verify（要求 native Windows LAZBUILD，不要用 Wine/cmd 冒充实机）。
+- 生成并归档收口摘要：finalize-win-evidence。
+- 回填 roadmap / matrix / RC checklist / scratch progress，关闭跨平台证据缺口。
+
+### 命令与结果
+| Command | Result |
+|---|---|
+| tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify | PASS |
+| bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence | PASS |
+| bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status | PASS |
+| bash tests/fafafa.core.simd/apply_windows_b07_closeout_updates.sh --apply --freeze-json tests/fafafa.core.simd/logs/freeze_status.json | PASS |
+
+### 关键证据
+- Log: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260521-152/windows_b07_gate.log
+- Summary: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260521-152/windows_b07_closeout_summary.md
+
+
+### 阶段状态
+- 跨平台冻结条件满足。
