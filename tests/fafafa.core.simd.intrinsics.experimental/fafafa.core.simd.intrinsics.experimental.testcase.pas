@@ -2708,6 +2708,15 @@ begin
   LInts.m128i_i64[0] := Int64(-9876543210);
   AssertEquals('simd_cvtsi128_si32 low dword', LInts.m128i_i32[0], simd_cvtsi128_si32(LInts));
   AssertEquals('simd_cvtsi128_si64 low qword', Int64(-9876543210), simd_cvtsi128_si64(LInts));
+
+  FillChar(LInts, SizeOf(LInts), 0);
+  LInts.m128i_u32[0] := DWord($80000001);
+  LInts.m128i_u32[1] := DWord($7FFFFFFF);
+  LInts.m128i_u64[0] := QWord($0123456780000001);
+  AssertEquals('simd_cvtsi128_si32 repeated low dword',
+    LongInt(DWord($80000001)), simd_cvtsi128_si32(LInts));
+  AssertEquals('simd_cvtsi128_si64 repeated low qword',
+    Int64(QWord($0123456780000001)), simd_cvtsi128_si64(LInts));
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_WideningConversionPrecisionSemantics;

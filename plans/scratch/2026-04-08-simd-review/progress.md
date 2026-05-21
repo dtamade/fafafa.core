@@ -1,5 +1,43 @@
 # SIMD Review Progress
 
+## 2026-05-22 SSE2 Cvtsi Extraction Witness Thickening
+
+- 这批继续沿 `SSE2 proof-first` 小批次推进，不动实现层，也不改 checker 规则，只补 `cvtsi` 提取面的 repeated runtime witness。
+- 接手前的真实状态：
+  - 上一批 `movemask` 收口后，临时 `--sse2-min-refs 3` 已从 `thin=84` 降到 `thin=81`
+  - 当前最小且最自然的 remaining 小簇就是：
+    - `simd_cvtsi128_si32 = refs=2`
+    - `simd_cvtsi128_si64 = refs=2`
+  - 这 2 个名字都已经落在 `Test_ConversionFamilies_PreserveExpectedLanes`，不需要新 suite
+- 已落地修改：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 在 `Test_ConversionFamilies_PreserveExpectedLanes` 里补第二组 `simd_cvtsi128_si32` repeated low-dword extraction witness
+    - 在同一段里补第二组 `simd_cvtsi128_si64` repeated low-qword extraction witness
+    - 新 witness 使用不同 bit pattern 的 `TM128` 输入，避免只是复制第一组 happy-path 值
+- 定向复核结果：
+  - fresh `python3 tests/fafafa.core.simd/check_intrinsics_coverage.py --summary-line --sse2-min-refs 3` 已变成：
+    - `thin_required=79`
+  - 也就是这批把临时 `min_refs=3` 视角下的薄点从 `81 -> 79`
+  - 本批直接收上的名字是：
+    - `simd_cvtsi128_si32`
+    - `simd_cvtsi128_si64`
+- fresh 验证已完成：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_coverage.py --summary-line --sse2-min-refs 3`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh experimental-intrinsics-tests`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- fresh 结果：
+  - `git diff --check` 通过
+  - 临时 `sse2_min_refs=3` 统计为：
+    - `INTRINSICS_COVERAGE_SUMMARY modules=6 missing_required=0 missing_optional=0 thin_required=79 thin_optional=0 extra=0 strict_extra=0 require_avx2=0 require_experimental=0 sse2_min_refs=3 status=fail`
+  - release `experimental-intrinsics-tests` 默认/experimental 双模式 PASS
+  - release `gate` PASS
+  - gate 默认口径下的 intrinsics coverage 继续保持：
+    - `INTRINSICS_COVERAGE_SUMMARY modules=6 missing_required=0 missing_optional=0 thin_required=0 thin_optional=0 extra=0 strict_extra=0 require_avx2=0 require_experimental=0 sse2_min_refs=2 status=ok`
+- 当前阶段结论：
+  - `cvtsi` 这一最小簇已经不再贡献 `refs=2` residual
+  - 继续往下如果还按同样节奏推进，最自然的下一簇会前移到 `cast(6)`，然后才是更大的 `compare/bitwise/shift/add_sub/pack_unpack` 家族
+
 ## 2026-05-22 SSE2 Movemask Witness Thickening
 
 - 这批继续沿 `SSE2 proof-first` 小批次推进，不动实现层，也不改 checker 规则，只补 `movemask` 家族的 repeated runtime witness。

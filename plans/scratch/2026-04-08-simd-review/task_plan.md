@@ -1,5 +1,19 @@
 # SIMD Review Task Plan
 
+## 2026-05-22 SSE2 Cvtsi Extraction Witness Thickening
+
+### Goal
+
+在 `movemask` 小簇收口后，继续沿 `sse2_min_refs=3` 的 scouting 口径挑最小 residual；这次锁定的是 `simd_cvtsi128_si32` 与 `simd_cvtsi128_si64`。目标仍然不是改 checker，而是在已有 conversion 语义测试里补第二组真实 extraction witness，把这 2 个名字从 `refs=2` 收上去。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 用 `sse2_min_refs=3` 复核最小 residual 簇 | completed | 已确认 `cvtsi128_si32/si64` 是当前最小 remaining 小簇，且都已集中在同一个 conversion testcase 段里 |
+| 2. 在现有 conversion 测试里补 repeated runtime witness | completed | 已在 `Test_ConversionFamilies_PreserveExpectedLanes` 增加第二组 low-dword/low-qword extraction witness，直接走不同 bit pattern 的 `TM128` 输入 |
+| 3. 定向/主线验证与 scratch 收口 | completed | `git diff --check`、`sse2_min_refs=3` 定向统计、release `experimental-intrinsics-tests`、release `gate` 全部通过；本批仍只同步 scratch，不改 active maintenance 口径 |
+
 ## 2026-05-22 SSE2 Movemask Witness Thickening
 
 ### Goal

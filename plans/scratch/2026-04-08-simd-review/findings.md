@@ -1,5 +1,21 @@
 # SIMD Review Findings
 
+## 2026-05-22 SSE2 Cvtsi Extraction Witness Thickening
+
+- 在 `movemask` 小簇收口后，fresh `sse2_min_refs=3` residual 里最小、最自然的一簇已经收缩成：
+  - `simd_cvtsi128_si32`
+  - `simd_cvtsi128_si64`
+- 这 2 个 helper 很适合继续 proof-first 收口，因为：
+  - 两者已经共享同一个 conversion testcase 承载点
+  - 第二组 witness 可以直接用不同 low-dword/low-qword bit pattern 来验证真实提取语义
+  - 不需要增加新的 fixture、suite 或 checker policy
+- 这批补完后的直接效果是：
+  - 临时 `sse2_min_refs=3` 视角下 `thin_required: 81 -> 79`
+  - `cvtsi` 这一整簇已经不再贡献 `refs=2` residual
+- 因而当前 residual 的结构又更清楚了一层：
+  - `memory`、`movemask`、`cvtsi` 这几簇 very small batch 都已经被继续收厚
+  - 下一步如果还要沿同一路线推进，`cast` 6 个名字会是比大块 arithmetic/compare/pack/shift 更自然的下一刀
+
 ## 2026-05-22 SSE2 Movemask Witness Thickening
 
 - 在 `load/store` coherence witness 收口后，fresh `sse2_min_refs=3` residual 里最小、最干净的一簇已经收缩成 `movemask`：
