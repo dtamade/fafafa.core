@@ -3090,7 +3090,9 @@ check_nonx86_native_evidence_runner_guard() {
     'echo "[NATIVE-EVIDENCE] Missing collector: ${LNativeEvidenceScript}"'
     'bash "${LNativeEvidenceScript}" "$@"'
     'run_nonx86_native_evidence_verify() {'
-    'LRoot="${SIMD_NONX86_NATIVE_EVIDENCE_ROOT:-${ROOT}/logs}"'
+    'default_nonx86_native_evidence_verify_root() {'
+    'LImportedRoot="${ROOT}/fixtures/native-evidence"'
+    'LRoot="$(default_nonx86_native_evidence_verify_root)"'
     'echo "[NONX86-NATIVE-VERIFY] FAILED (python3 runtime not found; non-x86 native evidence verify requires python3)"'
     'run_import_nonx86_native_evidence() {'
     'LImportScript="${ROOT}/import_nonx86_native_evidence_artifacts.sh"'
@@ -7359,6 +7361,30 @@ nonx86_native_evidence_root() {
   echo "${SIMD_NONX86_NATIVE_EVIDENCE_ROOT:-${ROOT}/logs}"
 }
 
+default_nonx86_native_evidence_verify_root() {
+  local LFreshRoot
+  local LImportedRoot
+
+  if [[ -n "${SIMD_NONX86_NATIVE_EVIDENCE_ROOT:-}" ]]; then
+    echo "${SIMD_NONX86_NATIVE_EVIDENCE_ROOT}"
+    return 0
+  fi
+
+  LFreshRoot="${ROOT}/logs"
+  if nonx86_native_evidence_root_has_entries "${LFreshRoot}"; then
+    echo "${LFreshRoot}"
+    return 0
+  fi
+
+  LImportedRoot="${ROOT}/fixtures/native-evidence"
+  if nonx86_native_evidence_root_has_entries "${LImportedRoot}"; then
+    echo "${LImportedRoot}"
+    return 0
+  fi
+
+  echo "${LFreshRoot}"
+}
+
 nonx86_native_evidence_root_has_entries() {
   local LRoot
 
@@ -7520,7 +7546,7 @@ run_nonx86_native_evidence_verify() {
     return 2
   fi
 
-  LRoot="${SIMD_NONX86_NATIVE_EVIDENCE_ROOT:-${ROOT}/logs}"
+  LRoot="$(default_nonx86_native_evidence_verify_root)"
   LLog="${SIMD_NONX86_NATIVE_EVIDENCE_LOG_FILE:-${NONX86_NATIVE_EVIDENCE_LOG}}"
   LJsonLog="${SIMD_NONX86_NATIVE_EVIDENCE_JSON_FILE:-${NONX86_NATIVE_EVIDENCE_JSON_LOG}}"
 
