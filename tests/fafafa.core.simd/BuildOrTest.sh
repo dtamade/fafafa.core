@@ -42,6 +42,7 @@ REGISTER_INCLUDE_CHECK_SCRIPT="${ROOT}/check_backend_register_include_consistenc
 SOURCE_REACHABILITY_SCRIPT="${ROOT}/check_simd_source_reachability.py"
 DARWIN_CPUINFO_TICK_CONTRACT_SCRIPT="${ROOT}/check_darwin_cpuinfo_tick_contract.py"
 DARWIN_COMPILE_SMOKE_CONTRACT_SCRIPT="${ROOT}/check_darwin_compile_smoke_contract.py"
+DARWIN_PUBLICABI_CONTRACT_SCRIPT="${ROOT}/check_darwin_publicabi_contract.py"
 SSE2_STRUCTURE_SCRIPT="${ROOT}/check_sse2_structure.py"
 SUITE_MANIFEST_CHECK_SCRIPT="${ROOT}/check_suite_manifest_sync.py"
 DISPATCH_PREINIT_SMOKE_SRC="${ROOT}/fafafa.core.simd.dispatch_preinit_smoke.pas"
@@ -99,6 +100,8 @@ DARWIN_CPUINFO_TICK_CONTRACT_LOG="${LOG_DIR}/darwin_cpuinfo_tick_contract.txt"
 DARWIN_CPUINFO_TICK_CONTRACT_JSON_LOG="${LOG_DIR}/darwin_cpuinfo_tick_contract.json"
 DARWIN_COMPILE_SMOKE_CONTRACT_LOG="${LOG_DIR}/darwin_compile_smoke_contract.txt"
 DARWIN_COMPILE_SMOKE_CONTRACT_JSON_LOG="${LOG_DIR}/darwin_compile_smoke_contract.json"
+DARWIN_PUBLICABI_CONTRACT_LOG="${LOG_DIR}/darwin_publicabi_contract.txt"
+DARWIN_PUBLICABI_CONTRACT_JSON_LOG="${LOG_DIR}/darwin_publicabi_contract.json"
 X86_IMPL_SMOKE_LOG="${LOG_DIR}/x86_impl_smoke.txt"
 SSE2_IMPL_SMOKE_LOG="${LOG_DIR}/sse2_impl_smoke.txt"
 NONX86_IMPL_SMOKE_LOG="${LOG_DIR}/nonx86_impl_smoke.txt"
@@ -3947,6 +3950,7 @@ run_static_build_check_core() {
   run_source_reachability_check || return $?
   run_darwin_cpuinfo_tick_contract_check || return $?
   run_darwin_compile_smoke_contract_check || return $?
+  run_darwin_publicabi_contract_check || return $?
   run_metadata_query_scope || return $?
   run_dataplane_consumer_scope || return $?
   run_direct_dispatch_scope || return $?
@@ -4104,6 +4108,46 @@ run_darwin_compile_smoke_contract_check() {
   LSummaryLine="$(grep -E '^DARWIN_COMPILE_SMOKE_CONTRACT ' "${LLog}" | tail -n 1 || true)"
   if [[ -n "${LSummaryLine}" ]]; then
     echo "[DARWIN-COMPILE-CONTRACT] Summary: ${LSummaryLine#DARWIN_COMPILE_SMOKE_CONTRACT }"
+  fi
+
+  return "${LMainRC}"
+}
+
+run_darwin_publicabi_contract_check() {
+  local LLog
+  local LJsonLog
+  local LMainRC
+  local LSummaryLine
+
+  if [[ ! -f "${DARWIN_PUBLICABI_CONTRACT_SCRIPT}" ]]; then
+    echo "[DARWIN-PUBLICABI-CONTRACT] Missing checker: ${DARWIN_PUBLICABI_CONTRACT_SCRIPT}"
+    return 2
+  fi
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "[DARWIN-PUBLICABI-CONTRACT] FAILED (python3 runtime not found; Darwin publicabi contract check requires python3)"
+    return 2
+  fi
+
+  LLog="${SIMD_DARWIN_PUBLICABI_CONTRACT_LOG_FILE:-${DARWIN_PUBLICABI_CONTRACT_LOG}}"
+  LJsonLog="${SIMD_DARWIN_PUBLICABI_CONTRACT_JSON_FILE:-${DARWIN_PUBLICABI_CONTRACT_JSON_LOG}}"
+
+  echo "[DARWIN-PUBLICABI-CONTRACT] Running: python3 ${DARWIN_PUBLICABI_CONTRACT_SCRIPT} --summary-line"
+  : > "${LLog}"
+  python3 "${DARWIN_PUBLICABI_CONTRACT_SCRIPT}" --summary-line 2>&1 | tee "${LLog}"
+  LMainRC="${PIPESTATUS[0]}"
+
+  if [[ "${SIMD_DARWIN_PUBLICABI_CONTRACT_JSON:-1}" != "0" ]]; then
+    if python3 "${DARWIN_PUBLICABI_CONTRACT_SCRIPT}" --json > "${LJsonLog}"; then
+      echo "[DARWIN-PUBLICABI-CONTRACT] JSON snapshot: ${LJsonLog}"
+    else
+      echo "[DARWIN-PUBLICABI-CONTRACT] WARN: failed to snapshot JSON: ${LJsonLog}"
+    fi
+  fi
+
+  LSummaryLine="$(grep -E '^DARWIN_PUBLICABI_CONTRACT ' "${LLog}" | tail -n 1 || true)"
+  if [[ -n "${LSummaryLine}" ]]; then
+    echo "[DARWIN-PUBLICABI-CONTRACT] Summary: ${LSummaryLine#DARWIN_PUBLICABI_CONTRACT }"
   fi
 
   return "${LMainRC}"

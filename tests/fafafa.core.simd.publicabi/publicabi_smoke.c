@@ -17,7 +17,73 @@ static void fail(const char* msg) {
   exit(1);
 }
 
+static const char* current_dlopen_scope(void) {
+  const char* mode = getenv("FAFAFA_PUBLICABI_DLOPEN_SCOPE");
+  if (mode && strcmp(mode, "global") == 0)
+    return "global";
+  return "local";
+}
+
+static int use_global_dlopen_scope(void) {
+  return strcmp(current_dlopen_scope(), "global") == 0;
+}
+
+static void probe_symbol_variant(void* handle, const char* handle_label, const char* name) {
+  void* sym;
+  const char* err;
+
+  dlerror();
+  sym = dlsym(handle, name);
+  err = dlerror();
+  if (sym && !err)
+    fprintf(stderr, "[PUBLICABI] NOTE: %s probe resolved \"%s\"\n", handle_label, name);
+  else if (err)
+    fprintf(stderr, "[PUBLICABI] NOTE: %s probe for \"%s\" failed: %s\n", handle_label, name, err);
+  else
+    fprintf(stderr, "[PUBLICABI] NOTE: %s probe for \"%s\" returned NULL without dlerror() detail\n",
+      handle_label, name);
+}
+
+static void fail_missing_symbol(void* lib, const char* name, const char* err) {
+#ifdef __APPLE__
+  char alt_name[256];
+  int alt_len;
+#endif
+
+  if (!err)
+    err = "returned NULL without dlerror() detail";
+
+  fprintf(stderr, "[PUBLICABI] FAIL: dlsym(\"%s\") failed under dlopen scope=%s: %s\n",
+    name, current_dlopen_scope(), err);
+
+#ifdef __APPLE__
+  alt_len = snprintf(alt_name, sizeof(alt_name), "_%s", name);
+  if (alt_len > 0 && (size_t)alt_len < sizeof(alt_name))
+    probe_symbol_variant(lib, "current-handle underscore", alt_name);
+  probe_symbol_variant(RTLD_DEFAULT, "RTLD_DEFAULT bare", name);
+  if (alt_len > 0 && (size_t)alt_len < sizeof(alt_name))
+    probe_symbol_variant(RTLD_DEFAULT, "RTLD_DEFAULT underscore", alt_name);
+#endif
+
+  exit(1);
+}
+
+static void* resolve_required_symbol(void* lib, const char* name) {
+  void* sym;
+  const char* err;
+
+  dlerror();
+  sym = dlsym(lib, name);
+  err = dlerror();
+  if (err)
+    fail_missing_symbol(lib, name, err);
+  if (!sym)
+    fail_missing_symbol(lib, name, NULL);
+  return sym;
+}
+
 int main(int argc, char** argv) {
+  int dlopen_mode;
   void* lib;
   fn_ver_u16 abi_major;
   fn_ver_u16 abi_minor;
@@ -54,23 +120,22 @@ int main(int argc, char** argv) {
     return 2;
   }
 
-  lib = dlopen(argv[1], RTLD_NOW | RTLD_LOCAL);
+  dlopen_mode = RTLD_NOW | (use_global_dlopen_scope() ? RTLD_GLOBAL : RTLD_LOCAL);
+  fprintf(stderr, "[PUBLICABI] INFO: dlopen scope=%s\n", current_dlopen_scope());
+  lib = dlopen(argv[1], dlopen_mode);
   if (!lib) {
     fprintf(stderr, "dlopen failed: %s\n", dlerror());
     return 2;
   }
 
-  abi_major = (fn_ver_u16)dlsym(lib, "fafafa_simd_abi_version_major");
-  abi_minor = (fn_ver_u16)dlsym(lib, "fafafa_simd_abi_version_minor");
-  abi_sig = (fn_sig)dlsym(lib, "fafafa_simd_abi_signature");
-  get_backend_info = (fn_get_backend_info)dlsym(lib, "fafafa_simd_get_backend_pod_info");
-  backend_name = (fn_backend_text)dlsym(lib, "fafafa_simd_backend_name");
-  backend_description = (fn_backend_text)dlsym(lib, "fafafa_simd_backend_description");
-  get_api = (fn_get_api)dlsym(lib, "fafafa_simd_get_public_api");
-  get_api_v2 = (fn_get_api_v2)dlsym(lib, "fafafa_simd_get_public_api_v2");
-
-  if (!abi_major || !abi_minor || !abi_sig || !get_backend_info || !backend_name || !backend_description || !get_api || !get_api_v2)
-    fail("required exported symbol missing");
+  abi_major = (fn_ver_u16)resolve_required_symbol(lib, "fafafa_simd_abi_version_major");
+  abi_minor = (fn_ver_u16)resolve_required_symbol(lib, "fafafa_simd_abi_version_minor");
+  abi_sig = (fn_sig)resolve_required_symbol(lib, "fafafa_simd_abi_signature");
+  get_backend_info = (fn_get_backend_info)resolve_required_symbol(lib, "fafafa_simd_get_backend_pod_info");
+  backend_name = (fn_backend_text)resolve_required_symbol(lib, "fafafa_simd_backend_name");
+  backend_description = (fn_backend_text)resolve_required_symbol(lib, "fafafa_simd_backend_description");
+  get_api = (fn_get_api)resolve_required_symbol(lib, "fafafa_simd_get_public_api");
+  get_api_v2 = (fn_get_api_v2)resolve_required_symbol(lib, "fafafa_simd_get_public_api_v2");
 
   if (abi_major() == 0)
     fail("abi major should not be zero");

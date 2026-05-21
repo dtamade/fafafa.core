@@ -32,8 +32,20 @@ EXPORT_LOG="${LOG_DIR}/exports.txt"
 mkdir -p "${BIN_DIR}" "${LIB_DIR}" "${LOG_DIR}"
 
 resolve_library_path() {
+  local -a LCandidates
   local LCandidate
-  for LCandidate in "${BIN_DIR}"/libfafafa*.so "${BIN_DIR}"/*.so; do
+
+  LCandidates=()
+  shopt -s nullglob
+  LCandidates+=(
+    "${BIN_DIR}"/libfafafa*.so
+    "${BIN_DIR}"/*.so
+    "${BIN_DIR}"/libfafafa*.dylib
+    "${BIN_DIR}"/*.dylib
+  )
+  shopt -u nullglob
+
+  for LCandidate in "${LCandidates[@]}"; do
     if [[ -f "${LCandidate}" ]]; then
       LIB_PATH="${LCandidate}"
       return 0
@@ -65,8 +77,14 @@ build_project() {
 }
 
 build_harness() {
+  local -a LCompilerArgs
+
   echo "[BUILD] Harness: ${HARNESS_SRC}"
-  "${CC_BIN}" -std=c11 -O2 "${HARNESS_SRC}" -ldl -o "${HARNESS_BIN}"
+  LCompilerArgs=(-std=c11 -O2 "${HARNESS_SRC}" -o "${HARNESS_BIN}")
+  if [[ "${TARGET_OS}" != "darwin" ]]; then
+    LCompilerArgs+=(-ldl)
+  fi
+  "${CC_BIN}" "${LCompilerArgs[@]}"
 }
 
 validate_exports() {
@@ -86,7 +104,10 @@ validate_exports() {
 
   : > "${EXPORT_LOG}"
 
-  if command -v readelf >/dev/null 2>&1; then
+  if [[ "${TARGET_OS}" == "darwin" ]] && command -v nm >/dev/null 2>&1; then
+    echo "[EXPORT] Running: nm -gU ${LIB_PATH}"
+    nm -gU "${LIB_PATH}" > "${EXPORT_LOG}" 2>&1
+  elif command -v readelf >/dev/null 2>&1; then
     echo "[EXPORT] Running: readelf --wide --dyn-syms ${LIB_PATH}"
     readelf --wide --dyn-syms "${LIB_PATH}" > "${EXPORT_LOG}" 2>&1
   elif command -v nm >/dev/null 2>&1; then
@@ -111,8 +132,18 @@ validate_exports() {
 run_harness() {
   : > "${TEST_LOG}"
   "${HARNESS_BIN}" "${LIB_PATH}" > "${TEST_LOG}" 2>&1 || {
+    if [[ "${TARGET_OS}" == "darwin" ]]; then
+      {
+        echo "[TEST] Darwin retry with FAFAFA_PUBLICABI_DLOPEN_SCOPE=global"
+        FAFAFA_PUBLICABI_DLOPEN_SCOPE=global "${HARNESS_BIN}" "${LIB_PATH}"
+      } >> "${TEST_LOG}" 2>&1 || true
+    fi
     echo "[TEST] FAILED (see ${TEST_LOG})"
     cat "${TEST_LOG}"
+    if [[ -f "${EXPORT_LOG}" ]]; then
+      echo "[TEST] Export snapshot (${EXPORT_LOG})"
+      cat "${EXPORT_LOG}"
+    fi
     return 1
   }
   echo "[TEST] OK"
