@@ -48,17 +48,25 @@
 
 ## C - 迁移后删除 / 废弃
 
-当前 production export 没有预先指定到这桶。
+### 已确认 retire target（2026-05-23）
 
-这不是遗漏，而是保守迁移规则：
+| 对象 | 替代项 | 证据 | 删除条件 |
+|------|--------|------|----------|
+| `src/fafafa.core.simd.intrinsics.sse2.pas` | `src/fafafa.core.simd.intrinsics.x86.sse2.pas` (active leaf) | 90-check parity 通过；零依赖者 | gate 持续绿即可删除 |
 
-- 今天不要预删任何 `simd.sse2` 正式导出符号。
-- 只有未来为了迁移临时引入的 bridge/helper，才允许进入 C 桶。
-- 这类对象必须在代码和文档里明确标成 temporary bridge，然后在 parity 证据齐全后删除。
+说明：
+- 这是整个单元级别的 retire，不是单个符号
+- `intrinsics.sse2.pas` 的 137 个函数中 115 个与 raw leaf 重复
+- 剩余 22 个是 non-x86 compile scaffolding，随单元一起删除
+- 不影响 `simd.sse2.pas`（stable adapter）——它从未依赖 transitional wrapper
 
-一句话说死：
+### 原始规则（仍适用于 `simd.sse2` 正式导出）
 
-> C 桶当前刻意为空；如果未来有人想删 `simd.sse2` 的正式导出，先补设计和 parity 证据。
+- 不预删任何 `simd.sse2` 正式导出符号
+- 只有为迁移临时引入的 bridge/helper 才允许进入 C 桶
+- 这类对象必须在代码和文档里明确标成 temporary bridge
+
+> 注：C 桶现在不再为空，但仅限 transitional wrapper 整体 retire。`simd.sse2` 的正式导出仍不在 C 桶中。
 
 当前的 retire baseline 见：
 

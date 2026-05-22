@@ -15,7 +15,6 @@ EXPERIMENTAL_UNITS = [
     "fafafa.core.simd.intrinsics.aes",
     "fafafa.core.simd.intrinsics.sha",
     "fafafa.core.simd.intrinsics.avx",
-    "fafafa.core.simd.intrinsics.sse2",
     "fafafa.core.simd.intrinsics.sse3",
     "fafafa.core.simd.intrinsics.sse41",
     "fafafa.core.simd.intrinsics.sse42",
@@ -26,7 +25,6 @@ EXPERIMENTAL_UNITS = [
     "fafafa.core.simd.intrinsics.sve",
     "fafafa.core.simd.intrinsics.sve2",
     "fafafa.core.simd.intrinsics.lasx",
-    "fafafa.core.simd.intrinsics.x86.sse2",
 ]
 
 DEFAULT_ENTRY_FILES = [
@@ -45,7 +43,6 @@ GUARDED_EXPERIMENTAL_FILES = [f"src/{l_unit}.pas" for l_unit in EXPERIMENTAL_UNI
 REQUIRED_GUARD_TOKEN = "fafafa_simd_experimental_intrinsics"
 X86_ONLY_RUNTIME_FAIL_CLOSE_FILES = [
     "src/fafafa.core.simd.intrinsics.avx.pas",
-    "src/fafafa.core.simd.intrinsics.sse2.pas",
     "src/fafafa.core.simd.intrinsics.sse3.pas",
     "src/fafafa.core.simd.intrinsics.sse41.pas",
     "src/fafafa.core.simd.intrinsics.sse42.pas",

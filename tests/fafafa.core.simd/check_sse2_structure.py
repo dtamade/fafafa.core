@@ -137,7 +137,7 @@ EXPECTED_INTRINSICS_DISPOSITION = {
     'fafafa.core.simd.intrinsics.rvv': 'experimental isolated',
     'fafafa.core.simd.intrinsics.sha': 'experimental isolated',
     'fafafa.core.simd.intrinsics.sse': 'active leaf',
-    'fafafa.core.simd.intrinsics.sse2': 'transitional',
+    'fafafa.core.simd.intrinsics.sse2': 'retire target',
     'fafafa.core.simd.intrinsics.sse3': 'experimental isolated',
     'fafafa.core.simd.intrinsics.sse41': 'experimental isolated',
     'fafafa.core.simd.intrinsics.sse42': 'experimental isolated',
@@ -192,7 +192,7 @@ MIGRATION_DOC_REQUIRED_TOKENS = [
     'MemEqual_SSE2',
     'Utf8Validate_SSE2',
     'wide_emulation',
-    'C 桶当前刻意为空',
+    'retire target',
 ]
 
 
@@ -392,7 +392,7 @@ def main() -> int:
         else ''
     )
     if not intrinsics_wrapper_path.exists():
-        failures.append(f'missing intrinsics wrapper: {intrinsics_wrapper_path.name}')
+        pass  # wrapper retired (2026-05-23) — file deletion is expected
     if not intrinsics_raw_leaf_path.exists():
         failures.append(f'missing intrinsics raw leaf: {intrinsics_raw_leaf_path.name}')
 
@@ -524,13 +524,14 @@ def main() -> int:
             )
 
     failures.extend(collect_role_marker_failures(root_unit_text, ROOT_ROLE_MARKERS, root_unit_path.name))
-    failures.extend(
-        collect_role_marker_failures(
-            intrinsics_wrapper_text,
-            TRANSITIONAL_ROLE_MARKERS,
-            intrinsics_wrapper_path.name,
+    if intrinsics_wrapper_path.exists():
+        failures.extend(
+            collect_role_marker_failures(
+                intrinsics_wrapper_text,
+                TRANSITIONAL_ROLE_MARKERS,
+                intrinsics_wrapper_path.name,
+            )
         )
-    )
     failures.extend(
         collect_role_marker_failures(
             intrinsics_raw_leaf_text,
@@ -624,11 +625,13 @@ def main() -> int:
         )
 
     if intrinsics_disposition_rows:
-        if set(intrinsics_disposition_rows) != set(repo_intrinsics_units):
+        # Allow retire-target units to not have corresponding files
+        active_disposition_units = {u for u, s in intrinsics_disposition_rows.items() if s != 'retire target'}
+        if active_disposition_units != set(repo_intrinsics_units):
             failures.append(
                 'SIMD_INTRINSICS_DISPOSITION.md unit rows drifted from repo units: '
-                f'missing={sorted(set(repo_intrinsics_units) - set(intrinsics_disposition_rows))}, '
-                f'extra={sorted(set(intrinsics_disposition_rows) - set(repo_intrinsics_units))}'
+                f'missing={sorted(set(repo_intrinsics_units) - active_disposition_units)}, '
+                f'extra={sorted(active_disposition_units - set(repo_intrinsics_units))}'
             )
         for unit_name, expected_status in EXPECTED_INTRINSICS_DISPOSITION.items():
             actual_status = intrinsics_disposition_rows.get(unit_name)
