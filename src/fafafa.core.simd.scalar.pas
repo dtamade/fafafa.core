@@ -1363,95 +1363,15 @@ begin
       Result := Result or (1 shl i);
 end;
 
-// F64x4 Arithmetic Operations (256-bit)
-function ScalarAddF64x4(const a, b: TVecF64x4): TVecF64x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result.d[i] := a.d[i] + b.d[i];
-end;
-
-function ScalarSubF64x4(const a, b: TVecF64x4): TVecF64x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result.d[i] := a.d[i] - b.d[i];
-end;
-
-function ScalarMulF64x4(const a, b: TVecF64x4): TVecF64x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result.d[i] := a.d[i] * b.d[i];
-end;
-
-function ScalarDivF64x4(const a, b: TVecF64x4): TVecF64x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result.d[i] := a.d[i] / b.d[i];
-end;
+// F64x4 Arithmetic Operations (256-bit) - generated
+{$I generated/fafafa.core.simd.scalar.f64x4.arith.inc}
 {$POP}
 
 // === I32x8 Arithmetic Operations (256-bit) ===
 {$PUSH}{$R-}{$Q-}
-function ScalarAddI32x8(const a, b: TVecI32x8): TVecI32x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] + b.i[i];
-end;
 
-function ScalarSubI32x8(const a, b: TVecI32x8): TVecI32x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] - b.i[i];
-end;
-
-function ScalarMulI32x8(const a, b: TVecI32x8): TVecI32x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] * b.i[i];
-end;
-
-// I32x8 Bitwise Operations
-function ScalarAndI32x8(const a, b: TVecI32x8): TVecI32x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] and b.i[i];
-end;
-
-function ScalarOrI32x8(const a, b: TVecI32x8): TVecI32x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] or b.i[i];
-end;
-
-function ScalarXorI32x8(const a, b: TVecI32x8): TVecI32x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] xor b.i[i];
-end;
-
-function ScalarNotI32x8(const a: TVecI32x8): TVecI32x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    Result.i[i] := not a.i[i];
-end;
-
-function ScalarAndNotI32x8(const a, b: TVecI32x8): TVecI32x8;
-var i: Integer;
-begin
-  // AndNot: (not a) and b - 与 SIMD 指令 PANDN 语义一致
-  for i := 0 to 7 do
-    Result.i[i] := (not a.i[i]) and b.i[i];
-end;
+// I32x8 Add/Sub/Mul + Bitwise + Comparison + Min/Max (generated)
+{$I generated/fafafa.core.simd.scalar.i32x8.inc}
 
 // I32x8 Shift Operations
 function ScalarShiftLeftI32x8(const a: TVecI32x8; count: Integer): TVecI32x8;
@@ -1510,82 +1430,7 @@ begin
   end;
 end;
 
-// I32x8 Comparison Operations
-function ScalarCmpEqI32x8(const a, b: TVecI32x8): TMask8;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.i[i] = b.i[i] then
-      Result := Result or (1 shl i);
-end;
 
-function ScalarCmpLtI32x8(const a, b: TVecI32x8): TMask8;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.i[i] < b.i[i] then
-      Result := Result or (1 shl i);
-end;
-
-function ScalarCmpGtI32x8(const a, b: TVecI32x8): TMask8;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.i[i] > b.i[i] then
-      Result := Result or (1 shl i);
-end;
-
-// I32x8 comparison operations
-function ScalarCmpLeI32x8(const a, b: TVecI32x8): TMask8;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.i[i] <= b.i[i] then
-      Result := Result or (1 shl i);
-end;
-
-function ScalarCmpGeI32x8(const a, b: TVecI32x8): TMask8;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.i[i] >= b.i[i] then
-      Result := Result or (1 shl i);
-end;
-
-function ScalarCmpNeI32x8(const a, b: TVecI32x8): TMask8;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.i[i] <> b.i[i] then
-      Result := Result or (1 shl i);
-end;
-
-// I32x8 Min/Max Operations
-function ScalarMinI32x8(const a, b: TVecI32x8): TVecI32x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    if a.i[i] < b.i[i] then
-      Result.i[i] := a.i[i]
-    else
-      Result.i[i] := b.i[i];
-end;
-
-function ScalarMaxI32x8(const a, b: TVecI32x8): TVecI32x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    if a.i[i] > b.i[i] then
-      Result.i[i] := a.i[i]
-    else
-      Result.i[i] := b.i[i];
-end;
 {$POP}
 
 // === F32x16 Arithmetic Operations (512-bit) ===
