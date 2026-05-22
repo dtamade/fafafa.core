@@ -69,7 +69,54 @@ jobs:
             tests/fafafa.core.os/bin/tests_os
             tests/fafafa.core.os/bin/tests_os.log
 
-  # ARM64 Linux 测试 (NEON)
+  # ARM64 Linux 测试 (NEON) - 真实硬件
+  test-linux-arm64-native:
+    runs-on: ubuntu-24.04-arm
+    name: Linux ARM64 Native (NEON)
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install ARM64 FPC snapshot
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends binutils ca-certificates curl libc6-dev tar
+          sudo mkdir -p /opt/fpc
+          curl -L --retry 5 -o /tmp/fpc-arm64.tar.gz \
+            "https://downloads.freepascal.org/fpc/snapshot/trunk/aarch64-linux/fpc-3.3.1.aarch64-linux.tar.gz"
+          sudo tar -xzf /tmp/fpc-arm64.tar.gz -C /opt/fpc
+          sudo ln -sf /opt/fpc/bin/fpc /usr/local/bin/fpc
+          sudo ln -sf /opt/fpc/lib/fpc/3.3.1/ppca64 /usr/local/bin/ppca64
+          printf '%s\n' '-Fu/opt/fpc/lib/fpc/3.3.1/units/aarch64-linux/*' | sudo tee /etc/fpc.cfg >/dev/null
+          rm -f /tmp/fpc-arm64.tar.gz
+          fpc -iV && fpc -iTP && fpc -iTO
+
+      - name: Build SIMD Tests (native ARM64)
+        run: |
+          fpc -O3 -Fi./src -Fu./src \
+            -FEtests/fafafa.core.simd/bin2 \
+            -otests/fafafa.core.simd/bin2/fafafa.core.simd.test \
+            tests/fafafa.core.simd/fafafa.core.simd.test.lpr 2>&1 || true
+          # Fallback: compile standalone algorithms test
+          fpc -O3 -Fi./src -Fu./src \
+            -FEtests/fafafa.core.simd/bin2 \
+            -otests/fafafa.core.simd/bin2/test_algorithms \
+            tests/fafafa.core.simd/test_algorithms.lpr
+
+      - name: Run Algorithms Tests (native NEON)
+        run: |
+          tests/fafafa.core.simd/bin2/test_algorithms --all --format=plain
+
+      - name: Verify NEON backend active
+        run: |
+          fpc -O3 -Fi./src -Fu./src \
+            -FEtests/fafafa.core.simd/bin2 \
+            -otests/fafafa.core.simd/bin2/test_simdgen_compile \
+            tests/fafafa.core.simd/test_simdgen_compile.pas
+          tests/fafafa.core.simd/bin2/test_simdgen_compile
+
+  # ARM64 Linux 测试 (NEON) - QEMU fallback
   test-linux-arm64:
     runs-on: ubuntu-latest
     name: Linux ARM64 (QEMU)

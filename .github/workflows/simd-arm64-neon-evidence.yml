@@ -2,6 +2,12 @@ name: SIMD ARM64 NEON Evidence
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/fafafa.core.simd*.pas'
+      - 'src/fafafa.core.simd*.inc'
+      - 'tests/fafafa.core.simd/**'
 
 permissions:
   contents: read
