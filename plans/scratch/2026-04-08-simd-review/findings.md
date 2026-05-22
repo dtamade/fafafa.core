@@ -1,5 +1,34 @@
 # SIMD Review Findings
 
+## 2026-05-22 SSE2 Min-Refs=3 Zero-Residual Closeout
+
+- 在上一轮 batch 全部落地后，fresh `sse2_min_refs=3` residual 已经被压缩到 4 个非常清楚的簇：
+  - `shift` / immediate-bound helpers
+  - `simd_clflush/simd_lfence/simd_mfence/simd_pause`
+  - `simd_madd_epi16`
+  - `pack/unpack`
+- 这批之所以适合一次收平，而不是继续拆成更多碎批次，是因为：
+  - `shift` 残余全部集中在已有 helper body 与单个 `slli_epi16` testcase
+  - `fence/clflush/pause` 全部集中在 `Test_StreamAndFenceSurfaceSemantics`
+  - `madd` 只差同一 multiply testcase 里的第二组输入
+  - `pack/unpack` 已经各有现成语义测试，只差第三组 direct witness
+- 这批补完后的直接效果是：
+  - 临时 `sse2_min_refs=3` 视角下 `thin_required: 29 -> 0`
+  - `sse2-x86-raw` 现在达到：
+    - `declared=221`
+    - `tested=221`
+    - `missing=0`
+    - `extra=0`
+    - `thin=0`
+    - `min_refs=3`
+- 因而当前结论比前几批又更清晰了一层：
+  - 这次收的是 experimental testcase witness 厚度，不是 checker policy 变化
+  - 默认 gate 仍然保持 canonical `sse2_min_refs=2`
+  - 但从 fresh Linux/release 证据看，当前树已经可以承受更高一档的 `min_refs=3` scouting floor 而不再有剩余薄点
+- 这也意味着后续如果还要继续往“更厚 proof”推进，下一步已经不再是“补缺口”，而是明确的策略选择：
+  - 要么维持 `min_refs=3` 只作为审查/scouting 指标
+  - 要么将来另起一批，正式评估是否要把 canonical floor 从 `2` 提升到 `3`
+
 ## 2026-05-22 SSE2 Cast Roundtrip Witness Thickening
 
 - 在 `cvtsi` 小簇收口后，fresh `sse2_min_refs=3` residual 里最自然的一簇已经前移到 `cast`：

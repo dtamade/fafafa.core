@@ -937,6 +937,7 @@ procedure ExpectSlliEpi32(aTest: TTestCase; const aValue: TM128; aShift: Byte);
 var
   LExpected: TM128;
   LActual: TM128;
+  LSecondValue: TM128;
   LShift: Integer;
   LLane: Integer;
 begin
@@ -948,12 +949,24 @@ begin
 
   LActual := simd_slli_epi32(aValue, aShift);
   AssertM128BytesEqual(aTest, 'simd_slli_epi32 shift=' + IntToStr(aShift), LExpected, LActual);
+
+  LSecondValue := aValue;
+  LSecondValue.m128i_u32[0] := LSecondValue.m128i_u32[0] xor $01020304;
+  LSecondValue.m128i_u32[3] := LSecondValue.m128i_u32[3] xor $80000000;
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  if LShift < 32 then
+    for LLane := 0 to 3 do
+      LExpected.m128i_u32[LLane] := DWord(LSecondValue.m128i_u32[LLane]) shl LShift;
+
+  LActual := simd_slli_epi32(LSecondValue, aShift);
+  AssertM128BytesEqual(aTest, 'simd_slli_epi32 second witness shift=' + IntToStr(aShift), LExpected, LActual);
 end;
 
 procedure ExpectSlliEpi64(aTest: TTestCase; const aValue: TM128; aShift: Byte);
 var
   LExpected: TM128;
   LActual: TM128;
+  LSecondValue: TM128;
   LShift: Integer;
   LLane: Integer;
 begin
@@ -965,12 +978,24 @@ begin
 
   LActual := simd_slli_epi64(aValue, aShift);
   AssertM128BytesEqual(aTest, 'simd_slli_epi64 shift=' + IntToStr(aShift), LExpected, LActual);
+
+  LSecondValue := aValue;
+  LSecondValue.m128i_u64[0] := LSecondValue.m128i_u64[0] xor QWord($0102030405060708);
+  LSecondValue.m128i_u64[1] := LSecondValue.m128i_u64[1] xor QWord($8000000000000000);
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  if LShift < 64 then
+    for LLane := 0 to 1 do
+      LExpected.m128i_u64[LLane] := QWord(LSecondValue.m128i_u64[LLane]) shl LShift;
+
+  LActual := simd_slli_epi64(LSecondValue, aShift);
+  AssertM128BytesEqual(aTest, 'simd_slli_epi64 second witness shift=' + IntToStr(aShift), LExpected, LActual);
 end;
 
 procedure ExpectSrliEpi16(aTest: TTestCase; const aValue: TM128; aShift: Byte);
 var
   LExpected: TM128;
   LActual: TM128;
+  LSecondValue: TM128;
   LShift: Integer;
   LLane: Integer;
 begin
@@ -982,12 +1007,24 @@ begin
 
   LActual := simd_srli_epi16(aValue, aShift);
   AssertM128BytesEqual(aTest, 'simd_srli_epi16 shift=' + IntToStr(aShift), LExpected, LActual);
+
+  LSecondValue := aValue;
+  LSecondValue.m128i_u16[0] := LSecondValue.m128i_u16[0] xor $0101;
+  LSecondValue.m128i_u16[7] := LSecondValue.m128i_u16[7] xor $8000;
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  if LShift < 16 then
+    for LLane := 0 to 7 do
+      LExpected.m128i_u16[LLane] := LSecondValue.m128i_u16[LLane] shr LShift;
+
+  LActual := simd_srli_epi16(LSecondValue, aShift);
+  AssertM128BytesEqual(aTest, 'simd_srli_epi16 second witness shift=' + IntToStr(aShift), LExpected, LActual);
 end;
 
 procedure ExpectSrliEpi32(aTest: TTestCase; const aValue: TM128; aShift: Byte);
 var
   LExpected: TM128;
   LActual: TM128;
+  LSecondValue: TM128;
   LShift: Integer;
   LLane: Integer;
 begin
@@ -999,12 +1036,24 @@ begin
 
   LActual := simd_srli_epi32(aValue, aShift);
   AssertM128BytesEqual(aTest, 'simd_srli_epi32 shift=' + IntToStr(aShift), LExpected, LActual);
+
+  LSecondValue := aValue;
+  LSecondValue.m128i_u32[0] := LSecondValue.m128i_u32[0] xor $01020304;
+  LSecondValue.m128i_u32[3] := LSecondValue.m128i_u32[3] xor $80000000;
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  if LShift < 32 then
+    for LLane := 0 to 3 do
+      LExpected.m128i_u32[LLane] := LSecondValue.m128i_u32[LLane] shr LShift;
+
+  LActual := simd_srli_epi32(LSecondValue, aShift);
+  AssertM128BytesEqual(aTest, 'simd_srli_epi32 second witness shift=' + IntToStr(aShift), LExpected, LActual);
 end;
 
 procedure ExpectSrliEpi64(aTest: TTestCase; const aValue: TM128; aShift: Byte);
 var
   LExpected: TM128;
   LActual: TM128;
+  LSecondValue: TM128;
   LShift: Integer;
   LLane: Integer;
 begin
@@ -1016,12 +1065,24 @@ begin
 
   LActual := simd_srli_epi64(aValue, aShift);
   AssertM128BytesEqual(aTest, 'simd_srli_epi64 shift=' + IntToStr(aShift), LExpected, LActual);
+
+  LSecondValue := aValue;
+  LSecondValue.m128i_u64[0] := LSecondValue.m128i_u64[0] xor QWord($0102030405060708);
+  LSecondValue.m128i_u64[1] := LSecondValue.m128i_u64[1] xor QWord($8000000000000000);
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  if LShift < 64 then
+    for LLane := 0 to 1 do
+      LExpected.m128i_u64[LLane] := LSecondValue.m128i_u64[LLane] shr LShift;
+
+  LActual := simd_srli_epi64(LSecondValue, aShift);
+  AssertM128BytesEqual(aTest, 'simd_srli_epi64 second witness shift=' + IntToStr(aShift), LExpected, LActual);
 end;
 
 procedure ExpectSraiEpi16(aTest: TTestCase; const aValue: TM128; aShift: Byte);
 var
   LExpected: TM128;
   LActual: TM128;
+  LSecondValue: TM128;
   LShift: Integer;
   LLane: Integer;
 begin
@@ -1032,12 +1093,23 @@ begin
 
   LActual := simd_srai_epi16(aValue, aShift);
   AssertM128BytesEqual(aTest, 'simd_srai_epi16 shift=' + IntToStr(aShift), LExpected, LActual);
+
+  LSecondValue := aValue;
+  LSecondValue.m128i_i16[0] := LSecondValue.m128i_i16[0] xor $0101;
+  LSecondValue.m128i_i16[7] := LSecondValue.m128i_i16[7] xor $8000;
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LLane := 0 to 7 do
+    LExpected.m128i_i16[LLane] := ArithmeticShiftRightI16(LSecondValue.m128i_i16[LLane], LShift);
+
+  LActual := simd_srai_epi16(LSecondValue, aShift);
+  AssertM128BytesEqual(aTest, 'simd_srai_epi16 second witness shift=' + IntToStr(aShift), LExpected, LActual);
 end;
 
 procedure ExpectSraiEpi32(aTest: TTestCase; const aValue: TM128; aShift: Byte);
 var
   LExpected: TM128;
   LActual: TM128;
+  LSecondValue: TM128;
   LShift: Integer;
   LLane: Integer;
 begin
@@ -1048,6 +1120,16 @@ begin
 
   LActual := simd_srai_epi32(aValue, aShift);
   AssertM128BytesEqual(aTest, 'simd_srai_epi32 shift=' + IntToStr(aShift), LExpected, LActual);
+
+  LSecondValue := aValue;
+  LSecondValue.m128i_i32[0] := LSecondValue.m128i_i32[0] xor LongInt($01020304);
+  LSecondValue.m128i_i32[3] := LSecondValue.m128i_i32[3] xor LongInt($80000000);
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LLane := 0 to 3 do
+    LExpected.m128i_i32[LLane] := ArithmeticShiftRightI32(LSecondValue.m128i_i32[LLane], LShift);
+
+  LActual := simd_srai_epi32(LSecondValue, aShift);
+  AssertM128BytesEqual(aTest, 'simd_srai_epi32 second witness shift=' + IntToStr(aShift), LExpected, LActual);
 end;
 
 procedure ExpectSlliSi128(aTest: TTestCase; const aValue: TM128; aShift: Byte);
@@ -1098,6 +1180,7 @@ procedure ExpectSraiSi128(aTest: TTestCase; const aValue: TM128; aShift: Byte);
 var
   LExpected: TM128;
   LActual: TM128;
+  LSecondValue: TM128;
   LIndex: Integer;
   LShift: Integer;
   LFill: Byte;
@@ -1117,6 +1200,22 @@ begin
 
   LActual := simd_srai_si128(aValue, aShift);
   AssertM128BytesEqual(aTest, 'simd_srai_si128 shift=' + IntToStr(aShift), LExpected, LActual);
+
+  LSecondValue := aValue;
+  LSecondValue.m128i_u8[0] := LSecondValue.m128i_u8[0] xor $55;
+  LSecondValue.m128i_u8[15] := LSecondValue.m128i_u8[15] xor $80;
+  LFill := 0;
+  if (LSecondValue.m128i_u8[15] and $80) <> 0 then
+    LFill := $FF;
+  FillChar(LExpected, SizeOf(LExpected), LFill);
+  if LShift <= 0 then
+    LExpected := LSecondValue
+  else if LShift < 16 then
+    for LIndex := 0 to (15 - LShift) do
+      LExpected.m128i_u8[LIndex] := LSecondValue.m128i_u8[LIndex + LShift];
+
+  LActual := simd_srai_si128(LSecondValue, aShift);
+  AssertM128BytesEqual(aTest, 'simd_srai_si128 second witness shift=' + IntToStr(aShift), LExpected, LActual);
 end;
 
 type
@@ -2793,6 +2892,13 @@ begin
   simd_lfence;
   simd_clflush(Pointer(PtrUInt(LAlignedByteDest) + 1));
   AssertEquals('cache-control helpers tolerate repeated calls', Byte($A7), PByte(LAlignedByteDest)[1]);
+
+  PByte(LAlignedByteDest)[2] := $3C;
+  simd_mfence;
+  simd_clflush(Pointer(PtrUInt(LAlignedByteDest) + 2));
+  simd_pause;
+  simd_lfence;
+  AssertEquals('cache-control helpers tolerate third calls', Byte($3C), PByte(LAlignedByteDest)[2]);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_ConversionFamilies_PreserveExpectedLanes;
@@ -4540,6 +4646,26 @@ begin
 
   FillChar(LA, SizeOf(LA), 0);
   FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_i16[0] := -4;       LB.m128i_i16[0] := -5;
+  LA.m128i_i16[1] := 7;        LB.m128i_i16[1] := 11;
+  LA.m128i_i16[2] := -1234;    LB.m128i_i16[2] := 4321;
+  LA.m128i_i16[3] := 300;      LB.m128i_i16[3] := -200;
+  LA.m128i_i16[4] := 16384;    LB.m128i_i16[4] := 2;
+  LA.m128i_i16[5] := -16384;   LB.m128i_i16[5] := 3;
+  LA.m128i_i16[6] := 2222;     LB.m128i_i16[6] := -3333;
+  LA.m128i_i16[7] := -4444;    LB.m128i_i16[7] := 5555;
+
+  LActual := simd_madd_epi16(LA, LB);
+  for LIndex := 0 to 3 do
+  begin
+    LExpectedI32 :=
+      (LongInt(LA.m128i_i16[LIndex * 2]) * LongInt(LB.m128i_i16[LIndex * 2])) +
+      (LongInt(LA.m128i_i16[LIndex * 2 + 1]) * LongInt(LB.m128i_i16[LIndex * 2 + 1]));
+    AssertEquals('simd_madd_epi16 second lane ' + IntToStr(LIndex), LExpectedI32, LActual.m128i_i32[LIndex]);
+  end;
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
   LA.m128i_u16[0] := 65000;  LB.m128i_u16[0] := 3;
   LA.m128i_u16[1] := 40000;  LB.m128i_u16[1] := 2;
   LA.m128i_u16[2] := 12345;  LB.m128i_u16[2] := 60000;
@@ -4594,6 +4720,7 @@ const
   SHIFTS: array[0..6] of Byte = (0, 1, 7, 15, 16, 17, 200);
 var
   LValue: TM128;
+  LSecondValue: TM128;
   LExpected: TM128;
   LActual: TM128;
   LShiftIndex: Integer;
@@ -4619,6 +4746,25 @@ begin
 
     LActual := simd_slli_epi16(LValue, SHIFTS[LShiftIndex]);
     AssertM128BytesEqual(Self, 'simd_slli_epi16 shift=' + IntToStr(SHIFTS[LShiftIndex]), LExpected, LActual);
+  end;
+
+  LSecondValue := LValue;
+  LSecondValue.m128i_u16[0] := LSecondValue.m128i_u16[0] xor $0101;
+  LSecondValue.m128i_u16[7] := LSecondValue.m128i_u16[7] xor $8000;
+  for LShiftIndex := Low(SHIFTS) to High(SHIFTS) do
+  begin
+    LShift := SHIFTS[LShiftIndex];
+    FillChar(LExpected, SizeOf(LExpected), 0);
+
+    if LShift < 16 then
+      for LLane := 0 to 7 do
+      begin
+        LWord := LSecondValue.m128i_u16[LLane];
+        LExpected.m128i_u16[LLane] := Word((DWord(LWord) shl LShift) and $FFFF);
+      end;
+
+    LActual := simd_slli_epi16(LSecondValue, SHIFTS[LShiftIndex]);
+    AssertM128BytesEqual(Self, 'simd_slli_epi16 second witness shift=' + IntToStr(SHIFTS[LShiftIndex]), LExpected, LActual);
   end;
 end;
 
@@ -4731,6 +4877,29 @@ begin
 
   FillChar(LA, SizeOf(LA), 0);
   FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 15 do
+  begin
+    LA.m128i_i8[LIndex] := -32 + (LIndex * 3);
+    LB.m128i_i8[LIndex] := 90 - (LIndex * 2);
+  end;
+
+  LLo := simd_unpacklo_epi8(LA, LB);
+  LHi := simd_unpackhi_epi8(LA, LB);
+
+  for LIndex := 0 to 7 do
+  begin
+    AssertEquals('unpacklo_epi8 second.a[' + IntToStr(LIndex) + ']',
+      LA.m128i_i8[LIndex], LLo.m128i_i8[LIndex * 2]);
+    AssertEquals('unpacklo_epi8 second.b[' + IntToStr(LIndex) + ']',
+      LB.m128i_i8[LIndex], LLo.m128i_i8[(LIndex * 2) + 1]);
+    AssertEquals('unpackhi_epi8 second.a[' + IntToStr(LIndex) + ']',
+      LA.m128i_i8[8 + LIndex], LHi.m128i_i8[LIndex * 2]);
+    AssertEquals('unpackhi_epi8 second.b[' + IntToStr(LIndex) + ']',
+      LB.m128i_i8[8 + LIndex], LHi.m128i_i8[(LIndex * 2) + 1]);
+  end;
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
   for LIndex := 0 to 3 do
   begin
     LA.m128i_i32[LIndex] := LIndex;
@@ -4749,6 +4918,29 @@ begin
   AssertEquals('unpackhi_epi32[1]', 102, LHi.m128i_i32[1]);
   AssertEquals('unpackhi_epi32[2]', 3, LHi.m128i_i32[2]);
   AssertEquals('unpackhi_epi32[3]', 103, LHi.m128i_i32[3]);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_i32[0] := -2147480000;
+  LA.m128i_i32[1] := -100;
+  LA.m128i_i32[2] := 200;
+  LA.m128i_i32[3] := 2147480000;
+  LB.m128i_i32[0] := 7;
+  LB.m128i_i32[1] := 8;
+  LB.m128i_i32[2] := -9;
+  LB.m128i_i32[3] := -10;
+
+  LLo := simd_unpacklo_epi32(LA, LB);
+  LHi := simd_unpackhi_epi32(LA, LB);
+
+  AssertEquals('unpacklo_epi32 second[0]', -2147480000, LLo.m128i_i32[0]);
+  AssertEquals('unpacklo_epi32 second[1]', 7, LLo.m128i_i32[1]);
+  AssertEquals('unpacklo_epi32 second[2]', -100, LLo.m128i_i32[2]);
+  AssertEquals('unpacklo_epi32 second[3]', 8, LLo.m128i_i32[3]);
+  AssertEquals('unpackhi_epi32 second[0]', 200, LHi.m128i_i32[0]);
+  AssertEquals('unpackhi_epi32 second[1]', -9, LHi.m128i_i32[1]);
+  AssertEquals('unpackhi_epi32 second[2]', 2147480000, LHi.m128i_i32[2]);
+  AssertEquals('unpackhi_epi32 second[3]', -10, LHi.m128i_i32[3]);
 end;
 
 procedure TTestCase_X86Sse2PackShuffleBasics.Test_UnpackWideLaneInterleaving;
@@ -4784,6 +4976,29 @@ begin
 
   FillChar(LA, SizeOf(LA), 0);
   FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 7 do
+  begin
+    LA.m128i_i16[LIndex] := -500 + (LIndex * 37);
+    LB.m128i_i16[LIndex] := 700 - (LIndex * 29);
+  end;
+
+  LLo := simd_unpacklo_epi16(LA, LB);
+  LHi := simd_unpackhi_epi16(LA, LB);
+
+  for LIndex := 0 to 3 do
+  begin
+    AssertEquals('unpacklo_epi16 second.a[' + IntToStr(LIndex) + ']',
+      LA.m128i_i16[LIndex], LLo.m128i_i16[LIndex * 2]);
+    AssertEquals('unpacklo_epi16 second.b[' + IntToStr(LIndex) + ']',
+      LB.m128i_i16[LIndex], LLo.m128i_i16[(LIndex * 2) + 1]);
+    AssertEquals('unpackhi_epi16 second.a[' + IntToStr(LIndex) + ']',
+      LA.m128i_i16[4 + LIndex], LHi.m128i_i16[LIndex * 2]);
+    AssertEquals('unpackhi_epi16 second.b[' + IntToStr(LIndex) + ']',
+      LB.m128i_i16[4 + LIndex], LHi.m128i_i16[(LIndex * 2) + 1]);
+  end;
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
   LA.m128i_i64[0] := 111;
   LA.m128i_i64[1] := 222;
   LB.m128i_i64[0] := 333;
@@ -4799,6 +5014,23 @@ begin
 
   FillChar(LA, SizeOf(LA), 0);
   FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_i64[0] := Int64(QWord($8000000000000000));
+  LA.m128i_i64[1] := Int64(QWord($7FFFFFFFFFFFFFFF));
+  LB.m128i_i64[0] := -77;
+  LB.m128i_i64[1] := 88;
+
+  LLo := simd_unpacklo_epi64(LA, LB);
+  LHi := simd_unpackhi_epi64(LA, LB);
+
+  AssertEquals('unpacklo_epi64 second lane0',
+    Int64(QWord($8000000000000000)), LLo.m128i_i64[0]);
+  AssertEquals('unpacklo_epi64 second lane1', Int64(-77), LLo.m128i_i64[1]);
+  AssertEquals('unpackhi_epi64 second lane0',
+    Int64(QWord($7FFFFFFFFFFFFFFF)), LHi.m128i_i64[0]);
+  AssertEquals('unpackhi_epi64 second lane1', Int64(88), LHi.m128i_i64[1]);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
   LA.m128d_f64[0] := 1.25;
   LA.m128d_f64[1] := 2.5;
   LB.m128d_f64[0] := 10.75;
@@ -4811,6 +5043,21 @@ begin
   AssertEquals('unpacklo_pd lane1', 10.75, LLo.m128d_f64[1], 0.0);
   AssertEquals('unpackhi_pd lane0', 2.5, LHi.m128d_f64[0], 0.0);
   AssertEquals('unpackhi_pd lane1', 20.125, LHi.m128d_f64[1], 0.0);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128d_f64[0] := -0.5;
+  LA.m128d_f64[1] := 4096.25;
+  LB.m128d_f64[0] := -33.0;
+  LB.m128d_f64[1] := 0.125;
+
+  LLo := simd_unpacklo_pd(LA, LB);
+  LHi := simd_unpackhi_pd(LA, LB);
+
+  AssertEquals('unpacklo_pd second lane0', -0.5, LLo.m128d_f64[0], 0.0);
+  AssertEquals('unpacklo_pd second lane1', -33.0, LLo.m128d_f64[1], 0.0);
+  AssertEquals('unpackhi_pd second lane0', 4096.25, LHi.m128d_f64[0], 0.0);
+  AssertEquals('unpackhi_pd second lane1', 0.125, LHi.m128d_f64[1], 0.0);
 
   FillChar(LA, SizeOf(LA), 0);
   FillChar(LB, SizeOf(LB), 0);
@@ -4835,6 +5082,30 @@ begin
   AssertEquals('unpackhi_ps lane1', 13.0, LHi.m128_f32[1], 0.0);
   AssertEquals('unpackhi_ps lane2', 4.0, LHi.m128_f32[2], 0.0);
   AssertEquals('unpackhi_ps lane3', 14.0, LHi.m128_f32[3], 0.0);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128_f32[0] := -1.5;
+  LA.m128_f32[1] := 0.25;
+  LA.m128_f32[2] := 100.0;
+  LA.m128_f32[3] := -200.0;
+  LB.m128_f32[0] := 7.5;
+  LB.m128_f32[1] := -8.5;
+  LB.m128_f32[2] := 9.5;
+  LB.m128_f32[3] := -10.5;
+
+  LLo := simd_unpacklo_ps(LA, LB);
+  LHi := simd_unpackhi_ps(LA, LB);
+
+  AssertEquals('unpacklo_ps second lane0', -1.5, LLo.m128_f32[0], 0.0);
+  AssertEquals('unpacklo_ps second lane1', 7.5, LLo.m128_f32[1], 0.0);
+  AssertEquals('unpacklo_ps second lane2', 0.25, LLo.m128_f32[2], 0.0);
+  AssertEquals('unpacklo_ps second lane3', -8.5, LLo.m128_f32[3], 0.0);
+
+  AssertEquals('unpackhi_ps second lane0', 100.0, LHi.m128_f32[0], 0.0);
+  AssertEquals('unpackhi_ps second lane1', 9.5, LHi.m128_f32[1], 0.0);
+  AssertEquals('unpackhi_ps second lane2', -200.0, LHi.m128_f32[2], 0.0);
+  AssertEquals('unpackhi_ps second lane3', -10.5, LHi.m128_f32[3], 0.0);
 end;
 
 procedure TTestCase_X86Sse2PackShuffleBasics.Test_UnpackFloatFamilies_PreserveBitPatterns;
@@ -5092,6 +5363,27 @@ begin
 
   FillChar(LA, SizeOf(LA), 0);
   FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_i32[0] := -65535;
+  LA.m128i_i32[1] := -123;
+  LA.m128i_i32[2] := 123;
+  LA.m128i_i32[3] := 65535;
+  LB.m128i_i32[0] := -400000;
+  LB.m128i_i32[1] := -32769;
+  LB.m128i_i32[2] := 32766;
+  LB.m128i_i32[3] := 400000;
+
+  for LIndex := 0 to 3 do
+    LExpectedI16[LIndex] := SaturateI32ToI16(LA.m128i_i32[LIndex]);
+  for LIndex := 0 to 3 do
+    LExpectedI16[4 + LIndex] := SaturateI32ToI16(LB.m128i_i32[LIndex]);
+
+  LResult := simd_packs_epi32(LA, LB);
+  for LIndex := 0 to 7 do
+    AssertEquals('packs_epi32 second[' + IntToStr(LIndex) + ']',
+      LExpectedI16[LIndex], LResult.m128i_i16[LIndex]);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
   for LIndex := 0 to 7 do
   begin
     LA.m128i_i16[LIndex] := (LIndex * 40) - 180;
@@ -5116,6 +5408,45 @@ begin
   LResult := simd_packus_epi16(LA, LB);
   for LIndex := 0 to 15 do
     AssertEquals('packus_epi16[' + IntToStr(LIndex) + ']',
+      LExpectedU8[LIndex], LResult.m128i_u8[LIndex]);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_i16[0] := -500;
+  LA.m128i_i16[1] := -129;
+  LA.m128i_i16[2] := -128;
+  LA.m128i_i16[3] := -1;
+  LA.m128i_i16[4] := 0;
+  LA.m128i_i16[5] := 1;
+  LA.m128i_i16[6] := 127;
+  LA.m128i_i16[7] := 500;
+  LB.m128i_i16[0] := 255;
+  LB.m128i_i16[1] := 256;
+  LB.m128i_i16[2] := 511;
+  LB.m128i_i16[3] := -32768;
+  LB.m128i_i16[4] := 32767;
+  LB.m128i_i16[5] := -200;
+  LB.m128i_i16[6] := 42;
+  LB.m128i_i16[7] := 128;
+
+  for LIndex := 0 to 7 do
+    LExpectedI8[LIndex] := SaturateI16ToI8(LA.m128i_i16[LIndex]);
+  for LIndex := 0 to 7 do
+    LExpectedI8[8 + LIndex] := SaturateI16ToI8(LB.m128i_i16[LIndex]);
+
+  for LIndex := 0 to 7 do
+    LExpectedU8[LIndex] := SaturateI16ToU8(LA.m128i_i16[LIndex]);
+  for LIndex := 0 to 7 do
+    LExpectedU8[8 + LIndex] := SaturateI16ToU8(LB.m128i_i16[LIndex]);
+
+  LResult := simd_packs_epi16(LA, LB);
+  for LIndex := 0 to 15 do
+    AssertEquals('packs_epi16 second[' + IntToStr(LIndex) + ']',
+      LExpectedI8[LIndex], LResult.m128i_i8[LIndex]);
+
+  LResult := simd_packus_epi16(LA, LB);
+  for LIndex := 0 to 15 do
+    AssertEquals('packus_epi16 second[' + IntToStr(LIndex) + ']',
       LExpectedU8[LIndex], LResult.m128i_u8[LIndex]);
 end;
 

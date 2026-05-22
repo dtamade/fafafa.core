@@ -1,5 +1,47 @@
 # SIMD Review Progress
 
+## 2026-05-22 SSE2 Min-Refs=3 Zero-Residual Closeout
+
+- 这批不是新开方向，而是把当时 `sse2_min_refs=3` 剩下的最后 29 个 `refs=2` 残余一次收口；仍然坚持不动 production SIMD 和 coverage checker，只补 experimental testcase witness。
+- 接手前的真实状态：
+  - fresh `python3 tests/fafafa.core.simd/check_intrinsics_coverage.py --summary-line --sse2-min-refs 3`
+    - `thin_required=29`
+  - 剩余薄点清晰分成 4 簇：
+    - `shift` 家族 9 个
+    - `simd_clflush/simd_lfence/simd_mfence/simd_pause` 4 个
+    - `simd_madd_epi16` 1 个
+    - `pack/unpack` 15 个
+- 已落地修改：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 在 `ExpectSlliEpi32/64`、`ExpectSrliEpi16/32/64`、`ExpectSraiEpi16/32/Si128` helper 中补第二组 direct witness
+    - 在 `Test_SlliEpi16_ShiftCounts` 补第二组 source vector + 全 shift-count witness
+    - 在 `Test_StreamAndFenceSurfaceSemantics` 补第三组 `clflush/lfence/mfence/pause` 直接调用
+    - 在 `Test_IntegerMultiplyFamilies_Semantics` 补第二组 `simd_madd_epi16` 输入
+    - 在 `Test_UnpackLaneInterleaving`、`Test_UnpackWideLaneInterleaving`、`Test_PackSaturationSemantics` 补第三组 `pack/unpack` interleave/saturation witness
+- 分段复核结果：
+  - 先收 `shift + helper + madd + fence` 后：
+    - `thin_required: 29 -> 15`
+    - 剩余残余只剩 `pack/unpack`
+  - 再收 `pack/unpack` 后：
+    - `thin_required: 15 -> 0`
+- fresh 验证已完成：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_coverage.py --summary-line --sse2-min-refs 3`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh experimental-intrinsics-tests`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- fresh 结果：
+  - `git diff --check` 通过
+  - 临时 `sse2_min_refs=3` 统计为：
+    - `INTRINSICS_COVERAGE_SUMMARY modules=6 missing_required=0 missing_optional=0 thin_required=0 thin_optional=0 extra=0 strict_extra=0 require_avx2=0 require_experimental=0 sse2_min_refs=3 status=ok`
+  - release `experimental-intrinsics-tests` 默认/experimental 双模式 PASS
+  - release `gate` PASS
+  - gate 默认口径下的 intrinsics coverage 继续保持：
+    - `INTRINSICS_COVERAGE_SUMMARY modules=6 missing_required=0 missing_optional=0 thin_required=0 thin_optional=0 extra=0 strict_extra=0 require_avx2=0 require_experimental=0 sse2_min_refs=2 status=ok`
+- 当前阶段结论：
+  - 当前树上的 `sse2-x86-raw` 已经不只是 canonical `min_refs=2` 全绿
+  - 连更苛刻的 `min_refs=3` scouting 口径也已经 `thin=0`
+  - 这批收的是 witness 厚度，不是 policy 提升；后续是否正式提高 canonical floor，需要另行决策
+
 ## 2026-05-22 SSE2 Cast Roundtrip Witness Thickening
 
 - 这批继续沿 `SSE2 proof-first` 小批次推进，不动实现层，也不改 checker 规则，只补 `cast` 家族的 repeated roundtrip witness。

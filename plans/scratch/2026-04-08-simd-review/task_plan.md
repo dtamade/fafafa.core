@@ -1,5 +1,19 @@
 # SIMD Review Task Plan
 
+## 2026-05-22 SSE2 Min-Refs=3 Zero-Residual Closeout
+
+### Goal
+
+沿 `sse2_min_refs=3` 的 scouting 口径，把当时还剩的全部 `refs=2` residual 一次收平，但仍坚持同一条边界：不改 production SIMD 实现、不改 coverage checker 规则，只在现有 experimental testcase 里补真实 runtime witness。起点 residual 是 `thin=29`，分布在 `shift`、`fence/clflush/pause`、`madd`、`pack/unpack` 四簇；目标是把它们全部收成 `thin=0`。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 收掉 `shift + helper + madd` 残余簇 | completed | 已在现有 shift helper、`Test_SlliEpi16_ShiftCounts`、`Test_StreamAndFenceSurfaceSemantics`、`Test_IntegerMultiplyFamilies_Semantics` 中补第二/第三组 witness，把 residual 从 `29 -> 15` |
+| 2. 收掉 `pack/unpack` 残余簇 | completed | 已在现有 unpack / pack testcase 中补第三组 interleave/saturation witness，把 residual 从 `15 -> 0` |
+| 3. release 验证与 scratch 收口 | completed | `git diff --check`、`sse2_min_refs=3` 定向统计、release `experimental-intrinsics-tests`、release `gate` 全部通过；本批仍只同步 scratch，不改 active maintenance 默认口径 |
+
 ## 2026-05-22 SSE2 Cast Roundtrip Witness Thickening
 
 ### Goal
