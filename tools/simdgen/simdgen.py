@@ -506,6 +506,125 @@ def generate_facade_impl(registry: Registry) -> str:
 
 
 # =============================================================================
+# Audit: parse existing dispatch table and compare
+# =============================================================================
+
+import re
+
+def parse_existing_dispatch_table(dispatch_path: Path) -> dict[str, str]:
+    """Parse existing TSimdDispatchTable fields from dispatch.pas.
+    Returns dict of {field_name: full_signature_line}"""
+    slots = {}
+    pattern = re.compile(r'^\s+(\w+):\s+(function|procedure)\s*(.+);', re.IGNORECASE)
+    with open(dispatch_path) as f:
+        in_record = False
+        for line in f:
+            if 'TSimdDispatchTable = record' in line:
+                in_record = True
+                continue
+            if in_record and line.strip().startswith('end;'):
+                break
+            if in_record:
+                m = pattern.match(line)
+                if m:
+                    field_name = m.group(1)
+                    sig_type = m.group(2).lower()
+                    sig_rest = m.group(3).strip()
+                    slots[field_name] = f"{sig_type}{sig_rest}"
+    return slots
+
+
+def run_audit(registry: Registry):
+    """Compare generated slots against existing dispatch table."""
+    dispatch_path = PROJECT_ROOT / "src" / "fafafa.core.simd.dispatch.pas"
+    if not dispatch_path.exists():
+        print("[AUDIT] ERROR: dispatch.pas not found")
+        return
+
+    existing = parse_existing_dispatch_table(dispatch_path)
+    generated = {}
+    for slot in registry.slots:
+        sig = gen_signature(slot)
+        generated[slot.dispatch_field] = sig
+
+    existing_names = set(existing.keys())
+    generated_names = set(generated.keys())
+
+    matched = existing_names & generated_names
+    missing_from_gen = existing_names - generated_names
+    extra_in_gen = generated_names - existing_names
+
+    # Check signature compatibility for matched slots
+    sig_matches = []
+    sig_mismatches = []
+    for name in sorted(matched):
+        existing_sig = existing[name].rstrip(';').strip()
+        gen_sig = generated[name].rstrip(';').strip()
+        # Normalize for comparison
+        e_norm = re.sub(r'\s+', ' ', existing_sig.lower())
+        g_norm = re.sub(r'\s+', ' ', gen_sig.lower())
+        if e_norm == g_norm:
+            sig_matches.append(name)
+        else:
+            sig_mismatches.append((name, existing[name], generated[name]))
+
+    # Print report
+    print(f"\n{'='*70}")
+    print(f"  SIMD DISPATCH TABLE AUDIT REPORT")
+    print(f"{'='*70}")
+    print(f"\n  Existing slots:  {len(existing_names)}")
+    print(f"  Generated slots: {len(generated_names)}")
+    print(f"  Matched:         {len(matched)} ({len(sig_matches)} compatible, {len(sig_mismatches)} mismatched)")
+    print(f"  Missing (not in simdgen): {len(missing_from_gen)}")
+    print(f"  Extra (in simdgen only):  {len(extra_in_gen)}")
+
+    coverage_pct = len(matched) / len(existing_names) * 100 if existing_names else 0
+    print(f"\n  Coverage: {coverage_pct:.1f}%")
+
+    if sig_mismatches:
+        print(f"\n  --- SIGNATURE MISMATCHES ({len(sig_mismatches)}) ---")
+        for name, e_sig, g_sig in sig_mismatches[:20]:
+            print(f"    {name}:")
+            print(f"      existing:  {e_sig}")
+            print(f"      generated: {g_sig}")
+
+    if missing_from_gen:
+        # Categorize missing slots
+        categories: dict[str, list[str]] = {}
+        for name in sorted(missing_from_gen):
+            # Try to extract operation prefix
+            op = re.sub(r'(F32x4|F32x8|F32x16|F64x2|F64x4|F64x8|I32x4|I32x8|I32x16|'
+                       r'I64x2|I64x4|I64x8|U32x4|U32x8|U32x16|U64x2|U64x4|U64x8|'
+                       r'I16x8|I16x32|I8x16|I8x64|U16x8|U8x16|U8x64|'
+                       r'Mask2|Mask4|Mask8|Mask16|F32x3)$', '', name)
+            if not op:
+                op = name
+            categories.setdefault(op, []).append(name)
+
+        print(f"\n  --- MISSING FROM SIMDGEN ({len(missing_from_gen)}) ---")
+        print(f"  (grouped by operation)")
+        for op in sorted(categories.keys()):
+            slots_list = categories[op]
+            types_str = ', '.join(s.replace(op, '') for s in slots_list[:8])
+            suffix = f" +{len(slots_list)-8} more" if len(slots_list) > 8 else ""
+            print(f"    {op}: [{types_str}{suffix}]")
+
+    if extra_in_gen:
+        print(f"\n  --- EXTRA IN SIMDGEN (not in existing) ({len(extra_in_gen)}) ---")
+        for name in sorted(extra_in_gen)[:20]:
+            print(f"    {name}")
+
+    print(f"\n{'='*70}")
+
+    # Summary line for CI
+    status = "OK" if not sig_mismatches and not extra_in_gen else "DRIFT"
+    print(f"SIMDGEN_AUDIT existing={len(existing_names)} generated={len(generated_names)} "
+          f"matched={len(matched)} compatible={len(sig_matches)} "
+          f"mismatched={len(sig_mismatches)} missing={len(missing_from_gen)} "
+          f"extra={len(extra_in_gen)} coverage={coverage_pct:.1f}% status={status}")
+
+
+# =============================================================================
 # Main
 # =============================================================================
 
@@ -513,6 +632,7 @@ def main():
     verify_mode = "--verify" in sys.argv
     dry_run = "--dry-run" in sys.argv
     sort_by_type = "--sort-by-type" in sys.argv
+    audit_mode = "--audit" in sys.argv
 
     registry = Registry()
     registry.load_all()
@@ -523,6 +643,10 @@ def main():
     print(f"[simdgen] Loaded {len(registry.types)} types, "
           f"{len(registry.operations)} operations, "
           f"{len(registry.slots)} slots")
+
+    if audit_mode:
+        run_audit(registry)
+        return
 
     generators = {
         "fafafa.core.simd.dispatch.slots.inc": generate_dispatch_slots,

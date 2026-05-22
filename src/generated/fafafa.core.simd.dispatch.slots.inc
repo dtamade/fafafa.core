@@ -92,11 +92,6 @@
     CmpLeI32x4: function(const a, b: TVecI32x4): TMask4;
     CmpGeI32x4: function(const a, b: TVecI32x4): TMask4;
     CmpNeI32x4: function(const a, b: TVecI32x4): TMask4;
-    { --- memory --- }
-    LoadI32x4: function(p: PInt32): TVecI32x4;
-    StoreI32x4: procedure(p: PInt32; const a: TVecI32x4);
-    SplatI32x4: function(value: Int32): TVecI32x4;
-    ZeroI32x4: function: TVecI32x4;
     { --- reduction --- }
     ReduceAddI32x4: function(const a: TVecI32x4): Int32;
     ReduceMinI32x4: function(const a: TVecI32x4): Int32;
@@ -122,11 +117,6 @@
     CmpLeI64x2: function(const a, b: TVecI64x2): TMask2;
     CmpGeI64x2: function(const a, b: TVecI64x2): TMask2;
     CmpNeI64x2: function(const a, b: TVecI64x2): TMask2;
-    { --- memory --- }
-    LoadI64x2: function(p: PInt64): TVecI64x2;
-    StoreI64x2: procedure(p: PInt64; const a: TVecI64x2);
-    SplatI64x2: function(value: Int64): TVecI64x2;
-    ZeroI64x2: function: TVecI64x2;
     { --- arithmetic --- }
     AddU32x4: function(const a, b: TVecU32x4): TVecU32x4;
     SubU32x4: function(const a, b: TVecU32x4): TVecU32x4;
@@ -248,11 +238,6 @@
     CmpLeI32x8: function(const a, b: TVecI32x8): TMask8;
     CmpGeI32x8: function(const a, b: TVecI32x8): TMask8;
     CmpNeI32x8: function(const a, b: TVecI32x8): TMask8;
-    { --- memory --- }
-    LoadI32x8: function(p: PInt32): TVecI32x8;
-    StoreI32x8: procedure(p: PInt32; const a: TVecI32x8);
-    SplatI32x8: function(value: Int32): TVecI32x8;
-    ZeroI32x8: function: TVecI32x8;
     { --- reduction --- }
     ReduceAddI32x8: function(const a: TVecI32x8): Int32;
     ReduceMinI32x8: function(const a: TVecI32x8): Int32;
@@ -260,8 +245,6 @@
     { --- arithmetic --- }
     AddI64x4: function(const a, b: TVecI64x4): TVecI64x4;
     SubI64x4: function(const a, b: TVecI64x4): TVecI64x4;
-    MinI64x4: function(const a, b: TVecI64x4): TVecI64x4;
-    MaxI64x4: function(const a, b: TVecI64x4): TVecI64x4;
     { --- bitwise --- }
     AndI64x4: function(const a, b: TVecI64x4): TVecI64x4;
     OrI64x4: function(const a, b: TVecI64x4): TVecI64x4;
@@ -304,15 +287,11 @@
     CmpLeU32x8: function(const a, b: TVecU32x8): TMask8;
     CmpGeU32x8: function(const a, b: TVecU32x8): TMask8;
     CmpNeU32x8: function(const a, b: TVecU32x8): TMask8;
-    { --- arithmetic --- }
-    MinU64x4: function(const a, b: TVecU64x4): TVecU64x4;
-    MaxU64x4: function(const a, b: TVecU64x4): TVecU64x4;
     { --- bitwise --- }
     AndU64x4: function(const a, b: TVecU64x4): TVecU64x4;
     OrU64x4: function(const a, b: TVecU64x4): TVecU64x4;
     XorU64x4: function(const a, b: TVecU64x4): TVecU64x4;
     NotU64x4: function(const a: TVecU64x4): TVecU64x4;
-    AndNotU64x4: function(const a, b: TVecU64x4): TVecU64x4;
     { --- comparison --- }
     CmpEqU64x4: function(const a, b: TVecU64x4): TMask4;
     CmpLtU64x4: function(const a, b: TVecU64x4): TMask4;
@@ -328,12 +307,12 @@
     MinF32x16: function(const a, b: TVecF32x16): TVecF32x16;
     MaxF32x16: function(const a, b: TVecF32x16): TVecF32x16;
     { --- comparison --- }
-    CmpEqF32x16: function(const a, b: TVecF32x16): TMaskF32x16;
-    CmpLtF32x16: function(const a, b: TVecF32x16): TMaskF32x16;
-    CmpGtF32x16: function(const a, b: TVecF32x16): TMaskF32x16;
-    CmpLeF32x16: function(const a, b: TVecF32x16): TMaskF32x16;
-    CmpGeF32x16: function(const a, b: TVecF32x16): TMaskF32x16;
-    CmpNeF32x16: function(const a, b: TVecF32x16): TMaskF32x16;
+    CmpEqF32x16: function(const a, b: TVecF32x16): TMask16;
+    CmpLtF32x16: function(const a, b: TVecF32x16): TMask16;
+    CmpGtF32x16: function(const a, b: TVecF32x16): TMask16;
+    CmpLeF32x16: function(const a, b: TVecF32x16): TMask16;
+    CmpGeF32x16: function(const a, b: TVecF32x16): TMask16;
+    CmpNeF32x16: function(const a, b: TVecF32x16): TMask16;
     { --- math --- }
     AbsF32x16: function(const a: TVecF32x16): TVecF32x16;
     SqrtF32x16: function(const a: TVecF32x16): TVecF32x16;
@@ -404,22 +383,14 @@
     CmpLeI32x16: function(const a, b: TVecI32x16): TMask16;
     CmpGeI32x16: function(const a, b: TVecI32x16): TMask16;
     CmpNeI32x16: function(const a, b: TVecI32x16): TMask16;
-    { --- memory --- }
-    LoadI32x16: function(p: PInt32): TVecI32x16;
-    StoreI32x16: procedure(p: PInt32; const a: TVecI32x16);
-    SplatI32x16: function(value: Int32): TVecI32x16;
-    ZeroI32x16: function: TVecI32x16;
     { --- arithmetic --- }
     AddI64x8: function(const a, b: TVecI64x8): TVecI64x8;
     SubI64x8: function(const a, b: TVecI64x8): TVecI64x8;
-    MinI64x8: function(const a, b: TVecI64x8): TVecI64x8;
-    MaxI64x8: function(const a, b: TVecI64x8): TVecI64x8;
     { --- bitwise --- }
     AndI64x8: function(const a, b: TVecI64x8): TVecI64x8;
     OrI64x8: function(const a, b: TVecI64x8): TVecI64x8;
     XorI64x8: function(const a, b: TVecI64x8): TVecI64x8;
     NotI64x8: function(const a: TVecI64x8): TVecI64x8;
-    AndNotI64x8: function(const a, b: TVecI64x8): TVecI64x8;
     ShiftLeftI64x8: function(const a: TVecI64x8; count: Integer): TVecI64x8;
     ShiftRightI64x8: function(const a: TVecI64x8; count: Integer): TVecI64x8;
     ShiftRightArithI64x8: function(const a: TVecI64x8; count: Integer): TVecI64x8;
@@ -430,11 +401,6 @@
     CmpLeI64x8: function(const a, b: TVecI64x8): TMask8;
     CmpGeI64x8: function(const a, b: TVecI64x8): TMask8;
     CmpNeI64x8: function(const a, b: TVecI64x8): TMask8;
-    { --- memory --- }
-    LoadI64x8: function(p: PInt64): TVecI64x8;
-    StoreI64x8: procedure(p: PInt64; const a: TVecI64x8);
-    SplatI64x8: function(value: Int64): TVecI64x8;
-    ZeroI64x8: function: TVecI64x8;
     { --- arithmetic --- }
     MinU32x16: function(const a, b: TVecU32x16): TVecU32x16;
     MaxU32x16: function(const a, b: TVecU32x16): TVecU32x16;
@@ -453,15 +419,11 @@
     CmpLeU32x16: function(const a, b: TVecU32x16): TMask16;
     CmpGeU32x16: function(const a, b: TVecU32x16): TMask16;
     CmpNeU32x16: function(const a, b: TVecU32x16): TMask16;
-    { --- arithmetic --- }
-    MinU64x8: function(const a, b: TVecU64x8): TVecU64x8;
-    MaxU64x8: function(const a, b: TVecU64x8): TVecU64x8;
     { --- bitwise --- }
     AndU64x8: function(const a, b: TVecU64x8): TVecU64x8;
     OrU64x8: function(const a, b: TVecU64x8): TVecU64x8;
     XorU64x8: function(const a, b: TVecU64x8): TVecU64x8;
     NotU64x8: function(const a: TVecU64x8): TVecU64x8;
-    AndNotU64x8: function(const a, b: TVecU64x8): TVecU64x8;
     { --- comparison --- }
     CmpEqU64x8: function(const a, b: TVecU64x8): TMask8;
     CmpLtU64x8: function(const a, b: TVecU64x8): TMask8;

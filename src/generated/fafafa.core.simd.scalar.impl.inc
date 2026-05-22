@@ -545,32 +545,6 @@ begin
       Result := Result or (TMask4(1) shl i);
 end;
 
-function ScalarLoadI32x4(p: PInt32): TVecI32x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result.i[i] := p[i];
-end;
-
-procedure ScalarStoreI32x4(p: PInt32; const a: TVecI32x4);
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    p[i] := a.i[i];
-end;
-
-function ScalarSplatI32x4(value: Int32): TVecI32x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result.i[i] := value;
-end;
-
-function ScalarZeroI32x4: TVecI32x4;
-begin
-  FillChar(Result, SizeOf(Result), 0);
-end;
-
 function ScalarReduceAddI32x4(const a: TVecI32x4): Int32;
 var i: Integer;
 begin
@@ -731,32 +705,6 @@ begin
   for i := 0 to 1 do
     if a.i[i] <> b.i[i] then
       Result := Result or (TMask2(1) shl i);
-end;
-
-function ScalarLoadI64x2(p: PInt64): TVecI64x2;
-var i: Integer;
-begin
-  for i := 0 to 1 do
-    Result.i[i] := p[i];
-end;
-
-procedure ScalarStoreI64x2(p: PInt64; const a: TVecI64x2);
-var i: Integer;
-begin
-  for i := 0 to 1 do
-    p[i] := a.i[i];
-end;
-
-function ScalarSplatI64x2(value: Int64): TVecI64x2;
-var i: Integer;
-begin
-  for i := 0 to 1 do
-    Result.i[i] := value;
-end;
-
-function ScalarZeroI64x2: TVecI64x2;
-begin
-  FillChar(Result, SizeOf(Result), 0);
 end;
 
 function ScalarAddU32x4(const a, b: TVecU32x4): TVecU32x4;
@@ -1537,32 +1485,6 @@ begin
       Result := Result or (TMask8(1) shl i);
 end;
 
-function ScalarLoadI32x8(p: PInt32): TVecI32x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    Result.i[i] := p[i];
-end;
-
-procedure ScalarStoreI32x8(p: PInt32; const a: TVecI32x8);
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    p[i] := a.i[i];
-end;
-
-function ScalarSplatI32x8(value: Int32): TVecI32x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    Result.i[i] := value;
-end;
-
-function ScalarZeroI32x8: TVecI32x8;
-begin
-  FillChar(Result, SizeOf(Result), 0);
-end;
-
 function ScalarReduceAddI32x8(const a: TVecI32x8): Int32;
 var i: Integer;
 begin
@@ -1599,20 +1521,6 @@ var i: Integer;
 begin
   for i := 0 to 3 do
     Result.i[i] := a.i[i] - b.i[i];
-end;
-
-function ScalarMinI64x4(const a, b: TVecI64x4): TVecI64x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    if a.i[i] < b.i[i] then Result.i[i] := a.i[i] else Result.i[i] := b.i[i];
-end;
-
-function ScalarMaxI64x4(const a, b: TVecI64x4): TVecI64x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    if a.i[i] > b.i[i] then Result.i[i] := a.i[i] else Result.i[i] := b.i[i];
 end;
 
 function ScalarAndI64x4(const a, b: TVecI64x4): TVecI64x4;
@@ -1889,20 +1797,6 @@ begin
       Result := Result or (TMask8(1) shl i);
 end;
 
-function ScalarMinU64x4(const a, b: TVecU64x4): TVecU64x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    if a.u[i] < b.u[i] then Result.u[i] := a.u[i] else Result.u[i] := b.u[i];
-end;
-
-function ScalarMaxU64x4(const a, b: TVecU64x4): TVecU64x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    if a.u[i] > b.u[i] then Result.u[i] := a.u[i] else Result.u[i] := b.u[i];
-end;
-
 function ScalarAndU64x4(const a, b: TVecU64x4): TVecU64x4;
 var i: Integer;
 begin
@@ -1929,13 +1823,6 @@ var i: Integer;
 begin
   for i := 0 to 3 do
     Result.u[i] := not a.u[i];
-end;
-
-function ScalarAndNotU64x4(const a, b: TVecU64x4): TVecU64x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result.u[i] := (not a.u[i]) and b.u[i];
 end;
 
 function ScalarCmpEqU64x4(const a, b: TVecU64x4): TMask4;
@@ -2034,58 +1921,58 @@ begin
     if a.f[i] > b.f[i] then Result.f[i] := a.f[i] else Result.f[i] := b.f[i];
 end;
 
-function ScalarCmpEqF32x16(const a, b: TVecF32x16): TMaskF32x16;
+function ScalarCmpEqF32x16(const a, b: TVecF32x16): TMask16;
 var i: Integer;
 begin
   Result := 0;
   for i := 0 to 15 do
     if a.f[i] = b.f[i] then
-      Result := Result or (TMaskF32x16(1) shl i);
+      Result := Result or (TMask16(1) shl i);
 end;
 
-function ScalarCmpLtF32x16(const a, b: TVecF32x16): TMaskF32x16;
+function ScalarCmpLtF32x16(const a, b: TVecF32x16): TMask16;
 var i: Integer;
 begin
   Result := 0;
   for i := 0 to 15 do
     if a.f[i] < b.f[i] then
-      Result := Result or (TMaskF32x16(1) shl i);
+      Result := Result or (TMask16(1) shl i);
 end;
 
-function ScalarCmpGtF32x16(const a, b: TVecF32x16): TMaskF32x16;
+function ScalarCmpGtF32x16(const a, b: TVecF32x16): TMask16;
 var i: Integer;
 begin
   Result := 0;
   for i := 0 to 15 do
     if a.f[i] > b.f[i] then
-      Result := Result or (TMaskF32x16(1) shl i);
+      Result := Result or (TMask16(1) shl i);
 end;
 
-function ScalarCmpLeF32x16(const a, b: TVecF32x16): TMaskF32x16;
+function ScalarCmpLeF32x16(const a, b: TVecF32x16): TMask16;
 var i: Integer;
 begin
   Result := 0;
   for i := 0 to 15 do
     if a.f[i] <= b.f[i] then
-      Result := Result or (TMaskF32x16(1) shl i);
+      Result := Result or (TMask16(1) shl i);
 end;
 
-function ScalarCmpGeF32x16(const a, b: TVecF32x16): TMaskF32x16;
+function ScalarCmpGeF32x16(const a, b: TVecF32x16): TMask16;
 var i: Integer;
 begin
   Result := 0;
   for i := 0 to 15 do
     if a.f[i] >= b.f[i] then
-      Result := Result or (TMaskF32x16(1) shl i);
+      Result := Result or (TMask16(1) shl i);
 end;
 
-function ScalarCmpNeF32x16(const a, b: TVecF32x16): TMaskF32x16;
+function ScalarCmpNeF32x16(const a, b: TVecF32x16): TMask16;
 var i: Integer;
 begin
   Result := 0;
   for i := 0 to 15 do
     if a.f[i] <> b.f[i] then
-      Result := Result or (TMaskF32x16(1) shl i);
+      Result := Result or (TMask16(1) shl i);
 end;
 
 function ScalarAbsF32x16(const a: TVecF32x16): TVecF32x16;
@@ -2529,32 +2416,6 @@ begin
       Result := Result or (TMask16(1) shl i);
 end;
 
-function ScalarLoadI32x16(p: PInt32): TVecI32x16;
-var i: Integer;
-begin
-  for i := 0 to 15 do
-    Result.i[i] := p[i];
-end;
-
-procedure ScalarStoreI32x16(p: PInt32; const a: TVecI32x16);
-var i: Integer;
-begin
-  for i := 0 to 15 do
-    p[i] := a.i[i];
-end;
-
-function ScalarSplatI32x16(value: Int32): TVecI32x16;
-var i: Integer;
-begin
-  for i := 0 to 15 do
-    Result.i[i] := value;
-end;
-
-function ScalarZeroI32x16: TVecI32x16;
-begin
-  FillChar(Result, SizeOf(Result), 0);
-end;
-
 function ScalarAddI64x8(const a, b: TVecI64x8): TVecI64x8;
 var i: Integer;
 begin
@@ -2567,20 +2428,6 @@ var i: Integer;
 begin
   for i := 0 to 7 do
     Result.i[i] := a.i[i] - b.i[i];
-end;
-
-function ScalarMinI64x8(const a, b: TVecI64x8): TVecI64x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    if a.i[i] < b.i[i] then Result.i[i] := a.i[i] else Result.i[i] := b.i[i];
-end;
-
-function ScalarMaxI64x8(const a, b: TVecI64x8): TVecI64x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    if a.i[i] > b.i[i] then Result.i[i] := a.i[i] else Result.i[i] := b.i[i];
 end;
 
 function ScalarAndI64x8(const a, b: TVecI64x8): TVecI64x8;
@@ -2609,13 +2456,6 @@ var i: Integer;
 begin
   for i := 0 to 7 do
     Result.i[i] := not a.i[i];
-end;
-
-function ScalarAndNotI64x8(const a, b: TVecI64x8): TVecI64x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    Result.i[i] := (not a.i[i]) and b.i[i];
 end;
 
 function ScalarShiftLeftI64x8(const a: TVecI64x8; count: Integer): TVecI64x8;
@@ -2691,32 +2531,6 @@ begin
   for i := 0 to 7 do
     if a.i[i] <> b.i[i] then
       Result := Result or (TMask8(1) shl i);
-end;
-
-function ScalarLoadI64x8(p: PInt64): TVecI64x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    Result.i[i] := p[i];
-end;
-
-procedure ScalarStoreI64x8(p: PInt64; const a: TVecI64x8);
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    p[i] := a.i[i];
-end;
-
-function ScalarSplatI64x8(value: Int64): TVecI64x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    Result.i[i] := value;
-end;
-
-function ScalarZeroI64x8: TVecI64x8;
-begin
-  FillChar(Result, SizeOf(Result), 0);
 end;
 
 function ScalarMinU32x16(const a, b: TVecU32x16): TVecU32x16;
@@ -2836,20 +2650,6 @@ begin
       Result := Result or (TMask16(1) shl i);
 end;
 
-function ScalarMinU64x8(const a, b: TVecU64x8): TVecU64x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    if a.u[i] < b.u[i] then Result.u[i] := a.u[i] else Result.u[i] := b.u[i];
-end;
-
-function ScalarMaxU64x8(const a, b: TVecU64x8): TVecU64x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    if a.u[i] > b.u[i] then Result.u[i] := a.u[i] else Result.u[i] := b.u[i];
-end;
-
 function ScalarAndU64x8(const a, b: TVecU64x8): TVecU64x8;
 var i: Integer;
 begin
@@ -2876,13 +2676,6 @@ var i: Integer;
 begin
   for i := 0 to 7 do
     Result.u[i] := not a.u[i];
-end;
-
-function ScalarAndNotU64x8(const a, b: TVecU64x8): TVecU64x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    Result.u[i] := (not a.u[i]) and b.u[i];
 end;
 
 function ScalarCmpEqU64x8(const a, b: TVecU64x8): TMask8;

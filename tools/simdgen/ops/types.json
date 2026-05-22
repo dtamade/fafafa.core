@@ -28,7 +28,7 @@
       "field": "f",
       "lanes": 16,
       "width": 512,
-      "mask": "TMaskF32x16",
+      "mask": "TMask16",
       "ptr": "PSingle",
       "category": "float",
       "decompose": ["F32x8", "F32x8"]

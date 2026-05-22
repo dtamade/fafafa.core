@@ -150,14 +150,6 @@ function VecI32x4CmpLe(const a, b: TVecI32x4): TMask4; inline;
 function VecI32x4CmpGe(const a, b: TVecI32x4): TMask4; inline;
 { Not-equal comparison: I32x4 }
 function VecI32x4CmpNe(const a, b: TVecI32x4): TMask4; inline;
-{ Load vector from unaligned memory: I32x4 }
-function VecI32x4Load(p: PInt32): TVecI32x4; inline;
-{ Store vector to unaligned memory: I32x4 }
-procedure VecI32x4Store(p: PInt32; const a: TVecI32x4); inline;
-{ Broadcast scalar to all lanes: I32x4 }
-function VecI32x4Splat(value: Int32): TVecI32x4; inline;
-{ Return zero vector: I32x4 }
-function VecI32x4Zero: TVecI32x4; inline;
 { Horizontal sum of all lanes: I32x4 }
 function VecI32x4ReduceAdd(const a: TVecI32x4): Int32; inline;
 { Minimum across all lanes: I32x4 }
@@ -200,14 +192,6 @@ function VecI64x2CmpLe(const a, b: TVecI64x2): TMask2; inline;
 function VecI64x2CmpGe(const a, b: TVecI64x2): TMask2; inline;
 { Not-equal comparison: I64x2 }
 function VecI64x2CmpNe(const a, b: TVecI64x2): TMask2; inline;
-{ Load vector from unaligned memory: I64x2 }
-function VecI64x2Load(p: PInt64): TVecI64x2; inline;
-{ Store vector to unaligned memory: I64x2 }
-procedure VecI64x2Store(p: PInt64; const a: TVecI64x2); inline;
-{ Broadcast scalar to all lanes: I64x2 }
-function VecI64x2Splat(value: Int64): TVecI64x2; inline;
-{ Return zero vector: I64x2 }
-function VecI64x2Zero: TVecI64x2; inline;
 { Element-wise addition: U32x4 }
 function VecU32x4Add(const a, b: TVecU32x4): TVecU32x4; inline;
 { Element-wise subtraction: U32x4 }
@@ -412,14 +396,6 @@ function VecI32x8CmpLe(const a, b: TVecI32x8): TMask8; inline;
 function VecI32x8CmpGe(const a, b: TVecI32x8): TMask8; inline;
 { Not-equal comparison: I32x8 }
 function VecI32x8CmpNe(const a, b: TVecI32x8): TMask8; inline;
-{ Load vector from unaligned memory: I32x8 }
-function VecI32x8Load(p: PInt32): TVecI32x8; inline;
-{ Store vector to unaligned memory: I32x8 }
-procedure VecI32x8Store(p: PInt32; const a: TVecI32x8); inline;
-{ Broadcast scalar to all lanes: I32x8 }
-function VecI32x8Splat(value: Int32): TVecI32x8; inline;
-{ Return zero vector: I32x8 }
-function VecI32x8Zero: TVecI32x8; inline;
 { Horizontal sum of all lanes: I32x8 }
 function VecI32x8ReduceAdd(const a: TVecI32x8): Int32; inline;
 { Minimum across all lanes: I32x8 }
@@ -430,10 +406,6 @@ function VecI32x8ReduceMax(const a: TVecI32x8): Int32; inline;
 function VecI64x4Add(const a, b: TVecI64x4): TVecI64x4; inline;
 { Element-wise subtraction: I64x4 }
 function VecI64x4Sub(const a, b: TVecI64x4): TVecI64x4; inline;
-{ Element-wise minimum: I64x4 }
-function VecI64x4Min(const a, b: TVecI64x4): TVecI64x4; inline;
-{ Element-wise maximum: I64x4 }
-function VecI64x4Max(const a, b: TVecI64x4): TVecI64x4; inline;
 { Bitwise AND: I64x4 }
 function VecI64x4And(const a, b: TVecI64x4): TVecI64x4; inline;
 { Bitwise OR: I64x4 }
@@ -506,10 +478,6 @@ function VecU32x8CmpLe(const a, b: TVecU32x8): TMask8; inline;
 function VecU32x8CmpGe(const a, b: TVecU32x8): TMask8; inline;
 { Not-equal comparison: U32x8 }
 function VecU32x8CmpNe(const a, b: TVecU32x8): TMask8; inline;
-{ Element-wise minimum: U64x4 }
-function VecU64x4Min(const a, b: TVecU64x4): TVecU64x4; inline;
-{ Element-wise maximum: U64x4 }
-function VecU64x4Max(const a, b: TVecU64x4): TVecU64x4; inline;
 { Bitwise AND: U64x4 }
 function VecU64x4And(const a, b: TVecU64x4): TVecU64x4; inline;
 { Bitwise OR: U64x4 }
@@ -518,8 +486,6 @@ function VecU64x4Or(const a, b: TVecU64x4): TVecU64x4; inline;
 function VecU64x4Xor(const a, b: TVecU64x4): TVecU64x4; inline;
 { Bitwise NOT: U64x4 }
 function VecU64x4Not(const a: TVecU64x4): TVecU64x4; inline;
-{ Bitwise AND-NOT: (~a) & b: U64x4 }
-function VecU64x4AndNot(const a, b: TVecU64x4): TVecU64x4; inline;
 { Equal comparison, returns bitmask: U64x4 }
 function VecU64x4CmpEq(const a, b: TVecU64x4): TMask4; inline;
 { Less-than comparison: U64x4 }
@@ -545,17 +511,17 @@ function VecF32x16Min(const a, b: TVecF32x16): TVecF32x16; inline;
 { Element-wise maximum: F32x16 }
 function VecF32x16Max(const a, b: TVecF32x16): TVecF32x16; inline;
 { Equal comparison, returns bitmask: F32x16 }
-function VecF32x16CmpEq(const a, b: TVecF32x16): TMaskF32x16; inline;
+function VecF32x16CmpEq(const a, b: TVecF32x16): TMask16; inline;
 { Less-than comparison: F32x16 }
-function VecF32x16CmpLt(const a, b: TVecF32x16): TMaskF32x16; inline;
+function VecF32x16CmpLt(const a, b: TVecF32x16): TMask16; inline;
 { Greater-than comparison: F32x16 }
-function VecF32x16CmpGt(const a, b: TVecF32x16): TMaskF32x16; inline;
+function VecF32x16CmpGt(const a, b: TVecF32x16): TMask16; inline;
 { Less-or-equal comparison: F32x16 }
-function VecF32x16CmpLe(const a, b: TVecF32x16): TMaskF32x16; inline;
+function VecF32x16CmpLe(const a, b: TVecF32x16): TMask16; inline;
 { Greater-or-equal comparison: F32x16 }
-function VecF32x16CmpGe(const a, b: TVecF32x16): TMaskF32x16; inline;
+function VecF32x16CmpGe(const a, b: TVecF32x16): TMask16; inline;
 { Not-equal comparison: F32x16 }
-function VecF32x16CmpNe(const a, b: TVecF32x16): TMaskF32x16; inline;
+function VecF32x16CmpNe(const a, b: TVecF32x16): TMask16; inline;
 { Absolute value: F32x16 }
 function VecF32x16Abs(const a: TVecF32x16): TVecF32x16; inline;
 { Square root: F32x16 }
@@ -674,22 +640,10 @@ function VecI32x16CmpLe(const a, b: TVecI32x16): TMask16; inline;
 function VecI32x16CmpGe(const a, b: TVecI32x16): TMask16; inline;
 { Not-equal comparison: I32x16 }
 function VecI32x16CmpNe(const a, b: TVecI32x16): TMask16; inline;
-{ Load vector from unaligned memory: I32x16 }
-function VecI32x16Load(p: PInt32): TVecI32x16; inline;
-{ Store vector to unaligned memory: I32x16 }
-procedure VecI32x16Store(p: PInt32; const a: TVecI32x16); inline;
-{ Broadcast scalar to all lanes: I32x16 }
-function VecI32x16Splat(value: Int32): TVecI32x16; inline;
-{ Return zero vector: I32x16 }
-function VecI32x16Zero: TVecI32x16; inline;
 { Element-wise addition: I64x8 }
 function VecI64x8Add(const a, b: TVecI64x8): TVecI64x8; inline;
 { Element-wise subtraction: I64x8 }
 function VecI64x8Sub(const a, b: TVecI64x8): TVecI64x8; inline;
-{ Element-wise minimum: I64x8 }
-function VecI64x8Min(const a, b: TVecI64x8): TVecI64x8; inline;
-{ Element-wise maximum: I64x8 }
-function VecI64x8Max(const a, b: TVecI64x8): TVecI64x8; inline;
 { Bitwise AND: I64x8 }
 function VecI64x8And(const a, b: TVecI64x8): TVecI64x8; inline;
 { Bitwise OR: I64x8 }
@@ -698,8 +652,6 @@ function VecI64x8Or(const a, b: TVecI64x8): TVecI64x8; inline;
 function VecI64x8Xor(const a, b: TVecI64x8): TVecI64x8; inline;
 { Bitwise NOT: I64x8 }
 function VecI64x8Not(const a: TVecI64x8): TVecI64x8; inline;
-{ Bitwise AND-NOT: (~a) & b: I64x8 }
-function VecI64x8AndNot(const a, b: TVecI64x8): TVecI64x8; inline;
 { Logical shift left by count bits: I64x8 }
 function VecI64x8ShiftLeft(const a: TVecI64x8; count: Integer): TVecI64x8; inline;
 { Logical shift right by count bits: I64x8 }
@@ -718,14 +670,6 @@ function VecI64x8CmpLe(const a, b: TVecI64x8): TMask8; inline;
 function VecI64x8CmpGe(const a, b: TVecI64x8): TMask8; inline;
 { Not-equal comparison: I64x8 }
 function VecI64x8CmpNe(const a, b: TVecI64x8): TMask8; inline;
-{ Load vector from unaligned memory: I64x8 }
-function VecI64x8Load(p: PInt64): TVecI64x8; inline;
-{ Store vector to unaligned memory: I64x8 }
-procedure VecI64x8Store(p: PInt64; const a: TVecI64x8); inline;
-{ Broadcast scalar to all lanes: I64x8 }
-function VecI64x8Splat(value: Int64): TVecI64x8; inline;
-{ Return zero vector: I64x8 }
-function VecI64x8Zero: TVecI64x8; inline;
 { Element-wise minimum: U32x16 }
 function VecU32x16Min(const a, b: TVecU32x16): TVecU32x16; inline;
 { Element-wise maximum: U32x16 }
@@ -756,10 +700,6 @@ function VecU32x16CmpLe(const a, b: TVecU32x16): TMask16; inline;
 function VecU32x16CmpGe(const a, b: TVecU32x16): TMask16; inline;
 { Not-equal comparison: U32x16 }
 function VecU32x16CmpNe(const a, b: TVecU32x16): TMask16; inline;
-{ Element-wise minimum: U64x8 }
-function VecU64x8Min(const a, b: TVecU64x8): TVecU64x8; inline;
-{ Element-wise maximum: U64x8 }
-function VecU64x8Max(const a, b: TVecU64x8): TVecU64x8; inline;
 { Bitwise AND: U64x8 }
 function VecU64x8And(const a, b: TVecU64x8): TVecU64x8; inline;
 { Bitwise OR: U64x8 }
@@ -768,8 +708,6 @@ function VecU64x8Or(const a, b: TVecU64x8): TVecU64x8; inline;
 function VecU64x8Xor(const a, b: TVecU64x8): TVecU64x8; inline;
 { Bitwise NOT: U64x8 }
 function VecU64x8Not(const a: TVecU64x8): TVecU64x8; inline;
-{ Bitwise AND-NOT: (~a) & b: U64x8 }
-function VecU64x8AndNot(const a, b: TVecU64x8): TVecU64x8; inline;
 { Equal comparison, returns bitmask: U64x8 }
 function VecU64x8CmpEq(const a, b: TVecU64x8): TMask8; inline;
 { Less-than comparison: U64x8 }
