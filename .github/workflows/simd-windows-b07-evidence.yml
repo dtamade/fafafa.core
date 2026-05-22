@@ -3,6 +3,12 @@ name: SIMD Windows B07 Evidence
 on:
   workflow_dispatch:
   workflow_call:
+  push:
+    branches: [main]
+    paths:
+      - 'src/fafafa.core.simd*.pas'
+      - 'src/fafafa.core.simd*.inc'
+      - 'tests/fafafa.core.simd/**'
 
 permissions:
   contents: read
