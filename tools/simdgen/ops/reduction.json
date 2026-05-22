@@ -9,8 +9,7 @@
       "doc": "Horizontal sum of all lanes",
       "applies_to": [
         "F32x4", "F32x8", "F32x16",
-        "F64x2", "F64x4", "F64x8",
-        "I32x4", "I32x8"
+        "F64x2", "F64x4", "F64x8"
       ]
     },
     {
@@ -20,8 +19,7 @@
       "doc": "Minimum across all lanes",
       "applies_to": [
         "F32x4", "F32x8", "F32x16",
-        "F64x2", "F64x4", "F64x8",
-        "I32x4", "I32x8"
+        "F64x2", "F64x4", "F64x8"
       ]
     },
     {
@@ -31,8 +29,7 @@
       "doc": "Maximum across all lanes",
       "applies_to": [
         "F32x4", "F32x8", "F32x16",
-        "F64x2", "F64x4", "F64x8",
-        "I32x4", "I32x8"
+        "F64x2", "F64x4", "F64x8"
       ]
     },
     {

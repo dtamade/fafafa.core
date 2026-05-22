@@ -121,10 +121,6 @@
     CmpLeI32x4: function(const a, b: TVecI32x4): TMask4;
     CmpGeI32x4: function(const a, b: TVecI32x4): TMask4;
     CmpNeI32x4: function(const a, b: TVecI32x4): TMask4;
-    { --- reduction --- }
-    ReduceAddI32x4: function(const a: TVecI32x4): Int32;
-    ReduceMinI32x4: function(const a: TVecI32x4): Int32;
-    ReduceMaxI32x4: function(const a: TVecI32x4): Int32;
     { --- arithmetic --- }
     AddI64x2: function(const a, b: TVecI64x2): TVecI64x2;
     SubI64x2: function(const a, b: TVecI64x2): TVecI64x2;
@@ -198,7 +194,6 @@
     CmpGtU32x4: function(const a, b: TVecU32x4): TMask4;
     CmpLeU32x4: function(const a, b: TVecU32x4): TMask4;
     CmpGeU32x4: function(const a, b: TVecU32x4): TMask4;
-    CmpNeU32x4: function(const a, b: TVecU32x4): TMask4;
     { --- arithmetic --- }
     MinU64x2: function(const a, b: TVecU64x2): TVecU64x2;
     MaxU64x2: function(const a, b: TVecU64x2): TVecU64x2;
@@ -212,9 +207,6 @@
     CmpEqU64x2: function(const a, b: TVecU64x2): TMask2;
     CmpLtU64x2: function(const a, b: TVecU64x2): TMask2;
     CmpGtU64x2: function(const a, b: TVecU64x2): TMask2;
-    CmpLeU64x2: function(const a, b: TVecU64x2): TMask2;
-    CmpGeU64x2: function(const a, b: TVecU64x2): TMask2;
-    CmpNeU64x2: function(const a, b: TVecU64x2): TMask2;
     { --- narrow_integer --- }
     AddU64x2: function(const a, b: TVecU64x2): TVecU64x2;
     SubU64x2: function(const a, b: TVecU64x2): TVecU64x2;
@@ -325,10 +317,6 @@
     CmpLeI32x8: function(const a, b: TVecI32x8): TMask8;
     CmpGeI32x8: function(const a, b: TVecI32x8): TMask8;
     CmpNeI32x8: function(const a, b: TVecI32x8): TMask8;
-    { --- reduction --- }
-    ReduceAddI32x8: function(const a: TVecI32x8): Int32;
-    ReduceMinI32x8: function(const a: TVecI32x8): Int32;
-    ReduceMaxI32x8: function(const a: TVecI32x8): Int32;
     { --- arithmetic --- }
     AddI64x4: function(const a, b: TVecI64x4): TVecI64x4;
     SubI64x4: function(const a, b: TVecI64x4): TVecI64x4;
@@ -489,9 +477,6 @@
     OrI64x8: function(const a, b: TVecI64x8): TVecI64x8;
     XorI64x8: function(const a, b: TVecI64x8): TVecI64x8;
     NotI64x8: function(const a: TVecI64x8): TVecI64x8;
-    ShiftLeftI64x8: function(const a: TVecI64x8; count: Integer): TVecI64x8;
-    ShiftRightI64x8: function(const a: TVecI64x8; count: Integer): TVecI64x8;
-    ShiftRightArithI64x8: function(const a: TVecI64x8; count: Integer): TVecI64x8;
     { --- comparison --- }
     CmpEqI64x8: function(const a, b: TVecI64x8): TMask8;
     CmpLtI64x8: function(const a, b: TVecI64x8): TMask8;

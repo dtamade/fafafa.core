@@ -70,7 +70,7 @@
       "doc": "Logical shift left by count bits",
       "applies_to": [
         "I32x4", "I32x8", "I32x16",
-        "I64x2", "I64x4", "I64x8",
+        "I64x2", "I64x4",
         "U32x4", "U32x8", "U32x16"
       ]
     },
@@ -81,7 +81,7 @@
       "doc": "Logical shift right by count bits",
       "applies_to": [
         "I32x4", "I32x8", "I32x16",
-        "I64x2", "I64x4", "I64x8",
+        "I64x2", "I64x4",
         "U32x4", "U32x8", "U32x16"
       ]
     },
@@ -93,7 +93,7 @@
       "doc": "Arithmetic shift right (sign-extending)",
       "applies_to": [
         "I32x4", "I32x8", "I32x16",
-        "I64x2", "I64x4", "I64x8"
+        "I64x2", "I64x4"
       ]
     }
   ]

@@ -105,9 +105,6 @@
   aTable.CmpLeI32x4 := @ScalarCmpLeI32x4;
   aTable.CmpGeI32x4 := @ScalarCmpGeI32x4;
   aTable.CmpNeI32x4 := @ScalarCmpNeI32x4;
-  aTable.ReduceAddI32x4 := @ScalarReduceAddI32x4;
-  aTable.ReduceMinI32x4 := @ScalarReduceMinI32x4;
-  aTable.ReduceMaxI32x4 := @ScalarReduceMaxI32x4;
   aTable.AddI64x2 := @ScalarAddI64x2;
   aTable.SubI64x2 := @ScalarSubI64x2;
   aTable.MinI64x2 := @ScalarMinI64x2;
@@ -174,7 +171,6 @@
   aTable.CmpGtU32x4 := @ScalarCmpGtU32x4;
   aTable.CmpLeU32x4 := @ScalarCmpLeU32x4;
   aTable.CmpGeU32x4 := @ScalarCmpGeU32x4;
-  aTable.CmpNeU32x4 := @ScalarCmpNeU32x4;
   aTable.MinU64x2 := @ScalarMinU64x2;
   aTable.MaxU64x2 := @ScalarMaxU64x2;
   aTable.AndU64x2 := @ScalarAndU64x2;
@@ -185,9 +181,6 @@
   aTable.CmpEqU64x2 := @ScalarCmpEqU64x2;
   aTable.CmpLtU64x2 := @ScalarCmpLtU64x2;
   aTable.CmpGtU64x2 := @ScalarCmpGtU64x2;
-  aTable.CmpLeU64x2 := @ScalarCmpLeU64x2;
-  aTable.CmpGeU64x2 := @ScalarCmpGeU64x2;
-  aTable.CmpNeU64x2 := @ScalarCmpNeU64x2;
   aTable.AddU64x2 := @ScalarAddU64x2;
   aTable.SubU64x2 := @ScalarSubU64x2;
   aTable.AddU8x16 := @ScalarAddU8x16;
@@ -282,9 +275,6 @@
   aTable.CmpLeI32x8 := @ScalarCmpLeI32x8;
   aTable.CmpGeI32x8 := @ScalarCmpGeI32x8;
   aTable.CmpNeI32x8 := @ScalarCmpNeI32x8;
-  aTable.ReduceAddI32x8 := @ScalarReduceAddI32x8;
-  aTable.ReduceMinI32x8 := @ScalarReduceMinI32x8;
-  aTable.ReduceMaxI32x8 := @ScalarReduceMaxI32x8;
   aTable.AddI64x4 := @ScalarAddI64x4;
   aTable.SubI64x4 := @ScalarSubI64x4;
   aTable.AndI64x4 := @ScalarAndI64x4;
@@ -418,9 +408,6 @@
   aTable.OrI64x8 := @ScalarOrI64x8;
   aTable.XorI64x8 := @ScalarXorI64x8;
   aTable.NotI64x8 := @ScalarNotI64x8;
-  aTable.ShiftLeftI64x8 := @ScalarShiftLeftI64x8;
-  aTable.ShiftRightI64x8 := @ScalarShiftRightI64x8;
-  aTable.ShiftRightArithI64x8 := @ScalarShiftRightArithI64x8;
   aTable.CmpEqI64x8 := @ScalarCmpEqI64x8;
   aTable.CmpLtI64x8 := @ScalarCmpLtI64x8;
   aTable.CmpGtI64x8 := @ScalarCmpGtI64x8;

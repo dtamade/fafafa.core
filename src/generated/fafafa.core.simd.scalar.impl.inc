@@ -741,30 +741,6 @@ begin
       Result := Result or (TMask4(1) shl i);
 end;
 
-function ScalarReduceAddI32x4(const a: TVecI32x4): Int32;
-var i: Integer;
-begin
-  Result := a.i[0];
-  for i := 1 to 3 do
-    Result := Result + a.i[i];
-end;
-
-function ScalarReduceMinI32x4(const a: TVecI32x4): Int32;
-var i: Integer;
-begin
-  Result := a.i[0];
-  for i := 1 to 3 do
-    if a.i[i] < Result then Result := a.i[i];
-end;
-
-function ScalarReduceMaxI32x4(const a: TVecI32x4): Int32;
-var i: Integer;
-begin
-  Result := a.i[0];
-  for i := 1 to 3 do
-    if a.i[i] > Result then Result := a.i[i];
-end;
-
 function ScalarAddI64x2(const a, b: TVecI64x2): TVecI64x2;
 var i: Integer;
 begin
@@ -1273,15 +1249,6 @@ begin
       Result := Result or (TMask4(1) shl i);
 end;
 
-function ScalarCmpNeU32x4(const a, b: TVecU32x4): TMask4;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 3 do
-    if a.u[i] <> b.u[i] then
-      Result := Result or (TMask4(1) shl i);
-end;
-
 function ScalarMinU64x2(const a, b: TVecU64x2): TVecU64x2;
 var i: Integer;
 begin
@@ -1355,33 +1322,6 @@ begin
   Result := 0;
   for i := 0 to 1 do
     if a.u[i] > b.u[i] then
-      Result := Result or (TMask2(1) shl i);
-end;
-
-function ScalarCmpLeU64x2(const a, b: TVecU64x2): TMask2;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 1 do
-    if a.u[i] <= b.u[i] then
-      Result := Result or (TMask2(1) shl i);
-end;
-
-function ScalarCmpGeU64x2(const a, b: TVecU64x2): TMask2;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 1 do
-    if a.u[i] >= b.u[i] then
-      Result := Result or (TMask2(1) shl i);
-end;
-
-function ScalarCmpNeU64x2(const a, b: TVecU64x2): TMask2;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 1 do
-    if a.u[i] <> b.u[i] then
       Result := Result or (TMask2(1) shl i);
 end;
 
@@ -2095,30 +2035,6 @@ begin
   for i := 0 to 7 do
     if a.i[i] <> b.i[i] then
       Result := Result or (TMask8(1) shl i);
-end;
-
-function ScalarReduceAddI32x8(const a: TVecI32x8): Int32;
-var i: Integer;
-begin
-  Result := a.i[0];
-  for i := 1 to 7 do
-    Result := Result + a.i[i];
-end;
-
-function ScalarReduceMinI32x8(const a: TVecI32x8): Int32;
-var i: Integer;
-begin
-  Result := a.i[0];
-  for i := 1 to 7 do
-    if a.i[i] < Result then Result := a.i[i];
-end;
-
-function ScalarReduceMaxI32x8(const a: TVecI32x8): Int32;
-var i: Integer;
-begin
-  Result := a.i[0];
-  for i := 1 to 7 do
-    if a.i[i] > Result then Result := a.i[i];
 end;
 
 function ScalarAddI64x4(const a, b: TVecI64x4): TVecI64x4;
@@ -3124,27 +3040,6 @@ var i: Integer;
 begin
   for i := 0 to 7 do
     Result.i[i] := not a.i[i];
-end;
-
-function ScalarShiftLeftI64x8(const a: TVecI64x8; count: Integer): TVecI64x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] shl count;
-end;
-
-function ScalarShiftRightI64x8(const a: TVecI64x8; count: Integer): TVecI64x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] shr count;
-end;
-
-function ScalarShiftRightArithI64x8(const a: TVecI64x8; count: Integer): TVecI64x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    Result.i[i] := SarLongInt(a.i[i], count);
 end;
 
 function ScalarCmpEqI64x8(const a, b: TVecI64x8): TMask8;

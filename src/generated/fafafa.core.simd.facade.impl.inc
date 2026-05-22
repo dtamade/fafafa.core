@@ -687,27 +687,6 @@ begin
   Result := LDispatch^.CmpNeI32x4(a, b);
 end;
 
-function VecI32x4ReduceAdd(const a: TVecI32x4): Int32;
-var LDispatch: PSimdDispatchTable;
-begin
-  LDispatch := GetSimdFacadeDispatchFastPath;
-  Result := LDispatch^.ReduceAddI32x4(a);
-end;
-
-function VecI32x4ReduceMin(const a: TVecI32x4): Int32;
-var LDispatch: PSimdDispatchTable;
-begin
-  LDispatch := GetSimdFacadeDispatchFastPath;
-  Result := LDispatch^.ReduceMinI32x4(a);
-end;
-
-function VecI32x4ReduceMax(const a: TVecI32x4): Int32;
-var LDispatch: PSimdDispatchTable;
-begin
-  LDispatch := GetSimdFacadeDispatchFastPath;
-  Result := LDispatch^.ReduceMaxI32x4(a);
-end;
-
 function VecI64x2Add(const a, b: TVecI64x2): TVecI64x2;
 var LDispatch: PSimdDispatchTable;
 begin
@@ -1170,13 +1149,6 @@ begin
   Result := LDispatch^.CmpGeU32x4(a, b);
 end;
 
-function VecU32x4CmpNe(const a, b: TVecU32x4): TMask4;
-var LDispatch: PSimdDispatchTable;
-begin
-  LDispatch := GetSimdFacadeDispatchFastPath;
-  Result := LDispatch^.CmpNeU32x4(a, b);
-end;
-
 function VecU64x2Min(const a, b: TVecU64x2): TVecU64x2;
 var LDispatch: PSimdDispatchTable;
 begin
@@ -1245,27 +1217,6 @@ var LDispatch: PSimdDispatchTable;
 begin
   LDispatch := GetSimdFacadeDispatchFastPath;
   Result := LDispatch^.CmpGtU64x2(a, b);
-end;
-
-function VecU64x2CmpLe(const a, b: TVecU64x2): TMask2;
-var LDispatch: PSimdDispatchTable;
-begin
-  LDispatch := GetSimdFacadeDispatchFastPath;
-  Result := LDispatch^.CmpLeU64x2(a, b);
-end;
-
-function VecU64x2CmpGe(const a, b: TVecU64x2): TMask2;
-var LDispatch: PSimdDispatchTable;
-begin
-  LDispatch := GetSimdFacadeDispatchFastPath;
-  Result := LDispatch^.CmpGeU64x2(a, b);
-end;
-
-function VecU64x2CmpNe(const a, b: TVecU64x2): TMask2;
-var LDispatch: PSimdDispatchTable;
-begin
-  LDispatch := GetSimdFacadeDispatchFastPath;
-  Result := LDispatch^.CmpNeU64x2(a, b);
 end;
 
 function VecU64x2Add(const a, b: TVecU64x2): TVecU64x2;
@@ -1924,27 +1875,6 @@ var LDispatch: PSimdDispatchTable;
 begin
   LDispatch := GetSimdFacadeDispatchFastPath;
   Result := LDispatch^.CmpNeI32x8(a, b);
-end;
-
-function VecI32x8ReduceAdd(const a: TVecI32x8): Int32;
-var LDispatch: PSimdDispatchTable;
-begin
-  LDispatch := GetSimdFacadeDispatchFastPath;
-  Result := LDispatch^.ReduceAddI32x8(a);
-end;
-
-function VecI32x8ReduceMin(const a: TVecI32x8): Int32;
-var LDispatch: PSimdDispatchTable;
-begin
-  LDispatch := GetSimdFacadeDispatchFastPath;
-  Result := LDispatch^.ReduceMinI32x8(a);
-end;
-
-function VecI32x8ReduceMax(const a: TVecI32x8): Int32;
-var LDispatch: PSimdDispatchTable;
-begin
-  LDispatch := GetSimdFacadeDispatchFastPath;
-  Result := LDispatch^.ReduceMaxI32x8(a);
 end;
 
 function VecI64x4Add(const a, b: TVecI64x4): TVecI64x4;
@@ -2876,27 +2806,6 @@ var LDispatch: PSimdDispatchTable;
 begin
   LDispatch := GetSimdFacadeDispatchFastPath;
   Result := LDispatch^.NotI64x8(a);
-end;
-
-function VecI64x8ShiftLeft(const a: TVecI64x8; count: Integer): TVecI64x8;
-var LDispatch: PSimdDispatchTable;
-begin
-  LDispatch := GetSimdFacadeDispatchFastPath;
-  Result := LDispatch^.ShiftLeftI64x8(a, count);
-end;
-
-function VecI64x8ShiftRight(const a: TVecI64x8; count: Integer): TVecI64x8;
-var LDispatch: PSimdDispatchTable;
-begin
-  LDispatch := GetSimdFacadeDispatchFastPath;
-  Result := LDispatch^.ShiftRightI64x8(a, count);
-end;
-
-function VecI64x8ShiftRightArith(const a: TVecI64x8; count: Integer): TVecI64x8;
-var LDispatch: PSimdDispatchTable;
-begin
-  LDispatch := GetSimdFacadeDispatchFastPath;
-  Result := LDispatch^.ShiftRightArithI64x8(a, count);
 end;
 
 function VecI64x8CmpEq(const a, b: TVecI64x8): TMask8;
