@@ -22,7 +22,7 @@
 | `fafafa.core.simd.intrinsics.sha` | `experimental isolated` | x86 SHA-themed placeholder leaf | 默认入口隔离，仍需 opt-in；当前 contract 只锁 default-reject + placeholder semantics，并明确保持 cross-host opt-in，不把 non-x86 runtime fail-close 写成现合同 |
 | `fafafa.core.simd.intrinsics.avx` | `experimental isolated` | x86 AVX leaf | 默认入口隔离，仍需 opt-in；无当前 in-repo bridge consumer；non-x86 分支只保留 compile scaffolding，runtime fail-close |
 | `fafafa.core.simd.intrinsics.sse2` | `transitional` | SSE2 compatibility / wrapper layer | experimental opt-in only；non-x86 分支只保留 compile scaffolding，runtime fail-close；迁移完成后进入 retire path |
-| `fafafa.core.simd.intrinsics.x86.sse2` | `experimental isolated` | SSE2 raw x86 leaf target | 未来只接收纯 `TM128` raw primitive；当前仍受 experimental guard 保护 |
+| `fafafa.core.simd.intrinsics.x86.sse2` | `active leaf` | SSE2 raw x86 leaf target | 纯 `TM128` raw primitive；90-check parity 证据已通过（2026-05-23）；stable adapter 可开始委托 |
 | `fafafa.core.simd.intrinsics.sse3` | `experimental isolated` | x86 SSE3 leaf | 默认入口隔离，仍需 opt-in；non-x86 分支只保留 compile scaffolding，runtime fail-close |
 | `fafafa.core.simd.intrinsics.sse41` | `experimental isolated` | x86 SSE4.1 leaf | 默认入口隔离，仍需 opt-in；non-x86 分支只保留 compile scaffolding，runtime fail-close |
 | `fafafa.core.simd.intrinsics.sse42` | `experimental isolated` | x86 SSE4.2 leaf | 默认入口隔离，仍需 opt-in；non-x86 分支只保留 compile scaffolding，runtime fail-close |

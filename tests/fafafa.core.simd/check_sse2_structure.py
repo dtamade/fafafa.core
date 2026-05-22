@@ -144,7 +144,7 @@ EXPECTED_INTRINSICS_DISPOSITION = {
     'fafafa.core.simd.intrinsics.sve.base': 'active leaf',
     'fafafa.core.simd.intrinsics.sve': 'experimental isolated',
     'fafafa.core.simd.intrinsics.sve2': 'experimental isolated',
-    'fafafa.core.simd.intrinsics.x86.sse2': 'experimental isolated',
+    'fafafa.core.simd.intrinsics.x86.sse2': 'active leaf',
 }
 
 ROOT_ROLE_MARKERS = [
