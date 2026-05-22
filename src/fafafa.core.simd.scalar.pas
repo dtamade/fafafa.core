@@ -1441,65 +1441,10 @@ end;
 
 // === I32x16 Arithmetic Operations (512-bit) ===
 {$PUSH}{$R-}{$Q-}
-function ScalarAddI32x16(const a, b: TVecI32x16): TVecI32x16;
-var i: Integer;
-begin
-  for i := 0 to 15 do
-    Result.i[i] := a.i[i] + b.i[i];
-end;
 
-function ScalarSubI32x16(const a, b: TVecI32x16): TVecI32x16;
-var i: Integer;
-begin
-  for i := 0 to 15 do
-    Result.i[i] := a.i[i] - b.i[i];
-end;
+{$I generated/fafafa.core.simd.scalar.i32x16.inc}
 
-function ScalarMulI32x16(const a, b: TVecI32x16): TVecI32x16;
-var i: Integer;
-begin
-  for i := 0 to 15 do
-    Result.i[i] := a.i[i] * b.i[i];
-end;
-
-// I32x16 Bitwise Operations
-function ScalarAndI32x16(const a, b: TVecI32x16): TVecI32x16;
-var i: Integer;
-begin
-  for i := 0 to 15 do
-    Result.i[i] := a.i[i] and b.i[i];
-end;
-
-function ScalarOrI32x16(const a, b: TVecI32x16): TVecI32x16;
-var i: Integer;
-begin
-  for i := 0 to 15 do
-    Result.i[i] := a.i[i] or b.i[i];
-end;
-
-function ScalarXorI32x16(const a, b: TVecI32x16): TVecI32x16;
-var i: Integer;
-begin
-  for i := 0 to 15 do
-    Result.i[i] := a.i[i] xor b.i[i];
-end;
-
-function ScalarNotI32x16(const a: TVecI32x16): TVecI32x16;
-var i: Integer;
-begin
-  for i := 0 to 15 do
-    Result.i[i] := not a.i[i];
-end;
-
-function ScalarAndNotI32x16(const a, b: TVecI32x16): TVecI32x16;
-var i: Integer;
-begin
-  // AndNot: (not a) and b - 与 SIMD 指令 PANDN 语义一致
-  for i := 0 to 15 do
-    Result.i[i] := (not a.i[i]) and b.i[i];
-end;
-
-// I32x16 Shift Operations
+// Shift operations (hand-written, boundary checks)
 function ScalarShiftLeftI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;
 var i: Integer;
 begin
@@ -1556,143 +1501,14 @@ begin
   end;
 end;
 
-// I32x16 Comparison Operations
-function ScalarCmpEqI32x16(const a, b: TVecI32x16): TMask16;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 15 do
-    if a.i[i] = b.i[i] then
-      Result := Result or (1 shl i);
-end;
-
-function ScalarCmpLtI32x16(const a, b: TVecI32x16): TMask16;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 15 do
-    if a.i[i] < b.i[i] then
-      Result := Result or (1 shl i);
-end;
-
-function ScalarCmpGtI32x16(const a, b: TVecI32x16): TMask16;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 15 do
-    if a.i[i] > b.i[i] then
-      Result := Result or (1 shl i);
-end;
-
-// I32x16 comparison operations
-function ScalarCmpLeI32x16(const a, b: TVecI32x16): TMask16;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 15 do
-    if a.i[i] <= b.i[i] then
-      Result := Result or (1 shl i);
-end;
-
-function ScalarCmpGeI32x16(const a, b: TVecI32x16): TMask16;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 15 do
-    if a.i[i] >= b.i[i] then
-      Result := Result or (1 shl i);
-end;
-
-function ScalarCmpNeI32x16(const a, b: TVecI32x16): TMask16;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 15 do
-    if a.i[i] <> b.i[i] then
-      Result := Result or (1 shl i);
-end;
-
-// I32x16 Min/Max Operations
-function ScalarMinI32x16(const a, b: TVecI32x16): TVecI32x16;
-var i: Integer;
-begin
-  for i := 0 to 15 do
-    if a.i[i] < b.i[i] then
-      Result.i[i] := a.i[i]
-    else
-      Result.i[i] := b.i[i];
-end;
-
-function ScalarMaxI32x16(const a, b: TVecI32x16): TVecI32x16;
-var i: Integer;
-begin
-  for i := 0 to 15 do
-    if a.i[i] > b.i[i] then
-      Result.i[i] := a.i[i]
-    else
-      Result.i[i] := b.i[i];
-end;
-
-// === I64x8 Arithmetic/Bitwise/Comparison (512-bit) ===
-{$I generated/fafafa.core.simd.scalar.i64x8.inc}
+{$POP}
 
 // === U32x16 Arithmetic/Bitwise/Shift/Comparison/MinMax (512-bit) ===
-function ScalarAddU32x16(const a, b: TVecU32x16): TVecU32x16;
-var i: Integer;
-begin
-  for i := 0 to 15 do
-    Result.u[i] := a.u[i] + b.u[i];
-end;
+{$PUSH}{$R-}{$Q-}
 
-function ScalarSubU32x16(const a, b: TVecU32x16): TVecU32x16;
-var i: Integer;
-begin
-  for i := 0 to 15 do
-    Result.u[i] := a.u[i] - b.u[i];
-end;
+{$I generated/fafafa.core.simd.scalar.u32x16.inc}
 
-function ScalarMulU32x16(const a, b: TVecU32x16): TVecU32x16;
-var i: Integer;
-begin
-  for i := 0 to 15 do
-    Result.u[i] := a.u[i] * b.u[i];
-end;
-
-function ScalarAndU32x16(const a, b: TVecU32x16): TVecU32x16;
-var i: Integer;
-begin
-  for i := 0 to 15 do
-    Result.u[i] := a.u[i] and b.u[i];
-end;
-
-function ScalarOrU32x16(const a, b: TVecU32x16): TVecU32x16;
-var i: Integer;
-begin
-  for i := 0 to 15 do
-    Result.u[i] := a.u[i] or b.u[i];
-end;
-
-function ScalarXorU32x16(const a, b: TVecU32x16): TVecU32x16;
-var i: Integer;
-begin
-  for i := 0 to 15 do
-    Result.u[i] := a.u[i] xor b.u[i];
-end;
-
-function ScalarNotU32x16(const a: TVecU32x16): TVecU32x16;
-var i: Integer;
-begin
-  for i := 0 to 15 do
-    Result.u[i] := not a.u[i];
-end;
-
-function ScalarAndNotU32x16(const a, b: TVecU32x16): TVecU32x16;
-var i: Integer;
-begin
-  for i := 0 to 15 do
-    Result.u[i] := (not a.u[i]) and b.u[i];
-end;
-
+// Shift operations (hand-written, boundary checks)
 function ScalarShiftLeftU32x16(const a: TVecU32x16; count: Integer): TVecU32x16;
 var i: Integer;
 begin
@@ -1715,123 +1531,14 @@ begin
       Result.u[i] := a.u[i] shr count;
 end;
 
-function ScalarCmpEqU32x16(const a, b: TVecU32x16): TMask16;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 15 do
-    if a.u[i] = b.u[i] then
-      Result := Result or (1 shl i);
-end;
-
-function ScalarCmpLtU32x16(const a, b: TVecU32x16): TMask16;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 15 do
-    if a.u[i] < b.u[i] then
-      Result := Result or (1 shl i);
-end;
-
-function ScalarCmpGtU32x16(const a, b: TVecU32x16): TMask16;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 15 do
-    if a.u[i] > b.u[i] then
-      Result := Result or (1 shl i);
-end;
-
-function ScalarCmpLeU32x16(const a, b: TVecU32x16): TMask16;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 15 do
-    if a.u[i] <= b.u[i] then
-      Result := Result or (1 shl i);
-end;
-
-function ScalarCmpGeU32x16(const a, b: TVecU32x16): TMask16;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 15 do
-    if a.u[i] >= b.u[i] then
-      Result := Result or (1 shl i);
-end;
-
-function ScalarCmpNeU32x16(const a, b: TVecU32x16): TMask16;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 15 do
-    if a.u[i] <> b.u[i] then
-      Result := Result or (1 shl i);
-end;
-
-function ScalarMinU32x16(const a, b: TVecU32x16): TVecU32x16;
-var i: Integer;
-begin
-  for i := 0 to 15 do
-    if a.u[i] < b.u[i] then
-      Result.u[i] := a.u[i]
-    else
-      Result.u[i] := b.u[i];
-end;
-
-function ScalarMaxU32x16(const a, b: TVecU32x16): TVecU32x16;
-var i: Integer;
-begin
-  for i := 0 to 15 do
-    if a.u[i] > b.u[i] then
-      Result.u[i] := a.u[i]
-    else
-      Result.u[i] := b.u[i];
-end;
+{$POP}
 
 // === U64x8 Arithmetic/Bitwise/Shift/Comparison (512-bit) ===
-function ScalarAddU64x8(const a, b: TVecU64x8): TVecU64x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] + b.u[i];
-end;
+{$PUSH}{$R-}{$Q-}
 
-function ScalarSubU64x8(const a, b: TVecU64x8): TVecU64x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] - b.u[i];
-end;
+{$I generated/fafafa.core.simd.scalar.u64x8.inc}
 
-function ScalarAndU64x8(const a, b: TVecU64x8): TVecU64x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] and b.u[i];
-end;
-
-function ScalarOrU64x8(const a, b: TVecU64x8): TVecU64x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] or b.u[i];
-end;
-
-function ScalarXorU64x8(const a, b: TVecU64x8): TVecU64x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] xor b.u[i];
-end;
-
-function ScalarNotU64x8(const a: TVecU64x8): TVecU64x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    Result.u[i] := not a.u[i];
-end;
-
+// Shift operations (hand-written, boundary checks)
 function ScalarShiftLeftU64x8(const a: TVecU64x8; count: Integer): TVecU64x8;
 var i: Integer;
 begin
@@ -1854,110 +1561,14 @@ begin
       Result.u[i] := a.u[i] shr count;
 end;
 
-function ScalarCmpEqU64x8(const a, b: TVecU64x8): TMask8;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.u[i] = b.u[i] then
-      Result := Result or (1 shl i);
-end;
-
-function ScalarCmpLtU64x8(const a, b: TVecU64x8): TMask8;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.u[i] < b.u[i] then
-      Result := Result or (1 shl i);
-end;
-
-function ScalarCmpGtU64x8(const a, b: TVecU64x8): TMask8;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.u[i] > b.u[i] then
-      Result := Result or (1 shl i);
-end;
-
-function ScalarCmpLeU64x8(const a, b: TVecU64x8): TMask8;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.u[i] <= b.u[i] then
-      Result := Result or (1 shl i);
-end;
-
-function ScalarCmpGeU64x8(const a, b: TVecU64x8): TMask8;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.u[i] >= b.u[i] then
-      Result := Result or (1 shl i);
-end;
-
-function ScalarCmpNeU64x8(const a, b: TVecU64x8): TMask8;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.u[i] <> b.u[i] then
-      Result := Result or (1 shl i);
-end;
+{$POP}
 
 // === I16x32 Arithmetic/Bitwise/Shift/Comparison/MinMax (512-bit) ===
-function ScalarAddI16x32(const a, b: TVecI16x32): TVecI16x32;
-var i: Integer;
-begin
-  for i := 0 to 31 do
-    Result.i[i] := a.i[i] + b.i[i];
-end;
+{$PUSH}{$R-}{$Q-}
 
-function ScalarSubI16x32(const a, b: TVecI16x32): TVecI16x32;
-var i: Integer;
-begin
-  for i := 0 to 31 do
-    Result.i[i] := a.i[i] - b.i[i];
-end;
+{$I generated/fafafa.core.simd.scalar.i16x32.inc}
 
-function ScalarAndI16x32(const a, b: TVecI16x32): TVecI16x32;
-var i: Integer;
-begin
-  for i := 0 to 31 do
-    Result.i[i] := a.i[i] and b.i[i];
-end;
-
-function ScalarOrI16x32(const a, b: TVecI16x32): TVecI16x32;
-var i: Integer;
-begin
-  for i := 0 to 31 do
-    Result.i[i] := a.i[i] or b.i[i];
-end;
-
-function ScalarXorI16x32(const a, b: TVecI16x32): TVecI16x32;
-var i: Integer;
-begin
-  for i := 0 to 31 do
-    Result.i[i] := a.i[i] xor b.i[i];
-end;
-
-function ScalarNotI16x32(const a: TVecI16x32): TVecI16x32;
-var i: Integer;
-begin
-  for i := 0 to 31 do
-    Result.i[i] := not a.i[i];
-end;
-
-function ScalarAndNotI16x32(const a, b: TVecI16x32): TVecI16x32;
-var i: Integer;
-begin
-  for i := 0 to 31 do
-    Result.i[i] := (not a.i[i]) and b.i[i];
-end;
-
+// Shift operations (hand-written, boundary checks)
 function ScalarShiftLeftI16x32(const a: TVecI16x32; count: Integer): TVecI16x32;
 var i: Integer;
 begin
@@ -1997,52 +1608,7 @@ begin
       Result.i[i] := Int16(SarLongint(a.i[i], count));
 end;
 
-function ScalarCmpEqI16x32(const a, b: TVecI16x32): TMask32;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 31 do
-    if a.i[i] = b.i[i] then
-      Result := Result or TMask32(DWord(1) shl i);
-end;
-
-function ScalarCmpLtI16x32(const a, b: TVecI16x32): TMask32;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 31 do
-    if a.i[i] < b.i[i] then
-      Result := Result or TMask32(DWord(1) shl i);
-end;
-
-function ScalarCmpGtI16x32(const a, b: TVecI16x32): TMask32;
-var i: Integer;
-begin
-  Result := 0;
-  for i := 0 to 31 do
-    if a.i[i] > b.i[i] then
-      Result := Result or TMask32(DWord(1) shl i);
-end;
-
-function ScalarMinI16x32(const a, b: TVecI16x32): TVecI16x32;
-var i: Integer;
-begin
-  for i := 0 to 31 do
-    if a.i[i] < b.i[i] then
-      Result.i[i] := a.i[i]
-    else
-      Result.i[i] := b.i[i];
-end;
-
-function ScalarMaxI16x32(const a, b: TVecI16x32): TVecI16x32;
-var i: Integer;
-begin
-  for i := 0 to 31 do
-    if a.i[i] > b.i[i] then
-      Result.i[i] := a.i[i]
-    else
-      Result.i[i] := b.i[i];
-end;
+{$POP}
 
 // === I8x64 Arithmetic/Bitwise/Comparison/MinMax (512-bit) ===
 {$I generated/fafafa.core.simd.scalar.i8x64.inc}
