@@ -6518,3 +6518,23 @@ closeout finalize，直到 `freeze-status` 重新转绿。
 | 1. 锁定剩余 thin 的集中位置 | completed | fresh `check_public_api_test_coverage.py --summary-line` 确认为 `thin=30`，且剩余 30 个 API 全都落在 `narrowintegerops.testcase.pas` |
 | 2. 为 30 个整数 API 补第二次调用 | completed | 已在 `VecI16x8* / VecI8x16* / VecU16x8* / VecU32x4* / VecU8x16*` 的现有方法内补第二组输入/掩码/边界值，不新增 suite、不碰实现 |
 | 3. 串行 release 复验并确认 thin 清零 | completed | `git diff --check`、`python3 tests/fafafa.core.simd/check_public_api_test_coverage.py --summary-line`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 全部通过；fresh 结果为 `thin=0` |
+
+## 2026-05-22 SSE2 Raw Thin Witness Thickening Batch 1
+
+### Goal
+
+继续收缩 `check_intrinsics_coverage.py --sse2-min-refs 3` 下的 `sse2-x86-raw`
+薄证据簇，但仍只做测试层增厚，不碰实现和 checker。
+这轮把最容易安全补第二 witness 的几个家族先收掉：
+- `mullo/mulhi` 的整数乘法家族
+- `and/or/xor/andnot` 的位运算家族
+- `cmp` 的 signed/equality 家族
+- `min/max/avg` 的 signed/unsigned 家族
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前 thin 簇并挑选高收益测试方法 | completed | fresh `check_intrinsics_coverage.py --summary-line --sse2-min-refs 3` 起点为 `thin=73`，其中 `mul`、`bitwise`、`compare`、`min/max/avg` 都集中在单个 testcase 内，适合补第二 witness |
+| 2. 在现有 testcase 内补第二组真实 witness | completed | 已在 `Test_IntegerMultiplyFamilies_Semantics`、`Test_BitwiseAndAndnotSemantics`、`Test_FloatingBitwisePdSemantics`、`Test_IntegerCompareFamilies_SignedAndEqualitySemantics`、`Test_SignedIntegerMinMaxSemantics`、`Test_UnsignedMinMaxAvgSadSemantics` 内补第二组真实输入与断言 |
+| 3. 串行 Release 复验并确认 gate 仍绿 | completed | `git diff --check`、`python3 tests/fafafa.core.simd/check_intrinsics_coverage.py --summary-line --sse2-min-refs 3`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh experimental-intrinsics-tests`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 全部通过；fresh `thin=46` |

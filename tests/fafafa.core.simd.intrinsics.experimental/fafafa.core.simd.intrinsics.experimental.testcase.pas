@@ -1337,6 +1337,33 @@ begin
     LExpected.m128i_u8[LIndex] := (not LA.m128i_u8[LIndex]) and LB.m128i_u8[LIndex];
   LActual := simd_andnot_si128(LA, LB);
   AssertM128BytesEqual(Self, 'simd_andnot_si128', LExpected, LActual);
+
+  InitM128IncrementingBytes(LA, $F0);
+  InitM128IncrementingBytes(LB, $0F);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    LExpected.m128i_u8[LIndex] := LA.m128i_u8[LIndex] and LB.m128i_u8[LIndex];
+  LActual := simd_and_si128(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_and_si128 witness2', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    LExpected.m128i_u8[LIndex] := LA.m128i_u8[LIndex] or LB.m128i_u8[LIndex];
+  LActual := simd_or_si128(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_or_si128 witness2', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    LExpected.m128i_u8[LIndex] := LA.m128i_u8[LIndex] xor LB.m128i_u8[LIndex];
+  LActual := simd_xor_si128(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_xor_si128 witness2', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    LExpected.m128i_u8[LIndex] := (not LA.m128i_u8[LIndex]) and LB.m128i_u8[LIndex];
+  LActual := simd_andnot_si128(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_andnot_si128 witness2', LExpected, LActual);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_FloatingBitwisePdSemantics;
@@ -1376,6 +1403,35 @@ begin
   LExpected.m128i_u64[1] := (not LA.m128i_u64[1]) and LB.m128i_u64[1];
   LActual := simd_andnot_pd(LA, LB);
   AssertM128BytesEqual(Self, 'simd_andnot_pd', LExpected, LActual);
+
+  LA.m128i_u64[0] := QWord($AAAAAAAAAAAAAAAA);
+  LA.m128i_u64[1] := QWord($0123456789ABCDEF);
+  LB.m128i_u64[0] := QWord($5555555555555555);
+  LB.m128i_u64[1] := QWord($FEDCBA9876543210);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := LA.m128i_u64[0] and LB.m128i_u64[0];
+  LExpected.m128i_u64[1] := LA.m128i_u64[1] and LB.m128i_u64[1];
+  LActual := simd_and_pd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_and_pd witness2', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := LA.m128i_u64[0] or LB.m128i_u64[0];
+  LExpected.m128i_u64[1] := LA.m128i_u64[1] or LB.m128i_u64[1];
+  LActual := simd_or_pd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_or_pd witness2', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := LA.m128i_u64[0] xor LB.m128i_u64[0];
+  LExpected.m128i_u64[1] := LA.m128i_u64[1] xor LB.m128i_u64[1];
+  LActual := simd_xor_pd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_xor_pd witness2', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  LExpected.m128i_u64[0] := (not LA.m128i_u64[0]) and LB.m128i_u64[0];
+  LExpected.m128i_u64[1] := (not LA.m128i_u64[1]) and LB.m128i_u64[1];
+  LActual := simd_andnot_pd(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_andnot_pd witness2', LExpected, LActual);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_SettersAndCastsPreserveLaneOrder;
@@ -3309,6 +3365,86 @@ begin
       LExpected.m128i_i32[LIndex] := -1;
   LActual := simd_cmplt_epi32(LA, LB);
   AssertM128BytesEqual(Self, 'simd_cmplt_epi32 signed masks', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 15 do
+  begin
+    LA.m128i_i8[LIndex] := BI8[15 - LIndex];
+    LB.m128i_i8[LIndex] := AI8[15 - LIndex];
+  end;
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    if LA.m128i_i8[LIndex] > LB.m128i_i8[LIndex] then
+      LExpected.m128i_i8[LIndex] := -1;
+  LActual := simd_cmpgt_epi8(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_cmpgt_epi8 signed masks witness2', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    if LA.m128i_i8[LIndex] < LB.m128i_i8[LIndex] then
+      LExpected.m128i_i8[LIndex] := -1;
+  LActual := simd_cmplt_epi8(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_cmplt_epi8 signed masks witness2', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 7 do
+  begin
+    LA.m128i_i16[LIndex] := BI16[7 - LIndex];
+    LB.m128i_i16[LIndex] := AI16[7 - LIndex];
+  end;
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 7 do
+    if LA.m128i_i16[LIndex] = LB.m128i_i16[LIndex] then
+      LExpected.m128i_i16[LIndex] := -1;
+  LActual := simd_cmpeq_epi16(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_cmpeq_epi16 equality masks witness2', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 7 do
+    if LA.m128i_i16[LIndex] > LB.m128i_i16[LIndex] then
+      LExpected.m128i_i16[LIndex] := -1;
+  LActual := simd_cmpgt_epi16(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_cmpgt_epi16 signed masks witness2', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 7 do
+    if LA.m128i_i16[LIndex] < LB.m128i_i16[LIndex] then
+      LExpected.m128i_i16[LIndex] := -1;
+  LActual := simd_cmplt_epi16(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_cmplt_epi16 signed masks witness2', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 3 do
+  begin
+    LA.m128i_i32[LIndex] := BI32[3 - LIndex];
+    LB.m128i_i32[LIndex] := AI32[3 - LIndex];
+  end;
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 3 do
+    if LA.m128i_i32[LIndex] = LB.m128i_i32[LIndex] then
+      LExpected.m128i_i32[LIndex] := -1;
+  LActual := simd_cmpeq_epi32(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_cmpeq_epi32 equality masks witness2', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 3 do
+    if LA.m128i_i32[LIndex] > LB.m128i_i32[LIndex] then
+      LExpected.m128i_i32[LIndex] := -1;
+  LActual := simd_cmpgt_epi32(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_cmpgt_epi32 signed masks witness2', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 3 do
+    if LA.m128i_i32[LIndex] < LB.m128i_i32[LIndex] then
+      LExpected.m128i_i32[LIndex] := -1;
+  LActual := simd_cmplt_epi32(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_cmplt_epi32 signed masks witness2', LExpected, LActual);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_CompareAndMovemaskSemantics;
@@ -3832,6 +3968,58 @@ begin
       LExpected.m128i_i16[LIndex] := BI16[LIndex];
   LActual := simd_min_epi16(LA, LB);
   AssertM128BytesEqual(Self, 'simd_min_epi16 signed', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 15 do
+  begin
+    LA.m128i_i8[LIndex] := BI8[15 - LIndex];
+    LB.m128i_i8[LIndex] := AI8[15 - LIndex];
+  end;
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    if LA.m128i_i8[LIndex] >= LB.m128i_i8[LIndex] then
+      LExpected.m128i_i8[LIndex] := LA.m128i_i8[LIndex]
+    else
+      LExpected.m128i_i8[LIndex] := LB.m128i_i8[LIndex];
+  LActual := simd_max_epi8(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_max_epi8 signed witness2', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    if LA.m128i_i8[LIndex] <= LB.m128i_i8[LIndex] then
+      LExpected.m128i_i8[LIndex] := LA.m128i_i8[LIndex]
+    else
+      LExpected.m128i_i8[LIndex] := LB.m128i_i8[LIndex];
+  LActual := simd_min_epi8(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_min_epi8 signed witness2', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 7 do
+  begin
+    LA.m128i_i16[LIndex] := BI16[7 - LIndex];
+    LB.m128i_i16[LIndex] := AI16[7 - LIndex];
+  end;
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 7 do
+    if LA.m128i_i16[LIndex] >= LB.m128i_i16[LIndex] then
+      LExpected.m128i_i16[LIndex] := LA.m128i_i16[LIndex]
+    else
+      LExpected.m128i_i16[LIndex] := LB.m128i_i16[LIndex];
+  LActual := simd_max_epi16(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_max_epi16 signed witness2', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 7 do
+    if LA.m128i_i16[LIndex] <= LB.m128i_i16[LIndex] then
+      LExpected.m128i_i16[LIndex] := LA.m128i_i16[LIndex]
+    else
+      LExpected.m128i_i16[LIndex] := LB.m128i_i16[LIndex];
+  LActual := simd_min_epi16(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_min_epi16 signed witness2', LExpected, LActual);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_UnsignedMinMaxAvgSadSemantics;
@@ -3913,6 +4101,56 @@ begin
   LActual := simd_sad_epu8(LA, LB);
   AssertEquals('simd_sad_epu8 low qword', Int64(LExpectedSadLo), Int64(LActual.m128i_u64[0]));
   AssertEquals('simd_sad_epu8 high qword', Int64(LExpectedSadHi), Int64(LActual.m128i_u64[1]));
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 15 do
+  begin
+    LA.m128i_u8[LIndex] := Byte(240 - LIndex * 7);
+    LB.m128i_u8[LIndex] := Byte(15 + LIndex * 9);
+  end;
+
+  LActual := simd_max_epu8(LA, LB);
+  for LIndex := 0 to 15 do
+  begin
+    if LA.m128i_u8[LIndex] > LB.m128i_u8[LIndex] then
+      LExpectedU8 := LA.m128i_u8[LIndex]
+    else
+      LExpectedU8 := LB.m128i_u8[LIndex];
+    AssertEquals('simd_max_epu8 lane2 ' + IntToStr(LIndex), LExpectedU8, LActual.m128i_u8[LIndex]);
+  end;
+
+  LActual := simd_min_epu8(LA, LB);
+  for LIndex := 0 to 15 do
+  begin
+    if LA.m128i_u8[LIndex] < LB.m128i_u8[LIndex] then
+      LExpectedU8 := LA.m128i_u8[LIndex]
+    else
+      LExpectedU8 := LB.m128i_u8[LIndex];
+    AssertEquals('simd_min_epu8 lane2 ' + IntToStr(LIndex), LExpectedU8, LActual.m128i_u8[LIndex]);
+  end;
+
+  LActual := simd_avg_epu8(LA, LB);
+  for LIndex := 0 to 15 do
+  begin
+    LExpectedU8 := Byte((Word(LA.m128i_u8[LIndex]) + Word(LB.m128i_u8[LIndex]) + 1) shr 1);
+    AssertEquals('simd_avg_epu8 lane2 ' + IntToStr(LIndex), LExpectedU8, LActual.m128i_u8[LIndex]);
+  end;
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 7 do
+  begin
+    LA.m128i_u16[LIndex] := Word(60000 - LIndex * 3000);
+    LB.m128i_u16[LIndex] := Word(1000 + LIndex * 5000);
+  end;
+
+  LActual := simd_avg_epu16(LA, LB);
+  for LIndex := 0 to 7 do
+  begin
+    LExpectedU16 := Word((LongWord(LA.m128i_u16[LIndex]) + LongWord(LB.m128i_u16[LIndex]) + 1) shr 1);
+    AssertEquals('simd_avg_epu16 lane2 ' + IntToStr(LIndex), LExpectedU16, LActual.m128i_u16[LIndex]);
+  end;
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_AlignedAndUnalignedLoadSurfaceSemantics;
@@ -4096,6 +4334,38 @@ begin
   begin
     LExpectedU16 := HighWordOfUnsignedProduct(LA.m128i_u16[LIndex], LB.m128i_u16[LIndex]);
     AssertEquals('simd_mulhi_epu16 lane ' + IntToStr(LIndex), LExpectedU16, LActual.m128i_u16[LIndex]);
+  end;
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_i16[0] := -32768;  LB.m128i_i16[0] := 2;
+  LA.m128i_i16[1] := -1;      LB.m128i_i16[1] := 3;
+  LA.m128i_i16[2] := 1;       LB.m128i_i16[2] := -3;
+  LA.m128i_i16[3] := 2;       LB.m128i_i16[3] := -4;
+  LA.m128i_i16[4] := 1234;    LB.m128i_i16[4] := 32767;
+  LA.m128i_i16[5] := -1234;   LB.m128i_i16[5] := -32768;
+  LA.m128i_i16[6] := 30000;   LB.m128i_i16[6] := -7;
+  LA.m128i_i16[7] := -30000;  LB.m128i_i16[7] := 11;
+
+  LActual := simd_mullo_epi16(LA, LB);
+  for LIndex := 0 to 7 do
+  begin
+    LExpectedU16 := LowWordOfSignedProduct(LA.m128i_i16[LIndex], LB.m128i_i16[LIndex]);
+    AssertEquals('simd_mullo_epi16 lane2 ' + IntToStr(LIndex), LExpectedU16, LActual.m128i_u16[LIndex]);
+  end;
+
+  LActual := simd_mulhi_epi16(LA, LB);
+  for LIndex := 0 to 7 do
+  begin
+    LExpectedI16 := HighWordOfSignedProduct(LA.m128i_i16[LIndex], LB.m128i_i16[LIndex]);
+    AssertEquals('simd_mulhi_epi16 lane2 ' + IntToStr(LIndex), LExpectedI16, LActual.m128i_i16[LIndex]);
+  end;
+
+  LActual := simd_mulhi_epu16(LA, LB);
+  for LIndex := 0 to 7 do
+  begin
+    LExpectedU16 := HighWordOfUnsignedProduct(LA.m128i_u16[LIndex], LB.m128i_u16[LIndex]);
+    AssertEquals('simd_mulhi_epu16 lane2 ' + IntToStr(LIndex), LExpectedU16, LActual.m128i_u16[LIndex]);
   end;
 end;
 

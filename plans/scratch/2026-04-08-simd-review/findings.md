@@ -10133,3 +10133,22 @@
   - 当前 `public-api-coverage` 已不再只是“全覆盖但有薄点”
   - 它现在已经达到 `537/537 covered` 且 `thin=0` 的状态
   - 后续如果再沿“测试完整性”方向推进，就不该继续做薄覆盖补点，而应该转向更高价值的语义/证据/平台维度
+
+## 2026-05-22 SSE2 Raw Thin Witness Thickening Batch 1
+
+- 这轮把 `sse2-x86-raw` 的 `thin_required` 从 `73` 压到 `46`，没有引入 `missing` 或 gate 回归。
+- 高收益簇已经被补实：
+  - `mullo/mulhi`
+  - `and/or/xor/andnot`
+  - `cmp` signed/equality
+  - `min/max/avg` signed/unsigned
+- 现在剩余的薄点更集中在：
+  - `add/sub`
+  - `saturating add/sub`
+  - `shift`
+  - `unpack`
+  - 少量 `fence/clflush/pause/madd`
+- fresh 证据：
+  - `python3 tests/fafafa.core.simd/check_intrinsics_coverage.py --summary-line --sse2-min-refs 3`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh experimental-intrinsics-tests`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`

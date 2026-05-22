@@ -17079,6 +17079,33 @@
 ### 阶段状态
 - 跨平台冻结条件满足。
 
+## 2026-05-22 SSE2 Raw Thin Witness Thickening Batch 1
+
+- 这轮继续只做测试增厚，不动实现和 checker。
+- 修改文件：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+- 处理方式：
+  - `Test_IntegerMultiplyFamilies_Semantics` 追加第二组真实 witness，覆盖 `simd_mullo_epi16` / `simd_mulhi_epi16` / `simd_mulhi_epu16`
+  - `Test_BitwiseAndAndnotSemantics` 追加第二组真实 witness，覆盖 `simd_and_si128` / `simd_or_si128` / `simd_xor_si128` / `simd_andnot_si128`
+  - `Test_FloatingBitwisePdSemantics` 追加第二组真实 witness，覆盖 `simd_and_pd` / `simd_or_pd` / `simd_xor_pd` / `simd_andnot_pd`
+  - `Test_IntegerCompareFamilies_SignedAndEqualitySemantics` 追加第二组真实 witness，覆盖 `simd_cmpeq_epi8` / `simd_cmpgt_epi8` / `simd_cmplt_epi8` / `simd_cmpeq_epi16` / `simd_cmpgt_epi16` / `simd_cmplt_epi16` / `simd_cmpeq_epi32` / `simd_cmpgt_epi32` / `simd_cmplt_epi32`
+  - `Test_SignedIntegerMinMaxSemantics` 追加第二组真实 witness，覆盖 `simd_max_epi8` / `simd_min_epi8` / `simd_max_epi16` / `simd_min_epi16`
+  - `Test_UnsignedMinMaxAvgSadSemantics` 追加第二组真实 witness，覆盖 `simd_max_epu8` / `simd_min_epu8` / `simd_avg_epu8` / `simd_avg_epu16`
+- fresh 验证链：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_coverage.py --summary-line --sse2-min-refs 3`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh experimental-intrinsics-tests`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- fresh 结果：
+  - `git diff --check` 通过
+  - `INTRINSICS_COVERAGE_SUMMARY modules=6 missing_required=0 missing_optional=0 thin_required=46 thin_optional=0 extra=0 strict_extra=0 require_avx2=0 require_experimental=0 sse2_min_refs=3 status=fail`
+  - `experimental-intrinsics-tests` 通过
+  - Release `gate` 通过
+- 本批次净效果：
+  - `thin: 73 -> 46`
+  - `missing: 0 -> 0`
+  - 当前剩余薄点已经明显向 `add/sub`、`shift`、`unpack`、`saturating arithmetic` 等簇收拢
+
 ## 2026-05-21 Windows Closeout Refresh Batch 153 And Active Truth Sync
 
 - 这轮没有重开实现层 diff，也没有重新调查旧的 billing / Docker / 分支问题，而是只把当前真实 closeout 状态收口到最新证据：
