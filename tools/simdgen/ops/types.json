@@ -222,6 +222,16 @@
       "mask": "TMask16",
       "ptr": "PUInt8",
       "category": "unsigned_int"
+    },
+    "U16x8": {
+      "vec_type": "TVecU16x8",
+      "scalar_type": "UInt16",
+      "field": "u",
+      "lanes": 8,
+      "width": 128,
+      "mask": "TMask8",
+      "ptr": "PUInt16",
+      "category": "unsigned_int"
     }
   }
 }

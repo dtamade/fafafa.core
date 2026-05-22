@@ -1,0 +1,45 @@
+{
+  "_comment": "SIMD operation definitions - special operations (Fma, Clamp, Select, Extract, Insert, Rcp, Rsqrt, Dot)",
+  "category": "special",
+  "operations": [
+    {
+      "name": "Fma",
+      "signature": "ternary",
+      "scalar_op": "custom",
+      "scalar_body": "Result.{field}[i] := a.{field}[i] * b.{field}[i] + c.{field}[i]",
+      "doc": "Fused multiply-add: a*b + c",
+      "applies_to": ["F32x4", "F32x8", "F32x16", "F64x2", "F64x4", "F64x8"]
+    },
+    {
+      "name": "Clamp",
+      "signature": "ternary",
+      "scalar_op": "custom",
+      "scalar_body": "if a.{field}[i] < b.{field}[i] then Result.{field}[i] := b.{field}[i] else if a.{field}[i] > c.{field}[i] then Result.{field}[i] := c.{field}[i] else Result.{field}[i] := a.{field}[i]",
+      "doc": "Clamp: max(min(a, hi), lo) where b=lo, c=hi",
+      "applies_to": ["F32x4", "F32x8", "F32x16", "F64x2", "F64x4", "F64x8"]
+    },
+    {
+      "name": "Rcp",
+      "signature": "unary",
+      "scalar_op": "custom",
+      "scalar_body": "Result.{field}[i] := 1.0 / a.{field}[i]",
+      "doc": "Reciprocal approximation: 1/a",
+      "applies_to": ["F32x4", "F64x4"]
+    },
+    {
+      "name": "Rsqrt",
+      "signature": "unary",
+      "scalar_op": "custom",
+      "scalar_body": "Result.{field}[i] := 1.0 / Sqrt(a.{field}[i])",
+      "doc": "Reciprocal square root approximation: 1/sqrt(a)",
+      "applies_to": ["F32x4"]
+    },
+    {
+      "name": "Dot",
+      "signature": "reduce_binary",
+      "scalar_op": "custom",
+      "doc": "Dot product (sum of element-wise products)",
+      "applies_to": ["F32x4", "F32x8", "F64x2", "F64x4"]
+    }
+  ]
+}

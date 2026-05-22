@@ -162,6 +162,8 @@ def gen_signature(slot: SlotEntry) -> str:
         return f"function(const a, b: {t.vec_type}): {t.mask_type}"
     elif sig == "reduce":
         return f"function(const a: {t.vec_type}): {t.scalar_type}"
+    elif sig == "reduce_binary":
+        return f"function(const a, b: {t.vec_type}): {t.scalar_type}"
     elif sig == "load":
         return f"function(p: {t.ptr_type}): {t.vec_type}"
     elif sig == "store":
@@ -230,6 +232,14 @@ def generate_scalar_decl(registry: Registry) -> str:
         elif sig == "zero":
             lines.append(
                 f"function {slot.scalar_name}: {t.vec_type};"
+            )
+        elif sig == "ternary":
+            lines.append(
+                f"function {slot.scalar_name}(const a, b, c: {t.vec_type}): {t.vec_type};"
+            )
+        elif sig == "reduce_binary":
+            lines.append(
+                f"function {slot.scalar_name}(const a, b: {t.vec_type}): {t.scalar_type};"
             )
     return "\n".join(lines) + "\n"
 
@@ -366,6 +376,30 @@ def generate_scalar_impl(registry: Registry) -> str:
             lines.append("end;")
             lines.append("")
 
+        elif sig == "ternary":
+            lines.append(f"function {slot.scalar_name}(const a, b, c: {t.vec_type}): {t.vec_type};")
+            lines.append("var i: Integer;")
+            lines.append("begin")
+            if op.scalar_body:
+                body = op.scalar_body.replace("{field}", t.field_name)
+                lines.append(f"  for i := 0 to {t.lanes - 1} do")
+                lines.append(f"    {body};")
+            else:
+                lines.append(f"  // TODO: implement scalar {op.name} for {t.name}")
+                lines.append(f"  Result := a;")
+            lines.append("end;")
+            lines.append("")
+
+        elif sig == "reduce_binary":
+            lines.append(f"function {slot.scalar_name}(const a, b: {t.vec_type}): {t.scalar_type};")
+            lines.append("var i: Integer;")
+            lines.append("begin")
+            lines.append(f"  Result := a.{t.field_name}[0] * b.{t.field_name}[0];")
+            lines.append(f"  for i := 1 to {t.lanes - 1} do")
+            lines.append(f"    Result := Result + a.{t.field_name}[i] * b.{t.field_name}[i];")
+            lines.append("end;")
+            lines.append("")
+
     return "\n".join(lines) + "\n"
 
 
@@ -419,6 +453,14 @@ def generate_facade_decl(registry: Registry) -> str:
         elif sig == "zero":
             lines.append(
                 f"function {slot.facade_name}: {t.vec_type}; inline;"
+            )
+        elif sig == "ternary":
+            lines.append(
+                f"function {slot.facade_name}(const a, b, c: {t.vec_type}): {t.vec_type}; inline;"
+            )
+        elif sig == "reduce_binary":
+            lines.append(
+                f"function {slot.facade_name}(const a, b: {t.vec_type}): {t.scalar_type}; inline;"
             )
     return "\n".join(lines) + "\n"
 
@@ -501,6 +543,22 @@ def generate_facade_impl(registry: Registry) -> str:
             lines.append(f"  Result := LDispatch^.{slot.dispatch_field};")
             lines.append("end;")
             lines.append("")
+        elif sig == "ternary":
+            lines.append(f"function {slot.facade_name}(const a, b, c: {t.vec_type}): {t.vec_type};")
+            lines.append("var LDispatch: PSimdDispatchTable;")
+            lines.append("begin")
+            lines.append("  LDispatch := GetSimdFacadeDispatchFastPath;")
+            lines.append(f"  Result := LDispatch^.{slot.dispatch_field}(a, b, c);")
+            lines.append("end;")
+            lines.append("")
+        elif sig == "reduce_binary":
+            lines.append(f"function {slot.facade_name}(const a, b: {t.vec_type}): {t.scalar_type};")
+            lines.append("var LDispatch: PSimdDispatchTable;")
+            lines.append("begin")
+            lines.append("  LDispatch := GetSimdFacadeDispatchFastPath;")
+            lines.append(f"  Result := LDispatch^.{slot.dispatch_field}(a, b);")
+            lines.append("end;")
+            lines.append("")
 
     return "\n".join(lines) + "\n"
 
@@ -560,9 +618,15 @@ def run_audit(registry: Registry):
     for name in sorted(matched):
         existing_sig = existing[name].rstrip(';').strip()
         gen_sig = generated[name].rstrip(';').strip()
-        # Normalize for comparison
-        e_norm = re.sub(r'\s+', ' ', existing_sig.lower())
-        g_norm = re.sub(r'\s+', ' ', gen_sig.lower())
+        # Normalize: remove parameter names, keep only types
+        def normalize_sig(s):
+            s = re.sub(r'\s+', ' ', s.lower())
+            # Remove parameter names: "const a, b: type" -> "const type, type"
+            # For function pointer compatibility, only types matter
+            s = re.sub(r'\b(const\s+)?\w+(?:,\s*\w+)*:\s*', r'\1', s)
+            return s
+        e_norm = normalize_sig(existing_sig)
+        g_norm = normalize_sig(gen_sig)
         if e_norm == g_norm:
             sig_matches.append(name)
         else:

@@ -60,6 +60,16 @@ function VecF32x4ReduceMin(const a: TVecF32x4): Single; inline;
 function VecF32x4ReduceMax(const a: TVecF32x4): Single; inline;
 { Product of all lanes: F32x4 }
 function VecF32x4ReduceMul(const a: TVecF32x4): Single; inline;
+{ Fused multiply-add: a*b + c: F32x4 }
+function VecF32x4Fma(const a, b, c: TVecF32x4): TVecF32x4; inline;
+{ Clamp: max(min(a, hi), lo) where b=lo, c=hi: F32x4 }
+function VecF32x4Clamp(const a, b, c: TVecF32x4): TVecF32x4; inline;
+{ Reciprocal approximation: 1/a: F32x4 }
+function VecF32x4Rcp(const a: TVecF32x4): TVecF32x4; inline;
+{ Reciprocal square root approximation: 1/sqrt(a): F32x4 }
+function VecF32x4Rsqrt(const a: TVecF32x4): TVecF32x4; inline;
+{ Dot product (sum of element-wise products): F32x4 }
+function VecF32x4Dot(const a, b: TVecF32x4): Single; inline;
 { Element-wise addition: F64x2 }
 function VecF64x2Add(const a, b: TVecF64x2): TVecF64x2; inline;
 { Element-wise subtraction: F64x2 }
@@ -112,6 +122,48 @@ function VecF64x2ReduceMin(const a: TVecF64x2): Double; inline;
 function VecF64x2ReduceMax(const a: TVecF64x2): Double; inline;
 { Product of all lanes: F64x2 }
 function VecF64x2ReduceMul(const a: TVecF64x2): Double; inline;
+{ Fused multiply-add: a*b + c: F64x2 }
+function VecF64x2Fma(const a, b, c: TVecF64x2): TVecF64x2; inline;
+{ Clamp: max(min(a, hi), lo) where b=lo, c=hi: F64x2 }
+function VecF64x2Clamp(const a, b, c: TVecF64x2): TVecF64x2; inline;
+{ Dot product (sum of element-wise products): F64x2 }
+function VecF64x2Dot(const a, b: TVecF64x2): Double; inline;
+{ Element-wise addition (narrow integer): I16x8 }
+function VecI16x8Add(const a, b: TVecI16x8): TVecI16x8; inline;
+{ Element-wise subtraction (narrow integer): I16x8 }
+function VecI16x8Sub(const a, b: TVecI16x8): TVecI16x8; inline;
+{ Element-wise multiplication (narrow integer): I16x8 }
+function VecI16x8Mul(const a, b: TVecI16x8): TVecI16x8; inline;
+{ Bitwise AND (narrow integer): I16x8 }
+function VecI16x8And(const a, b: TVecI16x8): TVecI16x8; inline;
+{ Bitwise OR (narrow integer): I16x8 }
+function VecI16x8Or(const a, b: TVecI16x8): TVecI16x8; inline;
+{ Bitwise XOR (narrow integer): I16x8 }
+function VecI16x8Xor(const a, b: TVecI16x8): TVecI16x8; inline;
+{ Bitwise NOT (narrow integer): I16x8 }
+function VecI16x8Not(const a: TVecI16x8): TVecI16x8; inline;
+{ Element-wise minimum (narrow integer): I16x8 }
+function VecI16x8Min(const a, b: TVecI16x8): TVecI16x8; inline;
+{ Element-wise maximum (narrow integer): I16x8 }
+function VecI16x8Max(const a, b: TVecI16x8): TVecI16x8; inline;
+{ Equal comparison (narrow integer): I16x8 }
+function VecI16x8CmpEq(const a, b: TVecI16x8): TMask8; inline;
+{ Less-than comparison (narrow integer): I16x8 }
+function VecI16x8CmpLt(const a, b: TVecI16x8): TMask8; inline;
+{ Greater-than comparison (narrow integer): I16x8 }
+function VecI16x8CmpGt(const a, b: TVecI16x8): TMask8; inline;
+{ Less-or-equal comparison (narrow integer): I16x8 }
+function VecI16x8CmpLe(const a, b: TVecI16x8): TMask8; inline;
+{ Greater-or-equal comparison (narrow integer): I16x8 }
+function VecI16x8CmpGe(const a, b: TVecI16x8): TMask8; inline;
+{ Not-equal comparison (narrow integer): I16x8 }
+function VecI16x8CmpNe(const a, b: TVecI16x8): TMask8; inline;
+{ Logical shift left (narrow integer): I16x8 }
+function VecI16x8ShiftLeft(const a: TVecI16x8; count: Integer): TVecI16x8; inline;
+{ Logical shift right (narrow integer): I16x8 }
+function VecI16x8ShiftRight(const a: TVecI16x8; count: Integer): TVecI16x8; inline;
+{ Arithmetic shift right (narrow integer): I16x8 }
+function VecI16x8ShiftRightArith(const a: TVecI16x8; count: Integer): TVecI16x8; inline;
 { Element-wise addition: I32x4 }
 function VecI32x4Add(const a, b: TVecI32x4): TVecI32x4; inline;
 { Element-wise subtraction: I32x4 }
@@ -192,6 +244,68 @@ function VecI64x2CmpLe(const a, b: TVecI64x2): TMask2; inline;
 function VecI64x2CmpGe(const a, b: TVecI64x2): TMask2; inline;
 { Not-equal comparison: I64x2 }
 function VecI64x2CmpNe(const a, b: TVecI64x2): TMask2; inline;
+{ Element-wise addition (narrow integer): I8x16 }
+function VecI8x16Add(const a, b: TVecI8x16): TVecI8x16; inline;
+{ Element-wise subtraction (narrow integer): I8x16 }
+function VecI8x16Sub(const a, b: TVecI8x16): TVecI8x16; inline;
+{ Bitwise AND (narrow integer): I8x16 }
+function VecI8x16And(const a, b: TVecI8x16): TVecI8x16; inline;
+{ Bitwise OR (narrow integer): I8x16 }
+function VecI8x16Or(const a, b: TVecI8x16): TVecI8x16; inline;
+{ Bitwise XOR (narrow integer): I8x16 }
+function VecI8x16Xor(const a, b: TVecI8x16): TVecI8x16; inline;
+{ Bitwise NOT (narrow integer): I8x16 }
+function VecI8x16Not(const a: TVecI8x16): TVecI8x16; inline;
+{ Element-wise minimum (narrow integer): I8x16 }
+function VecI8x16Min(const a, b: TVecI8x16): TVecI8x16; inline;
+{ Element-wise maximum (narrow integer): I8x16 }
+function VecI8x16Max(const a, b: TVecI8x16): TVecI8x16; inline;
+{ Equal comparison (narrow integer): I8x16 }
+function VecI8x16CmpEq(const a, b: TVecI8x16): TMask16; inline;
+{ Less-than comparison (narrow integer): I8x16 }
+function VecI8x16CmpLt(const a, b: TVecI8x16): TMask16; inline;
+{ Greater-than comparison (narrow integer): I8x16 }
+function VecI8x16CmpGt(const a, b: TVecI8x16): TMask16; inline;
+{ Less-or-equal comparison (narrow integer): I8x16 }
+function VecI8x16CmpLe(const a, b: TVecI8x16): TMask16; inline;
+{ Greater-or-equal comparison (narrow integer): I8x16 }
+function VecI8x16CmpGe(const a, b: TVecI8x16): TMask16; inline;
+{ Not-equal comparison (narrow integer): I8x16 }
+function VecI8x16CmpNe(const a, b: TVecI8x16): TMask16; inline;
+{ Element-wise addition (narrow integer): U16x8 }
+function VecU16x8Add(const a, b: TVecU16x8): TVecU16x8; inline;
+{ Element-wise subtraction (narrow integer): U16x8 }
+function VecU16x8Sub(const a, b: TVecU16x8): TVecU16x8; inline;
+{ Element-wise multiplication (narrow integer): U16x8 }
+function VecU16x8Mul(const a, b: TVecU16x8): TVecU16x8; inline;
+{ Bitwise AND (narrow integer): U16x8 }
+function VecU16x8And(const a, b: TVecU16x8): TVecU16x8; inline;
+{ Bitwise OR (narrow integer): U16x8 }
+function VecU16x8Or(const a, b: TVecU16x8): TVecU16x8; inline;
+{ Bitwise XOR (narrow integer): U16x8 }
+function VecU16x8Xor(const a, b: TVecU16x8): TVecU16x8; inline;
+{ Bitwise NOT (narrow integer): U16x8 }
+function VecU16x8Not(const a: TVecU16x8): TVecU16x8; inline;
+{ Element-wise minimum (narrow integer): U16x8 }
+function VecU16x8Min(const a, b: TVecU16x8): TVecU16x8; inline;
+{ Element-wise maximum (narrow integer): U16x8 }
+function VecU16x8Max(const a, b: TVecU16x8): TVecU16x8; inline;
+{ Equal comparison (narrow integer): U16x8 }
+function VecU16x8CmpEq(const a, b: TVecU16x8): TMask8; inline;
+{ Less-than comparison (narrow integer): U16x8 }
+function VecU16x8CmpLt(const a, b: TVecU16x8): TMask8; inline;
+{ Greater-than comparison (narrow integer): U16x8 }
+function VecU16x8CmpGt(const a, b: TVecU16x8): TMask8; inline;
+{ Less-or-equal comparison (narrow integer): U16x8 }
+function VecU16x8CmpLe(const a, b: TVecU16x8): TMask8; inline;
+{ Greater-or-equal comparison (narrow integer): U16x8 }
+function VecU16x8CmpGe(const a, b: TVecU16x8): TMask8; inline;
+{ Not-equal comparison (narrow integer): U16x8 }
+function VecU16x8CmpNe(const a, b: TVecU16x8): TMask8; inline;
+{ Logical shift left (narrow integer): U16x8 }
+function VecU16x8ShiftLeft(const a: TVecU16x8; count: Integer): TVecU16x8; inline;
+{ Logical shift right (narrow integer): U16x8 }
+function VecU16x8ShiftRight(const a: TVecU16x8; count: Integer): TVecU16x8; inline;
 { Element-wise addition: U32x4 }
 function VecU32x4Add(const a, b: TVecU32x4): TVecU32x4; inline;
 { Element-wise subtraction: U32x4 }
@@ -254,6 +368,38 @@ function VecU64x2CmpLe(const a, b: TVecU64x2): TMask2; inline;
 function VecU64x2CmpGe(const a, b: TVecU64x2): TMask2; inline;
 { Not-equal comparison: U64x2 }
 function VecU64x2CmpNe(const a, b: TVecU64x2): TMask2; inline;
+{ Element-wise addition (narrow integer): U64x2 }
+function VecU64x2Add(const a, b: TVecU64x2): TVecU64x2; inline;
+{ Element-wise subtraction (narrow integer): U64x2 }
+function VecU64x2Sub(const a, b: TVecU64x2): TVecU64x2; inline;
+{ Element-wise addition (narrow integer): U8x16 }
+function VecU8x16Add(const a, b: TVecU8x16): TVecU8x16; inline;
+{ Element-wise subtraction (narrow integer): U8x16 }
+function VecU8x16Sub(const a, b: TVecU8x16): TVecU8x16; inline;
+{ Bitwise AND (narrow integer): U8x16 }
+function VecU8x16And(const a, b: TVecU8x16): TVecU8x16; inline;
+{ Bitwise OR (narrow integer): U8x16 }
+function VecU8x16Or(const a, b: TVecU8x16): TVecU8x16; inline;
+{ Bitwise XOR (narrow integer): U8x16 }
+function VecU8x16Xor(const a, b: TVecU8x16): TVecU8x16; inline;
+{ Bitwise NOT (narrow integer): U8x16 }
+function VecU8x16Not(const a: TVecU8x16): TVecU8x16; inline;
+{ Element-wise minimum (narrow integer): U8x16 }
+function VecU8x16Min(const a, b: TVecU8x16): TVecU8x16; inline;
+{ Element-wise maximum (narrow integer): U8x16 }
+function VecU8x16Max(const a, b: TVecU8x16): TVecU8x16; inline;
+{ Equal comparison (narrow integer): U8x16 }
+function VecU8x16CmpEq(const a, b: TVecU8x16): TMask16; inline;
+{ Less-than comparison (narrow integer): U8x16 }
+function VecU8x16CmpLt(const a, b: TVecU8x16): TMask16; inline;
+{ Greater-than comparison (narrow integer): U8x16 }
+function VecU8x16CmpGt(const a, b: TVecU8x16): TMask16; inline;
+{ Less-or-equal comparison (narrow integer): U8x16 }
+function VecU8x16CmpLe(const a, b: TVecU8x16): TMask16; inline;
+{ Greater-or-equal comparison (narrow integer): U8x16 }
+function VecU8x16CmpGe(const a, b: TVecU8x16): TMask16; inline;
+{ Not-equal comparison (narrow integer): U8x16 }
+function VecU8x16CmpNe(const a, b: TVecU8x16): TMask16; inline;
 { Element-wise addition: F32x8 }
 function VecF32x8Add(const a, b: TVecF32x8): TVecF32x8; inline;
 { Element-wise subtraction: F32x8 }
@@ -306,6 +452,12 @@ function VecF32x8ReduceMin(const a: TVecF32x8): Single; inline;
 function VecF32x8ReduceMax(const a: TVecF32x8): Single; inline;
 { Product of all lanes: F32x8 }
 function VecF32x8ReduceMul(const a: TVecF32x8): Single; inline;
+{ Fused multiply-add: a*b + c: F32x8 }
+function VecF32x8Fma(const a, b, c: TVecF32x8): TVecF32x8; inline;
+{ Clamp: max(min(a, hi), lo) where b=lo, c=hi: F32x8 }
+function VecF32x8Clamp(const a, b, c: TVecF32x8): TVecF32x8; inline;
+{ Dot product (sum of element-wise products): F32x8 }
+function VecF32x8Dot(const a, b: TVecF32x8): Single; inline;
 { Element-wise addition: F64x4 }
 function VecF64x4Add(const a, b: TVecF64x4): TVecF64x4; inline;
 { Element-wise subtraction: F64x4 }
@@ -358,6 +510,14 @@ function VecF64x4ReduceMin(const a: TVecF64x4): Double; inline;
 function VecF64x4ReduceMax(const a: TVecF64x4): Double; inline;
 { Product of all lanes: F64x4 }
 function VecF64x4ReduceMul(const a: TVecF64x4): Double; inline;
+{ Fused multiply-add: a*b + c: F64x4 }
+function VecF64x4Fma(const a, b, c: TVecF64x4): TVecF64x4; inline;
+{ Clamp: max(min(a, hi), lo) where b=lo, c=hi: F64x4 }
+function VecF64x4Clamp(const a, b, c: TVecF64x4): TVecF64x4; inline;
+{ Reciprocal approximation: 1/a: F64x4 }
+function VecF64x4Rcp(const a: TVecF64x4): TVecF64x4; inline;
+{ Dot product (sum of element-wise products): F64x4 }
+function VecF64x4Dot(const a, b: TVecF64x4): Double; inline;
 { Element-wise addition: I32x8 }
 function VecI32x8Add(const a, b: TVecI32x8): TVecI32x8; inline;
 { Element-wise subtraction: I32x8 }
@@ -498,6 +658,14 @@ function VecU64x4CmpLe(const a, b: TVecU64x4): TMask4; inline;
 function VecU64x4CmpGe(const a, b: TVecU64x4): TMask4; inline;
 { Not-equal comparison: U64x4 }
 function VecU64x4CmpNe(const a, b: TVecU64x4): TMask4; inline;
+{ Element-wise addition (narrow integer): U64x4 }
+function VecU64x4Add(const a, b: TVecU64x4): TVecU64x4; inline;
+{ Element-wise subtraction (narrow integer): U64x4 }
+function VecU64x4Sub(const a, b: TVecU64x4): TVecU64x4; inline;
+{ Logical shift left (narrow integer): U64x4 }
+function VecU64x4ShiftLeft(const a: TVecU64x4; count: Integer): TVecU64x4; inline;
+{ Logical shift right (narrow integer): U64x4 }
+function VecU64x4ShiftRight(const a: TVecU64x4; count: Integer): TVecU64x4; inline;
 { Element-wise addition: F32x16 }
 function VecF32x16Add(const a, b: TVecF32x16): TVecF32x16; inline;
 { Element-wise subtraction: F32x16 }
@@ -550,6 +718,10 @@ function VecF32x16ReduceMin(const a: TVecF32x16): Single; inline;
 function VecF32x16ReduceMax(const a: TVecF32x16): Single; inline;
 { Product of all lanes: F32x16 }
 function VecF32x16ReduceMul(const a: TVecF32x16): Single; inline;
+{ Fused multiply-add: a*b + c: F32x16 }
+function VecF32x16Fma(const a, b, c: TVecF32x16): TVecF32x16; inline;
+{ Clamp: max(min(a, hi), lo) where b=lo, c=hi: F32x16 }
+function VecF32x16Clamp(const a, b, c: TVecF32x16): TVecF32x16; inline;
 { Element-wise addition: F64x8 }
 function VecF64x8Add(const a, b: TVecF64x8): TVecF64x8; inline;
 { Element-wise subtraction: F64x8 }
@@ -602,6 +774,10 @@ function VecF64x8ReduceMin(const a: TVecF64x8): Double; inline;
 function VecF64x8ReduceMax(const a: TVecF64x8): Double; inline;
 { Product of all lanes: F64x8 }
 function VecF64x8ReduceMul(const a: TVecF64x8): Double; inline;
+{ Fused multiply-add: a*b + c: F64x8 }
+function VecF64x8Fma(const a, b, c: TVecF64x8): TVecF64x8; inline;
+{ Clamp: max(min(a, hi), lo) where b=lo, c=hi: F64x8 }
+function VecF64x8Clamp(const a, b, c: TVecF64x8): TVecF64x8; inline;
 { Element-wise addition: I32x16 }
 function VecI32x16Add(const a, b: TVecI32x16): TVecI32x16; inline;
 { Element-wise subtraction: I32x16 }
@@ -700,6 +876,12 @@ function VecU32x16CmpLe(const a, b: TVecU32x16): TMask16; inline;
 function VecU32x16CmpGe(const a, b: TVecU32x16): TMask16; inline;
 { Not-equal comparison: U32x16 }
 function VecU32x16CmpNe(const a, b: TVecU32x16): TMask16; inline;
+{ Element-wise addition (narrow integer): U32x16 }
+function VecU32x16Add(const a, b: TVecU32x16): TVecU32x16; inline;
+{ Element-wise subtraction (narrow integer): U32x16 }
+function VecU32x16Sub(const a, b: TVecU32x16): TVecU32x16; inline;
+{ Element-wise multiplication (narrow integer): U32x16 }
+function VecU32x16Mul(const a, b: TVecU32x16): TVecU32x16; inline;
 { Bitwise AND: U64x8 }
 function VecU64x8And(const a, b: TVecU64x8): TVecU64x8; inline;
 { Bitwise OR: U64x8 }
@@ -720,3 +902,11 @@ function VecU64x8CmpLe(const a, b: TVecU64x8): TMask8; inline;
 function VecU64x8CmpGe(const a, b: TVecU64x8): TMask8; inline;
 { Not-equal comparison: U64x8 }
 function VecU64x8CmpNe(const a, b: TVecU64x8): TMask8; inline;
+{ Element-wise addition (narrow integer): U64x8 }
+function VecU64x8Add(const a, b: TVecU64x8): TVecU64x8; inline;
+{ Element-wise subtraction (narrow integer): U64x8 }
+function VecU64x8Sub(const a, b: TVecU64x8): TVecU64x8; inline;
+{ Logical shift left (narrow integer): U64x8 }
+function VecU64x8ShiftLeft(const a: TVecU64x8; count: Integer): TVecU64x8; inline;
+{ Logical shift right (narrow integer): U64x8 }
+function VecU64x8ShiftRight(const a: TVecU64x8; count: Integer): TVecU64x8; inline;

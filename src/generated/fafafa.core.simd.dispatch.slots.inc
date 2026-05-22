@@ -39,6 +39,12 @@
     ReduceMinF32x4: function(const a: TVecF32x4): Single;
     ReduceMaxF32x4: function(const a: TVecF32x4): Single;
     ReduceMulF32x4: function(const a: TVecF32x4): Single;
+    { --- special --- }
+    FmaF32x4: function(const a, b, c: TVecF32x4): TVecF32x4;
+    ClampF32x4: function(const a, b, c: TVecF32x4): TVecF32x4;
+    RcpF32x4: function(const a: TVecF32x4): TVecF32x4;
+    RsqrtF32x4: function(const a: TVecF32x4): TVecF32x4;
+    DotF32x4: function(const a, b: TVecF32x4): Single;
     { --- arithmetic --- }
     AddF64x2: function(const a, b: TVecF64x2): TVecF64x2;
     SubF64x2: function(const a, b: TVecF64x2): TVecF64x2;
@@ -70,6 +76,29 @@
     ReduceMinF64x2: function(const a: TVecF64x2): Double;
     ReduceMaxF64x2: function(const a: TVecF64x2): Double;
     ReduceMulF64x2: function(const a: TVecF64x2): Double;
+    { --- special --- }
+    FmaF64x2: function(const a, b, c: TVecF64x2): TVecF64x2;
+    ClampF64x2: function(const a, b, c: TVecF64x2): TVecF64x2;
+    DotF64x2: function(const a, b: TVecF64x2): Double;
+    { --- narrow_integer --- }
+    AddI16x8: function(const a, b: TVecI16x8): TVecI16x8;
+    SubI16x8: function(const a, b: TVecI16x8): TVecI16x8;
+    MulI16x8: function(const a, b: TVecI16x8): TVecI16x8;
+    AndI16x8: function(const a, b: TVecI16x8): TVecI16x8;
+    OrI16x8: function(const a, b: TVecI16x8): TVecI16x8;
+    XorI16x8: function(const a, b: TVecI16x8): TVecI16x8;
+    NotI16x8: function(const a: TVecI16x8): TVecI16x8;
+    MinI16x8: function(const a, b: TVecI16x8): TVecI16x8;
+    MaxI16x8: function(const a, b: TVecI16x8): TVecI16x8;
+    CmpEqI16x8: function(const a, b: TVecI16x8): TMask8;
+    CmpLtI16x8: function(const a, b: TVecI16x8): TMask8;
+    CmpGtI16x8: function(const a, b: TVecI16x8): TMask8;
+    CmpLeI16x8: function(const a, b: TVecI16x8): TMask8;
+    CmpGeI16x8: function(const a, b: TVecI16x8): TMask8;
+    CmpNeI16x8: function(const a, b: TVecI16x8): TMask8;
+    ShiftLeftI16x8: function(const a: TVecI16x8; count: Integer): TVecI16x8;
+    ShiftRightI16x8: function(const a: TVecI16x8; count: Integer): TVecI16x8;
+    ShiftRightArithI16x8: function(const a: TVecI16x8; count: Integer): TVecI16x8;
     { --- arithmetic --- }
     AddI32x4: function(const a, b: TVecI32x4): TVecI32x4;
     SubI32x4: function(const a, b: TVecI32x4): TVecI32x4;
@@ -117,6 +146,38 @@
     CmpLeI64x2: function(const a, b: TVecI64x2): TMask2;
     CmpGeI64x2: function(const a, b: TVecI64x2): TMask2;
     CmpNeI64x2: function(const a, b: TVecI64x2): TMask2;
+    { --- narrow_integer --- }
+    AddI8x16: function(const a, b: TVecI8x16): TVecI8x16;
+    SubI8x16: function(const a, b: TVecI8x16): TVecI8x16;
+    AndI8x16: function(const a, b: TVecI8x16): TVecI8x16;
+    OrI8x16: function(const a, b: TVecI8x16): TVecI8x16;
+    XorI8x16: function(const a, b: TVecI8x16): TVecI8x16;
+    NotI8x16: function(const a: TVecI8x16): TVecI8x16;
+    MinI8x16: function(const a, b: TVecI8x16): TVecI8x16;
+    MaxI8x16: function(const a, b: TVecI8x16): TVecI8x16;
+    CmpEqI8x16: function(const a, b: TVecI8x16): TMask16;
+    CmpLtI8x16: function(const a, b: TVecI8x16): TMask16;
+    CmpGtI8x16: function(const a, b: TVecI8x16): TMask16;
+    CmpLeI8x16: function(const a, b: TVecI8x16): TMask16;
+    CmpGeI8x16: function(const a, b: TVecI8x16): TMask16;
+    CmpNeI8x16: function(const a, b: TVecI8x16): TMask16;
+    AddU16x8: function(const a, b: TVecU16x8): TVecU16x8;
+    SubU16x8: function(const a, b: TVecU16x8): TVecU16x8;
+    MulU16x8: function(const a, b: TVecU16x8): TVecU16x8;
+    AndU16x8: function(const a, b: TVecU16x8): TVecU16x8;
+    OrU16x8: function(const a, b: TVecU16x8): TVecU16x8;
+    XorU16x8: function(const a, b: TVecU16x8): TVecU16x8;
+    NotU16x8: function(const a: TVecU16x8): TVecU16x8;
+    MinU16x8: function(const a, b: TVecU16x8): TVecU16x8;
+    MaxU16x8: function(const a, b: TVecU16x8): TVecU16x8;
+    CmpEqU16x8: function(const a, b: TVecU16x8): TMask8;
+    CmpLtU16x8: function(const a, b: TVecU16x8): TMask8;
+    CmpGtU16x8: function(const a, b: TVecU16x8): TMask8;
+    CmpLeU16x8: function(const a, b: TVecU16x8): TMask8;
+    CmpGeU16x8: function(const a, b: TVecU16x8): TMask8;
+    CmpNeU16x8: function(const a, b: TVecU16x8): TMask8;
+    ShiftLeftU16x8: function(const a: TVecU16x8; count: Integer): TVecU16x8;
+    ShiftRightU16x8: function(const a: TVecU16x8; count: Integer): TVecU16x8;
     { --- arithmetic --- }
     AddU32x4: function(const a, b: TVecU32x4): TVecU32x4;
     SubU32x4: function(const a, b: TVecU32x4): TVecU32x4;
@@ -154,6 +215,23 @@
     CmpLeU64x2: function(const a, b: TVecU64x2): TMask2;
     CmpGeU64x2: function(const a, b: TVecU64x2): TMask2;
     CmpNeU64x2: function(const a, b: TVecU64x2): TMask2;
+    { --- narrow_integer --- }
+    AddU64x2: function(const a, b: TVecU64x2): TVecU64x2;
+    SubU64x2: function(const a, b: TVecU64x2): TVecU64x2;
+    AddU8x16: function(const a, b: TVecU8x16): TVecU8x16;
+    SubU8x16: function(const a, b: TVecU8x16): TVecU8x16;
+    AndU8x16: function(const a, b: TVecU8x16): TVecU8x16;
+    OrU8x16: function(const a, b: TVecU8x16): TVecU8x16;
+    XorU8x16: function(const a, b: TVecU8x16): TVecU8x16;
+    NotU8x16: function(const a: TVecU8x16): TVecU8x16;
+    MinU8x16: function(const a, b: TVecU8x16): TVecU8x16;
+    MaxU8x16: function(const a, b: TVecU8x16): TVecU8x16;
+    CmpEqU8x16: function(const a, b: TVecU8x16): TMask16;
+    CmpLtU8x16: function(const a, b: TVecU8x16): TMask16;
+    CmpGtU8x16: function(const a, b: TVecU8x16): TMask16;
+    CmpLeU8x16: function(const a, b: TVecU8x16): TMask16;
+    CmpGeU8x16: function(const a, b: TVecU8x16): TMask16;
+    CmpNeU8x16: function(const a, b: TVecU8x16): TMask16;
     { --- arithmetic --- }
     AddF32x8: function(const a, b: TVecF32x8): TVecF32x8;
     SubF32x8: function(const a, b: TVecF32x8): TVecF32x8;
@@ -185,6 +263,10 @@
     ReduceMinF32x8: function(const a: TVecF32x8): Single;
     ReduceMaxF32x8: function(const a: TVecF32x8): Single;
     ReduceMulF32x8: function(const a: TVecF32x8): Single;
+    { --- special --- }
+    FmaF32x8: function(const a, b, c: TVecF32x8): TVecF32x8;
+    ClampF32x8: function(const a, b, c: TVecF32x8): TVecF32x8;
+    DotF32x8: function(const a, b: TVecF32x8): Single;
     { --- arithmetic --- }
     AddF64x4: function(const a, b: TVecF64x4): TVecF64x4;
     SubF64x4: function(const a, b: TVecF64x4): TVecF64x4;
@@ -216,6 +298,11 @@
     ReduceMinF64x4: function(const a: TVecF64x4): Double;
     ReduceMaxF64x4: function(const a: TVecF64x4): Double;
     ReduceMulF64x4: function(const a: TVecF64x4): Double;
+    { --- special --- }
+    FmaF64x4: function(const a, b, c: TVecF64x4): TVecF64x4;
+    ClampF64x4: function(const a, b, c: TVecF64x4): TVecF64x4;
+    RcpF64x4: function(const a: TVecF64x4): TVecF64x4;
+    DotF64x4: function(const a, b: TVecF64x4): Double;
     { --- arithmetic --- }
     AddI32x8: function(const a, b: TVecI32x8): TVecI32x8;
     SubI32x8: function(const a, b: TVecI32x8): TVecI32x8;
@@ -299,6 +386,11 @@
     CmpLeU64x4: function(const a, b: TVecU64x4): TMask4;
     CmpGeU64x4: function(const a, b: TVecU64x4): TMask4;
     CmpNeU64x4: function(const a, b: TVecU64x4): TMask4;
+    { --- narrow_integer --- }
+    AddU64x4: function(const a, b: TVecU64x4): TVecU64x4;
+    SubU64x4: function(const a, b: TVecU64x4): TVecU64x4;
+    ShiftLeftU64x4: function(const a: TVecU64x4; count: Integer): TVecU64x4;
+    ShiftRightU64x4: function(const a: TVecU64x4; count: Integer): TVecU64x4;
     { --- arithmetic --- }
     AddF32x16: function(const a, b: TVecF32x16): TVecF32x16;
     SubF32x16: function(const a, b: TVecF32x16): TVecF32x16;
@@ -330,6 +422,9 @@
     ReduceMinF32x16: function(const a: TVecF32x16): Single;
     ReduceMaxF32x16: function(const a: TVecF32x16): Single;
     ReduceMulF32x16: function(const a: TVecF32x16): Single;
+    { --- special --- }
+    FmaF32x16: function(const a, b, c: TVecF32x16): TVecF32x16;
+    ClampF32x16: function(const a, b, c: TVecF32x16): TVecF32x16;
     { --- arithmetic --- }
     AddF64x8: function(const a, b: TVecF64x8): TVecF64x8;
     SubF64x8: function(const a, b: TVecF64x8): TVecF64x8;
@@ -361,6 +456,9 @@
     ReduceMinF64x8: function(const a: TVecF64x8): Double;
     ReduceMaxF64x8: function(const a: TVecF64x8): Double;
     ReduceMulF64x8: function(const a: TVecF64x8): Double;
+    { --- special --- }
+    FmaF64x8: function(const a, b, c: TVecF64x8): TVecF64x8;
+    ClampF64x8: function(const a, b, c: TVecF64x8): TVecF64x8;
     { --- arithmetic --- }
     AddI32x16: function(const a, b: TVecI32x16): TVecI32x16;
     SubI32x16: function(const a, b: TVecI32x16): TVecI32x16;
@@ -419,6 +517,10 @@
     CmpLeU32x16: function(const a, b: TVecU32x16): TMask16;
     CmpGeU32x16: function(const a, b: TVecU32x16): TMask16;
     CmpNeU32x16: function(const a, b: TVecU32x16): TMask16;
+    { --- narrow_integer --- }
+    AddU32x16: function(const a, b: TVecU32x16): TVecU32x16;
+    SubU32x16: function(const a, b: TVecU32x16): TVecU32x16;
+    MulU32x16: function(const a, b: TVecU32x16): TVecU32x16;
     { --- bitwise --- }
     AndU64x8: function(const a, b: TVecU64x8): TVecU64x8;
     OrU64x8: function(const a, b: TVecU64x8): TVecU64x8;
@@ -431,3 +533,8 @@
     CmpLeU64x8: function(const a, b: TVecU64x8): TMask8;
     CmpGeU64x8: function(const a, b: TVecU64x8): TMask8;
     CmpNeU64x8: function(const a, b: TVecU64x8): TMask8;
+    { --- narrow_integer --- }
+    AddU64x8: function(const a, b: TVecU64x8): TVecU64x8;
+    SubU64x8: function(const a, b: TVecU64x8): TVecU64x8;
+    ShiftLeftU64x8: function(const a: TVecU64x8; count: Integer): TVecU64x8;
+    ShiftRightU64x8: function(const a: TVecU64x8; count: Integer): TVecU64x8;

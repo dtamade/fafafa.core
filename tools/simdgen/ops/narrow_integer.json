@@ -1,0 +1,135 @@
+{
+  "_comment": "SIMD operation definitions - narrow integer types (I16x8, I8x16, U16x8, U8x16, wide variants)",
+  "category": "narrow_integer",
+  "operations": [
+    {
+      "name": "Add",
+      "signature": "binary",
+      "scalar_op": "+",
+      "doc": "Element-wise addition (narrow integer)",
+      "applies_to": ["I16x8", "I8x16", "U16x8", "U8x16", "U32x16", "U64x2", "U64x4", "U64x8"]
+    },
+    {
+      "name": "Sub",
+      "signature": "binary",
+      "scalar_op": "-",
+      "doc": "Element-wise subtraction (narrow integer)",
+      "applies_to": ["I16x8", "I8x16", "U16x8", "U8x16", "U32x16", "U64x2", "U64x4", "U64x8"]
+    },
+    {
+      "name": "Mul",
+      "signature": "binary",
+      "scalar_op": "*",
+      "doc": "Element-wise multiplication (narrow integer)",
+      "applies_to": ["I16x8", "U16x8", "U32x16"]
+    },
+    {
+      "name": "And",
+      "signature": "binary",
+      "scalar_op": "and",
+      "doc": "Bitwise AND (narrow integer)",
+      "applies_to": ["I16x8", "I8x16", "U16x8", "U8x16"]
+    },
+    {
+      "name": "Or",
+      "signature": "binary",
+      "scalar_op": "or",
+      "doc": "Bitwise OR (narrow integer)",
+      "applies_to": ["I16x8", "I8x16", "U16x8", "U8x16"]
+    },
+    {
+      "name": "Xor",
+      "signature": "binary",
+      "scalar_op": "xor",
+      "doc": "Bitwise XOR (narrow integer)",
+      "applies_to": ["I16x8", "I8x16", "U16x8", "U8x16"]
+    },
+    {
+      "name": "Not",
+      "signature": "unary",
+      "scalar_op": "not",
+      "doc": "Bitwise NOT (narrow integer)",
+      "applies_to": ["I16x8", "I8x16", "U16x8", "U8x16"]
+    },
+    {
+      "name": "Min",
+      "signature": "binary",
+      "scalar_op": "custom",
+      "scalar_body": "if a.{field}[i] < b.{field}[i] then Result.{field}[i] := a.{field}[i] else Result.{field}[i] := b.{field}[i]",
+      "doc": "Element-wise minimum (narrow integer)",
+      "applies_to": ["I16x8", "I8x16", "U16x8", "U8x16"]
+    },
+    {
+      "name": "Max",
+      "signature": "binary",
+      "scalar_op": "custom",
+      "scalar_body": "if a.{field}[i] > b.{field}[i] then Result.{field}[i] := a.{field}[i] else Result.{field}[i] := b.{field}[i]",
+      "doc": "Element-wise maximum (narrow integer)",
+      "applies_to": ["I16x8", "I8x16", "U16x8", "U8x16"]
+    },
+    {
+      "name": "CmpEq",
+      "signature": "compare",
+      "scalar_op": "=",
+      "doc": "Equal comparison (narrow integer)",
+      "applies_to": ["I16x8", "I8x16", "U16x8", "U8x16"]
+    },
+    {
+      "name": "CmpLt",
+      "signature": "compare",
+      "scalar_op": "<",
+      "doc": "Less-than comparison (narrow integer)",
+      "applies_to": ["I16x8", "I8x16", "U16x8", "U8x16"]
+    },
+    {
+      "name": "CmpGt",
+      "signature": "compare",
+      "scalar_op": ">",
+      "doc": "Greater-than comparison (narrow integer)",
+      "applies_to": ["I16x8", "I8x16", "U16x8", "U8x16"]
+    },
+    {
+      "name": "CmpLe",
+      "signature": "compare",
+      "scalar_op": "<=",
+      "doc": "Less-or-equal comparison (narrow integer)",
+      "applies_to": ["I16x8", "I8x16", "U16x8", "U8x16"]
+    },
+    {
+      "name": "CmpGe",
+      "signature": "compare",
+      "scalar_op": ">=",
+      "doc": "Greater-or-equal comparison (narrow integer)",
+      "applies_to": ["I16x8", "I8x16", "U16x8", "U8x16"]
+    },
+    {
+      "name": "CmpNe",
+      "signature": "compare",
+      "scalar_op": "<>",
+      "doc": "Not-equal comparison (narrow integer)",
+      "applies_to": ["I16x8", "I8x16", "U16x8", "U8x16"]
+    },
+    {
+      "name": "ShiftLeft",
+      "signature": "shift",
+      "scalar_op": "shl",
+      "doc": "Logical shift left (narrow integer)",
+      "applies_to": ["I16x8", "U16x8", "U64x4", "U64x8"]
+    },
+    {
+      "name": "ShiftRight",
+      "signature": "shift",
+      "scalar_op": "shr",
+      "doc": "Logical shift right (narrow integer)",
+      "applies_to": ["I16x8", "U16x8", "U64x4", "U64x8"]
+    },
+    {
+      "name": "ShiftRightArith",
+      "signature": "shift",
+      "scalar_op": "custom",
+      "scalar_body": "Result.{field}[i] := SarLongInt(a.{field}[i], count)",
+      "doc": "Arithmetic shift right (narrow integer)",
+      "applies_to": ["I16x8"]
+    }
+  ]
+}
