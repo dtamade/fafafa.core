@@ -1,5 +1,51 @@
 # SIMD Review Progress
 
+## 2026-05-22 SSE2 Cast Roundtrip Witness Thickening
+
+- 这批继续沿 `SSE2 proof-first` 小批次推进，不动实现层，也不改 checker 规则，只补 `cast` 家族的 repeated roundtrip witness。
+- 接手前的真实状态：
+  - 上一批 `cvtsi` 收口后，临时 `--sse2-min-refs 3` 已从 `thin=79` 降到 `thin=73`
+  - 当前最自然的 remaining 小簇就是：
+    - `simd_castpd_ps = refs=2`
+    - `simd_castpd_si128 = refs=2`
+    - `simd_castps_pd = refs=2`
+    - `simd_castps_si128 = refs=2`
+    - `simd_castsi128_pd = refs=2`
+    - `simd_castsi128_ps = refs=2`
+  - 这 6 个名字已经分布在 `Test_SettersAndCastsPreserveLaneOrder` 和 `Test_FloatingBitwisePdSemantics`，不需要新 suite
+- 已落地修改：
+  - `tests/fafafa.core.simd.intrinsics.experimental/fafafa.core.simd.intrinsics.experimental.testcase.pas`
+    - 在 `Test_SettersAndCastsPreserveLaneOrder` 里补第二组 `simd_castps_si128/simd_castsi128_ps` exact-bit roundtrip witness
+    - 在 `Test_FloatingBitwisePdSemantics` 里补第二组 `simd_castpd_si128/simd_castsi128_pd` 和 `simd_castpd_ps/simd_castps_pd` exact-bit roundtrip witness
+    - 新 witness 使用不同 bit pattern 的 `TM128` 输入，仍然只验证 reinterpret/roundtrip，不引入新语义
+- 定向复核结果：
+  - fresh `python3 tests/fafafa.core.simd/check_intrinsics_coverage.py --summary-line --sse2-min-refs 3` 已变成：
+    - `thin_required=73`
+  - 也就是这批把临时 `min_refs=3` 视角下的薄点从 `79 -> 73`
+  - 本批直接收上的名字是：
+    - `simd_castpd_ps`
+    - `simd_castpd_si128`
+    - `simd_castps_pd`
+    - `simd_castps_si128`
+    - `simd_castsi128_pd`
+    - `simd_castsi128_ps`
+- fresh 验证已完成：
+  - `git diff --check`
+  - `python3 tests/fafafa.core.simd/check_intrinsics_coverage.py --summary-line --sse2-min-refs 3`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh experimental-intrinsics-tests`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+- fresh 结果：
+  - `git diff --check` 通过
+  - 临时 `sse2_min_refs=3` 统计为：
+    - `INTRINSICS_COVERAGE_SUMMARY modules=6 missing_required=0 missing_optional=0 thin_required=73 thin_optional=0 extra=0 strict_extra=0 require_avx2=0 require_experimental=0 sse2_min_refs=3 status=fail`
+  - release `experimental-intrinsics-tests` 默认/experimental 双模式 PASS
+  - release `gate` PASS
+  - gate 默认口径下的 intrinsics coverage 继续保持：
+    - `INTRINSICS_COVERAGE_SUMMARY modules=6 missing_required=0 missing_optional=0 thin_required=0 thin_optional=0 extra=0 strict_extra=0 require_avx2=0 require_experimental=0 sse2_min_refs=2 status=ok`
+- 当前阶段结论：
+  - `cast` 这一最小 remaining 小簇已经被收厚
+  - 继续往下如果还按同样节奏推进，下一自然簇会前移到 `add/sub` 或 `pack/unpack` 里的更小成组子块，但那已经不再是同级最小 residual
+
 ## 2026-05-22 SSE2 Cvtsi Extraction Witness Thickening
 
 - 这批继续沿 `SSE2 proof-first` 小批次推进，不动实现层，也不改 checker 规则，只补 `cvtsi` 提取面的 repeated runtime witness。

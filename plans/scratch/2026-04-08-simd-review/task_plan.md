@@ -1,5 +1,19 @@
 # SIMD Review Task Plan
 
+## 2026-05-22 SSE2 Cast Roundtrip Witness Thickening
+
+### Goal
+
+在 `cvtsi` 小簇收口后，继续沿 `sse2_min_refs=3` 的 scouting 口径挑更干净的剩余小簇；这次锁定的是 `simd_castpd_ps`、`simd_castpd_si128`、`simd_castps_pd`、`simd_castps_si128`、`simd_castsi128_pd`、`simd_castsi128_ps`。目标仍然不是改 checker，而是在现有 lane-preserve / bit-preserve 测试里补第二组真实 roundtrip witness，把这 6 个名字从 `refs=2` 收上去。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 用 `sse2_min_refs=3` 复核下一簇 residual | completed | 已确认 `cast` 是当前最自然的下一簇，而且正好已经落在两个现有测试段里 |
+| 2. 在现有 cast 测试里补 repeated roundtrip witness | completed | 已在 `Test_SettersAndCastsPreserveLaneOrder` 与 `Test_FloatingBitwisePdSemantics` 里补第二组 exact-bit roundtrip 断言 |
+| 3. 定向/主线验证与 scratch 收口 | completed | `git diff --check`、`sse2_min_refs=3` 定向统计、release `experimental-intrinsics-tests`、release `gate` 全部通过；本批仍只同步 scratch，不改 active maintenance 口径 |
+
 ## 2026-05-22 SSE2 Cvtsi Extraction Witness Thickening
 
 ### Goal

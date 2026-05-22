@@ -1,5 +1,25 @@
 # SIMD Review Findings
 
+## 2026-05-22 SSE2 Cast Roundtrip Witness Thickening
+
+- 在 `cvtsi` 小簇收口后，fresh `sse2_min_refs=3` residual 里最自然的一簇已经前移到 `cast`：
+  - `simd_castpd_ps`
+  - `simd_castpd_si128`
+  - `simd_castps_pd`
+  - `simd_castps_si128`
+  - `simd_castsi128_pd`
+  - `simd_castsi128_ps`
+- 这 6 个 helper 很适合继续 proof-first 收口，因为：
+  - 它们本质上都是 reinterpret/roundtrip，最适合用第二组 exact-bit witness 做证明
+  - 两个已有测试段已经在承载它们，不需要新 suite
+  - 第二组 witness 仍然只是 bit-pattern 验证，不引入新语义边界
+- 这批补完后的直接效果是：
+  - 临时 `sse2_min_refs=3` 视角下 `thin_required: 73 -> 67`
+  - `cast` 这一整簇已经不再贡献 `refs=2` residual
+- 因而当前 residual 的结构又更清楚了一层：
+  - `memory`、`movemask`、`cvtsi`、`cast` 这几簇 very small batch 都已经继续收厚
+  - 下一步如果还要沿同一路线推进，更合理的方向就会开始进入 `add/sub`、`pack/unpack` 或 `compare` 这类更大的成组 residual
+
 ## 2026-05-22 SSE2 Cvtsi Extraction Witness Thickening
 
 - 在 `movemask` 小簇收口后，fresh `sse2_min_refs=3` residual 里最小、最自然的一簇已经收缩成：

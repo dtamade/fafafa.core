@@ -1410,6 +1410,15 @@ begin
   AssertM128BytesEqual(Self, 'simd_castps_si128/simd_castsi128_ps roundtrip',
     LValue, simd_castsi128_ps(LBits));
 
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128i_u32[0] := DWord($7FC12345);
+  LValue.m128i_u32[1] := DWord($80000000);
+  LValue.m128i_u32[2] := DWord($01234567);
+  LValue.m128i_u32[3] := DWord($FFEEDDCC);
+  LBits := simd_castps_si128(LValue);
+  AssertM128BytesEqual(Self, 'simd_castps_si128/simd_castsi128_ps repeated roundtrip',
+    LValue, simd_castsi128_ps(LBits));
+
   LValue := simd_set1_pd(2.5);
   AssertEquals('simd_set1_pd lane0', 2.5, LValue.m128d_f64[0], 0.0);
   AssertEquals('simd_set1_pd lane1', 2.5, LValue.m128d_f64[1], 0.0);
@@ -4696,6 +4705,17 @@ begin
 
   LBits := simd_castpd_ps(LValue);
   AssertM128BytesEqual(Self, 'simd_castpd_ps/simd_castps_pd roundtrip',
+    LValue, simd_castps_pd(LBits));
+
+  FillChar(LValue, SizeOf(LValue), 0);
+  LValue.m128i_u64[0] := QWord($7FF8123412341234);
+  LValue.m128i_u64[1] := QWord($8000000000000000);
+  LBits := simd_castpd_si128(LValue);
+  AssertM128BytesEqual(Self, 'simd_castpd_si128/simd_castsi128_pd repeated roundtrip',
+    LValue, simd_castsi128_pd(LBits));
+
+  LBits := simd_castpd_ps(LValue);
+  AssertM128BytesEqual(Self, 'simd_castpd_ps/simd_castps_pd repeated roundtrip',
     LValue, simd_castps_pd(LBits));
 end;
 
