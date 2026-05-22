@@ -606,6 +606,16 @@ begin
   dispatchTable.Mask16PopCount := @SSE2Mask16PopCount;
   dispatchTable.Mask16FirstSet := @SSE2Mask16FirstSet;
 
+  // ============================================================================
+  // Batch Array Operations (SSE2 SIMD loops)
+  // ============================================================================
+  dispatchTable.ArrayAddF32 := @SSE2ArrayAddF32;
+  dispatchTable.ArrayMulF32 := @SSE2ArrayMulF32;
+  dispatchTable.ArrayMulScalarF32 := @SSE2ArrayMulScalarF32;
+  dispatchTable.ArrayAxpyF32 := @SSE2ArrayAxpyF32;
+  dispatchTable.ReduceSumF32 := @SSE2ReduceSumF32;
+  dispatchTable.ReduceDotF32 := @SSE2ReduceDotF32;
+
   // Register the backend
   RegisterBackend(sbSSE2, dispatchTable);
 end;

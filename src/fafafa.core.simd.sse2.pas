@@ -6139,6 +6139,10 @@ end;
 
 {$I fafafa.core.simd.sse2.wide_emulation.inc}
 
+// === Batch Array Operations ===
+
+{$I fafafa.core.simd.sse2.batch.inc}
+
 // === Backend Registration ===
 
 {$I fafafa.core.simd.sse2.register.inc}
