@@ -3525,6 +3525,9 @@ end;
 // ============================================================================
 {$I fafafa.core.simd.avx2.wide_emulation.inc}
 
+// === Batch Array Operations (AVX2 256-bit) ===
+{$I fafafa.core.simd.avx2.batch.inc}
+
 // === Backend Registration ===
 
 {$I fafafa.core.simd.avx2.register.inc}

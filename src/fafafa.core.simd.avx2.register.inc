@@ -702,6 +702,14 @@ begin
   dispatchTable.Mask16PopCount := @AVX2Mask16PopCount;
   dispatchTable.Mask16FirstSet := @AVX2Mask16FirstSet;
 
+  // Batch array operations (AVX2 256-bit)
+  dispatchTable.ArrayAddF32 := @AVX2ArrayAddF32;
+  dispatchTable.ArrayMulF32 := @AVX2ArrayMulF32;
+  dispatchTable.ArrayMulScalarF32 := @AVX2ArrayMulScalarF32;
+  dispatchTable.ArrayAxpyF32 := @AVX2ArrayAxpyF32;
+  dispatchTable.ReduceSumF32 := @AVX2ReduceSumF32;
+  dispatchTable.ReduceDotF32 := @AVX2ReduceDotF32;
+
   // Register the backend
   RegisterBackend(sbAVX2, dispatchTable);
 end;
