@@ -39,7 +39,7 @@ implementation
 
 uses
   fafafa.core.simd.dispatch,
-  fafafa.core.simd.dataplane;
+  fafafa.core.simd.direct;
 
 type
   TF32Caps = record
@@ -53,7 +53,7 @@ function ProbeF32Caps: TF32Caps; inline;
 var
   LD: PSimdDispatchTable;
 begin
-  LD := GetCurrentSimdDataPlaneDispatch;
+  LD := GetDirectDispatchTable;
   Result.D := LD;
   Result.Has128 := (LD <> nil) and Assigned(LD^.AddF32x4);
   Result.Has256 := (LD <> nil) and Assigned(LD^.AddF32x8);

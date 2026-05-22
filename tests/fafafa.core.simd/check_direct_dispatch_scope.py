@@ -18,6 +18,7 @@ SCAN_GLOBS = (
     "src/fafafa.core.simd*.inc",
 )
 ALLOWED_FILES = {
+    "src/fafafa.core.simd.algorithms.pas",
     "src/fafafa.core.simd.api.pas",
     "src/fafafa.core.simd.arrays.pas",
     "src/fafafa.core.simd.direct.pas",
