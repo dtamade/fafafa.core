@@ -787,6 +787,16 @@ type
     AndNotI8x16: function(const a, b: TVecI8x16): TVecI8x16;
     AndNotU16x8: function(const a, b: TVecU16x8): TVecU16x8;
     AndNotU8x16: function(const a, b: TVecU8x16): TVecU8x16;
+
+    // === Batch Array Operations (O(1) dispatch, internal loop) ===
+    ArrayAddF32: procedure(aSrc1, aSrc2, aDst: PSingle; aCount: SizeUInt);
+    ArrayMulF32: procedure(aSrc1, aSrc2, aDst: PSingle; aCount: SizeUInt);
+    ArrayMulScalarF32: procedure(aSrc, aDst: PSingle; aCount: SizeUInt; aScalar: Single);
+    ArrayAxpyF32: procedure(aAlpha: Single; aX, aY, aDst: PSingle; aCount: SizeUInt);
+    ReduceSumF32: function(aSrc: PSingle; aCount: SizeUInt): Single;
+    ReduceDotF32: function(aSrc1, aSrc2: PSingle; aCount: SizeUInt): Single;
+    ReduceMinF32: function(aSrc: PSingle; aCount: SizeUInt): Single;
+    ReduceMaxF32: function(aSrc: PSingle; aCount: SizeUInt): Single;
   end;
 
 // Pointer to dispatch table
@@ -2535,6 +2545,16 @@ begin
   dispatchTable.CmpNeU8x16 := @ScalarCmpNeU8x16;
   dispatchTable.MinU8x16 := @ScalarMinU8x16;
   dispatchTable.MaxU8x16 := @ScalarMaxU8x16;
+
+  // Batch array operations
+  dispatchTable.ArrayAddF32 := @ScalarArrayAddF32;
+  dispatchTable.ArrayMulF32 := @ScalarArrayMulF32;
+  dispatchTable.ArrayMulScalarF32 := @ScalarArrayMulScalarF32;
+  dispatchTable.ArrayAxpyF32 := @ScalarArrayAxpyF32;
+  dispatchTable.ReduceSumF32 := @ScalarReduceSumF32;
+  dispatchTable.ReduceDotF32 := @ScalarReduceDotF32;
+  dispatchTable.ReduceMinF32 := @ScalarReduceMinF32;
+  dispatchTable.ReduceMaxF32 := @ScalarReduceMaxF32;
 end;
 
 // 修复 允许 tier 后端从 SSE2 继承实现，而非从标量基线开始

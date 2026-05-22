@@ -47,6 +47,16 @@ function BytesIndexOf_Scalar(haystack: Pointer; haystackLen: SizeUInt; needle: P
 // 位集函数
 function BitsetPopCount_Scalar(p: Pointer; byteLen: SizeUInt): SizeUInt;
 
+// === Batch Array Operations ===
+procedure ScalarArrayAddF32(aSrc1, aSrc2, aDst: PSingle; aCount: SizeUInt);
+procedure ScalarArrayMulF32(aSrc1, aSrc2, aDst: PSingle; aCount: SizeUInt);
+procedure ScalarArrayMulScalarF32(aSrc, aDst: PSingle; aCount: SizeUInt; aScalar: Single);
+procedure ScalarArrayAxpyF32(aAlpha: Single; aX, aY, aDst: PSingle; aCount: SizeUInt);
+function ScalarReduceSumF32(aSrc: PSingle; aCount: SizeUInt): Single;
+function ScalarReduceDotF32(aSrc1, aSrc2: PSingle; aCount: SizeUInt): Single;
+function ScalarReduceMinF32(aSrc: PSingle; aCount: SizeUInt): Single;
+function ScalarReduceMaxF32(aSrc: PSingle; aCount: SizeUInt): Single;
+
 // === 基础向量/数值参考实现（供其他后端回退使用） ===
 // Arithmetic
 function ScalarAddF32x4(const a, b: TVecF32x4): TVecF32x4;
@@ -3074,6 +3084,70 @@ var i: Integer;
 begin
   for i := 0 to 7 do
     Result.d[i] := 0.0;
+end;
+
+// === Batch Array Operations (scalar reference implementations) ===
+
+procedure ScalarArrayAddF32(aSrc1, aSrc2, aDst: PSingle; aCount: SizeUInt);
+var i: SizeUInt;
+begin
+  for i := 0 to aCount - 1 do
+    aDst[i] := aSrc1[i] + aSrc2[i];
+end;
+
+procedure ScalarArrayMulF32(aSrc1, aSrc2, aDst: PSingle; aCount: SizeUInt);
+var i: SizeUInt;
+begin
+  for i := 0 to aCount - 1 do
+    aDst[i] := aSrc1[i] * aSrc2[i];
+end;
+
+procedure ScalarArrayMulScalarF32(aSrc, aDst: PSingle; aCount: SizeUInt; aScalar: Single);
+var i: SizeUInt;
+begin
+  for i := 0 to aCount - 1 do
+    aDst[i] := aSrc[i] * aScalar;
+end;
+
+procedure ScalarArrayAxpyF32(aAlpha: Single; aX, aY, aDst: PSingle; aCount: SizeUInt);
+var i: SizeUInt;
+begin
+  for i := 0 to aCount - 1 do
+    aDst[i] := aAlpha * aX[i] + aY[i];
+end;
+
+function ScalarReduceSumF32(aSrc: PSingle; aCount: SizeUInt): Single;
+var i: SizeUInt;
+begin
+  Result := 0;
+  for i := 0 to aCount - 1 do
+    Result := Result + aSrc[i];
+end;
+
+function ScalarReduceDotF32(aSrc1, aSrc2: PSingle; aCount: SizeUInt): Single;
+var i: SizeUInt;
+begin
+  Result := 0;
+  for i := 0 to aCount - 1 do
+    Result := Result + aSrc1[i] * aSrc2[i];
+end;
+
+function ScalarReduceMinF32(aSrc: PSingle; aCount: SizeUInt): Single;
+var i: SizeUInt;
+begin
+  if aCount = 0 then begin Result := 0; Exit; end;
+  Result := aSrc[0];
+  for i := 1 to aCount - 1 do
+    if aSrc[i] < Result then Result := aSrc[i];
+end;
+
+function ScalarReduceMaxF32(aSrc: PSingle; aCount: SizeUInt): Single;
+var i: SizeUInt;
+begin
+  if aCount = 0 then begin Result := 0; Exit; end;
+  Result := aSrc[0];
+  for i := 1 to aCount - 1 do
+    if aSrc[i] > Result then Result := aSrc[i];
 end;
 
 // === Backend Registration ===
