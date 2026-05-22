@@ -215,6 +215,22 @@ def generate_scalar_decl(registry: Registry) -> str:
             lines.append(
                 f"function {slot.scalar_name}(const a: {t.vec_type}; count: Integer): {t.vec_type};"
             )
+        elif sig == "load":
+            lines.append(
+                f"function {slot.scalar_name}(p: {t.ptr_type}): {t.vec_type};"
+            )
+        elif sig == "store":
+            lines.append(
+                f"procedure {slot.scalar_name}(p: {t.ptr_type}; const a: {t.vec_type});"
+            )
+        elif sig == "splat":
+            lines.append(
+                f"function {slot.scalar_name}(value: {t.scalar_type}): {t.vec_type};"
+            )
+        elif sig == "zero":
+            lines.append(
+                f"function {slot.scalar_name}: {t.vec_type};"
+            )
     return "\n".join(lines) + "\n"
 
 
@@ -316,6 +332,40 @@ def generate_scalar_impl(registry: Registry) -> str:
             lines.append("end;")
             lines.append("")
 
+        elif sig == "load":
+            lines.append(f"function {slot.scalar_name}(p: {t.ptr_type}): {t.vec_type};")
+            lines.append("var i: Integer;")
+            lines.append("begin")
+            lines.append(f"  for i := 0 to {t.lanes - 1} do")
+            lines.append(f"    Result.{t.field_name}[i] := p[i];")
+            lines.append("end;")
+            lines.append("")
+
+        elif sig == "store":
+            lines.append(f"procedure {slot.scalar_name}(p: {t.ptr_type}; const a: {t.vec_type});")
+            lines.append("var i: Integer;")
+            lines.append("begin")
+            lines.append(f"  for i := 0 to {t.lanes - 1} do")
+            lines.append(f"    p[i] := a.{t.field_name}[i];")
+            lines.append("end;")
+            lines.append("")
+
+        elif sig == "splat":
+            lines.append(f"function {slot.scalar_name}(value: {t.scalar_type}): {t.vec_type};")
+            lines.append("var i: Integer;")
+            lines.append("begin")
+            lines.append(f"  for i := 0 to {t.lanes - 1} do")
+            lines.append(f"    Result.{t.field_name}[i] := value;")
+            lines.append("end;")
+            lines.append("")
+
+        elif sig == "zero":
+            lines.append(f"function {slot.scalar_name}: {t.vec_type};")
+            lines.append("begin")
+            lines.append(f"  FillChar(Result, SizeOf(Result), 0);")
+            lines.append("end;")
+            lines.append("")
+
     return "\n".join(lines) + "\n"
 
 
@@ -353,6 +403,22 @@ def generate_facade_decl(registry: Registry) -> str:
         elif sig == "shift":
             lines.append(
                 f"function {slot.facade_name}(const a: {t.vec_type}; count: Integer): {t.vec_type}; inline;"
+            )
+        elif sig == "load":
+            lines.append(
+                f"function {slot.facade_name}(p: {t.ptr_type}): {t.vec_type}; inline;"
+            )
+        elif sig == "store":
+            lines.append(
+                f"procedure {slot.facade_name}(p: {t.ptr_type}; const a: {t.vec_type}); inline;"
+            )
+        elif sig == "splat":
+            lines.append(
+                f"function {slot.facade_name}(value: {t.scalar_type}): {t.vec_type}; inline;"
+            )
+        elif sig == "zero":
+            lines.append(
+                f"function {slot.facade_name}: {t.vec_type}; inline;"
             )
     return "\n".join(lines) + "\n"
 
@@ -401,6 +467,38 @@ def generate_facade_impl(registry: Registry) -> str:
             lines.append("begin")
             lines.append("  LDispatch := GetSimdFacadeDispatchFastPath;")
             lines.append(f"  Result := LDispatch^.{slot.dispatch_field}(a, count);")
+            lines.append("end;")
+            lines.append("")
+        elif sig == "load":
+            lines.append(f"function {slot.facade_name}(p: {t.ptr_type}): {t.vec_type};")
+            lines.append("var LDispatch: PSimdDispatchTable;")
+            lines.append("begin")
+            lines.append("  LDispatch := GetSimdFacadeDispatchFastPath;")
+            lines.append(f"  Result := LDispatch^.{slot.dispatch_field}(p);")
+            lines.append("end;")
+            lines.append("")
+        elif sig == "store":
+            lines.append(f"procedure {slot.facade_name}(p: {t.ptr_type}; const a: {t.vec_type});")
+            lines.append("var LDispatch: PSimdDispatchTable;")
+            lines.append("begin")
+            lines.append("  LDispatch := GetSimdFacadeDispatchFastPath;")
+            lines.append(f"  LDispatch^.{slot.dispatch_field}(p, a);")
+            lines.append("end;")
+            lines.append("")
+        elif sig == "splat":
+            lines.append(f"function {slot.facade_name}(value: {t.scalar_type}): {t.vec_type};")
+            lines.append("var LDispatch: PSimdDispatchTable;")
+            lines.append("begin")
+            lines.append("  LDispatch := GetSimdFacadeDispatchFastPath;")
+            lines.append(f"  Result := LDispatch^.{slot.dispatch_field}(value);")
+            lines.append("end;")
+            lines.append("")
+        elif sig == "zero":
+            lines.append(f"function {slot.facade_name}: {t.vec_type};")
+            lines.append("var LDispatch: PSimdDispatchTable;")
+            lines.append("begin")
+            lines.append("  LDispatch := GetSimdFacadeDispatchFastPath;")
+            lines.append(f"  Result := LDispatch^.{slot.dispatch_field};")
             lines.append("end;")
             lines.append("")
 

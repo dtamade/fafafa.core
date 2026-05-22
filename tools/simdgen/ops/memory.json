@@ -1,0 +1,54 @@
+{
+  "_comment": "SIMD operation definitions - memory operations (Load/Store/Splat/Zero)",
+  "category": "memory",
+  "operations": [
+    {
+      "name": "Load",
+      "signature": "load",
+      "scalar_op": "",
+      "doc": "Load vector from unaligned memory",
+      "applies_to": [
+        "F32x4", "F32x8", "F32x16",
+        "F64x2", "F64x4", "F64x8",
+        "I32x4", "I32x8", "I32x16",
+        "I64x2", "I64x4", "I64x8"
+      ]
+    },
+    {
+      "name": "Store",
+      "signature": "store",
+      "scalar_op": "",
+      "doc": "Store vector to unaligned memory",
+      "applies_to": [
+        "F32x4", "F32x8", "F32x16",
+        "F64x2", "F64x4", "F64x8",
+        "I32x4", "I32x8", "I32x16",
+        "I64x2", "I64x4", "I64x8"
+      ]
+    },
+    {
+      "name": "Splat",
+      "signature": "splat",
+      "scalar_op": "",
+      "doc": "Broadcast scalar to all lanes",
+      "applies_to": [
+        "F32x4", "F32x8", "F32x16",
+        "F64x2", "F64x4", "F64x8",
+        "I32x4", "I32x8", "I32x16",
+        "I64x2", "I64x4", "I64x8"
+      ]
+    },
+    {
+      "name": "Zero",
+      "signature": "zero",
+      "scalar_op": "",
+      "doc": "Return zero vector",
+      "applies_to": [
+        "F32x4", "F32x8", "F32x16",
+        "F64x2", "F64x4", "F64x8",
+        "I32x4", "I32x8", "I32x16",
+        "I64x2", "I64x4", "I64x8"
+      ]
+    }
+  ]
+}

@@ -146,6 +146,32 @@ begin
     Result.f[i] := Trunc(a.f[i]);
 end;
 
+function ScalarLoadF32x4(p: PSingle): TVecF32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.f[i] := p[i];
+end;
+
+procedure ScalarStoreF32x4(p: PSingle; const a: TVecF32x4);
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    p[i] := a.f[i];
+end;
+
+function ScalarSplatF32x4(value: Single): TVecF32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.f[i] := value;
+end;
+
+function ScalarZeroF32x4: TVecF32x4;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+end;
+
 function ScalarReduceAddF32x4(const a: TVecF32x4): Single;
 var i: Integer;
 begin
@@ -314,6 +340,32 @@ var i: Integer;
 begin
   for i := 0 to 1 do
     Result.d[i] := Trunc(a.d[i]);
+end;
+
+function ScalarLoadF64x2(p: PDouble): TVecF64x2;
+var i: Integer;
+begin
+  for i := 0 to 1 do
+    Result.d[i] := p[i];
+end;
+
+procedure ScalarStoreF64x2(p: PDouble; const a: TVecF64x2);
+var i: Integer;
+begin
+  for i := 0 to 1 do
+    p[i] := a.d[i];
+end;
+
+function ScalarSplatF64x2(value: Double): TVecF64x2;
+var i: Integer;
+begin
+  for i := 0 to 1 do
+    Result.d[i] := value;
+end;
+
+function ScalarZeroF64x2: TVecF64x2;
+begin
+  FillChar(Result, SizeOf(Result), 0);
 end;
 
 function ScalarReduceAddF64x2(const a: TVecF64x2): Double;
@@ -493,6 +545,32 @@ begin
       Result := Result or (TMask4(1) shl i);
 end;
 
+function ScalarLoadI32x4(p: PInt32): TVecI32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.i[i] := p[i];
+end;
+
+procedure ScalarStoreI32x4(p: PInt32; const a: TVecI32x4);
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    p[i] := a.i[i];
+end;
+
+function ScalarSplatI32x4(value: Int32): TVecI32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.i[i] := value;
+end;
+
+function ScalarZeroI32x4: TVecI32x4;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+end;
+
 function ScalarReduceAddI32x4(const a: TVecI32x4): Int32;
 var i: Integer;
 begin
@@ -653,6 +731,32 @@ begin
   for i := 0 to 1 do
     if a.i[i] <> b.i[i] then
       Result := Result or (TMask2(1) shl i);
+end;
+
+function ScalarLoadI64x2(p: PInt64): TVecI64x2;
+var i: Integer;
+begin
+  for i := 0 to 1 do
+    Result.i[i] := p[i];
+end;
+
+procedure ScalarStoreI64x2(p: PInt64; const a: TVecI64x2);
+var i: Integer;
+begin
+  for i := 0 to 1 do
+    p[i] := a.i[i];
+end;
+
+function ScalarSplatI64x2(value: Int64): TVecI64x2;
+var i: Integer;
+begin
+  for i := 0 to 1 do
+    Result.i[i] := value;
+end;
+
+function ScalarZeroI64x2: TVecI64x2;
+begin
+  FillChar(Result, SizeOf(Result), 0);
 end;
 
 function ScalarAddU32x4(const a, b: TVecU32x4): TVecU32x4;
@@ -1034,6 +1138,32 @@ begin
     Result.f[i] := Trunc(a.f[i]);
 end;
 
+function ScalarLoadF32x8(p: PSingle): TVecF32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.f[i] := p[i];
+end;
+
+procedure ScalarStoreF32x8(p: PSingle; const a: TVecF32x8);
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    p[i] := a.f[i];
+end;
+
+function ScalarSplatF32x8(value: Single): TVecF32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.f[i] := value;
+end;
+
+function ScalarZeroF32x8: TVecF32x8;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+end;
+
 function ScalarReduceAddF32x8(const a: TVecF32x8): Single;
 var i: Integer;
 begin
@@ -1202,6 +1332,32 @@ var i: Integer;
 begin
   for i := 0 to 3 do
     Result.d[i] := Trunc(a.d[i]);
+end;
+
+function ScalarLoadF64x4(p: PDouble): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.d[i] := p[i];
+end;
+
+procedure ScalarStoreF64x4(p: PDouble; const a: TVecF64x4);
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    p[i] := a.d[i];
+end;
+
+function ScalarSplatF64x4(value: Double): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.d[i] := value;
+end;
+
+function ScalarZeroF64x4: TVecF64x4;
+begin
+  FillChar(Result, SizeOf(Result), 0);
 end;
 
 function ScalarReduceAddF64x4(const a: TVecF64x4): Double;
@@ -1381,6 +1537,32 @@ begin
       Result := Result or (TMask8(1) shl i);
 end;
 
+function ScalarLoadI32x8(p: PInt32): TVecI32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := p[i];
+end;
+
+procedure ScalarStoreI32x8(p: PInt32; const a: TVecI32x8);
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    p[i] := a.i[i];
+end;
+
+function ScalarSplatI32x8(value: Int32): TVecI32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := value;
+end;
+
+function ScalarZeroI32x8: TVecI32x8;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+end;
+
 function ScalarReduceAddI32x8(const a: TVecI32x8): Int32;
 var i: Integer;
 begin
@@ -1541,6 +1723,32 @@ begin
   for i := 0 to 3 do
     if a.i[i] <> b.i[i] then
       Result := Result or (TMask4(1) shl i);
+end;
+
+function ScalarLoadI64x4(p: PInt64): TVecI64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.i[i] := p[i];
+end;
+
+procedure ScalarStoreI64x4(p: PInt64; const a: TVecI64x4);
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    p[i] := a.i[i];
+end;
+
+function ScalarSplatI64x4(value: Int64): TVecI64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.i[i] := value;
+end;
+
+function ScalarZeroI64x4: TVecI64x4;
+begin
+  FillChar(Result, SizeOf(Result), 0);
 end;
 
 function ScalarAddU32x8(const a, b: TVecU32x8): TVecU32x8;
@@ -1922,6 +2130,32 @@ begin
     Result.f[i] := Trunc(a.f[i]);
 end;
 
+function ScalarLoadF32x16(p: PSingle): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.f[i] := p[i];
+end;
+
+procedure ScalarStoreF32x16(p: PSingle; const a: TVecF32x16);
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    p[i] := a.f[i];
+end;
+
+function ScalarSplatF32x16(value: Single): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.f[i] := value;
+end;
+
+function ScalarZeroF32x16: TVecF32x16;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+end;
+
 function ScalarReduceAddF32x16(const a: TVecF32x16): Single;
 var i: Integer;
 begin
@@ -2090,6 +2324,32 @@ var i: Integer;
 begin
   for i := 0 to 7 do
     Result.d[i] := Trunc(a.d[i]);
+end;
+
+function ScalarLoadF64x8(p: PDouble): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.d[i] := p[i];
+end;
+
+procedure ScalarStoreF64x8(p: PDouble; const a: TVecF64x8);
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    p[i] := a.d[i];
+end;
+
+function ScalarSplatF64x8(value: Double): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.d[i] := value;
+end;
+
+function ScalarZeroF64x8: TVecF64x8;
+begin
+  FillChar(Result, SizeOf(Result), 0);
 end;
 
 function ScalarReduceAddF64x8(const a: TVecF64x8): Double;
@@ -2269,6 +2529,32 @@ begin
       Result := Result or (TMask16(1) shl i);
 end;
 
+function ScalarLoadI32x16(p: PInt32): TVecI32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.i[i] := p[i];
+end;
+
+procedure ScalarStoreI32x16(p: PInt32; const a: TVecI32x16);
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    p[i] := a.i[i];
+end;
+
+function ScalarSplatI32x16(value: Int32): TVecI32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.i[i] := value;
+end;
+
+function ScalarZeroI32x16: TVecI32x16;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+end;
+
 function ScalarAddI64x8(const a, b: TVecI64x8): TVecI64x8;
 var i: Integer;
 begin
@@ -2405,6 +2691,32 @@ begin
   for i := 0 to 7 do
     if a.i[i] <> b.i[i] then
       Result := Result or (TMask8(1) shl i);
+end;
+
+function ScalarLoadI64x8(p: PInt64): TVecI64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := p[i];
+end;
+
+procedure ScalarStoreI64x8(p: PInt64; const a: TVecI64x8);
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    p[i] := a.i[i];
+end;
+
+function ScalarSplatI64x8(value: Int64): TVecI64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := value;
+end;
+
+function ScalarZeroI64x8: TVecI64x8;
+begin
+  FillChar(Result, SizeOf(Result), 0);
 end;
 
 function ScalarMinU32x16(const a, b: TVecU32x16): TVecU32x16;

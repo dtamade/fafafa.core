@@ -44,6 +44,14 @@ function VecF32x4Ceil(const a: TVecF32x4): TVecF32x4; inline;
 function VecF32x4Round(const a: TVecF32x4): TVecF32x4; inline;
 { Truncate toward zero: F32x4 }
 function VecF32x4Trunc(const a: TVecF32x4): TVecF32x4; inline;
+{ Load vector from unaligned memory: F32x4 }
+function VecF32x4Load(p: PSingle): TVecF32x4; inline;
+{ Store vector to unaligned memory: F32x4 }
+procedure VecF32x4Store(p: PSingle; const a: TVecF32x4); inline;
+{ Broadcast scalar to all lanes: F32x4 }
+function VecF32x4Splat(value: Single): TVecF32x4; inline;
+{ Return zero vector: F32x4 }
+function VecF32x4Zero: TVecF32x4; inline;
 { Horizontal sum of all lanes: F32x4 }
 function VecF32x4ReduceAdd(const a: TVecF32x4): Single; inline;
 { Minimum across all lanes: F32x4 }
@@ -88,6 +96,14 @@ function VecF64x2Ceil(const a: TVecF64x2): TVecF64x2; inline;
 function VecF64x2Round(const a: TVecF64x2): TVecF64x2; inline;
 { Truncate toward zero: F64x2 }
 function VecF64x2Trunc(const a: TVecF64x2): TVecF64x2; inline;
+{ Load vector from unaligned memory: F64x2 }
+function VecF64x2Load(p: PDouble): TVecF64x2; inline;
+{ Store vector to unaligned memory: F64x2 }
+procedure VecF64x2Store(p: PDouble; const a: TVecF64x2); inline;
+{ Broadcast scalar to all lanes: F64x2 }
+function VecF64x2Splat(value: Double): TVecF64x2; inline;
+{ Return zero vector: F64x2 }
+function VecF64x2Zero: TVecF64x2; inline;
 { Horizontal sum of all lanes: F64x2 }
 function VecF64x2ReduceAdd(const a: TVecF64x2): Double; inline;
 { Minimum across all lanes: F64x2 }
@@ -134,6 +150,14 @@ function VecI32x4CmpLe(const a, b: TVecI32x4): TMask4; inline;
 function VecI32x4CmpGe(const a, b: TVecI32x4): TMask4; inline;
 { Not-equal comparison: I32x4 }
 function VecI32x4CmpNe(const a, b: TVecI32x4): TMask4; inline;
+{ Load vector from unaligned memory: I32x4 }
+function VecI32x4Load(p: PInt32): TVecI32x4; inline;
+{ Store vector to unaligned memory: I32x4 }
+procedure VecI32x4Store(p: PInt32; const a: TVecI32x4); inline;
+{ Broadcast scalar to all lanes: I32x4 }
+function VecI32x4Splat(value: Int32): TVecI32x4; inline;
+{ Return zero vector: I32x4 }
+function VecI32x4Zero: TVecI32x4; inline;
 { Horizontal sum of all lanes: I32x4 }
 function VecI32x4ReduceAdd(const a: TVecI32x4): Int32; inline;
 { Minimum across all lanes: I32x4 }
@@ -176,6 +200,14 @@ function VecI64x2CmpLe(const a, b: TVecI64x2): TMask2; inline;
 function VecI64x2CmpGe(const a, b: TVecI64x2): TMask2; inline;
 { Not-equal comparison: I64x2 }
 function VecI64x2CmpNe(const a, b: TVecI64x2): TMask2; inline;
+{ Load vector from unaligned memory: I64x2 }
+function VecI64x2Load(p: PInt64): TVecI64x2; inline;
+{ Store vector to unaligned memory: I64x2 }
+procedure VecI64x2Store(p: PInt64; const a: TVecI64x2); inline;
+{ Broadcast scalar to all lanes: I64x2 }
+function VecI64x2Splat(value: Int64): TVecI64x2; inline;
+{ Return zero vector: I64x2 }
+function VecI64x2Zero: TVecI64x2; inline;
 { Element-wise addition: U32x4 }
 function VecU32x4Add(const a, b: TVecU32x4): TVecU32x4; inline;
 { Element-wise subtraction: U32x4 }
@@ -274,6 +306,14 @@ function VecF32x8Ceil(const a: TVecF32x8): TVecF32x8; inline;
 function VecF32x8Round(const a: TVecF32x8): TVecF32x8; inline;
 { Truncate toward zero: F32x8 }
 function VecF32x8Trunc(const a: TVecF32x8): TVecF32x8; inline;
+{ Load vector from unaligned memory: F32x8 }
+function VecF32x8Load(p: PSingle): TVecF32x8; inline;
+{ Store vector to unaligned memory: F32x8 }
+procedure VecF32x8Store(p: PSingle; const a: TVecF32x8); inline;
+{ Broadcast scalar to all lanes: F32x8 }
+function VecF32x8Splat(value: Single): TVecF32x8; inline;
+{ Return zero vector: F32x8 }
+function VecF32x8Zero: TVecF32x8; inline;
 { Horizontal sum of all lanes: F32x8 }
 function VecF32x8ReduceAdd(const a: TVecF32x8): Single; inline;
 { Minimum across all lanes: F32x8 }
@@ -318,6 +358,14 @@ function VecF64x4Ceil(const a: TVecF64x4): TVecF64x4; inline;
 function VecF64x4Round(const a: TVecF64x4): TVecF64x4; inline;
 { Truncate toward zero: F64x4 }
 function VecF64x4Trunc(const a: TVecF64x4): TVecF64x4; inline;
+{ Load vector from unaligned memory: F64x4 }
+function VecF64x4Load(p: PDouble): TVecF64x4; inline;
+{ Store vector to unaligned memory: F64x4 }
+procedure VecF64x4Store(p: PDouble; const a: TVecF64x4); inline;
+{ Broadcast scalar to all lanes: F64x4 }
+function VecF64x4Splat(value: Double): TVecF64x4; inline;
+{ Return zero vector: F64x4 }
+function VecF64x4Zero: TVecF64x4; inline;
 { Horizontal sum of all lanes: F64x4 }
 function VecF64x4ReduceAdd(const a: TVecF64x4): Double; inline;
 { Minimum across all lanes: F64x4 }
@@ -364,6 +412,14 @@ function VecI32x8CmpLe(const a, b: TVecI32x8): TMask8; inline;
 function VecI32x8CmpGe(const a, b: TVecI32x8): TMask8; inline;
 { Not-equal comparison: I32x8 }
 function VecI32x8CmpNe(const a, b: TVecI32x8): TMask8; inline;
+{ Load vector from unaligned memory: I32x8 }
+function VecI32x8Load(p: PInt32): TVecI32x8; inline;
+{ Store vector to unaligned memory: I32x8 }
+procedure VecI32x8Store(p: PInt32; const a: TVecI32x8); inline;
+{ Broadcast scalar to all lanes: I32x8 }
+function VecI32x8Splat(value: Int32): TVecI32x8; inline;
+{ Return zero vector: I32x8 }
+function VecI32x8Zero: TVecI32x8; inline;
 { Horizontal sum of all lanes: I32x8 }
 function VecI32x8ReduceAdd(const a: TVecI32x8): Int32; inline;
 { Minimum across all lanes: I32x8 }
@@ -406,6 +462,14 @@ function VecI64x4CmpLe(const a, b: TVecI64x4): TMask4; inline;
 function VecI64x4CmpGe(const a, b: TVecI64x4): TMask4; inline;
 { Not-equal comparison: I64x4 }
 function VecI64x4CmpNe(const a, b: TVecI64x4): TMask4; inline;
+{ Load vector from unaligned memory: I64x4 }
+function VecI64x4Load(p: PInt64): TVecI64x4; inline;
+{ Store vector to unaligned memory: I64x4 }
+procedure VecI64x4Store(p: PInt64; const a: TVecI64x4); inline;
+{ Broadcast scalar to all lanes: I64x4 }
+function VecI64x4Splat(value: Int64): TVecI64x4; inline;
+{ Return zero vector: I64x4 }
+function VecI64x4Zero: TVecI64x4; inline;
 { Element-wise addition: U32x8 }
 function VecU32x8Add(const a, b: TVecU32x8): TVecU32x8; inline;
 { Element-wise subtraction: U32x8 }
@@ -504,6 +568,14 @@ function VecF32x16Ceil(const a: TVecF32x16): TVecF32x16; inline;
 function VecF32x16Round(const a: TVecF32x16): TVecF32x16; inline;
 { Truncate toward zero: F32x16 }
 function VecF32x16Trunc(const a: TVecF32x16): TVecF32x16; inline;
+{ Load vector from unaligned memory: F32x16 }
+function VecF32x16Load(p: PSingle): TVecF32x16; inline;
+{ Store vector to unaligned memory: F32x16 }
+procedure VecF32x16Store(p: PSingle; const a: TVecF32x16); inline;
+{ Broadcast scalar to all lanes: F32x16 }
+function VecF32x16Splat(value: Single): TVecF32x16; inline;
+{ Return zero vector: F32x16 }
+function VecF32x16Zero: TVecF32x16; inline;
 { Horizontal sum of all lanes: F32x16 }
 function VecF32x16ReduceAdd(const a: TVecF32x16): Single; inline;
 { Minimum across all lanes: F32x16 }
@@ -548,6 +620,14 @@ function VecF64x8Ceil(const a: TVecF64x8): TVecF64x8; inline;
 function VecF64x8Round(const a: TVecF64x8): TVecF64x8; inline;
 { Truncate toward zero: F64x8 }
 function VecF64x8Trunc(const a: TVecF64x8): TVecF64x8; inline;
+{ Load vector from unaligned memory: F64x8 }
+function VecF64x8Load(p: PDouble): TVecF64x8; inline;
+{ Store vector to unaligned memory: F64x8 }
+procedure VecF64x8Store(p: PDouble; const a: TVecF64x8); inline;
+{ Broadcast scalar to all lanes: F64x8 }
+function VecF64x8Splat(value: Double): TVecF64x8; inline;
+{ Return zero vector: F64x8 }
+function VecF64x8Zero: TVecF64x8; inline;
 { Horizontal sum of all lanes: F64x8 }
 function VecF64x8ReduceAdd(const a: TVecF64x8): Double; inline;
 { Minimum across all lanes: F64x8 }
@@ -594,6 +674,14 @@ function VecI32x16CmpLe(const a, b: TVecI32x16): TMask16; inline;
 function VecI32x16CmpGe(const a, b: TVecI32x16): TMask16; inline;
 { Not-equal comparison: I32x16 }
 function VecI32x16CmpNe(const a, b: TVecI32x16): TMask16; inline;
+{ Load vector from unaligned memory: I32x16 }
+function VecI32x16Load(p: PInt32): TVecI32x16; inline;
+{ Store vector to unaligned memory: I32x16 }
+procedure VecI32x16Store(p: PInt32; const a: TVecI32x16); inline;
+{ Broadcast scalar to all lanes: I32x16 }
+function VecI32x16Splat(value: Int32): TVecI32x16; inline;
+{ Return zero vector: I32x16 }
+function VecI32x16Zero: TVecI32x16; inline;
 { Element-wise addition: I64x8 }
 function VecI64x8Add(const a, b: TVecI64x8): TVecI64x8; inline;
 { Element-wise subtraction: I64x8 }
@@ -630,6 +718,14 @@ function VecI64x8CmpLe(const a, b: TVecI64x8): TMask8; inline;
 function VecI64x8CmpGe(const a, b: TVecI64x8): TMask8; inline;
 { Not-equal comparison: I64x8 }
 function VecI64x8CmpNe(const a, b: TVecI64x8): TMask8; inline;
+{ Load vector from unaligned memory: I64x8 }
+function VecI64x8Load(p: PInt64): TVecI64x8; inline;
+{ Store vector to unaligned memory: I64x8 }
+procedure VecI64x8Store(p: PInt64; const a: TVecI64x8); inline;
+{ Broadcast scalar to all lanes: I64x8 }
+function VecI64x8Splat(value: Int64): TVecI64x8; inline;
+{ Return zero vector: I64x8 }
+function VecI64x8Zero: TVecI64x8; inline;
 { Element-wise minimum: U32x16 }
 function VecU32x16Min(const a, b: TVecU32x16): TVecU32x16; inline;
 { Element-wise maximum: U32x16 }
