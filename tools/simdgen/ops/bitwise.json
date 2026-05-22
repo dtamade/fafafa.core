@@ -1,0 +1,100 @@
+{
+  "_comment": "SIMD operation definitions - bitwise category",
+  "category": "bitwise",
+  "operations": [
+    {
+      "name": "And",
+      "signature": "binary",
+      "scalar_op": "and",
+      "doc": "Bitwise AND",
+      "applies_to": [
+        "I32x4", "I32x8", "I32x16",
+        "I64x2", "I64x4", "I64x8",
+        "U64x2", "U64x4", "U64x8",
+        "U32x4", "U32x8", "U32x16"
+      ]
+    },
+    {
+      "name": "Or",
+      "signature": "binary",
+      "scalar_op": "or",
+      "doc": "Bitwise OR",
+      "applies_to": [
+        "I32x4", "I32x8", "I32x16",
+        "I64x2", "I64x4", "I64x8",
+        "U64x2", "U64x4", "U64x8",
+        "U32x4", "U32x8", "U32x16"
+      ]
+    },
+    {
+      "name": "Xor",
+      "signature": "binary",
+      "scalar_op": "xor",
+      "doc": "Bitwise XOR",
+      "applies_to": [
+        "I32x4", "I32x8", "I32x16",
+        "I64x2", "I64x4", "I64x8",
+        "U64x2", "U64x4", "U64x8",
+        "U32x4", "U32x8", "U32x16"
+      ]
+    },
+    {
+      "name": "Not",
+      "signature": "unary",
+      "scalar_op": "not",
+      "doc": "Bitwise NOT",
+      "applies_to": [
+        "I32x4", "I32x8", "I32x16",
+        "I64x2", "I64x4", "I64x8",
+        "U64x2", "U64x4", "U64x8",
+        "U32x4", "U32x8", "U32x16"
+      ]
+    },
+    {
+      "name": "AndNot",
+      "signature": "binary",
+      "scalar_op": "custom",
+      "scalar_body": "Result.{field}[i] := (not a.{field}[i]) and b.{field}[i]",
+      "doc": "Bitwise AND-NOT: (~a) & b",
+      "applies_to": [
+        "I32x4", "I32x8", "I32x16",
+        "I64x2", "I64x4", "I64x8",
+        "U64x2", "U64x4", "U64x8",
+        "U32x4", "U32x8", "U32x16"
+      ]
+    },
+    {
+      "name": "ShiftLeft",
+      "signature": "shift",
+      "scalar_op": "shl",
+      "doc": "Logical shift left by count bits",
+      "applies_to": [
+        "I32x4", "I32x8", "I32x16",
+        "I64x2", "I64x4", "I64x8",
+        "U32x4", "U32x8", "U32x16"
+      ]
+    },
+    {
+      "name": "ShiftRight",
+      "signature": "shift",
+      "scalar_op": "shr",
+      "doc": "Logical shift right by count bits",
+      "applies_to": [
+        "I32x4", "I32x8", "I32x16",
+        "I64x2", "I64x4", "I64x8",
+        "U32x4", "U32x8", "U32x16"
+      ]
+    },
+    {
+      "name": "ShiftRightArith",
+      "signature": "shift",
+      "scalar_op": "custom",
+      "scalar_body": "Result.{field}[i] := SarLongInt(a.{field}[i], count)",
+      "doc": "Arithmetic shift right (sign-extending)",
+      "applies_to": [
+        "I32x4", "I32x8", "I32x16",
+        "I64x2", "I64x4", "I64x8"
+      ]
+    }
+  ]
+}
