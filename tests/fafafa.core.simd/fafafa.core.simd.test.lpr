@@ -33,6 +33,7 @@ uses
   {$ENDIF}
   fafafa.core.simd.intrinsics.avx2.testcase,
   fafafa.core.simd.concurrent.testcase,  // ✅ Phase 5.4: Concurrent SIMD tests (12 tests)
+  fafafa.core.simd.algorithms.testcase,
   fafafa.core.simd.bench,
   fafafa.core.simd.base,
   fafafa.core.simd.cpuinfo,
