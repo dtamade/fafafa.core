@@ -697,9 +697,16 @@ def main():
     dry_run = "--dry-run" in sys.argv
     sort_by_type = "--sort-by-type" in sys.argv
     audit_mode = "--audit" in sys.argv
+    category_filter = None
+    for arg in sys.argv:
+        if arg.startswith("--category="):
+            category_filter = arg.split("=", 1)[1]
 
     registry = Registry()
     registry.load_all()
+
+    if category_filter:
+        registry.slots = [s for s in registry.slots if s.op.category == category_filter]
 
     if sort_by_type:
         registry.slots.sort(key=lambda s: (s.type_info.width, s.type_info.name, s.op.category))
