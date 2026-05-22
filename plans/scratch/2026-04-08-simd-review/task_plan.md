@@ -6538,3 +6538,21 @@ closeout finalize，直到 `freeze-status` 重新转绿。
 | 1. 复核当前 thin 簇并挑选高收益测试方法 | completed | fresh `check_intrinsics_coverage.py --summary-line --sse2-min-refs 3` 起点为 `thin=73`，其中 `mul`、`bitwise`、`compare`、`min/max/avg` 都集中在单个 testcase 内，适合补第二 witness |
 | 2. 在现有 testcase 内补第二组真实 witness | completed | 已在 `Test_IntegerMultiplyFamilies_Semantics`、`Test_BitwiseAndAndnotSemantics`、`Test_FloatingBitwisePdSemantics`、`Test_IntegerCompareFamilies_SignedAndEqualitySemantics`、`Test_SignedIntegerMinMaxSemantics`、`Test_UnsignedMinMaxAvgSadSemantics` 内补第二组真实输入与断言 |
 | 3. 串行 Release 复验并确认 gate 仍绿 | completed | `git diff --check`、`python3 tests/fafafa.core.simd/check_intrinsics_coverage.py --summary-line --sse2-min-refs 3`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh experimental-intrinsics-tests`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 全部通过；fresh `thin=46` |
+
+## 2026-05-22 SSE2 Raw Thin Witness Thickening Batch 2
+
+### Goal
+
+继续沿 `check_intrinsics_coverage.py --sse2-min-refs 3` 的安全测试增厚路线推进，
+这轮专门收掉：
+- `add/sub` wraparound 家族
+- `saturating add/sub` 家族
+- `cmpeq_epi8` 在 `AddAndCmpeqMovemask` 里的单薄 witness
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核当前 residual 并锁定 `add/sub` 与 `saturating` 集中位置 | completed | fresh `thin=46`，且 `add/sub` / `saturating add/sub` / `cmpeq_epi8` 都集中在 3 个现有 testcase 内，适合一次性补第二 witness |
+| 2. 在现有 testcase 内补第二组真实 witness | completed | 已在 `Test_AddAndCmpeqMovemask`、`Test_IntegerWideAddSubWraparoundSemantics`、`Test_SignedAndUnsignedSaturatingArithmeticSemantics` 内补第二组真实输入与断言，不新增 suite、不碰实现 |
+| 3. 串行 Release 复验并确认 gate 仍绿 | completed | `git diff --check`、`python3 tests/fafafa.core.simd/check_intrinsics_coverage.py --summary-line --sse2-min-refs 3`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh experimental-intrinsics-tests`、`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate` 全部通过；fresh `thin=29` |

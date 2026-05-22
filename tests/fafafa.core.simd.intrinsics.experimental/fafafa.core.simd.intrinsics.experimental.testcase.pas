@@ -1273,6 +1273,35 @@ begin
   AssertM128BytesEqual(Self, 'simd_cmpeq_epi8', LExpected, LActual);
 
   FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 15 do
+  begin
+    LA.m128i_u8[LIndex] := Byte(($F0 - LIndex * 7) and $FF);
+    if (LIndex and 3) = 0 then
+      LB.m128i_u8[LIndex] := LA.m128i_u8[LIndex]
+    else
+      LB.m128i_u8[LIndex] := Byte(($10 + LIndex * 11) and $FF);
+  end;
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    LExpected.m128i_u8[LIndex] := Byte((LA.m128i_u8[LIndex] + LB.m128i_u8[LIndex]) and $FF);
+  LActual := simd_add_epi8(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_add_epi8 witness2', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+  begin
+    if LA.m128i_u8[LIndex] = LB.m128i_u8[LIndex] then
+      LExpected.m128i_u8[LIndex] := $FF
+    else
+      LExpected.m128i_u8[LIndex] := $00;
+  end;
+
+  LActual := simd_cmpeq_epi8(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_cmpeq_epi8 witness2', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
   for LIndex := 0 to 15 do
     if (LIndex and 1) = 0 then
       LA.m128i_u8[LIndex] := $80
@@ -1681,6 +1710,93 @@ begin
     LExpected.m128i_u8[LIndex] := Byte((Word(LA.m128i_u8[LIndex]) - Word(LB.m128i_u8[LIndex])) and $FF);
   LActual := simd_sub_epi8(LA, LB);
   AssertM128BytesEqual(Self, 'simd_sub_epi8 wraparound', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u16[0] := Word($0000);
+  LA.m128i_u16[1] := Word($0001);
+  LA.m128i_u16[2] := Word($8001);
+  LA.m128i_u16[3] := Word($7FFE);
+  LA.m128i_u16[4] := Word($1111);
+  LA.m128i_u16[5] := Word($EEEE);
+  LA.m128i_u16[6] := Word($00F0);
+  LA.m128i_u16[7] := Word($F000);
+  LB.m128i_u16[0] := Word($FFFF);
+  LB.m128i_u16[1] := Word($8000);
+  LB.m128i_u16[2] := Word($7FFF);
+  LB.m128i_u16[3] := Word($0002);
+  LB.m128i_u16[4] := Word($2222);
+  LB.m128i_u16[5] := Word($1234);
+  LB.m128i_u16[6] := Word($FF10);
+  LB.m128i_u16[7] := Word($1001);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 7 do
+    LExpected.m128i_u16[LIndex] := Word((DWord(LA.m128i_u16[LIndex]) + DWord(LB.m128i_u16[LIndex])) and DWord($FFFF));
+  LActual := simd_add_epi16(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_add_epi16 wraparound witness2', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 7 do
+    LExpected.m128i_u16[LIndex] := Word((DWord(LA.m128i_u16[LIndex]) - DWord(LB.m128i_u16[LIndex])) and DWord($FFFF));
+  LActual := simd_sub_epi16(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_sub_epi16 wraparound witness2', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u32[0] := DWord($00000000);
+  LA.m128i_u32[1] := DWord($FFFFFFFF);
+  LA.m128i_u32[2] := DWord($80000001);
+  LA.m128i_u32[3] := DWord($13579BDF);
+  LB.m128i_u32[0] := DWord($FFFFFFFF);
+  LB.m128i_u32[1] := DWord($00000002);
+  LB.m128i_u32[2] := DWord($7FFFFFFF);
+  LB.m128i_u32[3] := DWord($2468ACE1);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 3 do
+    LExpected.m128i_u32[LIndex] := DWord(QWord(LA.m128i_u32[LIndex]) + QWord(LB.m128i_u32[LIndex]));
+  LActual := simd_add_epi32(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_add_epi32 wraparound witness2', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 3 do
+    LExpected.m128i_u32[LIndex] := DWord(QWord(LA.m128i_u32[LIndex]) - QWord(LB.m128i_u32[LIndex]));
+  LActual := simd_sub_epi32(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_sub_epi32 wraparound witness2', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u64[0] := QWord($0000000000000000);
+  LA.m128i_u64[1] := QWord($0123456789ABCDEF);
+  LB.m128i_u64[0] := QWord($FFFFFFFFFFFFFFFF);
+  LB.m128i_u64[1] := QWord($FEDCBA9876543211);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 1 do
+    LExpected.m128i_u64[LIndex] := QWord(LA.m128i_u64[LIndex] + LB.m128i_u64[LIndex]);
+  LActual := simd_add_epi64(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_add_epi64 wraparound witness2', LExpected, LActual);
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 1 do
+    LExpected.m128i_u64[LIndex] := QWord(LA.m128i_u64[LIndex] - LB.m128i_u64[LIndex]);
+  LActual := simd_sub_epi64(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_sub_epi64 wraparound witness2', LExpected, LActual);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  for LIndex := 0 to 15 do
+  begin
+    LA.m128i_u8[LIndex] := Byte((LIndex * 17 + 3) and $FF);
+    LB.m128i_u8[LIndex] := Byte((240 - LIndex * 13) and $FF);
+  end;
+
+  FillChar(LExpected, SizeOf(LExpected), 0);
+  for LIndex := 0 to 15 do
+    LExpected.m128i_u8[LIndex] := Byte((Word(LA.m128i_u8[LIndex]) - Word(LB.m128i_u8[LIndex])) and $FF);
+  LActual := simd_sub_epi8(LA, LB);
+  AssertM128BytesEqual(Self, 'simd_sub_epi8 wraparound witness2', LExpected, LActual);
 end;
 
 procedure TTestCase_X86Sse2AbiBasics.Test_FloatSubDivAndScalarArithmeticPreserveContracts;
@@ -3901,6 +4017,110 @@ begin
   begin
     LExpectedU16 := SaturateI32ToU16(LA.m128i_u16[LIndex] - LB.m128i_u16[LIndex]);
     AssertEquals('simd_subs_epu16 lane ' + IntToStr(LIndex), LExpectedU16, LActual.m128i_u16[LIndex]);
+  end;
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_i8[0] := 127;    LB.m128i_i8[0] := 1;
+  LA.m128i_i8[1] := -128;   LB.m128i_i8[1] := -1;
+  LA.m128i_i8[2] := 100;    LB.m128i_i8[2] := 30;
+  LA.m128i_i8[3] := -100;   LB.m128i_i8[3] := -40;
+  for LIndex := 4 to 15 do
+  begin
+    LA.m128i_i8[LIndex] := ShortInt(60 - LIndex * 7);
+    LB.m128i_i8[LIndex] := ShortInt(LIndex * 5 - 30);
+  end;
+
+  LActual := simd_adds_epi8(LA, LB);
+  for LIndex := 0 to 15 do
+  begin
+    LExpectedI8 := SaturateI16ToI8(LA.m128i_i8[LIndex] + LB.m128i_i8[LIndex]);
+    AssertEquals('simd_adds_epi8 lane2 ' + IntToStr(LIndex), LExpectedI8, LActual.m128i_i8[LIndex]);
+  end;
+
+  LActual := simd_subs_epi8(LA, LB);
+  for LIndex := 0 to 15 do
+  begin
+    LExpectedI8 := SaturateI16ToI8(LA.m128i_i8[LIndex] - LB.m128i_i8[LIndex]);
+    AssertEquals('simd_subs_epi8 lane2 ' + IntToStr(LIndex), LExpectedI8, LActual.m128i_i8[LIndex]);
+  end;
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_i16[0] := 32767;    LB.m128i_i16[0] := 1;
+  LA.m128i_i16[1] := -32768;   LB.m128i_i16[1] := -1;
+  LA.m128i_i16[2] := 25000;    LB.m128i_i16[2] := 12000;
+  LA.m128i_i16[3] := -25000;   LB.m128i_i16[3] := -12000;
+  for LIndex := 4 to 7 do
+  begin
+    LA.m128i_i16[LIndex] := SmallInt(28000 - LIndex * 6000);
+    LB.m128i_i16[LIndex] := SmallInt(LIndex * 5000 - 18000);
+  end;
+
+  LActual := simd_adds_epi16(LA, LB);
+  for LIndex := 0 to 7 do
+  begin
+    LExpectedI16 := SaturateI32ToI16(LA.m128i_i16[LIndex] + LB.m128i_i16[LIndex]);
+    AssertEquals('simd_adds_epi16 lane2 ' + IntToStr(LIndex), LExpectedI16, LActual.m128i_i16[LIndex]);
+  end;
+
+  LActual := simd_subs_epi16(LA, LB);
+  for LIndex := 0 to 7 do
+  begin
+    LExpectedI16 := SaturateI32ToI16(LA.m128i_i16[LIndex] - LB.m128i_i16[LIndex]);
+    AssertEquals('simd_subs_epi16 lane2 ' + IntToStr(LIndex), LExpectedI16, LActual.m128i_i16[LIndex]);
+  end;
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u8[0] := 255;   LB.m128i_u8[0] := 1;
+  LA.m128i_u8[1] := 0;     LB.m128i_u8[1] := 255;
+  LA.m128i_u8[2] := 200;   LB.m128i_u8[2] := 100;
+  LA.m128i_u8[3] := 10;    LB.m128i_u8[3] := 40;
+  for LIndex := 4 to 15 do
+  begin
+    LA.m128i_u8[LIndex] := Byte((220 - LIndex * 9) and $FF);
+    LB.m128i_u8[LIndex] := Byte((LIndex * 13 + 7) and $FF);
+  end;
+
+  LActual := simd_adds_epu8(LA, LB);
+  for LIndex := 0 to 15 do
+  begin
+    LExpectedU8 := SaturateI16ToU8(LA.m128i_u8[LIndex] + LB.m128i_u8[LIndex]);
+    AssertEquals('simd_adds_epu8 lane2 ' + IntToStr(LIndex), LExpectedU8, LActual.m128i_u8[LIndex]);
+  end;
+
+  LActual := simd_subs_epu8(LA, LB);
+  for LIndex := 0 to 15 do
+  begin
+    LExpectedU8 := SaturateI16ToU8(LA.m128i_u8[LIndex] - LB.m128i_u8[LIndex]);
+    AssertEquals('simd_subs_epu8 lane2 ' + IntToStr(LIndex), LExpectedU8, LActual.m128i_u8[LIndex]);
+  end;
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  LA.m128i_u16[0] := 65535;  LB.m128i_u16[0] := 1;
+  LA.m128i_u16[1] := 0;      LB.m128i_u16[1] := 65535;
+  LA.m128i_u16[2] := 50000;  LB.m128i_u16[2] := 30000;
+  LA.m128i_u16[3] := 1000;   LB.m128i_u16[3] := 2000;
+  for LIndex := 4 to 7 do
+  begin
+    LA.m128i_u16[LIndex] := Word(60000 - LIndex * 4000);
+    LB.m128i_u16[LIndex] := Word(3000 + LIndex * 7000);
+  end;
+
+  LActual := simd_adds_epu16(LA, LB);
+  for LIndex := 0 to 7 do
+  begin
+    LExpectedU16 := SaturateI32ToU16(LA.m128i_u16[LIndex] + LB.m128i_u16[LIndex]);
+    AssertEquals('simd_adds_epu16 lane2 ' + IntToStr(LIndex), LExpectedU16, LActual.m128i_u16[LIndex]);
+  end;
+
+  LActual := simd_subs_epu16(LA, LB);
+  for LIndex := 0 to 7 do
+  begin
+    LExpectedU16 := SaturateI32ToU16(LA.m128i_u16[LIndex] - LB.m128i_u16[LIndex]);
+    AssertEquals('simd_subs_epu16 lane2 ' + IntToStr(LIndex), LExpectedU16, LActual.m128i_u16[LIndex]);
   end;
 end;
 

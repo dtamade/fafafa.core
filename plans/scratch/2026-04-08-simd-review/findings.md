@@ -10152,3 +10152,21 @@
   - `python3 tests/fafafa.core.simd/check_intrinsics_coverage.py --summary-line --sse2-min-refs 3`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh experimental-intrinsics-tests`
   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+
+## 2026-05-22 SSE2 Raw Thin Witness Thickening Batch 2
+
+- 这轮把 `sse2-x86-raw` 的 `thin_required` 从 `46` 进一步压到 `29`，依然没有引入 `missing` 或 gate 回归。
+- 已补实的新增家族：
+  - `add/sub` wraparound
+  - `saturating add/sub`
+  - `cmpeq_epi8` 的第二组真实 witness
+- 当前剩余薄点已经比较干净地收缩到：
+  - `shift`
+  - `unpack`
+  - `packs/packus`
+  - `lfence/mfence/pause/clflush`
+  - `madd`
+- fresh 证据：
+  - `python3 tests/fafafa.core.simd/check_intrinsics_coverage.py --summary-line --sse2-min-refs 3`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh experimental-intrinsics-tests`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
