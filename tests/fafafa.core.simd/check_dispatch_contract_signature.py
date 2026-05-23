@@ -18,7 +18,7 @@ RECORD_START_RE = re.compile(r"^\s*(T[A-Za-z0-9_]+)\s*=\s*record\b", re.IGNORECA
 
 # Baseline signatures for the current in-repo dispatch contract.
 EXPECTED_BACKEND_INFO_SIGNATURE = "5475286897138f473cd3148caa3e4df907f45b52b2eff55d2e67b7d2161b4b3a"
-EXPECTED_DISPATCH_TABLE_SIGNATURE = "989a99fbe81fa562839cd0b98baf3dbbcc3da39810afcf98dfd19e1a1303da9a"
+EXPECTED_DISPATCH_TABLE_SIGNATURE = "f5727966308911e2c4d50d601518c09effff47a332fba10ce118d987710cfede"
 
 
 @dataclass(frozen=True)

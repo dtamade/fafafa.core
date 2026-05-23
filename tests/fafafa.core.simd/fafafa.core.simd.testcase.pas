@@ -17,7 +17,6 @@ uses
   fafafa.core.simd.base,
   fafafa.core.simd.fixturehelpers,
   fafafa.core.simd.utils,
-  fafafa.core.simd.ops,
   fafafa.core.simd.api,
   fafafa.core.simd.dispatch,
   fafafa.core.simd.scalar,

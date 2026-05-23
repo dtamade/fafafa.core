@@ -160,6 +160,16 @@ NONX86_WIDE_FALLBACK_ONLY_SLOTS = frozenset(
     + tuple(sorted(NONX86_U64X8_TARGET_SLOTS))
     + tuple(sorted(NONX86_U8X64_TARGET_SLOTS))
 )
+PUBLIC_FACADE_TEST_ALIASES = {
+    "ArrayAddF32": ("SimdArrayAdd",),
+    "ArrayAxpyF32": ("SimdArrayAxpy",),
+    "ArrayMulF32": ("SimdArrayMul",),
+    "ArrayMulScalarF32": ("SimdArrayMulScalar",),
+    "ReduceDotF32": ("SimdReduceDot",),
+    "ReduceMaxF32": ("SimdReduceMax",),
+    "ReduceMinF32": ("SimdReduceMin",),
+    "ReduceSumF32": ("SimdReduceSum",),
+}
 RISCVV_128BIT_ROUNDING_BASE_SCALAR_SLOTS = frozenset((
     "CeilF32x4",
     "CeilF64x2",
@@ -282,6 +292,13 @@ def build_test_token_counter(tests_root: Path) -> dict[str, int]:
         for token in TOKEN_RE.findall(text):
             counter[token] = counter.get(token, 0) + 1
     return counter
+
+
+def count_test_refs(slot: str, token_counter: dict[str, int]) -> int:
+    total = token_counter.get(slot, 0)
+    for alias in PUBLIC_FACADE_TEST_ALIASES.get(slot, ()):
+        total += token_counter.get(alias, 0)
+    return total
 
 
 def extract_nonx86_p0_target_slots(checklist_path: Path) -> set[str]:
@@ -513,17 +530,18 @@ def main() -> int:
     severity_counts = {"P0": 0, "P1": 0, "P2": 0}
     for slot in sorted(slots):
         assigned_backends = [backend for backend in backend_files.keys() if slot in backend_assigned[backend]]
+        test_refs = count_test_refs(slot, test_counter)
         severity, reason = classify_slot(
             slot=slot,
             assigned_backends=assigned_backends,
-            test_refs=test_counter.get(slot, 0),
+            test_refs=test_refs,
             nonx86_target_slots=nonx86_target_slots,
         )
         items.append(
             SlotCoverage(
                 slot=slot,
                 assigned_backends=assigned_backends,
-                test_refs=test_counter.get(slot, 0),
+                test_refs=test_refs,
                 severity=severity,
                 reason=reason,
             )

@@ -1,5 +1,19 @@
 # SIMD Review Task Plan
 
+## 2026-05-23 SIMD Public-Entry Operator Overloads Closeout
+
+### Goal
+
+让调用方仅通过 `uses fafafa.core.simd;` 就能直接写 `c := a + b` 这类核心 128-bit operator API，不再要求显式导入 `fafafa.core.simd.ops`；同时保持 `fafafa.core.simd.ops` 继续承载更宽向量/兼容层 operator，并把这批改动真正跑到 release `gate` 绿。
+
+### Phases
+
+| Phase | Status | Notes |
+| --- | --- | --- |
+| 1. 复核 FPC operator 可见性边界 | completed | 已确认把 operator 只放在 `fafafa.core.simd.ops`，再由 `fafafa.core.simd` 或 `fafafa.core.simd.base` 间接 `uses`，都不足以让调用方获得全局 operator；默认公开入口必须直接声明这些 operator |
+| 2. 收口默认公开入口与 operator 分工 | completed | 已把 `TVecF32x4` / `TVecF64x2` / `TVecI32x4` 的核心 operator 声明和实现直接放进 `src/fafafa.core.simd.pas`；`fafafa.core.simd.ops` 回收到更宽向量/兼容层；`fafafa.core.simd.base` 只保留类型/常量说明；主 testcase 不再显式 `uses fafafa.core.simd.ops` |
+| 3. Release 验证与 gate blocker 收口 | completed | fresh `public-entry` smoke、release `gate` 全部通过；顺手修正了 completeness checker 对 `SimdArray*` / `SimdReduce*` 的 alias 盲点，刷新了 stale dispatch contract signature baseline，并处理了宿主机 Lazarus `ttcalc.ppu` 残留导致的 mmx gate 假红 |
+
 ## 2026-05-22 SSE2 Min-Refs=3 Zero-Residual Closeout
 
 ### Goal

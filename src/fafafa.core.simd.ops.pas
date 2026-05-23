@@ -10,33 +10,11 @@ uses
 
 // =============================================================
 // SIMD 向量运算符重载
-// - 本单元包含所有向量类型的运算符重载实现
+// - 默认公开入口最常用的 128-bit 运算符现在已回收到
+//   fafafa.core.simd.base，以便 `uses fafafa.core.simd;` 直接生效。
+// - 本单元保留更宽向量和兼容层所需的运算符重载实现。
 // - 通过 dispatch 系统自动选择最佳 SIMD 后端
-// - ✅ 从 fafafa.core.simd.base.pas 分离以避免循环依赖 (2025-12-24)
 // =============================================================
-
-// === 运算符重载 (Phase 1.2) ===
-// TVecF32x4 运算符
-operator + (const a, b: TVecF32x4): TVecF32x4; inline;
-operator - (const a, b: TVecF32x4): TVecF32x4; inline;
-operator * (const a, b: TVecF32x4): TVecF32x4; inline;
-operator / (const a, b: TVecF32x4): TVecF32x4; inline;
-operator - (const a: TVecF32x4): TVecF32x4; inline;
-operator * (const a: TVecF32x4; s: Single): TVecF32x4; inline;
-operator * (s: Single; const a: TVecF32x4): TVecF32x4; inline;
-operator / (const a: TVecF32x4; s: Single): TVecF32x4; inline;
-
-// TVecF64x2 运算符
-operator + (const a, b: TVecF64x2): TVecF64x2; inline;
-operator - (const a, b: TVecF64x2): TVecF64x2; inline;
-operator * (const a, b: TVecF64x2): TVecF64x2; inline;
-operator / (const a, b: TVecF64x2): TVecF64x2; inline;
-operator - (const a: TVecF64x2): TVecF64x2; inline;
-
-// TVecI32x4 运算符
-operator + (const a, b: TVecI32x4): TVecI32x4; inline;
-operator - (const a, b: TVecI32x4): TVecI32x4; inline;
-operator - (const a: TVecI32x4): TVecI32x4; inline;
 
 // TVecI64x2 运算符 (P1.3)
 operator + (const a, b: TVecI64x2): TVecI64x2; inline;
@@ -102,115 +80,6 @@ implementation
 uses
   fafafa.core.simd.dispatch,
   fafafa.core.simd.direct;
-
-// === TVecF32x4 运算符实现 ===
-// 通过已发布的 dataplane dispatch snapshot 调用 SIMD 实现，而非标量循环
-
-// ✅ P2-B: 简化运算符 - GetDirectDispatchTable 保证返回有效指针，所有槽位已填充
-operator + (const a, b: TVecF32x4): TVecF32x4;
-begin
-  Result := GetDirectDispatchTable^.AddF32x4(a, b);
-end;
-
-operator - (const a, b: TVecF32x4): TVecF32x4;
-begin
-  Result := GetDirectDispatchTable^.SubF32x4(a, b);
-end;
-
-operator * (const a, b: TVecF32x4): TVecF32x4;
-begin
-  Result := GetDirectDispatchTable^.MulF32x4(a, b);
-end;
-
-operator / (const a, b: TVecF32x4): TVecF32x4;
-begin
-  Result := GetDirectDispatchTable^.DivF32x4(a, b);
-end;
-
-operator - (const a: TVecF32x4): TVecF32x4;
-var i: Integer;
-begin
-  // Unary negation - no dispatch function, use scalar
-  for i := 0 to 3 do
-    Result.f[i] := -a.f[i];
-end;
-
-operator * (const a: TVecF32x4; s: Single): TVecF32x4;
-var dt: PSimdDispatchTable;
-begin
-  dt := GetDirectDispatchTable;
-  Result := dt^.MulF32x4(a, dt^.SplatF32x4(s));
-end;
-
-operator * (s: Single; const a: TVecF32x4): TVecF32x4;
-var dt: PSimdDispatchTable;
-begin
-  dt := GetDirectDispatchTable;
-  Result := dt^.MulF32x4(dt^.SplatF32x4(s), a);
-end;
-
-operator / (const a: TVecF32x4; s: Single): TVecF32x4;
-var dt: PSimdDispatchTable;
-begin
-  dt := GetDirectDispatchTable;
-  Result := dt^.DivF32x4(a, dt^.SplatF32x4(s));
-end;
-
-// === TVecF64x2 运算符实现 ===
-// 通过 dispatch 系统调用 SIMD 实现
-
-// ✅ P2-B: 简化运算符 - GetDirectDispatchTable 保证返回有效指针，所有槽位已填充
-operator + (const a, b: TVecF64x2): TVecF64x2;
-begin
-  Result := GetDirectDispatchTable^.AddF64x2(a, b);
-end;
-
-operator - (const a, b: TVecF64x2): TVecF64x2;
-begin
-  Result := GetDirectDispatchTable^.SubF64x2(a, b);
-end;
-
-operator * (const a, b: TVecF64x2): TVecF64x2;
-begin
-  Result := GetDirectDispatchTable^.MulF64x2(a, b);
-end;
-
-operator / (const a, b: TVecF64x2): TVecF64x2;
-begin
-  Result := GetDirectDispatchTable^.DivF64x2(a, b);
-end;
-
-operator - (const a: TVecF64x2): TVecF64x2;
-begin
-  // Unary negation - no dispatch function, use scalar
-  Result.d[0] := -a.d[0];
-  Result.d[1] := -a.d[1];
-end;
-
-// === TVecI32x4 运算符实现 ===
-// Note: Integer SIMD operations should wrap around on overflow (like hardware)
-// ✅ P2-B: 简化运算符 - GetDirectDispatchTable 保证返回有效指针，所有槽位已填充
-
-{$PUSH}{$R-}{$Q-}  // Disable range/overflow checks for wraparound semantics
-operator + (const a, b: TVecI32x4): TVecI32x4;
-begin
-  Result := GetDirectDispatchTable^.AddI32x4(a, b);
-end;
-
-operator - (const a, b: TVecI32x4): TVecI32x4;
-begin
-  Result := GetDirectDispatchTable^.SubI32x4(a, b);
-end;
-
-operator - (const a: TVecI32x4): TVecI32x4;
-begin
-  // Unary negation - no dispatch function, use scalar
-  Result.i[0] := -a.i[0];
-  Result.i[1] := -a.i[1];
-  Result.i[2] := -a.i[2];
-  Result.i[3] := -a.i[3];
-end;
-{$POP}
 
 // === TVecI64x2 运算符实现 (128-bit, P1.3) ===
 // ✅ P2-B: 简化运算符 - GetDirectDispatchTable 保证返回有效指针，所有槽位已填充

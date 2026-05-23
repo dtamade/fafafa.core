@@ -1,5 +1,47 @@
 # SIMD Review Progress
 
+## 2026-05-23 SIMD Public-Entry Operator Overloads Closeout
+
+- 这批延续的是 API 易用性收口：目标不是再做一层 SIMD 后端能力，而是把调用面从“`VecF32x4Add(a, b)` / `uses fafafa.core.simd.ops`”收成默认公开入口即可用的 `a + b`。
+- 已落地代码：
+  - `src/fafafa.core.simd.pas`
+    - 新增 `TVecF32x4` / `TVecF64x2` / `TVecI32x4` 的 core operator 声明与实现，直接委托到既有 `Vec*` façade
+  - `src/fafafa.core.simd.ops.pas`
+    - 移除与默认入口重叠的 core 128-bit operator，只保留更宽向量/兼容层
+  - `src/fafafa.core.simd.base.pas`
+    - 回退“把默认 operator 挪到 base”这条失败尝试，只保留职责说明
+  - `src/fafafa.core.simd.algorithms.pas`
+    - 删除无用的 `uses fafafa.core.simd.base;`，顺手清掉 stable-path hint
+  - `tests/fafafa.core.simd/fafafa.core.simd.testcase.pas`
+    - 移除显式 `fafafa.core.simd.ops` 依赖，让主 testcase 真正通过默认公开入口验证 operator 可见性
+  - `tests/fafafa.core.simd/check_interface_implementation_completeness.py`
+    - 为 `Array*F32` / `Reduce*F32` slot 增加 `SimdArray*` / `SimdReduce*` public wrapper alias 计数
+  - `tests/fafafa.core.simd/check_dispatch_contract_signature.py`
+    - 刷新 `TSimdDispatchTable` expected signature 到当前源码真相
+- 这批中途踩到的失败边界与收口：
+  - 先前尝试把 operator 只放在 `fafafa.core.simd.ops`，再由 `fafafa.core.simd` 间接导出，失败
+  - 再尝试把 operator 放进 `fafafa.core.simd.base`，也失败
+  - release `gate` 首先红在 completeness checker；定位为 alias 假红后修复
+  - 第二次红在 dispatch contract baseline；刷新 expected signature 后修复
+  - 第三次红在 `fafafa.core.simd.intrinsics.mmx` 的 host Lazarus 残留；把 `/opt/fpcupdeluxe/lazarus/components/freetype/ttcalc.ppu` 挪到 `/tmp/ttcalc.ppu.bak` 后修复
+- fresh 验证：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - 已在完整 `gate` 的 build/check 段再次验证通过
+  - `fpc -Mobjfpc -Sh -O3 -Fu./src -FU/tmp/fafafa-simd-public-entry-smoke-units /tmp/fafafa_simd_public_entry_ops_smoke.pas && /tmp/fafafa_simd_public_entry_ops_smoke`
+    - PASS，确认 `uses fafafa.core.simd;` 可直接编译 operator smoke
+  - `python3 tests/fafafa.core.simd/check_interface_implementation_completeness.py --strict --strict-level p2`
+    - PASS，`severity_counts: {'P0': 0, 'P1': 0, 'P2': 0}`
+  - `python3 tests/fafafa.core.simd/check_dispatch_contract_signature.py --summary-line`
+    - PASS，`dispatch_table_fields=568`
+  - `bash tests/fafafa.core.simd.intrinsics.mmx/BuildOrTest.sh test`
+    - PASS，确认 mmx 模块已不再受 Lazarus ambiguous-unit 残留影响
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+    - PASS；filtered `run_all` 为 `Passed: 5 / Failed: 0`，尾部 `intrinsics coverage` 与 `windows_b07_gate.log` evidence verify 也都为绿
+- 当前阶段结论：
+  - 默认公开入口的 operator ergonomics 已经收口，调用方不再需要显式 `uses fafafa.core.simd.ops`
+  - 这批真正补上的不只是 API 易用性，还顺手把两个 gate 真拦截点和一个宿主机 build 残留一起清掉了
+  - 如果继续下一刀，已经可以回到更直接的 API 体验增强或 higher-level SIMD façade，而不是再卡在这批收尾假红上
+
 ## 2026-05-22 SSE2 Min-Refs=3 Zero-Residual Closeout
 
 - 这批不是新开方向，而是把当时 `sse2_min_refs=3` 剩下的最后 29 个 `refs=2` 残余一次收口；仍然坚持不动 production SIMD 和 coverage checker，只补 experimental testcase witness。

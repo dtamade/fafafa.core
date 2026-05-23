@@ -5,9 +5,6 @@ unit fafafa.core.simd.algorithms;
 
 interface
 
-uses
-  fafafa.core.simd.base;
-
 type
   TSimdWidth = (
     swScalar,

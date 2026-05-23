@@ -9,7 +9,8 @@ interface
 // 说明
 // - 本单元是 SIMD 子系统的基础单元，仅包含类型定义和常量。
 // - 工具函数（Mask*、Vec*、Shuffle 等）位于 fafafa.core.simd.utils 单元。
-// - 向量运算符重载位于 fafafa.core.simd.ops 单元。
+// - 默认公开入口的向量运算符重载位于 fafafa.core.simd 单元。
+// - 更宽向量与兼容层运算符重载位于 fafafa.core.simd.ops 单元。
 // =============================================================
 
 // === 向量数据类型（record + variant 部分）===

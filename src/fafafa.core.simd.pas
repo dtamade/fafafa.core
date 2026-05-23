@@ -63,6 +63,26 @@ uses
 // === Re-export Core Types ===
 {$I fafafa.core.simd.types.inc}
 
+// === Core Operator Overloads ===
+operator + (const a, b: TVecF32x4): TVecF32x4; inline;
+operator - (const a, b: TVecF32x4): TVecF32x4; inline;
+operator * (const a, b: TVecF32x4): TVecF32x4; inline;
+operator / (const a, b: TVecF32x4): TVecF32x4; inline;
+operator - (const a: TVecF32x4): TVecF32x4; inline;
+operator * (const a: TVecF32x4; s: Single): TVecF32x4; inline;
+operator * (s: Single; const a: TVecF32x4): TVecF32x4; inline;
+operator / (const a: TVecF32x4; s: Single): TVecF32x4; inline;
+
+operator + (const a, b: TVecF64x2): TVecF64x2; inline;
+operator - (const a, b: TVecF64x2): TVecF64x2; inline;
+operator * (const a, b: TVecF64x2): TVecF64x2; inline;
+operator / (const a, b: TVecF64x2): TVecF64x2; inline;
+operator - (const a: TVecF64x2): TVecF64x2; inline;
+
+operator + (const a, b: TVecI32x4): TVecI32x4; inline;
+operator - (const a, b: TVecI32x4): TVecI32x4; inline;
+operator - (const a: TVecI32x4): TVecI32x4; inline;
+
 // === High-Level Vector Operations ===
 
 {** @abstract(F32x4 Arithmetic Operations - 4x Single-precision floats) *}
@@ -2466,6 +2486,97 @@ begin
     Result.i[3] := a.i[3] - b.i[3];
   end;
 end;
+
+// === Core Operator Overloads Implementation ===
+
+operator + (const a, b: TVecF32x4): TVecF32x4;
+begin
+  Result := VecF32x4Add(a, b);
+end;
+
+operator - (const a, b: TVecF32x4): TVecF32x4;
+begin
+  Result := VecF32x4Sub(a, b);
+end;
+
+operator * (const a, b: TVecF32x4): TVecF32x4;
+begin
+  Result := VecF32x4Mul(a, b);
+end;
+
+operator / (const a, b: TVecF32x4): TVecF32x4;
+begin
+  Result := VecF32x4Div(a, b);
+end;
+
+operator - (const a: TVecF32x4): TVecF32x4;
+var
+  i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.f[i] := -a.f[i];
+end;
+
+operator * (const a: TVecF32x4; s: Single): TVecF32x4;
+begin
+  Result := VecF32x4Mul(a, VecF32x4Splat(s));
+end;
+
+operator * (s: Single; const a: TVecF32x4): TVecF32x4;
+begin
+  Result := VecF32x4Mul(VecF32x4Splat(s), a);
+end;
+
+operator / (const a: TVecF32x4; s: Single): TVecF32x4;
+begin
+  Result := VecF32x4Div(a, VecF32x4Splat(s));
+end;
+
+operator + (const a, b: TVecF64x2): TVecF64x2;
+begin
+  Result := VecF64x2Add(a, b);
+end;
+
+operator - (const a, b: TVecF64x2): TVecF64x2;
+begin
+  Result := VecF64x2Sub(a, b);
+end;
+
+operator * (const a, b: TVecF64x2): TVecF64x2;
+begin
+  Result := VecF64x2Mul(a, b);
+end;
+
+operator / (const a, b: TVecF64x2): TVecF64x2;
+begin
+  Result := VecF64x2Div(a, b);
+end;
+
+operator - (const a: TVecF64x2): TVecF64x2;
+begin
+  Result.d[0] := -a.d[0];
+  Result.d[1] := -a.d[1];
+end;
+
+{$PUSH}{$R-}{$Q-}
+operator + (const a, b: TVecI32x4): TVecI32x4;
+begin
+  Result := VecI32x4Add(a, b);
+end;
+
+operator - (const a, b: TVecI32x4): TVecI32x4;
+begin
+  Result := VecI32x4Sub(a, b);
+end;
+
+operator - (const a: TVecI32x4): TVecI32x4;
+begin
+  Result.i[0] := -a.i[0];
+  Result.i[1] := -a.i[1];
+  Result.i[2] := -a.i[2];
+  Result.i[3] := -a.i[3];
+end;
+{$POP}
 
 function VecI32x4Mul(const a, b: TVecI32x4): TVecI32x4;
 var dispatch: PSimdDispatchTable;

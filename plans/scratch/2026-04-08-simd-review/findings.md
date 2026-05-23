@@ -1,5 +1,23 @@
 # SIMD Review Findings
 
+## 2026-05-23 SIMD Public-Entry Operator Overloads Closeout
+
+- FPC 这里的全局 `operator` 可见性边界比普通函数更硬：把 operator 只声明在 `fafafa.core.simd.ops`，再由 `fafafa.core.simd` 或 `fafafa.core.simd.base` 间接 `uses`，调用方仍然拿不到 `a + b`。这批最终证明，默认公开入口要想让 `uses fafafa.core.simd;` 直接生效，核心 operator 就必须直接声明在 `src/fafafa.core.simd.pas`。
+- 因而当前更稳定的分工是：
+  - `fafafa.core.simd`：默认公开入口 + 常用 128-bit core operator
+  - `fafafa.core.simd.ops`：更宽向量与兼容层 operator
+  - `fafafa.core.simd.base`：类型/常量真相源，不再承担默认 operator 暴露职责
+- `tests/fafafa.core.simd/fafafa.core.simd.testcase.pas` 移除显式 `fafafa.core.simd.ops` 后仍可通过 operator testcase，再加上 fresh standalone smoke，可把“`uses fafafa.core.simd` 直接支持 `c := a + b`”视为当前 batch 的已证实 public-entry truth。
+- `check_interface_implementation_completeness.py` 的这轮假红，不是这些 array/reduce façade 真没测，而是脚本只认内部 slot 名：
+  - `ArrayAddF32 / ArrayMulF32 / ArrayMulScalarF32 / ArrayAxpyF32`
+  - `ReduceSumF32 / ReduceDotF32 / ReduceMinF32 / ReduceMaxF32`
+  但现有真实测试走的是公开 wrapper：
+  - `SimdArrayAdd / SimdArrayMul / SimdArrayMulScalar / SimdArrayAxpy`
+  - `SimdReduceSum / SimdReduceDot / SimdReduceMin / SimdReduceMax`
+  给 completeness checker 补上这层 alias 计数后，strict `p2` 又回到了 `P0=0 / P1=0 / P2=0`，比在 testcase 里硬塞 token 更符合公开 API 语义。
+- `check_dispatch_contract_signature.py` 的 `TSimdDispatchTable` baseline 在这批里暴露出陈旧状态：当前源码真相是 `dispatch_table_fields=568`，实际签名为 `f5727966308911e2c4d50d601518c09effff47a332fba10ce118d987710cfede`。刷新 expected hash 后，dispatch contract guard 才重新和当前源树一致。
+- 最后一个 gate blocker 不是仓库代码，而是宿主机 Lazarus 残留：`/opt/fpcupdeluxe/lazarus/components/freetype/ttcalc.ppu` 落在 source dir，导致 `fafafa.core.simd.intrinsics.mmx` 的 non-interactive `lazbuild` 以 `Ambiguous unit found` abort。把这个 stale compiled unit 挪走后，mmx 模块与 filtered `run_all` 链路恢复 PASS。
+
 ## 2026-05-22 SSE2 Min-Refs=3 Zero-Residual Closeout
 
 - 在上一轮 batch 全部落地后，fresh `sse2_min_refs=3` residual 已经被压缩到 4 个非常清楚的簇：
