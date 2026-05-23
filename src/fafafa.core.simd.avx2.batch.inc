@@ -169,7 +169,8 @@ begin
       mov    rcx, pD
       mov    r8, i
       shl    r8, 2
-      vbroadcastss ymm4, LScalar
+      vmovss xmm4, [LScalar]
+      vbroadcastss ymm4, xmm4
       vmovups ymm0, [rax + r8]
       vmulps  ymm0, ymm0, ymm4
       vmovups [rcx + r8], ymm0
@@ -187,7 +188,8 @@ begin
       mov    rcx, pD
       mov    r8, i
       shl    r8, 2
-      vbroadcastss ymm4, LScalar
+      vmovss xmm4, [LScalar]
+      vbroadcastss ymm4, xmm4
       vmovups ymm0, [rax + r8]
       vmulps  ymm0, ymm0, ymm4
       vmovups [rcx + r8], ymm0
@@ -224,7 +226,8 @@ begin
       mov    rcx, pD
       mov    r8, i
       shl    r8, 2
-      vbroadcastss ymm5, LAlpha
+      vmovss xmm5, [LAlpha]
+      vbroadcastss ymm5, xmm5
       vmovups ymm0, [rax + r8]
       vmulps  ymm0, ymm0, ymm5
       vaddps  ymm0, ymm0, [rdx + r8]
@@ -245,7 +248,8 @@ begin
       mov    rcx, pD
       mov    r8, i
       shl    r8, 2
-      vbroadcastss ymm5, LAlpha
+      vmovss xmm5, [LAlpha]
+      vbroadcastss ymm5, xmm5
       vmovups ymm0, [rax + r8]
       vmulps  ymm0, ymm0, ymm5
       vaddps  ymm0, ymm0, [rdx + r8]
