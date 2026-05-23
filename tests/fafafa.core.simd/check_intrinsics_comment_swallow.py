@@ -16,7 +16,6 @@ TARGETS = [
     Path('src/fafafa.core.simd.intrinsics.pas'),
     Path('src/fafafa.core.simd.intrinsics.sha.pas'),
     Path('src/fafafa.core.simd.intrinsics.sse.pas'),
-    Path('src/fafafa.core.simd.intrinsics.sse2.pas'),
     Path('src/fafafa.core.simd.intrinsics.sse3.pas'),
     Path('src/fafafa.core.simd.intrinsics.sse41.pas'),
     Path('src/fafafa.core.simd.intrinsics.sse42.pas'),
@@ -24,6 +23,12 @@ TARGETS = [
     Path('src/fafafa.core.simd.intrinsics.mmx.pas'),
     Path('src/fafafa.core.simd.intrinsics.x86.sse2.pas'),
 ]
+# Retired units are allowed to disappear from the tree without turning the
+# hygiene checker red. This keeps the experimental harness aligned with the
+# current SSE2 raw-leaf retirement plan.
+OPTIONAL_RETIRED_TARGETS = {
+    Path('src/fafafa.core.simd.intrinsics.sse2.pas'),
+}
 GENERIC_PATTERNS = [
     re.compile(r'//\s+.*function\s+'),
     re.compile(r'//\s+.*procedure\s+'),
@@ -127,6 +132,11 @@ def main() -> int:
             missing.append(str(rel))
             continue
         failures.extend(scan_file(full))
+
+    for rel in OPTIONAL_RETIRED_TARGETS:
+        full = REPO_ROOT / rel
+        if full.is_file():
+            failures.extend(scan_file(full))
 
     if missing:
         for item in missing:

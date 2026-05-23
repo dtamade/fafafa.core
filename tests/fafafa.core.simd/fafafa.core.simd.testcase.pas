@@ -156,6 +156,7 @@ type
     {$IFDEF CPUX86_64}
     procedure Test_SSE42_StringSearchHelpers;
     {$ENDIF}
+    procedure Test_SSE42_CRC32C_Contracts;
     procedure Test_ForceAVX2_VecF32x4_Smoke;
     procedure Test_ForceAVX512_VecF32x4_Smoke;
   end;
@@ -2218,6 +2219,37 @@ begin
     0, FindFirstNotOf_SSE42(PAnsiChar(LHaystack), Length(LHaystack), nil, 0));
 end;
 {$ENDIF}
+
+procedure TTestCase_BackendSmoke.Test_SSE42_CRC32C_Contracts;
+var
+  LBytes8: AnsiString;
+  LBytes2: AnsiString;
+  LBytes4: AnsiString;
+  LBytes8Wide: AnsiString;
+begin
+  LBytes8 := '123456789';
+  AssertEquals('CRC32C_Buffer should match the standard raw test vector',
+    UInt32($1CF96D7C), CRC32C_Buffer(Pointer(LBytes8), Length(LBytes8), UInt32($FFFFFFFF)));
+
+  LBytes2 := '12';
+  AssertEquals('CRC32C_16 should match the buffer contract for 2 bytes',
+    CRC32C_Buffer(Pointer(LBytes2), Length(LBytes2), UInt32($FFFFFFFF)),
+    CRC32C_16(UInt32($FFFFFFFF), Word(Byte(LBytes2[1])) or (Word(Byte(LBytes2[2])) shl 8)));
+
+  LBytes4 := '1234';
+  AssertEquals('CRC32C_32 should match the buffer contract for 4 bytes',
+    CRC32C_Buffer(Pointer(LBytes4), Length(LBytes4), UInt32($FFFFFFFF)),
+    CRC32C_32(UInt32($FFFFFFFF), UInt32(Byte(LBytes4[1])) or (UInt32(Byte(LBytes4[2])) shl 8) or
+      (UInt32(Byte(LBytes4[3])) shl 16) or (UInt32(Byte(LBytes4[4])) shl 24)));
+
+  LBytes8Wide := '12345678';
+  AssertEquals('CRC32C_64 should match the buffer contract for 8 bytes',
+    UInt64(CRC32C_Buffer(Pointer(LBytes8Wide), Length(LBytes8Wide), UInt32($FFFFFFFF))),
+    CRC32C_64(UInt64($FFFFFFFF), UInt64(Byte(LBytes8Wide[1])) or (UInt64(Byte(LBytes8Wide[2])) shl 8) or
+      (UInt64(Byte(LBytes8Wide[3])) shl 16) or (UInt64(Byte(LBytes8Wide[4])) shl 24) or
+      (UInt64(Byte(LBytes8Wide[5])) shl 32) or (UInt64(Byte(LBytes8Wide[6])) shl 40) or
+      (UInt64(Byte(LBytes8Wide[7])) shl 48) or (UInt64(Byte(LBytes8Wide[8])) shl 56)));
+end;
 
 procedure TTestCase_BackendSmoke.Test_ForceAVX2_VecF32x4_Smoke;
 begin

@@ -53,6 +53,9 @@ uses
   SysUtils,
   fafafa.core.simd.cpuinfo;
 
+const
+  CRC32C_REFLECTED_POLY = UInt32($82F63B78);
+
 // Shared chunked PCMPESTRI scan for positive and negative byte-set searches.
 function FindFirstPcmpestri_SSE42(const aHaystack: PAnsiChar; aHaystackLen: Integer;
   const aNeedles: PAnsiChar; aNeedlesLen: Integer; const aNegativePolarity: Boolean): Integer; inline;
@@ -161,6 +164,57 @@ end;
 // === CRC32C Hardware Implementation ===
 // SSE4.2 provides CRC32 instruction with Castagnoli polynomial
 
+function CRC32C_UpdateByte_Scalar(crc: UInt32; value: Byte): UInt32; inline;
+var
+  LBit: Integer;
+begin
+  Result := crc xor UInt32(value);
+  for LBit := 0 to 7 do
+    if (Result and 1) <> 0 then
+      Result := (Result shr 1) xor CRC32C_REFLECTED_POLY
+    else
+      Result := Result shr 1;
+end;
+
+function CRC32C_UpdateWord_Scalar(crc: UInt32; value: UInt16): UInt32; inline;
+begin
+  Result := CRC32C_UpdateByte_Scalar(crc, Byte(value and $FF));
+  Result := CRC32C_UpdateByte_Scalar(Result, Byte((value shr 8) and $FF));
+end;
+
+function CRC32C_UpdateDWord_Scalar(crc: UInt32; value: UInt32): UInt32; inline;
+begin
+  Result := CRC32C_UpdateWord_Scalar(crc, UInt16(value and $FFFF));
+  Result := CRC32C_UpdateWord_Scalar(Result, UInt16((value shr 16) and $FFFF));
+end;
+
+function CRC32C_UpdateQWord_Scalar(crc: UInt32; value: UInt64): UInt32; inline;
+begin
+  Result := CRC32C_UpdateDWord_Scalar(crc, UInt32(value and $FFFFFFFF));
+  Result := CRC32C_UpdateDWord_Scalar(Result, UInt32(value shr 32));
+end;
+
+{$IFDEF DARWIN}
+function CRC32C_8(crc: UInt32; value: Byte): UInt32;
+begin
+  Result := CRC32C_UpdateByte_Scalar(crc, value);
+end;
+
+function CRC32C_16(crc: UInt32; value: UInt16): UInt32;
+begin
+  Result := CRC32C_UpdateWord_Scalar(crc, value);
+end;
+
+function CRC32C_32(crc: UInt32; value: UInt32): UInt32;
+begin
+  Result := CRC32C_UpdateDWord_Scalar(crc, value);
+end;
+
+function CRC32C_64(crc: UInt64; value: UInt64): UInt64;
+begin
+  Result := CRC32C_UpdateQWord_Scalar(UInt32(crc), value);
+end;
+{$ELSE}
 function CRC32C_8(crc: UInt32; value: Byte): UInt32; assembler; nostackframe;
 asm
   {$IFDEF UNIX}
@@ -207,6 +261,7 @@ asm
   crc32  rax, rdx
   {$ENDIF}
 end;
+{$ENDIF}
 
 // CRC32C for byte buffer - optimized with 64-bit processing
 function CRC32C_Buffer(const data: Pointer; len: SizeUInt; initial: UInt32): UInt32;
@@ -225,6 +280,31 @@ begin
   remaining := len;
   crc64 := initial;
 
+  {$IFDEF DARWIN}
+  while remaining >= 8 do
+  begin
+    crc64 := CRC32C_64(crc64, PUInt64(p)^);
+    Inc(p, 8);
+    Dec(remaining, 8);
+  end;
+
+  if remaining >= 4 then
+  begin
+    crc64 := CRC32C_32(UInt32(crc64), PUInt32(p)^);
+    Inc(p, 4);
+    Dec(remaining, 4);
+  end;
+
+  if remaining >= 2 then
+  begin
+    crc64 := CRC32C_16(UInt32(crc64), PUInt16(p)^);
+    Inc(p, 2);
+    Dec(remaining, 2);
+  end;
+
+  if remaining >= 1 then
+    crc64 := CRC32C_8(UInt32(crc64), p^);
+  {$ELSE}
   // Process 8 bytes at a time
   while remaining >= 8 do
   begin
@@ -278,6 +358,7 @@ begin
       mov    dword ptr [crc64], eax
     end;
   end;
+  {$ENDIF}
 
   Result := UInt32(crc64);
 end;
